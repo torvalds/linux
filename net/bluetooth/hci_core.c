@@ -3649,6 +3649,29 @@ static void le_scan_disable_work(struct work_struct *work)
 		BT_ERR("Disable LE scanning request failed: err %d", err);
 }
 
+static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
+{
+	struct hci_dev *hdev = req->hdev;
+
+	/* If we're advertising or initiating an LE connection we can't
+	 * go ahead and change the random address at this time. This is
+	 * because the eventual initiator address used for the
+	 * subsequently created connection will be undefined (some
+	 * controllers use the new address and others the one we had
+	 * when the operation started).
+	 *
+	 * In this kind of scenario skip the update and let the random
+	 * address be updated at the next cycle.
+	 */
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) ||
+	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
+		BT_DBG("Deferring random address update");
+		return;
+	}
+
+	hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6, rpa);
+}
+
 int hci_update_random_address(struct hci_request *req, bool require_privacy,
 			      u8 *own_addr_type)
 {
@@ -3674,7 +3697,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 			return err;
 		}
 
-		hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6, &hdev->rpa);
+		set_random_addr(req, &hdev->rpa);
 
 		to = msecs_to_jiffies(hdev->rpa_timeout * 1000);
 		queue_delayed_work(hdev->workqueue, &hdev->rpa_expired, to);
@@ -3693,7 +3716,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		urpa.b[5] &= 0x3f;	/* Clear two most significant bits */
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
-		hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6, &urpa);
+		set_random_addr(req, &urpa);
 		return 0;
 	}
 

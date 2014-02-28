@@ -840,6 +840,13 @@ static void enable_advertising(struct hci_request *req)
 	u8 own_addr_type, enable = 0x01;
 	bool connectable;
 
+	/* Clear the HCI_ADVERTISING bit temporarily so that the
+	 * hci_update_random_address knows that it's safe to go ahead
+	 * and write a new random address. The flag will be set back on
+	 * as soon as the SET_ADV_ENABLE HCI command completes.
+	 */
+	clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+
 	connectable = get_connectable(hdev);
 
 	/* Set require_privacy to true only when non-connectable
