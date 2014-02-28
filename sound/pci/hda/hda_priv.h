@@ -311,6 +311,8 @@ struct hda_controller_ops {
 				    struct snd_pcm_substream *substream);
 	void (*pcm_mmap_prepare)(struct snd_pcm_substream *substream,
 				 struct vm_area_struct *area);
+	/* Check if current position is acceptable */
+	int (*position_check)(struct azx *chip, struct azx_dev *azx_dev);
 };
 
 struct azx_pcm {

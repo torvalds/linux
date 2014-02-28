@@ -416,6 +416,23 @@ static void azx_init_pci(struct azx *chip)
 
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev);
 
+/* called from IRQ */
+static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
+{
+	int ok;
+
+	ok = azx_position_ok(chip, azx_dev);
+	if (ok == 1) {
+		azx_dev->irq_pending = 0;
+		return ok;
+	} else if (ok == 0 && chip->bus && chip->bus->workq) {
+		/* bogus IRQ, process it later */
+		azx_dev->irq_pending = 1;
+		queue_work(chip->bus->workq, &chip->irq_pending_work);
+	}
+	return 0;
+}
+
 /*
  * interrupt handler
  */
@@ -425,7 +442,7 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	struct azx_dev *azx_dev;
 	u32 status;
 	u8 sd_status;
-	int i, ok;
+	int i;
 
 #ifdef CONFIG_PM_RUNTIME
 	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
@@ -455,17 +472,11 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 			    !(sd_status & SD_INT_COMPLETE))
 				continue;
 			/* check whether this IRQ is really acceptable */
-			ok = azx_position_ok(chip, azx_dev);
-			if (ok == 1) {
-				azx_dev->irq_pending = 0;
+			if (!chip->ops->position_check ||
+			    chip->ops->position_check(chip, azx_dev)) {
 				spin_unlock(&chip->reg_lock);
 				snd_pcm_period_elapsed(azx_dev->substream);
 				spin_lock(&chip->reg_lock);
-			} else if (ok == 0 && chip->bus && chip->bus->workq) {
-				/* bogus IRQ, process it later */
-				azx_dev->irq_pending = 1;
-				queue_work(chip->bus->workq,
-					   &chip->irq_pending_work);
 			}
 		}
 	}
@@ -1821,6 +1832,7 @@ static const struct hda_controller_ops pci_hda_ops = {
 	.substream_alloc_pages = substream_alloc_pages,
 	.substream_free_pages = substream_free_pages,
 	.pcm_mmap_prepare = pcm_mmap_prepare,
+	.position_check = azx_position_check,
 };
 
 static int azx_probe(struct pci_dev *pci,
