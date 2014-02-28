@@ -5501,6 +5501,11 @@ W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
 S:	Maintained
 
+MARVELL ARMADA DRM SUPPORT
+M:	Russell King <rmk+kernel@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/gpu/drm/armada/
+
 MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
 M:	Mirko Lindner <mlindner@marvell.com>
 M:	Stephen Hemminger <stephen@networkplumber.org>
