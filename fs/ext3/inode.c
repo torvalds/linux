@@ -3209,21 +3209,20 @@ out_brelse:
  *
  * We are called from a few places:
  *
- * - Within generic_file_write() for O_SYNC files.
+ * - Within generic_file_aio_write() -> generic_write_sync() for O_SYNC files.
  *   Here, there will be no transaction running. We wait for any running
  *   transaction to commit.
  *
- * - Within sys_sync(), kupdate and such.
- *   We wait on commit, if tol to.
+ * - Within flush work (for sys_sync(), kupdate and such).
+ *   We wait on commit, if told to.
  *
- * - Within prune_icache() (PF_MEMALLOC == true)
- *   Here we simply return.  We can't afford to block kswapd on the
- *   journal commit.
+ * - Within iput_final() -> write_inode_now()
+ *   We wait on commit, if told to.
  *
  * In all cases it is actually safe for us to return without doing anything,
  * because the inode has been copied into a raw inode buffer in
- * ext3_mark_inode_dirty().  This is a correctness thing for O_SYNC and for
- * knfsd.
+ * ext3_mark_inode_dirty().  This is a correctness thing for WB_SYNC_ALL
+ * writeback.
  *
  * Note that we are absolutely dependent upon all inode dirtiers doing the
  * right thing: they *must* call mark_inode_dirty() after dirtying info in
@@ -3235,13 +3234,13 @@ out_brelse:
  *	stuff();
  *	inode->i_size = expr;
  *
- * is in error because a kswapd-driven write_inode() could occur while
- * `stuff()' is running, and the new i_size will be lost.  Plus the inode
- * will no longer be on the superblock's dirty inode list.
+ * is in error because write_inode() could occur while `stuff()' is running,
+ * and the new i_size will be lost.  Plus the inode will no longer be on the
+ * superblock's dirty inode list.
  */
 int ext3_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	if (current->flags & PF_MEMALLOC)
+	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
 		return 0;
 
 	if (ext3_journal_current_handle()) {
