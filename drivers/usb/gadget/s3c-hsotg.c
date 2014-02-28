@@ -3774,10 +3774,55 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if 1
-#define s3c_hsotg_suspend NULL
-#define s3c_hsotg_resume NULL
-#endif
+static int s3c_hsotg_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct s3c_hsotg *hsotg = platform_get_drvdata(pdev);
+	unsigned long flags;
+	int ret = 0;
+
+	if (hsotg->driver)
+		dev_info(hsotg->dev, "suspending usb gadget %s\n",
+			 hsotg->driver->driver.name);
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	s3c_hsotg_disconnect(hsotg);
+	s3c_hsotg_phy_disable(hsotg);
+	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	if (hsotg->driver) {
+		int ep;
+		for (ep = 0; ep < hsotg->num_of_eps; ep++)
+			s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
+
+		ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
+					     hsotg->supplies);
+	}
+
+	return ret;
+}
+
+static int s3c_hsotg_resume(struct platform_device *pdev)
+{
+	struct s3c_hsotg *hsotg = platform_get_drvdata(pdev);
+	unsigned long flags;
+	int ret = 0;
+
+	if (hsotg->driver) {
+		dev_info(hsotg->dev, "resuming usb gadget %s\n",
+			 hsotg->driver->driver.name);
+		ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
+				      hsotg->supplies);
+	}
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	hsotg->last_rst = jiffies;
+	s3c_hsotg_phy_enable(hsotg);
+	s3c_hsotg_core_init(hsotg);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return ret;
+}
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c_hsotg_of_ids[] = {
