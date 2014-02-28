@@ -261,6 +261,9 @@ static void __pg_init_all_paths(struct multipath *m)
 	struct pgpath *pgpath;
 	unsigned long pg_init_delay = 0;
 
+	if (m->pg_init_in_progress || m->pg_init_disabled)
+		return;
+
 	m->pg_init_count++;
 	m->pg_init_required = 0;
 	if (m->pg_init_delay_retry)
@@ -501,8 +504,7 @@ static void process_queued_ios(struct work_struct *work)
 	    (!pgpath && !m->queue_if_no_path))
 		must_queue = 0;
 
-	if (m->pg_init_required && !m->pg_init_in_progress && pgpath &&
-	    !m->pg_init_disabled)
+	if (pgpath && m->pg_init_required)
 		__pg_init_all_paths(m);
 
 	spin_unlock_irqrestore(&m->lock, flags);
