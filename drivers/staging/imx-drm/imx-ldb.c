@@ -334,12 +334,12 @@ static int imx_ldb_get_clk(struct imx_ldb *ldb, int chno)
 {
 	char clkname[16];
 
-	sprintf(clkname, "di%d", chno);
+	snprintf(clkname, sizeof(clkname), "di%d", chno);
 	ldb->clk[chno] = devm_clk_get(ldb->dev, clkname);
 	if (IS_ERR(ldb->clk[chno]))
 		return PTR_ERR(ldb->clk[chno]);
 
-	sprintf(clkname, "di%d_pll", chno);
+	snprintf(clkname, sizeof(clkname), "di%d_pll", chno);
 	ldb->clk_pll[chno] = devm_clk_get(ldb->dev, clkname);
 
 	return PTR_ERR_OR_ZERO(ldb->clk_pll[chno]);
