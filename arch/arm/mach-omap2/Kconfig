@@ -6,7 +6,6 @@ config ARCH_OMAP2
 	depends on ARCH_MULTI_V6
 	select ARCH_OMAP2PLUS
 	select CPU_V6
-	select MULTI_IRQ_HANDLER
 	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP3
@@ -15,8 +14,6 @@ config ARCH_OMAP3
 	select ARCH_OMAP2PLUS
 	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
 	select OMAP_INTERCONNECT
 	select PM_OPP if PM
 	select PM_RUNTIME if CPU_IDLE
@@ -33,10 +30,8 @@ config ARCH_OMAP4
 	select ARM_ERRATA_720789
 	select ARM_GIC
 	select CACHE_L2X0
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select OMAP_INTERCONNECT
 	select PL310_ERRATA_588369
 	select PL310_ERRATA_727915
@@ -52,10 +47,8 @@ config SOC_OMAP5
 	select ARCH_OMAP2PLUS
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select HAVE_ARM_ARCH_TIMER
 	select ARM_ERRATA_798181 if SMP
 
@@ -64,15 +57,11 @@ config SOC_AM33XX
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
 	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
 
 config SOC_AM43XX
 	bool "TI AM43x"
 	depends on ARCH_MULTI_V7
-	select CPU_V7
 	select ARCH_OMAP2PLUS
-	select MULTI_IRQ_HANDLER
 	select ARM_GIC
 	select MACH_OMAP_GENERIC
 
@@ -82,8 +71,6 @@ config SOC_DRA7XX
 	select ARCH_OMAP2PLUS
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
-	select CPU_V7
-	select HAVE_SMP
 	select HAVE_ARM_ARCH_TIMER
 
 config ARCH_OMAP2PLUS
@@ -94,17 +81,13 @@ config ARCH_OMAP2PLUS
 	select ARCH_OMAP
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select MACH_OMAP_GENERIC
 	select OMAP_DM_TIMER
 	select PINCTRL
 	select PROC_DEVICETREE if PROC_FS
 	select SOC_BUS
-	select SPARSE_IRQ
 	select TI_PRIV_EDMA
-	select USE_OF
 	help
 	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
 
