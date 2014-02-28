@@ -176,16 +176,18 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_HIGH)
 		weak_sig = true;
-
 	/*
-	 * OFDM Weak signal detection is always enabled for AP mode.
+	 * Newer chipsets are better at dealing with high PHY error counts -
+	 * keep weak signal detection enabled when no RSSI threshold is
+	 * available to determine if it is needed (mode != STA)
 	 */
-	if (ah->opmode != NL80211_IFTYPE_AP &&
-	    aniState->ofdmWeakSigDetect != weak_sig) {
-		ath9k_hw_ani_control(ah,
-				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-				     entry_ofdm->ofdm_weak_signal_on);
-	}
+	else if (AR_SREV_9300_20_OR_LATER(ah) &&
+		 ah->opmode != NL80211_IFTYPE_STATION)
+		weak_sig = true;
+
+	if (aniState->ofdmWeakSigDetect != weak_sig)
+		ath9k_hw_ani_control(ah, ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
+				     weak_sig);
 
 	if (aniState->ofdmNoiseImmunityLevel >= ATH9K_ANI_OFDM_DEF_LEVEL) {
 		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH;
