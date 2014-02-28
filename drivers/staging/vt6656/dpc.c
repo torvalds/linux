@@ -1323,39 +1323,40 @@ void RXvWorkItem(struct work_struct *work)
 	spin_unlock_irq(&priv->lock);
 }
 
-void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
+void RXvFreeRCB(struct vnt_rcb *rcb, int re_alloc_skb)
 {
-	struct vnt_private *pDevice = pRCB->pDevice;
+	struct vnt_private *priv = rcb->pDevice;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
 
-	if (bReAllocSkb == false) {
-		kfree_skb(pRCB->skb);
-		bReAllocSkb = true;
+	if (re_alloc_skb == false) {
+		kfree_skb(rcb->skb);
+		re_alloc_skb = true;
 	}
 
-    if (bReAllocSkb == true) {
-        pRCB->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-        // todo error handling
-        if (pRCB->skb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to re-alloc rx skb\n");
-        }else {
-            pRCB->skb->dev = pDevice->dev;
-        }
-    }
-    //
-    // Insert the RCB back in the Recv free list
-    //
-    EnqueueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList, pRCB);
-    pDevice->NumRecvFreeList++;
+	if (re_alloc_skb == true) {
+		rcb->skb = dev_alloc_skb((int)priv->rx_buf_sz);
+		/* TODO error handling */
+		if (rcb->skb == NULL) {
+			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
+				" Failed to re-alloc rx skb\n");
+		} else {
+			rcb->skb->dev = priv->dev;
+		}
+	}
 
-    if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
-        (pDevice->bIsRxWorkItemQueued == false) ) {
+	/* Insert the RCB back in the Recv free list */
+	EnqueueRCB(priv->FirstRecvFreeList, priv->LastRecvFreeList, rcb);
+	priv->NumRecvFreeList++;
 
-        pDevice->bIsRxWorkItemQueued = true;
-	schedule_work(&pDevice->read_work_item);
-    }
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);
+	if ((priv->Flags & fMP_POST_READS) && MP_IS_READY(priv) &&
+			(priv->bIsRxWorkItemQueued == false)) {
+		priv->bIsRxWorkItemQueued = true;
+		schedule_work(&priv->read_work_item);
+	}
+
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",
+			priv->NumRecvFreeList, priv->NumRecvMngList);
 }
 
 void RXvMngWorkItem(struct work_struct *work)
