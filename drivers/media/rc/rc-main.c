@@ -918,11 +918,12 @@ static ssize_t store_protocols(struct device *device,
 	struct rc_filter_attribute *fattr = to_rc_filter_attr(mattr);
 	bool enable, disable;
 	const char *tmp;
-	u64 type;
+	u64 old_type, type;
 	u64 mask;
 	int rc, i, count = 0;
 	ssize_t ret;
 	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	struct rc_scancode_filter local_filter, *filter;
 
 	/* Device is being removed */
 	if (!dev)
@@ -935,7 +936,8 @@ static ssize_t store_protocols(struct device *device,
 		ret = -EINVAL;
 		goto out;
 	}
-	type = dev->enabled_protocols[fattr->type];
+	old_type = dev->enabled_protocols[fattr->type];
+	type = old_type;
 
 	while ((tmp = strsep((char **) &data, " \n")) != NULL) {
 		if (!*tmp)
@@ -998,6 +1000,36 @@ static ssize_t store_protocols(struct device *device,
 	dev->enabled_protocols[fattr->type] = type;
 	IR_dprintk(1, "Current protocol(s): 0x%llx\n",
 		   (long long)type);
+
+	/*
+	 * If the protocol is changed the filter needs updating.
+	 * Try setting the same filter with the new protocol (if any).
+	 * Fall back to clearing the filter.
+	 */
+	filter = &dev->scancode_filters[fattr->type];
+	if (old_type != type && filter->mask) {
+		local_filter = *filter;
+		if (!type) {
+			/* no protocol => clear filter */
+			ret = -1;
+		} else if (!dev->s_filter) {
+			/* generic filtering => accept any filter */
+			ret = 0;
+		} else {
+			/* hardware filtering => try setting, otherwise clear */
+			ret = dev->s_filter(dev, fattr->type, &local_filter);
+		}
+		if (ret < 0) {
+			/* clear the filter */
+			local_filter.data = 0;
+			local_filter.mask = 0;
+			if (dev->s_filter)
+				dev->s_filter(dev, fattr->type, &local_filter);
+		}
+
+		/* commit the new filter */
+		*filter = local_filter;
+	}
 
 	ret = len;
 
@@ -1096,6 +1128,11 @@ static ssize_t store_filter(struct device *device,
 		local_filter.mask = val;
 	else
 		local_filter.data = val;
+	if (!dev->enabled_protocols[fattr->type] && local_filter.mask) {
+		/* refuse to set a filter unless a protocol is enabled */
+		ret = -EINVAL;
+		goto unlock;
+	}
 	if (dev->s_filter) {
 		ret = dev->s_filter(dev, fattr->type, &local_filter);
 		if (ret < 0)
