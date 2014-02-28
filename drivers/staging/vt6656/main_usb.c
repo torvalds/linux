@@ -804,88 +804,102 @@ static void device_free_int_bufs(struct vnt_private *pDevice)
 	return;
 }
 
-static bool device_alloc_bufs(struct vnt_private *pDevice)
+static bool device_alloc_bufs(struct vnt_private *priv)
 {
-	struct vnt_usb_send_context *pTxContext;
-	struct vnt_rcb *pRCB;
+	struct vnt_usb_send_context *tx_context;
+	struct vnt_rcb *rcb;
 	int ii;
 
-    for (ii = 0; ii < pDevice->cbTD; ii++) {
-
-	pTxContext = kmalloc(sizeof(struct vnt_usb_send_context), GFP_KERNEL);
-        if (pTxContext == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : allocate tx usb context failed\n", pDevice->dev->name);
-            goto free_tx;
-        }
-        pDevice->apTD[ii] = pTxContext;
-	pTxContext->pDevice = (void *) pDevice;
-	/* allocate URBs */
-        pTxContext->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
-        if (pTxContext->pUrb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "alloc tx urb failed\n");
-            goto free_tx;
-        }
-        pTxContext->bBoolInUse = false;
-    }
-
-    /* allocate RCB mem */
-	pDevice->pRCBMem = kzalloc((sizeof(struct vnt_rcb) * pDevice->cbRD),
+	for (ii = 0; ii < priv->cbTD; ii++) {
+		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
 								GFP_KERNEL);
-    if (pDevice->pRCBMem == NULL) {
-        DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : alloc rx usb context failed\n", pDevice->dev->name);
-        goto free_tx;
-    }
+		if (tx_context == NULL) {
+			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
+				"%s : allocate tx usb context failed\n",
+					priv->dev->name);
+			goto free_tx;
+		}
 
-    pDevice->FirstRecvFreeList = NULL;
-    pDevice->LastRecvFreeList = NULL;
-    pDevice->FirstRecvMngList = NULL;
-    pDevice->LastRecvMngList = NULL;
-    pDevice->NumRecvFreeList = 0;
+		priv->apTD[ii] = tx_context;
+		tx_context->pDevice = priv;
 
-	pRCB = (struct vnt_rcb *)pDevice->pRCBMem;
+		/* allocate URBs */
+		tx_context->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (tx_context->pUrb == NULL) {
+			DBG_PRT(MSG_LEVEL_ERR,
+				KERN_ERR "alloc tx urb failed\n");
+			goto free_tx;
+		}
 
-    for (ii = 0; ii < pDevice->cbRD; ii++) {
-
-        pDevice->apRCB[ii] = pRCB;
-	pRCB->pDevice = (void *) pDevice;
-	/* allocate URBs */
-        pRCB->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
-
-        if (pRCB->pUrb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to alloc rx urb\n");
-            goto free_rx_tx;
-        }
-	pRCB->skb = netdev_alloc_skb(pDevice->dev, pDevice->rx_buf_sz);
-        if (pRCB->skb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to alloc rx skb\n");
-            goto free_rx_tx;
-        }
-        pRCB->bBoolInUse = false;
-        EnqueueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList, pRCB);
-        pDevice->NumRecvFreeList++;
-        pRCB++;
-    }
-
-	pDevice->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
-	if (pDevice->pInterruptURB == NULL) {
-	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int urb\n");
-	    goto free_rx_tx;
+		tx_context->bBoolInUse = false;
 	}
 
-    pDevice->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
-	if (pDevice->int_buf.data_buf == NULL) {
-	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int buf\n");
-	    usb_free_urb(pDevice->pInterruptURB);
-	    goto free_rx_tx;
+	/* allocate RCB mem */
+	priv->pRCBMem = kzalloc((sizeof(struct vnt_rcb) * priv->cbRD),
+								GFP_KERNEL);
+	if (priv->pRCBMem == NULL) {
+		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
+			"%s : alloc rx usb context failed\n",
+				priv->dev->name);
+		goto free_tx;
 	}
 
-    return true;
+	priv->FirstRecvFreeList = NULL;
+	priv->LastRecvFreeList = NULL;
+	priv->FirstRecvMngList = NULL;
+	priv->LastRecvMngList = NULL;
+	priv->NumRecvFreeList = 0;
+
+	rcb = (struct vnt_rcb *)priv->pRCBMem;
+
+	for (ii = 0; ii < priv->cbRD; ii++) {
+		priv->apRCB[ii] = rcb;
+		rcb->pDevice = priv;
+
+		/* allocate URBs */
+		rcb->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (rcb->pUrb == NULL) {
+			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
+				" Failed to alloc rx urb\n");
+			goto free_rx_tx;
+		}
+
+		rcb->skb = netdev_alloc_skb(priv->dev, priv->rx_buf_sz);
+		if (rcb->skb == NULL) {
+			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
+						" Failed to alloc rx skb\n");
+			goto free_rx_tx;
+		}
+
+		rcb->bBoolInUse = false;
+
+		EnqueueRCB(priv->FirstRecvFreeList,
+						priv->LastRecvFreeList, rcb);
+
+		priv->NumRecvFreeList++;
+		rcb++;
+	}
+
+	priv->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
+	if (priv->pInterruptURB == NULL) {
+		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc int urb\n");
+		goto free_rx_tx;
+	}
+
+	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
+	if (priv->int_buf.data_buf == NULL) {
+		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc int buf\n");
+		usb_free_urb(priv->pInterruptURB);
+		goto free_rx_tx;
+	}
+
+	return true;
 
 free_rx_tx:
-    device_free_rx_bufs(pDevice);
+	device_free_rx_bufs(priv);
 
 free_tx:
-    device_free_tx_bufs(pDevice);
+	device_free_tx_bufs(priv);
 
 	return false;
 }
