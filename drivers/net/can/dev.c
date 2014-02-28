@@ -99,19 +99,16 @@ static int can_update_spt(const struct can_bittiming_const *btc,
 	return 1000 * (tseg + 1 - *tseg2) / (tseg + 1);
 }
 
-static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt)
+static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
+			      const struct can_bittiming_const *btc)
 {
 	struct can_priv *priv = netdev_priv(dev);
-	const struct can_bittiming_const *btc = priv->bittiming_const;
 	long rate, best_rate = 0;
 	long best_error = 1000000000, error = 0;
 	int best_tseg = 0, best_brp = 0, brp = 0;
 	int tsegall, tseg = 0, tseg1 = 0, tseg2 = 0;
 	int spt_error = 1000, spt = 0, sampl_pt;
 	u64 v64;
-
-	if (!priv->bittiming_const)
-		return -ENOTSUPP;
 
 	/* Use CIA recommended sample points */
 	if (bt->sample_point) {
@@ -204,7 +201,8 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt)
 	return 0;
 }
 #else /* !CONFIG_CAN_CALC_BITTIMING */
-static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt)
+static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
+			      const struct can_bittiming_const *btc)
 {
 	netdev_err(dev, "bit-timing calculation not available\n");
 	return -EINVAL;
@@ -217,15 +215,12 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt)
  * prescaler value brp. You can find more information in the header
  * file linux/can/netlink.h.
  */
-static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt)
+static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
+			       const struct can_bittiming_const *btc)
 {
 	struct can_priv *priv = netdev_priv(dev);
-	const struct can_bittiming_const *btc = priv->bittiming_const;
 	int tseg1, alltseg;
 	u64 brp64;
-
-	if (!priv->bittiming_const)
-		return -ENOTSUPP;
 
 	tseg1 = bt->prop_seg + bt->phase_seg1;
 	if (!bt->sjw)
@@ -254,14 +249,14 @@ static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt)
 	return 0;
 }
 
-static int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt)
+static int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
+			     const struct can_bittiming_const *btc)
 {
-	struct can_priv *priv = netdev_priv(dev);
 	int err;
 
 	/* Check if the CAN device has bit-timing parameters */
-	if (!priv->bittiming_const)
-		return 0;
+	if (!btc)
+		return -ENOTSUPP;
 
 	/*
 	 * Depending on the given can_bittiming parameter structure the CAN
@@ -270,9 +265,9 @@ static int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt)
 	 * provided directly which are then checked and fixed up.
 	 */
 	if (!bt->tq && bt->bitrate)
-		err = can_calc_bittiming(dev, bt);
+		err = can_calc_bittiming(dev, bt, btc);
 	else if (bt->tq && !bt->bitrate)
-		err = can_fixup_bittiming(dev, bt);
+		err = can_fixup_bittiming(dev, bt, btc);
 	else
 		err = -EINVAL;
 
@@ -670,7 +665,7 @@ static int can_changelink(struct net_device *dev,
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		memcpy(&bt, nla_data(data[IFLA_CAN_BITTIMING]), sizeof(bt));
-		err = can_get_bittiming(dev, &bt);
+		err = can_get_bittiming(dev, &bt, priv->bittiming_const);
 		if (err)
 			return err;
 		memcpy(&priv->bittiming, &bt, sizeof(bt));
