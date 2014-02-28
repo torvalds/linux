@@ -19,7 +19,7 @@ struct mnt_pcp {
 };
 
 struct mountpoint {
-	struct list_head m_hash;
+	struct hlist_node m_hash;
 	struct dentry *m_dentry;
 	int m_count;
 };
