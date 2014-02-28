@@ -29,6 +29,12 @@
 
 #include <net/af_ieee802154.h>
 
+struct ieee802154_frag_info {
+	__be16 d_tag;
+	u16 d_size;
+	u8 d_offset;
+};
+
 /*
  * A control block of skb passed between the ARPHRD_IEEE802154 device
  * and other stack parts.
@@ -39,6 +45,7 @@ struct ieee802154_mac_cb {
 	struct ieee802154_addr da;
 	u8 flags;
 	u8 seq;
+	struct ieee802154_frag_info frag_info;
 };
 
 static inline struct ieee802154_mac_cb *mac_cb(struct sk_buff *skb)
