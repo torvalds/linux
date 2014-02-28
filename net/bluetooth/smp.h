@@ -118,7 +118,8 @@ struct smp_cmd_security_req {
 #define SMP_FLAG_TK_VALID	1
 #define SMP_FLAG_CFM_PENDING	2
 #define SMP_FLAG_MITM_AUTH	3
-#define SMP_FLAG_COMPLETE	4
+#define SMP_FLAG_LTK_ENCRYPT	4
+#define SMP_FLAG_COMPLETE	5
 
 struct smp_chan {
 	struct l2cap_conn *conn;
