@@ -707,7 +707,8 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		else
 			skb_checksum_none_assert(skb);
 
-		if (flags & BNA_CQ_EF_VLAN)
+		if ((flags & BNA_CQ_EF_VLAN) &&
+		    (bnad->netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(cmpl->vlan_tag));
 
 		if (BNAD_RXBUF_IS_SK_BUFF(unmap_q->type))
@@ -2094,7 +2095,9 @@ bnad_init_rx_config(struct bnad *bnad, struct bna_rx_config *rx_config)
 		rx_config->q1_buf_size = BFI_SMALL_RXBUF_SIZE;
 	}
 
-	rx_config->vlan_strip_status = BNA_STATUS_T_ENABLED;
+	rx_config->vlan_strip_status =
+		(bnad->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) ?
+		BNA_STATUS_T_ENABLED : BNA_STATUS_T_DISABLED;
 }
 
 static void
@@ -3245,11 +3248,6 @@ bnad_set_rx_mode(struct net_device *netdev)
 			BNA_RXMODE_ALLMULTI;
 	bna_rx_mode_set(bnad->rx_info[0].rx, new_mode, mode_mask, NULL);
 
-	if (bnad->cfg_flags & BNAD_CF_PROMISC)
-		bna_rx_vlan_strip_disable(bnad->rx_info[0].rx);
-	else
-		bna_rx_vlan_strip_enable(bnad->rx_info[0].rx);
-
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -3374,6 +3372,27 @@ bnad_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return 0;
 }
 
+static int bnad_set_features(struct net_device *dev, netdev_features_t features)
+{
+	struct bnad *bnad = netdev_priv(dev);
+	netdev_features_t changed = features ^ dev->features;
+
+	if ((changed & NETIF_F_HW_VLAN_CTAG_RX) && netif_running(dev)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&bnad->bna_lock, flags);
+
+		if (features & NETIF_F_HW_VLAN_CTAG_RX)
+			bna_rx_vlan_strip_enable(bnad->rx_info[0].rx);
+		else
+			bna_rx_vlan_strip_disable(bnad->rx_info[0].rx);
+
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void
 bnad_netpoll(struct net_device *netdev)
@@ -3421,6 +3440,7 @@ static const struct net_device_ops bnad_netdev_ops = {
 	.ndo_change_mtu		= bnad_change_mtu,
 	.ndo_vlan_rx_add_vid    = bnad_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = bnad_vlan_rx_kill_vid,
+	.ndo_set_features	= bnad_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller    = bnad_netpoll
 #endif
@@ -3433,14 +3453,14 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_CTAG_TX;
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_CTAG_TX |
+		NETIF_F_HW_VLAN_CTAG_RX;
 
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_HIGHDMA |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO6;
 
-	netdev->features |= netdev->hw_features |
-		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER;
+	netdev->features |= netdev->hw_features | NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
