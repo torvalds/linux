@@ -1,0 +1,59 @@
+                          SPI NOR framework
+               ============================================
+
+Part I - why we need this framework?
+-------------------------------------
+
+The SPI bus controller only deals with the byte stream.
+Some controller does not works like a SPI bus controller, it works
+like a SPI NOR controller instead, such as the Freescale's QuadSPI controller.
+
+The Freescale's QuadSPI controller should know the NOR commands to
+find the right LUT sequence. Unfortunately, the old code can not meet
+this requirement.
+
+Part II - How does the framework work?
+-------------------------------------
+
+This framework just adds a new layer between the MTD and the SPI bus driver.
+With this new layer, the SPI NOR controller driver does not depend on the
+m25p80 code anymore.
+
+   Before this framework, the layer is like:
+
+                   MTD
+         ------------------------
+                  m25p80
+         ------------------------
+	       SPI bus driver
+         ------------------------
+	        SPI NOR chip
+
+   After this framework, the layer is like:
+                   MTD
+         ------------------------
+              SPI NOR framework
+         ------------------------
+                  m25p80
+         ------------------------
+	       SPI bus driver
+         ------------------------
+	       SPI NOR chip
+
+  With the SPI NOR controller driver(Freescale QuadSPI), it looks like:
+                   MTD
+         ------------------------
+              SPI NOR framework
+         ------------------------
+                fsl-quadSPI
+         ------------------------
+	       SPI NOR chip
+
+Part III - How can the drivers use the framework
+-------------------------------------
+
+The main API is the spi_nor_scan(). Before you call the hook, you should
+initialize the necessary fields for spi_nor{}.
+Please see the drivers/mtd/spi-nor/spi-nor.c for detail.
+Please also reference to the fsl-quadspi.c when you want to write a new driver
+for a SPI NOR controller.
