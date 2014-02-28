@@ -769,6 +769,8 @@ static int azx_alloc_cmd_io(struct azx *chip)
 
 static void azx_init_cmd_io(struct azx *chip)
 {
+	int timeout;
+
 	spin_lock_irq(&chip->reg_lock);
 	/* CORB set up */
 	chip->corb.addr = chip->rb.addr;
@@ -780,8 +782,28 @@ static void azx_init_cmd_io(struct azx *chip)
 	azx_writeb(chip, CORBSIZE, 0x02);
 	/* set the corb write pointer to 0 */
 	azx_writew(chip, CORBWP, 0);
+
 	/* reset the corb hw read pointer */
 	azx_writew(chip, CORBRP, ICH6_CORBRP_RST);
+	for (timeout = 1000; timeout > 0; timeout--) {
+		if ((azx_readw(chip, CORBRP) & ICH6_CORBRP_RST) == ICH6_CORBRP_RST)
+			break;
+		udelay(1);
+	}
+	if (timeout <= 0)
+		dev_err(chip->card->dev, "CORB reset timeout#1, CORBRP = %d\n",
+			azx_readw(chip, CORBRP));
+
+	azx_writew(chip, CORBRP, 0);
+	for (timeout = 1000; timeout > 0; timeout--) {
+		if (azx_readw(chip, CORBRP) == 0)
+			break;
+		udelay(1);
+	}
+	if (timeout <= 0)
+		dev_err(chip->card->dev, "CORB reset timeout#2, CORBRP = %d\n",
+			azx_readw(chip, CORBRP));
+
 	/* enable corb dma */
 	azx_writeb(chip, CORBCTL, ICH6_CORBCTL_RUN);
 
@@ -856,7 +878,7 @@ static int azx_corb_send_cmd(struct hda_bus *bus, u32 val)
 
 	chip->rirb.cmds[addr]++;
 	chip->corb.buf[wp] = cpu_to_le32(val);
-	azx_writel(chip, CORBWP, wp);
+	azx_writew(chip, CORBWP, wp);
 
 	spin_unlock_irq(&chip->reg_lock);
 
