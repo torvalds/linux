@@ -1038,6 +1038,49 @@ static void hci_cc_le_read_white_list_size(struct hci_dev *hdev,
 		hdev->le_white_list_size = rp->size;
 }
 
+static void hci_cc_le_clear_white_list(struct hci_dev *hdev,
+				       struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (!status)
+		hci_white_list_clear(hdev);
+}
+
+static void hci_cc_le_add_to_white_list(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_cp_le_add_to_white_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_ADD_TO_WHITE_LIST);
+	if (!sent)
+		return;
+
+	if (!status)
+		hci_white_list_add(hdev, &sent->bdaddr, sent->bdaddr_type);
+}
+
+static void hci_cc_le_del_from_white_list(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_cp_le_del_from_white_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_DEL_FROM_WHITE_LIST);
+	if (!sent)
+		return;
+
+	if (!status)
+		hci_white_list_del(hdev, &sent->bdaddr, sent->bdaddr_type);
+}
+
 static void hci_cc_le_read_supported_states(struct hci_dev *hdev,
 					    struct sk_buff *skb)
 {
@@ -2376,6 +2419,18 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_LE_READ_WHITE_LIST_SIZE:
 		hci_cc_le_read_white_list_size(hdev, skb);
+		break;
+
+	case HCI_OP_LE_CLEAR_WHITE_LIST:
+		hci_cc_le_clear_white_list(hdev, skb);
+		break;
+
+	case HCI_OP_LE_ADD_TO_WHITE_LIST:
+		hci_cc_le_add_to_white_list(hdev, skb);
+		break;
+
+	case HCI_OP_LE_DEL_FROM_WHITE_LIST:
+		hci_cc_le_del_from_white_list(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_SUPPORTED_STATES:
