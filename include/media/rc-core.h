@@ -73,8 +73,10 @@ enum rc_filter_type {
  * @input_dev: the input child device used to communicate events to userspace
  * @driver_type: specifies if protocol decoding is done in hardware or software
  * @idle: used to keep track of RX state
- * @allowed_protos: bitmask with the supported RC_BIT_* protocols
- * @enabled_protocols: bitmask with the enabled RC_BIT_* protocols
+ * @allowed_protocols: bitmask with the supported RC_BIT_* protocols for each
+ *	filter type
+ * @enabled_protocols: bitmask with the enabled RC_BIT_* protocols for each
+ *	filter type
  * @scanmask: some hardware decoders are not capable of providing the full
  *	scancode to the application. As this is a hardware limit, we can't do
  *	anything with it. Yet, as the same keycode table can be used with other
@@ -124,8 +126,8 @@ struct rc_dev {
 	struct input_dev		*input_dev;
 	enum rc_driver_type		driver_type;
 	bool				idle;
-	u64				allowed_protos;
-	u64				enabled_protocols;
+	u64				allowed_protocols[RC_FILTER_MAX];
+	u64				enabled_protocols[RC_FILTER_MAX];
 	u32				users;
 	u32				scanmask;
 	void				*priv;
@@ -162,24 +164,38 @@ struct rc_dev {
 
 static inline bool rc_protocols_allowed(struct rc_dev *rdev, u64 protos)
 {
-	return rdev->allowed_protos & protos;
+	return rdev->allowed_protocols[RC_FILTER_NORMAL] & protos;
 }
 
 /* should be called prior to registration or with mutex held */
 static inline void rc_set_allowed_protocols(struct rc_dev *rdev, u64 protos)
 {
-	rdev->allowed_protos = protos;
+	rdev->allowed_protocols[RC_FILTER_NORMAL] = protos;
 }
 
 static inline bool rc_protocols_enabled(struct rc_dev *rdev, u64 protos)
 {
-	return rdev->enabled_protocols & protos;
+	return rdev->enabled_protocols[RC_FILTER_NORMAL] & protos;
 }
 
 /* should be called prior to registration or with mutex held */
 static inline void rc_set_enabled_protocols(struct rc_dev *rdev, u64 protos)
 {
-	rdev->enabled_protocols = protos;
+	rdev->enabled_protocols[RC_FILTER_NORMAL] = protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_allowed_wakeup_protocols(struct rc_dev *rdev,
+						   u64 protos)
+{
+	rdev->allowed_protocols[RC_FILTER_WAKEUP] = protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_enabled_wakeup_protocols(struct rc_dev *rdev,
+						   u64 protos)
+{
+	rdev->enabled_protocols[RC_FILTER_WAKEUP] = protos;
 }
 
 /*

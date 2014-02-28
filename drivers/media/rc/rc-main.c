@@ -830,9 +830,9 @@ static ssize_t show_protocols(struct device *device,
 
 	mutex_lock(&dev->lock);
 
-	enabled = dev->enabled_protocols;
+	enabled = dev->enabled_protocols[RC_FILTER_NORMAL];
 	if (dev->driver_type == RC_DRIVER_SCANCODE)
-		allowed = dev->allowed_protos;
+		allowed = dev->allowed_protocols[RC_FILTER_NORMAL];
 	else if (dev->raw)
 		allowed = ir_raw_get_allowed_protocols();
 	else {
@@ -906,7 +906,7 @@ static ssize_t store_protocols(struct device *device,
 		ret = -EINVAL;
 		goto out;
 	}
-	type = dev->enabled_protocols;
+	type = dev->enabled_protocols[RC_FILTER_NORMAL];
 
 	while ((tmp = strsep((char **) &data, " \n")) != NULL) {
 		if (!*tmp)
@@ -964,7 +964,7 @@ static ssize_t store_protocols(struct device *device,
 		}
 	}
 
-	dev->enabled_protocols = type;
+	dev->enabled_protocols[RC_FILTER_NORMAL] = type;
 	IR_dprintk(1, "Current protocol(s): 0x%llx\n",
 		   (long long)type);
 
@@ -1316,7 +1316,7 @@ int rc_register_device(struct rc_dev *dev)
 		rc = dev->change_protocol(dev, &rc_type);
 		if (rc < 0)
 			goto out_raw;
-		dev->enabled_protocols = rc_type;
+		dev->enabled_protocols[RC_FILTER_NORMAL] = rc_type;
 	}
 
 	mutex_unlock(&dev->lock);
