@@ -38,3 +38,10 @@ config IR_IMG_JVC
 	help
 	   Say Y here to enable support for the JVC protocol in the ImgTec
 	   infrared decoder block.
+
+config IR_IMG_SONY
+	bool "Sony protocol support"
+	depends on IR_IMG_HW
+	help
+	   Say Y here to enable support for the Sony protocol in the ImgTec
+	   infrared decoder block.
