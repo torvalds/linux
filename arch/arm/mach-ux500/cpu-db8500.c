@@ -146,7 +146,6 @@ static struct device * __init db8500_soc_device_init(void)
 	return ux500_soc_device_init(soc_id);
 }
 
-#ifdef CONFIG_MACH_UX500_DT
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
@@ -219,5 +218,3 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.dt_compat      = stericsson_dt_platform_compat,
 	.restart        = ux500_restart,
 MACHINE_END
-
-#endif

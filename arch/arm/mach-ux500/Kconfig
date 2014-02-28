@@ -73,11 +73,6 @@ config UX500_AUTO_PLATFORM
 	  a working kernel. If everything else is disabled, this
 	  automatically enables MACH_MOP500.
 
-config MACH_UX500_DT
-	bool "Generic U8500 support using device tree"
-	depends on MACH_MOP500
-	select USE_OF
-
 endmenu
 
 config UX500_DEBUG_UART
