@@ -47,4 +47,15 @@ void azx_load_dsp_cleanup(struct hda_bus *bus,
 int azx_alloc_stream_pages(struct azx *chip);
 void azx_free_stream_pages(struct azx *chip);
 
+/*
+ * CORB / RIRB interface
+ */
+int azx_alloc_cmd_io(struct azx *chip);
+void azx_init_cmd_io(struct azx *chip);
+void azx_free_cmd_io(struct azx *chip);
+void azx_update_rirb(struct azx *chip);
+int azx_send_cmd(struct hda_bus *bus, unsigned int val);
+unsigned int azx_get_response(struct hda_bus *bus,
+			      unsigned int addr);
+
 #endif /* __SOUND_HDA_CONTROLLER_H */
