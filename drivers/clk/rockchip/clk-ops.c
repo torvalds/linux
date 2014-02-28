@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 
 #include "clk-ops.h"
+#include "../../../arch/arm/mach-rockchip/common.h"
 
 
 
@@ -408,6 +409,74 @@ const struct clk_ops clkops_rate_core_peri = {
 	.set_rate	= NULL,
 };
 
+static unsigned long clk_ddr_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	/* Same as clk_core, we should NOT set clk_ddr's parent
+	 * (dpll) rate directly as a side effect.
+	 */
+	return clk_core_recalc_rate(hw, parent_rate);
+}
+
+static long clk_ddr_determine_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *best_parent_rate,
+		struct clk **best_parent_p)
+{
+	long best = 0;
+
+	if (!ddr_round_rate) {
+		/* Do nothing before ddr init */
+		best = __clk_get_rate(hw->clk);
+	} else {
+		/* Func provided by ddr driver */
+		best = ddr_round_rate(rate/MHZ) * MHZ;
+	}
+
+	clk_debug("%s: from %lu to %lu\n", __func__, rate, best);
+
+	return best;
+}
+
+static long clk_ddr_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	return clk_ddr_determine_rate(hw, rate, prate, NULL);
+}
+
+static int clk_ddr_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+	struct clk *grand_p = __clk_get_parent(parent);
+
+
+	/* Do nothing before ddr init */
+	if (!ddr_change_freq)
+		return 0;
+
+	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(grand_p)) {
+		clk_err("fail to get parent or grand_parent!\n");
+		return -EINVAL;
+	}
+
+	clk_debug("%s: will set rate = %lu\n", __func__, rate);
+
+	/* Func provided by ddr driver */
+	ddr_change_freq(rate/MHZ);
+
+	parent->rate = parent->ops->recalc_rate(parent->hw,
+			__clk_get_rate(grand_p));
+
+	return 0;
+}
+
+const struct clk_ops clkops_rate_ddr = {
+	.recalc_rate	= clk_ddr_recalc_rate,
+	.round_rate	= clk_ddr_round_rate,
+	.set_rate	= clk_ddr_set_rate,
+	.determine_rate = clk_ddr_determine_rate,
+};
+
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
 	{.index = CLKOPS_RATE_EVENDIV,		.clk_ops = &clkops_rate_evendiv},
@@ -416,6 +485,7 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_FRAC,		.clk_ops = &clkops_rate_frac},
 	{.index = CLKOPS_RATE_CORE,		.clk_ops = &clkops_rate_core},
 	{.index = CLKOPS_RATE_CORE_PERI,	.clk_ops = &clkops_rate_core_peri},
+	{.index = CLKOPS_RATE_DDR,		.clk_ops = &clkops_rate_ddr},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},

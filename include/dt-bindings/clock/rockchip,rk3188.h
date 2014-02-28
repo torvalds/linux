@@ -23,6 +23,7 @@
 #define CLKOPS_RATE_MAC_REF		10
 #define CLKOPS_RATE_CORE		11
 #define CLKOPS_RATE_CORE_PERI		12
+#define CLKOPS_RATE_DDR			13
 #define CLKOPS_TABLE_END		(~0)
 
 

@@ -852,6 +852,7 @@
 						clocks = <&clk_ddr>;
 						clock-output-names = "clk_ddr";
 						rockchip,div-type = <CLK_DIVIDER_POWER_OF_TWO>;
+						rockchip,clkops-idx = <CLKOPS_RATE_DDR>;
 						#clock-cells = <0>;
 					};
 
@@ -863,6 +864,8 @@
 						clocks = <&clk_dpll>,
 						       <&clk_gates1 7>;
 						clock-output-names = "clk_ddr";
+						rockchip,flags = <(CLK_GET_RATE_NOCACHE |
+									CLK_SET_RATE_NO_REPARENT)>;
 						#clock-cells = <0>;
 					};
 
