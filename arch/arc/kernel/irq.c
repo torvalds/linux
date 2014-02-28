@@ -150,24 +150,6 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int get_hw_config_num_irq(void)
-{
-	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
-
-	switch (val & 0x03) {
-	case 0:
-		return 16;
-	case 1:
-		return 32;
-	case 2:
-		return 8;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
 /*
  * arch_local_irq_enable - Enable interrupts.
  *

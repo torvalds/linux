@@ -169,7 +169,7 @@ static void __init plat_fpga_early_init(void)
 
 	arc_fpga_serial_init();
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_ISS_SMP_EXTN
 	iss_model_init_early_smp();
 #endif
 }
@@ -211,7 +211,7 @@ MACHINE_START(ANGEL4, "angel4")
 	.init_early	= plat_fpga_early_init,
 	.init_machine	= plat_fpga_populate_dev,
 	.init_irq	= plat_fpga_init_IRQ,
-#ifdef CONFIG_SMP
+#ifdef CONFIG_ISS_SMP_EXTN
 	.init_smp	= iss_model_init_smp,
 #endif
 MACHINE_END

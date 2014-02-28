@@ -42,6 +42,24 @@ static void iss_model_smp_wakeup_cpu(int cpu, unsigned long pc)
 
 }
 
+static inline int get_hw_config_num_irq(void)
+{
+	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
+
+	switch (val & 0x03) {
+	case 0:
+		return 16;
+	case 1:
+		return 32;
+	case 2:
+		return 8;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 /*
  * Any SMP specific init any CPU does when it comes up.
  * Here we setup the CPU to enable Inter-Processor-Interrupts
