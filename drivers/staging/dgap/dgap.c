@@ -93,9 +93,7 @@ MODULE_SUPPORTED_DEVICE("dgap");
  * NOTE: we use a set of macros to create the variables, which allows
  * us to specify the variable type, name, initial value, and description.
  */
-PARM_INT(debug,		0x00,		0644,	"Driver debugging level");
 PARM_INT(rawreadok,	1,		0644,	"Bypass flip buffers on input");
-PARM_INT(trcbuf_size,	0x100000,	0644,	"Debugging trace buffer size.");
 
 
 /**************************************************************************
@@ -113,7 +111,6 @@ static int		dgap_init_pci(void);
 static int		dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void		dgap_remove_one(struct pci_dev *dev);
 static int		dgap_probe1(struct pci_dev *pdev, int card_type);
-static void		dgap_mbuf(struct board_t *brd, const char *fmt, ...);
 static int		dgap_do_remap(struct board_t *brd);
 static irqreturn_t	dgap_intr(int irq, void *voidbrd);
 
@@ -528,7 +525,7 @@ int dgap_init_module(void)
 {
 	int rc = 0;
 
-	APR(("%s, Digi International Part Number %s\n", DG_NAME, DG_PART));
+	pr_info("%s, Digi International Part Number %s\n", DG_NAME, DG_PART);
 
 	dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
 
@@ -563,7 +560,6 @@ int dgap_init_module(void)
 		dgap_driver_state = DRIVER_READY;
 	}
 
-	DPR_INIT(("Finished init_module. Returning %d\n", rc));
 	return (rc);
 }
 
@@ -585,7 +581,7 @@ static int dgap_start(void)
 
 		dgap_NumBoards = 0;
 
-		APR(("For the tools package or updated drivers please visit http://www.digi.com\n"));
+		pr_info("For the tools package please visit http://www.digi.com\n");
 
 		/*
 		 * Register our base character device into the kernel.
@@ -597,10 +593,8 @@ static int dgap_start(void)
 			 * Register management/dpa devices
 			 */
 			rc = register_chrdev(DIGI_DGAP_MAJOR, "dgap", &DgapBoardFops);
-			if (rc < 0) {
-				APR(("Can't register dgap driver device (%d)\n", rc));
+			if (rc < 0)
 				return (rc);
-			}
 
 			dgap_class = class_create(THIS_MODULE, "dgap_mgmt");
 			device_create(dgap_class, NULL,
@@ -614,10 +608,8 @@ static int dgap_start(void)
 		 */
 		rc = dgap_tty_preinit();
 
-		if (rc < 0) {
-			APR(("tty preinit - not enough memory (%d)\n", rc));
+		if (rc < 0)
 			return(rc);
-		}
 
 		/* Start the poller */
 		DGAP_LOCK(dgap_poll_lock, flags);
@@ -660,7 +652,6 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = dgap_probe1(pdev, ent->driver_data);
 		if (rc == 0) {
 			dgap_NumBoards++;
-			DPR_INIT(("Incrementing numboards to %d\n", dgap_NumBoards));
 			rc = dgap_firmware_load(pdev, ent->driver_data);
 		}
 	}
@@ -798,17 +789,14 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	/* get the board structure and prep it */
 	brd = dgap_Board[dgap_NumBoards] =
 	(struct board_t *) kzalloc(sizeof(struct board_t), GFP_KERNEL);
-	if (!brd) {
-		APR(("memory allocation for board structure failed\n"));
+	if (!brd)
 		return(-ENOMEM);
-	}
 
 	/* make a temporary message buffer for the boot messages */
 	brd->msgbuf = brd->msgbuf_head =
 		(char *) kzalloc(sizeof(char) * 8192, GFP_KERNEL);
 	if(!brd->msgbuf) {
 		kfree(brd);
-		APR(("memory allocation for board msgbuf failed\n"));
 		return(-ENOMEM);
 	}
 
@@ -861,10 +849,8 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 		brd->membase_end = pci_resource_end(pdev, 0);
 	}
 
-	if (!brd->membase) {
-		APR(("card has no PCI IO resources, failing board.\n"));
+	if (!brd->membase)
 		return -ENODEV;
-	}
 
 	if (brd->membase & 1)
 		brd->membase &= ~3;
@@ -905,11 +891,6 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	/* init our poll helper tasklet */
 	tasklet_init(&brd->helper_tasklet, dgap_poll_tasklet, (unsigned long) brd);
 
-	 /* Log the information about the board */
-	dgap_mbuf(brd, DRVSTR": board %d: %s (rev %d), irq %d\n",
-		dgap_NumBoards, brd->name, brd->rev, brd->irq);
-
-	DPR_INIT(("dgap_scan(%d) - printing out the msgbuf\n", i));
 	DGAP_LOCK(dgap_global_lock, flags);
 	brd->msgbuf = NULL;
 	printk("%s", brd->msgbuf_head);
@@ -931,12 +912,8 @@ static int dgap_finalize_board_init(struct board_t *brd) {
 
         int rc;
 
-        DPR_INIT(("dgap_finalize_board_init() - start\n"));
-
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
                 return(-ENODEV);
-
-        DPR_INIT(("dgap_finalize_board_init() - start #2\n"));
 
 	brd->use_interrupts = dgap_config_get_useintr(brd);
 
@@ -947,11 +924,8 @@ static int dgap_finalize_board_init(struct board_t *brd) {
 
 		rc = request_irq(brd->irq, dgap_intr, IRQF_SHARED, "DGAP", brd);
 
-		if (rc) {
-			dgap_mbuf(brd, DRVSTR": Failed to hook IRQ %d. Board will work in poll mode.\n",
-                                  brd->irq);
+		if (rc)
 			brd->intr_used = 0;
-		}
 		else
 			brd->intr_used = 1;
 	} else {
@@ -1094,7 +1068,6 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 	ret = dgap_tty_init(brd);
 	if (ret < 0) {
 		dgap_tty_uninit(brd);
-		pr_err("dgap: Can't init tty devices (%d)\n", ret);
 		return ret;
 	}
 
@@ -1116,21 +1089,16 @@ static int dgap_do_remap(struct board_t *brd)
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return -ENXIO;
 
-	if (!request_mem_region(brd->membase, 0x200000, "dgap")) {
-		APR(("dgap: mem_region %lx already in use.\n", brd->membase));
+	if (!request_mem_region(brd->membase, 0x200000, "dgap"))
 		return -ENOMEM;
-        }
 
 	if (!request_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000, "dgap")) {
-		APR(("dgap: mem_region IO %lx already in use.\n",
-			brd->membase + PCI_IO_OFFSET));
 		release_mem_region(brd->membase, 0x200000);
 		return -ENOMEM;
         }
 
 	brd->re_map_membase = ioremap(brd->membase, 0x200000);
 	if (!brd->re_map_membase) {
-		APR(("dgap: ioremap mem %lx cannot be mapped.\n", brd->membase));
 		release_mem_region(brd->membase, 0x200000);
 		release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
 		return -ENOMEM;
@@ -1141,13 +1109,9 @@ static int dgap_do_remap(struct board_t *brd)
 		release_mem_region(brd->membase, 0x200000);
 		release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
 		iounmap(brd->re_map_membase);
-		APR(("dgap: ioremap IO mem %lx cannot be mapped.\n",
-			brd->membase + PCI_IO_OFFSET));
 		return -ENOMEM;
 	}
 
-	DPR_INIT(("remapped io: 0x%p  remapped mem: 0x%p\n",
-		brd->re_map_port, brd->re_map_membase));
 	return 0;
 }
 
@@ -1286,18 +1250,14 @@ static irqreturn_t dgap_intr(int irq, void *voidbrd)
 {
 	struct board_t *brd = (struct board_t *) voidbrd;
 
-	if (!brd) {
-		APR(("Received interrupt (%d) with null board associated\n", irq));
+	if (!brd)
 		return IRQ_NONE;
-	}
 
 	/*
 	 * Check to make sure its for us.
 	 */
-	if (brd->magic != DGAP_BOARD_MAGIC) {
-		APR(("Received interrupt (%d) with a board pointer that wasn't ours!\n", irq));
+	if (brd->magic != DGAP_BOARD_MAGIC)
 		return IRQ_NONE;
-	}
 
 	brd->intr_count++;
 
@@ -1321,8 +1281,6 @@ static void dgap_init_globals(void)
 	int i = 0;
 
 	dgap_rawreadok		= rawreadok;
-        dgap_trcbuf_size	= trcbuf_size;
-	dgap_debug		= debug;
 
 	for (i = 0; i < MAXBOARDS; i++) {
 		dgap_Board[i] = NULL;
@@ -1340,44 +1298,6 @@ static void dgap_init_globals(void)
  * Utility functions
  *
  ************************************************************************/
-
-
-/*
- * dgap_mbuf()
- *
- * Used to print to the message buffer during board init.
- */
-static void dgap_mbuf(struct board_t *brd, const char *fmt, ...) {
-	va_list		ap;
-	char		buf[1024];
-	int		i;
-	unsigned long	flags;
-	size_t		length;
-
-	DGAP_LOCK(dgap_global_lock, flags);
-
-	/* Format buf using fmt and arguments contained in ap. */
-	va_start(ap, fmt);
-	i = vsnprintf(buf, sizeof(buf), fmt,  ap);
-	va_end(ap);
-
-	DPR((buf));
-
-	if (!brd || !brd->msgbuf) {
-		printk("%s", buf);
-		DGAP_UNLOCK(dgap_global_lock, flags);
-		return;
-	}
-
-	length = strlen(buf) + 1;
-	if (brd->msgbuf - brd->msgbuf_head < length)
-		length = brd->msgbuf - brd->msgbuf_head;
-	memcpy(brd->msgbuf, buf, length);
-	brd->msgbuf += length;
-
-	DGAP_UNLOCK(dgap_global_lock, flags);
-}
-
 
 /*
  * dgap_ms_sleep()
@@ -1423,7 +1343,6 @@ static int dgap_tty_preinit(void)
 
 	if (!dgap_TmpWriteBuf) {
 		DGAP_UNLOCK(dgap_global_lock, flags);
-		DPR_INIT(("unable to allocate tmp write buf"));
 		return (-ENOMEM);
 	}
 
@@ -1440,8 +1359,6 @@ static int dgap_tty_preinit(void)
 static int dgap_tty_register(struct board_t *brd)
 {
 	int rc = 0;
-
-	DPR_INIT(("tty_register start"));
 
 	brd->SerialDriver = alloc_tty_driver(MAXPORTS);
 
@@ -1499,10 +1416,8 @@ static int dgap_tty_register(struct board_t *brd)
 	if (!brd->dgap_Major_Serial_Registered) {
 		/* Register tty devices */
 		rc = tty_register_driver(brd->SerialDriver);
-		if (rc < 0) {
-			APR(("Can't register tty device (%d)\n", rc));
+		if (rc < 0)
 			return(rc);
-		}
 		brd->dgap_Major_Serial_Registered = TRUE;
 		dgap_BoardsByMajor[brd->SerialDriver->major] = brd;
 		brd->dgap_Serial_Major = brd->SerialDriver->major;
@@ -1511,17 +1426,12 @@ static int dgap_tty_register(struct board_t *brd)
 	if (!brd->dgap_Major_TransparentPrint_Registered) {
 		/* Register Transparent Print devices */
  		rc = tty_register_driver(brd->PrintDriver);
-		if (rc < 0) {
-			APR(("Can't register Transparent Print device (%d)\n", rc));
+		if (rc < 0)
 			return(rc);
-		}
 		brd->dgap_Major_TransparentPrint_Registered = TRUE;
 		dgap_BoardsByMajor[brd->PrintDriver->major] = brd;
 		brd->dgap_TransparentPrint_Major = brd->PrintDriver->major;
 	}
-
-	DPR_INIT(("DGAP REGISTER TTY: MAJORS: %d %d\n", brd->SerialDriver->major,
-		brd->PrintDriver->major));
 
 	return (rc);
 }
@@ -1547,8 +1457,6 @@ static int dgap_tty_init(struct board_t *brd)
 	if (!brd)
 		return (-ENXIO);
 
-	DPR_INIT(("dgap_tty_init start\n"));
-
 	/*
 	 * Initialize board structure elements.
 	 */
@@ -1567,18 +1475,15 @@ static int dgap_tty_init(struct board_t *brd)
 	}
 
 	if (true_count != brd->nasync) {
-		if ((brd->type == PPCM) && (true_count == 64)) {
-			APR(("***WARNING**** %s configured for %d ports, has %d ports.\nPlease make SURE the EBI cable running from the card\nto each EM module is plugged into EBI IN!\n",
-				brd->name, brd->nasync, true_count));
-		}
-		else if ((brd->type == PPCM) && (true_count == 0)) {
-			APR(("***WARNING**** %s configured for %d ports, has %d ports.\nPlease make SURE the EBI cable running from the card\nto each EM module is plugged into EBI IN!\n",
-				brd->name, brd->nasync, true_count));
-		}
-		else {
-			APR(("***WARNING**** %s configured for %d ports, has %d ports.\n",
-				brd->name, brd->nasync, true_count));
-		}
+		if ((brd->type == PPCM) && (true_count == 64))
+			pr_warn("dgap: %s configured for %d ports, has %d ports.\nPlease make SURE the EBI cable running from the card\nto each EM module is plugged into EBI IN!\n",
+				brd->name, brd->nasync, true_count);
+		else if ((brd->type == PPCM) && (true_count == 0))
+			pr_warn("dgap: %s configured for %d ports, has %d ports.\nPlease make SURE the EBI cable running from the card\nto each EM module is plugged into EBI IN!\n",
+				brd->name, brd->nasync, true_count);
+		else
+			pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
+				brd->name, brd->nasync, true_count);
 
 		brd->nasync = true_count;
 
@@ -1597,10 +1502,8 @@ static int dgap_tty_init(struct board_t *brd)
 	for (i = 0; i < brd->nasync; i++) {
 		if (!brd->channels[i]) {
 			brd->channels[i] = kzalloc(sizeof(struct channel_t), GFP_ATOMIC);
-			if (!brd->channels[i]) {
-				DPR_CORE(("%s:%d Unable to allocate memory for channel struct\n",
-				    __FILE__, __LINE__));
-			}
+			if (!brd->channels[i])
+				return -ENOMEM;
 		}
 	}
 
@@ -1698,9 +1601,6 @@ static int dgap_tty_init(struct board_t *brd)
 
 		writeb(1, &(ch->ch_bs->idata));
 	}
-
-
-	DPR_INIT(("dgap_tty_init finish\n"));
 
 	return (0);
 }
@@ -1919,8 +1819,6 @@ static void dgap_input(struct channel_t *ch)
 	if(!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_READ(("dgap_input start\n"));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -1942,7 +1840,6 @@ static void dgap_input(struct channel_t *ch)
 		writeb(1, &(bs->idata));
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		DPR_READ(("No data on port %d\n", ch->ch_portnum));
 		return;
 	}
 
@@ -1954,9 +1851,6 @@ static void dgap_input(struct channel_t *ch)
             !(ch->ch_tun.un_flags & UN_ISOPEN) || !(tp->termios.c_cflag & CREAD) ||
 	    (ch->ch_tun.un_flags & UN_CLOSING)) {
 
-		DPR_READ(("input. dropping %d bytes on port %d...\n", data_len, ch->ch_portnum));
-		DPR_READ(("input. tp: %p tp->magic: %x MAGIC:%x ch flags: %x\n",
-			tp, tp ? tp->magic : 0, TTY_MAGIC, ch->ch_tun.un_flags));
 		writew(head, &(bs->rx_tail));
 		writeb(1, &(bs->idata));
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
@@ -1971,8 +1865,6 @@ static void dgap_input(struct channel_t *ch)
 		writeb(1, &(bs->idata));
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		DPR_READ(("Port %d throttled, not reading any data. head: %x tail: %x\n",
-			ch->ch_portnum, head, tail));
 		return;
 	}
 
@@ -1984,8 +1876,6 @@ static void dgap_input(struct channel_t *ch)
 		ch->ch_err_overrun++;
 		writeb(0, &(bs->orun));
 	}
-
-	DPR_READ(("dgap_input start 2\n"));
 
 	/* Decide how much data we can send into the tty layer */
 	flip_len = TTY_FLIPBUF_SIZE;
@@ -2028,7 +1918,6 @@ static void dgap_input(struct channel_t *ch)
 		writeb(1, &(bs->idata));
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		DPR_READ(("dgap_input 1 - finish\n"));
 		if (ld)
 			tty_ldisc_deref(ld);
 		return;
@@ -2095,7 +1984,6 @@ static void dgap_input(struct channel_t *ch)
 	if (ld)
 		tty_ldisc_deref(ld);
 
-	DPR_READ(("dgap_input - finish\n"));
 }
 
 
@@ -2109,8 +1997,6 @@ static void dgap_carrier(struct channel_t *ch)
 
         int virt_carrier = 0;
         int phys_carrier = 0;
-
-	DPR_CARR(("dgap_carrier called...\n"));
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
@@ -2130,10 +2016,8 @@ static void dgap_carrier(struct channel_t *ch)
 		ch->ch_cd       = DM_CD;
 	}
 
-	if (ch->ch_mistat & D_CD(ch)) {
-		DPR_CARR(("mistat: %x  D_CD: %x\n", ch->ch_mistat, D_CD(ch)));
+	if (ch->ch_mistat & D_CD(ch))
 		phys_carrier = 1;
-	}
 
 	if (ch->ch_digi.digi_flags & DIGI_FORCEDCD) {
 		virt_carrier = 1;
@@ -2142,9 +2026,6 @@ static void dgap_carrier(struct channel_t *ch)
 	if (ch->ch_c_cflag & CLOCAL) {
 		virt_carrier = 1;
 	}
-
-
-	DPR_CARR(("DCD: physical: %d virt: %d\n", phys_carrier, virt_carrier));
 
 	/*
 	 * Test for a VIRTUAL carrier transition to HIGH.
@@ -2155,8 +2036,6 @@ static void dgap_carrier(struct channel_t *ch)
 		 * When carrier rises, wake any threads waiting
 		 * for carrier in the open routine.
 		 */
-
-		DPR_CARR(("carrier: virt DCD rose\n"));
 
 		if (waitqueue_active(&(ch->ch_flags_wait)))
 			wake_up_interruptible(&ch->ch_flags_wait);
@@ -2171,8 +2050,6 @@ static void dgap_carrier(struct channel_t *ch)
 		 * When carrier rises, wake any threads waiting
 		 * for carrier in the open routine.
 		 */
-
-		DPR_CARR(("carrier: physical DCD rose\n"));
 
 		if (waitqueue_active(&(ch->ch_flags_wait)))
 			wake_up_interruptible(&ch->ch_flags_wait);
@@ -2206,15 +2083,11 @@ static void dgap_carrier(struct channel_t *ch)
 		if (waitqueue_active(&(ch->ch_flags_wait)))
 			wake_up_interruptible(&ch->ch_flags_wait);
 
-		if (ch->ch_tun.un_open_count > 0) {
-			DPR_CARR(("Sending tty hangup\n"));
+		if (ch->ch_tun.un_open_count > 0)
 			tty_hangup(ch->ch_tun.un_tty);
-		}
 
-		if (ch->ch_pun.un_open_count > 0) {
-			DPR_CARR(("Sending pr hangup\n"));
+		if (ch->ch_pun.un_open_count > 0)
 			tty_hangup(ch->ch_pun.un_tty);
-		}
 	}
 
 	/*
@@ -2316,15 +2189,11 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	else {
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(brd->bd_lock, lock_flags);
-		DPR_OPEN(("%d Unknown TYPE!\n", __LINE__));
 		return -ENXIO;
 	}
 
 	/* Store our unit into driver_data, so we always have it available. */
 	tty->driver_data = un;
-
-	DPR_OPEN(("Open called. MAJOR: %d MINOR:%d unit: %p NAME: %s\n",
-		MAJOR(tty_devnum(tty)), MINOR(tty_devnum(tty)), un, brd->name));
 
 	/*
 	 * Error if channel info pointer is NULL.
@@ -2333,11 +2202,8 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	if (!bs) {
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(brd->bd_lock, lock_flags);
-		DPR_OPEN(("%d BS is 0!\n", __LINE__));
 		return -ENXIO;
         }
-
-	DPR_OPEN(("%d: tflag=%x  pflag=%x\n", __LINE__, ch->ch_tun.un_flags, ch->ch_pun.un_flags));
 
 	/*
 	 * Initialize tty's
@@ -2353,8 +2219,6 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	 * Initialize if neither terminal or printer is open.
 	 */
 	if (!((ch->ch_tun.un_flags | ch->ch_pun.un_flags) & UN_ISOPEN)) {
-
-		DPR_OPEN(("dgap_open: initializing channel in open...\n"));
 
 		ch->ch_mforce = 0;
 		ch->ch_mval = 0;
@@ -2398,11 +2262,6 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 		return -ENODEV;
 	}
 
-	if (rc) {
-		DPR_OPEN(("dgap_tty_open returning after dgap_block_til_ready "
-			"with %d\n", rc));
-	}
-
 	/* No going back now, increment our unit and channel counters */
 	DGAP_LOCK(ch->ch_lock, lock_flags);
 	ch->ch_open_count++;
@@ -2410,7 +2269,6 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	un->un_flags |= (UN_ISOPEN);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-	DPR_OPEN(("dgap_tty_open finished\n"));
 	return (rc);
 }
 
@@ -2436,8 +2294,6 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 	if (!un || un->magic != DGAP_UNIT_MAGIC) {
 		return (-ENXIO);
 	}
-
-	DPR_OPEN(("dgap_block_til_ready - before block.\n"));
 
 	DGAP_LOCK(ch->ch_lock, lock_flags);
 
@@ -2486,15 +2342,11 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 				break;
 			}
 
-			if (ch->ch_flags & CH_CD) {
-				DPR_OPEN(("%d: ch_flags: %x\n", __LINE__, ch->ch_flags));
+			if (ch->ch_flags & CH_CD)
 				break;
-			}
 
-			if (ch->ch_flags & CH_FCAR) {
-				DPR_OPEN(("%d: ch_flags: %x\n", __LINE__, ch->ch_flags));
+			if (ch->ch_flags & CH_FCAR)
 				break;
-			}
 		}
 		else {
 			sleep_on_un_flags = 1;
@@ -2506,12 +2358,9 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 		 * Leave loop with error set.
 		 */
 		if (signal_pending(current)) {
-			DPR_OPEN(("%d: signal pending...\n", __LINE__));
 			retval = -ERESTARTSYS;
 			break;
 		}
-
-		DPR_OPEN(("dgap_block_til_ready - blocking.\n"));
 
 		/*
 		 * Store the flags before we let go of channel lock
@@ -2529,9 +2378,6 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-		DPR_OPEN(("Going to sleep on %s flags...\n",
-			(sleep_on_un_flags ? "un" : "ch")));
-
 		/*
 		 * Wait for something in the flags to change from the current value.
 		 */
@@ -2544,8 +2390,6 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 				(old_flags != ch->ch_flags));
 		}
 
-		DPR_OPEN(("After sleep... retval: %x\n", retval));
-
 		/*
 		 * We got woken up for some reason.
 		 * Before looping around, grab our channel lock.
@@ -2557,14 +2401,8 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-	DPR_OPEN(("dgap_block_til_ready - after blocking.\n"));
-
-	if (retval) {
-		DPR_OPEN(("dgap_block_til_ready - done. error. retval: %x\n", retval));
+	if (retval)
 		return(retval);
-	}
-
-	DPR_OPEN(("dgap_block_til_ready - done no error. jiffies: %lu\n", jiffies));
 
 	return(0);
 }
@@ -2596,14 +2434,9 @@ static void dgap_tty_hangup(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_CLOSE(("dgap_hangup called. ch->ch_open_count: %d un->un_open_count: %d\n",
-		ch->ch_open_count, un->un_open_count));
-
 	/* flush the transmit queues */
 	dgap_tty_flush_buffer(tty);
 
-	DPR_CLOSE(("dgap_hangup finished. ch->ch_open_count: %d un->un_open_count: %d\n",
-		ch->ch_open_count, un->un_open_count));
 }
 
 
@@ -2638,15 +2471,13 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 
 	ts = &tty->termios;
 
-	DPR_CLOSE(("Close called\n"));
-
 	DGAP_LOCK(ch->ch_lock, lock_flags);
 
 	/*
 	 * Determine if this is the last close or not - and if we agree about
 	 * which type of close it is with the Line Discipline
 	 */
-	if ((tty->count == 1) && (un->un_open_count != 1)) {
+	if ((tty->count == 1) && (un->un_open_count != 1))
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
 		 * structure will be freed.  un_open_count should always
@@ -2654,27 +2485,19 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
-		APR(("tty->count is 1, un open count is %d\n", un->un_open_count));
 		un->un_open_count = 1;
-	}
 
-	if (--un->un_open_count < 0) {
-		APR(("bad serial port open count of %d\n", un->un_open_count));
+	if (--un->un_open_count < 0)
 		un->un_open_count = 0;
-	}
 
 	ch->ch_open_count--;
 
 	if (ch->ch_open_count && un->un_open_count) {
-		DPR_CLOSE(("dgap_tty_close: not last close ch: %d un:%d\n",
-			ch->ch_open_count, un->un_open_count));
-
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
                 return;
         }
 
 	/* OK, its the last close on the unit */
-	DPR_CLOSE(("dgap_tty_close - last close on unit procedures\n"));
 
 	un->un_flags |= UN_CLOSING;
 
@@ -2693,13 +2516,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 		/* wait for output to drain */
 		/* This will also return if we take an interrupt */
 
-		DPR_CLOSE(("Calling wait_for_drain\n"));
 		rc = dgap_wait_for_drain(tty);
-		DPR_CLOSE(("After calling wait_for_drain\n"));
-
-		if (rc) {
-			DPR_BASIC(("dgap_tty_close - bad return: %d ", rc));
-		}
 
 		dgap_tty_flush_buffer(tty);
 		tty_ldisc_flush(tty);
@@ -2712,7 +2529,6 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 		 * If we have HUPCL set, lower DTR and RTS
 		 */
 		if (ch->ch_c_cflag & HUPCL ) {
-			DPR_CLOSE(("Close. HUPCL set, dropping DTR/RTS\n"));
 			ch->ch_mostat &= ~(D_RTS(ch)|D_DTR(ch));
 			dgap_cmdb( ch, SMODEM, 0, D_DTR(ch)|D_RTS(ch), 0 );
 
@@ -2721,13 +2537,9 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 			 * have been dropped for modems to see it.
 			 */
 			if (ch->ch_close_delay) {
-				DPR_CLOSE(("Close. Sleeping for RTS/DTR drop\n"));
-
 				DGAP_UNLOCK(ch->ch_lock, lock_flags);
 				dgap_ms_sleep(ch->ch_close_delay);
 				DGAP_LOCK(ch->ch_lock, lock_flags);
-
-				DPR_CLOSE(("Close. After sleeping for RTS/DTR drop\n"));
 			}
 		}
 
@@ -2750,13 +2562,10 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 	un->un_flags &= ~(UN_ISOPEN | UN_CLOSING);
 	tty->driver_data = NULL;
 
-	DPR_CLOSE(("Close. Doing wakeups\n"));
 	wake_up_interruptible(&ch->ch_flags_wait);
 	wake_up_interruptible(&un->un_flags_wait);
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
-
-        DPR_BASIC(("dgap_tty_close - complete\n"));
 }
 
 
@@ -2857,8 +2666,6 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 		}
 	}
 
- 	DPR_WRITE(("dgap_tty_chars_in_buffer. Port: %x - %d (head: %d tail: %d tsize: %d)\n",
-		ch->ch_portnum, chars, thead, ttail, ch->ch_tsize));
         return(chars);
 }
 
@@ -2889,8 +2696,6 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 
 	ret = 0;
 
-	DPR_DRAIN(("dgap_wait_for_drain start\n"));
-
 	/* Loop until data is drained */
 	while (count != 0) {
 
@@ -2917,7 +2722,6 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 	un->un_flags &= ~(UN_EMPTY);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-	DPR_DRAIN(("dgap_wait_for_drain finish\n"));
 	return (ret);
 }
 
@@ -3077,8 +2881,6 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-	DPR_WRITE(("dgap_tty_write_room - %d tail: %d head: %d\n", ret, tail, head));
-
         return(ret);
 }
 
@@ -3095,7 +2897,6 @@ static int dgap_tty_put_char(struct tty_struct *tty, unsigned char c)
 	/*
 	 * Simply call tty_write.
 	 */
-	DPR_WRITE(("dgap_tty_put_char called\n"));
 	dgap_tty_write(tty, &c, 1);
 	return 1;
 }
@@ -3137,9 +2938,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	if (!count)
 		return(0);
 
-	DPR_WRITE(("dgap_tty_write: Port: %x tty=%p user=%d len=%d\n",
-		ch->ch_portnum, tty, from_user, count));
-
 	/*
 	 * Store original amount of characters passed in.
 	 * This helps to figure out if we should ask the FEP
@@ -3156,9 +2954,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 
 	if ((bufcount = tail - head - 1) < 0)
 		bufcount += ch->ch_tsize;
-
-	DPR_WRITE(("%d: bufcount: %x count: %x tail: %x head: %x tmask: %x\n",
-		__LINE__, bufcount, count, tail, head, tmask));
 
 	/*
 	 * Limit printer output to maxcps overall, with bursts allowed
@@ -3319,8 +3114,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
 	}
 
-	DPR_WRITE(("Write finished - Write %d bytes of %d.\n", count, orig_count));
-
 	return (count);
 }
 
@@ -3348,8 +3141,6 @@ static int dgap_tty_tiocmget(struct tty_struct *tty)
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return result;
 
-	DPR_IOCTL(("dgap_tty_tiocmget start\n"));
-
 	DGAP_LOCK(ch->ch_lock, lock_flags);
 
 	mstat = readb(&(ch->ch_bs->m_stat));
@@ -3372,8 +3163,6 @@ static int dgap_tty_tiocmget(struct tty_struct *tty)
 		result |= TIOCM_RI;
 	if (mstat & D_CD(ch))
 		result |= TIOCM_CD;
-
-	DPR_IOCTL(("dgap_tty_tiocmget finish\n"));
 
 	return result;
 }
@@ -3410,8 +3199,6 @@ static int dgap_tty_tiocmset(struct tty_struct *tty,
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return ret;
 
-	DPR_IOCTL(("dgap_tty_tiocmset start\n"));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -3439,8 +3226,6 @@ static int dgap_tty_tiocmset(struct tty_struct *tty,
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("dgap_tty_tiocmset finish\n"));
 
 	return (0);
 }
@@ -3488,8 +3273,6 @@ static int dgap_tty_send_break(struct tty_struct *tty, int msec)
 		break;
 	}
 
-	DPR_IOCTL(("dgap_tty_send_break start 1.  %lx\n", jiffies));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 #if 0
@@ -3499,8 +3282,6 @@ static int dgap_tty_send_break(struct tty_struct *tty, int msec)
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("dgap_tty_send_break finish\n"));
 
 	return (0);
 }
@@ -3515,13 +3296,7 @@ static int dgap_tty_send_break(struct tty_struct *tty, int msec)
  */
 static void dgap_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 {
-	int rc;
-	rc = dgap_wait_for_drain(tty);
-	if (rc) {
-		DPR_IOCTL(("dgap_tty_ioctl - bad return: %d ", rc));
-		return;
-	}
-	return;
+	dgap_wait_for_drain(tty);
 }
 
 
@@ -3554,8 +3329,6 @@ static void dgap_tty_send_xchar(struct tty_struct *tty, char c)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_IOCTL(("dgap_tty_send_xchar start 1.  %lx\n", jiffies));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -3583,8 +3356,6 @@ static void dgap_tty_send_xchar(struct tty_struct *tty, char c)
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	DPR_IOCTL(("dgap_tty_send_xchar finish\n"));
-
 	return;
 }
 
@@ -3600,8 +3371,6 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	uchar mstat = 0;
 	ulong lock_flags;
 	int rc = 0;
-
-	DPR_IOCTL(("dgap_get_modem_info start\n"));
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return(-ENXIO);
@@ -3631,7 +3400,6 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 
 	rc = put_user(result, value);
 
-	DPR_IOCTL(("dgap_get_modem_info finish\n"));
 	return(rc);
 }
 
@@ -3666,15 +3434,9 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return ret;
 
-	DPR_IOCTL(("dgap_set_modem_info() start\n"));
-
 	ret = get_user(arg, value);
-	if (ret) {
-		DPR_IOCTL(("dgap_set_modem_info %d ret: %x. finished.\n", __LINE__, ret));
+	if (ret)
 		return(ret);
-	}
-
-	DPR_IOCTL(("dgap_set_modem_info: command: %x arg: %x\n", command, arg));
 
 	switch (command) {
 	case TIOCMBIS:
@@ -3733,8 +3495,6 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("dgap_set_modem_info finish\n"));
 
 	return (0);
 }
@@ -3799,8 +3559,6 @@ static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	ulong   lock_flags = 0;
 	unsigned long lock_flags2;
 
-	DPR_IOCTL(("DIGI_SETA start\n"));
-
 	if (!tty || tty->magic != TTY_MAGIC)
 		return (-EFAULT);
 
@@ -3816,10 +3574,8 @@ static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return (-EFAULT);
 
-        if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t))) {
-		DPR_IOCTL(("DIGI_SETA failed copy_from_user\n"));
-                return(-EFAULT);
-	}
+	if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t)))
+		return -EFAULT;
 
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -3851,8 +3607,6 @@ static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("DIGI_SETA finish\n"));
 
 	return(0);
 }
@@ -3915,8 +3669,6 @@ static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
 	ulong lock_flags;
 	ulong lock_flags2;
 
-	DPR_IOCTL(("DIGI_SETA start\n"));
-
 	if (!tty || tty->magic != TTY_MAGIC)
 		return (-EFAULT);
 
@@ -3932,10 +3684,8 @@ static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return (-EFAULT);
 
-        if (copy_from_user(&new_digi, new_info, sizeof(int))) {
-		DPR_IOCTL(("DIGI_SETEDELAY failed copy_from_user\n"));
-                return(-EFAULT);
-	}
+	if (copy_from_user(&new_digi, new_info, sizeof(int)))
+		return -EFAULT;
 
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -3946,8 +3696,6 @@ static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("DIGI_SETA finish\n"));
 
 	return(0);
 }
@@ -3985,8 +3733,6 @@ static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinf
 	tmp = dgap_get_custom_baud(ch);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-	DPR_IOCTL(("DIGI_GETCUSTOMBAUD. Returning %d\n", tmp));
-
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return (-EFAULT);
 
@@ -4008,8 +3754,6 @@ static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_in
 	ulong lock_flags;
 	ulong lock_flags2;
 
-	DPR_IOCTL(("DIGI_SETCUSTOMBAUD start\n"));
-
 	if (!tty || tty->magic != TTY_MAGIC)
 		return (-EFAULT);
 
@@ -4026,14 +3770,10 @@ static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_in
 		return (-EFAULT);
 
 
-	if (copy_from_user(&new_rate, new_info, sizeof(unsigned int))) {
-		DPR_IOCTL(("DIGI_SETCUSTOMBAUD failed copy_from_user\n"));
+	if (copy_from_user(&new_rate, new_info, sizeof(unsigned int)))
 		return(-EFAULT);
-	}
 
 	if (bd->bd_flags & BD_FEP5PLUS) {
-
-		DPR_IOCTL(("DIGI_SETCUSTOMBAUD. Setting %d\n", new_rate));
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4045,8 +3785,6 @@ static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_in
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 	}
-
-	DPR_IOCTL(("DIGI_SETCUSTOMBAUD finish\n"));
 
 	return(0);
 }
@@ -4119,8 +3857,6 @@ static void dgap_tty_throttle(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_IOCTL(("dgap_tty_throttle start\n"));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -4132,7 +3868,6 @@ static void dgap_tty_throttle(struct tty_struct *tty)
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	DPR_IOCTL(("dgap_tty_throttle finish\n"));
 }
 
 
@@ -4159,8 +3894,6 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_IOCTL(("dgap_tty_unthrottle start\n"));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -4172,8 +3905,6 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("dgap_tty_unthrottle finish\n"));
 }
 
 
@@ -4200,8 +3931,6 @@ static void dgap_tty_start(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_IOCTL(("dgap_tty_start start\n"));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -4210,7 +3939,6 @@ static void dgap_tty_start(struct tty_struct *tty)
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	DPR_IOCTL(("dgap_tty_start finish\n"));
 }
 
 
@@ -4237,8 +3965,6 @@ static void dgap_tty_stop(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_IOCTL(("dgap_tty_stop start\n"));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -4247,7 +3973,6 @@ static void dgap_tty_stop(struct tty_struct *tty)
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	DPR_IOCTL(("dgap_tty_stop finish\n"));
 }
 
 
@@ -4287,8 +4012,6 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_IOCTL(("dgap_tty_flush_chars start\n"));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -4296,8 +4019,6 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-	DPR_IOCTL(("dgap_tty_flush_chars finish\n"));
 }
 
 
@@ -4331,8 +4052,6 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DPR_IOCTL(("dgap_tty_flush_buffer on port: %d start\n", ch->ch_portnum));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
@@ -4354,8 +4073,6 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 	if (waitqueue_active(&tty->write_wait))
 		wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
-
-	DPR_IOCTL(("dgap_tty_flush_buffer finish\n"));
 }
 
 
@@ -4398,14 +4115,10 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return (-ENODEV);
 
-	DPR_IOCTL(("dgap_tty_ioctl start on port %d - cmd %s (%x), arg %lx\n",
-		ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
-
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
 	if (un->un_open_count <= 0) {
-		DPR_BASIC(("dgap_tty_ioctl - unit not open.\n"));
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		return(-EIO);
@@ -4433,10 +4146,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		rc = dgap_wait_for_drain(tty);
 
-		if (rc) {
-			DPR_IOCTL(("dgap_tty_ioctl - bad return: %d ", rc));
+		if (rc)
 			return(-EINTR);
-		}
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4447,9 +4158,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
-			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
                 return(0);
 
@@ -4469,10 +4177,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		}
 
 		rc = dgap_wait_for_drain(tty);
-		if (rc) {
-			DPR_IOCTL(("dgap_tty_ioctl - bad return: %d ", rc));
+		if (rc)
 			return(-EINTR);
-		}
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4481,9 +4187,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
-			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 		return(0);
 
@@ -4502,10 +4205,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		}
 
 		rc = dgap_wait_for_drain(tty);
-		if (rc) {
-			DPR_IOCTL(("dgap_tty_ioctl - bad return: %d ", rc));
+		if (rc)
 			return(-EINTR);
-		}
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4514,9 +4215,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
-			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 		return 0;
 
@@ -4625,9 +4323,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		DPR_IOCTL(("dgap_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n",
-			__LINE__, ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
-
 		return(-ENOIOCTLCMD);
 
 	case TCSETSF:
@@ -4652,13 +4347,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		rc = dgap_wait_for_drain(tty);
-		if (rc) {
-			DPR_IOCTL(("dgap_tty_ioctl - bad return: %d ", rc));
+		if (rc)
 			return(-EINTR);
-		}
-
-		DPR_IOCTL(("dgap_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
-			ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
 		/* pretend we didn't recognize this */
 		return(-ENOIOCTLCMD);
@@ -4668,10 +4358,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		rc = dgap_wait_for_drain(tty);
-		if (rc) {
-			DPR_IOCTL(("dgap_tty_ioctl - bad return: %d ", rc));
+		if (rc)
 			return(-EINTR);
-		}
 
 		/* pretend we didn't recognize this */
 		return(-ENOIOCTLCMD);
@@ -4691,7 +4379,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			return(rc);
 		}
 
-		DPR_IOCTL(("dgap_ioctl - in TCXONC - %d\n", cmd));
 		switch (arg) {
 
 		case TCOON:
@@ -4735,10 +4422,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
 			rc = dgap_wait_for_drain(tty);
-			if (rc) {
-				DPR_IOCTL(("dgap_tty_ioctl - bad return: %d ", rc));
+			if (rc)
 				return(-EINTR);
-			}
 			DGAP_LOCK(bd->bd_lock, lock_flags);
 			DGAP_LOCK(ch->ch_lock, lock_flags2);
 		}
@@ -4782,10 +4467,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	default:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-		DPR_IOCTL(("dgap_tty_ioctl - in default\n"));
-		DPR_IOCTL(("dgap_tty_ioctl end - cmd %s (%x), arg %lx\n",
-			dgap_ioctl_name(cmd), cmd, arg));
 
 		return(-ENOIOCTLCMD);
 	}
@@ -4878,8 +4559,6 @@ static void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len)
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase)
 		return;
 
-	DPR_INIT(("dgap_do_bios_load() start\n"));
-
 	addr = brd->re_map_membase;
 
 	/*
@@ -4927,7 +4606,6 @@ static void dgap_do_wait_for_bios(struct board_t *brd)
 	while (brd->wait_for_bios < 1000) {
 		/* Check to see if BIOS thinks board is good. (GD). */
 		if (word == *(u16 *) "GD") {
-			DPR_INIT(("GOT GD in memory, moving states.\n"));
 			brd->state = FINISHED_BIOS_LOAD;
 			return;
 		}
@@ -4939,8 +4617,8 @@ static void dgap_do_wait_for_bios(struct board_t *brd)
 	/* Gave up on board after too long of time taken */
 	err1 = readw(addr + SEQUENCE);
 	err2 = readw(addr + ERROR);
-	APR(("***WARNING*** %s failed diagnostics.  Error #(%x,%x).\n",
-		brd->name, err1, err2));
+	pr_warn("dgap: %s failed diagnostics.  Error #(%x,%x).\n",
+		brd->name, err1, err2);
 	brd->state = BOARD_FAILED;
 	brd->dpastatus = BD_NOBIOS;
 }
@@ -4959,8 +4637,6 @@ static void dgap_do_fep_load(struct board_t *brd, uchar *ufep, int len)
 		return;
 
 	addr = brd->re_map_membase;
-
-	DPR_INIT(("dgap_do_fep_load() for board %s : start\n", brd->name));
 
 	/*
 	 * Download FEP
@@ -4990,8 +4666,6 @@ static void dgap_do_fep_load(struct board_t *brd, uchar *ufep, int len)
 
 	writel(0xbfc01004, (addr + 0xc34));
 	writel(0x3, (addr + 0xc30));
-
-	DPR_INIT(("dgap_do_fep_load() for board %s : finish\n", brd->name));
 
 }
 
@@ -5038,12 +4712,10 @@ static void dgap_do_wait_for_fep(struct board_t *brd)
 	/* Gave up on board after too long of time taken */
 	err1 = readw(addr + SEQUENCE);
 	err2 = readw(addr + ERROR);
-	APR(("***WARNING*** FEPOS for %s not functioning.  Error #(%x,%x).\n",
-		brd->name, err1, err2));
+	pr_warn("dgap: FEPOS for %s not functioning.  Error #(%x,%x).\n",
+		brd->name, err1, err2);
 	brd->state = BOARD_FAILED;
 	brd->dpastatus = BD_NOFEP;
-
-	DPR_INIT(("dgap_do_wait_for_fep() for board %s : finish\n", brd->name));
 }
 
 
@@ -5058,12 +4730,8 @@ static void dgap_do_reset_board(struct board_t *brd)
 	int i = 0;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase || !brd->re_map_port) {
-		DPR_INIT(("dgap_do_reset_board() start. bad values. brd: %p mem: %p io: %p\n",
-			brd, brd ? brd->re_map_membase : 0, brd ? brd->re_map_port : 0));
 		return;
 	}
-
-	DPR_INIT(("dgap_do_reset_board() start. io: %p\n", brd->re_map_port));
 
 	/* FEPRST does not vary among supported boards */
 	writeb(FEPRST, brd->re_map_port);
@@ -5076,10 +4744,10 @@ static void dgap_do_reset_board(struct board_t *brd)
 
 	}
 	if (i > 1000) {
-		APR(("*** WARNING *** Board not resetting...  Failing board.\n"));
+		pr_warn("dgap: Board not resetting...  Failing board.\n");
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
-		goto failed;
+		return;
 	}
 
 	/*
@@ -5091,17 +4759,15 @@ static void dgap_do_reset_board(struct board_t *brd)
 	check2 = readl(brd->re_map_membase + HIGHMEM);
 
 	if ((check1 != 0xa55a3cc3) || (check2 != 0x5aa5c33c)) {
-		APR(("*** Warning *** No memory at %p for board.\n", brd->re_map_membase));
+		pr_warn("dgap: No memory at %p for board.\n",
+			brd->re_map_membase);
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
-		goto failed;
+		return;
 	}
 
 	if (brd->state != BOARD_FAILED)
 		brd->state = FINISHED_RESET;
-
-failed:
-	DPR_INIT(("dgap_do_reset_board() finish\n"));
 }
 
 
@@ -5247,10 +4913,8 @@ static void dgap_poll_tasklet(unsigned long data)
 	char *vaddr;
 	u16 head, tail;
 
-	if (!bd || (bd->magic != DGAP_BOARD_MAGIC)) {
-		APR(("dgap_poll_tasklet() - NULL or bad bd.\n"));
+	if (!bd || (bd->magic != DGAP_BOARD_MAGIC))
 		return;
-	}
 
 	if (bd->inhibit_poller)
 		return;
@@ -5421,7 +5085,6 @@ out:
 
 		if (rc < 0) {
 			dgap_tty_uninit(bd);
-			APR(("Can't init tty devices (%d)\n", rc));
 			bd->state = BOARD_FAILED;
 			bd->dpastatus = BD_NOFEP;
 		}
@@ -5494,10 +5157,8 @@ static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2,
 	/*
 	 * Check if board is still alive.
 	 */
-	if (ch->ch_bd->state == BOARD_FAILED) {
-		DPR_CORE(("%s:%d board is in failed state.\n", __FILE__, __LINE__));
+	if (ch->ch_bd->state == BOARD_FAILED)
 		return;
-	}
 
 	/*
 	 * Make sure the pointers are in range before
@@ -5515,7 +5176,6 @@ static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2,
 	 * Forget it if pointers out of range.
 	 */
 	if (head >= (CMDMAX - CMDSTART) || (head & 03)) {
-		DPR_CORE(("%s:%d pointers out of range, failing board!\n", __FILE__, __LINE__));
 		ch->ch_bd->state = BOARD_FAILED;
 		return;
 	}
@@ -5549,7 +5209,6 @@ static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2,
 			break;
 
 		if (--count == 0) {
-			DPR_CORE(("%s:%d failing board.\n",__FILE__, __LINE__));
 			ch->ch_bd->state = BOARD_FAILED;
 			return;
 		}
@@ -5584,10 +5243,8 @@ static void dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds)
 	/*
 	 * Check if board is still alive.
 	 */
-	if (ch->ch_bd->state == BOARD_FAILED) {
-		DPR_CORE(("%s:%d board is failed!\n", __FILE__, __LINE__));
+	if (ch->ch_bd->state == BOARD_FAILED)
 		return;
-	}
 
 	/*
 	 * Make sure the pointers are in range before
@@ -5604,7 +5261,6 @@ static void dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds)
 	 * Forget it if pointers out of range.
 	 */
 	if (head >= (CMDMAX - CMDSTART) || (head & 03)) {
-		DPR_CORE(("%s:%d Pointers out of range.  Failing board.\n",__FILE__, __LINE__));
 		ch->ch_bd->state = BOARD_FAILED;
 		return;
 	}
@@ -5637,7 +5293,6 @@ static void dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds)
 			break;
 
 		if (--count == 0) {
-			DPR_CORE(("%s:%d Failing board.\n",__FILE__, __LINE__));
 			ch->ch_bd->state = BOARD_FAILED;
 			return;
 		}
@@ -5673,10 +5328,8 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 	/*
 	 * Check if board is still alive.
 	 */
-	if (ch->ch_bd->state == BOARD_FAILED) {
-		DPR_CORE(("%s:%d board is failed!\n", __FILE__, __LINE__));
+	if (ch->ch_bd->state == BOARD_FAILED)
 		return;
-	}
 
 	/*
 	 * Make sure the pointers are in range before
@@ -5693,7 +5346,6 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 	 * Forget it if pointers out of range.
 	 */
 	if (head >= (CMDMAX - CMDSTART) || (head & 03)) {
-		DPR_CORE(("%s:%d Pointers out of range.  Failing board.\n",__FILE__, __LINE__));
 		ch->ch_bd->state = BOARD_FAILED;
 		return;
 	}
@@ -5739,7 +5391,6 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 			break;
 
 		if (--count == 0) {
-			DPR_CORE(("%s:%d Failing board.\n",__FILE__, __LINE__));
 			ch->ch_bd->state = BOARD_FAILED;
 			return;
 		}
@@ -5777,7 +5428,6 @@ static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
 	 * If pointers are out of range, just return.
 	 */
 	if ((cnt > ch->ch_tsize) || (unsigned)(head - ch->ch_tstart) >= ch->ch_tsize) {
-		DPR_CORE(("%s:%d pointer out of range", __FILE__, __LINE__));
 		return;
 	}
 
@@ -5912,9 +5562,6 @@ static int dgap_param(struct tty_struct *tty)
 	if (!bs)
 		return -ENXIO;
 
-	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
-		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag, ch->ch_c_iflag));
-
 	ts = &tty->termios;
 
 	/*
@@ -5942,8 +5589,6 @@ static int dgap_param(struct tty_struct *tty)
 		 * Tell the fep to do the command
 		 */
 
-		DPR_PARAM(("param: Want %d speed\n", ch->ch_custom_speed));
-
 		dgap_cmdw_ext(ch, 0xff01, ch->ch_custom_speed, 0);
 
 		/*
@@ -5951,8 +5596,6 @@ static int dgap_param(struct tty_struct *tty)
 		 * believes the custom baud rate is.
 		 */
 		ch->ch_baud_info = ch->ch_custom_speed = dgap_get_custom_baud(ch);
-
-		DPR_PARAM(("param: Got %d speed\n", ch->ch_custom_speed));
 
 		/* Handle transition from B0 */
 		if (ch->ch_flags & CH_BAUD0) {
@@ -6010,11 +5653,8 @@ static int dgap_param(struct tty_struct *tty)
 
 		if ((iindex >= 0) && (iindex < 4) && (jindex >= 0) && (jindex < 16)) {
 			baud = bauds[iindex][jindex];
-		} else {
-			DPR_IOCTL(("baud indices were out of range (%d)(%d)",
-				iindex, jindex));
+		} else
 			baud = 0;
-		}
 
 		if (baud == 0)
 			baud = 9600;
@@ -6176,14 +5816,10 @@ static int dgap_param(struct tty_struct *tty)
 
 	mval ^= ch->ch_mforce & (mval ^ ch->ch_mval);
 
-	DPR_PARAM(("dgap_param: mval: %x ch_mforce: %x ch_mval: %x ch_mostat: %x\n",
-		mval, ch->ch_mforce, ch->ch_mval, ch->ch_mostat));
-
 	if (ch->ch_mostat ^ mval) {
 		ch->ch_mostat = mval;
 
 		/* Okay to have channel and board locks held calling this */
-		DPR_PARAM(("dgap_param: Sending SMODEM mval: %x\n", mval));
 		dgap_cmdb(ch, SMODEM, (uchar) mval, D_RTS(ch)|D_DTR(ch), 0);
 	}
 
@@ -6215,8 +5851,6 @@ static int dgap_param(struct tty_struct *tty)
 		dgap_cmdb(ch, SAFLOWC, ch->ch_fepastartc, ch->ch_fepastopc, 0);
 	}
 
-	DPR_PARAM(("param finish\n"));
-
 	return 0;
 }
 
@@ -6237,8 +5871,6 @@ static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned
 	in = cbuf;
 	cout = cbuf;
 	fout = fbuf;
-
-	DPR_PSCAN(("dgap_parity_scan start\n"));
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
@@ -6285,18 +5917,13 @@ static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned
 			if (ch->pscan_savechar == 0x0) {
 
 				if (c == 0x0) {
-					DPR_PSCAN(("dgap_parity_scan in 3rd char of ff seq. c: %x setting break.\n", c));
 					ch->ch_err_break++;
 					*fout++ = TTY_BREAK;
 				}
 				else {
-					DPR_PSCAN(("dgap_parity_scan in 3rd char of ff seq. c: %x setting parity.\n", c));
 					ch->ch_err_parity++;
 					*fout++ = TTY_PARITY;
 				}
-			}
-			else {
-				DPR_PSCAN(("%s:%d Logic Error.\n", __FILE__, __LINE__));
 			}
 
 			count += 1;
@@ -6304,7 +5931,6 @@ static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned
 		}
 	}
 	*len = count;
-	DPR_PSCAN(("dgap_parity_scan finish\n"));
 }
 
 
@@ -6357,7 +5983,6 @@ static int dgap_event(struct board_t *bd)
 
 	if (head >= EVMAX - EVSTART || tail >= EVMAX - EVSTART ||
 	    (head | tail) & 03) {
-		DPR_EVENT(("should be calling xxfail %d\n", __LINE__));
 		/* Let go of board lock */
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		return -ENXIO;
@@ -6378,9 +6003,6 @@ static int dgap_event(struct board_t *bd)
 		reason = event[1];
 		modem  = event[2];
 		b1     = event[3];
-
-		DPR_EVENT(("event: jiffies: %ld port: %d reason: %x modem: %x\n",
-			jiffies, port, reason, modem));
 
 		/*
 		 * Make sure the interrupt is valid.
@@ -6454,8 +6076,6 @@ static int dgap_event(struct board_t *bd)
 		 */
 		if (reason & IFBREAK) {
 
-			DPR_EVENT(("got IFBREAK\n"));
-
 			if (ch->ch_tun.un_tty) {
 				/* A break has been indicated */
 				ch->ch_err_break++;
@@ -6469,8 +6089,6 @@ static int dgap_event(struct board_t *bd)
 		 * Process Transmit low.
 		 */
 		if (reason & IFTLW) {
-
-			DPR_EVENT(("event: got low event\n"));
 
 			if (ch->ch_tun.un_flags & UN_LOW) {
 				ch->ch_tun.un_flags &= ~UN_LOW;
@@ -6488,8 +6106,6 @@ static int dgap_event(struct board_t *bd)
 					}
 					wake_up_interruptible(&ch->ch_tun.un_tty->write_wait);
 					wake_up_interruptible(&ch->ch_tun.un_flags_wait);
-
-					DPR_EVENT(("event: Got low event. jiffies: %lu\n", jiffies));
 				}
 			}
 
@@ -6521,8 +6137,6 @@ static int dgap_event(struct board_t *bd)
 		 * Process Transmit empty.
 		 */
 		if (reason & IFTEM) {
-			DPR_EVENT(("event: got empty event\n"));
-
 			if (ch->ch_tun.un_flags & UN_EMPTY) {
 				ch->ch_tun.un_flags &= ~UN_EMPTY;
 				if (ch->ch_tun.un_flags & UN_ISOPEN) {
@@ -6613,20 +6227,6 @@ static ssize_t dgap_driver_state_show(struct device_driver *ddp, char *buf)
 }
 static DRIVER_ATTR(state, S_IRUSR, dgap_driver_state_show, NULL);
 
-
-static ssize_t dgap_driver_debug_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgap_debug);
-}
-
-static ssize_t dgap_driver_debug_store(struct device_driver *ddp, const char *buf, size_t count)
-{
-	sscanf(buf, "0x%x\n", &dgap_debug);
-	return count;
-}
-static DRIVER_ATTR(debug, (S_IRUSR | S_IWUSR), dgap_driver_debug_show, dgap_driver_debug_store);
-
-
 static ssize_t dgap_driver_rawreadok_show(struct device_driver *ddp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgap_rawreadok);
@@ -6661,7 +6261,6 @@ static void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_version);
 	rc |= driver_create_file(driverfs, &driver_attr_boards);
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
-	rc |= driver_create_file(driverfs, &driver_attr_debug);
 	rc |= driver_create_file(driverfs, &driver_attr_rawreadok);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	rc |= driver_create_file(driverfs, &driver_attr_pollcounter);
@@ -6678,7 +6277,6 @@ static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
 	driver_remove_file(driverfs, &driver_attr_version);
 	driver_remove_file(driverfs, &driver_attr_boards);
 	driver_remove_file(driverfs, &driver_attr_maxboards);
-	driver_remove_file(driverfs, &driver_attr_debug);
 	driver_remove_file(driverfs, &driver_attr_rawreadok);
 	driver_remove_file(driverfs, &driver_attr_pollrate);
 	driver_remove_file(driverfs, &driver_attr_pollcounter);
@@ -7391,7 +6989,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.board.type = APORT2_920P;
 			p->u.board.v_type = 1;
-			DPR_INIT(("Adding Digi_2r_920 PCI to config...\n"));
 			break;
 
 		case APORT4_920P:	/* AccelePort_4 */
@@ -7401,7 +6998,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.board.type = APORT4_920P;
 			p->u.board.v_type = 1;
-			DPR_INIT(("Adding Digi_4r_920 PCI to config...\n"));
 			break;
 
 		case APORT8_920P:	/* AccelePort_8 */
@@ -7411,7 +7007,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.board.type = APORT8_920P;
 			p->u.board.v_type = 1;
-			DPR_INIT(("Adding Digi_8r_920 PCI to config...\n"));
 			break;
 
 		case PAPORT4:	/* AccelePort_4 PCI */
@@ -7421,7 +7016,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.board.type = PAPORT4;
 			p->u.board.v_type = 1;
-			DPR_INIT(("Adding Digi_4r PCI to config...\n"));
 			break;
 
 		case PAPORT8:	/* AccelePort_8 PCI */
@@ -7431,7 +7025,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.board.type = PAPORT8;
 			p->u.board.v_type = 1;
-			DPR_INIT(("Adding Digi_8r PCI to config...\n"));
 			break;
 
 		case PCX:	/* PCI C/X */
@@ -7445,7 +7038,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			p->u.board.conc2 = 0;
 			p->u.board.module1 = 0;
 			p->u.board.module2 = 0;
-			DPR_INIT(("Adding PCI C/X to config...\n"));
 			break;
 
 		case PEPC:	/* PCI EPC/X */
@@ -7459,7 +7051,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			p->u.board.conc2 = 0;
 			p->u.board.module1 = 0;
 			p->u.board.module2 = 0;
-			DPR_INIT(("Adding PCI EPC/X to config...\n"));
 			break;
 
 		case PPCM:	/* PCI/Xem */
@@ -7471,7 +7062,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			p->u.board.v_type = 1;
 			p->u.board.conc1 = 0;
 			p->u.board.conc2 = 0;
-			DPR_INIT(("Adding PCI XEM to config...\n"));
 			break;
 
 		case IO:	/* i/o port */
@@ -7491,7 +7081,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				return(-1);
 			}
 			p->u.board.v_port = 1;
-			DPR_INIT(("Adding IO (%s) to config...\n", s));
 			break;
 
 		case MEM:	/* memory address */
@@ -7511,7 +7100,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				return(-1);
 			}
 			p->u.board.v_addr = 1;
-			DPR_INIT(("Adding MEM (%s) to config...\n", s));
 			break;
 
 		case PCIINFO:	/* pci information */
@@ -7543,9 +7131,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				return(-1);
 			}
 			p->u.board.v_pcislot = 1;
-
-			DPR_INIT(("Adding PCIINFO (%s %s) to config...\n", p->u.board.pcibusstr,
-				p->u.board.pcislotstr));
 			break;
 
 		case METHOD:
@@ -7560,7 +7145,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.board.method = dgap_savestring(s);
 			p->u.board.v_method = 1;
-			DPR_INIT(("Adding METHOD (%s) to config...\n", s));
 			break;
 
 		case STATUS:
@@ -7574,7 +7158,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				return(-1);
 			}
 			p->u.board.status = dgap_savestring(s);
-			DPR_INIT(("Adding STATUS (%s) to config...\n", s));
 			break;
 
 		case NPORTS:	/* number of ports */
@@ -7618,7 +7201,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("nports only valid for concentrators or modules");
 				return(-1);
 			}
-			DPR_INIT(("Adding NPORTS (%s) to config...\n", s));
 			break;
 
 		case ID:	/* letter ID used in tty name */
@@ -7640,7 +7222,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("id only valid for concentrators or modules");
 				return(-1);
 			}
-			DPR_INIT(("Adding ID (%s) to config...\n", s));
 			break;
 
 		case STARTO:	/* start offset of ID */
@@ -7684,7 +7265,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("start only valid for concentrators or modules");
 				return(-1);
 			}
-			DPR_INIT(("Adding START (%s) to config...\n", s));
 			break;
 
 		case TTYN:	/* tty name prefix */
@@ -7703,7 +7283,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("out of memory");
 				return(-1);
 			}
-			DPR_INIT(("Adding TTY (%s) to config...\n", s));
 			break;
 
 		case CU:	/* cu name prefix */
@@ -7722,7 +7301,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("out of memory");
 				return(-1);
 			}
-			DPR_INIT(("Adding CU (%s) to config...\n", s));
 			break;
 
 		case LINE:	/* line information */
@@ -7745,7 +7323,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			conc = NULL;
 			line = p;
 			linecnt++;
-			DPR_INIT(("Adding LINE to config...\n"));
 			break;
 
 		case CONC:	/* concentrator information */
@@ -7766,7 +7343,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			else
 				brd->u.board.conc1++;
 
-			DPR_INIT(("Adding CONC to config...\n"));
 			break;
 
 		case CX:	/* c/x type concentrator */
@@ -7776,7 +7352,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.conc.type = CX;
 			p->u.conc.v_type = 1;
-			DPR_INIT(("Adding CX to config...\n"));
 			break;
 
 		case EPC:	/* epc type concentrator */
@@ -7786,7 +7361,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.conc.type = EPC;
 			p->u.conc.v_type = 1;
-			DPR_INIT(("Adding EPC to config...\n"));
 			break;
 
 		case MOD:	/* EBI module */
@@ -7816,7 +7390,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			else
 				brd->u.board.module1++;
 
-			DPR_INIT(("Adding MOD to config...\n"));
 			break;
 
 		case PORTS:	/* ports type EBI module */
@@ -7826,7 +7399,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.module.type = PORTS;
 			p->u.module.v_type = 1;
-			DPR_INIT(("Adding PORTS to config...\n"));
 			break;
 
 		case MODEM:	/* ports type EBI module */
@@ -7836,7 +7408,6 @@ static int	dgap_parsefile(char **in, int Remove)
 			}
 			p->u.module.type = MODEM;
 			p->u.module.v_type = 1;
-			DPR_INIT(("Adding MODEM to config...\n"));
 			break;
 
 		case CABLE:
@@ -7848,7 +7419,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				p->u.line.cable = dgap_savestring(s);
 				p->u.line.v_cable = 1;
 			}
-			DPR_INIT(("Adding CABLE (%s) to config...\n", s));
 			break;
 
 		case SPEED:	/* sync line speed indication */
@@ -7880,7 +7450,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("speed valid only for lines or concentrators.");
 				return(-1);
 			}
-			DPR_INIT(("Adding SPEED (%s) to config...\n", s));
 			break;
 
 		case CONNECT:
@@ -7892,7 +7461,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				p->u.conc.connect = dgap_savestring(s);
 				p->u.conc.v_connect = 1;
 			}
-			DPR_INIT(("Adding CONNECT (%s) to config...\n", s));
 			break;
 		case PRINT:	/* transparent print name prefix */
 			if (dgap_checknode(p))
@@ -7910,7 +7478,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("out of memory");
 				return(-1);
 			}
-			DPR_INIT(("Adding PRINT (%s) to config...\n", s));
 			break;
 
 		case CMAJOR:	/* major number */
@@ -7931,7 +7498,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for major number");
 				return(-1);
 			}
-			DPR_INIT(("Adding CMAJOR (%s) to config...\n", s));
 			break;
 
 		case ALTPIN:	/* altpin setting */
@@ -7952,7 +7518,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for altpin");
 				return(-1);
 			}
-			DPR_INIT(("Adding ALTPIN (%s) to config...\n", s));
 			break;
 
 		case USEINTR:		/* enable interrupt setting */
@@ -7973,7 +7538,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for useintr");
 				return(-1);
 			}
-			DPR_INIT(("Adding USEINTR (%s) to config...\n", s));
 			break;
 
 		case TTSIZ:	/* size of tty structure */
@@ -7994,7 +7558,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for ttysize");
 				return(-1);
 			}
-			DPR_INIT(("Adding TTSIZ (%s) to config...\n", s));
 			break;
 
 		case CHSIZ:	/* channel structure size */
@@ -8015,7 +7578,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for chsize");
 				return(-1);
 			}
-			DPR_INIT(("Adding CHSIZE (%s) to config...\n", s));
 			break;
 
 		case BSSIZ:	/* board structure size */
@@ -8036,7 +7598,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for bssize");
 				return(-1);
 			}
-			DPR_INIT(("Adding BSSIZ (%s) to config...\n", s));
 			break;
 
 		case UNTSIZ:	/* sched structure size */
@@ -8057,7 +7618,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for schedsize");
 				return(-1);
 			}
-			DPR_INIT(("Adding UNTSIZ (%s) to config...\n", s));
 			break;
 
 		case F2SIZ:	/* f2200 structure size */
@@ -8078,7 +7638,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for f2200size");
 				return(-1);
 			}
-			DPR_INIT(("Adding F2SIZ (%s) to config...\n", s));
 			break;
 
 		case VPSIZ:	/* vpix structure size */
@@ -8099,7 +7658,6 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("bad number for vpixsize");
 				return(-1);
 			}
-			DPR_INIT(("Adding VPSIZ (%s) to config...\n", s));
 			break;
 		}
 	}
@@ -8374,17 +7932,11 @@ static struct cnode *dgap_find_config(int type, int bus, int slot)
 			if (p->u.board.type == type) {
 
 				if (p->u.board.v_pcibus && p->u.board.pcibus != bus) {
-					DPR(("Found matching board, but wrong bus position. System says bus %d, we want bus %ld\n",
-						bus, p->u.board.pcibus));
 					continue;
 				}
 				if (p->u.board.v_pcislot && p->u.board.pcislot != slot) {
-					DPR_INIT(("Found matching board, but wrong slot position. System says slot %d, we want slot %ld\n",
-						slot, p->u.board.pcislot));
 					continue;
 				}
-
-				DPR_INIT(("Matched type in config file\n"));
 
 				found = p;
 				/*
