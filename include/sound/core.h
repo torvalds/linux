@@ -433,7 +433,6 @@ static inline void snd_printdd(const char *format, ...) {}
 #define gameport_get_port_data(gp) (gp)->port_data
 #endif
 
-#ifdef CONFIG_PCI
 /* PCI quirk list helper */
 struct snd_pci_quirk {
 	unsigned short subvendor;	/* PCI subvendor ID */
@@ -469,12 +468,26 @@ struct snd_pci_quirk {
 #define snd_pci_quirk_name(q)	""
 #endif
 
+#ifdef CONFIG_PCI
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list);
 
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup_id(u16 vendor, u16 device,
 			const struct snd_pci_quirk *list);
+#else
+static inline const struct snd_pci_quirk *
+snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list)
+{
+	return NULL;
+}
+
+static inline const struct snd_pci_quirk *
+snd_pci_quirk_lookup_id(u16 vendor, u16 device,
+			const struct snd_pci_quirk *list)
+{
+	return NULL;
+}
 #endif
 
 #endif /* __SOUND_CORE_H */
