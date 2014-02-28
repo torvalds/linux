@@ -605,44 +605,6 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	conn->state = BT_CONNECT;
 }
 
-static void stop_scan_complete(struct hci_dev *hdev, u8 status)
-{
-	struct hci_request req;
-	struct hci_conn *conn;
-	int err;
-
-	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
-	if (!conn)
-		return;
-
-	if (status) {
-		BT_DBG("HCI request failed to stop scanning: status 0x%2.2x",
-		       status);
-
-		hci_dev_lock(hdev);
-		hci_le_conn_failed(conn, status);
-		hci_dev_unlock(hdev);
-		return;
-	}
-
-	/* Since we may have prematurely stopped discovery procedure, we should
-	 * update discovery state.
-	 */
-	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-
-	hci_req_init(&req, hdev);
-
-	hci_req_add_le_create_conn(&req, conn);
-
-	err = hci_req_run(&req, create_le_conn_complete);
-	if (err) {
-		hci_dev_lock(hdev);
-		hci_le_conn_failed(conn, HCI_ERROR_MEMORY_EXCEEDED);
-		hci_dev_unlock(hdev);
-		return;
-	}
-}
-
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u8 auth_type)
 {
@@ -721,16 +683,19 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	hci_req_init(&req, hdev);
 
 	/* If controller is scanning, we stop it since some controllers are
-	 * not able to scan and connect at the same time.
+	 * not able to scan and connect at the same time. Also set the
+	 * HCI_LE_SCAN_INTERRUPTED flag so that the command complete
+	 * handler for scan disabling knows to set the correct discovery
+	 * state.
 	 */
 	if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
 		hci_req_add_le_scan_disable(&req);
-		err = hci_req_run(&req, stop_scan_complete);
-	} else {
-		hci_req_add_le_create_conn(&req, conn);
-		err = hci_req_run(&req, create_le_conn_complete);
+		set_bit(HCI_LE_SCAN_INTERRUPTED, &hdev->dev_flags);
 	}
 
+	hci_req_add_le_create_conn(&req, conn);
+
+	err = hci_req_run(&req, create_le_conn_complete);
 	if (err) {
 		hci_conn_del(conn);
 		return ERR_PTR(err);
