@@ -1036,7 +1036,6 @@ static void mwifiex_usb_cleanup_module(void)
 
 	if (usb_card && usb_card->adapter) {
 		struct mwifiex_adapter *adapter = usb_card->adapter;
-		int i;
 
 		/* In case driver is removed when asynchronous FW downloading is
 		 * in progress
@@ -1047,11 +1046,8 @@ static void mwifiex_usb_cleanup_module(void)
 		if (adapter->is_suspended)
 			mwifiex_usb_resume(usb_card->intf);
 #endif
-		for (i = 0; i < adapter->priv_num; i++)
-			if ((GET_BSS_ROLE(adapter->priv[i]) ==
-			     MWIFIEX_BSS_ROLE_STA) &&
-			    adapter->priv[i]->media_connected)
-				mwifiex_deauthenticate(adapter->priv[i], NULL);
+
+		mwifiex_deauthenticate_all(adapter);
 
 		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
 							  MWIFIEX_BSS_ROLE_ANY),

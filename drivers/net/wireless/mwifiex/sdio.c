@@ -166,7 +166,6 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
 	struct mwifiex_private *priv;
-	int i;
 
 	pr_debug("info: SDIO func num=%d\n", func->num);
 
@@ -185,11 +184,7 @@ mwifiex_sdio_remove(struct sdio_func *func)
 		if (adapter->is_suspended)
 			mwifiex_sdio_resume(adapter->dev);
 
-		for (i = 0; i < adapter->priv_num; i++)
-			if ((GET_BSS_ROLE(adapter->priv[i]) ==
-						MWIFIEX_BSS_ROLE_STA) &&
-			    adapter->priv[i]->media_connected)
-				mwifiex_deauthenticate(adapter->priv[i], NULL);
+		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 		mwifiex_disable_auto_ds(priv);

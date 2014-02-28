@@ -1443,7 +1443,20 @@ int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mwifiex_deauthenticate);
+
+/* This function deauthenticates/disconnects from all BSS. */
+void mwifiex_deauthenticate_all(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+	int i;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (priv)
+			mwifiex_deauthenticate(priv, NULL);
+	}
+}
+EXPORT_SYMBOL_GPL(mwifiex_deauthenticate_all);
 
 /*
  * This function converts band to radio type used in channel TLV.

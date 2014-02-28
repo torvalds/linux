@@ -211,7 +211,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	struct pcie_service_card *card;
 	struct mwifiex_adapter *adapter;
 	struct mwifiex_private *priv;
-	int i;
 
 	card = pci_get_drvdata(pdev);
 	if (!card)
@@ -230,11 +229,7 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 			mwifiex_pcie_resume(&pdev->dev);
 #endif
 
-		for (i = 0; i < adapter->priv_num; i++)
-			if ((GET_BSS_ROLE(adapter->priv[i]) ==
-			     MWIFIEX_BSS_ROLE_STA) &&
-			    adapter->priv[i]->media_connected)
-				mwifiex_deauthenticate(adapter->priv[i], NULL);
+		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 

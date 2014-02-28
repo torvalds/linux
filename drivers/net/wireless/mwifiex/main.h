@@ -927,6 +927,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason);
 u8 mwifiex_band_to_radio_type(u8 band);
 int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac);
+void mwifiex_deauthenticate_all(struct mwifiex_adapter *adapter);
 int mwifiex_adhoc_start(struct mwifiex_private *priv,
 			struct cfg80211_ssid *adhoc_ssid);
 int mwifiex_adhoc_join(struct mwifiex_private *priv,
