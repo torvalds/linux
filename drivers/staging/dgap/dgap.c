@@ -2876,7 +2876,8 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	head = readw(&(bs->tx_head)) & tmask;
 	tail = readw(&(bs->tx_tail)) & tmask;
 
-	if ((bufcount = tail - head - 1) < 0)
+	bufcount = tail - head - 1;
+	if (bufcount < 0)
 		bufcount += ch->ch_tsize;
 
 	/*
@@ -6750,7 +6751,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case BOARD:	/* board info */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(BNODE)) == NULL) {
+			p->next = dgap_newnode(BNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7050,16 +7052,19 @@ static int	dgap_parsefile(char **in, int Remove)
 		case TTYN:	/* tty name prefix */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(TNODE)) == NULL) {
+			p->next = dgap_newnode(TNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
 			p = p->next;
-			if ((s = dgap_getword(in)) == NULL) {
+			s = dgap_getword(in);
+			if (!s) {
 				dgap_err("unexpeced end of file");
 				return -1;
 			}
-			if ((p->u.ttyname = dgap_savestring(s)) == NULL) {
+			p->u.ttyname = dgap_savestring(s);
+			if (!p->u.ttyname) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7068,16 +7073,19 @@ static int	dgap_parsefile(char **in, int Remove)
 		case CU:	/* cu name prefix */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(CUNODE)) == NULL) {
+			p->next = dgap_newnode(CUNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
 			p = p->next;
-			if ((s = dgap_getword(in)) == NULL) {
+			s = dgap_getword(in);
+			if (!s) {
 				dgap_err("unexpeced end of file");
 				return -1;
 			}
-			if ((p->u.cuname = dgap_savestring(s)) == NULL) {
+			p->u.cuname = dgap_savestring(s);
+			if (!p->u.cuname) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7095,7 +7103,8 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("line not vaild for PC/em");
 				return -1;
 			}
-			if ((p->next = dgap_newnode(LNODE)) == NULL) {
+			p->next = dgap_newnode(LNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7112,7 +7121,8 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("must specify line info before concentrator");
 				return -1;
 			}
-			if ((p->next = dgap_newnode(CNODE)) == NULL) {
+			p->next = dgap_newnode(CNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7160,7 +7170,8 @@ static int	dgap_parsefile(char **in, int Remove)
 					return -1;
 				}
 			}
-			if ((p->next = dgap_newnode(MNODE)) == NULL) {
+			p->next = dgap_newnode(MNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7192,7 +7203,8 @@ static int	dgap_parsefile(char **in, int Remove)
 
 		case CABLE:
 			if (p->type == LNODE) {
-				if ((s = dgap_getword(in)) == NULL) {
+				s = dgap_getword(in);
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -7234,7 +7246,8 @@ static int	dgap_parsefile(char **in, int Remove)
 
 		case CONNECT:
 			if (p->type == CNODE) {
-				if ((s = dgap_getword(in)) == NULL) {
+				s = dgap_getword(in);
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -7245,16 +7258,19 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PRINT:	/* transparent print name prefix */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(PNODE)) == NULL) {
+			p->next = dgap_newnode(PNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
 			p = p->next;
-			if ((s = dgap_getword(in)) == NULL) {
+			s = dgap_getword(in);
+			if (!s) {
 				dgap_err("unexpeced end of file");
 				return -1;
 			}
-			if ((p->u.printname = dgap_savestring(s)) == NULL) {
+			p->u.printname = dgap_savestring(s);
+			if (!p->u.printname) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7263,7 +7279,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case CMAJOR:	/* major number */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(JNODE)) == NULL) {
+			p->next = dgap_newnode(JNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7283,7 +7300,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case ALTPIN:	/* altpin setting */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(ANODE)) == NULL) {
+			p->next = dgap_newnode(ANODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7303,7 +7321,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case USEINTR:		/* enable interrupt setting */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(INTRNODE)) == NULL) {
+			p->next = dgap_newnode(INTRNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7323,7 +7342,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case TTSIZ:	/* size of tty structure */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(TSNODE)) == NULL) {
+			p->next = dgap_newnode(TSNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7343,7 +7363,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case CHSIZ:	/* channel structure size */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(CSNODE)) == NULL) {
+			p->next = dgap_newnode(CSNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7363,7 +7384,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case BSSIZ:	/* board structure size */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(BSNODE)) == NULL) {
+			p->next = dgap_newnode(BSNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7383,7 +7405,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case UNTSIZ:	/* sched structure size */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(USNODE)) == NULL) {
+			p->next = dgap_newnode(USNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7403,7 +7426,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case F2SIZ:	/* f2200 structure size */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(FSNODE)) == NULL) {
+			p->next = dgap_newnode(FSNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
@@ -7423,7 +7447,8 @@ static int	dgap_parsefile(char **in, int Remove)
 		case VPSIZ:	/* vpix structure size */
 			if (dgap_checknode(p))
 				return -1;
-			if ((p->next = dgap_newnode(VSNODE)) == NULL) {
+			p->next = dgap_newnode(VSNODE);
+			if (!p->next) {
 				dgap_err("out of memory");
 				return -1;
 			}
