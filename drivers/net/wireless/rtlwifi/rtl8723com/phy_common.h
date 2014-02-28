@@ -26,6 +26,25 @@
 #ifndef __PHY_COMMON__
 #define __PHY_COMMON__
 
+#define RT_CANNOT_IO(hw)			false
+
+enum swchnlcmd_id {
+	CMDID_END,
+	CMDID_SET_TXPOWEROWER_LEVEL,
+	CMDID_BBREGWRITE10,
+	CMDID_WRITEPORT_ULONG,
+	CMDID_WRITEPORT_USHORT,
+	CMDID_WRITEPORT_UCHAR,
+	CMDID_RF_WRITEREG,
+};
+
+struct swchnlcmd {
+	enum swchnlcmd_id cmdid;
+	u32 para1;
+	u32 para2;
+	u32 msdelay;
+};
+
 u32 rtl8723_phy_query_bb_reg(struct ieee80211_hw *hw,
 			     u32 regaddr, u32 bitmask);
 void rtl8723_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr,
@@ -36,11 +55,6 @@ u32 rtl8723_phy_rf_serial_read(struct ieee80211_hw *hw,
 void rtl8723_phy_rf_serial_write(struct ieee80211_hw *hw,
 				 enum radio_path rfpath,
 				 u32 offset, u32 data);
-u32 rtl8723_phy_query_bb_reg(struct ieee80211_hw *hw,
-			     u32 regaddr, u32 bitmask);
-u32 rtl8723_phy_calculate_bit_shift(u32 bitmask);
-void rtl8723_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr,
-			    u32 bitmask, u32 data);
 long rtl8723_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
 				  enum wireless_mode wirelessmode,
 				  u8 txpwridx);
@@ -58,8 +72,8 @@ void rtl8723_phy_path_a_fill_iqk_matrix(struct ieee80211_hw *hw,
 					bool btxonly);
 void rtl8723_save_adda_registers(struct ieee80211_hw *hw, u32 *addareg,
 				 u32 *addabackup, u32 registernum);
-static void rtl8723_phy_save_mac_registers(struct ieee80211_hw *hw,
-					   u32 *macreg, u32 *macbackup);
+void rtl8723_phy_save_mac_registers(struct ieee80211_hw *hw,
+				    u32 *macreg, u32 *macbackup);
 void rtl8723_phy_reload_adda_registers(struct ieee80211_hw *hw,
 				       u32 *addareg, u32 *addabackup,
 				       u32 regiesternum);

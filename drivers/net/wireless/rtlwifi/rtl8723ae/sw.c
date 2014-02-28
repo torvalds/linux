@@ -37,6 +37,7 @@
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
+#include "../rtl8723com/phy_common.h"
 #include "dm.h"
 #include "hw.h"
 #include "sw.h"
@@ -231,8 +232,8 @@ static struct rtl_hal_ops rtl8723ae_hal_ops = {
 	.set_key = rtl8723ae_set_key,
 	.init_sw_leds = rtl8723ae_init_sw_leds,
 	.allow_all_destaddr = rtl8723ae_allow_all_destaddr,
-	.get_bbreg = rtl8723ae_phy_query_bb_reg,
-	.set_bbreg = rtl8723ae_phy_set_bb_reg,
+	.get_bbreg = rtl8723_phy_query_bb_reg,
+	.set_bbreg = rtl8723_phy_set_bb_reg,
 	.get_rfreg = rtl8723ae_phy_query_rf_reg,
 	.set_rfreg = rtl8723ae_phy_set_rf_reg,
 	.c2h_command_handle = rtl_8723e_c2h_command_handle,

@@ -48,6 +48,7 @@ config RTL8723AE
 	depends on PCI
 	select RTLWIFI
 	select RTLWIFI_PCI
+	select RTL8723_COMMON
 	select RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek RTL8723AE 802.11n PCIe
@@ -100,6 +101,11 @@ config RTLWIFI_DEBUG
 config RTL8192C_COMMON
 	tristate
 	depends on RTL8192CE || RTL8192CU
+	default y
+
+config RTL8723_COMMON
+	tristate
+	depends on RTL8723AE
 	default y
 
 config RTLBTCOEXIST

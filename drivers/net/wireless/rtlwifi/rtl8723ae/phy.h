@@ -76,23 +76,6 @@
 
 #define RTL92C_MAX_PATH_NUM			2
 
-enum swchnlcmd_id {
-	CMDID_END,
-	CMDID_SET_TXPOWEROWER_LEVEL,
-	CMDID_BBREGWRITE10,
-	CMDID_WRITEPORT_ULONG,
-	CMDID_WRITEPORT_USHORT,
-	CMDID_WRITEPORT_UCHAR,
-	CMDID_RF_WRITEREG,
-};
-
-struct swchnlcmd {
-	enum swchnlcmd_id cmdid;
-	u32 para1;
-	u32 para2;
-	u32 msdelay;
-};
-
 enum hw90_block_e {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
@@ -183,10 +166,6 @@ struct tx_power_struct {
 	u32 mcs_original_offset[4][16];
 };
 
-u32 rtl8723ae_phy_query_bb_reg(struct ieee80211_hw *hw,
-			       u32 regaddr, u32 bitmask);
-void rtl8723ae_phy_set_bb_reg(struct ieee80211_hw *hw,
-			      u32 regaddr, u32 bitmask, u32 data);
 u32 rtl8723ae_phy_query_rf_reg(struct ieee80211_hw *hw,
 			       enum radio_path rfpath, u32 regaddr,
 			       u32 bitmask);
