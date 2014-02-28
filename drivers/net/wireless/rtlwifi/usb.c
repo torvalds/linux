@@ -410,7 +410,7 @@ static void rtl_usb_init_sw(struct ieee80211_hw *hw)
 	mac->current_ampdu_factor = 3;
 
 	/* QOS */
-	rtlusb->acm_method = eAcmWay2_SW;
+	rtlusb->acm_method = EACMWAY2_SW;
 
 	/* IRQ */
 	/* HIMR - turn all on */

@@ -394,7 +394,7 @@ static void _rtl92cu_read_adapter_info(struct ieee80211_hw *hw)
 			if (rtlefuse->eeprom_did == 0x8176) {
 				if ((rtlefuse->eeprom_svid == 0x103C &&
 				     rtlefuse->eeprom_smid == 0x1629))
-					rtlhal->oem_id = RT_CID_819x_HP;
+					rtlhal->oem_id = RT_CID_819X_HP;
 				else
 					rtlhal->oem_id = RT_CID_DEFAULT;
 			} else {
@@ -405,7 +405,7 @@ static void _rtl92cu_read_adapter_info(struct ieee80211_hw *hw)
 			rtlhal->oem_id = RT_CID_TOSHIBA;
 			break;
 		case EEPROM_CID_QMI:
-			rtlhal->oem_id = RT_CID_819x_QMI;
+			rtlhal->oem_id = RT_CID_819X_QMI;
 			break;
 		case EEPROM_CID_WHQL:
 		default:
@@ -423,14 +423,14 @@ static void _rtl92cu_hal_customized_behavior(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	switch (rtlhal->oem_id) {
-	case RT_CID_819x_HP:
+	case RT_CID_819X_HP:
 		usb_priv->ledctl.led_opendrain = true;
 		break;
-	case RT_CID_819x_Lenovo:
+	case RT_CID_819X_LENOVO:
 	case RT_CID_DEFAULT:
 	case RT_CID_TOSHIBA:
 	case RT_CID_CCX:
-	case RT_CID_819x_Acer:
+	case RT_CID_819X_ACER:
 	case RT_CID_WHQL:
 	default:
 		break;
@@ -1797,7 +1797,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					  e_aci);
 				break;
 			}
-			if (rtlusb->acm_method != eAcmWay2_SW)
+			if (rtlusb->acm_method != EACMWAY2_SW)
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 					 HW_VAR_ACM_CTRL, &e_aci);
 			break;

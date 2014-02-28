@@ -746,6 +746,11 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				rtlpriv->cfg->ops->linked_set_reg(hw);
 			rcu_read_lock();
 			sta = ieee80211_find_sta(vif, (u8 *)bss_conf->bssid);
+			if (!sta) {
+				pr_err("ieee80211_find_sta returned NULL\n");
+				rcu_read_unlock();
+				goto out;
+			}
 
 			if (vif->type == NL80211_IFTYPE_STATION && sta)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
@@ -900,7 +905,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			mac->basic_rates = basic_rates;
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BASIC_RATE,
-					(u8 *) (&basic_rates));
+					(u8 *)(&basic_rates));
 		}
 		rcu_read_unlock();
 	}
@@ -914,6 +919,11 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (bss_conf->assoc) {
 			if (ppsc->fwctrl_lps) {
 				u8 mstatus = RT_MEDIA_CONNECT;
+				u8 keep_alive = 10;
+				rtlpriv->cfg->ops->set_hw_reg(hw,
+						 HW_VAR_KEEP_ALIVE,
+						 (u8 *)(&keep_alive));
+
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
 						      &mstatus);

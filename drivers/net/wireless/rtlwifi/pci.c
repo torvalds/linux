@@ -1066,7 +1066,7 @@ static void _rtl_pci_init_struct(struct ieee80211_hw *hw,
 	mac->current_ampdu_factor = 3;
 
 	/*QOS*/
-	rtlpci->acm_method = eAcmWay2_SW;
+	rtlpci->acm_method = EACMWAY2_SW;
 
 	/*task */
 	tasklet_init(&rtlpriv->works.irq_tasklet,
