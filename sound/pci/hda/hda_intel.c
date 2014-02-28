@@ -293,35 +293,6 @@ static char *driver_short_names[] = {
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
 
-/*
- * macros for easy use
- */
-#define azx_writel(chip,reg,value) \
-	writel(value, (chip)->remap_addr + ICH6_REG_##reg)
-#define azx_readl(chip,reg) \
-	readl((chip)->remap_addr + ICH6_REG_##reg)
-#define azx_writew(chip,reg,value) \
-	writew(value, (chip)->remap_addr + ICH6_REG_##reg)
-#define azx_readw(chip,reg) \
-	readw((chip)->remap_addr + ICH6_REG_##reg)
-#define azx_writeb(chip,reg,value) \
-	writeb(value, (chip)->remap_addr + ICH6_REG_##reg)
-#define azx_readb(chip,reg) \
-	readb((chip)->remap_addr + ICH6_REG_##reg)
-
-#define azx_sd_writel(dev,reg,value) \
-	writel(value, (dev)->sd_addr + ICH6_REG_##reg)
-#define azx_sd_readl(dev,reg) \
-	readl((dev)->sd_addr + ICH6_REG_##reg)
-#define azx_sd_writew(dev,reg,value) \
-	writew(value, (dev)->sd_addr + ICH6_REG_##reg)
-#define azx_sd_readw(dev,reg) \
-	readw((dev)->sd_addr + ICH6_REG_##reg)
-#define azx_sd_writeb(dev,reg,value) \
-	writeb(value, (dev)->sd_addr + ICH6_REG_##reg)
-#define azx_sd_readb(dev,reg) \
-	readb((dev)->sd_addr + ICH6_REG_##reg)
-
 /* for pcm support */
 #define get_azx_dev(substream) (substream->runtime->private_data)
 
@@ -876,8 +847,9 @@ static void azx_int_disable(struct azx *chip)
 	/* disable interrupts in stream descriptor */
 	for (i = 0; i < chip->num_streams; i++) {
 		struct azx_dev *azx_dev = &chip->azx_dev[i];
-		azx_sd_writeb(azx_dev, SD_CTL,
-			      azx_sd_readb(azx_dev, SD_CTL) & ~SD_INT_MASK);
+		azx_sd_writeb(chip, azx_dev, SD_CTL,
+			      azx_sd_readb(chip, azx_dev, SD_CTL) &
+					~SD_INT_MASK);
 	}
 
 	/* disable SIE for all streams */
@@ -896,7 +868,7 @@ static void azx_int_clear(struct azx *chip)
 	/* clear stream status */
 	for (i = 0; i < chip->num_streams; i++) {
 		struct azx_dev *azx_dev = &chip->azx_dev[i];
-		azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
+		azx_sd_writeb(chip, azx_dev, SD_STS, SD_INT_MASK);
 	}
 
 	/* clear STATESTS */
@@ -921,16 +893,18 @@ static void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 	azx_writel(chip, INTCTL,
 		   azx_readl(chip, INTCTL) | (1 << azx_dev->index));
 	/* set DMA start and interrupt mask */
-	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) |
+	azx_sd_writeb(chip, azx_dev, SD_CTL,
+		      azx_sd_readb(chip, azx_dev, SD_CTL) |
 		      SD_CTL_DMA_START | SD_INT_MASK);
 }
 
 /* stop DMA */
 static void azx_stream_clear(struct azx *chip, struct azx_dev *azx_dev)
 {
-	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) &
+	azx_sd_writeb(chip, azx_dev, SD_CTL,
+		      azx_sd_readb(chip, azx_dev, SD_CTL) &
 		      ~(SD_CTL_DMA_START | SD_INT_MASK));
-	azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK); /* to be sure */
+	azx_sd_writeb(chip, azx_dev, SD_STS, SD_INT_MASK); /* to be sure */
 }
 
 /* stop a stream */
@@ -1078,8 +1052,8 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	for (i = 0; i < chip->num_streams; i++) {
 		azx_dev = &chip->azx_dev[i];
 		if (status & azx_dev->sd_int_sta_mask) {
-			sd_status = azx_sd_readb(azx_dev, SD_STS);
-			azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
+			sd_status = azx_sd_readb(chip, azx_dev, SD_STS);
+			azx_sd_writeb(chip, azx_dev, SD_STS, SD_INT_MASK);
 			if (!azx_dev->substream || !azx_dev->running ||
 			    !(sd_status & SD_INT_COMPLETE))
 				continue;
@@ -1176,8 +1150,8 @@ static int azx_setup_periods(struct azx *chip,
 	int pos_adj;
 
 	/* reset BDL address */
-	azx_sd_writel(azx_dev, SD_BDLPL, 0);
-	azx_sd_writel(azx_dev, SD_BDLPU, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPL, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPU, 0);
 
 	period_bytes = azx_dev->period_bytes;
 	periods = azx_dev->bufsize / period_bytes;
@@ -1239,21 +1213,22 @@ static void azx_stream_reset(struct azx *chip, struct azx_dev *azx_dev)
 
 	azx_stream_clear(chip, azx_dev);
 
-	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) |
+	azx_sd_writeb(chip, azx_dev, SD_CTL,
+		      azx_sd_readb(chip, azx_dev, SD_CTL) |
 		      SD_CTL_STREAM_RESET);
 	udelay(3);
 	timeout = 300;
-	while (!((val = azx_sd_readb(azx_dev, SD_CTL)) & SD_CTL_STREAM_RESET) &&
-	       --timeout)
+	while (!((val = azx_sd_readb(chip, azx_dev, SD_CTL)) &
+		 SD_CTL_STREAM_RESET) && --timeout)
 		;
 	val &= ~SD_CTL_STREAM_RESET;
-	azx_sd_writeb(azx_dev, SD_CTL, val);
+	azx_sd_writeb(chip, azx_dev, SD_CTL, val);
 	udelay(3);
 
 	timeout = 300;
 	/* waiting for hardware to report that the stream is out of reset */
-	while (((val = azx_sd_readb(azx_dev, SD_CTL)) & SD_CTL_STREAM_RESET) &&
-	       --timeout)
+	while (((val = azx_sd_readb(chip, azx_dev, SD_CTL)) &
+		SD_CTL_STREAM_RESET) && --timeout)
 		;
 
 	/* reset first position - may not be synced with hw at this time */
@@ -1269,28 +1244,29 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	/* make sure the run bit is zero for SD */
 	azx_stream_clear(chip, azx_dev);
 	/* program the stream_tag */
-	val = azx_sd_readl(azx_dev, SD_CTL);
+	val = azx_sd_readl(chip, azx_dev, SD_CTL);
 	val = (val & ~SD_CTL_STREAM_TAG_MASK) |
 		(azx_dev->stream_tag << SD_CTL_STREAM_TAG_SHIFT);
 	if (!azx_snoop(chip))
 		val |= SD_CTL_TRAFFIC_PRIO;
-	azx_sd_writel(azx_dev, SD_CTL, val);
+	azx_sd_writel(chip, azx_dev, SD_CTL, val);
 
 	/* program the length of samples in cyclic buffer */
-	azx_sd_writel(azx_dev, SD_CBL, azx_dev->bufsize);
+	azx_sd_writel(chip, azx_dev, SD_CBL, azx_dev->bufsize);
 
 	/* program the stream format */
 	/* this value needs to be the same as the one programmed */
-	azx_sd_writew(azx_dev, SD_FORMAT, azx_dev->format_val);
+	azx_sd_writew(chip, azx_dev, SD_FORMAT, azx_dev->format_val);
 
 	/* program the stream LVI (last valid index) of the BDL */
-	azx_sd_writew(azx_dev, SD_LVI, azx_dev->frags - 1);
+	azx_sd_writew(chip, azx_dev, SD_LVI, azx_dev->frags - 1);
 
 	/* program the BDL address */
 	/* lower BDL address */
-	azx_sd_writel(azx_dev, SD_BDLPL, (u32)azx_dev->bdl.addr);
+	azx_sd_writel(chip, azx_dev, SD_BDLPL, (u32)azx_dev->bdl.addr);
 	/* upper BDL address */
-	azx_sd_writel(azx_dev, SD_BDLPU, upper_32_bits(azx_dev->bdl.addr));
+	azx_sd_writel(chip, azx_dev, SD_BDLPU,
+		      upper_32_bits(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
 	if (chip->position_fix[0] != POS_FIX_LPIB ||
@@ -1301,8 +1277,8 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	}
 
 	/* set the interrupt enable bits in the descriptor control register */
-	azx_sd_writel(azx_dev, SD_CTL,
-		      azx_sd_readl(azx_dev, SD_CTL) | SD_INT_MASK);
+	azx_sd_writel(chip, azx_dev, SD_CTL,
+		      azx_sd_readl(chip, azx_dev, SD_CTL) | SD_INT_MASK);
 
 	return 0;
 }
@@ -1776,9 +1752,9 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	/* reset BDL address */
 	dsp_lock(azx_dev);
 	if (!dsp_is_locked(azx_dev)) {
-		azx_sd_writel(azx_dev, SD_BDLPL, 0);
-		azx_sd_writel(azx_dev, SD_BDLPU, 0);
-		azx_sd_writel(azx_dev, SD_CTL, 0);
+		azx_sd_writel(chip, azx_dev, SD_BDLPL, 0);
+		azx_sd_writel(chip, azx_dev, SD_BDLPU, 0);
+		azx_sd_writel(chip, azx_dev, SD_CTL, 0);
 		azx_dev->bufsize = 0;
 		azx_dev->period_bytes = 0;
 		azx_dev->format_val = 0;
@@ -1858,7 +1834,8 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 						runtime->rate) * 1000);
 	azx_setup_controller(chip, azx_dev);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		azx_dev->fifo_size = azx_sd_readw(azx_dev, SD_FIFOSIZE) + 1;
+		azx_dev->fifo_size =
+			azx_sd_readw(chip, azx_dev, SD_FIFOSIZE) + 1;
 	else
 		azx_dev->fifo_size = 0;
 
@@ -1950,7 +1927,7 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 				if (s->pcm->card != substream->pcm->card)
 					continue;
 				azx_dev = get_azx_dev(s);
-				if (!(azx_sd_readb(azx_dev, SD_STS) &
+				if (!(azx_sd_readb(chip, azx_dev, SD_STS) &
 				      SD_STS_FIFO_READY))
 					nwait++;
 			}
@@ -1966,7 +1943,7 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 				if (s->pcm->card != substream->pcm->card)
 					continue;
 				azx_dev = get_azx_dev(s);
-				if (azx_sd_readb(azx_dev, SD_CTL) &
+				if (azx_sd_readb(chip, azx_dev, SD_CTL) &
 				    SD_CTL_DMA_START)
 					nwait++;
 			}
@@ -2010,7 +1987,7 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	unsigned int mod_link_pos, mod_dma_pos, mod_mini_pos;
 	unsigned int fifo_size;
 
-	link_pos = azx_sd_readl(azx_dev, SD_LPIB);
+	link_pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
 	if (azx_dev->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* Playback, no problem using link position */
 		return link_pos;
@@ -2072,7 +2049,7 @@ static unsigned int azx_get_position(struct azx *chip,
 	switch (chip->position_fix[stream]) {
 	case POS_FIX_LPIB:
 		/* read LPIB */
-		pos = azx_sd_readl(azx_dev, SD_LPIB);
+		pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
 		break;
 	case POS_FIX_VIACOMBO:
 		pos = azx_via_get_position(chip, azx_dev);
@@ -2085,7 +2062,7 @@ static unsigned int azx_get_position(struct azx *chip,
 				dev_info(chip->card->dev,
 					 "Invalid position buffer, using LPIB read method instead.\n");
 				chip->position_fix[stream] = POS_FIX_LPIB;
-				pos = azx_sd_readl(azx_dev, SD_LPIB);
+				pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
 			} else
 				chip->position_fix[stream] = POS_FIX_POSBUF;
 		}
@@ -2099,7 +2076,7 @@ static unsigned int azx_get_position(struct azx *chip,
 	if (substream->runtime &&
 	    chip->position_fix[stream] == POS_FIX_POSBUF &&
 	    (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)) {
-		unsigned int lpib_pos = azx_sd_readl(azx_dev, SD_LPIB);
+		unsigned int lpib_pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 			delay = pos - lpib_pos;
 		else
@@ -2438,8 +2415,8 @@ static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
 	azx_stream_reset(chip, azx_dev);
 
 	/* reset BDL address */
-	azx_sd_writel(azx_dev, SD_BDLPL, 0);
-	azx_sd_writel(azx_dev, SD_BDLPU, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPL, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPU, 0);
 
 	azx_dev->frags = 0;
 	bdl = (u32 *)azx_dev->bdl.area;
@@ -2488,9 +2465,9 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 
 	dsp_lock(azx_dev);
 	/* reset BDL address */
-	azx_sd_writel(azx_dev, SD_BDLPL, 0);
-	azx_sd_writel(azx_dev, SD_BDLPU, 0);
-	azx_sd_writel(azx_dev, SD_CTL, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPL, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPU, 0);
+	azx_sd_writel(chip, azx_dev, SD_CTL, 0);
 	azx_dev->bufsize = 0;
 	azx_dev->period_bytes = 0;
 	azx_dev->format_val = 0;
@@ -3167,6 +3144,7 @@ static void azx_probe_work(struct work_struct *work)
  */
 static int azx_create(struct snd_card *card, struct pci_dev *pci,
 		      int dev, unsigned int driver_caps,
+		      const struct hda_controller_ops *hda_ops,
 		      struct azx **rchip)
 {
 	static struct snd_device_ops ops = {
@@ -3192,6 +3170,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->pci = pci;
+	chip->ops = hda_ops;
 	chip->irq = -1;
 	chip->driver_caps = driver_caps;
 	chip->driver_type = driver_caps & 0xff;
@@ -3450,6 +3429,50 @@ static void azx_firmware_cb(const struct firmware *fw, void *context)
 }
 #endif
 
+/*
+ * HDA controller ops.
+ */
+
+/* PCI register access. */
+static void pci_azx_writel(u32 value, u32 *addr)
+{
+	writel(value, addr);
+}
+
+static u32 pci_azx_readl(u32 *addr)
+{
+	return readl(addr);
+}
+
+static void pci_azx_writew(u16 value, u16 *addr)
+{
+	writew(value, addr);
+}
+
+static u16 pci_azx_readw(u16 *addr)
+{
+	return readw(addr);
+}
+
+static void pci_azx_writeb(u8 value, u8 *addr)
+{
+	writeb(value, addr);
+}
+
+static u8 pci_azx_readb(u8 *addr)
+{
+	return readb(addr);
+}
+
+static const struct hda_controller_ops pci_hda_ops = {
+	.writel = pci_azx_writel,
+	.readl = pci_azx_readl,
+	.writew = pci_azx_writew,
+	.readw = pci_azx_readw,
+	.writeb = pci_azx_writeb,
+	.readb = pci_azx_readb,
+};
+
 static int azx_probe(struct pci_dev *pci,
 		     const struct pci_device_id *pci_id)
 {
@@ -3473,7 +3496,8 @@ static int azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
+	err = azx_create(card, pci, dev, pci_id->driver_data,
+			 &pci_hda_ops, &chip);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;

@@ -285,6 +285,17 @@ struct azx_rb {
 	u32 res[AZX_MAX_CODECS];	/* last read value */
 };
 
+/* Functions to read/write to hda registers. */
+struct hda_controller_ops {
+	/* Register Access */
+	void (*writel)(u32 value, u32 *addr);
+	u32 (*readl)(u32 *addr);
+	void (*writew)(u16 value, u16 *addr);
+	u16 (*readw)(u16 *addr);
+	void (*writeb)(u8 value, u8 *addr);
+	u8 (*readb)(u8 *addr);
+};
+
 struct azx_pcm {
 	struct azx *chip;
 	struct snd_pcm *pcm;
@@ -306,6 +317,9 @@ struct azx {
 	int capture_streams;
 	int capture_index_offset;
 	int num_streams;
+
+	/* Register interaction. */
+	const struct hda_controller_ops *ops;
 
 	/* pci resources */
 	unsigned long addr;
@@ -394,5 +408,35 @@ struct azx {
 #else
 #define azx_snoop(chip)		true
 #endif
+
+/*
+ * macros for easy use
+ */
+
+#define azx_writel(chip, reg, value) \
+	((chip)->ops->writel(value, (chip)->remap_addr + ICH6_REG_##reg))
+#define azx_readl(chip, reg) \
+	((chip)->ops->readl((chip)->remap_addr + ICH6_REG_##reg))
+#define azx_writew(chip, reg, value) \
+	((chip)->ops->writew(value, (chip)->remap_addr + ICH6_REG_##reg))
+#define azx_readw(chip, reg) \
+	((chip)->ops->readw((chip)->remap_addr + ICH6_REG_##reg))
+#define azx_writeb(chip, reg, value) \
+	((chip)->ops->writeb(value, (chip)->remap_addr + ICH6_REG_##reg))
+#define azx_readb(chip, reg) \
+	((chip)->ops->readb((chip)->remap_addr + ICH6_REG_##reg))
+
+#define azx_sd_writel(chip, dev, reg, value) \
+	((chip)->ops->writel(value, (dev)->sd_addr + ICH6_REG_##reg))
+#define azx_sd_readl(chip, dev, reg) \
+	((chip)->ops->readl((dev)->sd_addr + ICH6_REG_##reg))
+#define azx_sd_writew(chip, dev, reg, value) \
+	((chip)->ops->writew(value, (dev)->sd_addr + ICH6_REG_##reg))
+#define azx_sd_readw(chip, dev, reg) \
+	((chip)->ops->readw((dev)->sd_addr + ICH6_REG_##reg))
+#define azx_sd_writeb(chip, dev, reg, value) \
+	((chip)->ops->writeb(value, (dev)->sd_addr + ICH6_REG_##reg))
+#define azx_sd_readb(chip, dev, reg) \
+	((chip)->ops->readb((dev)->sd_addr + ICH6_REG_##reg))
 
 #endif /* __SOUND_HDA_PRIV_H */
