@@ -2190,19 +2190,15 @@ static void azx_clear_irq_pending(struct azx *chip)
 	spin_unlock_irq(&chip->reg_lock);
 }
 
-#ifdef CONFIG_X86
 static int azx_pcm_mmap(struct snd_pcm_substream *substream,
 			struct vm_area_struct *area)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
-	if (!azx_snoop(chip))
-		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+	if (chip->ops->pcm_mmap_prepare)
+		chip->ops->pcm_mmap_prepare(substream, area);
 	return snd_pcm_lib_default_mmap(substream, area);
 }
-#else
-#define azx_pcm_mmap	NULL
-#endif
 
 static struct snd_pcm_ops azx_pcm_ops = {
 	.open = azx_pcm_open,
@@ -3508,6 +3504,17 @@ static int substream_free_pages(struct azx *chip,
 	return snd_pcm_lib_free_pages(substream);
 }
 
+static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
+			     struct vm_area_struct *area)
+{
+#ifdef CONFIG_X86
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+	struct azx *chip = apcm->chip;
+	if (!azx_snoop(chip))
+		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+#endif
+}
+
 static const struct hda_controller_ops pci_hda_ops = {
 	.writel = pci_azx_writel,
 	.readl = pci_azx_readl,
@@ -3520,6 +3527,7 @@ static const struct hda_controller_ops pci_hda_ops = {
 	.dma_free_pages = dma_free_pages,
 	.substream_alloc_pages = substream_alloc_pages,
 	.substream_free_pages = substream_free_pages,
+	.pcm_mmap_prepare = pcm_mmap_prepare,
 };
 
 static int azx_probe(struct pci_dev *pci,
