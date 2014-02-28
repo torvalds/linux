@@ -191,16 +191,16 @@ static int snd_usbmidi_submit_urb(struct urb* urb, gfp_t flags)
 {
 	int err = usb_submit_urb(urb, flags);
 	if (err < 0 && err != -ENODEV)
-		snd_printk(KERN_ERR "usb_submit_urb: %d\n", err);
+		dev_err(&urb->dev->dev, "usb_submit_urb: %d\n", err);
 	return err;
 }
 
 /*
  * Error handling for URB completion functions.
  */
-static int snd_usbmidi_urb_error(int status)
+static int snd_usbmidi_urb_error(const struct urb *urb)
 {
-	switch (status) {
+	switch (urb->status) {
 	/* manually unlinked, or device gone */
 	case -ENOENT:
 	case -ECONNRESET:
@@ -213,7 +213,7 @@ static int snd_usbmidi_urb_error(int status)
 	case -EILSEQ:
 		return -EIO;
 	default:
-		snd_printk(KERN_ERR "urb status %d\n", status);
+		dev_err(&urb->dev->dev, "urb status %d\n", urb->status);
 		return 0; /* continue */
 	}
 }
@@ -227,7 +227,7 @@ static void snd_usbmidi_input_data(struct snd_usb_midi_in_endpoint* ep, int port
 	struct usbmidi_in_port* port = &ep->ports[portidx];
 
 	if (!port->substream) {
-		snd_printd("unexpected port %d!\n", portidx);
+		dev_dbg(&ep->umidi->dev->dev, "unexpected port %d!\n", portidx);
 		return;
 	}
 	if (!test_bit(port->substream->number, &ep->umidi->input_triggered))
@@ -259,7 +259,7 @@ static void snd_usbmidi_in_urb_complete(struct urb* urb)
 		ep->umidi->usb_protocol_ops->input(ep, urb->transfer_buffer,
 						   urb->actual_length);
 	} else {
-		int err = snd_usbmidi_urb_error(urb->status);
+		int err = snd_usbmidi_urb_error(urb);
 		if (err < 0) {
 			if (err != -ENODEV) {
 				ep->error_resubmit = 1;
@@ -289,7 +289,7 @@ static void snd_usbmidi_out_urb_complete(struct urb* urb)
 	}
 	spin_unlock(&ep->buffer_lock);
 	if (urb->status < 0) {
-		int err = snd_usbmidi_urb_error(urb->status);
+		int err = snd_usbmidi_urb_error(urb);
 		if (err < 0) {
 			if (err != -ENODEV)
 				mod_timer(&ep->umidi->error_timer,
@@ -1668,7 +1668,7 @@ static void snd_usbmidi_init_substream(struct snd_usb_midi* umidi,
 
 	struct snd_rawmidi_substream *substream = snd_usbmidi_find_substream(umidi, stream, number);
 	if (!substream) {
-		snd_printd(KERN_ERR "substream %d:%d not found\n", stream, number);
+		dev_err(&umidi->dev->dev, "substream %d:%d not found\n", stream, number);
 		return;
 	}
 
@@ -1717,7 +1717,7 @@ static int snd_usbmidi_create_endpoints(struct snd_usb_midi* umidi,
 			}
 		}
 	}
-	snd_printdd(KERN_INFO "created %d output and %d input ports\n",
+	dev_dbg(&umidi->dev->dev, "created %d output and %d input ports\n",
 		    out_ports, in_ports);
 	return 0;
 }
@@ -1747,10 +1747,11 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 	    ms_header->bLength >= 7 &&
 	    ms_header->bDescriptorType == USB_DT_CS_INTERFACE &&
 	    ms_header->bDescriptorSubtype == UAC_HEADER)
-		snd_printdd(KERN_INFO "MIDIStreaming version %02x.%02x\n",
+		dev_dbg(&umidi->dev->dev, "MIDIStreaming version %02x.%02x\n",
 			    ms_header->bcdMSC[1], ms_header->bcdMSC[0]);
 	else
-		snd_printk(KERN_WARNING "MIDIStreaming interface descriptor not found\n");
+		dev_warn(&umidi->dev->dev,
+			 "MIDIStreaming interface descriptor not found\n");
 
 	epidx = 0;
 	for (i = 0; i < intfd->bNumEndpoints; ++i) {
@@ -1767,7 +1768,8 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 		if (usb_endpoint_dir_out(ep)) {
 			if (endpoints[epidx].out_ep) {
 				if (++epidx >= MIDI_MAX_ENDPOINTS) {
-					snd_printk(KERN_WARNING "too many endpoints\n");
+					dev_warn(&umidi->dev->dev,
+						 "too many endpoints\n");
 					break;
 				}
 			}
@@ -1782,12 +1784,13 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 				 */
 				endpoints[epidx].out_interval = 1;
 			endpoints[epidx].out_cables = (1 << ms_ep->bNumEmbMIDIJack) - 1;
-			snd_printdd(KERN_INFO "EP %02X: %d jack(s)\n",
+			dev_dbg(&umidi->dev->dev, "EP %02X: %d jack(s)\n",
 				    ep->bEndpointAddress, ms_ep->bNumEmbMIDIJack);
 		} else {
 			if (endpoints[epidx].in_ep) {
 				if (++epidx >= MIDI_MAX_ENDPOINTS) {
-					snd_printk(KERN_WARNING "too many endpoints\n");
+					dev_warn(&umidi->dev->dev,
+						 "too many endpoints\n");
 					break;
 				}
 			}
@@ -1797,7 +1800,7 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 			else if (snd_usb_get_speed(umidi->dev) == USB_SPEED_LOW)
 				endpoints[epidx].in_interval = 1;
 			endpoints[epidx].in_cables = (1 << ms_ep->bNumEmbMIDIJack) - 1;
-			snd_printdd(KERN_INFO "EP %02X: %d jack(s)\n",
+			dev_dbg(&umidi->dev->dev, "EP %02X: %d jack(s)\n",
 				    ep->bEndpointAddress, ms_ep->bNumEmbMIDIJack);
 		}
 	}
@@ -1865,7 +1868,7 @@ static void snd_usbmidi_switch_roland_altsetting(struct snd_usb_midi* umidi)
 	    (get_endpoint(hostif, 1)->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
 		return;
 
-	snd_printdd(KERN_INFO "switching to altsetting %d with int ep\n",
+	dev_dbg(&umidi->dev->dev, "switching to altsetting %d with int ep\n",
 		    intfd->bAlternateSetting);
 	usb_set_interface(umidi->dev, intfd->bInterfaceNumber,
 			  intfd->bAlternateSetting);
@@ -2047,25 +2050,25 @@ static int snd_usbmidi_create_endpoints_midiman(struct snd_usb_midi* umidi,
 	 * input bulk endpoints (at indices 1 and 3) which aren't used.
 	 */
 	if (intfd->bNumEndpoints < (endpoint->out_cables > 0x0001 ? 5 : 3)) {
-		snd_printdd(KERN_ERR "not enough endpoints\n");
+		dev_dbg(&umidi->dev->dev, "not enough endpoints\n");
 		return -ENOENT;
 	}
 
 	epd = get_endpoint(hostif, 0);
 	if (!usb_endpoint_dir_in(epd) || !usb_endpoint_xfer_int(epd)) {
-		snd_printdd(KERN_ERR "endpoint[0] isn't interrupt\n");
+		dev_dbg(&umidi->dev->dev, "endpoint[0] isn't interrupt\n");
 		return -ENXIO;
 	}
 	epd = get_endpoint(hostif, 2);
 	if (!usb_endpoint_dir_out(epd) || !usb_endpoint_xfer_bulk(epd)) {
-		snd_printdd(KERN_ERR "endpoint[2] isn't bulk output\n");
+		dev_dbg(&umidi->dev->dev, "endpoint[2] isn't bulk output\n");
 		return -ENXIO;
 	}
 	if (endpoint->out_cables > 0x0001) {
 		epd = get_endpoint(hostif, 4);
 		if (!usb_endpoint_dir_out(epd) ||
 		    !usb_endpoint_xfer_bulk(epd)) {
-			snd_printdd(KERN_ERR "endpoint[4] isn't bulk output\n");
+			dev_dbg(&umidi->dev->dev, "endpoint[4] isn't bulk output\n");
 			return -ENXIO;
 		}
 	}
@@ -2289,7 +2292,7 @@ int snd_usbmidi_create(struct snd_card *card,
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
 	default:
-		snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
+		dev_err(&umidi->dev->dev, "invalid quirk type %d\n", quirk->type);
 		err = -ENXIO;
 		break;
 	}

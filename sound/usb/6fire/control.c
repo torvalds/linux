@@ -194,7 +194,8 @@ static int usb6fire_control_output_vol_put(struct snd_kcontrol *kcontrol,
 	int changed = 0;
 
 	if (ch > 4) {
-		snd_printk(KERN_ERR PREFIX "Invalid channel in volume control.");
+		dev_err(&rt->chip->dev->dev,
+			"Invalid channel in volume control.");
 		return -EINVAL;
 	}
 
@@ -222,7 +223,8 @@ static int usb6fire_control_output_vol_get(struct snd_kcontrol *kcontrol,
 	unsigned int ch = kcontrol->private_value;
 
 	if (ch > 4) {
-		snd_printk(KERN_ERR PREFIX "Invalid channel in volume control.");
+		dev_err(&rt->chip->dev->dev,
+			"Invalid channel in volume control.");
 		return -EINVAL;
 	}
 
@@ -240,7 +242,8 @@ static int usb6fire_control_output_mute_put(struct snd_kcontrol *kcontrol,
 	u8 value = 0;
 
 	if (ch > 4) {
-		snd_printk(KERN_ERR PREFIX "Invalid channel in volume control.");
+		dev_err(&rt->chip->dev->dev,
+			"Invalid channel in volume control.");
 		return -EINVAL;
 	}
 
@@ -265,7 +268,8 @@ static int usb6fire_control_output_mute_get(struct snd_kcontrol *kcontrol,
 	u8 value = rt->output_mute >> ch;
 
 	if (ch > 4) {
-		snd_printk(KERN_ERR PREFIX "Invalid channel in volume control.");
+		dev_err(&rt->chip->dev->dev,
+			"Invalid channel in volume control.");
 		return -EINVAL;
 	}
 
@@ -594,14 +598,14 @@ int usb6fire_control_init(struct sfire_chip *chip)
 	ret = usb6fire_control_add_virtual(rt, chip->card,
 		"Master Playback Volume", vol_elements);
 	if (ret) {
-		snd_printk(KERN_ERR PREFIX "cannot add control.\n");
+		dev_err(&chip->dev->dev, "cannot add control.\n");
 		kfree(rt);
 		return ret;
 	}
 	ret = usb6fire_control_add_virtual(rt, chip->card,
 		"Master Playback Switch", mute_elements);
 	if (ret) {
-		snd_printk(KERN_ERR PREFIX "cannot add control.\n");
+		dev_err(&chip->dev->dev, "cannot add control.\n");
 		kfree(rt);
 		return ret;
 	}
@@ -611,7 +615,7 @@ int usb6fire_control_init(struct sfire_chip *chip)
 		ret = snd_ctl_add(chip->card, snd_ctl_new1(&elements[i], rt));
 		if (ret < 0) {
 			kfree(rt);
-			snd_printk(KERN_ERR PREFIX "cannot add control.\n");
+			dev_err(&chip->dev->dev, "cannot add control.\n");
 			return ret;
 		}
 		i++;

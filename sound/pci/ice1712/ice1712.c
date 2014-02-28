@@ -394,7 +394,7 @@ int snd_ice1712_init_cs8427(struct snd_ice1712 *ice, int addr)
 	err = snd_cs8427_create(ice->i2c, addr,
 		(ice->cs8427_timeout * HZ) / 1000, &ice->cs8427);
 	if (err < 0) {
-		snd_printk(KERN_ERR "CS8427 initialization failed\n");
+		dev_err(ice->card->dev, "CS8427 initialization failed\n");
 		return err;
 	}
 	ice->spdif.ops.open = open_cs8427;
@@ -467,7 +467,7 @@ static irqreturn_t snd_ice1712_interrupt(int irq, void *dev_id)
 			u16 pbkstatus;
 			struct snd_pcm_substream *substream;
 			pbkstatus = inw(ICEDS(ice, INTSTAT));
-			/* printk(KERN_DEBUG "pbkstatus = 0x%x\n", pbkstatus); */
+			/* dev_dbg(ice->card->dev, "pbkstatus = 0x%x\n", pbkstatus); */
 			for (idx = 0; idx < 6; idx++) {
 				if ((pbkstatus & (3 << (idx * 2))) == 0)
 					continue;
@@ -903,7 +903,8 @@ static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device, struct snd_pcm *
 	if (rpcm)
 		*rpcm = pcm;
 
-	printk(KERN_WARNING "Consumer PCM code does not work well at the moment --jk\n");
+	dev_warn(ice->card->dev,
+		 "Consumer PCM code does not work well at the moment --jk\n");
 
 	return 0;
 }
@@ -1534,7 +1535,8 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 		ac97.private_free = snd_ice1712_mixer_free_ac97;
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
-			printk(KERN_WARNING "ice1712: cannot initialize ac97 for consumer, skipped\n");
+			dev_warn(ice->card->dev,
+				 "cannot initialize ac97 for consumer, skipped\n");
 		else {
 			err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_mixer_digmix_route_ac97, ice));
 			if (err < 0)
@@ -1552,7 +1554,8 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 		ac97.private_free = snd_ice1712_mixer_free_ac97;
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
-			printk(KERN_WARNING "ice1712: cannot initialize pro ac97, skipped\n");
+			dev_warn(ice->card->dev,
+				 "cannot initialize pro ac97, skipped\n");
 		else
 			return 0;
 	}
@@ -2332,7 +2335,8 @@ static int snd_ice1712_read_eeprom(struct snd_ice1712 *ice,
 			pci_read_config_word(ice->pci, PCI_SUBSYSTEM_ID, &device);
 			ice->eeprom.subvendor = ((unsigned int)swab16(vendor) << 16) | swab16(device);
 			if (ice->eeprom.subvendor == 0 || ice->eeprom.subvendor == (unsigned int)-1) {
-				printk(KERN_ERR "ice1712: No valid ID is found\n");
+				dev_err(ice->card->dev,
+					"No valid ID is found\n");
 				return -ENXIO;
 			}
 		}
@@ -2340,21 +2344,22 @@ static int snd_ice1712_read_eeprom(struct snd_ice1712 *ice,
 	for (tbl = card_tables; *tbl; tbl++) {
 		for (c = *tbl; c->subvendor; c++) {
 			if (modelname && c->model && !strcmp(modelname, c->model)) {
-				printk(KERN_INFO "ice1712: Using board model %s\n", c->name);
+				dev_info(ice->card->dev,
+					 "Using board model %s\n", c->name);
 				ice->eeprom.subvendor = c->subvendor;
 			} else if (c->subvendor != ice->eeprom.subvendor)
 				continue;
 			if (!c->eeprom_size || !c->eeprom_data)
 				goto found;
 			/* if the EEPROM is given by the driver, use it */
-			snd_printdd("using the defined eeprom..\n");
+			dev_dbg(ice->card->dev, "using the defined eeprom..\n");
 			ice->eeprom.version = 1;
 			ice->eeprom.size = c->eeprom_size + 6;
 			memcpy(ice->eeprom.data, c->eeprom_data, c->eeprom_size);
 			goto read_skipped;
 		}
 	}
-	printk(KERN_WARNING "ice1712: No matching model found for ID 0x%x\n",
+	dev_warn(ice->card->dev, "No matching model found for ID 0x%x\n",
 	       ice->eeprom.subvendor);
 
  found:
@@ -2362,12 +2367,13 @@ static int snd_ice1712_read_eeprom(struct snd_ice1712 *ice,
 	if (ice->eeprom.size < 6)
 		ice->eeprom.size = 32; /* FIXME: any cards without the correct size? */
 	else if (ice->eeprom.size > 32) {
-		snd_printk(KERN_ERR "invalid EEPROM (size = %i)\n", ice->eeprom.size);
+		dev_err(ice->card->dev,
+			"invalid EEPROM (size = %i)\n", ice->eeprom.size);
 		return -EIO;
 	}
 	ice->eeprom.version = snd_ice1712_read_i2c(ice, dev, 0x05);
 	if (ice->eeprom.version != 1) {
-		snd_printk(KERN_ERR "invalid EEPROM version %i\n",
+		dev_err(ice->card->dev, "invalid EEPROM version %i\n",
 			   ice->eeprom.version);
 		/* return -EIO; */
 	}
@@ -2553,7 +2559,8 @@ static int snd_ice1712_create(struct snd_card *card,
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
 	if (pci_set_dma_mask(pci, DMA_BIT_MASK(28)) < 0 ||
 	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(28)) < 0) {
-		snd_printk(KERN_ERR "architecture does not support 28bit PCI busmaster DMA\n");
+		dev_err(card->dev,
+			"architecture does not support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2609,7 +2616,7 @@ static int snd_ice1712_create(struct snd_card *card,
 
 	if (request_irq(pci->irq, snd_ice1712_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, ice)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
 		snd_ice1712_free(ice);
 		return -EIO;
 	}

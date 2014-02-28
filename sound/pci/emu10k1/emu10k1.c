@@ -170,7 +170,8 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 	if (snd_seq_device_new(card, 1, SNDRV_SEQ_DEV_ID_EMU10K1_SYNTH,
 			       sizeof(struct snd_emu10k1_synth_arg), &wave) < 0 ||
 	    wave == NULL) {
-		snd_printk(KERN_WARNING "can't initialize Emu10k1 wavetable synth\n");
+		dev_warn(emu->card->dev,
+			 "can't initialize Emu10k1 wavetable synth\n");
 	} else {
 		struct snd_emu10k1_synth_arg *arg;
 		arg = SNDRV_SEQ_DEVICE_ARGPTR(wave);
@@ -247,8 +248,7 @@ static int snd_emu10k1_resume(struct device *dev)
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
-		printk(KERN_ERR "emu10k1: pci_enable_device failed, "
-		       "disabling device\n");
+		dev_err(dev, "pci_enable_device failed, disabling device\n");
 		snd_card_disconnect(card);
 		return -EIO;
 	}
