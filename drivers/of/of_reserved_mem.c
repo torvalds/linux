@@ -170,6 +170,33 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	return 0;
 }
 
+static const struct of_device_id __rmem_of_table_sentinel
+	__used __section(__reservedmem_of_table_end);
+
+/**
+ * res_mem_init_node() - call region specific reserved memory init code
+ */
+static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
+{
+	extern const struct of_device_id __reservedmem_of_table[];
+	const struct of_device_id *i;
+
+	for (i = __reservedmem_of_table; i < &__rmem_of_table_sentinel; i++) {
+		reservedmem_of_init_fn initfn = i->data;
+		const char *compat = i->compatible;
+
+		if (!of_flat_dt_is_compatible(rmem->fdt_node, compat))
+			continue;
+
+		if (initfn(rmem, rmem->fdt_node, rmem->name) == 0) {
+			pr_info("Reserved memory: initialized node %s, compatible id %s\n",
+				rmem->name, compat);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
 /**
  * fdt_init_reserved_mem - allocate and init all saved reserved memory regions
  */
@@ -184,5 +211,7 @@ void __init fdt_init_reserved_mem(void)
 		if (rmem->size == 0)
 			err = __reserved_mem_alloc_size(node, rmem->name,
 						 &rmem->base, &rmem->size);
+		if (err == 0)
+			__reserved_mem_init_node(rmem);
 	}
 }
