@@ -84,6 +84,7 @@ struct mt_class {
 	__s32 sn_pressure;	/* Signal/noise ratio for pressure events */
 	__u8 maxcontacts;
 	bool is_indirect;	/* true for touchpads */
+	bool export_all_inputs;	/* do not ignore mouse, keyboards, etc... */
 };
 
 struct mt_fields {
@@ -133,6 +134,7 @@ static void mt_post_parse(struct mt_device *td);
 /* reserved					0x0010 */
 /* reserved					0x0011 */
 #define MT_CLS_WIN_8				0x0012
+#define MT_CLS_EXPORT_ALL_INPUTS		0x0013
 
 /* vendor specific classes */
 #define MT_CLS_3M				0x0101
@@ -196,6 +198,10 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_IGNORE_DUPLICATES |
 			MT_QUIRK_HOVERING |
 			MT_QUIRK_CONTACT_CNT_ACCURATE },
+	{ .name = MT_CLS_EXPORT_ALL_INPUTS,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_CONTACT_CNT_ACCURATE,
+		.export_all_inputs = true },
 
 	/*
 	 * vendor specific classes
@@ -718,28 +724,52 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	/* Only map fields from TouchScreen or TouchPad collections.
-	* We need to ignore fields that belong to other collections
-	* such as Mouse that might have the same GenericDesktop usages. */
-	if (field->application != HID_DG_TOUCHSCREEN &&
+	struct mt_device *td = hid_get_drvdata(hdev);
+
+	/*
+	 * If mtclass.export_all_inputs is not set, only map fields from
+	 * TouchScreen or TouchPad collections. We need to ignore fields
+	 * that belong to other collections such as Mouse that might have
+	 * the same GenericDesktop usages.
+	 */
+	if (!td->mtclass.export_all_inputs &&
+	    field->application != HID_DG_TOUCHSCREEN &&
 	    field->application != HID_DG_PEN &&
 	    field->application != HID_DG_TOUCHPAD)
 		return -1;
 
+	/*
+	 * some egalax touchscreens have "application == HID_DG_TOUCHSCREEN"
+	 * for the stylus.
+	 */
 	if (field->physical == HID_DG_STYLUS)
 		return 0;
 
-	return mt_touch_input_mapping(hdev, hi, field, usage, bit, max);
+	if (field->application == HID_DG_TOUCHSCREEN ||
+	    field->application == HID_DG_TOUCHPAD)
+		return mt_touch_input_mapping(hdev, hi, field, usage, bit, max);
+
+	/* let hid-core decide for the others */
+	return 0;
 }
 
 static int mt_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	/*
+	 * some egalax touchscreens have "application == HID_DG_TOUCHSCREEN"
+	 * for the stylus.
+	 */
 	if (field->physical == HID_DG_STYLUS)
 		return 0;
 
-	return mt_touch_input_mapped(hdev, hi, field, usage, bit, max);
+	if (field->application == HID_DG_TOUCHSCREEN ||
+	    field->application == HID_DG_TOUCHPAD)
+		return mt_touch_input_mapped(hdev, hi, field, usage, bit, max);
+
+	/* let hid-core decide for the others */
+	return 0;
 }
 
 static int mt_event(struct hid_device *hid, struct hid_field *field,
@@ -846,14 +876,49 @@ static void mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	struct mt_device *td = hid_get_drvdata(hdev);
 	char *name;
 	const char *suffix = NULL;
+	struct hid_field *field = hi->report->field[0];
 
 	if (hi->report->id == td->mt_report_id)
 		mt_touch_input_configured(hdev, hi);
 
+	/*
+	 * some egalax touchscreens have "application == HID_DG_TOUCHSCREEN"
+	 * for the stylus. Check this first, and then rely on the application
+	 * field.
+	 */
 	if (hi->report->field[0]->physical == HID_DG_STYLUS) {
 		suffix = "Pen";
 		/* force BTN_STYLUS to allow tablet matching in udev */
 		__set_bit(BTN_STYLUS, hi->input->keybit);
+	} else {
+		switch (field->application) {
+		case HID_GD_KEYBOARD:
+			suffix = "Keyboard";
+			break;
+		case HID_GD_KEYPAD:
+			suffix = "Keypad";
+			break;
+		case HID_GD_MOUSE:
+			suffix = "Mouse";
+			break;
+		case HID_DG_STYLUS:
+			suffix = "Pen";
+			/* force BTN_STYLUS to allow tablet matching in udev */
+			__set_bit(BTN_STYLUS, hi->input->keybit);
+			break;
+		case HID_DG_TOUCHSCREEN:
+			/* we do not set suffix = "Touchscreen" */
+			break;
+		case HID_GD_SYSTEM_CONTROL:
+			suffix = "System Control";
+			break;
+		case HID_CP_CONSUMER_CONTROL:
+			suffix = "Consumer Control";
+			break;
+		default:
+			suffix = "UNKNOWN";
+			break;
+		}
 	}
 
 	if (suffix) {
@@ -991,6 +1056,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_3M,
 		MT_USB_DEVICE(USB_VENDOR_ID_3M,
 			USB_DEVICE_ID_3M3266) },
+
+	/* Anton devices */
+	{ .driver_data = MT_CLS_EXPORT_ALL_INPUTS,
+		MT_USB_DEVICE(USB_VENDOR_ID_ANTON,
+			USB_DEVICE_ID_ANTON_TOUCH_PAD) },
 
 	/* Atmel panels */
 	{ .driver_data = MT_CLS_SERIAL,
