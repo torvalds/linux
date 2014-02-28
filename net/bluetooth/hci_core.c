@@ -3238,7 +3238,7 @@ struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
-void hci_blacklist_clear(struct hci_dev *hdev)
+static void hci_blacklist_clear(struct hci_dev *hdev)
 {
 	struct list_head *p, *n;
 
