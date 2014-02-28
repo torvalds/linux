@@ -1492,6 +1492,9 @@ int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
 	case 0x46:	/* HSW */
 	case 0x37:	/* BYT */
 	case 0x4D:	/* AVN */
+	case 0x3D:	/* BDW */
+	case 0x4F:	/* BDX */
+	case 0x56:	/* BDX-DE */
 		return 1;
 	case 0x2E:	/* Nehalem-EX Xeon - Beckton */
 	case 0x2F:	/* Westmere-EX Xeon - Eagleton */
@@ -1605,9 +1608,12 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case 0x3C:	/* HSW */
 	case 0x45:	/* HSW */
 	case 0x46:	/* HSW */
+	case 0x3D:	/* BDW */
 		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_GFX | RAPL_PKG_POWER_INFO;
 		break;
 	case 0x3F:	/* HSX */
+	case 0x4F:	/* BDX */
+	case 0x56:	/* BDX-DE */
 		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
 		break;
 	case 0x2D:
@@ -1851,6 +1857,9 @@ int is_snb(unsigned int family, unsigned int model)
 	case 0x3F:	/* HSW */
 	case 0x45:	/* HSW */
 	case 0x46:	/* HSW */
+	case 0x3D:	/* BDW */
+	case 0x4F:	/* BDX */
+	case 0x56:	/* BDX-DE */
 		return 1;
 	}
 	return 0;
@@ -1862,7 +1871,8 @@ int has_c8_c9_c10(unsigned int family, unsigned int model)
 		return 0;
 
 	switch (model) {
-	case 0x45:
+	case 0x45:	/* HSW */
+	case 0x3D:	/* BDW */
 		return 1;
 	}
 	return 0;
