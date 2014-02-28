@@ -392,6 +392,24 @@ out:
 }
 
 /*
+ * Mark the given segment as done.  Return true if this completes the xfer.
+ * This should only be called for segs that have been submitted to an RPIPE.
+ * Delayed segs are not marked as submitted so they do not need to be marked
+ * as done when cleaning up.
+ *
+ * xfer->lock has to be locked
+ */
+static unsigned __wa_xfer_mark_seg_as_done(struct wa_xfer *xfer,
+	struct wa_seg *seg, enum wa_seg_status status)
+{
+	seg->status = status;
+	xfer->segs_done++;
+
+	/* check for done. */
+	return __wa_xfer_is_done(xfer);
+}
+
+/*
  * Search for a transfer list ID on the HCD's URB list
  *
  * For 32 bit architectures, we use the pointer itself; for 64 bits, a
@@ -821,12 +839,10 @@ error_default:
 		wa_reset_all(wa);
 	}
 	if (seg->status != WA_SEG_ERROR) {
-		seg->status = WA_SEG_ERROR;
 		seg->result = urb->status;
-		xfer->segs_done++;
 		__wa_xfer_abort(xfer);
 		rpipe_ready = rpipe_avail_inc(rpipe);
-		done = __wa_xfer_is_done(xfer);
+		done = __wa_xfer_mark_seg_as_done(xfer, seg, WA_SEG_ERROR);
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	if (holding_dto) {
@@ -892,12 +908,11 @@ static void wa_seg_iso_pack_desc_cb(struct urb *urb)
 		}
 		if (seg->status != WA_SEG_ERROR) {
 			usb_unlink_urb(seg->dto_urb);
-			seg->status = WA_SEG_ERROR;
 			seg->result = urb->status;
-			xfer->segs_done++;
 			__wa_xfer_abort(xfer);
 			rpipe_ready = rpipe_avail_inc(rpipe);
-			done = __wa_xfer_is_done(xfer);
+			done = __wa_xfer_mark_seg_as_done(xfer, seg,
+					WA_SEG_ERROR);
 		}
 		spin_unlock_irqrestore(&xfer->lock, flags);
 		if (done)
@@ -971,12 +986,10 @@ static void wa_seg_tr_cb(struct urb *urb)
 		}
 		usb_unlink_urb(seg->isoc_pack_desc_urb);
 		usb_unlink_urb(seg->dto_urb);
-		seg->status = WA_SEG_ERROR;
 		seg->result = urb->status;
-		xfer->segs_done++;
 		__wa_xfer_abort(xfer);
 		rpipe_ready = rpipe_avail_inc(rpipe);
-		done = __wa_xfer_is_done(xfer);
+		done = __wa_xfer_mark_seg_as_done(xfer, seg, WA_SEG_ERROR);
 		spin_unlock_irqrestore(&xfer->lock, flags);
 		if (done)
 			wa_xfer_completion(xfer);
@@ -2285,11 +2298,9 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 			goto error_submit_buf_in;
 	} else {
 		/* OUT data phase or no data, complete it -- */
-		seg->status = WA_SEG_DONE;
 		seg->result = bytes_transferred;
-		xfer->segs_done++;
 		rpipe_ready = rpipe_avail_inc(rpipe);
-		done = __wa_xfer_is_done(xfer);
+		done = __wa_xfer_mark_seg_as_done(xfer, seg, WA_SEG_DONE);
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	if (done)
@@ -2453,10 +2464,8 @@ static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 			dti_busy = 1;
 	} else {
 		/* OUT transfer or no more IN data, complete it -- */
-		seg->status = WA_SEG_DONE;
-		xfer->segs_done++;
 		rpipe_ready = rpipe_avail_inc(rpipe);
-		done = __wa_xfer_is_done(xfer);
+		done = __wa_xfer_mark_seg_as_done(xfer, seg, WA_SEG_DONE);
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	wa->dti_state = WA_DTI_TRANSFER_RESULT_PENDING;
@@ -2547,12 +2556,11 @@ static void wa_buf_in_cb(struct urb *urb)
 			}
 		} else {
 			rpipe = xfer->ep->hcpriv;
-			seg->status = WA_SEG_DONE;
 			dev_dbg(dev, "xfer %p#%u: data in done (%zu bytes)\n",
 				xfer, seg->index, seg->result);
-			xfer->segs_done++;
 			rpipe_ready = rpipe_avail_inc(rpipe);
-			done = __wa_xfer_is_done(xfer);
+			done = __wa_xfer_mark_seg_as_done(xfer, seg,
+					WA_SEG_DONE);
 		}
 		spin_unlock_irqrestore(&xfer->lock, flags);
 		if (done)
@@ -2575,12 +2583,10 @@ static void wa_buf_in_cb(struct urb *urb)
 				"exceeded, resetting device\n");
 			wa_reset_all(wa);
 		}
-		seg->status = WA_SEG_ERROR;
 		seg->result = urb->status;
-		xfer->segs_done++;
 		rpipe_ready = rpipe_avail_inc(rpipe);
 		__wa_xfer_abort(xfer);
-		done = __wa_xfer_is_done(xfer);
+		done = __wa_xfer_mark_seg_as_done(xfer, seg, WA_SEG_ERROR);
 		spin_unlock_irqrestore(&xfer->lock, flags);
 		if (done)
 			wa_xfer_completion(xfer);
