@@ -251,7 +251,7 @@ static int cpu_psci_cpu_boot(unsigned int cpu)
 {
 	int err = psci_ops.cpu_on(cpu_logical_map(cpu), __pa(secondary_entry));
 	if (err)
-		pr_err("psci: failed to boot CPU%d (%d)\n", cpu, err);
+		pr_err("failed to boot CPU%d (%d)\n", cpu, err);
 
 	return err;
 }
@@ -278,7 +278,7 @@ static void cpu_psci_cpu_die(unsigned int cpu)
 
 	ret = psci_ops.cpu_off(state);
 
-	pr_crit("psci: unable to power off CPU%u (%d)\n", cpu, ret);
+	pr_crit("unable to power off CPU%u (%d)\n", cpu, ret);
 }
 #endif
 
