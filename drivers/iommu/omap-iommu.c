@@ -23,6 +23,9 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_iommu.h>
+#include <linux/of_irq.h>
 
 #include <asm/cacheflush.h>
 
@@ -936,17 +939,39 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	struct omap_iommu *obj;
 	struct resource *res;
 	struct iommu_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *of = pdev->dev.of_node;
 
 	obj = devm_kzalloc(&pdev->dev, sizeof(*obj) + MMU_REG_SIZE, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
-	obj->nr_tlb_entries = pdata->nr_tlb_entries;
-	obj->name = pdata->name;
+	if (of) {
+		obj->name = dev_name(&pdev->dev);
+		obj->nr_tlb_entries = 32;
+		err = of_property_read_u32(of, "ti,#tlb-entries",
+					   &obj->nr_tlb_entries);
+		if (err && err != -EINVAL)
+			return err;
+		if (obj->nr_tlb_entries != 32 && obj->nr_tlb_entries != 8)
+			return -EINVAL;
+		/*
+		 * da_start and da_end are needed for omap-iovmm, so hardcode
+		 * these values as used by OMAP3 ISP - the only user for
+		 * omap-iovmm
+		 */
+		obj->da_start = 0;
+		obj->da_end = 0xfffff000;
+	} else {
+		obj->nr_tlb_entries = pdata->nr_tlb_entries;
+		obj->name = pdata->name;
+		obj->da_start = pdata->da_start;
+		obj->da_end = pdata->da_end;
+	}
+	if (obj->da_end <= obj->da_start)
+		return -EINVAL;
+
 	obj->dev = &pdev->dev;
 	obj->ctx = (void *)obj + sizeof(*obj);
-	obj->da_start = pdata->da_start;
-	obj->da_end = pdata->da_end;
 
 	spin_lock_init(&obj->iommu_lock);
 	mutex_init(&obj->mmap_lock);
@@ -987,11 +1012,20 @@ static int omap_iommu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id omap_iommu_of_match[] = {
+	{ .compatible = "ti,omap2-iommu" },
+	{ .compatible = "ti,omap4-iommu" },
+	{ .compatible = "ti,dra7-iommu"	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_iommu_of_match);
+
 static struct platform_driver omap_iommu_driver = {
 	.probe	= omap_iommu_probe,
 	.remove	= omap_iommu_remove,
 	.driver	= {
 		.name	= "omap-iommu",
+		.of_match_table = of_match_ptr(omap_iommu_of_match),
 	},
 };
 
