@@ -138,7 +138,8 @@ struct btrfs_work_struct {
 
 struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
 						     int flags,
-						     int max_active);
+						     int max_active,
+						     int thresh);
 void btrfs_init_work(struct btrfs_work_struct *work,
 		     void (*func)(struct btrfs_work_struct *),
 		     void (*ordered_func)(struct btrfs_work_struct *),
