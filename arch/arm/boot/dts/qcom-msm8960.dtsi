@@ -9,6 +9,36 @@
 	compatible = "qcom,msm8960";
 	interrupt-parent = <&intc>;
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <1 14 0x304>;
+		compatible = "qcom,krait";
+		enable-method = "qcom,kpss-acc-v1";
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc0>;
+			qcom,saw = <&saw0>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			reg = <1>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc1>;
+			qcom,saw = <&saw1>;
+		};
+
+		L2: l2-cache {
+			compatible = "cache";
+			cache-level = <2>;
+			interrupts = <0 2 0x4>;
+		};
+	};
+
 	intc: interrupt-controller@2000000 {
 		compatible = "qcom,msm-qgic2";
 		interrupt-controller;
@@ -53,6 +83,28 @@
 		#reset-cells = <1>;
 	};
 
+	acc0: clock-controller@2088000 {
+		compatible = "qcom,kpss-acc-v1";
+		reg = <0x02088000 0x1000>, <0x02008000 0x1000>;
+	};
+
+	acc1: clock-controller@2098000 {
+		compatible = "qcom,kpss-acc-v1";
+		reg = <0x02098000 0x1000>, <0x02008000 0x1000>;
+	};
+
+	saw0: regulator@2089000 {
+		compatible = "qcom,saw2";
+		reg = <0x02089000 0x1000>, <0x02009000 0x1000>;
+		regulator;
+	};
+
+	saw1: regulator@2099000 {
+		compatible = "qcom,saw2";
+		reg = <0x02099000 0x1000>, <0x02009000 0x1000>;
+		regulator;
+	};
+
 	serial@16440000 {
 		compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 		reg = <0x16440000 0x1000>,
@@ -66,5 +118,12 @@
 		compatible = "qcom,ssbi";
 		reg = <0x500000 0x1000>;
 		qcom,controller-type = "pmic-arbiter";
+	};
+
+	rng@1a500000 {
+		compatible = "qcom,prng";
+		reg = <0x1a500000 0x200>;
+		clocks = <&gcc PRNG_CLK>;
+		clock-names = "core";
 	};
 };
