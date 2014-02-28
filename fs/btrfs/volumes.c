@@ -5323,13 +5323,6 @@ static void btrfs_end_bio(struct bio *bio, int err)
 	}
 }
 
-struct async_sched {
-	struct bio *bio;
-	int rw;
-	struct btrfs_fs_info *info;
-	struct btrfs_work work;
-};
-
 /*
  * see run_scheduled_bios for a description of why bios are collected for
  * async submit.
