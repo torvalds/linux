@@ -159,12 +159,6 @@ ENTRY(compat_sys_nanosleep_wrapper)
 	llgtr	%r3,%r3			# struct compat_timespec *
 	jg	compat_sys_nanosleep		# branch to system call
 
-ENTRY(sys32_getdents64_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# void *
-	llgfr	%r4,%r4			# unsigned int
-	jg	sys_getdents64		# branch to system call
-
 ENTRY(compat_sys_fcntl64_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgfr	%r3,%r3			# unsigned int
@@ -174,60 +168,6 @@ ENTRY(compat_sys_fcntl64_wrapper)
 ENTRY(sys32_stime_wrapper)
 	llgtr	%r2,%r2			# long *
 	jg	compat_sys_stime	# branch to system call
-
-ENTRY(sys32_getxattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# void *
-	llgfr	%r5,%r5			# size_t
-	jg	sys_getxattr
-
-ENTRY(sys32_lgetxattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# void *
-	llgfr	%r5,%r5			# size_t
-	jg	sys_lgetxattr
-
-ENTRY(sys32_fgetxattr_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# void *
-	llgfr	%r5,%r5			# size_t
-	jg	sys_fgetxattr
-
-ENTRY(sys32_listxattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	llgfr	%r4,%r4			# size_t
-	jg	sys_listxattr
-
-ENTRY(sys32_llistxattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	llgfr	%r4,%r4			# size_t
-	jg	sys_llistxattr
-
-ENTRY(sys32_flistxattr_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# char *
-	llgfr	%r4,%r4			# size_t
-	jg	sys_flistxattr
-
-ENTRY(sys32_removexattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	jg	sys_removexattr
-
-ENTRY(sys32_lremovexattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	jg	sys_lremovexattr
-
-ENTRY(sys32_fremovexattr_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# char *
-	jg	sys_fremovexattr
 
 ENTRY(sys32_sched_setaffinity_wrapper)
 	lgfr	%r2,%r2			# int

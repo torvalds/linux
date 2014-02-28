@@ -228,22 +228,22 @@ SYSCALL(sys_setfsgid,sys_setfsgid,compat_sys_setfsgid)
 SYSCALL(sys_pivot_root,sys_pivot_root,compat_sys_pivot_root)
 SYSCALL(sys_mincore,sys_mincore,compat_sys_mincore)
 SYSCALL(sys_madvise,sys_madvise,compat_sys_madvise)
-SYSCALL(sys_getdents64,sys_getdents64,sys32_getdents64_wrapper)	/* 220 */
+SYSCALL(sys_getdents64,sys_getdents64,compat_sys_getdents64)	/* 220 */
 SYSCALL(sys_fcntl64,sys_ni_syscall,compat_sys_fcntl64_wrapper)
 SYSCALL(sys_readahead,sys_readahead,compat_sys_s390_readahead)
 SYSCALL(sys_sendfile64,sys_ni_syscall,compat_sys_sendfile64)
 SYSCALL(sys_setxattr,sys_setxattr,compat_sys_setxattr)
 SYSCALL(sys_lsetxattr,sys_lsetxattr,compat_sys_lsetxattr)	/* 225 */
 SYSCALL(sys_fsetxattr,sys_fsetxattr,compat_sys_fsetxattr)
-SYSCALL(sys_getxattr,sys_getxattr,sys32_getxattr_wrapper)
-SYSCALL(sys_lgetxattr,sys_lgetxattr,sys32_lgetxattr_wrapper)
-SYSCALL(sys_fgetxattr,sys_fgetxattr,sys32_fgetxattr_wrapper)
-SYSCALL(sys_listxattr,sys_listxattr,sys32_listxattr_wrapper)	/* 230 */
-SYSCALL(sys_llistxattr,sys_llistxattr,sys32_llistxattr_wrapper)
-SYSCALL(sys_flistxattr,sys_flistxattr,sys32_flistxattr_wrapper)
-SYSCALL(sys_removexattr,sys_removexattr,sys32_removexattr_wrapper)
-SYSCALL(sys_lremovexattr,sys_lremovexattr,sys32_lremovexattr_wrapper)
-SYSCALL(sys_fremovexattr,sys_fremovexattr,sys32_fremovexattr_wrapper)	/* 235 */
+SYSCALL(sys_getxattr,sys_getxattr,compat_sys_getxattr)
+SYSCALL(sys_lgetxattr,sys_lgetxattr,compat_sys_lgetxattr)
+SYSCALL(sys_fgetxattr,sys_fgetxattr,compat_sys_fgetxattr)
+SYSCALL(sys_listxattr,sys_listxattr,compat_sys_listxattr)	/* 230 */
+SYSCALL(sys_llistxattr,sys_llistxattr,compat_sys_llistxattr)
+SYSCALL(sys_flistxattr,sys_flistxattr,compat_sys_flistxattr)
+SYSCALL(sys_removexattr,sys_removexattr,compat_sys_removexattr)
+SYSCALL(sys_lremovexattr,sys_lremovexattr,compat_sys_lremovexattr)
+SYSCALL(sys_fremovexattr,sys_fremovexattr,compat_sys_fremovexattr)	/* 235 */
 SYSCALL(sys_gettid,sys_gettid,sys_gettid)
 SYSCALL(sys_tkill,sys_tkill,sys_tkill_wrapper)
 SYSCALL(sys_futex,sys_futex,compat_sys_futex)

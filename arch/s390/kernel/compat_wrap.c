@@ -114,3 +114,13 @@ COMPAT_SYSCALL_WRAP3(madvise, compat_ulong_t, start, compat_size_t, len, int, be
 COMPAT_SYSCALL_WRAP5(setxattr, const char __user *, path, const char __user *, name, const void __user *, value, compat_size_t, size, int, flags);
 COMPAT_SYSCALL_WRAP5(lsetxattr, const char __user *, path, const char __user *, name, const void __user *, value, compat_size_t, size, int, flags);
 COMPAT_SYSCALL_WRAP5(fsetxattr, int, fd, const char __user *, name, const void __user *, value, compat_size_t, size, int, flags);
+COMPAT_SYSCALL_WRAP3(getdents64, unsigned int, fd, struct linux_dirent64 __user *, dirent, unsigned int, count);
+COMPAT_SYSCALL_WRAP4(getxattr, const char __user *, path, const char __user *, name, void __user *, value, compat_size_t, size);
+COMPAT_SYSCALL_WRAP4(lgetxattr, const char __user *, path, const char __user *, name, void __user *, value, compat_size_t, size);
+COMPAT_SYSCALL_WRAP4(fgetxattr, int, fd, const char __user *, name, void __user *, value, compat_size_t, size);
+COMPAT_SYSCALL_WRAP3(listxattr, const char __user *, path, char __user *, list, compat_size_t, size);
+COMPAT_SYSCALL_WRAP3(llistxattr, const char __user *, path, char __user *, list, compat_size_t, size);
+COMPAT_SYSCALL_WRAP3(flistxattr, int, fd, char __user *, list, compat_size_t, size);
+COMPAT_SYSCALL_WRAP2(removexattr, const char __user *, path, const char __user *, name);
+COMPAT_SYSCALL_WRAP2(lremovexattr, const char __user *, path, const char __user *, name);
+COMPAT_SYSCALL_WRAP2(fremovexattr, int, fd, const char __user *, name);
