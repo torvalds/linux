@@ -801,9 +801,10 @@ static void usb_device_reset(struct vnt_private *pDevice)
 	return ;
 }
 
-static void device_free_int_bufs(struct vnt_private *pDevice)
+static void device_free_int_bufs(struct vnt_private *priv)
 {
-	kfree(pDevice->int_buf.data_buf);
+	kfree(priv->int_buf.data_buf);
+
 	return;
 }
 
