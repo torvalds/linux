@@ -576,7 +576,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	wake_up(&entry->wait);
 }
 
-static void btrfs_run_ordered_extent_work(struct btrfs_work *work)
+static void btrfs_run_ordered_extent_work(struct btrfs_work_struct *work)
 {
 	struct btrfs_ordered_extent *ordered;
 
@@ -609,10 +609,11 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr)
 		atomic_inc(&ordered->refs);
 		spin_unlock(&root->ordered_extent_lock);
 
-		ordered->flush_work.func = btrfs_run_ordered_extent_work;
+		btrfs_init_work(&ordered->flush_work,
+				btrfs_run_ordered_extent_work, NULL, NULL);
 		list_add_tail(&ordered->work_list, &works);
-		btrfs_queue_worker(&root->fs_info->flush_workers,
-				   &ordered->flush_work);
+		btrfs_queue_work(root->fs_info->flush_workers,
+				 &ordered->flush_work);
 
 		cond_resched();
 		spin_lock(&root->ordered_extent_lock);
@@ -725,8 +726,8 @@ int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 		list_add_tail(&work->list, &works);
-		btrfs_queue_worker(&root->fs_info->flush_workers,
-				   &work->work);
+		btrfs_queue_work(root->fs_info->flush_workers,
+				 &work->work);
 
 		cond_resched();
 		spin_lock(&root->fs_info->ordered_root_lock);

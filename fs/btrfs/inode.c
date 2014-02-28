@@ -8386,7 +8386,7 @@ out_notrans:
 	return ret;
 }
 
-static void btrfs_run_delalloc_work(struct btrfs_work *work)
+static void btrfs_run_delalloc_work(struct btrfs_work_struct *work)
 {
 	struct btrfs_delalloc_work *delalloc_work;
 	struct inode *inode;
@@ -8424,7 +8424,7 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 	work->inode = inode;
 	work->wait = wait;
 	work->delay_iput = delay_iput;
-	work->work.func = btrfs_run_delalloc_work;
+	btrfs_init_work(&work->work, btrfs_run_delalloc_work, NULL, NULL);
 
 	return work;
 }
@@ -8476,8 +8476,8 @@ static int __start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 			goto out;
 		}
 		list_add_tail(&work->list, &works);
-		btrfs_queue_worker(&root->fs_info->flush_workers,
-				   &work->work);
+		btrfs_queue_work(root->fs_info->flush_workers,
+				 &work->work);
 
 		cond_resched();
 		spin_lock(&root->delalloc_lock);

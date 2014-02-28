@@ -133,7 +133,7 @@ struct btrfs_ordered_extent {
 	struct btrfs_work work;
 
 	struct completion completion;
-	struct btrfs_work flush_work;
+	struct btrfs_work_struct flush_work;
 	struct list_head work_list;
 };
 
