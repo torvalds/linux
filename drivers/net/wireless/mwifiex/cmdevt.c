@@ -892,7 +892,6 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 	struct timeval tstamp;
 
 	adapter->num_cmd_timeout++;
-	adapter->dbg.num_cmd_timeout++;
 	if (!adapter->curr_cmd) {
 		dev_dbg(adapter->dev, "cmd: empty curr_cmd\n");
 		return;
@@ -916,7 +915,7 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 			adapter->dbg.num_cmd_host_to_card_failure);
 
 		dev_err(adapter->dev, "num_cmd_timeout = %d\n",
-			adapter->dbg.num_cmd_timeout);
+			adapter->num_cmd_timeout);
 		dev_err(adapter->dev, "num_tx_timeout = %d\n",
 			adapter->dbg.num_tx_timeout);
 

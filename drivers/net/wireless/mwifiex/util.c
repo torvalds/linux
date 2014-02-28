@@ -104,6 +104,7 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 		info->pm_wakeup_fw_try = adapter->pm_wakeup_fw_try;
 		info->is_hs_configured = adapter->is_hs_configured;
 		info->hs_activated = adapter->hs_activated;
+		info->num_cmd_timeout = adapter->num_cmd_timeout;
 		info->num_cmd_host_to_card_failure
 				= adapter->dbg.num_cmd_host_to_card_failure;
 		info->num_cmd_sleep_cfm_host_to_card_failure
@@ -119,7 +120,6 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 		info->num_cmd_assoc_failure =
 					adapter->dbg.num_cmd_assoc_failure;
 		info->num_tx_timeout = adapter->dbg.num_tx_timeout;
-		info->num_cmd_timeout = adapter->dbg.num_cmd_timeout;
 		info->timeout_cmd_id = adapter->dbg.timeout_cmd_id;
 		info->timeout_cmd_act = adapter->dbg.timeout_cmd_act;
 		memcpy(info->last_cmd_id, adapter->dbg.last_cmd_id,
