@@ -68,7 +68,7 @@ static LIST_HEAD(lowpan_devices);
 struct lowpan_dev_info {
 	struct net_device	*real_dev; /* real WPAN device ptr */
 	struct mutex		dev_list_mtx; /* mutex for list ops */
-	unsigned short		fragment_tag;
+	__be16			fragment_tag;
 };
 
 struct lowpan_dev_record {
@@ -424,7 +424,8 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 {
 	int err;
 	u16 dgram_offset, dgram_size, payload_length, header_length,
-	    lowpan_size, frag_plen, offset, tag;
+	    lowpan_size, frag_plen, offset;
+	__be16 tag;
 	u8 head[5];
 
 	header_length = skb->mac_len;
