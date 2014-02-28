@@ -1740,7 +1740,7 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return NULL; /* out of memory */
+		return ERR_PTR(-ENOMEM); /* out of memory */
 
 	if (of_find_property(np, "ti,dual-volt", NULL))
 		pdata->controller_flags |= OMAP_HSMMC_SUPPORTS_DUAL_VOLT;
@@ -1781,7 +1781,7 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 static inline struct omap_mmc_platform_data
 			*of_get_hsmmc_pdata(struct device *dev)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 #endif
 
