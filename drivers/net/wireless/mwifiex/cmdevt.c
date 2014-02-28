@@ -514,7 +514,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
-	if (adapter->num_cmd_timeout) {
+	if (adapter->is_cmd_timedout) {
 		dev_err(adapter->dev, "PREP_CMD: FW is in bad state\n");
 		return -1;
 	}
@@ -780,7 +780,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		return -1;
 	}
 
-	adapter->num_cmd_timeout = 0;
+	adapter->is_cmd_timedout = 0;
 
 	resp = (struct host_cmd_ds_command *) adapter->curr_cmd->resp_skb->data;
 	if (adapter->curr_cmd->cmd_flag & CMD_F_CANCELED) {
@@ -891,7 +891,7 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 	struct cmd_ctrl_node *cmd_node;
 	struct timeval tstamp;
 
-	adapter->num_cmd_timeout++;
+	adapter->is_cmd_timedout = 1;
 	if (!adapter->curr_cmd) {
 		dev_dbg(adapter->dev, "cmd: empty curr_cmd\n");
 		return;
@@ -914,8 +914,8 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 		dev_err(adapter->dev, "num_cmd_h2c_failure = %d\n",
 			adapter->dbg.num_cmd_host_to_card_failure);
 
-		dev_err(adapter->dev, "num_cmd_timeout = %d\n",
-			adapter->num_cmd_timeout);
+		dev_err(adapter->dev, "is_cmd_timedout = %d\n",
+			adapter->is_cmd_timedout);
 		dev_err(adapter->dev, "num_tx_timeout = %d\n",
 			adapter->dbg.num_tx_timeout);
 
