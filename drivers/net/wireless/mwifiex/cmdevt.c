@@ -165,8 +165,10 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		dev_err(adapter->dev,
 			"DNLD_CMD: FW in reset state, ignore cmd %#x\n",
 			cmd_code);
-		mwifiex_complete_cmd(adapter, cmd_node);
+		if (cmd_node->wait_q_enabled)
+			mwifiex_complete_cmd(adapter, cmd_node);
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
+		queue_work(adapter->workqueue, &adapter->main_work);
 		return -1;
 	}
 
