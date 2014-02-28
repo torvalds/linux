@@ -104,3 +104,13 @@ COMPAT_SYSCALL_WRAP3(getresuid, compat_uid_t __user *, ruid, compat_uid_t __user
 COMPAT_SYSCALL_WRAP3(setresgid, compat_gid_t, rgid, compat_gid_t, egid, compat_gid_t, sgid);
 COMPAT_SYSCALL_WRAP3(getresgid, compat_gid_t __user *, rgid, compat_gid_t __user *, egid, compat_gid_t __user *, sgid);
 COMPAT_SYSCALL_WRAP3(chown, const char __user *, filename, compat_uid_t, user, compat_gid_t, group);
+COMPAT_SYSCALL_WRAP1(setuid, compat_uid_t, uid);
+COMPAT_SYSCALL_WRAP1(setgid, compat_gid_t, gid);
+COMPAT_SYSCALL_WRAP1(setfsuid, compat_uid_t, uid);
+COMPAT_SYSCALL_WRAP1(setfsgid, compat_gid_t, gid);
+COMPAT_SYSCALL_WRAP2(pivot_root, const char __user *, new_root, const char __user *, put_old);
+COMPAT_SYSCALL_WRAP3(mincore, compat_ulong_t, start, compat_size_t, len, unsigned char __user *, vec);
+COMPAT_SYSCALL_WRAP3(madvise, compat_ulong_t, start, compat_size_t, len, int, behavior);
+COMPAT_SYSCALL_WRAP5(setxattr, const char __user *, path, const char __user *, name, const void __user *, value, compat_size_t, size, int, flags);
+COMPAT_SYSCALL_WRAP5(lsetxattr, const char __user *, path, const char __user *, name, const void __user *, value, compat_size_t, size, int, flags);
+COMPAT_SYSCALL_WRAP5(fsetxattr, int, fd, const char __user *, name, const void __user *, value, compat_size_t, size, int, flags);

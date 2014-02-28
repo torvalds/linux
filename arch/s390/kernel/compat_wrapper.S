@@ -159,39 +159,6 @@ ENTRY(compat_sys_nanosleep_wrapper)
 	llgtr	%r3,%r3			# struct compat_timespec *
 	jg	compat_sys_nanosleep		# branch to system call
 
-ENTRY(sys32_setuid_wrapper)
-	llgfr	%r2,%r2			# uid_t
-	jg	sys_setuid		# branch to system call
-
-ENTRY(sys32_setgid_wrapper)
-	llgfr	%r2,%r2			# gid_t
-	jg	sys_setgid		# branch to system call
-
-ENTRY(sys32_setfsuid_wrapper)
-	llgfr	%r2,%r2			# uid_t
-	jg	sys_setfsuid		# branch to system call
-
-ENTRY(sys32_setfsgid_wrapper)
-	llgfr	%r2,%r2			# gid_t
-	jg	sys_setfsgid		# branch to system call
-
-ENTRY(sys32_pivot_root_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgtr	%r3,%r3			# const char *
-	jg	sys_pivot_root		# branch to system call
-
-ENTRY(sys32_mincore_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# size_t
-	llgtr	%r4,%r4			# unsigned char *
-	jg	sys_mincore		# branch to system call
-
-ENTRY(sys32_madvise_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# size_t
-	lgfr	%r4,%r4			# int
-	jg	sys_madvise		# branch to system call
-
 ENTRY(sys32_getdents64_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# void *
@@ -207,30 +174,6 @@ ENTRY(compat_sys_fcntl64_wrapper)
 ENTRY(sys32_stime_wrapper)
 	llgtr	%r2,%r2			# long *
 	jg	compat_sys_stime	# branch to system call
-
-ENTRY(sys32_setxattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# void *
-	llgfr	%r5,%r5			# size_t
-	lgfr	%r6,%r6			# int
-	jg	sys_setxattr
-
-ENTRY(sys32_lsetxattr_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# void *
-	llgfr	%r5,%r5			# size_t
-	lgfr	%r6,%r6			# int
-	jg	sys_lsetxattr
-
-ENTRY(sys32_fsetxattr_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# void *
-	llgfr	%r5,%r5			# size_t
-	lgfr	%r6,%r6			# int
-	jg	sys_fsetxattr
 
 ENTRY(sys32_getxattr_wrapper)
 	llgtr	%r2,%r2			# char *

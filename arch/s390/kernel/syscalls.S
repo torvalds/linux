@@ -221,20 +221,20 @@ SYSCALL(sys_getresuid,sys_getresuid,compat_sys_getresuid)
 SYSCALL(sys_setresgid,sys_setresgid,compat_sys_setresgid)	/* 210 */
 SYSCALL(sys_getresgid,sys_getresgid,compat_sys_getresgid)
 SYSCALL(sys_chown,sys_chown,compat_sys_chown)
-SYSCALL(sys_setuid,sys_setuid,sys32_setuid_wrapper)
-SYSCALL(sys_setgid,sys_setgid,sys32_setgid_wrapper)
-SYSCALL(sys_setfsuid,sys_setfsuid,sys32_setfsuid_wrapper)	/* 215 */
-SYSCALL(sys_setfsgid,sys_setfsgid,sys32_setfsgid_wrapper)
-SYSCALL(sys_pivot_root,sys_pivot_root,sys32_pivot_root_wrapper)
-SYSCALL(sys_mincore,sys_mincore,sys32_mincore_wrapper)
-SYSCALL(sys_madvise,sys_madvise,sys32_madvise_wrapper)
+SYSCALL(sys_setuid,sys_setuid,compat_sys_setuid)
+SYSCALL(sys_setgid,sys_setgid,compat_sys_setgid)
+SYSCALL(sys_setfsuid,sys_setfsuid,compat_sys_setfsuid)	/* 215 */
+SYSCALL(sys_setfsgid,sys_setfsgid,compat_sys_setfsgid)
+SYSCALL(sys_pivot_root,sys_pivot_root,compat_sys_pivot_root)
+SYSCALL(sys_mincore,sys_mincore,compat_sys_mincore)
+SYSCALL(sys_madvise,sys_madvise,compat_sys_madvise)
 SYSCALL(sys_getdents64,sys_getdents64,sys32_getdents64_wrapper)	/* 220 */
 SYSCALL(sys_fcntl64,sys_ni_syscall,compat_sys_fcntl64_wrapper)
 SYSCALL(sys_readahead,sys_readahead,compat_sys_s390_readahead)
 SYSCALL(sys_sendfile64,sys_ni_syscall,compat_sys_sendfile64)
-SYSCALL(sys_setxattr,sys_setxattr,sys32_setxattr_wrapper)
-SYSCALL(sys_lsetxattr,sys_lsetxattr,sys32_lsetxattr_wrapper)	/* 225 */
-SYSCALL(sys_fsetxattr,sys_fsetxattr,sys32_fsetxattr_wrapper)
+SYSCALL(sys_setxattr,sys_setxattr,compat_sys_setxattr)
+SYSCALL(sys_lsetxattr,sys_lsetxattr,compat_sys_lsetxattr)	/* 225 */
+SYSCALL(sys_fsetxattr,sys_fsetxattr,compat_sys_fsetxattr)
 SYSCALL(sys_getxattr,sys_getxattr,sys32_getxattr_wrapper)
 SYSCALL(sys_lgetxattr,sys_lgetxattr,sys32_lgetxattr_wrapper)
 SYSCALL(sys_fgetxattr,sys_fgetxattr,sys32_fgetxattr_wrapper)
