@@ -27,6 +27,7 @@
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/rtc.h>
 #include <linux/mfd/samsung/s2mps11.h>
+#include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s5m8763.h>
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
@@ -69,6 +70,16 @@ static const struct mfd_cell s2mps11_devs[] = {
 	}
 };
 
+static const struct mfd_cell s2mps14_devs[] = {
+	{
+		.name = "s2mps14-pmic",
+	}, {
+		.name = "s2mps14-rtc",
+	}, {
+		.name = "s2mps14-clk",
+	}
+};
+
 #ifdef CONFIG_OF
 static struct of_device_id sec_dt_match[] = {
 	{	.compatible = "samsung,s5m8767-pmic",
@@ -76,6 +87,9 @@ static struct of_device_id sec_dt_match[] = {
 	},
 	{	.compatible = "samsung,s2mps11-pmic",
 		.data = (void *)S2MPS11X,
+	},
+	{	.compatible = "samsung,s2mps14-pmic",
+		.data = (void *)S2MPS14X,
 	},
 	{},
 };
@@ -120,6 +134,15 @@ static const struct regmap_config s2mps11_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static const struct regmap_config s2mps14_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPS14_REG_LDODSCH3,
+	.volatile_reg = s2mps11_volatile,
+	.cache_type = REGCACHE_FLAT,
+};
+
 static const struct regmap_config s5m8763_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -138,11 +161,18 @@ static const struct regmap_config s5m8767_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static const struct regmap_config sec_rtc_regmap_config = {
+static const struct regmap_config s5m_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
 	.max_register = SEC_RTC_REG_MAX,
+};
+
+static const struct regmap_config s2mps14_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPS_RTC_REG_MAX,
 };
 
 #ifdef CONFIG_OF
@@ -239,19 +269,23 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		 * However we must pass something to devm_regmap_init_i2c()
 		 * so use S5M-like regmap config even though it wouldn't work.
 		 */
-		regmap_rtc = &sec_rtc_regmap_config;
+		regmap_rtc = &s5m_rtc_regmap_config;
+		break;
+	case S2MPS14X:
+		regmap = &s2mps14_regmap_config;
+		regmap_rtc = &s2mps14_rtc_regmap_config;
 		break;
 	case S5M8763X:
 		regmap = &s5m8763_regmap_config;
-		regmap_rtc = &sec_rtc_regmap_config;
+		regmap_rtc = &s5m_rtc_regmap_config;
 		break;
 	case S5M8767X:
 		regmap = &s5m8767_regmap_config;
-		regmap_rtc = &sec_rtc_regmap_config;
+		regmap_rtc = &s5m_rtc_regmap_config;
 		break;
 	default:
 		regmap = &sec_regmap_config;
-		regmap_rtc = &sec_rtc_regmap_config;
+		regmap_rtc = &s5m_rtc_regmap_config;
 		break;
 	}
 
@@ -297,6 +331,10 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	case S2MPS11X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps11_devs,
 				      ARRAY_SIZE(s2mps11_devs), NULL, 0, NULL);
+		break;
+	case S2MPS14X:
+		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps14_devs,
+				      ARRAY_SIZE(s2mps14_devs), NULL, 0, NULL);
 		break;
 	default:
 		/* If this happens the probe function is problem */

@@ -19,6 +19,7 @@ enum sec_device_type {
 	S5M8763X,
 	S5M8767X,
 	S2MPS11X,
+	S2MPS14X,
 };
 
 /**
