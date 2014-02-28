@@ -574,7 +574,7 @@ static irqreturn_t st_i2c_isr_thread(int irq, void *data)
 		writel_relaxed(it, i2c_dev->base + SSC_IEN);
 
 		st_i2c_set_bits(i2c_dev->base + SSC_I2C, SSC_I2C_STOPG);
-		c->result = -EIO;
+		c->result = -EAGAIN;
 		break;
 
 	default:
