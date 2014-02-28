@@ -537,7 +537,9 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	 */
 	if (RB_EMPTY_ROOT(&tree->tree) &&
 	    !mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY)) {
+		spin_lock(&root->fs_info->ordered_root_lock);
 		list_del_init(&BTRFS_I(inode)->ordered_operations);
+		spin_unlock(&root->fs_info->ordered_root_lock);
 	}
 
 	if (!root->nr_ordered_extents) {

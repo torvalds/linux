@@ -57,5 +57,5 @@ config PPC_MPC5200_BUGFIX
 
 config PPC_MPC5200_LPBFIFO
 	tristate "MPC5200 LocalPlus bus FIFO driver"
-	depends on PPC_MPC52xx
+	depends on PPC_MPC52xx && PPC_BESTCOMM
 	select PPC_BESTCOMM_GEN_BD

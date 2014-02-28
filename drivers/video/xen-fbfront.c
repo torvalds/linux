@@ -35,6 +35,7 @@
 #include <xen/interface/io/fbif.h>
 #include <xen/interface/io/protocols.h>
 #include <xen/xenbus.h>
+#include <xen/platform_pci.h>
 
 struct xenfb_info {
 	unsigned char		*fb;
@@ -697,6 +698,9 @@ static int __init xenfb_init(void)
 
 	/* Nothing to do if running in dom0. */
 	if (xen_initial_domain())
+		return -ENODEV;
+
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	return xenbus_register_frontend(&xenfb_driver);

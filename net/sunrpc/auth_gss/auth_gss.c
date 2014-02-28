@@ -482,6 +482,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	switch (vers) {
 	case 0:
 		gss_encode_v0_msg(gss_msg);
+		break;
 	default:
 		gss_encode_v1_msg(gss_msg, service_name, gss_auth->target_name);
 	};

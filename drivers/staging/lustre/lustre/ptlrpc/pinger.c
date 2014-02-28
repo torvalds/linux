@@ -409,8 +409,8 @@ int ptlrpc_stop_pinger(void)
 	struct l_wait_info lwi = { 0 };
 	int rc = 0;
 
-	if (!thread_is_init(&pinger_thread) &&
-	    !thread_is_stopped(&pinger_thread))
+	if (thread_is_init(&pinger_thread) ||
+	    thread_is_stopped(&pinger_thread))
 		return -EALREADY;
 
 	ptlrpc_pinger_remove_timeouts();

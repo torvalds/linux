@@ -21,6 +21,9 @@
 
 #include "af9033_priv.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 struct af9033_state {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
@@ -40,15 +43,22 @@ static int af9033_wr_regs(struct af9033_state *state, u32 reg, const u8 *val,
 		int len)
 {
 	int ret;
-	u8 buf[3 + len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = state->cfg.i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = 3 + len,
 			.buf = buf,
 		}
 	};
+
+	if (3 + len > sizeof(buf)) {
+		dev_warn(&state->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buf[0] = (reg >> 16) & 0xff;
 	buf[1] = (reg >>  8) & 0xff;
@@ -160,10 +170,17 @@ static int af9033_rd_reg_mask(struct af9033_state *state, u32 reg, u8 *val,
 static int af9033_wr_reg_val_tab(struct af9033_state *state,
 		const struct reg_val *tab, int tab_len)
 {
+#define MAX_TAB_LEN 212
 	int ret, i, j;
-	u8 buf[tab_len];
+	u8 buf[1 + MAX_TAB_LEN];
 
 	dev_dbg(&state->i2c->dev, "%s: tab_len=%d\n", __func__, tab_len);
+
+	if (tab_len > sizeof(buf)) {
+		dev_warn(&state->i2c->dev, "%s: tab len %d is too big\n",
+				KBUILD_MODNAME, tab_len);
+		return -EINVAL;
+	}
 
 	for (i = 0, j = 0; i < tab_len; i++) {
 		buf[j] = tab[i].val;

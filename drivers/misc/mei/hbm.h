@@ -49,6 +49,7 @@ static inline void mei_hbm_hdr(struct mei_msg_hdr *hdr, size_t length)
 	hdr->reserved = 0;
 }
 
+void mei_hbm_idle(struct mei_device *dev);
 int mei_hbm_start_req(struct mei_device *dev);
 int mei_hbm_start_wait(struct mei_device *dev);
 int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl);

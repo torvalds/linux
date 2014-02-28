@@ -536,7 +536,6 @@ EXPORT_SYMBOL_GPL(mei_irq_write_handler);
  *
  * @work: pointer to the work_struct structure
  *
- * NOTE: This function is called by timer interrupt work
  */
 void mei_timer(struct work_struct *work)
 {
@@ -551,18 +550,24 @@ void mei_timer(struct work_struct *work)
 
 
 	mutex_lock(&dev->device_lock);
-	if (dev->dev_state != MEI_DEV_ENABLED) {
-		if (dev->dev_state == MEI_DEV_INIT_CLIENTS) {
-			if (dev->init_clients_timer) {
-				if (--dev->init_clients_timer == 0) {
-					dev_err(&dev->pdev->dev, "reset: init clients timeout hbm_state = %d.\n",
-						dev->hbm_state);
-					mei_reset(dev, 1);
-				}
+
+	/* Catch interrupt stalls during HBM init handshake */
+	if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
+	    dev->hbm_state != MEI_HBM_IDLE) {
+
+		if (dev->init_clients_timer) {
+			if (--dev->init_clients_timer == 0) {
+				dev_err(&dev->pdev->dev, "timer: init clients timeout hbm_state = %d.\n",
+					dev->hbm_state);
+				mei_reset(dev, 1);
+				goto out;
 			}
 		}
-		goto out;
 	}
+
+	if (dev->dev_state != MEI_DEV_ENABLED)
+		goto out;
+
 	/*** connect/disconnect timeouts ***/
 	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
 		if (cl_pos->timer_count) {

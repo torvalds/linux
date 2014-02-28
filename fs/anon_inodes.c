@@ -24,7 +24,6 @@
 
 static struct vfsmount *anon_inode_mnt __read_mostly;
 static struct inode *anon_inode_inode;
-static const struct file_operations anon_inode_fops;
 
 /*
  * anon_inodefs_dname() is called from d_path().
@@ -39,51 +38,6 @@ static const struct dentry_operations anon_inodefs_dentry_operations = {
 	.d_dname	= anon_inodefs_dname,
 };
 
-/*
- * nop .set_page_dirty method so that people can use .page_mkwrite on
- * anon inodes.
- */
-static int anon_set_page_dirty(struct page *page)
-{
-	return 0;
-};
-
-static const struct address_space_operations anon_aops = {
-	.set_page_dirty = anon_set_page_dirty,
-};
-
-/*
- * A single inode exists for all anon_inode files. Contrary to pipes,
- * anon_inode inodes have no associated per-instance data, so we need
- * only allocate one of them.
- */
-static struct inode *anon_inode_mkinode(struct super_block *s)
-{
-	struct inode *inode = new_inode_pseudo(s);
-
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-
-	inode->i_ino = get_next_ino();
-	inode->i_fop = &anon_inode_fops;
-
-	inode->i_mapping->a_ops = &anon_aops;
-
-	/*
-	 * Mark the inode dirty from the very beginning,
-	 * that way it will never be moved to the dirty
-	 * list because mark_inode_dirty() will think
-	 * that it already _is_ on the dirty list.
-	 */
-	inode->i_state = I_DIRTY;
-	inode->i_mode = S_IRUSR | S_IWUSR;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	inode->i_flags |= S_PRIVATE;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	return inode;
-}
-
 static struct dentry *anon_inodefs_mount(struct file_system_type *fs_type,
 				int flags, const char *dev_name, void *data)
 {
@@ -92,7 +46,7 @@ static struct dentry *anon_inodefs_mount(struct file_system_type *fs_type,
 			&anon_inodefs_dentry_operations, ANON_INODE_FS_MAGIC);
 	if (!IS_ERR(root)) {
 		struct super_block *s = root->d_sb;
-		anon_inode_inode = anon_inode_mkinode(s);
+		anon_inode_inode = alloc_anon_inode(s);
 		if (IS_ERR(anon_inode_inode)) {
 			dput(root);
 			deactivate_locked_super(s);
@@ -134,7 +88,7 @@ struct file *anon_inode_getfile_private(const char *name,
 	if (fops->owner && !try_module_get(fops->owner))
 		return ERR_PTR(-ENOENT);
 
-	inode = anon_inode_mkinode(anon_inode_mnt->mnt_sb);
+	inode = alloc_anon_inode(anon_inode_mnt->mnt_sb);
 	if (IS_ERR(inode)) {
 		file = ERR_PTR(-ENOMEM);
 		goto err_module;

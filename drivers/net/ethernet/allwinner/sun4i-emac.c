@@ -717,8 +717,7 @@ static int emac_open(struct net_device *dev)
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
 
-	if (devm_request_irq(db->dev, dev->irq, &emac_interrupt,
-			     0, dev->name, dev))
+	if (request_irq(dev->irq, &emac_interrupt, 0, dev->name, dev))
 		return -EAGAIN;
 
 	/* Initialize EMAC board */
@@ -773,6 +772,8 @@ static int emac_stop(struct net_device *ndev)
 	emac_mdio_remove(ndev);
 
 	emac_shutdown(ndev);
+
+	free_irq(ndev->irq, ndev);
 
 	return 0;
 }

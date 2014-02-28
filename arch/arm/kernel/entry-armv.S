@@ -192,6 +192,7 @@ __dabt_svc:
 	svc_entry
 	mov	r2, sp
 	dabt_helper
+ THUMB(	ldr	r5, [sp, #S_PSR]	)	@ potentially updated CPSR
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__dabt_svc)

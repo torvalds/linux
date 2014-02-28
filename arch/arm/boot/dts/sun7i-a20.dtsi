@@ -170,7 +170,7 @@
 		emac: ethernet@01c0b000 {
 			compatible = "allwinner,sun4i-emac";
 			reg = <0x01c0b000 0x1000>;
-			interrupts = <0 55 1>;
+			interrupts = <0 55 4>;
 			clocks = <&ahb_gates 17>;
 			status = "disabled";
 		};
@@ -186,7 +186,7 @@
 		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun7i-a20-pinctrl";
 			reg = <0x01c20800 0x400>;
-			interrupts = <0 28 1>;
+			interrupts = <0 28 4>;
 			clocks = <&apb0_gates 5>;
 			gpio-controller;
 			interrupt-controller;
@@ -230,12 +230,12 @@
 		timer@01c20c00 {
 			compatible = "allwinner,sun4i-timer";
 			reg = <0x01c20c00 0x90>;
-			interrupts = <0 22 1>,
-				     <0 23 1>,
-				     <0 24 1>,
-				     <0 25 1>,
-				     <0 67 1>,
-				     <0 68 1>;
+			interrupts = <0 22 4>,
+				     <0 23 4>,
+				     <0 24 4>,
+				     <0 25 4>,
+				     <0 67 4>,
+				     <0 68 4>;
 			clocks = <&osc24M>;
 		};
 
@@ -247,7 +247,7 @@
 		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
-			interrupts = <0 1 1>;
+			interrupts = <0 1 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 16>;
@@ -257,7 +257,7 @@
 		uart1: serial@01c28400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
-			interrupts = <0 2 1>;
+			interrupts = <0 2 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 17>;
@@ -267,7 +267,7 @@
 		uart2: serial@01c28800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28800 0x400>;
-			interrupts = <0 3 1>;
+			interrupts = <0 3 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 18>;
@@ -277,7 +277,7 @@
 		uart3: serial@01c28c00 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28c00 0x400>;
-			interrupts = <0 4 1>;
+			interrupts = <0 4 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 19>;
@@ -287,7 +287,7 @@
 		uart4: serial@01c29000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29000 0x400>;
-			interrupts = <0 17 1>;
+			interrupts = <0 17 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 20>;
@@ -297,7 +297,7 @@
 		uart5: serial@01c29400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29400 0x400>;
-			interrupts = <0 18 1>;
+			interrupts = <0 18 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 21>;
@@ -307,7 +307,7 @@
 		uart6: serial@01c29800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29800 0x400>;
-			interrupts = <0 19 1>;
+			interrupts = <0 19 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 22>;
@@ -317,7 +317,7 @@
 		uart7: serial@01c29c00 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29c00 0x400>;
-			interrupts = <0 20 1>;
+			interrupts = <0 20 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 23>;

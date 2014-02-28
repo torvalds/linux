@@ -22,7 +22,15 @@ struct device_node;
 
 static inline int cpu_to_node(int cpu)
 {
-	return numa_cpu_lookup_table[cpu];
+	int nid;
+
+	nid = numa_cpu_lookup_table[cpu];
+
+	/*
+	 * During early boot, the numa-cpu lookup table might not have been
+	 * setup for all CPUs yet. In such cases, default to node 0.
+	 */
+	return (nid < 0) ? 0 : nid;
 }
 
 #define parent_node(node)	(node)

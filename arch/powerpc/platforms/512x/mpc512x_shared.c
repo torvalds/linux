@@ -303,6 +303,9 @@ void __init mpc512x_setup_diu(void)
 	diu_ops.release_bootmem		= mpc512x_release_bootmem;
 }
 
+#else
+void __init mpc512x_setup_diu(void) { /* EMPTY */ }
+void __init mpc512x_init_diu(void) { /* EMPTY */ }
 #endif
 
 void __init mpc512x_init_IRQ(void)

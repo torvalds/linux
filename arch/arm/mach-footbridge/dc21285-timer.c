@@ -96,11 +96,12 @@ static struct irqaction footbridge_timer_irq = {
 void __init footbridge_timer_init(void)
 {
 	struct clock_event_device *ce = &ckevt_dc21285;
+	unsigned rate = DIV_ROUND_CLOSEST(mem_fclk_21285, 16);
 
-	clocksource_register_hz(&cksrc_dc21285, (mem_fclk_21285 + 8) / 16);
+	clocksource_register_hz(&cksrc_dc21285, rate);
 
 	setup_irq(ce->irq, &footbridge_timer_irq);
 
 	ce->cpumask = cpumask_of(smp_processor_id());
-	clockevents_config_and_register(ce, mem_fclk_21285, 0x4, 0xffffff);
+	clockevents_config_and_register(ce, rate, 0x4, 0xffffff);
 }

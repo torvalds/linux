@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/spinlock_types.h>
 #include <linux/wait.h>
 #include <linux/cpumask.h>
@@ -51,7 +52,7 @@ struct percpu_ida {
 	} ____cacheline_aligned_in_smp;
 };
 
-int percpu_ida_alloc(struct percpu_ida *pool, gfp_t gfp);
+int percpu_ida_alloc(struct percpu_ida *pool, int state);
 void percpu_ida_free(struct percpu_ida *pool, unsigned tag);
 
 void percpu_ida_destroy(struct percpu_ida *pool);

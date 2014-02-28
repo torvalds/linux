@@ -597,6 +597,7 @@ static int patch_cs420x(struct hda_codec *codec)
  * Its layout is no longer compatible with CS4206/CS4207
  */
 enum {
+	CS4208_MAC_AUTO,
 	CS4208_MBA6,
 	CS4208_GPIO0,
 };
@@ -608,7 +609,12 @@ static const struct hda_model_fixup cs4208_models[] = {
 };
 
 static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
-	/* codec SSID */
+	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS4208_MAC_AUTO),
+	{} /* terminator */
+};
+
+/* codec SSID matching */
+static const struct snd_pci_quirk cs4208_mac_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
 	{} /* terminator */
@@ -626,6 +632,20 @@ static void cs4208_fixup_gpio0(struct hda_codec *codec,
 	}
 }
 
+static const struct hda_fixup cs4208_fixups[];
+
+/* remap the fixup from codec SSID and apply it */
+static void cs4208_fixup_mac(struct hda_codec *codec,
+			     const struct hda_fixup *fix, int action)
+{
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+	snd_hda_pick_fixup(codec, NULL, cs4208_mac_fixup_tbl, cs4208_fixups);
+	if (codec->fixup_id < 0 || codec->fixup_id == CS4208_MAC_AUTO)
+		codec->fixup_id = CS4208_GPIO0; /* default fixup */
+	snd_hda_apply_fixup(codec, action);
+}
+
 static const struct hda_fixup cs4208_fixups[] = {
 	[CS4208_MBA6] = {
 		.type = HDA_FIXUP_PINS,
@@ -636,6 +656,10 @@ static const struct hda_fixup cs4208_fixups[] = {
 	[CS4208_GPIO0] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs4208_fixup_gpio0,
+	},
+	[CS4208_MAC_AUTO] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs4208_fixup_mac,
 	},
 };
 
@@ -660,6 +684,8 @@ static int patch_cs4208(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->gen.automute_hook = cs_automute;
+	/* exclude NID 0x10 (HP) from output volumes due to different steps */
+	spec->gen.out_vol_mask = 1ULL << 0x10;
 
 	snd_hda_pick_fixup(codec, cs4208_models, cs4208_fixup_tbl,
 			   cs4208_fixups);

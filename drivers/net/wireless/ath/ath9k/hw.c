@@ -2608,13 +2608,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 
-	/*
-	 * Fast channel change across bands is available
-	 * only for AR9462 and AR9565.
-	 */
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
-		pCap->hw_caps |= ATH9K_HW_CAP_FCC_BAND_SWITCH;
-
 	return 0;
 }
 

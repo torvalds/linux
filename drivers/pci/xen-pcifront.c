@@ -20,6 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <linux/time.h>
+#include <xen/platform_pci.h>
 
 #include <asm/xen/swiotlb-xen.h>
 #define INVALID_GRANT_REF (0)
@@ -1136,6 +1137,9 @@ static DEFINE_XENBUS_DRIVER(xenpci, "pcifront",
 static int __init pcifront_init(void)
 {
 	if (!xen_pv_domain() || xen_initial_domain())
+		return -ENODEV;
+
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	pci_frontend_registrar(1 /* enable */);

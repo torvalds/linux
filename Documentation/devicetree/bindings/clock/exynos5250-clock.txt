@@ -159,6 +159,8 @@ clock which they consume.
   mixer			343
   hdmi			344
   g2d			345
+  mdma0			346
+  smmu_mdma0		347
 
 
    [Clock Muxes]

@@ -433,27 +433,19 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
 
+	txq_id = info->hw_queue;
+
 	if (is_agg)
 		txq_id = priv->tid_data[sta_id][tid].agg.txq_id;
 	else if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
-		/*
-		 * Send this frame after DTIM -- there's a special queue
-		 * reserved for this for contexts that support AP mode.
-		 */
-		txq_id = ctx->mcast_queue;
-
 		/*
 		 * The microcode will clear the more data
 		 * bit in the last frame it transmits.
 		 */
 		hdr->frame_control |=
 			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	} else if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
-		txq_id = IWL_AUX_QUEUE;
-	else
-		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
+	}
 
-	WARN_ON_ONCE(!is_agg && txq_id != info->hw_queue);
 	WARN_ON_ONCE(is_agg &&
 		     priv->queue_to_mac80211[txq_id] != info->hw_queue);
 

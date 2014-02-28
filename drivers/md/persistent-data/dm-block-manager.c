@@ -626,6 +626,12 @@ void dm_bm_set_read_only(struct dm_block_manager *bm)
 }
 EXPORT_SYMBOL_GPL(dm_bm_set_read_only);
 
+void dm_bm_set_read_write(struct dm_block_manager *bm)
+{
+	bm->read_only = false;
+}
+EXPORT_SYMBOL_GPL(dm_bm_set_read_write);
+
 u32 dm_bm_checksum(const void *data, size_t len, u32 init_xor)
 {
 	return crc32c(~(u32) 0, data, len) ^ init_xor;

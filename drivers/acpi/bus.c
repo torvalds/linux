@@ -33,6 +33,7 @@
 #include <linux/proc_fs.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
+#include <linux/regulator/machine.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif
@@ -155,6 +156,16 @@ int acpi_bus_get_private_data(acpi_handle handle, void **data)
 	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_get_private_data);
+
+void acpi_bus_no_hotplug(acpi_handle handle)
+{
+	struct acpi_device *adev = NULL;
+
+	acpi_bus_get_device(handle, &adev);
+	if (adev)
+		adev->flags.no_hotplug = true;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_no_hotplug);
 
 static void acpi_print_osc_error(acpi_handle handle,
 	struct acpi_osc_context *context, char *error)
@@ -564,6 +575,14 @@ void __init acpi_early_init(void)
 		printk(KERN_ERR PREFIX "Unable to enable ACPI\n");
 		goto error0;
 	}
+
+	/*
+	 * If the system is using ACPI then we can be reasonably
+	 * confident that any regulators are managed by the firmware
+	 * so tell the regulator core it has everything it needs to
+	 * know.
+	 */
+	regulator_has_full_constraints();
 
 	return;
 

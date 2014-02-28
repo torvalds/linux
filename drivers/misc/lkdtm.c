@@ -297,6 +297,14 @@ static void do_nothing(void)
 	return;
 }
 
+static noinline void corrupt_stack(void)
+{
+	/* Use default char array length that triggers stack protection. */
+	char data[8];
+
+	memset((void *)data, 0, 64);
+}
+
 static void execute_location(void *dst)
 {
 	void (*func)(void) = dst;
@@ -327,13 +335,9 @@ static void lkdtm_do_action(enum ctype which)
 	case CT_OVERFLOW:
 		(void) recursive_loop(0);
 		break;
-	case CT_CORRUPT_STACK: {
-		/* Make sure the compiler creates and uses an 8 char array. */
-		volatile char data[8];
-
-		memset((void *)data, 0, 64);
+	case CT_CORRUPT_STACK:
+		corrupt_stack();
 		break;
-	}
 	case CT_UNALIGNED_LOAD_STORE_WRITE: {
 		static u8 data[5] __attribute__((aligned(4))) = {1, 2,
 				3, 4, 5};

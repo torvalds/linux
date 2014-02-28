@@ -128,6 +128,17 @@ static bool is_treat_specially_client(struct mei_cl *cl,
 	return false;
 }
 
+/**
+ * mei_hbm_idle - set hbm to idle state
+ *
+ * @dev: the device structure
+ */
+void mei_hbm_idle(struct mei_device *dev)
+{
+	dev->init_clients_timer = 0;
+	dev->hbm_state = MEI_HBM_IDLE;
+}
+
 int mei_hbm_start_wait(struct mei_device *dev)
 {
 	int ret;
@@ -576,6 +587,14 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	BUG_ON(hdr->length >= sizeof(dev->rd_msg_buf));
 	mei_read_slots(dev, dev->rd_msg_buf, hdr->length);
 	mei_msg = (struct mei_bus_message *)dev->rd_msg_buf;
+
+	/* ignore spurious message and prevent reset nesting
+	 * hbm is put to idle during system reset
+	 */
+	if (dev->hbm_state == MEI_HBM_IDLE) {
+		dev_dbg(&dev->pdev->dev, "hbm: state is idle ignore spurious messages\n");
+		return;
+	}
 
 	switch (mei_msg->hbm_cmd) {
 	case HOST_START_RES_CMD:

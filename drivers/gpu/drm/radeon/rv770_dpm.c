@@ -2328,6 +2328,12 @@ void rv770_get_engine_memory_ss(struct radeon_device *rdev)
 	pi->mclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
 						       ASIC_INTERNAL_MEMORY_SS, 0);
 
+	/* disable ss, causes hangs on some cayman boards */
+	if (rdev->family == CHIP_CAYMAN) {
+		pi->sclk_ss = false;
+		pi->mclk_ss = false;
+	}
+
 	if (pi->sclk_ss || pi->mclk_ss)
 		pi->dynamic_ss = true;
 	else
@@ -2524,6 +2530,12 @@ bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
 	    (rdev->pdev->subsystem_vendor == 0x1043) &&
 	    (rdev->pdev->subsystem_device == 0x1c42))
 		switch_limit = 200;
+
+	/* RV770 */
+	/* mclk switching doesn't seem to work reliably on desktop RV770s */
+	if ((rdev->family == CHIP_RV770) &&
+	    !(rdev->flags & RADEON_IS_MOBILITY))
+		switch_limit = 0xffffffff; /* disable mclk switching */
 
 	if (vblank_time < switch_limit)
 		return true;

@@ -5,7 +5,11 @@ Required properties :
 
  - reg             : Offset and length of the register set for the device
  - compatible      : Should be "marvell,mv64xxx-i2c" or "allwinner,sun4i-i2c"
-                     or "marvell,mv78230-i2c"
+                     or "marvell,mv78230-i2c" or "marvell,mv78230-a0-i2c"
+                     Note: Only use "marvell,mv78230-a0-i2c" for a very rare,
+                     initial version of the SoC which had broken offload
+                     support.  Linux auto-detects this and sets it
+                     appropriately.
  - interrupts      : The interrupt number
 
 Optional properties :

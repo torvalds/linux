@@ -146,7 +146,10 @@ static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 		va_list tmp;
 
 		va_copy(tmp, args);
-		if (!__i915_error_seek(e, vsnprintf(NULL, 0, f, tmp)))
+		len = vsnprintf(NULL, 0, f, tmp);
+		va_end(tmp);
+
+		if (!__i915_error_seek(e, len))
 			return;
 	}
 
@@ -221,6 +224,9 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				  unsigned ring)
 {
 	BUG_ON(ring >= I915_NUM_RINGS); /* shut up confused gcc */
+	if (!error->ring[ring].valid)
+		return;
+
 	err_printf(m, "%s command stream:\n", ring_str(ring));
 	err_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
 	err_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
@@ -272,7 +278,6 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	struct drm_device *dev = error_priv->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
-	struct intel_ring_buffer *ring;
 	int i, j, page, offset, elt;
 
 	if (!error) {
@@ -306,7 +311,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (INTEL_INFO(dev)->gen == 7)
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
-	for_each_ring(ring, dev_priv, i)
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++)
 		i915_ring_error_state(m, dev, error, i);
 
 	if (error->active_bo)
@@ -363,8 +368,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		obj = error->ring[i].ctx;
-		if (obj) {
+		if ((obj = error->ring[i].ctx)) {
 			err_printf(m, "%s --- HW Context = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
@@ -644,7 +648,8 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			return NULL;
 
 		obj = ring->scratch.obj;
-		if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
+		if (obj != NULL &&
+		    acthd >= i915_gem_obj_ggtt_offset(obj) &&
 		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
 			return i915_error_object_create(dev_priv, obj);
 	}
@@ -747,11 +752,17 @@ static void i915_gem_record_rings(struct drm_device *dev,
 				  struct drm_i915_error_state *error)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_request *request;
 	int i, count;
 
-	for_each_ring(ring, dev_priv, i) {
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+
+		if (ring->dev == NULL)
+			continue;
+
+		error->ring[i].valid = true;
+
 		i915_record_ring_state(dev, error, ring);
 
 		error->ring[i].batchbuffer =

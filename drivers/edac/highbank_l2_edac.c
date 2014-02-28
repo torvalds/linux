@@ -90,28 +90,30 @@ static int highbank_l2_err_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	drvdata->db_irq = platform_get_irq(pdev, 0);
-	res = devm_request_irq(&pdev->dev, drvdata->db_irq,
-			       highbank_l2_err_handler,
-			       0, dev_name(&pdev->dev), dci);
-	if (res < 0)
-		goto err;
-
-	drvdata->sb_irq = platform_get_irq(pdev, 1);
-	res = devm_request_irq(&pdev->dev, drvdata->sb_irq,
-			       highbank_l2_err_handler,
-			       0, dev_name(&pdev->dev), dci);
-	if (res < 0)
-		goto err;
-
 	dci->mod_name = dev_name(&pdev->dev);
 	dci->dev_name = dev_name(&pdev->dev);
 
 	if (edac_device_add_device(dci))
 		goto err;
 
+	drvdata->db_irq = platform_get_irq(pdev, 0);
+	res = devm_request_irq(&pdev->dev, drvdata->db_irq,
+			       highbank_l2_err_handler,
+			       0, dev_name(&pdev->dev), dci);
+	if (res < 0)
+		goto err2;
+
+	drvdata->sb_irq = platform_get_irq(pdev, 1);
+	res = devm_request_irq(&pdev->dev, drvdata->sb_irq,
+			       highbank_l2_err_handler,
+			       0, dev_name(&pdev->dev), dci);
+	if (res < 0)
+		goto err2;
+
 	devres_close_group(&pdev->dev, NULL);
 	return 0;
+err2:
+	edac_device_del_device(&pdev->dev);
 err:
 	devres_release_group(&pdev->dev, NULL);
 	edac_device_free_ctl_info(dci);

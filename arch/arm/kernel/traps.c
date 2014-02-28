@@ -35,7 +35,13 @@
 #include <asm/tls.h>
 #include <asm/system_misc.h>
 
-static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
+static const char *handler[]= {
+	"prefetch abort",
+	"data abort",
+	"address exception",
+	"interrupt",
+	"undefined instruction",
+};
 
 void *vectors_page;
 
@@ -503,9 +509,10 @@ static inline int
 __do_cache_op(unsigned long start, unsigned long end)
 {
 	int ret;
-	unsigned long chunk = PAGE_SIZE;
 
 	do {
+		unsigned long chunk = min(PAGE_SIZE, end - start);
+
 		if (signal_pending(current)) {
 			struct thread_info *ti = current_thread_info();
 

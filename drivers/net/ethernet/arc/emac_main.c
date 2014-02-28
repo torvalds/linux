@@ -565,6 +565,8 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 	/* Make sure pointer to data buffer is set */
 	wmb();
 
+	skb_tx_timestamp(skb);
+
 	*info = cpu_to_le32(FOR_EMAC | FIRST_OR_LAST_MASK | len);
 
 	/* Increment index to point to the next BD */
@@ -578,8 +580,6 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 		netif_stop_queue(ndev);
 
 	arc_reg_set(priv, R_STATUS, TXPL_MASK);
-
-	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }

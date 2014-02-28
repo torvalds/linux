@@ -128,7 +128,12 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		 * any other sleep) on Haswell machines with LPT and LPT-LP
 		 * with the new Intel BIOS
 		 */
-		xhci->quirks |= XHCI_SPURIOUS_WAKEUP;
+		/* Limit the quirk to only known vendors, as this triggers
+		 * yet another BIOS bug on some other machines
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=66171
+		 */
+		if (pdev->subsystem_vendor == PCI_VENDOR_ID_HP)
+			xhci->quirks |= XHCI_SPURIOUS_WAKEUP;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
 			pdev->device == PCI_DEVICE_ID_ASROCK_P67) {

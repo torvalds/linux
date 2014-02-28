@@ -72,7 +72,8 @@ DEVICE(hp4x, HP4X_IDS);
 
 /* Suunto ANT+ USB Driver */
 #define SUUNTO_IDS()			\
-	{ USB_DEVICE(0x0fcf, 0x1008) }
+	{ USB_DEVICE(0x0fcf, 0x1008) },	\
+	{ USB_DEVICE(0x0fcf, 0x1009) } /* Dynastream ANT USB-m Stick */
 DEVICE(suunto, SUUNTO_IDS);
 
 /* Siemens USB/MPI adapter */

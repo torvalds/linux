@@ -537,6 +537,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
 	spin_lock_init(&mm->page_table_lock);
 	mm_init_aio(mm);
 	mm_init_owner(mm, p);
+	clear_tlb_flush_pending(mm);
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;
@@ -1174,7 +1175,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * do not allow it to share a thread group or signal handlers or
 	 * parent with the forking task.
 	 */
-	if (clone_flags & (CLONE_SIGHAND | CLONE_PARENT)) {
+	if (clone_flags & CLONE_SIGHAND) {
 		if ((clone_flags & (CLONE_NEWUSER | CLONE_NEWPID)) ||
 		    (task_active_pid_ns(current) !=
 				current->nsproxy->pid_ns_for_children))
