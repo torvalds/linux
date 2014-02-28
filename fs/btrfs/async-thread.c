@@ -730,7 +730,7 @@ void btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 	spin_unlock_irqrestore(&worker->lock, flags);
 }
 
-struct btrfs_workqueue_struct {
+struct __btrfs_workqueue_struct {
 	struct workqueue_struct *normal_wq;
 	/* List head pointing to ordered work list */
 	struct list_head ordered_list;
@@ -739,17 +739,25 @@ struct btrfs_workqueue_struct {
 	spinlock_t list_lock;
 };
 
-struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
-						     int flags,
-						     int max_active)
+struct btrfs_workqueue_struct {
+	struct __btrfs_workqueue_struct *normal;
+	struct __btrfs_workqueue_struct *high;
+};
+
+static inline struct __btrfs_workqueue_struct
+*__btrfs_alloc_workqueue(char *name, int flags, int max_active)
 {
-	struct btrfs_workqueue_struct *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	struct __btrfs_workqueue_struct *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
 	if (unlikely(!ret))
 		return NULL;
 
-	ret->normal_wq = alloc_workqueue("%s-%s", flags, max_active,
-					 "btrfs", name);
+	if (flags & WQ_HIGHPRI)
+		ret->normal_wq = alloc_workqueue("%s-%s-high", flags,
+						 max_active, "btrfs", name);
+	else
+		ret->normal_wq = alloc_workqueue("%s-%s", flags,
+						 max_active, "btrfs", name);
 	if (unlikely(!ret->normal_wq)) {
 		kfree(ret);
 		return NULL;
@@ -760,7 +768,37 @@ struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
 	return ret;
 }
 
-static void run_ordered_work(struct btrfs_workqueue_struct *wq)
+static inline void
+__btrfs_destroy_workqueue(struct __btrfs_workqueue_struct *wq);
+
+struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
+						     int flags,
+						     int max_active)
+{
+	struct btrfs_workqueue_struct *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+
+	if (unlikely(!ret))
+		return NULL;
+
+	ret->normal = __btrfs_alloc_workqueue(name, flags & ~WQ_HIGHPRI,
+					      max_active);
+	if (unlikely(!ret->normal)) {
+		kfree(ret);
+		return NULL;
+	}
+
+	if (flags & WQ_HIGHPRI) {
+		ret->high = __btrfs_alloc_workqueue(name, flags, max_active);
+		if (unlikely(!ret->high)) {
+			__btrfs_destroy_workqueue(ret->normal);
+			kfree(ret);
+			return NULL;
+		}
+	}
+	return ret;
+}
+
+static void run_ordered_work(struct __btrfs_workqueue_struct *wq)
 {
 	struct list_head *list = &wq->ordered_list;
 	struct btrfs_work_struct *work;
@@ -804,7 +842,7 @@ static void run_ordered_work(struct btrfs_workqueue_struct *wq)
 static void normal_work_helper(struct work_struct *arg)
 {
 	struct btrfs_work_struct *work;
-	struct btrfs_workqueue_struct *wq;
+	struct __btrfs_workqueue_struct *wq;
 	int need_order = 0;
 
 	work = container_of(arg, struct btrfs_work_struct, normal_work);
@@ -840,8 +878,8 @@ void btrfs_init_work(struct btrfs_work_struct *work,
 	work->flags = 0;
 }
 
-void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
-		      struct btrfs_work_struct *work)
+static inline void __btrfs_queue_work(struct __btrfs_workqueue_struct *wq,
+				      struct btrfs_work_struct *work)
 {
 	unsigned long flags;
 
@@ -854,13 +892,42 @@ void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
 	queue_work(wq->normal_wq, &work->normal_work);
 }
 
-void btrfs_destroy_workqueue(struct btrfs_workqueue_struct *wq)
+void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
+		      struct btrfs_work_struct *work)
+{
+	struct __btrfs_workqueue_struct *dest_wq;
+
+	if (test_bit(WORK_HIGH_PRIO_BIT, &work->flags) && wq->high)
+		dest_wq = wq->high;
+	else
+		dest_wq = wq->normal;
+	__btrfs_queue_work(dest_wq, work);
+}
+
+static inline void
+__btrfs_destroy_workqueue(struct __btrfs_workqueue_struct *wq)
 {
 	destroy_workqueue(wq->normal_wq);
 	kfree(wq);
 }
 
+void btrfs_destroy_workqueue(struct btrfs_workqueue_struct *wq)
+{
+	if (!wq)
+		return;
+	if (wq->high)
+		__btrfs_destroy_workqueue(wq->high);
+	__btrfs_destroy_workqueue(wq->normal);
+}
+
 void btrfs_workqueue_set_max(struct btrfs_workqueue_struct *wq, int max)
 {
-	workqueue_set_max_active(wq->normal_wq, max);
+	workqueue_set_max_active(wq->normal->normal_wq, max);
+	if (wq->high)
+		workqueue_set_max_active(wq->high->normal_wq, max);
+}
+
+void btrfs_set_work_high_priority(struct btrfs_work_struct *work)
+{
+	set_bit(WORK_HIGH_PRIO_BIT, &work->flags);
 }

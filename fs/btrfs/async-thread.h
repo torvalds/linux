@@ -121,6 +121,8 @@ void btrfs_requeue_work(struct btrfs_work *work);
 void btrfs_set_work_high_prio(struct btrfs_work *work);
 
 struct btrfs_workqueue_struct;
+/* Internal use only */
+struct __btrfs_workqueue_struct;
 
 struct btrfs_work_struct {
 	void (*func)(struct btrfs_work_struct *arg);
@@ -130,7 +132,7 @@ struct btrfs_work_struct {
 	/* Don't touch things below */
 	struct work_struct normal_work;
 	struct list_head ordered_list;
-	struct btrfs_workqueue_struct *wq;
+	struct __btrfs_workqueue_struct *wq;
 	unsigned long flags;
 };
 
@@ -145,4 +147,5 @@ void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
 		      struct btrfs_work_struct *work);
 void btrfs_destroy_workqueue(struct btrfs_workqueue_struct *wq);
 void btrfs_workqueue_set_max(struct btrfs_workqueue_struct *wq, int max);
+void btrfs_set_work_high_priority(struct btrfs_work_struct *work);
 #endif
