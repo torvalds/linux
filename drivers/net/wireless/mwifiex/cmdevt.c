@@ -514,6 +514,11 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
+	if (adapter->num_cmd_timeout) {
+		dev_err(adapter->dev, "PREP_CMD: FW is in bad state\n");
+		return -1;
+	}
+
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_RESET) {
 		if (cmd_no != HostCmd_CMD_FUNC_INIT) {
 			dev_err(adapter->dev, "PREP_CMD: FW in reset state\n");
