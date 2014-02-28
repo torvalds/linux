@@ -1648,9 +1648,9 @@ struct btrfs_fs_info {
 	/* qgroup rescan items */
 	struct mutex qgroup_rescan_lock; /* protects the progress item */
 	struct btrfs_key qgroup_rescan_progress;
-	struct btrfs_workers qgroup_rescan_workers;
+	struct btrfs_workqueue_struct *qgroup_rescan_workers;
 	struct completion qgroup_rescan_completion;
-	struct btrfs_work qgroup_rescan_work;
+	struct btrfs_work_struct qgroup_rescan_work;
 
 	/* filesystem state */
 	unsigned long fs_state;
