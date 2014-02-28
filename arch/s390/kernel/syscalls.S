@@ -275,7 +275,7 @@ NI_SYSCALL							/* reserved for vserver */
 SYSCALL(sys_s390_fadvise64_64,sys_ni_syscall,compat_sys_s390_fadvise64_64)
 SYSCALL(sys_statfs64,sys_statfs64,compat_sys_statfs64_wrapper)
 SYSCALL(sys_fstatfs64,sys_fstatfs64,compat_sys_fstatfs64_wrapper)
-SYSCALL(sys_remap_file_pages,sys_remap_file_pages,sys32_remap_file_pages_wrapper)
+SYSCALL(sys_remap_file_pages,sys_remap_file_pages,compat_sys_remap_file_pages)
 NI_SYSCALL							/* 268 sys_mbind */
 NI_SYSCALL							/* 269 sys_get_mempolicy */
 NI_SYSCALL							/* 270 sys_set_mempolicy */
@@ -286,20 +286,20 @@ SYSCALL(sys_mq_timedreceive,sys_mq_timedreceive,compat_sys_mq_timedreceive_wrapp
 SYSCALL(sys_mq_notify,sys_mq_notify,compat_sys_mq_notify_wrapper) /* 275 */
 SYSCALL(sys_mq_getsetattr,sys_mq_getsetattr,compat_sys_mq_getsetattr_wrapper)
 SYSCALL(sys_kexec_load,sys_kexec_load,compat_sys_kexec_load_wrapper)
-SYSCALL(sys_add_key,sys_add_key,compat_sys_add_key_wrapper)
-SYSCALL(sys_request_key,sys_request_key,compat_sys_request_key_wrapper)
+SYSCALL(sys_add_key,sys_add_key,compat_sys_add_key)
+SYSCALL(sys_request_key,sys_request_key,compat_sys_request_key)
 SYSCALL(sys_keyctl,sys_keyctl,compat_sys_keyctl_wrapper)		/* 280 */
 SYSCALL(sys_waitid,sys_waitid,compat_sys_waitid)
-SYSCALL(sys_ioprio_set,sys_ioprio_set,sys_ioprio_set_wrapper)
-SYSCALL(sys_ioprio_get,sys_ioprio_get,sys_ioprio_get_wrapper)
+SYSCALL(sys_ioprio_set,sys_ioprio_set,compat_sys_ioprio_set)
+SYSCALL(sys_ioprio_get,sys_ioprio_get,compat_sys_ioprio_get)
 SYSCALL(sys_inotify_init,sys_inotify_init,sys_inotify_init)
-SYSCALL(sys_inotify_add_watch,sys_inotify_add_watch,sys_inotify_add_watch_wrapper)	/* 285 */
-SYSCALL(sys_inotify_rm_watch,sys_inotify_rm_watch,sys_inotify_rm_watch_wrapper)
+SYSCALL(sys_inotify_add_watch,sys_inotify_add_watch,compat_sys_inotify_add_watch)	/* 285 */
+SYSCALL(sys_inotify_rm_watch,sys_inotify_rm_watch,compat_sys_inotify_rm_watch)
 NI_SYSCALL							/* 287 sys_migrate_pages */
 SYSCALL(sys_openat,sys_openat,compat_sys_openat)
-SYSCALL(sys_mkdirat,sys_mkdirat,sys_mkdirat_wrapper)
-SYSCALL(sys_mknodat,sys_mknodat,sys_mknodat_wrapper)	/* 290 */
-SYSCALL(sys_fchownat,sys_fchownat,sys_fchownat_wrapper)
+SYSCALL(sys_mkdirat,sys_mkdirat,compat_sys_mkdirat)
+SYSCALL(sys_mknodat,sys_mknodat,compat_sys_mknodat)	/* 290 */
+SYSCALL(sys_fchownat,sys_fchownat,compat_sys_fchownat)
 SYSCALL(sys_futimesat,sys_futimesat,compat_sys_futimesat_wrapper)
 SYSCALL(sys_fstatat64,sys_newfstatat,compat_sys_s390_fstatat64)
 SYSCALL(sys_unlinkat,sys_unlinkat,sys_unlinkat_wrapper)
