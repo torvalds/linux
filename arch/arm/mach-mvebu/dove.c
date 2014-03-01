@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-dove/board-dt.c
+ * arch/arm/mach-mvebu/dove.c
  *
  * Marvell Dove 88AP510 System On Chip FDT Board
  *
@@ -9,17 +9,14 @@
  */
 
 #include <linux/init.h>
-#include <linux/clk-provider.h>
+#include <linux/mbus.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <asm/hardware/cache-tauros2.h>
 #include <asm/mach/arch.h>
-#include <mach/dove.h>
-#include <mach/pm.h>
-#include <plat/common.h>
 #include "common.h"
 
-static void __init dove_dt_init(void)
+static void __init dove_init(void)
 {
 	pr_info("Dove 88AP510 SoC\n");
 
@@ -30,14 +27,13 @@ static void __init dove_dt_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char * const dove_dt_board_compat[] = {
+static const char * const dove_dt_compat[] = {
 	"marvell,dove",
 	NULL
 };
 
-DT_MACHINE_START(DOVE_DT, "Marvell Dove (Flattened Device Tree)")
-	.map_io		= dove_map_io,
-	.init_machine	= dove_dt_init,
-	.restart	= dove_restart,
-	.dt_compat	= dove_dt_board_compat,
+DT_MACHINE_START(DOVE_DT, "Marvell Dove")
+	.init_machine	= dove_init,
+	.restart	= mvebu_restart,
+	.dt_compat	= dove_dt_compat,
 MACHINE_END
