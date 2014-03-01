@@ -344,18 +344,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gem_to_radeon_bo(gobj);
 	r = radeon_bo_wait(robj, &cur_placement, true);
-	switch (cur_placement) {
-	case TTM_PL_VRAM:
-		args->domain = RADEON_GEM_DOMAIN_VRAM;
-		break;
-	case TTM_PL_TT:
-		args->domain = RADEON_GEM_DOMAIN_GTT;
-		break;
-	case TTM_PL_SYSTEM:
-		args->domain = RADEON_GEM_DOMAIN_CPU;
-	default:
-		break;
-	}
+	args->domain = radeon_mem_type_to_domain(cur_placement);
 	drm_gem_object_unreference_unlocked(gobj);
 	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
