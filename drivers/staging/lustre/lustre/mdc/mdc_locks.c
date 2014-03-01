@@ -37,15 +37,15 @@
 #define DEBUG_SUBSYSTEM S_MDC
 
 # include <linux/module.h>
-# include <linux/pagemap.h>
-# include <linux/miscdevice.h>
 
-#include <lustre_acl.h>
+#include <linux/lustre_intent.h>
+#include <obd.h>
 #include <obd_class.h>
 #include <lustre_dlm.h>
-/* fid_res_name_eq() */
-#include <lustre_fid.h>
-#include <lprocfs_status.h>
+#include <lustre_fid.h> /* fid_res_name_eq() */
+#include <lustre_mdc.h>
+#include <lustre_net.h>
+#include <lustre_req_layout.h>
 #include "mdc_internal.h"
 
 struct mdc_getattr_args {
@@ -336,9 +336,9 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 			     max(lmmsize, obddev->u.cli.cl_default_mds_easize));
 
 	rc = ldlm_prep_enqueue_req(exp, req, &cancels, count);
-	if (rc) {
+	if (rc < 0) {
 		ptlrpc_request_free(req);
-		return NULL;
+		return ERR_PTR(rc);
 	}
 
 	spin_lock(&req->rq_lock);
@@ -1281,8 +1281,8 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 
 	fid_build_reg_res_name(&op_data->op_fid1, &res_id);
 	req = mdc_intent_getattr_pack(exp, it, op_data);
-	if (!req)
-		return -ENOMEM;
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	rc = mdc_enter_request(&obddev->u.cli);
 	if (rc != 0) {
