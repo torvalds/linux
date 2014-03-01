@@ -259,8 +259,6 @@ static int panel_simple_remove(struct device *dev)
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
 
-	regulator_disable(panel->supply);
-
 	return 0;
 }
 
