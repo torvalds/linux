@@ -1478,6 +1478,7 @@ static void ath9k_htc_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		common->curaid = bss_conf->aid;
 		common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+		set_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
 	}
 }
 
@@ -1509,6 +1510,9 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 
 		bss_conf->assoc ?
 			priv->num_sta_assoc_vif++ : priv->num_sta_assoc_vif--;
+
+		if (!bss_conf->assoc)
+			clear_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
 
 		if (priv->ah->opmode == NL80211_IFTYPE_STATION) {
 			ath9k_htc_choose_set_bssid(priv);
