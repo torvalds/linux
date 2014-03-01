@@ -420,7 +420,6 @@ struct ath_beacon {
 	struct ieee80211_vif *bslot[ATH_BCBUF];
 	int slottime;
 	int slotupdate;
-	struct ath9k_tx_queue_info beacon_qi;
 	struct ath_descdma bdma;
 	struct ath_txq *cabq;
 	struct list_head bbuf;
