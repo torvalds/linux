@@ -176,7 +176,9 @@
 };
 
 &mmc2 {
-	status = "disabled";
+	vmmc-supply = <&vaux4>;
+	bus-width = <4>;
+	ti,non-removable;
 };
 
 &mmc3 {
@@ -201,4 +203,9 @@
 &charger {
 	bb_uvolt = <3200000>;
 	bb_uamp = <150>;
+};
+
+&vaux4 {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <3150000>;
 };
