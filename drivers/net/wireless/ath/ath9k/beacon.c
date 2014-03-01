@@ -505,87 +505,13 @@ static void ath9k_beacon_config_ap(struct ath_softc *sc,
 	ath9k_beacon_init(sc, nexttbtt, intval, false);
 }
 
-/*
- * This sets up the beacon timers according to the timestamp of the last
- * received beacon and the current TSF, configures PCF and DTIM
- * handling, programs the sleep registers so the hardware will wakeup in
- * time to receive beacons, and configures the beacon miss handling so
- * we'll receive a BMISS interrupt when we stop seeing beacons from the AP
- * we've associated with.
- */
-static void ath9k_beacon_config_sta(struct ath_softc *sc,
+static void ath9k_beacon_config_sta(struct ath_hw *ah,
 				    struct ath_beacon_config *conf)
 {
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_beacon_state bs;
-	int dtim_intval;
-	u32 nexttbtt = 0, intval;
-	u64 tsf;
 
-	/* No need to configure beacon if we are not associated */
-	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
-		ath_dbg(common, BEACON,
-			"STA is not yet associated..skipping beacon config\n");
+	if (ath9k_cmn_beacon_config_sta(ah, conf, &bs) == -EPERM)
 		return;
-	}
-
-	memset(&bs, 0, sizeof(bs));
-	intval = conf->beacon_interval;
-
-	/*
-	 * Setup dtim parameters according to
-	 * last beacon we received (which may be none).
-	 */
-	dtim_intval = intval * conf->dtim_period;
-
-	/*
-	 * Pull nexttbtt forward to reflect the current
-	 * TSF and calculate dtim state for the result.
-	 */
-	tsf = ath9k_hw_gettsf64(ah);
-	nexttbtt = ath9k_get_next_tbtt(sc, tsf, intval);
-
-	bs.bs_intval = TU_TO_USEC(intval);
-	bs.bs_dtimperiod = conf->dtim_period * bs.bs_intval;
-	bs.bs_nexttbtt = nexttbtt;
-	bs.bs_nextdtim = nexttbtt;
-	if (conf->dtim_period > 1)
-		bs.bs_nextdtim = ath9k_get_next_tbtt(sc, tsf, dtim_intval);
-
-	/*
-	 * Calculate the number of consecutive beacons to miss* before taking
-	 * a BMISS interrupt. The configuration is specified in TU so we only
-	 * need calculate based	on the beacon interval.  Note that we clamp the
-	 * result to at most 15 beacons.
-	 */
-	bs.bs_bmissthreshold = DIV_ROUND_UP(conf->bmiss_timeout, intval);
-	if (bs.bs_bmissthreshold > 15)
-		bs.bs_bmissthreshold = 15;
-	else if (bs.bs_bmissthreshold <= 0)
-		bs.bs_bmissthreshold = 1;
-
-	/*
-	 * Calculate sleep duration. The configuration is given in ms.
-	 * We ensure a multiple of the beacon period is used. Also, if the sleep
-	 * duration is greater than the DTIM period then it makes senses
-	 * to make it a multiple of that.
-	 *
-	 * XXX fixed at 100ms
-	 */
-
-	bs.bs_sleepduration = TU_TO_USEC(roundup(IEEE80211_MS_TO_TU(100),
-						 intval));
-	if (bs.bs_sleepduration > bs.bs_dtimperiod)
-		bs.bs_sleepduration = bs.bs_dtimperiod;
-
-	/* TSF out of range threshold fixed at 1 second */
-	bs.bs_tsfoor_threshold = ATH9K_TSFOOR_THRESHOLD;
-
-	ath_dbg(common, BEACON, "bmiss: %u sleep: %u\n",
-		bs.bs_bmissthreshold, bs.bs_sleepduration);
-
-	/* Set the computed STA beacon timers */
 
 	ath9k_hw_disable_interrupts(ah);
 	ath9k_hw_set_sta_beacon_timers(ah, &bs);
@@ -777,7 +703,7 @@ void ath9k_set_beacon(struct ath_softc *sc)
 		ath9k_beacon_config_adhoc(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_STATION:
-		ath9k_beacon_config_sta(sc, cur_conf);
+		ath9k_beacon_config_sta(sc->sc_ah, cur_conf);
 		break;
 	default:
 		ath_dbg(common, CONFIG, "Unsupported beaconing mode\n");
