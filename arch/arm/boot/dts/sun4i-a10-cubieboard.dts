@@ -12,6 +12,7 @@
 
 /dts-v1/;
 /include/ "sun4i-a10.dtsi"
+/include/ "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Cubietech Cubieboard";
@@ -31,6 +32,11 @@
 			phy1: ethernet-phy@1 {
 				reg = <1>;
 			};
+		};
+
+		ahci: sata@01c18000 {
+			target-supply = <&reg_ahci_5v>;
+			status = "okay";
 		};
 
 		pinctrl@01c20800 {
@@ -76,5 +82,9 @@
 			gpios = <&pio 7 20 0>; /* LED2 */
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	reg_ahci_5v: ahci-5v {
+		status = "okay";
 	};
 };

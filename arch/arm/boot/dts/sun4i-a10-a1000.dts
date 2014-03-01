@@ -35,6 +35,10 @@
 			};
 		};
 
+		ahci: sata@01c18000 {
+			status = "okay";
+		};
+
 		pinctrl@01c20800 {
 			emac_power_pin_a1000: emac_power_pin@0 {
 				allwinner,pins = "PH15";
