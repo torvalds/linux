@@ -250,7 +250,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	u8 cmd_rsp;
 	int ret;
 
-	if (test_bit(OP_INVALID, &priv->op_flags))
+	if (test_bit(ATH_OP_INVALID, &common->op_flags))
 		return -EIO;
 
 	fastcc = !!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL);
@@ -304,7 +304,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	htc_start(priv->htc);
 
-	if (!test_bit(OP_SCANNING, &priv->op_flags) &&
+	if (!test_bit(ATH_OP_SCANNING, &common->op_flags) &&
 	    !(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
 		ath9k_htc_vif_reconfig(priv);
 
@@ -748,7 +748,7 @@ void ath9k_htc_start_ani(struct ath9k_htc_priv *priv)
 	common->ani.shortcal_timer = timestamp;
 	common->ani.checkani_timer = timestamp;
 
-	set_bit(OP_ANI_RUNNING, &priv->op_flags);
+	set_bit(ATH_OP_ANI_RUN, &common->op_flags);
 
 	ieee80211_queue_delayed_work(common->hw, &priv->ani_work,
 				     msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
@@ -756,8 +756,9 @@ void ath9k_htc_start_ani(struct ath9k_htc_priv *priv)
 
 void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv)
 {
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 	cancel_delayed_work_sync(&priv->ani_work);
-	clear_bit(OP_ANI_RUNNING, &priv->op_flags);
+	clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
 }
 
 void ath9k_htc_ani_work(struct work_struct *work)
@@ -942,7 +943,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 		ath_dbg(common, CONFIG,
 			"Failed to update capability in target\n");
 
-	clear_bit(OP_INVALID, &priv->op_flags);
+	clear_bit(ATH_OP_INVALID, &common->op_flags);
 	htc_start(priv->htc);
 
 	spin_lock_bh(&priv->tx.tx_lock);
@@ -971,7 +972,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 
-	if (test_bit(OP_INVALID, &priv->op_flags)) {
+	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&priv->mutex);
 		return;
@@ -1013,7 +1014,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	ath9k_htc_ps_restore(priv);
 	ath9k_htc_setpower(priv, ATH9K_PM_FULL_SLEEP);
 
-	set_bit(OP_INVALID, &priv->op_flags);
+	set_bit(ATH_OP_INVALID, &common->op_flags);
 
 	ath_dbg(common, CONFIG, "Driver halt\n");
 	mutex_unlock(&priv->mutex);
@@ -1087,7 +1088,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	ath9k_htc_set_opmode(priv);
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
-	    !test_bit(OP_ANI_RUNNING, &priv->op_flags)) {
+	    !test_bit(ATH_OP_ANI_RUN, &common->op_flags)) {
 		ath9k_hw_set_tsfadjust(priv->ah, true);
 		ath9k_htc_start_ani(priv);
 	}
@@ -1245,13 +1246,14 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 				       u64 multicast)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 	u32 rfilt;
 
 	mutex_lock(&priv->mutex);
 	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
-	if (test_bit(OP_INVALID, &priv->op_flags)) {
+	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
 		ath_dbg(ath9k_hw_common(priv->ah), ANY,
 			"Unable to configure filter on invalid state\n");
 		mutex_unlock(&priv->mutex);
@@ -1670,10 +1672,11 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 
 	mutex_lock(&priv->mutex);
 	spin_lock_bh(&priv->beacon_lock);
-	set_bit(OP_SCANNING, &priv->op_flags);
+	set_bit(ATH_OP_SCANNING, &common->op_flags);
 	spin_unlock_bh(&priv->beacon_lock);
 	cancel_work_sync(&priv->ps_work);
 	ath9k_htc_stop_ani(priv);
@@ -1683,10 +1686,11 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 
 	mutex_lock(&priv->mutex);
 	spin_lock_bh(&priv->beacon_lock);
-	clear_bit(OP_SCANNING, &priv->op_flags);
+	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 	spin_unlock_bh(&priv->beacon_lock);
 	ath9k_htc_ps_wakeup(priv);
 	ath9k_htc_vif_reconfig(priv);

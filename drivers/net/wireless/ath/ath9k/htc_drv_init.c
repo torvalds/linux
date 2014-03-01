@@ -459,8 +459,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	struct ath_common *common;
 	int i, ret = 0, csz = 0;
 
-	set_bit(OP_INVALID, &priv->op_flags);
-
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah)
 		return -ENOMEM;
@@ -485,6 +483,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
 	common->btcoex_enabled = ath9k_htc_btcoex_enable == 1;
+	set_bit(ATH_OP_INVALID, &common->op_flags);
 
 	spin_lock_init(&priv->beacon_lock);
 	spin_lock_init(&priv->tx.tx_lock);

@@ -343,7 +343,7 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	vif = priv->beacon.bslot[slot];
 	avp = (struct ath9k_htc_vif *)vif->drv_priv;
 
-	if (unlikely(test_bit(OP_SCANNING, &priv->op_flags))) {
+	if (unlikely(test_bit(ATH_OP_SCANNING, &common->op_flags))) {
 		spin_unlock_bh(&priv->beacon_lock);
 		return;
 	}
