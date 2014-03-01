@@ -62,6 +62,28 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 	}
 }
 
+/*
+ * Both nexttbtt and intval have to be in usecs.
+ */
+static void ath9k_htc_beacon_init(struct ath9k_htc_priv *priv,
+				  struct ath_beacon_config *conf,
+				  bool reset_tsf)
+{
+	struct ath_hw *ah = priv->ah;
+	int ret __attribute__ ((unused));
+	__be32 htc_imask = 0;
+	u8 cmd_rsp;
+
+	WMI_CMD(WMI_DISABLE_INTR_CMDID);
+	if (reset_tsf)
+		ath9k_hw_reset_tsf(ah);
+	ath9k_htc_beaconq_config(priv);
+	ath9k_hw_beaconinit(ah, conf->nexttbtt, conf->intval);
+	priv->beacon.bmisscnt = 0;
+	htc_imask = cpu_to_be32(ah->imask);
+	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
+}
+
 static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 					struct ath_beacon_config *bss_conf)
 {
