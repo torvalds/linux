@@ -104,49 +104,22 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 }
 
 static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
-				       struct ath_beacon_config *bss_conf)
+				       struct ath_beacon_config *conf)
 {
-	struct ath_common *common = ath9k_hw_common(priv->ah);
-	u32 tsftu;
-	int ret __attribute__ ((unused));
-	u64 tsf;
+	struct ath_hw *ah = priv->ah;
+	ah->imask = 0;
 
-	bss_conf->intval = bss_conf->beacon_interval;
-	bss_conf->intval /= ATH9K_HTC_MAX_BCN_VIF;
-	bss_conf->nexttbtt = bss_conf->intval;
-
+	ath9k_cmn_beacon_config_ap(ah, conf, ATH9K_HTC_MAX_BCN_VIF);
 	/*
 	 * To reduce beacon misses under heavy TX load,
 	 * set the beacon response time to a larger value.
 	 */
-	if (bss_conf->intval > DEFAULT_SWBA_RESPONSE)
-		priv->ah->config.sw_beacon_response_time = DEFAULT_SWBA_RESPONSE;
+	if (conf->intval >= TU_TO_USEC(DEFAULT_SWBA_RESPONSE))
+		ah->config.sw_beacon_response_time = DEFAULT_SWBA_RESPONSE;
 	else
-		priv->ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
+		ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
 
-	if (test_bit(OP_TSF_RESET, &priv->op_flags)) {
-		ath9k_hw_reset_tsf(priv->ah);
-		clear_bit(OP_TSF_RESET, &priv->op_flags);
-	} else {
-		/*
-		 * Pull nexttbtt forward to reflect the current TSF.
-		 */
-		tsf = ath9k_hw_gettsf64(priv->ah);
-		tsftu = TSF_TO_TU(tsf >> 32, tsf) + FUDGE;
-		do {
-			bss_conf->nexttbtt += bss_conf->intval;
-		} while (bss_conf->nexttbtt < tsftu);
-	}
-
-	if (bss_conf->enable_beacon)
-		priv->ah->imask = ATH9K_INT_SWBA;
-
-	ath_dbg(common, CONFIG,
-		"AP Beacon config, intval: %d, nexttbtt: %u, resp_time: %d imask: 0x%x\n",
-		bss_conf->beacon_interval, bss_conf->nexttbtt,
-		priv->ah->config.sw_beacon_response_time, priv->ah->imask);
-
-	ath9k_htc_beacon_init(priv, bss_conf, false);
+	ath9k_htc_beacon_init(priv, conf, false);
 }
 
 static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
