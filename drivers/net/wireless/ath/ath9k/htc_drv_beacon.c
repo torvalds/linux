@@ -199,7 +199,7 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 		} while (nexttbtt < tsftu);
 	}
 
-	if (test_bit(OP_ENABLE_BEACON, &priv->op_flags))
+	if (bss_conf->enable_beacon)
 		imask |= ATH9K_INT_SWBA;
 
 	ath_dbg(common, CONFIG,
@@ -247,7 +247,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	else
 		priv->ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
 
-	if (test_bit(OP_ENABLE_BEACON, &priv->op_flags))
+	if (bss_conf->enable_beacon)
 		imask |= ATH9K_INT_SWBA;
 
 	ath_dbg(common, CONFIG,

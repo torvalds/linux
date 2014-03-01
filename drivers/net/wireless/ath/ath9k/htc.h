@@ -439,7 +439,6 @@ static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 
 #define OP_INVALID		   BIT(0)
 #define OP_SCANNING		   BIT(1)
-#define OP_ENABLE_BEACON           BIT(2)
 #define OP_BT_PRIORITY_DETECTED    BIT(3)
 #define OP_BT_SCAN                 BIT(4)
 #define OP_ANI_RUNNING             BIT(5)

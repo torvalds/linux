@@ -1529,7 +1529,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		ath_dbg(common, CONFIG, "Beacon enabled for BSS: %pM\n",
 			bss_conf->bssid);
 		ath9k_htc_set_tsfadjust(priv, vif);
-		set_bit(OP_ENABLE_BEACON, &priv->op_flags);
+		priv->cur_beacon_conf.enable_beacon = 1;
 		ath9k_htc_beacon_config(priv, vif);
 	}
 
@@ -1543,7 +1543,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 			ath_dbg(common, CONFIG,
 				"Beacon disabled for BSS: %pM\n",
 				bss_conf->bssid);
-			clear_bit(OP_ENABLE_BEACON, &priv->op_flags);
+			priv->cur_beacon_conf.enable_beacon = 0;
 			ath9k_htc_beacon_config(priv, vif);
 		}
 	}
