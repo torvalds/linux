@@ -30,6 +30,7 @@
 
 #include <asm/octeon/octeon.h>
 
+#include "ethernet-mem.h"
 #include "ethernet-defines.h"
 
 #include <asm/octeon/cvmx-fpa.h>
