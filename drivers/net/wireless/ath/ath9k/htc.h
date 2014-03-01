@@ -407,9 +407,17 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 #define MIN_SWBA_RESPONSE     10 /* in TUs */
 
 struct htc_beacon {
+	enum {
+		OK,		/* no change needed */
+		UPDATE,		/* update pending */
+		COMMIT		/* beacon sent, commit change */
+	} updateslot;		/* slot time update fsm */
+
 	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
 	u32 bmisscnt;
 	u32 beaconq;
+	int slottime;
+	int slotupdate;
 };
 
 struct ath_btcoex {

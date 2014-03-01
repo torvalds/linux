@@ -1500,6 +1500,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	int slottime;
 
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
@@ -1575,11 +1576,21 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		if (bss_conf->use_short_slot)
-			ah->slottime = 9;
+			slottime = 9;
 		else
-			ah->slottime = 20;
-
-		ath9k_hw_init_global_settings(ah);
+			slottime = 20;
+		if (vif->type == NL80211_IFTYPE_AP) {
+			/*
+			 * Defer update, so that connected stations can adjust
+			 * their settings at the same time.
+			 * See beacon.c for more details
+			 */
+			priv->beacon.slottime = slottime;
+			priv->beacon.updateslot = UPDATE;
+		} else {
+			ah->slottime = slottime;
+			ath9k_hw_init_global_settings(ah);
+		}
 	}
 
 	if (changed & BSS_CHANGED_HT)
