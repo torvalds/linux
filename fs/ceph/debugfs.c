@@ -93,6 +93,8 @@ static int mdsc_show(struct seq_file *s, void *p)
 		} else if (req->r_path1) {
 			seq_printf(s, " #%llx/%s", req->r_ino1.ino,
 				   req->r_path1);
+		} else {
+			seq_printf(s, " #%llx", req->r_ino1.ino);
 		}
 
 		if (req->r_old_dentry) {
