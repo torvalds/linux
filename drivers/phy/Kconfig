@@ -85,4 +85,15 @@ config PHY_EXYNOS5250_SATA
 	  SATA 3.0 Gb/s, SATA 6.0 Gb/s speeds. It supports one SATA host
 	  port to accept one SATA device.
 
+config PHY_SUN4I_USB
+	tristate "Allwinner sunxi SoC USB PHY driver"
+	depends on ARCH_SUNXI && HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the transceiver that is part of Allwinner
+	  sunxi SoCs.
+
+	  This driver controls the entire USB PHY block, both the USB OTG
+	  parts, as well as the 2 regular USB 2 host PHYs.
+
 endmenu
