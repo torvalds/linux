@@ -2277,7 +2277,7 @@ pl022_remove(struct amba_device *adev)
 	return 0;
 }
 
-#if defined(CONFIG_SUSPEND) || defined(CONFIG_PM_RUNTIME)
+#ifdef CONFIG_PM
 /*
  * These two functions are used from both suspend/resume and
  * the runtime counterparts to handle external resources like
@@ -2343,7 +2343,7 @@ static int pl022_resume(struct device *dev)
 }
 #endif	/* CONFIG_PM */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int pl022_runtime_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
@@ -2363,7 +2363,7 @@ static int pl022_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops pl022_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pl022_suspend, pl022_resume)
-	SET_RUNTIME_PM_OPS(pl022_runtime_suspend, pl022_runtime_resume, NULL)
+	SET_PM_RUNTIME_PM_OPS(pl022_runtime_suspend, pl022_runtime_resume, NULL)
 };
 
 static struct vendor_data vendor_arm = {
