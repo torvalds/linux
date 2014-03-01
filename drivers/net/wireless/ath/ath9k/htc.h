@@ -39,7 +39,6 @@
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
 #define ATH_DEFAULT_BMISS_LIMIT 10
-#define IEEE80211_MS_TO_TU(x)   (((x) * 1000) / 1024)
 #define TSF_TO_TU(_h, _l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 

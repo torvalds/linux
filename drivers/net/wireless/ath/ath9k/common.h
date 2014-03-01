@@ -44,6 +44,8 @@
 #define ATH_EP_RND(x, mul) 						\
 	(((x) + ((mul)/2)) / (mul))
 
+#define IEEE80211_MS_TO_TU(x)   (((x) * 1000) / 1024)
+
 struct ath_beacon_config {
 	int beacon_interval;
 	u16 dtim_period;
