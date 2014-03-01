@@ -211,7 +211,7 @@ static inline void byte1_out(unsigned char data)
 /*
  * configurable per device type for different I/O config
  */
-int xl_init_io()
+int xl_init_io(void)
 {
 	struct device_node *np;
 	const u32 *p_reg;
@@ -286,7 +286,7 @@ static inline void xl_cclk_b(int32_t i)
 /*
  * configurable per device type for different I/O config
  */
-int xl_init_io()
+int xl_init_io(void)
 {
 	return -1;
 }
