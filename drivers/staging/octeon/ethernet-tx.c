@@ -95,7 +95,7 @@ static void cvm_oct_kick_tx_poll_watchdog(void)
 	cvmx_write_csr(CVMX_CIU_TIMX(1), ciu_timx.u64);
 }
 
-void cvm_oct_free_tx_skbs(struct net_device *dev)
+static void cvm_oct_free_tx_skbs(struct net_device *dev)
 {
 	int32_t skb_to_free;
 	int qos, queues_per_port;
