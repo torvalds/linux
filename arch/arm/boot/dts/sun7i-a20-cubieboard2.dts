@@ -13,12 +13,18 @@
 
 /dts-v1/;
 /include/ "sun7i-a20.dtsi"
+/include/ "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Cubietech Cubieboard2";
 	compatible = "cubietech,cubieboard2", "allwinner,sun7i-a20";
 
 	soc@01c00000 {
+		ahci: sata@01c18000 {
+			target-supply = <&reg_ahci_5v>;
+			status = "okay";
+		};
+
 		pinctrl@01c20800 {
 			led_pins_cubieboard2: led_pins@0 {
 				allwinner,pins = "PH20", "PH21";
@@ -73,5 +79,9 @@
 			label = "cubieboard2:green:usr";
 			gpios = <&pio 7 20 0>;
 		};
+	};
+
+	reg_ahci_5v: ahci-5v {
+		status = "okay";
 	};
 };

@@ -13,6 +13,7 @@
 
 /dts-v1/;
 /include/ "sun7i-a20.dtsi"
+/include/ "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Olimex A20-Olinuxino Micro";
@@ -33,6 +34,11 @@
 		spi2: spi@01c17000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi2_pins_a>;
+			status = "okay";
+		};
+
+		ahci: sata@01c18000 {
+			target-supply = <&reg_ahci_5v>;
 			status = "okay";
 		};
 
@@ -104,5 +110,9 @@
 			gpios = <&pio 7 2 0>;
 			default-state = "on";
 		};
+	};
+
+	reg_ahci_5v: ahci-5v {
+		status = "okay";
 	};
 };
