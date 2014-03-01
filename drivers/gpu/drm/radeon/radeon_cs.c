@@ -24,6 +24,7 @@
  * Authors:
  *    Jerome Glisse <glisse@freedesktop.org>
  */
+#include <linux/list_sort.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon_reg.h"
@@ -290,6 +291,16 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	return 0;
 }
 
+static int cmp_size_smaller_first(void *priv, struct list_head *a,
+				  struct list_head *b)
+{
+	struct radeon_bo_list *la = list_entry(a, struct radeon_bo_list, tv.head);
+	struct radeon_bo_list *lb = list_entry(b, struct radeon_bo_list, tv.head);
+
+	/* Sort A before B if A is smaller. */
+	return (int)la->bo->tbo.num_pages - (int)lb->bo->tbo.num_pages;
+}
+
 /**
  * cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
@@ -303,6 +314,18 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 	unsigned i;
 
 	if (!error) {
+		/* Sort the buffer list from the smallest to largest buffer,
+		 * which affects the order of buffers in the LRU list.
+		 * This assures that the smallest buffers are added first
+		 * to the LRU list, so they are likely to be later evicted
+		 * first, instead of large buffers whose eviction is more
+		 * expensive.
+		 *
+		 * This slightly lowers the number of bytes moved by TTM
+		 * per frame under memory pressure.
+		 */
+		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
+
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
 					    parser->ib.fence);
