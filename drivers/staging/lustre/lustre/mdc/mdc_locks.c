@@ -1072,6 +1072,9 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 			 * locks, there's no easy way to match all of them here,
 			 * so an extra RPC would be performed to fetch all
 			 * of those bits at once for now. */
+			/* For new MDTs(> 2.4), UPDATE|PERM should be enough,
+			 * but for old MDTs (< 2.4), permission is covered
+			 * by LOOKUP lock, so it needs to match all bits here.*/
 			policy.l_inodebits.bits = MDS_INODELOCK_UPDATE |
 						  MDS_INODELOCK_LOOKUP |
 						  MDS_INODELOCK_PERM;
