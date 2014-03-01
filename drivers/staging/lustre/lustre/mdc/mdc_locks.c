@@ -753,6 +753,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		/* install lvb_data */
 		lock_res_and_lock(lock);
 		if (lock->l_lvb_data == NULL) {
+			lock->l_lvb_type = LVB_T_LAYOUT;
 			lock->l_lvb_data = lmm;
 			lock->l_lvb_len = lvb_len;
 			lmm = NULL;

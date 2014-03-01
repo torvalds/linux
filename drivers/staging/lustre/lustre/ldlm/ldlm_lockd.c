@@ -228,6 +228,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 			lock_res_and_lock(lock);
 			LASSERT(lock->l_lvb_data == NULL);
+			lock->l_lvb_type = LVB_T_LAYOUT;
 			lock->l_lvb_data = lvb_data;
 			lock->l_lvb_len = lvb_len;
 			unlock_res_and_lock(lock);
