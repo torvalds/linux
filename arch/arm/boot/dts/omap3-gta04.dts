@@ -108,6 +108,14 @@
 		reg = <0x77>;
 	};
 
+	/* accelerometer */
+	bma180@41 {
+		compatible = "bosch,bma180";
+		reg = <0x41>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	/* leds */
 	tca6507@45 {
 		compatible = "ti,tca6507";
