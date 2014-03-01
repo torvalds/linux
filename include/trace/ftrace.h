@@ -363,7 +363,7 @@ ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 #define __dynamic_array(type, item, len)				\
 	__data_offsets->item = __data_size +				\
 			       offsetof(typeof(*entry), __data);	\
-	__data_offsets->item |= (len * sizeof(type)) << 16;		\
+	__data_offsets->item |= ((len) * sizeof(type)) << 16;		\
 	__data_size += (len) * sizeof(type);
 
 #undef __string
