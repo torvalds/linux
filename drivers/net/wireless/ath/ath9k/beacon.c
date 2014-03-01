@@ -447,33 +447,6 @@ static void ath9k_beacon_init(struct ath_softc *sc, u32 nexttbtt,
 	ath9k_hw_enable_interrupts(ah);
 }
 
-/* Calculate the modulo of a 64 bit TSF snapshot with a TU divisor */
-static u32 ath9k_mod_tsf64_tu(u64 tsf, u32 div_tu)
-{
-	u32 tsf_mod, tsf_hi, tsf_lo, mod_hi, mod_lo;
-
-	tsf_mod = tsf & (BIT(10) - 1);
-	tsf_hi = tsf >> 32;
-	tsf_lo = ((u32) tsf) >> 10;
-
-	mod_hi = tsf_hi % div_tu;
-	mod_lo = ((mod_hi << 22) + tsf_lo) % div_tu;
-
-	return (mod_lo << 10) | tsf_mod;
-}
-
-static u32 ath9k_get_next_tbtt(struct ath_softc *sc, u64 tsf,
-			       unsigned int interval)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	unsigned int offset;
-
-	tsf += TU_TO_USEC(FUDGE + ah->config.sw_beacon_response_time);
-	offset = ath9k_mod_tsf64_tu(tsf, interval);
-
-	return (u32) tsf + TU_TO_USEC(interval) - offset;
-}
-
 /*
  * For multi-bss ap support beacons are either staggered evenly over N slots or
  * burst together.  For the former arrange for the SWBA to be delivered for each
