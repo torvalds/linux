@@ -2112,7 +2112,7 @@ extern void lustre_swab_generic_32s (__u32 *val);
 #define DISP_LOOKUP_POS      0x00000008
 #define DISP_OPEN_CREATE     0x00000010
 #define DISP_OPEN_OPEN       0x00000020
-#define DISP_ENQ_COMPLETE    0x00400000
+#define DISP_ENQ_COMPLETE    0x00400000		/* obsolete and unused */
 #define DISP_ENQ_OPEN_REF    0x00800000
 #define DISP_ENQ_CREATE_REF  0x01000000
 #define DISP_OPEN_LOCK       0x02000000

@@ -446,8 +446,7 @@ static int ll_intent_file_open(struct file *file, void *lmm,
 				 itp, NULL);
 
 out:
-	ptlrpc_req_finished(itp->d.lustre.it_data);
-	it_clear_disposition(itp, DISP_ENQ_COMPLETE);
+	ptlrpc_req_finished(req);
 	ll_intent_drop_lock(itp);
 
 	return rc;
@@ -815,10 +814,7 @@ struct obd_client_handle *ll_lease_open(struct inode *inode, struct file *file,
 	 * doesn't deal with openhandle, so normal openhandle will be leaked. */
 				LDLM_FL_NO_LRU | LDLM_FL_EXCL);
 	ll_finish_md_op_data(op_data);
-	if (req != NULL) {
-		ptlrpc_req_finished(req);
-		it_clear_disposition(&it, DISP_ENQ_COMPLETE);
-	}
+	ptlrpc_req_finished(req);
 	if (rc < 0)
 		GOTO(out_release_it, rc);
 

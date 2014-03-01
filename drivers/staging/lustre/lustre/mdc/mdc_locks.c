@@ -968,7 +968,6 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	if (fid_is_sane(&op_data->op_fid2) &&
 	    it->it_create_mode & M_CHECK_STALE &&
 	    it->it_op != IT_GETATTR) {
-		it_set_disposition(it, DISP_ENQ_COMPLETE);
 
 		/* Also: did we find the same inode? */
 		/* sever can return one of two fids:
@@ -1139,6 +1138,12 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 		    ldlm_blocking_callback cb_blocking,
 		    __u64 extra_lock_flags)
 {
+	struct ldlm_enqueue_info einfo = {
+		.ei_type	= LDLM_IBITS,
+		.ei_mode	= it_to_lock_mode(it),
+		.ei_cb_bl	= cb_blocking,
+		.ei_cb_cp	= ldlm_completion_ast,
+	};
 	struct lustre_handle lockh;
 	int rc = 0;
 
@@ -1164,42 +1169,19 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 			return rc;
 	}
 
-	/* lookup_it may be called only after revalidate_it has run, because
-	 * revalidate_it cannot return errors, only zero.  Returning zero causes
-	 * this call to lookup, which *can* return an error.
-	 *
-	 * We only want to execute the request associated with the intent one
-	 * time, however, so don't send the request again.  Instead, skip past
-	 * this and use the request from revalidate.  In this case, revalidate
-	 * never dropped its reference, so the refcounts are all OK */
-	if (!it_disposition(it, DISP_ENQ_COMPLETE)) {
-		struct ldlm_enqueue_info einfo = {
-			.ei_type	= LDLM_IBITS,
-			.ei_mode	= it_to_lock_mode(it),
-			.ei_cb_bl	= cb_blocking,
-			.ei_cb_cp	= ldlm_completion_ast,
-		};
-
-		/* For case if upper layer did not alloc fid, do it now. */
-		if (!fid_is_sane(&op_data->op_fid2) && it->it_op & IT_CREAT) {
-			rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
-			if (rc < 0) {
-				CERROR("Can't alloc new fid, rc %d\n", rc);
-				return rc;
-			}
-		}
-		rc = mdc_enqueue(exp, &einfo, it, op_data, &lockh,
-				 lmm, lmmsize, NULL, extra_lock_flags);
-		if (rc < 0)
+	/* For case if upper layer did not alloc fid, do it now. */
+	if (!fid_is_sane(&op_data->op_fid2) && it->it_op & IT_CREAT) {
+		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		if (rc < 0) {
+			CERROR("Can't alloc new fid, rc %d\n", rc);
 			return rc;
-	} else if (!fid_is_sane(&op_data->op_fid2) ||
-		   !(it->it_create_mode & M_CHECK_STALE)) {
-		/* DISP_ENQ_COMPLETE set means there is extra reference on
-		 * request referenced from this intent, saved for subsequent
-		 * lookup.  This path is executed when we proceed to this
-		 * lookup, so we clear DISP_ENQ_COMPLETE */
-		it_clear_disposition(it, DISP_ENQ_COMPLETE);
+		}
 	}
+	rc = mdc_enqueue(exp, &einfo, it, op_data, &lockh, lmm, lmmsize, NULL,
+			 extra_lock_flags);
+	if (rc < 0)
+		return rc;
+
 	*reqp = it->d.lustre.it_data;
 	rc = mdc_finish_intent_lock(exp, *reqp, op_data, it, &lockh);
 	return rc;

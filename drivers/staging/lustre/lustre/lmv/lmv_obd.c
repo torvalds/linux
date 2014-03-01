@@ -1744,7 +1744,6 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	it->d.lustre.it_data = NULL;
 	fid1 = body->fid1;
 
-	it->d.lustre.it_disposition &= ~DISP_ENQ_COMPLETE;
 	ptlrpc_req_finished(req);
 
 	tgt = lmv_find_target(lmv, &fid1);
