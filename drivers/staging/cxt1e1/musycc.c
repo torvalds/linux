@@ -217,7 +217,8 @@ musycc_dump_ring(ci_t *ci, unsigned int chan)
 	max_intcnt = 0;             /* reset counter */
     }
 
-    if (!(ch = sd_find_chan(dummy, chan))) {
+    ch = sd_find_chan(dummy, chan);
+    if (!ch) {
 	pr_info(">> musycc_dump_ring: channel %d not up.\n", chan);
 	return ENOENT;
     }
@@ -1545,7 +1546,8 @@ musycc_chan_down(ci_t *dummy, int channum)
     mch_t      *ch;
     int         i, gchan;
 
-    if (!(ch = sd_find_chan(dummy, channum)))
+    ch = sd_find_chan(dummy, channum);
+    if (!ch)
 	return EINVAL;
     pi = ch->up;
     gchan = ch->gchan;
@@ -1596,7 +1598,8 @@ musycc_del_chan(ci_t *ci, int channum)
 
     if ((channum < 0) || (channum >= (MUSYCC_NPORTS * MUSYCC_NCHANS)))  /* sanity chk param */
 	return ECHRNG;
-    if (!(ch = sd_find_chan(ci, channum)))
+    ch = sd_find_chan(ci, channum);
+    if (!ch)
 	return ENOENT;
     if (ch->state == UP)
 	musycc_chan_down(ci, channum);
@@ -1612,7 +1615,8 @@ musycc_del_chan_stats(ci_t *ci, int channum)
 
     if (channum < 0 || channum >= (MUSYCC_NPORTS * MUSYCC_NCHANS))      /* sanity chk param */
 	return ECHRNG;
-    if (!(ch = sd_find_chan(ci, channum)))
+    ch = sd_find_chan(ci, channum);
+    if (!ch)
 	return ENOENT;
 
     memset(&ch->s, 0, sizeof(struct sbecom_chan_stats));
@@ -1632,7 +1636,8 @@ musycc_start_xmit(ci_t *ci, int channum, void *mem_token)
     int         txd_need_cnt;
     u_int32_t   len;
 
-    if (!(ch = sd_find_chan(ci, channum)))
+    ch = sd_find_chan(ci, channum);
+    if (!ch)
 	return -ENOENT;
 
     if (ci->state != C_RUNNING)     /* full interrupt processing available */
