@@ -26,7 +26,7 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
 	memset(&qi_be, 0, sizeof(struct ath9k_tx_queue_info));
 
-	ath9k_hw_get_txq_props(ah, priv->beaconq, &qi);
+	ath9k_hw_get_txq_props(ah, priv->beacon.beaconq, &qi);
 
 	if (priv->ah->opmode == NL80211_IFTYPE_AP ||
 	    priv->ah->opmode == NL80211_IFTYPE_MESH_POINT) {
@@ -54,11 +54,11 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 
 	}
 
-	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
+	if (!ath9k_hw_set_txq_props(ah, priv->beacon.beaconq, &qi)) {
 		ath_err(ath9k_hw_common(ah),
-			"Unable to update beacon queue %u!\n", priv->beaconq);
+			"Unable to update beacon queue %u!\n", priv->beacon.beaconq);
 	} else {
-		ath9k_hw_resettxqueue(ah, priv->beaconq);
+		ath9k_hw_resettxqueue(ah, priv->beacon.beaconq);
 	}
 }
 

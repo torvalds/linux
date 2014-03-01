@@ -405,8 +405,8 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(priv->hwq_map); i++)
 		priv->hwq_map[i] = -1;
 
-	priv->beaconq = ath9k_hw_beaconq_setup(priv->ah);
-	if (priv->beaconq == -1) {
+	priv->beacon.beaconq = ath9k_hw_beaconq_setup(priv->ah);
+	if (priv->beacon.beaconq == -1) {
 		ath_err(common, "Unable to setup BEACON xmit queue\n");
 		goto err;
 	}

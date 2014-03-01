@@ -409,6 +409,7 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 struct htc_beacon {
 	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
 	u32 bmisscnt;
+	u32 beaconq;
 };
 
 struct ath_btcoex {
@@ -512,7 +513,6 @@ struct ath9k_htc_priv {
 	struct work_struct led_work;
 #endif
 
-	int beaconq;
 	int cabq;
 	int hwq_map[IEEE80211_NUM_ACS];
 
