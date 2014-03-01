@@ -483,26 +483,9 @@ static void ath9k_beacon_config_ap(struct ath_softc *sc,
 				   struct ath_beacon_config *conf)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	u32 nexttbtt, intval;
 
-	/* NB: the beacon interval is kept internally in TU's */
-	intval = TU_TO_USEC(conf->beacon_interval);
-	intval /= ATH_BCBUF;
-	nexttbtt = ath9k_get_next_tbtt(sc, ath9k_hw_gettsf64(ah),
-				       conf->beacon_interval);
-
-	if (conf->enable_beacon)
-		ah->imask |= ATH9K_INT_SWBA;
-	else
-		ah->imask &= ~ATH9K_INT_SWBA;
-
-	ath_dbg(common, BEACON,
-		"AP (%s) nexttbtt: %u intval: %u conf_intval: %u\n",
-		(conf->enable_beacon) ? "Enable" : "Disable",
-		nexttbtt, intval, conf->beacon_interval);
-
-	ath9k_beacon_init(sc, nexttbtt, intval, false);
+	ath9k_cmn_beacon_config_ap(ah, conf, ATH_BCBUF);
+	ath9k_beacon_init(sc, conf->nexttbtt, conf->intval, false);
 }
 
 static void ath9k_beacon_config_sta(struct ath_hw *ah,
