@@ -43,7 +43,7 @@
 #include <asm/octeon/cvmx-npi-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
-DEFINE_SPINLOCK(global_register_lock);
+static DEFINE_SPINLOCK(global_register_lock);
 
 static int number_rgmii_ports;
 
