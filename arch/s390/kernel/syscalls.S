@@ -128,7 +128,7 @@ SYSCALL(sys_sysinfo,sys_sysinfo,compat_sys_sysinfo_wrapper)
 SYSCALL(sys_s390_ipc,sys_s390_ipc,compat_sys_s390_ipc)
 SYSCALL(sys_fsync,sys_fsync,compat_sys_fsync)
 SYSCALL(sys_sigreturn,sys_sigreturn,sys32_sigreturn)
-SYSCALL(sys_clone,sys_clone,sys_clone_wrapper)			/* 120 */
+SYSCALL(sys_clone,sys_clone,compat_sys_clone)			/* 120 */
 SYSCALL(sys_setdomainname,sys_setdomainname,compat_sys_setdomainname)
 SYSCALL(sys_newuname,sys_newuname,compat_sys_newuname)
 NI_SYSCALL							/* modify_ldt for i386 */
@@ -339,19 +339,19 @@ SYSCALL(sys_epoll_create1,sys_epoll_create1,compat_sys_epoll_create1)
 SYSCALL(sys_preadv,sys_preadv,compat_sys_preadv)
 SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev)
 SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo) /* 330 */
-SYSCALL(sys_perf_event_open,sys_perf_event_open,sys_perf_event_open_wrapper)
-SYSCALL(sys_fanotify_init,sys_fanotify_init,sys_fanotify_init_wrapper)
+SYSCALL(sys_perf_event_open,sys_perf_event_open,compat_sys_perf_event_open)
+SYSCALL(sys_fanotify_init,sys_fanotify_init,compat_sys_fanotify_init)
 SYSCALL(sys_fanotify_mark,sys_fanotify_mark,compat_sys_fanotify_mark)
-SYSCALL(sys_prlimit64,sys_prlimit64,sys_prlimit64_wrapper)
-SYSCALL(sys_name_to_handle_at,sys_name_to_handle_at,sys_name_to_handle_at_wrapper) /* 335 */
+SYSCALL(sys_prlimit64,sys_prlimit64,compat_sys_prlimit64)
+SYSCALL(sys_name_to_handle_at,sys_name_to_handle_at,compat_sys_name_to_handle_at) /* 335 */
 SYSCALL(sys_open_by_handle_at,sys_open_by_handle_at,compat_sys_open_by_handle_at)
 SYSCALL(sys_clock_adjtime,sys_clock_adjtime,compat_sys_clock_adjtime_wrapper)
-SYSCALL(sys_syncfs,sys_syncfs,sys_syncfs_wrapper)
-SYSCALL(sys_setns,sys_setns,sys_setns_wrapper)
+SYSCALL(sys_syncfs,sys_syncfs,compat_sys_syncfs)
+SYSCALL(sys_setns,sys_setns,compat_sys_setns)
 SYSCALL(sys_process_vm_readv,sys_process_vm_readv,compat_sys_process_vm_readv_wrapper) /* 340 */
 SYSCALL(sys_process_vm_writev,sys_process_vm_writev,compat_sys_process_vm_writev_wrapper)
-SYSCALL(sys_ni_syscall,sys_s390_runtime_instr,sys_s390_runtime_instr_wrapper)
-SYSCALL(sys_kcmp,sys_kcmp,sys_kcmp_wrapper)
-SYSCALL(sys_finit_module,sys_finit_module,sys_finit_module_wrapper)
-SYSCALL(sys_sched_setattr,sys_sched_setattr,sys_sched_setattr_wrapper) /* 345 */
-SYSCALL(sys_sched_getattr,sys_sched_getattr,sys_sched_getattr_wrapper)
+SYSCALL(sys_ni_syscall,sys_s390_runtime_instr,compat_sys_s390_runtime_instr)
+SYSCALL(sys_kcmp,sys_kcmp,compat_sys_kcmp)
+SYSCALL(sys_finit_module,sys_finit_module,compat_sys_finit_module)
+SYSCALL(sys_sched_setattr,sys_sched_setattr,compat_sys_sched_setattr) /* 345 */
+SYSCALL(sys_sched_getattr,sys_sched_getattr,compat_sys_sched_getattr)

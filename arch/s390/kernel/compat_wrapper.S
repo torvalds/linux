@@ -355,60 +355,16 @@ ENTRY(compat_sys_keyctl_wrapper)
 	llgfr	%r6,%r6			# u32
 	jg	compat_sys_keyctl	# branch to system call
 
-ENTRY(sys_perf_event_open_wrapper)
-	llgtr	%r2,%r2			# const struct perf_event_attr *
-	lgfr	%r3,%r3			# pid_t
-	lgfr	%r4,%r4			# int
-	lgfr	%r5,%r5			# int
-	llgfr	%r6,%r6			# unsigned long
-	jg	sys_perf_event_open	# branch to system call
-
-ENTRY(sys_clone_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# unsigned long
-	llgtr	%r4,%r4			# int *
-	llgtr	%r5,%r5			# int *
-	jg	sys_clone		# branch to system call
-
 ENTRY(sys32_execve_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# compat_uptr_t *
 	llgtr	%r4,%r4			# compat_uptr_t *
 	jg	compat_sys_execve	# branch to system call
 
-ENTRY(sys_fanotify_init_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned int
-	jg	sys_fanotify_init	# branch to system call
-
-ENTRY(sys_prlimit64_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	llgfr	%r3,%r3			# unsigned int
-	llgtr	%r4,%r4			# const struct rlimit64 __user *
-	llgtr	%r5,%r5			# struct rlimit64 __user *
-	jg	sys_prlimit64		# branch to system call
-
-ENTRY(sys_name_to_handle_at_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char __user *
-	llgtr	%r4,%r4			# struct file_handle __user *
-	llgtr	%r5,%r5			# int __user *
-	lgfr	%r6,%r6			# int
-	jg	sys_name_to_handle_at
-
 ENTRY(compat_sys_clock_adjtime_wrapper)
 	lgfr	%r2,%r2			# clockid_t (int)
 	llgtr	%r3,%r3			# struct compat_timex __user *
 	jg	compat_sys_clock_adjtime
-
-ENTRY(sys_syncfs_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_syncfs
-
-ENTRY(sys_setns_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	jg	sys_setns
 
 ENTRY(compat_sys_process_vm_readv_wrapper)
 	lgfr	%r2,%r2			# compat_pid_t
@@ -429,33 +385,3 @@ ENTRY(compat_sys_process_vm_writev_wrapper)
 	llgf	%r0,164(%r15)		# unsigned long
 	stg	%r0,160(%r15)
 	jg	compat_sys_process_vm_writev
-
-ENTRY(sys_s390_runtime_instr_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	jg	sys_s390_runtime_instr
-
-ENTRY(sys_kcmp_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	lgfr	%r3,%r3			# pid_t
-	lgfr	%r4,%r4			# int
-	llgfr	%r5,%r5			# unsigned long
-	llgfr	%r6,%r6			# unsigned long
-	jg	sys_kcmp
-
-ENTRY(sys_finit_module_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char __user *
-	lgfr	%r4,%r4			# int
-	jg	sys_finit_module
-
-ENTRY(sys_sched_setattr_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	llgtr	%r3,%r3			# struct sched_attr __user *
-	jg	sys_sched_setattr
-
-ENTRY(sys_sched_getattr_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	llgtr	%r3,%r3			# const char __user *
-	llgfr	%r4,%r4			# unsigned int
-	jg	sys_sched_getattr

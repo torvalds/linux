@@ -164,3 +164,15 @@ COMPAT_SYSCALL_WRAP3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 COMPAT_SYSCALL_WRAP1(epoll_create1, int, flags);
 COMPAT_SYSCALL_WRAP2(tkill, int, pid, int, sig);
 COMPAT_SYSCALL_WRAP3(tgkill, int, tgid, int, pid, int, sig);
+COMPAT_SYSCALL_WRAP5(perf_event_open, struct perf_event_attr __user *, attr_uptr, pid_t, pid, int, cpu, int, group_fd, u32, flags);
+COMPAT_SYSCALL_WRAP5(clone, u32, newsp, u32, clone_flags, int __user *, parent_tidptr, int __user *, child_tidptr, int, tls_val);
+COMPAT_SYSCALL_WRAP2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags);
+COMPAT_SYSCALL_WRAP4(prlimit64, pid_t, pid, unsigned int, resource, const struct rlimit64 __user *, new_rlim, struct rlimit64 __user *, old_rlim);
+COMPAT_SYSCALL_WRAP5(name_to_handle_at, int, dfd, const char __user *, name, struct file_handle __user *, handle, int __user *, mnt_id, int, flag);
+COMPAT_SYSCALL_WRAP1(syncfs, int, fd);
+COMPAT_SYSCALL_WRAP2(setns, int, fd, int, nstype);
+COMPAT_SYSCALL_WRAP2(s390_runtime_instr, int, command, int, signum);
+COMPAT_SYSCALL_WRAP5(kcmp, pid_t, pid1, pid_t, pid2, int, type, u32, idx1, u32, idx2);
+COMPAT_SYSCALL_WRAP3(finit_module, int, fd, const char __user *, uargs, int, flags);
+COMPAT_SYSCALL_WRAP3(sched_setattr, pid_t, pid, struct sched_attr __user *, attr, unsigned int, flags);
+COMPAT_SYSCALL_WRAP4(sched_getattr, pid_t, pid, struct sched_attr __user *, attr, unsigned int, size, unsigned int, flags);
