@@ -51,11 +51,8 @@ int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 
 		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
 		if (oqi) {
-			obd_uid id = oqi->oqi_id;
-
-			LASSERTF(id == qid[type],
-				 "The ids don't match %u != %u\n",
-				 id, qid[type]);
+			/* do not try to access oqi here, it could have been
+			 * freed by osc_quota_setdq() */
 
 			/* the slot is busy, the user is about to run out of
 			 * quota space on this OST */
