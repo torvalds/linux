@@ -326,12 +326,6 @@ ENTRY(sys_sync_file_range_wrapper)
 	llgf	%r5,164(%r15)		# unsigned int
 	jg	sys_sync_file_range
 
-ENTRY(sys_getcpu_wrapper)
-	llgtr	%r2,%r2			# unsigned *
-	llgtr	%r3,%r3			# unsigned *
-	llgtr	%r4,%r4			# struct getcpu_cache *
-	jg	sys_getcpu
-
 ENTRY(compat_sys_utimes_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct compat_timeval *
@@ -344,10 +338,6 @@ ENTRY(compat_sys_utimensat_wrapper)
 	lgfr	%r5,%r5			# int
 	jg	compat_sys_utimensat
 
-ENTRY(sys_eventfd_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_eventfd
-
 ENTRY(sys_fallocate_wrapper)
 	lgfr	%r2,%r2			# int
 	lgfr	%r3,%r3			# int
@@ -356,46 +346,6 @@ ENTRY(sys_fallocate_wrapper)
 	sllg	%r5,%r6,32		# get high word of 64bit loff_t
 	l	%r5,164(%r15)		# get low word of 64bit loff_t
 	jg	sys_fallocate
-
-ENTRY(sys_timerfd_create_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	jg	sys_timerfd_create
-
-ENTRY(sys_eventfd2_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	lgfr	%r3,%r3			# int
-	jg	sys_eventfd2
-
-ENTRY(sys_inotify_init1_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_inotify_init1
-
-ENTRY(sys_pipe2_wrapper)
-	llgtr	%r2,%r2			# u32 *
-	lgfr	%r3,%r3			# int
-	jg	sys_pipe2		# branch to system call
-
-ENTRY(sys_dup3_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned int
-	lgfr	%r4,%r4			# int
-	jg	sys_dup3		# branch to system call
-
-ENTRY(sys_epoll_create1_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_epoll_create1	# branch to system call
-
-ENTRY(sys_tkill_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	lgfr	%r3,%r3			# int
-	jg	sys_tkill		# branch to system call
-
-ENTRY(sys_tgkill_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	lgfr	%r3,%r3			# pid_t
-	lgfr	%r4,%r4			# int
-	jg	sys_tgkill		# branch to system call
 
 ENTRY(compat_sys_keyctl_wrapper)
 	llgfr	%r2,%r2			# u32

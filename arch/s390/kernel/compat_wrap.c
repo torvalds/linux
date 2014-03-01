@@ -154,3 +154,13 @@ COMPAT_SYSCALL_WRAP3(faccessat, int, dfd, const char __user *, filename, int, mo
 COMPAT_SYSCALL_WRAP1(unshare, compat_ulong_t, unshare_flags);
 COMPAT_SYSCALL_WRAP6(splice, int, fd_in, loff_t __user *, off_in, int, fd_out, loff_t __user *, off_out, compat_size_t, len, unsigned int, flags);
 COMPAT_SYSCALL_WRAP4(tee, int, fdin, int, fdout, compat_size_t, len, unsigned int, flags);
+COMPAT_SYSCALL_WRAP3(getcpu, unsigned __user *, cpu, unsigned __user *, node, struct getcpu_cache __user *, cache);
+COMPAT_SYSCALL_WRAP1(eventfd, unsigned int, count);
+COMPAT_SYSCALL_WRAP2(timerfd_create, int, clockid, int, flags);
+COMPAT_SYSCALL_WRAP2(eventfd2, unsigned int, count, int, flags);
+COMPAT_SYSCALL_WRAP1(inotify_init1, int, flags);
+COMPAT_SYSCALL_WRAP2(pipe2, int __user *, fildes, int, flags);
+COMPAT_SYSCALL_WRAP3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags);
+COMPAT_SYSCALL_WRAP1(epoll_create1, int, flags);
+COMPAT_SYSCALL_WRAP2(tkill, int, pid, int, sig);
+COMPAT_SYSCALL_WRAP3(tgkill, int, tgid, int, pid, int, sig);

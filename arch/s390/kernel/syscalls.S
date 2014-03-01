@@ -245,11 +245,11 @@ SYSCALL(sys_removexattr,sys_removexattr,compat_sys_removexattr)
 SYSCALL(sys_lremovexattr,sys_lremovexattr,compat_sys_lremovexattr)
 SYSCALL(sys_fremovexattr,sys_fremovexattr,compat_sys_fremovexattr)	/* 235 */
 SYSCALL(sys_gettid,sys_gettid,sys_gettid)
-SYSCALL(sys_tkill,sys_tkill,sys_tkill_wrapper)
+SYSCALL(sys_tkill,sys_tkill,compat_sys_tkill)
 SYSCALL(sys_futex,sys_futex,compat_sys_futex)
 SYSCALL(sys_sched_setaffinity,sys_sched_setaffinity,sys32_sched_setaffinity_wrapper)
 SYSCALL(sys_sched_getaffinity,sys_sched_getaffinity,sys32_sched_getaffinity_wrapper)	/* 240 */
-SYSCALL(sys_tgkill,sys_tgkill,sys_tgkill_wrapper)
+SYSCALL(sys_tgkill,sys_tgkill,compat_sys_tgkill)
 NI_SYSCALL							/* reserved for TUX */
 SYSCALL(sys_io_setup,sys_io_setup,sys32_io_setup_wrapper)
 SYSCALL(sys_io_destroy,sys_io_destroy,compat_sys_io_destroy)
@@ -319,23 +319,23 @@ SYSCALL(sys_sync_file_range,sys_sync_file_range,sys_sync_file_range_wrapper)
 SYSCALL(sys_tee,sys_tee,compat_sys_tee)
 SYSCALL(sys_vmsplice,sys_vmsplice,compat_sys_vmsplice)
 NI_SYSCALL							/* 310 sys_move_pages */
-SYSCALL(sys_getcpu,sys_getcpu,sys_getcpu_wrapper)
+SYSCALL(sys_getcpu,sys_getcpu,compat_sys_getcpu)
 SYSCALL(sys_epoll_pwait,sys_epoll_pwait,compat_sys_epoll_pwait)
 SYSCALL(sys_utimes,sys_utimes,compat_sys_utimes_wrapper)
 SYSCALL(sys_s390_fallocate,sys_fallocate,sys_fallocate_wrapper)
 SYSCALL(sys_utimensat,sys_utimensat,compat_sys_utimensat_wrapper)	/* 315 */
 SYSCALL(sys_signalfd,sys_signalfd,compat_sys_signalfd)
 NI_SYSCALL						/* 317 old sys_timer_fd */
-SYSCALL(sys_eventfd,sys_eventfd,sys_eventfd_wrapper)
-SYSCALL(sys_timerfd_create,sys_timerfd_create,sys_timerfd_create_wrapper)
+SYSCALL(sys_eventfd,sys_eventfd,compat_sys_eventfd)
+SYSCALL(sys_timerfd_create,sys_timerfd_create,compat_sys_timerfd_create)
 SYSCALL(sys_timerfd_settime,sys_timerfd_settime,compat_sys_timerfd_settime) /* 320 */
 SYSCALL(sys_timerfd_gettime,sys_timerfd_gettime,compat_sys_timerfd_gettime)
 SYSCALL(sys_signalfd4,sys_signalfd4,compat_sys_signalfd4)
-SYSCALL(sys_eventfd2,sys_eventfd2,sys_eventfd2_wrapper)
-SYSCALL(sys_inotify_init1,sys_inotify_init1,sys_inotify_init1_wrapper)
-SYSCALL(sys_pipe2,sys_pipe2,sys_pipe2_wrapper) /* 325 */
-SYSCALL(sys_dup3,sys_dup3,sys_dup3_wrapper)
-SYSCALL(sys_epoll_create1,sys_epoll_create1,sys_epoll_create1_wrapper)
+SYSCALL(sys_eventfd2,sys_eventfd2,compat_sys_eventfd2)
+SYSCALL(sys_inotify_init1,sys_inotify_init1,compat_sys_inotify_init1)
+SYSCALL(sys_pipe2,sys_pipe2,compat_sys_pipe2) /* 325 */
+SYSCALL(sys_dup3,sys_dup3,compat_sys_dup3)
+SYSCALL(sys_epoll_create1,sys_epoll_create1,compat_sys_epoll_create1)
 SYSCALL(sys_preadv,sys_preadv,compat_sys_preadv)
 SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev)
 SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo) /* 330 */
