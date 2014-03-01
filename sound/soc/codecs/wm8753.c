@@ -1440,7 +1440,6 @@ static void wm8753_work(struct work_struct *work)
 static int wm8753_suspend(struct snd_soc_codec *codec)
 {
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	codec->cache_sync = 1;
 	return 0;
 }
 
