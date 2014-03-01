@@ -53,6 +53,8 @@ struct ath_beacon_config {
 	u8 dtim_count;
 	bool enable_beacon;
 	bool ibss_creator;
+	u32 nexttbtt;
+	u32 intval;
 };
 
 bool ath9k_cmn_rx_accept(struct ath_common *common,
