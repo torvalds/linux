@@ -366,29 +366,105 @@ void radeon_bo_fini(struct radeon_device *rdev)
 	arch_phys_wc_del(rdev->mc.vram_mtrr);
 }
 
-int radeon_bo_list_validate(struct ww_acquire_ctx *ticket,
+/* Returns how many bytes TTM can move per IB.
+ */
+static u64 radeon_bo_get_threshold_for_moves(struct radeon_device *rdev)
+{
+	u64 real_vram_size = rdev->mc.real_vram_size;
+	u64 vram_usage = atomic64_read(&rdev->vram_usage);
+
+	/* This function is based on the current VRAM usage.
+	 *
+	 * - If all of VRAM is free, allow relocating the number of bytes that
+	 *   is equal to 1/4 of the size of VRAM for this IB.
+
+	 * - If more than one half of VRAM is occupied, only allow relocating
+	 *   1 MB of data for this IB.
+	 *
+	 * - From 0 to one half of used VRAM, the threshold decreases
+	 *   linearly.
+	 *         __________________
+	 * 1/4 of -|\               |
+	 * VRAM    | \              |
+	 *         |  \             |
+	 *         |   \            |
+	 *         |    \           |
+	 *         |     \          |
+	 *         |      \         |
+	 *         |       \________|1 MB
+	 *         |----------------|
+	 *    VRAM 0 %             100 %
+	 *         used            used
+	 *
+	 * Note: It's a threshold, not a limit. The threshold must be crossed
+	 * for buffer relocations to stop, so any buffer of an arbitrary size
+	 * can be moved as long as the threshold isn't crossed before
+	 * the relocation takes place. We don't want to disable buffer
+	 * relocations completely.
+	 *
+	 * The idea is that buffers should be placed in VRAM at creation time
+	 * and TTM should only do a minimum number of relocations during
+	 * command submission. In practice, you need to submit at least
+	 * a dozen IBs to move all buffers to VRAM if they are in GTT.
+	 *
+	 * Also, things can get pretty crazy under memory pressure and actual
+	 * VRAM usage can change a lot, so playing safe even at 50% does
+	 * consistently increase performance.
+	 */
+
+	u64 half_vram = real_vram_size >> 1;
+	u64 half_free_vram = vram_usage >= half_vram ? 0 : half_vram - vram_usage;
+	u64 bytes_moved_threshold = half_free_vram >> 1;
+	return max(bytes_moved_threshold, 1024*1024ull);
+}
+
+int radeon_bo_list_validate(struct radeon_device *rdev,
+			    struct ww_acquire_ctx *ticket,
 			    struct list_head *head, int ring)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
-	u32 domain;
 	int r;
+	u64 bytes_moved = 0, initial_bytes_moved;
+	u64 bytes_moved_threshold = radeon_bo_get_threshold_for_moves(rdev);
 
 	r = ttm_eu_reserve_buffers(ticket, head);
 	if (unlikely(r != 0)) {
 		return r;
 	}
+
 	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->bo;
 		if (!bo->pin_count) {
-			domain = lobj->domain;
-			
+			u32 domain = lobj->domain;
+			u32 current_domain =
+				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
+
+			/* Check if this buffer will be moved and don't move it
+			 * if we have moved too many buffers for this IB already.
+			 *
+			 * Note that this allows moving at least one buffer of
+			 * any size, because it doesn't take the current "bo"
+			 * into account. We don't want to disallow buffer moves
+			 * completely.
+			 */
+			if (current_domain != RADEON_GEM_DOMAIN_CPU &&
+			    (domain & current_domain) == 0 && /* will be moved */
+			    bytes_moved > bytes_moved_threshold) {
+				/* don't move it */
+				domain = current_domain;
+			}
+
 		retry:
 			radeon_ttm_placement_from_domain(bo, domain);
 			if (ring == R600_RING_TYPE_UVD_INDEX)
 				radeon_uvd_force_into_uvd_segment(bo);
-			r = ttm_bo_validate(&bo->tbo, &bo->placement,
-						true, false);
+
+			initial_bytes_moved = atomic64_read(&rdev->num_bytes_moved);
+			r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+			bytes_moved += atomic64_read(&rdev->num_bytes_moved) -
+				       initial_bytes_moved;
+
 			if (unlikely(r)) {
 				if (r != -ERESTARTSYS && domain != lobj->alt_domain) {
 					domain = lobj->alt_domain;

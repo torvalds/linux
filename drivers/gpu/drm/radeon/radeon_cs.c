@@ -168,7 +168,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 
 	radeon_cs_buckets_get_list(&buckets, &p->validated);
 
-	return radeon_bo_list_validate(&p->ticket, &p->validated, p->ring);
+	return radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
 }
 
 static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority)
