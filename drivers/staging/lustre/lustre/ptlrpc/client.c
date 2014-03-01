@@ -1316,7 +1316,11 @@ static int after_reply(struct ptlrpc_request *req)
 			/** version recovery */
 			ptlrpc_save_versions(req);
 			ptlrpc_retain_replayable_request(req, imp);
-		} else if (req->rq_commit_cb != NULL) {
+		} else if (req->rq_commit_cb != NULL &&
+			   list_empty(&req->rq_replay_list)) {
+			/* NB: don't call rq_commit_cb if it's already on
+			 * rq_replay_list, ptlrpc_free_committed() will call
+			 * it later, see LU-3618 for details */
 			spin_unlock(&imp->imp_lock);
 			req->rq_commit_cb(req);
 			spin_lock(&imp->imp_lock);
