@@ -526,29 +526,12 @@ static void ath9k_beacon_config_adhoc(struct ath_softc *sc,
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 intval, nexttbtt;
 
 	ath9k_reset_beacon_status(sc);
 
-	intval = TU_TO_USEC(conf->beacon_interval);
+	ath9k_cmn_beacon_config_adhoc(ah, conf);
 
-	if (conf->ibss_creator)
-		nexttbtt = intval;
-	else
-		nexttbtt = ath9k_get_next_tbtt(sc, ath9k_hw_gettsf64(ah),
-					       conf->beacon_interval);
-
-	if (conf->enable_beacon)
-		ah->imask |= ATH9K_INT_SWBA;
-	else
-		ah->imask &= ~ATH9K_INT_SWBA;
-
-	ath_dbg(common, BEACON,
-		"IBSS (%s) nexttbtt: %u intval: %u conf_intval: %u\n",
-		(conf->enable_beacon) ? "Enable" : "Disable",
-		nexttbtt, intval, conf->beacon_interval);
-
-	ath9k_beacon_init(sc, nexttbtt, intval, conf->ibss_creator);
+	ath9k_beacon_init(sc, conf->nexttbtt, conf->intval, conf->ibss_creator);
 
 	/*
 	 * Set the global 'beacon has been configured' flag for the

@@ -124,3 +124,28 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	return 0;
 }
 EXPORT_SYMBOL(ath9k_cmn_beacon_config_sta);
+
+void ath9k_cmn_beacon_config_adhoc(struct ath_hw *ah,
+				   struct ath_beacon_config *conf)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	conf->intval = TU_TO_USEC(conf->beacon_interval);
+
+	if (conf->ibss_creator)
+		conf->nexttbtt = conf->intval;
+	else
+		conf->nexttbtt = ath9k_get_next_tbtt(ah, ath9k_hw_gettsf64(ah),
+					       conf->beacon_interval);
+
+	if (conf->enable_beacon)
+		ah->imask |= ATH9K_INT_SWBA;
+	else
+		ah->imask &= ~ATH9K_INT_SWBA;
+
+	ath_dbg(common, BEACON,
+		"IBSS (%s) nexttbtt: %u intval: %u conf_intval: %u\n",
+		(conf->enable_beacon) ? "Enable" : "Disable",
+		conf->nexttbtt, conf->intval, conf->beacon_interval);
+}
+EXPORT_SYMBOL(ath9k_cmn_beacon_config_adhoc);

@@ -19,3 +19,5 @@ struct ath_beacon_config;
 int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 				struct ath_beacon_config *conf,
 				struct ath9k_beacon_state *bs);
+void ath9k_cmn_beacon_config_adhoc(struct ath_hw *ah,
+				   struct ath_beacon_config *conf);
