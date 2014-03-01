@@ -1751,9 +1751,8 @@ static void unload_ovly(struct nldr_nodeobject *nldr_node_obj,
 	}
 	if (ref_count && (*ref_count > 0)) {
 		*ref_count -= 1;
-		if (other_ref) {
+		if (other_ref)
 			*other_ref -= 1;
-		}
 	}
 
 	if (ref_count && *ref_count == 0) {

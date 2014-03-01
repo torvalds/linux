@@ -2127,7 +2127,7 @@ void dump_dl_modules(struct bridge_dev_context *bridge_context)
 	u32 module_size;
 	u32 module_struct_size = 0;
 	u32 sect_ndx;
-	char *sect_str ;
+	char *sect_str;
 	int status = 0;
 
 	status = dev_get_intf_fxns(dev_object, &intf_fxns);

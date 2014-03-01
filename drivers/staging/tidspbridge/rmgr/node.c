@@ -406,7 +406,7 @@ int node_allocate(struct proc_object *hprocessor,
 
 	/* check for page aligned Heap size */
 	if (((attr_in->heap_size) & (PG_SIZE4K - 1))) {
-		pr_err("%s: node heap size not aligned to 4K, size = 0x%x \n",
+		pr_err("%s: node heap size not aligned to 4K, size = 0x%x\n",
 		       __func__, attr_in->heap_size);
 		status = -EINVAL;
 	} else {
@@ -703,9 +703,9 @@ DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
 		pattr = &node_dfltbufattrs;	/* set defaults */
 
 	status = proc_get_processor_id(pnode->processor, &proc_id);
-	if (proc_id != DSP_UNIT) {
+	if (proc_id != DSP_UNIT)
 		goto func_end;
-	}
+
 	/*  If segment ID includes MEM_SETVIRTUALSEGID then pbuffer is a
 	 *  virt  address, so set this info in this node's translator
 	 *  object for  future ref. If MEM_GETVIRTUALSEGID then retrieve
@@ -886,11 +886,10 @@ int node_connect(struct node_object *node1, u32 stream1,
 	if (pattrs && pattrs->strm_mode != STRMMODE_PROCCOPY)
 		return -EPERM;	/* illegal stream mode */
 
-	if (node1_type != NODE_GPP) {
+	if (node1_type != NODE_GPP)
 		hnode_mgr = node1->node_mgr;
-	} else {
+	else
 		hnode_mgr = node2->node_mgr;
-	}
 
 	/* Enter critical section */
 	mutex_lock(&hnode_mgr->node_mgr_lock);
@@ -2322,7 +2321,8 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 			if (!hdeh_mgr)
 				goto func_cont;
 
-			bridge_deh_notify(hdeh_mgr, DSP_SYSERROR, DSP_EXCEPTIONABORT);
+			bridge_deh_notify(hdeh_mgr, DSP_SYSERROR,
+					  DSP_EXCEPTIONABORT);
 		}
 	}
 func_cont:
