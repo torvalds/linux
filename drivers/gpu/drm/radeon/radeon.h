@@ -456,6 +456,7 @@ struct radeon_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
+	u32				initial_domain;
 	u32				placements[3];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
@@ -2116,6 +2117,8 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp);
 int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
+int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *filp);
 int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);

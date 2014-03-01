@@ -510,6 +510,7 @@ typedef struct {
 #define DRM_RADEON_GEM_GET_TILING	0x29
 #define DRM_RADEON_GEM_BUSY		0x2a
 #define DRM_RADEON_GEM_VA		0x2b
+#define DRM_RADEON_GEM_OP		0x2c
 
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
@@ -552,6 +553,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_GEM_GET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_GET_TILING, struct drm_radeon_gem_get_tiling)
 #define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
 #define DRM_IOCTL_RADEON_GEM_VA		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_VA, struct drm_radeon_gem_va)
+#define DRM_IOCTL_RADEON_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_OP, struct drm_radeon_gem_op)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -883,6 +885,16 @@ struct drm_radeon_gem_pwrite {
 	/* void *, but pointers are not 32/64 compatible */
 	uint64_t data_ptr;
 };
+
+/* Sets or returns a value associated with a buffer. */
+struct drm_radeon_gem_op {
+	uint32_t	handle; /* buffer */
+	uint32_t	op;     /* RADEON_GEM_OP_* */
+	uint64_t	value;  /* input or return value */
+};
+
+#define RADEON_GEM_OP_GET_INITIAL_DOMAIN	0
+#define RADEON_GEM_OP_SET_INITIAL_DOMAIN	1
 
 #define RADEON_VA_MAP			1
 #define RADEON_VA_UNMAP			2
