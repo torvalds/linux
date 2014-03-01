@@ -541,6 +541,7 @@ static int adav80x_set_sysclk(struct snd_soc_codec *codec,
 			      unsigned int freq, int dir)
 {
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	if (dir == SND_SOC_CLOCK_IN) {
 		switch (clk_id) {
@@ -573,7 +574,7 @@ static int adav80x_set_sysclk(struct snd_soc_codec *codec,
 			regmap_write(adav80x->regmap, ADAV80X_ICLK_CTRL2,
 				iclk_ctrl2);
 
-			snd_soc_dapm_sync(&codec->dapm);
+			snd_soc_dapm_sync(dapm);
 		}
 	} else {
 		unsigned int mask;
@@ -600,17 +601,21 @@ static int adav80x_set_sysclk(struct snd_soc_codec *codec,
 			adav80x->sysclk_pd[clk_id] = false;
 		}
 
+		snd_soc_dapm_mutex_lock(dapm);
+
 		if (adav80x->sysclk_pd[0])
-			snd_soc_dapm_disable_pin(&codec->dapm, "PLL1");
+			snd_soc_dapm_disable_pin_unlocked(dapm, "PLL1");
 		else
-			snd_soc_dapm_force_enable_pin(&codec->dapm, "PLL1");
+			snd_soc_dapm_force_enable_pin_unlocked(dapm, "PLL1");
 
 		if (adav80x->sysclk_pd[1] || adav80x->sysclk_pd[2])
-			snd_soc_dapm_disable_pin(&codec->dapm, "PLL2");
+			snd_soc_dapm_disable_pin_unlocked(dapm, "PLL2");
 		else
-			snd_soc_dapm_force_enable_pin(&codec->dapm, "PLL2");
+			snd_soc_dapm_force_enable_pin_unlocked(dapm, "PLL2");
 
-		snd_soc_dapm_sync(&codec->dapm);
+		snd_soc_dapm_sync_unlocked(dapm);
+
+		snd_soc_dapm_mutex_unlock(dapm);
 	}
 
 	return 0;

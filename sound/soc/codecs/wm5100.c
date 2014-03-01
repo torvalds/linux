@@ -2100,6 +2100,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 {
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	if (jack) {
 		wm5100->jack = jack;
@@ -2117,9 +2118,14 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 				    WM5100_ACCDET_RATE_MASK);
 
 		/* We need the charge pump to power MICBIAS */
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "CP2");
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
-		snd_soc_dapm_sync(&codec->dapm);
+		snd_soc_dapm_mutex_lock(dapm);
+
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "CP2");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "SYSCLK");
+
+		snd_soc_dapm_sync_unlocked(dapm);
+
+		snd_soc_dapm_mutex_unlock(dapm);
 
 		/* We start off just enabling microphone detection - even a
 		 * plain headphone will trigger detection.
