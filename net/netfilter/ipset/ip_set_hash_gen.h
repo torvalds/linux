@@ -633,6 +633,18 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	bool flag_exist = flags & IPSET_FLAG_EXIST;
 	u32 key, multi = 0;
 
+	if (h->elements >= h->maxelem && SET_WITH_FORCEADD(set)) {
+		rcu_read_lock_bh();
+		t = rcu_dereference_bh(h->table);
+		key = HKEY(value, h->initval, t->htable_bits);
+		n = hbucket(t,key);
+		if (n->pos) {
+			/* Choosing the first entry in the array to replace */
+			j = 0;
+			goto reuse_slot;
+		}
+		rcu_read_unlock_bh();
+	}
 	if (SET_WITH_TIMEOUT(set) && h->elements >= h->maxelem)
 		/* FIXME: when set is full, we slow down here */
 		mtype_expire(set, h, NLEN(set->family), set->dsize);

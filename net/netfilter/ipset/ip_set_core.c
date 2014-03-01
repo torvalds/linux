@@ -368,6 +368,8 @@ ip_set_elem_len(struct ip_set *set, struct nlattr *tb[], size_t len)
 
 	if (tb[IPSET_ATTR_CADT_FLAGS])
 		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+	if (cadt_flags & IPSET_FLAG_WITH_FORCEADD)
+		set->flags |= IPSET_CREATE_FLAG_FORCEADD;
 	for (id = 0; id < IPSET_EXT_ID_MAX; id++) {
 		if (!add_extension(id, cadt_flags, tb))
 			continue;
