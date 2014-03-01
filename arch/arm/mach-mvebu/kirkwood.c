@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 (C), Jason Cooper <jason@lakedaemon.net>
  *
- * arch/arm/mach-kirkwood/board-dt.c
+ * arch/arm/mach-mvebu/kirkwood.c
  *
  * Flattened Device Tree board initialization
  *
@@ -13,33 +13,19 @@
 #include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/mbus.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
-#include <linux/dma-mapping.h>
-#include <linux/irqchip.h>
+#include <linux/slab.h>
 #include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <mach/bridge-regs.h>
-#include <plat/common.h>
-#include <plat/pcie.h>
-#include "pm.h"
-
-static struct map_desc kirkwood_io_desc[] __initdata = {
-	{
-		.virtual	= (unsigned long) KIRKWOOD_REGS_VIRT_BASE,
-		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
-		.length		= KIRKWOOD_REGS_SIZE,
-		.type		= MT_DEVICE,
-	},
-};
-
-static void __init kirkwood_map_io(void)
-{
-	iotable_init(kirkwood_io_desc, ARRAY_SIZE(kirkwood_io_desc));
-}
+#include "kirkwood.h"
+#include "kirkwood-pm.h"
+#include "common.h"
+#include "board.h"
 
 static struct resource kirkwood_cpufreq_resources[] = {
 	[0] = {
@@ -79,23 +65,6 @@ static struct platform_device kirkwood_cpuidle = {
 static void __init kirkwood_cpuidle_init(void)
 {
 	platform_device_register(&kirkwood_cpuidle);
-}
-
-/* Temporary here since mach-mvebu has a function we can use */
-static void kirkwood_restart(enum reboot_mode mode, const char *cmd)
-{
-	/*
-	 * Enable soft reset to assert RSTOUTn.
-	 */
-	writel(SOFT_RESET_OUT_EN, RSTOUTn_MASK);
-
-	/*
-	 * Assert soft reset.
-	 */
-	writel(SOFT_RESET, SYSTEM_SOFT_RESET);
-
-	while (1)
-		;
 }
 
 #define MV643XX_ETH_MAC_ADDR_LOW	0x0414
@@ -182,14 +151,19 @@ eth_fixup_skip:
  * causes mbus errors (which can occur for example for PCI aborts) to
  * throw CPU aborts, which we're not set up to deal with.
  */
-static void __init kirkwood_disable_mbus_error_propagation(void)
+void kirkwood_disable_mbus_error_propagation(void)
 {
 	void __iomem *cpu_config;
 
 	cpu_config = ioremap(CPU_CONFIG_PHYS, 4);
 	writel(readl(cpu_config) & ~CPU_CONFIG_ERROR_PROP, cpu_config);
-	iounmap(cpu_config);
 }
+
+static struct of_dev_auxdata auxdata[] __initdata = {
+	OF_DEV_AUXDATA("marvell,kirkwood-audio", 0xf10a0000,
+		       "mvebu-audio", NULL),
+	{ /* sentinel */ }
+};
 
 static void __init kirkwood_dt_init(void)
 {
@@ -206,7 +180,10 @@ static void __init kirkwood_dt_init(void)
 	kirkwood_pm_init();
 	kirkwood_dt_eth_fixup();
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	if (of_machine_is_compatible("hp,t5325"))
+		t5325_init();
+
+	of_platform_populate(NULL, of_default_bus_match_table, auxdata, NULL);
 }
 
 static const char * const kirkwood_dt_board_compat[] = {
@@ -216,8 +193,7 @@ static const char * const kirkwood_dt_board_compat[] = {
 
 DT_MACHINE_START(KIRKWOOD_DT, "Marvell Kirkwood (Flattened Device Tree)")
 	/* Maintainer: Jason Cooper <jason@lakedaemon.net> */
-	.map_io		= kirkwood_map_io,
 	.init_machine	= kirkwood_dt_init,
-	.restart	= kirkwood_restart,
+	.restart	= mvebu_restart,
 	.dt_compat	= kirkwood_dt_board_compat,
 MACHINE_END
