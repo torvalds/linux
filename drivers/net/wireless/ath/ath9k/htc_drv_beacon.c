@@ -74,6 +74,11 @@ static void ath9k_htc_beacon_init(struct ath9k_htc_priv *priv,
 	__be32 htc_imask = 0;
 	u8 cmd_rsp;
 
+	if (conf->intval >= TU_TO_USEC(DEFAULT_SWBA_RESPONSE))
+		ah->config.sw_beacon_response_time = DEFAULT_SWBA_RESPONSE;
+	else
+		ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
+
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	if (reset_tsf)
 		ath9k_hw_reset_tsf(ah);
@@ -110,15 +115,6 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 	ah->imask = 0;
 
 	ath9k_cmn_beacon_config_ap(ah, conf, ATH9K_HTC_MAX_BCN_VIF);
-	/*
-	 * To reduce beacon misses under heavy TX load,
-	 * set the beacon response time to a larger value.
-	 */
-	if (conf->intval >= TU_TO_USEC(DEFAULT_SWBA_RESPONSE))
-		ah->config.sw_beacon_response_time = DEFAULT_SWBA_RESPONSE;
-	else
-		ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
-
 	ath9k_htc_beacon_init(priv, conf, false);
 }
 
@@ -129,14 +125,6 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	ah->imask = 0;
 
 	ath9k_cmn_beacon_config_adhoc(ah, conf);
-	/*
-	 * Only one IBSS interfce is allowed.
-	 */
-	if (conf->intval >= TU_TO_USEC(DEFAULT_SWBA_RESPONSE))
-		ah->config.sw_beacon_response_time = DEFAULT_SWBA_RESPONSE;
-	else
-		ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
-
 	ath9k_htc_beacon_init(priv, conf, conf->ibss_creator);
 }
 
