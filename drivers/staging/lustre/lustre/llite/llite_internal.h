@@ -775,7 +775,7 @@ int ll_local_open(struct file *file,
 int ll_release_openhandle(struct dentry *, struct lookup_intent *);
 int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 		struct file *file);
-int ll_md_real_close(struct inode *inode, int flags);
+int ll_md_real_close(struct inode *inode, fmode_t fmode);
 void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		      struct obd_client_handle **och, unsigned long flags);
 void ll_done_writing_attr(struct inode *inode, struct md_op_data *op_data);

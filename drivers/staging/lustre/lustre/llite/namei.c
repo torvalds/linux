@@ -195,101 +195,107 @@ static void ll_invalidate_negative_children(struct inode *dir)
 int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		       void *data, int flag)
 {
-	int rc;
 	struct lustre_handle lockh;
+	int rc;
 
 	switch (flag) {
 	case LDLM_CB_BLOCKING:
 		ldlm_lock2handle(lock, &lockh);
 		rc = ldlm_cli_cancel(&lockh, LCF_ASYNC);
 		if (rc < 0) {
-			CDEBUG(D_INODE, "ldlm_cli_cancel: %d\n", rc);
+			CDEBUG(D_INODE, "ldlm_cli_cancel: rc = %d\n", rc);
 			return rc;
 		}
 		break;
 	case LDLM_CB_CANCELING: {
 		struct inode *inode = ll_inode_from_resource_lock(lock);
-		struct ll_inode_info *lli;
 		__u64 bits = lock->l_policy_data.l_inodebits.bits;
-		struct lu_fid *fid;
-		ldlm_mode_t mode = lock->l_req_mode;
 
 		/* Inode is set to lock->l_resource->lr_lvb_inode
 		 * for mdc - bug 24555 */
 		LASSERT(lock->l_ast_data == NULL);
 
-		/* Invalidate all dentries associated with this inode */
 		if (inode == NULL)
 			break;
 
+		/* Invalidate all dentries associated with this inode */
 		LASSERT(lock->l_flags & LDLM_FL_CANCELING);
 
-		if (bits & MDS_INODELOCK_XATTR)
+		if (!fid_res_name_eq(ll_inode2fid(inode),
+				     &lock->l_resource->lr_name)) {
+			LDLM_ERROR(lock, "data mismatch with object "DFID"(%p)",
+				   PFID(ll_inode2fid(inode)), inode);
+			LBUG();
+		}
+
+		if (bits & MDS_INODELOCK_XATTR) {
 			ll_xattr_cache_destroy(inode);
+			bits &= ~MDS_INODELOCK_XATTR;
+		}
 
 		/* For OPEN locks we differentiate between lock modes
 		 * LCK_CR, LCK_CW, LCK_PR - bug 22891 */
+		if (bits & MDS_INODELOCK_OPEN)
+			ll_have_md_lock(inode, &bits, lock->l_req_mode);
+
+		if (bits & MDS_INODELOCK_OPEN) {
+			fmode_t fmode;
+
+			switch (lock->l_req_mode) {
+			case LCK_CW:
+				fmode = FMODE_WRITE;
+				break;
+			case LCK_PR:
+				fmode = FMODE_EXEC;
+				break;
+			case LCK_CR:
+				fmode = FMODE_READ;
+				break;
+			default:
+				LDLM_ERROR(lock, "bad lock mode for OPEN lock");
+				LBUG();
+			}
+
+			ll_md_real_close(inode, fmode);
+		}
+
 		if (bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_UPDATE |
 			    MDS_INODELOCK_LAYOUT | MDS_INODELOCK_PERM))
 			ll_have_md_lock(inode, &bits, LCK_MINMODE);
 
-		if (bits & MDS_INODELOCK_OPEN)
-			ll_have_md_lock(inode, &bits, mode);
-
-		fid = ll_inode2fid(inode);
-		if (!fid_res_name_eq(fid, &lock->l_resource->lr_name))
-			LDLM_ERROR(lock, "data mismatch with object "
-				   DFID" (%p)", PFID(fid), inode);
-
-		if (bits & MDS_INODELOCK_OPEN) {
-			int flags = 0;
-			switch (lock->l_req_mode) {
-			case LCK_CW:
-				flags = FMODE_WRITE;
-				break;
-			case LCK_PR:
-				flags = FMODE_EXEC;
-				break;
-			case LCK_CR:
-				flags = FMODE_READ;
-				break;
-			default:
-				CERROR("Unexpected lock mode for OPEN lock "
-				       "%d, inode %ld\n", lock->l_req_mode,
-				       inode->i_ino);
-			}
-			ll_md_real_close(inode, flags);
-		}
-
-		lli = ll_i2info(inode);
 		if (bits & MDS_INODELOCK_LAYOUT) {
-			struct cl_object_conf conf = { { 0 } };
+			struct cl_object_conf conf = {
+				.coc_opc = OBJECT_CONF_INVALIDATE,
+				.coc_inode = inode,
+			};
 
-			conf.coc_opc = OBJECT_CONF_INVALIDATE;
-			conf.coc_inode = inode;
 			rc = ll_layout_conf(inode, &conf);
-			if (rc)
-				CDEBUG(D_INODE, "invaliding layout %d.\n", rc);
+			if (rc < 0)
+				CDEBUG(D_INODE, "cannot invalidate layout of "
+				       DFID": rc = %d\n",
+				       PFID(ll_inode2fid(inode)), rc);
 		}
 
 		if (bits & MDS_INODELOCK_UPDATE) {
+			struct ll_inode_info *lli = ll_i2info(inode);
+
 			spin_lock(&lli->lli_lock);
 			lli->lli_flags &= ~LLIF_MDS_SIZE_LOCK;
 			spin_unlock(&lli->lli_lock);
 		}
 
-		if (S_ISDIR(inode->i_mode) &&
-		     (bits & MDS_INODELOCK_UPDATE)) {
+		if ((bits & MDS_INODELOCK_UPDATE) && S_ISDIR(inode->i_mode)) {
 			CDEBUG(D_INODE, "invalidating inode %lu\n",
 			       inode->i_ino);
 			truncate_inode_pages(inode->i_mapping, 0);
 			ll_invalidate_negative_children(inode);
 		}
 
-		if (inode->i_sb->s_root &&
-		    inode != inode->i_sb->s_root->d_inode &&
-		    (bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_PERM)))
+		if ((bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_PERM)) &&
+		    inode->i_sb->s_root != NULL &&
+		    inode != inode->i_sb->s_root->d_inode)
 			ll_invalidate_aliases(inode);
+
 		iput(inode);
 		break;
 	}

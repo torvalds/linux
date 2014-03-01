@@ -205,7 +205,7 @@ out:
 	return rc;
 }
 
-int ll_md_real_close(struct inode *inode, int flags)
+int ll_md_real_close(struct inode *inode, fmode_t fmode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct obd_client_handle **och_p;
@@ -213,30 +213,33 @@ int ll_md_real_close(struct inode *inode, int flags)
 	__u64 *och_usecount;
 	int rc = 0;
 
-	if (flags & FMODE_WRITE) {
+	if (fmode & FMODE_WRITE) {
 		och_p = &lli->lli_mds_write_och;
 		och_usecount = &lli->lli_open_fd_write_count;
-	} else if (flags & FMODE_EXEC) {
+	} else if (fmode & FMODE_EXEC) {
 		och_p = &lli->lli_mds_exec_och;
 		och_usecount = &lli->lli_open_fd_exec_count;
 	} else {
-		LASSERT(flags & FMODE_READ);
+		LASSERT(fmode & FMODE_READ);
 		och_p = &lli->lli_mds_read_och;
 		och_usecount = &lli->lli_open_fd_read_count;
 	}
 
 	mutex_lock(&lli->lli_och_mutex);
-	if (*och_usecount) { /* There are still users of this handle, so
-				skip freeing it. */
+	if (*och_usecount > 0) {
+		/* There are still users of this handle, so skip
+		 * freeing it. */
 		mutex_unlock(&lli->lli_och_mutex);
 		return 0;
 	}
+
 	och=*och_p;
 	*och_p = NULL;
 	mutex_unlock(&lli->lli_och_mutex);
 
-	if (och) { /* There might be a race and somebody have freed this och
-		      already */
+	if (och != NULL) {
+		/* There might be a race and this handle may already
+		   be closed. */
 		rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp,
 					       inode, och, NULL);
 	}
