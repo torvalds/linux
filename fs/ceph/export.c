@@ -121,6 +121,65 @@ static struct dentry *ceph_fh_to_dentry(struct super_block *sb,
 	return __fh_to_dentry(sb, fh->ino);
 }
 
+static struct dentry *__get_parent(struct super_block *sb,
+				   struct dentry *child, u64 ino)
+{
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
+	struct ceph_mds_request *req;
+	struct inode *inode;
+	struct dentry *dentry;
+	int err;
+
+	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPPARENT,
+				       USE_ANY_MDS);
+	if (IS_ERR(req))
+		return ERR_CAST(req);
+
+	if (child) {
+		req->r_inode = child->d_inode;
+		ihold(child->d_inode);
+	} else {
+		req->r_ino1 = (struct ceph_vino) {
+			.ino = ino,
+			.snap = CEPH_NOSNAP,
+		};
+	}
+	req->r_num_caps = 1;
+	err = ceph_mdsc_do_request(mdsc, NULL, req);
+	inode = req->r_target_inode;
+	if (inode)
+		ihold(inode);
+	ceph_mdsc_put_request(req);
+	if (!inode)
+		return ERR_PTR(-ENOENT);
+
+	dentry = d_obtain_alias(inode);
+	if (IS_ERR(dentry)) {
+		iput(inode);
+		return dentry;
+	}
+	err = ceph_init_dentry(dentry);
+	if (err < 0) {
+		dput(dentry);
+		return ERR_PTR(err);
+	}
+	dout("__get_parent ino %llx parent %p ino %llx.%llx\n",
+	     child ? ceph_ino(child->d_inode) : ino,
+	     dentry, ceph_vinop(inode));
+	return dentry;
+}
+
+struct dentry *ceph_get_parent(struct dentry *child)
+{
+	/* don't re-export snaps */
+	if (ceph_snap(child->d_inode) != CEPH_NOSNAP)
+		return ERR_PTR(-EINVAL);
+
+	dout("get_parent %p ino %llx.%llx\n",
+	     child, ceph_vinop(child->d_inode));
+	return __get_parent(child->d_sb, child, 0);
+}
+
 /*
  * get parent, if possible.
  *
@@ -171,4 +230,5 @@ const struct export_operations ceph_export_ops = {
 	.encode_fh = ceph_encode_fh,
 	.fh_to_dentry = ceph_fh_to_dentry,
 	.fh_to_parent = ceph_fh_to_parent,
+	.get_parent = ceph_get_parent,
 };
