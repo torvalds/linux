@@ -1004,6 +1004,9 @@ struct drm_radeon_cs {
 #define RADEON_INFO_VCE_FW_VERSION	0x1b
 /* version of VCE feedback */
 #define RADEON_INFO_VCE_FB_VERSION	0x1c
+#define RADEON_INFO_NUM_BYTES_MOVED	0x1d
+#define RADEON_INFO_VRAM_USAGE		0x1e
+#define RADEON_INFO_GTT_USAGE		0x1f
 
 
 struct drm_radeon_info {

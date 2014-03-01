@@ -56,11 +56,36 @@ static void radeon_bo_clear_va(struct radeon_bo *bo)
 	}
 }
 
+static void radeon_update_memory_usage(struct radeon_bo *bo,
+				       unsigned mem_type, int sign)
+{
+	struct radeon_device *rdev = bo->rdev;
+	u64 size = (u64)bo->tbo.num_pages << PAGE_SHIFT;
+
+	switch (mem_type) {
+	case TTM_PL_TT:
+		if (sign > 0)
+			atomic64_add(size, &rdev->gtt_usage);
+		else
+			atomic64_sub(size, &rdev->gtt_usage);
+		break;
+	case TTM_PL_VRAM:
+		if (sign > 0)
+			atomic64_add(size, &rdev->vram_usage);
+		else
+			atomic64_sub(size, &rdev->vram_usage);
+		break;
+	}
+}
+
 static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct radeon_bo *bo;
 
 	bo = container_of(tbo, struct radeon_bo, tbo);
+
+	radeon_update_memory_usage(bo, bo->tbo.mem.mem_type, -1);
+
 	mutex_lock(&bo->rdev->gem.mutex);
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->rdev->gem.mutex);
@@ -567,14 +592,23 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 }
 
 void radeon_bo_move_notify(struct ttm_buffer_object *bo,
-			   struct ttm_mem_reg *mem)
+			   struct ttm_mem_reg *new_mem)
 {
 	struct radeon_bo *rbo;
+
 	if (!radeon_ttm_bo_is_radeon_bo(bo))
 		return;
+
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 1);
 	radeon_vm_bo_invalidate(rbo->rdev, rbo);
+
+	/* update statistics */
+	if (!new_mem)
+		return;
+
+	radeon_update_memory_usage(rbo, bo->mem.mem_type, -1);
+	radeon_update_memory_usage(rbo, new_mem->mem_type, 1);
 }
 
 int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)

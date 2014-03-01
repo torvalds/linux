@@ -2309,6 +2309,10 @@ struct radeon_device {
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
 	struct mutex			gpu_clock_mutex;
+	/* memory stats */
+	atomic64_t			vram_usage;
+	atomic64_t			gtt_usage;
+	atomic64_t			num_bytes_moved;
 	/* ACPI interface */
 	struct radeon_atif		atif;
 	struct radeon_atcs		atcs;

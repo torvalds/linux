@@ -486,6 +486,21 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case RADEON_INFO_VCE_FB_VERSION:
 		*value = rdev->vce.fb_version;
 		break;
+	case RADEON_INFO_NUM_BYTES_MOVED:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->num_bytes_moved);
+		break;
+	case RADEON_INFO_VRAM_USAGE:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->vram_usage);
+		break;
+	case RADEON_INFO_GTT_USAGE:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->gtt_usage);
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
