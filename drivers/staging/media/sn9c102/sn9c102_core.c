@@ -3250,7 +3250,8 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	unsigned int i;
 	int err = 0, r;
 
-	if (!(cam = kzalloc(sizeof(struct sn9c102_device), GFP_KERNEL)))
+	cam = kzalloc(sizeof(struct sn9c102_device), GFP_KERNEL);
+	if (!cam)
 		return -ENOMEM;
 
 	cam->usbdev = udev;
@@ -3262,13 +3263,15 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		goto fail;
 	}
 
-	if (!(cam->control_buffer = kzalloc(8, GFP_KERNEL))) {
+	cam->control_buffer = kzalloc(8, GFP_KERNEL);
+	if (!cam->control_buffer) {
 		DBG(1, "kzalloc() failed");
 		err = -ENOMEM;
 		goto fail;
 	}
 
-	if (!(cam->v4ldev = video_device_alloc())) {
+	cam->v4ldev = video_device_alloc();
+	if (!cam->v4ldev) {
 		DBG(1, "video_device_alloc() failed");
 		err = -ENOMEM;
 		goto fail;
