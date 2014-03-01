@@ -165,7 +165,7 @@ char *itoa(int value, char *string, int radix)
 	int  negative = 0;			//defualt is positive value
 	int  i;
 	int  j;
-	char digit_string[] = "0123456789ABCDEF";	
+	const char *digit_string = "0123456789ABCDEF";
 	
 	if(value == 0)
 	{
@@ -211,7 +211,7 @@ char *utoa(unsigned int value, char *string, int radix)
 	char stack[16];
 	int  i;
 	int  j;
-	char digit_string[] = "0123456789ABCDEF";	
+	const char *digit_string = "0123456789ABCDEF";
 	
 	if(value == 0)
 	{
@@ -366,7 +366,7 @@ __s32 print_align(char *string, __s32 len, __s32 align)
 {
 	//fill with space ' ' when align request,
 	//the max align length is 16 byte.
-	char fill_ch[] = "                ";
+	const char *fill_ch = "                ";
 	if (len < align)
 	{
 		//fill at right
