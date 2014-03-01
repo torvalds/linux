@@ -786,7 +786,6 @@ static int
 at86rf212_set_txpower(struct ieee802154_dev *dev, int db)
 {
 	struct at86rf230_local *lp = dev->priv;
-	int rc;
 
 	/* typical maximum output is 5dBm with RG_PHY_TX_PWR 0x60, lower five
 	 * bits decrease power in 1dB steps. 0x60 represents extra PA gain of
@@ -799,11 +798,7 @@ at86rf212_set_txpower(struct ieee802154_dev *dev, int db)
 
 	db = -(db - 5);
 
-	rc = __at86rf230_write(lp, RG_PHY_TX_PWR, 0x60 | db);
-	if (rc)
-		return rc;
-
-	return 0;
+	return __at86rf230_write(lp, RG_PHY_TX_PWR, 0x60 | db);
 }
 
 static int
