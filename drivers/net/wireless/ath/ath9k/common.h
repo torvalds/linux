@@ -44,6 +44,15 @@
 #define ATH_EP_RND(x, mul) 						\
 	(((x) + ((mul)/2)) / (mul))
 
+struct ath_beacon_config {
+	int beacon_interval;
+	u16 dtim_period;
+	u16 bmiss_timeout;
+	u8 dtim_count;
+	bool enable_beacon;
+	bool ibss_creator;
+};
+
 bool ath9k_cmn_rx_accept(struct ath_common *common,
 			 struct ieee80211_hdr *hdr,
 			 struct ieee80211_rx_status *rxs,

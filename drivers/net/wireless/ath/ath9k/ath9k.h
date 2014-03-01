@@ -408,15 +408,6 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
-struct ath_beacon_config {
-	int beacon_interval;
-	u16 dtim_period;
-	u16 bmiss_timeout;
-	u8 dtim_count;
-	bool enable_beacon;
-	bool ibss_creator;
-};
-
 struct ath_beacon {
 	enum {
 		OK,		/* no change needed */
