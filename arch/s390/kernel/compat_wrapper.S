@@ -317,15 +317,6 @@ ENTRY(compat_sys_ppoll_wrapper)
 	llgfr	%r6,%r6			# size_t
 	jg	compat_sys_ppoll
 
-ENTRY(sys_sync_file_range_wrapper)
-	lgfr	%r2,%r2			# int
-	sllg	%r3,%r3,32		# get high word of 64bit loff_t
-	or	%r3,%r4			# get low word of 64bit loff_t
-	sllg	%r4,%r5,32		# get high word of 64bit loff_t
-	or	%r4,%r6			# get low word of 64bit loff_t
-	llgf	%r5,164(%r15)		# unsigned int
-	jg	sys_sync_file_range
-
 ENTRY(compat_sys_utimes_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct compat_timeval *
@@ -337,15 +328,6 @@ ENTRY(compat_sys_utimensat_wrapper)
 	llgtr	%r4,%r4			# struct compat_timespec *
 	lgfr	%r5,%r5			# int
 	jg	compat_sys_utimensat
-
-ENTRY(sys_fallocate_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	sllg	%r4,%r4,32		# get high word of 64bit loff_t
-	lr	%r4,%r5			# get low word of 64bit loff_t
-	sllg	%r5,%r6,32		# get high word of 64bit loff_t
-	l	%r5,164(%r15)		# get low word of 64bit loff_t
-	jg	sys_fallocate
 
 ENTRY(compat_sys_keyctl_wrapper)
 	llgfr	%r2,%r2			# u32

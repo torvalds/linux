@@ -315,14 +315,14 @@ SYSCALL(sys_unshare,sys_unshare,compat_sys_unshare)
 SYSCALL(sys_set_robust_list,sys_set_robust_list,compat_sys_set_robust_list)
 SYSCALL(sys_get_robust_list,sys_get_robust_list,compat_sys_get_robust_list)
 SYSCALL(sys_splice,sys_splice,compat_sys_splice)
-SYSCALL(sys_sync_file_range,sys_sync_file_range,sys_sync_file_range_wrapper)
+SYSCALL(sys_sync_file_range,sys_sync_file_range,compat_sys_s390_sync_file_range)
 SYSCALL(sys_tee,sys_tee,compat_sys_tee)
 SYSCALL(sys_vmsplice,sys_vmsplice,compat_sys_vmsplice)
 NI_SYSCALL							/* 310 sys_move_pages */
 SYSCALL(sys_getcpu,sys_getcpu,compat_sys_getcpu)
 SYSCALL(sys_epoll_pwait,sys_epoll_pwait,compat_sys_epoll_pwait)
 SYSCALL(sys_utimes,sys_utimes,compat_sys_utimes_wrapper)
-SYSCALL(sys_s390_fallocate,sys_fallocate,sys_fallocate_wrapper)
+SYSCALL(sys_s390_fallocate,sys_fallocate,compat_sys_s390_fallocate)
 SYSCALL(sys_utimensat,sys_utimensat,compat_sys_utimensat_wrapper)	/* 315 */
 SYSCALL(sys_signalfd,sys_signalfd,compat_sys_signalfd)
 NI_SYSCALL						/* 317 old sys_timer_fd */
