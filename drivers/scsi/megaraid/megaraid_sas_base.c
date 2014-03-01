@@ -4249,7 +4249,7 @@ fail_set_dma_mask:
 static int megasas_probe_one(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
-	int rval, pos, i, j;
+	int rval, pos, i, j, cpu;
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
 	u16 control = 0;
@@ -4422,7 +4422,8 @@ retry_irq_register:
 	 * Register IRQ
 	 */
 	if (instance->msix_vectors) {
-		for (i = 0 ; i < instance->msix_vectors; i++) {
+		cpu = cpumask_first(cpu_online_mask);
+		for (i = 0; i < instance->msix_vectors; i++) {
 			instance->irq_context[i].instance = instance;
 			instance->irq_context[i].MSIxIndex = i;
 			if (request_irq(instance->msixentry[i].vector,
@@ -4431,14 +4432,22 @@ retry_irq_register:
 					&instance->irq_context[i])) {
 				printk(KERN_DEBUG "megasas: Failed to "
 				       "register IRQ for vector %d.\n", i);
-				for (j = 0 ; j < i ; j++)
+				for (j = 0; j < i; j++) {
+					irq_set_affinity_hint(
+						instance->msixentry[j].vector, NULL);
 					free_irq(
 						instance->msixentry[j].vector,
 						&instance->irq_context[j]);
+				}
 				/* Retry irq register for IO_APIC */
 				instance->msix_vectors = 0;
 				goto retry_irq_register;
 			}
+			if (irq_set_affinity_hint(instance->msixentry[i].vector,
+				get_cpu_mask(cpu)))
+				dev_err(&instance->pdev->dev, "Error setting"
+					"affinity hint for cpu %d\n", cpu);
+			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
 	} else {
 		instance->irq_context[0].instance = instance;
@@ -4492,9 +4501,12 @@ retry_irq_register:
 
 	instance->instancet->disable_intr(instance);
 	if (instance->msix_vectors)
-		for (i = 0 ; i < instance->msix_vectors; i++)
+		for (i = 0; i < instance->msix_vectors; i++) {
+			irq_set_affinity_hint(
+				instance->msixentry[i].vector, NULL);
 			free_irq(instance->msixentry[i].vector,
 				 &instance->irq_context[i]);
+		}
 	else
 		free_irq(instance->pdev->irq, &instance->irq_context[0]);
 fail_irq:
@@ -4648,9 +4660,12 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 	instance->instancet->disable_intr(instance);
 
 	if (instance->msix_vectors)
-		for (i = 0 ; i < instance->msix_vectors; i++)
+		for (i = 0; i < instance->msix_vectors; i++) {
+			irq_set_affinity_hint(
+				instance->msixentry[i].vector, NULL);
 			free_irq(instance->msixentry[i].vector,
 				 &instance->irq_context[i]);
+		}
 	else
 		free_irq(instance->pdev->irq, &instance->irq_context[0]);
 	if (instance->msix_vectors)
@@ -4671,7 +4686,7 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 static int
 megasas_resume(struct pci_dev *pdev)
 {
-	int rval, i, j;
+	int rval, i, j, cpu;
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
 
@@ -4743,6 +4758,7 @@ megasas_resume(struct pci_dev *pdev)
 	 * Register IRQ
 	 */
 	if (instance->msix_vectors) {
+		cpu = cpumask_first(cpu_online_mask);
 		for (i = 0 ; i < instance->msix_vectors; i++) {
 			instance->irq_context[i].instance = instance;
 			instance->irq_context[i].MSIxIndex = i;
@@ -4752,12 +4768,21 @@ megasas_resume(struct pci_dev *pdev)
 					&instance->irq_context[i])) {
 				printk(KERN_DEBUG "megasas: Failed to "
 				       "register IRQ for vector %d.\n", i);
-				for (j = 0 ; j < i ; j++)
+				for (j = 0; j < i; j++) {
+					irq_set_affinity_hint(
+						instance->msixentry[j].vector, NULL);
 					free_irq(
 						instance->msixentry[j].vector,
 						&instance->irq_context[j]);
+				}
 				goto fail_irq;
 			}
+
+			if (irq_set_affinity_hint(instance->msixentry[i].vector,
+				get_cpu_mask(cpu)))
+				dev_err(&instance->pdev->dev, "Error setting"
+					"affinity hint for cpu %d\n", cpu);
+			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
 	} else {
 		instance->irq_context[0].instance = instance;
@@ -4856,9 +4881,12 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	instance->instancet->disable_intr(instance);
 
 	if (instance->msix_vectors)
-		for (i = 0 ; i < instance->msix_vectors; i++)
+		for (i = 0; i < instance->msix_vectors; i++) {
+			irq_set_affinity_hint(
+				instance->msixentry[i].vector, NULL);
 			free_irq(instance->msixentry[i].vector,
 				 &instance->irq_context[i]);
+		}
 	else
 		free_irq(instance->pdev->irq, &instance->irq_context[0]);
 	if (instance->msix_vectors)
@@ -4913,9 +4941,12 @@ static void megasas_shutdown(struct pci_dev *pdev)
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
 	instance->instancet->disable_intr(instance);
 	if (instance->msix_vectors)
-		for (i = 0 ; i < instance->msix_vectors; i++)
+		for (i = 0; i < instance->msix_vectors; i++) {
+			irq_set_affinity_hint(
+				instance->msixentry[i].vector, NULL);
 			free_irq(instance->msixentry[i].vector,
 				 &instance->irq_context[i]);
+		}
 	else
 		free_irq(instance->pdev->irq, &instance->irq_context[0]);
 	if (instance->msix_vectors)

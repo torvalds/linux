@@ -1614,6 +1614,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		cmd->request_desc->SCSIIO.DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+		cmd->request_desc->SCSIIO.MSIxIndex =
+			instance->msix_vectors ? smp_processor_id() % instance->msix_vectors : 0;
 		/*
 		 * If the command is for the tape device, set the
 		 * FP timeout to the os layer timeout value.
