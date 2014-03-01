@@ -2337,6 +2337,7 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	unsigned int cur_mss;
+	int err;
 
 	/* Inconslusive MTU probe */
 	if (icsk->icsk_mtup.probe_size) {
@@ -2400,11 +2401,15 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 		     skb_headroom(skb) >= 0xFFFF)) {
 		struct sk_buff *nskb = __pskb_copy(skb, MAX_TCP_HEADER,
 						   GFP_ATOMIC);
-		return nskb ? tcp_transmit_skb(sk, nskb, 0, GFP_ATOMIC) :
-			      -ENOBUFS;
+		err = nskb ? tcp_transmit_skb(sk, nskb, 0, GFP_ATOMIC) :
+			     -ENOBUFS;
 	} else {
-		return tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
+		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 	}
+
+	if (likely(!err))
+		TCP_SKB_CB(skb)->sacked |= TCPCB_EVER_RETRANS;
+	return err;
 }
 
 int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
