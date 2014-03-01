@@ -57,10 +57,6 @@
 
 #define RGA2_MAJOR		255
 
-#if defined(CONFIG_ROCKCHIP_RGA2)
-#define RK32_RGA2_PHYS		0xFFC70000
-#define RK32_RGA2_SIZE		0x00001000
-#endif
 #define RGA2_RESET_TIMEOUT	1000
 
 /* Driver information */
@@ -256,10 +252,10 @@ static void rga2_power_on(void)
 	if (rga2_service.enable)
 		return;
 
-    clk_enable(rga2_drvdata->rga2);
+    //clk_enable(rga2_drvdata->rga2);
 	clk_enable(rga2_drvdata->aclk_rga2);
 	clk_enable(rga2_drvdata->hclk_rga2);
-	clk_enable(rga2_drvdata->pd_rga2);
+	//clk_enable(rga2_drvdata->pd_rga2);
 	wake_lock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = true;
 }
@@ -281,8 +277,8 @@ static void rga2_power_off(void)
 		rga2_dump();
 	}
 
-	clk_disable(rga2_drvdata->pd_rga2);
-    clk_disable(rga2_drvdata->rga2);
+	//clk_disable(rga2_drvdata->pd_rga2);
+    //clk_disable(rga2_drvdata->rga2);
 	clk_disable(rga2_drvdata->aclk_rga2);
 	clk_disable(rga2_drvdata->hclk_rga2);
 	wake_unlock(&rga2_drvdata->wake_lock);
@@ -999,9 +995,16 @@ static struct miscdevice rga2_dev ={
     .fops  = &rga2_fops,
 };
 
+static const struct of_device_id rockchip_rga_of_match[] = {
+	{ .compatible = "rockchip,rga", .data = NULL, },
+	{},
+};
+
 static int __devinit rga2_drv_probe(struct platform_device *pdev)
 {
 	struct rga2_drvdata_t *data;
+    struct resource *res;
+    struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 
 	INIT_LIST_HEAD(&rga2_service.waiting);
@@ -1015,7 +1018,7 @@ static int __devinit rga2_drv_probe(struct platform_device *pdev)
 	rga2_service.last_prc_src_format = 1; /* default is yuv first*/
 	rga2_service.enable = false;
 
-	data = kzalloc(sizeof(struct rga2_drvdata_t), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct rga2_drvdata_t), GFP_KERNEL);
 	if(NULL == data)
 	{
 		ERR("failed to allocate driver data.\n");
@@ -1025,21 +1028,18 @@ static int __devinit rga2_drv_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&data->power_off_work, rga2_power_off_work);
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "rga");
 
-	data->pd_rga2 = clk_get(NULL, "pd_rga");
-    data->rga2 = clk_get(NULL, "rga");
-	data->aclk_rga2 = clk_get(NULL, "aclk_rga");
-	data->hclk_rga2 = clk_get(NULL, "hclk_rga");
+	//data->pd_rga2 = clk_get(NULL, "pd_rga");
+    //data->rga2 = clk_get(NULL, "rga");
+	data->aclk_rga = devm_clk_get(&pdev->dev, "aclk_rga");
+    data->hclk_rga = devm_clk_get(&pdev->dev, "hclk_rga");
 
-	/* map the memory */
-	if (!request_mem_region(RK32_RGA2_PHYS, RK32_RGA2_SIZE, "rga_io"))
-	{
-		pr_info("failed to reserve rga HW regs\n");
-		return -EBUSY;
-	}
+    clk_prepare_enable(data->aclk_rga);
+    clk_prepare_enable(data->hclk_rga);
 
-	data->rga_base = (void*)ioremap_nocache(RK32_RGA2_PHYS, RK32_RGA2_SIZE);
-	if (data->rga_base == NULL)
-	{
+	/* map the registers */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data->rga_base = devm_ioremap_resource(&pdev->dev, res);
+	if (!data->rga_base) {
 		ERR("rga ioremap failed\n");
 		ret = -ENOENT;
 		goto err_ioremap;
@@ -1047,15 +1047,14 @@ static int __devinit rga2_drv_probe(struct platform_device *pdev)
 
 	/* get the IRQ */
 	data->irq = platform_get_irq(pdev, 0);
-	if (data->irq <= 0)
-	{
+	if (data->irq <= 0) {
 		ERR("failed to get rga irq resource (%d).\n", data->irq);
 		ret = data->irq;
 		goto err_irq;
 	}
 
 	/* request the IRQ */
-	ret = request_threaded_irq(data->irq, rga2_irq, rga2_irq_thread, 0, "rga", pdev);
+	ret = devm_request_threaded_irq(&pdev->dev, data->irq, rga2_irq, rga2_irq_thread, 0, "rga", pdev);
 	if (ret)
 	{
 		ERR("rga request_irq failed (%d).\n", ret);
@@ -1082,7 +1081,7 @@ err_irq:
 	iounmap(data->rga_base);
 err_ioremap:
 	wake_lock_destroy(&data->wake_lock);
-	kfree(data);
+	//kfree(data);
 
 	return ret;
 }
@@ -1097,8 +1096,11 @@ static int rga2_drv_remove(struct platform_device *pdev)
 	free_irq(data->irq, &data->miscdev);
 	iounmap((void __iomem *)(data->rga_base));
 
-	clk_put(data->pd_rga2);
-    clk_put(data->rga2);
+    clk_disable_unprepare(data->aclk_rga);
+    clk_disable_unprepare(data->hclk_rga);
+
+	//clk_put(data->pd_rga2);
+    //clk_put(data->rga2);
 	clk_put(data->aclk_rga2);
 	clk_put(data->hclk_rga2);
 

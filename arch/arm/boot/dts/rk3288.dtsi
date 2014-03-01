@@ -86,4 +86,13 @@
 		rockchip,wake-irq = <0>;
 		status = "disabled";
 	};
+	
+	rga@ff930000 {
+		compatible = "rockchip,rga";
+		reg = <0xff930000 0x1000>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates6 10>, <&clk_gates6 11>;
+    clock-names = "hclk_rga", "aclk_rga"; 
+		status = "disabled";
+        };
 };

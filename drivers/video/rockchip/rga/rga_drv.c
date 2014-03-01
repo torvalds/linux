@@ -1209,7 +1209,7 @@ err_irq:
 	iounmap(data->rga_base);
 err_ioremap:
 	wake_lock_destroy(&data->wake_lock);
-	kfree(data);
+	//kfree(data);
 
 	return ret;
 }
