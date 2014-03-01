@@ -64,7 +64,7 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 
 
 static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
-					struct htc_beacon_config *bss_conf)
+					struct ath_beacon_config *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_beacon_state bs;
@@ -162,7 +162,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 }
 
 static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
-				       struct htc_beacon_config *bss_conf)
+				       struct ath_beacon_config *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	enum ath9k_int imask = 0;
@@ -211,13 +211,13 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	ath9k_hw_beaconinit(priv->ah, TU_TO_USEC(nexttbtt), TU_TO_USEC(intval));
-	priv->cur_beacon_conf.bmiss_cnt = 0;
+	priv->beacon.bmisscnt = 0;
 	htc_imask = cpu_to_be32(imask);
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
 }
 
 static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
-					  struct htc_beacon_config *bss_conf)
+					  struct ath_beacon_config *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	enum ath9k_int imask = 0;
@@ -257,7 +257,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	ath9k_hw_beaconinit(priv->ah, TU_TO_USEC(nexttbtt), TU_TO_USEC(intval));
-	priv->cur_beacon_conf.bmiss_cnt = 0;
+	priv->beacon.bmisscnt = 0;
 	htc_imask = cpu_to_be32(imask);
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
 }
@@ -279,7 +279,7 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 
 	spin_lock_bh(&priv->beacon_lock);
 
-	vif = priv->cur_beacon_conf.bslot[slot];
+	vif = priv->beacon.bslot[slot];
 
 	skb = ieee80211_get_buffered_bc(priv->hw, vif);
 
@@ -340,7 +340,7 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 
 	spin_lock_bh(&priv->beacon_lock);
 
-	vif = priv->cur_beacon_conf.bslot[slot];
+	vif = priv->beacon.bslot[slot];
 	avp = (struct ath9k_htc_vif *)vif->drv_priv;
 
 	if (unlikely(test_bit(OP_SCANNING, &priv->op_flags))) {
@@ -423,8 +423,8 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv,
 	int slot;
 
 	if (swba->beacon_pending != 0) {
-		priv->cur_beacon_conf.bmiss_cnt++;
-		if (priv->cur_beacon_conf.bmiss_cnt > BSTUCK_THRESHOLD) {
+		priv->beacon.bmisscnt++;
+		if (priv->beacon.bmisscnt > BSTUCK_THRESHOLD) {
 			ath_dbg(common, BSTUCK, "Beacon stuck, HW reset\n");
 			ieee80211_queue_work(priv->hw,
 					     &priv->fatal_work);
@@ -432,16 +432,16 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv,
 		return;
 	}
 
-	if (priv->cur_beacon_conf.bmiss_cnt) {
+	if (priv->beacon.bmisscnt) {
 		ath_dbg(common, BSTUCK,
 			"Resuming beacon xmit after %u misses\n",
-			priv->cur_beacon_conf.bmiss_cnt);
-		priv->cur_beacon_conf.bmiss_cnt = 0;
+			priv->beacon.bmisscnt);
+		priv->beacon.bmisscnt = 0;
 	}
 
 	slot = ath9k_htc_choose_bslot(priv, swba);
 	spin_lock_bh(&priv->beacon_lock);
-	if (priv->cur_beacon_conf.bslot[slot] == NULL) {
+	if (priv->beacon.bslot[slot] == NULL) {
 		spin_unlock_bh(&priv->beacon_lock);
 		return;
 	}
@@ -460,13 +460,13 @@ void ath9k_htc_assign_bslot(struct ath9k_htc_priv *priv,
 
 	spin_lock_bh(&priv->beacon_lock);
 	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++) {
-		if (priv->cur_beacon_conf.bslot[i] == NULL) {
+		if (priv->beacon.bslot[i] == NULL) {
 			avp->bslot = i;
 			break;
 		}
 	}
 
-	priv->cur_beacon_conf.bslot[avp->bslot] = vif;
+	priv->beacon.bslot[avp->bslot] = vif;
 	spin_unlock_bh(&priv->beacon_lock);
 
 	ath_dbg(common, CONFIG, "Added interface at beacon slot: %d\n",
@@ -480,7 +480,7 @@ void ath9k_htc_remove_bslot(struct ath9k_htc_priv *priv,
 	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *)vif->drv_priv;
 
 	spin_lock_bh(&priv->beacon_lock);
-	priv->cur_beacon_conf.bslot[avp->bslot] = NULL;
+	priv->beacon.bslot[avp->bslot] = NULL;
 	spin_unlock_bh(&priv->beacon_lock);
 
 	ath_dbg(common, CONFIG, "Removed interface at beacon slot: %d\n",
@@ -496,7 +496,7 @@ void ath9k_htc_set_tsfadjust(struct ath9k_htc_priv *priv,
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *)vif->drv_priv;
-	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &priv->cur_beacon_conf;
 	u64 tsfadjust;
 
 	if (avp->bslot == 0)
@@ -528,7 +528,7 @@ static bool ath9k_htc_check_beacon_config(struct ath9k_htc_priv *priv,
 					  struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &priv->cur_beacon_conf;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	bool beacon_configured;
 
@@ -583,7 +583,7 @@ void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &priv->cur_beacon_conf;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *) vif->drv_priv;
 
@@ -619,7 +619,7 @@ void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &priv->cur_beacon_conf;
 
 	switch (priv->ah->opmode) {
 	case NL80211_IFTYPE_STATION:

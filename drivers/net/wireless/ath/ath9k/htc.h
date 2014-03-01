@@ -406,12 +406,9 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 #define DEFAULT_SWBA_RESPONSE 40 /* in TUs */
 #define MIN_SWBA_RESPONSE     10 /* in TUs */
 
-struct htc_beacon_config {
+struct htc_beacon {
 	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
-	u16 beacon_interval;
-	u16 dtim_period;
-	u16 bmiss_timeout;
-	u32 bmiss_cnt;
+	u32 bmisscnt;
 };
 
 struct ath_btcoex {
@@ -489,7 +486,8 @@ struct ath9k_htc_priv {
 	struct ath9k_hw_cal_data caldata;
 
 	spinlock_t beacon_lock;
-	struct htc_beacon_config cur_beacon_conf;
+	struct ath_beacon_config cur_beacon_conf;
+	struct htc_beacon beacon;
 
 	struct ath9k_htc_rx rx;
 	struct ath9k_htc_tx tx;

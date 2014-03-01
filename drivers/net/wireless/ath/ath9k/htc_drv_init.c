@@ -520,7 +520,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		goto err_queues;
 
 	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++)
-		priv->cur_beacon_conf.bslot[i] = NULL;
+		priv->beacon.bslot[i] = NULL;
 
 	ath9k_cmn_init_channels_rates(common);
 	ath9k_cmn_init_crypto(ah);
