@@ -246,7 +246,7 @@ static void fill_stream_def(struct node_object *hnode,
 			    struct node_strmdef *pstrm_def,
 			    struct dsp_strmattr *pattrs);
 static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream);
-static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
+static int get_fxn_address(struct node_object *hnode, u32 *fxn_addr,
 				  u32 phase);
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
@@ -1576,7 +1576,7 @@ func_end:
  *  Purpose:
  *      Frees the message buffer.
  */
-int node_free_msg_buf(struct node_object *hnode, u8 * pbuffer,
+int node_free_msg_buf(struct node_object *hnode, u8 *pbuffer,
 			     struct dsp_bufferattr *pattr)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
@@ -2640,7 +2640,7 @@ static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream)
  *  Purpose:
  *      Retrieves the address for create, execute or delete phase for a node.
  */
-static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
+static int get_fxn_address(struct node_object *hnode, u32 *fxn_addr,
 				  u32 phase)
 {
 	char *pstr_fxn_name = NULL;
