@@ -1695,6 +1695,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					spin_lock(&req->rq_lock);
 					req->rq_net_err = 1;
 					spin_unlock(&req->rq_lock);
+					continue;
 				}
 				/* need to reset the timeout */
 				force_timer_recalc = 1;
