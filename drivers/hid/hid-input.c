@@ -1178,7 +1178,7 @@ static void hidinput_led_worker(struct work_struct *work)
 
 	/* fall back to generic raw-output-report */
 	len = ((report->size - 1) >> 3) + 1 + (report->id > 0);
-	buf = kmalloc(len, GFP_KERNEL);
+	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -1279,7 +1279,7 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid)
 	input_dev->id.vendor  = hid->vendor;
 	input_dev->id.product = hid->product;
 	input_dev->id.version = hid->version;
-	input_dev->dev.parent = hid->dev.parent;
+	input_dev->dev.parent = &hid->dev;
 	hidinput->input = input_dev;
 	list_add_tail(&hidinput->list, &hid->inputs);
 

@@ -2118,26 +2118,10 @@ out_free:
  */
 static void free_inodes(struct fsck_data *fsckd)
 {
-	struct rb_node *this = fsckd->inodes.rb_node;
-	struct fsck_inode *fscki;
+	struct fsck_inode *fscki, *n;
 
-	while (this) {
-		if (this->rb_left)
-			this = this->rb_left;
-		else if (this->rb_right)
-			this = this->rb_right;
-		else {
-			fscki = rb_entry(this, struct fsck_inode, rb);
-			this = rb_parent(this);
-			if (this) {
-				if (this->rb_left == &fscki->rb)
-					this->rb_left = NULL;
-				else
-					this->rb_right = NULL;
-			}
-			kfree(fscki);
-		}
-	}
+	rbtree_postorder_for_each_entry_safe(fscki, n, &fsckd->inodes, rb)
+		kfree(fscki);
 }
 
 /**

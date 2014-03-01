@@ -183,16 +183,9 @@ static int sc18is602_setup_transfer(struct sc18is602 *hw, u32 hz, u8 mode)
 static int sc18is602_check_transfer(struct spi_device *spi,
 				    struct spi_transfer *t, int tlen)
 {
-	int bpw;
 	uint32_t hz;
 
 	if (t && t->len + tlen > SC18IS602_BUFSIZ)
-		return -EINVAL;
-
-	bpw = spi->bits_per_word;
-	if (t && t->bits_per_word)
-		bpw = t->bits_per_word;
-	if (bpw != 8)
 		return -EINVAL;
 
 	hz = spi->max_speed_hz;
@@ -254,9 +247,6 @@ error:
 
 static int sc18is602_setup(struct spi_device *spi)
 {
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	if (spi->mode & ~(SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST))
 		return -EINVAL;
 
@@ -315,11 +305,12 @@ static int sc18is602_probe(struct i2c_client *client,
 	}
 	master->bus_num = client->adapter->nr;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->setup = sc18is602_setup;
 	master->transfer_one_message = sc18is602_transfer_one;
 	master->dev.of_node = np;
 
-	error = spi_register_master(master);
+	error = devm_spi_register_master(dev, master);
 	if (error)
 		goto error_reg;
 
@@ -328,16 +319,6 @@ static int sc18is602_probe(struct i2c_client *client,
 error_reg:
 	spi_master_put(master);
 	return error;
-}
-
-static int sc18is602_remove(struct i2c_client *client)
-{
-	struct sc18is602 *hw = i2c_get_clientdata(client);
-	struct spi_master *master = hw->master;
-
-	spi_unregister_master(master);
-
-	return 0;
 }
 
 static const struct i2c_device_id sc18is602_id[] = {
@@ -353,7 +334,6 @@ static struct i2c_driver sc18is602_driver = {
 		.name = "sc18is602",
 	},
 	.probe = sc18is602_probe,
-	.remove = sc18is602_remove,
 	.id_table = sc18is602_id,
 };
 

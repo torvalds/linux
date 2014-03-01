@@ -50,7 +50,7 @@ nvf0_grctx_init_unk40xx[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvf0_grctx_init_unk44xx[] = {
 	{ 0x404404,  12, 0x04, 0x00000000 },
 	{ 0x404438,   1, 0x04, 0x00000000 },
@@ -62,7 +62,7 @@ nvf0_grctx_init_unk44xx[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvf0_grctx_init_unk5bxx[] = {
 	{ 0x405b00,   1, 0x04, 0x00000000 },
 	{ 0x405b10,   1, 0x04, 0x00001000 },
@@ -70,7 +70,7 @@ nvf0_grctx_init_unk5bxx[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvf0_grctx_init_unk60xx[] = {
 	{ 0x406020,   1, 0x04, 0x034103c1 },
 	{ 0x406028,   4, 0x04, 0x00000001 },
@@ -286,7 +286,6 @@ nvf0_grctx_init_hub[] = {
 	nvf0_grctx_init_unk64xx,
 	nve4_grctx_init_unk80xx,
 	nvf0_grctx_init_unk88xx,
-	nvd9_grctx_init_rop,
 	NULL
 };
 

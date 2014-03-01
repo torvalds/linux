@@ -14,6 +14,7 @@
 #define _ASM_MIPSREGS_H
 
 #include <linux/linkage.h>
+#include <linux/types.h>
 #include <asm/hazards.h>
 #include <asm/war.h>
 
@@ -573,7 +574,9 @@
 #define MIPS_CONF1_IA		(_ULCAST_(7) << 16)
 #define MIPS_CONF1_IL		(_ULCAST_(7) << 19)
 #define MIPS_CONF1_IS		(_ULCAST_(7) << 22)
-#define MIPS_CONF1_TLBS		(_ULCAST_(63)<< 25)
+#define MIPS_CONF1_TLBS_SHIFT   (25)
+#define MIPS_CONF1_TLBS_SIZE    (6)
+#define MIPS_CONF1_TLBS         (_ULCAST_(63) << MIPS_CONF1_TLBS_SHIFT)
 
 #define MIPS_CONF2_SA		(_ULCAST_(15)<<	 0)
 #define MIPS_CONF2_SL		(_ULCAST_(15)<<	 4)
@@ -587,21 +590,53 @@
 #define MIPS_CONF3_TL		(_ULCAST_(1) <<	 0)
 #define MIPS_CONF3_SM		(_ULCAST_(1) <<	 1)
 #define MIPS_CONF3_MT		(_ULCAST_(1) <<	 2)
+#define MIPS_CONF3_CDMM		(_ULCAST_(1) <<	 3)
 #define MIPS_CONF3_SP		(_ULCAST_(1) <<	 4)
 #define MIPS_CONF3_VINT		(_ULCAST_(1) <<	 5)
 #define MIPS_CONF3_VEIC		(_ULCAST_(1) <<	 6)
 #define MIPS_CONF3_LPA		(_ULCAST_(1) <<	 7)
+#define MIPS_CONF3_ITL		(_ULCAST_(1) <<	 8)
+#define MIPS_CONF3_CTXTC	(_ULCAST_(1) <<	 9)
 #define MIPS_CONF3_DSP		(_ULCAST_(1) << 10)
 #define MIPS_CONF3_DSP2P	(_ULCAST_(1) << 11)
 #define MIPS_CONF3_RXI		(_ULCAST_(1) << 12)
 #define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
 #define MIPS_CONF3_ISA		(_ULCAST_(3) << 14)
 #define MIPS_CONF3_ISA_OE	(_ULCAST_(1) << 16)
+#define MIPS_CONF3_MCU		(_ULCAST_(1) << 17)
+#define MIPS_CONF3_MMAR		(_ULCAST_(7) << 18)
+#define MIPS_CONF3_IPLW		(_ULCAST_(3) << 21)
 #define MIPS_CONF3_VZ		(_ULCAST_(1) << 23)
+#define MIPS_CONF3_PW		(_ULCAST_(1) << 24)
+#define MIPS_CONF3_SC		(_ULCAST_(1) << 25)
+#define MIPS_CONF3_BI		(_ULCAST_(1) << 26)
+#define MIPS_CONF3_BP		(_ULCAST_(1) << 27)
+#define MIPS_CONF3_MSA		(_ULCAST_(1) << 28)
+#define MIPS_CONF3_CMGCR	(_ULCAST_(1) << 29)
+#define MIPS_CONF3_BPG		(_ULCAST_(1) << 30)
 
+#define MIPS_CONF4_MMUSIZEEXT_SHIFT	(0)
 #define MIPS_CONF4_MMUSIZEEXT	(_ULCAST_(255) << 0)
+#define MIPS_CONF4_FTLBSETS_SHIFT	(0)
+#define MIPS_CONF4_FTLBSETS_SHIFT	(0)
+#define MIPS_CONF4_FTLBSETS	(_ULCAST_(15) << MIPS_CONF4_FTLBSETS_SHIFT)
+#define MIPS_CONF4_FTLBWAYS_SHIFT	(4)
+#define MIPS_CONF4_FTLBWAYS	(_ULCAST_(15) << MIPS_CONF4_FTLBWAYS_SHIFT)
+#define MIPS_CONF4_FTLBPAGESIZE_SHIFT	(8)
+/* bits 10:8 in FTLB-only configurations */
+#define MIPS_CONF4_FTLBPAGESIZE (_ULCAST_(7) << MIPS_CONF4_FTLBPAGESIZE_SHIFT)
+/* bits 12:8 in VTLB-FTLB only configurations */
+#define MIPS_CONF4_VFTLBPAGESIZE (_ULCAST_(31) << MIPS_CONF4_FTLBPAGESIZE_SHIFT)
 #define MIPS_CONF4_MMUEXTDEF	(_ULCAST_(3) << 14)
 #define MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT (_ULCAST_(1) << 14)
+#define MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT	(_ULCAST_(2) << 14)
+#define MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT	(_ULCAST_(3) << 14)
+#define MIPS_CONF4_KSCREXIST	(_ULCAST_(255) << 16)
+#define MIPS_CONF4_VTLBSIZEEXT_SHIFT	(24)
+#define MIPS_CONF4_VTLBSIZEEXT	(_ULCAST_(15) << MIPS_CONF4_VTLBSIZEEXT_SHIFT)
+#define MIPS_CONF4_AE		(_ULCAST_(1) << 28)
+#define MIPS_CONF4_IE		(_ULCAST_(3) << 29)
+#define MIPS_CONF4_TLBINV	(_ULCAST_(2) << 29)
 
 #define MIPS_CONF5_NF		(_ULCAST_(1) << 0)
 #define MIPS_CONF5_UFR		(_ULCAST_(1) << 2)
@@ -611,11 +646,15 @@
 #define MIPS_CONF5_K		(_ULCAST_(1) << 30)
 
 #define MIPS_CONF6_SYND		(_ULCAST_(1) << 13)
+/* proAptiv FTLB on/off bit */
+#define MIPS_CONF6_FTLBEN	(_ULCAST_(1) << 15)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
 #define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
 
+/*  EntryHI bit definition */
+#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
 
 /*
  * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
@@ -627,6 +666,26 @@
 #define MIPS_FPIR_W		(_ULCAST_(1) << 20)
 #define MIPS_FPIR_L		(_ULCAST_(1) << 21)
 #define MIPS_FPIR_F64		(_ULCAST_(1) << 22)
+
+/*
+ * Bits in the MIPS32 Memory Segmentation registers.
+ */
+#define MIPS_SEGCFG_PA_SHIFT	9
+#define MIPS_SEGCFG_PA		(_ULCAST_(127) << MIPS_SEGCFG_PA_SHIFT)
+#define MIPS_SEGCFG_AM_SHIFT	4
+#define MIPS_SEGCFG_AM		(_ULCAST_(7) << MIPS_SEGCFG_AM_SHIFT)
+#define MIPS_SEGCFG_EU_SHIFT	3
+#define MIPS_SEGCFG_EU		(_ULCAST_(1) << MIPS_SEGCFG_EU_SHIFT)
+#define MIPS_SEGCFG_C_SHIFT	0
+#define MIPS_SEGCFG_C		(_ULCAST_(7) << MIPS_SEGCFG_C_SHIFT)
+
+#define MIPS_SEGCFG_UUSK	_ULCAST_(7)
+#define MIPS_SEGCFG_USK		_ULCAST_(5)
+#define MIPS_SEGCFG_MUSUK	_ULCAST_(4)
+#define MIPS_SEGCFG_MUSK	_ULCAST_(3)
+#define MIPS_SEGCFG_MSK		_ULCAST_(2)
+#define MIPS_SEGCFG_MK		_ULCAST_(1)
+#define MIPS_SEGCFG_UK		_ULCAST_(0)
 
 #ifndef __ASSEMBLY__
 
@@ -647,6 +706,19 @@ static inline int mm_insn_16bit(u16 insn)
 
 	return (opcode >= 1 && opcode <= 3) ? 1 : 0;
 }
+
+/*
+ * TLB Invalidate Flush
+ */
+static inline void tlbinvf(void)
+{
+	__asm__ __volatile__(
+		".set push\n\t"
+		".set noreorder\n\t"
+		".word 0x42000004\n\t" /* tlbinvf */
+		".set pop");
+}
+
 
 /*
  * Functions to access the R10000 performance counters.	 These are basically
@@ -1102,6 +1174,15 @@ do {									\
 #define read_c0_ebase()		__read_32bit_c0_register($15, 1)
 #define write_c0_ebase(val)	__write_32bit_c0_register($15, 1, val)
 
+/* MIPSR3 */
+#define read_c0_segctl0()	__read_32bit_c0_register($5, 2)
+#define write_c0_segctl0(val)	__write_32bit_c0_register($5, 2, val)
+
+#define read_c0_segctl1()	__read_32bit_c0_register($5, 3)
+#define write_c0_segctl1(val)	__write_32bit_c0_register($5, 3, val)
+
+#define read_c0_segctl2()	__read_32bit_c0_register($5, 4)
+#define write_c0_segctl2(val)	__write_32bit_c0_register($5, 4, val)
 
 /* Cavium OCTEON (cnMIPS) */
 #define read_c0_cvmcount()	__read_ulong_c0_register($9, 6)

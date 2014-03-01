@@ -209,9 +209,8 @@ xfs_bulkstat(
 	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
 	xfs_inobt_rec_incore_t	*irbufend; /* end of good irec buffer entries */
 	xfs_ino_t		lastino; /* last inode number returned */
-	int			nbcluster; /* # of blocks in a cluster */
-	int			nicluster; /* # of inodes in a cluster */
-	int			nimask;	/* mask for inode clusters */
+	int			blks_per_cluster; /* # of blocks per cluster */
+	int			inodes_per_cluster;/* # of inodes per cluster */
 	int			nirbuf;	/* size of irbuf */
 	int			rval;	/* return value error code */
 	int			tmp;	/* result value from btree calls */
@@ -243,11 +242,8 @@ xfs_bulkstat(
 	*done = 0;
 	fmterror = 0;
 	ubufp = ubuffer;
-	nicluster = mp->m_sb.sb_blocksize >= XFS_INODE_CLUSTER_SIZE(mp) ?
-		mp->m_sb.sb_inopblock :
-		(XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog);
-	nimask = ~(nicluster - 1);
-	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
+	blks_per_cluster = xfs_icluster_size_fsb(mp);
+	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
 	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
 	if (!irbuf)
 		return ENOMEM;
@@ -390,12 +386,12 @@ xfs_bulkstat(
 				agbno = XFS_AGINO_TO_AGBNO(mp, r.ir_startino);
 				for (chunkidx = 0;
 				     chunkidx < XFS_INODES_PER_CHUNK;
-				     chunkidx += nicluster,
-				     agbno += nbcluster) {
-					if (xfs_inobt_maskn(chunkidx, nicluster)
-							& ~r.ir_free)
+				     chunkidx += inodes_per_cluster,
+				     agbno += blks_per_cluster) {
+					if (xfs_inobt_maskn(chunkidx,
+					    inodes_per_cluster) & ~r.ir_free)
 						xfs_btree_reada_bufs(mp, agno,
-							agbno, nbcluster,
+							agbno, blks_per_cluster,
 							&xfs_inode_buf_ops);
 				}
 				blk_finish_plug(&plug);

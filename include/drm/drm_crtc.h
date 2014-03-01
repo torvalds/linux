@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/fb.h>
+#include <linux/hdmi.h>
 #include <drm/drm_mode.h>
 
 #include <drm/drm_fourcc.h>
@@ -181,6 +182,7 @@ struct drm_display_mode {
 
 	int vrefresh;		/* in Hz */
 	int hsync;		/* in kHz */
+	enum hdmi_picture_aspect picture_aspect_ratio;
 };
 
 static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
@@ -447,7 +449,7 @@ struct drm_crtc {
 	uint16_t *gamma_store;
 
 	/* Constants needed for precise vblank and swap timestamping. */
-	s64 framedur_ns, linedur_ns, pixeldur_ns;
+	int framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
 	void *helper_private;
@@ -905,6 +907,9 @@ struct drm_mode_config {
 
 	/* whether async page flip is supported or not */
 	bool async_page_flip;
+
+	/* cursor size */
+	uint32_t cursor_width, cursor_height;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -929,6 +934,19 @@ extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
+extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
+
+/**
+ * drm_crtc_mask - find the mask of a registered CRTC
+ * @crtc: CRTC to find mask for
+ *
+ * Given a registered CRTC, return the mask bit of that CRTC for an
+ * encoder's possible_crtcs field.
+ */
+static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc)
+{
+	return 1 << drm_crtc_index(crtc);
+}
 
 extern void drm_connector_ida_init(void);
 extern void drm_connector_ida_destroy(void);
@@ -949,6 +967,19 @@ extern int drm_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
 			    const struct drm_encoder_funcs *funcs,
 			    int encoder_type);
+
+/**
+ * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
+ * @encoder: encoder to test
+ * @crtc: crtc to test
+ *
+ * Return false if @encoder can't be driven by @crtc, true otherwise.
+ */
+static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
+				       struct drm_crtc *crtc)
+{
+	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
+}
 
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,

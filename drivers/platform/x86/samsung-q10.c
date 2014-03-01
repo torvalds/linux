@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/backlight.h>
 #include <linux/dmi.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #define SAMSUNGQ10_BL_MAX_INTENSITY 7
 

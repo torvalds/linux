@@ -675,7 +675,6 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	int			status;
 	struct usb_ep		*ep;
 
-#ifndef USB_FRNDIS_INCLUDED
 	struct f_rndis_opts *rndis_opts;
 
 	if (!can_support_rndis(c))
@@ -697,7 +696,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		rndis_opts->bound = true;
 	}
-#endif
+
 	us = usb_gstrings_attach(cdev, rndis_strings,
 				 ARRAY_SIZE(rndis_string_defs));
 	if (IS_ERR(us))
@@ -782,13 +781,6 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	rndis->port.open = rndis_open;
 	rndis->port.close = rndis_close;
 
-#ifdef USB_FRNDIS_INCLUDED
-	status = rndis_register(rndis_response_available, rndis);
-	if (status < 0)
-		goto fail;
-	rndis->config = status;
-#endif
-
 	rndis_set_param_medium(rndis->config, RNDIS_MEDIUM_802_3, 0);
 	rndis_set_host_mac(rndis->config, rndis->ethaddr);
 
@@ -829,66 +821,6 @@ fail:
 
 	return status;
 }
-
-#ifdef USB_FRNDIS_INCLUDED
-
-static void
-rndis_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct f_rndis		*rndis = func_to_rndis(f);
-
-	rndis_deregister(rndis->config);
-
-	usb_free_all_descriptors(f);
-
-	kfree(rndis->notify_req->buf);
-	usb_ep_free_request(rndis->notify, rndis->notify_req);
-
-	kfree(rndis);
-}
-
-int
-rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		u32 vendorID, const char *manufacturer, struct eth_dev *dev)
-{
-	struct f_rndis	*rndis;
-	int		status;
-
-	/* allocate and initialize one new instance */
-	status = -ENOMEM;
-	rndis = kzalloc(sizeof *rndis, GFP_KERNEL);
-	if (!rndis)
-		goto fail;
-
-	memcpy(rndis->ethaddr, ethaddr, ETH_ALEN);
-	rndis->vendorID = vendorID;
-	rndis->manufacturer = manufacturer;
-
-	rndis->port.ioport = dev;
-	/* RNDIS activates when the host changes this filter */
-	rndis->port.cdc_filter = 0;
-
-	/* RNDIS has special (and complex) framing */
-	rndis->port.header_len = sizeof(struct rndis_packet_msg_type);
-	rndis->port.wrap = rndis_add_header;
-	rndis->port.unwrap = rndis_rm_hdr;
-
-	rndis->port.func.name = "rndis";
-	/* descriptors are per-instance copies */
-	rndis->port.func.bind = rndis_bind;
-	rndis->port.func.unbind = rndis_old_unbind;
-	rndis->port.func.set_alt = rndis_set_alt;
-	rndis->port.func.setup = rndis_setup;
-	rndis->port.func.disable = rndis_disable;
-
-	status = usb_add_function(c, &rndis->port.func);
-	if (status)
-		kfree(rndis);
-fail:
-	return status;
-}
-
-#else
 
 void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net)
 {
@@ -1047,8 +979,26 @@ static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
 	return &rndis->port.func;
 }
 
-DECLARE_USB_FUNCTION_INIT(rndis, rndis_alloc_inst, rndis_alloc);
+DECLARE_USB_FUNCTION(rndis, rndis_alloc_inst, rndis_alloc);
+
+static int __init rndis_mod_init(void)
+{
+	int ret;
+
+	ret = rndis_init();
+	if (ret)
+		return ret;
+
+	return usb_function_register(&rndisusb_func);
+}
+module_init(rndis_mod_init);
+
+static void __exit rndis_mod_exit(void)
+{
+	usb_function_unregister(&rndisusb_func);
+	rndis_exit();
+}
+module_exit(rndis_mod_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");
-
-#endif

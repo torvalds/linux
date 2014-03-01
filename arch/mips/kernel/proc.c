@@ -65,26 +65,25 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				cpu_data[n].watch_reg_masks[i]);
 		seq_printf(m, "]\n");
 	}
-	if (cpu_has_mips_r) {
-		seq_printf(m, "isa\t\t\t: mips1");
-		if (cpu_has_mips_2)
-			seq_printf(m, "%s", " mips2");
-		if (cpu_has_mips_3)
-			seq_printf(m, "%s", " mips3");
-		if (cpu_has_mips_4)
-			seq_printf(m, "%s", " mips4");
-		if (cpu_has_mips_5)
-			seq_printf(m, "%s", " mips5");
-		if (cpu_has_mips32r1)
-			seq_printf(m, "%s", " mips32r1");
-		if (cpu_has_mips32r2)
-			seq_printf(m, "%s", " mips32r2");
-		if (cpu_has_mips64r1)
-			seq_printf(m, "%s", " mips64r1");
-		if (cpu_has_mips64r2)
-			seq_printf(m, "%s", " mips64r2");
-		seq_printf(m, "\n");
-	}
+
+	seq_printf(m, "isa\t\t\t: mips1");
+	if (cpu_has_mips_2)
+		seq_printf(m, "%s", " mips2");
+	if (cpu_has_mips_3)
+		seq_printf(m, "%s", " mips3");
+	if (cpu_has_mips_4)
+		seq_printf(m, "%s", " mips4");
+	if (cpu_has_mips_5)
+		seq_printf(m, "%s", " mips5");
+	if (cpu_has_mips32r1)
+		seq_printf(m, "%s", " mips32r1");
+	if (cpu_has_mips32r2)
+		seq_printf(m, "%s", " mips32r2");
+	if (cpu_has_mips64r1)
+		seq_printf(m, "%s", " mips64r1");
+	if (cpu_has_mips64r2)
+		seq_printf(m, "%s", " mips64r2");
+	seq_printf(m, "\n");
 
 	seq_printf(m, "ASEs implemented\t:");
 	if (cpu_has_mips16)	seq_printf(m, "%s", " mips16");
@@ -107,7 +106,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "kscratch registers\t: %d\n",
 		      hweight8(cpu_data[n].kscratch_mask));
 	seq_printf(m, "core\t\t\t: %d\n", cpu_data[n].core);
-
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+	if (cpu_has_mipsmt) {
+		seq_printf(m, "VPE\t\t\t: %d\n", cpu_data[n].vpe_id);
+#if defined(CONFIG_MIPS_MT_SMTC)
+		seq_printf(m, "TC\t\t\t: %d\n", cpu_data[n].tc_id);
+#endif
+	}
+#endif
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
 		      cpu_has_vce ? "%u" : "not available");
 	seq_printf(m, fmt, 'D', vced_count);

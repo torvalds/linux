@@ -35,3 +35,4 @@ generic-y += trace_clock.h
 generic-y += ucontext.h
 generic-y += xor.h
 generic-y += preempt.h
+generic-y += hash.h

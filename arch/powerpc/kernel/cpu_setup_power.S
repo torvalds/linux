@@ -29,7 +29,7 @@ _GLOBAL(__setup_cpu_power7)
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
 	bl	__init_LPCR
-	bl	__init_TLB
+	bl	__init_tlb_power7
 	mtlr	r11
 	blr
 
@@ -42,7 +42,7 @@ _GLOBAL(__restore_cpu_power7)
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
 	bl	__init_LPCR
-	bl	__init_TLB
+	bl	__init_tlb_power7
 	mtlr	r11
 	blr
 
@@ -59,7 +59,7 @@ _GLOBAL(__setup_cpu_power8)
 	oris	r3, r3, LPCR_AIL_3@h
 	bl	__init_LPCR
 	bl	__init_HFSCR
-	bl	__init_TLB
+	bl	__init_tlb_power8
 	bl	__init_PMU_HV
 	mtlr	r11
 	blr
@@ -78,7 +78,7 @@ _GLOBAL(__restore_cpu_power8)
 	oris	r3, r3, LPCR_AIL_3@h
 	bl	__init_LPCR
 	bl	__init_HFSCR
-	bl	__init_TLB
+	bl	__init_tlb_power8
 	bl	__init_PMU_HV
 	mtlr	r11
 	blr
@@ -134,15 +134,31 @@ __init_HFSCR:
 	mtspr	SPRN_HFSCR,r3
 	blr
 
-__init_TLB:
-	/*
-	 * Clear the TLB using the "IS 3" form of tlbiel instruction
-	 * (invalidate by congruence class). P7 has 128 CCs, P8 has 512
-	 * so we just always do 512
-	 */
+/*
+ * Clear the TLB using the specified IS form of tlbiel instruction
+ * (invalidate by congruence class). P7 has 128 CCs., P8 has 512.
+ *
+ * r3 = IS field
+ */
+__init_tlb_power7:
+	li	r3,0xc00	/* IS field = 0b11 */
+_GLOBAL(__flush_tlb_power7)
+	li	r6,128
+	mtctr	r6
+	mr	r7,r3		/* IS field */
+	ptesync
+2:	tlbiel	r7
+	addi	r7,r7,0x1000
+	bdnz	2b
+	ptesync
+1:	blr
+
+__init_tlb_power8:
+	li	r3,0xc00	/* IS field = 0b11 */
+_GLOBAL(__flush_tlb_power8)
 	li	r6,512
 	mtctr	r6
-	li	r7,0xc00	/* IS field = 0b11 */
+	mr	r7,r3		/* IS field */
 	ptesync
 2:	tlbiel	r7
 	addi	r7,r7,0x1000

@@ -180,27 +180,6 @@ config CPU_LLSERIAL_S3C2440
 	  Selected if there is an S3C2440 (or register compatible) serial
 	  low-level implementation needed
 
-# gpio configurations
-
-config S3C24XX_GPIO_EXTRA
-	int
-	default 128 if S3C24XX_GPIO_EXTRA128
-	default 64 if S3C24XX_GPIO_EXTRA64
-	default 16 if ARCH_H1940
-	default 0
-
-config S3C24XX_GPIO_EXTRA64
-	bool
-	help
-	  Add an extra 64 gpio numbers to the available GPIO pool. This is
-	  available for boards that need extra gpios for external devices.
-
-config S3C24XX_GPIO_EXTRA128
-	bool
-	help
-	  Add an extra 128 gpio numbers to the available GPIO pool. This is
-	  available for boards that need extra gpios for external devices.
-
 config S3C24XX_PLL
 	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"
 	depends on ARM_S3C24XX_CPUFREQ

@@ -287,7 +287,9 @@ show_shost_eh_deadline(struct device *dev,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 
-	return sprintf(buf, "%d\n", shost->eh_deadline / HZ);
+	if (shost->eh_deadline == -1)
+		return snprintf(buf, strlen("off") + 2, "off\n");
+	return sprintf(buf, "%u\n", shost->eh_deadline / HZ);
 }
 
 static ssize_t
@@ -296,22 +298,34 @@ store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	int ret = -EINVAL;
-	int deadline;
-	unsigned long flags;
+	unsigned long deadline, flags;
 
 	if (shost->transportt && shost->transportt->eh_strategy_handler)
 		return ret;
 
-	if (sscanf(buf, "%d\n", &deadline) == 1) {
-		spin_lock_irqsave(shost->host_lock, flags);
-		if (scsi_host_in_recovery(shost))
-			ret = -EBUSY;
-		else {
-			shost->eh_deadline = deadline * HZ;
-			ret = count;
-		}
-		spin_unlock_irqrestore(shost->host_lock, flags);
+	if (!strncmp(buf, "off", strlen("off")))
+		deadline = -1;
+	else {
+		ret = kstrtoul(buf, 10, &deadline);
+		if (ret)
+			return ret;
+		if (deadline * HZ > UINT_MAX)
+			return -EINVAL;
 	}
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (scsi_host_in_recovery(shost))
+		ret = -EBUSY;
+	else {
+		if (deadline == -1)
+			shost->eh_deadline = -1;
+		else
+			shost->eh_deadline = deadline * HZ;
+
+		ret = count;
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
 	return ret;
 }
 

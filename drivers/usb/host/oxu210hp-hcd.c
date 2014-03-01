@@ -29,7 +29,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -59,6 +58,10 @@
 		dev_err(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
 #define oxu_info(oxu, fmt, args...) \
 		dev_info(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
+
+#ifdef CONFIG_DYNAMIC_DEBUG
+#define DEBUG
+#endif
 
 static inline struct usb_hcd *oxu_to_hcd(struct oxu_hcd *oxu)
 {
@@ -3747,6 +3750,7 @@ static struct usb_hcd *oxu_create(struct platform_device *pdev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
+	device_wakeup_enable(hcd->self.controller);
 	return hcd;
 }
 

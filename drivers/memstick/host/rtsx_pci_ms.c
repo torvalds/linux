@@ -145,6 +145,8 @@ static int ms_transfer_data(struct realtek_pci_ms *host, unsigned char data_dir,
 	unsigned int length = sg->length;
 	u16 sec_cnt = (u16)(length / 512);
 	u8 val, trans_mode, dma_dir;
+	struct memstick_dev *card = host->msh->card;
+	bool pro_card = card->id.type == MEMSTICK_TYPE_PRO;
 
 	dev_dbg(ms_dev(host), "%s: tpc = 0x%02x, data_dir = %s, length = %d\n",
 			__func__, tpc, (data_dir == READ) ? "READ" : "WRITE",
@@ -152,19 +154,21 @@ static int ms_transfer_data(struct realtek_pci_ms *host, unsigned char data_dir,
 
 	if (data_dir == READ) {
 		dma_dir = DMA_DIR_FROM_CARD;
-		trans_mode = MS_TM_AUTO_READ;
+		trans_mode = pro_card ? MS_TM_AUTO_READ : MS_TM_NORMAL_READ;
 	} else {
 		dma_dir = DMA_DIR_TO_CARD;
-		trans_mode = MS_TM_AUTO_WRITE;
+		trans_mode = pro_card ? MS_TM_AUTO_WRITE : MS_TM_NORMAL_WRITE;
 	}
 
 	rtsx_pci_init_cmd(pcr);
 
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, MS_TPC, 0xFF, tpc);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, MS_SECTOR_CNT_H,
-			0xFF, (u8)(sec_cnt >> 8));
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, MS_SECTOR_CNT_L,
-			0xFF, (u8)sec_cnt);
+	if (pro_card) {
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, MS_SECTOR_CNT_H,
+				0xFF, (u8)(sec_cnt >> 8));
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, MS_SECTOR_CNT_L,
+				0xFF, (u8)sec_cnt);
+	}
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, MS_TRANS_CFG, 0xFF, cfg);
 
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, IRQSTAT0,
@@ -192,8 +196,14 @@ static int ms_transfer_data(struct realtek_pci_ms *host, unsigned char data_dir,
 	}
 
 	rtsx_pci_read_register(pcr, MS_TRANS_CFG, &val);
-	if (val & (MS_INT_CMDNK | MS_INT_ERR | MS_CRC16_ERR | MS_RDY_TIMEOUT))
-		return -EIO;
+	if (pro_card) {
+		if (val & (MS_INT_CMDNK | MS_INT_ERR |
+				MS_CRC16_ERR | MS_RDY_TIMEOUT))
+			return -EIO;
+	} else {
+		if (val & (MS_CRC16_ERR | MS_RDY_TIMEOUT))
+			return -EIO;
+	}
 
 	return 0;
 }
@@ -462,8 +472,8 @@ static int rtsx_pci_ms_set_param(struct memstick_host *msh,
 			clock = 19000000;
 			ssc_depth = RTSX_SSC_DEPTH_500K;
 
-			err = rtsx_pci_write_register(pcr, MS_CFG,
-					0x18, MS_BUS_WIDTH_1);
+			err = rtsx_pci_write_register(pcr, MS_CFG, 0x58,
+					MS_BUS_WIDTH_1 | PUSH_TIME_DEFAULT);
 			if (err < 0)
 				return err;
 		} else if (value == MEMSTICK_PAR4) {

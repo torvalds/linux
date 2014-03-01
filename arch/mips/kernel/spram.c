@@ -8,7 +8,6 @@
  *
  * Copyright (C) 2007, 2008 MIPS Technologies, Inc.
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
 #include <linux/stddef.h>
@@ -206,6 +205,8 @@ void spram_config(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
 		config0 = read_c0_config();
 		/* FIXME: addresses are Malta specific */
 		if (config0 & (1<<24)) {

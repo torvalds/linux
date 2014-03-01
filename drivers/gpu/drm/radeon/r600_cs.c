@@ -749,7 +749,10 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 		}
 
 		for (i = 0; i < 8; i++) {
-			if ((tmp >> (i * 4)) & 0xF) {
+			u32 format = G_0280A0_FORMAT(track->cb_color_info[i]);
+
+			if (format != V_0280A0_COLOR_INVALID &&
+			    (tmp >> (i * 4)) & 0xF) {
 				/* at least one component is enabled */
 				if (track->cb_color_bo[i] == NULL) {
 					dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X no cb for %d\n",
@@ -1004,8 +1007,22 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_008C64_SQ_VSTMP_RING_SIZE:
 	case R_0288C8_SQ_GS_VERT_ITEMSIZE:
 		/* get value to populate the IB don't remove */
-		tmp =radeon_get_ib_value(p, idx);
-		ib[idx] = 0;
+		/*tmp =radeon_get_ib_value(p, idx);
+		  ib[idx] = 0;*/
+		break;
+	case SQ_ESGS_RING_BASE:
+	case SQ_GSVS_RING_BASE:
+	case SQ_ESTMP_RING_BASE:
+	case SQ_GSTMP_RING_BASE:
+	case SQ_PSTMP_RING_BASE:
+	case SQ_VSTMP_RING_BASE:
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 		break;
 	case SQ_CONFIG:
 		track->sq_config = radeon_get_ib_value(p, idx);
@@ -2386,7 +2403,7 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
 	parser.ib.length_dw = ib_chunk->length_dw;
 	*l = parser.ib.length_dw;
-	if (DRM_COPY_FROM_USER(ib, ib_chunk->user_ptr, ib_chunk->length_dw * 4)) {
+	if (copy_from_user(ib, ib_chunk->user_ptr, ib_chunk->length_dw * 4)) {
 		r = -EFAULT;
 		r600_cs_parser_fini(&parser, r);
 		return r;

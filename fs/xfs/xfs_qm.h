@@ -20,11 +20,27 @@
 
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
-#include "xfs_quota_priv.h"
 
 struct xfs_inode;
 
 extern struct kmem_zone	*xfs_qm_dqtrxzone;
+
+/*
+ * Number of bmaps that we ask from bmapi when doing a quotacheck.
+ * We make this restriction to keep the memory usage to a minimum.
+ */
+#define XFS_DQITER_MAP_SIZE	10
+
+#define XFS_IS_DQUOT_UNINITIALIZED(dqp) ( \
+	!dqp->q_core.d_blk_hardlimit && \
+	!dqp->q_core.d_blk_softlimit && \
+	!dqp->q_core.d_rtb_hardlimit && \
+	!dqp->q_core.d_rtb_softlimit && \
+	!dqp->q_core.d_ino_hardlimit && \
+	!dqp->q_core.d_ino_softlimit && \
+	!dqp->q_core.d_bcount && \
+	!dqp->q_core.d_rtbcount && \
+	!dqp->q_core.d_icount)
 
 /*
  * This defines the unit of allocation of dquots.

@@ -34,7 +34,7 @@ SPI slave functions are usually not interoperable between vendors
   - It may also be used to stream data in either direction (half duplex),
     or both of them at the same time (full duplex).
 
-  - Some devices may use eight bit words.  Others may different word
+  - Some devices may use eight bit words.  Others may use different word
     lengths, such as streams of 12-bit or 20-bit digital samples.
 
   - Words are usually sent with their most significant bit (MSB) first,
@@ -121,7 +121,7 @@ active.  So the master must set the clock to inactive before selecting
 a slave, and the slave can tell the chosen polarity by sampling the
 clock level when its select line goes active.  That's why many devices
 support for example both modes 0 and 3:  they don't care about polarity,
-and alway clock data in/out on rising clock edges.
+and always clock data in/out on rising clock edges.
 
 
 How do these driver programming interfaces work?
@@ -139,7 +139,7 @@ a command and then reading its response.
 
 There are two types of SPI driver, here called:
 
-  Controller drivers ... controllers may be built in to System-On-Chip
+  Controller drivers ... controllers may be built into System-On-Chip
 	processors, and often support both Master and Slave roles.
 	These drivers touch hardware registers and may use DMA.
 	Or they can be PIO bitbangers, needing just GPIO pins.
@@ -543,12 +543,27 @@ SPI MASTER METHODS
 	queuing transfers that arrive in the meantime. When the driver is
 	finished with this message, it must call
 	spi_finalize_current_message() so the subsystem can issue the next
-	transfer. This may sleep.
+	message. This may sleep.
+
+    master->transfer_one(struct spi_master *master, struct spi_device *spi,
+			 struct spi_transfer *transfer)
+	The subsystem calls the driver to transfer a single transfer while
+	queuing transfers that arrive in the meantime. When the driver is
+	finished with this transfer, it must call
+	spi_finalize_current_transfer() so the subsystem can issue the next
+	transfer. This may sleep. Note: transfer_one and transfer_one_message
+	are mutually exclusive; when both are set, the generic subsystem does
+	not call your transfer_one callback.
+
+	Return values:
+	negative errno: error
+	0: transfer is finished
+	1: transfer is still in progress
 
     DEPRECATED METHODS
 
     master->transfer(struct spi_device *spi, struct spi_message *message)
-	This must not sleep. Its responsibility is arrange that the
+	This must not sleep. Its responsibility is to arrange that the
 	transfer happens and its complete() callback is issued. The two
 	will normally happen later, after other transfers complete, and
 	if the controller is idle it will need to be kickstarted. This

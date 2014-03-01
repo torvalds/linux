@@ -140,7 +140,9 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 
 	rc = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 	if (rc) {
-		LASSERT(rc < 0);
+		/* Does not make sense to take GL for released layout */
+		if (rc > 0)
+			rc = -ENOTSUPP;
 		cl_env_put(env, &refcheck);
 		return rc;
 	}

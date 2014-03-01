@@ -157,21 +157,22 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 
 	msg[0] = address;
 	msg[1] = address >> 8;
-	msg[2] = AUX_NATIVE_WRITE << 4;
+	msg[2] = DP_AUX_NATIVE_WRITE << 4;
 	msg[3] = (msg_bytes << 4) | (send_bytes - 1);
 	memcpy(&msg[4], send, send_bytes);
 
-	for (retry = 0; retry < 4; retry++) {
+	for (retry = 0; retry < 7; retry++) {
 		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
 					    msg, msg_bytes, NULL, 0, delay, &ack);
 		if (ret == -EBUSY)
 			continue;
 		else if (ret < 0)
 			return ret;
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+		ack >>= 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			return send_bytes;
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
-			udelay(400);
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
+			usleep_range(400, 500);
 		else
 			return -EIO;
 	}
@@ -191,20 +192,21 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 
 	msg[0] = address;
 	msg[1] = address >> 8;
-	msg[2] = AUX_NATIVE_READ << 4;
+	msg[2] = DP_AUX_NATIVE_READ << 4;
 	msg[3] = (msg_bytes << 4) | (recv_bytes - 1);
 
-	for (retry = 0; retry < 4; retry++) {
+	for (retry = 0; retry < 7; retry++) {
 		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
 					    msg, msg_bytes, recv, recv_bytes, delay, &ack);
 		if (ret == -EBUSY)
 			continue;
 		else if (ret < 0)
 			return ret;
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+		ack >>= 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			return ret;
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
-			udelay(400);
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
+			usleep_range(400, 500);
 		else if (ret == 0)
 			return -EPROTO;
 		else
@@ -246,12 +248,12 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
-		msg[2] = AUX_I2C_READ << 4;
+		msg[2] = DP_AUX_I2C_READ << 4;
 	else
-		msg[2] = AUX_I2C_WRITE << 4;
+		msg[2] = DP_AUX_I2C_WRITE << 4;
 
 	if (!(mode & MODE_I2C_STOP))
-		msg[2] |= AUX_I2C_MOT << 4;
+		msg[2] |= DP_AUX_I2C_MOT << 4;
 
 	msg[0] = address;
 	msg[1] = address >> 8;
@@ -272,7 +274,7 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 		break;
 	}
 
-	for (retry = 0; retry < 4; retry++) {
+	for (retry = 0; retry < 7; retry++) {
 		ret = radeon_process_aux_ch(auxch,
 					    msg, msg_bytes, reply, reply_bytes, 0, &ack);
 		if (ret == -EBUSY)
@@ -282,35 +284,35 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return ret;
 		}
 
-		switch (ack & AUX_NATIVE_REPLY_MASK) {
-		case AUX_NATIVE_REPLY_ACK:
+		switch ((ack >> 4) & DP_AUX_NATIVE_REPLY_MASK) {
+		case DP_AUX_NATIVE_REPLY_ACK:
 			/* I2C-over-AUX Reply field is only valid
 			 * when paired with AUX ACK.
 			 */
 			break;
-		case AUX_NATIVE_REPLY_NACK:
+		case DP_AUX_NATIVE_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_ch native nack\n");
 			return -EREMOTEIO;
-		case AUX_NATIVE_REPLY_DEFER:
+		case DP_AUX_NATIVE_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_ch native defer\n");
-			udelay(400);
+			usleep_range(500, 600);
 			continue;
 		default:
 			DRM_ERROR("aux_ch invalid native reply 0x%02x\n", ack);
 			return -EREMOTEIO;
 		}
 
-		switch (ack & AUX_I2C_REPLY_MASK) {
-		case AUX_I2C_REPLY_ACK:
+		switch ((ack >> 4) & DP_AUX_I2C_REPLY_MASK) {
+		case DP_AUX_I2C_REPLY_ACK:
 			if (mode == MODE_I2C_READ)
 				*read_byte = reply[0];
 			return ret;
-		case AUX_I2C_REPLY_NACK:
+		case DP_AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
 			return -EREMOTEIO;
-		case AUX_I2C_REPLY_DEFER:
+		case DP_AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
-			udelay(400);
+			usleep_range(400, 500);
 			break;
 		default:
 			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", ack);
@@ -671,9 +673,11 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 	u8 tmp;
 
 	/* power up the sink */
-	if (dp_info->dpcd[0] >= 0x11)
+	if (dp_info->dpcd[0] >= 0x11) {
 		radeon_write_dpcd_reg(dp_info->radeon_connector,
 				      DP_SET_POWER, DP_SET_POWER_D0);
+		usleep_range(1000, 2000);
+	}
 
 	/* possibly enable downspread on the sink */
 	if (dp_info->dpcd[3] & 0x1)

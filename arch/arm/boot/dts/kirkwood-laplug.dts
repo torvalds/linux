@@ -1,0 +1,175 @@
+/*
+ * Copyright (C) 2013 Maxime Hadjinlian <maxime.hadjinlian@gmail.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "kirkwood.dtsi"
+#include "kirkwood-6192.dtsi"
+
+/ {
+	model = "LaCie LaPlug";
+	compatible = "lacie,laplug", "marvell,kirkwood-88f6192", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>; /* 128 MB */
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	mbus {
+		pcie-controller {
+			status = "okay";
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
+
+	ocp@f1000000 {
+		serial@12000 {
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
+			status = "okay";
+		};
+
+		i2c@11000 {
+			pinctrl-0 = <&pmx_twsi0>;
+			pinctrl-names = "default";
+			status = "okay";
+
+			eeprom@50 {
+				compatible = "at,24c04";
+				pagesize = <16>;
+				reg = <0x50>;
+			};
+		};
+
+		pinctrl: pinctrl@10000 {
+			pmx_usb_power_enable: pmx-usb-power-enable {
+				marvell,pins = "mpp14";
+				marvell,function = "gpio";
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button@1{
+			label = "Power push button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		red-fail {
+			label = "laplug_v2:red:power";
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		};
+		blue-power {
+			label = "laplug_v2:blue:power";
+			gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_usb_power_enable>;
+		pinctrl-names = "default";
+
+		usb_power_back1: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power Back 1";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb_power_back2: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "USB Power Back 2";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb_power_front: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "USB Power Front";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&nand {
+	/* Total size : 512MB */
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0 0x100000>; /* 1MB */
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x100000 0x1000000>; /* 16MB */
+	};
+
+	partition@1100000 {
+		label = "rootfs";
+		reg = <0x1100000 0x1EF00000>; /* 495MB */
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

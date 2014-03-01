@@ -773,7 +773,20 @@ bfa_fcs_lport_uf_recv(struct bfa_fcs_lport_s *lport,
 	bfa_trc(lport->fcs, fchs->type);
 
 	if (!bfa_fcs_lport_is_online(lport)) {
-		bfa_stats(lport, uf_recv_drops);
+		/*
+		 * In direct attach topology, it is possible to get a PLOGI
+		 * before the lport is online due to port feature
+		 * (QoS/Trunk/FEC/CR), so send a rjt
+		 */
+		if ((fchs->type == FC_TYPE_ELS) &&
+			(els_cmd->els_code == FC_ELS_PLOGI)) {
+			bfa_fcs_lport_send_ls_rjt(lport, fchs,
+				FC_LS_RJT_RSN_UNABLE_TO_PERF_CMD,
+				FC_LS_RJT_EXP_NO_ADDL_INFO);
+			bfa_stats(lport, plogi_rcvd);
+		} else
+			bfa_stats(lport, uf_recv_drops);
+
 		return;
 	}
 

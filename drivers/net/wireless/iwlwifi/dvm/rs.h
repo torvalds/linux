@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -388,13 +388,6 @@ struct iwl_lq_sta {
 	/* BT traffic this sta was last updated in */
 	u8 last_bt_traffic;
 };
-
-static inline u8 num_of_ant(u8 mask)
-{
-	return  !!((mask) & ANT_A) +
-		!!((mask) & ANT_B) +
-		!!((mask) & ANT_C);
-}
 
 static inline u8 first_antenna(u8 mask)
 {

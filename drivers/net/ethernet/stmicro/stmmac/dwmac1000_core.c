@@ -32,10 +32,15 @@
 #include <asm/io.h>
 #include "dwmac1000.h"
 
-static void dwmac1000_core_init(void __iomem *ioaddr)
+static void dwmac1000_core_init(void __iomem *ioaddr, int mtu)
 {
 	u32 value = readl(ioaddr + GMAC_CONTROL);
 	value |= GMAC_CORE_INIT;
+	if (mtu > 1500)
+		value |= GMAC_CONTROL_2K;
+	if (mtu > 2000)
+		value |= GMAC_CONTROL_JE;
+
 	writel(value, ioaddr + GMAC_CONTROL);
 
 	/* Mask GMAC interrupts */

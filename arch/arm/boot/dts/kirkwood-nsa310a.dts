@@ -107,18 +107,18 @@
 
 		button@1 {
 			label = "Power Button";
-			linux,code = <116>;
-			gpios = <&gpio1 14 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		};
 		button@2 {
 			label = "Copy Button";
-			linux,code = <133>;
-			gpios = <&gpio1 5 1>;
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};
 		button@3 {
 			label = "Reset Button";
-			linux,code = <0x198>;
-			gpios = <&gpio1 4 1>;
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -127,39 +127,39 @@
 
 		green-sys {
 			label = "nsa310:green:sys";
-			gpios = <&gpio0 28 0>;
+			gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
 		};
 		red-sys {
 			label = "nsa310:red:sys";
-			gpios = <&gpio0 29 0>;
+			gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
 		};
 		green-hdd {
 			label = "nsa310:green:hdd";
-			gpios = <&gpio1 9 0>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 		};
 		red-hdd {
 			label = "nsa310:red:hdd";
-			gpios = <&gpio1 10 0>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		};
 		green-esata {
 			label = "nsa310:green:esata";
-			gpios = <&gpio0 12 0>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};
 		red-esata {
 			label = "nsa310:red:esata";
-			gpios = <&gpio0 13 0>;
+			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 		};
 		green-usb {
 			label = "nsa310:green:usb";
-			gpios = <&gpio0 15 0>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
 		green-copy {
 			label = "nsa310:green:copy";
-			gpios = <&gpio1 7 0>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		};
 		red-copy {
 			label = "nsa310:red:copy";
-			gpios = <&gpio1 8 0>;
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };

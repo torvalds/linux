@@ -238,8 +238,6 @@ out:
 	return tunnel;
 }
 
-struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel);
-void l2tp_tunnel_sock_put(struct sock *sk);
 struct l2tp_session *l2tp_session_find(struct net *net,
 				       struct l2tp_tunnel *tunnel,
 				       u32 session_id);

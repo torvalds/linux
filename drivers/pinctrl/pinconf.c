@@ -28,12 +28,6 @@ int pinconf_check_ops(struct pinctrl_dev *pctldev)
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
-	/* We must be able to read out pin status */
-	if (!ops->pin_config_get && !ops->pin_config_group_get) {
-		dev_err(pctldev->dev,
-			"pinconf must be able to read out pin status\n");
-		return -EINVAL;
-	}
 	/* We have to be able to config the pins in SOME way */
 	if (!ops->pin_config_set && !ops->pin_config_group_set) {
 		dev_err(pctldev->dev,
@@ -67,9 +61,9 @@ int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_get) {
-		dev_err(pctldev->dev, "cannot get pin configuration, missing "
+		dev_dbg(pctldev->dev, "cannot get pin configuration, missing "
 			"pin_config_get() function in driver\n");
-		return -EINVAL;
+		return -ENOTSUPP;
 	}
 
 	return ops->pin_config_get(pctldev, pin, config);
@@ -93,10 +87,10 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
 	ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_group_get) {
-		dev_err(pctldev->dev, "cannot get configuration for pin "
+		dev_dbg(pctldev->dev, "cannot get configuration for pin "
 			"group, missing group config get function in "
 			"driver\n");
-		ret = -EINVAL;
+		ret = -ENOTSUPP;
 		goto unlock;
 	}
 
@@ -302,11 +296,7 @@ static void pinconf_dump_pin(struct pinctrl_dev *pctldev,
 static int pinconf_pins_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
-	const struct pinconf_ops *ops = pctldev->desc->confops;
 	unsigned i, pin;
-
-	if (!ops || !ops->pin_config_get)
-		return 0;
 
 	seq_puts(s, "Pin config settings per pin\n");
 	seq_puts(s, "Format: pin (name): configs\n");
@@ -352,12 +342,8 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	const struct pinconf_ops *ops = pctldev->desc->confops;
 	unsigned ngroups = pctlops->get_groups_count(pctldev);
 	unsigned selector = 0;
-
-	if (!ops || !ops->pin_config_group_get)
-		return 0;
 
 	seq_puts(s, "Pin config settings per pin group\n");
 	seq_puts(s, "Format: group (name): configs\n");

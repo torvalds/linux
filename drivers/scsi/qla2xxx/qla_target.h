@@ -855,7 +855,6 @@ struct qla_tgt_cmd {
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
 	struct scsi_qla_host *vha;
-	struct list_head cmd_list;
 
 	struct atio_from_isp atio;
 };
@@ -932,8 +931,8 @@ void qlt_disable_vha(struct scsi_qla_host *);
  */
 extern int qlt_add_target(struct qla_hw_data *, struct scsi_qla_host *);
 extern int qlt_remove_target(struct qla_hw_data *, struct scsi_qla_host *);
-extern int qlt_lport_register(struct qla_tgt_func_tmpl *, u64,
-			int (*callback)(struct scsi_qla_host *), void *);
+extern int qlt_lport_register(void *, u64, u64, u64,
+			int (*callback)(struct scsi_qla_host *, void *, u64, u64));
 extern void qlt_lport_deregister(struct scsi_qla_host *);
 extern void qlt_unreg_sess(struct qla_tgt_sess *);
 extern void qlt_fc_port_added(struct scsi_qla_host *, fc_port_t *);

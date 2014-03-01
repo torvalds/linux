@@ -234,7 +234,7 @@ void ath10k_ce_deinit(struct ath10k_ce_pipe *ce_state);
 /*==================CE Interrupt Handlers====================*/
 void ath10k_ce_per_engine_service_any(struct ath10k *ar);
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id);
-void ath10k_ce_disable_interrupts(struct ath10k *ar);
+int ath10k_ce_disable_interrupts(struct ath10k *ar);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */

@@ -305,10 +305,8 @@ static int cp210x_get_config(struct usb_serial_port *port, u8 request,
 	length = (((size - 1) | 3) + 1) / 4;
 
 	buf = kcalloc(length, sizeof(__le32), GFP_KERNEL);
-	if (!buf) {
-		dev_err(&port->dev, "%s - out of memory.\n", __func__);
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/* Issue the request, attempting to read 'size' bytes */
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
@@ -352,10 +350,8 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 	length = (((size - 1) | 3) + 1) / 4;
 
 	buf = kmalloc(length * sizeof(__le32), GFP_KERNEL);
-	if (!buf) {
-		dev_err(&port->dev, "%s - out of memory.\n", __func__);
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/* Array of integers into bytes */
 	for (i = 0; i < length; i++)

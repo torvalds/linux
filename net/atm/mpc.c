@@ -478,7 +478,7 @@ static const uint8_t *copy_macs(struct mpoa_client *mpc,
 			return NULL;
 		}
 	}
-	memcpy(mpc->mps_macs, router_mac, ETH_ALEN);
+	ether_addr_copy(mpc->mps_macs, router_mac);
 	tlvs += 20; if (device_type == MPS_AND_MPC) tlvs += 20;
 	if (mps_macs > 0)
 		memcpy(mpc->mps_macs, tlvs, mps_macs*ETH_ALEN);

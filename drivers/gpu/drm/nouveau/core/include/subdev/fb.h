@@ -75,6 +75,11 @@ struct nouveau_fb {
 static inline struct nouveau_fb *
 nouveau_fb(void *obj)
 {
+	/* fbram uses this before device subdev pointer is valid */
+	if (nv_iclass(obj, NV_SUBDEV_CLASS) &&
+	    nv_subidx(obj) == NVDEV_SUBDEV_FB)
+		return obj;
+
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_FB];
 }
 
@@ -100,6 +105,13 @@ extern struct nouveau_oclass *nvaa_fb_oclass;
 extern struct nouveau_oclass *nvaf_fb_oclass;
 extern struct nouveau_oclass *nvc0_fb_oclass;
 extern struct nouveau_oclass *nve0_fb_oclass;
+
+#include <subdev/bios/ramcfg.h>
+
+struct nouveau_ram_data {
+	struct nvbios_ramcfg bios;
+	u32 freq;
+};
 
 struct nouveau_ram {
 	struct nouveau_object base;
@@ -137,6 +149,12 @@ struct nouveau_ram {
 	} rammap, ramcfg, timing;
 	u32 freq;
 	u32 mr[16];
+	u32 mr1_nuts;
+
+	struct nouveau_ram_data *next;
+	struct nouveau_ram_data former;
+	struct nouveau_ram_data xition;
+	struct nouveau_ram_data target;
 };
 
 #endif

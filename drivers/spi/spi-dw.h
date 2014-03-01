@@ -92,13 +92,11 @@ struct dw_spi_dma_ops {
 struct dw_spi {
 	struct spi_master	*master;
 	struct spi_device	*cur_dev;
-	struct device		*parent_dev;
 	enum dw_ssi_type	type;
 	char			name[16];
 
 	void __iomem		*regs;
 	unsigned long		paddr;
-	u32			iolen;
 	int			irq;
 	u32			fifo_len;	/* depth of the FIFO buffer */
 	u32			max_freq;	/* max bus freq supported */
@@ -135,7 +133,6 @@ struct dw_spi {
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	u8			max_bits_per_word;	/* maxim is 16b */
 	u32			dma_width;
-	int			cs_change;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	void			(*cs_control)(u32 command);
 
@@ -231,7 +228,7 @@ struct dw_spi_chip {
 	void (*cs_control)(u32 command);
 };
 
-extern int dw_spi_add_host(struct dw_spi *dws);
+extern int dw_spi_add_host(struct device *dev, struct dw_spi *dws);
 extern void dw_spi_remove_host(struct dw_spi *dws);
 extern int dw_spi_suspend_host(struct dw_spi *dws);
 extern int dw_spi_resume_host(struct dw_spi *dws);

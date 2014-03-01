@@ -12,6 +12,7 @@
 #ifndef _PLATFORM_IPC_H_
 #define _PLATFORM_IPC_H_
 
-extern void __init ipc_device_handler(struct sfi_device_table_entry *pentry,
-			struct devs_id *dev) __attribute__((weak));
+void __init
+ipc_device_handler(struct sfi_device_table_entry *pentry, struct devs_id *dev);
+
 #endif

@@ -24,7 +24,7 @@
  */
 
 
-#include "linux/crc32.h"
+#include <linux/crc32.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
@@ -399,10 +399,14 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 	struct qxl_bo *qobj;
 	int inc = 1;
 
+	drm_modeset_lock_all(fb->dev);
+
 	qobj = gem_to_qxl_bo(qxl_fb->obj);
 	/* if we aren't primary surface ignore this */
-	if (!qobj->is_primary)
+	if (!qobj->is_primary) {
+		drm_modeset_unlock_all(fb->dev);
 		return 0;
+	}
 
 	if (!num_clips) {
 		num_clips = 1;
@@ -417,6 +421,9 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 
 	qxl_draw_dirty_fb(qdev, qxl_fb, qobj, flags, color,
 			  clips, num_clips, inc);
+
+	drm_modeset_unlock_all(fb->dev);
+
 	return 0;
 }
 

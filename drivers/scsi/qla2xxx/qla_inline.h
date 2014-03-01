@@ -261,25 +261,6 @@ qla2x00_gid_list_size(struct qla_hw_data *ha)
 }
 
 static inline void
-qla2x00_do_host_ramp_up(scsi_qla_host_t *vha)
-{
-	if (vha->hw->cfg_lun_q_depth >= ql2xmaxqdepth)
-		return;
-
-	/* Wait at least HOST_QUEUE_RAMPDOWN_INTERVAL before ramping up */
-	if (time_before(jiffies, (vha->hw->host_last_rampdown_time +
-	    HOST_QUEUE_RAMPDOWN_INTERVAL)))
-		return;
-
-	/* Wait at least HOST_QUEUE_RAMPUP_INTERVAL between each ramp up */
-	if (time_before(jiffies, (vha->hw->host_last_rampup_time +
-	    HOST_QUEUE_RAMPUP_INTERVAL)))
-		return;
-
-	set_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags);
-}
-
-static inline void
 qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
 {
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&

@@ -344,6 +344,7 @@ config HID_LOGITECH
 
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
+	depends on HIDRAW
 	depends on HID_LOGITECH
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.

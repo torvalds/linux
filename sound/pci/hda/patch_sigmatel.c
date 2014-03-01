@@ -83,6 +83,7 @@ enum {
 	STAC_DELL_M6_BOTH,
 	STAC_DELL_EQ,
 	STAC_ALIENWARE_M17X,
+	STAC_92HD89XX_HP_FRONT_JACK,
 	STAC_92HD73XX_MODELS
 };
 
@@ -194,7 +195,7 @@ struct sigmatel_spec {
 	int default_polarity;
 
 	unsigned int mic_mute_led_gpio; /* capture mute LED GPIO */
-	bool mic_mute_led_on; /* current mic mute state */
+	unsigned int mic_enabled; /* current mic mute state (bitmask) */
 
 	/* stream */
 	unsigned int stream_delay;
@@ -324,19 +325,26 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 
 /* hook for controlling mic-mute LED GPIO */
 static void stac_capture_led_hook(struct hda_codec *codec,
-			       struct snd_ctl_elem_value *ucontrol)
+				  struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	bool mute;
+	unsigned int mask;
+	bool cur_mute, prev_mute;
 
-	if (!ucontrol)
+	if (!kcontrol || !ucontrol)
 		return;
 
-	mute = !(ucontrol->value.integer.value[0] ||
-		 ucontrol->value.integer.value[1]);
-	if (spec->mic_mute_led_on != mute) {
-		spec->mic_mute_led_on = mute;
-		if (mute)
+	mask = 1U << snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	prev_mute = !spec->mic_enabled;
+	if (ucontrol->value.integer.value[0] ||
+	    ucontrol->value.integer.value[1])
+		spec->mic_enabled |= mask;
+	else
+		spec->mic_enabled &= ~mask;
+	cur_mute = !spec->mic_enabled;
+	if (cur_mute != prev_mute) {
+		if (cur_mute)
 			spec->gpio_data |= spec->mic_mute_led_gpio;
 		else
 			spec->gpio_data &= ~spec->mic_mute_led_gpio;
@@ -366,6 +374,17 @@ static int stac_vrefout_set(struct hda_codec *codec,
 		return error;
 
 	return 1;
+}
+
+/* prevent codec AFG to D3 state when vref-out pin is used for mute LED */
+/* this hook is set in stac_setup_gpio() */
+static unsigned int stac_vref_led_power_filter(struct hda_codec *codec,
+					       hda_nid_t nid,
+					       unsigned int power_state)
+{
+	if (nid == codec->afg && power_state == AC_PWRST_D3)
+		return AC_PWRST_D1;
+	return snd_hda_gen_path_power_filter(codec, nid, power_state);
 }
 
 /* update mute-LED accoring to the master switch */
@@ -1777,6 +1796,12 @@ static const struct hda_pintbl intel_dg45id_pin_configs[] = {
 	{}
 };
 
+static const struct hda_pintbl stac92hd89xx_hp_front_jack_pin_configs[] = {
+	{ 0x0a, 0x02214030 },
+	{ 0x0b, 0x02A19010 },
+	{}
+};
+
 static void stac92hd73xx_fixup_ref(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
@@ -1895,6 +1920,10 @@ static const struct hda_fixup stac92hd73xx_fixups[] = {
 	[STAC_92HD73XX_NO_JD] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = stac92hd73xx_fixup_no_jd,
+	},
+	[STAC_92HD89XX_HP_FRONT_JACK] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = stac92hd89xx_hp_front_jack_pin_configs,
 	}
 };
 
@@ -1955,6 +1984,8 @@ static const struct snd_pci_quirk stac92hd73xx_fixup_tbl[] = {
 		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0490,
 		      "Alienware M17x R3", STAC_DELL_EQ),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x2b17,
+				"unknown HP", STAC_92HD89XX_HP_FRONT_JACK),
 	{} /* terminator */
 };
 
@@ -4260,30 +4291,8 @@ static int stac_suspend(struct hda_codec *codec)
 	stac_shutup(codec);
 	return 0;
 }
-
-static void stac_set_power_state(struct hda_codec *codec, hda_nid_t fg,
-				 unsigned int power_state)
-{
-	unsigned int afg_power_state = power_state;
-	struct sigmatel_spec *spec = codec->spec;
-
-	if (power_state == AC_PWRST_D3) {
-		if (spec->vref_mute_led_nid) {
-			/* with vref-out pin used for mute led control
-			 * codec AFG is prevented from D3 state
-			 */
-			afg_power_state = AC_PWRST_D1;
-		}
-		/* this delay seems necessary to avoid click noise at power-down */
-		msleep(100);
-	}
-	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
-			afg_power_state);
-	snd_hda_codec_set_power_to_all(codec, fg, power_state);
-}
 #else
 #define stac_suspend		NULL
-#define stac_set_power_state	NULL
 #endif /* CONFIG_PM */
 
 static const struct hda_codec_ops stac_patch_ops = {
@@ -4466,15 +4475,14 @@ static void stac_setup_gpio(struct hda_codec *codec)
 			spec->gpio_dir |= spec->gpio_led;
 			spec->gpio_data |= spec->gpio_led;
 		} else {
-			codec->patch_ops.set_power_state =
-					stac_set_power_state;
+			codec->power_filter = stac_vref_led_power_filter;
 		}
 	}
 
 	if (spec->mic_mute_led_gpio) {
 		spec->gpio_mask |= spec->mic_mute_led_gpio;
 		spec->gpio_dir |= spec->mic_mute_led_gpio;
-		spec->mic_mute_led_on = true;
+		spec->mic_enabled = 0;
 		spec->gpio_data |= spec->mic_mute_led_gpio;
 
 		spec->gen.cap_sync_hook = stac_capture_led_hook;

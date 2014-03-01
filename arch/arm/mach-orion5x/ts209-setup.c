@@ -106,7 +106,7 @@ static struct platform_device qnap_ts209_nor_flash = {
 #define QNAP_TS209_PCI_SLOT0_IRQ_PIN	6
 #define QNAP_TS209_PCI_SLOT1_IRQ_PIN	7
 
-void __init qnap_ts209_pci_preinit(void)
+static void __init qnap_ts209_pci_preinit(void)
 {
 	int pin;
 

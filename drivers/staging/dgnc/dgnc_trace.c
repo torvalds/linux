@@ -35,6 +35,7 @@
 #include <linux/vmalloc.h>
 
 #include "dgnc_driver.h"
+#include "dgnc_trace.h"
 
 #define TRC_TO_CONSOLE 1
 
@@ -63,16 +64,16 @@ void dgnc_tracef(const char *fmt, ...)
 
 void dgnc_tracef(const char *fmt, ...)
 {
-	va_list	         ap;
-	char  	         buf[TRC_MAXMSG+1];
-	size_t		 lenbuf;
-	int		 i;
-	static int	 failed = FALSE;
+	va_list		ap;
+	char		buf[TRC_MAXMSG+1];
+	size_t		lenbuf;
+	int		i;
+	static int	failed = FALSE;
 # if defined(TRC_TO_KMEM)
 	unsigned long	 flags;
 #endif
 
-	if(failed)
+	if (failed)
 		return;
 # if defined(TRC_TO_KMEM)
 	DGNC_LOCK(dgnc_tracef_lock, flags);
@@ -86,7 +87,7 @@ void dgnc_tracef(const char *fmt, ...)
 
 # if defined(TRC_TO_KMEM)
 	{
-		static int	 initd=0;
+		static int	 initd = 0;
 
 		/*
 		 * Now, in addition to (or instead of) printing this stuff out
@@ -95,7 +96,7 @@ void dgnc_tracef(const char *fmt, ...)
 		 */
 		if (!initd) {
 			dgnc_trcbuf = (char *) vmalloc(dgnc_trcbuf_size);
-			if(!dgnc_trcbuf) {
+			if (!dgnc_trcbuf) {
 				failed = TRUE;
 				printk("dgnc: tracing init failed!\n");
 				return;
@@ -179,6 +180,6 @@ void dgnc_tracef(const char *fmt, ...)
  */
 void dgnc_tracer_free(void)
 {
-	if(dgnc_trcbuf)
+	if (dgnc_trcbuf)
 		vfree(dgnc_trcbuf);
 }

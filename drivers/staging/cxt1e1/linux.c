@@ -770,9 +770,9 @@ do_del_chan (struct net_device *musycc_dev, void *data)
     if (cp.channum > 999)
         return -EINVAL;
     snprintf (buf, sizeof(buf), CHANNAME "%d", cp.channum);
-    if (!(dev = dev_get_by_name (&init_net, buf)))
-        return -ENOENT;
-    dev_put (dev);
+	dev = __dev_get_by_name(&init_net, buf);
+	if (!dev)
+		return -ENODEV;
     ret = do_deluser (dev, 1);
     if (ret)
         return ret;
@@ -792,19 +792,18 @@ do_reset (struct net_device *musycc_dev, void *data)
         char        buf[sizeof (CHANNAME) + 3];
 
         sprintf (buf, CHANNAME "%d", i);
-        if (!(ndev = dev_get_by_name(&init_net, buf)))
-            continue;
+	ndev = __dev_get_by_name(&init_net, buf);
+	if (!ndev)
+		continue;
         priv = dev_to_hdlc (ndev)->priv;
 
         if ((unsigned long) (priv->ci) ==
             (unsigned long) (netdev_priv(musycc_dev)))
         {
             ndev->flags &= ~IFF_UP;
-            dev_put (ndev);
             netif_stop_queue (ndev);
             do_deluser (ndev, 1);
-        } else
-            dev_put (ndev);
+	}
     }
     return 0;
 }

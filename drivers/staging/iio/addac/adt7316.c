@@ -2166,7 +2166,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	if (ret)
 		return -EIO;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		return ret;
 
@@ -2176,16 +2176,6 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	return 0;
 }
 EXPORT_SYMBOL(adt7316_probe);
-
-int adt7316_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
-}
-EXPORT_SYMBOL(adt7316_remove);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADT7316/7/8 and ADT7516/7/9 digital"

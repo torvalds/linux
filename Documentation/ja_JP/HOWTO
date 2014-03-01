@@ -149,7 +149,7 @@ linux-api@ver.kernel.org に送ることを勧めます。
      この他にパッチを作る方法についてのよくできた記述は-
 
 	"The Perfect Patch"
-		http://userweb.kernel.org/~akpm/stuff/tpp.txt
+		http://www.ozlabs.org/~akpm/stuff/tpp.txt
 	"Linux kernel patch submission format"
 		http://linux.yyz.us/patch-format.html
 
@@ -622,7 +622,7 @@ Linux カーネルコミュニティは、一度に大量のコードの塊を�
 これについて全てがどのようにあるべきかについての詳細は、以下のドキュメ
 ントの ChangeLog セクションを見てください-
   "The Perfect Patch"
-      http://userweb.kernel.org/~akpm/stuff/tpp.txt
+      http://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 これらのどれもが、時にはとても困難です。これらの慣例を完璧に実施するに
 は数年かかるかもしれません。これは継続的な改善のプロセスであり、そのた

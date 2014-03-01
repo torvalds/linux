@@ -35,7 +35,9 @@
 #ifndef LINUX_NFS4_ACL_H
 #define LINUX_NFS4_ACL_H
 
-#include <linux/posix_acl.h>
+struct nfs4_acl;
+struct svc_fh;
+struct svc_rqst;
 
 /* Maximum ACL we'll accept from client; chosen (somewhat arbitrarily) to
  * fit in a page: */
@@ -43,15 +45,11 @@
 
 struct nfs4_acl *nfs4_acl_new(int);
 int nfs4_acl_get_whotype(char *, u32);
-int nfs4_acl_write_who(int who, char *p);
+__be32 nfs4_acl_write_who(int who, __be32 **p, int *len);
 
-#define NFS4_ACL_TYPE_DEFAULT	0x01
-#define NFS4_ACL_DIR		0x02
-#define NFS4_ACL_OWNER		0x04
-
-struct nfs4_acl *nfs4_acl_posix_to_nfsv4(struct posix_acl *,
-				struct posix_acl *, unsigned int flags);
-int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *, struct posix_acl **,
-				struct posix_acl **, unsigned int flags);
+int nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
+		struct nfs4_acl **acl);
+__be32 nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		struct nfs4_acl *acl);
 
 #endif /* LINUX_NFS4_ACL_H */

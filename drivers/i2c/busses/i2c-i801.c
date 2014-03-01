@@ -2,7 +2,7 @@
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>, and Mark D. Studebaker
     <mdsxyz123@yahoo.com>
-    Copyright (C) 2007 - 2012  Jean Delvare <khali@linux-fr.org>
+    Copyright (C) 2007 - 2012  Jean Delvare <jdelvare@suse.de>
     Copyright (C) 2010         Intel Corporation,
                                David Woodhouse <dwmw2@infradead.org>
 
@@ -1312,8 +1312,7 @@ static void __exit i2c_i801_exit(void)
 	pci_unregister_driver(&i801_driver);
 }
 
-MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>, "
-	      "Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>, Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("I801 SMBus driver");
 MODULE_LICENSE("GPL");
 

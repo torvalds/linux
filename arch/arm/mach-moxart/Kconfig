@@ -1,0 +1,30 @@
+config ARCH_MOXART
+	bool "MOXA ART SoC" if ARCH_MULTI_V4T
+	select CPU_FA526
+	select ARM_DMA_MEM_BUFFERABLE
+	select USE_OF
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	select HAVE_CLK
+	select COMMON_CLK
+	select GENERIC_IRQ_CHIP
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select PHYLIB if NETDEVICES
+	help
+	  Say Y here if you want to run your kernel on hardware with a
+	  MOXA ART SoC.
+	  The MOXA ART SoC is based on a Faraday FA526 ARMv4 32-bit
+	  192 MHz CPU with MMU and 16KB/8KB D/I-cache (UC-7112-LX).
+	  Used on models UC-7101, UC-7112/UC-7110, IA240/IA241, IA3341.
+
+if ARCH_MOXART
+
+config MACH_UC7112LX
+	bool "MOXA UC-7112-LX"
+	depends on ARCH_MOXART
+	help
+	  Say Y here if you intend to run this kernel on a MOXA
+	  UC-7112-LX embedded computer.
+
+endif

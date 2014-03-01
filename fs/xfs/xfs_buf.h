@@ -45,6 +45,7 @@ typedef enum {
 #define XBF_ASYNC	 (1 << 4) /* initiator will not wait for completion */
 #define XBF_DONE	 (1 << 5) /* all pages in the buffer uptodate */
 #define XBF_STALE	 (1 << 6) /* buffer has been staled, do not find it */
+#define XBF_WRITE_FAIL	 (1 << 24)/* async writes have failed on this buffer */
 
 /* I/O hints for the BIO layer */
 #define XBF_SYNCIO	 (1 << 10)/* treat this buffer as synchronous I/O */
@@ -70,6 +71,7 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_ASYNC,		"ASYNC" }, \
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_STALE,		"STALE" }, \
+	{ XBF_WRITE_FAIL,	"WRITE_FAIL" }, \
 	{ XBF_SYNCIO,		"SYNCIO" }, \
 	{ XBF_FUA,		"FUA" }, \
 	{ XBF_FLUSH,		"FLUSH" }, \
@@ -80,19 +82,34 @@ typedef unsigned int xfs_buf_flags_t;
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
 	{ _XBF_COMPOUND,	"COMPOUND" }
 
+
 /*
  * Internal state flags.
  */
 #define XFS_BSTATE_DISPOSE	 (1 << 0)	/* buffer being discarded */
 
+/*
+ * The xfs_buftarg contains 2 notions of "sector size" -
+ *
+ * 1) The metadata sector size, which is the minimum unit and
+ *    alignment of IO which will be performed by metadata operations.
+ * 2) The device logical sector size
+ *
+ * The first is specified at mkfs time, and is stored on-disk in the
+ * superblock's sb_sectsize.
+ *
+ * The latter is derived from the underlying device, and controls direct IO
+ * alignment constraints.
+ */
 typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
 	struct backing_dev_info	*bt_bdi;
 	struct xfs_mount	*bt_mount;
-	unsigned int		bt_bsize;
-	unsigned int		bt_sshift;
-	size_t			bt_smask;
+	unsigned int		bt_meta_sectorsize;
+	size_t			bt_meta_sectormask;
+	size_t			bt_logical_sectorsize;
+	size_t			bt_logical_sectormask;
 
 	/* LRU control structures */
 	struct shrinker		bt_shrinker;
@@ -269,9 +286,6 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_buf *bp);
-
-extern void xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
-
 extern void xfs_buf_ioend(xfs_buf_t *,	int);
 extern void xfs_buf_ioerror(xfs_buf_t *, int);
 extern void xfs_buf_ioerror_alert(struct xfs_buf *, const char *func);
@@ -281,6 +295,8 @@ extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
 #define xfs_buf_zero(bp, off, len) \
 	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
+
+extern int xfs_bioerror_relse(struct xfs_buf *);
 
 static inline int xfs_buf_geterror(xfs_buf_t *bp)
 {
@@ -301,7 +317,8 @@ extern void xfs_buf_terminate(void);
 
 #define XFS_BUF_ZEROFLAGS(bp) \
 	((bp)->b_flags &= ~(XBF_READ|XBF_WRITE|XBF_ASYNC| \
-			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH))
+			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH| \
+			    XBF_WRITE_FAIL))
 
 void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)

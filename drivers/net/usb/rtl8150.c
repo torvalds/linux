@@ -6,7 +6,6 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>

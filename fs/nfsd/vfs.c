@@ -207,7 +207,12 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				goto out_nfserr;
 		}
 	} else {
-		fh_lock(fhp);
+		/*
+		 * In the nfsd4_open() case, this may be held across
+		 * subsequent open and delegation acquisition which may
+		 * need to take the child's i_mutex:
+		 */
+		fh_lock_nested(fhp, I_MUTEX_PARENT);
 		dentry = lookup_one_len(name, dparent, len);
 		host_err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
@@ -271,13 +276,6 @@ out:
 	dput(dentry);
 	exp_put(exp);
 	return err;
-}
-
-static int nfsd_break_lease(struct inode *inode)
-{
-	if (!S_ISREG(inode->i_mode))
-		return 0;
-	return break_lease(inode, O_WRONLY | O_NONBLOCK);
 }
 
 /*
@@ -348,8 +346,7 @@ nfsd_sanitize_attrs(struct inode *inode, struct iattr *iap)
 
 	/* Revoke setuid/setgid on chown */
 	if (!S_ISDIR(inode->i_mode) &&
-	    (((iap->ia_valid & ATTR_UID) && !uid_eq(iap->ia_uid, inode->i_uid)) ||
-	     ((iap->ia_valid & ATTR_GID) && !gid_eq(iap->ia_gid, inode->i_gid)))) {
+	    ((iap->ia_valid & ATTR_UID) || (iap->ia_valid & ATTR_GID))) {
 		iap->ia_valid |= ATTR_KILL_PRIV;
 		if (iap->ia_valid & ATTR_MODE) {
 			/* we're setting mode too, just clear the s*id bits */
@@ -449,16 +446,10 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		goto out_put_write_access;
 	}
 
-	host_err = nfsd_break_lease(inode);
-	if (host_err)
-		goto out_put_write_access_nfserror;
-
 	fh_lock(fhp);
 	host_err = notify_change(dentry, iap, NULL);
 	fh_unlock(fhp);
 
-out_put_write_access_nfserror:
-	err = nfserrno(host_err);
 out_put_write_access:
 	if (size_change)
 		put_write_access(inode);
@@ -468,158 +459,7 @@ out:
 	return err;
 }
 
-#if defined(CONFIG_NFSD_V2_ACL) || \
-    defined(CONFIG_NFSD_V3_ACL) || \
-    defined(CONFIG_NFSD_V4)
-static ssize_t nfsd_getxattr(struct dentry *dentry, char *key, void **buf)
-{
-	ssize_t buflen;
-	ssize_t ret;
-
-	buflen = vfs_getxattr(dentry, key, NULL, 0);
-	if (buflen <= 0)
-		return buflen;
-
-	*buf = kmalloc(buflen, GFP_KERNEL);
-	if (!*buf)
-		return -ENOMEM;
-
-	ret = vfs_getxattr(dentry, key, *buf, buflen);
-	if (ret < 0)
-		kfree(*buf);
-	return ret;
-}
-#endif
-
 #if defined(CONFIG_NFSD_V4)
-static int
-set_nfsv4_acl_one(struct dentry *dentry, struct posix_acl *pacl, char *key)
-{
-	int len;
-	size_t buflen;
-	char *buf = NULL;
-	int error = 0;
-
-	buflen = posix_acl_xattr_size(pacl->a_count);
-	buf = kmalloc(buflen, GFP_KERNEL);
-	error = -ENOMEM;
-	if (buf == NULL)
-		goto out;
-
-	len = posix_acl_to_xattr(&init_user_ns, pacl, buf, buflen);
-	if (len < 0) {
-		error = len;
-		goto out;
-	}
-
-	error = vfs_setxattr(dentry, key, buf, len, 0);
-out:
-	kfree(buf);
-	return error;
-}
-
-__be32
-nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
-    struct nfs4_acl *acl)
-{
-	__be32 error;
-	int host_error;
-	struct dentry *dentry;
-	struct inode *inode;
-	struct posix_acl *pacl = NULL, *dpacl = NULL;
-	unsigned int flags = 0;
-
-	/* Get inode */
-	error = fh_verify(rqstp, fhp, 0, NFSD_MAY_SATTR);
-	if (error)
-		return error;
-
-	dentry = fhp->fh_dentry;
-	inode = dentry->d_inode;
-	if (S_ISDIR(inode->i_mode))
-		flags = NFS4_ACL_DIR;
-
-	host_error = nfs4_acl_nfsv4_to_posix(acl, &pacl, &dpacl, flags);
-	if (host_error == -EINVAL) {
-		return nfserr_attrnotsupp;
-	} else if (host_error < 0)
-		goto out_nfserr;
-
-	host_error = set_nfsv4_acl_one(dentry, pacl, POSIX_ACL_XATTR_ACCESS);
-	if (host_error < 0)
-		goto out_release;
-
-	if (S_ISDIR(inode->i_mode))
-		host_error = set_nfsv4_acl_one(dentry, dpacl, POSIX_ACL_XATTR_DEFAULT);
-
-out_release:
-	posix_acl_release(pacl);
-	posix_acl_release(dpacl);
-out_nfserr:
-	if (host_error == -EOPNOTSUPP)
-		return nfserr_attrnotsupp;
-	else
-		return nfserrno(host_error);
-}
-
-static struct posix_acl *
-_get_posix_acl(struct dentry *dentry, char *key)
-{
-	void *buf = NULL;
-	struct posix_acl *pacl = NULL;
-	int buflen;
-
-	buflen = nfsd_getxattr(dentry, key, &buf);
-	if (!buflen)
-		buflen = -ENODATA;
-	if (buflen <= 0)
-		return ERR_PTR(buflen);
-
-	pacl = posix_acl_from_xattr(&init_user_ns, buf, buflen);
-	kfree(buf);
-	return pacl;
-}
-
-int
-nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_acl **acl)
-{
-	struct inode *inode = dentry->d_inode;
-	int error = 0;
-	struct posix_acl *pacl = NULL, *dpacl = NULL;
-	unsigned int flags = 0;
-
-	pacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_ACCESS);
-	if (IS_ERR(pacl) && PTR_ERR(pacl) == -ENODATA)
-		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
-	if (IS_ERR(pacl)) {
-		error = PTR_ERR(pacl);
-		pacl = NULL;
-		goto out;
-	}
-
-	if (S_ISDIR(inode->i_mode)) {
-		dpacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_DEFAULT);
-		if (IS_ERR(dpacl) && PTR_ERR(dpacl) == -ENODATA)
-			dpacl = NULL;
-		else if (IS_ERR(dpacl)) {
-			error = PTR_ERR(dpacl);
-			dpacl = NULL;
-			goto out;
-		}
-		flags = NFS4_ACL_DIR;
-	}
-
-	*acl = nfs4_acl_posix_to_nfsv4(pacl, dpacl, flags);
-	if (IS_ERR(*acl)) {
-		error = PTR_ERR(*acl);
-		*acl = NULL;
-	}
- out:
-	posix_acl_release(pacl);
-	posix_acl_release(dpacl);
-	return error;
-}
-
 /*
  * NFS junction information is stored in an extended attribute.
  */
@@ -1760,11 +1600,6 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = nfserr_noent;
 	if (!dold->d_inode)
 		goto out_dput;
-	host_err = nfsd_break_lease(dold->d_inode);
-	if (host_err) {
-		err = nfserrno(host_err);
-		goto out_dput;
-	}
 	host_err = vfs_link(dold, dirp, dnew, NULL);
 	if (!host_err) {
 		err = nfserrno(commit_metadata(ffhp));
@@ -1858,14 +1693,6 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	if (ffhp->fh_export->ex_path.dentry != tfhp->fh_export->ex_path.dentry)
 		goto out_dput_new;
 
-	host_err = nfsd_break_lease(odentry->d_inode);
-	if (host_err)
-		goto out_dput_new;
-	if (ndentry->d_inode) {
-		host_err = nfsd_break_lease(ndentry->d_inode);
-		if (host_err)
-			goto out_dput_new;
-	}
 	host_err = vfs_rename(fdir, odentry, tdir, ndentry, NULL);
 	if (!host_err) {
 		host_err = commit_metadata(tfhp);
@@ -1935,16 +1762,12 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (!type)
 		type = rdentry->d_inode->i_mode & S_IFMT;
 
-	host_err = nfsd_break_lease(rdentry->d_inode);
-	if (host_err)
-		goto out_put;
 	if (type != S_IFDIR)
 		host_err = vfs_unlink(dirp, rdentry, NULL);
 	else
 		host_err = vfs_rmdir(dirp, rdentry);
 	if (!host_err)
 		host_err = commit_metadata(fhp);
-out_put:
 	dput(rdentry);
 
 out_nfserr:
@@ -2284,93 +2107,3 @@ out_nomem:
 	nfsd_racache_shutdown();
 	return -ENOMEM;
 }
-
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-struct posix_acl *
-nfsd_get_posix_acl(struct svc_fh *fhp, int type)
-{
-	struct inode *inode = fhp->fh_dentry->d_inode;
-	char *name;
-	void *value = NULL;
-	ssize_t size;
-	struct posix_acl *acl;
-
-	if (!IS_POSIXACL(inode))
-		return ERR_PTR(-EOPNOTSUPP);
-
-	switch (type) {
-	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
-		break;
-	case ACL_TYPE_DEFAULT:
-		name = POSIX_ACL_XATTR_DEFAULT;
-		break;
-	default:
-		return ERR_PTR(-EOPNOTSUPP);
-	}
-
-	size = nfsd_getxattr(fhp->fh_dentry, name, &value);
-	if (size < 0)
-		return ERR_PTR(size);
-
-	acl = posix_acl_from_xattr(&init_user_ns, value, size);
-	kfree(value);
-	return acl;
-}
-
-int
-nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
-{
-	struct inode *inode = fhp->fh_dentry->d_inode;
-	char *name;
-	void *value = NULL;
-	size_t size;
-	int error;
-
-	if (!IS_POSIXACL(inode) ||
-	    !inode->i_op->setxattr || !inode->i_op->removexattr)
-		return -EOPNOTSUPP;
-	switch(type) {
-		case ACL_TYPE_ACCESS:
-			name = POSIX_ACL_XATTR_ACCESS;
-			break;
-		case ACL_TYPE_DEFAULT:
-			name = POSIX_ACL_XATTR_DEFAULT;
-			break;
-		default:
-			return -EOPNOTSUPP;
-	}
-
-	if (acl && acl->a_count) {
-		size = posix_acl_xattr_size(acl->a_count);
-		value = kmalloc(size, GFP_KERNEL);
-		if (!value)
-			return -ENOMEM;
-		error = posix_acl_to_xattr(&init_user_ns, acl, value, size);
-		if (error < 0)
-			goto getout;
-		size = error;
-	} else
-		size = 0;
-
-	error = fh_want_write(fhp);
-	if (error)
-		goto getout;
-	if (size)
-		error = vfs_setxattr(fhp->fh_dentry, name, value, size, 0);
-	else {
-		if (!S_ISDIR(inode->i_mode) && type == ACL_TYPE_DEFAULT)
-			error = 0;
-		else {
-			error = vfs_removexattr(fhp->fh_dentry, name);
-			if (error == -ENODATA)
-				error = 0;
-		}
-	}
-	fh_drop_write(fhp);
-
-getout:
-	kfree(value);
-	return error;
-}
-#endif  /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */

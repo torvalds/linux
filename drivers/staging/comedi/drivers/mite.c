@@ -288,7 +288,6 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	int chor;
 	unsigned long flags;
 
-	MDPRINTK("mite_dma_arm ch%i\n", mite_chan->channel);
 	/*
 	 * memory barrier is intended to insure any twiddling with the buffer
 	 * is done before writing to the mite to arm dma transfer
@@ -329,8 +328,6 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
-	MDPRINTK("ring->hw_dev=%p, n_links=0x%04x\n", ring->hw_dev, n_links);
-
 	ring->descriptors =
 	    dma_alloc_coherent(ring->hw_dev,
 			       n_links * sizeof(struct mite_dma_descriptor),
@@ -345,7 +342,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 	for (i = 0; i < n_links; i++) {
 		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
 		ring->descriptors[i].addr =
-		    cpu_to_le32(async->buf_page_list[i].dma_addr);
+		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 		ring->descriptors[i].next =
 		    cpu_to_le32(ring->descriptors_dma_addr + (i +
 							      1) *
@@ -367,8 +364,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 {
 	unsigned int chor, chcr, mcr, dcr, lkcr;
 	struct mite_struct *mite = mite_chan->mite;
-
-	MDPRINTK("mite_prep_dma ch%i\n", mite_chan->channel);
 
 	/* reset DMA and FIFO */
 	chor = CHOR_DMARESET | CHOR_FRESET;
@@ -448,8 +443,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	/* starting address for link chaining */
 	writel(mite_chan->ring->descriptors_dma_addr,
 	       mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
-
-	MDPRINTK("exit mite_prep_dma\n");
 }
 EXPORT_SYMBOL_GPL(mite_prep_dma);
 
@@ -515,8 +508,6 @@ unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 
 	lkar = readl(mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
 	tcr = readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
-	MDPRINTK("mite_dma_tcr ch%i, lkar=0x%08x tcr=%d\n", mite_chan->channel,
-		 lkar, tcr);
 
 	return tcr;
 }
@@ -641,140 +632,6 @@ int mite_done(struct mite_channel *mite_chan)
 	return done;
 }
 EXPORT_SYMBOL_GPL(mite_done);
-
-#ifdef DEBUG_MITE
-
-/* names of bits in mite registers */
-
-static const char *const mite_CHOR_strings[] = {
-	"start", "cont", "stop", "abort",
-	"freset", "clrlc", "clrrb", "clrdone",
-	"clr_lpause", "set_lpause", "clr_send_tc",
-	"set_send_tc", "12", "13", "14",
-	"15", "16", "17", "18",
-	"19", "20", "21", "22",
-	"23", "24", "25", "26",
-	"27", "28", "29", "30",
-	"dmareset",
-};
-
-static const char *const mite_CHCR_strings[] = {
-	"continue", "ringbuff", "2", "3",
-	"4", "5", "6", "7",
-	"8", "9", "10", "11",
-	"12", "13", "bursten", "fifodis",
-	"clr_cont_rb_ie", "set_cont_rb_ie", "clr_lc_ie", "set_lc_ie",
-	"clr_drdy_ie", "set_drdy_ie", "clr_mrdy_ie", "set_mrdy_ie",
-	"clr_done_ie", "set_done_ie", "clr_sar_ie", "set_sar_ie",
-	"clr_linkp_ie", "set_linkp_ie", "clr_dma_ie", "set_dma_ie",
-};
-
-static const char *const mite_MCR_strings[] = {
-	"amdevice", "1", "2", "3",
-	"4", "5", "portio", "portvxi",
-	"psizebyte", "psizehalf (byte & half = word)", "aseqxp1", "11",
-	"12", "13", "blocken", "berhand",
-	"reqsintlim/reqs0", "reqs1", "reqs2", "rd32",
-	"rd512", "rl1", "rl2", "rl8",
-	"24", "25", "26", "27",
-	"28", "29", "30", "stopen",
-};
-
-static const char *const mite_DCR_strings[] = {
-	"amdevice", "1", "2", "3",
-	"4", "5", "portio", "portvxi",
-	"psizebyte", "psizehalf (byte & half = word)", "aseqxp1", "aseqxp2",
-	"aseqxp8", "13", "blocken", "berhand",
-	"reqsintlim", "reqs1", "reqs2", "rd32",
-	"rd512", "rl1", "rl2", "rl8",
-	"23", "24", "25", "27",
-	"28", "wsdevc", "wsdevs", "rwdevpack",
-};
-
-static const char *const mite_LKCR_strings[] = {
-	"amdevice", "1", "2", "3",
-	"4", "5", "portio", "portvxi",
-	"psizebyte", "psizehalf (byte & half = word)", "asequp", "aseqdown",
-	"12", "13", "14", "berhand",
-	"16", "17", "18", "rd32",
-	"rd512", "rl1", "rl2", "rl8",
-	"24", "25", "26", "27",
-	"28", "29", "30", "chngend",
-};
-
-static const char *const mite_CHSR_strings[] = {
-	"d.err0", "d.err1", "m.err0", "m.err1",
-	"l.err0", "l.err1", "drq0", "drq1",
-	"end", "xferr", "operr0", "operr1",
-	"stops", "habort", "sabort", "error",
-	"16", "conts_rb", "18", "linkc",
-	"20", "drdy", "22", "mrdy",
-	"24", "done", "26", "sars",
-	"28", "lpauses", "30", "int",
-};
-
-static void mite_decode(const char *const *bit_str, unsigned int bits)
-{
-	int i;
-
-	for (i = 31; i >= 0; i--) {
-		if (bits & (1 << i))
-			pr_debug(" %s\n", bit_str[i]);
-	}
-}
-
-void mite_dump_regs(struct mite_channel *mite_chan)
-{
-	void __iomem *mite_io_addr = mite_chan->mite->mite_io_addr;
-	unsigned int offset;
-	unsigned int value;
-	int channel = mite_chan->channel;
-
-	pr_debug("mite_dump_regs ch%i\n", channel);
-	pr_debug("mite address is  =%p\n", mite_io_addr);
-
-	offset = MITE_CHOR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[CHOR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_CHOR_strings, value);
-	offset = MITE_CHCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[CHCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_CHCR_strings, value);
-	offset = MITE_TCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[TCR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_MCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[MCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_MCR_strings, value);
-	offset = MITE_MAR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[MAR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_DCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[DCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_DCR_strings, value);
-	offset = MITE_DAR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[DAR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_LKCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[LKCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_LKCR_strings, value);
-	offset = MITE_LKAR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[LKAR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_CHSR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[CHSR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_CHSR_strings, value);
-	offset = MITE_FCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[FCR] at 0x%08x =0x%08x\n", offset, value);
-}
-EXPORT_SYMBOL_GPL(mite_dump_regs);
-#endif
 
 static int __init mite_module_init(void)
 {

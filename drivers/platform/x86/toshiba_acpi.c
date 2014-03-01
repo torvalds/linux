@@ -54,10 +54,8 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/i8042.h>
-
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
-
-#include <acpi/acpi_drivers.h>
 
 MODULE_AUTHOR("John Belmonte");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");
@@ -151,6 +149,7 @@ static const struct acpi_device_id toshiba_device_ids[] = {
 MODULE_DEVICE_TABLE(acpi, toshiba_device_ids);
 
 static const struct key_entry toshiba_acpi_keymap[] = {
+	{ KE_KEY, 0x9e, { KEY_RFKILL } },
 	{ KE_KEY, 0x101, { KEY_MUTE } },
 	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
 	{ KE_KEY, 0x103, { KEY_ZOOMIN } },

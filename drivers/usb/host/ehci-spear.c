@@ -130,6 +130,7 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	if (retval)
 		goto err_stop_ehci;
 
+	device_wakeup_enable(hcd->self.controller);
 	return retval;
 
 err_stop_ehci:

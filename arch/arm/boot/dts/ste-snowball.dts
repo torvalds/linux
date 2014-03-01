@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "ste-dbx5x0.dtsi"
+#include "ste-href-family-pinctrl.dtsi"
 
 / {
 	model = "Calao Systems Snowball platform with device tree";
@@ -75,6 +76,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpioled_snowball_mode>;
 		used-led {
 			label = "user_led";
 			gpios = <&gpio4 14 0x4>;
@@ -84,6 +87,11 @@
 	};
 
 	soc {
+		usb_per5@a03e0000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&musb_default_mode>;
+			pinctrl-1 = <&musb_sleep_mode>;
+		};
 
 		sound {
 			compatible = "stericsson,snd-soc-mop500";
@@ -92,7 +100,21 @@
 			stericsson,audio-codec = <&codec>;
 		};
 
+		msp0: msp@80123000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp0_default_mode>;
+			status = "okay";
+		};
+
 		msp1: msp@80124000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp1_default_mode>;
+			status = "okay";
+		};
+
+		msp2: msp@80117000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp2_default_mode>;
 			status = "okay";
 		};
 
@@ -110,6 +132,8 @@
 				interrupt-parent = <&gpio4>;
 				vdd33a-supply = <&en_3v3_reg>;
 				vddvario-supply = <&db8500_vape_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&eth_snowball_mode>;
 
 				reg-shift = <1>;
 				reg-io-width = <2>;
@@ -122,10 +146,8 @@
 		};
 
 		vmmci: regulator-gpio {
-			gpios = <&gpio6 25 0x4>;
-			enable-gpio = <&gpio7 4 0x4>;
-
-			status = "okay";
+			gpios = <&gpio7 4 0x4>;
+			enable-gpio = <&gpio6 25 0x4>;
 		};
 
 		// External Micro SD slot
@@ -136,9 +158,33 @@
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi0_default_mode>;
+			pinctrl-1 = <&sdi0_sleep_mode>;
 
 			cd-gpios  = <&gpio6 26 0x4>; // 218
 			cd-inverted;
+
+			status = "okay";
+		};
+
+		// WLAN SDIO channel
+		sdi1_per2@80118000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi1_default_mode>;
+			pinctrl-1 = <&sdi1_sleep_mode>;
+
+			status = "okay";
+		};
+
+		// Unused PoP eMMC - register and put it to sleep by default */
+		sdi2_per3@80005000 {
+			arm,primecell-periphid = <0x10480180>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdi2_sleep_mode>;
 
 			status = "okay";
 		};
@@ -150,20 +196,61 @@
 			bus-width = <8>;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi4_default_mode>;
+			pinctrl-1 = <&sdi4_sleep_mode>;
 
 			status = "okay";
 		};
 
 		uart@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart0_default_mode>;
+			pinctrl-1 = <&uart0_sleep_mode>;
 			status = "okay";
 		};
 
 		uart@80121000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart1_default_mode>;
+			pinctrl-1 = <&uart1_sleep_mode>;
 			status = "okay";
 		};
 
 		uart@80007000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart2_default_mode>;
+			pinctrl-1 = <&uart2_sleep_mode>;
 			status = "okay";
+		};
+
+		i2c@80004000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c0_default_mode>;
+			pinctrl-1 = <&i2c0_sleep_mode>;
+		};
+
+		i2c@80122000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c1_default_mode>;
+			pinctrl-1 = <&i2c1_sleep_mode>;
+		};
+
+		i2c@80128000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c2_default_mode>;
+			pinctrl-1 = <&i2c2_sleep_mode>;
+		};
+
+		i2c@80110000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c3_default_mode>;
+			pinctrl-1 = <&i2c3_sleep_mode>;
+		};
+
+		ssp@80002000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&ssp0_snowball_mode>;
 		};
 
 		cpufreq-cooling {
@@ -265,6 +352,142 @@
 					};
 				};
 			};
+		};
+
+		pinctrl {
+			/*
+			 * Set this up using hogs, as time goes by and as seems fit, these
+			 * can be moved over to being controlled by respective device.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&accel_snowball_mode>,
+				  <&magneto_snowball_mode>,
+				  <&gbf_snowball_mode>,
+				  <&wlan_snowball_mode>;
+
+			ethernet {
+				/*
+				 * Mux in "SM" which is used for the
+				 * SMSC911x Ethernet adapter
+				 */
+				eth_snowball_mode: eth_snowball {
+					snowball_mux {
+						ste,function = "sm";
+						ste,pins = "sm_b_1";
+					};
+					/* LAN IRQ pin */
+					snowball_cfg1 {
+						ste,pins = "GPIO140_B11";
+						ste,config = <&in_nopull>;
+					};
+					/* LAN reset pin */
+					snowball_cfg2 {
+						ste,pins = "GPIO141_C12";
+						ste,config = <&gpio_out_hi>;
+					};
+
+				};
+			};
+			sdi0 {
+				sdi0_default_mode: sdi0_default {
+					snowball_mux {
+						ste,function = "mc0";
+						ste,pins = "mc0dat31dir_a_1";
+					};
+					snowball_cfg1 {
+						ste,pins = "GPIO21_AB3"; /* DAT31DIR */
+						ste,config = <&out_hi>;
+					};
+
+				};
+			};
+			ssp0 {
+				ssp0_snowball_mode: ssp0_snowball_default {
+					snowball_mux {
+						ste,function = "ssp0";
+						ste,pins = "ssp0_a_1";
+					};
+					snowball_cfg1 {
+						ste,pins = "GPIO144_B13"; /* FRM */
+						ste,config = <&gpio_out_hi>;
+					};
+					snowball_cfg2 {
+						ste,pins = "GPIO145_C13"; /* RXD */
+						ste,config = <&in_pd>;
+					};
+					snowball_cfg3 {
+						ste,pins =
+						"GPIO146_D13", /* TXD */
+						"GPIO143_D12"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+
+				};
+			};
+			gpio_led {
+				gpioled_snowball_mode: gpioled_default {
+					snowball_cfg1 {
+						ste,pins = "GPIO142_C11";
+						ste,config = <&gpio_out_hi>;
+					};
+
+				};
+			};
+			accelerometer {
+				accel_snowball_mode: accel_snowball {
+					/* Accelerometer lines */
+					snowball_cfg1 {
+						ste,pins =
+						"GPIO163_C20", /* ACCEL_IRQ1 */
+						"GPIO164_B21"; /* ACCEL_IRQ2 */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			magnetometer {
+				magneto_snowball_mode: magneto_snowball {
+					snowball_cfg1 {
+						ste,pins = "GPIO165_C21"; /* MAG_DRDY */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			gbf {
+				gbf_snowball_mode: gbf_snowball {
+					/*
+					 * GBF (GPS, Bluetooth, FM-radio) interface,
+					 * pull low to reset state
+					 */
+					snowball_cfg1 {
+						ste,pins = "GPIO171_D23"; /* GBF_ENA_RESET */
+						ste,config = <&gpio_out_lo>;
+					};
+				 };
+			};
+			wlan {
+				wlan_snowball_mode: wlan_snowball {
+					/*
+					 * Activate this mode with the WLAN chip.
+					 * These are plain GPIO pins used by WLAN
+					 */
+					snowball_cfg1 {
+						ste,pins =
+						"GPIO161_D21", /* WLAN_PMU_EN */
+						"GPIO215_AH13"; /* WLAN_ENA */
+						ste,config = <&gpio_out_lo>;
+					};
+					snowball_cfg2 {
+						ste,pins = "GPIO216_AG12"; /* WLAN_IRQ */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+		};
+
+		mcde@a0350000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&lcd_default_mode>;
+			pinctrl-1 = <&lcd_sleep_mode>;
 		};
 	};
 };

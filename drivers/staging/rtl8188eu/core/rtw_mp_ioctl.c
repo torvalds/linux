@@ -690,7 +690,7 @@ _func_enter_;
 		if (pmp_priv->tx.stop == 0) {
 			pmp_priv->tx.stop = 1;
 			DBG_88E("%s: pkt tx is running...\n", __func__);
-			rtw_msleep_os(5);
+			msleep(5);
 		}
 		pmp_priv->tx.stop = 0;
 		pmp_priv->tx.count = 1;
@@ -725,7 +725,7 @@ _func_enter_;
 		if (pmp_priv->tx.stop == 0) {
 			pmp_priv->tx.stop = 1;
 			DBG_88E("%s: pkt tx is running...\n", __func__);
-			rtw_msleep_os(5);
+			msleep(5);
 		}
 		pmp_priv->tx.stop = 0;
 		pmp_priv->tx.count = 1;
@@ -760,7 +760,7 @@ _func_enter_;
 		if (pmp_priv->tx.stop == 0) {
 			pmp_priv->tx.stop = 1;
 			DBG_88E("%s: pkt tx is running...\n", __func__);
-			rtw_msleep_os(5);
+			msleep(5);
 		}
 		pmp_priv->tx.stop = 0;
 		pmp_priv->tx.count = 1;

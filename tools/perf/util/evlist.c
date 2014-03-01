@@ -7,7 +7,7 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 #include "util.h"
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
@@ -81,7 +81,7 @@ static void perf_evlist__update_id_pos(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node)
+	evlist__for_each(evlist, evsel)
 		perf_evsel__calc_id_pos(evsel);
 
 	perf_evlist__set_id_pos(evlist);
@@ -91,7 +91,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos, *n;
 
-	list_for_each_entry_safe(pos, n, &evlist->entries, node) {
+	evlist__for_each_safe(evlist, n, pos) {
 		list_del_init(&pos->node);
 		perf_evsel__delete(pos);
 	}
@@ -101,14 +101,18 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 
 void perf_evlist__exit(struct perf_evlist *evlist)
 {
-	free(evlist->mmap);
-	free(evlist->pollfd);
-	evlist->mmap = NULL;
-	evlist->pollfd = NULL;
+	zfree(&evlist->mmap);
+	zfree(&evlist->pollfd);
 }
 
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
+	perf_evlist__munmap(evlist);
+	perf_evlist__close(evlist);
+	cpu_map__delete(evlist->cpus);
+	thread_map__delete(evlist->threads);
+	evlist->cpus = NULL;
+	evlist->threads = NULL;
 	perf_evlist__purge(evlist);
 	perf_evlist__exit(evlist);
 	free(evlist);
@@ -144,7 +148,7 @@ void __perf_evlist__set_leader(struct list_head *list)
 
 	leader->nr_members = evsel->idx - leader->idx + 1;
 
-	list_for_each_entry(evsel, list, node) {
+	__evlist__for_each(list, evsel) {
 		evsel->leader = leader;
 	}
 }
@@ -203,7 +207,7 @@ static int perf_evlist__add_attrs(struct perf_evlist *evlist,
 	return 0;
 
 out_delete_partial_list:
-	list_for_each_entry_safe(evsel, n, &head, node)
+	__evlist__for_each_safe(&head, n, evsel)
 		perf_evsel__delete(evsel);
 	return -1;
 }
@@ -224,7 +228,7 @@ perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (evsel->attr.type   == PERF_TYPE_TRACEPOINT &&
 		    (int)evsel->attr.config == id)
 			return evsel;
@@ -239,7 +243,7 @@ perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if ((evsel->attr.type == PERF_TYPE_TRACEPOINT) &&
 		    (strcmp(evsel->name, name) == 0))
 			return evsel;
@@ -269,7 +273,7 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 	int nr_threads = thread_map__nr(evlist->threads);
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		list_for_each_entry(pos, &evlist->entries, node) {
+		evlist__for_each(evlist, pos) {
 			if (!perf_evsel__is_group_leader(pos) || !pos->fd)
 				continue;
 			for (thread = 0; thread < nr_threads; thread++)
@@ -287,7 +291,7 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 	int nr_threads = thread_map__nr(evlist->threads);
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		list_for_each_entry(pos, &evlist->entries, node) {
+		evlist__for_each(evlist, pos) {
 			if (!perf_evsel__is_group_leader(pos) || !pos->fd)
 				continue;
 			for (thread = 0; thread < nr_threads; thread++)
@@ -584,11 +588,13 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 {
 	int i;
 
+	if (evlist->mmap == NULL)
+		return;
+
 	for (i = 0; i < evlist->nr_mmaps; i++)
 		__perf_evlist__munmap(evlist, i);
 
-	free(evlist->mmap);
-	evlist->mmap = NULL;
+	zfree(&evlist->mmap);
 }
 
 static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
@@ -624,7 +630,7 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		int fd = FD(evsel, cpu, thread);
 
 		if (*output == -1) {
@@ -732,11 +738,13 @@ static long parse_pages_arg(const char *str, unsigned long min,
 			return -EINVAL;
 	}
 
-	if ((pages == 0) && (min == 0)) {
+	if (pages == 0 && min == 0) {
 		/* leave number of pages at 0 */
-	} else if (pages < (1UL << 31) && !is_power_of_2(pages)) {
+	} else if (!is_power_of_2(pages)) {
 		/* round pages up to next power of 2 */
-		pages = next_pow2(pages);
+		pages = next_pow2_l(pages);
+		if (!pages)
+			return -EINVAL;
 		pr_info("rounding mmap pages size to %lu bytes (%lu pages)\n",
 			pages * page_size, pages);
 	}
@@ -754,7 +762,7 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 	unsigned long max = UINT_MAX;
 	long pages;
 
-	if (max < SIZE_MAX / page_size)
+	if (max > SIZE_MAX / page_size)
 		max = SIZE_MAX / page_size;
 
 	pages = parse_pages_arg(str, 1, max);
@@ -798,7 +806,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	pr_debug("mmap size %zuB\n", evlist->mmap_len);
 	mask = evlist->mmap_len - page_size - 1;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
 		    evsel->sample_id == NULL &&
 		    perf_evsel__alloc_id(evsel, cpu_map__nr(cpus), threads->nr) < 0)
@@ -819,11 +827,7 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (target->force_per_cpu)
-		evlist->cpus = cpu_map__new(target->cpu_list);
-	else if (target__has_task(target))
-		evlist->cpus = cpu_map__dummy_new();
-	else if (!target__has_cpu(target) && !target->uses_mmap)
+	if (target__uses_dummy_map(target))
 		evlist->cpus = cpu_map__dummy_new();
 	else
 		evlist->cpus = cpu_map__new(target->cpu_list);
@@ -838,14 +842,6 @@ out_delete_threads:
 	return -1;
 }
 
-void perf_evlist__delete_maps(struct perf_evlist *evlist)
-{
-	cpu_map__delete(evlist->cpus);
-	thread_map__delete(evlist->threads);
-	evlist->cpus	= NULL;
-	evlist->threads = NULL;
-}
-
 int perf_evlist__apply_filters(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
@@ -853,7 +849,7 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist)
 	const int ncpus = cpu_map__nr(evlist->cpus),
 		  nthreads = thread_map__nr(evlist->threads);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (evsel->filter == NULL)
 			continue;
 
@@ -872,7 +868,7 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 	const int ncpus = cpu_map__nr(evlist->cpus),
 		  nthreads = thread_map__nr(evlist->threads);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		err = perf_evsel__set_filter(evsel, ncpus, nthreads, filter);
 		if (err)
 			break;
@@ -891,7 +887,7 @@ bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
 	if (evlist->id_pos < 0 || evlist->is_pos < 0)
 		return false;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		if (pos->id_pos != evlist->id_pos ||
 		    pos->is_pos != evlist->is_pos)
 			return false;
@@ -907,7 +903,7 @@ u64 __perf_evlist__combined_sample_type(struct perf_evlist *evlist)
 	if (evlist->combined_sample_type)
 		return evlist->combined_sample_type;
 
-	list_for_each_entry(evsel, &evlist->entries, node)
+	evlist__for_each(evlist, evsel)
 		evlist->combined_sample_type |= evsel->attr.sample_type;
 
 	return evlist->combined_sample_type;
@@ -925,7 +921,7 @@ bool perf_evlist__valid_read_format(struct perf_evlist *evlist)
 	u64 read_format = first->attr.read_format;
 	u64 sample_type = first->attr.sample_type;
 
-	list_for_each_entry_continue(pos, &evlist->entries, node) {
+	evlist__for_each(evlist, pos) {
 		if (read_format != pos->attr.read_format)
 			return false;
 	}
@@ -982,7 +978,7 @@ bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist)
 {
 	struct perf_evsel *first = perf_evlist__first(evlist), *pos = first;
 
-	list_for_each_entry_continue(pos, &evlist->entries, node) {
+	evlist__for_each_continue(evlist, pos) {
 		if (first->attr.sample_id_all != pos->attr.sample_id_all)
 			return false;
 	}
@@ -1007,9 +1003,12 @@ void perf_evlist__close(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 	int ncpus = cpu_map__nr(evlist->cpus);
 	int nthreads = thread_map__nr(evlist->threads);
+	int n;
 
-	list_for_each_entry_reverse(evsel, &evlist->entries, node)
-		perf_evsel__close(evsel, ncpus, nthreads);
+	evlist__for_each_reverse(evlist, evsel) {
+		n = evsel->cpus ? evsel->cpus->nr : ncpus;
+		perf_evsel__close(evsel, n, nthreads);
+	}
 }
 
 int perf_evlist__open(struct perf_evlist *evlist)
@@ -1019,7 +1018,7 @@ int perf_evlist__open(struct perf_evlist *evlist)
 
 	perf_evlist__update_id_pos(evlist);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads);
 		if (err < 0)
 			goto out_err;
@@ -1034,7 +1033,7 @@ out_err:
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *target,
 				  const char *argv[], bool pipe_output,
-				  bool want_signal)
+				  void (*exec_error)(int signo, siginfo_t *info, void *ucontext))
 {
 	int child_ready_pipe[2], go_pipe[2];
 	char bf;
@@ -1078,10 +1077,23 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 
 		execvp(argv[0], (char **)argv);
 
-		perror(argv[0]);
-		if (want_signal)
-			kill(getppid(), SIGUSR1);
+		if (exec_error) {
+			union sigval val;
+
+			val.sival_int = errno;
+			if (sigqueue(getppid(), SIGUSR1, val))
+				perror(argv[0]);
+		} else
+			perror(argv[0]);
 		exit(-1);
+	}
+
+	if (exec_error) {
+		struct sigaction act = {
+			.sa_flags     = SA_SIGINFO,
+			.sa_sigaction = exec_error,
+		};
+		sigaction(SIGUSR1, &act, NULL);
 	}
 
 	if (target__none(target))
@@ -1145,7 +1157,7 @@ size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
 	struct perf_evsel *evsel;
 	size_t printed = 0;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		printed += fprintf(fp, "%s%s", evsel->idx ? ", " : "",
 				   perf_evsel__name(evsel));
 	}
@@ -1193,8 +1205,7 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
 				    "Error:\t%s.\n"
 				    "Hint:\tCheck /proc/sys/kernel/perf_event_paranoid setting.", emsg);
 
-		if (filename__read_int("/proc/sys/kernel/perf_event_paranoid", &value))
-			break;
+		value = perf_event_paranoid();
 
 		printed += scnprintf(buf + printed, size - printed, "\nHint:\t");
 
@@ -1214,4 +1225,21 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
 	}
 
 	return 0;
+}
+
+void perf_evlist__to_front(struct perf_evlist *evlist,
+			   struct perf_evsel *move_evsel)
+{
+	struct perf_evsel *evsel, *n;
+	LIST_HEAD(move);
+
+	if (move_evsel == perf_evlist__first(evlist))
+		return;
+
+	evlist__for_each_safe(evlist, n, evsel) {
+		if (evsel->leader == move_evsel->leader)
+			list_move_tail(&evsel->node, &move);
+	}
+
+	list_splice(&move, &evlist->entries);
 }

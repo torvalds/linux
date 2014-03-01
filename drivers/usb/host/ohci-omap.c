@@ -311,14 +311,14 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	struct usb_hcd *hcd = 0;
 
 	if (pdev->num_resources != 2) {
-		printk(KERN_ERR "hcd probe: invalid num_resources: %i\n",
+		dev_err(&pdev->dev, "invalid num_resources: %i\n",
 		       pdev->num_resources);
 		return -ENODEV;
 	}
 
 	if (pdev->resource[0].flags != IORESOURCE_MEM
 			|| pdev->resource[1].flags != IORESOURCE_IRQ) {
-		printk(KERN_ERR "hcd probe: invalid resource type\n");
+		dev_err(&pdev->dev, "invalid resource type\n");
 		return -ENODEV;
 	}
 
@@ -367,6 +367,7 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	if (retval)
 		goto err3;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 err3:
 	iounmap(hcd->regs);

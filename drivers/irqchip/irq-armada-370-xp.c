@@ -59,8 +59,6 @@
 #define PCI_MSI_DOORBELL_END                    (32)
 #define PCI_MSI_DOORBELL_MASK                   0xFFFF0000
 
-static DEFINE_RAW_SPINLOCK(irq_controller_lock);
-
 static void __iomem *per_cpu_int_base;
 static void __iomem *main_int_base;
 static struct irq_domain *armada_370_xp_mpic_domain;
@@ -239,6 +237,8 @@ static inline int armada_370_xp_msi_init(struct device_node *node,
 #endif
 
 #ifdef CONFIG_SMP
+static DEFINE_RAW_SPINLOCK(irq_controller_lock);
+
 static int armada_xp_set_affinity(struct irq_data *d,
 				  const struct cpumask *mask_val, bool force)
 {
@@ -381,7 +381,7 @@ armada_370_xp_handle_irq(struct pt_regs *regs)
 						ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS)
 				& PCI_MSI_DOORBELL_MASK;
 
-			writel(~PCI_MSI_DOORBELL_MASK, per_cpu_int_base +
+			writel(~msimask, per_cpu_int_base +
 			       ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
 
 			for (msinr = PCI_MSI_DOORBELL_START;
@@ -407,7 +407,7 @@ armada_370_xp_handle_irq(struct pt_regs *regs)
 						ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS)
 				& IPI_DOORBELL_MASK;
 
-			writel(~IPI_DOORBELL_MASK, per_cpu_int_base +
+			writel(~ipimask, per_cpu_int_base +
 				ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
 
 			/* Handle all pending doorbells */

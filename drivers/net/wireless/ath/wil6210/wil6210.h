@@ -39,6 +39,7 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
+#define WIL6210_ITR_TRSH	(10000) /* arbitrary - about 15 IRQs/msec */
 
 /* Hardware definitions begin */
 

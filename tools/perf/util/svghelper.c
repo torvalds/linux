@@ -17,8 +17,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <linux/bitops.h>
 
+#include "perf.h"
 #include "svghelper.h"
+#include "util.h"
+#include "cpumap.h"
 
 static u64 first_time, last_time;
 static u64 turbo_frequency, max_freq;
@@ -28,6 +32,8 @@ static u64 turbo_frequency, max_freq;
 #define SLOT_HEIGHT 25.0
 
 int svg_page_width = 1000;
+u64 svg_highlight;
+const char *svg_highlight_name;
 
 #define MIN_TEXT_SIZE 0.01
 
@@ -39,9 +45,14 @@ static double cpu2slot(int cpu)
 	return 2 * cpu + 1;
 }
 
+static int *topology_map;
+
 static double cpu2y(int cpu)
 {
-	return cpu2slot(cpu) * SLOT_MULT;
+	if (topology_map)
+		return cpu2slot(topology_map[cpu]) * SLOT_MULT;
+	else
+		return cpu2slot(cpu) * SLOT_MULT;
 }
 
 static double time2pixels(u64 __time)
@@ -95,6 +106,7 @@ void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 
 	total_height = (1 + rows + cpu2slot(cpus)) * SLOT_MULT;
 	fprintf(svgfile, "<?xml version=\"1.0\" standalone=\"no\"?> \n");
+	fprintf(svgfile, "<!DOCTYPE svg SYSTEM \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n");
 	fprintf(svgfile, "<svg width=\"%i\" height=\"%" PRIu64 "\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n", svg_page_width, total_height);
 
 	fprintf(svgfile, "<defs>\n  <style type=\"text/css\">\n    <![CDATA[\n");
@@ -103,6 +115,7 @@ void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 	fprintf(svgfile, "      rect.process  { fill:rgb(180,180,180); fill-opacity:0.9; stroke-width:1;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.process2 { fill:rgb(180,180,180); fill-opacity:0.9; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.sample   { fill:rgb(  0,  0,255); fill-opacity:0.8; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.sample_hi{ fill:rgb(255,128,  0); fill-opacity:0.8; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.blocked  { fill:rgb(255,  0,  0); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.waiting  { fill:rgb(224,214,  0); fill-opacity:0.8; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.WAITING  { fill:rgb(255,214, 48); fill-opacity:0.6; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
@@ -128,14 +141,42 @@ void svg_box(int Yslot, u64 start, u64 end, const char *type)
 		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT, type);
 }
 
-void svg_sample(int Yslot, int cpu, u64 start, u64 end)
+static char *time_to_string(u64 duration);
+void svg_blocked(int Yslot, int cpu, u64 start, u64 end, const char *backtrace)
 {
-	double text_size;
 	if (!svgfile)
 		return;
 
-	fprintf(svgfile, "<rect x=\"%4.8f\" width=\"%4.8f\" y=\"%4.1f\" height=\"%4.1f\" class=\"sample\"/>\n",
-		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT);
+	fprintf(svgfile, "<g>\n");
+	fprintf(svgfile, "<title>#%d blocked %s</title>\n", cpu,
+		time_to_string(end - start));
+	if (backtrace)
+		fprintf(svgfile, "<desc>Blocked on:\n%s</desc>\n", backtrace);
+	svg_box(Yslot, start, end, "blocked");
+	fprintf(svgfile, "</g>\n");
+}
+
+void svg_running(int Yslot, int cpu, u64 start, u64 end, const char *backtrace)
+{
+	double text_size;
+	const char *type;
+
+	if (!svgfile)
+		return;
+
+	if (svg_highlight && end - start > svg_highlight)
+		type = "sample_hi";
+	else
+		type = "sample";
+	fprintf(svgfile, "<g>\n");
+
+	fprintf(svgfile, "<title>#%d running %s</title>\n",
+		cpu, time_to_string(end - start));
+	if (backtrace)
+		fprintf(svgfile, "<desc>Switched because:\n%s</desc>\n", backtrace);
+	fprintf(svgfile, "<rect x=\"%4.8f\" width=\"%4.8f\" y=\"%4.1f\" height=\"%4.1f\" class=\"%s\"/>\n",
+		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT,
+		type);
 
 	text_size = (time2pixels(end)-time2pixels(start));
 	if (cpu > 9)
@@ -148,6 +189,7 @@ void svg_sample(int Yslot, int cpu, u64 start, u64 end)
 		fprintf(svgfile, "<text x=\"%1.8f\" y=\"%1.8f\" font-size=\"%1.8fpt\">%i</text>\n",
 			time2pixels(start), Yslot *  SLOT_MULT + SLOT_HEIGHT - 1, text_size,  cpu + 1);
 
+	fprintf(svgfile, "</g>\n");
 }
 
 static char *time_to_string(u64 duration)
@@ -168,7 +210,7 @@ static char *time_to_string(u64 duration)
 	return text;
 }
 
-void svg_waiting(int Yslot, u64 start, u64 end)
+void svg_waiting(int Yslot, int cpu, u64 start, u64 end, const char *backtrace)
 {
 	char *text;
 	const char *style;
@@ -192,6 +234,9 @@ void svg_waiting(int Yslot, u64 start, u64 end)
 	font_size = round_text_size(font_size);
 
 	fprintf(svgfile, "<g transform=\"translate(%4.8f,%4.8f)\">\n", time2pixels(start), Yslot * SLOT_MULT);
+	fprintf(svgfile, "<title>#%d waiting %s</title>\n", cpu, time_to_string(end - start));
+	if (backtrace)
+		fprintf(svgfile, "<desc>Waiting on:\n%s</desc>\n", backtrace);
 	fprintf(svgfile, "<rect x=\"0\" width=\"%4.8f\" y=\"0\" height=\"%4.1f\" class=\"%s\"/>\n",
 		time2pixels(end)-time2pixels(start), SLOT_HEIGHT, style);
 	if (font_size > MIN_TEXT_SIZE)
@@ -242,28 +287,42 @@ void svg_cpu_box(int cpu, u64 __max_freq, u64 __turbo_freq)
 	max_freq = __max_freq;
 	turbo_frequency = __turbo_freq;
 
+	fprintf(svgfile, "<g>\n");
+
 	fprintf(svgfile, "<rect x=\"%4.8f\" width=\"%4.8f\" y=\"%4.1f\" height=\"%4.1f\" class=\"cpu\"/>\n",
 		time2pixels(first_time),
 		time2pixels(last_time)-time2pixels(first_time),
 		cpu2y(cpu), SLOT_MULT+SLOT_HEIGHT);
 
-	sprintf(cpu_string, "CPU %i", (int)cpu+1);
+	sprintf(cpu_string, "CPU %i", (int)cpu);
 	fprintf(svgfile, "<text x=\"%4.8f\" y=\"%4.8f\">%s</text>\n",
 		10+time2pixels(first_time), cpu2y(cpu) + SLOT_HEIGHT/2, cpu_string);
 
 	fprintf(svgfile, "<text transform=\"translate(%4.8f,%4.8f)\" font-size=\"1.25pt\">%s</text>\n",
 		10+time2pixels(first_time), cpu2y(cpu) + SLOT_MULT + SLOT_HEIGHT - 4, cpu_model());
+
+	fprintf(svgfile, "</g>\n");
 }
 
-void svg_process(int cpu, u64 start, u64 end, const char *type, const char *name)
+void svg_process(int cpu, u64 start, u64 end, int pid, const char *name, const char *backtrace)
 {
 	double width;
+	const char *type;
 
 	if (!svgfile)
 		return;
 
+	if (svg_highlight && end - start >= svg_highlight)
+		type = "sample_hi";
+	else if (svg_highlight_name && strstr(name, svg_highlight_name))
+		type = "sample_hi";
+	else
+		type = "sample";
 
 	fprintf(svgfile, "<g transform=\"translate(%4.8f,%4.8f)\">\n", time2pixels(start), cpu2y(cpu));
+	fprintf(svgfile, "<title>%d %s running %s</title>\n", pid, name, time_to_string(end - start));
+	if (backtrace)
+		fprintf(svgfile, "<desc>Switched because:\n%s</desc>\n", backtrace);
 	fprintf(svgfile, "<rect x=\"0\" width=\"%4.8f\" y=\"0\" height=\"%4.1f\" class=\"%s\"/>\n",
 		time2pixels(end)-time2pixels(start), SLOT_MULT+SLOT_HEIGHT, type);
 	width = time2pixels(end)-time2pixels(start);
@@ -288,6 +347,8 @@ void svg_cstate(int cpu, u64 start, u64 end, int type)
 		return;
 
 
+	fprintf(svgfile, "<g>\n");
+
 	if (type > 6)
 		type = 6;
 	sprintf(style, "c%i", type);
@@ -306,6 +367,8 @@ void svg_cstate(int cpu, u64 start, u64 end, int type)
 	if (width > MIN_TEXT_SIZE)
 		fprintf(svgfile, "<text x=\"%4.8f\" y=\"%4.8f\" font-size=\"%3.8fpt\">C%i</text>\n",
 			time2pixels(start), cpu2y(cpu)+width, width, type);
+
+	fprintf(svgfile, "</g>\n");
 }
 
 static char *HzToHuman(unsigned long hz)
@@ -339,6 +402,8 @@ void svg_pstate(int cpu, u64 start, u64 end, u64 freq)
 	if (!svgfile)
 		return;
 
+	fprintf(svgfile, "<g>\n");
+
 	if (max_freq)
 		height = freq * 1.0 / max_freq * (SLOT_HEIGHT + SLOT_MULT);
 	height = 1 + cpu2y(cpu) + SLOT_MULT + SLOT_HEIGHT - height;
@@ -347,16 +412,26 @@ void svg_pstate(int cpu, u64 start, u64 end, u64 freq)
 	fprintf(svgfile, "<text x=\"%4.8f\" y=\"%4.8f\" font-size=\"0.25pt\">%s</text>\n",
 		time2pixels(start), height+0.9, HzToHuman(freq));
 
+	fprintf(svgfile, "</g>\n");
 }
 
 
-void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc2)
+void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc2, const char *backtrace)
 {
 	double height;
 
 	if (!svgfile)
 		return;
 
+
+	fprintf(svgfile, "<g>\n");
+
+	fprintf(svgfile, "<title>%s wakes up %s</title>\n",
+		desc1 ? desc1 : "?",
+		desc2 ? desc2 : "?");
+
+	if (backtrace)
+		fprintf(svgfile, "<desc>%s</desc>\n", backtrace);
 
 	if (row1 < row2) {
 		if (row1) {
@@ -395,15 +470,22 @@ void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc
 	if (row1)
 		fprintf(svgfile, "<circle  cx=\"%4.8f\" cy=\"%4.2f\" r = \"0.01\"  style=\"fill:rgb(32,255,32)\"/>\n",
 			time2pixels(start), height);
+
+	fprintf(svgfile, "</g>\n");
 }
 
-void svg_wakeline(u64 start, int row1, int row2)
+void svg_wakeline(u64 start, int row1, int row2, const char *backtrace)
 {
 	double height;
 
 	if (!svgfile)
 		return;
 
+
+	fprintf(svgfile, "<g>\n");
+
+	if (backtrace)
+		fprintf(svgfile, "<desc>%s</desc>\n", backtrace);
 
 	if (row1 < row2)
 		fprintf(svgfile, "<line x1=\"%4.8f\" y1=\"%4.2f\" x2=\"%4.8f\" y2=\"%4.2f\" style=\"stroke:rgb(32,255,32);stroke-width:0.009\"/>\n",
@@ -417,17 +499,28 @@ void svg_wakeline(u64 start, int row1, int row2)
 		height += SLOT_HEIGHT;
 	fprintf(svgfile, "<circle  cx=\"%4.8f\" cy=\"%4.2f\" r = \"0.01\"  style=\"fill:rgb(32,255,32)\"/>\n",
 			time2pixels(start), height);
+
+	fprintf(svgfile, "</g>\n");
 }
 
-void svg_interrupt(u64 start, int row)
+void svg_interrupt(u64 start, int row, const char *backtrace)
 {
 	if (!svgfile)
 		return;
+
+	fprintf(svgfile, "<g>\n");
+
+	fprintf(svgfile, "<title>Wakeup from interrupt</title>\n");
+
+	if (backtrace)
+		fprintf(svgfile, "<desc>%s</desc>\n", backtrace);
 
 	fprintf(svgfile, "<circle  cx=\"%4.8f\" cy=\"%4.2f\" r = \"0.01\"  style=\"fill:rgb(255,128,128)\"/>\n",
 			time2pixels(start), row * SLOT_MULT);
 	fprintf(svgfile, "<circle  cx=\"%4.8f\" cy=\"%4.2f\" r = \"0.01\"  style=\"fill:rgb(255,128,128)\"/>\n",
 			time2pixels(start), row * SLOT_MULT + SLOT_HEIGHT);
+
+	fprintf(svgfile, "</g>\n");
 }
 
 void svg_text(int Yslot, u64 start, const char *text)
@@ -455,6 +548,7 @@ void svg_legenda(void)
 	if (!svgfile)
 		return;
 
+	fprintf(svgfile, "<g>\n");
 	svg_legenda_box(0,	"Running", "sample");
 	svg_legenda_box(100,	"Idle","c1");
 	svg_legenda_box(200,	"Deeper Idle", "c3");
@@ -462,6 +556,7 @@ void svg_legenda(void)
 	svg_legenda_box(550,	"Sleeping", "process2");
 	svg_legenda_box(650,	"Waiting for cpu", "waiting");
 	svg_legenda_box(800,	"Blocked on IO", "blocked");
+	fprintf(svgfile, "</g>\n");
 }
 
 void svg_time_grid(void)
@@ -498,4 +593,124 @@ void svg_close(void)
 		fclose(svgfile);
 		svgfile = NULL;
 	}
+}
+
+#define cpumask_bits(maskp) ((maskp)->bits)
+typedef struct { DECLARE_BITMAP(bits, MAX_NR_CPUS); } cpumask_t;
+
+struct topology {
+	cpumask_t *sib_core;
+	int sib_core_nr;
+	cpumask_t *sib_thr;
+	int sib_thr_nr;
+};
+
+static void scan_thread_topology(int *map, struct topology *t, int cpu, int *pos)
+{
+	int i;
+	int thr;
+
+	for (i = 0; i < t->sib_thr_nr; i++) {
+		if (!test_bit(cpu, cpumask_bits(&t->sib_thr[i])))
+			continue;
+
+		for_each_set_bit(thr,
+				 cpumask_bits(&t->sib_thr[i]),
+				 MAX_NR_CPUS)
+			if (map[thr] == -1)
+				map[thr] = (*pos)++;
+	}
+}
+
+static void scan_core_topology(int *map, struct topology *t)
+{
+	int pos = 0;
+	int i;
+	int cpu;
+
+	for (i = 0; i < t->sib_core_nr; i++)
+		for_each_set_bit(cpu,
+				 cpumask_bits(&t->sib_core[i]),
+				 MAX_NR_CPUS)
+			scan_thread_topology(map, t, cpu, &pos);
+}
+
+static int str_to_bitmap(char *s, cpumask_t *b)
+{
+	int i;
+	int ret = 0;
+	struct cpu_map *m;
+	int c;
+
+	m = cpu_map__new(s);
+	if (!m)
+		return -1;
+
+	for (i = 0; i < m->nr; i++) {
+		c = m->map[i];
+		if (c >= MAX_NR_CPUS) {
+			ret = -1;
+			break;
+		}
+
+		set_bit(c, cpumask_bits(b));
+	}
+
+	cpu_map__delete(m);
+
+	return ret;
+}
+
+int svg_build_topology_map(char *sib_core, int sib_core_nr,
+			   char *sib_thr, int sib_thr_nr)
+{
+	int i;
+	struct topology t;
+
+	t.sib_core_nr = sib_core_nr;
+	t.sib_thr_nr = sib_thr_nr;
+	t.sib_core = calloc(sib_core_nr, sizeof(cpumask_t));
+	t.sib_thr = calloc(sib_thr_nr, sizeof(cpumask_t));
+
+	if (!t.sib_core || !t.sib_thr) {
+		fprintf(stderr, "topology: no memory\n");
+		goto exit;
+	}
+
+	for (i = 0; i < sib_core_nr; i++) {
+		if (str_to_bitmap(sib_core, &t.sib_core[i])) {
+			fprintf(stderr, "topology: can't parse siblings map\n");
+			goto exit;
+		}
+
+		sib_core += strlen(sib_core) + 1;
+	}
+
+	for (i = 0; i < sib_thr_nr; i++) {
+		if (str_to_bitmap(sib_thr, &t.sib_thr[i])) {
+			fprintf(stderr, "topology: can't parse siblings map\n");
+			goto exit;
+		}
+
+		sib_thr += strlen(sib_thr) + 1;
+	}
+
+	topology_map = malloc(sizeof(int) * MAX_NR_CPUS);
+	if (!topology_map) {
+		fprintf(stderr, "topology: no memory\n");
+		goto exit;
+	}
+
+	for (i = 0; i < MAX_NR_CPUS; i++)
+		topology_map[i] = -1;
+
+	scan_core_topology(topology_map, &t);
+
+	return 0;
+
+exit:
+	zfree(&t.sib_core);
+	zfree(&t.sib_thr);
+
+	return -1;
 }

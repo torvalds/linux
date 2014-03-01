@@ -213,8 +213,6 @@ void r600_wait_for_power_level(struct radeon_device *rdev,
 void r600_start_dpm(struct radeon_device *rdev);
 void r600_stop_dpm(struct radeon_device *rdev);
 
-int r600_set_thermal_temperature_range(struct radeon_device *rdev,
-				       int min_temp, int max_temp);
 bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor);
 
 int r600_parse_extended_power_table(struct radeon_device *rdev);

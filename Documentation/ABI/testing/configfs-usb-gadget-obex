@@ -1,6 +1,6 @@
 What:		/config/usb-gadget/gadget/functions/obex.name
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 
 		This item contains just one readonly attribute: port_num.

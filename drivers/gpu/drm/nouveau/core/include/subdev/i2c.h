@@ -73,7 +73,7 @@ struct nouveau_i2c {
 	int (*identify)(struct nouveau_i2c *, int index,
 			const char *what, struct nouveau_i2c_board_info *,
 			bool (*match)(struct nouveau_i2c_port *,
-				      struct i2c_board_info *));
+				      struct i2c_board_info *, void *), void *);
 	struct list_head ports;
 };
 

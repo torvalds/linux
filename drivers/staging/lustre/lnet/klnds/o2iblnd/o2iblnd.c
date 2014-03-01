@@ -3230,7 +3230,6 @@ void __exit
 kiblnd_module_fini (void)
 {
 	lnet_unregister_lnd(&the_o2iblnd);
-	kiblnd_tunables_fini();
 }
 
 int __init

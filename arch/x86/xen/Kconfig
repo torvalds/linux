@@ -51,3 +51,7 @@ config XEN_DEBUG_FS
 	  Enable statistics output and various tuning options in debugfs.
 	  Enabling this option may incur a significant performance overhead.
 
+config XEN_PVH
+	bool "Support for running as a PVH guest"
+	depends on X86_64 && XEN && XEN_PVHVM
+	def_bool n

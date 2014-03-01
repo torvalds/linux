@@ -57,6 +57,7 @@
 
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 #include <linux/platform_data/ata-samsung_cf.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>

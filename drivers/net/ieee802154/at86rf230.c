@@ -987,7 +987,6 @@ err_gpio_dir:
 err_slp_tr:
 	gpio_free(lp->rstn);
 err_rstn:
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_device(lp->dev);
 	return rc;
@@ -1006,7 +1005,6 @@ static int at86rf230_remove(struct spi_device *spi)
 		gpio_free(lp->slp_tr);
 	gpio_free(lp->rstn);
 
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_device(lp->dev);
 

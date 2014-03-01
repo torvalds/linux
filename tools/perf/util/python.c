@@ -908,9 +908,10 @@ static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
 	if (i >= pevlist->evlist.nr_entries)
 		return NULL;
 
-	list_for_each_entry(pos, &pevlist->evlist.entries, node)
+	evlist__for_each(&pevlist->evlist, pos) {
 		if (i-- == 0)
 			break;
+	}
 
 	return Py_BuildValue("O", container_of(pos, struct pyrf_evsel, evsel));
 }

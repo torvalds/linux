@@ -72,10 +72,11 @@ where
 
   - chip_label is the label of the gpiod_chip instance providing the GPIO
   - chip_hwnum is the hardware number of the GPIO within the chip
-  - dev_id is the identifier of the device that will make use of this GPIO. If
-	NULL, the GPIO will be available to all devices.
+  - dev_id is the identifier of the device that will make use of this GPIO. It
+	can be NULL, in which case it will be matched for calls to gpiod_get()
+	with a NULL device.
   - con_id is the name of the GPIO function from the device point of view. It
-	can be NULL.
+	can be NULL, in which case it will match any function.
   - idx is the index of the GPIO within the function.
   - flags is defined to specify the following properties:
 	* GPIOF_ACTIVE_LOW	- to configure the GPIO as active-low
@@ -86,18 +87,23 @@ In the future, these flags might be extended to support more properties.
 
 Note that GPIO_LOOKUP() is just a shortcut to GPIO_LOOKUP_IDX() where idx = 0.
 
-A lookup table can then be defined as follows:
+A lookup table can then be defined as follows, with an empty entry defining its
+end:
 
-	struct gpiod_lookup gpios_table[] = {
-	GPIO_LOOKUP_IDX("gpio.0", 15, "foo.0", "led", 0, GPIO_ACTIVE_HIGH),
-	GPIO_LOOKUP_IDX("gpio.0", 16, "foo.0", "led", 1, GPIO_ACTIVE_HIGH),
-	GPIO_LOOKUP_IDX("gpio.0", 17, "foo.0", "led", 2, GPIO_ACTIVE_HIGH),
-	GPIO_LOOKUP("gpio.0", 1, "foo.0", "power", GPIO_ACTIVE_LOW),
-	};
+struct gpiod_lookup_table gpios_table = {
+	.dev_id = "foo.0",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio.0", 15, "led", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio.0", 16, "led", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio.0", 17, "led", 2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio.0", 1, "power", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
 
 And the table can be added by the board code as follows:
 
-	gpiod_add_table(gpios_table, ARRAY_SIZE(gpios_table));
+	gpiod_add_lookup_table(&gpios_table);
 
 The driver controlling "foo.0" will then be able to obtain its GPIOs as follows:
 

@@ -103,7 +103,7 @@ struct dso *vdso__dso_findnew(struct list_head *head)
 		dso = dso__new(VDSO__MAP_NAME);
 		if (dso != NULL) {
 			dsos__add(head, dso);
-			dso__set_long_name(dso, file);
+			dso__set_long_name(dso, file, false);
 		}
 	}
 

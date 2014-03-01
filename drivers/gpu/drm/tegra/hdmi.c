@@ -8,10 +8,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk/tegra.h>
 #include <linux/debugfs.h>
 #include <linux/hdmi.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 
 #include "hdmi.h"
 #include "drm.h"
@@ -40,6 +40,7 @@ struct tegra_hdmi {
 	struct host1x_client client;
 	struct tegra_output output;
 	struct device *dev;
+	bool enabled;
 
 	struct regulator *vdd;
 	struct regulator *pll;
@@ -49,6 +50,7 @@ struct tegra_hdmi {
 
 	struct clk *clk_parent;
 	struct clk *clk;
+	struct reset_control *rst;
 
 	const struct tegra_hdmi_config *config;
 
@@ -378,7 +380,7 @@ static void tegra_hdmi_setup_audio_fs_tables(struct tegra_hdmi *hdmi)
 
 		if (f > 96000)
 			delta = 2;
-		else if (f > 480000)
+		else if (f > 48000)
 			delta = 6;
 		else
 			delta = 9;
@@ -698,6 +700,9 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	int retries = 1000;
 	int err;
 
+	if (hdmi->enabled)
+		return 0;
+
 	hdmi->dvi = !tegra_output_is_hdmi(output);
 
 	pclk = mode->clock * 1000;
@@ -731,9 +736,9 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 		return err;
 	}
 
-	tegra_periph_reset_assert(hdmi->clk);
+	reset_control_assert(hdmi->rst);
 	usleep_range(1000, 2000);
-	tegra_periph_reset_deassert(hdmi->clk);
+	reset_control_deassert(hdmi->rst);
 
 	tegra_dc_writel(dc, VSYNC_H_POSITION(1),
 			DC_DISP_DISP_TIMING_OPTIONS);
@@ -838,10 +843,6 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	value |= SOR_CSTM_ROTCLK(2);
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_CSTM);
 
-	tegra_dc_writel(dc, DISP_CTRL_MODE_STOP, DC_CMD_DISPLAY_COMMAND);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
-
 	/* start SOR */
 	tegra_hdmi_writel(hdmi,
 			  SOR_PWR_NORMAL_STATE_PU |
@@ -891,30 +892,66 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 			  HDMI_NV_PDISP_SOR_STATE1);
 	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_SOR_STATE0);
 
-	tegra_dc_writel(dc, HDMI_ENABLE, DC_DISP_DISP_WIN_OPTIONS);
+	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+	value |= HDMI_ENABLE;
+	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
-	value = PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-
-	value = DISP_CTRL_MODE_C_DISPLAY;
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	value |= DISP_CTRL_MODE_C_DISPLAY;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 
 	/* TODO: add HDCP support */
 
+	hdmi->enabled = true;
+
 	return 0;
 }
 
 static int tegra_output_hdmi_disable(struct tegra_output *output)
 {
+	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct tegra_hdmi *hdmi = to_hdmi(output);
+	unsigned long value;
 
-	tegra_periph_reset_assert(hdmi->clk);
+	if (!hdmi->enabled)
+		return 0;
+
+	/*
+	 * The following accesses registers of the display controller, so make
+	 * sure it's only executed when the output is attached to one.
+	 */
+	if (dc) {
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+		value &= ~DISP_CTRL_MODE_MASK;
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+		value &= ~HDMI_ENABLE;
+		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+		tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	}
+
+	reset_control_assert(hdmi->rst);
 	clk_disable(hdmi->clk);
 	regulator_disable(hdmi->pll);
+
+	hdmi->enabled = false;
 
 	return 0;
 }
@@ -959,7 +996,7 @@ static int tegra_output_hdmi_check_mode(struct tegra_output *output,
 	parent = clk_get_parent(hdmi->clk_parent);
 
 	err = clk_round_rate(parent, pclk * 4);
-	if (err < 0)
+	if (err <= 0)
 		*status = MODE_NOCLOCK;
 	else
 		*status = MODE_OK;
@@ -1338,6 +1375,12 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmi->clk);
 	}
 
+	hdmi->rst = devm_reset_control_get(&pdev->dev, "hdmi");
+	if (IS_ERR(hdmi->rst)) {
+		dev_err(&pdev->dev, "failed to get reset\n");
+		return PTR_ERR(hdmi->rst);
+	}
+
 	err = clk_prepare(hdmi->clk);
 	if (err < 0)
 		return err;
@@ -1375,9 +1418,6 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 		return err;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs)
-		return -ENXIO;
-
 	hdmi->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);

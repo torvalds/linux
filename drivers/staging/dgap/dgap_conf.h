@@ -138,7 +138,7 @@
 #define	CU	91
 #define	PRINT	92
 #define	XPRINT	93
-#define CMAJOR   94 
+#define CMAJOR   94
 #define ALTPIN  95
 #define STARTO 96
 #define USEINTR  97
@@ -262,9 +262,9 @@ struct cnode {
 		} module;
 
 		char *ttyname;
-		
+
 		char *cuname;
-		
+
 		char *printname;
 
 		int  majornumber;

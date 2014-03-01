@@ -104,38 +104,17 @@
 			};
 		};
 
+		thermal@10078 {
+			compatible = "marvell,kirkwood-thermal";
+			reg = <0x10078 0x4>;
+			status = "okay";
+		};
+
 		rtc@10300 {
 			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
 			reg = <0x10300 0x20>;
 			interrupts = <53>;
 			clocks = <&gate_clk 7>;
-		};
-
-		sata@80000 {
-			compatible = "marvell,orion-sata";
-			reg = <0x80000 0x5000>;
-			interrupts = <21>;
-			clocks = <&gate_clk 14>, <&gate_clk 15>;
-			clock-names = "0", "1";
-			status = "disabled";
-		};
-
-		mvsdio@90000 {
-			compatible = "marvell,orion-sdio";
-			reg = <0x90000 0x200>;
-			interrupts = <28>;
-			clocks = <&gate_clk 4>;
-			bus-width = <4>;
-			cap-sdio-irq;
-			cap-sd-highspeed;
-			cap-mmc-highspeed;
-			status = "disabled";
-		};
-
-		thermal@10078 {
-			compatible = "marvell,kirkwood-thermal";
-			reg = <0x10078 0x4>;
-			status = "okay";
 		};
 
 		i2c@11100 {
@@ -149,5 +128,29 @@
 			status = "disabled";
 		};
 
+		sata@80000 {
+			compatible = "marvell,orion-sata";
+			reg = <0x80000 0x5000>;
+			interrupts = <21>;
+			clocks = <&gate_clk 14>, <&gate_clk 15>;
+			clock-names = "0", "1";
+			phys = <&sata_phy0>, <&sata_phy1>;
+			phy-names = "port0", "port1";
+			status = "disabled";
+		};
+
+		mvsdio@90000 {
+			compatible = "marvell,orion-sdio";
+			reg = <0x90000 0x200>;
+			interrupts = <28>;
+			clocks = <&gate_clk 4>;
+			pinctrl-0 = <&pmx_sdio>;
+			pinctrl-names = "default";
+			bus-width = <4>;
+			cap-sdio-irq;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			status = "disabled";
+		};
 	};
 };

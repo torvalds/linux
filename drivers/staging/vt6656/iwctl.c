@@ -58,9 +58,6 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	long ldBm;
 
 	pDevice->wstats.status = pDevice->eOPMode;
-	if (pDevice->scStatistic.LinkQuality > 100)
-		pDevice->scStatistic.LinkQuality = 100;
-	pDevice->wstats.qual.qual = (u8)pDevice->scStatistic.LinkQuality;
 	RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 	pDevice->wstats.qual.level = ldBm;
 	pDevice->wstats.qual.noise = 0;
@@ -68,7 +65,6 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	pDevice->wstats.discard.nwid = 0;
 	pDevice->wstats.discard.code = 0;
 	pDevice->wstats.discard.fragment = 0;
-	pDevice->wstats.discard.retries = pDevice->scStatistic.dwTsrErr;
 	pDevice->wstats.discard.misc = 0;
 	pDevice->wstats.miss.beacon = 0;
 	return &pDevice->wstats;
@@ -1568,10 +1564,8 @@ int iwctl_siwgenie(struct net_device *dev, struct iw_request_info *info,
 			goto out;
 		}
 		memset(pMgmt->abyWPAIE, 0, MAX_WPA_IE_LEN);
-		if (copy_from_user(pMgmt->abyWPAIE, extra, wrq->length)) {
-			ret = -EFAULT;
-			goto out;
-		}
+
+		memcpy(pMgmt->abyWPAIE, extra, wrq->length);
 		pMgmt->wWPAIELen = wrq->length;
 	} else {
 		memset(pMgmt->abyWPAIE, 0, MAX_WPA_IE_LEN);
@@ -1597,13 +1591,11 @@ int iwctl_giwgenie(struct net_device *dev, struct iw_request_info *info,
 	wrq->length = 0;
 	if (pMgmt->wWPAIELen > 0) {
 		wrq->length = pMgmt->wWPAIELen;
-		if (pMgmt->wWPAIELen <= space) {
-			if (copy_to_user(extra, pMgmt->abyWPAIE, pMgmt->wWPAIELen)) {
-				ret = -EFAULT;
-			}
-		} else {
+
+		if (pMgmt->wWPAIELen <= space)
+			memcpy(extra, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
+		else
 			ret = -E2BIG;
-		}
 	}
 	return ret;
 }

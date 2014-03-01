@@ -74,9 +74,6 @@ TRIG_WAKE_EOS
 #define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 
-/* #define A2150_DEBUG     enable debugging code */
-#undef A2150_DEBUG		/*  disable debugging code */
-
 /* Registers and bits */
 #define CONFIG_REG		0x0
 #define   CHANNEL_BITS(x)		((x) & 0x7)
@@ -127,10 +124,9 @@ struct a2150_board {
 
 /* analog input range */
 static const struct comedi_lrange range_a2150 = {
-	1,
-	{
-	 RANGE(-2.828, 2.828),
-	 }
+	1, {
+		BIP_RANGE(2.828)
+	}
 };
 
 /* enum must match board indices */
@@ -167,19 +163,6 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 static int a2150_set_chanlist(struct comedi_device *dev,
 			      unsigned int start_channel,
 			      unsigned int num_channels);
-#ifdef A2150_DEBUG
-
-static void ni_dump_regs(struct comedi_device *dev)
-{
-	struct a2150_private *devpriv = dev->private;
-
-	printk("config bits 0x%x\n", devpriv->config_bits);
-	printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
-	printk("status bits 0x%x\n", inw(dev->iobase + STATUS_REG));
-}
-
-#endif
-
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
@@ -411,11 +394,6 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
-	if (!dev->irq || !devpriv->dma) {
-		comedi_error(dev,
-			     " irq and dma required, cannot do hardware conversions");
-		return -1;
-	}
 	if (cmd->flags & TRIG_RT) {
 		comedi_error(dev,
 			     " dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
@@ -506,9 +484,6 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  start acquisition for soft trigger */
 	if (cmd->start_src == TRIG_NOW)
 		outw(0, dev->iobase + FIFO_START_REG);
-#ifdef A2150_DEBUG
-	ni_dump_regs(dev);
-#endif
 
 	return 0;
 }
@@ -573,13 +548,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-#ifdef A2150_DEBUG
-		ni_dump_regs(dev);
-#endif
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
-#ifdef A2150_DEBUG
-		printk(" data is %i\n", data[n]);
-#endif
 		data[n] ^= 0x8000;
 	}
 
@@ -728,46 +697,35 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	/* grab our IRQ */
-	if (irq) {
-		/*  check that irq is supported */
-		if (irq < 3 || irq == 8 || irq == 13 || irq > 15) {
-			printk(" invalid irq line %u\n", irq);
-			return -EINVAL;
-		}
-		if (request_irq(irq, a2150_interrupt, 0,
-				dev->driver->driver_name, dev)) {
-			printk("unable to allocate irq %u\n", irq);
-			return -EINVAL;
-		}
-		devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
-		dev->irq = irq;
-	}
-	/*  initialize dma */
-	if (dma) {
-		if (dma == 4 || dma > 7) {
-			printk(" invalid dma channel %u\n", dma);
-			return -EINVAL;
-		}
-		if (request_dma(dma, dev->driver->driver_name)) {
-			printk(" failed to allocate dma channel %u\n", dma);
-			return -EINVAL;
-		}
-		devpriv->dma = dma;
-		devpriv->dma_buffer =
-		    kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer == NULL)
-			return -ENOMEM;
-
-		disable_dma(dma);
-		set_dma_mode(dma, DMA_MODE_READ);
-
-		devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
-	}
-
 	dev->board_ptr = a2150_boards + a2150_probe(dev);
 	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
+
+	if ((irq >= 3 && irq <= 7) || (irq >= 9 && irq <= 12) ||
+	    irq == 14 || irq == 15) {
+		ret = request_irq(irq, a2150_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0) {
+			devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
+			dev->irq = irq;
+		}
+	}
+
+	if (dev->irq && dma <= 7 && dma != 4) {
+		ret = request_dma(dma, dev->board_name);
+		if (ret == 0) {
+			devpriv->dma = dma;
+			devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE,
+						      GFP_KERNEL | GFP_DMA);
+			if (!devpriv->dma_buffer)
+				return -ENOMEM;
+
+			disable_dma(dma);
+			set_dma_mode(dma, DMA_MODE_READ);
+
+			devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
+		}
+	}
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -775,17 +733,20 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* analog input subdevice */
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_OTHER | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_OTHER;
 	s->n_chan = 4;
-	s->len_chanlist = 4;
 	s->maxdata = 0xffff;
 	s->range_table = &range_a2150;
-	s->do_cmd = a2150_ai_cmd;
-	s->do_cmdtest = a2150_ai_cmdtest;
 	s->insn_read = a2150_ai_rinsn;
-	s->cancel = a2150_cancel;
+	if (dev->irq && devpriv->dma) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = s->n_chan;
+		s->do_cmd = a2150_ai_cmd;
+		s->do_cmdtest = a2150_ai_cmdtest;
+		s->cancel = a2150_cancel;
+	}
 
 	/* need to do this for software counting of completed conversions, to
 	 * prevent hardware count from stopping acquisition */

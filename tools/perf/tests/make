@@ -1,6 +1,16 @@
 PERF := .
 MK   := Makefile
 
+include config/Makefile.arch
+
+# FIXME looks like x86 is the only arch running tests ;-)
+# we need some IS_(32/64) flag to make this generic
+ifeq ($(IS_X86_64),1)
+lib = lib64
+else
+lib = lib
+endif
+
 has = $(shell which $1 2>/dev/null)
 
 # standard single make variable specified
@@ -106,10 +116,36 @@ test_make_python_perf_so := test -f $(PERF)/python/perf.so
 test_make_perf_o     := test -f $(PERF)/perf.o
 test_make_util_map_o := test -f $(PERF)/util/map.o
 
-test_make_install       := test -x $$TMP_DEST/bin/perf
-test_make_install_O     := $(test_make_install)
-test_make_install_bin   := $(test_make_install)
-test_make_install_bin_O := $(test_make_install)
+define test_dest_files
+  for file in $(1); do				\
+    if [ ! -x $$TMP_DEST/$$file ]; then		\
+      echo "  failed to find: $$file";		\
+    fi						\
+  done
+endef
+
+installed_files_bin := bin/perf
+installed_files_bin += etc/bash_completion.d/perf
+installed_files_bin += libexec/perf-core/perf-archive
+
+installed_files_plugins := $(lib)/traceevent/plugins/plugin_cfg80211.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_scsi.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_xen.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_function.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_sched_switch.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_mac80211.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_kvm.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_kmem.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_hrtimer.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_jbd2.so
+
+installed_files_all := $(installed_files_bin)
+installed_files_all += $(installed_files_plugins)
+
+test_make_install       := $(call test_dest_files,$(installed_files_all))
+test_make_install_O     := $(call test_dest_files,$(installed_files_all))
+test_make_install_bin   := $(call test_dest_files,$(installed_files_bin))
+test_make_install_bin_O := $(call test_dest_files,$(installed_files_bin))
 
 # FIXME nothing gets installed
 test_make_install_man    := test -f $$TMP_DEST/share/man/man1/perf.1
@@ -162,7 +198,7 @@ $(run):
 	cmd="cd $(PERF) && make -f $(MK) DESTDIR=$$TMP_DEST $($@)"; \
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1; \
-	echo "  test: $(call test,$@)"; \
+	echo "  test: $(call test,$@)" >> $@ 2>&1; \
 	$(call test,$@) && \
 	rm -f $@ \
 	rm -rf $$TMP_DEST
@@ -174,16 +210,22 @@ $(run_O):
 	cmd="cd $(PERF) && make -f $(MK) O=$$TMP_O DESTDIR=$$TMP_DEST $($(patsubst %_O,%,$@))"; \
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1 && \
-	echo "  test: $(call test_O,$@)"; \
+	echo "  test: $(call test_O,$@)" >> $@ 2>&1; \
 	$(call test_O,$@) && \
 	rm -f $@ && \
 	rm -rf $$TMP_O \
 	rm -rf $$TMP_DEST
 
-all: $(run) $(run_O)
+tarpkg:
+	@cmd="$(PERF)/tests/perf-targz-src-pkg $(PERF)"; \
+	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	( eval $$cmd ) >> $@ 2>&1
+	
+
+all: $(run) $(run_O) tarpkg
 	@echo OK
 
 out: $(run_O)
 	@echo OK
 
-.PHONY: all $(run) $(run_O) clean
+.PHONY: all $(run) $(run_O) tarpkg clean

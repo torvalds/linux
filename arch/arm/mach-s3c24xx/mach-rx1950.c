@@ -51,6 +51,7 @@
 #include <mach/fb.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -58,6 +59,7 @@
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
 #include <plat/samsung-time.h>
+#include <plat/gpio-cfg.h>
 
 #include "common.h"
 #include "h1940.h"

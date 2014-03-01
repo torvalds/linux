@@ -452,7 +452,7 @@ static const struct regmap_config wm8523_regmap = {
 	.volatile_reg = wm8523_volatile_register,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8523_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -555,7 +555,7 @@ static struct i2c_driver wm8523_i2c_driver = {
 static int __init wm8523_modinit(void)
 {
 	int ret;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8523_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register WM8523 I2C driver: %d\n",
@@ -568,7 +568,7 @@ module_init(wm8523_modinit);
 
 static void __exit wm8523_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8523_i2c_driver);
 #endif
 }

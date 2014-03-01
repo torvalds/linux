@@ -655,7 +655,7 @@ static int parser_auth(struct table *t, const char *filename)
 
 	/* first line will contain the last register
 	 * and gpu name */
-	sscanf(buf, "%s %s", gpu_name, last_reg_s);
+	sscanf(buf, "%9s %9s", gpu_name, last_reg_s);
 	t->gpu_prefix = gpu_name;
 	last_reg = strtol(last_reg_s, NULL, 16);
 

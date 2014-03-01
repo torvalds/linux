@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/export.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/reset.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -996,35 +995,35 @@ static const struct ipu_platform_reg client_reg[] = {
 	},
 };
 
+static DEFINE_MUTEX(ipu_client_id_mutex);
 static int ipu_client_id;
-
-static int ipu_add_subdevice_pdata(struct device *dev,
-		const struct ipu_platform_reg *reg)
-{
-	struct platform_device *pdev;
-
-	pdev = platform_device_register_data(dev, reg->name, ipu_client_id++,
-			&reg->pdata, sizeof(struct ipu_platform_reg));
-
-	return PTR_ERR_OR_ZERO(pdev);
-}
 
 static int ipu_add_client_devices(struct ipu_soc *ipu)
 {
-	int ret;
-	int i;
+	struct device *dev = ipu->dev;
+	unsigned i;
+	int id, ret;
+
+	mutex_lock(&ipu_client_id_mutex);
+	id = ipu_client_id;
+	ipu_client_id += ARRAY_SIZE(client_reg);
+	mutex_unlock(&ipu_client_id_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		const struct ipu_platform_reg *reg = &client_reg[i];
-		ret = ipu_add_subdevice_pdata(ipu->dev, reg);
-		if (ret)
+		struct platform_device *pdev;
+
+		pdev = platform_device_register_data(dev, reg->name,
+			id++, &reg->pdata, sizeof(reg->pdata));
+
+		if (IS_ERR(pdev))
 			goto err_register;
 	}
 
 	return 0;
 
 err_register:
-	platform_device_unregister_children(to_platform_device(ipu->dev));
+	platform_device_unregister_children(to_platform_device(dev));
 
 	return ret;
 }

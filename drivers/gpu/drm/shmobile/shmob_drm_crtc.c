@@ -37,14 +37,21 @@
  * Clock management
  */
 
-static void shmob_drm_clk_on(struct shmob_drm_device *sdev)
+static int shmob_drm_clk_on(struct shmob_drm_device *sdev)
 {
-	if (sdev->clock)
-		clk_prepare_enable(sdev->clock);
+	int ret;
+
+	if (sdev->clock) {
+		ret = clk_prepare_enable(sdev->clock);
+		if (ret < 0)
+			return ret;
+	}
 #if 0
 	if (sdev->meram_dev && sdev->meram_dev->pdev)
 		pm_runtime_get_sync(&sdev->meram_dev->pdev->dev);
 #endif
+
+	return 0;
 }
 
 static void shmob_drm_clk_off(struct shmob_drm_device *sdev)
@@ -161,6 +168,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	struct drm_device *dev = sdev->ddev;
 	struct drm_plane *plane;
 	u32 value;
+	int ret;
 
 	if (scrtc->started)
 		return;
@@ -170,7 +178,9 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 		return;
 
 	/* Enable clocks before accessing the hardware. */
-	shmob_drm_clk_on(sdev);
+	ret = shmob_drm_clk_on(sdev);
+	if (ret < 0)
+		return;
 
 	/* Reset and enable the LCDC. */
 	lcdc_write(sdev, LDCNT2R, lcdc_read(sdev, LDCNT2R) | LDCNT2R_BR);

@@ -26,8 +26,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -59,7 +58,6 @@
 #include <linux/skbuff.h>
 #include <linux/mii.h>
 #include <linux/random.h>
-#include <linux/init.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -6020,7 +6018,6 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 out_error:
 	if (phystate_orig)
 		writel(phystate|NVREG_ADAPTCTL_RUNNING, base + NvRegAdapterControl);
-	pci_set_drvdata(pci_dev, NULL);
 out_freering:
 	free_rings(dev);
 out_unmap:
@@ -6091,7 +6088,6 @@ static void nv_remove(struct pci_dev *pci_dev)
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 	free_netdev(dev);
-	pci_set_drvdata(pci_dev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

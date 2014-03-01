@@ -407,7 +407,7 @@ xfs_alloc_ioend_bio(
 	struct bio		*bio = bio_alloc(GFP_NOIO, nvecs);
 
 	ASSERT(bio->bi_private == NULL);
-	bio->bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_bdev = bh->b_bdev;
 	return bio;
 }
@@ -1217,7 +1217,7 @@ __xfs_get_blocks(
 		lockmode = XFS_ILOCK_EXCL;
 		xfs_ilock(ip, lockmode);
 	} else {
-		lockmode = xfs_ilock_map_shared(ip);
+		lockmode = xfs_ilock_data_map_shared(ip);
 	}
 
 	ASSERT(offset <= mp->m_super->s_maxbytes);

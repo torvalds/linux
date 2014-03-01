@@ -2921,6 +2921,7 @@ static int vwsnd_audio_open(struct inode *inode, struct file *file)
 	vwsnd_dev_t *devc;
 	int minor = iminor(inode);
 	int sw_samplefmt;
+	DEFINE_WAIT(wait);
 
 	DBGE("(inode=0x%p, file=0x%p)\n", inode, file);
 
@@ -2937,21 +2938,26 @@ static int vwsnd_audio_open(struct inode *inode, struct file *file)
 	}
 
 	mutex_lock(&devc->open_mutex);
-	while (devc->open_mode & file->f_mode) {
+	while (1) {
+		prepare_to_wait(&devc->open_wait, &wait, TASK_INTERRUPTIBLE);
+		if (!(devc->open_mode & file->f_mode))
+			break;
+
 		mutex_unlock(&devc->open_mutex);
+		mutex_unlock(&vwsnd_mutex);
 		if (file->f_flags & O_NONBLOCK) {
 			DEC_USE_COUNT;
-			mutex_unlock(&vwsnd_mutex);
 			return -EBUSY;
 		}
-		interruptible_sleep_on(&devc->open_wait);
+		schedule();
 		if (signal_pending(current)) {
 			DEC_USE_COUNT;
-			mutex_unlock(&vwsnd_mutex);
 			return -ERESTARTSYS;
 		}
+		mutex_lock(&vwsnd_mutex);
 		mutex_lock(&devc->open_mutex);
 	}
+	finish_wait(&devc->open_wait, &wait);
 	devc->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
 	mutex_unlock(&devc->open_mutex);
 

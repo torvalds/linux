@@ -249,7 +249,7 @@ static int pca100_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
 			  "imx-mmc-detect", data);
 	if (ret)
 		printk(KERN_ERR
-			"pca100: Failed to reuest irq for sd/mmc detection\n");
+			"pca100: Failed to request irq for sd/mmc detection\n");
 
 	return ret;
 }

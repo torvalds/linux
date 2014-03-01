@@ -169,6 +169,8 @@ struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_AMD, "AMD/Spansion"},
 	{NAND_MFR_MACRONIX, "Macronix"},
 	{NAND_MFR_EON, "Eon"},
+	{NAND_MFR_SANDISK, "SanDisk"},
+	{NAND_MFR_INTEL, "Intel"},
 	{0x0, "Unknown"}
 };
 

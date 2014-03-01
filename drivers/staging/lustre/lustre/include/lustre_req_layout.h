@@ -164,6 +164,7 @@ extern struct req_format RQF_UPDATE_OBJ;
  */
 extern struct req_format RQF_MDS_GETATTR_NAME;
 extern struct req_format RQF_MDS_CLOSE;
+extern struct req_format RQF_MDS_RELEASE_CLOSE;
 extern struct req_format RQF_MDS_PIN;
 extern struct req_format RQF_MDS_UNPIN;
 extern struct req_format RQF_MDS_CONNECT;
@@ -229,6 +230,7 @@ extern struct req_format RQF_LDLM_INTENT_GETATTR;
 extern struct req_format RQF_LDLM_INTENT_OPEN;
 extern struct req_format RQF_LDLM_INTENT_CREATE;
 extern struct req_format RQF_LDLM_INTENT_UNLINK;
+extern struct req_format RQF_LDLM_INTENT_GETXATTR;
 extern struct req_format RQF_LDLM_INTENT_QUOTA;
 extern struct req_format RQF_LDLM_CANCEL;
 extern struct req_format RQF_LDLM_CALLBACK;
@@ -245,6 +247,8 @@ extern struct req_format RQF_LLOG_ORIGIN_HANDLE_PREV_BLOCK;
 extern struct req_format RQF_LLOG_ORIGIN_HANDLE_READ_HEADER;
 extern struct req_format RQF_LLOG_ORIGIN_CONNECT;
 
+extern struct req_format RQF_CONNECT;
+
 extern struct req_msg_field RMF_GENERIC_DATA;
 extern struct req_msg_field RMF_PTLRPC_BODY;
 extern struct req_msg_field RMF_MDT_BODY;
@@ -260,6 +264,7 @@ extern struct req_msg_field RMF_GETINFO_VAL;
 extern struct req_msg_field RMF_GETINFO_VALLEN;
 extern struct req_msg_field RMF_GETINFO_KEY;
 extern struct req_msg_field RMF_IDX_INFO;
+extern struct req_msg_field RMF_CLOSE_DATA;
 
 /*
  * connection handle received in MDS_CONNECT request.
@@ -275,6 +280,8 @@ extern struct req_msg_field RMF_LAYOUT_INTENT;
 extern struct req_msg_field RMF_MDT_MD;
 extern struct req_msg_field RMF_REC_REINT;
 extern struct req_msg_field RMF_EADATA;
+extern struct req_msg_field RMF_EAVALS;
+extern struct req_msg_field RMF_EAVALS_LENS;
 extern struct req_msg_field RMF_ACL;
 extern struct req_msg_field RMF_LOGCOOKIES;
 extern struct req_msg_field RMF_CAPA1;

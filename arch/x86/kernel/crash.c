@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>

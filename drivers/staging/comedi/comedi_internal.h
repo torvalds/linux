@@ -16,7 +16,11 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s);
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		     unsigned long new_size);
 void comedi_buf_reset(struct comedi_async *async);
+bool comedi_buf_is_mmapped(struct comedi_async *async);
+void comedi_buf_map_get(struct comedi_buf_map *bm);
+int comedi_buf_map_put(struct comedi_buf_map *bm);
 unsigned int comedi_buf_write_n_allocated(struct comedi_async *async);
+void comedi_device_cancel_all(struct comedi_device *dev);
 
 extern unsigned int comedi_default_buf_size_kb;
 extern unsigned int comedi_default_buf_maxsize_kb;

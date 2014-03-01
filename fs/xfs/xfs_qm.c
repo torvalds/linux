@@ -134,28 +134,11 @@ xfs_qm_dqpurge(
 {
 	struct xfs_mount	*mp = dqp->q_mount;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct xfs_dquot	*gdqp = NULL;
-	struct xfs_dquot	*pdqp = NULL;
 
 	xfs_dqlock(dqp);
 	if ((dqp->dq_flags & XFS_DQ_FREEING) || dqp->q_nrefs != 0) {
 		xfs_dqunlock(dqp);
 		return EAGAIN;
-	}
-
-	/*
-	 * If this quota has a hint attached, prepare for releasing it now.
-	 */
-	gdqp = dqp->q_gdquot;
-	if (gdqp) {
-		xfs_dqlock(gdqp);
-		dqp->q_gdquot = NULL;
-	}
-
-	pdqp = dqp->q_pdquot;
-	if (pdqp) {
-		xfs_dqlock(pdqp);
-		dqp->q_pdquot = NULL;
 	}
 
 	dqp->dq_flags |= XFS_DQ_FREEING;
@@ -206,11 +189,47 @@ xfs_qm_dqpurge(
 	XFS_STATS_DEC(xs_qm_dquot_unused);
 
 	xfs_qm_dqdestroy(dqp);
+	return 0;
+}
+
+/*
+ * Release the group or project dquot pointers the user dquots maybe carrying
+ * around as a hint, and proceed to purge the user dquot cache if requested.
+*/
+STATIC int
+xfs_qm_dqpurge_hints(
+	struct xfs_dquot	*dqp,
+	void			*data)
+{
+	struct xfs_dquot	*gdqp = NULL;
+	struct xfs_dquot	*pdqp = NULL;
+	uint			flags = *((uint *)data);
+
+	xfs_dqlock(dqp);
+	if (dqp->dq_flags & XFS_DQ_FREEING) {
+		xfs_dqunlock(dqp);
+		return EAGAIN;
+	}
+
+	/* If this quota has a hint attached, prepare for releasing it now */
+	gdqp = dqp->q_gdquot;
+	if (gdqp)
+		dqp->q_gdquot = NULL;
+
+	pdqp = dqp->q_pdquot;
+	if (pdqp)
+		dqp->q_pdquot = NULL;
+
+	xfs_dqunlock(dqp);
 
 	if (gdqp)
-		xfs_qm_dqput(gdqp);
+		xfs_qm_dqrele(gdqp);
 	if (pdqp)
-		xfs_qm_dqput(pdqp);
+		xfs_qm_dqrele(pdqp);
+
+	if (flags & XFS_QMOPT_UQUOTA)
+		return xfs_qm_dqpurge(dqp, NULL);
+
 	return 0;
 }
 
@@ -222,8 +241,18 @@ xfs_qm_dqpurge_all(
 	struct xfs_mount	*mp,
 	uint			flags)
 {
-	if (flags & XFS_QMOPT_UQUOTA)
-		xfs_qm_dquot_walk(mp, XFS_DQ_USER, xfs_qm_dqpurge, NULL);
+	/*
+	 * We have to release group/project dquot hint(s) from the user dquot
+	 * at first if they are there, otherwise we would run into an infinite
+	 * loop while walking through radix tree to purge other type of dquots
+	 * since their refcount is not zero if the user dquot refers to them
+	 * as hint.
+	 *
+	 * Call the special xfs_qm_dqpurge_hints() will end up go through the
+	 * general xfs_qm_dqpurge() against user dquot cache if requested.
+	 */
+	xfs_qm_dquot_walk(mp, XFS_DQ_USER, xfs_qm_dqpurge_hints, &flags);
+
 	if (flags & XFS_QMOPT_GQUOTA)
 		xfs_qm_dquot_walk(mp, XFS_DQ_GROUP, xfs_qm_dqpurge, NULL);
 	if (flags & XFS_QMOPT_PQUOTA)
@@ -1193,16 +1222,18 @@ xfs_qm_dqiterate(
 	lblkno = 0;
 	maxlblkcnt = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	do {
+		uint		lock_mode;
+
 		nmaps = XFS_DQITER_MAP_SIZE;
 		/*
 		 * We aren't changing the inode itself. Just changing
 		 * some of its data. No new blocks are added here, and
 		 * the inode is never added to the transaction.
 		 */
-		xfs_ilock(qip, XFS_ILOCK_SHARED);
+		lock_mode = xfs_ilock_data_map_shared(qip);
 		error = xfs_bmapi_read(qip, lblkno, maxlblkcnt - lblkno,
 				       map, &nmaps, 0);
-		xfs_iunlock(qip, XFS_ILOCK_SHARED);
+		xfs_iunlock(qip, lock_mode);
 		if (error)
 			break;
 
@@ -2082,24 +2113,21 @@ xfs_qm_vop_create_dqattach(
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
-	if (udqp) {
+	if (udqp && XFS_IS_UQUOTA_ON(mp)) {
 		ASSERT(ip->i_udquot == NULL);
-		ASSERT(XFS_IS_UQUOTA_ON(mp));
 		ASSERT(ip->i_d.di_uid == be32_to_cpu(udqp->q_core.d_id));
 
 		ip->i_udquot = xfs_qm_dqhold(udqp);
 		xfs_trans_mod_dquot(tp, udqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
-	if (gdqp) {
+	if (gdqp && XFS_IS_GQUOTA_ON(mp)) {
 		ASSERT(ip->i_gdquot == NULL);
-		ASSERT(XFS_IS_GQUOTA_ON(mp));
 		ASSERT(ip->i_d.di_gid == be32_to_cpu(gdqp->q_core.d_id));
 		ip->i_gdquot = xfs_qm_dqhold(gdqp);
 		xfs_trans_mod_dquot(tp, gdqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
-	if (pdqp) {
+	if (pdqp && XFS_IS_PQUOTA_ON(mp)) {
 		ASSERT(ip->i_pdquot == NULL);
-		ASSERT(XFS_IS_PQUOTA_ON(mp));
 		ASSERT(xfs_get_projid(ip) == be32_to_cpu(pdqp->q_core.d_id));
 
 		ip->i_pdquot = xfs_qm_dqhold(pdqp);

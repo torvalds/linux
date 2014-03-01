@@ -111,7 +111,7 @@ static int contec_pci_dio_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(contec_pci_dio_pci_table) = {
+static const struct pci_device_id contec_pci_dio_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L) },
 	{ 0 }
 };

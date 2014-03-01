@@ -78,14 +78,6 @@ APICs
 
    no_timer_check Don't check the IO-APIC timer. This can work around
 		 problems with incorrect timer initialization on some boards.
-
-   apicmaintimer Run time keeping from the local APIC timer instead
-                 of using the PIT/HPET interrupt for this. This is useful
-                 when the PIT/HPET interrupts are unreliable.
-
-   noapicmaintimer  Don't do time keeping using the APIC timer.
-		 Useful when this option was auto selected, but doesn't work.
-
    apicpmtimer
 		 Do APIC timer calibration using the pmtimer. Implies
 		 apicmaintimer. Useful when your PIT timer is totally
@@ -143,11 +135,6 @@ Non Executable Mappings
 
   on      Enable(default)
   off     Disable
-
-SMP
-
-  additional_cpus=NUM Allow NUM more CPUs for hotplug
-		 (defaults are specified by the BIOS, see Documentation/x86/x86_64/cpu-hotplug-spec)
 
 NUMA
 
@@ -288,16 +275,6 @@ IOMMU (input/output memory management unit)
 Debugging
 
   kstack=N	Print N words from the kernel stack in oops dumps.
-
-  pagefaulttrace  Dump all page faults. Only useful for extreme debugging
-		and will create a lot of output.
-
-  call_trace=[old|both|newfallback|new]
-		old: use old inexact backtracer
-		new: use new exact dwarf2 unwinder
- 		both: print entries from both
-		newfallback: use new unwinder but fall back to old if it gets
-			stuck (default)
 
 Miscellaneous
 

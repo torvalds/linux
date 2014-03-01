@@ -1600,7 +1600,6 @@ static int ab8500_interrupts_print(struct seq_file *s, void *p)
 
 	for (line = 0; line < num_interrupt_lines; line++) {
 		struct irq_desc *desc = irq_to_desc(line + irq_first);
-		struct irqaction *action = desc->action;
 
 		seq_printf(s, "%3i:  %6i %4i", line,
 			   num_interrupts[line],
@@ -1608,7 +1607,9 @@ static int ab8500_interrupts_print(struct seq_file *s, void *p)
 
 		if (desc && desc->name)
 			seq_printf(s, "-%-8s", desc->name);
-		if (action) {
+		if (desc && desc->action) {
+			struct irqaction *action = desc->action;
+
 			seq_printf(s, "  %s", action->name);
 			while ((action = action->next) != NULL)
 				seq_printf(s, ", %s", action->name);

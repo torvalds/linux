@@ -973,17 +973,17 @@ static int da732x_hw_params(struct snd_pcm_substream *substream,
 
 	reg_aif = dai->driver->base;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		aif |= DA732X_AIF_WORD_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		aif |= DA732X_AIF_WORD_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		aif |= DA732X_AIF_WORD_24;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		aif |= DA732X_AIF_WORD_32;
 		break;
 	default:

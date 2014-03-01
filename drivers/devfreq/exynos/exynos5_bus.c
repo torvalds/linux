@@ -152,7 +152,7 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 	if (old_freq == freq)
 		return 0;
 
-	dev_dbg(dev, "targetting %lukHz %luuV\n", freq, volt);
+	dev_dbg(dev, "targeting %lukHz %luuV\n", freq, volt);
 
 	mutex_lock(&data->lock);
 

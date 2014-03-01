@@ -28,6 +28,7 @@
 #include "cikd.h"
 #include "ppsmc.h"
 #include "radeon_ucode.h"
+#include "ci_dpm.h"
 
 static int ci_set_smc_sram_address(struct radeon_device *rdev,
 				   u32 smc_address, u32 limit)

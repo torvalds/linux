@@ -27,14 +27,16 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 
-#define MT9V032_PIXEL_ARRAY_HEIGHT			492
-#define MT9V032_PIXEL_ARRAY_WIDTH			782
+/* The first four rows are black rows. The active area spans 753x481 pixels. */
+#define MT9V032_PIXEL_ARRAY_HEIGHT			485
+#define MT9V032_PIXEL_ARRAY_WIDTH			753
 
 #define MT9V032_SYSCLK_FREQ_DEF				26600000
 
 #define MT9V032_CHIP_VERSION				0x00
 #define		MT9V032_CHIP_ID_REV1			0x1311
 #define		MT9V032_CHIP_ID_REV3			0x1313
+#define		MT9V034_CHIP_ID_REV1			0X1324
 #define MT9V032_COLUMN_START				0x01
 #define		MT9V032_COLUMN_START_MIN		1
 #define		MT9V032_COLUMN_START_DEF		1
@@ -53,12 +55,15 @@
 #define		MT9V032_WINDOW_WIDTH_MAX		752
 #define MT9V032_HORIZONTAL_BLANKING			0x05
 #define		MT9V032_HORIZONTAL_BLANKING_MIN		43
+#define		MT9V034_HORIZONTAL_BLANKING_MIN		61
 #define		MT9V032_HORIZONTAL_BLANKING_DEF		94
 #define		MT9V032_HORIZONTAL_BLANKING_MAX		1023
 #define MT9V032_VERTICAL_BLANKING			0x06
 #define		MT9V032_VERTICAL_BLANKING_MIN		4
+#define		MT9V034_VERTICAL_BLANKING_MIN		2
 #define		MT9V032_VERTICAL_BLANKING_DEF		45
 #define		MT9V032_VERTICAL_BLANKING_MAX		3000
+#define		MT9V034_VERTICAL_BLANKING_MAX		32288
 #define MT9V032_CHIP_CONTROL				0x07
 #define		MT9V032_CHIP_CONTROL_MASTER_MODE	(1 << 3)
 #define		MT9V032_CHIP_CONTROL_DOUT_ENABLE	(1 << 7)
@@ -68,8 +73,10 @@
 #define MT9V032_SHUTTER_WIDTH_CONTROL			0x0a
 #define MT9V032_TOTAL_SHUTTER_WIDTH			0x0b
 #define		MT9V032_TOTAL_SHUTTER_WIDTH_MIN		1
+#define		MT9V034_TOTAL_SHUTTER_WIDTH_MIN		0
 #define		MT9V032_TOTAL_SHUTTER_WIDTH_DEF		480
 #define		MT9V032_TOTAL_SHUTTER_WIDTH_MAX		32767
+#define		MT9V034_TOTAL_SHUTTER_WIDTH_MAX		32765
 #define MT9V032_RESET					0x0c
 #define MT9V032_READ_MODE				0x0d
 #define		MT9V032_READ_MODE_ROW_BIN_MASK		(3 << 0)
@@ -81,6 +88,8 @@
 #define		MT9V032_READ_MODE_DARK_COLUMNS		(1 << 6)
 #define		MT9V032_READ_MODE_DARK_ROWS		(1 << 7)
 #define MT9V032_PIXEL_OPERATION_MODE			0x0f
+#define		MT9V034_PIXEL_OPERATION_MODE_HDR	(1 << 0)
+#define		MT9V034_PIXEL_OPERATION_MODE_COLOR	(1 << 1)
 #define		MT9V032_PIXEL_OPERATION_MODE_COLOR	(1 << 2)
 #define		MT9V032_PIXEL_OPERATION_MODE_HDR	(1 << 6)
 #define MT9V032_ANALOG_GAIN				0x35
@@ -96,9 +105,12 @@
 #define		MT9V032_DARK_AVG_HIGH_THRESH_MASK	(255 << 8)
 #define		MT9V032_DARK_AVG_HIGH_THRESH_SHIFT	8
 #define MT9V032_ROW_NOISE_CORR_CONTROL			0x70
+#define		MT9V034_ROW_NOISE_CORR_ENABLE		(1 << 0)
+#define		MT9V034_ROW_NOISE_CORR_USE_BLK_AVG	(1 << 1)
 #define		MT9V032_ROW_NOISE_CORR_ENABLE		(1 << 5)
 #define		MT9V032_ROW_NOISE_CORR_USE_BLK_AVG	(1 << 7)
 #define MT9V032_PIXEL_CLOCK				0x74
+#define MT9V034_PIXEL_CLOCK				0x72
 #define		MT9V032_PIXEL_CLOCK_INV_LINE		(1 << 0)
 #define		MT9V032_PIXEL_CLOCK_INV_FRAME		(1 << 1)
 #define		MT9V032_PIXEL_CLOCK_XOR_LINE		(1 << 2)
@@ -120,12 +132,88 @@
 #define		MT9V032_AGC_ENABLE			(1 << 1)
 #define MT9V032_THERMAL_INFO				0xc1
 
+enum mt9v032_model {
+	MT9V032_MODEL_V032_COLOR,
+	MT9V032_MODEL_V032_MONO,
+	MT9V032_MODEL_V034_COLOR,
+	MT9V032_MODEL_V034_MONO,
+};
+
+struct mt9v032_model_version {
+	unsigned int version;
+	const char *name;
+};
+
+struct mt9v032_model_data {
+	unsigned int min_row_time;
+	unsigned int min_hblank;
+	unsigned int min_vblank;
+	unsigned int max_vblank;
+	unsigned int min_shutter;
+	unsigned int max_shutter;
+	unsigned int pclk_reg;
+};
+
+struct mt9v032_model_info {
+	const struct mt9v032_model_data *data;
+	bool color;
+};
+
+static const struct mt9v032_model_version mt9v032_versions[] = {
+	{ MT9V032_CHIP_ID_REV1, "MT9V032 rev1/2" },
+	{ MT9V032_CHIP_ID_REV3, "MT9V032 rev3" },
+	{ MT9V034_CHIP_ID_REV1, "MT9V034 rev1" },
+};
+
+static const struct mt9v032_model_data mt9v032_model_data[] = {
+	{
+		/* MT9V032 revisions 1/2/3 */
+		.min_row_time = 660,
+		.min_hblank = MT9V032_HORIZONTAL_BLANKING_MIN,
+		.min_vblank = MT9V032_VERTICAL_BLANKING_MIN,
+		.max_vblank = MT9V032_VERTICAL_BLANKING_MAX,
+		.min_shutter = MT9V032_TOTAL_SHUTTER_WIDTH_MIN,
+		.max_shutter = MT9V032_TOTAL_SHUTTER_WIDTH_MAX,
+		.pclk_reg = MT9V032_PIXEL_CLOCK,
+	}, {
+		/* MT9V034 */
+		.min_row_time = 690,
+		.min_hblank = MT9V034_HORIZONTAL_BLANKING_MIN,
+		.min_vblank = MT9V034_VERTICAL_BLANKING_MIN,
+		.max_vblank = MT9V034_VERTICAL_BLANKING_MAX,
+		.min_shutter = MT9V034_TOTAL_SHUTTER_WIDTH_MIN,
+		.max_shutter = MT9V034_TOTAL_SHUTTER_WIDTH_MAX,
+		.pclk_reg = MT9V034_PIXEL_CLOCK,
+	},
+};
+
+static const struct mt9v032_model_info mt9v032_models[] = {
+	[MT9V032_MODEL_V032_COLOR] = {
+		.data = &mt9v032_model_data[0],
+		.color = true,
+	},
+	[MT9V032_MODEL_V032_MONO] = {
+		.data = &mt9v032_model_data[0],
+		.color = false,
+	},
+	[MT9V032_MODEL_V034_COLOR] = {
+		.data = &mt9v032_model_data[1],
+		.color = true,
+	},
+	[MT9V032_MODEL_V034_MONO] = {
+		.data = &mt9v032_model_data[1],
+		.color = false,
+	},
+};
+
 struct mt9v032 {
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
 
 	struct v4l2_mbus_framefmt format;
 	struct v4l2_rect crop;
+	unsigned int hratio;
+	unsigned int vratio;
 
 	struct v4l2_ctrl_handler ctrls;
 	struct {
@@ -139,6 +227,8 @@ struct mt9v032 {
 	struct clk *clk;
 
 	struct mt9v032_platform_data *pdata;
+	const struct mt9v032_model_info *model;
+	const struct mt9v032_model_version *version;
 
 	u32 sysclk;
 	u16 chip_control;
@@ -210,12 +300,17 @@ mt9v032_update_hblank(struct mt9v032 *mt9v032)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
 	struct v4l2_rect *crop = &mt9v032->crop;
+	unsigned int min_hblank = mt9v032->model->data->min_hblank;
+	unsigned int hblank;
 
-	return mt9v032_write(client, MT9V032_HORIZONTAL_BLANKING,
-			     max_t(s32, mt9v032->hblank, 660 - crop->width));
+	if (mt9v032->version->version == MT9V034_CHIP_ID_REV1)
+		min_hblank += (mt9v032->hratio - 1) * 10;
+	min_hblank = max_t(unsigned int, (int)mt9v032->model->data->min_row_time - crop->width,
+			   (int)min_hblank);
+	hblank = max_t(unsigned int, mt9v032->hblank, min_hblank);
+
+	return mt9v032_write(client, MT9V032_HORIZONTAL_BLANKING, hblank);
 }
-
-#define EXT_CLK		25000000
 
 static int mt9v032_power_on(struct mt9v032 *mt9v032)
 {
@@ -259,7 +354,7 @@ static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
 
 	/* Configure the pixel clock polarity */
 	if (mt9v032->pdata && mt9v032->pdata->clk_pol) {
-		ret = mt9v032_write(client, MT9V032_PIXEL_CLOCK,
+		ret = mt9v032_write(client, mt9v032->model->data->pclk_reg,
 				MT9V032_PIXEL_CLOCK_INV_PXL_CLK);
 		if (ret < 0)
 			return ret;
@@ -312,22 +407,20 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 		       | MT9V032_CHIP_CONTROL_SEQUENTIAL;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
-	struct v4l2_mbus_framefmt *format = &mt9v032->format;
 	struct v4l2_rect *crop = &mt9v032->crop;
-	unsigned int hratio;
-	unsigned int vratio;
+	unsigned int hbin;
+	unsigned int vbin;
 	int ret;
 
 	if (!enable)
 		return mt9v032_set_chip_control(mt9v032, mode, 0);
 
 	/* Configure the window size and row/column bin */
-	hratio = DIV_ROUND_CLOSEST(crop->width, format->width);
-	vratio = DIV_ROUND_CLOSEST(crop->height, format->height);
-
+	hbin = fls(mt9v032->hratio) - 1;
+	vbin = fls(mt9v032->vratio) - 1;
 	ret = mt9v032_write(client, MT9V032_READ_MODE,
-		    (hratio - 1) << MT9V032_READ_MODE_ROW_BIN_SHIFT |
-		    (vratio - 1) << MT9V032_READ_MODE_COLUMN_BIN_SHIFT);
+			    hbin << MT9V032_READ_MODE_COLUMN_BIN_SHIFT |
+			    vbin << MT9V032_READ_MODE_ROW_BIN_SHIFT);
 	if (ret < 0)
 		return ret;
 
@@ -370,12 +463,12 @@ static int mt9v032_enum_frame_size(struct v4l2_subdev *subdev,
 				   struct v4l2_subdev_fh *fh,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= 8 || fse->code != V4L2_MBUS_FMT_SGRBG10_1X10)
+	if (fse->index >= 3 || fse->code != V4L2_MBUS_FMT_SGRBG10_1X10)
 		return -EINVAL;
 
-	fse->min_width = MT9V032_WINDOW_WIDTH_DEF / fse->index;
+	fse->min_width = MT9V032_WINDOW_WIDTH_DEF / (1 << fse->index);
 	fse->max_width = fse->min_width;
-	fse->min_height = MT9V032_WINDOW_HEIGHT_DEF / fse->index;
+	fse->min_height = MT9V032_WINDOW_HEIGHT_DEF / (1 << fse->index);
 	fse->max_height = fse->min_height;
 
 	return 0;
@@ -392,16 +485,28 @@ static int mt9v032_get_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static void mt9v032_configure_pixel_rate(struct mt9v032 *mt9v032,
-					 unsigned int hratio)
+static void mt9v032_configure_pixel_rate(struct mt9v032 *mt9v032)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
 	int ret;
 
 	ret = v4l2_ctrl_s_ctrl_int64(mt9v032->pixel_rate,
-				     mt9v032->sysclk / hratio);
+				     mt9v032->sysclk / mt9v032->hratio);
 	if (ret < 0)
 		dev_warn(&client->dev, "failed to set pixel rate (%d)\n", ret);
+}
+
+static unsigned int mt9v032_calc_ratio(unsigned int input, unsigned int output)
+{
+	/* Compute the power-of-two binning factor closest to the input size to
+	 * output size ratio. Given that the output size is bounded by input/4
+	 * and input, a generic implementation would be an ineffective luxury.
+	 */
+	if (output * 3 > input * 2)
+		return 1;
+	if (output * 3 > input)
+		return 2;
+	return 4;
 }
 
 static int mt9v032_set_format(struct v4l2_subdev *subdev,
@@ -420,22 +525,28 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 					format->which);
 
 	/* Clamp the width and height to avoid dividing by zero. */
-	width = clamp_t(unsigned int, ALIGN(format->format.width, 2),
-			max(__crop->width / 8, MT9V032_WINDOW_WIDTH_MIN),
-			__crop->width);
-	height = clamp_t(unsigned int, ALIGN(format->format.height, 2),
-			 max(__crop->height / 8, MT9V032_WINDOW_HEIGHT_MIN),
-			 __crop->height);
+	width = clamp(ALIGN(format->format.width, 2),
+		      max_t(unsigned int, __crop->width / 4,
+			    MT9V032_WINDOW_WIDTH_MIN),
+		      __crop->width);
+	height = clamp(ALIGN(format->format.height, 2),
+		       max_t(unsigned int, __crop->height / 4,
+			     MT9V032_WINDOW_HEIGHT_MIN),
+		       __crop->height);
 
-	hratio = DIV_ROUND_CLOSEST(__crop->width, width);
-	vratio = DIV_ROUND_CLOSEST(__crop->height, height);
+	hratio = mt9v032_calc_ratio(__crop->width, width);
+	vratio = mt9v032_calc_ratio(__crop->height, height);
 
 	__format = __mt9v032_get_pad_format(mt9v032, fh, format->pad,
 					    format->which);
 	__format->width = __crop->width / hratio;
 	__format->height = __crop->height / vratio;
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		mt9v032_configure_pixel_rate(mt9v032, hratio);
+
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+		mt9v032->hratio = hratio;
+		mt9v032->vratio = vratio;
+		mt9v032_configure_pixel_rate(mt9v032);
+	}
 
 	format->format = *__format;
 
@@ -471,15 +582,17 @@ static int mt9v032_set_crop(struct v4l2_subdev *subdev,
 	rect.top = clamp(ALIGN(crop->rect.top + 1, 2) - 1,
 			 MT9V032_ROW_START_MIN,
 			 MT9V032_ROW_START_MAX);
-	rect.width = clamp(ALIGN(crop->rect.width, 2),
-			   MT9V032_WINDOW_WIDTH_MIN,
-			   MT9V032_WINDOW_WIDTH_MAX);
-	rect.height = clamp(ALIGN(crop->rect.height, 2),
-			    MT9V032_WINDOW_HEIGHT_MIN,
-			    MT9V032_WINDOW_HEIGHT_MAX);
+	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+			     MT9V032_WINDOW_WIDTH_MIN,
+			     MT9V032_WINDOW_WIDTH_MAX);
+	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+			      MT9V032_WINDOW_HEIGHT_MIN,
+			      MT9V032_WINDOW_HEIGHT_MAX);
 
-	rect.width = min(rect.width, MT9V032_PIXEL_ARRAY_WIDTH - rect.left);
-	rect.height = min(rect.height, MT9V032_PIXEL_ARRAY_HEIGHT - rect.top);
+	rect.width = min_t(unsigned int,
+			   rect.width, MT9V032_PIXEL_ARRAY_WIDTH - rect.left);
+	rect.height = min_t(unsigned int,
+			    rect.height, MT9V032_PIXEL_ARRAY_HEIGHT - rect.top);
 
 	__crop = __mt9v032_get_pad_crop(mt9v032, fh, crop->pad, crop->which);
 
@@ -491,8 +604,11 @@ static int mt9v032_set_crop(struct v4l2_subdev *subdev,
 						    crop->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
-		if (crop->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-			mt9v032_configure_pixel_rate(mt9v032, 1);
+		if (crop->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+			mt9v032->hratio = 1;
+			mt9v032->vratio = 1;
+			mt9v032_configure_pixel_rate(mt9v032);
+		}
 	}
 
 	*__crop = rect;
@@ -641,7 +757,8 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
-	s32 data;
+	unsigned int i;
+	s32 version;
 	int ret;
 
 	dev_info(&client->dev, "Probing MT9V032 at address 0x%02x\n",
@@ -654,25 +771,38 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 	}
 
 	/* Read and check the sensor version */
-	data = mt9v032_read(client, MT9V032_CHIP_VERSION);
-	if (data != MT9V032_CHIP_ID_REV1 && data != MT9V032_CHIP_ID_REV3) {
-		dev_err(&client->dev, "MT9V032 not detected, wrong version "
-				"0x%04x\n", data);
+	version = mt9v032_read(client, MT9V032_CHIP_VERSION);
+	if (version < 0) {
+		dev_err(&client->dev, "Failed reading chip version\n");
+		return version;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mt9v032_versions); ++i) {
+		if (mt9v032_versions[i].version == version) {
+			mt9v032->version = &mt9v032_versions[i];
+			break;
+		}
+	}
+
+	if (mt9v032->version == NULL) {
+		dev_err(&client->dev, "Unsupported chip version 0x%04x\n",
+			version);
 		return -ENODEV;
 	}
 
 	mt9v032_power_off(mt9v032);
 
-	dev_info(&client->dev, "MT9V032 detected at address 0x%02x\n",
-			client->addr);
+	dev_info(&client->dev, "%s detected at address 0x%02x\n",
+		 mt9v032->version->name, client->addr);
 
-	mt9v032_configure_pixel_rate(mt9v032, 1);
+	mt9v032_configure_pixel_rate(mt9v032);
 
 	return ret;
 }
 
 static int mt9v032_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 {
+	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
@@ -683,7 +813,12 @@ static int mt9v032_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	crop->height = MT9V032_WINDOW_HEIGHT_DEF;
 
 	format = v4l2_subdev_get_try_format(fh, 0);
-	format->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+
+	if (mt9v032->model->color)
+		format->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	else
+		format->code = V4L2_MBUS_FMT_Y10_1X10;
+
 	format->width = MT9V032_WINDOW_WIDTH_DEF;
 	format->height = MT9V032_WINDOW_HEIGHT_DEF;
 	format->field = V4L2_FIELD_NONE;
@@ -755,6 +890,7 @@ static int mt9v032_probe(struct i2c_client *client,
 
 	mutex_init(&mt9v032->power_lock);
 	mt9v032->pdata = pdata;
+	mt9v032->model = (const void *)did->driver_data;
 
 	v4l2_ctrl_handler_init(&mt9v032->ctrls, 10);
 
@@ -767,16 +903,16 @@ static int mt9v032_probe(struct i2c_client *client,
 			       V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL, 0,
 			       V4L2_EXPOSURE_AUTO);
 	v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
-			  V4L2_CID_EXPOSURE, MT9V032_TOTAL_SHUTTER_WIDTH_MIN,
-			  MT9V032_TOTAL_SHUTTER_WIDTH_MAX, 1,
+			  V4L2_CID_EXPOSURE, mt9v032->model->data->min_shutter,
+			  mt9v032->model->data->max_shutter, 1,
 			  MT9V032_TOTAL_SHUTTER_WIDTH_DEF);
 	v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
-			  V4L2_CID_HBLANK, MT9V032_HORIZONTAL_BLANKING_MIN,
+			  V4L2_CID_HBLANK, mt9v032->model->data->min_hblank,
 			  MT9V032_HORIZONTAL_BLANKING_MAX, 1,
 			  MT9V032_HORIZONTAL_BLANKING_DEF);
 	v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
-			  V4L2_CID_VBLANK, MT9V032_VERTICAL_BLANKING_MIN,
-			  MT9V032_VERTICAL_BLANKING_MAX, 1,
+			  V4L2_CID_VBLANK, mt9v032->model->data->min_vblank,
+			  mt9v032->model->data->max_vblank, 1,
 			  MT9V032_VERTICAL_BLANKING_DEF);
 	mt9v032->test_pattern = v4l2_ctrl_new_std_menu_items(&mt9v032->ctrls,
 				&mt9v032_ctrl_ops, V4L2_CID_TEST_PATTERN,
@@ -819,11 +955,18 @@ static int mt9v032_probe(struct i2c_client *client,
 	mt9v032->crop.width = MT9V032_WINDOW_WIDTH_DEF;
 	mt9v032->crop.height = MT9V032_WINDOW_HEIGHT_DEF;
 
-	mt9v032->format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	if (mt9v032->model->color)
+		mt9v032->format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	else
+		mt9v032->format.code = V4L2_MBUS_FMT_Y10_1X10;
+
 	mt9v032->format.width = MT9V032_WINDOW_WIDTH_DEF;
 	mt9v032->format.height = MT9V032_WINDOW_HEIGHT_DEF;
 	mt9v032->format.field = V4L2_FIELD_NONE;
 	mt9v032->format.colorspace = V4L2_COLORSPACE_SRGB;
+
+	mt9v032->hratio = 1;
+	mt9v032->vratio = 1;
 
 	mt9v032->aec_agc = MT9V032_AEC_ENABLE | MT9V032_AGC_ENABLE;
 	mt9v032->hblank = MT9V032_HORIZONTAL_BLANKING_DEF;
@@ -855,7 +998,10 @@ static int mt9v032_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mt9v032_id[] = {
-	{ "mt9v032", 0 },
+	{ "mt9v032", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_COLOR] },
+	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MONO] },
+	{ "mt9v034", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_COLOR] },
+	{ "mt9v034m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_MONO] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9v032_id);

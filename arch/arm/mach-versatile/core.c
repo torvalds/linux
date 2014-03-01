@@ -570,6 +570,16 @@ static struct pl061_platform_data gpio1_plat_data = {
 	.irq_base	= IRQ_GPIO1_START,
 };
 
+static struct pl061_platform_data gpio2_plat_data = {
+	.gpio_base	= 16,
+	.irq_base	= IRQ_GPIO2_START,
+};
+
+static struct pl061_platform_data gpio3_plat_data = {
+	.gpio_base	= 24,
+	.irq_base	= IRQ_GPIO3_START,
+};
+
 static struct pl022_ssp_controller ssp0_plat_data = {
 	.bus_id = 0,
 	.enable_dma = 0,
@@ -596,6 +606,8 @@ static struct pl022_ssp_controller ssp0_plat_data = {
 #define WATCHDOG_IRQ	{ IRQ_WDOGINT }
 #define GPIO0_IRQ	{ IRQ_GPIOINT0 }
 #define GPIO1_IRQ	{ IRQ_GPIOINT1 }
+#define GPIO2_IRQ	{ IRQ_GPIOINT2 }
+#define GPIO3_IRQ	{ IRQ_GPIOINT3 }
 #define RTC_IRQ		{ IRQ_RTCINT }
 
 /*
@@ -622,6 +634,8 @@ APB_DEVICE(sctl,  "dev:e0",  SCTL,     NULL);
 APB_DEVICE(wdog,  "dev:e1",  WATCHDOG, NULL);
 APB_DEVICE(gpio0, "dev:e4",  GPIO0,    &gpio0_plat_data);
 APB_DEVICE(gpio1, "dev:e5",  GPIO1,    &gpio1_plat_data);
+APB_DEVICE(gpio2, "dev:e6",  GPIO2,    &gpio2_plat_data);
+APB_DEVICE(gpio3, "dev:e7",  GPIO3,    &gpio3_plat_data);
 APB_DEVICE(rtc,   "dev:e8",  RTC,      NULL);
 APB_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
 APB_DEVICE(uart0, "dev:f1",  UART0,    NULL);
@@ -641,6 +655,8 @@ static struct amba_device *amba_devs[] __initdata = {
 	&wdog_device,
 	&gpio0_device,
 	&gpio1_device,
+	&gpio2_device,
+	&gpio3_device,
 	&rtc_device,
 	&sci0_device,
 	&ssp0_device,

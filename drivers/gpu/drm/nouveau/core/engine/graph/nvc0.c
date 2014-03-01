@@ -334,7 +334,7 @@ nvc0_graph_mthd(struct nvc0_graph_priv *priv, struct nvc0_graph_mthd *mthds)
 	while ((mthd = &mthds[i++]) && (init = mthd->init)) {
 		u32  addr = 0x80000000 | mthd->oclass;
 		for (data = 0; init->count; init++) {
-			if (data != init->data) {
+			if (init == mthd->init || data != init->data) {
 				nv_wr32(priv, 0x40448c, init->data);
 				data = init->data;
 			}
@@ -901,6 +901,9 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 		}
 
 		return 0;
+	} else
+	if (!oclass->fecs.ucode) {
+		return -ENOSYS;
 	}
 
 	/* load HUB microcode */

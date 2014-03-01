@@ -444,8 +444,8 @@ mac802154_subif_frame(struct mac802154_sub_if_data *sdata, struct sk_buff *skb)
 	case IEEE802154_FC_TYPE_DATA:
 		return mac802154_process_data(sdata->dev, skb);
 	default:
-		pr_warning("ieee802154: bad frame received (type = %d)\n",
-			   mac_cb_type(skb));
+		pr_warn("ieee802154: bad frame received (type = %d)\n",
+			mac_cb_type(skb));
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}

@@ -211,21 +211,17 @@ dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 	exception_exit(prev_state);					\
 }
 
-DO_ERROR_INFO(X86_TRAP_DE, SIGFPE, "divide error", divide_error, FPE_INTDIV,
-		regs->ip)
-DO_ERROR(X86_TRAP_OF, SIGSEGV, "overflow", overflow)
-DO_ERROR(X86_TRAP_BR, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO(X86_TRAP_UD, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN,
-		regs->ip)
-DO_ERROR(X86_TRAP_OLD_MF, SIGFPE, "coprocessor segment overrun",
-		coprocessor_segment_overrun)
-DO_ERROR(X86_TRAP_TS, SIGSEGV, "invalid TSS", invalid_TSS)
-DO_ERROR(X86_TRAP_NP, SIGBUS, "segment not present", segment_not_present)
+DO_ERROR_INFO(X86_TRAP_DE,     SIGFPE,  "divide error",			divide_error,		     FPE_INTDIV, regs->ip )
+DO_ERROR     (X86_TRAP_OF,     SIGSEGV, "overflow",			overflow					  )
+DO_ERROR     (X86_TRAP_BR,     SIGSEGV, "bounds",			bounds						  )
+DO_ERROR_INFO(X86_TRAP_UD,     SIGILL,  "invalid opcode",		invalid_op,		     ILL_ILLOPN, regs->ip )
+DO_ERROR     (X86_TRAP_OLD_MF, SIGFPE,  "coprocessor segment overrun",	coprocessor_segment_overrun			  )
+DO_ERROR     (X86_TRAP_TS,     SIGSEGV, "invalid TSS",			invalid_TSS					  )
+DO_ERROR     (X86_TRAP_NP,     SIGBUS,  "segment not present",		segment_not_present				  )
 #ifdef CONFIG_X86_32
-DO_ERROR(X86_TRAP_SS, SIGBUS, "stack segment", stack_segment)
+DO_ERROR     (X86_TRAP_SS,     SIGBUS,  "stack segment",		stack_segment					  )
 #endif
-DO_ERROR_INFO(X86_TRAP_AC, SIGBUS, "alignment check", alignment_check,
-		BUS_ADRALN, 0)
+DO_ERROR_INFO(X86_TRAP_AC,     SIGBUS,  "alignment check",		alignment_check,	     BUS_ADRALN, 0	  )
 
 #ifdef CONFIG_X86_64
 /* Runs on IST stack */

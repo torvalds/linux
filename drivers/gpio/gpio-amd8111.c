@@ -60,7 +60,7 @@
  * register a pci_driver, because someone else might one day
  * want to register another driver on the same PCI id.
  */
-static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
+static const struct pci_device_id pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS), 0 },
 	{ 0, },	/* terminate list */
 };

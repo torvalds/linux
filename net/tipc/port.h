@@ -116,7 +116,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err);
 
 void tipc_acknowledge(u32 port_ref, u32 ack);
 
-int tipc_deleteport(u32 portref);
+int tipc_deleteport(struct tipc_port *p_ptr);
 
 int tipc_portimportance(u32 portref, unsigned int *importance);
 int tipc_set_portimportance(u32 portref, unsigned int importance);
@@ -127,9 +127,9 @@ int tipc_set_portunreliable(u32 portref, unsigned int isunreliable);
 int tipc_portunreturnable(u32 portref, unsigned int *isunreturnable);
 int tipc_set_portunreturnable(u32 portref, unsigned int isunreturnable);
 
-int tipc_publish(u32 portref, unsigned int scope,
+int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
 		 struct tipc_name_seq const *name_seq);
-int tipc_withdraw(u32 portref, unsigned int scope,
+int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 		  struct tipc_name_seq const *name_seq);
 
 int tipc_connect(u32 portref, struct tipc_portid const *port);

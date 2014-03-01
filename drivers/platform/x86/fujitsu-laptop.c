@@ -633,7 +633,6 @@ static struct dmi_system_id fujitsu_dmi_table[] = {
 
 static int acpi_fujitsu_add(struct acpi_device *device)
 {
-	int result = 0;
 	int state = 0;
 	struct input_dev *input;
 	int error;
@@ -669,8 +668,8 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 	if (error)
 		goto err_free_input_dev;
 
-	result = acpi_bus_update_power(fujitsu->acpi_handle, &state);
-	if (result) {
+	error = acpi_bus_update_power(fujitsu->acpi_handle, &state);
+	if (error) {
 		pr_err("Error reading power state\n");
 		goto err_unregister_input_dev;
 	}
@@ -700,7 +699,7 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 		fujitsu->max_brightness = FUJITSU_LCD_N_LEVELS;
 	get_lcd_level();
 
-	return result;
+	return 0;
 
 err_unregister_input_dev:
 	input_unregister_device(input);
@@ -708,7 +707,7 @@ err_unregister_input_dev:
 err_free_input_dev:
 	input_free_device(input);
 err_stop:
-	return result;
+	return error;
 }
 
 static int acpi_fujitsu_remove(struct acpi_device *device)
@@ -831,8 +830,8 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	if (error)
 		goto err_free_input_dev;
 
-	result = acpi_bus_update_power(fujitsu_hotkey->acpi_handle, &state);
-	if (result) {
+	error = acpi_bus_update_power(fujitsu_hotkey->acpi_handle, &state);
+	if (error) {
 		pr_err("Error reading power state\n");
 		goto err_unregister_input_dev;
 	}
@@ -907,7 +906,7 @@ err_free_input_dev:
 err_free_fifo:
 	kfifo_free(&fujitsu_hotkey->fifo);
 err_stop:
-	return result;
+	return error;
 }
 
 static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)

@@ -190,12 +190,24 @@ extern int ttm_base_object_init(struct ttm_object_file *tfile,
  * @key: Hash key
  *
  * Looks up a struct ttm_base_object with the key @key.
- * Also verifies that the object is visible to the application, by
- * comparing the @tfile argument and checking the object shareable flag.
  */
 
 extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
 						      *tfile, uint32_t key);
+
+/**
+ * ttm_base_object_lookup_for_ref
+ *
+ * @tdev: Pointer to a struct ttm_object_device.
+ * @key: Hash key
+ *
+ * Looks up a struct ttm_base_object with the key @key.
+ * This function should only be used when the struct tfile associated with the
+ * caller doesn't yet have a reference to the base object.
+ */
+
+extern struct ttm_base_object *
+ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key);
 
 /**
  * ttm_base_object_unref
@@ -217,6 +229,8 @@ extern void ttm_base_object_unref(struct ttm_base_object **p_base);
  * @ref_type: The type of reference.
  * @existed: Upon completion, indicates that an identical reference object
  * already existed, and the refcount was upped on that object instead.
+ *
+ * Checks that the base object is shareable and adds a ref object to it.
  *
  * Adding a ref object to a base object is basically like referencing the
  * base object, but a user-space application holds the reference. When the

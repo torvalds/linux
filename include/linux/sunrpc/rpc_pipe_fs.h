@@ -84,7 +84,8 @@ enum {
 
 extern struct dentry *rpc_d_lookup_sb(const struct super_block *sb,
 				      const unsigned char *dir_name);
-extern void rpc_pipefs_init_net(struct net *net);
+extern int rpc_pipefs_init_net(struct net *net);
+extern void rpc_pipefs_exit_net(struct net *net);
 extern struct super_block *rpc_get_sb_net(const struct net *net);
 extern void rpc_put_sb_net(const struct net *net);
 
@@ -129,6 +130,8 @@ extern struct dentry *rpc_mkpipe_dentry(struct dentry *, const char *, void *,
 extern int rpc_unlink(struct dentry *);
 extern int register_rpc_pipefs(void);
 extern void unregister_rpc_pipefs(void);
+
+extern bool gssd_running(struct net *net);
 
 #endif
 #endif

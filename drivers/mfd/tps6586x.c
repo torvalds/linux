@@ -103,7 +103,7 @@ static struct resource tps6586x_rtc_resources[] = {
 	},
 };
 
-static struct mfd_cell tps6586x_cell[] = {
+static const struct mfd_cell tps6586x_cell[] = {
 	{
 		.name = "tps6586x-gpio",
 	},
@@ -124,6 +124,7 @@ struct tps6586x {
 	struct device		*dev;
 	struct i2c_client	*client;
 	struct regmap		*regmap;
+	int			version;
 
 	int			irq;
 	struct irq_chip		irq_chip;
@@ -207,6 +208,14 @@ int tps6586x_irq_get_virq(struct device *dev, int irq)
 	return irq_create_mapping(tps6586x->irq_domain, irq);
 }
 EXPORT_SYMBOL_GPL(tps6586x_irq_get_virq);
+
+int tps6586x_get_version(struct device *dev)
+{
+	struct tps6586x *tps6586x = dev_get_drvdata(dev);
+
+	return tps6586x->version;
+}
+EXPORT_SYMBOL_GPL(tps6586x_get_version);
 
 static int __remove_subdev(struct device *dev, void *unused)
 {
@@ -472,12 +481,38 @@ static void tps6586x_power_off(void)
 	tps6586x_set_bits(tps6586x_dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
 }
 
+static void tps6586x_print_version(struct i2c_client *client, int version)
+{
+	const char *name;
+
+	switch (version) {
+	case TPS658621A:
+		name = "TPS658621A";
+		break;
+	case TPS658621CD:
+		name = "TPS658621C/D";
+		break;
+	case TPS658623:
+		name = "TPS658623";
+		break;
+	case TPS658643:
+		name = "TPS658643";
+		break;
+	default:
+		name = "TPS6586X";
+		break;
+	}
+
+	dev_info(&client->dev, "Found %s, VERSIONCRC is %02x\n", name, version);
+}
+
 static int tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct tps6586x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct tps6586x *tps6586x;
 	int ret;
+	int version;
 
 	if (!pdata && client->dev.of_node)
 		pdata = tps6586x_parse_dt(client);
@@ -487,19 +522,18 @@ static int tps6586x_i2c_probe(struct i2c_client *client,
 		return -ENOTSUPP;
 	}
 
-	ret = i2c_smbus_read_byte_data(client, TPS6586X_VERSIONCRC);
-	if (ret < 0) {
-		dev_err(&client->dev, "Chip ID read failed: %d\n", ret);
+	version = i2c_smbus_read_byte_data(client, TPS6586X_VERSIONCRC);
+	if (version < 0) {
+		dev_err(&client->dev, "Chip ID read failed: %d\n", version);
 		return -EIO;
 	}
 
-	dev_info(&client->dev, "VERSIONCRC is %02x\n", ret);
-
 	tps6586x = devm_kzalloc(&client->dev, sizeof(*tps6586x), GFP_KERNEL);
-	if (tps6586x == NULL) {
-		dev_err(&client->dev, "memory for tps6586x alloc failed\n");
+	if (!tps6586x)
 		return -ENOMEM;
-	}
+
+	tps6586x->version = version;
+	tps6586x_print_version(client, tps6586x->version);
 
 	tps6586x->client = client;
 	tps6586x->dev = &client->dev;

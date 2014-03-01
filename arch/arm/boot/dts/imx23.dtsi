@@ -337,8 +337,10 @@
 			};
 
 			dcp@80028000 {
+				compatible = "fsl,imx23-dcp";
 				reg = <0x80028000 0x2000>;
-				status = "disabled";
+				interrupts = <53 54>;
+				status = "okay";
 			};
 
 			pxp@8002a000 {

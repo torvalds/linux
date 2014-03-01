@@ -93,6 +93,12 @@ static const struct command cmds[] = {
 		.help  = "Unbind device from " USBIP_HOST_DRV_NAME ".ko",
 		.usage = usbip_unbind_usage
 	},
+	{
+		.name  = "port",
+		.fn    = usbip_port_show,
+		.help  = "Show imported USB devices",
+		.usage = NULL
+	},
 	{ NULL, NULL, NULL, NULL }
 };
 

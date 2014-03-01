@@ -50,24 +50,24 @@ static const struct ieee80211_regdomain mwifiex_world_regdom_custom = {
 		REG_RULE(2412-10, 2462+10, 40, 3, 20, 0),
 		/* Channel 12 - 13 */
 		REG_RULE(2467-10, 2472+10, 20, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+			 NL80211_RRF_NO_IR),
 		/* Channel 14 */
 		REG_RULE(2484-10, 2484+10, 20, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_NO_IR |
 			 NL80211_RRF_NO_OFDM),
 		/* Channel 36 - 48 */
 		REG_RULE(5180-10, 5240+10, 40, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+			 NL80211_RRF_NO_IR),
 		/* Channel 149 - 165 */
 		REG_RULE(5745-10, 5825+10, 40, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+			 NL80211_RRF_NO_IR),
 		/* Channel 52 - 64 */
 		REG_RULE(5260-10, 5320+10, 40, 3, 30,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_NO_IR |
 			 NL80211_RRF_DFS),
 		/* Channel 100 - 140 */
 		REG_RULE(5500-10, 5700+10, 40, 3, 30,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_NO_IR |
 			 NL80211_RRF_DFS),
 	}
 };
@@ -184,10 +184,10 @@ mwifiex_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
  */
 static int
 mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 struct ieee80211_channel *chan, bool offchan,
-			 unsigned int wait, const u8 *buf, size_t len,
-			 bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+			 struct cfg80211_mgmt_tx_params *params, u64 *cookie)
 {
+	const u8 *buf = params->buf;
+	size_t len = params->len;
 	struct sk_buff *skb;
 	u16 pkt_len;
 	const struct ieee80211_mgmt *mgmt;
@@ -222,6 +222,7 @@ mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
+	tx_info->pkt_len = pkt_len;
 
 	mwifiex_form_mgmt_frame(skb, buf, len);
 	mwifiex_queue_tx_pkt(priv, skb);
@@ -537,23 +538,33 @@ static void mwifiex_reg_notifier(struct wiphy *wiphy,
 				 struct regulatory_request *request)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
+							MWIFIEX_BSS_ROLE_ANY);
 
 	wiphy_dbg(wiphy, "info: cfg80211 regulatory domain callback for %c%c\n",
 		  request->alpha2[0], request->alpha2[1]);
-
-	memcpy(adapter->country_code, request->alpha2, sizeof(request->alpha2));
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_DRIVER:
 	case NL80211_REGDOM_SET_BY_CORE:
 	case NL80211_REGDOM_SET_BY_USER:
-		break;
-		/* Todo: apply driver specific changes in channel flags based
-		   on the request initiator if necessary. */
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 		break;
+	default:
+		wiphy_err(wiphy, "unknown regdom initiator: %d\n",
+			  request->initiator);
+		return;
 	}
-	mwifiex_send_domain_info_cmd_fw(wiphy);
+
+	/* Don't send world or same regdom info to firmware */
+	if (strncmp(request->alpha2, "00", 2) &&
+	    strncmp(request->alpha2, adapter->country_code,
+		    sizeof(request->alpha2))) {
+		memcpy(adapter->country_code, request->alpha2,
+		       sizeof(request->alpha2));
+		mwifiex_send_domain_info_cmd_fw(wiphy);
+		mwifiex_dnld_txpwr_table(priv);
+	}
 }
 
 /*
@@ -1170,10 +1181,10 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 	else
 		bitmap_rates[1] = mask->control[band].legacy;
 
-	/* Fill MCS rates */
-	bitmap_rates[2] = mask->control[band].mcs[0];
+	/* Fill HT MCS rates */
+	bitmap_rates[2] = mask->control[band].ht_mcs[0];
 	if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2)
-		bitmap_rates[2] |= mask->control[band].mcs[1] << 8;
+		bitmap_rates[2] |= mask->control[band].ht_mcs[1] << 8;
 
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TX_RATE_CFG,
 				     HostCmd_ACT_GEN_SET, 0, bitmap_rates);
@@ -1968,7 +1979,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
 		user_scan_cfg->chan_list[i].radio_type = chan->band;
 
-		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+		if (chan->flags & IEEE80211_CHAN_NO_IR)
 			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_PASSIVE;
 		else
@@ -2438,7 +2449,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		       ETH_ALEN);
 		mef_entry->filter[filt_num].byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] =
 								ETH_ALEN;
-		mef_entry->filter[filt_num].offset = 14;
+		mef_entry->filter[filt_num].offset = 28;
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 		if (filt_num)
 			mef_entry->filter[filt_num].filt_action = TYPE_OR;
@@ -2666,6 +2677,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	struct wiphy *wiphy;
 	struct mwifiex_private *priv = adapter->priv[MWIFIEX_BSS_TYPE_STA];
 	u8 *country_code;
+	u32 thr, retry;
 
 	/* create a new wiphy for use with cfg80211 */
 	wiphy = wiphy_new(&mwifiex_cfg80211_ops,
@@ -2702,9 +2714,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
-			WIPHY_FLAG_CUSTOM_REGULATORY |
-			WIPHY_FLAG_STRICT_REGULATORY |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	wiphy->regulatory_flags |=
+			REGULATORY_CUSTOM_REG |
+			REGULATORY_STRICT_REG;
 
 	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 
@@ -2753,6 +2766,19 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			wiphy_info(wiphy, "ignoring F/W country code %2.2s\n",
 				   country_code);
 	}
+
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, FRAG_THRESH_I, &thr);
+	wiphy->frag_threshold = thr;
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, RTS_THRESH_I, &thr);
+	wiphy->rts_threshold = thr;
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, SHORT_RETRY_LIM_I, &retry);
+	wiphy->retry_short = (u8) retry;
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, LONG_RETRY_LIM_I, &retry);
+	wiphy->retry_long = (u8) retry;
 
 	adapter->wiphy = wiphy;
 	return ret;

@@ -10,6 +10,7 @@ obj-$(CONFIG_MLX4_INFINIBAND)		+= hw/mlx4/
 obj-$(CONFIG_MLX5_INFINIBAND)		+= hw/mlx5/
 obj-$(CONFIG_INFINIBAND_NES)		+= hw/nes/
 obj-$(CONFIG_INFINIBAND_OCRDMA)		+= hw/ocrdma/
+obj-$(CONFIG_INFINIBAND_USNIC)		+= hw/usnic/
 obj-$(CONFIG_INFINIBAND_IPOIB)		+= ulp/ipoib/
 obj-$(CONFIG_INFINIBAND_SRP)		+= ulp/srp/
 obj-$(CONFIG_INFINIBAND_SRPT)		+= ulp/srpt/

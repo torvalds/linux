@@ -722,7 +722,6 @@ void mesh_plink_broken(struct sta_info *sta)
 	struct mpath_node *node;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	int i;
-	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_DEST_UNREACHABLE);
 
 	rcu_read_lock();
 	tbl = rcu_dereference(mesh_paths);
@@ -736,9 +735,9 @@ void mesh_plink_broken(struct sta_info *sta)
 			++mpath->sn;
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_error_tx(sdata,
-					   sdata->u.mesh.mshcfg.element_ttl,
-					   mpath->dst, cpu_to_le32(mpath->sn),
-					   reason, bcast);
+				sdata->u.mesh.mshcfg.element_ttl,
+				mpath->dst, mpath->sn,
+				WLAN_REASON_MESH_PATH_DEST_UNREACHABLE, bcast);
 		}
 	}
 	rcu_read_unlock();

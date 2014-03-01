@@ -13,6 +13,8 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>
+#include <asm/initialize_mmu.h>
+#include <asm/io.h>
 
 void __init paging_init(void)
 {
@@ -22,7 +24,7 @@ void __init paging_init(void)
 /*
  * Flush the mmu and reset associated register to default values.
  */
-void __init init_mmu(void)
+void init_mmu(void)
 {
 #if !(XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY)
 	/*
@@ -37,7 +39,21 @@ void __init init_mmu(void)
 	set_itlbcfg_register(0);
 	set_dtlbcfg_register(0);
 #endif
-	flush_tlb_all();
+#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && CONFIG_OF
+	/*
+	 * Update the IO area mapping in case xtensa_kio_paddr has changed
+	 */
+	write_dtlb_entry(__pte(xtensa_kio_paddr + CA_WRITEBACK),
+			XCHAL_KIO_CACHED_VADDR + 6);
+	write_itlb_entry(__pte(xtensa_kio_paddr + CA_WRITEBACK),
+			XCHAL_KIO_CACHED_VADDR + 6);
+	write_dtlb_entry(__pte(xtensa_kio_paddr + CA_BYPASS),
+			XCHAL_KIO_BYPASS_VADDR + 6);
+	write_itlb_entry(__pte(xtensa_kio_paddr + CA_BYPASS),
+			XCHAL_KIO_BYPASS_VADDR + 6);
+#endif
+
+	local_flush_tlb_all();
 
 	/* Set rasid register to a known value. */
 

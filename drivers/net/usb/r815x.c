@@ -216,21 +216,13 @@ static const struct usb_device_id products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(REALTEK_VENDOR_ID, 0x8152, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
-#if defined(CONFIG_USB_RTL8152) || defined(CONFIG_USB_RTL8152_MODULE)
-	.driver_info = 0,
-#else
 	.driver_info = (unsigned long) &r8152_info,
-#endif
 },
 
 {
 	USB_DEVICE_AND_INTERFACE_INFO(REALTEK_VENDOR_ID, 0x8153, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
-#if defined(CONFIG_USB_RTL8153) || defined(CONFIG_USB_RTL8153_MODULE)
-	.driver_info = 0,
-#else
 	.driver_info = (unsigned long) &r8153_info,
-#endif
 },
 
 	{ },		/* END */

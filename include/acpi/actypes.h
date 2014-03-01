@@ -928,21 +928,13 @@ struct acpi_object_list {
  * Miscellaneous common Data Structures used by the interfaces
  */
 #define ACPI_NO_BUFFER              0
-#define ACPI_ALLOCATE_BUFFER        (acpi_size) (-1)
-#define ACPI_ALLOCATE_LOCAL_BUFFER  (acpi_size) (-2)
+#define ACPI_ALLOCATE_BUFFER        (acpi_size) (-1)	/* Let ACPICA allocate buffer */
+#define ACPI_ALLOCATE_LOCAL_BUFFER  (acpi_size) (-2)	/* For internal use only (enables tracking) */
 
 struct acpi_buffer {
 	acpi_size length;	/* Length in bytes of the buffer */
 	void *pointer;		/* pointer to buffer */
 };
-
-/*
- * Free a buffer created in an struct acpi_buffer via ACPI_ALLOCATE_BUFFER.
- * Note: We use acpi_os_free here because acpi_os_allocate was used to allocate
- * the buffer. This purposefully bypasses the internal allocation tracking
- * mechanism (if it is enabled).
- */
-#define ACPI_FREE_BUFFER(b)         acpi_os_free((b).pointer)
 
 /*
  * name_type for acpi_get_name

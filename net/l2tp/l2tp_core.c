@@ -176,7 +176,7 @@ l2tp_session_id_hash_2(struct l2tp_net *pn, u32 session_id)
  * owned by userspace.  A struct sock returned from this function must be
  * released using l2tp_tunnel_sock_put once you're done with it.
  */
-struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel)
+static struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel)
 {
 	int err = 0;
 	struct socket *sock = NULL;
@@ -202,10 +202,9 @@ struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel)
 out:
 	return sk;
 }
-EXPORT_SYMBOL_GPL(l2tp_tunnel_sock_lookup);
 
 /* Drop a reference to a tunnel socket obtained via. l2tp_tunnel_sock_put */
-void l2tp_tunnel_sock_put(struct sock *sk)
+static void l2tp_tunnel_sock_put(struct sock *sk)
 {
 	struct l2tp_tunnel *tunnel = l2tp_sock_to_tunnel(sk);
 	if (tunnel) {
@@ -217,7 +216,6 @@ void l2tp_tunnel_sock_put(struct sock *sk)
 	}
 	sock_put(sk);
 }
-EXPORT_SYMBOL_GPL(l2tp_tunnel_sock_put);
 
 /* Lookup a session by id in the global session list
  */

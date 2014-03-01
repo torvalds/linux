@@ -402,7 +402,7 @@ static int __init wdt_init(void)
 
 	if (!found) {
 		pr_err("No W83697HF/HG could be found\n");
-		ret = -EIO;
+		ret = -ENODEV;
 		goto out;
 	}
 

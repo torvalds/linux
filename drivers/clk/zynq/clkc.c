@@ -102,9 +102,10 @@ static const char *swdt_ext_clk_input_names[] __initdata = {"swdt_ext_clk"};
 
 static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 		const char *clk_name, void __iomem *fclk_ctrl_reg,
-		const char **parents)
+		const char **parents, int enable)
 {
 	struct clk *clk;
+	u32 enable_reg;
 	char *mux_name;
 	char *div0_name;
 	char *div1_name;
@@ -147,6 +148,12 @@ static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 	clks[fclk] = clk_register_gate(NULL, clk_name,
 			div1_name, CLK_SET_RATE_PARENT, fclk_gate_reg,
 			0, CLK_GATE_SET_TO_DISABLE, fclk_gate_lock);
+	enable_reg = readl(fclk_gate_reg) & 1;
+	if (enable && !enable_reg) {
+		if (clk_prepare_enable(clks[fclk]))
+			pr_warn("%s: FCLK%u enable failed\n", __func__,
+					fclk - fclk0);
+	}
 	kfree(mux_name);
 	kfree(div0_name);
 	kfree(div1_name);
@@ -213,6 +220,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	int ret;
 	struct clk *clk;
 	char *clk_name;
+	unsigned int fclk_enable = 0;
 	const char *clk_output_name[clk_max];
 	const char *cpu_parents[4];
 	const char *periph_parents[4];
@@ -237,6 +245,8 @@ static void __init zynq_clk_setup(struct device_node *np)
 	periph_parents[1] = clk_output_name[iopll];
 	periph_parents[2] = clk_output_name[armpll];
 	periph_parents[3] = clk_output_name[ddrpll];
+
+	of_property_read_u32(np, "fclk-enable", &fclk_enable);
 
 	/* ps_clk */
 	ret = of_property_read_u32(np, "ps-clk-frequency", &tmp);
@@ -340,10 +350,12 @@ static void __init zynq_clk_setup(struct device_node *np)
 	clk_prepare_enable(clks[dci]);
 
 	/* Peripheral clocks */
-	for (i = fclk0; i <= fclk3; i++)
+	for (i = fclk0; i <= fclk3; i++) {
+		int enable = !!(fclk_enable & BIT(i - fclk0));
 		zynq_clk_register_fclk(i, clk_output_name[i],
 				SLCR_FPGA0_CLK_CTRL + 0x10 * (i - fclk0),
-				periph_parents);
+				periph_parents, enable);
+	}
 
 	zynq_clk_register_periph_clk(lqspi, 0, clk_output_name[lqspi], NULL,
 			SLCR_LQSPI_CLK_CTRL, periph_parents, 0);

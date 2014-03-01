@@ -133,9 +133,9 @@ struct inet_timewait_sock {
 	/* And these are ours. */
 	unsigned int		tw_ipv6only     : 1,
 				tw_transparent  : 1,
-				tw_pad		: 6,	/* 6 bits hole */
-				tw_tos		: 8,
-				tw_pad2		: 16;	/* 16 bits hole */
+				tw_flowlabel	: 20,
+				tw_pad		: 2,	/* 2 bits hole */
+				tw_tos		: 8;
 	kmemcheck_bitfield_end(flags);
 	u32			tw_ttd;
 	struct inet_bind_bucket	*tw_tb;

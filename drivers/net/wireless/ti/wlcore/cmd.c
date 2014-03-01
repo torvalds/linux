@@ -1688,7 +1688,7 @@ int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl)
 
 			if (channel->flags & (IEEE80211_CHAN_DISABLED |
 					      IEEE80211_CHAN_RADAR |
-					      IEEE80211_CHAN_PASSIVE_SCAN))
+					      IEEE80211_CHAN_NO_IR))
 				continue;
 
 			ch_bit_idx = wlcore_get_reg_conf_ch_idx(b, ch);

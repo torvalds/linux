@@ -373,7 +373,7 @@ void rts51x_release_cards(struct rts51x_chip *chip)
 
 static inline u8 double_depth(u8 depth)
 {
-	return ((depth > 1) ? (depth - 1) : depth);
+	return (depth > 1) ? (depth - 1) : depth;
 }
 
 int rts51x_switch_ssc_clock(struct rts51x_chip *chip, int clk)
@@ -653,8 +653,8 @@ int rts51x_switch_normal_clock(struct rts51x_chip *chip, int clk)
 	return STATUS_SUCCESS;
 }
 
-int rts51x_card_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 sec_addr,
-	    u16 sec_cnt)
+int rts51x_card_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip,
+		u32 sec_addr, u16 sec_cnt)
 {
 	int retval;
 	unsigned int lun = SCSI_LUN(srb);
@@ -770,8 +770,8 @@ void rts51x_eject_card(struct rts51x_chip *chip, unsigned int lun)
 			      XD_INT | MS_INT | SD_INT);
 }
 
-void rts51x_trans_dma_enable(enum dma_data_direction dir, struct rts51x_chip *chip,
-		      u32 byte_cnt, u8 pack_size)
+void rts51x_trans_dma_enable(enum dma_data_direction dir,
+		struct rts51x_chip *chip, u32 byte_cnt, u8 pack_size)
 {
 	if (pack_size > DMA_1024)
 		pack_size = DMA_512;

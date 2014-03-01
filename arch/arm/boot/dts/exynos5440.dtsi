@@ -29,7 +29,7 @@
 		#clock-cells = <1>;
 	};
 
-	gic:interrupt-controller@2E0000 {
+	gic: interrupt-controller@2E0000 {
 		compatible = "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;

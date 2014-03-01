@@ -319,7 +319,16 @@ struct gfs2_leaf {
 	__be32 lf_dirent_format;	/* Format of the dirents */
 	__be64 lf_next;			/* Next leaf, if overflow */
 
-	__u8 lf_reserved[64];
+	union {
+		__u8 lf_reserved[64];
+		struct {
+			__be64 lf_inode;	/* Dir inode number */
+			__be32 lf_dist;		/* Dist from inode on chain */
+			__be32 lf_nsec;		/* Last ins/del usecs */
+			__be64 lf_sec;		/* Last ins/del in secs */
+			__u8 lf_reserved2[40];
+		};
+	};
 };
 
 /*

@@ -28,6 +28,7 @@
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
+#include <mach/gpio-samsung.h>
 
 #include "regs-gpio-memport.h"
 #include "regs-modem.h"

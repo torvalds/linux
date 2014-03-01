@@ -60,8 +60,11 @@ endef
 
 #
 # Needed if no target specified:
+# (Except for tags and TAGS targets. The reason is that the
+# Makefile does not treat tags/TAGS as targets but as files
+# and thus won't rebuilt them once they are in place.)
 #
-all:
+all tags TAGS:
 	$(print_msg)
 	$(make)
 
@@ -72,8 +75,16 @@ clean:
 	$(make)
 
 #
+# The build-test target is not really parallel, don't print the jobs info:
+#
+build-test:
+	@$(MAKE) -f tests/make --no-print-directory
+
+#
 # All other targets get passed through:
 #
 %:
 	$(print_msg)
 	$(make)
+
+.PHONY: tags TAGS

@@ -285,7 +285,7 @@ static void update_balloon_size(struct virtio_balloon *vb)
 {
 	__le32 actual = cpu_to_le32(vb->num_pages);
 
-	virtio_cwrite(vb->vdev, struct virtio_balloon_config, num_pages,
+	virtio_cwrite(vb->vdev, struct virtio_balloon_config, actual,
 		      &actual);
 }
 
@@ -369,7 +369,7 @@ static const struct address_space_operations virtio_balloon_aops;
  * This function preforms the balloon page migration task.
  * Called through balloon_mapping->a_ops->migratepage
  */
-int virtballoon_migratepage(struct address_space *mapping,
+static int virtballoon_migratepage(struct address_space *mapping,
 		struct page *newpage, struct page *page, enum migrate_mode mode)
 {
 	struct balloon_dev_info *vb_dev_info = balloon_page_device(page);

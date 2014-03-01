@@ -120,6 +120,7 @@ bool rtl92cu_phy_bb_config(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u16 regval;
+	u32 regval32;
 	u8 b_reg_hwparafile = 1;
 
 	_rtl92c_phy_init_bb_rf_register_definition(hw);
@@ -135,8 +136,11 @@ bool rtl92cu_phy_bb_config(struct ieee80211_hw *hw)
 	} else if (IS_HARDWARE_TYPE_8192CU(rtlhal)) {
 		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD |
 			       FEN_BB_GLB_RSTn | FEN_BBRSTB);
-		rtl_write_byte(rtlpriv, REG_LDOHCI12_CTRL, 0x0f);
 	}
+	regval32 = rtl_read_dword(rtlpriv, 0x87c);
+	rtl_write_dword(rtlpriv, 0x87c, regval32 & (~BIT(31)));
+	if (IS_HARDWARE_TYPE_8192CU(rtlhal))
+		rtl_write_byte(rtlpriv, REG_LDOHCI12_CTRL, 0x0f);
 	rtl_write_byte(rtlpriv, REG_AFE_XTAL_CTRL + 1, 0x80);
 	if (b_reg_hwparafile == 1)
 		rtstatus = _rtl92c_phy_bb8192c_config_parafile(hw);

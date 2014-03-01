@@ -270,10 +270,20 @@ struct cal_ctl_data_5g {
 	u8 ctlEdges[AR9300_NUM_BAND_EDGES_5G];
 } __packed;
 
+#define MAX_BASE_EXTENSION_FUTURE 2
+
 struct ar9300_BaseExtension_1 {
 	u8 ant_div_control;
-	u8 future[3];
-	u8 tempslopextension[8];
+	u8 future[MAX_BASE_EXTENSION_FUTURE];
+	/*
+	 * misc_enable:
+	 *
+	 * BIT 0   - TX Gain Cap enable.
+	 * BIT 1   - Uncompressed Checksum enable.
+	 * BIT 2/3 - MinCCApwr enable 2g/5g.
+	 */
+	u8 misc_enable;
+	int8_t tempslopextension[8];
 	int8_t quick_drop_low;
 	int8_t quick_drop_high;
 } __packed;

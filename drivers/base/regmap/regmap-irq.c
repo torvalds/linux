@@ -113,7 +113,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		 * OR if there is masked interrupt which hasn't been Acked,
 		 * it'll be ignored in irq handler, then may introduce irq storm
 		 */
-		if (d->mask_buf[i] && d->chip->ack_base) {
+		if (d->mask_buf[i] && (d->chip->ack_base || d->chip->use_ack)) {
 			reg = d->chip->ack_base +
 				(i * map->reg_stride * d->irq_reg_stride);
 			ret = regmap_write(map, reg, d->mask_buf[i]);
@@ -271,7 +271,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	for (i = 0; i < data->chip->num_regs; i++) {
 		data->status_buf[i] &= ~data->mask_buf[i];
 
-		if (data->status_buf[i] && chip->ack_base) {
+		if (data->status_buf[i] && (chip->ack_base || chip->use_ack)) {
 			reg = chip->ack_base +
 				(i * map->reg_stride * data->irq_reg_stride);
 			ret = regmap_write(map, reg, data->status_buf[i]);
@@ -448,7 +448,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			goto err_alloc;
 		}
 
-		if (d->status_buf[i] && chip->ack_base) {
+		if (d->status_buf[i] && (chip->ack_base || chip->use_ack)) {
 			reg = chip->ack_base +
 				(i * map->reg_stride * d->irq_reg_stride);
 			ret = regmap_write(map, reg,

@@ -76,7 +76,7 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 	}
 
 	if (ieee80211_is_ctl(fc)) {
-		if(ieee80211_is_pspoll(fc))
+		if (ieee80211_is_pspoll(fc))
 			return hdr->addr1;
 
 		if (ieee80211_is_back_req(fc)) {
@@ -641,6 +641,17 @@ void ieee80211_iterate_active_interfaces_rtnl(
 	__iterate_active_interfaces(local, iter_flags, iterator, data);
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces_rtnl);
+
+struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	if (!ieee80211_sdata_running(sdata) ||
+	    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+		return NULL;
+	return &sdata->vif;
+}
+EXPORT_SYMBOL_GPL(wdev_to_ieee80211_vif);
 
 /*
  * Nothing should have been stuffed into the workqueue during
@@ -1451,6 +1462,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct sta_info *sta;
 	int res, i;
 	bool reconfig_due_to_wowlan = false;
+	struct ieee80211_sub_if_data *sched_scan_sdata;
+	bool sched_scan_stopped = false;
 
 #ifdef CONFIG_PM
 	if (local->suspended)
@@ -1754,6 +1767,27 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 #else
 	WARN_ON(1);
 #endif
+
+	/*
+	 * Reconfigure sched scan if it was interrupted by FW restart or
+	 * suspend.
+	 */
+	mutex_lock(&local->mtx);
+	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata && local->sched_scan_req)
+		/*
+		 * Sched scan stopped, but we don't want to report it. Instead,
+		 * we're trying to reschedule.
+		 */
+		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
+							 local->sched_scan_req))
+			sched_scan_stopped = true;
+	mutex_unlock(&local->mtx);
+
+	if (sched_scan_stopped)
+		cfg80211_sched_scan_stopped(local->hw.wiphy);
+
 	return 0;
 }
 
@@ -1800,6 +1834,26 @@ void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata)
 
 	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
 	ieee80211_recalc_smps_chanctx(local, chanctx);
+ unlock:
+	mutex_unlock(&local->chanctx_mtx);
+}
+
+void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_chanctx *chanctx;
+
+	mutex_lock(&local->chanctx_mtx);
+
+	chanctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					lockdep_is_held(&local->chanctx_mtx));
+
+	if (WARN_ON_ONCE(!chanctx_conf))
+		goto unlock;
+
+	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
+	ieee80211_recalc_chanctx_min_def(local, chanctx);
  unlock:
 	mutex_unlock(&local->chanctx_mtx);
 }
@@ -2259,19 +2313,28 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
+	struct cfg80211_chan_def chandef;
 
+	mutex_lock(&local->mtx);
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
+		/* it might be waiting for the local->mtx, but then
+		 * by the time it gets it, sdata->wdev.cac_started
+		 * will no longer be true
+		 */
+		cancel_delayed_work(&sdata->dfs_cac_timer_work);
 
 		if (sdata->wdev.cac_started) {
+			chandef = sdata->vif.bss_conf.chandef;
 			ieee80211_vif_release_channel(sdata);
 			cfg80211_cac_event(sdata->dev,
+					   &chandef,
 					   NL80211_RADAR_CAC_ABORTED,
 					   GFP_KERNEL);
 		}
 	}
 	mutex_unlock(&local->iflist_mtx);
+	mutex_unlock(&local->mtx);
 }
 
 void ieee80211_dfs_radar_detected_work(struct work_struct *work)
@@ -2445,7 +2508,6 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-		__le16 pre_value;
 
 		skb_put(skb, 8);
 		*pos++ = WLAN_EID_CHAN_SWITCH_PARAM;		/* EID */
@@ -2457,11 +2519,259 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 			  WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT : 0x00;
 		put_unaligned_le16(WLAN_REASON_MESH_CHAN, pos); /* Reason Cd */
 		pos += 2;
-		pre_value = cpu_to_le16(ifmsh->pre_value);
-		memcpy(pos, &pre_value, 2);		/* Precedence Value */
+		put_unaligned_le16(ifmsh->pre_value, pos);/* Precedence Value */
 		pos += 2;
 	}
 
 	ieee80211_tx_skb(sdata, skb);
 	return 0;
+}
+
+bool ieee80211_cs_valid(const struct ieee80211_cipher_scheme *cs)
+{
+	return !(cs == NULL || cs->cipher == 0 ||
+		 cs->hdr_len < cs->pn_len + cs->pn_off ||
+		 cs->hdr_len <= cs->key_idx_off ||
+		 cs->key_idx_shift > 7 ||
+		 cs->key_idx_mask == 0);
+}
+
+bool ieee80211_cs_list_valid(const struct ieee80211_cipher_scheme *cs, int n)
+{
+	int i;
+
+	/* Ensure we have enough iftype bitmap space for all iftype values */
+	WARN_ON((NUM_NL80211_IFTYPES / 8 + 1) > sizeof(cs[0].iftype));
+
+	for (i = 0; i < n; i++)
+		if (!ieee80211_cs_valid(&cs[i]))
+			return false;
+
+	return true;
+}
+
+const struct ieee80211_cipher_scheme *
+ieee80211_cs_get(struct ieee80211_local *local, u32 cipher,
+		 enum nl80211_iftype iftype)
+{
+	const struct ieee80211_cipher_scheme *l = local->hw.cipher_schemes;
+	int n = local->hw.n_cipher_schemes;
+	int i;
+	const struct ieee80211_cipher_scheme *cs = NULL;
+
+	for (i = 0; i < n; i++) {
+		if (l[i].cipher == cipher) {
+			cs = &l[i];
+			break;
+		}
+	}
+
+	if (!cs || !(cs->iftype & BIT(iftype)))
+		return NULL;
+
+	return cs;
+}
+
+int ieee80211_cs_headroom(struct ieee80211_local *local,
+			  struct cfg80211_crypto_settings *crypto,
+			  enum nl80211_iftype iftype)
+{
+	const struct ieee80211_cipher_scheme *cs;
+	int headroom = IEEE80211_ENCRYPT_HEADROOM;
+	int i;
+
+	for (i = 0; i < crypto->n_ciphers_pairwise; i++) {
+		cs = ieee80211_cs_get(local, crypto->ciphers_pairwise[i],
+				      iftype);
+
+		if (cs && headroom < cs->hdr_len)
+			headroom = cs->hdr_len;
+	}
+
+	cs = ieee80211_cs_get(local, crypto->cipher_group, iftype);
+	if (cs && headroom < cs->hdr_len)
+		headroom = cs->hdr_len;
+
+	return headroom;
+}
+
+static bool
+ieee80211_extend_noa_desc(struct ieee80211_noa_data *data, u32 tsf, int i)
+{
+	s32 end = data->desc[i].start + data->desc[i].duration - (tsf + 1);
+	int skip;
+
+	if (end > 0)
+		return false;
+
+	/* End time is in the past, check for repetitions */
+	skip = DIV_ROUND_UP(-end, data->desc[i].interval);
+	if (data->count[i] < 255) {
+		if (data->count[i] <= skip) {
+			data->count[i] = 0;
+			return false;
+		}
+
+		data->count[i] -= skip;
+	}
+
+	data->desc[i].start += skip * data->desc[i].interval;
+
+	return true;
+}
+
+static bool
+ieee80211_extend_absent_time(struct ieee80211_noa_data *data, u32 tsf,
+			     s32 *offset)
+{
+	bool ret = false;
+	int i;
+
+	for (i = 0; i < IEEE80211_P2P_NOA_DESC_MAX; i++) {
+		s32 cur;
+
+		if (!data->count[i])
+			continue;
+
+		if (ieee80211_extend_noa_desc(data, tsf + *offset, i))
+			ret = true;
+
+		cur = data->desc[i].start - tsf;
+		if (cur > *offset)
+			continue;
+
+		cur = data->desc[i].start + data->desc[i].duration - tsf;
+		if (cur > *offset)
+			*offset = cur;
+	}
+
+	return ret;
+}
+
+static u32
+ieee80211_get_noa_absent_time(struct ieee80211_noa_data *data, u32 tsf)
+{
+	s32 offset = 0;
+	int tries = 0;
+	/*
+	 * arbitrary limit, used to avoid infinite loops when combined NoA
+	 * descriptors cover the full time period.
+	 */
+	int max_tries = 5;
+
+	ieee80211_extend_absent_time(data, tsf, &offset);
+	do {
+		if (!ieee80211_extend_absent_time(data, tsf, &offset))
+			break;
+
+		tries++;
+	} while (tries < max_tries);
+
+	return offset;
+}
+
+void ieee80211_update_p2p_noa(struct ieee80211_noa_data *data, u32 tsf)
+{
+	u32 next_offset = BIT(31) - 1;
+	int i;
+
+	data->absent = 0;
+	data->has_next_tsf = false;
+	for (i = 0; i < IEEE80211_P2P_NOA_DESC_MAX; i++) {
+		s32 start;
+
+		if (!data->count[i])
+			continue;
+
+		ieee80211_extend_noa_desc(data, tsf, i);
+		start = data->desc[i].start - tsf;
+		if (start <= 0)
+			data->absent |= BIT(i);
+
+		if (next_offset > start)
+			next_offset = start;
+
+		data->has_next_tsf = true;
+	}
+
+	if (data->absent)
+		next_offset = ieee80211_get_noa_absent_time(data, tsf);
+
+	data->next_tsf = tsf + next_offset;
+}
+EXPORT_SYMBOL(ieee80211_update_p2p_noa);
+
+int ieee80211_parse_p2p_noa(const struct ieee80211_p2p_noa_attr *attr,
+			    struct ieee80211_noa_data *data, u32 tsf)
+{
+	int ret = 0;
+	int i;
+
+	memset(data, 0, sizeof(*data));
+
+	for (i = 0; i < IEEE80211_P2P_NOA_DESC_MAX; i++) {
+		const struct ieee80211_p2p_noa_desc *desc = &attr->desc[i];
+
+		if (!desc->count || !desc->duration)
+			continue;
+
+		data->count[i] = desc->count;
+		data->desc[i].start = le32_to_cpu(desc->start_time);
+		data->desc[i].duration = le32_to_cpu(desc->duration);
+		data->desc[i].interval = le32_to_cpu(desc->interval);
+
+		if (data->count[i] > 1 &&
+		    data->desc[i].interval < data->desc[i].duration)
+			continue;
+
+		ieee80211_extend_noa_desc(data, tsf, i);
+		ret++;
+	}
+
+	if (ret)
+		ieee80211_update_p2p_noa(data, tsf);
+
+	return ret;
+}
+EXPORT_SYMBOL(ieee80211_parse_p2p_noa);
+
+void ieee80211_recalc_dtim(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *sdata)
+{
+	u64 tsf = drv_get_tsf(local, sdata);
+	u64 dtim_count = 0;
+	u16 beacon_int = sdata->vif.bss_conf.beacon_int * 1024;
+	u8 dtim_period = sdata->vif.bss_conf.dtim_period;
+	struct ps_data *ps;
+	u8 bcns_from_dtim;
+
+	if (tsf == -1ULL || !beacon_int || !dtim_period)
+		return;
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP ||
+	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+		if (!sdata->bss)
+			return;
+
+		ps = &sdata->bss->ps;
+	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		ps = &sdata->u.mesh.ps;
+	} else {
+		return;
+	}
+
+	/*
+	 * actually finds last dtim_count, mac80211 will update in
+	 * __beacon_add_tim().
+	 * dtim_count = dtim_period - (tsf / bcn_int) % dtim_period
+	 */
+	do_div(tsf, beacon_int);
+	bcns_from_dtim = do_div(tsf, dtim_period);
+	/* just had a DTIM */
+	if (!bcns_from_dtim)
+		dtim_count = 0;
+	else
+		dtim_count = dtim_period - bcns_from_dtim;
+
+	ps->dtim_count = dtim_count;
 }

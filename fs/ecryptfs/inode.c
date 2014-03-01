@@ -659,19 +659,17 @@ out_lock:
 	return rc;
 }
 
-static int ecryptfs_readlink_lower(struct dentry *dentry, char **buf,
-				   size_t *bufsiz)
+static char *ecryptfs_readlink_lower(struct dentry *dentry, size_t *bufsiz)
 {
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	char *lower_buf;
+	char *buf;
 	mm_segment_t old_fs;
 	int rc;
 
 	lower_buf = kmalloc(PATH_MAX, GFP_KERNEL);
-	if (!lower_buf) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!lower_buf)
+		return ERR_PTR(-ENOMEM);
 	old_fs = get_fs();
 	set_fs(get_ds());
 	rc = lower_dentry->d_inode->i_op->readlink(lower_dentry,
@@ -680,21 +678,18 @@ static int ecryptfs_readlink_lower(struct dentry *dentry, char **buf,
 	set_fs(old_fs);
 	if (rc < 0)
 		goto out;
-	rc = ecryptfs_decode_and_decrypt_filename(buf, bufsiz, dentry->d_sb,
+	rc = ecryptfs_decode_and_decrypt_filename(&buf, bufsiz, dentry->d_sb,
 						  lower_buf, rc);
 out:
 	kfree(lower_buf);
-	return rc;
+	return rc ? ERR_PTR(rc) : buf;
 }
 
 static void *ecryptfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	char *buf;
-	size_t len = PATH_MAX;
-	int rc;
-
-	rc = ecryptfs_readlink_lower(dentry, &buf, &len);
-	if (rc)
+	size_t len;
+	char *buf = ecryptfs_readlink_lower(dentry, &len);
+	if (IS_ERR(buf))
 		goto out;
 	fsstack_copy_attr_atime(dentry->d_inode,
 				ecryptfs_dentry_to_lower(dentry)->d_inode);
@@ -1003,10 +998,12 @@ static int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
 		char *target;
 		size_t targetsiz;
 
-		rc = ecryptfs_readlink_lower(dentry, &target, &targetsiz);
-		if (!rc) {
+		target = ecryptfs_readlink_lower(dentry, &targetsiz);
+		if (!IS_ERR(target)) {
 			kfree(target);
 			stat->size = targetsiz;
+		} else {
+			rc = PTR_ERR(target);
 		}
 	}
 	return rc;

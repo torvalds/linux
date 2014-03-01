@@ -81,7 +81,10 @@ struct btrfs_delayed_ref_head {
 	 */
 	struct mutex mutex;
 
-	struct list_head cluster;
+	spinlock_t lock;
+	struct rb_root ref_root;
+
+	struct rb_node href_node;
 
 	struct btrfs_delayed_extent_op *extent_op;
 	/*
@@ -98,6 +101,7 @@ struct btrfs_delayed_ref_head {
 	 */
 	unsigned int must_insert_reserved:1;
 	unsigned int is_data:1;
+	unsigned int processing:1;
 };
 
 struct btrfs_delayed_tree_ref {
@@ -116,7 +120,8 @@ struct btrfs_delayed_data_ref {
 };
 
 struct btrfs_delayed_ref_root {
-	struct rb_root root;
+	/* head ref rbtree */
+	struct rb_root href_root;
 
 	/* this spin lock protects the rbtree and the entries inside */
 	spinlock_t lock;
@@ -124,22 +129,13 @@ struct btrfs_delayed_ref_root {
 	/* how many delayed ref updates we've queued, used by the
 	 * throttling code
 	 */
-	unsigned long num_entries;
+	atomic_t num_entries;
 
 	/* total number of head nodes in tree */
 	unsigned long num_heads;
 
 	/* total number of head nodes ready for processing */
 	unsigned long num_heads_ready;
-
-	/*
-	 * bumped when someone is making progress on the delayed
-	 * refs, so that other procs know they are just adding to
-	 * contention intead of helping
-	 */
-	atomic_t procs_running_refs;
-	atomic_t ref_seq;
-	wait_queue_head_t wait;
 
 	/*
 	 * set when the tree is flushing before a transaction commit,
@@ -226,9 +222,9 @@ static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
 	mutex_unlock(&head->mutex);
 }
 
-int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
-			   struct list_head *cluster, u64 search_start);
-void btrfs_release_ref_cluster(struct list_head *cluster);
+
+struct btrfs_delayed_ref_head *
+btrfs_select_ref_head(struct btrfs_trans_handle *trans);
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_root *delayed_refs,

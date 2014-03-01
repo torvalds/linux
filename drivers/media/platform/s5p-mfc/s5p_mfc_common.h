@@ -115,15 +115,6 @@ enum s5p_mfc_fmt_type {
 };
 
 /**
- * enum s5p_mfc_node_type - The type of an MFC device node.
- */
-enum s5p_mfc_node_type {
-	MFCNODE_INVALID = -1,
-	MFCNODE_DECODER = 0,
-	MFCNODE_ENCODER = 1,
-};
-
-/**
  * enum s5p_mfc_inst_type - The type of an MFC instance.
  */
 enum s5p_mfc_inst_type {
@@ -422,6 +413,11 @@ struct s5p_mfc_vp8_enc_params {
 	enum v4l2_vp8_golden_frame_sel golden_frame_sel;
 	u8 hier_layer;
 	u8 hier_layer_qp[3];
+	u8 rc_min_qp;
+	u8 rc_max_qp;
+	u8 rc_frame_qp;
+	u8 rc_p_frame_qp;
+	u8 profile;
 };
 
 /**

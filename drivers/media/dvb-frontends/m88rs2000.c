@@ -110,27 +110,93 @@ static u8 m88rs2000_readreg(struct m88rs2000_state *state, u8 reg)
 	return b1[0];
 }
 
+static u32 m88rs2000_get_mclk(struct dvb_frontend *fe)
+{
+	struct m88rs2000_state *state = fe->demodulator_priv;
+	u32 mclk;
+	u8 reg;
+	/* Must not be 0x00 or 0xff */
+	reg = m88rs2000_readreg(state, 0x86);
+	if (!reg || reg == 0xff)
+		return 0;
+
+	reg /= 2;
+	reg += 1;
+
+	mclk = (u32)(reg * RS2000_FE_CRYSTAL_KHZ + 28 / 2) / 28;
+
+	return mclk;
+}
+
+static int m88rs2000_set_carrieroffset(struct dvb_frontend *fe, s16 offset)
+{
+	struct m88rs2000_state *state = fe->demodulator_priv;
+	u32 mclk;
+	s32 tmp;
+	u8 reg;
+	int ret;
+
+	mclk = m88rs2000_get_mclk(fe);
+	if (!mclk)
+		return -EINVAL;
+
+	tmp = (offset * 4096 + (s32)mclk / 2) / (s32)mclk;
+	if (tmp < 0)
+		tmp += 4096;
+
+	/* Carrier Offset */
+	ret = m88rs2000_writereg(state, 0x9c, (u8)(tmp >> 4));
+
+	reg = m88rs2000_readreg(state, 0x9d);
+	reg &= 0xf;
+	reg |= (u8)(tmp & 0xf) << 4;
+
+	ret |= m88rs2000_writereg(state, 0x9d, reg);
+
+	return ret;
+}
+
 static int m88rs2000_set_symbolrate(struct dvb_frontend *fe, u32 srate)
 {
 	struct m88rs2000_state *state = fe->demodulator_priv;
 	int ret;
-	u32 temp;
+	u64 temp;
+	u32 mclk;
 	u8 b[3];
 
 	if ((srate < 1000000) || (srate > 45000000))
 		return -EINVAL;
 
+	mclk = m88rs2000_get_mclk(fe);
+	if (!mclk)
+		return -EINVAL;
+
 	temp = srate / 1000;
-	temp *= 11831;
-	temp /= 68;
-	temp -= 3;
+	temp *= 1 << 24;
+
+	do_div(temp, mclk);
 
 	b[0] = (u8) (temp >> 16) & 0xff;
 	b[1] = (u8) (temp >> 8) & 0xff;
 	b[2] = (u8) temp & 0xff;
+
 	ret = m88rs2000_writereg(state, 0x93, b[2]);
 	ret |= m88rs2000_writereg(state, 0x94, b[1]);
 	ret |= m88rs2000_writereg(state, 0x95, b[0]);
+
+	if (srate > 10000000)
+		ret |= m88rs2000_writereg(state, 0xa0, 0x20);
+	else
+		ret |= m88rs2000_writereg(state, 0xa0, 0x60);
+
+	ret |= m88rs2000_writereg(state, 0xa1, 0xe0);
+
+	if (srate > 12000000)
+		ret |= m88rs2000_writereg(state, 0xa3, 0x20);
+	else if (srate > 2800000)
+		ret |= m88rs2000_writereg(state, 0xa3, 0x98);
+	else
+		ret |= m88rs2000_writereg(state, 0xa3, 0x90);
 
 	deb_info("m88rs2000: m88rs2000_set_symbolrate\n");
 	return ret;
@@ -261,8 +327,6 @@ struct inittab m88rs2000_shutdown[] = {
 
 struct inittab fe_reset[] = {
 	{DEMOD_WRITE, 0x00, 0x01},
-	{DEMOD_WRITE, 0xf1, 0xbf},
-	{DEMOD_WRITE, 0x00, 0x01},
 	{DEMOD_WRITE, 0x20, 0x81},
 	{DEMOD_WRITE, 0x21, 0x80},
 	{DEMOD_WRITE, 0x10, 0x33},
@@ -305,9 +369,6 @@ struct inittab fe_trigger[] = {
 	{DEMOD_WRITE, 0x9b, 0x64},
 	{DEMOD_WRITE, 0x9e, 0x00},
 	{DEMOD_WRITE, 0x9f, 0xf8},
-	{DEMOD_WRITE, 0xa0, 0x20},
-	{DEMOD_WRITE, 0xa1, 0xe0},
-	{DEMOD_WRITE, 0xa3, 0x38},
 	{DEMOD_WRITE, 0x98, 0xff},
 	{DEMOD_WRITE, 0xc0, 0x0f},
 	{DEMOD_WRITE, 0x89, 0x01},
@@ -408,7 +469,7 @@ static int m88rs2000_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	*status = 0;
 
-	if ((reg & 0x7) == 0x7) {
+	if ((reg & 0xee) == 0xee) {
 		*status = FE_HAS_CARRIER | FE_HAS_SIGNAL | FE_HAS_VITERBI
 			| FE_HAS_SYNC | FE_HAS_LOCK;
 		if (state->config->set_ts_params)
@@ -480,33 +541,38 @@ static int m88rs2000_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int m88rs2000_set_fec(struct m88rs2000_state *state,
 		fe_code_rate_t fec)
 {
-	u16 fec_set;
+	u8 fec_set, reg;
+	int ret;
+
 	switch (fec) {
-	/* This is not confirmed kept for reference */
-/*	case FEC_1_2:
-		fec_set = 0x88;
+	case FEC_1_2:
+		fec_set = 0x8;
 		break;
 	case FEC_2_3:
-		fec_set = 0x68;
+		fec_set = 0x10;
 		break;
 	case FEC_3_4:
-		fec_set = 0x48;
+		fec_set = 0x20;
 		break;
 	case FEC_5_6:
-		fec_set = 0x28;
+		fec_set = 0x40;
 		break;
 	case FEC_7_8:
-		fec_set = 0x18;
-		break; */
+		fec_set = 0x80;
+		break;
 	case FEC_AUTO:
 	default:
-		fec_set = 0x08;
+		fec_set = 0x0;
 	}
-	m88rs2000_writereg(state, 0x76, fec_set);
 
-	return 0;
+	reg = m88rs2000_readreg(state, 0x70);
+	reg &= 0x7;
+	ret = m88rs2000_writereg(state, 0x70, reg | fec_set);
+
+	ret |= m88rs2000_writereg(state, 0x76, 0x8);
+
+	return ret;
 }
-
 
 static fe_code_rate_t m88rs2000_get_fec(struct m88rs2000_state *state)
 {
@@ -515,18 +581,20 @@ static fe_code_rate_t m88rs2000_get_fec(struct m88rs2000_state *state)
 	reg = m88rs2000_readreg(state, 0x76);
 	m88rs2000_writereg(state, 0x9a, 0xb0);
 
+	reg &= 0xf0;
+	reg >>= 5;
+
 	switch (reg) {
-	case 0x88:
+	case 0x4:
 		return FEC_1_2;
-	case 0x68:
+	case 0x3:
 		return FEC_2_3;
-	case 0x48:
+	case 0x2:
 		return FEC_3_4;
-	case 0x28:
+	case 0x1:
 		return FEC_5_6;
-	case 0x18:
+	case 0x0:
 		return FEC_7_8;
-	case 0x08:
 	default:
 		break;
 	}
@@ -540,9 +608,8 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	fe_status_t status;
 	int i, ret = 0;
-	s32 tmp;
 	u32 tuner_freq;
-	u16 offset = 0;
+	s16 offset = 0;
 	u8 reg;
 
 	state->no_lock_count = 0;
@@ -567,38 +634,31 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return -ENODEV;
 
-	offset = tuner_freq - c->frequency;
+	offset = (s16)((s32)tuner_freq - c->frequency);
 
-	/* calculate offset assuming 96000kHz*/
-	tmp = offset;
-	tmp *= 65536;
+	/* default mclk value 96.4285 * 2 * 1000 = 192857 */
+	if (((c->frequency % 192857) >= (192857 - 3000)) ||
+				(c->frequency % 192857) <= 3000)
+		ret = m88rs2000_writereg(state, 0x86, 0xc2);
+	else
+		ret = m88rs2000_writereg(state, 0x86, 0xc6);
 
-	tmp = (2 * tmp + 96000) / (2 * 96000);
-	if (tmp < 0)
-		tmp += 65536;
-
-	offset = tmp & 0xffff;
-
-	ret = m88rs2000_writereg(state, 0x9a, 0x30);
-	/* Unknown usually 0xc6 sometimes 0xc1 */
-	reg = m88rs2000_readreg(state, 0x86);
-	ret |= m88rs2000_writereg(state, 0x86, reg);
-	/* Offset lower nibble always 0 */
-	ret |= m88rs2000_writereg(state, 0x9c, (offset >> 8));
-	ret |= m88rs2000_writereg(state, 0x9d, offset & 0xf0);
-
-
-	/* Reset Demod */
-	ret = m88rs2000_tab_set(state, fe_reset);
+	ret |= m88rs2000_set_carrieroffset(fe, offset);
 	if (ret < 0)
 		return -ENODEV;
 
-	/* Unknown */
-	reg = m88rs2000_readreg(state, 0x70);
-	ret = m88rs2000_writereg(state, 0x70, reg);
+	/* Reset demod by symbol rate */
+	if (c->symbol_rate > 27500000)
+		ret = m88rs2000_writereg(state, 0xf1, 0xa4);
+	else
+		ret = m88rs2000_writereg(state, 0xf1, 0xbf);
+
+	ret |= m88rs2000_tab_set(state, fe_reset);
+	if (ret < 0)
+		return -ENODEV;
 
 	/* Set FEC */
-	ret |= m88rs2000_set_fec(state, c->fec_inner);
+	ret = m88rs2000_set_fec(state, c->fec_inner);
 	ret |= m88rs2000_writereg(state, 0x85, 0x1);
 	ret |= m88rs2000_writereg(state, 0x8a, 0xbf);
 	ret |= m88rs2000_writereg(state, 0x8d, 0x1e);
@@ -620,7 +680,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 
 	for (i = 0; i < 25; i++) {
 		reg = m88rs2000_readreg(state, 0x8c);
-		if ((reg & 0x7) == 0x7) {
+		if ((reg & 0xee) == 0xee) {
 			status = FE_HAS_LOCK;
 			break;
 		}

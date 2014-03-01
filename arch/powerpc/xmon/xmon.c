@@ -309,16 +309,23 @@ static void get_output_lock(void)
 
 	if (xmon_speaker == me)
 		return;
+
 	for (;;) {
-		if (xmon_speaker == 0) {
-			last_speaker = cmpxchg(&xmon_speaker, 0, me);
-			if (last_speaker == 0)
-				return;
-		}
-		timeout = 10000000;
+		last_speaker = cmpxchg(&xmon_speaker, 0, me);
+		if (last_speaker == 0)
+			return;
+
+		/*
+		 * Wait a full second for the lock, we might be on a slow
+		 * console, but check every 100us.
+		 */
+		timeout = 10000;
 		while (xmon_speaker == last_speaker) {
-			if (--timeout > 0)
+			if (--timeout > 0) {
+				udelay(100);
 				continue;
+			}
+
 			/* hostile takeover */
 			prev = cmpxchg(&xmon_speaker, last_speaker, me);
 			if (prev == last_speaker)
@@ -397,7 +404,6 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	}
 
 	xmon_fault_jmp[cpu] = recurse_jmp;
-	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
 	bp = NULL;
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) == (MSR_IR|MSR_64BIT))
@@ -418,6 +424,8 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			       "can't continue\n");
 		release_output_lock();
 	}
+
+	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
  waiting:
 	secondary = 1;
@@ -2051,6 +2059,10 @@ static void dump_one_paca(int cpu)
 	DUMP(p, stab_addr, "lx");
 #endif
 	DUMP(p, emergency_sp, "p");
+#ifdef CONFIG_PPC_BOOK3S_64
+	DUMP(p, mc_emergency_sp, "p");
+	DUMP(p, in_mce, "x");
+#endif
 	DUMP(p, data_offset, "lx");
 	DUMP(p, hw_cpu_id, "x");
 	DUMP(p, cpu_start, "x");

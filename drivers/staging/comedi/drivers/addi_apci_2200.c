@@ -134,7 +134,7 @@ static int apci2200_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci2200_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci2200_pci_table) = {
+static const struct pci_device_id apci2200_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1005) },
 	{ 0 }
 };

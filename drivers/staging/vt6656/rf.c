@@ -419,7 +419,7 @@ static u8 vt3226_channel_table1[CB_MAX_CHANNEL_24G][3] = {
 ///}}RobertYu
 
 //{{RobertYu:20060502, TWIF 1.14, LO Current for 11b mode
-const u32 vt3226d0_lo_current_table[CB_MAX_CHANNEL_24G] = {
+static const u32 vt3226d0_lo_current_table[CB_MAX_CHANNEL_24G] = {
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 1, Tf = 2412MHz
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 2, Tf = 2417MHz
     0x0235C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 3, Tf = 2422MHz
@@ -597,7 +597,7 @@ static u8 vt3342_channel_table1[CB_MAX_CHANNEL][3] = {
  *
 -*/
 
-const u32 al2230_power_table[AL2230_PWR_IDX_LEN] = {
+static const u32 al2230_power_table[AL2230_PWR_IDX_LEN] = {
     0x04040900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04041900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04042900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -739,9 +739,6 @@ int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
 {
 	int ret = true;
 	u8 power = priv->byCCKPwr;
-
-	if (priv->dwDiagRefCount)
-		return true;
 
 	if (channel == 0)
 		return -EINVAL;

@@ -182,12 +182,6 @@ SECTIONS {
 		__start_gate_section = .;
 		*(.data..gate)
 		__stop_gate_section = .;
-#ifdef CONFIG_XEN
-		. = ALIGN(PAGE_SIZE);
-		__xen_start_gate_section = .;
-		*(.data..gate.xen)
-		__xen_stop_gate_section = .;
-#endif
 	}
 	/*
 	 * make sure the gate page doesn't expose

@@ -277,7 +277,7 @@ SYSCALL_DEFINE2(capset, cap_user_header_t, header, const cap_user_data_t, data)
 	if (ret < 0)
 		goto error;
 
-	audit_log_capset(pid, new, current_cred());
+	audit_log_capset(new, current_cred());
 
 	return commit_creds(new);
 

@@ -533,16 +533,14 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	root = romfs_iget(sb, pos);
 	if (IS_ERR(root))
-		goto error;
+		return PTR_ERR(root);
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		goto error;
+		return -ENOMEM;
 
 	return 0;
 
-error:
-	return -EINVAL;
 error_rsb_inval:
 	ret = -EINVAL;
 error_rsb:

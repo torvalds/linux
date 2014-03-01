@@ -9,7 +9,7 @@ struct dn_ifaddr {
 	struct dn_dev    *ifa_dev;
 	__le16            ifa_local;
 	__le16            ifa_address;
-	__u8              ifa_flags;
+	__u32             ifa_flags;
 	__u8              ifa_scope;
 	char              ifa_label[IFNAMSIZ];
 	struct rcu_head   rcu;

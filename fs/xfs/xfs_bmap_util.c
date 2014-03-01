@@ -287,6 +287,7 @@ xfs_bmapi_allocate(
 	INIT_WORK_ONSTACK(&args->work, xfs_bmapi_allocate_worker);
 	queue_work(xfs_alloc_wq, &args->work);
 	wait_for_completion(&done);
+	destroy_work_on_stack(&args->work);
 	return args->result;
 }
 
@@ -617,22 +618,27 @@ xfs_getbmap(
 		return XFS_ERROR(ENOMEM);
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	if (whichfork == XFS_DATA_FORK && !(iflags & BMV_IF_DELALLOC)) {
-		if (ip->i_delayed_blks || XFS_ISIZE(ip) > ip->i_d.di_size) {
+	if (whichfork == XFS_DATA_FORK) {
+		if (!(iflags & BMV_IF_DELALLOC) &&
+		    (ip->i_delayed_blks || XFS_ISIZE(ip) > ip->i_d.di_size)) {
 			error = -filemap_write_and_wait(VFS_I(ip)->i_mapping);
 			if (error)
 				goto out_unlock_iolock;
-		}
-		/*
-		 * even after flushing the inode, there can still be delalloc
-		 * blocks on the inode beyond EOF due to speculative
-		 * preallocation. These are not removed until the release
-		 * function is called or the inode is inactivated. Hence we
-		 * cannot assert here that ip->i_delayed_blks == 0.
-		 */
-	}
 
-	lock = xfs_ilock_map_shared(ip);
+			/*
+			 * Even after flushing the inode, there can still be
+			 * delalloc blocks on the inode beyond EOF due to
+			 * speculative preallocation.  These are not removed
+			 * until the release function is called or the inode
+			 * is inactivated.  Hence we cannot assert here that
+			 * ip->i_delayed_blks == 0.
+			 */
+		}
+
+		lock = xfs_ilock_data_map_shared(ip);
+	} else {
+		lock = xfs_ilock_attr_map_shared(ip);
+	}
 
 	/*
 	 * Don't let nex be bigger than the number of extents
@@ -737,7 +743,7 @@ xfs_getbmap(
  out_free_map:
 	kmem_free(map);
  out_unlock_ilock:
-	xfs_iunlock_map_shared(ip, lock);
+	xfs_iunlock(ip, lock);
  out_unlock_iolock:
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
@@ -1168,9 +1174,15 @@ xfs_zero_remaining_bytes(
 	xfs_buf_unlock(bp);
 
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
+		uint lock_mode;
+
 		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 		nimap = 1;
+
+		lock_mode = xfs_ilock_data_map_shared(ip);
 		error = xfs_bmapi_read(ip, offset_fsb, 1, &imap, &nimap, 0);
+		xfs_iunlock(ip, lock_mode);
+
 		if (error || nimap < 1)
 			break;
 		ASSERT(imap.br_blockcount >= 1);
@@ -1187,7 +1199,12 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_UNWRITE(bp);
 		XFS_BUF_READ(bp);
 		XFS_BUF_SET_ADDR(bp, xfs_fsb_to_db(ip, imap.br_startblock));
-		xfsbdstrat(mp, bp);
+
+		if (XFS_FORCED_SHUTDOWN(mp)) {
+			error = XFS_ERROR(EIO);
+			break;
+		}
+		xfs_buf_iorequest(bp);
 		error = xfs_buf_iowait(bp);
 		if (error) {
 			xfs_buf_ioerror_alert(bp,
@@ -1200,7 +1217,12 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_UNDONE(bp);
 		XFS_BUF_UNREAD(bp);
 		XFS_BUF_WRITE(bp);
-		xfsbdstrat(mp, bp);
+
+		if (XFS_FORCED_SHUTDOWN(mp)) {
+			error = XFS_ERROR(EIO);
+			break;
+		}
+		xfs_buf_iorequest(bp);
 		error = xfs_buf_iowait(bp);
 		if (error) {
 			xfs_buf_ioerror_alert(bp,

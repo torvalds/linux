@@ -11,8 +11,6 @@
 
 #define PSEUDOSZ                16
 
-#define  SUCCESS             0x00
-
 struct app_info_block {
 	u32 nTxMsg;                    /* DPRAM msg sent to DSP with app_id */
 	u32 nRxMsg;                    /* DPRAM msg rcv from dsp with app_id */
@@ -30,9 +28,6 @@ struct app_info_block {
 
 #define FALSE           0
 #define TRUE            1
-
-#define STATUS_SUCCESS  0
-#define STATUS_FAILURE   0x1001
 
 #define FT1000_STATUS_CLOSING  0x01
 

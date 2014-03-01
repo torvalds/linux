@@ -82,20 +82,11 @@ static int get_disp_clk_div(struct drm_i915_private *dev_priv,
 
 static void gmbus_set_freq(struct drm_i915_private *dev_priv)
 {
-	int vco_freq[] = { 800, 1600, 2000, 2400 };
-	int gmbus_freq = 0, cdclk_div, hpll_freq;
+	int vco, gmbus_freq = 0, cdclk_div;
 
 	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
 
-	/* Skip setting the gmbus freq if BIOS has already programmed it */
-	if (I915_READ(GMBUSFREQ_VLV) != 0xA0)
-		return;
-
-	/* Obtain SKU information */
-	mutex_lock(&dev_priv->dpio_lock);
-	hpll_freq =
-		vlv_cck_read(dev_priv, CCK_FUSE_REG) & CCK_FUSE_HPLL_FREQ_MASK;
-	mutex_unlock(&dev_priv->dpio_lock);
+	vco = valleyview_get_vco(dev_priv);
 
 	/* Get the CDCLK divide ratio */
 	cdclk_div = get_disp_clk_div(dev_priv, CDCLK);
@@ -106,7 +97,7 @@ static void gmbus_set_freq(struct drm_i915_private *dev_priv)
 	 * in fact 1MHz is the correct frequency.
 	 */
 	if (cdclk_div)
-		gmbus_freq = (vco_freq[hpll_freq] << 1) / cdclk_div;
+		gmbus_freq = (vco << 1) / cdclk_div;
 
 	if (WARN_ON(gmbus_freq == 0))
 		return;
@@ -267,13 +258,6 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo->data = bus;
 }
 
-/*
- * gmbus on gen4 seems to be able to generate legacy interrupts even when in MSI
- * mode. This results in spurious interrupt warnings if the legacy irq no. is
- * shared with another device. The kernel then disables that interrupt source
- * and so prevents the other device from working properly.
- */
-#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 5)
 static int
 gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 		     u32 gmbus2_status,

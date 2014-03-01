@@ -2,7 +2,6 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/log2.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
@@ -53,7 +52,7 @@ EXPORT_SYMBOL_GPL(usb_init_urb);
  *	valid options for this.
  *
  * Creates an urb for the USB driver to use, initializes a few internal
- * structures, incrementes the usage counter, and returns a pointer to it.
+ * structures, increments the usage counter, and returns a pointer to it.
  *
  * If the driver want to use this urb for interrupt, control, or bulk
  * endpoints, pass '0' as the number of iso packets.
@@ -281,7 +280,7 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  *
  * Device drivers must explicitly request that repetition, by ensuring that
  * some URB is always on the endpoint's queue (except possibly for short
- * periods during completion callacks).  When there is no longer an urb
+ * periods during completion callbacks).  When there is no longer an urb
  * queued, the endpoint's bandwidth reservation is canceled.  This means
  * drivers can use their completion handlers to ensure they keep bandwidth
  * they need, by reinitializing and resubmitting the just-completed urb
@@ -325,10 +324,14 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  */
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
+	static int			pipetypes[4] = {
+		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+	};
 	int				xfertype, max;
 	struct usb_device		*dev;
 	struct usb_host_endpoint	*ep;
 	int				is_out;
+	unsigned int			allowed;
 
 	if (!urb || !urb->complete)
 		return -EINVAL;
@@ -436,15 +439,10 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (urb->transfer_buffer_length > INT_MAX)
 		return -EMSGSIZE;
 
-#ifdef DEBUG
-	/* stuff that drivers shouldn't do, but which shouldn't
+	/*
+	 * stuff that drivers shouldn't do, but which shouldn't
 	 * cause problems in HCDs if they get it wrong.
 	 */
-	{
-	unsigned int	allowed;
-	static int pipetypes[4] = {
-		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
-	};
 
 	/* Check that the pipe's type matches the endpoint's type */
 	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
@@ -476,8 +474,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (allowed != urb->transfer_flags)
 		dev_WARN(&dev->dev, "BOGUS urb flags, %x --> %x\n",
 			urb->transfer_flags, allowed);
-	}
-#endif
+
 	/*
 	 * Force periodic transfer intervals to be legal values that are
 	 * a power of two (so HCDs don't need to).
@@ -492,9 +489,9 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		/* too small? */
 		switch (dev->speed) {
 		case USB_SPEED_WIRELESS:
-			if (urb->interval < 6)
+			if ((urb->interval < 6)
+				&& (xfertype == USB_ENDPOINT_XFER_INT))
 				return -EINVAL;
-			break;
 		default:
 			if (urb->interval <= 0)
 				return -EINVAL;

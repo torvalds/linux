@@ -964,11 +964,11 @@ gpio_init(void)
 	 * in some tests.
 	 */
 	if (request_irq(TIMER0_INTR_VECT, gpio_poll_timer_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, "gpio poll", &alarmlist))
+			IRQF_SHARED, "gpio poll", &alarmlist))
 		printk(KERN_ERR "timer0 irq for gpio\n");
 
 	if (request_irq(GIO_INTR_VECT, gpio_pa_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, "gpio PA", &alarmlist))
+			IRQF_SHARED, "gpio PA", &alarmlist))
 		printk(KERN_ERR "PA irq for gpio\n");
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO

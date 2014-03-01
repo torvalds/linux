@@ -34,7 +34,6 @@
 #include <linux/fb.h>
 
 #include <asm/setup.h>
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #include <asm/io.h>
 

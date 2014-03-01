@@ -91,12 +91,13 @@ Configuration options: not applicable, uses PCI auto config
 #define	Status_IRQ	0x00ff	/*  All interrupts */
 
 /*  Define analogue range */
-static const struct comedi_lrange range_analog = { 4, {
-						       UNI_RANGE(5),
-						       UNI_RANGE(10),
-						       BIP_RANGE(5),
-						       BIP_RANGE(10)
-						       }
+static const struct comedi_lrange range_analog = {
+	4, {
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10)
+	}
 };
 
 static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
@@ -597,7 +598,7 @@ static int icp_multi_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &icp_multi_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(icp_multi_pci_table) = {
+static const struct pci_device_id icp_multi_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ICP, PCI_DEVICE_ID_ICP_MULTI) },
 	{ 0 }
 };

@@ -27,7 +27,7 @@ static struct snd_soc_dai_link simone_dai = {
 	.cpu_dai_name	= "ep93xx-ac97",
 	.codec_dai_name	= "ac97-hifi",
 	.codec_name	= "ac97-codec",
-	.platform_name	= "ep93xx-pcm-audio",
+	.platform_name	= "ep93xx-ac97",
 };
 
 static struct snd_soc_card snd_soc_simone = {

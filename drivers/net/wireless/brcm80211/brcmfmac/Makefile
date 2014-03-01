@@ -28,14 +28,15 @@ brcmfmac-objs += \
 		fweh.o \
 		fwsignal.o \
 		p2p.o \
-		dhd_cdc.o \
+		proto.o \
+		bcdc.o \
 		dhd_common.o \
 		dhd_linux.o \
+		nvram.o \
 		btcoex.o
 brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		dhd_sdio.o \
 		bcmsdh.o \
-		bcmsdh_sdmmc.o \
 		sdio_chip.o
 brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
 		usb.o

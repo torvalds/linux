@@ -119,7 +119,6 @@ int start_gc_thread(struct f2fs_sb_info *sbi)
 		kfree(gc_th);
 		sbi->gc_thread = NULL;
 	}
-
 out:
 	return err;
 }
@@ -164,8 +163,8 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 		p->ofs_unit = sbi->segs_per_sec;
 	}
 
-	if (p->max_search > MAX_VICTIM_SEARCH)
-		p->max_search = MAX_VICTIM_SEARCH;
+	if (p->max_search > sbi->max_victim_search)
+		p->max_search = sbi->max_victim_search;
 
 	p->offset = sbi->last_victim[p->gc_mode];
 }
@@ -429,7 +428,7 @@ next_step:
 
 		/* set page dirty and write it */
 		if (gc_type == FG_GC) {
-			f2fs_wait_on_page_writeback(node_page, NODE, true);
+			f2fs_wait_on_page_writeback(node_page, NODE);
 			set_page_dirty(node_page);
 		} else {
 			if (!PageWriteback(node_page))
@@ -521,6 +520,11 @@ static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 {
+	struct f2fs_io_info fio = {
+		.type = DATA,
+		.rw = WRITE_SYNC,
+	};
+
 	if (gc_type == BG_GC) {
 		if (PageWriteback(page))
 			goto out;
@@ -529,7 +533,7 @@ static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 	} else {
 		struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 
-		f2fs_wait_on_page_writeback(page, DATA, true);
+		f2fs_wait_on_page_writeback(page, DATA);
 
 		if (clear_page_dirty_for_io(page) &&
 			S_ISDIR(inode->i_mode)) {
@@ -537,7 +541,7 @@ static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 			inode_dec_dirty_dents(inode);
 		}
 		set_cold_data(page);
-		do_write_data_page(page);
+		do_write_data_page(page, &fio);
 		clear_cold_data(page);
 	}
 out:
@@ -631,7 +635,7 @@ next_iput:
 		goto next_step;
 
 	if (gc_type == FG_GC) {
-		f2fs_submit_bio(sbi, DATA, true);
+		f2fs_submit_merged_bio(sbi, DATA, WRITE);
 
 		/*
 		 * In the case of FG_GC, it'd be better to reclaim this victim
@@ -664,8 +668,6 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 
 	/* read segment summary of victim */
 	sum_page = get_sum_page(sbi, segno);
-	if (IS_ERR(sum_page))
-		return;
 
 	blk_start_plug(&plug);
 
@@ -697,7 +699,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi)
 
 	INIT_LIST_HEAD(&ilist);
 gc_more:
-	if (!(sbi->sb->s_flags & MS_ACTIVE))
+	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
 		goto stop;
 
 	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, nfree)) {

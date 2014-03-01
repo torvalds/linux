@@ -1053,6 +1053,7 @@ static void __net_exit nfnl_log_net_exit(struct net *net)
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_log", net->nf.proc_netfilter);
 #endif
+	nf_log_unset(net, &nfulnl_logger);
 }
 
 static struct pernet_operations nfnl_log_net_ops = {

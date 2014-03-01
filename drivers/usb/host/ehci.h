@@ -38,7 +38,7 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 #define EHCI_STATS
 #endif
 
@@ -225,6 +225,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
+	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -248,7 +249,7 @@ struct ehci_hcd {			/* one per controller */
 #endif
 
 	/* debug files */
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 	struct dentry		*debug_dir;
 #endif
 
@@ -728,6 +729,18 @@ static inline unsigned int ehci_readl(const struct ehci_hcd *ehci,
 #endif
 }
 
+#ifdef CONFIG_SOC_IMX28
+static inline void imx28_ehci_writel(const unsigned int val,
+		volatile __u32 __iomem *addr)
+{
+	__asm__ ("swp %0, %0, [%1]" : : "r"(val), "r"(addr));
+}
+#else
+static inline void imx28_ehci_writel(const unsigned int val,
+		volatile __u32 __iomem *addr)
+{
+}
+#endif
 static inline void ehci_writel(const struct ehci_hcd *ehci,
 		const unsigned int val, __u32 __iomem *regs)
 {
@@ -736,7 +749,10 @@ static inline void ehci_writel(const struct ehci_hcd *ehci,
 		writel_be(val, regs) :
 		writel(val, regs);
 #else
-	writel(val, regs);
+	if (ehci->imx28_write_fix)
+		imx28_ehci_writel(val, regs);
+	else
+		writel(val, regs);
 #endif
 }
 
@@ -832,9 +848,9 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 	dev_warn(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
 
 
-#if !defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
+#ifndef CONFIG_DYNAMIC_DEBUG
 #define STUB_DEBUG_FILES
-#endif	/* !DEBUG && !CONFIG_DYNAMIC_DEBUG */
+#endif
 
 /*-------------------------------------------------------------------------*/
 

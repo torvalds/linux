@@ -113,8 +113,6 @@ void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 	ci->num_rd_brk = fcpu(cpu, "xlnx,number-of-rd-addr-brk");
 	ci->num_wr_brk = fcpu(cpu, "xlnx,number-of-wr-addr-brk");
 
-	ci->cpu_clock_freq = fcpu(cpu, "timebase-frequency");
-
 	ci->pvr_user1 = fcpu(cpu, "xlnx,pvr-user1");
 	ci->pvr_user2 = fcpu(cpu, "xlnx,pvr-user2");
 

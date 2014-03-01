@@ -6,6 +6,7 @@
 #include <inttypes.h>
 
 #include "symbol.h"
+#include <symbol/kallsyms.h>
 #include "debug.h"
 
 #ifndef HAVE_ELF_GETPHDRNUM_SUPPORT
@@ -135,9 +136,8 @@ static size_t elf_addr_to_index(Elf *elf, GElf_Addr addr)
 	return -1;
 }
 
-static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
-				    GElf_Shdr *shp, const char *name,
-				    size_t *idx)
+Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
+			     GElf_Shdr *shp, const char *name, size_t *idx)
 {
 	Elf_Scn *sec = NULL;
 	size_t cnt = 1;
@@ -553,7 +553,7 @@ bool symsrc__has_symtab(struct symsrc *ss)
 
 void symsrc__destroy(struct symsrc *ss)
 {
-	free(ss->name);
+	zfree(&ss->name);
 	elf_end(ss->elf);
 	close(ss->fd);
 }
@@ -751,6 +751,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 			if (strcmp(elf_name, kmap->ref_reloc_sym->name))
 				continue;
 			kmap->ref_reloc_sym->unrelocated_addr = sym.st_value;
+			map->reloc = kmap->ref_reloc_sym->addr -
+				     kmap->ref_reloc_sym->unrelocated_addr;
 			break;
 		}
 	}
@@ -922,6 +924,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				  (u64)shdr.sh_offset);
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 		}
+new_symbol:
 		/*
 		 * We need to figure out if the object was created from C++ sources
 		 * DWARF DW_compile_unit has this, but we don't always have access
@@ -933,7 +936,6 @@ int dso__load_sym(struct dso *dso, struct map *map,
 			if (demangled != NULL)
 				elf_name = demangled;
 		}
-new_symbol:
 		f = symbol__new(sym.st_value, sym.st_size,
 				GELF_ST_BIND(sym.st_info), elf_name);
 		free(demangled);

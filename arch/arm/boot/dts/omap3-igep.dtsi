@@ -133,8 +133,6 @@
 			0x194 (PIN_INPUT | MUX_MODE0)   /* i2c3_sda.i2c3_sda */
 		>;
 	};
-
-	leds_pins: pinmux_leds_pins { };
 };
 
 &i2c1 {

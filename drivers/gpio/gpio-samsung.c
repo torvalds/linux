@@ -30,9 +30,12 @@
 
 #include <asm/irq.h>
 
-#include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
+
+#if defined(CONFIG_ARCH_S3C24XX) || defined(CONFIG_ARCH_S3C64XX)
+#include <mach/gpio-samsung.h>
+#endif
 
 #include <plat/cpu.h>
 #include <plat/gpio-core.h>
@@ -1053,7 +1056,7 @@ struct samsung_gpio_chip s3c24xx_gpios[] = {
 			.base			= S3C2410_GPA(0),
 			.owner			= THIS_MODULE,
 			.label			= "GPIOA",
-			.ngpio			= 24,
+			.ngpio			= 27,
 			.direction_input	= s3c24xx_gpiolib_banka_input,
 			.direction_output	= s3c24xx_gpiolib_banka_output,
 		},
@@ -1062,7 +1065,7 @@ struct samsung_gpio_chip s3c24xx_gpios[] = {
 			.base	= S3C2410_GPB(0),
 			.owner	= THIS_MODULE,
 			.label	= "GPIOB",
-			.ngpio	= 16,
+			.ngpio	= 11,
 		},
 	}, {
 		.chip	= {
@@ -1107,7 +1110,7 @@ struct samsung_gpio_chip s3c24xx_gpios[] = {
 			.base	= S3C2410_GPH(0),
 			.owner	= THIS_MODULE,
 			.label	= "GPIOH",
-			.ngpio	= 11,
+			.ngpio	= 15,
 		},
 	},
 		/* GPIOS for the S3C2443 and later devices. */

@@ -28,7 +28,6 @@
 #include "r8190P_rtl8256.h" /* RTL8225 Radio frontend */
 #include "r8192E_cmdpkt.h"
 
-extern int hwwep;
 void CamResetAllEntry(struct net_device *dev)
 {
 	u32 ulcommand = 0;

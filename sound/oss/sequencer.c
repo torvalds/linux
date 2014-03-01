@@ -19,6 +19,7 @@
 #include "sound_config.h"
 
 #include "midi_ctrl.h"
+#include "sleep.h"
 
 static int      sequencer_ok;
 static struct sound_timer_operations *tmr;
@@ -100,8 +101,7 @@ int sequencer_read(int dev, struct file *file, char __user *buf, int count)
   			return -EAGAIN;
   		}
 
- 		interruptible_sleep_on_timeout(&midi_sleeper,
-					       pre_event_timeout);
+		oss_broken_sleep_on(&midi_sleeper, pre_event_timeout);
 		spin_lock_irqsave(&lock,flags);
 		if (!iqlen)
 		{
@@ -343,7 +343,7 @@ static int seq_queue(unsigned char *note, char nonblock)
 		/*
 		 * Sleep until there is enough space on the queue
 		 */
-		interruptible_sleep_on(&seq_sleeper);
+		oss_broken_sleep_on(&seq_sleeper, MAX_SCHEDULE_TIMEOUT);
 	}
 	if (qlen >= SEQ_MAX_QUEUE)
 	{
@@ -1122,8 +1122,7 @@ static void seq_drain_midi_queues(void)
 		 */
 
  		if (n)
- 			interruptible_sleep_on_timeout(&seq_sleeper,
-						       HZ/10);
+			oss_broken_sleep_on(&seq_sleeper, HZ/10);
 	}
 }
 
@@ -1145,8 +1144,7 @@ void sequencer_release(int dev, struct file *file)
 		while (!signal_pending(current) && qlen > 0)
 		{
   			seq_sync();
- 			interruptible_sleep_on_timeout(&seq_sleeper,
-						       3*HZ);
+			oss_broken_sleep_on(&seq_sleeper, 3*HZ);
  			/* Extra delay */
 		}
 	}
@@ -1201,7 +1199,7 @@ static int seq_sync(void)
 		seq_startplay();
 
  	if (qlen > 0)
- 		interruptible_sleep_on_timeout(&seq_sleeper, HZ);
+		oss_broken_sleep_on(&seq_sleeper, HZ);
 	return qlen;
 }
 
@@ -1224,7 +1222,7 @@ static void midi_outc(int dev, unsigned char data)
 
 	spin_lock_irqsave(&lock,flags);
  	while (n && !midi_devs[dev]->outputc(dev, data)) {
- 		interruptible_sleep_on_timeout(&seq_sleeper, HZ/25);
+		oss_broken_sleep_on(&seq_sleeper, HZ/25);
   		n--;
   	}
 	spin_unlock_irqrestore(&lock,flags);

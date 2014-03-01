@@ -22,7 +22,6 @@
  *
  */
 #include <linux/acpi.h>
-#include <linux/acpi_io.h>
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 

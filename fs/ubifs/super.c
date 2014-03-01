@@ -873,26 +873,10 @@ static void free_orphans(struct ubifs_info *c)
  */
 static void free_buds(struct ubifs_info *c)
 {
-	struct rb_node *this = c->buds.rb_node;
-	struct ubifs_bud *bud;
+	struct ubifs_bud *bud, *n;
 
-	while (this) {
-		if (this->rb_left)
-			this = this->rb_left;
-		else if (this->rb_right)
-			this = this->rb_right;
-		else {
-			bud = rb_entry(this, struct ubifs_bud, rb);
-			this = rb_parent(this);
-			if (this) {
-				if (this->rb_left == &bud->rb)
-					this->rb_left = NULL;
-				else
-					this->rb_right = NULL;
-			}
-			kfree(bud);
-		}
-	}
+	rbtree_postorder_for_each_entry_safe(bud, n, &c->buds, rb)
+		kfree(bud);
 }
 
 /**

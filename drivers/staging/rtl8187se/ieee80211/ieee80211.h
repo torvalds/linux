@@ -90,6 +90,9 @@
 
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
+extern int ieee80211_crypto_tkip_init(void);
+extern void ieee80211_crypto_tkip_exit(void);
+
 //by amy for ps
 typedef struct ieee_param {
 	u32 cmd;
@@ -1237,7 +1240,8 @@ static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
+static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
+					  int mode)
 {
 	/*
 	 * It is possible for both access points and our device to support
@@ -1300,19 +1304,16 @@ extern int ieee80211_set_encryption(struct ieee80211_device *ieee);
 
 /* ieee80211_tx.c */
 
-extern int ieee80211_encrypt_fragment(
-	struct ieee80211_device *ieee,
-	struct sk_buff *frag,
-	int hdr_len);
+extern int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
+				      struct sk_buff *frag, int hdr_len);
 
-extern int ieee80211_rtl_xmit(struct sk_buff *skb,
-			  struct net_device *dev);
+extern int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
 
 
 /* ieee80211_rx.c */
 extern int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
-			struct ieee80211_rx_stats *rx_stats);
+			    struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			     struct ieee80211_hdr_4addr *header,
 			     struct ieee80211_rx_stats *stats);
@@ -1328,25 +1329,28 @@ extern int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
 extern int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
-                            struct iw_request_info *info,
-                            union iwreq_data* wrqu, char *extra);
+				       struct iw_request_info *info,
+				       union iwreq_data *wrqu, char *extra);
 int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
-                               struct iw_request_info *info,
-                               struct iw_param *data, char *extra);
+			  struct iw_request_info *info,
+			  struct iw_param *data, char *extra);
 int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra);
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra);
 
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len);
 /* ieee80211_softmac.c */
 extern short ieee80211_is_54g(const struct ieee80211_network *net);
 extern short ieee80211_is_shortslot(const struct ieee80211_network *net);
-extern int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
-			struct ieee80211_rx_stats *rx_stats, u16 type,
-			u16 stype);
-extern void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee80211_network *net);
+extern int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
+				      struct sk_buff *skb,
+				      struct ieee80211_rx_stats *rx_stats,
+				      u16 type, u16 stype);
+extern void ieee80211_softmac_new_net(struct ieee80211_device *ieee,
+				      struct ieee80211_network *net);
 
-extern void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *ieee);
+extern void ieee80211_softmac_xmit(struct ieee80211_txb *txb,
+				   struct ieee80211_device *ieee);
 extern void ieee80211_softmac_check_all_nets(struct ieee80211_device *ieee);
 extern void ieee80211_start_bss(struct ieee80211_device *ieee);
 extern void ieee80211_start_master_bss(struct ieee80211_device *ieee);
@@ -1368,16 +1372,17 @@ extern void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee);
 extern struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee);
 extern void ieee80211_start_send_beacons(struct ieee80211_device *ieee);
 extern void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);
-extern int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee, struct iw_point *p);
+extern int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee,
+					  struct iw_point *p);
 extern void notify_wx_assoc_event(struct ieee80211_device *ieee);
 extern void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success);
-extern void SendDisassociation(struct ieee80211_device *ieee,u8* asSta,u8 asRsn);
+extern void SendDisassociation(struct ieee80211_device *ieee, u8 *asSta,
+			       u8 asRsn);
 extern void ieee80211_rtl_start_scan(struct ieee80211_device *ieee);
 
 //Add for RF power on power off by lizhaoming 080512
-extern void SendDisassociation(struct ieee80211_device *ieee,
-       			 u8*                     asSta,
-        		 u8                      asRsn);
+extern void SendDisassociation(struct ieee80211_device *ieee, u8 *asSta,
+			       u8 asRsn);
 
 /* ieee80211_crypt_ccmp&tkip&wep.c */
 extern void ieee80211_tkip_null(void);
@@ -1386,64 +1391,72 @@ extern void ieee80211_ccmp_null(void);
 /* ieee80211_softmac_wx.c */
 
 extern int ieee80211_wx_get_wap(struct ieee80211_device *ieee,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *ext);
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *ext);
 
 extern int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
-			 struct iw_request_info *info,
-			 union iwreq_data *awrq,
-			 char *extra);
+				struct iw_request_info *info,
+				union iwreq_data *awrq,
+				char *extra);
 
-extern int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b);
+extern int ieee80211_wx_get_essid(struct ieee80211_device *ieee,
+				  struct iw_request_info *a,
+				  union iwreq_data *wrqu, char *b);
 
 extern int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra);
+				 struct iw_request_info *info,
+				 union iwreq_data *wrqu, char *extra);
 
 extern int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra);
+				 struct iw_request_info *info,
+				 union iwreq_data *wrqu, char *extra);
 
-extern int ieee80211_wx_set_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b);
+extern int ieee80211_wx_set_mode(struct ieee80211_device *ieee,
+				 struct iw_request_info *a,
+				 union iwreq_data *wrqu, char *b);
 
-extern int ieee80211_wx_set_scan(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b);
+extern int ieee80211_wx_set_scan(struct ieee80211_device *ieee,
+				 struct iw_request_info *a,
+				 union iwreq_data *wrqu, char *b);
 
 extern int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *extra);
+				  struct iw_request_info *a,
+				  union iwreq_data *wrqu, char *extra);
 
-extern int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b);
+extern int ieee80211_wx_get_mode(struct ieee80211_device *ieee,
+				 struct iw_request_info *a,
+				 union iwreq_data *wrqu, char *b);
 
-extern int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b);
+extern int ieee80211_wx_set_freq(struct ieee80211_device *ieee,
+				 struct iw_request_info *a,
+				 union iwreq_data *wrqu, char *b);
 
-extern int ieee80211_wx_get_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b);
+extern int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
+				 struct iw_request_info *a,
+				 union iwreq_data *wrqu, char *b);
 
 extern void ieee80211_wx_sync_scan_wq(struct work_struct *work);
 
 extern int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra);
+				  struct iw_request_info *info,
+				  union iwreq_data *wrqu, char *extra);
 
 extern int ieee80211_wx_get_name(struct ieee80211_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra);
+				 struct iw_request_info *info,
+				 union iwreq_data *wrqu, char *extra);
 
 extern int ieee80211_wx_set_power(struct ieee80211_device *ieee,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu, char *extra);
+				  struct iw_request_info *info,
+				  union iwreq_data *wrqu, char *extra);
 
 extern int ieee80211_wx_get_power(struct ieee80211_device *ieee,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu, char *extra);
+				  struct iw_request_info *info,
+				  union iwreq_data *wrqu, char *extra);
 
 extern void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee);
 
-extern void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee, short pwr);
+extern void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee,
+					     short pwr);
 
 extern const long ieee80211_wlan_frequencies[];
 

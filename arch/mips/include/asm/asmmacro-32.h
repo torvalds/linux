@@ -12,27 +12,6 @@
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 
-	.macro	fpu_save_double thread status tmp1=t0
-	cfc1	\tmp1,  fcr31
-	sdc1	$f0,  THREAD_FPR0(\thread)
-	sdc1	$f2,  THREAD_FPR2(\thread)
-	sdc1	$f4,  THREAD_FPR4(\thread)
-	sdc1	$f6,  THREAD_FPR6(\thread)
-	sdc1	$f8,  THREAD_FPR8(\thread)
-	sdc1	$f10, THREAD_FPR10(\thread)
-	sdc1	$f12, THREAD_FPR12(\thread)
-	sdc1	$f14, THREAD_FPR14(\thread)
-	sdc1	$f16, THREAD_FPR16(\thread)
-	sdc1	$f18, THREAD_FPR18(\thread)
-	sdc1	$f20, THREAD_FPR20(\thread)
-	sdc1	$f22, THREAD_FPR22(\thread)
-	sdc1	$f24, THREAD_FPR24(\thread)
-	sdc1	$f26, THREAD_FPR26(\thread)
-	sdc1	$f28, THREAD_FPR28(\thread)
-	sdc1	$f30, THREAD_FPR30(\thread)
-	sw	\tmp1, THREAD_FCR31(\thread)
-	.endm
-
 	.macro	fpu_save_single thread tmp=t0
 	cfc1	\tmp,  fcr31
 	swc1	$f0,  THREAD_FPR0(\thread)
@@ -68,27 +47,6 @@
 	swc1	$f30, THREAD_FPR30(\thread)
 	swc1	$f31, THREAD_FPR31(\thread)
 	sw	\tmp, THREAD_FCR31(\thread)
-	.endm
-
-	.macro	fpu_restore_double thread status tmp=t0
-	lw	\tmp, THREAD_FCR31(\thread)
-	ldc1	$f0,  THREAD_FPR0(\thread)
-	ldc1	$f2,  THREAD_FPR2(\thread)
-	ldc1	$f4,  THREAD_FPR4(\thread)
-	ldc1	$f6,  THREAD_FPR6(\thread)
-	ldc1	$f8,  THREAD_FPR8(\thread)
-	ldc1	$f10, THREAD_FPR10(\thread)
-	ldc1	$f12, THREAD_FPR12(\thread)
-	ldc1	$f14, THREAD_FPR14(\thread)
-	ldc1	$f16, THREAD_FPR16(\thread)
-	ldc1	$f18, THREAD_FPR18(\thread)
-	ldc1	$f20, THREAD_FPR20(\thread)
-	ldc1	$f22, THREAD_FPR22(\thread)
-	ldc1	$f24, THREAD_FPR24(\thread)
-	ldc1	$f26, THREAD_FPR26(\thread)
-	ldc1	$f28, THREAD_FPR28(\thread)
-	ldc1	$f30, THREAD_FPR30(\thread)
-	ctc1	\tmp, fcr31
 	.endm
 
 	.macro	fpu_restore_single thread tmp=t0

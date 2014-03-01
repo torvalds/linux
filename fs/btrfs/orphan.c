@@ -69,23 +69,3 @@ out:
 	btrfs_free_path(path);
 	return ret;
 }
-
-int btrfs_find_orphan_item(struct btrfs_root *root, u64 offset)
-{
-	struct btrfs_path *path;
-	struct btrfs_key key;
-	int ret;
-
-	key.objectid = BTRFS_ORPHAN_OBJECTID;
-	key.type = BTRFS_ORPHAN_ITEM_KEY;
-	key.offset = offset;
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-
-	btrfs_free_path(path);
-	return ret;
-}

@@ -2551,7 +2551,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
 	struct req_iterator iter;
-	struct bio_vec *bv;
+	struct bio_vec bv;
 	char *dst;
 	unsigned int off;
 	int count, cidaw, cplength, datasize;
@@ -2573,13 +2573,13 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 	count = 0;
 	cidaw = 0;
 	rq_for_each_segment(bv, req, iter) {
-		if (bv->bv_len & (blksize - 1))
+		if (bv.bv_len & (blksize - 1))
 			/* Eckd can only do full blocks. */
 			return ERR_PTR(-EINVAL);
-		count += bv->bv_len >> (block->s2b_shift + 9);
+		count += bv.bv_len >> (block->s2b_shift + 9);
 #if defined(CONFIG_64BIT)
-		if (idal_is_needed (page_address(bv->bv_page), bv->bv_len))
-			cidaw += bv->bv_len >> (block->s2b_shift + 9);
+		if (idal_is_needed (page_address(bv.bv_page), bv.bv_len))
+			cidaw += bv.bv_len >> (block->s2b_shift + 9);
 #endif
 	}
 	/* Paranoia. */
@@ -2650,16 +2650,16 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 			      last_rec - recid + 1, cmd, basedev, blksize);
 	}
 	rq_for_each_segment(bv, req, iter) {
-		dst = page_address(bv->bv_page) + bv->bv_offset;
+		dst = page_address(bv.bv_page) + bv.bv_offset;
 		if (dasd_page_cache) {
 			char *copy = kmem_cache_alloc(dasd_page_cache,
 						      GFP_DMA | __GFP_NOWARN);
 			if (copy && rq_data_dir(req) == WRITE)
-				memcpy(copy + bv->bv_offset, dst, bv->bv_len);
+				memcpy(copy + bv.bv_offset, dst, bv.bv_len);
 			if (copy)
-				dst = copy + bv->bv_offset;
+				dst = copy + bv.bv_offset;
 		}
-		for (off = 0; off < bv->bv_len; off += blksize) {
+		for (off = 0; off < bv.bv_len; off += blksize) {
 			sector_t trkid = recid;
 			unsigned int recoffs = sector_div(trkid, blk_per_trk);
 			rcmd = cmd;
@@ -2735,7 +2735,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
 	struct req_iterator iter;
-	struct bio_vec *bv;
+	struct bio_vec bv;
 	char *dst, *idaw_dst;
 	unsigned int cidaw, cplength, datasize;
 	unsigned int tlf;
@@ -2813,8 +2813,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	idaw_dst = NULL;
 	idaw_len = 0;
 	rq_for_each_segment(bv, req, iter) {
-		dst = page_address(bv->bv_page) + bv->bv_offset;
-		seg_len = bv->bv_len;
+		dst = page_address(bv.bv_page) + bv.bv_offset;
+		seg_len = bv.bv_len;
 		while (seg_len) {
 			if (new_track) {
 				trkid = recid;
@@ -3039,7 +3039,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 {
 	struct dasd_ccw_req *cqr;
 	struct req_iterator iter;
-	struct bio_vec *bv;
+	struct bio_vec bv;
 	char *dst;
 	unsigned int trkcount, ctidaw;
 	unsigned char cmd;
@@ -3125,8 +3125,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 		new_track = 1;
 		recid = first_rec;
 		rq_for_each_segment(bv, req, iter) {
-			dst = page_address(bv->bv_page) + bv->bv_offset;
-			seg_len = bv->bv_len;
+			dst = page_address(bv.bv_page) + bv.bv_offset;
+			seg_len = bv.bv_len;
 			while (seg_len) {
 				if (new_track) {
 					trkid = recid;
@@ -3158,9 +3158,9 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 		}
 	} else {
 		rq_for_each_segment(bv, req, iter) {
-			dst = page_address(bv->bv_page) + bv->bv_offset;
+			dst = page_address(bv.bv_page) + bv.bv_offset;
 			last_tidaw = itcw_add_tidaw(itcw, 0x00,
-						    dst, bv->bv_len);
+						    dst, bv.bv_len);
 			if (IS_ERR(last_tidaw)) {
 				ret = -EINVAL;
 				goto out_error;
@@ -3278,7 +3278,7 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
 	struct req_iterator iter;
-	struct bio_vec *bv;
+	struct bio_vec bv;
 	char *dst;
 	unsigned char cmd;
 	unsigned int trkcount;
@@ -3378,8 +3378,8 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 			idaws = idal_create_words(idaws, rawpadpage, PAGE_SIZE);
 	}
 	rq_for_each_segment(bv, req, iter) {
-		dst = page_address(bv->bv_page) + bv->bv_offset;
-		seg_len = bv->bv_len;
+		dst = page_address(bv.bv_page) + bv.bv_offset;
+		seg_len = bv.bv_len;
 		if (cmd == DASD_ECKD_CCW_READ_TRACK)
 			memset(dst, 0, seg_len);
 		if (!len_to_track_end) {
@@ -3424,7 +3424,7 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 	struct dasd_eckd_private *private;
 	struct ccw1 *ccw;
 	struct req_iterator iter;
-	struct bio_vec *bv;
+	struct bio_vec bv;
 	char *dst, *cda;
 	unsigned int blksize, blk_per_trk, off;
 	sector_t recid;
@@ -3442,8 +3442,8 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 	if (private->uses_cdl == 0 || recid > 2*blk_per_trk)
 		ccw++;
 	rq_for_each_segment(bv, req, iter) {
-		dst = page_address(bv->bv_page) + bv->bv_offset;
-		for (off = 0; off < bv->bv_len; off += blksize) {
+		dst = page_address(bv.bv_page) + bv.bv_offset;
+		for (off = 0; off < bv.bv_len; off += blksize) {
 			/* Skip locate record. */
 			if (private->uses_cdl && recid <= 2*blk_per_trk)
 				ccw++;
@@ -3454,7 +3454,7 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 					cda = (char *)((addr_t) ccw->cda);
 				if (dst != cda) {
 					if (rq_data_dir(req) == READ)
-						memcpy(dst, cda, bv->bv_len);
+						memcpy(dst, cda, bv.bv_len);
 					kmem_cache_free(dasd_page_cache,
 					    (void *)((addr_t)cda & PAGE_MASK));
 				}

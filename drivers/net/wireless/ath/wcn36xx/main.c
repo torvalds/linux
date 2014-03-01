@@ -641,7 +641,8 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 		dev_kfree_skb(skb);
 	}
 
-	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+	if (changed & BSS_CHANGED_BEACON_ENABLED ||
+	    changed & BSS_CHANGED_BEACON) {
 		wcn36xx_dbg(WCN36XX_DBG_MAC,
 			    "mac bss changed beacon enabled %d\n",
 			    bss_conf->enable_beacon);

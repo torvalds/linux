@@ -1,5 +1,5 @@
-unsigned int max_intcnt = 0;
-unsigned int max_bh = 0;
+static unsigned int max_intcnt = 0;
+static unsigned int max_bh = 0;
 
 /*-----------------------------------------------------------------------------
  * musycc.c -

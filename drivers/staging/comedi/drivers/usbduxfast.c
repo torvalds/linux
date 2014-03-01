@@ -37,7 +37,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
@@ -138,7 +137,10 @@
  * comedi constants
  */
 static const struct comedi_lrange range_usbduxfast_ai_range = {
-	2, {BIP_RANGE(0.75), BIP_RANGE(0.5)}
+	2, {
+		BIP_RANGE(0.75),
+		BIP_RANGE(0.5)
+	}
 };
 
 /*

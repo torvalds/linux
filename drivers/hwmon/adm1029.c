@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2006 Corentin LABBE <corentin.labbe@geomatys.fr>
  *
- * Based on LM83 Driver by Jean Delvare <khali@linux-fr.org>
+ * Based on LM83 Driver by Jean Delvare <jdelvare@suse.de>
  *
  * Give only processor, motherboard temperatures and fan tachs
  * Very rare chip please let me know if you use it

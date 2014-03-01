@@ -101,7 +101,7 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 
 	ret = btrfs_remove_free_space(cache, 2 * 1024 * 1024, 4096);
 	if (ret) {
-		test_msg("Error removing middle peice %d\n", ret);
+		test_msg("Error removing middle piece %d\n", ret);
 		return ret;
 	}
 
@@ -266,7 +266,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache)
 	}
 
 	if (test_check_exists(cache, 512 * 1024, 3 * 1024 * 1024)) {
-		test_msg("Left over peices after removing overlapping\n");
+		test_msg("Left over pieces after removing overlapping\n");
 		return -1;
 	}
 

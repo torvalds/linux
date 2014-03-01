@@ -330,11 +330,6 @@ asmlinkage void FPU_exception(int n)
 
 	RE_ENTRANT_CHECK_OFF;
 	if ((~control_word & n & CW_Exceptions) || (n == EX_INTERNAL)) {
-#ifdef PRINT_MESSAGES
-		/* My message from the sponsor */
-		printk(FPU_VERSION " " __DATE__ " (C) W. Metzenthen.\n");
-#endif /* PRINT_MESSAGES */
-
 		/* Get a name string for error reporting */
 		for (i = 0; exception_names[i].type; i++)
 			if ((exception_names[i].type & n) ==

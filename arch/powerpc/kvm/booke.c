@@ -643,7 +643,7 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 		local_irq_enable();
 		kvm_vcpu_block(vcpu);
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
-		local_irq_disable();
+		hard_irq_disable();
 
 		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
 		r = 1;
@@ -681,35 +681,23 @@ int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret, s;
-	struct thread_struct thread;
-#ifdef CONFIG_PPC_FPU
-	struct thread_fp_state fp;
-	int fpexc_mode;
-#endif
+	struct debug_reg debug;
 
 	if (!vcpu->arch.sane) {
 		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		return -EINVAL;
 	}
 
-	local_irq_disable();
 	s = kvmppc_prepare_to_enter(vcpu);
 	if (s <= 0) {
-		local_irq_enable();
 		ret = s;
 		goto out;
 	}
+	/* interrupts now hard-disabled */
 
 #ifdef CONFIG_PPC_FPU
 	/* Save userspace FPU state in stack */
 	enable_kernel_fp();
-	fp = current->thread.fp_state;
-	fpexc_mode = current->thread.fpexc_mode;
-
-	/* Restore guest FPU state to thread */
-	memcpy(current->thread.fp_state.fpr, vcpu->arch.fpr,
-	       sizeof(vcpu->arch.fpr));
-	current->thread.fp_state.fpscr = vcpu->arch.fpscr;
 
 	/*
 	 * Since we can't trap on MSR_FP in GS-mode, we consider the guest
@@ -723,11 +711,12 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 
 	/* Switch to guest debug context */
-	thread.debug = vcpu->arch.shadow_dbg_reg;
-	switch_booke_debug_regs(&thread);
-	thread.debug = current->thread.debug;
+	debug = vcpu->arch.shadow_dbg_reg;
+	switch_booke_debug_regs(&debug);
+	debug = current->thread.debug;
 	current->thread.debug = vcpu->arch.shadow_dbg_reg;
 
+	vcpu->arch.pgdir = current->mm->pgd;
 	kvmppc_fix_ee_before_entry();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
@@ -736,22 +725,13 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	   We also get here with interrupts enabled. */
 
 	/* Switch back to user space debug context */
-	switch_booke_debug_regs(&thread);
-	current->thread.debug = thread.debug;
+	switch_booke_debug_regs(&debug);
+	current->thread.debug = debug;
 
 #ifdef CONFIG_PPC_FPU
 	kvmppc_save_guest_fp(vcpu);
 
 	vcpu->fpu_active = 0;
-
-	/* Save guest FPU state from thread */
-	memcpy(vcpu->arch.fpr, current->thread.fp_state.fpr,
-	       sizeof(vcpu->arch.fpr));
-	vcpu->arch.fpscr = current->thread.fp_state.fpscr;
-
-	/* Restore userspace FPU state from stack */
-	current->thread.fp_state = fp;
-	current->thread.fpexc_mode = fpexc_mode;
 #endif
 
 out:
@@ -897,17 +877,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int r = RESUME_HOST;
 	int s;
 	int idx;
-
-#ifdef CONFIG_PPC64
-	WARN_ON(local_paca->irq_happened != 0);
-#endif
-
-	/*
-	 * We enter with interrupts disabled in hardware, but
-	 * we need to call hard_irq_disable anyway to ensure that
-	 * the software state is kept in sync.
-	 */
-	hard_irq_disable();
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
@@ -1217,12 +1186,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * aren't already exiting to userspace for some other reason.
 	 */
 	if (!(r & RESUME_HOST)) {
-		local_irq_disable();
 		s = kvmppc_prepare_to_enter(vcpu);
-		if (s <= 0) {
-			local_irq_enable();
+		if (s <= 0)
 			r = (s << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-		} else {
+		else {
+			/* interrupts now hard-disabled */
 			kvmppc_fix_ee_before_entry();
 		}
 	}

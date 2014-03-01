@@ -279,7 +279,6 @@ static int ecap_pwm_remove(struct platform_device *pdev)
 	pwmss_submodule_state_change(pdev->dev.parent, PWMSS_ECAPCLK_STOP_REQ);
 	pm_runtime_put_sync(&pdev->dev);
 
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return pwmchip_remove(&pc->chip);
 }

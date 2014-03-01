@@ -33,7 +33,6 @@
  */
 
 #include "int.h"
-#include "mib.h"
 #include "tmacro.h"
 #include "mac.h"
 #include "power.h"
@@ -86,45 +85,46 @@ void INTnsProcessData(struct vnt_private *pDevice)
 
 	pINTData = (PSINTData) pDevice->intBuf.pDataBuf;
 	if (pINTData->byTSR0 & TSR_VALID) {
-		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(u8)(pINTData->byPkt0 & 0x0F),
-					(u8)(pINTData->byPkt0>>4),
-					pINTData->byTSR0);
+		if (pINTData->byTSR0 & (TSR_TMO | TSR_RETRYTMO))
+			pDevice->wstats.discard.retries++;
+		else
+			pStats->tx_packets++;
+
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR0,
 					pINTData->byPkt0);
 		/*DBG_PRN_GRP01(("TSR0 %02x\n", pINTData->byTSR0));*/
 	}
 	if (pINTData->byTSR1 & TSR_VALID) {
-		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(u8)(pINTData->byPkt1 & 0x0F),
-					(u8)(pINTData->byPkt1>>4),
-					pINTData->byTSR1);
+		if (pINTData->byTSR1 & (TSR_TMO | TSR_RETRYTMO))
+			pDevice->wstats.discard.retries++;
+		else
+			pStats->tx_packets++;
+
+
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR1,
 					pINTData->byPkt1);
 		/*DBG_PRN_GRP01(("TSR1 %02x\n", pINTData->byTSR1));*/
 	}
 	if (pINTData->byTSR2 & TSR_VALID) {
-		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(u8)(pINTData->byPkt2 & 0x0F),
-					(u8)(pINTData->byPkt2>>4),
-					pINTData->byTSR2);
+		if (pINTData->byTSR2 & (TSR_TMO | TSR_RETRYTMO))
+			pDevice->wstats.discard.retries++;
+		else
+			pStats->tx_packets++;
+
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR2,
 					pINTData->byPkt2);
 		/*DBG_PRN_GRP01(("TSR2 %02x\n", pINTData->byTSR2));*/
 	}
 	if (pINTData->byTSR3 & TSR_VALID) {
-		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(u8)(pINTData->byPkt3 & 0x0F),
-					(u8)(pINTData->byPkt3>>4),
-					pINTData->byTSR3);
+		if (pINTData->byTSR3 & (TSR_TMO | TSR_RETRYTMO))
+			pDevice->wstats.discard.retries++;
+		else
+			pStats->tx_packets++;
+
 		BSSvUpdateNodeTxCounter(pDevice,
-					&(pDevice->scStatistic),
 					pINTData->byTSR3,
 					pINTData->byPkt3);
 		/*DBG_PRN_GRP01(("TSR3 %02x\n", pINTData->byTSR3));*/
@@ -174,16 +174,6 @@ void INTnsProcessData(struct vnt_private *pDevice)
 		  pINTData->byISR0,
 		  pINTData->dwLoTSF,
 		  pINTData->dwHiTSF)); */
-
-		STAvUpdate802_11Counter(&pDevice->s802_11Counter,
-					&pDevice->scStatistic,
-					pINTData->byRTSSuccess,
-					pINTData->byRTSFail,
-					pINTData->byACKFail,
-					pINTData->byFCSErr);
-		STAvUpdateIsrStatCounter(&pDevice->scStatistic,
-					pINTData->byISR0,
-					pINTData->byISR1);
 	}
 	if (pINTData->byISR1 != 0)
 		if (pINTData->byISR1 & ISR_GPIO3)
@@ -193,10 +183,6 @@ void INTnsProcessData(struct vnt_private *pDevice)
 	pDevice->intBuf.uDataLen = 0;
 	pDevice->intBuf.bInUse = false;
 
-	pStats->tx_packets = pDevice->scStatistic.ullTsrOK;
-	pStats->tx_bytes = pDevice->scStatistic.ullTxDirectedBytes +
-		pDevice->scStatistic.ullTxMulticastBytes +
-		pDevice->scStatistic.ullTxBroadcastBytes;
-	pStats->tx_errors = pDevice->scStatistic.dwTsrErr;
-	pStats->tx_dropped = pDevice->scStatistic.dwTsrErr;
+	pStats->tx_errors = pDevice->wstats.discard.retries;
+	pStats->tx_dropped = pDevice->wstats.discard.retries;
 }

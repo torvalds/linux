@@ -70,6 +70,13 @@ config USB_DWC3_PCI
 	  One such PCIe-based platform is Synopsys' PCIe HAPS model of
 	  this IP.
 
+config USB_DWC3_KEYSTONE
+	tristate "Texas Instruments Keystone2 Platforms"
+	default USB_DWC3
+	help
+	  Support of USB2/3 functionality in TI Keystone2 platforms.
+	  Say 'Y' or 'M' here if you have one such device
+
 comment "Debugging features"
 
 config USB_DWC3_DEBUG

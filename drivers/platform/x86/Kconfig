@@ -197,6 +197,17 @@ config HP_ACCEL
 	  To compile this driver as a module, choose M here: the module will
 	  be called hp_accel.
 
+config HP_WIRELESS
+	tristate "HP WIRELESS"
+	depends on ACPI
+	depends on INPUT
+	help
+	 This driver provides supports for new HP wireless button for Windows 8.
+	 On such systems the driver should load automatically (via ACPI alias).
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called hp-wireless.
+
 config HP_WMI
 	tristate "HP WMI extras"
 	depends on ACPI_WMI
@@ -807,5 +818,13 @@ config PVPANIC
 	  This driver provides support for the pvpanic device.  pvpanic is
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
+
+config INTEL_BAYTRAIL_MBI
+	tristate
+	depends on PCI
+	---help---
+	  Needed on Baytrail platforms for access to the IOSF Sideband Mailbox
+	  Interface. This is a requirement for systems that need to configure
+	  the PUNIT for power management features such as RAPL.
 
 endif # X86_PLATFORM_DEVICES

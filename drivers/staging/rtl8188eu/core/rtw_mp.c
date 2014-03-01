@@ -323,10 +323,7 @@ s32 mp_start_test(struct adapter *padapter)
 	struct sta_info *psta;
 	u32 length;
 	u8 val8;
-
-	unsigned long irqL;
 	s32 res = _SUCCESS;
-
 	struct mp_priv *pmppriv = &padapter->mppriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
@@ -379,7 +376,7 @@ s32 mp_start_test(struct adapter *padapter)
 	else
 		bssid.Length = length;
 
-	_enter_critical_bh(&pmlmepriv->lock, &irqL);
+	spin_lock_bh(&pmlmepriv->lock);
 
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
 		goto end_of_mp_start_test;
@@ -420,7 +417,7 @@ s32 mp_start_test(struct adapter *padapter)
 
 end_of_mp_start_test:
 
-	_exit_critical_bh(&pmlmepriv->lock, &irqL);
+	spin_unlock_bh(&pmlmepriv->lock);
 
 	if (res == _SUCCESS) {
 		/*  set MSR to WIFI_FW_ADHOC_STATE */
@@ -439,11 +436,9 @@ void mp_stop_test(struct adapter *padapter)
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
 	struct sta_info *psta;
 
-	unsigned long irqL;
-
 	if (pmppriv->mode == MP_ON) {
 		pmppriv->bSetTxPower = 0;
-		_enter_critical_bh(&pmlmepriv->lock, &irqL);
+		spin_lock_bh(&pmlmepriv->lock);
 		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)
 			goto end_of_mp_stop_test;
 
@@ -465,7 +460,7 @@ void mp_stop_test(struct adapter *padapter)
 
 end_of_mp_stop_test:
 
-		_exit_critical_bh(&pmlmepriv->lock, &irqL);
+		spin_unlock_bh(&pmlmepriv->lock);
 	}
 }
 
@@ -614,7 +609,7 @@ static int mp_xmit_packet_thread(void *context)
 			    padapter->bDriverStopped) {
 				goto exit;
 			} else {
-				rtw_msleep_os(1);
+				msleep(1);
 				continue;
 			}
 		}
@@ -643,7 +638,7 @@ exit:
 	pmptx->pallocated_buf = NULL;
 	pmptx->stop = 1;
 
-	thread_exit();
+	complete_and_exit(NULL, 0);
 }
 
 void fill_txdesc_for_mp(struct adapter *padapter, struct tx_desc *ptxdesc)
@@ -863,11 +858,11 @@ static u32 rtw_GetPSDData(struct adapter *pAdapter, u32 point)
 	psd_val |= point;
 
 	rtw_write32(pAdapter, 0x808, psd_val);
-	rtw_mdelay_os(1);
+	mdelay(1);
 	psd_val |= 0x00400000;
 
 	rtw_write32(pAdapter, 0x808, psd_val);
-	rtw_mdelay_os(1);
+	mdelay(1);
 	psd_val = rtw_read32(pAdapter, 0x8B4);
 
 	psd_val &= 0x0000FFFF;
@@ -920,7 +915,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 		i++;
 	}
 
-	rtw_msleep_os(100);
+	msleep(100);
 	return strlen(data)+1;
 }
 

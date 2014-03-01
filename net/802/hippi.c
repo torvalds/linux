@@ -172,14 +172,14 @@ EXPORT_SYMBOL(hippi_mac_addr);
 int hippi_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 {
 	/* Never send broadcast/multicast ARP messages */
-	p->mcast_probes = 0;
+	NEIGH_VAR_INIT(p, MCAST_PROBES, 0);
 
 	/* In IPv6 unicast probes are valid even on NBMA,
 	* because they are encapsulated in normal IPv6 protocol.
 	* Should be a generic flag.
 	*/
 	if (p->tbl->family != AF_INET6)
-		p->ucast_probes = 0;
+		NEIGH_VAR_INIT(p, UCAST_PROBES, 0);
 	return 0;
 }
 EXPORT_SYMBOL(hippi_neigh_setup_dev);

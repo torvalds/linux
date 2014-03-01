@@ -23,6 +23,7 @@
 #include "h/smc.h"
 #include "h/supern_2.h"
 #include <linux/bitrev.h>
+#include <linux/etherdevice.h>
 
 #ifndef	lint
 static const char ID_sccs[] = "@(#)fplustm.c	1.32 99/02/23 (C) SK " ;
@@ -55,14 +56,14 @@ static	char cam_warning [] = "E_SMT_004: CAM still busy\n";
 
 #define	DUMMY_READ()	smc->hw.mc_dummy = (u_short) inp(ADDR(B0_RAP))
 
-#define	CHECK_NPP() {	unsigned k = 10000 ;\
+#define	CHECK_NPP() {	unsigned int k = 10000 ;\
 			while ((inpw(FM_A(FM_STMCHN)) & FM_SNPPND) && k) k--;\
 			if (!k) { \
 				SMT_PANIC(smc,SMT_E0130, SMT_E0130_MSG) ; \
 			}	\
 		}
 
-#define	CHECK_CAM() {	unsigned k = 10 ;\
+#define	CHECK_CAM() {	unsigned int k = 10 ;\
 			while (!(inpw(FM_A(FM_AFSTAT)) & FM_DONE) && k) k--;\
 			if (!k) { \
 				SMT_PANIC(smc,SMT_E0131, SMT_E0131_MSG) ; \
@@ -356,25 +357,25 @@ static	void set_formac_addr(struct s_smc *smc)
 	long	t_requ = smc->mib.m[MAC0].fddiMACT_Req ;
 
 	outpw(FM_A(FM_SAID),my_said) ;	/* set short address */
-	outpw(FM_A(FM_LAIL),(unsigned)((smc->hw.fddi_home_addr.a[4]<<8) +
+	outpw(FM_A(FM_LAIL),(unsigned short)((smc->hw.fddi_home_addr.a[4]<<8) +
 					smc->hw.fddi_home_addr.a[5])) ;
-	outpw(FM_A(FM_LAIC),(unsigned)((smc->hw.fddi_home_addr.a[2]<<8) +
+	outpw(FM_A(FM_LAIC),(unsigned short)((smc->hw.fddi_home_addr.a[2]<<8) +
 					smc->hw.fddi_home_addr.a[3])) ;
-	outpw(FM_A(FM_LAIM),(unsigned)((smc->hw.fddi_home_addr.a[0]<<8) +
+	outpw(FM_A(FM_LAIM),(unsigned short)((smc->hw.fddi_home_addr.a[0]<<8) +
 					smc->hw.fddi_home_addr.a[1])) ;
 
 	outpw(FM_A(FM_SAGP),my_sagp) ;	/* set short group address */
 
-	outpw(FM_A(FM_LAGL),(unsigned)((smc->hw.fp.group_addr.a[4]<<8) +
+	outpw(FM_A(FM_LAGL),(unsigned short)((smc->hw.fp.group_addr.a[4]<<8) +
 					smc->hw.fp.group_addr.a[5])) ;
-	outpw(FM_A(FM_LAGC),(unsigned)((smc->hw.fp.group_addr.a[2]<<8) +
+	outpw(FM_A(FM_LAGC),(unsigned short)((smc->hw.fp.group_addr.a[2]<<8) +
 					smc->hw.fp.group_addr.a[3])) ;
-	outpw(FM_A(FM_LAGM),(unsigned)((smc->hw.fp.group_addr.a[0]<<8) +
+	outpw(FM_A(FM_LAGM),(unsigned short)((smc->hw.fp.group_addr.a[0]<<8) +
 					smc->hw.fp.group_addr.a[1])) ;
 
 	/* set r_request regs. (MSW & LSW of TRT ) */
-	outpw(FM_A(FM_TREQ1),(unsigned)(t_requ>>16)) ;
-	outpw(FM_A(FM_TREQ0),(unsigned)t_requ) ;
+	outpw(FM_A(FM_TREQ1),(unsigned short)(t_requ>>16)) ;
+	outpw(FM_A(FM_TREQ0),(unsigned short)t_requ) ;
 }
 
 static void set_int(char *p, int l)
@@ -394,10 +395,10 @@ static void set_int(char *p, int l)
  *	append 'end of chain' pointer
  */
 static void copy_tx_mac(struct s_smc *smc, u_long td, struct fddi_mac *mac,
-			unsigned off, int len)
+			unsigned int off, int len)
 /* u_long td;		 transmit descriptor */
 /* struct fddi_mac *mac; mac frame pointer */
-/* unsigned off;	 start address within buffer memory */
+/* unsigned int off;	 start address within buffer memory */
 /* int len ;		 length of the frame including the FC */
 {
 	int	i ;
@@ -1082,7 +1083,7 @@ static struct s_fpmc* mac_get_mc_table(struct s_smc *smc,
 				slot = tb ;
 			continue ;
 		}
-		if (memcmp((char *)&tb->a,(char *)own,6))
+		if (!ether_addr_equal((char *)&tb->a, (char *)own))
 			continue ;
 		return tb;
 	}

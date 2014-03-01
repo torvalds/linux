@@ -306,4 +306,6 @@ static inline void host1x_hw_show_mlocks(struct host1x *host, struct output *o)
 	host->debug_op->show_mlocks(host, o);
 }
 
+extern struct platform_driver tegra_mipi_driver;
+
 #endif

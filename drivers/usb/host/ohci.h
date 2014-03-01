@@ -415,12 +415,11 @@ struct ohci_hcd {
 	struct ed		*ed_to_check;
 	unsigned		zf_delay;
 
-#ifdef DEBUG
 	struct dentry		*debug_dir;
 	struct dentry		*debug_async;
 	struct dentry		*debug_periodic;
 	struct dentry		*debug_registers;
-#endif
+
 	/* platform-specific data -- must come last */
 	unsigned long           priv[0] __aligned(sizeof(s64));
 
@@ -474,10 +473,6 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
 
 /*-------------------------------------------------------------------------*/
 
-#ifndef DEBUG
-#define STUB_DEBUG_FILES
-#endif	/* DEBUG */
-
 #define ohci_dbg(ohci, fmt, args...) \
 	dev_dbg (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
 #define ohci_err(ohci, fmt, args...) \
@@ -486,12 +481,6 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
 	dev_info (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
 #define ohci_warn(ohci, fmt, args...) \
 	dev_warn (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
-
-#ifdef OHCI_VERBOSE_DEBUG
-#	define ohci_vdbg ohci_dbg
-#else
-#	define ohci_vdbg(ohci, fmt, args...) do { } while (0)
-#endif
 
 /*-------------------------------------------------------------------------*/
 

@@ -191,6 +191,9 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 	if (!skb)
 		return -1;
 
+	priv->stats.rx_bytes += skb->len;
+	priv->stats.rx_packets++;
+
 	skb->dev = priv->netdev;
 	skb->protocol = eth_type_trans(skb, priv->netdev);
 	skb->ip_summed = CHECKSUM_NONE;
@@ -217,8 +220,6 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 	    (skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE))
 		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
 
-	priv->stats.rx_bytes += skb->len;
-	priv->stats.rx_packets++;
 	if (in_interrupt())
 		netif_rx(skb);
 	else

@@ -1076,7 +1076,8 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 	v4l2_set_subdevdata(sd, ccp2);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
-	pads[CCP2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CCP2_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 	pads[CCP2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ccp2_media_ops;

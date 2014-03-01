@@ -47,6 +47,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/musb.h>
 #include <linux/phy/phy.h>
+#include <linux/workqueue.h>
 
 struct musb;
 struct musb_hw_ep;
@@ -295,6 +296,8 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+	struct delayed_work	deassert_reset_work;
+	struct delayed_work	finish_resume_work;
 	u16			hwvers;
 
 	u16			intrrxe;

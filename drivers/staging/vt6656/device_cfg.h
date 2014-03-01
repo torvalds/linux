@@ -65,6 +65,8 @@ struct _version {
 #define DEVICE_VERSION       "1.19_12"
 #endif
 
+#define MAX_RATE	12
+
 /* config file */
 #include <linux/fs.h>
 #include <linux/fcntl.h>

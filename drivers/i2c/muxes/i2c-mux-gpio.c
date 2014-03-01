@@ -12,7 +12,6 @@
 #include <linux/i2c-mux.h>
 #include <linux/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>

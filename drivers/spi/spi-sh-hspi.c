@@ -197,7 +197,7 @@ static int hspi_transfer_one_message(struct spi_master *master,
 
 			hspi_write(hspi, SPTBR, tx);
 
-			/* wait recive */
+			/* wait receive */
 			ret = hspi_status_check_timeout(hspi, 0x4, 0x4);
 			if (ret < 0)
 				break;
@@ -353,4 +353,4 @@ module_platform_driver(hspi_driver);
 MODULE_DESCRIPTION("SuperH HSPI bus driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
-MODULE_ALIAS("platform:sh_spi");
+MODULE_ALIAS("platform:sh-hspi");

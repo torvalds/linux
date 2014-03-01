@@ -3774,12 +3774,14 @@ static const struct sunxi_desc_pin sun7i_a20_pins[] = {
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		  SUNXI_FUNCTION(0x2, "spi0"),		/* MOSI */
 		  SUNXI_FUNCTION(0x3, "uart6"),		/* TX */
+		  SUNXI_FUNCTION(0x4, "clk_out_a"),	/* CLK_OUT_A */
 		  SUNXI_FUNCTION_IRQ(0x5, 24)),		/* EINT24 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN_PI13,
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		  SUNXI_FUNCTION(0x2, "spi0"),		/* MISO */
 		  SUNXI_FUNCTION(0x3, "uart6"),		/* RX */
+		  SUNXI_FUNCTION(0x4, "clk_out_b"),	/* CLK_OUT_B */
 		  SUNXI_FUNCTION_IRQ(0x5, 25)),		/* EINT25 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN_PI14,
 		  SUNXI_FUNCTION(0x0, "gpio_in"),

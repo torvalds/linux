@@ -43,6 +43,7 @@
 #define EXTENT_BUFFER_WRITEBACK 7
 #define EXTENT_BUFFER_IOERR 8
 #define EXTENT_BUFFER_DUMMY 9
+#define EXTENT_BUFFER_IN_TREE 10
 
 /* these are flags for extent_clear_unlock_delalloc */
 #define PAGE_UNLOCK		(1 << 0)
@@ -94,12 +95,10 @@ struct extent_io_ops {
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct radix_tree_root buffer;
 	struct address_space *mapping;
 	u64 dirty_bytes;
 	int track_uptodate;
 	spinlock_t lock;
-	spinlock_t buffer_lock;
 	struct extent_io_ops *ops;
 };
 
@@ -130,7 +129,7 @@ struct extent_buffer {
 	unsigned long map_start;
 	unsigned long map_len;
 	unsigned long bflags;
-	struct extent_io_tree *tree;
+	struct btrfs_fs_info *fs_info;
 	spinlock_t refs_lock;
 	atomic_t refs;
 	atomic_t io_pages;
@@ -266,11 +265,11 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
 void set_page_extent_mapped(struct page *page);
 
-struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
+struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, unsigned long len);
 struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len);
 struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src);
-struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
+struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 					 u64 start);
 void free_extent_buffer(struct extent_buffer *eb);
 void free_extent_buffer_stale(struct extent_buffer *eb);

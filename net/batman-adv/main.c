@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/crc32c.h>
@@ -277,7 +275,7 @@ int batadv_max_header_len(void)
 			   sizeof(struct batadv_coded_packet));
 #endif
 
-	return header_len;
+	return header_len + ETH_HLEN;
 }
 
 /**
@@ -383,17 +381,17 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)skb->data;
 
-	if (batadv_ogm_packet->header.version != BATADV_COMPAT_VERSION) {
+	if (batadv_ogm_packet->version != BATADV_COMPAT_VERSION) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: incompatible batman version (%i)\n",
-			   batadv_ogm_packet->header.version);
+			   batadv_ogm_packet->version);
 		goto err_free;
 	}
 
 	/* all receive handlers return whether they received or reused
 	 * the supplied skb. if not, we have to free the skb.
 	 */
-	idx = batadv_ogm_packet->header.packet_type;
+	idx = batadv_ogm_packet->packet_type;
 	ret = (*batadv_rx_handler[idx])(skb, hard_iface);
 
 	if (ret == NET_RX_DROP)
@@ -421,13 +419,23 @@ static void batadv_recv_handler_init(void)
 	for (i = BATADV_UNICAST_MIN; i <= BATADV_UNICAST_MAX; i++)
 		batadv_rx_handler[i] = batadv_recv_unhandled_unicast_packet;
 
-	/* compile time checks for struct member offsets */
-	BUILD_BUG_ON(offsetof(struct batadv_unicast_4addr_packet, src) != 10);
-	BUILD_BUG_ON(offsetof(struct batadv_unicast_packet, dest) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_unicast_tvlv_packet, dst) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_frag_packet, dest) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet, icmph.dst) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet_rr, icmph.dst) != 4);
+	/* compile time checks for sizes */
+	BUILD_BUG_ON(sizeof(struct batadv_bla_claim_dst) != 6);
+	BUILD_BUG_ON(sizeof(struct batadv_ogm_packet) != 24);
+	BUILD_BUG_ON(sizeof(struct batadv_icmp_header) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_icmp_packet) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_icmp_packet_rr) != 116);
+	BUILD_BUG_ON(sizeof(struct batadv_unicast_packet) != 10);
+	BUILD_BUG_ON(sizeof(struct batadv_unicast_4addr_packet) != 18);
+	BUILD_BUG_ON(sizeof(struct batadv_frag_packet) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_bcast_packet) != 14);
+	BUILD_BUG_ON(sizeof(struct batadv_coded_packet) != 46);
+	BUILD_BUG_ON(sizeof(struct batadv_unicast_tvlv_packet) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_hdr) != 4);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_gateway_data) != 8);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_tt_vlan_data) != 8);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_tt_change) != 12);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_roam_adv) != 8);
 
 	/* broadcast packet */
 	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
@@ -1119,9 +1127,9 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
 	skb_reserve(skb, ETH_HLEN);
 	tvlv_buff = skb_put(skb, sizeof(*unicast_tvlv_packet) + tvlv_len);
 	unicast_tvlv_packet = (struct batadv_unicast_tvlv_packet *)tvlv_buff;
-	unicast_tvlv_packet->header.packet_type = BATADV_UNICAST_TVLV;
-	unicast_tvlv_packet->header.version = BATADV_COMPAT_VERSION;
-	unicast_tvlv_packet->header.ttl = BATADV_TTL;
+	unicast_tvlv_packet->packet_type = BATADV_UNICAST_TVLV;
+	unicast_tvlv_packet->version = BATADV_COMPAT_VERSION;
+	unicast_tvlv_packet->ttl = BATADV_TTL;
 	unicast_tvlv_packet->reserved = 0;
 	unicast_tvlv_packet->tvlv_len = htons(tvlv_len);
 	unicast_tvlv_packet->align = 0;
@@ -1171,6 +1179,32 @@ unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
 	vid |= BATADV_VLAN_HAS_TAG;
 
 	return vid;
+}
+
+/**
+ * batadv_vlan_ap_isola_get - return the AP isolation status for the given vlan
+ * @bat_priv: the bat priv with all the soft interface information
+ * @vid: the VLAN identifier for which the AP isolation attributed as to be
+ *  looked up
+ *
+ * Returns true if AP isolation is on for the VLAN idenfied by vid, false
+ * otherwise
+ */
+bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)
+{
+	bool ap_isolation_enabled = false;
+	struct batadv_softif_vlan *vlan;
+
+	/* if the AP isolation is requested on a VLAN, then check for its
+	 * setting in the proper VLAN private data structure
+	 */
+	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	if (vlan) {
+		ap_isolation_enabled = atomic_read(&vlan->ap_isolation);
+		batadv_softif_vlan_free_ref(vlan);
+	}
+
+	return ap_isolation_enabled;
 }
 
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)

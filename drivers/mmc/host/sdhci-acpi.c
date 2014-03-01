@@ -31,10 +31,9 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/acpi.h>
-#include <linux/acpi_gpio.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
@@ -144,6 +143,7 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "80860F14" , "3" , &sdhci_acpi_slot_int_sd   },
 	{ "INT33BB"  , "2" , &sdhci_acpi_slot_int_sdio },
 	{ "INT33C6"  , NULL, &sdhci_acpi_slot_int_sdio },
+	{ "INT3436"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "PNP0D40"  },
 	{ },
 };
@@ -152,6 +152,7 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 	{ "80860F14" },
 	{ "INT33BB"  },
 	{ "INT33C6"  },
+	{ "INT3436"  },
 	{ "PNP0D40"  },
 	{ },
 };
@@ -199,22 +200,23 @@ static irqreturn_t sdhci_acpi_sd_cd(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int sdhci_acpi_add_own_cd(struct device *dev, int gpio,
-				 struct mmc_host *mmc)
+static int sdhci_acpi_add_own_cd(struct device *dev, struct mmc_host *mmc)
 {
+	struct gpio_desc *desc;
 	unsigned long flags;
 	int err, irq;
 
-	if (gpio < 0) {
-		err = gpio;
+	desc = devm_gpiod_get_index(dev, "sd_cd", 0);
+	if (IS_ERR(desc)) {
+		err = PTR_ERR(desc);
 		goto out;
 	}
 
-	err = devm_gpio_request_one(dev, gpio, GPIOF_DIR_IN, "sd_cd");
+	err = gpiod_direction_input(desc);
 	if (err)
-		goto out;
+		goto out_free;
 
-	irq = gpio_to_irq(gpio);
+	irq = gpiod_to_irq(desc);
 	if (irq < 0) {
 		err = irq;
 		goto out_free;
@@ -228,7 +230,7 @@ static int sdhci_acpi_add_own_cd(struct device *dev, int gpio,
 	return 0;
 
 out_free:
-	devm_gpio_free(dev, gpio);
+	devm_gpiod_put(dev, desc);
 out:
 	dev_warn(dev, "failed to setup card detect wake up\n");
 	return err;
@@ -236,8 +238,7 @@ out:
 
 #else
 
-static int sdhci_acpi_add_own_cd(struct device *dev, int gpio,
-				 struct mmc_host *mmc)
+static int sdhci_acpi_add_own_cd(struct device *dev, struct mmc_host *mmc)
 {
 	return 0;
 }
@@ -254,7 +255,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	resource_size_t len;
 	const char *hid;
-	int err, gpio;
+	int err;
 
 	if (acpi_bus_get_device(handle, &device))
 		return -ENODEV;
@@ -278,8 +279,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
-
-	gpio = acpi_get_gpio_by_index(dev, 0, NULL);
 
 	c = sdhci_priv(host);
 	c->host = host;
@@ -338,7 +337,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		goto err_free;
 
 	if (sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD)) {
-		if (sdhci_acpi_add_own_cd(dev, gpio, host->mmc))
+		if (sdhci_acpi_add_own_cd(dev, host->mmc))
 			c->use_runtime_pm = false;
 	}
 

@@ -23,7 +23,7 @@
 #include <net/llc.h>
 
 LIST_HEAD(llc_sap_list);
-DEFINE_SPINLOCK(llc_sap_list_lock);
+static DEFINE_SPINLOCK(llc_sap_list_lock);
 
 /**
  *	llc_sap_alloc - allocates and initializes sap.
@@ -48,7 +48,7 @@ static struct llc_sap *llc_sap_alloc(void)
 
 static struct llc_sap *__llc_sap_find(unsigned char sap_value)
 {
-	struct llc_sap* sap;
+	struct llc_sap *sap;
 
 	list_for_each_entry(sap, &llc_sap_list, node)
 		if (sap->laddr.lsap == sap_value)
@@ -159,7 +159,6 @@ module_init(llc_init);
 module_exit(llc_exit);
 
 EXPORT_SYMBOL(llc_sap_list);
-EXPORT_SYMBOL(llc_sap_list_lock);
 EXPORT_SYMBOL(llc_sap_find);
 EXPORT_SYMBOL(llc_sap_open);
 EXPORT_SYMBOL(llc_sap_close);

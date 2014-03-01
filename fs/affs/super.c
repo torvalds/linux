@@ -49,11 +49,6 @@ affs_put_super(struct super_block *sb)
 	pr_debug("AFFS: put_super()\n");
 
 	cancel_delayed_work_sync(&sbi->sb_work);
-	kfree(sbi->s_prefix);
-	affs_free_bitmap(sb);
-	affs_brelse(sbi->s_root_bh);
-	kfree(sbi);
-	sb->s_fs_info = NULL;
 }
 
 static int
@@ -316,7 +311,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned long		 mount_flags;
 	int			 tmp_flags;	/* fix remount prototype... */
 	u8			 sig[4];
-	int			 ret = -EINVAL;
+	int			 ret;
 
 	save_mount_options(sb, data);
 
@@ -412,17 +407,19 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!silent)
 		printk(KERN_ERR "AFFS: No valid root block on device %s\n",
 			sb->s_id);
-	goto out_error;
+	return -EINVAL;
 
 	/* N.B. after this point bh must be released */
 got_root:
+	/* Keep super block in cache */
+	sbi->s_root_bh = root_bh;
 	root_block = sbi->s_root_block;
 
 	/* Find out which kind of FS we have */
 	boot_bh = sb_bread(sb, 0);
 	if (!boot_bh) {
 		printk(KERN_ERR "AFFS: Cannot read boot block\n");
-		goto out_error;
+		return -EINVAL;
 	}
 	memcpy(sig, boot_bh->b_data, 4);
 	brelse(boot_bh);
@@ -471,7 +468,7 @@ got_root:
 		default:
 			printk(KERN_ERR "AFFS: Unknown filesystem on device %s: %08X\n",
 				sb->s_id, chksum);
-			goto out_error;
+			return -EINVAL;
 	}
 
 	if (mount_flags & SF_VERBOSE) {
@@ -488,22 +485,17 @@ got_root:
 	if (sbi->s_flags & SF_OFS)
 		sbi->s_data_blksize -= 24;
 
-	/* Keep super block in cache */
-	sbi->s_root_bh = root_bh;
-	/* N.B. after this point s_root_bh must be released */
-
 	tmp_flags = sb->s_flags;
-	if (affs_init_bitmap(sb, &tmp_flags))
-		goto out_error;
+	ret = affs_init_bitmap(sb, &tmp_flags);
+	if (ret)
+		return ret;
 	sb->s_flags = tmp_flags;
 
 	/* set up enough so that it can read an inode */
 
 	root_inode = affs_iget(sb, root_block);
-	if (IS_ERR(root_inode)) {
-		ret = PTR_ERR(root_inode);
-		goto out_error;
-	}
+	if (IS_ERR(root_inode))
+		return PTR_ERR(root_inode);
 
 	if (AFFS_SB(sb)->s_flags & SF_INTL)
 		sb->s_d_op = &affs_intl_dentry_operations;
@@ -513,22 +505,11 @@ got_root:
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
 		printk(KERN_ERR "AFFS: Get root inode failed\n");
-		goto out_error;
+		return -ENOMEM;
 	}
 
 	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
 	return 0;
-
-	/*
-	 * Begin the cascaded cleanup ...
-	 */
-out_error:
-	kfree(sbi->s_bitmap);
-	affs_brelse(root_bh);
-	kfree(sbi->s_prefix);
-	kfree(sbi);
-	sb->s_fs_info = NULL;
-	return ret;
 }
 
 static int
@@ -615,11 +596,23 @@ static struct dentry *affs_mount(struct file_system_type *fs_type,
 	return mount_bdev(fs_type, flags, dev_name, data, affs_fill_super);
 }
 
+static void affs_kill_sb(struct super_block *sb)
+{
+	struct affs_sb_info *sbi = AFFS_SB(sb);
+	kill_block_super(sb);
+	if (sbi) {
+		affs_free_bitmap(sb);
+		affs_brelse(sbi->s_root_bh);
+		kfree(sbi->s_prefix);
+		kfree(sbi);
+	}
+}
+
 static struct file_system_type affs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "affs",
 	.mount		= affs_mount,
-	.kill_sb	= kill_block_super,
+	.kill_sb	= affs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("affs");

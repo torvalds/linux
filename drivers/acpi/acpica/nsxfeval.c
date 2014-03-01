@@ -84,7 +84,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 			   acpi_object_type return_type)
 {
 	acpi_status status;
-	u8 must_free = FALSE;
+	u8 free_buffer_on_error = FALSE;
 
 	ACPI_FUNCTION_TRACE(acpi_evaluate_object_typed);
 
@@ -95,14 +95,13 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	}
 
 	if (return_buffer->length == ACPI_ALLOCATE_BUFFER) {
-		must_free = TRUE;
+		free_buffer_on_error = TRUE;
 	}
 
 	/* Evaluate the object */
 
-	status =
-	    acpi_evaluate_object(handle, pathname, external_params,
-				 return_buffer);
+	status = acpi_evaluate_object(handle, pathname,
+				      external_params, return_buffer);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -135,11 +134,15 @@ acpi_evaluate_object_typed(acpi_handle handle,
 					   pointer)->type),
 		    acpi_ut_get_type_name(return_type)));
 
-	if (must_free) {
-
-		/* Caller used ACPI_ALLOCATE_BUFFER, free the return buffer */
-
-		ACPI_FREE_BUFFER(*return_buffer);
+	if (free_buffer_on_error) {
+		/*
+		 * Free a buffer created via ACPI_ALLOCATE_BUFFER.
+		 * Note: We use acpi_os_free here because acpi_os_allocate was used
+		 * to allocate the buffer. This purposefully bypasses the
+		 * (optionally enabled) allocation tracking mechanism since we
+		 * only want to track internal allocations.
+		 */
+		acpi_os_free(return_buffer->pointer);
 		return_buffer->pointer = NULL;
 	}
 

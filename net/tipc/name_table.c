@@ -148,8 +148,7 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
  */
 static struct sub_seq *tipc_subseq_alloc(u32 cnt)
 {
-	struct sub_seq *sseq = kcalloc(cnt, sizeof(struct sub_seq), GFP_ATOMIC);
-	return sseq;
+	return kcalloc(cnt, sizeof(struct sub_seq), GFP_ATOMIC);
 }
 
 /**

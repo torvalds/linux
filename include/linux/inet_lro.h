@@ -133,33 +133,10 @@ struct net_lro_mgr {
 void lro_receive_skb(struct net_lro_mgr *lro_mgr,
 		     struct sk_buff *skb,
 		     void *priv);
-
-/*
- * Processes a fragment list
- *
- * This functions aggregate fragments and generate SKBs do pass
- * the packets to the stack.
- *
- * @lro_mgr: LRO manager to use
- * @frags: Fragment to be processed. Must contain entire header in first
- *         element.
- * @len: Length of received data
- * @true_size: Actual size of memory the fragment is consuming
- * @priv: Private data that may be used by driver functions
- *        (for example get_tcp_ip_hdr)
- */
-
-void lro_receive_frags(struct net_lro_mgr *lro_mgr,
-		       struct skb_frag_struct *frags,
-		       int len, int true_size, void *priv, __wsum sum);
-
 /*
  * Forward all aggregated SKBs held by lro_mgr to network stack
  */
 
 void lro_flush_all(struct net_lro_mgr *lro_mgr);
-
-void lro_flush_pkt(struct net_lro_mgr *lro_mgr,
-		   struct iphdr *iph, struct tcphdr *tcph);
 
 #endif

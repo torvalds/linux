@@ -628,7 +628,7 @@ static int lmv_disconnect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 
 	rc = obd_fid_fini(tgt->ltd_exp->exp_obd);
 	if (rc)
-		CERROR("Can't finanize fids factory\n");
+		CERROR("Can't finalize fids factory\n");
 
 	CDEBUG(D_INFO, "Disconnected from %s(%s) successfully\n",
 	       tgt->ltd_exp->exp_obd->obd_name,
@@ -712,7 +712,7 @@ repeat_fid2path:
 		GOTO(out_fid2path, rc);
 
 	/* If remote_gf != NULL, it means just building the
-	 * path on the remote MDT, copy this path segement to gf */
+	 * path on the remote MDT, copy this path segment to gf */
 	if (remote_gf != NULL) {
 		struct getinfo_fid2path *ori_gf;
 		char *ptr;
@@ -1212,7 +1212,7 @@ static int lmv_placement_policy(struct obd_device *obd,
 
 	/**
 	 * If stripe_offset is provided during setdirstripe
-	 * (setdirstripe -i xx), xx MDS will be choosen.
+	 * (setdirstripe -i xx), xx MDS will be chosen.
 	 */
 	if (op_data->op_cli_flags & CLI_SET_MEA) {
 		struct lmv_user_md *lum;

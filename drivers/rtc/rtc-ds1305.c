@@ -787,7 +787,6 @@ static int ds1305_remove(struct spi_device *spi)
 		cancel_work_sync(&ds1305->work);
 	}
 
-	spi_set_drvdata(spi, NULL);
 	return 0;
 }
 

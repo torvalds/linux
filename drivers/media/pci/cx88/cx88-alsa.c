@@ -931,9 +931,9 @@ error:
  */
 static void cx88_audio_finidev(struct pci_dev *pci)
 {
-	struct cx88_audio_dev *card = pci_get_drvdata(pci);
+	struct snd_card *card = pci_get_drvdata(pci);
 
-	snd_card_free((void *)card);
+	snd_card_free(card);
 
 	devno--;
 }

@@ -328,13 +328,12 @@ static const struct me4000_board me4000_boards[] = {
 };
 
 static const struct comedi_lrange me4000_ai_range = {
-	4,
-	{
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(10),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(10),
-	 }
+	4, {
+		UNI_RANGE(2.5),
+		UNI_RANGE(10),
+		BIP_RANGE(2.5),
+		BIP_RANGE(10)
+	}
 };
 
 #define FIRMWARE_NOT_AVAILABLE 1
@@ -1105,7 +1104,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 {
 	unsigned int tmp;
 	struct comedi_device *dev = dev_id;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int i;
 	int c = 0;
 	unsigned int lval;
@@ -1115,12 +1114,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 	/* Reset all events */
 	s->async->events = 0;
-
-	/* Check if irq number is right */
-	if (irq != dev->irq) {
-		dev_err(dev->class_dev, "Incorrect interrupt num: %d\n", irq);
-		return IRQ_HANDLED;
-	}
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
@@ -1505,6 +1498,13 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	me4000_reset(dev);
 
+	if (pcidev->irq > 0) {
+		result = request_irq(pcidev->irq, me4000_ai_isr, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (result == 0)
+			dev->irq = pcidev->irq;
+	}
+
 	result = comedi_alloc_subdevices(dev, 4);
 	if (result)
 		return result;
@@ -1525,22 +1525,12 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		s->range_table = &me4000_ai_range;
 		s->insn_read = me4000_ai_insn_read;
 
-		if (pcidev->irq > 0) {
-			if (request_irq(pcidev->irq, me4000_ai_isr,
-					IRQF_SHARED, dev->board_name, dev)) {
-				dev_warn(dev->class_dev,
-					"request_irq failed\n");
-			} else {
-				dev->read_subdev = s;
-				s->subdev_flags |= SDF_CMD_READ;
-				s->cancel = me4000_ai_cancel;
-				s->do_cmdtest = me4000_ai_do_cmd_test;
-				s->do_cmd = me4000_ai_do_cmd;
-
-				dev->irq = pcidev->irq;
-			}
-		} else {
-			dev_warn(dev->class_dev, "No interrupt available\n");
+		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
+			s->cancel = me4000_ai_cancel;
+			s->do_cmdtest = me4000_ai_do_cmd_test;
+			s->do_cmd = me4000_ai_do_cmd;
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -1635,7 +1625,7 @@ static int me4000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me4000_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
+static const struct pci_device_id me4000_pci_table[] = {
 	{ PCI_VDEVICE(MEILHAUS, 0x4650), BOARD_ME4650 },
 	{ PCI_VDEVICE(MEILHAUS, 0x4660), BOARD_ME4660 },
 	{ PCI_VDEVICE(MEILHAUS, 0x4661), BOARD_ME4660I },

@@ -24,7 +24,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6507x.h>
 
-static struct mfd_cell tps6507x_devs[] = {
+static const struct mfd_cell tps6507x_devs[] = {
 	{
 		.name = "tps6507x-pmic",
 	},

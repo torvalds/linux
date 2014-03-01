@@ -301,16 +301,16 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 
 			if (btrfs_qgroup_status_version(l, ptr) !=
 			    BTRFS_QGROUP_STATUS_VERSION) {
-				printk(KERN_ERR
-				 "btrfs: old qgroup version, quota disabled\n");
+				btrfs_err(fs_info,
+				 "old qgroup version, quota disabled");
 				goto out;
 			}
 			if (btrfs_qgroup_status_generation(l, ptr) !=
 			    fs_info->generation) {
 				flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
-				printk(KERN_ERR
-					"btrfs: qgroup generation mismatch, "
-					"marked as inconsistent\n");
+				btrfs_err(fs_info,
+					"qgroup generation mismatch, "
+					"marked as inconsistent");
 			}
 			fs_info->qgroup_flags = btrfs_qgroup_status_flags(l,
 									  ptr);
@@ -325,7 +325,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 		qgroup = find_qgroup_rb(fs_info, found_key.offset);
 		if ((qgroup && found_key.type == BTRFS_QGROUP_INFO_KEY) ||
 		    (!qgroup && found_key.type == BTRFS_QGROUP_LIMIT_KEY)) {
-			printk(KERN_ERR "btrfs: inconsitent qgroup config\n");
+			btrfs_err(fs_info, "inconsitent qgroup config");
 			flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 		}
 		if (!qgroup) {
@@ -396,8 +396,8 @@ next1:
 		ret = add_relation_rb(fs_info, found_key.objectid,
 				      found_key.offset);
 		if (ret == -ENOENT) {
-			printk(KERN_WARNING
-				"btrfs: orphan qgroup relation 0x%llx->0x%llx\n",
+			btrfs_warn(fs_info,
+				"orphan qgroup relation 0x%llx->0x%llx",
 				found_key.objectid, found_key.offset);
 			ret = 0;	/* ignore the error */
 		}
@@ -644,8 +644,7 @@ static int update_qgroup_limit_item(struct btrfs_trans_handle *trans,
 
 	l = path->nodes[0];
 	slot = path->slots[0];
-	qgroup_limit = btrfs_item_ptr(l, path->slots[0],
-				      struct btrfs_qgroup_limit_item);
+	qgroup_limit = btrfs_item_ptr(l, slot, struct btrfs_qgroup_limit_item);
 	btrfs_set_qgroup_limit_flags(l, qgroup_limit, flags);
 	btrfs_set_qgroup_limit_max_rfer(l, qgroup_limit, max_rfer);
 	btrfs_set_qgroup_limit_max_excl(l, qgroup_limit, max_excl);
@@ -687,8 +686,7 @@ static int update_qgroup_info_item(struct btrfs_trans_handle *trans,
 
 	l = path->nodes[0];
 	slot = path->slots[0];
-	qgroup_info = btrfs_item_ptr(l, path->slots[0],
-				 struct btrfs_qgroup_info_item);
+	qgroup_info = btrfs_item_ptr(l, slot, struct btrfs_qgroup_info_item);
 	btrfs_set_qgroup_info_generation(l, qgroup_info, trans->transid);
 	btrfs_set_qgroup_info_rfer(l, qgroup_info, qgroup->rfer);
 	btrfs_set_qgroup_info_rfer_cmpr(l, qgroup_info, qgroup->rfer_cmpr);
@@ -1161,7 +1159,7 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 				       limit->rsv_excl);
 	if (ret) {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
-		printk(KERN_INFO "unable to update quota limit for %llu\n",
+		btrfs_info(fs_info, "unable to update quota limit for %llu",
 		       qgroupid);
 	}
 
@@ -1349,7 +1347,6 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 			     struct btrfs_delayed_ref_node *node,
 			     struct btrfs_delayed_extent_op *extent_op)
 {
-	struct btrfs_key ins;
 	struct btrfs_root *quota_root;
 	u64 ref_root;
 	struct btrfs_qgroup *qgroup;
@@ -1362,10 +1359,6 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 		return 0;
 
 	BUG_ON(!fs_info->quota_root);
-
-	ins.objectid = node->bytenr;
-	ins.offset = node->num_bytes;
-	ins.type = BTRFS_EXTENT_ITEM_KEY;
 
 	if (node->type == BTRFS_TREE_BLOCK_REF_KEY ||
 	    node->type == BTRFS_SHARED_BLOCK_REF_KEY) {
@@ -1840,7 +1833,9 @@ void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 {
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
 		return;
-	pr_err("btrfs: qgroups not uptodate in trans handle %p: list is%s empty, seq is %#x.%x\n",
+	btrfs_err(trans->root->fs_info,
+		"qgroups not uptodate in trans handle %p:  list is%s empty, "
+		"seq is %#x.%x",
 		trans, list_empty(&trans->qgroup_ref_list) ? "" : " not",
 		(u32)(trans->delayed_ref_elem.seq >> 32),
 		(u32)trans->delayed_ref_elem.seq);
@@ -1902,9 +1897,17 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
 	for (; slot < btrfs_header_nritems(scratch_leaf); ++slot) {
+		u64 num_bytes;
+
 		btrfs_item_key_to_cpu(scratch_leaf, &found, slot);
-		if (found.type != BTRFS_EXTENT_ITEM_KEY)
+		if (found.type != BTRFS_EXTENT_ITEM_KEY &&
+		    found.type != BTRFS_METADATA_ITEM_KEY)
 			continue;
+		if (found.type == BTRFS_METADATA_ITEM_KEY)
+			num_bytes = fs_info->extent_root->leafsize;
+		else
+			num_bytes = found.offset;
+
 		ret = btrfs_find_all_roots(trans, fs_info, found.objectid,
 					   tree_mod_seq_elem.seq, &roots);
 		if (ret < 0)
@@ -1949,12 +1952,12 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 			struct btrfs_qgroup_list *glist;
 
 			qg = (struct btrfs_qgroup *)(uintptr_t) unode->aux;
-			qg->rfer += found.offset;
-			qg->rfer_cmpr += found.offset;
+			qg->rfer += num_bytes;
+			qg->rfer_cmpr += num_bytes;
 			WARN_ON(qg->tag >= seq);
 			if (qg->refcnt - seq == roots->nnodes) {
-				qg->excl += found.offset;
-				qg->excl_cmpr += found.offset;
+				qg->excl += num_bytes;
+				qg->excl_cmpr += num_bytes;
 			}
 			qgroup_dirty(fs_info, qg);
 
@@ -2037,10 +2040,10 @@ out:
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
 	if (err >= 0) {
-		pr_info("btrfs: qgroup scan completed%s\n",
+		btrfs_info(fs_info, "qgroup scan completed%s",
 			err == 2 ? " (inconsistency flag cleared)" : "");
 	} else {
-		pr_err("btrfs: qgroup scan failed with %d\n", err);
+		btrfs_err(fs_info, "qgroup scan failed with %d", err);
 	}
 
 	complete_all(&fs_info->qgroup_rescan_completion);
@@ -2096,7 +2099,7 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 
 	if (ret) {
 err:
-		pr_info("btrfs: qgroup_rescan_init failed with %d\n", ret);
+		btrfs_info(fs_info, "qgroup_rescan_init failed with %d", ret);
 		return ret;
 	}
 

@@ -19,7 +19,7 @@ config PPC_MSI_BITMAP
 	default y if MPIC
 	default y if FSL_PCI
 	default y if PPC4xx_MSI
-	default y if POWERNV_MSI
+	default y if PPC_POWERNV
 
 source "arch/powerpc/sysdev/xics/Kconfig"
 

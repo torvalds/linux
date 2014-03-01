@@ -21,7 +21,7 @@ config IP_SET_MAX
 	  You can define here default value of the maximum number 
 	  of IP sets for the kernel.
 
-	  The value can be overriden by the 'max_sets' module
+	  The value can be overridden by the 'max_sets' module
 	  parameter of the 'ip_set' module.
 
 config IP_SET_BITMAP_IP

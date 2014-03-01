@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -274,7 +273,7 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
  * @ifreq: ioctl data
  * @cmd: particular ioctl requested
  */
-int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
+int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
@@ -319,6 +318,20 @@ int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	    -EFAULT : 0;
+}
+
+int fec_ptp_get(struct net_device *ndev, struct ifreq *ifr)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct hwtstamp_config config;
+
+	config.flags = 0;
+	config.tx_type = fep->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	config.rx_filter = (fep->hwts_rx_en ?
+			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE);
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
 }
 
 /**

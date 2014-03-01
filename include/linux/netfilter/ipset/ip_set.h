@@ -331,7 +331,6 @@ extern ip_set_id_t ip_set_get_byname(struct net *net,
 				     const char *name, struct ip_set **set);
 extern void ip_set_put_byindex(struct net *net, ip_set_id_t index);
 extern const char *ip_set_name_byindex(struct net *net, ip_set_id_t index);
-extern ip_set_id_t ip_set_nfnl_get(struct net *net, const char *name);
 extern ip_set_id_t ip_set_nfnl_get_byindex(struct net *net, ip_set_id_t index);
 extern void ip_set_nfnl_put(struct net *net, ip_set_id_t index);
 

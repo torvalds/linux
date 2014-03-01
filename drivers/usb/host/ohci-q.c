@@ -68,10 +68,6 @@ __acquires(ohci->lock)
 		break;
 	}
 
-#ifdef OHCI_VERBOSE_DEBUG
-	urb_print(urb, "RET", usb_pipeout (urb->pipe), status);
-#endif
-
 	/* urb->complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(ohci_to_hcd(ohci), urb);
 	spin_unlock (&ohci->lock);
@@ -147,7 +143,7 @@ static void periodic_link (struct ohci_hcd *ohci, struct ed *ed)
 {
 	unsigned	i;
 
-	ohci_vdbg (ohci, "link %sed %p branch %d [%dus.], interval %d\n",
+	ohci_dbg(ohci, "link %sed %p branch %d [%dus.], interval %d\n",
 		(ed->hwINFO & cpu_to_hc32 (ohci, ED_ISO)) ? "iso " : "",
 		ed, ed->branch, ed->load, ed->interval);
 
@@ -294,7 +290,7 @@ static void periodic_unlink (struct ohci_hcd *ohci, struct ed *ed)
 	}
 	ohci_to_hcd(ohci)->self.bandwidth_allocated -= ed->load / ed->interval;
 
-	ohci_vdbg (ohci, "unlink %sed %p branch %d [%dus.], interval %d\n",
+	ohci_dbg(ohci, "unlink %sed %p branch %d [%dus.], interval %d\n",
 		(ed->hwINFO & cpu_to_hc32 (ohci, ED_ISO)) ? "iso " : "",
 		ed, ed->branch, ed->load, ed->interval);
 }
@@ -765,7 +761,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 		urb->iso_frame_desc [td->index].status = cc_to_error [cc];
 
 		if (cc != TD_CC_NOERROR)
-			ohci_vdbg (ohci,
+			ohci_dbg(ohci,
 				"urb %p iso td %p (%d) len %d cc %d\n",
 				urb, td, 1 + td->index, dlen, cc);
 
@@ -797,7 +793,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 		}
 
 		if (cc != TD_CC_NOERROR && cc < 0x0E)
-			ohci_vdbg (ohci,
+			ohci_dbg(ohci,
 				"urb %p td %p (%d) cc %d, len=%d/%d\n",
 				urb, td, 1 + td->index, cc,
 				urb->actual_length,

@@ -37,7 +37,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
 void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);
 void efx_init_rx_queue(struct efx_rx_queue *rx_queue);
 void efx_fini_rx_queue(struct efx_rx_queue *rx_queue);
-void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue);
+void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic);
 void efx_rx_slow_fill(unsigned long context);
 void __efx_rx_packet(struct efx_channel *channel);
 void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
@@ -65,6 +65,9 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
  */
 #define EFX_RXQ_MIN_ENT		128U
 #define EFX_TXQ_MIN_ENT(efx)	(2 * efx_tx_max_skb_descs(efx))
+
+#define EFX_TXQ_MAX_ENT(efx)	(EFX_WORKAROUND_35388(efx) ? \
+				 EFX_MAX_DMAQ_SIZE / 2 : EFX_MAX_DMAQ_SIZE)
 
 /* Filters */
 
@@ -132,17 +135,6 @@ efx_filter_get_filter_safe(struct efx_nic *efx,
 			   u32 filter_id, struct efx_filter_spec *spec)
 {
 	return efx->type->filter_get_safe(efx, priority, filter_id, spec);
-}
-
-/**
- * efx_farch_filter_clear_rx - remove RX filters by priority
- * @efx: NIC from which to remove the filters
- * @priority: Maximum priority to remove
- */
-static inline void efx_filter_clear_rx(struct efx_nic *efx,
-				       enum efx_filter_priority priority)
-{
-	return efx->type->filter_clear_rx(efx, priority);
 }
 
 static inline u32 efx_filter_count_rx_used(struct efx_nic *efx,

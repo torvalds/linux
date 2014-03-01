@@ -826,8 +826,10 @@
 #define __NR_process_vm_writev	(__NR_Linux + 331)
 #define __NR_kcmp		(__NR_Linux + 332)
 #define __NR_finit_module	(__NR_Linux + 333)
+#define __NR_sched_setattr	(__NR_Linux + 334)
+#define __NR_sched_getattr	(__NR_Linux + 335)
 
-#define __NR_Linux_syscalls	(__NR_finit_module + 1)
+#define __NR_Linux_syscalls	(__NR_sched_getattr + 1)
 
 
 #define __IGNORE_select		/* newselect */

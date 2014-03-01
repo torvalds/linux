@@ -29,7 +29,6 @@
 #include <linux/gpio.h>
 #include <linux/irqdomain.h>
 #include <linux/acpi.h>
-#include <linux/acpi_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 #include <linux/io.h>
@@ -286,13 +285,19 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	spin_lock_irqsave(&vg->lock, flags);
 
 	for (i = 0; i < vg->chip.ngpio; i++) {
+		const char *label;
 		offs = vg->range->pins[i] * 16;
 		conf0 = readl(vg->reg_base + offs + BYT_CONF0_REG);
 		val = readl(vg->reg_base + offs + BYT_VAL_REG);
 
+		label = gpiochip_is_requested(chip, i);
+		if (!label)
+			label = "Unrequested";
+
 		seq_printf(s,
-			   " gpio-%-3d %s %s %s pad-%-3d offset:0x%03x mux:%d %s%s%s\n",
+			   " gpio-%-3d (%-20.20s) %s %s %s pad-%-3d offset:0x%03x mux:%d %s%s%s\n",
 			   i,
+			   label,
 			   val & BYT_INPUT_EN ? "  " : "in",
 			   val & BYT_OUTPUT_EN ? "   " : "out",
 			   val & BYT_LEVEL ? "hi" : "lo",
@@ -366,11 +371,33 @@ static void byt_irq_mask(struct irq_data *d)
 {
 }
 
+static unsigned int byt_irq_startup(struct irq_data *d)
+{
+	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
+
+	if (gpio_lock_as_irq(&vg->chip, irqd_to_hwirq(d)))
+		dev_err(vg->chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			irqd_to_hwirq(d));
+	byt_irq_unmask(d);
+	return 0;
+}
+
+static void byt_irq_shutdown(struct irq_data *d)
+{
+	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
+
+	byt_irq_mask(d);
+	gpio_unlock_as_irq(&vg->chip, irqd_to_hwirq(d));
+}
+
 static struct irq_chip byt_irqchip = {
 	.name = "BYT-GPIO",
 	.irq_mask = byt_irq_mask,
 	.irq_unmask = byt_irq_unmask,
 	.irq_set_type = byt_irq_type,
+	.irq_startup = byt_irq_startup,
+	.irq_shutdown = byt_irq_shutdown,
 };
 
 static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
@@ -461,7 +488,7 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->set = byt_gpio_set;
 	gc->dbg_show = byt_gpio_dbg_show;
 	gc->base = -1;
-	gc->can_sleep = 0;
+	gc->can_sleep = false;
 	gc->dev = dev;
 
 	ret = gpiochip_add(gc);
@@ -485,9 +512,6 @@ static int byt_gpio_probe(struct platform_device *pdev)
 
 		irq_set_handler_data(hwirq, vg);
 		irq_set_chained_handler(hwirq, byt_gpio_irq_handler);
-
-		/* Register interrupt handlers for gpio signaled acpi events */
-		acpi_gpiochip_request_interrupts(gc);
 	}
 
 	pm_runtime_enable(dev);

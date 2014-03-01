@@ -153,64 +153,13 @@ _GLOBAL(kvmppc_entry_trampoline)
 
 	li	r6, MSR_IR | MSR_DR
 	andc	r6, r5, r6	/* Clear DR and IR in MSR value */
-#ifdef CONFIG_PPC_BOOK3S_32
 	/*
 	 * Set EE in HOST_MSR so that it's enabled when we get into our
-	 * C exit handler function.  On 64-bit we delay enabling
-	 * interrupts until we have finished transferring stuff
-	 * to or from the PACA.
+	 * C exit handler function.
 	 */
 	ori	r5, r5, MSR_EE
-#endif
 	mtsrr0	r7
 	mtsrr1	r6
 	RFI
-
-#if defined(CONFIG_PPC_BOOK3S_32)
-#define STACK_LR	INT_FRAME_SIZE+4
-
-/* load_up_xxx have to run with MSR_DR=0 on Book3S_32 */
-#define MSR_EXT_START						\
-	PPC_STL	r20, _NIP(r1);					\
-	mfmsr	r20;						\
-	LOAD_REG_IMMEDIATE(r3, MSR_DR|MSR_EE);			\
-	andc	r3,r20,r3;		/* Disable DR,EE */	\
-	mtmsr	r3;						\
-	sync
-
-#define MSR_EXT_END						\
-	mtmsr	r20;			/* Enable DR,EE */	\
-	sync;							\
-	PPC_LL	r20, _NIP(r1)
-
-#elif defined(CONFIG_PPC_BOOK3S_64)
-#define STACK_LR	_LINK
-#define MSR_EXT_START
-#define MSR_EXT_END
-#endif
-
-/*
- * Activate current's external feature (FPU/Altivec/VSX)
- */
-#define define_load_up(what) 					\
-								\
-_GLOBAL(kvmppc_load_up_ ## what);				\
-	PPC_STLU r1, -INT_FRAME_SIZE(r1);			\
-	mflr	r3;						\
-	PPC_STL	r3, STACK_LR(r1);				\
-	MSR_EXT_START;						\
-								\
-	bl	FUNC(load_up_ ## what);				\
-								\
-	MSR_EXT_END;						\
-	PPC_LL	r3, STACK_LR(r1);				\
-	mtlr	r3;						\
-	addi	r1, r1, INT_FRAME_SIZE;				\
-	blr
-
-define_load_up(fpu)
-#ifdef CONFIG_ALTIVEC
-define_load_up(altivec)
-#endif
 
 #include "book3s_segment.S"

@@ -33,7 +33,7 @@ and the additional 'Integrated Device Function' controllers are supported.
 
 Authors: 
 	Mark Studebaker <mdsxyz123@yahoo.com>
-	Jean Delvare <khali@linux-fr.org>
+	Jean Delvare <jdelvare@suse.de>
 
 
 Module Parameters

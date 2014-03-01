@@ -15,7 +15,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/kgdb.h>
 #include <linux/smp.h>
 #include <linux/signal.h>

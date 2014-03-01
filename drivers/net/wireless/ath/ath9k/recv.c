@@ -15,7 +15,6 @@
  */
 
 #include <linux/dma-mapping.h>
-#include <linux/relay.h>
 #include "ath9k.h"
 #include "ar9003_mac.h"
 
@@ -420,7 +419,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
 	}
 
-	if (AR_SREV_9550(sc->sc_ah))
+	if (AR_SREV_9550(sc->sc_ah) || AR_SREV_9531(sc->sc_ah))
 		rfilt |= ATH9K_RX_FILTER_4ADDRESS;
 
 	return rfilt;
@@ -851,20 +850,15 @@ static int ath9k_process_rate(struct ath_common *common,
 	enum ieee80211_band band;
 	unsigned int i = 0;
 	struct ath_softc __maybe_unused *sc = common->priv;
+	struct ath_hw *ah = sc->sc_ah;
 
-	band = hw->conf.chandef.chan->band;
+	band = ah->curchan->chan->band;
 	sband = hw->wiphy->bands[band];
 
-	switch (hw->conf.chandef.width) {
-	case NL80211_CHAN_WIDTH_5:
+	if (IS_CHAN_QUARTER_RATE(ah->curchan))
 		rxs->flag |= RX_FLAG_5MHZ;
-		break;
-	case NL80211_CHAN_WIDTH_10:
+	else if (IS_CHAN_HALF_RATE(ah->curchan))
 		rxs->flag |= RX_FLAG_10MHZ;
-		break;
-	default:
-		break;
-	}
 
 	if (rx_stats->rs_rate & 0x80) {
 		/* HT rate */
@@ -906,6 +900,7 @@ static void ath9k_process_rssi(struct ath_common *common,
 	struct ath_hw *ah = common->ah;
 	int last_rssi;
 	int rssi = rx_stats->rs_rssi;
+	int i, j;
 
 	/*
 	 * RSSI is not available for subframes in an A-MPDU.
@@ -922,6 +917,20 @@ static void ath9k_process_rssi(struct ath_common *common,
 	if (rx_stats->rs_rssi == ATH9K_RSSI_BAD) {
 		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
 		return;
+	}
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(rx_stats->rs_rssi_ctl); i++) {
+		s8 rssi;
+
+		if (!(ah->rxchainmask & BIT(i)))
+			continue;
+
+		rssi = rx_stats->rs_rssi_ctl[i];
+		if (rssi != ATH9K_RSSI_BAD) {
+		    rxs->chains |= BIT(j);
+		    rxs->chain_signal[j] = ah->noise + rssi;
+		}
+		j++;
 	}
 
 	/*
@@ -958,201 +967,6 @@ static void ath9k_process_tsf(struct ath_rx_status *rs,
 	if (rs->rs_tstamp < tsf_lower &&
 	    unlikely(tsf_lower - rs->rs_tstamp > 0x10000000))
 		rxs->mactime += 0x100000000ULL;
-}
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-static s8 fix_rssi_inv_only(u8 rssi_val)
-{
-	if (rssi_val == 128)
-		rssi_val = 0;
-	return (s8) rssi_val;
-}
-#endif
-
-/* returns 1 if this was a spectral frame, even if not handled. */
-static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
-			   struct ath_rx_status *rs, u64 tsf)
-{
-#ifdef CONFIG_ATH9K_DEBUGFS
-	struct ath_hw *ah = sc->sc_ah;
-	u8 num_bins, *bins, *vdata = (u8 *)hdr;
-	struct fft_sample_ht20 fft_sample_20;
-	struct fft_sample_ht20_40 fft_sample_40;
-	struct fft_sample_tlv *tlv;
-	struct ath_radar_info *radar_info;
-	int len = rs->rs_datalen;
-	int dc_pos;
-	u16 fft_len, length, freq = ah->curchan->chan->center_freq;
-	enum nl80211_channel_type chan_type;
-
-	/* AR9280 and before report via ATH9K_PHYERR_RADAR, AR93xx and newer
-	 * via ATH9K_PHYERR_SPECTRAL. Haven't seen ATH9K_PHYERR_FALSE_RADAR_EXT
-	 * yet, but this is supposed to be possible as well.
-	 */
-	if (rs->rs_phyerr != ATH9K_PHYERR_RADAR &&
-	    rs->rs_phyerr != ATH9K_PHYERR_FALSE_RADAR_EXT &&
-	    rs->rs_phyerr != ATH9K_PHYERR_SPECTRAL)
-		return 0;
-
-	/* check if spectral scan bit is set. This does not have to be checked
-	 * if received through a SPECTRAL phy error, but shouldn't hurt.
-	 */
-	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
-	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
-		return 0;
-
-	chan_type = cfg80211_get_chandef_type(&sc->hw->conf.chandef);
-	if ((chan_type == NL80211_CHAN_HT40MINUS) ||
-	    (chan_type == NL80211_CHAN_HT40PLUS)) {
-		fft_len = SPECTRAL_HT20_40_TOTAL_DATA_LEN;
-		num_bins = SPECTRAL_HT20_40_NUM_BINS;
-		bins = (u8 *)fft_sample_40.data;
-	} else {
-		fft_len = SPECTRAL_HT20_TOTAL_DATA_LEN;
-		num_bins = SPECTRAL_HT20_NUM_BINS;
-		bins = (u8 *)fft_sample_20.data;
-	}
-
-	/* Variation in the data length is possible and will be fixed later */
-	if ((len > fft_len + 2) || (len < fft_len - 1))
-		return 1;
-
-	switch (len - fft_len) {
-	case 0:
-		/* length correct, nothing to do. */
-		memcpy(bins, vdata, num_bins);
-		break;
-	case -1:
-		/* first byte missing, duplicate it. */
-		memcpy(&bins[1], vdata, num_bins - 1);
-		bins[0] = vdata[0];
-		break;
-	case 2:
-		/* MAC added 2 extra bytes at bin 30 and 32, remove them. */
-		memcpy(bins, vdata, 30);
-		bins[30] = vdata[31];
-		memcpy(&bins[31], &vdata[33], num_bins - 31);
-		break;
-	case 1:
-		/* MAC added 2 extra bytes AND first byte is missing. */
-		bins[0] = vdata[0];
-		memcpy(&bins[1], vdata, 30);
-		bins[31] = vdata[31];
-		memcpy(&bins[32], &vdata[33], num_bins - 32);
-		break;
-	default:
-		return 1;
-	}
-
-	/* DC value (value in the middle) is the blind spot of the spectral
-	 * sample and invalid, interpolate it.
-	 */
-	dc_pos = num_bins / 2;
-	bins[dc_pos] = (bins[dc_pos + 1] + bins[dc_pos - 1]) / 2;
-
-	if ((chan_type == NL80211_CHAN_HT40MINUS) ||
-	    (chan_type == NL80211_CHAN_HT40PLUS)) {
-		s8 lower_rssi, upper_rssi;
-		s16 ext_nf;
-		u8 lower_max_index, upper_max_index;
-		u8 lower_bitmap_w, upper_bitmap_w;
-		u16 lower_mag, upper_mag;
-		struct ath9k_hw_cal_data *caldata = ah->caldata;
-		struct ath_ht20_40_mag_info *mag_info;
-
-		if (caldata)
-			ext_nf = ath9k_hw_getchan_noise(ah, ah->curchan,
-					caldata->nfCalHist[3].privNF);
-		else
-			ext_nf = ATH_DEFAULT_NOISE_FLOOR;
-
-		length = sizeof(fft_sample_40) - sizeof(struct fft_sample_tlv);
-		fft_sample_40.tlv.type = ATH_FFT_SAMPLE_HT20_40;
-		fft_sample_40.tlv.length = __cpu_to_be16(length);
-		fft_sample_40.freq = __cpu_to_be16(freq);
-		fft_sample_40.channel_type = chan_type;
-
-		if (chan_type == NL80211_CHAN_HT40PLUS) {
-			lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
-			upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ext0);
-
-			fft_sample_40.lower_noise = ah->noise;
-			fft_sample_40.upper_noise = ext_nf;
-		} else {
-			lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ext0);
-			upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
-
-			fft_sample_40.lower_noise = ext_nf;
-			fft_sample_40.upper_noise = ah->noise;
-		}
-		fft_sample_40.lower_rssi = lower_rssi;
-		fft_sample_40.upper_rssi = upper_rssi;
-
-		mag_info = ((struct ath_ht20_40_mag_info *)radar_info) - 1;
-		lower_mag = spectral_max_magnitude(mag_info->lower_bins);
-		upper_mag = spectral_max_magnitude(mag_info->upper_bins);
-		fft_sample_40.lower_max_magnitude = __cpu_to_be16(lower_mag);
-		fft_sample_40.upper_max_magnitude = __cpu_to_be16(upper_mag);
-		lower_max_index = spectral_max_index(mag_info->lower_bins);
-		upper_max_index = spectral_max_index(mag_info->upper_bins);
-		fft_sample_40.lower_max_index = lower_max_index;
-		fft_sample_40.upper_max_index = upper_max_index;
-		lower_bitmap_w = spectral_bitmap_weight(mag_info->lower_bins);
-		upper_bitmap_w = spectral_bitmap_weight(mag_info->upper_bins);
-		fft_sample_40.lower_bitmap_weight = lower_bitmap_w;
-		fft_sample_40.upper_bitmap_weight = upper_bitmap_w;
-		fft_sample_40.max_exp = mag_info->max_exp & 0xf;
-
-		fft_sample_40.tsf = __cpu_to_be64(tsf);
-
-		tlv = (struct fft_sample_tlv *)&fft_sample_40;
-	} else {
-		u8 max_index, bitmap_w;
-		u16 magnitude;
-		struct ath_ht20_mag_info *mag_info;
-
-		length = sizeof(fft_sample_20) - sizeof(struct fft_sample_tlv);
-		fft_sample_20.tlv.type = ATH_FFT_SAMPLE_HT20;
-		fft_sample_20.tlv.length = __cpu_to_be16(length);
-		fft_sample_20.freq = __cpu_to_be16(freq);
-
-		fft_sample_20.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
-		fft_sample_20.noise = ah->noise;
-
-		mag_info = ((struct ath_ht20_mag_info *)radar_info) - 1;
-		magnitude = spectral_max_magnitude(mag_info->all_bins);
-		fft_sample_20.max_magnitude = __cpu_to_be16(magnitude);
-		max_index = spectral_max_index(mag_info->all_bins);
-		fft_sample_20.max_index = max_index;
-		bitmap_w = spectral_bitmap_weight(mag_info->all_bins);
-		fft_sample_20.bitmap_weight = bitmap_w;
-		fft_sample_20.max_exp = mag_info->max_exp & 0xf;
-
-		fft_sample_20.tsf = __cpu_to_be64(tsf);
-
-		tlv = (struct fft_sample_tlv *)&fft_sample_20;
-	}
-
-	ath_debug_send_fft_sample(sc, tlv);
-	return 1;
-#else
-	return 0;
-#endif
-}
-
-static bool ath9k_is_mybeacon(struct ath_softc *sc, struct ieee80211_hdr *hdr)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (ieee80211_is_beacon(hdr->frame_control)) {
-		RX_STAT_INC(rx_beacons);
-		if (!is_zero_ether_addr(common->curbssid) &&
-		    ether_addr_equal(hdr->addr3, common->curbssid))
-			return true;
-	}
-
-	return false;
 }
 
 /*
@@ -1242,10 +1056,17 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		goto exit;
 	}
 
-	rx_stats->is_mybeacon = ath9k_is_mybeacon(sc, hdr);
-	if (rx_stats->is_mybeacon) {
-		sc->hw_busy_count = 0;
-		ath_start_rx_poll(sc, 3);
+	if (ath_is_mybeacon(common, hdr)) {
+		RX_STAT_INC(rx_beacons);
+		rx_stats->is_mybeacon = true;
+	}
+
+	/*
+	 * This shouldn't happen, but have a safety check anyway.
+	 */
+	if (WARN_ON(!ah->curchan)) {
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	if (ath9k_process_rate(common, hw, rx_stats, rx_status)) {
@@ -1255,8 +1076,8 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 
 	ath9k_process_rssi(common, hw, rx_stats, rx_status);
 
-	rx_status->band = hw->conf.chandef.chan->band;
-	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = ah->curchan->chan->band;
+	rx_status->freq = ah->curchan->chan->center_freq;
 	rx_status->antenna = rx_stats->rs_antenna;
 	rx_status->flag |= RX_FLAG_MACTIME_END;
 
@@ -1521,8 +1342,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 		ath9k_antenna_check(sc, &rs);
-
 		ath9k_apply_ampdu_details(sc, &rs, rxs);
+		ath_debug_rate_stats(sc, &rs, skb);
 
 		ieee80211_rx(hw, skb);
 

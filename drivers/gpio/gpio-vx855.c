@@ -214,7 +214,7 @@ static void vx855gpio_gpio_setup(struct vx855_gpio *vg)
 	c->dbg_show = NULL;
 	c->base = 0;
 	c->ngpio = NR_VX855_GP;
-	c->can_sleep = 0;
+	c->can_sleep = false;
 	c->names = vx855gpio_names;
 }
 

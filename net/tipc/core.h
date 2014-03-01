@@ -47,7 +47,7 @@
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/atomic.h>
 #include <asm/hardirq.h>
@@ -192,6 +192,7 @@ static inline void k_term_timer(struct timer_list *timer)
 
 struct tipc_skb_cb {
 	void *handle;
+	bool deferred;
 };
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))

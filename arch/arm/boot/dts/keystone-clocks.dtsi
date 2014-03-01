@@ -13,17 +13,10 @@ clocks {
 	#size-cells = <1>;
 	ranges;
 
-	refclkmain: refclkmain {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <122880000>;
-		clock-output-names = "refclk-main";
-	};
-
 	mainpllclk: mainpllclk@2310110 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,main-pll-clock";
-		clocks = <&refclkmain>;
+		clocks = <&refclksys>;
 		reg = <0x02620350 4>, <0x02310110 4>;
 		reg-names = "control", "multiplier";
 		fixed-postdiv = <2>;
@@ -32,47 +25,43 @@ clocks {
 	papllclk: papllclk@2620358 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
-		clocks = <&refclkmain>;
+		clocks = <&refclkpass>;
 		clock-output-names = "pa-pll-clk";
 		reg = <0x02620358 4>;
 		reg-names = "control";
-		fixed-postdiv = <6>;
 	};
 
-	ddr3allclk: ddr3apllclk@2620360 {
+	ddr3apllclk: ddr3apllclk@2620360 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
-		clocks = <&refclkmain>;
+		clocks = <&refclkddr3a>;
 		clock-output-names = "ddr-3a-pll-clk";
 		reg = <0x02620360 4>;
 		reg-names = "control";
-		fixed-postdiv = <6>;
 	};
 
-	ddr3bllclk: ddr3bpllclk@2620368 {
+	ddr3bpllclk: ddr3bpllclk@2620368 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
-		clocks = <&refclkmain>;
+		clocks = <&refclkddr3b>;
 		clock-output-names = "ddr-3b-pll-clk";
 		reg = <0x02620368 4>;
 		reg-names = "control";
-		fixed-postdiv = <6>;
 	};
 
 	armpllclk: armpllclk@2620370 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
-		clocks = <&refclkmain>;
+		clocks = <&refclkarm>;
 		clock-output-names = "arm-pll-clk";
 		reg = <0x02620370 4>;
 		reg-names = "control";
-		fixed-postdiv = <6>;
 	};
 
 	mainmuxclk: mainmuxclk@2310108 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-mux-clock";
-		clocks = <&mainpllclk>, <&refclkmain>;
+		clocks = <&mainpllclk>, <&refclksys>;
 		reg = <0x02310108 4>;
 		bit-shift = <23>;
 		bit-mask = <1>;
@@ -133,6 +122,15 @@ clocks {
 		clock-div = <3>;
 		clock-mult = <1>;
 		clock-output-names = "chipclk13";
+	};
+
+	paclk13: paclk13 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&papllclk>;
+		clock-div = <3>;
+		clock-mult = <1>;
+		clock-output-names = "paclk13";
 	};
 
 	chipclk14: chipclk14 {

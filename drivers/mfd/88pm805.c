@@ -77,7 +77,7 @@ static struct resource codec_resources[] = {
 	 },
 };
 
-static struct mfd_cell codec_devs[] = {
+static const struct mfd_cell codec_devs[] = {
 	{
 	 .name = "88pm80x-codec",
 	 .num_resources = ARRAY_SIZE(codec_resources),

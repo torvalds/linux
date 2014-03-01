@@ -11,6 +11,28 @@ else
         KBUILD_DEFCONFIG := $(ARCH)_defconfig
 endif
 
+# How to compile the 16-bit code.  Note we always compile for -march=i386;
+# that way we can complain to the user if the CPU is insufficient.
+#
+# The -m16 option is supported by GCC >= 4.9 and clang >= 3.5. For
+# older versions of GCC, we need to play evil and unreliable tricks to
+# attempt to ensure that our asm(".code16gcc") is first in the asm
+# output.
+CODE16GCC_CFLAGS := -m32 -include $(srctree)/arch/x86/boot/code16gcc.h \
+		    $(call cc-option, -fno-toplevel-reorder,\
+		      $(call cc-option, -fno-unit-at-a-time))
+M16_CFLAGS	 := $(call cc-option, -m16, $(CODE16GCC_CFLAGS))
+
+REALMODE_CFLAGS	:= $(M16_CFLAGS) -g -Os -D__KERNEL__ \
+		   -DDISABLE_BRANCH_PROFILING \
+		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
+		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
+		   -mno-mmx -mno-sse \
+		   $(call cc-option, -ffreestanding) \
+		   $(call cc-option, -fno-stack-protector) \
+		   $(call cc-option, -mpreferred-stack-boundary=2)
+export REALMODE_CFLAGS
+
 # BITS is used as extension for files which are available in a 32 bit
 # and a 64 bit version to simplify shared Makefiles.
 # e.g.: obj-y += foo_$(BITS).o
@@ -89,13 +111,11 @@ else
         KBUILD_CFLAGS += -maccumulate-outgoing-args
 endif
 
+# Make sure compiler does not have buggy stack-protector support.
 ifdef CONFIG_CC_STACKPROTECTOR
 	cc_has_sp := $(srctree)/scripts/gcc-x86_$(BITS)-has-stack-protector.sh
-        ifeq ($(shell $(CONFIG_SHELL) $(cc_has_sp) $(CC) $(KBUILD_CPPFLAGS) $(biarch)),y)
-                stackp-y := -fstack-protector
-                KBUILD_CFLAGS += $(stackp-y)
-        else
-                $(warning stack protector enabled but no compiler support)
+        ifneq ($(shell $(CONFIG_SHELL) $(cc_has_sp) $(CC) $(KBUILD_CPPFLAGS) $(biarch)),y)
+                $(warning stack-protector enabled but compiler support broken)
         endif
 endif
 

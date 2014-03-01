@@ -1,0 +1,115 @@
+/*
+ * Device Tree Source for the Koelsch board
+ *
+ * Copyright (C) 2013 Renesas Electronics Corporation
+ * Copyright (C) 2013 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "r8a7791.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Koelsch";
+	compatible = "renesas,koelsch-reference", "renesas,r8a7791";
+
+	chosen {
+		bootargs = "console=ttySC6,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x80000000>;
+	};
+
+	lbsc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-a {
+			gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+			linux,code = <30>;
+			label = "SW30";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-b {
+			gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
+			linux,code = <48>;
+			label = "SW31";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-c {
+			gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
+			linux,code = <46>;
+			label = "SW32";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-d {
+			gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
+			linux,code = <32>;
+			label = "SW33";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-e {
+			gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
+			linux,code = <18>;
+			label = "SW34";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-f {
+			gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
+			linux,code = <33>;
+			label = "SW35";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-g {
+			gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+			linux,code = <34>;
+			label = "SW36";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led6 {
+			gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+		};
+		led7 {
+			gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;
+		};
+		led8 {
+			gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&pfc {
+	pinctrl-0 = <&scif0_pins &scif1_pins>;
+	pinctrl-names = "default";
+
+	scif0_pins: serial0 {
+		renesas,groups = "scif0_data_d";
+		renesas,function = "scif0";
+	};
+
+	scif1_pins: serial1 {
+		renesas,groups = "scif1_data_d";
+		renesas,function = "scif1";
+	};
+};

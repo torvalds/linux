@@ -800,10 +800,27 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 {
 	struct obd_device     *obd = class_exp2obd(exp);
 	struct ptlrpc_request *req;
-	int		    rc;
+	struct req_format     *req_fmt;
+	int                    rc;
+	int		       saved_rc = 0;
+
+
+	req_fmt = &RQF_MDS_CLOSE;
+	if (op_data->op_bias & MDS_HSM_RELEASE) {
+		req_fmt = &RQF_MDS_RELEASE_CLOSE;
+
+		/* allocate a FID for volatile file */
+		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		if (rc < 0) {
+			CERROR("%s: "DFID" failed to allocate FID: %d\n",
+			       obd->obd_name, PFID(&op_data->op_fid1), rc);
+			/* save the errcode and proceed to close */
+			saved_rc = rc;
+		}
+	}
 
 	*request = NULL;
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_MDS_CLOSE);
+	req = ptlrpc_request_alloc(class_exp2cliimp(exp), req_fmt);
 	if (req == NULL)
 		return -ENOMEM;
 
@@ -893,7 +910,7 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	}
 	*request = req;
 	mdc_close_handle_reply(req, op_data, rc);
-	return rc;
+	return rc < 0 ? rc : saved_rc;
 }
 
 int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
@@ -1413,7 +1430,7 @@ static struct kuc_hdr *changelog_kuc_hdr(char *buf, int len, int flags)
 {
 	struct kuc_hdr *lh = (struct kuc_hdr *)buf;
 
-	LASSERT(len <= CR_MAXSIZE);
+	LASSERT(len <= KUC_CHANGELOG_MSG_MAXSIZE);
 
 	lh->kuc_magic = KUC_MAGIC;
 	lh->kuc_transport = KUC_TRANSPORT_CHANGELOG;
@@ -1486,7 +1503,7 @@ static int mdc_changelog_send_thread(void *csdata)
 	CDEBUG(D_CHANGELOG, "changelog to fp=%p start "LPU64"\n",
 	       cs->cs_fp, cs->cs_startrec);
 
-	OBD_ALLOC(cs->cs_buf, CR_MAXSIZE);
+	OBD_ALLOC(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
 	if (cs->cs_buf == NULL)
 		GOTO(out, rc = -ENOMEM);
 
@@ -1523,7 +1540,7 @@ out:
 	if (ctxt)
 		llog_ctxt_put(ctxt);
 	if (cs->cs_buf)
-		OBD_FREE(cs->cs_buf, CR_MAXSIZE);
+		OBD_FREE(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
 	OBD_FREE_PTR(cs);
 	return rc;
 }
@@ -1743,6 +1760,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO(out, rc);
 	case LL_IOC_HSM_STATE_SET:
 		rc = mdc_ioc_hsm_state_set(exp, karg);
+		GOTO(out, rc);
 	case LL_IOC_HSM_ACTION:
 		rc = mdc_ioc_hsm_current_action(exp, karg);
 		GOTO(out, rc);
@@ -1814,8 +1832,8 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		struct obd_quotactl *oqctl;
 
 		OBD_ALLOC_PTR(oqctl);
-		if (!oqctl)
-			return -ENOMEM;
+		if (oqctl == NULL)
+			GOTO(out, rc = -ENOMEM);
 
 		QCTL_COPY(oqctl, qctl);
 		rc = obd_quotactl(exp, oqctl);
@@ -1824,23 +1842,21 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			qctl->qc_valid = QC_MDTIDX;
 			qctl->obd_uuid = obd->u.cli.cl_target_uuid;
 		}
+
 		OBD_FREE_PTR(oqctl);
-		break;
+		GOTO(out, rc);
 	}
-	case LL_IOC_GET_CONNECT_FLAGS: {
-		if (copy_to_user(uarg,
-				     exp_connect_flags_ptr(exp),
-				     sizeof(__u64)))
+	case LL_IOC_GET_CONNECT_FLAGS:
+		if (copy_to_user(uarg, exp_connect_flags_ptr(exp),
+				 sizeof(*exp_connect_flags_ptr(exp))))
 			GOTO(out, rc = -EFAULT);
-		else
-			GOTO(out, rc = 0);
-	}
-	case LL_IOC_LOV_SWAP_LAYOUTS: {
+
+		GOTO(out, rc = 0);
+	case LL_IOC_LOV_SWAP_LAYOUTS:
 		rc = mdc_ioc_swap_layouts(exp, karg);
-		break;
-	}
+		GOTO(out, rc);
 	default:
-		CERROR("mdc_ioctl(): unrecognised ioctl %#x\n", cmd);
+		CERROR("unrecognised ioctl: cmd = %#x\n", cmd);
 		GOTO(out, rc = -ENOTTY);
 	}
 out:
@@ -1920,10 +1936,8 @@ static void lustre_swab_hal(struct hsm_action_list *h)
 	__swab32s(&h->hal_archive_id);
 	__swab64s(&h->hal_flags);
 	hai = hai_zero(h);
-	for (i = 0; i < h->hal_count; i++) {
+	for (i = 0; i < h->hal_count; i++, hai = hai_next(hai))
 		lustre_swab_hai(hai);
-		hai = hai_next(hai);
-	}
 }
 
 static void lustre_swab_kuch(struct kuc_hdr *l)
@@ -2060,15 +2074,6 @@ int mdc_set_info_async(const struct lu_env *env,
 	}
 	if (KEY_IS(KEY_FLUSH_CTX)) {
 		sptlrpc_import_flush_my_ctx(imp);
-		return 0;
-	}
-	if (KEY_IS(KEY_MDS_CONN)) {
-		/* mds-mds import */
-		spin_lock(&imp->imp_lock);
-		imp->imp_server_timeout = 1;
-		spin_unlock(&imp->imp_lock);
-		imp->imp_client->cli_request_portal = MDS_MDS_PORTAL;
-		CDEBUG(D_OTHER, "%s: timeout / 2\n", exp->exp_obd->obd_name);
 		return 0;
 	}
 	if (KEY_IS(KEY_CHANGELOG_CLEAR)) {
@@ -2580,27 +2585,6 @@ static int mdc_renew_capa(struct obd_export *exp, struct obd_capa *oc,
 	return 0;
 }
 
-static int mdc_connect(const struct lu_env *env,
-		       struct obd_export **exp,
-		       struct obd_device *obd, struct obd_uuid *cluuid,
-		       struct obd_connect_data *data,
-		       void *localdata)
-{
-	struct obd_import *imp = obd->u.cli.cl_import;
-
-	/* mds-mds import features */
-	if (data && (data->ocd_connect_flags & OBD_CONNECT_MDS_MDS)) {
-		spin_lock(&imp->imp_lock);
-		imp->imp_server_timeout = 1;
-		spin_unlock(&imp->imp_lock);
-		imp->imp_client->cli_request_portal = MDS_MDS_PORTAL;
-		CDEBUG(D_OTHER, "%s: Set 'mds' portal and timeout\n",
-		       obd->obd_name);
-	}
-
-	return client_connect_import(env, exp, obd, cluuid, data, NULL);
-}
-
 struct obd_ops mdc_obd_ops = {
 	.o_owner	    = THIS_MODULE,
 	.o_setup	    = mdc_setup,
@@ -2608,7 +2592,7 @@ struct obd_ops mdc_obd_ops = {
 	.o_cleanup	  = mdc_cleanup,
 	.o_add_conn	 = client_import_add_conn,
 	.o_del_conn	 = client_import_del_conn,
-	.o_connect	  = mdc_connect,
+	.o_connect          = client_connect_import,
 	.o_disconnect       = client_disconnect_export,
 	.o_iocontrol	= mdc_iocontrol,
 	.o_set_info_async   = mdc_set_info_async,

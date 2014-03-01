@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_PACKET_H_
@@ -117,6 +115,7 @@ enum batadv_tt_client_flags {
 	BATADV_TT_CLIENT_DEL     = BIT(0),
 	BATADV_TT_CLIENT_ROAM    = BIT(1),
 	BATADV_TT_CLIENT_WIFI    = BIT(4),
+	BATADV_TT_CLIENT_ISOLA	 = BIT(5),
 	BATADV_TT_CLIENT_NOPURGE = BIT(8),
 	BATADV_TT_CLIENT_NEW     = BIT(9),
 	BATADV_TT_CLIENT_PENDING = BIT(10),
@@ -155,6 +154,7 @@ enum batadv_tvlv_type {
 	BATADV_TVLV_ROAM	= 0x05,
 };
 
+#pragma pack(2)
 /* the destination hardware field in the ARP frame is used to
  * transport the claim type and the group id
  */
@@ -163,24 +163,20 @@ struct batadv_bla_claim_dst {
 	uint8_t type;		/* bla_claimframe */
 	__be16 group;		/* group id */
 };
-
-struct batadv_header {
-	uint8_t  packet_type;
-	uint8_t  version;  /* batman version field */
-	uint8_t  ttl;
-	/* the parent struct has to add a byte after the header to make
-	 * everything 4 bytes aligned again
-	 */
-};
+#pragma pack()
 
 /**
  * struct batadv_ogm_packet - ogm (routing protocol) packet
- * @header: common batman packet header
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
  * @flags: contains routing relevant flags - see enum batadv_iv_flags
  * @tvlv_len: length of tvlv data following the ogm header
  */
 struct batadv_ogm_packet {
-	struct batadv_header header;
+	uint8_t  packet_type;
+	uint8_t  version;
+	uint8_t  ttl;
 	uint8_t  flags;
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
@@ -196,29 +192,51 @@ struct batadv_ogm_packet {
 #define BATADV_OGM_HLEN sizeof(struct batadv_ogm_packet)
 
 /**
- * batadv_icmp_header - common ICMP header
- * @header: common batman header
+ * batadv_icmp_header - common members among all the ICMP packets
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
  * @msg_type: ICMP packet type
  * @dst: address of the destination node
  * @orig: address of the source node
  * @uid: local ICMP socket identifier
+ * @align: not used - useful for alignment purposes only
+ *
+ * This structure is used for ICMP packets parsing only and it is never sent
+ * over the wire. The alignment field at the end is there to ensure that
+ * members are padded the same way as they are in real packets.
  */
 struct batadv_icmp_header {
-	struct batadv_header header;
+	uint8_t  packet_type;
+	uint8_t  version;
+	uint8_t  ttl;
 	uint8_t  msg_type; /* see ICMP message types above */
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  orig[ETH_ALEN];
 	uint8_t  uid;
+	uint8_t  align[3];
 };
 
 /**
  * batadv_icmp_packet - ICMP packet
- * @icmph: common ICMP header
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
+ * @msg_type: ICMP packet type
+ * @dst: address of the destination node
+ * @orig: address of the source node
+ * @uid: local ICMP socket identifier
  * @reserved: not used - useful for alignment
  * @seqno: ICMP sequence number
  */
 struct batadv_icmp_packet {
-	struct batadv_icmp_header icmph;
+	uint8_t  packet_type;
+	uint8_t  version;
+	uint8_t  ttl;
+	uint8_t  msg_type; /* see ICMP message types above */
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  orig[ETH_ALEN];
+	uint8_t  uid;
 	uint8_t  reserved;
 	__be16   seqno;
 };
@@ -227,13 +245,25 @@ struct batadv_icmp_packet {
 
 /**
  * batadv_icmp_packet_rr - ICMP RouteRecord packet
- * @icmph: common ICMP header
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
+ * @msg_type: ICMP packet type
+ * @dst: address of the destination node
+ * @orig: address of the source node
+ * @uid: local ICMP socket identifier
  * @rr_cur: number of entries the rr array
  * @seqno: ICMP sequence number
  * @rr: route record array
  */
 struct batadv_icmp_packet_rr {
-	struct batadv_icmp_header icmph;
+	uint8_t  packet_type;
+	uint8_t  version;
+	uint8_t  ttl;
+	uint8_t  msg_type; /* see ICMP message types above */
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  orig[ETH_ALEN];
+	uint8_t  uid;
 	uint8_t  rr_cur;
 	__be16   seqno;
 	uint8_t  rr[BATADV_RR_LEN][ETH_ALEN];
@@ -253,8 +283,18 @@ struct batadv_icmp_packet_rr {
  */
 #pragma pack(2)
 
+/**
+ * struct batadv_unicast_packet - unicast packet for network payload
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
+ * @ttvn: translation table version number
+ * @dest: originator destination of the unicast packet
+ */
 struct batadv_unicast_packet {
-	struct batadv_header header;
+	uint8_t  packet_type;
+	uint8_t  version;
+	uint8_t  ttl;
 	uint8_t  ttvn; /* destination translation table version number */
 	uint8_t  dest[ETH_ALEN];
 	/* "4 bytes boundary + 2 bytes" long to make the payload after the
@@ -280,7 +320,9 @@ struct batadv_unicast_4addr_packet {
 
 /**
  * struct batadv_frag_packet - fragmented packet
- * @header: common batman packet header with type, compatversion, and ttl
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
  * @dest: final destination used when routing fragments
  * @orig: originator of the fragment used when merging the packet
  * @no: fragment number within this sequence
@@ -289,7 +331,9 @@ struct batadv_unicast_4addr_packet {
  * @total_size: size of the merged packet
  */
 struct batadv_frag_packet {
-	struct  batadv_header header;
+	uint8_t packet_type;
+	uint8_t version;  /* batman version field */
+	uint8_t ttl;
 #if defined(__BIG_ENDIAN_BITFIELD)
 	uint8_t no:4;
 	uint8_t reserved:4;
@@ -305,8 +349,19 @@ struct batadv_frag_packet {
 	__be16  total_size;
 };
 
+/**
+ * struct batadv_bcast_packet - broadcast packet for network payload
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
+ * @reserved: reserved byte for alignment
+ * @seqno: sequence identification
+ * @orig: originator of the broadcast packet
+ */
 struct batadv_bcast_packet {
-	struct batadv_header header;
+	uint8_t  packet_type;
+	uint8_t  version;  /* batman version field */
+	uint8_t  ttl;
 	uint8_t  reserved;
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
@@ -315,11 +370,11 @@ struct batadv_bcast_packet {
 	 */
 };
 
-#pragma pack()
-
 /**
  * struct batadv_coded_packet - network coded packet
- * @header: common batman packet header and ttl of first included packet
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
  * @reserved: Align following fields to 2-byte boundaries
  * @first_source: original source of first included packet
  * @first_orig_dest: original destinal of first included packet
@@ -334,7 +389,9 @@ struct batadv_bcast_packet {
  * @coded_len: length of network coded part of the payload
  */
 struct batadv_coded_packet {
-	struct batadv_header header;
+	uint8_t  packet_type;
+	uint8_t  version;  /* batman version field */
+	uint8_t  ttl;
 	uint8_t  first_ttvn;
 	/* uint8_t  first_dest[ETH_ALEN]; - saved in mac header destination */
 	uint8_t  first_source[ETH_ALEN];
@@ -349,9 +406,13 @@ struct batadv_coded_packet {
 	__be16   coded_len;
 };
 
+#pragma pack()
+
 /**
  * struct batadv_unicast_tvlv - generic unicast packet with tvlv payload
- * @header: common batman packet header
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
  * @reserved: reserved field (for packet alignment)
  * @src: address of the source
  * @dst: address of the destination
@@ -359,7 +420,9 @@ struct batadv_coded_packet {
  * @align: 2 bytes to align the header to a 4 byte boundry
  */
 struct batadv_unicast_tvlv_packet {
-	struct batadv_header header;
+	uint8_t  packet_type;
+	uint8_t  version;  /* batman version field */
+	uint8_t  ttl;
 	uint8_t  reserved;
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  src[ETH_ALEN];
@@ -420,13 +483,13 @@ struct batadv_tvlv_tt_vlan_data {
  * struct batadv_tvlv_tt_change - translation table diff data
  * @flags: status indicators concerning the non-mesh client (see
  *  batadv_tt_client_flags)
- * @reserved: reserved field
+ * @reserved: reserved field - useful for alignment purposes only
  * @addr: mac address of non-mesh client that triggered this tt change
  * @vid: VLAN identifier
  */
 struct batadv_tvlv_tt_change {
 	uint8_t flags;
-	uint8_t reserved;
+	uint8_t reserved[3];
 	uint8_t addr[ETH_ALEN];
 	__be16 vid;
 };

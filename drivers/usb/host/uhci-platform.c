@@ -108,6 +108,7 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_uhci;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
 err_uhci:

@@ -203,8 +203,7 @@ unsigned long get_tm_stackpointer(struct pt_regs *regs)
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(regs->msr)) {
-		tm_enable();
-		tm_reclaim(&current->thread, regs->msr, TM_CAUSE_SIGNAL);
+		tm_reclaim_current(TM_CAUSE_SIGNAL);
 		if (MSR_TM_TRANSACTIONAL(regs->msr))
 			return current->thread.ckpt_regs.gpr[1];
 	}

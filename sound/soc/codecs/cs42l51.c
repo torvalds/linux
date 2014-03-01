@@ -423,21 +423,17 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 		intf_ctl |= CS42L51_INTF_CTL_DAC_FORMAT(CS42L51_DAC_DIF_LJ24);
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
-		case SNDRV_PCM_FORMAT_S16_BE:
+		switch (params_width(params)) {
+		case 16:
 			fmt = CS42L51_DAC_DIF_RJ16;
 			break;
-		case SNDRV_PCM_FORMAT_S18_3LE:
-		case SNDRV_PCM_FORMAT_S18_3BE:
+		case 18:
 			fmt = CS42L51_DAC_DIF_RJ18;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
-		case SNDRV_PCM_FORMAT_S20_3BE:
+		case 20:
 			fmt = CS42L51_DAC_DIF_RJ20;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
-		case SNDRV_PCM_FORMAT_S24_BE:
+		case 24:
 			fmt = CS42L51_DAC_DIF_RJ24;
 			break;
 		default:

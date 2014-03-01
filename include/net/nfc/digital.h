@@ -122,6 +122,16 @@ typedef void (*nfc_digital_cmd_complete_t)(struct nfc_digital_dev *ddev,
  *	switch_rf to turn the radio on. A call to in|tg_configure_hw must turn
  *	the device radio on.
  * @abort_cmd: Discard the last sent command.
+ *
+ * Notes: Asynchronous functions have a timeout parameter. It is the driver
+ *	responsibility to call the digital stack back through the
+ *	nfc_digital_cmd_complete_t callback when no RF respsonse has been
+ *	received within the specified time (in milliseconds). In that case the
+ *	driver must set the resp sk_buff to ERR_PTR(-ETIMEDOUT).
+ *	Since the digital stack serializes commands to be sent, it's mandatory
+ *	for the driver to handle the timeout correctly. Otherwise the stack
+ *	would not be able to send new commands, waiting for the reply of the
+ *	current one.
  */
 struct nfc_digital_ops {
 	int (*in_configure_hw)(struct nfc_digital_dev *ddev, int type,

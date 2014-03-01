@@ -51,6 +51,7 @@ struct gpio_extcon_platform_data {
 	/* if NULL, "0" or "1" will be printed */
 	const char *state_on;
 	const char *state_off;
+	bool check_on_resume;
 };
 
 #endif /* __EXTCON_GPIO_H__ */

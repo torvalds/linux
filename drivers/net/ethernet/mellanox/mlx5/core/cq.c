@@ -201,10 +201,23 @@ EXPORT_SYMBOL(mlx5_core_query_cq);
 
 
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			int type, struct mlx5_cq_modify_params *params)
+			struct mlx5_modify_cq_mbox_in *in, int in_sz)
 {
-	return -ENOSYS;
+	struct mlx5_modify_cq_mbox_out out;
+	int err;
+
+	memset(&out, 0, sizeof(out));
+	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MODIFY_CQ);
+	err = mlx5_cmd_exec(dev, in, in_sz, &out, sizeof(out));
+	if (err)
+		return err;
+
+	if (out.hdr.status)
+		return mlx5_cmd_status_to_err(&out.hdr);
+
+	return 0;
 }
+EXPORT_SYMBOL(mlx5_core_modify_cq);
 
 int mlx5_init_cq_table(struct mlx5_core_dev *dev)
 {

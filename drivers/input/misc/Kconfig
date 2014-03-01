@@ -168,7 +168,7 @@ config INPUT_MAX8997_HAPTIC
 
 config INPUT_MC13783_PWRBUTTON
 	tristate "MC13783 ON buttons"
-	depends on MFD_MC13783
+	depends on MFD_MC13XXX
 	help
 	  Support the ON buttons of MC13783 PMIC as an input device
 	  reporting power button status.

@@ -235,6 +235,8 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
+		DECLARE_BITMAP(active, entity->num_pads);
+		DECLARE_BITMAP(has_no_links, entity->num_pads);
 		unsigned int i;
 
 		entity->stream_count++;
@@ -248,20 +250,45 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 		if (!entity->ops || !entity->ops->link_validate)
 			continue;
 
+		bitmap_zero(active, entity->num_pads);
+		bitmap_fill(has_no_links, entity->num_pads);
+
 		for (i = 0; i < entity->num_links; i++) {
 			struct media_link *link = &entity->links[i];
+			struct media_pad *pad = link->sink->entity == entity
+						? link->sink : link->source;
 
-			/* Is this pad part of an enabled link? */
-			if (!(link->flags & MEDIA_LNK_FL_ENABLED))
-				continue;
+			/* Mark that a pad is connected by a link. */
+			bitmap_clear(has_no_links, pad->index, 1);
 
-			/* Are we the sink or not? */
-			if (link->sink->entity != entity)
+			/*
+			 * Pads that either do not need to connect or
+			 * are connected through an enabled link are
+			 * fine.
+			 */
+			if (!(pad->flags & MEDIA_PAD_FL_MUST_CONNECT) ||
+			    link->flags & MEDIA_LNK_FL_ENABLED)
+				bitmap_set(active, pad->index, 1);
+
+			/*
+			 * Link validation will only take place for
+			 * sink ends of the link that are enabled.
+			 */
+			if (link->sink != pad ||
+			    !(link->flags & MEDIA_LNK_FL_ENABLED))
 				continue;
 
 			ret = entity->ops->link_validate(link);
 			if (ret < 0 && ret != -ENOIOCTLCMD)
 				goto error;
+		}
+
+		/* Either no links or validated links are fine. */
+		bitmap_or(active, active, has_no_links, entity->num_pads);
+
+		if (!bitmap_full(active, entity->num_pads)) {
+			ret = -EPIPE;
+			goto error;
 		}
 	}
 

@@ -50,11 +50,12 @@ config SOC_OMAP5
 	bool "TI OMAP5"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
 	select CPU_V7
 	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_ARM_TWD if SMP
 	select HAVE_SMP
 	select HAVE_ARM_ARCH_TIMER
 	select ARM_ERRATA_798181 if SMP
@@ -63,6 +64,7 @@ config SOC_AM33XX
 	bool "TI AM33XX"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
 	select CPU_V7
 	select MULTI_IRQ_HANDLER
@@ -72,9 +74,21 @@ config SOC_AM43XX
 	depends on ARCH_MULTI_V7
 	select CPU_V7
 	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
 	select MULTI_IRQ_HANDLER
 	select ARM_GIC
 	select MACH_OMAP_GENERIC
+
+config SOC_DRA7XX
+	bool "TI DRA7XX"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
+	select ARM_CPU_SUSPEND if PM
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_SMP
+	select HAVE_ARM_ARCH_TIMER
 
 config ARCH_OMAP2PLUS
 	bool
@@ -127,14 +141,6 @@ config SOC_HAS_REALTIME_COUNTER
 	bool "Real time free running counter"
 	depends on SOC_OMAP5 || SOC_DRA7XX
 	default y
-
-config SOC_DRA7XX
-	bool "TI DRA7XX"
-	select ARM_ARCH_TIMER
-	select CPU_V7
-	select ARM_GIC
-	select HAVE_SMP
-	select COMMON_CLK
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -191,19 +197,6 @@ config MACH_OMAP2_TUSB6010
 	bool
 	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
-
-config MACH_OMAP_H4
-	bool "OMAP 2420 H4 board"
-	depends on SOC_OMAP2420
-	default y
-	select OMAP_DEBUG_DEVICES
-	select OMAP_PACKAGE_ZAF
-
-config MACH_OMAP_2430SDP
-	bool "OMAP 2430 SDP board"
-	depends on SOC_OMAP2430
-	default y
-	select OMAP_PACKAGE_ZAC
 
 config MACH_OMAP3_BEAGLE
 	bool "OMAP3 BEAGLE board"
@@ -279,9 +272,6 @@ config MACH_OMAP_3430SDP
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_NOKIA_N800
-       bool
-
 config MACH_NOKIA_N810
        bool
 
@@ -292,7 +282,6 @@ config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"
 	depends on SOC_OMAP2420
 	default y
-	select MACH_NOKIA_N800
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
 	select OMAP_PACKAGE_ZAC

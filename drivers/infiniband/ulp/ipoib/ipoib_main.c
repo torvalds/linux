@@ -104,6 +104,8 @@ int ipoib_open(struct net_device *dev)
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
+	netif_carrier_off(dev);
+
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	if (ipoib_pkey_dev_delay_open(dev))
@@ -1365,8 +1367,6 @@ void ipoib_setup(struct net_device *dev)
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 
 	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
-
-	netif_carrier_off(dev);
 
 	priv->dev = dev;
 

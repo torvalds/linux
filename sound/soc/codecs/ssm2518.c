@@ -549,13 +549,13 @@ static int ssm2518_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		right_slot = 0;
 	} else {
 		/* We assume the left channel < right channel */
-		left_slot = ffs(tx_mask);
-		tx_mask &= ~(1 << tx_mask);
+		left_slot = __ffs(tx_mask);
+		tx_mask &= ~(1 << left_slot);
 		if (tx_mask == 0) {
 			right_slot = left_slot;
 		} else {
-			right_slot = ffs(tx_mask);
-			tx_mask &= ~(1 << tx_mask);
+			right_slot = __ffs(tx_mask);
+			tx_mask &= ~(1 << right_slot);
 		}
 	}
 

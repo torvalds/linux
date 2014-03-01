@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -1194,6 +1193,7 @@ static void udc_reinit(struct pxa25x_udc *dev)
 		ep->stopped = 0;
 		INIT_LIST_HEAD (&ep->queue);
 		ep->pio_irqs = 0;
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->ep.maxpacket);
 	}
 
 	/* the rest was statically initialized, and is read-only */

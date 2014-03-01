@@ -84,6 +84,20 @@ void omap_control_usb_phy_power(struct device *dev, int on)
 		else
 			val |= OMAP_CTRL_USB2_PHY_PD;
 		break;
+
+	case OMAP_CTRL_TYPE_AM437USB2:
+		if (on) {
+			val &= ~(AM437X_CTRL_USB2_PHY_PD |
+					AM437X_CTRL_USB2_OTG_PD);
+			val |= (AM437X_CTRL_USB2_OTGVDET_EN |
+					AM437X_CTRL_USB2_OTGSESSEND_EN);
+		} else {
+			val &= ~(AM437X_CTRL_USB2_OTGVDET_EN |
+					AM437X_CTRL_USB2_OTGSESSEND_EN);
+			val |= (AM437X_CTRL_USB2_PHY_PD |
+					 AM437X_CTRL_USB2_OTG_PD);
+		}
+		break;
 	default:
 		dev_err(dev, "%s: type %d not recognized\n",
 					__func__, control_usb->type);
@@ -197,6 +211,7 @@ static const enum omap_control_usb_type otghs_data = OMAP_CTRL_TYPE_OTGHS;
 static const enum omap_control_usb_type usb2_data = OMAP_CTRL_TYPE_USB2;
 static const enum omap_control_usb_type pipe3_data = OMAP_CTRL_TYPE_PIPE3;
 static const enum omap_control_usb_type dra7usb2_data = OMAP_CTRL_TYPE_DRA7USB2;
+static const enum omap_control_usb_type am437usb2_data = OMAP_CTRL_TYPE_AM437USB2;
 
 static const struct of_device_id omap_control_usb_id_table[] = {
 	{
@@ -214,6 +229,10 @@ static const struct of_device_id omap_control_usb_id_table[] = {
 	{
 		.compatible = "ti,control-phy-dra7usb2",
 		.data = &dra7usb2_data,
+	},
+	{
+		.compatible = "ti,control-phy-am437usb2",
+		.data = &am437usb2_data,
 	},
 	{},
 };

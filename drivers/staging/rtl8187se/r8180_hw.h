@@ -555,14 +555,14 @@
 /* by amy for antenna			*/
 #define EEPROM_SW_REVD_OFFSET 0x3f
 
-/*  BIT[8-9] is for SW Antenna Diversity. 
+/*  BIT[8-9] is for SW Antenna Diversity.
  *  Only the value EEPROM_SW_AD_ENABLE means enable, other values are disable.
  */
 #define EEPROM_SW_AD_MASK			0x0300
 #define EEPROM_SW_AD_ENABLE			0x0100
 
 /* BIT[10-11] determine if Antenna 1 is the Default Antenna.
- * Only the value EEPROM_DEF_ANT_1 means TRUE, other values are FALSE.	
+ * Only the value EEPROM_DEF_ANT_1 means TRUE, other values are FALSE.
  */
 #define EEPROM_DEF_ANT_MASK			0x0C00
 #define EEPROM_DEF_ANT_1			0x0400

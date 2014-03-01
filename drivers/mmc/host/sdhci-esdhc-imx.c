@@ -27,6 +27,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/mmc-esdhc-imx.h>
+#include <linux/pm_runtime.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 
@@ -45,6 +46,8 @@
 #define  ESDHC_MIX_CTRL_FBCLK_SEL	(1 << 25)
 /* Bits 3 and 6 are not SDHCI standard definitions */
 #define  ESDHC_MIX_CTRL_SDHCI_MASK	0xb7
+/* Tuning bits */
+#define  ESDHC_MIX_CTRL_TUNING_MASK	0x03c00000
 
 /* dll control register */
 #define ESDHC_DLL_CTRL			0x60
@@ -385,6 +388,22 @@ static u16 esdhc_readw_le(struct sdhci_host *host, int reg)
 		return ret;
 	}
 
+	if (unlikely(reg == SDHCI_TRANSFER_MODE)) {
+		if (esdhc_is_usdhc(imx_data)) {
+			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
+			ret = m & ESDHC_MIX_CTRL_SDHCI_MASK;
+			/* Swap AC23 bit */
+			if (m & ESDHC_MIX_CTRL_AC23EN) {
+				ret &= ~ESDHC_MIX_CTRL_AC23EN;
+				ret |= SDHCI_TRNS_AUTO_CMD23;
+			}
+		} else {
+			ret = readw(host->ioaddr + SDHCI_TRANSFER_MODE);
+		}
+
+		return ret;
+	}
+
 	return readw(host->ioaddr + reg);
 }
 
@@ -421,24 +440,20 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		} else if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING) {
 			u32 v = readl(host->ioaddr + SDHCI_ACMD12_ERR);
 			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
-			new_val = readl(host->ioaddr + ESDHC_TUNING_CTRL);
-			if (val & SDHCI_CTRL_EXEC_TUNING) {
-				new_val |= ESDHC_STD_TUNING_EN |
-						ESDHC_TUNING_START_TAP;
-				v |= ESDHC_MIX_CTRL_EXE_TUNE;
-				m |= ESDHC_MIX_CTRL_FBCLK_SEL;
+			if (val & SDHCI_CTRL_TUNED_CLK) {
+				v |= ESDHC_MIX_CTRL_SMPCLK_SEL;
 			} else {
-				new_val &= ~ESDHC_STD_TUNING_EN;
-				v &= ~ESDHC_MIX_CTRL_EXE_TUNE;
+				v &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
 				m &= ~ESDHC_MIX_CTRL_FBCLK_SEL;
 			}
 
-			if (val & SDHCI_CTRL_TUNED_CLK)
-				v |= ESDHC_MIX_CTRL_SMPCLK_SEL;
-			else
-				v &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
+			if (val & SDHCI_CTRL_EXEC_TUNING) {
+				v |= ESDHC_MIX_CTRL_EXE_TUNE;
+				m |= ESDHC_MIX_CTRL_FBCLK_SEL;
+			} else {
+				v &= ~ESDHC_MIX_CTRL_EXE_TUNE;
+			}
 
-			writel(new_val, host->ioaddr + ESDHC_TUNING_CTRL);
 			writel(v, host->ioaddr + SDHCI_ACMD12_ERR);
 			writel(m, host->ioaddr + ESDHC_MIX_CTRL);
 		}
@@ -546,7 +561,10 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		 * Do it manually here.
 		 */
 		if (esdhc_is_usdhc(imx_data)) {
-			writel(0, host->ioaddr + ESDHC_MIX_CTRL);
+			/* the tuning bits should be kept during reset */
+			new_val = readl(host->ioaddr + ESDHC_MIX_CTRL);
+			writel(new_val & ESDHC_MIX_CTRL_TUNING_MASK,
+					host->ioaddr + ESDHC_MIX_CTRL);
 			imx_data->is_ddr = 0;
 		}
 	}
@@ -558,19 +576,17 @@ static unsigned int esdhc_pltfm_get_max_clock(struct sdhci_host *host)
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 
-	u32 f_host = clk_get_rate(pltfm_host->clk);
-
-	if (boarddata->f_max && (boarddata->f_max < f_host))
+	if (boarddata->f_max && (boarddata->f_max < pltfm_host->clock))
 		return boarddata->f_max;
 	else
-		return f_host;
+		return pltfm_host->clock;
 }
 
 static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 
-	return clk_get_rate(pltfm_host->clk) / 256 / 16;
+	return pltfm_host->clock / 256 / 16;
 }
 
 static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
@@ -578,7 +594,7 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
-	unsigned int host_clock = clk_get_rate(pltfm_host->clk);
+	unsigned int host_clock = pltfm_host->clock;
 	int pre_div = 2;
 	int div = 1;
 	u32 temp, val;
@@ -681,6 +697,7 @@ static void esdhc_prepare_tuning(struct sdhci_host *host, u32 val)
 	/* FIXME: delay a bit for card to be ready for next tuning due to errors */
 	mdelay(1);
 
+	pm_runtime_get_sync(host->mmc->parent);
 	reg = readl(host->ioaddr + ESDHC_MIX_CTRL);
 	reg |= ESDHC_MIX_CTRL_EXE_TUNE | ESDHC_MIX_CTRL_SMPCLK_SEL |
 			ESDHC_MIX_CTRL_FBCLK_SEL;
@@ -699,7 +716,7 @@ static void esdhc_request_done(struct mmc_request *mrq)
 static int esdhc_send_tuning_cmd(struct sdhci_host *host, u32 opcode)
 {
 	struct mmc_command cmd = {0};
-	struct mmc_request mrq = {0};
+	struct mmc_request mrq = {NULL};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
 	char tuning_pattern[ESDHC_TUNING_BLOCK_PATTERN_LEN];
@@ -809,6 +826,7 @@ static int esdhc_change_pinstate(struct sdhci_host *host,
 		pinctrl = imx_data->pins_100mhz;
 		break;
 	case MMC_TIMING_UHS_SDR104:
+	case MMC_TIMING_MMC_HS200:
 		pinctrl = imx_data->pins_200mhz;
 		break;
 	default:
@@ -836,6 +854,7 @@ static int esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 		imx_data->uhs_mode = SDHCI_CTRL_UHS_SDR50;
 		break;
 	case MMC_TIMING_UHS_SDR104:
+	case MMC_TIMING_MMC_HS200:
 		imx_data->uhs_mode = SDHCI_CTRL_UHS_SDR104;
 		break;
 	case MMC_TIMING_UHS_DDR50:
@@ -976,7 +995,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	}
 
 	pltfm_host->clk = imx_data->clk_per;
-
+	pltfm_host->clock = clk_get_rate(pltfm_host->clk);
 	clk_prepare_enable(imx_data->clk_per);
 	clk_prepare_enable(imx_data->clk_ipg);
 	clk_prepare_enable(imx_data->clk_ahb);
@@ -1009,11 +1028,18 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (esdhc_is_usdhc(imx_data)) {
 		writel(0x08100810, host->ioaddr + ESDHC_WTMK_LVL);
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
+		host->mmc->caps |= MMC_CAP_1_8V_DDR;
 	}
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING)
 		sdhci_esdhc_ops.platform_execute_tuning =
 					esdhc_executing_tuning;
+
+	if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING)
+		writel(readl(host->ioaddr + ESDHC_TUNING_CTRL) |
+			ESDHC_STD_TUNING_EN | ESDHC_TUNING_START_TAP,
+			host->ioaddr + ESDHC_TUNING_CTRL);
+
 	boarddata = &imx_data->boarddata;
 	if (sdhci_esdhc_imx_probe_dt(pdev, boarddata) < 0) {
 		if (!host->mmc->parent->platform_data) {
@@ -1053,7 +1079,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		break;
 
 	case ESDHC_CD_PERMANENT:
-		host->mmc->caps = MMC_CAP_NONREMOVABLE;
+		host->mmc->caps |= MMC_CAP_NONREMOVABLE;
 		break;
 
 	case ESDHC_CD_NONE:
@@ -1094,6 +1120,12 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (err)
 		goto disable_clk;
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_suspend_ignore_children(&pdev->dev, 1);
+
 	return 0;
 
 disable_clk:
@@ -1114,21 +1146,63 @@ static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, dead);
 
-	clk_disable_unprepare(imx_data->clk_per);
-	clk_disable_unprepare(imx_data->clk_ipg);
-	clk_disable_unprepare(imx_data->clk_ahb);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
+	if (!IS_ENABLED(CONFIG_PM_RUNTIME)) {
+		clk_disable_unprepare(imx_data->clk_per);
+		clk_disable_unprepare(imx_data->clk_ipg);
+		clk_disable_unprepare(imx_data->clk_ahb);
+	}
 
 	sdhci_pltfm_free(pdev);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int sdhci_esdhc_runtime_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	int ret;
+
+	ret = sdhci_runtime_suspend_host(host);
+
+	clk_disable_unprepare(imx_data->clk_per);
+	clk_disable_unprepare(imx_data->clk_ipg);
+	clk_disable_unprepare(imx_data->clk_ahb);
+
+	return ret;
+}
+
+static int sdhci_esdhc_runtime_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+
+	clk_prepare_enable(imx_data->clk_per);
+	clk_prepare_enable(imx_data->clk_ipg);
+	clk_prepare_enable(imx_data->clk_ahb);
+
+	return sdhci_runtime_resume_host(host);
+}
+#endif
+
+static const struct dev_pm_ops sdhci_esdhc_pmops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pltfm_suspend, sdhci_pltfm_resume)
+	SET_RUNTIME_PM_OPS(sdhci_esdhc_runtime_suspend,
+				sdhci_esdhc_runtime_resume, NULL)
+};
+
 static struct platform_driver sdhci_esdhc_imx_driver = {
 	.driver		= {
 		.name	= "sdhci-esdhc-imx",
 		.owner	= THIS_MODULE,
 		.of_match_table = imx_esdhc_dt_ids,
-		.pm	= SDHCI_PLTFM_PMOPS,
+		.pm	= &sdhci_esdhc_pmops,
 	},
 	.id_table	= imx_esdhc_devtype,
 	.probe		= sdhci_esdhc_imx_probe,

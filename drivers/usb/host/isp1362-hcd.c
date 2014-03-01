@@ -67,7 +67,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
@@ -2746,6 +2745,8 @@ static int isp1362_probe(struct platform_device *pdev)
 	retval = usb_add_hcd(hcd, irq, irq_flags | IRQF_SHARED);
 	if (retval != 0)
 		goto err6;
+	device_wakeup_enable(hcd->self.controller);
+
 	pr_info("%s, irq %d\n", hcd->product_desc, irq);
 
 	create_debug_file(isp1362_hcd);
@@ -2829,7 +2830,7 @@ static struct platform_driver isp1362_driver = {
 	.suspend = isp1362_suspend,
 	.resume = isp1362_resume,
 	.driver = {
-		.name = (char *)hcd_name,
+		.name = hcd_name,
 		.owner = THIS_MODULE,
 	},
 };

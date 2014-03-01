@@ -105,8 +105,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	secondary_data.pgdir = get_arch_pgd(idmap_pgd);
 	secondary_data.swapper_pg_dir = get_arch_pgd(swapper_pg_dir);
 #endif
-	__cpuc_flush_dcache_area(&secondary_data, sizeof(secondary_data));
-	outer_clean_range(__pa(&secondary_data), __pa(&secondary_data + 1));
+	sync_cache_w(&secondary_data);
 
 	/*
 	 * Now bring the CPU into our world.
@@ -293,6 +292,9 @@ void __ref cpu_die(void)
 	 */
 	if (smp_ops.cpu_die)
 		smp_ops.cpu_die(cpu);
+
+	pr_warn("CPU%u: smp_ops.cpu_die() returned, trying to resuscitate\n",
+		cpu);
 
 	/*
 	 * Do not return to the idle loop - jump back to the secondary

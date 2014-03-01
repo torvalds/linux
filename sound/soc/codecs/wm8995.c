@@ -2293,7 +2293,7 @@ static struct spi_driver wm8995_spi_driver = {
 };
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8995_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -2350,7 +2350,7 @@ static int __init wm8995_modinit(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8995_i2c_driver);
 	if (ret) {
 		printk(KERN_ERR "Failed to register wm8995 I2C driver: %d\n",
@@ -2371,7 +2371,7 @@ module_init(wm8995_modinit);
 
 static void __exit wm8995_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8995_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

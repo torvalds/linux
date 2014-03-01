@@ -110,38 +110,6 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 }
 
 /*
- * The SMSC911x IRQ is connected to a GPIO pin, but the driver expects
- * to simply request an IRQ passed as a resource. So the GPIO pin needs
- * to be requested by this hog and set as input.
- */
-static int __init cpu8815_eth_init(void)
-{
-	struct device_node *eth;
-	int gpio, irq, err;
-
-	eth = of_find_node_by_path("/usb-s8815/ethernet-gpio");
-	if (!eth) {
-		pr_info("could not find any ethernet GPIO\n");
-		return 0;
-	}
-	gpio = of_get_gpio(eth, 0);
-	err = gpio_request(gpio, "eth_irq");
-	if (err) {
-		pr_info("failed to request ethernet GPIO\n");
-		return -ENODEV;
-	}
-	err = gpio_direction_input(gpio);
-	if (err) {
-		pr_info("failed to set ethernet GPIO as input\n");
-		return -ENODEV;
-	}
-	irq = gpio_to_irq(gpio);
-	pr_info("enabled USB-S8815 ethernet GPIO %d, IRQ %d\n", gpio, irq);
-	return 0;
-}
-device_initcall(cpu8815_eth_init);
-
-/*
  * This GPIO pin turns on a line that is used to detect card insertion
  * on this board.
  */

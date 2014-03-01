@@ -262,6 +262,8 @@ enum tid_aggr_state {
 struct ath9k_htc_sta {
 	u8 index;
 	enum tid_aggr_state tid_state[ATH9K_HTC_MAX_TID];
+	struct work_struct rc_update_work;
+	struct ath9k_htc_priv *htc_priv;
 };
 
 #define ATH9K_HTC_RXBUF 256
@@ -600,10 +602,15 @@ void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
 struct base_eep_header *ath9k_htc_get_eeprom_base(struct ath9k_htc_priv *priv);
 
 #ifdef CONFIG_MAC80211_LEDS
+void ath9k_configure_leds(struct ath9k_htc_priv *priv);
 void ath9k_init_leds(struct ath9k_htc_priv *priv);
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv);
 void ath9k_led_work(struct work_struct *work);
 #else
+static inline void ath9k_configure_leds(struct ath9k_htc_priv *priv)
+{
+}
+
 static inline void ath9k_init_leds(struct ath9k_htc_priv *priv)
 {
 }

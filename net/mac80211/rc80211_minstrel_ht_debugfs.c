@@ -54,8 +54,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 			int r = bitrates[j % 4];
 			p += sprintf(p, " %2u.%1uM", r / 10, r % 10);
 		} else {
-			p += sprintf(p, " MCS%-2u", (mg->streams - 1) *
-					 MCS_GROUP_RATES + j);
+			p += sprintf(p, " MCS%-2u", (mg->streams - 1) * 8 + j);
 		}
 
 		tp = mr->cur_tp / 10;

@@ -22,12 +22,27 @@
 
 #include "br_private.h"
 
-static const struct stp_proto br_stp_proto = {
-	.rcv	= br_stp_rcv,
-};
+static void __net_exit br_net_exit(struct net *net)
+{
+	struct net_device *dev;
+	LIST_HEAD(list);
+
+	rtnl_lock();
+	for_each_netdev(net, dev)
+		if (dev->priv_flags & IFF_EBRIDGE)
+			br_dev_delete(dev, &list);
+
+	unregister_netdevice_many(&list);
+	rtnl_unlock();
+
+}
 
 static struct pernet_operations br_net_ops = {
 	.exit	= br_net_exit,
+};
+
+static const struct stp_proto br_stp_proto = {
+	.rcv	= br_stp_rcv,
 };
 
 static int __init br_init(void)

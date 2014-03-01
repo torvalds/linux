@@ -231,6 +231,7 @@ struct iscsi_conn {
 	uint8_t			ipv6_traffic_class;
 	uint8_t			ipv6_flow_label;
 	uint8_t			is_fw_assigned_ipv6;
+	char			*local_ipaddr;
 
 	/* MIB-statistics */
 	uint64_t		txdata_octets;

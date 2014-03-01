@@ -335,9 +335,22 @@ static struct kobj_type blk_mq_hw_ktype = {
 void blk_mq_unregister_disk(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
+	struct blk_mq_hw_ctx *hctx;
+	struct blk_mq_ctx *ctx;
+	int i, j;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		hctx_for_each_ctx(hctx, ctx, j) {
+			kobject_del(&ctx->kobj);
+			kobject_put(&ctx->kobj);
+		}
+		kobject_del(&hctx->kobj);
+		kobject_put(&hctx->kobj);
+	}
 
 	kobject_uevent(&q->mq_kobj, KOBJ_REMOVE);
 	kobject_del(&q->mq_kobj);
+	kobject_put(&q->mq_kobj);
 
 	kobject_put(&disk_to_dev(disk)->kobj);
 }

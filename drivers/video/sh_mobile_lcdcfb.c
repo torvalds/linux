@@ -1227,7 +1227,7 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		/* Free the MERAM cache. */
 		if (ch->cache) {
 			sh_mobile_meram_cache_free(priv->meram_dev, ch->cache);
-			ch->cache = 0;
+			ch->cache = NULL;
 		}
 
 	}

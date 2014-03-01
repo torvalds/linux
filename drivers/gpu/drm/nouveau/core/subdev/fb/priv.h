@@ -34,7 +34,7 @@ extern struct nouveau_oclass nvc0_ram_oclass;
 extern struct nouveau_oclass nve0_ram_oclass;
 
 int nouveau_sddr3_calc(struct nouveau_ram *ram);
-int nouveau_gddr5_calc(struct nouveau_ram *ram);
+int nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts);
 
 #define nouveau_fb_create(p,e,c,d)                                             \
 	nouveau_fb_create_((p), (e), (c), sizeof(**d), (void **)d)

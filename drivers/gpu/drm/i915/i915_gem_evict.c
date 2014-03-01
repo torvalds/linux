@@ -27,8 +27,10 @@
  */
 
 #include <drm/drmP.h>
-#include "i915_drv.h"
 #include <drm/i915_drm.h>
+
+#include "i915_drv.h"
+#include "intel_drv.h"
 #include "i915_trace.h"
 
 static bool
@@ -53,6 +55,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	struct list_head eviction_list, unwind_list;
 	struct i915_vma *vma;
 	int ret = 0;
+	int pass = 0;
 
 	trace_i915_gem_evict(dev, min_size, alignment, mappable);
 
@@ -88,6 +91,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	} else
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
+search_again:
 	/* First see if there is a large enough contiguous idle region... */
 	list_for_each_entry(vma, &vm->inactive_list, mm_list) {
 		if (mark_free(vma, &unwind_list))
@@ -115,10 +119,27 @@ none:
 		list_del_init(&vma->exec_list);
 	}
 
-	/* We expect the caller to unpin, evict all and try again, or give up.
-	 * So calling i915_gem_evict_vm() is unnecessary.
+	/* Can we unpin some objects such as idle hw contents,
+	 * or pending flips?
 	 */
-	return -ENOSPC;
+	if (nonblocking)
+		return -ENOSPC;
+
+	/* Only idle the GPU and repeat the search once */
+	if (pass++ == 0) {
+		ret = i915_gpu_idle(dev);
+		if (ret)
+			return ret;
+
+		i915_gem_retire_requests(dev);
+		goto search_again;
+	}
+
+	/* If we still have pending pageflip completions, drop
+	 * back to userspace to give our workqueues time to
+	 * acquire our locks and unpin the old scanouts.
+	 */
+	return intel_has_pending_fb_unpin(dev) ? -EAGAIN : -ENOSPC;
 
 found:
 	/* drm_mm doesn't allow any other other operations while

@@ -98,10 +98,8 @@ struct ath9k_channel *ath9k_cmn_get_channel(struct ieee80211_hw *hw,
 {
 	struct ieee80211_channel *curchan = chandef->chan;
 	struct ath9k_channel *channel;
-	u8 chan_idx;
 
-	chan_idx = curchan->hw_value;
-	channel = &ah->channels[chan_idx];
+	channel = &ah->channels[curchan->hw_value];
 	ath9k_cmn_update_ichannel(channel, chandef);
 
 	return channel;

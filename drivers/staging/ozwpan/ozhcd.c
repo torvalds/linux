@@ -2270,6 +2270,8 @@ static int oz_plat_probe(struct platform_device *dev)
 		usb_put_hcd(hcd);
 		return -1;
 	}
+	device_wakeup_enable(hcd->self.controller);
+
 	spin_lock_bh(&g_hcdlock);
 	g_ozhcd = ozhcd;
 	spin_unlock_bh(&g_hcdlock);

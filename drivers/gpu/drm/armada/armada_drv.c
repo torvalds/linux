@@ -128,6 +128,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 	}
 
+	platform_set_drvdata(dev->platformdev, dev);
 	dev->dev_private = priv;
 
 	/* Get the implementation specific driver data. */
@@ -321,6 +322,11 @@ static struct drm_ioctl_desc armada_ioctls[] = {
 		DRM_UNLOCKED),
 };
 
+static void armada_drm_lastclose(struct drm_device *dev)
+{
+	armada_fbdev_lastclose(dev);
+}
+
 static const struct file_operations armada_drm_fops = {
 	.owner			= THIS_MODULE,
 	.llseek			= no_llseek,
@@ -337,7 +343,7 @@ static struct drm_driver armada_drm_driver = {
 	.open			= NULL,
 	.preclose		= NULL,
 	.postclose		= NULL,
-	.lastclose		= NULL,
+	.lastclose		= armada_drm_lastclose,
 	.unload			= armada_drm_unload,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= armada_drm_enable_vblank,
@@ -376,7 +382,7 @@ static int armada_drm_probe(struct platform_device *pdev)
 
 static int armada_drm_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&armada_drm_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 	return 0;
 }
 

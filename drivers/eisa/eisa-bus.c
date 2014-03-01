@@ -232,8 +232,10 @@ static int __init eisa_init_device(struct eisa_root_device *root,
 static int __init eisa_register_device(struct eisa_device *edev)
 {
 	int rc = device_register(&edev->dev);
-	if (rc)
+	if (rc) {
+		put_device(&edev->dev);
 		return rc;
+	}
 
 	rc = device_create_file(&edev->dev, &dev_attr_signature);
 	if (rc)
@@ -275,18 +277,19 @@ static int __init eisa_request_resources(struct eisa_root_device *root,
 		}
 		
 		if (slot) {
+			edev->res[i].name  = NULL;
 			edev->res[i].start = SLOT_ADDRESS(root, slot)
 					     + (i * 0x400);
 			edev->res[i].end   = edev->res[i].start + 0xff;
 			edev->res[i].flags = IORESOURCE_IO;
 		} else {
+			edev->res[i].name  = NULL;
 			edev->res[i].start = SLOT_ADDRESS(root, slot)
 					     + EISA_VENDOR_ID_OFFSET;
 			edev->res[i].end   = edev->res[i].start + 3;
 			edev->res[i].flags = IORESOURCE_IO | IORESOURCE_BUSY;
 		}
 
-		dev_printk(KERN_DEBUG, &edev->dev, "%pR\n", &edev->res[i]);
 		if (request_resource(root->res, &edev->res[i]))
 			goto failed;
 	}
@@ -326,19 +329,20 @@ static int __init eisa_probe(struct eisa_root_device *root)
 		return -ENOMEM;
 	}
 		
-	if (eisa_init_device(root, edev, 0)) {
-		kfree(edev);
-		if (!root->force_probe)
-			return -ENODEV;
-		goto force_probe;
-	}
-
 	if (eisa_request_resources(root, edev, 0)) {
 		dev_warn(root->dev,
 		         "EISA: Cannot allocate resource for mainboard\n");
 		kfree(edev);
 		if (!root->force_probe)
 			return -EBUSY;
+		goto force_probe;
+	}
+
+	if (eisa_init_device(root, edev, 0)) {
+		eisa_release_resources(edev);
+		kfree(edev);
+		if (!root->force_probe)
+			return -ENODEV;
 		goto force_probe;
 	}
 
@@ -361,15 +365,16 @@ static int __init eisa_probe(struct eisa_root_device *root)
 			continue;
 		}
 
-		if (eisa_init_device(root, edev, i)) {
-			kfree(edev);
-			continue;
-		}
-
 		if (eisa_request_resources(root, edev, i)) {
 			dev_warn(root->dev,
 			         "Cannot allocate resource for EISA slot %d\n",
 			         i);
+			kfree(edev);
+			continue;
+		}
+
+		if (eisa_init_device(root, edev, i)) {
+			eisa_release_resources(edev);
 			kfree(edev);
 			continue;
 		}

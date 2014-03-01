@@ -32,7 +32,6 @@ Optional controller properties:
 * Ethernet port node
 
 Required port properties:
- - device_type: shall be "network".
  - compatible: shall be one of "marvell,orion-eth-port",
       "marvell,kirkwood-eth-port".
  - reg: port number relative to ethernet controller, shall be 0, 1, or 2.
@@ -61,7 +60,6 @@ or
 mdio-bus {
 	...
 	ethphy: ethernet-phy@8 {
-		device_type = "ethernet-phy";
 		...
 	};
 };
@@ -75,7 +73,6 @@ eth: ethernet-controller@72000 {
 	marvell,tx-checksum-limit = <1600>;
 
 	ethernet@0 {
-		device_type = "network";
 		compatible = "marvell,orion-eth-port";
 		reg = <0>;
 		interrupts = <29>;

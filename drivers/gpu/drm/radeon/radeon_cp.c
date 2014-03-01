@@ -2020,10 +2020,10 @@ static int radeon_cp_get_buffers(struct drm_device *dev,
 
 		buf->file_priv = file_priv;
 
-		if (DRM_COPY_TO_USER(&d->request_indices[i], &buf->idx,
+		if (copy_to_user(&d->request_indices[i], &buf->idx,
 				     sizeof(buf->idx)))
 			return -EFAULT;
-		if (DRM_COPY_TO_USER(&d->request_sizes[i], &buf->total,
+		if (copy_to_user(&d->request_sizes[i], &buf->total,
 				     sizeof(buf->total)))
 			return -EFAULT;
 
@@ -2228,7 +2228,7 @@ void radeon_commit_ring(drm_radeon_private_t *dev_priv)
 
 	dev_priv->ring.tail &= dev_priv->ring.tail_mask;
 
-	DRM_MEMORYBARRIER();
+	mb();
 	GET_RING_HEAD( dev_priv );
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {

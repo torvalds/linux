@@ -1235,7 +1235,9 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 #ifdef VMXNET3_RSS
 			if (rcd->rssType != VMXNET3_RCD_RSS_TYPE_NONE &&
 			    (adapter->netdev->features & NETIF_F_RXHASH))
-				ctx->skb->rxhash = le32_to_cpu(rcd->rssHash);
+				skb_set_hash(ctx->skb,
+					     le32_to_cpu(rcd->rssHash),
+					     PKT_HASH_TYPE_L3);
 #endif
 			skb_put(ctx->skb, rcd->len);
 
@@ -3132,7 +3134,6 @@ err_alloc_queue_desc:
 err_alloc_shared:
 	dma_unmap_single(&adapter->pdev->dev, adapter->adapter_pa,
 			 sizeof(struct vmxnet3_adapter), PCI_DMA_TODEVICE);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	return err;
 }

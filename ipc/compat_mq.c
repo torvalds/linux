@@ -64,7 +64,7 @@ asmlinkage long compat_sys_mq_open(const char __user *u_name,
 	return sys_mq_open(u_name, oflag, mode, p);
 }
 
-static int compat_prepare_timeout(struct timespec __user * *p,
+static int compat_prepare_timeout(struct timespec __user **p,
 				  const struct compat_timespec __user *u)
 {
 	struct timespec ts;

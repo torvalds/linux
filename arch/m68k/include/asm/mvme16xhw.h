@@ -3,23 +3,6 @@
 
 #include <asm/irq.h>
 
-/* Board ID data structure - pointer to this retrieved from Bug by head.S */
-
-/* Note, bytes 12 and 13 are board no in BCD (0162,0166,0167,0177,etc) */
-
-extern long mvme_bdid_ptr;
-
-typedef struct {
-	char	bdid[4];
-	u_char	rev, mth, day, yr;
-	u_short	size, reserved;
-	u_short	brdno;
-	char brdsuffix[2];
-	u_long	options;
-	u_short	clun, dlun, ctype, dnum;
-	u_long	option2;
-} t_bdid, *p_bdid;
-
 
 typedef struct {
 	u_char	ack_icr,

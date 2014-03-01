@@ -12,7 +12,7 @@
  *	Copyright (c) 2003       Margit Schubert-While <margitsw@t-online.de>
  *
  * derived in part from w83l785ts.c:
- *	Copyright (c) 2003-2004 Jean Delvare <khali@linux-fr.org>
+ *	Copyright (c) 2003-2004 Jean Delvare <jdelvare@suse.de>
  *
  * Ported to Linux 2.6 by Eric J. Bowersox <ericb@aspsys.com>
  *	Copyright (c) 2005 Aspen Systems, Inc.

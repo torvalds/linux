@@ -208,17 +208,18 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		  __entry->refs, __entry->compress_type)
 );
 
-#define show_ordered_flags(flags)					\
-	__print_symbolic(flags,						\
-		{ BTRFS_ORDERED_IO_DONE, 	"IO_DONE" 	},	\
-		{ BTRFS_ORDERED_COMPLETE, 	"COMPLETE" 	},	\
-		{ BTRFS_ORDERED_NOCOW, 		"NOCOW" 	},	\
-		{ BTRFS_ORDERED_COMPRESSED, 	"COMPRESSED" 	},	\
-		{ BTRFS_ORDERED_PREALLOC, 	"PREALLOC" 	},	\
-		{ BTRFS_ORDERED_DIRECT, 	"DIRECT" 	},	\
-		{ BTRFS_ORDERED_IOERR, 		"IOERR" 	},	\
-		{ BTRFS_ORDERED_UPDATED_ISIZE, 	"UPDATED_ISIZE"	},	\
-		{ BTRFS_ORDERED_LOGGED_CSUM, 	"LOGGED_CSUM"	})
+#define show_ordered_flags(flags)					   \
+	__print_flags(flags, "|",					   \
+		{ (1 << BTRFS_ORDERED_IO_DONE), 	"IO_DONE" 	}, \
+		{ (1 << BTRFS_ORDERED_COMPLETE), 	"COMPLETE" 	}, \
+		{ (1 << BTRFS_ORDERED_NOCOW), 		"NOCOW" 	}, \
+		{ (1 << BTRFS_ORDERED_COMPRESSED), 	"COMPRESSED" 	}, \
+		{ (1 << BTRFS_ORDERED_PREALLOC), 	"PREALLOC" 	}, \
+		{ (1 << BTRFS_ORDERED_DIRECT),	 	"DIRECT" 	}, \
+		{ (1 << BTRFS_ORDERED_IOERR), 		"IOERR" 	}, \
+		{ (1 << BTRFS_ORDERED_UPDATED_ISIZE), 	"UPDATED_ISIZE"	}, \
+		{ (1 << BTRFS_ORDERED_LOGGED_CSUM), 	"LOGGED_CSUM"	}, \
+		{ (1 << BTRFS_ORDERED_TRUNCATED), 	"TRUNCATED"	})
 
 
 DECLARE_EVENT_CLASS(btrfs__ordered_extent,

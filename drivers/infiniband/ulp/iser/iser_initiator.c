@@ -610,11 +610,12 @@ void iser_snd_completion(struct iser_tx_desc *tx_desc,
 		ib_dma_unmap_single(device->ib_device, tx_desc->dma_addr,
 					ISER_HEADERS_LEN, DMA_TO_DEVICE);
 		kmem_cache_free(ig.desc_cache, tx_desc);
+		tx_desc = NULL;
 	}
 
 	atomic_dec(&ib_conn->post_send_buf_count);
 
-	if (tx_desc->type == ISCSI_TX_CONTROL) {
+	if (tx_desc && tx_desc->type == ISCSI_TX_CONTROL) {
 		/* this arithmetic is legal by libiscsi dd_data allocation */
 		task = (void *) ((long)(void *)tx_desc -
 				  sizeof(struct iscsi_task));

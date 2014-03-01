@@ -34,3 +34,4 @@ generic-y += timex.h
 generic-y += trace_clock.h
 generic-y += unaligned.h
 generic-y += preempt.h
+generic-y += hash.h

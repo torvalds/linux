@@ -6,6 +6,9 @@ Required properties:
 	- atmel,at91sam9g45-ssc: support dma transfer
 - reg: Should contain SSC registers location and length
 - interrupts: Should contain SSC interrupt
+- clock-names: tuple listing input clock names.
+	Required elements: "pclk"
+- clocks: phandles to input clocks.
 
 
 Required properties for devices compatible with "atmel,at91sam9g45-ssc":
@@ -20,6 +23,8 @@ ssc0: ssc@fffbc000 {
 	compatible = "atmel,at91rm9200-ssc";
 	reg = <0xfffbc000 0x4000>;
 	interrupts = <14 4 5>;
+	clocks = <&ssc0_clk>;
+	clock-names = "pclk";
 };
 
 - DMA transfer:

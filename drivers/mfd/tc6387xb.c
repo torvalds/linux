@@ -126,7 +126,7 @@ static struct tmio_mmc_data tc6387xb_mmc_data = {
 
 /*--------------------------------------------------------------------------*/
 
-static struct mfd_cell tc6387xb_cells[] = {
+static const struct mfd_cell tc6387xb_cells[] = {
 	[TC6387XB_CELL_MMC] = {
 		.name = "tmio-mmc",
 		.enable = tc6387xb_mmc_enable,

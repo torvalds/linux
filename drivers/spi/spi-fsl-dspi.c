@@ -320,8 +320,10 @@ static void dspi_chipselect(struct spi_device *spi, int value)
 	switch (value) {
 	case BITBANG_CS_ACTIVE:
 		pushr |= SPI_PUSHR_CONT;
+		break;
 	case BITBANG_CS_INACTIVE:
 		pushr &= ~SPI_PUSHR_CONT;
+		break;
 	}
 
 	writel(pushr, dspi->base + SPI_PUSHR);
@@ -372,9 +374,6 @@ static int dspi_setup(struct spi_device *spi)
 {
 	if (!spi->max_speed_hz)
 		return -EINVAL;
-
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
 
 	return dspi_setup_transfer(spi, NULL);
 }

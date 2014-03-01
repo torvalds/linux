@@ -4,7 +4,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/mm.h>
 #include <linux/swap.h>

@@ -61,7 +61,7 @@ static inline uint32_t timer_read(void)
 	return __raw_readl(mmp_timer_base + TMR_CVWR(1));
 }
 
-static u32 notrace mmp_read_sched_clock(void)
+static u64 notrace mmp_read_sched_clock(void)
 {
 	return timer_read();
 }
@@ -195,7 +195,7 @@ void __init timer_init(int irq)
 {
 	timer_config();
 
-	setup_sched_clock(mmp_read_sched_clock, 32, CLOCK_TICK_RATE);
+	sched_clock_register(mmp_read_sched_clock, 32, CLOCK_TICK_RATE);
 
 	ckevt.cpumask = cpumask_of(0);
 

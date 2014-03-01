@@ -38,8 +38,8 @@
 
 	i2c@0 {
 		compatible = "i2c-gpio";
-		gpios = < &gpio0 8 0		/* sda */
-			&gpio0 9 0 >;		/* scl */
+		gpios = < &gpio0 8 GPIO_ACTIVE_HIGH		/* sda */
+			  &gpio0 9 GPIO_ACTIVE_HIGH>;		/* scl */
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 	};
 };
@@ -55,7 +55,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 };

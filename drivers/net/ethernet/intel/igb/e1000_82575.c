@@ -113,6 +113,59 @@ static bool igb_sgmii_uses_mdio_82575(struct e1000_hw *hw)
 }
 
 /**
+ *  igb_check_for_link_media_swap - Check which M88E1112 interface linked
+ *  @hw: pointer to the HW structure
+ *
+ *  Poll the M88E1112 interfaces to see which interface achieved link.
+ */
+static s32 igb_check_for_link_media_swap(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+	u8 port = 0;
+
+	/* Check the copper medium. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
+	if (ret_val)
+		return ret_val;
+
+	ret_val = phy->ops.read_reg(hw, E1000_M88E1112_STATUS, &data);
+	if (ret_val)
+		return ret_val;
+
+	if (data & E1000_M88E1112_STATUS_LINK)
+		port = E1000_MEDIA_PORT_COPPER;
+
+	/* Check the other medium. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 1);
+	if (ret_val)
+		return ret_val;
+
+	ret_val = phy->ops.read_reg(hw, E1000_M88E1112_STATUS, &data);
+	if (ret_val)
+		return ret_val;
+
+	/* reset page to 0 */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
+	if (ret_val)
+		return ret_val;
+
+	if (data & E1000_M88E1112_STATUS_LINK)
+		port = E1000_MEDIA_PORT_OTHER;
+
+	/* Determine if a swap needs to happen. */
+	if (port && (hw->dev_spec._82575.media_port != port)) {
+		hw->dev_spec._82575.media_port = port;
+		hw->dev_spec._82575.media_changed = true;
+	} else {
+		ret_val = igb_check_for_link_82575(hw);
+	}
+
+	return E1000_SUCCESS;
+}
+
+/**
  *  igb_init_phy_params_82575 - Init PHY func ptrs.
  *  @hw: pointer to the HW structure
  **/
@@ -189,6 +242,29 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 		else
 			phy->ops.get_cable_length = igb_get_cable_length_m88;
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_m88;
+		/* Check if this PHY is confgured for media swap. */
+		if (phy->id == M88E1112_E_PHY_ID) {
+			u16 data;
+
+			ret_val = phy->ops.write_reg(hw,
+						     E1000_M88E1112_PAGE_ADDR,
+						     2);
+			if (ret_val)
+				goto out;
+
+			ret_val = phy->ops.read_reg(hw,
+						    E1000_M88E1112_MAC_CTRL_1,
+						    &data);
+			if (ret_val)
+				goto out;
+
+			data = (data & E1000_M88E1112_MAC_CTRL_1_MODE_MASK) >>
+			       E1000_M88E1112_MAC_CTRL_1_MODE_SHIFT;
+			if (data == E1000_M88E1112_AUTO_COPPER_SGMII ||
+			    data == E1000_M88E1112_AUTO_COPPER_BASEX)
+				hw->mac.ops.check_for_link =
+						igb_check_for_link_media_swap;
+		}
 		break;
 	case IGP03E1000_E_PHY_ID:
 		phy->type = e1000_phy_igp_3;
@@ -365,6 +441,19 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 			? igb_setup_copper_link_82575
 			: igb_setup_serdes_link_82575;
 
+	if (mac->type == e1000_82580) {
+		switch (hw->device_id) {
+		/* feature not supported on these id's */
+		case E1000_DEV_ID_DH89XXCC_SGMII:
+		case E1000_DEV_ID_DH89XXCC_SERDES:
+		case E1000_DEV_ID_DH89XXCC_BACKPLANE:
+		case E1000_DEV_ID_DH89XXCC_SFP:
+			break;
+		default:
+			hw->dev_spec._82575.mas_capable = true;
+			break;
+		}
+	}
 	return 0;
 }
 

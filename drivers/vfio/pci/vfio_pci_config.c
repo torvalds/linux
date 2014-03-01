@@ -975,20 +975,20 @@ static int vfio_vc_cap_len(struct vfio_pci_device *vdev, u16 pos)
 	int ret, evcc, phases, vc_arb;
 	int len = PCI_CAP_VC_BASE_SIZEOF;
 
-	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_REG1, &tmp);
+	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_CAP1, &tmp);
 	if (ret)
 		return pcibios_err_to_errno(ret);
 
-	evcc = tmp & PCI_VC_REG1_EVCC; /* extended vc count */
-	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_REG2, &tmp);
+	evcc = tmp & PCI_VC_CAP1_EVCC; /* extended vc count */
+	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_CAP2, &tmp);
 	if (ret)
 		return pcibios_err_to_errno(ret);
 
-	if (tmp & PCI_VC_REG2_128_PHASE)
+	if (tmp & PCI_VC_CAP2_128_PHASE)
 		phases = 128;
-	else if (tmp & PCI_VC_REG2_64_PHASE)
+	else if (tmp & PCI_VC_CAP2_64_PHASE)
 		phases = 64;
-	else if (tmp & PCI_VC_REG2_32_PHASE)
+	else if (tmp & PCI_VC_CAP2_32_PHASE)
 		phases = 32;
 	else
 		phases = 0;

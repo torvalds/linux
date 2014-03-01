@@ -53,7 +53,6 @@ struct v4l2_of_bus_parallel {
  * @port: identifier (value of reg property) of a port this endpoint belongs to
  * @id: identifier (value of reg property) of this endpoint
  * @local_node: pointer to device_node of this endpoint
- * @remote: phandle to remote endpoint node
  * @bus_type: bus type
  * @bus: bus configuration data structure
  * @head: list head for this structure
@@ -62,7 +61,6 @@ struct v4l2_of_endpoint {
 	unsigned int port;
 	unsigned int id;
 	const struct device_node *local_node;
-	const __be32 *remote;
 	enum v4l2_mbus_type bus_type;
 	union {
 		struct v4l2_of_bus_parallel parallel;
@@ -72,8 +70,8 @@ struct v4l2_of_endpoint {
 };
 
 #ifdef CONFIG_OF
-void v4l2_of_parse_endpoint(const struct device_node *node,
-				struct v4l2_of_endpoint *link);
+int v4l2_of_parse_endpoint(const struct device_node *node,
+			   struct v4l2_of_endpoint *endpoint);
 struct device_node *v4l2_of_get_next_endpoint(const struct device_node *parent,
 					struct device_node *previous);
 struct device_node *v4l2_of_get_remote_port_parent(

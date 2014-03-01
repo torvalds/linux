@@ -1,7 +1,7 @@
 /*
  *  w83627ehf - Driver for the hardware monitoring functionality of
  *		the Winbond W83627EHF Super-I/O chip
- *  Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  *  Copyright (C) 2006  Yuan Mu (Winbond),
  *			Rudolf Marek <r.marek@assembler.cz>
  *			David Hubbard <david.c.hubbard@gmail.com>
@@ -2889,7 +2889,7 @@ static void __exit sensors_w83627ehf_exit(void)
 	platform_driver_unregister(&w83627ehf_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83627EHF driver");
 MODULE_LICENSE("GPL");
 

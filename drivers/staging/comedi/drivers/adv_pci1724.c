@@ -116,8 +116,8 @@ enum board_id_contents {
 	BOARD_ID_MASK = 0xf
 };
 
-static const struct comedi_lrange ao_ranges_1724 = { 4,
-	{
+static const struct comedi_lrange ao_ranges_1724 = {
+	4, {
 		BIP_RANGE(10),
 		RANGE_mA(0, 20),
 		RANGE_mA(4, 20),
@@ -381,7 +381,7 @@ static int adv_pci1724_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adv_pci1724_pci_table) = {
+static const struct pci_device_id adv_pci1724_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1724) },
 	{ 0 }
 };

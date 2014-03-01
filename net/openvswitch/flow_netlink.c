@@ -266,6 +266,20 @@ static bool is_all_zero(const u8 *fp, size_t size)
 	return true;
 }
 
+static bool is_all_set(const u8 *fp, size_t size)
+{
+	int i;
+
+	if (!fp)
+		return false;
+
+	for (i = 0; i < size; i++)
+		if (fp[i] != 0xff)
+			return false;
+
+	return true;
+}
+
 static int __parse_flow_nlattrs(const struct nlattr *attr,
 				const struct nlattr *a[],
 				u64 *attrsp, bool nz)
@@ -487,8 +501,9 @@ static int metadata_from_nlattrs(struct sw_flow_match *match,  u64 *attrs,
 	return 0;
 }
 
-static int ovs_key_from_nlattrs(struct sw_flow_match *match,  u64 attrs,
-				const struct nlattr **a, bool is_mask)
+static int ovs_key_from_nlattrs(struct sw_flow_match *match,  bool *exact_5tuple,
+				u64 attrs, const struct nlattr **a,
+				bool is_mask)
 {
 	int err;
 	u64 orig_attrs = attrs;
@@ -545,6 +560,11 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match,  u64 attrs,
 		SW_FLOW_KEY_PUT(match, eth.type, htons(ETH_P_802_2), is_mask);
 	}
 
+	if (is_mask && exact_5tuple) {
+		if (match->mask->key.eth.type != htons(0xffff))
+			*exact_5tuple = false;
+	}
+
 	if (attrs & (1 << OVS_KEY_ATTR_IPV4)) {
 		const struct ovs_key_ipv4 *ipv4_key;
 
@@ -567,6 +587,13 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match,  u64 attrs,
 		SW_FLOW_KEY_PUT(match, ipv4.addr.dst,
 				ipv4_key->ipv4_dst, is_mask);
 		attrs &= ~(1 << OVS_KEY_ATTR_IPV4);
+
+		if (is_mask && exact_5tuple && *exact_5tuple) {
+			if (ipv4_key->ipv4_proto != 0xff ||
+			    ipv4_key->ipv4_src != htonl(0xffffffff) ||
+			    ipv4_key->ipv4_dst != htonl(0xffffffff))
+				*exact_5tuple = false;
+		}
 	}
 
 	if (attrs & (1 << OVS_KEY_ATTR_IPV6)) {
@@ -598,6 +625,13 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match,  u64 attrs,
 				is_mask);
 
 		attrs &= ~(1 << OVS_KEY_ATTR_IPV6);
+
+		if (is_mask && exact_5tuple && *exact_5tuple) {
+			if (ipv6_key->ipv6_proto != 0xff ||
+			    !is_all_set((u8 *)ipv6_key->ipv6_src, sizeof(match->key->ipv6.addr.src)) ||
+			    !is_all_set((u8 *)ipv6_key->ipv6_dst, sizeof(match->key->ipv6.addr.dst)))
+				*exact_5tuple = false;
+		}
 	}
 
 	if (attrs & (1 << OVS_KEY_ATTR_ARP)) {
@@ -640,6 +674,11 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match,  u64 attrs,
 					tcp_key->tcp_dst, is_mask);
 		}
 		attrs &= ~(1 << OVS_KEY_ATTR_TCP);
+
+		if (is_mask && exact_5tuple && *exact_5tuple &&
+		    (tcp_key->tcp_src != htons(0xffff) ||
+		     tcp_key->tcp_dst != htons(0xffff)))
+			*exact_5tuple = false;
 	}
 
 	if (attrs & (1 << OVS_KEY_ATTR_TCP_FLAGS)) {
@@ -671,6 +710,11 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match,  u64 attrs,
 					udp_key->udp_dst, is_mask);
 		}
 		attrs &= ~(1 << OVS_KEY_ATTR_UDP);
+
+		if (is_mask && exact_5tuple && *exact_5tuple &&
+		    (udp_key->udp_src != htons(0xffff) ||
+		     udp_key->udp_dst != htons(0xffff)))
+			*exact_5tuple = false;
 	}
 
 	if (attrs & (1 << OVS_KEY_ATTR_SCTP)) {
@@ -756,6 +800,7 @@ static void sw_flow_mask_set(struct sw_flow_mask *mask,
  * attribute specifies the mask field of the wildcarded flow.
  */
 int ovs_nla_get_match(struct sw_flow_match *match,
+		      bool *exact_5tuple,
 		      const struct nlattr *key,
 		      const struct nlattr *mask)
 {
@@ -803,9 +848,12 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 		}
 	}
 
-	err = ovs_key_from_nlattrs(match, key_attrs, a, false);
+	err = ovs_key_from_nlattrs(match, NULL, key_attrs, a, false);
 	if (err)
 		return err;
+
+	if (exact_5tuple)
+		*exact_5tuple = true;
 
 	if (mask) {
 		err = parse_flow_mask_nlattrs(mask, a, &mask_attrs);
@@ -844,7 +892,7 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 			}
 		}
 
-		err = ovs_key_from_nlattrs(match, mask_attrs, a, true);
+		err = ovs_key_from_nlattrs(match, exact_5tuple, mask_attrs, a, true);
 		if (err)
 			return err;
 	} else {
@@ -1128,19 +1176,11 @@ struct sw_flow_actions *ovs_nla_alloc_flow_actions(int size)
 	return sfa;
 }
 
-/* RCU callback used by ovs_nla_free_flow_actions. */
-static void rcu_free_acts_callback(struct rcu_head *rcu)
-{
-	struct sw_flow_actions *sf_acts = container_of(rcu,
-			struct sw_flow_actions, rcu);
-	kfree(sf_acts);
-}
-
 /* Schedules 'sf_acts' to be freed after the next RCU grace period.
  * The caller must hold rcu_read_lock for this to be sensible. */
 void ovs_nla_free_flow_actions(struct sw_flow_actions *sf_acts)
 {
-	call_rcu(&sf_acts->rcu, rcu_free_acts_callback);
+	kfree_rcu(sf_acts, rcu);
 }
 
 static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,

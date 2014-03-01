@@ -464,6 +464,11 @@ static struct ceph_pg_pool_info *__lookup_pg_pool(struct rb_root *root, u64 id)
 	return NULL;
 }
 
+struct ceph_pg_pool_info *ceph_pg_pool_by_id(struct ceph_osdmap *map, u64 id)
+{
+	return __lookup_pg_pool(&map->pg_pools, id);
+}
+
 const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id)
 {
 	struct ceph_pg_pool_info *pi;
@@ -514,8 +519,8 @@ static int __decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 		pr_warning("got v %d < 5 cv %d of ceph_pg_pool\n", ev, cv);
 		return -EINVAL;
 	}
-	if (cv > 7) {
-		pr_warning("got v %d cv %d > 7 of ceph_pg_pool\n", ev, cv);
+	if (cv > 9) {
+		pr_warning("got v %d cv %d > 9 of ceph_pg_pool\n", ev, cv);
 		return -EINVAL;
 	}
 	len = ceph_decode_32(p);
@@ -543,12 +548,34 @@ static int __decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 		*p += len;
 	}
 
-	/* skip removed snaps */
+	/* skip removed_snaps */
 	num = ceph_decode_32(p);
 	*p += num * (8 + 8);
 
 	*p += 8;  /* skip auid */
 	pi->flags = ceph_decode_64(p);
+	*p += 4;  /* skip crash_replay_interval */
+
+	if (ev >= 7)
+		*p += 1;  /* skip min_size */
+
+	if (ev >= 8)
+		*p += 8 + 8;  /* skip quota_max_* */
+
+	if (ev >= 9) {
+		/* skip tiers */
+		num = ceph_decode_32(p);
+		*p += num * 8;
+
+		*p += 8;  /* skip tier_of */
+		*p += 1;  /* skip cache_mode */
+
+		pi->read_tier = ceph_decode_64(p);
+		pi->write_tier = ceph_decode_64(p);
+	} else {
+		pi->read_tier = -1;
+		pi->write_tier = -1;
+	}
 
 	/* ignore the rest */
 
@@ -1090,25 +1117,40 @@ invalid:
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 
 /*
- * calculate an object layout (i.e. pgid) from an oid,
- * file_layout, and osdmap
+ * Calculate mapping of a (oloc, oid) pair to a PG.  Should only be
+ * called with target's (oloc, oid), since tiering isn't taken into
+ * account.
  */
-int ceph_calc_ceph_pg(struct ceph_pg *pg, const char *oid,
-			struct ceph_osdmap *osdmap, uint64_t pool)
+int ceph_oloc_oid_to_pg(struct ceph_osdmap *osdmap,
+			struct ceph_object_locator *oloc,
+			struct ceph_object_id *oid,
+			struct ceph_pg *pg_out)
 {
-	struct ceph_pg_pool_info *pool_info;
+	struct ceph_pg_pool_info *pi;
 
-	BUG_ON(!osdmap);
-	pool_info = __lookup_pg_pool(&osdmap->pg_pools, pool);
-	if (!pool_info)
+	pi = __lookup_pg_pool(&osdmap->pg_pools, oloc->pool);
+	if (!pi)
 		return -EIO;
-	pg->pool = pool;
-	pg->seed = ceph_str_hash(pool_info->object_hash, oid, strlen(oid));
 
-	dout("%s '%s' pgid %lld.%x\n", __func__, oid, pg->pool, pg->seed);
+	pg_out->pool = oloc->pool;
+	pg_out->seed = ceph_str_hash(pi->object_hash, oid->name,
+				     oid->name_len);
+
+	dout("%s '%.*s' pgid %llu.%x\n", __func__, oid->name_len, oid->name,
+	     pg_out->pool, pg_out->seed);
 	return 0;
 }
-EXPORT_SYMBOL(ceph_calc_ceph_pg);
+EXPORT_SYMBOL(ceph_oloc_oid_to_pg);
+
+static int crush_do_rule_ary(const struct crush_map *map, int ruleno, int x,
+			     int *result, int result_max,
+			     const __u32 *weight, int weight_max)
+{
+	int scratch[result_max * 3];
+
+	return crush_do_rule(map, ruleno, x, result, result_max,
+			     weight, weight_max, scratch);
+}
 
 /*
  * Calculate raw osd vector for the given pgid.  Return pointer to osd
@@ -1163,9 +1205,9 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 				      pool->pgp_num_mask) +
 			(unsigned)pgid.pool;
 	}
-	r = crush_do_rule(osdmap->crush, ruleno, pps, osds,
-			  min_t(int, pool->size, *num),
-			  osdmap->osd_weight);
+	r = crush_do_rule_ary(osdmap->crush, ruleno, pps,
+			      osds, min_t(int, pool->size, *num),
+			      osdmap->osd_weight, osdmap->max_osd);
 	if (r < 0) {
 		pr_err("error %d from crush rule: pool %lld ruleset %d type %d"
 		       " size %d\n", r, pgid.pool, pool->crush_ruleset,

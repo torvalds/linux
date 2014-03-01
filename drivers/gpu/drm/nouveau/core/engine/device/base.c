@@ -268,6 +268,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		if (ret)
 			return ret;
 
+		device->subdev[i] = devobj->subdev[i];
+
 		/* note: can't init *any* subdevs until devinit has been run
 		 * due to not knowing exactly what the vbios init tables will
 		 * mess with.  devinit also can't be run until all of its

@@ -17,7 +17,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -92,6 +91,12 @@ static int orion_mdio_wait_ready(struct mii_bus *bus)
 			if (time_is_before_jiffies(end))
 				++timedout;
 	        } else {
+			/* wait_event_timeout does not guarantee a delay of at
+			 * least one whole jiffie, so timeout must be no less
+			 * than two.
+			 */
+			if (timeout < 2)
+				timeout = 2;
 			wait_event_timeout(dev->smi_busy_wait,
 				           orion_mdio_smi_is_done(dev),
 				           timeout);

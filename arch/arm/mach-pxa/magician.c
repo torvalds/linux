@@ -634,7 +634,7 @@ static struct platform_device bq24022 = {
 static int magician_mci_init(struct device *dev,
 				irq_handler_t detect_irq, void *data)
 {
-	return request_irq(IRQ_MAGICIAN_SD, detect_irq, IRQF_DISABLED,
+	return request_irq(IRQ_MAGICIAN_SD, detect_irq, 0,
 			   "mmc card detect", data);
 }
 

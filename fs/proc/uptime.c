@@ -49,4 +49,4 @@ static int __init proc_uptime_init(void)
 	proc_create("uptime", 0, NULL, &uptime_proc_fops);
 	return 0;
 }
-module_init(proc_uptime_init);
+fs_initcall(proc_uptime_init);

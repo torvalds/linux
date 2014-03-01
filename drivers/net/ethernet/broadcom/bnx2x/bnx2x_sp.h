@@ -266,6 +266,13 @@ enum {
 	BNX2X_DONT_CONSUME_CAM_CREDIT,
 	BNX2X_DONT_CONSUME_CAM_CREDIT_DEST,
 };
+/* When looking for matching filters, some flags are not interesting */
+#define BNX2X_VLAN_MAC_CMP_MASK	(1 << BNX2X_UC_LIST_MAC | \
+				 1 << BNX2X_ETH_MAC | \
+				 1 << BNX2X_ISCSI_ETH_MAC | \
+				 1 << BNX2X_NETQ_ETH_MAC)
+#define BNX2X_VLAN_MAC_CMP_FLAGS(flags) \
+	((flags) & BNX2X_VLAN_MAC_CMP_MASK)
 
 struct bnx2x_vlan_mac_ramrod_params {
 	/* Object to run the command from */
@@ -440,9 +447,6 @@ enum {
 	BNX2X_LLH_CAM_ETH_LINE,
 	BNX2X_LLH_CAM_MAX_PF_LINE = NIG_REG_LLH1_FUNC_MEM_SIZE / 2
 };
-
-void bnx2x_set_mac_in_nig(struct bnx2x *bp,
-			  bool add, unsigned char *dev_addr, int index);
 
 /** RX_MODE verbs:DROP_ALL/ACCEPT_ALL/ACCEPT_ALL_MULTI/ACCEPT_ALL_VLAN/NORMAL */
 
@@ -763,7 +767,9 @@ enum {
 	BNX2X_Q_UPDATE_DEF_VLAN_EN,
 	BNX2X_Q_UPDATE_DEF_VLAN_EN_CHNG,
 	BNX2X_Q_UPDATE_SILENT_VLAN_REM_CHNG,
-	BNX2X_Q_UPDATE_SILENT_VLAN_REM
+	BNX2X_Q_UPDATE_SILENT_VLAN_REM,
+	BNX2X_Q_UPDATE_TX_SWITCHING_CHNG,
+	BNX2X_Q_UPDATE_TX_SWITCHING
 };
 
 /* Allowed Queue states */
@@ -1300,22 +1306,12 @@ void bnx2x_init_vlan_obj(struct bnx2x *bp,
 			 unsigned long *pstate, bnx2x_obj_type type,
 			 struct bnx2x_credit_pool_obj *vlans_pool);
 
-void bnx2x_init_vlan_mac_obj(struct bnx2x *bp,
-			     struct bnx2x_vlan_mac_obj *vlan_mac_obj,
-			     u8 cl_id, u32 cid, u8 func_id, void *rdata,
-			     dma_addr_t rdata_mapping, int state,
-			     unsigned long *pstate, bnx2x_obj_type type,
-			     struct bnx2x_credit_pool_obj *macs_pool,
-			     struct bnx2x_credit_pool_obj *vlans_pool);
-
 int bnx2x_vlan_mac_h_read_lock(struct bnx2x *bp,
 					struct bnx2x_vlan_mac_obj *o);
 void bnx2x_vlan_mac_h_read_unlock(struct bnx2x *bp,
 				  struct bnx2x_vlan_mac_obj *o);
 int bnx2x_vlan_mac_h_write_lock(struct bnx2x *bp,
 				struct bnx2x_vlan_mac_obj *o);
-void bnx2x_vlan_mac_h_write_unlock(struct bnx2x *bp,
-					  struct bnx2x_vlan_mac_obj *o);
 int bnx2x_config_vlan_mac(struct bnx2x *bp,
 			   struct bnx2x_vlan_mac_ramrod_params *p);
 

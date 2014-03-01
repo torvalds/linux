@@ -200,7 +200,7 @@ static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 		mid_pipe_event_handler(dev, 1);
 }
 
-irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
+irqreturn_t psb_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -253,7 +253,7 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 
 	PSB_WVDC32(vdc_stat, PSB_INT_IDENTITY_R);
 	(void) PSB_RVDC32(PSB_INT_IDENTITY_R);
-	DRM_READMEMORYBARRIER();
+	rmb();
 
 	if (!handled)
 		return IRQ_NONE;
@@ -449,21 +449,6 @@ int psb_irq_disable_dpst(struct drm_device *dev)
 
 	return 0;
 }
-
-#ifdef PSB_FIXME
-static int psb_vblank_do_wait(struct drm_device *dev,
-			      unsigned int *sequence, atomic_t *counter)
-{
-	unsigned int cur_vblank;
-	int ret = 0;
-	DRM_WAIT_ON(ret, dev->vblank.queue, 3 * DRM_HZ,
-		    (((cur_vblank = atomic_read(counter))
-		      - *sequence) <= (1 << 23)));
-	*sequence = cur_vblank;
-
-	return ret;
-}
-#endif
 
 /*
  * It is used to enable VBLANK interrupt

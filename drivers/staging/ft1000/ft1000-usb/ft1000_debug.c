@@ -560,6 +560,8 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 
                 /* Get the length field to see how many bytes to copy */
                 result = get_user(msgsz, (__u16 __user *)argp);
+		if (result)
+			break;
                 msgsz = ntohs(msgsz);
                 /* DEBUG("FT1000:ft1000_ioctl: length of message = %d\n", msgsz); */
 

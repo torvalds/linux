@@ -533,6 +533,9 @@ struct e1000_dev_spec_82575 {
 	bool clear_semaphore_once;
 	struct e1000_sfp_flags eth_flags;
 	bool module_plugged;
+	u8 media_port;
+	bool media_changed;
+	bool mas_capable;
 };
 
 struct e1000_hw {

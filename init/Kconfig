@@ -284,7 +284,7 @@ config AUDIT
 
 config AUDITSYSCALL
 	bool "Enable system-call auditing support"
-	depends on AUDIT && (X86 || PARISC || PPC || S390 || IA64 || UML || SPARC64 || SUPERH || (ARM && AEABI && !OABI_COMPAT))
+	depends on AUDIT && (X86 || PARISC || PPC || S390 || IA64 || UML || SPARC64 || SUPERH || (ARM && AEABI && !OABI_COMPAT) || ALPHA)
 	default y if SECURITY_SELINUX
 	help
 	  Enable low-overhead system-call auditing infrastructure that
@@ -532,7 +532,7 @@ config CONTEXT_TRACKING_FORCE
 	  dynticks subsystem by forcing the context tracking on all
 	  CPUs in the system.
 
-	  Say Y only if you're working on the developpement of an
+	  Say Y only if you're working on the development of an
 	  architecture backend for the context tracking.
 
 	  Say N otherwise, this option brings an overhead that you
@@ -809,6 +809,12 @@ config GENERIC_SCHED_CLOCK
 config ARCH_SUPPORTS_NUMA_BALANCING
 	bool
 
+#
+# For architectures that know their GCC __int128 support is sound
+#
+config ARCH_SUPPORTS_INT128
+	bool
+
 # For architectures that (ab)use NUMA to represent different memory regions
 # all cpu-local but of different latencies, such as SuperH.
 #
@@ -848,7 +854,6 @@ config NUMA_BALANCING
 
 menuconfig CGROUPS
 	boolean "Control Group support"
-	depends on EVENTFD
 	help
 	  This option adds support for grouping sets of processes together, for
 	  use with process control subsystems such as Cpusets, CFS, memory
@@ -915,6 +920,7 @@ config MEMCG
 	bool "Memory Resource Controller for Control Groups"
 	depends on RESOURCE_COUNTERS
 	select MM_OWNER
+	select EVENTFD
 	help
 	  Provides a memory resource controller that manages both anonymous
 	  memory and page cache. (See Documentation/cgroups/memory.txt)
@@ -1110,8 +1116,6 @@ config IPC_NS
 
 config USER_NS
 	bool "User namespace"
-	select UIDGID_STRICT_TYPE_CHECKS
-
 	default n
 	help
 	  This allows containers, i.e. vservers, to use user namespaces
@@ -1143,18 +1147,8 @@ config NET_NS
 
 endif # NAMESPACES
 
-config UIDGID_STRICT_TYPE_CHECKS
-	bool "Require conversions between uid/gids and their internal representation"
-	default n
-	help
-	 While the nececessary conversions are being added to all subsystems this option allows
-	 the code to continue to build for unconverted subsystems.
-
-	 Say Y here if you want the strict type checking enabled
-
 config SCHED_AUTOGROUP
 	bool "Automatic process group scheduling"
-	select EVENTFD
 	select CGROUPS
 	select CGROUP_SCHED
 	select FAIR_GROUP_SCHED

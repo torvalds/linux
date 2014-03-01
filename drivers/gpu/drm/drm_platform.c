@@ -147,18 +147,6 @@ int drm_platform_init(struct drm_driver *driver, struct platform_device *platfor
 
 	driver->kdriver.platform_device = platform_device;
 	driver->bus = &drm_platform_bus;
-	INIT_LIST_HEAD(&driver->device_list);
 	return drm_get_platform_dev(platform_device, driver);
 }
 EXPORT_SYMBOL(drm_platform_init);
-
-void drm_platform_exit(struct drm_driver *driver, struct platform_device *platform_device)
-{
-	struct drm_device *dev, *tmp;
-	DRM_DEBUG("\n");
-
-	list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
-		drm_put_dev(dev);
-	DRM_INFO("Module unloaded\n");
-}
-EXPORT_SYMBOL(drm_platform_exit);

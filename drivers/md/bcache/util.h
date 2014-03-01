@@ -2,6 +2,7 @@
 #ifndef _BCACHE_UTIL_H
 #define _BCACHE_UTIL_H
 
+#include <linux/blkdev.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/llist.h>
@@ -17,11 +18,13 @@ struct closure;
 
 #ifdef CONFIG_BCACHE_DEBUG
 
+#define EBUG_ON(cond)			BUG_ON(cond)
 #define atomic_dec_bug(v)	BUG_ON(atomic_dec_return(v) < 0)
 #define atomic_inc_bug(v, i)	BUG_ON(atomic_inc_return(v) <= i)
 
 #else /* DEBUG */
 
+#define EBUG_ON(cond)			do { if (cond); } while (0)
 #define atomic_dec_bug(v)	atomic_dec(v)
 #define atomic_inc_bug(v, i)	atomic_inc(v)
 
@@ -110,7 +113,7 @@ do {									\
 	_r;								\
 })
 
-#define heap_peek(h)	((h)->size ? (h)->data[0] : NULL)
+#define heap_peek(h)	((h)->used ? (h)->data[0] : NULL)
 
 #define heap_full(h)	((h)->used == (h)->size)
 
@@ -390,6 +393,11 @@ struct time_stats {
 };
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t time);
+
+static inline unsigned local_clock_us(void)
+{
+	return local_clock() >> 10;
+}
 
 #define NSEC_PER_ns			1L
 #define NSEC_PER_us			NSEC_PER_USEC

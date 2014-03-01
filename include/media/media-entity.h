@@ -24,6 +24,7 @@
 #define _MEDIA_ENTITY_H
 
 #include <linux/bitops.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/media.h>
 

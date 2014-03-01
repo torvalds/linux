@@ -235,10 +235,6 @@ Wysocki <rafael.j.wysocki@intel.com>.
       named object's type in the second column).  In that case the object's
       directory in sysfs will contain the 'path' attribute whose value is
       the full path to the node from the namespace root.
-      struct acpi_device objects are created for the ACPI namespace nodes
-      whose _STA control methods return PRESENT or FUNCTIONING.  The power
-      resource nodes or nodes without _STA are assumed to be both PRESENT
-      and FUNCTIONING.
    F:
       The struct acpi_device object is created for a fixed hardware
       feature (as indicated by the fixed feature flag's name in the second
@@ -340,7 +336,7 @@ Wysocki <rafael.j.wysocki@intel.com>.
      | +-------------+-------+----------------+
      |   |
      |   | +- - - - - - - +- - - - - - +- - - - - - - -+
-     |   +-| * PNP0C0D:00 | \_SB_.LID0 | acpi:PNP0C0D: |
+     |   +-| PNP0C0D:00 | \_SB_.LID0 | acpi:PNP0C0D: |
      |   | +- - - - - - - +- - - - - - +- - - - - - - -+
      |   |
      |   | +------------+------------+-----------------------+
@@ -390,6 +386,3 @@ Wysocki <rafael.j.wysocki@intel.com>.
             attribute (as described earlier in this document).
    NOTE: N/A indicates the device object does not have the 'path' or the
          'modalias' attribute.
-   NOTE: The PNP0C0D device listed above is highlighted (marked by "*")
-         to indicate it will be created only when its _STA methods return
-         PRESENT or FUNCTIONING.

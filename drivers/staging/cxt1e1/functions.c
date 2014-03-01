@@ -274,7 +274,7 @@ VMETRO_TRACE (void *x)
 void
 VMETRO_TRIGGER (ci_t *ci, int x)
 {
-    comet_t    *comet;
+    struct s_comet_reg    *comet;
     volatile u_int32_t data;
 
     comet = ci->port[0].cometbase;  /* default to COMET # 0 */

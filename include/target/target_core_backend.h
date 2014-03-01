@@ -41,6 +41,9 @@ struct se_subsystem_api {
 	unsigned int (*get_io_opt)(struct se_device *);
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
 	bool (*get_write_cache)(struct se_device *);
+	int (*init_prot)(struct se_device *);
+	int (*format_prot)(struct se_device *);
+	void (*free_prot)(struct se_device *);
 };
 
 struct sbc_ops {
@@ -70,6 +73,10 @@ sense_reason_t sbc_execute_unmap(struct se_cmd *cmd,
 	sense_reason_t (*do_unmap_fn)(struct se_cmd *cmd, void *priv,
 				      sector_t lba, sector_t nolb),
 	void *priv);
+sense_reason_t	sbc_dif_verify_write(struct se_cmd *, sector_t, unsigned int,
+				     unsigned int, struct scatterlist *, int);
+sense_reason_t	sbc_dif_verify_read(struct se_cmd *, sector_t, unsigned int,
+				    unsigned int, struct scatterlist *, int);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);

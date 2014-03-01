@@ -309,21 +309,24 @@ static int pfuze_identify(struct pfuze_chip *pfuze_chip)
 		return ret;
 
 	switch (value & 0x0f) {
-		/* Freescale misprogrammed 1-3% of parts prior to week 8 of 2013 as ID=8 */
-		case 0x8:
-			dev_info(pfuze_chip->dev, "Assuming misprogrammed ID=0x8");
-		case 0x0:
-			break;
-		default:
-			dev_warn(pfuze_chip->dev, "Illegal ID: %x\n", value);
-			return -ENODEV;
+	/*
+	 * Freescale misprogrammed 1-3% of parts prior to week 8 of 2013
+	 * as ID=8
+	 */
+	case 0x8:
+		dev_info(pfuze_chip->dev, "Assuming misprogrammed ID=0x8");
+	case 0x0:
+		break;
+	default:
+		dev_warn(pfuze_chip->dev, "Illegal ID: %x\n", value);
+		return -ENODEV;
 	}
 
 	ret = regmap_read(pfuze_chip->regmap, PFUZE100_REVID, &value);
 	if (ret)
 		return ret;
 	dev_info(pfuze_chip->dev,
-		 "Full lay: %x, Metal lay: %x\n",
+		 "Full layer: %x, Metal layer: %x\n",
 		 (value & 0xf0) >> 4, value & 0x0f);
 
 	ret = regmap_read(pfuze_chip->regmap, PFUZE100_FABID, &value);
@@ -408,27 +411,14 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		config.driver_data = pfuze_chip;
 		config.of_node = match_of_node(i);
 
-		pfuze_chip->regulators[i] = regulator_register(desc, &config);
+		pfuze_chip->regulators[i] =
+			devm_regulator_register(&client->dev, desc, &config);
 		if (IS_ERR(pfuze_chip->regulators[i])) {
 			dev_err(&client->dev, "register regulator%s failed\n",
 				pfuze100_regulators[i].desc.name);
-			ret = PTR_ERR(pfuze_chip->regulators[i]);
-			while (--i >= 0)
-				regulator_unregister(pfuze_chip->regulators[i]);
-			return ret;
+			return PTR_ERR(pfuze_chip->regulators[i]);
 		}
 	}
-
-	return 0;
-}
-
-static int pfuze100_regulator_remove(struct i2c_client *client)
-{
-	int i;
-	struct pfuze_chip *pfuze_chip = i2c_get_clientdata(client);
-
-	for (i = 0; i < PFUZE100_MAX_REGULATOR; i++)
-		regulator_unregister(pfuze_chip->regulators[i]);
 
 	return 0;
 }
@@ -441,7 +431,6 @@ static struct i2c_driver pfuze_driver = {
 		.of_match_table = pfuze_dt_ids,
 	},
 	.probe = pfuze100_regulator_probe,
-	.remove = pfuze100_regulator_remove,
 };
 module_i2c_driver(pfuze_driver);
 

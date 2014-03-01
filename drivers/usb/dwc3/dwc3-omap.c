@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/dwc3-omap.h>
 #include <linux/pm_runtime.h>
@@ -120,9 +119,6 @@
 #define USBOTGSS_UTMI_OTG_STATUS_VBUSVALID	(1 << 1)
 
 struct dwc3_omap {
-	/* device lock */
-	spinlock_t		lock;
-
 	struct device		*dev;
 
 	int			irq;
@@ -280,8 +276,6 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	struct dwc3_omap	*omap = _omap;
 	u32			reg;
 
-	spin_lock(&omap->lock);
-
 	reg = dwc3_omap_read_irqmisc_status(omap);
 
 	if (reg & USBOTGSS_IRQMISC_DMADISABLECLR) {
@@ -321,8 +315,6 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	reg = dwc3_omap_read_irq0_status(omap);
 
 	dwc3_omap_write_irq0_status(omap, reg);
-
-	spin_unlock(&omap->lock);
 
 	return IRQ_HANDLED;
 }
@@ -449,8 +441,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		}
 	}
 
-	spin_lock_init(&omap->lock);
-
 	omap->dev	= dev;
 	omap->irq	= irq;
 	omap->base	= base;
@@ -535,7 +525,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		edev = of_extcon_get_extcon_dev(dev, 0);
 		if (IS_ERR(edev)) {
 			dev_vdbg(dev, "couldn't get extcon device\n");
-			ret = PTR_ERR(edev);
+			ret = -EPROBE_DEFER;
 			goto err2;
 		}
 

@@ -42,9 +42,6 @@ static const struct snd_pcm_hardware tegra_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
-	.channels_min		= 2,
-	.channels_max		= 2,
 	.period_bytes_min	= 1024,
 	.period_bytes_max	= PAGE_SIZE,
 	.periods_min		= 2,
@@ -61,11 +58,22 @@ static const struct snd_dmaengine_pcm_config tegra_dmaengine_pcm_config = {
 
 int tegra_pcm_platform_register(struct device *dev)
 {
-	return snd_dmaengine_pcm_register(dev, &tegra_dmaengine_pcm_config,
-			SND_DMAENGINE_PCM_FLAG_NO_DT |
-			SND_DMAENGINE_PCM_FLAG_COMPAT);
+	return snd_dmaengine_pcm_register(dev, &tegra_dmaengine_pcm_config, 0);
 }
 EXPORT_SYMBOL_GPL(tegra_pcm_platform_register);
+
+int tegra_pcm_platform_register_with_chan_names(struct device *dev,
+				struct snd_dmaengine_pcm_config *config,
+				char *txdmachan, char *rxdmachan)
+{
+	*config = tegra_dmaengine_pcm_config;
+	config->dma_dev = dev->parent;
+	config->chan_names[0] = txdmachan;
+	config->chan_names[1] = rxdmachan;
+
+	return snd_dmaengine_pcm_register(dev, config, 0);
+}
+EXPORT_SYMBOL_GPL(tegra_pcm_platform_register_with_chan_names);
 
 void tegra_pcm_platform_unregister(struct device *dev)
 {

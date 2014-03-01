@@ -135,6 +135,7 @@ struct isp_xclk {
 	struct isp_device *isp;
 	struct clk_hw hw;
 	struct clk_lookup *lookup;
+	struct clk *clk;
 	enum isp_xclk_id id;
 
 	spinlock_t lock;	/* Protects enabled and divider */
@@ -151,9 +152,9 @@ struct isp_xclk {
  *             regions.
  * @mmio_base_phys: Array with physical L4 bus addresses for ISP register
  *                  regions.
- * @mmio_size: Array with ISP register regions size in bytes.
  * @stat_lock: Spinlock for handling statistics
  * @isp_mutex: Mutex for serializing requests to ISP.
+ * @stop_failure: Indicates that an entity failed to stop.
  * @crashed: Bitmask of crashed entities (indexed by entity ID)
  * @has_context: Context has been saved at least once and can be restored.
  * @ref_count: Reference count for handling multiple ISP requests.
@@ -187,11 +188,11 @@ struct isp_device {
 
 	void __iomem *mmio_base[OMAP3_ISP_IOMEM_LAST];
 	unsigned long mmio_base_phys[OMAP3_ISP_IOMEM_LAST];
-	resource_size_t mmio_size[OMAP3_ISP_IOMEM_LAST];
 
 	/* ISP Obj */
 	spinlock_t stat_lock;	/* common lock for statistic drivers */
 	struct mutex isp_mutex;	/* For handling ref_count field */
+	bool stop_failure;
 	u32 crashed;
 	int has_context;
 	int ref_count;
@@ -237,6 +238,7 @@ int omap3isp_module_sync_is_stopping(wait_queue_head_t *wait,
 
 int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 				 enum isp_pipeline_stream_state state);
+void omap3isp_pipeline_cancel_stream(struct isp_pipeline *pipe);
 void omap3isp_configure_bridge(struct isp_device *isp,
 			       enum ccdc_input_entity input,
 			       const struct isp_parallel_platform_data *pdata,

@@ -64,7 +64,7 @@
 			samsung,pins = "gpx0-7";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <0>;
-			samaung,pin-drv = <0>;
+			samsung,pin-drv = <0>;
 		};
 	};
 

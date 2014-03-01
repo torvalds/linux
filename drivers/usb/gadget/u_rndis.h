@@ -36,6 +36,8 @@ struct f_rndis_opts {
 	int				refcnt;
 };
 
+int rndis_init(void);
+void rndis_exit(void);
 void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net);
 
 #endif /* U_RNDIS_H */

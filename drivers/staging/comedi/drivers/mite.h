@@ -24,14 +24,7 @@
 #include <linux/slab.h>
 #include "../comedidev.h"
 
-/*  #define DEBUG_MITE */
 #define PCIMIO_COMPAT
-
-#ifdef DEBUG_MITE
-#define MDPRINTK(format, args...)	pr_debug(format , ## args)
-#else
-#define MDPRINTK(format, args...)	do { } while (0)
-#endif
 
 #define MAX_MITE_DMA_CHANNELS 8
 
@@ -128,11 +121,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 		    struct comedi_async *async);
-
-#ifdef DEBUG_MITE
-void mite_print_chsr(unsigned int chsr);
-void mite_dump_regs(struct mite_channel *mite_chan);
-#endif
 
 static inline int CHAN_OFFSET(int channel)
 {

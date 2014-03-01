@@ -138,8 +138,7 @@ int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
 	if (retval < 0) {
 		p9_debug(P9_DEBUG_VFS, "p9_client_xattrcreate failed %d\n",
 			 retval);
-		p9_client_clunk(fid);
-		return retval;
+		goto err;
 	}
 	msize = fid->clnt->msize;
 	while (value_len) {
@@ -152,12 +151,15 @@ int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
 		if (write_count < 0) {
 			/* error in xattr write */
 			retval = write_count;
-			break;
+			goto err;
 		}
 		offset += write_count;
 		value_len -= write_count;
 	}
-	return p9_client_clunk(fid);
+	retval = offset;
+err:
+	p9_client_clunk(fid);
+	return retval;
 }
 
 ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)

@@ -75,7 +75,7 @@ int uflash_devinit(struct platform_device *op, struct device_node *dp)
 
 	up->name = of_get_property(dp, "model", NULL);
 	if (up->name && 0 < strlen(up->name))
-		up->map.name = (char *)up->name;
+		up->map.name = up->name;
 
 	up->map.phys = op->resource[0].start;
 

@@ -357,10 +357,12 @@ static int default_lcd_on = 1;
 static bool mtrr = true;
 #endif
 
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight = 1;
 #else
 static int backlight = 0;
+#endif
 #endif
 
 /* PLL constants */
@@ -1671,7 +1673,9 @@ static int aty128fb_setup(char *options)
 			default_crt_on = simple_strtoul(this_opt+4, NULL, 0);
 			continue;
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
+#endif
 			continue;
 		}
 #ifdef CONFIG_MTRR

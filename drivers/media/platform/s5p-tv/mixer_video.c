@@ -948,7 +948,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	if (count == 0) {
 		mxr_dbg(mdev, "no output buffers queued\n");
-		return -EINVAL;
+		return -ENOBUFS;
 	}
 
 	/* block any changes in output configuration */

@@ -428,8 +428,8 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	period = 256 * 1000000L / freq;
 	pulse_width = period * duty_cycle / 100;
 	space_width = period - pulse_width;
-	dprintk("in init_timing_params, freq=%d pulse=%ld, "
-		"space=%ld\n", freq, pulse_width, space_width);
+	dprintk("in init_timing_params, freq=%d pulse=%ld, space=%ld\n",
+		freq, pulse_width, space_width);
 	return 0;
 }
 #endif /* USE_RDTSC */
@@ -650,7 +650,7 @@ static void frbwrite(int l)
 	rbwrite(l);
 }
 
-static irqreturn_t irq_handler(int i, void *blah)
+static irqreturn_t lirc_irq_handler(int i, void *blah)
 {
 	struct timeval tv;
 	int counter, dcd;
@@ -852,7 +852,7 @@ static int lirc_serial_probe(struct platform_device *dev)
 		return result;
 #endif
 
-	result = request_irq(irq, irq_handler,
+	result = request_irq(irq, lirc_irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),
 			     LIRC_DRIVER_NAME, (void *)&hardware);
 	if (result < 0) {
@@ -974,7 +974,7 @@ static void set_use_dec(void *data)
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
 }
 
-static ssize_t lirc_write(struct file *file, const char *buf,
+static ssize_t lirc_write(struct file *file, const char __user *buf,
 			 size_t n, loff_t *ppos)
 {
 	int i, count;

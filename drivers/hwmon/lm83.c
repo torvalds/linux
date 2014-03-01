@@ -1,7 +1,7 @@
 /*
  * lm83.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
- * Copyright (C) 2003-2009  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2009  Jean Delvare <jdelvare@suse.de>
  *
  * Heavily inspired from the lm78, lm75 and adm1021 drivers. The LM83 is
  * a sensor chip made by National Semiconductor. It reports up to four
@@ -427,6 +427,6 @@ static struct lm83_data *lm83_update_device(struct device *dev)
 
 module_i2c_driver(lm83_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("LM83 driver");
 MODULE_LICENSE("GPL");

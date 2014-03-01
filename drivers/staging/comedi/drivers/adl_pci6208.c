@@ -242,7 +242,7 @@ static int adl_pci6208_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adl_pci6208_pci_table) = {
+static const struct pci_device_id adl_pci6208_pci_table[] = {
 	{ PCI_VDEVICE(ADLINK, 0x6208), BOARD_PCI6208 },
 	{ PCI_VDEVICE(ADLINK, 0x6216), BOARD_PCI6216 },
 	{ 0 }

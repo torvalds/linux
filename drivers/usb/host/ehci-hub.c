@@ -238,6 +238,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	int			port;
 	int			mask;
 	int			changed;
+	bool			fs_idle_delay;
 
 	ehci_dbg(ehci, "suspend root hub\n");
 
@@ -272,6 +273,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci->bus_suspended = 0;
 	ehci->owned_ports = 0;
 	changed = 0;
+	fs_idle_delay = false;
 	port = HCS_N_PORTS(ehci->hcs_params);
 	while (port--) {
 		u32 __iomem	*reg = &ehci->regs->port_status [port];
@@ -300,16 +302,32 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		}
 
 		if (t1 != t2) {
+			/*
+			 * On some controllers, Wake-On-Disconnect will
+			 * generate false wakeup signals until the bus
+			 * switches over to full-speed idle.  For their
+			 * sake, add a delay if we need one.
+			 */
+			if ((t2 & PORT_WKDISC_E) &&
+					ehci_port_speed(ehci, t2) ==
+						USB_PORT_STAT_HIGH_SPEED)
+				fs_idle_delay = true;
 			ehci_writel(ehci, t2, reg);
 			changed = 1;
 		}
 	}
+	spin_unlock_irq(&ehci->lock);
+
+	if ((changed && ehci->has_tdi_phy_lpm) || fs_idle_delay) {
+		/*
+		 * Wait for HCD to enter low-power mode or for the bus
+		 * to switch to full-speed idle.
+		 */
+		usleep_range(5000, 5500);
+	}
 
 	if (changed && ehci->has_tdi_phy_lpm) {
-		spin_unlock_irq(&ehci->lock);
-		msleep(5);	/* 5 ms for HCD to enter low-power mode */
 		spin_lock_irq(&ehci->lock);
-
 		port = HCS_N_PORTS(ehci->hcs_params);
 		while (port--) {
 			u32 __iomem	*hostpc_reg = &ehci->regs->hostpc[port];
@@ -322,8 +340,8 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 					port, (t3 & HOSTPC_PHCD) ?
 					"succeeded" : "failed");
 		}
+		spin_unlock_irq(&ehci->lock);
 	}
-	spin_unlock_irq(&ehci->lock);
 
 	/* Apparently some devices need a >= 1-uframe delay here */
 	if (ehci->bus_suspended)
@@ -1114,10 +1132,8 @@ static int ehci_hub_control (
 		if (test_bit(wIndex, &ehci->port_c_suspend))
 			status |= USB_PORT_STAT_C_SUSPEND << 16;
 
-#ifndef	VERBOSE_DEBUG
-	if (status & ~0xffff)	/* only if wPortChange is interesting */
-#endif
-		dbg_port (ehci, "GetStatus", wIndex + 1, temp);
+		if (status & ~0xffff)	/* only if wPortChange is interesting */
+			dbg_port(ehci, "GetStatus", wIndex + 1, temp);
 		put_unaligned_le32(status, buf);
 		break;
 	case SetHubFeature:

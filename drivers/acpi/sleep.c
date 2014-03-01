@@ -18,11 +18,7 @@
 #include <linux/reboot.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
-
 #include <asm/io.h>
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 #include "internal.h"
 #include "sleep.h"
@@ -670,11 +666,8 @@ static void acpi_hibernation_leave(void)
 	/* Reprogram control registers */
 	acpi_leave_sleep_state_prep(ACPI_STATE_S4);
 	/* Check the hardware signature */
-	if (facs && s4_hardware_signature != facs->hardware_signature) {
-		printk(KERN_EMERG "ACPI: Hardware changed while hibernated, "
-			"cannot resume!\n");
-		panic("ACPI S4 hardware signature mismatch");
-	}
+	if (facs && s4_hardware_signature != facs->hardware_signature)
+		pr_crit("ACPI: Hardware changed while hibernated, success doubtful!\n");
 	/* Restore the NVS memory area */
 	suspend_nvs_restore();
 	/* Allow EC transactions to happen. */
@@ -805,9 +798,6 @@ int __init acpi_sleep_init(void)
 	char supported[ACPI_S_STATE_COUNT * 3 + 1];
 	char *pos = supported;
 	int i;
-
-	if (acpi_disabled)
-		return 0;
 
 	acpi_sleep_dmi_check();
 

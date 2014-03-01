@@ -39,9 +39,13 @@ struct tty_buffer {
 	int size;
 	int commit;
 	int read;
+	int flags;
 	/* Data points here */
 	unsigned long data[0];
 };
+
+/* Values for .flags field of tty_buffer */
+#define TTYB_NORMAL	1	/* buffer has no flags buffer */
 
 static inline unsigned char *char_buf_ptr(struct tty_buffer *b, int ofs)
 {
@@ -60,7 +64,8 @@ struct tty_bufhead {
 	atomic_t	   priority;
 	struct tty_buffer sentinel;
 	struct llist_head free;		/* Free queue head */
-	atomic_t	   memory_used; /* In-use buffers excluding free list */
+	atomic_t	   mem_used;    /* In-use buffers excluding free list */
+	int		   mem_limit;
 	struct tty_buffer *tail;	/* Active buffer */
 };
 /*
@@ -137,6 +142,7 @@ struct tty_bufhead {
 #define C_CLOCAL(tty)	_C_FLAG((tty), CLOCAL)
 #define C_CIBAUD(tty)	_C_FLAG((tty), CIBAUD)
 #define C_CRTSCTS(tty)	_C_FLAG((tty), CRTSCTS)
+#define C_CMSPAR(tty)	_C_FLAG((tty), CMSPAR)
 
 #define L_ISIG(tty)	_L_FLAG((tty), ISIG)
 #define L_ICANON(tty)	_L_FLAG((tty), ICANON)
@@ -422,7 +428,6 @@ extern int is_ignored(int sig);
 extern int tty_signal(int sig, struct tty_struct *tty);
 extern void tty_hangup(struct tty_struct *tty);
 extern void tty_vhangup(struct tty_struct *tty);
-extern void tty_vhangup_locked(struct tty_struct *tty);
 extern void tty_unhangup(struct file *filp);
 extern int tty_hung_up_p(struct file *filp);
 extern void do_SAK(struct tty_struct *tty);

@@ -488,7 +488,7 @@ static int sti_init_glob_cfg(struct sti_struct *sti, unsigned long rom_address,
 	return 0;
 }
 
-#ifdef CONFIG_FONTS
+#ifdef CONFIG_FONT_SUPPORT
 static struct sti_cooked_font *
 sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 {

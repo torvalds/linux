@@ -19,8 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Arguments:
  * 	io	= for the base address
@@ -66,7 +65,6 @@ static const char version[] =
 #endif
 
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -1895,7 +1893,7 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	SMC_SELECT_BANK(lp, 1);
 	val = SMC_GET_BASE(lp);
 	val = ((val & 0x1F00) >> 3) << SMC_IO_SHIFT;
-	if (((unsigned int)ioaddr & (0x3e0 << SMC_IO_SHIFT)) != val) {
+	if (((unsigned long)ioaddr & (0x3e0 << SMC_IO_SHIFT)) != val) {
 		netdev_warn(dev, "%s: IOADDR %p doesn't match configuration (%x).\n",
 			    CARDNAME, ioaddr, val);
 	}

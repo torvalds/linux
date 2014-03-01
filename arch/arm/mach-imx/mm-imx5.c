@@ -89,15 +89,7 @@ void __init imx51_init_early(void)
 
 void __init imx53_init_early(void)
 {
-	struct device_node *np;
-	void __iomem *base;
-
 	mxc_set_cpu_type(MXC_CPU_MX53);
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-iomuxc");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-	mxc_iomux_v3_init(base);
 	imx_src_init();
 }
 

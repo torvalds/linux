@@ -847,7 +847,7 @@ int __uio_register_device(struct module *owner,
 	info->uio_dev = idev;
 
 	if (info->irq && (info->irq != UIO_IRQ_CUSTOM)) {
-		ret = devm_request_irq(parent, info->irq, uio_interrupt,
+		ret = devm_request_irq(idev->dev, info->irq, uio_interrupt,
 				  info->irq_flags, info->name, idev);
 		if (ret)
 			goto err_request_irq;

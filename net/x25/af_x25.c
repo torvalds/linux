@@ -35,6 +35,8 @@
  *					response
  */
 
+#define pr_fmt(fmt) "X25: " fmt
+
 #include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
@@ -1080,7 +1082,7 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct x25_sock *x25 = x25_sk(sk);
-	struct sockaddr_x25 *usx25 = (struct sockaddr_x25 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_x25 *, usx25, msg->msg_name);
 	struct sockaddr_x25 sx25;
 	struct sk_buff *skb;
 	unsigned char *asmptr;
@@ -1256,7 +1258,7 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct x25_sock *x25 = x25_sk(sk);
-	struct sockaddr_x25 *sx25 = (struct sockaddr_x25 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_x25 *, sx25, msg->msg_name);
 	size_t copied;
 	int qbit, header_len;
 	struct sk_buff *skb;
@@ -1809,7 +1811,7 @@ static int __init x25_init(void)
 	if (rc != 0)
 		goto out_sock;
 
-	printk(KERN_INFO "X.25 for Linux Version 0.2\n");
+	pr_info("Linux Version 0.2\n");
 
 	x25_register_sysctl();
 	rc = x25_proc_init();

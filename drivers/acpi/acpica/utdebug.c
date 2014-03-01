@@ -194,9 +194,9 @@ acpi_debug_print(u32 requested_debug_level,
 	 */
 	acpi_os_printf("%9s-%04ld ", module_name, line_number);
 
-#ifdef ACPI_EXEC_APP
+#ifdef ACPI_APPLICATION
 	/*
-	 * For acpi_exec only, emit the thread ID and nesting level.
+	 * For acpi_exec/iASL only, emit the thread ID and nesting level.
 	 * Note: nesting level is really only useful during a single-thread
 	 * execution. Otherwise, multiple threads will keep resetting the
 	 * level.

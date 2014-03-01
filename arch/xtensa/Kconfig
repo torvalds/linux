@@ -9,7 +9,6 @@ config XTENSA
 	select GENERIC_CLOCKEVENTS
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_SHOW
-	select GENERIC_CPU_DEVICES
 	select GENERIC_SCHED_CLOCK
 	select MODULES_USE_ELF_RELA
 	select GENERIC_PCI_IOMAP
@@ -19,6 +18,8 @@ config XTENSA
 	select IRQ_DOMAIN
 	select HAVE_OPROFILE
 	select HAVE_FUNCTION_TRACER
+	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_PERF_EVENTS
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -64,6 +65,12 @@ config MMU
 config VARIANT_IRQ_SWITCH
 	def_bool n
 
+config HAVE_XTENSA_GPIO32
+	def_bool n
+
+config MAY_HAVE_SMP
+	def_bool n
+
 menu "Processor type and features"
 
 choice
@@ -73,16 +80,19 @@ choice
 config XTENSA_VARIANT_FSF
 	bool "fsf - default (not generic) configuration"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 
 config XTENSA_VARIANT_DC232B
 	bool "dc232b - Diamond 232L Standard Core Rev.B (LE)"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 	help
 	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 
 config XTENSA_VARIANT_DC233C
 	bool "dc233c - Diamond 233L Standard Core Rev.C (LE)"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 	help
 	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
 
@@ -103,6 +113,48 @@ config XTENSA_UNALIGNED_USER
 	  Say Y here to enable unaligned memory access in user space.
 
 source "kernel/Kconfig.preempt"
+
+config HAVE_SMP
+	bool "System Supports SMP (MX)"
+	depends on MAY_HAVE_SMP
+	select XTENSA_MX
+	help
+	  This option is use to indicate that the system-on-a-chip (SOC)
+	  supports Multiprocessing. Multiprocessor support implemented above
+	  the CPU core definition and currently needs to be selected manually.
+
+	  Multiprocessor support in implemented with external cache and
+	  interrupt controlers.
+
+	  The MX interrupt distributer adds Interprocessor Interrupts
+	  and causes the IRQ numbers to be increased by 4 for devices
+	  like the open cores ethernet driver and the serial interface.
+
+	  You still have to select "Enable SMP" to enable SMP on this SOC.
+
+config SMP
+	bool "Enable Symmetric multi-processing support"
+	depends on HAVE_SMP
+	select USE_GENERIC_SMP_HELPERS
+	select GENERIC_SMP_IDLE_THREAD
+	help
+	  Enabled SMP Software; allows more than one CPU/CORE
+	  to be activated during startup.
+
+config NR_CPUS
+	depends on SMP
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	default "4"
+
+config HOTPLUG_CPU
+	bool "Enable CPU hotplug support"
+	depends on SMP
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+
+	  Say N if you want to disable CPU hotplug.
 
 config MATH_EMULATION
 	bool "Math emulation"
@@ -150,9 +202,6 @@ config XTENSA_CALIBRATE_CCOUNT
 config SERIAL_CONSOLE
 	def_bool n
 
-config XTENSA_ISS_NETWORK
-	def_bool n
-
 menu "Bus options"
 
 config PCI
@@ -179,7 +228,6 @@ config XTENSA_PLATFORM_ISS
 	depends on TTY
 	select XTENSA_CALIBRATE_CCOUNT
 	select SERIAL_CONSOLE
-	select XTENSA_ISS_NETWORK
 	help
 	  ISS is an acronym for Tensilica's Instruction Set Simulator.
 

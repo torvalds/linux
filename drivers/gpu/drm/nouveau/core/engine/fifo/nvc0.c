@@ -33,6 +33,7 @@
 
 #include <subdev/timer.h>
 #include <subdev/bar.h>
+#include <subdev/fb.h>
 #include <subdev/vm.h>
 
 #include <engine/dmaobj.h>

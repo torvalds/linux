@@ -118,7 +118,7 @@ module_param(usbfs_memory_mb, uint, 0644);
 MODULE_PARM_DESC(usbfs_memory_mb,
 		"maximum MB allowed for usbfs buffers (0 = no limit)");
 
-/* Hard limit, necessary to avoid aithmetic overflow */
+/* Hard limit, necessary to avoid arithmetic overflow */
 #define USBFS_XFER_MAX		(UINT_MAX / 2 - 1000000)
 
 static atomic_t usbfs_memory_usage;	/* Total memory currently allocated */

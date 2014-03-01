@@ -346,6 +346,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 {
 	int pipefd;
 	int err = 0;
+	struct pid *new_pid = NULL;
 
 	if (param->setpipefd.pipefd == -1)
 		return -EINVAL;
@@ -357,7 +358,17 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		mutex_unlock(&sbi->wq_mutex);
 		return -EBUSY;
 	} else {
-		struct file *pipe = fget(pipefd);
+		struct file *pipe;
+
+		new_pid = get_task_pid(current, PIDTYPE_PGID);
+
+		if (ns_of_pid(new_pid) != ns_of_pid(sbi->oz_pgrp)) {
+			AUTOFS_WARN("Not allowed to change PID namespace");
+			err = -EINVAL;
+			goto out;
+		}
+
+		pipe = fget(pipefd);
 		if (!pipe) {
 			err = -EBADF;
 			goto out;
@@ -367,12 +378,13 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 			fput(pipe);
 			goto out;
 		}
-		sbi->oz_pgrp = task_pgrp_nr(current);
+		swap(sbi->oz_pgrp, new_pid);
 		sbi->pipefd = pipefd;
 		sbi->pipe = pipe;
 		sbi->catatonic = 0;
 	}
 out:
+	put_pid(new_pid);
 	mutex_unlock(&sbi->wq_mutex);
 	return err;
 }

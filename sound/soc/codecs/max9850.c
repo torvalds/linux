@@ -149,14 +149,14 @@ static int max9850_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_write(codec, MAX9850_LRCLK_MSB, (lrclk_div >> 8) & 0x7f);
 	snd_soc_write(codec, MAX9850_LRCLK_LSB, lrclk_div & 0xff);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		da = 0;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		da = 0x2;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		da = 0x3;
 		break;
 	default:

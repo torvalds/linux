@@ -8,12 +8,13 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml              (    327 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/a2xx/a2xx.xml           (  31003 bytes, from 2013-09-19 18:50:16)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno_common.xml       (   8983 bytes, from 2013-07-24 01:38:36)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno_pm4.xml          (   9759 bytes, from 2013-09-10 00:52:33)
-- /home/robclark/src/freedreno/envytools/rnndb/a3xx/a3xx.xml           (  51983 bytes, from 2013-09-10 00:52:32)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    364 bytes, from 2013-11-30 14:47:15)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2013-03-31 16:51:27)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32814 bytes, from 2013-11-30 15:07:33)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (   8900 bytes, from 2013-10-22 23:57:49)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  10574 bytes, from 2013-11-13 05:44:45)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  53644 bytes, from 2013-11-30 15:07:33)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (   8344 bytes, from 2013-11-30 14:49:47)
 
 Copyright (C) 2013 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -202,6 +203,12 @@ enum a2xx_rb_copy_sample_select {
 	SAMPLE_0123 = 6,
 };
 
+enum adreno_mmu_clnt_beh {
+	BEH_NEVR = 0,
+	BEH_TRAN_RNG = 1,
+	BEH_TRAN_FLT = 2,
+};
+
 enum sq_tex_clamp {
 	SQ_TEX_WRAP = 0,
 	SQ_TEX_MIRROR = 1,
@@ -237,6 +244,92 @@ enum sq_tex_filter {
 #define REG_A2XX_CP_PFP_UCODE_ADDR				0x000000c0
 
 #define REG_A2XX_CP_PFP_UCODE_DATA				0x000000c1
+
+#define REG_A2XX_MH_MMU_CONFIG					0x00000040
+#define A2XX_MH_MMU_CONFIG_MMU_ENABLE				0x00000001
+#define A2XX_MH_MMU_CONFIG_SPLIT_MODE_ENABLE			0x00000002
+#define A2XX_MH_MMU_CONFIG_RB_W_CLNT_BEHAVIOR__MASK		0x00000030
+#define A2XX_MH_MMU_CONFIG_RB_W_CLNT_BEHAVIOR__SHIFT		4
+static inline uint32_t A2XX_MH_MMU_CONFIG_RB_W_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_RB_W_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_RB_W_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_CP_W_CLNT_BEHAVIOR__MASK		0x000000c0
+#define A2XX_MH_MMU_CONFIG_CP_W_CLNT_BEHAVIOR__SHIFT		6
+static inline uint32_t A2XX_MH_MMU_CONFIG_CP_W_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_CP_W_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_CP_W_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_CP_R0_CLNT_BEHAVIOR__MASK		0x00000300
+#define A2XX_MH_MMU_CONFIG_CP_R0_CLNT_BEHAVIOR__SHIFT		8
+static inline uint32_t A2XX_MH_MMU_CONFIG_CP_R0_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_CP_R0_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_CP_R0_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_CP_R1_CLNT_BEHAVIOR__MASK		0x00000c00
+#define A2XX_MH_MMU_CONFIG_CP_R1_CLNT_BEHAVIOR__SHIFT		10
+static inline uint32_t A2XX_MH_MMU_CONFIG_CP_R1_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_CP_R1_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_CP_R1_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_CP_R2_CLNT_BEHAVIOR__MASK		0x00003000
+#define A2XX_MH_MMU_CONFIG_CP_R2_CLNT_BEHAVIOR__SHIFT		12
+static inline uint32_t A2XX_MH_MMU_CONFIG_CP_R2_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_CP_R2_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_CP_R2_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_CP_R3_CLNT_BEHAVIOR__MASK		0x0000c000
+#define A2XX_MH_MMU_CONFIG_CP_R3_CLNT_BEHAVIOR__SHIFT		14
+static inline uint32_t A2XX_MH_MMU_CONFIG_CP_R3_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_CP_R3_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_CP_R3_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_CP_R4_CLNT_BEHAVIOR__MASK		0x00030000
+#define A2XX_MH_MMU_CONFIG_CP_R4_CLNT_BEHAVIOR__SHIFT		16
+static inline uint32_t A2XX_MH_MMU_CONFIG_CP_R4_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_CP_R4_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_CP_R4_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_VGT_R0_CLNT_BEHAVIOR__MASK		0x000c0000
+#define A2XX_MH_MMU_CONFIG_VGT_R0_CLNT_BEHAVIOR__SHIFT		18
+static inline uint32_t A2XX_MH_MMU_CONFIG_VGT_R0_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_VGT_R0_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_VGT_R0_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_VGT_R1_CLNT_BEHAVIOR__MASK		0x00300000
+#define A2XX_MH_MMU_CONFIG_VGT_R1_CLNT_BEHAVIOR__SHIFT		20
+static inline uint32_t A2XX_MH_MMU_CONFIG_VGT_R1_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_VGT_R1_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_VGT_R1_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_TC_R_CLNT_BEHAVIOR__MASK		0x00c00000
+#define A2XX_MH_MMU_CONFIG_TC_R_CLNT_BEHAVIOR__SHIFT		22
+static inline uint32_t A2XX_MH_MMU_CONFIG_TC_R_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_TC_R_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_TC_R_CLNT_BEHAVIOR__MASK;
+}
+#define A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR__MASK		0x03000000
+#define A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR__SHIFT		24
+static inline uint32_t A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR(enum adreno_mmu_clnt_beh val)
+{
+	return ((val) << A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR__SHIFT) & A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR__MASK;
+}
+
+#define REG_A2XX_MH_MMU_VA_RANGE				0x00000041
+
+#define REG_A2XX_MH_MMU_PT_BASE					0x00000042
+
+#define REG_A2XX_MH_MMU_PAGE_FAULT				0x00000043
+
+#define REG_A2XX_MH_MMU_TRAN_ERROR				0x00000044
+
+#define REG_A2XX_MH_MMU_INVALIDATE				0x00000045
+
+#define REG_A2XX_MH_MMU_MPU_BASE				0x00000046
+
+#define REG_A2XX_MH_MMU_MPU_END					0x00000047
+
+#define REG_A2XX_NQWAIT_UNTIL					0x00000394
 
 #define REG_A2XX_RBBM_PERFCOUNTER1_SELECT			0x00000395
 
@@ -275,20 +368,6 @@ enum sq_tex_filter {
 #define REG_A2XX_CP_PERFCOUNTER_LO				0x00000446
 
 #define REG_A2XX_CP_PERFCOUNTER_HI				0x00000447
-
-#define REG_A2XX_CP_ST_BASE					0x0000044d
-
-#define REG_A2XX_CP_ST_BUFSZ					0x0000044e
-
-#define REG_A2XX_CP_IB1_BASE					0x00000458
-
-#define REG_A2XX_CP_IB1_BUFSZ					0x00000459
-
-#define REG_A2XX_CP_IB2_BASE					0x0000045a
-
-#define REG_A2XX_CP_IB2_BUFSZ					0x0000045b
-
-#define REG_A2XX_CP_STAT					0x0000047f
 
 #define REG_A2XX_RBBM_STATUS					0x000005d0
 #define A2XX_RBBM_STATUS_CMDFIFO_AVAIL__MASK			0x0000001f
@@ -807,6 +886,12 @@ static inline uint32_t A2XX_SQ_CONTEXT_MISC_PARAM_GEN_POS(uint32_t val)
 #define REG_A2XX_SQ_PS_PROGRAM					0x000021f6
 
 #define REG_A2XX_SQ_VS_PROGRAM					0x000021f7
+
+#define REG_A2XX_VGT_EVENT_INITIATOR				0x000021f9
+
+#define REG_A2XX_VGT_DRAW_INITIATOR				0x000021fc
+
+#define REG_A2XX_VGT_IMMED_DATA					0x000021fd
 
 #define REG_A2XX_RB_DEPTHCONTROL				0x00002200
 #define A2XX_RB_DEPTHCONTROL_STENCIL_ENABLE			0x00000001

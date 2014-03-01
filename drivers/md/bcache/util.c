@@ -209,7 +209,13 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 {
 	uint64_t now = local_clock();
 
-	d->next += div_u64(done, d->rate);
+	d->next += div_u64(done * NSEC_PER_SEC, d->rate);
+
+	if (time_before64(now + NSEC_PER_SEC, d->next))
+		d->next = now + NSEC_PER_SEC;
+
+	if (time_after64(now - NSEC_PER_SEC * 2, d->next))
+		d->next = now - NSEC_PER_SEC * 2;
 
 	return time_after64(d->next, now)
 		? div_u64(d->next - now, NSEC_PER_SEC / HZ)
@@ -218,10 +224,10 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 
 void bch_bio_map(struct bio *bio, void *base)
 {
-	size_t size = bio->bi_size;
+	size_t size = bio->bi_iter.bi_size;
 	struct bio_vec *bv = bio->bi_io_vec;
 
-	BUG_ON(!bio->bi_size);
+	BUG_ON(!bio->bi_iter.bi_size);
 	BUG_ON(bio->bi_vcnt);
 
 	bv->bv_offset = base ? ((unsigned long) base) % PAGE_SIZE : 0;

@@ -446,6 +446,7 @@ void xen_setup_timer(int cpu)
 				      IRQF_PERCPU|IRQF_NOBALANCING|IRQF_TIMER|
 				      IRQF_FORCE_RESUME,
 				      name, NULL);
+	(void)xen_set_irq_priority(irq, XEN_IRQ_PRIORITY_MAX);
 
 	memcpy(evt, xen_clockevent, sizeof(*evt));
 

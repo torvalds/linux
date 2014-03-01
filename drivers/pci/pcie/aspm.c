@@ -984,18 +984,6 @@ void pcie_no_aspm(void)
 	}
 }
 
-/**
- * pcie_aspm_enabled - is PCIe ASPM enabled?
- *
- * Returns true if ASPM has not been disabled by the command-line option
- * pcie_aspm=off.
- **/
-int pcie_aspm_enabled(void)
-{
-       return !aspm_disabled;
-}
-EXPORT_SYMBOL(pcie_aspm_enabled);
-
 bool pcie_aspm_support_enabled(void)
 {
 	return aspm_support_enabled;

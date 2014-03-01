@@ -146,8 +146,19 @@ void bus_remove_file(struct bus_type *bus, struct bus_attribute *attr)
 }
 EXPORT_SYMBOL_GPL(bus_remove_file);
 
+static void bus_release(struct kobject *kobj)
+{
+	struct subsys_private *priv =
+		container_of(kobj, typeof(*priv), subsys.kobj);
+	struct bus_type *bus = priv->bus;
+
+	kfree(priv);
+	bus->p = NULL;
+}
+
 static struct kobj_type bus_ktype = {
 	.sysfs_ops	= &bus_sysfs_ops,
+	.release	= bus_release,
 };
 
 static int bus_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -953,8 +964,6 @@ void bus_unregister(struct bus_type *bus)
 	kset_unregister(bus->p->devices_kset);
 	bus_remove_file(bus, &bus_attr_uevent);
 	kset_unregister(&bus->p->subsys);
-	kfree(bus->p);
-	bus->p = NULL;
 }
 EXPORT_SYMBOL_GPL(bus_unregister);
 

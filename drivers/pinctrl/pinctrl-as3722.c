@@ -250,6 +250,26 @@ static int as3722_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
 		return ret;
 	}
 	as_pci->gpio_control[group].io_function = function;
+
+	switch (val) {
+	case AS3722_GPIO_IOSF_SD0_OUT:
+	case AS3722_GPIO_IOSF_PWR_GOOD_OUT:
+	case AS3722_GPIO_IOSF_Q32K_OUT:
+	case AS3722_GPIO_IOSF_PWM_OUT:
+	case AS3722_GPIO_IOSF_SD6_LOW_VOLT_LOW:
+		ret = as3722_update_bits(as_pci->as3722, gpio_cntr_reg,
+			AS3722_GPIO_MODE_MASK, AS3722_GPIO_MODE_OUTPUT_VDDH);
+		if (ret < 0) {
+			dev_err(as_pci->dev, "GPIO%d_CTRL update failed %d\n",
+				group, ret);
+			return ret;
+		}
+		as_pci->gpio_control[group].mode_prop =
+				AS3722_GPIO_MODE_OUTPUT_VDDH;
+		break;
+	default:
+		break;
+	}
 	return ret;
 }
 
@@ -531,7 +551,7 @@ static const struct gpio_chip as3722_gpio_chip = {
 	.direction_input	= as3722_gpio_direction_input,
 	.direction_output	= as3722_gpio_direction_output,
 	.to_irq			= as3722_gpio_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 	.ngpio			= AS3722_PIN_NUM,
 	.base			= -1,
 };

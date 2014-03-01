@@ -381,6 +381,8 @@ static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 
 		rxrpc_assign_connection_id(conn);
 		rx->conn = conn;
+	} else {
+		spin_lock(&trans->client_lock);
 	}
 
 	/* we've got a connection with a free channel and we can now attach the

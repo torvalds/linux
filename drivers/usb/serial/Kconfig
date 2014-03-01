@@ -472,6 +472,35 @@ config USB_SERIAL_MOS7840
 	  To compile this driver as a module, choose M here: the
 	  module will be called mos7840.  If unsure, choose N.
 
+config USB_SERIAL_MXUPORT
+	tristate "USB Moxa UPORT Serial Driver"
+	---help---
+	  Say Y here if you want to use a MOXA UPort Serial hub.
+
+	  This driver supports:
+
+	  [2 Port]
+	  - UPort 1250 :  2 Port RS-232/422/485 USB to Serial Hub
+	  - UPort 1250I : 2 Port RS-232/422/485 USB to Serial Hub with
+			  Isolation
+
+	  [4 Port]
+	  - UPort 1410 :  4 Port RS-232 USB to Serial Hub
+	  - UPort 1450 :  4 Port RS-232/422/485 USB to Serial Hub
+	  - UPort 1450I : 4 Port RS-232/422/485 USB to Serial Hub with
+			  Isolation
+
+	  [8 Port]
+	  - UPort 1610-8 : 8 Port RS-232 USB to Serial Hub
+	  - UPort 1650-8 : 8 Port RS-232/422/485 USB to Serial Hub
+
+	  [16 Port]
+	  - UPort 1610-16 : 16 Port RS-232 USB to Serial Hub
+	  - UPort 1650-16 : 16 Port RS-232/422/485 USB to Serial Hub
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mxuport.
+
 config USB_SERIAL_NAVMAN
 	tristate "USB Navman GPS device"
 	help

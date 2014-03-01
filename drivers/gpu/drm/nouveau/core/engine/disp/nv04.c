@@ -31,9 +31,45 @@ struct nv04_disp_priv {
 	struct nouveau_disp base;
 };
 
+static int
+nv04_disp_scanoutpos(struct nouveau_object *object, u32 mthd,
+		     void *data, u32 size)
+{
+	struct nv04_disp_priv *priv = (void *)object->engine;
+	struct nv04_display_scanoutpos *args = data;
+	const int head = (mthd & NV04_DISP_MTHD_HEAD);
+	u32 line;
+
+	if (size < sizeof(*args))
+		return -EINVAL;
+
+	args->vblanks = nv_rd32(priv, 0x680800 + (head * 0x2000)) & 0xffff;
+	args->vtotal  = nv_rd32(priv, 0x680804 + (head * 0x2000)) & 0xffff;
+	args->vblanke = args->vtotal - 1;
+
+	args->hblanks = nv_rd32(priv, 0x680820 + (head * 0x2000)) & 0xffff;
+	args->htotal  = nv_rd32(priv, 0x680824 + (head * 0x2000)) & 0xffff;
+	args->hblanke = args->htotal - 1;
+
+	args->time[0] = ktime_to_ns(ktime_get());
+	line = nv_rd32(priv, 0x600868 + (head * 0x2000));
+	args->time[1] = ktime_to_ns(ktime_get());
+	args->hline = (line & 0xffff0000) >> 16;
+	args->vline = (line & 0x0000ffff);
+	return 0;
+}
+
+#define HEAD_MTHD(n) (n), (n) + 0x01
+
+static struct nouveau_omthds
+nv04_disp_omthds[] = {
+	{ HEAD_MTHD(NV04_DISP_SCANOUTPOS), nv04_disp_scanoutpos },
+	{}
+};
+
 static struct nouveau_oclass
 nv04_disp_sclass[] = {
-	{ NV04_DISP_CLASS, &nouveau_object_ofuncs },
+	{ NV04_DISP_CLASS, &nouveau_object_ofuncs, nv04_disp_omthds },
 	{},
 };
 

@@ -1,7 +1,11 @@
 tools/perf
 tools/scripts
 tools/lib/traceevent
-tools/lib/lk
+tools/lib/api
+tools/lib/symbol/kallsyms.c
+tools/lib/symbol/kallsyms.h
+tools/include/asm/bug.h
+tools/include/linux/compiler.h
 include/linux/const.h
 include/linux/perf_event.h
 include/linux/rbtree.h

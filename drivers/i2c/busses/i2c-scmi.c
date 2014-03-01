@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 

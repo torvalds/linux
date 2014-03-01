@@ -639,7 +639,8 @@ static int venc_init_regulator(void)
 	vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda_dac");
 
 	if (IS_ERR(vdda_dac)) {
-		DSSERR("can't get VDDA_DAC regulator\n");
+		if (PTR_ERR(vdda_dac) != -EPROBE_DEFER)
+			DSSERR("can't get VDDA_DAC regulator\n");
 		return PTR_ERR(vdda_dac);
 	}
 

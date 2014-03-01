@@ -141,7 +141,7 @@ will use a legacy domain only if an IRQ range is supplied by the
 system and will otherwise use a linear domain mapping. The semantics
 of this call are such that if an IRQ range is specified then
 descriptors will be allocated on-the-fly for it, and if no range is
-specified it will fall through to irq_domain_add_linear() which meand
+specified it will fall through to irq_domain_add_linear() which means
 *no* irq descriptors will be allocated.
 
 A typical use case for simple domains is where an irqchip provider

@@ -15,7 +15,6 @@
 
 //#include <linux/config.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -39,8 +38,7 @@ struct ieee80211_crypto {
 
 static struct ieee80211_crypto *hcrypt;
 
-void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee,
-					   int force)
+void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee, int force)
 {
 	struct list_head *ptr, *n;
 	struct ieee80211_crypt_data *entry;

@@ -8,7 +8,7 @@
  *
  *  Based on the max1619 driver.
  *  Copyright (C) 2003-2004 Oleksij Rempel <bug-track@fisher-privat.net>
- *                          Jean Delvare <khali@linux-fr.org>
+ *                          Jean Delvare <jdelvare@suse.de>
  *
  * The MAX6642 is a sensor chip made by Maxim.
  * It reports up to two temperatures (its own plus up to

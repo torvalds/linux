@@ -1238,14 +1238,11 @@ static void
 ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 		     struct ieee80211_rx_status *rxs)
 {
-	struct ath_common *common = ath5k_hw_common(ah);
 	u64 tsf, bc_tstamp;
 	u32 hw_tu;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
-	if (ieee80211_is_beacon(mgmt->frame_control) &&
-	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
-	    ether_addr_equal(mgmt->bssid, common->curbssid)) {
+	if (le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS) {
 		/*
 		 * Received an IBSS beacon with the same BSSID. Hardware *must*
 		 * have updated the local TSF. We have to work around various
@@ -1299,23 +1296,6 @@ ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 				"fixed beacon timers after beacon receive\n");
 		}
 	}
-}
-
-static void
-ath5k_update_beacon_rssi(struct ath5k_hw *ah, struct sk_buff *skb, int rssi)
-{
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
-	struct ath_common *common = ath5k_hw_common(ah);
-
-	/* only beacons from our BSSID */
-	if (!ieee80211_is_beacon(mgmt->frame_control) ||
-	    !ether_addr_equal(mgmt->bssid, common->curbssid))
-		return;
-
-	ewma_add(&ah->ah_beacon_rssi_avg, rssi);
-
-	/* in IBSS mode we should keep RSSI statistics per neighbour */
-	/* le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS */
 }
 
 /*
@@ -1390,6 +1370,7 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 		    struct ath5k_rx_status *rs)
 {
 	struct ieee80211_rx_status *rxs;
+	struct ath_common *common = ath5k_hw_common(ah);
 
 	ath5k_remove_padding(skb);
 
@@ -1442,11 +1423,13 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 
 	trace_ath5k_rx(ah, skb);
 
-	ath5k_update_beacon_rssi(ah, skb, rs->rs_rssi);
+	if (ath_is_mybeacon(common, (struct ieee80211_hdr *)skb->data)) {
+		ewma_add(&ah->ah_beacon_rssi_avg, rs->rs_rssi);
 
-	/* check beacons in IBSS mode */
-	if (ah->opmode == NL80211_IFTYPE_ADHOC)
-		ath5k_check_ibss_tsf(ah, skb, rxs);
+		/* check beacons in IBSS mode */
+		if (ah->opmode == NL80211_IFTYPE_ADHOC)
+			ath5k_check_ibss_tsf(ah, skb, rxs);
+	}
 
 	ieee80211_rx(ah->hw, skb);
 }
@@ -2549,7 +2532,6 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 	hw->wiphy->available_antennas_rx = 0x3;
 
 	hw->extra_tx_headroom = 2;
-	hw->channel_change_time = 5000;
 
 	/*
 	 * Mark the device as detached to avoid processing

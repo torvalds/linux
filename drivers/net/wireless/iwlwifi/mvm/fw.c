@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -241,7 +241,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->init_ucode_complete)
+	if (WARN_ON_ONCE(mvm->init_ucode_complete))
 		return 0;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
@@ -287,7 +287,8 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		IWL_DEBUG_RF_KILL(mvm,
 				  "jump over all phy activities due to RF kill\n");
 		iwl_remove_notification(&mvm->notif_wait, &calib_wait);
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	/* Send TX valid antennas before triggering calibrations */
@@ -319,9 +320,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 error:
 	iwl_remove_notification(&mvm->notif_wait, &calib_wait);
 out:
-	if (!iwlmvm_mod_params.init_dbg) {
-		iwl_trans_stop_device(mvm->trans);
-	} else if (!mvm->nvm_data) {
+	if (iwlmvm_mod_params.init_dbg && !mvm->nvm_data) {
 		/* we want to debug INIT and we have no NVM - fake */
 		mvm->nvm_data = kzalloc(sizeof(struct iwl_nvm_data) +
 					sizeof(struct ieee80211_channel) +
@@ -370,11 +369,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 				ret = -ERFKILL;
 			goto error;
 		}
-		/* should stop & start HW since that INIT image just loaded */
-		iwl_trans_stop_hw(mvm->trans, false);
-		ret = iwl_trans_start_hw(mvm->trans);
-		if (ret)
-			return ret;
+		if (!iwlmvm_mod_params.init_dbg) {
+			/*
+			 * should stop and start HW since that INIT
+			 * image just loaded
+			 */
+			iwl_trans_stop_device(mvm->trans);
+			ret = iwl_trans_start_hw(mvm->trans);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -385,6 +389,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
 		goto error;
 	}
+
+	ret = iwl_mvm_sf_update(mvm, NULL, false);
+	if (ret)
+		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
 	if (ret)

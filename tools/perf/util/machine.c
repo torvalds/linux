@@ -9,6 +9,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include <stdbool.h>
+#include <symbol/kallsyms.h>
 #include "unwind.h"
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
@@ -26,6 +27,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->pid = pid;
 
 	machine->symbol_filter = NULL;
+	machine->id_hdr_size = 0;
 
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
@@ -101,8 +103,7 @@ void machine__exit(struct machine *machine)
 	map_groups__exit(&machine->kmaps);
 	dsos__delete(&machine->user_dsos);
 	dsos__delete(&machine->kernel_dsos);
-	free(machine->root_dir);
-	machine->root_dir = NULL;
+	zfree(&machine->root_dir);
 }
 
 void machine__delete(struct machine *machine)
@@ -495,23 +496,22 @@ static int symbol__in_kernel(void *arg, const char *name,
 	return 1;
 }
 
+static void machine__get_kallsyms_filename(struct machine *machine, char *buf,
+					   size_t bufsz)
+{
+	if (machine__is_default_guest(machine))
+		scnprintf(buf, bufsz, "%s", symbol_conf.default_guest_kallsyms);
+	else
+		scnprintf(buf, bufsz, "%s/proc/kallsyms", machine->root_dir);
+}
+
 /* Figure out the start address of kernel map from /proc/kallsyms */
 static u64 machine__get_kernel_start_addr(struct machine *machine)
 {
-	const char *filename;
-	char path[PATH_MAX];
+	char filename[PATH_MAX];
 	struct process_args args;
 
-	if (machine__is_host(machine)) {
-		filename = "/proc/kallsyms";
-	} else {
-		if (machine__is_default_guest(machine))
-			filename = (char *)symbol_conf.default_guest_kallsyms;
-		else {
-			sprintf(path, "%s/proc/kallsyms", machine->root_dir);
-			filename = path;
-		}
-	}
+	machine__get_kallsyms_filename(machine, filename, PATH_MAX);
 
 	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
 		return 0;
@@ -565,11 +565,10 @@ void machine__destroy_kernel_maps(struct machine *machine)
 			 * on one of them.
 			 */
 			if (type == MAP__FUNCTION) {
-				free((char *)kmap->ref_reloc_sym->name);
-				kmap->ref_reloc_sym->name = NULL;
-				free(kmap->ref_reloc_sym);
-			}
-			kmap->ref_reloc_sym = NULL;
+				zfree((char **)&kmap->ref_reloc_sym->name);
+				zfree(&kmap->ref_reloc_sym);
+			} else
+				kmap->ref_reloc_sym = NULL;
 		}
 
 		map__delete(machine->vmlinux_maps[type]);
@@ -767,8 +766,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 				ret = -1;
 				goto out;
 			}
-			dso__set_long_name(map->dso, long_name);
-			map->dso->lname_alloc = 1;
+			dso__set_long_name(map->dso, long_name, true);
 			dso__kernel_module_get_build_id(map->dso, "");
 		}
 	}
@@ -834,9 +832,25 @@ static int machine__create_modules(struct machine *machine)
 	return 0;
 }
 
+const char *ref_reloc_sym_names[] = {"_text", "_stext", NULL};
+
 int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
+	char filename[PATH_MAX];
+	const char *name;
+	u64 addr = 0;
+	int i;
+
+	machine__get_kallsyms_filename(machine, filename, PATH_MAX);
+
+	for (i = 0; (name = ref_reloc_sym_names[i]) != NULL; i++) {
+		addr = kallsyms__get_function_start(filename, name);
+		if (addr)
+			break;
+	}
+	if (!addr)
+		return -1;
 
 	if (kernel == NULL ||
 	    __machine__create_kernel_maps(machine, kernel) < 0)
@@ -855,6 +869,13 @@ int machine__create_kernel_maps(struct machine *machine)
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
 	map_groups__fixup_end(&machine->kmaps);
+
+	if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name,
+					     addr)) {
+		machine__destroy_kernel_maps(machine);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -939,8 +960,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (name == NULL)
 			goto out_problem;
 
-		map->dso->short_name = name;
-		map->dso->sname_alloc = 1;
+		dso__set_short_name(map->dso, name, true);
 		map->end = map->start + event->mmap.len;
 	} else if (is_kernel_mmap) {
 		const char *symbol_name = (event->mmap.filename +
@@ -1320,8 +1340,6 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 				*root_al = al;
 				callchain_cursor_reset(&callchain_cursor);
 			}
-			if (!symbol_conf.use_callchain)
-				break;
 		}
 
 		err = callchain_cursor_append(&callchain_cursor,

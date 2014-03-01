@@ -1730,13 +1730,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		break;
 
 	case NAND_OMAP_POLLED:
-		if (nand_chip->options & NAND_BUSWIDTH_16) {
-			nand_chip->read_buf   = omap_read_buf16;
-			nand_chip->write_buf  = omap_write_buf16;
-		} else {
-			nand_chip->read_buf   = omap_read_buf8;
-			nand_chip->write_buf  = omap_write_buf8;
-		}
+		/* Use nand_base defaults for {read,write}_buf */
 		break;
 
 	case NAND_OMAP_PREFETCH_DMA:

@@ -67,7 +67,6 @@
 			ranges;
 
 			mdio {
-				device_type = "mdio";
 				compatible = "fsl,ep8248e-mdio-bitbang";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -76,13 +75,11 @@
 				PHY0: ethernet-phy@0 {
 					interrupt-parent = <&PIC>;
 					reg = <0>;
-					device_type = "ethernet-phy";
 				};
 
 				PHY1: ethernet-phy@1 {
 					interrupt-parent = <&PIC>;
 					reg = <1>;
-					device_type = "ethernet-phy";
 				};
 			};
 		};

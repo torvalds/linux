@@ -313,8 +313,8 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 {
 	struct hash_desc desc;
 	struct scatterlist sg;
-	struct bio_vec *bvec;
-	int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 
 	desc.tfm = tfm;
 	desc.flags = 0;
@@ -322,8 +322,8 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 	sg_init_table(&sg, 1);
 	crypto_hash_init(&desc);
 
-	bio_for_each_segment(bvec, bio, i) {
-		sg_set_page(&sg, bvec->bv_page, bvec->bv_len, bvec->bv_offset);
+	bio_for_each_segment(bvec, bio, iter) {
+		sg_set_page(&sg, bvec.bv_page, bvec.bv_len, bvec.bv_offset);
 		crypto_hash_update(&desc, &sg, sg.length);
 	}
 	crypto_hash_final(&desc, digest);

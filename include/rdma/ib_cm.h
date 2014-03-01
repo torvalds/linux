@@ -601,4 +601,5 @@ struct ib_cm_sidr_rep_param {
 int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 			struct ib_cm_sidr_rep_param *param);
 
+int ib_update_cm_av(struct ib_cm_id *id, const u8 *smac, const u8 *alt_smac);
 #endif /* IB_CM_H */

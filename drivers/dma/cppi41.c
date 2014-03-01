@@ -972,8 +972,10 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 		goto err_chans;
 
 	irq = irq_of_parse_and_map(dev->of_node, 0);
-	if (!irq)
+	if (!irq) {
+		ret = -EINVAL;
 		goto err_irq;
+	}
 
 	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
 

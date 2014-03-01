@@ -169,7 +169,7 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 			return 0;
 	}
 
-	if (r->tclass && r->tclass != ((ntohl(fl6->flowlabel) >> 20) & 0xff))
+	if (r->tclass && r->tclass != ip6_tclass(fl6->flowlabel))
 		return 0;
 
 	return 1;

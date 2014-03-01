@@ -55,7 +55,7 @@
  * @usr_data: user-specified field
  * @rx_action: what to do when connection socket is active
  * @outqueue: pointer to first outbound message in queue
- * @outqueue_lock: controll access to the outqueue
+ * @outqueue_lock: control access to the outqueue
  * @outqueue: list of connection objects for its server
  * @swork: send work item
  */

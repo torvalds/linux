@@ -399,11 +399,6 @@ static int __init dma_alloc_init(void)
 		pgd = pgd_offset(&init_mm, CONSISTENT_START);
 		pud = pud_alloc(&init_mm, pgd, CONSISTENT_START);
 		pmd = pmd_alloc(&init_mm, pud, CONSISTENT_START);
-		if (!pmd) {
-			pr_err("%s: no pmd tables\n", __func__);
-			ret = -ENOMEM;
-			break;
-		}
 		WARN_ON(!pmd_none(*pmd));
 
 		pte = pte_alloc_kernel(pmd, CONSISTENT_START);

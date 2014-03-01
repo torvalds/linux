@@ -29,6 +29,7 @@
 #include "cypress_dpm.h"
 #include "btc_dpm.h"
 #include "atom.h"
+#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -49,6 +50,7 @@ struct rv7xx_ps *rv770_get_ps(struct radeon_ps *rps);
 struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev);
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
+extern int ni_mc_load_microcode(struct radeon_device *rdev);
 
 //********* BARTS **************//
 static const u32 barts_cgcg_cgls_default[] =
@@ -2510,21 +2512,6 @@ int btc_dpm_enable(struct radeon_device *rdev)
 	if (eg_pi->ls_clock_gating)
 		btc_ls_clock_gating_enable(rdev, true);
 
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		PPSMC_Result result;
-
-		ret = rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-	}
-
 	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
 	btc_init_stutter_mode(rdev);
@@ -2576,7 +2563,11 @@ void btc_dpm_disable(struct radeon_device *rdev)
 void btc_dpm_setup_asic(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	int r;
 
+	r = ni_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	rv770_get_memory_type(rdev);
 	rv740_read_clock_registers(rdev);
 	btc_read_arb_registers(rdev);
@@ -2764,6 +2755,37 @@ void btc_dpm_fini(struct radeon_device *rdev)
 	kfree(rdev->pm.dpm.priv);
 	kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries);
 	r600_free_extended_power_table(rdev);
+}
+
+void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						     struct seq_file *m)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		if (rdev->family >= CHIP_CEDAR) {
+			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+				   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+		} else {
+			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u\n",
+				   current_index, pl->sclk, pl->mclk, pl->vddc);
+		}
+	}
 }
 
 u32 btc_dpm_get_sclk(struct radeon_device *rdev, bool low)

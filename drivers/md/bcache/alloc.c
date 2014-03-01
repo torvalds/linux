@@ -132,10 +132,16 @@ bool bch_bucket_add_unused(struct cache *ca, struct bucket *b)
 {
 	BUG_ON(GC_MARK(b) || GC_SECTORS_USED(b));
 
-	if (fifo_used(&ca->free) > ca->watermark[WATERMARK_MOVINGGC] &&
-	    CACHE_REPLACEMENT(&ca->sb) == CACHE_REPLACEMENT_FIFO)
-		return false;
+	if (CACHE_REPLACEMENT(&ca->sb) == CACHE_REPLACEMENT_FIFO) {
+		unsigned i;
 
+		for (i = 0; i < RESERVE_NONE; i++)
+			if (!fifo_full(&ca->free[i]))
+				goto add;
+
+		return false;
+	}
+add:
 	b->prio = 0;
 
 	if (can_inc_bucket_gen(b) &&
@@ -162,8 +168,21 @@ static void invalidate_one_bucket(struct cache *ca, struct bucket *b)
 	fifo_push(&ca->free_inc, b - ca->buckets);
 }
 
-#define bucket_prio(b)				\
-	(((unsigned) (b->prio - ca->set->min_prio)) * GC_SECTORS_USED(b))
+/*
+ * Determines what order we're going to reuse buckets, smallest bucket_prio()
+ * first: we also take into account the number of sectors of live data in that
+ * bucket, and in order for that multiply to make sense we have to scale bucket
+ *
+ * Thus, we scale the bucket priorities so that the bucket with the smallest
+ * prio is worth 1/8th of what INITIAL_PRIO is worth.
+ */
+
+#define bucket_prio(b)							\
+({									\
+	unsigned min_prio = (INITIAL_PRIO - ca->set->min_prio) / 8;	\
+									\
+	(b->prio - ca->set->min_prio + min_prio) * GC_SECTORS_USED(b);	\
+})
 
 #define bucket_max_cmp(l, r)	(bucket_prio(l) < bucket_prio(r))
 #define bucket_min_cmp(l, r)	(bucket_prio(l) > bucket_prio(r))
@@ -304,6 +323,21 @@ do {									\
 	__set_current_state(TASK_RUNNING);				\
 } while (0)
 
+static int bch_allocator_push(struct cache *ca, long bucket)
+{
+	unsigned i;
+
+	/* Prios/gens are actually the most important reserve */
+	if (fifo_push(&ca->free[RESERVE_PRIO], bucket))
+		return true;
+
+	for (i = 0; i < RESERVE_NR; i++)
+		if (fifo_push(&ca->free[i], bucket))
+			return true;
+
+	return false;
+}
+
 static int bch_allocator_thread(void *arg)
 {
 	struct cache *ca = arg;
@@ -336,9 +370,7 @@ static int bch_allocator_thread(void *arg)
 				mutex_lock(&ca->set->bucket_lock);
 			}
 
-			allocator_wait(ca, !fifo_full(&ca->free));
-
-			fifo_push(&ca->free, bucket);
+			allocator_wait(ca, bch_allocator_push(ca, bucket));
 			wake_up(&ca->set->bucket_wait);
 		}
 
@@ -365,34 +397,29 @@ static int bch_allocator_thread(void *arg)
 	}
 }
 
-long bch_bucket_alloc(struct cache *ca, unsigned watermark, bool wait)
+long bch_bucket_alloc(struct cache *ca, unsigned reserve, bool wait)
 {
 	DEFINE_WAIT(w);
 	struct bucket *b;
 	long r;
 
 	/* fastpath */
-	if (fifo_used(&ca->free) > ca->watermark[watermark]) {
-		fifo_pop(&ca->free, r);
+	if (fifo_pop(&ca->free[RESERVE_NONE], r) ||
+	    fifo_pop(&ca->free[reserve], r))
 		goto out;
-	}
 
 	if (!wait)
 		return -1;
 
-	while (1) {
-		if (fifo_used(&ca->free) > ca->watermark[watermark]) {
-			fifo_pop(&ca->free, r);
-			break;
-		}
-
+	do {
 		prepare_to_wait(&ca->set->bucket_wait, &w,
 				TASK_UNINTERRUPTIBLE);
 
 		mutex_unlock(&ca->set->bucket_lock);
 		schedule();
 		mutex_lock(&ca->set->bucket_lock);
-	}
+	} while (!fifo_pop(&ca->free[RESERVE_NONE], r) &&
+		 !fifo_pop(&ca->free[reserve], r));
 
 	finish_wait(&ca->set->bucket_wait, &w);
 out:
@@ -401,12 +428,14 @@ out:
 	if (expensive_debug_checks(ca->set)) {
 		size_t iter;
 		long i;
+		unsigned j;
 
 		for (iter = 0; iter < prio_buckets(ca) * 2; iter++)
 			BUG_ON(ca->prio_buckets[iter] == (uint64_t) r);
 
-		fifo_for_each(i, &ca->free, iter)
-			BUG_ON(i == r);
+		for (j = 0; j < RESERVE_NR; j++)
+			fifo_for_each(i, &ca->free[j], iter)
+				BUG_ON(i == r);
 		fifo_for_each(i, &ca->free_inc, iter)
 			BUG_ON(i == r);
 		fifo_for_each(i, &ca->unused, iter)
@@ -419,11 +448,13 @@ out:
 
 	SET_GC_SECTORS_USED(b, ca->sb.bucket_size);
 
-	if (watermark <= WATERMARK_METADATA) {
+	if (reserve <= RESERVE_PRIO) {
 		SET_GC_MARK(b, GC_MARK_METADATA);
+		SET_GC_MOVE(b, 0);
 		b->prio = BTREE_PRIO;
 	} else {
 		SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
+		SET_GC_MOVE(b, 0);
 		b->prio = INITIAL_PRIO;
 	}
 
@@ -443,7 +474,7 @@ void bch_bucket_free(struct cache_set *c, struct bkey *k)
 	}
 }
 
-int __bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
+int __bch_bucket_alloc_set(struct cache_set *c, unsigned reserve,
 			   struct bkey *k, int n, bool wait)
 {
 	int i;
@@ -457,7 +488,7 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 
 	for (i = 0; i < n; i++) {
 		struct cache *ca = c->cache_by_alloc[i];
-		long b = bch_bucket_alloc(ca, watermark, wait);
+		long b = bch_bucket_alloc(ca, reserve, wait);
 
 		if (b == -1)
 			goto err;
@@ -476,12 +507,12 @@ err:
 	return -1;
 }
 
-int bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
+int bch_bucket_alloc_set(struct cache_set *c, unsigned reserve,
 			 struct bkey *k, int n, bool wait)
 {
 	int ret;
 	mutex_lock(&c->bucket_lock);
-	ret = __bch_bucket_alloc_set(c, watermark, k, n, wait);
+	ret = __bch_bucket_alloc_set(c, reserve, k, n, wait);
 	mutex_unlock(&c->bucket_lock);
 	return ret;
 }
@@ -571,8 +602,8 @@ bool bch_alloc_sectors(struct cache_set *c, struct bkey *k, unsigned sectors,
 
 	while (!(b = pick_data_bucket(c, k, write_point, &alloc.key))) {
 		unsigned watermark = write_prio
-			? WATERMARK_MOVINGGC
-			: WATERMARK_NONE;
+			? RESERVE_MOVINGGC
+			: RESERVE_NONE;
 
 		spin_unlock(&c->data_bucket_lock);
 
@@ -687,7 +718,7 @@ int bch_cache_allocator_init(struct cache *ca)
 	 * Then 8 for btree allocations
 	 * Then half for the moving garbage collector
 	 */
-
+#if 0
 	ca->watermark[WATERMARK_PRIO] = 0;
 
 	ca->watermark[WATERMARK_METADATA] = prio_buckets(ca);
@@ -697,6 +728,6 @@ int bch_cache_allocator_init(struct cache *ca)
 
 	ca->watermark[WATERMARK_NONE] = ca->free.size / 2 +
 		ca->watermark[WATERMARK_MOVINGGC];
-
+#endif
 	return 0;
 }

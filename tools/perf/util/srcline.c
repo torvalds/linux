@@ -129,7 +129,7 @@ static struct a2l_data *addr2line_init(const char *path)
 
 out:
 	if (a2l) {
-		free((void *)a2l->input);
+		zfree((char **)&a2l->input);
 		free(a2l);
 	}
 	bfd_close(abfd);
@@ -140,24 +140,30 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 {
 	if (a2l->abfd)
 		bfd_close(a2l->abfd);
-	free((void *)a2l->input);
-	free(a2l->syms);
+	zfree((char **)&a2l->input);
+	zfree(&a2l->syms);
 	free(a2l);
 }
 
 static int addr2line(const char *dso_name, unsigned long addr,
-		     char **file, unsigned int *line)
+		     char **file, unsigned int *line, struct dso *dso)
 {
 	int ret = 0;
-	struct a2l_data *a2l;
+	struct a2l_data *a2l = dso->a2l;
 
-	a2l = addr2line_init(dso_name);
+	if (!a2l) {
+		dso->a2l = addr2line_init(dso_name);
+		a2l = dso->a2l;
+	}
+
 	if (a2l == NULL) {
 		pr_warning("addr2line_init failed for %s\n", dso_name);
 		return 0;
 	}
 
 	a2l->addr = addr;
+	a2l->found = false;
+
 	bfd_map_over_sections(a2l->abfd, find_address_in_section, a2l);
 
 	if (a2l->found && a2l->filename) {
@@ -168,14 +174,26 @@ static int addr2line(const char *dso_name, unsigned long addr,
 			ret = 1;
 	}
 
-	addr2line_cleanup(a2l);
 	return ret;
+}
+
+void dso__free_a2l(struct dso *dso)
+{
+	struct a2l_data *a2l = dso->a2l;
+
+	if (!a2l)
+		return;
+
+	addr2line_cleanup(a2l);
+
+	dso->a2l = NULL;
 }
 
 #else /* HAVE_LIBBFD_SUPPORT */
 
 static int addr2line(const char *dso_name, unsigned long addr,
-		     char **file, unsigned int *line_nr)
+		     char **file, unsigned int *line_nr,
+		     struct dso *dso __maybe_unused)
 {
 	FILE *fp;
 	char cmd[PATH_MAX];
@@ -219,18 +237,33 @@ out:
 	pclose(fp);
 	return ret;
 }
+
+void dso__free_a2l(struct dso *dso __maybe_unused)
+{
+}
+
 #endif /* HAVE_LIBBFD_SUPPORT */
+
+/*
+ * Number of addr2line failures (without success) before disabling it for that
+ * dso.
+ */
+#define A2L_FAIL_LIMIT 123
 
 char *get_srcline(struct dso *dso, unsigned long addr)
 {
 	char *file = NULL;
 	unsigned line = 0;
 	char *srcline;
-	char *dso_name = dso->long_name;
-	size_t size;
+	const char *dso_name;
 
 	if (!dso->has_srcline)
 		return SRCLINE_UNKNOWN;
+
+	if (dso->symsrc_filename)
+		dso_name = dso->symsrc_filename;
+	else
+		dso_name = dso->long_name;
 
 	if (dso_name[0] == '[')
 		goto out;
@@ -238,23 +271,24 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 	if (!strncmp(dso_name, "/tmp/perf-", 10))
 		goto out;
 
-	if (!addr2line(dso_name, addr, &file, &line))
+	if (!addr2line(dso_name, addr, &file, &line, dso))
 		goto out;
 
-	/* just calculate actual length */
-	size = snprintf(NULL, 0, "%s:%u", file, line) + 1;
+	if (asprintf(&srcline, "%s:%u", file, line) < 0) {
+		free(file);
+		goto out;
+	}
 
-	srcline = malloc(size);
-	if (srcline)
-		snprintf(srcline, size, "%s:%u", file, line);
-	else
-		srcline = SRCLINE_UNKNOWN;
+	dso->a2l_fails = 0;
 
 	free(file);
 	return srcline;
 
 out:
-	dso->has_srcline = 0;
+	if (dso->a2l_fails && ++dso->a2l_fails > A2L_FAIL_LIMIT) {
+		dso->has_srcline = 0;
+		dso__free_a2l(dso);
+	}
 	return SRCLINE_UNKNOWN;
 }
 

@@ -178,27 +178,11 @@ static int ins_clr_old_idx_znode(struct ubifs_info *c,
  */
 void destroy_old_idx(struct ubifs_info *c)
 {
-	struct rb_node *this = c->old_idx.rb_node;
-	struct ubifs_old_idx *old_idx;
+	struct ubifs_old_idx *old_idx, *n;
 
-	while (this) {
-		if (this->rb_left) {
-			this = this->rb_left;
-			continue;
-		} else if (this->rb_right) {
-			this = this->rb_right;
-			continue;
-		}
-		old_idx = rb_entry(this, struct ubifs_old_idx, rb);
-		this = rb_parent(this);
-		if (this) {
-			if (this->rb_left == &old_idx->rb)
-				this->rb_left = NULL;
-			else
-				this->rb_right = NULL;
-		}
+	rbtree_postorder_for_each_entry_safe(old_idx, n, &c->old_idx, rb)
 		kfree(old_idx);
-	}
+
 	c->old_idx = RB_ROOT;
 }
 

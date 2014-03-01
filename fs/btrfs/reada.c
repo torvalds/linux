@@ -189,8 +189,8 @@ static int __readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 			 */
 #ifdef DEBUG
 			if (rec->generation != generation) {
-				printk(KERN_DEBUG "generation mismatch for "
-						"(%llu,%d,%llu) %llu != %llu\n",
+				btrfs_debug(root->fs_info,
+					   "generation mismatch for (%llu,%d,%llu) %llu != %llu",
 				       key.objectid, key.type, key.offset,
 				       rec->generation, generation);
 			}
@@ -365,8 +365,9 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		goto error;
 
 	if (bbio->num_stripes > BTRFS_MAX_MIRRORS) {
-		printk(KERN_ERR "btrfs readahead: more than %d copies not "
-				"supported", BTRFS_MAX_MIRRORS);
+		btrfs_err(root->fs_info,
+			   "readahead: more than %d copies not supported",
+			   BTRFS_MAX_MIRRORS);
 		goto error;
 	}
 

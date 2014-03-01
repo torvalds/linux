@@ -48,7 +48,7 @@
 void lprocfs_mgc_init_vars(struct lprocfs_static_vars *lvars);
 int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data);
 #else
-static void lprocfs_mgc_init_vars(struct lprocfs_static_vars *lvars)
+static inline void lprocfs_mgc_init_vars(struct lprocfs_static_vars *lvars)
 {
 	memset(lvars, 0, sizeof(*lvars));
 }

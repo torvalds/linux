@@ -534,7 +534,7 @@ out_register:
 	return slave;
 }
 
-int mtd_add_partition(struct mtd_info *master, char *name,
+int mtd_add_partition(struct mtd_info *master, const char *name,
 		      long long offset, long long length)
 {
 	struct mtd_partition part;
@@ -672,22 +672,19 @@ static struct mtd_part_parser *get_partition_parser(const char *name)
 
 #define put_partition_parser(p) do { module_put((p)->owner); } while (0)
 
-int register_mtd_parser(struct mtd_part_parser *p)
+void register_mtd_parser(struct mtd_part_parser *p)
 {
 	spin_lock(&part_parser_lock);
 	list_add(&p->list, &part_parsers);
 	spin_unlock(&part_parser_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(register_mtd_parser);
 
-int deregister_mtd_parser(struct mtd_part_parser *p)
+void deregister_mtd_parser(struct mtd_part_parser *p)
 {
 	spin_lock(&part_parser_lock);
 	list_del(&p->list);
 	spin_unlock(&part_parser_lock);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(deregister_mtd_parser);
 

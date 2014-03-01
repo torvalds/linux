@@ -5,7 +5,6 @@
  */
 
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -970,17 +969,11 @@ static void qt_block_until_empty(struct tty_struct *tty,
 {
 	int timeout = HZ / 10;
 	int wait = 30;
-	int count;
 
-	while (1) {
-
-		count = qt_chars_in_buffer(tty);
-
-		if (count <= 0)
-			return;
-
-		interruptible_sleep_on_timeout(&qt_port->wait, timeout);
-
+	/* returns if we get a signal, an error, or the buffer is empty */
+	while (wait_event_interruptible_timeout(qt_port->wait,
+					qt_chars_in_buffer(tty) <= 0,
+					timeout) == 0) {
 		wait--;
 		if (wait == 0) {
 			dev_dbg(&qt_port->port->dev, "%s - TIMEOUT", __func__);
@@ -1137,7 +1130,10 @@ static int qt_ioctl(struct tty_struct *tty,
 
 	if (cmd == TIOCMIWAIT) {
 		while (qt_port != NULL) {
+#if 0
+			/* this never wakes up */
 			interruptible_sleep_on(&qt_port->msr_wait);
+#endif
 			if (signal_pending(current))
 				return -ERESTARTSYS;
 			else {

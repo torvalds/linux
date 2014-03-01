@@ -85,6 +85,8 @@ int function_trace_stop __read_mostly;
 
 /* Current function tracing op */
 struct ftrace_ops *function_trace_op __read_mostly = &ftrace_list_end;
+/* What to set function_trace_op to */
+static struct ftrace_ops *set_function_trace_op;
 
 /* List for set_ftrace_pid's pids. */
 LIST_HEAD(ftrace_pids);
@@ -278,6 +280,29 @@ static void update_global_ops(void)
 	global_ops.func = func;
 }
 
+static void ftrace_sync(struct work_struct *work)
+{
+	/*
+	 * This function is just a stub to implement a hard force
+	 * of synchronize_sched(). This requires synchronizing
+	 * tasks even in userspace and idle.
+	 *
+	 * Yes, function tracing is rude.
+	 */
+}
+
+static void ftrace_sync_ipi(void *data)
+{
+	/* Probably not needed, but do it anyway */
+	smp_rmb();
+}
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static void update_function_graph_func(void);
+#else
+static inline void update_function_graph_func(void) { }
+#endif
+
 static void update_ftrace_function(void)
 {
 	ftrace_func_t func;
@@ -296,15 +321,60 @@ static void update_ftrace_function(void)
 	     !FTRACE_FORCE_LIST_FUNC)) {
 		/* Set the ftrace_ops that the arch callback uses */
 		if (ftrace_ops_list == &global_ops)
-			function_trace_op = ftrace_global_list;
+			set_function_trace_op = ftrace_global_list;
 		else
-			function_trace_op = ftrace_ops_list;
+			set_function_trace_op = ftrace_ops_list;
 		func = ftrace_ops_list->func;
 	} else {
 		/* Just use the default ftrace_ops */
-		function_trace_op = &ftrace_list_end;
+		set_function_trace_op = &ftrace_list_end;
 		func = ftrace_ops_list_func;
 	}
+
+	/* If there's no change, then do nothing more here */
+	if (ftrace_trace_function == func)
+		return;
+
+	update_function_graph_func();
+
+	/*
+	 * If we are using the list function, it doesn't care
+	 * about the function_trace_ops.
+	 */
+	if (func == ftrace_ops_list_func) {
+		ftrace_trace_function = func;
+		/*
+		 * Don't even bother setting function_trace_ops,
+		 * it would be racy to do so anyway.
+		 */
+		return;
+	}
+
+#ifndef CONFIG_DYNAMIC_FTRACE
+	/*
+	 * For static tracing, we need to be a bit more careful.
+	 * The function change takes affect immediately. Thus,
+	 * we need to coorditate the setting of the function_trace_ops
+	 * with the setting of the ftrace_trace_function.
+	 *
+	 * Set the function to the list ops, which will call the
+	 * function we want, albeit indirectly, but it handles the
+	 * ftrace_ops and doesn't depend on function_trace_op.
+	 */
+	ftrace_trace_function = ftrace_ops_list_func;
+	/*
+	 * Make sure all CPUs see this. Yes this is slow, but static
+	 * tracing is slow and nasty to have enabled.
+	 */
+	schedule_on_each_cpu(ftrace_sync);
+	/* Now all cpus are using the list ops. */
+	function_trace_op = set_function_trace_op;
+	/* Make sure the function_trace_op is visible on all CPUs */
+	smp_wmb();
+	/* Nasty way to force a rmb on all cpus */
+	smp_call_function(ftrace_sync_ipi, NULL, 1);
+	/* OK, we are all set to update the ftrace_trace_function now! */
+#endif /* !CONFIG_DYNAMIC_FTRACE */
 
 	ftrace_trace_function = func;
 }
@@ -410,17 +480,6 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 	return 0;
 }
 
-static void ftrace_sync(struct work_struct *work)
-{
-	/*
-	 * This function is just a stub to implement a hard force
-	 * of synchronize_sched(). This requires synchronizing
-	 * tasks even in userspace and idle.
-	 *
-	 * Yes, function tracing is rude.
-	 */
-}
-
 static int __unregister_ftrace_function(struct ftrace_ops *ops)
 {
 	int ret;
@@ -439,20 +498,6 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 	} else if (ops->flags & FTRACE_OPS_FL_CONTROL) {
 		ret = remove_ftrace_list_ops(&ftrace_control_list,
 					     &control_ops, ops);
-		if (!ret) {
-			/*
-			 * The ftrace_ops is now removed from the list,
-			 * so there'll be no new users. We must ensure
-			 * all current users are done before we free
-			 * the control data.
-			 * Note synchronize_sched() is not enough, as we
-			 * use preempt_disable() to do RCU, but the function
-			 * tracer can be called where RCU is not active
-			 * (before user_exit()).
-			 */
-			schedule_on_each_cpu(ftrace_sync);
-			control_ops_free(ops);
-		}
 	} else
 		ret = remove_ftrace_ops(&ftrace_ops_list, ops);
 
@@ -461,17 +506,6 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 
 	if (ftrace_enabled)
 		update_ftrace_function();
-
-	/*
-	 * Dynamic ops may be freed, we must make sure that all
-	 * callers are done before leaving this function.
-	 *
-	 * Again, normal synchronize_sched() is not good enough.
-	 * We need to do a hard force of sched synchronization.
-	 */
-	if (ops->flags & FTRACE_OPS_FL_DYNAMIC)
-		schedule_on_each_cpu(ftrace_sync);
-
 
 	return 0;
 }
@@ -775,7 +809,7 @@ static int ftrace_profile_init(void)
 	int cpu;
 	int ret = 0;
 
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		ret = ftrace_profile_init_cpu(cpu);
 		if (ret)
 			break;
@@ -1081,19 +1115,6 @@ static __init void ftrace_profile_debugfs(struct dentry *d_tracer)
 #endif /* CONFIG_FUNCTION_PROFILER */
 
 static struct pid * const ftrace_swapper_pid = &init_struct_pid;
-
-loff_t
-ftrace_filter_lseek(struct file *file, loff_t offset, int whence)
-{
-	loff_t ret;
-
-	if (file->f_mode & FMODE_READ)
-		ret = seq_lseek(file, offset, whence);
-	else
-		file->f_pos = ret = 1;
-
-	return ret;
-}
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
@@ -1992,8 +2013,14 @@ void ftrace_modify_all_code(int command)
 	else if (command & FTRACE_DISABLE_CALLS)
 		ftrace_replace_code(0);
 
-	if (update && ftrace_trace_function != ftrace_ops_list_func)
+	if (update && ftrace_trace_function != ftrace_ops_list_func) {
+		function_trace_op = set_function_trace_op;
+		smp_wmb();
+		/* If irqs are disabled, we are in stop machine */
+		if (!irqs_disabled())
+			smp_call_function(ftrace_sync_ipi, NULL, 1);
 		ftrace_update_ftrace_func(ftrace_trace_function);
+	}
 
 	if (command & FTRACE_START_FUNC_RET)
 		ftrace_enable_ftrace_graph_caller();
@@ -2156,10 +2183,41 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 		command |= FTRACE_UPDATE_TRACE_FUNC;
 	}
 
-	if (!command || !ftrace_enabled)
+	if (!command || !ftrace_enabled) {
+		/*
+		 * If these are control ops, they still need their
+		 * per_cpu field freed. Since, function tracing is
+		 * not currently active, we can just free them
+		 * without synchronizing all CPUs.
+		 */
+		if (ops->flags & FTRACE_OPS_FL_CONTROL)
+			control_ops_free(ops);
 		return 0;
+	}
 
 	ftrace_run_update_code(command);
+
+	/*
+	 * Dynamic ops may be freed, we must make sure that all
+	 * callers are done before leaving this function.
+	 * The same goes for freeing the per_cpu data of the control
+	 * ops.
+	 *
+	 * Again, normal synchronize_sched() is not good enough.
+	 * We need to do a hard force of sched synchronization.
+	 * This is because we use preempt_disable() to do RCU, but
+	 * the function tracers can be called where RCU is not watching
+	 * (like before user_exit()). We can not rely on the RCU
+	 * infrastructure to do the synchronization, thus we must do it
+	 * ourselves.
+	 */
+	if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_CONTROL)) {
+		schedule_on_each_cpu(ftrace_sync);
+
+		if (ops->flags & FTRACE_OPS_FL_CONTROL)
+			control_ops_free(ops);
+	}
+
 	return 0;
 }
 
@@ -2739,7 +2797,7 @@ static void ftrace_filter_reset(struct ftrace_hash *hash)
  * routine, you can use ftrace_filter_write() for the write
  * routine if @flag has FTRACE_ITER_FILTER set, or
  * ftrace_notrace_write() if @flag has FTRACE_ITER_NOTRACE set.
- * ftrace_filter_lseek() should be used as the lseek routine, and
+ * tracing_lseek() should be used as the lseek routine, and
  * release must call ftrace_regex_release().
  */
 int
@@ -3767,7 +3825,7 @@ static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = seq_read,
 	.write = ftrace_filter_write,
-	.llseek = ftrace_filter_lseek,
+	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
 
@@ -3775,7 +3833,7 @@ static const struct file_operations ftrace_notrace_fops = {
 	.open = ftrace_notrace_open,
 	.read = seq_read,
 	.write = ftrace_notrace_write,
-	.llseek = ftrace_filter_lseek,
+	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
 
@@ -4038,7 +4096,7 @@ static const struct file_operations ftrace_graph_fops = {
 	.open		= ftrace_graph_open,
 	.read		= seq_read,
 	.write		= ftrace_graph_write,
-	.llseek		= ftrace_filter_lseek,
+	.llseek		= tracing_lseek,
 	.release	= ftrace_graph_release,
 };
 
@@ -4046,7 +4104,7 @@ static const struct file_operations ftrace_graph_notrace_fops = {
 	.open		= ftrace_graph_notrace_open,
 	.read		= seq_read,
 	.write		= ftrace_graph_write,
-	.llseek		= ftrace_filter_lseek,
+	.llseek		= tracing_lseek,
 	.release	= ftrace_graph_release,
 };
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
@@ -4719,7 +4777,7 @@ static const struct file_operations ftrace_pid_fops = {
 	.open		= ftrace_pid_open,
 	.write		= ftrace_pid_write,
 	.read		= seq_read,
-	.llseek		= ftrace_filter_lseek,
+	.llseek		= tracing_lseek,
 	.release	= ftrace_pid_release,
 };
 
@@ -4862,6 +4920,7 @@ int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
 trace_func_graph_ret_t ftrace_graph_return =
 			(trace_func_graph_ret_t)ftrace_stub;
 trace_func_graph_ent_t ftrace_graph_entry = ftrace_graph_entry_stub;
+static trace_func_graph_ent_t __ftrace_graph_entry = ftrace_graph_entry_stub;
 
 /* Try to assign a return stack array on FTRACE_RETSTACK_ALLOC_SIZE tasks. */
 static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
@@ -5003,6 +5062,30 @@ static struct ftrace_ops fgraph_ops __read_mostly = {
 				FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
+static int ftrace_graph_entry_test(struct ftrace_graph_ent *trace)
+{
+	if (!ftrace_ops_test(&global_ops, trace->func, NULL))
+		return 0;
+	return __ftrace_graph_entry(trace);
+}
+
+/*
+ * The function graph tracer should only trace the functions defined
+ * by set_ftrace_filter and set_ftrace_notrace. If another function
+ * tracer ops is registered, the graph tracer requires testing the
+ * function against the global ops, and not just trace any function
+ * that any ftrace_ops registered.
+ */
+static void update_function_graph_func(void)
+{
+	if (ftrace_ops_list == &ftrace_list_end ||
+	    (ftrace_ops_list == &global_ops &&
+	     global_ops.next == &ftrace_list_end))
+		ftrace_graph_entry = __ftrace_graph_entry;
+	else
+		ftrace_graph_entry = ftrace_graph_entry_test;
+}
+
 int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 			trace_func_graph_ent_t entryfunc)
 {
@@ -5027,7 +5110,16 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	}
 
 	ftrace_graph_return = retfunc;
-	ftrace_graph_entry = entryfunc;
+
+	/*
+	 * Update the indirect function to the entryfunc, and the
+	 * function that gets called to the entry_test first. Then
+	 * call the update fgraph entry function to determine if
+	 * the entryfunc should be called directly or not.
+	 */
+	__ftrace_graph_entry = entryfunc;
+	ftrace_graph_entry = ftrace_graph_entry_test;
+	update_function_graph_func();
 
 	ret = ftrace_startup(&fgraph_ops, FTRACE_START_FUNC_RET);
 
@@ -5046,6 +5138,7 @@ void unregister_ftrace_graph(void)
 	ftrace_graph_active--;
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
+	__ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(&fgraph_ops, FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);

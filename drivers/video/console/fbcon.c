@@ -3547,8 +3547,10 @@ static void fbcon_exit(void)
 			"no"));
 
 		for (j = first_fb_vc; j <= last_fb_vc; j++) {
-			if (con2fb_map[j] == i)
+			if (con2fb_map[j] == i) {
 				mapped = 1;
+				break;
+			}
 		}
 
 		if (mapped) {
@@ -3561,6 +3563,7 @@ static void fbcon_exit(void)
 
 				fbcon_del_cursor_timer(info);
 				kfree(ops->cursor_src);
+				kfree(ops->cursor_state.mask);
 				kfree(info->fbcon_par);
 				info->fbcon_par = NULL;
 			}

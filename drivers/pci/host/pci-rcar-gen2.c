@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 /* AHB-PCI Bridge PCI communication registers */
@@ -77,6 +78,7 @@
 #define RCAR_PCI_NR_CONTROLLERS		3
 
 struct rcar_pci_priv {
+	struct device *dev;
 	void __iomem *reg;
 	struct resource io_res;
 	struct resource mem_res;
@@ -169,8 +171,11 @@ static int __init rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	void __iomem *reg = priv->reg;
 	u32 val;
 
+	pm_runtime_enable(priv->dev);
+	pm_runtime_get_sync(priv->dev);
+
 	val = ioread32(reg + RCAR_PCI_UNIT_REV_REG);
-	pr_info("PCI: bus%u revision %x\n", sys->busnr, val);
+	dev_info(priv->dev, "PCI: bus%u revision %x\n", sys->busnr, val);
 
 	/* Disable Direct Power Down State and assert reset */
 	val = ioread32(reg + RCAR_USBCTR_REG) & ~RCAR_USBCTR_DIRPD;
@@ -276,8 +281,8 @@ static int __init rcar_pci_probe(struct platform_device *pdev)
 
 	cfg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(&pdev->dev, cfg_res);
-	if (!reg)
-		return -ENODEV;
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!mem_res || !mem_res->start)
@@ -301,6 +306,7 @@ static int __init rcar_pci_probe(struct platform_device *pdev)
 
 	priv->irq = platform_get_irq(pdev, 0);
 	priv->reg = reg;
+	priv->dev = &pdev->dev;
 
 	return rcar_pci_add_controller(priv);
 }

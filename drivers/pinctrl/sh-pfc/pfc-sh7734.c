@@ -1357,7 +1357,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_DATA(IP11_28, ST_CLKOUT),
 };
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
 };
 

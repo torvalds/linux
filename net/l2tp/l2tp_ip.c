@@ -403,7 +403,7 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 
 	/* Get and verify the address. */
 	if (msg->msg_name) {
-		struct sockaddr_l2tpip *lip = (struct sockaddr_l2tpip *) msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_l2tpip *, lip, msg->msg_name);
 		rc = -EINVAL;
 		if (msg->msg_namelen < sizeof(*lip))
 			goto out;
@@ -512,7 +512,7 @@ static int l2tp_ip_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 	struct inet_sock *inet = inet_sk(sk);
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
-	struct sockaddr_in *sin = (struct sockaddr_in *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
 	struct sk_buff *skb;
 
 	if (flags & MSG_OOB)

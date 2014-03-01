@@ -12,6 +12,7 @@ struct probe_trace_point {
 	char		*symbol;	/* Base symbol */
 	char		*module;	/* Module name */
 	unsigned long	offset;		/* Offset from symbol */
+	unsigned long	address;	/* Actual address of the trace point */
 	bool		retprobe;	/* Return probe flag */
 };
 
@@ -118,6 +119,12 @@ extern void clear_perf_probe_event(struct perf_probe_event *pev);
 
 /* Command string to line-range */
 extern int parse_line_range_desc(const char *cmd, struct line_range *lr);
+
+/* Release line range members */
+extern void line_range__clear(struct line_range *lr);
+
+/* Initialize line range */
+extern void line_range__init(struct line_range *lr);
 
 /* Internal use: Return kernel/module path */
 extern const char *kernel_get_module_path(const char *module);

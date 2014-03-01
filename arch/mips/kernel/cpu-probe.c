@@ -112,7 +112,7 @@ static inline unsigned long cpu_get_fpu_id(void)
 	unsigned long tmp, fpu_id;
 
 	tmp = read_c0_status();
-	__enable_fpu();
+	__enable_fpu(FPU_AS_IS);
 	fpu_id = read_32bit_cp1_register(CP1_REVISION);
 	write_c0_status(tmp);
 	return fpu_id;
@@ -163,6 +163,25 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 static char unknown_isa[] = KERN_ERR \
 	"Unsupported ISA type, c0.config0: %d.";
 
+static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
+{
+	unsigned int config6;
+	/*
+	 * Config6 is implementation dependent and it's currently only
+	 * used by proAptiv
+	 */
+	if (c->cputype == CPU_PROAPTIV) {
+		config6 = read_c0_config6();
+		if (enable)
+			/* Enable FTLB */
+			write_c0_config6(config6 | MIPS_CONF6_FTLBEN);
+		else
+			/* Disable FTLB */
+			write_c0_config6(config6 &  ~MIPS_CONF6_FTLBEN);
+		back_to_back_c0_hazard();
+	}
+}
+
 static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 {
 	unsigned int config0;
@@ -170,8 +189,13 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 
 	config0 = read_c0_config();
 
-	if (((config0 & MIPS_CONF_MT) >> 7) == 1)
+	/*
+	 * Look for Standard TLB or Dual VTLB and FTLB
+	 */
+	if ((((config0 & MIPS_CONF_MT) >> 7) == 1) ||
+	    (((config0 & MIPS_CONF_MT) >> 7) == 4))
 		c->options |= MIPS_CPU_TLB;
+
 	isa = (config0 & MIPS_CONF_AT) >> 13;
 	switch (isa) {
 	case 0:
@@ -226,8 +250,11 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_FPU;
 		c->options |= MIPS_CPU_32FPR;
 	}
-	if (cpu_has_tlb)
+	if (cpu_has_tlb) {
 		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
+		c->tlbsizevtlb = c->tlbsize;
+		c->tlbsizeftlbsets = 0;
+	}
 
 	return config1 & MIPS_CONF_M;
 }
@@ -272,6 +299,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_MICROMIPS;
 	if (config3 & MIPS_CONF3_VZ)
 		c->ases |= MIPS_ASE_VZ;
+	if (config3 & MIPS_CONF3_SC)
+		c->options |= MIPS_CPU_SEGMENTS;
 
 	return config3 & MIPS_CONF_M;
 }
@@ -279,12 +308,51 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 {
 	unsigned int config4;
+	unsigned int newcf4;
+	unsigned int mmuextdef;
+	unsigned int ftlb_page = MIPS_CONF4_FTLBPAGESIZE;
 
 	config4 = read_c0_config4();
 
-	if ((config4 & MIPS_CONF4_MMUEXTDEF) == MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT
-	    && cpu_has_tlb)
-		c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
+	if (cpu_has_tlb) {
+		if (((config4 & MIPS_CONF4_IE) >> 29) == 2)
+			c->options |= MIPS_CPU_TLBINV;
+		mmuextdef = config4 & MIPS_CONF4_MMUEXTDEF;
+		switch (mmuextdef) {
+		case MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT:
+			c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
+			c->tlbsizevtlb = c->tlbsize;
+			break;
+		case MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT:
+			c->tlbsizevtlb +=
+				((config4 & MIPS_CONF4_VTLBSIZEEXT) >>
+				  MIPS_CONF4_VTLBSIZEEXT_SHIFT) * 0x40;
+			c->tlbsize = c->tlbsizevtlb;
+			ftlb_page = MIPS_CONF4_VFTLBPAGESIZE;
+			/* fall through */
+		case MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT:
+			newcf4 = (config4 & ~ftlb_page) |
+				(page_size_ftlb(mmuextdef) <<
+				 MIPS_CONF4_FTLBPAGESIZE_SHIFT);
+			write_c0_config4(newcf4);
+			back_to_back_c0_hazard();
+			config4 = read_c0_config4();
+			if (config4 != newcf4) {
+				pr_err("PAGE_SIZE 0x%lx is not supported by FTLB (config4=0x%x)\n",
+				       PAGE_SIZE, config4);
+				/* Switch FTLB off */
+				set_ftlb_enable(c, 0);
+				break;
+			}
+			c->tlbsizeftlbsets = 1 <<
+				((config4 & MIPS_CONF4_FTLBSETS) >>
+				 MIPS_CONF4_FTLBSETS_SHIFT);
+			c->tlbsizeftlbways = ((config4 & MIPS_CONF4_FTLBWAYS) >>
+					      MIPS_CONF4_FTLBWAYS_SHIFT) + 2;
+			c->tlbsize += c->tlbsizeftlbways * c->tlbsizeftlbsets;
+			break;
+		}
+	}
 
 	c->kscratch_mask = (config4 >> 16) & 0xff;
 
@@ -311,6 +379,9 @@ static void decode_configs(struct cpuinfo_mips *c)
 		     MIPS_CPU_DIVEC | MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
 
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
+
+	/* Enable FTLB if present */
+	set_ftlb_enable(c, 1);
 
 	ok = decode_config0(c);			/* Read Config registers.  */
 	BUG_ON(!ok);				/* Arch spec violation!	 */
@@ -675,7 +746,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {
-	decode_configs(c);
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;
@@ -739,7 +809,25 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_74K;
 		__cpu_name[cpu] = "MIPS 1074Kc";
 		break;
+	case PRID_IMP_INTERAPTIV_UP:
+		c->cputype = CPU_INTERAPTIV;
+		__cpu_name[cpu] = "MIPS interAptiv";
+		break;
+	case PRID_IMP_INTERAPTIV_MP:
+		c->cputype = CPU_INTERAPTIV;
+		__cpu_name[cpu] = "MIPS interAptiv (multi)";
+		break;
+	case PRID_IMP_PROAPTIV_UP:
+		c->cputype = CPU_PROAPTIV;
+		__cpu_name[cpu] = "MIPS proAptiv";
+		break;
+	case PRID_IMP_PROAPTIV_MP:
+		c->cputype = CPU_PROAPTIV;
+		__cpu_name[cpu] = "MIPS proAptiv (multi)";
+		break;
 	}
+
+	decode_configs(c);
 
 	spram_config();
 }
@@ -943,6 +1031,7 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_NETLOGIC_XLP2XX:
+	case PRID_IMP_NETLOGIC_XLP9XX:
 		c->cputype = CPU_XLP;
 		__cpu_name[cpu] = "Broadcom XLPII";
 		break;

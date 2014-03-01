@@ -47,7 +47,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = nft_do_chain_pktinfo(&pkt, ops);
+	ret = nft_do_chain(&pkt, ops);
 	if (ret != NF_DROP && ret != NF_QUEUE) {
 		iph = ip_hdr(skb);
 
@@ -61,15 +61,15 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	return ret;
 }
 
-static struct nf_chain_type nft_chain_route_ipv4 = {
-	.family		= NFPROTO_IPV4,
+static const struct nf_chain_type nft_chain_route_ipv4 = {
 	.name		= "route",
 	.type		= NFT_CHAIN_T_ROUTE,
+	.family		= NFPROTO_IPV4,
+	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_INET_LOCAL_OUT),
-	.fn		= {
+	.hooks		= {
 		[NF_INET_LOCAL_OUT]	= nf_route_table_hook,
 	},
-	.me		= THIS_MODULE,
 };
 
 static int __init nft_chain_route_init(void)

@@ -204,9 +204,9 @@ config SCSI_MULTI_LUN
 	  Some devices support more than one LUN (Logical Unit Number) in order
 	  to allow access to several media, e.g. CD jukebox, USB card reader,
 	  mobile phone in mass storage mode. This option forces the kernel to
-	  probe for all LUNs by default. This setting can be overriden by
+	  probe for all LUNs by default. This setting can be overridden by
 	  max_luns boot/module parameter. Note that this option does not affect
-	  devices conforming to SCSI-3 or higher as they can explicitely report
+	  devices conforming to SCSI-3 or higher as they can explicitly report
 	  their number of LUNs. It is safe to say Y here unless you have one of
 	  those rare devices which reacts in an unexpected way when probed for
 	  multiple LUNs.
@@ -499,47 +499,6 @@ config SCSI_AACRAID
 
 
 source "drivers/scsi/aic7xxx/Kconfig.aic7xxx"
-
-config SCSI_AIC7XXX_OLD
-	tristate "Adaptec AIC7xxx support (old driver)"
-	depends on (ISA || EISA || PCI ) && SCSI
-	help
-	  WARNING This driver is an older aic7xxx driver and is no longer
-	  under active development.  Adaptec, Inc. is writing a new driver to
-	  take the place of this one, and it is recommended that whenever
-	  possible, people should use the new Adaptec written driver instead
-	  of this one.  This driver will eventually be phased out entirely.
-
-	  This is support for the various aic7xxx based Adaptec SCSI
-	  controllers. These include the 274x EISA cards; 284x VLB cards;
-	  2902, 2910, 293x, 294x, 394x, 3985 and several other PCI and
-	  motherboard based SCSI controllers from Adaptec. It does not support
-	  the AAA-13x RAID controllers from Adaptec, nor will it likely ever
-	  support them. It does not support the 2920 cards from Adaptec that
-	  use the Future Domain SCSI controller chip. For those cards, you
-	  need the "Future Domain 16xx SCSI support" driver.
-
-	  In general, if the controller is based on an Adaptec SCSI controller
-	  chip from the aic777x series or the aic78xx series, this driver
-	  should work. The only exception is the 7810 which is specifically
-	  not supported (that's the RAID controller chip on the AAA-13x
-	  cards).
-
-	  Note that the AHA2920 SCSI host adapter is *not* supported by this
-	  driver; choose "Future Domain 16xx SCSI support" instead if you have
-	  one of those.
-
-	  Information on the configuration options for this controller can be
-	  found by checking the help file for each of the available
-	  configuration options. You should read
-	  <file:Documentation/scsi/aic7xxx_old.txt> at a minimum before
-	  contacting the maintainer with any questions.  The SCSI-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>, can also
-	  be of great help.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called aic7xxx_old.
-
 source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
 source "drivers/scsi/aic94xx/Kconfig"
 source "drivers/scsi/mvsas/Kconfig"

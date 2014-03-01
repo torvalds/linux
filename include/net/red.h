@@ -130,7 +130,8 @@ struct red_parms {
 	u32		qth_max;	/* Max avg length threshold: Wlog scaled */
 	u32		Scell_max;
 	u32		max_P;		/* probability, [0 .. 1.0] 32 scaled */
-	u32		max_P_reciprocal; /* reciprocal_value(max_P / qth_delta) */
+	/* reciprocal_value(max_P / qth_delta) */
+	struct reciprocal_value	max_P_reciprocal;
 	u32		qth_delta;	/* max_th - min_th */
 	u32		target_min;	/* min_th + 0.4*(max_th - min_th) */
 	u32		target_max;	/* min_th + 0.6*(max_th - min_th) */
@@ -303,7 +304,7 @@ static inline unsigned long red_calc_qavg(const struct red_parms *p,
 
 static inline u32 red_random(const struct red_parms *p)
 {
-	return reciprocal_divide(net_random(), p->max_P_reciprocal);
+	return reciprocal_divide(prandom_u32(), p->max_P_reciprocal);
 }
 
 static inline int red_mark_probability(const struct red_parms *p,

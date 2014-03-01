@@ -223,7 +223,7 @@ MODULE_DEVICE_TABLE(of, pasemi_nand_match);
 static struct platform_driver pasemi_nand_driver =
 {
 	.driver = {
-		.name = (char*)driver_name,
+		.name = driver_name,
 		.owner = THIS_MODULE,
 		.of_match_table = pasemi_nand_match,
 	},

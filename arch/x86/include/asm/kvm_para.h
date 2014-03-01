@@ -85,28 +85,9 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 	return ret;
 }
 
-static inline uint32_t kvm_cpuid_base(void)
-{
-	if (boot_cpu_data.cpuid_level < 0)
-		return 0;	/* So we don't blow up on old processors */
-
-	if (cpu_has_hypervisor)
-		return hypervisor_cpuid_base("KVMKVMKVM\0\0\0", 0);
-
-	return 0;
-}
-
-static inline bool kvm_para_available(void)
-{
-	return kvm_cpuid_base() != 0;
-}
-
-static inline unsigned int kvm_arch_para_features(void)
-{
-	return cpuid_eax(KVM_CPUID_FEATURES);
-}
-
 #ifdef CONFIG_KVM_GUEST
+bool kvm_para_available(void);
+unsigned int kvm_arch_para_features(void);
 void __init kvm_guest_init(void);
 void kvm_async_pf_task_wait(u32 token);
 void kvm_async_pf_task_wake(u32 token);
@@ -125,6 +106,16 @@ static inline void kvm_spinlock_init(void)
 #define kvm_guest_init() do {} while (0)
 #define kvm_async_pf_task_wait(T) do {} while(0)
 #define kvm_async_pf_task_wake(T) do {} while(0)
+
+static inline bool kvm_para_available(void)
+{
+	return 0;
+}
+
+static inline unsigned int kvm_arch_para_features(void)
+{
+	return 0;
+}
 
 static inline u32 kvm_read_and_reset_pf_reason(void)
 {

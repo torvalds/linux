@@ -143,11 +143,6 @@ static struct map_desc fb_common_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(DC21285_ARMCSR_BASE),
 		.length		= ARMCSR_SIZE,
 		.type		= MT_DEVICE,
-	}, {
-		.virtual	= XBUS_BASE,
-		.pfn		= __phys_to_pfn(0x40000000),
-		.length		= XBUS_SIZE,
-		.type		= MT_DEVICE,
 	}
 };
 

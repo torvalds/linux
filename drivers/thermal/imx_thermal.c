@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/cpu_cooling.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
@@ -73,6 +74,7 @@ struct imx_thermal_data {
 	unsigned long last_temp;
 	bool irq_enabled;
 	int irq;
+	struct clk *thermal_clk;
 };
 
 static void imx_set_alarm_temp(struct imx_thermal_data *data,
@@ -284,7 +286,7 @@ static int imx_unbind(struct thermal_zone_device *tz,
 	return 0;
 }
 
-static const struct thermal_zone_device_ops imx_tz_ops = {
+static struct thermal_zone_device_ops imx_tz_ops = {
 	.bind = imx_bind,
 	.unbind = imx_unbind,
 	.get_temp = imx_get_temp,
@@ -457,6 +459,22 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	data->thermal_clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(data->thermal_clk)) {
+		dev_warn(&pdev->dev, "failed to get thermal clk!\n");
+	} else {
+		/*
+		 * Thermal sensor needs clk on to get correct value, normally
+		 * we should enable its clk before taking measurement and disable
+		 * clk after measurement is done, but if alarm function is enabled,
+		 * hardware will auto measure the temperature periodically, so we
+		 * need to keep the clk always on for alarm function.
+		 */
+		ret = clk_prepare_enable(data->thermal_clk);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to enable thermal clk: %d\n", ret);
+	}
+
 	/* Enable measurements at ~ 10 Hz */
 	regmap_write(map, TEMPSENSE1 + REG_CLR, TEMPSENSE1_MEASURE_FREQ);
 	measure_freq = DIV_ROUND_UP(32768, 10); /* 10 Hz */
@@ -478,6 +496,8 @@ static int imx_thermal_remove(struct platform_device *pdev)
 
 	/* Disable measurements */
 	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_POWER_DOWN);
+	if (!IS_ERR(data->thermal_clk))
+		clk_disable_unprepare(data->thermal_clk);
 
 	thermal_zone_device_unregister(data->tz);
 	cpufreq_cooling_unregister(data->cdev);
@@ -490,27 +510,30 @@ static int imx_thermal_suspend(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
 	struct regmap *map = data->tempmon;
-	u32 val;
 
-	regmap_read(map, TEMPSENSE0, &val);
-	if ((val & TEMPSENSE0_POWER_DOWN) == 0) {
-		/*
-		 * If a measurement is taking place, wait for a long enough
-		 * time for it to finish, and then check again.  If it still
-		 * does not finish, something must go wrong.
-		 */
-		udelay(50);
-		regmap_read(map, TEMPSENSE0, &val);
-		if ((val & TEMPSENSE0_POWER_DOWN) == 0)
-			return -ETIMEDOUT;
-	}
+	/*
+	 * Need to disable thermal sensor, otherwise, when thermal core
+	 * try to get temperature before thermal sensor resume, a wrong
+	 * temperature will be read as the thermal sensor is powered
+	 * down.
+	 */
+	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_MEASURE_TEMP);
+	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_POWER_DOWN);
+	data->mode = THERMAL_DEVICE_DISABLED;
 
 	return 0;
 }
 
 static int imx_thermal_resume(struct device *dev)
 {
-	/* Nothing to do for now */
+	struct imx_thermal_data *data = dev_get_drvdata(dev);
+	struct regmap *map = data->tempmon;
+
+	/* Enabled thermal sensor after resume */
+	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_POWER_DOWN);
+	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_MEASURE_TEMP);
+	data->mode = THERMAL_DEVICE_ENABLED;
+
 	return 0;
 }
 #endif
@@ -522,6 +545,7 @@ static const struct of_device_id of_imx_thermal_match[] = {
 	{ .compatible = "fsl,imx6q-tempmon", },
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
 static struct platform_driver imx_thermal = {
 	.driver = {

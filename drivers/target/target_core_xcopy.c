@@ -40,10 +40,6 @@
 
 static struct workqueue_struct *xcopy_wq = NULL;
 /*
- * From target_core_spc.c
- */
-extern void spc_parse_naa_6h_vendor_specific(struct se_device *, unsigned char *);
-/*
  * From target_core_device.c
  */
 extern struct mutex g_device_mutex;

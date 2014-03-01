@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
+#include <linux/jiffies.h>
 
 #include "em28xx.h"
 #include "tuner-xc2028.h"
@@ -40,7 +41,7 @@ MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
 static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
+MODULE_PARM_DESC(i2c_debug, "i2c debug message level (1: normal debug, 2: show I2C transfers)");
 
 /*
  * em2800_i2c_send_bytes()
@@ -48,8 +49,8 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
  */
 static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_I2C_XFER_TIMEOUT);
 	int ret;
-	int write_timeout;
 	u8 b2[6];
 
 	if (len < 1 || len > 4)
@@ -74,22 +75,26 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 		return (ret < 0) ? ret : -EIO;
 	}
 	/* wait for completion */
-	for (write_timeout = EM2800_I2C_XFER_TIMEOUT; write_timeout > 0;
-	     write_timeout -= 5) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
-		if (ret == 0x80 + len - 1) {
+		if (ret == 0x80 + len - 1)
 			return len;
-		} else if (ret == 0x94 + len - 1) {
-			return -ENODEV;
-		} else if (ret < 0) {
+		if (ret == 0x94 + len - 1) {
+			if (i2c_debug == 1)
+				em28xx_warn("R05 returned 0x%02x: I2C timeout",
+					    ret);
+			return -ENXIO;
+		}
+		if (ret < 0) {
 			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 				    ret);
 			return ret;
 		}
 		msleep(5);
 	}
-	em28xx_warn("write to i2c device at 0x%x timed out\n", addr);
-	return -EIO;
+	if (i2c_debug)
+		em28xx_warn("write to i2c device at 0x%x timed out\n", addr);
+	return -ETIMEDOUT;
 }
 
 /*
@@ -98,9 +103,9 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
  */
 static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_I2C_XFER_TIMEOUT);
 	u8 buf2[4];
 	int ret;
-	int read_timeout;
 	int i;
 
 	if (len < 1 || len > 4)
@@ -117,22 +122,28 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 	}
 
 	/* wait for completion */
-	for (read_timeout = EM2800_I2C_XFER_TIMEOUT; read_timeout > 0;
-	     read_timeout -= 5) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
-		if (ret == 0x84 + len - 1) {
+		if (ret == 0x84 + len - 1)
 			break;
-		} else if (ret == 0x94 + len - 1) {
-			return -ENODEV;
-		} else if (ret < 0) {
+		if (ret == 0x94 + len - 1) {
+			if (i2c_debug == 1)
+				em28xx_warn("R05 returned 0x%02x: I2C timeout",
+					    ret);
+			return -ENXIO;
+		}
+		if (ret < 0) {
 			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 				    ret);
 			return ret;
 		}
 		msleep(5);
 	}
-	if (ret != 0x84 + len - 1)
-		em28xx_warn("read from i2c device at 0x%x timed out\n", addr);
+	if (ret != 0x84 + len - 1) {
+		if (i2c_debug)
+			em28xx_warn("read from i2c device at 0x%x timed out\n",
+				    addr);
+	}
 
 	/* get the received message */
 	ret = dev->em28xx_read_reg_req_len(dev, 0x00, 4-len, buf2, len);
@@ -168,7 +179,8 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, u8 addr)
 static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 				 u16 len, int stop)
 {
-	int write_timeout, ret;
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_I2C_XFER_TIMEOUT);
+	int ret;
 
 	if (len < 1 || len > 64)
 		return -EOPNOTSUPP;
@@ -191,16 +203,19 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		}
 	}
 
-	/* Check success of the i2c operation */
-	for (write_timeout = EM2800_I2C_XFER_TIMEOUT; write_timeout > 0;
-	     write_timeout -= 5) {
+	/* wait for completion */
+	while (time_is_after_jiffies(timeout)) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
-		if (ret == 0) { /* success */
+		if (ret == 0) /* success */
 			return len;
-		} else if (ret == 0x10) {
-			return -ENODEV;
-		} else if (ret < 0) {
-			em28xx_warn("failed to read i2c transfer status from bridge (error=%i)\n",
+		if (ret == 0x10) {
+			if (i2c_debug == 1)
+				em28xx_warn("I2C transfer timeout on writing to addr 0x%02x",
+					    addr);
+			return -ENXIO;
+		}
+		if (ret < 0) {
+			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 				    ret);
 			return ret;
 		}
@@ -211,8 +226,10 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		 * (even with high payload) ...
 		 */
 	}
-	em28xx_warn("write to i2c device at 0x%x timed out\n", addr);
-	return -EIO;
+	if (i2c_debug)
+		em28xx_warn("write to i2c device at 0x%x timed out (status=%i)\n",
+			    addr, ret);
+	return -ETIMEDOUT;
 }
 
 /*
@@ -242,26 +259,28 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 	 * bytes if we are on bus B AND there was no write attempt to the
 	 * specified slave address before AND no device is present at the
 	 * requested slave address.
-	 * Anyway, the next check will fail with -ENODEV in this case, so avoid
+	 * Anyway, the next check will fail with -ENXIO in this case, so avoid
 	 * spamming the system log on device probing and do nothing here.
 	 */
 
 	/* Check success of the i2c operation */
 	ret = dev->em28xx_read_reg(dev, 0x05);
+	if (ret == 0) /* success */
+		return len;
 	if (ret < 0) {
-		em28xx_warn("failed to read i2c transfer status from bridge (error=%i)\n",
+		em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
 			    ret);
 		return ret;
 	}
-	if (ret > 0) {
-		if (ret == 0x10) {
-			return -ENODEV;
-		} else {
-			em28xx_warn("unknown i2c error (status=%i)\n", ret);
-			return -EIO;
-		}
+	if (ret == 0x10) {
+		if (i2c_debug == 1)
+			em28xx_warn("I2C transfer timeout on writing to addr 0x%02x",
+				    addr);
+		return -ENXIO;
 	}
-	return len;
+
+	em28xx_warn("unknown i2c error (status=%i)\n", ret);
+	return -ETIMEDOUT;
 }
 
 /*
@@ -316,8 +335,12 @@ static int em25xx_bus_B_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	 */
 	if (!ret)
 		return len;
-	else if (ret > 0)
-		return -ENODEV;
+	else if (ret > 0) {
+		if (i2c_debug == 1)
+			em28xx_warn("Bus B R08 returned 0x%02x: I2C timeout",
+				    ret);
+		return -ENXIO;
+	}
 
 	return ret;
 	/*
@@ -355,7 +378,7 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	 * bytes if we are on bus B AND there was no write attempt to the
 	 * specified slave address before AND no device is present at the
 	 * requested slave address.
-	 * Anyway, the next check will fail with -ENODEV in this case, so avoid
+	 * Anyway, the next check will fail with -ENXIO in this case, so avoid
 	 * spamming the system log on device probing and do nothing here.
 	 */
 
@@ -367,8 +390,12 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	 */
 	if (!ret)
 		return len;
-	else if (ret > 0)
-		return -ENODEV;
+	else if (ret > 0) {
+		if (i2c_debug == 1)
+			em28xx_warn("Bus B R08 returned 0x%02x: I2C timeout",
+				    ret);
+		return -ENXIO;
+	}
 
 	return ret;
 	/*
@@ -409,10 +436,6 @@ static inline int i2c_check_for_device(struct em28xx_i2c_bus *i2c_bus, u16 addr)
 		rc = em2800_i2c_check_for_device(dev, addr);
 	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM25XX_BUS_B)
 		rc = em25xx_bus_B_check_for_device(dev, addr);
-	if (rc == -ENODEV) {
-		if (i2c_debug)
-			printk(" no device\n");
-	}
 	return rc;
 }
 
@@ -421,7 +444,7 @@ static inline int i2c_recv_bytes(struct em28xx_i2c_bus *i2c_bus,
 {
 	struct em28xx *dev = i2c_bus->dev;
 	u16 addr = msg.addr << 1;
-	int byte, rc = -EOPNOTSUPP;
+	int rc = -EOPNOTSUPP;
 
 	if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM28XX)
 		rc = em28xx_i2c_recv_bytes(dev, addr, msg.buf, msg.len);
@@ -429,10 +452,6 @@ static inline int i2c_recv_bytes(struct em28xx_i2c_bus *i2c_bus,
 		rc = em2800_i2c_recv_bytes(dev, addr, msg.buf, msg.len);
 	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM25XX_BUS_B)
 		rc = em25xx_bus_B_recv_bytes(dev, addr, msg.buf, msg.len);
-	if (i2c_debug) {
-		for (byte = 0; byte < msg.len; byte++)
-			printk(" %02x", msg.buf[byte]);
-	}
 	return rc;
 }
 
@@ -441,12 +460,8 @@ static inline int i2c_send_bytes(struct em28xx_i2c_bus *i2c_bus,
 {
 	struct em28xx *dev = i2c_bus->dev;
 	u16 addr = msg.addr << 1;
-	int byte, rc = -EOPNOTSUPP;
+	int rc = -EOPNOTSUPP;
 
-	if (i2c_debug) {
-		for (byte = 0; byte < msg.len; byte++)
-			printk(" %02x", msg.buf[byte]);
-	}
 	if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM28XX)
 		rc = em28xx_i2c_send_bytes(dev, addr, msg.buf, msg.len, stop);
 	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM2800)
@@ -491,33 +506,53 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
-		if (i2c_debug)
+		if (i2c_debug > 1)
 			printk(KERN_DEBUG "%s at %s: %s %s addr=%02x len=%d:",
 			       dev->name, __func__ ,
 			       (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			       i == num - 1 ? "stop" : "nonstop",
 			       addr, msgs[i].len);
-		if (!msgs[i].len) { /* no len: check only for device presence */
+		if (!msgs[i].len) {
+			/*
+			 * no len: check only for device presence
+			 * This code is only called during device probe.
+			 */
 			rc = i2c_check_for_device(i2c_bus, addr);
-			if (rc == -ENODEV) {
+			if (rc < 0) {
+				if (rc == -ENXIO) {
+					if (i2c_debug > 1)
+						printk(KERN_CONT " no device\n");
+					rc = -ENODEV;
+				} else {
+					if (i2c_debug > 1)
+						printk(KERN_CONT " ERROR: %i\n", rc);
+				}
 				rt_mutex_unlock(&dev->i2c_bus_lock);
 				return rc;
 			}
 		} else if (msgs[i].flags & I2C_M_RD) {
 			/* read bytes */
 			rc = i2c_recv_bytes(i2c_bus, msgs[i]);
+
+			if (i2c_debug > 1 && rc >= 0)
+				printk(KERN_CONT " %*ph",
+				       msgs[i].len, msgs[i].buf);
 		} else {
+			if (i2c_debug > 1)
+				printk(KERN_CONT " %*ph",
+				       msgs[i].len, msgs[i].buf);
+
 			/* write bytes */
 			rc = i2c_send_bytes(i2c_bus, msgs[i], i == num - 1);
 		}
 		if (rc < 0) {
-			if (i2c_debug)
-				printk(" ERROR: %i\n", rc);
+			if (i2c_debug > 1)
+				printk(KERN_CONT " ERROR: %i\n", rc);
 			rt_mutex_unlock(&dev->i2c_bus_lock);
 			return rc;
 		}
-		if (i2c_debug)
-			printk("\n");
+		if (i2c_debug > 1)
+			printk(KERN_CONT "\n");
 	}
 
 	rt_mutex_unlock(&dev->i2c_bus_lock);
@@ -600,7 +635,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
 	 * calculation and returned device dataset. Simplifies the code a lot,
 	 * but we might have to deal with multiple sizes in the future !
 	 */
-	int i, err;
+	int err;
 	struct em28xx_eeprom *dev_config;
 	u8 buf, *data;
 
@@ -631,20 +666,14 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
 		goto error;
 	}
 
-	/* Display eeprom content */
-	for (i = 0; i < len; i++) {
-		if (0 == (i % 16)) {
-			if (dev->eeprom_addrwidth_16bit)
-				em28xx_info("i2c eeprom %04x:", i);
-			else
-				em28xx_info("i2c eeprom %02x:", i);
-		}
-		printk(" %02x", data[i]);
-		if (15 == (i % 16))
-			printk("\n");
+	if (i2c_debug) {
+		/* Display eeprom content */
+		print_hex_dump(KERN_INFO, "eeprom ", DUMP_PREFIX_OFFSET,
+			       16, 1, data, len, true);
+
+		if (dev->eeprom_addrwidth_16bit)
+			em28xx_info("eeprom %06x: ... (skipped)\n", 256);
 	}
-	if (dev->eeprom_addrwidth_16bit)
-		em28xx_info("i2c eeprom %04x: ... (skipped)\n", i);
 
 	if (dev->eeprom_addrwidth_16bit &&
 	    data[0] == 0x26 && data[3] == 0x00) {
@@ -736,10 +765,16 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
 		em28xx_info("\tAC97 audio (5 sample rates)\n");
 		break;
 	case 2:
-		em28xx_info("\tI2S audio, sample rate=32k\n");
+		if (dev->chip_id < CHIP_ID_EM2860)
+			em28xx_info("\tI2S audio, sample rate=32k\n");
+		else
+			em28xx_info("\tI2S audio, 3 sample rates\n");
 		break;
 	case 3:
-		em28xx_info("\tI2S audio, 3 sample rates\n");
+		if (dev->chip_id < CHIP_ID_EM2860)
+			em28xx_info("\tI2S audio, 3 sample rates\n");
+		else
+			em28xx_info("\tI2S audio, 5 sample rates\n");
 		break;
 	}
 

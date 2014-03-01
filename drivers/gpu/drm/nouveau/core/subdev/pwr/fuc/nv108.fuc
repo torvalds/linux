@@ -37,6 +37,7 @@
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"
+#include "i2c_.fuc"
 #include "test.fuc"
 #include "idle.fuc"
 #undef INCLUDE_PROC
@@ -46,6 +47,7 @@
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"
+#include "i2c_.fuc"
 #include "test.fuc"
 #include "idle.fuc"
 #undef INCLUDE_DATA
@@ -57,6 +59,7 @@
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"
+#include "i2c_.fuc"
 #include "test.fuc"
 #include "idle.fuc"
 #undef INCLUDE_CODE

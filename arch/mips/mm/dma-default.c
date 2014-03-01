@@ -23,6 +23,7 @@
 
 #include <dma-coherence.h>
 
+#ifdef CONFIG_DMA_MAYBE_COHERENT
 int coherentio = 0;	/* User defined DMA coherency from command line. */
 EXPORT_SYMBOL_GPL(coherentio);
 int hw_coherentio = 0;	/* Actual hardware supported DMA coherency setting. */
@@ -42,6 +43,7 @@ static int __init setnocoherentio(char *str)
 	return 0;
 }
 early_param("nocoherentio", setnocoherentio);
+#endif
 
 static inline struct page *dma_addr_to_page(struct device *dev,
 	dma_addr_t dma_addr)

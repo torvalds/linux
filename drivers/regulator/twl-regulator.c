@@ -58,7 +58,7 @@ struct twlreg_info {
 	struct regulator_desc	desc;
 
 	/* chip specific features */
-	unsigned long 		features;
+	unsigned long		features;
 
 	/*
 	 * optional override functions for voltage set/get
@@ -1128,7 +1128,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	if (!initdata)
 		return -EINVAL;
 
-	info = kmemdup(template, sizeof (*info), GFP_KERNEL);
+	info = kmemdup(template, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 

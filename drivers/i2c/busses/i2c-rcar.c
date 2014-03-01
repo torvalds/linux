@@ -26,7 +26,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -111,6 +110,7 @@ struct rcar_i2c_priv {
 	void __iomem *io;
 	struct i2c_adapter adap;
 	struct i2c_msg	*msg;
+	struct clk *clk;
 
 	spinlock_t lock;
 	wait_queue_head_t wait;
@@ -227,17 +227,11 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 				    u32 bus_speed,
 				    struct device *dev)
 {
-	struct clk *clkp = clk_get(dev, NULL);
 	u32 scgd, cdf;
 	u32 round, ick;
 	u32 scl;
 	u32 cdf_width;
 	unsigned long rate;
-
-	if (IS_ERR(clkp)) {
-		dev_err(dev, "couldn't get clock\n");
-		return PTR_ERR(clkp);
-	}
 
 	switch (priv->devtype) {
 	case I2C_RCAR_GEN1:
@@ -266,7 +260,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 	 * clkp : peripheral_clk
 	 * F[]  : integer up-valuation
 	 */
-	rate = clk_get_rate(clkp);
+	rate = clk_get_rate(priv->clk);
 	cdf = rate / 20000000;
 	if (cdf >= 1 << cdf_width) {
 		dev_err(dev, "Input clock %lu too high\n", rate);
@@ -308,7 +302,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 
 scgd_find:
 	dev_dbg(dev, "clk %d/%d(%lu), round %u, CDF:0x%x, SCGD: 0x%x\n",
-		scl, bus_speed, clk_get_rate(clkp), round, cdf, scgd);
+		scl, bus_speed, clk_get_rate(priv->clk), round, cdf, scgd);
 
 	/*
 	 * keep icccr value
@@ -604,7 +598,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		 * error handling
 		 */
 		if (rcar_i2c_flags_has(priv, ID_NACK)) {
-			ret = -EREMOTEIO;
+			ret = -ENXIO;
 			break;
 		}
 
@@ -623,7 +617,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	pm_runtime_put(dev);
 
-	if (ret < 0)
+	if (ret < 0 && ret != -ENXIO)
 		dev_err(dev, "error %d : %x\n", ret, priv->flags);
 
 	return ret;
@@ -662,6 +656,12 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	if (!priv) {
 		dev_err(dev, "no mem for private data\n");
 		return -ENOMEM;
+	}
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "cannot get clock\n");
+		return PTR_ERR(priv->clk);
 	}
 
 	bus_speed = 100000; /* default 100 kHz */

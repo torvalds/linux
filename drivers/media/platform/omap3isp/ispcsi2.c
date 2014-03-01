@@ -1245,7 +1245,8 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	pads[CSI2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 
 	me->ops = &csi2_media_ops;
 	ret = media_entity_init(me, CSI2_PADS_NUM, pads, 0);

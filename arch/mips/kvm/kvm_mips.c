@@ -1001,7 +1001,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	hrtimer_init(&vcpu->arch.comparecount_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL);
 	vcpu->arch.comparecount_timer.function = kvm_mips_comparecount_wakeup;
-	kvm_mips_init_shadow_tlb(vcpu);
 	return 0;
 }
 

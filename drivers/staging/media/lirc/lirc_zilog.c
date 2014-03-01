@@ -767,8 +767,8 @@ static int fw_load(struct IR_tx *tx)
 	/* Request codeset data file */
 	ret = request_firmware(&fw_entry, "haup-ir-blaster.bin", tx->ir->l.dev);
 	if (ret != 0) {
-		zilog_error("firmware haup-ir-blaster.bin not available "
-			    "(%d)\n", ret);
+		zilog_error("firmware haup-ir-blaster.bin not available (%d)\n",
+			    ret);
 		ret = ret < 0 ? ret : -EFAULT;
 		goto out;
 	}

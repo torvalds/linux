@@ -22,7 +22,6 @@
 #include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/io.h>
 
 #include <asm/fixmap.h>

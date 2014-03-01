@@ -148,7 +148,7 @@ static struct resource onkey_resources[] = {
 	 },
 };
 
-static struct mfd_cell onkey_devs[] = {
+static const struct mfd_cell onkey_devs[] = {
 	{
 	 .name = "88pm80x-onkey",
 	 .num_resources = 1,
@@ -157,7 +157,7 @@ static struct mfd_cell onkey_devs[] = {
 	 },
 };
 
-static struct mfd_cell regulator_devs[] = {
+static const struct mfd_cell regulator_devs[] = {
 	{
 	 .name = "88pm80x-regulator",
 	 .id = -1,

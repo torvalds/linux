@@ -12,8 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) IBM Corporation, 2003, 2010
  *
@@ -1276,18 +1275,21 @@ static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev)
 {
 	struct net_device *netdev = dev_get_drvdata(&vdev->dev);
 	struct ibmveth_adapter *adapter;
+	struct iommu_table *tbl;
 	unsigned long ret;
 	int i;
 	int rxqentries = 1;
 
+	tbl = get_iommu_table_base(&vdev->dev);
+
 	/* netdev inits at probe time along with the structures we need below*/
 	if (netdev == NULL)
-		return IOMMU_PAGE_ALIGN(IBMVETH_IO_ENTITLEMENT_DEFAULT);
+		return IOMMU_PAGE_ALIGN(IBMVETH_IO_ENTITLEMENT_DEFAULT, tbl);
 
 	adapter = netdev_priv(netdev);
 
 	ret = IBMVETH_BUFF_LIST_SIZE + IBMVETH_FILT_LIST_SIZE;
-	ret += IOMMU_PAGE_ALIGN(netdev->mtu);
+	ret += IOMMU_PAGE_ALIGN(netdev->mtu, tbl);
 
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		/* add the size of the active receive buffers */
@@ -1295,11 +1297,12 @@ static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev)
 			ret +=
 			    adapter->rx_buff_pool[i].size *
 			    IOMMU_PAGE_ALIGN(adapter->rx_buff_pool[i].
-			            buff_size);
+					     buff_size, tbl);
 		rxqentries += adapter->rx_buff_pool[i].size;
 	}
 	/* add the size of the receive queue entries */
-	ret += IOMMU_PAGE_ALIGN(rxqentries * sizeof(struct ibmveth_rx_q_entry));
+	ret += IOMMU_PAGE_ALIGN(
+		rxqentries * sizeof(struct ibmveth_rx_q_entry), tbl);
 
 	return ret;
 }

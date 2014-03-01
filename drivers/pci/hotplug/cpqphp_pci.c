@@ -86,6 +86,8 @@ int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)
 	struct pci_bus *child;
 	int num;
 
+	pci_lock_rescan_remove();
+
 	if (func->pci_dev == NULL)
 		func->pci_dev = pci_get_bus_and_slot(func->bus,PCI_DEVFN(func->device, func->function));
 
@@ -100,7 +102,7 @@ int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)
 		func->pci_dev = pci_get_bus_and_slot(func->bus, PCI_DEVFN(func->device, func->function));
 		if (func->pci_dev == NULL) {
 			dbg("ERROR: pci_dev still null\n");
-			return 0;
+			goto out;
 		}
 	}
 
@@ -113,6 +115,8 @@ int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)
 
 	pci_dev_put(func->pci_dev);
 
+ out:
+	pci_unlock_rescan_remove();
 	return 0;
 }
 
@@ -123,6 +127,7 @@ int cpqhp_unconfigure_device(struct pci_func* func)
 
 	dbg("%s: bus/dev/func = %x/%x/%x\n", __func__, func->bus, func->device, func->function);
 
+	pci_lock_rescan_remove();
 	for (j=0; j<8 ; j++) {
 		struct pci_dev* temp = pci_get_bus_and_slot(func->bus, PCI_DEVFN(func->device, j));
 		if (temp) {
@@ -130,6 +135,7 @@ int cpqhp_unconfigure_device(struct pci_func* func)
 			pci_stop_and_remove_bus_device(temp);
 		}
 	}
+	pci_unlock_rescan_remove();
 	return 0;
 }
 

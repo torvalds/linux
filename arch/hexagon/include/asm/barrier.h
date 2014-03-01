@@ -29,10 +29,6 @@
 #define smp_read_barrier_depends()	barrier()
 #define smp_wmb()			barrier()
 #define smp_mb()			barrier()
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 /*  Set a value and use a memory barrier.  Used by the scheduler somewhere.  */
 #define set_mb(var, value) \

@@ -186,12 +186,13 @@ extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);
-extern void kvmppc_load_up_fpu(void);
-extern void kvmppc_load_up_altivec(void);
-extern void kvmppc_load_up_vsx(void);
 extern u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst);
 extern ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst);
 extern int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd);
+extern void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
+				 struct kvm_vcpu *vcpu);
+extern void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
+				   struct kvmppc_book3s_shadow_vcpu *svcpu);
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {
@@ -267,16 +268,25 @@ static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 	return vcpu->arch.pc;
 }
 
-static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
+static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
 {
-	ulong pc = kvmppc_get_pc(vcpu);
+	return (vcpu->arch.shared->msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
+}
 
+static inline u32 kvmppc_get_last_inst_internal(struct kvm_vcpu *vcpu, ulong pc)
+{
 	/* Load the instruction manually if it failed to do so in the
 	 * exit path */
 	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
 		kvmppc_ld(vcpu, &pc, sizeof(u32), &vcpu->arch.last_inst, false);
 
-	return vcpu->arch.last_inst;
+	return kvmppc_need_byteswap(vcpu) ? swab32(vcpu->arch.last_inst) :
+		vcpu->arch.last_inst;
+}
+
+static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
+{
+	return kvmppc_get_last_inst_internal(vcpu, kvmppc_get_pc(vcpu));
 }
 
 /*
@@ -286,14 +296,7 @@ static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
  */
 static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
 {
-	ulong pc = kvmppc_get_pc(vcpu) - 4;
-
-	/* Load the instruction manually if it failed to do so in the
-	 * exit path */
-	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
-		kvmppc_ld(vcpu, &pc, sizeof(u32), &vcpu->arch.last_inst, false);
-
-	return vcpu->arch.last_inst;
+	return kvmppc_get_last_inst_internal(vcpu, kvmppc_get_pc(vcpu) - 4);
 }
 
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)

@@ -587,7 +587,7 @@ static atomic_t osc_lru_waiters = ATOMIC_INIT(0);
 /* LRU pages are freed in batch mode. OSC should at least free this
  * number of pages to avoid running out of LRU budget, and.. */
 static const int lru_shrink_min = 2 << (20 - PAGE_CACHE_SHIFT);  /* 2M */
-/* free this number at most otherwise it will take too long time to finsih. */
+/* free this number at most otherwise it will take too long time to finish. */
 static const int lru_shrink_max = 32 << (20 - PAGE_CACHE_SHIFT); /* 32M */
 
 /* Check if we can free LRU slots from this OSC. If there exists LRU waiters,
@@ -606,7 +606,7 @@ static int osc_cache_too_much(struct client_obd *cli)
 		return min(pages, lru_shrink_max);
 
 	/* if it's going to run out LRU slots, we should free some, but not
-	 * too much to maintain faireness among OSCs. */
+	 * too much to maintain fairness among OSCs. */
 	if (atomic_read(cli->cl_lru_left) < cache->ccc_lru_max >> 4) {
 		unsigned long tmp;
 

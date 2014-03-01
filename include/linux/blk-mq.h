@@ -83,6 +83,8 @@ struct blk_mq_ops {
 	 */
 	rq_timed_out_fn		*timeout;
 
+	softirq_done_fn		*complete;
+
 	/*
 	 * Override for hctx allocations (should probably go)
 	 */
@@ -113,18 +115,18 @@ enum {
 };
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_reg *, void *);
-void blk_mq_free_queue(struct request_queue *);
 int blk_mq_register_disk(struct gendisk *);
 void blk_mq_unregister_disk(struct gendisk *);
 void blk_mq_init_commands(struct request_queue *, void (*init)(void *data, struct blk_mq_hw_ctx *, struct request *, unsigned int), void *data);
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
 
-void blk_mq_insert_request(struct request_queue *, struct request *, bool);
+void blk_mq_insert_request(struct request_queue *, struct request *,
+		bool, bool);
 void blk_mq_run_queues(struct request_queue *q, bool async);
 void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
-struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp, bool reserved);
+struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp);
 struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw, gfp_t gfp);
 struct request *blk_mq_rq_from_tag(struct request_queue *q, unsigned int tag);
 
@@ -133,6 +135,8 @@ struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_reg *, unsigned
 void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *, unsigned int);
 
 void blk_mq_end_io(struct request *rq, int error);
+
+void blk_mq_complete_request(struct request *rq);
 
 void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx);
 void blk_mq_start_hw_queue(struct blk_mq_hw_ctx *hctx);
@@ -159,16 +163,16 @@ static inline struct request *blk_mq_tag_to_rq(struct blk_mq_hw_ctx *hctx,
 }
 
 #define queue_for_each_hw_ctx(q, hctx, i)				\
-	for ((i) = 0, hctx = (q)->queue_hw_ctx[0];			\
-	     (i) < (q)->nr_hw_queues; (i)++, hctx = (q)->queue_hw_ctx[i])
+	for ((i) = 0; (i) < (q)->nr_hw_queues &&			\
+	     ({ hctx = (q)->queue_hw_ctx[i]; 1; }); (i)++)
 
 #define queue_for_each_ctx(q, ctx, i)					\
-	for ((i) = 0, ctx = per_cpu_ptr((q)->queue_ctx, 0);		\
-	     (i) < (q)->nr_queues; (i)++, ctx = per_cpu_ptr(q->queue_ctx, (i)))
+	for ((i) = 0; (i) < (q)->nr_queues &&				\
+	     ({ ctx = per_cpu_ptr((q)->queue_ctx, (i)); 1; }); (i)++)
 
 #define hctx_for_each_ctx(hctx, ctx, i)					\
-	for ((i) = 0, ctx = (hctx)->ctxs[0];				\
-	     (i) < (hctx)->nr_ctx; (i)++, ctx = (hctx)->ctxs[(i)])
+	for ((i) = 0; (i) < (hctx)->nr_ctx &&				\
+	     ({ ctx = (hctx)->ctxs[(i)]; 1; }); (i)++)
 
 #define blk_ctx_sum(q, sum)						\
 ({									\

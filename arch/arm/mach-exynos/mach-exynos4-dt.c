@@ -22,6 +22,7 @@
 static void __init exynos4_dt_machine_init(void)
 {
 	exynos_cpuidle_init();
+	exynos_cpufreq_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }

@@ -470,31 +470,12 @@ err:
 	return status;
 }
 
-static int omap1_spi100k_remove(struct platform_device *pdev)
-{
-	struct spi_master       *master;
-	struct omap1_spi100k    *spi100k;
-	struct resource         *r;
-	int			status = 0;
-
-	master = platform_get_drvdata(pdev);
-	spi100k = spi_master_get_devdata(master);
-
-	if (status != 0)
-		return status;
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	return 0;
-}
-
 static struct platform_driver omap1_spi100k_driver = {
 	.driver = {
 		.name		= "omap1_spi100k",
 		.owner		= THIS_MODULE,
 	},
 	.probe		= omap1_spi100k_probe,
-	.remove		= omap1_spi100k_remove,
 };
 
 module_platform_driver(omap1_spi100k_driver);
@@ -502,4 +483,3 @@ module_platform_driver(omap1_spi100k_driver);
 MODULE_DESCRIPTION("OMAP7xx SPI 100k controller driver");
 MODULE_AUTHOR("Fabrice Crohas <fcrohas@gmail.com>");
 MODULE_LICENSE("GPL");
-

@@ -157,7 +157,7 @@ static void parse_ppp_data(struct seq_file *m)
 {
 	struct hvcall_ppp_data ppp_data;
 	struct device_node *root;
-	const int *perf_level;
+	const __be32 *perf_level;
 	int rc;
 
 	rc = h_get_ppp(&ppp_data);
@@ -201,7 +201,7 @@ static void parse_ppp_data(struct seq_file *m)
 		perf_level = of_get_property(root,
 				"ibm,partition-performance-parameters-level",
 					     NULL);
-		if (perf_level && (*perf_level >= 1)) {
+		if (perf_level && (be32_to_cpup(perf_level) >= 1)) {
 			seq_printf(m,
 			    "physical_procs_allocated_to_virtualization=%d\n",
 				   ppp_data.phys_platform_procs);
@@ -435,7 +435,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	int partition_potential_processors;
 	int partition_active_processors;
 	struct device_node *rtas_node;
-	const int *lrdrp = NULL;
+	const __be32 *lrdrp = NULL;
 
 	rtas_node = of_find_node_by_path("/rtas");
 	if (rtas_node)
@@ -444,7 +444,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	if (lrdrp == NULL) {
 		partition_potential_processors = vdso_data->processorCount;
 	} else {
-		partition_potential_processors = *(lrdrp + 4);
+		partition_potential_processors = be32_to_cpup(lrdrp + 4);
 	}
 	of_node_put(rtas_node);
 
@@ -654,7 +654,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	const char *model = "";
 	const char *system_id = "";
 	const char *tmp;
-	const unsigned int *lp_index_ptr;
+	const __be32 *lp_index_ptr;
 	unsigned int lp_index = 0;
 
 	seq_printf(m, "%s %s\n", MODULE_NAME, MODULE_VERS);
@@ -670,7 +670,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 		lp_index_ptr = of_get_property(rootdn, "ibm,partition-no",
 					NULL);
 		if (lp_index_ptr)
-			lp_index = *lp_index_ptr;
+			lp_index = be32_to_cpup(lp_index_ptr);
 		of_node_put(rootdn);
 	}
 	seq_printf(m, "serial_number=%s\n", system_id);

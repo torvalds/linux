@@ -50,9 +50,6 @@
 #include <linux/platform_device.h>
 #include <linux/dmi.h>
 #include <linux/rfkill.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-
 
 #define DRIVER_NAME	"intel_oaktrail"
 #define DRIVER_VERSION	"0.4ac1"

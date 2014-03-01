@@ -1,0 +1,21 @@
+Simple display panel
+
+Required properties:
+- power-supply: regulator to provide the supply voltage
+
+Optional properties:
+- ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
+- enable-gpios: GPIO pin to enable or disable the panel
+- backlight: phandle of the backlight device attached to the panel
+
+Example:
+
+	panel: panel {
+		compatible = "cptt,claa101wb01";
+		ddc-i2c-bus = <&panelddc>;
+
+		power-supply = <&vdd_pnl_reg>;
+		enable-gpios = <&gpio 90 0>;
+
+		backlight = <&backlight>;
+	};

@@ -135,6 +135,7 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value);
 			.set              = f7188x_gpio_set,		\
 			.base             = _base,			\
 			.ngpio            = _ngpio,			\
+			.can_sleep        = true,			\
 		},							\
 		.regbase = _regbase,					\
 	}

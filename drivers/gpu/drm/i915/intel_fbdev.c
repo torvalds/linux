@@ -57,18 +57,14 @@ static struct fb_ops intelfb_ops = {
 	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
-static int intelfb_create(struct drm_fb_helper *helper,
-			  struct drm_fb_helper_surface_size *sizes)
+static int intelfb_alloc(struct drm_fb_helper *helper,
+			 struct drm_fb_helper_surface_size *sizes)
 {
 	struct intel_fbdev *ifbdev =
 		container_of(helper, struct intel_fbdev, helper);
 	struct drm_device *dev = helper->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct fb_info *info;
-	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
-	struct device *device = &dev->pdev->dev;
 	int size, ret;
 
 	/* we don't do packed 24bpp */
@@ -94,8 +90,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	mutex_lock(&dev->struct_mutex);
-
 	/* Flush everything out, we'll be doing GTT only from now on */
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret) {
@@ -103,17 +97,56 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unref;
 	}
 
-	info = framebuffer_alloc(0, device);
+	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
+	if (ret)
+		goto out_unpin;
+
+	return 0;
+
+out_unpin:
+	i915_gem_object_unpin(obj);
+out_unref:
+	drm_gem_object_unreference(&obj->base);
+out:
+	return ret;
+}
+
+static int intelfb_create(struct drm_fb_helper *helper,
+			  struct drm_fb_helper_surface_size *sizes)
+{
+	struct intel_fbdev *ifbdev =
+		container_of(helper, struct intel_fbdev, helper);
+	struct intel_framebuffer *intel_fb = &ifbdev->ifb;
+	struct drm_device *dev = helper->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct fb_info *info;
+	struct drm_framebuffer *fb;
+	struct drm_i915_gem_object *obj;
+	int size, ret;
+
+	mutex_lock(&dev->struct_mutex);
+
+	if (!intel_fb->obj) {
+		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
+		ret = intelfb_alloc(helper, sizes);
+		if (ret)
+			goto out_unlock;
+	} else {
+		DRM_DEBUG_KMS("re-using BIOS fb\n");
+		sizes->fb_width = intel_fb->base.width;
+		sizes->fb_height = intel_fb->base.height;
+	}
+
+	obj = intel_fb->obj;
+	size = obj->base.size;
+
+	info = framebuffer_alloc(0, &dev->pdev->dev);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
 
 	info->par = helper;
-
-	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
-	if (ret)
-		goto out_unpin;
 
 	fb = &ifbdev->ifb.base;
 
@@ -170,17 +203,15 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		      fb->width, fb->height,
 		      i915_gem_obj_ggtt_offset(obj), obj);
 
-
 	mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
 out_unpin:
 	i915_gem_object_unpin(obj);
-out_unref:
 	drm_gem_object_unreference(&obj->base);
+out_unlock:
 	mutex_unlock(&dev->struct_mutex);
-out:
 	return ret;
 }
 
@@ -296,8 +327,6 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 
 	fb_set_suspend(info, state);
 }
-
-MODULE_LICENSE("GPL and additional rights");
 
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {

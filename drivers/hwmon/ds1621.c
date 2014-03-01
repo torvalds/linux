@@ -4,7 +4,7 @@
  * Christian W. Zuckschwerdt  <zany@triq.net>  2000-11-23
  * based on lm75.c by Frodo Looijaard <frodol@dds.nl>
  * Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
- * the help of Jean Delvare <khali@linux-fr.org>
+ * the help of Jean Delvare <jdelvare@suse.de>
  *
  * The DS1621 device is a digital temperature/thermometer with 9-bit
  * resolution, a thermal alarm output (Tout), and user-defined minimum

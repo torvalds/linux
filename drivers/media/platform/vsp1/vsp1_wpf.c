@@ -48,8 +48,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct vsp1_pipeline *pipe =
 		to_vsp1_pipeline(&wpf->entity.subdev.entity);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
-	const struct v4l2_mbus_framefmt *format =
-		&wpf->entity.formats[RWPF_PAD_SOURCE];
+	const struct v4l2_rect *crop = &wpf->crop;
 	unsigned int i;
 	u32 srcrpf = 0;
 	u32 outfmt = 0;
@@ -68,7 +67,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, srcrpf);
 
-	/* Destination stride. Cropping isn't supported yet. */
+	/* Destination stride. */
 	if (!pipe->lif) {
 		struct v4l2_pix_format_mplane *format = &wpf->video.format;
 
@@ -79,10 +78,12 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 				       format->plane_fmt[1].bytesperline);
 	}
 
-	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP,
-		       format->width << VI6_WPF_SZCLIP_SIZE_SHIFT);
-	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP,
-		       format->height << VI6_WPF_SZCLIP_SIZE_SHIFT);
+	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
+	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/* Format */
 	if (!pipe->lif) {
@@ -130,6 +131,8 @@ static struct v4l2_subdev_pad_ops wpf_pad_ops = {
 	.enum_frame_size = vsp1_rwpf_enum_frame_size,
 	.get_fmt = vsp1_rwpf_get_format,
 	.set_fmt = vsp1_rwpf_set_format,
+	.get_selection = vsp1_rwpf_get_selection,
+	.set_selection = vsp1_rwpf_set_selection,
 };
 
 static struct v4l2_subdev_ops wpf_ops = {

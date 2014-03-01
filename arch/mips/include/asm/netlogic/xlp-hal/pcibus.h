@@ -52,25 +52,48 @@
 #define PCIE_BYTE_SWAP_MEM_LIM		0x248
 #define PCIE_BYTE_SWAP_IO_BASE		0x249
 #define PCIE_BYTE_SWAP_IO_LIM		0x24A
+
+#define PCIE_BRIDGE_MSIX_ADDR_BASE	0x24F
+#define PCIE_BRIDGE_MSIX_ADDR_LIMIT	0x250
 #define PCIE_MSI_STATUS			0x25A
 #define PCIE_MSI_EN			0x25B
+#define PCIE_MSIX_STATUS		0x25D
+#define PCIE_INT_STATUS0		0x25F
+#define PCIE_INT_STATUS1		0x260
 #define PCIE_INT_EN0			0x261
+#define PCIE_INT_EN1			0x262
 
-/* PCIE_MSI_EN */
-#define PCIE_MSI_VECTOR_INT_EN		0xFFFFFFFF
+/* XLP9XX has basic changes */
+#define PCIE_9XX_BYTE_SWAP_MEM_BASE	0x25c
+#define PCIE_9XX_BYTE_SWAP_MEM_LIM	0x25d
+#define PCIE_9XX_BYTE_SWAP_IO_BASE	0x25e
+#define PCIE_9XX_BYTE_SWAP_IO_LIM	0x25f
 
-/* PCIE_INT_EN0 */
-#define PCIE_MSI_INT_EN			(1 << 9)
+/* other */
+#define PCIE_NLINKS			4
 
+/* MSI addresses */
+#define MSI_ADDR_BASE			0xfffee00000ULL
+#define MSI_ADDR_SZ			0x10000
+#define MSI_LINK_ADDR(n, l)		(MSI_ADDR_BASE + \
+				(PCIE_NLINKS * (n) + (l)) * MSI_ADDR_SZ)
+#define MSIX_ADDR_BASE			0xfffef00000ULL
+#define MSIX_LINK_ADDR(n, l)		(MSIX_ADDR_BASE + \
+				(PCIE_NLINKS * (n) + (l)) * MSI_ADDR_SZ)
 #ifndef __ASSEMBLY__
 
 #define nlm_read_pcie_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_pcie_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_pcie_base(node, inst)	\
-			nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node, inst))
-#define nlm_get_pcie_regbase(node, inst)	\
-			(nlm_get_pcie_base(node, inst) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_pcie_base(node, inst)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+	XLP9XX_IO_PCIE_OFFSET(node, inst) : XLP_IO_PCIE_OFFSET(node, inst))
 
-int xlp_pcie_link_irt(int link);
+#ifdef CONFIG_PCI_MSI
+void xlp_init_node_msi_irqs(int node, int link);
+#else
+static inline void xlp_init_node_msi_irqs(int node, int link) {}
+#endif
+
+struct pci_dev *xlp_get_pcie_link(const struct pci_dev *dev);
+
 #endif
 #endif /* __NLM_HAL_PCIBUS_H__ */

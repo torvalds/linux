@@ -91,8 +91,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_POLLING_NRFLAG	3	/* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
 #define TIF_32BIT		4	/* 32 bit binary */
-#define TIF_PERFMON_WORK	5	/* work for pfm_handle_work() */
-#define TIF_PERFMON_CTXSW	6	/* perfmon needs ctxsw calls */
+#define TIF_RESTORE_TM		5	/* need to restore TM FP/VEC/VSX */
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 #define TIF_SINGLESTEP		8	/* singlestepping active */
 #define TIF_NOHZ		9	/* in adaptive nohz mode */
@@ -115,8 +114,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_32BIT		(1<<TIF_32BIT)
-#define _TIF_PERFMON_WORK	(1<<TIF_PERFMON_WORK)
-#define _TIF_PERFMON_CTXSW	(1<<TIF_PERFMON_CTXSW)
+#define _TIF_RESTORE_TM		(1<<TIF_RESTORE_TM)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
@@ -132,7 +130,8 @@ static inline struct thread_info *current_thread_info(void)
 				 _TIF_NOHZ)
 
 #define _TIF_USER_WORK_MASK	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
-				 _TIF_NOTIFY_RESUME | _TIF_UPROBE)
+				 _TIF_NOTIFY_RESUME | _TIF_UPROBE | \
+				 _TIF_RESTORE_TM)
 #define _TIF_PERSYSCALL_MASK	(_TIF_RESTOREALL|_TIF_NOERROR)
 
 /* Bits in local_flags */

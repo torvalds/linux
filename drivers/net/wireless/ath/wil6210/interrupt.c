@@ -156,6 +156,19 @@ void wil6210_enable_irq(struct wil6210_priv *wil)
 	iowrite32(WIL_ICR_ICC_VALUE, wil->csr + HOSTADDR(RGF_DMA_EP_MISC_ICR) +
 		  offsetof(struct RGF_ICR, ICC));
 
+	/* interrupt moderation parameters */
+	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
+		/* disable interrupt moderation for monitor
+		 * to get better timestamp precision
+		 */
+		iowrite32(0, wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_CRL));
+	} else {
+		iowrite32(WIL6210_ITR_TRSH,
+			  wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_TRSH));
+		iowrite32(BIT_DMA_ITR_CNT_CRL_EN,
+			  wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_CRL));
+	}
+
 	wil6210_unmask_irq_pseudo(wil);
 	wil6210_unmask_irq_tx(wil);
 	wil6210_unmask_irq_rx(wil);

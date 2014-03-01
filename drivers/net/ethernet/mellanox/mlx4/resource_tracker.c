@@ -1340,43 +1340,29 @@ static int cq_res_start_move_to(struct mlx4_dev *dev, int slave, int cqn,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_CQ], cqn);
-	if (!r)
+	if (!r) {
 		err = -ENOENT;
-	else if (r->com.owner != slave)
+	} else if (r->com.owner != slave) {
 		err = -EPERM;
-	else {
-		switch (state) {
-		case RES_CQ_BUSY:
-			err = -EBUSY;
-			break;
-
-		case RES_CQ_ALLOCATED:
-			if (r->com.state != RES_CQ_HW)
-				err = -EINVAL;
-			else if (atomic_read(&r->ref_count))
-				err = -EBUSY;
-			else
-				err = 0;
-			break;
-
-		case RES_CQ_HW:
-			if (r->com.state != RES_CQ_ALLOCATED)
-				err = -EINVAL;
-			else
-				err = 0;
-			break;
-
-		default:
+	} else if (state == RES_CQ_ALLOCATED) {
+		if (r->com.state != RES_CQ_HW)
 			err = -EINVAL;
-		}
+		else if (atomic_read(&r->ref_count))
+			err = -EBUSY;
+		else
+			err = 0;
+	} else if (state != RES_CQ_HW || r->com.state != RES_CQ_ALLOCATED) {
+		err = -EINVAL;
+	} else {
+		err = 0;
+	}
 
-		if (!err) {
-			r->com.from_state = r->com.state;
-			r->com.to_state = state;
-			r->com.state = RES_CQ_BUSY;
-			if (cq)
-				*cq = r;
-		}
+	if (!err) {
+		r->com.from_state = r->com.state;
+		r->com.to_state = state;
+		r->com.state = RES_CQ_BUSY;
+		if (cq)
+			*cq = r;
 	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
@@ -1385,7 +1371,7 @@ static int cq_res_start_move_to(struct mlx4_dev *dev, int slave, int cqn,
 }
 
 static int srq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
-				 enum res_cq_states state, struct res_srq **srq)
+				 enum res_srq_states state, struct res_srq **srq)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
@@ -1394,39 +1380,25 @@ static int srq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	r = res_tracker_lookup(&tracker->res_tree[RES_SRQ], index);
-	if (!r)
+	if (!r) {
 		err = -ENOENT;
-	else if (r->com.owner != slave)
+	} else if (r->com.owner != slave) {
 		err = -EPERM;
-	else {
-		switch (state) {
-		case RES_SRQ_BUSY:
+	} else if (state == RES_SRQ_ALLOCATED) {
+		if (r->com.state != RES_SRQ_HW)
 			err = -EINVAL;
-			break;
+		else if (atomic_read(&r->ref_count))
+			err = -EBUSY;
+	} else if (state != RES_SRQ_HW || r->com.state != RES_SRQ_ALLOCATED) {
+		err = -EINVAL;
+	}
 
-		case RES_SRQ_ALLOCATED:
-			if (r->com.state != RES_SRQ_HW)
-				err = -EINVAL;
-			else if (atomic_read(&r->ref_count))
-				err = -EBUSY;
-			break;
-
-		case RES_SRQ_HW:
-			if (r->com.state != RES_SRQ_ALLOCATED)
-				err = -EINVAL;
-			break;
-
-		default:
-			err = -EINVAL;
-		}
-
-		if (!err) {
-			r->com.from_state = r->com.state;
-			r->com.to_state = state;
-			r->com.state = RES_SRQ_BUSY;
-			if (srq)
-				*srq = r;
-		}
+	if (!err) {
+		r->com.from_state = r->com.state;
+		r->com.to_state = state;
+		r->com.state = RES_SRQ_BUSY;
+		if (srq)
+			*srq = r;
 	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
@@ -3634,7 +3606,7 @@ static int validate_eth_header_mac(int slave, struct _rule_hw *eth_header,
 	    !is_broadcast_ether_addr(eth_header->eth.dst_mac)) {
 		list_for_each_entry_safe(res, tmp, rlist, list) {
 			be_mac = cpu_to_be64(res->mac << 16);
-			if (!memcmp(&be_mac, eth_header->eth.dst_mac, ETH_ALEN))
+			if (ether_addr_equal((u8 *)&be_mac, eth_header->eth.dst_mac))
 				return 0;
 		}
 		pr_err("MAC %pM doesn't belong to VF %d, Steering rule rejected\n",
@@ -3843,6 +3815,16 @@ int mlx4_QUERY_IF_STAT_wrapper(struct mlx4_dev *dev, int slave,
 	put_res(dev, slave, index, RES_COUNTER);
 	return err;
 }
+
+int mlx4_FLOW_STEERING_IB_UC_QP_RANGE_wrapper(struct mlx4_dev *dev, int slave,
+					      struct mlx4_vhcr *vhcr,
+					      struct mlx4_cmd_mailbox *inbox,
+					      struct mlx4_cmd_mailbox *outbox,
+					      struct mlx4_cmd_info *cmd)
+{
+	return -EPERM;
+}
+
 
 static void detach_qp(struct mlx4_dev *dev, int slave, struct res_qp *rqp)
 {

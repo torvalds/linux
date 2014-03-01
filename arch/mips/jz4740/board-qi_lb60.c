@@ -427,6 +427,7 @@ static struct platform_device qi_lb60_audio_device = {
 
 static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_udc_device,
+	&jz4740_udc_xceiv_device,
 	&jz4740_mmc_device,
 	&jz4740_nand_device,
 	&qi_lb60_keypad,

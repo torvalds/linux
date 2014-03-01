@@ -226,6 +226,7 @@ struct exynos_drm_ipp_private {
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
 	struct exynos_drm_ipp_private	*ipp_priv;
+	struct file			*anon_filp;
 };
 
 /*

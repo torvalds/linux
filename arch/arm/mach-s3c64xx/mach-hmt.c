@@ -35,6 +35,7 @@
 
 #include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
+#include <mach/gpio-samsung.h>
 #include <plat/fb.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 

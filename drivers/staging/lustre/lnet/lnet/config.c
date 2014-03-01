@@ -603,6 +603,37 @@ lnet_parse_hops(char *str, unsigned int *hops)
 		*hops > 0 && *hops < 256);
 }
 
+#define LNET_PRIORITY_SEPARATOR (':')
+
+int
+lnet_parse_priority(char *str, unsigned int *priority, char **token)
+{
+	int   nob;
+	char *sep;
+	int   len;
+
+	sep = strchr(str, LNET_PRIORITY_SEPARATOR);
+	if (sep == NULL) {
+		*priority = 0;
+		return 0;
+	}
+	len = strlen(sep + 1);
+
+	if ((sscanf((sep+1), "%u%n", priority, &nob) < 1) || (len != nob)) {
+		/* Update the caller's token pointer so it treats the found
+		   priority as the token to report in the error message. */
+		*token += sep - str + 1;
+		return -1;
+	}
+
+	CDEBUG(D_NET, "gateway %s, priority %d, nob %d\n", str, *priority, nob);
+
+	/*
+	 * Change priority separator to \0 to be able to parse NID
+	 */
+	*sep = '\0';
+	return 0;
+}
 
 int
 lnet_parse_route(char *str, int *im_a_router)
@@ -624,6 +655,7 @@ lnet_parse_route(char *str, int *im_a_router)
 	int	       myrc = -1;
 	unsigned int      hops;
 	int	       got_hops = 0;
+	unsigned int	  priority = 0;
 
 	INIT_LIST_HEAD(&gateways);
 	INIT_LIST_HEAD(&nets);
@@ -691,6 +723,11 @@ lnet_parse_route(char *str, int *im_a_router)
 				    LNET_NETTYP(net) == LOLND)
 					goto token_error;
 			} else {
+				rc = lnet_parse_priority(ltb->ltb_text,
+							 &priority, &token);
+				if (rc < 0)
+					goto token_error;
+
 				nid = libcfs_str2nid(ltb->ltb_text);
 				if (nid == LNET_NID_ANY ||
 				    LNET_NETTYP(LNET_NIDNET(nid)) == LOLND)
@@ -720,7 +757,7 @@ lnet_parse_route(char *str, int *im_a_router)
 				continue;
 			}
 
-			rc = lnet_add_route(net, hops, nid);
+			rc = lnet_add_route(net, hops, nid, priority);
 			if (rc != 0) {
 				CERROR("Can't create route to %s via %s\n",
 				       libcfs_net2str(net),

@@ -71,7 +71,7 @@ static struct resource rtc_irqs[] = {
 	},
 };
 
-static struct mfd_cell lp8788_devs[] = {
+static const struct mfd_cell lp8788_devs[] = {
 	/* 4 bucks */
 	MFD_DEV_WITH_ID(BUCK, 1),
 	MFD_DEV_WITH_ID(BUCK, 2),

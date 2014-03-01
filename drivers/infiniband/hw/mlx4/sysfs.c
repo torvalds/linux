@@ -582,8 +582,10 @@ static int add_port(struct mlx4_ib_dev *dev, int port_num, int slave)
 	p->pkey_group.attrs =
 		alloc_group_attrs(show_port_pkey, store_port_pkey,
 				  dev->dev->caps.pkey_table_len[port_num]);
-	if (!p->pkey_group.attrs)
+	if (!p->pkey_group.attrs) {
+		ret = -ENOMEM;
 		goto err_alloc;
+	}
 
 	ret = sysfs_create_group(&p->kobj, &p->pkey_group);
 	if (ret)
@@ -591,8 +593,10 @@ static int add_port(struct mlx4_ib_dev *dev, int port_num, int slave)
 
 	p->gid_group.name  = "gid_idx";
 	p->gid_group.attrs = alloc_group_attrs(show_port_gid_idx, NULL, 1);
-	if (!p->gid_group.attrs)
+	if (!p->gid_group.attrs) {
+		ret = -ENOMEM;
 		goto err_free_pkey;
+	}
 
 	ret = sysfs_create_group(&p->kobj, &p->gid_group);
 	if (ret)

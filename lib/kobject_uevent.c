@@ -88,11 +88,17 @@ out:
 #ifdef CONFIG_NET
 static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 {
-	struct kobject *kobj = data;
+	struct kobject *kobj = data, *ksobj;
 	const struct kobj_ns_type_operations *ops;
 
 	ops = kobj_ns_ops(kobj);
-	if (ops) {
+	if (!ops && kobj->kset) {
+		ksobj = &kobj->kset->kobj;
+		if (ksobj->parent != NULL)
+			ops = kobj_ns_ops(ksobj->parent);
+	}
+
+	if (ops && ops->netlink_ns && kobj->ktype->namespace) {
 		const void *sock_ns, *ns;
 		ns = kobj->ktype->namespace(kobj);
 		sock_ns = ops->netlink_ns(dsk);

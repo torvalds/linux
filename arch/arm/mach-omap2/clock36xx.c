@@ -43,6 +43,7 @@ int omap36xx_pwrdn_clk_enable_with_hsdiv_restore(struct clk_hw *clk)
 	struct clk_divider *parent;
 	struct clk_hw *parent_hw;
 	u32 dummy_v, orig_v;
+	struct clk_hw_omap *omap_clk = to_clk_hw_omap(clk);
 	int ret;
 
 	/* Clear PWRDN bit of HSDIVIDER */
@@ -53,15 +54,15 @@ int omap36xx_pwrdn_clk_enable_with_hsdiv_restore(struct clk_hw *clk)
 
 	/* Restore the dividers */
 	if (!ret) {
-		orig_v = __raw_readl(parent->reg);
+		orig_v = omap2_clk_readl(omap_clk, parent->reg);
 		dummy_v = orig_v;
 
 		/* Write any other value different from the Read value */
 		dummy_v ^= (1 << parent->shift);
-		__raw_writel(dummy_v, parent->reg);
+		omap2_clk_writel(dummy_v, omap_clk, parent->reg);
 
 		/* Write the original divider */
-		__raw_writel(orig_v, parent->reg);
+		omap2_clk_writel(orig_v, omap_clk, parent->reg);
 	}
 
 	return ret;

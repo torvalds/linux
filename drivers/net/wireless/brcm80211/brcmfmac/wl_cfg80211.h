@@ -412,7 +412,6 @@ struct brcmf_cfg80211_info {
 	struct work_struct escan_timeout_work;
 	u8 *escan_ioctl_buf;
 	struct list_head vif_list;
-	u8 vif_cnt;
 	struct brcmf_cfg80211_vif_event vif_event;
 	struct completion vif_disabled;
 	struct brcmu_d11inf d11inf;
@@ -487,8 +486,7 @@ enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp);
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 					   enum nl80211_iftype type,
 					   bool pm_block);
-void brcmf_free_vif(struct brcmf_cfg80211_info *cfg,
-	            struct brcmf_cfg80211_vif *vif);
+void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
 
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
@@ -507,5 +505,6 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 				bool fw_abort);
 void brcmf_set_mpc(struct brcmf_if *ndev, int mpc);
 void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
+void brcmf_cfg80211_free_netdev(struct net_device *ndev);
 
 #endif				/* _wl_cfg80211_h_ */

@@ -33,6 +33,21 @@ nvc0_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
 	return likely((nvc0_pte_storage_type_map[memtype] != 0xff));
 }
 
+static void
+nvc0_fb_intr(struct nouveau_subdev *subdev)
+{
+	struct nvc0_fb_priv *priv = (void *)subdev;
+	u32 intr = nv_rd32(priv, 0x000100);
+	if (intr & 0x08000000) {
+		nv_debug(priv, "PFFB intr\n");
+		intr &= ~0x08000000;
+	}
+	if (intr & 0x00002000) {
+		nv_debug(priv, "PBFB intr\n");
+		intr &= ~0x00002000;
+	}
+}
+
 int
 nvc0_fb_init(struct nouveau_object *object)
 {
@@ -86,6 +101,7 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			return -EFAULT;
 	}
 
+	nv_subdev(priv)->intr = nvc0_fb_intr;
 	return 0;
 }
 

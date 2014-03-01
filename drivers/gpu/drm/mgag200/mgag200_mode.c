@@ -691,7 +691,7 @@ static void mga_g200wb_commit(struct drm_crtc *crtc)
    CRTCEXT0 has to be programmed last to trigger an update and make the
    new addr variable take effect.
  */
-void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
+static void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
 {
 	struct mga_device *mdev = crtc->dev->dev_private;
 	u32 addr;
@@ -1398,7 +1398,7 @@ static void mga_encoder_commit(struct drm_encoder *encoder)
 {
 }
 
-void mga_encoder_destroy(struct drm_encoder *encoder)
+static void mga_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct mga_encoder *mga_encoder = to_mga_encoder(encoder);
 	drm_encoder_cleanup(encoder);
@@ -1519,11 +1519,11 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 		(mga_vga_calculate_mode_bandwidth(mode, bpp)
 			> (32700 * 1024))) {
 		return MODE_BANDWIDTH;
-	} else if (mode->type == G200_EH &&
+	} else if (mdev->type == G200_EH &&
 		(mga_vga_calculate_mode_bandwidth(mode, bpp)
 			> (37500 * 1024))) {
 		return MODE_BANDWIDTH;
-	} else if (mode->type == G200_ER &&
+	} else if (mdev->type == G200_ER &&
 		(mga_vga_calculate_mode_bandwidth(mode,
 			bpp) > (55000 * 1024))) {
 		return MODE_BANDWIDTH;
@@ -1558,7 +1558,7 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *mga_connector_best_encoder(struct drm_connector
+static struct drm_encoder *mga_connector_best_encoder(struct drm_connector
 						  *connector)
 {
 	int enc_id = connector->encoder_ids[0];

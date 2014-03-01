@@ -680,6 +680,7 @@ static int __init cpumf_pmu_init(void)
 		goto out;
 	}
 
+	cpumf_pmu.attr_groups = cpumf_cf_event_group();
 	rc = perf_pmu_register(&cpumf_pmu, "cpum_cf", PERF_TYPE_RAW);
 	if (rc) {
 		pr_err("Registering the cpum_cf PMU failed with rc=%i\n", rc);

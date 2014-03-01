@@ -29,7 +29,6 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/numa.h>
-#include <acpi/acpi_bus.h>
 
 #define PREFIX "ACPI: "
 

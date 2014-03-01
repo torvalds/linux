@@ -398,7 +398,7 @@ static void crystalhd_hw_free_rx_pkt(struct crystalhd_hw *hw,
  * Call back from TX - IOQ deletion.
  *
  * This routine will release the TX DMA rings allocated
- * druing setup_dma rings interface.
+ * during setup_dma rings interface.
  *
  * Memory is allocated per DMA ring basis. This is just
  * a place holder to be able to create the dio queues.

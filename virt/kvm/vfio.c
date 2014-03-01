@@ -101,14 +101,14 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 	struct kvm_vfio *kv = dev->private;
 	struct vfio_group *vfio_group;
 	struct kvm_vfio_group *kvg;
-	void __user *argp = (void __user *)arg;
+	int32_t __user *argp = (int32_t __user *)(unsigned long)arg;
 	struct fd f;
 	int32_t fd;
 	int ret;
 
 	switch (attr) {
 	case KVM_DEV_VFIO_GROUP_ADD:
-		if (get_user(fd, (int32_t __user *)argp))
+		if (get_user(fd, argp))
 			return -EFAULT;
 
 		f = fdget(fd);
@@ -148,7 +148,7 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 		return 0;
 
 	case KVM_DEV_VFIO_GROUP_DEL:
-		if (get_user(fd, (int32_t __user *)argp))
+		if (get_user(fd, argp))
 			return -EFAULT;
 
 		f = fdget(fd);

@@ -54,12 +54,13 @@ extern void kvmppc_handler_highmem(void);
 extern void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu);
 extern int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
                               unsigned int rt, unsigned int bytes,
-                              int is_bigendian);
+			      int is_default_endian);
 extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
                                unsigned int rt, unsigned int bytes,
-                               int is_bigendian);
+			       int is_default_endian);
 extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                               u64 val, unsigned int bytes, int is_bigendian);
+			       u64 val, unsigned int bytes,
+			       int is_default_endian);
 
 extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
@@ -455,6 +456,12 @@ static inline void kvmppc_fix_ee_before_entry(void)
 	trace_hardirqs_on();
 
 #ifdef CONFIG_PPC64
+	/*
+	 * To avoid races, the caller must have gone directly from having
+	 * interrupts fully-enabled to hard-disabled.
+	 */
+	WARN_ON(local_paca->irq_happened != PACA_IRQ_HARD_DIS);
+
 	/* Only need to enable IRQs by hard enabling them after this */
 	local_paca->irq_happened = 0;
 	local_paca->soft_enabled = 1;

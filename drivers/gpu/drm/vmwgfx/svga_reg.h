@@ -169,7 +169,17 @@ enum {
    SVGA_REG_TRACES = 45,            /* Enable trace-based updates even when FIFO is on */
    SVGA_REG_GMRS_MAX_PAGES = 46,    /* Maximum number of 4KB pages for all GMRs */
    SVGA_REG_MEMORY_SIZE = 47,       /* Total dedicated device memory excluding FIFO */
-   SVGA_REG_TOP = 48,               /* Must be 1 more than the last register */
+   SVGA_REG_COMMAND_LOW = 48,       /* Lower 32 bits and submits commands */
+   SVGA_REG_COMMAND_HIGH = 49,      /* Upper 32 bits of command buffer PA */
+   SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM = 50,   /* Max primary memory */
+   SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB = 51, /* Suggested limit on mob mem */
+   SVGA_REG_DEV_CAP = 52,           /* Write dev cap index, read value */
+   SVGA_REG_CMD_PREPEND_LOW = 53,
+   SVGA_REG_CMD_PREPEND_HIGH = 54,
+   SVGA_REG_SCREENTARGET_MAX_WIDTH = 55,
+   SVGA_REG_SCREENTARGET_MAX_HEIGHT = 56,
+   SVGA_REG_MOB_MAX_SIZE = 57,
+   SVGA_REG_TOP = 58,               /* Must be 1 more than the last register */
 
    SVGA_PALETTE_BASE = 1024,        /* Base of SVGA color map */
    /* Next 768 (== 256*3) registers exist for colormap */
@@ -431,7 +441,10 @@ struct SVGASignedPoint {
 #define SVGA_CAP_TRACES             0x00200000
 #define SVGA_CAP_GMR2               0x00400000
 #define SVGA_CAP_SCREEN_OBJECT_2    0x00800000
-
+#define SVGA_CAP_COMMAND_BUFFERS    0x01000000
+#define SVGA_CAP_DEAD1              0x02000000
+#define SVGA_CAP_CMD_BUFFERS_2      0x04000000
+#define SVGA_CAP_GBOBJECTS          0x08000000
 
 /*
  * FIFO register indices.

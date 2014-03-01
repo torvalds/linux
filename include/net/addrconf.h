@@ -81,9 +81,9 @@ int ipv6_dev_get_saddr(struct net *net, const struct net_device *dev,
 		       const struct in6_addr *daddr, unsigned int srcprefs,
 		       struct in6_addr *saddr);
 int __ipv6_get_lladdr(struct inet6_dev *idev, struct in6_addr *addr,
-		      unsigned char banned_flags);
+		      u32 banned_flags);
 int ipv6_get_lladdr(struct net_device *dev, struct in6_addr *addr,
-		    unsigned char banned_flags);
+		    u32 banned_flags);
 int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2);
 void addrconf_join_solict(struct net_device *dev, const struct in6_addr *addr);
 void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr);
@@ -205,8 +205,9 @@ void ipv6_sock_ac_close(struct sock *sk);
 int ipv6_dev_ac_inc(struct net_device *dev, const struct in6_addr *addr);
 int __ipv6_dev_ac_dec(struct inet6_dev *idev, const struct in6_addr *addr);
 bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
-				const struct in6_addr *addr);
-
+			 const struct in6_addr *addr);
+bool ipv6_chk_acast_addr_src(struct net *net, struct net_device *dev,
+			     const struct in6_addr *addr);
 
 /* Device notifier */
 int register_inet6addr_notifier(struct notifier_block *nb);
@@ -246,6 +247,13 @@ static inline struct inet6_dev *in6_dev_get(const struct net_device *dev)
 		atomic_inc(&idev->refcnt);
 	rcu_read_unlock();
 	return idev;
+}
+
+static inline struct neigh_parms *__in6_dev_nd_parms_get_rcu(const struct net_device *dev)
+{
+	struct inet6_dev *idev = __in6_dev_get(dev);
+
+	return idev ? idev->nd_parms : NULL;
 }
 
 void in6_dev_finish_destroy(struct inet6_dev *idev);

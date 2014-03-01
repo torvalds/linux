@@ -378,7 +378,7 @@ struct bcm_mini_adapter {
 	UINT			uiFlashLayoutMinorVersion;
 	bool			bAllDSDWriteAllow;
 	bool			bSigCorrupted;
-	/* this should be set who so ever want to change the Headers. after Wrtie it should be reset immediately. */
+	/* this should be set who so ever want to change the Headers. after Write it should be reset immediately. */
 	bool			bHeaderChangeAllowed;
 	int			SelectedChip;
 	bool			bEndPointHalted;

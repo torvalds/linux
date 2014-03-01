@@ -75,14 +75,32 @@ static unsigned long xen_io_tlb_nslabs;
 
 static u64 start_dma_addr;
 
+/*
+ * Both of these functions should avoid PFN_PHYS because phys_addr_t
+ * can be 32bit when dma_addr_t is 64bit leading to a loss in
+ * information if the shift is done before casting to 64bit.
+ */
 static inline dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
 {
-	return phys_to_machine(XPADDR(paddr)).maddr;
+	unsigned long mfn = pfn_to_mfn(PFN_DOWN(paddr));
+	dma_addr_t dma = (dma_addr_t)mfn << PAGE_SHIFT;
+
+	dma |= paddr & ~PAGE_MASK;
+
+	return dma;
 }
 
 static inline phys_addr_t xen_bus_to_phys(dma_addr_t baddr)
 {
-	return machine_to_phys(XMADDR(baddr)).paddr;
+	unsigned long pfn = mfn_to_pfn(PFN_DOWN(baddr));
+	dma_addr_t dma = (dma_addr_t)pfn << PAGE_SHIFT;
+	phys_addr_t paddr = dma;
+
+	BUG_ON(paddr != dma); /* truncation has occurred, should never happen */
+
+	paddr |= baddr & ~PAGE_MASK;
+
+	return paddr;
 }
 
 static inline dma_addr_t xen_virt_to_bus(void *address)

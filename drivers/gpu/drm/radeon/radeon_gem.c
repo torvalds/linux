@@ -86,7 +86,7 @@ retry:
 	return 0;
 }
 
-int radeon_gem_set_domain(struct drm_gem_object *gobj,
+static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			  uint32_t rdomain, uint32_t wdomain)
 {
 	struct radeon_bo *robj;

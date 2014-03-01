@@ -24,7 +24,8 @@
  * Passed to the actors
  */
 struct splice_desc {
-	unsigned int len, total_len;	/* current and remaining length */
+	size_t total_len;		/* remaining length */
+	unsigned int len;		/* current length */
 	unsigned int flags;		/* splice flags */
 	/*
 	 * actor() private data

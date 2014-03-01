@@ -108,20 +108,95 @@ void __init early_print(const char *str, ...)
 	printk("%s", buf);
 }
 
+void __init smp_setup_processor_id(void)
+{
+	/*
+	 * clear __my_cpu_offset on boot CPU to avoid hang caused by
+	 * using percpu variable early, for example, lockdep will
+	 * access percpu variable inside lock_release
+	 */
+	set_my_cpu_offset(0);
+}
+
 bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 {
 	return phys_id == cpu_logical_map(cpu);
 }
 
+struct mpidr_hash mpidr_hash;
+#ifdef CONFIG_SMP
+/**
+ * smp_build_mpidr_hash - Pre-compute shifts required at each affinity
+ *			  level in order to build a linear index from an
+ *			  MPIDR value. Resulting algorithm is a collision
+ *			  free hash carried out through shifting and ORing
+ */
+static void __init smp_build_mpidr_hash(void)
+{
+	u32 i, affinity, fs[4], bits[4], ls;
+	u64 mask = 0;
+	/*
+	 * Pre-scan the list of MPIDRS and filter out bits that do
+	 * not contribute to affinity levels, ie they never toggle.
+	 */
+	for_each_possible_cpu(i)
+		mask |= (cpu_logical_map(i) ^ cpu_logical_map(0));
+	pr_debug("mask of set bits %#llx\n", mask);
+	/*
+	 * Find and stash the last and first bit set at all affinity levels to
+	 * check how many bits are required to represent them.
+	 */
+	for (i = 0; i < 4; i++) {
+		affinity = MPIDR_AFFINITY_LEVEL(mask, i);
+		/*
+		 * Find the MSB bit and LSB bits position
+		 * to determine how many bits are required
+		 * to express the affinity level.
+		 */
+		ls = fls(affinity);
+		fs[i] = affinity ? ffs(affinity) - 1 : 0;
+		bits[i] = ls - fs[i];
+	}
+	/*
+	 * An index can be created from the MPIDR_EL1 by isolating the
+	 * significant bits at each affinity level and by shifting
+	 * them in order to compress the 32 bits values space to a
+	 * compressed set of values. This is equivalent to hashing
+	 * the MPIDR_EL1 through shifting and ORing. It is a collision free
+	 * hash though not minimal since some levels might contain a number
+	 * of CPUs that is not an exact power of 2 and their bit
+	 * representation might contain holes, eg MPIDR_EL1[7:0] = {0x2, 0x80}.
+	 */
+	mpidr_hash.shift_aff[0] = MPIDR_LEVEL_SHIFT(0) + fs[0];
+	mpidr_hash.shift_aff[1] = MPIDR_LEVEL_SHIFT(1) + fs[1] - bits[0];
+	mpidr_hash.shift_aff[2] = MPIDR_LEVEL_SHIFT(2) + fs[2] -
+						(bits[1] + bits[0]);
+	mpidr_hash.shift_aff[3] = MPIDR_LEVEL_SHIFT(3) +
+				  fs[3] - (bits[2] + bits[1] + bits[0]);
+	mpidr_hash.mask = mask;
+	mpidr_hash.bits = bits[3] + bits[2] + bits[1] + bits[0];
+	pr_debug("MPIDR hash: aff0[%u] aff1[%u] aff2[%u] aff3[%u] mask[%#llx] bits[%u]\n",
+		mpidr_hash.shift_aff[0],
+		mpidr_hash.shift_aff[1],
+		mpidr_hash.shift_aff[2],
+		mpidr_hash.shift_aff[3],
+		mpidr_hash.mask,
+		mpidr_hash.bits);
+	/*
+	 * 4x is an arbitrary value used to warn on a hash table much bigger
+	 * than expected on most systems.
+	 */
+	if (mpidr_hash_size() > 4 * num_possible_cpus())
+		pr_warn("Large number of MPIDR hash buckets detected\n");
+	__flush_dcache_area(&mpidr_hash, sizeof(struct mpidr_hash));
+}
+#endif
+
 static void __init setup_processor(void)
 {
 	struct cpu_info *cpu_info;
+	u64 features, block;
 
-	/*
-	 * locate processor in the list of supported processor
-	 * types.  The linker builds this table for us from the
-	 * entries in arch/arm/mm/proc.S
-	 */
 	cpu_info = lookup_processor_type(read_cpuid_id());
 	if (!cpu_info) {
 		printk("CPU configuration botched (ID %08x), unable to continue.\n",
@@ -136,6 +211,37 @@ static void __init setup_processor(void)
 
 	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	elf_hwcap = 0;
+
+	/*
+	 * ID_AA64ISAR0_EL1 contains 4-bit wide signed feature blocks.
+	 * The blocks we test below represent incremental functionality
+	 * for non-negative values. Negative values are reserved.
+	 */
+	features = read_cpuid(ID_AA64ISAR0_EL1);
+	block = (features >> 4) & 0xf;
+	if (!(block & 0x8)) {
+		switch (block) {
+		default:
+		case 2:
+			elf_hwcap |= HWCAP_PMULL;
+		case 1:
+			elf_hwcap |= HWCAP_AES;
+		case 0:
+			break;
+		}
+	}
+
+	block = (features >> 8) & 0xf;
+	if (block && !(block & 0x8))
+		elf_hwcap |= HWCAP_SHA1;
+
+	block = (features >> 12) & 0xf;
+	if (block && !(block & 0x8))
+		elf_hwcap |= HWCAP_SHA2;
+
+	block = (features >> 16) & 0xf;
+	if (block && !(block & 0x8))
+		elf_hwcap |= HWCAP_CRC32;
 }
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
@@ -236,6 +342,7 @@ void __init setup_arch(char **cmdline_p)
 	cpu_read_bootcpu_ops();
 #ifdef CONFIG_SMP
 	smp_init_cpus();
+	smp_build_mpidr_hash();
 #endif
 
 #ifdef CONFIG_VT
@@ -275,6 +382,11 @@ static const char *hwcap_str[] = {
 	"fp",
 	"asimd",
 	"evtstrm",
+	"aes",
+	"pmull",
+	"sha1",
+	"sha2",
+	"crc32",
 	NULL
 };
 

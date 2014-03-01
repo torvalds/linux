@@ -123,6 +123,26 @@ static int mlx4_set_port_mac_table(struct mlx4_dev *dev, u8 port,
 	return err;
 }
 
+int mlx4_find_cached_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *idx)
+{
+	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
+	struct mlx4_mac_table *table = &info->mac_table;
+	int i;
+
+	for (i = 0; i < MLX4_MAX_MAC_NUM; i++) {
+		if (!table->refs[i])
+			continue;
+
+		if (mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
+			*idx = i;
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(mlx4_find_cached_mac);
+
 int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
 	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
@@ -799,6 +819,47 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 	return err;
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_SCHEDULER);
+
+enum {
+	VXLAN_ENABLE_MODIFY	= 1 << 7,
+	VXLAN_STEERING_MODIFY	= 1 << 6,
+
+	VXLAN_ENABLE		= 1 << 7,
+};
+
+struct mlx4_set_port_vxlan_context {
+	u32	reserved1;
+	u8	modify_flags;
+	u8	reserved2;
+	u8	enable_flags;
+	u8	steering;
+};
+
+int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering)
+{
+	int err;
+	u32 in_mod;
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_set_port_vxlan_context  *context;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	context = mailbox->buf;
+	memset(context, 0, sizeof(*context));
+
+	context->modify_flags = VXLAN_ENABLE_MODIFY | VXLAN_STEERING_MODIFY;
+	context->enable_flags = VXLAN_ENABLE;
+	context->steering  = steering;
+
+	in_mod = MLX4_SET_PORT_VXLAN << 8 | port;
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_SET_PORT_VXLAN);
 
 int mlx4_SET_MCAST_FLTR_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,

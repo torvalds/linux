@@ -12,8 +12,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
@@ -463,7 +462,7 @@ struct nvsp_message {
 
 #define NETVSC_MTU 65536
 
-#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*2)	/* 2MB */
+#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16)	/* 16MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 

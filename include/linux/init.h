@@ -286,9 +286,11 @@ void __init parse_early_options(char *cmdline);
 #define arch_initcall(fn)		module_init(fn)
 #define subsys_initcall(fn)		module_init(fn)
 #define fs_initcall(fn)			module_init(fn)
+#define rootfs_initcall(fn)		module_init(fn)
 #define device_initcall(fn)		module_init(fn)
 #define late_initcall(fn)		module_init(fn)
 
+#define console_initcall(fn)		module_init(fn)
 #define security_initcall(fn)		module_init(fn)
 
 /* Each module must use one module_init(). */

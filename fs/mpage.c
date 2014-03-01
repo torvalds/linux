@@ -43,16 +43,14 @@
  */
 static void mpage_end_io(struct bio *bio, int err)
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bv;
+	int i;
 
-	do {
-		struct page *page = bvec->bv_page;
+	bio_for_each_segment_all(bv, bio, i) {
+		struct page *page = bv->bv_page;
 
-		if (--bvec >= bio->bi_io_vec)
-			prefetchw(&bvec->bv_page->flags);
 		if (bio_data_dir(bio) == READ) {
-			if (uptodate) {
+			if (!err) {
 				SetPageUptodate(page);
 			} else {
 				ClearPageUptodate(page);
@@ -60,14 +58,15 @@ static void mpage_end_io(struct bio *bio, int err)
 			}
 			unlock_page(page);
 		} else { /* bio_data_dir(bio) == WRITE */
-			if (!uptodate) {
+			if (err) {
 				SetPageError(page);
 				if (page->mapping)
 					set_bit(AS_EIO, &page->mapping->flags);
 			}
 			end_page_writeback(page);
 		}
-	} while (bvec >= bio->bi_io_vec);
+	}
+
 	bio_put(bio);
 }
 
@@ -94,7 +93,7 @@ mpage_alloc(struct block_device *bdev,
 
 	if (bio) {
 		bio->bi_bdev = bdev;
-		bio->bi_sector = first_sector;
+		bio->bi_iter.bi_sector = first_sector;
 	}
 	return bio;
 }

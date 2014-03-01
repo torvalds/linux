@@ -37,10 +37,9 @@
 
 #define PIC_UART_0_IRQ			17
 #define PIC_UART_1_IRQ			18
-#define PIC_PCIE_LINK_0_IRQ		19
-#define PIC_PCIE_LINK_1_IRQ		20
-#define PIC_PCIE_LINK_2_IRQ		21
-#define PIC_PCIE_LINK_3_IRQ		22
+
+#define PIC_PCIE_LINK_LEGACY_IRQ_BASE	19
+#define PIC_PCIE_LINK_LEGACY_IRQ(i)	(19 + (i))
 
 #define PIC_EHCI_0_IRQ			23
 #define PIC_EHCI_1_IRQ			24
@@ -51,12 +50,31 @@
 #define PIC_2XX_XHCI_0_IRQ		23
 #define PIC_2XX_XHCI_1_IRQ		24
 #define PIC_2XX_XHCI_2_IRQ		25
+#define PIC_9XX_XHCI_0_IRQ		23
+#define PIC_9XX_XHCI_1_IRQ		24
 
 #define PIC_MMC_IRQ			29
 #define PIC_I2C_0_IRQ			30
 #define PIC_I2C_1_IRQ			31
 #define PIC_I2C_2_IRQ			32
 #define PIC_I2C_3_IRQ			33
+
+#define PIC_PCIE_LINK_MSI_IRQ_BASE	44	/* 44 - 47 MSI IRQ */
+#define PIC_PCIE_LINK_MSI_IRQ(i)	(44 + (i))
+
+/* MSI-X with second link-level dispatch */
+#define PIC_PCIE_MSIX_IRQ_BASE		48	/* 48 - 51 MSI-X IRQ */
+#define PIC_PCIE_MSIX_IRQ(i)		(48 + (i))
+
+#define NLM_MSIX_VEC_BASE		96	/* 96 - 127 - MSIX mapped */
+#define NLM_MSI_VEC_BASE		128	/* 128 -255 - MSI mapped */
+
+#define NLM_PIC_INDIRECT_VEC_BASE	512
+#define NLM_GPIO_VEC_BASE		768
+
+#define PIC_IRQ_BASE			8
+#define PIC_IRT_FIRST_IRQ		PIC_IRQ_BASE
+#define PIC_IRT_LAST_IRQ		63
 
 #ifndef __ASSEMBLY__
 
@@ -68,6 +86,9 @@ void xlp_mmu_init(void);
 void nlm_hal_init(void);
 int xlp_get_dram_map(int n, uint64_t *dram_map);
 
+struct pci_dev;
+int xlp_socdev_to_node(const struct pci_dev *dev);
+
 /* Device tree related */
 void xlp_early_init_devtree(void);
 void *xlp_dt_init(void *fdtp);
@@ -76,8 +97,15 @@ static inline int cpu_is_xlpii(void)
 {
 	int chip = read_c0_prid() & 0xff00;
 
-	return chip == PRID_IMP_NETLOGIC_XLP2XX;
+	return chip == PRID_IMP_NETLOGIC_XLP2XX ||
+		chip == PRID_IMP_NETLOGIC_XLP9XX;
 }
 
+static inline int cpu_is_xlp9xx(void)
+{
+	int chip = read_c0_prid() & 0xff00;
+
+	return chip == PRID_IMP_NETLOGIC_XLP9XX;
+}
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_NLM_XLP_H */

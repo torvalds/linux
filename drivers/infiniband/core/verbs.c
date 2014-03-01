@@ -44,6 +44,9 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
+#include <rdma/ib_addr.h>
+
+#include "core_priv.h"
 
 int ib_rate_to_mult(enum ib_rate rate)
 {
@@ -116,6 +119,8 @@ rdma_node_get_transport(enum rdma_node_type node_type)
 		return RDMA_TRANSPORT_IWARP;
 	case RDMA_NODE_USNIC:
 		return RDMA_TRANSPORT_USNIC;
+	case RDMA_NODE_USNIC_UDP:
+		return RDMA_TRANSPORT_USNIC_UDP;
 	default:
 		BUG();
 		return 0;
@@ -133,6 +138,7 @@ enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_
 		return IB_LINK_LAYER_INFINIBAND;
 	case RDMA_TRANSPORT_IWARP:
 	case RDMA_TRANSPORT_USNIC:
+	case RDMA_TRANSPORT_USNIC_UDP:
 		return IB_LINK_LAYER_ETHERNET;
 	default:
 		return IB_LINK_LAYER_UNSPECIFIED;
@@ -192,8 +198,28 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
 	u32 flow_class;
 	u16 gid_index;
 	int ret;
+	int is_eth = (rdma_port_get_link_layer(device, port_num) ==
+			IB_LINK_LAYER_ETHERNET);
 
 	memset(ah_attr, 0, sizeof *ah_attr);
+	if (is_eth) {
+		if (!(wc->wc_flags & IB_WC_GRH))
+			return -EPROTOTYPE;
+
+		if (wc->wc_flags & IB_WC_WITH_SMAC &&
+		    wc->wc_flags & IB_WC_WITH_VLAN) {
+			memcpy(ah_attr->dmac, wc->smac, ETH_ALEN);
+			ah_attr->vlan_id = wc->vlan_id;
+		} else {
+			ret = rdma_addr_find_dmac_by_grh(&grh->dgid, &grh->sgid,
+					ah_attr->dmac, &ah_attr->vlan_id);
+			if (ret)
+				return ret;
+		}
+	} else {
+		ah_attr->vlan_id = 0xffff;
+	}
+
 	ah_attr->dlid = wc->slid;
 	ah_attr->sl = wc->sl;
 	ah_attr->src_path_bits = wc->dlid_path_bits;
@@ -476,7 +502,9 @@ EXPORT_SYMBOL(ib_create_qp);
 static const struct {
 	int			valid;
 	enum ib_qp_attr_mask	req_param[IB_QPT_MAX];
+	enum ib_qp_attr_mask	req_param_add_eth[IB_QPT_MAX];
 	enum ib_qp_attr_mask	opt_param[IB_QPT_MAX];
+	enum ib_qp_attr_mask	opt_param_add_eth[IB_QPT_MAX];
 } qp_state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = {
 		[IB_QPS_RESET] = { .valid = 1 },
@@ -557,6 +585,12 @@ static const struct {
 						IB_QP_MAX_DEST_RD_ATOMIC	|
 						IB_QP_MIN_RNR_TIMER),
 			},
+			.req_param_add_eth = {
+				[IB_QPT_RC]  = (IB_QP_SMAC),
+				[IB_QPT_UC]  = (IB_QP_SMAC),
+				[IB_QPT_XRC_INI]  = (IB_QP_SMAC),
+				[IB_QPT_XRC_TGT]  = (IB_QP_SMAC)
+			},
 			.opt_param = {
 				 [IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
 						 IB_QP_QKEY),
@@ -576,7 +610,21 @@ static const struct {
 						 IB_QP_QKEY),
 				 [IB_QPT_GSI] = (IB_QP_PKEY_INDEX		|
 						 IB_QP_QKEY),
-			 }
+			 },
+			.opt_param_add_eth = {
+				[IB_QPT_RC]  = (IB_QP_ALT_SMAC			|
+						IB_QP_VID			|
+						IB_QP_ALT_VID),
+				[IB_QPT_UC]  = (IB_QP_ALT_SMAC			|
+						IB_QP_VID			|
+						IB_QP_ALT_VID),
+				[IB_QPT_XRC_INI]  = (IB_QP_ALT_SMAC			|
+						IB_QP_VID			|
+						IB_QP_ALT_VID),
+				[IB_QPT_XRC_TGT]  = (IB_QP_ALT_SMAC			|
+						IB_QP_VID			|
+						IB_QP_ALT_VID)
+			}
 		}
 	},
 	[IB_QPS_RTR]   = {
@@ -779,7 +827,8 @@ static const struct {
 };
 
 int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
-		       enum ib_qp_type type, enum ib_qp_attr_mask mask)
+		       enum ib_qp_type type, enum ib_qp_attr_mask mask,
+		       enum rdma_link_layer ll)
 {
 	enum ib_qp_attr_mask req_param, opt_param;
 
@@ -798,6 +847,13 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 	req_param = qp_state_table[cur_state][next_state].req_param[type];
 	opt_param = qp_state_table[cur_state][next_state].opt_param[type];
 
+	if (ll == IB_LINK_LAYER_ETHERNET) {
+		req_param |= qp_state_table[cur_state][next_state].
+			req_param_add_eth[type];
+		opt_param |= qp_state_table[cur_state][next_state].
+			opt_param_add_eth[type];
+	}
+
 	if ((mask & req_param) != req_param)
 		return 0;
 
@@ -808,10 +864,51 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
+int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
+			    struct ib_qp_attr *qp_attr, int *qp_attr_mask)
+{
+	int           ret = 0;
+	union ib_gid  sgid;
+
+	if ((*qp_attr_mask & IB_QP_AV)  &&
+	    (rdma_port_get_link_layer(qp->device, qp_attr->ah_attr.port_num) == IB_LINK_LAYER_ETHERNET)) {
+		ret = ib_query_gid(qp->device, qp_attr->ah_attr.port_num,
+				   qp_attr->ah_attr.grh.sgid_index, &sgid);
+		if (ret)
+			goto out;
+		if (rdma_link_local_addr((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw)) {
+			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw, qp_attr->ah_attr.dmac);
+			rdma_get_ll_mac((struct in6_addr *)sgid.raw, qp_attr->smac);
+			qp_attr->vlan_id = rdma_get_vlan_id(&sgid);
+		} else {
+			ret = rdma_addr_find_dmac_by_grh(&sgid, &qp_attr->ah_attr.grh.dgid,
+					qp_attr->ah_attr.dmac, &qp_attr->vlan_id);
+			if (ret)
+				goto out;
+			ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr->smac, NULL);
+			if (ret)
+				goto out;
+		}
+		*qp_attr_mask |= IB_QP_SMAC;
+		if (qp_attr->vlan_id < 0xFFFF)
+			*qp_attr_mask |= IB_QP_VID;
+	}
+out:
+	return ret;
+}
+EXPORT_SYMBOL(ib_resolve_eth_l2_attrs);
+
+
 int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)
 {
+	int ret;
+
+	ret = ib_resolve_eth_l2_attrs(qp, qp_attr, &qp_attr_mask);
+	if (ret)
+		return ret;
+
 	return qp->device->modify_qp(qp->real_qp, qp_attr, qp_attr_mask, NULL);
 }
 EXPORT_SYMBOL(ib_modify_qp);

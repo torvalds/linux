@@ -183,6 +183,8 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	kfree(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 
+	rdev_set_qos_map(rdev, dev, NULL);
+
 	/*
 	 * Delete all the keys ... pairwise keys can't really
 	 * exist any more anyway, but default keys might.
@@ -274,7 +276,7 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 
 			for (i = 0; i < sband->n_channels; i++) {
 				chan = &sband->channels[i];
-				if (chan->flags & IEEE80211_CHAN_NO_IBSS)
+				if (chan->flags & IEEE80211_CHAN_NO_IR)
 					continue;
 				if (chan->flags & IEEE80211_CHAN_DISABLED)
 					continue;
@@ -346,7 +348,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 		chan = ieee80211_get_channel(wdev->wiphy, freq);
 		if (!chan)
 			return -EINVAL;
-		if (chan->flags & IEEE80211_CHAN_NO_IBSS ||
+		if (chan->flags & IEEE80211_CHAN_NO_IR ||
 		    chan->flags & IEEE80211_CHAN_DISABLED)
 			return -EINVAL;
 	}

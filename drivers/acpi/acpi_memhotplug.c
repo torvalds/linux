@@ -180,14 +180,14 @@ static unsigned long acpi_meminfo_end_pfn(struct acpi_memory_info *info)
 
 static int acpi_bind_memblk(struct memory_block *mem, void *arg)
 {
-	return acpi_bind_one(&mem->dev, (acpi_handle)arg);
+	return acpi_bind_one(&mem->dev, arg);
 }
 
 static int acpi_bind_memory_blocks(struct acpi_memory_info *info,
-				   acpi_handle handle)
+				   struct acpi_device *adev)
 {
 	return walk_memory_range(acpi_meminfo_start_pfn(info),
-				 acpi_meminfo_end_pfn(info), (void *)handle,
+				 acpi_meminfo_end_pfn(info), adev,
 				 acpi_bind_memblk);
 }
 
@@ -197,8 +197,7 @@ static int acpi_unbind_memblk(struct memory_block *mem, void *arg)
 	return 0;
 }
 
-static void acpi_unbind_memory_blocks(struct acpi_memory_info *info,
-				      acpi_handle handle)
+static void acpi_unbind_memory_blocks(struct acpi_memory_info *info)
 {
 	walk_memory_range(acpi_meminfo_start_pfn(info),
 			  acpi_meminfo_end_pfn(info), NULL, acpi_unbind_memblk);
@@ -242,9 +241,9 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		if (result && result != -EEXIST)
 			continue;
 
-		result = acpi_bind_memory_blocks(info, handle);
+		result = acpi_bind_memory_blocks(info, mem_device->device);
 		if (result) {
-			acpi_unbind_memory_blocks(info, handle);
+			acpi_unbind_memory_blocks(info);
 			return -ENODEV;
 		}
 
@@ -285,7 +284,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 		if (nid == NUMA_NO_NODE)
 			nid = memory_add_physaddr_to_nid(info->start_addr);
 
-		acpi_unbind_memory_blocks(info, handle);
+		acpi_unbind_memory_blocks(info);
 		remove_memory(nid, info->start_addr, info->length);
 		list_del(&info->list);
 		kfree(info);
@@ -361,7 +360,19 @@ static void acpi_memory_device_remove(struct acpi_device *device)
 	acpi_memory_device_free(mem_device);
 }
 
+static bool __initdata acpi_no_memhotplug;
+
 void __init acpi_memory_hotplug_init(void)
 {
+	if (acpi_no_memhotplug)
+		return;
+
 	acpi_scan_add_handler_with_hotplug(&memory_device_handler, "memory");
 }
+
+static int __init disable_acpi_memory_hotplug(char *str)
+{
+	acpi_no_memhotplug = true;
+	return 1;
+}
+__setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);

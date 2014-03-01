@@ -34,14 +34,15 @@
 int radeon_semaphore_create(struct radeon_device *rdev,
 			    struct radeon_semaphore **semaphore)
 {
+	uint32_t *cpu_addr;
 	int i, r;
 
 	*semaphore = kmalloc(sizeof(struct radeon_semaphore), GFP_KERNEL);
 	if (*semaphore == NULL) {
 		return -ENOMEM;
 	}
-	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo,
-			     &(*semaphore)->sa_bo, 8, 8, true);
+	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &(*semaphore)->sa_bo,
+			     8 * RADEON_NUM_SYNCS, 8, true);
 	if (r) {
 		kfree(*semaphore);
 		*semaphore = NULL;
@@ -49,7 +50,10 @@ int radeon_semaphore_create(struct radeon_device *rdev,
 	}
 	(*semaphore)->waiters = 0;
 	(*semaphore)->gpu_addr = radeon_sa_bo_gpu_addr((*semaphore)->sa_bo);
-	*((uint64_t*)radeon_sa_bo_cpu_addr((*semaphore)->sa_bo)) = 0;
+
+	cpu_addr = radeon_sa_bo_cpu_addr((*semaphore)->sa_bo);
+	for (i = 0; i < RADEON_NUM_SYNCS; ++i)
+		cpu_addr[i] = 0;
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
 		(*semaphore)->sync_to[i] = NULL;
@@ -125,6 +129,7 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				struct radeon_semaphore *semaphore,
 				int ring)
 {
+	unsigned count = 0;
 	int i, r;
 
         for (i = 0; i < RADEON_NUM_RINGS; ++i) {
@@ -138,6 +143,12 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 		if (!rdev->ring[i].ready) {
 			dev_err(rdev->dev, "Syncing to a disabled ring!");
 			return -EINVAL;
+		}
+
+		if (++count > RADEON_NUM_SYNCS) {
+			/* not enough room, wait manually */
+			radeon_fence_wait_locked(fence);
+			continue;
 		}
 
 		/* allocate enough space for sync command */
@@ -164,6 +175,8 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 
 		radeon_ring_commit(rdev, &rdev->ring[i]);
 		radeon_fence_note_sync(fence, ring);
+
+		semaphore->gpu_addr += 8;
 	}
 
 	return 0;

@@ -60,7 +60,6 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -1645,6 +1644,8 @@ static int isp116x_probe(struct platform_device *pdev)
 	if (ret)
 		goto err6;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	ret = create_debug_file(isp116x);
 	if (ret) {
 		ERR("Couldn't create debugfs entry\n");
@@ -1705,7 +1706,7 @@ static struct platform_driver isp116x_driver = {
 	.suspend = isp116x_suspend,
 	.resume = isp116x_resume,
 	.driver = {
-		.name = (char *)hcd_name,
+		.name = hcd_name,
 		.owner	= THIS_MODULE,
 	},
 };

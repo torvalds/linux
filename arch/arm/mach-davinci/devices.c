@@ -302,7 +302,7 @@ static struct resource wdt_resources[] = {
 };
 
 struct platform_device davinci_wdt_device = {
-	.name		= "watchdog",
+	.name		= "davinci-wdt",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(wdt_resources),
 	.resource	= wdt_resources,

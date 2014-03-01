@@ -47,6 +47,7 @@ Currently, these files are in /proc/sys/vm:
 - numa_zonelist_order
 - oom_dump_tasks
 - oom_kill_allocating_task
+- overcommit_kbytes
 - overcommit_memory
 - overcommit_ratio
 - page-cluster
@@ -574,6 +575,17 @@ The default value is 0.
 
 ==============================================================
 
+overcommit_kbytes:
+
+When overcommit_memory is set to 2, the committed address space is not
+permitted to exceed swap plus this amount of physical RAM. See below.
+
+Note: overcommit_kbytes is the counterpart of overcommit_ratio. Only one
+of them may be specified at a time. Setting one disables the other (which
+then appears as 0 when read).
+
+==============================================================
+
 overcommit_memory:
 
 This value contains a flag that enables memory overcommitment.
@@ -684,7 +696,9 @@ swappiness
 
 This control is used to define how aggressive the kernel will swap
 memory pages.  Higher values will increase agressiveness, lower values
-decrease the amount of swap.
+decrease the amount of swap.  A value of 0 instructs the kernel not to
+initiate swap until the amount of free and file-backed pages is less
+than the high water mark in a zone.
 
 The default value is 60.
 

@@ -41,6 +41,8 @@ const char *ceph_session_op_name(int op)
 	case CEPH_SESSION_RENEWCAPS: return "renewcaps";
 	case CEPH_SESSION_STALE: return "stale";
 	case CEPH_SESSION_RECALL_STATE: return "recall_state";
+	case CEPH_SESSION_FLUSHMSG: return "flushmsg";
+	case CEPH_SESSION_FLUSHMSG_ACK: return "flushmsg_ack";
 	}
 	return "???";
 }

@@ -108,7 +108,7 @@ static int denali_dt_probe(struct platform_device *ofdev)
 		denali->dev->dma_mask = NULL;
 	}
 
-	dt->clk = clk_get(&ofdev->dev, NULL);
+	dt->clk = devm_clk_get(&ofdev->dev, NULL);
 	if (IS_ERR(dt->clk)) {
 		dev_err(&ofdev->dev, "no clk available\n");
 		return PTR_ERR(dt->clk);
@@ -124,7 +124,6 @@ static int denali_dt_probe(struct platform_device *ofdev)
 
 out_disable_clk:
 	clk_disable_unprepare(dt->clk);
-	clk_put(dt->clk);
 
 	return ret;
 }
@@ -135,7 +134,6 @@ static int denali_dt_remove(struct platform_device *ofdev)
 
 	denali_remove(&dt->denali);
 	clk_disable(dt->clk);
-	clk_put(dt->clk);
 
 	return 0;
 }

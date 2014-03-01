@@ -414,7 +414,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_parse_pin_defcfg);
+EXPORT_SYMBOL_GPL(snd_hda_parse_pin_defcfg);
 
 int snd_hda_get_input_pin_attr(unsigned int def_conf)
 {
@@ -435,7 +435,7 @@ int snd_hda_get_input_pin_attr(unsigned int def_conf)
 		return INPUT_PIN_ATTR_FRONT;
 	return INPUT_PIN_ATTR_NORMAL;
 }
-EXPORT_SYMBOL_HDA(snd_hda_get_input_pin_attr);
+EXPORT_SYMBOL_GPL(snd_hda_get_input_pin_attr);
 
 /**
  * hda_get_input_pin_label - Give a label for the given input pin
@@ -547,7 +547,7 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 				       cfg->inputs[input].pin,
 				       has_multiple_pins);
 }
-EXPORT_SYMBOL_HDA(hda_get_autocfg_input_label);
+EXPORT_SYMBOL_GPL(hda_get_autocfg_input_label);
 
 /* return the position of NID in the list, or -1 if not found */
 static int find_idx_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
@@ -721,7 +721,7 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 	strlcpy(label, name, maxlen);
 	return 1;
 }
-EXPORT_SYMBOL_HDA(snd_hda_get_pin_label);
+EXPORT_SYMBOL_GPL(snd_hda_get_pin_label);
 
 int snd_hda_add_verbs(struct hda_codec *codec,
 		      const struct hda_verb *list)
@@ -733,7 +733,7 @@ int snd_hda_add_verbs(struct hda_codec *codec,
 	*v = list;
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_add_verbs);
+EXPORT_SYMBOL_GPL(snd_hda_add_verbs);
 
 void snd_hda_apply_verbs(struct hda_codec *codec)
 {
@@ -743,7 +743,7 @@ void snd_hda_apply_verbs(struct hda_codec *codec)
 		snd_hda_sequence_write(codec, *v);
 	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_apply_verbs);
+EXPORT_SYMBOL_GPL(snd_hda_apply_verbs);
 
 void snd_hda_apply_pincfgs(struct hda_codec *codec,
 			   const struct hda_pintbl *cfg)
@@ -751,7 +751,7 @@ void snd_hda_apply_pincfgs(struct hda_codec *codec,
 	for (; cfg->nid; cfg++)
 		snd_hda_codec_set_pincfg(codec, cfg->nid, cfg->val);
 }
-EXPORT_SYMBOL_HDA(snd_hda_apply_pincfgs);
+EXPORT_SYMBOL_GPL(snd_hda_apply_pincfgs);
 
 static void set_pin_targets(struct hda_codec *codec,
 			    const struct hda_pintbl *cfg)
@@ -822,7 +822,7 @@ void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 	if (codec->fixup_list)
 		apply_fixup(codec, codec->fixup_id, action, 0);
 }
-EXPORT_SYMBOL_HDA(snd_hda_apply_fixup);
+EXPORT_SYMBOL_GPL(snd_hda_apply_fixup);
 
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
@@ -880,4 +880,4 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		codec->fixup_name = name;
 	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_pick_fixup);
+EXPORT_SYMBOL_GPL(snd_hda_pick_fixup);

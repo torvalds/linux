@@ -18,4 +18,5 @@ util/cgroup.c
 util/rblist.c
 util/strlist.c
 util/fs.c
+util/trace-event.c
 ../../lib/rbtree.c

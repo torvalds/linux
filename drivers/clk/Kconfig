@@ -23,16 +23,6 @@ config COMMON_CLK
 menu "Common Clock Framework"
 	depends on COMMON_CLK
 
-config COMMON_CLK_DEBUG
-	bool "DebugFS representation of clock tree"
-	select DEBUG_FS
-	---help---
-	  Creates a directory hierarchy in debugfs for visualizing the clk
-	  tree structure.  Each directory contains read-only members
-	  that export information specific to that clk node: clk_rate,
-	  clk_flags, clk_prepare_count, clk_enable_count &
-	  clk_notifier_count.
-
 config COMMON_CLK_WM831X
 	tristate "Clock driver for WM831x/2x PMICs"
 	depends on MFD_WM831X
@@ -63,6 +53,16 @@ config COMMON_CLK_SI5351
 	---help---
 	  This driver supports Silicon Labs 5351A/B/C programmable clock
 	  generators.
+
+config COMMON_CLK_SI570
+	tristate "Clock driver for SiLabs 570 and compatible devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports Silicon Labs 570/571/598/599 programmable
+	  clock generators.
 
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS11 MFD"
@@ -106,6 +106,8 @@ config COMMON_CLK_KEYSTONE
 	---help---
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
+
+source "drivers/clk/qcom/Kconfig"
 
 endmenu
 

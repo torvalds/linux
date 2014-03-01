@@ -606,6 +606,36 @@ static int qla4_83xx_loopback_in_progress(struct scsi_qla_host *ha)
 	return rval;
 }
 
+static void qla4xxx_update_ipaddr_state(struct scsi_qla_host *ha,
+					uint32_t ipaddr_idx,
+					uint32_t ipaddr_fw_state)
+{
+	uint8_t ipaddr_state;
+	uint8_t ip_idx;
+
+	ip_idx = ipaddr_idx & 0xF;
+	ipaddr_state = qla4xxx_set_ipaddr_state((uint8_t)ipaddr_fw_state);
+
+	switch (ip_idx) {
+	case 0:
+		ha->ip_config.ipv4_addr_state = ipaddr_state;
+		break;
+	case 1:
+		ha->ip_config.ipv6_link_local_state = ipaddr_state;
+		break;
+	case 2:
+		ha->ip_config.ipv6_addr0_state = ipaddr_state;
+		break;
+	case 3:
+		ha->ip_config.ipv6_addr1_state = ipaddr_state;
+		break;
+	default:
+		ql4_printk(KERN_INFO, ha, "%s: Invalid IPADDR index %d\n",
+			   __func__, ip_idx);
+	}
+}
+
+
 /**
  * qla4xxx_isr_decode_mailbox - decodes mailbox status
  * @ha: Pointer to host adapter structure.
@@ -620,6 +650,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 	int i;
 	uint32_t mbox_sts[MBOX_AEN_REG_COUNT];
 	__le32 __iomem *mailbox_out;
+	uint32_t opcode = 0;
 
 	if (is_qla8032(ha) || is_qla8042(ha))
 		mailbox_out = &ha->qla4_83xx_reg->mailbox_out[0];
@@ -698,6 +729,11 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			qla4xxx_post_aen_work(ha, ISCSI_EVENT_LINKUP,
 					      sizeof(mbox_sts),
 					      (uint8_t *) mbox_sts);
+
+			if ((is_qla8032(ha) || is_qla8042(ha)) &&
+			    ha->notify_link_up_comp)
+				complete(&ha->link_up_comp);
+
 			break;
 
 		case MBOX_ASTS_LINK_DOWN:
@@ -741,6 +777,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			    "mbox_sts[3]=%04x\n", ha->host_no, mbox_sts[0],
 			    mbox_sts[2], mbox_sts[3]);
 
+			qla4xxx_update_ipaddr_state(ha, mbox_sts[5],
+						    mbox_sts[3]);
 			/* mbox_sts[2] = Old ACB state
 			 * mbox_sts[3] = new ACB state */
 			if ((mbox_sts[3] == ACB_STATE_VALID) &&
@@ -841,8 +879,6 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_IDC_REQUEST_NOTIFICATION:
-		{
-			uint32_t opcode;
 			if (is_qla8032(ha) || is_qla8042(ha)) {
 				DEBUG2(ql4_printk(KERN_INFO, ha,
 						  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x\n",
@@ -862,7 +898,6 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 				}
 			}
 			break;
-		}
 
 		case MBOX_ASTS_IDC_COMPLETE:
 			if (is_qla8032(ha) || is_qla8042(ha)) {
@@ -874,6 +909,14 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 				DEBUG2(ql4_printk(KERN_INFO, ha,
 						  "scsi:%ld: AEN %04x IDC Complete notification\n",
 						  ha->host_no, mbox_sts[0]));
+
+				opcode = mbox_sts[1] >> 16;
+				if (ha->notify_idc_comp)
+					complete(&ha->idc_comp);
+
+				if ((opcode == MBOX_CMD_SET_PORT_CONFIG) ||
+				    (opcode == MBOX_CMD_PORT_RESET))
+					ha->idc_info.info2 = mbox_sts[3];
 
 				if (qla4_83xx_loopback_in_progress(ha)) {
 					set_bit(AF_LOOPBACK, &ha->flags);
@@ -907,6 +950,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			DEBUG2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x Received IDC Extend Timeout notification\n",
 					  ha->host_no, mbox_sts[0]));
+			/* new IDC timeout */
+			ha->idc_extend_tmo = mbox_sts[1];
 			break;
 
 		case MBOX_ASTS_INITIALIZATION_FAILED:

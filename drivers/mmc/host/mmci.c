@@ -1683,8 +1683,6 @@ static int mmci_remove(struct amba_device *dev)
 {
 	struct mmc_host *mmc = amba_get_drvdata(dev);
 
-	amba_set_drvdata(dev, NULL);
-
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
 

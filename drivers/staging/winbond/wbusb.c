@@ -788,7 +788,6 @@ static int wb35_probe(struct usb_interface *intf,
 	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	dev->channel_change_time = 1000;
 	dev->max_signal = 100;
 	dev->queues = 1;
 

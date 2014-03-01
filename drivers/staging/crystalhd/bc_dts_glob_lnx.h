@@ -229,7 +229,7 @@ enum BC_DRV_CMD {
 	DRV_CMD_REG_RD,		/* Read Device Register */
 	DRV_CMD_REG_WR,		/* Write Device Register */
 	DRV_CMD_FPGA_RD,	/* Read FPGA Register */
-	DRV_CMD_FPGA_WR,	/* Wrtie FPGA Reister */
+	DRV_CMD_FPGA_WR,	/* Write FPGA Register */
 	DRV_CMD_MEM_RD,		/* Read Device Memory */
 	DRV_CMD_MEM_WR,		/* Write Device Memory */
 	DRV_CMD_RD_PCI_CFG,	/* Read PCI Config Space */

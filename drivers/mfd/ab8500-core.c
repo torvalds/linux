@@ -491,7 +491,7 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 		if (line == AB8540_INT_GPIO43F || line == AB8540_INT_GPIO44F)
 			line += 1;
 
-		handle_nested_irq(ab8500->irq_base + line);
+		handle_nested_irq(irq_create_mapping(ab8500->domain, line));
 	}
 
 	return 0;
@@ -1017,7 +1017,7 @@ static struct resource ab8500_temp_resources[] = {
 	},
 };
 
-static struct mfd_cell ab8500_bm_devs[] = {
+static const struct mfd_cell ab8500_bm_devs[] = {
 	{
 		.name = "ab8500-charger",
 		.of_compatible = "stericsson,ab8500-charger",
@@ -1052,7 +1052,7 @@ static struct mfd_cell ab8500_bm_devs[] = {
 	},
 };
 
-static struct mfd_cell ab8500_devs[] = {
+static const struct mfd_cell ab8500_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
@@ -1143,7 +1143,7 @@ static struct mfd_cell ab8500_devs[] = {
 	},
 };
 
-static struct mfd_cell ab9540_devs[] = {
+static const struct mfd_cell ab9540_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
@@ -1214,7 +1214,7 @@ static struct mfd_cell ab9540_devs[] = {
 };
 
 /* Device list for ab8505  */
-static struct mfd_cell ab8505_devs[] = {
+static const struct mfd_cell ab8505_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
@@ -1275,7 +1275,7 @@ static struct mfd_cell ab8505_devs[] = {
 	},
 };
 
-static struct mfd_cell ab8540_devs[] = {
+static const struct mfd_cell ab8540_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
@@ -1339,7 +1339,7 @@ static struct mfd_cell ab8540_devs[] = {
 	},
 };
 
-static struct mfd_cell ab8540_cut1_devs[] = {
+static const struct mfd_cell ab8540_cut1_devs[] = {
 	{
 		.name = "ab8500-rtc",
 		.of_compatible = "stericsson,ab8500-rtc",
@@ -1348,7 +1348,7 @@ static struct mfd_cell ab8540_cut1_devs[] = {
 	},
 };
 
-static struct mfd_cell ab8540_cut2_devs[] = {
+static const struct mfd_cell ab8540_cut2_devs[] = {
 	{
 		.name = "ab8540-rtc",
 		.of_compatible = "stericsson,ab8540-rtc",

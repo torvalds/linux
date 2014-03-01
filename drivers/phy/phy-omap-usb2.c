@@ -177,11 +177,6 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	phy->phy.otg		= otg;
 	phy->phy.type		= USB_PHY_TYPE_USB2;
 
-	phy_provider = devm_of_phy_provider_register(phy->dev,
-			of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
 	control_node = of_parse_phandle(node, "ctrl-module", 0);
 	if (!control_node) {
 		dev_err(&pdev->dev, "Failed to get control device phandle\n");
@@ -213,6 +208,11 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		return PTR_ERR(generic_phy);
 
 	phy_set_drvdata(generic_phy, phy);
+
+	phy_provider = devm_of_phy_provider_register(phy->dev,
+			of_phy_simple_xlate);
+	if (IS_ERR(phy_provider))
+		return PTR_ERR(phy_provider);
 
 	phy->wkupclk = devm_clk_get(phy->dev, "usb_phy_cm_clk32k");
 	if (IS_ERR(phy->wkupclk)) {

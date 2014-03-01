@@ -85,6 +85,9 @@ ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 	int cplen, i;
 	ssize_t tsize, csize, repend;
 
+	if ((!dev) || (!dev->of_node))
+		return -ENODEV;
+
 	/* Name & Type */
 	csize = snprintf(str, len, "of:N%sT%s", dev->of_node->name,
 			 dev->of_node->type);

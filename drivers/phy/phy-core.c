@@ -94,19 +94,31 @@ static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
 
 int phy_pm_runtime_get(struct phy *phy)
 {
+	int ret;
+
 	if (!pm_runtime_enabled(&phy->dev))
 		return -ENOTSUPP;
 
-	return pm_runtime_get(&phy->dev);
+	ret = pm_runtime_get(&phy->dev);
+	if (ret < 0 && ret != -EINPROGRESS)
+		pm_runtime_put_noidle(&phy->dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_get);
 
 int phy_pm_runtime_get_sync(struct phy *phy)
 {
+	int ret;
+
 	if (!pm_runtime_enabled(&phy->dev))
 		return -ENOTSUPP;
 
-	return pm_runtime_get_sync(&phy->dev);
+	ret = pm_runtime_get_sync(&phy->dev);
+	if (ret < 0)
+		pm_runtime_put_sync(&phy->dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_get_sync);
 
@@ -150,18 +162,24 @@ int phy_init(struct phy *phy)
 {
 	int ret;
 
+	if (!phy)
+		return 0;
+
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
 
 	mutex_lock(&phy->mutex);
-	if (phy->init_count++ == 0 && phy->ops->init) {
+	if (phy->init_count == 0 && phy->ops->init) {
 		ret = phy->ops->init(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy init failed --> %d\n", ret);
 			goto out;
 		}
+	} else {
+		ret = 0; /* Override possible ret == -ENOTSUPP */
 	}
+	++phy->init_count;
 
 out:
 	mutex_unlock(&phy->mutex);
@@ -174,18 +192,22 @@ int phy_exit(struct phy *phy)
 {
 	int ret;
 
+	if (!phy)
+		return 0;
+
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
 
 	mutex_lock(&phy->mutex);
-	if (--phy->init_count == 0 && phy->ops->exit) {
+	if (phy->init_count == 1 && phy->ops->exit) {
 		ret = phy->ops->exit(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy exit failed --> %d\n", ret);
 			goto out;
 		}
 	}
+	--phy->init_count;
 
 out:
 	mutex_unlock(&phy->mutex);
@@ -196,23 +218,32 @@ EXPORT_SYMBOL_GPL(phy_exit);
 
 int phy_power_on(struct phy *phy)
 {
-	int ret = -ENOTSUPP;
+	int ret;
+
+	if (!phy)
+		return 0;
 
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
 
 	mutex_lock(&phy->mutex);
-	if (phy->power_count++ == 0 && phy->ops->power_on) {
+	if (phy->power_count == 0 && phy->ops->power_on) {
 		ret = phy->ops->power_on(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy poweron failed --> %d\n", ret);
 			goto out;
 		}
+	} else {
+		ret = 0; /* Override possible ret == -ENOTSUPP */
 	}
+	++phy->power_count;
+	mutex_unlock(&phy->mutex);
+	return 0;
 
 out:
 	mutex_unlock(&phy->mutex);
+	phy_pm_runtime_put_sync(phy);
 
 	return ret;
 }
@@ -220,22 +251,25 @@ EXPORT_SYMBOL_GPL(phy_power_on);
 
 int phy_power_off(struct phy *phy)
 {
-	int ret = -ENOTSUPP;
+	int ret;
+
+	if (!phy)
+		return 0;
 
 	mutex_lock(&phy->mutex);
-	if (--phy->power_count == 0 && phy->ops->power_off) {
+	if (phy->power_count == 1 && phy->ops->power_off) {
 		ret =  phy->ops->power_off(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy poweroff failed --> %d\n", ret);
-			goto out;
+			mutex_unlock(&phy->mutex);
+			return ret;
 		}
 	}
-
-out:
+	--phy->power_count;
 	mutex_unlock(&phy->mutex);
 	phy_pm_runtime_put(phy);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(phy_power_off);
 
@@ -290,7 +324,7 @@ err0:
  */
 void phy_put(struct phy *phy)
 {
-	if (IS_ERR(phy))
+	if (!phy || IS_ERR(phy))
 		return;
 
 	module_put(phy->ops->owner);
@@ -309,6 +343,9 @@ EXPORT_SYMBOL_GPL(phy_put);
 void devm_phy_put(struct device *dev, struct phy *phy)
 {
 	int r;
+
+	if (!phy)
+		return;
 
 	r = devres_destroy(dev, devm_phy_release, devm_phy_match, phy);
 	dev_WARN_ONCE(dev, r, "couldn't find PHY resource\n");
@@ -360,7 +397,7 @@ EXPORT_SYMBOL_GPL(of_phy_simple_xlate);
 struct phy *phy_get(struct device *dev, const char *string)
 {
 	int index = 0;
-	struct phy *phy = NULL;
+	struct phy *phy;
 
 	if (string == NULL) {
 		dev_WARN(dev, "missing string\n");
@@ -371,17 +408,11 @@ struct phy *phy_get(struct device *dev, const char *string)
 		index = of_property_match_string(dev->of_node, "phy-names",
 			string);
 		phy = of_phy_get(dev, index);
-		if (IS_ERR(phy)) {
-			dev_err(dev, "unable to find phy\n");
-			return phy;
-		}
 	} else {
 		phy = phy_lookup(dev, string);
-		if (IS_ERR(phy)) {
-			dev_err(dev, "unable to find phy\n");
-			return phy;
-		}
 	}
+	if (IS_ERR(phy))
+		return phy;
 
 	if (!try_module_get(phy->ops->owner))
 		return ERR_PTR(-EPROBE_DEFER);
@@ -391,6 +422,27 @@ struct phy *phy_get(struct device *dev, const char *string)
 	return phy;
 }
 EXPORT_SYMBOL_GPL(phy_get);
+
+/**
+ * phy_optional_get() - lookup and obtain a reference to an optional phy.
+ * @dev: device that requests this phy
+ * @string: the phy name as given in the dt data or the name of the controller
+ * port for non-dt case
+ *
+ * Returns the phy driver, after getting a refcount to it; or
+ * NULL if there is no such phy.  The caller is responsible for
+ * calling phy_put() to release that count.
+ */
+struct phy *phy_optional_get(struct device *dev, const char *string)
+{
+	struct phy *phy = phy_get(dev, string);
+
+	if (PTR_ERR(phy) == -ENODEV)
+		phy = NULL;
+
+	return phy;
+}
+EXPORT_SYMBOL_GPL(phy_optional_get);
 
 /**
  * devm_phy_get() - lookup and obtain a reference to a phy.
@@ -423,6 +475,30 @@ struct phy *devm_phy_get(struct device *dev, const char *string)
 EXPORT_SYMBOL_GPL(devm_phy_get);
 
 /**
+ * devm_phy_optional_get() - lookup and obtain a reference to an optional phy.
+ * @dev: device that requests this phy
+ * @string: the phy name as given in the dt data or phy device name
+ * for non-dt case
+ *
+ * Gets the phy using phy_get(), and associates a device with it using
+ * devres. On driver detach, release function is invoked on the devres
+ * data, then, devres data is freed. This differs to devm_phy_get() in
+ * that if the phy does not exist, it is not considered an error and
+ * -ENODEV will not be returned. Instead the NULL phy is returned,
+ * which can be passed to all other phy consumer calls.
+ */
+struct phy *devm_phy_optional_get(struct device *dev, const char *string)
+{
+	struct phy *phy = devm_phy_get(dev, string);
+
+	if (PTR_ERR(phy) == -ENODEV)
+		phy = NULL;
+
+	return phy;
+}
+EXPORT_SYMBOL_GPL(devm_phy_optional_get);
+
+/**
  * phy_create() - create a new phy
  * @dev: device that is creating the new phy
  * @ops: function pointers for performing phy operations
@@ -437,23 +513,18 @@ struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
 	int id;
 	struct phy *phy;
 
-	if (!dev) {
-		dev_WARN(dev, "no device provided for PHY\n");
-		ret = -EINVAL;
-		goto err0;
-	}
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
 
 	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
-	if (!phy) {
-		ret = -ENOMEM;
-		goto err0;
-	}
+	if (!phy)
+		return ERR_PTR(-ENOMEM);
 
 	id = ida_simple_get(&phy_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
 		dev_err(dev, "unable to get id\n");
 		ret = id;
-		goto err0;
+		goto free_phy;
 	}
 
 	device_initialize(&phy->dev);
@@ -468,11 +539,11 @@ struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
 
 	ret = dev_set_name(&phy->dev, "phy-%s.%d", dev_name(dev), id);
 	if (ret)
-		goto err1;
+		goto put_dev;
 
 	ret = device_add(&phy->dev);
 	if (ret)
-		goto err1;
+		goto put_dev;
 
 	if (pm_runtime_enabled(dev)) {
 		pm_runtime_enable(&phy->dev);
@@ -481,12 +552,11 @@ struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
 
 	return phy;
 
-err1:
-	ida_remove(&phy_ida, phy->id);
+put_dev:
 	put_device(&phy->dev);
+	ida_remove(&phy_ida, phy->id);
+free_phy:
 	kfree(phy);
-
-err0:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(phy_create);

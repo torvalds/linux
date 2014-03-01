@@ -26,6 +26,9 @@
 #include <asm/pgtable.h>
 #include <asm/vectors.h>
 
+#define CA_BYPASS	(_PAGE_CA_BYPASS | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
+#define CA_WRITEBACK	(_PAGE_CA_WB     | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
+
 #ifdef __ASSEMBLY__
 
 #define XTENSA_HWVERSION_RC_2009_0 230000
@@ -80,8 +83,6 @@
 	/* Step 2: map 0x40000000..0x47FFFFFF to paddr containing this code
 	 * and jump to the new mapping.
 	 */
-#define CA_BYPASS	(_PAGE_CA_BYPASS | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
-#define CA_WRITEBACK	(_PAGE_CA_WB     | _PAGE_HW_WRITE | _PAGE_HW_EXEC)
 
 	srli	a3, a0, 27
 	slli	a3, a3, 27
@@ -123,13 +124,13 @@
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, 0xe0000006
-	movi	a4, 0xf0000000 + CA_WRITEBACK
+	movi	a5, XCHAL_KIO_CACHED_VADDR + 6
+	movi	a4, XCHAL_KIO_DEFAULT_PADDR + CA_WRITEBACK
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, 0xf0000006
-	movi	a4, 0xf0000000 + CA_BYPASS
+	movi	a5, XCHAL_KIO_BYPASS_VADDR + 6
+	movi	a4, XCHAL_KIO_DEFAULT_PADDR + CA_BYPASS
 	wdtlb	a4, a5
 	witlb	a4, a5
 

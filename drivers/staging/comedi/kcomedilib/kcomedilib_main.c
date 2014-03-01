@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 
 struct comedi_device *comedi_open(const char *filename)
 {
-	struct comedi_device *dev;
+	struct comedi_device *dev, *retval = NULL;
 	unsigned int minor;
 
 	if (strncmp(filename, "/dev/comedi", 11) != 0)
@@ -46,24 +46,27 @@ struct comedi_device *comedi_open(const char *filename)
 	if (minor >= COMEDI_NUM_BOARD_MINORS)
 		return NULL;
 
-	dev = comedi_dev_from_minor(minor);
-
-	if (!dev || !dev->attached)
+	dev = comedi_dev_get_from_minor(minor);
+	if (!dev)
 		return NULL;
 
-	if (!try_module_get(dev->driver->module))
-		return NULL;
+	down_read(&dev->attach_lock);
+	if (dev->attached)
+		retval = dev;
+	else
+		retval = NULL;
+	up_read(&dev->attach_lock);
 
-	return dev;
+	if (retval == NULL)
+		comedi_dev_put(dev);
+
+	return retval;
 }
 EXPORT_SYMBOL_GPL(comedi_open);
 
-int comedi_close(struct comedi_device *d)
+int comedi_close(struct comedi_device *dev)
 {
-	struct comedi_device *dev = (struct comedi_device *)d;
-
-	module_put(dev->driver->module);
-
+	comedi_dev_put(dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(comedi_close);
@@ -73,7 +76,14 @@ static int comedi_do_insn(struct comedi_device *dev,
 			  unsigned int *data)
 {
 	struct comedi_subdevice *s;
-	int ret = 0;
+	int ret;
+
+	mutex_lock(&dev->mutex);
+
+	if (!dev->attached) {
+		ret = -EINVAL;
+		goto error;
+	}
 
 	/* a subdevice instruction */
 	if (insn->subdev >= dev->n_subdevices) {
@@ -120,6 +130,7 @@ static int comedi_do_insn(struct comedi_device *dev,
 	s->busy = NULL;
 error:
 
+	mutex_unlock(&dev->mutex);
 	return ret;
 }
 
@@ -169,9 +180,6 @@ int comedi_dio_bitfield2(struct comedi_device *dev, unsigned int subdev,
 	unsigned int shift;
 	int ret;
 
-	if (subdev >= dev->n_subdevices)
-		return -EINVAL;
-
 	base_channel = CR_CHAN(base_channel);
 	n_chan = comedi_get_n_channels(dev, subdev);
 	if (base_channel >= n_chan)
@@ -211,23 +219,33 @@ int comedi_find_subdevice_by_type(struct comedi_device *dev, int type,
 				  unsigned int subd)
 {
 	struct comedi_subdevice *s;
+	int ret = -ENODEV;
 
-	if (subd > dev->n_subdevices)
-		return -ENODEV;
-
-	for (; subd < dev->n_subdevices; subd++) {
-		s = &dev->subdevices[subd];
-		if (s->type == type)
-			return subd;
-	}
-	return -1;
+	down_read(&dev->attach_lock);
+	if (dev->attached)
+		for (; subd < dev->n_subdevices; subd++) {
+			s = &dev->subdevices[subd];
+			if (s->type == type) {
+				ret = subd;
+				break;
+			}
+		}
+	up_read(&dev->attach_lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(comedi_find_subdevice_by_type);
 
 int comedi_get_n_channels(struct comedi_device *dev, unsigned int subdevice)
 {
-	struct comedi_subdevice *s = &dev->subdevices[subdevice];
+	int n;
 
-	return s->n_chan;
+	down_read(&dev->attach_lock);
+	if (!dev->attached || subdevice >= dev->n_subdevices)
+		n = 0;
+	else
+		n = dev->subdevices[subdevice].n_chan;
+	up_read(&dev->attach_lock);
+
+	return n;
 }
 EXPORT_SYMBOL_GPL(comedi_get_n_channels);

@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
+#include <linux/reboot.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
@@ -84,12 +85,12 @@
 #define EEH_MAX_FAILS	2100000
 
 /* Time to wait for a PCI slot to report status, in milliseconds */
-#define PCI_BUS_RESET_WAIT_MSEC (60*1000)
+#define PCI_BUS_RESET_WAIT_MSEC (5*60*1000)
 
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
 
-int eeh_subsystem_enabled;
+bool eeh_subsystem_enabled = false;
 EXPORT_SYMBOL(eeh_subsystem_enabled);
 
 /*
@@ -364,7 +365,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 
 	eeh_stats.total_mmio_ffs++;
 
-	if (!eeh_subsystem_enabled)
+	if (!eeh_enabled())
 		return 0;
 
 	if (!edev) {
@@ -747,6 +748,17 @@ int __exit eeh_ops_unregister(const char *name)
 	return -EEXIST;
 }
 
+static int eeh_reboot_notifier(struct notifier_block *nb,
+			       unsigned long action, void *unused)
+{
+	eeh_set_enable(false);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block eeh_reboot_nb = {
+	.notifier_call = eeh_reboot_notifier,
+};
+
 /**
  * eeh_init - EEH initialization
  *
@@ -777,6 +789,14 @@ int eeh_init(void)
 	 */
 	if (machine_is(powernv) && cnt++ <= 0)
 		return ret;
+
+	/* Register reboot notifier */
+	ret = register_reboot_notifier(&eeh_reboot_nb);
+	if (ret) {
+		pr_warn("%s: Failed to register notifier (%d)\n",
+			__func__, ret);
+		return ret;
+	}
 
 	/* call platform initialization function */
 	if (!eeh_ops) {
@@ -822,7 +842,7 @@ int eeh_init(void)
 			return ret;
 	}
 
-	if (eeh_subsystem_enabled)
+	if (eeh_enabled())
 		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
 	else
 		pr_warning("EEH: No capable adapters found\n");
@@ -897,7 +917,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 	struct device_node *dn;
 	struct eeh_dev *edev;
 
-	if (!dev || !eeh_subsystem_enabled)
+	if (!dev || !eeh_enabled())
 		return;
 
 	pr_debug("EEH: Adding device %s\n", pci_name(dev));
@@ -920,6 +940,13 @@ void eeh_add_device_late(struct pci_dev *dev)
 		eeh_addr_cache_rmv_dev(edev->pdev);
 		eeh_sysfs_remove_device(edev->pdev);
 		edev->mode &= ~EEH_DEV_SYSFS;
+
+		/*
+		 * We definitely should have the PCI device removed
+		 * though it wasn't correctly. So we needn't call
+		 * into error handler afterwards.
+		 */
+		edev->mode |= EEH_DEV_NO_HANDLER;
 
 		edev->pdev = NULL;
 		dev->dev.archdata.edev = NULL;
@@ -998,7 +1025,7 @@ void eeh_remove_device(struct pci_dev *dev)
 {
 	struct eeh_dev *edev;
 
-	if (!dev || !eeh_subsystem_enabled)
+	if (!dev || !eeh_enabled())
 		return;
 	edev = pci_dev_to_eeh_dev(dev);
 
@@ -1023,6 +1050,14 @@ void eeh_remove_device(struct pci_dev *dev)
 	else
 		edev->mode |= EEH_DEV_DISCONNECTED;
 
+	/*
+	 * We're removing from the PCI subsystem, that means
+	 * the PCI device driver can't support EEH or not
+	 * well. So we rely on hotplug completely to do recovery
+	 * for the specific PCI device.
+	 */
+	edev->mode |= EEH_DEV_NO_HANDLER;
+
 	eeh_addr_cache_rmv_dev(dev);
 	eeh_sysfs_remove_device(dev);
 	edev->mode &= ~EEH_DEV_SYSFS;
@@ -1030,7 +1065,7 @@ void eeh_remove_device(struct pci_dev *dev)
 
 static int proc_eeh_show(struct seq_file *m, void *v)
 {
-	if (0 == eeh_subsystem_enabled) {
+	if (!eeh_enabled()) {
 		seq_printf(m, "EEH Subsystem is globally disabled\n");
 		seq_printf(m, "eeh_total_mmio_ffs=%llu\n", eeh_stats.total_mmio_ffs);
 	} else {

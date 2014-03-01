@@ -1647,7 +1647,8 @@ static netdev_tx_t team_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static u16 team_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 team_select_queue(struct net_device *dev, struct sk_buff *skb,
+			     void *accel_priv, select_queue_fallback_t fallback)
 {
 	/*
 	 * This helper function exists to help dev_pick_tx get the correct
@@ -2033,6 +2034,10 @@ static void team_setup(struct net_device *dev)
 
 	dev->features |= NETIF_F_LLTX;
 	dev->features |= NETIF_F_GRO;
+
+	/* Don't allow team devices to change network namespaces. */
+	dev->features |= NETIF_F_NETNS_LOCAL;
+
 	dev->hw_features = TEAM_VLAN_FEATURES |
 			   NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_CTAG_RX |
@@ -2850,7 +2855,7 @@ static int team_device_event(struct notifier_block *unused,
 	case NETDEV_FEAT_CHANGE:
 		team_compute_features(port->team);
 		break;
-	case NETDEV_CHANGEMTU:
+	case NETDEV_PRECHANGEMTU:
 		/* Forbid to change mtu of underlaying device */
 		return NOTIFY_BAD;
 	case NETDEV_PRE_TYPE_CHANGE:

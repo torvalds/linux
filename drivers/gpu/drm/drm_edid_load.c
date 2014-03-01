@@ -141,7 +141,7 @@ static int edid_size(const u8 *edid, int data_size)
 	return (edid[0x7e] + 1) * EDID_LENGTH;
 }
 
-static u8 *edid_load(struct drm_connector *connector, const char *name,
+static void *edid_load(struct drm_connector *connector, const char *name,
 			const char *connector_name)
 {
 	const struct firmware *fw = NULL;
@@ -263,7 +263,7 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 	if (*last == '\n')
 		*last = '\0';
 
-	edid = (struct edid *) edid_load(connector, edidname, connector_name);
+	edid = edid_load(connector, edidname, connector_name);
 	if (IS_ERR_OR_NULL(edid))
 		return 0;
 

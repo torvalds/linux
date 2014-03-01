@@ -541,6 +541,35 @@ nv50_disp_curs_ofuncs = {
  * Base display object
  ******************************************************************************/
 
+int
+nv50_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
+			  void *data, u32 size)
+{
+	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv04_display_scanoutpos *args = data;
+	const int head = (mthd & NV50_DISP_MTHD_HEAD);
+	u32 blanke, blanks, total;
+
+	if (size < sizeof(*args) || head >= priv->head.nr)
+		return -EINVAL;
+	blanke = nv_rd32(priv, 0x610aec + (head * 0x540));
+	blanks = nv_rd32(priv, 0x610af4 + (head * 0x540));
+	total  = nv_rd32(priv, 0x610afc + (head * 0x540));
+
+	args->vblanke = (blanke & 0xffff0000) >> 16;
+	args->hblanke = (blanke & 0x0000ffff);
+	args->vblanks = (blanks & 0xffff0000) >> 16;
+	args->hblanks = (blanks & 0x0000ffff);
+	args->vtotal  = ( total & 0xffff0000) >> 16;
+	args->htotal  = ( total & 0x0000ffff);
+
+	args->time[0] = ktime_to_ns(ktime_get());
+	args->vline   = nv_rd32(priv, 0x616340 + (head * 0x800)) & 0xffff;
+	args->time[1] = ktime_to_ns(ktime_get()); /* vline read locks hline */
+	args->hline   = nv_rd32(priv, 0x616344 + (head * 0x800)) & 0xffff;
+	return 0;
+}
+
 static void
 nv50_disp_base_vblank_enable(struct nouveau_event *event, int head)
 {
@@ -675,6 +704,7 @@ nv50_disp_base_ofuncs = {
 
 static struct nouveau_omthds
 nv50_disp_base_omthds[] = {
+	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
 	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
 	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
@@ -1112,7 +1142,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 	if (conf != ~0) {
 		if (outp.location == 0 && outp.type == DCB_OUTPUT_DP) {
 			u32 soff = (ffs(outp.or) - 1) * 0x08;
-			u32 ctrl = nv_rd32(priv, 0x610798 + soff);
+			u32 ctrl = nv_rd32(priv, 0x610794 + soff);
 			u32 datarate;
 
 			switch ((ctrl & 0x000f0000) >> 16) {

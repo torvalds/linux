@@ -21,6 +21,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
+#include <linux/prefetch.h>
 
 #include "wil6210.h"
 #include "wmi.h"
@@ -377,6 +378,8 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	}
 	skb_trim(skb, dmalen);
 
+	prefetch(skb->data);
+
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
 
@@ -673,9 +676,12 @@ static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
+	d->dma.b11 = ETH_HLEN; /* MAC header length */
+
 	switch (skb->protocol) {
 	case cpu_to_be16(ETH_P_IP):
 		protocol = ip_hdr(skb)->protocol;
+		d->dma.b11 |= BIT(DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_POS);
 		break;
 	case cpu_to_be16(ETH_P_IPV6):
 		protocol = ipv6_hdr(skb)->nexthdr;
@@ -701,8 +707,6 @@ static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
 	}
 
 	d->dma.ip_length = skb_network_header_len(skb);
-	d->dma.b11 = ETH_HLEN; /* MAC header length */
-	d->dma.b11 |= BIT(DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_POS);
 	/* Enable TCP/UDP checksum */
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_TCP_UDP_CHECKSUM_EN_POS);
 	/* Calculate pseudo-header */

@@ -57,7 +57,6 @@ void uvd_v2_2_fence_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_CMD, 0));
 	radeon_ring_write(ring, 2);
-	return;
 }
 
 /**
@@ -153,6 +152,7 @@ int uvd_v2_2_resume(struct radeon_device *rdev)
 		chip_id = 0x01000015;
 		break;
 	case CHIP_PITCAIRN:
+	case CHIP_OLAND:
 		chip_id = 0x01000016;
 		break;
 	case CHIP_ARUBA:

@@ -282,7 +282,6 @@ int LL_PROC_PROTO(proc_at_history)
 #ifdef CONFIG_SYSCTL
 static ctl_table_t obd_table[] = {
 	{
-		INIT_CTL_NAME(OBD_TIMEOUT)
 		.procname = "timeout",
 		.data     = &obd_timeout,
 		.maxlen   = sizeof(int),
@@ -290,7 +289,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_set_timeout
 	},
 	{
-		INIT_CTL_NAME(OBD_DEBUG_PEER_ON_TIMEOUT)
 		.procname = "debug_peer_on_timeout",
 		.data     = &obd_debug_peer_on_timeout,
 		.maxlen   = sizeof(int),
@@ -298,7 +296,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_dointvec
 	},
 	{
-		INIT_CTL_NAME(OBD_DUMP_ON_TIMEOUT)
 		.procname = "dump_on_timeout",
 		.data     = &obd_dump_on_timeout,
 		.maxlen   = sizeof(int),
@@ -306,7 +303,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_dointvec
 	},
 	{
-		INIT_CTL_NAME(OBD_DUMP_ON_EVICTION)
 		.procname = "dump_on_eviction",
 		.data     = &obd_dump_on_eviction,
 		.maxlen   = sizeof(int),
@@ -314,7 +310,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_dointvec
 	},
 	{
-		INIT_CTL_NAME(OBD_MEMUSED)
 		.procname = "memused",
 		.data     = NULL,
 		.maxlen   = 0,
@@ -322,7 +317,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_memory_alloc
 	},
 	{
-		INIT_CTL_NAME(OBD_PAGESUSED)
 		.procname = "pagesused",
 		.data     = NULL,
 		.maxlen   = 0,
@@ -330,7 +324,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_pages_alloc
 	},
 	{
-		INIT_CTL_NAME(OBD_MAXMEMUSED)
 		.procname = "memused_max",
 		.data     = NULL,
 		.maxlen   = 0,
@@ -338,7 +331,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_mem_max
 	},
 	{
-		INIT_CTL_NAME(OBD_MAXPAGESUSED)
 		.procname = "pagesused_max",
 		.data     = NULL,
 		.maxlen   = 0,
@@ -346,7 +338,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_pages_max
 	},
 	{
-		INIT_CTL_NAME(OBD_LDLM_TIMEOUT)
 		.procname = "ldlm_timeout",
 		.data     = &ldlm_timeout,
 		.maxlen   = sizeof(int),
@@ -354,7 +345,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_set_timeout
 	},
 	{
-		INIT_CTL_NAME(OBD_ALLOC_FAIL_RATE)
 		.procname = "alloc_fail_rate",
 		.data     = &obd_alloc_fail_rate,
 		.maxlen   = sizeof(int),
@@ -362,7 +352,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_alloc_fail_rate
 	},
 	{
-		INIT_CTL_NAME(OBD_MAX_DIRTY_PAGES)
 		.procname = "max_dirty_mb",
 		.data     = &obd_max_dirty_pages,
 		.maxlen   = sizeof(int),
@@ -370,7 +359,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_max_dirty_pages_in_mb
 	},
 	{
-		INIT_CTL_NAME(OBD_AT_MIN)
 		.procname = "at_min",
 		.data     = &at_min,
 		.maxlen   = sizeof(int),
@@ -378,7 +366,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_at_min
 	},
 	{
-		INIT_CTL_NAME(OBD_AT_MAX)
 		.procname = "at_max",
 		.data     = &at_max,
 		.maxlen   = sizeof(int),
@@ -386,7 +373,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_at_max
 	},
 	{
-		INIT_CTL_NAME(OBD_AT_EXTRA)
 		.procname = "at_extra",
 		.data     = &at_extra,
 		.maxlen   = sizeof(int),
@@ -394,7 +380,6 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_at_extra
 	},
 	{
-		INIT_CTL_NAME(OBD_AT_EARLY_MARGIN)
 		.procname = "at_early_margin",
 		.data     = &at_early_margin,
 		.maxlen   = sizeof(int),
@@ -402,26 +387,24 @@ static ctl_table_t obd_table[] = {
 		.proc_handler = &proc_at_early_margin
 	},
 	{
-		INIT_CTL_NAME(OBD_AT_HISTORY)
 		.procname = "at_history",
 		.data     = &at_history,
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_at_history
 	},
-	{       INIT_CTL_NAME(0)    }
+	{}
 };
 
 static ctl_table_t parent_table[] = {
 	{
-		INIT_CTL_NAME(OBD_SYSCTL)
 		.procname = "lustre",
 		.data     = NULL,
 		.maxlen   = 0,
 		.mode     = 0555,
 		.child    = obd_table
 	},
-	{       INIT_CTL_NAME(0)   }
+	{}
 };
 #endif
 

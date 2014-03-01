@@ -18,7 +18,6 @@
  * Setting up the clock on the MIPS boards.
  */
 
-#include <linux/init.h>
 #include <linux/time.h>
 #include <linux/err.h>
 #include <linux/clk.h>

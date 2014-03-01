@@ -699,8 +699,6 @@ static void dscc4_free1(struct pci_dev *pdev)
 	for (i = 0; i < dev_per_card; i++)
 		unregister_hdlc_device(dscc4_to_dev(root + i));
 
-	pci_set_drvdata(pdev, NULL);
-
 	for (i = 0; i < dev_per_card; i++)
 		free_netdev(root[i].dev);
 	kfree(root);

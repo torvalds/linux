@@ -675,6 +675,29 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 EXPORT_SYMBOL(drm_crtc_cleanup);
 
 /**
+ * drm_crtc_index - find the index of a registered CRTC
+ * @crtc: CRTC to find index for
+ *
+ * Given a registered CRTC, return the index of that CRTC within a DRM
+ * device's list of CRTCs.
+ */
+unsigned int drm_crtc_index(struct drm_crtc *crtc)
+{
+	unsigned int index = 0;
+	struct drm_crtc *tmp;
+
+	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head) {
+		if (tmp == crtc)
+			return index;
+
+		index++;
+	}
+
+	BUG();
+}
+EXPORT_SYMBOL(drm_crtc_index);
+
+/**
  * drm_mode_probed_add - add a mode to a connector's probed mode list
  * @connector: connector the new mode
  * @mode: mode data
@@ -2767,10 +2790,8 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (fb->funcs->dirty) {
-		drm_modeset_lock_all(dev);
 		ret = fb->funcs->dirty(fb, file_priv, flags, r->color,
 				       clips, num_clips);
-		drm_modeset_unlock_all(dev);
 	} else {
 		ret = -ENOSYS;
 	}

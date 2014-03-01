@@ -398,7 +398,9 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 		return retval;
 
 	if (state == PRESENT) {
+		pci_lock_rescan_remove();
 		pcibios_add_pci_devices(slot->bus);
+		pci_unlock_rescan_remove();
 		slot->state = CONFIGURED;
 	} else if (state == EMPTY) {
 		slot->state = EMPTY;
@@ -418,7 +420,9 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	if (slot->state == NOT_CONFIGURED)
 		return -EINVAL;
 
+	pci_lock_rescan_remove();
 	pcibios_remove_pci_devices(slot->bus);
+	pci_unlock_rescan_remove();
 	vm_unmap_aliases();
 
 	slot->state = NOT_CONFIGURED;

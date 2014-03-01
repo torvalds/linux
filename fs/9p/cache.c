@@ -239,13 +239,12 @@ void v9fs_cache_inode_flush_cookie(struct inode *inode)
 void v9fs_cache_inode_set_cookie(struct inode *inode, struct file *filp)
 {
 	struct v9fs_inode *v9inode = V9FS_I(inode);
-	struct p9_fid *fid;
 
 	if (!v9inode->fscache)
 		return;
 
 	spin_lock(&v9inode->fscache_lock);
-	fid = filp->private_data;
+
 	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
 		v9fs_cache_inode_flush_cookie(inode);
 	else

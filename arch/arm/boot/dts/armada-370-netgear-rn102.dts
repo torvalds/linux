@@ -11,6 +11,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 #include "armada-370.dtsi"
 
 / {
@@ -62,6 +64,7 @@
 					marvell,pins = "mpp57";
 					marvell,function = "gpio";
 				};
+
 				sata1_led_pin: sata1-led-pin {
 					marvell,pins = "mpp15";
 					marvell,function = "gpio";
@@ -77,6 +80,21 @@
 					marvell,function = "gpio";
 				};
 
+				backup_button_pin: backup-button-pin {
+					marvell,pins = "mpp58";
+					marvell,function = "gpio";
+				};
+
+				power_button_pin: power-button-pin {
+					marvell,pins = "mpp62";
+					marvell,function = "gpio";
+				};
+
+				reset_button_pin: reset-button-pin {
+					marvell,pins = "mpp6";
+					marvell,function = "gpio";
+				};
+
 				poweroff: poweroff {
 					marvell,pins = "mpp8";
 					marvell,function = "gpio";
@@ -84,7 +102,7 @@
 			};
 
 			mdio {
-				phy0: ethernet-phy@0 {
+				phy0: ethernet-phy@0 { /* Marvell 88E1318 */
 					reg = <0>;
 				};
 			};
@@ -104,6 +122,11 @@
 				clock-frequency = <100000>;
 				status = "okay";
 
+				isl12057: isl12057@68 {
+					compatible = "isl,isl12057";
+					reg = <0x68>;
+				};
+
 				g762: g762@3e {
 					compatible = "gmt,g762";
 					reg = <0x3e>;
@@ -113,82 +136,116 @@
 					pwm_polarity = <0>;
 				};
 			};
+
+			nand@d0000 {
+				status = "okay";
+				num-cs = <1>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+
+				partition@0 {
+					label = "u-boot";
+					reg = <0x0000000 0x180000>;  /* 1.5MB */
+					read-only;
+				};
+
+				partition@180000 {
+					label = "u-boot-env";
+					reg = <0x180000 0x20000>;    /* 128KB */
+					read-only;
+				};
+
+				partition@200000 {
+					label = "uImage";
+					reg = <0x0200000 0x600000>;    /* 6MB */
+				};
+
+				partition@800000 {
+					label = "minirootfs";
+					reg = <0x0800000 0x400000>;    /* 4MB */
+				};
+
+				/* Last MB is for the BBT, i.e. not writable */
+				partition@c00000 {
+					label = "ubifs";
+					reg = <0x0c00000 0x7400000>; /* 116MB */
+				};
+			};
 		};
 	};
 
 	clocks {
-	       #address-cells = <1>;
-	       #size-cells = <0>;
-
-	       g762_clk: fixedclk {
+	       g762_clk: g762-oscillator {
 			 compatible = "fixed-clock";
 			 #clock-cells = <0>;
 			 clock-frequency = <8192>;
 	       };
 	};
 
-	gpio_leds {
+	gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-0 = < &power_led_pin
-			      &sata1_led_pin
-			      &sata2_led_pin
-			      &backup_led_pin >;
+		pinctrl-0 = <&power_led_pin
+			     &sata1_led_pin
+			     &sata2_led_pin
+			     &backup_led_pin>;
 		pinctrl-names = "default";
 
-		blue_power_led {
+		blue-power-led {
 			label = "rn102:blue:pwr";
-			gpios = <&gpio1 25 1>;  /* GPIO 57 Active Low */
-			linux,default-trigger = "heartbeat";
+			gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 
-		green_sata1_led {
+		green-sata1-led {
 			label = "rn102:green:sata1";
-			gpios = <&gpio0 15 1>;  /* GPIO 15 Active Low */
+			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		green_sata2_led {
+		green-sata2-led {
 			label = "rn102:green:sata2";
-			gpios = <&gpio0 14 1>;   /* GPIO 14 Active Low */
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		green_backup_led {
+		green-backup-led {
 			label = "rn102:green:backup";
-			gpios = <&gpio1 24 1>;   /* GPIO 56 Active Low */
+			gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
+		pinctrl-0 = <&power_button_pin
+			     &reset_button_pin
+			     &backup_button_pin>;
+		pinctrl-names = "default";
 
-		button@1 {
+		power-button {
 			label = "Power Button";
-			linux,code = <116>;     /* KEY_POWER */
-			gpios = <&gpio1 30 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
 		};
 
-		button@2 {
+		reset-button {
 			label = "Reset Button";
-			linux,code = <0x198>;   /* KEY_RESTART */
-			gpios = <&gpio0 6 1>;
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 		};
 
-		button@3 {
+		backup-button {
 			label = "Backup Button";
-			linux,code = <133>;     /* KEY_COPY */
-			gpios = <&gpio1 26 1>;
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 26 GPIO_ACTIVE_LOW>;
 		};
 	};
 
-	gpio_poweroff {
+	gpio-poweroff {
 		compatible = "gpio-poweroff";
 		pinctrl-0 = <&poweroff>;
 		pinctrl-names = "default";
-		gpios = <&gpio0 8 1>;
+		gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
 	};
-
 };

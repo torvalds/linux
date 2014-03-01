@@ -178,31 +178,29 @@ enum {
 
 /* analog input ranges */
 static const struct comedi_lrange range_ai_das1801 = {
-	8,
-	{
-	 RANGE(-5, 5),
-	 RANGE(-1, 1),
-	 RANGE(-0.1, 0.1),
-	 RANGE(-0.02, 0.02),
-	 RANGE(0, 5),
-	 RANGE(0, 1),
-	 RANGE(0, 0.1),
-	 RANGE(0, 0.02),
-	 }
+	8, {
+		BIP_RANGE(5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02),
+		UNI_RANGE(5),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.02)
+	}
 };
 
 static const struct comedi_lrange range_ai_das1802 = {
-	8,
-	{
-	 RANGE(-10, 10),
-	 RANGE(-5, 5),
-	 RANGE(-2.5, 2.5),
-	 RANGE(-1.25, 1.25),
-	 RANGE(0, 10),
-	 RANGE(0, 5),
-	 RANGE(0, 2.5),
-	 RANGE(0, 1.25),
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 struct das1800_board {
@@ -445,10 +443,9 @@ struct das1800_private {
 /* analog out range for 'ao' boards */
 /*
 static const struct comedi_lrange range_ao_2 = {
-	2,
-	{
-		RANGE(-10, 10),
-		RANGE(-5, 5),
+	2, {
+		BIP_RANGE(10),
+		BIP_RANGE(5)
 	}
 };
 */
@@ -462,7 +459,7 @@ static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
 	return sample;
 }
 
-static void munge_data(struct comedi_device *dev, uint16_t * array,
+static void munge_data(struct comedi_device *dev, uint16_t *array,
 		       unsigned int num_elements)
 {
 	unsigned int i;
@@ -644,7 +641,7 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static void das1800_ai_handler(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
@@ -1150,12 +1147,6 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 	struct comedi_async *async = s->async;
 	const struct comedi_cmd *cmd = &async->cmd;
 
-	if (!dev->irq) {
-		comedi_error(dev,
-			     "no irq assigned for das-1800, cannot do hardware conversions");
-		return -1;
-	}
-
 	/* disable dma on TRIG_WAKE_EOS, or TRIG_RT
 	 * (because dma in handler is unsafe at hard real-time priority) */
 	if (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT))
@@ -1522,43 +1513,34 @@ static int das1800_attach(struct comedi_device *dev,
 		devpriv->iobase2 = iobase2;
 	}
 
-	/* grab our IRQ */
-	if (irq) {
-		if (request_irq(irq, das1800_interrupt, 0,
-				dev->driver->driver_name, dev)) {
-			dev_dbg(dev->class_dev, "unable to allocate irq %u\n",
-				irq);
-			return -EINVAL;
-		}
-	}
-	dev->irq = irq;
+	if (irq == 3 || irq == 5 || irq == 7 || irq == 10 || irq == 11 ||
+	    irq == 15) {
+		ret = request_irq(irq, das1800_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0) {
+			dev->irq = irq;
 
-	/*  set bits that tell card which irq to use */
-	switch (irq) {
-	case 0:
-		break;
-	case 3:
-		devpriv->irq_dma_bits |= 0x8;
-		break;
-	case 5:
-		devpriv->irq_dma_bits |= 0x10;
-		break;
-	case 7:
-		devpriv->irq_dma_bits |= 0x18;
-		break;
-	case 10:
-		devpriv->irq_dma_bits |= 0x28;
-		break;
-	case 11:
-		devpriv->irq_dma_bits |= 0x30;
-		break;
-	case 15:
-		devpriv->irq_dma_bits |= 0x38;
-		break;
-	default:
-		dev_err(dev->class_dev, "irq out of range\n");
-		return -EINVAL;
-		break;
+			switch (irq) {
+			case 3:
+				devpriv->irq_dma_bits |= 0x8;
+				break;
+			case 5:
+				devpriv->irq_dma_bits |= 0x10;
+				break;
+			case 7:
+				devpriv->irq_dma_bits |= 0x18;
+				break;
+			case 10:
+				devpriv->irq_dma_bits |= 0x28;
+				break;
+			case 11:
+				devpriv->irq_dma_bits |= 0x30;
+				break;
+			case 15:
+				devpriv->irq_dma_bits |= 0x38;
+				break;
+			}
+		}
 	}
 
 	ret = das1800_init_dma(dev, dma0, dma1);
@@ -1578,20 +1560,23 @@ static int das1800_attach(struct comedi_device *dev,
 
 	/* analog input subdevice */
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
 	if (thisboard->common)
 		s->subdev_flags |= SDF_COMMON;
 	s->n_chan = thisboard->qram_len;
-	s->len_chanlist = thisboard->qram_len;
 	s->maxdata = (1 << thisboard->resolution) - 1;
 	s->range_table = thisboard->range_ai;
-	s->do_cmd = das1800_ai_do_cmd;
-	s->do_cmdtest = das1800_ai_do_cmdtest;
 	s->insn_read = das1800_ai_rinsn;
-	s->poll = das1800_ai_poll;
-	s->cancel = das1800_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = s->n_chan;
+		s->do_cmd = das1800_ai_do_cmd;
+		s->do_cmdtest = das1800_ai_do_cmdtest;
+		s->poll = das1800_ai_poll;
+		s->cancel = das1800_cancel;
+	}
 
 	/* analog out */
 	s = &dev->subdevices[1];

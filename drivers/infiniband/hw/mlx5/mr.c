@@ -146,7 +146,6 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 		spin_lock_irq(&ent->lock);
 		ent->pending++;
 		spin_unlock_irq(&ent->lock);
-		mr->start = jiffies;
 		err = mlx5_core_create_mkey(&dev->mdev, &mr->mmr, in,
 					    sizeof(*in), reg_mr_callback,
 					    mr, &mr->out);

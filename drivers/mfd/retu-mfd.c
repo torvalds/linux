@@ -55,7 +55,7 @@ static struct resource retu_pwrbutton_res[] = {
 	},
 };
 
-static struct mfd_cell retu_devs[] = {
+static const struct mfd_cell retu_devs[] = {
 	{
 		.name		= "retu-wdt"
 	},
@@ -94,7 +94,7 @@ static struct resource tahvo_usb_res[] = {
 	},
 };
 
-static struct mfd_cell tahvo_devs[] = {
+static const struct mfd_cell tahvo_devs[] = {
 	{
 		.name		= "tahvo-usb",
 		.resources	= tahvo_usb_res,
@@ -122,7 +122,7 @@ static const struct retu_data {
 	char			*chip_name;
 	char			*companion_name;
 	struct regmap_irq_chip	*irq_chip;
-	struct mfd_cell		*children;
+	const struct mfd_cell	*children;
 	int			nchildren;
 } retu_data[] = {
 	[0] = {

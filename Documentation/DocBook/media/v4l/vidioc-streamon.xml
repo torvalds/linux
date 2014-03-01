@@ -59,7 +59,7 @@ buffers are filled (if there are any empty buffers in the incoming
 queue) until <constant>VIDIOC_STREAMON</constant> has been called.
 Accordingly the output hardware is disabled, no video signal is
 produced until <constant>VIDIOC_STREAMON</constant> has been called.
-The ioctl will succeed only when at least one output buffer is in the
+The ioctl will succeed when at least one output buffer is in the
 incoming queue.</para>
 
     <para>The <constant>VIDIOC_STREAMOFF</constant> ioctl, apart of

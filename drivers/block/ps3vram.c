@@ -553,16 +553,16 @@ static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	int write = bio_data_dir(bio) == WRITE;
 	const char *op = write ? "write" : "read";
-	loff_t offset = bio->bi_sector << 9;
+	loff_t offset = bio->bi_iter.bi_sector << 9;
 	int error = 0;
-	struct bio_vec *bvec;
-	unsigned int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 	struct bio *next;
 
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment(bvec, bio, iter) {
 		/* PS3 is ppc64, so we don't handle highmem */
-		char *ptr = page_address(bvec->bv_page) + bvec->bv_offset;
-		size_t len = bvec->bv_len, retlen;
+		char *ptr = page_address(bvec.bv_page) + bvec.bv_offset;
+		size_t len = bvec.bv_len, retlen;
 
 		dev_dbg(&dev->core, "    %s %zu bytes at offset %llu\n", op,
 			len, offset);

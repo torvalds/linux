@@ -640,10 +640,8 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	mtd = kzalloc(sizeof(*mtd) + sizeof(struct cafe_priv), GFP_KERNEL);
-	if (!mtd) {
-		dev_warn(&pdev->dev, "failed to alloc mtd_info\n");
+	if (!mtd)
 		return  -ENOMEM;
-	}
 	cafe = (void *)(&mtd[1]);
 
 	mtd->dev.parent = &pdev->dev;

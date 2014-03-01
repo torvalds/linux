@@ -65,6 +65,7 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
+	struct bond_opt_value *optval;
 	struct slave *curr;
 	int i;
 
@@ -76,26 +77,32 @@ static void bond_info_show_master(struct seq_file *seq)
 		   bond_mode_name(bond->params.mode));
 
 	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP &&
-	    bond->params.fail_over_mac)
-		seq_printf(seq, " (fail_over_mac %s)",
-		   fail_over_mac_tbl[bond->params.fail_over_mac].modename);
+	    bond->params.fail_over_mac) {
+		optval = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
+					  bond->params.fail_over_mac);
+		seq_printf(seq, " (fail_over_mac %s)", optval->string);
+	}
 
 	seq_printf(seq, "\n");
 
 	if (bond->params.mode == BOND_MODE_XOR ||
 		bond->params.mode == BOND_MODE_8023AD) {
+		optval = bond_opt_get_val(BOND_OPT_XMIT_HASH,
+					  bond->params.xmit_policy);
 		seq_printf(seq, "Transmit Hash Policy: %s (%d)\n",
-			xmit_hashtype_tbl[bond->params.xmit_policy].modename,
-			bond->params.xmit_policy);
+			   optval->string, bond->params.xmit_policy);
 	}
 
 	if (USES_PRIMARY(bond->params.mode)) {
 		seq_printf(seq, "Primary Slave: %s",
 			   (bond->primary_slave) ?
 			   bond->primary_slave->dev->name : "None");
-		if (bond->primary_slave)
+		if (bond->primary_slave) {
+			optval = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
+						  bond->params.primary_reselect);
 			seq_printf(seq, " (primary_reselect %s)",
-		   pri_reselect_tbl[bond->params.primary_reselect].modename);
+				   optval->string);
+		}
 
 		seq_printf(seq, "\nCurrently Active Slave: %s\n",
 			   (curr) ? curr->dev->name : "None");
@@ -136,8 +143,10 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_printf(seq, "LACP rate: %s\n",
 			   (bond->params.lacp_fast) ? "fast" : "slow");
 		seq_printf(seq, "Min links: %d\n", bond->params.min_links);
+		optval = bond_opt_get_val(BOND_OPT_AD_SELECT,
+					  bond->params.ad_select);
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
-			   ad_select_tbl[bond->params.ad_select].modename);
+			   optval->string);
 
 		if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 			seq_printf(seq, "bond %s has no active aggregator\n",
@@ -157,18 +166,6 @@ static void bond_info_show_master(struct seq_file *seq)
 				   ad_info.partner_system);
 		}
 	}
-}
-
-static const char *bond_slave_link_status(s8 link)
-{
-	static const char * const status[] = {
-		[BOND_LINK_UP] = "up",
-		[BOND_LINK_FAIL] = "going down",
-		[BOND_LINK_DOWN] = "down",
-		[BOND_LINK_BACK] = "going back",
-	};
-
-	return status[link];
 }
 
 static void bond_info_show_slave(struct seq_file *seq,

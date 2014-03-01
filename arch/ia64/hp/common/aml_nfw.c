@@ -23,8 +23,7 @@
  */
 
 #include <linux/module.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <asm/sal.h>
 
 MODULE_AUTHOR("Bjorn Helgaas <bjorn.helgaas@hp.com>");

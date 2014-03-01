@@ -73,6 +73,7 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 		set_bit(KEY_F16, input->keybit);
 		set_bit(KEY_F17, input->keybit);
 		set_bit(KEY_F18, input->keybit);
+		break;
 	default:
 		return 0;
 	}
@@ -207,6 +208,10 @@ static const struct hid_device_id ms_devices[] = {
 		.driver_data = MS_NOGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_COMFORT_MOUSE_4500),
 		.driver_data = MS_DUPLICATE_USAGES },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_TYPE_COVER_2),
+		.driver_data = 0 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_TOUCH_COVER_2),
+		.driver_data = 0 },
 
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_PRESENTER_8K_BT),
 		.driver_data = MS_PRESENTER },

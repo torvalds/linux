@@ -15,6 +15,18 @@ enum abx500_pin_func {
 	ABX500_ALT_C,
 };
 
+enum abx500_gpio_pull_updown {
+	ABX500_GPIO_PULL_DOWN = 0x0,
+	ABX500_GPIO_PULL_NONE = 0x1,
+	ABX500_GPIO_PULL_UP = 0x3,
+};
+
+enum abx500_gpio_vinsel {
+	ABX500_GPIO_VINSEL_VBAT = 0x0,
+	ABX500_GPIO_VINSEL_VIN_1V8 = 0x1,
+	ABX500_GPIO_VINSEL_VDD_BIF = 0x2,
+};
+
 /**
  * struct abx500_function - ABx500 pinctrl mux function
  * @name: The name of the function, exported to pinctrl core.

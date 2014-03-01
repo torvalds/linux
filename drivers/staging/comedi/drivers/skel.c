@@ -698,7 +698,7 @@ static int skel_pci_probe(struct pci_dev *dev,
  * This is used by modprobe to translate PCI IDs to drivers.
  * Should only be used for PCI and ISA-PnP devices
  */
-static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
+static const struct pci_device_id skel_pci_table[] = {
 	{ PCI_VDEVICE(SKEL, 0x0100), BOARD_SKEL100 },
 	{ PCI_VDEVICE(SKEL, 0x0200), BOARD_SKEL200 },
 	{ 0 }

@@ -203,16 +203,17 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	}
 	config->nr_states = i;
 
+	config->type = REGULATOR_VOLTAGE;
 	ret = of_property_read_string(np, "regulator-type", &regtype);
-	if (ret < 0) {
-		dev_err(dev, "Missing 'regulator-type' property\n");
-		return ERR_PTR(-EINVAL);
+	if (ret >= 0) {
+		if (!strncmp("voltage", regtype, 7))
+			config->type = REGULATOR_VOLTAGE;
+		else if (!strncmp("current", regtype, 7))
+			config->type = REGULATOR_CURRENT;
+		else
+			dev_warn(dev, "Unknown regulator-type '%s'\n",
+				 regtype);
 	}
-
-	if (!strncmp("voltage", regtype, 7))
-		config->type = REGULATOR_VOLTAGE;
-	else if (!strncmp("current", regtype, 7))
-		config->type = REGULATOR_CURRENT;
 
 	return config;
 }

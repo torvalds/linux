@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -50,10 +51,11 @@
 /*
   * Time between raising the SPI chip select (for the end of a
   * transaction) and dropping it again (for the next transaction).
-  * If we go too fast, the EC will miss the transaction. It seems
-  * that 50us is enough with the 16MHz STM32 EC.
+  * If we go too fast, the EC will miss the transaction. We know that we
+  * need at least 70 us with the 16 MHz STM32 EC, so go with 200 us to be
+  * safe.
   */
-#define EC_SPI_RECOVERY_TIME_NS	(50 * 1000)
+#define EC_SPI_RECOVERY_TIME_NS	(200 * 1000)
 
 /**
  * struct cros_ec_spi - information about a SPI-connected EC
@@ -61,10 +63,13 @@
  * @spi: SPI device we are connected to
  * @last_transfer_ns: time that we last finished a transfer, or 0 if there
  *	if no record
+ * @end_of_msg_delay: used to set the delay_usecs on the spi_transfer that
+ *      is sent when we want to turn off CS at the end of a transaction.
  */
 struct cros_ec_spi {
 	struct spi_device *spi;
 	s64 last_transfer_ns;
+	unsigned int end_of_msg_delay;
 };
 
 static void debug_packet(struct device *dev, const char *name, u8 *ptr,
@@ -75,7 +80,9 @@ static void debug_packet(struct device *dev, const char *name, u8 *ptr,
 
 	dev_dbg(dev, "%s: ", name);
 	for (i = 0; i < len; i++)
-		dev_cont(dev, " %02x", ptr[i]);
+		pr_cont(" %02x", ptr[i]);
+
+	pr_cont("\n");
 #endif
 }
 
@@ -105,7 +112,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
 	do {
-		memset(&trans, '\0', sizeof(trans));
+		memset(&trans, 0, sizeof(trans));
 		trans.cs_change = 1;
 		trans.rx_buf = ptr = ec_dev->din;
 		trans.len = EC_MSG_PREAMBLE_COUNT;
@@ -157,7 +164,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 		dev_dbg(ec_dev->dev, "loop, todo=%d, need_len=%d, ptr=%zd\n",
 			todo, need_len, ptr - ec_dev->din);
 
-		memset(&trans, '\0', sizeof(trans));
+		memset(&trans, 0, sizeof(trans));
 		trans.cs_change = 1;
 		trans.rx_buf = ptr;
 		trans.len = todo;
@@ -217,7 +224,7 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 
 	/* Transmit phase - send our message */
 	debug_packet(ec_dev->dev, "out", ec_dev->dout, len);
-	memset(&trans, '\0', sizeof(trans));
+	memset(&trans, 0, sizeof(trans));
 	trans.tx_buf = ec_dev->dout;
 	trans.len = len;
 	trans.cs_change = 1;
@@ -235,6 +242,17 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 
 	/* turn off CS */
 	spi_message_init(&msg);
+
+	if (ec_spi->end_of_msg_delay) {
+		/*
+		 * Add delay for last transaction, to ensure the rising edge
+		 * doesn't come too soon after the end of the data.
+		 */
+		memset(&trans, 0, sizeof(trans));
+		trans.delay_usecs = ec_spi->end_of_msg_delay;
+		spi_message_add_tail(&trans, &msg);
+	}
+
 	final_ret = spi_sync(ec_spi->spi, &msg);
 	ktime_get_ts(&ts);
 	ec_spi->last_transfer_ns = timespec_to_ns(&ts);
@@ -281,7 +299,18 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 	return 0;
 }
 
-static int cros_ec_probe_spi(struct spi_device *spi)
+static void cros_ec_spi_dt_probe(struct cros_ec_spi *ec_spi, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	u32 val;
+	int ret;
+
+	ret = of_property_read_u32(np, "google,cros-ec-spi-msg-delay", &val);
+	if (!ret)
+		ec_spi->end_of_msg_delay = val;
+}
+
+static int cros_ec_spi_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
 	struct cros_ec_device *ec_dev;
@@ -301,6 +330,9 @@ static int cros_ec_probe_spi(struct spi_device *spi)
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
 		return -ENOMEM;
+
+	/* Check for any DT properties */
+	cros_ec_spi_dt_probe(ec_spi, dev);
 
 	spi_set_drvdata(spi, ec_dev);
 	ec_dev->name = "SPI";
@@ -323,7 +355,7 @@ static int cros_ec_probe_spi(struct spi_device *spi)
 	return 0;
 }
 
-static int cros_ec_remove_spi(struct spi_device *spi)
+static int cros_ec_spi_remove(struct spi_device *spi)
 {
 	struct cros_ec_device *ec_dev;
 
@@ -364,12 +396,12 @@ static struct spi_driver cros_ec_driver_spi = {
 		.owner	= THIS_MODULE,
 		.pm	= &cros_ec_spi_pm_ops,
 	},
-	.probe		= cros_ec_probe_spi,
-	.remove		= cros_ec_remove_spi,
+	.probe		= cros_ec_spi_probe,
+	.remove		= cros_ec_spi_remove,
 	.id_table	= cros_ec_spi_id,
 };
 
 module_spi_driver(cros_ec_driver_spi);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ChromeOS EC multi function device (SPI)");

@@ -2,6 +2,8 @@
 
 /include/ "skeleton.dtsi"
 
+#include <dt-bindings/clock/qcom,gcc-msm8660.h>
+
 / {
 	model = "Qualcomm MSM8660 SURF";
 	compatible = "qcom,msm8660-surf", "qcom,msm8660";
@@ -28,13 +30,20 @@
 
 	msmgpio: gpio@800000 {
 		compatible = "qcom,msm-gpio";
-		reg = <0x00800000 0x1000>;
+		reg = <0x00800000 0x4000>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		ngpio = <173>;
-		interrupts = <0 32 0x4>;
+		interrupts = <0 16 0x4>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+	};
+
+	gcc: clock-controller@900000 {
+		compatible = "qcom,gcc-msm8660";
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		reg = <0x900000 0x4000>;
 	};
 
 	serial@19c40000 {
@@ -42,6 +51,8 @@
 		reg = <0x19c40000 0x1000>,
 		      <0x19c00000 0x1000>;
 		interrupts = <0 195 0x0>;
+		clocks = <&gcc GSBI12_UART_CLK>, <&gcc GSBI12_H_CLK>;
+		clock-names = "core", "iface";
 	};
 
 	qcom,ssbi@500000 {

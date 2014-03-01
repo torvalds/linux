@@ -18,9 +18,30 @@
 #include <linux/of_gpio.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
+
+static u8 w1_gpio_set_pullup(void *data, int delay)
+{
+	struct w1_gpio_platform_data *pdata = data;
+
+	if (delay) {
+		pdata->pullup_duration = delay;
+	} else {
+		if (pdata->pullup_duration) {
+			gpio_direction_output(pdata->pin, 1);
+
+			msleep(pdata->pullup_duration);
+
+			gpio_direction_input(pdata->pin);
+		}
+		pdata->pullup_duration = 0;
+	}
+
+	return 0;
+}
 
 static void w1_gpio_write_bit_dir(void *data, u8 bit)
 {
@@ -132,6 +153,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	} else {
 		gpio_direction_input(pdata->pin);
 		master->write_bit = w1_gpio_write_bit_dir;
+		master->set_pullup = w1_gpio_set_pullup;
 	}
 
 	err = w1_add_master_device(master);

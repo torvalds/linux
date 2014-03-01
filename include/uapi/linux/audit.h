@@ -319,6 +319,12 @@ enum {
 #define AUDIT_STATUS_PID		0x0004
 #define AUDIT_STATUS_RATE_LIMIT		0x0008
 #define AUDIT_STATUS_BACKLOG_LIMIT	0x0010
+#define AUDIT_STATUS_BACKLOG_WAIT_TIME	0x0020
+
+#define AUDIT_VERSION_BACKLOG_LIMIT	1
+#define AUDIT_VERSION_BACKLOG_WAIT_TIME	2
+#define AUDIT_VERSION_LATEST AUDIT_VERSION_BACKLOG_WAIT_TIME
+
 				/* Failure-to-log actions */
 #define AUDIT_FAIL_SILENT	0
 #define AUDIT_FAIL_PRINTK	1
@@ -375,6 +381,8 @@ struct audit_status {
 	__u32		backlog_limit;	/* waiting messages limit */
 	__u32		lost;		/* messages lost */
 	__u32		backlog;	/* messages waiting in queue */
+	__u32		version;	/* audit api version number */
+	__u32		backlog_wait_time;/* message queue wait timeout */
 };
 
 struct audit_features {

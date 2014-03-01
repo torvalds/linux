@@ -64,7 +64,7 @@ static int ucb1400_gpio_probe(struct platform_device *dev)
 	ucb->gc.direction_output = ucb1400_gpio_dir_out;
 	ucb->gc.get = ucb1400_gpio_get;
 	ucb->gc.set = ucb1400_gpio_set;
-	ucb->gc.can_sleep = 1;
+	ucb->gc.can_sleep = true;
 
 	err = gpiochip_add(&ucb->gc);
 	if (err)

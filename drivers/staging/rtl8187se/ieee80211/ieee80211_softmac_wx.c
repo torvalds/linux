@@ -28,8 +28,9 @@ const long ieee80211_wlan_frequencies[] = {
 };
 
 
-int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+int ieee80211_wx_set_freq(struct ieee80211_device *ieee,
+			  struct iw_request_info *a, union iwreq_data *wrqu,
+			  char *b)
 {
 	int ret;
 	struct iw_freq *fwrq = &wrqu->freq;
@@ -82,8 +83,8 @@ out:
 
 
 int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
-			     struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+			  struct iw_request_info *a, union iwreq_data *wrqu,
+			  char *b)
 {
 	struct iw_freq *fwrq = &wrqu->freq;
 
@@ -97,8 +98,8 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 }
 
 int ieee80211_wx_get_wap(struct ieee80211_device *ieee,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *extra)
+			 struct iw_request_info *info, union iwreq_data *wrqu,
+			 char *extra)
 {
 	unsigned long flags;
 
@@ -126,8 +127,7 @@ int ieee80211_wx_get_wap(struct ieee80211_device *ieee,
 
 
 int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
-			 struct iw_request_info *info,
-			 union iwreq_data *awrq,
+			 struct iw_request_info *info, union iwreq_data *awrq,
 			 char *extra)
 {
 
@@ -174,8 +174,9 @@ out:
 	return ret;
 }
 
-int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,
-			    union iwreq_data *wrqu, char *b)
+int ieee80211_wx_get_essid(struct ieee80211_device *ieee,
+			   struct iw_request_info *a, union iwreq_data *wrqu,
+			   char *b)
 {
 	int len, ret = 0;
 	unsigned long flags;
@@ -211,8 +212,8 @@ out:
 }
 
 int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info, union iwreq_data *wrqu,
+			  char *extra)
 {
 
 	u32 target_rate = wrqu->bitrate.value;
@@ -230,8 +231,8 @@ int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
 
 
 int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info, union iwreq_data *wrqu,
+			  char *extra)
 {
 
 	wrqu->bitrate.value = ieee->rate * 100000;
@@ -239,8 +240,9 @@ int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 	return 0;
 }
 
-int ieee80211_wx_set_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+int ieee80211_wx_set_mode(struct ieee80211_device *ieee,
+			  struct iw_request_info *a, union iwreq_data *wrqu,
+			  char *b)
 {
 
 	ieee->sync_scan_hurryup = 1;
@@ -305,8 +307,9 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 }
 
-int ieee80211_wx_set_scan(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+int ieee80211_wx_set_scan(struct ieee80211_device *ieee,
+			  struct iw_request_info *a, union iwreq_data *wrqu,
+			  char *b)
 {
 	int ret = 0;
 
@@ -333,8 +336,8 @@ out:
 }
 
 int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *a, union iwreq_data *wrqu,
+			   char *extra)
 {
 
 	int ret = 0, len;
@@ -395,8 +398,9 @@ out:
 	return ret;
 }
 
-int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+int ieee80211_wx_get_mode(struct ieee80211_device *ieee,
+			  struct iw_request_info *a, union iwreq_data *wrqu,
+			  char *b)
 {
 
 	wrqu->mode = ieee->iw_mode;
@@ -404,8 +408,8 @@ int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info 
 }
 
 int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info, union iwreq_data *wrqu,
+			   char *extra)
 {
 
 	int *parms = (int *)extra;
@@ -440,8 +444,8 @@ int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 }
 
 int ieee80211_wx_get_name(struct ieee80211_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info, union iwreq_data *wrqu,
+			  char *extra)
 {
 	strlcpy(wrqu->name, "802.11", IFNAMSIZ);
 	if (ieee->modulation & IEEE80211_CCK_MODULATION) {
@@ -464,8 +468,8 @@ int ieee80211_wx_get_name(struct ieee80211_device *ieee,
 
 /* this is mostly stolen from hostap */
 int ieee80211_wx_set_power(struct ieee80211_device *ieee,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info, union iwreq_data *wrqu,
+			   char *extra)
 {
 	int ret = 0;
 
@@ -525,8 +529,8 @@ exit:
 
 /* this is stolen from hostap */
 int ieee80211_wx_get_power(struct ieee80211_device *ieee,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info, union iwreq_data *wrqu,
+			   char *extra)
 {
 	int ret = 0;
 

@@ -276,7 +276,7 @@ static inline void tracepoint_synchronize_unregister(void)
  * For use with the TRACE_EVENT macro:
  *
  * We define a tracepoint, its arguments, its printk format
- * and its 'fast binay record' layout.
+ * and its 'fast binary record' layout.
  *
  * Firstly, name your tracepoint via TRACE_EVENT(name : the
  * 'subsystem_event' notation is fine.

@@ -494,7 +494,7 @@ VNTWIFIvUpdateNodeTxCounter(
 		}
 	}
 	pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts++;
-	if (bTxOk == true) {
+	if (bTxOk) {
 		// transmit success, TxAttempts at least plus one
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[MAX_RATE]++;
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[wRate]++;
@@ -584,7 +584,7 @@ VNTWIFIbyGetKeyCypher(
 {
 	PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;
 
-	if (bGroupKey == true) {
+	if (bGroupKey) {
 		return pMgmt->byCSSGK;
 	} else {
 		return pMgmt->byCSSPK;
@@ -731,7 +731,7 @@ VNTWIFIbMeasureReport(
 		pMgmt->uLengthOfRepEIDs += (2 + pMgmt->pCurrMeasureEIDRep->len);
 		pMgmt->pCurrMeasureEIDRep = (PWLAN_IE_MEASURE_REP) pbyCurrentEID;
 	}
-	if (bEndOfReport == true) {
+	if (bEndOfReport) {
 		IEEE11hbMSRRepTx(pMgmt);
 	}
 	//spin_unlock_irq(&pDevice->lock);

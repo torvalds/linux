@@ -302,9 +302,13 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 		return (AE_BUFFER_OVERFLOW);
 
 	case ACPI_ALLOCATE_BUFFER:
-
-		/* Allocate a new buffer */
-
+		/*
+		 * Allocate a new buffer. We directectly call acpi_os_allocate here to
+		 * purposefully bypass the (optionally enabled) internal allocation
+		 * tracking mechanism since we only want to track internal
+		 * allocations. Note: The caller should use acpi_os_free to free this
+		 * buffer created via ACPI_ALLOCATE_BUFFER.
+		 */
 		buffer->pointer = acpi_os_allocate(required_length);
 		break;
 

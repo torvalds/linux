@@ -123,7 +123,9 @@ unsigned int bcm63xx_get_memory_size(void)
 
 static unsigned int detect_cpu_clock(void)
 {
-	switch (bcm63xx_get_cpu_id()) {
+	u16 cpu_id = bcm63xx_get_cpu_id();
+
+	switch (cpu_id) {
 	case BCM3368_CPU_ID:
 		return 300000000;
 
@@ -249,7 +251,7 @@ static unsigned int detect_cpu_clock(void)
 	}
 
 	default:
-		BUG();
+		panic("Failed to detect clock for CPU with id=%04X\n", cpu_id);
 	}
 }
 

@@ -37,6 +37,16 @@ _GLOBAL(do_load_up_transact_altivec)
 #endif
 
 /*
+ * Enable use of VMX/Altivec for the caller.
+ */
+_GLOBAL(vec_enable)
+	mfmsr	r3
+	oris	r3,r3,MSR_VEC@h
+	MTMSRD(r3)
+	isync
+	blr
+
+/*
  * Load state from memory into VMX registers including VSCR.
  * Assumes the caller has enabled VMX in the MSR.
  */

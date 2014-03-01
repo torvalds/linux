@@ -1182,9 +1182,11 @@ static int e752x_get_devs(struct pci_dev *pdev, int dev_idx,
 	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
 				pvt->dev_info->err_dev, pvt->bridge_ck);
 
-	if (pvt->bridge_ck == NULL)
+	if (pvt->bridge_ck == NULL) {
 		pvt->bridge_ck = pci_scan_single_device(pdev->bus,
 							PCI_DEVFN(0, 1));
+		pci_dev_get(pvt->bridge_ck);
+	}
 
 	if (pvt->bridge_ck == NULL) {
 		e752x_printk(KERN_ERR, "error reporting device not found:"
@@ -1421,7 +1423,7 @@ static void e752x_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(e752x_pci_tbl) = {
+static const struct pci_device_id e752x_pci_tbl[] = {
 	{
 	 PCI_VEND_DEV(INTEL, 7520_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 E7520},

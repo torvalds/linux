@@ -182,9 +182,12 @@ nouveau_pstate_prog(struct nouveau_clock *clk, int pstatei)
 	clk->pstate = pstatei;
 
 	if (pfb->ram->calc) {
-		ret = pfb->ram->calc(pfb, pstate->base.domain[nv_clk_src_mem]);
-		if (ret == 0)
-			ret = pfb->ram->prog(pfb);
+		int khz = pstate->base.domain[nv_clk_src_mem];
+		do {
+			ret = pfb->ram->calc(pfb, khz);
+			if (ret == 0)
+				ret = pfb->ram->prog(pfb);
+		} while (ret > 0);
 		pfb->ram->tidy(pfb);
 	}
 

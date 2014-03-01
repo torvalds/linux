@@ -200,6 +200,8 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	struct lu_object *scan;
 	struct lu_object *top;
 	struct list_head *layers;
+	unsigned int init_mask = 0;
+	unsigned int init_flag;
 	int clean;
 	int result;
 
@@ -218,15 +220,17 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	 */
 	top->lo_header->loh_fid = *f;
 	layers = &top->lo_header->loh_layers;
+
 	do {
 		/*
 		 * Call ->loo_object_init() repeatedly, until no more new
 		 * object slices are created.
 		 */
 		clean = 1;
+		init_flag = 1;
 		list_for_each_entry(scan, layers, lo_linkage) {
-			if (scan->lo_flags & LU_OBJECT_ALLOCATED)
-				continue;
+			if (init_mask & init_flag)
+				goto next;
 			clean = 0;
 			scan->lo_header = top->lo_header;
 			result = scan->lo_ops->loo_object_init(env, scan, conf);
@@ -234,7 +238,9 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 				lu_object_free(env, top);
 				return ERR_PTR(result);
 			}
-			scan->lo_flags |= LU_OBJECT_ALLOCATED;
+			init_mask |= init_flag;
+next:
+			init_flag <<= 1;
 		}
 	} while (!clean);
 
@@ -423,7 +429,7 @@ LU_KEY_INIT_FINI(lu_global, struct lu_cdebug_data);
  */
 struct lu_context_key lu_global_key = {
 	.lct_tags = LCT_MD_THREAD | LCT_DT_THREAD |
-		    LCT_MG_THREAD | LCT_CL_THREAD,
+		    LCT_MG_THREAD | LCT_CL_THREAD | LCT_LOCAL,
 	.lct_init = lu_global_key_init,
 	.lct_fini = lu_global_key_fini
 };
@@ -487,23 +493,25 @@ void lu_object_print(const struct lu_env *env, void *cookie,
 {
 	static const char ruler[] = "........................................";
 	struct lu_object_header *top;
-	int depth;
+	int depth = 4;
 
 	top = o->lo_header;
 	lu_object_header_print(env, cookie, printer, top);
-	(*printer)(env, cookie, "{ \n");
-	list_for_each_entry(o, &top->loh_layers, lo_linkage) {
-		depth = o->lo_depth + 4;
+	(*printer)(env, cookie, "{\n");
 
+	list_for_each_entry(o, &top->loh_layers, lo_linkage) {
 		/*
 		 * print `.' \a depth times followed by type name and address
 		 */
 		(*printer)(env, cookie, "%*.*s%s@%p", depth, depth, ruler,
 			   o->lo_dev->ld_type->ldt_name, o);
+
 		if (o->lo_ops->loo_object_print != NULL)
-			o->lo_ops->loo_object_print(env, cookie, printer, o);
+			(*o->lo_ops->loo_object_print)(env, cookie, printer, o);
+
 		(*printer)(env, cookie, "\n");
 	}
+
 	(*printer)(env, cookie, "} header@%p\n", top);
 }
 EXPORT_SYMBOL(lu_object_print);
@@ -830,8 +838,8 @@ enum {
 };
 
 static unsigned int lu_cache_percent = LU_CACHE_PERCENT_DEFAULT;
-CFS_MODULE_PARM(lu_cache_percent, "i", int, 0644,
-		"Percentage of memory to be used as lu_object cache");
+module_param(lu_cache_percent, int, 0644);
+MODULE_PARM_DESC(lu_cache_percent, "Percentage of memory to be used as lu_object cache");
 
 /**
  * Return desired hash table order.

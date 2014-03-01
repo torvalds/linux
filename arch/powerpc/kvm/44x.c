@@ -21,6 +21,8 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/module.h>
+#include <linux/miscdevice.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -231,3 +233,5 @@ static void __exit kvmppc_44x_exit(void)
 
 module_init(kvmppc_44x_init);
 module_exit(kvmppc_44x_exit);
+MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS("devname:kvm");

@@ -108,6 +108,8 @@ static int ohci_platform_probe(struct platform_device *dev)
 	if (err)
 		goto err_put_hcd;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	platform_set_drvdata(dev, hcd);
 
 	return err;

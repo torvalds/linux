@@ -85,20 +85,9 @@ between the calls.
 Headers
 -------
 
-  See arch/arm/mach-s3c2410/include/mach/regs-gpio.h for the list
+  See arch/arm/mach-s3c24xx/include/mach/regs-gpio.h for the list
   of GPIO pins, and the configuration values for them. This
   is included by using #include <mach/regs-gpio.h>
-
-  The GPIO management functions are defined in the hardware
-  header arch/arm/mach-s3c2410/include/mach/hardware.h which can be
-  included by #include <mach/hardware.h>
-
-  A useful amount of documentation can be found in the hardware
-  header on how the GPIO functions (and others) work.
-
-  Whilst a number of these functions do make some checks on what
-  is passed to them, for speed of use, they may not always ensure
-  that the user supplied data to them is correct.
 
 
 PIN Numbers

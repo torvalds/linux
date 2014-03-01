@@ -593,6 +593,13 @@ static int ssb_attach_queued_buses(void)
 		ssb_pcicore_init(&bus->pcicore);
 		if (bus->bustype == SSB_BUSTYPE_SSB)
 			ssb_watchdog_register(bus);
+
+		err = ssb_gpio_init(bus);
+		if (err == -ENOTSUPP)
+			ssb_dbg("GPIO driver not activated\n");
+		else if (err)
+			ssb_dbg("Error registering GPIO driver: %i\n", err);
+
 		ssb_bus_may_powerdown(bus);
 
 		err = ssb_devices_register(bus);
@@ -830,11 +837,6 @@ static int ssb_bus_register(struct ssb_bus *bus,
 	ssb_chipcommon_init(&bus->chipco);
 	ssb_extif_init(&bus->extif);
 	ssb_mipscore_init(&bus->mipscore);
-	err = ssb_gpio_init(bus);
-	if (err == -ENOTSUPP)
-		ssb_dbg("GPIO driver not activated\n");
-	else if (err)
-		ssb_dbg("Error registering GPIO driver: %i\n", err);
 	err = ssb_fetch_invariants(bus, get_invariants);
 	if (err) {
 		ssb_bus_may_powerdown(bus);

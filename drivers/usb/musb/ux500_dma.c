@@ -336,7 +336,9 @@ static int ux500_dma_controller_start(struct ux500_dma_controller *controller)
 							    data ?
 							    data->dma_filter :
 							    NULL,
-							    param_array[ch_num]);
+							    param_array ?
+							    param_array[ch_num] :
+							    NULL);
 
 			if (!ux500_channel->dma_chan) {
 				ERR("Dma pipe allocation error dir=%d ch=%d\n",

@@ -232,9 +232,9 @@ struct fsi_stream {
 	 * these are for DMAEngine
 	 */
 	struct dma_chan		*chan;
-	struct sh_dmae_slave	slave; /* see fsi_handler_init() */
 	struct work_struct	work;
 	dma_addr_t		dma;
+	int			dma_id;
 	int			loop_cnt;
 	int			additional_pos;
 };
@@ -1410,15 +1410,6 @@ static void fsi_dma_do_work(struct work_struct *work)
 	}
 }
 
-static bool fsi_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct sh_dmae_slave *slave = param;
-
-	chan->private = slave;
-
-	return true;
-}
-
 static int fsi_dma_transfer(struct fsi_priv *fsi, struct fsi_stream *io)
 {
 	schedule_work(&io->work);
@@ -1446,15 +1437,34 @@ static int fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io, struct device *dev)
 {
 	dma_cap_mask_t mask;
+	int is_play = fsi_stream_is_play(fsi, io);
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	io->chan = dma_request_channel(mask, fsi_dma_filter, &io->slave);
+	io->chan = dma_request_slave_channel_compat(mask,
+				shdma_chan_filter, (void *)io->dma_id,
+				dev, is_play ? "tx" : "rx");
+	if (io->chan) {
+		struct dma_slave_config cfg;
+		int ret;
+
+		cfg.slave_id	= io->dma_id;
+		cfg.dst_addr	= 0; /* use default addr */
+		cfg.src_addr	= 0; /* use default addr */
+		cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+
+		ret = dmaengine_slave_config(io->chan, &cfg);
+		if (ret < 0) {
+			dma_release_channel(io->chan);
+			io->chan = NULL;
+		}
+	}
+
 	if (!io->chan) {
 
 		/* switch to PIO handler */
-		if (fsi_stream_is_play(fsi, io))
+		if (is_play)
 			fsi->playback.handler	= &fsi_pio_push_handler;
 		else
 			fsi->capture.handler	= &fsi_pio_pop_handler;
@@ -1777,12 +1787,6 @@ static struct snd_pcm_hardware fsi_pcm_hardware = {
 			SNDRV_PCM_INFO_MMAP		|
 			SNDRV_PCM_INFO_MMAP_VALID	|
 			SNDRV_PCM_INFO_PAUSE,
-	.formats		= FSI_FMTS,
-	.rates			= FSI_RATES,
-	.rate_min		= 8000,
-	.rate_max		= 192000,
-	.channels_min		= 2,
-	.channels_max		= 2,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 8192,
@@ -1960,7 +1964,7 @@ static void fsi_handler_init(struct fsi_priv *fsi,
 	fsi->capture.priv	= fsi;
 
 	if (info->tx_id) {
-		fsi->playback.slave.shdma_slave.slave_id = info->tx_id;
+		fsi->playback.dma_id  = info->tx_id;
 		fsi->playback.handler = &fsi_dma_push_handler;
 	}
 }

@@ -314,7 +314,18 @@ xfs_trans_read_buf_map(
 			ASSERT(bp->b_iodone == NULL);
 			XFS_BUF_READ(bp);
 			bp->b_ops = ops;
-			xfsbdstrat(tp->t_mountp, bp);
+
+			/*
+			 * XXX(hch): clean up the error handling here to be less
+			 * of a mess..
+			 */
+			if (XFS_FORCED_SHUTDOWN(mp)) {
+				trace_xfs_bdstrat_shut(bp, _RET_IP_);
+				xfs_bioerror_relse(bp);
+			} else {
+				xfs_buf_iorequest(bp);
+			}
+
 			error = xfs_buf_iowait(bp);
 			if (error) {
 				xfs_buf_ioerror_alert(bp, __func__);

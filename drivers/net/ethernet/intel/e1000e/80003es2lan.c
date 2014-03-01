@@ -718,8 +718,11 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	e1000_release_phy_80003es2lan(hw);
 
 	/* Disable IBIST slave mode (far-end loopback) */
-	e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
-					&kum_reg_data);
+	ret_val =
+	    e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+					    &kum_reg_data);
+	if (ret_val)
+		return ret_val;
 	kum_reg_data |= E1000_KMRNCTRLSTA_IBIST_DISABLE;
 	e1000_write_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
 					 kum_reg_data);

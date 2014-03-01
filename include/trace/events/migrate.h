@@ -45,6 +45,32 @@ TRACE_EVENT(mm_migrate_pages,
 		__print_symbolic(__entry->reason, MIGRATE_REASON))
 );
 
+TRACE_EVENT(mm_numa_migrate_ratelimit,
+
+	TP_PROTO(struct task_struct *p, int dst_nid, unsigned long nr_pages),
+
+	TP_ARGS(p, dst_nid, nr_pages),
+
+	TP_STRUCT__entry(
+		__array(	char,		comm,	TASK_COMM_LEN)
+		__field(	pid_t,		pid)
+		__field(	int,		dst_nid)
+		__field(	unsigned long,	nr_pages)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid		= p->pid;
+		__entry->dst_nid	= dst_nid;
+		__entry->nr_pages	= nr_pages;
+	),
+
+	TP_printk("comm=%s pid=%d dst_nid=%d nr_pages=%lu",
+		__entry->comm,
+		__entry->pid,
+		__entry->dst_nid,
+		__entry->nr_pages)
+);
 #endif /* _TRACE_MIGRATE_H */
 
 /* This part must be outside protection */

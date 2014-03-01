@@ -22,10 +22,10 @@
 
 	gpio_fan {
 		compatible = "gpio-fan";
-		gpios = <&gpio0 22 1
-			 &gpio0  7 1
-			 &gpio1  1 1
-			 &gpio0 23 1>;
+		gpios = <&gpio0 22 GPIO_ACTIVE_LOW
+			 &gpio0  7 GPIO_ACTIVE_LOW
+			 &gpio1  1 GPIO_ACTIVE_LOW
+			 &gpio0 23 GPIO_ACTIVE_LOW>;
 		gpio-fan,speed-map =
 			<   0  0
 			 1500 15
@@ -36,7 +36,7 @@
 			 3300 10
 			 4300  9
 			 5500  8>;
-		alarm-gpios = <&gpio0 25 1>;
+		alarm-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
 	};
 
 	ns2-leds {

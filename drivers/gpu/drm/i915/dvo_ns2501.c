@@ -87,49 +87,6 @@ struct ns2501_priv {
  * when switching the resolution.
  */
 
-static void enable_dvo(struct intel_dvo_device *dvo)
-{
-	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
-	struct i2c_adapter *adapter = dvo->i2c_bus;
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
-	struct drm_i915_private *dev_priv = bus->dev_priv;
-
-	DRM_DEBUG_KMS("%s: Trying to re-enable the DVO\n", __FUNCTION__);
-
-	ns->dvoc = I915_READ(DVO_C);
-	ns->pll_a = I915_READ(_DPLL_A);
-	ns->srcdim = I915_READ(DVOC_SRCDIM);
-	ns->fw_blc = I915_READ(FW_BLC);
-
-	I915_WRITE(DVOC, 0x10004084);
-	I915_WRITE(_DPLL_A, 0xd0820000);
-	I915_WRITE(DVOC_SRCDIM, 0x400300);	// 1024x768
-	I915_WRITE(FW_BLC, 0x1080304);
-
-	I915_WRITE(DVOC, 0x90004084);
-}
-
-/*
- * Restore the I915 registers modified by the above
- * trigger function.
- */
-static void restore_dvo(struct intel_dvo_device *dvo)
-{
-	struct i2c_adapter *adapter = dvo->i2c_bus;
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
-	struct drm_i915_private *dev_priv = bus->dev_priv;
-	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
-
-	I915_WRITE(DVOC, ns->dvoc);
-	I915_WRITE(_DPLL_A, ns->pll_a);
-	I915_WRITE(DVOC_SRCDIM, ns->srcdim);
-	I915_WRITE(FW_BLC, ns->fw_blc);
-}
-
 /*
 ** Read a register from the ns2501.
 ** Returns true if successful, false otherwise.
@@ -300,7 +257,7 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 			    struct drm_display_mode *adjusted_mode)
 {
 	bool ok;
-	bool restore = false;
+	int retries = 10;
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 
 	DRM_DEBUG_KMS
@@ -476,20 +433,7 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 			ns->reg_8_shadow |= NS2501_8_BPAS;
 		}
 		ok &= ns2501_writeb(dvo, NS2501_REG8, ns->reg_8_shadow);
-
-		if (!ok) {
-			if (restore)
-				restore_dvo(dvo);
-			enable_dvo(dvo);
-			restore = true;
-		}
-	} while (!ok);
-	/*
-	 * Restore the old i915 registers before
-	 * forcing the ns2501 on.
-	 */
-	if (restore)
-		restore_dvo(dvo);
+	} while (!ok && retries--);
 }
 
 /* set the NS2501 power state */
@@ -510,7 +454,7 @@ static bool ns2501_get_hw_state(struct intel_dvo_device *dvo)
 static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	bool ok;
-	bool restore = false;
+	int retries = 10;
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 	unsigned char ch;
 
@@ -537,16 +481,7 @@ static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 			ok &=
 			    ns2501_writeb(dvo, 0x35,
 					  enable ? 0xff : 0x00);
-			if (!ok) {
-				if (restore)
-					restore_dvo(dvo);
-				enable_dvo(dvo);
-				restore = true;
-			}
-		} while (!ok);
-
-		if (restore)
-			restore_dvo(dvo);
+		} while (!ok && retries--);
 	}
 }
 

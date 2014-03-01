@@ -15,10 +15,6 @@
 		};
 	};
 
-	chosen {
-		bootargs = "console=ttyS1,38400 rootdelay=10 root=/dev/sda3";
-	};
-
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x08000000>;

@@ -2165,7 +2165,7 @@ static struct omap_hwmod_class omap3xxx_gpmc_hwmod_class = {
 };
 
 static struct omap_hwmod_irq_info omap3xxx_gpmc_irqs[] = {
-	{ .irq = 20 },
+	{ .irq = 20 + OMAP_INTC_START, },
 	{ .irq = -1 }
 };
 
@@ -2999,7 +2999,7 @@ static struct omap_mmu_dev_attr mmu_isp_dev_attr = {
 
 static struct omap_hwmod omap3xxx_mmu_isp_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_mmu_isp_irqs[] = {
-	{ .irq = 24 },
+	{ .irq = 24 + OMAP_INTC_START, },
 	{ .irq = -1 }
 };
 
@@ -3041,7 +3041,7 @@ static struct omap_mmu_dev_attr mmu_iva_dev_attr = {
 
 static struct omap_hwmod omap3xxx_mmu_iva_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_mmu_iva_irqs[] = {
-	{ .irq = 28 },
+	{ .irq = 28 + OMAP_INTC_START, },
 	{ .irq = -1 }
 };
 

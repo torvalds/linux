@@ -4,6 +4,8 @@
 
 #include "usbip_common.h"
 #include "vhci_driver.h"
+#include <limits.h>
+#include <netdb.h>
 
 #undef  PROGNAME
 #define PROGNAME "libusbip"
@@ -72,7 +74,7 @@ static int parse_status(char *value)
 		unsigned long socket;
 		char lbusid[SYSFS_BUS_ID_SIZE];
 
-		ret = sscanf(c, "%d %d %d %x %lx %s\n",
+		ret = sscanf(c, "%d %d %d %x %lx %31s\n",
 				&port, &status, &speed,
 				&devid, &socket, lbusid);
 
@@ -337,6 +339,29 @@ err:
 	return -1;
 }
 
+static int read_record(int rhport, char *host, char *port, char *busid)
+{
+	FILE *file;
+	char path[PATH_MAX+1];
+
+	snprintf(path, PATH_MAX, VHCI_STATE_PATH"/port%d", rhport);
+
+	file = fopen(path, "r");
+	if (!file) {
+		err("fopen");
+		return -1;
+	}
+
+	if (fscanf(file, "%s %s %s\n", host, port, busid) != 3) {
+		err("fscanf");
+		fclose(file);
+		return -1;
+	}
+
+	fclose(file);
+
+	return 0;
+}
 
 /* ---------------------------------------------------------------------- */
 
@@ -532,6 +557,48 @@ int usbip_vhci_detach_device(uint8_t port)
 	}
 
 	dbg("detached port: %d", port);
+
+	return 0;
+}
+
+int usbip_vhci_imported_device_dump(struct usbip_imported_device *idev)
+{
+	char product_name[100];
+	char host[NI_MAXHOST] = "unknown host";
+	char serv[NI_MAXSERV] = "unknown port";
+	char remote_busid[SYSFS_BUS_ID_SIZE];
+	int ret;
+	int read_record_error = 0;
+
+	if (idev->status == VDEV_ST_NULL || idev->status == VDEV_ST_NOTASSIGNED)
+		return 0;
+
+	ret = read_record(idev->port, host, serv, remote_busid);
+	if (ret) {
+		err("read_record");
+		read_record_error = 1;
+	}
+
+	printf("Port %02d: <%s> at %s\n", idev->port,
+	       usbip_status_string(idev->status),
+	       usbip_speed_string(idev->udev.speed));
+
+	usbip_names_get_product(product_name, sizeof(product_name),
+				idev->udev.idVendor, idev->udev.idProduct);
+
+	printf("       %s\n",  product_name);
+
+	if (!read_record_error) {
+		printf("%10s -> usbip://%s:%s/%s\n", idev->udev.busid,
+		       host, serv, remote_busid);
+		printf("%10s -> remote bus/dev %03d/%03d\n", " ",
+		       idev->busnum, idev->devnum);
+	} else {
+		printf("%10s -> unknown host, remote port and remote busid\n",
+		       idev->udev.busid);
+		printf("%10s -> remote bus/dev %03d/%03d\n", " ",
+		       idev->busnum, idev->devnum);
+	}
 
 	return 0;
 }

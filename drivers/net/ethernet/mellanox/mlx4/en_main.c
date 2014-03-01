@@ -174,6 +174,9 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 		mlx4_err(mdev, "Internal error detected, restarting device\n");
 		break;
 
+	case MLX4_DEV_EVENT_SLAVE_INIT:
+	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
+		break;
 	default:
 		if (port < 1 || port > dev->caps.num_ports ||
 		    !mdev->pndev[port])
@@ -195,6 +198,9 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
 		if (mdev->pndev[i])
 			mlx4_en_destroy_netdev(mdev->pndev[i]);
+
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+		mlx4_en_remove_timestamp(mdev);
 
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);

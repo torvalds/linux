@@ -749,7 +749,7 @@ static int cifs_filldir(char *find_entry, struct file *file,
 	}
 
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
-	    CIFSCouldBeMFSymlink(&fattr))
+	    couldbe_mf_symlink(&fattr))
 		/*
 		 * trying to get the type and mode can be slow,
 		 * so just call those regular files for now, and mark

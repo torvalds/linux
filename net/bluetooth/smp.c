@@ -53,8 +53,7 @@ static int smp_e(struct crypto_blkcipher *tfm, const u8 *k, u8 *r)
 {
 	struct blkcipher_desc desc;
 	struct scatterlist sg;
-	int err, iv_len;
-	unsigned char iv[128];
+	int err;
 
 	if (tfm == NULL) {
 		BT_ERR("tfm %p", tfm);
@@ -71,12 +70,6 @@ static int smp_e(struct crypto_blkcipher *tfm, const u8 *k, u8 *r)
 	}
 
 	sg_init_one(&sg, r, 16);
-
-	iv_len = crypto_blkcipher_ivsize(tfm);
-	if (iv_len) {
-		memset(&iv, 0xff, iv_len);
-		crypto_blkcipher_set_iv(tfm, iv, iv_len);
-	}
 
 	err = crypto_blkcipher_encrypt(&desc, &sg, &sg, 16);
 	if (err)
@@ -141,13 +134,6 @@ static int smp_s1(struct crypto_blkcipher *tfm, u8 k[16], u8 r1[16],
 		BT_ERR("Encrypt data error");
 
 	return err;
-}
-
-static int smp_rand(u8 *buf)
-{
-	get_random_bytes(buf, 16);
-
-	return 0;
 }
 
 static struct sk_buff *smp_build_cmd(struct l2cap_conn *conn, u8 code,
@@ -257,11 +243,11 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 	return 0;
 }
 
-static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
+static void smp_failure(struct l2cap_conn *conn, u8 reason)
 {
 	struct hci_conn *hcon = conn->hcon;
 
-	if (send)
+	if (reason)
 		smp_send_cmd(conn, SMP_CMD_PAIRING_FAIL, sizeof(reason),
 			     &reason);
 
@@ -406,7 +392,7 @@ static void confirm_work(struct work_struct *work)
 	return;
 
 error:
-	smp_failure(conn, reason, 1);
+	smp_failure(conn, reason);
 }
 
 static void random_work(struct work_struct *work)
@@ -490,7 +476,7 @@ static void random_work(struct work_struct *work)
 	return;
 
 error:
-	smp_failure(conn, reason, 1);
+	smp_failure(conn, reason);
 }
 
 static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
@@ -555,10 +541,10 @@ int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 		break;
 	case MGMT_OP_USER_PASSKEY_NEG_REPLY:
 	case MGMT_OP_USER_CONFIRM_NEG_REPLY:
-		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED, 1);
+		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED);
 		return 0;
 	default:
-		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED, 1);
+		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED);
 		return -EOPNOTSUPP;
 	}
 
@@ -606,9 +592,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (check_enc_key_size(conn, key_size))
 		return SMP_ENC_KEY_SIZE;
 
-	ret = smp_rand(smp->prnd);
-	if (ret)
-		return SMP_UNSPECIFIED;
+	get_random_bytes(smp->prnd, sizeof(smp->prnd));
 
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&smp->prsp[1], &rsp, sizeof(rsp));
@@ -644,9 +628,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (check_enc_key_size(conn, key_size))
 		return SMP_ENC_KEY_SIZE;
 
-	ret = smp_rand(smp->prnd);
-	if (ret)
-		return SMP_UNSPECIFIED;
+	get_random_bytes(smp->prnd, sizeof(smp->prnd));
 
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&smp->prsp[1], rsp, sizeof(*rsp));
@@ -768,6 +750,17 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
+bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
+{
+	if (sec_level == BT_SECURITY_LOW)
+		return true;
+
+	if (hcon->sec_level >= sec_level)
+		return true;
+
+	return false;
+}
+
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
@@ -779,10 +772,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
 		return 1;
 
-	if (sec_level == BT_SECURITY_LOW)
-		return 1;
-
-	if (hcon->sec_level >= sec_level)
+	if (smp_sufficient_security(hcon, sec_level))
 		return 1;
 
 	if (hcon->link_mode & HCI_LM_MASTER)
@@ -895,7 +885,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 		break;
 
 	case SMP_CMD_PAIRING_FAIL:
-		smp_failure(conn, skb->data[0], 0);
+		smp_failure(conn, 0);
 		reason = 0;
 		err = -EPERM;
 		break;
@@ -941,7 +931,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 
 done:
 	if (reason)
-		smp_failure(conn, reason, 1);
+		smp_failure(conn, reason);
 
 	kfree_skb(skb);
 	return err;

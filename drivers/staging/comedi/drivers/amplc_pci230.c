@@ -546,15 +546,16 @@ static const unsigned int pci230_timebase[8] = {
 };
 
 /* PCI230 analogue input range table */
-static const struct comedi_lrange pci230_ai_range = { 7, {
-							  BIP_RANGE(10),
-							  BIP_RANGE(5),
-							  BIP_RANGE(2.5),
-							  BIP_RANGE(1.25),
-							  UNI_RANGE(10),
-							  UNI_RANGE(5),
-							  UNI_RANGE(2.5)
-							  }
+static const struct comedi_lrange pci230_ai_range = {
+	7, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5)
+	}
 };
 
 /* PCI230 analogue gain bits for each input range. */
@@ -564,10 +565,11 @@ static const unsigned char pci230_ai_gain[7] = { 0, 1, 2, 3, 1, 2, 3 };
 static const unsigned char pci230_ai_bipolar[7] = { 1, 1, 1, 1, 0, 0, 0 };
 
 /* PCI230 analogue output range table */
-static const struct comedi_lrange pci230_ao_range = { 2, {
-							  UNI_RANGE(10),
-							  BIP_RANGE(10)
-							  }
+static const struct comedi_lrange pci230_ao_range = {
+	2, {
+		UNI_RANGE(10),
+		BIP_RANGE(10)
+	}
 };
 
 /* PCI230 daccon bipolar flag for each analogue output range. */
@@ -818,9 +820,9 @@ static int pci230_ai_rinsn(struct comedi_device *dev,
 	if (aref == AREF_DIFF) {
 		/* Differential. */
 		if (chan >= s->n_chan / 2) {
-			DPRINTK("comedi%d: amplc_pci230: ai_rinsn: "
-				"differential channel number out of range "
-				"0 to %u\n", dev->minor, (s->n_chan / 2) - 1);
+			dev_dbg(dev->class_dev,
+				"%s: differential channel number out of range 0 to %u\n",
+				__func__, (s->n_chan / 2) - 1);
 			return -EINVAL;
 		}
 	}
@@ -1092,14 +1094,14 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		if (errors != 0) {
 			err++;
 			if ((errors & seq_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ao_cmdtest: "
-					"channel numbers must increase\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel numbers must increase\n",
+					__func__);
 			}
 			if ((errors & range_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ao_cmdtest: "
-					"channels must have the same range\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channels must have the same range\n",
+					__func__);
 			}
 		}
 	}
@@ -1835,33 +1837,29 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 		if (errors != 0) {
 			err++;
 			if ((errors & seq_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"channel numbers must increase or "
-					"sequence must repeat exactly\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel numbers must increase or sequence must repeat exactly\n",
+					__func__);
 			}
 			if ((errors & rangepair_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"single-ended channel pairs must "
-					"have the same range\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: single-ended channel pairs must have the same range\n",
+					__func__);
 			}
 			if ((errors & polarity_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"channel sequence ranges must be all "
-					"bipolar or all unipolar\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence ranges must be all bipolar or all unipolar\n",
+					__func__);
 			}
 			if ((errors & aref_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"channel sequence analogue references "
-					"must be all the same (single-ended "
-					"or differential)\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence analogue references must be all the same (single-ended or differential)\n",
+					__func__);
 			}
 			if ((errors & diffchan_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"differential channel number out of "
-					"range 0 to %u\n", dev->minor,
-					(s->n_chan / 2) - 1);
+				dev_dbg(dev->class_dev,
+					"%s: differential channel number out of range 0 to %u\n",
+					__func__, (s->n_chan / 2) - 1);
 			}
 			if ((errors & buggy_chan0_err) != 0) {
 				dev_info(dev->class_dev,
@@ -2637,7 +2635,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	unsigned long iobase1, iobase2;
 	/* PCI230's I/O spaces 1 and 2 respectively. */
-	int irq_hdl, rc;
+	int rc;
 
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
@@ -2709,16 +2707,12 @@ static int pci230_attach_common(struct comedi_device *dev,
 	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
 	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
 	     dev->iobase + PCI230_ADCCON);
-	/* Register the interrupt handler. */
-	irq_hdl = request_irq(pci_dev->irq, pci230_interrupt,
-			      IRQF_SHARED, "amplc_pci230", dev);
-	if (irq_hdl < 0) {
-		dev_warn(dev->class_dev,
-			 "unable to register irq %u, commands will not be available\n",
-			 pci_dev->irq);
-	} else {
-		dev->irq = pci_dev->irq;
-		dev_dbg(dev->class_dev, "registered irq %u\n", pci_dev->irq);
+
+	if (pci_dev->irq) {
+		rc = request_irq(pci_dev->irq, pci230_interrupt, IRQF_SHARED,
+				 dev->board_name, dev);
+		if (rc == 0)
+			dev->irq = pci_dev->irq;
 	}
 
 	rc = comedi_alloc_subdevices(dev, 3);
@@ -2734,14 +2728,14 @@ static int pci230_attach_common(struct comedi_device *dev,
 	s->range_table = &pci230_ai_range;
 	s->insn_read = &pci230_ai_rinsn;
 	s->len_chanlist = 256;	/* but there are restrictions. */
-	/* Only register commands if the interrupt handler is installed. */
-	if (irq_hdl == 0) {
+	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
 		s->do_cmd = &pci230_ai_cmd;
 		s->do_cmdtest = &pci230_ai_cmdtest;
 		s->cancel = pci230_ai_cancel;
 	}
+
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	if (thisboard->ao_chans > 0) {
@@ -2753,9 +2747,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 		s->insn_write = &pci230_ao_winsn;
 		s->insn_read = &pci230_ao_rinsn;
 		s->len_chanlist = thisboard->ao_chans;
-		/* Only register commands if the interrupt handler is
-		 * installed. */
-		if (irq_hdl == 0) {
+		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags |= SDF_CMD_WRITE;
 			s->do_cmd = &pci230_ao_cmd;
@@ -2765,6 +2757,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
+
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
@@ -2856,7 +2849,7 @@ static int amplc_pci230_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(amplc_pci230_pci_table) = {
+static const struct pci_device_id amplc_pci230_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI230) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI260) },
 	{ 0 }

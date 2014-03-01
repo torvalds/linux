@@ -19,9 +19,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -152,6 +151,7 @@ static struct ctl_table sctp_net_table[] = {
 	},
 	{
 		.procname	= "cookie_hmac_alg",
+		.data		= &init_net.sctp.sctp_hmac_alg,
 		.maxlen		= 8,
 		.mode		= 0644,
 		.proc_handler	= proc_sctp_do_hmac_alg,
@@ -402,15 +402,18 @@ static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
 
 int sctp_sysctl_net_register(struct net *net)
 {
-	struct ctl_table *table;
-	int i;
+	struct ctl_table *table = sctp_net_table;
 
-	table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
-	if (!table)
-		return -ENOMEM;
+	if (!net_eq(net, &init_net)) {
+		int i;
 
-	for (i = 0; table[i].data; i++)
-		table[i].data += (char *)(&net->sctp) - (char *)&init_net.sctp;
+		table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
+		if (!table)
+			return -ENOMEM;
+
+		for (i = 0; table[i].data; i++)
+			table[i].data += (char *)(&net->sctp) - (char *)&init_net.sctp;
+	}
 
 	net->sctp.sysctl_header = register_net_sysctl(net, "net/sctp", table);
 	return 0;
@@ -425,7 +428,7 @@ void sctp_sysctl_net_unregister(struct net *net)
 	kfree(table);
 }
 
-static struct ctl_table_header * sctp_sysctl_header;
+static struct ctl_table_header *sctp_sysctl_header;
 
 /* Sysctl registration.  */
 void sctp_sysctl_register(void)

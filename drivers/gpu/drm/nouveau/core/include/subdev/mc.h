@@ -47,6 +47,7 @@ struct nouveau_mc_oclass {
 extern struct nouveau_oclass *nv04_mc_oclass;
 extern struct nouveau_oclass *nv40_mc_oclass;
 extern struct nouveau_oclass *nv44_mc_oclass;
+extern struct nouveau_oclass *nv4c_mc_oclass;
 extern struct nouveau_oclass *nv50_mc_oclass;
 extern struct nouveau_oclass *nv94_mc_oclass;
 extern struct nouveau_oclass *nv98_mc_oclass;

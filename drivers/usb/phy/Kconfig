@@ -6,6 +6,15 @@ menu "USB Physical Layer drivers"
 config USB_PHY
 	def_bool n
 
+config USB_OTG_FSM
+	tristate "USB 2.0 OTG FSM implementation"
+	depends on USB
+	select USB_OTG
+	select USB_PHY
+	help
+	  Implements OTG Final State Machine as specified in On-The-Go
+	  and Embedded Host Supplement to the USB Revision 2.0 Specification.
+
 #
 # USB Transceiver Drivers
 #
@@ -20,7 +29,7 @@ config AB8500_USB
 
 config FSL_USB2_OTG
 	bool "Freescale USB OTG Transceiver Driver"
-	depends on USB_EHCI_FSL && USB_FSL_USB2 && PM_RUNTIME
+	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_OTG_FSM && PM_RUNTIME
 	select USB_OTG
 	select USB_PHY
 	help
@@ -29,6 +38,7 @@ config FSL_USB2_OTG
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"
 	depends on I2C && ARCH_OMAP_OTG
+	depends on USB
 	select USB_PHY
 	help
 	  If you say yes here you get support for the Philips ISP1301
@@ -38,7 +48,16 @@ config ISP1301_OMAP
 	  Instruments OMAP processors.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called isp1301_omap.
+	  will be called phy-isp1301-omap.
+
+config KEYSTONE_USB_PHY
+	tristate "Keystone USB PHY Driver"
+	depends on ARCH_KEYSTONE || COMPILE_TEST
+	select NOP_USB_XCEIV
+	help
+	  Enable this to support Keystone USB phy. This driver provides
+	  interface to interact with USB 2.0 and USB 3.0 PHY that is part
+	  of the Keystone SOC.
 
 config MV_U3D_PHY
 	bool "Marvell USB 3.0 PHY controller Driver"
@@ -134,6 +153,31 @@ config USB_GPIO_VBUS
 	  optionally control of a D+ pullup GPIO as well as a VBUS
 	  current limit regulator.
 
+config OMAP_OTG
+	tristate "OMAP USB OTG controller driver"
+	depends on ARCH_OMAP_OTG && EXTCON
+	help
+	  Enable this to support some transceivers on OMAP1 platforms. OTG
+	  controller is needed to switch between host and peripheral modes.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called phy-omap-otg.
+
+config TAHVO_USB
+	tristate "Tahvo USB transceiver driver"
+	depends on MFD_RETU && EXTCON
+	select USB_PHY
+	help
+	  Enable this to support USB transceiver on Tahvo. This is used
+	  at least on Nokia 770.
+
+config TAHVO_USB_HOST_BY_DEFAULT
+	depends on TAHVO_USB
+	boolean "Device in USB host mode by default"
+	help
+	  Say Y here, if you want the device to enter USB host mode
+	  by default on bootup.
+
 config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
 	depends on USB || USB_GADGET
@@ -145,7 +189,7 @@ config USB_ISP1301
 	  and OTG drivers (to be selected separately).
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called isp1301.
+	  module will be called phy-isp1301.
 
 config USB_MSM_OTG
 	tristate "OTG support for Qualcomm on-chip USB controller"

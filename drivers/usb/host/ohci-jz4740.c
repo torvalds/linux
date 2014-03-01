@@ -174,31 +174,23 @@ static int jz4740_ohci_probe(struct platform_device *pdev)
 
 	jz4740_ohci = hcd_to_jz4740_hcd(hcd);
 
-	res = request_mem_region(res->start, resource_size(res), hcd_name);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to request mem region.\n");
-		ret = -EBUSY;
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
+
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		ret = PTR_ERR(hcd->regs);
 		goto err_free;
 	}
 
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
-	hcd->regs = ioremap(res->start, resource_size(res));
-
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "Failed to ioremap registers.\n");
-		ret = -EBUSY;
-		goto err_release_mem;
-	}
-
-	jz4740_ohci->clk = clk_get(&pdev->dev, "uhc");
+	jz4740_ohci->clk = devm_clk_get(&pdev->dev, "uhc");
 	if (IS_ERR(jz4740_ohci->clk)) {
 		ret = PTR_ERR(jz4740_ohci->clk);
 		dev_err(&pdev->dev, "Failed to get clock: %d\n", ret);
-		goto err_iounmap;
+		goto err_free;
 	}
 
-	jz4740_ohci->vbus = regulator_get(&pdev->dev, "vbus");
+	jz4740_ohci->vbus = devm_regulator_get(&pdev->dev, "vbus");
 	if (IS_ERR(jz4740_ohci->vbus))
 		jz4740_ohci->vbus = NULL;
 
@@ -217,21 +209,15 @@ static int jz4740_ohci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add hcd: %d\n", ret);
 		goto err_disable;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 
 err_disable:
-	if (jz4740_ohci->vbus) {
+	if (jz4740_ohci->vbus)
 		regulator_disable(jz4740_ohci->vbus);
-		regulator_put(jz4740_ohci->vbus);
-	}
 	clk_disable(jz4740_ohci->clk);
 
-	clk_put(jz4740_ohci->clk);
-err_iounmap:
-	iounmap(hcd->regs);
-err_release_mem:
-	release_mem_region(res->start, resource_size(res));
 err_free:
 	usb_put_hcd(hcd);
 
@@ -245,16 +231,10 @@ static int jz4740_ohci_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(hcd);
 
-	if (jz4740_ohci->vbus) {
+	if (jz4740_ohci->vbus)
 		regulator_disable(jz4740_ohci->vbus);
-		regulator_put(jz4740_ohci->vbus);
-	}
 
 	clk_disable(jz4740_ohci->clk);
-	clk_put(jz4740_ohci->clk);
-
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
 	usb_put_hcd(hcd);
 

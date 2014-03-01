@@ -28,6 +28,9 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-core.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/v4l2.h>
+
 /* Zero out the end of the struct pointed to by p.  Everything after, but
  * not including, the specified field is cleared. */
 #define CLEAR_AFTER_FIELD(p, field) \
@@ -2338,6 +2341,12 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	err = func(file, cmd, parg);
 	if (err == -ENOIOCTLCMD)
 		err = -ENOTTY;
+	if (err == 0) {
+		if (cmd == VIDIOC_DQBUF)
+			trace_v4l2_dqbuf(video_devdata(file)->minor, parg);
+		else if (cmd == VIDIOC_QBUF)
+			trace_v4l2_qbuf(video_devdata(file)->minor, parg);
+	}
 
 	if (has_array_args) {
 		*kernel_ptr = user_ptr;

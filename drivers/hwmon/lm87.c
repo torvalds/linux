@@ -5,7 +5,7 @@
  *                          Philip Edelbrock <phil@netroedge.com>
  *                          Stephen Rousset <stephen.rousset@rocketlogix.com>
  *                          Dan Eaton <dan.eaton@rocketlogix.com>
- * Copyright (C) 2004-2008  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004-2008  Jean Delvare <jdelvare@suse.de>
  *
  * Original port to Linux 2.6 by Jeff Oliver.
  *
@@ -1011,6 +1011,6 @@ static struct i2c_driver lm87_driver = {
 
 module_i2c_driver(lm87_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org> and others");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de> and others");
 MODULE_DESCRIPTION("LM87 driver");
 MODULE_LICENSE("GPL");

@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/errno.h>

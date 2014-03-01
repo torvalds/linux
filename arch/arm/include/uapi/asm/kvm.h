@@ -119,6 +119,26 @@ struct kvm_arch_memory_slot {
 #define KVM_REG_ARM_32_CRN_MASK		0x0000000000007800
 #define KVM_REG_ARM_32_CRN_SHIFT	11
 
+#define ARM_CP15_REG_SHIFT_MASK(x,n) \
+	(((x) << KVM_REG_ARM_ ## n ## _SHIFT) & KVM_REG_ARM_ ## n ## _MASK)
+
+#define __ARM_CP15_REG(op1,crn,crm,op2) \
+	(KVM_REG_ARM | (15 << KVM_REG_ARM_COPROC_SHIFT) | \
+	ARM_CP15_REG_SHIFT_MASK(op1, OPC1) | \
+	ARM_CP15_REG_SHIFT_MASK(crn, 32_CRN) | \
+	ARM_CP15_REG_SHIFT_MASK(crm, CRM) | \
+	ARM_CP15_REG_SHIFT_MASK(op2, 32_OPC2))
+
+#define ARM_CP15_REG32(...) (__ARM_CP15_REG(__VA_ARGS__) | KVM_REG_SIZE_U32)
+
+#define __ARM_CP15_REG64(op1,crm) \
+	(__ARM_CP15_REG(op1, 0, crm, 0) | KVM_REG_SIZE_U64)
+#define ARM_CP15_REG64(...) __ARM_CP15_REG64(__VA_ARGS__)
+
+#define KVM_REG_ARM_TIMER_CTL		ARM_CP15_REG32(0, 14, 3, 1)
+#define KVM_REG_ARM_TIMER_CNT		ARM_CP15_REG64(1, 14) 
+#define KVM_REG_ARM_TIMER_CVAL		ARM_CP15_REG64(3, 14) 
+
 /* Normal registers are mapped as coprocessor 16. */
 #define KVM_REG_ARM_CORE		(0x0010 << KVM_REG_ARM_COPROC_SHIFT)
 #define KVM_REG_ARM_CORE_REG(name)	(offsetof(struct kvm_regs, name) / 4)
@@ -143,6 +163,14 @@ struct kvm_arch_memory_slot {
 #define KVM_REG_ARM_VFP_FPINST		0x1009
 #define KVM_REG_ARM_VFP_FPINST2		0x100A
 
+/* Device Control API: ARM VGIC */
+#define KVM_DEV_ARM_VGIC_GRP_ADDR	0
+#define KVM_DEV_ARM_VGIC_GRP_DIST_REGS	1
+#define KVM_DEV_ARM_VGIC_GRP_CPU_REGS	2
+#define   KVM_DEV_ARM_VGIC_CPUID_SHIFT	32
+#define   KVM_DEV_ARM_VGIC_CPUID_MASK	(0xffULL << KVM_DEV_ARM_VGIC_CPUID_SHIFT)
+#define   KVM_DEV_ARM_VGIC_OFFSET_SHIFT	0
+#define   KVM_DEV_ARM_VGIC_OFFSET_MASK	(0xffffffffULL << KVM_DEV_ARM_VGIC_OFFSET_SHIFT)
 
 /* KVM_IRQ_LINE irq field index values */
 #define KVM_ARM_IRQ_TYPE_SHIFT		24

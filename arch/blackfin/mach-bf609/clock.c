@@ -120,6 +120,7 @@ void clk_disable(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_disable);
 
+
 unsigned long clk_get_rate(struct clk *clk)
 {
 	unsigned long ret = 0;
@@ -131,7 +132,7 @@ EXPORT_SYMBOL(clk_get_rate);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	long ret = -EIO;
+	long ret = 0;
 	if (clk->ops && clk->ops->round_rate)
 		ret = clk->ops->round_rate(clk, rate);
 	return ret;

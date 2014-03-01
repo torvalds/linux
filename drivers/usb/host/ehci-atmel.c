@@ -153,6 +153,7 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval)
 		goto fail_add_hcd;
+	device_wakeup_enable(hcd->self.controller);
 
 	return retval;
 

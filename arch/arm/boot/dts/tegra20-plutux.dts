@@ -6,8 +6,8 @@
 	model = "Avionic Design Plutux board";
 	compatible = "ad,plutux", "ad,tamonten", "nvidia,tegra20";
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 		};
 	};

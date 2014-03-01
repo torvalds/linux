@@ -1058,9 +1058,10 @@ static void cbq_normalize_quanta(struct cbq_sched_data *q, int prio)
 				cl->quantum = (cl->weight*cl->allot*q->nclasses[prio])/
 					q->quanta[prio];
 			}
-			if (cl->quantum <= 0 || cl->quantum>32*qdisc_dev(cl->qdisc)->mtu) {
-				pr_warning("CBQ: class %08x has bad quantum==%ld, repaired.\n",
-					   cl->common.classid, cl->quantum);
+			if (cl->quantum <= 0 ||
+			    cl->quantum > 32*qdisc_dev(cl->qdisc)->mtu) {
+				pr_warn("CBQ: class %08x has bad quantum==%ld, repaired.\n",
+					cl->common.classid, cl->quantum);
 				cl->quantum = qdisc_dev(cl->qdisc)->mtu/2 + 1;
 			}
 		}
@@ -1782,8 +1783,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 						    qdisc_root_sleeping_lock(sch),
 						    tca[TCA_RATE]);
 			if (err) {
-				if (rtab)
-					qdisc_put_rtab(rtab);
+				qdisc_put_rtab(rtab);
 				return err;
 			}
 		}

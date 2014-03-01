@@ -74,6 +74,47 @@ static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 				   enum nldr_phase phase);
 
 /*
+ *  ======== dcd_uuid_from_string ========
+ *  Purpose:
+ *      Converts an ANSI string to a dsp_uuid.
+ *  Parameters:
+ *      sz_uuid:    Pointer to a string that represents a dsp_uuid object.
+ *      uuid_obj:      Pointer to a dsp_uuid object.
+ *  Returns:
+ *      0:        Success.
+ *      -EINVAL:  Coversion failed
+ *  Requires:
+ *      uuid_obj & sz_uuid are non-NULL values.
+ *  Ensures:
+ *  Details:
+ *      We assume the string representation of a UUID has the following format:
+ *      "12345678_1234_1234_1234_123456789abc".
+ */
+static int dcd_uuid_from_string(char *sz_uuid, struct dsp_uuid *uuid_obj)
+{
+	char c;
+	u64 t;
+	struct dsp_uuid uuid_tmp;
+
+	/*
+	 * sscanf implementation cannot deal with hh format modifier
+	 * if the converted value doesn't fit in u32. So, convert the
+	 * last six bytes to u64 and memcpy what is needed
+	 */
+	if(sscanf(sz_uuid, "%8x%c%4hx%c%4hx%c%2hhx%2hhx%c%llx",
+	       &uuid_tmp.data1, &c, &uuid_tmp.data2, &c,
+	       &uuid_tmp.data3, &c, &uuid_tmp.data4,
+	       &uuid_tmp.data5, &c, &t) != 10)
+		return -EINVAL;
+
+	t = cpu_to_be64(t);
+	memcpy(&uuid_tmp.data6[0], ((char*)&t) + 2, 6);
+	*uuid_obj = uuid_tmp;
+
+	return 0;
+}
+
+/*
  *  ======== dcd_auto_register ========
  *  Purpose:
  *      Parses the supplied image and resigsters with DCD.
@@ -253,14 +294,15 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 		if (!status) {
 			/* Create UUID value using string retrieved from
 			 * registry. */
-			uuid_uuid_from_string(sz_value, &dsp_uuid_obj);
+			status = dcd_uuid_from_string(sz_value, &dsp_uuid_obj);
 
-			*uuid_obj = dsp_uuid_obj;
+			if (!status) {
+				*uuid_obj = dsp_uuid_obj;
 
-			/* Increment enum_refs to update reference count. */
-			enum_refs++;
-
-			status = 0;
+				/* Increment enum_refs to update reference
+				 * count. */
+				enum_refs++;
+			}
 		} else if (status == -ENODATA) {
 			/* At the end of enumeration. Reset enum_refs. */
 			enum_refs = 0;
@@ -581,24 +623,28 @@ int dcd_get_objects(struct dcd_manager *hdcd_mgr,
 		psz_cur = psz_coff_buf;
 		while ((token = strsep(&psz_cur, seps)) && *token != '\0') {
 			/*  Retrieve UUID string. */
-			uuid_uuid_from_string(token, &dsp_uuid_obj);
+			status = dcd_uuid_from_string(token, &dsp_uuid_obj);
 
-			/*  Retrieve object type */
-			token = strsep(&psz_cur, seps);
+			if (!status) {
+				/*  Retrieve object type */
+				token = strsep(&psz_cur, seps);
 
-			/*  Retrieve object type */
-			object_type = atoi(token);
+				/*  Retrieve object type */
+				object_type = atoi(token);
 
-			/*
-			 *  Apply register_fxn to the found DCD object.
-			 *  Possible actions include:
-			 *
-			 *  1) Register found DCD object.
-			 *  2) Unregister found DCD object (when handle == NULL)
-			 *  3) Add overlay node.
-			 */
-			status =
-			    register_fxn(&dsp_uuid_obj, object_type, handle);
+				/*
+				*  Apply register_fxn to the found DCD object.
+				*  Possible actions include:
+				*
+				*  1) Register found DCD object.
+				*  2) Unregister found DCD object
+				*     (when handle == NULL)
+				*  3) Add overlay node.
+				*/
+				status =
+				    register_fxn(&dsp_uuid_obj, object_type,
+						 handle);
+			}
 			if (status) {
 				/* if error occurs, break from while loop. */
 				break;
@@ -1001,9 +1047,12 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		token = strsep(&psz_cur, seps);
 
 		/* dsp_uuid ui_node_id */
-		uuid_uuid_from_string(token,
-				      &gen_obj->obj_data.node_obj.ndb_props.
-				      ui_node_id);
+		status = dcd_uuid_from_string(token,
+					      &gen_obj->obj_data.node_obj.
+					      ndb_props.ui_node_id);
+		if (status)
+			break;
+
 		token = strsep(&psz_cur, seps);
 
 		/* ac_name */
@@ -1400,9 +1449,12 @@ static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 				break;
 			} else {
 				/* Retrieve UUID string. */
-				uuid_uuid_from_string(token,
-						      &(dep_lib_uuids
-							[dep_libs]));
+				status = dcd_uuid_from_string(token,
+							      &(dep_lib_uuids
+								[dep_libs]));
+				if (status)
+					break;
+
 				/* Is this library persistent? */
 				token = strsep(&psz_cur, seps);
 				prstnt_dep_libs[dep_libs] = atoi(token);

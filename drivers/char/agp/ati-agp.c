@@ -12,7 +12,7 @@
 #include <asm/agp.h>
 #include "agp.h"
 
-#define ATI_GART_MMBASE_ADDR	0x14
+#define ATI_GART_MMBASE_BAR	1
 #define ATI_RS100_APSIZE	0xac
 #define ATI_RS100_IG_AGPMODE	0xb0
 #define ATI_RS300_APSIZE	0xf8
@@ -196,12 +196,12 @@ static void ati_cleanup(void)
 
 static int ati_configure(void)
 {
+	phys_addr_t reg;
 	u32 temp;
 
 	/* Get the memory mapped registers */
-	pci_read_config_dword(agp_bridge->dev, ATI_GART_MMBASE_ADDR, &temp);
-	temp = (temp & 0xfffff000);
-	ati_generic_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
+	reg = pci_resource_start(agp_bridge->dev, ATI_GART_MMBASE_BAR);
+	ati_generic_private.registers = (volatile u8 __iomem *) ioremap(reg, 4096);
 
 	if (!ati_generic_private.registers)
 		return -ENOMEM;
@@ -211,18 +211,18 @@ static int ati_configure(void)
 	else
 		pci_write_config_dword(agp_bridge->dev, ATI_RS300_IG_AGPMODE, 0x20000);
 
-	/* address to map too */
+	/* address to map to */
 	/*
-	pci_read_config_dword(agp_bridge.dev, AGP_APBASE, &temp);
-	agp_bridge.gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	agp_bridge.gart_bus_addr = pci_bus_address(agp_bridge.dev,
+						   AGP_APERTURE_BAR);
 	printk(KERN_INFO PFX "IGP320 gart_bus_addr: %x\n", agp_bridge.gart_bus_addr);
 	*/
 	writel(0x60000, ati_generic_private.registers+ATI_GART_FEATURE_ID);
 	readl(ati_generic_private.registers+ATI_GART_FEATURE_ID);	/* PCI Posting.*/
 
 	/* SIGNALED_SYSTEM_ERROR @ NB_STATUS */
-	pci_read_config_dword(agp_bridge->dev, 4, &temp);
-	pci_write_config_dword(agp_bridge->dev, 4, temp | (1<<14));
+	pci_read_config_dword(agp_bridge->dev, PCI_COMMAND, &temp);
+	pci_write_config_dword(agp_bridge->dev, PCI_COMMAND, temp | (1<<14));
 
 	/* Write out the address of the gatt table */
 	writel(agp_bridge->gatt_bus_addr, ati_generic_private.registers+ATI_GART_BASE);
@@ -385,8 +385,7 @@ static int ati_create_gatt_table(struct agp_bridge_data *bridge)
 	 * This is a bus address even on the alpha, b/c its
 	 * used to program the agp master not the cpu
 	 */
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &temp);
-	addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	addr = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
 	agp_bridge->gart_bus_addr = addr;
 
 	/* Calculate the agp offset */

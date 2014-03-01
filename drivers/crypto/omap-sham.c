@@ -789,10 +789,13 @@ static int omap_sham_update_cpu(struct omap_sham_dev *dd)
 	dev_dbg(dd->dev, "cpu: bufcnt: %u, digcnt: %d, final: %d\n",
 		ctx->bufcnt, ctx->digcnt, final);
 
-	bufcnt = ctx->bufcnt;
-	ctx->bufcnt = 0;
+	if (final || (ctx->bufcnt == ctx->buflen && ctx->total)) {
+		bufcnt = ctx->bufcnt;
+		ctx->bufcnt = 0;
+		return omap_sham_xmit_cpu(dd, ctx->buffer, bufcnt, final);
+	}
 
-	return omap_sham_xmit_cpu(dd, ctx->buffer, bufcnt, final);
+	return 0;
 }
 
 static int omap_sham_update_dma_stop(struct omap_sham_dev *dd)
@@ -1102,6 +1105,9 @@ static int omap_sham_update(struct ahash_request *req)
 		omap_sham_append_sg(ctx);
 		return 0;
 	}
+
+	if (dd->polling_mode)
+		ctx->flags |= BIT(FLAGS_CPU);
 
 	return omap_sham_enqueue(req, OP_UPDATE);
 }
@@ -1970,7 +1976,8 @@ err_algs:
 			crypto_unregister_ahash(
 					&dd->pdata->algs_info[i].algs_list[j]);
 	pm_runtime_disable(dev);
-	dma_release_channel(dd->dma_lch);
+	if (dd->dma_lch)
+		dma_release_channel(dd->dma_lch);
 data_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1994,7 +2001,9 @@ static int omap_sham_remove(struct platform_device *pdev)
 					&dd->pdata->algs_info[i].algs_list[j]);
 	tasklet_kill(&dd->done_task);
 	pm_runtime_disable(&pdev->dev);
-	dma_release_channel(dd->dma_lch);
+
+	if (dd->dma_lch)
+		dma_release_channel(dd->dma_lch);
 
 	return 0;
 }

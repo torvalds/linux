@@ -152,7 +152,7 @@ static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 	size_t k;
 
 	if (!WARN_ON(!spi_hz || !parent_rate))
-		div = parent_rate / spi_hz;
+		div = DIV_ROUND_UP(parent_rate, spi_hz);
 
 	/* TODO: make more fine grained */
 
@@ -169,7 +169,7 @@ static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 
 static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 				      u32 cpol, u32 cpha,
-				      u32 tx_hi_z, u32 lsb_first)
+				      u32 tx_hi_z, u32 lsb_first, u32 cs_high)
 {
 	u32 tmp;
 	int edge;
@@ -182,8 +182,12 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	 *    1    1         11     11    1    1
 	 */
 	sh_msiof_write(p, FCTR, 0);
-	sh_msiof_write(p, TMDR1, 0xe2000005 | (lsb_first << 24));
-	sh_msiof_write(p, RMDR1, 0x22000005 | (lsb_first << 24));
+
+	tmp = 0;
+	tmp |= !cs_high << 25;
+	tmp |= lsb_first << 24;
+	sh_msiof_write(p, TMDR1, 0xe0000005 | tmp);
+	sh_msiof_write(p, RMDR1, 0x20000005 | tmp);
 
 	tmp = 0xa0000000;
 	tmp |= cpol << 30; /* TSCKIZ */
@@ -417,11 +421,12 @@ static void sh_msiof_spi_chipselect(struct spi_device *spi, int is_on)
 		sh_msiof_spi_set_pin_regs(p, !!(spi->mode & SPI_CPOL),
 					  !!(spi->mode & SPI_CPHA),
 					  !!(spi->mode & SPI_3WIRE),
-					  !!(spi->mode & SPI_LSB_FIRST));
+					  !!(spi->mode & SPI_LSB_FIRST),
+					  !!(spi->mode & SPI_CS_HIGH));
 	}
 
 	/* use spi->controller data for CS (same strategy as spi_gpio) */
-	gpio_set_value((unsigned)spi->controller_data, value);
+	gpio_set_value((uintptr_t)spi->controller_data, value);
 
 	if (is_on == BITBANG_CS_INACTIVE) {
 		if (test_and_clear_bit(0, &p->flags)) {
@@ -635,8 +640,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(&pdev->dev, sizeof(struct sh_msiof_spi_priv));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "failed to allocate spi master\n");
-		ret = -ENOMEM;
-		goto err0;
+		return -ENOMEM;
 	}
 
 	p = spi_master_get_devdata(master);
@@ -655,32 +659,38 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 	init_completion(&p->done);
 
-	p->clk = clk_get(&pdev->dev, NULL);
+	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = PTR_ERR(p->clk);
 		goto err1;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i = platform_get_irq(pdev, 0);
-	if (!r || i < 0) {
-		dev_err(&pdev->dev, "cannot get platform resources\n");
+	if (i < 0) {
+		dev_err(&pdev->dev, "cannot get platform IRQ\n");
 		ret = -ENOENT;
-		goto err2;
-	}
-	p->mapbase = ioremap_nocache(r->start, resource_size(r));
-	if (!p->mapbase) {
-		dev_err(&pdev->dev, "unable to ioremap\n");
-		ret = -ENXIO;
-		goto err2;
+		goto err1;
 	}
 
-	ret = request_irq(i, sh_msiof_spi_irq, 0,
-			  dev_name(&pdev->dev), p);
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	p->mapbase = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(p->mapbase)) {
+		ret = PTR_ERR(p->mapbase);
+		goto err1;
+	}
+
+	ret = devm_request_irq(&pdev->dev, i, sh_msiof_spi_irq, 0,
+			       dev_name(&pdev->dev), p);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to request irq\n");
-		goto err3;
+		goto err1;
+	}
+
+	ret = clk_prepare(p->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "unable to prepare clock\n");
+		goto err1;
 	}
 
 	p->pdev = pdev;
@@ -719,13 +729,9 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 		return 0;
 
 	pm_runtime_disable(&pdev->dev);
- err3:
-	iounmap(p->mapbase);
- err2:
-	clk_put(p->clk);
+	clk_unprepare(p->clk);
  err1:
 	spi_master_put(master);
- err0:
 	return ret;
 }
 
@@ -737,9 +743,7 @@ static int sh_msiof_spi_remove(struct platform_device *pdev)
 	ret = spi_bitbang_stop(&p->bitbang);
 	if (!ret) {
 		pm_runtime_disable(&pdev->dev);
-		free_irq(platform_get_irq(pdev, 0), p);
-		iounmap(p->mapbase);
-		clk_put(p->clk);
+		clk_unprepare(p->clk);
 		spi_master_put(p->bitbang.master);
 	}
 	return ret;

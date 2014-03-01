@@ -495,10 +495,12 @@ out:
  */
 static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 {
-	int err, err1;
+	int err;
 	size_t written;
 	loff_t addr;
 	uint32_t data = 0;
+	struct ubi_ec_hdr ec_hdr;
+
 	/*
 	 * Note, we cannot generally define VID header buffers on stack,
 	 * because of the way we deal with these buffers (see the header
@@ -509,50 +511,38 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	struct ubi_vid_hdr vid_hdr;
 
 	/*
+	 * If VID or EC is valid, we have to corrupt them before erasing.
 	 * It is important to first invalidate the EC header, and then the VID
 	 * header. Otherwise a power cut may lead to valid EC header and
 	 * invalid VID header, in which case UBI will treat this PEB as
 	 * corrupted and will try to preserve it, and print scary warnings.
 	 */
 	addr = (loff_t)pnum * ubi->peb_size;
-	err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
-	if (!err) {
+	err = ubi_io_read_ec_hdr(ubi, pnum, &ec_hdr, 0);
+	if (err != UBI_IO_BAD_HDR_EBADMSG && err != UBI_IO_BAD_HDR &&
+	    err != UBI_IO_FF){
+		err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
+		if(err)
+			goto error;
+	}
+
+	err = ubi_io_read_vid_hdr(ubi, pnum, &vid_hdr, 0);
+	if (err != UBI_IO_BAD_HDR_EBADMSG && err != UBI_IO_BAD_HDR &&
+	    err != UBI_IO_FF){
 		addr += ubi->vid_hdr_aloffset;
 		err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
-		if (!err)
-			return 0;
+		if (err)
+			goto error;
 	}
+	return 0;
 
+error:
 	/*
-	 * We failed to write to the media. This was observed with Spansion
-	 * S29GL512N NOR flash. Most probably the previously eraseblock erasure
-	 * was interrupted at a very inappropriate moment, so it became
-	 * unwritable. In this case we probably anyway have garbage in this
-	 * PEB.
+	 * The PEB contains a valid VID or EC header, but we cannot invalidate
+	 * it. Supposedly the flash media or the driver is screwed up, so
+	 * return an error.
 	 */
-	err1 = ubi_io_read_vid_hdr(ubi, pnum, &vid_hdr, 0);
-	if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR ||
-	    err1 == UBI_IO_FF) {
-		struct ubi_ec_hdr ec_hdr;
-
-		err1 = ubi_io_read_ec_hdr(ubi, pnum, &ec_hdr, 0);
-		if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR ||
-		    err1 == UBI_IO_FF)
-			/*
-			 * Both VID and EC headers are corrupted, so we can
-			 * safely erase this PEB and not afraid that it will be
-			 * treated as a valid PEB in case of an unclean reboot.
-			 */
-			return 0;
-	}
-
-	/*
-	 * The PEB contains a valid VID header, but we cannot invalidate it.
-	 * Supposedly the flash media or the driver is screwed up, so return an
-	 * error.
-	 */
-	ubi_err("cannot invalidate PEB %d, write returned %d read returned %d",
-		pnum, err, err1);
+	ubi_err("cannot invalidate PEB %d, write returned %d", pnum, err);
 	ubi_dump_flash(ubi, pnum, 0, ubi->peb_size);
 	return -EIO;
 }

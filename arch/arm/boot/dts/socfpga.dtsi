@@ -79,6 +79,8 @@
 				#dma-cells = <1>;
 				#dma-channels = <8>;
 				#dma-requests = <32>;
+				clocks = <&l4_main_clk>;
+				clock-names = "apb_pclk";
 			};
 		};
 
@@ -467,6 +469,8 @@
 			interrupts = <0 38 0x04>;
 			cache-unified;
 			cache-level = <2>;
+			arm,tag-latency = <1 1 1>;
+			arm,data-latency = <2 1 1>;
 		};
 
 		/* Local timer */

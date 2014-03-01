@@ -339,7 +339,6 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 	pr_debug("rf_tech=%d, protocol=%d\n", rf_tech, protocol);
 
 	ddev->curr_rf_tech = rf_tech;
-	ddev->curr_protocol = protocol;
 
 	if (DIGITAL_DRV_CAPS_IN_CRC(ddev)) {
 		ddev->skb_add_crc = digital_skb_add_crc_none;
@@ -541,8 +540,14 @@ static int digital_dep_link_up(struct nfc_dev *nfc_dev,
 			       __u8 comm_mode, __u8 *gb, size_t gb_len)
 {
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+	int rc;
 
-	return digital_in_send_atr_req(ddev, target, comm_mode, gb, gb_len);
+	rc = digital_in_send_atr_req(ddev, target, comm_mode, gb, gb_len);
+
+	if (!rc)
+		ddev->curr_protocol = NFC_PROTO_NFC_DEP;
+
+	return rc;
 }
 
 static int digital_dep_link_down(struct nfc_dev *nfc_dev)
@@ -557,6 +562,20 @@ static int digital_dep_link_down(struct nfc_dev *nfc_dev)
 static int digital_activate_target(struct nfc_dev *nfc_dev,
 				   struct nfc_target *target, __u32 protocol)
 {
+	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	if (ddev->poll_tech_count) {
+		pr_err("Can't activate a target while polling\n");
+		return -EBUSY;
+	}
+
+	if (ddev->curr_protocol) {
+		pr_err("A target is already active\n");
+		return -EBUSY;
+	}
+
+	ddev->curr_protocol = protocol;
+
 	return 0;
 }
 
@@ -564,6 +583,11 @@ static void digital_deactivate_target(struct nfc_dev *nfc_dev,
 				      struct nfc_target *target)
 {
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
+
+	if (!ddev->curr_protocol) {
+		pr_err("No active target\n");
+		return;
+	}
 
 	ddev->curr_protocol = 0;
 }

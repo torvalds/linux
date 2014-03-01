@@ -754,8 +754,8 @@ static int open(struct tty_struct *tty, struct file *filp)
 
 	/* If port is closing, signal caller to try again */
 	if (tty_hung_up_p(filp) || info->port.flags & ASYNC_CLOSING){
-		if (info->port.flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&info->port.close_wait);
+		wait_event_interruptible_tty(tty, info->port.close_wait,
+					     !(info->port.flags & ASYNC_CLOSING));
 		retval = ((info->port.flags & ASYNC_HUP_NOTIFY) ?
 			-EAGAIN : -ERESTARTSYS);
 		goto cleanup;

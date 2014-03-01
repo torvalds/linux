@@ -21,13 +21,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/rfkill.h>
 
 MODULE_LICENSE("GPL");
-
 
 struct cmpc_accel {
 	int sensitivity;

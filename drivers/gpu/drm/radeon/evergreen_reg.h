@@ -33,6 +33,7 @@
 #define EVERGREEN_PIF_PHY0_DATA                         0xc
 #define EVERGREEN_PIF_PHY1_INDEX                        0x10
 #define EVERGREEN_PIF_PHY1_DATA                         0x14
+#define EVERGREEN_MM_INDEX_HI                           0x18
 
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS               0x310
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH          0x324

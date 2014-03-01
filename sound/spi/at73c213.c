@@ -174,7 +174,7 @@ static int snd_at73c213_set_bitrate(struct snd_at73c213 *chip)
 		dac_rate_new = 8 * (ssc_rate / ssc_div);
 
 		status = clk_round_rate(chip->board->dac_clk, dac_rate_new);
-		if (status < 0)
+		if (status <= 0)
 			return status;
 
 		/* Ignore difference smaller than 256 Hz. */

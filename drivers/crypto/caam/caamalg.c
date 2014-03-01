@@ -467,24 +467,10 @@ static int aead_setkey(struct crypto_aead *aead,
 	static const u8 mdpadlen[] = { 16, 20, 32, 32, 64, 64 };
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
-	unsigned int authkeylen;
-	unsigned int enckeylen;
+	struct crypto_authenc_keys keys;
 	int ret = 0;
 
-	param = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < enckeylen)
-		goto badkey;
-
-	authkeylen = keylen - enckeylen;
-
-	if (keylen > CAAM_MAX_KEY_SIZE)
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
 	/* Pick class 2 key length from algorithm submask */
@@ -492,25 +478,29 @@ static int aead_setkey(struct crypto_aead *aead,
 				      OP_ALG_ALGSEL_SHIFT] * 2;
 	ctx->split_key_pad_len = ALIGN(ctx->split_key_len, 16);
 
+	if (ctx->split_key_pad_len + keys.enckeylen > CAAM_MAX_KEY_SIZE)
+		goto badkey;
+
 #ifdef DEBUG
 	printk(KERN_ERR "keylen %d enckeylen %d authkeylen %d\n",
-	       keylen, enckeylen, authkeylen);
+	       keys.authkeylen + keys.enckeylen, keys.enckeylen,
+	       keys.authkeylen);
 	printk(KERN_ERR "split_key_len %d split_key_pad_len %d\n",
 	       ctx->split_key_len, ctx->split_key_pad_len);
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
 
-	ret = gen_split_aead_key(ctx, key, authkeylen);
+	ret = gen_split_aead_key(ctx, keys.authkey, keys.authkeylen);
 	if (ret) {
 		goto badkey;
 	}
 
 	/* postpend encryption key to auth split key */
-	memcpy(ctx->key + ctx->split_key_pad_len, key + authkeylen, enckeylen);
+	memcpy(ctx->key + ctx->split_key_pad_len, keys.enckey, keys.enckeylen);
 
 	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->split_key_pad_len +
-				       enckeylen, DMA_TO_DEVICE);
+				      keys.enckeylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
 		return -ENOMEM;
@@ -518,15 +508,15 @@ static int aead_setkey(struct crypto_aead *aead,
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
-		       ctx->split_key_pad_len + enckeylen, 1);
+		       ctx->split_key_pad_len + keys.enckeylen, 1);
 #endif
 
-	ctx->enckeylen = enckeylen;
+	ctx->enckeylen = keys.enckeylen;
 
 	ret = aead_set_sh_desc(aead);
 	if (ret) {
 		dma_unmap_single(jrdev, ctx->key_dma, ctx->split_key_pad_len +
-				 enckeylen, DMA_TO_DEVICE);
+				 keys.enckeylen, DMA_TO_DEVICE);
 	}
 
 	return ret;

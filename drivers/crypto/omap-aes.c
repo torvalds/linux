@@ -784,6 +784,7 @@ static int omap_aes_ctr_decrypt(struct ablkcipher_request *req)
 static int omap_aes_cra_init(struct crypto_tfm *tfm)
 {
 	struct omap_aes_dev *dd = NULL;
+	int err;
 
 	/* Find AES device, currently picks the first device */
 	spin_lock_bh(&list_lock);
@@ -792,7 +793,13 @@ static int omap_aes_cra_init(struct crypto_tfm *tfm)
 	}
 	spin_unlock_bh(&list_lock);
 
-	pm_runtime_get_sync(dd->dev);
+	err = pm_runtime_get_sync(dd->dev);
+	if (err < 0) {
+		dev_err(dd->dev, "%s: failed to get_sync(%d)\n",
+			__func__, err);
+		return err;
+	}
+
 	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_aes_reqctx);
 
 	return 0;
@@ -1182,7 +1189,12 @@ static int omap_aes_probe(struct platform_device *pdev)
 	dd->phys_base = res.start;
 
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	err = pm_runtime_get_sync(dev);
+	if (err < 0) {
+		dev_err(dev, "%s: failed to get_sync(%d)\n",
+			__func__, err);
+		goto err_res;
+	}
 
 	omap_aes_dma_stop(dd);
 

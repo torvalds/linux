@@ -24,7 +24,6 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>

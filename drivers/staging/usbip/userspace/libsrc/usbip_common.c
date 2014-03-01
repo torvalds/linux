@@ -165,7 +165,7 @@ int read_attr_speed(struct sysfs_device *dev)
 		goto err;
 	}
 
-	ret = sscanf(attr->value, "%s\n", speed);
+	ret = sscanf(attr->value, "%99s\n", speed);
 	if (ret < 1) {
 		dbg("sscanf failed");
 		goto err;

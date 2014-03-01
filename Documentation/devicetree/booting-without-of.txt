@@ -1364,19 +1364,16 @@ Appendix A - Sample SOC node for MPC8540
 				phy0: ethernet-phy@0 {
 					interrupts = <5 1>;
 					reg = <0>;
-					device_type = "ethernet-phy";
 				};
 
 				phy1: ethernet-phy@1 {
 					interrupts = <5 1>;
 					reg = <1>;
-					device_type = "ethernet-phy";
 				};
 
 				phy3: ethernet-phy@3 {
 					interrupts = <7 1>;
 					reg = <3>;
-					device_type = "ethernet-phy";
 				};
 			};
 		};

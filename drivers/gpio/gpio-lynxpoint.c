@@ -301,6 +301,26 @@ static void lp_irq_disable(struct irq_data *d)
 	spin_unlock_irqrestore(&lg->lock, flags);
 }
 
+static unsigned int lp_irq_startup(struct irq_data *d)
+{
+	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
+
+	if (gpio_lock_as_irq(&lg->chip, irqd_to_hwirq(d)))
+		dev_err(lg->chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			irqd_to_hwirq(d));
+	lp_irq_enable(d);
+	return 0;
+}
+
+static void lp_irq_shutdown(struct irq_data *d)
+{
+	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
+
+	lp_irq_disable(d);
+	gpio_unlock_as_irq(&lg->chip, irqd_to_hwirq(d));
+}
+
 static struct irq_chip lp_irqchip = {
 	.name = "LP-GPIO",
 	.irq_mask = lp_irq_mask,
@@ -308,6 +328,8 @@ static struct irq_chip lp_irqchip = {
 	.irq_enable = lp_irq_enable,
 	.irq_disable = lp_irq_disable,
 	.irq_set_type = lp_irq_type,
+	.irq_startup = lp_irq_startup,
+	.irq_shutdown = lp_irq_shutdown,
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -331,8 +353,7 @@ static int lp_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 {
 	struct lp_gpio *lg = d->host_data;
 
-	irq_set_chip_and_handler_name(irq, &lp_irqchip, handle_simple_irq,
-				      "demux");
+	irq_set_chip_and_handler(irq, &lp_irqchip, handle_simple_irq);
 	irq_set_chip_data(irq, lg);
 	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 
@@ -392,7 +413,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->set = lp_gpio_set;
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
-	gc->can_sleep = 0;
+	gc->can_sleep = false;
 	gc->dev = dev;
 
 	/* set up interrupts  */
@@ -438,6 +459,7 @@ static const struct dev_pm_ops lp_gpio_pm_ops = {
 
 static const struct acpi_device_id lynxpoint_gpio_acpi_match[] = {
 	{ "INT33C7", 0 },
+	{ "INT3437", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, lynxpoint_gpio_acpi_match);
@@ -469,4 +491,15 @@ static int __init lp_gpio_init(void)
 	return platform_driver_register(&lp_gpio_driver);
 }
 
+static void __exit lp_gpio_exit(void)
+{
+	platform_driver_unregister(&lp_gpio_driver);
+}
+
 subsys_initcall(lp_gpio_init);
+module_exit(lp_gpio_exit);
+
+MODULE_AUTHOR("Mathias Nyman (Intel)");
+MODULE_DESCRIPTION("GPIO interface for Intel Lynxpoint");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:lp_gpio");

@@ -1635,6 +1635,7 @@ static void mpic_destroy(struct kvm_device *dev)
 
 	dev->kvm->arch.mpic = NULL;
 	kfree(opp);
+	kfree(dev);
 }
 
 static int mpic_set_default_irq_routing(struct openpic *opp)

@@ -16,8 +16,6 @@
     GNU General Public License for more details.
 */
 
-#undef DEBUG
-
 #include "comedi_compat32.h"
 
 #include <linux/module.h>
@@ -46,15 +44,6 @@
 #define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_SUBDEVICE_MINORS	\
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
-
-#ifdef CONFIG_COMEDI_DEBUG
-int comedi_debug;
-EXPORT_SYMBOL_GPL(comedi_debug);
-module_param(comedi_debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(comedi_debug,
-		 "enable comedi core and driver debugging if non-zero (default 0)"
-		);
-#endif
 
 static int comedi_num_legacy_minors;
 module_param(comedi_num_legacy_minors, int, S_IRUGO);
@@ -89,9 +78,36 @@ static struct cdev comedi_cdev;
 
 static void comedi_device_init(struct comedi_device *dev)
 {
+	kref_init(&dev->refcount);
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);
+	init_rwsem(&dev->attach_lock);
 	dev->minor = -1;
+}
+
+static void comedi_dev_kref_release(struct kref *kref)
+{
+	struct comedi_device *dev =
+		container_of(kref, struct comedi_device, refcount);
+
+	mutex_destroy(&dev->mutex);
+	put_device(dev->class_dev);
+	kfree(dev);
+}
+
+int comedi_dev_put(struct comedi_device *dev)
+{
+	if (dev)
+		return kref_put(&dev->refcount, comedi_dev_kref_release);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(comedi_dev_put);
+
+static struct comedi_device *comedi_dev_get(struct comedi_device *dev)
+{
+	if (dev)
+		kref_get(&dev->refcount);
+	return dev;
 }
 
 static void comedi_device_cleanup(struct comedi_device *dev)
@@ -104,14 +120,9 @@ static void comedi_device_cleanup(struct comedi_device *dev)
 	if (dev->attached)
 		driver_module = dev->driver->module;
 	comedi_device_detach(dev);
-	while (dev->use_count > 0) {
-		if (driver_module)
-			module_put(driver_module);
-		module_put(THIS_MODULE);
-		dev->use_count--;
-	}
+	if (driver_module && dev->use_count)
+		module_put(driver_module);
 	mutex_unlock(&dev->mutex);
-	mutex_destroy(&dev->mutex);
 }
 
 static bool comedi_clear_board_dev(struct comedi_device *dev)
@@ -142,17 +153,17 @@ static struct comedi_device *comedi_clear_board_minor(unsigned minor)
 static void comedi_free_board_dev(struct comedi_device *dev)
 {
 	if (dev) {
+		comedi_device_cleanup(dev);
 		if (dev->class_dev) {
 			device_destroy(comedi_class,
 				       MKDEV(COMEDI_MAJOR, dev->minor));
 		}
-		comedi_device_cleanup(dev);
-		kfree(dev);
+		comedi_dev_put(dev);
 	}
 }
 
 static struct comedi_subdevice
-*comedi_subdevice_from_minor(unsigned minor)
+*comedi_subdevice_from_minor(const struct comedi_device *dev, unsigned minor)
 {
 	struct comedi_subdevice *s;
 	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
@@ -160,37 +171,45 @@ static struct comedi_subdevice
 	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
 	mutex_lock(&comedi_subdevice_minor_table_lock);
 	s = comedi_subdevice_minor_table[i];
+	if (s && s->device != dev)
+		s = NULL;
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	return s;
 }
 
-static struct comedi_device *comedi_dev_from_board_minor(unsigned minor)
+static struct comedi_device *comedi_dev_get_from_board_minor(unsigned minor)
 {
 	struct comedi_device *dev;
 
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 	mutex_lock(&comedi_board_minor_table_lock);
-	dev = comedi_board_minor_table[minor];
+	dev = comedi_dev_get(comedi_board_minor_table[minor]);
 	mutex_unlock(&comedi_board_minor_table_lock);
 	return dev;
 }
 
-static struct comedi_device *comedi_dev_from_subdevice_minor(unsigned minor)
+static struct comedi_device *comedi_dev_get_from_subdevice_minor(unsigned minor)
 {
+	struct comedi_device *dev;
 	struct comedi_subdevice *s;
+	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
 
-	s = comedi_subdevice_from_minor(minor);
-	return s ? s->device : NULL;
+	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
+	mutex_lock(&comedi_subdevice_minor_table_lock);
+	s = comedi_subdevice_minor_table[i];
+	dev = comedi_dev_get(s ? s->device : NULL);
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
+	return dev;
 }
 
-struct comedi_device *comedi_dev_from_minor(unsigned minor)
+struct comedi_device *comedi_dev_get_from_minor(unsigned minor)
 {
 	if (minor < COMEDI_NUM_BOARD_MINORS)
-		return comedi_dev_from_board_minor(minor);
+		return comedi_dev_get_from_board_minor(minor);
 	else
-		return comedi_dev_from_subdevice_minor(minor);
+		return comedi_dev_get_from_subdevice_minor(minor);
 }
-EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
+EXPORT_SYMBOL_GPL(comedi_dev_get_from_minor);
 
 static struct comedi_subdevice *
 comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
@@ -198,10 +217,8 @@ comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
 	struct comedi_subdevice *s;
 
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
-		s = comedi_subdevice_from_minor(minor);
-		if (!s || s->device != dev)
-			return NULL;
-		if (s->subdev_flags & SDF_CMD_READ)
+		s = comedi_subdevice_from_minor(dev, minor);
+		if (s == NULL || (s->subdev_flags & SDF_CMD_READ))
 			return s;
 	}
 	return dev->read_subdev;
@@ -213,10 +230,8 @@ comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 	struct comedi_subdevice *s;
 
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
-		s = comedi_subdevice_from_minor(minor);
-		if (!s || s->device != dev)
-			return NULL;
-		if (s->subdev_flags & SDF_CMD_WRITE)
+		s = comedi_subdevice_from_minor(dev, minor);
+		if (s == NULL || (s->subdev_flags & SDF_CMD_WRITE))
 			return s;
 	}
 	return dev->write_subdev;
@@ -232,11 +247,13 @@ static int resize_async_buffer(struct comedi_device *dev,
 		return -EPERM;
 
 	if (s->busy) {
-		DPRINTK("subdevice is busy, cannot resize buffer\n");
+		dev_dbg(dev->class_dev,
+			"subdevice is busy, cannot resize buffer\n");
 		return -EBUSY;
 	}
-	if (async->mmap_count) {
-		DPRINTK("subdevice is mmapped, cannot resize buffer\n");
+	if (comedi_buf_is_mmapped(async)) {
+		dev_dbg(dev->class_dev,
+			"subdevice is mmapped, cannot resize buffer\n");
 		return -EBUSY;
 	}
 
@@ -254,8 +271,8 @@ static int resize_async_buffer(struct comedi_device *dev,
 			return retval;
 	}
 
-	DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
-		dev->minor, s->index, async->prealloc_bufsz);
+	dev_dbg(dev->class_dev, "subd %d buffer resized to %i bytes\n",
+		s->index, async->prealloc_bufsz);
 	return 0;
 }
 
@@ -269,7 +286,7 @@ static ssize_t max_read_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -279,6 +296,7 @@ static ssize_t max_read_buffer_kb_show(struct device *csdev,
 		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -299,7 +317,7 @@ static ssize_t max_read_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -311,6 +329,7 @@ static ssize_t max_read_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(max_read_buffer_kb);
@@ -323,7 +342,7 @@ static ssize_t read_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -333,6 +352,7 @@ static ssize_t read_buffer_kb_show(struct device *csdev,
 		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -353,7 +373,7 @@ static ssize_t read_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -365,6 +385,7 @@ static ssize_t read_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(read_buffer_kb);
@@ -378,7 +399,7 @@ static ssize_t max_write_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -388,6 +409,7 @@ static ssize_t max_write_buffer_kb_show(struct device *csdev,
 		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -408,7 +430,7 @@ static ssize_t max_write_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -420,6 +442,7 @@ static ssize_t max_write_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(max_write_buffer_kb);
@@ -432,7 +455,7 @@ static ssize_t write_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -442,6 +465,7 @@ static ssize_t write_buffer_kb_show(struct device *csdev,
 		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -462,7 +486,7 @@ static ssize_t write_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -474,6 +498,7 @@ static ssize_t write_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(write_buffer_kb);
@@ -562,12 +587,13 @@ static void do_become_nonbusy(struct comedi_device *dev,
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
+		s->busy = NULL;
+		wake_up_interruptible_all(&s->async->wait_head);
 	} else {
 		dev_err(dev->class_dev,
 			"BUG: (?) do_become_nonbusy called with async=NULL\n");
+		s->busy = NULL;
 	}
-
-	s->busy = NULL;
 }
 
 static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -582,6 +608,21 @@ static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return ret;
 }
 
+void comedi_device_cancel_all(struct comedi_device *dev)
+{
+	struct comedi_subdevice *s;
+	int i;
+
+	if (!dev->attached)
+		return;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
+		if (s->async)
+			do_cancel(dev, s);
+	}
+}
+
 static int is_device_busy(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
@@ -594,7 +635,7 @@ static int is_device_busy(struct comedi_device *dev)
 		s = &dev->subdevices[i];
 		if (s->busy)
 			return 1;
-		if (s->async && s->async->mmap_count)
+		if (s->async && comedi_buf_is_mmapped(s->async))
 			return 1;
 	}
 
@@ -684,7 +725,8 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	async = s->async;
 
 	if (!async) {
-		DPRINTK("subdevice does not have async capability\n");
+		dev_dbg(dev->class_dev,
+			"subdevice does not have async capability\n");
 		bc.size = 0;
 		bc.maximum_size = 0;
 		goto copyback;
@@ -931,7 +973,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	async = s->async;
 
 	if (!async) {
-		DPRINTK("subdevice does not have async capability\n");
+		dev_dbg(dev->class_dev,
+			"subdevice does not have async capability\n");
 		bi.buf_write_ptr = 0;
 		bi.buf_read_ptr = 0;
 		bi.buf_write_count = 0;
@@ -1083,19 +1126,20 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 				break;
 			}
 			if (insn->subdev >= dev->n_subdevices) {
-				DPRINTK("%d not usable subdevice\n",
+				dev_dbg(dev->class_dev,
+					"%d not usable subdevice\n",
 					insn->subdev);
 				ret = -EINVAL;
 				break;
 			}
 			s = &dev->subdevices[insn->subdev];
 			if (!s->async) {
-				DPRINTK("no async\n");
+				dev_dbg(dev->class_dev, "no async\n");
 				ret = -EINVAL;
 				break;
 			}
 			if (!s->async->inttrig) {
-				DPRINTK("no inttrig\n");
+				dev_dbg(dev->class_dev, "no inttrig\n");
 				ret = -EAGAIN;
 				break;
 			}
@@ -1104,7 +1148,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 				ret = 1;
 			break;
 		default:
-			DPRINTK("invalid insn\n");
+			dev_dbg(dev->class_dev, "invalid insn\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -1113,21 +1157,23 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 		unsigned int maxdata;
 
 		if (insn->subdev >= dev->n_subdevices) {
-			DPRINTK("subdevice %d out of range\n", insn->subdev);
+			dev_dbg(dev->class_dev, "subdevice %d out of range\n",
+				insn->subdev);
 			ret = -EINVAL;
 			goto out;
 		}
 		s = &dev->subdevices[insn->subdev];
 
 		if (s->type == COMEDI_SUBD_UNUSED) {
-			DPRINTK("%d not usable subdevice\n", insn->subdev);
+			dev_dbg(dev->class_dev, "%d not usable subdevice\n",
+				insn->subdev);
 			ret = -EIO;
 			goto out;
 		}
 
 		/* are we locked? (ioctl lock) */
 		if (s->lock && s->lock != file) {
-			DPRINTK("device locked\n");
+			dev_dbg(dev->class_dev, "device locked\n");
 			ret = -EACCES;
 			goto out;
 		}
@@ -1135,7 +1181,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 		ret = comedi_check_chanlist(s, 1, &insn->chanspec);
 		if (ret < 0) {
 			ret = -EINVAL;
-			DPRINTK("bad chanspec\n");
+			dev_dbg(dev->class_dev, "bad chanspec\n");
 			goto out;
 		}
 
@@ -1156,7 +1202,8 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			for (i = 0; i < insn->n; ++i) {
 				if (data[i] > maxdata) {
 					ret = -EINVAL;
-					DPRINTK("bad data value(s)\n");
+					dev_dbg(dev->class_dev,
+						"bad data value(s)\n");
 					break;
 				}
 			}
@@ -1238,35 +1285,35 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 
 	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
 	if (!data) {
-		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
 	if (!insns) {
-		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	if (copy_from_user(insns, insnlist.insns,
 			   sizeof(*insns) * insnlist.n_insns)) {
-		DPRINTK("copy_from_user failed\n");
+		dev_dbg(dev->class_dev, "copy_from_user failed\n");
 		ret = -EFAULT;
 		goto error;
 	}
 
 	for (i = 0; i < insnlist.n_insns; i++) {
 		if (insns[i].n > MAX_SAMPLES) {
-			DPRINTK("number of samples too large\n");
+			dev_dbg(dev->class_dev,
+				"number of samples too large\n");
 			ret = -EINVAL;
 			goto error;
 		}
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data, insns[i].data,
 					   insns[i].n * sizeof(unsigned int))) {
-				DPRINTK("copy_from_user failed\n");
+				dev_dbg(dev->class_dev,
+					"copy_from_user failed\n");
 				ret = -EFAULT;
 				goto error;
 			}
@@ -1277,7 +1324,8 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 		if (insns[i].insn & INSN_MASK_READ) {
 			if (copy_to_user(insns[i].data, data,
 					 insns[i].n * sizeof(unsigned int))) {
-				DPRINTK("copy_to_user failed\n");
+				dev_dbg(dev->class_dev,
+					"copy_to_user failed\n");
 				ret = -EFAULT;
 				goto error;
 			}
@@ -1367,14 +1415,14 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	unsigned int __user *user_chanlist;
 
 	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		DPRINTK("bad cmd address\n");
+		dev_dbg(dev->class_dev, "bad cmd address\n");
 		return -EFAULT;
 	}
 	/* save user's chanlist pointer so it can be restored later */
 	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
 	if (cmd.subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd.subdev);
 		return -ENODEV;
 	}
 
@@ -1382,38 +1430,38 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	async = s->async;
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd.subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
-		DPRINTK("subdevice %i does not support commands\n",
-			cmd.subdev);
+		dev_dbg(dev->class_dev,
+			"subdevice %i does not support commands\n", cmd.subdev);
 		return -EIO;
 	}
 
 	/* are we locked? (ioctl lock) */
 	if (s->lock && s->lock != file) {
-		DPRINTK("subdevice locked\n");
+		dev_dbg(dev->class_dev, "subdevice locked\n");
 		return -EACCES;
 	}
 
 	/* are we busy? */
 	if (s->busy) {
-		DPRINTK("subdevice busy\n");
+		dev_dbg(dev->class_dev, "subdevice busy\n");
 		return -EBUSY;
 	}
 
 	/* make sure channel/gain list isn't too long */
 	if (cmd.chanlist_len > s->len_chanlist) {
-		DPRINTK("channel/gain list too long %u > %d\n",
+		dev_dbg(dev->class_dev, "channel/gain list too long %u > %d\n",
 			cmd.chanlist_len, s->len_chanlist);
 		return -EINVAL;
 	}
 
 	/* make sure channel/gain list isn't too short */
 	if (cmd.chanlist_len < 1) {
-		DPRINTK("channel/gain list too short %u < 1\n",
+		dev_dbg(dev->class_dev, "channel/gain list too short %u < 1\n",
 			cmd.chanlist_len);
 		return -EINVAL;
 	}
@@ -1425,7 +1473,9 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 					  async->cmd.chanlist_len * sizeof(int));
 	if (IS_ERR(async->cmd.chanlist)) {
 		ret = PTR_ERR(async->cmd.chanlist);
-		DPRINTK("memdup_user failed with code %d\n", ret);
+		async->cmd.chanlist = NULL;
+		dev_dbg(dev->class_dev, "memdup_user failed with code %d\n",
+			ret);
 		goto cleanup;
 	}
 
@@ -1434,20 +1484,20 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 				    async->cmd.chanlist_len,
 				    async->cmd.chanlist);
 	if (ret < 0) {
-		DPRINTK("bad chanlist\n");
+		dev_dbg(dev->class_dev, "bad chanlist\n");
 		goto cleanup;
 	}
 
 	ret = s->do_cmdtest(dev, s, &async->cmd);
 
 	if (async->cmd.flags & TRIG_BOGUS || ret) {
-		DPRINTK("test returned %d\n", ret);
+		dev_dbg(dev->class_dev, "test returned %d\n", ret);
 		cmd = async->cmd;
 		/* restore chanlist pointer before copying back */
 		cmd.chanlist = (unsigned int __force *)user_chanlist;
 		cmd.data = NULL;
 		if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-			DPRINTK("fault writing cmd\n");
+			dev_dbg(dev->class_dev, "fault writing cmd\n");
 			ret = -EFAULT;
 			goto cleanup;
 		}
@@ -1457,7 +1507,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	if (!async->prealloc_bufsz) {
 		ret = -ENOMEM;
-		DPRINTK("no buffer (?)\n");
+		dev_dbg(dev->class_dev, "no buffer (?)\n");
 		goto cleanup;
 	}
 
@@ -1469,8 +1519,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (async->cmd.flags & TRIG_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
-	comedi_set_subdevice_runflags(s, SRF_USER | SRF_ERROR | SRF_RUNNING,
-				      SRF_USER | SRF_RUNNING);
+	comedi_set_subdevice_runflags(s, SRF_ERROR | SRF_RUNNING, SRF_RUNNING);
 
 	/* set s->busy _after_ setting SRF_RUNNING flag to avoid race with
 	 * comedi_read() or comedi_write() */
@@ -1510,32 +1559,32 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	unsigned int __user *user_chanlist;
 
 	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		DPRINTK("bad cmd address\n");
+		dev_dbg(dev->class_dev, "bad cmd address\n");
 		return -EFAULT;
 	}
 	/* save user's chanlist pointer so it can be restored later */
 	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
 	if (cmd.subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd.subdev);
 		return -ENODEV;
 	}
 
 	s = &dev->subdevices[cmd.subdev];
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd.subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest) {
-		DPRINTK("subdevice %i does not support commands\n",
-			cmd.subdev);
+		dev_dbg(dev->class_dev,
+			"subdevice %i does not support commands\n", cmd.subdev);
 		return -EIO;
 	}
 
 	/* make sure channel/gain list isn't too long */
 	if (cmd.chanlist_len > s->len_chanlist) {
-		DPRINTK("channel/gain list too long %d > %d\n",
+		dev_dbg(dev->class_dev, "channel/gain list too long %d > %d\n",
 			cmd.chanlist_len, s->len_chanlist);
 		ret = -EINVAL;
 		goto cleanup;
@@ -1547,14 +1596,16 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 				       cmd.chanlist_len * sizeof(int));
 		if (IS_ERR(chanlist)) {
 			ret = PTR_ERR(chanlist);
-			DPRINTK("memdup_user exited with code %d", ret);
+			chanlist = NULL;
+			dev_dbg(dev->class_dev,
+				"memdup_user exited with code %d", ret);
 			goto cleanup;
 		}
 
 		/* make sure each element in channel/gain list is valid */
 		ret = comedi_check_chanlist(s, cmd.chanlist_len, chanlist);
 		if (ret < 0) {
-			DPRINTK("bad chanlist\n");
+			dev_dbg(dev->class_dev, "bad chanlist\n");
 			goto cleanup;
 		}
 
@@ -1567,7 +1618,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	cmd.chanlist = (unsigned int __force *)user_chanlist;
 
 	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-		DPRINTK("bad cmd address\n");
+		dev_dbg(dev->class_dev, "bad cmd address\n");
 		ret = -EFAULT;
 		goto cleanup;
 	}
@@ -1700,8 +1751,6 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 		return -EBUSY;
 
 	ret = do_cancel(dev, s);
-	if (comedi_get_subdevice_runflags(s) & SRF_USER)
-		wake_up_interruptible(&s->async->wait_head);
 
 	return ret;
 }
@@ -1748,11 +1797,8 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	int rc;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -1782,7 +1828,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on /dev/comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		rc = -ENODEV;
 		goto done;
 	}
@@ -1852,28 +1898,18 @@ done:
 
 static void comedi_vm_open(struct vm_area_struct *area)
 {
-	struct comedi_async *async;
-	struct comedi_device *dev;
+	struct comedi_buf_map *bm;
 
-	async = area->vm_private_data;
-	dev = async->subdevice->device;
-
-	mutex_lock(&dev->mutex);
-	async->mmap_count++;
-	mutex_unlock(&dev->mutex);
+	bm = area->vm_private_data;
+	comedi_buf_map_get(bm);
 }
 
 static void comedi_vm_close(struct vm_area_struct *area)
 {
-	struct comedi_async *async;
-	struct comedi_device *dev;
+	struct comedi_buf_map *bm;
 
-	async = area->vm_private_data;
-	dev = async->subdevice->device;
-
-	mutex_lock(&dev->mutex);
-	async->mmap_count--;
-	mutex_unlock(&dev->mutex);
+	bm = area->vm_private_data;
+	comedi_buf_map_put(bm);
 }
 
 static struct vm_operations_struct comedi_vm_ops = {
@@ -1884,22 +1920,20 @@ static struct vm_operations_struct comedi_vm_ops = {
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
+	struct comedi_buf_map *bm;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
 	int i;
 	int retval;
 
-	if (!dev)
-		return -ENODEV;
-
 	mutex_lock(&dev->mutex);
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		retval = -ENODEV;
 		goto done;
 	}
@@ -1920,7 +1954,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (vma->vm_pgoff != 0) {
-		DPRINTK("comedi: mmap() offset must be 0.\n");
+		dev_dbg(dev->class_dev, "mmap() offset must be 0.\n");
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1936,8 +1970,13 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	n_pages = size >> PAGE_SHIFT;
+	bm = async->buf_map;
+	if (!bm || n_pages > bm->n_pages) {
+		retval = -EINVAL;
+		goto done;
+	}
 	for (i = 0; i < n_pages; ++i) {
-		struct comedi_buf_page *buf = &async->buf_page_list[i];
+		struct comedi_buf_page *buf = &bm->page_list[i];
 
 		if (remap_pfn_range(vma, start,
 				    page_to_pfn(virt_to_page(buf->virt_addr)),
@@ -1949,9 +1988,9 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	vma->vm_ops = &comedi_vm_ops;
-	vma->vm_private_data = async;
+	vma->vm_private_data = bm;
 
-	async->mmap_count++;
+	vma->vm_ops->open(vma);
 
 	retval = 0;
 done:
@@ -1963,16 +2002,13 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		goto done;
 	}
 
@@ -2008,39 +2044,75 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
+	bool on_wait_queue = false;
+	bool attach_locked;
+	unsigned int old_detach_count;
 
-	if (!dev)
-		return -ENODEV;
+	/* Protect against device detachment during operation. */
+	down_read(&dev->attach_lock);
+	attach_locked = true;
+	old_detach_count = dev->detach_count;
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		retval = -ENODEV;
+		goto out;
 	}
 
 	s = comedi_write_subdevice(dev, minor);
-	if (!s || !s->async)
-		return -EIO;
+	if (!s || !s->async) {
+		retval = -EIO;
+		goto out;
+	}
 
 	async = s->async;
 
 	if (!s->busy || !nbytes)
-		return 0;
-	if (s->busy != file)
-		return -EACCES;
+		goto out;
+	if (s->busy != file) {
+		retval = -EACCES;
+		goto out;
+	}
 
 	add_wait_queue(&async->wait_head, &wait);
+	on_wait_queue = true;
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (!comedi_is_subdevice_running(s)) {
 			if (count == 0) {
-				mutex_lock(&dev->mutex);
+				struct comedi_subdevice *new_s;
+
 				if (comedi_is_subdevice_in_error(s))
 					retval = -EPIPE;
 				else
 					retval = 0;
-				do_become_nonbusy(dev, s);
+				/*
+				 * To avoid deadlock, cannot acquire dev->mutex
+				 * while dev->attach_lock is held.  Need to
+				 * remove task from the async wait queue before
+				 * releasing dev->attach_lock, as it might not
+				 * be valid afterwards.
+				 */
+				remove_wait_queue(&async->wait_head, &wait);
+				on_wait_queue = false;
+				up_read(&dev->attach_lock);
+				attach_locked = false;
+				mutex_lock(&dev->mutex);
+				/*
+				 * Become non-busy unless things have changed
+				 * behind our back.  Checking dev->detach_count
+				 * is unchanged ought to be sufficient (unless
+				 * there have been 2**32 detaches in the
+				 * meantime!), but check the subdevice pointer
+				 * as well just in case.
+				 */
+				new_s = comedi_write_subdevice(dev, minor);
+				if (dev->attached &&
+				    old_detach_count == dev->detach_count &&
+				    s == new_s && new_s->async == async)
+					do_become_nonbusy(dev, s);
 				mutex_unlock(&dev->mutex);
 			}
 			break;
@@ -2090,8 +2162,12 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
+out:
+	if (on_wait_queue)
+		remove_wait_queue(&async->wait_head, &wait);
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&async->wait_head, &wait);
+	if (attach_locked)
+		up_read(&dev->attach_lock);
 
 	return count ? count : retval;
 }
@@ -2104,25 +2180,35 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
+	unsigned int old_detach_count;
+	bool become_nonbusy = false;
+	bool attach_locked;
 
-	if (!dev)
-		return -ENODEV;
+	/* Protect against device detachment during operation. */
+	down_read(&dev->attach_lock);
+	attach_locked = true;
+	old_detach_count = dev->detach_count;
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		retval = -ENODEV;
+		goto out;
 	}
 
 	s = comedi_read_subdevice(dev, minor);
-	if (!s || !s->async)
-		return -EIO;
+	if (!s || !s->async) {
+		retval = -EIO;
+		goto out;
+	}
 
 	async = s->async;
 	if (!s->busy || !nbytes)
-		return 0;
-	if (s->busy != file)
-		return -EACCES;
+		goto out;
+	if (s->busy != file) {
+		retval = -EACCES;
+		goto out;
+	}
 
 	add_wait_queue(&async->wait_head, &wait);
 	while (nbytes > 0 && !retval) {
@@ -2140,13 +2226,11 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 		if (n == 0) {
 			if (!comedi_is_subdevice_running(s)) {
-				mutex_lock(&dev->mutex);
-				do_become_nonbusy(dev, s);
 				if (comedi_is_subdevice_in_error(s))
 					retval = -EPIPE;
 				else
 					retval = 0;
-				mutex_unlock(&dev->mutex);
+				become_nonbusy = true;
 				break;
 			}
 			if (file->f_flags & O_NONBLOCK) {
@@ -2184,14 +2268,37 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
-	if (comedi_is_subdevice_idle(s)) {
+	remove_wait_queue(&async->wait_head, &wait);
+	set_current_state(TASK_RUNNING);
+	if (become_nonbusy || comedi_is_subdevice_idle(s)) {
+		struct comedi_subdevice *new_s;
+
+		/*
+		 * To avoid deadlock, cannot acquire dev->mutex
+		 * while dev->attach_lock is held.
+		 */
+		up_read(&dev->attach_lock);
+		attach_locked = false;
 		mutex_lock(&dev->mutex);
-		if (async->buf_read_count - async->buf_write_count == 0)
-			do_become_nonbusy(dev, s);
+		/*
+		 * Check device hasn't become detached behind our back.
+		 * Checking dev->detach_count is unchanged ought to be
+		 * sufficient (unless there have been 2**32 detaches in the
+		 * meantime!), but check the subdevice pointer as well just in
+		 * case.
+		 */
+		new_s = comedi_read_subdevice(dev, minor);
+		if (dev->attached && old_detach_count == dev->detach_count &&
+		    s == new_s && new_s->async == async) {
+			if (become_nonbusy ||
+			    async->buf_read_count - async->buf_write_count == 0)
+				do_become_nonbusy(dev, s);
+		}
 		mutex_unlock(&dev->mutex);
 	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&async->wait_head, &wait);
+out:
+	if (attach_locked)
+		up_read(&dev->attach_lock);
 
 	return count ? count : retval;
 }
@@ -2199,10 +2306,11 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 static int comedi_open(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_get_from_minor(minor);
+	int rc;
 
 	if (!dev) {
-		DPRINTK("invalid minor number\n");
+		pr_debug("invalid minor number\n");
 		return -ENODEV;
 	}
 
@@ -2223,9 +2331,9 @@ static int comedi_open(struct inode *inode, struct file *file)
 	if (dev->attached)
 		goto ok;
 	if (!capable(CAP_NET_ADMIN) && dev->in_request_module) {
-		DPRINTK("in request module\n");
-		mutex_unlock(&dev->mutex);
-		return -ENODEV;
+		dev_dbg(dev->class_dev, "in request module\n");
+		rc = -ENODEV;
+		goto out;
 	}
 	if (capable(CAP_NET_ADMIN) && dev->in_request_module)
 		goto ok;
@@ -2241,58 +2349,48 @@ static int comedi_open(struct inode *inode, struct file *file)
 	dev->in_request_module = false;
 
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
-		DPRINTK("not attached and not CAP_NET_ADMIN\n");
-		mutex_unlock(&dev->mutex);
-		return -ENODEV;
+		dev_dbg(dev->class_dev, "not attached and not CAP_NET_ADMIN\n");
+		rc = -ENODEV;
+		goto out;
 	}
 ok:
-	__module_get(THIS_MODULE);
-
-	if (dev->attached) {
+	if (dev->attached && dev->use_count == 0) {
 		if (!try_module_get(dev->driver->module)) {
-			module_put(THIS_MODULE);
-			mutex_unlock(&dev->mutex);
-			return -ENOSYS;
+			rc = -ENOSYS;
+			goto out;
 		}
-	}
-
-	if (dev->attached && dev->use_count == 0 && dev->open) {
-		int rc = dev->open(dev);
-		if (rc < 0) {
-			module_put(dev->driver->module);
-			module_put(THIS_MODULE);
-			mutex_unlock(&dev->mutex);
-			return rc;
+		if (dev->open) {
+			rc = dev->open(dev);
+			if (rc < 0) {
+				module_put(dev->driver->module);
+				goto out;
+			}
 		}
 	}
 
 	dev->use_count++;
+	file->private_data = dev;
+	rc = 0;
 
+out:
 	mutex_unlock(&dev->mutex);
-
-	return 0;
+	if (rc)
+		comedi_dev_put(dev);
+	return rc;
 }
 
 static int comedi_fasync(int fd, struct file *file, int on)
 {
-	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
-
-	if (!dev)
-		return -ENODEV;
+	struct comedi_device *dev = file->private_data;
 
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
 static int comedi_close(struct inode *inode, struct file *file)
 {
-	const unsigned minor = iminor(inode);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s = NULL;
 	int i;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -2306,16 +2404,16 @@ static int comedi_close(struct inode *inode, struct file *file)
 				s->lock = NULL;
 		}
 	}
-	if (dev->attached && dev->use_count == 1 && dev->close)
-		dev->close(dev);
-
-	module_put(THIS_MODULE);
-	if (dev->attached)
+	if (dev->attached && dev->use_count == 1) {
+		if (dev->close)
+			dev->close(dev);
 		module_put(dev->driver->module);
+	}
 
 	dev->use_count--;
 
 	mutex_unlock(&dev->mutex);
+	comedi_dev_put(dev);
 
 	return 0;
 }
@@ -2346,8 +2444,6 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned runflags = 0;
 	unsigned runflags_mask = 0;
 
-	/* DPRINTK("comedi_event 0x%x\n",mask); */
-
 	if (!comedi_is_subdevice_running(s))
 		return;
 
@@ -2368,16 +2464,11 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (async->cb_mask & s->async->events) {
-		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
-			wake_up_interruptible(&async->wait_head);
-			if (s->subdev_flags & SDF_CMD_READ)
-				kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
-			if (s->subdev_flags & SDF_CMD_WRITE)
-				kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
-		} else {
-			if (async->cb_func)
-				async->cb_func(s->async->events, async->cb_arg);
-		}
+		wake_up_interruptible(&async->wait_head);
+		if (s->subdev_flags & SDF_CMD_READ)
+			kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
+		if (s->subdev_flags & SDF_CMD_WRITE)
+			kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
 	}
 	s->async->events = 0;
 }
@@ -2408,7 +2499,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	if (i == COMEDI_NUM_BOARD_MINORS) {
 		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
-		kfree(dev);
+		comedi_dev_put(dev);
 		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
 		return ERR_PTR(-EBUSY);
 	}
@@ -2416,7 +2507,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	csdev = device_create(comedi_class, hardware_device,
 			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 	if (!IS_ERR(csdev))
-		dev->class_dev = csdev;
+		dev->class_dev = get_device(csdev);
 
 	/* Note: dev->mutex needs to be unlocked by the caller. */
 	return dev;

@@ -739,8 +739,12 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 
 	IUCV_DBF_TEXT(trace, 4, __func__);
 
-	if (conn && conn->netdev)
-		privptr = netdev_priv(conn->netdev);
+	if (!conn || !conn->netdev) {
+		IUCV_DBF_TEXT(data, 2,
+			      "Send confirmation for unlinked connection\n");
+		return;
+	}
+	privptr = netdev_priv(conn->netdev);
 	conn->prof.tx_pending--;
 	if (single_flag) {
 		if ((skb = skb_dequeue(&conn->commit_queue))) {

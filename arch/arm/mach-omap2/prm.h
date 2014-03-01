@@ -18,6 +18,7 @@
 # ifndef __ASSEMBLER__
 extern void __iomem *prm_base;
 extern void omap2_set_globals_prm(void __iomem *prm);
+int of_prcm_init(void);
 # endif
 
 

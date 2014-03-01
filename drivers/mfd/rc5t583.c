@@ -74,7 +74,7 @@ static struct deepsleep_control_data deepsleep_data[] = {
 #define EXT_PWR_REQ		\
 	(RC5T583_EXT_PWRREQ1_CONTROL | RC5T583_EXT_PWRREQ2_CONTROL)
 
-static struct mfd_cell rc5t583_subdevs[] = {
+static const struct mfd_cell rc5t583_subdevs[] = {
 	{.name = "rc5t583-gpio",},
 	{.name = "rc5t583-regulator",},
 	{.name = "rc5t583-rtc",      },

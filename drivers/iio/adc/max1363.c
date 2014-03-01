@@ -1039,10 +1039,10 @@ static const struct iio_info max1238_info = {
 };
 
 static const struct iio_info max1363_info = {
-	.read_event_value_new = &max1363_read_thresh,
-	.write_event_value_new = &max1363_write_thresh,
-	.read_event_config_new = &max1363_read_event_config,
-	.write_event_config_new = &max1363_write_event_config,
+	.read_event_value = &max1363_read_thresh,
+	.write_event_value = &max1363_write_thresh,
+	.read_event_config = &max1363_read_event_config,
+	.write_event_config = &max1363_write_event_config,
 	.read_raw = &max1363_read_raw,
 	.update_scan_mode = &max1363_update_scan_mode,
 	.driver_module = THIS_MODULE,
@@ -1560,7 +1560,7 @@ static int max1363_probe(struct i2c_client *client,
 	st->client = client;
 
 	st->vref_uv = st->chip_info->int_vref_mv * 1000;
-	vref = devm_regulator_get(&client->dev, "vref");
+	vref = devm_regulator_get_optional(&client->dev, "vref");
 	if (!IS_ERR(vref)) {
 		int vref_uv;
 

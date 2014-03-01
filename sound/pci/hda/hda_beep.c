@@ -194,7 +194,7 @@ int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_enable_beep_device);
+EXPORT_SYMBOL_GPL(snd_hda_enable_beep_device);
 
 int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 {
@@ -231,7 +231,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_attach_beep_device);
+EXPORT_SYMBOL_GPL(snd_hda_attach_beep_device);
 
 void snd_hda_detach_beep_device(struct hda_codec *codec)
 {
@@ -243,7 +243,7 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 		kfree(beep);
 	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_detach_beep_device);
+EXPORT_SYMBOL_GPL(snd_hda_detach_beep_device);
 
 static bool ctl_has_mute(struct snd_kcontrol *kcontrol)
 {
@@ -265,7 +265,7 @@ int snd_hda_mixer_amp_switch_get_beep(struct snd_kcontrol *kcontrol,
 	}
 	return snd_hda_mixer_amp_switch_get(kcontrol, ucontrol);
 }
-EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_get_beep);
+EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_switch_get_beep);
 
 int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -288,4 +288,4 @@ int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
 		return 0;
 	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 }
-EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put_beep);
+EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_switch_put_beep);

@@ -28,7 +28,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -187,6 +186,8 @@
 
 #define MAX_RX_COUNT				64
 #define MAX_TX_QUEUE_COUNT			9
+
+extern int hwwep;
 
 enum RTL819x_PHY_PARAM {
 	RTL819X_PHY_MACPHY_REG			= 0,

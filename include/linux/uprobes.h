@@ -26,15 +26,12 @@
 
 #include <linux/errno.h>
 #include <linux/rbtree.h>
+#include <linux/types.h>
 
 struct vm_area_struct;
 struct mm_struct;
 struct inode;
 struct notifier_block;
-
-#ifdef CONFIG_ARCH_SUPPORTS_UPROBES
-# include <asm/uprobes.h>
-#endif
 
 #define UPROBE_HANDLER_REMOVE		1
 #define UPROBE_HANDLER_MASK		1
@@ -60,6 +57,8 @@ struct uprobe_consumer {
 };
 
 #ifdef CONFIG_UPROBES
+#include <asm/uprobes.h>
+
 enum uprobe_task_state {
 	UTASK_RUNNING,
 	UTASK_SSTEP,
@@ -72,34 +71,27 @@ enum uprobe_task_state {
  */
 struct uprobe_task {
 	enum uprobe_task_state		state;
-	struct arch_uprobe_task		autask;
+
+	union {
+		struct {
+			struct arch_uprobe_task	autask;
+			unsigned long		vaddr;
+		};
+
+		struct {
+			struct callback_head	dup_xol_work;
+			unsigned long		dup_xol_addr;
+		};
+	};
+
+	struct uprobe			*active_uprobe;
+	unsigned long			xol_vaddr;
 
 	struct return_instance		*return_instances;
 	unsigned int			depth;
-	struct uprobe			*active_uprobe;
-
-	unsigned long			xol_vaddr;
-	unsigned long			vaddr;
 };
 
-/*
- * On a breakpoint hit, thread contests for a slot.  It frees the
- * slot after singlestep. Currently a fixed number of slots are
- * allocated.
- */
-struct xol_area {
-	wait_queue_head_t 	wq;		/* if all slots are busy */
-	atomic_t 		slot_count;	/* number of in-use slots */
-	unsigned long 		*bitmap;	/* 0 = free slot */
-	struct page 		*page;
-
-	/*
-	 * We keep the vma's vm_start rather than a pointer to the vma
-	 * itself.  The probed process or a naughty kernel module could make
-	 * the vma go away, and we must handle that reasonably gracefully.
-	 */
-	unsigned long 		vaddr;		/* Page(s) of instruction slots */
-};
+struct xol_area;
 
 struct uprobes_state {
 	struct xol_area		*xol_area;
@@ -109,6 +101,7 @@ extern int __weak set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsign
 extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
 extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
 extern bool __weak is_trap_insn(uprobe_opcode_t *insn);
+extern unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs);
 extern int uprobe_write_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_t);
 extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern int uprobe_apply(struct inode *inode, loff_t offset, struct uprobe_consumer *uc, bool);
@@ -120,7 +113,6 @@ extern void uprobe_end_dup_mmap(void);
 extern void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm);
 extern void uprobe_free_utask(struct task_struct *t);
 extern void uprobe_copy_process(struct task_struct *t, unsigned long flags);
-extern unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs);
 extern int uprobe_post_sstep_notifier(struct pt_regs *regs);
 extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
 extern void uprobe_notify_resume(struct pt_regs *regs);
@@ -175,10 +167,6 @@ static inline void uprobe_notify_resume(struct pt_regs *regs)
 static inline bool uprobe_deny_signal(void)
 {
 	return false;
-}
-static inline unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
-{
-	return 0;
 }
 static inline void uprobe_free_utask(struct task_struct *t)
 {

@@ -121,7 +121,7 @@ static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
 	cookie -= cookie_hash(saddr, daddr, sport, dport, 0, 0) + sseq;
 
 	/* Cookie is now reduced to (count * 2^24) ^ (hash % 2^24) */
-	diff = (count - (cookie >> COOKIEBITS)) & ((__u32) - 1 >> COOKIEBITS);
+	diff = (count - (cookie >> COOKIEBITS)) & ((__u32) -1 >> COOKIEBITS);
 	if (diff >= MAX_SYNCOOKIE_AGE)
 		return (__u32)-1;
 

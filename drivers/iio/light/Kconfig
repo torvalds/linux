@@ -27,6 +27,17 @@ config APDS9300
 	 To compile this driver as a module, choose M here: the
 	 module will be called apds9300.
 
+config CM32181
+	depends on I2C
+	tristate "CM32181 driver"
+	help
+	 Say Y here if you use cm32181.
+	 This option enables ambient light sensor using
+	 Capella cm32181 device driver.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called cm32181.
+
 config CM36651
 	depends on I2C
 	tristate "CM36651 driver"

@@ -33,6 +33,7 @@ struct acpi_dmar_header;
 #define DMAR_X2APIC_OPT_OUT	0x2
 
 struct intel_iommu;
+
 #ifdef CONFIG_DMAR_TABLE
 extern struct acpi_table_header *dmar_tbl;
 struct dmar_drhd_unit {
@@ -52,6 +53,10 @@ extern struct list_head dmar_drhd_units;
 #define for_each_drhd_unit(drhd) \
 	list_for_each_entry(drhd, &dmar_drhd_units, list)
 
+#define for_each_active_drhd_unit(drhd)					\
+	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+		if (drhd->ignored) {} else
+
 #define for_each_active_iommu(i, drhd)					\
 	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
 		if (i=drhd->iommu, drhd->ignored) {} else
@@ -62,13 +67,13 @@ extern struct list_head dmar_drhd_units;
 
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
+extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
+				struct pci_dev ***devices, u16 segment);
+extern void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt);
 
 /* Intel IOMMU detection */
 extern int detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
-
-extern int parse_ioapics_under_ir(void);
-extern int alloc_iommu(struct dmar_drhd_unit *);
 #else
 static inline int detect_intel_iommu(void)
 {
@@ -157,8 +162,6 @@ struct dmar_atsr_unit {
 int dmar_parse_rmrr_atsr_dev(void);
 extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header);
 extern int dmar_parse_one_atsr(struct acpi_dmar_header *header);
-extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				struct pci_dev ***devices, u16 segment);
 extern int intel_iommu_init(void);
 #else /* !CONFIG_INTEL_IOMMU: */
 static inline int intel_iommu_init(void) { return -ENODEV; }

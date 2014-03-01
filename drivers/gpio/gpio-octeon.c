@@ -111,7 +111,7 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 	chip->dev = &pdev->dev;
 	chip->owner = THIS_MODULE;
 	chip->base = 0;
-	chip->can_sleep = 0;
+	chip->can_sleep = false;
 	chip->ngpio = 20;
 	chip->direction_input = octeon_gpio_dir_in;
 	chip->get = octeon_gpio_get;

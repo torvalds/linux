@@ -187,7 +187,7 @@ void ttm_mem_io_free_vm(struct ttm_buffer_object *bo)
 	}
 }
 
-int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
+static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
 			void **virtual)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
@@ -219,7 +219,7 @@ int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
 	return 0;
 }
 
-void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
+static void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
 			 void *virtual)
 {
 	struct ttm_mem_type_manager *man;
@@ -353,7 +353,8 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	 * Don't move nonexistent data. Clear destination instead.
 	 */
 	if (old_iomap == NULL &&
-	    (ttm == NULL || ttm->state == tt_unpopulated)) {
+	    (ttm == NULL || (ttm->state == tt_unpopulated &&
+			     !(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)))) {
 		memset_io(new_iomap, 0, new_mem->num_pages*PAGE_SIZE);
 		goto out2;
 	}
@@ -593,7 +594,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 	if (start_page > bo->num_pages)
 		return -EINVAL;
 #if 0
-	if (num_pages > 1 && !DRM_SUSER(DRM_CURPROC))
+	if (num_pages > 1 && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 #endif
 	(void) ttm_mem_io_lock(man, false);

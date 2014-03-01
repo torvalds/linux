@@ -56,7 +56,6 @@
 #include <lustre_fid.h>
 #include "fld_internal.h"
 
-#ifdef LPROCFS
 static int
 fld_proc_targets_seq_show(struct seq_file *m, void *unused)
 {
@@ -162,5 +161,3 @@ struct lprocfs_vars fld_client_proc_list[] = {
 	{ "hash", &fld_proc_hash_fops },
 	{ "cache_flush", &fld_proc_cache_flush_fops },
 	{ NULL }};
-
-#endif /* LPROCFS */

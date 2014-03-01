@@ -1632,7 +1632,7 @@ int iwctl_giwsens(struct net_device *dev,
 		wrq->value = ldBm;
 	} else {
 		wrq->value = 0;
-	};
+	}
 	wrq->disabled = (wrq->value == 0);
 	wrq->fixed = 1;
 
@@ -1827,7 +1827,7 @@ int iwctl_siwencodeext(struct net_device *dev,
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	struct viawget_wpa_param *param = NULL;
 //original member
-	wpa_alg alg_name;
+	enum wpa_alg alg_name;
 	u8  addr[6];
 	int key_idx, set_tx = 0;
 	u8  seq[IW_ENCODE_SEQ_MAX_SIZE];

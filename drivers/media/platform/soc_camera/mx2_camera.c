@@ -659,7 +659,7 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 	unsigned long flags;
 
 	if (count < 2)
-		return -EINVAL;
+		return -ENOBUFS;
 
 	spin_lock_irqsave(&pcdev->lock, flags);
 

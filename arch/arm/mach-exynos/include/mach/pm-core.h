@@ -19,7 +19,10 @@
 #define __ASM_ARCH_PM_CORE_H __FILE__
 
 #include <linux/of.h>
-#include <mach/regs-pmu.h>
+#include <mach/map.h>
+
+#define S5P_EINT_WAKEUP_MASK			(S5P_VA_PMU + 0x0604)
+#define S5P_WAKEUP_MASK				(S5P_VA_PMU + 0x0608)
 
 #ifdef CONFIG_PINCTRL_EXYNOS
 extern u32 exynos_get_eint_wake_mask(void);

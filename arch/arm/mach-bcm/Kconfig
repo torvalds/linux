@@ -25,6 +25,7 @@ config ARCH_BCM_MOBILE
 	select TICK_ONESHOT
 	select CACHE_L2X0
 	select HAVE_ARM_ARCH_TIMER
+	select PINCTRL
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
 	  It currently supports the 'BCM281XX' family, which includes

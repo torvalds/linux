@@ -3161,6 +3161,47 @@ V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD as a golden frame.</entry>
 		</entrytbl>
 	      </row>
 
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_MIN_QP</constant></entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Minimum quantization parameter for VP8.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_MAX_QP</constant></entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Maximum quantization parameter for VP8.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_I_FRAME_QP</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Quantization parameter for an I frame for VP8.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Quantization parameter for a P frame for VP8.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VPX_PROFILE</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Select the desired profile for VPx encoder.
+Acceptable values are 0, 1, 2 and 3 corresponding to encoder profiles 0, 1, 2 and 3.</entry>
+	      </row>
+
           <row><entry></entry></row>
         </tbody>
       </tgroup>

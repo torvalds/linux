@@ -835,7 +835,7 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 		 * at 0 as unset as well, except if PCI_PROBE_ONLY is also set
 		 * since in that case, we don't want to re-assign anything
 		 */
-		pcibios_resource_to_bus(dev, &reg, res);
+		pcibios_resource_to_bus(dev->bus, &reg, res);
 		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC) ||
 		    (reg.start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
 			/* Only print message if not re-assigning */
@@ -886,7 +886,7 @@ static int pcibios_uninitialized_bridge_resource(struct pci_bus *bus,
 
 	/* Job is a bit different between memory and IO */
 	if (res->flags & IORESOURCE_MEM) {
-		pcibios_resource_to_bus(dev, &region, res);
+		pcibios_resource_to_bus(dev->bus, &region, res);
 
 		/* If the BAR is non-0 then it's probably been initialized */
 		if (region.start != 0)

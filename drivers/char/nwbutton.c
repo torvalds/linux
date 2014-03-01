@@ -168,7 +168,10 @@ static irqreturn_t button_handler (int irq, void *dev_id)
 static int button_read (struct file *filp, char __user *buffer,
 			size_t count, loff_t *ppos)
 {
-	interruptible_sleep_on (&button_wait_queue);
+	DEFINE_WAIT(wait);
+	prepare_to_wait(&button_wait_queue, &wait, TASK_INTERRUPTIBLE);
+	schedule();
+	finish_wait(&button_wait_queue, &wait);
 	return (copy_to_user (buffer, &button_output_buffer, bcount))
 		 ? -EFAULT : bcount;
 }

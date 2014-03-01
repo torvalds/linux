@@ -464,4 +464,49 @@ void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev);
 int mlx5_debug_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 
+static inline const char *mlx5_qp_type_str(int type)
+{
+	switch (type) {
+	case MLX5_QP_ST_RC: return "RC";
+	case MLX5_QP_ST_UC: return "C";
+	case MLX5_QP_ST_UD: return "UD";
+	case MLX5_QP_ST_XRC: return "XRC";
+	case MLX5_QP_ST_MLX: return "MLX";
+	case MLX5_QP_ST_QP0: return "QP0";
+	case MLX5_QP_ST_QP1: return "QP1";
+	case MLX5_QP_ST_RAW_ETHERTYPE: return "RAW_ETHERTYPE";
+	case MLX5_QP_ST_RAW_IPV6: return "RAW_IPV6";
+	case MLX5_QP_ST_SNIFFER: return "SNIFFER";
+	case MLX5_QP_ST_SYNC_UMR: return "SYNC_UMR";
+	case MLX5_QP_ST_PTP_1588: return "PTP_1588";
+	case MLX5_QP_ST_REG_UMR: return "REG_UMR";
+	default: return "Invalid transport type";
+	}
+}
+
+static inline const char *mlx5_qp_state_str(int state)
+{
+	switch (state) {
+	case MLX5_QP_STATE_RST:
+	return "RST";
+	case MLX5_QP_STATE_INIT:
+	return "INIT";
+	case MLX5_QP_STATE_RTR:
+	return "RTR";
+	case MLX5_QP_STATE_RTS:
+	return "RTS";
+	case MLX5_QP_STATE_SQER:
+	return "SQER";
+	case MLX5_QP_STATE_SQD:
+	return "SQD";
+	case MLX5_QP_STATE_ERR:
+	return "ERR";
+	case MLX5_QP_STATE_SQ_DRAINING:
+	return "SQ_DRAINING";
+	case MLX5_QP_STATE_SUSPENDED:
+	return "SUSPENDED";
+	default: return "Invalid QP state";
+	}
+}
+
 #endif /* MLX5_QP_H */

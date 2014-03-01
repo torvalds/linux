@@ -14,16 +14,13 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
-#include <linux/init.h>
 #include <linux/hardirq.h>
 #include <linux/module.h>
 #include <asm/smp.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>
 
-#ifdef CONFIG_ACPI
-#include <acpi/acpi_bus.h>
-#endif
+#include <linux/acpi.h>
 
 static struct apic apic_physflat;
 static struct apic apic_flat;

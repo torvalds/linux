@@ -83,7 +83,12 @@ enum ad5764_type {
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
 		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET),	\
-	.scan_type = IIO_ST('u', (_bits), 16, 16 - (_bits))	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (_bits),				\
+		.storagebits = 16,				\
+		.shift = 16 - (_bits),				\
+	},							\
 }
 
 #define DECLARE_AD5764_CHANNELS(_name, _bits) \

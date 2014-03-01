@@ -29,7 +29,6 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/mutex.h>

@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/mach/nand.h
- *
  * Copyright (C) 2006 Micron Technology Inc.
  *
  * This program is free software; you can redistribute it and/or modify

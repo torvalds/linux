@@ -65,6 +65,22 @@ static bool gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
 	return 1;
 }
 
+/* This function will go away once the device-tree convertion is complete */
+static void gpmc_set_legacy(struct omap_nand_platform_data *gpmc_nand_data,
+			    struct gpmc_settings *s)
+{
+	/* Enable RD PIN Monitoring Reg */
+	if (gpmc_nand_data->dev_ready) {
+		s->wait_on_read = true;
+		s->wait_on_write = true;
+	}
+
+	if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
+		s->device_width = GPMC_DEVWIDTH_16BIT;
+	else
+		s->device_width = GPMC_DEVWIDTH_8BIT;
+}
+
 int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 		   struct gpmc_timings *gpmc_t)
 {
@@ -98,32 +114,22 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 			dev_err(dev, "Unable to set gpmc timings: %d\n", err);
 			return err;
 		}
-
-		if (gpmc_nand_data->of_node) {
-			gpmc_read_settings_dt(gpmc_nand_data->of_node, &s);
-		} else {
-			/* Enable RD PIN Monitoring Reg */
-			if (gpmc_nand_data->dev_ready) {
-				s.wait_on_read = true;
-				s.wait_on_write = true;
-			}
-		}
-
-		s.device_nand = true;
-
-		if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
-			s.device_width = GPMC_DEVWIDTH_16BIT;
-		else
-			s.device_width = GPMC_DEVWIDTH_8BIT;
-
-		err = gpmc_cs_program_settings(gpmc_nand_data->cs, &s);
-		if (err < 0)
-			goto out_free_cs;
-
-		err = gpmc_configure(GPMC_CONFIG_WP, 0);
-		if (err < 0)
-			goto out_free_cs;
 	}
+
+	if (gpmc_nand_data->of_node)
+		gpmc_read_settings_dt(gpmc_nand_data->of_node, &s);
+	else
+		gpmc_set_legacy(gpmc_nand_data, &s);
+
+	s.device_nand = true;
+
+	err = gpmc_cs_program_settings(gpmc_nand_data->cs, &s);
+	if (err < 0)
+		goto out_free_cs;
+
+	err = gpmc_configure(GPMC_CONFIG_WP, 0);
+	if (err < 0)
+		goto out_free_cs;
 
 	gpmc_update_nand_reg(&gpmc_nand_data->reg, gpmc_nand_data->cs);
 

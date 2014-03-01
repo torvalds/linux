@@ -18,10 +18,6 @@
 	model = "Mele A1000";
 	compatible = "mele,a1000", "allwinner,sun4i-a10";
 
-	aliases {
-		serial0 = &uart0;
-	};
-
 	soc@01c00000 {
 		emac: ethernet@01c0b000 {
 			pinctrl-names = "default";

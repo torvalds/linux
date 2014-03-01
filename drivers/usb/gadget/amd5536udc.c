@@ -40,7 +40,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -446,7 +445,7 @@ static void ep_init(struct udc_regs __iomem *regs, struct udc_ep *ep)
 	ep->ep.ops = &udc_ep_ops;
 	INIT_LIST_HEAD(&ep->queue);
 
-	ep->ep.maxpacket = (u16) ~0;
+	usb_ep_set_maxpacket_limit(&ep->ep,(u16) ~0);
 	/* set NAK */
 	tmp = readl(&ep->regs->ctl);
 	tmp |= AMD_BIT(UDC_EPCTL_SNAK);
@@ -1564,12 +1563,15 @@ static void udc_setup_endpoints(struct udc *dev)
 	}
 	/* EP0 max packet */
 	if (dev->gadget.speed == USB_SPEED_FULL) {
-		dev->ep[UDC_EP0IN_IX].ep.maxpacket = UDC_FS_EP0IN_MAX_PKT_SIZE;
-		dev->ep[UDC_EP0OUT_IX].ep.maxpacket =
-						UDC_FS_EP0OUT_MAX_PKT_SIZE;
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0IN_IX].ep,
+					   UDC_FS_EP0IN_MAX_PKT_SIZE);
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0OUT_IX].ep,
+					   UDC_FS_EP0OUT_MAX_PKT_SIZE);
 	} else if (dev->gadget.speed == USB_SPEED_HIGH) {
-		dev->ep[UDC_EP0IN_IX].ep.maxpacket = UDC_EP0IN_MAX_PKT_SIZE;
-		dev->ep[UDC_EP0OUT_IX].ep.maxpacket = UDC_EP0OUT_MAX_PKT_SIZE;
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0IN_IX].ep,
+					   UDC_EP0IN_MAX_PKT_SIZE);
+		usb_ep_set_maxpacket_limit(&dev->ep[UDC_EP0OUT_IX].ep,
+					   UDC_EP0OUT_MAX_PKT_SIZE);
 	}
 
 	/*
@@ -3338,7 +3340,7 @@ static int udc_remote_wakeup(struct udc *dev)
 }
 
 /* PCI device parameters */
-static DEFINE_PCI_DEVICE_TABLE(pci_id) = {
+static const struct pci_device_id pci_id[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x2096),
 		.class =	(PCI_CLASS_SERIAL_USB << 8) | 0xfe,

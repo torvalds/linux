@@ -61,6 +61,7 @@ QUIET_SUBDIR1  =
 ifneq ($(findstring $(MAKEFLAGS),s),s)
   ifneq ($(V),1)
 	QUIET_CC       = @echo '  CC       '$@;
+	QUIET_CC_FPIC  = @echo '  CC FPIC  '$@;
 	QUIET_AR       = @echo '  AR       '$@;
 	QUIET_LINK     = @echo '  LINK     '$@;
 	QUIET_MKDIR    = @echo '  MKDIR    '$@;
@@ -76,5 +77,8 @@ ifneq ($(findstring $(MAKEFLAGS),s),s)
 		+@echo	       '  DESCEND  '$(1); \
 		mkdir -p $(OUTPUT)$(1) && \
 		$(MAKE) $(COMMAND_O) subdir=$(if $(subdir),$(subdir)/$(1),$(1)) $(PRINT_DIR) -C $(1) $(2)
+
+	QUIET_CLEAN    = @printf '  CLEAN    %s\n' $1;
+	QUIET_INSTALL  = @printf '  INSTALL  %s\n' $1;
   endif
 endif

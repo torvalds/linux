@@ -259,6 +259,9 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	*pos++ = WLAN_EID_MESH_CONFIG;
 	*pos++ = meshconf_len;
 
+	/* save a pointer for quick updates in pre-tbtt */
+	ifmsh->meshconf_offset = pos - skb->data;
+
 	/* Active path selection protocol ID */
 	*pos++ = ifmsh->mesh_pp_id;
 	/* Active path selection metric ID   */
@@ -674,8 +677,6 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	rcu_read_lock();
 	csa = rcu_dereference(ifmsh->csa);
 	if (csa) {
-		__le16 pre_value;
-
 		pos = skb_put(skb, 13);
 		memset(pos, 0, 13);
 		*pos++ = WLAN_EID_CHANNEL_SWITCH;
@@ -697,8 +698,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 			  WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT : 0x00;
 		put_unaligned_le16(WLAN_REASON_MESH_CHAN, pos);
 		pos += 2;
-		pre_value = cpu_to_le16(ifmsh->pre_value);
-		memcpy(pos, &pre_value, 2);
+		put_unaligned_le16(ifmsh->pre_value, pos);
 		pos += 2;
 	}
 	rcu_read_unlock();
@@ -726,6 +726,8 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 
 	bcn->tail_len = skb->len;
 	memcpy(bcn->tail, skb->data, bcn->tail_len);
+	bcn->meshconf = (struct ieee80211_meshconf_ie *)
+					(bcn->tail + ifmsh->meshconf_offset);
 
 	dev_kfree_skb(skb);
 	rcu_assign_pointer(ifmsh->beacon, bcn);
@@ -805,6 +807,7 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 		return -ENOMEM;
 	}
 
+	ieee80211_recalc_dtim(local, sdata);
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(sdata->dev);
@@ -964,7 +967,7 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_MAX_QUEUE_MAP,
 				IEEE80211_QUEUE_STOP_REASON_CSA);
 
-	sdata->local->csa_chandef = params.chandef;
+	sdata->csa_chandef = params.chandef;
 	sdata->vif.csa_active = true;
 
 	ieee80211_bss_info_change_notify(sdata, err);

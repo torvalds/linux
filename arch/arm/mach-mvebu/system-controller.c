@@ -27,6 +27,7 @@
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/reboot.h>
+#include "common.h"
 
 static void __iomem *system_controller_base;
 
@@ -39,14 +40,14 @@ struct mvebu_system_controller {
 };
 static struct mvebu_system_controller *mvebu_sc;
 
-const struct mvebu_system_controller armada_370_xp_system_controller = {
+static const struct mvebu_system_controller armada_370_xp_system_controller = {
 	.rstoutn_mask_offset = 0x60,
 	.system_soft_reset_offset = 0x64,
 	.rstoutn_mask_reset_out_en = 0x1,
 	.system_soft_reset = 0x1,
 };
 
-const struct mvebu_system_controller orion_system_controller = {
+static const struct mvebu_system_controller orion_system_controller = {
 	.rstoutn_mask_offset = 0x108,
 	.system_soft_reset_offset = 0x10c,
 	.rstoutn_mask_reset_out_en = 0x4,

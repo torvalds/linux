@@ -214,8 +214,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 				   struct machine *machine, bool mmap_data);
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
-				       struct machine *machine,
-				       const char *symbol_name);
+				       struct machine *machine);
 
 int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,
@@ -266,10 +265,20 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 				  const struct perf_sample *sample,
 				  bool swapped);
 
+int perf_event__synthesize_mmap_events(struct perf_tool *tool,
+				       union perf_event *event,
+				       pid_t pid, pid_t tgid,
+				       perf_event__handler_t process,
+				       struct machine *machine,
+				       bool mmap_data);
+
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_task(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, FILE *fp);
+
+u64 kallsyms__get_function_start(const char *kallsyms_filename,
+				 const char *symbol_name);
 
 #endif /* __PERF_RECORD_H */

@@ -91,6 +91,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_VERDE:
 	case CHIP_PITCAIRN:
 	case CHIP_ARUBA:
+	case CHIP_OLAND:
 		fw_name = FIRMWARE_TAHITI;
 		break;
 
@@ -473,7 +474,7 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 
-	if ((start >> 28) != (end >> 28)) {
+	if ((start >> 28) != ((end - 1) >> 28)) {
 		DRM_ERROR("reloc %LX-%LX crossing 256MB boundary!\n",
 			  start, end);
 		return -EINVAL;
@@ -778,6 +779,8 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work)
 
 	if (radeon_fence_count_emitted(rdev, R600_RING_TYPE_UVD_INDEX) == 0) {
 		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+			radeon_uvd_count_handles(rdev, &rdev->pm.dpm.sd,
+						 &rdev->pm.dpm.hd);
 			radeon_dpm_enable_uvd(rdev, false);
 		} else {
 			radeon_set_uvd_clocks(rdev, 0, 0);

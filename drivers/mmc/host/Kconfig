@@ -104,6 +104,18 @@ config MMC_SDHCI_PLTFM
 
 	  If unsure, say N.
 
+config MMC_SDHCI_OF_ARASAN
+	tristate "SDHCI OF support for the Arasan SDHCI controllers"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Arasan Secure Digital Host Controller Interface
+	  (SDHCI). This hardware is found e.g. in Xilinx' Zynq SoC.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_OF_ESDHC
 	tristate "SDHCI OF support for the Freescale eSDHC controller"
 	depends on MMC_SDHCI_PLTFM
@@ -324,7 +336,7 @@ config MMC_ATMELMCI
 
 config MMC_MSM
 	tristate "Qualcomm SDCC Controller Support"
-	depends on MMC && ARCH_MSM
+	depends on MMC && (ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50)
 	help
 	  This provides support for the SD/MMC cell found in the
 	  MSM and QSD SOCs from Qualcomm. The controller also has
@@ -479,7 +491,8 @@ config MMC_TMIO
 
 config MMC_SDHI
 	tristate "SH-Mobile SDHI SD/SDIO controller support"
-	depends on SUPERH || ARCH_SHMOBILE
+	depends on SUPERH || ARM
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	select MMC_TMIO_CORE
 	help
 	  This provides support for the SDHI SD/SDIO controller found in
@@ -575,6 +588,16 @@ config MMC_DW_SOCFPGA
 	  This selects support for Altera SoCFPGA specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver.
 
+config MMC_DW_K3
+	tristate "K3 specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	select MMC_DW_IDMAC
+	help
+	  This selects support for Hisilicon K3 SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on Hisilicon K3 SoC's.
+
 config MMC_DW_PCI
 	tristate "Synopsys Designware MCI support on PCI bus"
 	depends on MMC_DW && PCI
@@ -588,7 +611,8 @@ config MMC_DW_PCI
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
-	depends on MMC_BLOCK && (SUPERH || ARCH_SHMOBILE)
+	depends on MMC_BLOCK
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  This selects the MMC Host Interface controller (MMCIF).
 

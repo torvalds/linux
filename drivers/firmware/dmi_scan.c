@@ -116,7 +116,7 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
 {
 	u8 *buf;
 
-	buf = dmi_ioremap(dmi_base, dmi_len);
+	buf = dmi_early_remap(dmi_base, dmi_len);
 	if (buf == NULL)
 		return -1;
 
@@ -124,7 +124,7 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
 
 	add_device_randomness(buf, dmi_len);
 
-	dmi_iounmap(buf, dmi_len);
+	dmi_early_unmap(buf, dmi_len);
 	return 0;
 }
 
@@ -527,18 +527,18 @@ void __init dmi_scan_machine(void)
 		 * needed during early boot.  This also means we can
 		 * iounmap the space when we're done with it.
 		 */
-		p = dmi_ioremap(efi.smbios, 32);
+		p = dmi_early_remap(efi.smbios, 32);
 		if (p == NULL)
 			goto error;
 		memcpy_fromio(buf, p, 32);
-		dmi_iounmap(p, 32);
+		dmi_early_unmap(p, 32);
 
 		if (!dmi_present(buf)) {
 			dmi_available = 1;
 			goto out;
 		}
-	} else {
-		p = dmi_ioremap(0xF0000, 0x10000);
+	} else if (IS_ENABLED(CONFIG_DMI_SCAN_MACHINE_NON_EFI_FALLBACK)) {
+		p = dmi_early_remap(0xF0000, 0x10000);
 		if (p == NULL)
 			goto error;
 
@@ -554,12 +554,12 @@ void __init dmi_scan_machine(void)
 			memcpy_fromio(buf + 16, q, 16);
 			if (!dmi_present(buf)) {
 				dmi_available = 1;
-				dmi_iounmap(p, 0x10000);
+				dmi_early_unmap(p, 0x10000);
 				goto out;
 			}
 			memcpy(buf, buf + 16, 16);
 		}
-		dmi_iounmap(p, 0x10000);
+		dmi_early_unmap(p, 0x10000);
 	}
  error:
 	pr_info("DMI not present or invalid.\n");
@@ -831,13 +831,13 @@ int dmi_walk(void (*decode)(const struct dmi_header *, void *),
 	if (!dmi_available)
 		return -1;
 
-	buf = ioremap(dmi_base, dmi_len);
+	buf = dmi_remap(dmi_base, dmi_len);
 	if (buf == NULL)
 		return -1;
 
 	dmi_table(buf, dmi_len, dmi_num, decode, private_data);
 
-	iounmap(buf);
+	dmi_unmap(buf);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dmi_walk);

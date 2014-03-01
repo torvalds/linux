@@ -67,6 +67,48 @@ TRACE_EVENT(mm_compaction_migratepages,
 		__entry->nr_failed)
 );
 
+TRACE_EVENT(mm_compaction_begin,
+	TP_PROTO(unsigned long zone_start, unsigned long migrate_start,
+		unsigned long free_start, unsigned long zone_end),
+
+	TP_ARGS(zone_start, migrate_start, free_start, zone_end),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, zone_start)
+		__field(unsigned long, migrate_start)
+		__field(unsigned long, free_start)
+		__field(unsigned long, zone_end)
+	),
+
+	TP_fast_assign(
+		__entry->zone_start = zone_start;
+		__entry->migrate_start = migrate_start;
+		__entry->free_start = free_start;
+		__entry->zone_end = zone_end;
+	),
+
+	TP_printk("zone_start=%lu migrate_start=%lu free_start=%lu zone_end=%lu",
+		__entry->zone_start,
+		__entry->migrate_start,
+		__entry->free_start,
+		__entry->zone_end)
+);
+
+TRACE_EVENT(mm_compaction_end,
+	TP_PROTO(int status),
+
+	TP_ARGS(status),
+
+	TP_STRUCT__entry(
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->status = status;
+	),
+
+	TP_printk("status=%d", __entry->status)
+);
 
 #endif /* _TRACE_COMPACTION_H */
 

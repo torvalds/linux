@@ -36,8 +36,7 @@
 #include <linux/suspend.h>
 #include <asm/unaligned.h>
 
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/power_supply.h>
 
 #define PREFIX "ACPI: "
@@ -62,6 +61,7 @@ MODULE_AUTHOR("Alexey Starikovskiy <astarikovskiy@suse.de>");
 MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
+static int battery_bix_broken_package;
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
@@ -416,7 +416,12 @@ static int acpi_battery_get_info(struct acpi_battery *battery)
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating %s", name));
 		return -ENODEV;
 	}
-	if (test_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags))
+
+	if (battery_bix_broken_package)
+		result = extract_package(battery, buffer.pointer,
+				extended_info_offsets + 1,
+				ARRAY_SIZE(extended_info_offsets) - 1);
+	else if (test_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags))
 		result = extract_package(battery, buffer.pointer,
 				extended_info_offsets,
 				ARRAY_SIZE(extended_info_offsets));
@@ -544,7 +549,7 @@ static ssize_t acpi_battery_alarm_store(struct device *dev,
 {
 	unsigned long x;
 	struct acpi_battery *battery = to_acpi_battery(dev_get_drvdata(dev));
-	if (sscanf(buf, "%ld\n", &x) == 1)
+	if (sscanf(buf, "%lu\n", &x) == 1)
 		battery->alarm = x/1000;
 	if (acpi_battery_present(battery))
 		acpi_battery_set_alarm(battery);
@@ -754,6 +759,17 @@ static int battery_notify(struct notifier_block *nb,
 	return 0;
 }
 
+static struct dmi_system_id bat_dmi_table[] = {
+	{
+		.ident = "NEC LZ750/LS",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PC-LZ750LS"),
+		},
+	},
+	{},
+};
+
 static int acpi_battery_add(struct acpi_device *device)
 {
 	int result = 0;
@@ -825,6 +841,8 @@ static int acpi_battery_resume(struct device *dev)
 	acpi_battery_update(battery);
 	return 0;
 }
+#else
+#define acpi_battery_resume NULL
 #endif
 
 static SIMPLE_DEV_PM_OPS(acpi_battery_pm, NULL, acpi_battery_resume);
@@ -846,6 +864,9 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 {
 	if (acpi_disabled)
 		return;
+
+	if (dmi_check_system(bat_dmi_table))
+		battery_bix_broken_package = 1;
 	acpi_bus_register_driver(&acpi_battery_driver);
 }
 

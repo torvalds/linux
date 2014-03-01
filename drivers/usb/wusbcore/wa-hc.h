@@ -36,7 +36,7 @@
  *
  *  hcd        glue with the USB API Host Controller Interface API.
  *
- *  nep        Notification EndPoint managent: collect notifications
+ *  nep        Notification EndPoint management: collect notifications
  *             and queue them with the workqueue daemon.
  *
  *             Handle notifications as coming from the NEP. Sends them
@@ -144,7 +144,7 @@ enum wa_quirks {
  *
  * @wa_descr  Can be accessed without locking because it is in
  *            the same area where the device descriptors were
- *            read, so it is guaranteed to exist umodified while
+ *            read, so it is guaranteed to exist unmodified while
  *            the device exists.
  *
  *            Endianess has been converted to CPU's.
@@ -167,8 +167,8 @@ enum wa_quirks {
  *                       submitted from an atomic context).
  *
  * FIXME: this needs to be layered up: a wusbhc layer (for sharing
- *        comonalities with WHCI), a wa layer (for sharing
- *        comonalities with DWA-RC).
+ *        commonalities with WHCI), a wa layer (for sharing
+ *        commonalities with DWA-RC).
  */
 struct wahc {
 	struct usb_device *usb_dev;
@@ -197,10 +197,10 @@ struct wahc {
 	struct mutex rpipe_mutex;	/* assigning resources to endpoints */
 
 	/*
-	 * dti_state is used to track the state of the dti_urb.  When dti_state
+	 * dti_state is used to track the state of the dti_urb. When dti_state
 	 * is WA_DTI_ISOC_PACKET_STATUS_PENDING, dti_isoc_xfer_in_progress and
-	 * dti_isoc_xfer_seg identify which xfer the incoming isoc packet status
-	 * refers to.
+	 * dti_isoc_xfer_seg identify which xfer the incoming isoc packet
+	 * status refers to.
 	 */
 	enum wa_dti_state dti_state;
 	u32 dti_isoc_xfer_in_progress;
@@ -211,7 +211,7 @@ struct wahc {
 	void *dti_buf;
 	size_t dti_buf_size;
 
-	unsigned long dto_in_use;	/* protect dto endoint serialization. */
+	unsigned long dto_in_use;	/* protect dto endoint serialization */
 
 	s32 status;			/* For reading status */
 
@@ -332,7 +332,7 @@ static inline int rpipe_avail_inc(struct wa_rpipe *rpipe)
 /* Transferring data */
 extern int wa_urb_enqueue(struct wahc *, struct usb_host_endpoint *,
 			  struct urb *, gfp_t);
-extern int wa_urb_dequeue(struct wahc *, struct urb *);
+extern int wa_urb_dequeue(struct wahc *, struct urb *, int);
 extern void wa_handle_notif_xfer(struct wahc *, struct wa_notif_hdr *);
 
 
@@ -345,7 +345,7 @@ extern void wa_handle_notif_xfer(struct wahc *, struct wa_notif_hdr *);
  *        it...no RC specific function is called...unless I miss
  *        something.
  *
- * FIXME: has to go away in favour of an 'struct' hcd based sollution
+ * FIXME: has to go away in favour of a 'struct' hcd based solution
  */
 static inline struct wahc *wa_get(struct wahc *wa)
 {
@@ -366,7 +366,7 @@ static inline int __wa_feature(struct wahc *wa, unsigned op, u16 feature)
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			feature,
 			wa->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-			NULL, 0, 1000 /* FIXME: arbitrary */);
+			NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 
@@ -400,8 +400,7 @@ s32 __wa_get_status(struct wahc *wa)
 		USB_REQ_GET_STATUS,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0, wa->usb_iface->cur_altsetting->desc.bInterfaceNumber,
-		&wa->status, sizeof(wa->status),
-		1000 /* FIXME: arbitrary */);
+		&wa->status, sizeof(wa->status), USB_CTRL_GET_TIMEOUT);
 	if (result >= 0)
 		result = wa->status;
 	return result;

@@ -261,20 +261,18 @@ static inline unsigned long brk_rnd(void)
 
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
-	unsigned long ret = PAGE_ALIGN(mm->brk + brk_rnd());
+	unsigned long ret;
 
-	if (ret < mm->brk)
-		return mm->brk;
-	return ret;
+	ret = PAGE_ALIGN(mm->brk + brk_rnd());
+	return (ret > mm->brk) ? ret : mm->brk;
 }
 
 unsigned long randomize_et_dyn(unsigned long base)
 {
-	unsigned long ret = PAGE_ALIGN(base + brk_rnd());
+	unsigned long ret;
 
 	if (!(current->flags & PF_RANDOMIZE))
 		return base;
-	if (ret < base)
-		return base;
-	return ret;
+	ret = PAGE_ALIGN(base + brk_rnd());
+	return (ret > base) ? ret : base;
 }

@@ -3593,6 +3593,13 @@ out:
 	return rc;
 }
 
+/* Returns zero if the command is successfully "consumed" */
+static int qeth_l3_control_event(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd)
+{
+	return 1;
+}
+
 struct qeth_discipline qeth_l3_discipline = {
 	.start_poll = qeth_qdio_start_poll,
 	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
@@ -3606,6 +3613,7 @@ struct qeth_discipline qeth_l3_discipline = {
 	.freeze = qeth_l3_pm_suspend,
 	.thaw = qeth_l3_pm_resume,
 	.restore = qeth_l3_pm_resume,
+	.control_event_handler = qeth_l3_control_event,
 };
 EXPORT_SYMBOL_GPL(qeth_l3_discipline);
 

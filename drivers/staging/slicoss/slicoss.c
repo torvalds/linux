@@ -136,7 +136,7 @@ MODULE_PARM_DESC(dynamic_intagg, "Dynamic Interrupt Aggregation Setting");
 module_param(intagg_delay, int, 0);
 MODULE_PARM_DESC(intagg_delay, "uSec Interrupt Aggregation Delay");
 
-static DEFINE_PCI_DEVICE_TABLE(slic_pci_tbl) = {
+static const struct pci_device_id slic_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_1GB_DEVICE_ID) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_2GB_DEVICE_ID) },
 	{ 0 }
@@ -595,15 +595,12 @@ static void slic_adapter_set_hwaddr(struct adapter *adapter)
 		memcpy(adapter->macaddr,
 		       card->config.MacInfo[adapter->functionnumber].macaddrA,
 		       sizeof(struct slic_config_mac));
-		if (!(adapter->currmacaddr[0] || adapter->currmacaddr[1] ||
-		      adapter->currmacaddr[2] || adapter->currmacaddr[3] ||
-		      adapter->currmacaddr[4] || adapter->currmacaddr[5])) {
-			memcpy(adapter->currmacaddr, adapter->macaddr, 6);
-		}
-		if (adapter->netdev) {
+		if (is_zero_ether_addr(adapter->currmacaddr))
+			memcpy(adapter->currmacaddr, adapter->macaddr,
+			       ETH_ALEN);
+		if (adapter->netdev)
 			memcpy(adapter->netdev->dev_addr, adapter->currmacaddr,
-			       6);
-		}
+			       ETH_ALEN);
 	}
 }
 
@@ -767,13 +764,11 @@ static bool slic_mac_filter(struct adapter *adapter,
 {
 	struct net_device *netdev = adapter->netdev;
 	u32 opts = adapter->macopts;
-	u32 *dhost4 = (u32 *)&ether_frame->ether_dhost[0];
-	u16 *dhost2 = (u16 *)&ether_frame->ether_dhost[4];
 
 	if (opts & MAC_PROMISC)
 		return true;
 
-	if ((*dhost4 == 0xFFFFFFFF) && (*dhost2 == 0xFFFF)) {
+	if (is_broadcast_ether_addr(ether_frame->ether_dhost)) {
 		if (opts & MAC_BCAST) {
 			adapter->rcv_broadcasts++;
 			return true;
@@ -782,7 +777,7 @@ static bool slic_mac_filter(struct adapter *adapter,
 		}
 	}
 
-	if (ether_frame->ether_dhost[0] & 0x01) {
+	if (is_multicast_ether_addr(ether_frame->ether_dhost)) {
 		if (opts & MAC_ALLMCAST) {
 			adapter->rcv_multicasts++;
 			netdev->stats.multicast++;
@@ -2335,7 +2330,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	if (mcaddr == NULL)
 		return 1;
 
-	memcpy(mcaddr->address, address, 6);
+	memcpy(mcaddr->address, address, ETH_ALEN);
 
 	mcaddr->next = adapter->mcastaddrs;
 	adapter->mcastaddrs = mcaddr;

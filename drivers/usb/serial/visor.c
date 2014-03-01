@@ -16,7 +16,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -51,7 +50,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 static int palm_os_4_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_3_probe },
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_TREO_ID),
@@ -113,18 +112,18 @@ static struct usb_device_id id_table [] = {
 	{ }					/* Terminating entry */
 };
 
-static struct usb_device_id clie_id_5_table [] = {
+static const struct usb_device_id clie_id_5_table[] = {
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_UX50_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ }					/* Terminating entry */
 };
 
-static struct usb_device_id clie_id_3_5_table [] = {
+static const struct usb_device_id clie_id_3_5_table[] = {
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_3_5_ID) },
 	{ }					/* Terminating entry */
 };
 
-static struct usb_device_id id_table_combined [] = {
+static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID) },
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_TREO_ID) },
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_TREO600_ID) },
@@ -324,11 +323,8 @@ static int palm_os_3_probe(struct usb_serial *serial,
 	int num_ports = 0;
 
 	transfer_buffer = kmalloc(sizeof(*connection_info), GFP_KERNEL);
-	if (!transfer_buffer) {
-		dev_err(dev, "%s - kmalloc(%Zd) failed.\n", __func__,
-			sizeof(*connection_info));
+	if (!transfer_buffer)
 		return -ENOMEM;
-	}
 
 	/* send a get connection info request */
 	retval = usb_control_msg(serial->dev,
@@ -419,11 +415,8 @@ static int palm_os_4_probe(struct usb_serial *serial,
 	int retval;
 
 	transfer_buffer =  kmalloc(sizeof(*connection_info), GFP_KERNEL);
-	if (!transfer_buffer) {
-		dev_err(dev, "%s - kmalloc(%Zd) failed.\n", __func__,
-			sizeof(*connection_info));
+	if (!transfer_buffer)
 		return -ENOMEM;
-	}
 
 	retval = usb_control_msg(serial->dev,
 				  usb_rcvctrlpipe(serial->dev, 0),

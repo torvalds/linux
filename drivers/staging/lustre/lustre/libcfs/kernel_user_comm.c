@@ -193,7 +193,7 @@ EXPORT_SYMBOL(libcfs_kkuc_msg_put);
 /* Broadcast groups are global across all mounted filesystems;
  * i.e. registering for a group on 1 fs will get messages for that
  * group from any fs */
-/** A single group reigstration has a uid and a file pointer */
+/** A single group registration has a uid and a file pointer */
 struct kkuc_reg {
 	struct list_head	kr_chain;
 	int		kr_uid;
@@ -206,7 +206,7 @@ static DECLARE_RWSEM(kg_sem);
 
 /** Add a receiver to a broadcast group
  * @param filp pipe to write into
- * @param uid identidier for this receiver
+ * @param uid identifier for this receiver
  * @param group group number
  */
 int libcfs_kkuc_group_add(struct file *filp, int uid, int group, __u32 data)
@@ -330,9 +330,8 @@ int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 
 	down_read(&kg_sem);
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
-		if (reg->kr_fp != NULL) {
+		if (reg->kr_fp != NULL)
 			rc = cb_func(reg->kr_data, cb_arg);
-		}
 	}
 	up_read(&kg_sem);
 

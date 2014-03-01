@@ -204,7 +204,7 @@ ReadEFuseByte(
 	/*  This fix the problem that Efuse read error in high temperature condition. */
 	/*  Designer says that there shall be some delay after ready bit is set, or the */
 	/*  result will always stay on last data we read. */
-	rtw_udelay_os(50);
+	udelay(50);
 	value32 = rtw_read32(Adapter, EFUSE_CTRL);
 
 	*pbuf = (u8)(value32 & 0xff);

@@ -130,6 +130,7 @@ static int ohci_hcd_omap3_probe(struct platform_device *pdev)
 		dev_dbg(dev, "failed to add hcd with err %d\n", ret);
 		goto err_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 

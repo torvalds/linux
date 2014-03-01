@@ -1,0 +1,84 @@
+/*
+ * at91-cosino_mega2560.dts - Device Tree file for Cosino board with
+ *			      Mega 2560 extension
+ *
+ * Copyright (C) 2013 - Rodolfo Giometti <giometti@linux.it>
+ *			HCE Engineering
+ *
+ * Derived from at91sam9g35ek.dts by:
+ * 	Copyright (C) 2012 Atmel,
+ *      2012 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+
+/dts-v1/;
+#include "at91-cosino.dtsi"
+
+/ {
+	model = "HCE Cosino Mega 2560";
+	compatible = "hce,cosino_mega2560", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	ahb {
+		apb {
+			macb0: ethernet@f802c000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			adc0: adc@f804c000 {
+				atmel,adc-clock-rate = <1000000>;
+				atmel,adc-ts-wires = <4>;
+				atmel,adc-ts-pressure-threshold = <10000>;
+				status = "okay";
+			};
+
+
+			tsadcc: tsadcc@f804c000 {
+				status = "okay";
+			};
+
+			rtc@fffffeb0 {
+				status = "okay";
+			};
+
+			usart1: serial@f8020000 {
+				status = "okay";
+			};
+
+			usart2: serial@f8024000 {
+				status = "okay";
+			};
+
+			usb2: gadget@f803c000 {
+				atmel,vbus-gpio = <&pioB 16 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
+			mmc1: mmc@f000c000 {
+				pinctrl-0 = <
+					&pinctrl_mmc1_slot0_clk_cmd_dat0
+					&pinctrl_mmc1_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					non-removable;
+				};
+			};
+		};
+
+		usb0: ohci@00600000 {
+			status = "okay";
+			num-ports = <3>;
+			atmel,vbus-gpio = <0 /* &pioD 18 GPIO_ACTIVE_LOW */
+					   &pioD 19 GPIO_ACTIVE_LOW
+					   &pioD 20 GPIO_ACTIVE_LOW
+					  >;
+		};
+
+		usb1: ehci@00700000 {
+			status = "okay";
+		};
+	};
+};

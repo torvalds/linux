@@ -522,10 +522,10 @@ brcmf_usb_state_change(struct brcmf_usbdev_info *devinfo, int state)
 	/* update state of upper layer */
 	if (state == BRCMFMAC_USB_STATE_DOWN) {
 		brcmf_dbg(USB, "DBUS is down\n");
-		bcmf_bus->state = BRCMF_BUS_DOWN;
+		brcmf_bus_change_state(bcmf_bus, BRCMF_BUS_DOWN);
 	} else if (state == BRCMFMAC_USB_STATE_UP) {
 		brcmf_dbg(USB, "DBUS is up\n");
-		bcmf_bus->state = BRCMF_BUS_DATA;
+		brcmf_bus_change_state(bcmf_bus, BRCMF_BUS_DATA);
 	} else {
 		brcmf_dbg(USB, "DBUS current state=%d\n", state);
 	}
@@ -1253,9 +1253,10 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	bus->ops = &brcmf_usb_bus_ops;
 	bus->chip = bus_pub->devid;
 	bus->chiprev = bus_pub->chiprev;
+	bus->proto_type = BRCMF_PROTO_BCDC;
 
 	/* Attach to the common driver interface */
-	ret = brcmf_attach(0, dev);
+	ret = brcmf_attach(dev);
 	if (ret) {
 		brcmf_err("brcmf_attach failed\n");
 		goto fail;
@@ -1454,7 +1455,7 @@ static int brcmf_usb_resume(struct usb_interface *intf)
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(&usb->dev);
 
 	brcmf_dbg(USB, "Enter\n");
-	if (!brcmf_attach(0, devinfo->dev))
+	if (!brcmf_attach(devinfo->dev))
 		return brcmf_bus_start(&usb->dev);
 
 	return 0;

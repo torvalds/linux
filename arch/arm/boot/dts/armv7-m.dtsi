@@ -1,0 +1,18 @@
+#include "skeleton.dtsi"
+
+/ {
+	nvic: nv-interrupt-controller  {
+		compatible = "arm,armv7m-nvic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0xe000e100 0xc00>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&nvic>;
+		ranges;
+	};
+};

@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/isapnp.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -77,6 +76,8 @@ static unsigned char version[] = "ax88796.c: Copyright 2005,2007 Simtec Electron
 #define NESM_STOP_PG	0x80	/* Last page +1 of RX ring */
 
 #define AX_GPOC_PPDSET	BIT(6)
+
+static u32 ax_msg_enable;
 
 /* device private data */
 
@@ -147,8 +148,7 @@ static void ax_reset_8390(struct net_device *dev)
 	unsigned long reset_start_time = jiffies;
 	void __iomem *addr = (void __iomem *)dev->base_addr;
 
-	if (ei_debug > 1)
-		netdev_dbg(dev, "resetting the 8390 t=%ld\n", jiffies);
+	netif_dbg(ei_local, hw, dev, "resetting the 8390 t=%ld...\n", jiffies);
 
 	ei_outb(ei_inb(addr + NE_RESET), addr + NE_RESET);
 
@@ -496,12 +496,28 @@ static int ax_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return phy_ethtool_sset(phy_dev, cmd);
 }
 
+static u32 ax_get_msglevel(struct net_device *dev)
+{
+	struct ei_device *ei_local = netdev_priv(dev);
+
+	return ei_local->msg_enable;
+}
+
+static void ax_set_msglevel(struct net_device *dev, u32 v)
+{
+	struct ei_device *ei_local = netdev_priv(dev);
+
+	ei_local->msg_enable = v;
+}
+
 static const struct ethtool_ops ax_ethtool_ops = {
 	.get_drvinfo		= ax_get_drvinfo,
 	.get_settings		= ax_get_settings,
 	.set_settings		= ax_set_settings,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_msglevel		= ax_get_msglevel,
+	.set_msglevel		= ax_set_msglevel,
 };
 
 #ifdef CONFIG_AX88796_93CX6
@@ -763,6 +779,7 @@ static int ax_init_dev(struct net_device *dev)
 	ei_local->block_output = &ax_block_output;
 	ei_local->get_8390_hdr = &ax_get_8390_hdr;
 	ei_local->priv = 0;
+	ei_local->msg_enable = ax_msg_enable;
 
 	dev->netdev_ops = &ax_netdev_ops;
 	dev->ethtool_ops = &ax_ethtool_ops;

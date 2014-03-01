@@ -225,7 +225,7 @@ struct bitmap {
 	wait_queue_head_t overflow_wait;
 	wait_queue_head_t behind_wait;
 
-	struct sysfs_dirent *sysfs_can_clear;
+	struct kernfs_node *sysfs_can_clear;
 };
 
 /* the bitmap API */

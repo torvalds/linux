@@ -22,6 +22,10 @@ Required properties:
 Optional properties:
  - clocks : as described in the clock bindings
  - clock-names : as described in the clock bindings
+ - fclk-enable : Bit mask to enable FCLKs statically at boot time.
+		 Bit [0..3] correspond to FCLK0..FCLK3. The corresponding
+		 FCLK will only be enabled if it is actually running at
+		 boot time.
 
 Clock inputs:
 The following strings are optional parameters to the 'clock-names' property in

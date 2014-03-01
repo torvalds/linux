@@ -286,8 +286,8 @@ do {									\
  * wait_event_cmd - sleep until a condition gets true
  * @wq: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
- * cmd1: the command will be executed before sleep
- * cmd2: the command will be executed after sleep
+ * @cmd1: the command will be executed before sleep
+ * @cmd2: the command will be executed after sleep
  *
  * The process is put to sleep (TASK_UNINTERRUPTIBLE) until the
  * @condition evaluates to true. The @condition is checked each time

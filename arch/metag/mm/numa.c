@@ -42,7 +42,8 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 	memblock_add(start, end - start);
 
 	memblock_set_node(PFN_PHYS(start_pfn),
-			  PFN_PHYS(end_pfn - start_pfn), nid);
+			  PFN_PHYS(end_pfn - start_pfn),
+			  &memblock.memory, nid);
 
 	/* Node-local pgdat */
 	pgdat_paddr = memblock_alloc_base(sizeof(struct pglist_data),

@@ -85,8 +85,9 @@ static int protected_save_fp_context32(struct sigcontext32 __user *sc)
 	int err;
 	while (1) {
 		lock_fpu_owner();
-		own_fpu_inatomic(1);
-		err = save_fp_context32(sc); /* this might fail */
+		err = own_fpu_inatomic(1);
+		if (!err)
+			err = save_fp_context32(sc); /* this might fail */
 		unlock_fpu_owner();
 		if (likely(!err))
 			break;
@@ -105,8 +106,9 @@ static int protected_restore_fp_context32(struct sigcontext32 __user *sc)
 	int err, tmp __maybe_unused;
 	while (1) {
 		lock_fpu_owner();
-		own_fpu_inatomic(0);
-		err = restore_fp_context32(sc); /* this might fail */
+		err = own_fpu_inatomic(0);
+		if (!err)
+			err = restore_fp_context32(sc); /* this might fail */
 		unlock_fpu_owner();
 		if (likely(!err))
 			break;

@@ -18,13 +18,13 @@
 #define GH_
 #include <dspbridge/host_os.h>
 
-extern struct gh_t_hash_tab *gh_create(u16 max_bucket, u16 val_size,
-				       u16(*hash) (void *, u16),
-				       bool(*match) (void *, void *),
-				       void (*delete) (void *));
+extern struct gh_t_hash_tab *gh_create(u32 val_size,
+	u32 (*hash)(const void *), bool (*match)(const void *,
+	const void *), void (*delete) (void *));
 extern void gh_delete(struct gh_t_hash_tab *hash_tab);
-extern void *gh_find(struct gh_t_hash_tab *hash_tab, void *key);
-extern void *gh_insert(struct gh_t_hash_tab *hash_tab, void *key, void *value);
+extern void *gh_find(struct gh_t_hash_tab *hash_tab, const void *key);
+extern void *gh_insert(struct gh_t_hash_tab *hash_tab, const void *key,
+		       const void *value);
 #ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 void gh_iterate(struct gh_t_hash_tab *hash_tab,
 	void (*callback)(void *, void *), void *user_data);

@@ -111,8 +111,6 @@ static inline const char *acpi_get_sysname (void)
 	return "uv";
 # elif defined (CONFIG_IA64_DIG)
 	return "dig";
-# elif defined (CONFIG_IA64_XEN_GUEST)
-	return "xen";
 # elif defined(CONFIG_IA64_DIG_VTD)
 	return "dig_vtd";
 # else

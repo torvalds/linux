@@ -550,6 +550,24 @@
 				big-endian-regs;
 			};
 		};
+
+		usbn: usbn@1180068000000 {
+			compatible = "cavium,octeon-5750-usbn";
+			reg = <0x11800 0x68000000 0x0 0x1000>;
+			ranges; /* Direct mapping */
+			#address-cells = <2>;
+			#size-cells = <2>;
+			/* 12MHz, 24MHz and 48MHz allowed */
+			refclk-frequency = <12000000>;
+			/* Either "crystal" or "external" */
+			refclk-type = "crystal";
+
+			usbc@16f0010000000 {
+				compatible = "cavium,octeon-5750-usbc";
+				reg = <0x16f00 0x10000000 0x0 0x80000>;
+				interrupts = <0 56>;
+			};
+		};
 	};
 
 	aliases {
@@ -566,6 +584,7 @@
 		flash0 = &flash0;
 		cf0 = &cf0;
 		uctl = &uctl;
+		usbn = &usbn;
 		led0 = &led0;
 	};
  };

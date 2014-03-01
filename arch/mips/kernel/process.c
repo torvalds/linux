@@ -60,15 +60,11 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 
 	/* New thread loses kernel privileges. */
 	status = regs->cp0_status & ~(ST0_CU0|ST0_CU1|ST0_FR|KU_MASK);
-#ifdef CONFIG_64BIT
-	status |= test_thread_flag(TIF_32BIT_REGS) ? 0 : ST0_FR;
-#endif
 	status |= KU_USER;
 	regs->cp0_status = status;
 	clear_used_math();
 	clear_fpu_owner();
-	if (cpu_has_dsp)
-		__init_dsp();
+	init_dsp();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
 }

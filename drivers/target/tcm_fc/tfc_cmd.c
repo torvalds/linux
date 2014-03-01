@@ -438,7 +438,7 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	struct se_session *se_sess = sess->se_sess;
 	int tag;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
 	if (tag < 0)
 		goto busy;
 

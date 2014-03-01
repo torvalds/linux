@@ -110,11 +110,13 @@ enum nft_table_flags {
  *
  * @NFTA_TABLE_NAME: name of the table (NLA_STRING)
  * @NFTA_TABLE_FLAGS: bitmask of enum nft_table_flags (NLA_U32)
+ * @NFTA_TABLE_USE: number of chains in this table (NLA_U32)
  */
 enum nft_table_attributes {
 	NFTA_TABLE_UNSPEC,
 	NFTA_TABLE_NAME,
 	NFTA_TABLE_FLAGS,
+	NFTA_TABLE_USE,
 	__NFTA_TABLE_MAX
 };
 #define NFTA_TABLE_MAX		(__NFTA_TABLE_MAX - 1)
@@ -529,6 +531,8 @@ enum nft_exthdr_attributes {
  * @NFT_META_NFTRACE: packet nftrace bit
  * @NFT_META_RTCLASSID: realm value of packet's route (skb->dst->tclassid)
  * @NFT_META_SECMARK: packet secmark (skb->secmark)
+ * @NFT_META_NFPROTO: netfilter protocol
+ * @NFT_META_L4PROTO: layer 4 protocol number
  */
 enum nft_meta_keys {
 	NFT_META_LEN,
@@ -546,6 +550,8 @@ enum nft_meta_keys {
 	NFT_META_NFTRACE,
 	NFT_META_RTCLASSID,
 	NFT_META_SECMARK,
+	NFT_META_NFPROTO,
+	NFT_META_L4PROTO,
 };
 
 /**
@@ -553,11 +559,13 @@ enum nft_meta_keys {
  *
  * @NFTA_META_DREG: destination register (NLA_U32)
  * @NFTA_META_KEY: meta data item to load (NLA_U32: nft_meta_keys)
+ * @NFTA_META_SREG: source register (NLA_U32)
  */
 enum nft_meta_attributes {
 	NFTA_META_UNSPEC,
 	NFTA_META_DREG,
 	NFTA_META_KEY,
+	NFTA_META_SREG,
 	__NFTA_META_MAX
 };
 #define NFTA_META_MAX		(__NFTA_META_MAX - 1)
@@ -601,12 +609,14 @@ enum nft_ct_keys {
  * @NFTA_CT_DREG: destination register (NLA_U32)
  * @NFTA_CT_KEY: conntrack data item to load (NLA_U32: nft_ct_keys)
  * @NFTA_CT_DIRECTION: direction in case of directional keys (NLA_U8)
+ * @NFTA_CT_SREG: source register (NLA_U32)
  */
 enum nft_ct_attributes {
 	NFTA_CT_UNSPEC,
 	NFTA_CT_DREG,
 	NFTA_CT_KEY,
 	NFTA_CT_DIRECTION,
+	NFTA_CT_SREG,
 	__NFTA_CT_MAX
 };
 #define NFTA_CT_MAX		(__NFTA_CT_MAX - 1)
@@ -656,6 +666,26 @@ enum nft_log_attributes {
 	__NFTA_LOG_MAX
 };
 #define NFTA_LOG_MAX		(__NFTA_LOG_MAX - 1)
+
+/**
+ * enum nft_queue_attributes - nf_tables queue expression netlink attributes
+ *
+ * @NFTA_QUEUE_NUM: netlink queue to send messages to (NLA_U16)
+ * @NFTA_QUEUE_TOTAL: number of queues to load balance packets on (NLA_U16)
+ * @NFTA_QUEUE_FLAGS: various flags (NLA_U16)
+ */
+enum nft_queue_attributes {
+	NFTA_QUEUE_UNSPEC,
+	NFTA_QUEUE_NUM,
+	NFTA_QUEUE_TOTAL,
+	NFTA_QUEUE_FLAGS,
+	__NFTA_QUEUE_MAX
+};
+#define NFTA_QUEUE_MAX		(__NFTA_QUEUE_MAX - 1)
+
+#define NFT_QUEUE_FLAG_BYPASS		0x01 /* for compatibility with v2 */
+#define NFT_QUEUE_FLAG_CPU_FANOUT	0x02 /* use current CPU (no hashing) */
+#define NFT_QUEUE_FLAG_MASK		0x03
 
 /**
  * enum nft_reject_types - nf_tables reject expression reject types

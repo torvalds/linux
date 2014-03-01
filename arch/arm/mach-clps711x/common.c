@@ -259,7 +259,7 @@ asmlinkage void __exception_irq_entry clps711x_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
-static u32 notrace clps711x_sched_clock_read(void)
+static u64 notrace clps711x_sched_clock_read(void)
 {
 	return ~readw_relaxed(CLPS711X_VIRT_BASE + TC1D);
 }
@@ -366,7 +366,7 @@ void __init clps711x_timer_init(void)
 	tmp = clps_readl(SYSCON1) & ~(SYSCON1_TC1S | SYSCON1_TC1M);
 	clps_writel(tmp, SYSCON1);
 
-	setup_sched_clock(clps711x_sched_clock_read, 16, timl);
+	sched_clock_register(clps711x_sched_clock_read, 16, timl);
 
 	clocksource_mmio_init(CLPS711X_VIRT_BASE + TC1D,
 			      "clps711x_clocksource", timl, 300, 16,

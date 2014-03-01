@@ -93,6 +93,7 @@ struct gfs2_rgrpd {
 	struct gfs2_rgrp_lvb *rd_rgl;
 	u32 rd_last_alloc;
 	u32 rd_flags;
+	u32 rd_extfail_pt;		/* extent failure point */
 #define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
 #define GFS2_RDF_UPTODATE	0x20000000 /* rg is up to date */
 #define GFS2_RDF_ERROR		0x40000000 /* error in rg */
@@ -217,7 +218,7 @@ struct gfs2_glock_operations {
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
-	int (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
+	void (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
 	const int go_type;
 	const unsigned long go_flags;
@@ -350,7 +351,15 @@ struct gfs2_glock {
 	atomic_t gl_ail_count;
 	atomic_t gl_revokes;
 	struct delayed_work gl_work;
-	struct work_struct gl_delete;
+	union {
+		/* For inode and iopen glocks only */
+		struct work_struct gl_delete;
+		/* For rgrp glocks only */
+		struct {
+			loff_t start;
+			loff_t end;
+		} gl_vm;
+	};
 	struct rcu_head gl_rcu;
 };
 
@@ -419,10 +428,13 @@ enum {
 };
 
 struct gfs2_quota_data {
+	struct hlist_bl_node qd_hlist;
 	struct list_head qd_list;
 	struct kqid qd_id;
+	struct gfs2_sbd *qd_sbd;
 	struct lockref qd_lockref;
 	struct list_head qd_lru;
+	unsigned qd_hash;
 
 	unsigned long qd_flags;		/* QDF_... */
 
@@ -441,6 +453,7 @@ struct gfs2_quota_data {
 
 	u64 qd_sync_gen;
 	unsigned long qd_last_warn;
+	struct rcu_head qd_rcu;
 };
 
 struct gfs2_trans {
@@ -720,12 +733,14 @@ struct gfs2_sbd {
 	spinlock_t sd_trunc_lock;
 
 	unsigned int sd_quota_slots;
-	unsigned int sd_quota_chunks;
-	unsigned char **sd_quota_bitmap;
+	unsigned long *sd_quota_bitmap;
+	spinlock_t sd_bitmap_lock;
 
 	u64 sd_quota_sync_gen;
 
 	/* Log stuff */
+
+	struct address_space sd_aspace;
 
 	spinlock_t sd_log_lock;
 

@@ -90,7 +90,8 @@ struct eeh_pe {
 #define EEH_DEV_IRQ_DISABLED	(1 << 3)	/* Interrupt disabled	*/
 #define EEH_DEV_DISCONNECTED	(1 << 4)	/* Removing from PE	*/
 
-#define EEH_DEV_SYSFS		(1 << 8)	/* Sysfs created        */
+#define EEH_DEV_NO_HANDLER	(1 << 8)	/* No error handler	*/
+#define EEH_DEV_SYSFS		(1 << 9)	/* Sysfs created	*/
 
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
@@ -116,6 +117,16 @@ static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
 {
 	return edev ? edev->pdev : NULL;
 }
+
+/* Return values from eeh_ops::next_error */
+enum {
+	EEH_NEXT_ERR_NONE = 0,
+	EEH_NEXT_ERR_INF,
+	EEH_NEXT_ERR_FROZEN_PE,
+	EEH_NEXT_ERR_FENCED_PHB,
+	EEH_NEXT_ERR_DEAD_PHB,
+	EEH_NEXT_ERR_DEAD_IOC
+};
 
 /*
  * The struct is used to trace the registered EEH operation
@@ -157,12 +168,23 @@ struct eeh_ops {
 	int (*read_config)(struct device_node *dn, int where, int size, u32 *val);
 	int (*write_config)(struct device_node *dn, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
+	int (*restore_config)(struct device_node *dn);
 };
 
 extern struct eeh_ops *eeh_ops;
-extern int eeh_subsystem_enabled;
+extern bool eeh_subsystem_enabled;
 extern raw_spinlock_t confirm_error_lock;
 extern int eeh_probe_mode;
+
+static inline bool eeh_enabled(void)
+{
+	return eeh_subsystem_enabled;
+}
+
+static inline void eeh_set_enable(bool mode)
+{
+	eeh_subsystem_enabled = mode;
+}
 
 #define EEH_PROBE_MODE_DEV	(1<<0)	/* From PCI device	*/
 #define EEH_PROBE_MODE_DEVTREE	(1<<1)	/* From device tree	*/
@@ -234,7 +256,7 @@ void eeh_remove_device(struct pci_dev *);
  * If this macro yields TRUE, the caller relays to eeh_check_failure()
  * which does further tests out of line.
  */
-#define EEH_POSSIBLE_ERROR(val, type)	((val) == (type)~0 && eeh_subsystem_enabled)
+#define EEH_POSSIBLE_ERROR(val, type)	((val) == (type)~0 && eeh_enabled())
 
 /*
  * Reads from a device which has been isolated by EEH will return
@@ -244,6 +266,13 @@ void eeh_remove_device(struct pci_dev *);
 #define EEH_IO_ERROR_VALUE(size)	(~0U >> ((4 - (size)) * 8))
 
 #else /* !CONFIG_EEH */
+
+static inline bool eeh_enabled(void)
+{
+        return false;
+}
+
+static inline void eeh_set_enable(bool mode) { }
 
 static inline int eeh_init(void)
 {

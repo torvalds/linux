@@ -217,7 +217,7 @@ struct pch_pd_dev_save {
 	struct pch_spi_board_data *board_dat;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pch_spi_pcidev_id) = {
+static const struct pci_device_id pch_spi_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_GE_SPI),    1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_SPI), 2, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_SPI), 1, },
@@ -466,12 +466,6 @@ static void pch_spi_reset(struct spi_master *master)
 
 static int pch_spi_setup(struct spi_device *pspi)
 {
-	/* check bits per word */
-	if (pspi->bits_per_word == 0) {
-		pspi->bits_per_word = 8;
-		dev_dbg(&pspi->dev, "%s 8 bits per word\n", __func__);
-	}
-
 	/* Check baud rate setting */
 	/* if baud rate of chip is greater than
 	   max we can support,return error */

@@ -455,8 +455,6 @@ static int __init sclp_detect_standby_memory(void)
 
 	if (OLDMEM_BASE) /* No standby memory in kdump mode */
 		return 0;
-	if (!sclp_early_read_info_sccb_valid)
-		return 0;
 	if ((sclp_facilities & 0xe00000000000ULL) != 0xe00000000000ULL)
 		return 0;
 	rc = -ENOMEM;
@@ -701,4 +699,9 @@ int sclp_chp_read_info(struct sclp_chp_info *info)
 out:
 	free_page((unsigned long) sccb);
 	return rc;
+}
+
+bool sclp_has_sprp(void)
+{
+	return !!(sclp_fac84 & 0x2);
 }

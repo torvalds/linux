@@ -234,17 +234,12 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 
 	rcu_read_lock();
 	nsp = task_nsproxy(task);
-	if (!nsp) {
+	if (!nsp || !nsp->mnt_ns) {
 		rcu_read_unlock();
 		put_task_struct(task);
 		goto err;
 	}
 	ns = nsp->mnt_ns;
-	if (!ns) {
-		rcu_read_unlock();
-		put_task_struct(task);
-		goto err;
-	}
 	get_mnt_ns(ns);
 	rcu_read_unlock();
 	task_lock(task);

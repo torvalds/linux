@@ -33,7 +33,7 @@
 #define AP_DEVICES 64		/* Number of AP devices. */
 #define AP_DOMAINS 16		/* Number of AP domains. */
 #define AP_MAX_RESET 90		/* Maximum number of resets. */
-#define AP_RESET_TIMEOUT (HZ/2)	/* Time in ticks for reset timeouts. */
+#define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
 #define AP_POLL_TIME 1		/* Time in ticks between receive polls. */
 
@@ -125,6 +125,8 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_FUNC_CRT4K 2
 #define AP_FUNC_COPRO 3
 #define AP_FUNC_ACCEL 4
+#define AP_FUNC_EP11  5
+#define AP_FUNC_APXA  6
 
 /*
  * AP reset flag states

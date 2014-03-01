@@ -85,4 +85,6 @@
 
 #define SO_MAX_PACING_RATE	47
 
+#define SO_BPF_EXTENSIONS	48
+
 #endif	/* _ASM_POWERPC_SOCKET_H */

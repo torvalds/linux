@@ -667,8 +667,8 @@ static u32 bfin_select_phc_clock(u32 input_clk, unsigned int *shift_result)
 	return 1000000000UL / ppn;
 }
 
-static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
-		struct ifreq *ifr, int cmd)
+static int bfin_mac_hwtstamp_set(struct net_device *netdev,
+				 struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	struct bfin_mac_local *lp = netdev_priv(netdev);
@@ -821,6 +821,16 @@ static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
 
 	lp->stamp_cfg = config;
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
+}
+
+static int bfin_mac_hwtstamp_get(struct net_device *netdev,
+				 struct ifreq *ifr)
+{
+	struct bfin_mac_local *lp = netdev_priv(netdev);
+
+	return copy_to_user(ifr->ifr_data, &lp->stamp_cfg,
+			    sizeof(lp->stamp_cfg)) ?
 		-EFAULT : 0;
 }
 
@@ -1062,7 +1072,8 @@ static void bfin_phc_release(struct bfin_mac_local *lp)
 #else
 # define bfin_mac_hwtstamp_is_none(cfg) 0
 # define bfin_mac_hwtstamp_init(dev)
-# define bfin_mac_hwtstamp_ioctl(dev, ifr, cmd) (-EOPNOTSUPP)
+# define bfin_mac_hwtstamp_set(dev, ifr) (-EOPNOTSUPP)
+# define bfin_mac_hwtstamp_get(dev, ifr) (-EOPNOTSUPP)
 # define bfin_rx_hwtstamp(dev, skb)
 # define bfin_tx_hwtstamp(dev, skb)
 # define bfin_phc_init(netdev, dev) 0
@@ -1496,7 +1507,9 @@ static int bfin_mac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return bfin_mac_hwtstamp_ioctl(netdev, ifr, cmd);
+		return bfin_mac_hwtstamp_set(netdev, ifr);
+	case SIOCGHWTSTAMP:
+		return bfin_mac_hwtstamp_get(netdev, ifr);
 	default:
 		if (lp->phydev)
 			return phy_mii_ioctl(lp->phydev, ifr, cmd);
@@ -1544,7 +1557,6 @@ static int bfin_mac_open(struct net_device *dev)
 		return ret;
 
 	phy_start(lp->phydev);
-	phy_write(lp->phydev, MII_BMCR, BMCR_RESET);
 	setup_system_regs(dev);
 	setup_mac_addr(dev->dev_addr);
 

@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/dmi.h>
 
 #include "internal.h"
@@ -257,14 +256,6 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "UX31A"),
-		},
-	},
-	{
-	.callback = dmi_disable_osi_win8,
-	.ident = "Dell Inspiron 15R SE",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7520"),
 		},
 	},
 	{

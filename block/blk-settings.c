@@ -592,6 +592,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		ret = -1;
 	}
 
+	t->raid_partial_stripes_expensive =
+		max(t->raid_partial_stripes_expensive,
+		    b->raid_partial_stripes_expensive);
+
 	/* Find lowest common alignment_offset */
 	t->alignment_offset = lcm(t->alignment_offset, alignment)
 		& (max(t->physical_block_size, t->io_min) - 1);

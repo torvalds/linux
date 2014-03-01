@@ -1,25 +1,16 @@
 /*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000, 2001, 2004 MIPS Technologies, Inc.
  * Copyright (C) 2001 Ralf Baechle
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+ * Copyright (C) 2013 Imagination Technologies Ltd.
  *
  * Routines for generic manipulation of the interrupts found on the MIPS
- * Malta board.
- * The interrupt controller is located in the South Bridge a PIIX4 device
- * with two internal 82C95 interrupt controllers.
+ * Malta board. The interrupt controller is located in the South Bridge
+ * a PIIX4 device with two internal 82C95 interrupt controllers.
  */
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -44,6 +35,7 @@
 #include <asm/gic.h>
 #include <asm/gcmpregs.h>
 #include <asm/setup.h>
+#include <asm/rtlx.h>
 
 int gcmp_present = -1;
 static unsigned long _msc01_biu_base;
@@ -90,7 +82,7 @@ static inline int mips_pcibios_iack(void)
 		BONITO_PCIMAP_CFG = 0;
 		break;
 	default:
-		printk(KERN_WARNING "Unknown system controller.\n");
+		pr_emerg("Unknown system controller.\n");
 		return -1;
 	}
 	return irq;
@@ -126,6 +118,11 @@ static void malta_hw0_irqdispatch(void)
 	}
 
 	do_IRQ(MALTA_INT_BASE + irq);
+
+#ifdef MIPS_VPE_APSP_API
+	if (aprp_hook)
+		aprp_hook();
+#endif
 }
 
 static void malta_ipi_irqdispatch(void)
@@ -149,11 +146,11 @@ static void corehi_irqdispatch(void)
 	unsigned int intrcause, datalo, datahi;
 	struct pt_regs *regs = get_irq_regs();
 
-	printk(KERN_EMERG "CoreHI interrupt, shouldn't happen, we die here!\n");
-	printk(KERN_EMERG "epc	 : %08lx\nStatus: %08lx\n"
-			"Cause : %08lx\nbadVaddr : %08lx\n",
-			regs->cp0_epc, regs->cp0_status,
-			regs->cp0_cause, regs->cp0_badvaddr);
+	pr_emerg("CoreHI interrupt, shouldn't happen, we die here!\n");
+	pr_emerg("epc	 : %08lx\nStatus: %08lx\n"
+		 "Cause : %08lx\nbadVaddr : %08lx\n",
+		 regs->cp0_epc, regs->cp0_status,
+		 regs->cp0_cause, regs->cp0_badvaddr);
 
 	/* Read all the registers and then print them as there is a
 	   problem with interspersed printk's upsetting the Bonito controller.
@@ -171,8 +168,8 @@ static void corehi_irqdispatch(void)
 		intrcause = GT_READ(GT_INTRCAUSE_OFS);
 		datalo = GT_READ(GT_CPUERR_ADDRLO_OFS);
 		datahi = GT_READ(GT_CPUERR_ADDRHI_OFS);
-		printk(KERN_EMERG "GT_INTRCAUSE = %08x\n", intrcause);
-		printk(KERN_EMERG "GT_CPUERR_ADDR = %02x%08x\n",
+		pr_emerg("GT_INTRCAUSE = %08x\n", intrcause);
+		pr_emerg("GT_CPUERR_ADDR = %02x%08x\n",
 				datahi, datalo);
 		break;
 	case MIPS_REVISION_SCON_BONITO:
@@ -184,14 +181,14 @@ static void corehi_irqdispatch(void)
 		intedge = BONITO_INTEDGE;
 		intsteer = BONITO_INTSTEER;
 		pcicmd = BONITO_PCICMD;
-		printk(KERN_EMERG "BONITO_INTISR = %08x\n", intisr);
-		printk(KERN_EMERG "BONITO_INTEN = %08x\n", inten);
-		printk(KERN_EMERG "BONITO_INTPOL = %08x\n", intpol);
-		printk(KERN_EMERG "BONITO_INTEDGE = %08x\n", intedge);
-		printk(KERN_EMERG "BONITO_INTSTEER = %08x\n", intsteer);
-		printk(KERN_EMERG "BONITO_PCICMD = %08x\n", pcicmd);
-		printk(KERN_EMERG "BONITO_PCIBADADDR = %08x\n", pcibadaddr);
-		printk(KERN_EMERG "BONITO_PCIMSTAT = %08x\n", pcimstat);
+		pr_emerg("BONITO_INTISR = %08x\n", intisr);
+		pr_emerg("BONITO_INTEN = %08x\n", inten);
+		pr_emerg("BONITO_INTPOL = %08x\n", intpol);
+		pr_emerg("BONITO_INTEDGE = %08x\n", intedge);
+		pr_emerg("BONITO_INTSTEER = %08x\n", intsteer);
+		pr_emerg("BONITO_PCICMD = %08x\n", pcicmd);
+		pr_emerg("BONITO_PCIBADADDR = %08x\n", pcibadaddr);
+		pr_emerg("BONITO_PCIMSTAT = %08x\n", pcimstat);
 		break;
 	}
 
@@ -313,6 +310,11 @@ static void ipi_call_dispatch(void)
 
 static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 {
+#ifdef MIPS_VPE_APSP_API
+	if (aprp_hook)
+		aprp_hook();
+#endif
+
 	scheduler_ipi();
 
 	return IRQ_HANDLED;
@@ -365,13 +367,13 @@ static struct irqaction corehi_irqaction = {
 	.flags = IRQF_NO_THREAD,
 };
 
-static msc_irqmap_t __initdata msc_irqmap[] = {
+static msc_irqmap_t msc_irqmap[] __initdata = {
 	{MSC01C_INT_TMR,		MSC01_IRQ_EDGE, 0},
 	{MSC01C_INT_PCI,		MSC01_IRQ_LEVEL, 0},
 };
-static int __initdata msc_nr_irqs = ARRAY_SIZE(msc_irqmap);
+static int msc_nr_irqs __initdata = ARRAY_SIZE(msc_irqmap);
 
-static msc_irqmap_t __initdata msc_eicirqmap[] = {
+static msc_irqmap_t msc_eicirqmap[] __initdata = {
 	{MSC01E_INT_SW0,		MSC01_IRQ_LEVEL, 0},
 	{MSC01E_INT_SW1,		MSC01_IRQ_LEVEL, 0},
 	{MSC01E_INT_I8259A,		MSC01_IRQ_LEVEL, 0},
@@ -384,7 +386,7 @@ static msc_irqmap_t __initdata msc_eicirqmap[] = {
 	{MSC01E_INT_CPUCTR,		MSC01_IRQ_LEVEL, 0}
 };
 
-static int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
+static int msc_nr_eicirqs __initdata = ARRAY_SIZE(msc_eicirqmap);
 
 /*
  * This GIC specific tabular array defines the association between External
@@ -431,9 +433,12 @@ int __init gcmp_probe(unsigned long addr, unsigned long size)
 	if (gcmp_present >= 0)
 		return gcmp_present;
 
-	_gcmp_base = (unsigned long) ioremap_nocache(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
-	_msc01_biu_base = (unsigned long) ioremap_nocache(MSC01_BIU_REG_BASE, MSC01_BIU_ADDRSPACE_SZ);
-	gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == GCMP_BASE_ADDR;
+	_gcmp_base = (unsigned long) ioremap_nocache(GCMP_BASE_ADDR,
+		GCMP_ADDRSPACE_SZ);
+	_msc01_biu_base = (unsigned long) ioremap_nocache(MSC01_BIU_REG_BASE,
+		MSC01_BIU_ADDRSPACE_SZ);
+	gcmp_present = ((GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) ==
+		GCMP_BASE_ADDR);
 
 	if (gcmp_present)
 		pr_debug("GCMP present\n");
@@ -443,9 +448,8 @@ int __init gcmp_probe(unsigned long addr, unsigned long size)
 /* Return the number of IOCU's present */
 int __init gcmp_niocu(void)
 {
-  return gcmp_present ?
-    (GCMPGCB(GC) & GCMP_GCB_GC_NUMIOCU_MSK) >> GCMP_GCB_GC_NUMIOCU_SHF :
-    0;
+	return gcmp_present ? ((GCMPGCB(GC) & GCMP_GCB_GC_NUMIOCU_MSK) >>
+		GCMP_GCB_GC_NUMIOCU_SHF) : 0;
 }
 
 /* Set GCMP region attributes */
@@ -594,11 +598,14 @@ void __init arch_init_irq(void)
 			set_vi_handler(MIPSCPU_INT_IPI1, malta_ipi_irqdispatch);
 		}
 		/* Argh.. this really needs sorting out.. */
-		printk("CPU%d: status register was %08x\n", smp_processor_id(), read_c0_status());
+		pr_info("CPU%d: status register was %08x\n",
+			smp_processor_id(), read_c0_status());
 		write_c0_status(read_c0_status() | STATUSF_IP3 | STATUSF_IP4);
-		printk("CPU%d: status register now %08x\n", smp_processor_id(), read_c0_status());
+		pr_info("CPU%d: status register now %08x\n",
+			smp_processor_id(), read_c0_status());
 		write_c0_status(0x1100dc00);
-		printk("CPU%d: status register frc %08x\n", smp_processor_id(), read_c0_status());
+		pr_info("CPU%d: status register frc %08x\n",
+			smp_processor_id(), read_c0_status());
 		for (i = 0; i < nr_cpu_ids; i++) {
 			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +
 					 GIC_RESCHED_INT(i), &irq_resched);
@@ -616,11 +623,15 @@ void __init arch_init_irq(void)
 			cpu_ipi_call_irq = MSC01E_INT_SW1;
 		} else {
 			if (cpu_has_vint) {
-				set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
-				set_vi_handler (MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
+				set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ,
+					ipi_resched_dispatch);
+				set_vi_handler (MIPS_CPU_IPI_CALL_IRQ,
+					ipi_call_dispatch);
 			}
-			cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
-			cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ;
+			cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE +
+				MIPS_CPU_IPI_RESCHED_IRQ;
+			cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE +
+				MIPS_CPU_IPI_CALL_IRQ;
 		}
 		arch_init_ipiirq(cpu_ipi_resched_irq, &irq_resched);
 		arch_init_ipiirq(cpu_ipi_call_irq, &irq_call);
@@ -630,9 +641,7 @@ void __init arch_init_irq(void)
 
 void malta_be_init(void)
 {
-	if (gcmp_present) {
-		/* Could change CM error mask register */
-	}
+	/* Could change CM error mask register. */
 }
 
 
@@ -712,14 +721,14 @@ int malta_be_handler(struct pt_regs *regs, int is_fixup)
 			if (cause < 16) {
 				unsigned long cca_bits = (cm_error >> 15) & 7;
 				unsigned long tr_bits = (cm_error >> 12) & 7;
-				unsigned long mcmd_bits = (cm_error >> 7) & 0x1f;
+				unsigned long cmd_bits = (cm_error >> 7) & 0x1f;
 				unsigned long stag_bits = (cm_error >> 3) & 15;
 				unsigned long sport_bits = (cm_error >> 0) & 7;
 
 				snprintf(buf, sizeof(buf),
 					 "CCA=%lu TR=%s MCmd=%s STag=%lu "
 					 "SPort=%lu\n",
-					 cca_bits, tr[tr_bits], mcmd[mcmd_bits],
+					 cca_bits, tr[tr_bits], mcmd[cmd_bits],
 					 stag_bits, sport_bits);
 			} else {
 				/* glob state & sresp together */
@@ -728,7 +737,7 @@ int malta_be_handler(struct pt_regs *regs, int is_fixup)
 				unsigned long c1_bits = (cm_error >> 12) & 7;
 				unsigned long c0_bits = (cm_error >> 9) & 7;
 				unsigned long sc_bit = (cm_error >> 8) & 1;
-				unsigned long mcmd_bits = (cm_error >> 3) & 0x1f;
+				unsigned long cmd_bits = (cm_error >> 3) & 0x1f;
 				unsigned long sport_bits = (cm_error >> 0) & 7;
 				snprintf(buf, sizeof(buf),
 					 "C3=%s C2=%s C1=%s C0=%s SC=%s "
@@ -736,16 +745,16 @@ int malta_be_handler(struct pt_regs *regs, int is_fixup)
 					 core[c3_bits], core[c2_bits],
 					 core[c1_bits], core[c0_bits],
 					 sc_bit ? "True" : "False",
-					 mcmd[mcmd_bits], sport_bits);
+					 mcmd[cmd_bits], sport_bits);
 			}
 
 			ocause = (cm_other & GCMP_GCB_GMEO_ERROR_2ND_MSK) >>
 				 GCMP_GCB_GMEO_ERROR_2ND_SHF;
 
-			printk("CM_ERROR=%08lx %s <%s>\n", cm_error,
+			pr_err("CM_ERROR=%08lx %s <%s>\n", cm_error,
 			       causes[cause], buf);
-			printk("CM_ADDR =%08lx\n", cm_addr);
-			printk("CM_OTHER=%08lx %s\n", cm_other, causes[ocause]);
+			pr_err("CM_ADDR =%08lx\n", cm_addr);
+			pr_err("CM_OTHER=%08lx %s\n", cm_other, causes[ocause]);
 
 			/* reprime cause register */
 			GCMPGCB(GCMEC) = 0;

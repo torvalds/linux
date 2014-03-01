@@ -41,7 +41,6 @@
 #include <linux/seq_file.h>
 #include "lov_internal.h"
 
-#ifdef LPROCFS
 static int lov_stripesize_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = (struct obd_device *)m->private;
@@ -260,29 +259,29 @@ LPROC_SEQ_FOPS_RO_TYPE(lov, kbytesfree);
 LPROC_SEQ_FOPS_RO_TYPE(lov, kbytesavail);
 
 struct lprocfs_vars lprocfs_lov_obd_vars[] = {
-	{ "uuid",	  &lov_uuid_fops,	  0, 0 },
-	{ "stripesize",   &lov_stripesize_fops,   0 },
-	{ "stripeoffset", &lov_stripeoffset_fops, 0 },
-	{ "stripecount",  &lov_stripecount_fops,  0 },
-	{ "stripetype",   &lov_stripetype_fops,   0 },
-	{ "numobd",       &lov_numobd_fops,	  0, 0 },
-	{ "activeobd",    &lov_activeobd_fops,	  0, 0 },
-	{ "filestotal",   &lov_filestotal_fops,   0, 0 },
-	{ "filesfree",    &lov_filesfree_fops,    0, 0 },
-	/*{ "filegroups", lprocfs_rd_filegroups,  0, 0 },*/
-	{ "blocksize",    &lov_blksize_fops,      0, 0 },
-	{ "kbytestotal",  &lov_kbytestotal_fops,  0, 0 },
-	{ "kbytesfree",   &lov_kbytesfree_fops,   0, 0 },
-	{ "kbytesavail",  &lov_kbytesavail_fops,  0, 0 },
-	{ "desc_uuid",    &lov_desc_uuid_fops,    0, 0 },
-	{ 0 }
+	{ "uuid",	  &lov_uuid_fops,	  NULL, 0 },
+	{ "stripesize",   &lov_stripesize_fops,   NULL },
+	{ "stripeoffset", &lov_stripeoffset_fops, NULL },
+	{ "stripecount",  &lov_stripecount_fops,  NULL },
+	{ "stripetype",   &lov_stripetype_fops,   NULL },
+	{ "numobd",       &lov_numobd_fops,	  NULL, 0 },
+	{ "activeobd",    &lov_activeobd_fops,	  NULL, 0 },
+	{ "filestotal",   &lov_filestotal_fops,   NULL, 0 },
+	{ "filesfree",    &lov_filesfree_fops,    NULL, 0 },
+	/*{ "filegroups", lprocfs_rd_filegroups,  NULL, 0 },*/
+	{ "blocksize",    &lov_blksize_fops,      NULL, 0 },
+	{ "kbytestotal",  &lov_kbytestotal_fops,  NULL, 0 },
+	{ "kbytesfree",   &lov_kbytesfree_fops,   NULL, 0 },
+	{ "kbytesavail",  &lov_kbytesavail_fops,  NULL, 0 },
+	{ "desc_uuid",    &lov_desc_uuid_fops,    NULL, 0 },
+	{ NULL }
 };
 
 LPROC_SEQ_FOPS_RO_TYPE(lov, numrefs);
 
 static struct lprocfs_vars lprocfs_lov_module_vars[] = {
-	{ "num_refs",     &lov_numrefs_fops,     0, 0 },
-	{ 0 }
+	{ "num_refs",     &lov_numrefs_fops,     NULL, 0 },
+	{ NULL }
 };
 
 void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars)
@@ -291,11 +290,10 @@ void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars)
     lvars->obd_vars     = lprocfs_lov_obd_vars;
 }
 
-struct file_operations lov_proc_target_fops = {
+const struct file_operations lov_proc_target_fops = {
 	.owner   = THIS_MODULE,
 	.open    = lov_target_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = lprocfs_seq_release,
 };
-#endif /* LPROCFS */

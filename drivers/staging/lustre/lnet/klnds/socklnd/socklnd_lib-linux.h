@@ -54,7 +54,6 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/list.h>

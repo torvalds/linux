@@ -260,16 +260,16 @@ static int blacklist_parse_proc_parameters(char *buf)
 
 	parm = strsep(&buf, " ");
 
-	if (strcmp("free", parm) == 0)
+	if (strcmp("free", parm) == 0) {
 		rc = blacklist_parse_parameters(buf, free, 0);
-	else if (strcmp("add", parm) == 0)
+		css_schedule_eval_all_unreg(0);
+	} else if (strcmp("add", parm) == 0)
 		rc = blacklist_parse_parameters(buf, add, 0);
 	else if (strcmp("purge", parm) == 0)
 		return ccw_purge_blacklisted();
 	else
 		return -EINVAL;
 
-	css_schedule_reprobe();
 
 	return rc;
 }

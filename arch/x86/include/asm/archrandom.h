@@ -39,6 +39,20 @@
 
 #ifdef CONFIG_ARCH_RANDOM
 
+/* Instead of arch_get_random_long() when alternatives haven't run. */
+static inline int rdrand_long(unsigned long *v)
+{
+	int ok;
+	asm volatile("1: " RDRAND_LONG "\n\t"
+		     "jc 2f\n\t"
+		     "decl %0\n\t"
+		     "jnz 1b\n\t"
+		     "2:"
+		     : "=r" (ok), "=a" (*v)
+		     : "0" (RDRAND_RETRY_LOOPS));
+	return ok;
+}
+
 #define GET_RANDOM(name, type, rdrand, nop)			\
 static inline int name(type *v)					\
 {								\
@@ -67,6 +81,13 @@ GET_RANDOM(arch_get_random_long, unsigned long, RDRAND_LONG, ASM_NOP3);
 GET_RANDOM(arch_get_random_int, unsigned int, RDRAND_INT, ASM_NOP3);
 
 #endif /* CONFIG_X86_64 */
+
+#else
+
+static inline int rdrand_long(unsigned long *v)
+{
+	return 0;
+}
 
 #endif  /* CONFIG_ARCH_RANDOM */
 

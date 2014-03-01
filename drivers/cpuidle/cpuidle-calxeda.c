@@ -65,7 +65,7 @@ static struct cpuidle_driver calxeda_idle_driver = {
 	.state_count = 2,
 };
 
-static int __init calxeda_cpuidle_probe(struct platform_device *pdev)
+static int calxeda_cpuidle_probe(struct platform_device *pdev)
 {
 	return cpuidle_register(&calxeda_idle_driver, NULL);
 }

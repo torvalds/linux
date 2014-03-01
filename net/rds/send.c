@@ -922,7 +922,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
-	struct sockaddr_in *usin = (struct sockaddr_in *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
 	__be32 daddr;
 	__be16 dport;
 	struct rds_message *rm = NULL;

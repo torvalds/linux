@@ -55,6 +55,13 @@ enum target_errno target__validate(struct target *target)
 			ret = TARGET_ERRNO__UID_OVERRIDE_SYSTEM;
 	}
 
+	/* THREAD and SYSTEM/CPU are mutually exclusive */
+	if (target->per_thread && (target->system_wide || target->cpu_list)) {
+		target->per_thread = false;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD;
+	}
+
 	return ret;
 }
 
@@ -100,6 +107,7 @@ static const char *target__error_str[] = {
 	"UID switch overriding CPU",
 	"PID/TID switch overriding SYSTEM",
 	"UID switch overriding SYSTEM",
+	"SYSTEM/CPU switch overriding PER-THREAD",
 	"Invalid User: %s",
 	"Problems obtaining information for user %s",
 };
@@ -131,7 +139,8 @@ int target__strerror(struct target *target, int errnum,
 	msg = target__error_str[idx];
 
 	switch (errnum) {
-	case TARGET_ERRNO__PID_OVERRIDE_CPU ... TARGET_ERRNO__UID_OVERRIDE_SYSTEM:
+	case TARGET_ERRNO__PID_OVERRIDE_CPU ...
+	     TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD:
 		snprintf(buf, buflen, "%s", msg);
 		break;
 

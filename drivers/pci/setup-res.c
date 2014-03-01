@@ -52,7 +52,7 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 	if (res->flags & IORESOURCE_PCI_FIXED)
 		return;
 
-	pcibios_resource_to_bus(dev, &region, res);
+	pcibios_resource_to_bus(dev->bus, &region, res);
 
 	new = region.start | (res->flags & PCI_REGION_FLAG_MASK);
 	if (res->flags & IORESOURCE_IO)

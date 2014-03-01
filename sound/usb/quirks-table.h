@@ -72,22 +72,21 @@
 	}
 },
 
-/* Creative/Toshiba Multimedia Center SB-0500 */
-{
-	USB_DEVICE(0x041e, 0x3048),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Toshiba",
-		.product_name = "SB-0500",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
-},
-
 /* Creative/E-Mu devices */
 {
 	USB_DEVICE(0x041e, 0x3010),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Creative Labs",
 		.product_name = "Sound Blaster MP3+",
+		.ifnum = QUIRK_NO_INTERFACE
+	}
+},
+/* Creative/Toshiba Multimedia Center SB-0500 */
+{
+	USB_DEVICE(0x041e, 0x3048),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Toshiba",
+		.product_name = "SB-0500",
 		.ifnum = QUIRK_NO_INTERFACE
 	}
 },
@@ -2521,6 +2520,46 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	USB_DEVICE(0x1235, 0x0010),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Focusrite",
+		.product_name = "Saffire 6 USB",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 4,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
+					.endpoint = 0x01,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000,
+					.rate_min = 44100,
+					.rate_max = 48000,
+					.nr_rates = 2,
+					.rate_table = (unsigned int[]) {
+						44100, 48000
+					}
+				}
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_MIDI_RAW_BYTES
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	USB_DEVICE(0x1235, 0x0018),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Novation",
@@ -2567,6 +2606,57 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.product_name = "ReMOTE25",
 		.ifnum = 0,
 		.type = QUIRK_MIDI_NOVATION
+	}
+},
+{
+	/*
+	 * Focusrite Scarlett 18i6
+	 *
+	 * Avoid mixer creation, which otherwise fails because some of
+	 * the interface descriptor subtypes for interface 0 are
+	 * unknown.  That should be fixed or worked-around but this at
+	 * least allows the device to be used successfully with a DAW
+	 * and an external mixer.  See comments below about other
+	 * ignored interfaces.
+	 */
+	USB_DEVICE(0x1235, 0x8004),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Focusrite",
+		.product_name = "Scarlett 18i6",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = & (const struct snd_usb_audio_quirk[]) {
+			{
+				/* InterfaceSubClass 1 (Control Device) */
+				.ifnum = 0,
+				.type = QUIRK_IGNORE_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				/* InterfaceSubClass 1 (Control Device) */
+				.ifnum = 3,
+				.type = QUIRK_IGNORE_INTERFACE
+			},
+			{
+				.ifnum = 4,
+				.type = QUIRK_MIDI_STANDARD_INTERFACE
+			},
+			{
+				/* InterfaceSubClass 1 (Device Firmware Update) */
+				.ifnum = 5,
+				.type = QUIRK_IGNORE_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
 	}
 },
 
@@ -2671,20 +2761,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7240),
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
-		       USB_DEVICE_ID_MATCH_INT_CLASS |
-		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
-	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
-	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
-		.vendor_name = "Hauppauge",
-		.product_name = "HVR-850",
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
-	}
-},
-{
 	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7210),
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
 		       USB_DEVICE_ID_MATCH_INT_CLASS |
@@ -2750,6 +2826,20 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
 		.vendor_name = "Hauppauge",
 		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7240),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-850",
 		.ifnum = QUIRK_ANY_INTERFACE,
 		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
 	}
@@ -3044,58 +3134,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 						44100, 48000
 					}
 				}
-			},
-			{
-				.ifnum = -1
-			}
-		}
-	}
-},
-
-{
-	/*
-	 * Focusrite Scarlett 18i6
-	 *
-	 * Avoid mixer creation, which otherwise fails because some of
-	 * the interface descriptor subtypes for interface 0 are
-	 * unknown.  That should be fixed or worked-around but this at
-	 * least allows the device to be used successfully with a DAW
-	 * and an external mixer.  See comments below about other
-	 * ignored interfaces.
-	 */
-	USB_DEVICE(0x1235, 0x8004),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Focusrite",
-		.product_name = "Scarlett 18i6",
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_COMPOSITE,
-		.data = & (const struct snd_usb_audio_quirk[]) {
-			{
-				/* InterfaceSubClass 1 (Control Device) */
-				.ifnum = 0,
-				.type = QUIRK_IGNORE_INTERFACE
-			},
-			{
-				.ifnum = 1,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
-			},
-			{
-				.ifnum = 2,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
-			},
-			{
-				/* InterfaceSubClass 1 (Control Device) */
-				.ifnum = 3,
-				.type = QUIRK_IGNORE_INTERFACE
-			},
-			{
-				.ifnum = 4,
-				.type = QUIRK_MIDI_STANDARD_INTERFACE
-			},
-			{
-				/* InterfaceSubClass 1 (Device Firmware Update) */
-				.ifnum = 5,
-				.type = QUIRK_IGNORE_INTERFACE
 			},
 			{
 				.ifnum = -1

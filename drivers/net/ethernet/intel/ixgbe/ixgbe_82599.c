@@ -626,7 +626,7 @@ static void ixgbe_set_fiber_fixed_speed(struct ixgbe_hw *hw,
 		goto out;
 	}
 
-	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) & rs;
+	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) | rs;
 
 	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
 					    IXGBE_I2C_EEPROM_DEV_ADDR2,

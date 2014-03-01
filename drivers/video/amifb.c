@@ -3710,7 +3710,7 @@ default_chipset:
 	if (!videomemory) {
 		dev_warn(&pdev->dev,
 			 "Unable to map videomem cached writethrough\n");
-		info->screen_base = (char *)ZTWO_VADDR(info->fix.smem_start);
+		info->screen_base = ZTWO_VADDR(info->fix.smem_start);
 	} else
 		info->screen_base = (char *)videomemory;
 

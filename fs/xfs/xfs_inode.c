@@ -77,48 +77,44 @@ xfs_get_extsz_hint(
 }
 
 /*
- * This is a wrapper routine around the xfs_ilock() routine used to centralize
- * some grungy code.  It is used in places that wish to lock the inode solely
- * for reading the extents.  The reason these places can't just call
- * xfs_ilock(SHARED) is that the inode lock also guards to bringing in of the
- * extents from disk for a file in b-tree format.  If the inode is in b-tree
- * format, then we need to lock the inode exclusively until the extents are read
- * in.  Locking it exclusively all the time would limit our parallelism
- * unnecessarily, though.  What we do instead is check to see if the extents
- * have been read in yet, and only lock the inode exclusively if they have not.
+ * These two are wrapper routines around the xfs_ilock() routine used to
+ * centralize some grungy code.  They are used in places that wish to lock the
+ * inode solely for reading the extents.  The reason these places can't just
+ * call xfs_ilock(ip, XFS_ILOCK_SHARED) is that the inode lock also guards to
+ * bringing in of the extents from disk for a file in b-tree format.  If the
+ * inode is in b-tree format, then we need to lock the inode exclusively until
+ * the extents are read in.  Locking it exclusively all the time would limit
+ * our parallelism unnecessarily, though.  What we do instead is check to see
+ * if the extents have been read in yet, and only lock the inode exclusively
+ * if they have not.
  *
- * The function returns a value which should be given to the corresponding
- * xfs_iunlock_map_shared().  This value is the mode in which the lock was
- * actually taken.
+ * The functions return a value which should be given to the corresponding
+ * xfs_iunlock() call.
  */
 uint
-xfs_ilock_map_shared(
-	xfs_inode_t	*ip)
+xfs_ilock_data_map_shared(
+	struct xfs_inode	*ip)
 {
-	uint	lock_mode;
+	uint			lock_mode = XFS_ILOCK_SHARED;
 
-	if ((ip->i_d.di_format == XFS_DINODE_FMT_BTREE) &&
-	    ((ip->i_df.if_flags & XFS_IFEXTENTS) == 0)) {
+	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
+	    (ip->i_df.if_flags & XFS_IFEXTENTS) == 0)
 		lock_mode = XFS_ILOCK_EXCL;
-	} else {
-		lock_mode = XFS_ILOCK_SHARED;
-	}
-
 	xfs_ilock(ip, lock_mode);
-
 	return lock_mode;
 }
 
-/*
- * This is simply the unlock routine to go with xfs_ilock_map_shared().
- * All it does is call xfs_iunlock() with the given lock_mode.
- */
-void
-xfs_iunlock_map_shared(
-	xfs_inode_t	*ip,
-	unsigned int	lock_mode)
+uint
+xfs_ilock_attr_map_shared(
+	struct xfs_inode	*ip)
 {
-	xfs_iunlock(ip, lock_mode);
+	uint			lock_mode = XFS_ILOCK_SHARED;
+
+	if (ip->i_d.di_aformat == XFS_DINODE_FMT_BTREE &&
+	    (ip->i_afp->if_flags & XFS_IFEXTENTS) == 0)
+		lock_mode = XFS_ILOCK_EXCL;
+	xfs_ilock(ip, lock_mode);
+	return lock_mode;
 }
 
 /*
@@ -588,9 +584,9 @@ xfs_lookup(
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);
 
-	lock_mode = xfs_ilock_map_shared(dp);
+	lock_mode = xfs_ilock_data_map_shared(dp);
 	error = xfs_dir_lookup(NULL, dp, name, &inum, ci_name);
-	xfs_iunlock_map_shared(dp, lock_mode);
+	xfs_iunlock(dp, lock_mode);
 
 	if (error)
 		goto out;
@@ -2141,8 +2137,8 @@ xfs_ifree_cluster(
 {
 	xfs_mount_t		*mp = free_ip->i_mount;
 	int			blks_per_cluster;
+	int			inodes_per_cluster;
 	int			nbufs;
-	int			ninodes;
 	int			i, j;
 	xfs_daddr_t		blkno;
 	xfs_buf_t		*bp;
@@ -2152,18 +2148,11 @@ xfs_ifree_cluster(
 	struct xfs_perag	*pag;
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
-	if (mp->m_sb.sb_blocksize >= XFS_INODE_CLUSTER_SIZE(mp)) {
-		blks_per_cluster = 1;
-		ninodes = mp->m_sb.sb_inopblock;
-		nbufs = XFS_IALLOC_BLOCKS(mp);
-	} else {
-		blks_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) /
-					mp->m_sb.sb_blocksize;
-		ninodes = blks_per_cluster * mp->m_sb.sb_inopblock;
-		nbufs = XFS_IALLOC_BLOCKS(mp) / blks_per_cluster;
-	}
+	blks_per_cluster = xfs_icluster_size_fsb(mp);
+	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
+	nbufs = mp->m_ialloc_blks / blks_per_cluster;
 
-	for (j = 0; j < nbufs; j++, inum += ninodes) {
+	for (j = 0; j < nbufs; j++, inum += inodes_per_cluster) {
 		blkno = XFS_AGB_TO_DADDR(mp, XFS_INO_TO_AGNO(mp, inum),
 					 XFS_INO_TO_AGBNO(mp, inum));
 
@@ -2225,7 +2214,7 @@ xfs_ifree_cluster(
 		 * transaction stale above, which means there is no point in
 		 * even trying to lock them.
 		 */
-		for (i = 0; i < ninodes; i++) {
+		for (i = 0; i < inodes_per_cluster; i++) {
 retry:
 			rcu_read_lock();
 			ip = radix_tree_lookup(&pag->pag_ici_root,
@@ -2906,13 +2895,13 @@ xfs_iflush_cluster(
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 
-	inodes_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog;
+	inodes_per_cluster = mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog;
 	ilist_size = inodes_per_cluster * sizeof(xfs_inode_t *);
 	ilist = kmem_alloc(ilist_size, KM_MAYFAIL|KM_NOFS);
 	if (!ilist)
 		goto out_put;
 
-	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
+	mask = ~(((mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog)) - 1);
 	first_index = XFS_INO_TO_AGINO(mp, ip->i_ino) & mask;
 	rcu_read_lock();
 	/* really need a gang lookup range call here */

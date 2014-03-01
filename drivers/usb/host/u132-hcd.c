@@ -3133,6 +3133,7 @@ static int u132_probe(struct platform_device *pdev)
 			u132_u132_put_kref(u132);
 			return retval;
 		} else {
+			device_wakeup_enable(hcd->self.controller);
 			u132_monitor_queue_work(u132, 100);
 			return 0;
 		}
@@ -3217,7 +3218,7 @@ static struct platform_driver u132_platform_driver = {
 	.suspend = u132_suspend,
 	.resume = u132_resume,
 	.driver = {
-		   .name = (char *)hcd_name,
+		   .name = hcd_name,
 		   .owner = THIS_MODULE,
 		   },
 };

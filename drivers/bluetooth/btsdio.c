@@ -73,6 +73,7 @@ struct btsdio_data {
 #define REG_CL_INTRD 0x13	/* Interrupt Clear */
 #define REG_EN_INTRD 0x14	/* Interrupt Enable */
 #define REG_MD_STAT  0x20	/* Bluetooth Mode Status */
+#define REG_MD_SET   0x20	/* Bluetooth Mode Set */
 
 static int btsdio_tx_packet(struct btsdio_data *data, struct sk_buff *skb)
 {
@@ -212,7 +213,7 @@ static int btsdio_open(struct hci_dev *hdev)
 	}
 
 	if (data->func->class == SDIO_CLASS_BT_B)
-		sdio_writeb(data->func, 0x00, REG_MD_STAT, NULL);
+		sdio_writeb(data->func, 0x00, REG_MD_SET, NULL);
 
 	sdio_writeb(data->func, 0x01, REG_EN_INTRD, NULL);
 
@@ -332,6 +333,9 @@ static int btsdio_probe(struct sdio_func *func,
 	hdev->close    = btsdio_close;
 	hdev->flush    = btsdio_flush;
 	hdev->send     = btsdio_send_frame;
+
+	if (func->vendor == 0x0104 && func->device == 0x00c5)
+		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
 	err = hci_register_dev(hdev);
 	if (err < 0) {

@@ -134,6 +134,7 @@ struct usb_hcd {
 	unsigned		rh_registered:1;/* is root hub registered? */
 	unsigned		rh_pollable:1;	/* may we poll the root hub? */
 	unsigned		msix_enabled:1;	/* driver has MSI-X enabled? */
+	unsigned		remove_phy:1;	/* auto-remove USB phy */
 
 	/* The next flag is a stopgap, to be removed when all the HCDs
 	 * support the new root-hub polling mechanism. */
@@ -352,6 +353,8 @@ struct hc_driver {
 	void	(*reset_bandwidth)(struct usb_hcd *, struct usb_device *);
 		/* Returns the hardware-chosen device address */
 	int	(*address_device)(struct usb_hcd *, struct usb_device *udev);
+		/* prepares the hardware to send commands to the device */
+	int	(*enable_device)(struct usb_hcd *, struct usb_device *udev);
 		/* Notifies the HCD after a hub descriptor is fetched.
 		 * Will block.
 		 */

@@ -1,0 +1,212 @@
+/*
+ * Copyright 2013 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+#include "skeleton.dtsi"
+
+/ {
+	model = "Texas Instruments Keystone 2 SoC";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0	= &uart0;
+	};
+
+	memory {
+		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gic>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <1>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <3>;
+		};
+	};
+
+	gic: interrupt-controller {
+		compatible = "arm,cortex-a15-gic";
+		#interrupt-cells = <3>;
+		#size-cells = <0>;
+		#address-cells = <1>;
+		interrupt-controller;
+		reg = <0x0 0x02561000 0x0 0x1000>,
+		      <0x0 0x02562000 0x0 0x2000>,
+		      <0x0 0x02564000 0x0 0x1000>,
+		      <0x0 0x02566000 0x0 0x2000>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
+				IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts =
+			<GIC_PPI 13
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 14
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 11
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 10
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a15-pmu";
+		interrupts = <GIC_SPI 20 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "ti,keystone","simple-bus";
+		interrupt-parent = <&gic>;
+		ranges = <0x0 0x0 0x0 0xc0000000>;
+
+		rstctrl: reset-controller {
+			compatible = "ti,keystone-reset";
+			reg = <0x023100e8 4>;	/* pll reset control reg */
+		};
+
+		/include/ "keystone-clocks.dtsi"
+
+		uart0: serial@02530c00 {
+			compatible = "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02530c00 0x100>;
+			clocks	= <&clkuart0>;
+			interrupts = <GIC_SPI 277 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		uart1:	serial@02531000 {
+			compatible = "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02531000 0x100>;
+			clocks	= <&clkuart1>;
+			interrupts = <GIC_SPI 280 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		i2c0: i2c@2530000 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530000 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 283 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dtt@50 {
+				compatible = "at,24c1024";
+				reg = <0x50>;
+			};
+		};
+
+		i2c1: i2c@2530400 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530400 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		i2c2: i2c@2530800 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530800 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 289 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		spi0: spi@21000400 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000400 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 292 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
+
+		spi1: spi@21000600 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000600 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 296 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
+
+		spi2: spi@21000800 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000800 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
+
+		usb_phy: usb_phy@2620738 {
+			compatible = "ti,keystone-usbphy";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2620738 32>;
+			status = "disabled";
+		};
+
+		usb: usb@2680000 {
+			compatible = "ti,keystone-dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2680000 0x10000>;
+			clocks = <&clkusb>;
+			clock-names = "usb";
+			interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
+			ranges;
+			status = "disabled";
+
+			dwc3@2690000 {
+				compatible = "synopsys,dwc3";
+				reg = <0x2690000 0x70000>;
+				interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
+				usb-phy = <&usb_phy>, <&usb_phy>;
+			};
+		};
+	};
+};

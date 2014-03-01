@@ -5,7 +5,7 @@
 #ifdef CONFIG_FUNCTION_TRACER
 EXPORT_SYMBOL(_mcount);
 #endif
-#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+#if IS_ENABLED(CONFIG_KVM)
 EXPORT_SYMBOL(sie64a);
 EXPORT_SYMBOL(sie_exit);
 #endif

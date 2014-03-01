@@ -589,7 +589,6 @@ static void asiliantfb_remove(struct pci_dev *dp)
 	fb_dealloc_cmap(&p->cmap);
 	iounmap(p->screen_base);
 	release_mem_region(pci_resource_start(dp, 0), pci_resource_len(dp, 0));
-	pci_set_drvdata(dp, NULL);
 	framebuffer_release(p);
 }
 

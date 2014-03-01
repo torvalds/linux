@@ -115,6 +115,7 @@ struct sgtl5000_priv {
 	struct ldo_regulator *ldo;
 	struct regmap *regmap;
 	struct clk *mclk;
+	int revision;
 };
 
 /*
@@ -1285,40 +1286,44 @@ static int sgtl5000_replace_vddd_with_ldo(struct snd_soc_codec *codec)
 
 	sgtl5000->supplies[VDDD].supply = LDO_CONSUMER_NAME;
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
-			sgtl5000->supplies);
-
-	if (ret) {
-		ldo_regulator_remove(codec);
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
-
 	dev_info(codec->dev, "Using internal LDO instead of VDDD\n");
 	return 0;
 }
 
 static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 {
-	int reg;
 	int ret;
-	int rev;
 	int i;
 	int external_vddd = 0;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
+	struct regulator *vddd;
 
 	for (i = 0; i < ARRAY_SIZE(sgtl5000->supplies); i++)
 		sgtl5000->supplies[i].supply = supply_names[i];
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
-	if (!ret)
-		external_vddd = 1;
-	else {
+	/* External VDDD only works before revision 0x11 */
+	if (sgtl5000->revision < 0x11) {
+		vddd = regulator_get_optional(codec->dev, "VDDD");
+		if (IS_ERR(vddd)) {
+			/* See if it's just not registered yet */
+			if (PTR_ERR(vddd) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+		} else {
+			external_vddd = 1;
+			regulator_put(vddd);
+		}
+	}
+
+	if (!external_vddd) {
 		ret = sgtl5000_replace_vddd_with_ldo(codec);
 		if (ret)
 			return ret;
 	}
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
+				 sgtl5000->supplies);
+	if (ret)
+		goto err_ldo_remove;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(sgtl5000->supplies),
 					sgtl5000->supplies);
@@ -1328,47 +1333,13 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 	/* wait for all power rails bring up */
 	udelay(10);
 
-	/*
-	 * workaround for revision 0x11 and later,
-	 * roll back to use internal LDO
-	 */
-
-	ret = regmap_read(sgtl5000->regmap, SGTL5000_CHIP_ID, &reg);
-	if (ret)
-		goto err_regulator_disable;
-
-	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
-
-	if (external_vddd && rev >= 0x11) {
-		/* disable all regulator first */
-		regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
-					sgtl5000->supplies);
-		/* free VDDD regulator */
-		regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
-					sgtl5000->supplies);
-
-		ret = sgtl5000_replace_vddd_with_ldo(codec);
-		if (ret)
-			return ret;
-
-		ret = regulator_bulk_enable(ARRAY_SIZE(sgtl5000->supplies),
-						sgtl5000->supplies);
-		if (ret)
-			goto err_regulator_free;
-
-		/* wait for all power rails bring up */
-		udelay(10);
-	}
-
 	return 0;
 
-err_regulator_disable:
-	regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
 err_regulator_free:
 	regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
 				sgtl5000->supplies);
-	if (external_vddd)
+err_ldo_remove:
+	if (!external_vddd)
 		ldo_regulator_remove(codec);
 	return ret;
 
@@ -1566,6 +1537,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 
 	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
 	dev_info(&client->dev, "sgtl5000 revision 0x%x\n", rev);
+	sgtl5000->revision = rev;
 
 	i2c_set_clientdata(client, sgtl5000);
 

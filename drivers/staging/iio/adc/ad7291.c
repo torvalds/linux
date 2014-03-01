@@ -452,10 +452,10 @@ static const struct iio_chan_spec ad7291_channels[] = {
 
 static const struct iio_info ad7291_info = {
 	.read_raw = &ad7291_read_raw,
-	.read_event_config_new = &ad7291_read_event_config,
-	.write_event_config_new = &ad7291_write_event_config,
-	.read_event_value_new = &ad7291_read_event_value,
-	.write_event_value_new = &ad7291_write_event_value,
+	.read_event_config = &ad7291_read_event_config,
+	.write_event_config = &ad7291_write_event_config,
+	.read_event_value = &ad7291_read_event_value,
+	.write_event_value = &ad7291_write_event_value,
 	.driver_module = THIS_MODULE,
 };
 

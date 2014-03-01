@@ -185,7 +185,7 @@ struct tcf_result {
 };
 
 struct tcf_proto_ops {
-	struct tcf_proto_ops	*next;
+	struct list_head	head;
 	char			kind[IFNAMSIZ];
 
 	int			(*classify)(struct sk_buff *,
@@ -204,7 +204,7 @@ struct tcf_proto_ops {
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
 
 	/* rtnetlink specific */
-	int			(*dump)(struct tcf_proto*, unsigned long,
+	int			(*dump)(struct net*, struct tcf_proto*, unsigned long,
 					struct sk_buff *skb, struct tcmsg*);
 
 	struct module		*owner;

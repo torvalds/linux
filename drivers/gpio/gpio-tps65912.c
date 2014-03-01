@@ -79,7 +79,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= tps65912_gpio_output,
 	.get			= tps65912_gpio_get,
 	.set			= tps65912_gpio_set,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 	.ngpio			= 5,
 	.base			= -1,
 };

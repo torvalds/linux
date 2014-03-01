@@ -37,6 +37,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
@@ -410,12 +411,18 @@ struct saa7134_board {
 #define card(dev)             (saa7134_boards[dev->board])
 #define card_in(dev,n)        (saa7134_boards[dev->board].inputs[n])
 
+#define V4L2_CID_PRIVATE_INVERT      (V4L2_CID_USER_SAA7134_BASE + 0)
+#define V4L2_CID_PRIVATE_Y_ODD       (V4L2_CID_USER_SAA7134_BASE + 1)
+#define V4L2_CID_PRIVATE_Y_EVEN      (V4L2_CID_USER_SAA7134_BASE + 2)
+#define V4L2_CID_PRIVATE_AUTOMUTE    (V4L2_CID_USER_SAA7134_BASE + 3)
+
 /* ----------------------------------------------------------- */
 /* device / file handle status                                 */
 
 #define RESOURCE_OVERLAY       1
 #define RESOURCE_VIDEO         2
 #define RESOURCE_VBI           4
+#define RESOURCE_EMPRESS       8
 
 #define INTERLACE_AUTO         0
 #define INTERLACE_ON           1
@@ -470,16 +477,8 @@ struct saa7134_dmaqueue {
 /* video filehandle status */
 struct saa7134_fh {
 	struct v4l2_fh             fh;
-	struct saa7134_dev         *dev;
+	bool			   is_empress;
 	unsigned int               resources;
-
-	/* video capture */
-	struct videobuf_queue      cap;
-	struct saa7134_pgtable     pt_cap;
-
-	/* vbi capture */
-	struct videobuf_queue      vbi;
-	struct saa7134_pgtable     pt_vbi;
 };
 
 /* dmasound dsp status */
@@ -589,7 +588,11 @@ struct saa7134_dev {
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
+	struct videobuf_queue      cap;
+	struct saa7134_pgtable     pt_cap;
 	struct saa7134_dmaqueue    vbi_q;
+	struct videobuf_queue      vbi;
+	struct saa7134_pgtable     pt_vbi;
 	unsigned int               video_fieldcount;
 	unsigned int               vbi_fieldcount;
 	struct saa7134_format      *fmt;
@@ -599,6 +602,7 @@ struct saa7134_dev {
 	/* various v4l controls */
 	struct saa7134_tvnorm      *tvnorm;              /* video */
 	struct saa7134_tvaudio     *tvaudio;
+	struct v4l2_ctrl_handler   ctrl_handler;
 	unsigned int               ctl_input;
 	int                        ctl_bright;
 	int                        ctl_contrast;
@@ -626,6 +630,7 @@ struct saa7134_dev {
 	int                        last_carrier;
 	int                        nosignal;
 	unsigned int               insuspend;
+	struct v4l2_ctrl_handler   radio_ctrl_handler;
 
 	/* I2C keyboard data */
 	struct IR_i2c_init_data    init_data;
@@ -638,10 +643,11 @@ struct saa7134_dev {
 
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;
+	struct v4l2_subdev	   *empress_sd;
 	struct videobuf_queue      empress_tsq;
-	atomic_t 		   empress_users;
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
+	struct v4l2_ctrl_handler   empress_ctrl_handler;
 
 #if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 	/* SAA7134_MPEG_DVB only */
@@ -698,6 +704,16 @@ struct saa7134_dev {
 		dev->gate_ctrl(dev, 0);					\
 	_rc;								\
 })
+
+static inline int res_check(struct saa7134_fh *fh, unsigned int bit)
+{
+	return fh->resources & bit;
+}
+
+static inline int res_locked(struct saa7134_dev *dev, unsigned int bit)
+{
+	return dev->resources & bit;
+}
 
 /* ----------------------------------------------------------- */
 /* saa7134-core.c                                              */
@@ -761,10 +777,31 @@ extern unsigned int video_debug;
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 
-int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
-int saa7134_g_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
-int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c);
-int saa7134_s_std_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, v4l2_std_id id);
+int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id);
+int saa7134_g_std(struct file *file, void *priv, v4l2_std_id *id);
+int saa7134_enum_input(struct file *file, void *priv, struct v4l2_input *i);
+int saa7134_g_input(struct file *file, void *priv, unsigned int *i);
+int saa7134_s_input(struct file *file, void *priv, unsigned int i);
+int saa7134_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *cap);
+int saa7134_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *t);
+int saa7134_s_tuner(struct file *file, void *priv,
+					const struct v4l2_tuner *t);
+int saa7134_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f);
+int saa7134_s_frequency(struct file *file, void *priv,
+					const struct v4l2_frequency *f);
+int saa7134_reqbufs(struct file *file, void *priv,
+					struct v4l2_requestbuffers *p);
+int saa7134_querybuf(struct file *file, void *priv,
+					struct v4l2_buffer *b);
+int saa7134_qbuf(struct file *file, void *priv, struct v4l2_buffer *b);
+int saa7134_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b);
+int saa7134_streamon(struct file *file, void *priv,
+					enum v4l2_buf_type type);
+int saa7134_streamoff(struct file *file, void *priv,
+					enum v4l2_buf_type type);
 
 int saa7134_videoport_init(struct saa7134_dev *dev);
 void saa7134_set_tvnorm_hw(struct saa7134_dev *dev);
@@ -773,6 +810,7 @@ int saa7134_video_init1(struct saa7134_dev *dev);
 int saa7134_video_init2(struct saa7134_dev *dev);
 void saa7134_irq_video_signalchange(struct saa7134_dev *dev);
 void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status);
+void saa7134_video_fini(struct saa7134_dev *dev);
 
 
 /* ----------------------------------------------------------- */

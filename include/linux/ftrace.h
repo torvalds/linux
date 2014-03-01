@@ -570,8 +570,6 @@ static inline int
 ftrace_regex_release(struct inode *inode, struct file *file) { return -ENODEV; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
-loff_t ftrace_filter_lseek(struct file *file, loff_t offset, int whence);
-
 /* totally disable ftrace - can not re-enable after this */
 void ftrace_kill(void);
 

@@ -7,6 +7,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/blkdev.h>
 #include <linux/compat.h>
 
 #include <cluster/masklog.h>
@@ -966,15 +967,21 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case FITRIM:
 	{
 		struct super_block *sb = inode->i_sb;
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		int ret = 0;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
+		if (!blk_queue_discard(q))
+			return -EOPNOTSUPP;
+
 		if (copy_from_user(&range, argp, sizeof(range)))
 			return -EFAULT;
 
+		range.minlen = max_t(u64, q->limits.discard_granularity,
+				     range.minlen);
 		ret = ocfs2_trim_fs(sb, &range);
 		if (ret < 0)
 			return ret;

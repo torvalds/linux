@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
 
 struct ioapic {
 	acpi_handle	handle;
@@ -113,6 +112,10 @@ static struct pci_driver ioapic_driver = {
 	.remove		= ioapic_remove,
 };
 
-module_pci_driver(ioapic_driver);
+static int __init ioapic_init(void)
+{
+	return pci_register_driver(&ioapic_driver);
+}
+module_init(ioapic_init);
 
 MODULE_LICENSE("GPL");

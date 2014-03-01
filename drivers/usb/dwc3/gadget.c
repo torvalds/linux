@@ -1650,7 +1650,7 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 		dev_vdbg(dwc->dev, "initializing %s\n", dep->name);
 
 		if (epnum == 0 || epnum == 1) {
-			dep->endpoint.maxpacket = 512;
+			usb_ep_set_maxpacket_limit(&dep->endpoint, 512);
 			dep->endpoint.maxburst = 1;
 			dep->endpoint.ops = &dwc3_gadget_ep0_ops;
 			if (!epnum)
@@ -1658,7 +1658,7 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 		} else {
 			int		ret;
 
-			dep->endpoint.maxpacket = 1024;
+			usb_ep_set_maxpacket_limit(&dep->endpoint, 1024);
 			dep->endpoint.max_streams = 15;
 			dep->endpoint.ops = &dwc3_gadget_ep_ops;
 			list_add_tail(&dep->endpoint.ep_list,
@@ -2595,6 +2595,12 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	dwc->gadget.speed		= USB_SPEED_UNKNOWN;
 	dwc->gadget.sg_supported	= true;
 	dwc->gadget.name		= "dwc3-gadget";
+
+	/*
+	 * Per databook, DWC3 needs buffer size to be aligned to MaxPacketSize
+	 * on ep out.
+	 */
+	dwc->gadget.quirk_ep_out_aligned_size = true;
 
 	/*
 	 * REVISIT: Here we should clear all pending IRQs to be

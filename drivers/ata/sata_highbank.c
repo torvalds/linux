@@ -29,7 +29,6 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/libata.h>
-#include <linux/ahci_platform.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/export.h>

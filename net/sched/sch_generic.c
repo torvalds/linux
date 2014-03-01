@@ -126,7 +126,7 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_xmit_frozen_or_stopped(txq))
-		ret = dev_hard_start_xmit(skb, dev, txq, NULL);
+		ret = dev_hard_start_xmit(skb, dev, txq);
 
 	HARD_TX_UNLOCK(dev, txq);
 
@@ -338,13 +338,13 @@ EXPORT_SYMBOL(netif_carrier_off);
    cheaper.
  */
 
-static int noop_enqueue(struct sk_buff *skb, struct Qdisc * qdisc)
+static int noop_enqueue(struct sk_buff *skb, struct Qdisc *qdisc)
 {
 	kfree_skb(skb);
 	return NET_XMIT_CN;
 }
 
-static struct sk_buff *noop_dequeue(struct Qdisc * qdisc)
+static struct sk_buff *noop_dequeue(struct Qdisc *qdisc)
 {
 	return NULL;
 }
@@ -718,8 +718,8 @@ static void attach_default_qdiscs(struct net_device *dev)
 	} else {
 		qdisc = qdisc_create_dflt(txq, &mq_qdisc_ops, TC_H_ROOT);
 		if (qdisc) {
-			qdisc->ops->attach(qdisc);
 			dev->qdisc = qdisc;
+			qdisc->ops->attach(qdisc);
 		}
 	}
 }

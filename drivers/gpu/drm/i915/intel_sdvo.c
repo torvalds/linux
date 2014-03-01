@@ -413,23 +413,34 @@ static const struct _sdvo_cmd_name {
 static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 				   const void *args, int args_len)
 {
-	int i;
+	int i, pos = 0;
+#define BUF_LEN 256
+	char buffer[BUF_LEN];
 
-	DRM_DEBUG_KMS("%s: W: %02X ",
-				SDVO_NAME(intel_sdvo), cmd);
-	for (i = 0; i < args_len; i++)
-		DRM_LOG_KMS("%02X ", ((u8 *)args)[i]);
-	for (; i < 8; i++)
-		DRM_LOG_KMS("   ");
+#define BUF_PRINT(args...) \
+	pos += snprintf(buffer + pos, max_t(int, BUF_LEN - pos, 0), args)
+
+
+	for (i = 0; i < args_len; i++) {
+		BUF_PRINT("%02X ", ((u8 *)args)[i]);
+	}
+	for (; i < 8; i++) {
+		BUF_PRINT("   ");
+	}
 	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
-			DRM_LOG_KMS("(%s)", sdvo_cmd_names[i].name);
+			BUF_PRINT("(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
-	if (i == ARRAY_SIZE(sdvo_cmd_names))
-		DRM_LOG_KMS("(%02X)", cmd);
-	DRM_LOG_KMS("\n");
+	if (i == ARRAY_SIZE(sdvo_cmd_names)) {
+		BUF_PRINT("(%02X)", cmd);
+	}
+	BUG_ON(pos >= BUF_LEN - 1);
+#undef BUF_PRINT
+#undef BUF_LEN
+
+	DRM_DEBUG_KMS("%s: W: %02X %s\n", SDVO_NAME(intel_sdvo), cmd, buffer);
 }
 
 static const char *cmd_status_names[] = {
@@ -512,9 +523,10 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 {
 	u8 retry = 15; /* 5 quick checks, followed by 10 long checks */
 	u8 status;
-	int i;
+	int i, pos = 0;
+#define BUF_LEN 256
+	char buffer[BUF_LEN];
 
-	DRM_DEBUG_KMS("%s: R: ", SDVO_NAME(intel_sdvo));
 
 	/*
 	 * The documentation states that all commands will be
@@ -551,10 +563,13 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 			goto log_fail;
 	}
 
+#define BUF_PRINT(args...) \
+	pos += snprintf(buffer + pos, max_t(int, BUF_LEN - pos, 0), args)
+
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
-		DRM_LOG_KMS("(%s)", cmd_status_names[status]);
+		BUF_PRINT("(%s)", cmd_status_names[status]);
 	else
-		DRM_LOG_KMS("(??? %d)", status);
+		BUF_PRINT("(??? %d)", status);
 
 	if (status != SDVO_CMD_STATUS_SUCCESS)
 		goto log_fail;
@@ -565,13 +580,17 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 					  SDVO_I2C_RETURN_0 + i,
 					  &((u8 *)response)[i]))
 			goto log_fail;
-		DRM_LOG_KMS(" %02X", ((u8 *)response)[i]);
+		BUF_PRINT(" %02X", ((u8 *)response)[i]);
 	}
-	DRM_LOG_KMS("\n");
+	BUG_ON(pos >= BUF_LEN - 1);
+#undef BUF_PRINT
+#undef BUF_LEN
+
+	DRM_DEBUG_KMS("%s: R: %s\n", SDVO_NAME(intel_sdvo), buffer);
 	return true;
 
 log_fail:
-	DRM_LOG_KMS("... failed\n");
+	DRM_DEBUG_KMS("%s: R: ... failed\n", SDVO_NAME(intel_sdvo));
 	return false;
 }
 
@@ -933,7 +952,7 @@ static void intel_sdvo_dump_hdmi_buf(struct intel_sdvo *intel_sdvo)
 
 static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 				       unsigned if_index, uint8_t tx_rate,
-				       uint8_t *data, unsigned length)
+				       const uint8_t *data, unsigned length)
 {
 	uint8_t set_buf_index[2] = { if_index, 0 };
 	uint8_t hbuf_size, tmp[8];
@@ -1517,8 +1536,9 @@ static void intel_sdvo_dpms(struct drm_connector *connector, int mode)
 	intel_modeset_check_state(connector->dev);
 }
 
-static int intel_sdvo_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
+static enum drm_mode_status
+intel_sdvo_mode_valid(struct drm_connector *connector,
+		      struct drm_display_mode *mode)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 

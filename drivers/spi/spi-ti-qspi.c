@@ -46,6 +46,8 @@ struct ti_qspi {
 
 	struct spi_master	*master;
 	void __iomem            *base;
+	void __iomem            *ctrl_base;
+	void __iomem            *mmap_base;
 	struct clk		*fclk;
 	struct device           *dev;
 
@@ -54,6 +56,8 @@ struct ti_qspi {
 	u32 spi_max_frequency;
 	u32 cmd;
 	u32 dc;
+
+	bool ctrl_mod;
 };
 
 #define QSPI_PID			(0x0)
@@ -204,53 +208,36 @@ static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 	txbuf = t->tx_buf;
 	cmd = qspi->cmd | QSPI_WR_SNGL;
 	count = t->len;
-	wlen = t->bits_per_word;
+	wlen = t->bits_per_word >> 3;	/* in bytes */
 
 	while (count) {
 		switch (wlen) {
-		case 8:
+		case 1:
 			dev_dbg(qspi->dev, "tx cmd %08x dc %08x data %02x\n",
 					cmd, qspi->dc, *txbuf);
 			writeb(*txbuf, qspi->base + QSPI_SPI_DATA_REG);
-			ti_qspi_write(qspi, cmd, QSPI_SPI_CMD_REG);
-			ret = wait_for_completion_timeout(&qspi->transfer_complete,
-					QSPI_COMPLETION_TIMEOUT);
-			if (ret == 0) {
-				dev_err(qspi->dev, "write timed out\n");
-				return -ETIMEDOUT;
-			}
-			txbuf += 1;
-			count -= 1;
 			break;
-		case 16:
+		case 2:
 			dev_dbg(qspi->dev, "tx cmd %08x dc %08x data %04x\n",
 					cmd, qspi->dc, *txbuf);
 			writew(*((u16 *)txbuf), qspi->base + QSPI_SPI_DATA_REG);
-			ti_qspi_write(qspi, cmd, QSPI_SPI_CMD_REG);
-			ret = wait_for_completion_timeout(&qspi->transfer_complete,
-				QSPI_COMPLETION_TIMEOUT);
-			if (ret == 0) {
-				dev_err(qspi->dev, "write timed out\n");
-				return -ETIMEDOUT;
-			}
-			txbuf += 2;
-			count -= 2;
 			break;
-		case 32:
+		case 4:
 			dev_dbg(qspi->dev, "tx cmd %08x dc %08x data %08x\n",
 					cmd, qspi->dc, *txbuf);
 			writel(*((u32 *)txbuf), qspi->base + QSPI_SPI_DATA_REG);
-			ti_qspi_write(qspi, cmd, QSPI_SPI_CMD_REG);
-			ret = wait_for_completion_timeout(&qspi->transfer_complete,
-				QSPI_COMPLETION_TIMEOUT);
-			if (ret == 0) {
-				dev_err(qspi->dev, "write timed out\n");
-				return -ETIMEDOUT;
-			}
-			txbuf += 4;
-			count -= 4;
 			break;
 		}
+
+		ti_qspi_write(qspi, cmd, QSPI_SPI_CMD_REG);
+		ret = wait_for_completion_timeout(&qspi->transfer_complete,
+						  QSPI_COMPLETION_TIMEOUT);
+		if (ret == 0) {
+			dev_err(qspi->dev, "write timed out\n");
+			return -ETIMEDOUT;
+		}
+		txbuf += wlen;
+		count -= wlen;
 	}
 
 	return 0;
@@ -276,7 +263,7 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 		break;
 	}
 	count = t->len;
-	wlen = t->bits_per_word;
+	wlen = t->bits_per_word >> 3;	/* in bytes */
 
 	while (count) {
 		dev_dbg(qspi->dev, "rx cmd %08x dc %08x\n", cmd, qspi->dc);
@@ -288,22 +275,18 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 			return -ETIMEDOUT;
 		}
 		switch (wlen) {
-		case 8:
+		case 1:
 			*rxbuf = readb(qspi->base + QSPI_SPI_DATA_REG);
-			rxbuf += 1;
-			count -= 1;
 			break;
-		case 16:
+		case 2:
 			*((u16 *)rxbuf) = readw(qspi->base + QSPI_SPI_DATA_REG);
-			rxbuf += 2;
-			count -= 2;
 			break;
-		case 32:
+		case 4:
 			*((u32 *)rxbuf) = readl(qspi->base + QSPI_SPI_DATA_REG);
-			rxbuf += 4;
-			count -= 4;
 			break;
 		}
+		rxbuf += wlen;
+		count -= wlen;
 	}
 
 	return 0;
@@ -417,10 +400,8 @@ out:
 static int ti_qspi_runtime_resume(struct device *dev)
 {
 	struct ti_qspi      *qspi;
-	struct spi_master       *master;
 
-	master = dev_get_drvdata(dev);
-	qspi = spi_master_get_devdata(master);
+	qspi = dev_get_drvdata(dev);
 	ti_qspi_restore_ctx(qspi);
 
 	return 0;
@@ -437,7 +418,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 {
 	struct  ti_qspi *qspi;
 	struct spi_master *master;
-	struct resource         *r;
+	struct resource         *r, *res_ctrl, *res_mmap;
 	struct device_node *np = pdev->dev.of_node;
 	u32 max_freq;
 	int ret = 0, num_cs, irq;
@@ -464,7 +445,35 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	qspi->dev = &pdev->dev;
 	platform_set_drvdata(pdev, qspi);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi_base");
+	if (r == NULL) {
+		r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (r == NULL) {
+			dev_err(&pdev->dev, "missing platform data\n");
+			return -ENODEV;
+		}
+	}
+
+	res_mmap = platform_get_resource_byname(pdev,
+			IORESOURCE_MEM, "qspi_mmap");
+	if (res_mmap == NULL) {
+		res_mmap = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (res_mmap == NULL) {
+			dev_err(&pdev->dev,
+				"memory mapped resource not required\n");
+			return -ENODEV;
+		}
+	}
+
+	res_ctrl = platform_get_resource_byname(pdev,
+			IORESOURCE_MEM, "qspi_ctrlmod");
+	if (res_ctrl == NULL) {
+		res_ctrl = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+		if (res_ctrl == NULL) {
+			dev_dbg(&pdev->dev,
+				"control module resources not required\n");
+		}
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -478,6 +487,23 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	if (IS_ERR(qspi->base)) {
 		ret = PTR_ERR(qspi->base);
 		goto free_master;
+	}
+
+	if (res_ctrl) {
+		qspi->ctrl_mod = true;
+		qspi->ctrl_base = devm_ioremap_resource(&pdev->dev, res_ctrl);
+		if (IS_ERR(qspi->ctrl_base)) {
+			ret = PTR_ERR(qspi->ctrl_base);
+			goto free_master;
+		}
+	}
+
+	if (res_mmap) {
+		qspi->mmap_base = devm_ioremap_resource(&pdev->dev, res_mmap);
+		if (IS_ERR(qspi->mmap_base)) {
+			ret = PTR_ERR(qspi->mmap_base);
+			goto free_master;
+		}
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, ti_qspi_isr, 0,
@@ -516,12 +542,8 @@ free_master:
 
 static int ti_qspi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master;
-	struct ti_qspi *qspi;
+	struct ti_qspi *qspi = platform_get_drvdata(pdev);
 	int ret;
-
-	master = platform_get_drvdata(pdev);
-	qspi = spi_master_get_devdata(master);
 
 	ret = pm_runtime_get_sync(qspi->dev);
 	if (ret < 0) {
@@ -534,8 +556,6 @@ static int ti_qspi_remove(struct platform_device *pdev)
 	pm_runtime_put(qspi->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	spi_unregister_master(master);
-
 	return 0;
 }
 
@@ -547,7 +567,7 @@ static struct platform_driver ti_qspi_driver = {
 	.probe	= ti_qspi_probe,
 	.remove = ti_qspi_remove,
 	.driver = {
-		.name	= "ti,dra7xxx-qspi",
+		.name	= "ti-qspi",
 		.owner	= THIS_MODULE,
 		.pm =   &ti_qspi_pm_ops,
 		.of_match_table = ti_qspi_match,
@@ -559,3 +579,4 @@ module_platform_driver(ti_qspi_driver);
 MODULE_AUTHOR("Sourav Poddar <sourav.poddar@ti.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI QSPI controller driver");
+MODULE_ALIAS("platform:ti-qspi");

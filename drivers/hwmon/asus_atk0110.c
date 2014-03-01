@@ -16,11 +16,7 @@
 #include <linux/dmi.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
-
-#include <acpi/acpi.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
-
+#include <linux/acpi.h>
 
 #define ATK_HID "ATK0110"
 

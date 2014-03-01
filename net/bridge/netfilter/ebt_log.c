@@ -96,7 +96,7 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 		bitmask = NF_LOG_MASK;
 
 	if ((bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
-	   htons(ETH_P_IP)){
+	   htons(ETH_P_IP)) {
 		const struct iphdr *ih;
 		struct iphdr _iph;
 

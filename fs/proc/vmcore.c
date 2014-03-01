@@ -468,17 +468,24 @@ static int __init update_note_header_size_elf64(const Elf64_Ehdr *ehdr_ptr)
 			return rc;
 		}
 		nhdr_ptr = notes_section;
-		while (real_sz < max_sz) {
-			if (nhdr_ptr->n_namesz == 0)
-				break;
+		while (nhdr_ptr->n_namesz != 0) {
 			sz = sizeof(Elf64_Nhdr) +
 				((nhdr_ptr->n_namesz + 3) & ~3) +
 				((nhdr_ptr->n_descsz + 3) & ~3);
+			if ((real_sz + sz) > max_sz) {
+				pr_warn("Warning: Exceeded p_memsz, dropping PT_NOTE entry n_namesz=0x%x, n_descsz=0x%x\n",
+					nhdr_ptr->n_namesz, nhdr_ptr->n_descsz);
+				break;
+			}
 			real_sz += sz;
 			nhdr_ptr = (Elf64_Nhdr*)((char*)nhdr_ptr + sz);
 		}
 		kfree(notes_section);
 		phdr_ptr->p_memsz = real_sz;
+		if (real_sz == 0) {
+			pr_warn("Warning: Zero PT_NOTE entries found\n");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -648,17 +655,24 @@ static int __init update_note_header_size_elf32(const Elf32_Ehdr *ehdr_ptr)
 			return rc;
 		}
 		nhdr_ptr = notes_section;
-		while (real_sz < max_sz) {
-			if (nhdr_ptr->n_namesz == 0)
-				break;
+		while (nhdr_ptr->n_namesz != 0) {
 			sz = sizeof(Elf32_Nhdr) +
 				((nhdr_ptr->n_namesz + 3) & ~3) +
 				((nhdr_ptr->n_descsz + 3) & ~3);
+			if ((real_sz + sz) > max_sz) {
+				pr_warn("Warning: Exceeded p_memsz, dropping PT_NOTE entry n_namesz=0x%x, n_descsz=0x%x\n",
+					nhdr_ptr->n_namesz, nhdr_ptr->n_descsz);
+				break;
+			}
 			real_sz += sz;
 			nhdr_ptr = (Elf32_Nhdr*)((char*)nhdr_ptr + sz);
 		}
 		kfree(notes_section);
 		phdr_ptr->p_memsz = real_sz;
+		if (real_sz == 0) {
+			pr_warn("Warning: Zero PT_NOTE entries found\n");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -1082,7 +1096,7 @@ static int __init vmcore_init(void)
 		proc_vmcore->size = vmcore_size;
 	return 0;
 }
-module_init(vmcore_init)
+fs_initcall(vmcore_init);
 
 /* Cleanup function for vmcore module. */
 void vmcore_cleanup(void)

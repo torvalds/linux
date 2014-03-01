@@ -6,7 +6,6 @@
  * Copyright (C) 2005-2007 Cavium Networks
  */
 #include <linux/export.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/smp.h>

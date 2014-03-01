@@ -38,7 +38,7 @@
  *
  * Since this is software, the timings may not be exactly what your board's
  * chips need ... there may be several reasons you'd need to tweak timings
- * in these routines, not just make to make it faster or slower to match a
+ * in these routines, not just to make it faster or slower to match a
  * particular CPU clock rate.
  */
 

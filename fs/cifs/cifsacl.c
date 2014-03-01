@@ -865,8 +865,8 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 	return rc;
 }
 
-static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
-		__u16 fid, u32 *pacllen)
+struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
+		const struct cifs_fid *cifsfid, u32 *pacllen)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	unsigned int xid;
@@ -877,7 +877,8 @@ static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
 		return ERR_CAST(tlink);
 
 	xid = get_xid();
-	rc = CIFSSMBGetCIFSACL(xid, tlink_tcon(tlink), fid, &pntsd, pacllen);
+	rc = CIFSSMBGetCIFSACL(xid, tlink_tcon(tlink), cifsfid->netfid, &pntsd,
+				pacllen);
 	free_xid(xid);
 
 	cifs_put_tlink(tlink);
@@ -895,9 +896,10 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	int oplock = 0;
 	unsigned int xid;
 	int rc, create_options = 0;
-	__u16 fid;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 
 	if (IS_ERR(tlink))
 		return ERR_CAST(tlink);
@@ -908,12 +910,19 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, READ_CONTROL,
-			create_options, &fid, &oplock, NULL, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = READ_CONTROL;
+	oparms.create_options = create_options;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (!rc) {
-		rc = CIFSSMBGetCIFSACL(xid, tcon, fid, &pntsd, pacllen);
-		CIFSSMBClose(xid, tcon, fid);
+		rc = CIFSSMBGetCIFSACL(xid, tcon, fid.netfid, &pntsd, pacllen);
+		CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 
 	cifs_put_tlink(tlink);
@@ -938,7 +947,7 @@ struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 	if (!open_file)
 		return get_cifs_acl_by_path(cifs_sb, path, pacllen);
 
-	pntsd = get_cifs_acl_by_fid(cifs_sb, open_file->fid.netfid, pacllen);
+	pntsd = get_cifs_acl_by_fid(cifs_sb, &open_file->fid, pacllen);
 	cifsFileInfo_put(open_file);
 	return pntsd;
 }
@@ -950,10 +959,11 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	int oplock = 0;
 	unsigned int xid;
 	int rc, access_flags, create_options = 0;
-	__u16 fid;
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -969,18 +979,25 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	else
 		access_flags = WRITE_DAC;
 
-	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, access_flags,
-			create_options, &fid, &oplock, NULL, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = access_flags;
+	oparms.create_options = create_options;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc) {
 		cifs_dbg(VFS, "Unable to open file to set ACL\n");
 		goto out;
 	}
 
-	rc = CIFSSMBSetCIFSACL(xid, tcon, fid, pnntsd, acllen, aclflag);
+	rc = CIFSSMBSetCIFSACL(xid, tcon, fid.netfid, pnntsd, acllen, aclflag);
 	cifs_dbg(NOISY, "SetCIFSACL rc = %d\n", rc);
 
-	CIFSSMBClose(xid, tcon, fid);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 out:
 	free_xid(xid);
 	cifs_put_tlink(tlink);
@@ -990,19 +1007,31 @@ out:
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
 int
 cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
-		  struct inode *inode, const char *path, const __u16 *pfid)
+		  struct inode *inode, const char *path,
+		  const struct cifs_fid *pfid)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	u32 acllen = 0;
 	int rc = 0;
+	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
+	struct cifs_tcon *tcon;
 
 	cifs_dbg(NOISY, "converting ACL to mode for %s\n", path);
 
-	if (pfid)
-		pntsd = get_cifs_acl_by_fid(cifs_sb, *pfid, &acllen);
-	else
-		pntsd = get_cifs_acl(cifs_sb, inode, path, &acllen);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
+	if (pfid && (tcon->ses->server->ops->get_acl_by_fid))
+		pntsd = tcon->ses->server->ops->get_acl_by_fid(cifs_sb, pfid,
+							  &acllen);
+	else if (tcon->ses->server->ops->get_acl)
+		pntsd = tcon->ses->server->ops->get_acl(cifs_sb, inode, path,
+							&acllen);
+	else {
+		cifs_put_tlink(tlink);
+		return -EOPNOTSUPP;
+	}
 	/* if we can retrieve the ACL, now parse Access Control Entries, ACEs */
 	if (IS_ERR(pntsd)) {
 		rc = PTR_ERR(pntsd);
@@ -1013,6 +1042,8 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 		if (rc)
 			cifs_dbg(VFS, "parse sec desc failed rc = %d\n", rc);
 	}
+
+	cifs_put_tlink(tlink);
 
 	return rc;
 }
@@ -1027,15 +1058,30 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	__u32 secdesclen = 0;
 	struct cifs_ntsd *pntsd = NULL; /* acl obtained from server */
 	struct cifs_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
+	struct cifs_tcon *tcon;
+
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
 	cifs_dbg(NOISY, "set ACL from mode for %s\n", path);
 
 	/* Get the security descriptor */
-	pntsd = get_cifs_acl(CIFS_SB(inode->i_sb), inode, path, &secdesclen);
+
+	if (tcon->ses->server->ops->get_acl == NULL) {
+		cifs_put_tlink(tlink);
+		return -EOPNOTSUPP;
+	}
+
+	pntsd = tcon->ses->server->ops->get_acl(cifs_sb, inode, path,
+						&secdesclen);
 	if (IS_ERR(pntsd)) {
 		rc = PTR_ERR(pntsd);
 		cifs_dbg(VFS, "%s: error %d getting sec desc\n", __func__, rc);
-		goto out;
+		cifs_put_tlink(tlink);
+		return rc;
 	}
 
 	/*
@@ -1048,6 +1094,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	pnntsd = kmalloc(secdesclen, GFP_KERNEL);
 	if (!pnntsd) {
 		kfree(pntsd);
+		cifs_put_tlink(tlink);
 		return -ENOMEM;
 	}
 
@@ -1056,14 +1103,18 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 
 	cifs_dbg(NOISY, "build_sec_desc rc: %d\n", rc);
 
+	if (tcon->ses->server->ops->set_acl == NULL)
+		rc = -EOPNOTSUPP;
+
 	if (!rc) {
 		/* Set the security descriptor */
-		rc = set_cifs_acl(pnntsd, secdesclen, inode, path, aclflag);
+		rc = tcon->ses->server->ops->set_acl(pnntsd, secdesclen, inode,
+						     path, aclflag);
 		cifs_dbg(NOISY, "set_cifs_acl rc: %d\n", rc);
 	}
+	cifs_put_tlink(tlink);
 
 	kfree(pnntsd);
 	kfree(pntsd);
-out:
 	return rc;
 }

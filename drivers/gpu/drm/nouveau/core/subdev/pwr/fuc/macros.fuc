@@ -83,6 +83,50 @@
 #define NV_PPWR_MMIO_CTRL_OP_WR                                      0x00000002
 #define NV_PPWR_OUTPUT                                                   0x07c0
 #define NV_PPWR_OUTPUT_FB_PAUSE                                      0x00000004
+#if NVKM_PPWR_CHIPSET < GF119
+#define NV_PPWR_OUTPUT_I2C_3_SCL                                     0x00000100
+#define NV_PPWR_OUTPUT_I2C_3_SDA                                     0x00000200
+#define NV_PPWR_OUTPUT_I2C_0_SCL                                     0x00001000
+#define NV_PPWR_OUTPUT_I2C_0_SDA                                     0x00002000
+#define NV_PPWR_OUTPUT_I2C_1_SCL                                     0x00004000
+#define NV_PPWR_OUTPUT_I2C_1_SDA                                     0x00008000
+#define NV_PPWR_OUTPUT_I2C_2_SCL                                     0x00010000
+#define NV_PPWR_OUTPUT_I2C_2_SDA                                     0x00020000
+#define NV_PPWR_OUTPUT_I2C_4_SCL                                     0x00040000
+#define NV_PPWR_OUTPUT_I2C_4_SDA                                     0x00080000
+#define NV_PPWR_OUTPUT_I2C_5_SCL                                     0x00100000
+#define NV_PPWR_OUTPUT_I2C_5_SDA                                     0x00200000
+#define NV_PPWR_OUTPUT_I2C_6_SCL                                     0x00400000
+#define NV_PPWR_OUTPUT_I2C_6_SDA                                     0x00800000
+#define NV_PPWR_OUTPUT_I2C_7_SCL                                     0x01000000
+#define NV_PPWR_OUTPUT_I2C_7_SDA                                     0x02000000
+#define NV_PPWR_OUTPUT_I2C_8_SCL                                     0x04000000
+#define NV_PPWR_OUTPUT_I2C_8_SDA                                     0x08000000
+#define NV_PPWR_OUTPUT_I2C_9_SCL                                     0x10000000
+#define NV_PPWR_OUTPUT_I2C_9_SDA                                     0x20000000
+#else
+#define NV_PPWR_OUTPUT_I2C_0_SCL                                     0x00000400
+#define NV_PPWR_OUTPUT_I2C_1_SCL                                     0x00000800
+#define NV_PPWR_OUTPUT_I2C_2_SCL                                     0x00001000
+#define NV_PPWR_OUTPUT_I2C_3_SCL                                     0x00002000
+#define NV_PPWR_OUTPUT_I2C_4_SCL                                     0x00004000
+#define NV_PPWR_OUTPUT_I2C_5_SCL                                     0x00008000
+#define NV_PPWR_OUTPUT_I2C_6_SCL                                     0x00010000
+#define NV_PPWR_OUTPUT_I2C_7_SCL                                     0x00020000
+#define NV_PPWR_OUTPUT_I2C_8_SCL                                     0x00040000
+#define NV_PPWR_OUTPUT_I2C_9_SCL                                     0x00080000
+#define NV_PPWR_OUTPUT_I2C_0_SDA                                     0x00100000
+#define NV_PPWR_OUTPUT_I2C_1_SDA                                     0x00200000
+#define NV_PPWR_OUTPUT_I2C_2_SDA                                     0x00400000
+#define NV_PPWR_OUTPUT_I2C_3_SDA                                     0x00800000
+#define NV_PPWR_OUTPUT_I2C_4_SDA                                     0x01000000
+#define NV_PPWR_OUTPUT_I2C_5_SDA                                     0x02000000
+#define NV_PPWR_OUTPUT_I2C_6_SDA                                     0x04000000
+#define NV_PPWR_OUTPUT_I2C_7_SDA                                     0x08000000
+#define NV_PPWR_OUTPUT_I2C_8_SDA                                     0x10000000
+#define NV_PPWR_OUTPUT_I2C_9_SDA                                     0x20000000
+#endif
+#define NV_PPWR_INPUT                                                    0x07c4
 #define NV_PPWR_OUTPUT_SET                                               0x07e0
 #define NV_PPWR_OUTPUT_SET_FB_PAUSE                                  0x00000004
 #define NV_PPWR_OUTPUT_CLR                                               0x07e4
@@ -124,6 +168,15 @@
 */	.b32 0 /*
 */	.b32 0 /*
 */	.skip 64
+
+#if NV_PPWR_CHIPSET < GK208
+#define imm32(reg,val) /*
+*/	movw reg  ((val) & 0x0000ffff) /*
+*/	sethi reg ((val) & 0xffff0000)
+#else
+#define imm32(reg,val) /*
+*/	mov reg (val)
+#endif
 
 #ifndef NVKM_FALCON_UNSHIFTED_IO
 #define nv_iord(reg,ior) /*

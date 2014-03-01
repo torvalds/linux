@@ -130,6 +130,7 @@ struct mwifiex_txinfo {
 	u8 flags;
 	u8 bss_num;
 	u8 bss_type;
+	u32 pkt_len;
 };
 
 enum mwifiex_wmm_ac_e {

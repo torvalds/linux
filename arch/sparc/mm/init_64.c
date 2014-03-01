@@ -1021,7 +1021,8 @@ static void __init add_node_ranges(void)
 				"start[%lx] end[%lx]\n",
 				nid, start, this_end);
 
-			memblock_set_node(start, this_end - start, nid);
+			memblock_set_node(start, this_end - start,
+					  &memblock.memory, nid);
 			start = this_end;
 		}
 	}
@@ -1325,7 +1326,7 @@ static void __init bootmem_init_nonnuma(void)
 	       (top_of_ram - total_ram) >> 20);
 
 	init_node_masks_nonnuma();
-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, 0);
+	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
 	allocate_node_data(0);
 	node_set_online(0);
 }

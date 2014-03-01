@@ -33,47 +33,23 @@ void fimc_is_hw_set_intgr0_gd0(struct fimc_is *is)
 	mcuctl_write(INTGR0_INTGD(0), is, MCUCTL_REG_INTGR0);
 }
 
-int fimc_is_hw_wait_intsr0_intsd0(struct fimc_is *is)
-{
-	unsigned int timeout = 2000;
-	u32 cfg, status;
-
-	cfg = mcuctl_read(is, MCUCTL_REG_INTSR0);
-	status = INTSR0_GET_INTSD(0, cfg);
-
-	while (status) {
-		cfg = mcuctl_read(is, MCUCTL_REG_INTSR0);
-		status = INTSR0_GET_INTSD(0, cfg);
-		if (timeout == 0) {
-			dev_warn(&is->pdev->dev, "%s timeout\n",
-				 __func__);
-			return -ETIME;
-		}
-		timeout--;
-		udelay(1);
-	}
-	return 0;
-}
-
 int fimc_is_hw_wait_intmsr0_intmsd0(struct fimc_is *is)
 {
 	unsigned int timeout = 2000;
 	u32 cfg, status;
 
-	cfg = mcuctl_read(is, MCUCTL_REG_INTMSR0);
-	status = INTMSR0_GET_INTMSD(0, cfg);
-
-	while (status) {
+	do {
 		cfg = mcuctl_read(is, MCUCTL_REG_INTMSR0);
 		status = INTMSR0_GET_INTMSD(0, cfg);
-		if (timeout == 0) {
+
+		if (--timeout == 0) {
 			dev_warn(&is->pdev->dev, "%s timeout\n",
 				 __func__);
-			return -ETIME;
+			return -ETIMEDOUT;
 		}
-		timeout--;
 		udelay(1);
-	}
+	} while (status != 0);
+
 	return 0;
 }
 

@@ -1710,7 +1710,7 @@ static int sm501_plat_remove(struct platform_device *dev)
 	return 0;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(sm501_pci_tbl) = {
+static const struct pci_device_id sm501_pci_tbl[] = {
 	{ 0x126f, 0x0501, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, },
 };

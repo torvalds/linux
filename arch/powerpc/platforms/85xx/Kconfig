@@ -123,6 +123,12 @@ config P1023_RDS
 	help
 	  This option enables support for the P1023 RDS and RDB boards
 
+config TWR_P102x
+	bool "Freescale TWR-P102x"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the TWR-P1025 board.
+
 config SOCRATES
 	bool "Socrates"
 	select DEFAULT_UIMAGE

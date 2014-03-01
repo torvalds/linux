@@ -228,7 +228,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 
 tx_error:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 out:
 	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;

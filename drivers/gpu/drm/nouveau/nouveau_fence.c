@@ -143,7 +143,7 @@ nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 	int ret;
 
 	fence->channel  = chan;
-	fence->timeout  = jiffies + (15 * DRM_HZ);
+	fence->timeout  = jiffies + (15 * HZ);
 	fence->sequence = ++fctx->sequence;
 
 	ret = fctx->emit(fence);

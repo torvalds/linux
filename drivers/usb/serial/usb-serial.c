@@ -405,7 +405,7 @@ static int serial_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENOIOCTLCMD;
 
-	dev_dbg(tty->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
+	dev_dbg(tty->dev, "%s - cmd 0x%04x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCMIWAIT:

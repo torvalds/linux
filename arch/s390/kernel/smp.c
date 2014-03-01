@@ -59,7 +59,7 @@ enum {
 };
 
 struct pcpu {
-	struct cpu cpu;
+	struct cpu *cpu;
 	struct _lowcore *lowcore;	/* lowcore page(s) for the cpu */
 	unsigned long async_stack;	/* async stack for the cpu */
 	unsigned long panic_stack;	/* panic stack for the cpu */
@@ -159,9 +159,9 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 {
 	int order;
 
-	set_bit(ec_bit, &pcpu->ec_mask);
-	order = pcpu_running(pcpu) ?
-		SIGP_EXTERNAL_CALL : SIGP_EMERGENCY_SIGNAL;
+	if (test_and_set_bit(ec_bit, &pcpu->ec_mask))
+		return;
+	order = pcpu_running(pcpu) ? SIGP_EXTERNAL_CALL : SIGP_EMERGENCY_SIGNAL;
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
@@ -721,18 +721,14 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	return 0;
 }
 
-static int __init setup_possible_cpus(char *s)
-{
-	int max, cpu;
+static unsigned int setup_possible_cpus __initdata;
 
-	if (kstrtoint(s, 0, &max) < 0)
-		return 0;
-	init_cpu_possible(cpumask_of(0));
-	for (cpu = 1; cpu < max && cpu < nr_cpu_ids; cpu++)
-		set_cpu_possible(cpu, true);
+static int __init _setup_possible_cpus(char *s)
+{
+	get_option(&s, &setup_possible_cpus);
 	return 0;
 }
-early_param("possible_cpus", setup_possible_cpus);
+early_param("possible_cpus", _setup_possible_cpus);
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -774,6 +770,17 @@ void __noreturn cpu_die(void)
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
+
+void __init smp_fill_possible_mask(void)
+{
+	unsigned int possible, cpu;
+
+	possible = setup_possible_cpus;
+	if (!possible)
+		possible = MACHINE_IS_VM ? 64 : nr_cpu_ids;
+	for (cpu = 0; cpu < possible && cpu < nr_cpu_ids; cpu++)
+		set_cpu_possible(cpu, true);
+}
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
@@ -958,7 +965,7 @@ static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
-	struct cpu *c = &pcpu_devices[cpu].cpu;
+	struct cpu *c = pcpu_devices[cpu].cpu;
 	struct device *s = &c->dev;
 	int err = 0;
 
@@ -975,10 +982,15 @@ static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
 
 static int smp_add_present_cpu(int cpu)
 {
-	struct cpu *c = &pcpu_devices[cpu].cpu;
-	struct device *s = &c->dev;
+	struct device *s;
+	struct cpu *c;
 	int rc;
 
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (!c)
+		return -ENOMEM;
+	pcpu_devices[cpu].cpu = c;
+	s = &c->dev;
 	c->hotpluggable = 1;
 	rc = register_cpu(c, cpu);
 	if (rc)

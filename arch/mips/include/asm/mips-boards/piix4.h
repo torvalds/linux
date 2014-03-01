@@ -26,6 +26,10 @@
 #define   PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_DISABLE	(1 << 7)
 #define   PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MASK		0xf
 #define   PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MAX		16
+/* SERIRQ Control */
+#define PIIX4_FUNC0_SERIRQC			0x64
+#define   PIIX4_FUNC0_SERIRQC_EN			(1 << 7)
+#define   PIIX4_FUNC0_SERIRQC_CONT			(1 << 6)
 /* Top Of Memory */
 #define PIIX4_FUNC0_TOM				0x69
 #define   PIIX4_FUNC0_TOM_TOP_OF_MEMORY_MASK		0xf0
@@ -34,6 +38,9 @@
 #define   PIIX4_FUNC0_DLC_USBPR_EN			(1 << 2)
 #define   PIIX4_FUNC0_DLC_PASSIVE_RELEASE_EN		(1 << 1)
 #define   PIIX4_FUNC0_DLC_DELAYED_TRANSACTION_EN	(1 << 0)
+/* General Configuration */
+#define PIIX4_FUNC0_GENCFG			0xb0
+#define   PIIX4_FUNC0_GENCFG_SERIRQ			(1 << 16)
 
 /* IDE Timing */
 #define PIIX4_FUNC1_IDETIM_PRIMARY_LO		0x40

@@ -915,7 +915,7 @@ static int mg_probe(struct platform_device *plat_dev)
 
 	/* disk reset */
 	if (prv_data->dev_attr == MG_STORAGE_DEV) {
-		/* If POR seq. not yet finised, wait */
+		/* If POR seq. not yet finished, wait */
 		err = mg_wait_rstout(host->rstout, MG_TMAX_RSTOUT);
 		if (err)
 			goto probe_err_3b;

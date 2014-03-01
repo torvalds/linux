@@ -974,7 +974,7 @@ dt3155_remove(struct pci_dev *pdev)
 	kfree(pd);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pci_ids) = {
+static const struct pci_device_id pci_ids[] = {
 	{ PCI_DEVICE(DT3155_VENDOR_ID, DT3155_DEVICE_ID) },
 	{ 0, /* zero marks the end */ },
 };

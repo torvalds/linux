@@ -1,0 +1,15 @@
+#
+# humidity sensor drivers
+#
+menu "Humidity sensors"
+
+config DHT11
+	tristate "DHT11 (and compatible sensors) driver"
+	depends on GPIOLIB
+	help
+	  This driver supports reading data via a single interrupt
+	  generating GPIO line. Currently tested are DHT11 and DHT22.
+	  Other sensors should work as well as long as they speak the
+	  same protocol.
+
+endmenu

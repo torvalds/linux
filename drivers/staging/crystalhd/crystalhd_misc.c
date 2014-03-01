@@ -389,7 +389,7 @@ void *bc_kern_dma_alloc(struct crystalhd_adp *adp, uint32_t sz,
 	void *temp = NULL;
 
 	if (!adp || !sz || !phy_addr) {
-		BCMLOG_ERR("Invalide Arg..\n");
+		BCMLOG_ERR("Invalid Arg..\n");
 		return temp;
 	}
 
@@ -415,7 +415,7 @@ void bc_kern_dma_free(struct crystalhd_adp *adp, uint32_t sz, void *ka,
 		      dma_addr_t phy_addr)
 {
 	if (!adp || !ka || !sz || !phy_addr) {
-		BCMLOG_ERR("Invalide Arg..\n");
+		BCMLOG_ERR("Invalid Arg..\n");
 		return;
 	}
 

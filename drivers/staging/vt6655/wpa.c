@@ -241,7 +241,7 @@ WPA_SearchRSN(
 	int ii;
 	unsigned char byPKType = WPA_NONE;
 
-	if (pBSSList->bWPAValid == false)
+	if (!pBSSList->bWPAValid)
 		return false;
 
 	switch (byCmd) {

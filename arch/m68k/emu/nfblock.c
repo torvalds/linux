@@ -62,17 +62,18 @@ struct nfhd_device {
 static void nfhd_make_request(struct request_queue *queue, struct bio *bio)
 {
 	struct nfhd_device *dev = queue->queuedata;
-	struct bio_vec *bvec;
-	int i, dir, len, shift;
-	sector_t sec = bio->bi_sector;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+	int dir, len, shift;
+	sector_t sec = bio->bi_iter.bi_sector;
 
 	dir = bio_data_dir(bio);
 	shift = dev->bshift;
-	bio_for_each_segment(bvec, bio, i) {
-		len = bvec->bv_len;
+	bio_for_each_segment(bvec, bio, iter) {
+		len = bvec.bv_len;
 		len >>= 9;
 		nfhd_read_write(dev->id, 0, dir, sec >> shift, len >> shift,
-				bvec_to_phys(bvec));
+				bvec_to_phys(&bvec));
 		sec += len;
 	}
 	bio_endio(bio, 0);

@@ -222,7 +222,6 @@
 			ranges ;
 			ethernet@81c00000 {
 				compatible = "xlnx,xps-ll-temac-1.01.b", "xlnx,xps-ll-temac-1.00.a";
-				device_type = "network";
 				interrupt-parent = <&xps_intc_0>;
 				interrupts = < 5 2 >;
 				llink-connected = <&PIM3>;

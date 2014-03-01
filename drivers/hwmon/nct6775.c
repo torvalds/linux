@@ -5,7 +5,7 @@
  * Copyright (C) 2012  Guenter Roeck <linux@roeck-us.net>
  *
  * Derived from w83627ehf driver
- * Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  * Copyright (C) 2006  Yuan Mu (Winbond),
  *		       Rudolf Marek <r.marek@assembler.cz>
  *		       David Hubbard <david.c.hubbard@gmail.com>
@@ -3936,6 +3936,18 @@ static int nct6775_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
+static void nct6791_enable_io_mapping(int sioaddr)
+{
+	int val;
+
+	val = superio_inb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE);
+	if (val & 0x10) {
+		pr_info("Enabling hardware monitor logical device mappings.\n");
+		superio_outb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE,
+			     val & ~0x10);
+	}
+}
+
 #ifdef CONFIG_PM
 static int nct6775_suspend(struct device *dev)
 {
@@ -3955,10 +3967,19 @@ static int nct6775_suspend(struct device *dev)
 static int nct6775_resume(struct device *dev)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
-	int i, j;
+	int i, j, err = 0;
 
 	mutex_lock(&data->update_lock);
 	data->bank = 0xff;		/* Force initial bank selection */
+
+	if (data->kind == nct6791) {
+		err = superio_enter(data->sioreg);
+		if (err)
+			goto abort;
+
+		nct6791_enable_io_mapping(data->sioreg);
+		superio_exit(data->sioreg);
+	}
 
 	/* Restore limits */
 	for (i = 0; i < data->in_num; i++) {
@@ -3996,11 +4017,12 @@ static int nct6775_resume(struct device *dev)
 		nct6775_write_value(data, NCT6775_REG_FANDIV2, data->fandiv2);
 	}
 
+abort:
 	/* Force re-reading all values */
 	data->valid = false;
 	mutex_unlock(&data->update_lock);
 
-	return 0;
+	return err;
 }
 
 static const struct dev_pm_ops nct6775_dev_pm_ops = {
@@ -4088,15 +4110,9 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 		pr_warn("Forcibly enabling Super-I/O. Sensor is probably unusable.\n");
 		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
-	if (sio_data->kind == nct6791) {
-		val = superio_inb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE);
-		if (val & 0x10) {
-			pr_info("Enabling hardware monitor logical device mappings.\n");
-			superio_outb(sioaddr,
-				     NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE,
-				     val & ~0x10);
-		}
-	}
+
+	if (sio_data->kind == nct6791)
+		nct6791_enable_io_mapping(sioaddr);
 
 	superio_exit(sioaddr);
 	pr_info("Found %s or compatible chip at %#x:%#x\n",

@@ -51,12 +51,12 @@ time_next: .b32 0
 // $r0  - zero
 rd32:
 	nv_iowr(NV_PPWR_MMIO_ADDR, $r14)
-	mov $r14 NV_PPWR_MMIO_CTRL_OP_RD
-	sethi $r14 NV_PPWR_MMIO_CTRL_TRIGGER
-	nv_iowr(NV_PPWR_MMIO_CTRL, $r14)
+	mov $r13 NV_PPWR_MMIO_CTRL_OP_RD
+	sethi $r13 NV_PPWR_MMIO_CTRL_TRIGGER
+	nv_iowr(NV_PPWR_MMIO_CTRL, $r13)
 	rd32_wait:
-		nv_iord($r14, NV_PPWR_MMIO_CTRL)
-		and $r14 NV_PPWR_MMIO_CTRL_STATUS
+		nv_iord($r13, NV_PPWR_MMIO_CTRL)
+		and $r13 NV_PPWR_MMIO_CTRL_STATUS
 		bra nz #rd32_wait
 	nv_iord($r13, NV_PPWR_MMIO_DATA)
 	ret
@@ -70,23 +70,25 @@ rd32:
 wr32:
 	nv_iowr(NV_PPWR_MMIO_ADDR, $r14)
 	nv_iowr(NV_PPWR_MMIO_DATA, $r13)
-	mov $r14 NV_PPWR_MMIO_CTRL_OP_WR
-	or $r14 NV_PPWR_MMIO_CTRL_MASK_B32_0
-	sethi $r14 NV_PPWR_MMIO_CTRL_TRIGGER
+	mov $r13 NV_PPWR_MMIO_CTRL_OP_WR
+	or $r13 NV_PPWR_MMIO_CTRL_MASK_B32_0
+	sethi $r13 NV_PPWR_MMIO_CTRL_TRIGGER
 
 #ifdef NVKM_FALCON_MMIO_TRAP
-	mov $r8 NV_PPWR_INTR_TRIGGER_USER1
-	nv_iowr(NV_PPWR_INTR_TRIGGER, $r8)
+	push $r13
+	mov $r13 NV_PPWR_INTR_TRIGGER_USER1
+	nv_iowr(NV_PPWR_INTR_TRIGGER, $r13)
 	wr32_host:
-		nv_iord($r8, NV_PPWR_INTR)
-		and $r8 NV_PPWR_INTR_USER1
+		nv_iord($r13, NV_PPWR_INTR)
+		and $r13 NV_PPWR_INTR_USER1
 		bra nz #wr32_host
+	pop $r13
 #endif
 
-	nv_iowr(NV_PPWR_MMIO_CTRL, $r14)
+	nv_iowr(NV_PPWR_MMIO_CTRL, $r13)
 	wr32_wait:
-		nv_iord($r14, NV_PPWR_MMIO_CTRL)
-		and $r14 NV_PPWR_MMIO_CTRL_STATUS
+		nv_iord($r13, NV_PPWR_MMIO_CTRL)
+		and $r13 NV_PPWR_MMIO_CTRL_STATUS
 		bra nz #wr32_wait
 	ret
 

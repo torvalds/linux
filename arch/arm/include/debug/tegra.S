@@ -46,10 +46,10 @@
 #define TEGRA_APB_MISC_GP_HIDREV	(TEGRA_APB_MISC_BASE + 0x804)
 
 /*
- * Must be 1MB-aligned since a 1MB mapping is used early on.
+ * Must be section-aligned since a section mapping is used early on.
  * Must not overlap with regions in mach-tegra/io.c:tegra_io_desc[].
  */
-#define UART_VIRTUAL_BASE		0xfe100000
+#define UART_VIRTUAL_BASE		0xfe800000
 
 #define checkuart(rp, rv, lhu, bit, uart) \
 		/* Load address of CLK_RST register */ \
@@ -156,28 +156,6 @@
 92:		and	\rv, \rp, #0xffffff	@ offset within 1MB section
 		add	\rv, \rv, #UART_VIRTUAL_BASE
 		str	\rv, [\tmp, #8]		@ Store in tegra_uart_virt
-		movw	\rv, #TEGRA_APB_MISC_GP_HIDREV & 0xffff
-		movt	\rv, #TEGRA_APB_MISC_GP_HIDREV >> 16
-		ldr	\rv, [\rv, #0]		@ Load HIDREV
-		ubfx	\rv, \rv, #8, #8	@ 15:8 are SoC version
-		cmp	\rv, #0x20		@ Tegra20?
-		moveq	\rv, #0x75		@ Tegra20 divisor
-		movne	\rv, #0xdd		@ Tegra30 divisor
-		str	\rv, [\tmp, #12]	@ Save divisor to scratch
-		/* uart[UART_LCR] = UART_LCR_WLEN8 | UART_LCR_DLAB; */
-		mov	\rv, #UART_LCR_WLEN8 | UART_LCR_DLAB
-		str	\rv, [\rp, #UART_LCR << UART_SHIFT]
-		/* uart[UART_DLL] = div & 0xff; */
-		ldr	\rv, [\tmp, #12]
-		and	\rv, \rv, #0xff
-		str	\rv, [\rp, #UART_DLL << UART_SHIFT]
-		/* uart[UART_DLM] = div >> 8; */
-		ldr	\rv, [\tmp, #12]
-		lsr	\rv, \rv, #8
-		str	\rv, [\rp, #UART_DLM << UART_SHIFT]
-		/* uart[UART_LCR] = UART_LCR_WLEN8; */
-		mov	\rv, #UART_LCR_WLEN8
-		str	\rv, [\rp, #UART_LCR << UART_SHIFT]
 		b	100f
 
 		.align
@@ -205,8 +183,8 @@
 		cmp	\rx, #0
 		beq	1002f
 1001:		ldrb	\rd, [\rx, #UART_LSR << UART_SHIFT]
-		and	\rd, \rd, #UART_LSR_TEMT | UART_LSR_THRE
-		teq	\rd, #UART_LSR_TEMT | UART_LSR_THRE
+		and	\rd, \rd, #UART_LSR_THRE
+		teq	\rd, #UART_LSR_THRE
 		bne	1001b
 1002:
 		.endm
@@ -225,7 +203,7 @@
 /*
  * Storage for the state maintained by the macros above.
  *
- * In the kernel proper, this data is located in arch/arm/mach-tegra/common.c.
+ * In the kernel proper, this data is located in arch/arm/mach-tegra/tegra.c.
  * That's because this header is included from multiple files, and we only
  * want a single copy of the data. In particular, the UART probing code above
  * assumes it's running using physical addresses. This is true when this file
@@ -246,7 +224,5 @@ tegra_uart_config:
 	/* Debug UART physical address */
 	.word 0
 	/* Debug UART virtual address */
-	.word 0
-	/* Scratch space for debug macro */
 	.word 0
 #endif

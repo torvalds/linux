@@ -402,12 +402,9 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 		udelay(1);
 		dma_status = readb(dma_cs_addr);
 	}
-	if (i == timeout) {
-		printk
-		    ("plx9080: cancel() timed out waiting for dma %i done clear\n",
-		     channel);
+	if (i == timeout)
 		return -ETIMEDOUT;
-	}
+
 	/*  disable and abort channel */
 	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 	/*  wait for dma done bit */
@@ -416,12 +413,8 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 		udelay(1);
 		dma_status = readb(dma_cs_addr);
 	}
-	if (i == timeout) {
-		printk
-		    ("plx9080: cancel() timed out waiting for dma %i done set\n",
-		     channel);
+	if (i == timeout)
 		return -ETIMEDOUT;
-	}
 
 	return 0;
 }

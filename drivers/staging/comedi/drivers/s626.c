@@ -199,7 +199,7 @@ static bool s626_mc_test(struct comedi_device *dev,
 static const struct comedi_lrange s626_range_table = {
 	2, {
 		BIP_RANGE(5),
-		BIP_RANGE(10),
+		BIP_RANGE(10)
 	}
 };
 
@@ -1614,12 +1614,13 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 {
 	struct s626_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	uint32_t *rps;
 	uint32_t jmp_adrs;
 	uint16_t i;
 	uint16_t n;
 	uint32_t local_ppl;
-	struct comedi_cmd *cmd = &dev->subdevices->async->cmd;
 
 	/* Stop RPS program in case it is currently running */
 	s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
@@ -2078,12 +2079,6 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* test if cmd is valid */
 	if (cmd == NULL)
 		return -EINVAL;
-
-	if (dev->irq == 0) {
-		comedi_error(dev,
-			     "s626_ai_cmd: cannot run command without an irq");
-		return -EIO;
-	}
 
 	s626_ai_load_polllist(ppl, cmd);
 	devpriv->ai_cmd_running = 1;
@@ -2645,6 +2640,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * a defined state after a PCI reset.
 	 */
 	{
+		struct comedi_subdevice *s = dev->read_subdev;
 		uint8_t poll_list;
 		uint16_t adc_data;
 		uint16_t start_val;
@@ -2656,7 +2652,7 @@ static void s626_initialize(struct comedi_device *dev)
 		s626_reset_adc(dev, &poll_list);
 
 		/* Get initial ADC value */
-		s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+		s626_ai_rinsn(dev, s, NULL, data);
 		start_val = data[0];
 
 		/*
@@ -2670,7 +2666,7 @@ static void s626_initialize(struct comedi_device *dev)
 		 * being unusually quiet or at the rail.
 		 */
 		for (index = 0; index < 500; index++) {
-			s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+			s626_ai_rinsn(dev, s, NULL, data);
 			adc_data = data[0];
 			if (adc_data != start_val)
 				break;
@@ -2833,7 +2829,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_DIFF;
 	s->n_chan	= S626_ADC_CHANNELS;
 	s->maxdata	= 0x3fff;
 	s->range_table	= &s626_range_table;
@@ -2841,6 +2837,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->insn_read	= s626_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
 		s->do_cmd	= s626_ai_cmd;
 		s->do_cmdtest	= s626_ai_cmdtest;
 		s->cancel	= s626_ai_cancel;
@@ -2965,7 +2962,7 @@ static int s626_pci_probe(struct pci_dev *dev,
  * also subvendor:subdevice ids, because otherwise it will conflict with
  * Philips SAA7146 media/dvb based cards.
  */
-static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
+static const struct pci_device_id s626_pci_table[] = {
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7146,
 			 0x6000, 0x0272) },
 	{ 0 }

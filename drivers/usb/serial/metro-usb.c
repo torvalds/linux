@@ -7,7 +7,6 @@
 */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -43,7 +42,7 @@ struct metrousb_private {
 };
 
 /* Device table list. */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_BI) },
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_UNI) },
 	{ }, /* Terminating entry. */
@@ -54,7 +53,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define UNI_CMD_OPEN	0x80
 #define UNI_CMD_CLOSE	0xFF
 
-inline int metrousb_is_unidirectional_mode(struct usb_serial_port *port)
+static inline int metrousb_is_unidirectional_mode(struct usb_serial_port *port)
 {
 	__u16 product_id = le16_to_cpu(
 		port->serial->dev->descriptor.idProduct);

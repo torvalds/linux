@@ -105,7 +105,7 @@ static const struct file_operations acpi_ec_io_ops = {
 	.llseek = default_llseek,
 };
 
-int acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
+static int acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
 {
 	struct dentry *dev_dir;
 	char name[64];

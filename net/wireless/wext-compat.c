@@ -370,7 +370,7 @@ static int cfg80211_wext_siwretry(struct net_device *dev,
 	u8 oshort = wdev->wiphy->retry_short;
 	int err;
 
-	if (retry->disabled ||
+	if (retry->disabled || retry->value < 1 || retry->value > 255 ||
 	    (retry->flags & IW_RETRY_TYPE) != IW_RETRY_LIMIT)
 		return -EINVAL;
 
@@ -412,9 +412,9 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 		 * First return short value, iwconfig will ask long value
 		 * later if needed
 		 */
-		retry->flags |= IW_RETRY_LIMIT;
+		retry->flags |= IW_RETRY_LIMIT | IW_RETRY_SHORT;
 		retry->value = wdev->wiphy->retry_short;
-		if (wdev->wiphy->retry_long != wdev->wiphy->retry_short)
+		if (wdev->wiphy->retry_long == wdev->wiphy->retry_short)
 			retry->flags |= IW_RETRY_LONG;
 
 		return 0;

@@ -114,7 +114,7 @@ static struct resource ds1wm_resources[] __initdata = {
 	},
 };
 
-static struct mfd_cell ds1wm_cell __initdata = {
+static const struct mfd_cell ds1wm_cell __initconst = {
 	.name          = "ds1wm",
 	.enable        = ds1wm_enable,
 	.disable       = ds1wm_disable,

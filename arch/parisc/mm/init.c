@@ -645,55 +645,30 @@ EXPORT_SYMBOL(empty_zero_page);
 
 void show_mem(unsigned int filter)
 {
-	int i,free = 0,total = 0,reserved = 0;
-	int shared = 0, cached = 0;
+	int total = 0,reserved = 0;
+	pg_data_t *pgdat;
 
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas(filter);
-	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-		return;
-#ifndef CONFIG_DISCONTIGMEM
-	i = max_mapnr;
-	while (i-- > 0) {
-		total++;
-		if (PageReserved(mem_map+i))
-			reserved++;
-		else if (PageSwapCache(mem_map+i))
-			cached++;
-		else if (!page_count(&mem_map[i]))
-			free++;
-		else
-			shared += page_count(&mem_map[i]) - 1;
+
+	for_each_online_pgdat(pgdat) {
+		unsigned long flags;
+		int zoneid;
+
+		pgdat_resize_lock(pgdat, &flags);
+		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+			struct zone *zone = &pgdat->node_zones[zoneid];
+			if (!populated_zone(zone))
+				continue;
+
+			total += zone->present_pages;
+			reserved = zone->present_pages - zone->managed_pages;
+		}
+		pgdat_resize_unlock(pgdat, &flags);
 	}
-#else
-	for (i = 0; i < npmem_ranges; i++) {
-		int j;
 
-		for (j = node_start_pfn(i); j < node_end_pfn(i); j++) {
-			struct page *p;
-			unsigned long flags;
-
-			pgdat_resize_lock(NODE_DATA(i), &flags);
-			p = nid_page_nr(i, j) - node_start_pfn(i);
-
-			total++;
-			if (PageReserved(p))
-				reserved++;
-			else if (PageSwapCache(p))
-				cached++;
-			else if (!page_count(p))
-				free++;
-			else
-				shared += page_count(p) - 1;
-			pgdat_resize_unlock(NODE_DATA(i), &flags);
-        	}
-	}
-#endif
 	printk(KERN_INFO "%d pages of RAM\n", total);
 	printk(KERN_INFO "%d reserved pages\n", reserved);
-	printk(KERN_INFO "%d pages shared\n", shared);
-	printk(KERN_INFO "%d pages swap cached\n", cached);
-
 
 #ifdef CONFIG_DISCONTIGMEM
 	{

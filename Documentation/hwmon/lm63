@@ -18,7 +18,7 @@ Supported chips:
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/pf/LM/LM96163.html
 
-Author: Jean Delvare <khali@linux-fr.org>
+Author: Jean Delvare <jdelvare@suse.de>
 
 Thanks go to Tyan and especially Alex Buckingham for setting up a remote
 access to their S4882 test platform for this driver.

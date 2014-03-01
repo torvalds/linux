@@ -7108,7 +7108,6 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		     struct sk_buff *p,
 		     struct ieee80211_rx_status *rx_status)
 {
-	int preamble;
 	int channel;
 	u32 rspec;
 	unsigned char *plcp;
@@ -7191,7 +7190,6 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 			rx_status->rate_idx -= BRCMS_LEGACY_5G_RATE_OFFSET;
 
 		/* Determine short preamble and rate_idx */
-		preamble = 0;
 		if (is_cck_rate(rspec)) {
 			if (rxh->PhyRxStatus_0 & PRXS0_SHORTH)
 				rx_status->flag |= RX_FLAG_SHORTPRE;

@@ -1,6 +1,6 @@
 config DGAP
        tristate "Digi EPCA PCI products"
        default n
-       depends on TTY
+       depends on TTY && HAS_IOMEM
        ---help---
        Driver for the Digi International EPCA PCI based product line

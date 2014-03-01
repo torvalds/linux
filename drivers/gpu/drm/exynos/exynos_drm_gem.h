@@ -60,7 +60,7 @@ struct exynos_drm_gem_buf {
  * @vma: a pointer to vm_area.
  * @flags: indicate memory type to allocated buffer and cache attruibute.
  *
- * P.S. this object would be transfered to user as kms_bo.handle so
+ * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
 struct exynos_drm_gem_obj {
@@ -121,6 +121,9 @@ int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
  */
 int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
+
+int exynos_drm_gem_mmap_buffer(struct file *filp,
+				      struct vm_area_struct *vma);
 
 /* map user space allocated by malloc to pages. */
 int exynos_drm_gem_userptr_ioctl(struct drm_device *dev, void *data,

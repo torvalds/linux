@@ -40,7 +40,15 @@ struct ovs_header {
 
 #define OVS_DATAPATH_FAMILY  "ovs_datapath"
 #define OVS_DATAPATH_MCGROUP "ovs_datapath"
-#define OVS_DATAPATH_VERSION 0x1
+
+/* V2:
+ *   - API users are expected to provide OVS_DP_ATTR_USER_FEATURES
+ *     when creating the datapath.
+ */
+#define OVS_DATAPATH_VERSION 2
+
+/* First OVS datapath version to support features */
+#define OVS_DP_VER_FEATURES 2
 
 enum ovs_datapath_cmd {
 	OVS_DP_CMD_UNSPEC,
@@ -75,6 +83,7 @@ enum ovs_datapath_attr {
 	OVS_DP_ATTR_UPCALL_PID,		/* Netlink PID to receive upcalls */
 	OVS_DP_ATTR_STATS,		/* struct ovs_dp_stats */
 	OVS_DP_ATTR_MEGAFLOW_STATS,	/* struct ovs_dp_megaflow_stats */
+	OVS_DP_ATTR_USER_FEATURES,	/* OVS_DP_F_*  */
 	__OVS_DP_ATTR_MAX
 };
 
@@ -105,6 +114,9 @@ struct ovs_vport_stats {
 	__u64   rx_dropped;		/* no space in linux buffers    */
 	__u64   tx_dropped;		/* no space available in linux  */
 };
+
+/* Allow last Netlink attribute to be unaligned */
+#define OVS_DP_F_UNALIGNED	(1 << 0)
 
 /* Fixed logical ports. */
 #define OVSP_LOCAL      ((__u32)0)

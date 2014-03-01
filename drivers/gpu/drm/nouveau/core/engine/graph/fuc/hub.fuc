@@ -68,60 +68,57 @@ error:
 //
 init:
 	clear b32 $r0
-	mov $sp $r0
 	mov $xdbase $r0
 
+	// setup stack
+	nv_iord($r1, NV_PGRAPH_FECS_CAPS, 0)
+	extr $r1 $r1 9:17
+	shl b32 $r1 8
+	mov $sp $r1
+
 	// enable fifo access
-	mov $r1 0x1200
-	mov $r2 2
-	iowr I[$r1 + 0x000] $r2	// FIFO_ENABLE
+	mov $r2 NV_PGRAPH_FECS_ACCESS_FIFO
+	nv_iowr(NV_PGRAPH_FECS_ACCESS, 0, $r2)
 
 	// setup i0 handler, and route all interrupts to it
 	mov $r1 #ih
 	mov $iv0 $r1
-	mov $r1 0x400
-	iowr I[$r1 + 0x300] $r0	// INTR_DISPATCH
 
-	// route HUB_CHANNEL_SWITCH to fuc interrupt 8
-	mov $r3 0x404
-	shl b32 $r3 6
-	mov $r2 0x2003		// { HUB_CHANNEL_SWITCH, ZERO } -> intr 8
-	iowr I[$r3 + 0x000] $r2
+	clear b32 $r2
+	nv_iowr(NV_PGRAPH_FECS_INTR_ROUTE, 0, $r2)
+
+	// route HUB_CHSW_PULSE to fuc interrupt 8
+	mov $r2 0x2003		// { HUB_CHSW_PULSE, ZERO } -> intr 8
+	nv_iowr(NV_PGRAPH_FECS_IROUTE, 0, $r2)
 
 	// not sure what these are, route them because NVIDIA does, and
 	// the IRQ handler will signal the host if we ever get one.. we
 	// may find out if/why we need to handle these if so..
 	//
-	mov $r2 0x2004
-	iowr I[$r3 + 0x004] $r2 // { 0x04, ZERO } -> intr 9
-	mov $r2 0x200b
-	iowr I[$r3 + 0x008] $r2 // { 0x0b, ZERO } -> intr 10
-	mov $r2 0x200c
-	iowr I[$r3 + 0x01c] $r2 // { 0x0c, ZERO } -> intr 15
+	mov $r2 0x2004		// { 0x04, ZERO } -> intr 9
+	nv_iowr(NV_PGRAPH_FECS_IROUTE, 1, $r2)
+	mov $r2 0x200b		// { HUB_FIRMWARE_MTHD, ZERO } -> intr 10
+	nv_iowr(NV_PGRAPH_FECS_IROUTE, 2, $r2)
+	mov $r2 0x200c		// { 0x0c, ZERO } -> intr 15
+	nv_iowr(NV_PGRAPH_FECS_IROUTE, 7, $r2)
 
 	// enable all INTR_UP interrupts
-	mov $r2 0xc24
-	shl b32 $r2 6
-	not b32 $r3 $r0
-	iowr I[$r2] $r3
+	sub b32 $r3 $r0 1
+	nv_iowr(NV_PGRAPH_FECS_INTR_UP_EN, 0, $r3)
 
-	// enable fifo, ctxsw, 9, 10, 15 interrupts
-	mov $r2 -0x78fc		// 0x8704
-	sethi $r2 0
-	iowr I[$r1 + 0x000] $r2	// INTR_EN_SET
+	// enable fifo, ctxsw, 9, fwmthd, 15 interrupts
+	imm32($r2, 0x8704)
+	nv_iowr(NV_PGRAPH_FECS_INTR_EN_SET, 0, $r2)
 
 	// fifo level triggered, rest edge
-	sub b32 $r1 0x100
-	mov $r2 4
-	iowr I[$r1] $r2
+	mov $r2 NV_PGRAPH_FECS_INTR_MODE_FIFO_LEVEL
+	nv_iowr(NV_PGRAPH_FECS_INTR_MODE, 0, $r2)
 
 	// enable interrupts
 	bset $flags ie0
 
 	// fetch enabled GPC/ROP counts
-	mov $r14 -0x69fc	// 0x409604
-	sethi $r14 0x400000
-	call #nv_rd32
+	nv_rd32($r14, 0x409604)
 	extr $r1 $r15 16:20
 	st b32 D[$r0 + #rop_count] $r1
 	and $r15 0x1f
@@ -131,37 +128,40 @@ init:
 	mov $r1 1
 	shl b32 $r1 $r15
 	sub b32 $r1 1
-	mov $r2 0x40c
-	shl b32 $r2 6
-	iowr I[$r2 + 0x000] $r1
-	iowr I[$r2 + 0x100] $r1
+	nv_iowr(NV_PGRAPH_FECS_BAR_MASK0, 0, $r1)
+	nv_iowr(NV_PGRAPH_FECS_BAR_MASK1, 0, $r1)
 
 	// context size calculation, reserve first 256 bytes for use by fuc
 	mov $r1 256
 
+	//
+	mov $r15 2
+	call(ctx_4170s)
+	call(ctx_4170w)
+	mov $r15 0x10
+	call(ctx_86c)
+
 	// calculate size of mmio context data
 	ld b32 $r14 D[$r0 + #hub_mmio_list_head]
 	ld b32 $r15 D[$r0 + #hub_mmio_list_tail]
-	call #mmctx_size
+	call(mmctx_size)
 
 	// set mmctx base addresses now so we don't have to do it later,
 	// they don't (currently) ever change
-	mov $r3 0x700
-	shl b32 $r3 6
 	shr b32 $r4 $r1 8
-	iowr I[$r3 + 0x000] $r4		// MMCTX_SAVE_SWBASE
-	iowr I[$r3 + 0x100] $r4		// MMCTX_LOAD_SWBASE
+	nv_iowr(NV_PGRAPH_FECS_MMCTX_SAVE_SWBASE, 0, $r4)
+	nv_iowr(NV_PGRAPH_FECS_MMCTX_LOAD_SWBASE, 0, $r4)
 	add b32 $r3 0x1300
 	add b32 $r1 $r15
 	shr b32 $r15 2
-	iowr I[$r3 + 0x000] $r15	// MMCTX_LOAD_COUNT, wtf for?!?
+	nv_iowr(NV_PGRAPH_FECS_MMCTX_LOAD_COUNT, 0, $r15) // wtf??
 
 	// strands, base offset needs to be aligned to 256 bytes
 	shr b32 $r1 8
 	add b32 $r1 1
 	shl b32 $r1 8
 	mov b32 $r15 $r1
-	call #strand_ctx_init
+	call(strand_ctx_init)
 	add b32 $r1 $r15
 
 	// initialise each GPC in sequence by passing in the offset of its
@@ -173,36 +173,41 @@ init:
 	// in GPCn_CC_SCRATCH[1]
 	//
 	ld b32 $r3 D[$r0 + #gpc_count]
-	mov $r4 0x2000
-	sethi $r4 0x500000
+	imm32($r4, 0x502000)
 	init_gpc:
 		// setup, and start GPC ucode running
 		add b32 $r14 $r4 0x804
 		mov b32 $r15 $r1
-		call #nv_wr32			// CC_SCRATCH[1] = ctx offset
+		call(nv_wr32)			// CC_SCRATCH[1] = ctx offset
 		add b32 $r14 $r4 0x10c
 		clear b32 $r15
-		call #nv_wr32
+		call(nv_wr32)
 		add b32 $r14 $r4 0x104
-		call #nv_wr32			// ENTRY
+		call(nv_wr32)			// ENTRY
 		add b32 $r14 $r4 0x100
 		mov $r15 2			// CTRL_START_TRIGGER
-		call #nv_wr32			// CTRL
+		call(nv_wr32)			// CTRL
 
 		// wait for it to complete, and adjust context size
 		add b32 $r14 $r4 0x800
 		init_gpc_wait:
-			call #nv_rd32
+			call(nv_rd32)
 			xbit $r15 $r15 31
 			bra e #init_gpc_wait
 		add b32 $r14 $r4 0x804
-		call #nv_rd32
+		call(nv_rd32)
 		add b32 $r1 $r15
 
 		// next!
 		add b32 $r4 0x8000
 		sub b32 $r3 1
 		bra ne #init_gpc
+
+	//
+	mov $r15 0
+	call(ctx_86c)
+	mov $r15 0
+	call(ctx_4170s)
 
 	// save context size, and tell host we're ready
 	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(1), 0, $r1)
@@ -218,17 +223,15 @@ main:
 	bset $flags $p0
 	sleep $p0
 	mov $r13 #cmd_queue
-	call #queue_get
+	call(queue_get)
 	bra $p1 #main
 
 	// context switch, requested by GPU?
 	cmpu b32 $r14 0x4001
 	bra ne #main_not_ctx_switch
 		trace_set(T_AUTO)
-		mov $r1 0xb00
-		shl b32 $r1 6
-		iord $r2 I[$r1 + 0x100]		// CHAN_NEXT
-		iord $r1 I[$r1 + 0x000]		// CHAN_CUR
+		nv_iord($r1, NV_PGRAPH_FECS_CHAN_ADDR, 0)
+		nv_iord($r2, NV_PGRAPH_FECS_CHAN_NEXT, 0)
 
 		xbit $r3 $r1 31
 		bra e #chsw_no_prev
@@ -239,12 +242,12 @@ main:
 				trace_set(T_SAVE)
 				bclr $flags $p1
 				bset $flags $p2
-				call #ctx_xfer
+				call(ctx_xfer)
 				trace_clr(T_SAVE);
 				pop $r2
 				trace_set(T_LOAD);
 				bset $flags $p1
-				call #ctx_xfer
+				call(ctx_xfer)
 				trace_clr(T_LOAD);
 				bra #chsw_done
 			chsw_prev_no_next:
@@ -252,25 +255,21 @@ main:
 				mov b32 $r2 $r1
 				bclr $flags $p1
 				bclr $flags $p2
-				call #ctx_xfer
+				call(ctx_xfer)
 				pop $r2
-				mov $r1 0xb00
-				shl b32 $r1 6
-				iowr I[$r1] $r2
+				nv_iowr(NV_PGRAPH_FECS_CHAN_ADDR, 0, $r2)
 				bra #chsw_done
 		chsw_no_prev:
 			xbit $r3 $r2 31
 			bra e #chsw_done
 				bset $flags $p1
 				bclr $flags $p2
-				call #ctx_xfer
+				call(ctx_xfer)
 
 		// ack the context switch request
 		chsw_done:
-		mov $r1 0xb0c
-		shl b32 $r1 6
-		mov $r2 1
-		iowr I[$r1 + 0x000] $r2		// 0x409b0c
+		mov $r2 NV_PGRAPH_FECS_CHSW_ACK
+		nv_iowr(NV_PGRAPH_FECS_CHSW, 0, $r2)
 		trace_clr(T_AUTO)
 		bra #main
 
@@ -279,7 +278,7 @@ main:
 	cmpu b32 $r14 0x0001
 	bra ne #main_not_ctx_chan
 		mov b32 $r2 $r15
-		call #ctx_chan
+		call(ctx_chan)
 		bra #main_done
 
 	// request to store current channel context?
@@ -289,14 +288,14 @@ main:
 		trace_set(T_SAVE)
 		bclr $flags $p1
 		bclr $flags $p2
-		call #ctx_xfer
+		call(ctx_xfer)
 		trace_clr(T_SAVE)
 		bra #main_done
 
 	main_not_ctx_save:
 		shl b32 $r15 $r14 16
 		or $r15 E_BAD_COMMAND
-		call #error
+		call(error)
 		bra #main
 
 	main_done:
@@ -319,41 +318,46 @@ ih:
 	clear b32 $r0
 
 	// incoming fifo command?
-	iord $r10 I[$r0 + 0x200]	// INTR
-	and $r11 $r10 0x00000004
+	nv_iord($r10, NV_PGRAPH_FECS_INTR, 0)
+	and $r11 $r10 NV_PGRAPH_FECS_INTR_FIFO
 	bra e #ih_no_fifo
 		// queue incoming fifo command for later processing
-		mov $r11 0x1900
 		mov $r13 #cmd_queue
-		iord $r14 I[$r11 + 0x100]	// FIFO_CMD
-		iord $r15 I[$r11 + 0x000]	// FIFO_DATA
-		call #queue_put
+		nv_iord($r14, NV_PGRAPH_FECS_FIFO_CMD, 0)
+		nv_iord($r15, NV_PGRAPH_FECS_FIFO_DATA, 0)
+		call(queue_put)
 		add b32 $r11 0x400
 		mov $r14 1
-		iowr I[$r11 + 0x000] $r14	// FIFO_ACK
+		nv_iowr(NV_PGRAPH_FECS_FIFO_ACK, 0, $r14)
 
 	// context switch request?
 	ih_no_fifo:
-	and $r11 $r10 0x00000100
+	and $r11 $r10 NV_PGRAPH_FECS_INTR_CHSW
 	bra e #ih_no_ctxsw
 		// enqueue a context switch for later processing
 		mov $r13 #cmd_queue
 		mov $r14 0x4001
-		call #queue_put
+		call(queue_put)
+
+	// firmware method?
+	ih_no_ctxsw:
+	and $r11 $r10 NV_PGRAPH_FECS_INTR_FWMTHD
+	bra e #ih_no_fwmthd
+		// none we handle, ack, and fall-through to unhandled
+		mov $r11 0x100
+		nv_wr32(0x400144, $r11)
 
 	// anything we didn't handle, bring it to the host's attention
-	ih_no_ctxsw:
-	mov $r11 0x104
+	ih_no_fwmthd:
+	mov $r11 0x104 // FIFO | CHSW
 	not b32 $r11
 	and $r11 $r10 $r11
 	bra e #ih_no_other
-		mov $r10 0xc1c
-		shl b32 $r10 6
-		iowr I[$r10] $r11	// INTR_UP_SET
+		nv_iowr(NV_PGRAPH_FECS_INTR_UP_SET, 0, $r11)
 
 	// ack, and wake up main()
 	ih_no_other:
-	iowr I[$r0 + 0x100] $r10	// INTR_ACK
+	nv_iowr(NV_PGRAPH_FECS_INTR_ACK, 0, $r10)
 
 	pop $r15
 	pop $r14
@@ -370,12 +374,10 @@ ih:
 #if CHIPSET < GK100
 // Not real sure, but, MEM_CMD 7 will hang forever if this isn't done
 ctx_4160s:
-	mov $r14 0x4160
-	sethi $r14 0x400000
 	mov $r15 1
-	call #nv_wr32
+	nv_wr32(0x404160, $r15)
 	ctx_4160s_wait:
-		call #nv_rd32
+		nv_rd32($r15, 0x404160)
 		xbit $r15 $r15 4
 		bra e #ctx_4160s_wait
 	ret
@@ -384,10 +386,8 @@ ctx_4160s:
 // to hang with STATUS=0x00000007 until it's cleared.. fbcon can
 // still function with it set however...
 ctx_4160c:
-	mov $r14 0x4160
-	sethi $r14 0x400000
 	clear b32 $r15
-	call #nv_wr32
+	nv_wr32(0x404160, $r15)
 	ret
 #endif
 
@@ -396,18 +396,14 @@ ctx_4160c:
 // In: $r15 value to set 0x404170 to
 //
 ctx_4170s:
-	mov $r14 0x4170
-	sethi $r14 0x400000
 	or $r15 0x10
-	call #nv_wr32
+	nv_wr32(0x404170, $r15)
 	ret
 
 // Waits for a ctx_4170s() call to complete
 //
 ctx_4170w:
-	mov $r14 0x4170
-	sethi $r14 0x400000
-	call #nv_rd32
+	nv_rd32($r15, 0x404170)
 	and $r15 0x10
 	bra ne #ctx_4170w
 	ret
@@ -419,16 +415,18 @@ ctx_4170w:
 // funny things happen.
 //
 ctx_redswitch:
-	mov $r14 0x614
-	shl b32 $r14 6
-	mov $r15 0x270
-	iowr I[$r14] $r15	// HUB_RED_SWITCH = ENABLE_GPC, POWER_ALL
+	mov $r14 NV_PGRAPH_FECS_RED_SWITCH_ENABLE_GPC
+	or  $r14 NV_PGRAPH_FECS_RED_SWITCH_POWER_ROP
+	or  $r14 NV_PGRAPH_FECS_RED_SWITCH_POWER_GPC
+	or  $r14 NV_PGRAPH_FECS_RED_SWITCH_POWER_MAIN
+	nv_iowr(NV_PGRAPH_FECS_RED_SWITCH, 0, $r14)
 	mov $r15 8
 	ctx_redswitch_delay:
 		sub b32 $r15 1
 		bra ne #ctx_redswitch_delay
-	mov $r15 0x770
-	iowr I[$r14] $r15	// HUB_RED_SWITCH = ENABLE_ALL, POWER_ALL
+	or  $r14 NV_PGRAPH_FECS_RED_SWITCH_ENABLE_ROP
+	or  $r14 NV_PGRAPH_FECS_RED_SWITCH_ENABLE_MAIN
+	nv_iowr(NV_PGRAPH_FECS_RED_SWITCH, 0, $r14)
 	ret
 
 // Not a clue what this is for, except that unless the value is 0x10, the
@@ -437,15 +435,18 @@ ctx_redswitch:
 // In: $r15 value to set to (0x00/0x10 are used)
 //
 ctx_86c:
-	mov $r14 0x86c
-	shl b32 $r14 6
-	iowr I[$r14] $r15	// HUB(0x86c) = val
-	mov $r14 -0x75ec
-	sethi $r14 0x400000
-	call #nv_wr32		// ROP(0xa14) = val
-	mov $r14 -0x5794
-	sethi $r14 0x410000
-	call #nv_wr32		// GPC(0x86c) = val
+	nv_iowr(NV_PGRAPH_FECS_UNK86C, 0, $r15)
+	nv_wr32(0x408a14, $r15)
+	nv_wr32(NV_PGRAPH_GPCX_GPCCS_UNK86C, $r15)
+	ret
+
+// In: $r15 NV_PGRAPH_FECS_MEM_CMD_*
+ctx_mem:
+	nv_iowr(NV_PGRAPH_FECS_MEM_CMD, 0, $r15)
+	ctx_mem_wait:
+		nv_iord($r15, NV_PGRAPH_FECS_MEM_CMD, 0)
+		or $r15 $r15
+		bra ne #ctx_mem_wait
 	ret
 
 // ctx_load - load's a channel's ctxctl data, and selects its vm
@@ -457,23 +458,14 @@ ctx_load:
 
 	// switch to channel, somewhat magic in parts..
 	mov $r10 12		// DONE_UNK12
-	call #wait_donez
-	mov $r1 0xa24
-	shl b32 $r1 6
-	iowr I[$r1 + 0x000] $r0	// 0x409a24
-	mov $r3 0xb00
-	shl b32 $r3 6
-	iowr I[$r3 + 0x100] $r2	// CHAN_NEXT
-	mov $r1 0xa0c
-	shl b32 $r1 6
-	mov $r4 7
-	iowr I[$r1 + 0x000] $r2 // MEM_CHAN
-	iowr I[$r1 + 0x100] $r4	// MEM_CMD
-	ctx_chan_wait_0:
-		iord $r4 I[$r1 + 0x100]
-		and $r4 0x1f
-		bra ne #ctx_chan_wait_0
-	iowr I[$r3 + 0x000] $r2	// CHAN_CUR
+	call(wait_donez)
+	clear b32 $r15
+	nv_iowr(0x409a24, 0, $r15)
+	nv_iowr(NV_PGRAPH_FECS_CHAN_NEXT, 0, $r2)
+	nv_iowr(NV_PGRAPH_FECS_MEM_CHAN, 0, $r2)
+	mov $r15 NV_PGRAPH_FECS_MEM_CMD_LOAD_CHAN
+	call(ctx_mem)
+	nv_iowr(NV_PGRAPH_FECS_CHAN_ADDR, 0, $r2)
 
 	// load channel header, fetch PGRAPH context pointer
 	mov $xtargets $r0
@@ -482,14 +474,10 @@ ctx_load:
 	add b32 $r2 2
 
 	trace_set(T_LCHAN)
-	mov $r1 0xa04
-	shl b32 $r1 6
-	iowr I[$r1 + 0x000] $r2		// MEM_BASE
-	mov $r1 0xa20
-	shl b32 $r1 6
-	mov $r2 0x0002
-	sethi $r2 0x80000000
-	iowr I[$r1 + 0x000] $r2		// MEM_TARGET = vram
+	nv_iowr(NV_PGRAPH_FECS_MEM_BASE, 0, $r2)
+	imm32($r2, NV_PGRAPH_FECS_MEM_TARGET_UNK31)
+	or  $r2 NV_PGRAPH_FECS_MEM_TARGET_AS_VRAM
+	nv_iowr(NV_PGRAPH_FECS_MEM_TARGET, 0, $r2)
 	mov $r1 0x10			// chan + 0x0210
 	mov $r2 #xfer_data
 	sethi $r2 0x00020000		// 16 bytes
@@ -507,13 +495,9 @@ ctx_load:
 
 	// set transfer base to start of context, and fetch context header
 	trace_set(T_LCTXH)
-	mov $r2 0xa04
-	shl b32 $r2 6
-	iowr I[$r2 + 0x000] $r1		// MEM_BASE
-	mov $r2 1
-	mov $r1 0xa20
-	shl b32 $r1 6
-	iowr I[$r1 + 0x000] $r2		// MEM_TARGET = vm
+	nv_iowr(NV_PGRAPH_FECS_MEM_BASE, 0, $r1)
+	mov $r2 NV_PGRAPH_FECS_MEM_TARGET_AS_VM
+	nv_iowr(NV_PGRAPH_FECS_MEM_TARGET, 0, $r2)
 	mov $r1 #chan_data
 	sethi $r1 0x00060000		// 256 bytes
 	xdld $r0 $r1
@@ -532,21 +516,15 @@ ctx_load:
 //
 ctx_chan:
 #if CHIPSET < GK100
-	call #ctx_4160s
+	call(ctx_4160s)
 #endif
-	call #ctx_load
+	call(ctx_load)
 	mov $r10 12			// DONE_UNK12
-	call #wait_donez
-	mov $r1 0xa10
-	shl b32 $r1 6
-	mov $r2 5
-	iowr I[$r1 + 0x000] $r2		// MEM_CMD = 5 (???)
-	ctx_chan_wait:
-		iord $r2 I[$r1 + 0x000]
-		or $r2 $r2
-		bra ne #ctx_chan_wait
+	call(wait_donez)
+	mov $r15 5 // MEM_CMD 5 ???
+	call(ctx_mem)
 #if CHIPSET < GK100
-	call #ctx_4160c
+	call(ctx_4160c)
 #endif
 	ret
 
@@ -562,9 +540,7 @@ ctx_chan:
 ctx_mmio_exec:
 	// set transfer base to be the mmio list
 	ld b32 $r3 D[$r0 + #chan_mmio_address]
-	mov $r2 0xa04
-	shl b32 $r2 6
-	iowr I[$r2 + 0x000] $r3		// MEM_BASE
+	nv_iowr(NV_PGRAPH_FECS_MEM_BASE, 0, $r3)
 
 	clear b32 $r3
 	ctx_mmio_loop:
@@ -580,7 +556,7 @@ ctx_mmio_exec:
 		ctx_mmio_pull:
 		ld b32 $r14 D[$r4 + #xfer_data + 0x00]
 		ld b32 $r15 D[$r4 + #xfer_data + 0x04]
-		call #nv_wr32
+		call(nv_wr32)
 
 		// next!
 		add b32 $r3 8
@@ -590,7 +566,7 @@ ctx_mmio_exec:
 	// set transfer base back to the current context
 	ctx_mmio_done:
 	ld b32 $r3 D[$r0 + #ctx_current]
-	iowr I[$r2 + 0x000] $r3		// MEM_BASE
+	nv_iowr(NV_PGRAPH_FECS_MEM_BASE, 0, $r3)
 
 	// disable the mmio list now, we don't need/want to execute it again
 	st b32 D[$r0 + #chan_mmio_count] $r0
@@ -610,12 +586,10 @@ ctx_mmio_exec:
 //
 ctx_xfer:
 	// according to mwk, some kind of wait for idle
-	mov $r15 0xc00
-	shl b32 $r15 6
 	mov $r14 4
-	iowr I[$r15 + 0x200] $r14
+	nv_iowr(0x409c08, 0, $r14)
 	ctx_xfer_idle:
-		iord $r14 I[$r15 + 0x000]
+		nv_iord($r14, 0x409c00, 0)
 		and $r14 0x2000
 		bra ne #ctx_xfer_idle
 
@@ -623,50 +597,42 @@ ctx_xfer:
 	bra $p2 #ctx_xfer_pre_load
 	ctx_xfer_pre:
 		mov $r15 0x10
-		call #ctx_86c
+		call(ctx_86c)
 #if CHIPSET < GK100
-		call #ctx_4160s
+		call(ctx_4160s)
 #endif
 		bra not $p1 #ctx_xfer_exec
 
 	ctx_xfer_pre_load:
 		mov $r15 2
-		call #ctx_4170s
-		call #ctx_4170w
-		call #ctx_redswitch
+		call(ctx_4170s)
+		call(ctx_4170w)
+		call(ctx_redswitch)
 		clear b32 $r15
-		call #ctx_4170s
-		call #ctx_load
+		call(ctx_4170s)
+		call(ctx_load)
 
 	// fetch context pointer, and initiate xfer on all GPCs
 	ctx_xfer_exec:
 	ld b32 $r1 D[$r0 + #ctx_current]
-	mov $r2 0x414
-	shl b32 $r2 6
-	iowr I[$r2 + 0x000] $r0	// BAR_STATUS = reset
-	mov $r14 -0x5b00
-	sethi $r14 0x410000
-	mov b32 $r15 $r1
-	call #nv_wr32		// GPC_BCAST_WRCMD_DATA = ctx pointer
-	add b32 $r14 4
+
+	clear b32 $r2
+	nv_iowr(NV_PGRAPH_FECS_BAR, 0, $r2)
+
+	nv_wr32(0x41a500, $r1)	// GPC_BCAST_WRCMD_DATA = ctx pointer
 	xbit $r15 $flags $p1
 	xbit $r2 $flags $p2
 	shl b32 $r2 1
 	or $r15 $r2
-	call #nv_wr32		// GPC_BCAST_WRCMD_CMD = GPC_XFER(type)
+	nv_wr32(0x41a504, $r15)	// GPC_BCAST_WRCMD_CMD = GPC_XFER(type)
 
 	// strands
-	mov $r1 0x4afc
-	sethi $r1 0x20000
-	mov $r2 0xc
-	iowr I[$r1] $r2		// STRAND_CMD(0x3f) = 0x0c
-	call #strand_wait
-	mov $r2 0x47fc
-	sethi $r2 0x20000
-	iowr I[$r2] $r0		// STRAND_FIRST_GENE(0x3f) = 0x00
-	xbit $r2 $flags $p1
-	add b32 $r2 3
-	iowr I[$r1] $r2		// STRAND_CMD(0x3f) = 0x03/0x04 (SAVE/LOAD)
+	call(strand_pre)
+	clear b32 $r2
+	nv_iowr(NV_PGRAPH_FECS_STRAND_SELECT, 0x3f, $r2)
+	xbit $r2 $flags $p1	// SAVE/LOAD
+	add b32 $r2 NV_PGRAPH_FECS_STRAND_CMD_SAVE
+	nv_iowr(NV_PGRAPH_FECS_STRAND_CMD, 0x3f, $r2)
 
 	// mmio context
 	xbit $r10 $flags $p1	// direction
@@ -675,48 +641,42 @@ ctx_xfer:
 	ld b32 $r12 D[$r0 + #hub_mmio_list_head]
 	ld b32 $r13 D[$r0 + #hub_mmio_list_tail]
 	mov $r14 0		// not multi
-	call #mmctx_xfer
+	call(mmctx_xfer)
 
 	// wait for GPCs to all complete
 	mov $r10 8		// DONE_BAR
-	call #wait_doneo
+	call(wait_doneo)
 
 	// wait for strand xfer to complete
-	call #strand_wait
+	call(strand_wait)
 
 	// post-op
 	bra $p1 #ctx_xfer_post
 		mov $r10 12		// DONE_UNK12
-		call #wait_donez
-		mov $r1 0xa10
-		shl b32 $r1 6
-		mov $r2 5
-		iowr I[$r1] $r2		// MEM_CMD
-		ctx_xfer_post_save_wait:
-			iord $r2 I[$r1]
-			or $r2 $r2
-			bra ne #ctx_xfer_post_save_wait
+		call(wait_donez)
+		mov $r15 5 // MEM_CMD 5 ???
+		call(ctx_mem)
 
 	bra $p2 #ctx_xfer_done
 	ctx_xfer_post:
 		mov $r15 2
-		call #ctx_4170s
+		call(ctx_4170s)
 		clear b32 $r15
-		call #ctx_86c
-		call #strand_post
-		call #ctx_4170w
+		call(ctx_86c)
+		call(strand_post)
+		call(ctx_4170w)
 		clear b32 $r15
-		call #ctx_4170s
+		call(ctx_4170s)
 
 		bra not $p1 #ctx_xfer_no_post_mmio
 		ld b32 $r1 D[$r0 + #chan_mmio_count]
 		or $r1 $r1
 		bra e #ctx_xfer_no_post_mmio
-			call #ctx_mmio_exec
+			call(ctx_mmio_exec)
 
 		ctx_xfer_no_post_mmio:
 #if CHIPSET < GK100
-		call #ctx_4160c
+		call(ctx_4160c)
 #endif
 
 	ctx_xfer_done:

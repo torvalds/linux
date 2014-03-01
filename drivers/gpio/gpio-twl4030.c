@@ -300,7 +300,7 @@ static int twl_direction_in(struct gpio_chip *chip, unsigned offset)
 	if (offset < TWL4030_GPIO_MAX)
 		ret = twl4030_set_gpio_direction(offset, 1);
 	else
-		ret = -EINVAL;
+		ret = -EINVAL;	/* LED outputs can't be set as input */
 
 	if (!ret)
 		priv->direction &= ~BIT(offset);
@@ -354,11 +354,20 @@ static void twl_set(struct gpio_chip *chip, unsigned offset, int value)
 static int twl_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
-	int ret = -EINVAL;
+	int ret = 0;
 
 	mutex_lock(&priv->mutex);
-	if (offset < TWL4030_GPIO_MAX)
+	if (offset < TWL4030_GPIO_MAX) {
 		ret = twl4030_set_gpio_direction(offset, 0);
+		if (ret) {
+			mutex_unlock(&priv->mutex);
+			return ret;
+		}
+	}
+
+	/*
+	 *  LED gpios i.e. offset >= TWL4030_GPIO_MAX are always output
+	 */
 
 	priv->direction |= BIT(offset);
 	mutex_unlock(&priv->mutex);
@@ -387,7 +396,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= twl_direction_out,
 	.set			= twl_set,
 	.to_irq			= twl_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 /*----------------------------------------------------------------------*/

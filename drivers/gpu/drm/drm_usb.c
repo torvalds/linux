@@ -1,4 +1,5 @@
 #include <drm/drmP.h>
+#include <drm/drm_usb.h>
 #include <linux/usb.h>
 #include <linux/module.h>
 
@@ -63,7 +64,6 @@ int drm_usb_init(struct drm_driver *driver, struct usb_driver *udriver)
 	int res;
 	DRM_DEBUG("\n");
 
-	INIT_LIST_HEAD(&driver->device_list);
 	driver->kdriver.usb = udriver;
 	driver->bus = &drm_usb_bus;
 

@@ -181,8 +181,8 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 			 * Target of Scope() not found. Generate an External for it, and
 			 * insert the name into the namespace.
 			 */
-			acpi_dm_add_to_external_list(op, path, ACPI_TYPE_DEVICE,
-						     0);
+			acpi_dm_add_op_to_external_list(op, path,
+							ACPI_TYPE_DEVICE, 0, 0);
 			status =
 			    acpi_ns_lookup(walk_state->scope_info, path,
 					   object_type, ACPI_IMODE_LOAD_PASS1,

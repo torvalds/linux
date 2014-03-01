@@ -78,7 +78,7 @@ static int pcrypt_do_parallel(struct padata_priv *padata, unsigned int *cb_cpu,
 	cpu = *cb_cpu;
 
 	rcu_read_lock_bh();
-	cpumask = rcu_dereference(pcrypt->cb_cpumask);
+	cpumask = rcu_dereference_bh(pcrypt->cb_cpumask);
 	if (cpumask_test_cpu(cpu, cpumask->mask))
 			goto out;
 

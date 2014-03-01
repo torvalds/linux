@@ -2,7 +2,7 @@
  * lm78.c - Part of lm_sensors, Linux kernel modules for hardware
  *	    monitoring
  * Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
- * Copyright (c) 2007, 2011  Jean Delvare <khali@linux-fr.org>
+ * Copyright (c) 2007, 2011  Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1108,7 +1108,7 @@ static void __exit sm_lm78_exit(void)
 	i2c_del_driver(&lm78_driver);
 }
 
-MODULE_AUTHOR("Frodo Looijaard, Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Frodo Looijaard, Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("LM78/LM79 driver");
 MODULE_LICENSE("GPL");
 

@@ -1268,13 +1268,8 @@ static struct cfg80211_scan_request *
 _new_connect_scan_req(struct wiphy *wiphy, struct cfg80211_connect_params *sme)
 {
 	struct cfg80211_scan_request *creq = NULL;
-	int i, n_channels = 0;
+	int i, n_channels = ieee80211_get_num_supported_channels(wiphy);
 	enum ieee80211_band band;
-
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-		if (wiphy->bands[band])
-			n_channels += wiphy->bands[band]->n_channels;
-	}
 
 	creq = kzalloc(sizeof(*creq) + sizeof(struct cfg80211_ssid) +
 		       n_channels * sizeof(void *),

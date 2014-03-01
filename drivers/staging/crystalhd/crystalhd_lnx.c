@@ -703,7 +703,7 @@ static int chd_dec_pci_resume(struct pci_dev *pdev)
 }
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(chd_dec_pci_id_table) = {
+static const struct pci_device_id chd_dec_pci_id_table[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x1612), 8 },
 	{ 0, },
 };

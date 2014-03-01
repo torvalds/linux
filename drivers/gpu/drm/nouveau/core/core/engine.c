@@ -42,11 +42,24 @@ nouveau_engine_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	if ( parent &&
-	    !nouveau_boolopt(nv_device(parent)->cfgopt, iname, enable)) {
-		if (!enable)
-			nv_warn(engine, "disabled, %s=1 to enable\n", iname);
-		return -ENODEV;
+	if (parent) {
+		struct nouveau_device *device = nv_device(parent);
+		int engidx = nv_engidx(nv_object(engine));
+
+		if (device->disable_mask & (1ULL << engidx)) {
+			if (!nouveau_boolopt(device->cfgopt, iname, false)) {
+				nv_debug(engine, "engine disabled by hw/fw\n");
+				return -ENODEV;
+			}
+
+			nv_warn(engine, "ignoring hw/fw engine disable\n");
+		}
+
+		if (!nouveau_boolopt(device->cfgopt, iname, enable)) {
+			if (!enable)
+				nv_warn(engine, "disabled, %s=1 to enable\n", iname);
+			return -ENODEV;
+		}
 	}
 
 	INIT_LIST_HEAD(&engine->contexts);

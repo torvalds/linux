@@ -40,6 +40,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
+#include <asm/trusted_foundations.h>
 
 #include "apbio.h"
 #include "board.h"
@@ -60,23 +61,31 @@
  * kernel is loaded. The data is declared here rather than debug-macro.S so
  * that multiple inclusions of debug-macro.S point at the same data.
  */
-u32 tegra_uart_config[4] = {
+u32 tegra_uart_config[3] = {
 	/* Debug UART initialization required */
 	1,
 	/* Debug UART physical address */
 	0,
 	/* Debug UART virtual address */
 	0,
-	/* Scratch space for debug macro */
-	0,
 };
 
 static void __init tegra_init_cache(void)
 {
 #ifdef CONFIG_CACHE_L2X0
+	static const struct of_device_id pl310_ids[] __initconst = {
+		{ .compatible = "arm,pl310-cache",  },
+		{}
+	};
+
+	struct device_node *np;
 	int ret;
 	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
 	u32 aux_ctrl, cache_type;
+
+	np = of_find_matching_node(NULL, pl310_ids);
+	if (!np)
+		return;
 
 	cache_type = readl(p + L2X0_CACHE_TYPE);
 	aux_ctrl = (cache_type & 0x700) << (17-8);
@@ -90,6 +99,7 @@ static void __init tegra_init_cache(void)
 
 static void __init tegra_init_early(void)
 {
+	of_register_trusted_foundations();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_cpu_reset_handler_init();

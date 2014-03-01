@@ -431,6 +431,8 @@ xfs_iread_extents(
 	xfs_ifork_t	*ifp;
 	xfs_extnum_t	nextents;
 
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
 	if (unlikely(XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE)) {
 		XFS_ERROR_REPORT("xfs_iread_extents", XFS_ERRLEVEL_LOW,
 				 ip->i_mount);
@@ -721,15 +723,16 @@ xfs_idestroy_fork(
 }
 
 /*
- * xfs_iextents_copy()
+ * Convert in-core extents to on-disk form
  *
- * This is called to copy the REAL extents (as opposed to the delayed
- * allocation extents) from the inode into the given buffer.  It
- * returns the number of bytes copied into the buffer.
+ * For either the data or attr fork in extent format, we need to endian convert
+ * the in-core extent as we place them into the on-disk inode.
  *
- * If there are no delayed allocation extents, then we can just
- * memcpy() the extents into the buffer.  Otherwise, we need to
- * examine each extent in turn and skip those which are delayed.
+ * In the case of the data fork, the in-core and on-disk fork sizes can be
+ * different due to delayed allocation extents. We only copy on-disk extents
+ * here, so callers must always use the physical fork size to determine the
+ * size of the buffer passed to this routine.  We will return the size actually
+ * used.
  */
 int
 xfs_iextents_copy(

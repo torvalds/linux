@@ -134,6 +134,8 @@ void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter,
 	struct qlcnic_skb_frag *buffrag;
 	int i, j;
 
+	spin_lock(&tx_ring->tx_clean_lock);
+
 	cmd_buf = tx_ring->cmd_buf_arr;
 	for (i = 0; i < tx_ring->num_desc; i++) {
 		buffrag = cmd_buf->frag_array;
@@ -157,6 +159,8 @@ void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter,
 		}
 		cmd_buf++;
 	}
+
+	spin_unlock(&tx_ring->tx_clean_lock);
 }
 
 void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter)

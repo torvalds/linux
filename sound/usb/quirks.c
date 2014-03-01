@@ -660,10 +660,23 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 	return err;
 }
 
+/* quirk for Plantronics GameCom 780 with CM6302 chip */
+static int snd_usb_gamecon780_boot_quirk(struct usb_device *dev)
+{
+	/* set the initial volume and don't change; other values are either
+	 * too loud or silent due to firmware bug (bko#65251)
+	 */
+	u8 buf[2] = { 0x74, 0xdc };
+	return snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
+			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
+			UAC_FU_VOLUME << 8, 9 << 8, buf, 2);
+}
+
 /*
  * Novation Twitch DJ controller
+ * Focusrite Novation Saffire 6 USB audio card
  */
-static int snd_usb_twitch_boot_quirk(struct usb_device *dev)
+static int snd_usb_novation_boot_quirk(struct usb_device *dev)
 {
 	/* preemptively set up the device because otherwise the
 	 * raw MIDI endpoints are not active */
@@ -972,9 +985,9 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		/* Digidesign Mbox 2 */
 		return snd_usb_mbox2_boot_quirk(dev);
 
-	case USB_ID(0x1235, 0x0018):
-		/* Focusrite Novation Twitch */
-		return snd_usb_twitch_boot_quirk(dev);
+	case USB_ID(0x1235, 0x0010): /* Focusrite Novation Saffire 6 USB */
+	case USB_ID(0x1235, 0x0018): /* Focusrite Novation Twitch */
+		return snd_usb_novation_boot_quirk(dev);
 
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
@@ -986,6 +999,8 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		return snd_usb_nativeinstruments_boot_quirk(dev);
 	case USB_ID(0x0763, 0x2012):  /* M-Audio Fast Track Pro USB */
 		return snd_usb_fasttrackpro_boot_quirk(dev);
+	case USB_ID(0x047f, 0xc010): /* Plantronics Gamecom 780 */
+		return snd_usb_gamecon780_boot_quirk(dev);
 	}
 
 	return 0;

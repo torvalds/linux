@@ -30,6 +30,7 @@
 	i2c@12C60000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <20000>;
+		status = "okay";
 
 		eeprom@50 {
 			compatible = "samsung,s524ad0xd1";
@@ -37,7 +38,7 @@
 		};
 	};
 
-	vdd:fixed-regulator@0 {
+	vdd: fixed-regulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-supply";
 		regulator-min-microvolt = <1800000>;
@@ -45,7 +46,7 @@
 		regulator-always-on;
 	};
 
-	dbvdd:fixed-regulator@1 {
+	dbvdd: fixed-regulator@1 {
 		compatible = "regulator-fixed";
 		regulator-name = "dbvdd-supply";
 		regulator-min-microvolt = <3300000>;
@@ -53,7 +54,7 @@
 		regulator-always-on;
 	};
 
-	spkvdd:fixed-regulator@2 {
+	spkvdd: fixed-regulator@2 {
 		compatible = "regulator-fixed";
 		regulator-name = "spkvdd-supply";
 		regulator-min-microvolt = <5000000>;
@@ -64,6 +65,7 @@
 	i2c@12C70000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <20000>;
+		status = "okay";
 
 		eeprom@51 {
 			compatible = "samsung,s524ad0xd1";
@@ -77,6 +79,9 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 
+			clocks = <&codec_mclk>;
+			clock-names = "MCLK1";
+
 			AVDD2-supply = <&vdd>;
 			CPVDD-supply = <&vdd>;
 			DBVDD-supply = <&dbvdd>;
@@ -89,6 +94,7 @@
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <40000>;
 		samsung,i2c-slave-addr = <0x38>;
+		status = "okay";
 
 		sata-phy {
 			compatible = "samsung,sata-phy";
@@ -103,6 +109,7 @@
 	i2c@12C80000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <66000>;
+		status = "okay";
 
 		hdmiddc@50 {
 			compatible = "samsung,exynos4210-hdmiddc";
@@ -110,29 +117,10 @@
 		};
 	};
 
-	i2c@12C90000 {
-		status = "disabled";
-	};
-
-	i2c@12CA0000 {
-		status = "disabled";
-	};
-
-	i2c@12CB0000 {
-		status = "disabled";
-	};
-
-	i2c@12CC0000 {
-		status = "disabled";
-	};
-
-	i2c@12CD0000 {
-		status = "disabled";
-	};
-
 	i2c@12CE0000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <66000>;
+		status = "okay";
 
 		hdmiphy@38 {
 			compatible = "samsung,exynos4212-hdmiphy";
@@ -140,11 +128,11 @@
 		};
 	};
 
-	dwmmc0@12200000 {
+	mmc@12200000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -158,14 +146,10 @@
 		};
 	};
 
-	dwmmc1@12210000 {
-		status = "disabled";
-	};
-
-	dwmmc2@12220000 {
+	mmc@12220000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -180,15 +164,13 @@
 		};
 	};
 
-	dwmmc3@12230000 {
-		status = "disabled";
-	};
-
 	spi_0: spi@12d20000 {
 		status = "disabled";
 	};
 
 	spi_1: spi@12d30000 {
+		status = "okay";
+
 		w25q80bw@0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -212,10 +194,6 @@
 				reg = <0x40000 0xc0000>;
 			};
 		};
-	};
-
-	spi_2: spi@12d40000 {
-		status = "disabled";
 	};
 
 	hdmi {
@@ -278,6 +256,12 @@
 		xxti {
 			compatible = "samsung,clock-xxti";
 			clock-frequency = <24000000>;
+		};
+
+		codec_mclk: codec-mclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <16934000>;
 		};
 	};
 };

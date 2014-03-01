@@ -1286,6 +1286,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 					reg = wm_adsp_region_to_reg(mem,
 								    reg);
 					reg += offset;
+					break;
 				}
 			}
 
@@ -1468,19 +1469,23 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 	unsigned int val;
 	int ret, count;
 
-	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-				 ADSP2_SYS_ENA, ADSP2_SYS_ENA);
+	ret = regmap_update_bits_async(dsp->regmap, dsp->base + ADSP2_CONTROL,
+				       ADSP2_SYS_ENA, ADSP2_SYS_ENA);
 	if (ret != 0)
 		return ret;
 
 	/* Wait for the RAM to start, should be near instantaneous */
-	count = 0;
-	do {
+	for (count = 0; count < 10; ++count) {
 		ret = regmap_read(dsp->regmap, dsp->base + ADSP2_STATUS1,
 				  &val);
 		if (ret != 0)
 			return ret;
-	} while (!(val & ADSP2_RAM_RDY) && ++count < 10);
+
+		if (val & ADSP2_RAM_RDY)
+			break;
+
+		msleep(1);
+	}
 
 	if (!(val & ADSP2_RAM_RDY)) {
 		adsp_err(dsp, "Failed to start DSP RAM\n");
@@ -1488,10 +1493,129 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 	}
 
 	adsp_dbg(dsp, "RAM ready after %d polls\n", count);
-	adsp_info(dsp, "RAM ready after %d polls\n", count);
 
 	return 0;
 }
+
+static void wm_adsp2_boot_work(struct work_struct *work)
+{
+	struct wm_adsp *dsp = container_of(work,
+					   struct wm_adsp,
+					   boot_work);
+	int ret;
+	unsigned int val;
+
+	/*
+	 * For simplicity set the DSP clock rate to be the
+	 * SYSCLK rate rather than making it configurable.
+	 */
+	ret = regmap_read(dsp->regmap, ARIZONA_SYSTEM_CLOCK_1, &val);
+	if (ret != 0) {
+		adsp_err(dsp, "Failed to read SYSCLK state: %d\n", ret);
+		return;
+	}
+	val = (val & ARIZONA_SYSCLK_FREQ_MASK)
+		>> ARIZONA_SYSCLK_FREQ_SHIFT;
+
+	ret = regmap_update_bits_async(dsp->regmap,
+				       dsp->base + ADSP2_CLOCKING,
+				       ADSP2_CLK_SEL_MASK, val);
+	if (ret != 0) {
+		adsp_err(dsp, "Failed to set clock rate: %d\n", ret);
+		return;
+	}
+
+	if (dsp->dvfs) {
+		ret = regmap_read(dsp->regmap,
+				  dsp->base + ADSP2_CLOCKING, &val);
+		if (ret != 0) {
+			dev_err(dsp->dev, "Failed to read clocking: %d\n", ret);
+			return;
+		}
+
+		if ((val & ADSP2_CLK_SEL_MASK) >= 3) {
+			ret = regulator_enable(dsp->dvfs);
+			if (ret != 0) {
+				dev_err(dsp->dev,
+					"Failed to enable supply: %d\n",
+					ret);
+				return;
+			}
+
+			ret = regulator_set_voltage(dsp->dvfs,
+						    1800000,
+						    1800000);
+			if (ret != 0) {
+				dev_err(dsp->dev,
+					"Failed to raise supply: %d\n",
+					ret);
+				return;
+			}
+		}
+	}
+
+	ret = wm_adsp2_ena(dsp);
+	if (ret != 0)
+		return;
+
+	ret = wm_adsp_load(dsp);
+	if (ret != 0)
+		goto err;
+
+	ret = wm_adsp_setup_algs(dsp);
+	if (ret != 0)
+		goto err;
+
+	ret = wm_adsp_load_coeff(dsp);
+	if (ret != 0)
+		goto err;
+
+	/* Initialize caches for enabled and unset controls */
+	ret = wm_coeff_init_control_caches(dsp);
+	if (ret != 0)
+		goto err;
+
+	/* Sync set controls */
+	ret = wm_coeff_sync_controls(dsp);
+	if (ret != 0)
+		goto err;
+
+	ret = regmap_update_bits_async(dsp->regmap,
+				       dsp->base + ADSP2_CONTROL,
+				       ADSP2_CORE_ENA,
+				       ADSP2_CORE_ENA);
+	if (ret != 0)
+		goto err;
+
+	dsp->running = true;
+
+	return;
+
+err:
+	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+			   ADSP2_SYS_ENA | ADSP2_CORE_ENA | ADSP2_START, 0);
+}
+
+int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
+	struct wm_adsp *dsp = &dsps[w->shift];
+
+	dsp->card = codec->card;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		queue_work(system_unbound_wq, &dsp->boot_work);
+		break;
+	default:
+		break;
+	};
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp2_early_event);
 
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event)
@@ -1501,99 +1625,21 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsp = &dsps[w->shift];
 	struct wm_adsp_alg_region *alg_region;
 	struct wm_coeff_ctl *ctl;
-	unsigned int val;
 	int ret;
-
-	dsp->card = codec->card;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		/*
-		 * For simplicity set the DSP clock rate to be the
-		 * SYSCLK rate rather than making it configurable.
-		 */
-		ret = regmap_read(dsp->regmap, ARIZONA_SYSTEM_CLOCK_1, &val);
-		if (ret != 0) {
-			adsp_err(dsp, "Failed to read SYSCLK state: %d\n",
-				 ret);
-			return ret;
-		}
-		val = (val & ARIZONA_SYSCLK_FREQ_MASK)
-			>> ARIZONA_SYSCLK_FREQ_SHIFT;
+		flush_work(&dsp->boot_work);
 
-		ret = regmap_update_bits(dsp->regmap,
-					 dsp->base + ADSP2_CLOCKING,
-					 ADSP2_CLK_SEL_MASK, val);
-		if (ret != 0) {
-			adsp_err(dsp, "Failed to set clock rate: %d\n",
-				 ret);
-			return ret;
-		}
-
-		if (dsp->dvfs) {
-			ret = regmap_read(dsp->regmap,
-					  dsp->base + ADSP2_CLOCKING, &val);
-			if (ret != 0) {
-				dev_err(dsp->dev,
-					"Failed to read clocking: %d\n", ret);
-				return ret;
-			}
-
-			if ((val & ADSP2_CLK_SEL_MASK) >= 3) {
-				ret = regulator_enable(dsp->dvfs);
-				if (ret != 0) {
-					dev_err(dsp->dev,
-						"Failed to enable supply: %d\n",
-						ret);
-					return ret;
-				}
-
-				ret = regulator_set_voltage(dsp->dvfs,
-							    1800000,
-							    1800000);
-				if (ret != 0) {
-					dev_err(dsp->dev,
-						"Failed to raise supply: %d\n",
-						ret);
-					return ret;
-				}
-			}
-		}
-
-		ret = wm_adsp2_ena(dsp);
-		if (ret != 0)
-			return ret;
-
-		ret = wm_adsp_load(dsp);
-		if (ret != 0)
-			goto err;
-
-		ret = wm_adsp_setup_algs(dsp);
-		if (ret != 0)
-			goto err;
-
-		ret = wm_adsp_load_coeff(dsp);
-		if (ret != 0)
-			goto err;
-
-		/* Initialize caches for enabled and unset controls */
-		ret = wm_coeff_init_control_caches(dsp);
-		if (ret != 0)
-			goto err;
-
-		/* Sync set controls */
-		ret = wm_coeff_sync_controls(dsp);
-		if (ret != 0)
-			goto err;
+		if (!dsp->running)
+			return -EIO;
 
 		ret = regmap_update_bits(dsp->regmap,
 					 dsp->base + ADSP2_CONTROL,
-					 ADSP2_CORE_ENA | ADSP2_START,
-					 ADSP2_CORE_ENA | ADSP2_START);
+					 ADSP2_START,
+					 ADSP2_START);
 		if (ret != 0)
 			goto err;
-
-		dsp->running = true;
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
@@ -1664,6 +1710,7 @@ int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs)
 
 	INIT_LIST_HEAD(&adsp->alg_regions);
 	INIT_LIST_HEAD(&adsp->ctl_list);
+	INIT_WORK(&adsp->boot_work, wm_adsp2_boot_work);
 
 	if (dvfs) {
 		adsp->dvfs = devm_regulator_get(adsp->dev, "DCVDD");
