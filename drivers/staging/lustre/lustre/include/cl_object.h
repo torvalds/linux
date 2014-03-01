@@ -2392,7 +2392,11 @@ struct cl_io {
 	/**
 	 * file is released, restore has to to be triggered by vvp layer
 	 */
-			     ci_restore_needed:1;
+			     ci_restore_needed:1,
+	/**
+	 * O_NOATIME
+	 */
+			     ci_noatime:1;
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */

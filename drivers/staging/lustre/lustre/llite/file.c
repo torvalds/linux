@@ -1035,6 +1035,33 @@ int ll_glimpse_ioctl(struct ll_sb_info *sbi, struct lov_stripe_md *lsm,
 	return rc;
 }
 
+static bool file_is_noatime(const struct file *file)
+{
+	const struct vfsmount *mnt = file->f_path.mnt;
+	const struct inode *inode = file->f_path.dentry->d_inode;
+
+	/* Adapted from file_accessed() and touch_atime().*/
+	if (file->f_flags & O_NOATIME)
+		return true;
+
+	if (inode->i_flags & S_NOATIME)
+		return true;
+
+	if (IS_NOATIME(inode))
+		return true;
+
+	if (mnt->mnt_flags & (MNT_NOATIME | MNT_READONLY))
+		return true;
+
+	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
+		return true;
+
+	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
+		return true;
+
+	return false;
+}
+
 void ll_io_init(struct cl_io *io, const struct file *file, int write)
 {
 	struct inode *inode = file->f_dentry->d_inode;
@@ -1054,6 +1081,8 @@ void ll_io_init(struct cl_io *io, const struct file *file, int write)
 	} else if (file->f_flags & O_APPEND) {
 		io->ci_lockreq = CILR_MANDATORY;
 	}
+
+	io->ci_noatime = file_is_noatime(file);
 }
 
 static ssize_t
