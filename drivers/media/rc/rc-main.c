@@ -1286,14 +1286,6 @@ int rc_register_device(struct rc_dev *dev)
 	if (dev->close)
 		dev->input_dev->close = ir_close;
 
-	/*
-	 * Take the lock here, as the device sysfs node will appear
-	 * when device_add() is called, which may trigger an ir-keytable udev
-	 * rule, which will in turn call show_protocols and access
-	 * dev->enabled_protocols before it has been initialized.
-	 */
-	mutex_lock(&dev->lock);
-
 	do {
 		devno = find_first_zero_bit(ir_core_dev_number,
 					    IRRCV_NUM_DEVICES);
@@ -1301,6 +1293,14 @@ int rc_register_device(struct rc_dev *dev)
 		if (devno >= IRRCV_NUM_DEVICES)
 			return -ENOMEM;
 	} while (test_and_set_bit(devno, ir_core_dev_number));
+
+	/*
+	 * Take the lock here, as the device sysfs node will appear
+	 * when device_add() is called, which may trigger an ir-keytable udev
+	 * rule, which will in turn call show_protocols and access
+	 * dev->enabled_protocols before it has been initialized.
+	 */
+	mutex_lock(&dev->lock);
 
 	dev->devno = devno;
 	dev_set_name(&dev->dev, "rc%ld", dev->devno);
