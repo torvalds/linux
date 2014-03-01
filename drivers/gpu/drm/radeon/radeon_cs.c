@@ -31,10 +31,52 @@
 #include "radeon.h"
 #include "radeon_trace.h"
 
+#define RADEON_CS_MAX_PRIORITY		32u
+#define RADEON_CS_NUM_BUCKETS		(RADEON_CS_MAX_PRIORITY + 1)
+
+/* This is based on the bucket sort with O(n) time complexity.
+ * An item with priority "i" is added to bucket[i]. The lists are then
+ * concatenated in descending order.
+ */
+struct radeon_cs_buckets {
+	struct list_head bucket[RADEON_CS_NUM_BUCKETS];
+};
+
+static void radeon_cs_buckets_init(struct radeon_cs_buckets *b)
+{
+	unsigned i;
+
+	for (i = 0; i < RADEON_CS_NUM_BUCKETS; i++)
+		INIT_LIST_HEAD(&b->bucket[i]);
+}
+
+static void radeon_cs_buckets_add(struct radeon_cs_buckets *b,
+				  struct list_head *item, unsigned priority)
+{
+	/* Since buffers which appear sooner in the relocation list are
+	 * likely to be used more often than buffers which appear later
+	 * in the list, the sort mustn't change the ordering of buffers
+	 * with the same priority, i.e. it must be stable.
+	 */
+	list_add_tail(item, &b->bucket[min(priority, RADEON_CS_MAX_PRIORITY)]);
+}
+
+static void radeon_cs_buckets_get_list(struct radeon_cs_buckets *b,
+				       struct list_head *out_list)
+{
+	unsigned i;
+
+	/* Connect the sorted buckets in the output list. */
+	for (i = 0; i < RADEON_CS_NUM_BUCKETS; i++) {
+		list_splice(&b->bucket[i], out_list);
+	}
+}
+
 static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
 	struct drm_device *ddev = p->rdev->ddev;
 	struct radeon_cs_chunk *chunk;
+	struct radeon_cs_buckets buckets;
 	unsigned i, j;
 	bool duplicate;
 
@@ -53,8 +95,12 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
+
+	radeon_cs_buckets_init(&buckets);
+
 	for (i = 0; i < p->nrelocs; i++) {
 		struct drm_radeon_cs_reloc *r;
+		unsigned priority;
 
 		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
@@ -80,7 +126,14 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		p->relocs_ptr[i] = &p->relocs[i];
 		p->relocs[i].robj = gem_to_radeon_bo(p->relocs[i].gobj);
 		p->relocs[i].lobj.bo = p->relocs[i].robj;
-		p->relocs[i].lobj.written = !!r->write_domain;
+
+		/* The userspace buffer priorities are from 0 to 15. A higher
+		 * number means the buffer is more important.
+		 * Also, the buffers used for write have a higher priority than
+		 * the buffers used for read only, which doubles the range
+		 * to 0 to 31. 32 is reserved for the kernel driver.
+		 */
+		priority = (r->flags & 0xf) * 2 + !!r->write_domain;
 
 		/* the first reloc of an UVD job is the msg and that must be in
 		   VRAM, also but everything into VRAM on AGP cards to avoid
@@ -94,6 +147,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].lobj.alt_domain =
 				RADEON_GEM_DOMAIN_VRAM;
 
+			/* prioritize this over any other relocation */
+			priority = RADEON_CS_MAX_PRIORITY;
 		} else {
 			uint32_t domain = r->write_domain ?
 				r->write_domain : r->read_domains;
@@ -107,9 +162,12 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		p->relocs[i].lobj.tv.bo = &p->relocs[i].robj->tbo;
 		p->relocs[i].handle = r->handle;
 
-		radeon_bo_list_add_object(&p->relocs[i].lobj,
-					  &p->validated);
+		radeon_cs_buckets_add(&buckets, &p->relocs[i].lobj.tv.head,
+				      priority);
 	}
+
+	radeon_cs_buckets_get_list(&buckets, &p->validated);
+
 	return radeon_bo_list_validate(&p->ticket, &p->validated, p->ring);
 }
 

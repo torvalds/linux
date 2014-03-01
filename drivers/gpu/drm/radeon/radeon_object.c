@@ -366,16 +366,6 @@ void radeon_bo_fini(struct radeon_device *rdev)
 	arch_phys_wc_del(rdev->mc.vram_mtrr);
 }
 
-void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
-				struct list_head *head)
-{
-	if (lobj->written) {
-		list_add(&lobj->tv.head, head);
-	} else {
-		list_add_tail(&lobj->tv.head, head);
-	}
-}
-
 int radeon_bo_list_validate(struct ww_acquire_ctx *ticket,
 			    struct list_head *head, int ring)
 {
