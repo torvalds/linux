@@ -511,7 +511,9 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",
 		       request->rq_import->imp_obd->obd_name);
 		/* this prevents us from waiting in ptlrpc_queue_wait */
+		spin_lock(&request->rq_lock);
 		request->rq_err = 1;
+		spin_unlock(&request->rq_lock);
 		request->rq_status = -ENODEV;
 		return -ENODEV;
 	}
@@ -553,7 +555,9 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			if (rc) {
 				/* this prevents us from looping in
 				 * ptlrpc_queue_wait */
+				spin_lock(&request->rq_lock);
 				request->rq_err = 1;
+				spin_unlock(&request->rq_lock);
 				request->rq_status = rc;
 				GOTO(cleanup_bulk, rc);
 			}
