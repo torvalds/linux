@@ -235,5 +235,18 @@
 			ti,ngpio = <32>;
 			ti,davinci-gpio-unbanked = <32>;
 		};
+
+		aemif: aemif@21000A00 {
+			compatible = "ti,keystone-aemif", "ti,davinci-aemif";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			clocks = <&clkaemif>;
+			clock-names = "aemif";
+			clock-ranges;
+
+			reg = <0x21000A00 0x00000100>;
+			ranges = <0 0 0x30000000 0x10000000
+				  1 0 0x21000A00 0x00000100>;
+		};
 	};
 };
