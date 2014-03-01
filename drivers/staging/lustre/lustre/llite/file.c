@@ -2891,7 +2891,7 @@ int __ll_inode_revalidate_it(struct dentry *dentry, struct lookup_intent *it,
 			oit.it_op = IT_LOOKUP;
 
 		/* Call getattr by fid, so do not provide name at all. */
-		op_data = ll_prep_md_op_data(NULL, dentry->d_parent->d_inode,
+		op_data = ll_prep_md_op_data(NULL, dentry->d_inode,
 					     dentry->d_inode, NULL, 0, 0,
 					     LUSTRE_OPC_ANY, NULL);
 		if (IS_ERR(op_data))
