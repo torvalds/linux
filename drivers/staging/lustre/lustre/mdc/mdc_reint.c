@@ -165,6 +165,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 			req->rq_cb_data = *mod;
 			(*mod)->mod_open_req = req;
 			req->rq_commit_cb = mdc_commit_open;
+			(*mod)->mod_is_create = true;
 			/**
 			 * Take an extra reference on \var mod, it protects \var
 			 * mod from being freed on eviction (commit callback is

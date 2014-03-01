@@ -480,7 +480,7 @@ static int ll_och_fill(struct obd_export *md_exp, struct lookup_intent *it,
 	och->och_magic = OBD_CLIENT_HANDLE_MAGIC;
 	och->och_flags = it->it_flags;
 
-	return md_set_open_replay_data(md_exp, och, req);
+	return md_set_open_replay_data(md_exp, och, it);
 }
 
 int ll_local_open(struct file *file, struct lookup_intent *it,

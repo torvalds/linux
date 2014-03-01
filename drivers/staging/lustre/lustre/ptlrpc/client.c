@@ -2360,6 +2360,39 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 }
 EXPORT_SYMBOL(ptlrpc_unregister_reply);
 
+static void ptlrpc_free_request(struct ptlrpc_request *req)
+{
+	spin_lock(&req->rq_lock);
+	req->rq_replay = 0;
+	spin_unlock(&req->rq_lock);
+
+	if (req->rq_commit_cb != NULL)
+		req->rq_commit_cb(req);
+	list_del_init(&req->rq_replay_list);
+
+	__ptlrpc_req_finished(req, 1);
+}
+
+/**
+ * the request is committed and dropped from the replay list of its import
+ */
+void ptlrpc_request_committed(struct ptlrpc_request *req, int force)
+{
+	struct obd_import	*imp = req->rq_import;
+
+	spin_lock(&imp->imp_lock);
+	if (list_empty(&req->rq_replay_list)) {
+		spin_unlock(&imp->imp_lock);
+		return;
+	}
+
+	if (force || req->rq_transno <= imp->imp_peer_committed_transno)
+		ptlrpc_free_request(req);
+
+	spin_unlock(&imp->imp_lock);
+}
+EXPORT_SYMBOL(ptlrpc_request_committed);
+
 /**
  * Iterates through replay_list on import and prunes
  * all requests have transno smaller than last_committed for the
@@ -2370,9 +2403,9 @@ EXPORT_SYMBOL(ptlrpc_unregister_reply);
  */
 void ptlrpc_free_committed(struct obd_import *imp)
 {
-	struct list_head *tmp, *saved;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req, *saved;
 	struct ptlrpc_request *last_req = NULL; /* temporary fire escape */
+	bool		       skip_committed_list = true;
 
 	LASSERT(imp != NULL);
 
@@ -2388,13 +2421,15 @@ void ptlrpc_free_committed(struct obd_import *imp)
 	CDEBUG(D_RPCTRACE, "%s: committing for last_committed "LPU64" gen %d\n",
 	       imp->imp_obd->obd_name, imp->imp_peer_committed_transno,
 	       imp->imp_generation);
+
+	if (imp->imp_generation != imp->imp_last_generation_checked)
+		skip_committed_list = false;
+
 	imp->imp_last_transno_checked = imp->imp_peer_committed_transno;
 	imp->imp_last_generation_checked = imp->imp_generation;
 
-	list_for_each_safe(tmp, saved, &imp->imp_replay_list) {
-		req = list_entry(tmp, struct ptlrpc_request,
-				     rq_replay_list);
-
+	list_for_each_entry_safe(req, saved, &imp->imp_replay_list,
+				 rq_replay_list) {
 		/* XXX ok to remove when 1357 resolved - rread 05/29/03  */
 		LASSERT(req != last_req);
 		last_req = req;
@@ -2408,27 +2443,34 @@ void ptlrpc_free_committed(struct obd_import *imp)
 			GOTO(free_req, 0);
 		}
 
-		if (req->rq_replay) {
-			DEBUG_REQ(D_RPCTRACE, req, "keeping (FL_REPLAY)");
-			continue;
-		}
-
 		/* not yet committed */
 		if (req->rq_transno > imp->imp_peer_committed_transno) {
 			DEBUG_REQ(D_RPCTRACE, req, "stopping search");
 			break;
 		}
 
+		if (req->rq_replay) {
+			DEBUG_REQ(D_RPCTRACE, req, "keeping (FL_REPLAY)");
+			list_move_tail(&req->rq_replay_list,
+				       &imp->imp_committed_list);
+			continue;
+		}
+
 		DEBUG_REQ(D_INFO, req, "commit (last_committed "LPU64")",
 			  imp->imp_peer_committed_transno);
 free_req:
-		spin_lock(&req->rq_lock);
-		req->rq_replay = 0;
-		spin_unlock(&req->rq_lock);
-		if (req->rq_commit_cb != NULL)
-			req->rq_commit_cb(req);
-		list_del_init(&req->rq_replay_list);
-		__ptlrpc_req_finished(req, 1);
+		ptlrpc_free_request(req);
+	}
+	if (skip_committed_list)
+		return;
+
+	list_for_each_entry_safe(req, saved, &imp->imp_committed_list,
+				 rq_replay_list) {
+		LASSERT(req->rq_transno != 0);
+		if (req->rq_import_generation < imp->imp_generation) {
+			DEBUG_REQ(D_RPCTRACE, req, "free stale open request");
+			ptlrpc_free_request(req);
+		}
 	}
 }
 

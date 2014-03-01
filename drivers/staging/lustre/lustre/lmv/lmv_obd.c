@@ -2593,7 +2593,7 @@ int lmv_free_lustre_md(struct obd_export *exp, struct lustre_md *md)
 
 int lmv_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
-			     struct ptlrpc_request *open_req)
+			     struct lookup_intent *it)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
@@ -2603,7 +2603,7 @@ int lmv_set_open_replay_data(struct obd_export *exp,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	return md_set_open_replay_data(tgt->ltd_exp, och, open_req);
+	return md_set_open_replay_data(tgt->ltd_exp, och, it);
 }
 
 int lmv_clear_open_replay_data(struct obd_export *exp,

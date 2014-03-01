@@ -722,11 +722,12 @@ void mdc_commit_open(struct ptlrpc_request *req)
 
 int mdc_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
-			     struct ptlrpc_request *open_req)
+			     struct lookup_intent *it)
 {
 	struct md_open_data   *mod;
 	struct mdt_rec_create *rec;
 	struct mdt_body       *body;
+	struct ptlrpc_request *open_req = it->d.lustre.it_data;
 	struct obd_import     *imp = open_req->rq_import;
 
 	if (!open_req->rq_replay)
@@ -760,6 +761,8 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 		spin_lock(&open_req->rq_lock);
 		och->och_mod = mod;
 		mod->mod_och = och;
+		mod->mod_is_create = it_disposition(it, DISP_OPEN_CREATE) ||
+				     it_disposition(it, DISP_OPEN_STRIPE);
 		mod->mod_open_req = open_req;
 		open_req->rq_cb_data = mod;
 		open_req->rq_commit_cb = mdc_commit_open;
@@ -780,6 +783,23 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 	return 0;
 }
 
+static void mdc_free_open(struct md_open_data *mod)
+{
+	int committed = 0;
+
+	if (mod->mod_is_create == 0 &&
+	    imp_connect_disp_stripe(mod->mod_open_req->rq_import))
+		committed = 1;
+
+	LASSERT(mod->mod_open_req->rq_replay == 0);
+
+	DEBUG_REQ(D_RPCTRACE, mod->mod_open_req, "free open request\n");
+
+	ptlrpc_request_committed(mod->mod_open_req, committed);
+	if (mod->mod_close_req)
+		ptlrpc_request_committed(mod->mod_close_req, committed);
+}
+
 int mdc_clear_open_replay_data(struct obd_export *exp,
 			       struct obd_client_handle *och)
 {
@@ -793,6 +813,8 @@ int mdc_clear_open_replay_data(struct obd_export *exp,
 		return 0;
 
 	LASSERT(mod != LP_POISON);
+	LASSERT(mod->mod_open_req != NULL);
+	mdc_free_open(mod);
 
 	mod->mod_och = NULL;
 	och->och_mod = NULL;
@@ -991,6 +1013,9 @@ int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
 	if (mod) {
 		if (rc != 0)
 			mod->mod_close_req = NULL;
+		LASSERT(mod->mod_open_req != NULL);
+		mdc_free_open(mod);
+
 		/* Since now, mod is accessed through setattr req only,
 		 * thus DW req does not keep a reference on mod anymore. */
 		obd_mod_put(mod);

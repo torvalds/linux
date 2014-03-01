@@ -641,7 +641,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			 * happens immediately after swabbing below, new reply
 			 * is swabbed by that handler correctly.
 			 */
-			mdc_set_open_replay_data(NULL, NULL, req);
+			mdc_set_open_replay_data(NULL, NULL, it);
 		}
 
 		if ((body->valid & (OBD_MD_FLDIREA | OBD_MD_FLEASIZE)) != 0) {
