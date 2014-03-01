@@ -55,7 +55,7 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
-int num_packet_buffers = 1024;
+static int num_packet_buffers = 1024;
 module_param(num_packet_buffers, int, 0444);
 MODULE_PARM_DESC(num_packet_buffers, "\n"
 	"\tNumber of packet buffers to allocate and store in the\n"
