@@ -417,26 +417,6 @@ static void sh_msiof_spi_read_fifo_s32u(struct sh_msiof_spi_priv *p,
 		put_unaligned(swab32(sh_msiof_read(p, RFDR) >> fs), &buf_32[k]);
 }
 
-static int sh_msiof_spi_bits(struct spi_device *spi, struct spi_transfer *t)
-{
-	int bits;
-
-	bits = t ? t->bits_per_word : 0;
-	if (!bits)
-		bits = spi->bits_per_word;
-	return bits;
-}
-
-static u32 sh_msiof_spi_hz(struct spi_device *spi, struct spi_transfer *t)
-{
-	u32 hz;
-
-	hz = t ? t->speed_hz : 0;
-	if (!hz)
-		hz = spi->max_speed_hz;
-	return hz;
-}
-
 static int sh_msiof_spi_setup(struct spi_device *spi)
 {
 	struct device_node	*np = spi->master->dev.of_node;
@@ -574,7 +554,7 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 	int n;
 	bool swab;
 
-	bits = sh_msiof_spi_bits(spi, t);
+	bits = t->bits_per_word;
 
 	if (bits <= 8 && t->len > 15 && !(t->len & 3)) {
 		bits = 32;
@@ -624,8 +604,7 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 	}
 
 	/* setup clocks (clock already enabled in chipselect()) */
-	sh_msiof_spi_set_clk_regs(p, clk_get_rate(p->clk),
-				  sh_msiof_spi_hz(spi, t));
+	sh_msiof_spi_set_clk_regs(p, clk_get_rate(p->clk), t->speed_hz);
 
 	/* transfer in fifo sized chunks */
 	words = t->len / bytes_per_word;
