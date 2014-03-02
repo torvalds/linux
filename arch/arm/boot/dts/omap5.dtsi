@@ -695,6 +695,13 @@
 			ti,hwmods = "wd_timer2";
 		};
 
+		dmm@4e000000 {
+			compatible = "ti,omap5-dmm";
+			reg = <0x4e000000 0x800>;
+			interrupts = <0 113 0x4>;
+			ti,hwmods = "dmm";
+		};
+
 		emif1: emif@4c000000 {
 			compatible	= "ti,emif-4d5";
 			ti,hwmods	= "emif1";

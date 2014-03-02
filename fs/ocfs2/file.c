@@ -185,6 +185,9 @@ static int ocfs2_sync_file(struct file *file, loff_t start, loff_t end,
 			      file->f_path.dentry->d_name.name,
 			      (unsigned long long)datasync);
 
+	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
+		return -EROFS;
+
 	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (err)
 		return err;
@@ -474,11 +477,6 @@ static int ocfs2_truncate_file(struct inode *inode,
 		goto bail;
 	}
 
-	/* lets handle the simple truncate cases before doing any more
-	 * cluster locking. */
-	if (new_i_size == le64_to_cpu(fe->i_size))
-		goto bail;
-
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	ocfs2_resv_discard(&osb->osb_la_resmap,
@@ -718,7 +716,8 @@ leave:
  * While a write will already be ordering the data, a truncate will not.
  * Thus, we need to explicitly order the zeroed pages.
  */
-static handle_t *ocfs2_zero_start_ordered_transaction(struct inode *inode)
+static handle_t *ocfs2_zero_start_ordered_transaction(struct inode *inode,
+						struct buffer_head *di_bh)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	handle_t *handle = NULL;
@@ -735,7 +734,14 @@ static handle_t *ocfs2_zero_start_ordered_transaction(struct inode *inode)
 	}
 
 	ret = ocfs2_jbd2_file_inode(handle, inode);
-	if (ret < 0)
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret)
 		mlog_errno(ret);
 
 out:
@@ -751,7 +757,7 @@ out:
  * to be too fragile to do exactly what we need without us having to
  * worry about recursive locking in ->write_begin() and ->write_end(). */
 static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
-				 u64 abs_to)
+				 u64 abs_to, struct buffer_head *di_bh)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
@@ -759,6 +765,7 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	handle_t *handle = NULL;
 	int ret = 0;
 	unsigned zero_from, zero_to, block_start, block_end;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	BUG_ON(abs_from >= abs_to);
 	BUG_ON(abs_to > (((u64)index + 1) << PAGE_CACHE_SHIFT));
@@ -801,7 +808,8 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 		}
 
 		if (!handle) {
-			handle = ocfs2_zero_start_ordered_transaction(inode);
+			handle = ocfs2_zero_start_ordered_transaction(inode,
+								      di_bh);
 			if (IS_ERR(handle)) {
 				ret = PTR_ERR(handle);
 				handle = NULL;
@@ -818,8 +826,22 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 			ret = 0;
 	}
 
-	if (handle)
+	if (handle) {
+		/*
+		 * fs-writeback will release the dirty pages without page lock
+		 * whose offset are over inode size, the release happens at
+		 * block_write_full_page_endio().
+		 */
+		i_size_write(inode, abs_to);
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
+		di->i_size = cpu_to_le64((u64)i_size_read(inode));
+		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
+		di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+		di->i_mtime_nsec = di->i_ctime_nsec;
+		ocfs2_journal_dirty(handle, di_bh);
 		ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+	}
 
 out_unlock:
 	unlock_page(page);
@@ -915,7 +937,7 @@ out:
  * has made sure that the entire range needs zeroing.
  */
 static int ocfs2_zero_extend_range(struct inode *inode, u64 range_start,
-				   u64 range_end)
+				   u64 range_end, struct buffer_head *di_bh)
 {
 	int rc = 0;
 	u64 next_pos;
@@ -931,7 +953,7 @@ static int ocfs2_zero_extend_range(struct inode *inode, u64 range_start,
 		next_pos = (zero_pos & PAGE_CACHE_MASK) + PAGE_CACHE_SIZE;
 		if (next_pos > range_end)
 			next_pos = range_end;
-		rc = ocfs2_write_zero_page(inode, zero_pos, next_pos);
+		rc = ocfs2_write_zero_page(inode, zero_pos, next_pos, di_bh);
 		if (rc < 0) {
 			mlog_errno(rc);
 			break;
@@ -977,7 +999,7 @@ int ocfs2_zero_extend(struct inode *inode, struct buffer_head *di_bh,
 			range_end = zero_to_size;
 
 		ret = ocfs2_zero_extend_range(inode, range_start,
-					      range_end);
+					      range_end, di_bh);
 		if (ret) {
 			mlog_errno(ret);
 			break;
@@ -1145,14 +1167,14 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		goto bail_unlock_rw;
 	}
 
-	if (size_change && attr->ia_size != i_size_read(inode)) {
+	if (size_change) {
 		status = inode_newsize_ok(inode, attr->ia_size);
 		if (status)
 			goto bail_unlock;
 
 		inode_dio_wait(inode);
 
-		if (i_size_read(inode) > attr->ia_size) {
+		if (i_size_read(inode) >= attr->ia_size) {
 			if (ocfs2_should_order_data(inode)) {
 				status = ocfs2_begin_ordered_truncate(inode,
 								      attr->ia_size);

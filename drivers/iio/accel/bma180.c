@@ -447,14 +447,14 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 	{ },
 };
 
-#define BMA180_CHANNEL(_index) {					\
+#define BMA180_CHANNEL(_axis) {					\
 	.type = IIO_ACCEL,						\
-	.indexed = 1,							\
-	.channel = (_index),						\
+	.modified = 1,							\
+	.channel2 = IIO_MOD_##_axis,					\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
 		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),	\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
-	.scan_index = (_index),						\
+	.scan_index = AXIS_##_axis,					\
 	.scan_type = {							\
 		.sign = 's',						\
 		.realbits = 14,						\
@@ -465,10 +465,10 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 }
 
 static const struct iio_chan_spec bma180_channels[] = {
-	BMA180_CHANNEL(AXIS_X),
-	BMA180_CHANNEL(AXIS_Y),
-	BMA180_CHANNEL(AXIS_Z),
-	IIO_CHAN_SOFT_TIMESTAMP(4),
+	BMA180_CHANNEL(X),
+	BMA180_CHANNEL(Y),
+	BMA180_CHANNEL(Z),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
 static irqreturn_t bma180_trigger_handler(int irq, void *p)

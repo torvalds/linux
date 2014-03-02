@@ -60,7 +60,7 @@ void ovs_flow_free(struct sw_flow *, bool deferred);
 
 int ovs_flow_tbl_init(struct flow_table *);
 int ovs_flow_tbl_count(struct flow_table *table);
-void ovs_flow_tbl_destroy(struct flow_table *table);
+void ovs_flow_tbl_destroy(struct flow_table *table, bool deferred);
 int ovs_flow_tbl_flush(struct flow_table *flow_table);
 
 int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,

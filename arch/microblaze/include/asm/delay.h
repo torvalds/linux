@@ -13,6 +13,8 @@
 #ifndef _ASM_MICROBLAZE_DELAY_H
 #define _ASM_MICROBLAZE_DELAY_H
 
+#include <linux/param.h>
+
 extern inline void __delay(unsigned long loops)
 {
 	asm volatile ("# __delay		\n\t"		\

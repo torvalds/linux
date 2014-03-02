@@ -350,6 +350,16 @@ struct nvme_delete_queue {
 	__u32			rsvd11[5];
 };
 
+struct nvme_abort_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__u32			rsvd1[9];
+	__le16			sqid;
+	__u16			cid;
+	__u32			rsvd11[5];
+};
+
 struct nvme_download_firmware {
 	__u8			opcode;
 	__u8			flags;
@@ -384,6 +394,7 @@ struct nvme_command {
 		struct nvme_download_firmware dlfw;
 		struct nvme_format_cmd format;
 		struct nvme_dsm_cmd dsm;
+		struct nvme_abort_cmd abort;
 	};
 };
 

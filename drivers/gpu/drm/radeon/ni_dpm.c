@@ -3945,7 +3945,6 @@ static void ni_parse_pplib_clock_info(struct radeon_device *rdev,
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct ni_ps *ps = ni_get_ps(rps);
-	u16 vddc;
 	struct rv7xx_pl *pl = &ps->performance_levels[index];
 
 	ps->performance_level_count = index + 1;
@@ -3961,8 +3960,8 @@ static void ni_parse_pplib_clock_info(struct radeon_device *rdev,
 
 	/* patch up vddc if necessary */
 	if (pl->vddc == 0xff01) {
-		if (radeon_atom_get_max_vddc(rdev, 0, 0, &vddc) == 0)
-			pl->vddc = vddc;
+		if (pi->max_vddc)
+			pl->vddc = pi->max_vddc;
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_ACPI) {
@@ -4322,7 +4321,8 @@ void ni_dpm_print_power_state(struct radeon_device *rdev,
 void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct rv7xx_pl *pl;
 	u32 current_index =

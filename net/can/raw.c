@@ -715,6 +715,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb->dev = dev;
 	skb->sk  = sk;
+	skb->priority = sk->sk_priority;
 
 	err = can_send(skb, ro->loopback);
 

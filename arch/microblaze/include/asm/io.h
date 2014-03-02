@@ -89,6 +89,11 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 {
 	return le32_to_cpu(*(volatile unsigned int __force *)addr);
 }
+#define readq readq
+static inline u64 readq(const volatile void __iomem *addr)
+{
+	return le64_to_cpu(__raw_readq(addr));
+}
 static inline void writeb(unsigned char v, volatile void __iomem *addr)
 {
 	*(volatile unsigned char __force *)addr = v;
@@ -101,6 +106,7 @@ static inline void writel(unsigned int v, volatile void __iomem *addr)
 {
 	*(volatile unsigned int __force *)addr = cpu_to_le32(v);
 }
+#define writeq(b, addr) __raw_writeq(cpu_to_le64(b), addr)
 
 /* ioread and iowrite variants. thease are for now same as __raw_
  * variants of accessors. we might check for endianess in the feature

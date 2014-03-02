@@ -170,7 +170,7 @@ void nfs41_shutdown_client(struct nfs_client *clp)
 void nfs40_shutdown_client(struct nfs_client *clp)
 {
 	if (clp->cl_slot_tbl) {
-		nfs4_release_slot_table(clp->cl_slot_tbl);
+		nfs4_shutdown_slot_table(clp->cl_slot_tbl);
 		kfree(clp->cl_slot_tbl);
 	}
 }

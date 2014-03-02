@@ -2160,8 +2160,8 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 	*five_taps = false;
 
 	do {
-		in_height = DIV_ROUND_UP(height, *decim_y);
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_height = height / *decim_y;
+		in_width = width / *decim_x;
 		*core_clk = dispc.feat->calc_core_clk(pclk, in_width,
 				in_height, out_width, out_height, mem_to_mem);
 		error = (in_width > maxsinglelinewidth || !*core_clk ||
@@ -2199,8 +2199,8 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 			dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 
 	do {
-		in_height = DIV_ROUND_UP(height, *decim_y);
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_height = height / *decim_y;
+		in_width = width / *decim_x;
 		*five_taps = in_height > out_height;
 
 		if (in_width > maxsinglelinewidth)
@@ -2268,7 +2268,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 {
 	u16 in_width, in_width_max;
 	int decim_x_min = *decim_x;
-	u16 in_height = DIV_ROUND_UP(height, *decim_y);
+	u16 in_height = height / *decim_y;
 	const int maxsinglelinewidth =
 				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
@@ -2287,7 +2287,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 		return -EINVAL;
 
 	do {
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_width = width / *decim_x;
 	} while (*decim_x <= *x_predecim &&
 			in_width > maxsinglelinewidth && ++*decim_x);
 
@@ -2466,8 +2466,8 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	if (r)
 		return r;
 
-	in_width = DIV_ROUND_UP(in_width, x_predecim);
-	in_height = DIV_ROUND_UP(in_height, y_predecim);
+	in_width = in_width / x_predecim;
+	in_height = in_height / y_predecim;
 
 	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
 			color_mode == OMAP_DSS_COLOR_UYVY ||

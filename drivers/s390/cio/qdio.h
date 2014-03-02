@@ -359,14 +359,12 @@ static inline int multicast_outbound(struct qdio_q *q)
 #define need_siga_sync_out_after_pci(q)	\
 	(unlikely(q->irq_ptr->siga_flag.sync_out_after_pci))
 
-#define for_each_input_queue(irq_ptr, q, i)	\
-	for (i = 0, q = irq_ptr->input_qs[0];	\
-		i < irq_ptr->nr_input_qs;	\
-		q = irq_ptr->input_qs[++i])
-#define for_each_output_queue(irq_ptr, q, i)	\
-	for (i = 0, q = irq_ptr->output_qs[0];	\
-		i < irq_ptr->nr_output_qs;	\
-		q = irq_ptr->output_qs[++i])
+#define for_each_input_queue(irq_ptr, q, i)		\
+	for (i = 0; i < irq_ptr->nr_input_qs &&		\
+		({ q = irq_ptr->input_qs[i]; 1; }); i++)
+#define for_each_output_queue(irq_ptr, q, i)		\
+	for (i = 0; i < irq_ptr->nr_output_qs &&	\
+		({ q = irq_ptr->output_qs[i]; 1; }); i++)
 
 #define prev_buf(bufnr)	\
 	((bufnr + QDIO_MAX_BUFFERS_MASK) & QDIO_MAX_BUFFERS_MASK)

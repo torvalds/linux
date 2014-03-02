@@ -669,9 +669,6 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		return;
 	}
 
-	if (!success)
-		cmd->transport_state |= CMD_T_FAILED;
-
 	/*
 	 * Check for case where an explicit ABORT_TASK has been received
 	 * and transport_wait_for_tasks() will be waiting for completion..
@@ -681,7 +678,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		complete(&cmd->t_transport_stop_comp);
 		return;
-	} else if (cmd->transport_state & CMD_T_FAILED) {
+	} else if (!success) {
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
 		INIT_WORK(&cmd->work, target_complete_ok_work);

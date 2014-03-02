@@ -117,7 +117,7 @@ struct dpi_clk_calc_ctx {
 	/* outputs */
 
 	struct dsi_clock_info dsi_cinfo;
-	unsigned long long fck;
+	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
 

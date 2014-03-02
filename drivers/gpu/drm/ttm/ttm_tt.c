@@ -380,6 +380,9 @@ static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 	pgoff_t i;
 	struct page **page = ttm->pages;
 
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
+		return;
+
 	for (i = 0; i < ttm->num_pages; ++i) {
 		(*page)->mapping = NULL;
 		(*page++)->index = 0;

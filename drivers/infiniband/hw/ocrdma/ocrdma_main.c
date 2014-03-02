@@ -127,7 +127,7 @@ static int ocrdma_addr_event(unsigned long event, struct net_device *netdev,
 
 	is_vlan = netdev->priv_flags & IFF_802_1Q_VLAN;
 	if (is_vlan)
-		netdev = vlan_dev_real_dev(netdev);
+		netdev = rdma_vlan_dev_real_dev(netdev);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(dev, &ocrdma_dev_list, entry) {

@@ -200,6 +200,8 @@ static inline void dn_sk_ports_copy(struct flowidn *fld, struct dn_scp *scp)
 }
 
 unsigned int dn_mss_from_pmtu(struct net_device *dev, int mtu);
+void dn_register_sysctl(void);
+void dn_unregister_sysctl(void);
 
 #define DN_MENUVER_ACC 0x01
 #define DN_MENUVER_USR 0x02

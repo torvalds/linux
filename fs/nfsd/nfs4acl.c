@@ -151,17 +151,15 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 		if (IS_ERR(pacl))
 			return PTR_ERR(pacl);
-		/* allocate for worst case: one (deny, allow) pair each: */
-		size += 2 * pacl->a_count;
 	}
+	/* allocate for worst case: one (deny, allow) pair each: */
+	size += 2 * pacl->a_count;
 
 	if (S_ISDIR(inode->i_mode)) {
 		flags = NFS4_ACL_DIR;
 		dpacl = get_acl(inode, ACL_TYPE_DEFAULT);
 		if (dpacl)
 			size += 2 * dpacl->a_count;
-	} else {
-		dpacl = NULL;
 	}
 
 	*acl = nfs4_acl_new(size);
@@ -170,8 +168,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 		goto out;
 	}
 
-	if (pacl)
-		_posix_to_nfsv4_one(pacl, *acl, flags & ~NFS4_ACL_TYPE_DEFAULT);
+	_posix_to_nfsv4_one(pacl, *acl, flags & ~NFS4_ACL_TYPE_DEFAULT);
 
 	if (dpacl)
 		_posix_to_nfsv4_one(dpacl, *acl, flags | NFS4_ACL_TYPE_DEFAULT);

@@ -2043,7 +2043,8 @@ retry:
 			}
 			wdata->pid = wdata->cfile->pid;
 			server = tlink_tcon(wdata->cfile->tlink)->ses->server;
-			rc = server->ops->async_writev(wdata);
+			rc = server->ops->async_writev(wdata,
+							cifs_writedata_release);
 		} while (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN);
 
 		for (i = 0; i < nr_pages; ++i)
@@ -2331,9 +2332,20 @@ size_t get_numpages(const size_t wsize, const size_t len, size_t *cur_len)
 }
 
 static void
-cifs_uncached_writev_complete(struct work_struct *work)
+cifs_uncached_writedata_release(struct kref *refcount)
 {
 	int i;
+	struct cifs_writedata *wdata = container_of(refcount,
+					struct cifs_writedata, refcount);
+
+	for (i = 0; i < wdata->nr_pages; i++)
+		put_page(wdata->pages[i]);
+	cifs_writedata_release(refcount);
+}
+
+static void
+cifs_uncached_writev_complete(struct work_struct *work)
+{
 	struct cifs_writedata *wdata = container_of(work,
 					struct cifs_writedata, work);
 	struct inode *inode = wdata->cfile->dentry->d_inode;
@@ -2347,12 +2359,7 @@ cifs_uncached_writev_complete(struct work_struct *work)
 
 	complete(&wdata->done);
 
-	if (wdata->result != -EAGAIN) {
-		for (i = 0; i < wdata->nr_pages; i++)
-			put_page(wdata->pages[i]);
-	}
-
-	kref_put(&wdata->refcount, cifs_writedata_release);
+	kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 }
 
 /* attempt to send write to server, retry on any -EAGAIN errors */
@@ -2370,7 +2377,8 @@ cifs_uncached_retry_writev(struct cifs_writedata *wdata)
 			if (rc != 0)
 				continue;
 		}
-		rc = server->ops->async_writev(wdata);
+		rc = server->ops->async_writev(wdata,
+					       cifs_uncached_writedata_release);
 	} while (rc == -EAGAIN);
 
 	return rc;
@@ -2454,7 +2462,8 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 		wdata->tailsz = cur_len - ((nr_pages - 1) * PAGE_SIZE);
 		rc = cifs_uncached_retry_writev(wdata);
 		if (rc) {
-			kref_put(&wdata->refcount, cifs_writedata_release);
+			kref_put(&wdata->refcount,
+				 cifs_uncached_writedata_release);
 			break;
 		}
 
@@ -2496,7 +2505,7 @@ restart_loop:
 			}
 		}
 		list_del_init(&wdata->list);
-		kref_put(&wdata->refcount, cifs_writedata_release);
+		kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 	}
 
 	if (total_written > 0)
@@ -2559,8 +2568,8 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 	if (rc > 0) {
 		ssize_t err;
 
-		err = generic_write_sync(file, pos, rc);
-		if (err < 0 && rc > 0)
+		err = generic_write_sync(file, iocb->ki_pos - rc, rc);
+		if (err < 0)
 			rc = err;
 	}
 

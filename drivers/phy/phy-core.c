@@ -162,6 +162,9 @@ int phy_init(struct phy *phy)
 {
 	int ret;
 
+	if (!phy)
+		return 0;
+
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
@@ -187,6 +190,9 @@ int phy_exit(struct phy *phy)
 {
 	int ret;
 
+	if (!phy)
+		return 0;
+
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
@@ -211,6 +217,9 @@ EXPORT_SYMBOL_GPL(phy_exit);
 int phy_power_on(struct phy *phy)
 {
 	int ret;
+
+	if (!phy)
+		return 0;
 
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
@@ -239,6 +248,9 @@ EXPORT_SYMBOL_GPL(phy_power_on);
 int phy_power_off(struct phy *phy)
 {
 	int ret;
+
+	if (!phy)
+		return 0;
 
 	mutex_lock(&phy->mutex);
 	if (phy->power_count == 1 && phy->ops->power_off) {
@@ -308,7 +320,7 @@ err0:
  */
 void phy_put(struct phy *phy)
 {
-	if (IS_ERR(phy))
+	if (!phy || IS_ERR(phy))
 		return;
 
 	module_put(phy->ops->owner);
@@ -327,6 +339,9 @@ EXPORT_SYMBOL_GPL(phy_put);
 void devm_phy_put(struct device *dev, struct phy *phy)
 {
 	int r;
+
+	if (!phy)
+		return;
 
 	r = devres_destroy(dev, devm_phy_release, devm_phy_match, phy);
 	dev_WARN_ONCE(dev, r, "couldn't find PHY resource\n");
@@ -411,6 +426,27 @@ struct phy *phy_get(struct device *dev, const char *string)
 EXPORT_SYMBOL_GPL(phy_get);
 
 /**
+ * phy_optional_get() - lookup and obtain a reference to an optional phy.
+ * @dev: device that requests this phy
+ * @string: the phy name as given in the dt data or the name of the controller
+ * port for non-dt case
+ *
+ * Returns the phy driver, after getting a refcount to it; or
+ * NULL if there is no such phy.  The caller is responsible for
+ * calling phy_put() to release that count.
+ */
+struct phy *phy_optional_get(struct device *dev, const char *string)
+{
+	struct phy *phy = phy_get(dev, string);
+
+	if (PTR_ERR(phy) == -ENODEV)
+		phy = NULL;
+
+	return phy;
+}
+EXPORT_SYMBOL_GPL(phy_optional_get);
+
+/**
  * devm_phy_get() - lookup and obtain a reference to a phy.
  * @dev: device that requests this phy
  * @string: the phy name as given in the dt data or phy device name
@@ -439,6 +475,30 @@ struct phy *devm_phy_get(struct device *dev, const char *string)
 	return phy;
 }
 EXPORT_SYMBOL_GPL(devm_phy_get);
+
+/**
+ * devm_phy_optional_get() - lookup and obtain a reference to an optional phy.
+ * @dev: device that requests this phy
+ * @string: the phy name as given in the dt data or phy device name
+ * for non-dt case
+ *
+ * Gets the phy using phy_get(), and associates a device with it using
+ * devres. On driver detach, release function is invoked on the devres
+ * data, then, devres data is freed. This differs to devm_phy_get() in
+ * that if the phy does not exist, it is not considered an error and
+ * -ENODEV will not be returned. Instead the NULL phy is returned,
+ * which can be passed to all other phy consumer calls.
+ */
+struct phy *devm_phy_optional_get(struct device *dev, const char *string)
+{
+	struct phy *phy = devm_phy_get(dev, string);
+
+	if (PTR_ERR(phy) == -ENODEV)
+		phy = NULL;
+
+	return phy;
+}
+EXPORT_SYMBOL_GPL(devm_phy_optional_get);
 
 /**
  * phy_create() - create a new phy

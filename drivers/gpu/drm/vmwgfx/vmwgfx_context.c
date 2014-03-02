@@ -37,7 +37,7 @@ struct vmw_user_context {
 
 
 
-typedef int (*vmw_scrub_func)(struct vmw_ctx_bindinfo *);
+typedef int (*vmw_scrub_func)(struct vmw_ctx_bindinfo *, bool);
 
 static void vmw_user_context_free(struct vmw_resource *res);
 static struct vmw_resource *
@@ -50,9 +50,11 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 				 bool readback,
 				 struct ttm_validate_buffer *val_buf);
 static int vmw_gb_context_destroy(struct vmw_resource *res);
-static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi);
-static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi);
-static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi);
+static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi, bool rebind);
+static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi,
+					   bool rebind);
+static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi, bool rebind);
+static void vmw_context_binding_state_scrub(struct vmw_ctx_binding_state *cbs);
 static void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs);
 static uint64_t vmw_user_context_size;
 
@@ -111,10 +113,14 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 
 	if (res->func->destroy == vmw_gb_context_destroy) {
 		mutex_lock(&dev_priv->cmdbuf_mutex);
+		mutex_lock(&dev_priv->binding_mutex);
+		(void) vmw_context_binding_state_kill
+			(&container_of(res, struct vmw_user_context, res)->cbs);
 		(void) vmw_gb_context_destroy(res);
 		if (dev_priv->pinned_bo != NULL &&
 		    !dev_priv->query_cid_valid)
 			__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
+		mutex_unlock(&dev_priv->binding_mutex);
 		mutex_unlock(&dev_priv->cmdbuf_mutex);
 		return;
 	}
@@ -328,7 +334,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
-	vmw_context_binding_state_kill(&uctx->cbs);
+	vmw_context_binding_state_scrub(&uctx->cbs);
 
 	submit_size = sizeof(*cmd2) + (readback ? sizeof(*cmd1) : 0);
 
@@ -378,10 +384,6 @@ static int vmw_gb_context_destroy(struct vmw_resource *res)
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDestroyGBContext body;
 	} *cmd;
-	struct vmw_user_context *uctx =
-		container_of(res, struct vmw_user_context, res);
-
-	BUG_ON(!list_empty(&uctx->cbs.list));
 
 	if (likely(res->id == -1))
 		return 0;
@@ -528,8 +530,9 @@ out_unlock:
  * vmw_context_scrub_shader - scrub a shader binding from a context.
  *
  * @bi: single binding information.
+ * @rebind: Whether to issue a bind instead of scrub command.
  */
-static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi)
+static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 {
 	struct vmw_private *dev_priv = bi->ctx->dev_priv;
 	struct {
@@ -548,7 +551,8 @@ static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = bi->ctx->id;
 	cmd->body.type = bi->i1.shader_type;
-	cmd->body.shid = SVGA3D_INVALID_ID;
+	cmd->body.shid =
+		cpu_to_le32((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
@@ -559,8 +563,10 @@ static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi)
  * from a context.
  *
  * @bi: single binding information.
+ * @rebind: Whether to issue a bind instead of scrub command.
  */
-static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi)
+static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi,
+					   bool rebind)
 {
 	struct vmw_private *dev_priv = bi->ctx->dev_priv;
 	struct {
@@ -579,7 +585,8 @@ static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = bi->ctx->id;
 	cmd->body.type = bi->i1.rt_type;
-	cmd->body.target.sid = SVGA3D_INVALID_ID;
+	cmd->body.target.sid =
+		cpu_to_le32((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
 	cmd->body.target.face = 0;
 	cmd->body.target.mipmap = 0;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
@@ -591,11 +598,13 @@ static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi)
  * vmw_context_scrub_texture - scrub a texture binding from a context.
  *
  * @bi: single binding information.
+ * @rebind: Whether to issue a bind instead of scrub command.
  *
  * TODO: Possibly complement this function with a function that takes
  * a list of texture bindings and combines them to a single command.
  */
-static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi)
+static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi,
+				     bool rebind)
 {
 	struct vmw_private *dev_priv = bi->ctx->dev_priv;
 	struct {
@@ -619,7 +628,8 @@ static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi)
 	cmd->body.c.cid = bi->ctx->id;
 	cmd->body.s1.stage = bi->i1.texture_stage;
 	cmd->body.s1.name = SVGA3D_TS_BIND_TEXTURE;
-	cmd->body.s1.value = (uint32) SVGA3D_INVALID_ID;
+	cmd->body.s1.value =
+		cpu_to_le32((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
@@ -692,6 +702,7 @@ int vmw_context_binding_add(struct vmw_ctx_binding_state *cbs,
 		vmw_context_binding_drop(loc);
 
 	loc->bi = *bi;
+	loc->bi.scrubbed = false;
 	list_add_tail(&loc->ctx_list, &cbs->list);
 	INIT_LIST_HEAD(&loc->res_list);
 
@@ -727,12 +738,11 @@ static void vmw_context_binding_transfer(struct vmw_ctx_binding_state *cbs,
 	if (loc->bi.ctx != NULL)
 		vmw_context_binding_drop(loc);
 
-	loc->bi = *bi;
-	list_add_tail(&loc->ctx_list, &cbs->list);
-	if (bi->res != NULL)
+	if (bi->res != NULL) {
+		loc->bi = *bi;
+		list_add_tail(&loc->ctx_list, &cbs->list);
 		list_add_tail(&loc->res_list, &bi->res->binding_head);
-	else
-		INIT_LIST_HEAD(&loc->res_list);
+	}
 }
 
 /**
@@ -746,7 +756,10 @@ static void vmw_context_binding_transfer(struct vmw_ctx_binding_state *cbs,
  */
 static void vmw_context_binding_kill(struct vmw_ctx_binding *cb)
 {
-	(void) vmw_scrub_funcs[cb->bi.bt](&cb->bi);
+	if (!cb->bi.scrubbed) {
+		(void) vmw_scrub_funcs[cb->bi.bt](&cb->bi, false);
+		cb->bi.scrubbed = true;
+	}
 	vmw_context_binding_drop(cb);
 }
 
@@ -768,6 +781,27 @@ static void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs)
 }
 
 /**
+ * vmw_context_binding_state_scrub - Scrub all bindings associated with a
+ * struct vmw_ctx_binding state structure.
+ *
+ * @cbs: Pointer to the context binding state tracker.
+ *
+ * Emits commands to scrub all bindings associated with the
+ * context binding state tracker.
+ */
+static void vmw_context_binding_state_scrub(struct vmw_ctx_binding_state *cbs)
+{
+	struct vmw_ctx_binding *entry;
+
+	list_for_each_entry(entry, &cbs->list, ctx_list) {
+		if (!entry->bi.scrubbed) {
+			(void) vmw_scrub_funcs[entry->bi.bt](&entry->bi, false);
+			entry->bi.scrubbed = true;
+		}
+	}
+}
+
+/**
  * vmw_context_binding_res_list_kill - Kill all bindings on a
  * resource binding list
  *
@@ -782,6 +816,27 @@ void vmw_context_binding_res_list_kill(struct list_head *head)
 
 	list_for_each_entry_safe(entry, next, head, res_list)
 		vmw_context_binding_kill(entry);
+}
+
+/**
+ * vmw_context_binding_res_list_scrub - Scrub all bindings on a
+ * resource binding list
+ *
+ * @head: list head of resource binding list
+ *
+ * Scrub all bindings associated with a specific resource. Typically
+ * called before the resource is evicted.
+ */
+void vmw_context_binding_res_list_scrub(struct list_head *head)
+{
+	struct vmw_ctx_binding *entry;
+
+	list_for_each_entry(entry, head, res_list) {
+		if (!entry->bi.scrubbed) {
+			(void) vmw_scrub_funcs[entry->bi.bt](&entry->bi, false);
+			entry->bi.scrubbed = true;
+		}
+	}
 }
 
 /**
@@ -802,4 +857,51 @@ void vmw_context_binding_state_transfer(struct vmw_resource *ctx,
 
 	list_for_each_entry_safe(entry, next, &from->list, ctx_list)
 		vmw_context_binding_transfer(&uctx->cbs, &entry->bi);
+}
+
+/**
+ * vmw_context_rebind_all - Rebind all scrubbed bindings of a context
+ *
+ * @ctx: The context resource
+ *
+ * Walks through the context binding list and rebinds all scrubbed
+ * resources.
+ */
+int vmw_context_rebind_all(struct vmw_resource *ctx)
+{
+	struct vmw_ctx_binding *entry;
+	struct vmw_user_context *uctx =
+		container_of(ctx, struct vmw_user_context, res);
+	struct vmw_ctx_binding_state *cbs = &uctx->cbs;
+	int ret;
+
+	list_for_each_entry(entry, &cbs->list, ctx_list) {
+		if (likely(!entry->bi.scrubbed))
+			continue;
+
+		if (WARN_ON(entry->bi.res == NULL || entry->bi.res->id ==
+			    SVGA3D_INVALID_ID))
+			continue;
+
+		ret = vmw_scrub_funcs[entry->bi.bt](&entry->bi, true);
+		if (unlikely(ret != 0))
+			return ret;
+
+		entry->bi.scrubbed = false;
+	}
+
+	return 0;
+}
+
+/**
+ * vmw_context_binding_list - Return a list of context bindings
+ *
+ * @ctx: The context resource
+ *
+ * Returns the current list of bindings of the given context. Note that
+ * this list becomes stale as soon as the dev_priv::binding_mutex is unlocked.
+ */
+struct list_head *vmw_context_binding_list(struct vmw_resource *ctx)
+{
+	return &(container_of(ctx, struct vmw_user_context, res)->cbs.list);
 }

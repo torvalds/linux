@@ -13,6 +13,7 @@
 #include "am4372.dtsi"
 #include <dt-bindings/pinctrl/am43xx.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "TI AM43x EPOS EVM";
@@ -100,6 +101,37 @@
 				0x9c (PIN_OUTPUT | MUX_MODE0)		/* gpmc_be0n_cle.gpmc_be0n_cle */
 			>;
 		};
+
+		ecap0_pins: backlight_pins {
+			pinctrl-single,pins = <
+				0x164 MUX_MODE0         /* eCAP0_in_PWM0_out.eCAP0_in_PWM0_out MODE0 */
+			>;
+		};
+
+		i2c2_pins: pinmux_i2c2_pins {
+			pinctrl-single,pins = <
+				0x1c0 (PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE8)    /* i2c2_sda.i2c2_sda */
+				0x1c4 (PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE8)    /* i2c2_scl.i2c2_scl */
+			>;
+		};
+
+		spi0_pins: pinmux_spi0_pins {
+			pinctrl-single,pins = <
+				0x150 (PIN_INPUT | MUX_MODE0)           /* spi0_clk.spi0_clk */
+				0x154 (PIN_OUTPUT | MUX_MODE0)           /* spi0_d0.spi0_d0 */
+				0x158 (PIN_INPUT | MUX_MODE0)           /* spi0_d1.spi0_d1 */
+				0x15c (PIN_OUTPUT | MUX_MODE0)          /* spi0_cs0.spi0_cs0 */
+			>;
+		};
+
+		spi1_pins: pinmux_spi1_pins {
+			pinctrl-single,pins = <
+				0x190 (PIN_INPUT | MUX_MODE3)           /* mcasp0_aclkx.spi1_clk */
+				0x194 (PIN_OUTPUT | MUX_MODE3)           /* mcasp0_fsx.spi1_d0 */
+				0x198 (PIN_INPUT | MUX_MODE3)           /* mcasp0_axr0.spi1_d1 */
+				0x19c (PIN_OUTPUT | MUX_MODE3)          /* mcasp0_ahclkr.spi1_cs0 */
+			>;
+		};
 	};
 
 	matrix_keypad: matrix_keypad@0 {
@@ -134,6 +166,13 @@
 				0x0203006c	/* DOWN */
 				0x03030069>;	/* LEFT */
 		};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
+		brightness-levels = <0 51 53 56 62 75 101 152 255>;
+		default-brightness-level = <8>;
+	};
 };
 
 &mmc1 {
@@ -188,6 +227,12 @@
 		x-size = <1024>;
 		y-size = <768>;
 	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+	status = "okay";
 };
 
 &gpio0 {
@@ -290,4 +335,26 @@
 			reg = <0x00800000 0x1F600000>;
 		};
 	};
+};
+
+&epwmss0 {
+	status = "okay";
+};
+
+&ecap0 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap0_pins>;
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+	status = "okay";
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+	status = "okay";
 };
