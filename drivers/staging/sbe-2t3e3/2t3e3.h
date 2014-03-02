@@ -838,7 +838,7 @@ static inline int has_two_ports(struct pci_dev *pdev)
 	return pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P0;
 }
 
-#define dev_to_priv(dev) (*(struct channel **) ((hdlc_device*)(dev) + 1))
+#define dev_to_priv(dev) (*(struct channel **) ((hdlc_device *)(dev) + 1))
 
 static inline u32 dc_read(unsigned long addr, u32 reg)
 {
