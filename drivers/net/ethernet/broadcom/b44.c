@@ -2229,7 +2229,12 @@ static void b44_adjust_link(struct net_device *dev)
 	}
 
 	if (status_changed) {
-		b44_check_phy(bp);
+		u32 val = br32(bp, B44_TX_CTRL);
+		if (bp->flags & B44_FLAG_FULL_DUPLEX)
+			val |= TX_CTRL_DUPLEX;
+		else
+			val &= ~TX_CTRL_DUPLEX;
+		bw32(bp, B44_TX_CTRL, val);
 		phy_print_status(phydev);
 	}
 }
