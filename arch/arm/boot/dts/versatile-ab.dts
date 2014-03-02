@@ -59,6 +59,8 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x10140000 0x1000>;
+			clear-mask = <0xffffffff>;
+			valid-mask = <0xffffffff>;
 		};
 
 		sic: intc@10003000 {
@@ -68,6 +70,8 @@
 			reg = <0x10003000 0x1000>;
 			interrupt-parent = <&vic>;
 			interrupts = <31>; /* Cascaded to vic */
+			clear-mask = <0xffffffff>;
+			valid-mask = <0xffc203f8>;
 		};
 
 		dma@10130000 {
