@@ -445,7 +445,7 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	 */
 	if (netif_tx_queue_stopped(ring->tx_queue) && txbbs_skipped > 0) {
 		netif_tx_wake_queue(ring->tx_queue);
-		priv->port_stats.wake_queue++;
+		ring->wake_queue++;
 	}
 	return done;
 }
@@ -691,7 +691,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 		/* every full Tx ring stops queue */
 		netif_tx_stop_queue(ring->tx_queue);
-		priv->port_stats.queue_stopped++;
+		ring->queue_stopped++;
 
 		/* If queue was emptied after the if, and before the
 		 * stop_queue - need to wake the queue, or else it will remain
@@ -704,7 +704,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(((int)(ring->prod - ring->cons)) <=
 			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 			netif_tx_wake_queue(ring->tx_queue);
-			priv->port_stats.wake_queue++;
+			ring->wake_queue++;
 		} else {
 			return NETDEV_TX_BUSY;
 		}

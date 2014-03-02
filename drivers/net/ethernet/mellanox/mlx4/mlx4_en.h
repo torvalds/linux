@@ -274,6 +274,8 @@ struct mlx4_en_tx_ring {
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long tx_csum;
+	unsigned long queue_stopped;
+	unsigned long wake_queue;
 	struct mlx4_bf bf;
 	bool bf_enabled;
 	struct netdev_queue *tx_queue;
