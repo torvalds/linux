@@ -161,6 +161,8 @@ static inline int em28xx_dvb_urb_data_copy(struct em28xx *dev, struct urb *urb)
 				if (urb->status != -EPROTO)
 					continue;
 			}
+			if (!urb->actual_length)
+				continue;
 			dvb_dmx_swfilter(&dev->dvb->demux, urb->transfer_buffer,
 					urb->actual_length);
 		} else {
@@ -170,6 +172,8 @@ static inline int em28xx_dvb_urb_data_copy(struct em28xx *dev, struct urb *urb)
 				if (urb->iso_frame_desc[i].status != -EPROTO)
 					continue;
 			}
+			if (!urb->iso_frame_desc[i].actual_length)
+				continue;
 			dvb_dmx_swfilter(&dev->dvb->demux,
 					 urb->transfer_buffer +
 					 urb->iso_frame_desc[i].offset,
