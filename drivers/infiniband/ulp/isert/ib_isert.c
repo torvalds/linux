@@ -497,7 +497,6 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	kref_init(&isert_conn->conn_kref);
 	kref_get(&isert_conn->conn_kref);
 	mutex_init(&isert_conn->conn_mutex);
-	mutex_init(&isert_conn->conn_comp_mutex);
 	spin_lock_init(&isert_conn->conn_lock);
 
 	cma_id->context = isert_conn;
@@ -888,16 +887,17 @@ isert_init_send_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 	 * Coalesce send completion interrupts by only setting IB_SEND_SIGNALED
 	 * bit for every ISERT_COMP_BATCH_COUNT number of ib_post_send() calls.
 	 */
-	mutex_lock(&isert_conn->conn_comp_mutex);
-	if (coalesce &&
+	mutex_lock(&isert_conn->conn_mutex);
+	if (coalesce && isert_conn->state == ISER_CONN_UP &&
 	    ++isert_conn->conn_comp_batch < ISERT_COMP_BATCH_COUNT) {
+		tx_desc->llnode_active = true;
 		llist_add(&tx_desc->comp_llnode, &isert_conn->conn_comp_llist);
-		mutex_unlock(&isert_conn->conn_comp_mutex);
+		mutex_unlock(&isert_conn->conn_mutex);
 		return;
 	}
 	isert_conn->conn_comp_batch = 0;
 	tx_desc->comp_llnode_batch = llist_del_all(&isert_conn->conn_comp_llist);
-	mutex_unlock(&isert_conn->conn_comp_mutex);
+	mutex_unlock(&isert_conn->conn_mutex);
 
 	send_wr->send_flags = IB_SEND_SIGNALED;
 }
@@ -1693,10 +1693,45 @@ isert_send_completion(struct iser_tx_desc *tx_desc,
 }
 
 static void
+isert_cq_drain_comp_llist(struct isert_conn *isert_conn, struct ib_device *ib_dev)
+{
+	struct llist_node *llnode;
+	struct isert_rdma_wr *wr;
+	struct iser_tx_desc *t;
+
+	mutex_lock(&isert_conn->conn_mutex);
+	llnode = llist_del_all(&isert_conn->conn_comp_llist);
+	isert_conn->conn_comp_batch = 0;
+	mutex_unlock(&isert_conn->conn_mutex);
+
+	while (llnode) {
+		t = llist_entry(llnode, struct iser_tx_desc, comp_llnode);
+		llnode = llist_next(llnode);
+		wr = &t->isert_cmd->rdma_wr;
+
+		atomic_sub(wr->send_wr_num + 1, &isert_conn->post_send_buf_count);
+		isert_completion_put(t, t->isert_cmd, ib_dev);
+	}
+}
+
+static void
 isert_cq_tx_comp_err(struct iser_tx_desc *tx_desc, struct isert_conn *isert_conn)
 {
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
 	struct isert_cmd *isert_cmd = tx_desc->isert_cmd;
+	struct llist_node *llnode = tx_desc->comp_llnode_batch;
+	struct isert_rdma_wr *wr;
+	struct iser_tx_desc *t;
+
+	while (llnode) {
+		t = llist_entry(llnode, struct iser_tx_desc, comp_llnode);
+		llnode = llist_next(llnode);
+		wr = &t->isert_cmd->rdma_wr;
+
+		atomic_sub(wr->send_wr_num + 1, &isert_conn->post_send_buf_count);
+		isert_completion_put(t, t->isert_cmd, ib_dev);
+	}
+	tx_desc->comp_llnode_batch = NULL;
 
 	if (!isert_cmd)
 		isert_unmap_tx_desc(tx_desc, ib_dev);
@@ -1712,6 +1747,8 @@ isert_cq_rx_comp_err(struct isert_conn *isert_conn)
 
 	if (isert_conn->post_recv_buf_count)
 		return;
+
+	isert_cq_drain_comp_llist(isert_conn, ib_dev);
 
 	if (conn->sess) {
 		target_sess_cmd_list_set_waiting(conn->sess->se_sess);
@@ -1752,6 +1789,9 @@ isert_cq_tx_work(struct work_struct *work)
 			pr_debug("TX wc.vendor_err: 0x%08x\n", wc.vendor_err);
 
 			if (wc.wr_id != ISER_FASTREG_LI_WRID) {
+				if (tx_desc->llnode_active)
+					continue;
+
 				atomic_dec(&isert_conn->post_send_buf_count);
 				isert_cq_tx_comp_err(tx_desc, isert_conn);
 			}

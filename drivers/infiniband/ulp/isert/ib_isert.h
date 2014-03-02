@@ -46,6 +46,7 @@ struct iser_tx_desc {
 	struct isert_cmd *isert_cmd;
 	struct llist_node *comp_llnode_batch;
 	struct llist_node comp_llnode;
+	bool		llnode_active;
 	struct ib_send_wr send_wr;
 } __packed;
 
@@ -127,7 +128,6 @@ struct isert_conn {
 #define ISERT_COMP_BATCH_COUNT	8
 	int			conn_comp_batch;
 	struct llist_head	conn_comp_llist;
-	struct mutex		conn_comp_mutex;
 };
 
 #define ISERT_MAX_CQ 64
