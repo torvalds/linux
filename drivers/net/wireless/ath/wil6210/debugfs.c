@@ -26,8 +26,7 @@
 /* Nasty hack. Better have per device instances */
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
-static u32 dbg_vring_index; /* 25 for Rx, 0..24 for Tx */
-#define WIL_DBG_VRING_INDEX_RX (WIL6210_MAX_TX_RINGS + 1)
+static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
 
 static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			    const char *name, struct vring *vring,
@@ -404,13 +403,14 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 	struct vring *vring;
-	if (dbg_vring_index <= WIL6210_MAX_TX_RINGS)
+	bool tx = (dbg_vring_index < WIL6210_MAX_TX_RINGS);
+	if (tx)
 		vring = &(wil->vring_tx[dbg_vring_index]);
 	else
 		vring = &wil->vring_rx;
 
 	if (!vring->va) {
-		if (dbg_vring_index <= WIL6210_MAX_TX_RINGS)
+		if (tx)
 			seq_printf(s, "No Tx[%2d] VRING\n", dbg_vring_index);
 		else
 			seq_puts(s, "No Rx VRING\n");
@@ -426,7 +426,7 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 		volatile u32 *u = (volatile u32 *)d;
 		struct sk_buff *skb = vring->ctx[dbg_txdesc_index].skb;
 
-		if (dbg_vring_index <= WIL6210_MAX_TX_RINGS)
+		if (tx)
 			seq_printf(s, "Tx[%2d][%3d] = {\n", dbg_vring_index,
 				   dbg_txdesc_index);
 		else
@@ -461,7 +461,7 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 		}
 		seq_printf(s, "}\n");
 	} else {
-		if (dbg_vring_index <= WIL6210_MAX_TX_RINGS)
+		if (tx)
 			seq_printf(s, "[%2d] TxDesc index (%d) >= size (%d)\n",
 				   dbg_vring_index, dbg_txdesc_index,
 				   vring->size);
