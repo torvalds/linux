@@ -44,16 +44,6 @@
 
 #include "mlx4_en.h"
 
-enum {
-	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
-	MAX_BF = 256,
-};
-
-static int inline_thold __read_mostly = MAX_INLINE;
-
-module_param_named(inline_thold, inline_thold, int, 0444);
-MODULE_PARM_DESC(inline_thold, "threshold for using inline data");
-
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring, int qpn, u32 size,
 			   u16 stride, int node, int queue_index)
@@ -75,8 +65,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->size = size;
 	ring->size_mask = size - 1;
 	ring->stride = stride;
-
-	inline_thold = min(inline_thold, MAX_INLINE);
+	ring->inline_thold = priv->prof->inline_thold;
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = vmalloc_node(tmp, node);
@@ -520,7 +509,7 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 	return ring->buf + index * TXBB_SIZE;
 }
 
-static int is_inline(struct sk_buff *skb, void **pfrag)
+static int is_inline(int inline_thold, struct sk_buff *skb, void **pfrag)
 {
 	void *ptr;
 
@@ -580,7 +569,7 @@ static int get_real_size(struct sk_buff *skb, struct net_device *dev,
 		}
 	} else {
 		*lso_header_size = 0;
-		if (!is_inline(skb, NULL))
+		if (!is_inline(priv->prof->inline_thold, skb, NULL))
 			real_size = CTRL_SIZE + (skb_shinfo(skb)->nr_frags + 1) * DS_SIZE;
 		else
 			real_size = inline_size(skb);
@@ -747,11 +736,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info->data_offset = (void *)data - (void *)tx_desc;
 
 	tx_info->linear = (lso_header_size < skb_headlen(skb) &&
-			   !is_inline(skb, NULL)) ? 1 : 0;
+			   !is_inline(ring->inline_thold, skb, NULL)) ? 1 : 0;
 
 	data += skb_shinfo(skb)->nr_frags + tx_info->linear - 1;
 
-	if (is_inline(skb, &fragptr)) {
+	if (is_inline(ring->inline_thold, skb, &fragptr)) {
 		tx_info->inl = 1;
 	} else {
 		/* Map fragments */
