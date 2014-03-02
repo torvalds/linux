@@ -251,6 +251,15 @@
 			>;
 		};
 
+		pinctrl_ssi1: ssi1grp {
+			fsl,pins = <
+				MX27_PAD_SSI1_FS__SSI1_FS 0x0
+				MX27_PAD_SSI1_RXDAT__SSI1_RXDAT 0x0
+				MX27_PAD_SSI1_TXDAT__SSI1_TXDAT 0x0
+				MX27_PAD_SSI1_CLK__SSI1_CLK 0x0
+			>;
+		};
+
 		pinctrl_usbotg: usbotggrp {
 			fsl,pins = <
 				MX27_PAD_USBOTG_CLK__USBOTG_CLK 0x0
@@ -276,6 +285,13 @@
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
 	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&ssi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ssi1>;
+	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
