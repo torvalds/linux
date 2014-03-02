@@ -92,7 +92,7 @@ struct sunxi_spi {
 	struct clk *mclk;  /* ahb spi gating bit */
 	unsigned long gpio_hdle;
 
-	#if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	#ifdef CONFIG_SPI_SUNXI_NDMA
 	enum sw_dma_ch dma_id;
 	enum sw_dmadir dma_dir;
 	int dma_hdle;
@@ -550,7 +550,7 @@ static struct sw_dma_client spi_dma_client[] = {
 };
 #endif
 
-#if defined CONFIG_SUN4I_SPI_NDMA || defined CONFIG_SUN5I_SPI_NDMA
+#ifdef CONFIG_SPI_SUNXI_NDMA
 /*
  * rx dma callback, disable the 1/4 fifo rx drq.
  * tx dma callback, disable the tx empty drq.
@@ -659,7 +659,7 @@ static int spi_sunxi_config_dma(struct sunxi_spi *aw_spi, enum sw_dmadir dma_dir
 #endif
     struct dma_hw_conf spi_hw_conf = {0};
 
-     #if defined CONFIG_SUN4I_SPI_NDMA || defined CONFIG_SUN5I_SPI_NDMA
+     #ifdef CONFIG_SPI_SUNXI_NDMA
     //write
     if (dma_dir == SW_DMA_WDEV) {
 	    spi_hw_conf.drqsrc_type  = N_DRQSRC_SDRAM;               // must be sdram,or sdram
@@ -705,7 +705,7 @@ static int spi_sunxi_config_dma(struct sunxi_spi *aw_spi, enum sw_dmadir dma_dir
     spi_hw_conf.xfer_type   = DMAXFER_D_SWORD_S_SWORD;
     spi_hw_conf.hf_irq      = SW_DMA_IRQ_FULL;
 
-     #if defined CONFIG_SUN4I_SPI_NDMA || defined CONFIG_SUN5I_SPI_NDMA
+     #ifdef CONFIG_SPI_SUNXI_NDMA
     /* set src,dst, drq type,configuration */
     ret = sw_dma_config(aw_spi->dma_id, &spi_hw_conf);
     /* flush the transfer queue */
@@ -719,7 +719,7 @@ static int spi_sunxi_config_dma(struct sunxi_spi *aw_spi, enum sw_dmadir dma_dir
 
     /* 1. flush d-cache */
     spi_sunxi_cleanflush_dcache_region((void *)buf, len);
-     #if defined CONFIG_SUN4I_SPI_NDMA || defined CONFIG_SUN5I_SPI_NDMA
+     #ifdef CONFIG_SPI_SUNXI_NDMA
     /* 2. enqueue dma transfer, --FIXME--: buf: virtual address, not physical address. */
     ret += sw_dma_enqueue(aw_spi->dma_id, (void *)aw_spi, (dma_addr_t)buf, len);
 	#else
@@ -745,7 +745,7 @@ static int spi_sunxi_prepare_dma(struct sunxi_spi *aw_spi, enum sw_dmadir dma_di
 {
     int ret = 0;
     int bus_num   = aw_spi->master->bus_num;
-    #if defined CONFIG_SUN4I_SPI_NDMA || defined CONFIG_SUN5I_SPI_NDMA
+    #ifdef CONFIG_SPI_SUNXI_NDMA
     aw_spi->dma_hdle = sw_dma_request(aw_spi->dma_id, &spi_dma_client[bus_num], NULL);
     if(aw_spi->dma_hdle < 0) {
         spi_wrn("[spi-%d]: request dma failed!\n", bus_num);
@@ -788,7 +788,7 @@ static int spi_sunxi_prepare_dma(struct sunxi_spi *aw_spi, enum sw_dmadir dma_di
 static int spi_sunxi_release_dma(struct sunxi_spi *aw_spi)
 {
     int ret = 0;
-    #if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+    #ifdef CONFIG_SPI_SUNXI_NDMA
     ret  = sw_dma_ctrl(aw_spi->dma_id, SW_DMAOP_STOP); /* first stop */
     ret += sw_dma_setflags(aw_spi->dma_id, 0);
     ret += sw_dma_free(aw_spi->dma_id, &spi_dma_client[aw_spi->master->bus_num]);
@@ -943,7 +943,7 @@ static int spi_sunxi_xfer(struct spi_device *spi, struct spi_transfer *t)
     aw_spi_enable_irq(SPI_INTEN_TC|SPI_INTEN_ERR, base_addr);
 
 	if (t->len > BULK_DATA_BOUNDARY) { /* dma */
-        #if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+        #ifdef CONFIG_SPI_SUNXI_NDMA
 		if (tx_len && rx_len) /* dma full duplex not possible in normal dma mode */
 		{
 		    aw_spi_disable_irq(SPI_INTEN_TC|SPI_INTEN_ERR, base_addr);
@@ -975,7 +975,7 @@ static int spi_sunxi_xfer(struct spi_device *spi, struct spi_transfer *t)
     			return -EINVAL;
     		}
 			spi_sunxi_config_dma(aw_spi, SW_DMA_RDEV, (void *)rx_buf, rx_len);
-	        #if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	        #ifdef CONFIG_SPI_SUNXI_NDMA
 			spi_sunxi_start_dma(aw_spi, aw_spi->dma_id);
 			#else
 			spi_sunxi_start_dma(aw_spi, aw_spi->dma_rx_id);
@@ -992,7 +992,7 @@ static int spi_sunxi_xfer(struct spi_device *spi, struct spi_transfer *t)
 				return -EINVAL;
 			}
 			spi_sunxi_config_dma(aw_spi, SW_DMA_WDEV, (void *)tx_buf, tx_len);
-	        #if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	        #ifdef CONFIG_SPI_SUNXI_NDMA
 			spi_sunxi_start_dma(aw_spi, aw_spi->dma_id);
 			#else
 			spi_sunxi_start_dma(aw_spi, aw_spi->dma_tx_id);
@@ -1408,7 +1408,7 @@ static int spi_sunxi_hw_exit(struct sunxi_spi *aw_spi)
 
 static int __devinit spi_sunxi_probe(struct platform_device *pdev)
 {
-	#if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	#ifdef CONFIG_SPI_SUNXI_NDMA
 	struct resource	*dma_res;
 	#else
 	struct resource	*dma_tx_res, *dma_rx_res;
@@ -1437,7 +1437,7 @@ static int __devinit spi_sunxi_probe(struct platform_device *pdev)
 	}
 
 	/* Check for availability of necessary resource */
-    #if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+    #ifdef CONFIG_SPI_SUNXI_NDMA
     dma_res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
     if (dma_res == NULL) {
         spi_wrn("Unable to get spi DMA resource\n");
@@ -1481,7 +1481,7 @@ static int __devinit spi_sunxi_probe(struct platform_device *pdev)
 
 	aw_spi->master     = master;
 	aw_spi->irq        = irq;
-    #if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+    #ifdef CONFIG_SPI_SUNXI_NDMA
 	aw_spi->dma_id     = dma_res->start;
     aw_spi->dma_hdle = -1;
 	#else
@@ -1575,7 +1575,7 @@ static int __devinit spi_sunxi_probe(struct platform_device *pdev)
 
 	spi_msg("allwinners SoC SPI Driver loaded for Bus SPI-%d with %d Slaves attached\n", pdev->id, master->num_chipselect);
 	//spi_msg("\tIOmem=[0x%x-0x%x]\tDMA=[%d]\n", mem_res->end, mem_res->start, aw_spi->dma_id);
-	#if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	#ifdef CONFIG_SPI_SUNXI_NDMA
 	spi_msg("[spi-%d]: driver probe succeed, base %p, irq %d, dma_id %d!\n", master->bus_num, aw_spi->base_addr, aw_spi->irq, aw_spi->dma_id);
 	#else
 	spi_msg("[spi-%d]: driver probe succeed, base %p, irq %d, dma_tx_id %d, dma_rx_id %d!\n", master->bus_num, aw_spi->base_addr, aw_spi->irq, aw_spi->dma_tx_id, aw_spi->dma_rx_id);
@@ -1708,7 +1708,7 @@ static struct resource sunxi_spi0_resources[] = {
 		.end	= SW_INT_IRQNO_SPI00,
 		.flags	= IORESOURCE_IRQ,
 	},
-	#if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	#ifdef CONFIG_SPI_SUNXI_NDMA
 	[2] = {
 		.start	= DMACH_NSPI0,
 		.end	= DMACH_NSPI0,
@@ -1762,7 +1762,7 @@ static struct resource sunxi_spi1_resources[] = {
 		.end	= SW_INT_IRQNO_SPI01,
 		.flags	= IORESOURCE_IRQ,
 	},
-	#if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	#ifdef CONFIG_SPI_SUNXI_NDMA
 	[2] = {
 		.start	= DMACH_NSPI1,
 		.end	= DMACH_NSPI1,
@@ -1811,7 +1811,7 @@ static struct resource sunxi_spi2_resources[] = {
 		.end	= SW_INT_IRQNO_SPI02,
 		.flags	= IORESOURCE_IRQ,
 	},
-	#if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	#ifdef CONFIG_SPI_SUNXI_NDMA
 	[2] = {
 		.start	= DMACH_NSPI2,
 		.end	= DMACH_NSPI2,
@@ -1861,7 +1861,7 @@ static struct resource sunxi_spi3_resources[] = {
 		.end	= SW_INT_IRQNO_SPI3,
 		.flags	= IORESOURCE_IRQ,
 	},
-	#if defined(CONFIG_SUN4I_SPI_NDMA) || defined(CONFIG_SUN5I_SPI_NDMA)
+	#ifdef CONFIG_SPI_SUNXI_NDMA
 	[2] = {
 		.start	= DMACH_NSPI3,
 		.end	= DMACH_NSPI3,

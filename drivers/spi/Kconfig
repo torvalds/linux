@@ -355,28 +355,15 @@ config SPI_STMP3XXX
 	help
 	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
 
-config SPI_SUN4I
-	tristate "SUN4I SPI Controller"
-	depends on ARCH_SUN4I
+config SPI_SUNXI
+	tristate "SUNXI SPI Controller"
+	depends on ARCH_SUN4I || ARCH_SUN5I
 	help
-		Allwinner Soc SPI controller,present on SUN4I chips.
+		Allwinner Soc SPI controller,present on sun4i and sun5i chips.
 
-config SUN4I_SPI_NDMA
-        bool "SUN4I SPI Normal DMA mode select"
-        depends on SPI_SUN4I
-        help
-          This selects SPI DMA mode with DMA transfer
-          Y select NDMA mode and N select DDMA mode
-
-config SPI_SUN5I
-	tristate "SUN5I SPI Controller"
-	depends on ARCH_SUN5I
-	help
-		Allwinner Soc SPI controller,present on SUN5I chips.
-
-config SUN5I_SPI_NDMA
-        bool "SUN5I SPI Normal DMA mode select"
-        depends on SPI_SUN5I
+config SPI_SUNXI_NDMA
+        bool "SUNXI SPI Normal DMA mode select"
+        depends on SPI_SUNXI
         help
           This selects SPI DMA mode with DMA transfer
           Y select NDMA mode and N select DDMA mode
