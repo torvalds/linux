@@ -149,7 +149,6 @@ my $bisect_ret_abort;
 my $bisect_ret_default;
 my $in_patchcheck = 0;
 my $run_test;
-my $redirect;
 my $buildlog;
 my $testlog;
 my $dmesg;
@@ -1529,7 +1528,7 @@ sub fail {
 }
 
 sub run_command {
-    my ($command) = @_;
+    my ($command, $redirect) = @_;
     my $dolog = 0;
     my $dord = 0;
     my $pid;
@@ -2265,9 +2264,7 @@ sub build {
     # Run old config regardless, to enforce min configurations
     make_oldconfig;
 
-    $redirect = "$buildlog";
-    my $build_ret = run_command "$make $build_options";
-    undef $redirect;
+    my $build_ret = run_command "$make $build_options", $buildlog;
 
     if (defined($post_build)) {
 	# Because a post build may change the kernel version
@@ -2360,9 +2357,7 @@ sub child_run_test {
     $poweroff_on_error = 0;
     $die_on_failure = 1;
 
-    $redirect = "$testlog";
-    run_command $run_test or $failed = 1;
-    undef $redirect;
+    run_command $run_test, $testlog or $failed = 1;
 
     exit $failed;
 }
