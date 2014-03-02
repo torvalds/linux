@@ -797,7 +797,6 @@ void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv);
 
 #define MLX4_EN_NUM_SELF_TEST	5
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
-u64 mlx4_en_mac_to_u64(u8 *addr);
 void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
 /*
