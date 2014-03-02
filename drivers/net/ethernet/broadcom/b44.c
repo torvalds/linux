@@ -1484,6 +1484,10 @@ static int b44_open(struct net_device *dev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
+
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		phy_start(bp->phydev);
+
 	netif_start_queue(dev);
 out:
 	return err;
@@ -1645,6 +1649,9 @@ static int b44_close(struct net_device *dev)
 	struct b44 *bp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
+
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		phy_stop(bp->phydev);
 
 	napi_disable(&bp->napi);
 
