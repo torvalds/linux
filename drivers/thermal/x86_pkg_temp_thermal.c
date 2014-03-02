@@ -68,6 +68,10 @@ struct phy_dev_entry {
 	struct thermal_zone_device *tzone;
 };
 
+static const struct thermal_zone_params pkg_temp_tz_params = {
+	.no_hwmon	= true,
+};
+
 /* List maintaining number of package instances */
 static LIST_HEAD(phy_dev_list);
 static DEFINE_MUTEX(phy_dev_list_mutex);
@@ -446,7 +450,7 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 			thres_count,
 			(thres_count == MAX_NUMBER_OF_TRIPS) ?
 				0x03 : 0x01,
-			phy_dev_entry, &tzone_ops, NULL, 0, 0);
+			phy_dev_entry, &tzone_ops, &pkg_temp_tz_params, 0, 0);
 	if (IS_ERR(phy_dev_entry->tzone)) {
 		err = PTR_ERR(phy_dev_entry->tzone);
 		goto err_ret_free;
