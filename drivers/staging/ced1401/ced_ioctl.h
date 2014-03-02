@@ -83,12 +83,6 @@ typedef struct TCSBlock {
  */
 #define CED_MAGIC_IOC 0xce
 
-/* NBNB: READ and WRITE are from the point of view of the device, not user. */
-typedef struct ced_ioc_string {
-	int nChars;
-	char buffer[256];
-} CED_IOC_STRING;
-
 #define IOCTL_CED_SENDSTRING(n)		_IOC(_IOC_WRITE, CED_MAGIC_IOC, 2, n)
 
 #define IOCTL_CED_RESET1401		_IO(CED_MAGIC_IOC, 3)
