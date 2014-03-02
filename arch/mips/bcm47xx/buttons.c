@@ -420,7 +420,11 @@ int __init bcm47xx_buttons_register(void)
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wlhdd);
 		break;
 
+	case BCM47XX_BOARD_BELKIN_F7D3301:
+	case BCM47XX_BOARD_BELKIN_F7D3302:
 	case BCM47XX_BOARD_BELKIN_F7D4301:
+	case BCM47XX_BOARD_BELKIN_F7D4302:
+	case BCM47XX_BOARD_BELKIN_F7D4401:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_belkin_f7d4301);
 		break;
 

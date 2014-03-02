@@ -457,7 +457,11 @@ void __init bcm47xx_leds_register(void)
 		bcm47xx_set_pdata(bcm47xx_leds_asus_wlhdd);
 		break;
 
+	case BCM47XX_BOARD_BELKIN_F7D3301:
+	case BCM47XX_BOARD_BELKIN_F7D3302:
 	case BCM47XX_BOARD_BELKIN_F7D4301:
+	case BCM47XX_BOARD_BELKIN_F7D4302:
+	case BCM47XX_BOARD_BELKIN_F7D4401:
 		bcm47xx_set_pdata(bcm47xx_leds_belkin_f7d4301);
 		break;
 
