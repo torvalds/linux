@@ -400,7 +400,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		status = acpi_hotplug_execute(acpi_device_hotplug, adev, type);
+		status = acpi_hotplug_schedule(adev, type);
 		if (ACPI_SUCCESS(status))
 			return;
 	default:

@@ -481,10 +481,9 @@ static int acpi_generic_hotplug_event(struct acpi_device *adev, u32 type)
 	return -EINVAL;
 }
 
-void acpi_device_hotplug(void *data, u32 src)
+void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 {
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
-	struct acpi_device *adev = data;
 	int error = -ENODEV;
 
 	lock_device_hotplug();
@@ -579,8 +578,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		return -ENODEV;
 
 	get_device(&acpi_device->dev);
-	status = acpi_hotplug_execute(acpi_device_hotplug, acpi_device,
-				      ACPI_OST_EC_OSPM_EJECT);
+	status = acpi_hotplug_schedule(acpi_device, ACPI_OST_EC_OSPM_EJECT);
 	if (ACPI_SUCCESS(status))
 		return count;
 

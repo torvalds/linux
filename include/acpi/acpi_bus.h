@@ -455,10 +455,6 @@ static inline bool acpi_device_enumerated(struct acpi_device *adev)
 	return adev && adev->flags.initialized && adev->flags.visited;
 }
 
-typedef void (*acpi_hp_callback)(void *data, u32 src);
-
-acpi_status acpi_hotplug_execute(acpi_hp_callback func, void *data, u32 src);
-
 /**
  * module_acpi_driver(acpi_driver) - Helper macro for registering an ACPI driver
  * @__acpi_driver: acpi_driver struct
