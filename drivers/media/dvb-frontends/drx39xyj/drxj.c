@@ -16676,7 +16676,6 @@ rw_error:
 /* Coefficients for the nyquist fitler (total: 27 taps) */
 #define NYQFILTERLEN 27
 
-#if 0
 static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_param)
 {
 	int rc;
@@ -17176,6 +17175,8 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 rw_error:
 	return -EIO;
 }
+
+#if 0
 
 /**
 * \fn int ctrl_get_oob()
@@ -20021,6 +20022,12 @@ int drxj_open(struct drx_demod_instance *demod)
 		goto rw_error;
 	}
 	rc = drxj_dap_write_reg16(dev_addr, SCU_RAM_DRIVER_VER_LO__A, (u16)(driver_version & 0xFFFF), 0);
+	if (rc != 0) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+
+	rc = ctrl_set_oob(demod, NULL);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
