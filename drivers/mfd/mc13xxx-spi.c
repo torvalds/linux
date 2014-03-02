@@ -140,6 +140,8 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 
 	mc13xxx->irq = spi->irq;
 
+	spi->max_speed_hz = spi->max_speed_hz ? : 26000000;
+
 	mc13xxx->regmap = devm_regmap_init(&spi->dev, &regmap_mc13xxx_bus,
 					   &spi->dev,
 					   &mc13xxx_regmap_spi_config);
