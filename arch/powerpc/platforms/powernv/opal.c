@@ -570,6 +570,8 @@ static int __init opal_init(void)
 		rc = opal_elog_init();
 		/* Setup code update interface */
 		opal_flash_init();
+		/* Setup platform dump extract interface */
+		opal_platform_dump_init();
 	}
 
 	return 0;
