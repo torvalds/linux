@@ -111,13 +111,8 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 {
 	struct spi_device *spi = msg->spi;
 	struct device *dev = hspi->dev;
-	u32 target_rate;
 	u32 spcr, idiv_clk;
 	u32 rate, best_rate, min, tmp;
-
-	target_rate = t ? t->speed_hz : 0;
-	if (!target_rate)
-		target_rate = spi->max_speed_hz;
 
 	/*
 	 * find best IDIV/CLKCx settings
@@ -138,7 +133,7 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 		rate /= (((idiv_clk & 0x1F) + 1) * 2);
 
 		/* save best settings */
-		tmp = abs(target_rate - rate);
+		tmp = abs(t->speed_hz - rate);
 		if (tmp < min) {
 			min = tmp;
 			spcr = idiv_clk;
@@ -151,7 +146,7 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 	if (spi->mode & SPI_CPOL)
 		spcr |= 1 << 6;
 
-	dev_dbg(dev, "speed %d/%d\n", target_rate, best_rate);
+	dev_dbg(dev, "speed %d/%d\n", t->speed_hz, best_rate);
 
 	hspi_write(hspi, SPCR, spcr);
 	hspi_write(hspi, SPSR, 0x0);
