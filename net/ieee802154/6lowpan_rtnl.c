@@ -265,8 +265,7 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 	/* first fragment header */
 	head[0] = LOWPAN_DISPATCH_FRAG1 | ((dgram_size >> 8) & 0x7);
 	head[1] = dgram_size & 0xff;
-	head[2] = tag >> 8;
-	head[3] = tag & 0xff;
+	memcpy(head + 2, &tag, sizeof(tag));
 
 	/* calc the nearest payload length(divided to 8) for first fragment
 	 * which fits into a IEEE802154_MTU
