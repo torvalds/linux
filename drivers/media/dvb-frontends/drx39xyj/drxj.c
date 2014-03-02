@@ -2954,20 +2954,6 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 		case DRX_STANDARD_ITU_C:
 			break;
 		default:
-			/* not an MPEG producing std, just store MPEG cfg */
-			common_attr->mpeg_cfg.enable_mpeg_output =
-			    cfg_data->enable_mpeg_output;
-			common_attr->mpeg_cfg.insert_rs_byte =
-			    cfg_data->insert_rs_byte;
-			common_attr->mpeg_cfg.enable_parallel =
-			    cfg_data->enable_parallel;
-			common_attr->mpeg_cfg.invert_data = cfg_data->invert_data;
-			common_attr->mpeg_cfg.invert_err = cfg_data->invert_err;
-			common_attr->mpeg_cfg.invert_str = cfg_data->invert_str;
-			common_attr->mpeg_cfg.invert_val = cfg_data->invert_val;
-			common_attr->mpeg_cfg.invert_clk = cfg_data->invert_clk;
-			common_attr->mpeg_cfg.static_clk = cfg_data->static_clk;
-			common_attr->mpeg_cfg.bitrate = cfg_data->bitrate;
 			return 0;
 		}
 
@@ -3214,6 +3200,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MCLK__M;
 		else
 			fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MCLK__M));
+
 
 		if (cfg_data->static_clk == true) {	/* Static mode */
 			u32 dto_rate = 0;
@@ -3546,15 +3533,6 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 
 	/* save values for restore after re-acquire */
 	common_attr->mpeg_cfg.enable_mpeg_output = cfg_data->enable_mpeg_output;
-	common_attr->mpeg_cfg.insert_rs_byte = cfg_data->insert_rs_byte;
-	common_attr->mpeg_cfg.enable_parallel = cfg_data->enable_parallel;
-	common_attr->mpeg_cfg.invert_data = cfg_data->invert_data;
-	common_attr->mpeg_cfg.invert_err = cfg_data->invert_err;
-	common_attr->mpeg_cfg.invert_str = cfg_data->invert_str;
-	common_attr->mpeg_cfg.invert_val = cfg_data->invert_val;
-	common_attr->mpeg_cfg.invert_clk = cfg_data->invert_clk;
-	common_attr->mpeg_cfg.static_clk = cfg_data->static_clk;
-	common_attr->mpeg_cfg.bitrate = cfg_data->bitrate;
 
 	return 0;
 rw_error:
@@ -7644,17 +7622,10 @@ static int set_vsb(struct drx_demod_instance *demod)
 		/* TODO: move to set_standard after hardware reset value problem is solved */
 		/* Configure initial MPEG output */
 		struct drx_cfg_mpeg_output cfg_mpeg_output;
+
+		memcpy(&cfg_mpeg_output, &common_attr->mpeg_cfg, sizeof(cfg_mpeg_output));
 		cfg_mpeg_output.enable_mpeg_output = true;
-		cfg_mpeg_output.insert_rs_byte = common_attr->mpeg_cfg.insert_rs_byte;
-		cfg_mpeg_output.enable_parallel =
-		    common_attr->mpeg_cfg.enable_parallel;
-		cfg_mpeg_output.invert_data = common_attr->mpeg_cfg.invert_data;
-		cfg_mpeg_output.invert_err = common_attr->mpeg_cfg.invert_err;
-		cfg_mpeg_output.invert_str = common_attr->mpeg_cfg.invert_str;
-		cfg_mpeg_output.invert_val = common_attr->mpeg_cfg.invert_val;
-		cfg_mpeg_output.invert_clk = common_attr->mpeg_cfg.invert_clk;
-		cfg_mpeg_output.static_clk = common_attr->mpeg_cfg.static_clk;
-		cfg_mpeg_output.bitrate = common_attr->mpeg_cfg.bitrate;
+
 		rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
 		if (rc != 0) {
 			pr_err("error %d\n", rc);
@@ -8034,6 +8005,7 @@ static int power_down_qam(struct drx_demod_instance *demod, bool primary)
 	int rc;
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	struct drx_cfg_mpeg_output cfg_mpeg_output;
+	struct drx_common_attr *common_attr = demod->my_common_attr;
 	u16 cmd_result = 0;
 
 	/*
@@ -8103,7 +8075,9 @@ static int power_down_qam(struct drx_demod_instance *demod, bool primary)
 		}
 	}
 
+	memcpy(&cfg_mpeg_output, &common_attr->mpeg_cfg, sizeof(cfg_mpeg_output));
 	cfg_mpeg_output.enable_mpeg_output = false;
+
 	rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
@@ -10283,19 +10257,9 @@ set_qam(struct drx_demod_instance *demod,
 			/* Configure initial MPEG output */
 			struct drx_cfg_mpeg_output cfg_mpeg_output;
 
+			memcpy(&cfg_mpeg_output, &common_attr->mpeg_cfg, sizeof(cfg_mpeg_output));
 			cfg_mpeg_output.enable_mpeg_output = true;
-			cfg_mpeg_output.insert_rs_byte =
-			    common_attr->mpeg_cfg.insert_rs_byte;
-			cfg_mpeg_output.enable_parallel =
-			    common_attr->mpeg_cfg.enable_parallel;
-			cfg_mpeg_output.invert_data =
-			    common_attr->mpeg_cfg.invert_data;
-			cfg_mpeg_output.invert_err = common_attr->mpeg_cfg.invert_err;
-			cfg_mpeg_output.invert_str = common_attr->mpeg_cfg.invert_str;
-			cfg_mpeg_output.invert_val = common_attr->mpeg_cfg.invert_val;
-			cfg_mpeg_output.invert_clk = common_attr->mpeg_cfg.invert_clk;
-			cfg_mpeg_output.static_clk = common_attr->mpeg_cfg.static_clk;
-			cfg_mpeg_output.bitrate = common_attr->mpeg_cfg.bitrate;
+
 			rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
 			if (rc != 0) {
 				pr_err("error %d\n", rc);
@@ -19930,7 +19894,9 @@ int drxj_open(struct drx_demod_instance *demod)
 	}
 
 	/* disable mpegoutput pins */
+	memcpy(&cfg_mpeg_output, &common_attr->mpeg_cfg, sizeof(cfg_mpeg_output));
 	cfg_mpeg_output.enable_mpeg_output = false;
+
 	rc = ctrl_set_cfg_mpeg_output(demod, &cfg_mpeg_output);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
