@@ -181,7 +181,7 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 
 	wil_info(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
 	if (cid < 0)
-		return -ENOENT;
+		return cid;
 
 	rc = wil_cid_fill_sinfo(wil, cid, sinfo);
 
