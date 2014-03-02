@@ -15,6 +15,7 @@
 };
 
 &cspi1 {
+	pinctrl-0 = <&pinctrl_cspi1>, <&pinctrl_cspi1cs1>;
 	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>,
 		   <&gpio4 27 GPIO_ACTIVE_LOW>;
@@ -36,6 +37,12 @@
 
 &iomuxc {
 	imx27_phycore_rdk {
+		pinctrl_cspi1cs1: cspi1cs1grp {
+			fsl,pins = <
+				MX27_PAD_CSPI1_SS1__GPIO4_27 0x0
+			>;
+		};
+
 		pinctrl_i2c1: i2c1grp {
 			/* Add pullup to DATA line */
 			fsl,pins = <
