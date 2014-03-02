@@ -1890,7 +1890,8 @@ void mlx4_opreq_action(struct work_struct *work)
 			err = EINVAL;
 			break;
 		}
-		err = mlx4_cmd(dev, 0, ((u32) err | cpu_to_be32(token) << 16),
+		err = mlx4_cmd(dev, 0, ((u32) err |
+					(__force u32)cpu_to_be32(token) << 16),
 			       1, MLX4_CMD_GET_OP_REQ, MLX4_CMD_TIME_CLASS_A,
 			       MLX4_CMD_NATIVE);
 		if (err) {
