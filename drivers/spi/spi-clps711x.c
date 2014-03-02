@@ -45,17 +45,16 @@ static int spi_clps711x_setup(struct spi_device *spi)
 static void spi_clps711x_setup_xfer(struct spi_device *spi,
 				    struct spi_transfer *xfer)
 {
-	u32 speed = xfer->speed_hz ? : spi->max_speed_hz;
 	struct spi_clps711x_data *hw = spi_master_get_devdata(spi->master);
 
 	/* Setup SPI frequency divider */
-	if (!speed || (speed >= hw->max_speed_hz))
+	if (!xfer->speed_hz || (xfer->speed_hz >= hw->max_speed_hz))
 		clps_writel((clps_readl(SYSCON1) & ~SYSCON1_ADCKSEL_MASK) |
 			    SYSCON1_ADCKSEL(3), SYSCON1);
-	else if (speed >= (hw->max_speed_hz / 2))
+	else if (xfer->speed_hz >= (hw->max_speed_hz / 2))
 		clps_writel((clps_readl(SYSCON1) & ~SYSCON1_ADCKSEL_MASK) |
 			    SYSCON1_ADCKSEL(2), SYSCON1);
-	else if (speed >= (hw->max_speed_hz / 8))
+	else if (xfer->speed_hz >= (hw->max_speed_hz / 8))
 		clps_writel((clps_readl(SYSCON1) & ~SYSCON1_ADCKSEL_MASK) |
 			    SYSCON1_ADCKSEL(1), SYSCON1);
 	else
@@ -87,7 +86,7 @@ static int spi_clps711x_transfer_one(struct spi_master *master,
 	spi_clps711x_setup_xfer(spi, xfer);
 
 	hw->len = xfer->len;
-	hw->bpw = xfer->bits_per_word ? : spi->bits_per_word;
+	hw->bpw = xfer->bits_per_word;
 	hw->tx_buf = (u8 *)xfer->tx_buf;
 	hw->rx_buf = (u8 *)xfer->rx_buf;
 
