@@ -35,7 +35,7 @@ static struct inet_frags lowpan_frags;
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
 			     struct sk_buff *prev, struct net_device *dev);
 
-static unsigned int lowpan_hash_frag(__be16 tag, __be16 d_size,
+static unsigned int lowpan_hash_frag(__be16 tag, u16 d_size,
 				     const struct ieee802154_addr *saddr,
 				     const struct ieee802154_addr *daddr)
 {
