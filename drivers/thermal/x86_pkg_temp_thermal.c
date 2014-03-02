@@ -398,7 +398,6 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 	int err;
 	u32 tj_max;
 	struct phy_dev_entry *phy_dev_entry;
-	char buffer[30];
 	int thres_count;
 	u32 eax, ebx, ecx, edx;
 	u8 *temp;
@@ -444,9 +443,7 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 	phy_dev_entry->first_cpu = cpu;
 	phy_dev_entry->tj_max = tj_max;
 	phy_dev_entry->ref_cnt = 1;
-	snprintf(buffer, sizeof(buffer), "pkg-temp-%d\n",
-					phy_dev_entry->phys_proc_id);
-	phy_dev_entry->tzone = thermal_zone_device_register(buffer,
+	phy_dev_entry->tzone = thermal_zone_device_register("x86_pkg_temp",
 			thres_count,
 			(thres_count == MAX_NUMBER_OF_TRIPS) ?
 				0x03 : 0x01,
