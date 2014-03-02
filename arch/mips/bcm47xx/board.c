@@ -181,6 +181,13 @@ struct bcm47xx_board_type_list3 bcm47xx_board_list_board[] __initconst = {
 	{ {0}, NULL},
 };
 
+/* boardtype, boardrev */
+static const
+struct bcm47xx_board_type_list2 bcm47xx_board_list_board_type_rev[] __initconst = {
+	{{BCM47XX_BOARD_SIEMENS_SE505V2, "Siemens SE505 V2"}, "0x0101", "0x10"},
+	{ {0}, NULL},
+};
+
 static const
 struct bcm47xx_board_type bcm47xx_board_unknown[] __initconst = {
 	{BCM47XX_BOARD_UNKNOWN, "Unknown Board"},
@@ -272,6 +279,16 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 			    !strcmp(buf2, e3->value2) &&
 			    !strcmp(buf3, e3->value3))
 				return &e3->board;
+		}
+	}
+
+	if (bcm47xx_nvram_getenv("boardtype", buf1, sizeof(buf1)) >= 0 &&
+	    bcm47xx_nvram_getenv("boardrev", buf2, sizeof(buf2)) >= 0 &&
+	    bcm47xx_nvram_getenv("boardnum", buf3, sizeof(buf3)) ==  -ENOENT) {
+		for (e2 = bcm47xx_board_list_board_type_rev; e2->value1; e2++) {
+			if (!strcmp(buf1, e2->value1) &&
+			    !strcmp(buf2, e2->value2))
+				return &e2->board;
 		}
 	}
 	return bcm47xx_board_unknown;

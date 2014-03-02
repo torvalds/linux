@@ -383,6 +383,14 @@ bcm47xx_leds_netgear_wnr834bv2[] __initconst = {
 	BCM47XX_GPIO_LED(7, "unk", "connected", 0, LEDS_GPIO_DEFSTATE_OFF),
 };
 
+/* Siemens */
+static const struct gpio_led
+bcm47xx_leds_siemens_se505v2[] __initconst = {
+	BCM47XX_GPIO_LED(0, "unk", "dmz", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(3, "unk", "wlan", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(5, "unk", "power", 1, LEDS_GPIO_DEFSTATE_ON),
+};
+
 /* SimpleTech */
 
 static const struct gpio_led
@@ -560,6 +568,10 @@ void __init bcm47xx_leds_register(void)
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR834BV2:
 		bcm47xx_set_pdata(bcm47xx_leds_netgear_wnr834bv2);
+		break;
+
+	case BCM47XX_BOARD_SIEMENS_SE505V2:
+		bcm47xx_set_pdata(bcm47xx_leds_siemens_se505v2);
 		break;
 
 	case BCM47XX_BOARD_SIMPLETECH_SIMPLESHARE:
