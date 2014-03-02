@@ -351,7 +351,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		dev_err(&dev->pdev->dev, "less data available than length=%08x.\n",
 				*slots);
 		/* we can't read the message */
-		ret = -EBADMSG;
+		ret = -ENODATA;
 		goto end;
 	}
 

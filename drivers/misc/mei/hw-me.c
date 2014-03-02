@@ -507,7 +507,16 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	while (slots > 0) {
 		dev_dbg(&dev->pdev->dev, "slots to read = %08x\n", slots);
 		rets = mei_irq_read_handler(dev, &complete_list, &slots);
+		/* There is a race between ME write and interrupt delivery:
+		 * Not all data is always available immediately after the
+		 * interrupt, so try to read again on the next interrupt.
+		 */
+		if (rets == -ENODATA)
+			break;
+
 		if (rets && dev->dev_state != MEI_DEV_RESETTING) {
+			dev_err(&dev->pdev->dev, "mei_irq_read_handler ret = %d.\n",
+						rets);
 			schedule_work(&dev->reset_work);
 			goto end;
 		}
