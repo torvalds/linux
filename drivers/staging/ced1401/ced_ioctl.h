@@ -26,12 +26,10 @@
 ** TypeDefs
 *****************************************************************************/
 
-typedef unsigned short TBLOCKENTRY;	/* index the blk transfer table 0-7 */
-
 typedef struct TransferDesc {
 	long long lpvBuff;	/* address of transfer area (for 64 or 32 bit) */
 	unsigned int dwLength;	/* length of the area */
-	TBLOCKENTRY wAreaNum;	/* number of transfer area to set up */
+	unsigned short wAreaNum;	/* number of transfer area to set up */
 	short eSize;		/* element size - is tohost flag for circular */
 } TRANSFERDESC;
 
