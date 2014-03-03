@@ -49,6 +49,7 @@ config USB_ARCH_HAS_EHCI
 	default y if ARCH_MMP
 	default y if MACH_LOONGSON1
 	default y if PLAT_ORION
+	default y if ARCH_ROCKCHIP
 	default PCI
 
 # some non-PCI HCDs implement xHCI
@@ -148,8 +149,6 @@ source "drivers/usb/dwc3/Kconfig"
 
 source "drivers/usb/chipidea/Kconfig"
 
-source "drivers/usb/dwc_otg/Kconfig"
-
 comment "USB port drivers"
 
 if USB
@@ -194,5 +193,38 @@ endif # USB
 source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
+
+# Rockchips otg20 and host20 both use DWC_OTG controller,
+# DWC_OTG_274 is an old usb driver version, used for RK3188 and earlier platform
+# DWC_OTG_310 is a new usb driver version, used for RK3188 and newer platform
+
+menu "Dwc Otg Support"
+depends on ARCH_ROCKCHIP
+
+choice
+prompt "Dwc Otg Driver Version Select"
+config DWC_OTG_274
+	bool "DWC_OTG_274"
+	---help---
+	  This driver is an old dwc_otg driver version, only used for
+	  RK3188 and earlier platform.
+
+config DWC_OTG_310
+	bool "DWC_OTG_310"
+	---help---
+	  This driver is a new dwc_otg driver version, only used for
+	  RK3188 and newer platform
+
+endchoice
+
+if DWC_OTG_310
+source "drivers/usb/dwc_otg_310/Kconfig"
+endif # DWC_OTG_310
+
+if DWC_OTG_274
+source "drivers/usb/dwc_otg/Kconfig"
+endif # DWC_OTG_274
+
+endmenu
 
 endif # USB_SUPPORT

@@ -1,0 +1,45 @@
+#
+# Makefile for DWC_otg Highspeed USB controller driver
+#
+
+ifneq ($(KERNELRELEASE),)
+CPPFLAGS	+= -DDEBUG 
+
+# Use one of the following flags to compile the software in host-only or
+# device-only mode.
+#CPPFLAGS        += -DDWC_HOST_ONLY
+#CPPFLAGS        += -DDWC_DEVICE_ONLY
+
+CPPFLAGS	+= -Dlinux -DDWC_HS_ELECT_TST
+
+obj-m	:= dwc_otg.o
+
+dwc_otg-objs	:= dwc_otg_driver.o dwc_otg_attr.o 
+dwc_otg-objs	+= dwc_otg_cil.o dwc_otg_cil_intr.o 
+dwc_otg-objs	+= dwc_otg_pcd.o dwc_otg_pcd_intr.o 
+dwc_otg-objs	+= dwc_otg_hcd.o dwc_otg_hcd_intr.o dwc_otg_hcd_queue.o
+
+else
+
+KDIR		:= /remote/d5290p01/usb/linux-2.6.12.2
+PWD		:= $(shell pwd)
+CROSS_COMPILE 	:= /remote/d5290p01/usb/tools/arm/bin/arm-none-elf-
+ARCH 		:= arm
+
+# Command paths
+CTAGS		:= /usr/bin/ctags
+DOXYGEN		:= /remote/d5290p01/usb/tools/bin/doxygen
+
+default:
+	$(MAKE) -C$(KDIR) M=$(PWD) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) modules
+
+docs:	$(wildcard *.[hc]) doc/doxygen.cfg
+	$(DOXYGEN) doc/doxygen.cfg
+
+tags:	$(wildcard *.[hc])
+	$(CTAGS) -e $(wildcard *.[hc]) $(wildcard linux/*.[hc]) $(wildcard $(KDIR)/include/linux/usb*.h)
+
+endif
+
+clean:
+	rm -rf   *.o *.ko .*cmd *.mod.c .tmp_versions

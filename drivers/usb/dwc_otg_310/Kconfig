@@ -1,0 +1,31 @@
+
+
+config USB20_HOST
+	tristate "Rockchip USB 2.0 host controller"
+	depends on USB && DWC_OTG_310
+	---help---
+	  This driver supports Rockchip USB2.0 host
+	  controller.
+
+config USB20_HOST_EN
+	boolean "---usb2.0 host controller enable"
+	depends on USB20_HOST && DWC_OTG_310
+	default y
+
+config USB20_OTG
+	tristate "RockChip USB 2.0 OTG controller"
+	depends on USB || USB_GADGET && DWC_OTG_310
+        ---help---
+          This driver supports Rockchip USB2.0  DWC_OTG 
+	  controller.
+
+
+config USB20_OTG_EN
+	bool "---usb2.0 otg host controller enable"
+	depends on DWC_OTG_HOST_ONLY || DWC_OTG_BOTH_HOST_SLAVE && DWC_OTG_310
+	default y
+
+config DWC_OTG
+	tristate
+	depends on DWC_OTG_310	
+	default y if USB11_HOST || USB20_HOST || USB20_OTG 

@@ -564,27 +564,43 @@
 		compatible = "rockchip,dwc-control-usb";
 		reg = <0x200080ac 0x4>,
 		      <0x2000810c 0x10>,
-		      <0x2000811c 0x10>;
+		      <0x2000811c 0x10>,
+		      <0x2000812c 0x8>,
+		      <0x20008138 0x8>;
 		reg-names = "GRF_SOC_STATUS0",
 			    "GRF_UOC0_BASE",
-			    "GRF_UOC1_BASE";
+			    "GRF_UOC1_BASE",
+			    "GRF_UOC2_BASE",
+			    "GRF_UOC3_BASE";
 		gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_D5 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates4 5>;
+		clock-names = "hclk_usb_peri";
 	};
 
 	usb@10180000 {
 		compatible = "rockchip,usb20_otg";
 		reg = <0x10180000 0x40000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gates1 5>, <&clk_gates5 13>;*/
-		/*clock-names = "otgphy0", "hclk_otg0"*/
+		clocks = <&clk_otgphy0_480m>, <&clk_gates5 13>;
+		clock-names = "otgphy0", "hclk_otg0";
 	};
 
 	usb@101c0000 {
 		compatible = "rockchip,usb20_host";
 		reg = <0x101c0000 0x40000>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gates1 6>, <&clk_gates7 3>;*/
-		/*clock-names = "otgphy1", "hclk_otg1"*/
+		clocks = <&clk_otgphy1_480m>, <&clk_gates7 3>;
+		clock-names = "otgphy1", "hclk_otg1";
+	};
+
+	hsic@10240000 {
+		compatible = "rockchip,rk_hsic_host";
+		reg = <0x10240000 0x40000>;
+		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_hsicphy480m>, <&clk_gates7 4>,
+			 <&clk_hsicphy12m>, <&clk_otgphy1_480m>;
+		clock-names = "hsicphy480m", "hclk_hsic",
+			      "hsicphy12m", "hsic_otgphy1";
 	};
 
 };

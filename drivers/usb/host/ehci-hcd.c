@@ -1261,6 +1261,11 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_hcd_tilegx_driver
 #endif
 
+#ifdef CONFIG_USB_EHCI_RK
+#include "ehci-rk.c"
+#define PLATFORM_DRIVER         ehci_rk_driver
+#endif
+
 #ifdef CONFIG_USB_EHCI_HCD_PMC_MSP
 #include "ehci-pmcmsp.c"
 #define	PLATFORM_DRIVER		ehci_hcd_msp_driver

@@ -22,19 +22,44 @@
  * along with this program; if not, you can find it at http://www.fsf.org
  */
 
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-#include <linux/err.h>
-#include <linux/device.h>
-
-#include <mach/gpio.h>
-#include "ehci.h"
-#include "../dwc_otg/usbdev_rk.h"
+# include <linux/platform_device.h>
+# include <linux/clk.h>
+# include <linux/err.h>
+# include <linux/device.h>
+# include <linux/of.h>
+# include <linux/of_platform.h>
+# include "ehci.h"
+#ifdef CONFIG_DWC_OTG_274
+# include "../dwc_otg/usbdev_rk.h"
+#endif
+#ifdef CONFIG_DWC_OTG_310
+# include "../dwc_otg_310/usbdev_rk.h"
+#endif
 
 static int rkehci_status = 1;
 static struct ehci_hcd *g_ehci;
 #define EHCI_DEVICE_FILE        "/sys/devices/platform/rk_hsusb_host/ehci_power"
 #define EHCI_PRINT(x...)	printk( KERN_INFO "EHCI: " x )
+
+extern struct rkehci_platform_data rkhsic_pdata;
+
+static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
+{
+	unsigned port;
+
+	if (!HCS_PPC (ehci->hcs_params))
+		return;
+
+	ehci_dbg (ehci, "...power%s ports...\n", is_on ? "up" : "down");
+	for (port = HCS_N_PORTS (ehci->hcs_params); port > 0; )
+		(void) ehci_hub_control(ehci_to_hcd(ehci),
+				is_on ? SetPortFeature : ClearPortFeature,
+				USB_PORT_FEAT_POWER,
+				port--, NULL, 0);
+	/* Flush those writes */
+	ehci_readl(ehci, &ehci->regs->command);
+	msleep(20);
+}
 
 static struct hc_driver rk_hc_driver = {
 	.description		= hcd_name,
@@ -78,8 +103,10 @@ static struct hc_driver rk_hc_driver = {
 	/*
 	 * PM support
 	 */
+#ifdef CONFIG_PM
 	.bus_suspend		= ehci_bus_suspend,
 	.bus_resume		= ehci_bus_resume,
+#endif
 };
 
 static ssize_t ehci_power_show( struct device *_dev, 
@@ -168,13 +195,23 @@ static int ehci_rk_probe(struct platform_device *pdev)
 	struct ehci_hcd *ehci;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct rkehci_platform_data *pldata = dev->platform_data;
+	struct rkehci_platform_data *pldata;
 	int ret;
 	int retval = 0;
 	static u64 usb_dmamask = 0xffffffffUL;
+	struct device_node *node = pdev->dev.of_node;
 
 	dev_dbg(&pdev->dev, "ehci_rk proble\n");
-	
+
+	dev->platform_data = &rkhsic_pdata;
+	pldata = dev->platform_data;
+	pldata->dev = dev;
+
+	if (!node) {
+		dev_err(dev, "device node not found\n");
+		return -EINVAL;
+	}
+
 	dev->dma_mask = &usb_dmamask;
 
 	retval = device_create_file(dev, &dev_attr_ehci_power);
@@ -195,9 +232,11 @@ static int ehci_rk_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto put_hcd;
 	}
+
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_ioremap_resource(dev, res);
+
 	if (!hcd->regs) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
@@ -247,7 +286,7 @@ put_hcd:
 	return ret;
 }
 
-static int __devexit ehci_rk_remove(struct platform_device *pdev)
+static int ehci_rk_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
@@ -299,12 +338,22 @@ static const struct dev_pm_ops ehci_rk_dev_pm_ops = {
 	.resume          = ehci_rk_pm_resume,
 };
 
+static struct of_device_id rk_hsic_of_match[] = {
+	{ .compatible = "rockchip,rk_hsic_host", },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, rk_hsic_of_match);
+
 static struct platform_driver ehci_rk_driver = {
 	.probe	= ehci_rk_probe,
-	.remove	= __devexit_p(ehci_rk_remove),
+	.remove	= ehci_rk_remove,
 	.driver = {
-		   .name = "rk_hsusb_host",
+		   .name = "rk_hsic_host",
+		   .of_match_table = of_match_ptr(rk_hsic_of_match),
+#ifdef CONFIG_PM
 		   .pm = &ehci_rk_dev_pm_ops,
+#endif
 	},
 };
 
