@@ -814,7 +814,15 @@ static int rsnd_probe(struct platform_device *pdev)
 	struct rcar_snd_info *info;
 	struct rsnd_priv *priv;
 	struct device *dev = &pdev->dev;
-	int ret;
+	int (*probe_func[])(struct platform_device *pdev,
+			    struct rsnd_priv *priv) = {
+		rsnd_gen_probe,
+		rsnd_ssi_probe,
+		rsnd_scu_probe,
+		rsnd_adg_probe,
+		rsnd_dai_probe,
+	};
+	int ret, i;
 
 	info = pdev->dev.platform_data;
 	if (!info) {
@@ -838,25 +846,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	/*
 	 *	init each module
 	 */
-	ret = rsnd_gen_probe(pdev, priv);
-	if (ret)
-		return ret;
-
-	ret = rsnd_ssi_probe(pdev, priv);
-	if (ret)
-		return ret;
-
-	ret = rsnd_scu_probe(pdev, priv);
-	if (ret)
-		return ret;
-
-	ret = rsnd_adg_probe(pdev, priv);
-	if (ret)
-		return ret;
-
-	ret = rsnd_dai_probe(pdev, priv);
-	if (ret)
-		return ret;
+	for (i = 0; i < ARRAY_SIZE(probe_func); i++) {
+		ret = probe_func[i](pdev, priv);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 *	asoc register
