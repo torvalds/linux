@@ -64,6 +64,24 @@
 			clock-frequency = <0>;
 		};
 
+		clk_otgphy0_480m: clk_otgphy0_480m {
+			compatible = "fixed-factor-clock";
+			clocks = <&clk_gates1 5>;
+			clock-output-names = "clk_otgphy0_480m";
+			clock-div = <1>;
+			clock-mult = <20>;
+			#clock-cells = <0>;
+		};
+
+		clk_otgphy1_480m: clk_otgphy1_480m {
+			compatible = "fixed-factor-clock";
+			clocks = <&clk_gates1 6>;
+			clock-output-names = "clk_otgphy1_480m";
+			clock-div = <1>;
+			clock-mult = <20>;
+			#clock-cells = <0>;
+		};
+
 		clock_regs {
 			compatible = "rockchip,rk-clock-regs";
 			#address-cells = <1>;
@@ -440,11 +458,11 @@
 
 					/* reg[7:6]: reserved */
 
-					hsic_phy_div: hsic_phy_div {
+					clk_hsicphy12m: hsic_phy_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 6>;
-						clocks = <&clk_hsicphy480m_mux>;
-						clock-output-names = "clk_hsicphy480m";
+						clocks = <&clk_hsicphy480m>;
+						clock-output-names = "clk_hsicphy12m";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 					};
@@ -976,10 +994,10 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					clk_hsicphy480m_mux: clk_hsicphy480m_mux {
+					clk_hsicphy480m: clk_hsicphy480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <0 2>;
-						clocks = <&clk_gates1 5>, <&clk_gates1 6>,
+						clocks = <&clk_otgphy0_480m>, <&clk_otgphy1_480m>,
 							 <&clk_gpll>, <&clk_cpll>;
 						clock-output-names = "clk_hsicphy480m";
 						#clock-cells = <0>;
@@ -1231,7 +1249,7 @@
 						 <&dclk_lcdc1>,		<&clk_cif_in>,
 
 						 <&xin24m>,			<&xin24m>,
-						 <&clk_hsicphy480m_mux>,	<&clk_cif0>,
+						 <&clk_hsicphy480m>,	<&clk_cif0>,
 
 						 <&xin24m>,		<&clk_vepu>,
 						 <&clk_vepu>,		<&clk_vdpu>,
