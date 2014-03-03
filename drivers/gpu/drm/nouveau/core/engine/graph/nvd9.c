@@ -23,33 +23,33 @@
  */
 
 #include "nvc0.h"
+#include "ctxnvc0.h"
 
 /*******************************************************************************
- * PGRAPH engine/subdev functions
+ * PGRAPH register lists
  ******************************************************************************/
 
-struct nvc0_graph_init
-nvd9_graph_init_unk64xx[] = {
+const struct nvc0_graph_init
+nvd9_graph_init_pd_0[] = {
+	{ 0x406024,   1, 0x04, 0x00000000 },
 	{ 0x4064f0,   3, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvd9_graph_init_unk58xx[] = {
+const struct nvc0_graph_init
+nvd9_graph_init_ds_0[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
 	{ 0x405900,   1, 0x04, 0x00002834 },
 	{ 0x405908,   1, 0x04, 0x00000000 },
-	{ 0x405928,   1, 0x04, 0x00000000 },
-	{ 0x40592c,   1, 0x04, 0x00000000 },
+	{ 0x405928,   2, 0x04, 0x00000000 },
 	{}
 };
 
-static struct nvc0_graph_init
-nvd9_graph_init_gpc[] = {
+const struct nvc0_graph_init
+nvd9_graph_init_gpc_0[] = {
 	{ 0x418408,   1, 0x04, 0x00000000 },
-	{ 0x4184a0,   1, 0x04, 0x00000000 },
-	{ 0x4184a4,   2, 0x04, 0x00000000 },
+	{ 0x4184a0,   3, 0x04, 0x00000000 },
 	{ 0x418604,   1, 0x04, 0x00000000 },
 	{ 0x418680,   1, 0x04, 0x00000000 },
 	{ 0x418714,   1, 0x04, 0x00000000 },
@@ -65,27 +65,24 @@ nvd9_graph_init_gpc[] = {
 	{ 0x418980,   1, 0x04, 0x77777770 },
 	{ 0x418984,   3, 0x04, 0x77777777 },
 	{ 0x418c04,   1, 0x04, 0x00000000 },
-	{ 0x418c64,   1, 0x04, 0x00000000 },
-	{ 0x418c68,   1, 0x04, 0x00000000 },
+	{ 0x418c64,   2, 0x04, 0x00000000 },
 	{ 0x418c88,   1, 0x04, 0x00000000 },
 	{ 0x418cb4,   2, 0x04, 0x00000000 },
 	{ 0x418d00,   1, 0x04, 0x00000000 },
-	{ 0x418d28,   1, 0x04, 0x00000000 },
-	{ 0x418d2c,   1, 0x04, 0x00000000 },
+	{ 0x418d28,   2, 0x04, 0x00000000 },
 	{ 0x418f00,   1, 0x04, 0x00000000 },
 	{ 0x418f08,   1, 0x04, 0x00000000 },
 	{ 0x418f20,   2, 0x04, 0x00000000 },
 	{ 0x418e00,   1, 0x04, 0x00000003 },
 	{ 0x418e08,   1, 0x04, 0x00000000 },
-	{ 0x418e1c,   1, 0x04, 0x00000000 },
-	{ 0x418e20,   1, 0x04, 0x00000000 },
+	{ 0x418e1c,   2, 0x04, 0x00000000 },
 	{ 0x41900c,   1, 0x04, 0x00000000 },
 	{ 0x419018,   1, 0x04, 0x00000000 },
 	{}
 };
 
-static struct nvc0_graph_init
-nvd9_graph_init_tpc[] = {
+static const struct nvc0_graph_init
+nvd9_graph_init_tpc_0[] = {
 	{ 0x419d08,   2, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
@@ -108,11 +105,9 @@ nvd9_graph_init_tpc[] = {
 	{ 0x419cc0,   2, 0x04, 0x00000000 },
 	{ 0x419bd4,   1, 0x04, 0x00800000 },
 	{ 0x419bdc,   1, 0x04, 0x00000000 },
-	{ 0x419bf8,   1, 0x04, 0x00000000 },
-	{ 0x419bfc,   1, 0x04, 0x00000000 },
+	{ 0x419bf8,   2, 0x04, 0x00000000 },
 	{ 0x419d2c,   1, 0x04, 0x00000000 },
-	{ 0x419d48,   1, 0x04, 0x00000000 },
-	{ 0x419d4c,   1, 0x04, 0x00000000 },
+	{ 0x419d48,   2, 0x04, 0x00000000 },
 	{ 0x419c0c,   1, 0x04, 0x00000000 },
 	{ 0x419e00,   1, 0x04, 0x00000000 },
 	{ 0x419ea0,   1, 0x04, 0x00000000 },
@@ -131,22 +126,33 @@ nvd9_graph_init_tpc[] = {
 	{}
 };
 
-static struct nvc0_graph_init *
-nvd9_graph_init_mmio[] = {
-	nvc0_graph_init_regs,
-	nvc0_graph_init_unk40xx,
-	nvc0_graph_init_unk44xx,
-	nvc0_graph_init_unk78xx,
-	nvc0_graph_init_unk60xx,
-	nvd9_graph_init_unk64xx,
-	nvd9_graph_init_unk58xx,
-	nvc0_graph_init_unk80xx,
-	nvd9_graph_init_gpc,
-	nvd9_graph_init_tpc,
-	nvc0_graph_init_unk88xx,
-	nvc0_graph_tpc_0,
-	NULL
+const struct nvc0_graph_init
+nvd9_graph_init_fe_1[] = {
+	{ 0x40402c,   1, 0x04, 0x00000000 },
+	{ 0x4040f0,   1, 0x04, 0x00000000 },
+	{ 0x404174,   1, 0x04, 0x00000000 },
+	{}
 };
+
+static const struct nvc0_graph_pack
+nvd9_graph_pack_mmio[] = {
+	{ nvc0_graph_init_main_0 },
+	{ nvc0_graph_init_fe_0 },
+	{ nvc0_graph_init_pri_0 },
+	{ nvc0_graph_init_rstr2d_0 },
+	{ nvd9_graph_init_pd_0 },
+	{ nvd9_graph_init_ds_0 },
+	{ nvc0_graph_init_scc_0 },
+	{ nvd9_graph_init_gpc_0 },
+	{ nvd9_graph_init_tpc_0 },
+	{ nvc0_graph_init_be_0 },
+	{ nvd9_graph_init_fe_1 },
+	{}
+};
+
+/*******************************************************************************
+ * PGRAPH engine/subdev functions
+ ******************************************************************************/
 
 struct nouveau_oclass *
 nvd9_graph_oclass = &(struct nvc0_graph_oclass) {
@@ -159,7 +165,7 @@ nvd9_graph_oclass = &(struct nvc0_graph_oclass) {
 	},
 	.cclass = &nvd9_grctx_oclass,
 	.sclass = nvc8_graph_sclass,
-	.mmio = nvd9_graph_init_mmio,
+	.mmio = nvd9_graph_pack_mmio,
 	.fecs.ucode = &nvc0_graph_fecs_ucode,
 	.gpccs.ucode = &nvc0_graph_gpccs_ucode,
 }.base;

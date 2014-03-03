@@ -22,10 +22,14 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nvc0.h"
+#include "ctxnvc0.h"
 
-static struct nvc0_graph_init
-nvc8_grctx_init_icmd[] = {
+/*******************************************************************************
+ * PGRAPH context register lists
+ ******************************************************************************/
+
+static const struct nvc0_graph_init
+nvc8_grctx_init_icmd_0[] = {
 	{ 0x001000,   1, 0x01, 0x00000004 },
 	{ 0x0000a9,   1, 0x01, 0x0000ffff },
 	{ 0x000038,   1, 0x01, 0x0fac6881 },
@@ -141,8 +145,7 @@ nvc8_grctx_init_icmd[] = {
 	{ 0x000586,   1, 0x01, 0x00000040 },
 	{ 0x000582,   2, 0x01, 0x00000080 },
 	{ 0x0005c2,   1, 0x01, 0x00000001 },
-	{ 0x000638,   1, 0x01, 0x00000001 },
-	{ 0x000639,   1, 0x01, 0x00000001 },
+	{ 0x000638,   2, 0x01, 0x00000001 },
 	{ 0x00063a,   1, 0x01, 0x00000002 },
 	{ 0x00063b,   2, 0x01, 0x00000001 },
 	{ 0x00063d,   1, 0x01, 0x00000002 },
@@ -203,15 +206,13 @@ nvc8_grctx_init_icmd[] = {
 	{ 0x000787,   1, 0x01, 0x000000cf },
 	{ 0x00078c,   1, 0x01, 0x00000008 },
 	{ 0x000792,   1, 0x01, 0x00000001 },
-	{ 0x000794,   1, 0x01, 0x00000001 },
-	{ 0x000795,   2, 0x01, 0x00000001 },
+	{ 0x000794,   3, 0x01, 0x00000001 },
 	{ 0x000797,   1, 0x01, 0x000000cf },
 	{ 0x000836,   1, 0x01, 0x00000001 },
 	{ 0x00079a,   1, 0x01, 0x00000002 },
 	{ 0x000833,   1, 0x01, 0x04444480 },
 	{ 0x0007a1,   1, 0x01, 0x00000001 },
-	{ 0x0007a3,   1, 0x01, 0x00000001 },
-	{ 0x0007a4,   2, 0x01, 0x00000001 },
+	{ 0x0007a3,   3, 0x01, 0x00000001 },
 	{ 0x000831,   1, 0x01, 0x00000004 },
 	{ 0x00080c,   1, 0x01, 0x00000002 },
 	{ 0x00080d,   2, 0x01, 0x00000100 },
@@ -237,14 +238,12 @@ nvc8_grctx_init_icmd[] = {
 	{ 0x0006b1,   1, 0x01, 0x00000011 },
 	{ 0x00078c,   1, 0x01, 0x00000008 },
 	{ 0x000792,   1, 0x01, 0x00000001 },
-	{ 0x000794,   1, 0x01, 0x00000001 },
-	{ 0x000795,   2, 0x01, 0x00000001 },
+	{ 0x000794,   3, 0x01, 0x00000001 },
 	{ 0x000797,   1, 0x01, 0x000000cf },
 	{ 0x00079a,   1, 0x01, 0x00000002 },
 	{ 0x000833,   1, 0x01, 0x04444480 },
 	{ 0x0007a1,   1, 0x01, 0x00000001 },
-	{ 0x0007a3,   1, 0x01, 0x00000001 },
-	{ 0x0007a4,   2, 0x01, 0x00000001 },
+	{ 0x0007a3,   3, 0x01, 0x00000001 },
 	{ 0x000831,   1, 0x01, 0x00000004 },
 	{ 0x01e100,   1, 0x01, 0x00000001 },
 	{ 0x001000,   1, 0x01, 0x00000014 },
@@ -269,7 +268,40 @@ nvc8_grctx_init_icmd[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+static const struct nvc0_graph_pack
+nvc8_grctx_pack_icmd[] = {
+	{ nvc8_grctx_init_icmd_0 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc8_grctx_init_9197_0[] = {
+	{ 0x0002e4,   1, 0x04, 0x0000b001 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc8_grctx_init_9297_0[] = {
+	{ 0x003400, 128, 0x04, 0x00000000 },
+	{ 0x00036c,   2, 0x04, 0x00000000 },
+	{ 0x0007a4,   2, 0x04, 0x00000000 },
+	{ 0x000374,   1, 0x04, 0x00000000 },
+	{ 0x000378,   1, 0x04, 0x00000020 },
+	{}
+};
+
+static const struct nvc0_graph_pack
+nvc8_grctx_pack_mthd[] = {
+	{ nvc1_grctx_init_9097_0, 0x9097 },
+	{ nvc8_grctx_init_9197_0, 0x9197 },
+	{ nvc8_grctx_init_9297_0, 0x9297 },
+	{ nvc0_grctx_init_902d_0, 0x902d },
+	{ nvc0_grctx_init_9039_0, 0x9039 },
+	{ nvc0_grctx_init_90c0_0, 0x90c0 },
+	{}
+};
+
+static const struct nvc0_graph_init
 nvc8_grctx_init_gpc_0[] = {
 	{ 0x418380,   1, 0x04, 0x00000016 },
 	{ 0x418400,   1, 0x04, 0x38004e00 },
@@ -318,41 +350,15 @@ nvc8_grctx_init_gpc_0[] = {
 	{}
 };
 
-struct nvc0_graph_init
-nvc8_grctx_init_9197[] = {
-	{ 0x0002e4,   1, 0x04, 0x0000b001 },
+static const struct nvc0_graph_pack
+nvc8_grctx_pack_gpc[] = {
+	{ nvc8_grctx_init_gpc_0 },
 	{}
 };
 
-struct nvc0_graph_init
-nvc8_grctx_init_9297[] = {
-	{ 0x003400, 128, 0x04, 0x00000000 },
-	{ 0x00036c,   2, 0x04, 0x00000000 },
-	{ 0x0007a4,   2, 0x04, 0x00000000 },
-	{ 0x000374,   1, 0x04, 0x00000000 },
-	{ 0x000378,   1, 0x04, 0x00000020 },
-	{}
-};
-
-static struct nvc0_graph_mthd
-nvc8_grctx_init_mthd[] = {
-	{ 0x9097, nvc1_grctx_init_9097, },
-	{ 0x9197, nvc8_grctx_init_9197, },
-	{ 0x9297, nvc8_grctx_init_9297, },
-	{ 0x902d, nvc0_grctx_init_902d, },
-	{ 0x9039, nvc0_grctx_init_9039, },
-	{ 0x90c0, nvc0_grctx_init_90c0, },
-	{ 0x902d, nvc0_grctx_init_mthd_magic, },
-	{}
-};
-
-static struct nvc0_graph_init *
-nvc8_grctx_init_gpc[] = {
-	nvc8_grctx_init_gpc_0,
-	nvc0_grctx_init_gpc_1,
-	nvc0_grctx_init_tpc,
-	NULL
-};
+/*******************************************************************************
+ * PGRAPH context implementation
+ ******************************************************************************/
 
 struct nouveau_oclass *
 nvc8_grctx_oclass = &(struct nvc0_grctx_oclass) {
@@ -365,11 +371,13 @@ nvc8_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.rd32 = _nouveau_graph_context_rd32,
 		.wr32 = _nouveau_graph_context_wr32,
 	},
-	.main = nvc0_grctx_generate_main,
-	.mods = nvc0_grctx_generate_mods,
-	.unkn = nvc0_grctx_generate_unkn,
-	.hub  = nvc0_grctx_init_hub,
-	.gpc  = nvc8_grctx_init_gpc,
-	.icmd = nvc8_grctx_init_icmd,
-	.mthd = nvc8_grctx_init_mthd,
+	.main  = nvc0_grctx_generate_main,
+	.mods  = nvc0_grctx_generate_mods,
+	.unkn  = nvc0_grctx_generate_unkn,
+	.hub   = nvc0_grctx_pack_hub,
+	.gpc   = nvc8_grctx_pack_gpc,
+	.zcull = nvc0_grctx_pack_zcull,
+	.tpc   = nvc0_grctx_pack_tpc,
+	.icmd  = nvc8_grctx_pack_icmd,
+	.mthd  = nvc8_grctx_pack_mthd,
 }.base;

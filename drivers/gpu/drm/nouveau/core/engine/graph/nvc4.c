@@ -23,13 +23,14 @@
  */
 
 #include "nvc0.h"
+#include "ctxnvc0.h"
 
 /*******************************************************************************
- * PGRAPH engine/subdev functions
+ * PGRAPH register lists
  ******************************************************************************/
 
-struct nvc0_graph_init
-nvc4_graph_init_unk58xx[] = {
+const struct nvc0_graph_init
+nvc4_graph_init_ds_0[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
 	{ 0x405900,   1, 0x04, 0x00002834 },
@@ -37,8 +38,8 @@ nvc4_graph_init_unk58xx[] = {
 	{}
 };
 
-static struct nvc0_graph_init
-nvc4_graph_init_tpc[] = {
+static const struct nvc0_graph_init
+nvc4_graph_init_tpc_0[] = {
 	{ 0x419d08,   2, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
@@ -77,21 +78,25 @@ nvc4_graph_init_tpc[] = {
 	{}
 };
 
-static struct nvc0_graph_init *
-nvc4_graph_init_mmio[] = {
-	nvc0_graph_init_regs,
-	nvc0_graph_init_unk40xx,
-	nvc0_graph_init_unk44xx,
-	nvc0_graph_init_unk78xx,
-	nvc0_graph_init_unk60xx,
-	nvc4_graph_init_unk58xx,
-	nvc0_graph_init_unk80xx,
-	nvc0_graph_init_gpc,
-	nvc4_graph_init_tpc,
-	nvc0_graph_init_unk88xx,
-	nvc0_graph_tpc_0,
-	NULL
+static const struct nvc0_graph_pack
+nvc4_graph_pack_mmio[] = {
+	{ nvc0_graph_init_main_0 },
+	{ nvc0_graph_init_fe_0 },
+	{ nvc0_graph_init_pri_0 },
+	{ nvc0_graph_init_rstr2d_0 },
+	{ nvc0_graph_init_pd_0 },
+	{ nvc4_graph_init_ds_0 },
+	{ nvc0_graph_init_scc_0 },
+	{ nvc0_graph_init_gpc_0 },
+	{ nvc4_graph_init_tpc_0 },
+	{ nvc0_graph_init_be_0 },
+	{ nvc0_graph_init_fe_1 },
+	{}
 };
+
+/*******************************************************************************
+ * PGRAPH engine/subdev functions
+ ******************************************************************************/
 
 struct nouveau_oclass *
 nvc4_graph_oclass = &(struct nvc0_graph_oclass) {
@@ -104,7 +109,7 @@ nvc4_graph_oclass = &(struct nvc0_graph_oclass) {
 	},
 	.cclass = &nvc4_grctx_oclass,
 	.sclass = nvc0_graph_sclass,
-	.mmio = nvc4_graph_init_mmio,
+	.mmio = nvc4_graph_pack_mmio,
 	.fecs.ucode = &nvc0_graph_fecs_ucode,
 	.gpccs.ucode = &nvc0_graph_gpccs_ucode,
 }.base;

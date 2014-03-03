@@ -23,6 +23,7 @@
  */
 
 #include "nvc0.h"
+#include "ctxnvc0.h"
 
 /*******************************************************************************
  * Graphics object classes
@@ -38,11 +39,11 @@ nv108_graph_sclass[] = {
 };
 
 /*******************************************************************************
- * PGRAPH engine/subdev functions
+ * PGRAPH register lists
  ******************************************************************************/
 
-static struct nvc0_graph_init
-nv108_graph_init_regs[] = {
+static const struct nvc0_graph_init
+nv108_graph_init_main_0[] = {
 	{ 0x400080,   1, 0x04, 0x003083c2 },
 	{ 0x400088,   1, 0x04, 0x0001bfe7 },
 	{ 0x40008c,   1, 0x04, 0x00000000 },
@@ -57,19 +58,18 @@ nv108_graph_init_regs[] = {
 	{}
 };
 
-struct nvc0_graph_init
-nv108_graph_init_unk58xx[] = {
+static const struct nvc0_graph_init
+nv108_graph_init_ds_0[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
 	{ 0x405900,   1, 0x04, 0x00000000 },
 	{ 0x405908,   1, 0x04, 0x00000000 },
-	{ 0x405928,   1, 0x04, 0x00000000 },
-	{ 0x40592c,   1, 0x04, 0x00000000 },
+	{ 0x405928,   2, 0x04, 0x00000000 },
 	{}
 };
 
-static struct nvc0_graph_init
-nv108_graph_init_gpc[] = {
+static const struct nvc0_graph_init
+nv108_graph_init_gpc_0[] = {
 	{ 0x418408,   1, 0x04, 0x00000000 },
 	{ 0x4184a0,   3, 0x04, 0x00000000 },
 	{ 0x418604,   1, 0x04, 0x00000000 },
@@ -103,8 +103,8 @@ nv108_graph_init_gpc[] = {
 	{}
 };
 
-static struct nvc0_graph_init
-nv108_graph_init_tpc[] = {
+static const struct nvc0_graph_init
+nv108_graph_init_tpc_0[] = {
 	{ 0x419d0c,   1, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
@@ -143,6 +143,29 @@ nv108_graph_init_tpc[] = {
 	{}
 };
 
+static const struct nvc0_graph_pack
+nv108_graph_pack_mmio[] = {
+	{ nv108_graph_init_main_0 },
+	{ nvf0_graph_init_fe_0 },
+	{ nvc0_graph_init_pri_0 },
+	{ nvc0_graph_init_rstr2d_0 },
+	{ nvd9_graph_init_pd_0 },
+	{ nv108_graph_init_ds_0 },
+	{ nvc0_graph_init_scc_0 },
+	{ nvf0_graph_init_sked_0 },
+	{ nvf0_graph_init_cwd_0 },
+	{ nv108_graph_init_gpc_0 },
+	{ nv108_graph_init_tpc_0 },
+	{ nvd7_graph_init_ppc_0 },
+	{ nve4_graph_init_be_0 },
+	{ nvc0_graph_init_fe_1 },
+	{}
+};
+
+/*******************************************************************************
+ * PGRAPH engine/subdev functions
+ ******************************************************************************/
+
 static int
 nv108_graph_fini(struct nouveau_object *object, bool suspend)
 {
@@ -180,25 +203,6 @@ nv108_graph_fini(struct nouveau_object *object, bool suspend)
 	return nouveau_graph_fini(&priv->base, suspend);
 }
 
-static struct nvc0_graph_init *
-nv108_graph_init_mmio[] = {
-	nv108_graph_init_regs,
-	nvf0_graph_init_unk40xx,
-	nvc0_graph_init_unk44xx,
-	nvc0_graph_init_unk78xx,
-	nvc0_graph_init_unk60xx,
-	nvd9_graph_init_unk64xx,
-	nv108_graph_init_unk58xx,
-	nvc0_graph_init_unk80xx,
-	nvf0_graph_init_unk70xx,
-	nvf0_graph_init_unk5bxx,
-	nv108_graph_init_gpc,
-	nv108_graph_init_tpc,
-	nve4_graph_init_unk,
-	nve4_graph_init_unk88xx,
-	NULL
-};
-
 #include "fuc/hubnv108.fuc5.h"
 
 static struct nvc0_graph_ucode
@@ -230,7 +234,7 @@ nv108_graph_oclass = &(struct nvc0_graph_oclass) {
 	},
 	.cclass = &nv108_grctx_oclass,
 	.sclass =  nv108_graph_sclass,
-	.mmio = nv108_graph_init_mmio,
+	.mmio = nv108_graph_pack_mmio,
 	.fecs.ucode = &nv108_graph_fecs_ucode,
 	.gpccs.ucode = &nv108_graph_gpccs_ucode,
 }.base;

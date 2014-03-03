@@ -22,10 +22,14 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nvc0.h"
+#include "ctxnvc0.h"
 
-static struct nvc0_graph_init
-nvc4_grctx_init_tpc[] = {
+/*******************************************************************************
+ * PGRAPH context register lists
+ ******************************************************************************/
+
+static const struct nvc0_graph_init
+nvc4_grctx_init_tpc_0[] = {
 	{ 0x419818,   1, 0x04, 0x00000000 },
 	{ 0x41983c,   1, 0x04, 0x00038bc7 },
 	{ 0x419848,   1, 0x04, 0x00000000 },
@@ -70,13 +74,15 @@ nvc4_grctx_init_tpc[] = {
 	{}
 };
 
-struct nvc0_graph_init *
-nvc4_grctx_init_gpc[] = {
-	nvc0_grctx_init_gpc_0,
-	nvc0_grctx_init_gpc_1,
-	nvc4_grctx_init_tpc,
-	NULL
+static const struct nvc0_graph_pack
+nvc4_grctx_pack_tpc[] = {
+	{ nvc4_grctx_init_tpc_0 },
+	{}
 };
+
+/*******************************************************************************
+ * PGRAPH context implementation
+ ******************************************************************************/
 
 struct nouveau_oclass *
 nvc4_grctx_oclass = &(struct nvc0_grctx_oclass) {
@@ -89,11 +95,13 @@ nvc4_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.rd32 = _nouveau_graph_context_rd32,
 		.wr32 = _nouveau_graph_context_wr32,
 	},
-	.main = nvc0_grctx_generate_main,
-	.mods = nvc0_grctx_generate_mods,
-	.unkn = nvc0_grctx_generate_unkn,
-	.hub  = nvc0_grctx_init_hub,
-	.gpc  = nvc4_grctx_init_gpc,
-	.icmd = nvc0_grctx_init_icmd,
-	.mthd = nvc0_grctx_init_mthd,
+	.main  = nvc0_grctx_generate_main,
+	.mods  = nvc0_grctx_generate_mods,
+	.unkn  = nvc0_grctx_generate_unkn,
+	.hub   = nvc0_grctx_pack_hub,
+	.gpc   = nvc0_grctx_pack_gpc,
+	.zcull = nvc0_grctx_pack_zcull,
+	.tpc   = nvc4_grctx_pack_tpc,
+	.icmd  = nvc0_grctx_pack_icmd,
+	.mthd  = nvc0_grctx_pack_mthd,
 }.base;
