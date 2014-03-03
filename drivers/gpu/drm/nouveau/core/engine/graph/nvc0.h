@@ -196,7 +196,7 @@ extern struct nvc0_graph_init nvc0_graph_init_gpc[];
 extern struct nvc0_graph_init nvc0_graph_init_unk88xx[];
 extern struct nvc0_graph_init nvc0_graph_tpc_0[];
 
-extern struct nvc0_graph_init nvc3_graph_init_unk58xx[];
+extern struct nvc0_graph_init nvc4_graph_init_unk58xx[];
 
 extern struct nvc0_graph_init nvd9_graph_init_unk58xx[];
 extern struct nvc0_graph_init nvd9_graph_init_unk64xx[];
@@ -249,7 +249,7 @@ void nvc1_grctx_generate_unkn(struct nvc0_graph_priv *);
 extern struct nouveau_oclass *nvc1_grctx_oclass;
 extern struct nvc0_graph_init nvc1_grctx_init_9097[];
 
-extern struct nouveau_oclass *nvc3_grctx_oclass;
+extern struct nouveau_oclass *nvc4_grctx_oclass;
 
 extern struct nouveau_oclass *nvc8_grctx_oclass;
 extern struct nvc0_graph_init nvc8_grctx_init_9197[];

@@ -118,7 +118,7 @@ nvc1_graph_init_mmio[] = {
 	nvc0_graph_init_unk44xx,
 	nvc0_graph_init_unk78xx,
 	nvc0_graph_init_unk60xx,
-	nvc3_graph_init_unk58xx,
+	nvc4_graph_init_unk58xx,
 	nvc0_graph_init_unk80xx,
 	nvc1_graph_init_gpc,
 	nvc1_graph_init_tpc,

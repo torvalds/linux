@@ -29,7 +29,7 @@
  ******************************************************************************/
 
 struct nvc0_graph_init
-nvc3_graph_init_unk58xx[] = {
+nvc4_graph_init_unk58xx[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
 	{ 0x405900,   1, 0x04, 0x00002834 },
@@ -38,7 +38,7 @@ nvc3_graph_init_unk58xx[] = {
 };
 
 static struct nvc0_graph_init
-nvc3_graph_init_tpc[] = {
+nvc4_graph_init_tpc[] = {
 	{ 0x419d08,   2, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
@@ -78,23 +78,23 @@ nvc3_graph_init_tpc[] = {
 };
 
 static struct nvc0_graph_init *
-nvc3_graph_init_mmio[] = {
+nvc4_graph_init_mmio[] = {
 	nvc0_graph_init_regs,
 	nvc0_graph_init_unk40xx,
 	nvc0_graph_init_unk44xx,
 	nvc0_graph_init_unk78xx,
 	nvc0_graph_init_unk60xx,
-	nvc3_graph_init_unk58xx,
+	nvc4_graph_init_unk58xx,
 	nvc0_graph_init_unk80xx,
 	nvc0_graph_init_gpc,
-	nvc3_graph_init_tpc,
+	nvc4_graph_init_tpc,
 	nvc0_graph_init_unk88xx,
 	nvc0_graph_tpc_0,
 	NULL
 };
 
 struct nouveau_oclass *
-nvc3_graph_oclass = &(struct nvc0_graph_oclass) {
+nvc4_graph_oclass = &(struct nvc0_graph_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xc3),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_graph_ctor,
@@ -102,9 +102,9 @@ nvc3_graph_oclass = &(struct nvc0_graph_oclass) {
 		.init = nvc0_graph_init,
 		.fini = _nouveau_graph_fini,
 	},
-	.cclass = &nvc3_grctx_oclass,
+	.cclass = &nvc4_grctx_oclass,
 	.sclass = nvc0_graph_sclass,
-	.mmio = nvc3_graph_init_mmio,
+	.mmio = nvc4_graph_init_mmio,
 	.fecs.ucode = &nvc0_graph_fecs_ucode,
 	.gpccs.ucode = &nvc0_graph_gpccs_ucode,
 }.base;

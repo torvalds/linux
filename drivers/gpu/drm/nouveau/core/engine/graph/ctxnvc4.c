@@ -25,7 +25,7 @@
 #include "nvc0.h"
 
 static struct nvc0_graph_init
-nvc3_grctx_init_tpc[] = {
+nvc4_grctx_init_tpc[] = {
 	{ 0x419818,   1, 0x04, 0x00000000 },
 	{ 0x41983c,   1, 0x04, 0x00038bc7 },
 	{ 0x419848,   1, 0x04, 0x00000000 },
@@ -71,15 +71,15 @@ nvc3_grctx_init_tpc[] = {
 };
 
 struct nvc0_graph_init *
-nvc3_grctx_init_gpc[] = {
+nvc4_grctx_init_gpc[] = {
 	nvc0_grctx_init_gpc_0,
 	nvc0_grctx_init_gpc_1,
-	nvc3_grctx_init_tpc,
+	nvc4_grctx_init_tpc,
 	NULL
 };
 
 struct nouveau_oclass *
-nvc3_grctx_oclass = &(struct nvc0_grctx_oclass) {
+nvc4_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.base.handle = NV_ENGCTX(GR, 0xc3),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_graph_context_ctor,
@@ -93,7 +93,7 @@ nvc3_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.mods = nvc0_grctx_generate_mods,
 	.unkn = nvc0_grctx_generate_unkn,
 	.hub  = nvc0_grctx_init_hub,
-	.gpc  = nvc3_grctx_init_gpc,
+	.gpc  = nvc4_grctx_init_gpc,
 	.icmd = nvc0_grctx_init_icmd,
 	.mthd = nvc0_grctx_init_mthd,
 }.base;

@@ -63,7 +63,7 @@ extern struct nouveau_oclass nv40_graph_oclass;
 extern struct nouveau_oclass nv50_graph_oclass;
 extern struct nouveau_oclass *nvc0_graph_oclass;
 extern struct nouveau_oclass *nvc1_graph_oclass;
-extern struct nouveau_oclass *nvc3_graph_oclass;
+extern struct nouveau_oclass *nvc4_graph_oclass;
 extern struct nouveau_oclass *nvc8_graph_oclass;
 extern struct nouveau_oclass *nvd7_graph_oclass;
 extern struct nouveau_oclass *nvd9_graph_oclass;
