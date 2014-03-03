@@ -1039,9 +1039,8 @@ static int omap_dev_ready(struct mtd_info *mtd)
 	}
 }
 
-#if defined(CONFIG_MTD_NAND_ECC_BCH) || defined(CONFIG_MTD_NAND_OMAP_BCH)
 /**
- * omap3_enable_hwecc_bch - Program OMAP3 GPMC to perform BCH ECC correction
+ * omap_enable_hwecc_bch - Program GPMC to perform BCH ECC calculation
  * @mtd: MTD device structure
  * @mode: Read/Write mode
  *
@@ -1052,7 +1051,7 @@ static int omap_dev_ready(struct mtd_info *mtd)
  * eccsize0 = 0  (no additional protected byte in spare area)
  * eccsize1 = 32 (skip 32 nibbles = 16 bytes per sector in spare area)
  */
-static void omap3_enable_hwecc_bch(struct mtd_info *mtd, int mode)
+static void __maybe_unused omap_enable_hwecc_bch(struct mtd_info *mtd, int mode)
 {
 	int nerrors;
 	unsigned int dev_width, nsectors;
@@ -1120,7 +1119,7 @@ static void omap3_enable_hwecc_bch(struct mtd_info *mtd, int mode)
 	/* Clear ecc and enable bits */
 	writel(ECCCLEAR | ECC1, info->reg.gpmc_ecc_control);
 }
-#endif
+
 static u8  bch4_polynomial[] = {0x28, 0x13, 0xcc, 0x39, 0x96, 0xac, 0x7f};
 static u8  bch8_polynomial[] = {0xef, 0x51, 0x2e, 0x09, 0xed, 0x93, 0x9a, 0xc2,
 				0x97, 0x79, 0xe5, 0x24, 0xb5};
@@ -1763,7 +1762,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->ecc.size		= 512;
 		nand_chip->ecc.bytes		= 7;
 		nand_chip->ecc.strength		= 4;
-		nand_chip->ecc.hwctl		= omap3_enable_hwecc_bch;
+		nand_chip->ecc.hwctl		= omap_enable_hwecc_bch;
 		nand_chip->ecc.correct		= nand_bch_correct_data;
 		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
 		/* define ECC layout */
@@ -1803,7 +1802,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		/* 14th bit is kept reserved for ROM-code compatibility */
 		nand_chip->ecc.bytes		= 7 + 1;
 		nand_chip->ecc.strength		= 4;
-		nand_chip->ecc.hwctl		= omap3_enable_hwecc_bch;
+		nand_chip->ecc.hwctl		= omap_enable_hwecc_bch;
 		nand_chip->ecc.correct		= omap_elm_correct_data;
 		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
 		nand_chip->ecc.read_page	= omap_read_page_bch;
@@ -1838,7 +1837,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->ecc.size		= 512;
 		nand_chip->ecc.bytes		= 13;
 		nand_chip->ecc.strength		= 8;
-		nand_chip->ecc.hwctl		= omap3_enable_hwecc_bch;
+		nand_chip->ecc.hwctl		= omap_enable_hwecc_bch;
 		nand_chip->ecc.correct		= nand_bch_correct_data;
 		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
 		/* define ECC layout */
@@ -1879,7 +1878,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		/* 14th bit is kept reserved for ROM-code compatibility */
 		nand_chip->ecc.bytes		= 13 + 1;
 		nand_chip->ecc.strength		= 8;
-		nand_chip->ecc.hwctl		= omap3_enable_hwecc_bch;
+		nand_chip->ecc.hwctl		= omap_enable_hwecc_bch;
 		nand_chip->ecc.correct		= omap_elm_correct_data;
 		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
 		nand_chip->ecc.read_page	= omap_read_page_bch;
