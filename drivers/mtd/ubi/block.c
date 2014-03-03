@@ -201,7 +201,7 @@ static int ubiblock_read(struct ubiblock *dev, char *buffer,
 	int ret, leb, offset;
 	int bytes_left = len;
 	int to_read = len;
-	loff_t pos = sec << 9;
+	u64 pos = sec << 9;
 
 	/* Get LEB:offset address to read from */
 	offset = do_div(pos, dev->leb_size);
