@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -128,6 +128,10 @@ s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 
 #define IXGBE_FAILED_READ_REG 0xffffffffU
+#define IXGBE_FAILED_READ_CFG_DWORD 0xffffffffU
+#define IXGBE_FAILED_READ_CFG_WORD 0xffffU
+
+u16 ixgbe_read_pci_cfg_word(struct ixgbe_hw *hw, u32 reg);
 
 static inline bool ixgbe_removed(void __iomem *addr)
 {

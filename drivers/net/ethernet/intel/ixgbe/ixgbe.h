@@ -765,6 +765,7 @@ struct ixgbe_adapter {
 	struct ptp_clock_info ptp_caps;
 	struct work_struct ptp_tx_work;
 	struct sk_buff *ptp_tx_skb;
+	struct hwtstamp_config tstamp_config;
 	unsigned long ptp_tx_start;
 	unsigned long last_overflow_check;
 	unsigned long last_rx_ptp_check;
@@ -957,8 +958,8 @@ static inline void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
 	rx_ring->last_rx_timestamp = jiffies;
 }
 
-int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter, struct ifreq *ifr,
-			     int cmd);
+int ixgbe_ptp_set_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr);
+int ixgbe_ptp_get_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr);
 void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_reset(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr);
