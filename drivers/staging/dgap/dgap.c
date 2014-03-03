@@ -2381,7 +2381,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 	 * Determine if this is the last close or not - and if we agree about
 	 * which type of close it is with the Line Discipline
 	 */
-	if ((tty->count == 1) && (un->un_open_count != 1))
+	if ((tty->count == 1) && (un->un_open_count != 1)) {
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
 		 * structure will be freed.  un_open_count should always
@@ -2390,6 +2390,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 		 * serial port won't be shutdown.
 		 */
 		un->un_open_count = 1;
+	}
 
 	if (--un->un_open_count < 0)
 		un->un_open_count = 0;
