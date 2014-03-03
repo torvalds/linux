@@ -418,7 +418,7 @@ int pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
 
 __attribute__((constructor)) static void init_preload(void)
 {
-	if (__init_state != done)
+	if (__init_state == done)
 		return;
 
 #ifndef __GLIBC__
