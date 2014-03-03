@@ -87,3 +87,7 @@
  86 -> PCTV QuatroStick nano (520e)             (em2884)        [2013:0251]
  87 -> Terratec Cinergy HTC USB XS              (em2884)        [0ccd:008e,0ccd:00ac]
  88 -> C3 Tech Digital Duo HDTV/SDTV USB        (em2884)        [1b80:e755]
+ 89 -> Delock 61959                             (em2874)        [1b80:e1cc]
+ 90 -> KWorld USB ATSC TV Stick UB435-Q V2      (em2874)        [1b80:e346]
+ 91 -> SpeedLink Vicious And Devine Laplace webcam (em2765)        [1ae7:9003,1ae7:9004]
+ 92 -> PCTV DVB-S2 Stick (461e)                 (em28178)
