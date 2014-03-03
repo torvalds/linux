@@ -418,6 +418,8 @@ nfs4_put_delegation(struct nfs4_delegation *dp)
 
 static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 {
+	if (!fp->fi_lease)
+		return;
 	if (atomic_dec_and_test(&fp->fi_delegees)) {
 		vfs_setlease(fp->fi_deleg_file, F_UNLCK, &fp->fi_lease);
 		fp->fi_lease = NULL;
@@ -440,9 +442,11 @@ unhash_delegation(struct nfs4_delegation *dp)
 	list_del_init(&dp->dl_perfile);
 	list_del_init(&dp->dl_recall_lru);
 	spin_unlock(&recall_lock);
-	nfs4_put_deleg_lease(dp->dl_file);
-	put_nfs4_file(dp->dl_file);
-	dp->dl_file = NULL;
+	if (dp->dl_file) {
+		nfs4_put_deleg_lease(dp->dl_file);
+		put_nfs4_file(dp->dl_file);
+		dp->dl_file = NULL;
+	}
 }
 
 
@@ -3060,33 +3064,22 @@ out_free:
 
 static int nfs4_set_delegation(struct nfs4_delegation *dp, struct nfs4_file *fp)
 {
-	int status;
-
 	if (fp->fi_had_conflict)
 		return -EAGAIN;
 	get_nfs4_file(fp);
 	dp->dl_file = fp;
-	if (!fp->fi_lease) {
-		status = nfs4_setlease(dp);
-		if (status)
-			goto out_free;
-		return 0;
-	}
+	if (!fp->fi_lease)
+		return nfs4_setlease(dp);
 	spin_lock(&recall_lock);
+	atomic_inc(&fp->fi_delegees);
 	if (fp->fi_had_conflict) {
 		spin_unlock(&recall_lock);
-		status = -EAGAIN;
-		goto out_free;
+		return -EAGAIN;
 	}
-	atomic_inc(&fp->fi_delegees);
 	list_add(&dp->dl_perfile, &fp->fi_delegations);
 	spin_unlock(&recall_lock);
 	list_add(&dp->dl_perclnt, &dp->dl_stid.sc_client->cl_delegations);
 	return 0;
-out_free:
-	put_nfs4_file(fp);
-	dp->dl_file = fp;
-	return status;
 }
 
 static void nfsd4_open_deleg_none_ext(struct nfsd4_open *open, int status)
@@ -3173,8 +3166,7 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 	open->op_delegate_type = NFS4_OPEN_DELEGATE_READ;
 	return;
 out_free:
-	remove_stid(&dp->dl_stid);
-	nfs4_put_delegation(dp);
+	destroy_delegation(dp);
 out_no_deleg:
 	open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE;
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
