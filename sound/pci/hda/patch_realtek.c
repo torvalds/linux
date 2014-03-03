@@ -3594,19 +3594,36 @@ static void alc_fixup_headset_mode_no_hp_mic(struct hda_codec *codec,
 		alc_fixup_headset_mode(codec, fix, action);
 }
 
+static void alc255_set_default_jack_type(struct hda_codec *codec)
+{
+	/* Set to iphone type */
+	alc_write_coef_idx(codec, 0x1b, 0x880b);
+	alc_write_coef_idx(codec, 0x45, 0xd089);
+	alc_write_coef_idx(codec, 0x1b, 0x080b);
+	alc_write_coef_idx(codec, 0x46, 0x0004);
+	alc_write_coef_idx(codec, 0x1b, 0x0c0b);
+	msleep(30);
+}
+
 static void alc_fixup_headset_mode_alc255(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		/* Set to iphone type */
-		alc_write_coef_idx(codec, 0x1b, 0x880b);
-		alc_write_coef_idx(codec, 0x45, 0xd089);
-		alc_write_coef_idx(codec, 0x1b, 0x080b);
-		alc_write_coef_idx(codec, 0x46, 0x0004);
-		alc_write_coef_idx(codec, 0x1b, 0x0c0b);
-		msleep(30);
+		alc255_set_default_jack_type(codec);
 	}
 	alc_fixup_headset_mode(codec, fix, action);
+}
+
+static void alc_fixup_headset_mode_alc255_no_hp_mic(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		struct alc_spec *spec = codec->spec;
+		spec->parse_flags |= HDA_PINCFG_HEADSET_MIC;
+		alc255_set_default_jack_type(codec);
+	} 
+	else
+		alc_fixup_headset_mode(codec, fix, action);
 }
 
 static void alc_fixup_auto_mute_via_amp(struct hda_codec *codec,
@@ -3875,7 +3892,9 @@ enum {
 	ALC290_FIXUP_SUBWOOFER_HSJACK,
 	ALC269_FIXUP_THINKPAD_ACPI,
 	ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+	ALC255_FIXUP_DELL2_MIC_NO_PRESENCE,
 	ALC255_FIXUP_HEADSET_MODE,
+	ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -4248,9 +4267,22 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC255_FIXUP_HEADSET_MODE
 	},
+	[ALC255_FIXUP_DELL2_MIC_NO_PRESENCE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x19, 0x01a1913c }, /* use as headset mic, without its own jack detect */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC
+	},
 	[ALC255_FIXUP_HEADSET_MODE] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode_alc255,
+	},
+	[ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_headset_mode_alc255_no_hp_mic,
 	},
 };
 
@@ -4314,6 +4346,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0658, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x065f, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0662, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1028, 0x0668, "Dell", ALC255_FIXUP_DELL2_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1028, 0x0669, "Dell", ALC255_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x15cc, "Dell X5 Precision", ALC269_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x15cd, "Dell X5 Precision", ALC269_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x103c, 0x1586, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC2),
