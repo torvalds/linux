@@ -4957,17 +4957,18 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 		ret = apply_children_dir_moves(sctx);
 		if (ret)
 			goto out;
+		/*
+		 * Need to send that every time, no matter if it actually
+		 * changed between the two trees as we have done changes to
+		 * the inode before. If our inode is a directory and it's
+		 * waiting to be moved/renamed, we will send its utimes when
+		 * it's moved/renamed, therefore we don't need to do it here.
+		 */
+		sctx->send_progress = sctx->cur_ino + 1;
+		ret = send_utimes(sctx, sctx->cur_ino, sctx->cur_inode_gen);
+		if (ret < 0)
+			goto out;
 	}
-
-	/*
-	 * Need to send that every time, no matter if it actually
-	 * changed between the two trees as we have done changes to
-	 * the inode before.
-	 */
-	sctx->send_progress = sctx->cur_ino + 1;
-	ret = send_utimes(sctx, sctx->cur_ino, sctx->cur_inode_gen);
-	if (ret < 0)
-		goto out;
 
 out:
 	return ret;
