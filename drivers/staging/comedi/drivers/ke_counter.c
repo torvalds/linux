@@ -34,6 +34,21 @@ Kolter Electronic PCI Counter Card.
 
 #include "../comedidev.h"
 
+/*
+ * PCI BAR 0 Register I/O map
+ */
+#define KE_RESET_REG(x)			(0x00 + ((x) * 0x20))
+#define KE_LATCH_REG(x)			(0x00 + ((x) * 0x20))
+#define KE_LSB_REG(x)			(0x04 + ((x) * 0x20))
+#define KE_MID_REG(x)			(0x08 + ((x) * 0x20))
+#define KE_MSB_REG(x)			(0x0c + ((x) * 0x20))
+#define KE_SIGN_REG(x)			(0x10 + ((x) * 0x20))
+#define KE_OSC_SEL_REG			0xf8
+#define KE_OSC_SEL_EXT			(1 << 0)
+#define KE_OSC_SEL_4MHZ			(2 << 0)
+#define KE_OSC_SEL_20MHZ		(3 << 0)
+#define KE_DO_REG			0xfc
+
 /*-- counter write ----------------------------------------------------------*/
 
 /* This should be used only for resetting the counters; maybe it is better
@@ -45,13 +60,13 @@ static int cnt_winsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 
 	outb((unsigned char)((data[0] >> 24) & 0xff),
-	     dev->iobase + chan * 0x20 + 0x10);
+	     dev->iobase + KE_SIGN_REG(chan));
 	outb((unsigned char)((data[0] >> 16) & 0xff),
-	     dev->iobase + chan * 0x20 + 0x0c);
+	     dev->iobase + KE_MSB_REG(chan));
 	outb((unsigned char)((data[0] >> 8) & 0xff),
-	     dev->iobase + chan * 0x20 + 0x08);
+	     dev->iobase + KE_MID_REG(chan));
 	outb((unsigned char)((data[0] >> 0) & 0xff),
-	     dev->iobase + chan * 0x20 + 0x04);
+	     dev->iobase + KE_LSB_REG(chan));
 
 	/* return the number of samples written */
 	return 1;
@@ -67,11 +82,11 @@ static int cnt_rinsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int result;
 
-	a0 = inb(dev->iobase + chan * 0x20);
-	a1 = inb(dev->iobase + chan * 0x20 + 0x04);
-	a2 = inb(dev->iobase + chan * 0x20 + 0x08);
-	a3 = inb(dev->iobase + chan * 0x20 + 0x0c);
-	a4 = inb(dev->iobase + chan * 0x20 + 0x10);
+	a0 = inb(dev->iobase + KE_LATCH_REG(chan));
+	a1 = inb(dev->iobase + KE_LSB_REG(chan));
+	a2 = inb(dev->iobase + KE_MID_REG(chan));
+	a3 = inb(dev->iobase + KE_MSB_REG(chan));
+	a4 = inb(dev->iobase + KE_SIGN_REG(chan));
 
 	result = (a1 + (a2 * 256) + (a3 * 65536));
 	if (a4 > 0)
@@ -109,13 +124,11 @@ static int cnt_auto_attach(struct comedi_device *dev,
 	s->insn_read = cnt_rinsn;
 	s->insn_write = cnt_winsn;
 
-	/*  select 20MHz clock */
-	outb(3, dev->iobase + 248);
+	outb(KE_OSC_SEL_20MHZ, dev->iobase + KE_OSC_SEL_REG);
 
-	/*  reset all counters */
-	outb(0, dev->iobase);
-	outb(0, dev->iobase + 0x20);
-	outb(0, dev->iobase + 0x40);
+	outb(0, dev->iobase + KE_RESET_REG(0));
+	outb(0, dev->iobase + KE_RESET_REG(1));
+	outb(0, dev->iobase + KE_RESET_REG(2));
 
 	return 0;
 }
