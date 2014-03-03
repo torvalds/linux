@@ -396,6 +396,7 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	const struct hlist_node *next;
 	const struct hlist_nulls_node *nn;
 	unsigned int i;
+	int cpu;
 
 	/* Get rid of expectations */
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
@@ -414,8 +415,14 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	}
 
 	/* Get rid of expecteds, set helpers to NULL. */
-	hlist_nulls_for_each_entry(h, nn, &net->ct.unconfirmed, hnnode)
-		unhelp(h, me);
+	for_each_possible_cpu(cpu) {
+		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
+
+		spin_lock_bh(&pcpu->lock);
+		hlist_nulls_for_each_entry(h, nn, &pcpu->unconfirmed, hnnode)
+			unhelp(h, me);
+		spin_unlock_bh(&pcpu->lock);
+	}
 	for (i = 0; i < net->ct.htable_size; i++) {
 		hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
 			unhelp(h, me);

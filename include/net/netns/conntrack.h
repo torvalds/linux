@@ -62,6 +62,13 @@ struct nf_ip_net {
 #endif
 };
 
+struct ct_pcpu {
+	spinlock_t		lock;
+	struct hlist_nulls_head unconfirmed;
+	struct hlist_nulls_head dying;
+	struct hlist_nulls_head tmpl;
+};
+
 struct netns_ct {
 	atomic_t		count;
 	unsigned int		expect_count;
@@ -86,9 +93,7 @@ struct netns_ct {
 	struct kmem_cache	*nf_conntrack_cachep;
 	struct hlist_nulls_head	*hash;
 	struct hlist_head	*expect_hash;
-	struct hlist_nulls_head	unconfirmed;
-	struct hlist_nulls_head	dying;
-	struct hlist_nulls_head tmpl;
+	struct ct_pcpu __percpu *pcpu_lists;
 	struct ip_conntrack_stat __percpu *stat;
 	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
 	struct nf_exp_event_notifier __rcu *nf_expect_event_cb;

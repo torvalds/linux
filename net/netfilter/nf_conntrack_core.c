@@ -192,6 +192,50 @@ clean_from_lists(struct nf_conn *ct)
 	nf_ct_remove_expectations(ct);
 }
 
+/* must be called with local_bh_disable */
+static void nf_ct_add_to_dying_list(struct nf_conn *ct)
+{
+	struct ct_pcpu *pcpu;
+
+	/* add this conntrack to the (per cpu) dying list */
+	ct->cpu = smp_processor_id();
+	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
+
+	spin_lock(&pcpu->lock);
+	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+			     &pcpu->dying);
+	spin_unlock(&pcpu->lock);
+}
+
+/* must be called with local_bh_disable */
+static void nf_ct_add_to_unconfirmed_list(struct nf_conn *ct)
+{
+	struct ct_pcpu *pcpu;
+
+	/* add this conntrack to the (per cpu) unconfirmed list */
+	ct->cpu = smp_processor_id();
+	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
+
+	spin_lock(&pcpu->lock);
+	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+			     &pcpu->unconfirmed);
+	spin_unlock(&pcpu->lock);
+}
+
+/* must be called with local_bh_disable */
+static void nf_ct_del_from_dying_or_unconfirmed_list(struct nf_conn *ct)
+{
+	struct ct_pcpu *pcpu;
+
+	/* We overload first tuple to link into unconfirmed or dying list.*/
+	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
+
+	spin_lock(&pcpu->lock);
+	BUG_ON(hlist_nulls_unhashed(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode));
+	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
+	spin_unlock(&pcpu->lock);
+}
+
 static void
 destroy_conntrack(struct nf_conntrack *nfct)
 {
@@ -220,9 +264,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	 * too. */
 	nf_ct_remove_expectations(ct);
 
-	/* We overload first tuple to link into unconfirmed or dying list.*/
-	BUG_ON(hlist_nulls_unhashed(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode));
-	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
+	nf_ct_del_from_dying_or_unconfirmed_list(ct);
 
 	NF_CT_STAT_INC(net, delete);
 	spin_unlock_bh(&nf_conntrack_lock);
@@ -244,9 +286,7 @@ static void nf_ct_delete_from_lists(struct nf_conn *ct)
 	 * Otherwise we can get spurious warnings. */
 	NF_CT_STAT_INC(net, delete_list);
 	clean_from_lists(ct);
-	/* add this conntrack to the dying list */
-	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
-			     &net->ct.dying);
+	nf_ct_add_to_dying_list(ct);
 	spin_unlock_bh(&nf_conntrack_lock);
 }
 
@@ -467,15 +507,22 @@ EXPORT_SYMBOL_GPL(nf_conntrack_hash_check_insert);
 /* deletion from this larval template list happens via nf_ct_put() */
 void nf_conntrack_tmpl_insert(struct net *net, struct nf_conn *tmpl)
 {
+	struct ct_pcpu *pcpu;
+
 	__set_bit(IPS_TEMPLATE_BIT, &tmpl->status);
 	__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
 	nf_conntrack_get(&tmpl->ct_general);
 
-	spin_lock_bh(&nf_conntrack_lock);
+	/* add this conntrack to the (per cpu) tmpl list */
+	local_bh_disable();
+	tmpl->cpu = smp_processor_id();
+	pcpu = per_cpu_ptr(nf_ct_net(tmpl)->ct.pcpu_lists, tmpl->cpu);
+
+	spin_lock(&pcpu->lock);
 	/* Overload tuple linked list to put us in template list. */
 	hlist_nulls_add_head_rcu(&tmpl->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
-				 &net->ct.tmpl);
-	spin_unlock_bh(&nf_conntrack_lock);
+				 &pcpu->tmpl);
+	spin_unlock_bh(&pcpu->lock);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_tmpl_insert);
 
@@ -546,8 +593,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		    zone == nf_ct_zone(nf_ct_tuplehash_to_ctrack(h)))
 			goto out;
 
-	/* Remove from unconfirmed list */
-	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
+	nf_ct_del_from_dying_or_unconfirmed_list(ct);
 
 	/* Timer relative to confirmation time, not original
 	   setting time, otherwise we'd get timer wrap in
@@ -879,10 +925,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 
 	/* Now it is inserted into the unconfirmed list, bump refcount */
 	nf_conntrack_get(&ct->ct_general);
-
-	/* Overload tuple linked list to put us in unconfirmed list. */
-	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
-		       &net->ct.unconfirmed);
+	nf_ct_add_to_unconfirmed_list(ct);
 
 	spin_unlock_bh(&nf_conntrack_lock);
 
@@ -1254,6 +1297,7 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
 	struct hlist_nulls_node *n;
+	int cpu;
 
 	spin_lock_bh(&nf_conntrack_lock);
 	for (; *bucket < net->ct.htable_size; (*bucket)++) {
@@ -1265,12 +1309,19 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 				goto found;
 		}
 	}
-	hlist_nulls_for_each_entry(h, n, &net->ct.unconfirmed, hnnode) {
-		ct = nf_ct_tuplehash_to_ctrack(h);
-		if (iter(ct, data))
-			set_bit(IPS_DYING_BIT, &ct->status);
-	}
 	spin_unlock_bh(&nf_conntrack_lock);
+
+	for_each_possible_cpu(cpu) {
+		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
+
+		spin_lock_bh(&pcpu->lock);
+		hlist_nulls_for_each_entry(h, n, &pcpu->unconfirmed, hnnode) {
+			ct = nf_ct_tuplehash_to_ctrack(h);
+			if (iter(ct, data))
+				set_bit(IPS_DYING_BIT, &ct->status);
+		}
+		spin_unlock_bh(&pcpu->lock);
+	}
 	return NULL;
 found:
 	atomic_inc(&ct->ct_general.use);
@@ -1323,14 +1374,19 @@ static void nf_ct_release_dying_list(struct net *net)
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
 	struct hlist_nulls_node *n;
+	int cpu;
 
-	spin_lock_bh(&nf_conntrack_lock);
-	hlist_nulls_for_each_entry(h, n, &net->ct.dying, hnnode) {
-		ct = nf_ct_tuplehash_to_ctrack(h);
-		/* never fails to remove them, no listeners at this point */
-		nf_ct_kill(ct);
+	for_each_possible_cpu(cpu) {
+		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
+
+		spin_lock_bh(&pcpu->lock);
+		hlist_nulls_for_each_entry(h, n, &pcpu->dying, hnnode) {
+			ct = nf_ct_tuplehash_to_ctrack(h);
+			/* never fails to remove them, no listeners at this point */
+			nf_ct_kill(ct);
+		}
+		spin_unlock_bh(&pcpu->lock);
 	}
-	spin_unlock_bh(&nf_conntrack_lock);
 }
 
 static int untrack_refs(void)
@@ -1417,6 +1473,7 @@ i_see_dead_people:
 		kmem_cache_destroy(net->ct.nf_conntrack_cachep);
 		kfree(net->ct.slabname);
 		free_percpu(net->ct.stat);
+		free_percpu(net->ct.pcpu_lists);
 	}
 }
 
@@ -1629,37 +1686,43 @@ void nf_conntrack_init_end(void)
 
 int nf_conntrack_init_net(struct net *net)
 {
-	int ret;
+	int ret = -ENOMEM;
+	int cpu;
 
 	atomic_set(&net->ct.count, 0);
-	INIT_HLIST_NULLS_HEAD(&net->ct.unconfirmed, UNCONFIRMED_NULLS_VAL);
-	INIT_HLIST_NULLS_HEAD(&net->ct.dying, DYING_NULLS_VAL);
-	INIT_HLIST_NULLS_HEAD(&net->ct.tmpl, TEMPLATE_NULLS_VAL);
-	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);
-	if (!net->ct.stat) {
-		ret = -ENOMEM;
+
+	net->ct.pcpu_lists = alloc_percpu(struct ct_pcpu);
+	if (!net->ct.pcpu_lists)
 		goto err_stat;
+
+	for_each_possible_cpu(cpu) {
+		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
+
+		spin_lock_init(&pcpu->lock);
+		INIT_HLIST_NULLS_HEAD(&pcpu->unconfirmed, UNCONFIRMED_NULLS_VAL);
+		INIT_HLIST_NULLS_HEAD(&pcpu->dying, DYING_NULLS_VAL);
+		INIT_HLIST_NULLS_HEAD(&pcpu->tmpl, TEMPLATE_NULLS_VAL);
 	}
 
+	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);
+	if (!net->ct.stat)
+		goto err_pcpu_lists;
+
 	net->ct.slabname = kasprintf(GFP_KERNEL, "nf_conntrack_%p", net);
-	if (!net->ct.slabname) {
-		ret = -ENOMEM;
+	if (!net->ct.slabname)
 		goto err_slabname;
-	}
 
 	net->ct.nf_conntrack_cachep = kmem_cache_create(net->ct.slabname,
 							sizeof(struct nf_conn), 0,
 							SLAB_DESTROY_BY_RCU, NULL);
 	if (!net->ct.nf_conntrack_cachep) {
 		printk(KERN_ERR "Unable to create nf_conn slab cache\n");
-		ret = -ENOMEM;
 		goto err_cache;
 	}
 
 	net->ct.htable_size = nf_conntrack_htable_size;
 	net->ct.hash = nf_ct_alloc_hashtable(&net->ct.htable_size, 1);
 	if (!net->ct.hash) {
-		ret = -ENOMEM;
 		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
 		goto err_hash;
 	}
@@ -1701,6 +1764,8 @@ err_cache:
 	kfree(net->ct.slabname);
 err_slabname:
 	free_percpu(net->ct.stat);
+err_pcpu_lists:
+	free_percpu(net->ct.pcpu_lists);
 err_stat:
 	return ret;
 }
