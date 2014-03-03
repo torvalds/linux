@@ -43,7 +43,7 @@ static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	
 				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\
-	return __hpp__fmt(hpp, he, he_get_##_field, " %6.2f%%",			\
+	return __hpp__fmt(hpp, he, he_get_##_field, NULL, " %6.2f%%",		\
 			  __percent_color_snprintf, true);			\
 }
 
