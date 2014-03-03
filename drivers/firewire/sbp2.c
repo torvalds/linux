@@ -524,13 +524,12 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 	struct fw_device *device = target_parent_device(lu->tgt);
 	struct sbp2_orb *orb, *next;
 	struct list_head list;
-	unsigned long flags;
 	int retval = -ENOENT;
 
 	INIT_LIST_HEAD(&list);
-	spin_lock_irqsave(&device->card->lock, flags);
+	spin_lock_irq(&device->card->lock);
 	list_splice_init(&lu->orb_list, &list);
-	spin_unlock_irqrestore(&device->card->lock, flags);
+	spin_unlock_irq(&device->card->lock);
 
 	list_for_each_entry_safe(orb, next, &list, link) {
 		retval = 0;
@@ -737,15 +736,14 @@ static void sbp2_conditionally_unblock(struct sbp2_logical_unit *lu)
 	struct fw_card *card = target_parent_device(tgt)->card;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
-	unsigned long flags;
 	bool unblock = false;
 
-	spin_lock_irqsave(&card->lock, flags);
+	spin_lock_irq(&card->lock);
 	if (lu->blocked && lu->generation == card->generation) {
 		lu->blocked = false;
 		unblock = --tgt->blocked == 0;
 	}
-	spin_unlock_irqrestore(&card->lock, flags);
+	spin_unlock_irq(&card->lock);
 
 	if (unblock)
 		scsi_unblock_requests(shost);
@@ -762,11 +760,10 @@ static void sbp2_unblock(struct sbp2_target *tgt)
 	struct fw_card *card = target_parent_device(tgt)->card;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
-	unsigned long flags;
 
-	spin_lock_irqsave(&card->lock, flags);
+	spin_lock_irq(&card->lock);
 	++tgt->dont_block;
-	spin_unlock_irqrestore(&card->lock, flags);
+	spin_unlock_irq(&card->lock);
 
 	scsi_unblock_requests(shost);
 }
