@@ -316,7 +316,7 @@ static int dc_init_descriptor_list(struct channel *sc)
 
 	if (sc->ether.rx_ring == NULL)
 		sc->ether.rx_ring = kcalloc(SBE_2T3E3_RX_DESC_RING_SIZE,
-					    sizeof(t3e3_rx_desc_t), GFP_KERNEL);
+					    sizeof(struct t3e3_rx_desc), GFP_KERNEL);
 	if (sc->ether.rx_ring == NULL)
 		return -ENOMEM;
 

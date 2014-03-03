@@ -613,12 +613,12 @@
  * descriptor list and data buffer
  *
  **********************************************************************/
-typedef struct {
+struct t3e3_rx_desc {
 	u32 rdes0;
 	u32 rdes1;
 	u32 rdes2;
 	u32 rdes3;
-} t3e3_rx_desc_t;
+};
 
 #define SBE_2T3E3_RX_DESC_RING_SIZE			64
 
@@ -723,7 +723,7 @@ struct channel {
 		u32 interrupt_enable_mask;
 
 		/* receive chain/ring */
-		t3e3_rx_desc_t *rx_ring;
+		struct t3e3_rx_desc *rx_ring;
 		struct sk_buff *rx_data[SBE_2T3E3_RX_DESC_RING_SIZE];
 		u32 rx_ring_current_read;
 

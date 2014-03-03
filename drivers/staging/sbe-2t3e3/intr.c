@@ -118,7 +118,7 @@ void dc_intr_rx(struct channel *sc)
 {
 	u32 current_read;
 	u32 error_mask, error;
-	t3e3_rx_desc_t *current_desc;
+	struct t3e3_rx_desc *current_desc;
 	struct sk_buff *m, *m2;
 	unsigned rcv_len;
 
