@@ -1612,11 +1612,11 @@ S:	Maintained
 F:	drivers/net/wireless/atmel*
 
 ATTO EXPRESSSAS SAS/SATA RAID SCSI DRIVER
-M:      Bradley Grove <linuxdrivers@attotech.com>
-L:      linux-scsi@vger.kernel.org
-W:      http://www.attotech.com
-S:      Supported
-F:      drivers/scsi/esas2r
+M:	Bradley Grove <linuxdrivers@attotech.com>
+L:	linux-scsi@vger.kernel.org
+W:	http://www.attotech.com
+S:	Supported
+F:	drivers/scsi/esas2r
 
 AUDIT SUBSYSTEM
 M:	Eric Paris <eparis@redhat.com>
@@ -2179,9 +2179,9 @@ S:	Supported
 F:	drivers/net/ethernet/cisco/enic/
 
 CISCO VIC LOW LATENCY NIC DRIVER
-M:      Upinder Malhi <umalhi@cisco.com>
-S:      Supported
-F:      drivers/infiniband/hw/usnic
+M:	Upinder Malhi <umalhi@cisco.com>
+S:	Supported
+F:	drivers/infiniband/hw/usnic
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
@@ -2378,13 +2378,13 @@ F:	drivers/cpufreq/arm_big_little.c
 F:	drivers/cpufreq/arm_big_little_dt.c
 
 CPUIDLE DRIVER - ARM BIG LITTLE
-M:      Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
-M:      Daniel Lezcano <daniel.lezcano@linaro.org>
-L:      linux-pm@vger.kernel.org
-L:      linux-arm-kernel@lists.infradead.org
-T:      git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
-S:      Maintained
-F:      drivers/cpuidle/cpuidle-big_little.c
+M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+L:	linux-pm@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
+S:	Maintained
+F:	drivers/cpuidle/cpuidle-big_little.c
 
 CPUIDLE DRIVERS
 M:	Rafael J. Wysocki <rjw@rjwysocki.net>
@@ -2458,9 +2458,9 @@ S:	Maintained
 F:	sound/pci/cs5535audio/
 
 CW1200 WLAN driver
-M:     Solomon Peachy <pizza@shaftnet.org>
-S:     Maintained
-F:     drivers/net/wireless/cw1200/
+M:	Solomon Peachy <pizza@shaftnet.org>
+S:	Maintained
+F:	drivers/net/wireless/cw1200/
 
 CX18 VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
@@ -5473,11 +5473,11 @@ S:	Maintained
 F:	drivers/media/tuners/m88ts2022*
 
 MA901 MASTERKIT USB FM RADIO DRIVER
-M:      Alexey Klimov <klimov.linux@gmail.com>
-L:      linux-media@vger.kernel.org
-T:      git git://linuxtv.org/media_tree.git
-S:      Maintained
-F:      drivers/media/radio/radio-ma901.c
+M:	Alexey Klimov <klimov.linux@gmail.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/radio/radio-ma901.c
 
 MAC80211
 M:	Johannes Berg <johannes@sipsolutions.net>
@@ -5638,7 +5638,7 @@ F:	drivers/scsi/megaraid/
 
 MELLANOX ETHERNET DRIVER (mlx4_en)
 M:	Amir Vadai <amirv@mellanox.com>
-L: 	netdev@vger.kernel.org
+L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
@@ -5679,7 +5679,7 @@ F:	include/linux/mtd/
 F:	include/uapi/mtd/
 
 MEN A21 WATCHDOG DRIVER
-M:  	Johannes Thumshirn <johannes.thumshirn@men.de>
+M:	Johannes Thumshirn <johannes.thumshirn@men.de>
 L:	linux-watchdog@vger.kernel.org
 S:	Supported
 F:	drivers/watchdog/mena21_wdt.c
@@ -5741,14 +5741,14 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/
 F:	include/linux/mlx5/
 
 Mellanox MLX5 IB driver
-M:      Eli Cohen <eli@mellanox.com>
-L:      linux-rdma@vger.kernel.org
-W:      http://www.mellanox.com
-Q:      http://patchwork.kernel.org/project/linux-rdma/list/
-T:      git://openfabrics.org/~eli/connect-ib.git
-S:      Supported
-F:      include/linux/mlx5/
-F:      drivers/infiniband/hw/mlx5/
+M:	Eli Cohen <eli@mellanox.com>
+L:	linux-rdma@vger.kernel.org
+W:	http://www.mellanox.com
+Q:	http://patchwork.kernel.org/project/linux-rdma/list/
+T:	git://openfabrics.org/~eli/connect-ib.git
+S:	Supported
+F:	include/linux/mlx5/
+F:	drivers/infiniband/hw/mlx5/
 
 MODULE SUPPORT
 M:	Rusty Russell <rusty@rustcorp.com.au>
@@ -8702,17 +8702,17 @@ S:	Maintained
 F:	drivers/media/radio/radio-raremono.c
 
 THERMAL
-M:      Zhang Rui <rui.zhang@intel.com>
-M:      Eduardo Valentin <eduardo.valentin@ti.com>
-L:      linux-pm@vger.kernel.org
-T:      git git://git.kernel.org/pub/scm/linux/kernel/git/rzhang/linux.git
-T:      git git://git.kernel.org/pub/scm/linux/kernel/git/evalenti/linux-soc-thermal.git
-Q:      https://patchwork.kernel.org/project/linux-pm/list/
-S:      Supported
-F:      drivers/thermal/
-F:      include/linux/thermal.h
-F:      include/linux/cpu_cooling.h
-F:      Documentation/devicetree/bindings/thermal/
+M:	Zhang Rui <rui.zhang@intel.com>
+M:	Eduardo Valentin <eduardo.valentin@ti.com>
+L:	linux-pm@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rzhang/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/evalenti/linux-soc-thermal.git
+Q:	https://patchwork.kernel.org/project/linux-pm/list/
+S:	Supported
+F:	drivers/thermal/
+F:	include/linux/thermal.h
+F:	include/linux/cpu_cooling.h
+F:	Documentation/devicetree/bindings/thermal/
 
 THINGM BLINK(1) USB RGB LED DRIVER
 M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
