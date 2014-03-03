@@ -125,11 +125,7 @@ struct intel_encoder {
 	struct intel_crtc *new_crtc;
 
 	int type;
-	/*
-	 * Intel hw has only one MUX where encoders could be clone, hence a
-	 * simple flag is enough to compute the possible_clones mask.
-	 */
-	bool cloneable;
+	unsigned int cloneable;
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
 	bool (*compute_config)(struct intel_encoder *,

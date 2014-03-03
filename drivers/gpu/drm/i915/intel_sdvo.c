@@ -3032,7 +3032,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	 * simplistic anyway to express such constraints, so just give up on
 	 * cloning for SDVO encoders.
 	 */
-	intel_sdvo->base.cloneable = false;
+	intel_sdvo->base.cloneable = 0;
 
 	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo, sdvo_reg);
 

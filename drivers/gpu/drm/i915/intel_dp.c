@@ -3980,7 +3980,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-	intel_encoder->cloneable = false;
+	intel_encoder->cloneable = 0;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
 	if (!intel_dp_init_connector(intel_dig_port, intel_connector)) {

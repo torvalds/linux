@@ -9221,23 +9221,47 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("double wide: %i\n", pipe_config->double_wide);
 }
 
-static bool check_encoder_cloning(struct drm_crtc *crtc)
+static bool encoders_cloneable(const struct intel_encoder *a,
+			       const struct intel_encoder *b)
 {
-	int num_encoders = 0;
-	bool uncloneable_encoders = false;
-	struct intel_encoder *encoder;
+	/* masks could be asymmetric, so check both ways */
+	return a == b || (a->cloneable & (1 << b->type) &&
+			  b->cloneable & (1 << a->type));
+}
 
-	list_for_each_entry(encoder, &crtc->dev->mode_config.encoder_list,
-			    base.head) {
-		if (&encoder->new_crtc->base != crtc)
+static bool check_single_encoder_cloning(struct intel_crtc *crtc,
+					 struct intel_encoder *encoder)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *source_encoder;
+
+	list_for_each_entry(source_encoder,
+			    &dev->mode_config.encoder_list, base.head) {
+		if (source_encoder->new_crtc != crtc)
 			continue;
 
-		num_encoders++;
-		if (!encoder->cloneable)
-			uncloneable_encoders = true;
+		if (!encoders_cloneable(encoder, source_encoder))
+			return false;
 	}
 
-	return !(num_encoders > 1 && uncloneable_encoders);
+	return true;
+}
+
+static bool check_encoder_cloning(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *encoder;
+
+	list_for_each_entry(encoder,
+			    &dev->mode_config.encoder_list, base.head) {
+		if (encoder->new_crtc != crtc)
+			continue;
+
+		if (!check_single_encoder_cloning(crtc, encoder))
+			return false;
+	}
+
+	return true;
 }
 
 static struct intel_crtc_config *
@@ -9251,7 +9275,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	int plane_bpp, ret = -EINVAL;
 	bool retry = true;
 
-	if (!check_encoder_cloning(crtc)) {
+	if (!check_encoder_cloning(to_intel_crtc(crtc))) {
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -10614,12 +10638,7 @@ static int intel_encoder_clones(struct intel_encoder *encoder)
 
 	list_for_each_entry(source_encoder,
 			    &dev->mode_config.encoder_list, base.head) {
-
-		if (encoder == source_encoder)
-			index_mask |= (1 << entry);
-
-		/* Intel hw has only one MUX where enocoders could be cloned. */
-		if (encoder->cloneable && source_encoder->cloneable)
+		if (encoders_cloneable(encoder, source_encoder))
 			index_mask |= (1 << entry);
 
 		entry++;
