@@ -540,7 +540,7 @@ static int dgap_init_module(void)
 		if (dgap_NumBoards)
 			pci_unregister_driver(&dgap_driver);
 		else
-			printk("WARNING: dgap driver load failed.  No DGAP boards found.\n");
+			pr_err("dgap: driver load failed. No boards found.\n");
 
 		dgap_cleanup_module();
 	} else {
@@ -2948,7 +2948,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 
 		if (copy_from_user(dgap_TmpWriteBuf, (const uchar __user *) buf, count)) {
 			up(&dgap_TmpWriteSem);
-			printk("Write: Copy from user failed!\n");
 			return -EFAULT;
 		}
 
@@ -6689,7 +6688,6 @@ static void dgap_create_tty_sysfs(struct un_t *un, struct device *c)
 
 	ret = sysfs_create_group(&c->kobj, &dgap_tty_attribute_group);
 	if (ret) {
-		printk(KERN_ERR "dgap: failed to create sysfs tty device attributes.\n");
 		sysfs_remove_group(&c->kobj, &dgap_tty_attribute_group);
 		return;
 	}
@@ -7563,7 +7561,7 @@ static char *dgap_getword(char **in)
  */
 static void dgap_err(char *s)
 {
-	printk("DGAP: parse: %s\n", s);
+	pr_err("dgap: parse: %s\n", s);
 }
 
 /*
