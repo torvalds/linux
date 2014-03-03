@@ -866,6 +866,8 @@ c4_ioctl (struct net_device *ndev, struct ifreq *ifr, int cmd)
             _IOC_SIZE (iocmd));
 #endif
     iolen = _IOC_SIZE (iocmd);
+    if (iolen > sizeof(arg))
+        return -EFAULT;
     data = ifr->ifr_data + sizeof (iocmd);
     if (copy_from_user (&arg, data, iolen))
         return -EFAULT;
