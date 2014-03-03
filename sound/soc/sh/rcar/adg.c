@@ -32,8 +32,9 @@ struct rsnd_adg {
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
 
-static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_mod *mod)
+static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 {
+	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	int id = rsnd_mod_id(mod);
 	int ws = id;
@@ -67,7 +68,7 @@ static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
 	u32 mask, ws;
 	u32 in, out;
 
-	ws = rsnd_adg_ssi_ws_timing_gen2(mod);
+	ws = rsnd_adg_ssi_ws_timing_gen2(io);
 
 	in  = (is_play) ? timsel : ws;
 	out = (is_play) ? ws     : timsel;
@@ -174,7 +175,7 @@ int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
 				     struct rsnd_dai *rdai,
 				     struct rsnd_dai_stream *io)
 {
-	u32 val = rsnd_adg_ssi_ws_timing_gen2(mod);
+	u32 val = rsnd_adg_ssi_ws_timing_gen2(io);
 
 	return rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
 }
