@@ -94,13 +94,6 @@ struct dm_rq_clone_bio_info {
 	struct bio clone;
 };
 
-union map_info *dm_get_mapinfo(struct bio *bio)
-{
-	if (bio && bio->bi_private)
-		return &((struct dm_target_io *)bio->bi_private)->info;
-	return NULL;
-}
-
 union map_info *dm_get_rq_mapinfo(struct request *rq)
 {
 	if (rq && rq->end_io_data)
@@ -1195,7 +1188,6 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci,
 
 	tio->io = ci->io;
 	tio->ti = ti;
-	memset(&tio->info, 0, sizeof(tio->info));
 	tio->target_bio_nr = target_bio_nr;
 
 	return tio;
@@ -2872,8 +2864,6 @@ static const struct block_device_operations dm_blk_dops = {
 	.getgeo = dm_blk_getgeo,
 	.owner = THIS_MODULE
 };
-
-EXPORT_SYMBOL(dm_get_mapinfo);
 
 /*
  * module hooks
