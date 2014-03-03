@@ -322,9 +322,6 @@ more:
 			fi->last_readdir = NULL;
 		}
 
-		/* requery frag tree, as the frag topology may have changed */
-		frag = ceph_choose_frag(ceph_inode(inode), frag, NULL, NULL);
-
 		dout("readdir fetching %llx.%llx frag %x offset '%s'\n",
 		     ceph_vinop(inode), frag, fi->last_name);
 		req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
