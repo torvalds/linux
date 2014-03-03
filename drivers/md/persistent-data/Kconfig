@@ -6,3 +6,13 @@ config DM_PERSISTENT_DATA
        ---help---
 	 Library providing immutable on-disk data structure support for
 	 device-mapper targets such as the thin provisioning target.
+
+config DM_DEBUG_BLOCK_STACK_TRACING
+       boolean "Keep stack trace of persistent data block lock holders"
+       depends on STACKTRACE_SUPPORT && DM_PERSISTENT_DATA
+       select STACKTRACE
+       ---help---
+	 Enable this for messages that may help debug problems with the
+	 block manager locking used by thin provisioning and caching.
+
+	 If unsure, say N.
