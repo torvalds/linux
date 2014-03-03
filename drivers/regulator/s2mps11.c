@@ -342,7 +342,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
 
-static const struct regulator_desc s2mps11_regulators[] __initconst = {
+static const struct regulator_desc s2mps11_regulators[] = {
 	regulator_desc_ldo2(1),
 	regulator_desc_ldo1(2),
 	regulator_desc_ldo1(3),
@@ -393,41 +393,6 @@ static const struct regulator_desc s2mps11_regulators[] __initconst = {
 	regulator_desc_buck10,
 };
 
-/*
- * Allocates memory under 'regulators' pointer and copies there array
- * of regulator_desc for given device.
- *
- * Returns number of regulators or negative ERRNO on error.
- */
-static int __init
-s2mps11_pmic_init_regulators_desc(struct platform_device *pdev,
-		struct regulator_desc **regulators)
-{
-	const struct regulator_desc *regulators_init;
-	enum sec_device_type dev_type;
-	int rdev_num;
-
-	dev_type = platform_get_device_id(pdev)->driver_data;
-	switch (dev_type) {
-	case S2MPS11X:
-		rdev_num = ARRAY_SIZE(s2mps11_regulators);
-		regulators_init = s2mps11_regulators;
-		break;
-	default:
-		dev_err(&pdev->dev, "Invalid device type: %u\n", dev_type);
-		return -EINVAL;
-	};
-
-	*regulators = devm_kzalloc(&pdev->dev,
-			sizeof(**regulators) * rdev_num, GFP_KERNEL);
-	if (!*regulators)
-		return -ENOMEM;
-
-	memcpy(*regulators, regulators_init, sizeof(**regulators) * rdev_num);
-
-	return rdev_num;
-}
-
 static int s2mps11_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -437,17 +402,24 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct s2mps11_info *s2mps11;
 	int i, ret = 0;
-	struct regulator_desc *regulators = NULL;
-	int rdev_num;
+	const struct regulator_desc *regulators;
+	enum sec_device_type dev_type;
 
 	s2mps11 = devm_kzalloc(&pdev->dev, sizeof(struct s2mps11_info),
 				GFP_KERNEL);
 	if (!s2mps11)
 		return -ENOMEM;
 
-	rdev_num = s2mps11_pmic_init_regulators_desc(pdev, &regulators);
-	if (rdev_num < 0)
-		return rdev_num;
+	dev_type = platform_get_device_id(pdev)->driver_data;
+	switch (dev_type) {
+	case S2MPS11X:
+		s2mps11->rdev_num = ARRAY_SIZE(s2mps11_regulators);
+		regulators = s2mps11_regulators;
+		break;
+	default:
+		dev_err(&pdev->dev, "Invalid device type: %u\n", dev_type);
+		return -EINVAL;
+	};
 
 	if (!iodev->dev->of_node) {
 		if (pdata) {
@@ -459,11 +431,11 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-	rdata = kzalloc(sizeof(*rdata) * rdev_num, GFP_KERNEL);
+	rdata = kzalloc(sizeof(*rdata) * s2mps11->rdev_num, GFP_KERNEL);
 	if (!rdata)
 		return -ENOMEM;
 
-	for (i = 0; i < rdev_num; i++)
+	for (i = 0; i < s2mps11->rdev_num; i++)
 		rdata[i].name = regulators[i].name;
 
 	reg_np = of_find_node_by_name(iodev->dev->of_node, "regulators");
@@ -473,16 +445,15 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	of_regulator_match(&pdev->dev, reg_np, rdata, rdev_num);
+	of_regulator_match(&pdev->dev, reg_np, rdata, s2mps11->rdev_num);
 
 common_reg:
 	platform_set_drvdata(pdev, s2mps11);
-	s2mps11->rdev_num = rdev_num;
 
 	config.dev = &pdev->dev;
 	config.regmap = iodev->regmap_pmic;
 	config.driver_data = s2mps11;
-	for (i = 0; i < rdev_num; i++) {
+	for (i = 0; i < s2mps11->rdev_num; i++) {
 		struct regulator_dev *regulator;
 
 		if (!reg_np) {
