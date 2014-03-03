@@ -643,3 +643,31 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 	}
 	return rc;
 }
+
+/**
+ * kvm_s390_check_low_addr_protection - check for low-address protection
+ * @ga: Guest address
+ *
+ * Checks whether an address is subject to low-address protection and set
+ * up vcpu->arch.pgm accordingly if necessary.
+ *
+ * Return: 0 if no protection exception, or PGM_PROTECTION if protected.
+ */
+int kvm_s390_check_low_addr_protection(struct kvm_vcpu *vcpu, unsigned long ga)
+{
+	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	struct trans_exc_code_bits *tec_bits;
+
+	if (!is_low_address(ga) || !low_address_protection_enabled(vcpu))
+		return 0;
+
+	memset(pgm, 0, sizeof(*pgm));
+	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
+	tec_bits->fsi = FSI_STORE;
+	tec_bits->as = psw_bits(*psw).as;
+	tec_bits->addr = ga >> PAGE_SHIFT;
+	pgm->code = PGM_PROTECTION;
+
+	return pgm->code;
+}
