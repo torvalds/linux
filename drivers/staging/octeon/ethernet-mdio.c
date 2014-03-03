@@ -127,7 +127,7 @@ static void cvm_oct_adjust_link(struct net_device *dev)
 		link_info.s.link_up = priv->last_link ? 1 : 0;
 		link_info.s.full_duplex = priv->phydev->duplex ? 1 : 0;
 		link_info.s.speed = priv->phydev->speed;
-		cvmx_helper_link_set( priv->port, link_info);
+		cvmx_helper_link_set(priv->port, link_info);
 		if (priv->last_link) {
 			netif_carrier_on(dev);
 			if (priv->queue != -1)
