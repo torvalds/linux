@@ -258,7 +258,7 @@ static uint dgap_driver_start = FALSE;
 static struct class *dgap_class;
 
 static struct board_t *dgap_BoardsByMajor[256];
-static uchar *dgap_TmpWriteBuf = NULL;
+static uchar *dgap_TmpWriteBuf;
 DECLARE_MUTEX(dgap_TmpWriteSem);
 static uint dgap_count = 500;
 
@@ -743,12 +743,8 @@ static void dgap_cleanup_board(struct board_t *brd)
 	}
 
 	/* Free all allocated channels structs */
-	for (i = 0; i < MAXPORTS ; i++) {
-		if (brd->channels[i]) {
-			kfree(brd->channels[i]);
-			brd->channels[i] = NULL;
-		}
-	}
+	for (i = 0; i < MAXPORTS ; i++)
+		kfree(brd->channels[i]);
 
 	kfree(brd->flipbuf);
 	kfree(brd->flipflagbuf);
@@ -771,10 +767,11 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	unsigned long flags;
 
 	/* get the board structure and prep it */
-	brd = dgap_Board[dgap_NumBoards] =
-	(struct board_t *) kzalloc(sizeof(struct board_t), GFP_KERNEL);
+	brd = kzalloc(sizeof(struct board_t), GFP_KERNEL);
 	if (!brd)
 		return -ENOMEM;
+
+	dgap_Board[dgap_NumBoards] = brd;
 
 	/* make a temporary message buffer for the boot messages */
 	brd->msgbuf = brd->msgbuf_head =
@@ -7470,7 +7467,7 @@ static int	dgap_parsefile(char **in, int Remove)
  * the group, and returns that position.  If the first character is a ^, then
  * this will match the first occurrence not in that group.
  */
-static char *dgap_sindex (char *string, char *group)
+static char *dgap_sindex(char *string, char *group)
 {
 	char    *ptr;
 
@@ -7517,7 +7514,7 @@ static int dgap_gettok(char **in, struct cnode *p)
 		dgap_err("board !!type not specified");
 		return 1;
 	} else {
-		while ( (w = dgap_getword(in)) != NULL ) {
+		while ((w = dgap_getword(in))) {
 			snprintf(dgap_cword, MAXCWORD, "%s", w);
 			for (t = dgap_tlist; t->token != 0; t++) {
 				if (!strcmp(w, t->string))
