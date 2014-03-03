@@ -648,12 +648,12 @@ struct t3e3_rx_desc {
 
 /*********************/
 
-typedef struct {
+struct t3e3_tx_desc {
 	u32 tdes0;
 	u32 tdes1;
 	u32 tdes2;
 	u32 tdes3;
-} t3e3_tx_desc_t;
+};
 
 #define SBE_2T3E3_TX_DESC_RING_SIZE			256
 
@@ -728,7 +728,7 @@ struct channel {
 		u32 rx_ring_current_read;
 
 		/* transmit chain/ring */
-		t3e3_tx_desc_t *tx_ring;
+		struct t3e3_tx_desc *tx_ring;
 		struct sk_buff *tx_data[SBE_2T3E3_TX_DESC_RING_SIZE];
 		u32 tx_ring_current_read;
 		u32 tx_ring_current_write;

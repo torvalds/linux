@@ -322,7 +322,7 @@ static int dc_init_descriptor_list(struct channel *sc)
 
 	if (sc->ether.tx_ring == NULL)
 		sc->ether.tx_ring = kcalloc(SBE_2T3E3_TX_DESC_RING_SIZE,
-					    sizeof(t3e3_tx_desc_t), GFP_KERNEL);
+					    sizeof(struct t3e3_tx_desc), GFP_KERNEL);
 	if (sc->ether.tx_ring == NULL) {
 		kfree(sc->ether.rx_ring);
 		sc->ether.rx_ring = NULL;

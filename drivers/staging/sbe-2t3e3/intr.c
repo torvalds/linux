@@ -292,7 +292,7 @@ void dc_intr_tx(struct channel *sc)
 {
 	u32 current_read, current_write;
 	u32 last_segment, error;
-	t3e3_tx_desc_t *current_desc;
+	struct t3e3_tx_desc *current_desc;
 
 	spin_lock(&sc->ether.tx_lock);
 
