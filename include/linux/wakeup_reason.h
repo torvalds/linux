@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 2008 Google, Inc.
+ * include/linux/wakeup_reason.h
  *
- * Based on, but no longer compatible with, the original
- * OpenBinder.org binder driver interface, which is:
+ * Logs the reason which caused the kernel to resume
+ * from the suspend mode.
  *
- * Copyright (c) 2005 Palmsource, Inc.
- *
+ * Copyright (C) 2014 Google, Inc.
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
@@ -14,17 +13,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
-#ifndef _LINUX_BINDER_H
-#define _LINUX_BINDER_H
+#ifndef _LINUX_WAKEUP_REASON_H
+#define _LINUX_WAKEUP_REASON_H
 
-#ifdef CONFIG_ANDROID_BINDER_IPC_32BIT
-#define BINDER_IPC_32BIT 1
-#endif
+void log_wakeup_reason(int irq);
 
-#include "uapi/binder.h"
-
-#endif /* _LINUX_BINDER_H */
-
+#endif /* _LINUX_WAKEUP_REASON_H */

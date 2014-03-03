@@ -19,6 +19,14 @@ config ANDROID_BINDER_IPC
 	  Android process, using Binder to identify, invoke and pass arguments
 	  between said processes.
 
+config ANDROID_BINDER_IPC_32BIT
+	bool "Use old 32-bit binder api"
+        default y
+	depends on !64BIT
+	---help---
+	  Enable to support an old 32-bit Android user-space. Breaks the new
+	  Android user-space.
+
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n

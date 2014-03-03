@@ -283,7 +283,7 @@ static int adf_buffer_map(struct adf_device *dev, struct adf_buffer *buf,
 		attachment = dma_buf_attach(buf->dma_bufs[i], dev->dev);
 		if (IS_ERR(attachment)) {
 			ret = PTR_ERR(attachment);
-			dev_err(&dev->base.dev, "attaching plane %u failed: %d\n",
+			dev_err(&dev->base.dev, "attaching plane %zu failed: %d\n",
 					i, ret);
 			goto done;
 		}
@@ -292,12 +292,13 @@ static int adf_buffer_map(struct adf_device *dev, struct adf_buffer *buf,
 		sg_table = dma_buf_map_attachment(attachment, DMA_TO_DEVICE);
 		if (IS_ERR(sg_table)) {
 			ret = PTR_ERR(sg_table);
-			dev_err(&dev->base.dev, "mapping plane %u failed: %d",
+			dev_err(&dev->base.dev, "mapping plane %zu failed: %d",
 					i, ret);
 			goto done;
 		} else if (!sg_table) {
 			ret = -ENOMEM;
-			dev_err(&dev->base.dev, "mapping plane %u failed\n", i);
+			dev_err(&dev->base.dev, "mapping plane %zu failed\n",
+					i);
 			goto done;
 		}
 		mapping->sg_tables[i] = sg_table;
