@@ -2046,21 +2046,6 @@ static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 	return quirks;
 }
 
-/* find out bus-width for a given slot */
-static u32 dw_mci_of_get_bus_wd(struct device *dev, u8 slot)
-{
-	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
-	u32 bus_wd = 1;
-
-	if (!np)
-		return 1;
-
-	if (of_property_read_u32(np, "bus-width", &bus_wd))
-		dev_err(dev, "bus-width property not found, assuming width"
-			       " as 1\n");
-	return bus_wd;
-}
-
 /* find the write protect gpio for a given slot; or -1 if none specified */
 static int dw_mci_of_get_wp_gpio(struct device *dev, u8 slot)
 {
@@ -2108,10 +2093,6 @@ static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 {
 	return 0;
 }
-static u32 dw_mci_of_get_bus_wd(struct device *dev, u8 slot)
-{
-	return 1;
-}
 static struct device_node *dw_mci_of_find_slot_node(struct device *dev, u8 slot)
 {
 	return NULL;
@@ -2134,7 +2115,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int ctrl_id, ret;
 	u32 freq[2];
-	u8 bus_width;
 
 	mmc = mmc_alloc_host(sizeof(struct dw_mci_slot), host->dev);
 	if (!mmc)
@@ -2189,19 +2169,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
 
-	if (host->pdata->get_bus_wd)
-		bus_width = host->pdata->get_bus_wd(slot->id);
-	else if (host->dev->of_node)
-		bus_width = dw_mci_of_get_bus_wd(host->dev, slot->id);
-	else
-		bus_width = 1;
-
-	switch (bus_width) {
-	case 8:
-		mmc->caps |= MMC_CAP_8_BIT_DATA;
-	case 4:
-		mmc->caps |= MMC_CAP_4_BIT_DATA;
-	}
+	mmc_of_parse(mmc);
 
 	if (host->pdata->blk_settings) {
 		mmc->max_segs = host->pdata->blk_settings->max_segs;
@@ -2399,23 +2367,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 			return ERR_PTR(ret);
 	}
 
-	if (of_find_property(np, "keep-power-in-suspend", NULL))
-		pdata->pm_caps |= MMC_PM_KEEP_POWER;
-
-	if (of_find_property(np, "enable-sdio-wakeup", NULL))
-		pdata->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
-
 	if (of_find_property(np, "supports-highspeed", NULL))
 		pdata->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
-
-	if (of_find_property(np, "caps2-mmc-hs200-1_8v", NULL))
-		pdata->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
-
-	if (of_find_property(np, "caps2-mmc-hs200-1_2v", NULL))
-		pdata->caps2 |= MMC_CAP2_HS200_1_2V_SDR;
-
-	if (of_get_property(np, "cd-inverted", NULL))
-		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 
 	return pdata;
 }
