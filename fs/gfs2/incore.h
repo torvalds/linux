@@ -485,7 +485,7 @@ struct gfs2_trans {
 };
 
 struct gfs2_journal_extent {
-	struct list_head extent_list;
+	struct list_head list;
 
 	unsigned int lblock; /* First logical block */
 	u64 dblock; /* First disk block */
@@ -495,6 +495,7 @@ struct gfs2_journal_extent {
 struct gfs2_jdesc {
 	struct list_head jd_list;
 	struct list_head extent_list;
+	unsigned int nr_extents;
 	struct work_struct jd_work;
 	struct inode *jd_inode;
 	unsigned long jd_flags;

@@ -146,8 +146,8 @@ static u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
 	struct gfs2_journal_extent *je;
 	u64 block;
 
-	list_for_each_entry(je, &sdp->sd_jdesc->extent_list, extent_list) {
-		if (lbn >= je->lblock && lbn < je->lblock + je->blocks) {
+	list_for_each_entry(je, &sdp->sd_jdesc->extent_list, list) {
+		if ((lbn >= je->lblock) && (lbn < (je->lblock + je->blocks))) {
 			block = je->dblock + lbn - je->lblock;
 			gfs2_log_incr_head(sdp);
 			return block;
