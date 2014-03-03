@@ -405,11 +405,11 @@ int rsnd_adg_probe(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	clk_orig	= clk_get(dev, NULL);
-	adg->clk[CLKA]	= clk_get(dev, "clk_a");
-	adg->clk[CLKB]	= clk_get(dev, "clk_b");
-	adg->clk[CLKC]	= clk_get(dev, "clk_c");
-	adg->clk[CLKI]	= clk_get(dev, "clk_i");
+	clk_orig	= devm_clk_get(dev, NULL);
+	adg->clk[CLKA]	= devm_clk_get(dev, "clk_a");
+	adg->clk[CLKB]	= devm_clk_get(dev, "clk_b");
+	adg->clk[CLKC]	= devm_clk_get(dev, "clk_c");
+	adg->clk[CLKI]	= devm_clk_get(dev, "clk_i");
 
 	/*
 	 * It request device dependent audio clock.
@@ -432,10 +432,10 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	 * but will be removed soon
 	 */
 	if (use_old_style) {
-		adg->clk[CLKA] = clk_get(NULL, "audio_clk_a");
-		adg->clk[CLKB] = clk_get(NULL, "audio_clk_b");
-		adg->clk[CLKC] = clk_get(NULL, "audio_clk_c");
-		adg->clk[CLKI] = clk_get(NULL, "audio_clk_internal");
+		adg->clk[CLKA] = devm_clk_get(NULL, "audio_clk_a");
+		adg->clk[CLKB] = devm_clk_get(NULL, "audio_clk_b");
+		adg->clk[CLKC] = devm_clk_get(NULL, "audio_clk_c");
+		adg->clk[CLKI] = devm_clk_get(NULL, "audio_clk_internal");
 	}
 
 	for_each_rsnd_clk(clk, adg, i) {
@@ -457,10 +457,4 @@ int rsnd_adg_probe(struct platform_device *pdev,
 void rsnd_adg_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv)
 {
-	struct rsnd_adg *adg = priv->adg;
-	struct clk *clk;
-	int i;
-
-	for_each_rsnd_clk(clk, adg, i)
-		clk_put(clk);
 }
