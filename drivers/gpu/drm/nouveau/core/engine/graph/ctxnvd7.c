@@ -94,11 +94,16 @@ nvd7_grctx_pack_gpc[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
-nvd7_grctx_init_tpc_0[] = {
+const struct nvc0_graph_init
+nvd7_grctx_init_pe_0[] = {
 	{ 0x419848,   1, 0x04, 0x00000000 },
 	{ 0x419864,   1, 0x04, 0x00000129 },
 	{ 0x419888,   1, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvd7_grctx_init_tex_0[] = {
 	{ 0x419a00,   1, 0x04, 0x000001f0 },
 	{ 0x419a04,   1, 0x04, 0x00000001 },
 	{ 0x419a08,   1, 0x04, 0x00000023 },
@@ -108,30 +113,27 @@ nvd7_grctx_init_tpc_0[] = {
 	{ 0x419a1c,   1, 0x04, 0x00008000 },
 	{ 0x419a20,   1, 0x04, 0x00000800 },
 	{ 0x419ac4,   1, 0x04, 0x0017f440 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvd7_grctx_init_mpc_0[] = {
 	{ 0x419c00,   1, 0x04, 0x0000000a },
 	{ 0x419c04,   1, 0x04, 0x00000006 },
 	{ 0x419c08,   1, 0x04, 0x00000002 },
 	{ 0x419c20,   1, 0x04, 0x00000000 },
 	{ 0x419c24,   1, 0x04, 0x00084210 },
 	{ 0x419c28,   1, 0x04, 0x3efbefbe },
-	{ 0x419cb0,   1, 0x04, 0x00020048 },
-	{ 0x419ce8,   1, 0x04, 0x00000000 },
-	{ 0x419cf4,   1, 0x04, 0x00000183 },
-	{ 0x419e04,   3, 0x04, 0x00000000 },
-	{ 0x419e10,   1, 0x04, 0x00000002 },
-	{ 0x419e44,   1, 0x04, 0x001beff2 },
-	{ 0x419e48,   1, 0x04, 0x00000000 },
-	{ 0x419e4c,   1, 0x04, 0x0000000f },
-	{ 0x419e50,  17, 0x04, 0x00000000 },
-	{ 0x419e98,   1, 0x04, 0x00000000 },
-	{ 0x419ee0,   1, 0x04, 0x00010110 },
-	{ 0x419f30,  11, 0x04, 0x00000000 },
 	{}
 };
 
 static const struct nvc0_graph_pack
 nvd7_grctx_pack_tpc[] = {
-	{ nvd7_grctx_init_tpc_0 },
+	{ nvd7_grctx_init_pe_0 },
+	{ nvd7_grctx_init_tex_0 },
+	{ nvd7_grctx_init_mpc_0 },
+	{ nvc4_grctx_init_l1c_0 },
+	{ nvd9_grctx_init_sm_0 },
 	{}
 };
 

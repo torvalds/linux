@@ -894,19 +894,29 @@ nvc0_grctx_pack_zcull[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
-nvc0_grctx_init_tpc_0[] = {
+const struct nvc0_graph_init
+nvc0_grctx_init_pe_0[] = {
 	{ 0x419818,   1, 0x04, 0x00000000 },
 	{ 0x41983c,   1, 0x04, 0x00038bc7 },
 	{ 0x419848,   1, 0x04, 0x00000000 },
 	{ 0x419864,   1, 0x04, 0x0000012a },
 	{ 0x419888,   1, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvc0_grctx_init_tex_0[] = {
 	{ 0x419a00,   1, 0x04, 0x000001f0 },
 	{ 0x419a04,   1, 0x04, 0x00000001 },
 	{ 0x419a08,   1, 0x04, 0x00000023 },
 	{ 0x419a0c,   1, 0x04, 0x00020000 },
 	{ 0x419a10,   1, 0x04, 0x00000000 },
 	{ 0x419a14,   1, 0x04, 0x00000200 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_wwdx_0[] = {
 	{ 0x419b00,   1, 0x04, 0x0a418820 },
 	{ 0x419b04,   1, 0x04, 0x062080e6 },
 	{ 0x419b08,   1, 0x04, 0x020398a4 },
@@ -916,15 +926,35 @@ nvc0_grctx_init_tpc_0[] = {
 	{ 0x419bd0,   1, 0x04, 0x00900103 },
 	{ 0x419be0,   1, 0x04, 0x00000001 },
 	{ 0x419be4,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_mpc_0[] = {
 	{ 0x419c00,   1, 0x04, 0x00000002 },
 	{ 0x419c04,   1, 0x04, 0x00000006 },
 	{ 0x419c08,   1, 0x04, 0x00000002 },
 	{ 0x419c20,   1, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvc0_grctx_init_l1c_0[] = {
 	{ 0x419cb0,   1, 0x04, 0x00060048 },
 	{ 0x419ce8,   1, 0x04, 0x00000000 },
 	{ 0x419cf4,   1, 0x04, 0x00000183 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_tpccs_0[] = {
 	{ 0x419d20,   1, 0x04, 0x02180000 },
 	{ 0x419d24,   1, 0x04, 0x00001fff },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvc0_grctx_init_sm_0[] = {
 	{ 0x419e04,   3, 0x04, 0x00000000 },
 	{ 0x419e10,   1, 0x04, 0x00000002 },
 	{ 0x419e44,   1, 0x04, 0x001beff2 },
@@ -938,7 +968,13 @@ nvc0_grctx_init_tpc_0[] = {
 
 const struct nvc0_graph_pack
 nvc0_grctx_pack_tpc[] = {
-	{ nvc0_grctx_init_tpc_0 },
+	{ nvc0_grctx_init_pe_0 },
+	{ nvc0_grctx_init_tex_0 },
+	{ nvc0_grctx_init_wwdx_0 },
+	{ nvc0_grctx_init_mpc_0 },
+	{ nvc0_grctx_init_l1c_0 },
+	{ nvc0_grctx_init_tpccs_0 },
+	{ nvc0_grctx_init_sm_0 },
 	{}
 };
 

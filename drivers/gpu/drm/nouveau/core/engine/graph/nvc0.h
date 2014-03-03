@@ -181,11 +181,20 @@ extern const struct nvc0_graph_init nvc0_graph_init_zcull_0[];
 extern const struct nvc0_graph_init nvc0_graph_init_gpm_0[];
 extern const struct nvc0_graph_init nvc0_graph_init_gpc_unk_1[];
 extern const struct nvc0_graph_init nvc0_graph_init_gcc_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tpccs_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_pe_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_l1c_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_wwdx_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tpccs_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_mpc_0[];
 extern const struct nvc0_graph_init nvc0_graph_init_be_0[];
 extern const struct nvc0_graph_init nvc0_graph_init_fe_1[];
-extern const struct nvc0_graph_init nvc0_graph_init_tpc_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_pe_1[];
 
 extern const struct nvc0_graph_init nvc4_graph_init_ds_0[];
+extern const struct nvc0_graph_init nvc4_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvc4_graph_init_sm_0[];
 
 extern const struct nvc0_graph_init nvc1_graph_init_gpc_unk_0[];
 extern const struct nvc0_graph_init nvc1_graph_init_setup_1[];
@@ -195,17 +204,22 @@ extern const struct nvc0_graph_init nvd9_graph_init_ds_0[];
 extern const struct nvc0_graph_init nvd9_graph_init_prop_0[];
 extern const struct nvc0_graph_init nvd9_graph_init_gpm_0[];
 extern const struct nvc0_graph_init nvd9_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvd9_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_sm_0[];
 extern const struct nvc0_graph_init nvd9_graph_init_fe_1[];
 
 extern const struct nvc0_graph_init nvd7_graph_init_ppc_0[];
 
 extern const struct nvc0_graph_init nve4_graph_init_main_0[];
+extern const struct nvc0_graph_init nve4_graph_init_tpccs_0[];
+extern const struct nvc0_graph_init nve4_graph_init_pe_0[];
 extern const struct nvc0_graph_init nve4_graph_init_be_0[];
 
 extern const struct nvc0_graph_init nvf0_graph_init_fe_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_sked_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_cwd_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvf0_graph_init_sm_0[];
 
 
 #endif

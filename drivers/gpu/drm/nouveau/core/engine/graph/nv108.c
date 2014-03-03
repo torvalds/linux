@@ -86,19 +86,18 @@ nv108_graph_init_setup_1[] = {
 };
 
 static const struct nvc0_graph_init
-nv108_graph_init_tpc_0[] = {
-	{ 0x419d0c,   1, 0x04, 0x00000000 },
-	{ 0x419d10,   1, 0x04, 0x00000014 },
+nv108_graph_init_tex_0[] = {
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
 	{ 0x419ac8,   1, 0x04, 0x00000000 },
 	{ 0x419ab8,   1, 0x04, 0x000000e7 },
 	{ 0x419abc,   2, 0x04, 0x00000000 },
 	{ 0x419ab4,   1, 0x04, 0x00000000 },
 	{ 0x419aa8,   2, 0x04, 0x00000000 },
-	{ 0x41980c,   1, 0x04, 0x00000010 },
-	{ 0x419844,   1, 0x04, 0x00000000 },
-	{ 0x419850,   1, 0x04, 0x00000004 },
-	{ 0x419854,   2, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nv108_graph_init_l1c_0[] = {
 	{ 0x419c98,   1, 0x04, 0x00000000 },
 	{ 0x419ca8,   1, 0x04, 0x00000000 },
 	{ 0x419cb0,   1, 0x04, 0x01000000 },
@@ -109,19 +108,6 @@ nv108_graph_init_tpc_0[] = {
 	{ 0x419cc0,   2, 0x04, 0x00000000 },
 	{ 0x419c80,   1, 0x04, 0x00000230 },
 	{ 0x419ccc,   2, 0x04, 0x00000000 },
-	{ 0x419c0c,   1, 0x04, 0x00000000 },
-	{ 0x419e00,   1, 0x04, 0x00000080 },
-	{ 0x419ea0,   1, 0x04, 0x00000000 },
-	{ 0x419ee4,   1, 0x04, 0x00000000 },
-	{ 0x419ea4,   1, 0x04, 0x00000100 },
-	{ 0x419ea8,   1, 0x04, 0x00000000 },
-	{ 0x419eb4,   1, 0x04, 0x00000000 },
-	{ 0x419ebc,   2, 0x04, 0x00000000 },
-	{ 0x419edc,   1, 0x04, 0x00000000 },
-	{ 0x419f00,   1, 0x04, 0x00000000 },
-	{ 0x419ed0,   1, 0x04, 0x00003234 },
-	{ 0x419f74,   1, 0x04, 0x00015555 },
-	{ 0x419f80,   4, 0x04, 0x00000000 },
 	{}
 };
 
@@ -145,7 +131,12 @@ nv108_graph_pack_mmio[] = {
 	{ nvd9_graph_init_gpm_0 },
 	{ nvf0_graph_init_gpc_unk_1 },
 	{ nvc0_graph_init_gcc_0 },
-	{ nv108_graph_init_tpc_0 },
+	{ nve4_graph_init_tpccs_0 },
+	{ nv108_graph_init_tex_0 },
+	{ nve4_graph_init_pe_0 },
+	{ nv108_graph_init_l1c_0 },
+	{ nvc0_graph_init_mpc_0 },
+	{ nvf0_graph_init_sm_0 },
 	{ nvd7_graph_init_ppc_0 },
 	{ nve4_graph_init_be_0 },
 	{ nvc0_graph_init_fe_1 },

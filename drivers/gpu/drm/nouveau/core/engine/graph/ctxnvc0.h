@@ -105,10 +105,22 @@ extern const struct nvc0_graph_init nvc0_grctx_init_gcc_0[];
 extern const struct nvc0_graph_pack nvc0_grctx_pack_zcull[];
 
 extern const struct nvc0_graph_pack nvc0_grctx_pack_tpc[];
+extern const struct nvc0_graph_init nvc0_grctx_init_pe_0[];
+extern const struct nvc0_graph_init nvc0_grctx_init_wwdx_0[];
+extern const struct nvc0_graph_init nvc0_grctx_init_mpc_0[];
+extern const struct nvc0_graph_init nvc0_grctx_init_tpccs_0[];
+
+extern const struct nvc0_graph_init nvc4_grctx_init_tex_0[];
+extern const struct nvc0_graph_init nvc4_grctx_init_l1c_0[];
+extern const struct nvc0_graph_init nvc4_grctx_init_sm_0[];
 
 extern const struct nvc0_graph_init nvc1_grctx_init_9097_0[];
 
 extern const struct nvc0_graph_init nvc1_grctx_init_gpm_0[];
+
+extern const struct nvc0_graph_init nvc1_grctx_init_pe_0[];
+extern const struct nvc0_graph_init nvc1_grctx_init_wwdx_0[];
+extern const struct nvc0_graph_init nvc1_grctx_init_tpccs_0[];
 
 extern const struct nvc0_graph_init nvc8_grctx_init_9197_0[];
 extern const struct nvc0_graph_init nvc8_grctx_init_9297_0[];
@@ -124,6 +136,10 @@ extern const struct nvc0_graph_init nvd9_grctx_init_prop_0[];
 extern const struct nvc0_graph_init nvd9_grctx_init_gpc_unk_1[];
 extern const struct nvc0_graph_init nvd9_grctx_init_crstr_0[];
 
+extern const struct nvc0_graph_init nvd9_grctx_init_sm_0[];
+
+extern const struct nvc0_graph_init nvd7_grctx_init_pe_0[];
+
 extern const struct nvc0_graph_init nve4_grctx_init_memfmt_0[];
 extern const struct nvc0_graph_init nve4_grctx_init_ds_0[];
 extern const struct nvc0_graph_init nve4_grctx_init_scc_0[];
@@ -136,6 +152,9 @@ extern const struct nvc0_graph_init nvf0_grctx_init_pri_0[];
 extern const struct nvc0_graph_init nvf0_grctx_init_cwd_0[];
 
 extern const struct nvc0_graph_init nvf0_grctx_init_gpc_unk_2[];
+
+extern const struct nvc0_graph_init nvf0_grctx_init_mpc_0[];
+extern const struct nvc0_graph_init nvf0_grctx_init_l1c_0[];
 
 
 #endif

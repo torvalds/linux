@@ -75,15 +75,18 @@ nvd9_graph_init_gpc_unk_1[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
-nvd9_graph_init_tpc_0[] = {
-	{ 0x419d08,   2, 0x04, 0x00000000 },
-	{ 0x419d10,   1, 0x04, 0x00000014 },
+const struct nvc0_graph_init
+nvd9_graph_init_tex_0[] = {
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
 	{ 0x419ac8,   1, 0x04, 0x00000000 },
 	{ 0x419ab8,   1, 0x04, 0x000000e7 },
 	{ 0x419abc,   2, 0x04, 0x00000000 },
 	{ 0x419ab4,   1, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvd9_graph_init_pe_0[] = {
 	{ 0x41980c,   1, 0x04, 0x00000010 },
 	{ 0x419810,   1, 0x04, 0x00000000 },
 	{ 0x419814,   1, 0x04, 0x00000004 },
@@ -91,18 +94,26 @@ nvd9_graph_init_tpc_0[] = {
 	{ 0x41984c,   1, 0x04, 0x0000a918 },
 	{ 0x419850,   4, 0x04, 0x00000000 },
 	{ 0x419880,   1, 0x04, 0x00000002 },
-	{ 0x419c98,   1, 0x04, 0x00000000 },
-	{ 0x419ca8,   1, 0x04, 0x80000000 },
-	{ 0x419cb4,   1, 0x04, 0x00000000 },
-	{ 0x419cb8,   1, 0x04, 0x00008bf4 },
-	{ 0x419cbc,   1, 0x04, 0x28137606 },
-	{ 0x419cc0,   2, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvd9_graph_init_wwdx_0[] = {
 	{ 0x419bd4,   1, 0x04, 0x00800000 },
 	{ 0x419bdc,   1, 0x04, 0x00000000 },
 	{ 0x419bf8,   2, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvd9_graph_init_tpccs_1[] = {
 	{ 0x419d2c,   1, 0x04, 0x00000000 },
 	{ 0x419d48,   2, 0x04, 0x00000000 },
-	{ 0x419c0c,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvd9_graph_init_sm_0[] = {
 	{ 0x419e00,   1, 0x04, 0x00000000 },
 	{ 0x419ea0,   1, 0x04, 0x00000000 },
 	{ 0x419ea4,   1, 0x04, 0x00000100 },
@@ -146,7 +157,14 @@ nvd9_graph_pack_mmio[] = {
 	{ nvd9_graph_init_gpm_0 },
 	{ nvd9_graph_init_gpc_unk_1 },
 	{ nvc0_graph_init_gcc_0 },
-	{ nvd9_graph_init_tpc_0 },
+	{ nvc0_graph_init_tpccs_0 },
+	{ nvd9_graph_init_tex_0 },
+	{ nvd9_graph_init_pe_0 },
+	{ nvc0_graph_init_l1c_0 },
+	{ nvd9_graph_init_wwdx_0 },
+	{ nvd9_graph_init_tpccs_1 },
+	{ nvc0_graph_init_mpc_0 },
+	{ nvd9_graph_init_sm_0 },
 	{ nvc0_graph_init_be_0 },
 	{ nvd9_graph_init_fe_1 },
 	{}
