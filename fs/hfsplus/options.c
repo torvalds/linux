@@ -75,7 +75,7 @@ int hfsplus_parse_options_remount(char *input, int *force)
 	int token;
 
 	if (!input)
-		return 0;
+		return 1;
 
 	while ((p = strsep(&input, ",")) != NULL) {
 		if (!*p)
