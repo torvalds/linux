@@ -8,12 +8,9 @@
 
 /* hist period print (hpp) functions */
 
-typedef int (*hpp_snprint_fn)(char *buf, size_t size, const char *fmt, ...);
-
-static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
-		      u64 (*get_field)(struct hist_entry *),
-		      const char *fmt, hpp_snprint_fn print_fn,
-		      bool fmt_percent)
+int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
+	       u64 (*get_field)(struct hist_entry *),
+	       const char *fmt, hpp_snprint_fn print_fn, bool fmt_percent)
 {
 	int ret;
 	struct hists *hists = he->hists;

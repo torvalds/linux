@@ -166,6 +166,12 @@ void perf_hpp__init(void);
 void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_enable(unsigned col);
 
+typedef int (*hpp_snprint_fn)(char *buf, size_t size, const char *fmt, ...);
+
+int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
+	       u64 (*get_field)(struct hist_entry *),
+	       const char *fmt, hpp_snprint_fn print_fn, bool fmt_percent);
+
 static inline size_t perf_hpp__use_color(void)
 {
 	return !symbol_conf.field_sep;
