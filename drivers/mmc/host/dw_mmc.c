@@ -994,12 +994,13 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 {
 	int read_only;
 	struct dw_mci_slot *slot = mmc_priv(mmc);
+	int gpio_ro = mmc_gpio_get_ro(mmc);
 
 	/* Use platform get_ro function, else try on board write protect */
 	if (slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT)
 		read_only = 0;
-	else if (gpio_is_valid(slot->wp_gpio))
-		read_only = gpio_get_value(slot->wp_gpio);
+	else if (!IS_ERR_VALUE(gpio_ro))
+		read_only = gpio_ro;
 	else
 		read_only =
 			mci_readl(slot->host, WRTPRT) & (1 << slot->id) ? 1 : 0;
@@ -2025,49 +2026,6 @@ static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 
 	return quirks;
 }
-
-/* find the write protect gpio for a given slot; or -1 if none specified */
-static int dw_mci_of_get_wp_gpio(struct device *dev, u8 slot)
-{
-	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
-	int gpio;
-
-	if (!np)
-		return -EINVAL;
-
-	gpio = of_get_named_gpio(np, "wp-gpios", 0);
-
-	/* Having a missing entry is valid; return silently */
-	if (!gpio_is_valid(gpio))
-		return -EINVAL;
-
-	if (devm_gpio_request(dev, gpio, "dw-mci-wp")) {
-		dev_warn(dev, "gpio [%d] request failed\n", gpio);
-		return -EINVAL;
-	}
-
-	return gpio;
-}
-
-/* find the cd gpio for a given slot */
-static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
-					struct mmc_host *mmc)
-{
-	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
-	int gpio;
-
-	if (!np)
-		return;
-
-	gpio = of_get_named_gpio(np, "cd-gpios", 0);
-
-	/* Having a missing entry is valid; return silently */
-	if (!gpio_is_valid(gpio))
-		return;
-
-	if (mmc_gpio_request_cd(mmc, gpio, 0))
-		dev_warn(dev, "gpio [%d] request failed\n", gpio);
-}
 #else /* CONFIG_OF */
 static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 {
@@ -2076,15 +2034,6 @@ static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 static struct device_node *dw_mci_of_find_slot_node(struct device *dev, u8 slot)
 {
 	return NULL;
-}
-static int dw_mci_of_get_wp_gpio(struct device *dev, u8 slot)
-{
-	return -EINVAL;
-}
-static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
-					struct mmc_host *mmc)
-{
-	return;
 }
 #endif /* CONFIG_OF */
 
@@ -2163,9 +2112,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->max_seg_size = mmc->max_req_size;
 #endif /* CONFIG_MMC_DW_IDMAC */
 	}
-
-	slot->wp_gpio = dw_mci_of_get_wp_gpio(host->dev, slot->id);
-	dw_mci_of_get_cd_gpio(host->dev, slot->id, mmc);
 
 	ret = mmc_add_host(mmc);
 	if (ret)
