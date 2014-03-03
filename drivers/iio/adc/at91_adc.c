@@ -1007,8 +1007,11 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 * the best converted final value between two channels selection
 	 * The formula thus is : Sample and Hold Time = (shtim + 1) / ADCClock
 	 */
-	shtim = round_up((st->sample_hold_time * adc_clk_khz /
-			  1000) - 1, 1);
+	if (st->sample_hold_time > 0)
+		shtim = round_up((st->sample_hold_time * adc_clk_khz / 1000)
+				 - 1, 1);
+	else
+		shtim = 0;
 
 	reg = AT91_ADC_PRESCAL_(prsc) & st->registers->mr_prescal_mask;
 	reg |= AT91_ADC_STARTUP_(ticks) & st->registers->mr_startup_mask;
