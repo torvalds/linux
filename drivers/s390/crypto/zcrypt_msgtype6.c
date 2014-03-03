@@ -311,7 +311,7 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	} __packed * msg = ap_msg->message;
 
 	int rcblen = CEIL4(xcRB->request_control_blk_length);
-	int replylen;
+	int replylen, req_sumlen, resp_sumlen;
 	char *req_data = ap_msg->message + sizeof(struct type6_hdr) + rcblen;
 	char *function_code;
 
@@ -321,11 +321,33 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 		xcRB->request_data_length;
 	if (ap_msg->length > MSGTYPE06_MAX_MSG_SIZE)
 		return -EINVAL;
+
+	/* Overflow check
+	   sum must be greater (or equal) than the largest operand */
+	req_sumlen = CEIL4(xcRB->request_control_blk_length) +
+			xcRB->request_data_length;
+	if ((CEIL4(xcRB->request_control_blk_length) <=
+						xcRB->request_data_length) ?
+		(req_sumlen < xcRB->request_data_length) :
+		(req_sumlen < CEIL4(xcRB->request_control_blk_length))) {
+		return -EINVAL;
+	}
+
 	replylen = sizeof(struct type86_fmt2_msg) +
 		CEIL4(xcRB->reply_control_blk_length) +
 		xcRB->reply_data_length;
 	if (replylen > MSGTYPE06_MAX_MSG_SIZE)
 		return -EINVAL;
+
+	/* Overflow check
+	   sum must be greater (or equal) than the largest operand */
+	resp_sumlen = CEIL4(xcRB->reply_control_blk_length) +
+			xcRB->reply_data_length;
+	if ((CEIL4(xcRB->reply_control_blk_length) <= xcRB->reply_data_length) ?
+		(resp_sumlen < xcRB->reply_data_length) :
+		(resp_sumlen < CEIL4(xcRB->reply_control_blk_length))) {
+		return -EINVAL;
+	}
 
 	/* prepare type6 header */
 	msg->hdr = static_type6_hdrX;
