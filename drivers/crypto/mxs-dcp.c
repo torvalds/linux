@@ -50,7 +50,6 @@ struct dcp_coherent_block {
 	uint8_t			sha_in_buf[DCP_BUF_SZ];
 
 	uint8_t			aes_key[2 * AES_KEYSIZE_128];
-	uint8_t			sha_digest[SHA256_DIGEST_SIZE];
 
 	struct dcp_dma_desc	desc[DCP_MAX_CHANS];
 };
@@ -516,13 +515,11 @@ static int mxs_dcp_run_sha(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct dcp_async_ctx *actx = crypto_ahash_ctx(tfm);
 	struct dcp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct hash_alg_common *halg = crypto_hash_alg_common(tfm);
 
 	struct dcp_dma_desc *desc = &sdcp->coh->desc[actx->chan];
-	dma_addr_t digest_phys = dma_map_single(sdcp->dev,
-						sdcp->coh->sha_digest,
-						SHA256_DIGEST_SIZE,
-						DMA_FROM_DEVICE);
 
+	dma_addr_t digest_phys = 0;
 	dma_addr_t buf_phys = dma_map_single(sdcp->dev, sdcp->coh->sha_in_buf,
 					     DCP_BUF_SZ, DMA_TO_DEVICE);
 
@@ -543,14 +540,18 @@ static int mxs_dcp_run_sha(struct ahash_request *req)
 
 	/* Set HASH_TERM bit for last transfer block. */
 	if (rctx->fini) {
+		digest_phys = dma_map_single(sdcp->dev, req->result,
+					     halg->digestsize, DMA_FROM_DEVICE);
 		desc->control0 |= MXS_DCP_CONTROL0_HASH_TERM;
 		desc->payload = digest_phys;
 	}
 
 	ret = mxs_dcp_start_dma(actx);
 
-	dma_unmap_single(sdcp->dev, digest_phys, SHA256_DIGEST_SIZE,
-			 DMA_FROM_DEVICE);
+	if (rctx->fini)
+		dma_unmap_single(sdcp->dev, digest_phys, halg->digestsize,
+				 DMA_FROM_DEVICE);
+
 	dma_unmap_single(sdcp->dev, buf_phys, DCP_BUF_SZ, DMA_TO_DEVICE);
 
 	return ret;
@@ -567,7 +568,6 @@ static int dcp_sha_req_to_buf(struct crypto_async_request *arq)
 	struct hash_alg_common *halg = crypto_hash_alg_common(tfm);
 	const int nents = sg_nents(req->src);
 
-	uint8_t *digest = sdcp->coh->sha_digest;
 	uint8_t *in_buf = sdcp->coh->sha_in_buf;
 
 	uint8_t *src_buf;
@@ -614,14 +614,20 @@ static int dcp_sha_req_to_buf(struct crypto_async_request *arq)
 		rctx->fini = 1;
 
 		/* Submit whatever is left. */
+		if (!req->result)
+			return -EINVAL;
+
 		ret = mxs_dcp_run_sha(req);
-		if (ret || !req->result)
+		if (ret)
 			return ret;
+
 		actx->fill = 0;
 
 		/* For some reason, the result is flipped. */
-		for (i = 0; i < halg->digestsize; i++)
-			req->result[i] = digest[halg->digestsize - i - 1];
+		for (i = 0; i < halg->digestsize / 2; i++) {
+			swap(req->result[i],
+			     req->result[halg->digestsize - i - 1]);
+		}
 	}
 
 	return 0;
