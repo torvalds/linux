@@ -698,6 +698,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	struct fsnotify_group *group;
 	int f_flags, fd;
 	struct user_struct *user;
+	struct fanotify_event_info *oevent;
 
 	pr_debug("%s: flags=%d event_f_flags=%d\n",
 		__func__, flags, event_f_flags);
@@ -730,8 +731,20 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.user = user;
 	atomic_inc(&user->fanotify_listeners);
 
+	oevent = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
+	if (unlikely(!oevent)) {
+		fd = -ENOMEM;
+		goto out_destroy_group;
+	}
+	group->overflow_event = &oevent->fse;
+	fsnotify_init_event(group->overflow_event, NULL, FS_Q_OVERFLOW);
+	oevent->tgid = get_pid(task_tgid(current));
+	oevent->path.mnt = NULL;
+	oevent->path.dentry = NULL;
+
 	group->fanotify_data.f_flags = event_f_flags;
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	oevent->response = 0;
 	mutex_init(&group->fanotify_data.access_mutex);
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);

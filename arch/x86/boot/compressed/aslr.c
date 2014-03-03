@@ -111,7 +111,7 @@ struct mem_vector {
 };
 
 #define MEM_AVOID_MAX 5
-struct mem_vector mem_avoid[MEM_AVOID_MAX];
+static struct mem_vector mem_avoid[MEM_AVOID_MAX];
 
 static bool mem_contains(struct mem_vector *region, struct mem_vector *item)
 {
@@ -180,7 +180,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 }
 
 /* Does this memory vector overlap a known avoided area? */
-bool mem_avoid_overlap(struct mem_vector *img)
+static bool mem_avoid_overlap(struct mem_vector *img)
 {
 	int i;
 
@@ -192,8 +192,9 @@ bool mem_avoid_overlap(struct mem_vector *img)
 	return false;
 }
 
-unsigned long slots[CONFIG_RANDOMIZE_BASE_MAX_OFFSET / CONFIG_PHYSICAL_ALIGN];
-unsigned long slot_max = 0;
+static unsigned long slots[CONFIG_RANDOMIZE_BASE_MAX_OFFSET /
+			   CONFIG_PHYSICAL_ALIGN];
+static unsigned long slot_max;
 
 static void slots_append(unsigned long addr)
 {

@@ -179,7 +179,7 @@ static int send_to_group(struct inode *to_tell,
 
 	return group->ops->handle_event(group, to_tell, inode_mark,
 					vfsmount_mark, mask, data, data_is,
-					file_name);
+					file_name, cookie);
 }
 
 /*

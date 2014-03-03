@@ -176,7 +176,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 {
 	struct annotation *notes;
 	struct symbol *sym;
-	int err;
+	int err = 0;
 
 	if (he == NULL || he->ms.sym == NULL ||
 	    ((top->sym_filter_entry == NULL ||
@@ -190,7 +190,9 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 		return;
 
 	ip = he->ms.map->map_ip(he->ms.map, ip);
-	err = hist_entry__inc_addr_samples(he, counter, ip);
+
+	if (ui__has_annotation())
+		err = hist_entry__inc_addr_samples(he, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 

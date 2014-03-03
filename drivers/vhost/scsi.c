@@ -1001,6 +1001,12 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			break;
 		}
 
+		/* virtio-scsi spec requires byte 0 of the lun to be 1 */
+		if (unlikely(v_req.lun[0] != 1)) {
+			vhost_scsi_send_bad_target(vs, vq, head, out);
+			continue;
+		}
+
 		/* Extract the tpgt */
 		target = v_req.lun[1];
 		tpg = ACCESS_ONCE(vs_tpg[target]);
