@@ -602,7 +602,6 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	intel_runtime_pm_get(dev_priv);
 
 	if (INTEL_INFO(dev)->gen >= 8) {
-		int i;
 		seq_printf(m, "Master Interrupt Control:\t%08x\n",
 			   I915_READ(GEN8_MASTER_IRQ));
 
