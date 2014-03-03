@@ -28,6 +28,8 @@
 #define FIQ_ENABLE_SET		0x28
 #define FIQ_ENABLE_CLEAR	0x2C
 
+#define PIC_ENABLES             0x20	/* set interrupt pass through bits */
+
 /**
  * struct fpga_irq_data - irq data container for the FPGA IRQ controller
  * @base: memory offset in virtual memory
@@ -213,7 +215,16 @@ int __init fpga_irq_of_init(struct device_node *node,
 	writel(clear_mask, base + IRQ_ENABLE_CLEAR);
 	writel(clear_mask, base + FIQ_ENABLE_CLEAR);
 
+	/*
+	 * On Versatile AB/PB, some secondary interrupts have a direct
+	 * pass-thru to the primary controller for IRQs 20 and 22-31 which need
+	 * to be enabled. See section 3.10 of the Versatile AB user guide.
+	 */
+	if (of_device_is_compatible(node, "arm,versatile-sic"))
+		writel(0xffd00000, base + PIC_ENABLES);
+
 	return 0;
 }
 IRQCHIP_DECLARE(arm_fpga, "arm,versatile-fpga-irq", fpga_irq_of_init);
+IRQCHIP_DECLARE(arm_fpga_sic, "arm,versatile-sic", fpga_irq_of_init);
 #endif
