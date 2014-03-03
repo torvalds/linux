@@ -34,8 +34,6 @@ Kolter Electronic PCI Counter Card.
 
 #include "../comedidev.h"
 
-#define CNT_CARD_DEVICE_ID      0x0014
-
 /*-- counter write ----------------------------------------------------------*/
 
 /* This should be used only for resetting the counters; maybe it is better
@@ -137,7 +135,7 @@ static int ke_counter_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id ke_counter_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_KOLTER, 0x0014) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ke_counter_pci_table);
