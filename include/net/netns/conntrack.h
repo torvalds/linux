@@ -5,6 +5,7 @@
 #include <linux/list_nulls.h>
 #include <linux/atomic.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
+#include <linux/seqlock.h>
 
 struct ctl_table_header;
 struct nf_conntrack_ecache;
@@ -90,6 +91,7 @@ struct netns_ct {
 	int			sysctl_checksum;
 
 	unsigned int		htable_size;
+	seqcount_t		generation;
 	struct kmem_cache	*nf_conntrack_cachep;
 	struct hlist_nulls_head	*hash;
 	struct hlist_head	*expect_hash;

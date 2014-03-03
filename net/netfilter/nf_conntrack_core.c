@@ -60,11 +60,59 @@ int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
 				      const struct nlattr *attr) __read_mostly;
 EXPORT_SYMBOL_GPL(nfnetlink_parse_nat_setup_hook);
 
-DEFINE_SPINLOCK(nf_conntrack_lock);
-EXPORT_SYMBOL_GPL(nf_conntrack_lock);
+__cacheline_aligned_in_smp spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
+EXPORT_SYMBOL_GPL(nf_conntrack_locks);
 
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(nf_conntrack_expect_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_expect_lock);
+
+static void nf_conntrack_double_unlock(unsigned int h1, unsigned int h2)
+{
+	h1 %= CONNTRACK_LOCKS;
+	h2 %= CONNTRACK_LOCKS;
+	spin_unlock(&nf_conntrack_locks[h1]);
+	if (h1 != h2)
+		spin_unlock(&nf_conntrack_locks[h2]);
+}
+
+/* return true if we need to recompute hashes (in case hash table was resized) */
+static bool nf_conntrack_double_lock(struct net *net, unsigned int h1,
+				     unsigned int h2, unsigned int sequence)
+{
+	h1 %= CONNTRACK_LOCKS;
+	h2 %= CONNTRACK_LOCKS;
+	if (h1 <= h2) {
+		spin_lock(&nf_conntrack_locks[h1]);
+		if (h1 != h2)
+			spin_lock_nested(&nf_conntrack_locks[h2],
+					 SINGLE_DEPTH_NESTING);
+	} else {
+		spin_lock(&nf_conntrack_locks[h2]);
+		spin_lock_nested(&nf_conntrack_locks[h1],
+				 SINGLE_DEPTH_NESTING);
+	}
+	if (read_seqcount_retry(&net->ct.generation, sequence)) {
+		nf_conntrack_double_unlock(h1, h2);
+		return true;
+	}
+	return false;
+}
+
+static void nf_conntrack_all_lock(void)
+{
+	int i;
+
+	for (i = 0; i < CONNTRACK_LOCKS; i++)
+		spin_lock_nested(&nf_conntrack_locks[i], i);
+}
+
+static void nf_conntrack_all_unlock(void)
+{
+	int i;
+
+	for (i = 0; i < CONNTRACK_LOCKS; i++)
+		spin_unlock(&nf_conntrack_locks[i]);
+}
 
 unsigned int nf_conntrack_htable_size __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
@@ -280,15 +328,28 @@ destroy_conntrack(struct nf_conntrack *nfct)
 static void nf_ct_delete_from_lists(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
+	unsigned int hash, reply_hash;
+	u16 zone = nf_ct_zone(ct);
+	unsigned int sequence;
 
 	nf_ct_helper_destroy(ct);
-	spin_lock_bh(&nf_conntrack_lock);
-	/* Inside lock so preempt is disabled on module removal path.
-	 * Otherwise we can get spurious warnings. */
-	NF_CT_STAT_INC(net, delete_list);
+
+	local_bh_disable();
+	do {
+		sequence = read_seqcount_begin(&net->ct.generation);
+		hash = hash_conntrack(net, zone,
+				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+		reply_hash = hash_conntrack(net, zone,
+					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
+
 	clean_from_lists(ct);
+	nf_conntrack_double_unlock(hash, reply_hash);
+
 	nf_ct_add_to_dying_list(ct);
-	spin_unlock_bh(&nf_conntrack_lock);
+
+	NF_CT_STAT_INC(net, delete_list);
+	local_bh_enable();
 }
 
 static void death_by_event(unsigned long ul_conntrack)
@@ -372,8 +433,6 @@ nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
  * Warning :
  * - Caller must take a reference on returned object
  *   and recheck nf_ct_tuple_equal(tuple, &h->tuple)
- * OR
- * - Caller must lock nf_conntrack_lock before calling this function
  */
 static struct nf_conntrack_tuple_hash *
 ____nf_conntrack_find(struct net *net, u16 zone,
@@ -467,14 +526,18 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_node *n;
 	u16 zone;
+	unsigned int sequence;
 
 	zone = nf_ct_zone(ct);
-	hash = hash_conntrack(net, zone,
-			      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-	reply_hash = hash_conntrack(net, zone,
-				   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
-	spin_lock_bh(&nf_conntrack_lock);
+	local_bh_disable();
+	do {
+		sequence = read_seqcount_begin(&net->ct.generation);
+		hash = hash_conntrack(net, zone,
+				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+		reply_hash = hash_conntrack(net, zone,
+					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	/* See if there's one in the list already, including reverse */
 	hlist_nulls_for_each_entry(h, n, &net->ct.hash[hash], hnnode)
@@ -493,14 +556,15 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	/* The caller holds a reference to this object */
 	atomic_set(&ct->ct_general.use, 2);
 	__nf_conntrack_hash_insert(ct, hash, reply_hash);
+	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert);
-	spin_unlock_bh(&nf_conntrack_lock);
-
+	local_bh_enable();
 	return 0;
 
 out:
+	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert_failed);
-	spin_unlock_bh(&nf_conntrack_lock);
+	local_bh_enable();
 	return -EEXIST;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_hash_check_insert);
@@ -540,6 +604,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	enum ip_conntrack_info ctinfo;
 	struct net *net;
 	u16 zone;
+	unsigned int sequence;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	net = nf_ct_net(ct);
@@ -552,31 +617,37 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		return NF_ACCEPT;
 
 	zone = nf_ct_zone(ct);
-	/* reuse the hash saved before */
-	hash = *(unsigned long *)&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev;
-	hash = hash_bucket(hash, net);
-	reply_hash = hash_conntrack(net, zone,
-				   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+	local_bh_disable();
+
+	do {
+		sequence = read_seqcount_begin(&net->ct.generation);
+		/* reuse the hash saved before */
+		hash = *(unsigned long *)&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev;
+		hash = hash_bucket(hash, net);
+		reply_hash = hash_conntrack(net, zone,
+					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+
+	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	/* We're not in hash table, and we refuse to set up related
-	   connections for unconfirmed conns.  But packet copies and
-	   REJECT will give spurious warnings here. */
+	 * connections for unconfirmed conns.  But packet copies and
+	 * REJECT will give spurious warnings here.
+	 */
 	/* NF_CT_ASSERT(atomic_read(&ct->ct_general.use) == 1); */
 
 	/* No external references means no one else could have
-	   confirmed us. */
+	 * confirmed us.
+	 */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
 	pr_debug("Confirming conntrack %p\n", ct);
-
-	spin_lock_bh(&nf_conntrack_lock);
-
 	/* We have to check the DYING flag inside the lock to prevent
 	   a race against nf_ct_get_next_corpse() possibly called from
 	   user context, else we insert an already 'dead' hash, blocking
 	   further use of that particular connection -JM */
 
 	if (unlikely(nf_ct_is_dying(ct))) {
-		spin_unlock_bh(&nf_conntrack_lock);
+		nf_conntrack_double_unlock(hash, reply_hash);
+		local_bh_enable();
 		return NF_ACCEPT;
 	}
 
@@ -618,8 +689,9 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	 * stores are visible.
 	 */
 	__nf_conntrack_hash_insert(ct, hash, reply_hash);
+	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert);
-	spin_unlock_bh(&nf_conntrack_lock);
+	local_bh_enable();
 
 	help = nfct_help(ct);
 	if (help && help->helper)
@@ -630,8 +702,9 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	return NF_ACCEPT;
 
 out:
+	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert_failed);
-	spin_unlock_bh(&nf_conntrack_lock);
+	local_bh_enable();
 	return NF_DROP;
 }
 EXPORT_SYMBOL_GPL(__nf_conntrack_confirm);
@@ -674,39 +747,48 @@ EXPORT_SYMBOL_GPL(nf_conntrack_tuple_taken);
 
 /* There's a small race here where we may free a just-assured
    connection.  Too bad: we're in trouble anyway. */
-static noinline int early_drop(struct net *net, unsigned int hash)
+static noinline int early_drop(struct net *net, unsigned int _hash)
 {
 	/* Use oldest entry, which is roughly LRU */
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct = NULL, *tmp;
 	struct hlist_nulls_node *n;
-	unsigned int i, cnt = 0;
+	unsigned int i = 0, cnt = 0;
 	int dropped = 0;
+	unsigned int hash, sequence;
+	spinlock_t *lockp;
 
-	rcu_read_lock();
-	for (i = 0; i < net->ct.htable_size; i++) {
+	local_bh_disable();
+restart:
+	sequence = read_seqcount_begin(&net->ct.generation);
+	hash = hash_bucket(_hash, net);
+	for (; i < net->ct.htable_size; i++) {
+		lockp = &nf_conntrack_locks[hash % CONNTRACK_LOCKS];
+		spin_lock(lockp);
+		if (read_seqcount_retry(&net->ct.generation, sequence)) {
+			spin_unlock(lockp);
+			goto restart;
+		}
 		hlist_nulls_for_each_entry_rcu(h, n, &net->ct.hash[hash],
 					 hnnode) {
 			tmp = nf_ct_tuplehash_to_ctrack(h);
-			if (!test_bit(IPS_ASSURED_BIT, &tmp->status))
+			if (!test_bit(IPS_ASSURED_BIT, &tmp->status) &&
+			    !nf_ct_is_dying(tmp) &&
+			    atomic_inc_not_zero(&tmp->ct_general.use)) {
 				ct = tmp;
+				break;
+			}
 			cnt++;
 		}
 
-		if (ct != NULL) {
-			if (likely(!nf_ct_is_dying(ct) &&
-				   atomic_inc_not_zero(&ct->ct_general.use)))
-				break;
-			else
-				ct = NULL;
-		}
+		hash = (hash + 1) % net->ct.htable_size;
+		spin_unlock(lockp);
 
-		if (cnt >= NF_CT_EVICTION_RANGE)
+		if (ct || cnt >= NF_CT_EVICTION_RANGE)
 			break;
 
-		hash = (hash + 1) % net->ct.htable_size;
 	}
-	rcu_read_unlock();
+	local_bh_enable();
 
 	if (!ct)
 		return dropped;
@@ -755,7 +837,7 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 
 	if (nf_conntrack_max &&
 	    unlikely(atomic_read(&net->ct.count) > nf_conntrack_max)) {
-		if (!early_drop(net, hash_bucket(hash, net))) {
+		if (!early_drop(net, hash)) {
 			atomic_dec(&net->ct.count);
 			net_warn_ratelimited("nf_conntrack: table full, dropping packet\n");
 			return ERR_PTR(-ENOMEM);
@@ -1304,18 +1386,24 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 	struct nf_conn *ct;
 	struct hlist_nulls_node *n;
 	int cpu;
+	spinlock_t *lockp;
 
-	spin_lock_bh(&nf_conntrack_lock);
 	for (; *bucket < net->ct.htable_size; (*bucket)++) {
-		hlist_nulls_for_each_entry(h, n, &net->ct.hash[*bucket], hnnode) {
-			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
-				continue;
-			ct = nf_ct_tuplehash_to_ctrack(h);
-			if (iter(ct, data))
-				goto found;
+		lockp = &nf_conntrack_locks[*bucket % CONNTRACK_LOCKS];
+		local_bh_disable();
+		spin_lock(lockp);
+		if (*bucket < net->ct.htable_size) {
+			hlist_nulls_for_each_entry(h, n, &net->ct.hash[*bucket], hnnode) {
+				if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
+					continue;
+				ct = nf_ct_tuplehash_to_ctrack(h);
+				if (iter(ct, data))
+					goto found;
+			}
 		}
+		spin_unlock(lockp);
+		local_bh_enable();
 	}
-	spin_unlock_bh(&nf_conntrack_lock);
 
 	for_each_possible_cpu(cpu) {
 		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
@@ -1331,7 +1419,8 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 	return NULL;
 found:
 	atomic_inc(&ct->ct_general.use);
-	spin_unlock_bh(&nf_conntrack_lock);
+	spin_unlock(lockp);
+	local_bh_enable();
 	return ct;
 }
 
@@ -1532,12 +1621,16 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	if (!hash)
 		return -ENOMEM;
 
+	local_bh_disable();
+	nf_conntrack_all_lock();
+	write_seqcount_begin(&init_net.ct.generation);
+
 	/* Lookups in the old hash might happen in parallel, which means we
 	 * might get false negatives during connection lookup. New connections
 	 * created because of a false negative won't make it into the hash
-	 * though since that required taking the lock.
+	 * though since that required taking the locks.
 	 */
-	spin_lock_bh(&nf_conntrack_lock);
+
 	for (i = 0; i < init_net.ct.htable_size; i++) {
 		while (!hlist_nulls_empty(&init_net.ct.hash[i])) {
 			h = hlist_nulls_entry(init_net.ct.hash[i].first,
@@ -1554,7 +1647,10 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 
 	init_net.ct.htable_size = nf_conntrack_htable_size = hashsize;
 	init_net.ct.hash = hash;
-	spin_unlock_bh(&nf_conntrack_lock);
+
+	write_seqcount_end(&init_net.ct.generation);
+	nf_conntrack_all_unlock();
+	local_bh_enable();
 
 	nf_ct_free_hashtable(old_hash, old_size);
 	return 0;
@@ -1576,7 +1672,10 @@ EXPORT_SYMBOL_GPL(nf_ct_untracked_status_or);
 int nf_conntrack_init_start(void)
 {
 	int max_factor = 8;
-	int ret, cpu;
+	int i, ret, cpu;
+
+	for (i = 0; i < ARRAY_SIZE(nf_conntrack_locks); i++)
+		spin_lock_init(&nf_conntrack_locks[i]);
 
 	/* Idea from tcp.c: use 1/16384 of memory.  On i386: 32MB
 	 * machine has 512 buckets. >= 1GB machines have 16384 buckets. */

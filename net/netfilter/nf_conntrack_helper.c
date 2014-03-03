@@ -423,12 +423,16 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 			unhelp(h, me);
 		spin_unlock_bh(&pcpu->lock);
 	}
-	spin_lock_bh(&nf_conntrack_lock);
+	local_bh_disable();
 	for (i = 0; i < net->ct.htable_size; i++) {
-		hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
-			unhelp(h, me);
+		spin_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
+		if (i < net->ct.htable_size) {
+			hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
+				unhelp(h, me);
+		}
+		spin_unlock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
 	}
-	spin_unlock_bh(&nf_conntrack_lock);
+	local_bh_enable();
 }
 
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)

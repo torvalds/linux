@@ -764,14 +764,23 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
 	int res;
+	spinlock_t *lockp;
+
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	const struct ctnetlink_dump_filter *filter = cb->data;
 #endif
 
-	spin_lock_bh(&nf_conntrack_lock);
 	last = (struct nf_conn *)cb->args[1];
+
+	local_bh_disable();
 	for (; cb->args[0] < net->ct.htable_size; cb->args[0]++) {
 restart:
+		lockp = &nf_conntrack_locks[cb->args[0] % CONNTRACK_LOCKS];
+		spin_lock(lockp);
+		if (cb->args[0] >= net->ct.htable_size) {
+			spin_unlock(lockp);
+			goto out;
+		}
 		hlist_nulls_for_each_entry(h, n, &net->ct.hash[cb->args[0]],
 					 hnnode) {
 			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
@@ -803,16 +812,18 @@ restart:
 			if (res < 0) {
 				nf_conntrack_get(&ct->ct_general);
 				cb->args[1] = (unsigned long)ct;
+				spin_unlock(lockp);
 				goto out;
 			}
 		}
+		spin_unlock(lockp);
 		if (cb->args[1]) {
 			cb->args[1] = 0;
 			goto restart;
 		}
 	}
 out:
-	spin_unlock_bh(&nf_conntrack_lock);
+	local_bh_enable();
 	if (last)
 		nf_ct_put(last);
 
