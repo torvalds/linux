@@ -76,24 +76,23 @@ static int ke_counter_insn_read(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	unsigned char a0, a1, a2, a3, a4;
-	int chan = CR_CHAN(insn->chanspec);
-	int result;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
 
-	a0 = inb(dev->iobase + KE_LATCH_REG(chan));
-	a1 = inb(dev->iobase + KE_LSB_REG(chan));
-	a2 = inb(dev->iobase + KE_MID_REG(chan));
-	a3 = inb(dev->iobase + KE_MSB_REG(chan));
-	a4 = inb(dev->iobase + KE_SIGN_REG(chan));
+	for (i = 0; i < insn->n; i++) {
+		/* Order matters */
+		inb(dev->iobase + KE_LATCH_REG(chan));
 
-	result = (a1 + (a2 * 256) + (a3 * 65536));
-	if (a4 > 0)
-		result = result - s->maxdata;
+		val = inb(dev->iobase + KE_LSB_REG(chan));
+		val |= (inb(dev->iobase + KE_MID_REG(chan)) << 8);
+		val |= (inb(dev->iobase + KE_MSB_REG(chan)) << 16);
+		val |= (inb(dev->iobase + KE_SIGN_REG(chan)) << 24);
 
-	*data = (unsigned int)result;
+		data[i] = val;
+	}
 
-	/* return the number of samples read */
-	return 1;
+	return insn->n;
 }
 
 static int cnt_auto_attach(struct comedi_device *dev,
