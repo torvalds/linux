@@ -4792,7 +4792,7 @@ static void lpt_suspend_hw(struct drm_device *dev)
 static void gen8_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe i;
+	enum pipe pipe;
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
@@ -4837,9 +4837,9 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 		   I915_READ(CHICKEN_PAR1_1) | DPA_MASK_VBLANK_SRD);
 
 	/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
-	for_each_pipe(i) {
-		I915_WRITE(CHICKEN_PIPESL_1(i),
-			   I915_READ(CHICKEN_PIPESL_1(i) |
+	for_each_pipe(pipe) {
+		I915_WRITE(CHICKEN_PIPESL_1(pipe),
+			   I915_READ(CHICKEN_PIPESL_1(pipe) |
 				     DPRS_MASK_VBLANK_SRD));
 	}
 
@@ -5310,7 +5310,7 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 static void hsw_power_well_post_disable(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
-	enum pipe p;
+	enum pipe pipe;
 	unsigned long irqflags;
 
 	/*
@@ -5321,9 +5321,9 @@ static void hsw_power_well_post_disable(struct drm_i915_private *dev_priv)
 	 * FIXME: Should we do this in general in drm_vblank_post_modeset?
 	 */
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
-	for_each_pipe(p)
-		if (p != PIPE_A)
-			dev->vblank[p].last = 0;
+	for_each_pipe(pipe)
+		if (pipe != PIPE_A)
+			dev->vblank[pipe].last = 0;
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 

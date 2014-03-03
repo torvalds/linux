@@ -614,16 +614,16 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 				   i, I915_READ(GEN8_GT_IER(i)));
 		}
 
-		for_each_pipe(i) {
+		for_each_pipe(pipe) {
 			seq_printf(m, "Pipe %c IMR:\t%08x\n",
-				   pipe_name(i),
-				   I915_READ(GEN8_DE_PIPE_IMR(i)));
+				   pipe_name(pipe),
+				   I915_READ(GEN8_DE_PIPE_IMR(pipe)));
 			seq_printf(m, "Pipe %c IIR:\t%08x\n",
-				   pipe_name(i),
-				   I915_READ(GEN8_DE_PIPE_IIR(i)));
+				   pipe_name(pipe),
+				   I915_READ(GEN8_DE_PIPE_IIR(pipe)));
 			seq_printf(m, "Pipe %c IER:\t%08x\n",
-				   pipe_name(i),
-				   I915_READ(GEN8_DE_PIPE_IER(i)));
+				   pipe_name(pipe),
+				   I915_READ(GEN8_DE_PIPE_IER(pipe)));
 		}
 
 		seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",

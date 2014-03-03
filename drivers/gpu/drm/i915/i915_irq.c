@@ -1867,7 +1867,7 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe i;
+	enum pipe pipe;
 
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev);
@@ -1878,14 +1878,14 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	if (de_iir & DE_GSE_IVB)
 		intel_opregion_asle_intr(dev);
 
-	for_each_pipe(i) {
-		if (de_iir & (DE_PIPE_VBLANK_IVB(i)))
-			drm_handle_vblank(dev, i);
+	for_each_pipe(pipe) {
+		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
+			drm_handle_vblank(dev, pipe);
 
 		/* plane/pipes map 1:1 on ilk+ */
-		if (de_iir & DE_PLANE_FLIP_DONE_IVB(i)) {
-			intel_prepare_page_flip(dev, i);
-			intel_finish_page_flip_plane(dev, i);
+		if (de_iir & DE_PLANE_FLIP_DONE_IVB(pipe)) {
+			intel_prepare_page_flip(dev, pipe);
+			intel_finish_page_flip_plane(dev, pipe);
 		}
 	}
 
