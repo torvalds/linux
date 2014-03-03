@@ -39,7 +39,7 @@
 				interrupts = <5>;
 			};
 			mmc@b000 {
-				compatible = "arm,primecell";
+				compatible = "arm,pl180", "arm,primecell";
 				reg = <0xb000 0x1000>;
 				interrupts-extended = <&vic 23 &sic 2>;
 			};
