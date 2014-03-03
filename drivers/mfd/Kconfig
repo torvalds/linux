@@ -1125,6 +1125,14 @@ config MFD_WM8994
 	  core support for the WM8994, in order to use the actual
 	  functionaltiy of the device other drivers must be enabled.
 
+config MFD_RK610
+	bool "RK610(Jetta) Multimedia support"
+	depends on I2C=y && GPIOLIB
+	select MFD_CORE
+	help
+	  if you say yes here you get support for the RK610, with func as
+	  HDMI LCD LVDS TVOUT CODEC.
+	  
 config MFD_RK616
         bool "RK616(Jetta B) Multifunction device support"
         depends on I2C=y
@@ -1187,3 +1195,4 @@ config VEXPRESS_SPC
 	depends on VEXPRESS_CONFIG
 	help
 	  Serial Power Controller driver for ARM Ltd. test chips.
+

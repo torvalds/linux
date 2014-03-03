@@ -25,18 +25,15 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
 #include <linux/workqueue.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/clk.h>
+#include <linux/gpio.h>
 #include "rk610_codec.h"
-#include <mach/board.h>
 
 #define RK610_PROC
-#ifdef RK610_PROC
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/vmalloc.h>
-#endif
+
 #define HP_OUT 0
 #define HP_IN  1
 
@@ -101,12 +98,18 @@ struct rk610_codec_priv {
 
 	struct delayed_work rk610_delayed_work;
 	unsigned int spk_ctrl_io;
+	/*
+		Some amplifiers enable a longer time.
+		config after pa_enable_io delay pa_enable_time(ms)
+		default = 0,preferably not more than 1000ms
+		so value range is 0 - 1000.
+	*/	
 	unsigned int pa_enable_time;
 	bool hdmi_ndet;
+	int boot_depop;//if found boot pop,set boot_depop 1 test	
 #if RESUME_PROBLEM
 	int rk610_workstatus;
 #endif
-	struct rk610_codec_platform_data *pdata;
 	int call_enable;	
 	int headset_status;	
 };
@@ -167,17 +170,17 @@ static unsigned int rk610_codec_read(struct snd_soc_codec *codec, unsigned int r
 	struct i2c_msg xfer[1];
 	u8 reg = r;
 	int ret;
-	struct i2c_client *client = codec->control_data;
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
 
 	/* Read register */
-	xfer[0].addr = (client->addr& 0x60)|(reg);
+	xfer[0].addr = (i2c->addr& 0x60)|(reg);
 	xfer[0].flags = I2C_M_RD;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
 	xfer[0].scl_rate = 100000;
-	ret = i2c_transfer(client->adapter, xfer, 1);
+	ret = i2c_transfer(i2c->adapter, xfer, 1);
 	if (ret != 1) {
-		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
+		dev_err(&i2c->dev, "i2c_transfer() returned %d\n", ret);
 		return 0;
 	}
 
@@ -199,21 +202,24 @@ static inline void rk610_codec_write_reg_cache(struct snd_soc_codec *codec,
 static int rk610_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
+
 	struct rk610_codec_priv *rk610_codec = snd_soc_codec_get_drvdata(rk610_codec_codec);
 	u8 data[2];
-	struct i2c_client *i2c;
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
 #ifdef CONFIG_MODEM_SOUND	
 	if(rk610_codec->call_enable)
 		return 0;
 #endif	
+	if(value == rk610_codec_read_reg_cache(codec,reg))
+		return 0;
 	DBG("Enter::%s, %d, reg=0x%02X, value=0x%02X\n",__FUNCTION__,__LINE__, reg, value);
 	data[0] = value & 0x00ff;
-	rk610_codec_write_reg_cache (codec, reg, value);
-	i2c = (struct i2c_client *)codec->control_data;
+
 	i2c->addr = (i2c->addr & 0x60)|reg;
 
-	if (codec->hw_write(codec->control_data, data, 1) == 1){
+	if (codec->hw_write(i2c, data, 1) == 1){
 //		DBG("================%s %d Run OK================\n",__FUNCTION__,__LINE__);
+		rk610_codec_write_reg_cache (codec, reg, value);
 		return 0;
 	}else{
 		DBG("================%s %d Run EIO================\n",__FUNCTION__,__LINE__);
@@ -226,14 +232,14 @@ static int rk610_codec_write_incall(struct snd_soc_codec *codec, unsigned int re
 	unsigned int value)
 {
 	u8 data[2];
-	struct i2c_client *i2c;
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	DBG("Enter::%s, %d, reg=0x%02X, value=0x%02X\n",__FUNCTION__,__LINE__, reg, value);
 	data[0] = value & 0x00ff;
 	rk610_codec_write_reg_cache (codec, reg, value);
 	i2c = (struct i2c_client *)codec->control_data;
 	i2c->addr = (i2c->addr & 0x60)|reg;
 
-	if (codec->hw_write(codec->control_data, data, 1) == 1)
+	if (codec->hw_write(i2c, data, 1) == 1)
 		return 0;
 	else
 		return -EIO;
@@ -601,7 +607,7 @@ static int rk610_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
-	unsigned int dai_fmt = snd_soc_pcm_runtime->card->dai_link[0].dai_fmt
+	unsigned int dai_fmt = rtd->card->dai_link[0].dai_fmt;
 
 	u16 iface = rk610_codec_read_reg_cache(codec, ACCELCODEC_R09) & 0x1f3;
 	u16 srate = rk610_codec_read_reg_cache(codec, ACCELCODEC_R00) & 0x180;
@@ -649,7 +655,7 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 {
     struct snd_soc_codec *codec = dai->codec;
 	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
-    DBG("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
+    printk("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
 
     if (mute)
 	{
@@ -683,7 +689,7 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 		#endif
 	//	schedule_delayed_work(&rk610_codec->rk610_delayed_work, 0);
 	//	rk610_codec_reg_read();
-		if(rk610_codec->hdmi_ndet)
+		if(rk610_codec->hdmi_ndet){
 			if(rk610_codec->pa_enable_time == 0 )
 				spk_ctrl_fun(GPIO_HIGH);
 			else if(rk610_codec->pa_enable_time > 0 && rk610_codec->pa_enable_time < 300){
@@ -692,6 +698,7 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 			}
 			else if(rk610_codec->pa_enable_time >=300 && rk610_codec->pa_enable_time < 1000)
 				msleep(rk610_codec->pa_enable_time);
+		}
     }
 
     return 0;
@@ -701,9 +708,9 @@ static void rk610_delayedwork_fun(struct work_struct *work)
 {
     struct snd_soc_codec *codec = rk610_codec_codec;
 	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);	
-	struct rk610_codec_platform_data *pdata= rk610_codec->pdata;	
+	
 	DBG("--------%s----------\n",__FUNCTION__);
-	if(!pdata->boot_depop){
+	if(!rk610_codec->boot_depop){
 		#if OUT_CAPLESS
 		rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE);
 		#else
@@ -772,7 +779,7 @@ void rk610_codec_reg_set(void)
 {
     struct snd_soc_codec *codec = rk610_codec_codec;
 	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);	
-	struct rk610_codec_platform_data *pdata= rk610_codec->pdata;
+
     unsigned int digital_gain;
 	unsigned int mic_vol = Volume_Input;
 	rk610_codec_write(codec,ACCELCODEC_R1D, 0x30);
@@ -834,7 +841,7 @@ void rk610_codec_reg_set(void)
     rk610_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_ENABLE|ASC_INT_ENABLE);
     gR0BReg = ASC_DEC_ENABLE|ASC_INT_ENABLE;  //ASC_DEC_DISABLE|ASC_INT_ENABLE;
 
-	if(pdata->boot_depop){
+	if(rk610_codec->boot_depop){
 		#if OUT_CAPLESS
 		rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE);
 		#else
@@ -843,18 +850,11 @@ void rk610_codec_reg_set(void)
 	}	
 }
 
-#ifdef RK610_PROC	
-static int RK610_PROC_init(void);
-#endif
-
 static int rk610_codec_probe(struct snd_soc_codec *codec)
 {
 	struct rk610_codec_priv *rk610_codec = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-#ifdef RK610_PROC	
-	RK610_PROC_init();
-#endif	
 	rk610_codec_codec = codec;
 	DBG("[%s] start\n", __FUNCTION__);
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, rk610_codec->control_type);
@@ -862,6 +862,7 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
+
 	//For RK610, i2c write&read method is special, do not use system default method.
 	codec->write = rk610_codec_write;
 	codec->read = rk610_codec_read;
@@ -873,7 +874,7 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 	}
 
 	INIT_DELAYED_WORK(&rk610_codec->rk610_delayed_work, rk610_delayedwork_fun);
-	
+
 	if(rk610_codec->spk_ctrl_io)
 	{
 		ret = gpio_request(rk610_codec->spk_ctrl_io, "rk610 spk_ctrl");
@@ -884,7 +885,7 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 	    gpio_direction_output(rk610_codec->spk_ctrl_io, GPIO_LOW);
 	    gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_LOW);	
 	}
-	
+
 	rk610_codec->hdmi_ndet = true;
 	rk610_codec->call_enable = 0;
 	rk610_codec->headset_status = HP_OUT;
@@ -929,28 +930,27 @@ static int rk610_codec_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct rk610_codec_priv *rk610_codec;
-	struct rk610_codec_platform_data *pdata = i2c->dev.platform_data;
+	struct device_node *rk610_np = i2c->dev.of_node;
 	int ret;
+	int val = 0;
 	DBG("%s start\n", __FUNCTION__);
 	rk610_codec = kzalloc(sizeof(struct rk610_codec_priv), GFP_KERNEL);
 	if (rk610_codec == NULL)
 		return -ENOMEM;
-//qjb 2013-01-14
-	rk610_codec->pdata = pdata;
-	rk610_codec->spk_ctrl_io = pdata->spk_ctl_io;
-//qjb 2013-06-27	
-	rk610_codec->pa_enable_time = pdata->pa_enable_time;
+
+	if(!of_property_read_u32(rk610_np, "boot_depop", &val))
+		rk610_codec->boot_depop = val;
+	if(!of_property_read_u32(rk610_np, "pa_enable_time", &val))
+		rk610_codec->pa_enable_time = val;
 	if(rk610_codec->pa_enable_time > 1000)
 		rk610_codec->pa_enable_time = 1000;
-	if(pdata->io_init){
-		ret =  pdata->io_init();
-		if (ret < 0) {
-			dev_err(&i2c->dev, "Failed to register codec pdata io_init error: %d\n", ret);
-			kfree(rk610_codec);
-			return ret;
-		}
+		
+	rk610_codec->spk_ctrl_io = of_get_named_gpio(rk610_np,"spk_ctl_io", 0);
+	if (!gpio_is_valid(rk610_codec->spk_ctrl_io)){
+		printk("invalid core_info->reset_gpio: %d\n",rk610_codec->spk_ctrl_io);
+		return -1;
 	}
-	
+
 	i2c_set_clientdata(i2c, rk610_codec);
 	rk610_codec->control_type = SND_SOC_I2C;
 
@@ -971,7 +971,7 @@ static int rk610_codec_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rk610_codec_i2c_id[] = {
-	{ "rk610_i2c_codec", 0 },
+	{ "rk610_codec", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rk610_codec_i2c_id);
@@ -979,7 +979,7 @@ MODULE_DEVICE_TABLE(i2c, rk610_codec_i2c_id);
 /* corgi i2c codec control layer */
 static struct i2c_driver rk610_codec_i2c_driver = {
 	.driver = {
-		.name = "RK610_CODEC",
+		.name = "rk610_codec",
 		.owner = THIS_MODULE,
 	},
 	.probe = rk610_codec_i2c_probe,
@@ -1012,8 +1012,11 @@ MODULE_LICENSE("GPL");
 //=====================================================================
 //Proc
 #ifdef RK610_PROC
-static ssize_t RK610_PROC_write(struct file *file, const char __user *buffer,
-			   unsigned long len, void *data)
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/vmalloc.h>
+static ssize_t rk610_reg_write(struct file *file,
+		const char __user *buffer, size_t len, loff_t *ppos)
 {
 	char *cookie_pot; 
 	char *p;
@@ -1100,21 +1103,27 @@ static ssize_t RK610_PROC_write(struct file *file, const char __user *buffer,
 
 	return len;
 }
-
-static int RK610_PROC_init(void)
+static int proc_reg_show(struct seq_file *s, void *v)
 {
-	struct proc_dir_entry *RK610_PROC_entry;
-	RK610_PROC_entry = create_proc_entry("driver/rk610_ts", 0777, NULL);
-	if(RK610_PROC_entry != NULL)
-	{
-		RK610_PROC_entry->write_proc = RK610_PROC_write;
-		return -1;
-	}
-	else
-	{
-		printk("create proc error !\n");
-	}
+
 	return 0;
 }
+static int proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_reg_show, NULL);
+}
 
+static const struct file_operations proc_i2s_fops = {
+	.open		= proc_open,
+	.read		= seq_read,
+	.write = rk610_reg_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+static int __init rk610_proc_init(void)
+{
+	proc_create("driver/rk610_ts", 0, NULL, &proc_i2s_fops);
+	return 0;
+}
+late_initcall(rk610_proc_init);
 #endif

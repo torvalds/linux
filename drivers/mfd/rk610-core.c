@@ -7,19 +7,21 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/rk610_core.h>
 #include <linux/clk.h>
-#include <mach/iomux.h>
+#include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #if defined(CONFIG_DEBUG_FS)
 #include <linux/fs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
-
 #endif
 
-
+#define GPIO_HIGH 1
+#define GPIO_LOW 0
 
 /*
  * Debug
@@ -31,6 +33,56 @@
 #endif
 
 static struct i2c_client *rk610_control_client = NULL;
+
+int i2c_master_reg8_send(const struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	char *tx_buf = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+	tx_buf[0] = reg;
+	memcpy(tx_buf+1, buf, count); 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = count + 1;
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = scl_rate;
+//	msg.udelay = client->udelay;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	return (ret == 1) ? count : ret;
+
+}
+
+int i2c_master_reg8_recv(const struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf = reg;
+	
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 1;
+	msgs[0].buf = &reg_buf;
+	msgs[0].scl_rate = scl_rate;
+//	msgs[0].udelay = client->udelay;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count;
+	msgs[1].buf = (char *)buf;
+	msgs[1].scl_rate = scl_rate;
+//	msgs[1].udelay = client->udelay;
+
+	ret = i2c_transfer(adap, msgs, 2);
+
+	return (ret == 2)? count : ret;
+}
 
 
 static struct mfd_cell rk610_devs[] = {
@@ -233,9 +285,9 @@ static int rk610_control_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	int ret;
-	struct clk *iis_clk;
 	struct rk610_core_info *core_info = NULL; 
-	struct rk610_ctl_platform_data *pdata = client->dev.platform_data;
+	struct device_node *rk610_np;
+
 	DBG("[%s] start\n", __FUNCTION__);
 	core_info = kmalloc(sizeof(struct rk610_core_info), GFP_KERNEL);
 	if(!core_info)
@@ -244,40 +296,42 @@ static int rk610_control_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 	memset(core_info, 0, sizeof(struct rk610_core_info));
-	core_info->pdata = pdata;
-	#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
-	iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
-	#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-	iis_clk = clk_get_sys("rk29_i2s.1", "i2s");
-	#else
-	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
-	#endif
-	if (IS_ERR(iis_clk)) {
-		printk("failed to get i2s clk\n");
-		ret = PTR_ERR(iis_clk);
-	}else{
-		DBG("got i2s clk ok!\n");
-		clk_enable(iis_clk);
-		clk_set_rate(iis_clk, 11289600);
-		#if defined(CONFIG_ARCH_RK29)
-		rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
-		#elif defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3188)
-		iomux_set(I2S0_MCLK);
-		#elif defined(CONFIG_ARCH_RK30)
-                rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);
-		#endif
-		clk_put(iis_clk);
-	}
 
 	rk610_control_client = client;
-	if(core_info->pdata->rk610_power_on_init)
-		core_info->pdata->rk610_power_on_init();
+	
 	core_info->client = client;
 	core_info->dev = &client->dev;
 	i2c_set_clientdata(client,core_info);
+	
+	rk610_np = core_info->dev->of_node;
+	core_info->reset_gpio = of_get_named_gpio(rk610_np,"rk610-reset-io", 0);
+	if (!gpio_is_valid(core_info->reset_gpio)){
+		printk("invalid core_info->reset_gpio: %d\n",core_info->reset_gpio);
+		return -1;
+	}
+	ret = gpio_request(core_info->reset_gpio, "rk610-reset-io");
+	if( ret != 0){
+		printk("gpio_request core_info->reset_gpio invalid: %d\n",core_info->reset_gpio);
+		return ret;
+	}
+	gpio_direction_output(core_info->reset_gpio, GPIO_HIGH);
+	msleep(100);
+	gpio_direction_output(core_info->reset_gpio, GPIO_LOW);
+	msleep(100);
+	gpio_set_value(core_info->reset_gpio, GPIO_HIGH);
+
+	core_info->i2s_clk= clk_get(&client->dev, "i2s_clk");
+	if (IS_ERR(core_info->i2s_clk)) {
+		dev_err(&client->dev, "Can't retrieve i2s clock\n");
+		ret = PTR_ERR(core_info->i2s_clk);
+		return ret;
+	}
+	clk_set_rate(core_info->i2s_clk, 11289600);
+	clk_prepare_enable(core_info->i2s_clk);
+
 	ret = mfd_add_devices(&client->dev, -1,
 				      rk610_devs, ARRAY_SIZE(rk610_devs),
-				      NULL,0);
+				      NULL,0,NULL);
 	
 #if defined(CONFIG_DEBUG_FS)
 	core_info->debugfs_dir = debugfs_create_dir("rk610", NULL);
