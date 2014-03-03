@@ -165,12 +165,17 @@ struct perf_hpp_fmt {
 	int64_t (*sort)(struct hist_entry *a, struct hist_entry *b);
 
 	struct list_head list;
+	struct list_head sort_list;
 };
 
 extern struct list_head perf_hpp__list;
+extern struct list_head perf_hpp__sort_list;
 
 #define perf_hpp__for_each_format(format) \
 	list_for_each_entry(format, &perf_hpp__list, list)
+
+#define perf_hpp__for_each_sort_list(format) \
+	list_for_each_entry(format, &perf_hpp__sort_list, sort_list)
 
 extern struct perf_hpp_fmt perf_hpp__format[];
 
@@ -190,6 +195,7 @@ enum {
 void perf_hpp__init(void);
 void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_enable(unsigned col);
+void perf_hpp__register_sort_field(struct perf_hpp_fmt *format);
 
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);
 typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);

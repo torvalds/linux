@@ -284,6 +284,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 };
 
 LIST_HEAD(perf_hpp__list);
+LIST_HEAD(perf_hpp__sort_list);
 
 
 #undef HPP__COLOR_PRINT_FNS
@@ -323,6 +324,11 @@ void perf_hpp__init(void)
 void perf_hpp__column_register(struct perf_hpp_fmt *format)
 {
 	list_add_tail(&format->list, &perf_hpp__list);
+}
+
+void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
+{
+	list_add_tail(&format->sort_list, &perf_hpp__sort_list);
 }
 
 void perf_hpp__column_enable(unsigned col)

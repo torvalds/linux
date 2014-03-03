@@ -2,6 +2,7 @@
 #include "hist.h"
 #include "comm.h"
 #include "symbol.h"
+#include "evsel.h"
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -1027,10 +1028,80 @@ static struct sort_dimension memory_sort_dimensions[] = {
 
 #undef DIM
 
-static void __sort_dimension__add(struct sort_dimension *sd, enum sort_type idx)
+struct hpp_sort_entry {
+	struct perf_hpp_fmt hpp;
+	struct sort_entry *se;
+};
+
+static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			      struct perf_evsel *evsel)
+{
+	struct hpp_sort_entry *hse;
+	size_t len;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+	len = hists__col_len(&evsel->hists, hse->se->se_width_idx);
+
+	return scnprintf(hpp->buf, hpp->size, "%*s", len, hse->se->se_header);
+}
+
+static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
+			     struct perf_hpp *hpp __maybe_unused,
+			     struct perf_evsel *evsel)
+{
+	struct hpp_sort_entry *hse;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+
+	return hists__col_len(&evsel->hists, hse->se->se_width_idx);
+}
+
+static int __sort__hpp_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			     struct hist_entry *he)
+{
+	struct hpp_sort_entry *hse;
+	size_t len;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+	len = hists__col_len(he->hists, hse->se->se_width_idx);
+
+	return hse->se->se_snprintf(he, hpp->buf, hpp->size, len);
+}
+
+static int __sort_dimension__add_hpp(struct sort_dimension *sd)
+{
+	struct hpp_sort_entry *hse;
+
+	hse = malloc(sizeof(*hse));
+	if (hse == NULL) {
+		pr_err("Memory allocation failed\n");
+		return -1;
+	}
+
+	hse->se = sd->entry;
+	hse->hpp.header = __sort__hpp_header;
+	hse->hpp.width = __sort__hpp_width;
+	hse->hpp.entry = __sort__hpp_entry;
+	hse->hpp.color = NULL;
+
+	hse->hpp.cmp = sd->entry->se_cmp;
+	hse->hpp.collapse = sd->entry->se_collapse ? : sd->entry->se_cmp;
+	hse->hpp.sort = hse->hpp.collapse;
+
+	INIT_LIST_HEAD(&hse->hpp.list);
+	INIT_LIST_HEAD(&hse->hpp.sort_list);
+
+	perf_hpp__register_sort_field(&hse->hpp);
+	return 0;
+}
+
+static int __sort_dimension__add(struct sort_dimension *sd, enum sort_type idx)
 {
 	if (sd->taken)
-		return;
+		return 0;
+
+	if (__sort_dimension__add_hpp(sd) < 0)
+		return -1;
 
 	if (sd->entry->se_collapse)
 		sort__need_collapse = 1;
@@ -1040,6 +1111,8 @@ static void __sort_dimension__add(struct sort_dimension *sd, enum sort_type idx)
 
 	list_add_tail(&sd->entry->list, &hist_entry__sort_list);
 	sd->taken = 1;
+
+	return 0;
 }
 
 int sort_dimension__add(const char *tok)
@@ -1068,8 +1141,7 @@ int sort_dimension__add(const char *tok)
 			sort__has_dso = 1;
 		}
 
-		__sort_dimension__add(sd, i);
-		return 0;
+		return __sort_dimension__add(sd, i);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
