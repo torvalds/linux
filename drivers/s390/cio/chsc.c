@@ -610,6 +610,7 @@ void chsc_chp_online(struct chp_id chpid)
 		css_wait_for_slow_path();
 		for_each_subchannel_staged(__s390_process_res_acc, NULL,
 					   &link);
+		css_schedule_reprobe();
 	}
 }
 

@@ -582,7 +582,7 @@ static void i2c_hid_request(struct hid_device *hid, struct hid_report *rep,
 	int ret;
 	int len = i2c_hid_get_report_length(rep) - 2;
 
-	buf = kzalloc(len, GFP_KERNEL);
+	buf = hid_alloc_report_buf(rep, GFP_KERNEL);
 	if (!buf)
 		return;
 

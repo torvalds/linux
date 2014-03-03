@@ -52,12 +52,6 @@
 		};
 	};
 
-	codec: spdif-transmitter {
-		compatible = "linux,spdif-dit";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_hummingboard_spdif>;
-	};
-
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
 		model = "imx-spdif";
@@ -111,7 +105,7 @@
 		};
 
 		pinctrl_hummingboard_spdif: hummingboard-spdif {
-			fsl,pins = <MX6QDL_PAD_GPIO_17__SPDIF_OUT 0x1b0b0>;
+			fsl,pins = <MX6QDL_PAD_GPIO_17__SPDIF_OUT 0x13091>;
 		};
 
 		pinctrl_hummingboard_usbh1_vbus: hummingboard-usbh1-vbus {
@@ -142,6 +136,8 @@
 };
 
 &spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_spdif>;
 	status = "okay";
 };
 

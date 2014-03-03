@@ -80,6 +80,8 @@ static void acpi_button_notify(struct acpi_device *device, u32 event);
 
 #ifdef CONFIG_PM_SLEEP
 static int acpi_button_resume(struct device *dev);
+#else
+#define acpi_button_resume NULL
 #endif
 static SIMPLE_DEV_PM_OPS(acpi_button_pm, NULL, acpi_button_resume);
 

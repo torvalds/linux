@@ -131,6 +131,7 @@ const void *kernfs_super_ns(struct super_block *sb)
  * @fs_type: file_system_type of the fs being mounted
  * @flags: mount flags specified for the mount
  * @root: kernfs_root of the hierarchy being mounted
+ * @new_sb_created: tell the caller if we allocated a new superblock
  * @ns: optional namespace tag of the mount
  *
  * This is to be called from each kernfs user's file_system_type->mount()
@@ -141,7 +142,8 @@ const void *kernfs_super_ns(struct super_block *sb)
  * The return value can be passed to the vfs layer verbatim.
  */
 struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
-			       struct kernfs_root *root, const void *ns)
+			       struct kernfs_root *root, bool *new_sb_created,
+			       const void *ns)
 {
 	struct super_block *sb;
 	struct kernfs_super_info *info;
@@ -159,6 +161,10 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 		kfree(info);
 	if (IS_ERR(sb))
 		return ERR_CAST(sb);
+
+	if (new_sb_created)
+		*new_sb_created = !sb->s_root;
+
 	if (!sb->s_root) {
 		error = kernfs_fill_super(sb);
 		if (error) {

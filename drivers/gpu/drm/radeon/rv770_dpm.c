@@ -2526,14 +2526,7 @@ u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low)
 bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
-	u32 switch_limit = 300;
-
-	/* quirks */
-	/* ASUS K70AF */
-	if ((rdev->pdev->device == 0x9553) &&
-	    (rdev->pdev->subsystem_vendor == 0x1043) &&
-	    (rdev->pdev->subsystem_device == 0x1c42))
-		switch_limit = 200;
+	u32 switch_limit = 200; /* 300 */
 
 	/* RV770 */
 	/* mclk switching doesn't seem to work reliably on desktop RV770s */

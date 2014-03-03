@@ -158,7 +158,7 @@ static int tps65217_probe(struct i2c_client *client,
 {
 	struct tps65217 *tps;
 	unsigned int version;
-	unsigned int chip_id = ids->driver_data;
+	unsigned long chip_id = ids->driver_data;
 	const struct of_device_id *match;
 	bool status_off = false;
 	int ret;
@@ -170,7 +170,7 @@ static int tps65217_probe(struct i2c_client *client,
 				"Failed to find matching dt id\n");
 			return -EINVAL;
 		}
-		chip_id = (unsigned int)(unsigned long)match->data;
+		chip_id = (unsigned long)match->data;
 		status_off = of_property_read_bool(client->dev.of_node,
 					"ti,pmic-shutdown-controller");
 	}

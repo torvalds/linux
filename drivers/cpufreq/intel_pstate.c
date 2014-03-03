@@ -34,12 +34,15 @@
 
 #define SAMPLE_COUNT		3
 
-#define BYT_RATIOS	0x66a
-#define BYT_VIDS        0x66b
+#define BYT_RATIOS		0x66a
+#define BYT_VIDS		0x66b
+#define BYT_TURBO_RATIOS	0x66c
 
-#define FRAC_BITS 8
+
+#define FRAC_BITS 6
 #define int_tofp(X) ((int64_t)(X) << FRAC_BITS)
 #define fp_toint(X) ((X) >> FRAC_BITS)
+#define FP_ROUNDUP(X) ((X) += 1 << FRAC_BITS)
 
 static inline int32_t mul_fp(int32_t x, int32_t y)
 {
@@ -357,7 +360,7 @@ static int byt_get_min_pstate(void)
 {
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
-	return value & 0xFF;
+	return (value >> 8) & 0xFF;
 }
 
 static int byt_get_max_pstate(void)
@@ -365,6 +368,13 @@ static int byt_get_max_pstate(void)
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
 	return (value >> 16) & 0xFF;
+}
+
+static int byt_get_turbo_pstate(void)
+{
+	u64 value;
+	rdmsrl(BYT_TURBO_RATIOS, value);
+	return value & 0x3F;
 }
 
 static void byt_set_pstate(struct cpudata *cpudata, int pstate)
@@ -469,7 +479,7 @@ static struct cpu_defaults byt_params = {
 	.funcs = {
 		.get_max = byt_get_max_pstate,
 		.get_min = byt_get_min_pstate,
-		.get_turbo = byt_get_max_pstate,
+		.get_turbo = byt_get_turbo_pstate,
 		.set = byt_set_pstate,
 		.get_vid = byt_get_vid,
 	},
@@ -547,18 +557,20 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 static inline void intel_pstate_calc_busy(struct cpudata *cpu,
 					struct sample *sample)
 {
-	u64 core_pct;
-	u64 c0_pct;
+	int32_t core_pct;
+	int32_t c0_pct;
 
-	core_pct = div64_u64(sample->aperf * 100, sample->mperf);
+	core_pct = div_fp(int_tofp((sample->aperf)),
+			int_tofp((sample->mperf)));
+	core_pct = mul_fp(core_pct, int_tofp(100));
+	FP_ROUNDUP(core_pct);
 
-	c0_pct = div64_u64(sample->mperf * 100, sample->tsc);
+	c0_pct = div_fp(int_tofp(sample->mperf), int_tofp(sample->tsc));
+
 	sample->freq = fp_toint(
-		mul_fp(int_tofp(cpu->pstate.max_pstate),
-			int_tofp(core_pct * 1000)));
+		mul_fp(int_tofp(cpu->pstate.max_pstate * 1000), core_pct));
 
-	sample->core_pct_busy = mul_fp(int_tofp(core_pct),
-				div_fp(int_tofp(c0_pct + 1), int_tofp(100)));
+	sample->core_pct_busy = mul_fp(core_pct, c0_pct);
 }
 
 static inline void intel_pstate_sample(struct cpudata *cpu)
@@ -569,6 +581,10 @@ static inline void intel_pstate_sample(struct cpudata *cpu)
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
 	tsc = native_read_tsc();
+
+	aperf = aperf >> FRAC_BITS;
+	mperf = mperf >> FRAC_BITS;
+	tsc = tsc >> FRAC_BITS;
 
 	cpu->sample_ptr = (cpu->sample_ptr + 1) % SAMPLE_COUNT;
 	cpu->samples[cpu->sample_ptr].aperf = aperf;
@@ -601,7 +617,8 @@ static inline int32_t intel_pstate_get_scaled_busy(struct cpudata *cpu)
 	core_busy = cpu->samples[cpu->sample_ptr].core_pct_busy;
 	max_pstate = int_tofp(cpu->pstate.max_pstate);
 	current_pstate = int_tofp(cpu->pstate.current_pstate);
-	return mul_fp(core_busy, div_fp(max_pstate, current_pstate));
+	core_busy = mul_fp(core_busy, div_fp(max_pstate, current_pstate));
+	return FP_ROUNDUP(core_busy);
 }
 
 static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)

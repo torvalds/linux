@@ -538,7 +538,7 @@ F:	arch/alpha/
 ALTERA UART/JTAG UART SERIAL DRIVERS
 M:	Tobias Klauser <tklauser@distanz.ch>
 L:	linux-serial@vger.kernel.org
-L:	nios2-dev@sopc.et.ntust.edu.tw (moderated for non-subscribers)
+L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/tty/serial/altera_uart.c
 F:	drivers/tty/serial/altera_jtaguart.c
@@ -1860,6 +1860,7 @@ F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BCM281XX/BCM11XXX ARM ARCHITECTURE
 M:	Christian Daudt <bcm@fixthebug.org>
+M:	Matt Porter <mporter@linaro.org>
 L:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://git.github.com/broadcom/bcm11351
 S:	Maintained
@@ -2408,8 +2409,10 @@ F:	tools/power/cpupower/
 
 CPUSETS
 M:	Li Zefan <lizefan@huawei.com>
+L:	cgroups@vger.kernel.org
 W:	http://www.bullopensource.org/cpuset/
 W:	http://oss.sgi.com/projects/cpusets/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
 S:	Maintained
 F:	Documentation/cgroups/cpusets.txt
 F:	include/linux/cpuset.h
@@ -2608,9 +2611,9 @@ DC395x SCSI driver
 M:	Oliver Neukum <oliver@neukum.org>
 M:	Ali Akcaagac <aliakc@web.de>
 M:	Jamie Lenehan <lenehan@twibble.org>
-W:	http://twibble.org/dist/dc395x/
 L:	dc395x@twibble.org
-L:	http://lists.twibble.org/mailman/listinfo/dc395x/
+W:	http://twibble.org/dist/dc395x/
+W:	http://lists.twibble.org/mailman/listinfo/dc395x/
 S:	Maintained
 F:	Documentation/scsi/dc395x.txt
 F:	drivers/scsi/dc395x.*
@@ -2845,11 +2848,21 @@ F:	lib/kobj*
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
 L:	dri-devel@lists.freedesktop.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6.git
+T:	git git://people.freedesktop.org/~airlied/linux
 S:	Maintained
 F:	drivers/gpu/drm/
 F:	include/drm/
 F:	include/uapi/drm/
+
+RADEON DRM DRIVERS
+M:	Alex Deucher <alexander.deucher@amd.com>
+M:	Christian König <christian.koenig@amd.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~agd5f/linux
+S:	Supported
+F:	drivers/gpu/drm/radeon/
+F:	include/drm/radeon*
+F:	include/uapi/drm/radeon*
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
 M:	Daniel Vetter <daniel.vetter@ffwll.ch>
@@ -3323,6 +3336,17 @@ W:	http://www.linuxfoundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/
 F:	net/bridge/
+
+ETHERNET PHY LIBRARY
+M:	Florian Fainelli <f.fainelli@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	include/linux/phy.h
+F:	include/linux/phy_fixed.h
+F:	drivers/net/phy/
+F:	Documentation/networking/phy.txt
+F:	drivers/of/of_mdio.c
+F:	drivers/of/of_net.c
 
 EXT2 FILE SYSTEM
 M:	Jan Kara <jack@suse.cz>
@@ -5486,6 +5510,11 @@ M:	Michael Kerrisk <mtk.manpages@gmail.com>
 W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
 S:	Maintained
+
+MARVELL ARMADA DRM SUPPORT
+M:	Russell King <rmk+kernel@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/gpu/drm/armada/
 
 MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
 M:	Mirko Lindner <mlindner@marvell.com>
@@ -8429,8 +8458,8 @@ TARGET SUBSYSTEM
 M:	Nicholas A. Bellinger <nab@linux-iscsi.org>
 L:	linux-scsi@vger.kernel.org
 L:	target-devel@vger.kernel.org
-L:	http://groups.google.com/group/linux-iscsi-target-dev
 W:	http://www.linux-iscsi.org
+W:	http://groups.google.com/group/linux-iscsi-target-dev
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git master
 S:	Supported
 F:	drivers/target/
@@ -9715,7 +9744,6 @@ F:	drivers/xen/*swiotlb*
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
 M:	Dave Chinner <david@fromorbit.com>
-M:	Ben Myers <bpm@sgi.com>
 M:	xfs@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs

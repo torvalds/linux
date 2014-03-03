@@ -87,6 +87,7 @@
 #define DRM_VMW_PARAM_MAX_SURF_MEMORY  7
 #define DRM_VMW_PARAM_3D_CAPS_SIZE     8
 #define DRM_VMW_PARAM_MAX_MOB_MEMORY   9
+#define DRM_VMW_PARAM_MAX_MOB_SIZE     10
 
 /**
  * struct drm_vmw_getparam_arg
