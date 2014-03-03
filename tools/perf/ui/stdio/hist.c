@@ -306,12 +306,6 @@ static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 	return hist_entry_callchain__fprintf(he, total_period, left_margin, fp);
 }
 
-static inline void advance_hpp(struct perf_hpp *hpp, int inc)
-{
-	hpp->buf  += inc;
-	hpp->size -= inc;
-}
-
 static int hist_entry__period_snprintf(struct perf_hpp *hpp,
 				       struct hist_entry *he)
 {

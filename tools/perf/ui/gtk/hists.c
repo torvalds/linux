@@ -8,12 +8,14 @@
 
 #define MAX_COLUMNS			32
 
-static int __percent_color_snprintf(char *buf, size_t size, const char *fmt, ...)
+static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	int ret = 0;
 	va_list args;
 	double percent;
 	const char *markup;
+	char *buf = hpp->buf;
+	size_t size = hpp->size;
 
 	va_start(args, fmt);
 	percent = va_arg(args, double);
