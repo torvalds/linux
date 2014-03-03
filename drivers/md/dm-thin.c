@@ -369,14 +369,18 @@ struct dm_thin_endio_hook {
 	struct dm_thin_new_mapping *overwrite_mapping;
 };
 
-static void __requeue_bio_list(struct thin_c *tc, struct bio_list *master)
+static void requeue_bio_list(struct thin_c *tc, struct bio_list *master)
 {
 	struct bio *bio;
 	struct bio_list bios;
+	unsigned long flags;
 
 	bio_list_init(&bios);
+
+	spin_lock_irqsave(&tc->pool->lock, flags);
 	bio_list_merge(&bios, master);
 	bio_list_init(master);
+	spin_unlock_irqrestore(&tc->pool->lock, flags);
 
 	while ((bio = bio_list_pop(&bios))) {
 		struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
@@ -391,12 +395,9 @@ static void __requeue_bio_list(struct thin_c *tc, struct bio_list *master)
 static void requeue_io(struct thin_c *tc)
 {
 	struct pool *pool = tc->pool;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pool->lock, flags);
-	__requeue_bio_list(tc, &pool->deferred_bios);
-	__requeue_bio_list(tc, &pool->retry_on_resume_list);
-	spin_unlock_irqrestore(&pool->lock, flags);
+	requeue_bio_list(tc, &pool->deferred_bios);
+	requeue_bio_list(tc, &pool->retry_on_resume_list);
 }
 
 static void error_retry_list(struct pool *pool)
