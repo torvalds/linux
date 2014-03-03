@@ -14,8 +14,8 @@ config SPMI_MSM_PMIC_ARB
 	tristate "Qualcomm MSM SPMI Controller (PMIC Arbiter)"
 	depends on ARM
 	depends on IRQ_DOMAIN
-	depends on ARCH_MSM || COMPILE_TEST
-	default ARCH_MSM
+	depends on ARCH_QCOM || COMPILE_TEST
+	default ARCH_QCOM
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in SPMI PMIC Arbiter interface on Qualcomm MSM family
