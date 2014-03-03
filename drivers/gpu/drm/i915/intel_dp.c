@@ -909,8 +909,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
 						   bpp);
 
-		for (clock = 0; clock <= max_clock; clock++) {
-			for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
+		for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
+			for (clock = 0; clock <= max_clock; clock++) {
 				link_clock = drm_dp_bw_code_to_link_rate(bws[clock]);
 				link_avail = intel_dp_max_data_rate(link_clock,
 								    lane_count);
