@@ -104,7 +104,7 @@ struct t3e3_param {
 	u_int8_t bandwidth_stop;	/* 0-255 */
 };
 
-typedef struct t3e3_stats {
+struct t3e3_stats {
 	u_int64_t in_bytes;
 	u32 in_packets, in_dropped;
 	u32 in_errors, in_error_desc, in_error_coll, in_error_drib,
@@ -117,13 +117,13 @@ typedef struct t3e3_stats {
 	u_int8_t LOC, LOF, OOF, LOS, AIS, FERF, IDLE, AIC, FEAC;
 	u_int16_t FEBE_code;
 	u32 LCV, FRAMING_BIT, PARITY_ERROR, FEBE_count, CP_BIT;
-} t3e3_stats_t;
+};
 
 
 typedef struct t3e3_resp {
 	union {
 		struct t3e3_param param;
-		t3e3_stats_t stats;
+		struct t3e3_stats stats;
 		u32 data;
 	} u;
 } t3e3_resp_t;

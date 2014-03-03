@@ -701,7 +701,7 @@ struct channel {
 	} h;
 
 	/* statistics */
-	t3e3_stats_t s;
+	struct t3e3_stats s;
 
 	/* running */
 	struct {

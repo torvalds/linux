@@ -61,7 +61,7 @@ static struct net_device_stats *t3e3_get_stats(struct net_device *dev)
 {
 	struct net_device_stats *nstats = &dev->stats;
 	struct channel *sc = dev_to_priv(dev);
-	t3e3_stats_t *stats = &sc->s;
+	struct t3e3_stats *stats = &sc->s;
 
 	memset(nstats, 0, sizeof(struct net_device_stats));
 	nstats->rx_packets = stats->in_packets;
