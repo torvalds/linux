@@ -210,9 +210,6 @@ struct rsnd_dai {
 	     i++)
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id);
-int rsnd_dai_disconnect(struct rsnd_mod *mod);
-int rsnd_dai_connect(struct rsnd_dai *rdai, struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io);
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
 int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
@@ -229,12 +226,6 @@ int rsnd_gen_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 void rsnd_gen_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
-int rsnd_gen_path_init(struct rsnd_priv *priv,
-		       struct rsnd_dai *rdai,
-		       struct rsnd_dai_stream *io);
-int rsnd_gen_path_exit(struct rsnd_priv *priv,
-		       struct rsnd_dai *rdai,
-		       struct rsnd_dai_stream *io);
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);

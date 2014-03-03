@@ -155,62 +155,6 @@ static int rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	return 0;
 }
 
-int rsnd_gen_path_init(struct rsnd_priv *priv,
-		       struct rsnd_dai *rdai,
-		       struct rsnd_dai_stream *io)
-{
-	struct rsnd_mod *mod;
-	int ret;
-	int id;
-
-	/*
-	 * Gen1 is created by SRU/SSI, and this SRU is base module of
-	 * Gen2's SCU/SSIU/SSI. (Gen2 SCU/SSIU came from SRU)
-	 *
-	 * Easy image is..
-	 *	Gen1 SRU = Gen2 SCU + SSIU + etc
-	 *
-	 * Gen2 SCU path is very flexible, but, Gen1 SRU (SCU parts) is
-	 * using fixed path.
-	 *
-	 * Then, SSI id = SCU id here
-	 */
-
-	/* get SSI's ID */
-	mod = rsnd_ssi_mod_get_frm_dai(priv,
-				       rsnd_dai_id(priv, rdai),
-				       rsnd_dai_is_play(rdai, io));
-	id = rsnd_mod_id(mod);
-
-	/* SCU */
-	mod = rsnd_scu_mod_get(priv, id);
-	ret = rsnd_dai_connect(rdai, mod, io);
-	if (ret < 0)
-		return ret;
-
-	/* SSI */
-	mod = rsnd_ssi_mod_get(priv, id);
-	ret = rsnd_dai_connect(rdai, mod, io);
-
-	return ret;
-}
-
-int rsnd_gen_path_exit(struct rsnd_priv *priv,
-		       struct rsnd_dai *rdai,
-		       struct rsnd_dai_stream *io)
-{
-	struct rsnd_mod *mod, *n;
-	int ret = 0;
-
-	/*
-	 * remove all mod from rdai
-	 */
-	for_each_rsnd_mod(mod, n, io)
-		ret |= rsnd_dai_disconnect(mod);
-
-	return ret;
-}
-
 /*
  *		Gen2
  */

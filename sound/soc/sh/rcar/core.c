@@ -317,9 +317,9 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
 	ret;							\
 })
 
-int rsnd_dai_connect(struct rsnd_dai *rdai,
-		     struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io)
+static int rsnd_dai_connect(struct rsnd_dai *rdai,
+			    struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io)
 {
 	if (!mod)
 		return -EIO;
@@ -340,7 +340,7 @@ int rsnd_dai_connect(struct rsnd_dai *rdai,
 	return 0;
 }
 
-int rsnd_dai_disconnect(struct rsnd_mod *mod)
+static int rsnd_dai_disconnect(struct rsnd_mod *mod)
 {
 	list_del_init(&mod->list);
 	mod->io = NULL;
@@ -418,10 +418,6 @@ static int rsnd_dai_stream_init(struct rsnd_dai_stream *io,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	if (!list_empty(&io->head))
-		return -EIO;
-
-	INIT_LIST_HEAD(&io->head);
 	io->substream		= substream;
 	io->byte_pos		= 0;
 	io->period_pos		= 0;
@@ -476,10 +472,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_gen_path_init(priv, rdai, io);
-		if (ret < 0)
-			goto dai_trigger_end;
-
 		ret = rsnd_dai_call(rdai, io, init);
 		if (ret < 0)
 			goto dai_trigger_end;
@@ -494,10 +486,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			goto dai_trigger_end;
 
 		ret = rsnd_dai_call(rdai, io, quit);
-		if (ret < 0)
-			goto dai_trigger_end;
-
-		ret = rsnd_gen_path_exit(priv, rdai, io);
 		if (ret < 0)
 			goto dai_trigger_end;
 
@@ -576,6 +564,70 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 };
 
+static int rsnd_path_init(struct rsnd_priv *priv,
+			  struct rsnd_dai *rdai,
+			  struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *mod;
+	int ret;
+	int id;
+
+	/*
+	 * Gen1 is created by SRU/SSI, and this SRU is base module of
+	 * Gen2's SCU/SSIU/SSI. (Gen2 SCU/SSIU came from SRU)
+	 *
+	 * Easy image is..
+	 *	Gen1 SRU = Gen2 SCU + SSIU + etc
+	 *
+	 * Gen2 SCU path is very flexible, but, Gen1 SRU (SCU parts) is
+	 * using fixed path.
+	 *
+	 * Then, SSI id = SCU id here
+	 */
+	/* get SSI's ID */
+	mod = rsnd_ssi_mod_get_frm_dai(priv,
+				       rsnd_dai_id(priv, rdai),
+				       rsnd_dai_is_play(rdai, io));
+	if (!mod)
+		return 0;
+	id = rsnd_mod_id(mod);
+	ret = 0;
+
+	/* SCU */
+	mod = rsnd_scu_mod_get(priv, id);
+	if (mod) {
+		ret = rsnd_dai_connect(rdai, mod, io);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* SSI */
+	mod = rsnd_ssi_mod_get(priv, id);
+	if (mod) {
+		ret = rsnd_dai_connect(rdai, mod, io);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int rsnd_path_exit(struct rsnd_priv *priv,
+			  struct rsnd_dai *rdai,
+			  struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *mod, *n;
+	int ret = 0;
+
+	/*
+	 * remove all mod from rdai
+	 */
+	for_each_rsnd_mod(mod, n, io)
+		ret |= rsnd_dai_disconnect(mod);
+
+	return ret;
+}
+
 static int rsnd_dai_probe(struct platform_device *pdev,
 			  struct rsnd_priv *priv)
 {
@@ -634,12 +686,14 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			drv[i].playback.formats		= RSND_FMTS;
 			drv[i].playback.channels_min	= 2;
 			drv[i].playback.channels_max	= 2;
+			rsnd_path_init(priv, &rdai[i], &rdai[i].playback);
 		}
 		if (cmod) {
 			drv[i].capture.rates		= RSND_RATES;
 			drv[i].capture.formats		= RSND_FMTS;
 			drv[i].capture.channels_min	= 2;
 			drv[i].capture.channels_max	= 2;
+			rsnd_path_init(priv, &rdai[i], &rdai[i].capture);
 		}
 
 		dev_dbg(dev, "%s (%s/%s)\n", rdai[i].name,
@@ -653,6 +707,14 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 static void rsnd_dai_remove(struct platform_device *pdev,
 			  struct rsnd_priv *priv)
 {
+	struct rsnd_dai *rdai;
+	int i;
+
+	for (i = 0; i < rsnd_rdai_nr(priv); i++) {
+		rdai = rsnd_dai_get(priv, i);
+		rsnd_path_exit(priv, rdai, &rdai->playback);
+		rsnd_path_exit(priv, rdai, &rdai->capture);
+	}
 }
 
 /*
