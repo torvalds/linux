@@ -1188,16 +1188,16 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int reg, i;
+	int reg, sprite;
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev)) {
-		for (i = 0; i < INTEL_INFO(dev)->num_sprites; i++) {
-			reg = SPCNTR(pipe, i);
+		for_each_sprite(pipe, sprite) {
+			reg = SPCNTR(pipe, sprite);
 			val = I915_READ(reg);
 			WARN((val & SP_ENABLE),
 			     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
-			     sprite_name(pipe, i), pipe_name(pipe));
+			     sprite_name(pipe, sprite), pipe_name(pipe));
 		}
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		reg = SPRCTL(pipe);
@@ -10981,7 +10981,7 @@ void intel_modeset_suspend_hw(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int j, ret;
+	int sprite, ret;
 	enum pipe pipe;
 
 	drm_mode_config_init(dev);
@@ -11021,11 +11021,11 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for_each_pipe(pipe) {
 		intel_crtc_init(dev, pipe);
-		for (j = 0; j < INTEL_INFO(dev)->num_sprites; j++) {
-			ret = intel_plane_init(dev, pipe, j);
+		for_each_sprite(pipe, sprite) {
+			ret = intel_plane_init(dev, pipe, sprite);
 			if (ret)
 				DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",
-					      pipe_name(pipe), sprite_name(pipe, j), ret);
+					      pipe_name(pipe), sprite_name(pipe, sprite), ret);
 		}
 	}
 

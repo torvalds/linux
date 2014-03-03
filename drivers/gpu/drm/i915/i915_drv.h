@@ -159,6 +159,7 @@ enum hpd_pin {
 	 I915_GEM_DOMAIN_VERTEX)
 
 #define for_each_pipe(p) for ((p) = 0; (p) < INTEL_INFO(dev)->num_pipes; (p)++)
+#define for_each_sprite(p, s) for ((s) = 0; (s) < INTEL_INFO(dev)->num_sprites; (s)++)
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
