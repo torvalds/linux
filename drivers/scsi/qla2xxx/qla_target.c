@@ -790,17 +790,32 @@ static inline int test_tgt_sess_count(struct qla_tgt *tgt)
 }
 
 /* Called by tcm_qla2xxx configfs code */
-void qlt_stop_phase1(struct qla_tgt *tgt)
+int qlt_stop_phase1(struct qla_tgt *tgt)
 {
 	struct scsi_qla_host *vha = tgt->vha;
 	struct qla_hw_data *ha = tgt->ha;
 	unsigned long flags;
 
+	mutex_lock(&qla_tgt_mutex);
+	if (!vha->fc_vport) {
+		struct Scsi_Host *sh = vha->host;
+		struct fc_host_attrs *fc_host = shost_to_fc_host(sh);
+		bool npiv_vports;
+
+		spin_lock_irqsave(sh->host_lock, flags);
+		npiv_vports = (fc_host->npiv_vports_inuse);
+		spin_unlock_irqrestore(sh->host_lock, flags);
+
+		if (npiv_vports) {
+			mutex_unlock(&qla_tgt_mutex);
+			return -EPERM;
+		}
+	}
 	if (tgt->tgt_stop || tgt->tgt_stopped) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04e,
 		    "Already in tgt->tgt_stop or tgt_stopped state\n");
-		dump_stack();
-		return;
+		mutex_unlock(&qla_tgt_mutex);
+		return -EPERM;
 	}
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe003, "Stopping target for host %ld(%p)\n",
@@ -815,6 +830,7 @@ void qlt_stop_phase1(struct qla_tgt *tgt)
 	qlt_clear_tgt_db(tgt, true);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	mutex_unlock(&vha->vha_tgt.tgt_mutex);
+	mutex_unlock(&qla_tgt_mutex);
 
 	flush_delayed_work(&tgt->sess_del_work);
 
@@ -841,6 +857,7 @@ void qlt_stop_phase1(struct qla_tgt *tgt)
 
 	/* Wait for sessions to clear out (just in case) */
 	wait_event(tgt->waitQ, test_tgt_sess_count(tgt));
+	return 0;
 }
 EXPORT_SYMBOL(qlt_stop_phase1);
 
@@ -3185,7 +3202,8 @@ restart:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf02c,
 		    "SRR cmd %p (se_cmd %p, tag %d, op %x), "
 		    "sg_cnt=%d, offset=%d", cmd, &cmd->se_cmd, cmd->tag,
-		    se_cmd->t_task_cdb[0], cmd->sg_cnt, cmd->offset);
+		    se_cmd->t_task_cdb ? se_cmd->t_task_cdb[0] : 0,
+		    cmd->sg_cnt, cmd->offset);
 
 		qlt_handle_srr(vha, sctio, imm);
 
@@ -4181,6 +4199,9 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	tgt->datasegs_per_cmd = QLA_TGT_DATASEGS_PER_CMD_24XX;
 	tgt->datasegs_per_cont = QLA_TGT_DATASEGS_PER_CONT_24XX;
 
+	if (base_vha->fc_vport)
+		return 0;
+
 	mutex_lock(&qla_tgt_mutex);
 	list_add_tail(&tgt->tgt_list_entry, &qla_tgt_glist);
 	mutex_unlock(&qla_tgt_mutex);
@@ -4194,6 +4215,10 @@ int qlt_remove_target(struct qla_hw_data *ha, struct scsi_qla_host *vha)
 	if (!vha->vha_tgt.qla_tgt)
 		return 0;
 
+	if (vha->fc_vport) {
+		qlt_release(vha->vha_tgt.qla_tgt);
+		return 0;
+	}
 	mutex_lock(&qla_tgt_mutex);
 	list_del(&vha->vha_tgt.qla_tgt->tgt_list_entry);
 	mutex_unlock(&qla_tgt_mutex);
@@ -4265,6 +4290,12 @@ int qlt_lport_register(void *target_lport_ptr, u64 phys_wwpn,
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			continue;
 		}
+		if (tgt->tgt_stop) {
+			pr_debug("MODE_TARGET in shutdown on qla2xxx(%d)\n",
+				 host->host_no);
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
+			continue;
+		}
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 		if (!scsi_host_get(host)) {
@@ -4279,12 +4310,11 @@ int qlt_lport_register(void *target_lport_ptr, u64 phys_wwpn,
 			scsi_host_put(host);
 			continue;
 		}
-		mutex_unlock(&qla_tgt_mutex);
-
 		rc = (*callback)(vha, target_lport_ptr, npiv_wwpn, npiv_wwnn);
 		if (rc != 0)
 			scsi_host_put(host);
 
+		mutex_unlock(&qla_tgt_mutex);
 		return rc;
 	}
 	mutex_unlock(&qla_tgt_mutex);
