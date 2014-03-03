@@ -43,6 +43,17 @@ config OMAP_USB2
 	  The USB OTG controller communicates with the comparator using this
 	  driver.
 
+config TI_PIPE3
+	tristate "TI PIPE3 PHY Driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	select GENERIC_PHY
+	select OMAP_CONTROL_USB
+	help
+	  Enable this to support the PIPE3 PHY that is part of TI SOCs. This
+	  driver takes care of all the PHY functionality apart from comparator.
+	  This driver interacts with the "OMAP Control PHY Driver" to power
+	  on/off the PHY.
+
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030 && USB_MUSB_OMAP2PLUS
