@@ -21,9 +21,9 @@ config ANDROID_BINDER_IPC
 	  between said processes.
 
 config ANDROID_BINDER_IPC_32BIT
-	bool "Use old 32-bit binder api"
+	bool
         default y
-	depends on !64BIT
+	depends on !64BIT && ANDROID_BINDER_IPC
 	---help---
 	  Enable to support an old 32-bit Android user-space. Breaks the new
 	  Android user-space.
