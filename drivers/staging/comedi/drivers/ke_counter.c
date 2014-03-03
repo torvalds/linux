@@ -177,5 +177,5 @@ static struct pci_driver ke_counter_pci_driver = {
 module_comedi_pci_driver(ke_counter_driver, ke_counter_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Kolter Electronic Counter Card");
 MODULE_LICENSE("GPL");
