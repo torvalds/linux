@@ -4390,6 +4390,24 @@ interface and may change in the future.</para>
     		  <entry>The flash controller has detected a short or open
     		  circuit condition on the indicator LED.</entry>
     		</row>
+		<row>
+		  <entry><constant>V4L2_FLASH_FAULT_UNDER_VOLTAGE</constant></entry>
+		  <entry>Flash controller voltage to the flash LED
+		  has been below the minimum limit specific to the flash
+		  controller.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_FLASH_FAULT_INPUT_VOLTAGE</constant></entry>
+		  <entry>The input voltage of the flash controller is below
+		  the limit under which strobing the flash at full current
+		  will not be possible.The condition persists until this flag
+		  is no longer set.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_FLASH_FAULT_LED_OVER_TEMPERATURE</constant></entry>
+		  <entry>The temperature of the LED has exceeded its
+		  allowed upper limit.</entry>
+		</row>
     	      </tbody>
     	    </entrytbl>
     	  </row>
