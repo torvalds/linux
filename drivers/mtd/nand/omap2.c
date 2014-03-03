@@ -1057,19 +1057,10 @@ static void __maybe_unused omap_enable_hwecc_bch(struct mtd_info *mtd, int mode)
 	unsigned int dev_width, nsectors;
 	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
 						   mtd);
+	enum omap_ecc ecc_opt = info->ecc_opt;
 	struct nand_chip *chip = mtd->priv;
 	u32 val, wr_mode;
 	unsigned int ecc_size1, ecc_size0;
-
-	/* Using wrapping mode 6 for writing */
-	wr_mode = BCH_WRAPMODE_6;
-
-	/*
-	 * ECC engine enabled for valid ecc_size0 nibbles
-	 * and disabled for ecc_size1 nibbles.
-	 */
-	ecc_size0 = BCH_ECC_SIZE0;
-	ecc_size1 = BCH_ECC_SIZE1;
 
 	/* Perform ecc calculation on 512-byte sector */
 	nsectors = 1;
@@ -1079,22 +1070,57 @@ static void __maybe_unused omap_enable_hwecc_bch(struct mtd_info *mtd, int mode)
 
 	/* Multi sector reading/writing for NAND flash with page size < 4096 */
 	if (info->is_elm_used && (mtd->writesize <= 4096)) {
-		if (mode == NAND_ECC_READ) {
-			/* Using wrapping mode 1 for reading */
-			wr_mode = BCH_WRAPMODE_1;
-
-			/*
-			 * ECC engine enabled for ecc_size0 nibbles
-			 * and disabled for ecc_size1 nibbles.
-			 */
-			ecc_size0 = (nerrors == 8) ?
-				BCH8R_ECC_SIZE0 : BCH4R_ECC_SIZE0;
-			ecc_size1 = (nerrors == 8) ?
-				BCH8R_ECC_SIZE1 : BCH4R_ECC_SIZE1;
-		}
-
 		/* Perform ecc calculation for one page (< 4096) */
 		nsectors = info->nand.ecc.steps;
+	}
+	/* GPMC configurations for calculating ECC */
+	switch (ecc_opt) {
+	case OMAP_ECC_BCH4_CODE_HW_DETECTION_SW:
+		if (mode == NAND_ECC_READ) {
+			wr_mode	  = BCH_WRAPMODE_6;
+			ecc_size0 = BCH_ECC_SIZE0;
+			ecc_size1 = BCH_ECC_SIZE1;
+		} else {
+			wr_mode   = BCH_WRAPMODE_6;
+			ecc_size0 = BCH_ECC_SIZE0;
+			ecc_size1 = BCH_ECC_SIZE1;
+		}
+		break;
+	case OMAP_ECC_BCH4_CODE_HW:
+		if (mode == NAND_ECC_READ) {
+			wr_mode	  = BCH_WRAPMODE_1;
+			ecc_size0 = BCH4R_ECC_SIZE0;
+			ecc_size1 = BCH4R_ECC_SIZE1;
+		} else {
+			wr_mode   = BCH_WRAPMODE_6;
+			ecc_size0 = BCH_ECC_SIZE0;
+			ecc_size1 = BCH_ECC_SIZE1;
+		}
+		break;
+	case OMAP_ECC_BCH8_CODE_HW_DETECTION_SW:
+		if (mode == NAND_ECC_READ) {
+			wr_mode	  = BCH_WRAPMODE_6;
+			ecc_size0 = BCH_ECC_SIZE0;
+			ecc_size1 = BCH_ECC_SIZE1;
+		} else {
+			wr_mode   = BCH_WRAPMODE_6;
+			ecc_size0 = BCH_ECC_SIZE0;
+			ecc_size1 = BCH_ECC_SIZE1;
+		}
+		break;
+	case OMAP_ECC_BCH8_CODE_HW:
+		if (mode == NAND_ECC_READ) {
+			wr_mode	  = BCH_WRAPMODE_1;
+			ecc_size0 = BCH8R_ECC_SIZE0;
+			ecc_size1 = BCH8R_ECC_SIZE1;
+		} else {
+			wr_mode   = BCH_WRAPMODE_6;
+			ecc_size0 = BCH_ECC_SIZE0;
+			ecc_size1 = BCH_ECC_SIZE1;
+		}
+		break;
+	default:
+		return;
 	}
 
 	writel(ECC1, info->reg.gpmc_ecc_control);
