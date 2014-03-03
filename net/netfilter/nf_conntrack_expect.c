@@ -417,7 +417,7 @@ out:
 	return ret;
 }
 
-int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
+int nf_ct_expect_related_report(struct nf_conntrack_expect *expect,
 				u32 portid, int report)
 {
 	int ret;

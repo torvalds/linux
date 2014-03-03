@@ -408,21 +408,21 @@ EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
 
 static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
-				       unsigned int repl_hash)
+				       unsigned int reply_hash)
 {
 	struct net *net = nf_ct_net(ct);
 
 	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
 			   &net->ct.hash[hash]);
 	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode,
-			   &net->ct.hash[repl_hash]);
+			   &net->ct.hash[reply_hash]);
 }
 
 int
 nf_conntrack_hash_check_insert(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
-	unsigned int hash, repl_hash;
+	unsigned int hash, reply_hash;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_node *n;
 	u16 zone;
@@ -430,7 +430,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	zone = nf_ct_zone(ct);
 	hash = hash_conntrack(net, zone,
 			      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-	repl_hash = hash_conntrack(net, zone,
+	reply_hash = hash_conntrack(net, zone,
 				   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
 	spin_lock_bh(&nf_conntrack_lock);
@@ -441,7 +441,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 				      &h->tuple) &&
 		    zone == nf_ct_zone(nf_ct_tuplehash_to_ctrack(h)))
 			goto out;
-	hlist_nulls_for_each_entry(h, n, &net->ct.hash[repl_hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &net->ct.hash[reply_hash], hnnode)
 		if (nf_ct_tuple_equal(&ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				      &h->tuple) &&
 		    zone == nf_ct_zone(nf_ct_tuplehash_to_ctrack(h)))
@@ -451,7 +451,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	smp_wmb();
 	/* The caller holds a reference to this object */
 	atomic_set(&ct->ct_general.use, 2);
-	__nf_conntrack_hash_insert(ct, hash, repl_hash);
+	__nf_conntrack_hash_insert(ct, hash, reply_hash);
 	NF_CT_STAT_INC(net, insert);
 	spin_unlock_bh(&nf_conntrack_lock);
 
@@ -483,7 +483,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_tmpl_insert);
 int
 __nf_conntrack_confirm(struct sk_buff *skb)
 {
-	unsigned int hash, repl_hash;
+	unsigned int hash, reply_hash;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
 	struct nf_conn_help *help;
@@ -507,7 +507,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	/* reuse the hash saved before */
 	hash = *(unsigned long *)&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev;
 	hash = hash_bucket(hash, net);
-	repl_hash = hash_conntrack(net, zone,
+	reply_hash = hash_conntrack(net, zone,
 				   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
 	/* We're not in hash table, and we refuse to set up related
@@ -540,7 +540,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 				      &h->tuple) &&
 		    zone == nf_ct_zone(nf_ct_tuplehash_to_ctrack(h)))
 			goto out;
-	hlist_nulls_for_each_entry(h, n, &net->ct.hash[repl_hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &net->ct.hash[reply_hash], hnnode)
 		if (nf_ct_tuple_equal(&ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				      &h->tuple) &&
 		    zone == nf_ct_zone(nf_ct_tuplehash_to_ctrack(h)))
@@ -570,7 +570,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	 * guarantee that no other CPU can find the conntrack before the above
 	 * stores are visible.
 	 */
-	__nf_conntrack_hash_insert(ct, hash, repl_hash);
+	__nf_conntrack_hash_insert(ct, hash, reply_hash);
 	NF_CT_STAT_INC(net, insert);
 	spin_unlock_bh(&nf_conntrack_lock);
 
