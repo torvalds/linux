@@ -1761,7 +1761,6 @@ struct drm_i915_gem_object {
 	/** for phy allocated objects */
 	struct drm_i915_gem_phys_object *phys_obj;
 };
-#define to_gem_object(obj) (&((struct drm_i915_gem_object *)(obj))->base)
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
