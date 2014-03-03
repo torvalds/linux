@@ -63,7 +63,6 @@ void __weak arch_cpu_idle(void)
 	local_irq_enable();
 }
 
-#ifdef CONFIG_CPU_IDLE
 /**
  * cpuidle_idle_call - the main idle function
  *
@@ -77,9 +76,14 @@ static int cpuidle_idle_call(void)
 	int next_state, entered_state, ret;
 	bool broadcast;
 
+	stop_critical_timings();
+	rcu_idle_enter();
+
 	ret = cpuidle_enabled(drv, dev);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		arch_cpu_idle();
+		goto out;
+	}
 
 	/* ask the governor for the next state */
 	next_state = cpuidle_select(drv, dev);
@@ -89,7 +93,7 @@ static int cpuidle_idle_call(void)
 		/* give the governor an opportunity to reflect on the outcome */
 		cpuidle_reflect(dev, next_state);
 		local_irq_enable();
-		return 0;
+		goto out;
 	}
 
 	broadcast = !!(drv->states[next_state].flags & CPUIDLE_FLAG_TIMER_STOP);
@@ -109,15 +113,15 @@ static int cpuidle_idle_call(void)
 
 	/* give the governor an opportunity to reflect on the outcome */
 	cpuidle_reflect(dev, entered_state);
+out:
+	if (WARN_ON_ONCE(irqs_disabled()))
+		local_irq_enable();
+
+	rcu_idle_exit();
+	start_critical_timings();
 
 	return 0;
 }
-#else
-static inline int cpuidle_idle_call(void)
-{
-	return -ENODEV;
-}
-#endif
 
 /*
  * Generic idle loop implementation
@@ -150,14 +154,7 @@ static void cpu_idle_loop(void)
 				cpu_idle_poll();
 			} else {
 				if (!current_clr_polling_and_test()) {
-					stop_critical_timings();
-					rcu_idle_enter();
-					if (cpuidle_idle_call())
-						arch_cpu_idle();
-					if (WARN_ON_ONCE(irqs_disabled()))
-						local_irq_enable();
-					rcu_idle_exit();
-					start_critical_timings();
+					cpuidle_idle_call();
 				} else {
 					local_irq_enable();
 				}
