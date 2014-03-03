@@ -168,7 +168,6 @@ struct omap_nand_info {
 	int					buf_len;
 	struct gpmc_nand_regs		reg;
 	/* fields specific for BCHx_HW ECC scheme */
-	bool				is_elm_used;
 	struct device			*elm_dev;
 	struct device_node		*of_node;
 };
@@ -1541,7 +1540,6 @@ static int is_elm_present(struct omap_nand_info *info,
 			struct device_node *elm_node, enum bch_ecc bch_type)
 {
 	struct platform_device *pdev;
-	info->is_elm_used = false;
 	/* check whether elm-id is passed via DT */
 	if (!elm_node) {
 		pr_err("nand: error: ELM DT node not found\n");
@@ -1557,7 +1555,6 @@ static int is_elm_present(struct omap_nand_info *info,
 	info->elm_dev = &pdev->dev;
 	if (elm_config(info->elm_dev, bch_type))
 		return -ENODEV;
-	info->is_elm_used = true;
 	return 0;
 }
 #endif /* CONFIG_MTD_NAND_ECC_BCH */
