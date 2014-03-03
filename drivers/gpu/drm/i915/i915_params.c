@@ -47,6 +47,7 @@ struct i915_params i915 __read_mostly = {
 	.prefault_disable = 0,
 	.reset = true,
 	.invert_brightness = 0,
+	.disable_display = 0,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -153,3 +154,6 @@ MODULE_PARM_DESC(invert_brightness,
 	"report PCI device ID, subsystem vendor and subsystem device ID "
 	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
 	"It will then be included in an upcoming module version.");
+
+module_param_named(disable_display, i915.disable_display, bool, 0600);
+MODULE_PARM_DESC(disable_display, "Disable display (default: false)");

@@ -1937,6 +1937,9 @@ static int i915_sink_crc(struct seq_file *m, void *data)
 		if (connector->base.dpms != DRM_MODE_DPMS_ON)
 			continue;
 
+		if (!connector->base.encoder)
+			continue;
+
 		encoder = to_intel_encoder(connector->base.encoder);
 		if (encoder->type != INTEL_OUTPUT_EDP)
 			continue;
@@ -2070,6 +2073,164 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 	}
 
 	mutex_unlock(&power_domains->lock);
+
+	return 0;
+}
+
+static void intel_seq_print_mode(struct seq_file *m, int tabs,
+				 struct drm_display_mode *mode)
+{
+	int i;
+
+	for (i = 0; i < tabs; i++)
+		seq_putc(m, '\t');
+
+	seq_printf(m, "id %d:\"%s\" freq %d clock %d hdisp %d hss %d hse %d htot %d vdisp %d vss %d vse %d vtot %d type 0x%x flags 0x%x\n",
+		   mode->base.id, mode->name,
+		   mode->vrefresh, mode->clock,
+		   mode->hdisplay, mode->hsync_start,
+		   mode->hsync_end, mode->htotal,
+		   mode->vdisplay, mode->vsync_start,
+		   mode->vsync_end, mode->vtotal,
+		   mode->type, mode->flags);
+}
+
+static void intel_encoder_info(struct seq_file *m,
+			       struct intel_crtc *intel_crtc,
+			       struct intel_encoder *intel_encoder)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct intel_connector *intel_connector;
+	struct drm_encoder *encoder;
+
+	encoder = &intel_encoder->base;
+	seq_printf(m, "\tencoder %d: type: %s, connectors:\n",
+		   encoder->base.id, drm_get_encoder_name(encoder));
+	for_each_connector_on_encoder(dev, encoder, intel_connector) {
+		struct drm_connector *connector = &intel_connector->base;
+		seq_printf(m, "\t\tconnector %d: type: %s, status: %s",
+			   connector->base.id,
+			   drm_get_connector_name(connector),
+			   drm_get_connector_status_name(connector->status));
+		if (connector->status == connector_status_connected) {
+			struct drm_display_mode *mode = &crtc->mode;
+			seq_printf(m, ", mode:\n");
+			intel_seq_print_mode(m, 2, mode);
+		} else {
+			seq_putc(m, '\n');
+		}
+	}
+}
+
+static void intel_crtc_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct intel_encoder *intel_encoder;
+
+	seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
+		   crtc->fb->base.id, crtc->x, crtc->y,
+		   crtc->fb->width, crtc->fb->height);
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
+		intel_encoder_info(m, intel_crtc, intel_encoder);
+}
+
+static void intel_panel_info(struct seq_file *m, struct intel_panel *panel)
+{
+	struct drm_display_mode *mode = panel->fixed_mode;
+
+	seq_printf(m, "\tfixed mode:\n");
+	intel_seq_print_mode(m, 2, mode);
+}
+
+static void intel_dp_info(struct seq_file *m,
+			  struct intel_connector *intel_connector)
+{
+	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
+
+	seq_printf(m, "\tDPCD rev: %x\n", intel_dp->dpcd[DP_DPCD_REV]);
+	seq_printf(m, "\taudio support: %s\n", intel_dp->has_audio ? "yes" :
+		   "no");
+	if (intel_encoder->type == INTEL_OUTPUT_EDP)
+		intel_panel_info(m, &intel_connector->panel);
+}
+
+static void intel_hdmi_info(struct seq_file *m,
+			    struct intel_connector *intel_connector)
+{
+	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
+
+	seq_printf(m, "\taudio support: %s\n", intel_hdmi->has_audio ? "yes" :
+		   "no");
+}
+
+static void intel_lvds_info(struct seq_file *m,
+			    struct intel_connector *intel_connector)
+{
+	intel_panel_info(m, &intel_connector->panel);
+}
+
+static void intel_connector_info(struct seq_file *m,
+				 struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_encoder *intel_encoder = intel_connector->encoder;
+
+	seq_printf(m, "connector %d: type %s, status: %s\n",
+		   connector->base.id, drm_get_connector_name(connector),
+		   drm_get_connector_status_name(connector->status));
+	if (connector->status == connector_status_connected) {
+		seq_printf(m, "\tname: %s\n", connector->display_info.name);
+		seq_printf(m, "\tphysical dimensions: %dx%dmm\n",
+			   connector->display_info.width_mm,
+			   connector->display_info.height_mm);
+		seq_printf(m, "\tsubpixel order: %s\n",
+			   drm_get_subpixel_order_name(connector->display_info.subpixel_order));
+		seq_printf(m, "\tCEA rev: %d\n",
+			   connector->display_info.cea_rev);
+	}
+	if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	    intel_encoder->type == INTEL_OUTPUT_EDP)
+		intel_dp_info(m, intel_connector);
+	else if (intel_encoder->type == INTEL_OUTPUT_HDMI)
+		intel_hdmi_info(m, intel_connector);
+	else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
+		intel_lvds_info(m, intel_connector);
+
+}
+
+static int i915_display_info(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+
+	drm_modeset_lock_all(dev);
+	seq_printf(m, "CRTC info\n");
+	seq_printf(m, "---------\n");
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+		seq_printf(m, "CRTC %d: pipe: %c, active: %s\n",
+			   crtc->base.id, pipe_name(intel_crtc->pipe),
+			   intel_crtc->active ? "yes" : "no");
+		if (intel_crtc->active)
+			intel_crtc_info(m, intel_crtc);
+	}
+
+	seq_printf(m, "\n");
+	seq_printf(m, "Connector info\n");
+	seq_printf(m, "--------------\n");
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		intel_connector_info(m, connector);
+	}
+	drm_modeset_unlock_all(dev);
 
 	return 0;
 }
@@ -3519,6 +3680,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_pc8_status", i915_pc8_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
+	{"i915_display_info", i915_display_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

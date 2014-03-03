@@ -784,6 +784,16 @@ out:
 	return ret;
 }
 
+static void
+intel_dp_connector_unregister(struct intel_connector *intel_connector)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(&intel_connector->base);
+
+	sysfs_remove_link(&intel_connector->base.kdev->kobj,
+			  intel_dp->adapter.dev.kobj.name);
+	intel_connector_unregister(intel_connector);
+}
+
 static int
 intel_dp_i2c_init(struct intel_dp *intel_dp,
 		  struct intel_connector *intel_connector, const char *name)
@@ -801,9 +811,19 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	strncpy(intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
-	intel_dp->adapter.dev.parent = intel_connector->base.kdev;
+	intel_dp->adapter.dev.parent = intel_connector->base.dev->dev;
 
 	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
+	if (ret < 0)
+		return ret;
+
+	ret = sysfs_create_link(&intel_connector->base.kdev->kobj,
+				&intel_dp->adapter.dev.kobj,
+				intel_dp->adapter.dev.kobj.name);
+
+	if (ret < 0)
+		i2c_del_adapter(&intel_dp->adapter);
+
 	return ret;
 }
 
@@ -3739,7 +3759,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 
-	intel_panel_init(&intel_connector->panel, fixed_mode);
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_panel_setup_backlight(connector);
 
 	return true;
@@ -3808,6 +3828,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_dp_connector_unregister;
 
 	intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 	if (HAS_DDI(dev)) {

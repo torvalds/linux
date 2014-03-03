@@ -531,9 +531,11 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		goto err;
 	}
 
-	i915_gem_object_set_cache_level(ring->scratch.obj, I915_CACHE_LLC);
+	ret = i915_gem_object_set_cache_level(ring->scratch.obj, I915_CACHE_LLC);
+	if (ret)
+		goto err_unref;
 
-	ret = i915_gem_obj_ggtt_pin(ring->scratch.obj, 4096, true, false);
+	ret = i915_gem_obj_ggtt_pin(ring->scratch.obj, 4096, 0);
 	if (ret)
 		goto err_unref;
 
@@ -1271,12 +1273,13 @@ static int init_status_page(struct intel_ring_buffer *ring)
 		goto err;
 	}
 
-	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-
-	ret = i915_gem_obj_ggtt_pin(obj, 4096, true, false);
-	if (ret != 0) {
+	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	if (ret)
 		goto err_unref;
-	}
+
+	ret = i915_gem_obj_ggtt_pin(obj, 4096, 0);
+	if (ret)
+		goto err_unref;
 
 	ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(obj);
 	ring->status_page.page_addr = kmap(sg_page(obj->pages->sgl));
@@ -1356,7 +1359,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	ring->obj = obj;
 
-	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, true, false);
+	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
 	if (ret)
 		goto err_unref;
 
@@ -1513,7 +1516,8 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 			return 0;
 		}
 
-		if (dev->primary->master) {
+		if (!drm_core_check_feature(dev, DRIVER_MODESET) &&
+		    dev->primary->master) {
 			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 			if (master_priv->sarea_priv)
 				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
@@ -1939,7 +1943,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			return -ENOMEM;
 		}
 
-		ret = i915_gem_obj_ggtt_pin(obj, 0, true, false);
+		ret = i915_gem_obj_ggtt_pin(obj, 0, 0);
 		if (ret != 0) {
 			drm_gem_object_unreference(&obj->base);
 			DRM_ERROR("Failed to ping batch bo\n");

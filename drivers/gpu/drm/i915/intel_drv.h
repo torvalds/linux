@@ -110,7 +110,7 @@ struct intel_framebuffer {
 
 struct intel_fbdev {
 	struct drm_fb_helper helper;
-	struct intel_framebuffer ifb;
+	struct intel_framebuffer *fb;
 	struct list_head fbdev_list;
 	struct drm_display_mode *our_mode;
 };
@@ -186,6 +186,14 @@ struct intel_connector {
 	/* Reads out the current hw, returning true if the connector is enabled
 	 * and active (i.e. dpms ON state). */
 	bool (*get_hw_state)(struct intel_connector *);
+
+	/*
+	 * Removes all interfaces through which the connector is accessible
+	 * - like sysfs, debugfs entries -, so that no new operations can be
+	 * started on the connector. Also makes sure all currently pending
+	 * operations finish before returing.
+	 */
+	void (*unregister)(struct intel_connector *);
 
 	/* Panel info for eDP and LVDS */
 	struct intel_panel panel;
@@ -681,11 +689,10 @@ int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			       struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *pipelined);
 void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
-int intel_framebuffer_init(struct drm_device *dev,
-			   struct intel_framebuffer *ifb,
+struct drm_framebuffer *
+__intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj);
-void intel_framebuffer_fini(struct intel_framebuffer *fb);
 void intel_prepare_page_flip(struct drm_device *dev, int plane);
 void intel_finish_page_flip(struct drm_device *dev, int pipe);
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
@@ -727,6 +734,8 @@ void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
 void intel_display_set_init_power(struct drm_device *dev, bool enable);
 int valleyview_get_vco(struct drm_i915_private *dev_priv);
+void intel_mode_from_pipe_config(struct drm_display_mode *mode,
+				 struct intel_crtc_config *pipe_config);
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
@@ -824,7 +833,8 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 
 /* intel_panel.c */
 int intel_panel_init(struct intel_panel *panel,
-		     struct drm_display_mode *fixed_mode);
+		     struct drm_display_mode *fixed_mode,
+		     struct drm_display_mode *downclock_mode);
 void intel_panel_fini(struct intel_panel *panel);
 void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 			    struct drm_display_mode *adjusted_mode);

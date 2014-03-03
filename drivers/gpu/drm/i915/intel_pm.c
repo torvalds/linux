@@ -2741,7 +2741,7 @@ intel_alloc_context_page(struct drm_device *dev)
 		return NULL;
 	}
 
-	ret = i915_gem_obj_ggtt_pin(ctx, 4096, true, false);
+	ret = i915_gem_obj_ggtt_pin(ctx, 4096, 0);
 	if (ret) {
 		DRM_ERROR("failed to pin power context: %d\n", ret);
 		goto err_unref;
@@ -3196,16 +3196,10 @@ static void valleyview_disable_rps(struct drm_device *dev)
 
 static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 {
-	if (IS_GEN6(dev))
-		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
-
-	if (IS_HASWELL(dev))
-		DRM_DEBUG_DRIVER("Haswell: only RC6 available\n");
-
 	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
-			(mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-			(mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-			(mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+		 (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
+		 (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
+		 (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
 }
 
 int intel_enable_rc6(const struct drm_device *dev)
@@ -3222,14 +3216,10 @@ int intel_enable_rc6(const struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen == 5)
 		return 0;
 
-	if (IS_HASWELL(dev))
-		return INTEL_RC6_ENABLE;
+	if (IS_IVYBRIDGE(dev))
+		return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 
-	/* snb/ivb have more than one rc6 state. */
-	if (INTEL_INFO(dev)->gen == 6)
-		return INTEL_RC6_ENABLE;
-
-	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
+	return INTEL_RC6_ENABLE;
 }
 
 static void gen6_enable_rps_interrupts(struct drm_device *dev)
@@ -3286,10 +3276,10 @@ static void gen8_enable_rps(struct drm_device *dev)
 	/* 3: Enable RC6 */
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
-	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
+	intel_print_rc6_info(dev, rc6_mask);
 	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
-			GEN6_RC_CTL_EI_MODE(1) |
-			rc6_mask);
+				    GEN6_RC_CTL_EI_MODE(1) |
+				    rc6_mask);
 
 	/* 4 Program defaults and thresholds for RPS*/
 	I915_WRITE(GEN6_RPNSWREQ, HSW_FREQUENCY(10)); /* Request 500 MHz */
@@ -3903,9 +3893,10 @@ static unsigned long __i915_chipset_val(struct drm_i915_private *dev_priv)
 
 unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	unsigned long val;
 
-	if (dev_priv->info->gen != 5)
+	if (INTEL_INFO(dev)->gen != 5)
 		return 0;
 
 	spin_lock_irq(&mchdev_lock);
@@ -3934,6 +3925,7 @@ unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
 
 static u16 pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
 {
+	struct drm_device *dev = dev_priv->dev;
 	static const struct v_table {
 		u16 vd; /* in .1 mil */
 		u16 vm; /* in .1 mil */
@@ -4067,7 +4059,7 @@ static u16 pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
 		{ 16000, 14875, },
 		{ 16125, 15000, },
 	};
-	if (dev_priv->info->is_mobile)
+	if (INTEL_INFO(dev)->is_mobile)
 		return v_table[pxvid].vm;
 	else
 		return v_table[pxvid].vd;
@@ -4110,7 +4102,9 @@ static void __i915_update_gfx_val(struct drm_i915_private *dev_priv)
 
 void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 {
-	if (dev_priv->info->gen != 5)
+	struct drm_device *dev = dev_priv->dev;
+
+	if (INTEL_INFO(dev)->gen != 5)
 		return;
 
 	spin_lock_irq(&mchdev_lock);
@@ -4159,9 +4153,10 @@ static unsigned long __i915_gfx_val(struct drm_i915_private *dev_priv)
 
 unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	unsigned long val;
 
-	if (dev_priv->info->gen != 5)
+	if (INTEL_INFO(dev)->gen != 5)
 		return 0;
 
 	spin_lock_irq(&mchdev_lock);
@@ -4696,6 +4691,14 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	/* Bspec says we need to always set all mask bits. */
 	I915_WRITE(_3D_CHICKEN3, (0xFFFF << 16) |
 		   _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL);
+
+	/*
+	 * Bspec says:
+	 * "This bit must be set if 3DSTATE_CLIP clip mode is set to normal and
+	 * 3DSTATE_SF number of SF output attributes is more than 16."
+	 */
+	I915_WRITE(_3D_CHICKEN3,
+		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_SF_DISABLE_PIPELINED_ATTR_FETCH));
 
 	/*
 	 * According to the spec the following bits should be

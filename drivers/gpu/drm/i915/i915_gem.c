@@ -43,12 +43,6 @@ static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *o
 static __must_check int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 			       bool readonly);
-static __must_check int
-i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
-			   struct i915_address_space *vm,
-			   unsigned alignment,
-			   bool map_and_fenceable,
-			   bool nonblocking);
 static int i915_gem_phys_pwrite(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
@@ -605,7 +599,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	char __user *user_data;
 	int page_offset, page_length, ret;
 
-	ret = i915_gem_obj_ggtt_pin(obj, 0, true, true);
+	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE | PIN_NONBLOCK);
 	if (ret)
 		goto out;
 
@@ -1014,7 +1008,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			struct timespec *timeout,
 			struct drm_i915_file_private *file_priv)
 {
-	drm_i915_private_t *dev_priv = ring->dev->dev_private;
+	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	const bool irq_test_in_progress =
 		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_ring_flag(ring);
 	struct timespec before, now;
@@ -1029,7 +1024,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 
 	timeout_expire = timeout ? jiffies + timespec_to_jiffies_timeout(timeout) : 0;
 
-	if (dev_priv->info->gen >= 6 && can_wait_boost(file_priv)) {
+	if (INTEL_INFO(dev)->gen >= 6 && can_wait_boost(file_priv)) {
 		gen6_rps_boost(dev_priv);
 		if (file_priv)
 			mod_delayed_work(dev_priv->wq,
@@ -1184,7 +1179,7 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
  */
 static __must_check int
 i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
-					    struct drm_file *file,
+					    struct drm_i915_file_private *file_priv,
 					    bool readonly)
 {
 	struct drm_device *dev = obj->base.dev;
@@ -1211,7 +1206,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
-	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL, file->driver_priv);
+	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL, file_priv);
 	mutex_lock(&dev->struct_mutex);
 	if (ret)
 		return ret;
@@ -1260,7 +1255,9 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
 	 */
-	ret = i915_gem_object_wait_rendering__nonblocking(obj, file, !write_domain);
+	ret = i915_gem_object_wait_rendering__nonblocking(obj,
+							  file->driver_priv,
+							  !write_domain);
 	if (ret)
 		goto unref;
 
@@ -1392,6 +1389,15 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
+	/* Try to flush the object off the GPU first without holding the lock.
+	 * Upon reacquiring the lock, we will perform our sanity checks and then
+	 * repeat the flush holding the lock in the normal manner to catch cases
+	 * where we are gazumped.
+	 */
+	ret = i915_gem_object_wait_rendering__nonblocking(obj, NULL, !write);
+	if (ret)
+		goto unlock;
+
 	/* Access to snoopable pages through the GTT is incoherent. */
 	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(dev)) {
 		ret = -EINVAL;
@@ -1399,7 +1405,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* Now bind it into the GTT if needed */
-	ret = i915_gem_obj_ggtt_pin(obj,  0, true, false);
+	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE);
 	if (ret)
 		goto unlock;
 
@@ -1618,7 +1624,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_ERROR("Attempting to mmap a purgeable buffer\n");
+		DRM_DEBUG("Attempting to mmap a purgeable buffer\n");
 		ret = -EFAULT;
 		goto out;
 	}
@@ -1972,7 +1978,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 		return 0;
 
 	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_ERROR("Attempting to obtain a purgeable object\n");
+		DRM_DEBUG("Attempting to obtain a purgeable object\n");
 		return -EFAULT;
 	}
 
@@ -2709,7 +2715,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	if (!drm_mm_node_allocated(&vma->node)) {
 		i915_gem_vma_destroy(vma);
-
 		return 0;
 	}
 
@@ -2759,26 +2764,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 	i915_gem_object_unpin_pages(obj);
 
 	return 0;
-}
-
-/**
- * Unbinds an object from the global GTT aperture.
- */
-int
-i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-	struct i915_address_space *ggtt = &dev_priv->gtt.base;
-
-	if (!i915_gem_obj_ggtt_bound(obj))
-		return 0;
-
-	if (i915_gem_obj_to_ggtt(obj)->pin_count)
-		return -EBUSY;
-
-	BUG_ON(obj->pages == NULL);
-
-	return i915_vma_unbind(i915_gem_obj_to_vma(obj, ggtt));
 }
 
 int i915_gpu_idle(struct drm_device *dev)
@@ -3203,18 +3188,17 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 /**
  * Finds free space in the GTT aperture and binds the object there.
  */
-static int
+static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 			   struct i915_address_space *vm,
 			   unsigned alignment,
-			   bool map_and_fenceable,
-			   bool nonblocking)
+			   unsigned flags)
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	size_t gtt_max =
-		map_and_fenceable ? dev_priv->gtt.mappable_end : vm->total;
+		flags & PIN_MAPPABLE ? dev_priv->gtt.mappable_end : vm->total;
 	struct i915_vma *vma;
 	int ret;
 
@@ -3226,41 +3210,39 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 						     obj->tiling_mode, true);
 	unfenced_alignment =
 		i915_gem_get_gtt_alignment(dev,
-						    obj->base.size,
-						    obj->tiling_mode, false);
+					   obj->base.size,
+					   obj->tiling_mode, false);
 
 	if (alignment == 0)
-		alignment = map_and_fenceable ? fence_alignment :
+		alignment = flags & PIN_MAPPABLE ? fence_alignment :
 						unfenced_alignment;
-	if (map_and_fenceable && alignment & (fence_alignment - 1)) {
-		DRM_ERROR("Invalid object alignment requested %u\n", alignment);
-		return -EINVAL;
+	if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
+		DRM_DEBUG("Invalid object alignment requested %u\n", alignment);
+		return ERR_PTR(-EINVAL);
 	}
 
-	size = map_and_fenceable ? fence_size : obj->base.size;
+	size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
 
 	/* If the object is bigger than the entire aperture, reject it early
 	 * before evicting everything in a vain attempt to find space.
 	 */
 	if (obj->base.size > gtt_max) {
-		DRM_ERROR("Attempting to bind an object larger than the aperture: object=%zd > %s aperture=%zu\n",
+		DRM_DEBUG("Attempting to bind an object larger than the aperture: object=%zd > %s aperture=%zu\n",
 			  obj->base.size,
-			  map_and_fenceable ? "mappable" : "total",
+			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  gtt_max);
-		return -E2BIG;
+		return ERR_PTR(-E2BIG);
 	}
 
 	ret = i915_gem_object_get_pages(obj);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	i915_gem_object_pin_pages(obj);
 
 	vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
+	if (IS_ERR(vma))
 		goto err_unpin;
-	}
 
 search_free:
 	ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
@@ -3269,9 +3251,7 @@ search_free:
 						  DRM_MM_SEARCH_DEFAULT);
 	if (ret) {
 		ret = i915_gem_evict_something(dev, vm, size, alignment,
-					       obj->cache_level,
-					       map_and_fenceable,
-					       nonblocking);
+					       obj->cache_level, flags);
 		if (ret == 0)
 			goto search_free;
 
@@ -3302,19 +3282,23 @@ search_free:
 		obj->map_and_fenceable = mappable && fenceable;
 	}
 
-	WARN_ON(map_and_fenceable && !obj->map_and_fenceable);
+	WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
 
-	trace_i915_vma_bind(vma, map_and_fenceable);
+	trace_i915_vma_bind(vma, flags);
+	vma->bind_vma(vma, obj->cache_level,
+		      flags & (PIN_MAPPABLE | PIN_GLOBAL) ? GLOBAL_BIND : 0);
+
 	i915_gem_verify_gtt(dev);
-	return 0;
+	return vma;
 
 err_remove_node:
 	drm_mm_remove_node(&vma->node);
 err_free_vma:
 	i915_gem_vma_destroy(vma);
+	vma = ERR_PTR(ret);
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-	return ret;
+	return vma;
 }
 
 bool
@@ -3506,7 +3490,9 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		}
 
 		list_for_each_entry(vma, &obj->vma_list, vma_link)
-			vma->bind_vma(vma, cache_level, 0);
+			if (drm_mm_node_allocated(&vma->node))
+				vma->bind_vma(vma, cache_level,
+					      obj->has_global_gtt_mapping ? GLOBAL_BIND : 0);
 	}
 
 	list_for_each_entry(vma, &obj->vma_list, vma_link)
@@ -3675,7 +3661,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers.
 	 */
-	ret = i915_gem_obj_ggtt_pin(obj, alignment, true, false);
+	ret = i915_gem_obj_ggtt_pin(obj, alignment, PIN_MAPPABLE);
 	if (ret)
 		goto err_unpin_display;
 
@@ -3831,52 +3817,49 @@ int
 i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    struct i915_address_space *vm,
 		    uint32_t alignment,
-		    bool map_and_fenceable,
-		    bool nonblocking)
+		    unsigned flags)
 {
-	const u32 flags = map_and_fenceable ? GLOBAL_BIND : 0;
 	struct i915_vma *vma;
 	int ret;
 
-	WARN_ON(map_and_fenceable && !i915_is_ggtt(vm));
+	if (WARN_ON(flags & (PIN_GLOBAL | PIN_MAPPABLE) && !i915_is_ggtt(vm)))
+		return -EINVAL;
 
 	vma = i915_gem_obj_to_vma(obj, vm);
-
 	if (vma) {
 		if (WARN_ON(vma->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
 			return -EBUSY;
 
 		if ((alignment &&
 		     vma->node.start & (alignment - 1)) ||
-		    (map_and_fenceable && !obj->map_and_fenceable)) {
+		    (flags & PIN_MAPPABLE && !obj->map_and_fenceable)) {
 			WARN(vma->pin_count,
 			     "bo is already pinned with incorrect alignment:"
 			     " offset=%lx, req.alignment=%x, req.map_and_fenceable=%d,"
 			     " obj->map_and_fenceable=%d\n",
 			     i915_gem_obj_offset(obj, vm), alignment,
-			     map_and_fenceable,
+			     flags & PIN_MAPPABLE,
 			     obj->map_and_fenceable);
 			ret = i915_vma_unbind(vma);
 			if (ret)
 				return ret;
+
+			vma = NULL;
 		}
 	}
 
-	if (!i915_gem_obj_bound(obj, vm)) {
-		ret = i915_gem_object_bind_to_vm(obj, vm, alignment,
-						 map_and_fenceable,
-						 nonblocking);
-		if (ret)
-			return ret;
-
+	if (vma == NULL || !drm_mm_node_allocated(&vma->node)) {
+		vma = i915_gem_object_bind_to_vm(obj, vm, alignment, flags);
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
 	}
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	if (flags & PIN_GLOBAL && !obj->has_global_gtt_mapping)
+		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
 
-	vma->bind_vma(vma, obj->cache_level, flags);
-
-	i915_gem_obj_to_vma(obj, vm)->pin_count++;
-	obj->pin_mappable |= map_and_fenceable;
+	vma->pin_count++;
+	if (flags & PIN_MAPPABLE)
+		obj->pin_mappable |= true;
 
 	return 0;
 }
@@ -3916,13 +3899,13 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_ERROR("Attempting to pin a purgeable buffer\n");
+		DRM_DEBUG("Attempting to pin a purgeable buffer\n");
 		ret = -EFAULT;
 		goto out;
 	}
 
 	if (obj->pin_filp != NULL && obj->pin_filp != file) {
-		DRM_ERROR("Already pinned in i915_gem_pin_ioctl(): %d\n",
+		DRM_DEBUG("Already pinned in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
 		ret = -EINVAL;
 		goto out;
@@ -3934,7 +3917,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (obj->user_pin_count == 0) {
-		ret = i915_gem_obj_ggtt_pin(obj, args->alignment, true, false);
+		ret = i915_gem_obj_ggtt_pin(obj, args->alignment, PIN_MAPPABLE);
 		if (ret)
 			goto out;
 	}
@@ -3969,7 +3952,7 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (obj->pin_filp != file) {
-		DRM_ERROR("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
+		DRM_DEBUG("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
 		ret = -EINVAL;
 		goto out;

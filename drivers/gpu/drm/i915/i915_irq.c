@@ -419,6 +419,16 @@ done:
 	return ret;
 }
 
+static bool __cpu_fifo_underrun_reporting_enabled(struct drm_device *dev,
+						  enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	return !intel_crtc->cpu_fifo_underrun_disabled;
+}
+
 /**
  * intel_set_pch_fifo_underrun_reporting - enable/disable FIFO underrun messages
  * @dev: drm device
@@ -473,36 +483,100 @@ done:
 
 
 void
-i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask)
+__i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
+		       u32 enable_mask, u32 status_mask)
 {
 	u32 reg = PIPESTAT(pipe);
-	u32 pipestat = I915_READ(reg) & 0x7fff0000;
+	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if ((pipestat & mask) == mask)
+	if (WARN_ON_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
+	                 status_mask & ~PIPESTAT_INT_STATUS_MASK))
 		return;
 
+	if ((pipestat & enable_mask) == enable_mask)
+		return;
+
+	dev_priv->pipestat_irq_mask[pipe] |= status_mask;
+
 	/* Enable the interrupt, clear any pending status */
-	pipestat |= mask | (mask >> 16);
+	pipestat |= enable_mask | status_mask;
 	I915_WRITE(reg, pipestat);
 	POSTING_READ(reg);
 }
 
 void
-i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask)
+__i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
+		        u32 enable_mask, u32 status_mask)
 {
 	u32 reg = PIPESTAT(pipe);
-	u32 pipestat = I915_READ(reg) & 0x7fff0000;
+	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if ((pipestat & mask) == 0)
+	if (WARN_ON_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
+	                 status_mask & ~PIPESTAT_INT_STATUS_MASK))
 		return;
 
-	pipestat &= ~mask;
+	if ((pipestat & enable_mask) == 0)
+		return;
+
+	dev_priv->pipestat_irq_mask[pipe] &= ~status_mask;
+
+	pipestat &= ~enable_mask;
 	I915_WRITE(reg, pipestat);
 	POSTING_READ(reg);
+}
+
+static u32 vlv_get_pipestat_enable_mask(struct drm_device *dev, u32 status_mask)
+{
+	u32 enable_mask = status_mask << 16;
+
+	/*
+	 * On pipe A we don't support the PSR interrupt yet, on pipe B the
+	 * same bit MBZ.
+	 */
+	if (WARN_ON_ONCE(status_mask & PIPE_A_PSR_STATUS_VLV))
+		return 0;
+
+	enable_mask &= ~(PIPE_FIFO_UNDERRUN_STATUS |
+			 SPRITE0_FLIP_DONE_INT_EN_VLV |
+			 SPRITE1_FLIP_DONE_INT_EN_VLV);
+	if (status_mask & SPRITE0_FLIP_DONE_INT_STATUS_VLV)
+		enable_mask |= SPRITE0_FLIP_DONE_INT_EN_VLV;
+	if (status_mask & SPRITE1_FLIP_DONE_INT_STATUS_VLV)
+		enable_mask |= SPRITE1_FLIP_DONE_INT_EN_VLV;
+
+	return enable_mask;
+}
+
+void
+i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
+		     u32 status_mask)
+{
+	u32 enable_mask;
+
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
+							   status_mask);
+	else
+		enable_mask = status_mask << 16;
+	__i915_enable_pipestat(dev_priv, pipe, enable_mask, status_mask);
+}
+
+void
+i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
+		      u32 status_mask)
+{
+	u32 enable_mask;
+
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
+							   status_mask);
+	else
+		enable_mask = status_mask << 16;
+	__i915_disable_pipestat(dev_priv, pipe, enable_mask, status_mask);
 }
 
 /**
@@ -518,10 +592,10 @@ static void i915_enable_asle_pipestat(struct drm_device *dev)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
-	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_LEGACY_BLC_EVENT_ENABLE);
+	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_LEGACY_BLC_EVENT_STATUS);
 	if (INTEL_INFO(dev)->gen >= 4)
 		i915_enable_pipestat(dev_priv, PIPE_A,
-				     PIPE_LEGACY_BLC_EVENT_ENABLE);
+				     PIPE_LEGACY_BLC_EVENT_STATUS);
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
@@ -1479,18 +1553,48 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pipe_stats[I915_MAX_PIPES];
+	u32 pipe_stats[I915_MAX_PIPES] = { };
 	int pipe;
 
 	spin_lock(&dev_priv->irq_lock);
 	for_each_pipe(pipe) {
-		int reg = PIPESTAT(pipe);
-		pipe_stats[pipe] = I915_READ(reg);
+		int reg;
+		u32 mask, iir_bit = 0;
+
+		/*
+		 * PIPESTAT bits get signalled even when the interrupt is
+		 * disabled with the mask bits, and some of the status bits do
+		 * not generate interrupts at all (like the underrun bit). Hence
+		 * we need to be careful that we only handle what we want to
+		 * handle.
+		 */
+		mask = 0;
+		if (__cpu_fifo_underrun_reporting_enabled(dev, pipe))
+			mask |= PIPE_FIFO_UNDERRUN_STATUS;
+
+		switch (pipe) {
+		case PIPE_A:
+			iir_bit = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
+			break;
+		case PIPE_B:
+			iir_bit = I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
+			break;
+		}
+		if (iir & iir_bit)
+			mask |= dev_priv->pipestat_irq_mask[pipe];
+
+		if (!mask)
+			continue;
+
+		reg = PIPESTAT(pipe);
+		mask |= PIPESTAT_INT_ENABLE_MASK;
+		pipe_stats[pipe] = I915_READ(reg) & mask;
 
 		/*
 		 * Clear the PIPE*STAT regs before the IIR
 		 */
-		if (pipe_stats[pipe] & 0x8000ffff)
+		if (pipe_stats[pipe] & (PIPE_FIFO_UNDERRUN_STATUS |
+					PIPESTAT_INT_STATUS_MASK))
 			I915_WRITE(reg, pipe_stats[pipe]);
 	}
 	spin_unlock(&dev_priv->irq_lock);
@@ -2269,13 +2373,13 @@ static int i915_enable_vblank(struct drm_device *dev, int pipe)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (INTEL_INFO(dev)->gen >= 4)
 		i915_enable_pipestat(dev_priv, pipe,
-				     PIPE_START_VBLANK_INTERRUPT_ENABLE);
+				     PIPE_START_VBLANK_INTERRUPT_STATUS);
 	else
 		i915_enable_pipestat(dev_priv, pipe,
-				     PIPE_VBLANK_INTERRUPT_ENABLE);
+				     PIPE_VBLANK_INTERRUPT_STATUS);
 
 	/* maintain vblank delivery even in deep C-states */
-	if (dev_priv->info->gen == 3)
+	if (INTEL_INFO(dev)->gen == 3)
 		I915_WRITE(INSTPM, _MASKED_BIT_DISABLE(INSTPM_AGPBUSY_DIS));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
@@ -2309,7 +2413,7 @@ static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_enable_pipestat(dev_priv, pipe,
-			     PIPE_START_VBLANK_INTERRUPT_ENABLE);
+			     PIPE_START_VBLANK_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -2340,12 +2444,12 @@ static void i915_disable_vblank(struct drm_device *dev, int pipe)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	if (dev_priv->info->gen == 3)
+	if (INTEL_INFO(dev)->gen == 3)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_AGPBUSY_DIS));
 
 	i915_disable_pipestat(dev_priv, pipe,
-			      PIPE_VBLANK_INTERRUPT_ENABLE |
-			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
+			      PIPE_VBLANK_INTERRUPT_STATUS |
+			      PIPE_START_VBLANK_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -2368,7 +2472,7 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_disable_pipestat(dev_priv, pipe,
-			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
+			      PIPE_START_VBLANK_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -2916,8 +3020,8 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 enable_mask;
-	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV |
-		PIPE_CRC_DONE_ENABLE;
+	u32 pipestat_enable = PLANE_FLIP_DONE_INT_STATUS_VLV |
+		PIPE_CRC_DONE_INTERRUPT_STATUS;
 	unsigned long irqflags;
 
 	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
@@ -2948,7 +3052,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	 * just to make the assert_spin_locked check happy. */
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_enable_pipestat(dev_priv, PIPE_A, pipestat_enable);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_EVENT_ENABLE);
+	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
 	i915_enable_pipestat(dev_priv, PIPE_B, pipestat_enable);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
@@ -3171,8 +3275,8 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_ENABLE);
-	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_ENABLE);
+	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
+	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -3354,8 +3458,8 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_ENABLE);
-	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_ENABLE);
+	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
+	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -3564,9 +3668,9 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_EVENT_ENABLE);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_ENABLE);
-	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_ENABLE);
+	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
+	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
+	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	/*

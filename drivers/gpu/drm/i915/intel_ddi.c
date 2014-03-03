@@ -1415,7 +1415,7 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 
 	if (lcpll & LCPLL_CD_SOURCE_FCLK) {
 		return 800000;
-	} else if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT) {
+	} else if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT) {
 		return 450000;
 	} else if (freq == LCPLL_CLK_FREQ_450) {
 		return 450000;

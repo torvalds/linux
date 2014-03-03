@@ -544,19 +544,23 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
-	bool need_fence, need_mappable;
-	u32 flags = (entry->flags & EXEC_OBJECT_NEEDS_GTT) &&
-		!vma->obj->has_global_gtt_mapping ? GLOBAL_BIND : 0;
+	bool need_fence;
+	unsigned flags;
 	int ret;
+
+	flags = 0;
 
 	need_fence =
 		has_fenced_gpu_access &&
 		entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 		obj->tiling_mode != I915_TILING_NONE;
-	need_mappable = need_fence || need_reloc_mappable(vma);
+	if (need_fence || need_reloc_mappable(vma))
+		flags |= PIN_MAPPABLE;
 
-	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, need_mappable,
-				  false);
+	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
+		flags |= PIN_GLOBAL;
+
+	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, flags);
 	if (ret)
 		return ret;
 
@@ -584,8 +588,6 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 		obj->base.pending_read_domains = I915_GEM_DOMAIN_RENDER;
 		obj->base.pending_write_domain = I915_GEM_DOMAIN_RENDER;
 	}
-
-	vma->bind_vma(vma, obj->cache_level, flags);
 
 	return 0;
 }

@@ -1136,7 +1136,7 @@ static int drm_fb_helper_probe_connector_modes(struct drm_fb_helper *fb_helper,
 	return count;
 }
 
-static struct drm_display_mode *drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector, int width, int height)
+struct drm_display_mode *drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector, int width, int height)
 {
 	struct drm_display_mode *mode;
 
@@ -1149,6 +1149,7 @@ static struct drm_display_mode *drm_has_preferred_mode(struct drm_fb_helper_conn
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(drm_has_preferred_mode);
 
 static bool drm_has_cmdline_mode(struct drm_fb_helper_connector *fb_connector)
 {
@@ -1157,7 +1158,7 @@ static bool drm_has_cmdline_mode(struct drm_fb_helper_connector *fb_connector)
 	return cmdline_mode->specified;
 }
 
-static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
+struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
 						      int width, int height)
 {
 	struct drm_cmdline_mode *cmdline_mode;
@@ -1197,6 +1198,7 @@ create_mode:
 	list_add(&mode->head, &fb_helper_conn->connector->modes);
 	return mode;
 }
+EXPORT_SYMBOL(drm_pick_cmdline_mode);
 
 static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {

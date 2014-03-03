@@ -899,6 +899,7 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_display_mode *fixed_mode = NULL;
+	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
 	struct drm_crtc *crtc;
 	u32 lvds;
@@ -957,6 +958,7 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_LVDS;
@@ -1032,15 +1034,14 @@ void intel_lvds_init(struct drm_device *dev)
 
 			fixed_mode = drm_mode_duplicate(dev, scan);
 			if (fixed_mode) {
-				intel_connector->panel.downclock_mode =
+				downclock_mode =
 					intel_find_panel_downclock(dev,
 					fixed_mode, connector);
-				if (intel_connector->panel.downclock_mode !=
-					NULL &&	i915.lvds_downclock) {
+				if (downclock_mode != NULL &&
+					i915.lvds_downclock) {
 					/* We found the downclock for LVDS. */
 					dev_priv->lvds_downclock_avail = true;
 					dev_priv->lvds_downclock =
-						intel_connector->panel.
 						downclock_mode->clock;
 					DRM_DEBUG_KMS("LVDS downclock is found"
 					" in EDID. Normal clock %dKhz, "
@@ -1116,7 +1117,7 @@ out:
 	}
 	drm_sysfs_connector_add(connector);
 
-	intel_panel_init(&intel_connector->panel, fixed_mode);
+	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	intel_panel_setup_backlight(connector);
 
 	return;
@@ -1125,8 +1126,6 @@ failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
-	if (fixed_mode)
-		drm_mode_destroy(dev, fixed_mode);
 	kfree(lvds_encoder);
 	kfree(lvds_connector);
 	return;

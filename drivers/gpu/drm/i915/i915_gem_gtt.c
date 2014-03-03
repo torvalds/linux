@@ -319,36 +319,53 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 		kunmap_atomic(pt_vaddr);
 }
 
+static void gen8_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
+{
+	int i;
+
+	for (i = 0; i < ppgtt->num_pd_pages ; i++)
+		kfree(ppgtt->gen8_pt_dma_addr[i]);
+
+	__free_pages(ppgtt->gen8_pt_pages, get_order(ppgtt->num_pt_pages << PAGE_SHIFT));
+	__free_pages(ppgtt->pd_pages, get_order(ppgtt->num_pd_pages << PAGE_SHIFT));
+}
+
+static void gen8_ppgtt_unmap_pages(struct i915_hw_ppgtt *ppgtt)
+{
+	int i, j;
+
+	for (i = 0; i < ppgtt->num_pd_pages; i++) {
+		/* TODO: In the future we'll support sparse mappings, so this
+		 * will have to change. */
+		if (!ppgtt->pd_dma_addr[i])
+			continue;
+
+		pci_unmap_page(ppgtt->base.dev->pdev,
+			       ppgtt->pd_dma_addr[i],
+			       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+
+		for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
+			dma_addr_t addr = ppgtt->gen8_pt_dma_addr[i][j];
+			if (addr)
+				pci_unmap_page(ppgtt->base.dev->pdev,
+				       addr,
+				       PAGE_SIZE,
+				       PCI_DMA_BIDIRECTIONAL);
+
+		}
+	}
+}
+
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
-	int i, j;
 
 	list_del(&vm->global_link);
 	drm_mm_takedown(&vm->mm);
 
-	for (i = 0; i < ppgtt->num_pd_pages ; i++) {
-		if (ppgtt->pd_dma_addr[i]) {
-			pci_unmap_page(ppgtt->base.dev->pdev,
-				       ppgtt->pd_dma_addr[i],
-				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-
-			for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
-				dma_addr_t addr = ppgtt->gen8_pt_dma_addr[i][j];
-				if (addr)
-					pci_unmap_page(ppgtt->base.dev->pdev,
-						       addr,
-						       PAGE_SIZE,
-						       PCI_DMA_BIDIRECTIONAL);
-
-			}
-		}
-		kfree(ppgtt->gen8_pt_dma_addr[i]);
-	}
-
-	__free_pages(ppgtt->gen8_pt_pages, get_order(ppgtt->num_pt_pages << PAGE_SHIFT));
-	__free_pages(ppgtt->pd_pages, get_order(ppgtt->num_pd_pages << PAGE_SHIFT));
+	gen8_ppgtt_unmap_pages(ppgtt);
+	gen8_ppgtt_free(ppgtt);
 }
 
 /**
@@ -868,7 +885,7 @@ alloc:
 	if (ret == -ENOSPC && !retried) {
 		ret = i915_gem_evict_something(dev, &dev_priv->gtt.base,
 					       GEN6_PD_SIZE, GEN6_PD_ALIGN,
-					       I915_CACHE_NONE, false, true);
+					       I915_CACHE_NONE, 0);
 		if (ret)
 			return ret;
 

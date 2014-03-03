@@ -79,7 +79,7 @@ enum plane {
 };
 #define plane_name(p) ((p) + 'A')
 
-#define sprite_name(p, s) ((p) * dev_priv->num_plane + (s) + 'A')
+#define sprite_name(p, s) ((p) * INTEL_INFO(dev)->num_sprites + (s) + 'A')
 
 enum port {
 	PORT_A = 0,
@@ -163,6 +163,10 @@ enum hpd_pin {
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
+
+#define for_each_connector_on_encoder(dev, __encoder, intel_connector) \
+	list_for_each_entry((intel_connector), &(dev)->mode_config.connector_list, base.head) \
+		if ((intel_connector)->base.encoder == (__encoder))
 
 struct drm_i915_private;
 
@@ -530,6 +534,7 @@ struct intel_uncore {
 struct intel_device_info {
 	u32 display_mmio_offset;
 	u8 num_pipes:3;
+	u8 num_sprites:2;
 	u8 gen;
 	u8 ring_mask; /* Rings supported by the HW */
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
@@ -1390,7 +1395,7 @@ typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
 
-	const struct intel_device_info *info;
+	const struct intel_device_info info;
 
 	int relative_constants_mode;
 
@@ -1435,6 +1440,7 @@ typedef struct drm_i915_private {
 	};
 	u32 gt_irq_mask;
 	u32 pm_irq_mask;
+	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct work_struct hotplug_work;
 	bool enable_hotplug_processing;
@@ -1449,8 +1455,6 @@ typedef struct drm_i915_private {
 	} hpd_stats[HPD_NUM_PINS];
 	u32 hpd_event_bits;
 	struct timer_list hotplug_reenable_timer;
-
-	int num_plane;
 
 	struct i915_fbc fbc;
 	struct intel_opregion opregion;
@@ -1501,8 +1505,8 @@ typedef struct drm_i915_private {
 
 	struct sdvo_device_mapping sdvo_mappings[2];
 
-	struct drm_crtc *plane_to_crtc_mapping[3];
-	struct drm_crtc *pipe_to_crtc_mapping[3];
+	struct drm_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
+	struct drm_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
 	wait_queue_head_t pending_flip_queue;
 
 #ifdef CONFIG_DEBUG_FS
@@ -1799,7 +1803,7 @@ struct drm_i915_file_private {
 	atomic_t rps_wait_boost;
 };
 
-#define INTEL_INFO(dev)	(to_i915(dev)->info)
+#define INTEL_INFO(dev)	(&to_i915(dev)->info)
 
 #define IS_I830(dev)		((dev)->pdev->device == 0x3577)
 #define IS_845G(dev)		((dev)->pdev->device == 0x2562)
@@ -1953,18 +1957,20 @@ struct i915_params {
 	int vbt_sdvo_panel_type;
 	int enable_rc6;
 	int enable_fbc;
-	bool enable_hangcheck;
 	int enable_ppgtt;
 	int enable_psr;
 	unsigned int preliminary_hw_support;
 	int disable_power_well;
 	int enable_ips;
-	bool fastboot;
 	int enable_pc8;
 	int pc8_timeout;
+	int invert_brightness;
+	/* leave bools at the end to not create holes */
+	bool enable_hangcheck;
+	bool fastboot;
 	bool prefault_disable;
 	bool reset;
-	int invert_brightness;
+	bool disable_display;
 };
 extern struct i915_params i915 __read_mostly;
 
@@ -2012,10 +2018,12 @@ extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 
 void
-i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask);
+i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
+		     u32 status_mask);
 
 void
-i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask);
+i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
+		      u32 status_mask);
 
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
@@ -2076,14 +2084,14 @@ void i915_init_vm(struct drm_i915_private *dev_priv,
 void i915_gem_free_object(struct drm_gem_object *obj);
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
+#define PIN_MAPPABLE 0x1
+#define PIN_NONBLOCK 0x2
+#define PIN_GLOBAL 0x4
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm,
 				     uint32_t alignment,
-				     bool map_and_fenceable,
-				     bool nonblocking);
-void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
+				     unsigned flags);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
-int __must_check i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
@@ -2283,12 +2291,18 @@ i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj)
 static inline int __must_check
 i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 		      uint32_t alignment,
-		      bool map_and_fenceable,
-		      bool nonblocking)
+		      unsigned flags)
 {
-	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment,
-				   map_and_fenceable, nonblocking);
+	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment, flags | PIN_GLOBAL);
 }
+
+static inline int
+i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
+{
+	return i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
+}
+
+void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 
 /* i915_gem_context.c */
 #define ctx_to_ppgtt(ctx) container_of((ctx)->vm, struct i915_hw_ppgtt, base)
@@ -2331,8 +2345,7 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
-					  bool mappable,
-					  bool nonblock);
+					  unsigned flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);
 
@@ -2547,6 +2560,7 @@ extern void intel_modeset_suspend_hw(struct drm_device *dev);
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
+extern void intel_connector_unregister(struct intel_connector *);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 bool force_restore);
