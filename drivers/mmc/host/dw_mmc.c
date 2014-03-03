@@ -2427,10 +2427,17 @@ int dw_mci_probe(struct dw_mci *host)
 			ret = clk_set_rate(host->ciu_clk, host->pdata->bus_hz);
 			if (ret)
 				dev_warn(host->dev,
-					 "Unable to set bus rate to %ul\n",
+					 "Unable to set bus rate to %uHz\n",
 					 host->pdata->bus_hz);
 		}
 		host->bus_hz = clk_get_rate(host->ciu_clk);
+	}
+
+	if (!host->bus_hz) {
+		dev_err(host->dev,
+			"Platform data must supply bus speed\n");
+		ret = -ENODEV;
+		goto err_clk_ciu;
 	}
 
 	if (drv_data && drv_data->init) {
@@ -2467,13 +2474,6 @@ int dw_mci_probe(struct dw_mci *host)
 					"regulator_enable fail: %d\n", ret);
 			goto err_clk_ciu;
 		}
-	}
-
-	if (!host->bus_hz) {
-		dev_err(host->dev,
-			"Platform data must supply bus speed\n");
-		ret = -ENODEV;
-		goto err_regulator;
 	}
 
 	host->quirks = host->pdata->quirks;
@@ -2619,8 +2619,6 @@ err_workqueue:
 err_dmaunmap:
 	if (host->use_dma && host->dma_ops->exit)
 		host->dma_ops->exit(host);
-
-err_regulator:
 	if (host->vmmc)
 		regulator_disable(host->vmmc);
 
