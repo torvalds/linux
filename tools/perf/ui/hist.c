@@ -52,8 +52,15 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 				 * zero-fill group members in the middle which
 				 * have no sample
 				 */
-				ret += print_fn(hpp->buf + ret, hpp->size - ret,
-						fmt, 0);
+				if (fmt_percent) {
+					ret += print_fn(hpp->buf + ret,
+							hpp->size - ret,
+							fmt, 0.0);
+				} else {
+					ret += print_fn(hpp->buf + ret,
+							hpp->size - ret,
+							fmt, 0ULL);
+				}
 			}
 
 			if (fmt_percent)
@@ -72,8 +79,13 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 			/*
 			 * zero-fill group members at last which have no sample
 			 */
-			ret += print_fn(hpp->buf + ret, hpp->size - ret,
-					fmt, 0);
+			if (fmt_percent) {
+				ret += print_fn(hpp->buf + ret, hpp->size - ret,
+						fmt, 0.0);
+			} else {
+				ret += print_fn(hpp->buf + ret, hpp->size - ret,
+						fmt, 0ULL);
+			}
 		}
 	}
 	return ret;
