@@ -506,6 +506,9 @@ static int macvlan_change_mtu(struct net_device *dev, int new_mtu)
 static struct lock_class_key macvlan_netdev_xmit_lock_key;
 static struct lock_class_key macvlan_netdev_addr_lock_key;
 
+#define ALWAYS_ON_FEATURES \
+	(NETIF_F_SG | NETIF_F_GEN_CSUM | NETIF_F_GSO_SOFTWARE | NETIF_F_LLTX)
+
 #define MACVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
 	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
@@ -539,7 +542,7 @@ static int macvlan_init(struct net_device *dev)
 	dev->state		= (dev->state & ~MACVLAN_STATE_MASK) |
 				  (lowerdev->state & MACVLAN_STATE_MASK);
 	dev->features 		= lowerdev->features & MACVLAN_FEATURES;
-	dev->features		|= NETIF_F_LLTX;
+	dev->features		|= ALWAYS_ON_FEATURES;
 	dev->gso_max_size	= lowerdev->gso_max_size;
 	dev->iflink		= lowerdev->ifindex;
 	dev->hard_header_len	= lowerdev->hard_header_len;
@@ -699,7 +702,7 @@ static netdev_features_t macvlan_fix_features(struct net_device *dev,
 	features = netdev_increment_features(vlan->lowerdev->features,
 					     features,
 					     mask);
-	features |= NETIF_F_LLTX;
+	features |= ALWAYS_ON_FEATURES;
 
 	return features;
 }
