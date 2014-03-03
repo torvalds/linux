@@ -52,8 +52,10 @@ lp3943_pwm_request_map(struct lp3943_pwm *lp3943_pwm, int hwpwm)
 		offset = pwm_map->output[i];
 
 		/* Return an error if the pin is already assigned */
-		if (test_and_set_bit(offset, &lp3943->pin_used))
+		if (test_and_set_bit(offset, &lp3943->pin_used)) {
+			kfree(pwm_map);
 			return ERR_PTR(-EBUSY);
+		}
 	}
 
 	return pwm_map;

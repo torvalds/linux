@@ -1584,7 +1584,7 @@ read_retry:
 			}
 
 			if (mtd->ecc_stats.failed - ecc_failures) {
-				if (retry_mode + 1 <= chip->read_retries) {
+				if (retry_mode + 1 < chip->read_retries) {
 					retry_mode++;
 					ret = nand_setup_read_retry(mtd,
 							retry_mode);
