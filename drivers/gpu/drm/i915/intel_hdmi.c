@@ -848,6 +848,30 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static bool hdmi_12bpc_possible(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *encoder;
+	int count = 0, count_hdmi = 0;
+
+	if (!HAS_PCH_SPLIT(dev))
+		return false;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+		if (encoder->new_crtc != crtc)
+			continue;
+
+		count_hdmi += encoder->type == INTEL_OUTPUT_HDMI;
+		count++;
+	}
+
+	/*
+	 * HDMI 12bpc affects the clocks, so it's only possible
+	 * when not cloning with other encoder types.
+	 */
+	return count_hdmi > 0 && count_hdmi == count;
+}
+
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			       struct intel_crtc_config *pipe_config)
 {
@@ -880,7 +904,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * within limits.
 	 */
 	if (pipe_config->pipe_bpp > 8*3 && intel_hdmi->has_hdmi_sink &&
-	    clock_12bpc <= portclock_limit && HAS_PCH_SPLIT(dev)) {
+	    clock_12bpc <= portclock_limit &&
+	    hdmi_12bpc_possible(encoder->new_crtc)) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
 
