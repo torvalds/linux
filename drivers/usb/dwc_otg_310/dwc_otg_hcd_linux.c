@@ -483,7 +483,7 @@ int otg20_hcd_init( struct platform_device *_dev )
 	/* Don't support SG list at this point */
 	hcd->self.sg_tablesize = 0;
 #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+#if 0//LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	/* Do not to do HNP polling if not capable */
 	if (otg_dev->core_if->otg_ver)
 		hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
@@ -578,7 +578,7 @@ int host20_hcd_init( struct platform_device *_dev )
 	/* Don't support SG list at this point */
 	hcd->self.sg_tablesize = 0;
 #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+#if 0//LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	/* Do not to do HNP polling if not capable */
 	if (otg_dev->core_if->otg_ver)
 		hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
