@@ -1048,8 +1048,8 @@ read_edid_block(struct drm_encoder *encoder, uint8_t *buf, int blk)
 			return i;
 		}
 	} else {
-		for (i = 10; i > 0; i--) {
-			msleep(10);
+		for (i = 100; i > 0; i--) {
+			msleep(1);
 			ret = reg_read(priv, REG_INT_FLAGS_2);
 			if (ret < 0)
 				return ret;
