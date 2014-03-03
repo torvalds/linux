@@ -268,15 +268,27 @@ static struct nvme_queue *raw_nvmeq(struct nvme_dev *dev, int qid)
 	return rcu_dereference_raw(dev->queues[qid]);
 }
 
-struct nvme_queue *get_nvmeq(struct nvme_dev *dev) __acquires(RCU)
+static struct nvme_queue *get_nvmeq(struct nvme_dev *dev) __acquires(RCU)
 {
 	rcu_read_lock();
 	return rcu_dereference(dev->queues[get_cpu() + 1]);
 }
 
-void put_nvmeq(struct nvme_queue *nvmeq) __releases(RCU)
+static void put_nvmeq(struct nvme_queue *nvmeq) __releases(RCU)
 {
 	put_cpu();
+	rcu_read_unlock();
+}
+
+static struct nvme_queue *lock_nvmeq(struct nvme_dev *dev, int q_idx)
+							__acquires(RCU)
+{
+	rcu_read_lock();
+	return rcu_dereference(dev->queues[q_idx]);
+}
+
+static void unlock_nvmeq(struct nvme_queue *nvmeq) __releases(RCU)
+{
 	rcu_read_unlock();
 }
 
@@ -292,6 +304,10 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 	unsigned long flags;
 	u16 tail;
 	spin_lock_irqsave(&nvmeq->q_lock, flags);
+	if (nvmeq->q_suspended) {
+		spin_unlock_irqrestore(&nvmeq->q_lock, flags);
+		return -EBUSY;
+	}
 	tail = nvmeq->sq_tail;
 	memcpy(&nvmeq->sq_cmds[tail], cmd, sizeof(*cmd));
 	if (++tail == nvmeq->q_depth)
@@ -812,27 +828,46 @@ static void sync_completion(struct nvme_dev *dev, void *ctx,
  * Returns 0 on success.  If the result is negative, it's a Linux error code;
  * if the result is positive, it's an NVM Express status code
  */
-int nvme_submit_sync_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd,
+static int nvme_submit_sync_cmd(struct nvme_dev *dev, int q_idx,
+						struct nvme_command *cmd,
 						u32 *result, unsigned timeout)
 {
-	int cmdid;
+	int cmdid, ret;
 	struct sync_cmd_info cmdinfo;
+	struct nvme_queue *nvmeq;
+
+	nvmeq = lock_nvmeq(dev, q_idx);
+	if (!nvmeq) {
+		unlock_nvmeq(nvmeq);
+		return -ENODEV;
+	}
 
 	cmdinfo.task = current;
 	cmdinfo.status = -EINTR;
 
-	cmdid = alloc_cmdid_killable(nvmeq, &cmdinfo, sync_completion,
-								timeout);
-	if (cmdid < 0)
+	cmdid = alloc_cmdid(nvmeq, &cmdinfo, sync_completion, timeout);
+	if (cmdid < 0) {
+		unlock_nvmeq(nvmeq);
 		return cmdid;
+	}
 	cmd->common.command_id = cmdid;
 
 	set_current_state(TASK_KILLABLE);
-	nvme_submit_cmd(nvmeq, cmd);
+	ret = nvme_submit_cmd(nvmeq, cmd);
+	if (ret) {
+		free_cmdid(nvmeq, cmdid, NULL);
+		unlock_nvmeq(nvmeq);
+		set_current_state(TASK_RUNNING);
+		return ret;
+	}
+	unlock_nvmeq(nvmeq);
 	schedule_timeout(timeout);
 
 	if (cmdinfo.status == -EINTR) {
-		nvme_abort_command(nvmeq, cmdid);
+		nvmeq = lock_nvmeq(dev, q_idx);
+		if (nvmeq)
+			nvme_abort_command(nvmeq, cmdid);
+		unlock_nvmeq(nvmeq);
 		return -EINTR;
 	}
 
@@ -853,15 +888,20 @@ static int nvme_submit_async_cmd(struct nvme_queue *nvmeq,
 		return cmdid;
 	cmdinfo->status = -EINTR;
 	cmd->common.command_id = cmdid;
-	nvme_submit_cmd(nvmeq, cmd);
-	return 0;
+	return nvme_submit_cmd(nvmeq, cmd);
 }
 
 int nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
 								u32 *result)
 {
-	return nvme_submit_sync_cmd(raw_nvmeq(dev, 0), cmd, result,
-								ADMIN_TIMEOUT);
+	return nvme_submit_sync_cmd(dev, 0, cmd, result, ADMIN_TIMEOUT);
+}
+
+int nvme_submit_io_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
+								u32 *result)
+{
+	return nvme_submit_sync_cmd(dev, smp_processor_id() + 1, cmd, result,
+							NVME_IO_TIMEOUT);
 }
 
 static int nvme_submit_admin_cmd_async(struct nvme_dev *dev,
@@ -1434,7 +1474,6 @@ void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
 static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 {
 	struct nvme_dev *dev = ns->dev;
-	struct nvme_queue *nvmeq;
 	struct nvme_user_io io;
 	struct nvme_command c;
 	unsigned length, meta_len;
@@ -1510,20 +1549,10 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 
 	length = nvme_setup_prps(dev, &c.common, iod, length, GFP_KERNEL);
 
-	nvmeq = get_nvmeq(dev);
-	/*
-	 * Since nvme_submit_sync_cmd sleeps, we can't keep preemption
-	 * disabled.  We may be preempted at any point, and be rescheduled
-	 * to a different CPU.  That will cause cacheline bouncing, but no
-	 * additional races since q_lock already protects against other CPUs.
-	 */
-	put_nvmeq(nvmeq);
 	if (length != (io.nblocks + 1) << ns->lba_shift)
 		status = -ENOMEM;
-	else if (!nvmeq || nvmeq->q_suspended)
-		status = -EBUSY;
 	else
-		status = nvme_submit_sync_cmd(nvmeq, &c, NULL, NVME_IO_TIMEOUT);
+		status = nvme_submit_io_cmd(dev, &c, NULL);
 
 	if (meta_len) {
 		if (status == NVME_SC_SUCCESS && !(io.opcode & 1)) {
@@ -1597,8 +1626,7 @@ static int nvme_user_admin_cmd(struct nvme_dev *dev,
 	if (length != cmd.data_len)
 		status = -ENOMEM;
 	else
-		status = nvme_submit_sync_cmd(raw_nvmeq(dev, 0), &c,
-							&cmd.result, timeout);
+		status = nvme_submit_sync_cmd(dev, 0, &c, &cmd.result, timeout);
 
 	if (cmd.data_len) {
 		nvme_unmap_user_pages(dev, cmd.opcode & 1, iod);
