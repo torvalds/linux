@@ -95,6 +95,19 @@ static int ke_counter_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int ke_counter_do_insn_bits(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + KE_DO_REG);
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
 static int ke_counter_auto_attach(struct comedi_device *dev,
 				  unsigned long context_unused)
 {
@@ -107,7 +120,7 @@ static int ke_counter_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 0);
 
-	ret = comedi_alloc_subdevices(dev, 1);
+	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
@@ -119,6 +132,14 @@ static int ke_counter_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_unknown;
 	s->insn_read	= ke_counter_insn_read;
 	s->insn_write	= ke_counter_insn_write;
+
+	s = &dev->subdevices[1];
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 3;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= ke_counter_do_insn_bits;
 
 	outb(KE_OSC_SEL_20MHZ, dev->iobase + KE_OSC_SEL_REG);
 
