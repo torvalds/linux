@@ -250,16 +250,14 @@ out:
 }
 EXPORT_SYMBOL_GPL(__nf_ct_try_assign_helper);
 
+/* appropiate ct lock protecting must be taken by caller */
 static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 			 const struct nf_conntrack_helper *me)
 {
 	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(i);
 	struct nf_conn_help *help = nfct_help(ct);
 
-	if (help && rcu_dereference_protected(
-			help->helper,
-			lockdep_is_held(&nf_conntrack_lock)
-			) == me) {
+	if (help && rcu_dereference_raw(help->helper) == me) {
 		nf_conntrack_event(IPCT_HELPER, ct);
 		RCU_INIT_POINTER(help->helper, NULL);
 	}
@@ -284,17 +282,17 @@ static LIST_HEAD(nf_ct_helper_expectfn_list);
 
 void nf_ct_helper_expectfn_register(struct nf_ct_helper_expectfn *n)
 {
-	spin_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_expect_lock);
 	list_add_rcu(&n->head, &nf_ct_helper_expectfn_list);
-	spin_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_expect_lock);
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_register);
 
 void nf_ct_helper_expectfn_unregister(struct nf_ct_helper_expectfn *n)
 {
-	spin_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_expect_lock);
 	list_del_rcu(&n->head);
-	spin_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_expect_lock);
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_unregister);
 
@@ -399,13 +397,14 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	int cpu;
 
 	/* Get rid of expectations */
+	spin_lock_bh(&nf_conntrack_expect_lock);
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
 		hlist_for_each_entry_safe(exp, next,
 					  &net->ct.expect_hash[i], hnode) {
 			struct nf_conn_help *help = nfct_help(exp->master);
 			if ((rcu_dereference_protected(
 					help->helper,
-					lockdep_is_held(&nf_conntrack_lock)
+					lockdep_is_held(&nf_conntrack_expect_lock)
 					) == me || exp->helper == me) &&
 			    del_timer(&exp->timeout)) {
 				nf_ct_unlink_expect(exp);
@@ -413,6 +412,7 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 			}
 		}
 	}
+	spin_unlock_bh(&nf_conntrack_expect_lock);
 
 	/* Get rid of expecteds, set helpers to NULL. */
 	for_each_possible_cpu(cpu) {
@@ -423,10 +423,12 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 			unhelp(h, me);
 		spin_unlock_bh(&pcpu->lock);
 	}
+	spin_lock_bh(&nf_conntrack_lock);
 	for (i = 0; i < net->ct.htable_size; i++) {
 		hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
 			unhelp(h, me);
 	}
+	spin_unlock_bh(&nf_conntrack_lock);
 }
 
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
@@ -444,10 +446,8 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	synchronize_rcu();
 
 	rtnl_lock();
-	spin_lock_bh(&nf_conntrack_lock);
 	for_each_net(net)
 		__nf_conntrack_helper_unregister(me, net);
-	spin_unlock_bh(&nf_conntrack_lock);
 	rtnl_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
