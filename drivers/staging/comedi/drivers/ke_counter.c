@@ -49,13 +49,10 @@ Kolter Electronic PCI Counter Card.
 #define KE_OSC_SEL_20MHZ		(3 << 0)
 #define KE_DO_REG			0xfc
 
-/*-- counter write ----------------------------------------------------------*/
-
-/* This should be used only for resetting the counters; maybe it is better
-   to make a special command 'reset'. */
-static int cnt_winsn(struct comedi_device *dev,
-		     struct comedi_subdevice *s, struct comedi_insn *insn,
-		     unsigned int *data)
+static int ke_counter_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -72,11 +69,10 @@ static int cnt_winsn(struct comedi_device *dev,
 	return 1;
 }
 
-/*-- counter read -----------------------------------------------------------*/
-
-static int cnt_rinsn(struct comedi_device *dev,
-		     struct comedi_subdevice *s, struct comedi_insn *insn,
-		     unsigned int *data)
+static int ke_counter_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	unsigned char a0, a1, a2, a3, a4;
 	int chan = CR_CHAN(insn->chanspec);
@@ -115,14 +111,13 @@ static int cnt_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE /* | SDF_COMMON */ ;
-	s->n_chan = 3;
-	s->maxdata = 0x00ffffff;
-	s->insn_read = cnt_rinsn;
-	s->insn_write = cnt_winsn;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 3;
+	s->maxdata	= 0x00ffffff;
+	s->range_table	= &range_unknown;
+	s->insn_read	= ke_counter_insn_read;
+	s->insn_write	= ke_counter_insn_write;
 
 	outb(KE_OSC_SEL_20MHZ, dev->iobase + KE_OSC_SEL_REG);
 
