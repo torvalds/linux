@@ -15,6 +15,9 @@
 #define COMPAT_SYSCALL_WRAP6(name, ...) \
 	COMPAT_SYSCALL_WRAPx(6, _##name, __VA_ARGS__)
 
+#define __SC_COMPAT_TYPE(t, a) \
+	__typeof(__builtin_choose_expr(sizeof(t) > 4, 0L, (t)0)) a
+
 #define __SC_COMPAT_CAST(t, a)						\
 ({									\
 	long __ReS = a;							\
@@ -30,10 +33,22 @@
 	(t)__ReS;							\
 })
 
+/*
+ * The COMPAT_SYSCALL_WRAP macro generates system call wrappers to be used by
+ * compat tasks. These wrappers will only be used for system calls where only
+ * the system call arguments need sign or zero extension or zeroing of the upper
+ * 33 bits of pointers.
+ * Note: since the wrapper function will afterwards call a system call which
+ * again performs zero and sign extension for all system call arguments with
+ * a size of less than eight bytes, these compat wrappers only touch those
+ * system call arguments with a size of eight bytes ((unsigned) long and
+ * pointers). Zero and sign extension for e.g. int parameters will be done by
+ * the regular system call wrappers.
+ */
 #define COMPAT_SYSCALL_WRAPx(x, name, ...)					\
 	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));		\
-	asmlinkage long compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
-	asmlinkage long compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
+	asmlinkage long compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__));\
+	asmlinkage long compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__))	\
 	{									\
 		return sys##name(__MAP(x,__SC_COMPAT_CAST,__VA_ARGS__));	\
 	}
