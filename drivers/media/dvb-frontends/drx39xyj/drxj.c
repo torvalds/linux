@@ -833,7 +833,7 @@ struct drx_common_attr drxj_default_comm_attr_g = {
 	 /* MPEG output configuration */
 	 true,			/* If true, enable MPEG ouput    */
 	 false,			/* If true, insert RS byte       */
-	 true,			/* If true, parallel out otherwise serial */
+	 false,			/* If true, parallel out otherwise serial */
 	 false,			/* If true, invert DATA signals  */
 	 false,			/* If true, invert ERR signal    */
 	 false,			/* If true, invert STR signals   */
