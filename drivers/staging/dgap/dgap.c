@@ -223,11 +223,9 @@ static void dgap_do_wait_for_fep(struct board_t *brd);
 static int dgap_tty_register_ports(struct board_t *brd);
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type);
 
-/* Driver load/unload functions */
-int			dgap_init_module(void);
-void			dgap_cleanup_module(void);
+/* Driver unload function */
+static void dgap_cleanup_module(void);
 
-module_init(dgap_init_module);
 module_exit(dgap_cleanup_module);
 
 /*
@@ -513,7 +511,7 @@ static struct toklist dgap_tlist[] = {
  *
  * Module load.  This is where it all starts.
  */
-int dgap_init_module(void)
+static int dgap_init_module(void)
 {
 	int rc = 0;
 
@@ -552,6 +550,7 @@ int dgap_init_module(void)
 
 	return rc;
 }
+module_init(dgap_init_module);
 
 /*
  * Start of driver.
@@ -663,7 +662,7 @@ static void dgap_remove_one(struct pci_dev *dev)
  *
  * Module unload.  This is where it all ends.
  */
-void dgap_cleanup_module(void)
+static void dgap_cleanup_module(void)
 {
 	int i;
 	ulong lock_flags;
