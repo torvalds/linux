@@ -2818,7 +2818,7 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	int err;
-	bool type_2r = 0;
+	bool type_2r = false;
 	unsigned int val2 = 0;
 	unsigned int val, val_mask;
 
@@ -2836,7 +2836,7 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 			val |= val2 << rshift;
 		} else {
 			val2 = val2 << shift;
-			type_2r = 1;
+			type_2r = true;
 		}
 	}
 	err = snd_soc_update_bits_locked(codec, reg, val_mask, val);
