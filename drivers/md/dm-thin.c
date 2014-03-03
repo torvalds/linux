@@ -226,6 +226,7 @@ struct thin_c {
 
 	struct pool *pool;
 	struct dm_thin_device *td;
+	bool requeue_mode:1;
 };
 
 /*----------------------------------------------------------------*/
@@ -1379,6 +1380,11 @@ static void process_deferred_bios(struct pool *pool)
 		struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
 		struct thin_c *tc = h->tc;
 
+		if (tc->requeue_mode) {
+			bio_endio(bio, DM_ENDIO_REQUEUE);
+			continue;
+		}
+
 		/*
 		 * If we've got no free new_mapping structs, and processing
 		 * this bio might require one, we pause until there are some
@@ -1441,6 +1447,51 @@ static void do_waker(struct work_struct *ws)
 	struct pool *pool = container_of(to_delayed_work(ws), struct pool, waker);
 	wake_worker(pool);
 	queue_delayed_work(pool->wq, &pool->waker, COMMIT_PERIOD);
+}
+
+/*----------------------------------------------------------------*/
+
+struct noflush_work {
+	struct work_struct worker;
+	struct thin_c *tc;
+
+	atomic_t complete;
+	wait_queue_head_t wait;
+};
+
+static void complete_noflush_work(struct noflush_work *w)
+{
+	atomic_set(&w->complete, 1);
+	wake_up(&w->wait);
+}
+
+static void do_noflush_start(struct work_struct *ws)
+{
+	struct noflush_work *w = container_of(ws, struct noflush_work, worker);
+	w->tc->requeue_mode = true;
+	requeue_io(w->tc);
+	complete_noflush_work(w);
+}
+
+static void do_noflush_stop(struct work_struct *ws)
+{
+	struct noflush_work *w = container_of(ws, struct noflush_work, worker);
+	w->tc->requeue_mode = false;
+	complete_noflush_work(w);
+}
+
+static void noflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
+{
+	struct noflush_work w;
+
+	INIT_WORK(&w.worker, fn);
+	w.tc = tc;
+	atomic_set(&w.complete, 0);
+	init_waitqueue_head(&w.wait);
+
+	queue_work(tc->pool->wq, &w.worker);
+
+	wait_event(w.wait, atomic_read(&w.complete));
 }
 
 /*----------------------------------------------------------------*/
@@ -1615,6 +1666,11 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 	struct dm_cell_key key;
 
 	thin_hook_bio(tc, bio);
+
+	if (tc->requeue_mode) {
+		bio_endio(bio, DM_ENDIO_REQUEUE);
+		return DM_MAPIO_SUBMITTED;
+	}
 
 	if (get_pool_mode(tc->pool) == PM_FAIL) {
 		bio_io_error(bio);
@@ -3093,10 +3149,23 @@ static int thin_endio(struct dm_target *ti, struct bio *bio, int err)
 	return 0;
 }
 
+static void thin_presuspend(struct dm_target *ti)
+{
+	struct thin_c *tc = ti->private;
+
+	if (dm_noflush_suspending(ti))
+		noflush_work(tc, do_noflush_start);
+}
+
 static void thin_postsuspend(struct dm_target *ti)
 {
-	if (dm_noflush_suspending(ti))
-		requeue_io((struct thin_c *)ti->private);
+	struct thin_c *tc = ti->private;
+
+	/*
+	 * The dm_noflush_suspending flag has been cleared by now, so
+	 * unfortunately we must always run this.
+	 */
+	noflush_work(tc, do_noflush_stop);
 }
 
 /*
@@ -3187,6 +3256,7 @@ static struct target_type thin_target = {
 	.dtr = thin_dtr,
 	.map = thin_map,
 	.end_io = thin_endio,
+	.presuspend = thin_presuspend,
 	.postsuspend = thin_postsuspend,
 	.status = thin_status,
 	.iterate_devices = thin_iterate_devices,
