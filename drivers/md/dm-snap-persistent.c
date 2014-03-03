@@ -546,6 +546,9 @@ static int read_exceptions(struct pstore *ps,
 		r = insert_exceptions(ps, area, callback, callback_context,
 				      &full);
 
+		if (!full)
+			memcpy(ps->area, area, ps->store->chunk_size << SECTOR_SHIFT);
+
 		dm_bufio_release(bp);
 
 		dm_bufio_forget(client, chunk);
