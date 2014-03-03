@@ -164,12 +164,12 @@ static void t3e3_reg_write(struct channel *sc, u32 *reg)
 	}
 }
 
-static void t3e3_port_get(struct channel *sc, t3e3_param_t *param)
+static void t3e3_port_get(struct channel *sc, struct t3e3_param *param)
 {
-	memcpy(param, &(sc->p), sizeof(t3e3_param_t));
+	memcpy(param, &(sc->p), sizeof(struct t3e3_param));
 }
 
-static void t3e3_port_set(struct channel *sc, t3e3_param_t *param)
+static void t3e3_port_set(struct channel *sc, struct t3e3_param *param)
 {
 	if (param->frame_mode != 0xff)
 		cpld_set_frame_mode(sc, param->frame_mode);
@@ -290,7 +290,7 @@ static void t3e3_port_del_stats(struct channel *sc)
 void t3e3_if_config(struct channel *sc, u32 cmd, char *set,
 		    t3e3_resp_t *ret, int *rlen)
 {
-	t3e3_param_t *param = (t3e3_param_t *)set;
+	struct t3e3_param *param = (struct t3e3_param *)set;
 	u32 *data = (u32 *)set;
 
 	/* turn off all interrupt */

@@ -84,7 +84,7 @@
 #define NG_SBE_2T3E3_NODE_TYPE  "sbe2T3E3"
 #define NG_SBE_2T3E3_COOKIE     0x03800891
 
-typedef struct t3e3_param {
+struct t3e3_param {
 	u_int8_t frame_mode;		/* FRAME_MODE_* */
 	u_int8_t crc;			/* CRC_* */
 	u_int8_t receiver_on;		/* ON/OFF */
@@ -102,7 +102,7 @@ typedef struct t3e3_param {
 	u_int8_t fractional_mode;	/* FRACTIONAL_MODE_* */
 	u_int8_t bandwidth_start;	/* 0-255 */
 	u_int8_t bandwidth_stop;	/* 0-255 */
-} t3e3_param_t;
+};
 
 typedef struct t3e3_stats {
 	u_int64_t in_bytes;
@@ -122,7 +122,7 @@ typedef struct t3e3_stats {
 
 typedef struct t3e3_resp {
 	union {
-		t3e3_param_t param;
+		struct t3e3_param param;
 		t3e3_stats_t stats;
 		u32 data;
 	} u;

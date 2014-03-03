@@ -709,7 +709,7 @@ struct channel {
 	} r;
 
 	/* parameters */
-	t3e3_param_t p;
+	struct t3e3_param p;
 
 	u32 liu_regs[SBE_2T3E3_LIU_REG_MAX];	   /* LIU registers */
 	u32 framer_regs[SBE_2T3E3_FRAMER_REG_MAX]; /* Framer registers */
