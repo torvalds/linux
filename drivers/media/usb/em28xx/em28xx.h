@@ -138,6 +138,7 @@
 #define EM2874_BOARD_KWORLD_UB435Q_V2		  90
 #define EM2765_BOARD_SPEEDLINK_VAD_LAPLACE	  91
 #define EM28178_BOARD_PCTV_461E                   92
+#define EM2874_BOARD_KWORLD_UB435Q_V3		  93
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
