@@ -166,9 +166,8 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 
 	if (use_global_register_lock)
 		spin_unlock_irqrestore(&global_register_lock, flags);
-	else {
+	else
 		mutex_unlock(&priv->phydev->bus->mdio_lock);
-	}
 
 	if (priv->phydev == NULL) {
 		/* Tell core. */
