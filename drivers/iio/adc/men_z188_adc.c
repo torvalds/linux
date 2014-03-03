@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mcb.h>
+#include <linux/io.h>
 #include <linux/iio/iio.h>
 
 #define Z188_ADC_MAX_CHAN	8
