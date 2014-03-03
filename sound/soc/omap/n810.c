@@ -305,7 +305,9 @@ static int __init n810_soc_init(void)
 	int err;
 	struct device *dev;
 
-	if (!(machine_is_nokia_n810() || machine_is_nokia_n810_wimax()))
+	if (!of_have_populated_dt() ||
+	    (!of_machine_is_compatible("nokia,n810") &&
+	     !of_machine_is_compatible("nokia,n810-wimax")))
 		return -ENODEV;
 
 	n810_snd_device = platform_device_alloc("soc-audio", -1);
