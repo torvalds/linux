@@ -287,7 +287,7 @@ static void t3e3_port_del_stats(struct channel *sc)
 }
 
 void t3e3_if_config(struct channel *sc, u32 cmd, char *set,
-		    t3e3_resp_t *ret, int *rlen)
+		    struct t3e3_resp *ret, int *rlen)
 {
 	struct t3e3_param *param = (struct t3e3_param *)set;
 	u32 *data = (u32 *)set;

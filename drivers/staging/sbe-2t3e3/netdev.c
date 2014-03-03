@@ -26,7 +26,7 @@ static int t3e3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct channel *sc = dev_to_priv(dev);
 	int cmd_2t3e3, len, rlen;
 	struct t3e3_param param;
-	t3e3_resp_t  resp;
+	struct t3e3_resp resp;
 	void __user *data = ifr->ifr_data + sizeof(cmd_2t3e3) + sizeof(len);
 
 	if (cmd == SIOCWANDEV)

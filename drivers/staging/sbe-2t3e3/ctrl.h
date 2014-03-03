@@ -120,12 +120,12 @@ struct t3e3_stats {
 };
 
 
-typedef struct t3e3_resp {
+struct t3e3_resp {
 	union {
 		struct t3e3_param param;
 		struct t3e3_stats stats;
 		u32 data;
 	} u;
-} t3e3_resp_t;
+};
 
 #endif /* CTRL_H */

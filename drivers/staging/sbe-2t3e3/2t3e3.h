@@ -760,8 +760,7 @@ void t3e3_init(struct channel *);
 void t3e3_if_up(struct channel *);
 void t3e3_if_down(struct channel *);
 int t3e3_if_start_xmit(struct sk_buff *skb, struct net_device *dev);
-void t3e3_if_config(struct channel *, u32, char *,
-		    t3e3_resp_t *, int *);
+void t3e3_if_config(struct channel *, u32, char *, struct t3e3_resp *, int *);
 void t3e3_set_frame_type(struct channel *, u32);
 u32 t3e3_eeprom_read_word(struct channel *, u32);
 void t3e3_read_card_serial_number(struct channel *);
