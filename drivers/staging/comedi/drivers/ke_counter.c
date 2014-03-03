@@ -1,33 +1,31 @@
 /*
-    comedi/drivers/ke_counter.c
-    Comedi driver for Kolter-Electronic PCI Counter 1 Card
+ * ke_counter.c
+ * Comedi driver for Kolter-Electronic PCI Counter 1 Card
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: ke_counter
-Description: Driver for Kolter Electronic Counter Card
-Devices: [Kolter Electronic] PCI Counter Card (ke_counter)
-Author: Michael Hillmann
-Updated: Mon, 14 Apr 2008 15:42:42 +0100
-Status: tested
-
-Configuration Options: not applicable, uses PCI auto config
-
-This driver is a simple driver to read the counter values from
-Kolter Electronic PCI Counter Card.
-*/
+ * Driver: ke_counter
+ * Description: Driver for Kolter Electronic Counter Card
+ * Devices: (Kolter Electronic) PCI Counter Card [ke_counter]
+ * Author: Michael Hillmann
+ * Updated: Mon, 14 Apr 2008 15:42:42 +0100
+ * Status: tested
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ */
 
 #include <linux/module.h>
 #include <linux/pci.h>
