@@ -80,6 +80,22 @@
 		};
 	};
 
+	rockchip-rk610 {
+		compatible = "rockchip-rk610";
+		dais {
+			dai0 {
+				codec-name = "rk610_codec.0-0060";
+				cpu-dai-name = "rockchip-i2s.1";
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
 	rockchip-hdmi-i2s {
 		compatible = "rockchip-hdmi-i2s";
 		dais {
@@ -111,10 +127,27 @@
 
 &i2c0 {
 	status = "okay";
-	codec@1a {
+	rt5631@1a {
 		compatible = "rt5631";
 		reg = <0x1a>;
 	};
+
+	rk610ctl@40 {
+		compatible = "rk610_ctl";
+		reg = <0x40>;
+		rk610-reset-io = <&gpio3 GPIO_B2 GPIO_ACTIVE_HIGH>;
+		clocks = <&clk_i2s>;
+		clock-names = "i2s_clk";
+	};
+
+	rk610codec@60 {//RK610_CODEC addr  from 0x60 to 0x80 (0x60~0x80)
+		compatible = "rk610_codec";
+		reg = <0x60>;
+		spk_ctl_io = <&gpio2 GPIO_D7 GPIO_ACTIVE_HIGH>;
+		boot_depop = <1>;
+		pa_enable_time = <1000>;
+	};
+
 };
 
 &i2c1 {
