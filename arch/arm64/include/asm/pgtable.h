@@ -136,11 +136,11 @@ extern struct page *empty_zero_page;
 /*
  * The following only work if pte_present(). Undefined behaviour otherwise.
  */
-#define pte_present(pte)	(pte_val(pte) & (PTE_VALID | PTE_PROT_NONE))
-#define pte_dirty(pte)		(pte_val(pte) & PTE_DIRTY)
-#define pte_young(pte)		(pte_val(pte) & PTE_AF)
-#define pte_special(pte)	(pte_val(pte) & PTE_SPECIAL)
-#define pte_write(pte)		(pte_val(pte) & PTE_WRITE)
+#define pte_present(pte)	(!!(pte_val(pte) & (PTE_VALID | PTE_PROT_NONE)))
+#define pte_dirty(pte)		(!!(pte_val(pte) & PTE_DIRTY))
+#define pte_young(pte)		(!!(pte_val(pte) & PTE_AF))
+#define pte_special(pte)	(!!(pte_val(pte) & PTE_SPECIAL))
+#define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 
 #define pte_valid_user(pte) \

@@ -1357,7 +1357,8 @@ static void process_deferred_bios(struct pool *pool)
 	bio_list_init(&pool->deferred_flush_bios);
 	spin_unlock_irqrestore(&pool->lock, flags);
 
-	if (bio_list_empty(&bios) && !need_commit_due_to_time(pool))
+	if (bio_list_empty(&bios) &&
+	    !(dm_pool_changed_this_transaction(pool->pmd) && need_commit_due_to_time(pool)))
 		return;
 
 	if (commit(pool)) {
@@ -1999,16 +2000,27 @@ static void metadata_low_callback(void *context)
 	dm_table_event(pool->ti->table);
 }
 
-static sector_t get_metadata_dev_size(struct block_device *bdev)
+static sector_t get_dev_size(struct block_device *bdev)
 {
-	sector_t metadata_dev_size = i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	return i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+}
+
+static void warn_if_metadata_device_too_big(struct block_device *bdev)
+{
+	sector_t metadata_dev_size = get_dev_size(bdev);
 	char buffer[BDEVNAME_SIZE];
 
-	if (metadata_dev_size > THIN_METADATA_MAX_SECTORS_WARNING) {
+	if (metadata_dev_size > THIN_METADATA_MAX_SECTORS_WARNING)
 		DMWARN("Metadata device %s is larger than %u sectors: excess space will not be used.",
 		       bdevname(bdev, buffer), THIN_METADATA_MAX_SECTORS);
-		metadata_dev_size = THIN_METADATA_MAX_SECTORS_WARNING;
-	}
+}
+
+static sector_t get_metadata_dev_size(struct block_device *bdev)
+{
+	sector_t metadata_dev_size = get_dev_size(bdev);
+
+	if (metadata_dev_size > THIN_METADATA_MAX_SECTORS)
+		metadata_dev_size = THIN_METADATA_MAX_SECTORS;
 
 	return metadata_dev_size;
 }
@@ -2017,7 +2029,7 @@ static dm_block_t get_metadata_dev_size_in_blocks(struct block_device *bdev)
 {
 	sector_t metadata_dev_size = get_metadata_dev_size(bdev);
 
-	sector_div(metadata_dev_size, THIN_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
+	sector_div(metadata_dev_size, THIN_METADATA_BLOCK_SIZE);
 
 	return metadata_dev_size;
 }
@@ -2095,12 +2107,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Error opening metadata block device";
 		goto out_unlock;
 	}
-
-	/*
-	 * Run for the side-effect of possibly issuing a warning if the
-	 * device is too big.
-	 */
-	(void) get_metadata_dev_size(metadata_dev->bdev);
+	warn_if_metadata_device_too_big(metadata_dev->bdev);
 
 	r = dm_get_device(ti, argv[1], FMODE_READ | FMODE_WRITE, &data_dev);
 	if (r) {
@@ -2287,6 +2294,7 @@ static int maybe_resize_metadata_dev(struct dm_target *ti, bool *need_commit)
 		return -EINVAL;
 
 	} else if (metadata_dev_size > sb_metadata_dev_size) {
+		warn_if_metadata_device_too_big(pool->md_dev);
 		DMINFO("%s: growing the metadata device from %llu to %llu blocks",
 		       dm_device_name(pool->pool_md),
 		       sb_metadata_dev_size, metadata_dev_size);
@@ -2894,6 +2902,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	if (get_pool_mode(tc->pool) == PM_FAIL) {
 		ti->error = "Couldn't open thin device, Pool is in fail mode";
+		r = -EINVAL;
 		goto bad_thin_open;
 	}
 
@@ -2905,7 +2914,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	r = dm_set_target_max_io_len(ti, tc->pool->sectors_per_block);
 	if (r)
-		goto bad_thin_open;
+		goto bad_target_max_io_len;
 
 	ti->num_flush_bios = 1;
 	ti->flush_supported = true;
@@ -2926,6 +2935,8 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	return 0;
 
+bad_target_max_io_len:
+	dm_pool_close_thin_device(tc->td);
 bad_thin_open:
 	__pool_dec(tc->pool);
 bad_pool_lookup:
