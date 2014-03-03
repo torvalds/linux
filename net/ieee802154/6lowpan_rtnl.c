@@ -265,8 +265,7 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 	/* first fragment header */
 	head[0] = LOWPAN_DISPATCH_FRAG1 | ((dgram_size >> 8) & 0x7);
 	head[1] = dgram_size & 0xff;
-	head[2] = tag >> 8;
-	head[3] = tag & 0xff;
+	memcpy(head + 2, &tag, sizeof(tag));
 
 	/* calc the nearest payload length(divided to 8) for first fragment
 	 * which fits into a IEEE802154_MTU
@@ -519,7 +518,6 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	}
 
 	lowpan_dev_info(dev)->real_dev = real_dev;
-	lowpan_dev_info(dev)->fragment_tag = 0;
 	mutex_init(&lowpan_dev_info(dev)->dev_list_mtx);
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
