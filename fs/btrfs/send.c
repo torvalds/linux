@@ -2615,7 +2615,7 @@ struct recorded_ref {
  * everything mixed. So we first record all refs and later process them.
  * This function is a helper to record one ref.
  */
-static int record_ref(struct list_head *head, u64 dir,
+static int __record_ref(struct list_head *head, u64 dir,
 		      u64 dir_gen, struct fs_path *path)
 {
 	struct recorded_ref *ref;
@@ -3555,9 +3555,8 @@ out:
 	return ret;
 }
 
-static int __record_new_ref(int num, u64 dir, int index,
-			    struct fs_path *name,
-			    void *ctx)
+static int record_ref(struct btrfs_root *root, int num, u64 dir, int index,
+		      struct fs_path *name, void *ctx, struct list_head *refs)
 {
 	int ret = 0;
 	struct send_ctx *sctx = ctx;
@@ -3568,7 +3567,7 @@ static int __record_new_ref(int num, u64 dir, int index,
 	if (!p)
 		return -ENOMEM;
 
-	ret = get_inode_info(sctx->send_root, dir, NULL, &gen, NULL, NULL,
+	ret = get_inode_info(root, dir, NULL, &gen, NULL, NULL,
 			NULL, NULL);
 	if (ret < 0)
 		goto out;
@@ -3580,7 +3579,7 @@ static int __record_new_ref(int num, u64 dir, int index,
 	if (ret < 0)
 		goto out;
 
-	ret = record_ref(&sctx->new_refs, dir, gen, p);
+	ret = __record_ref(refs, dir, gen, p);
 
 out:
 	if (ret)
@@ -3588,37 +3587,23 @@ out:
 	return ret;
 }
 
+static int __record_new_ref(int num, u64 dir, int index,
+			    struct fs_path *name,
+			    void *ctx)
+{
+	struct send_ctx *sctx = ctx;
+	return record_ref(sctx->send_root, num, dir, index, name,
+			  ctx, &sctx->new_refs);
+}
+
+
 static int __record_deleted_ref(int num, u64 dir, int index,
 				struct fs_path *name,
 				void *ctx)
 {
-	int ret = 0;
 	struct send_ctx *sctx = ctx;
-	struct fs_path *p;
-	u64 gen;
-
-	p = fs_path_alloc();
-	if (!p)
-		return -ENOMEM;
-
-	ret = get_inode_info(sctx->parent_root, dir, NULL, &gen, NULL, NULL,
-			NULL, NULL);
-	if (ret < 0)
-		goto out;
-
-	ret = get_cur_path(sctx, dir, gen, p);
-	if (ret < 0)
-		goto out;
-	ret = fs_path_add_path(p, name);
-	if (ret < 0)
-		goto out;
-
-	ret = record_ref(&sctx->deleted_refs, dir, gen, p);
-
-out:
-	if (ret)
-		fs_path_free(p);
-	return ret;
+	return record_ref(sctx->parent_root, num, dir, index, name,
+			  ctx, &sctx->deleted_refs);
 }
 
 static int record_new_ref(struct send_ctx *sctx)
