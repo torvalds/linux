@@ -29,6 +29,8 @@
 #define DCP_MAX_CHANS	4
 #define DCP_BUF_SZ	PAGE_SIZE
 
+#define DCP_ALIGNMENT	64
+
 /* DCP DMA descriptor. */
 struct dcp_dma_desc {
 	uint32_t	next_cmd_addr;
@@ -947,11 +949,15 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate coherent helper block. */
-	sdcp->coh = devm_kzalloc(dev, sizeof(*sdcp->coh), GFP_KERNEL);
+	sdcp->coh = devm_kzalloc(dev, sizeof(*sdcp->coh) + DCP_ALIGNMENT,
+				   GFP_KERNEL);
 	if (!sdcp->coh) {
 		ret = -ENOMEM;
 		goto err_mutex;
 	}
+
+	/* Re-align the structure so it fits the DCP constraints. */
+	sdcp->coh = PTR_ALIGN(sdcp->coh, DCP_ALIGNMENT);
 
 	/* Restart the DCP block. */
 	ret = stmp_reset_block(sdcp->base);
