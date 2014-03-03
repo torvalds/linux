@@ -173,7 +173,6 @@ static int rsnd_gen2_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 		RSND_GEN2_S_REG(gen, SSIU,	SSI_MODE0,	0x800),
 		RSND_GEN2_S_REG(gen, SSIU,	SSI_MODE1,	0x804),
 		/* FIXME: it needs SSI_MODE2/3 in the future */
-		RSND_GEN2_S_REG(gen, SSIU,	SSI_CONTROL,	0x810),
 		RSND_GEN2_M_REG(gen, SSIU,	SSI_BUSIF_MODE,	0x0,	0x80),
 		RSND_GEN2_M_REG(gen, SSIU,	SSI_BUSIF_ADINR,0x4,	0x80),
 		RSND_GEN2_M_REG(gen, SSIU,	SSI_CTRL,	0x10,	0x80),

@@ -39,7 +39,6 @@ enum rsnd_reg {
 	RSND_REG_SRC_ROUTE_CTRL,	/* for Gen1 */
 	RSND_REG_SRC_CTRL,		/* for Gen2 */
 	RSND_REG_SSI_CTRL,		/* for Gen2 */
-	RSND_REG_SSI_CONTROL,
 	RSND_REG_SSI_BUSIF_MODE,	/* for Gen2 */
 	RSND_REG_SSI_BUSIF_ADINR,	/* for Gen2 */
 	RSND_REG_SSI_MODE0,
