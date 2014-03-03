@@ -46,40 +46,6 @@ static const struct device_type spmi_ctrl_type = {
 	.release	= spmi_ctrl_release,
 };
 
-#ifdef CONFIG_PM_RUNTIME
-static int spmi_runtime_suspend(struct device *dev)
-{
-	struct spmi_device *sdev = to_spmi_device(dev);
-	int err;
-
-	err = pm_generic_runtime_suspend(dev);
-	if (err)
-		return err;
-
-	return spmi_command_sleep(sdev);
-}
-
-static int spmi_runtime_resume(struct device *dev)
-{
-	struct spmi_device *sdev = to_spmi_device(dev);
-	int err;
-
-	err = spmi_command_wakeup(sdev);
-	if (err)
-		return err;
-
-	return pm_generic_runtime_resume(dev);
-}
-#endif
-
-static const struct dev_pm_ops spmi_pm_ops = {
-	SET_RUNTIME_PM_OPS(
-		spmi_runtime_suspend,
-		spmi_runtime_resume,
-		NULL
-	)
-};
-
 static int spmi_device_match(struct device *dev, struct device_driver *drv)
 {
 	if (of_driver_match_device(dev, drv))
@@ -391,7 +357,6 @@ static int spmi_drv_remove(struct device *dev)
 static struct bus_type spmi_bus_type = {
 	.name		= "spmi",
 	.match		= spmi_device_match,
-	.pm		= &spmi_pm_ops,
 	.probe		= spmi_drv_probe,
 	.remove		= spmi_drv_remove,
 };
