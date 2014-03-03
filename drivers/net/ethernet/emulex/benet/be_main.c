@@ -1287,24 +1287,20 @@ static int be_set_vf_vlan(struct net_device *netdev,
 
 	if (vlan || qos) {
 		vlan |= qos << VLAN_PRIO_SHIFT;
-		if (vf_cfg->vlan_tag != vlan) {
-			/* If this is new value, program it. Else skip. */
-			vf_cfg->vlan_tag = vlan;
+		if (vf_cfg->vlan_tag != vlan)
 			status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
 						       vf_cfg->if_handle, 0);
-		}
 	} else {
 		/* Reset Transparent Vlan Tagging. */
-		vf_cfg->vlan_tag = 0;
-		vlan = vf_cfg->def_vid;
-		status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
-					       vf_cfg->if_handle, 0);
+		status = be_cmd_set_hsw_config(adapter, BE_RESET_VLAN_TAG_ID,
+					       vf + 1, vf_cfg->if_handle, 0);
 	}
 
-
-	if (status)
+	if (!status)
+		vf_cfg->vlan_tag = vlan;
+	else
 		dev_info(&adapter->pdev->dev,
-				"VLAN %d config on VF %d failed\n", vlan, vf);
+			 "VLAN %d config on VF %d failed\n", vlan, vf);
 	return status;
 }
 
@@ -3013,11 +3009,11 @@ static int be_vf_setup_init(struct be_adapter *adapter)
 
 static int be_vf_setup(struct be_adapter *adapter)
 {
-	struct be_vf_cfg *vf_cfg;
-	u16 def_vlan, lnk_speed;
-	int status, old_vfs, vf;
 	struct device *dev = &adapter->pdev->dev;
+	struct be_vf_cfg *vf_cfg;
+	int status, old_vfs, vf;
 	u32 privileges;
+	u16 lnk_speed;
 
 	old_vfs = pci_num_vf(adapter->pdev);
 	if (old_vfs) {
@@ -3083,12 +3079,6 @@ static int be_vf_setup(struct be_adapter *adapter)
 						  NULL, vf + 1);
 		if (!status)
 			vf_cfg->tx_rate = lnk_speed;
-
-		status = be_cmd_get_hsw_config(adapter, &def_vlan,
-					       vf + 1, vf_cfg->if_handle, NULL);
-		if (status)
-			goto err;
-		vf_cfg->def_vid = def_vlan;
 
 		if (!old_vfs)
 			be_cmd_enable_vf(adapter, vf + 1);
