@@ -1480,12 +1480,16 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_device_info *info;
+	enum pipe pipe;
 
 	info = (struct intel_device_info *)&dev_priv->info;
 
-	info->num_sprites = 1;
 	if (IS_VALLEYVIEW(dev))
-		info->num_sprites = 2;
+		for_each_pipe(pipe)
+			info->num_sprites[pipe] = 2;
+	else
+		for_each_pipe(pipe)
+			info->num_sprites[pipe] = 1;
 
 	if (i915.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");
