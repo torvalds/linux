@@ -125,33 +125,39 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
  * Add the page directory to the list of BOs to
  * validate for command submission (cayman+).
  */
-struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
-					 struct radeon_vm *vm,
-					 struct list_head *head)
+struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
+					  struct radeon_vm *vm,
+					  struct list_head *head)
 {
-	struct radeon_bo_list *list;
+	struct radeon_cs_reloc *list;
 	unsigned i, idx, size;
 
-	size = (radeon_vm_num_pdes(rdev) + 1) * sizeof(struct radeon_bo_list);
+	size = (radeon_vm_num_pdes(rdev) + 1) * sizeof(struct radeon_cs_reloc);
 	list = kmalloc(size, GFP_KERNEL);
 	if (!list)
 		return NULL;
 
 	/* add the vm page table to the list */
-	list[0].bo = vm->page_directory;
+	list[0].gobj = NULL;
+	list[0].robj = vm->page_directory;
 	list[0].domain = RADEON_GEM_DOMAIN_VRAM;
 	list[0].alt_domain = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
+	list[0].tiling_flags = 0;
+	list[0].handle = 0;
 	list_add(&list[0].tv.head, head);
 
 	for (i = 0, idx = 1; i <= vm->max_pde_used; i++) {
 		if (!vm->page_tables[i].bo)
 			continue;
 
-		list[idx].bo = vm->page_tables[i].bo;
+		list[idx].gobj = NULL;
+		list[idx].robj = vm->page_tables[i].bo;
 		list[idx].domain = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].alt_domain = RADEON_GEM_DOMAIN_VRAM;
-		list[idx].tv.bo = &list[idx].bo->tbo;
+		list[idx].tv.bo = &list[idx].robj->tbo;
+		list[idx].tiling_flags = 0;
+		list[idx].handle = 0;
 		list_add(&list[idx++].tv.head, head);
 	}
 

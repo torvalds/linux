@@ -125,7 +125,6 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		}
 		p->relocs_ptr[i] = &p->relocs[i];
 		p->relocs[i].robj = gem_to_radeon_bo(p->relocs[i].gobj);
-		p->relocs[i].lobj.bo = p->relocs[i].robj;
 
 		/* The userspace buffer priorities are from 0 to 15. A higher
 		 * number means the buffer is more important.
@@ -141,10 +140,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
 		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
 			/* TODO: is this still needed for NI+ ? */
-			p->relocs[i].lobj.domain =
+			p->relocs[i].domain =
 				RADEON_GEM_DOMAIN_VRAM;
 
-			p->relocs[i].lobj.alt_domain =
+			p->relocs[i].alt_domain =
 				RADEON_GEM_DOMAIN_VRAM;
 
 			/* prioritize this over any other relocation */
@@ -153,16 +152,16 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			uint32_t domain = r->write_domain ?
 				r->write_domain : r->read_domains;
 
-			p->relocs[i].lobj.domain = domain;
+			p->relocs[i].domain = domain;
 			if (domain == RADEON_GEM_DOMAIN_VRAM)
 				domain |= RADEON_GEM_DOMAIN_GTT;
-			p->relocs[i].lobj.alt_domain = domain;
+			p->relocs[i].alt_domain = domain;
 		}
 
-		p->relocs[i].lobj.tv.bo = &p->relocs[i].robj->tbo;
+		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
 		p->relocs[i].handle = r->handle;
 
-		radeon_cs_buckets_add(&buckets, &p->relocs[i].lobj.tv.head,
+		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,
 				      priority);
 	}
 
@@ -356,11 +355,11 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 static int cmp_size_smaller_first(void *priv, struct list_head *a,
 				  struct list_head *b)
 {
-	struct radeon_bo_list *la = list_entry(a, struct radeon_bo_list, tv.head);
-	struct radeon_bo_list *lb = list_entry(b, struct radeon_bo_list, tv.head);
+	struct radeon_cs_reloc *la = list_entry(a, struct radeon_cs_reloc, tv.head);
+	struct radeon_cs_reloc *lb = list_entry(b, struct radeon_cs_reloc, tv.head);
 
 	/* Sort A before B if A is smaller. */
-	return (int)la->bo->tbo.num_pages - (int)lb->bo->tbo.num_pages;
+	return (int)la->robj->tbo.num_pages - (int)lb->robj->tbo.num_pages;
 }
 
 /**
@@ -786,9 +785,9 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 	/* FIXME: we assume reloc size is 4 dwords */
 	if (nomm) {
 		*cs_reloc = p->relocs;
-		(*cs_reloc)->lobj.gpu_offset =
+		(*cs_reloc)->gpu_offset =
 			(u64)relocs_chunk->kdata[idx + 3] << 32;
-		(*cs_reloc)->lobj.gpu_offset |= relocs_chunk->kdata[idx + 0];
+		(*cs_reloc)->gpu_offset |= relocs_chunk->kdata[idx + 0];
 	} else
 		*cs_reloc = p->relocs_ptr[(idx / 4)];
 	return 0;

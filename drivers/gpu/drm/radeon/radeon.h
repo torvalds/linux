@@ -479,15 +479,6 @@ struct radeon_bo {
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
-struct radeon_bo_list {
-	struct ttm_validate_buffer tv;
-	struct radeon_bo	*bo;
-	uint64_t		gpu_offset;
-	unsigned		domain;
-	unsigned		alt_domain;
-	u32			tiling_flags;
-};
-
 int radeon_gem_debugfs_init(struct radeon_device *rdev);
 
 /* sub-allocation manager, it has to be protected by another lock.
@@ -987,9 +978,12 @@ void cayman_dma_fini(struct radeon_device *rdev);
 struct radeon_cs_reloc {
 	struct drm_gem_object		*gobj;
 	struct radeon_bo		*robj;
-	struct radeon_bo_list		lobj;
+	struct ttm_validate_buffer	tv;
+	uint64_t			gpu_offset;
+	unsigned			domain;
+	unsigned			alt_domain;
+	uint32_t			tiling_flags;
 	uint32_t			handle;
-	uint32_t			flags;
 };
 
 struct radeon_cs_chunk {
@@ -1013,7 +1007,7 @@ struct radeon_cs_parser {
 	unsigned		nrelocs;
 	struct radeon_cs_reloc	*relocs;
 	struct radeon_cs_reloc	**relocs_ptr;
-	struct radeon_bo_list	*vm_bos;
+	struct radeon_cs_reloc	*vm_bos;
 	struct list_head	validated;
 	unsigned		dma_reloc_idx;
 	/* indices of various chunks */
@@ -2803,9 +2797,9 @@ int radeon_vm_manager_init(struct radeon_device *rdev);
 void radeon_vm_manager_fini(struct radeon_device *rdev);
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
-struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
-					 struct radeon_vm *vm,
-                                         struct list_head *head);
+struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
+					  struct radeon_vm *vm,
+                                          struct list_head *head);
 struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 				       struct radeon_vm *vm, int ring);
 void radeon_vm_flush(struct radeon_device *rdev,

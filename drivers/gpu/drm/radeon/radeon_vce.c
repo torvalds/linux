@@ -461,7 +461,7 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi)
 		return -EINVAL;
 	}
 
-	offset += p->relocs_ptr[(idx / 4)]->lobj.gpu_offset;
+	offset += p->relocs_ptr[(idx / 4)]->gpu_offset;
 
         p->ib.ptr[lo] = offset & 0xFFFFFFFF;
         p->ib.ptr[hi] = offset >> 32;
