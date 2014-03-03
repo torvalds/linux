@@ -8,29 +8,29 @@
 	compatible = "nvidia,venice2", "nvidia,tegra124";
 
 	aliases {
-		rtc0 = "/i2c@7000d000/pmic@40";
-		rtc1 = "/rtc@7000e000";
+		rtc0 = "/i2c@0,7000d000/pmic@40";
+		rtc1 = "/rtc@0,7000e000";
 	};
 
 	memory {
-		reg = <0x80000000 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	host1x@50000000 {
-		sor@54540000 {
+	host1x@0,50000000 {
+		sor@0,54540000 {
 			status = "okay";
 
 			nvidia,dpaux = <&dpaux>;
 			nvidia,panel = <&panel>;
 		};
 
-		dpaux: dpaux@545c0000 {
+		dpaux: dpaux@0,545c0000 {
 			vdd-supply = <&vdd_3v3_panel>;
 			status = "okay";
 		};
 	};
 
-	pinmux: pinmux@70000868 {
+	pinmux: pinmux@0,70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
 
@@ -578,15 +578,15 @@
 		};
 	};
 
-	serial@70006000 {
+	serial@0,70006000 {
 		status = "okay";
 	};
 
-	pwm: pwm@7000a000 {
+	pwm: pwm@0,7000a000 {
 		status = "okay";
 	};
 
-	i2c@7000c000 {
+	i2c@0,7000c000 {
 		status = "okay";
 		clock-frequency = <100000>;
 
@@ -598,22 +598,22 @@
 		};
 	};
 
-	i2c@7000c400 {
+	i2c@0,7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
-	i2c@7000c500 {
+	i2c@0,7000c500 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
-	i2c@7000c700 {
+	i2c@0,7000c700 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
-	i2c@7000d000 {
+	i2c@0,7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
 
@@ -808,7 +808,7 @@
 		};
 	};
 
-	spi@7000d400 {
+	spi@0,7000d400 {
 		status = "okay";
 
 		cros-ec@0 {
@@ -914,7 +914,7 @@
 		};
 	};
 
-	spi@7000da00 {
+	spi@0,7000da00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
 		spi-flash@0 {
@@ -924,7 +924,7 @@
 		};
 	};
 
-	pmc@7000e400 {
+	pmc@0,7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <500>;
@@ -935,7 +935,7 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	sdhci@700b0400 {
+	sdhci@0,700b0400 {
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 		status = "okay";
@@ -943,40 +943,40 @@
 		vmmc-supply = <&vddio_sdmmc3>;
 	};
 
-	sdhci@700b0600 {
+	sdhci@0,700b0600 {
 		status = "okay";
 		bus-width = <8>;
 	};
 
-	ahub@70300000 {
-		i2s@70301100 {
+	ahub@0,70300000 {
+		i2s@0,70301100 {
 			status = "okay";
 		};
 	};
 
-	usb@7d000000 {
+	usb@0,7d000000 {
 		status = "okay";
 	};
 
-	usb-phy@7d000000 {
+	usb-phy@0,7d000000 {
 		status = "okay";
 		vbus-supply = <&vdd_usb1_vbus>;
 	};
 
-	usb@7d004000 {
+	usb@0,7d004000 {
 		status = "okay";
 	};
 
-	usb-phy@7d004000 {
+	usb-phy@0,7d004000 {
 		status = "okay";
 		vbus-supply = <&vdd_run_cam>;
 	};
 
-	usb@7d008000 {
+	usb@0,7d008000 {
 		status = "okay";
 	};
 
-	usb-phy@7d008000 {
+	usb-phy@0,7d008000 {
 		status = "okay";
 		vbus-supply = <&vdd_usb3_vbus>;
 	};
