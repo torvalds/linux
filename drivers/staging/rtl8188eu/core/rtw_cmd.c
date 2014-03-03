@@ -32,7 +32,7 @@ Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
 No irqsave is necessary.
 */
 
-int	_rtw_init_cmd_priv (struct	cmd_priv *pcmdpriv)
+int _rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	int res = _SUCCESS;
 
@@ -92,7 +92,7 @@ int _rtw_init_evt_priv(struct evt_priv *pevtpriv)
 	return res;
 }
 
-void rtw_free_evt_priv(struct	evt_priv *pevtpriv)
+void rtw_free_evt_priv(struct evt_priv *pevtpriv)
 {
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("+rtw_free_evt_priv\n"));
@@ -110,7 +110,7 @@ void rtw_free_evt_priv(struct	evt_priv *pevtpriv)
 
 }
 
-void _rtw_free_cmd_priv (struct	cmd_priv *pcmdpriv)
+void _rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 
 	if (pcmdpriv) {
@@ -132,7 +132,7 @@ ISR/Call-Back functions can't call this sub-function.
 
 */
 
-int	_rtw_enqueue_cmd(struct __queue *queue, struct cmd_obj *obj)
+int _rtw_enqueue_cmd(struct __queue *queue, struct cmd_obj *obj)
 {
 	unsigned long irqL;
 
@@ -172,21 +172,21 @@ struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
 	return obj;
 }
 
-u32	rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
+u32 rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	u32	res;
-	res = _rtw_init_cmd_priv (pcmdpriv);
+	res = _rtw_init_cmd_priv(pcmdpriv);
 	return res;
 }
 
-u32	rtw_init_evt_priv (struct	evt_priv *pevtpriv)
+u32 rtw_init_evt_priv(struct evt_priv *pevtpriv)
 {
-	int	res;
+	int res;
 	res = _rtw_init_evt_priv(pevtpriv);
 	return res;
 }
 
-void rtw_free_cmd_priv(struct	cmd_priv *pcmdpriv)
+void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("rtw_free_cmd_priv\n"));
 	_rtw_free_cmd_priv(pcmdpriv);
@@ -243,7 +243,7 @@ exit:
 	return res;
 }
 
-struct	cmd_obj	*rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
+struct cmd_obj	*rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
 {
 	struct cmd_obj *cmd_obj;
 
@@ -253,7 +253,7 @@ struct	cmd_obj	*rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
 	return cmd_obj;
 }
 
-void rtw_cmd_clr_isr(struct	cmd_priv *pcmdpriv)
+void rtw_cmd_clr_isr(struct cmd_priv *pcmdpriv)
 {
 	pcmdpriv->cmd_done_cnt++;
 	/* up(&(pcmdpriv->cmd_done_sema)); */
