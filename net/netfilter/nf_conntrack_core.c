@@ -902,6 +902,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 			 ct, exp);
 		/* Welcome, Mr. Bond.  We've been expecting you... */
 		__set_bit(IPS_EXPECTED_BIT, &ct->status);
+		/* exp->master safe, refcnt bumped in nf_ct_find_expectation */
 		ct->master = exp->master;
 		if (exp->helper) {
 			help = nf_ct_helper_ext_add(ct, exp->helper,
@@ -916,7 +917,6 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 		ct->secmark = exp->master->secmark;
 #endif
-		nf_conntrack_get(&ct->master->ct_general);
 		NF_CT_STAT_INC(net, expect_new);
 	} else {
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
