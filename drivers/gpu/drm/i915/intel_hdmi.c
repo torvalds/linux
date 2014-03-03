@@ -1344,6 +1344,13 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 1 << INTEL_OUTPUT_ANALOG;
+	/*
+	 * BSpec is unclear about HDMI+HDMI cloning on g4x, but it seems
+	 * to work on real hardware. And since g4x can send infoframes to
+	 * only one port anyway, nothing is lost by allowing it.
+	 */
+	if (IS_G4X(dev))
+		intel_encoder->cloneable |= 1 << INTEL_OUTPUT_HDMI;
 
 	intel_dig_port->port = port;
 	intel_dig_port->hdmi.hdmi_reg = hdmi_reg;
