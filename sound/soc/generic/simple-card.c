@@ -307,6 +307,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 						sizeof(priv->cpu_dai));
 		memcpy(&priv->codec_dai, &cinfo->codec_dai,
 						sizeof(priv->codec_dai));
+
+		priv->cpu_dai.fmt	|= cinfo->daifmt;
+		priv->codec_dai.fmt	|= cinfo->daifmt;
 	}
 
 	/*
