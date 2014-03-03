@@ -116,6 +116,62 @@ int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	return ret;
 }
 
+static int field_cmp(u64 field_a, u64 field_b)
+{
+	if (field_a > field_b)
+		return 1;
+	if (field_a < field_b)
+		return -1;
+	return 0;
+}
+
+static int __hpp__sort(struct hist_entry *a, struct hist_entry *b,
+		       hpp_field_fn get_field)
+{
+	s64 ret;
+	int i, nr_members;
+	struct perf_evsel *evsel;
+	struct hist_entry *pair;
+	u64 *fields_a, *fields_b;
+
+	ret = field_cmp(get_field(a), get_field(b));
+	if (ret || !symbol_conf.event_group)
+		return ret;
+
+	evsel = hists_to_evsel(a->hists);
+	if (!perf_evsel__is_group_event(evsel))
+		return ret;
+
+	nr_members = evsel->nr_members;
+	fields_a = calloc(sizeof(*fields_a), nr_members);
+	fields_b = calloc(sizeof(*fields_b), nr_members);
+
+	if (!fields_a || !fields_b)
+		goto out;
+
+	list_for_each_entry(pair, &a->pairs.head, pairs.node) {
+		evsel = hists_to_evsel(pair->hists);
+		fields_a[perf_evsel__group_idx(evsel)] = get_field(pair);
+	}
+
+	list_for_each_entry(pair, &b->pairs.head, pairs.node) {
+		evsel = hists_to_evsel(pair->hists);
+		fields_b[perf_evsel__group_idx(evsel)] = get_field(pair);
+	}
+
+	for (i = 1; i < nr_members; i++) {
+		ret = field_cmp(fields_a[i], fields_b[i]);
+		if (ret)
+			break;
+	}
+
+out:
+	free(fields_a);
+	free(fields_b);
+
+	return ret;
+}
+
 #define __HPP_HEADER_FN(_type, _str, _min_width, _unit_width) 		\
 static int hpp__header_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	\
 			       struct perf_hpp *hpp,			\
@@ -195,9 +251,7 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *_fmt __maybe_unused,		\
 #define __HPP_SORT_FN(_type, _field)						\
 static int64_t hpp__sort_##_type(struct hist_entry *a, struct hist_entry *b)	\
 {										\
-	s64 __a = he_get_##_field(a);						\
-	s64 __b = he_get_##_field(b);						\
-	return __a - __b;							\
+	return __hpp__sort(a, b, he_get_##_field);				\
 }
 
 #define __HPP_ENTRY_RAW_FN(_type, _field)					\
@@ -217,9 +271,7 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *_fmt __maybe_unused,		\
 #define __HPP_SORT_RAW_FN(_type, _field)					\
 static int64_t hpp__sort_##_type(struct hist_entry *a, struct hist_entry *b)	\
 {										\
-	s64 __a = he_get_raw_##_field(a);					\
-	s64 __b = he_get_raw_##_field(b);					\
-	return __a - __b;							\
+	return __hpp__sort(a, b, he_get_raw_##_field);				\
 }
 
 
