@@ -685,11 +685,6 @@ struct board_t
 	wait_queue_head_t kme_wait;	/* Needed for DPA support */
 
 	u32		conc_dl_status;	/* Status of any pending conc download */
-	/*
-	 *	Mgmt data.
-	 */
-        char		*msgbuf_head;
-        char		*msgbuf;
 };
 
 

@@ -731,17 +731,6 @@ static void dgap_cleanup_board(struct board_t *brd)
 		brd->re_map_membase = NULL;
 	}
 
-	if (brd->msgbuf_head) {
-		unsigned long flags;
-
-		DGAP_LOCK(dgap_global_lock, flags);
-		brd->msgbuf = NULL;
-		printk("%s", brd->msgbuf_head);
-		kfree(brd->msgbuf_head);
-		brd->msgbuf_head = NULL;
-		DGAP_UNLOCK(dgap_global_lock, flags);
-	}
-
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++)
 		kfree(brd->channels[i]);
@@ -764,7 +753,6 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	struct board_t *brd;
 	unsigned int pci_irq;
 	int i = 0;
-	unsigned long flags;
 
 	/* get the board structure and prep it */
 	brd = kzalloc(sizeof(struct board_t), GFP_KERNEL);
@@ -772,14 +760,6 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 		return -ENOMEM;
 
 	dgap_Board[dgap_NumBoards] = brd;
-
-	/* make a temporary message buffer for the boot messages */
-	brd->msgbuf = brd->msgbuf_head =
-		(char *) kzalloc(sizeof(char) * 8192, GFP_KERNEL);
-	if (!brd->msgbuf) {
-		kfree(brd);
-		return -ENOMEM;
-	}
 
 	/* store the info for the board we've found */
 	brd->magic = DGAP_BOARD_MAGIC;
@@ -869,13 +849,6 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 
 	/* init our poll helper tasklet */
 	tasklet_init(&brd->helper_tasklet, dgap_poll_tasklet, (unsigned long) brd);
-
-	DGAP_LOCK(dgap_global_lock, flags);
-	brd->msgbuf = NULL;
-	printk("%s", brd->msgbuf_head);
-	kfree(brd->msgbuf_head);
-	brd->msgbuf_head = NULL;
-	DGAP_UNLOCK(dgap_global_lock, flags);
 
 	i = dgap_do_remap(brd);
 	if (i)
