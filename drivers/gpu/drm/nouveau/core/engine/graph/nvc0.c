@@ -206,29 +206,69 @@ nvc0_graph_init_scc_0[] = {
 };
 
 const struct nvc0_graph_init
-nvc0_graph_init_gpc_0[] = {
+nvc0_graph_init_prop_0[] = {
 	{ 0x4184a0,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gpc_unk_0[] = {
 	{ 0x418604,   1, 0x04, 0x00000000 },
 	{ 0x418680,   1, 0x04, 0x00000000 },
 	{ 0x418714,   1, 0x04, 0x80000000 },
 	{ 0x418384,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_setup_0[] = {
 	{ 0x418814,   3, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_crstr_0[] = {
 	{ 0x418b04,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_setup_1[] = {
 	{ 0x4188c8,   1, 0x04, 0x80000000 },
 	{ 0x4188cc,   1, 0x04, 0x00000000 },
 	{ 0x4188d0,   1, 0x04, 0x00010000 },
 	{ 0x4188d4,   1, 0x04, 0x00000001 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_zcull_0[] = {
 	{ 0x418910,   1, 0x04, 0x00010001 },
 	{ 0x418914,   1, 0x04, 0x00000301 },
 	{ 0x418918,   1, 0x04, 0x00800000 },
 	{ 0x418980,   1, 0x04, 0x77777770 },
 	{ 0x418984,   3, 0x04, 0x77777777 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gpm_0[] = {
 	{ 0x418c04,   1, 0x04, 0x00000000 },
 	{ 0x418c88,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gpc_unk_1[] = {
 	{ 0x418d00,   1, 0x04, 0x00000000 },
 	{ 0x418f08,   1, 0x04, 0x00000000 },
 	{ 0x418e00,   1, 0x04, 0x00000050 },
 	{ 0x418e08,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gcc_0[] = {
 	{ 0x41900c,   1, 0x04, 0x00000000 },
 	{ 0x419018,   1, 0x04, 0x00000000 },
 	{}
@@ -304,7 +344,15 @@ nvc0_graph_pack_mmio[] = {
 	{ nvc0_graph_init_pd_0 },
 	{ nvc0_graph_init_ds_0 },
 	{ nvc0_graph_init_scc_0 },
-	{ nvc0_graph_init_gpc_0 },
+	{ nvc0_graph_init_prop_0 },
+	{ nvc0_graph_init_gpc_unk_0 },
+	{ nvc0_graph_init_setup_0 },
+	{ nvc0_graph_init_crstr_0 },
+	{ nvc0_graph_init_setup_1 },
+	{ nvc0_graph_init_zcull_0 },
+	{ nvc0_graph_init_gpm_0 },
+	{ nvc0_graph_init_gpc_unk_1 },
+	{ nvc0_graph_init_gcc_0 },
 	{ nvc0_graph_init_tpc_0 },
 	{ nvc0_graph_init_be_0 },
 	{ nvc0_graph_init_fe_1 },

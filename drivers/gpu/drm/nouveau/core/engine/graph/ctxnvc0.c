@@ -762,9 +762,14 @@ nvc0_grctx_pack_hub[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
-nvc0_grctx_init_gpc_0[] = {
+const struct nvc0_graph_init
+nvc0_grctx_init_gpc_unk_0[] = {
 	{ 0x418380,   1, 0x04, 0x00000016 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_prop_0[] = {
 	{ 0x418400,   1, 0x04, 0x38004e00 },
 	{ 0x418404,   1, 0x04, 0x71e0ffff },
 	{ 0x418408,   1, 0x04, 0x00000000 },
@@ -774,6 +779,11 @@ nvc0_grctx_init_gpc_0[] = {
 	{ 0x418450,   6, 0x04, 0x00000000 },
 	{ 0x418468,   1, 0x04, 0x00000001 },
 	{ 0x41846c,   2, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_gpc_unk_1[] = {
 	{ 0x418600,   1, 0x04, 0x0000001f },
 	{ 0x418684,   1, 0x04, 0x0000000f },
 	{ 0x418700,   1, 0x04, 0x00000002 },
@@ -781,6 +791,11 @@ nvc0_grctx_init_gpc_0[] = {
 	{ 0x418708,   1, 0x04, 0x00000000 },
 	{ 0x41870c,   1, 0x04, 0x07c80000 },
 	{ 0x418710,   1, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvc0_grctx_init_setup_0[] = {
 	{ 0x418800,   1, 0x04, 0x0006860a },
 	{ 0x418808,   3, 0x04, 0x00000000 },
 	{ 0x418828,   1, 0x04, 0x00008442 },
@@ -789,10 +804,20 @@ nvc0_grctx_init_gpc_0[] = {
 	{ 0x4188e0,   1, 0x04, 0x01000000 },
 	{ 0x4188e8,   5, 0x04, 0x00000000 },
 	{ 0x4188fc,   1, 0x04, 0x00100000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_zcull_0[] = {
 	{ 0x41891c,   1, 0x04, 0x00ff00ff },
 	{ 0x418924,   1, 0x04, 0x00000000 },
 	{ 0x418928,   1, 0x04, 0x00ffff00 },
 	{ 0x41892c,   1, 0x04, 0x0000ff00 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_crstr_0[] = {
 	{ 0x418b00,   1, 0x04, 0x00000000 },
 	{ 0x418b08,   1, 0x04, 0x0a418820 },
 	{ 0x418b0c,   1, 0x04, 0x062080e6 },
@@ -801,10 +826,20 @@ nvc0_grctx_init_gpc_0[] = {
 	{ 0x418b18,   1, 0x04, 0x0a418820 },
 	{ 0x418b1c,   1, 0x04, 0x000000e6 },
 	{ 0x418bb8,   1, 0x04, 0x00000103 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_gpm_0[] = {
 	{ 0x418c08,   1, 0x04, 0x00000001 },
 	{ 0x418c10,   8, 0x04, 0x00000000 },
 	{ 0x418c80,   1, 0x04, 0x20200004 },
 	{ 0x418c8c,   1, 0x04, 0x00000001 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_grctx_init_gcc_0[] = {
 	{ 0x419000,   1, 0x04, 0x00000780 },
 	{ 0x419004,   2, 0x04, 0x00000000 },
 	{ 0x419014,   1, 0x04, 0x00000004 },
@@ -813,7 +848,14 @@ nvc0_grctx_init_gpc_0[] = {
 
 const struct nvc0_graph_pack
 nvc0_grctx_pack_gpc[] = {
-	{ nvc0_grctx_init_gpc_0 },
+	{ nvc0_grctx_init_gpc_unk_0 },
+	{ nvc0_grctx_init_prop_0 },
+	{ nvc0_grctx_init_gpc_unk_1 },
+	{ nvc0_grctx_init_setup_0 },
+	{ nvc0_grctx_init_zcull_0 },
+	{ nvc0_grctx_init_crstr_0 },
+	{ nvc0_grctx_init_gpm_0 },
+	{ nvc0_grctx_init_gcc_0 },
 	{}
 };
 
