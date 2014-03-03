@@ -760,8 +760,8 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		if (!browser->b.navkeypressed)
 			width += 1;
 
-		hist_entry__sort_snprintf(entry, s, sizeof(s), browser->hists);
-		slsmg_write_nstring(s, width);
+		slsmg_write_nstring("", width);
+
 		++row;
 		++printed;
 	} else
@@ -1104,27 +1104,32 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 				       struct hist_entry *he, FILE *fp)
 {
 	char s[8192];
-	double percent;
 	int printed = 0;
 	char folded_sign = ' ';
+	struct perf_hpp hpp = {
+		.buf = s,
+		.size = sizeof(s),
+	};
+	struct perf_hpp_fmt *fmt;
+	bool first = true;
+	int ret;
 
 	if (symbol_conf.use_callchain)
 		folded_sign = hist_entry__folded(he);
 
-	hist_entry__sort_snprintf(he, s, sizeof(s), browser->hists);
-	percent = (he->stat.period * 100.0) / browser->hists->stats.total_period;
-
 	if (symbol_conf.use_callchain)
 		printed += fprintf(fp, "%c ", folded_sign);
 
-	printed += fprintf(fp, " %5.2f%%", percent);
+	perf_hpp__for_each_format(fmt) {
+		if (!first) {
+			ret = scnprintf(hpp.buf, hpp.size, "  ");
+			advance_hpp(&hpp, ret);
+		} else
+			first = false;
 
-	if (symbol_conf.show_nr_samples)
-		printed += fprintf(fp, " %11u", he->stat.nr_events);
-
-	if (symbol_conf.show_total_period)
-		printed += fprintf(fp, " %12" PRIu64, he->stat.period);
-
+		ret = fmt->entry(fmt, &hpp, he);
+		advance_hpp(&hpp, ret);
+	}
 	printed += fprintf(fp, "%s\n", rtrim(s));
 
 	if (folded_sign == '-')

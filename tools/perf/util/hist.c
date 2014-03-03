@@ -569,7 +569,7 @@ static int hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
 	struct perf_hpp_fmt *fmt;
 	int64_t cmp = 0;
 
-	perf_hpp__for_each_format(fmt) {
+	perf_hpp__for_each_sort_list(fmt) {
 		cmp = fmt->sort(a, b);
 		if (cmp)
 			break;

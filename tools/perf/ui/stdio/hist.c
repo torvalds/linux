@@ -306,8 +306,7 @@ static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 	return hist_entry_callchain__fprintf(he, total_period, left_margin, fp);
 }
 
-static int hist_entry__period_snprintf(struct perf_hpp *hpp,
-				       struct hist_entry *he)
+static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
@@ -353,8 +352,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	if (size == 0 || size > bfsz)
 		size = hpp.size = bfsz;
 
-	ret = hist_entry__period_snprintf(&hpp, he);
-	hist_entry__sort_snprintf(he, bf + ret, size - ret, hists);
+	hist_entry__snprintf(he, &hpp);
 
 	ret = fprintf(fp, "%s\n", bf);
 
@@ -386,6 +384,23 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 
 	init_rem_hits();
 
+	list_for_each_entry(se, &hist_entry__sort_list, list) {
+		if (se->elide)
+			continue;
+		width = strlen(se->se_header);
+		if (symbol_conf.col_width_list_str) {
+			if (col_width) {
+				hists__set_col_len(hists, se->se_width_idx,
+						   atoi(col_width));
+				col_width = strchr(col_width, ',');
+				if (col_width)
+					++col_width;
+			}
+		}
+		if (!hists__new_col_len(hists, se->se_width_idx, width))
+			width = hists__col_len(hists, se->se_width_idx);
+	}
+
 	if (!show_header)
 		goto print_entries;
 
@@ -399,28 +414,6 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 
 		fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
 		fprintf(fp, "%s", bf);
-	}
-
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (se->elide)
-			continue;
-		if (sep) {
-			fprintf(fp, "%c%s", *sep, se->se_header);
-			continue;
-		}
-		width = strlen(se->se_header);
-		if (symbol_conf.col_width_list_str) {
-			if (col_width) {
-				hists__set_col_len(hists, se->se_width_idx,
-						   atoi(col_width));
-				col_width = strchr(col_width, ',');
-				if (col_width)
-					++col_width;
-			}
-		}
-		if (!hists__new_col_len(hists, se->se_width_idx, width))
-			width = hists__col_len(hists, se->se_width_idx);
-		fprintf(fp, "  %*s", width, se->se_header);
 	}
 
 	fprintf(fp, "\n");
@@ -443,20 +436,6 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 			first = false;
 
 		width = fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
-		for (i = 0; i < width; i++)
-			fprintf(fp, ".");
-	}
-
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		unsigned int i;
-
-		if (se->elide)
-			continue;
-
-		fprintf(fp, "  ");
-		width = hists__col_len(hists, se->se_width_idx);
-		if (width == 0)
-			width = strlen(se->se_header);
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
