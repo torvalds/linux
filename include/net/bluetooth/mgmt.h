@@ -96,6 +96,7 @@ struct mgmt_rp_read_index_list {
 #define MGMT_SETTING_ADVERTISING	0x00000400
 #define MGMT_SETTING_SECURE_CONN	0x00000800
 #define MGMT_SETTING_DEBUG_KEYS		0x00001000
+#define MGMT_SETTING_PRIVACY		0x00002000
 
 #define MGMT_OP_READ_INFO		0x0004
 #define MGMT_READ_INFO_SIZE		0
@@ -186,7 +187,7 @@ struct mgmt_ltk_info {
 	__u8	master;
 	__u8	enc_size;
 	__le16	ediv;
-	__u8	rand[8];
+	__le64	rand;
 	__u8	val[16];
 } __packed;
 
@@ -388,6 +389,13 @@ struct mgmt_cp_set_scan_params {
 #define MGMT_OP_SET_SECURE_CONN		0x002D
 
 #define MGMT_OP_SET_DEBUG_KEYS		0x002E
+
+#define MGMT_OP_SET_PRIVACY		0x002F
+struct mgmt_cp_set_privacy {
+	__u8 privacy;
+	__u8 irk[16];
+} __packed;
+#define MGMT_SET_PRIVACY_SIZE		17
 
 struct mgmt_irk_info {
 	struct mgmt_addr_info addr;

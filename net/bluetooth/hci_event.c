@@ -991,12 +991,8 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (!status) {
-		if (*sent)
-			set_bit(HCI_ADVERTISING, &hdev->dev_flags);
-		else
-			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
-	}
+	if (!status)
+		mgmt_advertising(hdev, *sent);
 
 	hci_dev_unlock(hdev);
 }
@@ -1022,7 +1018,19 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		break;
 
 	case LE_SCAN_DISABLE:
+		/* Cancel this timer so that we don't try to disable scanning
+		 * when it's already disabled.
+		 */
+		cancel_delayed_work(&hdev->le_scan_disable);
+
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
+		/* The HCI_LE_SCAN_INTERRUPTED flag indicates that we
+		 * interrupted scanning due to a connect request. Mark
+		 * therefore discovery as stopped.
+		 */
+		if (test_and_clear_bit(HCI_LE_SCAN_INTERRUPTED,
+				       &hdev->dev_flags))
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 		break;
 
 	default:
@@ -1040,6 +1048,49 @@ static void hci_cc_le_read_white_list_size(struct hci_dev *hdev,
 
 	if (!rp->status)
 		hdev->le_white_list_size = rp->size;
+}
+
+static void hci_cc_le_clear_white_list(struct hci_dev *hdev,
+				       struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (!status)
+		hci_white_list_clear(hdev);
+}
+
+static void hci_cc_le_add_to_white_list(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_cp_le_add_to_white_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_ADD_TO_WHITE_LIST);
+	if (!sent)
+		return;
+
+	if (!status)
+		hci_white_list_add(hdev, &sent->bdaddr, sent->bdaddr_type);
+}
+
+static void hci_cc_le_del_from_white_list(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_cp_le_del_from_white_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_DEL_FROM_WHITE_LIST);
+	if (!sent)
+		return;
+
+	if (!status)
+		hci_white_list_del(hdev, &sent->bdaddr, sent->bdaddr_type);
 }
 
 static void hci_cc_le_read_supported_states(struct hci_dev *hdev,
@@ -1080,6 +1131,25 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 		else
 			hdev->features[1][0] &= ~LMP_HOST_LE_BREDR;
 	}
+}
+
+static void hci_cc_set_adv_param(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_cp_le_set_adv_param *cp;
+	u8 status = *((u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_ADV_PARAM);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+	hdev->adv_addr_type = cp->own_address_type;
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_write_remote_amp_assoc(struct hci_dev *hdev,
@@ -1583,6 +1653,57 @@ static void hci_cs_accept_phylink(struct hci_dev *hdev, u8 status)
 	amp_write_remote_assoc(hdev, cp->phy_handle);
 }
 
+static void hci_cs_le_create_conn(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_le_create_conn *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	/* All connection failure handling is taken care of by the
+	 * hci_le_conn_failed function which is triggered by the HCI
+	 * request completion callbacks used for connecting.
+	 */
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_CREATE_CONN);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->peer_addr);
+	if (!conn)
+		goto unlock;
+
+	/* Store the initiator and responder address information which
+	 * is needed for SMP. These values will not change during the
+	 * lifetime of the connection.
+	 */
+	conn->init_addr_type = cp->own_address_type;
+	if (cp->own_address_type == ADDR_LE_DEV_RANDOM)
+		bacpy(&conn->init_addr, &hdev->random_addr);
+	else
+		bacpy(&conn->init_addr, &hdev->bdaddr);
+
+	conn->resp_addr_type = cp->peer_addr_type;
+	bacpy(&conn->resp_addr, &cp->peer_addr);
+
+	/* We don't want the connection attempt to stick around
+	 * indefinitely since LE doesn't have a page timeout concept
+	 * like BR/EDR. Set a timer for any connection that doesn't use
+	 * the white list for connecting.
+	 */
+	if (cp->filter_policy == HCI_LE_USE_PEER_ADDR)
+		queue_delayed_work(conn->hdev->workqueue,
+				   &conn->le_conn_timeout,
+				   HCI_LE_CONN_TIMEOUT);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
@@ -1845,7 +1966,9 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_disconn_complete *ev = (void *) skb->data;
 	u8 reason = hci_to_mgmt_reason(ev->reason);
+	struct hci_conn_params *params;
 	struct hci_conn *conn;
+	bool mgmt_connected;
 	u8 type;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
@@ -1864,12 +1987,29 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn->state = BT_CLOSED;
 
-	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
-		mgmt_device_disconnected(hdev, &conn->dst, conn->type,
-					 conn->dst_type, reason);
+	mgmt_connected = test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags);
+	mgmt_device_disconnected(hdev, &conn->dst, conn->type, conn->dst_type,
+				reason, mgmt_connected);
 
 	if (conn->type == ACL_LINK && conn->flush_key)
 		hci_remove_link_key(hdev, &conn->dst);
+
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (params) {
+		switch (params->auto_connect) {
+		case HCI_AUTO_CONN_LINK_LOSS:
+			if (ev->reason != HCI_ERROR_CONNECTION_TIMEOUT)
+				break;
+			/* Fall through */
+
+		case HCI_AUTO_CONN_ALWAYS:
+			hci_pend_le_conn_add(hdev, &conn->dst, conn->dst_type);
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	type = conn->type;
 
@@ -2344,12 +2484,28 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_le_read_white_list_size(hdev, skb);
 		break;
 
+	case HCI_OP_LE_CLEAR_WHITE_LIST:
+		hci_cc_le_clear_white_list(hdev, skb);
+		break;
+
+	case HCI_OP_LE_ADD_TO_WHITE_LIST:
+		hci_cc_le_add_to_white_list(hdev, skb);
+		break;
+
+	case HCI_OP_LE_DEL_FROM_WHITE_LIST:
+		hci_cc_le_del_from_white_list(hdev, skb);
+		break;
+
 	case HCI_OP_LE_READ_SUPPORTED_STATES:
 		hci_cc_le_read_supported_states(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_LE_HOST_SUPPORTED:
 		hci_cc_write_le_host_supported(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_ADV_PARAM:
+		hci_cc_set_adv_param(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_REMOTE_AMP_ASSOC:
@@ -2437,6 +2593,10 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_ACCEPT_PHY_LINK:
 		hci_cs_accept_phylink(hdev, ev->status);
+		break;
+
+	case HCI_OP_LE_CREATE_CONN:
+		hci_cs_le_create_conn(hdev, ev->status);
 		break;
 
 	default:
@@ -3623,7 +3783,47 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->out = true;
 			conn->link_mode |= HCI_LM_MASTER;
 		}
+
+		/* If we didn't have a hci_conn object previously
+		 * but we're in master role this must be something
+		 * initiated using a white list. Since white list based
+		 * connections are not "first class citizens" we don't
+		 * have full tracking of them. Therefore, we go ahead
+		 * with a "best effort" approach of determining the
+		 * initiator address based on the HCI_PRIVACY flag.
+		 */
+		if (conn->out) {
+			conn->resp_addr_type = ev->bdaddr_type;
+			bacpy(&conn->resp_addr, &ev->bdaddr);
+			if (test_bit(HCI_PRIVACY, &hdev->dev_flags)) {
+				conn->init_addr_type = ADDR_LE_DEV_RANDOM;
+				bacpy(&conn->init_addr, &hdev->rpa);
+			} else {
+				hci_copy_identity_address(hdev,
+							  &conn->init_addr,
+							  &conn->init_addr_type);
+			}
+		} else {
+			/* Set the responder (our side) address type based on
+			 * the advertising address type.
+			 */
+			conn->resp_addr_type = hdev->adv_addr_type;
+			if (hdev->adv_addr_type == ADDR_LE_DEV_RANDOM)
+				bacpy(&conn->resp_addr, &hdev->random_addr);
+			else
+				bacpy(&conn->resp_addr, &hdev->bdaddr);
+
+			conn->init_addr_type = ev->bdaddr_type;
+			bacpy(&conn->init_addr, &ev->bdaddr);
+		}
+	} else {
+		cancel_delayed_work(&conn->le_conn_timeout);
 	}
+
+	/* Ensure that the hci_conn contains the identity address type
+	 * regardless of which address the connection was made with.
+	 */
+	hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
 
 	/* Lookup the identity address from the stored connection
 	 * address and address type.
@@ -3641,11 +3841,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	if (ev->status) {
-		mgmt_connect_failed(hdev, &conn->dst, conn->type,
-				    conn->dst_type, ev->status);
-		hci_proto_connect_cfm(conn, ev->status);
-		conn->state = BT_CLOSED;
-		hci_conn_del(conn);
+		hci_le_conn_failed(conn, ev->status);
 		goto unlock;
 	}
 
@@ -3664,8 +3860,47 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_proto_connect_cfm(conn, ev->status);
 
+	hci_pend_le_conn_del(hdev, &conn->dst, conn->dst_type);
+
 unlock:
 	hci_dev_unlock(hdev);
+}
+
+/* This function requires the caller holds hdev->lock */
+static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
+				  u8 addr_type)
+{
+	struct hci_conn *conn;
+	struct smp_irk *irk;
+
+	/* If this is a resolvable address, we should resolve it and then
+	 * update address and address type variables.
+	 */
+	irk = hci_get_irk(hdev, addr, addr_type);
+	if (irk) {
+		addr = &irk->bdaddr;
+		addr_type = irk->addr_type;
+	}
+
+	if (!hci_pend_le_conn_lookup(hdev, addr, addr_type))
+		return;
+
+	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
+			      HCI_AT_NO_BONDING);
+	if (!IS_ERR(conn))
+		return;
+
+	switch (PTR_ERR(conn)) {
+	case -EBUSY:
+		/* If hci_connect() returns -EBUSY it means there is already
+		 * an LE connection attempt going on. Since controllers don't
+		 * support more than one connection attempt at the time, we
+		 * don't consider this an error case.
+		 */
+		break;
+	default:
+		BT_DBG("Failed to connect: err %ld", PTR_ERR(conn));
+	}
 }
 
 static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3674,8 +3909,15 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	void *ptr = &skb->data[1];
 	s8 rssi;
 
+	hci_dev_lock(hdev);
+
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
+
+		if (ev->evt_type == LE_ADV_IND ||
+		    ev->evt_type == LE_ADV_DIRECT_IND)
+			check_pending_le_conn(hdev, &ev->bdaddr,
+					      ev->bdaddr_type);
 
 		rssi = ev->data[ev->length];
 		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
@@ -3683,6 +3925,8 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3701,7 +3945,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk(hdev, ev->ediv, ev->random, conn->out);
+	ltk = hci_find_ltk(hdev, ev->ediv, ev->rand, conn->out);
 	if (ltk == NULL)
 		goto not_found;
 

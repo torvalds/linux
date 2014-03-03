@@ -492,6 +492,37 @@ static int idle_timeout_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(idle_timeout_fops, idle_timeout_get,
 			idle_timeout_set, "%llu\n");
 
+static int rpa_timeout_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	/* Require the RPA timeout to be at least 30 seconds and at most
+	 * 24 hours.
+	 */
+	if (val < 30 || val > (60 * 60 * 24))
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->rpa_timeout = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int rpa_timeout_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->rpa_timeout;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(rpa_timeout_fops, rpa_timeout_get,
+			rpa_timeout_set, "%llu\n");
+
 static int sniff_min_interval_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -547,6 +578,36 @@ static int sniff_max_interval_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(sniff_max_interval_fops, sniff_max_interval_get,
 			sniff_max_interval_set, "%llu\n");
+
+static int identity_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	bdaddr_t addr;
+	u8 addr_type;
+
+	hci_dev_lock(hdev);
+
+	hci_copy_identity_address(hdev, &addr, &addr_type);
+
+	seq_printf(f, "%pMR (type %u) %*phN %pMR\n", &addr, addr_type,
+		   16, hdev->irk, &hdev->rpa);
+
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int identity_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, identity_show, inode->i_private);
+}
+
+static const struct file_operations identity_fops = {
+	.open		= identity_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static int random_address_show(struct seq_file *f, void *p)
 {
@@ -641,6 +702,31 @@ static const struct file_operations force_static_address_fops = {
 	.llseek		= default_llseek,
 };
 
+static int white_list_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+	struct bdaddr_list *b;
+
+	hci_dev_lock(hdev);
+	list_for_each_entry(b, &hdev->le_white_list, list)
+		seq_printf(f, "%pMR (type %u)\n", &b->bdaddr, b->bdaddr_type);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int white_list_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, white_list_show, inode->i_private);
+}
+
+static const struct file_operations white_list_fops = {
+	.open		= white_list_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int identity_resolving_keys_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -679,10 +765,10 @@ static int long_term_keys_show(struct seq_file *f, void *ptr)
 	hci_dev_lock(hdev);
 	list_for_each_safe(p, n, &hdev->long_term_keys) {
 		struct smp_ltk *ltk = list_entry(p, struct smp_ltk, list);
-		seq_printf(f, "%pMR (type %u) %u 0x%02x %u %.4x %*phN %*phN\n",
+		seq_printf(f, "%pMR (type %u) %u 0x%02x %u %.4x %.16llx %*phN\n",
 			   &ltk->bdaddr, ltk->bdaddr_type, ltk->authenticated,
 			   ltk->type, ltk->enc_size, __le16_to_cpu(ltk->ediv),
-			   8, ltk->rand, 16, ltk->val);
+			   __le64_to_cpu(ltk->rand), 16, ltk->val);
 	}
 	hci_dev_unlock(hdev);
 
@@ -826,6 +912,115 @@ static const struct file_operations lowpan_debugfs_fops = {
 	.read		= lowpan_read,
 	.write		= lowpan_write,
 	.llseek		= default_llseek,
+};
+
+static int le_auto_conn_show(struct seq_file *sf, void *ptr)
+{
+	struct hci_dev *hdev = sf->private;
+	struct hci_conn_params *p;
+
+	hci_dev_lock(hdev);
+
+	list_for_each_entry(p, &hdev->le_conn_params, list) {
+		seq_printf(sf, "%pMR %u %u\n", &p->addr, p->addr_type,
+			   p->auto_connect);
+	}
+
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int le_auto_conn_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, le_auto_conn_show, inode->i_private);
+}
+
+static ssize_t le_auto_conn_write(struct file *file, const char __user *data,
+				  size_t count, loff_t *offset)
+{
+	struct seq_file *sf = file->private_data;
+	struct hci_dev *hdev = sf->private;
+	u8 auto_connect = 0;
+	bdaddr_t addr;
+	u8 addr_type;
+	char *buf;
+	int err = 0;
+	int n;
+
+	/* Don't allow partial write */
+	if (*offset != 0)
+		return -EINVAL;
+
+	if (count < 3)
+		return -EINVAL;
+
+	buf = kzalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, data, count)) {
+		err = -EFAULT;
+		goto done;
+	}
+
+	if (memcmp(buf, "add", 3) == 0) {
+		n = sscanf(&buf[4], "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx %hhu %hhu",
+			   &addr.b[5], &addr.b[4], &addr.b[3], &addr.b[2],
+			   &addr.b[1], &addr.b[0], &addr_type,
+			   &auto_connect);
+
+		if (n < 7) {
+			err = -EINVAL;
+			goto done;
+		}
+
+		hci_dev_lock(hdev);
+		err = hci_conn_params_add(hdev, &addr, addr_type, auto_connect,
+					  hdev->le_conn_min_interval,
+					  hdev->le_conn_max_interval);
+		hci_dev_unlock(hdev);
+
+		if (err)
+			goto done;
+	} else if (memcmp(buf, "del", 3) == 0) {
+		n = sscanf(&buf[4], "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx %hhu",
+			   &addr.b[5], &addr.b[4], &addr.b[3], &addr.b[2],
+			   &addr.b[1], &addr.b[0], &addr_type);
+
+		if (n < 7) {
+			err = -EINVAL;
+			goto done;
+		}
+
+		hci_dev_lock(hdev);
+		hci_conn_params_del(hdev, &addr, addr_type);
+		hci_dev_unlock(hdev);
+	} else if (memcmp(buf, "clr", 3) == 0) {
+		hci_dev_lock(hdev);
+		hci_conn_params_clear(hdev);
+		hci_pend_le_conns_clear(hdev);
+		hci_update_background_scan(hdev);
+		hci_dev_unlock(hdev);
+	} else {
+		err = -EINVAL;
+	}
+
+done:
+	kfree(buf);
+
+	if (err)
+		return err;
+	else
+		return count;
+}
+
+static const struct file_operations le_auto_conn_fops = {
+	.open		= le_auto_conn_open,
+	.read		= seq_read,
+	.write		= le_auto_conn_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 /* ---- HCI requests ---- */
@@ -1176,14 +1371,17 @@ static void le_setup(struct hci_request *req)
 	/* Read LE Local Supported Features */
 	hci_req_add(req, HCI_OP_LE_READ_LOCAL_FEATURES, 0, NULL);
 
+	/* Read LE Supported States */
+	hci_req_add(req, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
+
 	/* Read LE Advertising Channel TX Power */
 	hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
 
 	/* Read LE White List Size */
 	hci_req_add(req, HCI_OP_LE_READ_WHITE_LIST_SIZE, 0, NULL);
 
-	/* Read LE Supported States */
-	hci_req_add(req, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
+	/* Clear LE White List */
+	hci_req_add(req, HCI_OP_LE_CLEAR_WHITE_LIST, 0, NULL);
 
 	/* LE-only controllers have LE implicitly enabled */
 	if (!lmp_bredr_capable(hdev))
@@ -1475,23 +1673,8 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
 
-	if (lmp_le_capable(hdev)) {
-		/* If the controller has a public BD_ADDR, then by default
-		 * use that one. If this is a LE only controller without
-		 * a public address, default to the random address.
-		 *
-		 * For debugging purposes it is possible to force
-		 * controllers with a public address to use the
-		 * random address instead.
-		 */
-		if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
-		    !bacmp(&hdev->bdaddr, BDADDR_ANY))
-			hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
-		else
-			hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
-
+	if (lmp_le_capable(hdev))
 		hci_set_le_support(req);
-	}
 
 	/* Read features beyond page 1 if available */
 	for (p = 2; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
@@ -1608,6 +1791,10 @@ static int __hci_init(struct hci_dev *hdev)
 	}
 
 	if (lmp_le_capable(hdev)) {
+		debugfs_create_file("identity", 0400, hdev->debugfs,
+				    hdev, &identity_fops);
+		debugfs_create_file("rpa_timeout", 0644, hdev->debugfs,
+				    hdev, &rpa_timeout_fops);
 		debugfs_create_file("random_address", 0444, hdev->debugfs,
 				    hdev, &random_address_fops);
 		debugfs_create_file("static_address", 0444, hdev->debugfs,
@@ -1624,6 +1811,8 @@ static int __hci_init(struct hci_dev *hdev)
 
 		debugfs_create_u8("white_list_size", 0444, hdev->debugfs,
 				  &hdev->le_white_list_size);
+		debugfs_create_file("white_list", 0444, hdev->debugfs, hdev,
+				    &white_list_fops);
 		debugfs_create_file("identity_resolving_keys", 0400,
 				    hdev->debugfs, hdev,
 				    &identity_resolving_keys_fops);
@@ -1637,6 +1826,8 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &adv_channel_map_fops);
 		debugfs_create_file("6lowpan", 0644, hdev->debugfs, hdev,
 				    &lowpan_debugfs_fops);
+		debugfs_create_file("le_auto_conn", 0644, hdev->debugfs, hdev,
+				    &le_auto_conn_fops);
 	}
 
 	return 0;
@@ -1729,6 +1920,8 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 
 	switch (state) {
 	case DISCOVERY_STOPPED:
+		hci_update_background_scan(hdev);
+
 		if (hdev->discovery.state != DISCOVERY_STARTING)
 			mgmt_discovering(hdev, 0);
 		break;
@@ -2102,6 +2295,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 
 	if (!ret) {
 		hci_dev_hold(hdev);
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
@@ -2200,9 +2394,13 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
 
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		cancel_delayed_work_sync(&hdev->rpa_expired);
+
 	hci_dev_lock(hdev);
 	hci_inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);
+	hci_pend_le_conns_clear(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_notify(hdev, HCI_DEV_DOWN);
@@ -2723,14 +2921,13 @@ static bool ltk_type_master(u8 type)
 	return false;
 }
 
-struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8],
+struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
 			     bool master)
 {
 	struct smp_ltk *k;
 
 	list_for_each_entry(k, &hdev->long_term_keys, list) {
-		if (k->ediv != ediv ||
-		    memcmp(rand, k->rand, sizeof(k->rand)))
+		if (k->ediv != ediv || k->rand != rand)
 			continue;
 
 		if (ltk_type_master(k->type) != master)
@@ -2848,7 +3045,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 
 struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 addr_type, u8 type, u8 authenticated,
-			    u8 tk[16], u8 enc_size, __le16 ediv, u8 rand[8])
+			    u8 tk[16], u8 enc_size, __le16 ediv, __le64 rand)
 {
 	struct smp_ltk *key, *old_key;
 	bool master = ltk_type_master(type);
@@ -2868,9 +3065,9 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	memcpy(key->val, tk, sizeof(key->val));
 	key->authenticated = authenticated;
 	key->ediv = ediv;
+	key->rand = rand;
 	key->enc_size = enc_size;
 	key->type = type;
-	memcpy(key->rand, rand, sizeof(key->rand));
 
 	return key;
 }
@@ -3070,7 +3267,7 @@ struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
-void hci_blacklist_clear(struct hci_dev *hdev)
+static void hci_blacklist_clear(struct hci_dev *hdev)
 {
 	struct list_head *p, *n;
 
@@ -3123,6 +3320,67 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 	return mgmt_device_unblocked(hdev, bdaddr, type);
 }
 
+struct bdaddr_list *hci_white_list_lookup(struct hci_dev *hdev,
+					  bdaddr_t *bdaddr, u8 type)
+{
+	struct bdaddr_list *b;
+
+	list_for_each_entry(b, &hdev->le_white_list, list) {
+		if (!bacmp(&b->bdaddr, bdaddr) && b->bdaddr_type == type)
+			return b;
+	}
+
+	return NULL;
+}
+
+void hci_white_list_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->le_white_list) {
+		struct bdaddr_list *b = list_entry(p, struct bdaddr_list, list);
+
+		list_del(p);
+		kfree(b);
+	}
+}
+
+int hci_white_list_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
+{
+	struct bdaddr_list *entry;
+
+	if (!bacmp(bdaddr, BDADDR_ANY))
+		return -EBADF;
+
+	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	bacpy(&entry->bdaddr, bdaddr);
+	entry->bdaddr_type = type;
+
+	list_add(&entry->list, &hdev->le_white_list);
+
+	return 0;
+}
+
+int hci_white_list_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
+{
+	struct bdaddr_list *entry;
+
+	if (!bacmp(bdaddr, BDADDR_ANY))
+		return -EBADF;
+
+	entry = hci_white_list_lookup(hdev, bdaddr, type);
+	if (!entry)
+		return -ENOENT;
+
+	list_del(&entry->list);
+	kfree(entry);
+
+	return 0;
+}
+
 /* This function requires the caller holds hdev->lock */
 struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 					       bdaddr_t *addr, u8 addr_type)
@@ -3139,35 +3397,81 @@ struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
+static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
+{
+	struct hci_conn *conn;
+
+	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, addr);
+	if (!conn)
+		return false;
+
+	if (conn->dst_type != type)
+		return false;
+
+	if (conn->state != BT_CONNECTED)
+		return false;
+
+	return true;
+}
+
+static bool is_identity_address(bdaddr_t *addr, u8 addr_type)
+{
+	if (addr_type == ADDR_LE_DEV_PUBLIC)
+		return true;
+
+	/* Check for Random Static address type */
+	if ((addr->b[5] & 0xc0) == 0xc0)
+		return true;
+
+	return false;
+}
+
 /* This function requires the caller holds hdev->lock */
-void hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
-			 u16 conn_min_interval, u16 conn_max_interval)
+int hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
+			u8 auto_connect, u16 conn_min_interval,
+			u16 conn_max_interval)
 {
 	struct hci_conn_params *params;
 
+	if (!is_identity_address(addr, addr_type))
+		return -EINVAL;
+
 	params = hci_conn_params_lookup(hdev, addr, addr_type);
-	if (params) {
-		params->conn_min_interval = conn_min_interval;
-		params->conn_max_interval = conn_max_interval;
-		return;
-	}
+	if (params)
+		goto update;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params) {
 		BT_ERR("Out of memory");
-		return;
+		return -ENOMEM;
 	}
 
 	bacpy(&params->addr, addr);
 	params->addr_type = addr_type;
-	params->conn_min_interval = conn_min_interval;
-	params->conn_max_interval = conn_max_interval;
 
 	list_add(&params->list, &hdev->le_conn_params);
 
-	BT_DBG("addr %pMR (type %u) conn_min_interval 0x%.4x "
-	       "conn_max_interval 0x%.4x", addr, addr_type, conn_min_interval,
-	       conn_max_interval);
+update:
+	params->conn_min_interval = conn_min_interval;
+	params->conn_max_interval = conn_max_interval;
+	params->auto_connect = auto_connect;
+
+	switch (auto_connect) {
+	case HCI_AUTO_CONN_DISABLED:
+	case HCI_AUTO_CONN_LINK_LOSS:
+		hci_pend_le_conn_del(hdev, addr, addr_type);
+		break;
+	case HCI_AUTO_CONN_ALWAYS:
+		if (!is_connected(hdev, addr, addr_type))
+			hci_pend_le_conn_add(hdev, addr, addr_type);
+		break;
+	}
+
+	BT_DBG("addr %pMR (type %u) auto_connect %u conn_min_interval 0x%.4x "
+	       "conn_max_interval 0x%.4x", addr, addr_type, auto_connect,
+	       conn_min_interval, conn_max_interval);
+
+	return 0;
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -3178,6 +3482,8 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 	params = hci_conn_params_lookup(hdev, addr, addr_type);
 	if (!params)
 		return;
+
+	hci_pend_le_conn_del(hdev, addr, addr_type);
 
 	list_del(&params->list);
 	kfree(params);
@@ -3196,6 +3502,78 @@ void hci_conn_params_clear(struct hci_dev *hdev)
 	}
 
 	BT_DBG("All LE connection parameters were removed");
+}
+
+/* This function requires the caller holds hdev->lock */
+struct bdaddr_list *hci_pend_le_conn_lookup(struct hci_dev *hdev,
+					    bdaddr_t *addr, u8 addr_type)
+{
+	struct bdaddr_list *entry;
+
+	list_for_each_entry(entry, &hdev->pend_le_conns, list) {
+		if (bacmp(&entry->bdaddr, addr) == 0 &&
+		    entry->bdaddr_type == addr_type)
+			return entry;
+	}
+
+	return NULL;
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_pend_le_conn_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
+{
+	struct bdaddr_list *entry;
+
+	entry = hci_pend_le_conn_lookup(hdev, addr, addr_type);
+	if (entry)
+		goto done;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		BT_ERR("Out of memory");
+		return;
+	}
+
+	bacpy(&entry->bdaddr, addr);
+	entry->bdaddr_type = addr_type;
+
+	list_add(&entry->list, &hdev->pend_le_conns);
+
+	BT_DBG("addr %pMR (type %u)", addr, addr_type);
+
+done:
+	hci_update_background_scan(hdev);
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_pend_le_conn_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
+{
+	struct bdaddr_list *entry;
+
+	entry = hci_pend_le_conn_lookup(hdev, addr, addr_type);
+	if (!entry)
+		goto done;
+
+	list_del(&entry->list);
+	kfree(entry);
+
+	BT_DBG("addr %pMR (type %u)", addr, addr_type);
+
+done:
+	hci_update_background_scan(hdev);
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_pend_le_conns_clear(struct hci_dev *hdev)
+{
+	struct bdaddr_list *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &hdev->pend_le_conns, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+
+	BT_DBG("All LE pending connections cleared");
 }
 
 static void inquiry_complete(struct hci_dev *hdev, u8 status)
@@ -3257,7 +3635,6 @@ static void le_scan_disable_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_disable.work);
-	struct hci_cp_le_set_scan_enable cp;
 	struct hci_request req;
 	int err;
 
@@ -3265,13 +3642,126 @@ static void le_scan_disable_work(struct work_struct *work)
 
 	hci_req_init(&req, hdev);
 
-	memset(&cp, 0, sizeof(cp));
-	cp.enable = LE_SCAN_DISABLE;
-	hci_req_add(&req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	hci_req_add_le_scan_disable(&req);
 
 	err = hci_req_run(&req, le_scan_disable_work_complete);
 	if (err)
 		BT_ERR("Disable LE scanning request failed: err %d", err);
+}
+
+static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
+{
+	struct hci_dev *hdev = req->hdev;
+
+	/* If we're advertising or initiating an LE connection we can't
+	 * go ahead and change the random address at this time. This is
+	 * because the eventual initiator address used for the
+	 * subsequently created connection will be undefined (some
+	 * controllers use the new address and others the one we had
+	 * when the operation started).
+	 *
+	 * In this kind of scenario skip the update and let the random
+	 * address be updated at the next cycle.
+	 */
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) ||
+	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
+		BT_DBG("Deferring random address update");
+		return;
+	}
+
+	hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6, rpa);
+}
+
+int hci_update_random_address(struct hci_request *req, bool require_privacy,
+			      u8 *own_addr_type)
+{
+	struct hci_dev *hdev = req->hdev;
+	int err;
+
+	/* If privacy is enabled use a resolvable private address. If
+	 * current RPA has expired or there is something else than
+	 * the current RPA in use, then generate a new one.
+	 */
+	if (test_bit(HCI_PRIVACY, &hdev->dev_flags)) {
+		int to;
+
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+
+		if (!test_and_clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags) &&
+		    !bacmp(&hdev->random_addr, &hdev->rpa))
+			return 0;
+
+		err = smp_generate_rpa(hdev->tfm_aes, hdev->irk, &hdev->rpa);
+		if (err < 0) {
+			BT_ERR("%s failed to generate new RPA", hdev->name);
+			return err;
+		}
+
+		set_random_addr(req, &hdev->rpa);
+
+		to = msecs_to_jiffies(hdev->rpa_timeout * 1000);
+		queue_delayed_work(hdev->workqueue, &hdev->rpa_expired, to);
+
+		return 0;
+	}
+
+	/* In case of required privacy without resolvable private address,
+	 * use an unresolvable private address. This is useful for active
+	 * scanning and non-connectable advertising.
+	 */
+	if (require_privacy) {
+		bdaddr_t urpa;
+
+		get_random_bytes(&urpa, 6);
+		urpa.b[5] &= 0x3f;	/* Clear two most significant bits */
+
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+		set_random_addr(req, &urpa);
+		return 0;
+	}
+
+	/* If forcing static address is in use or there is no public
+	 * address use the static address as random address (but skip
+	 * the HCI command if the current random address is already the
+	 * static one.
+	 */
+	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
+	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+		if (bacmp(&hdev->static_addr, &hdev->random_addr))
+			hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6,
+				    &hdev->static_addr);
+		return 0;
+	}
+
+	/* Neither privacy nor static address is being used so use a
+	 * public address.
+	 */
+	*own_addr_type = ADDR_LE_DEV_PUBLIC;
+
+	return 0;
+}
+
+/* Copy the Identity Address of the controller.
+ *
+ * If the controller has a public BD_ADDR, then by default use that one.
+ * If this is a LE only controller without a public address, default to
+ * the static random address.
+ *
+ * For debugging purposes it is possible to force controllers with a
+ * public address to use the static random address instead.
+ */
+void hci_copy_identity_address(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			       u8 *bdaddr_type)
+{
+	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
+	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
+		bacpy(bdaddr, &hdev->static_addr);
+		*bdaddr_type = ADDR_LE_DEV_RANDOM;
+	} else {
+		bacpy(bdaddr, &hdev->bdaddr);
+		*bdaddr_type = ADDR_LE_DEV_PUBLIC;
+	}
 }
 
 /* Alloc HCI device */
@@ -3300,6 +3790,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_conn_min_interval = 0x0028;
 	hdev->le_conn_max_interval = 0x0038;
 
+	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
+
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);
 
@@ -3310,7 +3802,9 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->long_term_keys);
 	INIT_LIST_HEAD(&hdev->identity_resolving_keys);
 	INIT_LIST_HEAD(&hdev->remote_oob_data);
+	INIT_LIST_HEAD(&hdev->le_white_list);
 	INIT_LIST_HEAD(&hdev->le_conn_params);
+	INIT_LIST_HEAD(&hdev->pend_le_conns);
 	INIT_LIST_HEAD(&hdev->conn_hash.list);
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
@@ -3511,7 +4005,9 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_smp_ltks_clear(hdev);
 	hci_smp_irks_clear(hdev);
 	hci_remote_oob_data_clear(hdev);
+	hci_white_list_clear(hdev);
 	hci_conn_params_clear(hdev);
+	hci_pend_le_conns_clear(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
@@ -4738,4 +5234,103 @@ static void hci_cmd_work(struct work_struct *work)
 			queue_work(hdev->workqueue, &hdev->cmd_work);
 		}
 	}
+}
+
+void hci_req_add_le_scan_disable(struct hci_request *req)
+{
+	struct hci_cp_le_set_scan_enable cp;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.enable = LE_SCAN_DISABLE;
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+}
+
+void hci_req_add_le_passive_scan(struct hci_request *req)
+{
+	struct hci_cp_le_set_scan_param param_cp;
+	struct hci_cp_le_set_scan_enable enable_cp;
+	struct hci_dev *hdev = req->hdev;
+	u8 own_addr_type;
+
+	/* Set require_privacy to true to avoid identification from
+	 * unknown peer devices. Since this is passive scanning, no
+	 * SCAN_REQ using the local identity should be sent. Mandating
+	 * privacy is just an extra precaution.
+	 */
+	if (hci_update_random_address(req, true, &own_addr_type))
+		return;
+
+	memset(&param_cp, 0, sizeof(param_cp));
+	param_cp.type = LE_SCAN_PASSIVE;
+	param_cp.interval = cpu_to_le16(hdev->le_scan_interval);
+	param_cp.window = cpu_to_le16(hdev->le_scan_window);
+	param_cp.own_address_type = own_addr_type;
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
+		    &param_cp);
+
+	memset(&enable_cp, 0, sizeof(enable_cp));
+	enable_cp.enable = LE_SCAN_ENABLE;
+	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_DISABLE;
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
+		    &enable_cp);
+}
+
+static void update_background_scan_complete(struct hci_dev *hdev, u8 status)
+{
+	if (status)
+		BT_DBG("HCI request failed to update background scanning: "
+		       "status 0x%2.2x", status);
+}
+
+/* This function controls the background scanning based on hdev->pend_le_conns
+ * list. If there are pending LE connection we start the background scanning,
+ * otherwise we stop it.
+ *
+ * This function requires the caller holds hdev->lock.
+ */
+void hci_update_background_scan(struct hci_dev *hdev)
+{
+	struct hci_request req;
+	struct hci_conn *conn;
+	int err;
+
+	hci_req_init(&req, hdev);
+
+	if (list_empty(&hdev->pend_le_conns)) {
+		/* If there is no pending LE connections, we should stop
+		 * the background scanning.
+		 */
+
+		/* If controller is not scanning we are done. */
+		if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+			return;
+
+		hci_req_add_le_scan_disable(&req);
+
+		BT_DBG("%s stopping background scanning", hdev->name);
+	} else {
+		/* If there is at least one pending LE connection, we should
+		 * keep the background scan running.
+		 */
+
+		/* If controller is already scanning we are done. */
+		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+			return;
+
+		/* If controller is connecting, we should not start scanning
+		 * since some controllers are not able to scan and connect at
+		 * the same time.
+		 */
+		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+		if (conn)
+			return;
+
+		hci_req_add_le_passive_scan(&req);
+
+		BT_DBG("%s starting background scanning", hdev->name);
+	}
+
+	err = hci_req_run(&req, update_background_scan_complete);
+	if (err)
+		BT_ERR("Failed to run HCI request: err %d", err);
 }

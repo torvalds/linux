@@ -81,6 +81,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_SCAN_PARAMS,
 	MGMT_OP_SET_SECURE_CONN,
 	MGMT_OP_SET_DEBUG_KEYS,
+	MGMT_OP_SET_PRIVACY,
 	MGMT_OP_LOAD_IRKS,
 };
 
@@ -106,6 +107,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_DEVICE_UNBLOCKED,
 	MGMT_EV_DEVICE_UNPAIRED,
 	MGMT_EV_PASSKEY_NOTIFY,
+	MGMT_EV_NEW_IRK,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -389,6 +391,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	if (lmp_le_capable(hdev)) {
 		settings |= MGMT_SETTING_LE;
 		settings |= MGMT_SETTING_ADVERTISING;
+		settings |= MGMT_SETTING_PRIVACY;
 	}
 
 	return settings;
@@ -436,6 +439,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags))
 		settings |= MGMT_SETTING_DEBUG_KEYS;
+
+	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
+		settings |= MGMT_SETTING_PRIVACY;
 
 	return settings;
 }
@@ -811,6 +817,64 @@ static void update_class(struct hci_request *req)
 	hci_req_add(req, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
 }
 
+static bool get_connectable(struct hci_dev *hdev)
+{
+	struct pending_cmd *cmd;
+
+	/* If there's a pending mgmt command the flag will not yet have
+	 * it's final value, so check for this first.
+	 */
+	cmd = mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
+	if (cmd) {
+		struct mgmt_mode *cp = cmd->param;
+		return cp->val;
+	}
+
+	return test_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+}
+
+static void enable_advertising(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_adv_param cp;
+	u8 own_addr_type, enable = 0x01;
+	bool connectable;
+
+	/* Clear the HCI_ADVERTISING bit temporarily so that the
+	 * hci_update_random_address knows that it's safe to go ahead
+	 * and write a new random address. The flag will be set back on
+	 * as soon as the SET_ADV_ENABLE HCI command completes.
+	 */
+	clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+
+	connectable = get_connectable(hdev);
+
+	/* Set require_privacy to true only when non-connectable
+	 * advertising is used. In that case it is fine to use a
+	 * non-resolvable private address.
+	 */
+	if (hci_update_random_address(req, !connectable, &own_addr_type) < 0)
+		return;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.min_interval = __constant_cpu_to_le16(0x0800);
+	cp.max_interval = __constant_cpu_to_le16(0x0800);
+	cp.type = connectable ? LE_ADV_IND : LE_ADV_NONCONN_IND;
+	cp.own_address_type = own_addr_type;
+	cp.channel_map = hdev->le_adv_channel_map;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+}
+
+static void disable_advertising(struct hci_request *req)
+{
+	u8 enable = 0x00;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+}
+
 static void service_cache_off(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
@@ -832,12 +896,39 @@ static void service_cache_off(struct work_struct *work)
 	hci_req_run(&req, NULL);
 }
 
+static void rpa_expired(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    rpa_expired.work);
+	struct hci_request req;
+
+	BT_DBG("");
+
+	set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+
+	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags) ||
+	    hci_conn_num(hdev, LE_LINK) > 0)
+		return;
+
+	/* The generation of a new RPA and programming it into the
+	 * controller happens in the enable_advertising() function.
+	 */
+
+	hci_req_init(&req, hdev);
+
+	disable_advertising(&req);
+	enable_advertising(&req);
+
+	hci_req_run(&req, NULL);
+}
+
 static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 {
 	if (test_and_set_bit(HCI_MGMT, &hdev->dev_flags))
 		return;
 
 	INIT_DELAYED_WORK(&hdev->service_cache, service_cache_off);
+	INIT_DELAYED_WORK(&hdev->rpa_expired, rpa_expired);
 
 	/* Non-mgmt controlled devices get this bit set
 	 * implicitly so that pairing works for them, however
@@ -943,6 +1034,71 @@ static int send_settings_rsp(struct sock *sk, u16 opcode, struct hci_dev *hdev)
 			    sizeof(settings));
 }
 
+static void clean_up_hci_complete(struct hci_dev *hdev, u8 status)
+{
+	BT_DBG("%s status 0x%02x", hdev->name, status);
+
+	if (hci_conn_count(hdev) == 0) {
+		cancel_delayed_work(&hdev->power_off);
+		queue_work(hdev->req_workqueue, &hdev->power_off.work);
+	}
+}
+
+static int clean_up_hci_state(struct hci_dev *hdev)
+{
+	struct hci_request req;
+	struct hci_conn *conn;
+
+	hci_req_init(&req, hdev);
+
+	if (test_bit(HCI_ISCAN, &hdev->flags) ||
+	    test_bit(HCI_PSCAN, &hdev->flags)) {
+		u8 scan = 0x00;
+		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	}
+
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+		disable_advertising(&req);
+
+	if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
+		hci_req_add_le_scan_disable(&req);
+	}
+
+	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
+		struct hci_cp_disconnect dc;
+		struct hci_cp_reject_conn_req rej;
+
+		switch (conn->state) {
+		case BT_CONNECTED:
+		case BT_CONFIG:
+			dc.handle = cpu_to_le16(conn->handle);
+			dc.reason = 0x15; /* Terminated due to Power Off */
+			hci_req_add(&req, HCI_OP_DISCONNECT, sizeof(dc), &dc);
+			break;
+		case BT_CONNECT:
+			if (conn->type == LE_LINK)
+				hci_req_add(&req, HCI_OP_LE_CREATE_CONN_CANCEL,
+					    0, NULL);
+			else if (conn->type == ACL_LINK)
+				hci_req_add(&req, HCI_OP_CREATE_CONN_CANCEL,
+					    6, &conn->dst);
+			break;
+		case BT_CONNECT2:
+			bacpy(&rej.bdaddr, &conn->dst);
+			rej.reason = 0x15; /* Terminated due to Power Off */
+			if (conn->type == ACL_LINK)
+				hci_req_add(&req, HCI_OP_REJECT_CONN_REQ,
+					    sizeof(rej), &rej);
+			else if (conn->type == SCO_LINK)
+				hci_req_add(&req, HCI_OP_REJECT_SYNC_CONN_REQ,
+					    sizeof(rej), &rej);
+			break;
+		}
+	}
+
+	return hci_req_run(&req, clean_up_hci_complete);
+}
+
 static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 		       u16 len)
 {
@@ -986,12 +1142,23 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (cp->val)
+	if (cp->val) {
 		queue_work(hdev->req_workqueue, &hdev->power_on);
-	else
-		queue_work(hdev->req_workqueue, &hdev->power_off.work);
+		err = 0;
+	} else {
+		/* Disconnect connections, stop scans, etc */
+		err = clean_up_hci_state(hdev);
+		if (!err)
+			queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
+					   HCI_POWER_OFF_TIMEOUT);
 
-	err = 0;
+		/* ENODATA means there were no HCI commands queued */
+		if (err == -ENODATA) {
+			cancel_delayed_work(&hdev->power_off);
+			queue_work(hdev->req_workqueue, &hdev->power_off.work);
+			err = 0;
+		}
+	}
 
 failed:
 	hci_dev_unlock(hdev);
@@ -1342,50 +1509,6 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 
 	if (hdev->page_scan_type != type)
 		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
-}
-
-static u8 get_adv_type(struct hci_dev *hdev)
-{
-	struct pending_cmd *cmd;
-	bool connectable;
-
-	/* If there's a pending mgmt command the flag will not yet have
-	 * it's final value, so check for this first.
-	 */
-	cmd = mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
-	if (cmd) {
-		struct mgmt_mode *cp = cmd->param;
-		connectable = !!cp->val;
-	} else {
-		connectable = test_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-	}
-
-	return connectable ? LE_ADV_IND : LE_ADV_NONCONN_IND;
-}
-
-static void enable_advertising(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_adv_param cp;
-	u8 enable = 0x01;
-
-	memset(&cp, 0, sizeof(cp));
-	cp.min_interval = __constant_cpu_to_le16(0x0800);
-	cp.max_interval = __constant_cpu_to_le16(0x0800);
-	cp.type = get_adv_type(hdev);
-	cp.own_address_type = hdev->own_addr_type;
-	cp.channel_map = hdev->le_adv_channel_map;
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
-}
-
-static void disable_advertising(struct hci_request *req)
-{
-	u8 enable = 0x00;
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
 }
 
 static void set_connectable_complete(struct hci_dev *hdev, u8 status)
@@ -2330,6 +2453,8 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		hci_remove_irk(hdev, &cp->addr.bdaddr, addr_type);
 
+		hci_conn_params_del(hdev, &cp->addr.bdaddr, addr_type);
+
 		err = hci_remove_ltk(hdev, &cp->addr.bdaddr, addr_type);
 	}
 
@@ -2729,12 +2854,22 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	else
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 
-	if (cp->addr.type == BDADDR_BREDR)
-		conn = hci_connect(hdev, ACL_LINK, &cp->addr.bdaddr,
-				   cp->addr.type, sec_level, auth_type);
-	else
-		conn = hci_connect(hdev, LE_LINK, &cp->addr.bdaddr,
-				   cp->addr.type, sec_level, auth_type);
+	if (cp->addr.type == BDADDR_BREDR) {
+		conn = hci_connect_acl(hdev, &cp->addr.bdaddr, sec_level,
+				       auth_type);
+	} else {
+		u8 addr_type;
+
+		/* Convert from L2CAP channel address type to HCI address type
+		 */
+		if (cp->addr.type == BDADDR_LE_PUBLIC)
+			addr_type = ADDR_LE_DEV_PUBLIC;
+		else
+			addr_type = ADDR_LE_DEV_RANDOM;
+
+		conn = hci_connect_le(hdev, &cp->addr.bdaddr, addr_type,
+				      sec_level, auth_type);
+	}
 
 	if (IS_ERR(conn)) {
 		int status;
@@ -3258,7 +3393,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 	struct hci_request req;
 	/* General inquiry access code (GIAC) */
 	u8 lap[3] = { 0x33, 0x8b, 0x9e };
-	u8 status;
+	u8 status, own_addr_type;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -3343,18 +3478,31 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 			goto failed;
 		}
 
-		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
+		/* If controller is scanning, it means the background scanning
+		 * is running. Thus, we should temporarily stop it in order to
+		 * set the discovery scanning parameters.
+		 */
+		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+			hci_req_add_le_scan_disable(&req);
+
+		memset(&param_cp, 0, sizeof(param_cp));
+
+		/* All active scans will be done with either a resolvable
+		 * private address (when privacy feature has been enabled)
+		 * or unresolvable private address.
+		 */
+		err = hci_update_random_address(&req, true, &own_addr_type);
+		if (err < 0) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
-					 MGMT_STATUS_BUSY);
+					 MGMT_STATUS_FAILED);
 			mgmt_pending_remove(cmd);
 			goto failed;
 		}
 
-		memset(&param_cp, 0, sizeof(param_cp));
 		param_cp.type = LE_SCAN_ACTIVE;
 		param_cp.interval = cpu_to_le16(DISCOV_LE_SCAN_INT);
 		param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
-		param_cp.own_address_type = hdev->own_addr_type;
+		param_cp.own_address_type = own_addr_type;
 		hci_req_add(&req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
 			    &param_cp);
 
@@ -3424,7 +3572,6 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct hci_cp_remote_name_req_cancel cp;
 	struct inquiry_entry *e;
 	struct hci_request req;
-	struct hci_cp_le_set_scan_enable enable_cp;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -3460,10 +3607,7 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		} else {
 			cancel_delayed_work(&hdev->le_scan_disable);
 
-			memset(&enable_cp, 0, sizeof(enable_cp));
-			enable_cp.enable = LE_SCAN_DISABLE;
-			hci_req_add(&req, HCI_OP_LE_SET_SCAN_ENABLE,
-				    sizeof(enable_cp), &enable_cp);
+			hci_req_add_le_scan_disable(&req);
 		}
 
 		break;
@@ -3520,15 +3664,17 @@ static int confirm_name(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	if (!hci_discovery_active(hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
-				 MGMT_STATUS_FAILED);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
+				   MGMT_STATUS_FAILED, &cp->addr,
+				   sizeof(cp->addr));
 		goto failed;
 	}
 
 	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->addr.bdaddr);
 	if (!e) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
-				 MGMT_STATUS_INVALID_PARAMS);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
+				   MGMT_STATUS_INVALID_PARAMS, &cp->addr,
+				   sizeof(cp->addr));
 		goto failed;
 	}
 
@@ -3816,6 +3962,21 @@ static int set_scan_params(struct sock *sk, struct hci_dev *hdev,
 	hdev->le_scan_window = window;
 
 	err = cmd_complete(sk, hdev->id, MGMT_OP_SET_SCAN_PARAMS, 0, NULL, 0);
+
+	/* If background scan is running, restart it so new parameters are
+	 * loaded.
+	 */
+	if (test_bit(HCI_LE_SCAN, &hdev->dev_flags) &&
+	    hdev->discovery.state == DISCOVERY_STOPPED) {
+		struct hci_request req;
+
+		hci_req_init(&req, hdev);
+
+		hci_req_add_le_scan_disable(&req);
+		hci_req_add_le_passive_scan(&req);
+
+		hci_req_run(&req, NULL);
+	}
 
 	hci_dev_unlock(hdev);
 
@@ -4182,6 +4343,56 @@ unlock:
 	return err;
 }
 
+static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
+		       u16 len)
+{
+	struct mgmt_cp_set_privacy *cp = cp_data;
+	bool changed;
+	int err;
+
+	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (cp->privacy != 0x00 && cp->privacy != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
+				  MGMT_STATUS_INVALID_PARAMS);
+
+	if (hdev_is_powered(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
+				  MGMT_STATUS_REJECTED);
+
+	hci_dev_lock(hdev);
+
+	/* If user space supports this command it is also expected to
+	 * handle IRKs. Therefore, set the HCI_RPA_RESOLVING flag.
+	 */
+	set_bit(HCI_RPA_RESOLVING, &hdev->dev_flags);
+
+	if (cp->privacy) {
+		changed = !test_and_set_bit(HCI_PRIVACY, &hdev->dev_flags);
+		memcpy(hdev->irk, cp->irk, sizeof(hdev->irk));
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+	} else {
+		changed = test_and_clear_bit(HCI_PRIVACY, &hdev->dev_flags);
+		memset(hdev->irk, 0, sizeof(hdev->irk));
+		clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+	}
+
+	err = send_settings_rsp(sk, MGMT_OP_SET_PRIVACY, hdev);
+	if (err < 0)
+		goto unlock;
+
+	if (changed)
+		err = new_settings(hdev, sk);
+
+unlock:
+	hci_dev_unlock(hdev);
+	return err;
+}
+
 static bool irk_is_valid(struct mgmt_irk_info *irk)
 {
 	switch (irk->addr.type) {
@@ -4396,7 +4607,7 @@ static const struct mgmt_handler {
 	{ set_scan_params,        false, MGMT_SET_SCAN_PARAMS_SIZE },
 	{ set_secure_conn,        false, MGMT_SETTING_SIZE },
 	{ set_debug_keys,         false, MGMT_SETTING_SIZE },
-	{ },
+	{ set_privacy,            false, MGMT_SET_PRIVACY_SIZE },
 	{ load_irks,              true,  MGMT_LOAD_IRKS_SIZE },
 };
 
@@ -4514,6 +4725,17 @@ void mgmt_index_removed(struct hci_dev *hdev)
 	mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
 }
 
+/* This function requires the caller holds hdev->lock */
+static void restart_le_auto_conns(struct hci_dev *hdev)
+{
+	struct hci_conn_params *p;
+
+	list_for_each_entry(p, &hdev->le_conn_params, list) {
+		if (p->auto_connect == HCI_AUTO_CONN_ALWAYS)
+			hci_pend_le_conn_add(hdev, &p->addr, p->addr_type);
+	}
+}
+
 static void powered_complete(struct hci_dev *hdev, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
@@ -4521,6 +4743,8 @@ static void powered_complete(struct hci_dev *hdev, u8 status)
 	BT_DBG("status 0x%02x", status);
 
 	hci_dev_lock(hdev);
+
+	restart_le_auto_conns(hdev);
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
@@ -4563,11 +4787,6 @@ static int powered_update_hci(struct hci_dev *hdev)
 	}
 
 	if (lmp_le_capable(hdev)) {
-		/* Set random address to static address if configured */
-		if (bacmp(&hdev->static_addr, BDADDR_ANY))
-			hci_req_add(&req, HCI_OP_LE_SET_RANDOM_ADDR, 6,
-				    &hdev->static_addr);
-
 		/* Make sure the controller has a good default for
 		 * advertising data. This also applies to the case
 		 * where BR/EDR was toggled during the AUTO_OFF phase.
@@ -4693,6 +4912,10 @@ void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev))
 		return;
 
+	/* Powering off may clear the scan mode - don't let that interfere */
+	if (!discoverable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
+		return;
+
 	if (discoverable) {
 		changed = !test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 	} else {
@@ -4726,6 +4949,10 @@ void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 	if (mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev))
 		return;
 
+	/* Powering off may clear the scan mode - don't let that interfere */
+	if (!connectable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
+		return;
+
 	if (connectable)
 		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 	else
@@ -4733,6 +4960,18 @@ void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 
 	if (changed)
 		new_settings(hdev, NULL);
+}
+
+void mgmt_advertising(struct hci_dev *hdev, u8 advertising)
+{
+	/* Powering off may stop advertising - don't let that interfere */
+	if (!advertising && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
+		return;
+
+	if (advertising)
+		set_bit(HCI_ADVERTISING, &hdev->dev_flags);
+	else
+		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 }
 
 void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
@@ -4793,11 +5032,11 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key)
 	ev.key.type = key->authenticated;
 	ev.key.enc_size = key->enc_size;
 	ev.key.ediv = key->ediv;
+	ev.key.rand = key->rand;
 
 	if (key->type == HCI_SMP_LTK)
 		ev.key.master = 1;
 
-	memcpy(ev.key.rand, key->rand, sizeof(key->rand));
 	memcpy(ev.key.val, key->val, sizeof(key->val));
 
 	mgmt_event(MGMT_EV_NEW_LONG_TERM_KEY, hdev, &ev, sizeof(ev), NULL);
@@ -4907,10 +5146,28 @@ static void unpair_device_rsp(struct pending_cmd *cmd, void *data)
 }
 
 void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			      u8 link_type, u8 addr_type, u8 reason)
+			      u8 link_type, u8 addr_type, u8 reason,
+			      bool mgmt_connected)
 {
 	struct mgmt_ev_device_disconnected ev;
+	struct pending_cmd *power_off;
 	struct sock *sk = NULL;
+
+	power_off = mgmt_pending_find(MGMT_OP_SET_POWERED, hdev);
+	if (power_off) {
+		struct mgmt_mode *cp = power_off->param;
+
+		/* The connection is still in hci_conn_hash so test for 1
+		 * instead of 0 to know if this is the last one.
+		 */
+		if (!cp->val && hci_conn_count(hdev) == 1) {
+			cancel_delayed_work(&hdev->power_off);
+			queue_work(hdev->req_workqueue, &hdev->power_off.work);
+		}
+	}
+
+	if (!mgmt_connected)
+		return;
 
 	if (link_type != ACL_LINK && link_type != LE_LINK)
 		return;
@@ -4966,6 +5223,20 @@ void mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			 u8 addr_type, u8 status)
 {
 	struct mgmt_ev_connect_failed ev;
+	struct pending_cmd *power_off;
+
+	power_off = mgmt_pending_find(MGMT_OP_SET_POWERED, hdev);
+	if (power_off) {
+		struct mgmt_mode *cp = power_off->param;
+
+		/* The connection is still in hci_conn_hash so test for 1
+		 * instead of 0 to know if this is the last one.
+		 */
+		if (!cp->val && hci_conn_count(hdev) == 1) {
+			cancel_delayed_work(&hdev->power_off);
+			queue_work(hdev->req_workqueue, &hdev->power_off.work);
+		}
+	}
 
 	bacpy(&ev.addr.bdaddr, bdaddr);
 	ev.addr.type = link_to_bdaddr(link_type, addr_type);

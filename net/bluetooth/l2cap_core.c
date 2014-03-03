@@ -2434,6 +2434,14 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
 
+		/* Channel lock is released before requesting new skb and then
+		 * reacquired thus we need to recheck channel state.
+		 */
+		if (chan->state != BT_CONNECTED) {
+			kfree_skb(skb);
+			return -ENOTCONN;
+		}
+
 		l2cap_do_send(chan, skb);
 		return len;
 	}
@@ -2482,6 +2490,14 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 		skb = l2cap_create_basic_pdu(chan, msg, len, priority);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
+
+		/* Channel lock is released before requesting new skb and then
+		 * reacquired thus we need to recheck channel state.
+		 */
+		if (chan->state != BT_CONNECTED) {
+			kfree_skb(skb);
+			return -ENOTCONN;
+		}
 
 		l2cap_do_send(chan, skb);
 		err = len;
@@ -7092,12 +7108,19 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	auth_type = l2cap_get_auth_type(chan);
 
-	if (bdaddr_type_is_le(dst_type))
-		hcon = hci_connect(hdev, LE_LINK, dst, dst_type,
-				   chan->sec_level, auth_type);
-	else
-		hcon = hci_connect(hdev, ACL_LINK, dst, dst_type,
-				   chan->sec_level, auth_type);
+	if (bdaddr_type_is_le(dst_type)) {
+		/* Convert from L2CAP channel address type to HCI address type
+		 */
+		if (dst_type == BDADDR_LE_PUBLIC)
+			dst_type = ADDR_LE_DEV_PUBLIC;
+		else
+			dst_type = ADDR_LE_DEV_RANDOM;
+
+		hcon = hci_connect_le(hdev, dst, dst_type, chan->sec_level,
+				      auth_type);
+	} else {
+		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);
+	}
 
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
@@ -7251,7 +7274,7 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	if (hcon->type == LE_LINK) {
 		if (!status && encrypt)
-			smp_distribute_keys(conn, 0);
+			smp_distribute_keys(conn);
 		cancel_delayed_work(&conn->security_timer);
 	}
 

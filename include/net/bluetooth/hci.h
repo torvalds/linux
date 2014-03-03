@@ -126,6 +126,8 @@ enum {
 	HCI_SSP_ENABLED,
 	HCI_SC_ENABLED,
 	HCI_SC_ONLY,
+	HCI_PRIVACY,
+	HCI_RPA_EXPIRED,
 	HCI_RPA_RESOLVING,
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
@@ -138,6 +140,7 @@ enum {
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
 	HCI_6LOWPAN_ENABLED,
+	HCI_LE_SCAN_INTERRUPTED,
 };
 
 /* A mask for the flags that are supposed to remain when a reset happens
@@ -180,6 +183,8 @@ enum {
 #define HCI_CMD_TIMEOUT		msecs_to_jiffies(2000)	/* 2 seconds */
 #define HCI_ACL_TX_TIMEOUT	msecs_to_jiffies(45000)	/* 45 seconds */
 #define HCI_AUTO_OFF_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */
+#define HCI_POWER_OFF_TIMEOUT	msecs_to_jiffies(5000)	/* 5 seconds */
+#define HCI_LE_CONN_TIMEOUT	msecs_to_jiffies(20000)	/* 20 seconds */
 
 /* HCI data types */
 #define HCI_COMMAND_PKT		0x01
@@ -354,6 +359,7 @@ enum {
 
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_AUTH_FAILURE		0x05
+#define HCI_ERROR_MEMORY_EXCEEDED	0x07
 #define HCI_ERROR_CONNECTION_TIMEOUT	0x08
 #define HCI_ERROR_REJ_BAD_ADDR		0x0f
 #define HCI_ERROR_REMOTE_USER_TERM	0x13
@@ -1178,6 +1184,9 @@ struct hci_cp_le_set_scan_enable {
 	__u8     filter_dup;
 } __packed;
 
+#define HCI_LE_USE_PEER_ADDR		0x00
+#define HCI_LE_USE_WHITELIST		0x01
+
 #define HCI_OP_LE_CREATE_CONN		0x200d
 struct hci_cp_le_create_conn {
 	__le16   scan_interval;
@@ -1202,6 +1211,20 @@ struct hci_rp_le_read_white_list_size {
 	__u8	size;
 } __packed;
 
+#define HCI_OP_LE_CLEAR_WHITE_LIST	0x2010
+
+#define HCI_OP_LE_ADD_TO_WHITE_LIST	0x2011
+struct hci_cp_le_add_to_white_list {
+	__u8     bdaddr_type;
+	bdaddr_t bdaddr;
+} __packed;
+
+#define HCI_OP_LE_DEL_FROM_WHITE_LIST	0x2012
+struct hci_cp_le_del_from_white_list {
+	__u8     bdaddr_type;
+	bdaddr_t bdaddr;
+} __packed;
+
 #define HCI_OP_LE_CONN_UPDATE		0x2013
 struct hci_cp_le_conn_update {
 	__le16   handle;
@@ -1216,7 +1239,7 @@ struct hci_cp_le_conn_update {
 #define HCI_OP_LE_START_ENC		0x2019
 struct hci_cp_le_start_enc {
 	__le16	handle;
-	__u8	rand[8];
+	__le64	rand;
 	__le16	ediv;
 	__u8	ltk[16];
 } __packed;
@@ -1628,7 +1651,7 @@ struct hci_ev_le_conn_complete {
 #define HCI_EV_LE_LTK_REQ		0x05
 struct hci_ev_le_ltk_req {
 	__le16	handle;
-	__u8	random[8];
+	__le64	rand;
 	__le16	ediv;
 } __packed;
 
