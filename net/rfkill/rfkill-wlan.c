@@ -620,7 +620,7 @@ static int rfkill_wlan_resume(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id pwm_backlight_of_match[] = {
+static struct of_device_id wlan_platdata_of_match[] = {
     { .compatible = "wlan-platdata" },
     { }
 };
@@ -635,7 +635,7 @@ static struct platform_driver rfkill_wlan_driver = {
 	.driver = {
 		.name = "wlan-platdata",
 		.owner = THIS_MODULE,
-        .of_match_table = of_match_ptr(pwm_backlight_of_match),
+        .of_match_table = of_match_ptr(wlan_platdata_of_match),
 	},
 };
 
