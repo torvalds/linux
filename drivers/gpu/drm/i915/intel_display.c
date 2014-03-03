@@ -10981,7 +10981,8 @@ void intel_modeset_suspend_hw(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i, j, ret;
+	int j, ret;
+	enum pipe pipe;
 
 	drm_mode_config_init(dev);
 
@@ -11018,13 +11019,13 @@ void intel_modeset_init(struct drm_device *dev)
 		      INTEL_INFO(dev)->num_pipes,
 		      INTEL_INFO(dev)->num_pipes > 1 ? "s" : "");
 
-	for_each_pipe(i) {
-		intel_crtc_init(dev, i);
+	for_each_pipe(pipe) {
+		intel_crtc_init(dev, pipe);
 		for (j = 0; j < INTEL_INFO(dev)->num_sprites; j++) {
-			ret = intel_plane_init(dev, i, j);
+			ret = intel_plane_init(dev, pipe, j);
 			if (ret)
 				DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",
-					      pipe_name(i), sprite_name(i, j), ret);
+					      pipe_name(pipe), sprite_name(pipe, j), ret);
 		}
 	}
 
