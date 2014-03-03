@@ -2464,6 +2464,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (result)
 		goto release;
 
+	kref_init(&dev->kref);
 	result = nvme_dev_start(dev);
 	if (result) {
 		if (result == -EBUSY)
@@ -2471,7 +2472,6 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto release_pools;
 	}
 
-	kref_init(&dev->kref);
 	result = nvme_dev_add(dev);
 	if (result)
 		goto shutdown;
