@@ -54,19 +54,21 @@ static int ke_counter_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
 
-	outb((unsigned char)((data[0] >> 24) & 0xff),
-	     dev->iobase + KE_SIGN_REG(chan));
-	outb((unsigned char)((data[0] >> 16) & 0xff),
-	     dev->iobase + KE_MSB_REG(chan));
-	outb((unsigned char)((data[0] >> 8) & 0xff),
-	     dev->iobase + KE_MID_REG(chan));
-	outb((unsigned char)((data[0] >> 0) & 0xff),
-	     dev->iobase + KE_LSB_REG(chan));
+	for (i = 0; i < insn->n; i++) {
+		val = data[0];
 
-	/* return the number of samples written */
-	return 1;
+		/* Order matters */
+		outb((val >> 24) & 0xff, dev->iobase + KE_SIGN_REG(chan));
+		outb((val >> 16) & 0xff, dev->iobase + KE_MSB_REG(chan));
+		outb((val >> 8) & 0xff, dev->iobase + KE_MID_REG(chan));
+		outb((val >> 0) & 0xff, dev->iobase + KE_LSB_REG(chan));
+	}
+
+	return insn->n;
 }
 
 static int ke_counter_insn_read(struct comedi_device *dev,
@@ -114,7 +116,7 @@ static int cnt_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_COUNTER;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 3;
-	s->maxdata	= 0x00ffffff;
+	s->maxdata	= 0x01ffffff;
 	s->range_table	= &range_unknown;
 	s->insn_read	= ke_counter_insn_read;
 	s->insn_write	= ke_counter_insn_write;
