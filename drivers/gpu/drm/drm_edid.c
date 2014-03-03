@@ -2580,6 +2580,9 @@ drm_display_mode_from_vic_index(struct drm_connector *connector,
 		return NULL;
 
 	newmode = drm_mode_duplicate(dev, &edid_cea_modes[cea_mode]);
+	if (!newmode)
+		return NULL;
+
 	newmode->vrefresh = 0;
 
 	return newmode;
