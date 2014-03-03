@@ -235,12 +235,6 @@ err:
 }
 #endif /* defined(CONFIG_DEBUG_FS) */
 
-static void dw_mci_set_timeout(struct dw_mci *host)
-{
-	/* timeout (maximum) */
-	mci_writel(host, TMOUT, 0xffffffff);
-}
-
 static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct mmc_data	*data;
@@ -861,7 +855,7 @@ static void __dw_mci_start_request(struct dw_mci *host,
 
 	data = cmd->data;
 	if (data) {
-		dw_mci_set_timeout(host);
+		mci_writel(host, TMOUT, 0xFFFFFFFF);
 		mci_writel(host, BYTCNT, data->blksz*data->blocks);
 		mci_writel(host, BLKSIZ, data->blksz);
 	}
