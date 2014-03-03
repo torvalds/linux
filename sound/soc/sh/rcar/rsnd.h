@@ -135,6 +135,11 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
 /*
  *	R-Car sound mod
  */
+enum rsnd_mod_type {
+	RSND_MOD_SCU = 0,
+	RSND_MOD_SSI,
+	RSND_MOD_MAX,
+};
 
 struct rsnd_mod_ops {
 	char *name;
@@ -155,9 +160,9 @@ struct rsnd_mod_ops {
 struct rsnd_dai_stream;
 struct rsnd_mod {
 	int id;
+	enum rsnd_mod_type type;
 	struct rsnd_priv *priv;
 	struct rsnd_mod_ops *ops;
-	struct list_head list; /* connect to rsnd_dai playback/capture */
 	struct rsnd_dma dma;
 	struct rsnd_dai_stream *io;
 };
@@ -167,12 +172,11 @@ struct rsnd_mod {
 #define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 #define rsnd_mod_to_io(mod) ((mod)->io)
 #define rsnd_mod_id(mod) ((mod)->id)
-#define for_each_rsnd_mod(pos, n, io)	\
-	list_for_each_entry_safe(pos, n, &(io)->head, list)
 
 void rsnd_mod_init(struct rsnd_priv *priv,
 		   struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
+		   enum rsnd_mod_type type,
 		   int id);
 char *rsnd_mod_name(struct rsnd_mod *mod);
 
@@ -181,8 +185,8 @@ char *rsnd_mod_name(struct rsnd_mod *mod);
  */
 #define RSND_DAI_NAME_SIZE	16
 struct rsnd_dai_stream {
-	struct list_head head; /* head of rsnd_mod list */
 	struct snd_pcm_substream *substream;
+	struct rsnd_mod *mod[RSND_MOD_MAX];
 	int byte_pos;
 	int period_pos;
 	int byte_per_period;

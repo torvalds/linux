@@ -659,7 +659,7 @@ int rsnd_scu_probe(struct platform_device *pdev,
 				ops = &rsnd_scu_non_gen2_ops;
 		}
 
-		rsnd_mod_init(priv, &scu->mod, ops, i);
+		rsnd_mod_init(priv, &scu->mod, ops, RSND_MOD_SCU, i);
 
 		dev_dbg(dev, "SCU%d probed\n", i);
 	}

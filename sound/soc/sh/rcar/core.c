@@ -121,12 +121,13 @@ char *rsnd_mod_name(struct rsnd_mod *mod)
 void rsnd_mod_init(struct rsnd_priv *priv,
 		   struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
+		   enum rsnd_mod_type type,
 		   int id)
 {
 	mod->priv	= priv;
 	mod->id		= id;
 	mod->ops	= ops;
-	INIT_LIST_HEAD(&mod->list);
+	mod->type	= type;
 }
 
 /*
@@ -307,9 +308,12 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
 
 #define rsnd_dai_call(rdai, io, fn)				\
 ({								\
-	struct rsnd_mod *mod, *n;				\
-	int ret = 0;						\
-	for_each_rsnd_mod(mod, n, (io)) {			\
+	struct rsnd_mod *mod;					\
+	int ret = 0, i;						\
+	for (i = 0; i < RSND_MOD_MAX; i++) {			\
+		mod = (io)->mod[i];				\
+		if (!mod)					\
+			continue;				\
 		ret = rsnd_mod_call(mod, fn, (rdai), (io));	\
 		if (ret < 0)					\
 			break;					\
@@ -317,14 +321,13 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
 	ret;							\
 })
 
-static int rsnd_dai_connect(struct rsnd_dai *rdai,
-			    struct rsnd_mod *mod,
+static int rsnd_dai_connect(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io)
 {
 	if (!mod)
 		return -EIO;
 
-	if (!list_empty(&mod->list)) {
+	if (io->mod[mod->type]) {
 		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 		struct device *dev = rsnd_priv_to_dev(priv);
 
@@ -334,15 +337,15 @@ static int rsnd_dai_connect(struct rsnd_dai *rdai,
 		return -EIO;
 	}
 
-	list_add_tail(&mod->list, &io->head);
+	io->mod[mod->type] = mod;
 	mod->io = io;
 
 	return 0;
 }
 
-static int rsnd_dai_disconnect(struct rsnd_mod *mod)
+static int rsnd_dai_disconnect(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
-	list_del_init(&mod->list);
+	io->mod[mod->type] = NULL;
 	mod->io = NULL;
 
 	return 0;
@@ -596,7 +599,7 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	/* SCU */
 	mod = rsnd_scu_mod_get(priv, id);
 	if (mod) {
-		ret = rsnd_dai_connect(rdai, mod, io);
+		ret = rsnd_dai_connect(mod, io);
 		if (ret < 0)
 			return ret;
 	}
@@ -604,7 +607,7 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	/* SSI */
 	mod = rsnd_ssi_mod_get(priv, id);
 	if (mod) {
-		ret = rsnd_dai_connect(rdai, mod, io);
+		ret = rsnd_dai_connect(mod, io);
 		if (ret < 0)
 			return ret;
 	}
@@ -616,14 +619,18 @@ static int rsnd_path_exit(struct rsnd_priv *priv,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
 {
-	struct rsnd_mod *mod, *n;
-	int ret = 0;
+	struct rsnd_mod *mod;
+	int ret = 0, i;
 
 	/*
 	 * remove all mod from rdai
 	 */
-	for_each_rsnd_mod(mod, n, io)
-		ret |= rsnd_dai_disconnect(mod);
+	for (i = 0; i < RSND_MOD_MAX; i++) {
+		mod = io->mod[i];
+		if (!mod)
+			continue;
+		ret |= rsnd_dai_disconnect(mod, io);
+	}
 
 	return ret;
 }
@@ -671,9 +678,6 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 		/*
 		 *	init rsnd_dai
 		 */
-		INIT_LIST_HEAD(&rdai[i].playback.head);
-		INIT_LIST_HEAD(&rdai[i].capture.head);
-
 		snprintf(rdai[i].name, RSND_DAI_NAME_SIZE, "rsnd-dai.%d", i);
 
 		/*

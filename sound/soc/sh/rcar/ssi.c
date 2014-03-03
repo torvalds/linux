@@ -584,7 +584,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 			dev_dbg(dev, "SSI%d use PIO transfer\n", i);
 		}
 
-		rsnd_mod_init(priv, &ssi->mod, ops, i);
+		rsnd_mod_init(priv, &ssi->mod, ops, RSND_MOD_SSI, i);
 
 		rsnd_ssi_parent_clk_setup(priv, ssi);
 	}
