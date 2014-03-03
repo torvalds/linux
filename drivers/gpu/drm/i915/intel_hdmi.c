@@ -1343,7 +1343,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-	intel_encoder->cloneable = 0;
+	intel_encoder->cloneable = 1 << INTEL_OUTPUT_ANALOG;
 
 	intel_dig_port->port = port;
 	intel_dig_port->hdmi.hdmi_reg = hdmi_reg;

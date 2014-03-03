@@ -839,7 +839,7 @@ void intel_crt_init(struct drm_device *dev)
 	intel_connector_attach_encoder(intel_connector, &crt->base);
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
-	crt->base.cloneable = 1 << INTEL_OUTPUT_DVO;
+	crt->base.cloneable = (1 << INTEL_OUTPUT_DVO) | (1 << INTEL_OUTPUT_HDMI);
 	if (IS_I830(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
