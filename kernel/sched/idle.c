@@ -76,44 +76,59 @@ static int cpuidle_idle_call(void)
 	int next_state, entered_state, ret;
 	bool broadcast;
 
+	if (current_clr_polling_and_test()) {
+		local_irq_enable();
+		__current_set_polling();
+		return 0;
+	}
+
 	stop_critical_timings();
 	rcu_idle_enter();
 
 	ret = cpuidle_enabled(drv, dev);
-	if (ret < 0) {
+
+	if (!ret) {
+		/* ask the governor for the next state */
+		next_state = cpuidle_select(drv, dev);
+
+		if (current_clr_polling_and_test()) {
+			dev->last_residency = 0;
+			entered_state = next_state;
+			local_irq_enable();
+		} else {
+			broadcast = !!(drv->states[next_state].flags &
+				       CPUIDLE_FLAG_TIMER_STOP);
+
+			if (broadcast)
+				ret = clockevents_notify(
+					CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
+					&dev->cpu);
+
+			if (!ret) {
+				trace_cpu_idle_rcuidle(next_state, dev->cpu);
+
+				entered_state = cpuidle_enter(drv, dev,
+							      next_state);
+
+				trace_cpu_idle_rcuidle(PWR_EVENT_EXIT,
+						       dev->cpu);
+
+				if (broadcast)
+					clockevents_notify(
+						CLOCK_EVT_NOTIFY_BROADCAST_EXIT,
+						&dev->cpu);
+
+				/* give the governor an opportunity to reflect on the outcome */
+				cpuidle_reflect(dev, entered_state);
+			}
+		}
+	}
+
+	if (ret)
 		arch_cpu_idle();
-		goto out;
-	}
 
-	/* ask the governor for the next state */
-	next_state = cpuidle_select(drv, dev);
+	__current_set_polling();
 
-	if (need_resched()) {
-		dev->last_residency = 0;
-		/* give the governor an opportunity to reflect on the outcome */
-		cpuidle_reflect(dev, next_state);
-		local_irq_enable();
-		goto out;
-	}
-
-	broadcast = !!(drv->states[next_state].flags & CPUIDLE_FLAG_TIMER_STOP);
-
-	if (broadcast &&
-	    clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu))
-		return -EBUSY;
-
-	trace_cpu_idle_rcuidle(next_state, dev->cpu);
-
-	entered_state = cpuidle_enter(drv, dev, next_state);
-
-	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
-
-	if (broadcast)
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
-
-	/* give the governor an opportunity to reflect on the outcome */
-	cpuidle_reflect(dev, entered_state);
-out:
 	if (WARN_ON_ONCE(irqs_disabled()))
 		local_irq_enable();
 
@@ -150,16 +165,11 @@ static void cpu_idle_loop(void)
 			 * know that the IPI is going to arrive right
 			 * away
 			 */
-			if (cpu_idle_force_poll || tick_check_broadcast_expired()) {
+			if (cpu_idle_force_poll || tick_check_broadcast_expired())
 				cpu_idle_poll();
-			} else {
-				if (!current_clr_polling_and_test()) {
-					cpuidle_idle_call();
-				} else {
-					local_irq_enable();
-				}
-				__current_set_polling();
-			}
+			else
+				cpuidle_idle_call();
+
 			arch_cpu_idle_exit();
 		}
 
