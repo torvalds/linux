@@ -102,6 +102,12 @@ struct kvm_s390_sie_block {
 #define ICTL_RRBE 0x00001000
 	__u32	ictl;			/* 0x0048 */
 	__u32	eca;			/* 0x004c */
+#define ICPT_INST	0x04
+#define ICPT_PROGI	0x08
+#define ICPT_INSTPROGI	0x0C
+#define ICPT_OPEREXC	0x2C
+#define ICPT_PARTEXEC	0x38
+#define ICPT_IOINST	0x40
 	__u8	icptcode;		/* 0x0050 */
 	__u8	reserved51;		/* 0x0051 */
 	__u16	ihcpu;			/* 0x0052 */
