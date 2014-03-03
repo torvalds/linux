@@ -1187,6 +1187,9 @@ intel_setup_mchbar(struct drm_device *dev)
 	u32 temp;
 	bool enabled;
 
+	if (IS_VALLEYVIEW(dev))
+		return;
+
 	dev_priv->mchbar_need_disable = false;
 
 	if (IS_I915G(dev) || IS_I915GM(dev)) {
