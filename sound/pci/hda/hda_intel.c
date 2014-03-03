@@ -1537,12 +1537,12 @@ static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 }
 
 static const struct hda_controller_ops pci_hda_ops = {
-	.writel = pci_azx_writel,
-	.readl = pci_azx_readl,
-	.writew = pci_azx_writew,
-	.readw = pci_azx_readw,
-	.writeb = pci_azx_writeb,
-	.readb = pci_azx_readb,
+	.reg_writel = pci_azx_writel,
+	.reg_readl = pci_azx_readl,
+	.reg_writew = pci_azx_writew,
+	.reg_readw = pci_azx_readw,
+	.reg_writeb = pci_azx_writeb,
+	.reg_readb = pci_azx_readb,
 	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.dma_alloc_pages = dma_alloc_pages,
 	.dma_free_pages = dma_free_pages,

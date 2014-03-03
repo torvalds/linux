@@ -290,12 +290,12 @@ struct azx;
 /* Functions to read/write to hda registers. */
 struct hda_controller_ops {
 	/* Register Access */
-	void (*writel)(u32 value, u32 *addr);
-	u32 (*readl)(u32 *addr);
-	void (*writew)(u16 value, u16 *addr);
-	u16 (*readw)(u16 *addr);
-	void (*writeb)(u8 value, u8 *addr);
-	u8 (*readb)(u8 *addr);
+	void (*reg_writel)(u32 value, u32 *addr);
+	u32 (*reg_readl)(u32 *addr);
+	void (*reg_writew)(u16 value, u16 *addr);
+	u16 (*reg_readw)(u16 *addr);
+	void (*reg_writeb)(u8 value, u8 *addr);
+	u8 (*reg_readb)(u8 *addr);
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
 	/* Allocation ops */
@@ -435,29 +435,29 @@ struct azx {
  */
 
 #define azx_writel(chip, reg, value) \
-	((chip)->ops->writel(value, (chip)->remap_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_writel(value, (chip)->remap_addr + ICH6_REG_##reg))
 #define azx_readl(chip, reg) \
-	((chip)->ops->readl((chip)->remap_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_readl((chip)->remap_addr + ICH6_REG_##reg))
 #define azx_writew(chip, reg, value) \
-	((chip)->ops->writew(value, (chip)->remap_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_writew(value, (chip)->remap_addr + ICH6_REG_##reg))
 #define azx_readw(chip, reg) \
-	((chip)->ops->readw((chip)->remap_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_readw((chip)->remap_addr + ICH6_REG_##reg))
 #define azx_writeb(chip, reg, value) \
-	((chip)->ops->writeb(value, (chip)->remap_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_writeb(value, (chip)->remap_addr + ICH6_REG_##reg))
 #define azx_readb(chip, reg) \
-	((chip)->ops->readb((chip)->remap_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_readb((chip)->remap_addr + ICH6_REG_##reg))
 
 #define azx_sd_writel(chip, dev, reg, value) \
-	((chip)->ops->writel(value, (dev)->sd_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_writel(value, (dev)->sd_addr + ICH6_REG_##reg))
 #define azx_sd_readl(chip, dev, reg) \
-	((chip)->ops->readl((dev)->sd_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_readl((dev)->sd_addr + ICH6_REG_##reg))
 #define azx_sd_writew(chip, dev, reg, value) \
-	((chip)->ops->writew(value, (dev)->sd_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_writew(value, (dev)->sd_addr + ICH6_REG_##reg))
 #define azx_sd_readw(chip, dev, reg) \
-	((chip)->ops->readw((dev)->sd_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_readw((dev)->sd_addr + ICH6_REG_##reg))
 #define azx_sd_writeb(chip, dev, reg, value) \
-	((chip)->ops->writeb(value, (dev)->sd_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_writeb(value, (dev)->sd_addr + ICH6_REG_##reg))
 #define azx_sd_readb(chip, dev, reg) \
-	((chip)->ops->readb((dev)->sd_addr + ICH6_REG_##reg))
+	((chip)->ops->reg_readb((dev)->sd_addr + ICH6_REG_##reg))
 
 #endif /* __SOUND_HDA_PRIV_H */
