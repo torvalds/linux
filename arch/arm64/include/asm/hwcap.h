@@ -32,6 +32,12 @@
 #define COMPAT_HWCAP_IDIV	(COMPAT_HWCAP_IDIVA|COMPAT_HWCAP_IDIVT)
 #define COMPAT_HWCAP_EVTSTRM	(1 << 21)
 
+#define COMPAT_HWCAP2_AES	(1 << 0)
+#define COMPAT_HWCAP2_PMULL	(1 << 1)
+#define COMPAT_HWCAP2_SHA1	(1 << 2)
+#define COMPAT_HWCAP2_SHA2	(1 << 3)
+#define COMPAT_HWCAP2_CRC32	(1 << 4)
+
 #ifndef __ASSEMBLY__
 /*
  * This yields a mask that user programs can use to figure out what
