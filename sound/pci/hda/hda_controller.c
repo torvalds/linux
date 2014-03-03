@@ -971,8 +971,8 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 
 #define MAX_PREALLOC_SIZE	(32 * 1024 * 1024)
 
-int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
-			  struct hda_pcm *cpcm)
+static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
+				 struct hda_pcm *cpcm)
 {
 	struct azx *chip = bus->private_data;
 	struct snd_pcm *pcm;
