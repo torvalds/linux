@@ -39,15 +39,25 @@ nvd7_graph_init_pe_0[] = {
 };
 
 const struct nvc0_graph_init
-nvd7_graph_init_ppc_0[] = {
+nvd7_graph_init_pes_0[] = {
 	{ 0x41be04,   1, 0x04, 0x00000000 },
 	{ 0x41be08,   1, 0x04, 0x00000004 },
 	{ 0x41be0c,   1, 0x04, 0x00000000 },
 	{ 0x41be10,   1, 0x04, 0x003b8bc7 },
 	{ 0x41be14,   2, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvd7_graph_init_wwdx_0[] = {
 	{ 0x41bfd4,   1, 0x04, 0x00800000 },
 	{ 0x41bfdc,   1, 0x04, 0x00000000 },
 	{ 0x41bff8,   2, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvd7_graph_init_cbm_0[] = {
 	{ 0x41becc,   1, 0x04, 0x00000000 },
 	{ 0x41bee8,   2, 0x04, 0x00000000 },
 	{}
@@ -77,7 +87,9 @@ nvd7_graph_pack_mmio[] = {
 	{ nvc0_graph_init_l1c_0 },
 	{ nvc0_graph_init_mpc_0 },
 	{ nvd9_graph_init_sm_0 },
-	{ nvd7_graph_init_ppc_0 },
+	{ nvd7_graph_init_pes_0 },
+	{ nvd7_graph_init_wwdx_0 },
+	{ nvd7_graph_init_cbm_0 },
 	{ nvc0_graph_init_be_0 },
 	{ nvd9_graph_init_fe_1 },
 	{}

@@ -140,11 +140,15 @@ extern const struct nvc0_graph_init nvd9_grctx_init_sm_0[];
 
 extern const struct nvc0_graph_init nvd7_grctx_init_pe_0[];
 
+extern const struct nvc0_graph_init nvd7_grctx_init_wwdx_0[];
+
 extern const struct nvc0_graph_init nve4_grctx_init_memfmt_0[];
 extern const struct nvc0_graph_init nve4_grctx_init_ds_0[];
 extern const struct nvc0_graph_init nve4_grctx_init_scc_0[];
 
 extern const struct nvc0_graph_init nve4_grctx_init_gpm_0[];
+
+extern const struct nvc0_graph_init nve4_grctx_init_pes_0[];
 
 extern const struct nvc0_graph_pack nvf0_grctx_pack_mthd[];
 

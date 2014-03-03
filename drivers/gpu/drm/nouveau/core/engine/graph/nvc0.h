@@ -208,7 +208,9 @@ extern const struct nvc0_graph_init nvd9_graph_init_tex_0[];
 extern const struct nvc0_graph_init nvd9_graph_init_sm_0[];
 extern const struct nvc0_graph_init nvd9_graph_init_fe_1[];
 
-extern const struct nvc0_graph_init nvd7_graph_init_ppc_0[];
+extern const struct nvc0_graph_init nvd7_graph_init_pes_0[];
+extern const struct nvc0_graph_init nvd7_graph_init_wwdx_0[];
+extern const struct nvc0_graph_init nvd7_graph_init_cbm_0[];
 
 extern const struct nvc0_graph_init nve4_graph_init_main_0[];
 extern const struct nvc0_graph_init nve4_graph_init_tpccs_0[];

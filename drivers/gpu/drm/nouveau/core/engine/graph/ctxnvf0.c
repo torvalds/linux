@@ -790,26 +790,18 @@ nvf0_grctx_pack_tpc[] = {
 };
 
 static const struct nvc0_graph_init
-nvf0_grctx_init_ppc_0[] = {
-	{ 0x41be24,   1, 0x04, 0x00000006 },
+nvf0_grctx_init_cbm_0[] = {
 	{ 0x41bec0,   1, 0x04, 0x10000000 },
 	{ 0x41bec4,   1, 0x04, 0x00037f7f },
 	{ 0x41bee4,   1, 0x04, 0x00000000 },
-	{ 0x41bf00,   1, 0x04, 0x0a418820 },
-	{ 0x41bf04,   1, 0x04, 0x062080e6 },
-	{ 0x41bf08,   1, 0x04, 0x020398a4 },
-	{ 0x41bf0c,   1, 0x04, 0x0e629062 },
-	{ 0x41bf10,   1, 0x04, 0x0a418820 },
-	{ 0x41bf14,   1, 0x04, 0x000000e6 },
-	{ 0x41bfd0,   1, 0x04, 0x00900103 },
-	{ 0x41bfe0,   1, 0x04, 0x00400001 },
-	{ 0x41bfe4,   1, 0x04, 0x00000000 },
 	{}
 };
 
 static const struct nvc0_graph_pack
 nvf0_grctx_pack_ppc[] = {
-	{ nvf0_grctx_init_ppc_0 },
+	{ nve4_grctx_init_pes_0 },
+	{ nvf0_grctx_init_cbm_0 },
+	{ nvd7_grctx_init_wwdx_0 },
 	{}
 };
 

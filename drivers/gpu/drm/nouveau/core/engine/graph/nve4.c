@@ -177,7 +177,9 @@ nve4_graph_pack_mmio[] = {
 	{ nve4_graph_init_l1c_0 },
 	{ nvc0_graph_init_mpc_0 },
 	{ nve4_graph_init_sm_0 },
-	{ nvd7_graph_init_ppc_0 },
+	{ nvd7_graph_init_pes_0 },
+	{ nvd7_graph_init_wwdx_0 },
+	{ nvd7_graph_init_cbm_0 },
 	{ nve4_graph_init_be_0 },
 	{ nvc0_graph_init_fe_1 },
 	{}
