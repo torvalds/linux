@@ -850,8 +850,6 @@ static void __dw_mci_start_request(struct dw_mci *host,
 	u32 cmdflags;
 
 	mrq = slot->mrq;
-	if (host->pdata->select_slot)
-		host->pdata->select_slot(slot->id);
 
 	host->cur_slot = slot;
 	host->mrq = mrq;
@@ -985,17 +983,11 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
 		set_bit(DW_MMC_CARD_NEED_INIT, &slot->flags);
-		/* Power up slot */
-		if (slot->host->pdata->setpower)
-			slot->host->pdata->setpower(slot->id, mmc->ocr_avail);
 		regs = mci_readl(slot->host, PWREN);
 		regs |= (1 << slot->id);
 		mci_writel(slot->host, PWREN, regs);
 		break;
 	case MMC_POWER_OFF:
-		/* Power down slot */
-		if (slot->host->pdata->setpower)
-			slot->host->pdata->setpower(slot->id, 0);
 		regs = mci_readl(slot->host, PWREN);
 		regs &= ~(1 << slot->id);
 		mci_writel(slot->host, PWREN, regs);
@@ -1009,13 +1001,10 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 {
 	int read_only;
 	struct dw_mci_slot *slot = mmc_priv(mmc);
-	struct dw_mci_board *brd = slot->host->pdata;
 
 	/* Use platform get_ro function, else try on board write protect */
 	if (slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT)
 		read_only = 0;
-	else if (brd->get_ro)
-		read_only = brd->get_ro(slot->id);
 	else if (gpio_is_valid(slot->wp_gpio))
 		read_only = gpio_get_value(slot->wp_gpio);
 	else
@@ -1039,8 +1028,6 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	/* Use platform get_cd function, else try onboard card detect */
 	if (brd->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
 		present = 1;
-	else if (brd->get_cd)
-		present = !brd->get_cd(slot->id);
 	else if (!IS_ERR_VALUE(gpio_cd))
 		present = gpio_cd;
 	else
@@ -2138,17 +2125,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->f_max = freq[1];
 	}
 
-	if (host->pdata->get_ocr)
-		mmc->ocr_avail = host->pdata->get_ocr(id);
-	else
-		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-
-	/*
-	 * Start with slot power disabled, it will be enabled when a card
-	 * is detected.
-	 */
-	if (host->pdata->setpower)
-		host->pdata->setpower(id, 0);
+	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
 	if (host->pdata->caps)
 		mmc->caps = host->pdata->caps;
@@ -2217,10 +2194,6 @@ err_setup_bus:
 
 static void dw_mci_cleanup_slot(struct dw_mci_slot *slot, unsigned int id)
 {
-	/* Shutdown detect IRQ */
-	if (slot->host->pdata->exit)
-		slot->host->pdata->exit(id);
-
 	/* Debugfs stuff is cleaned up by mmc core */
 	mmc_remove_host(slot->mmc);
 	slot->host->slot[id] = NULL;
@@ -2395,9 +2368,9 @@ int dw_mci_probe(struct dw_mci *host)
 		}
 	}
 
-	if (!host->pdata->select_slot && host->pdata->num_slots > 1) {
+	if (host->pdata->num_slots > 1) {
 		dev_err(host->dev,
-			"Platform data must supply select_slot function\n");
+			"Platform data must supply num_slots.\n");
 		return -ENODEV;
 	}
 
