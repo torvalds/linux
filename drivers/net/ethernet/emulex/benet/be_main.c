@@ -927,7 +927,7 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	 */
 	if (unlikely(!BEx_chip(adapter) && skb->len <= 32)) {
 		if (skb_padto(skb, 36))
-			goto tx_drop;
+			goto err;
 		skb->len = 36;
 	}
 
@@ -959,7 +959,7 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	    vlan_tx_tag_present(skb)) {
 		skb = be_insert_vlan_in_pkt(adapter, skb, skip_hw_vlan);
 		if (unlikely(!skb))
-			goto tx_drop;
+			goto err;
 	}
 
 	/* HW may lockup when VLAN HW tagging is requested on
@@ -981,12 +981,13 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	    be_vlan_tag_tx_chk(adapter, skb)) {
 		skb = be_insert_vlan_in_pkt(adapter, skb, skip_hw_vlan);
 		if (unlikely(!skb))
-			goto tx_drop;
+			goto err;
 	}
 
 	return skb;
 tx_drop:
 	dev_kfree_skb_any(skb);
+err:
 	return NULL;
 }
 
