@@ -12,6 +12,8 @@ dtb-$(CONFIG_ARCH_AT91) += ethernut5.dtb
 dtb-$(CONFIG_ARCH_AT91) += evk-pro3.dtb
 dtb-$(CONFIG_ARCH_AT91) += tny_a9260.dtb
 dtb-$(CONFIG_ARCH_AT91) += usb_a9260.dtb
+# sam9261
+dtb-$(CONFIG_ARCH_AT91) += at91sam9261ek.dtb
 # sam9263
 dtb-$(CONFIG_ARCH_AT91) += at91sam9263ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += tny_a9263.dtb
