@@ -121,7 +121,8 @@ static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
-	int id = rsnd_mod_id(mod);
+	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+	int ssi_id = rsnd_mod_id(ssi_mod);
 	u32 convert_rate = rsnd_scu_convert_rate(scu);
 
 	if (convert_rate && !rsnd_dai_is_clk_master(rdai)) {
@@ -134,15 +135,15 @@ static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 	/*
 	 * SSI_MODE0
 	 */
-	rsnd_mod_bset(mod, SSI_MODE0, (1 << id),
-		      rsnd_scu_hpbif_is_enable(scu) ? 0 : (1 << id));
+	rsnd_mod_bset(mod, SSI_MODE0, (1 << ssi_id),
+		      rsnd_scu_hpbif_is_enable(scu) ? 0 : (1 << ssi_id));
 
 	/*
 	 * SSI_MODE1
 	 */
-	if (rsnd_ssi_is_pin_sharing(rsnd_ssi_mod_get(priv, id))) {
+	if (rsnd_ssi_is_pin_sharing(ssi_mod)) {
 		int shift = -1;
-		switch (id) {
+		switch (ssi_id) {
 		case 1:
 			shift = 0;
 			break;
@@ -165,14 +166,13 @@ static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 }
 
 unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
-				   struct rsnd_mod *ssi_mod,
+				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime)
 {
 	struct rsnd_scu *scu;
 	unsigned int rate;
 
-	/* this function is assuming SSI id = SCU id here */
-	scu = rsnd_mod_to_scu(rsnd_scu_mod_get(priv, rsnd_mod_id(ssi_mod)));
+	scu = rsnd_mod_to_scu(rsnd_io_to_mod_scu(io));
 
 	/*
 	 * return convert rate if SRC is used,
@@ -583,8 +583,10 @@ static int rsnd_scu_start_non_gen2(struct rsnd_mod *mod,
 				   struct rsnd_dai *rdai,
 				   struct rsnd_dai_stream *io)
 {
+	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+
 	/* enable PIO interrupt */
-	rsnd_mod_write(mod, INT_ENABLE, 0x0f000000);
+	rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0f000000);
 
 	return 0;
 }

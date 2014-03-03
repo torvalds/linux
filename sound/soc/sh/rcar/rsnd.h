@@ -192,6 +192,8 @@ struct rsnd_dai_stream {
 	int byte_per_period;
 	int next_period_byte;
 };
+#define rsnd_io_to_mod_ssi(io)	((io)->mod[RSND_MOD_SSI])
+#define rsnd_io_to_mod_scu(io)	((io)->mod[RSND_MOD_SCU])
 
 struct rsnd_dai {
 	char name[RSND_DAI_NAME_SIZE];
@@ -311,7 +313,7 @@ void rsnd_scu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
-				   struct rsnd_mod *ssi_mod,
+				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
 
 #define rsnd_scu_nr(priv) ((priv)->scu_nr)
