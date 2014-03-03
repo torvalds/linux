@@ -396,9 +396,20 @@ struct rxrpc_call {
 #define RXRPC_ACKR_WINDOW_ASZ DIV_ROUND_UP(RXRPC_MAXACKS, BITS_PER_LONG)
 	unsigned long		ackr_window[RXRPC_ACKR_WINDOW_ASZ + 1];
 
+	struct hlist_node	hash_node;
+	unsigned long		hash_key;	/* Full hash key */
+	u8			in_clientflag;	/* Copy of conn->in_clientflag for hashing */
+	struct rxrpc_local	*local;		/* Local endpoint. Used for hashing. */
+	sa_family_t		proto;		/* Frame protocol */
 	/* the following should all be in net order */
 	__be32			cid;		/* connection ID + channel index  */
 	__be32			call_id;	/* call ID on connection  */
+	__be32			epoch;		/* epoch of this connection */
+	__be16			service_id;	/* service ID */
+	union {					/* Peer IP address for hashing */
+		__be32	ipv4_addr;
+		__u8	ipv6_addr[16];		/* Anticipates eventual IPv6 support */
+	} peer_ip;
 };
 
 /*
@@ -453,6 +464,8 @@ extern struct kmem_cache *rxrpc_call_jar;
 extern struct list_head rxrpc_calls;
 extern rwlock_t rxrpc_call_lock;
 
+struct rxrpc_call *rxrpc_find_call_hash(u8,  __be32, __be32, __be32,
+					__be16, void *, sa_family_t, const u8 *);
 struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *,
 					 struct rxrpc_transport *,
 					 struct rxrpc_conn_bundle *,
