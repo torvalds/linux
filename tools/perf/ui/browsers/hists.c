@@ -616,35 +616,6 @@ struct hpp_arg {
 	bool current_entry;
 };
 
-static int __hpp__overhead_callback(struct perf_hpp *hpp, bool front)
-{
-	struct hpp_arg *arg = hpp->ptr;
-
-	if (arg->current_entry && arg->b->navkeypressed)
-		ui_browser__set_color(arg->b, HE_COLORSET_SELECTED);
-	else
-		ui_browser__set_color(arg->b, HE_COLORSET_NORMAL);
-
-	if (front) {
-		if (!symbol_conf.use_callchain)
-			return 0;
-
-		slsmg_printf("%c ", arg->folded_sign);
-		return 2;
-	}
-
-	return 0;
-}
-
-static int __hpp__color_callback(struct perf_hpp *hpp, bool front __maybe_unused)
-{
-	struct hpp_arg *arg = hpp->ptr;
-
-	if (!arg->current_entry || !arg->b->navkeypressed)
-		ui_browser__set_color(arg->b, HE_COLORSET_NORMAL);
-	return 0;
-}
-
 static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	struct hpp_arg *arg = hpp->ptr;
@@ -665,7 +636,7 @@ static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 	return ret;
 }
 
-#define __HPP_COLOR_PERCENT_FN(_type, _field, _cb)			\
+#define __HPP_COLOR_PERCENT_FN(_type, _field)				\
 static u64 __hpp_get_##_field(struct hist_entry *he)			\
 {									\
 	return he->stat._field;						\
@@ -676,15 +647,15 @@ hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
 				struct perf_hpp *hpp,			\
 				struct hist_entry *he)			\
 {									\
-	return __hpp__fmt(hpp, he, __hpp_get_##_field, _cb, " %6.2f%%",	\
+	return __hpp__fmt(hpp, he, __hpp_get_##_field, " %6.2f%%",	\
 			  __hpp__slsmg_color_printf, true);		\
 }
 
-__HPP_COLOR_PERCENT_FN(overhead, period, __hpp__overhead_callback)
-__HPP_COLOR_PERCENT_FN(overhead_sys, period_sys, __hpp__color_callback)
-__HPP_COLOR_PERCENT_FN(overhead_us, period_us, __hpp__color_callback)
-__HPP_COLOR_PERCENT_FN(overhead_guest_sys, period_guest_sys, __hpp__color_callback)
-__HPP_COLOR_PERCENT_FN(overhead_guest_us, period_guest_us, __hpp__color_callback)
+__HPP_COLOR_PERCENT_FN(overhead, period)
+__HPP_COLOR_PERCENT_FN(overhead_sys, period_sys)
+__HPP_COLOR_PERCENT_FN(overhead_us, period_us)
+__HPP_COLOR_PERCENT_FN(overhead_guest_sys, period_guest_sys)
+__HPP_COLOR_PERCENT_FN(overhead_guest_us, period_guest_us)
 
 #undef __HPP_COLOR_PERCENT_FN
 
@@ -729,7 +700,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 
 	if (row_offset == 0) {
 		struct hpp_arg arg = {
-			.b 		= &browser->b,
+			.b		= &browser->b,
 			.folded_sign	= folded_sign,
 			.current_entry	= current_entry,
 		};
@@ -742,11 +713,24 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		ui_browser__gotorc(&browser->b, row, 0);
 
 		perf_hpp__for_each_format(fmt) {
-			if (!first) {
+			if (current_entry && browser->b.navkeypressed) {
+				ui_browser__set_color(&browser->b,
+						      HE_COLORSET_SELECTED);
+			} else {
+				ui_browser__set_color(&browser->b,
+						      HE_COLORSET_NORMAL);
+			}
+
+			if (first) {
+				if (symbol_conf.use_callchain) {
+					slsmg_printf("%c ", folded_sign);
+					width -= 2;
+				}
+				first = false;
+			} else {
 				slsmg_printf("  ");
 				width -= 2;
 			}
-			first = false;
 
 			if (fmt->color) {
 				width -= fmt->color(fmt, &hpp, entry);

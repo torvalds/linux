@@ -16,19 +16,14 @@
 })
 
 int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
-	       hpp_field_fn get_field, hpp_callback_fn callback,
-	       const char *fmt, hpp_snprint_fn print_fn, bool fmt_percent)
+	       hpp_field_fn get_field, const char *fmt,
+	       hpp_snprint_fn print_fn, bool fmt_percent)
 {
-	int ret = 0;
+	int ret;
 	struct hists *hists = he->hists;
 	struct perf_evsel *evsel = hists_to_evsel(hists);
 	char *buf = hpp->buf;
 	size_t size = hpp->size;
-
-	if (callback) {
-		ret = callback(hpp, true);
-		advance_hpp(hpp, ret);
-	}
 
 	if (fmt_percent) {
 		double percent = 0.0;
@@ -37,9 +32,9 @@ int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 		if (total)
 			percent = 100.0 * get_field(he) / total;
 
-		ret += hpp__call_print_fn(hpp, print_fn, fmt, percent);
+		ret = hpp__call_print_fn(hpp, print_fn, fmt, percent);
 	} else
-		ret += hpp__call_print_fn(hpp, print_fn, fmt, get_field(he));
+		ret = hpp__call_print_fn(hpp, print_fn, fmt, get_field(he));
 
 	if (perf_evsel__is_group_event(evsel)) {
 		int prev_idx, idx_delta;
@@ -97,13 +92,6 @@ int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 							  fmt, 0ULL);
 			}
 		}
-	}
-
-	if (callback) {
-		int __ret = callback(hpp, false);
-
-		advance_hpp(hpp, __ret);
-		ret += __ret;
 	}
 
 	/*
@@ -235,7 +223,7 @@ static u64 he_get_##_field(struct hist_entry *he)				\
 static int hpp__color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,		\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
-	return __hpp__fmt(hpp, he, he_get_##_field, NULL, " %6.2f%%",		\
+	return __hpp__fmt(hpp, he, he_get_##_field, " %6.2f%%",			\
 			  hpp_color_scnprintf, true);				\
 }
 
@@ -244,7 +232,7 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *_fmt __maybe_unused,		\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	const char *fmt = symbol_conf.field_sep ? " %.2f" : " %6.2f%%";		\
-	return __hpp__fmt(hpp, he, he_get_##_field, NULL, fmt,			\
+	return __hpp__fmt(hpp, he, he_get_##_field, fmt,			\
 			  hpp_entry_scnprintf, true);				\
 }
 
@@ -264,7 +252,7 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *_fmt __maybe_unused,		\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	const char *fmt = symbol_conf.field_sep ? " %"PRIu64 : " %11"PRIu64;	\
-	return __hpp__fmt(hpp, he, he_get_raw_##_field, NULL, fmt,		\
+	return __hpp__fmt(hpp, he, he_get_raw_##_field, fmt,			\
 			  hpp_entry_scnprintf, false);				\
 }
 
