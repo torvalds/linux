@@ -689,14 +689,12 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 
 static inline void sbp2_allow_block(struct sbp2_logical_unit *lu)
 {
-	/*
-	 * We may access dont_block without taking card->lock here:
-	 * All callers of sbp2_allow_block() and all callers of sbp2_unblock()
-	 * are currently serialized against each other.
-	 * And a wrong result in sbp2_conditionally_block()'s access of
-	 * dont_block is rather harmless, it simply misses its first chance.
-	 */
-	--lu->tgt->dont_block;
+	struct sbp2_target *tgt = lu->tgt;
+	struct fw_card *card = target_parent_device(tgt)->card;
+
+	spin_lock_irq(&card->lock);
+	--tgt->dont_block;
+	spin_unlock_irq(&card->lock);
 }
 
 /*
