@@ -210,8 +210,16 @@ config ACPI_INT3403_THERMAL
 	tristate "ACPI INT3403 thermal driver"
 	depends on X86 && ACPI
 	help
-	  This driver uses ACPI INT3403 device objects. If present, it will
-	  register each INT3403 thermal sensor as a thermal zone.
+	  Newer laptops and tablets that use ACPI may have thermal sensors
+	  outside the core CPU/SOC for thermal safety reasons. These
+	  temperature sensors are also exposed for the OS to use via the so
+	  called INT3403 ACPI object. This driver will, on devices that have
+	  such sensors, expose the temperature information from these sensors
+	  to userspace via the normal thermal framework. This means that a wide
+	  range of applications and GUI widgets can show this information to
+	  the user or use this information for making decisions. For example,
+	  the Intel Thermal Daemon can use this information to allow the user
+	  to select his laptop to run without turning on the fans.
 
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"
