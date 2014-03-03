@@ -1431,32 +1431,32 @@ static void azx_firmware_cb(const struct firmware *fw, void *context)
  */
 
 /* PCI register access. */
-static void pci_azx_writel(u32 value, u32 *addr)
+static void pci_azx_writel(u32 value, u32 __iomem *addr)
 {
 	writel(value, addr);
 }
 
-static u32 pci_azx_readl(u32 *addr)
+static u32 pci_azx_readl(u32 __iomem *addr)
 {
 	return readl(addr);
 }
 
-static void pci_azx_writew(u16 value, u16 *addr)
+static void pci_azx_writew(u16 value, u16 __iomem *addr)
 {
 	writew(value, addr);
 }
 
-static u16 pci_azx_readw(u16 *addr)
+static u16 pci_azx_readw(u16 __iomem *addr)
 {
 	return readw(addr);
 }
 
-static void pci_azx_writeb(u8 value, u8 *addr)
+static void pci_azx_writeb(u8 value, u8 __iomem *addr)
 {
 	writeb(value, addr);
 }
 
-static u8 pci_azx_readb(u8 *addr)
+static u8 pci_azx_readb(u8 __iomem *addr)
 {
 	return readb(addr);
 }

@@ -290,12 +290,12 @@ struct azx;
 /* Functions to read/write to hda registers. */
 struct hda_controller_ops {
 	/* Register Access */
-	void (*reg_writel)(u32 value, u32 *addr);
-	u32 (*reg_readl)(u32 *addr);
-	void (*reg_writew)(u16 value, u16 *addr);
-	u16 (*reg_readw)(u16 *addr);
-	void (*reg_writeb)(u8 value, u8 *addr);
-	u8 (*reg_readb)(u8 *addr);
+	void (*reg_writel)(u32 value, u32 __iomem *addr);
+	u32 (*reg_readl)(u32 __iomem *addr);
+	void (*reg_writew)(u16 value, u16 __iomem *addr);
+	u16 (*reg_readw)(u16 __iomem *addr);
+	void (*reg_writeb)(u8 value, u8 __iomem *addr);
+	u8 (*reg_readb)(u8 __iomem *addr);
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
 	/* Allocation ops */
