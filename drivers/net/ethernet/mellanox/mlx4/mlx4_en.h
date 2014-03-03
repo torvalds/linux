@@ -187,6 +187,13 @@ enum {
 #define GET_AVG_PERF_COUNTER(cnt)	(0)
 #endif /* MLX4_EN_PERF_STAT */
 
+/* Constants for TX flow */
+enum {
+	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
+	MAX_BF = 256,
+	MIN_PKT_LEN = 17,
+};
+
 /*
  * Configurables
  */
@@ -267,10 +274,13 @@ struct mlx4_en_tx_ring {
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long tx_csum;
+	unsigned long queue_stopped;
+	unsigned long wake_queue;
 	struct mlx4_bf bf;
 	bool bf_enabled;
 	struct netdev_queue *tx_queue;
 	int hwtstamp_tx_type;
+	int inline_thold;
 };
 
 struct mlx4_en_rx_desc {
@@ -346,6 +356,7 @@ struct mlx4_en_port_profile {
 	u8 tx_pause;
 	u8 tx_ppp;
 	int rss_rings;
+	int inline_thold;
 };
 
 struct mlx4_en_profile {
@@ -786,7 +797,6 @@ void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv);
 
 #define MLX4_EN_NUM_SELF_TEST	5
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
-u64 mlx4_en_mac_to_u64(u8 *addr);
 void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
 /*
