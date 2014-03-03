@@ -15,6 +15,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <linux/usb/ch9.h>
+#include "../../uapi/usbip.h"
 
 #ifndef USBIDS_FILE
 #define USBIDS_FILE "/usr/share/hwdata/usb.ids"
@@ -76,23 +77,6 @@ extern int usbip_use_debug ;
 		err("sorry, it's a bug!");		\
 		abort();				\
 	} while (0)
-
-/* FIXME: how to sync with drivers/usbip_common.h ? */
-enum usbip_device_status {
-	/* sdev is available. */
-	SDEV_ST_AVAILABLE = 0x01,
-	/* sdev is now used. */
-	SDEV_ST_USED,
-	/* sdev is unusable because of a fatal error. */
-	SDEV_ST_ERROR,
-
-	/* vdev does not connect a remote device. */
-	VDEV_ST_NULL,
-	/* vdev is used, but the USB address is not assigned yet */
-	VDEV_ST_NOTASSIGNED,
-	VDEV_ST_USED,
-	VDEV_ST_ERROR
-};
 
 struct usbip_usb_interface {
 	uint8_t bInterfaceClass;
