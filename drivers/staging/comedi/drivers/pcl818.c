@@ -332,7 +332,7 @@ struct pcl818_private {
 	unsigned int divisor2;
 	unsigned int usefifo:1;
 	unsigned int ai_cmd_running:1;
-	unsigned int irq_was_now_closed:1;
+	unsigned int ai_cmd_canceled:1;
 };
 
 static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,	/*  used for gain list programming */
@@ -731,29 +731,22 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}
 
-	if (devpriv->ai_cmd_running && devpriv->irq_was_now_closed) {
-		if ((cmd->stop_src == TRIG_NONE ||
-		    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) &&
-		    (devpriv->ai_mode == INT_TYPE_AI1_DMA ||
-		     devpriv->ai_mode == INT_TYPE_AI3_DMA)) {
-			/* The cleanup from ai_cancel() has been delayed
-			   until now because the card doesn't seem to like
-			   being reprogrammed while a DMA transfer is in
-			   progress.
-			 */
-			devpriv->ai_act_scan = 0;
-			s->cancel(dev, s);
-		}
-
+	if (devpriv->ai_cmd_canceled) {
+		/*
+		 * The cleanup from ai_cancel() has been delayed
+		 * until now because the card doesn't seem to like
+		 * being reprogrammed while a DMA transfer is in
+		 * progress.
+		 */
+		devpriv->ai_act_scan = 0;
+		s->cancel(dev, s);
 		outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
-
 		return IRQ_HANDLED;
 	}
 
@@ -820,7 +813,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	devpriv->ai_act_scan = cmd->stop_arg;
 	devpriv->ai_act_chan = 0;
 	devpriv->ai_cmd_running = 1;
-	devpriv->irq_was_now_closed = 0;
+	devpriv->ai_cmd_canceled = 0;
 	devpriv->act_chanlist_pos = 0;
 	devpriv->dma_runs_to_end = 0;
 
@@ -1065,12 +1058,14 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	case INT_TYPE_AI3_DMA:
 		if (cmd->stop_src == TRIG_NONE ||
 		    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) {
-			/*
-			 * Wait for running dma transfer to end,
-			 * do cleanup in interrupt.
-			 */
-			devpriv->irq_was_now_closed = 1;
-			return 0;
+			if (!devpriv->ai_cmd_canceled) {
+				/*
+				* Wait for running dma transfer to end,
+				* do cleanup in interrupt.
+				*/
+				devpriv->ai_cmd_canceled = 1;
+				return 0;
+			}
 		}
 		disable_dma(devpriv->dma);
 	case INT_TYPE_AI1_INT:
@@ -1092,7 +1087,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 		}
 		devpriv->ai_cmd_running = 0;
 		devpriv->ai_mode = 0;
-		devpriv->irq_was_now_closed = 0;
+		devpriv->ai_cmd_canceled = 0;
 		break;
 	}
 
