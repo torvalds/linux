@@ -119,10 +119,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define boardPCL818 4
 #define boardPCL718 5
 
-/* W: clear INT request */
-#define PCL818_CLRINT 8
-/* R: return status byte */
-#define PCL818_STATUS 8
 /* R: A/D high byte W: A/D range control */
 #define PCL818_RANGE 1
 /* R: next mux scan channel W: mux scan channel & range control pointer */
@@ -134,9 +130,15 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 #define PCL818_AI_LSB_REG			0x00
 #define PCL818_AI_MSB_REG			0x01
+#define PCL818_DO_DI_LSB_REG			0x03
 #define PCL818_AO_LSB_REG(x)			(0x04 + ((x) * 2))
 #define PCL818_AO_MSB_REG(x)			(0x05 + ((x) * 2))
-#define PCL818_DO_DI_LSB_REG			0x03
+#define PCL818_STATUS_REG			0x08
+#define PCL818_STATUS_NEXT_CHAN_MASK		(0xf << 0)
+#define PCL818_STATUS_INT			(1 << 4)
+#define PCL818_STATUS_MUX			(1 << 5)
+#define PCL818_STATUS_UNI			(1 << 6)
+#define PCL818_STATUS_EOC			(1 << 7)
 #define PCL818_DO_DI_MSB_REG			0x0b
 #define PCL818_TIMER_BASE			0x0c
 
@@ -400,7 +402,7 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 static void pcl818_ai_clear_eoc(struct comedi_device *dev)
 {
 	/* writing any value clears the interrupt request */
-	outb(0, dev->iobase + PCL818_CLRINT);
+	outb(0, dev->iobase + PCL818_STATUS_REG);
 }
 
 static void pcl818_ai_soft_trig(struct comedi_device *dev)
@@ -446,8 +448,8 @@ static int pcl818_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inb(dev->iobase + PCL818_STATUS);
-	if (status & 0x10)
+	status = inb(dev->iobase + PCL818_STATUS_REG);
+	if (status & PCL818_STATUS_INT)
 		return 0;
 	return -EBUSY;
 }
@@ -785,7 +787,7 @@ static void setup_channel_list(struct comedi_device *dev,
 
 static int check_single_ended(unsigned int port)
 {
-	if (inb(port + PCL818_STATUS) & 0x20)
+	if (inb(port + PCL818_STATUS_REG) & PCL818_STATUS_MUX)
 		return 1;
 	return 0;
 }
