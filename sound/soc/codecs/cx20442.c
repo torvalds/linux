@@ -383,8 +383,8 @@ static int cx20442_codec_remove(struct snd_soc_codec *codec)
 	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
 
 	if (cx20442->control_data) {
-			struct tty_struct *tty = cx20442->control_data;
-			tty_hangup(tty);
+		struct tty_struct *tty = cx20442->control_data;
+		tty_hangup(tty);
 	}
 
 	if (!IS_ERR(cx20442->por)) {
