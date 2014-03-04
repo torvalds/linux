@@ -241,8 +241,6 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
 	struct clock_event_device *ced = &ch->ced;
 	int ret;
 
-	memset(ced, 0, sizeof(*ced));
-
 	ced->name = name;
 	ced->features = CLOCK_EVT_FEAT_PERIODIC;
 	ced->rating = rating;
@@ -279,7 +277,6 @@ static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch,
 {
 	struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
 
-	memset(ch, 0, sizeof(*ch));
 	ch->mtu = mtu;
 	ch->index = cfg->timer_bit;
 
@@ -302,7 +299,6 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	int ret;
 	ret = -ENXIO;
 
-	memset(mtu, 0, sizeof(*mtu));
 	mtu->pdev = pdev;
 
 	if (!cfg) {
@@ -373,7 +369,7 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	mtu = kmalloc(sizeof(*mtu), GFP_KERNEL);
+	mtu = kzalloc(sizeof(*mtu), GFP_KERNEL);
 	if (mtu == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		return -ENOMEM;
