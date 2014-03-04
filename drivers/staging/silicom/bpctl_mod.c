@@ -2306,11 +2306,10 @@ static int set_tx(struct bpctl_dev *pbpctl_dev, int tx_state)
 		if (PEG5_IF_SERIES(pbpctl_dev->subdevice)) {
 			if (tx_state) {
 				uint16_t mii_reg;
-				if (!
-				    (ret =
-				     bp75_read_phy_reg(pbpctl_dev,
-						       BPCTLI_PHY_CONTROL,
-						       &mii_reg))) {
+				ret = bp75_read_phy_reg(pbpctl_dev,
+					      BPCTLI_PHY_CONTROL,
+					      &mii_reg);
+				if (!ret) {
 					if (mii_reg & BPCTLI_MII_CR_POWER_DOWN) {
 						ret =
 						    bp75_write_phy_reg
@@ -2322,17 +2321,15 @@ static int set_tx(struct bpctl_dev *pbpctl_dev, int tx_state)
 				}
 			} else {
 				uint16_t mii_reg;
-				if (!
-				    (ret =
-				     bp75_read_phy_reg(pbpctl_dev,
-						       BPCTLI_PHY_CONTROL,
-						       &mii_reg))) {
+				ret = bp75_read_phy_reg(pbpctl_dev,
+					      BPCTLI_PHY_CONTROL,
+					      &mii_reg);
+				if (!ret) {
 
 					mii_reg |= BPCTLI_MII_CR_POWER_DOWN;
-					ret =
-					    bp75_write_phy_reg(pbpctl_dev,
-							       BPCTLI_PHY_CONTROL,
-							       mii_reg);
+					ret = bp75_write_phy_reg(pbpctl_dev,
+						       BPCTLI_PHY_CONTROL,
+						       mii_reg);
 				}
 			}
 
