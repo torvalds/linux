@@ -150,6 +150,7 @@ Ip_0(_tlbwr);
 Ip_u1(_wait);
 Ip_u3u1u2(_xor);
 Ip_u2u1u3(_xori);
+Ip_u2u1(_yield);
 
 
 /* Handle labels. */
