@@ -6686,10 +6686,8 @@ static void dgap_create_tty_sysfs(struct un_t *un, struct device *c)
 	int ret;
 
 	ret = sysfs_create_group(&c->kobj, &dgap_tty_attribute_group);
-	if (ret) {
-		sysfs_remove_group(&c->kobj, &dgap_tty_attribute_group);
+	if (ret)
 		return;
-	}
 
 	dev_set_drvdata(c, un);
 
