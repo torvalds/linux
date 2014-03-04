@@ -406,6 +406,11 @@ static void pcl818_ai_clear_eoc(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL818_CLRINT);
 }
 
+static void pcl818_ai_soft_trig(struct comedi_device *dev)
+{
+	/* writing any value triggers a software conversion */
+	outb(0, dev->iobase + PCL818_AD_LO);
+}
 
 static unsigned int pcl818_ai_get_fifo_sample(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
@@ -915,7 +920,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	     dev->iobase + PCL818_CONTROL);	/* Stop A/D */
 	udelay(1);
 	pcl818_start_pacer(dev, false);
-	outb(0, dev->iobase + PCL818_AD_LO);
+	pcl818_ai_soft_trig(dev);
 	pcl818_ai_get_sample(dev, s, NULL);
 	outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
 	pcl818_ai_clear_eoc(dev);
@@ -951,8 +956,7 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		pcl818_ai_clear_eoc(dev);
-		/* start conversion */
-		outb(0, dev->iobase + PCL818_AD_LO);
+		pcl818_ai_soft_trig(dev);
 
 		ret = comedi_timeout(dev, s, insn, pcl818_ai_eoc, 0);
 		if (ret)
