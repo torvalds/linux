@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <asm/cio.h>
 #include <asm/delay.h>
 #include <asm/irq.h>
