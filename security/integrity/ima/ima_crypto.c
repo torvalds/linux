@@ -10,7 +10,7 @@
  * the Free Software Foundation, version 2 of the License.
  *
  * File: ima_crypto.c
- * 	Calculates md5/sha1 file hash, template hash, boot-aggreate hash
+ *	Calculates md5/sha1 file hash, template hash, boot-aggreate hash
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

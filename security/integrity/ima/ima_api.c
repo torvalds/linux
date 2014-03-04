@@ -160,10 +160,10 @@ err_out:
  * @function: calling function (FILE_CHECK, BPRM_CHECK, MMAP_CHECK, MODULE_CHECK)
  *
  * The policy is defined in terms of keypairs:
- * 		subj=, obj=, type=, func=, mask=, fsmagic=
+ *		subj=, obj=, type=, func=, mask=, fsmagic=
  *	subj,obj, and type: are LSM specific.
- * 	func: FILE_CHECK | BPRM_CHECK | MMAP_CHECK | MODULE_CHECK
- * 	mask: contains the permission mask
+ *	func: FILE_CHECK | BPRM_CHECK | MMAP_CHECK | MODULE_CHECK
+ *	mask: contains the permission mask
  *	fsmagic: hex value
  *
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
@@ -248,7 +248,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
  *
  * We only get here if the inode has not already been measured,
  * but the measurement could already exist:
- * 	- multiple copies of the same file on either the same or
+ *	- multiple copies of the same file on either the same or
  *	  different filesystems.
  *	- the inode was previously flushed as well as the iint info,
  *	  containing the hashing info.

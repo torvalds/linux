@@ -22,20 +22,20 @@
 
 static struct ima_template_desc defined_templates[] = {
 	{.name = IMA_TEMPLATE_IMA_NAME, .fmt = IMA_TEMPLATE_IMA_FMT},
-	{.name = "ima-ng",.fmt = "d-ng|n-ng"},
-	{.name = "ima-sig",.fmt = "d-ng|n-ng|sig"},
+	{.name = "ima-ng", .fmt = "d-ng|n-ng"},
+	{.name = "ima-sig", .fmt = "d-ng|n-ng|sig"},
 };
 
 static struct ima_template_field supported_fields[] = {
-	{.field_id = "d",.field_init = ima_eventdigest_init,
+	{.field_id = "d", .field_init = ima_eventdigest_init,
 	 .field_show = ima_show_template_digest},
-	{.field_id = "n",.field_init = ima_eventname_init,
+	{.field_id = "n", .field_init = ima_eventname_init,
 	 .field_show = ima_show_template_string},
-	{.field_id = "d-ng",.field_init = ima_eventdigest_ng_init,
+	{.field_id = "d-ng", .field_init = ima_eventdigest_ng_init,
 	 .field_show = ima_show_template_digest_ng},
-	{.field_id = "n-ng",.field_init = ima_eventname_ng_init,
+	{.field_id = "n-ng", .field_init = ima_eventname_ng_init,
 	 .field_show = ima_show_template_string},
-	{.field_id = "sig",.field_init = ima_eventsig_init,
+	{.field_id = "sig", .field_init = ima_eventsig_init,
 	 .field_show = ima_show_template_sig},
 };
 

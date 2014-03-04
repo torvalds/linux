@@ -7,7 +7,7 @@
  * the Free Software Foundation, version 2 of the License.
  *
  * File: integrity_audit.c
- * 	Audit calls for the integrity subsystem
+ *	Audit calls for the integrity subsystem
  */
 
 #include <linux/fs.h>

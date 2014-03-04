@@ -117,7 +117,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 
 	mutex_lock(&ima_extend_list_mutex);
 	if (!violation) {
-		memcpy(digest, entry->digest, sizeof digest);
+		memcpy(digest, entry->digest, sizeof(digest));
 		if (ima_lookup_digest_entry(digest)) {
 			audit_cause = "hash_exists";
 			result = -EEXIST;
@@ -133,7 +133,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	}
 
 	if (violation)		/* invalidate pcr */
-		memset(digest, 0xff, sizeof digest);
+		memset(digest, 0xff, sizeof(digest));
 
 	tpmresult = ima_pcr_extend(digest);
 	if (tpmresult != 0) {

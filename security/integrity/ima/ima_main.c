@@ -71,10 +71,10 @@ __setup("ima_hash=", hash_setup);
  * ima_rdwr_violation_check
  *
  * Only invalidate the PCR for measured files:
- * 	- Opening a file for write when already open for read,
+ *	- Opening a file for write when already open for read,
  *	  results in a time of measure, time of use (ToMToU) error.
  *	- Opening a file for read when already open for write,
- * 	  could result in a file measurement error.
+ *	  could result in a file measurement error.
  *
  */
 static void ima_rdwr_violation_check(struct file *file)
