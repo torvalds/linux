@@ -564,7 +564,7 @@ int omap3_ctrl_save_padconf(void)
  * Sets the bootmode for IVA2 to idle. This is needed by the PM code to
  * force disable IVA2 so that it does not prevent any low-power states.
  */
-void omap3_ctrl_set_iva_bootmode_idle(void)
+static void __init omap3_ctrl_set_iva_bootmode_idle(void)
 {
 	omap_ctrl_writel(OMAP3_IVA2_BOOTMOD_IDLE,
 			 OMAP343X_CONTROL_IVA2_BOOTMOD);
@@ -576,7 +576,7 @@ void omap3_ctrl_set_iva_bootmode_idle(void)
  * Sets up the pads controlling the stacked modem in such way that the
  * device can enter idle.
  */
-void omap3_ctrl_setup_d2d_padconf(void)
+static void __init omap3_ctrl_setup_d2d_padconf(void)
 {
 	u16 mask, padconf;
 
@@ -594,5 +594,20 @@ void omap3_ctrl_setup_d2d_padconf(void)
 	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_IDLEACK);
 	padconf |= mask;
 	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_IDLEACK);
+}
+
+/**
+ * omap3_ctrl_init - does static initializations for control module
+ *
+ * Initializes system control module. This sets up the sysconfig autoidle,
+ * and sets up modem and iva2 so that they can be idled properly.
+ */
+void __init omap3_ctrl_init(void)
+{
+	omap_ctrl_writel(OMAP3430_AUTOIDLE_MASK, OMAP2_CONTROL_SYSCONFIG);
+
+	omap3_ctrl_set_iva_bootmode_idle();
+
+	omap3_ctrl_setup_d2d_padconf();
 }
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */

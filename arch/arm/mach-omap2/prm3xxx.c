@@ -28,7 +28,6 @@
 #include "prm-regbits-34xx.h"
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
-#include "control.h"
 
 static const struct omap_prcm_irq omap3_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("wkup",	0,	0),
@@ -366,8 +365,6 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 	/* We need to idle iva2_pwrdm even on am3703 with no iva2. */
 	omap3xxx_prm_iva_idle();
 
-	omap3_ctrl_setup_d2d_padconf();
-
 	omap3_prm_reset_modem();
 }
 
@@ -469,9 +466,6 @@ void omap3xxx_prm_iva_idle(void)
 	/* Enable IVA2 clock */
 	omap2_cm_write_mod_reg(OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_MASK,
 			       OMAP3430_IVA2_MOD, CM_FCLKEN);
-
-	/* Set IVA2 boot mode to 'idle' */
-	omap3_ctrl_set_iva_bootmode_idle();
 
 	/* Un-reset IVA2 */
 	omap2_prm_write_mod_reg(0, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);

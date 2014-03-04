@@ -355,8 +355,7 @@ restore:
 
 static void __init prcm_setup_regs(void)
 {
-	/* XXX This should be handled by hwmod code or SCM init code */
-	omap_ctrl_writel(OMAP3430_AUTOIDLE_MASK, OMAP2_CONTROL_SYSCONFIG);
+	omap3_ctrl_init();
 
 	omap3_prm_init_pm(cpu_is_omap3630(), omap3_has_iva());
 }
