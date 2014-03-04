@@ -232,42 +232,6 @@ static int pcl816_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int pcl816_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	int ret;
-	int n;
-
-	/*  software trigger, DMA and INT off */
-	outb(0, dev->iobase + PCL816_CONTROL);
-	/*  clear INT (conversion end) flag */
-	outb(0, dev->iobase + PCL816_CLRINT);
-
-	/*  Set the input channel */
-	outb(CR_CHAN(insn->chanspec) & 0xf, dev->iobase + PCL816_MUX);
-	/* select gain */
-	outb(CR_RANGE(insn->chanspec), dev->iobase + PCL816_RANGE);
-
-	for (n = 0; n < insn->n; n++) {
-
-		outb(0, dev->iobase + PCL816_AD_LO);	/* start conversion */
-
-		ret = comedi_timeout(dev, s, insn, pcl816_ai_eoc, 0);
-		if (ret) {
-			/* clear INT (conversion end) flag */
-			outb(0, dev->iobase + PCL816_CLRINT);
-			return ret;
-		}
-
-		data[n] = pcl816_ai_get_sample(dev, s);
-
-		/* clear INT (conversion end) flag */
-		outb(0, dev->iobase + PCL816_CLRINT);
-	}
-	return n;
-}
-
 static bool pcl816_ai_next_chan(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
@@ -628,6 +592,42 @@ setup_channel_list(struct comedi_device *dev,
 	outb(devpriv->ai_act_chanlist[0] |
 	     (devpriv->ai_act_chanlist[seglen - 1] << 4),
 	     dev->iobase + PCL816_MUX);
+}
+
+static int pcl816_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	int ret = 0;
+	int i;
+
+	/*  software trigger, DMA and INT off */
+	outb(0, dev->iobase + PCL816_CONTROL);
+
+	/*  Set the input channel */
+	outb(chan, dev->iobase + PCL816_MUX);
+	/* select gain */
+	outb(range, dev->iobase + PCL816_RANGE);
+
+	for (i = 0; i < insn->n; i++) {
+		/* clear INT (conversion end) flag */
+		outb(0, dev->iobase + PCL816_CLRINT);
+		/* start conversion */
+		outb(0, dev->iobase + PCL816_AD_LO);
+
+		ret = comedi_timeout(dev, s, insn, pcl816_ai_eoc, 0);
+		if (ret)
+			break;
+
+		data[i] = pcl816_ai_get_sample(dev, s);
+	}
+	/* clear INT (conversion end) flag */
+	outb(0, dev->iobase + PCL816_CLRINT);
+
+	return ret ? ret : insn->n;
 }
 
 static int pcl816_di_insn_bits(struct comedi_device *dev,
