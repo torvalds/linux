@@ -119,8 +119,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define boardPCL818 4
 #define boardPCL718 5
 
-/* R/W: operation control register */
-#define PCL818_CONTROL 9
 /* W: counter enable */
 #define PCL818_CNTENABLE 10
 
@@ -138,6 +136,14 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define PCL818_STATUS_MUX			(1 << 5)
 #define PCL818_STATUS_UNI			(1 << 6)
 #define PCL818_STATUS_EOC			(1 << 7)
+#define PCL818_CTRL_REG				0x09
+#define PCL818_CTRL_DISABLE_TRIG		(0 << 0)
+#define PCL818_CTRL_SOFT_TRIG			(1 << 0)
+#define PCL818_CTRL_EXT_TRIG			(2 << 0)
+#define PCL818_CTRL_PACER_TRIG			(3 << 0)
+#define PCL818_CTRL_DMAE			(1 << 2)
+#define PCL818_CTRL_IRQ(x)			((x) << 4)
+#define PCL818_CTRL_INTE			(1 << 7)
 #define PCL818_DO_DI_MSB_REG			0x0b
 #define PCL818_TIMER_BASE			0x0c
 
@@ -674,12 +680,17 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
+	unsigned int ctrl = 0;
+
 	pcl818_ai_setup_dma(dev, s);
 
-	if (mode == 1)	/* Pacer+IRQ+DMA */
-		outb(0x87 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);
-	else		/* Ext trig+IRQ+DMA */
-		outb(0x86 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);
+	ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq) | PCL818_CTRL_DMAE;
+	if (mode == 1)
+		ctrl |= PCL818_CTRL_PACER_TRIG;
+	else
+		ctrl |= PCL818_CTRL_EXT_TRIG;
+
+	outb(ctrl, dev->iobase + PCL818_CTRL_REG);
 }
 
 static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
@@ -687,6 +698,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 {
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int ctrl = 0;
 	unsigned int seglen;
 
 	if (devpriv->ai_cmd_running)
@@ -717,22 +729,20 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 		break;
 	case 0:
 		if (!devpriv->usefifo) {
-			/* IRQ */
-			if (mode == 1)	/* Pacer+IRQ */
-				outb(0x83 | (dev->irq << 4),
-				     dev->iobase + PCL818_CONTROL);
-			else		/* Ext trig+IRQ */
-				outb(0x82 | (dev->irq << 4),
-				     dev->iobase + PCL818_CONTROL);
+			ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq);
+			if (mode == 1)
+				ctrl |= PCL818_CTRL_PACER_TRIG;
+			else
+				ctrl |= PCL818_CTRL_EXT_TRIG;
 		} else {
-			/* FIFO */
 			/* enable FIFO */
 			outb(1, dev->iobase + PCL818_FI_ENABLE);
-			if (mode == 1)	/* Pacer */
-				outb(0x03, dev->iobase + PCL818_CONTROL);
-			else		/* Ext trig */
-				outb(0x02, dev->iobase + PCL818_CONTROL);
+			if (mode == 1)
+				ctrl |= PCL818_CTRL_PACER_TRIG;
+			else
+				ctrl |= PCL818_CTRL_EXT_TRIG;
 		}
+		outb(ctrl, dev->iobase + PCL818_CTRL_REG);
 	}
 
 	pcl818_start_pacer(dev, mode == 1);
@@ -925,13 +935,8 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 		disable_dma(devpriv->dma);
 	}
 
-	outb(inb(dev->iobase + PCL818_CONTROL) & 0x73,
-	     dev->iobase + PCL818_CONTROL);	/* Stop A/D */
-	udelay(1);
+	outb(PCL818_CTRL_DISABLE_TRIG, dev->iobase + PCL818_CTRL_REG);
 	pcl818_start_pacer(dev, false);
-	pcl818_ai_soft_trig(dev);
-	pcl818_ai_get_sample(dev, s, NULL);
-	outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
 	pcl818_ai_clear_eoc(dev);
 
 	if (devpriv->usefifo) {	/*  FIFO shutdown */
@@ -955,8 +960,7 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 	int ret = 0;
 	int i;
 
-	/* software trigger, DMA and INT off */
-	outb(0, dev->iobase + PCL818_CONTROL);
+	outb(PCL818_CTRL_SOFT_TRIG, dev->iobase + PCL818_CTRL_REG);
 
 	pcl818_ai_set_chan_range(dev, chan, range);
 	pcl818_ai_set_chan_scan(dev, chan, chan);
@@ -1055,7 +1059,7 @@ static void pcl818_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL818_DO_DI_MSB_REG);
 	outb(0, dev->iobase + PCL818_DO_DI_LSB_REG);
 	udelay(1);
-	outb(0, dev->iobase + PCL818_CONTROL);
+	outb(PCL818_CTRL_DISABLE_TRIG, dev->iobase + PCL818_CTRL_REG);
 	outb(0, dev->iobase + PCL818_CNTENABLE);
 	outb(0, dev->iobase + PCL818_MUX_REG);
 	pcl818_ai_clear_eoc(dev);
