@@ -273,6 +273,24 @@ static int sh_mtu2_register(struct sh_mtu2_channel *ch, char *name,
 	return 0;
 }
 
+static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch,
+				 struct sh_mtu2_device *mtu)
+{
+	struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
+
+	memset(ch, 0, sizeof(*ch));
+	ch->mtu = mtu;
+
+	ch->irq = platform_get_irq(mtu->pdev, 0);
+	if (ch->irq < 0) {
+		dev_err(&mtu->pdev->dev, "failed to get irq\n");
+		return ch->irq;
+	}
+
+	return sh_mtu2_register(ch, (char *)dev_name(&mtu->pdev->dev),
+				cfg->clockevent_rating);
+}
+
 static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 			 struct platform_device *pdev)
 {
@@ -297,12 +315,6 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 		goto err0;
 	}
 
-	mtu->channel.irq = platform_get_irq(mtu->pdev, 0);
-	if (mtu->channel.irq < 0) {
-		dev_err(&mtu->pdev->dev, "failed to get irq\n");
-		goto err0;
-	}
-
 	/* map memory, let mapbase point to our channel */
 	mtu->mapbase = ioremap_nocache(res->start, resource_size(res));
 	if (mtu->mapbase == NULL) {
@@ -322,10 +334,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	if (ret < 0)
 		goto err2;
 
-	mtu->channel.mtu = mtu;
-
-	ret = sh_mtu2_register(&mtu->channel, (char *)dev_name(&mtu->pdev->dev),
-			       cfg->clockevent_rating);
+	ret = sh_mtu2_setup_channel(&mtu->channel, mtu);
 	if (ret < 0)
 		goto err3;
 
