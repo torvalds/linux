@@ -492,9 +492,11 @@ static void srcu_torture_stats(char *page)
 	page += sprintf(page, "%s%s per-CPU(idx=%d):",
 		       torture_type, TORTURE_FLAG, idx);
 	for_each_possible_cpu(cpu) {
-		page += sprintf(page, " %d(%lu,%lu)", cpu,
-			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[!idx],
-			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[idx]);
+		long c0, c1;
+
+		c0 = (long)per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[!idx];
+		c1 = (long)per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[idx];
+		page += sprintf(page, " %d(%ld,%ld)", cpu, c0, c1);
 	}
 	sprintf(page, "\n");
 }
