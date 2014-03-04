@@ -1939,7 +1939,7 @@ static void rtw_drv_halt(void)
 }
 
 #include "wifi_version.h"
-extern int rk29sdk_wifi_power(int on);
+extern int rockchip_wifi_power(int on);
 
 static int __init rockchip_wifi_init_module(void)
 {
@@ -1948,9 +1948,9 @@ static int __init rockchip_wifi_init_module(void)
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
     printk("=======================================================\n");
     printk("Realtek 8188EU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
-    rk29sdk_wifi_power(0);
+    rockchip_wifi_power(0);
     msleep(100);
-    rk29sdk_wifi_power(1);
+    rockchip_wifi_power(1);
 
     return rtw_drv_entry();
 }
@@ -1963,7 +1963,7 @@ static void __exit rockchip_wifi_exit_module(void)
     printk("=======================================================\n");
     printk("Realtek 8188EU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
     rtw_drv_halt();
-    rk29sdk_wifi_power(0);
+    rockchip_wifi_power(0);
 }
 
 late_initcall(rockchip_wifi_init_module);

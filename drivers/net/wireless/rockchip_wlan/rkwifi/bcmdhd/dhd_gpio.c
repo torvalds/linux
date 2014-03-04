@@ -43,17 +43,17 @@ int bcm_wlan_get_oob_irq(void)
 }
 #endif
 
-extern int rk29sdk_wifi_power(int on);
+extern int rockchip_wifi_power(int on);
 
 void bcm_wlan_power_on(int flag)
 {
 	if (flag == 1) {
 		printk("======== PULL WL_REG_ON HIGH! ========\n");
-		rk29sdk_wifi_power(1);
+		rockchip_wifi_power(1);
         msleep(100);
 	} else {
 		printk("======== PULL WL_REG_ON HIGH! (flag = %d) ========\n", flag);
-		rk29sdk_wifi_power(1);
+		rockchip_wifi_power(1);
         msleep(100);
 	}
 }
@@ -62,10 +62,10 @@ void bcm_wlan_power_off(int flag)
 {
 	if (flag == 1) {
 		printk("======== Card detection to remove SDIO card! ========\n");
-		rk29sdk_wifi_power(0);
+		rockchip_wifi_power(0);
 	} else {
 		printk("======== PULL WL_REG_ON LOW! (flag = %d) ========\n", flag);
-		rk29sdk_wifi_power(0);
+		rockchip_wifi_power(0);
 	}
 }
 

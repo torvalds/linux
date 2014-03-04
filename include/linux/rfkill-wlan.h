@@ -38,9 +38,9 @@ struct rksdmmc_gpio_wifi_moudle {
     struct rksdmmc_gpio   GPS_LAN;  //pin33--GPS_LAN
 };
 
-void *rk29sdk_mem_prealloc(int section, unsigned long size);
-int rk29sdk_wifi_power(int on);
-int rk29sdk_wifi_reset(int on);
-int rk29sdk_wifi_mac_addr(unsigned char *buf);
-void *rk29sdk_wifi_country_code(char *ccode);
+void *rockchip_mem_prealloc(int section, unsigned long size);
+int rockchip_wifi_power(int on);
+int rockchip_wifi_reset(int on);
+int rockchip_wifi_mac_addr(unsigned char *buf);
+void *rockchip_wifi_country_code(char *ccode);
 #endif

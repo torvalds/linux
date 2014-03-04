@@ -165,7 +165,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 
 #ifdef GET_CUSTOM_MAC_ENABLE
 #if defined(CUSTOMER_HW)
-int rk29sdk_wifi_mac_addr(unsigned char *buf);
+int rockchip_wifi_mac_addr(unsigned char *buf);
 #endif
 /* Function to get custom MAC address */
 int
@@ -183,7 +183,7 @@ dhd_custom_get_mac_address(unsigned char *buf)
 #endif
 
 #if defined(CUSTOMER_HW)
-    ret = rk29sdk_wifi_mac_addr(buf);
+    ret = rockchip_wifi_mac_addr(buf);
 #endif
 
 #ifdef EXAMPLE_GET_MAC

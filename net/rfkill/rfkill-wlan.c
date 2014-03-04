@@ -121,7 +121,7 @@ static struct wifi_mem_prealloc wifi_mem_array[5] = {
     {NULL, (WLAN_SECTION_SIZE_5 + PREALLOC_WLAN_SECTION_HEADER)}
 };
 
-static int __init rk29sdk_init_wifi_mem(void)
+static int __init rockchip_init_wifi_mem(void)
 {
     int i;
     int j;
@@ -156,7 +156,7 @@ err_skb_alloc:
     return -ENOMEM;
 }
 
-void *rk29sdk_mem_prealloc(int section, unsigned long size)
+void *rockchip_mem_prealloc(int section, unsigned long size)
 {
     if (section == PREALLOC_WLAN_SEC_NUM)
         return wlan_static_skb;
@@ -173,9 +173,9 @@ void *rk29sdk_mem_prealloc(int section, unsigned long size)
     return wifi_mem_array[section].mem_ptr;
 }
 #else
-void *rk29sdk_mem_prealloc(int section, unsigned long size) { return NULL;}
+void *rockchip_mem_prealloc(int section, unsigned long size) { return NULL;}
 #endif
-EXPORT_SYMBOL(rk29sdk_mem_prealloc);
+EXPORT_SYMBOL(rockchip_mem_prealloc);
 
 /**************************************************************************
  *
@@ -184,7 +184,7 @@ EXPORT_SYMBOL(rk29sdk_mem_prealloc);
  * 1 -> power on
  *
  *************************************************************************/
-int rk29sdk_wifi_power(int on)
+int rockchip_wifi_power(int on)
 {
 	struct rfkill_wlan_data *mrfkill = g_rfkill;
     struct rksdmmc_gpio *poweron, *reset;
@@ -261,18 +261,18 @@ int rk29sdk_wifi_power(int on)
 
     return 0;
 }
-EXPORT_SYMBOL(rk29sdk_wifi_power);
+EXPORT_SYMBOL(rockchip_wifi_power);
 
 /**************************************************************************
  *
  * Wifi Reset Func
  *
  *************************************************************************/
-int rk29sdk_wifi_reset(int on)
+int rockchip_wifi_reset(int on)
 {
     return 0;
 }
-EXPORT_SYMBOL(rk29sdk_wifi_reset);
+EXPORT_SYMBOL(rockchip_wifi_reset);
 
 /**************************************************************************
  *
@@ -282,7 +282,7 @@ EXPORT_SYMBOL(rk29sdk_wifi_reset);
 #include <linux/etherdevice.h>
 u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
 extern char GetSNSectorInfo(char * pbuf);
-int rk29sdk_wifi_mac_addr(unsigned char *buf)
+int rockchip_wifi_mac_addr(unsigned char *buf)
 {
     char mac_buf[20] = {0};
     LOG("%s: enter.\n", __func__);
@@ -322,7 +322,7 @@ int rk29sdk_wifi_mac_addr(unsigned char *buf)
 #endif
     return 0;
 }
-EXPORT_SYMBOL(rk29sdk_wifi_mac_addr);
+EXPORT_SYMBOL(rockchip_wifi_mac_addr);
 
 /**************************************************************************
  *
@@ -337,7 +337,7 @@ struct cntry_locales_custom {
 
 static struct cntry_locales_custom country_cloc;
 
-void *rk29sdk_wifi_country_code(char *ccode)
+void *rockchip_wifi_country_code(char *ccode)
 {
     struct cntry_locales_custom *mcloc;
 
@@ -348,6 +348,7 @@ void *rk29sdk_wifi_country_code(char *ccode)
 
     return mcloc;
 }
+EXPORT_SYMBOL(rockchip_wifi_country_code);
 /**************************************************************************/
 
 static int rfkill_rk_setup_gpio(struct rksdmmc_gpio *gpio, const char* prefix, const char* name)
@@ -548,7 +549,7 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
     }
 
 #if BCM_STATIC_MEMORY_SUPPORT
-    rk29sdk_init_wifi_mem();
+    rockchip_init_wifi_mem();
 #endif
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)
@@ -624,7 +625,7 @@ static struct of_device_id wlan_platdata_of_match[] = {
     { .compatible = "wlan-platdata" },
     { }
 };
-MODULE_DEVICE_TABLE(of, pwm_backlight_of_match);
+MODULE_DEVICE_TABLE(of, wlan_platdata_of_match);
 #endif //CONFIG_OF
 
 static struct platform_driver rfkill_wlan_driver = {
