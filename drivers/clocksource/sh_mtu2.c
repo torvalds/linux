@@ -236,7 +236,7 @@ static void sh_mtu2_clock_event_resume(struct clock_event_device *ced)
 }
 
 static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
-				       char *name, unsigned long rating)
+					const char *name, unsigned long rating)
 {
 	struct clock_event_device *ced = &ch->ced;
 	int ret;
@@ -264,7 +264,7 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
 	}
 }
 
-static int sh_mtu2_register(struct sh_mtu2_channel *ch, char *name,
+static int sh_mtu2_register(struct sh_mtu2_channel *ch, const char *name,
 			    unsigned long clockevent_rating)
 {
 	if (clockevent_rating)
@@ -287,7 +287,7 @@ static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch,
 		return ch->irq;
 	}
 
-	return sh_mtu2_register(ch, (char *)dev_name(&mtu->pdev->dev),
+	return sh_mtu2_register(ch, dev_name(&mtu->pdev->dev),
 				cfg->clockevent_rating);
 }
 
