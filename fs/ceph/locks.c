@@ -87,6 +87,12 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	u8 wait = 0;
 	u16 op = CEPH_MDS_OP_SETFILELOCK;
 
+	if (!(fl->fl_flags & FL_POSIX))
+		return -ENOLCK;
+	/* No mandatory locks */
+	if (__mandatory_lock(file->f_mapping->host) && fl->fl_type != F_UNLCK)
+		return -ENOLCK;
+
 	fl->fl_nspid = get_pid(task_tgid(current));
 	dout("ceph_lock, fl_pid:%d", fl->fl_pid);
 
@@ -132,6 +138,12 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 	u8 lock_cmd;
 	int err;
 	u8 wait = 0;
+
+	if (!(fl->fl_flags & FL_FLOCK))
+		return -ENOLCK;
+	/* No mandatory locks */
+	if (__mandatory_lock(file->f_mapping->host) && fl->fl_type != F_UNLCK)
+		return -ENOLCK;
 
 	fl->fl_nspid = get_pid(task_tgid(current));
 	dout("ceph_flock, fl_pid:%d", fl->fl_pid);
