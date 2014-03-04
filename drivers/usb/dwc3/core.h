@@ -710,6 +710,9 @@ struct dwc3 {
 #define DWC3_REVISION_230A	0x5533230a
 #define DWC3_REVISION_240A	0x5533240a
 #define DWC3_REVISION_250A	0x5533250a
+#define DWC3_REVISION_260A	0x5533260a
+#define DWC3_REVISION_270A	0x5533270a
+#define DWC3_REVISION_280A	0x5533280a
 
 	enum dwc3_ep0_next	ep0_next_event;
 	enum dwc3_ep0_state	ep0state;
