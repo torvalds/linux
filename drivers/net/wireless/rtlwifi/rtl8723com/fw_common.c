@@ -263,7 +263,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 		 "normal Firmware SIZE %d\n", fwsize);
 
 	if (rtlpriv->cfg->ops->is_fw_header(pfwheader)) {
-		RT_TRACE(rtlpriv, COMP_FW, DBG_EMERG,
+		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
 			 "Firmware Version(%d), Signature(%#x), Size(%d)\n",
 			 pfwheader->version, pfwheader->signature,
 			 (int)sizeof(struct rtl92c_firmware_header));
