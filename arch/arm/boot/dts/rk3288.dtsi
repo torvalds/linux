@@ -220,4 +220,15 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdif_tx>;
 	};
+	ion: ion{
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		rockchip,ion-heap@1 { /* CMA HEAP */
+			reg = <1>;
+		};
+		rockchip,ion-heap@3 { /* SYSTEM HEAP */
+			reg = <3>;
+		};
+	};
 };
