@@ -1366,22 +1366,43 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 		struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
-	unsigned int m = 6912;
-	unsigned int n = 15625;
+	unsigned int m, n;
 	u32 reg;
 
-	/* For baud rates 1M, 2M, 3M and 4M the dividers must be adjusted. */
-	if (baud == 1000000 || baud == 2000000 || baud == 4000000) {
+	/*
+	 * For baud rates 0.5M, 1M, 1.5M, 2M, 2.5M, 3M, 3.5M and 4M the
+	 * dividers must be adjusted.
+	 *
+	 * uartclk = (m / n) * 100 MHz, where m <= n
+	 */
+	switch (baud) {
+	case 500000:
+	case 1000000:
+	case 2000000:
+	case 4000000:
 		m = 64;
 		n = 100;
-
 		p->uartclk = 64000000;
-	} else if (baud == 3000000) {
+		break;
+	case 3500000:
+		m = 56;
+		n = 100;
+		p->uartclk = 56000000;
+		break;
+	case 1500000:
+	case 3000000:
 		m = 48;
 		n = 100;
-
 		p->uartclk = 48000000;
-	} else {
+		break;
+	case 2500000:
+		m = 40;
+		n = 100;
+		p->uartclk = 40000000;
+		break;
+	default:
+		m = 6912;
+		n = 15625;
 		p->uartclk = 44236800;
 	}
 
