@@ -170,6 +170,14 @@ static struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	.callback = video_detect_force_vendor,
+	.ident = "HP EliteBook Revolve 810",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook Revolve 810 G1"),
+		},
+	},
+	{
+	.callback = video_detect_force_vendor,
 	.ident = "Lenovo Yoga 13",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),

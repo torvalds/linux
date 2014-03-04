@@ -675,8 +675,11 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	INIT_DELAYED_WORK(&nesdev->work, nes_recheck_link_status);
 
 	/* Initialize network devices */
-	if ((netdev = nes_netdev_init(nesdev, mmio_regs)) == NULL)
+	netdev = nes_netdev_init(nesdev, mmio_regs);
+	if (netdev == NULL) {
+		ret = -ENOMEM;
 		goto bail7;
+	}
 
 	/* Register network device */
 	ret = register_netdev(netdev);

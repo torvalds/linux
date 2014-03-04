@@ -521,8 +521,11 @@ posix_acl_chmod(struct inode *inode, umode_t mode)
 		return -EOPNOTSUPP;
 
 	acl = get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR_OR_NULL(acl))
+	if (IS_ERR_OR_NULL(acl)) {
+		if (acl == ERR_PTR(-EOPNOTSUPP))
+			return 0;
 		return PTR_ERR(acl);
+	}
 
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
 	if (ret)
@@ -544,13 +547,14 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 		goto no_acl;
 
 	p = get_acl(dir, ACL_TYPE_DEFAULT);
-	if (IS_ERR(p))
+	if (IS_ERR(p)) {
+		if (p == ERR_PTR(-EOPNOTSUPP))
+			goto apply_umask;
 		return PTR_ERR(p);
-
-	if (!p) {
-		*mode &= ~current_umask();
-		goto no_acl;
 	}
+
+	if (!p)
+		goto apply_umask;
 
 	*acl = posix_acl_clone(p, GFP_NOFS);
 	if (!*acl)
@@ -575,6 +579,8 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 	}
 	return 0;
 
+apply_umask:
+	*mode &= ~current_umask();
 no_acl:
 	*default_acl = NULL;
 	*acl = NULL;

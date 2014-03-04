@@ -693,11 +693,20 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	if (!uninit_q)
 		return NULL;
 
+	uninit_q->flush_rq = kzalloc(sizeof(struct request), GFP_KERNEL);
+	if (!uninit_q->flush_rq)
+		goto out_cleanup_queue;
+
 	q = blk_init_allocated_queue(uninit_q, rfn, lock);
 	if (!q)
-		blk_cleanup_queue(uninit_q);
-
+		goto out_free_flush_rq;
 	return q;
+
+out_free_flush_rq:
+	kfree(uninit_q->flush_rq);
+out_cleanup_queue:
+	blk_cleanup_queue(uninit_q);
+	return NULL;
 }
 EXPORT_SYMBOL(blk_init_queue_node);
 
@@ -1127,7 +1136,7 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	if (q->mq_ops)
-		return blk_mq_alloc_request(q, rw, gfp_mask, false);
+		return blk_mq_alloc_request(q, rw, gfp_mask);
 	else
 		return blk_old_get_request(q, rw, gfp_mask);
 }
@@ -1277,6 +1286,11 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 {
 	if (unlikely(!q))
 		return;
+
+	if (q->mq_ops) {
+		blk_mq_free_request(req);
+		return;
+	}
 
 	blk_pm_put_request(req);
 

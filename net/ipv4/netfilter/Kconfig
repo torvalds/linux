@@ -61,6 +61,11 @@ config NFT_CHAIN_NAT_IPV4
 	  packet transformations such as the source, destination address and
 	  source and destination ports.
 
+config NFT_REJECT_IPV4
+	depends on NF_TABLES_IPV4
+	default NFT_REJECT
+	tristate
+
 config NF_TABLES_ARP
 	depends on NF_TABLES
 	tristate "ARP nf_tables support"

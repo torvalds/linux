@@ -578,8 +578,14 @@ static int add_device_membership(struct btrfs_fs_info *fs_info)
 		return -ENOMEM;
 
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
-		struct hd_struct *disk = dev->bdev->bd_part;
-		struct kobject *disk_kobj = &part_to_dev(disk)->kobj;
+		struct hd_struct *disk;
+		struct kobject *disk_kobj;
+
+		if (!dev->bdev)
+			continue;
+
+		disk = dev->bdev->bd_part;
+		disk_kobj = &part_to_dev(disk)->kobj;
 
 		error = sysfs_create_link(fs_info->device_dir_kobj,
 					  disk_kobj, disk_kobj->name);

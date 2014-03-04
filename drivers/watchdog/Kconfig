@@ -223,6 +223,7 @@ config SA1100_WATCHDOG
 
 config DW_WATCHDOG
 	tristate "Synopsys DesignWare watchdog"
+	depends on HAS_IOMEM
 	help
 	  Say Y here if to include support for the Synopsys DesignWare
 	  watchdog timer found in many chips.

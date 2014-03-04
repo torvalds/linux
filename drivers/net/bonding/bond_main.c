@@ -1270,9 +1270,13 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	if (slave_ops->ndo_set_mac_address == NULL) {
 		if (!bond_has_slaves(bond)) {
-			pr_warning("%s: Warning: The first slave device specified does not support setting the MAC address. Setting fail_over_mac to active.",
-				   bond_dev->name);
-			bond->params.fail_over_mac = BOND_FOM_ACTIVE;
+			pr_warn("%s: Warning: The first slave device specified does not support setting the MAC address.\n",
+				bond_dev->name);
+			if (bond->params.mode == BOND_MODE_ACTIVEBACKUP) {
+				bond->params.fail_over_mac = BOND_FOM_ACTIVE;
+				pr_warn("%s: Setting fail_over_mac to active for active-backup mode.\n",
+					bond_dev->name);
+			}
 		} else if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 			pr_err("%s: Error: The slave device specified does not support setting the MAC address, but fail_over_mac is not set to active.\n",
 			       bond_dev->name);
@@ -1315,7 +1319,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 */
 	memcpy(new_slave->perm_hwaddr, slave_dev->dev_addr, ETH_ALEN);
 
-	if (!bond->params.fail_over_mac) {
+	if (!bond->params.fail_over_mac ||
+	    bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 		/*
 		 * Set slave to master's mac address.  The application already
 		 * set the master's mac address to that of the first slave
@@ -1505,7 +1510,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	slave_dev->npinfo = bond->dev->npinfo;
 	if (slave_dev->npinfo) {
 		if (slave_enable_netpoll(new_slave)) {
-			read_unlock(&bond->lock);
 			pr_info("Error, %s: master_dev is using netpoll, "
 				 "but new slave device does not support netpoll.\n",
 				 bond_dev->name);
@@ -1579,7 +1583,8 @@ err_close:
 	dev_close(slave_dev);
 
 err_restore_mac:
-	if (!bond->params.fail_over_mac) {
+	if (!bond->params.fail_over_mac ||
+	    bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 		/* XXX TODO - fom follow mode needs to change master's
 		 * MAC if this slave's MAC is in use by the bond, or at
 		 * least print a warning.
@@ -1672,7 +1677,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	bond->current_arp_slave = NULL;
 
-	if (!all && !bond->params.fail_over_mac) {
+	if (!all && (!bond->params.fail_over_mac ||
+		     bond->params.mode != BOND_MODE_ACTIVEBACKUP)) {
 		if (ether_addr_equal_64bits(bond_dev->dev_addr, slave->perm_hwaddr) &&
 		    bond_has_slaves(bond))
 			pr_warn("%s: Warning: the permanent HWaddr of %s - %pM - is still in use by %s. Set the HWaddr of %s to a different address to avoid conflicts.\n",
@@ -1769,7 +1775,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
 
-	if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
+	if (bond->params.fail_over_mac != BOND_FOM_ACTIVE ||
+	    bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 		/* restore original ("permanent") mac address */
 		memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
 		addr.sa_family = slave_dev->type;
@@ -3431,7 +3438,8 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	/* If fail_over_mac is enabled, do nothing and return success.
 	 * Returning an error causes ifenslave to fail.
 	 */
-	if (bond->params.fail_over_mac)
+	if (bond->params.fail_over_mac &&
+	    bond->params.mode == BOND_MODE_ACTIVEBACKUP)
 		return 0;
 
 	if (!is_valid_ether_addr(sa->sa_data))

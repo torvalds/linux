@@ -149,7 +149,8 @@ static int valid_args(__u32 rhport, enum usb_device_speed speed)
 	case USB_SPEED_WIRELESS:
 		break;
 	default:
-		pr_err("speed %d\n", speed);
+		pr_err("Failed attach request for unsupported USB speed: %s\n",
+			usb_speed_string(speed));
 		return -EINVAL;
 	}
 

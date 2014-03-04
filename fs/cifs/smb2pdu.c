@@ -1890,7 +1890,8 @@ smb2_writev_callback(struct mid_q_entry *mid)
 
 /* smb2_async_writev - send an async write, and set up mid to handle result */
 int
-smb2_async_writev(struct cifs_writedata *wdata)
+smb2_async_writev(struct cifs_writedata *wdata,
+		  void (*release)(struct kref *kref))
 {
 	int rc = -EACCES;
 	struct smb2_write_req *req = NULL;
@@ -1938,7 +1939,7 @@ smb2_async_writev(struct cifs_writedata *wdata)
 				smb2_writev_callback, wdata, 0);
 
 	if (rc) {
-		kref_put(&wdata->refcount, cifs_writedata_release);
+		kref_put(&wdata->refcount, release);
 		cifs_stats_fail_inc(tcon, SMB2_WRITE_HE);
 	}
 

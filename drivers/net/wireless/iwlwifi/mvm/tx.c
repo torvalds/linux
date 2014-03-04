@@ -659,8 +659,14 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	rcu_read_lock();
 
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+	/*
+	 * sta can't be NULL otherwise it'd mean that the sta has been freed in
+	 * the firmware while we still have packets for it in the Tx queues.
+	 */
+	if (WARN_ON_ONCE(!sta))
+		goto out;
 
-	if (!IS_ERR_OR_NULL(sta)) {
+	if (!IS_ERR(sta)) {
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		if (tid != IWL_TID_NON_QOS) {
@@ -675,7 +681,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			spin_unlock_bh(&mvmsta->lock);
 		}
 	} else {
-		sta = NULL;
 		mvmsta = NULL;
 	}
 
@@ -683,42 +688,38 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
 	 */
-	if (txq_id < mvm->first_agg_queue && !WARN_ON(skb_freed > 1) &&
-	    atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id])) {
-		if (mvmsta) {
-			/*
-			 * If there are no pending frames for this STA, notify
-			 * mac80211 that this station can go to sleep in its
-			 * STA table.
-			 */
-			if (mvmsta->vif->type == NL80211_IFTYPE_AP)
-				ieee80211_sta_block_awake(mvm->hw, sta, false);
-			/*
-			 * We might very well have taken mvmsta pointer while
-			 * the station was being removed. The remove flow might
-			 * have seen a pending_frame (because we didn't take
-			 * the lock) even if now the queues are drained. So make
-			 * really sure now that this the station is not being
-			 * removed. If it is, run the drain worker to remove it.
-			 */
-			spin_lock_bh(&mvmsta->lock);
-			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-			if (!sta || PTR_ERR(sta) == -EBUSY) {
-				/*
-				 * Station disappeared in the meantime:
-				 * so we are draining.
-				 */
-				set_bit(sta_id, mvm->sta_drained);
-				schedule_work(&mvm->sta_drained_wk);
-			}
-			spin_unlock_bh(&mvmsta->lock);
-		} else if (!mvmsta && PTR_ERR(sta) == -EBUSY) {
-			/* Tx response without STA, so we are draining */
-			set_bit(sta_id, mvm->sta_drained);
-			schedule_work(&mvm->sta_drained_wk);
-		}
+	if (txq_id >= mvm->first_agg_queue)
+		goto out;
+
+	/* We can't free more than one frame at once on a shared queue */
+	WARN_ON(skb_freed > 1);
+
+	/* If we have still frames from this STA nothing to do here */
+	if (!atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id]))
+		goto out;
+
+	if (mvmsta && mvmsta->vif->type == NL80211_IFTYPE_AP) {
+		/*
+		 * If there are no pending frames for this STA, notify
+		 * mac80211 that this station can go to sleep in its
+		 * STA table.
+		 * If mvmsta is not NULL, sta is valid.
+		 */
+		ieee80211_sta_block_awake(mvm->hw, sta, false);
 	}
 
+	if (PTR_ERR(sta) == -EBUSY || PTR_ERR(sta) == -ENOENT) {
+		/*
+		 * We are draining and this was the last packet - pre_rcu_remove
+		 * has been called already. We might be after the
+		 * synchronize_net already.
+		 * Don't rely on iwl_mvm_rm_sta to see the empty Tx queues.
+		 */
+		set_bit(sta_id, mvm->sta_drained);
+		schedule_work(&mvm->sta_drained_wk);
+	}
+
+out:
 	rcu_read_unlock();
 }
 

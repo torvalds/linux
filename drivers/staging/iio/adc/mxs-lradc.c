@@ -1035,8 +1035,6 @@ SHOW_SCALE_AVAILABLE_ATTR(4);
 SHOW_SCALE_AVAILABLE_ATTR(5);
 SHOW_SCALE_AVAILABLE_ATTR(6);
 SHOW_SCALE_AVAILABLE_ATTR(7);
-SHOW_SCALE_AVAILABLE_ATTR(8);
-SHOW_SCALE_AVAILABLE_ATTR(9);
 SHOW_SCALE_AVAILABLE_ATTR(10);
 SHOW_SCALE_AVAILABLE_ATTR(11);
 SHOW_SCALE_AVAILABLE_ATTR(12);
@@ -1053,8 +1051,6 @@ static struct attribute *mxs_lradc_attributes[] = {
 	&iio_dev_attr_in_voltage5_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage6_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage7_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage8_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage9_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage10_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage11_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage12_scale_available.dev_attr.attr,
@@ -1613,7 +1609,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 			 * of the array.
 			 */
 			scale_uv = ((u64)lradc->vref_mv[i] * 100000000) >>
-				   (iio->channels[i].scan_type.realbits - s);
+				   (LRADC_RESOLUTION - s);
 			lradc->scale_avail[i][s].nano =
 					do_div(scale_uv, 100000000) * 10;
 			lradc->scale_avail[i][s].integer = scale_uv;

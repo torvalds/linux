@@ -1,6 +1,20 @@
 00-INDEX
 	- this file
-mtrr.txt
-	- how to use x86 Memory Type Range Registers to increase performance
+boot.txt
+	- List of boot protocol versions
+early-microcode.txt
+	- How to load microcode from an initrd-CPIO archive early to fix CPU issues.
+earlyprintk.txt
+	- Using earlyprintk with a USB2 debug port key.
+entry_64.txt
+	- Describe (some of the) kernel entry points for x86.
 exception-tables.txt
 	- why and how Linux kernel uses exception tables on x86
+mtrr.txt
+	- how to use x86 Memory Type Range Registers to increase performance
+pat.txt
+	- Page Attribute Table intro and API
+usb-legacy-support.txt
+	- how to fix/avoid quirks when using emulated PS/2 mouse/keyboard.
+zero-page.txt
+	- layout of the first page of memory.

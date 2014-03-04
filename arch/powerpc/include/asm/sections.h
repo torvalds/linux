@@ -8,6 +8,7 @@
 
 #ifdef __powerpc64__
 
+extern char __start_interrupts[];
 extern char __end_interrupts[];
 
 extern char __prom_init_toc_start[];
@@ -19,6 +20,17 @@ static inline int in_kernel_text(unsigned long addr)
 		return 1;
 
 	return 0;
+}
+
+static inline int overlaps_interrupt_vector_text(unsigned long start,
+							unsigned long end)
+{
+	unsigned long real_start, real_end;
+	real_start = __start_interrupts - _stext;
+	real_end = __end_interrupts - _stext;
+
+	return start < (unsigned long)__va(real_end) &&
+		(unsigned long)__va(real_start) < end;
 }
 
 static inline int overlaps_kernel_text(unsigned long start, unsigned long end)

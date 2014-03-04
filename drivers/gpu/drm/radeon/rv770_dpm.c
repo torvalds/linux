@@ -2174,7 +2174,6 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct rv7xx_ps *ps = rv770_get_ps(rps);
 	u32 sclk, mclk;
-	u16 vddc;
 	struct rv7xx_pl *pl;
 
 	switch (index) {
@@ -2214,8 +2213,8 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 
 	/* patch up vddc if necessary */
 	if (pl->vddc == 0xff01) {
-		if (radeon_atom_get_max_vddc(rdev, 0, 0, &vddc) == 0)
-			pl->vddc = vddc;
+		if (pi->max_vddc)
+			pl->vddc = pi->max_vddc;
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_ACPI) {

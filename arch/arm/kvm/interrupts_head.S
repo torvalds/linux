@@ -303,13 +303,17 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 
 	mrc	p15, 0, r2, c14, c1, 0	@ CNTKCTL
 	mrrc	p15, 0, r4, r5, c7	@ PAR
+	mrc	p15, 0, r6, c10, c3, 0	@ AMAIR0
+	mrc	p15, 0, r7, c10, c3, 1	@ AMAIR1
 
 	.if \store_to_vcpu == 0
-	push	{r2,r4-r5}
+	push	{r2,r4-r7}
 	.else
 	str	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
 	add	r12, vcpu, #CP15_OFFSET(c7_PAR)
 	strd	r4, r5, [r12]
+	str	r6, [vcpu, #CP15_OFFSET(c10_AMAIR0)]
+	str	r7, [vcpu, #CP15_OFFSET(c10_AMAIR1)]
 	.endif
 .endm
 
@@ -322,15 +326,19 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  */
 .macro write_cp15_state read_from_vcpu
 	.if \read_from_vcpu == 0
-	pop	{r2,r4-r5}
+	pop	{r2,r4-r7}
 	.else
 	ldr	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
 	add	r12, vcpu, #CP15_OFFSET(c7_PAR)
 	ldrd	r4, r5, [r12]
+	ldr	r6, [vcpu, #CP15_OFFSET(c10_AMAIR0)]
+	ldr	r7, [vcpu, #CP15_OFFSET(c10_AMAIR1)]
 	.endif
 
 	mcr	p15, 0, r2, c14, c1, 0	@ CNTKCTL
 	mcrr	p15, 0, r4, r5, c7	@ PAR
+	mcr	p15, 0, r6, c10, c3, 0	@ AMAIR0
+	mcr	p15, 0, r7, c10, c3, 1	@ AMAIR1
 
 	.if \read_from_vcpu == 0
 	pop	{r2-r12}
@@ -597,17 +605,14 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 
 /* Enable/Disable: stage-2 trans., trap interrupts, trap wfi, trap smc */
 .macro configure_hyp_role operation
-	mrc	p15, 4, r2, c1, c1, 0	@ HCR
-	bic	r2, r2, #HCR_VIRT_EXCP_MASK
-	ldr	r3, =HCR_GUEST_MASK
 	.if \operation == vmentry
-	orr	r2, r2, r3
+	ldr	r2, [vcpu, #VCPU_HCR]
 	ldr	r3, [vcpu, #VCPU_IRQ_LINES]
 	orr	r2, r2, r3
 	.else
-	bic	r2, r2, r3
+	mov	r2, #0
 	.endif
-	mcr	p15, 4, r2, c1, c1, 0
+	mcr	p15, 4, r2, c1, c1, 0	@ HCR
 .endm
 
 .macro load_vcpu

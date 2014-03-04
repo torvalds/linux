@@ -4126,12 +4126,14 @@ static int mv_platform_probe(struct platform_device *pdev)
 			clk_prepare_enable(hpriv->port_clks[port]);
 
 		sprintf(port_number, "port%d", port);
-		hpriv->port_phys[port] = devm_phy_get(&pdev->dev, port_number);
+		hpriv->port_phys[port] = devm_phy_optional_get(&pdev->dev,
+							       port_number);
 		if (IS_ERR(hpriv->port_phys[port])) {
 			rc = PTR_ERR(hpriv->port_phys[port]);
 			hpriv->port_phys[port] = NULL;
-			if ((rc != -EPROBE_DEFER) && (rc != -ENODEV))
-				dev_warn(&pdev->dev, "error getting phy");
+			if (rc != -EPROBE_DEFER)
+				dev_warn(&pdev->dev, "error getting phy %d",
+					rc);
 			goto err;
 		} else
 			phy_power_on(hpriv->port_phys[port]);

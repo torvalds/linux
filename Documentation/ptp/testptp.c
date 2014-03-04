@@ -117,6 +117,7 @@ static void usage(char *progname)
 		" -f val     adjust the ptp clock frequency by 'val' ppb\n"
 		" -g         get the ptp clock time\n"
 		" -h         prints this message\n"
+		" -i val     index for event/trigger\n"
 		" -k val     measure the time offset between system and phc clock\n"
 		"            for 'val' times (Maximum 25)\n"
 		" -p val     enable output with a period of 'val' nanoseconds\n"
@@ -154,6 +155,7 @@ int main(int argc, char *argv[])
 	int capabilities = 0;
 	int extts = 0;
 	int gettime = 0;
+	int index = 0;
 	int oneshot = 0;
 	int pct_offset = 0;
 	int n_samples = 0;
@@ -167,7 +169,7 @@ int main(int argc, char *argv[])
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? 1+progname : argv[0];
-	while (EOF != (c = getopt(argc, argv, "a:A:cd:e:f:ghk:p:P:sSt:v"))) {
+	while (EOF != (c = getopt(argc, argv, "a:A:cd:e:f:ghi:k:p:P:sSt:v"))) {
 		switch (c) {
 		case 'a':
 			oneshot = atoi(optarg);
@@ -189,6 +191,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'g':
 			gettime = 1;
+			break;
+		case 'i':
+			index = atoi(optarg);
 			break;
 		case 'k':
 			pct_offset = 1;
@@ -301,7 +306,7 @@ int main(int argc, char *argv[])
 
 	if (extts) {
 		memset(&extts_request, 0, sizeof(extts_request));
-		extts_request.index = 0;
+		extts_request.index = index;
 		extts_request.flags = PTP_ENABLE_FEATURE;
 		if (ioctl(fd, PTP_EXTTS_REQUEST, &extts_request)) {
 			perror("PTP_EXTTS_REQUEST");
@@ -375,7 +380,7 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 		memset(&perout_request, 0, sizeof(perout_request));
-		perout_request.index = 0;
+		perout_request.index = index;
 		perout_request.start.sec = ts.tv_sec + 2;
 		perout_request.start.nsec = 0;
 		perout_request.period.sec = 0;

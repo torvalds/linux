@@ -855,7 +855,6 @@ struct qla_tgt_cmd {
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
 	struct scsi_qla_host *vha;
-	struct list_head cmd_list;
 
 	struct atio_from_isp atio;
 };

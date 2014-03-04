@@ -567,8 +567,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 
 		vbl_start = mode->crtc_vblank_start * mode->crtc_htotal;
 	} else {
-		enum transcoder cpu_transcoder =
-			intel_pipe_to_cpu_transcoder(dev_priv, pipe);
+		enum transcoder cpu_transcoder = (enum transcoder) pipe;
 		u32 htotal;
 
 		htotal = ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff) + 1;

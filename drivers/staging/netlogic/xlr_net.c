@@ -892,6 +892,11 @@ static int xlr_setup_mdio(struct xlr_net_priv *priv,
 	priv->mii_bus->write = xlr_mii_write;
 	priv->mii_bus->parent = &pdev->dev;
 	priv->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	if (priv->mii_bus->irq == NULL) {
+		pr_err("irq alloc failed\n");
+		mdiobus_free(priv->mii_bus);
+		return -ENOMEM;
+	}
 	priv->mii_bus->irq[priv->phy_addr] = priv->ndev->irq;
 
 	/* Scan only the enabled address */
