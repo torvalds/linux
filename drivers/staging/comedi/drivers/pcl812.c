@@ -550,6 +550,96 @@ static void pcl812_start_pacer(struct comedi_device *dev, bool load_timers)
 	}
 }
 
+static void pcl812_ai_setup_dma(struct comedi_device *dev,
+				struct comedi_subdevice *s)
+{
+	struct pcl812_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int dma_flags;
+	unsigned int bytes;
+
+	/*  we use EOS, so adapt DMA buffer to one scan */
+	if (devpriv->ai_eos) {
+		devpriv->dmabytestomove[0] =
+			cmd->chanlist_len * sizeof(short);
+		devpriv->dmabytestomove[1] =
+			cmd->chanlist_len * sizeof(short);
+		devpriv->dma_runs_to_end = 1;
+	} else {
+		devpriv->dmabytestomove[0] = devpriv->hwdmasize;
+		devpriv->dmabytestomove[1] = devpriv->hwdmasize;
+		if (devpriv->ai_data_len < devpriv->hwdmasize) {
+			devpriv->dmabytestomove[0] =
+				devpriv->ai_data_len;
+			devpriv->dmabytestomove[1] =
+				devpriv->ai_data_len;
+		}
+		if (cmd->stop_src == TRIG_NONE) {
+			devpriv->dma_runs_to_end = 1;
+		} else {
+			/*  how many samples we must transfer? */
+			bytes = cmd->chanlist_len *
+				cmd->stop_arg * sizeof(short);
+
+			/*  how many DMA pages we must fill */
+			devpriv->dma_runs_to_end =
+				bytes / devpriv->dmabytestomove[0];
+
+			/* on last dma transfer must be moved */
+			devpriv->last_dma_run =
+				bytes % devpriv->dmabytestomove[0];
+			if (devpriv->dma_runs_to_end == 0)
+				devpriv->dmabytestomove[0] =
+					devpriv->last_dma_run;
+			devpriv->dma_runs_to_end--;
+		}
+	}
+	if (devpriv->dmabytestomove[0] > devpriv->hwdmasize) {
+		devpriv->dmabytestomove[0] = devpriv->hwdmasize;
+		devpriv->ai_eos = 0;
+	}
+	if (devpriv->dmabytestomove[1] > devpriv->hwdmasize) {
+		devpriv->dmabytestomove[1] = devpriv->hwdmasize;
+		devpriv->ai_eos = 0;
+	}
+	devpriv->next_dma_buf = 0;
+	set_dma_mode(devpriv->dma, DMA_MODE_READ);
+	dma_flags = claim_dma_lock();
+	clear_dma_ff(devpriv->dma);
+	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[0]);
+	set_dma_count(devpriv->dma, devpriv->dmabytestomove[0]);
+	release_dma_lock(dma_flags);
+	enable_dma(devpriv->dma);
+}
+
+static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
+				     struct comedi_subdevice *s)
+{
+	struct pcl812_private *devpriv = dev->private;
+	unsigned long dma_flags;
+
+	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
+	disable_dma(devpriv->dma);
+	set_dma_mode(devpriv->dma, DMA_MODE_READ);
+	dma_flags = claim_dma_lock();
+	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[devpriv->next_dma_buf]);
+	if (devpriv->ai_eos) {
+		set_dma_count(devpriv->dma,
+			      devpriv->dmabytestomove[devpriv->next_dma_buf]);
+	} else {
+		if (devpriv->dma_runs_to_end) {
+			set_dma_count(devpriv->dma,
+				      devpriv->dmabytestomove[devpriv->
+							      next_dma_buf]);
+		} else {
+			set_dma_count(devpriv->dma, devpriv->last_dma_run);
+		}
+		devpriv->dma_runs_to_end--;
+	}
+	release_dma_lock(dma_flags);
+	enable_dma(devpriv->dma);
+}
+
 static unsigned int pcl812_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
@@ -748,7 +838,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int i, dma_flags, bytes;
+	unsigned int i;
 
 	pcl812_start_pacer(dev, false);
 
@@ -780,60 +870,8 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			devpriv->ai_dma = 0;
 	}
 
-	if (devpriv->ai_dma) {
-		/*  we use EOS, so adapt DMA buffer to one scan */
-		if (devpriv->ai_eos) {
-			devpriv->dmabytestomove[0] =
-			    cmd->chanlist_len * sizeof(short);
-			devpriv->dmabytestomove[1] =
-			    cmd->chanlist_len * sizeof(short);
-			devpriv->dma_runs_to_end = 1;
-		} else {
-			devpriv->dmabytestomove[0] = devpriv->hwdmasize;
-			devpriv->dmabytestomove[1] = devpriv->hwdmasize;
-			if (devpriv->ai_data_len < devpriv->hwdmasize) {
-				devpriv->dmabytestomove[0] =
-				    devpriv->ai_data_len;
-				devpriv->dmabytestomove[1] =
-				    devpriv->ai_data_len;
-			}
-			if (cmd->stop_src == TRIG_NONE) {
-				devpriv->dma_runs_to_end = 1;
-			} else {
-				/*  how many samples we must transfer? */
-				bytes = cmd->chanlist_len *
-					cmd->stop_arg * sizeof(short);
-
-				/*  how many DMA pages we must fill */
-				devpriv->dma_runs_to_end =
-					bytes / devpriv->dmabytestomove[0];
-
-				/* on last dma transfer must be moved */
-				devpriv->last_dma_run =
-					bytes % devpriv->dmabytestomove[0];
-				if (devpriv->dma_runs_to_end == 0)
-					devpriv->dmabytestomove[0] =
-					    devpriv->last_dma_run;
-				devpriv->dma_runs_to_end--;
-			}
-		}
-		if (devpriv->dmabytestomove[0] > devpriv->hwdmasize) {
-			devpriv->dmabytestomove[0] = devpriv->hwdmasize;
-			devpriv->ai_eos = 0;
-		}
-		if (devpriv->dmabytestomove[1] > devpriv->hwdmasize) {
-			devpriv->dmabytestomove[1] = devpriv->hwdmasize;
-			devpriv->ai_eos = 0;
-		}
-		devpriv->next_dma_buf = 0;
-		set_dma_mode(devpriv->dma, DMA_MODE_READ);
-		dma_flags = claim_dma_lock();
-		clear_dma_ff(devpriv->dma);
-		set_dma_addr(devpriv->dma, devpriv->hwdmaptr[0]);
-		set_dma_count(devpriv->dma, devpriv->dmabytestomove[0]);
-		release_dma_lock(dma_flags);
-		enable_dma(devpriv->dma);
-	}
+	if (devpriv->ai_dma)
+		pcl812_ai_setup_dma(dev, s);
 
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:
@@ -950,7 +988,6 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	unsigned long dma_flags;
 	int len, bufptr;
 	unsigned short *ptr;
 
@@ -958,26 +995,7 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	len = (devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) -
 	    devpriv->ai_poll_ptr;
 
-	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
-	disable_dma(devpriv->dma);
-	set_dma_mode(devpriv->dma, DMA_MODE_READ);
-	dma_flags = claim_dma_lock();
-	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[devpriv->next_dma_buf]);
-	if (devpriv->ai_eos) {
-		set_dma_count(devpriv->dma,
-			      devpriv->dmabytestomove[devpriv->next_dma_buf]);
-	} else {
-		if (devpriv->dma_runs_to_end) {
-			set_dma_count(devpriv->dma,
-				      devpriv->dmabytestomove[devpriv->
-							      next_dma_buf]);
-		} else {
-			set_dma_count(devpriv->dma, devpriv->last_dma_run);
-		}
-		devpriv->dma_runs_to_end--;
-	}
-	release_dma_lock(dma_flags);
-	enable_dma(devpriv->dma);
+	pcl812_ai_setup_next_dma(dev, s);
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
