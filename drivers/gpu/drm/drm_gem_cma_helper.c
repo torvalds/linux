@@ -282,9 +282,9 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj, struct seq_file *m
 
 	off = drm_vma_node_start(&obj->vma_node);
 
-	seq_printf(m, "%2d (%2d) %08llx %08Zx %p %d",
+	seq_printf(m, "%2d (%2d) %08llx %pad %p %d",
 			obj->name, obj->refcount.refcount.counter,
-			off, cma_obj->paddr, cma_obj->vaddr, obj->size);
+			off, &cma_obj->paddr, cma_obj->vaddr, obj->size);
 
 	seq_printf(m, "\n");
 }
@@ -332,7 +332,7 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
 	cma_obj->paddr = sg_dma_address(sgt->sgl);
 	cma_obj->sgt = sgt;
 
-	DRM_DEBUG_PRIME("dma_addr = 0x%x, size = %zu\n", cma_obj->paddr, size);
+	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &cma_obj->paddr, size);
 
 	return &cma_obj->base;
 }
