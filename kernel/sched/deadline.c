@@ -609,8 +609,8 @@ static void update_curr_dl(struct rq *rq)
 	 * approach need further study.
 	 */
 	delta_exec = rq_clock_task(rq) - curr->se.exec_start;
-	if (unlikely((s64)delta_exec < 0))
-		delta_exec = 0;
+	if (unlikely((s64)delta_exec <= 0))
+		return;
 
 	schedstat_set(curr->se.statistics.exec_max,
 		      max(curr->se.statistics.exec_max, delta_exec));
@@ -1023,6 +1023,12 @@ struct task_struct *pick_next_task_dl(struct rq *rq, struct task_struct *prev)
 
 	if (need_pull_dl_task(rq, prev))
 		pull_dl_task(rq);
+	/*
+	 * When prev is DL, we may throttle it in put_prev_task().
+	 * So, we update time before we check for dl_nr_running.
+	 */
+	if (prev->sched_class == &dl_sched_class)
+		update_curr_dl(rq);
 
 	if (unlikely(!dl_rq->dl_nr_running))
 		return NULL;
