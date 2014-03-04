@@ -357,6 +357,20 @@ int blkcipher_walk_virt_block(struct blkcipher_desc *desc,
 }
 EXPORT_SYMBOL_GPL(blkcipher_walk_virt_block);
 
+int blkcipher_aead_walk_virt_block(struct blkcipher_desc *desc,
+				   struct blkcipher_walk *walk,
+				   struct crypto_aead *tfm,
+				   unsigned int blocksize)
+{
+	walk->flags &= ~BLKCIPHER_WALK_PHYS;
+	walk->walk_blocksize = blocksize;
+	walk->cipher_blocksize = crypto_aead_blocksize(tfm);
+	walk->ivsize = crypto_aead_ivsize(tfm);
+	walk->alignmask = crypto_aead_alignmask(tfm);
+	return blkcipher_walk_first(desc, walk);
+}
+EXPORT_SYMBOL_GPL(blkcipher_aead_walk_virt_block);
+
 static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key,
 			    unsigned int keylen)
 {
