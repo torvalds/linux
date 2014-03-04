@@ -649,7 +649,7 @@ void rtl8180_set_chan(struct net_device *dev, short ch)
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 
 	if ((ch > 14) || (ch < 1)) {
-		printk("In %s: Invalid chnanel %d\n", __func__, ch);
+		netdev_err(dev, "In %s: Invalid channel %d\n", __func__, ch);
 		return;
 	}
 
@@ -2019,13 +2019,13 @@ static void rtl8180_hw_sleep(struct net_device *dev, u32 th, u32 tl)
 	tl -= MSECS(4+16+7);
 
 	/*
-	 * If the interval in witch we are requested to sleep is too
+	 * If the interval in which we are requested to sleep is too
 	 * short then give up and remain awake
 	 */
 	if (((tl >= rb) && (tl-rb) <= MSECS(MIN_SLEEP_TIME))
 		|| ((rb > tl) && (rb-tl) < MSECS(MIN_SLEEP_TIME))) {
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
-		printk("too short to sleep\n");
+		netdev_warn(dev, "too short to sleep\n");
 		return;
 	}
 
@@ -2316,7 +2316,7 @@ static short rtl8180_init(struct net_device *dev)
 	eeprom_93cx6_read(&eeprom, EEPROM_COUNTRY_CODE>>1, &eeprom_val);
 	priv->channel_plan = eeprom_val & 0xFF;
 	if (priv->channel_plan > COUNTRY_CODE_GLOBAL_DOMAIN) {
-		printk("rtl8180_init:Error channel plan! Set to default.\n");
+		netdev_err(dev, "rtl8180_init: Invalid channel plan! Set to default.\n");
 		priv->channel_plan = 0;
 	}
 
