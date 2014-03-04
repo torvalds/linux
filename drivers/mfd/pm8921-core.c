@@ -247,18 +247,12 @@ static int pm8xxx_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return pm8xxx_config_irq(chip, block, config);
 }
 
-static int pm8xxx_irq_set_wake(struct irq_data *d, unsigned int on)
-{
-	return 0;
-}
-
 static struct irq_chip pm8xxx_irq_chip = {
 	.name		= "pm8xxx",
 	.irq_mask_ack	= pm8xxx_irq_mask_ack,
 	.irq_unmask	= pm8xxx_irq_unmask,
 	.irq_set_type	= pm8xxx_irq_set_type,
-	.irq_set_wake	= pm8xxx_irq_set_wake,
-	.flags		= IRQCHIP_MASK_ON_SUSPEND,
+	.flags		= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE,
 };
 
 /**
