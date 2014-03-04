@@ -253,8 +253,8 @@ static void rga2_power_on(void)
 		return;
 
     //clk_enable(rga2_drvdata->rga2);
-	clk_enable(rga2_drvdata->aclk_rga2);
-	clk_enable(rga2_drvdata->hclk_rga2);
+	clk_prepare_enable(rga2_drvdata->aclk_rga2);
+	clk_prepare_enable(rga2_drvdata->hclk_rga2);
 	//clk_enable(rga2_drvdata->pd_rga2);
 	wake_lock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = true;
@@ -279,8 +279,8 @@ static void rga2_power_off(void)
 
 	//clk_disable(rga2_drvdata->pd_rga2);
     //clk_disable(rga2_drvdata->rga2);
-	clk_disable(rga2_drvdata->aclk_rga2);
-	clk_disable(rga2_drvdata->hclk_rga2);
+	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
+	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
 	wake_unlock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = false;
 }
@@ -1007,10 +1007,6 @@ static int __devinit rga2_drv_probe(struct platform_device *pdev)
     struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 
-	INIT_LIST_HEAD(&rga2_service.waiting);
-	INIT_LIST_HEAD(&rga2_service.running);
-	INIT_LIST_HEAD(&rga2_service.done);
-	INIT_LIST_HEAD(&rga2_service.session);
 	mutex_init(&rga2_service.lock);
 	mutex_init(&rga2_service.mutex);
 	atomic_set(&rga2_service.total_running, 0);
@@ -1032,9 +1028,6 @@ static int __devinit rga2_drv_probe(struct platform_device *pdev)
     //data->rga2 = clk_get(NULL, "rga");
 	data->aclk_rga = devm_clk_get(&pdev->dev, "aclk_rga");
     data->hclk_rga = devm_clk_get(&pdev->dev, "hclk_rga");
-
-    clk_prepare_enable(data->aclk_rga);
-    clk_prepare_enable(data->hclk_rga);
 
 	/* map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1096,14 +1089,10 @@ static int rga2_drv_remove(struct platform_device *pdev)
 	free_irq(data->irq, &data->miscdev);
 	iounmap((void __iomem *)(data->rga_base));
 
-    clk_disable_unprepare(data->aclk_rga);
-    clk_disable_unprepare(data->hclk_rga);
-
 	//clk_put(data->pd_rga2);
     //clk_put(data->rga2);
-	clk_put(data->aclk_rga2);
-	clk_put(data->hclk_rga2);
-
+	devm_clk_put(&pdev->dev, data->aclk_rga2);
+	devm_clk_put(&pdev->dev, data->hclk_rga2);
 
 	kfree(data);
 	return 0;
@@ -1145,6 +1134,11 @@ static int __init rga2_init(void)
         INIT_LIST_HEAD(&rga2_session_global.waiting);
         INIT_LIST_HEAD(&rga2_session_global.running);
         INIT_LIST_HEAD(&rga2_session_global.list_session);
+
+        INIT_LIST_HEAD(&rga2_service.waiting);
+	    INIT_LIST_HEAD(&rga2_service.running);
+	    INIT_LIST_HEAD(&rga2_service.done);
+        INIT_LIST_HEAD(&rga2_service.session);
         init_waitqueue_head(&rga2_session_global.wait);
         //mutex_lock(&rga_service.lock);
         list_add_tail(&rga2_session_global.list_session, &rga2_service.session);

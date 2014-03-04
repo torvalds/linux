@@ -259,9 +259,9 @@ static void rga_power_on(void)
 	if (rga_service.enable)
 		return;
 
-	clk_enable(drvdata->aclk_rga);
-	clk_enable(drvdata->hclk_rga);
-	clk_enable(drvdata->pd_rga);
+	clk_prepare_enable(drvdata->aclk_rga);
+	clk_prepare_enable(drvdata->hclk_rga);
+	//clk_prepare_enable(drvdata->pd_rga);
 	wake_lock(&drvdata->wake_lock);
 	rga_service.enable = true;
 }
@@ -283,9 +283,9 @@ static void rga_power_off(void)
 		rga_dump();
 	}
 
-	clk_disable(drvdata->pd_rga);
-	clk_disable(drvdata->aclk_rga);
-	clk_disable(drvdata->hclk_rga);
+	//clk_disable_unprepare(drvdata->pd_rga);
+	clk_disable_unprepare(drvdata->aclk_rga);
+	clk_disable_unprepare(drvdata->hclk_rga);
 	wake_unlock(&drvdata->wake_lock);
 	rga_service.enable = false;
 }
@@ -1123,11 +1123,12 @@ static struct miscdevice rga_dev ={
 };
 
 
-
-static const struct of_device_id rockchip_rga_of_match[] = {
-	{ .compatible = "rockchip,rga", .data = NULL, },
+#if defined(CONFIG_OF)
+static const struct of_device_id rockchip_rga_dt_ids[] = {
+	{ .compatible = "rockchip,rga", },
 	{},
 };
+#endif
 
 static int rga_drv_probe(struct platform_device *pdev)
 {
@@ -1136,10 +1137,6 @@ static int rga_drv_probe(struct platform_device *pdev)
     struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 
-	INIT_LIST_HEAD(&rga_service.waiting);
-	INIT_LIST_HEAD(&rga_service.running);
-	INIT_LIST_HEAD(&rga_service.done);
-	INIT_LIST_HEAD(&rga_service.session);
 	mutex_init(&rga_service.lock);
 	mutex_init(&rga_service.mutex);
 	atomic_set(&rga_service.total_running, 0);
@@ -1159,9 +1156,6 @@ static int rga_drv_probe(struct platform_device *pdev)
 	//data->pd_rga = devm_clk_get(&pdev->dev, "pd_rga");
     data->aclk_rga = devm_clk_get(&pdev->dev, "aclk_rga");
     data->hclk_rga = devm_clk_get(&pdev->dev, "hclk_rga");
-
-    clk_prepare_enable(data->aclk_rga);
-    clk_prepare_enable(data->hclk_rga);
 
     /* map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1224,12 +1218,9 @@ static int rga_drv_remove(struct platform_device *pdev)
 	free_irq(data->irq, &data->miscdev);
 	iounmap((void __iomem *)(data->rga_base));
 
-    clk_disable_unprepare(data->aclk_rga);
-    clk_disable_unprepare(data->hclk_rga);
-
 	//clk_put(data->pd_rga);
-	clk_put(data->aclk_rga);
-	clk_put(data->hclk_rga);
+	devm_clk_put(&pdev->dev, data->aclk_rga);
+	devm_clk_put(&pdev->dev, data->hclk_rga);
 
 	//kfree(data);
 	return 0;
@@ -1241,6 +1232,7 @@ static struct platform_driver rga_driver = {
 	.driver		= {
 		.owner  = THIS_MODULE,
 		.name	= "rga",
+		.of_match_table = of_match_ptr(rockchip_rga_dt_ids),
 	},
 };
 
@@ -1290,6 +1282,12 @@ static int __init rga_init(void)
         INIT_LIST_HEAD(&rga_session_global.waiting);
         INIT_LIST_HEAD(&rga_session_global.running);
         INIT_LIST_HEAD(&rga_session_global.list_session);
+
+        INIT_LIST_HEAD(&rga_service.waiting);
+	    INIT_LIST_HEAD(&rga_service.running);
+	    INIT_LIST_HEAD(&rga_service.done);
+	    INIT_LIST_HEAD(&rga_service.session);
+
         init_waitqueue_head(&rga_session_global.wait);
         //mutex_lock(&rga_service.lock);
         list_add_tail(&rga_session_global.list_session, &rga_service.session);
@@ -1297,6 +1295,8 @@ static int __init rga_init(void)
         atomic_set(&rga_session_global.task_running, 0);
         atomic_set(&rga_session_global.num_done, 0);
     }
+
+
 
     #if RGA_TEST_CASE
     rga_test_0();
