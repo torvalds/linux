@@ -16,6 +16,7 @@ Optional properties :
 
  - clock-frequency : Desired I2C bus clock frequency in Hz. If not set the
 default frequency is 100kHz
+ - resets          : phandle to the parent reset controller
 
 Examples:
 
