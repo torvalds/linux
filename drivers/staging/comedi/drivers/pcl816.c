@@ -734,7 +734,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= board->ai_maxdata;
 	s->range_table	= &range_pcl816;
 	s->insn_read	= pcl816_ai_insn_read;
-	if (dev->irq) {
+	if (devpriv->dma) {
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
 		s->len_chanlist	= board->ai_chanlist;
