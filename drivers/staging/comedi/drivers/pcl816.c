@@ -124,7 +124,6 @@ struct pcl816_private {
 	unsigned int divisor2;
 	unsigned int ai_cmd_running:1;
 	unsigned int irq_was_now_closed:1;
-	unsigned int ai_neverending:1;
 };
 
 static int check_channel_list(struct comedi_device *dev,
@@ -247,13 +246,12 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 		devpriv->ai_act_scan++;
 	}
 
-	if (!devpriv->ai_neverending)
-					/* all data sampled */
-		if (devpriv->ai_act_scan >= cmd->stop_arg) {
-			/* all data sampled */
-			s->cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA;
-		}
+	if (cmd->stop_src == TRIG_COUNT &&
+	    devpriv->ai_act_scan >= cmd->stop_arg) {
+		/* all data sampled */
+		s->cancel(dev, s);
+		s->async->events |= COMEDI_CB_EOA;
+	}
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
@@ -279,14 +277,14 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 			devpriv->ai_act_scan++;
 		}
 
-		if (!devpriv->ai_neverending)
-						/*  all data sampled */
-			if (devpriv->ai_act_scan >= cmd->stop_arg) {
-				s->cancel(dev, s);
-				s->async->events |= COMEDI_CB_EOA;
-				s->async->events |= COMEDI_CB_BLOCK;
-				break;
-			}
+		if (cmd->stop_src == TRIG_COUNT &&
+		    devpriv->ai_act_scan >= cmd->stop_arg) {
+			/* all data sampled */
+			s->cancel(dev, s);
+			s->async->events |= COMEDI_CB_EOA;
+			s->async->events |= COMEDI_CB_BLOCK;
+			break;
+		}
 	}
 
 	comedi_event(dev, s);
@@ -297,6 +295,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
 	unsigned short *ptr;
@@ -304,9 +303,8 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	disable_dma(devpriv->dma);
 	this_dma_buf = devpriv->next_dma_buf;
 
-	/*  switch dma bufs */
-	if ((devpriv->dma_runs_to_end > -1) || devpriv->ai_neverending) {
-
+	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
+		/* switch dma bufs */
 		devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
 		set_dma_mode(devpriv->dma, DMA_MODE_READ);
 		dma_flags = claim_dma_lock();
@@ -469,14 +467,9 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = 0;
 	devpriv->irq_was_now_closed = 0;
 
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_neverending = 0;
-	else
-		devpriv->ai_neverending = 1;
-
 	if (devpriv->dma) {
 		bytes = devpriv->hwdmasize;
-		if (!devpriv->ai_neverending) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			/*  how many */
 			bytes = s->async->cmd.chanlist_len *
 			s->async->cmd.chanlist_len *
