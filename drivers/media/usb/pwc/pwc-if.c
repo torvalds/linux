@@ -619,12 +619,15 @@ static void buffer_finish(struct vb2_buffer *vb)
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
 	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
 
-	/*
-	 * Application has called dqbuf and is getting back a buffer we've
-	 * filled, take the pwc data we've stored in buf->data and decompress
-	 * it into a usable format, storing the result in the vb2_buffer
-	 */
-	pwc_decompress(pdev, buf);
+	if (vb->state == VB2_BUF_STATE_DONE) {
+		/*
+		 * Application has called dqbuf and is getting back a buffer
+		 * we've filled, take the pwc data we've stored in buf->data
+		 * and decompress it into a usable format, storing the result
+		 * in the vb2_buffer.
+		 */
+		pwc_decompress(pdev, buf);
+	}
 }
 
 static void buffer_cleanup(struct vb2_buffer *vb)
