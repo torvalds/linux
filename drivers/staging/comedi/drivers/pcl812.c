@@ -643,6 +643,12 @@ static void pcl812_ai_clear_eoc(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL812_CLRINT);
 }
 
+static void pcl812_ai_soft_trig(struct comedi_device *dev)
+{
+	/* writing any value triggers a software conversion */
+	outb(255, dev->iobase + PCL812_SOFTTRIG);
+}
+
 static unsigned int pcl812_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
@@ -1028,8 +1034,7 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		pcl812_ai_clear_eoc(dev);
-		/* start conversion */
-		outb(255, dev->iobase + PCL812_SOFTTRIG);
+		pcl812_ai_soft_trig(dev);
 
 		ret = comedi_timeout(dev, s, insn, pcl812_ai_eoc, 0);
 		if (ret)
