@@ -26,7 +26,6 @@
 #ifndef __RTL8723BE_PWRSEQ_H__
 #define __RTL8723BE_PWRSEQ_H__
 
-#include "pwrseqcmd.h"
 /*	Check document WM-20130425-JackieLau-RTL8723B_Power_Architecture v05.vsd
  *	There are 6 HW Power States:
  *	0: POFF--Power Off

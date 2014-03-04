@@ -26,6 +26,7 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../ps.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -41,9 +42,6 @@ static bool _rtl8723be_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 static bool rtl8723be_phy_sw_chn_step_by_step(struct ieee80211_hw *hw,
 					      u8 channel, u8 *stage,
 					      u8 *step, u32 *delay);
-static void _rtl8723be_config_bb_reg(struct ieee80211_hw *hw,
-				     u32 addr, u32 data);
-
 static bool _rtl8723be_check_condition(struct ieee80211_hw *hw,
 				       const u32  condition)
 {
@@ -114,7 +112,7 @@ static bool _rtl8723be_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 			v1 = array_table[i];
 			v2 = array_table[i+1];
 			if (v1 < 0xcdcdcdcd) {
-				_rtl8723be_config_bb_reg(hw, v1, v2);
+				rtl_bb_delay(hw, v1, v2);
 			} else {/*This line is the start line of branch.*/
 				if (!_rtl8723be_check_condition(hw, array_table[i])) {
 					/*Discard the following (offset, data) pairs*/
@@ -135,7 +133,7 @@ static bool _rtl8723be_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 					       v2 != 0xCDEF &&
 					       v2 != 0xCDCD &&
 					       i < arraylen - 2) {
-						_rtl8723be_config_bb_reg(hw,
+						rtl_bb_delay(hw,
 								    v1, v2);
 						READ_NEXT_PAIR(v1, v2, i);
 					}
@@ -387,27 +385,6 @@ static void _rtl8723be_phy_init_tx_power_by_rate(struct ieee80211_hw *hw)
 				     ++section)
 					rtlphy->tx_power_by_rate_offset[band]
 						[path][txnum][section] = 0;
-}
-
-static void _rtl8723be_config_bb_reg(struct ieee80211_hw *hw,
-				     u32 addr, u32 data)
-{
-	if (addr == 0xfe) {
-		mdelay(50);
-	} else if (addr == 0xfd) {
-		mdelay(5);
-	} else if (addr == 0xfc) {
-		mdelay(1);
-	} else if (addr == 0xfb) {
-		udelay(50);
-	} else if (addr == 0xfa) {
-		udelay(5);
-	} else if (addr == 0xf9) {
-		udelay(1);
-	} else {
-		rtl_set_bbreg(hw, addr, MASKDWORD, data);
-		udelay(1);
-	}
 }
 
 static void phy_set_txpwr_by_rate_base(struct ieee80211_hw *hw, u8 band,

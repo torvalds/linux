@@ -985,9 +985,9 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 	/* set default value after initialize RF,  */
 	rtl_set_bbreg(hw, RFPGA0_ANALOGPARAMETER4, 0x00f00000, 0);
 	rtlphy->rfreg_chnlval[0] = rtl_get_rfreg(hw, (enum radio_path)0,
-			RF_CHNLBW, BRFREGOFFSETMASK);
+			RF_CHNLBW, RFREG_OFFSET_MASK);
 	rtlphy->rfreg_chnlval[1] = rtl_get_rfreg(hw, (enum radio_path)1,
-			RF_CHNLBW, BRFREGOFFSETMASK);
+			RF_CHNLBW, RFREG_OFFSET_MASK);
 
 	/*---- Set CCK and OFDM Block "ON"----*/
 	if (rtlhal->current_bandtype == BAND_ON_2_4G)
@@ -1035,7 +1035,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 
 				tmp_rega = rtl_get_rfreg(hw,
 						  (enum radio_path)RF90_PATH_A,
-						  0x2a, BMASKDWORD);
+						  0x2a, MASKDWORD);
 
 				if (((tmp_rega & BIT(11)) == BIT(11)))
 					break;
@@ -1334,13 +1334,13 @@ void rtl92de_card_disable(struct ieee80211_hw *hw)
 	/* c. ========RF OFF sequence==========  */
 	/* 0x88c[23:20] = 0xf. */
 	rtl_set_bbreg(hw, RFPGA0_ANALOGPARAMETER4, 0x00f00000, 0xf);
-	rtl_set_rfreg(hw, RF90_PATH_A, 0x00, BRFREGOFFSETMASK, 0x00);
+	rtl_set_rfreg(hw, RF90_PATH_A, 0x00, RFREG_OFFSET_MASK, 0x00);
 
 	/* APSD_CTRL 0x600[7:0] = 0x40 */
 	rtl_write_byte(rtlpriv, REG_APSD_CTRL, 0x40);
 
 	/* Close antenna 0,0xc04,0xd04 */
-	rtl_set_bbreg(hw, ROFDM0_TRXPATHENABLE, BMASKBYTE0, 0);
+	rtl_set_bbreg(hw, ROFDM0_TRXPATHENABLE, MASKBYTE0, 0);
 	rtl_set_bbreg(hw, ROFDM1_TRXPATHENABLE, BDWORD, 0);
 
 	/*  SYS_FUNC_EN 0x02[7:0] = 0xE2   reset BB state machine */

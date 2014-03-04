@@ -72,16 +72,4 @@
 #define BIT30	0x40000000
 #define BIT31	0x80000000
 
-#define	MASKBYTE0	0xff
-#define	MASKBYTE1	0xff00
-#define	MASKBYTE2	0xff0000
-#define	MASKBYTE3	0xff000000
-#define	MASKHWORD	0xffff0000
-#define	MASKLWORD	0x0000ffff
-#define	MASKDWORD	0xffffffff
-#define	MASK12BITS	0xfff
-#define	MASKH4BITS	0xf0000000
-#define MASKOFDM_D	0xffc00000
-#define	MASKCCK		0x3f3f3f3f
-
 #endif	/* __HALBT_PRECOMP_H__ */

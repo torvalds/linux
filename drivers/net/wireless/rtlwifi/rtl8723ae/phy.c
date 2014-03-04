@@ -30,6 +30,7 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../ps.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -277,18 +278,7 @@ static bool _phy_cfg_bb_w_header(struct ieee80211_hw *hw, u8 configtype)
 	phy_regarray_table = RTL8723EPHY_REG_1TARRAY;
 	if (configtype == BASEBAND_CONFIG_PHY_REG) {
 		for (i = 0; i < phy_reg_arraylen; i = i + 2) {
-			if (phy_regarray_table[i] == 0xfe)
-				mdelay(50);
-			else if (phy_regarray_table[i] == 0xfd)
-				mdelay(5);
-			else if (phy_regarray_table[i] == 0xfc)
-				mdelay(1);
-			else if (phy_regarray_table[i] == 0xfb)
-				udelay(50);
-			else if (phy_regarray_table[i] == 0xfa)
-				udelay(5);
-			else if (phy_regarray_table[i] == 0xf9)
-				udelay(1);
+			rtl_addr_delay(phy_regarray_table[i]);
 			rtl_set_bbreg(hw, phy_regarray_table[i], MASKDWORD,
 				      phy_regarray_table[i + 1]);
 			udelay(1);
@@ -450,18 +440,7 @@ static bool _phy_cfg_bb_w_pgheader(struct ieee80211_hw *hw, u8 configtype)
 
 	if (configtype == BASEBAND_CONFIG_PHY_REG) {
 		for (i = 0; i < phy_regarray_pg_len; i = i + 3) {
-			if (phy_regarray_table_pg[i] == 0xfe)
-				mdelay(50);
-			else if (phy_regarray_table_pg[i] == 0xfd)
-				mdelay(5);
-			else if (phy_regarray_table_pg[i] == 0xfc)
-				mdelay(1);
-			else if (phy_regarray_table_pg[i] == 0xfb)
-				udelay(50);
-			else if (phy_regarray_table_pg[i] == 0xfa)
-				udelay(5);
-			else if (phy_regarray_table_pg[i] == 0xf9)
-				udelay(1);
+			rtl_addr_delay(phy_regarray_table_pg[i]);
 
 			_st_pwrIdx_dfrate_off(hw, phy_regarray_table_pg[i],
 					      phy_regarray_table_pg[i + 1],
@@ -488,24 +467,9 @@ bool rtl8723ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	switch (rfpath) {
 	case RF90_PATH_A:
 		for (i = 0; i < radioa_arraylen; i = i + 2) {
-			if (radioa_array_table[i] == 0xfe)
-				mdelay(50);
-			else if (radioa_array_table[i] == 0xfd)
-				mdelay(5);
-			else if (radioa_array_table[i] == 0xfc)
-				mdelay(1);
-			else if (radioa_array_table[i] == 0xfb)
-				udelay(50);
-			else if (radioa_array_table[i] == 0xfa)
-				udelay(5);
-			else if (radioa_array_table[i] == 0xf9)
-				udelay(1);
-			else {
-				rtl_set_rfreg(hw, rfpath, radioa_array_table[i],
-					      RFREG_OFFSET_MASK,
-					      radioa_array_table[i + 1]);
-				udelay(1);
-			}
+			rtl_rfreg_delay(hw, rfpath, radioa_array_table[i],
+					RFREG_OFFSET_MASK,
+					radioa_array_table[i + 1]);
 		}
 		break;
 	case RF90_PATH_B:
