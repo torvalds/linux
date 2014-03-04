@@ -44,12 +44,16 @@ Configuration Options:
 #include "comedi_fc.h"
 #include "8253.h"
 
+/*
+ * Register I/O map
+ */
 #define PCL816_DO_DI_LSB_REG			0x00
 #define PCL816_DO_DI_MSB_REG			0x01
 #define PCL816_TIMER_BASE			0x04
 #define PCL816_AI_LSB_REG			0x08
 #define PCL816_AI_MSB_REG			0x09
 #define PCL816_RANGE_REG			0x09
+#define PCL816_CLRINT_REG			0x0a
 #define PCL816_MUX_REG				0x0b
 #define PCL816_MUX_SCAN(_first, _last)		(((_last) << 4) | (_first))
 #define PCL816_CTRL_REG				0x0c
@@ -72,9 +76,6 @@ Configuration Options:
 #define PCL816_STATUS_INTSRC_DMA		(3 << 4)
 #define PCL816_STATUS_INTACT			(1 << 6)
 #define PCL816_STATUS_DRDY			(1 << 7)
-
-/* W: clear INT request */
-#define PCL816_CLRINT 10
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -255,7 +256,7 @@ static void pcl816_ai_setup_chanlist(struct comedi_device *dev,
 static void pcl816_ai_clear_eoc(struct comedi_device *dev)
 {
 	/* writing any value clears the interrupt request */
-	outb(0, dev->iobase + PCL816_CLRINT);
+	outb(0, dev->iobase + PCL816_CLRINT_REG);
 }
 
 static void pcl816_ai_soft_trig(struct comedi_device *dev)
