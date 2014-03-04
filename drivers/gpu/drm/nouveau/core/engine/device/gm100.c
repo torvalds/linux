@@ -84,9 +84,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv108_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
-#if 0
-		device->oclass[NVDEV_ENGINE_GR     ] =  nv108_graph_oclass;
-#endif
+		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm107_disp_oclass;
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 #if 0

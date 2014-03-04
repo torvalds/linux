@@ -75,6 +75,7 @@ void nve4_grctx_generate_r418bb8(struct nvc0_graph_priv *);
 
 extern struct nouveau_oclass *nvf0_grctx_oclass;
 extern struct nouveau_oclass *nv108_grctx_oclass;
+extern struct nouveau_oclass *gm107_grctx_oclass;
 
 /* context init value lists */
 
@@ -159,6 +160,11 @@ extern const struct nvc0_graph_init nvf0_grctx_init_gpc_unk_2[];
 
 extern const struct nvc0_graph_init nvf0_grctx_init_mpc_0[];
 extern const struct nvc0_graph_init nvf0_grctx_init_l1c_0[];
+
+extern const struct nvc0_graph_init nv108_grctx_init_rstr2d_0[];
+
+extern const struct nvc0_graph_init nv108_grctx_init_prop_0[];
+extern const struct nvc0_graph_init nv108_grctx_init_crstr_0[];
 
 
 #endif

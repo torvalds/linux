@@ -45,6 +45,7 @@
 #define ROP_UNIT(u, r)    (0x410000 + (u) * 0x400 + (r))
 #define GPC_BCAST(r)      (0x418000 + (r))
 #define GPC_UNIT(t, r)    (0x500000 + (t) * 0x8000 + (r))
+#define PPC_UNIT(t, m, r) (0x503000 + (t) * 0x8000 + (m) * 0x200 + (r))
 #define TPC_UNIT(t, m, r) (0x504000 + (t) * 0x8000 + (m) * 0x800 + (r))
 
 struct nvc0_graph_data {
@@ -222,6 +223,8 @@ extern const struct nvc0_graph_init nvf0_graph_init_sked_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_cwd_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_gpc_unk_1[];
 extern const struct nvc0_graph_init nvf0_graph_init_sm_0[];
+
+extern const struct nvc0_graph_init nv108_graph_init_gpc_unk_0[];
 
 
 #endif

@@ -68,7 +68,7 @@ nv108_graph_init_ds_0[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
+const struct nvc0_graph_init
 nv108_graph_init_gpc_unk_0[] = {
 	{ 0x418604,   1, 0x04, 0x00000000 },
 	{ 0x418680,   1, 0x04, 0x00000000 },

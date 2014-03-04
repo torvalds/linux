@@ -340,7 +340,7 @@ nv108_grctx_init_pd_0[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
+const struct nvc0_graph_init
 nv108_grctx_init_rstr2d_0[] = {
 	{ 0x407804,   1, 0x04, 0x00000063 },
 	{ 0x40780c,   1, 0x04, 0x0a418820 },
@@ -381,7 +381,7 @@ nv108_grctx_pack_hub[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
+const struct nvc0_graph_init
 nv108_grctx_init_prop_0[] = {
 	{ 0x418400,   1, 0x04, 0x38005e00 },
 	{ 0x418404,   1, 0x04, 0x71e0ffff },
@@ -419,7 +419,7 @@ nv108_grctx_init_setup_0[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
+const struct nvc0_graph_init
 nv108_grctx_init_crstr_0[] = {
 	{ 0x418b00,   1, 0x04, 0x0000001e },
 	{ 0x418b08,   1, 0x04, 0x0a418820 },
