@@ -119,10 +119,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define boardPCL818 4
 #define boardPCL718 5
 
-/* R: A/D high byte W: A/D range control */
-#define PCL818_RANGE 1
-/* R: next mux scan channel W: mux scan channel & range control pointer */
-#define PCL818_MUX 2
 /* R/W: operation control register */
 #define PCL818_CONTROL 9
 /* W: counter enable */
@@ -130,6 +126,9 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 #define PCL818_AI_LSB_REG			0x00
 #define PCL818_AI_MSB_REG			0x01
+#define PCL818_RANGE_REG			0x01
+#define PCL818_MUX_REG				0x02
+#define PCL818_MUX_SCAN(_first, _last)		(((_last) << 4) | (_first))
 #define PCL818_DO_DI_LSB_REG			0x03
 #define PCL818_AO_LSB_REG(x)			(0x04 + ((x) * 2))
 #define PCL818_AO_MSB_REG(x)			(0x05 + ((x) * 2))
@@ -317,14 +316,6 @@ struct pcl818_private {
 	unsigned int ai_cmd_canceled:1;
 };
 
-static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,	/*  used for gain list programming */
-	0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
-};
-
-static void setup_channel_list(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned int *chanlist, unsigned int n_chan,
-			       unsigned int seglen);
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int *chanlist, unsigned int n_chan);
@@ -397,6 +388,50 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 	}
 
 	devpriv->dma_runs_to_end--;
+}
+
+static void pcl818_ai_set_chan_range(struct comedi_device *dev,
+				     unsigned int chan,
+				     unsigned int range)
+{
+	outb(chan, dev->iobase + PCL818_MUX_REG);
+	outb(range, dev->iobase + PCL818_RANGE_REG);
+}
+
+static void pcl818_ai_set_chan_scan(struct comedi_device *dev,
+				    unsigned int first_chan,
+				    unsigned int last_chan)
+{
+	outb(PCL818_MUX_SCAN(first_chan, last_chan),
+	     dev->iobase + PCL818_MUX_REG);
+}
+
+static void pcl818_ai_setup_chanlist(struct comedi_device *dev,
+				     unsigned int *chanlist,
+				     unsigned int seglen)
+{
+	struct pcl818_private *devpriv = dev->private;
+	unsigned int first_chan = CR_CHAN(chanlist[0]);
+	unsigned int last_chan;
+	unsigned int range;
+	int i;
+
+	devpriv->act_chanlist_len = seglen;
+	devpriv->act_chanlist_pos = 0;
+
+	/* store range list to card */
+	for (i = 0; i < seglen; i++) {
+		last_chan = CR_CHAN(chanlist[i]);
+		range = CR_RANGE(chanlist[i]);
+
+		devpriv->act_chanlist[i] = last_chan;
+
+		pcl818_ai_set_chan_range(dev, last_chan, range);
+	}
+
+	udelay(1);
+
+	pcl818_ai_set_chan_scan(dev, first_chan, last_chan);
 }
 
 static void pcl818_ai_clear_eoc(struct comedi_device *dev)
@@ -662,7 +697,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
 	if (seglen < 1)
 		return -EINVAL;
-	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len, seglen);
+	pcl818_ai_setup_chanlist(dev, cmd->chanlist, seglen);
 
 	udelay(1);
 
@@ -758,31 +793,6 @@ static int check_channel_list(struct comedi_device *dev,
 		seglen = 1;
 	}
 	return seglen;
-}
-
-static void setup_channel_list(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned int *chanlist, unsigned int n_chan,
-			       unsigned int seglen)
-{
-	struct pcl818_private *devpriv = dev->private;
-	int i;
-
-	devpriv->act_chanlist_len = seglen;
-	devpriv->act_chanlist_pos = 0;
-
-	for (i = 0; i < seglen; i++) {	/*  store range list to card */
-		devpriv->act_chanlist[i] = CR_CHAN(chanlist[i]);
-		outb(muxonechan[CR_CHAN(chanlist[i])], dev->iobase + PCL818_MUX);	/* select channel */
-		outb(CR_RANGE(chanlist[i]), dev->iobase + PCL818_RANGE);	/* select gain */
-	}
-
-	udelay(1);
-
-	/* select channel interval to scan */
-	outb(devpriv->act_chanlist[0] | (devpriv->act_chanlist[seglen -
-							       1] << 4),
-	     dev->iobase + PCL818_MUX);
 }
 
 static int check_single_ended(unsigned int port)
@@ -948,10 +958,8 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 	/* software trigger, DMA and INT off */
 	outb(0, dev->iobase + PCL818_CONTROL);
 
-	/* select channel */
-	outb(muxonechan[chan], dev->iobase + PCL818_MUX);
-	/* select gain */
-	outb(range, dev->iobase + PCL818_RANGE);
+	pcl818_ai_set_chan_range(dev, chan, range);
+	pcl818_ai_set_chan_scan(dev, chan, chan);
 
 	for (i = 0; i < insn->n; i++) {
 		pcl818_ai_clear_eoc(dev);
@@ -1049,7 +1057,7 @@ static void pcl818_reset(struct comedi_device *dev)
 	udelay(1);
 	outb(0, dev->iobase + PCL818_CONTROL);
 	outb(0, dev->iobase + PCL818_CNTENABLE);
-	outb(0, dev->iobase + PCL818_MUX);
+	outb(0, dev->iobase + PCL818_MUX_REG);
 	pcl818_ai_clear_eoc(dev);
 
 	/* Stop pacer */
@@ -1058,7 +1066,7 @@ static void pcl818_reset(struct comedi_device *dev)
 	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
 
 	if (board->is_818) {
-		outb(0, dev->iobase + PCL818_RANGE);
+		outb(0, dev->iobase + PCL818_RANGE_REG);
 	} else {
 		/* set analog output channel 1 to 0V */
 		outb(0, dev->iobase + PCL818_AO_LSB_REG(1));
