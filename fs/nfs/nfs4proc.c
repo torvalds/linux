@@ -2398,13 +2398,16 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 
 	if (nfs4_copy_delegation_stateid(&arg.stateid, inode, fmode)) {
 		/* Use that stateid */
-	} else if (truncate && state != NULL && nfs4_valid_open_stateid(state)) {
+	} else if (truncate && state != NULL) {
 		struct nfs_lockowner lockowner = {
 			.l_owner = current->files,
 			.l_pid = current->tgid,
 		};
-		nfs4_select_rw_stateid(&arg.stateid, state, FMODE_WRITE,
-				&lockowner);
+		if (!nfs4_valid_open_stateid(state))
+			return -EBADF;
+		if (nfs4_select_rw_stateid(&arg.stateid, state, FMODE_WRITE,
+				&lockowner) == -EIO)
+			return -EBADF;
 	} else
 		nfs4_stateid_copy(&arg.stateid, &zero_stateid);
 
