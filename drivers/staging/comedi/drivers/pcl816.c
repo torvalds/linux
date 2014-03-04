@@ -44,6 +44,8 @@ Configuration Options:
 #include "comedi_fc.h"
 #include "8253.h"
 
+#define PCL816_DO_DI_LSB_REG			0x00
+#define PCL816_DO_DI_MSB_REG			0x01
 #define PCL816_TIMER_BASE			0x04
 
 /* R: A/D high byte W: A/D range control */
@@ -557,9 +559,6 @@ static void pcl816_reset(struct comedi_device *dev)
 /* outb (0, dev->iobase + PCL818_DA_LO);         DAC=0V */
 /* outb (0, dev->iobase + PCL818_DA_HI); */
 /* udelay (1); */
-/* outb (0, dev->iobase + PCL818_DO_HI);        DO=$0000 */
-/* outb (0, dev->iobase + PCL818_DO_LO); */
-/* udelay (1); */
 	outb(0, dev->iobase + PCL816_CONTROL);
 	outb(0, dev->iobase + PCL816_MUX);
 	outb(0, dev->iobase + PCL816_CLRINT);
@@ -570,6 +569,10 @@ static void pcl816_reset(struct comedi_device *dev)
 	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
 
 	outb(0, dev->iobase + PCL816_RANGE);
+
+	/* set all digital outputs low */
+	outb(0, dev->iobase + PCL816_DO_DI_LSB_REG);
+	outb(0, dev->iobase + PCL816_DO_DI_MSB_REG);
 }
 
 static int
@@ -650,6 +653,32 @@ setup_channel_list(struct comedi_device *dev,
 	     dev->iobase + PCL816_MUX);
 }
 
+static int pcl816_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	data[1] = inb(dev->iobase + PCL816_DO_DI_LSB_REG) |
+		  (inb(dev->iobase + PCL816_DO_DI_MSB_REG) << 8);
+
+	return insn->n;
+}
+
+static int pcl816_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase + PCL816_DO_DI_LSB_REG);
+		outb((s->state >> 8), dev->iobase + PCL816_DO_DI_MSB_REG);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl816_board *board = comedi_board(dev);
@@ -700,7 +729,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	ret = comedi_alloc_subdevices(dev, 1);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
@@ -721,28 +750,34 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->cancel	= pcl816_ai_cancel;
 	}
 
+	/* Analog OUtput subdevice */
+	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_UNUSED;
 #if 0
 	subdevs[1] = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = 1;
 	s->maxdata = board->ao_maxdata;
 	s->range_table = &range_pcl816;
-	break;
-
-	subdevs[2] = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	break;
-
-	subdevs[3] = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	break;
 #endif
+
+	/* Digital Input subdevice */
+	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl816_di_insn_bits;
+
+	/* Digital Output subdevice */
+	s = &dev->subdevices[3];
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl816_do_insn_bits;
 
 	pcl816_reset(dev);
 
