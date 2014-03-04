@@ -100,12 +100,19 @@ config USB_FSL_MPH_DR_OF
 
 if USB_EHCI_HCD
 
-config USB_EHCI_RK
+config USB_EHCI_RKHSIC
 	tristate "Rockchip EHCI HSIC support"
 	select USB_EHCI_ROOT_HUB_TT
-	default y
+	default n
 	---help---
-		Enables support for the HSIC USB controller on the RK platform
+		Enables support for the HSIC USB controller on the RK platform.
+
+config USB_EHCI_RK
+	tristate "Rockchip EHCI HOST20 support"
+	select USB_EHCI_ROOT_HUB_TT
+	default n
+	---help---
+		Enables support EHCI for RK3288 and later chips.
 
 config USB_EHCI_PCI
 	tristate

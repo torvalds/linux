@@ -283,7 +283,7 @@ struct dwc_otg_platform_data usb20host_pdata = {
 };
 #endif
 
-#ifdef CONFIG_USB_EHCI_RK
+#ifdef CONFIG_USB_EHCI_RKHSIC
 void rk_hsic_hw_init(void)
 {
 	unsigned int * phy_con0 = (control_usb->grf_uoc0_base);
