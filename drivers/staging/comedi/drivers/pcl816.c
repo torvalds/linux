@@ -52,6 +52,17 @@ Configuration Options:
 #define PCL816_RANGE_REG			0x09
 #define PCL816_MUX_REG				0x0b
 #define PCL816_MUX_SCAN(_first, _last)		(((_last) << 4) | (_first))
+#define PCL816_CTRL_REG				0x0c
+#define PCL816_CTRL_DISABLE_TRIG		(0 << 0)
+#define PCL816_CTRL_SOFT_TRIG			(1 << 0)
+#define PCL816_CTRL_PACER_TRIG			(1 << 1)
+#define PCL816_CTRL_EXT_TRIG			(1 << 2)
+#define PCL816_CTRL_POE				(1 << 3)
+#define PCL816_CTRL_DMAEN			(1 << 4)
+#define PCL816_CTRL_INTEN			(1 << 5)
+#define PCL816_CTRL_DMASRC_SLOT0		(0 << 6)
+#define PCL816_CTRL_DMASRC_SLOT1		(1 << 6)
+#define PCL816_CTRL_DMASRC_SLOT2		(2 << 6)
 #define PCL816_STATUS_REG			0x0d
 #define PCL816_STATUS_NEXT_CHAN_MASK		(0xf << 0)
 #define PCL816_STATUS_INTSRC_MASK		(3 << 4)
@@ -64,9 +75,6 @@ Configuration Options:
 
 /* W: clear INT request */
 #define PCL816_CLRINT 10
-/* R/W: operation control register */
-#define PCL816_CONTROL 12
-
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -439,7 +447,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int dmairq;
+	unsigned int ctrl;
 	unsigned int seglen;
 
 	if (devpriv->ai_cmd_running)
@@ -459,29 +467,18 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = 0;
 	devpriv->ai_cmd_canceled = 0;
 
-	if (devpriv->dma)
-		pcl816_ai_setup_dma(dev, s);
+	pcl816_ai_setup_dma(dev, s);
 
 	pcl816_start_pacer(dev, true);
-	dmairq = ((devpriv->dma & 0x3) << 4) | (dev->irq & 0x7);
 
-	switch (cmd->convert_src) {
-	case TRIG_TIMER:
-		/*  Pacer+IRQ+DMA */
-		outb(0x32, dev->iobase + PCL816_CONTROL);
+	ctrl = PCL816_CTRL_INTEN | PCL816_CTRL_DMAEN | PCL816_CTRL_DMASRC_SLOT0;
+	if (cmd->convert_src == TRIG_TIMER)
+		ctrl |= PCL816_CTRL_PACER_TRIG;
+	else	/* TRIG_EXT */
+		ctrl |= PCL816_CTRL_EXT_TRIG;
 
-		/*  write irq and DMA to card */
-		outb(dmairq, dev->iobase + PCL816_STATUS_REG);
-		break;
-
-	default:
-		/*  Ext trig+IRQ+DMA */
-		outb(0x34, dev->iobase + PCL816_CONTROL);
-
-		/*  write irq to card */
-		outb(dmairq, dev->iobase + PCL816_STATUS_REG);
-		break;
-	}
+	outb(ctrl, dev->iobase + PCL816_CTRL_REG);
+	outb((devpriv->dma << 4) | dev->irq, dev->iobase + PCL816_STATUS_REG);
 
 	return 0;
 }
@@ -491,9 +488,6 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pcl816_private *devpriv = dev->private;
 	unsigned long flags;
 	unsigned int top1, top2, i;
-
-	if (!devpriv->dma)
-		return 0;	/*  poll is valid only for DMA transfer */
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 
@@ -538,11 +532,8 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	if (!devpriv->ai_cmd_running)
 		return 0;
 
-	disable_dma(devpriv->dma);
-	outb(inb(dev->iobase + PCL816_CONTROL) & 0x73,
-	     dev->iobase + PCL816_CONTROL);	/* Stop A/D */
-	udelay(1);
-	outb(0, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
+	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
+	pcl816_ai_clear_eoc(dev);
 
 	/* Stop pacer */
 	i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
@@ -550,13 +541,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
 			1, I8254_MODE0 | I8254_BINARY);
 
-	pcl816_ai_soft_trig(dev);
-	pcl816_ai_get_sample(dev, s);
-
-	pcl816_ai_clear_eoc(dev);
-
-	/* Stop A/D */
-	outb(0, dev->iobase + PCL816_CONTROL);
 	devpriv->ai_cmd_running = 0;
 	devpriv->ai_cmd_canceled = 1;
 
@@ -629,8 +613,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 	int ret = 0;
 	int i;
 
-	/*  software trigger, DMA and INT off */
-	outb(0, dev->iobase + PCL816_CONTROL);
+	outb(PCL816_CTRL_SOFT_TRIG, dev->iobase + PCL816_CTRL_REG);
 
 	pcl816_ai_set_chan_range(dev, chan, range);
 	pcl816_ai_set_chan_scan(dev, chan, chan);
@@ -645,6 +628,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 
 		data[i] = pcl816_ai_get_sample(dev, s);
 	}
+	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
 	pcl816_ai_clear_eoc(dev);
 
 	return ret ? ret : insn->n;
@@ -680,7 +664,7 @@ static void pcl816_reset(struct comedi_device *dev)
 {
 	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
 
-	outb(0, dev->iobase + PCL816_CONTROL);
+	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
 	pcl816_ai_set_chan_range(dev, 0, 0);
 	pcl816_ai_clear_eoc(dev);
 
