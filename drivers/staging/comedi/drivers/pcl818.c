@@ -443,43 +443,6 @@ static int pcl818_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int pcl818_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	int ret;
-	int n;
-
-	/* software trigger, DMA and INT off */
-	outb(0, dev->iobase + PCL818_CONTROL);
-
-	/* select channel */
-	outb(muxonechan[CR_CHAN(insn->chanspec)], dev->iobase + PCL818_MUX);
-
-	/* select gain */
-	outb(CR_RANGE(insn->chanspec), dev->iobase + PCL818_RANGE);
-
-	for (n = 0; n < insn->n; n++) {
-
-		/* clear INT (conversion end) flag */
-		outb(0, dev->iobase + PCL818_CLRINT);
-
-		/* start conversion */
-		outb(0, dev->iobase + PCL818_AD_LO);
-
-		ret = comedi_timeout(dev, s, insn, pcl818_ai_eoc, 0);
-		if (ret) {
-			/* clear INT (conversion end) flag */
-			outb(0, dev->iobase + PCL818_CLRINT);
-			return ret;
-		}
-
-		data[n] = pcl818_ai_get_sample(dev, s, NULL);
-	}
-
-	return n;
-}
-
 static bool pcl818_ai_dropout(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int chan)
@@ -961,6 +924,42 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	devpriv->ai_cmd_canceled = 0;
 
 	return 0;
+}
+
+static int pcl818_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	int ret = 0;
+	int i;
+
+	/* software trigger, DMA and INT off */
+	outb(0, dev->iobase + PCL818_CONTROL);
+
+	/* select channel */
+	outb(muxonechan[chan], dev->iobase + PCL818_MUX);
+	/* select gain */
+	outb(range, dev->iobase + PCL818_RANGE);
+
+	for (i = 0; i < insn->n; i++) {
+		/* clear INT (conversion end) flag */
+		outb(0, dev->iobase + PCL818_CLRINT);
+		/* start conversion */
+		outb(0, dev->iobase + PCL818_AD_LO);
+
+		ret = comedi_timeout(dev, s, insn, pcl818_ai_eoc, 0);
+		if (ret)
+			break;
+
+		data[i] = pcl818_ai_get_sample(dev, s, NULL);
+	}
+	/* clear INT (conversion end) flag */
+	outb(0, dev->iobase + PCL818_CLRINT);
+
+	return ret ? ret : insn->n;
 }
 
 static int pcl818_ao_insn_write(struct comedi_device *dev,
