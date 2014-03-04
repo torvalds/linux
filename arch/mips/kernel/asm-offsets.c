@@ -14,6 +14,7 @@
 #include <linux/mm.h>
 #include <linux/kbuild.h>
 #include <linux/suspend.h>
+#include <asm/pm.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/smp-cps.h>
@@ -400,6 +401,20 @@ void output_pbe_defines(void)
 	OFFSET(PBE_ORIG_ADDRESS, pbe, orig_address);
 	OFFSET(PBE_NEXT, pbe, next);
 	DEFINE(PBE_SIZE, sizeof(struct pbe));
+	BLANK();
+}
+#endif
+
+#ifdef CONFIG_CPU_PM
+void output_pm_defines(void)
+{
+	COMMENT(" PM offsets. ");
+#ifdef CONFIG_EVA
+	OFFSET(SSS_SEGCTL0,	mips_static_suspend_state, segctl[0]);
+	OFFSET(SSS_SEGCTL1,	mips_static_suspend_state, segctl[1]);
+	OFFSET(SSS_SEGCTL2,	mips_static_suspend_state, segctl[2]);
+#endif
+	OFFSET(SSS_SP,		mips_static_suspend_state, sp);
 	BLANK();
 }
 #endif

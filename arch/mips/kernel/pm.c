@@ -15,7 +15,11 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/mmu_context.h>
+#include <asm/pm.h>
 #include <asm/watch.h>
+
+/* Used by PM helper macros in asm/pm.h */
+struct mips_static_suspend_state mips_static_suspend_state;
 
 /**
  * mips_cpu_save() - Save general CPU state.
