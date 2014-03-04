@@ -41,7 +41,7 @@
 #include "rk_sdmmc.h"
 
 /* Common flag combinations */
-#define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DTO | SDMMC_INT_DCRC | \
+#define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | \
 				 SDMMC_INT_HTO | SDMMC_INT_SBE  | \
 				 SDMMC_INT_EBE)
 #define DW_MCI_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | \
@@ -435,6 +435,7 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 	mci_writel(host, BMOD, SDMMC_IDMAC_SWRESET);
 
 	/* Mask out interrupts - get Tx & Rx complete only */
+	mci_writel(host, IDSTS, IDMAC_INT_CLR);
 	mci_writel(host, IDINTEN, SDMMC_IDMAC_INT_NI | SDMMC_IDMAC_INT_RI |
 		   SDMMC_IDMAC_INT_TI);
 
@@ -1089,7 +1090,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			status = host->data_status;
 
 			if (status & DW_MCI_DATA_ERROR_FLAGS) {
-				if (status & SDMMC_INT_DTO) {
+		if (status & SDMMC_INT_DRTO) {
 					data->error = -ETIMEDOUT;
 				} else if (status & SDMMC_INT_DCRC) {
 					data->error = -EILSEQ;
@@ -2361,8 +2362,10 @@ int dw_mci_probe(struct dw_mci *host)
 	tasklet_init(&host->tasklet, dw_mci_tasklet_func, (unsigned long)host);
 	host->card_workqueue = alloc_workqueue("dw-mci-card",
 			WQ_MEM_RECLAIM | WQ_NON_REENTRANT, 1);
-	if (!host->card_workqueue)
+	if (!host->card_workqueue) {
+		ret = -ENOMEM;
 		goto err_dmaunmap;
+	}
 	INIT_WORK(&host->card_work, dw_mci_work_routine_card);
 	ret = devm_request_irq(host->dev, host->irq, dw_mci_interrupt,
 			       host->irq_flags, "dw-mci", host);
