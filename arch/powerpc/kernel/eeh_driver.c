@@ -166,8 +166,9 @@ static void eeh_enable_irq(struct pci_dev *dev)
 		 *
 		 *	tglx
 		 */
-		if (irqd_irq_disabled(irq_get_irq_data(dev->irq))
+		if (irqd_irq_disabled(irq_get_irq_data(dev->irq)))
 			enable_irq(dev->irq);
+	}
 }
 
 /**
