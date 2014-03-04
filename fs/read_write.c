@@ -264,23 +264,9 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int whence)
 }
 EXPORT_SYMBOL(vfs_llseek);
 
-/*
- * We only lock f_pos if we have threads or if the file might be
- * shared with another process. In both cases we'll have an elevated
- * file count (done either by fdget() or by fork()).
- */
 static inline struct fd fdget_pos(int fd)
 {
-	struct fd f = fdget(fd);
-	struct file *file = f.file;
-
-	if (file && (file->f_mode & FMODE_ATOMIC_POS)) {
-		if (file_count(file) > 1) {
-			f.flags |= FDPUT_POS_UNLOCK;
-			mutex_lock(&file->f_pos_lock);
-		}
-	}
-	return f;
+	return __to_fd(__fdget_pos(fd));
 }
 
 static inline void fdput_pos(struct fd f)

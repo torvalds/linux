@@ -40,23 +40,24 @@ static inline void fdput(struct fd fd)
 }
 
 extern struct file *fget(unsigned int fd);
-extern struct file *fget_light(unsigned int fd, int *fput_needed);
+extern struct file *fget_raw(unsigned int fd);
+extern unsigned long __fdget(unsigned int fd);
+extern unsigned long __fdget_raw(unsigned int fd);
+extern unsigned long __fdget_pos(unsigned int fd);
+
+static inline struct fd __to_fd(unsigned long v)
+{
+	return (struct fd){(struct file *)(v & ~3),v & 3};
+}
 
 static inline struct fd fdget(unsigned int fd)
 {
-	int b;
-	struct file *f = fget_light(fd, &b);
-	return (struct fd){f,b};
+	return __to_fd(__fdget(fd));
 }
-
-extern struct file *fget_raw(unsigned int fd);
-extern struct file *fget_raw_light(unsigned int fd, int *fput_needed);
 
 static inline struct fd fdget_raw(unsigned int fd)
 {
-	int b;
-	struct file *f = fget_raw_light(fd, &b);
-	return (struct fd){f,b};
+	return __to_fd(__fdget_raw(fd));
 }
 
 extern int f_dupfd(unsigned int from, struct file *file, unsigned flags);
