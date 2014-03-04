@@ -1598,9 +1598,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
 
-	if (pending) {
-
-		/*
+	/*
 		 * DTO fix - version 2.10a and below, and only if internal DMA
 		 * is configured.
 		 */
@@ -1608,8 +1606,9 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			if (!pending &&
 			    ((mci_readl(host, STATUS) >> 17) & 0x1fff))
 				pending |= SDMMC_INT_DATA_OVER;
-		}
+	}
 
+	if (pending) {
 		if (pending & DW_MCI_CMD_ERROR_FLAGS) {
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
 			host->cmd_status = pending;
@@ -2161,6 +2160,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	struct device_node *np = dev->of_node;
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int idx, ret;
+	u32 clock_frequency;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -2186,6 +2186,9 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 				"value of FIFOTH register as default\n");
 
 	of_property_read_u32(np, "card-detect-delay", &pdata->detect_delay_ms);
+
+	if (!of_property_read_u32(np, "clock-frequency", &clock_frequency))
+		pdata->bus_hz = clock_frequency;
 
 	if (drv_data && drv_data->parse_dt) {
 		ret = drv_data->parse_dt(host);
@@ -2244,6 +2247,7 @@ int dw_mci_probe(struct dw_mci *host)
 	host->ciu_clk = devm_clk_get(host->dev, "ciu");
 	if (IS_ERR(host->ciu_clk)) {
 		dev_dbg(host->dev, "ciu clock not available\n");
+		host->bus_hz = host->pdata->bus_hz;
 	} else {
 		ret = clk_prepare_enable(host->ciu_clk);
 		if (ret) {
@@ -2256,9 +2260,13 @@ int dw_mci_probe(struct dw_mci *host)
     //test, modify by xbw
     host->bus_hz = 50000000;
 #else
-	if (IS_ERR(host->ciu_clk))
-		host->bus_hz = host->pdata->bus_hz;
-	else
+	if (drv_data && drv_data->init) {
+		ret = drv_data->init(host);
+		if (ret) {
+			dev_err(host->dev,
+				"implementation specific init failed\n");
+			goto err_clk_ciu;
+		}
 		host->bus_hz = clk_get_rate(host->ciu_clk);
 #endif
 	if (drv_data && drv_data->setup_clock) {
