@@ -1469,6 +1469,8 @@ typedef struct drm_i915_private {
 	/* protects the irq masks */
 	spinlock_t irq_lock;
 
+	bool display_irqs_enabled;
+
 	/* To control wakeup latency, e.g. for irq-driven dp aux transfers. */
 	struct pm_qos_request pm_qos;
 
@@ -2062,6 +2064,9 @@ i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
 void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
 		      u32 status_mask);
+
+void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv);
+void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
 
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,

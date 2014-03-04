@@ -1672,6 +1672,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_mtrrfree;
 	}
 
+	dev_priv->display_irqs_enabled = true;
 	intel_irq_init(dev);
 	intel_uncore_sanitize(dev);
 
