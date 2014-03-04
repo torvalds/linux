@@ -12,7 +12,6 @@ menuconfig BT
 	select CRYPTO_AES
 	select CRYPTO_ECB
 	select CRYPTO_SHA256
-	select 6LOWPAN_IPHC
 	help
 	  Bluetooth is low-cost, low-power, short-range wireless technology.
 	  It was designed as a replacement for cables and other short-range
@@ -39,6 +38,13 @@ menuconfig BT
 	  utilities like hciconfig and bluetoothd.  These utilities and updates
 	  to Bluetooth kernel modules are provided in the BlueZ packages.  For
 	  more information, see <http://www.bluez.org/>.
+
+config BT_6LOWPAN
+	bool "Bluetooth 6LoWPAN support"
+	depends on BT && IPV6
+	select 6LOWPAN_IPHC
+	help
+	  IPv6 compression over Bluetooth.
 
 source "net/bluetooth/rfcomm/Kconfig"
 
