@@ -100,9 +100,12 @@ struct blkcipher_walk {
 	void *page;
 	u8 *buffer;
 	u8 *iv;
+	unsigned int ivsize;
 
 	int flags;
-	unsigned int blocksize;
+	unsigned int walk_blocksize;
+	unsigned int cipher_blocksize;
+	unsigned int alignmask;
 };
 
 struct ablkcipher_walk {
