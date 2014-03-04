@@ -1597,7 +1597,7 @@ int of_update_property(struct device_node *np, struct property *newprop)
 {
 	struct property **next, *oldprop;
 	unsigned long flags;
-	int rc = 0;
+	int rc, found = 0;
 
 	rc = of_property_notify(OF_RECONFIG_UPDATE_PROPERTY, np, newprop);
 	if (rc)
@@ -1606,20 +1606,28 @@ int of_update_property(struct device_node *np, struct property *newprop)
 	if (!newprop->name)
 		return -EINVAL;
 
+	oldprop = of_find_property(np, newprop->name, NULL);
+	if (!oldprop)
+		return of_add_property(np, newprop);
+
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	oldprop = __of_find_property(np, newprop->name, NULL);
-	if (!oldprop) {
-		/* add the node */
-		rc = __of_add_property(np, newprop);
-	} else {
-		/* replace the node */
-		next = &oldprop;
-		newprop->next = oldprop->next;
-		*next = newprop;
-		oldprop->next = np->deadprops;
-		np->deadprops = oldprop;
+	next = &np->properties;
+	while (*next) {
+		if (*next == oldprop) {
+			/* found the node */
+			newprop->next = oldprop->next;
+			*next = newprop;
+			oldprop->next = np->deadprops;
+			np->deadprops = oldprop;
+			found = 1;
+			break;
+		}
+		next = &(*next)->next;
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	if (!found)
+		return -ENODEV;
 
 #ifdef CONFIG_PROC_DEVICETREE
 	/* try to add to proc as well if it was initialized */
@@ -1627,7 +1635,7 @@ int of_update_property(struct device_node *np, struct property *newprop)
 		proc_device_tree_update_prop(np->pde, newprop, oldprop);
 #endif /* CONFIG_PROC_DEVICETREE */
 
-	return rc;
+	return 0;
 }
 
 #if defined(CONFIG_OF_DYNAMIC)
