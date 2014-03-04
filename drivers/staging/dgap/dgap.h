@@ -110,38 +110,38 @@ typedef unsigned char		uchar;
 
 #define DIGI_VID		0x114F
 
-#define PCI_DEVICE_EPC_DID	0x0002
-#define PCI_DEVICE_XEM_DID	0x0004
-#define PCI_DEVICE_XR_DID	0x0005
-#define PCI_DEVICE_CX_DID	0x0006
-#define PCI_DEVICE_XRJ_DID	0x0009	/* PLX-based Xr adapter */
-#define PCI_DEVICE_XR_IBM_DID	0x0011	/* IBM 8-port Async Adapter */
-#define PCI_DEVICE_XR_BULL_DID	0x0013	/* BULL 8-port Async Adapter */
-#define PCI_DEVICE_XR_SAIP_DID	0x001c	/* SAIP card - Xr adapter */
-#define PCI_DEVICE_XR_422_DID	0x0012	/* Xr-422 */
-#define PCI_DEVICE_920_2_DID	0x0034	/* XR-Plus 920 K, 2 port */
-#define PCI_DEVICE_920_4_DID	0x0026	/* XR-Plus 920 K, 4 port */
-#define PCI_DEVICE_920_8_DID	0x0027	/* XR-Plus 920 K, 8 port */
-#define PCI_DEVICE_EPCJ_DID	0x000a	/* PLX 9060 chip for PCI  */
-#define PCI_DEVICE_CX_IBM_DID	0x001b	/* IBM 128-port Async Adapter */
-#define PCI_DEVICE_920_8_HP_DID	0x0058	/* HP XR-Plus 920 K, 8 port */
-#define PCI_DEVICE_XEM_HP_DID	0x0059  /* HP Xem PCI */
+#define PCI_DEV_EPC_DID		0x0002
+#define PCI_DEV_XEM_DID		0x0004
+#define PCI_DEV_XR_DID		0x0005
+#define PCI_DEV_CX_DID		0x0006
+#define PCI_DEV_XRJ_DID		0x0009	/* PLX-based Xr adapter */
+#define PCI_DEV_XR_IBM_DID	0x0011	/* IBM 8-port Async Adapter */
+#define PCI_DEV_XR_BULL_DID	0x0013	/* BULL 8-port Async Adapter */
+#define PCI_DEV_XR_SAIP_DID	0x001c	/* SAIP card - Xr adapter */
+#define PCI_DEV_XR_422_DID	0x0012	/* Xr-422 */
+#define PCI_DEV_920_2_DID	0x0034	/* XR-Plus 920 K, 2 port */
+#define PCI_DEV_920_4_DID	0x0026	/* XR-Plus 920 K, 4 port */
+#define PCI_DEV_920_8_DID	0x0027	/* XR-Plus 920 K, 8 port */
+#define PCI_DEV_EPCJ_DID	0x000a	/* PLX 9060 chip for PCI  */
+#define PCI_DEV_CX_IBM_DID	0x001b	/* IBM 128-port Async Adapter */
+#define PCI_DEV_920_8_HP_DID	0x0058	/* HP XR-Plus 920 K, 8 port */
+#define PCI_DEV_XEM_HP_DID	0x0059  /* HP Xem PCI */
 
-#define PCI_DEVICE_XEM_NAME	"AccelePort XEM"
-#define PCI_DEVICE_CX_NAME	"AccelePort CX"
-#define PCI_DEVICE_XR_NAME	"AccelePort Xr"
-#define PCI_DEVICE_XRJ_NAME	"AccelePort Xr (PLX)"
-#define PCI_DEVICE_XR_SAIP_NAME	"AccelePort Xr (SAIP)"
-#define PCI_DEVICE_920_2_NAME	"AccelePort Xr920 2 port"
-#define PCI_DEVICE_920_4_NAME	"AccelePort Xr920 4 port"
-#define PCI_DEVICE_920_8_NAME	"AccelePort Xr920 8 port"
-#define PCI_DEVICE_XR_422_NAME	"AccelePort Xr 422"
-#define PCI_DEVICE_EPCJ_NAME	"AccelePort EPC (PLX)"
-#define PCI_DEVICE_XR_BULL_NAME	"AccelePort Xr (BULL)"
-#define PCI_DEVICE_XR_IBM_NAME	"AccelePort Xr (IBM)"
-#define PCI_DEVICE_CX_IBM_NAME	"AccelePort CX (IBM)"
-#define PCI_DEVICE_920_8_HP_NAME "AccelePort Xr920 8 port (HP)"
-#define PCI_DEVICE_XEM_HP_NAME	"AccelePort XEM (HP)"
+#define PCI_DEV_XEM_NAME	"AccelePort XEM"
+#define PCI_DEV_CX_NAME		"AccelePort CX"
+#define PCI_DEV_XR_NAME		"AccelePort Xr"
+#define PCI_DEV_XRJ_NAME	"AccelePort Xr (PLX)"
+#define PCI_DEV_XR_SAIP_NAME	"AccelePort Xr (SAIP)"
+#define PCI_DEV_920_2_NAME	"AccelePort Xr920 2 port"
+#define PCI_DEV_920_4_NAME	"AccelePort Xr920 4 port"
+#define PCI_DEV_920_8_NAME	"AccelePort Xr920 8 port"
+#define PCI_DEV_XR_422_NAME	"AccelePort Xr 422"
+#define PCI_DEV_EPCJ_NAME	"AccelePort EPC (PLX)"
+#define PCI_DEV_XR_BULL_NAME	"AccelePort Xr (BULL)"
+#define PCI_DEV_XR_IBM_NAME	"AccelePort Xr (IBM)"
+#define PCI_DEV_CX_IBM_NAME	"AccelePort CX (IBM)"
+#define PCI_DEV_920_8_HP_NAME	"AccelePort Xr920 8 port (HP)"
+#define PCI_DEV_XEM_HP_NAME	"AccelePort XEM (HP)"
 
 /*
  * On the PCI boards, there is no IO space allocated

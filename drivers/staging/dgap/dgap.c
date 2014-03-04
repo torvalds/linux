@@ -108,10 +108,14 @@ static irqreturn_t dgap_intr(int irq, void *voidbrd);
 /* Our function prototypes */
 static int dgap_tty_open(struct tty_struct *tty, struct file *file);
 static void dgap_tty_close(struct tty_struct *tty, struct file *file);
-static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struct channel_t *ch);
-static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
-static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retinfo);
-static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_info);
+static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
+				struct channel_t *ch);
+static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+				unsigned long arg);
+static int dgap_tty_digigeta(struct tty_struct *tty,
+				struct digi_t __user *retinfo);
+static int dgap_tty_digiseta(struct tty_struct *tty,
+				struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
 static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info);
 static int dgap_tty_write_room(struct tty_struct *tty);
@@ -124,16 +128,23 @@ static void dgap_tty_flush_chars(struct tty_struct *tty);
 static void dgap_tty_flush_buffer(struct tty_struct *tty);
 static void dgap_tty_hangup(struct tty_struct *tty);
 static int dgap_wait_for_drain(struct tty_struct *tty);
-static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, unsigned int __user *value);
-static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value);
-static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_info);
-static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinfo);
+static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command,
+				unsigned int __user *value);
+static int dgap_get_modem_info(struct channel_t *ch,
+				unsigned int __user *value);
+static int dgap_tty_digisetcustombaud(struct tty_struct *tty,
+				int __user *new_info);
+static int dgap_tty_digigetcustombaud(struct tty_struct *tty,
+				int __user *retinfo);
 static int dgap_tty_tiocmget(struct tty_struct *tty);
-static int dgap_tty_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear);
+static int dgap_tty_tiocmset(struct tty_struct *tty, unsigned int set,
+				unsigned int clear);
 static int dgap_tty_send_break(struct tty_struct *tty, int msec);
 static void dgap_tty_wait_until_sent(struct tty_struct *tty, int timeout);
-static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int count);
-static void dgap_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios);
+static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
+				int count);
+static void dgap_tty_set_termios(struct tty_struct *tty,
+				struct ktermios *old_termios);
 static int dgap_tty_put_char(struct tty_struct *tty, unsigned char c);
 static void dgap_tty_send_xchar(struct tty_struct *tty, char ch);
 
@@ -152,11 +163,13 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds);
 static int dgap_event(struct board_t *bd);
 
 static void dgap_poll_tasklet(unsigned long data);
-static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2, uint ncmds);
+static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1,
+			uchar byte2, uint ncmds);
 static void dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds);
 static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt);
 static int dgap_param(struct tty_struct *tty);
-static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned char *fbuf, int *len);
+static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf,
+				unsigned char *fbuf, int *len);
 static uint dgap_get_custom_baud(struct channel_t *ch);
 static void dgap_firmware_reset_port(struct channel_t *ch);
 
@@ -199,7 +212,8 @@ static uint dgap_config_get_useintr(struct board_t *bd);
 static uint dgap_config_get_altpin(struct board_t *bd);
 
 static int dgap_ms_sleep(ulong ms);
-static void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len);
+static void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios,
+				int len);
 static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
 static void dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len);
@@ -280,21 +294,21 @@ static struct timer_list dgap_poll_timer;
 */
 
 static struct pci_device_id dgap_pci_tbl[] = {
-	{       DIGI_VID, PCI_DEVICE_XEM_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	0 },
-	{       DIGI_VID, PCI_DEVICE_CX_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,   1 },
-	{       DIGI_VID, PCI_DEVICE_CX_IBM_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,	2 },
-	{       DIGI_VID, PCI_DEVICE_EPCJ_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	3 },
-	{       DIGI_VID, PCI_DEVICE_920_2_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	4 },
-	{       DIGI_VID, PCI_DEVICE_920_4_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	5 },
-	{       DIGI_VID, PCI_DEVICE_920_8_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	6 },
-	{       DIGI_VID, PCI_DEVICE_XR_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	7 },
-	{       DIGI_VID, PCI_DEVICE_XRJ_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	8 },
-	{       DIGI_VID, PCI_DEVICE_XR_422_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,	9 },
-	{       DIGI_VID, PCI_DEVICE_XR_IBM_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,	10 },
-	{       DIGI_VID, PCI_DEVICE_XR_SAIP_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,	11 },
-	{       DIGI_VID, PCI_DEVICE_XR_BULL_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,	12 },
-	{       DIGI_VID, PCI_DEVICE_920_8_HP_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 13 },
-	{       DIGI_VID, PCI_DEVICE_XEM_HP_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,	14 },
+	{ DIGI_VID, PCI_DEV_XEM_DID,      PCI_ANY_ID, PCI_ANY_ID, 0, 0,  0 },
+	{ DIGI_VID, PCI_DEV_CX_DID,       PCI_ANY_ID, PCI_ANY_ID, 0, 0,  1 },
+	{ DIGI_VID, PCI_DEV_CX_IBM_DID,   PCI_ANY_ID, PCI_ANY_ID, 0, 0,  2 },
+	{ DIGI_VID, PCI_DEV_EPCJ_DID,     PCI_ANY_ID, PCI_ANY_ID, 0, 0,  3 },
+	{ DIGI_VID, PCI_DEV_920_2_DID,    PCI_ANY_ID, PCI_ANY_ID, 0, 0,  4 },
+	{ DIGI_VID, PCI_DEV_920_4_DID,    PCI_ANY_ID, PCI_ANY_ID, 0, 0,  5 },
+	{ DIGI_VID, PCI_DEV_920_8_DID,    PCI_ANY_ID, PCI_ANY_ID, 0, 0,  6 },
+	{ DIGI_VID, PCI_DEV_XR_DID,       PCI_ANY_ID, PCI_ANY_ID, 0, 0,  7 },
+	{ DIGI_VID, PCI_DEV_XRJ_DID,      PCI_ANY_ID, PCI_ANY_ID, 0, 0,  8 },
+	{ DIGI_VID, PCI_DEV_XR_422_DID,   PCI_ANY_ID, PCI_ANY_ID, 0, 0,  9 },
+	{ DIGI_VID, PCI_DEV_XR_IBM_DID,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 10 },
+	{ DIGI_VID, PCI_DEV_XR_SAIP_DID,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 11 },
+	{ DIGI_VID, PCI_DEV_XR_BULL_DID,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 12 },
+	{ DIGI_VID, PCI_DEV_920_8_HP_DID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 13 },
+	{ DIGI_VID, PCI_DEV_XEM_HP_DID,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 14 },
 	{0,}					/* 0 terminated list. */
 };
 MODULE_DEVICE_TABLE(pci, dgap_pci_tbl);
@@ -310,21 +324,21 @@ struct board_id {
 };
 
 static struct board_id dgap_Ids[] = {
-	{	PPCM,		PCI_DEVICE_XEM_NAME,	64,	(T_PCXM | T_PCLITE | T_PCIBUS)	},
-	{	PCX,		PCI_DEVICE_CX_NAME,	128,	(T_CX | T_PCIBUS)		},
-	{	PCX,		PCI_DEVICE_CX_IBM_NAME,	128,	(T_CX | T_PCIBUS)		},
-	{	PEPC,		PCI_DEVICE_EPCJ_NAME,	224,	(T_EPC  | T_PCIBUS)		},
-	{	APORT2_920P,	PCI_DEVICE_920_2_NAME,	2,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	APORT4_920P,	PCI_DEVICE_920_4_NAME,	4,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	APORT8_920P,	PCI_DEVICE_920_8_NAME,	8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	PAPORT8,	PCI_DEVICE_XR_NAME,	8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	PAPORT8,	PCI_DEVICE_XRJ_NAME,	8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	PAPORT8,	PCI_DEVICE_XR_422_NAME,	8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	PAPORT8,	PCI_DEVICE_XR_IBM_NAME,	8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	PAPORT8,	PCI_DEVICE_XR_SAIP_NAME, 8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	PAPORT8,	PCI_DEVICE_XR_BULL_NAME, 8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	APORT8_920P,	PCI_DEVICE_920_8_HP_NAME, 8,	(T_PCXR | T_PCLITE | T_PCIBUS)	},
-	{	PPCM,		PCI_DEVICE_XEM_HP_NAME,	64,	(T_PCXM | T_PCLITE | T_PCIBUS)	},
+	{ PPCM,        PCI_DEV_XEM_NAME,     64, (T_PCXM|T_PCLITE|T_PCIBUS) },
+	{ PCX,         PCI_DEV_CX_NAME,     128, (T_CX|T_PCIBUS)            },
+	{ PCX,         PCI_DEV_CX_IBM_NAME, 128, (T_CX|T_PCIBUS)            },
+	{ PEPC,        PCI_DEV_EPCJ_NAME,   224, (T_EPC|T_PCIBUS)           },
+	{ APORT2_920P, PCI_DEV_920_2_NAME,    2, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ APORT4_920P, PCI_DEV_920_4_NAME,    4, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ APORT8_920P, PCI_DEV_920_8_NAME,    8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ PAPORT8,     PCI_DEV_XR_NAME,       8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ PAPORT8,     PCI_DEV_XRJ_NAME,      8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ PAPORT8,     PCI_DEV_XR_422_NAME,   8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ PAPORT8,     PCI_DEV_XR_IBM_NAME,   8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ PAPORT8,     PCI_DEV_XR_SAIP_NAME,  8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ PAPORT8,     PCI_DEV_XR_BULL_NAME,  8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ APORT8_920P, PCI_DEV_920_8_HP_NAME, 8, (T_PCXR|T_PCLITE|T_PCIBUS) },
+	{ PPCM,        PCI_DEV_XEM_HP_NAME,  64, (T_PCXM|T_PCLITE|T_PCIBUS) },
 	{0,}						/* 0 terminated list. */
 };
 
@@ -440,54 +454,54 @@ struct toklist {
 };
 
 static struct toklist dgap_tlist[] = {
-	{	BEGIN,		"config_begin"			},
-	{	END,		"config_end"			},
-	{	BOARD,		"board"				},
-	{	PCX,		"Digi_AccelePort_C/X_PCI"	},	/* C/X_PCI */
-	{	PEPC,		"Digi_AccelePort_EPC/X_PCI"	},	/* EPC/X_PCI */
-	{	PPCM,		"Digi_AccelePort_Xem_PCI"	},	/* PCI/Xem */
-	{	APORT2_920P,	"Digi_AccelePort_2r_920_PCI"	},
-	{	APORT4_920P,	"Digi_AccelePort_4r_920_PCI"	},
-	{	APORT8_920P,	"Digi_AccelePort_8r_920_PCI"	},
-	{	PAPORT4,	"Digi_AccelePort_4r_PCI(EIA-232/RS-422)" },
-	{	PAPORT8,	"Digi_AccelePort_8r_PCI(EIA-232/RS-422)" },
-	{	IO,		"io"				},
-	{	PCIINFO,	"pciinfo"			},
-	{	LINE,		"line"				},
-	{	CONC,		"conc"				},
-	{	CONC,		"concentrator"			},
-	{	CX,		"cx"				},
-	{	CX,		"ccon"				},
-	{	EPC,		"epccon"			},
-	{	EPC,		"epc"				},
-	{	MOD,		"module"			},
-	{	ID,		"id"				},
-	{	STARTO,		"start"				},
-	{	SPEED,		"speed"				},
-	{	CABLE,		"cable"				},
-	{	CONNECT,	"connect"			},
-	{	METHOD,		"method"			},
-	{	STATUS,		"status"			},
-	{	CUSTOM,		"Custom"			},
-	{	BASIC,		"Basic"				},
-	{	MEM,		"mem"				},
-	{	MEM,		"memory"			},
-	{	PORTS,		"ports"				},
-	{	MODEM,		"modem"				},
-	{	NPORTS,		"nports"			},
-	{	TTYN,		"ttyname"			},
-	{	CU,		"cuname"			},
-	{	PRINT,		"prname"			},
-	{	CMAJOR,		"major"				},
-	{	ALTPIN,		"altpin"			},
-	{	USEINTR,	"useintr"			},
-	{	TTSIZ,		"ttysize"			},
-	{	CHSIZ,		"chsize"			},
-	{	BSSIZ,		"boardsize"			},
-	{	UNTSIZ,		"schedsize"			},
-	{	F2SIZ,		"f2200size"			},
-	{	VPSIZ,		"vpixsize"			},
-	{	0,		NULL				}
+	{ BEGIN,	"config_begin" },
+	{ END,		"config_end" },
+	{ BOARD,	"board"	},
+	{ PCX,		"Digi_AccelePort_C/X_PCI" },
+	{ PEPC,		"Digi_AccelePort_EPC/X_PCI" },
+	{ PPCM,		"Digi_AccelePort_Xem_PCI" },
+	{ APORT2_920P,	"Digi_AccelePort_2r_920_PCI" },
+	{ APORT4_920P,	"Digi_AccelePort_4r_920_PCI" },
+	{ APORT8_920P,	"Digi_AccelePort_8r_920_PCI" },
+	{ PAPORT4,	"Digi_AccelePort_4r_PCI(EIA-232/RS-422)" },
+	{ PAPORT8,	"Digi_AccelePort_8r_PCI(EIA-232/RS-422)" },
+	{ IO,		"io" },
+	{ PCIINFO,	"pciinfo" },
+	{ LINE,		"line" },
+	{ CONC,		"conc" },
+	{ CONC,		"concentrator" },
+	{ CX,		"cx" },
+	{ CX,		"ccon" },
+	{ EPC,		"epccon" },
+	{ EPC,		"epc" },
+	{ MOD,		"module" },
+	{ ID,		"id" },
+	{ STARTO,	"start" },
+	{ SPEED,	"speed"	},
+	{ CABLE,	"cable"	},
+	{ CONNECT,	"connect" },
+	{ METHOD,	"method" },
+	{ STATUS,	"status" },
+	{ CUSTOM,	"Custom" },
+	{ BASIC,	"Basic"	},
+	{ MEM,		"mem" },
+	{ MEM,		"memory" },
+	{ PORTS,	"ports"	},
+	{ MODEM,	"modem"	},
+	{ NPORTS,	"nports" },
+	{ TTYN,		"ttyname" },
+	{ CU,		"cuname" },
+	{ PRINT,	"prname" },
+	{ CMAJOR,	"major"	 },
+	{ ALTPIN,	"altpin" },
+	{ USEINTR,	"useintr" },
+	{ TTSIZ,	"ttysize" },
+	{ CHSIZ,	"chsize" },
+	{ BSSIZ,	"boardsize" },
+	{ UNTSIZ,	"schedsize" },
+	{ F2SIZ,	"f2200size" },
+	{ VPSIZ,	"vpixsize" },
+	{ 0,		NULL }
 };
 
 /************************************************************************
@@ -566,14 +580,13 @@ static int dgap_start(void)
 
 		/*
 		 * Register our base character device into the kernel.
-		 * This allows the download daemon to connect to the downld device
-		 * before any of the boards are init'ed.
 		 */
 		if (!dgap_Major_Control_Registered) {
 			/*
 			 * Register management/dpa devices
 			 */
-			rc = register_chrdev(DIGI_DGAP_MAJOR, "dgap", &DgapBoardFops);
+			rc = register_chrdev(DIGI_DGAP_MAJOR, "dgap",
+						 &DgapBoardFops);
 			if (rc < 0)
 				return rc;
 
@@ -789,7 +802,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	/* get the PCI Base Address Registers */
 
 	/* Xr Jupiter and EPC use BAR 2 */
-	if (brd->device == PCI_DEVICE_XRJ_DID || brd->device == PCI_DEVICE_EPCJ_DID) {
+	if (brd->device == PCI_DEV_XRJ_DID || brd->device == PCI_DEV_EPCJ_DID) {
 		brd->membase     = pci_resource_start(pdev, 2);
 		brd->membase_end = pci_resource_end(pdev, 2);
 	}
@@ -819,7 +832,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	/*
 	 * Special initialization for non-PLX boards
 	 */
-	if (brd->device != PCI_DEVICE_XRJ_DID && brd->device != PCI_DEVICE_EPCJ_DID) {
+	if (brd->device != PCI_DEV_XRJ_DID && brd->device != PCI_DEV_EPCJ_DID) {
 		unsigned short cmd;
 
 		pci_write_config_byte(pdev, 0x40, 0);
@@ -838,7 +851,8 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	}
 
 	/* init our poll helper tasklet */
-	tasklet_init(&brd->helper_tasklet, dgap_poll_tasklet, (unsigned long) brd);
+	tasklet_init(&brd->helper_tasklet, dgap_poll_tasklet,
+			(unsigned long) brd);
 
 	i = dgap_do_remap(brd);
 	if (i)
@@ -1034,7 +1048,8 @@ static int dgap_do_remap(struct board_t *brd)
 	if (!request_mem_region(brd->membase, 0x200000, "dgap"))
 		return -ENOMEM;
 
-	if (!request_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000, "dgap")) {
+	if (!request_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000,
+					"dgap")) {
 		release_mem_region(brd->membase, 0x200000);
 		return -ENOMEM;
 	}
@@ -1118,21 +1133,29 @@ static void dgap_poll_handler(ulong dummy)
 				dgap_poll_tasklet((unsigned long) brd);
 		}
 	} else {
-		/* Go thru each board, kicking off a tasklet for each if needed */
+		/*
+		 * Go thru each board, kicking off a
+		 * tasklet for each if needed
+		 */
 		for (i = 0; i < dgap_NumBoards; i++) {
 			brd = dgap_Board[i];
 
 			/*
 			 * Attempt to grab the board lock.
 			 *
-			 * If we can't get it, no big deal, the next poll will get it.
-			 * Basically, I just really don't want to spin in here, because I want
-			 * to kick off my tasklets as fast as I can, and then get out the poller.
+			 * If we can't get it, no big deal, the next poll
+			 * will get it. Basically, I just really don't want
+			 * to spin in here, because I want to kick off my
+			 * tasklets as fast as I can, and then get out the
+			 * poller.
 			 */
 			if (!spin_trylock(&brd->bd_lock))
 				continue;
 
-			/* If board is in a failed state, don't bother scheduling a tasklet */
+			/*
+			 * If board is in a failed state, don't bother
+			 *  scheduling a tasklet
+			 */
 			if (brd->state == BOARD_FAILED) {
 				spin_unlock(&brd->bd_lock);
 				continue;
@@ -1160,8 +1183,10 @@ schedule_poller:
 
 	new_time = dgap_poll_time - jiffies;
 
-	if ((ulong) new_time >= 2 * dgap_poll_tick)
-		dgap_poll_time = jiffies +  dgap_jiffies_from_ms(dgap_poll_tick);
+	if ((ulong) new_time >= 2 * dgap_poll_tick) {
+		dgap_poll_time =
+			jiffies +  dgap_jiffies_from_ms(dgap_poll_tick);
+	}
 
 	dgap_poll_timer.function = dgap_poll_handler;
 	dgap_poll_timer.data = 0;
@@ -1286,10 +1311,13 @@ static int dgap_tty_register(struct board_t *brd)
 	brd->SerialDriver->subtype = SERIAL_TYPE_NORMAL;
 	brd->SerialDriver->init_termios = DgapDefaultTermios;
 	brd->SerialDriver->driver_name = DRVSTR;
-	brd->SerialDriver->flags = (TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK);
+	brd->SerialDriver->flags = (TTY_DRIVER_REAL_RAW |
+				    TTY_DRIVER_DYNAMIC_DEV |
+				    TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
-	brd->SerialDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->SerialDriver->ttys =
+		kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->SerialDriver->ttys)
 		return -ENOMEM;
 
@@ -1315,10 +1343,13 @@ static int dgap_tty_register(struct board_t *brd)
 	brd->PrintDriver->subtype = SERIAL_TYPE_NORMAL;
 	brd->PrintDriver->init_termios = DgapDefaultTermios;
 	brd->PrintDriver->driver_name = DRVSTR;
-	brd->PrintDriver->flags = (TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK);
+	brd->PrintDriver->flags = (TTY_DRIVER_REAL_RAW |
+				   TTY_DRIVER_DYNAMIC_DEV |
+				   TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
-	brd->PrintDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->PrintDriver->ttys =
+		kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->PrintDriver->ttys)
 		return -ENOMEM;
 
@@ -1417,7 +1448,8 @@ static int dgap_tty_init(struct board_t *brd)
 	 */
 	for (i = 0; i < brd->nasync; i++) {
 		if (!brd->channels[i]) {
-			brd->channels[i] = kzalloc(sizeof(struct channel_t), GFP_ATOMIC);
+			brd->channels[i] =
+				kzalloc(sizeof(struct channel_t), GFP_ATOMIC);
 			if (!brd->channels[i])
 				return -ENOMEM;
 		}
@@ -1486,7 +1518,9 @@ static int dgap_tty_init(struct board_t *brd)
 		 * Set queue water marks, interrupt mask,
 		 * and general tty parameters.
 		 */
-		ch->ch_tlw = tlw = ch->ch_tsize >= 2000 ? ((ch->ch_tsize * 5) / 8) : ch->ch_tsize / 2;
+		tlw = ch->ch_tsize >= 2000 ? ((ch->ch_tsize * 5) / 8) :
+						ch->ch_tsize / 2;
+		ch->ch_tlw = tlw;
 
 		dgap_cmdw(ch, STLOW, tlw, 0);
 
@@ -5550,7 +5584,7 @@ static int dgap_param(struct tty_struct *tty)
 	 * Only the IBM Xr card can switch between
 	 * 232 and 422 modes on the fly
 	 */
-	if (bd->device == PCI_DEVICE_XR_IBM_DID) {
+	if (bd->device == PCI_DEV_XR_IBM_DID) {
 		if (ch->ch_digi.digi_flags & DIGI_422)
 			dgap_cmdb(ch, SCOMMODE, MODE_422, 0, 0);
 		else
