@@ -71,6 +71,8 @@ typedef struct compat_sigaltstack {
 typedef __compat_uid32_t	compat_uid_t;
 typedef __compat_gid32_t	compat_gid_t;
 
+typedef	compat_ulong_t		compat_aio_context_t;
+
 struct compat_sel_arg_struct;
 struct rusage;
 
@@ -497,20 +499,20 @@ asmlinkage long compat_sys_statfs64(const char __user *pathname,
 asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 				     struct compat_statfs64 __user *buf);
 asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
-				   unsigned long arg);
+				   compat_ulong_t arg);
 asmlinkage long compat_sys_fcntl(unsigned int fd, unsigned int cmd,
-				 unsigned long arg);
+				 compat_ulong_t arg);
 asmlinkage long compat_sys_io_setup(unsigned nr_reqs, u32 __user *ctx32p);
-asmlinkage long compat_sys_io_getevents(aio_context_t ctx_id,
-					unsigned long min_nr,
-					unsigned long nr,
+asmlinkage long compat_sys_io_getevents(compat_aio_context_t ctx_id,
+					compat_long_t min_nr,
+					compat_long_t nr,
 					struct io_event __user *events,
 					struct compat_timespec __user *timeout);
-asmlinkage long compat_sys_io_submit(aio_context_t ctx_id, int nr,
+asmlinkage long compat_sys_io_submit(compat_aio_context_t ctx_id, int nr,
 				     u32 __user *iocb);
 asmlinkage long compat_sys_mount(const char __user *dev_name,
 				 const char __user *dir_name,
-				 const char __user *type, unsigned long flags,
+				 const char __user *type, compat_ulong_t flags,
 				 const void __user *data);
 asmlinkage long compat_sys_old_readdir(unsigned int fd,
 				       struct compat_old_linux_dirent __user *,
@@ -633,7 +635,7 @@ asmlinkage long compat_sys_rt_sigqueueinfo(compat_pid_t pid, int sig,
 				struct compat_siginfo __user *uinfo);
 asmlinkage long compat_sys_sysinfo(struct compat_sysinfo __user *info);
 asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
-				 unsigned long arg);
+				 compat_ulong_t arg);
 asmlinkage long compat_sys_futex(u32 __user *uaddr, int op, u32 val,
 		struct compat_timespec __user *utime, u32 __user *uaddr2,
 		u32 val3);

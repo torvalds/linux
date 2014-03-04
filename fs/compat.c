@@ -399,8 +399,8 @@ static int put_compat_flock64(struct flock *kfl, struct compat_flock64 __user *u
 }
 #endif
 
-asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
-		unsigned long arg)
+COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
 {
 	mm_segment_t old_fs;
 	struct flock f;
@@ -468,8 +468,8 @@ asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
 	return ret;
 }
 
-asmlinkage long compat_sys_fcntl(unsigned int fd, unsigned int cmd,
-		unsigned long arg)
+COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
 {
 	if ((cmd == F_GETLK64) || (cmd == F_SETLK64) || (cmd == F_SETLKW64))
 		return -EINVAL;
@@ -495,32 +495,24 @@ COMPAT_SYSCALL_DEFINE2(io_setup, unsigned, nr_reqs, u32 __user *, ctx32p)
 	return ret;
 }
 
-asmlinkage long
-compat_sys_io_getevents(aio_context_t ctx_id,
-				 unsigned long min_nr,
-				 unsigned long nr,
-				 struct io_event __user *events,
-				 struct compat_timespec __user *timeout)
+COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
+		       compat_long_t, min_nr,
+		       compat_long_t, nr,
+		       struct io_event __user *, events,
+		       struct compat_timespec __user *, timeout)
 {
-	long ret;
 	struct timespec t;
 	struct timespec __user *ut = NULL;
 
-	ret = -EFAULT;
-	if (unlikely(!access_ok(VERIFY_WRITE, events, 
-				nr * sizeof(struct io_event))))
-		goto out;
 	if (timeout) {
 		if (get_compat_timespec(&t, timeout))
-			goto out;
+			return -EFAULT;
 
 		ut = compat_alloc_user_space(sizeof(*ut));
 		if (copy_to_user(ut, &t, sizeof(t)) )
-			goto out;
+			return -EFAULT;
 	} 
-	ret = sys_io_getevents(ctx_id, min_nr, nr, events, ut);
-out:
-	return ret;
+	return sys_io_getevents(ctx_id, min_nr, nr, events, ut);
 }
 
 /* A write operation does a read from user space and vice versa */
@@ -616,8 +608,8 @@ copy_iocb(long nr, u32 __user *ptr32, struct iocb __user * __user *ptr64)
 
 #define MAX_AIO_SUBMITS 	(PAGE_SIZE/sizeof(struct iocb *))
 
-asmlinkage long
-compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
+COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
+		       int, nr, u32 __user *, iocb)
 {
 	struct iocb __user * __user *iocb64; 
 	long ret;
@@ -769,10 +761,10 @@ static int do_nfs4_super_data_conv(void *raw_data)
 #define NCPFS_NAME      "ncpfs"
 #define NFS4_NAME	"nfs4"
 
-asmlinkage long compat_sys_mount(const char __user * dev_name,
-				 const char __user * dir_name,
-				 const char __user * type, unsigned long flags,
-				 const void __user * data)
+COMPAT_SYSCALL_DEFINE5(mount, const char __user *, dev_name,
+		       const char __user *, dir_name,
+		       const char __user *, type, compat_ulong_t, flags,
+		       const void __user *, data)
 {
 	char *kernel_type;
 	unsigned long data_page;
