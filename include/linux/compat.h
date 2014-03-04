@@ -321,7 +321,7 @@ asmlinkage long compat_sys_semctl(int semid, int semnum, int cmd, int arg);
 asmlinkage long compat_sys_msgsnd(int msqid, compat_uptr_t msgp,
 		compat_ssize_t msgsz, int msgflg);
 asmlinkage long compat_sys_msgrcv(int msqid, compat_uptr_t msgp,
-		compat_ssize_t msgsz, long msgtyp, int msgflg);
+		compat_ssize_t msgsz, compat_long_t msgtyp, int msgflg);
 long compat_sys_msgctl(int first, int second, void __user *uptr);
 long compat_sys_shmctl(int first, int second, void __user *uptr);
 long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
