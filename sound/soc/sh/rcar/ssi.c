@@ -365,6 +365,8 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	/* enable PIO IRQ */
 	ssi->cr_etc = UIEN | OIEN | DIEN;
 
+	rsnd_scu_enable_ssi_irq(mod, rdai, io);
+
 	rsnd_ssi_hw_start(ssi, rdai, io);
 
 	return 0;

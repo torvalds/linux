@@ -165,6 +165,19 @@ static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 	return 0;
 }
 
+int rsnd_scu_enable_ssi_irq(struct rsnd_mod *ssi_mod,
+			    struct rsnd_dai *rdai,
+			    struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
+
+	/* enable PIO interrupt if Gen2 */
+	if (rsnd_is_gen2(priv))
+		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0f000000);
+
+	return 0;
+}
+
 unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime)
@@ -579,22 +592,9 @@ static struct rsnd_mod_ops rsnd_scu_gen2_ops = {
 	.stop	= rsnd_scu_stop_gen2,
 };
 
-static int rsnd_scu_start_non_gen2(struct rsnd_mod *mod,
-				   struct rsnd_dai *rdai,
-				   struct rsnd_dai_stream *io)
-{
-	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
-
-	/* enable PIO interrupt */
-	rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0f000000);
-
-	return 0;
-}
-
 static struct rsnd_mod_ops rsnd_scu_non_gen2_ops = {
 	.name	= "non-scu (gen2)",
 	.init	= rsnd_scu_ssi_mode_init,
-	.start	= rsnd_scu_start_non_gen2,
 };
 
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id)
