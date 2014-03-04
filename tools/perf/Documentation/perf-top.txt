@@ -116,6 +116,15 @@ Default is to monitor all CPUS.
 	local_weight, abort, in_tx, transaction, overhead, sample, period.
 	Please see description of --sort in the perf-report man page.
 
+--fields=::
+	Specify output field - multiple keys can be specified in CSV format.
+	Following fields are available:
+	overhead, overhead_sys, overhead_us, sample and period.
+	Also it can contain any sort key(s).
+
+	By default, every sort keys not specified in --field will be appended
+	automatically.
+
 -n::
 --show-nr-samples::
 	Show a column with the number of samples.
