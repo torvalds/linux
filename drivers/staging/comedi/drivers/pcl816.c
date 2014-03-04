@@ -112,7 +112,6 @@ struct pcl816_private {
 	unsigned int hwdmasize;
 	unsigned long dmabuf[2];	/*  pointers to begin of DMA buffers */
 	unsigned int hwdmaptr[2];	/*  hardware address of DMA buffers */
-	unsigned int dmasamplsize;	/*  size in samples hwdmasize[0]/2 */
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
