@@ -146,7 +146,11 @@
 #define PCL812_MUX_CHAN(x)			((x) << 0)
 #define PCL812_MUX_CS0				(1 << 4)
 #define PCL812_MUX_CS1				(1 << 5)
-#define PCL812_MODE	     11
+#define PCL812_CTRL_REG				0x0b
+#define PCL812_CTRL_DISABLE_TRIG		(0 << 0)
+#define PCL812_CTRL_SOFT_TRIG			(1 << 0)
+#define PCL812_CTRL_PACER_DMA_TRIG		(2 << 0)
+#define PCL812_CTRL_PACER_EOC_TRIG		(6 << 0)
 #define PCL812_CNTENABLE     10
 #define PCL812_SOFTTRIG	     12
 #define PCL812_DO_LSB_REG			0x0d
@@ -790,6 +794,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int ctrl = 0;
 	unsigned int i;
 
 	pcl812_start_pacer(dev, false);
@@ -829,10 +834,11 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	}
 
-	if (devpriv->ai_dma)					/*  let's go! */
-		outb(devpriv->mode_reg_int | 2, dev->iobase + PCL812_MODE);
-	else							/*  let's go! */
-		outb(devpriv->mode_reg_int | 6, dev->iobase + PCL812_MODE);
+	if (devpriv->ai_dma)
+		ctrl |= PCL812_CTRL_PACER_DMA_TRIG;
+	else
+		ctrl |= PCL812_CTRL_PACER_EOC_TRIG;
+	outb(devpriv->mode_reg_int | ctrl, dev->iobase + PCL812_CTRL_REG);
 
 	return 0;
 }
@@ -996,8 +1002,8 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 	if (devpriv->ai_dma)
 		disable_dma(devpriv->dma);
 
-	/* Stop A/D */
-	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
+	outb(devpriv->mode_reg_int | PCL812_CTRL_DISABLE_TRIG,
+	     dev->iobase + PCL812_CTRL_REG);
 	pcl812_start_pacer(dev, false);
 	pcl812_ai_clear_eoc(dev);
 	return 0;
@@ -1012,8 +1018,8 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 	int ret = 0;
 	int i;
 
-	/* select software trigger */
-	outb(devpriv->mode_reg_int | 1, dev->iobase + PCL812_MODE);
+	outb(devpriv->mode_reg_int | PCL812_CTRL_SOFT_TRIG,
+	     dev->iobase + PCL812_CTRL_REG);
 
 	pcl812_ai_set_chan_range(dev, insn->chanspec, 1);
 
@@ -1027,7 +1033,8 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 
 		data[i] = pcl812_ai_get_sample(dev, s);
 	}
-	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
+	outb(devpriv->mode_reg_int | PCL812_CTRL_DISABLE_TRIG,
+	     dev->iobase + PCL812_CTRL_REG);
 	pcl812_ai_clear_eoc(dev);
 
 	return ret ? ret : insn->n;
@@ -1121,7 +1128,8 @@ static void pcl812_reset(struct comedi_device *dev)
 		pcl812_start_pacer(dev, false);
 		outb(0, dev->iobase + PCL812_DO_MSB_REG);
 		outb(0, dev->iobase + PCL812_DO_LSB_REG);
-		outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
+		outb(devpriv->mode_reg_int | PCL812_CTRL_DISABLE_TRIG,
+		     dev->iobase + PCL812_CTRL_REG);
 		pcl812_ai_clear_eoc(dev);
 		break;
 	case boardPCL813B:
