@@ -401,6 +401,7 @@ enum em28xx_adecoder {
 
 enum em28xx_led_role {
 	EM28XX_LED_ANALOG_CAPTURING = 0,
+	EM28XX_LED_DIGITAL_CAPTURING,
 	EM28XX_LED_ILLUMINATION,
 	EM28XX_NUM_LED_ROLES, /* must be the last */
 };
