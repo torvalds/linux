@@ -980,7 +980,7 @@ void exhalbtc_set_chip_type(u8 chip_type)
 	case BT_RTL8723A:
 		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_RTL8723A;
 		break;
-	case BT_RTL8821:
+	case BT_RTL8821A:
 		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_RTL8821;
 		break;
 	case BT_RTL8723B:

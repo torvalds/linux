@@ -639,7 +639,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 
 void rtl8723be_tx_fill_desc(struct ieee80211_hw *hw,
 			    struct ieee80211_hdr *hdr, u8 *pdesc_tx,
-			    struct ieee80211_tx_info *info,
+			    u8 *pbd_desc_tx, struct ieee80211_tx_info *info,
 			    struct ieee80211_sta *sta, struct sk_buff *skb,
 			    u8 hw_queue, struct rtl_tcb_desc *ptcb_desc)
 {
@@ -858,7 +858,8 @@ void rtl8723be_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	SET_TX_DESC_USE_RATE(pdesc, 1);
 }
 
-void rtl8723be_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
+void rtl8723be_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+			u8 desc_name, u8 *val)
 {
 	if (istx) {
 		switch (desc_name) {
