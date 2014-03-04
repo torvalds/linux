@@ -838,19 +838,21 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 				ret = -EINTR;
 				usb_ep_dequeue(ep->ep, req);
 			} else {
-			/*
-			 * XXX We may end up silently droping data here.
-			 * Since data_len (i.e. req->length) may be bigger
-			 * than len (after being rounded up to maxpacketsize),
-			 * we may end up with more data then user space has
-			 * space for.
-			 */
-			ret = ep->status;
-			if (io_data->read && ret > 0 &&
-			    unlikely(copy_to_user(io_data->buf, data,
-						  min_t(size_t, ret,
-						  io_data->len))))
-				ret = -EFAULT;
+				/*
+				 * XXX We may end up silently droping data
+				 * here.  Since data_len (i.e. req->length) may
+				 * be bigger than len (after being rounded up
+				 * to maxpacketsize), we may end up with more
+				 * data then user space has space for.
+				 */
+				ret = ep->status;
+				if (io_data->read && ret > 0) {
+					ret = min_t(size_t, ret, io_data->len);
+
+					if (unlikely(copy_to_user(io_data->buf,
+						data, ret)))
+						ret = -EFAULT;
+				}
 			}
 			kfree(data);
 		}
