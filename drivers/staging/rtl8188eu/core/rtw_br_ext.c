@@ -549,7 +549,8 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 					/*  forward unknown IP packet to upper TCP/IP */
 					DEBUG_INFO("NAT25: Replace DA with BR's MAC\n");
 					if ((*(u32 *)priv->br_mac) == 0 && (*(u16 *)(priv->br_mac+4)) == 0) {
-						printk("Re-init netdev_br_init() due to br_mac == 0!\n");
+						netdev_info(skb->dev,
+								"Re-init netdev_br_init() due to br_mac == 0!\n");
 						netdev_br_init(priv->pnetdev);
 					}
 					memcpy(skb->data, priv->br_mac, ETH_ALEN);
