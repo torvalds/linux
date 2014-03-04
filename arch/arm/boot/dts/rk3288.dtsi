@@ -190,4 +190,34 @@
     clock-names = "hclk_rga", "aclk_rga"; 
 		status = "disabled";
         };
+
+	i2s: rockchip-i2s@0xff890000 {
+		compatible = "rockchip-i2s";
+		reg = <0xff890000 0x10000>;
+		i2s-id = <0>;
+		clocks = <&clk_i2s>;
+		clock-names = "i2s_clk","i2s_mclk";
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma0 0>,
+			<&pdma0 1>;
+		//#dma-cells = <2>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&i2s0_mclk &i2s0_sclk &i2s0_lrckrx &i2s0_lrcktx &i2s0_sdi &i2s0_sdo0 &i2s0_sdo1 &i2s0_sdo2 &i2s0_sdo3>;
+		pinctrl-1 = <&i2s0_gpio>;
+	};
+
+	spdif: rockchip-spdif@0xff8b0000 {
+		compatible = "rockchip-spdif";
+		reg = <0xff8b0000 0x10000>;	//8channel
+		//reg = <ff880000 0x2000>;//2channel
+		clocks = <&clk_spdif>;
+		clock-names = "spdif_mclk";
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma0 8>;
+		//#dma-cells = <1>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_tx>;
+	};
 };
