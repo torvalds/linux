@@ -167,6 +167,12 @@ enum rsnd_mod_type {
 
 struct rsnd_mod_ops {
 	char *name;
+	int (*probe)(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct rsnd_dai_stream *io);
+	int (*remove)(struct rsnd_mod *mod,
+		      struct rsnd_dai *rdai,
+		      struct rsnd_dai_stream *io);
 	int (*init)(struct rsnd_mod *mod,
 		    struct rsnd_dai *rdai,
 		    struct rsnd_dai_stream *io);

@@ -842,6 +842,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	struct rcar_snd_info *info;
 	struct rsnd_priv *priv;
 	struct device *dev = &pdev->dev;
+	struct rsnd_dai *rdai;
 	int (*probe_func[])(struct platform_device *pdev,
 			    struct rsnd_priv *priv) = {
 		rsnd_gen_probe,
@@ -880,6 +881,16 @@ static int rsnd_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+	for_each_rsnd_dai(rdai, priv, i) {
+		ret = rsnd_dai_call(rdai, &rdai->playback, probe);
+		if (ret)
+			return ret;
+
+		ret = rsnd_dai_call(rdai, &rdai->capture, probe);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 *	asoc register
 	 */
@@ -912,8 +923,20 @@ exit_snd_soc:
 static int rsnd_remove(struct platform_device *pdev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(&pdev->dev);
+	struct rsnd_dai *rdai;
+	int ret, i;
 
 	pm_runtime_disable(&pdev->dev);
+
+	for_each_rsnd_dai(rdai, priv, i) {
+		ret = rsnd_dai_call(rdai, &rdai->playback, remove);
+		if (ret)
+			return ret;
+
+		ret = rsnd_dai_call(rdai, &rdai->capture, remove);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 *	remove each module
