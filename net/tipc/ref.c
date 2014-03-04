@@ -126,9 +126,6 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
  */
 void tipc_ref_table_stop(void)
 {
-	if (!tipc_ref_table.entries)
-		return;
-
 	vfree(tipc_ref_table.entries);
 	tipc_ref_table.entries = NULL;
 }

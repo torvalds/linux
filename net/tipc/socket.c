@@ -70,8 +70,6 @@ static const struct proto_ops msg_ops;
 static struct proto tipc_proto;
 static struct proto tipc_proto_kern;
 
-static int sockets_enabled;
-
 /*
  * Revised TIPC socket locking policy:
  *
@@ -2027,8 +2025,6 @@ int tipc_socket_init(void)
 		proto_unregister(&tipc_proto);
 		goto out;
 	}
-
-	sockets_enabled = 1;
  out:
 	return res;
 }
@@ -2038,10 +2034,6 @@ int tipc_socket_init(void)
  */
 void tipc_socket_stop(void)
 {
-	if (!sockets_enabled)
-		return;
-
-	sockets_enabled = 0;
 	sock_unregister(tipc_family_ops.family);
 	proto_unregister(&tipc_proto);
 }

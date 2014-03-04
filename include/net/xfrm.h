@@ -1648,6 +1648,11 @@ static inline int xfrm_aevent_is_on(struct net *net)
 }
 #endif
 
+static inline int aead_len(struct xfrm_algo_aead *alg)
+{
+	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
+}
+
 static inline int xfrm_alg_len(const struct xfrm_algo *alg)
 {
 	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
@@ -1685,6 +1690,12 @@ static inline int xfrm_replay_clone(struct xfrm_state *x,
 
 	return 0;
 }
+
+static inline struct xfrm_algo_aead *xfrm_algo_aead_clone(struct xfrm_algo_aead *orig)
+{
+	return kmemdup(orig, aead_len(orig), GFP_KERNEL);
+}
+
 
 static inline struct xfrm_algo *xfrm_algo_clone(struct xfrm_algo *orig)
 {

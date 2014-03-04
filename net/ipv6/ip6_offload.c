@@ -89,7 +89,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	unsigned int unfrag_ip6hlen;
 	u8 *prevhdr;
 	int offset = 0;
-	bool tunnel;
+	bool encap, udpfrag;
 	int nhoff;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
@@ -110,8 +110,8 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
 		goto out;
 
-	tunnel = SKB_GSO_CB(skb)->encap_level > 0;
-	if (tunnel)
+	encap = SKB_GSO_CB(skb)->encap_level > 0;
+	if (encap)
 		features = skb->dev->hw_enc_features & netif_skb_features(skb);
 	SKB_GSO_CB(skb)->encap_level += sizeof(*ipv6h);
 
@@ -120,6 +120,12 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	segs = ERR_PTR(-EPROTONOSUPPORT);
 
 	proto = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
+
+	if (skb->encapsulation &&
+	    skb_shinfo(skb)->gso_type & (SKB_GSO_SIT|SKB_GSO_IPIP))
+		udpfrag = proto == IPPROTO_UDP && encap;
+	else
+		udpfrag = proto == IPPROTO_UDP && !skb->encapsulation;
 
 	ops = rcu_dereference(inet6_offloads[proto]);
 	if (likely(ops && ops->callbacks.gso_segment)) {
@@ -133,13 +139,9 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	for (skb = segs; skb; skb = skb->next) {
 		ipv6h = (struct ipv6hdr *)(skb_mac_header(skb) + nhoff);
 		ipv6h->payload_len = htons(skb->len - nhoff - sizeof(*ipv6h));
-		if (tunnel) {
-			skb_reset_inner_headers(skb);
-			skb->encapsulation = 1;
-		}
 		skb->network_header = (u8 *)ipv6h - skb->head;
 
-		if (!tunnel && proto == IPPROTO_UDP) {
+		if (udpfrag) {
 			unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
 			fptr = (struct frag_hdr *)((u8 *)ipv6h + unfrag_ip6hlen);
 			fptr->frag_off = htons(offset);
@@ -148,6 +150,8 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 			offset += (ntohs(ipv6h->payload_len) -
 				   sizeof(struct frag_hdr));
 		}
+		if (encap)
+			skb_reset_inner_headers(skb);
 	}
 
 out:

@@ -913,23 +913,13 @@ static int be_ipv6_tx_stall_chk(struct be_adapter *adapter,
 	return BE3_chip(adapter) && be_ipv6_exthdr_check(skb);
 }
 
-static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
-					   struct sk_buff *skb,
-					   bool *skip_hw_vlan)
+static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
+						  struct sk_buff *skb,
+						  bool *skip_hw_vlan)
 {
 	struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 	unsigned int eth_hdr_len;
 	struct iphdr *ip;
-
-	/* Lancer, SH-R ASICs have a bug wherein Packets that are 32 bytes or less
-	 * may cause a transmit stall on that port. So the work-around is to
-	 * pad short packets (<= 32 bytes) to a 36-byte length.
-	 */
-	if (unlikely(!BEx_chip(adapter) && skb->len <= 32)) {
-		if (skb_padto(skb, 36))
-			goto tx_drop;
-		skb->len = 36;
-	}
 
 	/* For padded packets, BE HW modifies tot_len field in IP header
 	 * incorrecly when VLAN tag is inserted by HW.
@@ -959,7 +949,7 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	    vlan_tx_tag_present(skb)) {
 		skb = be_insert_vlan_in_pkt(adapter, skb, skip_hw_vlan);
 		if (unlikely(!skb))
-			goto tx_drop;
+			goto err;
 	}
 
 	/* HW may lockup when VLAN HW tagging is requested on
@@ -981,13 +971,37 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	    be_vlan_tag_tx_chk(adapter, skb)) {
 		skb = be_insert_vlan_in_pkt(adapter, skb, skip_hw_vlan);
 		if (unlikely(!skb))
-			goto tx_drop;
+			goto err;
 	}
 
 	return skb;
 tx_drop:
 	dev_kfree_skb_any(skb);
+err:
 	return NULL;
+}
+
+static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
+					   struct sk_buff *skb,
+					   bool *skip_hw_vlan)
+{
+	/* Lancer, SH-R ASICs have a bug wherein Packets that are 32 bytes or
+	 * less may cause a transmit stall on that port. So the work-around is
+	 * to pad short packets (<= 32 bytes) to a 36-byte length.
+	 */
+	if (unlikely(!BEx_chip(adapter) && skb->len <= 32)) {
+		if (skb_padto(skb, 36))
+			return NULL;
+		skb->len = 36;
+	}
+
+	if (BEx_chip(adapter) || lancer_chip(adapter)) {
+		skb = be_lancer_xmit_workarounds(adapter, skb, skip_hw_vlan);
+		if (!skb)
+			return NULL;
+	}
+
+	return skb;
 }
 
 static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
@@ -1157,6 +1171,14 @@ ret:
 	return status;
 }
 
+static void be_clear_promisc(struct be_adapter *adapter)
+{
+	adapter->promiscuous = false;
+	adapter->flags &= ~BE_FLAGS_VLAN_PROMISC;
+
+	be_cmd_rx_filter(adapter, IFF_PROMISC, OFF);
+}
+
 static void be_set_rx_mode(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -1170,9 +1192,7 @@ static void be_set_rx_mode(struct net_device *netdev)
 
 	/* BE was previously in promiscuous mode; disable it */
 	if (adapter->promiscuous) {
-		adapter->promiscuous = false;
-		be_cmd_rx_filter(adapter, IFF_PROMISC, OFF);
-
+		be_clear_promisc(adapter);
 		if (adapter->vlans_added)
 			be_vid_config(adapter);
 	}
@@ -1287,24 +1307,20 @@ static int be_set_vf_vlan(struct net_device *netdev,
 
 	if (vlan || qos) {
 		vlan |= qos << VLAN_PRIO_SHIFT;
-		if (vf_cfg->vlan_tag != vlan) {
-			/* If this is new value, program it. Else skip. */
-			vf_cfg->vlan_tag = vlan;
+		if (vf_cfg->vlan_tag != vlan)
 			status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
 						       vf_cfg->if_handle, 0);
-		}
 	} else {
 		/* Reset Transparent Vlan Tagging. */
-		vf_cfg->vlan_tag = 0;
-		vlan = vf_cfg->def_vid;
-		status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
-					       vf_cfg->if_handle, 0);
+		status = be_cmd_set_hsw_config(adapter, BE_RESET_VLAN_TAG_ID,
+					       vf + 1, vf_cfg->if_handle, 0);
 	}
 
-
-	if (status)
+	if (!status)
+		vf_cfg->vlan_tag = vlan;
+	else
 		dev_info(&adapter->pdev->dev,
-				"VLAN %d config on VF %d failed\n", vlan, vf);
+			 "VLAN %d config on VF %d failed\n", vlan, vf);
 	return status;
 }
 
@@ -3013,11 +3029,11 @@ static int be_vf_setup_init(struct be_adapter *adapter)
 
 static int be_vf_setup(struct be_adapter *adapter)
 {
-	struct be_vf_cfg *vf_cfg;
-	u16 def_vlan, lnk_speed;
-	int status, old_vfs, vf;
 	struct device *dev = &adapter->pdev->dev;
+	struct be_vf_cfg *vf_cfg;
+	int status, old_vfs, vf;
 	u32 privileges;
+	u16 lnk_speed;
 
 	old_vfs = pci_num_vf(adapter->pdev);
 	if (old_vfs) {
@@ -3083,12 +3099,6 @@ static int be_vf_setup(struct be_adapter *adapter)
 						  NULL, vf + 1);
 		if (!status)
 			vf_cfg->tx_rate = lnk_speed;
-
-		status = be_cmd_get_hsw_config(adapter, &def_vlan,
-					       vf + 1, vf_cfg->if_handle, NULL);
-		if (status)
-			goto err;
-		vf_cfg->def_vid = def_vlan;
 
 		if (!old_vfs)
 			be_cmd_enable_vf(adapter, vf + 1);
