@@ -333,6 +333,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		/* in VHT, STBC is binary */
 		if (status->flag & RX_FLAG_STBC_MASK)
 			*pos |= IEEE80211_RADIOTAP_VHT_FLAG_STBC;
+		if (status->vht_flag & RX_VHT_FLAG_BF)
+			*pos |= IEEE80211_RADIOTAP_VHT_FLAG_BEAMFORMED;
 		pos++;
 		/* bandwidth */
 		if (status->vht_flag & RX_VHT_FLAG_80MHZ)

@@ -877,11 +877,13 @@ enum mac80211_rx_flags {
  * @RX_VHT_FLAG_80MHZ: 80 MHz was used
  * @RX_VHT_FLAG_80P80MHZ: 80+80 MHz was used
  * @RX_VHT_FLAG_160MHZ: 160 MHz was used
+ * @RX_VHT_FLAG_BF: packet was beamformed
  */
 enum mac80211_rx_vht_flags {
 	RX_VHT_FLAG_80MHZ		= BIT(0),
 	RX_VHT_FLAG_80P80MHZ		= BIT(1),
 	RX_VHT_FLAG_160MHZ		= BIT(2),
+	RX_VHT_FLAG_BF			= BIT(3),
 };
 
 /**
