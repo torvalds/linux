@@ -887,8 +887,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 {
-	char err = 1;
-	unsigned int timeout;
 	struct comedi_device *dev = d;
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -897,26 +895,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	s->async->events = 0;
 
-	timeout = 50;		/* wait max 50us, it must finish under 33us */
-	if (s->maxdata > 0x0fff) {
-		while (timeout--) {
-			if (!(inb(dev->iobase + ACL8216_STATUS) & ACL8216_DRDY)) {
-				err = 0;
-				break;
-			}
-			udelay(1);
-		}
-	} else {
-		while (timeout--) {
-			if (!(inb(dev->iobase + PCL812_AD_HI) & PCL812_DRDY)) {
-				err = 0;
-				break;
-			}
-			udelay(1);
-		}
-	}
-
-	if (err) {
+	if (pcl812_ai_eoc(dev, s, NULL, 0)) {
 		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
 		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
