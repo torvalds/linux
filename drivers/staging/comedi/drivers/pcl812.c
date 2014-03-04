@@ -905,17 +905,15 @@ static bool pcl812_ai_next_chan(struct comedi_device *dev,
 		/* all data sampled */
 		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
 		return false;
 	}
 
 	return true;
 }
 
-static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
+static void pcl812_handle_eoc(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
-	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_chan;
 
@@ -923,8 +921,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
 		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s);
-		return IRQ_HANDLED;
+		return;
 	}
 
 	comedi_buf_put(s->async, pcl812_ai_get_sample(dev, s));
@@ -936,13 +933,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	if (cmd->chanlist[s->async->cur_chan] != cmd->chanlist[next_chan])
 		setup_range_channel(dev, s, cmd->chanlist[next_chan], 0);
 
-	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
-
-	if (!pcl812_ai_next_chan(dev, s))
-		return IRQ_HANDLED;
-
-	comedi_event(dev, s);
-	return IRQ_HANDLED;
+	pcl812_ai_next_chan(dev, s);
 }
 
 static void transfer_from_dma_buf(struct comedi_device *dev,
@@ -953,21 +944,17 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 	unsigned int i;
 
 	for (i = len; i; i--) {
-							/*  get one sample */
 		comedi_buf_put(s->async, ptr[bufptr++]);
 
 		if (!pcl812_ai_next_chan(dev, s))
-			return;
+			break;
 	}
-
-	comedi_event(dev, s);
 }
 
-static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
+static void pcl812_handle_dma(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
-	struct comedi_device *dev = d;
 	struct pcl812_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
 	int len, bufptr;
 	unsigned short *ptr;
 
@@ -977,29 +964,32 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 
 	pcl812_ai_setup_next_dma(dev, s);
 
-	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
-
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
 
 	transfer_from_dma_buf(dev, s, ptr, bufptr, len);
-
-	return IRQ_HANDLED;
 }
 
-static irqreturn_t interrupt_pcl812(int irq, void *d)
+static irqreturn_t pcl812_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct pcl812_private *devpriv = dev->private;
 
 	if (!dev->attached) {
 		outb(0, dev->iobase + PCL812_CLRINT);
 		return IRQ_HANDLED;
 	}
+
 	if (devpriv->ai_dma)
-		return interrupt_pcl812_ai_dma(irq, d);
+		pcl812_handle_dma(dev, s);
 	else
-		return interrupt_pcl812_ai_int(irq, d);
+		pcl812_handle_eoc(dev, s);
+
+	outb(0, dev->iobase + PCL812_CLRINT);
+
+	comedi_event(dev, s);
+	return IRQ_HANDLED;
 }
 
 static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -1248,7 +1238,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	if ((1 << it->options[1]) & board->IRQbits) {
-		ret = request_irq(it->options[1], interrupt_pcl812, 0,
+		ret = request_irq(it->options[1], pcl812_interrupt, 0,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = it->options[1];
