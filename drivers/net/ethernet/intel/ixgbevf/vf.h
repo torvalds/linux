@@ -178,7 +178,11 @@ struct ixgbevf_info {
 
 static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
 {
-	writel(value, hw->hw_addr + reg);
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+
+	if (IXGBE_REMOVED(reg_addr))
+		return;
+	writel(value, reg_addr + reg);
 }
 #define IXGBE_WRITE_REG(h, r, v) ixgbe_write_reg(h, r, v)
 
