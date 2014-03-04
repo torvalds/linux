@@ -667,7 +667,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 }
 
-static int buffer_finish(struct vb2_buffer *vb)
+static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct qcam *qcam = vb2_get_drv_priv(vb->vb2_queue);
 	void *vbuf = vb2_plane_vaddr(vb, 0);
@@ -691,7 +691,6 @@ static int buffer_finish(struct vb2_buffer *vb)
 	if (len != size)
 		vb->state = VB2_BUF_STATE_ERROR;
 	vb2_set_plane_payload(vb, 0, len);
-	return 0;
 }
 
 static struct vb2_ops qcam_video_qops = {

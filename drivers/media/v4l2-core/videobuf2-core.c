@@ -1834,11 +1834,7 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool n
 	if (ret < 0)
 		return ret;
 
-	ret = call_vb_qop(vb, buf_finish, vb);
-	if (ret) {
-		dprintk(1, "dqbuf: buffer finish failed\n");
-		return ret;
-	}
+	call_vb_qop(vb, buf_finish, vb);
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DONE:

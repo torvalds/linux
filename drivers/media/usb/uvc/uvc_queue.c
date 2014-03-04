@@ -106,7 +106,7 @@ static void uvc_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 }
 
-static int uvc_buffer_finish(struct vb2_buffer *vb)
+static void uvc_buffer_finish(struct vb2_buffer *vb)
 {
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vb->vb2_queue);
 	struct uvc_streaming *stream =
@@ -114,7 +114,6 @@ static int uvc_buffer_finish(struct vb2_buffer *vb)
 	struct uvc_buffer *buf = container_of(vb, struct uvc_buffer, buf);
 
 	uvc_video_clock_update(stream, &vb->v4l2_buf, buf);
-	return 0;
 }
 
 static void uvc_wait_prepare(struct vb2_queue *vq)

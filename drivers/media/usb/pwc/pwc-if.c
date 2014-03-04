@@ -614,7 +614,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int buffer_finish(struct vb2_buffer *vb)
+static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
 	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
@@ -624,7 +624,7 @@ static int buffer_finish(struct vb2_buffer *vb)
 	 * filled, take the pwc data we've stored in buf->data and decompress
 	 * it into a usable format, storing the result in the vb2_buffer
 	 */
-	return pwc_decompress(pdev, buf);
+	pwc_decompress(pdev, buf);
 }
 
 static void buffer_cleanup(struct vb2_buffer *vb)
