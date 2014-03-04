@@ -535,6 +535,10 @@ static bool reg_pattern_test(struct ixgbevf_adapter *adapter, u64 *data,
 {
 	u32 pat, val, before;
 
+	if (IXGBE_REMOVED(adapter->hw.hw_addr)) {
+		*data = 1;
+		return true;
+	}
 	for (pat = 0; pat < ARRAY_SIZE(register_test_patterns); pat++) {
 		before = ixgbe_read_reg(&adapter->hw, reg);
 		ixgbe_write_reg(&adapter->hw, reg,
@@ -559,6 +563,10 @@ static bool reg_set_and_check(struct ixgbevf_adapter *adapter, u64 *data,
 {
 	u32 val, before;
 
+	if (IXGBE_REMOVED(adapter->hw.hw_addr)) {
+		*data = 1;
+		return true;
+	}
 	before = ixgbe_read_reg(&adapter->hw, reg);
 	ixgbe_write_reg(&adapter->hw, reg, write & mask);
 	val = ixgbe_read_reg(&adapter->hw, reg);
@@ -578,6 +586,12 @@ static int ixgbevf_reg_test(struct ixgbevf_adapter *adapter, u64 *data)
 	const struct ixgbevf_reg_test *test;
 	u32 i;
 
+	if (IXGBE_REMOVED(adapter->hw.hw_addr)) {
+		dev_err(&adapter->pdev->dev,
+			"Adapter removed - register test blocked\n");
+		*data = 1;
+		return 1;
+	}
 	test = reg_test_vf;
 
 	/*
@@ -641,6 +655,14 @@ static void ixgbevf_diag_test(struct net_device *netdev,
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	bool if_running = netif_running(netdev);
 
+	if (IXGBE_REMOVED(adapter->hw.hw_addr)) {
+		dev_err(&adapter->pdev->dev,
+			"Adapter removed - test blocked\n");
+		data[0] = 1;
+		data[1] = 1;
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
 	set_bit(__IXGBEVF_TESTING, &adapter->state);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */

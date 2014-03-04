@@ -107,6 +107,7 @@ static void ixgbevf_remove_adapter(struct ixgbe_hw *hw)
 		return;
 	hw->hw_addr = NULL;
 	dev_err(&adapter->pdev->dev, "Adapter removed\n");
+	schedule_work(&adapter->watchdog_task);
 }
 
 static void ixgbevf_check_remove(struct ixgbe_hw *hw, u32 reg)
@@ -1301,6 +1302,8 @@ static void ixgbevf_disable_rx_queue(struct ixgbevf_adapter *adapter,
 	u32 rxdctl;
 	u8 reg_idx = ring->reg_idx;
 
+	if (IXGBE_REMOVED(hw->hw_addr))
+		return;
 	rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
 	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
 
@@ -1326,6 +1329,8 @@ static void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
 	u32 rxdctl;
 	u8 reg_idx = ring->reg_idx;
 
+	if (IXGBE_REMOVED(hw->hw_addr))
+		return;
 	do {
 		usleep_range(1000, 2000);
 		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(reg_idx));
@@ -2399,6 +2404,14 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 	bool link_up = adapter->link_up;
 	s32 need_reset;
 
+	if (IXGBE_REMOVED(hw->hw_addr)) {
+		if (!test_bit(__IXGBEVF_DOWN, &adapter->state)) {
+			rtnl_lock();
+			ixgbevf_down(adapter);
+			rtnl_unlock();
+		}
+		return;
+	}
 	ixgbevf_queue_reset_subtask(adapter);
 
 	adapter->flags |= IXGBE_FLAG_IN_WATCHDOG_TASK;
