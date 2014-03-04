@@ -32,8 +32,14 @@ config IEEE802154_FAKELB
 
 config IEEE802154_AT86RF230
         depends on IEEE802154_DRIVERS && MAC802154
-        tristate "AT86RF230/231 transceiver driver"
+	tristate "AT86RF230/231/212 transceiver driver"
         depends on SPI
+	---help---
+	  Say Y here to enable the at86rf230/231/212 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'at86rf230'.
 
 config IEEE802154_MRF24J40
        tristate "Microchip MRF24J40 transceiver driver"
