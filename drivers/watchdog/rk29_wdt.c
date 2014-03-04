@@ -33,6 +33,9 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <asm/mach/map.h>
+#ifdef CONFIG_OF
+#include <linux/of.h>
+#endif
 
 
 /* RK29 registers define */
@@ -139,7 +142,7 @@ static void __rk29_wdt_stop(void)
 void rk29_wdt_stop(void)
 {
 	__rk29_wdt_stop();
-	clk_disable(wdt_clock);
+	clk_disable_unprepare(wdt_clock);
 }
 
 /* timeout unit second */
@@ -174,7 +177,7 @@ int rk29_wdt_set_heartbeat(int timeout)
 void rk29_wdt_start(void)
 {
 	unsigned long wtcon;
-	clk_enable(wdt_clock);
+	clk_prepare_enable(wdt_clock);
 	rk29_wdt_set_heartbeat(tmr_margin);
 	wtcon = (RK29_WDT_EN << 0) | (RK29_RESPONSE_MODE << 1) | (RK29_RESET_PULSE << 2);
 	wdt_writel(wtcon, RK29_WDT_CR);
@@ -319,65 +322,69 @@ static irqreturn_t rk29_wdt_irq_handler(int irqno, void *param)
 
 /* device interface */
 
-static int __devinit rk29_wdt_probe(struct platform_device *pdev)
+static int rk29_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct device *dev;
 	int started = 0;
-	int ret;
-	int size;
+	int ret, val;
 
 	dev = &pdev->dev;
 	wdt_dev = &pdev->dev;
 
 	/* get the memory region for the watchdog timer */
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(dev, "no memory resource specified\n");
 		return -ENOENT;
 	}
 
-	size = (res->end - res->start) + 1;
-	wdt_mem = request_mem_region(res->start, size, pdev->name);
-	if (wdt_mem == NULL) {
-		dev_err(dev, "failed to get memory region\n");
-		ret = -ENOENT;
-		goto err_req;
-	}
-
-	wdt_base = ioremap(res->start, size);
+	wdt_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (wdt_base == NULL) {
 		dev_err(dev, "failed to ioremap() region\n");
-		ret = -EINVAL;
-		goto err_req;
+		return -EINVAL;
 	}
+	
+#ifdef CONFIG_OF
+	if(!of_property_read_u32(pdev->dev.of_node, "rockchip,atboot", &val))
+		tmr_atboot = val;
+	else
+		tmr_atboot = 0;
 
+	if(!of_property_read_u32(pdev->dev.of_node, "rockchip,timeout", &val))
+		tmr_margin = val;
+	else
+		tmr_margin = 0;
+
+	if(!of_property_read_u32(pdev->dev.of_node, "rockchip,debug", &val))
+		debug = val;
+	else
+		debug = 0;
 	DBG("probe: mapped wdt_base=%p\n", wdt_base);
 
-
-#ifdef	CONFIG_RK29_FEED_DOG_BY_INTE
-
-	wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (wdt_irq == NULL) {
-		dev_err(dev, "no irq resource specified\n");
-		ret = -ENOENT;
-		goto err_map;
-	}
-
-	ret = request_irq(wdt_irq->start, rk29_wdt_irq_handler, 0, pdev->name, pdev);
-
-	if (ret != 0) {
-		dev_err(dev, "failed to install irq (%d)\n", ret);
-		goto err_map;
-	}
-
+	of_property_read_u32(pdev->dev.of_node, "rockchip,irq", &val);
 #endif
 
-	wdt_clock = clk_get(&pdev->dev, "wdt");
-	if (IS_ERR(wdt_clock)) {
-		wdt_clock = clk_get(&pdev->dev, "pclk_wdt");
+#ifdef CONFIG_RK29_FEED_DOG_BY_INTE
+	val = 1;
+#endif
+	//printk("atboot:%d, timeout:%ds, debug:%d, irq:%d\n", tmr_atboot, tmr_margin, debug, val);
+	
+	if(val == 1) {
+		wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+		if (wdt_irq == NULL) {
+			dev_err(dev, "no irq resource specified\n");
+			return -ENOENT;
+		}
+
+		ret = request_irq(wdt_irq->start, rk29_wdt_irq_handler, 0, pdev->name, pdev);
+		if (ret != 0) {
+			dev_err(dev, "failed to install irq (%d)\n", ret);
+			return ret;
+		}
 	}
+
+	wdt_clock = devm_clk_get(&pdev->dev, "pclk_wdt");
 	if (IS_ERR(wdt_clock)) {
 		dev_err(dev, "failed to find watchdog clock source\n");
 		ret = PTR_ERR(wdt_clock);
@@ -388,7 +395,7 @@ static int __devinit rk29_wdt_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "cannot register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
-		goto err_clk;
+		goto err_irq;
 	}
 	if (tmr_atboot && started == 0) {
 		dev_info(dev, "starting watchdog timer\n");
@@ -400,42 +407,21 @@ static int __devinit rk29_wdt_probe(struct platform_device *pdev)
 
 		rk29_wdt_stop();
 	}
-
 	return 0;
 
- err_clk:
-	clk_disable(wdt_clock);
-	clk_put(wdt_clock);
-
- err_irq:
+err_irq:
 	free_irq(wdt_irq->start, pdev);
-
- err_map:
-	iounmap(wdt_base);
-
- err_req:
-	release_resource(wdt_mem);
-	kfree(wdt_mem);
-
 	return ret;
 }
 
-static int __devexit rk29_wdt_remove(struct platform_device *dev)
+static int rk29_wdt_remove(struct platform_device *dev)
 {
-	release_resource(wdt_mem);
-	kfree(wdt_mem);
 	wdt_mem = NULL;
-
 	free_irq(wdt_irq->start, dev);
 	wdt_irq = NULL;
-
-	clk_disable(wdt_clock);
-	clk_put(wdt_clock);
+	clk_disable_unprepare(wdt_clock);
 	wdt_clock = NULL;
-
-	iounmap(wdt_base);
 	misc_deregister(&rk29_wdt_miscdev);
-
 	return 0;
 }
 
@@ -463,15 +449,23 @@ static int rk29_wdt_resume(struct platform_device *dev)
 #define rk29_wdt_resume  NULL
 #endif /* CONFIG_PM */
 
-
+#ifdef CONFIG_OF
+static const struct of_device_id of_rk29_wdt_match[] = {
+	{ .compatible = "rockchip,watch dog" },
+	{ /* Sentinel */ }
+};
+#endif
 static struct platform_driver rk29_wdt_driver = {
 	.probe		= rk29_wdt_probe,
-	.remove		= __devexit_p(rk29_wdt_remove),
+	.remove		= rk29_wdt_remove,
 	.shutdown	= rk29_wdt_shutdown,
 	.suspend	= rk29_wdt_suspend,
 	.resume		= rk29_wdt_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_OF
+		.of_match_table	= of_rk29_wdt_match,
+#endif
 		.name	= "rk29-wdt",
 	},
 };

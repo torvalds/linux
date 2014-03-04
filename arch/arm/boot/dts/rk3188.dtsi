@@ -201,6 +201,19 @@
 		rockchip,clocksource = <1>;
 	};
 
+	watchdog:wdt@2004c000 {
+		compatible = "rockchip,watch dog";
+		reg = <0x2004c000 0x100>;
+		clocks = <&clk_gates7 15>;
+		clock-names = "pclk_wdt";
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,irq = <1>;
+		rockchip,timeout = <5>;
+		rockchip,atboot = <1>;
+		rockchip,debug = <0>;
+		status = "disabled";
+	};
+
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
