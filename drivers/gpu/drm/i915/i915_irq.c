@@ -387,16 +387,13 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
  *
  * Returns the previous state of underrun reporting.
  */
-bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
-					   enum pipe pipe, bool enable)
+bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+					     enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long flags;
 	bool ret;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 
 	ret = !intel_crtc->cpu_fifo_underrun_disabled;
 
@@ -415,7 +412,20 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 		broadwell_set_fifo_underrun_reporting(dev, pipe, enable);
 
 done:
+	return ret;
+}
+
+bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+					   enum pipe pipe, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	ret = __intel_set_cpu_fifo_underrun_reporting(dev, pipe, enable);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+
 	return ret;
 }
 
