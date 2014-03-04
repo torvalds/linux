@@ -525,7 +525,11 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	clk_prepare_enable(wdt->clock);
+	ret = clk_prepare_enable(wdt->clock);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable clock\n");
+		return ret;
+	}
 
 	ret = s3c2410wdt_cpufreq_register(wdt);
 	if (ret < 0) {
