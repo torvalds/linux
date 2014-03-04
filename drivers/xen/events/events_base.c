@@ -1324,7 +1324,7 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 			    bool force)
 {
-	unsigned tcpu = cpumask_first(dest);
+	unsigned tcpu = cpumask_first_and(dest, cpu_online_mask);
 
 	return rebind_irq_to_cpu(data->irq, tcpu);
 }
