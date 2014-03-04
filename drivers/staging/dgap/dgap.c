@@ -6077,15 +6077,19 @@ static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
 	driver_remove_file(driverfs, &driver_attr_state);
 }
 
-#define DGAP_VERIFY_BOARD(p, bd)			\
-	if (!p)						\
-		return 0;				\
-							\
-	bd = dev_get_drvdata(p);			\
-	if (!bd || bd->magic != DGAP_BOARD_MAGIC)	\
-		return 0;				\
-	if (bd->state != BOARD_READY)			\
-		return 0;				\
+static struct board_t *dgap_verify_board(struct device *p)
+{
+	struct board_t *bd;
+
+	if (!p)
+		return NULL;
+
+	bd = dev_get_drvdata(p);
+	if (!bd || bd->magic != DGAP_BOARD_MAGIC || bd->state != BOARD_READY)
+		return NULL;
+
+	return bd;
+}
 
 static ssize_t dgap_ports_state_show(struct device *p, struct device_attribute *attr, char *buf)
 {
@@ -6093,7 +6097,9 @@ static ssize_t dgap_ports_state_show(struct device *p, struct device_attribute *
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++) {
 		count += snprintf(buf + count, PAGE_SIZE - count,
@@ -6110,7 +6116,9 @@ static ssize_t dgap_ports_baud_show(struct device *p, struct device_attribute *a
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++) {
 		count +=  snprintf(buf + count, PAGE_SIZE - count,
@@ -6126,7 +6134,9 @@ static ssize_t dgap_ports_msignals_show(struct device *p, struct device_attribut
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++) {
 		if (bd->channels[i]->ch_open_count)
@@ -6152,7 +6162,9 @@ static ssize_t dgap_ports_iflag_show(struct device *p, struct device_attribute *
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++)
 		count += snprintf(buf + count, PAGE_SIZE - count, "%d %x\n",
@@ -6167,7 +6179,9 @@ static ssize_t dgap_ports_cflag_show(struct device *p, struct device_attribute *
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++)
 		count += snprintf(buf + count, PAGE_SIZE - count, "%d %x\n",
@@ -6182,7 +6196,9 @@ static ssize_t dgap_ports_oflag_show(struct device *p, struct device_attribute *
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++)
 		count += snprintf(buf + count, PAGE_SIZE - count, "%d %x\n",
@@ -6197,7 +6213,9 @@ static ssize_t dgap_ports_lflag_show(struct device *p, struct device_attribute *
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++)
 		count += snprintf(buf + count, PAGE_SIZE - count, "%d %x\n",
@@ -6212,7 +6230,9 @@ static ssize_t dgap_ports_digi_flag_show(struct device *p, struct device_attribu
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++)
 		count += snprintf(buf + count, PAGE_SIZE - count, "%d %x\n",
@@ -6227,7 +6247,9 @@ static ssize_t dgap_ports_rxcount_show(struct device *p, struct device_attribute
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++)
 		count += snprintf(buf + count, PAGE_SIZE - count, "%d %ld\n",
@@ -6242,7 +6264,9 @@ static ssize_t dgap_ports_txcount_show(struct device *p, struct device_attribute
 	int count = 0;
 	int i = 0;
 
-	DGAP_VERIFY_BOARD(p, bd);
+	bd = dgap_verify_board(p);
+	if (!bd)
+		return 0;
 
 	for (i = 0; i < bd->nasync; i++)
 		count += snprintf(buf + count, PAGE_SIZE - count, "%d %ld\n",
