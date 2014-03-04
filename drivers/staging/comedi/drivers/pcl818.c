@@ -333,7 +333,6 @@ struct pcl818_private {
 	unsigned int usefifo:1;
 	unsigned int ai_cmd_running:1;
 	unsigned int irq_was_now_closed:1;
-	unsigned int neverending_ai:1;
 };
 
 static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,	/*  used for gain list programming */
@@ -531,11 +530,10 @@ conv_finish:
 		devpriv->ai_act_scan--;
 	}
 
-	if (!devpriv->neverending_ai) {
-		if (devpriv->ai_act_scan == 0) {	/* all data sampled */
-			s->cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA;
-		}
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan == 0) {
+		/* all data sampled */
+		s->cancel(dev, s);
+		s->async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -553,12 +551,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 	disable_dma(devpriv->dma);
 	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
-	if ((devpriv->dma_runs_to_end) > -1 || devpriv->neverending_ai) {	/*  switch dma bufs */
+	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
+		/* switch dma bufs */
 		set_dma_mode(devpriv->dma, DMA_MODE_READ);
 		flags = claim_dma_lock();
 		set_dma_addr(devpriv->dma,
 			     devpriv->hwdmaptr[devpriv->next_dma_buf]);
-		if (devpriv->dma_runs_to_end || devpriv->neverending_ai)
+		if (devpriv->dma_runs_to_end || cmd->stop_src == TRIG_NONE)
 			set_dma_count(devpriv->dma, devpriv->hwdmasize);
 		else
 			set_dma_count(devpriv->dma, devpriv->last_dma_run);
@@ -598,13 +597,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 			devpriv->ai_act_scan--;
 		}
 
-		if (!devpriv->neverending_ai)
-			if (devpriv->ai_act_scan == 0) {	/* all data sampled */
-				s->cancel(dev, s);
-				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(dev, s);
-				return IRQ_HANDLED;
-			}
+		if (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan == 0) {
+			/* all data sampled */
+			s->cancel(dev, s);
+			s->async->events |= COMEDI_CB_EOA;
+			comedi_event(dev, s);
+			return IRQ_HANDLED;
+		}
 	}
 
 	if (len > 0)
@@ -671,13 +670,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 			devpriv->ai_act_scan--;
 		}
 
-		if (!devpriv->neverending_ai)
-			if (devpriv->ai_act_scan == 0) {	/* all data sampled */
-				s->cancel(dev, s);
-				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(dev, s);
-				return IRQ_HANDLED;
-			}
+		if (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan == 0) {
+			/* all data sampled */
+			s->cancel(dev, s);
+			s->async->events |= COMEDI_CB_EOA;
+			comedi_event(dev, s);
+			return IRQ_HANDLED;
+		}
 	}
 
 	if (len > 0)
@@ -690,6 +689,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
@@ -697,8 +697,8 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 	}
 
 	if (devpriv->ai_cmd_running && devpriv->irq_was_now_closed) {
-		if ((devpriv->neverending_ai || (!devpriv->neverending_ai &&
-						 devpriv->ai_act_scan > 0)) &&
+		if ((cmd->stop_src == TRIG_NONE ||
+		    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) &&
 		    (devpriv->ai_mode == INT_TYPE_AI1_DMA ||
 		     devpriv->ai_mode == INT_TYPE_AI3_DMA)) {
 			/* The cleanup from ai_cancel() has been delayed
@@ -707,7 +707,6 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 			   progress.
 			 */
 			devpriv->ai_act_scan = 0;
-			devpriv->neverending_ai = 0;
 			s->cancel(dev, s);
 		}
 
@@ -751,7 +750,7 @@ static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 
 	disable_dma(devpriv->dma);	/*  disable dma */
 	bytes = devpriv->hwdmasize;
-	if (!devpriv->neverending_ai) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		bytes = cmd->chanlist_len * cmd->stop_arg * sizeof(short);
 		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
 		devpriv->last_dma_run = bytes % devpriv->hwdmasize;
@@ -1018,11 +1017,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->neverending_ai = 0;
-	else
-		devpriv->neverending_ai = 1;
-
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 */
 			retval = pcl818_ai_cmd_mode(1, dev, s);
@@ -1040,6 +1034,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (devpriv->ai_cmd_running) {
 		devpriv->irq_was_now_closed = 1;
@@ -1047,9 +1042,8 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 		switch (devpriv->ai_mode) {
 		case INT_TYPE_AI1_DMA:
 		case INT_TYPE_AI3_DMA:
-			if (devpriv->neverending_ai ||
-			    (!devpriv->neverending_ai &&
-			     devpriv->ai_act_scan > 0)) {
+			if (cmd->stop_src == TRIG_NONE ||
+			    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) {
 				/* wait for running dma transfer to end, do cleanup in interrupt */
 				goto end;
 			}
@@ -1071,7 +1065,6 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 				outb(0, dev->iobase + PCL818_FI_ENABLE);
 			}
 			devpriv->ai_cmd_running = 0;
-			devpriv->neverending_ai = 0;
 			devpriv->ai_mode = 0;
 			devpriv->irq_was_now_closed = 0;
 			break;
