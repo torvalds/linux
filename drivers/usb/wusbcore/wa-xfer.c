@@ -2007,6 +2007,16 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		case WA_SEG_ABORTED:
 			break;
 			/*
+			 * The buf_in data for a segment in the
+			 * WA_SEG_DTI_PENDING state is actively being read.
+			 * Let wa_buf_in_cb handle it since it will be called
+			 * and will increment xfer->segs_done.  Cleaning up
+			 * here could cause wa_buf_in_cb to access the xfer
+			 * after it has been completed/freed.
+			 */
+		case WA_SEG_DTI_PENDING:
+			break;
+			/*
 			 * In the states below, the HWA device already knows
 			 * about the transfer.  If an abort request was sent,
 			 * allow the HWA to process it and wait for the
@@ -2015,7 +2025,6 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 			 */
 		case WA_SEG_SUBMITTED:
 		case WA_SEG_PENDING:
-		case WA_SEG_DTI_PENDING:
 			/*
 			 * Check if the abort was successfully sent.  This could
 			 * be false if the HWA has been removed but we haven't
