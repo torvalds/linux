@@ -50,6 +50,7 @@ config MIPS
 	select CLONE_BACKWARDS
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_CC_STACKPROTECTOR
+	select CPU_PM if CPU_IDLE
 
 menu "Machine selection"
 
