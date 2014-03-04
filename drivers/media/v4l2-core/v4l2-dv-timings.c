@@ -26,6 +26,10 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dv-timings.h>
 
+MODULE_AUTHOR("Hans Verkuil");
+MODULE_DESCRIPTION("V4L2 DV Timings Helper Functions");
+MODULE_LICENSE("GPL");
+
 const struct v4l2_dv_timings v4l2_dv_timings_presets[] = {
 	V4L2_DV_BT_CEA_640X480P59_94,
 	V4L2_DV_BT_CEA_720X480I59_94,
