@@ -417,6 +417,21 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 	devpriv->dma_runs_to_end--;
 }
 
+static unsigned int pcl818_ai_get_fifo_sample(struct comedi_device *dev,
+					      struct comedi_subdevice *s,
+					      unsigned int *chan)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL818_FI_DATALO);
+	val |= (inb(dev->iobase + PCL818_FI_DATAHI) << 8);
+
+	if (chan)
+		*chan = val & 0xf;
+
+	return (val >> 4) & s->maxdata;
+}
+
 static unsigned int pcl818_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s,
 					 unsigned int *chan)
@@ -652,14 +667,16 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	unsigned int status;
+	unsigned int chan;
+	unsigned int val;
 	int i, len;
-	unsigned char lo;
 
 	outb(0, dev->iobase + PCL818_FI_INTCLR);	/*  clear fifo int request */
 
-	lo = inb(dev->iobase + PCL818_FI_STATUS);
+	status = inb(dev->iobase + PCL818_FI_STATUS);
 
-	if (lo & 4) {
+	if (status & 4) {
 		comedi_error(dev, "A/D mode1/3 FIFO overflow!");
 		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
@@ -667,7 +684,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	if (lo & 1) {
+	if (status & 1) {
 		comedi_error(dev, "A/D mode1/3 FIFO interrupt without data!");
 		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
@@ -675,17 +692,17 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	if (lo & 2)
+	if (status & 2)
 		len = 512;
 	else
 		len = 0;
 
 	for (i = 0; i < len; i++) {
-		lo = inb(dev->iobase + PCL818_FI_DATALO);
-		if ((lo & 0xf) != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {	/*  dropout! */
+		val = pcl818_ai_get_fifo_sample(dev, s, &chan);
+		if (chan != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {
 			dev_dbg(dev->class_dev,
 				"A/D mode1/3 FIFO - channel dropout %d!=%d !\n",
-				(lo & 0xf),
+				chan,
 				devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 			s->cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
@@ -693,7 +710,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 			return IRQ_HANDLED;
 		}
 
-		comedi_buf_put(s->async, (lo >> 4) | (inb(dev->iobase + PCL818_FI_DATAHI) << 4));	/*  get one sample */
+		comedi_buf_put(s->async, val);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			return IRQ_HANDLED;
