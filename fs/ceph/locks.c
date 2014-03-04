@@ -91,10 +91,10 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	dout("ceph_lock, fl_pid:%d", fl->fl_pid);
 
 	/* set wait bit as appropriate, then make command as Ceph expects it*/
-	if (F_SETLKW == cmd)
-		wait = 1;
-	if (F_GETLK == cmd)
+	if (IS_GETLK(cmd))
 		op = CEPH_MDS_OP_GETFILELOCK;
+	else if (IS_SETLKW(cmd))
+		wait = 1;
 
 	if (F_RDLCK == fl->fl_type)
 		lock_cmd = CEPH_LOCK_SHARED;
@@ -131,20 +131,17 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	u8 lock_cmd;
 	int err;
-	u8 wait = 1;
+	u8 wait = 0;
 
 	fl->fl_nspid = get_pid(task_tgid(current));
 	dout("ceph_flock, fl_pid:%d", fl->fl_pid);
 
-	/* set wait bit, then clear it out of cmd*/
-	if (cmd & LOCK_NB)
-		wait = 0;
-	cmd = cmd & (LOCK_SH | LOCK_EX | LOCK_UN);
-	/* set command sequence that Ceph wants to see:
-	   shared lock, exclusive lock, or unlock */
-	if (LOCK_SH == cmd)
+	if (IS_SETLKW(cmd))
+		wait = 1;
+
+	if (F_RDLCK == fl->fl_type)
 		lock_cmd = CEPH_LOCK_SHARED;
-	else if (LOCK_EX == cmd)
+	else if (F_WRLCK == fl->fl_type)
 		lock_cmd = CEPH_LOCK_EXCL;
 	else
 		lock_cmd = CEPH_LOCK_UNLOCK;
