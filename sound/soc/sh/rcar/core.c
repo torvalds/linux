@@ -708,11 +708,6 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void rsnd_dai_remove(struct platform_device *pdev,
-			  struct rsnd_priv *priv)
-{
-}
-
 /*
  *		pcm ops
  */
@@ -901,15 +896,6 @@ static int rsnd_remove(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
-
-	/*
-	 *	remove each module
-	 */
-	rsnd_ssi_remove(pdev, priv);
-	rsnd_adg_remove(pdev, priv);
-	rsnd_scu_remove(pdev, priv);
-	rsnd_dai_remove(pdev, priv);
-	rsnd_gen_remove(pdev, priv);
 
 	return 0;
 }

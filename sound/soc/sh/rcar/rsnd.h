@@ -261,8 +261,6 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
  */
 int rsnd_gen_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
-void rsnd_gen_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv);
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
@@ -275,8 +273,6 @@ void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod);
 int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate);
 int rsnd_adg_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv);
-void rsnd_adg_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
 				  struct rsnd_mod *mod,
@@ -353,8 +349,6 @@ struct rsnd_priv {
  */
 int rsnd_scu_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
-void rsnd_scu_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
@@ -372,8 +366,6 @@ int rsnd_scu_enable_ssi_irq(struct rsnd_mod *ssi_mod,
  *	R-Car SSI
  */
 int rsnd_ssi_probe(struct platform_device *pdev,
-		   struct rsnd_priv *priv);
-void rsnd_ssi_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,

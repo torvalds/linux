@@ -454,8 +454,3 @@ int rsnd_adg_probe(struct platform_device *pdev,
 
 	return 0;
 }
-
-void rsnd_adg_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
-{
-}

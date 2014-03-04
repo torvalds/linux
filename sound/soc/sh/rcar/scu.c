@@ -680,8 +680,3 @@ int rsnd_scu_probe(struct platform_device *pdev,
 
 	return 0;
 }
-
-void rsnd_scu_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
-{
-}

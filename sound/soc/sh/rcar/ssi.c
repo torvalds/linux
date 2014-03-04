@@ -638,8 +638,3 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 
 	return 0;
 }
-
-void rsnd_ssi_remove(struct platform_device *pdev,
-		   struct rsnd_priv *priv)
-{
-}

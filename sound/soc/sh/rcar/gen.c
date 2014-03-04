@@ -385,8 +385,3 @@ int rsnd_gen_probe(struct platform_device *pdev,
 
 	return ret;
 }
-
-void rsnd_gen_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
-{
-}
