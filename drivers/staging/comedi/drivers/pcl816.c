@@ -65,9 +65,7 @@ Configuration Options:
 #define PCL816_AD_HI 9
 
 /* type of interrupt handler */
-#define INT_TYPE_AI1_INT 1
 #define INT_TYPE_AI1_DMA 2
-#define INT_TYPE_AI3_INT 4
 #define INT_TYPE_AI3_DMA 5
 
 #define MAGIC_DMA_WORD 0x5a5a
@@ -273,50 +271,6 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	struct pcl816_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	int timeout = 50;	/* wait max 50us */
-
-	while (timeout--) {
-		if (!(inb(dev->iobase + PCL816_STATUS) &
-		      PCL816_STATUS_DRDY_MASK))
-			break;
-		udelay(1);
-	}
-	if (!timeout) {		/*  timeout, bail error */
-		outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-		comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
-		s->cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s);
-		return IRQ_HANDLED;
-
-	}
-
-	comedi_buf_put(s->async, pcl816_ai_get_sample(dev, s));
-
-	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= cmd->chanlist_len) {
-		s->async->cur_chan = 0;
-		devpriv->ai_act_scan++;
-	}
-
-	if (cmd->stop_src == TRIG_COUNT &&
-	    devpriv->ai_act_scan >= cmd->stop_arg) {
-		/* all data sampled */
-		s->cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA;
-	}
-	comedi_event(dev, s);
-	return IRQ_HANDLED;
-}
-
 static void transfer_from_dma_buf(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned short *ptr,
@@ -389,9 +343,6 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	case INT_TYPE_AI1_DMA:
 	case INT_TYPE_AI3_DMA:
 		return interrupt_pcl816_ai_mode13_dma(irq, d);
-	case INT_TYPE_AI1_INT:
-	case INT_TYPE_AI3_INT:
-		return interrupt_pcl816_ai_mode13_int(irq, d);
 	}
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
@@ -593,8 +544,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 		case INT_TYPE_AI1_DMA:
 		case INT_TYPE_AI3_DMA:
 			disable_dma(devpriv->dma);
-		case INT_TYPE_AI1_INT:
-		case INT_TYPE_AI3_INT:
 			outb(inb(dev->iobase + PCL816_CONTROL) & 0x73,
 			     dev->iobase + PCL816_CONTROL);	/* Stop A/D */
 			udelay(1);
