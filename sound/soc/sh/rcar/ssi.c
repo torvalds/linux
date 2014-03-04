@@ -451,12 +451,26 @@ static struct rsnd_mod_ops rsnd_ssi_non_ops = {
 struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
 					  int dai_id, int is_play)
 {
+	struct rsnd_dai_platform_info *dai_info = NULL;
+	struct rsnd_dai_path_info *path_info = NULL;
+	struct rsnd_ssi_platform_info *target_info = NULL;
 	struct rsnd_ssi *ssi;
 	int i, has_play;
+
+	if (priv->rdai)
+		dai_info = priv->rdai[dai_id].info;
+	if (dai_info)
+		path_info = (is_play) ? &dai_info->playback : &dai_info->capture;
+	if (path_info)
+		target_info = path_info->ssi;
 
 	is_play = !!is_play;
 
 	for_each_rsnd_ssi(ssi, priv, i) {
+		if (target_info == ssi->info)
+			return &ssi->mod;
+
+		/* for compatible */
 		if (rsnd_ssi_dai_id(ssi) != dai_id)
 			continue;
 

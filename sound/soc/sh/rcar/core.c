@@ -639,19 +639,26 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			  struct rsnd_priv *priv)
 {
 	struct snd_soc_dai_driver *drv;
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct rsnd_dai *rdai;
 	struct rsnd_mod *pmod, *cmod;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int dai_nr;
+	int dai_nr = info->dai_info_nr;
 	int i;
 
-	/* get max dai nr */
-	for (dai_nr = 0; dai_nr < 32; dai_nr++) {
-		pmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 1);
-		cmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 0);
+	/*
+	 * dai_nr should be set via dai_info_nr,
+	 * but allow it to keeping compatible
+	 */
+	if (!dai_nr) {
+		/* get max dai nr */
+		for (dai_nr = 0; dai_nr < 32; dai_nr++) {
+			pmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 1);
+			cmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 0);
 
-		if (!pmod && !cmod)
-			break;
+			if (!pmod && !cmod)
+				break;
+		}
 	}
 
 	if (!dai_nr) {
@@ -671,6 +678,8 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	priv->rdai	= rdai;
 
 	for (i = 0; i < dai_nr; i++) {
+		if (info->dai_info)
+			rdai[i].info = &info->dai_info[i];
 
 		pmod = rsnd_ssi_mod_get_frm_dai(priv, i, 1);
 		cmod = rsnd_ssi_mod_get_frm_dai(priv, i, 0);

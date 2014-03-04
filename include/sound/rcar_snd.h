@@ -36,13 +36,15 @@
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
 #define RSND_SSI_PLAY			(1 << 24)
 
+#define RSND_SSI(_dma_id, _pio_irq, _flags)		\
+{ .dma_id = _dma_id, .pio_irq = _pio_irq, .flags = _flags }
 #define RSND_SSI_SET(_dai_id, _dma_id, _pio_irq, _flags)	\
 { .dai_id = _dai_id, .dma_id = _dma_id, .pio_irq = _pio_irq, .flags = _flags }
 #define RSND_SSI_UNUSED \
 { .dai_id = -1, .dma_id = -1, .pio_irq = -1, .flags = 0 }
 
 struct rsnd_ssi_platform_info {
-	int dai_id;
+	int dai_id;	/* will be removed */
 	int dma_id;
 	int pio_irq;
 	u32 flags;
@@ -53,6 +55,8 @@ struct rsnd_ssi_platform_info {
  */
 #define RSND_SCU_USE_HPBIF		(1 << 31) /* it needs RSND_SSI_DEPENDENT */
 
+#define RSND_SCU(rate, _dma_id)						\
+{ .flags = RSND_SCU_USE_HPBIF, .convert_rate = rate, .dma_id = _dma_id, }
 #define RSND_SCU_SET(rate, _dma_id)		\
 	{ .flags = RSND_SCU_USE_HPBIF, .convert_rate = rate, .dma_id = _dma_id, }
 #define RSND_SCU_UNUSED				\
@@ -62,6 +66,15 @@ struct rsnd_scu_platform_info {
 	u32 flags;
 	u32 convert_rate; /* sampling rate convert */
 	int dma_id; /* for Gen2 SCU */
+};
+
+struct rsnd_dai_path_info {
+	struct rsnd_ssi_platform_info *ssi;
+};
+
+struct rsnd_dai_platform_info {
+	struct rsnd_dai_path_info playback;
+	struct rsnd_dai_path_info capture;
 };
 
 /*
@@ -81,6 +94,8 @@ struct rcar_snd_info {
 	int ssi_info_nr;
 	struct rsnd_scu_platform_info *scu_info;
 	int scu_info_nr;
+	struct rsnd_dai_platform_info *dai_info;
+	int dai_info_nr;
 	int (*start)(int id);
 	int (*stop)(int id);
 };
