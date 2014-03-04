@@ -529,7 +529,6 @@ struct pcl812_private {
 	unsigned int use_ext_trg:1;
 	unsigned int ai_dma:1;
 	unsigned int ai_eos:1;
-	unsigned int ai_neverending:1;
 };
 
 static void setup_range_channel(struct comedi_device *dev,
@@ -768,11 +767,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai_dma = 0;
 
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_neverending = 0;
-	else
-		devpriv->ai_neverending = 1;
-
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
 	s->async->cur_chan = 0;
@@ -803,7 +797,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				devpriv->dmabytestomove[1] =
 				    devpriv->ai_data_len;
 			}
-			if (devpriv->ai_neverending) {
+			if (cmd->stop_src == TRIG_NONE) {
 				devpriv->dma_runs_to_end = 1;
 			} else {
 				/*  how many samples we must transfer? */
@@ -908,12 +902,12 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	s->async->cur_chan = next_chan;
 	if (next_chan == 0) {	/* one scan done */
 		devpriv->ai_act_scan++;
-		if (!(devpriv->ai_neverending))
-							/* all data sampled */
-			if (devpriv->ai_act_scan >= cmd->stop_arg) {
-				s->cancel(dev, s);
-				s->async->events |= COMEDI_CB_EOA;
-			}
+		if (cmd->stop_src == TRIG_COUNT &&
+		    devpriv->ai_act_scan >= cmd->stop_arg) {
+			/* all data sampled */
+			s->cancel(dev, s);
+			s->async->events |= COMEDI_CB_EOA;
+		}
 	}
 
 	comedi_event(dev, s);
@@ -938,13 +932,13 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 		if (s->async->cur_chan >= cmd->chanlist_len) {
 			s->async->cur_chan = 0;
 			devpriv->ai_act_scan++;
-			if (!devpriv->ai_neverending)
-							/* all data sampled */
-				if (devpriv->ai_act_scan >= cmd->stop_arg) {
-					s->cancel(dev, s);
-					s->async->events |= COMEDI_CB_EOA;
-					break;
-				}
+			if (cmd->stop_src == TRIG_COUNT &&
+			    devpriv->ai_act_scan >= cmd->stop_arg) {
+				/* all data sampled */
+				s->cancel(dev, s);
+				s->async->events |= COMEDI_CB_EOA;
+				break;
+			}
 		}
 	}
 
