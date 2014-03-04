@@ -253,8 +253,26 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 {
 	struct kernfs_open_file *of = kernfs_of(file);
 	const struct kernfs_ops *ops;
-	char *buf = NULL;
-	ssize_t len;
+	size_t len;
+	char *buf;
+
+	if (of->atomic_write_len) {
+		len = count;
+		if (len > of->atomic_write_len)
+			return -E2BIG;
+	} else {
+		len = min_t(size_t, count, PAGE_SIZE);
+	}
+
+	buf = kmalloc(len + 1, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, user_buf, len)) {
+		len = -EFAULT;
+		goto out_free;
+	}
+	buf[len] = '\0';	/* guarantee string termination */
 
 	/*
 	 * @of->mutex nests outside active ref and is just to ensure that
@@ -263,45 +281,22 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 	mutex_lock(&of->mutex);
 	if (!kernfs_get_active(of->kn)) {
 		mutex_unlock(&of->mutex);
-		return -ENODEV;
+		len = -ENODEV;
+		goto out_free;
 	}
 
 	ops = kernfs_ops(of->kn);
-	if (!ops->write) {
+	if (ops->write)
+		len = ops->write(of, buf, len, *ppos);
+	else
 		len = -EINVAL;
-		goto out_unlock;
-	}
 
-	if (ops->atomic_write_len) {
-		len = count;
-		if (len > ops->atomic_write_len) {
-			len = -E2BIG;
-			goto out_unlock;
-		}
-	} else {
-		len = min_t(size_t, count, PAGE_SIZE);
-	}
-
-	buf = kmalloc(len + 1, GFP_KERNEL);
-	if (!buf) {
-		len = -ENOMEM;
-		goto out_unlock;
-	}
-
-	if (copy_from_user(buf, user_buf, len)) {
-		len = -EFAULT;
-		goto out_unlock;
-	}
-	buf[len] = '\0';	/* guarantee string termination */
-
-	len = ops->write(of, buf, len, *ppos);
-out_unlock:
 	kernfs_put_active(of->kn);
 	mutex_unlock(&of->mutex);
 
 	if (len > 0)
 		*ppos += len;
-
+out_free:
 	kfree(buf);
 	return len;
 }
@@ -664,6 +659,12 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 
 	of->kn = kn;
 	of->file = file;
+
+	/*
+	 * Write path needs to atomic_write_len outside active reference.
+	 * Cache it in open_file.  See kernfs_fop_write() for details.
+	 */
+	of->atomic_write_len = ops->atomic_write_len;
 
 	/*
 	 * Always instantiate seq_file even if read access doesn't use
