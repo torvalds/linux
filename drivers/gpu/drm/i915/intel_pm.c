@@ -5411,6 +5411,29 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 	return true;
 }
 
+static void check_power_well_state(struct drm_i915_private *dev_priv,
+				   struct i915_power_well *power_well)
+{
+	bool enabled = power_well->ops->is_enabled(dev_priv, power_well);
+
+	if (power_well->always_on || !i915.disable_power_well) {
+		if (!enabled)
+			goto mismatch;
+
+		return;
+	}
+
+	if (enabled != (power_well->count > 0))
+		goto mismatch;
+
+	return;
+
+mismatch:
+	WARN(1, "state mismatch for '%s' (always_on %d hw state %d use-count %d disable_power_well %d\n",
+		  power_well->name, power_well->always_on, enabled,
+		  power_well->count, i915.disable_power_well);
+}
+
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
@@ -5422,9 +5445,14 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 
 	mutex_lock(&power_domains->lock);
 
-	for_each_power_well(i, power_well, BIT(domain), power_domains)
-		if (!power_well->count++)
+	for_each_power_well(i, power_well, BIT(domain), power_domains) {
+		if (!power_well->count++) {
+			DRM_DEBUG_KMS("enabling %s\n", power_well->name);
 			power_well->ops->enable(dev_priv, power_well);
+		}
+
+		check_power_well_state(dev_priv, power_well);
+	}
 
 	power_domains->domain_use_count[domain]++;
 
@@ -5448,8 +5476,12 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
 		WARN_ON(!power_well->count);
 
-		if (!--power_well->count && i915.disable_power_well)
+		if (!--power_well->count && i915.disable_power_well) {
+			DRM_DEBUG_KMS("disabling %s\n", power_well->name);
 			power_well->ops->disable(dev_priv, power_well);
+		}
+
+		check_power_well_state(dev_priv, power_well);
 	}
 
 	mutex_unlock(&power_domains->lock);
