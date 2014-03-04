@@ -157,7 +157,7 @@ then
 	echo Build-only run specified, boot/test omitted.
 	exit 0
 fi
-$QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "$qemu_append $boot_args" &
+( $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "$qemu_append $boot_args"; echo $? > $resdir/qemu-retval ) &
 qemu_pid=$!
 commandcompleted=0
 echo Monitoring qemu job at pid $qemu_pid
@@ -172,6 +172,13 @@ do
 		if test $kruntime -lt $seconds
 		then
 			echo Completed in $kruntime vs. $seconds >> $resdir/Warnings 2>&1
+			grep "^(qemu) qemu:" $resdir/kvm-test-1-run.sh.out >> $resdir/Warnings 2>&1
+			killpid="`sed -n "s/^(qemu) qemu: terminating on signal [0-9]* from pid \([0-9]*\).*$/\1/p" $resdir/Warnings`"
+			if test -n "$killpid"
+			then
+				echo "ps -fp $killpid" >> $resdir/Warnings 2>&1
+				ps -fp $killpid >> $resdir/Warnings 2>&1
+			fi
 		else
 			echo ' ---' `date`: Kernel done
 		fi
