@@ -323,14 +323,14 @@ static void sh_mtu2_clock_event_resume(struct clock_event_device *ced)
 }
 
 static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
-					const char *name, unsigned long rating)
+					const char *name)
 {
 	struct clock_event_device *ced = &ch->ced;
 	int ret;
 
 	ced->name = name;
 	ced->features = CLOCK_EVT_FEAT_PERIODIC;
-	ced->rating = rating;
+	ced->rating = 200;
 	ced->cpumask = cpu_possible_mask;
 	ced->set_mode = sh_mtu2_clock_event_mode;
 	ced->suspend = sh_mtu2_clock_event_suspend;
@@ -351,10 +351,10 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
 }
 
 static int sh_mtu2_register(struct sh_mtu2_channel *ch, const char *name,
-			    unsigned long clockevent_rating)
+			    bool clockevent)
 {
-	if (clockevent_rating)
-		sh_mtu2_register_clockevent(ch, name, clockevent_rating);
+	if (clockevent)
+		sh_mtu2_register_clockevent(ch, name);
 
 	return 0;
 }
@@ -375,7 +375,7 @@ static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch,
 	}
 
 	return sh_mtu2_register(ch, dev_name(&mtu->pdev->dev),
-				cfg->clockevent_rating);
+				cfg->clockevent_rating != 0);
 }
 
 static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
