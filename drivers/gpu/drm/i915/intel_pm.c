@@ -5366,27 +5366,6 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void __intel_power_well_get(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	if (!power_well->count++ && power_well->set) {
-		hsw_disable_package_c8(dev_priv);
-		power_well->set(dev_priv, power_well, true);
-	}
-}
-
-static void __intel_power_well_put(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	WARN_ON(!power_well->count);
-
-	if (!--power_well->count && power_well->set &&
-	    i915.disable_power_well) {
-		power_well->set(dev_priv, power_well, false);
-		hsw_enable_package_c8(dev_priv);
-	}
-}
-
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
@@ -5399,7 +5378,10 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 	mutex_lock(&power_domains->lock);
 
 	for_each_power_well(i, power_well, BIT(domain), power_domains)
-		__intel_power_well_get(dev_priv, power_well);
+		if (!power_well->count++ && power_well->set) {
+			hsw_disable_package_c8(dev_priv);
+			power_well->set(dev_priv, power_well, true);
+		}
 
 	power_domains->domain_use_count[domain]++;
 
@@ -5420,8 +5402,15 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	WARN_ON(!power_domains->domain_use_count[domain]);
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_well_rev(i, power_well, BIT(domain), power_domains)
-		__intel_power_well_put(dev_priv, power_well);
+	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
+		WARN_ON(!power_well->count);
+
+		if (!--power_well->count && power_well->set &&
+				i915.disable_power_well) {
+			power_well->set(dev_priv, power_well, false);
+			hsw_enable_package_c8(dev_priv);
+		}
+	}
 
 	mutex_unlock(&power_domains->lock);
 }
