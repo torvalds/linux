@@ -361,7 +361,9 @@ void intel_uncore_sanitize(struct drm_device *dev)
 		mutex_lock(&dev_priv->rps.hw_lock);
 		reg_val = vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_STATUS);
 
-		if (reg_val & (RENDER_PWRGT | MEDIA_PWRGT | DISP2D_PWRGT))
+		if (reg_val & (PUNIT_PWRGT_PWR_GATE(PUNIT_POWER_WELL_RENDER) |
+			       PUNIT_PWRGT_PWR_GATE(PUNIT_POWER_WELL_MEDIA) |
+			       PUNIT_PWRGT_PWR_GATE(PUNIT_POWER_WELL_DISP2D)))
 			vlv_punit_write(dev_priv, PUNIT_REG_PWRGT_CTRL, 0x0);
 
 		mutex_unlock(&dev_priv->rps.hw_lock);

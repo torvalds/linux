@@ -377,14 +377,30 @@
 #define   DSPFREQSTAT_MASK			(0x3 << DSPFREQSTAT_SHIFT)
 #define   DSPFREQGUAR_SHIFT			14
 #define   DSPFREQGUAR_MASK			(0x3 << DSPFREQGUAR_SHIFT)
+
+/* See the PUNIT HAS v0.8 for the below bits */
+enum punit_power_well {
+	PUNIT_POWER_WELL_RENDER			= 0,
+	PUNIT_POWER_WELL_MEDIA			= 1,
+	PUNIT_POWER_WELL_DISP2D			= 3,
+	PUNIT_POWER_WELL_DPIO_CMN_BC		= 5,
+	PUNIT_POWER_WELL_DPIO_TX_B_LANES_01	= 6,
+	PUNIT_POWER_WELL_DPIO_TX_B_LANES_23	= 7,
+	PUNIT_POWER_WELL_DPIO_TX_C_LANES_01	= 8,
+	PUNIT_POWER_WELL_DPIO_TX_C_LANES_23	= 9,
+	PUNIT_POWER_WELL_DPIO_RX0		= 10,
+	PUNIT_POWER_WELL_DPIO_RX1		= 11,
+
+	PUNIT_POWER_WELL_NUM,
+};
+
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
-#define	  PUNIT_CLK_GATE			1
-#define	  PUNIT_PWR_RESET			2
-#define	  PUNIT_PWR_GATE			3
-#define	  RENDER_PWRGT				(PUNIT_PWR_GATE << 0)
-#define	  MEDIA_PWRGT				(PUNIT_PWR_GATE << 2)
-#define	  DISP2D_PWRGT				(PUNIT_PWR_GATE << 6)
+#define   PUNIT_PWRGT_MASK(power_well)		(3 << ((power_well) * 2))
+#define   PUNIT_PWRGT_PWR_ON(power_well)	(0 << ((power_well) * 2))
+#define   PUNIT_PWRGT_CLK_GATE(power_well)	(1 << ((power_well) * 2))
+#define   PUNIT_PWRGT_RESET(power_well)		(2 << ((power_well) * 2))
+#define   PUNIT_PWRGT_PWR_GATE(power_well)	(3 << ((power_well) * 2))
 
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
