@@ -286,7 +286,6 @@ static bool pcl816_ai_next_chan(struct comedi_device *dev,
 		/* all data sampled */
 		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
 		return false;
 	}
 
@@ -306,38 +305,16 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 		if (!pcl816_ai_next_chan(dev, s))
 			return;
 	}
-
-	comedi_event(dev, s);
 }
 
-static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
+static irqreturn_t pcl816_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	int len, bufptr, this_dma_buf;
-	unsigned short *ptr;
-
-	this_dma_buf = devpriv->next_dma_buf;
-
-	pcl816_ai_setup_next_dma(dev, s);
-
-	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-
-	ptr = (unsigned short *)devpriv->dmabuf[this_dma_buf];
-
-	len = (devpriv->hwdmasize >> 1) - devpriv->ai_poll_ptr;
-	bufptr = devpriv->ai_poll_ptr;
-	devpriv->ai_poll_ptr = 0;
-
-	transfer_from_dma_buf(dev, s, ptr, bufptr, len);
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t interrupt_pcl816(int irq, void *d)
-{
-	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
+	unsigned short *ptr;
+	unsigned int bufptr;
+	unsigned int len;
 
 	if (!dev->attached || !devpriv->ai_cmd_running) {
 		outb(0, dev->iobase + PCL816_CLRINT);
@@ -350,7 +327,20 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	return interrupt_pcl816_ai_mode13_dma(irq, d);
+	ptr = (unsigned short *)devpriv->dmabuf[devpriv->next_dma_buf];
+
+	pcl816_ai_setup_next_dma(dev, s);
+
+	len = (devpriv->hwdmasize >> 1) - devpriv->ai_poll_ptr;
+	bufptr = devpriv->ai_poll_ptr;
+	devpriv->ai_poll_ptr = 0;
+
+	transfer_from_dma_buf(dev, s, ptr, bufptr, len);
+
+	outb(0, dev->iobase + PCL816_CLRINT);
+
+	comedi_event(dev, s);
+	return IRQ_HANDLED;
 }
 
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
@@ -521,6 +511,8 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
+	comedi_event(dev, s);
+
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
@@ -676,7 +668,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* we can use IRQ 2-7 for async command support */
 	if (it->options[1] >= 2 && it->options[1] <= 7) {
-		ret = request_irq(it->options[1], interrupt_pcl816, 0,
+		ret = request_irq(it->options[1], pcl816_interrupt, 0,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = it->options[1];
