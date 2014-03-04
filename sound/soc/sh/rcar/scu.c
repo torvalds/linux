@@ -525,6 +525,42 @@ static int rsnd_scu_set_convert_timing_gen2(struct rsnd_mod *mod,
 	return ret;
 }
 
+static int rsnd_scu_probe_gen2(struct rsnd_mod *mod,
+			       struct rsnd_dai *rdai,
+			       struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
+	struct rsnd_mod *ssi = rsnd_ssi_mod_get(priv, rsnd_mod_id(mod));
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int ret;
+	int is_play;
+
+	if (info->dai_info)
+		is_play = rsnd_info_is_playback(priv, scu);
+	else
+		is_play = rsnd_ssi_is_play(ssi);
+
+	ret = rsnd_dma_init(priv,
+			    rsnd_mod_to_dma(mod),
+			    is_play,
+			    scu->info->dma_id);
+	if (ret < 0)
+		dev_err(dev, "SCU DMA failed\n");
+
+	return ret;
+}
+
+static int rsnd_scu_remove_gen2(struct rsnd_mod *mod,
+				struct rsnd_dai *rdai,
+				struct rsnd_dai_stream *io)
+{
+	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
+
+	return 0;
+}
+
 static int rsnd_scu_init_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
@@ -576,6 +612,8 @@ static int rsnd_scu_stop_gen2(struct rsnd_mod *mod,
 
 static struct rsnd_mod_ops rsnd_scu_gen2_ops = {
 	.name	= "scu (gen2)",
+	.probe	= rsnd_scu_probe_gen2,
+	.remove	= rsnd_scu_remove_gen2,
 	.init	= rsnd_scu_init_gen2,
 	.quit	= rsnd_scu_quit,
 	.start	= rsnd_scu_start_gen2,
@@ -631,25 +669,8 @@ int rsnd_scu_probe(struct platform_device *pdev,
 		if (rsnd_scu_hpbif_is_enable(scu)) {
 			if (rsnd_is_gen1(priv))
 				ops = &rsnd_scu_gen1_ops;
-			if (rsnd_is_gen2(priv)) {
-				int ret;
-				int is_play;
-
-				if (info->dai_info) {
-					is_play = rsnd_info_is_playback(priv, scu);
-				} else {
-					struct rsnd_mod *ssi = rsnd_ssi_mod_get(priv, i);
-					is_play = rsnd_ssi_is_play(ssi);
-				}
-				ret = rsnd_dma_init(priv,
-						    rsnd_mod_to_dma(&scu->mod),
-						    is_play,
-						    scu->info->dma_id);
-				if (ret < 0)
-					return ret;
-
+			if (rsnd_is_gen2(priv))
 				ops = &rsnd_scu_gen2_ops;
-			}
 		}
 
 		rsnd_mod_init(priv, &scu->mod, ops, RSND_MOD_SCU, i);
@@ -663,11 +684,4 @@ int rsnd_scu_probe(struct platform_device *pdev,
 void rsnd_scu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv)
 {
-	struct rsnd_scu *scu;
-	int i;
-
-	for_each_rsnd_scu(scu, priv, i) {
-		if (rsnd_scu_dma_available(scu))
-			rsnd_dma_quit(priv, rsnd_mod_to_dma(&scu->mod));
-	}
 }
