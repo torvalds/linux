@@ -868,13 +868,19 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 #ifdef CONFIG_MTD_UBI_BLOCK
 int ubiblock_init(void);
 void ubiblock_exit(void);
-int ubiblock_add(struct ubi_volume_info *vi);
-int ubiblock_del(struct ubi_volume_info *vi);
+int ubiblock_create(struct ubi_volume_info *vi);
+int ubiblock_remove(struct ubi_volume_info *vi);
 #else
 static inline int ubiblock_init(void) { return 0; }
 static inline void ubiblock_exit(void) {}
-static inline int ubiblock_add(struct ubi_volume_info *vi) { return -ENOTTY; }
-static inline int ubiblock_del(struct ubi_volume_info *vi) { return -ENOTTY; }
+static inline int ubiblock_create(struct ubi_volume_info *vi)
+{
+	return -ENOTTY;
+}
+static inline int ubiblock_remove(struct ubi_volume_info *vi)
+{
+	return -ENOTTY;
+}
 #endif
 
 

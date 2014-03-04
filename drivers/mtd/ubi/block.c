@@ -29,10 +29,10 @@
  *
  *   LEB number = addressed byte / LEB size
  *
- * This feature is compiled in the UBI core, and adds a new 'block' parameter
- * to allow early block device attaching. Runtime  block attach/detach for UBI
- * volumes is provided through two new UBI ioctls: UBI_IOCVOLATTBLK and
- * UBI_IOCVOLDETBLK.
+ * This feature is compiled in the UBI core, and adds a 'block' parameter
+ * to allow early creation of block devices on top of UBI volumes. Runtime
+ * block creation/removal for UBI volumes is provided through two UBI ioctls:
+ * UBI_IOCVOLATTBLK and UBI_IOCVOLDETBLK.
  */
 
 #include <linux/module.h>
@@ -374,7 +374,7 @@ static const struct block_device_operations ubiblock_ops = {
 	.getgeo	= ubiblock_getgeo,
 };
 
-int ubiblock_add(struct ubi_volume_info *vi)
+int ubiblock_create(struct ubi_volume_info *vi)
 {
 	struct ubiblock *dev;
 	struct gendisk *gd;
@@ -464,7 +464,7 @@ static void ubiblock_cleanup(struct ubiblock *dev)
 	put_disk(dev->gd);
 }
 
-int ubiblock_del(struct ubi_volume_info *vi)
+int ubiblock_remove(struct ubi_volume_info *vi)
 {
 	struct ubiblock *dev;
 
@@ -503,7 +503,8 @@ static void ubiblock_resize(struct ubi_volume_info *vi)
 
 	/*
 	 * Need to lock the device list until we stop using the device,
-	 * otherwise the device struct might get released in 'ubiblock_del()'.
+	 * otherwise the device struct might get released in
+	 * 'ubiblock_remove()'.
 	 */
 	mutex_lock(&devices_mutex);
 	dev = find_dev_nolock(vi->ubi_num, vi->vol_id);
@@ -528,12 +529,12 @@ static int ubiblock_notify(struct notifier_block *nb,
 	switch (notification_type) {
 	case UBI_VOLUME_ADDED:
 		/*
-		 * We want to enforce explicit block device attaching for
+		 * We want to enforce explicit block device creation for
 		 * volumes, so when a volume is added we do nothing.
 		 */
 		break;
 	case UBI_VOLUME_REMOVED:
-		ubiblock_del(&nt->vi);
+		ubiblock_remove(&nt->vi);
 		break;
 	case UBI_VOLUME_RESIZED:
 		ubiblock_resize(&nt->vi);
@@ -561,7 +562,7 @@ open_volume_desc(const char *name, int ubi_num, int vol_id)
 		return ubi_open_volume(ubi_num, vol_id, UBI_READONLY);
 }
 
-static int __init ubiblock_attach_from_param(void)
+static int __init ubiblock_create_from_param(void)
 {
 	int i, ret;
 	struct ubiblock_param *p;
@@ -582,7 +583,7 @@ static int __init ubiblock_attach_from_param(void)
 		ubi_get_volume_info(desc, &vi);
 		ubi_close_volume(desc);
 
-		ret = ubiblock_add(&vi);
+		ret = ubiblock_create(&vi);
 		if (ret) {
 			ubi_err("block: can't add '%s' volume, err=%d\n",
 				vi.name, ret);
@@ -592,7 +593,7 @@ static int __init ubiblock_attach_from_param(void)
 	return ret;
 }
 
-static void ubiblock_detach_all(void)
+static void ubiblock_remove_all(void)
 {
 	struct ubiblock *next;
 	struct ubiblock *dev;
@@ -618,13 +619,13 @@ int __init ubiblock_init(void)
 		return ubiblock_major;
 
 	/* Attach block devices from 'block=' module param */
-	ret = ubiblock_attach_from_param();
+	ret = ubiblock_create_from_param();
 	if (ret)
-		goto err_detach;
+		goto err_remove;
 
 	/*
-	 * Block devices needs to be attached to volumes explicitly
-	 * upon user request. So we ignore existing volumes.
+	 * Block devices are only created upon user requests, so we ignore
+	 * existing volumes.
 	 */
 	ret = ubi_register_volume_notifier(&ubiblock_notifier, 1);
 	if (ret)
@@ -633,14 +634,14 @@ int __init ubiblock_init(void)
 
 err_unreg:
 	unregister_blkdev(ubiblock_major, "ubiblock");
-err_detach:
-	ubiblock_detach_all();
+err_remove:
+	ubiblock_remove_all();
 	return ret;
 }
 
 void __exit ubiblock_exit(void)
 {
 	ubi_unregister_volume_notifier(&ubiblock_notifier);
-	ubiblock_detach_all();
+	ubiblock_remove_all();
 	unregister_blkdev(ubiblock_major, "ubiblock");
 }
