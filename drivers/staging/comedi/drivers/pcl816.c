@@ -49,6 +49,15 @@ Configuration Options:
 #define PCL816_TIMER_BASE			0x04
 #define PCL816_AI_LSB_REG			0x08
 #define PCL816_AI_MSB_REG			0x09
+#define PCL816_STATUS_REG			0x0d
+#define PCL816_STATUS_NEXT_CHAN_MASK		(0xf << 0)
+#define PCL816_STATUS_INTSRC_MASK		(3 << 4)
+#define PCL816_STATUS_INTSRC_SLOT0		(0 << 4)
+#define PCL816_STATUS_INTSRC_SLOT1		(1 << 4)
+#define PCL816_STATUS_INTSRC_SLOT2		(2 << 4)
+#define PCL816_STATUS_INTSRC_DMA		(3 << 4)
+#define PCL816_STATUS_INTACT			(1 << 6)
+#define PCL816_STATUS_DRDY			(1 << 7)
 
 /* R: A/D high byte W: A/D range control */
 #define PCL816_RANGE 9
@@ -59,9 +68,6 @@ Configuration Options:
 /* R/W: operation control register */
 #define PCL816_CONTROL 12
 
-/* R: return status byte  W: set DMA/IRQ */
-#define PCL816_STATUS 13
-#define PCL816_STATUS_DRDY_MASK 0x80
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -235,8 +241,8 @@ static int pcl816_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inb(dev->iobase + PCL816_STATUS);
-	if ((status & PCL816_STATUS_DRDY_MASK) == 0)
+	status = inb(dev->iobase + PCL816_STATUS_REG);
+	if ((status & PCL816_STATUS_DRDY) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -432,7 +438,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		outb(0x32, dev->iobase + PCL816_CONTROL);
 
 		/*  write irq and DMA to card */
-		outb(dmairq, dev->iobase + PCL816_STATUS);
+		outb(dmairq, dev->iobase + PCL816_STATUS_REG);
 		break;
 
 	default:
@@ -440,7 +446,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		outb(0x34, dev->iobase + PCL816_CONTROL);
 
 		/*  write irq to card */
-		outb(dmairq, dev->iobase + PCL816_STATUS);
+		outb(dmairq, dev->iobase + PCL816_STATUS_REG);
 		break;
 	}
 
