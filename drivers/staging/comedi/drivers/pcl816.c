@@ -271,35 +271,45 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
+static bool pcl816_ai_next_chan(struct comedi_device *dev,
+				struct comedi_subdevice *s)
+{
+	struct pcl816_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= cmd->chanlist_len) {
+		s->async->cur_chan = 0;
+		devpriv->ai_act_scan++;
+		s->async->events |= COMEDI_CB_EOS;
+	}
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    devpriv->ai_act_scan >= cmd->stop_arg) {
+		/* all data sampled */
+		s->cancel(dev, s);
+		s->async->events |= COMEDI_CB_EOA;
+		comedi_event(dev, s);
+		return false;
+	}
+
+	return true;
+}
+
 static void transfer_from_dma_buf(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
-	struct pcl816_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
 	int i;
 
-	s->async->events = 0;
-
 	for (i = 0; i < len; i++) {
-
 		comedi_buf_put(s->async, ptr[bufptr++]);
 
-		s->async->cur_chan++;
-		if (s->async->cur_chan >= cmd->chanlist_len) {
-			s->async->cur_chan = 0;
-			devpriv->ai_act_scan++;
-		}
-
-		if (cmd->stop_src == TRIG_COUNT &&
-		    devpriv->ai_act_scan >= cmd->stop_arg) {
-			/* all data sampled */
-			s->cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA;
-			s->async->events |= COMEDI_CB_BLOCK;
-			break;
-		}
+		if (!pcl816_ai_next_chan(dev, s))
+			return;
 	}
 
 	comedi_event(dev, s);
