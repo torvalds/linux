@@ -31,7 +31,7 @@
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
 
-#ifdef CONFIG_HYPERV
+#if IS_ENABLED(CONFIG_HYPERV)
 static irq_handler_t *vmbus_handler;
 
 void hyperv_vector_handler(struct pt_regs *regs)
