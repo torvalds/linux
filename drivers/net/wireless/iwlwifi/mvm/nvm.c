@@ -570,3 +570,87 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 
 	return 0;
 }
+
+struct iwl_mcc_update_resp *
+iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2)
+{
+	struct iwl_mcc_update_cmd mcc_update_cmd = {
+		.mcc = cpu_to_le16(alpha2[0] << 8 | alpha2[1]),
+	};
+	struct iwl_mcc_update_resp *mcc_resp, *resp_cp = NULL;
+	struct iwl_rx_packet *pkt;
+	struct iwl_host_cmd cmd = {
+		.id = MCC_UPDATE_CMD,
+		.flags = CMD_WANT_SKB,
+		.data = { &mcc_update_cmd },
+	};
+
+	int ret;
+	u32 status;
+	int resp_len, n_channels;
+	u16 mcc;
+
+	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	cmd.len[0] = sizeof(struct iwl_mcc_update_cmd);
+
+	IWL_DEBUG_LAR(mvm, "send MCC update to FW with '%c%c'\n",
+		      alpha2[0], alpha2[1]);
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret)
+		return ERR_PTR(ret);
+
+	pkt = cmd.resp_pkt;
+	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERR(mvm, "Bad return from MCC_UPDATE_COMMAND (0x%08X)\n",
+			pkt->hdr.flags);
+		ret = -EIO;
+		goto exit;
+	}
+
+	/* Extract MCC response */
+	mcc_resp = (void *)pkt->data;
+	status = le32_to_cpu(mcc_resp->status);
+
+	if (status == MCC_RESP_INVALID) {
+		IWL_ERR(mvm,
+			"FW ERROR: MCC update with invalid parameter '%c%c'\n",
+			alpha2[0], alpha2[1]);
+		ret = -EINVAL;
+		goto exit;
+	} else if (status == MCC_RESP_NVM_DISABLED) {
+		ret = 0;
+		/* resp_cp will be NULL */
+		goto exit;
+	}
+
+	mcc = le16_to_cpu(mcc_resp->mcc);
+
+	/* W/A for a FW/NVM issue - returns 0x00 for the world domain */
+	if (mcc == 0) {
+		mcc = 0x3030;  /* "00" - world */
+		mcc_resp->mcc = cpu_to_le16(mcc);
+	}
+
+	n_channels =  __le32_to_cpu(mcc_resp->n_channels);
+	IWL_DEBUG_LAR(mvm,
+		      "MCC response status: 0x%x. new MCC: 0x%x ('%c%c') change: %d n_chans: %d\n",
+		      status, mcc, mcc >> 8, mcc & 0xff,
+		      !!(status == MCC_RESP_SAME_CHAN_PROFILE), n_channels);
+
+	resp_len = sizeof(*mcc_resp) + n_channels * sizeof(__le32);
+	resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
+	if (!resp_cp) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	ret = 0;
+exit:
+	iwl_free_resp(&cmd);
+	if (ret)
+		return ERR_PTR(ret);
+	return resp_cp;
+}
