@@ -132,15 +132,12 @@ A word or two about DMA. Driver support DMA operations at two ways:
 /* W: counter enable */
 #define PCL818_CNTENABLE 10
 
-/* R: low byte of A/D W: soft A/D trigger */
-#define PCL818_AD_LO 0
-/* R: high byte of A/D W: A/D range control */
-#define PCL818_AD_HI 1
+#define PCL818_AI_LSB_REG			0x00
+#define PCL818_AI_MSB_REG			0x01
 #define PCL818_AO_LSB_REG(x)			(0x04 + ((x) * 2))
 #define PCL818_AO_MSB_REG(x)			(0x05 + ((x) * 2))
 #define PCL818_DO_DI_LSB_REG			0x03
 #define PCL818_DO_DI_MSB_REG			0x0b
-
 #define PCL818_TIMER_BASE			0x0c
 
 /* W: fifo enable/disable */
@@ -409,7 +406,7 @@ static void pcl818_ai_clear_eoc(struct comedi_device *dev)
 static void pcl818_ai_soft_trig(struct comedi_device *dev)
 {
 	/* writing any value triggers a software conversion */
-	outb(0, dev->iobase + PCL818_AD_LO);
+	outb(0, dev->iobase + PCL818_AI_LSB_REG);
 }
 
 static unsigned int pcl818_ai_get_fifo_sample(struct comedi_device *dev,
@@ -433,8 +430,8 @@ static unsigned int pcl818_ai_get_sample(struct comedi_device *dev,
 {
 	unsigned int val;
 
-	val = inb(dev->iobase + PCL818_AD_HI) << 8;
-	val |= inb(dev->iobase + PCL818_AD_LO);
+	val = inb(dev->iobase + PCL818_AI_MSB_REG) << 8;
+	val |= inb(dev->iobase + PCL818_AI_LSB_REG);
 
 	if (chan)
 		*chan = val & 0xf;
