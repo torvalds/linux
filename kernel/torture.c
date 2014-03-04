@@ -674,8 +674,10 @@ EXPORT_SYMBOL_GPL(torture_must_stop_irq);
  */
 void torture_kthread_stopping(char *title)
 {
-	if (verbose)
-		VERBOSE_TOROUT_STRING(title);
+	char buf[128];
+
+	snprintf(buf, sizeof(buf), "Stopping %s", title);
+	VERBOSE_TOROUT_STRING(buf);
 	while (!kthread_should_stop()) {
 		torture_shutdown_absorb(title);
 		schedule_timeout_uninterruptible(1);
