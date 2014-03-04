@@ -139,12 +139,8 @@ A word or two about DMA. Driver support DMA operations at two ways:
 /* W: D/A low&high byte */
 #define PCL818_DA_LO 4
 #define PCL818_DA_HI 5
-/* R: low&high byte of DI */
-#define PCL818_DI_LO 3
-#define PCL818_DI_HI 11
-/* W: low&high byte of DO */
-#define PCL818_DO_LO 3
-#define PCL818_DO_HI 11
+#define PCL818_DO_DI_LSB_REG			0x03
+#define PCL818_DO_DI_MSB_REG			0x0b
 /* W: PCL718 second D/A */
 #define PCL718_DA2_LO 6
 #define PCL718_DA2_HI 7
@@ -519,31 +515,6 @@ static int pcl818_ao_insn_write(struct comedi_device *dev,
 	}
 
 	return n;
-}
-
-static int pcl818_di_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	data[1] = inb(dev->iobase + PCL818_DI_LO) |
-	    (inb(dev->iobase + PCL818_DI_HI) << 8);
-
-	return insn->n;
-}
-
-static int pcl818_do_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	if (comedi_dio_update_state(s, data)) {
-		outb(s->state & 0xff, dev->iobase + PCL818_DO_LO);
-		outb((s->state >> 8), dev->iobase + PCL818_DO_HI);
-	}
-
-	data[1] = s->state;
-
-	return insn->n;
 }
 
 static bool pcl818_ai_dropout(struct comedi_device *dev,
@@ -1029,6 +1000,32 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int pcl818_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	data[1] = inb(dev->iobase + PCL818_DO_DI_LSB_REG) |
+		  (inb(dev->iobase + PCL818_DO_DI_MSB_REG) << 8);
+
+	return insn->n;
+}
+
+static int pcl818_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase + PCL818_DO_DI_LSB_REG);
+		outb((s->state >> 8), dev->iobase + PCL818_DO_DI_MSB_REG);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
 static void pcl818_reset(struct comedi_device *dev)
 {
 	const struct pcl818_board *board = comedi_board(dev);
@@ -1043,8 +1040,8 @@ static void pcl818_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL818_DA_LO);	/*  DAC=0V */
 	outb(0, dev->iobase + PCL818_DA_HI);
 	udelay(1);
-	outb(0, dev->iobase + PCL818_DO_HI);	/*  DO=$0000 */
-	outb(0, dev->iobase + PCL818_DO_LO);
+	outb(0, dev->iobase + PCL818_DO_DI_MSB_REG);
+	outb(0, dev->iobase + PCL818_DO_DI_LSB_REG);
 	udelay(1);
 	outb(0, dev->iobase + PCL818_CONTROL);
 	outb(0, dev->iobase + PCL818_CNTENABLE);
