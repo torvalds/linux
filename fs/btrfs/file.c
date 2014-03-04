@@ -1669,15 +1669,13 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 	loff_t endbyte;
 	int err;
 
-	written = generic_file_direct_write(iocb, iov, &nr_segs, pos,
-					    count, ocount);
+	iov_iter_init(&i, iov, nr_segs, count, 0);
+	written = generic_file_direct_write(iocb, &i, pos, count, ocount);
 
 	if (written < 0 || written == count)
 		return written;
 
 	pos += written;
-	count -= written;
-	iov_iter_init(&i, iov, nr_segs, count, written);
 	written_buffered = __btrfs_buffered_write(file, &i, pos);
 	if (written_buffered < 0) {
 		err = written_buffered;

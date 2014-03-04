@@ -1235,15 +1235,13 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	if (file->f_flags & O_DIRECT) {
-		written = generic_file_direct_write(iocb, iov, &nr_segs, pos, 
-						    count, ocount);
+		iov_iter_init(&i, iov, nr_segs, count, 0);
+		written = generic_file_direct_write(iocb, &i, pos, count, ocount);
 		if (written < 0 || written == count)
 			goto out;
 
 		pos += written;
-		count -= written;
 
-		iov_iter_init(&i, iov, nr_segs, count, written);
 		written_buffered = fuse_perform_write(file, mapping, &i, pos);
 		if (written_buffered < 0) {
 			err = written_buffered;

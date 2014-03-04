@@ -2251,6 +2251,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
 	int unaligned_dio = 0;
+	struct iov_iter from;
 
 	trace_ocfs2_file_aio_write(inode, file, file->f_path.dentry,
 		(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -2365,16 +2366,15 @@ relock:
 	if (ret)
 		goto out_dio;
 
+	iov_iter_init(&from, iov, nr_segs, count, 0);
 	if (direct_io) {
-		written = generic_file_direct_write(iocb, iov, &nr_segs, *ppos,
+		written = generic_file_direct_write(iocb, &from, *ppos,
 						    count, ocount);
 		if (written < 0) {
 			ret = written;
 			goto out_dio;
 		}
 	} else {
-		struct iov_iter from;
-		iov_iter_init(&from, iov, nr_segs, count, 0);
 		current->backing_dev_info = file->f_mapping->backing_dev_info;
 		written = generic_perform_write(file, &from, *ppos);
 		if (likely(written >= 0))

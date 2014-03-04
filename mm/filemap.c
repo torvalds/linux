@@ -2385,9 +2385,8 @@ int pagecache_write_end(struct file *file, struct address_space *mapping,
 EXPORT_SYMBOL(pagecache_write_end);
 
 ssize_t
-generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long *nr_segs, loff_t pos,
-		size_t count, size_t ocount)
+generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
+		loff_t pos, size_t count, size_t ocount)
 {
 	struct file	*file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -2397,9 +2396,9 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	pgoff_t		end;
 
 	if (count != ocount)
-		*nr_segs = iov_shorten((struct iovec *)iov, *nr_segs, count);
+		from->nr_segs = iov_shorten((struct iovec *)from->iov, from->nr_segs, count);
 
-	write_len = iov_length(iov, *nr_segs);
+	write_len = iov_length(from->iov, from->nr_segs);
 	end = (pos + write_len - 1) >> PAGE_CACHE_SHIFT;
 
 	written = filemap_write_and_wait_range(mapping, pos, pos + write_len - 1);
@@ -2426,7 +2425,7 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		}
 	}
 
-	written = mapping->a_ops->direct_IO(WRITE, iocb, iov, pos, *nr_segs);
+	written = mapping->a_ops->direct_IO(WRITE, iocb, from->iov, pos, from->nr_segs);
 
 	/*
 	 * Finally, try again to invalidate clean pages which might have been
@@ -2443,6 +2442,7 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 
 	if (written > 0) {
 		pos += written;
+		iov_iter_advance(from, written);
 		if (pos > i_size_read(inode) && !S_ISBLK(inode->i_mode)) {
 			i_size_write(inode, pos);
 			mark_inode_dirty(inode);
@@ -2645,11 +2645,10 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (unlikely(file->f_flags & O_DIRECT)) {
 		loff_t endbyte;
 
-		written = generic_file_direct_write(iocb, iov, &from.nr_segs, pos,
+		written = generic_file_direct_write(iocb, &from, pos,
 							count, ocount);
 		if (written < 0 || written == count)
 			goto out;
-		iov_iter_advance(&from, written);
 
 		/*
 		 * direct-io write to a hole: fall through to buffered I/O
