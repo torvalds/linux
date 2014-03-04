@@ -13,22 +13,22 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/interrupt.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/io.h>
 #include <linux/clk.h>
-#include <linux/irq.h>
-#include <linux/err.h>
 #include <linux/clockchips.h>
-#include <linux/sh_timer.h>
-#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/sh_timer.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
 
 struct sh_mtu2_device;
 
