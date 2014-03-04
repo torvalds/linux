@@ -15,7 +15,7 @@ printk("%d..%s: =====test====\n", __LINE__, __FUNCTION__);
     mmc_debug(MMC_DBG_BOOT,"mmc,dma_ch: %d\n",rk_mmc_property->mmc_dma_chn);
     mmc_debug(MMC_DBG_BOOT,"=========rockchip mmc dts dump info end================\n");
     */
-      printk("=========rockchip mmc dts dump info start. 2014-02-27 V1.0==============\n");
+      printk("=========rockchip mmc dts dump info start==============\n");
     printk("mmc,caps: 0x%x\n",rk_mmc_property->mmc_caps);
     printk("mmc,ocr:  0x%x\n",rk_mmc_property->mmc_ocr);
     printk("mmc,int:  0x%x\n",rk_mmc_property->mmc_int_type);
