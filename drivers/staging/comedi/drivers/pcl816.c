@@ -64,10 +64,6 @@ Configuration Options:
 /* R: high byte of A/D W: A/D range control */
 #define PCL816_AD_HI 9
 
-/* type of interrupt handler */
-#define INT_TYPE_AI1_DMA 2
-#define INT_TYPE_AI3_DMA 5
-
 #define MAGIC_DMA_WORD 0x5a5a
 
 static const struct comedi_lrange range_pcl816 = {
@@ -113,7 +109,6 @@ struct pcl816_private {
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
-	int int816_mode;	/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
 	int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
@@ -344,8 +339,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
 
-	if (!dev->attached || !devpriv->ai_cmd_running ||
-	    !devpriv->int816_mode) {
+	if (!dev->attached || !devpriv->ai_cmd_running) {
 		outb(0, dev->iobase + PCL816_CLRINT);
 		return IRQ_HANDLED;
 	}
@@ -356,14 +350,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	switch (devpriv->int816_mode) {
-	case INT_TYPE_AI1_DMA:
-	case INT_TYPE_AI3_DMA:
-		return interrupt_pcl816_ai_mode13_dma(irq, d);
-	}
-
-	outb(0, dev->iobase + PCL816_CLRINT);
-	return IRQ_HANDLED;
+	return interrupt_pcl816_ai_mode13_dma(irq, d);
 }
 
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
@@ -476,8 +463,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:
-		devpriv->int816_mode = INT_TYPE_AI1_DMA;
-
 		/*  Pacer+IRQ+DMA */
 		outb(0x32, dev->iobase + PCL816_CONTROL);
 
@@ -486,8 +471,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 
 	default:
-		devpriv->int816_mode = INT_TYPE_AI3_DMA;
-
 		/*  Ext trig+IRQ+DMA */
 		outb(0x34, dev->iobase + PCL816_CONTROL);
 
@@ -549,34 +532,28 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	if (!devpriv->ai_cmd_running)
 		return 0;
 
-	switch (devpriv->int816_mode) {
-	case INT_TYPE_AI1_DMA:
-	case INT_TYPE_AI3_DMA:
-		disable_dma(devpriv->dma);
-		outb(inb(dev->iobase + PCL816_CONTROL) & 0x73,
-			dev->iobase + PCL816_CONTROL);	/* Stop A/D */
-		udelay(1);
-		outb(0, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
+	disable_dma(devpriv->dma);
+	outb(inb(dev->iobase + PCL816_CONTROL) & 0x73,
+	     dev->iobase + PCL816_CONTROL);	/* Stop A/D */
+	udelay(1);
+	outb(0, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
 
-		/* Stop pacer */
-		i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
-				2, I8254_MODE0 | I8254_BINARY);
-		i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
-				1, I8254_MODE0 | I8254_BINARY);
+	/* Stop pacer */
+	i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
+			2, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
+			1, I8254_MODE0 | I8254_BINARY);
 
-		outb(0, dev->iobase + PCL816_AD_LO);
-		pcl816_ai_get_sample(dev, s);
+	outb(0, dev->iobase + PCL816_AD_LO);
+	pcl816_ai_get_sample(dev, s);
 
-		/* clear INT request */
-		outb(0, dev->iobase + PCL816_CLRINT);
+	/* clear INT request */
+	outb(0, dev->iobase + PCL816_CLRINT);
 
-		/* Stop A/D */
-		outb(0, dev->iobase + PCL816_CONTROL);
-		devpriv->ai_cmd_running = 0;
-		devpriv->ai_cmd_canceled = 1;
-		devpriv->int816_mode = 0;
-		break;
-	}
+	/* Stop A/D */
+	outb(0, dev->iobase + PCL816_CONTROL);
+	devpriv->ai_cmd_running = 0;
+	devpriv->ai_cmd_canceled = 1;
 
 	return 0;
 }
