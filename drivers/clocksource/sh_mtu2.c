@@ -47,13 +47,13 @@ struct sh_mtu2_device {
 	void __iomem *mapbase;
 	struct clk *clk;
 
+	raw_spinlock_t lock; /* Protect the shared registers */
+
 	struct sh_mtu2_channel *channels;
 	unsigned int num_channels;
 
 	bool has_clockevent;
 };
-
-static DEFINE_RAW_SPINLOCK(sh_mtu2_lock);
 
 #define TSTR -1 /* shared register */
 #define TCR  0 /* channel register */
@@ -192,7 +192,7 @@ static void sh_mtu2_start_stop_ch(struct sh_mtu2_channel *ch, int start)
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
-	raw_spin_lock_irqsave(&sh_mtu2_lock, flags);
+	raw_spin_lock_irqsave(&ch->mtu->lock, flags);
 	value = sh_mtu2_read(ch, TSTR);
 
 	if (start)
@@ -201,7 +201,7 @@ static void sh_mtu2_start_stop_ch(struct sh_mtu2_channel *ch, int start)
 		value &= ~(1 << ch->index);
 
 	sh_mtu2_write(ch, TSTR, value);
-	raw_spin_unlock_irqrestore(&sh_mtu2_lock, flags);
+	raw_spin_unlock_irqrestore(&ch->mtu->lock, flags);
 }
 
 static int sh_mtu2_enable(struct sh_mtu2_channel *ch)
@@ -401,6 +401,8 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	int ret;
 
 	mtu->pdev = pdev;
+
+	raw_spin_lock_init(&mtu->lock);
 
 	/* Get hold of clock. */
 	mtu->clk = clk_get(&mtu->pdev->dev, "fck");
