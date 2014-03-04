@@ -1107,6 +1107,16 @@ static void pcl812_reset(struct comedi_device *dev)
 {
 	const struct pcl812_board *board = comedi_board(dev);
 	struct pcl812_private *devpriv = dev->private;
+	unsigned int chan;
+
+	/* disable analog input trigger */
+	outb(devpriv->mode_reg_int | PCL812_CTRL_DISABLE_TRIG,
+	     dev->iobase + PCL812_CTRL_REG);
+	pcl812_ai_clear_eoc(dev);
+
+	/* stop pacer */
+	if (board->IRQbits)
+		pcl812_start_pacer(dev, false);
 
 	/*
 	 * Invalidate last_ai_chanspec then set analog input to
@@ -1115,33 +1125,17 @@ static void pcl812_reset(struct comedi_device *dev)
 	devpriv->last_ai_chanspec = CR_PACK(16, 0, 0);
 	pcl812_ai_set_chan_range(dev, CR_PACK(0, 0, 0), 0);
 
-	switch (board->board_type) {
-	case boardPCL812PG:
-	case boardPCL812:
-	case boardACL8112:
-	case boardACL8216:
-		/* set analog output channel 1 to 0V */
-		outb(0, dev->iobase + PCL812_AO_LSB_REG(1));
-		outb(0, dev->iobase + PCL812_AO_MSB_REG(1));
-	case boardA821:
-		/* set analog output channel 0 to 0V */
-		outb(0, dev->iobase + PCL812_AO_LSB_REG(0));
-		outb(0, dev->iobase + PCL812_AO_MSB_REG(0));
-		pcl812_start_pacer(dev, false);
+	/* set analog output channels to 0V */
+	for (chan = 0; chan < board->n_aochan; chan++) {
+		outb(0, dev->iobase + PCL812_AO_LSB_REG(chan));
+		outb(0, dev->iobase + PCL812_AO_MSB_REG(chan));
+	}
+
+	/* set all digital outputs low */
+	if (board->has_dio) {
 		outb(0, dev->iobase + PCL812_DO_MSB_REG);
 		outb(0, dev->iobase + PCL812_DO_LSB_REG);
-		outb(devpriv->mode_reg_int | PCL812_CTRL_DISABLE_TRIG,
-		     dev->iobase + PCL812_CTRL_REG);
-		pcl812_ai_clear_eoc(dev);
-		break;
-	case boardPCL813B:
-	case boardPCL813:
-	case boardISO813:
-	case boardACL8113:
-		udelay(5);
-		break;
 	}
-	udelay(5);
 }
 
 static void pcl812_set_ai_range_table(struct comedi_device *dev,
