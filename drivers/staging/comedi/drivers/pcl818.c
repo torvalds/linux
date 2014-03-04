@@ -555,6 +555,28 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static bool pcl818_ai_dropout(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      unsigned int chan)
+{
+	struct pcl818_private *devpriv = dev->private;
+	unsigned int expected_chan;
+
+	expected_chan = devpriv->act_chanlist[devpriv->act_chanlist_pos];
+	if (chan != expected_chan) {
+		dev_dbg(dev->class_dev,
+			"A/D mode1/3 %s - channel dropout %d!=%d !\n",
+			(devpriv->dma) ? "DMA" :
+			(devpriv->usefifo) ? "FIFO" : "IRQ",
+			chan, expected_chan);
+		s->cancel(dev, s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev, s);
+		return true;
+	}
+	return false;
+}
+
 static bool pcl818_ai_next_chan(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
@@ -588,9 +610,9 @@ static bool pcl818_ai_next_chan(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int chan;
+	unsigned int val;
 
 	if (pcl818_ai_eoc(dev, s, NULL, 0)) {
 		outb(0, dev->iobase + PCL818_STATUS);	/* clear INT request */
@@ -601,19 +623,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	comedi_buf_put(s->async, pcl818_ai_get_sample(dev, s, &chan));
+	val = pcl818_ai_get_sample(dev, s, &chan);
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
-	if (chan != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {
-		dev_dbg(dev->class_dev,
-			"A/D mode1/3 IRQ - channel dropout %x!=%x !\n",
-			chan,
-			devpriv->act_chanlist[devpriv->act_chanlist_pos]);
-		s->cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s);
+	if (pcl818_ai_dropout(dev, s, chan))
 		return IRQ_HANDLED;
-	}
+
+	comedi_buf_put(s->async, val);
 
 	if (!pcl818_ai_next_chan(dev, s))
 		return IRQ_HANDLED;
@@ -627,8 +643,10 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	int i, len, bufptr;
 	unsigned short *ptr;
+	unsigned int chan;
+	unsigned int val;
+	int i, len, bufptr;
 
 	pcl818_ai_setup_next_dma(dev, s);
 
@@ -639,19 +657,14 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	bufptr = 0;
 
 	for (i = 0; i < len; i++) {
-		if ((ptr[bufptr] & 0xf) != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {	/*  dropout! */
-			dev_dbg(dev->class_dev,
-				"A/D mode1/3 DMA - channel dropout %d(card)!=%d(chanlist) at %d !\n",
-				(ptr[bufptr] & 0xf),
-				devpriv->act_chanlist[devpriv->act_chanlist_pos],
-				devpriv->act_chanlist_pos);
-			s->cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-			comedi_event(dev, s);
-			return IRQ_HANDLED;
-		}
+		val = ptr[bufptr++];
+		chan = val & 0xf;
+		val = (val >> 4) & s->maxdata;
 
-		comedi_buf_put(s->async, ptr[bufptr++] >> 4);	/*  get one sample */
+		if (pcl818_ai_dropout(dev, s, chan))
+			return IRQ_HANDLED;
+
+		comedi_buf_put(s->async, val);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			return IRQ_HANDLED;
@@ -665,7 +678,6 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
 	unsigned int chan;
@@ -699,16 +711,9 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 
 	for (i = 0; i < len; i++) {
 		val = pcl818_ai_get_fifo_sample(dev, s, &chan);
-		if (chan != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {
-			dev_dbg(dev->class_dev,
-				"A/D mode1/3 FIFO - channel dropout %d!=%d !\n",
-				chan,
-				devpriv->act_chanlist[devpriv->act_chanlist_pos]);
-			s->cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-			comedi_event(dev, s);
+
+		if (pcl818_ai_dropout(dev, s, chan))
 			return IRQ_HANDLED;
-		}
 
 		comedi_buf_put(s->async, val);
 
