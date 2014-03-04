@@ -1143,23 +1143,30 @@ static long TranslateToDbm8185(u8 SignalStrengthIndex)
 /*
  * Perform signal smoothing for dynamic mechanism.
  * This is different with PerformSignalSmoothing8185 in smoothing formula.
- * No dramatic adjustion is apply because dynamic mechanism need some degree
- * of correctness. Ported from 8187B.
+ * No dramatic adjustment is applied because dynamic mechanism need some
+ * degree of correctness. Ported from 8187B.
  */
 static void PerformUndecoratedSignalSmoothing8185(struct r8180_priv *priv,
 						  bool bCckRate)
 {
-	/* Determin the current packet is CCK rate. */
+	long smoothedSS;
+	long smoothedRx;
+
+	/* Determine the current packet is CCK rate. */
 	priv->bCurCCKPkt = bCckRate;
 
-	if (priv->UndecoratedSmoothedSS >= 0)
-		priv->UndecoratedSmoothedSS = ((priv->UndecoratedSmoothedSS * 5) +
-					       (priv->SignalStrength * 10)) / 6;
-	else
-		priv->UndecoratedSmoothedSS = priv->SignalStrength * 10;
+	smoothedSS = priv->SignalStrength * 10;
 
-	priv->UndercorateSmoothedRxPower = ((priv->UndercorateSmoothedRxPower * 50) +
-					    (priv->RxPower * 11)) / 60;
+	if (priv->UndecoratedSmoothedSS >= 0)
+		smoothedSS = ((priv->UndecoratedSmoothedSS * 5) +
+				smoothedSS) / 6;
+
+	priv->UndecoratedSmoothedSS = smoothedSS;
+
+	smoothedRx = ((priv->UndecoratedSmoothedRxPower * 50) +
+			(priv->RxPower * 11)) / 60;
+
+	priv->UndecoratedSmoothedRxPower = smoothedRx;
 
 	if (bCckRate)
 		priv->CurCCKRSSI = priv->RSSI;
@@ -1399,8 +1406,8 @@ static void rtl8180_rx(struct net_device *dev)
 
 			/* For good-looking singal strength. */
 			SignalStrengthIndex = NetgearSignalStrengthTranslate(
-							priv->LastSignalStrengthInPercent,
-							priv->SignalStrength);
+				priv->LastSignalStrengthInPercent,
+				priv->SignalStrength);
 
 			priv->LastSignalStrengthInPercent = SignalStrengthIndex;
 			priv->Stats_SignalStrength = TranslateToDbm8185((u8)SignalStrengthIndex);

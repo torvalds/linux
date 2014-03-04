@@ -586,7 +586,7 @@ typedef struct r8180_priv {
 	/* High Power Mechanism. Added by amy, 080312. */
 	bool bToUpdateTxPwr;
 	long UndecoratedSmoothedSS;
-	long UndercorateSmoothedRxPower;
+	long UndecoratedSmoothedRxPower;
 	u8 RSSI;
 	char RxPower;
 	u8 InitialGain;
