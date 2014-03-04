@@ -5310,6 +5310,13 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void reset_vblank_counter(struct drm_device *dev, enum pipe pipe)
+{
+	assert_spin_locked(&dev->vbl_lock);
+
+	dev->vblank[pipe].last = 0;
+}
+
 static void hsw_power_well_post_disable(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -5326,7 +5333,7 @@ static void hsw_power_well_post_disable(struct drm_i915_private *dev_priv)
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	for_each_pipe(pipe)
 		if (pipe != PIPE_A)
-			dev->vblank[pipe].last = 0;
+			reset_vblank_counter(dev, pipe);
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 
