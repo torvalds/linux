@@ -119,9 +119,9 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define boardPCL818 4
 #define boardPCL718 5
 
-/* W: counter enable */
-#define PCL818_CNTENABLE 10
-
+/*
+ * Register I/O map
+ */
 #define PCL818_AI_LSB_REG			0x00
 #define PCL818_AI_MSB_REG			0x01
 #define PCL818_RANGE_REG			0x01
@@ -144,6 +144,11 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define PCL818_CTRL_DMAE			(1 << 2)
 #define PCL818_CTRL_IRQ(x)			((x) << 4)
 #define PCL818_CTRL_INTE			(1 << 7)
+#define PCL818_CNTENABLE_REG			0x0a
+#define PCL818_CNTENABLE_PACER_ENA		(0 << 0)
+#define PCL818_CNTENABLE_PACER_TRIG0		(1 << 0)
+#define PCL818_CNTENABLE_CNT0_EXT_CLK		(0 << 1)
+#define PCL818_CNTENABLE_CNT0_INT_CLK		(1 << 1)
 #define PCL818_DO_DI_MSB_REG			0x0b
 #define PCL818_TIMER_BASE			0x0c
 
@@ -844,7 +849,7 @@ static int pcl818_ai_cmd(struct comedi_device *dev,
 	else
 		ctrl |= PCL818_CTRL_EXT_TRIG;
 
-	outb(0, dev->iobase + PCL818_CNTENABLE);	/* enable pacer */
+	outb(PCL818_CNTENABLE_PACER_ENA, dev->iobase + PCL818_CNTENABLE_REG);
 
 	if (devpriv->dma) {
 		pcl818_ai_setup_dma(dev, s);
@@ -1014,7 +1019,7 @@ static void pcl818_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL818_DO_DI_LSB_REG);
 	udelay(1);
 	outb(PCL818_CTRL_DISABLE_TRIG, dev->iobase + PCL818_CTRL_REG);
-	outb(0, dev->iobase + PCL818_CNTENABLE);
+	outb(PCL818_CNTENABLE_PACER_ENA, dev->iobase + PCL818_CNTENABLE_REG);
 	outb(0, dev->iobase + PCL818_MUX_REG);
 	pcl818_ai_clear_eoc(dev);
 
