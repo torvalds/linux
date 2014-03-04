@@ -516,6 +516,17 @@ static struct em28xx_led speedlink_vad_laplace_leds[] = {
 	{-1, 0, 0, 0},
 };
 
+static struct em28xx_led kworld_ub435q_v3_leds[] = {
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = 0x80,
+		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
+
 /*
  *  Board definitions
  */
@@ -2159,6 +2170,7 @@ struct em28xx_board em28xx_boards[] = {
 		.def_i2c_bus	= 1,
 		.i2c_speed      = EM28XX_I2C_CLK_WAIT_ENABLE |
 				  EM28XX_I2C_FREQ_100_KHZ,
+		.leds = kworld_ub435q_v3_leds,
 	},
 	[EM2874_BOARD_PCTV_HD_MINI_80E] = {
 		.name         = "Pinnacle PCTV HD Mini",
