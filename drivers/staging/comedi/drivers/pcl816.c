@@ -47,6 +47,8 @@ Configuration Options:
 #define PCL816_DO_DI_LSB_REG			0x00
 #define PCL816_DO_DI_MSB_REG			0x01
 #define PCL816_TIMER_BASE			0x04
+#define PCL816_AI_LSB_REG			0x08
+#define PCL816_AI_MSB_REG			0x09
 
 /* R: A/D high byte W: A/D range control */
 #define PCL816_RANGE 9
@@ -60,11 +62,6 @@ Configuration Options:
 /* R: return status byte  W: set DMA/IRQ */
 #define PCL816_STATUS 13
 #define PCL816_STATUS_DRDY_MASK 0x80
-
-/* R: low byte of A/D W: soft A/D trigger */
-#define PCL816_AD_LO 8
-/* R: high byte of A/D W: A/D range control */
-#define PCL816_AD_HI 9
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -217,7 +214,7 @@ static void pcl816_ai_clear_eoc(struct comedi_device *dev)
 static void pcl816_ai_soft_trig(struct comedi_device *dev)
 {
 	/* writing any value triggers a software conversion */
-	outb(0, dev->iobase + PCL816_AD_LO);
+	outb(0, dev->iobase + PCL816_AI_LSB_REG);
 }
 
 static unsigned int pcl816_ai_get_sample(struct comedi_device *dev,
@@ -225,8 +222,8 @@ static unsigned int pcl816_ai_get_sample(struct comedi_device *dev,
 {
 	unsigned int val;
 
-	val = inb(dev->iobase + PCL816_AD_HI) << 8;
-	val |= inb(dev->iobase + PCL816_AD_LO);
+	val = inb(dev->iobase + PCL816_AI_MSB_REG) << 8;
+	val |= inb(dev->iobase + PCL816_AI_LSB_REG);
 
 	return val & s->maxdata;
 }
