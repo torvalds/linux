@@ -260,6 +260,21 @@ int omap3xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 ignore_bits)
 }
 
 /**
+ * omap3_prm_reset_modem - toggle reset signal for modem
+ *
+ * Toggles the reset signal to modem IP block. Required to allow
+ * OMAP3430 without stacked modem to idle properly.
+ */
+void __init omap3_prm_reset_modem(void)
+{
+	omap2_prm_write_mod_reg(
+		OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RSTPWRON_MASK |
+		OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RST_MASK,
+				CORE_MOD, OMAP2_RM_RSTCTRL);
+	omap2_prm_write_mod_reg(0, CORE_MOD, OMAP2_RM_RSTCTRL);
+}
+
+/**
  * omap3xxx_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
  *
  * Clear any previously-latched I/O wakeup events and ensure that the
