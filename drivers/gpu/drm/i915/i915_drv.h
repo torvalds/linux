@@ -1014,6 +1014,36 @@ struct intel_ilk_power_mgmt {
 	struct drm_i915_gem_object *renderctx;
 };
 
+struct drm_i915_private;
+struct i915_power_well;
+
+struct i915_power_well_ops {
+	/*
+	 * Synchronize the well's hw state to match the current sw state, for
+	 * example enable/disable it based on the current refcount. Called
+	 * during driver init and resume time, possibly after first calling
+	 * the enable/disable handlers.
+	 */
+	void (*sync_hw)(struct drm_i915_private *dev_priv,
+			struct i915_power_well *power_well);
+	/*
+	 * Enable the well and resources that depend on it (for example
+	 * interrupts located on the well). Called after the 0->1 refcount
+	 * transition.
+	 */
+	void (*enable)(struct drm_i915_private *dev_priv,
+		       struct i915_power_well *power_well);
+	/*
+	 * Disable the well and resources that depend on it. Called after
+	 * the 1->0 refcount transition.
+	 */
+	void (*disable)(struct drm_i915_private *dev_priv,
+			struct i915_power_well *power_well);
+	/* Returns the hw enabled state. */
+	bool (*is_enabled)(struct drm_i915_private *dev_priv,
+			   struct i915_power_well *power_well);
+};
+
 /* Power well structure for haswell */
 struct i915_power_well {
 	const char *name;
@@ -1022,10 +1052,7 @@ struct i915_power_well {
 	int count;
 	unsigned long domains;
 	void *data;
-	void (*set)(struct drm_i915_private *dev_priv, struct i915_power_well *power_well,
-		    bool enable);
-	bool (*is_enabled)(struct drm_i915_private *dev_priv,
-			   struct i915_power_well *power_well);
+	const struct i915_power_well_ops *ops;
 };
 
 struct i915_power_domains {

@@ -5258,7 +5258,7 @@ bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
 		if (power_well->always_on)
 			continue;
 
-		if (!power_well->is_enabled(dev_priv, power_well)) {
+		if (!power_well->ops->is_enabled(dev_priv, power_well)) {
 			is_enabled = false;
 			break;
 		}
@@ -5366,6 +5366,33 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
+				   struct i915_power_well *power_well)
+{
+	hsw_set_power_well(dev_priv, power_well, power_well->count > 0);
+
+	/*
+	 * We're taking over the BIOS, so clear any requests made by it since
+	 * the driver is in charge now.
+	 */
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
+		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
+}
+
+static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
+				  struct i915_power_well *power_well)
+{
+	hsw_disable_package_c8(dev_priv);
+	hsw_set_power_well(dev_priv, power_well, true);
+}
+
+static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
+				   struct i915_power_well *power_well)
+{
+	hsw_set_power_well(dev_priv, power_well, false);
+	hsw_enable_package_c8(dev_priv);
+}
+
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
@@ -5378,10 +5405,8 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 	mutex_lock(&power_domains->lock);
 
 	for_each_power_well(i, power_well, BIT(domain), power_domains)
-		if (!power_well->count++ && power_well->set) {
-			hsw_disable_package_c8(dev_priv);
-			power_well->set(dev_priv, power_well, true);
-		}
+		if (!power_well->count++ && power_well->ops->enable)
+			power_well->ops->enable(dev_priv, power_well);
 
 	power_domains->domain_use_count[domain]++;
 
@@ -5405,11 +5430,9 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
 		WARN_ON(!power_well->count);
 
-		if (!--power_well->count && power_well->set &&
-				i915.disable_power_well) {
-			power_well->set(dev_priv, power_well, false);
-			hsw_enable_package_c8(dev_priv);
-		}
+		if (!--power_well->count && power_well->ops->disable &&
+		    i915.disable_power_well)
+			power_well->ops->disable(dev_priv, power_well);
 	}
 
 	mutex_unlock(&power_domains->lock);
@@ -5462,12 +5485,22 @@ EXPORT_SYMBOL_GPL(i915_release_power_well);
 	(POWER_DOMAIN_MASK & ~BDW_ALWAYS_ON_POWER_DOMAINS) |	\
 	BIT(POWER_DOMAIN_INIT))
 
+static const struct i915_power_well_ops i9xx_always_on_power_well_ops = { };
+
 static struct i915_power_well i9xx_always_on_power_well[] = {
 	{
 		.name = "always-on",
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
+		.ops = &i9xx_always_on_power_well_ops,
 	},
+};
+
+static const struct i915_power_well_ops hsw_power_well_ops = {
+	.sync_hw = hsw_power_well_sync_hw,
+	.enable = hsw_power_well_enable,
+	.disable = hsw_power_well_disable,
+	.is_enabled = hsw_power_well_enabled,
 };
 
 static struct i915_power_well hsw_power_wells[] = {
@@ -5475,12 +5508,12 @@ static struct i915_power_well hsw_power_wells[] = {
 		.name = "always-on",
 		.always_on = 1,
 		.domains = HSW_ALWAYS_ON_POWER_DOMAINS,
+		.ops = &i9xx_always_on_power_well_ops,
 	},
 	{
 		.name = "display",
 		.domains = HSW_DISPLAY_POWER_DOMAINS,
-		.is_enabled = hsw_power_well_enabled,
-		.set = hsw_set_power_well,
+		.ops = &hsw_power_well_ops,
 	},
 };
 
@@ -5489,12 +5522,12 @@ static struct i915_power_well bdw_power_wells[] = {
 		.name = "always-on",
 		.always_on = 1,
 		.domains = BDW_ALWAYS_ON_POWER_DOMAINS,
+		.ops = &i9xx_always_on_power_well_ops,
 	},
 	{
 		.name = "display",
 		.domains = BDW_DISPLAY_POWER_DOMAINS,
-		.is_enabled = hsw_power_well_enabled,
-		.set = hsw_set_power_well,
+		.ops = &hsw_power_well_ops,
 	},
 };
 
@@ -5539,8 +5572,8 @@ static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&power_domains->lock);
 	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
-		if (power_well->set)
-			power_well->set(dev_priv, power_well, power_well->count > 0);
+		if (power_well->ops->sync_hw)
+			power_well->ops->sync_hw(dev_priv, power_well);
 	}
 	mutex_unlock(&power_domains->lock);
 }
@@ -5550,14 +5583,6 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev_priv, true);
 	intel_power_domains_resume(dev_priv);
-
-	if (!(IS_HASWELL(dev_priv->dev) || IS_BROADWELL(dev_priv->dev)))
-		return;
-
-	/* We're taking over the BIOS, so clear any requests made by it since
-	 * the driver is in charge now. */
-	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
-		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
 }
 
 /* Disables PC8 so we can use the GMBUS and DP AUX interrupts. */
