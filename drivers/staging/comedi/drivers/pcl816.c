@@ -208,6 +208,12 @@ static void pcl816_ai_setup_next_dma(struct comedi_device *dev,
 	devpriv->dma_runs_to_end--;
 }
 
+static void pcl816_ai_clear_eoc(struct comedi_device *dev)
+{
+	/* writing any value clears the interrupt request */
+	outb(0, dev->iobase + PCL816_CLRINT);
+}
+
 static unsigned int pcl816_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
@@ -283,13 +289,13 @@ static irqreturn_t pcl816_interrupt(int irq, void *d)
 	unsigned int len;
 
 	if (!dev->attached || !devpriv->ai_cmd_running) {
-		outb(0, dev->iobase + PCL816_CLRINT);
+		pcl816_ai_clear_eoc(dev);
 		return IRQ_HANDLED;
 	}
 
 	if (devpriv->ai_cmd_canceled) {
 		devpriv->ai_cmd_canceled = 0;
-		outb(0, dev->iobase + PCL816_CLRINT);
+		pcl816_ai_clear_eoc(dev);
 		return IRQ_HANDLED;
 	}
 
@@ -303,7 +309,7 @@ static irqreturn_t pcl816_interrupt(int irq, void *d)
 
 	transfer_from_dma_buf(dev, s, ptr, bufptr, len);
 
-	outb(0, dev->iobase + PCL816_CLRINT);
+	pcl816_ai_clear_eoc(dev);
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -505,8 +511,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	outb(0, dev->iobase + PCL816_AD_LO);
 	pcl816_ai_get_sample(dev, s);
 
-	/* clear INT request */
-	outb(0, dev->iobase + PCL816_CLRINT);
+	pcl816_ai_clear_eoc(dev);
 
 	/* Stop A/D */
 	outb(0, dev->iobase + PCL816_CONTROL);
@@ -613,8 +618,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 	outb(range, dev->iobase + PCL816_RANGE);
 
 	for (i = 0; i < insn->n; i++) {
-		/* clear INT (conversion end) flag */
-		outb(0, dev->iobase + PCL816_CLRINT);
+		pcl816_ai_clear_eoc(dev);
 		/* start conversion */
 		outb(0, dev->iobase + PCL816_AD_LO);
 
@@ -624,8 +628,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 
 		data[i] = pcl816_ai_get_sample(dev, s);
 	}
-	/* clear INT (conversion end) flag */
-	outb(0, dev->iobase + PCL816_CLRINT);
+	pcl816_ai_clear_eoc(dev);
 
 	return ret ? ret : insn->n;
 }
@@ -662,7 +665,7 @@ static void pcl816_reset(struct comedi_device *dev)
 
 	outb(0, dev->iobase + PCL816_CONTROL);
 	outb(0, dev->iobase + PCL816_MUX);
-	outb(0, dev->iobase + PCL816_CLRINT);
+	pcl816_ai_clear_eoc(dev);
 
 	/* Stop pacer */
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
