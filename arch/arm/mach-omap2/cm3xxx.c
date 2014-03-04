@@ -18,9 +18,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "soc.h"
-#include "iomap.h"
-#include "common.h"
 #include "prm2xxx_3xxx.h"
 #include "cm.h"
 #include "cm3xxx.h"
@@ -673,19 +670,11 @@ static struct cm_ll_data omap3xxx_cm_ll_data = {
 
 int __init omap3xxx_cm_init(void)
 {
-	if (!cpu_is_omap34xx())
-		return 0;
-
 	return cm_register(&omap3xxx_cm_ll_data);
 }
 
 static void __exit omap3xxx_cm_exit(void)
 {
-	if (!cpu_is_omap34xx())
-		return;
-
-	/* Should never happen */
-	WARN(cm_unregister(&omap3xxx_cm_ll_data),
-	     "%s: cm_ll_data function pointer mismatch\n", __func__);
+	cm_unregister(&omap3xxx_cm_ll_data);
 }
 __exitcall(omap3xxx_cm_exit);
