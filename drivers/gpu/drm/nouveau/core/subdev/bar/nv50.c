@@ -231,7 +231,7 @@ static int
 nv50_bar_init(struct nouveau_object *object)
 {
 	struct nv50_bar_priv *priv = (void *)object;
-	int ret;
+	int ret, i;
 
 	ret = nouveau_bar_init(&priv->base);
 	if (ret)
@@ -249,6 +249,8 @@ nv50_bar_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x001704, 0x40000000 | priv->mem->addr >> 12);
 	nv_wr32(priv, 0x001708, 0x80000000 | priv->bar1->node->offset >> 4);
 	nv_wr32(priv, 0x00170c, 0x80000000 | priv->bar3->node->offset >> 4);
+	for (i = 0; i < 8; i++)
+		nv_wr32(priv, 0x001900 + (i * 4), 0x00000000);
 	return 0;
 }
 
