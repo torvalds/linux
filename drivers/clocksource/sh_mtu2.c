@@ -23,6 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -500,11 +501,18 @@ static const struct platform_device_id sh_mtu2_id_table[] = {
 };
 MODULE_DEVICE_TABLE(platform, sh_mtu2_id_table);
 
+static const struct of_device_id sh_mtu2_of_table[] __maybe_unused = {
+	{ .compatible = "renesas,mtu2" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sh_mtu2_of_table);
+
 static struct platform_driver sh_mtu2_device_driver = {
 	.probe		= sh_mtu2_probe,
 	.remove		= sh_mtu2_remove,
 	.driver		= {
 		.name	= "sh_mtu2",
+		.of_match_table = of_match_ptr(sh_mtu2_of_table),
 	},
 	.id_table	= sh_mtu2_id_table,
 };
