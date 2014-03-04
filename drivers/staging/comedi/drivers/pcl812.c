@@ -133,11 +133,9 @@
 
 #define PCL812_TIMER_BASE			0x00
 #define PCL812_AD_LO	      4
-#define PCL812_DA1_LO	      4
 #define PCL812_AD_HI	      5
-#define PCL812_DA1_HI	      5
-#define PCL812_DA2_LO	      6
-#define PCL812_DA2_HI	      7
+#define PCL812_AO_LSB_REG(x)			(0x04 + ((x) * 2))
+#define PCL812_AO_MSB_REG(x)			(0x05 + ((x) * 2))
 #define PCL812_DI_LSB_REG			0x06
 #define PCL812_DI_MSB_REG			0x07
 #define PCL812_CLRINT	      8
@@ -697,39 +695,6 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 	return ret ? ret : n;
 }
 
-static int pcl812_ao_insn_write(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcl812_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++) {
-		outb((data[i] & 0xff),
-		     dev->iobase + (chan ? PCL812_DA2_LO : PCL812_DA1_LO));
-		outb((data[i] >> 8) & 0x0f,
-		     dev->iobase + (chan ? PCL812_DA2_HI : PCL812_DA1_HI));
-		devpriv->ao_readback[chan] = data[i];
-	}
-
-	return i;
-}
-
-static int pcl812_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcl812_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
-}
-
 static int pcl812_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -1068,6 +1033,41 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int pcl812_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	struct pcl812_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		outb((data[i] & 0xff),
+		     dev->iobase + PCL812_AO_LSB_REG(chan));
+		outb((data[i] >> 8) & 0x0f,
+		     dev->iobase + PCL812_AO_MSB_REG(chan));
+		devpriv->ao_readback[chan] = data[i];
+	}
+
+	return insn->n;
+}
+
+static int pcl812_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	struct pcl812_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
+
+	return insn->n;
+}
+
 static int pcl812_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -1109,11 +1109,13 @@ static void pcl812_reset(struct comedi_device *dev)
 	case boardPCL812:
 	case boardACL8112:
 	case boardACL8216:
-		outb(0, dev->iobase + PCL812_DA2_LO);
-		outb(0, dev->iobase + PCL812_DA2_HI);
+		/* set analog output channel 1 to 0V */
+		outb(0, dev->iobase + PCL812_AO_LSB_REG(1));
+		outb(0, dev->iobase + PCL812_AO_MSB_REG(1));
 	case boardA821:
-		outb(0, dev->iobase + PCL812_DA1_LO);
-		outb(0, dev->iobase + PCL812_DA1_HI);
+		/* set analog output channel 0 to 0V */
+		outb(0, dev->iobase + PCL812_AO_LSB_REG(0));
+		outb(0, dev->iobase + PCL812_AO_MSB_REG(0));
 		pcl812_start_pacer(dev, false);
 		outb(0, dev->iobase + PCL812_DO_MSB_REG);
 		outb(0, dev->iobase + PCL812_DO_LSB_REG);
@@ -1331,13 +1333,13 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* analog output */
 	if (board->n_aochan > 0) {
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = board->n_aochan;
-		s->maxdata = 0xfff;
-		s->range_table = &range_unipolar5;
-		s->insn_read = pcl812_ao_insn_read;
-		s->insn_write = pcl812_ao_insn_write;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
+		s->n_chan	= board->n_aochan;
+		s->maxdata	= 0xfff;
+		s->range_table	= &range_unipolar5;
+		s->insn_read	= pcl812_ao_insn_read;
+		s->insn_write	= pcl812_ao_insn_write;
 		switch (board->board_type) {
 		case boardA821:
 			if (it->options[3] == 1)
