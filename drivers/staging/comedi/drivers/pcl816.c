@@ -344,8 +344,8 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
 
-	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+	if (!dev->attached || !devpriv->ai_cmd_running ||
+	    !devpriv->int816_mode) {
 		outb(0, dev->iobase + PCL816_CLRINT);
 		return IRQ_HANDLED;
 	}
@@ -362,13 +362,8 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 		return interrupt_pcl816_ai_mode13_dma(irq, d);
 	}
 
-	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-	if (!devpriv->ai_cmd_running || !devpriv->int816_mode) {
-		comedi_error(dev, "bad IRQ!");
-		return IRQ_NONE;
-	}
-	comedi_error(dev, "IRQ from unknown source!");
-	return IRQ_NONE;
+	outb(0, dev->iobase + PCL816_CLRINT);
+	return IRQ_HANDLED;
 }
 
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
