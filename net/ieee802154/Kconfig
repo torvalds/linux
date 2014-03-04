@@ -15,7 +15,7 @@ config IEEE802154_6LOWPAN
 	depends on IEEE802154 && IPV6
 	select 6LOWPAN_IPHC
 	---help---
-	IPv6 compression over IEEE 802.15.4.
+	  IPv6 compression over IEEE 802.15.4.
 
 config 6LOWPAN_IPHC
 	tristate
