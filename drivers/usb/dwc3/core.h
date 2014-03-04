@@ -872,6 +872,19 @@ union dwc3_event {
 	struct dwc3_event_gevt		gevt;
 };
 
+/**
+ * struct dwc3_gadget_ep_cmd_params - representation of endpoint command
+ * parameters
+ * @param2: third parameter
+ * @param1: second parameter
+ * @param0: first parameter
+ */
+struct dwc3_gadget_ep_cmd_params {
+	u32	param2;
+	u32	param1;
+	u32	param0;
+};
+
 /*
  * DWC3 Features to be used as Driver Data
  */
@@ -897,11 +910,31 @@ static inline void dwc3_host_exit(struct dwc3 *dwc)
 #if IS_ENABLED(CONFIG_USB_DWC3_GADGET) || IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)
 int dwc3_gadget_init(struct dwc3 *dwc);
 void dwc3_gadget_exit(struct dwc3 *dwc);
+int dwc3_gadget_set_test_mode(struct dwc3 *dwc, int mode);
+int dwc3_gadget_get_link_state(struct dwc3 *dwc);
+int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state);
+int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
+		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params);
+int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param);
 #else
 static inline int dwc3_gadget_init(struct dwc3 *dwc)
 { return 0; }
 static inline void dwc3_gadget_exit(struct dwc3 *dwc)
 { }
+static inline int dwc3_gadget_set_test_mode(struct dwc3 *dwc, int mode)
+{ return 0; }
+static inline int dwc3_gadget_get_link_state(struct dwc3 *dwc)
+{ return 0; }
+static inline int dwc3_gadget_set_link_state(struct dwc3 *dwc,
+		enum dwc3_link_state state)
+{ return 0; }
+
+static inline int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
+		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
+{ return 0; }
+static inline int dwc3_send_gadget_generic_command(struct dwc3 *dwc,
+		int cmd, u32 param)
+{ return 0; }
 #endif
 
 /* power management interface */
