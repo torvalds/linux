@@ -3035,17 +3035,9 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 
 	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
 	enable_mask |= I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 
-	/*
-	 *Leave vblank interrupts masked initially.  enable/disable will
-	 * toggle them based on usage.
-	 */
-	dev_priv->irq_mask = (~enable_mask) |
-		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
-		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+	dev_priv->irq_mask = ~enable_mask;
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
