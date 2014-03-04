@@ -64,3 +64,4 @@ obj-$(CONFIG_DGAP)			+= dgap/
 obj-$(CONFIG_MTD_SPINAND_MT29F)	+= mt29f_spinand/
 obj-$(CONFIG_GS_FPGABOOT)	+= gs_fpgaboot/
 obj-$(CONFIG_BT_NOKIA_H4P)	+= nokia_h4p/
+obj-$(CONFIG_UNISYSSPAR)	+= unisys/
