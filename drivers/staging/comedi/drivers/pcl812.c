@@ -637,6 +637,12 @@ static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
 	enable_dma(devpriv->dma);
 }
 
+static void pcl812_ai_clear_eoc(struct comedi_device *dev)
+{
+	/* writing any value clears the interrupt request */
+	outb(0, dev->iobase + PCL812_CLRINT);
+}
+
 static unsigned int pcl812_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
@@ -889,7 +895,7 @@ static irqreturn_t pcl812_interrupt(int irq, void *d)
 	struct pcl812_private *devpriv = dev->private;
 
 	if (!dev->attached) {
-		outb(0, dev->iobase + PCL812_CLRINT);
+		pcl812_ai_clear_eoc(dev);
 		return IRQ_HANDLED;
 	}
 
@@ -898,7 +904,7 @@ static irqreturn_t pcl812_interrupt(int irq, void *d)
 	else
 		pcl812_handle_eoc(dev, s);
 
-	outb(0, dev->iobase + PCL812_CLRINT);
+	pcl812_ai_clear_eoc(dev);
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -997,11 +1003,11 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 
 	if (devpriv->ai_dma)
 		disable_dma(devpriv->dma);
-	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
-							/* Stop A/D */
+
+	/* Stop A/D */
 	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
 	pcl812_start_pacer(dev, false);
-	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
+	pcl812_ai_clear_eoc(dev);
 	return 0;
 }
 
@@ -1021,8 +1027,7 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 	setup_range_channel(dev, s, insn->chanspec, 1);
 
 	for (i = 0; i < insn->n; i++) {
-		/* clear INT request */
-		outb(0, dev->iobase + PCL812_CLRINT);
+		pcl812_ai_clear_eoc(dev);
 		/* start conversion */
 		outb(255, dev->iobase + PCL812_SOFTTRIG);
 
@@ -1032,9 +1037,8 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 
 		data[i] = pcl812_ai_get_sample(dev, s);
 	}
-	/* clear INT request */
-	outb(0, dev->iobase + PCL812_CLRINT);
 	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
+	pcl812_ai_clear_eoc(dev);
 
 	return ret ? ret : insn->n;
 }
@@ -1126,7 +1130,7 @@ static void pcl812_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCL812_DO_MSB_REG);
 		outb(0, dev->iobase + PCL812_DO_LSB_REG);
 		outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
-		outb(0, dev->iobase + PCL812_CLRINT);
+		pcl812_ai_clear_eoc(dev);
 		break;
 	case boardPCL813B:
 	case boardPCL813:
