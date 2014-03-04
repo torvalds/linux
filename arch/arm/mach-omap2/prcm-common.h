@@ -429,6 +429,26 @@
 # ifndef __ASSEMBLER__
 
 /**
+ * omap_test_timeout - busy-loop, testing a condition
+ * @cond: condition to test until it evaluates to true
+ * @timeout: maximum number of microseconds in the timeout
+ * @index: loop index (integer)
+ *
+ * Loop waiting for @cond to become true or until at least @timeout
+ * microseconds have passed.  To use, define some integer @index in the
+ * calling code.  After running, if @index == @timeout, then the loop has
+ * timed out.
+ */
+#define omap_test_timeout(cond, timeout, index)			\
+({								\
+	for (index = 0; index < timeout; index++) {		\
+		if (cond)					\
+			break;					\
+		udelay(1);					\
+	}							\
+})
+
+/**
  * struct omap_prcm_irq - describes a PRCM interrupt bit
  * @name: a short name describing the interrupt type, e.g. "wkup" or "io"
  * @offset: the bit shift of the interrupt inside the IRQ{ENABLE,STATUS} regs
