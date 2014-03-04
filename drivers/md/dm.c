@@ -753,7 +753,7 @@ static void dec_pending(struct dm_io *io, int error)
 static void clone_endio(struct bio *bio, int error)
 {
 	int r = 0;
-	struct dm_target_io *tio = bio->bi_private;
+	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
@@ -787,7 +787,8 @@ static void clone_endio(struct bio *bio, int error)
  */
 static void end_clone_bio(struct bio *clone, int error)
 {
-	struct dm_rq_clone_bio_info *info = clone->bi_private;
+	struct dm_rq_clone_bio_info *info =
+		container_of(clone, struct dm_rq_clone_bio_info, clone);
 	struct dm_rq_target_io *tio = info->tio;
 	struct bio *bio = info->orig;
 	unsigned int nr_bytes = info->orig->bi_iter.bi_size;
@@ -1113,7 +1114,6 @@ static void __map_bio(struct dm_target_io *tio)
 	struct dm_target *ti = tio->ti;
 
 	clone->bi_end_io = clone_endio;
-	clone->bi_private = tio;
 
 	/*
 	 * Map the clone.  If r == 0 we don't need to do
@@ -1522,7 +1522,6 @@ static int dm_rq_bio_constructor(struct bio *bio, struct bio *bio_orig,
 	info->orig = bio_orig;
 	info->tio = tio;
 	bio->bi_end_io = end_clone_bio;
-	bio->bi_private = info;
 
 	return 0;
 }
