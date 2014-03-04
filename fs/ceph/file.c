@@ -828,12 +828,8 @@ again:
 		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
 		     ceph_cap_string(got));
 
-		if (!read) {
-			ret = generic_segment_checks(iov, &nr_segs,
-							&len, VERIFY_WRITE);
-			if (ret)
-				goto out;
-		}
+		if (!read)
+			len = iov_length(iov, nr_segs);
 
 		iov_iter_init(&i, iov, nr_segs, len, read);
 
@@ -855,7 +851,6 @@ again:
 
 		ret = generic_file_aio_read(iocb, iov, nr_segs, pos);
 	}
-out:
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
 	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);
 	ceph_put_cap_refs(ci, got);
@@ -911,9 +906,7 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	mutex_lock(&inode->i_mutex);
 
-	err = generic_segment_checks(iov, &nr_segs, &count, VERIFY_READ);
-	if (err)
-		goto out;
+	count = iov_length(iov, nr_segs);
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = file->f_mapping->backing_dev_info;

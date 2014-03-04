@@ -1208,12 +1208,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	WARN_ON(iocb->ki_pos != pos);
 
-	ocount = 0;
-	err = generic_segment_checks(iov, &nr_segs, &ocount, VERIFY_READ);
-	if (err)
-		return err;
-
-	count = ocount;
+	count = ocount = iov_length(iov, nr_segs);
 	mutex_lock(&inode->i_mutex);
 
 	/* We can write back this queue in page reclaim */

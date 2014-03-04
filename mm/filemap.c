@@ -1663,45 +1663,6 @@ out:
 	return written ? written : error;
 }
 
-/*
- * Performs necessary checks before doing a write
- * @iov:	io vector request
- * @nr_segs:	number of segments in the iovec
- * @count:	number of bytes to write
- * @access_flags: type of access: %VERIFY_READ or %VERIFY_WRITE
- *
- * Adjust number of segments and amount of bytes to write (nr_segs should be
- * properly initialized first). Returns appropriate error code that caller
- * should return or zero in case that write should be allowed.
- */
-int generic_segment_checks(const struct iovec *iov,
-			unsigned long *nr_segs, size_t *count, int access_flags)
-{
-	unsigned long   seg;
-	size_t cnt = 0;
-	for (seg = 0; seg < *nr_segs; seg++) {
-		const struct iovec *iv = &iov[seg];
-
-		/*
-		 * If any segment has a negative length, or the cumulative
-		 * length ever wraps negative then return -EINVAL.
-		 */
-		cnt += iv->iov_len;
-		if (unlikely((ssize_t)(cnt|iv->iov_len) < 0))
-			return -EINVAL;
-		if (access_ok(access_flags, iv->iov_base, iv->iov_len))
-			continue;
-		if (seg == 0)
-			return -EFAULT;
-		*nr_segs = seg;
-		cnt -= iv->iov_len;	/* This segment is no good */
-		break;
-	}
-	*count = cnt;
-	return 0;
-}
-EXPORT_SYMBOL(generic_segment_checks);
-
 /**
  * generic_file_aio_read - generic filesystem read routine
  * @iocb:	kernel I/O control block
@@ -1717,15 +1678,12 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
 	struct file *filp = iocb->ki_filp;
-	ssize_t retval;
+	ssize_t retval = 0;
 	size_t count;
 	loff_t *ppos = &iocb->ki_pos;
 	struct iov_iter i;
 
-	count = 0;
-	retval = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
-	if (retval)
-		return retval;
+	count = iov_length(iov, nr_segs);
 	iov_iter_init(&i, iov, nr_segs, count, 0);
 
 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
@@ -2615,12 +2573,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t		status;
 	struct iov_iter from;
 
-	ocount = 0;
-	err = generic_segment_checks(iov, &nr_segs, &ocount, VERIFY_READ);
-	if (err)
-		return err;
-
-	count = ocount;
+	count = ocount = iov_length(iov, nr_segs);
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;

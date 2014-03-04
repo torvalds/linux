@@ -1180,9 +1180,7 @@ static ssize_t ll_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t	     result;
 	int		 refcheck;
 
-	result = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
-	if (result)
-		return result;
+	count = iov_length(iov, nr_segs);
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -1235,13 +1233,9 @@ static ssize_t ll_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct lu_env      *env;
 	struct vvp_io_args *args;
-	size_t	      count = 0;
+	size_t	      count = iov_length(iov, nr_segs);
 	ssize_t	     result;
 	int		 refcheck;
-
-	result = generic_segment_checks(iov, &nr_segs, &count, VERIFY_READ);
-	if (result)
-		return result;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))

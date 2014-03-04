@@ -1412,14 +1412,11 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 	unsigned long offset;
 	enum sgp_type sgp = SGP_READ;
 	int error = 0;
-	ssize_t retval;
-	size_t count;
+	ssize_t retval = 0;
+	size_t count = iov_length(iov, nr_segs);
 	loff_t *ppos = &iocb->ki_pos;
 	struct iov_iter iter;
 
-	retval = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
-	if (retval)
-		return retval;
 	iov_iter_init(&iter, iov, nr_segs, count, 0);
 
 	/*
