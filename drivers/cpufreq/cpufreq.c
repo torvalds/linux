@@ -42,10 +42,8 @@ static DEFINE_RWLOCK(cpufreq_driver_lock);
 DEFINE_MUTEX(cpufreq_governor_lock);
 static LIST_HEAD(cpufreq_policy_list);
 
-#ifdef CONFIG_HOTPLUG_CPU
 /* This one keeps track of the previously set governor of a removed CPU */
 static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
-#endif
 
 static inline bool has_target(void)
 {
@@ -879,18 +877,25 @@ err_out_kobj_put:
 
 static void cpufreq_init_policy(struct cpufreq_policy *policy)
 {
+	struct cpufreq_governor *gov = NULL;
 	struct cpufreq_policy new_policy;
 	int ret = 0;
 
 	memcpy(&new_policy, policy, sizeof(*policy));
 
+	/* Update governor of new_policy to the governor used before hotplug */
+	gov = __find_governor(per_cpu(cpufreq_cpu_governor, policy->cpu));
+	if (gov)
+		pr_debug("Restoring governor %s for cpu %d\n",
+				policy->governor->name, policy->cpu);
+	else
+		gov = CPUFREQ_DEFAULT_GOVERNOR;
+
+	new_policy.governor = gov;
+
 	/* Use the default policy if its valid. */
 	if (cpufreq_driver->setpolicy)
-		cpufreq_parse_governor(policy->governor->name,
-					&new_policy.policy, NULL);
-
-	/* assure that the starting sequence is run in cpufreq_set_policy */
-	policy->governor = NULL;
+		cpufreq_parse_governor(gov->name, &new_policy.policy, NULL);
 
 	/* set default policy */
 	ret = cpufreq_set_policy(policy, &new_policy);
@@ -948,6 +953,8 @@ static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 	policy = per_cpu(cpufreq_cpu_data_fallback, cpu);
 
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	policy->governor = NULL;
 
 	return policy;
 }
@@ -1036,7 +1043,6 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 	unsigned long flags;
 #ifdef CONFIG_HOTPLUG_CPU
 	struct cpufreq_policy *tpolicy;
-	struct cpufreq_governor *gov;
 #endif
 
 	if (cpu_is_offline(cpu))
@@ -1094,7 +1100,6 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 	else
 		policy->cpu = cpu;
 
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
 
 	init_completion(&policy->kobj_unregister);
@@ -1179,15 +1184,6 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 				     CPUFREQ_START, policy);
-
-#ifdef CONFIG_HOTPLUG_CPU
-	gov = __find_governor(per_cpu(cpufreq_cpu_governor, cpu));
-	if (gov) {
-		policy->governor = gov;
-		pr_debug("Restoring governor %s for cpu %d\n",
-		       policy->governor->name, cpu);
-	}
-#endif
 
 	if (!frozen) {
 		ret = cpufreq_add_dev_interface(policy, dev);
@@ -1314,11 +1310,9 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 		}
 	}
 
-#ifdef CONFIG_HOTPLUG_CPU
 	if (!cpufreq_driver->setpolicy)
 		strncpy(per_cpu(cpufreq_cpu_governor, cpu),
 			policy->governor->name, CPUFREQ_NAME_LEN);
-#endif
 
 	down_read(&policy->rwsem);
 	cpus = cpumask_weight(policy->cpus);
@@ -1950,9 +1944,7 @@ EXPORT_SYMBOL_GPL(cpufreq_register_governor);
 
 void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 {
-#ifdef CONFIG_HOTPLUG_CPU
 	int cpu;
-#endif
 
 	if (!governor)
 		return;
@@ -1960,14 +1952,12 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 	if (cpufreq_disabled())
 		return;
 
-#ifdef CONFIG_HOTPLUG_CPU
 	for_each_present_cpu(cpu) {
 		if (cpu_online(cpu))
 			continue;
 		if (!strcmp(per_cpu(cpufreq_cpu_governor, cpu), governor->name))
 			strcpy(per_cpu(cpufreq_cpu_governor, cpu), "\0");
 	}
-#endif
 
 	mutex_lock(&cpufreq_governor_mutex);
 	list_del(&governor->governor_list);
