@@ -1448,11 +1448,15 @@ static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo)
 	rx_page_info = &rxo->page_info_tbl[frag_idx];
 	BUG_ON(!rx_page_info->page);
 
-	if (rx_page_info->last_page_user) {
+	if (rx_page_info->last_frag) {
 		dma_unmap_page(&adapter->pdev->dev,
 			       dma_unmap_addr(rx_page_info, bus),
 			       adapter->big_page_size, DMA_FROM_DEVICE);
-		rx_page_info->last_page_user = false;
+		rx_page_info->last_frag = false;
+	} else {
+		dma_sync_single_for_cpu(&adapter->pdev->dev,
+					dma_unmap_addr(rx_page_info, bus),
+					rx_frag_size, DMA_FROM_DEVICE);
 	}
 
 	queue_tail_inc(rxq);
@@ -1786,17 +1790,16 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
 				rx_stats(rxo)->rx_post_fail++;
 				break;
 			}
-			page_info->page_offset = 0;
+			page_offset = 0;
 		} else {
 			get_page(pagep);
-			page_info->page_offset = page_offset + rx_frag_size;
+			page_offset += rx_frag_size;
 		}
-		page_offset = page_info->page_offset;
+		page_info->page_offset = page_offset;
 		page_info->page = pagep;
-		dma_unmap_addr_set(page_info, bus, page_dmaaddr);
-		frag_dmaaddr = page_dmaaddr + page_info->page_offset;
 
 		rxd = queue_head_node(rxq);
+		frag_dmaaddr = page_dmaaddr + page_info->page_offset;
 		rxd->fragpa_lo = cpu_to_le32(frag_dmaaddr & 0xFFFFFFFF);
 		rxd->fragpa_hi = cpu_to_le32(upper_32_bits(frag_dmaaddr));
 
@@ -1804,15 +1807,24 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
 		if ((page_offset + rx_frag_size + rx_frag_size) >
 					adapter->big_page_size) {
 			pagep = NULL;
-			page_info->last_page_user = true;
+			page_info->last_frag = true;
+			dma_unmap_addr_set(page_info, bus, page_dmaaddr);
+		} else {
+			dma_unmap_addr_set(page_info, bus, frag_dmaaddr);
 		}
 
 		prev_page_info = page_info;
 		queue_head_inc(rxq);
 		page_info = &rxo->page_info_tbl[rxq->head];
 	}
-	if (pagep)
-		prev_page_info->last_page_user = true;
+
+	/* Mark the last frag of a page when we break out of the above loop
+	 * with no more slots available in the RXQ
+	 */
+	if (pagep) {
+		prev_page_info->last_frag = true;
+		dma_unmap_addr_set(prev_page_info, bus, page_dmaaddr);
+	}
 
 	if (posted) {
 		atomic_add(posted, &rxq->used);

@@ -261,9 +261,10 @@ struct be_tx_obj {
 /* Struct to remember the pages posted for rx frags */
 struct be_rx_page_info {
 	struct page *page;
+	/* set to page-addr for last frag of the page & frag-addr otherwise */
 	DEFINE_DMA_UNMAP_ADDR(bus);
 	u16 page_offset;
-	bool last_page_user;
+	bool last_frag;		/* last frag of the page */
 };
 
 struct be_rx_stats {
