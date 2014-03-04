@@ -123,6 +123,7 @@ config RK29_WATCHDOG_ATBOOT
 
 config RK29_WATCHDOG_DEFAULT_TIME
 	int "set watchdog time out value (unit second)"
+	default 0
 	depends on RK29_WATCHDOG
 	help
 	  the real time out value is two times more than the setting value

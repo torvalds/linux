@@ -243,8 +243,12 @@
 		reg = <0x10124000 0x100>;
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
+		clocks = <&clk_uart0>, <&clk_gates8 0>;
+		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&pdma0 0>, <&pdma0 1>;
+		#dma-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
@@ -255,8 +259,12 @@
 		reg = <0x10126000 0x100>;
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
+		clocks = <&clk_uart1>, <&clk_gates8 1>;
+		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&pdma0 2>, <&pdma0 3>;
+		#dma-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
 		status = "disabled";
@@ -267,6 +275,8 @@
 		reg = <0x20064000 0x100>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
+		clocks = <&clk_uart2>, <&clk_gates8 2>;
+		clock-names = "sclk_uart", "pclk_uart";
 		current-speed = <115200>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
@@ -280,8 +290,12 @@
 		reg = <0x20068000 0x100>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
+		clocks = <&clk_uart3>, <&clk_gates8 3>;
+		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&pdma1 8>, <&pdma1 9>;
+		#dma-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart3_xfer &uart3_cts &uart3_rts>;
 		status = "disabled";

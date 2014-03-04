@@ -41,6 +41,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#include <linux/dmaengine.h>
+
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
@@ -67,9 +69,13 @@
 *v1.5 : 2013-10-17
 *		1.in some case, set uart rx as gpio interrupt to wake up arm, when arm suspends 
 *v1.6 : 2013-11-29
-		migrate to kernel3.10,and fit device tree	
+		migrate to kernel3.10,and fit device tree
+*v1.7 : 2014-03-03
+		DMA use new interfaces, and use some interfaces with devm_ prefix 
+*v1.8 : 2014-03-04
+*		1.clear receive time out interrupt request in irq handler	
 */
-#define VERSION_AND_TIME  "rk_serial.c v1.5 2013-11-29"
+#define VERSION_AND_TIME  "rk_serial.c v1.8 2014-03-04"
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -81,7 +87,6 @@
 
 
 //#define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
-
 #define UART_NR	5   //uart port number
 
 
@@ -91,28 +96,8 @@
 
 #define TX_DMA (1)
 #define RX_DMA (2)
-
-#ifdef CONFIG_UART0_DMA_RK29 
-#define UART0_USE_DMA CONFIG_UART0_DMA_RK29
-#else
-#define UART0_USE_DMA CLOSE_DMA
-#endif
-#ifdef CONFIG_UART1_DMA_RK29
-#define UART1_USE_DMA CONFIG_UART1_DMA_RK29
-#else
-#define UART1_USE_DMA CLOSE_DMA
-#endif
-#ifdef CONFIG_UART2_DMA_RK29
-#define UART2_USE_DMA CONFIG_UART2_DMA_RK29
-#else
-#define UART2_USE_DMA CLOSE_DMA
-#endif
-#ifdef CONFIG_UART3_DMA_RK29
-#define UART3_USE_DMA CONFIG_UART3_DMA_RK29
-#else
-#define UART3_USE_DMA CLOSE_DMA
-#endif
-
+#define DMA_SERIAL_BUFFER_SIZE     (UART_XMIT_SIZE*2)
+#define CONFIG_CLOCK_CTRL  1
 //serial wake up 
 #ifdef CONFIG_UART0_WAKEUP_RK29 
 #define UART0_USE_WAKEUP CONFIG_UART0_WAKEUP_RK29
@@ -141,21 +126,9 @@
 #define DMA_TX_TRRIGE_LEVEL 128
 #define SERIAL_CIRC_CNT_TO_END(xmit)   CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE)
 
-#ifdef CONFIG_OF
-#define USE_DMA 	0
-#else
-#define USE_DMA 	(UART0_USE_DMA | UART1_USE_DMA | UART2_USE_DMA | UART3_USE_DMA)
-#endif
+#define USE_DMA  OPEN_DMA
 
 #define USE_WAKEUP (UART0_USE_WAKEUP | UART1_USE_WAKEUP | UART2_USE_WAKEUP | UART3_USE_WAKEUP)
-
-#if USE_DMA
-#ifdef CONFIG_ARCH_RK29
-#include <mach/dma-pl330.h>
-#else
-#include <plat/dma-pl330.h>
-#endif
-#endif
 
 #if USE_WAKEUP
 #include <mach/iomux.h>
@@ -213,15 +186,13 @@ module_param(log_port, int, S_IRUGO|S_IWUSR);
 #endif
 
 
-//#define CONFIG_CLOCK_CTRL
-
 #if USE_DMA
 /* added by hhb@rock-chips.com for uart dma transfer */
 
 struct rk_uart_dma {
 	u32 use_dma;            //1:used
-	enum dma_ch rx_dmach;
-	enum dma_ch tx_dmach;
+	//enum dma_ch rx_dmach;
+	//enum dma_ch tx_dmach;
 
 	//receive and transfer buffer
 	char * rx_buffer;    //visual memory
@@ -248,6 +219,10 @@ struct rk_uart_dma {
 	char use_timer;
 	int	 rx_timeout;
 	struct timer_list rx_timer;
+
+	struct dma_chan		*dma_chan_rx, *dma_chan_tx;
+	struct scatterlist	rx_sgl, tx_sgl;
+	unsigned int		rx_bytes, tx_bytes;
 };
 #endif
 
@@ -305,20 +280,21 @@ struct uart_rk_port {
 	struct work_struct uart_work;
 	struct work_struct uart_work_rx;
 	struct workqueue_struct *uart_wq;
-#if USE_DMA
 	struct rk_uart_dma *dma;
-#endif
 #if USE_WAKEUP
 	struct uart_wake_up *wakeup;
 #endif
 };
 
 #if USE_DMA
-static void serial_rk_release_dma_tx(struct uart_port *port);
-static int serial_rk_start_tx_dma(struct uart_port *port);
+static void serial_rk_release_dma_tx(struct uart_rk_port *up);
+static int serial_rk_start_dma_tx(struct uart_rk_port *up);
 //static void serial_rk_rx_timeout(unsigned long uart);
-static void serial_rk_release_dma_rx(struct uart_port *port);
-static int serial_rk_start_rx_dma(struct uart_port *port);
+static void serial_rk_release_dma_rx(struct uart_rk_port *up);
+static int serial_rk_start_dma_rx(struct uart_rk_port *up);
+static void serial_rk_stop_dma_tx(struct uart_rk_port *up);
+static void serial_rk_stop_dma_rx(struct uart_rk_port *up);
+
 #else
 static inline int serial_rk_start_tx_dma(struct uart_port *port) { return 0; }
 #endif
@@ -474,11 +450,10 @@ static void serial_rk_stop_tx(struct uart_port *port)
 #if USE_DMA
 	struct rk_uart_dma *uart_dma = up->dma;
 	if(uart_dma->use_dma & TX_DMA){
-		serial_rk_release_dma_tx(port);
+		serial_rk_stop_dma_tx(up);
 	}
 #endif
 	__stop_tx(up);
-
 }
 
 
@@ -507,7 +482,7 @@ static void serial_rk_stop_rx(struct uart_port *port)
 #if USE_DMA
 	struct rk_uart_dma *uart_dma = up->dma;
 	if(uart_dma->use_dma & RX_DMA){
-		serial_rk_release_dma_rx(port);
+		serial_rk_stop_dma_rx(up);
 	}
 #endif
 	up->ier &= ~UART_IER_RLSI;
@@ -539,75 +514,61 @@ static struct uart_wake_up rk29_uart_ports_wakeup[] = {
 #endif
 
 #if USE_DMA
-/*
- * Start transmitting by dma.
- */
-#define DMA_SERIAL_BUFFER_SIZE     UART_XMIT_SIZE
-
-/* added by hhb@rock-chips.com  for uart dma transfer*/
-static struct rk_uart_dma rk29_uart_ports_dma[] = {
-		{UART0_USE_DMA, DMACH_UART0_RX, DMACH_UART0_TX},
-		{UART1_USE_DMA, DMACH_UART1_RX, DMACH_UART1_TX},
-		{UART2_USE_DMA, DMACH_UART2_RX, DMACH_UART2_TX},
-		{UART3_USE_DMA, DMACH_UART3_RX, DMACH_UART3_TX},
-};
-
-
 /* DMAC PL330 add by hhb@rock-chips.com */
-static struct rk29_dma_client rk29_uart_dma_client = {
-	.name = "rk-uart-dma",
-};
 
-/*TX*/
-
-static void serial_rk_release_dma_tx(struct uart_port *port)
+static void serial_rk_stop_dma_tx(struct uart_rk_port *up)
 {
-	struct uart_rk_port *up =
-			container_of(port, struct uart_rk_port, port);
 	struct rk_uart_dma *uart_dma = up->dma;
-	if(!port){
-		return;
-	}
-	if(uart_dma && uart_dma->tx_dma_inited) {
-		rk29_dma_free(uart_dma->tx_dmach, &rk29_uart_dma_client);
-		uart_dma->tx_dma_inited = 0;
+	
+	if(uart_dma && uart_dma->tx_dma_used) {
+		dmaengine_terminate_all(uart_dma->dma_chan_tx);
 		uart_dma->tx_dma_used = 0;
 	}
 }
 
-/*this function will be called every time after rk29_dma_enqueue() be invoked*/
-static void serial_rk_dma_txcb(void *buf, int size, enum rk29_dma_buffresult result) {
-	struct uart_port *port = buf;
+static void serial_rk_release_dma_tx(struct uart_rk_port *up)
+{
+	struct rk_uart_dma *uart_dma = up->dma;
+
+	if(uart_dma && uart_dma->tx_dma_inited) {
+		serial_rk_stop_dma_tx(up);
+		dma_release_channel(uart_dma->dma_chan_tx);
+		uart_dma->dma_chan_tx = NULL;
+		uart_dma->tx_dma_inited = 0;
+	}
+}
+
+static void dma_tx_callback(void *data)
+{
+	struct uart_port *port = data;
 	struct uart_rk_port *up = container_of(port, struct uart_rk_port, port);
 	struct circ_buf *xmit = &port->state->xmit;
+	struct rk_uart_dma *uart_dma = up->dma;
+	struct scatterlist *sgl = &uart_dma->tx_sgl;
 
-	if(result != RK29_RES_OK){
-		printk(">>>>%s:%d result:%d\n", __func__, __LINE__, result);
-		up->dma->tx_dma_used = 0;
-		return;
-	}
+	dma_unmap_sg(up->port.dev, sgl, 1, DMA_TO_DEVICE);
 
-	//spin_lock(&(up->dma->rx_lock));
-	xmit->tail = (xmit->tail + size) & (UART_XMIT_SIZE - 1);
-	port->icount.tx += size;
+	xmit->tail = (xmit->tail + uart_dma->tx_bytes) & (UART_XMIT_SIZE - 1);
+	port->icount.tx += uart_dma->tx_bytes;
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(&up->port);
+		uart_write_wakeup(port);
 
 	//spin_lock(&(up->dma->tx_lock));
-	up->dma->tx_dma_used = 0;
+	uart_dma->tx_dma_used = 0;
 	//spin_unlock(&(up->dma->tx_lock));
 	serial_rk_enable_ier_thri(up);
 	up->port_activity = jiffies;
 //	dev_info(up->port.dev, "s:%d\n", size);
+
 }
+static int serial_rk_init_dma_tx(struct uart_rk_port *up) {
 
-static int serial_rk_init_dma_tx(struct uart_port *port) {
-
-	struct uart_rk_port *up =
-				container_of(port, struct uart_rk_port, port);
+	struct dma_slave_config slave_config;
+	struct uart_port *port = &up->port;
 	struct rk_uart_dma *uart_dma = up->dma;
+	int ret;
 
-	if(!port || !uart_dma){
+	if(!uart_dma){
 		dev_info(up->port.dev, "serial_rk_init_dma_tx fail\n");
 		return -1;
 	}
@@ -616,43 +577,41 @@ static int serial_rk_init_dma_tx(struct uart_port *port) {
 		return 0;
 	}
 
-	if (rk29_dma_request(uart_dma->tx_dmach, &rk29_uart_dma_client, NULL) == -EBUSY) {
-		dev_info(up->port.dev, "rk29_dma_request tx fail\n");
-		return -1;
+	uart_dma->dma_chan_tx = dma_request_slave_channel(port->dev, "tx");
+	if (!uart_dma->dma_chan_tx) {
+		dev_err(port->dev, "cannot get the TX DMA channel!\n");
+		ret = -EINVAL;
 	}
 
-	if (rk29_dma_set_buffdone_fn(uart_dma->tx_dmach, serial_rk_dma_txcb)) {
-		dev_info(up->port.dev, "rk29_dma_set_buffdone_fn tx fail\n");
-		return -1;
-	}
-	
-	if (rk29_dma_devconfig(uart_dma->tx_dmach, RK29_DMASRC_MEM, (unsigned long)(port->iobase + UART_TX))) {
-		dev_info(up->port.dev, "rk29_dma_devconfig tx fail\n");
-		return -1;
-	}
-	
-	if (rk29_dma_config(uart_dma->tx_dmach, 1, 16)) {
-		dev_info(up->port.dev, "rk29_dma_config tx fail\n");
-		return -1;
+	slave_config.direction = DMA_MEM_TO_DEV;	
+	slave_config.dst_addr = port->mapbase + UART_TX;	
+	slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;	
+	slave_config.dst_maxburst = 16;
+	ret = dmaengine_slave_config(uart_dma->dma_chan_tx, &slave_config);	
+	if (ret) {
+		dev_err(port->dev, "error in TX dma configuration."); 	
+		return ret;
 	}
 
 	uart_dma->tx_dma_inited = 1;
-	dev_info(up->port.dev, "serial_rk_init_dma_tx sucess\n");
+	dev_info(port->dev, "serial_rk_init_dma_tx sucess\n");
 	return 0;
-
 }
 
-static int serial_rk_start_tx_dma(struct uart_port *port)
+static int serial_rk_start_dma_tx(struct uart_rk_port *up)
 {
 	int count = 0;
+	struct uart_port *port = &up->port;
 	struct circ_buf *xmit = &port->state->xmit;
-	struct uart_rk_port *up = container_of(port, struct uart_rk_port, port);
 	struct rk_uart_dma *uart_dma = up->dma;
+	struct scatterlist *sgl = &uart_dma->tx_sgl;
+	struct dma_async_tx_descriptor *desc;
+	int ret;
 
 	if(!uart_dma->use_dma)
 		goto err_out;
 
-	if(-1 == serial_rk_init_dma_tx(port))
+	if(-1 == serial_rk_init_dma_tx(up))
 		goto err_out;
 
 	if (1 == uart_dma->tx_dma_used)
@@ -664,55 +623,79 @@ static int serial_rk_start_tx_dma(struct uart_port *port)
 	count = SERIAL_CIRC_CNT_TO_END(xmit);
 	count -= count%16;
 	if(count >= DMA_TX_TRRIGE_LEVEL) {
-		if (rk29_dma_enqueue(uart_dma->tx_dmach, port, uart_dma->tx_phy_addr + xmit->tail , count)) {
-			goto err_out;
-		}
-		rk29_dma_ctrl(uart_dma->tx_dmach, RK29_DMAOP_START);
-		up->dma->tx_dma_used = 1;
+		uart_dma->tx_bytes = count;
+		sg_init_one(sgl, uart_dma->tx_buffer + xmit->tail, count);
+		ret = dma_map_sg(port->dev, sgl, 1, DMA_TO_DEVICE);
+		
+		if (ret == 0) {
+			dev_err(port->dev, "DMA mapping error for TX.\n");	
+			return -1;
+		}	
+		desc = dmaengine_prep_slave_sg(uart_dma->dma_chan_tx, sgl, 1,
+			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);	
+
+		if (!desc) {
+			dev_err(port->dev, "We cannot prepare for the TX slave dma!\n");		
+			return -1;	
+		}	
+		desc->callback = dma_tx_callback;	
+		desc->callback_param = port;	
+		dmaengine_submit(desc);
+		dma_async_issue_pending(uart_dma->dma_chan_tx);
+		uart_dma->tx_dma_used = 1;
 	}
 //	spin_unlock(&(uart_dma->tx_lock));
 	return 1;
 err_out:
-	dev_info(up->port.dev, "-serial_rk_start_tx_dma-error-\n");
+	dev_info(up->port.dev, "-serial_rk_start_dma_tx-error-\n");
 	return -1;
 }
 
 
 
 /*RX*/
+#if 0
 static void serial_rk_dma_rxcb(void *buf, int size, enum rk29_dma_buffresult result) {
 
 	//printk(">>%s:%d\n", __func__, result);
 }
+#endif
 
-static void serial_rk_release_dma_rx(struct uart_port *port)
+static void serial_rk_stop_dma_rx(struct uart_rk_port *up)
 {
-	struct uart_rk_port *up =
-				container_of(port, struct uart_rk_port, port);
 	struct rk_uart_dma *uart_dma = up->dma;
 	
-	if(!port){
-		return;
-	}
-	
-	if(uart_dma && uart_dma->rx_dma_inited) {
+	if(uart_dma && uart_dma->rx_dma_used) {
 		del_timer(&uart_dma->rx_timer);
-		rk29_dma_free(uart_dma->rx_dmach, &rk29_uart_dma_client);
+		dmaengine_terminate_all(uart_dma->dma_chan_rx);	
 		uart_dma->rb_tail = 0;
-		uart_dma->rx_dma_inited = 0;
 		uart_dma->rx_dma_used = 0;
 	}
 }
 
 
-static int serial_rk_init_dma_rx(struct uart_port *port) {
+static void serial_rk_release_dma_rx(struct uart_rk_port *up)
+{
+	struct rk_uart_dma *uart_dma = up->dma;
+	
+	if(uart_dma && uart_dma->rx_dma_inited) {
+		serial_rk_stop_dma_rx(up);
+		dma_release_channel(uart_dma->dma_chan_rx);
+		uart_dma->dma_chan_rx = NULL;	
+		uart_dma->rx_dma_inited = 0;
+	}
+}
 
-	struct uart_rk_port *up =
-				container_of(port, struct uart_rk_port, port);
+
+static int serial_rk_init_dma_rx(struct uart_rk_port *up) 
+{
+	int ret;
+	struct uart_port *port = &up->port;
+	struct dma_slave_config slave_config;
 	struct rk_uart_dma *uart_dma = up->dma;
 
-	if(!port || !uart_dma){
-		dev_info(up->port.dev, "serial_rk_init_dma_rx: port fail\n");
+	if(!uart_dma) {
+		dev_info(port->dev, "serial_rk_init_dma_rx: port fail\n");
 		return -1;
 	}
 
@@ -720,67 +703,56 @@ static int serial_rk_init_dma_rx(struct uart_port *port) {
 		return 0;
 	}
 
-	if (rk29_dma_request(uart_dma->rx_dmach, &rk29_uart_dma_client, NULL) == -EBUSY) {
-		dev_info(up->port.dev, "rk29_dma_request fail rx \n");
+	uart_dma->dma_chan_rx = dma_request_slave_channel(port->dev, "rx");
+	if (!uart_dma->dma_chan_rx) {
+		dev_err(port->dev, "cannot get the DMA channel.\n");
 		return -1;
 	}
 
-	if (rk29_dma_set_buffdone_fn(uart_dma->rx_dmach, serial_rk_dma_rxcb)) {
-		dev_info(up->port.dev, "rk29_dma_set_buffdone_fn rx fail\n");
-		return -1;
+	slave_config.direction = DMA_DEV_TO_MEM;	
+	slave_config.src_addr = port->mapbase + UART_RX;	
+	slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;	
+	slave_config.src_maxburst = 1;
+	ret = dmaengine_slave_config(uart_dma->dma_chan_rx, &slave_config);	
+	if (ret) {
+		dev_err(port->dev, "error in RX dma configuration.\n");		
+		return ret;	
 	}
-
-	if (rk29_dma_devconfig(uart_dma->rx_dmach, RK29_DMASRC_HW, (unsigned long)(port->iobase + UART_RX))) {
-		dev_info(up->port.dev, "rk29_dma_devconfig rx fail\n");
-		return -1;
-	}
-
-	if (rk29_dma_config(uart_dma->rx_dmach, 1, 1)) {
-		dev_info(up->port.dev, "rk29_dma_config rx fail 1 1 \n");
-		return -1;
-	}
-
-	//rk29_dma_setflags(uart_dma->rx_dmach, RK29_DMAF_CIRCULAR);
 
 	uart_dma->rx_dma_inited = 1;
-	dev_info(up->port.dev, "serial_rk_init_dma_rx sucess\n");
+	dev_info(port->dev, "serial_rk_init_dma_rx sucess\n");
 	return 0;
-
 }
 
-static int serial_rk_start_rx_dma(struct uart_port *port)
+static int serial_rk_start_dma_rx(struct uart_rk_port *up)
 {
-	struct uart_rk_port *up =
-				container_of(port, struct uart_rk_port, port);
-	struct rk_uart_dma *uart_dma = up->dma;
+	struct uart_port *port = &up->port;
+	struct rk_uart_dma *uart_dma = up->dma;	
+	struct dma_async_tx_descriptor *desc;	
+	
 	if(!uart_dma->use_dma)
 		return 0;
 
 	if(uart_dma->rx_dma_used == 1)
 		return 0;
 
-	if(-1 == serial_rk_init_dma_rx(port)){
+	if(-1 == serial_rk_init_dma_rx(up)){
 		dev_info(up->port.dev, "*******serial_rk_init_dma_rx*******error*******\n");
 		return -1;
 	}
-	
-#if 0	
-		if (rk29_dma_enqueue(uart_dma->rx_dmach, (void *)up, uart_dma->rx_phy_addr,
-				uart_dma->rb_size/2)) {
-			dev_info(up->port.dev, "*******rk29_dma_enqueue fail*****\n");
-			return -1;
-		}
+	desc = dmaengine_prep_dma_cyclic(uart_dma->dma_chan_rx, uart_dma->rx_phy_addr, uart_dma->rb_size, uart_dma->rb_size/2,DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);	
 
-		if (rk29_dma_enqueue(uart_dma->rx_dmach, (void *)up,
-				uart_dma->rx_phy_addr+uart_dma->rb_size/2, uart_dma->rb_size/2)) {
-			dev_info(up->port.dev, "*******rk29_dma_enqueue fail*****\n");
-			return -1;
-		}
+	if (!desc) {
+		dev_err(port->dev, "We cannot prepare for the RX slave dma!\n");		
+		return -EINVAL;	
+	}
 
-#else
-	rk29_dma_enqueue_ring(uart_dma->rx_dmach, (void *)up, uart_dma->rx_phy_addr, uart_dma->rb_size/4, 4, false);
-#endif
-	rk29_dma_ctrl(uart_dma->rx_dmach, RK29_DMAOP_START);
+	//desc->callback = dma_rx_callback;	
+	//desc->callback_param = port;	
+	dev_dbg(port->dev, "RX: prepare for the DMA.\n");
+	dmaengine_submit(desc);	
+	dma_async_issue_pending(uart_dma->dma_chan_rx);
+
 	uart_dma->rx_dma_used = 1;
 	if(uart_dma->use_timer == 1){
 		mod_timer(&uart_dma->rx_timer, jiffies + msecs_to_jiffies(uart_dma->rx_timeout));
@@ -789,15 +761,15 @@ static int serial_rk_start_rx_dma(struct uart_port *port)
 	return 1;
 }
 
-static void serial_rk_update_rb_addr(struct uart_rk_port *up){
-	dma_addr_t current_pos = 0;
-	dma_addr_t rx_current_pos = 0;
+static void serial_rk_update_rb_addr(struct uart_rk_port *up)
+{
 	struct rk_uart_dma *uart_dma = up->dma;
+	struct dma_tx_state state;	
 	//spin_lock(&(up->dma->rx_lock));
 	uart_dma->rx_size = 0;
-	if(uart_dma->rx_dma_used == 1){
-		rk29_dma_getposition(uart_dma->rx_dmach, &current_pos, &rx_current_pos);
-		uart_dma->rb_head = (rx_current_pos - uart_dma->rx_phy_addr);
+	if(uart_dma->rx_dma_used == 1) {
+		dmaengine_tx_status(uart_dma->dma_chan_rx, (dma_cookie_t)0, &state);
+		uart_dma->rb_head = (state.residue - uart_dma->rx_phy_addr);
 		uart_dma->rx_size = CIRC_CNT(uart_dma->rb_head, uart_dma->rb_tail, uart_dma->rb_size);
 	}
 	//spin_unlock(&(up->dma->rx_lock));
@@ -807,77 +779,30 @@ static void serial_rk_report_dma_rx(unsigned long uart)
 {
 	int count, flip = 0;
 	struct uart_rk_port *up = (struct uart_rk_port *)uart;
+	struct uart_port *port = &up->port;
 	struct rk_uart_dma *uart_dma = up->dma;
 
-	if(!uart_dma->rx_dma_used || !up->port.state->port.tty)
+	if(!uart_dma->rx_dma_used || !port->state->port.tty)
 		return;
 
 	serial_rk_update_rb_addr(up);
-
+	//if (uart_dma->rx_size > 0)
+	//	printk("rx_size:%d ADDR:%x\n", uart_dma->rx_size, uart_dma->rb_head);
 	while(1) {
 		count = CIRC_CNT_TO_END(uart_dma->rb_head, uart_dma->rb_tail, uart_dma->rb_size);
 		if(count <= 0)
 			break;
-		up->port.icount.rx += count;
-		flip = tty_insert_flip_string(up->port.state->port.tty, uart_dma->rx_buffer
-				+ uart_dma->rb_tail, count);
-		tty_flip_buffer_push(&up->port.state->port);
+		port->icount.rx += count;
+		flip = tty_insert_flip_string(&port->state->port, uart_dma->rx_buffer
+			+ uart_dma->rb_tail, count);
+		tty_flip_buffer_push(&port->state->port);
 		uart_dma->rb_tail = (uart_dma->rb_tail + count) & (uart_dma->rb_size - 1);
 		up->port_activity = jiffies;
 	}
 
-	//if (uart_dma->rx_size > 0)
-	//	printk("rx_size:%d ADDR:%x\n", uart_dma->rx_size, uart_dma->rb_head);
-
-	if(uart_dma->use_timer == 1){
+	if(uart_dma->use_timer == 1)
 		mod_timer(&uart_dma->rx_timer, jiffies + msecs_to_jiffies(uart_dma->rx_timeout));
-	}
-
 }
-#if 0
-static void serial_rk_rx_timeout(unsigned long uart)
-{
-	struct uart_rk_port *up = (struct uart_rk_port *)uart;
-
-	serial_rk_report_dma_rx(up);
-	//queue_work(up->uart_wq, &up->uart_work);
-}
-
-static void serial_rk_report_revdata_workfunc(struct work_struct *work)
-{
-	struct uart_rk_port *up =
-				container_of(work, struct uart_rk_port, uart_work);
-
-	serial_rk_report_dma_rx((unsigned long)up);
-
-	//spin_lock(&(up->dma->rx_lock));
-
-	if(up->port.state->port.tty && up->dma->use_timer != 1 && up->fifo_size > 0){
-
-		tty_insert_flip_string(up->port.state->port.tty, up->fifo, up->fifo_size);
-		tty_flip_buffer_push(&up->port.state->port);
-		up->port.icount.rx += up->fifo_size;
-		up->ier |= UART_IER_RDI;
-		serial_out(up, UART_IER, up->ier);
-	}
-
-	//spin_unlock(&(up->dma->rx_lock));
-
-}
-
-
-static void serial_rk_start_dma_rx(struct work_struct *work)
-{
-	struct uart_rk_port *up =
-					container_of(work, struct uart_rk_port, uart_work_rx);
-
-	//mod_timer(&up->dma->rx_timer, jiffies + msecs_to_jiffies(up->dma->rx_timeout));
-	//rk29_dma_ctrl(up->dma->rx_dmach, RK29_DMAOP_START);
-	//serial_rk_start_rx_dma(&up->port);
-
-}
-#endif
-
 #endif /* USE_DMA */
 
 
@@ -982,7 +907,7 @@ static void transmit_chars(struct uart_rk_port *up)
 	//hhb
 	if(up->dma->use_dma & TX_DMA){
 		if(SERIAL_CIRC_CNT_TO_END(xmit) >= DMA_TX_TRRIGE_LEVEL){
-			serial_rk_start_tx_dma(&up->port);
+			serial_rk_start_dma_tx(up);
 			return;
 		}
 	}
@@ -1069,7 +994,9 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 		if(!(up->dma->use_dma & RX_DMA)) {
 			if (status & (UART_LSR_DR | UART_LSR_BI)) {
 				receive_chars(up, &status);
-			}
+			} else if ((up->iir & 0x0f) == 0x0c) {
+            	serial_in(up, UART_RX);
+        	}
 		}
 
 		if ((up->iir & 0x0f) == 0x02) {
@@ -1097,7 +1024,9 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 
 		if (status & (UART_LSR_DR | UART_LSR_BI)) {
 			receive_chars(up, &status);
-		}
+		} else if ((up->iir & 0x0f) == 0x0c) {
+            serial_in(up, UART_RX);
+        }
 		check_modem_status(up);
 		//hhb@rock-chips.com when FIFO and THRE mode both are enabled,and FIFO TX empty trigger is set to larger than 1,
 		//,we need to add ((up->iir & 0x0f) == 0x02) to transmit_chars,because when entering interrupt,the FIFO and THR
@@ -1319,8 +1248,8 @@ static int serial_rk_startup(struct uart_port *port)
 
 	up->mcr = 0;
 #ifdef CONFIG_CLOCK_CTRL
-	clk_enable(up->pclk);
-	clk_enable(up->clk);  // enable the config uart clock
+	clk_prepare_enable(up->clk);
+	clk_prepare_enable(up->pclk); // enable the config uart clock
 #endif
 	/*
 	 * Clear the FIFO buffers and disable them.
@@ -1431,8 +1360,8 @@ static void serial_rk_shutdown(struct uart_port *port)
 #endif
 	free_irq(up->port.irq, up);
 #ifdef CONFIG_CLOCK_CTRL
-	clk_disable(up->clk);
-	clk_disable(up->pclk);
+	clk_disable_unprepare(up->clk);
+	clk_disable_unprepare(up->pclk); 
 #endif
 }
 
@@ -1445,7 +1374,15 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval = 0, fcr = 0, mcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
+
 	dev_dbg(port->dev, "+%s\n", __func__);
+
+#if USE_DMA
+	//stop dma tx, which might make the uart be busy while some registers are set
+	if(up->dma->tx_dma_used) {
+		serial_rk_stop_dma_tx(up);
+	}
+#endif
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -1620,7 +1557,7 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 			up->ier |= UART_IER_RLSI;
 			up->ier |= UART_IER_PTIME;   //Programmable THRE Interrupt Mode Enable
 			if (up->dma->use_dma & RX_DMA)
-				serial_rk_start_rx_dma(&up->port);
+				serial_rk_start_dma_rx(up);
 			else
 				up->ier |= UART_IER_RDI;
 		} else
@@ -1671,13 +1608,13 @@ serial_rk_pm(struct uart_port *port, unsigned int state,
 	dev_dbg(port->dev, "%s: %s\n", __func__, state ? "disable" : "enable");
 	if (state) {
 #ifdef CONFIG_CLOCK_CTRL
-		clk_disable(up->clk);
-		clk_disable(up->pclk);
+	clk_disable_unprepare(up->clk);
+	clk_disable_unprepare(up->pclk); 
 #endif
 	} else {
 #ifdef CONFIG_CLOCK_CTRL
-		clk_enable(up->pclk);
-		clk_enable(up->clk);
+	clk_prepare_enable(up->clk);
+	clk_prepare_enable(up->pclk); 
 #endif
 	}
 }
@@ -1944,22 +1881,30 @@ static int serial_rk_remove_wakeup_irq(struct uart_rk_port *up) {
 #endif
 
 #ifdef CONFIG_OF
-static int of_rk_serial_parse_dt(struct device_node *np, struct of_rk_serial *rks) {
+static int of_rk_serial_parse_dt(struct device_node *np, struct of_rk_serial *rks) 
+{
 	unsigned int val = 0;
+	const char *s = NULL;
+	int ret, i = 0;
 	rks->id = of_alias_get_id(np, "serial");
 	if(!of_property_read_u32(np, "clock-frequency", &val))
 		rks->uartclk = val;
+
 #if USE_DMA
-	rks->use_dma = 0;	
-	if(of_find_property(np, "use-dma-rx", &val))
-		rks->use_dma |= RX_DMA;
-	if(of_find_property(np, "use-dma-tx", &val))
-		rks->use_dma |= TX_DMA;
+	rks->use_dma = 0;
+	for(i = 0; i < 2; i++) {
+		ret = of_property_read_string_index(np, "dma-names", i, &s);
+		if(!ret) {
+			if(!strcmp(s, "tx"))
+				rks->use_dma |= TX_DMA;
+			 else if (!strcmp(s, "rx"))
+				rks->use_dma |= RX_DMA;
+		}
+	}
 #endif
 	return 0;
 }
 #endif
-
 
 static int serial_rk_probe(struct platform_device *pdev)
 {
@@ -1967,13 +1912,16 @@ static int serial_rk_probe(struct platform_device *pdev)
 	struct resource		*mem;
 	int irq;
 	int ret = -ENOSPC;
-	struct of_rk_serial rks;	
+	struct of_rk_serial rks;
+
+	up = devm_kzalloc(&pdev->dev, sizeof(*up), GFP_KERNEL);
+	if (!up)
+		return -ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
+	up->port.membase = devm_request_and_ioremap(&pdev->dev, mem);
+	if (!up->port.membase)
+		return -ENOMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -1985,33 +1933,24 @@ static int serial_rk_probe(struct platform_device *pdev)
 	of_rk_serial_parse_dt(pdev->dev.of_node, &rks);
 	pdev->id = rks.id;
 #endif
-	if (!request_mem_region(mem->start, (mem->end - mem->start) + 1,
-				pdev->dev.driver->name)) {
-		dev_err(&pdev->dev, "memory region already claimed\n");
-		return -EBUSY;
-	}
-	
-	up = kzalloc(sizeof(*up), GFP_KERNEL);
-	if (up == NULL) {
-		ret = -ENOMEM;
-		goto do_release_region;
-	}
-	
+
 	sprintf(up->name, "rk29_serial.%d", pdev->id);
 	up->pdev = pdev;
 #ifdef CONFIG_CLOCK_CTRL
-	up->pclk = clk_get(&pdev->dev, "pclk_uart");
-	up->clk = clk_get(&pdev->dev, "uart");
-	if (unlikely(IS_ERR(up->clk))) {
-		ret = PTR_ERR(up->clk);
-		printk("%s:%d\n", __func__, __LINE__);
-		goto do_free;
-		
+	up->pclk = devm_clk_get(&pdev->dev, "pclk_uart");
+	up->clk = devm_clk_get(&pdev->dev, "sclk_uart");
+	if (unlikely(IS_ERR(up->clk)) || unlikely(IS_ERR(up->pclk))) {
+		dev_err(&pdev->dev, "get clock fail\n");
+		return -EINVAL;
 	}
 #endif
 	up->tx_loadsz = 30;
 #if USE_DMA
-	up->dma = &rk29_uart_ports_dma[pdev->id];
+	up->dma = devm_kzalloc(&pdev->dev, sizeof(struct rk_uart_dma), GFP_KERNEL);
+	if (!up->dma) {
+		dev_err(&pdev->dev, "unable to allocate mem\n");
+		return -ENOMEM;
+	}
 	up->dma->use_dma = rks.use_dma;
 #endif
 #if USE_WAKEUP
@@ -2028,11 +1967,6 @@ static int serial_rk_probe(struct platform_device *pdev)
 	up->port.ops = &serial_rk_pops;
 	up->port.line = pdev->id;
 	up->port.iobase = mem->start;
-	up->port.membase = ioremap_nocache(mem->start, mem->end - mem->start + 1);
-	if (!up->port.membase) {
-		ret = -ENOMEM;
-		goto do_put_clk;
-	}
 	up->port.mapbase = mem->start;
 	up->port.irqflags = IRQF_DISABLED;
 #if defined(CONFIG_CLOCK_CTRL)
@@ -2042,6 +1976,7 @@ static int serial_rk_probe(struct platform_device *pdev)
 #else
 	up->port.uartclk = 24000000;
 #endif
+
 #if USE_DMA
 	/* set dma config */
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
@@ -2055,10 +1990,12 @@ static int serial_rk_probe(struct platform_device *pdev)
 		init_timer(&up->dma->rx_timer);
 
 		//rx buffer
-		up->dma->rb_size =  UART_XMIT_SIZE*2;
+		up->dma->rb_size = DMA_SERIAL_BUFFER_SIZE;
 		up->dma->rx_buffer = dmam_alloc_coherent(up->port.dev, up->dma->rb_size,
 				&up->dma->rx_phy_addr, DMA_MEMORY_MAP);
 		up->dma->rb_tail = 0;
+		up->dma->rx_dma_inited = 0;
+		up->dma->rx_dma_used = 0;
 
 		if(!up->dma->rx_buffer){
 			dev_info(up->port.dev, "dmam_alloc_coherent dma_rx_buffer fail\n");
@@ -2072,9 +2009,8 @@ static int serial_rk_probe(struct platform_device *pdev)
 		//INIT_WORK(&up->uart_work, serial_rk_report_revdata_workfunc);
 		//INIT_WORK(&up->uart_work_rx, serial_rk_start_dma_rx);
 		//up->uart_wq = create_singlethread_workqueue("uart_workqueue");
-		up->dma->rx_dma_used = 0;
 		spin_lock_init(&(up->dma->rx_lock));
-		serial_rk_init_dma_rx(&up->port);
+		serial_rk_init_dma_rx(up);
 	}
 
 	if(up->dma->use_dma & TX_DMA){
@@ -2090,34 +2026,21 @@ static int serial_rk_probe(struct platform_device *pdev)
 			dev_info(up->port.dev, "dma_tx_phy 0x%08x\n", (unsigned) up->dma->tx_phy_addr);
 		}
 		spin_lock_init(&(up->dma->tx_lock));
-		serial_rk_init_dma_tx(&up->port);
+		serial_rk_init_dma_tx(up);
 	}
 
+	
 #endif
 	serial_rk_add_console_port(up);
 	ret = uart_add_one_port(&serial_rk_reg, &up->port);
 	if (ret != 0)
-		goto do_iounmap;
+		return ret;
 	platform_set_drvdata(pdev, up);
 	dev_info(&pdev->dev, "membase 0x%08x\n", (unsigned) up->port.membase);
 #if USE_WAKEUP
 	serial_rk_setup_wakeup_irq(up); 
 #endif
 	return 0;
-
-do_iounmap:
-	iounmap(up->port.membase);
-	up->port.membase = NULL;
-do_put_clk:
-#ifdef CONFIG_CLOCK_CTRL
-	clk_put(up->clk);
-	clk_put(up->pclk);
-do_free:
-#endif
-	kfree(up);
-do_release_region:
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
-	return ret;
 }
 
 static int serial_rk_remove(struct platform_device *pdev)
@@ -2126,22 +2049,18 @@ static int serial_rk_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 	if (up) {
-		struct resource	*mem;
-		destroy_workqueue(up->uart_wq);
-		uart_remove_one_port(&serial_rk_reg, &up->port);
-		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		iounmap(up->port.membase);
-		up->port.membase = NULL;
-#ifdef CONFIG_CLOCK_CTRL
-		clk_put(up->clk);
-		clk_put(up->pclk);
+#if USE_DMA
+		serial_rk_release_dma_tx(up);
+		serial_rk_release_dma_rx(up);
 #endif
-		kfree(up);
-		release_mem_region(mem->start, (mem->end - mem->start) + 1);
-	}
 #if USE_WAKEUP
-    serial_rk_remove_wakeup_irq(up);
+    	serial_rk_remove_wakeup_irq(up);
 #endif
+		//destroy_workqueue(up->uart_wq);
+		uart_remove_one_port(&serial_rk_reg, &up->port);
+		up->port.membase = NULL;
+	}
+
 	return 0;
 }
 
@@ -2220,4 +2139,3 @@ module_exit(serial_rk_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RK UART driver");
-

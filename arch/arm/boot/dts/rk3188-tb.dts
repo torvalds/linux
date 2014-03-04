@@ -119,10 +119,19 @@
 
 &uart0 {
 	status = "okay";
+	dma-names = "!tx", "!rx";
 };
+
 
 &uart3 {
 	status = "okay";
+	dma-names = "!tx", "!rx";
+};
+
+&watchdog {
+		rockchip,timeout = <50>;
+		rockchip,debug = <1>;
+		status = "disabled";
 };
 
 &i2c0 {
