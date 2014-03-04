@@ -137,17 +137,17 @@
 #define PCL812_AD_HI	      5
 #define PCL812_DA1_HI	      5
 #define PCL812_DA2_LO	      6
-#define PCL812_DI_LO	      6
 #define PCL812_DA2_HI	      7
-#define PCL812_DI_HI	      7
+#define PCL812_DI_LSB_REG			0x06
+#define PCL812_DI_MSB_REG			0x07
 #define PCL812_CLRINT	      8
 #define PCL812_GAIN	      9
 #define PCL812_MUX	     10
 #define PCL812_MODE	     11
 #define PCL812_CNTENABLE     10
 #define PCL812_SOFTTRIG	     12
-#define PCL812_DO_LO	     13
-#define PCL812_DO_HI	     14
+#define PCL812_DO_LSB_REG			0x0d
+#define PCL812_DO_MSB_REG			0x0e
 
 #define PCL812_DRDY	   0x10	/* =0 data ready */
 
@@ -730,31 +730,6 @@ static int pcl812_ao_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int pcl812_di_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	data[1] = inb(dev->iobase + PCL812_DI_LO);
-	data[1] |= inb(dev->iobase + PCL812_DI_HI) << 8;
-
-	return insn->n;
-}
-
-static int pcl812_do_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	if (comedi_dio_update_state(s, data)) {
-		outb(s->state & 0xff, dev->iobase + PCL812_DO_LO);
-		outb((s->state >> 8), dev->iobase + PCL812_DO_HI);
-	}
-
-	data[1] = s->state;
-
-	return insn->n;
-}
-
 static int pcl812_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -1093,6 +1068,32 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int pcl812_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	data[1] = inb(dev->iobase + PCL812_DI_LSB_REG) |
+		  (inb(dev->iobase + PCL812_DI_MSB_REG) << 8);
+
+	return insn->n;
+}
+
+static int pcl812_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase + PCL812_DO_LSB_REG);
+		outb((s->state >> 8), dev->iobase + PCL812_DO_MSB_REG);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
 static void pcl812_reset(struct comedi_device *dev)
 {
 	const struct pcl812_board *board = comedi_board(dev);
@@ -1114,8 +1115,8 @@ static void pcl812_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCL812_DA1_LO);
 		outb(0, dev->iobase + PCL812_DA1_HI);
 		pcl812_start_pacer(dev, false);
-		outb(0, dev->iobase + PCL812_DO_HI);
-		outb(0, dev->iobase + PCL812_DO_LO);
+		outb(0, dev->iobase + PCL812_DO_MSB_REG);
+		outb(0, dev->iobase + PCL812_DO_LSB_REG);
 		outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
 		outb(0, dev->iobase + PCL812_CLRINT);
 		break;
@@ -1358,22 +1359,22 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (board->has_dio) {
 		/* Digital Input subdevice */
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE;
-		s->n_chan = 16;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = pcl812_di_insn_bits;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 16;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= pcl812_di_insn_bits;
 		subdev++;
 
 		/* Digital Output subdevice */
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = 16;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = pcl812_do_insn_bits;
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= 16;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= pcl812_do_insn_bits;
 		subdev++;
 	}
 
