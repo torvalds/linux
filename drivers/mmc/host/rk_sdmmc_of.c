@@ -2,9 +2,9 @@
 
 static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
 {
-printk("%d..%s: =====test====\n", __LINE__, __FUNCTION__);
+//printk("%d..%s: =====test====\n", __LINE__, __FUNCTION__);
 //dump_stack();
-/*
+
     mmc_debug(MMC_DBG_BOOT,"=========rockchip mmc dts dump info start==============\n");
     mmc_debug(MMC_DBG_BOOT,"mmc,caps: 0x%x\n",rk_mmc_property->mmc_caps);
     mmc_debug(MMC_DBG_BOOT,"mmc,ocr:  0x%x\n",rk_mmc_property->mmc_ocr);
@@ -14,7 +14,7 @@ printk("%d..%s: =====test====\n", __LINE__, __FUNCTION__);
                                                    rk_mmc_property->mmc_dma_is_used[1]);
     mmc_debug(MMC_DBG_BOOT,"mmc,dma_ch: %d\n",rk_mmc_property->mmc_dma_chn);
     mmc_debug(MMC_DBG_BOOT,"=========rockchip mmc dts dump info end================\n");
-    */
+  /*
       printk("=========rockchip mmc dts dump info start==============\n");
     printk("mmc,caps: 0x%x\n",rk_mmc_property->mmc_caps);
     printk("mmc,ocr:  0x%x\n",rk_mmc_property->mmc_ocr);
@@ -23,7 +23,8 @@ printk("%d..%s: =====test====\n", __LINE__, __FUNCTION__);
     printk("mmc,use_dma:  %d %d\n",rk_mmc_property->mmc_dma_is_used[0],
                                                    rk_mmc_property->mmc_dma_is_used[1]);
     printk("mmc,dma_ch: %d\n",rk_mmc_property->mmc_dma_chn);
-    printk("=========rockchip mmc dts dump info end================\n");  
+    printk("=========rockchip mmc dts dump info end================\n");
+*/  
 }
 
 

@@ -31,7 +31,7 @@
 #include <linux/irq.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
-#include <linux/mmc/dw_mmc.h>
+#include <linux/mmc/rk_mmc.h>
 #include <linux/bitops.h>
 #include <linux/regulator/consumer.h>
 #include <linux/workqueue.h>
@@ -523,6 +523,78 @@ static void dw_mci_post_req(struct mmc_host *mmc,
 	data->host_cookie = 0;
 }
 
+static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
+{
+#ifdef CONFIG_MMC_DW_IDMAC
+	unsigned int blksz = data->blksz;
+	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
+	u32 fifo_width = 1 << host->data_shift;
+	u32 blksz_depth = blksz / fifo_width, fifoth_val;
+	u32 msize = 0, rx_wmark = 1, tx_wmark, tx_wmark_invers;
+	int idx = (sizeof(mszs) / sizeof(mszs[0])) - 1;
+
+	tx_wmark = (host->fifo_depth) / 2;
+	tx_wmark_invers = host->fifo_depth - tx_wmark;
+
+	/*
+	 * MSIZE is '1',
+	 * if blksz is not a multiple of the FIFO width
+	 */
+	if (blksz % fifo_width) {
+		msize = 0;
+		rx_wmark = 1;
+		goto done;
+	}
+
+	do {
+		if (!((blksz_depth % mszs[idx]) ||
+		     (tx_wmark_invers % mszs[idx]))) {
+			msize = idx;
+			rx_wmark = mszs[idx] - 1;
+			break;
+		}
+	} while (--idx > 0);
+	/*
+	 * If idx is '0', it won't be tried
+	 * Thus, initial values are uesed
+	 */
+done:
+	fifoth_val = SDMMC_SET_FIFOTH(msize, rx_wmark, tx_wmark);
+	mci_writel(host, FIFOTH, fifoth_val);
+#endif
+}
+
+static void dw_mci_ctrl_rd_thld(struct dw_mci *host, struct mmc_data *data)
+{
+	unsigned int blksz = data->blksz;
+	u32 blksz_depth, fifo_depth;
+	u16 thld_size;
+
+	WARN_ON(!(data->flags & MMC_DATA_READ));
+
+	if (host->timing != MMC_TIMING_MMC_HS200 &&
+	    host->timing != MMC_TIMING_UHS_SDR104)
+		goto disable;
+
+	blksz_depth = blksz / (1 << host->data_shift);
+	fifo_depth = host->fifo_depth;
+
+	if (blksz_depth > fifo_depth)
+		goto disable;
+
+	/*
+	 * If (blksz_depth) >= (fifo_depth >> 1), should be 'thld_size <= blksz'
+	 * If (blksz_depth) <  (fifo_depth >> 1), should be thld_size = blksz
+	 * Currently just choose blksz.
+	 */
+	thld_size = blksz;
+	mci_writel(host, CDTHRCTL, SDMMC_SET_RD_THLD(thld_size, 1));
+	return;
+
+disable:
+	mci_writel(host, CDTHRCTL, SDMMC_SET_RD_THLD(0, 0));
+}
+
 static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 {
 	int sg_len;
@@ -572,10 +644,12 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 	host->sg = NULL;
 	host->data = data;
 
-	if (data->flags & MMC_DATA_READ)
+	if (data->flags & MMC_DATA_READ) {
 		host->dir_status = DW_MCI_RECV_STATUS;
-	else
+		dw_mci_ctrl_rd_thld(host, data);
+	} else {
 		host->dir_status = DW_MCI_SEND_STATUS;
+	}
 
 	if (dw_mci_submit_data_dma(host, data)) {
 		int flags = SG_MITER_ATOMIC;
@@ -807,6 +881,7 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		regs &= ~((0x1 << slot->id) << 16);
 
 	mci_writel(slot->host, UHS_REG, regs);
+	slot->host->timing = ios->timing;
 
 	/*
 	 * Use mirror of ios->clock to prevent race with mmc
@@ -2230,6 +2305,16 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_find_property(np, "enable-sdio-wakeup", NULL))
 		pdata->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+
+	if (of_find_property(np, "supports-highspeed", NULL))
+		pdata->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
+
+	if (of_find_property(np, "caps2-mmc-hs200-1_8v", NULL))
+		pdata->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
+
+	if (of_find_property(np, "caps2-mmc-hs200-1_2v", NULL))
+		pdata->caps2 |= MMC_CAP2_HS200_1_2V_SDR;
+
 
 	return pdata;
 }
