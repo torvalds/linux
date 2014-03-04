@@ -2321,6 +2321,25 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	return ret;
 }
 
+static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned long flags;
+	bool pending;
+
+	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
+	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
+		return false;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	pending = to_intel_crtc(crtc)->unpin_work != NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return pending;
+}
+
 static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *fb)
@@ -2330,6 +2349,11 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_framebuffer *old_fb;
 	int ret;
+
+	if (intel_crtc_has_pending_flip(crtc)) {
+		DRM_ERROR("pipe is still busy with an old pageflip\n");
+		return -EBUSY;
+	}
 
 	/* no fb bound */
 	if (!fb) {
@@ -2954,25 +2978,6 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 
 	POSTING_READ(reg);
 	udelay(100);
-}
-
-static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long flags;
-	bool pending;
-
-	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
-	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
-		return false;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	pending = to_intel_crtc(crtc)->unpin_work != NULL;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	return pending;
 }
 
 bool intel_has_pending_fb_unpin(struct drm_device *dev)
