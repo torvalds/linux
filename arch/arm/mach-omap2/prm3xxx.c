@@ -362,6 +362,13 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 
 	/* Clear any pending PRCM interrupts */
 	omap2_prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
+
+	/* We need to idle iva2_pwrdm even on am3703 with no iva2. */
+	omap3xxx_prm_iva_idle();
+
+	omap3_ctrl_setup_d2d_padconf();
+
+	omap3_prm_reset_modem();
 }
 
 /**

@@ -353,27 +353,12 @@ restore:
 #define omap3_pm_suspend NULL
 #endif /* CONFIG_SUSPEND */
 
-static void __init omap3_d2d_idle(void)
-{
-	omap3_ctrl_setup_d2d_padconf();
-
-	/* reset modem */
-	omap3_prm_reset_modem();
-}
-
 static void __init prcm_setup_regs(void)
 {
 	/* XXX This should be handled by hwmod code or SCM init code */
 	omap_ctrl_writel(OMAP3430_AUTOIDLE_MASK, OMAP2_CONTROL_SYSCONFIG);
 
 	omap3_prm_init_pm(cpu_is_omap3630(), omap3_has_iva());
-
-	/*
-	 * We need to idle iva2_pwrdm even on am3703 with no iva2.
-	 */
-	omap3xxx_prm_iva_idle();
-
-	omap3_d2d_idle();
 }
 
 void omap3_pm_off_mode_enable(int enable)
