@@ -607,7 +607,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
  err_clk:
 	clk_disable_unprepare(wdt->clock);
-	wdt->clock = NULL;
 
  err:
 	return ret;
@@ -627,7 +626,6 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 	s3c2410wdt_cpufreq_deregister(wdt);
 
 	clk_disable_unprepare(wdt->clock);
-	wdt->clock = NULL;
 
 	return 0;
 }
