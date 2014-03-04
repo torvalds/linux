@@ -85,6 +85,9 @@ struct idmac_desc {
  * @queue_node: List node for placing this node in the @queue list of
  *	&struct dw_mci.
  * @clock: Clock rate configured by set_ios(). Protected by host->lock.
+ * @__clk_old: The last updated clock with reflecting clock divider.
+ *	Keeping track of this helps us to avoid spamming the console
+ *	with CONFIG_MMC_CLKGATE.
  * @flags: Random state bits associated with the slot.
  * @id: Number of this slot.
  * @last_detect_state: Most recently observed card detect state.
@@ -102,6 +105,8 @@ struct dw_mci_slot {
 	struct list_head	queue_node;
 
 	unsigned int		clock;
+	unsigned int		__clk_old;
+
 	unsigned long		flags;
 #define DW_MMC_CARD_PRESENT	0
 #define DW_MMC_CARD_NEED_INIT	1
@@ -629,24 +634,31 @@ static void mci_send_cmd(struct dw_mci_slot *slot, u32 cmd, u32 arg)
 static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 {
 	struct dw_mci *host = slot->host;
+	unsigned int clock = slot->clock;
 	u32 div;
 	u32 clk_en_a;
 
-	if (slot->clock != host->current_speed || force_clkinit) {
-		div = host->bus_hz / slot->clock;
-		if (host->bus_hz % slot->clock && host->bus_hz > slot->clock)
+	if (!clock) {
+		mci_writel(host, CLKENA, 0);
+		mci_send_cmd(slot,
+			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+	} else if (clock != host->current_speed || force_clkinit) {
+		div = host->bus_hz / clock;
+		if (host->bus_hz % clock && host->bus_hz > clock)
 			/*
 			 * move the + 1 after the divide to prevent
 			 * over-clocking the card.
 			 */
 			div += 1;
 
-		div = (host->bus_hz != slot->clock) ? DIV_ROUND_UP(div, 2) : 0;
+		div = (host->bus_hz != clock) ? DIV_ROUND_UP(div, 2) : 0;
 
-		dev_info(&slot->mmc->class_dev,
-			 "Bus speed (slot %d) = %dHz (slot req %dHz, actual %dHZ"
-			 " div = %d)\n", slot->id, host->bus_hz, slot->clock,
-			 div ? ((host->bus_hz / div) >> 1) : host->bus_hz, div);
+		if ((clock << div) != slot->__clk_old || force_clkinit)
+			dev_info(&slot->mmc->class_dev,
+				 "Bus speed (slot %d) = %dHz (slot req %dHz, actual %dHZ div = %d)\n",
+				 slot->id, host->bus_hz, clock,
+				 div ? ((host->bus_hz / div) >> 1) :
+				 host->bus_hz, div);
 
 		/* disable clock */
 		mci_writel(host, CLKENA, 0);
@@ -673,8 +685,11 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 		mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
-		host->current_speed = slot->clock;
+		/* keep the clock with reflecting clock dividor */
+		slot->__clk_old = clock << div;
 	}
+
+	host->current_speed = clock;
 
 	/* Set the current slot bus width */
 	mci_writel(host, CTYPE, (slot->ctype << slot->id));
@@ -804,13 +819,11 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	mci_writel(slot->host, UHS_REG, regs);
 
-	if (ios->clock) {
-		/*
-		 * Use mirror of ios->clock to prevent race with mmc
-		 * core ios update when finding the minimum.
-		 */
-		slot->clock = ios->clock;
-	}
+	/*
+	 * Use mirror of ios->clock to prevent race with mmc
+	 * core ios update when finding the minimum.
+	 */
+	slot->clock = ios->clock;
 
 	if (drv_data && drv_data->set_ios)
 		drv_data->set_ios(slot->host, ios);
@@ -2052,12 +2065,6 @@ if (gpio_is_valid(slot->pwr_en_gpio))
 	/* Card initially undetected */
 	slot->last_detect_state = 0;
 
-	/*
-	 * Card may have been plugged in prior to boot so we
-	 * need to run the detect tasklet
-	 */
-	queue_work(host->card_workqueue, &host->card_work);
-
 	return 0;
 
 err_setup_bus:
@@ -2532,6 +2539,8 @@ int dw_mci_resume(struct dw_mci *host)
 
 	/* Restore the old value at FIFOTH register */
 	mci_writel(host, FIFOTH, host->fifoth_val);
+	/* Put in max timeout */
+	mci_writel(host, TMOUT, 0xFFFFFFFF);
 
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
 	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
