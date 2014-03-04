@@ -253,7 +253,7 @@ config USB_RCAR_GEN2_PHY
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
-	depends on ARM
+	depends on ARM || ARM64
 	help
 	  Enable this to support ULPI connected USB OTG transceivers which
 	  are likely found on embedded boards.
