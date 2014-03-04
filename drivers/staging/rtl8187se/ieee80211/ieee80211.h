@@ -473,7 +473,7 @@ enum {
 };
 
 struct ieee80211_header_data {
-	u16 frame_ctl;
+	__le16 frame_ctl;
 	u16 duration_id;
 	u8 addr1[6];
 	u8 addr2[6];
