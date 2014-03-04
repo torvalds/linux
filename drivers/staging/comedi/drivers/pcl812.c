@@ -885,15 +885,39 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static bool pcl812_ai_next_chan(struct comedi_device *dev,
+				struct comedi_subdevice *s)
+{
+	struct pcl812_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= cmd->chanlist_len) {
+		s->async->cur_chan = 0;
+		devpriv->ai_act_scan++;
+		s->async->events |= COMEDI_CB_EOS;
+	}
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    devpriv->ai_act_scan >= cmd->stop_arg) {
+		/* all data sampled */
+		s->cancel(dev, s);
+		s->async->events |= COMEDI_CB_EOA;
+		comedi_event(dev, s);
+		return false;
+	}
+
+	return true;
+}
+
 static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct pcl812_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_chan;
-
-	s->async->events = 0;
 
 	if (pcl812_ai_eoc(dev, s, NULL, 0)) {
 		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
@@ -914,16 +938,8 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
-	s->async->cur_chan = next_chan;
-	if (next_chan == 0) {	/* one scan done */
-		devpriv->ai_act_scan++;
-		if (cmd->stop_src == TRIG_COUNT &&
-		    devpriv->ai_act_scan >= cmd->stop_arg) {
-			/* all data sampled */
-			s->cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA;
-		}
-	}
+	if (!pcl812_ai_next_chan(dev, s))
+		return IRQ_HANDLED;
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -934,27 +950,14 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 				  unsigned short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
-	struct pcl812_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int i;
 
-	s->async->events = 0;
 	for (i = len; i; i--) {
 							/*  get one sample */
 		comedi_buf_put(s->async, ptr[bufptr++]);
 
-		s->async->cur_chan++;
-		if (s->async->cur_chan >= cmd->chanlist_len) {
-			s->async->cur_chan = 0;
-			devpriv->ai_act_scan++;
-			if (cmd->stop_src == TRIG_COUNT &&
-			    devpriv->ai_act_scan >= cmd->stop_arg) {
-				/* all data sampled */
-				s->cancel(dev, s);
-				s->async->events |= COMEDI_CB_EOA;
-				break;
-			}
-		}
+		if (!pcl812_ai_next_chan(dev, s))
+			return;
 	}
 
 	comedi_event(dev, s);
