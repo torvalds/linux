@@ -1085,10 +1085,10 @@ end:
 static void pcl818_reset(struct comedi_device *dev)
 {
 	const struct pcl818_board *board = comedi_board(dev);
-	struct pcl818_private *devpriv = dev->private;
 	unsigned long timer_base = dev->iobase + PCL818_TIMER_BASE;
 
-	if (devpriv->usefifo) {	/*  FIFO shutdown */
+	/* flush and disable the FIFO */
+	if (board->has_fifo) {
 		outb(0, dev->iobase + PCL818_FI_INTCLR);
 		outb(0, dev->iobase + PCL818_FI_FLUSH);
 		outb(0, dev->iobase + PCL818_FI_ENABLE);
@@ -1180,12 +1180,8 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	/* should we use the FIFO? */
-	if (board->has_fifo && it->options[2] == -1)
-		devpriv->usefifo = 1;
-
 	ret = comedi_request_region(dev, it->options[0],
-				    devpriv->usefifo ? 0x20 : 0x10);
+				    board->has_fifo ? 0x20 : 0x10);
 	if (ret)
 		return ret;
 
@@ -1196,6 +1192,10 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret == 0)
 			dev->irq = it->options[1];
 	}
+
+	/* should we use the FIFO? */
+	if (dev->irq && board->has_fifo && it->options[2] == -1)
+		devpriv->usefifo = 1;
 
 	/* we need an IRQ to do DMA on channel 3 or 1 */
 	if (dev->irq && board->has_dma &&
