@@ -1065,11 +1065,11 @@ COMPAT_SYSCALL_DEFINE1(adjtimex, struct compat_timex __user *, utp)
 }
 
 #ifdef CONFIG_NUMA
-asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_pages,
-		compat_uptr_t __user *pages32,
-		const int __user *nodes,
-		int __user *status,
-		int flags)
+COMPAT_SYSCALL_DEFINE6(move_pages, pid_t, pid, compat_ulong_t, nr_pages,
+		       compat_uptr_t __user *, pages32,
+		       const int __user *, nodes,
+		       int __user *, status,
+		       int, flags)
 {
 	const void __user * __user *pages;
 	int i;

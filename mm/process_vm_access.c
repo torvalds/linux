@@ -456,25 +456,23 @@ free_iovecs:
 	return rc;
 }
 
-asmlinkage ssize_t
-compat_sys_process_vm_readv(compat_pid_t pid,
-			    const struct compat_iovec __user *lvec,
-			    unsigned long liovcnt,
-			    const struct compat_iovec __user *rvec,
-			    unsigned long riovcnt,
-			    unsigned long flags)
+COMPAT_SYSCALL_DEFINE6(process_vm_readv, compat_pid_t, pid,
+		       const struct compat_iovec __user *, lvec,
+		       compat_ulong_t, liovcnt,
+		       const struct compat_iovec __user *, rvec,
+		       compat_ulong_t, riovcnt,
+		       compat_ulong_t, flags)
 {
 	return compat_process_vm_rw(pid, lvec, liovcnt, rvec,
 				    riovcnt, flags, 0);
 }
 
-asmlinkage ssize_t
-compat_sys_process_vm_writev(compat_pid_t pid,
-			     const struct compat_iovec __user *lvec,
-			     unsigned long liovcnt,
-			     const struct compat_iovec __user *rvec,
-			     unsigned long riovcnt,
-			     unsigned long flags)
+COMPAT_SYSCALL_DEFINE6(process_vm_writev, compat_pid_t, pid,
+		       const struct compat_iovec __user *, lvec,
+		       compat_ulong_t, liovcnt,
+		       const struct compat_iovec __user *, rvec,
+		       compat_ulong_t, riovcnt,
+		       compat_ulong_t, flags)
 {
 	return compat_process_vm_rw(pid, lvec, liovcnt, rvec,
 				    riovcnt, flags, 1);

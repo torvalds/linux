@@ -469,7 +469,7 @@ asmlinkage long compat_sys_timerfd_settime(int ufd, int flags,
 asmlinkage long compat_sys_timerfd_gettime(int ufd,
 				   struct compat_itimerspec __user *otmr);
 
-asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_page,
+asmlinkage long compat_sys_move_pages(pid_t pid, compat_ulong_t nr_pages,
 				      __u32 __user *pages,
 				      const int __user *nodes,
 				      int __user *status,
@@ -674,12 +674,12 @@ extern void __user *compat_alloc_user_space(unsigned long len);
 
 asmlinkage ssize_t compat_sys_process_vm_readv(compat_pid_t pid,
 		const struct compat_iovec __user *lvec,
-		unsigned long liovcnt, const struct compat_iovec __user *rvec,
-		unsigned long riovcnt, unsigned long flags);
+		compat_ulong_t liovcnt, const struct compat_iovec __user *rvec,
+		compat_ulong_t riovcnt, compat_ulong_t flags);
 asmlinkage ssize_t compat_sys_process_vm_writev(compat_pid_t pid,
 		const struct compat_iovec __user *lvec,
-		unsigned long liovcnt, const struct compat_iovec __user *rvec,
-		unsigned long riovcnt, unsigned long flags);
+		compat_ulong_t liovcnt, const struct compat_iovec __user *rvec,
+		compat_ulong_t riovcnt, compat_ulong_t flags);
 
 asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
 				    compat_off_t __user *offset, compat_size_t count);
