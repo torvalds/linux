@@ -141,8 +141,11 @@
 #define PCL812_DI_MSB_REG			0x07
 #define PCL812_STATUS_REG			0x08
 #define PCL812_STATUS_DRDY			(1 << 5)
-#define PCL812_GAIN	      9
-#define PCL812_MUX	     10
+#define PCL812_RANGE_REG			0x09
+#define PCL812_MUX_REG				0x0a
+#define PCL812_MUX_CHAN(x)			((x) << 0)
+#define PCL812_MUX_CS0				(1 << 4)
+#define PCL812_MUX_CS1				(1 << 5)
 #define PCL812_MODE	     11
 #define PCL812_CNTENABLE     10
 #define PCL812_SOFTTRIG	     12
@@ -500,8 +503,7 @@ static const struct pcl812_board boardtypes[] = {
 struct pcl812_private {
 	unsigned char dma;	/*  >0 use dma ( usedDMA channel) */
 	unsigned char range_correction;	/*  =1 we must add 1 to range number */
-	unsigned char old_chan_reg;	/*  lastly used chan/gain pair */
-	unsigned char old_gain_reg;
+	unsigned int last_ai_chanspec;
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
@@ -523,10 +525,6 @@ struct pcl812_private {
 	unsigned int ai_dma:1;
 	unsigned int ai_eos:1;
 };
-
-static void setup_range_channel(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned int rangechan, char wait);
 
 static void pcl812_start_pacer(struct comedi_device *dev, bool load_timers)
 {
@@ -631,6 +629,41 @@ static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
 	}
 	release_dma_lock(dma_flags);
 	enable_dma(devpriv->dma);
+}
+
+static void pcl812_ai_set_chan_range(struct comedi_device *dev,
+				     unsigned int chanspec, char wait)
+{
+	struct pcl812_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int mux = 0;
+
+	if (chanspec == devpriv->last_ai_chanspec)
+		return;
+
+	devpriv->last_ai_chanspec = chanspec;
+
+	if (devpriv->use_mpc508) {
+		if (devpriv->use_diff) {
+			mux |= PCL812_MUX_CS0 | PCL812_MUX_CS1;
+		} else {
+			if (chan < 8)
+				mux |= PCL812_MUX_CS0;
+			else
+				mux |= PCL812_MUX_CS1;
+		}
+	}
+
+	outb(mux | PCL812_MUX_CHAN(chan), dev->iobase + PCL812_MUX_REG);
+	outb(range + devpriv->range_correction, dev->iobase + PCL812_RANGE_REG);
+
+	if (wait)
+		/*
+		 * XXX this depends on selected range and can be very long for
+		 * some high gain ranges!
+		 */
+		udelay(devpriv->max_812_ai_mode0_rangewait);
 }
 
 static void pcl812_ai_clear_eoc(struct comedi_device *dev)
@@ -761,8 +794,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	pcl812_start_pacer(dev, false);
 
-	/*  select first channel and range */
-	setup_range_channel(dev, s, cmd->chanlist[0], 1);
+	pcl812_ai_set_chan_range(dev, cmd->chanlist[0], 1);
 
 	if (devpriv->dma) {	/*  check if we can use DMA transfer */
 		devpriv->ai_dma = 1;
@@ -851,7 +883,7 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 	if (next_chan >= cmd->chanlist_len)
 		next_chan = 0;
 	if (cmd->chanlist[s->async->cur_chan] != cmd->chanlist[next_chan])
-		setup_range_channel(dev, s, cmd->chanlist[next_chan], 0);
+		pcl812_ai_set_chan_range(dev, cmd->chanlist[next_chan], 0);
 
 	pcl812_ai_next_chan(dev, s);
 }
@@ -956,48 +988,6 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
-static void setup_range_channel(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned int rangechan, char wait)
-{
-	struct pcl812_private *devpriv = dev->private;
-	unsigned char chan_reg = CR_CHAN(rangechan);	/*  normal board */
-							/*  gain index */
-	unsigned char gain_reg = CR_RANGE(rangechan) +
-				 devpriv->range_correction;
-
-	if ((chan_reg == devpriv->old_chan_reg)
-	    && (gain_reg == devpriv->old_gain_reg))
-		return;		/*  we can return, no change */
-
-	devpriv->old_chan_reg = chan_reg;
-	devpriv->old_gain_reg = gain_reg;
-
-	if (devpriv->use_mpc508) {
-		if (devpriv->use_diff) {
-			chan_reg = chan_reg | 0x30;	/*  DIFF inputs */
-		} else {
-			if (chan_reg & 0x80)
-							/*  SE inputs 8-15 */
-				chan_reg = chan_reg | 0x20;
-			else
-							/*  SE inputs 0-7 */
-				chan_reg = chan_reg | 0x10;
-		}
-	}
-
-	outb(chan_reg, dev->iobase + PCL812_MUX);	/* select channel */
-	outb(gain_reg, dev->iobase + PCL812_GAIN);	/* select gain */
-
-
-	if (wait)
-		/*
-		 * XXX this depends on selected range and can be very long for
-		 * some high gain ranges!
-		 */
-		udelay(devpriv->max_812_ai_mode0_rangewait);
-}
-
 static int pcl812_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1025,8 +1015,7 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 	/* select software trigger */
 	outb(devpriv->mode_reg_int | 1, dev->iobase + PCL812_MODE);
 
-	/*  select channel and renge */
-	setup_range_channel(dev, s, insn->chanspec, 1);
+	pcl812_ai_set_chan_range(dev, insn->chanspec, 1);
 
 	for (i = 0; i < insn->n; i++) {
 		pcl812_ai_clear_eoc(dev);
@@ -1110,10 +1099,12 @@ static void pcl812_reset(struct comedi_device *dev)
 	const struct pcl812_board *board = comedi_board(dev);
 	struct pcl812_private *devpriv = dev->private;
 
-	outb(0, dev->iobase + PCL812_MUX);
-	outb(0 + devpriv->range_correction, dev->iobase + PCL812_GAIN);
-	devpriv->old_chan_reg = -1;	/*  invalidate chain/gain memory */
-	devpriv->old_gain_reg = -1;
+	/*
+	 * Invalidate last_ai_chanspec then set analog input to
+	 * known channel/range.
+	 */
+	devpriv->last_ai_chanspec = CR_PACK(16, 0, 0);
+	pcl812_ai_set_chan_range(dev, CR_PACK(0, 0, 0), 0);
 
 	switch (board->board_type) {
 	case boardPCL812PG:
