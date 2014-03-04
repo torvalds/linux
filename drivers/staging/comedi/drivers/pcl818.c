@@ -547,21 +547,16 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan;
-	int timeout = 50;	/* wait max 50us */
 
-	while (timeout--) {
-		if (inb(dev->iobase + PCL818_STATUS) & 0x10)
-			goto conv_finish;
-		udelay(1);
+	if (pcl818_ai_eoc(dev, s, NULL, 0)) {
+		outb(0, dev->iobase + PCL818_STATUS);	/* clear INT request */
+		comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
+		s->cancel(dev, s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev, s);
+		return IRQ_HANDLED;
 	}
-	outb(0, dev->iobase + PCL818_STATUS);	/* clear INT request */
-	comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
-	s->cancel(dev, s);
-	s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-	comedi_event(dev, s);
-	return IRQ_HANDLED;
 
-conv_finish:
 	comedi_buf_put(s->async, pcl818_ai_get_sample(dev, s, &chan));
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
