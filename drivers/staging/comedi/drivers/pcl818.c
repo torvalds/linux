@@ -1004,6 +1004,7 @@ static void pcl818_reset(struct comedi_device *dev)
 {
 	const struct pcl818_board *board = comedi_board(dev);
 	unsigned long timer_base = dev->iobase + PCL818_TIMER_BASE;
+	unsigned int chan;
 
 	/* flush and disable the FIFO */
 	if (board->has_fifo) {
@@ -1011,30 +1012,28 @@ static void pcl818_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCL818_FI_FLUSH);
 		outb(0, dev->iobase + PCL818_FI_ENABLE);
 	}
-	/* set analog output channel 0 to 0V */
-	outb(0, dev->iobase + PCL818_AO_LSB_REG(0));
-	outb(0, dev->iobase + PCL818_AO_MSB_REG(0));
-	udelay(1);
-	outb(0, dev->iobase + PCL818_DO_DI_MSB_REG);
-	outb(0, dev->iobase + PCL818_DO_DI_LSB_REG);
-	udelay(1);
+
+	/* disable analog input trigger */
 	outb(PCL818_CTRL_DISABLE_TRIG, dev->iobase + PCL818_CTRL_REG);
-	outb(PCL818_CNTENABLE_PACER_ENA, dev->iobase + PCL818_CNTENABLE_REG);
-	outb(0, dev->iobase + PCL818_MUX_REG);
 	pcl818_ai_clear_eoc(dev);
 
-	/* Stop pacer */
+	pcl818_ai_set_chan_range(dev, 0, 0);
+
+	/* stop pacer */
+	outb(PCL818_CNTENABLE_PACER_ENA, dev->iobase + PCL818_CNTENABLE_REG);
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
 	i8254_set_mode(timer_base, 0, 1, I8254_MODE0 | I8254_BINARY);
 	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
 
-	if (board->is_818) {
-		outb(0, dev->iobase + PCL818_RANGE_REG);
-	} else {
-		/* set analog output channel 1 to 0V */
-		outb(0, dev->iobase + PCL818_AO_LSB_REG(1));
-		outb(0, dev->iobase + PCL818_AO_MSB_REG(1));
+	/* set analog output channels to 0V */
+	for (chan = 0; chan < board->n_aochan; chan++) {
+		outb(0, dev->iobase + PCL818_AO_LSB_REG(chan));
+		outb(0, dev->iobase + PCL818_AO_MSB_REG(chan));
 	}
+
+	/* set all digital outputs low */
+	outb(0, dev->iobase + PCL818_DO_DI_MSB_REG);
+	outb(0, dev->iobase + PCL818_DO_DI_LSB_REG);
 }
 
 static void pcl818_set_ai_range_table(struct comedi_device *dev,
