@@ -131,6 +131,9 @@
 #define boardACL8216	      8	/* and ICP DAS A-826PG */
 #define boardA821	      9	/* PGH, PGL, PGL/NDA versions */
 
+/*
+ * Register I/O map
+ */
 #define PCL812_TIMER_BASE			0x00
 #define PCL812_AI_LSB_REG			0x04
 #define PCL812_AI_MSB_REG			0x05
@@ -151,8 +154,7 @@
 #define PCL812_CTRL_SOFT_TRIG			(1 << 0)
 #define PCL812_CTRL_PACER_DMA_TRIG		(2 << 0)
 #define PCL812_CTRL_PACER_EOC_TRIG		(6 << 0)
-#define PCL812_CNTENABLE     10
-#define PCL812_SOFTTRIG	     12
+#define PCL812_SOFTTRIG_REG			0x0c
 #define PCL812_DO_LSB_REG			0x0d
 #define PCL812_DO_MSB_REG			0x0e
 
@@ -679,7 +681,7 @@ static void pcl812_ai_clear_eoc(struct comedi_device *dev)
 static void pcl812_ai_soft_trig(struct comedi_device *dev)
 {
 	/* writing any value triggers a software conversion */
-	outb(255, dev->iobase + PCL812_SOFTTRIG);
+	outb(255, dev->iobase + PCL812_SOFTTRIG_REG);
 }
 
 static unsigned int pcl812_ai_get_sample(struct comedi_device *dev,
