@@ -677,22 +677,6 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
-				    struct comedi_subdevice *s)
-{
-	unsigned int ctrl = 0;
-
-	pcl818_ai_setup_dma(dev, s);
-
-	ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq) | PCL818_CTRL_DMAE;
-	if (mode == 1)
-		ctrl |= PCL818_CTRL_PACER_TRIG;
-	else
-		ctrl |= PCL818_CTRL_EXT_TRIG;
-
-	outb(ctrl, dev->iobase + PCL818_CTRL_REG);
-}
-
 static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
@@ -722,28 +706,23 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 
 	outb(0, dev->iobase + PCL818_CNTENABLE);	/* enable pacer */
 
-	switch (devpriv->dma) {
-	case 1:		/*  DMA */
-	case 3:
-		pcl818_ai_mode13dma_int(mode, dev, s);
-		break;
-	case 0:
-		if (!devpriv->usefifo) {
-			ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq);
-			if (mode == 1)
-				ctrl |= PCL818_CTRL_PACER_TRIG;
-			else
-				ctrl |= PCL818_CTRL_EXT_TRIG;
-		} else {
-			/* enable FIFO */
-			outb(1, dev->iobase + PCL818_FI_ENABLE);
-			if (mode == 1)
-				ctrl |= PCL818_CTRL_PACER_TRIG;
-			else
-				ctrl |= PCL818_CTRL_EXT_TRIG;
-		}
-		outb(ctrl, dev->iobase + PCL818_CTRL_REG);
+	if (mode == 1)
+		ctrl |= PCL818_CTRL_PACER_TRIG;
+	else
+		ctrl |= PCL818_CTRL_EXT_TRIG;
+
+	if (devpriv->dma) {
+		pcl818_ai_setup_dma(dev, s);
+
+		ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq) |
+			PCL818_CTRL_DMAE;
+	} else if (devpriv->usefifo) {
+		/* enable FIFO */
+		outb(1, dev->iobase + PCL818_FI_ENABLE);
+	} else {
+		ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq);
 	}
+	outb(ctrl, dev->iobase + PCL818_CTRL_REG);
 
 	pcl818_start_pacer(dev, mode == 1);
 
