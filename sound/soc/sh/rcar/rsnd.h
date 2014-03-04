@@ -353,6 +353,9 @@ struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
+int rsnd_scu_ssi_mode_init(struct rsnd_mod *ssi_mod,
+			   struct rsnd_dai *rdai,
+			   struct rsnd_dai_stream *io);
 int rsnd_scu_enable_ssi_irq(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai,
 			    struct rsnd_dai_stream *io);

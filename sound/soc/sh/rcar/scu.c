@@ -115,28 +115,28 @@ struct rsnd_scu {
 /*
  *		Gen1/Gen2 common functions
  */
-static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
-				  struct rsnd_dai *rdai,
-				  struct rsnd_dai_stream *io)
+int rsnd_scu_ssi_mode_init(struct rsnd_mod *ssi_mod,
+			   struct rsnd_dai *rdai,
+			   struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
-	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
+	struct rsnd_mod *scu_mod = rsnd_io_to_mod_scu(io);
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	int ssi_id = rsnd_mod_id(ssi_mod);
-	u32 convert_rate = rsnd_scu_convert_rate(scu);
-
-	if (convert_rate && !rsnd_dai_is_clk_master(rdai)) {
-		struct device *dev = rsnd_priv_to_dev(priv);
-
-		dev_err(dev, "rsnd should be clk master when you rate convert\n");
-		return -EINVAL;
-	}
+	int has_scu = 0;
 
 	/*
 	 * SSI_MODE0
 	 */
-	rsnd_mod_bset(mod, SSI_MODE0, (1 << ssi_id),
-		      rsnd_scu_hpbif_is_enable(scu) ? 0 : (1 << ssi_id));
+	if (info->dai_info) {
+		has_scu = !!scu_mod;
+	} else {
+		struct rsnd_scu *scu = rsnd_mod_to_scu(scu_mod);
+		has_scu = rsnd_scu_hpbif_is_enable(scu);
+	}
+
+	rsnd_mod_bset(ssi_mod, SSI_MODE0, (1 << ssi_id),
+		      has_scu ? 0 : (1 << ssi_id));
 
 	/*
 	 * SSI_MODE1
@@ -156,7 +156,7 @@ static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 		}
 
 		if (shift >= 0)
-			rsnd_mod_bset(mod, SSI_MODE1,
+			rsnd_mod_bset(ssi_mod, SSI_MODE1,
 				      0x3 << shift,
 				      rsnd_dai_is_clk_master(rdai) ?
 				      0x2 << shift : 0x1 << shift);
@@ -253,13 +253,8 @@ static int rsnd_scu_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io)
 {
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
-	int ret;
 
 	clk_enable(scu->clk);
-
-	ret = rsnd_scu_ssi_mode_init(mod, rdai, io);
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
@@ -487,11 +482,6 @@ static struct rsnd_mod_ops rsnd_scu_gen1_ops = {
 	.stop	= rsnd_scu_stop_gen1,
 };
 
-static struct rsnd_mod_ops rsnd_scu_non_gen1_ops = {
-	.name	= "non-sru (gen1)",
-	.init	= rsnd_scu_ssi_mode_init,
-};
-
 /*
  *		Gen2 functions
  */
@@ -592,11 +582,6 @@ static struct rsnd_mod_ops rsnd_scu_gen2_ops = {
 	.stop	= rsnd_scu_stop_gen2,
 };
 
-static struct rsnd_mod_ops rsnd_scu_non_gen2_ops = {
-	.name	= "non-scu (gen2)",
-	.init	= rsnd_scu_ssi_mode_init,
-};
-
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id)
 {
 	if (WARN_ON(id < 0 || id >= rsnd_scu_nr(priv)))
@@ -665,11 +650,6 @@ int rsnd_scu_probe(struct platform_device *pdev,
 
 				ops = &rsnd_scu_gen2_ops;
 			}
-		} else {
-			if (rsnd_is_gen1(priv))
-				ops = &rsnd_scu_non_gen1_ops;
-			if (rsnd_is_gen2(priv))
-				ops = &rsnd_scu_non_gen2_ops;
 		}
 
 		rsnd_mod_init(priv, &scu->mod, ops, RSND_MOD_SCU, i);

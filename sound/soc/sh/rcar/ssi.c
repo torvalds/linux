@@ -287,6 +287,8 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->cr_own	= cr;
 	ssi->err	= -1; /* ignore 1st error */
 
+	rsnd_scu_ssi_mode_init(mod, rdai, io);
+
 	return 0;
 }
 
