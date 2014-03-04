@@ -400,6 +400,13 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 	devpriv->dma_runs_to_end--;
 }
 
+static void pcl818_ai_clear_eoc(struct comedi_device *dev)
+{
+	/* writing any value clears the interrupt request */
+	outb(0, dev->iobase + PCL818_CLRINT);
+}
+
+
 static unsigned int pcl818_ai_get_fifo_sample(struct comedi_device *dev,
 					      struct comedi_subdevice *s,
 					      unsigned int *chan)
@@ -500,7 +507,6 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 	unsigned int val;
 
 	if (pcl818_ai_eoc(dev, s, NULL, 0)) {
-		outb(0, dev->iobase + PCL818_STATUS);	/* clear INT request */
 		comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
 		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
@@ -508,7 +514,6 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 	}
 
 	val = pcl818_ai_get_sample(dev, s, &chan);
-	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
 	if (pcl818_ai_dropout(dev, s, chan))
 		return;
@@ -598,7 +603,7 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 
 	if (!dev->attached || !devpriv->ai_cmd_running) {
-		outb(0, dev->iobase + PCL818_CLRINT);
+		pcl818_ai_clear_eoc(dev);
 		return IRQ_HANDLED;
 	}
 
@@ -611,7 +616,6 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 		 */
 		devpriv->ai_act_scan = 0;
 		s->cancel(dev, s);
-		outb(0, dev->iobase + PCL818_CLRINT);
 		return IRQ_HANDLED;
 	}
 
@@ -622,7 +626,7 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 	else
 		pcl818_handle_eoc(dev, s);
 
-	outb(0, dev->iobase + PCL818_CLRINT);
+	pcl818_ai_clear_eoc(dev);
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -913,8 +917,9 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	pcl818_start_pacer(dev, false);
 	outb(0, dev->iobase + PCL818_AD_LO);
 	pcl818_ai_get_sample(dev, s, NULL);
-	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 	outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
+	pcl818_ai_clear_eoc(dev);
+
 	if (devpriv->usefifo) {	/*  FIFO shutdown */
 		outb(0, dev->iobase + PCL818_FI_INTCLR);
 		outb(0, dev->iobase + PCL818_FI_FLUSH);
@@ -945,8 +950,7 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 	outb(range, dev->iobase + PCL818_RANGE);
 
 	for (i = 0; i < insn->n; i++) {
-		/* clear INT (conversion end) flag */
-		outb(0, dev->iobase + PCL818_CLRINT);
+		pcl818_ai_clear_eoc(dev);
 		/* start conversion */
 		outb(0, dev->iobase + PCL818_AD_LO);
 
@@ -956,8 +960,7 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 
 		data[i] = pcl818_ai_get_sample(dev, s, NULL);
 	}
-	/* clear INT (conversion end) flag */
-	outb(0, dev->iobase + PCL818_CLRINT);
+	pcl818_ai_clear_eoc(dev);
 
 	return ret ? ret : insn->n;
 }
@@ -1044,7 +1047,7 @@ static void pcl818_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL818_CONTROL);
 	outb(0, dev->iobase + PCL818_CNTENABLE);
 	outb(0, dev->iobase + PCL818_MUX);
-	outb(0, dev->iobase + PCL818_CLRINT);
+	pcl818_ai_clear_eoc(dev);
 
 	/* Stop pacer */
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
