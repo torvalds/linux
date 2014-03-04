@@ -120,7 +120,7 @@ struct pcl816_private {
 	unsigned int divisor1;
 	unsigned int divisor2;
 	unsigned int ai_cmd_running:1;
-	unsigned int irq_was_now_closed:1;
+	unsigned int ai_cmd_canceled:1;
 };
 
 static int check_channel_list(struct comedi_device *dev,
@@ -346,6 +346,13 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 
 	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
+		outb(0, dev->iobase + PCL816_CLRINT);
+		return IRQ_HANDLED;
+	}
+
+	if (devpriv->ai_cmd_canceled) {
+		devpriv->ai_cmd_canceled = 0;
+		outb(0, dev->iobase + PCL816_CLRINT);
 		return IRQ_HANDLED;
 	}
 
@@ -357,11 +364,6 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 	if (!devpriv->ai_cmd_running || !devpriv->int816_mode) {
-		if (devpriv->irq_was_now_closed) {
-			devpriv->irq_was_now_closed = 0;
-			/*  comedi_error(dev,"last IRQ.."); */
-			return IRQ_HANDLED;
-		}
 		comedi_error(dev, "bad IRQ!");
 		return IRQ_NONE;
 	}
@@ -469,7 +471,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->async->cur_chan = 0;
 	devpriv->ai_cmd_running = 1;
 	devpriv->ai_poll_ptr = 0;
-	devpriv->irq_was_now_closed = 0;
+	devpriv->ai_cmd_canceled = 0;
 
 	if (devpriv->dma)
 		pcl816_ai_setup_dma(dev, s);
@@ -576,7 +578,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 		/* Stop A/D */
 		outb(0, dev->iobase + PCL816_CONTROL);
 		devpriv->ai_cmd_running = 0;
-		devpriv->irq_was_now_closed = 1;
+		devpriv->ai_cmd_canceled = 1;
 		devpriv->int816_mode = 0;
 		break;
 	}
