@@ -2252,7 +2252,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 
 out_unwind:
 	for_each_obj_request_safe(img_request, obj_request, next_obj_request)
-		rbd_obj_request_put(obj_request);
+		rbd_img_obj_request_del(img_request, obj_request);
 
 	return -ENOMEM;
 }
