@@ -136,14 +136,10 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define PCL818_AD_LO 0
 /* R: high byte of A/D W: A/D range control */
 #define PCL818_AD_HI 1
-/* W: D/A low&high byte */
-#define PCL818_DA_LO 4
-#define PCL818_DA_HI 5
+#define PCL818_AO_LSB_REG(x)			(0x04 + ((x) * 2))
+#define PCL818_AO_MSB_REG(x)			(0x05 + ((x) * 2))
 #define PCL818_DO_DI_LSB_REG			0x03
 #define PCL818_DO_DI_MSB_REG			0x0b
-/* W: PCL718 second D/A */
-#define PCL718_DA2_LO 6
-#define PCL718_DA2_HI 7
 
 #define PCL818_TIMER_BASE			0x0c
 
@@ -479,39 +475,6 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 		}
 
 		data[n] = pcl818_ai_get_sample(dev, s, NULL);
-	}
-
-	return n;
-}
-
-static int pcl818_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcl818_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_readback[chan];
-
-	return n;
-}
-
-static int pcl818_ao_insn_write(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcl818_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++) {
-		devpriv->ao_readback[chan] = data[n];
-		outb((data[n] & 0x000f) << 4, dev->iobase +
-		     (chan ? PCL718_DA2_LO : PCL818_DA_LO));
-		outb((data[n] & 0x0ff0) >> 4, dev->iobase +
-		     (chan ? PCL718_DA2_HI : PCL818_DA_HI));
 	}
 
 	return n;
@@ -1000,6 +963,41 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int pcl818_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	struct pcl818_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		devpriv->ao_readback[chan] = data[i];
+		outb((data[i] & 0x000f) << 4,
+		     dev->iobase + PCL818_AO_LSB_REG(chan));
+		outb((data[i] & 0x0ff0) >> 4,
+		     dev->iobase + PCL818_AO_MSB_REG(chan));
+	}
+
+	return insn->n;
+}
+
+static int pcl818_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	struct pcl818_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
+
+	return insn->n;
+}
+
 static int pcl818_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -1037,8 +1035,9 @@ static void pcl818_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCL818_FI_FLUSH);
 		outb(0, dev->iobase + PCL818_FI_ENABLE);
 	}
-	outb(0, dev->iobase + PCL818_DA_LO);	/*  DAC=0V */
-	outb(0, dev->iobase + PCL818_DA_HI);
+	/* set analog output channel 0 to 0V */
+	outb(0, dev->iobase + PCL818_AO_LSB_REG(0));
+	outb(0, dev->iobase + PCL818_AO_MSB_REG(0));
 	udelay(1);
 	outb(0, dev->iobase + PCL818_DO_DI_MSB_REG);
 	outb(0, dev->iobase + PCL818_DO_DI_LSB_REG);
@@ -1056,8 +1055,9 @@ static void pcl818_reset(struct comedi_device *dev)
 	if (board->is_818) {
 		outb(0, dev->iobase + PCL818_RANGE);
 	} else {
-		outb(0, dev->iobase + PCL718_DA2_LO);
-		outb(0, dev->iobase + PCL718_DA2_HI);
+		/* set analog output channel 1 to 0V */
+		outb(0, dev->iobase + PCL818_AO_LSB_REG(1));
+		outb(0, dev->iobase + PCL818_AO_MSB_REG(1));
 	}
 }
 
@@ -1196,17 +1196,16 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->cancel	= pcl818_ai_cancel;
 	}
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	if (!board->n_aochan) {
-		s->type = COMEDI_SUBD_UNUSED;
-	} else {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = board->n_aochan;
-		s->maxdata = 0x0fff;
-		s->range_table = &range_unipolar5;
-		s->insn_read = pcl818_ao_insn_read;
-		s->insn_write = pcl818_ao_insn_write;
+	if (board->n_aochan) {
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
+		s->n_chan	= board->n_aochan;
+		s->maxdata	= 0x0fff;
+		s->range_table	= &range_unipolar5;
+		s->insn_read	= pcl818_ao_insn_read;
+		s->insn_write	= pcl818_ao_insn_write;
 		if (board->is_818) {
 			if ((it->options[4] == 1) || (it->options[4] == 10))
 				s->range_table = &range_unipolar10;
@@ -1218,6 +1217,8 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			if (it->options[5] == 2)
 				s->range_table = &range_unknown;
 		}
+	} else {
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* Digital Input subdevice */
