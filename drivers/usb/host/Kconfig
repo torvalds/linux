@@ -158,6 +158,13 @@ config USB_EHCI_HCD_SPEAR
           Enables support for the on-chip EHCI controller on
           ST SPEAr chips.
 
+config USB_EHCI_HCD_SYNOPSYS
+       tristate "Support for Synopsys Host-AHB USB 2.0 controller"
+	depends on USB_EHCI_HCD
+	---help---
+	  Enable support for onchip USB controllers based on DesignWare USB 2.0
+	  Host-AHB Controller IP from Synopsys.
+
 config USB_EHCI_HCD_AT91
         tristate  "Support for Atmel on-chip EHCI USB controller"
         depends on USB_EHCI_HCD && ARCH_AT91
