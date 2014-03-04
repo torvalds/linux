@@ -1926,7 +1926,8 @@ void trinity_dpm_print_power_state(struct radeon_device *rdev,
 void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 							 struct seq_file *m)
 {
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
 	struct trinity_ps *ps = trinity_get_ps(rps);
 	struct trinity_pl *pl;
 	u32 current_index =

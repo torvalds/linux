@@ -69,8 +69,8 @@ _GLOBAL(relocate)
 	 * R_PPC64_RELATIVE ones.
 	 */
 	mtctr	r8
-5:	lwz	r0,12(9)	/* ELF64_R_TYPE(reloc->r_info) */
-	cmpwi	r0,R_PPC64_RELATIVE
+5:	ld	r0,8(9)		/* ELF64_R_TYPE(reloc->r_info) */
+	cmpdi	r0,R_PPC64_RELATIVE
 	bne	6f
 	ld	r6,0(r9)	/* reloc->r_offset */
 	ld	r0,16(r9)	/* reloc->r_addend */

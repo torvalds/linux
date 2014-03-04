@@ -559,8 +559,13 @@ void exc_lvl_ctx_init(void)
 #ifdef CONFIG_PPC64
 		cpu_nr = i;
 #else
+#ifdef CONFIG_SMP
 		cpu_nr = get_hard_smp_processor_id(i);
+#else
+		cpu_nr = 0;
 #endif
+#endif
+
 		memset((void *)critirq_ctx[cpu_nr], 0, THREAD_SIZE);
 		tp = critirq_ctx[cpu_nr];
 		tp->cpu = cpu_nr;

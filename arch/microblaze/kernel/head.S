@@ -66,7 +66,7 @@ real_start:
 	mts	rmsr, r0
 /* Disable stack protection from bootloader */
 	mts	rslr, r0
-	addi	r8, r0, 0xFFFFFFF
+	addi	r8, r0, 0xFFFFFFFF
 	mts	rshr, r8
 /*
  * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'

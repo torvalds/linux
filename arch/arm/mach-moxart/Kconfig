@@ -2,7 +2,6 @@ config ARCH_MOXART
 	bool "MOXA ART SoC" if ARCH_MULTI_V4T
 	select CPU_FA526
 	select ARM_DMA_MEM_BUFFERABLE
-	select DMA_OF
 	select USE_OF
 	select CLKSRC_OF
 	select CLKSRC_MMIO

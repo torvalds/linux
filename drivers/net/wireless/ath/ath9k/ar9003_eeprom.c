@@ -5065,6 +5065,10 @@ static u16 ar9003_hw_get_max_edge_power(struct ar9300_eeprom *eep,
 			break;
 		}
 	}
+
+	if (is2GHz && !twiceMaxEdgePower)
+		twiceMaxEdgePower = 60;
+
 	return twiceMaxEdgePower;
 }
 

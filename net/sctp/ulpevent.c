@@ -989,7 +989,7 @@ static void sctp_ulpevent_receive_data(struct sctp_ulpevent *event,
 	skb = sctp_event2skb(event);
 	/* Set the owner and charge rwnd for bytes received.  */
 	sctp_ulpevent_set_owner(event, asoc);
-	sctp_assoc_rwnd_decrease(asoc, skb_headlen(skb));
+	sctp_assoc_rwnd_update(asoc, false);
 
 	if (!skb->data_len)
 		return;
@@ -1011,6 +1011,7 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 {
 	struct sk_buff *skb, *frag;
 	unsigned int	len;
+	struct sctp_association *asoc;
 
 	/* Current stack structures assume that the rcv buffer is
 	 * per socket.   For UDP style sockets this is not true as
@@ -1035,8 +1036,11 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 	}
 
 done:
-	sctp_assoc_rwnd_increase(event->asoc, len);
+	asoc = event->asoc;
+	sctp_association_hold(asoc);
 	sctp_ulpevent_release_owner(event);
+	sctp_assoc_rwnd_update(asoc, true);
+	sctp_association_put(asoc);
 }
 
 static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event)

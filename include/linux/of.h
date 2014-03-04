@@ -189,35 +189,15 @@ static inline const char *of_node_full_name(const struct device_node *np)
 
 extern struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name);
-#define for_each_node_by_name(dn, name) \
-	for (dn = of_find_node_by_name(NULL, name); dn; \
-	     dn = of_find_node_by_name(dn, name))
 extern struct device_node *of_find_node_by_type(struct device_node *from,
 	const char *type);
-#define for_each_node_by_type(dn, type) \
-	for (dn = of_find_node_by_type(NULL, type); dn; \
-	     dn = of_find_node_by_type(dn, type))
 extern struct device_node *of_find_compatible_node(struct device_node *from,
 	const char *type, const char *compat);
-#define for_each_compatible_node(dn, type, compatible) \
-	for (dn = of_find_compatible_node(NULL, type, compatible); dn; \
-	     dn = of_find_compatible_node(dn, type, compatible))
 extern struct device_node *of_find_matching_node_and_match(
 	struct device_node *from,
 	const struct of_device_id *matches,
 	const struct of_device_id **match);
-static inline struct device_node *of_find_matching_node(
-	struct device_node *from,
-	const struct of_device_id *matches)
-{
-	return of_find_matching_node_and_match(from, matches, NULL);
-}
-#define for_each_matching_node(dn, matches) \
-	for (dn = of_find_matching_node(NULL, matches); dn; \
-	     dn = of_find_matching_node(dn, matches))
-#define for_each_matching_node_and_match(dn, matches, match) \
-	for (dn = of_find_matching_node_and_match(NULL, matches, match); \
-	     dn; dn = of_find_matching_node_and_match(dn, matches, match))
+
 extern struct device_node *of_find_node_by_path(const char *path);
 extern struct device_node *of_find_node_by_phandle(phandle handle);
 extern struct device_node *of_get_parent(const struct device_node *node);
@@ -229,43 +209,11 @@ extern struct device_node *of_get_next_available_child(
 
 extern struct device_node *of_get_child_by_name(const struct device_node *node,
 					const char *name);
-#define for_each_child_of_node(parent, child) \
-	for (child = of_get_next_child(parent, NULL); child != NULL; \
-	     child = of_get_next_child(parent, child))
-
-#define for_each_available_child_of_node(parent, child) \
-	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
-	     child = of_get_next_available_child(parent, child))
-
-static inline int of_get_child_count(const struct device_node *np)
-{
-	struct device_node *child;
-	int num = 0;
-
-	for_each_child_of_node(np, child)
-		num++;
-
-	return num;
-}
-
-static inline int of_get_available_child_count(const struct device_node *np)
-{
-	struct device_node *child;
-	int num = 0;
-
-	for_each_available_child_of_node(np, child)
-		num++;
-
-	return num;
-}
 
 /* cache lookup */
 extern struct device_node *of_find_next_cache_node(const struct device_node *);
 extern struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name);
-#define for_each_node_with_property(dn, prop_name) \
-	for (dn = of_find_node_with_property(NULL, prop_name); dn; \
-	     dn = of_find_node_with_property(dn, prop_name))
 
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
@@ -387,7 +335,39 @@ static inline struct device_node *of_find_node_by_name(struct device_node *from,
 	return NULL;
 }
 
+static inline struct device_node *of_find_node_by_type(struct device_node *from,
+	const char *type)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_find_matching_node_and_match(
+	struct device_node *from,
+	const struct of_device_id *matches,
+	const struct of_device_id **match)
+{
+	return NULL;
+}
+
 static inline struct device_node *of_get_parent(const struct device_node *node)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_get_next_child(
+	const struct device_node *node, struct device_node *prev)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_get_next_available_child(
+	const struct device_node *node, struct device_node *prev)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_find_node_with_property(
+	struct device_node *from, const char *prop_name)
 {
 	return NULL;
 }
@@ -397,32 +377,11 @@ static inline bool of_have_populated_dt(void)
 	return false;
 }
 
-/* Kill an unused variable warning on a device_node pointer */
-static inline void __of_use_dn(const struct device_node *np)
-{
-}
-
-#define for_each_child_of_node(parent, child) \
-	while (__of_use_dn(parent), __of_use_dn(child), 0)
-
-#define for_each_available_child_of_node(parent, child) \
-	while (0)
-
 static inline struct device_node *of_get_child_by_name(
 					const struct device_node *node,
 					const char *name)
 {
 	return NULL;
-}
-
-static inline int of_get_child_count(const struct device_node *np)
-{
-	return 0;
-}
-
-static inline int of_get_available_child_count(const struct device_node *np)
-{
-	return 0;
 }
 
 static inline int of_device_is_compatible(const struct device_node *device,
@@ -589,6 +548,13 @@ extern int of_node_to_nid(struct device_node *np);
 static inline int of_node_to_nid(struct device_node *device) { return 0; }
 #endif
 
+static inline struct device_node *of_find_matching_node(
+	struct device_node *from,
+	const struct of_device_id *matches)
+{
+	return of_find_matching_node_and_match(from, matches, NULL);
+}
+
 /**
  * of_property_read_bool - Findfrom a property
  * @np:		device node from which the property value is to be read.
@@ -637,6 +603,55 @@ static inline int of_property_read_u32(const struct device_node *np,
 		s = of_prop_next_string(prop, NULL);		\
 		s;						\
 		s = of_prop_next_string(prop, s))
+
+#define for_each_node_by_name(dn, name) \
+	for (dn = of_find_node_by_name(NULL, name); dn; \
+	     dn = of_find_node_by_name(dn, name))
+#define for_each_node_by_type(dn, type) \
+	for (dn = of_find_node_by_type(NULL, type); dn; \
+	     dn = of_find_node_by_type(dn, type))
+#define for_each_compatible_node(dn, type, compatible) \
+	for (dn = of_find_compatible_node(NULL, type, compatible); dn; \
+	     dn = of_find_compatible_node(dn, type, compatible))
+#define for_each_matching_node(dn, matches) \
+	for (dn = of_find_matching_node(NULL, matches); dn; \
+	     dn = of_find_matching_node(dn, matches))
+#define for_each_matching_node_and_match(dn, matches, match) \
+	for (dn = of_find_matching_node_and_match(NULL, matches, match); \
+	     dn; dn = of_find_matching_node_and_match(dn, matches, match))
+
+#define for_each_child_of_node(parent, child) \
+	for (child = of_get_next_child(parent, NULL); child != NULL; \
+	     child = of_get_next_child(parent, child))
+#define for_each_available_child_of_node(parent, child) \
+	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
+	     child = of_get_next_available_child(parent, child))
+
+#define for_each_node_with_property(dn, prop_name) \
+	for (dn = of_find_node_with_property(NULL, prop_name); dn; \
+	     dn = of_find_node_with_property(dn, prop_name))
+
+static inline int of_get_child_count(const struct device_node *np)
+{
+	struct device_node *child;
+	int num = 0;
+
+	for_each_child_of_node(np, child)
+		num++;
+
+	return num;
+}
+
+static inline int of_get_available_child_count(const struct device_node *np)
+{
+	struct device_node *child;
+	int num = 0;
+
+	for_each_available_child_of_node(np, child)
+		num++;
+
+	return num;
+}
 
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_PROC_DEVICETREE)
 extern void proc_device_tree_add_node(struct device_node *, struct proc_dir_entry *);

@@ -1167,7 +1167,7 @@ uint8_t __bch_btree_mark_key(struct cache_set *c, int level, struct bkey *k)
 		/* guard against overflow */
 		SET_GC_SECTORS_USED(g, min_t(unsigned,
 					     GC_SECTORS_USED(g) + KEY_SIZE(k),
-					     (1 << 14) - 1));
+					     MAX_GC_SECTORS_USED));
 
 		BUG_ON(!GC_SECTORS_USED(g));
 	}
@@ -1805,7 +1805,7 @@ static bool btree_insert_key(struct btree *b, struct bkey *k,
 
 static size_t insert_u64s_remaining(struct btree *b)
 {
-	ssize_t ret = bch_btree_keys_u64s_remaining(&b->keys);
+	long ret = bch_btree_keys_u64s_remaining(&b->keys);
 
 	/*
 	 * Might land in the middle of an existing extent and have to split it

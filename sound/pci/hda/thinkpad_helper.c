@@ -39,6 +39,7 @@ static void update_tpacpi_mute_led(void *private_data, int enabled)
 }
 
 static void update_tpacpi_micmute_led(struct hda_codec *codec,
+				      struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	if (!ucontrol || !led_set_func)

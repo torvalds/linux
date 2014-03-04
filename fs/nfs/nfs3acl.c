@@ -80,7 +80,7 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type)
 	}
 
 	if (res.acl_access != NULL) {
-		if (posix_acl_equiv_mode(res.acl_access, NULL) ||
+		if ((posix_acl_equiv_mode(res.acl_access, NULL) == 0) ||
 		    res.acl_access->a_count == 0) {
 			posix_acl_release(res.acl_access);
 			res.acl_access = NULL;
@@ -113,7 +113,7 @@ getout:
 	return ERR_PTR(status);
 }
 
-int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		struct posix_acl *dfacl)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -198,6 +198,15 @@ out:
 	return status;
 }
 
+int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+		struct posix_acl *dfacl)
+{
+	int ret;
+	ret = __nfs3_proc_setacls(inode, acl, dfacl);
+	return (ret == -EOPNOTSUPP) ? 0 : ret;
+
+}
+
 int nfs3_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	struct posix_acl *alloc = NULL, *dfacl = NULL;
@@ -225,31 +234,12 @@ int nfs3_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		if (IS_ERR(alloc))
 			goto fail;
 	}
-	status = nfs3_proc_setacls(inode, acl, dfacl);
+	status = __nfs3_proc_setacls(inode, acl, dfacl);
 	posix_acl_release(alloc);
 	return status;
 
 fail:
 	return PTR_ERR(alloc);
-}
-
-int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
-		umode_t mode)
-{
-	struct posix_acl *default_acl, *acl;
-	int error;
-
-	error = posix_acl_create(dir, &mode, &default_acl, &acl);
-	if (error)
-		return (error == -EOPNOTSUPP) ? 0 : error;
-
-	error = nfs3_proc_setacls(inode, acl, default_acl);
-
-	if (acl)
-		posix_acl_release(acl);
-	if (default_acl)
-		posix_acl_release(default_acl);
-	return error;
 }
 
 const struct xattr_handler *nfs3_xattr_handlers[] = {

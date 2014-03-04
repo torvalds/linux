@@ -235,7 +235,7 @@ ENTRY(_DoubleExceptionVector)
 
 	/* Check for overflow/underflow exception, jump if overflow. */
 
-	_bbci.l	a0, 6, _DoubleExceptionVector_WindowOverflow
+	bbci.l	a0, 6, _DoubleExceptionVector_WindowOverflow
 
 	/*
 	 * Restart window underflow exception.

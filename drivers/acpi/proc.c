@@ -60,7 +60,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 				seq_printf(seq, "%c%-8s  %s:%s\n",
 					dev->wakeup.flags.run_wake ? '*' : ' ',
 					(device_may_wakeup(&dev->dev) ||
-					(ldev && device_may_wakeup(ldev))) ?
+					device_may_wakeup(ldev)) ?
 					"enabled" : "disabled",
 					ldev->bus ? ldev->bus->name :
 					"no-bus", dev_name(ldev));

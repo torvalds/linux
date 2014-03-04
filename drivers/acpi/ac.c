@@ -243,6 +243,8 @@ static int acpi_ac_resume(struct device *dev)
 		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
 	return 0;
 }
+#else
+#define acpi_ac_resume NULL
 #endif
 static SIMPLE_DEV_PM_OPS(acpi_ac_pm_ops, NULL, acpi_ac_resume);
 

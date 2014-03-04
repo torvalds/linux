@@ -117,19 +117,23 @@ static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 static const char *wm8400_digital_sidetone[] =
 	{"None", "Left ADC", "Right ADC", "Reserved"};
 
-static const struct soc_enum wm8400_left_digital_sidetone_enum =
-SOC_ENUM_SINGLE(WM8400_DIGITAL_SIDE_TONE,
-		WM8400_ADC_TO_DACL_SHIFT, 2, wm8400_digital_sidetone);
+static SOC_ENUM_SINGLE_DECL(wm8400_left_digital_sidetone_enum,
+			    WM8400_DIGITAL_SIDE_TONE,
+			    WM8400_ADC_TO_DACL_SHIFT,
+			    wm8400_digital_sidetone);
 
-static const struct soc_enum wm8400_right_digital_sidetone_enum =
-SOC_ENUM_SINGLE(WM8400_DIGITAL_SIDE_TONE,
-		WM8400_ADC_TO_DACR_SHIFT, 2, wm8400_digital_sidetone);
+static SOC_ENUM_SINGLE_DECL(wm8400_right_digital_sidetone_enum,
+			    WM8400_DIGITAL_SIDE_TONE,
+			    WM8400_ADC_TO_DACR_SHIFT,
+			    wm8400_digital_sidetone);
 
 static const char *wm8400_adcmode[] =
 	{"Hi-fi mode", "Voice mode 1", "Voice mode 2", "Voice mode 3"};
 
-static const struct soc_enum wm8400_right_adcmode_enum =
-SOC_ENUM_SINGLE(WM8400_ADC_CTRL, WM8400_ADC_HPF_CUT_SHIFT, 3, wm8400_adcmode);
+static SOC_ENUM_SINGLE_DECL(wm8400_right_adcmode_enum,
+			    WM8400_ADC_CTRL,
+			    WM8400_ADC_HPF_CUT_SHIFT,
+			    wm8400_adcmode);
 
 static const struct snd_kcontrol_new wm8400_snd_controls[] = {
 /* INMIXL */
@@ -422,9 +426,10 @@ SOC_DAPM_SINGLE("RINPGA34 Switch", WM8400_INPUT_MIXER3, WM8400_L34MNB_SHIFT,
 static const char *wm8400_ainlmux[] =
 	{"INMIXL Mix", "RXVOICE Mix", "DIFFINL Mix"};
 
-static const struct soc_enum wm8400_ainlmux_enum =
-SOC_ENUM_SINGLE( WM8400_INPUT_MIXER1, WM8400_AINLMODE_SHIFT,
-	ARRAY_SIZE(wm8400_ainlmux), wm8400_ainlmux);
+static SOC_ENUM_SINGLE_DECL(wm8400_ainlmux_enum,
+			    WM8400_INPUT_MIXER1,
+			    WM8400_AINLMODE_SHIFT,
+			    wm8400_ainlmux);
 
 static const struct snd_kcontrol_new wm8400_dapm_ainlmux_controls =
 SOC_DAPM_ENUM("Route", wm8400_ainlmux_enum);
@@ -435,9 +440,10 @@ SOC_DAPM_ENUM("Route", wm8400_ainlmux_enum);
 static const char *wm8400_ainrmux[] =
 	{"INMIXR Mix", "RXVOICE Mix", "DIFFINR Mix"};
 
-static const struct soc_enum wm8400_ainrmux_enum =
-SOC_ENUM_SINGLE( WM8400_INPUT_MIXER1, WM8400_AINRMODE_SHIFT,
-	ARRAY_SIZE(wm8400_ainrmux), wm8400_ainrmux);
+static SOC_ENUM_SINGLE_DECL(wm8400_ainrmux_enum,
+			    WM8400_INPUT_MIXER1,
+			    WM8400_AINRMODE_SHIFT,
+			    wm8400_ainrmux);
 
 static const struct snd_kcontrol_new wm8400_dapm_ainrmux_controls =
 SOC_DAPM_ENUM("Route", wm8400_ainrmux_enum);

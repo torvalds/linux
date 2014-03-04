@@ -187,8 +187,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 
 	spin_lock_bh(&br->lock);
 	if (!ether_addr_equal(dev->dev_addr, addr->sa_data)) {
-		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-		br_fdb_change_mac_address(br, addr->sa_data);
+		/* Mac address will be changed in br_stp_change_bridge_id(). */
 		br_stp_change_bridge_id(br, addr->sa_data);
 	}
 	spin_unlock_bh(&br->lock);
@@ -226,36 +225,10 @@ static void br_netpoll_cleanup(struct net_device *dev)
 		br_netpoll_disable(p);
 }
 
-static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni,
-			    gfp_t gfp)
-{
-	struct net_bridge *br = netdev_priv(dev);
-	struct net_bridge_port *p;
-	int err = 0;
-
-	list_for_each_entry(p, &br->port_list, list) {
-		if (!p->dev)
-			continue;
-		err = br_netpoll_enable(p, gfp);
-		if (err)
-			goto fail;
-	}
-
-out:
-	return err;
-
-fail:
-	br_netpoll_cleanup(dev);
-	goto out;
-}
-
-int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
+static int __br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
 {
 	struct netpoll *np;
 	int err;
-
-	if (!p->br->dev->npinfo)
-		return 0;
 
 	np = kzalloc(sizeof(*p->np), gfp);
 	if (!np)
@@ -269,6 +242,37 @@ int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
 
 	p->np = np;
 	return err;
+}
+
+int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
+{
+	if (!p->br->dev->npinfo)
+		return 0;
+
+	return __br_netpoll_enable(p, gfp);
+}
+
+static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni,
+			    gfp_t gfp)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_port *p;
+	int err = 0;
+
+	list_for_each_entry(p, &br->port_list, list) {
+		if (!p->dev)
+			continue;
+		err = __br_netpoll_enable(p, gfp);
+		if (err)
+			goto fail;
+	}
+
+out:
+	return err;
+
+fail:
+	br_netpoll_cleanup(dev);
+	goto out;
 }
 
 void br_netpoll_disable(struct net_bridge_port *p)

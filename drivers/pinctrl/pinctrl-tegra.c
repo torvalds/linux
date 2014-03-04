@@ -645,7 +645,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 				 GFP_KERNEL);
 	if (!pmx->regs) {
 		dev_err(&pdev->dev, "Can't alloc regs pointer\n");
-		return -ENODEV;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < pmx->nbanks; i++) {

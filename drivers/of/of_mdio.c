@@ -24,7 +24,11 @@ MODULE_LICENSE("GPL");
 
 static void of_set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
-	phydev->supported |= PHY_DEFAULT_FEATURES;
+	/* The default values for phydev->supported are provided by the PHY
+	 * driver "features" member, we want to reset to sane defaults fist
+	 * before supporting higher speeds.
+	 */
+	phydev->supported &= PHY_DEFAULT_FEATURES;
 
 	switch (max_speed) {
 	default:
@@ -44,7 +48,7 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 {
 	struct phy_device *phy;
 	bool is_c45;
-	int rc, prev_irq;
+	int rc;
 	u32 max_speed = 0;
 
 	is_c45 = of_device_is_compatible(child,
@@ -54,12 +58,14 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	if (!phy || IS_ERR(phy))
 		return 1;
 
-	if (mdio->irq) {
-		prev_irq = mdio->irq[addr];
-		mdio->irq[addr] =
-			irq_of_parse_and_map(child, 0);
-		if (!mdio->irq[addr])
-			mdio->irq[addr] = prev_irq;
+	rc = irq_of_parse_and_map(child, 0);
+	if (rc > 0) {
+		phy->irq = rc;
+		if (mdio->irq)
+			mdio->irq[addr] = rc;
+	} else {
+		if (mdio->irq)
+			phy->irq = mdio->irq[addr];
 	}
 
 	/* Associate the OF node with the device structure so it

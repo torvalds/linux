@@ -2500,7 +2500,7 @@ static int rtw_mp_ioctl_hdl(struct net_device *dev, struct iw_request_info *info
 		 ("rtw_mp_ioctl_hdl: subcode [%d], len[%d], buffer_len[%d]\r\n",
 		  poidparam->subcode, poidparam->len, len));
 
-	if (poidparam->subcode >= MAX_MP_IOCTL_SUBCODE) {
+	if (poidparam->subcode >= ARRAY_SIZE(mp_ioctl_hdl)) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, ("no matching drvext subcodes\r\n"));
 		ret = -EINVAL;
 		goto _rtw_mp_ioctl_hdl_exit;
@@ -3164,9 +3164,7 @@ static int rtw_p2p_get_go_device_address(struct net_device *dev,
 	u8 *p2pie;
 	uint p2pielen = 0, attr_contentlen = 0;
 	u8 attr_content[100] = {0x00};
-
-	u8 go_devadd_str[17 + 10] = {0x00};
-	/*  +10 is for the str "go_devadd =", we have to clear it at wrqu->data.pointer */
+	u8 go_devadd_str[17 + 12] = {};
 
 	/*	Commented by Albert 20121209 */
 	/*	The input data is the GO's interface address which the application wants to know its device address. */
@@ -3223,12 +3221,12 @@ static int rtw_p2p_get_go_device_address(struct net_device *dev,
 	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 
 	if (!blnMatch)
-		sprintf(go_devadd_str, "\n\ndev_add = NULL");
+		snprintf(go_devadd_str, sizeof(go_devadd_str), "\n\ndev_add = NULL");
 	else
-		sprintf(go_devadd_str, "\n\ndev_add =%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
+		snprintf(go_devadd_str, sizeof(go_devadd_str), "\n\ndev_add =%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
 			attr_content[0], attr_content[1], attr_content[2], attr_content[3], attr_content[4], attr_content[5]);
 
-	if (copy_to_user(wrqu->data.pointer, go_devadd_str, 10 + 17))
+	if (copy_to_user(wrqu->data.pointer, go_devadd_str, sizeof(go_devadd_str)))
 		return -EFAULT;
 	return ret;
 }

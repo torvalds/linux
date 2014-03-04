@@ -507,7 +507,6 @@ static int jsflash_init(void)
 	}
 
 	/* Let us be really paranoid for modifications to probing code. */
-	/* extern enum sparc_cpu sparc_cpu_model; */ /* in <asm/system.h> */
 	if (sparc_cpu_model != sun4m) {
 		/* We must be on sun4m because we use MMU Bypass ASI. */
 		return -ENXIO;

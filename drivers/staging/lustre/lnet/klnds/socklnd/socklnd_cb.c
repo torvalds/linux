@@ -924,7 +924,7 @@ ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 int
 ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 {
-	int	       mpflag = 0;
+	int	       mpflag = 1;
 	int	       type = lntmsg->msg_type;
 	lnet_process_id_t target = lntmsg->msg_target;
 	unsigned int      payload_niov = lntmsg->msg_niov;
@@ -993,8 +993,9 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 
 	/* The first fragment will be set later in pro_pack */
 	rc = ksocknal_launch_packet(ni, tx, target);
-	if (lntmsg->msg_vmflush)
+	if (!mpflag)
 		cfs_memory_pressure_restore(mpflag);
+
 	if (rc == 0)
 		return (0);
 
