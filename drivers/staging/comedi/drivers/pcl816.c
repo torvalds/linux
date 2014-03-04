@@ -214,6 +214,12 @@ static void pcl816_ai_clear_eoc(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL816_CLRINT);
 }
 
+static void pcl816_ai_soft_trig(struct comedi_device *dev)
+{
+	/* writing any value triggers a software conversion */
+	outb(0, dev->iobase + PCL816_AD_LO);
+}
+
 static unsigned int pcl816_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
@@ -508,7 +514,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
 			1, I8254_MODE0 | I8254_BINARY);
 
-	outb(0, dev->iobase + PCL816_AD_LO);
+	pcl816_ai_soft_trig(dev);
 	pcl816_ai_get_sample(dev, s);
 
 	pcl816_ai_clear_eoc(dev);
@@ -619,8 +625,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		pcl816_ai_clear_eoc(dev);
-		/* start conversion */
-		outb(0, dev->iobase + PCL816_AD_LO);
+		pcl816_ai_soft_trig(dev);
 
 		ret = comedi_timeout(dev, s, insn, pcl816_ai_eoc, 0);
 		if (ret)
