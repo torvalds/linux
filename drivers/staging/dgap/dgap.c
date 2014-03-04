@@ -87,15 +87,6 @@ MODULE_AUTHOR("Digi International, http://www.digi.com");
 MODULE_DESCRIPTION("Driver for the Digi International EPCA PCI based product line");
 MODULE_SUPPORTED_DEVICE("dgap");
 
-/*
- * insmod command line overrideable parameters
- *
- * NOTE: we use a set of macros to create the variables, which allows
- * us to specify the variable type, name, initial value, and description.
- */
-PARM_INT(rawreadok,	1,		0644,	"Bypass flip buffers on input");
-
-
 /**************************************************************************
  *
  * protos for this file
@@ -1218,8 +1209,6 @@ static irqreturn_t dgap_intr(int irq, void *voidbrd)
 static void dgap_init_globals(void)
 {
 	int i = 0;
-
-	dgap_rawreadok		= rawreadok;
 
 	for (i = 0; i < MAXBOARDS; i++)
 		dgap_Board[i] = NULL;
@@ -6021,19 +6010,6 @@ static ssize_t dgap_driver_state_show(struct device_driver *ddp, char *buf)
 }
 static DRIVER_ATTR(state, S_IRUSR, dgap_driver_state_show, NULL);
 
-static ssize_t dgap_driver_rawreadok_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgap_rawreadok);
-}
-
-static ssize_t dgap_driver_rawreadok_store(struct device_driver *ddp, const char *buf, size_t count)
-{
-	sscanf(buf, "0x%x\n", &dgap_rawreadok);
-	return count;
-}
-static DRIVER_ATTR(rawreadok, (S_IRUSR | S_IWUSR), dgap_driver_rawreadok_show, dgap_driver_rawreadok_store);
-
-
 static ssize_t dgap_driver_pollrate_show(struct device_driver *ddp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%dms\n", dgap_poll_tick);
@@ -6054,7 +6030,6 @@ static void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_version);
 	rc |= driver_create_file(driverfs, &driver_attr_boards);
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
-	rc |= driver_create_file(driverfs, &driver_attr_rawreadok);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	rc |= driver_create_file(driverfs, &driver_attr_pollcounter);
 	rc |= driver_create_file(driverfs, &driver_attr_state);
@@ -6068,7 +6043,6 @@ static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
 	driver_remove_file(driverfs, &driver_attr_version);
 	driver_remove_file(driverfs, &driver_attr_boards);
 	driver_remove_file(driverfs, &driver_attr_maxboards);
-	driver_remove_file(driverfs, &driver_attr_rawreadok);
 	driver_remove_file(driverfs, &driver_attr_pollrate);
 	driver_remove_file(driverfs, &driver_attr_pollcounter);
 	driver_remove_file(driverfs, &driver_attr_state);
