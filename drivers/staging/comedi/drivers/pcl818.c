@@ -161,7 +161,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define PCL818_FI_STATUS 25
 /* R: one record from FIFO */
 #define PCL818_FI_DATALO 23
-#define PCL818_FI_DATAHI 23
+#define PCL818_FI_DATAHI 24
 
 /* type of interrupt handler */
 #define INT_TYPE_AI1_INT 1
