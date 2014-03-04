@@ -228,8 +228,8 @@ static struct em28xx_reg_seq terratec_cinergy_USB_XS_FR_digital[] = {
    7:   LED on, active high */
 static struct em28xx_reg_seq em2874_pctv_80e_digital[] = {
 	{EM28XX_R06_I2C_CLK,    0x45,   0xff,		  10}, /*400 KHz*/
-	{EM2874_R80_GPIO_P0_CTRL, 0x80,   0xff,		  100},/*Demod reset*/
-	{EM2874_R80_GPIO_P0_CTRL, 0xc0,   0xff,		  10},
+	{EM2874_R80_GPIO_P0_CTRL, 0x00,   0xff,		  100},/*Demod reset*/
+	{EM2874_R80_GPIO_P0_CTRL, 0x40,   0xff,		  10},
 	{  -1,			-1,	-1,		  -1},
 };
 
@@ -522,6 +522,16 @@ static struct em28xx_led kworld_ub435q_v3_leds[] = {
 		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
 		.gpio_mask = 0x80,
 		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
+static struct em28xx_led pctv_80e_leds[] = {
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = 0x80,
+		.inverted  = 0,
 	},
 	{-1, 0, 0, 0},
 };
@@ -2179,6 +2189,7 @@ struct em28xx_board em28xx_boards[] = {
 		.dvb_gpio     = em2874_pctv_80e_digital,
 		.decoder      = EM28XX_NODECODER,
 		.ir_codes     = RC_MAP_PINNACLE_PCTV_HD,
+		.leds         = pctv_80e_leds,
 	},
 	/* 1ae7:9003/9004 SpeedLink Vicious And Devine Laplace webcam
 	 * Empia EM2765 + OmniVision OV2640 */
