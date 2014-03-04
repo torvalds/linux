@@ -346,8 +346,13 @@ void perf_hpp__init(void)
 	int i;
 
 	for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
-		INIT_LIST_HEAD(&perf_hpp__format[i].list);
-		INIT_LIST_HEAD(&perf_hpp__format[i].sort_list);
+		struct perf_hpp_fmt *fmt = &perf_hpp__format[i];
+
+		INIT_LIST_HEAD(&fmt->list);
+
+		/* sort_list may be linked by setup_sorting() */
+		if (fmt->sort_list.next == NULL)
+			INIT_LIST_HEAD(&fmt->sort_list);
 	}
 
 	perf_hpp__column_enable(PERF_HPP__OVERHEAD);
