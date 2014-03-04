@@ -5445,6 +5445,22 @@ void i915_release_power_well(void)
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
 
+#define POWER_DOMAIN_MASK (BIT(POWER_DOMAIN_NUM) - 1)
+
+#define HSW_ALWAYS_ON_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PIPE_A) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_EDP))
+#define HSW_DISPLAY_POWER_DOMAINS (				\
+	(POWER_DOMAIN_MASK & ~HSW_ALWAYS_ON_POWER_DOMAINS) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define BDW_ALWAYS_ON_POWER_DOMAINS (			\
+	HSW_ALWAYS_ON_POWER_DOMAINS |			\
+	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER))
+#define BDW_DISPLAY_POWER_DOMAINS (				\
+	(POWER_DOMAIN_MASK & ~BDW_ALWAYS_ON_POWER_DOMAINS) |	\
+	BIT(POWER_DOMAIN_INIT))
+
 static struct i915_power_well i9xx_always_on_power_well[] = {
 	{
 		.name = "always-on",
@@ -5461,7 +5477,7 @@ static struct i915_power_well hsw_power_wells[] = {
 	},
 	{
 		.name = "display",
-		.domains = POWER_DOMAIN_MASK & ~HSW_ALWAYS_ON_POWER_DOMAINS,
+		.domains = HSW_DISPLAY_POWER_DOMAINS,
 		.is_enabled = hsw_power_well_enabled,
 		.set = hsw_set_power_well,
 	},
@@ -5475,7 +5491,7 @@ static struct i915_power_well bdw_power_wells[] = {
 	},
 	{
 		.name = "display",
-		.domains = POWER_DOMAIN_MASK & ~BDW_ALWAYS_ON_POWER_DOMAINS,
+		.domains = BDW_DISPLAY_POWER_DOMAINS,
 		.is_enabled = hsw_power_well_enabled,
 		.set = hsw_set_power_well,
 	},
