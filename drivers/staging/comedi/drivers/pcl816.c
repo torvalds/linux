@@ -152,6 +152,68 @@ static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters)
 	}
 }
 
+static void pcl816_ai_setup_dma(struct comedi_device *dev,
+				struct comedi_subdevice *s)
+{
+	struct pcl816_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int dma_flags;
+	unsigned int bytes;
+
+	bytes = devpriv->hwdmasize;
+	if (cmd->stop_src == TRIG_COUNT) {
+		/*  how many */
+		bytes = s->async->cmd.chanlist_len *
+		s->async->cmd.chanlist_len *
+		sizeof(short);
+
+		/*  how many DMA pages we must fill */
+		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
+
+		/* on last dma transfer must be moved */
+		devpriv->last_dma_run = bytes % devpriv->hwdmasize;
+		devpriv->dma_runs_to_end--;
+		if (devpriv->dma_runs_to_end >= 0)
+			bytes = devpriv->hwdmasize;
+	} else
+		devpriv->dma_runs_to_end = -1;
+
+	devpriv->next_dma_buf = 0;
+	set_dma_mode(devpriv->dma, DMA_MODE_READ);
+	dma_flags = claim_dma_lock();
+	clear_dma_ff(devpriv->dma);
+	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[0]);
+	set_dma_count(devpriv->dma, bytes);
+	release_dma_lock(dma_flags);
+	enable_dma(devpriv->dma);
+}
+
+static void pcl816_ai_setup_next_dma(struct comedi_device *dev,
+				     struct comedi_subdevice *s)
+{
+	struct pcl816_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned long dma_flags;
+
+	disable_dma(devpriv->dma);
+	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
+		/* switch dma bufs */
+		devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
+		set_dma_mode(devpriv->dma, DMA_MODE_READ);
+		dma_flags = claim_dma_lock();
+		set_dma_addr(devpriv->dma,
+			     devpriv->hwdmaptr[devpriv->next_dma_buf]);
+		if (devpriv->dma_runs_to_end)
+			set_dma_count(devpriv->dma, devpriv->hwdmasize);
+		else
+			set_dma_count(devpriv->dma, devpriv->last_dma_run);
+		release_dma_lock(dma_flags);
+		enable_dma(devpriv->dma);
+	}
+
+	devpriv->dma_runs_to_end--;
+}
+
 static unsigned int pcl816_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
@@ -295,31 +357,13 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_cmd *cmd = &s->async->cmd;
 	int len, bufptr, this_dma_buf;
-	unsigned long dma_flags;
 	unsigned short *ptr;
 
-	disable_dma(devpriv->dma);
 	this_dma_buf = devpriv->next_dma_buf;
 
-	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
-		/* switch dma bufs */
-		devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
-		set_dma_mode(devpriv->dma, DMA_MODE_READ);
-		dma_flags = claim_dma_lock();
-/* clear_dma_ff (devpriv->dma); */
-		set_dma_addr(devpriv->dma,
-			     devpriv->hwdmaptr[devpriv->next_dma_buf]);
-		if (devpriv->dma_runs_to_end)
-			set_dma_count(devpriv->dma, devpriv->hwdmasize);
-		else
-			set_dma_count(devpriv->dma, devpriv->last_dma_run);
-		release_dma_lock(dma_flags);
-		enable_dma(devpriv->dma);
-	}
+	pcl816_ai_setup_next_dma(dev, s);
 
-	devpriv->dma_runs_to_end--;
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
 	ptr = (unsigned short *)devpriv->dmabuf[this_dma_buf];
@@ -447,7 +491,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int dma_flags, bytes, dmairq;
+	unsigned int dmairq;
 	unsigned int seglen;
 
 	if (devpriv->ai_cmd_running)
@@ -467,34 +511,8 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = 0;
 	devpriv->irq_was_now_closed = 0;
 
-	if (devpriv->dma) {
-		bytes = devpriv->hwdmasize;
-		if (cmd->stop_src == TRIG_COUNT) {
-			/*  how many */
-			bytes = s->async->cmd.chanlist_len *
-			s->async->cmd.chanlist_len *
-			sizeof(short);
-
-			/*  how many DMA pages we must fill */
-			devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
-
-			/* on last dma transfer must be moved */
-			devpriv->last_dma_run = bytes % devpriv->hwdmasize;
-			devpriv->dma_runs_to_end--;
-			if (devpriv->dma_runs_to_end >= 0)
-				bytes = devpriv->hwdmasize;
-		} else
-			devpriv->dma_runs_to_end = -1;
-
-		devpriv->next_dma_buf = 0;
-		set_dma_mode(devpriv->dma, DMA_MODE_READ);
-		dma_flags = claim_dma_lock();
-		clear_dma_ff(devpriv->dma);
-		set_dma_addr(devpriv->dma, devpriv->hwdmaptr[0]);
-		set_dma_count(devpriv->dma, bytes);
-		release_dma_lock(dma_flags);
-		enable_dma(devpriv->dma);
-	}
+	if (devpriv->dma)
+		pcl816_ai_setup_dma(dev, s);
 
 	pcl816_start_pacer(dev, true);
 	dmairq = ((devpriv->dma & 0x3) << 4) | (dev->irq & 0x7);
