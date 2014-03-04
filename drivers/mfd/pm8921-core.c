@@ -310,14 +310,11 @@ bail_out:
 	return rc;
 }
 
-static struct lock_class_key pm8xxx_irq_lock_class;
-
 static int pm8xxx_irq_domain_map(struct irq_domain *d, unsigned int irq,
 				   irq_hw_number_t hwirq)
 {
 	struct pm_irq_chip *chip = d->host_data;
 
-	irq_set_lockdep_class(irq, &pm8xxx_irq_lock_class);
 	irq_set_chip_and_handler(irq, &pm8xxx_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, chip);
 #ifdef CONFIG_ARM
