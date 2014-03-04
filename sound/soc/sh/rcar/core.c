@@ -73,13 +73,13 @@
  *   |  +- ssi[2]
  *   |  ...
  *   |
- *   | ** these control scu
+ *   | ** these control src
  *   |
- *   +- scu
+ *   +- src
  *      |
- *      +- scu[0]
- *      +- scu[1]
- *      +- scu[2]
+ *      +- src[0]
+ *      +- src[1]
+ *      +- src[2]
  *      ...
  *
  *
@@ -572,7 +572,7 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	struct rsnd_dai_platform_info *dai_info = rdai->info;
 	int ret;
 	int ssi_id = -1;
-	int scu_id = -1;
+	int src_id = -1;
 
 	/*
 	 * Gen1 is created by SRU/SSI, and this SRU is base module of
@@ -587,8 +587,8 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	if (dai_info) {
 		if (rsnd_is_enable_path(io, ssi))
 			ssi_id = rsnd_info_id(priv, io, ssi);
-		if (rsnd_is_enable_path(io, scu))
-			scu_id = rsnd_info_id(priv, io, scu);
+		if (rsnd_is_enable_path(io, src))
+			src_id = rsnd_info_id(priv, io, src);
 	} else {
 		/* get SSI's ID */
 		mod = rsnd_ssi_mod_get_frm_dai(priv,
@@ -596,14 +596,14 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 					       rsnd_dai_is_play(rdai, io));
 		if (!mod)
 			return 0;
-		ssi_id = scu_id = rsnd_mod_id(mod);
+		ssi_id = src_id = rsnd_mod_id(mod);
 	}
 
 	ret = 0;
 
-	/* SCU */
-	if (scu_id >= 0) {
-		mod = rsnd_scu_mod_get(priv, scu_id);
+	/* SRC */
+	if (src_id >= 0) {
+		mod = rsnd_src_mod_get(priv, src_id);
 		ret = rsnd_dai_connect(mod, io);
 		if (ret < 0)
 			return ret;
@@ -806,7 +806,7 @@ static int rsnd_probe(struct platform_device *pdev)
 			    struct rsnd_priv *priv) = {
 		rsnd_gen_probe,
 		rsnd_ssi_probe,
-		rsnd_scu_probe,
+		rsnd_src_probe,
 		rsnd_adg_probe,
 		rsnd_dai_probe,
 	};

@@ -121,7 +121,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	unsigned int main_rate;
-	unsigned int rate = rsnd_scu_get_ssi_rate(priv, io, runtime);
+	unsigned int rate = rsnd_src_get_ssi_rate(priv, io, runtime);
 
 	/*
 	 * Find best clock, and try to start ADG
@@ -287,7 +287,7 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->cr_own	= cr;
 	ssi->err	= -1; /* ignore 1st error */
 
-	rsnd_scu_ssi_mode_init(mod, rdai, io);
+	rsnd_src_ssi_mode_init(mod, rdai, io);
 
 	return 0;
 }
@@ -387,7 +387,7 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	/* enable PIO IRQ */
 	ssi->cr_etc = UIEN | OIEN | DIEN;
 
-	rsnd_scu_enable_ssi_irq(mod, rdai, io);
+	rsnd_src_enable_ssi_irq(mod, rdai, io);
 
 	rsnd_ssi_hw_start(ssi, rdai, io);
 

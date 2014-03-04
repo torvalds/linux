@@ -160,7 +160,7 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
  *	R-Car sound mod
  */
 enum rsnd_mod_type {
-	RSND_MOD_SCU = 0,
+	RSND_MOD_SRC = 0,
 	RSND_MOD_SSI,
 	RSND_MOD_MAX,
 };
@@ -224,7 +224,7 @@ struct rsnd_dai_stream {
 	int next_period_byte;
 };
 #define rsnd_io_to_mod_ssi(io)	((io)->mod[RSND_MOD_SSI])
-#define rsnd_io_to_mod_scu(io)	((io)->mod[RSND_MOD_SCU])
+#define rsnd_io_to_mod_src(io)	((io)->mod[RSND_MOD_SRC])
 
 struct rsnd_dai {
 	char name[RSND_DAI_NAME_SIZE];
@@ -302,10 +302,10 @@ struct rsnd_priv {
 	void *gen;
 
 	/*
-	 * below value will be filled on rsnd_scu_probe()
+	 * below value will be filled on rsnd_src_probe()
 	 */
-	void *scu;
-	int scu_nr;
+	void *src;
+	int src_nr;
 
 	/*
 	 * below value will be filled on rsnd_adg_probe()
@@ -345,22 +345,22 @@ struct rsnd_priv {
 })
 
 /*
- *	R-Car SCU
+ *	R-Car SRC
  */
-int rsnd_scu_probe(struct platform_device *pdev,
+int rsnd_src_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
-struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
-unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
+struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
+unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
-int rsnd_scu_ssi_mode_init(struct rsnd_mod *ssi_mod,
+int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
 			   struct rsnd_dai *rdai,
 			   struct rsnd_dai_stream *io);
-int rsnd_scu_enable_ssi_irq(struct rsnd_mod *ssi_mod,
+int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai,
 			    struct rsnd_dai_stream *io);
 
-#define rsnd_scu_nr(priv) ((priv)->scu_nr)
+#define rsnd_src_nr(priv) ((priv)->src_nr)
 
 /*
  *	R-Car SSI
