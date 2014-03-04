@@ -111,7 +111,7 @@ static inline void ixgbevf_release_rx_desc(struct ixgbevf_ring *rx_ring,
 	 * such as IA-64).
 	 */
 	wmb();
-	writel(val, rx_ring->tail);
+	ixgbevf_write_tail(rx_ring, val);
 }
 
 /**
@@ -3060,7 +3060,7 @@ static void ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 	tx_ring->next_to_use = i;
 
 	/* notify HW of packet */
-	writel(i, tx_ring->tail);
+	ixgbevf_write_tail(tx_ring, i);
 
 	return;
 dma_error:

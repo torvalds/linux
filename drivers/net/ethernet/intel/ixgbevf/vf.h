@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -171,6 +171,32 @@ struct ixgbevf_info {
 	enum ixgbe_mac_type		mac;
 	const struct ixgbe_mac_operations *mac_ops;
 };
+
+static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
+{
+	writel(value, hw->hw_addr + reg);
+}
+#define IXGBE_WRITE_REG(h, r, v) ixgbe_write_reg(h, r, v)
+
+static inline u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
+{
+	return readl(hw->hw_addr + reg);
+}
+#define IXGBE_READ_REG(h, r) ixgbe_read_reg(h, r)
+
+static inline void ixgbe_write_reg_array(struct ixgbe_hw *hw, u32 reg,
+					  u32 offset, u32 value)
+{
+	ixgbe_write_reg(hw, reg + (offset << 2), value);
+}
+#define IXGBE_WRITE_REG_ARRAY(h, r, o, v) ixgbe_write_reg_array(h, r, o, v)
+
+static inline u32 ixgbe_read_reg_array(struct ixgbe_hw *hw, u32 reg,
+					u32 offset)
+{
+	return ixgbe_read_reg(hw, reg + (offset << 2));
+}
+#define IXGBE_READ_REG_ARRAY(h, r, o) ixgbe_read_reg_array(h, r, o)
 
 void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
 int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api);
