@@ -86,7 +86,7 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	BUG_ON(name == NULL);
 
 	if (acl->a_count > GFS2_ACL_MAX_ENTRIES)
-		return -EINVAL;
+		return -E2BIG;
 
 	if (type == ACL_TYPE_ACCESS) {
 		umode_t mode = inode->i_mode;
