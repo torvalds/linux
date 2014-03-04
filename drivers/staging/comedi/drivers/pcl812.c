@@ -511,7 +511,6 @@ struct pcl812_private {
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
-	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned int dmapages;
 	unsigned int hwdmasize;
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
@@ -568,11 +567,11 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 	} else {
 		devpriv->dmabytestomove[0] = devpriv->hwdmasize;
 		devpriv->dmabytestomove[1] = devpriv->hwdmasize;
-		if (devpriv->ai_data_len < devpriv->hwdmasize) {
+		if (s->async->prealloc_bufsz < devpriv->hwdmasize) {
 			devpriv->dmabytestomove[0] =
-				devpriv->ai_data_len;
+				s->async->prealloc_bufsz;
 			devpriv->dmabytestomove[1] =
-				devpriv->ai_data_len;
+				s->async->prealloc_bufsz;
 		}
 		if (cmd->stop_src == TRIG_NONE) {
 			devpriv->dma_runs_to_end = 1;
@@ -856,7 +855,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	} else
 		devpriv->ai_dma = 0;
 
-	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
 	s->async->cur_chan = 0;
