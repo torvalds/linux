@@ -132,8 +132,9 @@
 #define boardA821	      9	/* PGH, PGL, PGL/NDA versions */
 
 #define PCL812_TIMER_BASE			0x00
-#define PCL812_AD_LO	      4
-#define PCL812_AD_HI	      5
+#define PCL812_AI_LSB_REG			0x04
+#define PCL812_AI_MSB_REG			0x05
+#define PCL812_AI_MSB_DRDY			(1 << 4)
 #define PCL812_AO_LSB_REG(x)			(0x04 + ((x) * 2))
 #define PCL812_AO_MSB_REG(x)			(0x05 + ((x) * 2))
 #define PCL812_DI_LSB_REG			0x06
@@ -146,8 +147,6 @@
 #define PCL812_SOFTTRIG	     12
 #define PCL812_DO_LSB_REG			0x0d
 #define PCL812_DO_MSB_REG			0x0e
-
-#define PCL812_DRDY	   0x10	/* =0 data ready */
 
 #define ACL8216_STATUS	      8	/* 5. bit signalize data ready */
 
@@ -654,8 +653,8 @@ static unsigned int pcl812_ai_get_sample(struct comedi_device *dev,
 {
 	unsigned int val;
 
-	val = inb(dev->iobase + PCL812_AD_HI) << 8;
-	val |= inb(dev->iobase + PCL812_AD_LO);
+	val = inb(dev->iobase + PCL812_AI_MSB_REG) << 8;
+	val |= inb(dev->iobase + PCL812_AI_LSB_REG);
 
 	return val & s->maxdata;
 }
@@ -672,8 +671,8 @@ static int pcl812_ai_eoc(struct comedi_device *dev,
 		if ((status & ACL8216_DRDY) == 0)
 			return 0;
 	} else {
-		status = inb(dev->iobase + PCL812_AD_HI);
-		if ((status & PCL812_DRDY) == 0)
+		status = inb(dev->iobase + PCL812_AI_MSB_REG);
+		if ((status & PCL812_AI_MSB_DRDY) == 0)
 			return 0;
 	}
 	return -EBUSY;
