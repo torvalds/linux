@@ -1057,42 +1057,45 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (devpriv->ai_cmd_running) {
-		devpriv->irq_was_now_closed = 1;
+	if (!devpriv->ai_cmd_running)
+		return 0;
 
-		switch (devpriv->ai_mode) {
-		case INT_TYPE_AI1_DMA:
-		case INT_TYPE_AI3_DMA:
-			if (cmd->stop_src == TRIG_NONE ||
-			    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) {
-				/* wait for running dma transfer to end, do cleanup in interrupt */
-				goto end;
-			}
-			disable_dma(devpriv->dma);
-		case INT_TYPE_AI1_INT:
-		case INT_TYPE_AI3_INT:
-		case INT_TYPE_AI1_FIFO:
-		case INT_TYPE_AI3_FIFO:
-			outb(inb(dev->iobase + PCL818_CONTROL) & 0x73, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
-			udelay(1);
-			pcl818_start_pacer(dev, false);
-			outb(0, dev->iobase + PCL818_AD_LO);
-			pcl818_ai_get_sample(dev, s, NULL);
-			outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
-			outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
-			if (devpriv->usefifo) {	/*  FIFO shutdown */
-				outb(0, dev->iobase + PCL818_FI_INTCLR);
-				outb(0, dev->iobase + PCL818_FI_FLUSH);
-				outb(0, dev->iobase + PCL818_FI_ENABLE);
-			}
-			devpriv->ai_cmd_running = 0;
-			devpriv->ai_mode = 0;
-			devpriv->irq_was_now_closed = 0;
-			break;
+	switch (devpriv->ai_mode) {
+	case INT_TYPE_AI1_DMA:
+	case INT_TYPE_AI3_DMA:
+		if (cmd->stop_src == TRIG_NONE ||
+		    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) {
+			/*
+			 * Wait for running dma transfer to end,
+			 * do cleanup in interrupt.
+			 */
+			devpriv->irq_was_now_closed = 1;
+			return 0;
 		}
+		disable_dma(devpriv->dma);
+	case INT_TYPE_AI1_INT:
+	case INT_TYPE_AI3_INT:
+	case INT_TYPE_AI1_FIFO:
+	case INT_TYPE_AI3_FIFO:
+		outb(inb(dev->iobase + PCL818_CONTROL) & 0x73,
+		     dev->iobase + PCL818_CONTROL);	/* Stop A/D */
+		udelay(1);
+		pcl818_start_pacer(dev, false);
+		outb(0, dev->iobase + PCL818_AD_LO);
+		pcl818_ai_get_sample(dev, s, NULL);
+		outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
+		outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
+		if (devpriv->usefifo) {	/*  FIFO shutdown */
+			outb(0, dev->iobase + PCL818_FI_INTCLR);
+			outb(0, dev->iobase + PCL818_FI_FLUSH);
+			outb(0, dev->iobase + PCL818_FI_ENABLE);
+		}
+		devpriv->ai_cmd_running = 0;
+		devpriv->ai_mode = 0;
+		devpriv->irq_was_now_closed = 0;
+		break;
 	}
 
-end:
 	return 0;
 }
 
