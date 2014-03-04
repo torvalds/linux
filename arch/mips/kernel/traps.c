@@ -15,6 +15,7 @@
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
+#include <linux/cpu_pm.h>
 #include <linux/kexec.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -1865,32 +1866,16 @@ static int __init ulri_disable(char *s)
 }
 __setup("noulri", ulri_disable);
 
-void per_cpu_trap_init(bool is_boot_cpu)
+/* configure STATUS register */
+static void configure_status(void)
 {
-	unsigned int cpu = smp_processor_id();
-	unsigned int status_set = ST0_CU0;
-	unsigned int hwrena = cpu_hwrena_impl_bits;
-#ifdef CONFIG_MIPS_MT_SMTC
-	int secondaryTC = 0;
-	int bootTC = (cpu == 0);
-
-	/*
-	 * Only do per_cpu_trap_init() for first TC of Each VPE.
-	 * Note that this hack assumes that the SMTC init code
-	 * assigns TCs consecutively and in ascending order.
-	 */
-
-	if (((read_c0_tcbind() & TCBIND_CURTC) != 0) &&
-	    ((read_c0_tcbind() & TCBIND_CURVPE) == cpu_data[cpu - 1].vpe_id))
-		secondaryTC = 1;
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 	/*
 	 * Disable coprocessors and select 32-bit or 64-bit addressing
 	 * and the 16/32 or 32/32 FPR register model.  Reset the BEV
 	 * flag that some firmware may have left set and the TS bit (for
 	 * IP27).  Set XX for ISA IV code to work.
 	 */
+	unsigned int status_set = ST0_CU0;
 #ifdef CONFIG_64BIT
 	status_set |= ST0_FR|ST0_KX|ST0_SX|ST0_UX;
 #endif
@@ -1901,6 +1886,12 @@ void per_cpu_trap_init(bool is_boot_cpu)
 
 	change_c0_status(ST0_CU|ST0_MX|ST0_RE|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
+}
+
+/* configure HWRENA register */
+static void configure_hwrena(void)
+{
+	unsigned int hwrena = cpu_hwrena_impl_bits;
 
 	if (cpu_has_mips_r2)
 		hwrena |= 0x0000000f;
@@ -1910,11 +1901,10 @@ void per_cpu_trap_init(bool is_boot_cpu)
 
 	if (hwrena)
 		write_c0_hwrena(hwrena);
+}
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	if (!secondaryTC) {
-#endif /* CONFIG_MIPS_MT_SMTC */
-
+static void configure_exception_vector(void)
+{
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long sr = set_c0_status(ST0_BEV);
 		write_c0_ebase(ebase);
@@ -1930,6 +1920,34 @@ void per_cpu_trap_init(bool is_boot_cpu)
 		} else
 			set_c0_cause(CAUSEF_IV);
 	}
+}
+
+void per_cpu_trap_init(bool is_boot_cpu)
+{
+	unsigned int cpu = smp_processor_id();
+#ifdef CONFIG_MIPS_MT_SMTC
+	int secondaryTC = 0;
+	int bootTC = (cpu == 0);
+
+	/*
+	 * Only do per_cpu_trap_init() for first TC of Each VPE.
+	 * Note that this hack assumes that the SMTC init code
+	 * assigns TCs consecutively and in ascending order.
+	 */
+
+	if (((read_c0_tcbind() & TCBIND_CURTC) != 0) &&
+	    ((read_c0_tcbind() & TCBIND_CURVPE) == cpu_data[cpu - 1].vpe_id))
+		secondaryTC = 1;
+#endif /* CONFIG_MIPS_MT_SMTC */
+
+	configure_status();
+	configure_hwrena();
+
+#ifdef CONFIG_MIPS_MT_SMTC
+	if (!secondaryTC) {
+#endif /* CONFIG_MIPS_MT_SMTC */
+
+	configure_exception_vector();
 
 	/*
 	 * Before R2 both interrupt numbers were fixed to 7, so on R2 only:
@@ -2185,3 +2203,32 @@ void __init trap_init(void)
 
 	cu2_notifier(default_cu2_call, 0x80000000);	/* Run last  */
 }
+
+static int trap_pm_notifier(struct notifier_block *self, unsigned long cmd,
+			    void *v)
+{
+	switch (cmd) {
+	case CPU_PM_ENTER_FAILED:
+	case CPU_PM_EXIT:
+		configure_status();
+		configure_hwrena();
+		configure_exception_vector();
+
+		/* Restore register with CPU number for TLB handlers */
+		TLBMISS_HANDLER_RESTORE();
+
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block trap_pm_notifier_block = {
+	.notifier_call = trap_pm_notifier,
+};
+
+static int __init trap_pm_init(void)
+{
+	return cpu_pm_register_notifier(&trap_pm_notifier_block);
+}
+arch_initcall(trap_pm_init);

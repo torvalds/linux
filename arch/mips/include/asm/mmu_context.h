@@ -31,11 +31,15 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+
+#define TLBMISS_HANDLER_RESTORE()					\
+	write_c0_xcontext((unsigned long) smp_processor_id() <<		\
+			  SMP_CPUID_REGSHIFT)
+
 #define TLBMISS_HANDLER_SETUP()						\
 	do {								\
 		TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir);		\
-		write_c0_xcontext((unsigned long) smp_processor_id() <<	\
-						SMP_CPUID_REGSHIFT);	\
+		TLBMISS_HANDLER_RESTORE();				\
 	} while (0)
 
 #else /* !CONFIG_MIPS_PGD_C0_CONTEXT: using  pgd_current*/
@@ -47,9 +51,12 @@ do {									\
  */
 extern unsigned long pgd_current[];
 
-#define TLBMISS_HANDLER_SETUP()						\
+#define TLBMISS_HANDLER_RESTORE()					\
 	write_c0_context((unsigned long) smp_processor_id() <<		\
-						SMP_CPUID_REGSHIFT);	\
+			 SMP_CPUID_REGSHIFT)
+
+#define TLBMISS_HANDLER_SETUP()						\
+	TLBMISS_HANDLER_RESTORE();					\
 	back_to_back_c0_hazard();					\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT*/
