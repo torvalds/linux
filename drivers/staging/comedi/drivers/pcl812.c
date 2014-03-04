@@ -667,34 +667,6 @@ static int pcl812_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int pcl812_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcl812_private *devpriv = dev->private;
-	int ret = 0;
-	int n;
-
-	/* select software trigger */
-	outb(devpriv->mode_reg_int | 1, dev->iobase + PCL812_MODE);
-	/*  select channel and renge */
-	setup_range_channel(dev, s, insn->chanspec, 1);
-	for (n = 0; n < insn->n; n++) {
-		/* start conversion */
-		outb(255, dev->iobase + PCL812_SOFTTRIG);
-		udelay(5);
-
-		ret = comedi_timeout(dev, s, insn, pcl812_ai_eoc, 0);
-		if (ret)
-			break;
-
-		data[n] = pcl812_ai_get_sample(dev, s);
-	}
-	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
-
-	return ret ? ret : n;
-}
-
 static int pcl812_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -1031,6 +1003,40 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 	pcl812_start_pacer(dev, false);
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 	return 0;
+}
+
+static int pcl812_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	struct pcl812_private *devpriv = dev->private;
+	int ret = 0;
+	int i;
+
+	/* select software trigger */
+	outb(devpriv->mode_reg_int | 1, dev->iobase + PCL812_MODE);
+
+	/*  select channel and renge */
+	setup_range_channel(dev, s, insn->chanspec, 1);
+
+	for (i = 0; i < insn->n; i++) {
+		/* clear INT request */
+		outb(0, dev->iobase + PCL812_CLRINT);
+		/* start conversion */
+		outb(255, dev->iobase + PCL812_SOFTTRIG);
+
+		ret = comedi_timeout(dev, s, insn, pcl812_ai_eoc, 0);
+		if (ret)
+			break;
+
+		data[i] = pcl812_ai_get_sample(dev, s);
+	}
+	/* clear INT request */
+	outb(0, dev->iobase + PCL812_CLRINT);
+	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
+
+	return ret ? ret : insn->n;
 }
 
 static int pcl812_ao_insn_write(struct comedi_device *dev,
