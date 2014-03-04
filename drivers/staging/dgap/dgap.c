@@ -6017,7 +6017,8 @@ static ssize_t dgap_driver_pollrate_show(struct device_driver *ddp, char *buf)
 
 static ssize_t dgap_driver_pollrate_store(struct device_driver *ddp, const char *buf, size_t count)
 {
-	sscanf(buf, "%d\n", &dgap_poll_tick);
+	if (sscanf(buf, "%d\n", &dgap_poll_tick) != 1)
+		return -EINVAL;
 	return count;
 }
 static DRIVER_ATTR(pollrate, (S_IRUSR | S_IWUSR), dgap_driver_pollrate_show, dgap_driver_pollrate_store);
