@@ -2,7 +2,7 @@
 
 static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
 {
-//printk("%d..%s: =====test====\n", __LINE__, __FUNCTION__);
+printk("%d..%s: =====test 2014-03-04 ====\n", __LINE__, __FUNCTION__);
 //dump_stack();
 
     mmc_debug(MMC_DBG_BOOT,"=========rockchip mmc dts dump info start==============\n");
