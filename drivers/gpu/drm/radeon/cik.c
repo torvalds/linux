@@ -3046,7 +3046,7 @@ static u32 cik_create_bitmask(u32 bit_width)
 }
 
 /**
- * cik_select_se_sh - select which SE, SH to address
+ * cik_get_rb_disabled - computes the mask of disabled RBs
  *
  * @rdev: radeon_device pointer
  * @max_rb_num: max RBs (render backends) for the asic
