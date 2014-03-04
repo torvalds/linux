@@ -730,7 +730,7 @@ static int gem_rx(struct macb *bp, int budget)
 		skb_put(skb, len);
 		addr = MACB_BF(RX_WADDR, MACB_BFEXT(RX_WADDR, addr));
 		dma_unmap_single(&bp->pdev->dev, addr,
-				 len, DMA_FROM_DEVICE);
+				 bp->rx_buffer_size, DMA_FROM_DEVICE);
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb_checksum_none_assert(skb);
