@@ -240,7 +240,6 @@ static const struct file_operations DgapBoardFops = {
  */
 static uint dgap_NumBoards;
 static struct board_t *dgap_Board[MAXBOARDS];
-DEFINE_SPINLOCK(dgap_global_lock);
 static ulong dgap_poll_counter;
 static char *dgap_config_buf;
 static int dgap_driver_state = DRIVER_INITIALIZED;
@@ -1264,10 +1263,6 @@ static int dgap_ms_sleep(ulong ms)
  */
 static int dgap_tty_preinit(void)
 {
-	unsigned long flags;
-
-	DGAP_LOCK(dgap_global_lock, flags);
-
 	/*
 	 * Allocate a buffer for doing the copy from user space to
 	 * kernel space in dgap_input().  We only use one buffer and
@@ -1276,12 +1271,9 @@ static int dgap_tty_preinit(void)
 	 */
 	dgap_TmpWriteBuf = kmalloc(WRITEBUFLEN, GFP_ATOMIC);
 
-	if (!dgap_TmpWriteBuf) {
-		DGAP_UNLOCK(dgap_global_lock, flags);
+	if (!dgap_TmpWriteBuf)
 		return -ENOMEM;
-	}
 
-	DGAP_UNLOCK(dgap_global_lock, flags);
 	return 0;
 }
 
