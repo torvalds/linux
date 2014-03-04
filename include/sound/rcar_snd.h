@@ -70,6 +70,7 @@ struct rsnd_scu_platform_info {
 
 struct rsnd_dai_path_info {
 	struct rsnd_ssi_platform_info *ssi;
+	struct rsnd_scu_platform_info *scu;
 };
 
 struct rsnd_dai_platform_info {

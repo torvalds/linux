@@ -211,6 +211,7 @@ char *rsnd_mod_name(struct rsnd_mod *mod);
 struct rsnd_dai_stream {
 	struct snd_pcm_substream *substream;
 	struct rsnd_mod *mod[RSND_MOD_MAX];
+	struct rsnd_dai_path_info *info; /* rcar_snd.h */
 	int byte_pos;
 	int period_pos;
 	int byte_per_period;
@@ -327,6 +328,19 @@ struct rsnd_priv {
 #define rsnd_priv_to_info(priv)	((priv)->info)
 #define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
 #define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)
+
+#define rsnd_info_is_playback(priv, type)				\
+({									\
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);		\
+	int i, is_play = 0;						\
+	for (i = 0; i < info->dai_info_nr; i++) {			\
+		if (info->dai_info[i].playback.type == (type)->info) {	\
+			is_play = 1;					\
+			break;						\
+		}							\
+	}								\
+	is_play;							\
+})
 
 /*
  *	R-Car SCU

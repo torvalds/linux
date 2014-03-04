@@ -107,6 +107,11 @@
 	(!(priv->info->func) ? 0 :		\
 	 priv->info->func(param))
 
+#define rsnd_is_enable_path(io, name) \
+	((io)->info ? (io)->info->name : NULL)
+#define rsnd_info_id(priv, io, name) \
+	((io)->info->name - priv->info->name##_info)
+
 /*
  *	rsnd_mod functions
  */
@@ -572,8 +577,10 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 			  struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod;
+	struct rsnd_dai_platform_info *dai_info = rdai->info;
 	int ret;
-	int id;
+	int ssi_id = -1;
+	int scu_id = -1;
 
 	/*
 	 * Gen1 is created by SRU/SSI, and this SRU is base module of
@@ -584,29 +591,35 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	 *
 	 * Gen2 SCU path is very flexible, but, Gen1 SRU (SCU parts) is
 	 * using fixed path.
-	 *
-	 * Then, SSI id = SCU id here
 	 */
-	/* get SSI's ID */
-	mod = rsnd_ssi_mod_get_frm_dai(priv,
-				       rsnd_dai_id(priv, rdai),
-				       rsnd_dai_is_play(rdai, io));
-	if (!mod)
-		return 0;
-	id = rsnd_mod_id(mod);
+	if (dai_info) {
+		if (rsnd_is_enable_path(io, ssi))
+			ssi_id = rsnd_info_id(priv, io, ssi);
+		if (rsnd_is_enable_path(io, scu))
+			scu_id = rsnd_info_id(priv, io, scu);
+	} else {
+		/* get SSI's ID */
+		mod = rsnd_ssi_mod_get_frm_dai(priv,
+					       rsnd_dai_id(priv, rdai),
+					       rsnd_dai_is_play(rdai, io));
+		if (!mod)
+			return 0;
+		ssi_id = scu_id = rsnd_mod_id(mod);
+	}
+
 	ret = 0;
 
 	/* SCU */
-	mod = rsnd_scu_mod_get(priv, id);
-	if (mod) {
+	if (scu_id >= 0) {
+		mod = rsnd_scu_mod_get(priv, scu_id);
 		ret = rsnd_dai_connect(mod, io);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* SSI */
-	mod = rsnd_ssi_mod_get(priv, id);
-	if (mod) {
+	if (ssi_id >= 0) {
+		mod = rsnd_ssi_mod_get(priv, ssi_id);
 		ret = rsnd_dai_connect(mod, io);
 		if (ret < 0)
 			return ret;
@@ -699,6 +712,9 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			drv[i].playback.formats		= RSND_FMTS;
 			drv[i].playback.channels_min	= 2;
 			drv[i].playback.channels_max	= 2;
+
+			if (info->dai_info)
+				rdai[i].playback.info = &info->dai_info[i].playback;
 			rsnd_path_init(priv, &rdai[i], &rdai[i].playback);
 		}
 		if (cmod) {
@@ -706,6 +722,9 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			drv[i].capture.formats		= RSND_FMTS;
 			drv[i].capture.channels_min	= 2;
 			drv[i].capture.channels_max	= 2;
+
+			if (info->dai_info)
+				rdai[i].capture.info = &info->dai_info[i].capture;
 			rsnd_path_init(priv, &rdai[i], &rdai[i].capture);
 		}
 

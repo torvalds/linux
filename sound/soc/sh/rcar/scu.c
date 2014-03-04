@@ -620,6 +620,9 @@ int rsnd_scu_probe(struct platform_device *pdev,
 	 * init SCU
 	 */
 	nr	= info->scu_info_nr;
+	if (!nr)
+		return 0;
+
 	scu	= devm_kzalloc(dev, sizeof(*scu) * nr, GFP_KERNEL);
 	if (!scu) {
 		dev_err(dev, "SCU allocate failed\n");
@@ -644,11 +647,19 @@ int rsnd_scu_probe(struct platform_device *pdev,
 			if (rsnd_is_gen1(priv))
 				ops = &rsnd_scu_gen1_ops;
 			if (rsnd_is_gen2(priv)) {
-				struct rsnd_mod *ssi = rsnd_ssi_mod_get(priv, i);
-				int ret = rsnd_dma_init(priv,
-						rsnd_mod_to_dma(&scu->mod),
-						rsnd_ssi_is_play(ssi),
-						scu->info->dma_id);
+				int ret;
+				int is_play;
+
+				if (info->dai_info) {
+					is_play = rsnd_info_is_playback(priv, scu);
+				} else {
+					struct rsnd_mod *ssi = rsnd_ssi_mod_get(priv, i);
+					is_play = rsnd_ssi_is_play(ssi);
+				}
+				ret = rsnd_dma_init(priv,
+						    rsnd_mod_to_dma(&scu->mod),
+						    is_play,
+						    scu->info->dma_id);
 				if (ret < 0)
 					return ret;
 

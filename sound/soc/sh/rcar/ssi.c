@@ -567,9 +567,16 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		 * SSI DMA case
 		 */
 		if (pinfo->dma_id > 0) {
+			int is_play;
+
+			if (info->dai_info)
+				is_play = rsnd_info_is_playback(priv, ssi);
+			else
+				is_play = rsnd_ssi_is_play(&ssi->mod);
+
 			ret = rsnd_dma_init(
 				priv, rsnd_mod_to_dma(&ssi->mod),
-				rsnd_ssi_is_play(&ssi->mod),
+				is_play,
 				pinfo->dma_id);
 			if (ret < 0)
 				dev_info(dev, "SSI DMA failed. try PIO transter\n");
