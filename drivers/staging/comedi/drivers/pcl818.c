@@ -322,10 +322,6 @@ struct pcl818_private {
 	unsigned int ai_cmd_canceled:1;
 };
 
-static int check_channel_list(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      unsigned int *chanlist, unsigned int n_chan);
-
 static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters)
 {
 	struct pcl818_private *devpriv = dev->private;
@@ -677,58 +673,6 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
-			      struct comedi_subdevice *s)
-{
-	struct pcl818_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int ctrl = 0;
-	unsigned int seglen;
-
-	if (devpriv->ai_cmd_running)
-		return -EBUSY;
-
-	pcl818_start_pacer(dev, false);
-
-	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
-	if (seglen < 1)
-		return -EINVAL;
-	pcl818_ai_setup_chanlist(dev, cmd->chanlist, seglen);
-
-	udelay(1);
-
-	devpriv->ai_act_scan = cmd->stop_arg;
-	devpriv->ai_act_chan = 0;
-	devpriv->ai_cmd_running = 1;
-	devpriv->ai_cmd_canceled = 0;
-	devpriv->act_chanlist_pos = 0;
-	devpriv->dma_runs_to_end = 0;
-
-	outb(0, dev->iobase + PCL818_CNTENABLE);	/* enable pacer */
-
-	if (mode == 1)
-		ctrl |= PCL818_CTRL_PACER_TRIG;
-	else
-		ctrl |= PCL818_CTRL_EXT_TRIG;
-
-	if (devpriv->dma) {
-		pcl818_ai_setup_dma(dev, s);
-
-		ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq) |
-			PCL818_CTRL_DMAE;
-	} else if (devpriv->usefifo) {
-		/* enable FIFO */
-		outb(1, dev->iobase + PCL818_FI_ENABLE);
-	} else {
-		ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq);
-	}
-	outb(ctrl, dev->iobase + PCL818_CTRL_REG);
-
-	pcl818_start_pacer(dev, mode == 1);
-
-	return 0;
-}
-
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int *chanlist, unsigned int n_chan)
@@ -869,25 +813,56 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+static int pcl818_ai_cmd(struct comedi_device *dev,
+			 struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int retval;
+	unsigned int ctrl = 0;
+	unsigned int seglen;
+
+	if (devpriv->ai_cmd_running)
+		return -EBUSY;
+
+	pcl818_start_pacer(dev, false);
+
+	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
+	if (seglen < 1)
+		return -EINVAL;
+	pcl818_ai_setup_chanlist(dev, cmd->chanlist, seglen);
 
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
+	devpriv->ai_act_scan = cmd->stop_arg;
+	devpriv->ai_act_chan = 0;
+	devpriv->ai_cmd_running = 1;
+	devpriv->ai_cmd_canceled = 0;
+	devpriv->act_chanlist_pos = 0;
+	devpriv->dma_runs_to_end = 0;
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 3 */
-		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 */
-			retval = pcl818_ai_cmd_mode(1, dev, s);
-			return retval;
-		}
-		if (cmd->convert_src == TRIG_EXT) {	/*  mode 3 */
-			return pcl818_ai_cmd_mode(3, dev, s);
-		}
+	if (cmd->convert_src == TRIG_TIMER)
+		ctrl |= PCL818_CTRL_PACER_TRIG;
+	else
+		ctrl |= PCL818_CTRL_EXT_TRIG;
+
+	outb(0, dev->iobase + PCL818_CNTENABLE);	/* enable pacer */
+
+	if (devpriv->dma) {
+		pcl818_ai_setup_dma(dev, s);
+
+		ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq) |
+			PCL818_CTRL_DMAE;
+	} else if (devpriv->usefifo) {
+		/* enable FIFO */
+		outb(1, dev->iobase + PCL818_FI_ENABLE);
+	} else {
+		ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq);
 	}
+	outb(ctrl, dev->iobase + PCL818_CTRL_REG);
 
-	return -1;
+	if (cmd->convert_src == TRIG_TIMER)
+		pcl818_start_pacer(dev, true);
+
+	return 0;
 }
 
 static int pcl818_ai_cancel(struct comedi_device *dev,
@@ -1188,7 +1163,7 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	|= SDF_CMD_READ;
 		s->len_chanlist	= s->n_chan;
 		s->do_cmdtest	= ai_cmdtest;
-		s->do_cmd	= ai_cmd;
+		s->do_cmd	= pcl818_ai_cmd;
 		s->cancel	= pcl818_ai_cancel;
 	}
 
