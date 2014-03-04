@@ -1996,6 +1996,9 @@ int of_graph_parse_endpoint(const struct device_node *node,
 {
 	struct device_node *port_node = of_get_parent(node);
 
+	WARN_ONCE(!port_node, "%s(): endpoint %s has no parent node\n",
+		  __func__, node->full_name);
+
 	memset(endpoint, 0, sizeof(*endpoint));
 
 	endpoint->local_node = node;
