@@ -549,37 +549,38 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 {
 	struct pcl816_private *devpriv = dev->private;
 
-	if (devpriv->ai_cmd_running) {
-		switch (devpriv->int816_mode) {
-		case INT_TYPE_AI1_DMA:
-		case INT_TYPE_AI3_DMA:
-			disable_dma(devpriv->dma);
-			outb(inb(dev->iobase + PCL816_CONTROL) & 0x73,
-			     dev->iobase + PCL816_CONTROL);	/* Stop A/D */
-			udelay(1);
-			outb(0, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
+	if (!devpriv->ai_cmd_running)
+		return 0;
 
-			/* Stop pacer */
-			i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
-				       2, I8254_MODE0 | I8254_BINARY);
-			i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
-				       1, I8254_MODE0 | I8254_BINARY);
+	switch (devpriv->int816_mode) {
+	case INT_TYPE_AI1_DMA:
+	case INT_TYPE_AI3_DMA:
+		disable_dma(devpriv->dma);
+		outb(inb(dev->iobase + PCL816_CONTROL) & 0x73,
+			dev->iobase + PCL816_CONTROL);	/* Stop A/D */
+		udelay(1);
+		outb(0, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
 
-			outb(0, dev->iobase + PCL816_AD_LO);
-			pcl816_ai_get_sample(dev, s);
+		/* Stop pacer */
+		i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
+				2, I8254_MODE0 | I8254_BINARY);
+		i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
+				1, I8254_MODE0 | I8254_BINARY);
 
-			/* clear INT request */
-			outb(0, dev->iobase + PCL816_CLRINT);
+		outb(0, dev->iobase + PCL816_AD_LO);
+		pcl816_ai_get_sample(dev, s);
 
-			/* Stop A/D */
-			outb(0, dev->iobase + PCL816_CONTROL);
-			devpriv->ai_cmd_running = 0;
-			devpriv->irq_was_now_closed = 1;
-			devpriv->int816_mode = 0;
-/* s->busy = 0; */
-			break;
-		}
+		/* clear INT request */
+		outb(0, dev->iobase + PCL816_CLRINT);
+
+		/* Stop A/D */
+		outb(0, dev->iobase + PCL816_CONTROL);
+		devpriv->ai_cmd_running = 0;
+		devpriv->irq_was_now_closed = 1;
+		devpriv->int816_mode = 0;
+		break;
 	}
+
 	return 0;
 }
 
