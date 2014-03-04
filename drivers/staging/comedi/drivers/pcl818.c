@@ -1168,30 +1168,6 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 	}
 }
 
-static int pcl818_check(struct comedi_device *dev)
-{
-	/* the MUX register should return the same value written */
-	outb(0x00, dev->iobase + PCL818_MUX);
-	if (inb(dev->iobase + PCL818_MUX) != 0x00)
-		return -ENODEV;
-	outb(0x55, dev->iobase + PCL818_MUX);
-	if (inb(dev->iobase + PCL818_MUX) != 0x55)
-		return -ENODEV;
-
-	/* reset the MUX register to a known state */
-	outb(0x00, dev->iobase + PCL818_MUX);
-
-	/* the CONTROL register should return the same value written */
-	outb(0x18, dev->iobase + PCL818_CONTROL);
-	if (inb(dev->iobase + PCL818_CONTROL) != 0x18)
-		return -ENODEV;
-
-	/* reset the CONTROL register to a known state */
-	outb(0x00, dev->iobase + PCL818_CONTROL);
-
-	return 0;
-}
-
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl818_board *board = comedi_board(dev);
@@ -1210,10 +1186,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = comedi_request_region(dev, it->options[0],
 				    devpriv->usefifo ? 0x20 : 0x10);
-	if (ret)
-		return ret;
-
-	ret = pcl818_check(dev);
 	if (ret)
 		return ret;
 
