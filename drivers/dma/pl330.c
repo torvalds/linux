@@ -1288,10 +1288,17 @@ static inline int _ldst_devtomem(unsigned dry_run, u8 buf[],
 	int off = 0;
 
 	while (cyc--) {
+#ifdef CONFIG_ARCH_ROCKCHIP
+		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
+		off += _emit_LDP(dry_run, &buf[off], BURST, pxs->r->peri);
+		off += _emit_ST(dry_run, &buf[off], ALWAYS);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);    //for sdmmc sdio
+#else
 		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_LDP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_ST(dry_run, &buf[off], ALWAYS);
-		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);    //for sdmmc sdio
+		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+#endif
 	}
 
 	return off;
@@ -1303,10 +1310,17 @@ static inline int _ldst_memtodev(unsigned dry_run, u8 buf[],
 	int off = 0;
 
 	while (cyc--) {
+#ifdef CONFIG_ARCH_ROCKCHIP
+		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
+		off += _emit_LD(dry_run, &buf[off], ALWAYS);
+		off += _emit_STP(dry_run, &buf[off], BURST, pxs->r->peri);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+#else
 		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_LD(dry_run, &buf[off], ALWAYS);
 		off += _emit_STP(dry_run, &buf[off], SINGLE, pxs->r->peri);
-		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+#endif	
 	}
 
 	return off;
@@ -2510,7 +2524,13 @@ static enum dma_status
 pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 		 struct dma_tx_state *txstate)
 {
-	return dma_cookie_status(chan, cookie, txstate);
+	struct dma_pl330_chan *pch = to_pchan(chan);
+	void __iomem *regs = pch->dmac->pif.base;
+	struct pl330_thread *pt = pch->pl330_chid;
+	enum dma_status st; 
+	st = dma_cookie_status(chan, cookie, txstate);
+	txstate->residue = readl(regs + DA(pt->id));
+	return st;
 }
 
 static void pl330_issue_pending(struct dma_chan *chan)

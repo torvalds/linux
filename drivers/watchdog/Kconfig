@@ -107,6 +107,30 @@ config WM8350_WATCHDOG
 
 # ARM Architecture
 
+config RK29_WATCHDOG
+	tristate "RK29 watchdog"
+	help
+	  Watchdog timer embedded into RK29xx chips. This will reboot your
+	  system when the timeout is reached.
+
+config RK29_FEED_DOG_BY_INTE
+	bool "feed watchdog by interrupt"
+	depends on RK29_WATCHDOG
+
+config RK29_WATCHDOG_ATBOOT
+	bool "start watchdog at system boot"
+	depends on RK29_WATCHDOG
+
+config RK29_WATCHDOG_DEFAULT_TIME
+	int "set watchdog time out value (unit second)"
+	depends on RK29_WATCHDOG
+	help
+	  the real time out value is two times more than the setting value
+
+config RK29_WATCHDOG_DEBUG
+	bool "enable watchdog debug"
+	depends on RK29_WATCHDOG
+
 config ARM_SP805_WATCHDOG
 	tristate "ARM SP805 Watchdog"
 	depends on ARM && ARM_AMBA
