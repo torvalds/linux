@@ -76,8 +76,6 @@ static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] =
 	{ 36, 72, 144, 1, 2, 4, 8, 16,
 	  35, 70, 140 };
-#define E1000_82580_RXPBS_TABLE_SIZE \
-	(sizeof(e1000_82580_rxpbs_table)/sizeof(u16))
 
 /**
  *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
@@ -2307,7 +2305,7 @@ u16 igb_rxpbs_adjust_82580(u32 data)
 {
 	u16 ret_val = 0;
 
-	if (data < E1000_82580_RXPBS_TABLE_SIZE)
+	if (data < ARRAY_SIZE(e1000_82580_rxpbs_table))
 		ret_val = e1000_82580_rxpbs_table[data];
 
 	return ret_val;
