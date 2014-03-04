@@ -533,7 +533,11 @@ void stutter_wait(const char *title)
 	while (ACCESS_ONCE(stutter_pause_test) ||
 	       (torture_runnable && !ACCESS_ONCE(*torture_runnable))) {
 		if (stutter_pause_test)
-			schedule_timeout_interruptible(1);
+			if (ACCESS_ONCE(stutter_pause_test) == 1)
+				schedule_timeout_interruptible(1);
+			else
+				while (ACCESS_ONCE(stutter_pause_test))
+					cond_resched();
 		else
 			schedule_timeout_interruptible(round_jiffies_relative(HZ));
 		torture_shutdown_absorb(title);
@@ -550,7 +554,11 @@ static int torture_stutter(void *arg)
 	VERBOSE_TOROUT_STRING("torture_stutter task started");
 	do {
 		if (!torture_must_stop()) {
-			schedule_timeout_interruptible(stutter);
+			if (stutter > 1) {
+				schedule_timeout_interruptible(stutter - 1);
+				ACCESS_ONCE(stutter_pause_test) = 2;
+			}
+			schedule_timeout_interruptible(1);
 			ACCESS_ONCE(stutter_pause_test) = 1;
 		}
 		if (!torture_must_stop())
