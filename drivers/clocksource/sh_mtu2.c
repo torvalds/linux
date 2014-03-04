@@ -38,7 +38,10 @@ struct sh_mtu2_device;
 
 struct sh_mtu2_channel {
 	struct sh_mtu2_device *mtu;
+
+	void __iomem *base;
 	int irq;
+
 	struct clock_event_device ced;
 };
 
@@ -74,39 +77,35 @@ static unsigned long mtu2_reg_offs[] = {
 
 static inline unsigned long sh_mtu2_read(struct sh_mtu2_channel *ch, int reg_nr)
 {
-	struct sh_timer_config *cfg = ch->mtu->pdev->dev.platform_data;
-	void __iomem *base = ch->mtu->mapbase;
 	unsigned long offs;
 
 	if (reg_nr == TSTR)
-		return ioread8(base + cfg->channel_offset);
+		return ioread8(ch->mtu->mapbase);
 
 	offs = mtu2_reg_offs[reg_nr];
 
 	if ((reg_nr == TCNT) || (reg_nr == TGR))
-		return ioread16(base + offs);
+		return ioread16(ch->base + offs);
 	else
-		return ioread8(base + offs);
+		return ioread8(ch->base + offs);
 }
 
 static inline void sh_mtu2_write(struct sh_mtu2_channel *ch, int reg_nr,
 				unsigned long value)
 {
-	struct sh_timer_config *cfg = ch->mtu->pdev->dev.platform_data;
-	void __iomem *base = ch->mtu->mapbase;
 	unsigned long offs;
 
 	if (reg_nr == TSTR) {
-		iowrite8(value, base + cfg->channel_offset);
+		iowrite8(value, ch->mtu->mapbase);
 		return;
 	}
 
 	offs = mtu2_reg_offs[reg_nr];
 
 	if ((reg_nr == TCNT) || (reg_nr == TGR))
-		iowrite16(value, base + offs);
+		iowrite16(value, ch->base + offs);
 	else
-		iowrite8(value, base + offs);
+		iowrite8(value, ch->base + offs);
 }
 
 static void sh_mtu2_start_stop_ch(struct sh_mtu2_channel *ch, int start)
@@ -315,12 +314,17 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 		goto err0;
 	}
 
-	/* map memory, let mapbase point to our channel */
-	mtu->mapbase = ioremap_nocache(res->start, resource_size(res));
-	if (mtu->mapbase == NULL) {
+	/*
+	 * Map memory, let channel.base point to our channel and mapbase to the
+	 * start/stop shared register.
+	 */
+	mtu->channel.base = ioremap_nocache(res->start, resource_size(res));
+	if (mtu->channel.base == NULL) {
 		dev_err(&mtu->pdev->dev, "failed to remap I/O memory\n");
 		goto err0;
 	}
+
+	mtu->mapbase = mtu->channel.base + cfg->channel_offset;
 
 	/* get hold of clock */
 	mtu->clk = clk_get(&mtu->pdev->dev, "mtu2_fck");
@@ -344,7 +348,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
  err2:
 	clk_put(mtu->clk);
  err1:
-	iounmap(mtu->mapbase);
+	iounmap(mtu->channel.base);
  err0:
 	return ret;
 }
