@@ -1123,6 +1123,7 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 		policy->user_policy.max = policy->max;
 	}
 
+	down_write(&policy->rwsem);
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 	for_each_cpu(j, policy->cpus)
 		per_cpu(cpufreq_cpu_data, j) = policy;
@@ -1206,6 +1207,7 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 		policy->user_policy.policy = policy->policy;
 		policy->user_policy.governor = policy->governor;
 	}
+	up_write(&policy->rwsem);
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	up_read(&cpufreq_rwsem);
