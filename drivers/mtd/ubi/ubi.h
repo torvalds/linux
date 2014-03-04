@@ -875,11 +875,11 @@ static inline int ubiblock_init(void) { return 0; }
 static inline void ubiblock_exit(void) {}
 static inline int ubiblock_create(struct ubi_volume_info *vi)
 {
-	return -ENOTTY;
+	return -ENOSYS;
 }
 static inline int ubiblock_remove(struct ubi_volume_info *vi)
 {
-	return -ENOTTY;
+	return -ENOSYS;
 }
 #endif
 
