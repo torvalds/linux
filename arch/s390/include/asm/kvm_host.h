@@ -107,7 +107,9 @@ struct kvm_s390_sie_block {
 	__u64	gbea;			/* 0x0180 */
 	__u8	reserved188[24];	/* 0x0188 */
 	__u32	fac;			/* 0x01a0 */
-	__u8	reserved1a4[68];	/* 0x01a4 */
+	__u8	reserved1a4[58];	/* 0x01a4 */
+	__u64	pp;			/* 0x01de */
+	__u8	reserved1e6[2];		/* 0x01e6 */
 	__u64	itdba;			/* 0x01e8 */
 	__u8	reserved1f0[16];	/* 0x01f0 */
 } __attribute__((packed));
@@ -213,7 +215,6 @@ struct kvm_s390_float_interrupt {
 	int next_rr_cpu;
 	unsigned long idle_mask[(KVM_MAX_VCPUS + sizeof(long) - 1)
 				/ sizeof(long)];
-	struct kvm_s390_local_interrupt *local_int[KVM_MAX_VCPUS];
 	unsigned int irq_count;
 };
 

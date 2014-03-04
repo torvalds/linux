@@ -692,6 +692,7 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	struct kvm_s390_local_interrupt *li;
 	struct kvm_s390_float_interrupt *fi;
 	struct kvm_s390_interrupt_info *iter;
+	struct kvm_vcpu *dst_vcpu = NULL;
 	int sigcpu;
 	int rc = 0;
 
@@ -726,9 +727,10 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 			sigcpu = fi->next_rr_cpu++;
 			if (sigcpu == KVM_MAX_VCPUS)
 				sigcpu = fi->next_rr_cpu = 0;
-		} while (fi->local_int[sigcpu] == NULL);
+		} while (kvm_get_vcpu(kvm, sigcpu) == NULL);
 	}
-	li = fi->local_int[sigcpu];
+	dst_vcpu = kvm_get_vcpu(kvm, sigcpu);
+	li = &dst_vcpu->arch.local_int;
 	spin_lock_bh(&li->lock);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	if (waitqueue_active(li->wq))

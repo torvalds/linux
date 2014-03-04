@@ -386,6 +386,7 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.guest_fpregs.fpc = 0;
 	asm volatile("lfpc %0" : : "Q" (vcpu->arch.guest_fpregs.fpc));
 	vcpu->arch.sie_block->gbea = 1;
+	vcpu->arch.sie_block->pp = 0;
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
@@ -459,11 +460,8 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	INIT_LIST_HEAD(&vcpu->arch.local_int.list);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
-	spin_lock(&kvm->arch.float_int.lock);
-	kvm->arch.float_int.local_int[id] = &vcpu->arch.local_int;
 	vcpu->arch.local_int.wq = &vcpu->wq;
 	vcpu->arch.local_int.cpuflags = &vcpu->arch.sie_block->cpuflags;
-	spin_unlock(&kvm->arch.float_int.lock);
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
@@ -571,6 +569,14 @@ static int kvm_arch_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 		r = put_user(vcpu->arch.pfault_select,
 			     (u64 __user *)reg->addr);
 		break;
+	case KVM_REG_S390_PP:
+		r = put_user(vcpu->arch.sie_block->pp,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_GBEA:
+		r = put_user(vcpu->arch.sie_block->gbea,
+			     (u64 __user *)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -610,6 +616,14 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_S390_PFSELECT:
 		r = get_user(vcpu->arch.pfault_select,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_PP:
+		r = get_user(vcpu->arch.sie_block->pp,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_GBEA:
+		r = get_user(vcpu->arch.sie_block->gbea,
 			     (u64 __user *)reg->addr);
 		break;
 	default:
@@ -935,7 +949,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	atomic_clear_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
 
-	BUG_ON(vcpu->kvm->arch.float_int.local_int[vcpu->vcpu_id] == NULL);
+	BUG_ON(kvm_get_vcpu(vcpu->kvm, vcpu->vcpu_id) == NULL);
 
 	switch (kvm_run->exit_reason) {
 	case KVM_EXIT_S390_SIEIC:
