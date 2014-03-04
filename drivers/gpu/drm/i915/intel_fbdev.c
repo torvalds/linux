@@ -289,7 +289,7 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	struct drm_device *dev = fb_helper->dev;
 	int i, j;
 	bool *save_enabled;
-	bool any_enabled = false;
+	bool fallback = true;
 
 	/*
 	 * If the user specified any force options, just bail here
@@ -347,7 +347,7 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		 */
 		for (j = 0; j < fb_helper->connector_count; j++) {
 			if (crtcs[j] == new_crtc) {
-				any_enabled = false;
+				fallback = true;
 				goto out;
 			}
 		}
@@ -390,11 +390,11 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			      encoder->crtc->base.id,
 			      modes[i]->name);
 
-		any_enabled = true;
+		fallback = false;
 	}
 
 out:
-	if (!any_enabled) {
+	if (fallback) {
 		memcpy(enabled, save_enabled, dev->mode_config.num_connector);
 		kfree(save_enabled);
 		return false;
