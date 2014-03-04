@@ -362,6 +362,61 @@ static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters)
 	}
 }
 
+static void pcl818_ai_setup_dma(struct comedi_device *dev,
+				struct comedi_subdevice *s)
+{
+	struct pcl818_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int flags;
+	unsigned int bytes;
+
+	disable_dma(devpriv->dma);	/*  disable dma */
+	bytes = devpriv->hwdmasize;
+	if (cmd->stop_src == TRIG_COUNT) {
+		bytes = cmd->chanlist_len * cmd->stop_arg * sizeof(short);
+		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
+		devpriv->last_dma_run = bytes % devpriv->hwdmasize;
+		devpriv->dma_runs_to_end--;
+		if (devpriv->dma_runs_to_end >= 0)
+			bytes = devpriv->hwdmasize;
+	}
+
+	devpriv->next_dma_buf = 0;
+	set_dma_mode(devpriv->dma, DMA_MODE_READ);
+	flags = claim_dma_lock();
+	clear_dma_ff(devpriv->dma);
+	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[0]);
+	set_dma_count(devpriv->dma, bytes);
+	release_dma_lock(flags);
+	enable_dma(devpriv->dma);
+}
+
+static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
+				     struct comedi_subdevice *s)
+{
+	struct pcl818_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned long flags;
+
+	disable_dma(devpriv->dma);
+	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
+	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
+		/* switch dma bufs */
+		set_dma_mode(devpriv->dma, DMA_MODE_READ);
+		flags = claim_dma_lock();
+		set_dma_addr(devpriv->dma,
+			     devpriv->hwdmaptr[devpriv->next_dma_buf]);
+		if (devpriv->dma_runs_to_end || cmd->stop_src == TRIG_NONE)
+			set_dma_count(devpriv->dma, devpriv->hwdmasize);
+		else
+			set_dma_count(devpriv->dma, devpriv->last_dma_run);
+		release_dma_lock(flags);
+		enable_dma(devpriv->dma);
+	}
+
+	devpriv->dma_runs_to_end--;
+}
+
 static unsigned int pcl818_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s,
 					 unsigned int *chan)
@@ -546,26 +601,10 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int i, len, bufptr;
-	unsigned long flags;
 	unsigned short *ptr;
 
-	disable_dma(devpriv->dma);
-	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
-	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
-		/* switch dma bufs */
-		set_dma_mode(devpriv->dma, DMA_MODE_READ);
-		flags = claim_dma_lock();
-		set_dma_addr(devpriv->dma,
-			     devpriv->hwdmaptr[devpriv->next_dma_buf]);
-		if (devpriv->dma_runs_to_end || cmd->stop_src == TRIG_NONE)
-			set_dma_count(devpriv->dma, devpriv->hwdmasize);
-		else
-			set_dma_count(devpriv->dma, devpriv->last_dma_run);
-		release_dma_lock(flags);
-		enable_dma(devpriv->dma);
-	}
+	pcl818_ai_setup_next_dma(dev, s);
 
-	devpriv->dma_runs_to_end--;
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 	ptr = (unsigned short *)devpriv->dmabuf[1 - devpriv->next_dma_buf];
 
@@ -744,29 +783,8 @@ static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int flags;
-	unsigned int bytes;
 
-	disable_dma(devpriv->dma);	/*  disable dma */
-	bytes = devpriv->hwdmasize;
-	if (cmd->stop_src == TRIG_COUNT) {
-		bytes = cmd->chanlist_len * cmd->stop_arg * sizeof(short);
-		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
-		devpriv->last_dma_run = bytes % devpriv->hwdmasize;
-		devpriv->dma_runs_to_end--;
-		if (devpriv->dma_runs_to_end >= 0)
-			bytes = devpriv->hwdmasize;
-	}
-
-	devpriv->next_dma_buf = 0;
-	set_dma_mode(devpriv->dma, DMA_MODE_READ);
-	flags = claim_dma_lock();
-	clear_dma_ff(devpriv->dma);
-	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[0]);
-	set_dma_count(devpriv->dma, bytes);
-	release_dma_lock(flags);
-	enable_dma(devpriv->dma);
+	pcl818_ai_setup_dma(dev, s);
 
 	if (mode == 1) {
 		devpriv->ai_mode = INT_TYPE_AI1_DMA;
