@@ -5475,13 +5475,15 @@ static int dgap_param(struct tty_struct *tty)
 		if ((ch->ch_digi.digi_flags & DIGI_FAST) || (ch->ch_c_cflag & CBAUDEX))
 			cflag |= HUPCL;
 
-		if ((ch->ch_c_cflag & CBAUDEX) && !(ch->ch_digi.digi_flags & DIGI_FAST)) {
-		/*
-		 * The below code is trying to guarantee that only baud rates
-		 * 115200, 230400, 460800, 921600 are remapped.  We use exclusive or
-		 * because the various baud rates share common bit positions
-		 * and therefore can't be tested for easily.
-		 */
+		if ((ch->ch_c_cflag & CBAUDEX) &&
+		    !(ch->ch_digi.digi_flags & DIGI_FAST)) {
+			/*
+			 * The below code is trying to guarantee that only
+			 * baud rates 115200, 230400, 460800, 921600 are
+			 * remapped. We use exclusive or  because the various
+			 * baud rates share common bit positions and therefore
+			 * can't be tested for easily.
+			 */
 			tcflag_t tcflag = (ch->ch_c_cflag & CBAUD) | CBAUDEX;
 			int baudpart = 0;
 
