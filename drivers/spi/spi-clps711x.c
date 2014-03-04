@@ -159,14 +159,10 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		master->cs_gpios[i] = pdata->chipselect[i];
-		if (!gpio_is_valid(master->cs_gpios[i])) {
-			dev_err(&pdev->dev, "Invalid CS GPIO %i\n", i);
-			ret = -EINVAL;
-			goto err_out;
-		}
-		if (devm_gpio_request(&pdev->dev, master->cs_gpios[i], NULL)) {
+		ret = devm_gpio_request(&pdev->dev, master->cs_gpios[i],
+					DRIVER_NAME);
+		if (ret) {
 			dev_err(&pdev->dev, "Can't get CS GPIO %i\n", i);
-			ret = -EINVAL;
 			goto err_out;
 		}
 	}
