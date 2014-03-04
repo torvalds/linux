@@ -1401,9 +1401,9 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 		p->uartclk = 40000000;
 		break;
 	default:
-		m = 6912;
-		n = 15625;
-		p->uartclk = 44236800;
+		m = 2304;
+		n = 3125;
+		p->uartclk = 73728000;
 	}
 
 	/* Reset the clock */
@@ -3470,6 +3470,10 @@ static struct pciserial_board pci_boards[] = {
 		.base_baud	= 921600,
 		.reg_shift      = 2,
 	},
+	/*
+	 * Intel BayTrail HSUART reference clock is 44.2368 MHz at power-on,
+	 * but is overridden by byt_set_termios.
+	 */
 	[pbn_byt] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
