@@ -13,5 +13,6 @@ source "drivers/staging/unisys/visorutil/Kconfig"
 source "drivers/staging/unisys/visorchannel/Kconfig"
 source "drivers/staging/unisys/visorchipset/Kconfig"
 source "drivers/staging/unisys/channels/Kconfig"
+source "drivers/staging/unisys/uislib/Kconfig"
 
 endif # UNISYSSPAR
