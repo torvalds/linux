@@ -1109,6 +1109,20 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 		goto err_set_policy_cpu;
 	}
 
+	/* related cpus should atleast have policy->cpus */
+	cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
+
+	/*
+	 * affected cpus must always be the one, which are online. We aren't
+	 * managing offline cpus here.
+	 */
+	cpumask_and(policy->cpus, policy->cpus, cpu_online_mask);
+
+	if (!frozen) {
+		policy->user_policy.min = policy->min;
+		policy->user_policy.max = policy->max;
+	}
+
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 	for_each_cpu(j, policy->cpus)
 		per_cpu(cpufreq_cpu_data, j) = policy;
@@ -1160,20 +1174,6 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 			pr_warn("%s: CPU%d: Unlisted initial frequency changed to: %u KHz\n",
 				__func__, policy->cpu, policy->cur);
 		}
-	}
-
-	/* related cpus should atleast have policy->cpus */
-	cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
-
-	/*
-	 * affected cpus must always be the one, which are online. We aren't
-	 * managing offline cpus here.
-	 */
-	cpumask_and(policy->cpus, policy->cpus, cpu_online_mask);
-
-	if (!frozen) {
-		policy->user_policy.min = policy->min;
-		policy->user_policy.max = policy->max;
 	}
 
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
