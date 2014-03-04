@@ -54,6 +54,9 @@ struct sh_mtu2_device {
 
 	struct sh_mtu2_channel *channels;
 	unsigned int num_channels;
+
+	bool legacy;
+	bool has_clockevent;
 };
 
 static DEFINE_RAW_SPINLOCK(sh_mtu2_lock);
@@ -163,8 +166,12 @@ static inline unsigned long sh_mtu2_read(struct sh_mtu2_channel *ch, int reg_nr)
 {
 	unsigned long offs;
 
-	if (reg_nr == TSTR)
-		return ioread8(ch->mtu->mapbase);
+	if (reg_nr == TSTR) {
+		if (ch->mtu->legacy)
+			return ioread8(ch->mtu->mapbase);
+		else
+			return ioread8(ch->mtu->mapbase + 0x280);
+	}
 
 	offs = mtu2_reg_offs[reg_nr];
 
@@ -180,8 +187,10 @@ static inline void sh_mtu2_write(struct sh_mtu2_channel *ch, int reg_nr,
 	unsigned long offs;
 
 	if (reg_nr == TSTR) {
-		iowrite8(value, ch->mtu->mapbase);
-		return;
+		if (ch->mtu->legacy)
+			return iowrite8(value, ch->mtu->mapbase);
+		else
+			return iowrite8(value, ch->mtu->mapbase + 0x280);
 	}
 
 	offs = mtu2_reg_offs[reg_nr];
@@ -353,109 +362,168 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
 static int sh_mtu2_register(struct sh_mtu2_channel *ch, const char *name,
 			    bool clockevent)
 {
-	if (clockevent)
+	if (clockevent) {
+		ch->mtu->has_clockevent = true;
 		sh_mtu2_register_clockevent(ch, name);
+	}
 
 	return 0;
 }
 
-static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch,
+static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch, unsigned int index,
 				 struct sh_mtu2_device *mtu)
 {
-	struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
+	static const unsigned int channel_offsets[] = {
+		0x300, 0x380, 0x000,
+	};
+	bool clockevent;
 
 	ch->mtu = mtu;
-	ch->index = cfg->timer_bit;
 
-	ch->irq = platform_get_irq(mtu->pdev, 0);
+	if (mtu->legacy) {
+		struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
+
+		clockevent = cfg->clockevent_rating != 0;
+
+		ch->irq = platform_get_irq(mtu->pdev, 0);
+		ch->base = mtu->mapbase - cfg->channel_offset;
+		ch->index = cfg->timer_bit;
+	} else {
+		char name[6];
+
+		clockevent = true;
+
+		sprintf(name, "tgi%ua", index);
+		ch->irq = platform_get_irq_byname(mtu->pdev, name);
+		ch->base = mtu->mapbase + channel_offsets[index];
+		ch->index = index;
+	}
+
 	if (ch->irq < 0) {
+		/* Skip channels with no declared interrupt. */
+		if (!mtu->legacy)
+			return 0;
+
 		dev_err(&mtu->pdev->dev, "ch%u: failed to get irq\n",
 			ch->index);
 		return ch->irq;
 	}
 
-	return sh_mtu2_register(ch, dev_name(&mtu->pdev->dev),
-				cfg->clockevent_rating != 0);
+	return sh_mtu2_register(ch, dev_name(&mtu->pdev->dev), clockevent);
+}
+
+static int sh_mtu2_map_memory(struct sh_mtu2_device *mtu)
+{
+	struct resource *res;
+
+	res = platform_get_resource(mtu->pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&mtu->pdev->dev, "failed to get I/O memory\n");
+		return -ENXIO;
+	}
+
+	mtu->mapbase = ioremap_nocache(res->start, resource_size(res));
+	if (mtu->mapbase == NULL)
+		return -ENXIO;
+
+	/*
+	 * In legacy platform device configuration (with one device per channel)
+	 * the resource points to the channel base address.
+	 */
+	if (mtu->legacy) {
+		struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
+		mtu->mapbase += cfg->channel_offset;
+	}
+
+	return 0;
+}
+
+static void sh_mtu2_unmap_memory(struct sh_mtu2_device *mtu)
+{
+	if (mtu->legacy) {
+		struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
+		mtu->mapbase -= cfg->channel_offset;
+	}
+
+	iounmap(mtu->mapbase);
 }
 
 static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 			 struct platform_device *pdev)
 {
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
-	struct resource *res;
-	void __iomem *base;
+	const struct platform_device_id *id = pdev->id_entry;
+	unsigned int i;
 	int ret;
-	ret = -ENXIO;
 
 	mtu->pdev = pdev;
+	mtu->legacy = id->driver_data;
 
-	if (!cfg) {
+	if (mtu->legacy && !cfg) {
 		dev_err(&mtu->pdev->dev, "missing platform data\n");
-		goto err0;
+		return -ENXIO;
 	}
 
-	platform_set_drvdata(pdev, mtu);
-
-	res = platform_get_resource(mtu->pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&mtu->pdev->dev, "failed to get I/O memory\n");
-		goto err0;
-	}
-
-	/*
-	 * Map memory, let base point to our channel and mapbase to the
-	 * start/stop shared register.
-	 */
-	base = ioremap_nocache(res->start, resource_size(res));
-	if (base == NULL) {
-		dev_err(&mtu->pdev->dev, "failed to remap I/O memory\n");
-		goto err0;
-	}
-
-	mtu->mapbase = base + cfg->channel_offset;
-
-	/* get hold of clock */
+	/* Get hold of clock. */
 	mtu->clk = clk_get(&mtu->pdev->dev, "mtu2_fck");
 	if (IS_ERR(mtu->clk)) {
 		dev_err(&mtu->pdev->dev, "cannot get clock\n");
-		ret = PTR_ERR(mtu->clk);
-		goto err1;
+		return PTR_ERR(mtu->clk);
 	}
 
 	ret = clk_prepare(mtu->clk);
 	if (ret < 0)
-		goto err2;
+		goto err_clk_put;
 
-	mtu->channels = kzalloc(sizeof(*mtu->channels), GFP_KERNEL);
-	if (mtu->channels == NULL) {
-		ret = -ENOMEM;
-		goto err3;
+	/* Map the memory resource. */
+	ret = sh_mtu2_map_memory(mtu);
+	if (ret < 0) {
+		dev_err(&mtu->pdev->dev, "failed to remap I/O memory\n");
+		goto err_clk_unprepare;
 	}
 
-	mtu->num_channels = 1;
+	/* Allocate and setup the channels. */
+	if (mtu->legacy)
+		mtu->num_channels = 1;
+	else
+		mtu->num_channels = 3;
 
-	mtu->channels[0].base = base;
+	mtu->channels = kzalloc(sizeof(*mtu->channels) * mtu->num_channels,
+				GFP_KERNEL);
+	if (mtu->channels == NULL) {
+		ret = -ENOMEM;
+		goto err_unmap;
+	}
 
-	ret = sh_mtu2_setup_channel(&mtu->channels[0], mtu);
-	if (ret < 0)
-		goto err3;
+	if (mtu->legacy) {
+		ret = sh_mtu2_setup_channel(&mtu->channels[0], 0, mtu);
+		if (ret < 0)
+			goto err_unmap;
+	} else {
+		for (i = 0; i < mtu->num_channels; ++i) {
+			ret = sh_mtu2_setup_channel(&mtu->channels[i], i, mtu);
+			if (ret < 0)
+				goto err_unmap;
+		}
+	}
+
+	platform_set_drvdata(pdev, mtu);
 
 	return 0;
- err3:
+
+err_unmap:
 	kfree(mtu->channels);
+	sh_mtu2_unmap_memory(mtu);
+err_clk_unprepare:
 	clk_unprepare(mtu->clk);
- err2:
+err_clk_put:
 	clk_put(mtu->clk);
- err1:
-	iounmap(base);
- err0:
 	return ret;
 }
 
 static int sh_mtu2_probe(struct platform_device *pdev)
 {
 	struct sh_mtu2_device *mtu = platform_get_drvdata(pdev);
-	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	int ret;
 
 	if (!is_early_platform_device(pdev)) {
@@ -484,7 +552,7 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 		return 0;
 
  out:
-	if (cfg->clockevent_rating)
+	if (mtu->has_clockevent)
 		pm_runtime_irq_safe(&pdev->dev);
 	else
 		pm_runtime_idle(&pdev->dev);
@@ -497,12 +565,20 @@ static int sh_mtu2_remove(struct platform_device *pdev)
 	return -EBUSY; /* cannot unregister clockevent */
 }
 
+static const struct platform_device_id sh_mtu2_id_table[] = {
+	{ "sh_mtu2", 1 },
+	{ "sh-mtu2", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, sh_mtu2_id_table);
+
 static struct platform_driver sh_mtu2_device_driver = {
 	.probe		= sh_mtu2_probe,
 	.remove		= sh_mtu2_remove,
 	.driver		= {
 		.name	= "sh_mtu2",
-	}
+	},
+	.id_table	= sh_mtu2_id_table,
 };
 
 static int __init sh_mtu2_init(void)
