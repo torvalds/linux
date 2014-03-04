@@ -552,29 +552,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void pcl816_reset(struct comedi_device *dev)
-{
-	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
-
-/* outb (0, dev->iobase + PCL818_DA_LO);         DAC=0V */
-/* outb (0, dev->iobase + PCL818_DA_HI); */
-/* udelay (1); */
-	outb(0, dev->iobase + PCL816_CONTROL);
-	outb(0, dev->iobase + PCL816_MUX);
-	outb(0, dev->iobase + PCL816_CLRINT);
-
-	/* Stop pacer */
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE0 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
-
-	outb(0, dev->iobase + PCL816_RANGE);
-
-	/* set all digital outputs low */
-	outb(0, dev->iobase + PCL816_DO_DI_LSB_REG);
-	outb(0, dev->iobase + PCL816_DO_DI_MSB_REG);
-}
-
 static int
 check_channel_list(struct comedi_device *dev,
 		   struct comedi_subdevice *s, unsigned int *chanlist,
@@ -677,6 +654,26 @@ static int pcl816_do_insn_bits(struct comedi_device *dev,
 	data[1] = s->state;
 
 	return insn->n;
+}
+
+static void pcl816_reset(struct comedi_device *dev)
+{
+	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
+
+	outb(0, dev->iobase + PCL816_CONTROL);
+	outb(0, dev->iobase + PCL816_MUX);
+	outb(0, dev->iobase + PCL816_CLRINT);
+
+	/* Stop pacer */
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
+
+	outb(0, dev->iobase + PCL816_RANGE);
+
+	/* set all digital outputs low */
+	outb(0, dev->iobase + PCL816_DO_DI_LSB_REG);
+	outb(0, dev->iobase + PCL816_DO_DI_MSB_REG);
 }
 
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
