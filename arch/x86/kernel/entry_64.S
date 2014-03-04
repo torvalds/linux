@@ -488,12 +488,11 @@ badsys:
 	 * jump back to the normal fast path.
 	 */
 auditsys:
-	movq %r10,%r9			/* 6th arg: 4th syscall arg */
-	movq %rdx,%r8			/* 5th arg: 3rd syscall arg */
-	movq %rsi,%rcx			/* 4th arg: 2nd syscall arg */
-	movq %rdi,%rdx			/* 3rd arg: 1st syscall arg */
-	movq %rax,%rsi			/* 2nd arg: syscall number */
-	movl $AUDIT_ARCH_X86_64,%edi	/* 1st arg: audit arch */
+	movq %r10,%r8			/* 5th arg: 4th syscall arg */
+	movq %rdx,%rcx			/* 4th arg: 3rd syscall arg */
+	movq %rsi,%rdx			/* 3rd arg: 2nd syscall arg */
+	movq %rdi,%rsi			/* 2nd arg: 1st syscall arg */
+	movq %rax,%rdi			/* 1st arg: syscall number */
 	call __audit_syscall_entry
 	LOAD_ARGS 0		/* reload call-clobbered registers */
 	jmp system_call_fastpath
