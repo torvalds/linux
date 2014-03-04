@@ -148,13 +148,8 @@ struct v4l2_subdev_selection {
 	__u32 reserved[8];
 };
 
-struct v4l2_subdev_edid {
-	__u32 pad;
-	__u32 start_block;
-	__u32 blocks;
-	__u32 reserved[5];
-	__u8 __user *edid;
-};
+/* Backwards compatibility define --- to be removed */
+#define v4l2_subdev_edid v4l2_edid
 
 #define VIDIOC_SUBDEV_G_FMT	_IOWR('V',  4, struct v4l2_subdev_format)
 #define VIDIOC_SUBDEV_S_FMT	_IOWR('V',  5, struct v4l2_subdev_format)
@@ -174,7 +169,8 @@ struct v4l2_subdev_edid {
 	_IOWR('V', 61, struct v4l2_subdev_selection)
 #define VIDIOC_SUBDEV_S_SELECTION \
 	_IOWR('V', 62, struct v4l2_subdev_selection)
-#define VIDIOC_SUBDEV_G_EDID	_IOWR('V', 40, struct v4l2_subdev_edid)
-#define VIDIOC_SUBDEV_S_EDID	_IOWR('V', 41, struct v4l2_subdev_edid)
+/* These two G/S_EDID ioctls are identical to the ioctls in videodev2.h */
+#define VIDIOC_SUBDEV_G_EDID	_IOWR('V', 40, struct v4l2_edid)
+#define VIDIOC_SUBDEV_S_EDID	_IOWR('V', 41, struct v4l2_edid)
 
 #endif

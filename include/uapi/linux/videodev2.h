@@ -1913,6 +1913,8 @@ struct v4l2_create_buffers {
 #define VIDIOC_QUERYMENU	_IOWR('V', 37, struct v4l2_querymenu)
 #define VIDIOC_G_INPUT		 _IOR('V', 38, int)
 #define VIDIOC_S_INPUT		_IOWR('V', 39, int)
+#define VIDIOC_G_EDID		_IOWR('V', 40, struct v4l2_edid)
+#define VIDIOC_S_EDID		_IOWR('V', 41, struct v4l2_edid)
 #define VIDIOC_G_OUTPUT		 _IOR('V', 46, int)
 #define VIDIOC_S_OUTPUT		_IOWR('V', 47, int)
 #define VIDIOC_ENUMOUTPUT	_IOWR('V', 48, struct v4l2_output)
