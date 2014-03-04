@@ -337,7 +337,8 @@ static void buffer_finish(struct vb2_buffer *vb)
 	list_del_init(&vip_buf->list);
 	spin_unlock(&vip->lock);
 
-	vip_active_buf_next(vip);
+	if (vb2_is_streaming(vb->vb2_queue))
+		vip_active_buf_next(vip);
 }
 
 static int start_streaming(struct vb2_queue *vq, unsigned int count)

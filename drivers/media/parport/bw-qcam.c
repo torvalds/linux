@@ -674,6 +674,9 @@ static void buffer_finish(struct vb2_buffer *vb)
 	int size = vb->vb2_queue->plane_sizes[0];
 	int len;
 
+	if (!vb2_is_streaming(vb->vb2_queue))
+		return;
+
 	mutex_lock(&qcam->lock);
 	parport_claim_or_block(qcam->pdev);
 

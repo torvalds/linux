@@ -276,7 +276,15 @@ struct vb2_buffer {
  *			in driver; optional
  * @buf_finish:		called before every dequeue of the buffer back to
  *			userspace; drivers may perform any operations required
- *			before userspace accesses the buffer; optional
+ *			before userspace accesses the buffer; optional. The
+ *			buffer state can be one of the following: DONE and
+ *			ERROR occur while streaming is in progress, and the
+ *			PREPARED state occurs when the queue has been canceled
+ *			and all pending buffers are being returned to their
+ *			default DEQUEUED state. Typically you only have to do
+ *			something if the state is VB2_BUF_STATE_DONE, since in
+ *			all other cases the buffer contents will be ignored
+ *			anyway.
  * @buf_cleanup:	called once before the buffer is freed; drivers may
  *			perform any additional cleanup; optional
  * @start_streaming:	called once to enter 'streaming' state; the driver may

@@ -1929,9 +1929,22 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 
 	/*
 	 * Reinitialize all buffers for next use.
+	 * Make sure to call buf_finish for any queued buffers. Normally
+	 * that's done in dqbuf, but that's not going to happen when we
+	 * cancel the whole queue. Note: this code belongs here, not in
+	 * __vb2_dqbuf() since in vb2_internal_dqbuf() there is a critical
+	 * call to __fill_v4l2_buffer() after buf_finish(). That order can't
+	 * be changed, so we can't move the buf_finish() to __vb2_dqbuf().
 	 */
-	for (i = 0; i < q->num_buffers; ++i)
-		__vb2_dqbuf(q->bufs[i]);
+	for (i = 0; i < q->num_buffers; ++i) {
+		struct vb2_buffer *vb = q->bufs[i];
+
+		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
+			vb->state = VB2_BUF_STATE_PREPARED;
+			call_vb_qop(vb, buf_finish, vb);
+		}
+		__vb2_dqbuf(vb);
+	}
 }
 
 static int vb2_internal_streamon(struct vb2_queue *q, enum v4l2_buf_type type)

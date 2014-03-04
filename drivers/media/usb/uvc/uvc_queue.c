@@ -113,7 +113,8 @@ static void uvc_buffer_finish(struct vb2_buffer *vb)
 			container_of(queue, struct uvc_streaming, queue);
 	struct uvc_buffer *buf = container_of(vb, struct uvc_buffer, buf);
 
-	uvc_video_clock_update(stream, &vb->v4l2_buf, buf);
+	if (vb->state == VB2_BUF_STATE_DONE)
+		uvc_video_clock_update(stream, &vb->v4l2_buf, buf);
 }
 
 static void uvc_wait_prepare(struct vb2_queue *vq)
