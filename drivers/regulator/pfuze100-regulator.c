@@ -56,7 +56,7 @@
 #define PFUZE100_VGEN5VOL	0x70
 #define PFUZE100_VGEN6VOL	0x71
 
-enum chips {PFUZE100, PFUZE200, PFUZE_NUM};
+enum chips { PFUZE100, PFUZE200 };
 
 struct pfuze_regulator {
 	struct regulator_desc desc;
@@ -80,15 +80,17 @@ static const int pfuze100_vsnvs[] = {
 	1000000, 1100000, 1200000, 1300000, 1500000, 1800000, 3000000,
 };
 
-static const struct i2c_device_id pfuze_device_id[PFUZE_NUM] = {
+static const struct i2c_device_id pfuze_device_id[] = {
 	{.name = "pfuze100", .driver_data = PFUZE100},
 	{.name = "pfuze200", .driver_data = PFUZE200},
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pfuze_device_id);
 
-static const struct of_device_id pfuze_dt_ids[PFUZE_NUM] = {
+static const struct of_device_id pfuze_dt_ids[] = {
 	{ .compatible = "fsl,pfuze100", .data = (void *)PFUZE100},
 	{ .compatible = "fsl,pfuze200", .data = (void *)PFUZE200},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, pfuze_dt_ids);
 
