@@ -358,6 +358,26 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 	return ret;
 }
 
+static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
+			      struct rsnd_dai *rdai,
+			      struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	int irq = ssi->info->pio_irq;
+	int ret;
+
+	ret = devm_request_irq(dev, irq,
+			       rsnd_ssi_pio_interrupt,
+			       IRQF_SHARED,
+			       dev_name(dev), ssi);
+	if (ret)
+		dev_err(dev, "SSI request interrupt failed\n");
+
+	return ret;
+}
+
 static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
@@ -389,11 +409,49 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= "ssi (pio)",
+	.probe	= rsnd_ssi_pio_probe,
 	.init	= rsnd_ssi_init,
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_pio_start,
 	.stop	= rsnd_ssi_pio_stop,
 };
+
+static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
+			  struct rsnd_dai *rdai,
+			  struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int dma_id = ssi->info->dma_id;
+	int is_play;
+	int ret;
+
+	if (info->dai_info)
+		is_play = rsnd_info_is_playback(priv, ssi);
+	else
+		is_play = rsnd_ssi_is_play(&ssi->mod);
+
+	ret = rsnd_dma_init(
+		priv, rsnd_mod_to_dma(mod),
+		is_play,
+		dma_id);
+
+	if (ret < 0)
+		dev_err(dev, "SSI DMA failed\n");
+
+	return ret;
+}
+
+static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
+			       struct rsnd_dai *rdai,
+			       struct rsnd_dai_stream *io)
+{
+	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
+
+	return 0;
+}
 
 static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai,
@@ -436,6 +494,8 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 
 static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.name	= "ssi (dma)",
+	.probe	= rsnd_ssi_dma_probe,
+	.remove	= rsnd_ssi_dma_remove,
 	.init	= rsnd_ssi_init,
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_dma_start,
@@ -538,7 +598,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 	struct clk *clk;
 	struct rsnd_ssi *ssi;
 	char name[RSND_SSI_NAME_SIZE];
-	int i, nr, ret;
+	int i, nr;
 
 	/*
 	 *	init SSI
@@ -566,48 +626,10 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		ssi->clk	= clk;
 
 		ops = &rsnd_ssi_non_ops;
-
-		/*
-		 * SSI DMA case
-		 */
-		if (pinfo->dma_id > 0) {
-			int is_play;
-
-			if (info->dai_info)
-				is_play = rsnd_info_is_playback(priv, ssi);
-			else
-				is_play = rsnd_ssi_is_play(&ssi->mod);
-
-			ret = rsnd_dma_init(
-				priv, rsnd_mod_to_dma(&ssi->mod),
-				is_play,
-				pinfo->dma_id);
-			if (ret < 0)
-				dev_info(dev, "SSI DMA failed. try PIO transter\n");
-			else
-				ops	= &rsnd_ssi_dma_ops;
-
-			dev_dbg(dev, "SSI%d use DMA transfer\n", i);
-		}
-
-		/*
-		 * SSI PIO case
-		 */
-		if (!rsnd_ssi_dma_available(ssi) &&
-		     rsnd_ssi_pio_available(ssi)) {
-			ret = devm_request_irq(dev, pinfo->pio_irq,
-					       &rsnd_ssi_pio_interrupt,
-					       IRQF_SHARED,
-					       dev_name(dev), ssi);
-			if (ret) {
-				dev_err(dev, "SSI request interrupt failed\n");
-				return ret;
-			}
-
-			ops	= &rsnd_ssi_pio_ops;
-
-			dev_dbg(dev, "SSI%d use PIO transfer\n", i);
-		}
+		if (pinfo->dma_id > 0)
+			ops = &rsnd_ssi_dma_ops;
+		else if (rsnd_ssi_pio_available(ssi))
+			ops = &rsnd_ssi_pio_ops;
 
 		rsnd_mod_init(priv, &ssi->mod, ops, RSND_MOD_SSI, i);
 
@@ -620,12 +642,4 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 void rsnd_ssi_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv)
 {
-	struct rsnd_ssi *ssi;
-	int i;
-
-	for_each_rsnd_ssi(ssi, priv, i) {
-		if (rsnd_ssi_dma_available(ssi))
-			rsnd_dma_quit(priv, rsnd_mod_to_dma(&ssi->mod));
-	}
-
 }
