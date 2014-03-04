@@ -5393,6 +5393,17 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	hsw_enable_package_c8(dev_priv);
 }
 
+static void i9xx_always_on_power_well_noop(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+}
+
+static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
+					     struct i915_power_well *power_well)
+{
+	return true;
+}
+
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
@@ -5405,7 +5416,7 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 	mutex_lock(&power_domains->lock);
 
 	for_each_power_well(i, power_well, BIT(domain), power_domains)
-		if (!power_well->count++ && power_well->ops->enable)
+		if (!power_well->count++)
 			power_well->ops->enable(dev_priv, power_well);
 
 	power_domains->domain_use_count[domain]++;
@@ -5430,8 +5441,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
 		WARN_ON(!power_well->count);
 
-		if (!--power_well->count && power_well->ops->disable &&
-		    i915.disable_power_well)
+		if (!--power_well->count && i915.disable_power_well)
 			power_well->ops->disable(dev_priv, power_well);
 	}
 
@@ -5485,7 +5495,12 @@ EXPORT_SYMBOL_GPL(i915_release_power_well);
 	(POWER_DOMAIN_MASK & ~BDW_ALWAYS_ON_POWER_DOMAINS) |	\
 	BIT(POWER_DOMAIN_INIT))
 
-static const struct i915_power_well_ops i9xx_always_on_power_well_ops = { };
+static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
+	.sync_hw = i9xx_always_on_power_well_noop,
+	.enable = i9xx_always_on_power_well_noop,
+	.disable = i9xx_always_on_power_well_noop,
+	.is_enabled = i9xx_always_on_power_well_enabled,
+};
 
 static struct i915_power_well i9xx_always_on_power_well[] = {
 	{
@@ -5571,10 +5586,8 @@ static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 	int i;
 
 	mutex_lock(&power_domains->lock);
-	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
-		if (power_well->ops->sync_hw)
-			power_well->ops->sync_hw(dev_priv, power_well);
-	}
+	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains)
+		power_well->ops->sync_hw(dev_priv, power_well);
 	mutex_unlock(&power_domains->lock);
 }
 
