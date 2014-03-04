@@ -1301,9 +1301,9 @@ static void da732x_dac_offset_adjust(struct snd_soc_codec *codec)
 	msleep(DA732X_WAIT_FOR_STABILIZATION);
 
 	/* Check DAC offset sign */
-	sign[DA732X_HPL_DAC] = (codec->hw_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
+	sign[DA732X_HPL_DAC] = (snd_soc_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
 				DA732X_HP_DAC_OFF_CNTL_COMPO);
-	sign[DA732X_HPR_DAC] = (codec->hw_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
+	sign[DA732X_HPR_DAC] = (snd_soc_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
 				DA732X_HP_DAC_OFF_CNTL_COMPO);
 
 	/* Binary search DAC offset values (both channels at once) */
@@ -1320,10 +1320,10 @@ static void da732x_dac_offset_adjust(struct snd_soc_codec *codec)
 
 		msleep(DA732X_WAIT_FOR_STABILIZATION);
 
-		if ((codec->hw_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
+		if ((snd_soc_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
 		     DA732X_HP_DAC_OFF_CNTL_COMPO) ^ sign[DA732X_HPL_DAC])
 			offset[DA732X_HPL_DAC] &= ~step;
-		if ((codec->hw_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
+		if ((snd_soc_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
 		     DA732X_HP_DAC_OFF_CNTL_COMPO) ^ sign[DA732X_HPR_DAC])
 			offset[DA732X_HPR_DAC] &= ~step;
 
@@ -1364,9 +1364,9 @@ static void da732x_output_offset_adjust(struct snd_soc_codec *codec)
 	msleep(DA732X_WAIT_FOR_STABILIZATION);
 
 	/* Check output offset sign */
-	sign[DA732X_HPL_AMP] = codec->hw_read(codec, DA732X_REG_HPL) &
+	sign[DA732X_HPL_AMP] = snd_soc_read(codec, DA732X_REG_HPL) &
 			       DA732X_HP_OUT_COMPO;
-	sign[DA732X_HPR_AMP] = codec->hw_read(codec, DA732X_REG_HPR) &
+	sign[DA732X_HPR_AMP] = snd_soc_read(codec, DA732X_REG_HPR) &
 			       DA732X_HP_OUT_COMPO;
 
 	snd_soc_write(codec, DA732X_REG_HPL, DA732X_HP_OUT_COMP |
@@ -1387,10 +1387,10 @@ static void da732x_output_offset_adjust(struct snd_soc_codec *codec)
 
 		msleep(DA732X_WAIT_FOR_STABILIZATION);
 
-		if ((codec->hw_read(codec, DA732X_REG_HPL) &
+		if ((snd_soc_read(codec, DA732X_REG_HPL) &
 		     DA732X_HP_OUT_COMPO) ^ sign[DA732X_HPL_AMP])
 			offset[DA732X_HPL_AMP] &= ~step;
-		if ((codec->hw_read(codec, DA732X_REG_HPR) &
+		if ((snd_soc_read(codec, DA732X_REG_HPR) &
 		     DA732X_HP_OUT_COMPO) ^ sign[DA732X_HPR_AMP])
 			offset[DA732X_HPR_AMP] &= ~step;
 
