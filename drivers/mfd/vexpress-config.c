@@ -26,7 +26,7 @@
 
 #define VEXPRESS_CONFIG_MAX_BRIDGES 2
 
-struct vexpress_config_bridge {
+static struct vexpress_config_bridge {
 	struct device_node *node;
 	struct vexpress_config_bridge_info *info;
 	struct list_head transactions;
