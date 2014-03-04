@@ -655,11 +655,11 @@ asmlinkage long compat_sys_mq_open(const char __user *u_name,
 			struct compat_mq_attr __user *u_attr);
 asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
 			const char __user *u_msg_ptr,
-			size_t msg_len, unsigned int msg_prio,
+			compat_size_t msg_len, unsigned int msg_prio,
 			const struct compat_timespec __user *u_abs_timeout);
 asmlinkage ssize_t compat_sys_mq_timedreceive(mqd_t mqdes,
 			char __user *u_msg_ptr,
-			size_t msg_len, unsigned int __user *u_msg_prio,
+			compat_size_t msg_len, unsigned int __user *u_msg_prio,
 			const struct compat_timespec __user *u_abs_timeout);
 asmlinkage long compat_sys_socketcall(int call, u32 __user *args);
 asmlinkage long compat_sys_sysctl(struct compat_sysctl_args __user *args);

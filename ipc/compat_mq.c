@@ -78,10 +78,10 @@ static int compat_prepare_timeout(struct timespec __user **p,
 	return 0;
 }
 
-asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
-			const char __user *u_msg_ptr,
-			size_t msg_len, unsigned int msg_prio,
-			const struct compat_timespec __user *u_abs_timeout)
+COMPAT_SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes,
+		       const char __user *, u_msg_ptr,
+		       compat_size_t, msg_len, unsigned int, msg_prio,
+		       const struct compat_timespec __user *, u_abs_timeout)
 {
 	struct timespec __user *u_ts;
 
@@ -92,10 +92,10 @@ asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
 			msg_prio, u_ts);
 }
 
-asmlinkage ssize_t compat_sys_mq_timedreceive(mqd_t mqdes,
-			char __user *u_msg_ptr,
-			size_t msg_len, unsigned int __user *u_msg_prio,
-			const struct compat_timespec __user *u_abs_timeout)
+COMPAT_SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes,
+		       char __user *, u_msg_ptr,
+		       compat_size_t, msg_len, unsigned int __user *, u_msg_prio,
+		       const struct compat_timespec __user *, u_abs_timeout)
 {
 	struct timespec __user *u_ts;
 	if (compat_prepare_timeout(&u_ts, u_abs_timeout))
