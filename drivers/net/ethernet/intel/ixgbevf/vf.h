@@ -172,16 +172,17 @@ struct ixgbevf_info {
 	const struct ixgbe_mac_operations *mac_ops;
 };
 
+#define IXGBE_FAILED_READ_REG 0xffffffffU
+
+#define IXGBE_REMOVED(a) unlikely(!(a))
+
 static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
 {
 	writel(value, hw->hw_addr + reg);
 }
 #define IXGBE_WRITE_REG(h, r, v) ixgbe_write_reg(h, r, v)
 
-static inline u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
-{
-	return readl(hw->hw_addr + reg);
-}
+u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg);
 #define IXGBE_READ_REG(h, r) ixgbe_read_reg(h, r)
 
 static inline void ixgbe_write_reg_array(struct ixgbe_hw *hw, u32 reg,

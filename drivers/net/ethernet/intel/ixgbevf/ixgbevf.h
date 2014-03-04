@@ -406,6 +406,7 @@ struct ixgbevf_adapter {
 	u64 bp_tx_missed;
 #endif
 
+	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 link_speed;
 	bool link_up;
 

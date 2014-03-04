@@ -99,6 +99,48 @@ static void ixgbevf_queue_reset_subtask(struct ixgbevf_adapter *adapter);
 static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector);
 static void ixgbevf_free_all_rx_resources(struct ixgbevf_adapter *adapter);
 
+static void ixgbevf_remove_adapter(struct ixgbe_hw *hw)
+{
+	struct ixgbevf_adapter *adapter = hw->back;
+
+	if (!hw->hw_addr)
+		return;
+	hw->hw_addr = NULL;
+	dev_err(&adapter->pdev->dev, "Adapter removed\n");
+}
+
+static void ixgbevf_check_remove(struct ixgbe_hw *hw, u32 reg)
+{
+	u32 value;
+
+	/* The following check not only optimizes a bit by not
+	 * performing a read on the status register when the
+	 * register just read was a status register read that
+	 * returned IXGBE_FAILED_READ_REG. It also blocks any
+	 * potential recursion.
+	 */
+	if (reg == IXGBE_VFSTATUS) {
+		ixgbevf_remove_adapter(hw);
+		return;
+	}
+	value = ixgbe_read_reg(hw, IXGBE_VFSTATUS);
+	if (value == IXGBE_FAILED_READ_REG)
+		ixgbevf_remove_adapter(hw);
+}
+
+u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
+{
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 value;
+
+	if (IXGBE_REMOVED(reg_addr))
+		return IXGBE_FAILED_READ_REG;
+	value = readl(reg_addr + reg);
+	if (unlikely(value == IXGBE_FAILED_READ_REG))
+		ixgbevf_check_remove(hw, reg);
+	return value;
+}
+
 static inline void ixgbevf_release_rx_desc(struct ixgbevf_ring *rx_ring,
 					   u32 val)
 {
@@ -1139,7 +1181,7 @@ static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
 	/* reset head and tail pointers */
 	IXGBE_WRITE_REG(hw, IXGBE_VFTDH(reg_idx), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTDT(reg_idx), 0);
-	ring->tail = hw->hw_addr + IXGBE_VFTDT(reg_idx);
+	ring->tail = adapter->io_addr + IXGBE_VFTDT(reg_idx);
 
 	/* reset ntu and ntc to place SW in sync with hardwdare */
 	ring->next_to_clean = 0;
@@ -1318,7 +1360,7 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 	/* reset head and tail pointers */
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDH(reg_idx), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDT(reg_idx), 0);
-	ring->tail = hw->hw_addr + IXGBE_VFRDT(reg_idx);
+	ring->tail = adapter->io_addr + IXGBE_VFRDT(reg_idx);
 
 	/* reset ntu and ntc to place SW in sync with hardwdare */
 	ring->next_to_clean = 0;
@@ -3459,6 +3501,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hw->hw_addr = ioremap(pci_resource_start(pdev, 0),
 			      pci_resource_len(pdev, 0));
+	adapter->io_addr = hw->hw_addr;
 	if (!hw->hw_addr) {
 		err = -EIO;
 		goto err_ioremap;
@@ -3544,7 +3587,7 @@ err_register:
 	ixgbevf_clear_interrupt_scheme(adapter);
 err_sw_init:
 	ixgbevf_reset_interrupt_capability(adapter);
-	iounmap(hw->hw_addr);
+	iounmap(adapter->io_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
@@ -3582,7 +3625,7 @@ static void ixgbevf_remove(struct pci_dev *pdev)
 	ixgbevf_clear_interrupt_scheme(adapter);
 	ixgbevf_reset_interrupt_capability(adapter);
 
-	iounmap(adapter->hw.hw_addr);
+	iounmap(adapter->io_addr);
 	pci_release_regions(pdev);
 
 	hw_dbg(&adapter->hw, "Remove complete\n");
