@@ -355,20 +355,7 @@ restore:
 
 static void __init omap3_d2d_idle(void)
 {
-	u16 mask, padconf;
-
-	/* In a stand alone OMAP3430 where there is not a stacked
-	 * modem for the D2D Idle Ack and D2D MStandby must be pulled
-	 * high. S CONTROL_PADCONF_SAD2D_IDLEACK and
-	 * CONTROL_PADCONF_SAD2D_MSTDBY to have a pull up. */
-	mask = (1 << 4) | (1 << 3); /* pull-up, enabled */
-	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_MSTANDBY);
-	padconf |= mask;
-	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_MSTANDBY);
-
-	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_IDLEACK);
-	padconf |= mask;
-	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_IDLEACK);
+	omap3_ctrl_setup_d2d_padconf();
 
 	/* reset modem */
 	omap3_prm_reset_modem();
