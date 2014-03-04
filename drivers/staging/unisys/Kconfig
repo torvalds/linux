@@ -15,5 +15,6 @@ source "drivers/staging/unisys/visorchipset/Kconfig"
 source "drivers/staging/unisys/channels/Kconfig"
 source "drivers/staging/unisys/uislib/Kconfig"
 source "drivers/staging/unisys/virtpci/Kconfig"
+source "drivers/staging/unisys/virthba/Kconfig"
 
 endif # UNISYSSPAR
