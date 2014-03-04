@@ -6,6 +6,7 @@ config ARCH_MVEBU
 	select IRQ_DOMAIN
 	select PINCTRL
 	select PLAT_ORION
+	select SOC_BUS
 	select MVEBU_MBUS
 	select ZONE_DMA if ARM_LPAE
 	select ARCH_REQUIRE_GPIOLIB
