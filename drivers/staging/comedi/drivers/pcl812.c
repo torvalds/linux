@@ -139,7 +139,8 @@
 #define PCL812_AO_MSB_REG(x)			(0x05 + ((x) * 2))
 #define PCL812_DI_LSB_REG			0x06
 #define PCL812_DI_MSB_REG			0x07
-#define PCL812_CLRINT	      8
+#define PCL812_STATUS_REG			0x08
+#define PCL812_STATUS_DRDY			(1 << 5)
 #define PCL812_GAIN	      9
 #define PCL812_MUX	     10
 #define PCL812_MODE	     11
@@ -147,10 +148,6 @@
 #define PCL812_SOFTTRIG	     12
 #define PCL812_DO_LSB_REG			0x0d
 #define PCL812_DO_MSB_REG			0x0e
-
-#define ACL8216_STATUS	      8	/* 5. bit signalize data ready */
-
-#define ACL8216_DRDY	   0x20	/* =0 data ready */
 
 #define MAX_CHANLIST_LEN    256	/* length of scan list */
 
@@ -639,7 +636,7 @@ static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
 static void pcl812_ai_clear_eoc(struct comedi_device *dev)
 {
 	/* writing any value clears the interrupt request */
-	outb(0, dev->iobase + PCL812_CLRINT);
+	outb(0, dev->iobase + PCL812_STATUS_REG);
 }
 
 static void pcl812_ai_soft_trig(struct comedi_device *dev)
@@ -667,8 +664,8 @@ static int pcl812_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	if (s->maxdata > 0x0fff) {
-		status = inb(dev->iobase + ACL8216_STATUS);
-		if ((status & ACL8216_DRDY) == 0)
+		status = inb(dev->iobase + PCL812_STATUS_REG);
+		if ((status & PCL812_STATUS_DRDY) == 0)
 			return 0;
 	} else {
 		status = inb(dev->iobase + PCL812_AI_MSB_REG);
