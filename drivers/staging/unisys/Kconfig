@@ -11,5 +11,6 @@ if UNISYSSPAR
 
 source "drivers/staging/unisys/visorutil/Kconfig"
 source "drivers/staging/unisys/visorchannel/Kconfig"
+source "drivers/staging/unisys/visorchipset/Kconfig"
 
 endif # UNISYSSPAR
