@@ -227,8 +227,6 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <9>;
-			#dma-requests = <10>;
 		};
 
 		pdma1: pdma@20078000 {
@@ -237,8 +235,6 @@
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <7>;
-			#dma-requests = <14>;
 		};
 	};
 
