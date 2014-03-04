@@ -714,30 +714,6 @@ setup_channel_list(struct comedi_device *dev,
 	     dev->iobase + PCL816_MUX);
 }
 
-static int pcl816_check(struct comedi_device *dev)
-{
-	/* the MUX register should return the same value written */
-	outb(0x00, dev->iobase + PCL816_MUX);
-	if (inb(dev->iobase + PCL816_MUX) != 0x00)
-		return -ENODEV;
-	outb(0x55, dev->iobase + PCL816_MUX);
-	if (inb(dev->iobase + PCL816_MUX) != 0x55)
-		return -ENODEV;
-
-	/* reset the MUX register to a known state */
-	outb(0x00, dev->iobase + PCL816_MUX);
-
-	/* the CONTROL register should return the same value written */
-	outb(0x18, dev->iobase + PCL816_CONTROL);
-	if (inb(dev->iobase + PCL816_CONTROL) != 0x18)
-		return -ENODEV;
-
-	/* reset the CONTROL register to a known state */
-	outb(0x00, dev->iobase + PCL816_CONTROL);
-
-	return 0;
-}
-
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl816_board *board = comedi_board(dev);
@@ -751,10 +727,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
-	if (ret)
-		return ret;
-
-	ret = pcl816_check(dev);
 	if (ret)
 		return ret;
 
