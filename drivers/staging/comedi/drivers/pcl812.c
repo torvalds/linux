@@ -993,7 +993,7 @@ static irqreturn_t interrupt_pcl812(int irq, void *d)
 	struct pcl812_private *devpriv = dev->private;
 
 	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
+		outb(0, dev->iobase + PCL812_CLRINT);
 		return IRQ_HANDLED;
 	}
 	if (devpriv->ai_dma)
