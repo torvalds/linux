@@ -298,10 +298,10 @@ static void dw_mci_stop_dma(struct dw_mci *host)
 	if (host->using_dma) {
 		host->dma_ops->stop(host);
 		host->dma_ops->cleanup(host);
-	} else {
-		/* Data transfer was stopped by the interrupt handler */
-		set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
 	}
+
+	/* Data transfer was stopped by the interrupt handler */
+	set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
 }
 
 static int dw_mci_get_dma_dir(struct mmc_data *data)
@@ -325,6 +325,14 @@ static void dw_mci_dma_cleanup(struct dw_mci *host)
 				     dw_mci_get_dma_dir(data));
 }
 
+static void dw_mci_idmac_reset(struct dw_mci *host)
+{
+	u32 bmod = mci_readl(host, BMOD);
+	/* Software reset of DMA */
+	bmod |= SDMMC_IDMAC_SWRESET;
+	mci_writel(host, BMOD, bmod);
+}
+
 static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 {
 	u32 temp;
@@ -338,6 +346,7 @@ static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 	/* Stop the IDMAC running */
 	temp = mci_readl(host, BMOD);
 	temp &= ~(SDMMC_IDMAC_ENABLE | SDMMC_IDMAC_FB);
+	temp |= SDMMC_IDMAC_SWRESET;
 	mci_writel(host, BMOD, temp);
 }
 
@@ -429,7 +438,7 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 	p->des3 = host->sg_dma;
 	p->des0 = IDMAC_DES0_ER;
 
-	mci_writel(host, BMOD, SDMMC_IDMAC_SWRESET);
+	dw_mci_idmac_reset(host);
 
 	/* Mask out interrupts - get Tx & Rx complete only */
 	mci_writel(host, IDSTS, IDMAC_INT_CLR);
@@ -622,6 +631,14 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 		 (unsigned long)host->sg_cpu, (unsigned long)host->sg_dma,
 		 sg_len);
 
+	/*
+	 * Decide the MSIZE and RX/TX Watermark.
+	 * If current block size is same with previous size,
+	 * no need to update fifoth.
+	 */
+	if (host->prev_blksz != data->blksz)
+		dw_mci_adjust_fifoth(host, data);
+
 	/* Enable the DMA interface */
 	temp = mci_readl(host, CTRL);
 	temp |= SDMMC_CTRL_DMA_ENABLE;
@@ -674,6 +691,21 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 		temp = mci_readl(host, CTRL);
 		temp &= ~SDMMC_CTRL_DMA_ENABLE;
 		mci_writel(host, CTRL, temp);
+
+		/*
+		 * Use the initial fifoth_val for PIO mode.
+		 * If next issued data may be transfered by DMA mode,
+		 * prev_blksz should be invalidated.
+		 */
+		mci_writel(host, FIFOTH, host->fifoth_val);
+		host->prev_blksz = 0;
+	} else {
+		/*
+		 * Keep the current block size.
+		 * It will be used to decide whether to update
+		 * fifoth register next time.
+		 */
+		host->prev_blksz = data->blksz;
 	}
 }
 
@@ -1886,10 +1918,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 				mci_writel(host, CTRL, ctrl);
 
 #ifdef CONFIG_MMC_DW_IDMAC
-				ctrl = mci_readl(host, BMOD);
-				/* Software reset of DMA */
-				ctrl |= SDMMC_IDMAC_SWRESET;
-				mci_writel(host, BMOD, ctrl);
+				dw_mci_idmac_reset(host);
 #endif
 
 			}
@@ -2465,8 +2494,8 @@ int dw_mci_probe(struct dw_mci *host)
 		fifo_size = host->pdata->fifo_depth;
 	}
 	host->fifo_depth = fifo_size;
-	host->fifoth_val = ((0x2 << 28) | ((fifo_size/2 - 1) << 16) |
-			((fifo_size/2) << 0));
+	host->fifoth_val =
+		SDMMC_SET_FIFOTH(0x2, fifo_size / 2 - 1, fifo_size / 2);
 	mci_writel(host, FIFOTH, host->fifoth_val);
 
 	/* disable clock to CIU */
@@ -2648,8 +2677,12 @@ int dw_mci_resume(struct dw_mci *host)
 	if (host->use_dma && host->dma_ops->init)
 		host->dma_ops->init(host);
 
-	/* Restore the old value at FIFOTH register */
+	/*
+	 * Restore the initial value at FIFOTH register
+	 * And Invalidate the prev_blksz with zero
+	 */
 	mci_writel(host, FIFOTH, host->fifoth_val);
+	host->prev_blksz = 0;
 	/* Put in max timeout */
 	mci_writel(host, TMOUT, 0xFFFFFFFF);
 
