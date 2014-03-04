@@ -1974,6 +1974,11 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		goto out_unlock;	/* setup(), enqueue_b() completes */
 	/* Ok, the xfer is in flight already, it's been setup and submitted.*/
 	xfer_abort_pending = __wa_xfer_abort(xfer) >= 0;
+	/*
+	 * grab the rpipe->seg_lock here to prevent racing with
+	 * __wa_xfer_delayed_run.
+	 */
+	spin_lock(&rpipe->seg_lock);
 	for (cnt = 0; cnt < xfer->segs; cnt++) {
 		seg = xfer->seg[cnt];
 		pr_debug("%s: xfer id 0x%08X#%d status = %d\n",
@@ -1994,10 +1999,8 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 			 */
 			seg->status = WA_SEG_ABORTED;
 			seg->result = -ENOENT;
-			spin_lock_irqsave(&rpipe->seg_lock, flags2);
 			list_del(&seg->list_node);
 			xfer->segs_done++;
-			spin_unlock_irqrestore(&rpipe->seg_lock, flags2);
 			break;
 		case WA_SEG_DONE:
 		case WA_SEG_ERROR:
@@ -2026,6 +2029,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 			break;
 		}
 	}
+	spin_unlock(&rpipe->seg_lock);
 	xfer->result = urb->status;	/* -ENOENT or -ECONNRESET */
 	done = __wa_xfer_is_done(xfer);
 	spin_unlock_irqrestore(&xfer->lock, flags);
