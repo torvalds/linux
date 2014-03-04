@@ -163,14 +163,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define PCL818_FI_DATALO 23
 #define PCL818_FI_DATAHI 24
 
-/* type of interrupt handler */
-#define INT_TYPE_AI1_INT 1
-#define INT_TYPE_AI1_DMA 2
-#define INT_TYPE_AI1_FIFO 3
-#define INT_TYPE_AI3_INT 4
-#define INT_TYPE_AI3_DMA 5
-#define INT_TYPE_AI3_FIFO 6
-
 #define MAGIC_DMA_WORD 0x5a5a
 
 static const struct comedi_lrange range_pcl818h_ai = {
@@ -320,7 +312,6 @@ struct pcl818_private {
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
 	unsigned int ns_min;	/*  manimal allowed delay between samples (in us) for actual card */
 	int i8253_osc_base;	/*  1/frequency of on board oscilator in ns */
-	int ai_mode;		/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
 	int ai_act_scan;	/*  how many scans we finished */
 	int ai_act_chan;	/*  actual position in actual scan */
 	unsigned int act_chanlist[16];	/*  MUX setting for actual AI operations */
@@ -732,8 +723,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 
-	if (!dev->attached || !devpriv->ai_cmd_running ||
-	    !devpriv->ai_mode) {
+	if (!dev->attached || !devpriv->ai_cmd_running) {
 		outb(0, dev->iobase + PCL818_CLRINT);
 		return IRQ_HANDLED;
 	}
@@ -751,38 +741,23 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	switch (devpriv->ai_mode) {
-	case INT_TYPE_AI1_DMA:
-	case INT_TYPE_AI3_DMA:
+	if (devpriv->dma)
 		return interrupt_pcl818_ai_mode13_dma(irq, d);
-	case INT_TYPE_AI1_INT:
-	case INT_TYPE_AI3_INT:
-		return interrupt_pcl818_ai_mode13_int(irq, d);
-	case INT_TYPE_AI1_FIFO:
-	case INT_TYPE_AI3_FIFO:
+	else if (devpriv->usefifo)
 		return interrupt_pcl818_ai_mode13_fifo(irq, d);
-	default:
-		break;
-	}
-
-	outb(0, dev->iobase + PCL818_CLRINT);
-	return IRQ_HANDLED;
+	else
+		return interrupt_pcl818_ai_mode13_int(irq, d);
 }
 
 static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
-	struct pcl818_private *devpriv = dev->private;
-
 	pcl818_ai_setup_dma(dev, s);
 
-	if (mode == 1) {
-		devpriv->ai_mode = INT_TYPE_AI1_DMA;
-		outb(0x87 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);	/* Pacer+IRQ+DMA */
-	} else {
-		devpriv->ai_mode = INT_TYPE_AI3_DMA;
-		outb(0x86 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);	/* Ext trig+IRQ+DMA */
-	}
+	if (mode == 1)	/* Pacer+IRQ+DMA */
+		outb(0x87 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);
+	else		/* Ext trig+IRQ+DMA */
+		outb(0x86 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);
 }
 
 static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
@@ -821,29 +796,20 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	case 0:
 		if (!devpriv->usefifo) {
 			/* IRQ */
-			if (mode == 1) {
-				devpriv->ai_mode = INT_TYPE_AI1_INT;
-				/* Pacer+IRQ */
+			if (mode == 1)	/* Pacer+IRQ */
 				outb(0x83 | (dev->irq << 4),
 				     dev->iobase + PCL818_CONTROL);
-			} else {
-				devpriv->ai_mode = INT_TYPE_AI3_INT;
-				/* Ext trig+IRQ */
+			else		/* Ext trig+IRQ */
 				outb(0x82 | (dev->irq << 4),
 				     dev->iobase + PCL818_CONTROL);
-			}
 		} else {
 			/* FIFO */
 			/* enable FIFO */
 			outb(1, dev->iobase + PCL818_FI_ENABLE);
-			if (mode == 1) {
-				devpriv->ai_mode = INT_TYPE_AI1_FIFO;
-				/* Pacer */
+			if (mode == 1)	/* Pacer */
 				outb(0x03, dev->iobase + PCL818_CONTROL);
-			} else {
-				devpriv->ai_mode = INT_TYPE_AI3_FIFO;
+			else		/* Ext trig */
 				outb(0x02, dev->iobase + PCL818_CONTROL);
-			}
 		}
 	}
 
@@ -1047,9 +1013,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	if (!devpriv->ai_cmd_running)
 		return 0;
 
-	switch (devpriv->ai_mode) {
-	case INT_TYPE_AI1_DMA:
-	case INT_TYPE_AI3_DMA:
+	if (devpriv->dma) {
 		if (cmd->stop_src == TRIG_NONE ||
 		    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) {
 			if (!devpriv->ai_cmd_canceled) {
@@ -1062,28 +1026,23 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 			}
 		}
 		disable_dma(devpriv->dma);
-	case INT_TYPE_AI1_INT:
-	case INT_TYPE_AI3_INT:
-	case INT_TYPE_AI1_FIFO:
-	case INT_TYPE_AI3_FIFO:
-		outb(inb(dev->iobase + PCL818_CONTROL) & 0x73,
-		     dev->iobase + PCL818_CONTROL);	/* Stop A/D */
-		udelay(1);
-		pcl818_start_pacer(dev, false);
-		outb(0, dev->iobase + PCL818_AD_LO);
-		pcl818_ai_get_sample(dev, s, NULL);
-		outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
-		outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
-		if (devpriv->usefifo) {	/*  FIFO shutdown */
-			outb(0, dev->iobase + PCL818_FI_INTCLR);
-			outb(0, dev->iobase + PCL818_FI_FLUSH);
-			outb(0, dev->iobase + PCL818_FI_ENABLE);
-		}
-		devpriv->ai_cmd_running = 0;
-		devpriv->ai_mode = 0;
-		devpriv->ai_cmd_canceled = 0;
-		break;
 	}
+
+	outb(inb(dev->iobase + PCL818_CONTROL) & 0x73,
+	     dev->iobase + PCL818_CONTROL);	/* Stop A/D */
+	udelay(1);
+	pcl818_start_pacer(dev, false);
+	outb(0, dev->iobase + PCL818_AD_LO);
+	pcl818_ai_get_sample(dev, s, NULL);
+	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
+	outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
+	if (devpriv->usefifo) {	/*  FIFO shutdown */
+		outb(0, dev->iobase + PCL818_FI_INTCLR);
+		outb(0, dev->iobase + PCL818_FI_FLUSH);
+		outb(0, dev->iobase + PCL818_FI_ENABLE);
+	}
+	devpriv->ai_cmd_running = 0;
+	devpriv->ai_cmd_canceled = 0;
 
 	return 0;
 }
