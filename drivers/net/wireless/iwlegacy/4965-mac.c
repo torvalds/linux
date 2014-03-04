@@ -92,7 +92,6 @@ il4965_check_abort_status(struct il_priv *il, u8 frame_count, u32 status)
  * EEPROM
  */
 struct il_mod_params il4965_mod_params = {
-	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	/* the rest are 0 by default */
 };
@@ -6866,6 +6865,6 @@ module_param_named(11n_disable, il4965_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
 module_param_named(amsdu_size_8K, il4965_mod_params.amsdu_size_8K, int,
 		   S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0 [disabled])");
 module_param_named(fw_restart, il4965_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
