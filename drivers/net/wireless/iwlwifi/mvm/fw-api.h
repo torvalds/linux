@@ -214,6 +214,7 @@ enum {
 
 	/* Location Aware Regulatory */
 	MCC_UPDATE_CMD = 0xc8,
+	MCC_CHUB_UPDATE_CMD = 0xc9,
 
 	MARKER_CMD = 0xcb,
 
@@ -1714,6 +1715,25 @@ struct iwl_mcc_update_resp {
 	__le32 n_channels;
 	__le32 channels[0];
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S */
+
+/**
+ * struct iwl_mcc_chub_notif - chub notifies of mcc change
+ * (MCC_CHUB_UPDATE_CMD = 0xc9)
+ * The Chub (Communication Hub, CommsHUB) is a HW component that connects to
+ * the cellular and connectivity cores that gets updates of the mcc, and
+ * notifies the ucode directly of any mcc change.
+ * The ucode requests the driver to request the device to update geographic
+ * regulatory  profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @reserved: reserved for alignment
+ */
+struct iwl_mcc_chub_notif {
+	u16 mcc;
+	u16 reserved1;
+} __packed; /* LAR_MCC_NOTIFY_S */
 
 enum iwl_mcc_update_status {
 	MCC_RESP_NEW_CHAN_PROFILE,

@@ -86,6 +86,7 @@
 #include "iwl-fw-error-dump.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
+#include "iwl-nvm-parse.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -299,6 +300,49 @@ static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
 		mvm->phy_ctxts[i].id = i;
 		mvm->phy_ctxts[i].ref = 0;
 	}
+}
+
+struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
+						  const char *alpha2)
+{
+	struct ieee80211_regdomain *regd = NULL;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mcc_update_resp *resp;
+
+	IWL_DEBUG_LAR(mvm, "Getting regdomain data for %s from FW\n", alpha2);
+
+	mutex_lock(&mvm->mutex);
+
+	/* change "99" to "ZZ" for the FW */
+	if (alpha2[0] == '9' && alpha2[1] == '9')
+		alpha2 = "ZZ";
+
+	resp = iwl_mvm_update_mcc(mvm, alpha2);
+	if (IS_ERR_OR_NULL(resp)) {
+		IWL_DEBUG_LAR(mvm, "Could not get update from FW %d\n",
+			      PTR_RET(resp));
+		goto out_unlock;
+	}
+
+	regd = iwl_parse_nvm_mcc_info(mvm->trans->dev,
+				      __le32_to_cpu(resp->n_channels),
+				      resp->channels,
+				      __le16_to_cpu(resp->mcc));
+	kfree(resp);
+	if (IS_ERR_OR_NULL(regd)) {
+		IWL_DEBUG_LAR(mvm, "Could not get parse update from FW %d\n",
+			      PTR_RET(resp));
+		goto out_unlock;
+	}
+
+	IWL_DEBUG_LAR(mvm, "setting alpha2 from FW to %s (0x%x, 0x%x)\n",
+		      regd->alpha2, regd->alpha2[0], regd->alpha2[1]);
+	mvm->lar_regdom_set = true;
+
+out_unlock:
+	mutex_unlock(&mvm->mutex);
+	return regd;
 }
 
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
@@ -2245,6 +2289,12 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
+		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
 		ret = -EBUSY;
 		goto out;
@@ -2582,6 +2632,12 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 	}
 
 	mutex_lock(&mvm->mutex);
+
+	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
+		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
+		ret = -EBUSY;
+		goto out;
+	}
 
 	if (!vif->bss_conf.idle) {
 		ret = -EBUSY;

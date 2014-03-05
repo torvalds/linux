@@ -810,6 +810,8 @@ struct iwl_mvm {
 	/* system time of last beacon (for AP/GO interface) */
 	u32 ap_last_beacon_gp2;
 
+	bool lar_regdom_set;
+
 	u8 low_latency_agg_frame_limit;
 
 	/* TDLS channel switch data */
@@ -1398,6 +1400,11 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm);
 struct iwl_mcc_update_resp *
 iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2);
 int iwl_mvm_init_mcc(struct iwl_mvm *mvm);
+int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
+			       struct iwl_rx_cmd_buffer *rxb,
+			       struct iwl_device_cmd *cmd);
+struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
+						  const char *alpha2);
 
 /* smart fifo */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
