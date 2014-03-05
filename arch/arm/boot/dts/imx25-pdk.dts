@@ -42,6 +42,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-supply = <&reg_fec_3v3>;
+	phy-reset-gpios = <&gpio4 8 0>;
 	status = "okay";
 };
 
@@ -59,6 +60,7 @@
 				MX25_PAD_FEC_RX_DV__FEC_RX_DV		0x80000000
 				MX25_PAD_FEC_TX_CLK__FEC_TX_CLK		0x1c0
 				MX25_PAD_A17__GPIO_2_3			0x80000000
+				MX25_PAD_D12__GPIO_4_8			0x80000000
 			>;
 		};
 
