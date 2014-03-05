@@ -109,8 +109,6 @@ char *cfs_trimwhite(char *str);
 int cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res);
 int cfs_str2num_check(char *str, int nob, unsigned *num,
 		      unsigned min, unsigned max);
-int cfs_range_expr_parse(struct cfs_lstr *src, unsigned min, unsigned max,
-			 int single_tok, struct cfs_range_expr **expr);
 int cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list);
 int cfs_expr_list_values(struct cfs_expr_list *expr_list,
 			 int max, __u32 **values);
@@ -124,7 +122,6 @@ cfs_expr_list_values_free(__u32 *values, int num)
 }
 
 void cfs_expr_list_free(struct cfs_expr_list *expr_list);
-void cfs_expr_list_print(struct cfs_expr_list *expr_list);
 int cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
 			struct cfs_expr_list **elpp);
 void cfs_expr_list_free_list(struct list_head *list);

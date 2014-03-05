@@ -109,7 +109,6 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 	*oldmask = newmask;
 	return 0;
 }
-EXPORT_SYMBOL(cfs_str2mask);
 
 /* get the first string out of @str */
 char *cfs_firststr(char *str, size_t size)
@@ -213,7 +212,6 @@ cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res)
 	res->ls_len = end - res->ls_str + 1;
 	return 1;
 }
-EXPORT_SYMBOL(cfs_gettok);
 
 /**
  * Converts string to integer.
@@ -242,7 +240,6 @@ cfs_str2num_check(char *str, int nob, unsigned *num,
 
 	return (*num >= min && *num <= max);
 }
-EXPORT_SYMBOL(cfs_str2num_check);
 
 /**
  * Parses \<range_expr\> token of the syntax. If \a bracketed is false,
@@ -257,7 +254,7 @@ EXPORT_SYMBOL(cfs_str2num_check);
  * \retval 0 will be returned if it can be parsed, otherwise -EINVAL or
  * -ENOMEM will be returned.
  */
-int
+static int
 cfs_range_expr_parse(struct cfs_lstr *src, unsigned min, unsigned max,
 		     int bracketed, struct cfs_range_expr **expr)
 {
@@ -320,7 +317,6 @@ cfs_range_expr_parse(struct cfs_lstr *src, unsigned min, unsigned max,
 	LIBCFS_FREE(re, sizeof(*re));
 	return -EINVAL;
 }
-EXPORT_SYMBOL(cfs_range_expr_parse);
 
 /**
  * Matches value (\a value) against ranges expression list \a expr_list.
@@ -341,7 +337,6 @@ cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list)
 
 	return 0;
 }
-EXPORT_SYMBOL(cfs_expr_list_match);
 
 /**
  * Convert express list (\a expr_list) to an array of all matched values
@@ -411,18 +406,6 @@ cfs_expr_list_free(struct cfs_expr_list *expr_list)
 	LIBCFS_FREE(expr_list, sizeof(*expr_list));
 }
 EXPORT_SYMBOL(cfs_expr_list_free);
-
-void
-cfs_expr_list_print(struct cfs_expr_list *expr_list)
-{
-	struct cfs_range_expr *expr;
-
-	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
-		CDEBUG(D_WARNING, "%d-%d/%d\n",
-		       expr->re_lo, expr->re_hi, expr->re_stride);
-	}
-}
-EXPORT_SYMBOL(cfs_expr_list_print);
 
 /**
  * Parses \<cfs_expr_list\> token of the syntax.
@@ -506,7 +489,6 @@ cfs_expr_list_free_list(struct list_head *list)
 		cfs_expr_list_free(el);
 	}
 }
-EXPORT_SYMBOL(cfs_expr_list_free_list);
 
 int
 cfs_ip_addr_parse(char *str, int len, struct list_head *list)
