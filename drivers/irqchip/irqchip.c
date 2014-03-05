@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/of_irq.h>
+#include <linux/irqchip.h>
 
 #include "irqchip.h"
 
