@@ -2939,7 +2939,7 @@ static void flush_request_modules(struct em28xx *dev)
  * unregisters the v4l2,i2c and usb devices
  * called when the device gets disconnected or at module unload
 */
-void em28xx_release_resources(struct em28xx *dev)
+static void em28xx_release_resources(struct em28xx *dev)
 {
 	/*FIXME: I2C IR should be disconnected */
 
@@ -2956,7 +2956,27 @@ void em28xx_release_resources(struct em28xx *dev)
 
 	mutex_unlock(&dev->lock);
 };
-EXPORT_SYMBOL_GPL(em28xx_release_resources);
+
+/**
+ * em28xx_free_device() - Free em28xx device
+ *
+ * @ref: struct kref for em28xx device
+ *
+ * This is called when all extensions and em28xx core unregisters a device
+ */
+void em28xx_free_device(struct kref *ref)
+{
+	struct em28xx *dev = kref_to_dev(ref);
+
+	em28xx_info("Freeing device\n");
+
+	if (!dev->disconnected)
+		em28xx_release_resources(dev);
+
+	kfree(dev->alt_max_pkt_size_isoc);
+	kfree(dev);
+}
+EXPORT_SYMBOL_GPL(em28xx_free_device);
 
 /*
  * em28xx_init_dev()
@@ -3409,6 +3429,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			    dev->dvb_xfer_bulk ? "bulk" : "isoc");
 	}
 
+	kref_init(&dev->ref);
+
 	request_modules(dev);
 
 	/* Should be the last thing to do, to avoid newer udev's to
@@ -3453,11 +3475,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	em28xx_close_extension(dev);
 
 	em28xx_release_resources(dev);
-
-	if (!dev->users) {
-		kfree(dev->alt_max_pkt_size_isoc);
-		kfree(dev);
-	}
+	kref_put(&dev->ref, em28xx_free_device);
 }
 
 static int em28xx_usb_suspend(struct usb_interface *interface,

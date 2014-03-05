@@ -676,6 +676,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 		return 0;
 	}
 
+	kref_get(&dev->ref);
+
 	if (dev->board.buttons)
 		em28xx_init_buttons(dev);
 
@@ -816,7 +818,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 
 	/* skip detach on non attached boards */
 	if (!ir)
-		return 0;
+		goto ref_put;
 
 	if (ir->rc)
 		rc_unregister_device(ir->rc);
@@ -824,6 +826,10 @@ static int em28xx_ir_fini(struct em28xx *dev)
 	/* done */
 	kfree(ir);
 	dev->ir = NULL;
+
+ref_put:
+	kref_put(&dev->ref, em28xx_free_device);
+
 	return 0;
 }
 

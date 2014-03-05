@@ -32,6 +32,7 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+#include <linux/kref.h>
 #include <linux/videodev2.h>
 
 #include <media/videobuf2-vmalloc.h>
@@ -536,9 +537,10 @@ struct em28xx_i2c_bus {
 	enum em28xx_i2c_algo_type algo_type;
 };
 
-
 /* main device struct */
 struct em28xx {
+	struct kref ref;
+
 	/* generic device properties */
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
@@ -710,6 +712,8 @@ struct em28xx {
 	struct em28xx_dvb *dvb;
 };
 
+#define kref_to_dev(d) container_of(d, struct em28xx, ref)
+
 struct em28xx_ops {
 	struct list_head next;
 	char *name;
@@ -771,7 +775,7 @@ extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl);
-void em28xx_release_resources(struct em28xx *dev);
+void em28xx_free_device(struct kref *ref);
 
 /* Provided by em28xx-camera.c */
 int em28xx_detect_sensor(struct em28xx *dev);

@@ -301,6 +301,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 			goto err;
 	}
 
+	kref_get(&dev->ref);
 	dev->adev.users++;
 	mutex_unlock(&dev->lock);
 
@@ -341,6 +342,7 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 		substream->runtime->dma_area = NULL;
 	}
 	mutex_unlock(&dev->lock);
+	kref_put(&dev->ref, em28xx_free_device);
 
 	return 0;
 }
@@ -895,6 +897,8 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	em28xx_info("Binding audio extension\n");
 
+	kref_get(&dev->ref);
+
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
 	printk(KERN_INFO
@@ -967,7 +971,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (dev->has_alsa_audio != 1) {
+	if (!dev->has_alsa_audio) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
@@ -986,6 +990,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 		dev->adev.sndcard = NULL;
 	}
 
+	kref_put(&dev->ref, em28xx_free_device);
 	return 0;
 }
 
