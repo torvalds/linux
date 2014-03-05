@@ -189,7 +189,7 @@ static void clear_regs_spsr_ss(struct pt_regs *regs)
 
 /* EL1 Single Step Handler hooks */
 static LIST_HEAD(step_hook);
-DEFINE_RWLOCK(step_hook_lock);
+static DEFINE_RWLOCK(step_hook_lock);
 
 void register_step_hook(struct step_hook *hook)
 {
@@ -276,7 +276,7 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
  * Use reader/writer locks instead of plain spinlock.
  */
 static LIST_HEAD(break_hook);
-DEFINE_RWLOCK(break_hook_lock);
+static DEFINE_RWLOCK(break_hook_lock);
 
 void register_break_hook(struct break_hook *hook)
 {
