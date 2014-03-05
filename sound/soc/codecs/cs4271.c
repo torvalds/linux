@@ -612,22 +612,6 @@ static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs4271_dapm_routes),
 };
 
-#if defined(CONFIG_SPI_MASTER)
-
-static const struct regmap_config cs4271_spi_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = CS4271_LASTREG,
-	.read_flag_mask = 0x21,
-	.write_flag_mask = 0x20,
-
-	.reg_defaults = cs4271_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(cs4271_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
-
-	.volatile_reg = cs4271_volatile_reg,
-};
-
 static int cs4271_common_probe(struct device *dev,
 			       struct cs4271_private **c)
 {
@@ -657,6 +641,22 @@ static int cs4271_common_probe(struct device *dev,
 	*c = cs4271;
 	return 0;
 }
+
+#if defined(CONFIG_SPI_MASTER)
+
+static const struct regmap_config cs4271_spi_regmap = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = CS4271_LASTREG,
+	.read_flag_mask = 0x21,
+	.write_flag_mask = 0x20,
+
+	.reg_defaults = cs4271_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(cs4271_reg_defaults),
+	.cache_type = REGCACHE_RBTREE,
+
+	.volatile_reg = cs4271_volatile_reg,
+};
 
 static int cs4271_spi_probe(struct spi_device *spi)
 {
