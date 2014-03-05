@@ -47,7 +47,7 @@ u64 kvm_supported_xcr0(void)
 {
 	u64 xcr0 = KVM_SUPPORTED_XCR0 & host_xcr0;
 
-	if (!kvm_x86_ops->mpx_supported || !kvm_x86_ops->mpx_supported())
+	if (!kvm_x86_ops->mpx_supported())
 		xcr0 &= ~(XSTATE_BNDREGS | XSTATE_BNDCSR);
 
 	return xcr0;
@@ -259,8 +259,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 #endif
 	unsigned f_rdtscp = kvm_x86_ops->rdtscp_supported() ? F(RDTSCP) : 0;
 	unsigned f_invpcid = kvm_x86_ops->invpcid_supported() ? F(INVPCID) : 0;
-	unsigned f_mpx = kvm_x86_ops->mpx_supported ?
-			 (kvm_x86_ops->mpx_supported() ? F(MPX) : 0) : 0;
+	unsigned f_mpx = kvm_x86_ops->mpx_supported() ? F(MPX) : 0;
 
 	/* cpuid 1.edx */
 	const u32 kvm_supported_word0_x86_features =
