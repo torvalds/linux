@@ -299,9 +299,9 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 			   ILK_FBCQ_DIS);
 	} else {
 		/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
-		I915_WRITE(HSW_PIPE_SLICE_CHICKEN_1(intel_crtc->pipe),
-			   I915_READ(HSW_PIPE_SLICE_CHICKEN_1(intel_crtc->pipe)) |
-			   HSW_BYPASS_FBC_QUEUE);
+		I915_WRITE(CHICKEN_PIPESL_1(intel_crtc->pipe),
+			   I915_READ(CHICKEN_PIPESL_1(intel_crtc->pipe)) |
+			   HSW_FBCQ_DIS);
 	}
 
 	I915_WRITE(SNB_DPFC_CTL_SA,
@@ -4843,7 +4843,7 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	for_each_pipe(pipe) {
 		I915_WRITE(CHICKEN_PIPESL_1(pipe),
 			   I915_READ(CHICKEN_PIPESL_1(pipe)) |
-			   DPRS_MASK_VBLANK_SRD);
+			   BDW_DPRS_MASK_VBLANK_SRD);
 	}
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a

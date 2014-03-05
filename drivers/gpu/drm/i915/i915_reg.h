@@ -1129,13 +1129,6 @@
 #define   FBC_REND_NUKE		(1<<2)
 #define   FBC_REND_CACHE_CLEAN	(1<<1)
 
-#define _HSW_PIPE_SLICE_CHICKEN_1_A	0x420B0
-#define _HSW_PIPE_SLICE_CHICKEN_1_B	0x420B4
-#define   HSW_BYPASS_FBC_QUEUE		(1<<22)
-#define HSW_PIPE_SLICE_CHICKEN_1(pipe) _PIPE(pipe, + \
-					     _HSW_PIPE_SLICE_CHICKEN_1_A, + \
-					     _HSW_PIPE_SLICE_CHICKEN_1_B)
-
 /*
  * GPIO regs
  */
@@ -4148,7 +4141,8 @@
 
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
-#define  DPRS_MASK_VBLANK_SRD	(1 << 0)
+#define  HSW_FBCQ_DIS			(1 << 22)
+#define  BDW_DPRS_MASK_VBLANK_SRD	(1 << 0)
 #define CHICKEN_PIPESL_1(pipe) _PIPE(pipe, _CHICKEN_PIPESL_1_A, _CHICKEN_PIPESL_1_B)
 
 #define DISP_ARB_CTL	0x45000
