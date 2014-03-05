@@ -169,14 +169,18 @@ nfs_file_read(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
+	size_t count = iov_length(iov, nr_segs);
 	ssize_t result;
+	struct iov_iter to;
+
+	iov_iter_init(&to, iov, nr_segs, count, 0);
 
 	if (iocb->ki_filp->f_flags & O_DIRECT)
-		return nfs_file_direct_read(iocb, iov, nr_segs, pos, true);
+		return nfs_file_direct_read(iocb, &to, pos, true);
 
-	dprintk("NFS: read(%pD2, %lu@%lu)\n",
+	dprintk("NFS: read(%pD2, %zu@%lu)\n",
 		iocb->ki_filp,
-		(unsigned long) iov_length(iov, nr_segs), (unsigned long) pos);
+		count, (unsigned long) pos);
 
 	result = nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 	if (!result) {
@@ -643,16 +647,18 @@ ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	unsigned long written = 0;
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
+	struct iov_iter from;
+	iov_iter_init(&from, iov, nr_segs, count, 0);
 
 	result = nfs_key_timeout_notify(file, inode);
 	if (result)
 		return result;
 
 	if (file->f_flags & O_DIRECT)
-		return nfs_file_direct_write(iocb, iov, nr_segs, pos, true);
+		return nfs_file_direct_write(iocb, &from, pos, true);
 
-	dprintk("NFS: write(%pD2, %lu@%Ld)\n",
-		file, (unsigned long) count, (long long) pos);
+	dprintk("NFS: write(%pD2, %zu@%Ld)\n",
+		file, count, (long long) pos);
 
 	result = -EBUSY;
 	if (IS_SWAPFILE(inode))
