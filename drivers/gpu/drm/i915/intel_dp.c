@@ -3218,9 +3218,13 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum drm_connector_status status;
+	enum intel_display_power_domain power_domain;
 	struct edid *edid = NULL;
 
 	intel_runtime_pm_get(dev_priv);
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector));
@@ -3252,21 +3256,32 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	status = connector_status_connected;
 
 out:
+	intel_display_power_put(dev_priv, power_domain);
+
 	intel_runtime_pm_put(dev_priv);
+
 	return status;
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	int ret;
 
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
+
 	ret = intel_dp_get_edid_modes(connector, &intel_dp->adapter);
+	intel_display_power_put(dev_priv, power_domain);
 	if (ret)
 		return ret;
 
@@ -3287,14 +3302,24 @@ static bool
 intel_dp_detect_audio(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	struct edid *edid;
 	bool has_audio = false;
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	edid = intel_dp_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
 		kfree(edid);
 	}
+
+	intel_display_power_put(dev_priv, power_domain);
 
 	return has_audio;
 }

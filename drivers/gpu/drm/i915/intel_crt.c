@@ -636,6 +636,8 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_encoder *intel_encoder = &crt->base;
+	enum intel_display_power_domain power_domain;
 	enum drm_connector_status status;
 	struct intel_load_detect_pipe tmp;
 
@@ -644,6 +646,9 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
 		      connector->base.id, drm_get_connector_name(connector),
 		      force);
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		/* We can not rely on the HPD pin always being correctly wired
@@ -688,7 +693,9 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		status = connector_status_unknown;
 
 out:
+	intel_display_power_put(dev_priv, power_domain);
 	intel_runtime_pm_put(dev_priv);
+
 	return status;
 }
 
@@ -702,17 +709,28 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_encoder *intel_encoder = &crt->base;
+	enum intel_display_power_domain power_domain;
 	int ret;
 	struct i2c_adapter *i2c;
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 	if (ret || !IS_G4X(dev))
-		return ret;
+		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
 	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPB);
-	return intel_crt_ddc_get_modes(connector, i2c);
+	ret = intel_crt_ddc_get_modes(connector, i2c);
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static int intel_crt_set_property(struct drm_connector *connector,

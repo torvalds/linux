@@ -488,8 +488,19 @@ static enum drm_connector_status
 intel_dsi_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_dsi *intel_dsi = intel_attached_dsi(connector);
+	struct intel_encoder *intel_encoder = &intel_dsi->base;
+	enum intel_display_power_domain power_domain;
+	enum drm_connector_status connector_status;
+	struct drm_i915_private *dev_priv = intel_encoder->base.dev->dev_private;
+
 	DRM_DEBUG_KMS("\n");
-	return intel_dsi->dev.dev_ops->detect(&intel_dsi->dev);
+	power_domain = intel_display_port_power_domain(intel_encoder);
+
+	intel_display_power_get(dev_priv, power_domain);
+	connector_status = intel_dsi->dev.dev_ops->detect(&intel_dsi->dev);
+	intel_display_power_put(dev_priv, power_domain);
+
+	return connector_status;
 }
 
 static int intel_dsi_get_modes(struct drm_connector *connector)

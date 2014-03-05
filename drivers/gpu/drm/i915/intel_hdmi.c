@@ -909,10 +909,14 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edid *edid;
+	enum intel_display_power_domain power_domain;
 	enum drm_connector_status status = connector_status_disconnected;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector));
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
@@ -941,30 +945,47 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 		intel_encoder->type = INTEL_OUTPUT_HDMI;
 	}
 
+	intel_display_power_put(dev_priv, power_domain);
+
 	return status;
 }
 
 static int intel_hdmi_get_modes(struct drm_connector *connector)
 {
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	enum intel_display_power_domain power_domain;
+	int ret;
 
 	/* We should parse the EDID data and find out if it's an HDMI sink so
 	 * we can send audio to it.
 	 */
 
-	return intel_ddc_get_modes(connector,
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
+
+	ret = intel_ddc_get_modes(connector,
 				   intel_gmbus_get_adapter(dev_priv,
 							   intel_hdmi->ddc_bus));
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static bool
 intel_hdmi_detect_audio(struct drm_connector *connector)
 {
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	struct edid *edid;
 	bool has_audio = false;
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	edid = drm_get_edid(connector,
 			    intel_gmbus_get_adapter(dev_priv,
@@ -974,6 +995,8 @@ intel_hdmi_detect_audio(struct drm_connector *connector)
 			has_audio = drm_detect_monitor_audio(edid);
 		kfree(edid);
 	}
+
+	intel_display_power_put(dev_priv, power_domain);
 
 	return has_audio;
 }
