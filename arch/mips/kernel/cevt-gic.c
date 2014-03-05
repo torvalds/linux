@@ -26,7 +26,7 @@ static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 
 	cnt = gic_read_count();
 	cnt += (u64)delta;
-	gic_write_compare(cnt);
+	gic_write_cpu_compare(cnt, cpumask_first(evt->cpumask));
 	res = ((int)(gic_read_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
