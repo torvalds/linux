@@ -30,7 +30,7 @@ struct imx_drm_crtc_helper_funcs {
 int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 		struct imx_drm_crtc **new_crtc,
 		const struct imx_drm_crtc_helper_funcs *imx_helper_funcs,
-		void *cookie, int id);
+		struct device_node *port);
 int imx_drm_remove_crtc(struct imx_drm_crtc *);
 int imx_drm_init_drm(struct platform_device *pdev,
 		int preferred_bpp);
@@ -49,7 +49,8 @@ int imx_drm_panel_format_pins(struct drm_encoder *encoder,
 int imx_drm_panel_format(struct drm_encoder *encoder,
 		u32 interface_pix_fmt);
 
-int imx_drm_encoder_get_mux_id(struct drm_encoder *encoder);
+int imx_drm_encoder_get_mux_id(struct device_node *node,
+		struct drm_encoder *encoder);
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np);
 
