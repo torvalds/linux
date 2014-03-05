@@ -835,18 +835,10 @@ static inline int rt_setup_ucontext(struct ucontext __user *uc, struct pt_regs *
 }
 
 static inline void __user *
-get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
+get_sigframe(struct ksignal *ksig, size_t frame_size)
 {
-	unsigned long usp;
+	unsigned long usp = sigsp(rdusp(), ksig);
 
-	/* Default to using normal stack.  */
-	usp = rdusp();
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (!sas_ss_flags(usp))
-			usp = current->sas_ss_sp + current->sas_ss_size;
-	}
 	return (void __user *)((usp - frame_size) & -8UL);
 }
 
@@ -866,7 +858,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 		return -EFAULT;
 	}
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame) + fsize);
+	frame = get_sigframe(ksig, sizeof(*frame) + fsize);
 
 	if (fsize)
 		err |= copy_to_user (frame + 1, regs + 1, fsize);
@@ -951,7 +943,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		return -EFAULT;
 	}
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, sizeof(*frame));
 
 	if (fsize)
 		err |= copy_to_user (&frame->uc.uc_extra, regs + 1, fsize);
