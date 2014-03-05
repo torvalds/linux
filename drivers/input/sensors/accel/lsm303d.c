@@ -26,8 +26,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
-#include <mach/gpio.h>
-#include <mach/board.h> 
+#include <linux/of_gpio.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif

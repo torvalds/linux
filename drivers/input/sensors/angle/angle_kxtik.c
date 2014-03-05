@@ -25,8 +25,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
-#include <mach/gpio.h>
-#include <mach/board.h> 
+#include <linux/of_gpio.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -194,11 +193,11 @@ static int sensor_init(struct i2c_client *client)
 
 /*
 BIT 4 IEA sets the polarity of the physical interrupt pin (7)
-IEA = 0 ¿ polarity of the physical interrupt pin (7) is active low
-IEA = 1 ¿ polarity of the physical interrupt pin (7) is active high
+IEA = 0 ? polarity of the physical interrupt pin (7) is active low
+IEA = 1 ? polarity of the physical interrupt pin (7) is active high
 BIT 3 IEL sets the response of the physical interrupt pin (7)
-IEL = 0 ¿ the physical interrupt pin (7) latches until it is cleared by reading INT_REL
-IEL = 1 ¿ the physical interrupt pin (7) will transmit one pulse with a period of 0.03 - 0.05ms
+IEL = 0 ? the physical interrupt pin (7) latches until it is cleared by reading INT_REL
+IEL = 1 ? the physical interrupt pin (7) will transmit one pulse with a period of 0.03 - 0.05ms
 */
 		if (id_data == KXTIK_DEVID_1004)
 		result = sensor_write_reg(client, KXTIK_INT_CTRL_REG1, 0x34);//enable int,active high,need read INT_REL
@@ -328,7 +327,7 @@ static int sensor_report_value(struct i2c_client *client)
 	{
 		angle_report_value(client, &axis);
 
-		/* »¥³âµØ»º´æÊý¾Ý. */
+		/* ?????Ø»???????. */
 		mutex_lock(&(sensor->data_mutex) );
 		sensor->axis = axis;
 		mutex_unlock(&(sensor->data_mutex) );
