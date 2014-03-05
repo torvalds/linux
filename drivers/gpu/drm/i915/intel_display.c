@@ -1092,12 +1092,12 @@ static void assert_cursor(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	bool cur_state;
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-		cur_state = I915_READ(CURCNTR_IVB(pipe)) & CURSOR_MODE;
-	else if (IS_845G(dev) || IS_I865G(dev))
+	if (IS_845G(dev) || IS_I865G(dev))
 		cur_state = I915_READ(_CURACNTR) & CURSOR_ENABLE;
-	else
+	else if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev))
 		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
+	else
+		cur_state = I915_READ(CURCNTR_IVB(pipe)) & CURSOR_MODE;
 
 	WARN(cur_state != state,
 	     "cursor on pipe %c assertion failure (expected %s, current %s)\n",
