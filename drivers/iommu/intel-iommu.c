@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Intel Corporation.
+ * Copyright © 2006-2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -10,15 +10,11 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
- *
- * Copyright (C) 2006-2008 Intel Corporation
- * Author: Ashok Raj <ashok.raj@intel.com>
- * Author: Shaohua Li <shaohua.li@intel.com>
- * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
- * Author: Fenghua Yu <fenghua.yu@intel.com>
+ * Authors: David Woodhouse <dwmw2@infradead.org>,
+ *          Ashok Raj <ashok.raj@intel.com>,
+ *          Shaohua Li <shaohua.li@intel.com>,
+ *          Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>,
+ *          Fenghua Yu <fenghua.yu@intel.com>
  */
 
 #include <linux/init.h>
@@ -413,6 +409,7 @@ struct deferred_flush_tables {
 	int next;
 	struct iova *iova[HIGH_WATER_MARK];
 	struct dmar_domain *domain[HIGH_WATER_MARK];
+	struct page *freelist[HIGH_WATER_MARK];
 };
 
 static struct deferred_flush_tables *deferred_flush;
@@ -961,6 +958,123 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 	}
 }
 
+/* When a page at a given level is being unlinked from its parent, we don't
+   need to *modify* it at all. All we need to do is make a list of all the
+   pages which can be freed just as soon as we've flushed the IOTLB and we
+   know the hardware page-walk will no longer touch them.
+   The 'pte' argument is the *parent* PTE, pointing to the page that is to
+   be freed. */
+static struct page *dma_pte_list_pagetables(struct dmar_domain *domain,
+					    int level, struct dma_pte *pte,
+					    struct page *freelist)
+{
+	struct page *pg;
+
+	pg = pfn_to_page(dma_pte_addr(pte) >> PAGE_SHIFT);
+	pg->freelist = freelist;
+	freelist = pg;
+
+	if (level == 1)
+		return freelist;
+
+	for (pte = page_address(pg); !first_pte_in_page(pte); pte++) {
+		if (dma_pte_present(pte) && !dma_pte_superpage(pte))
+			freelist = dma_pte_list_pagetables(domain, level - 1,
+							   pte, freelist);
+	}
+
+	return freelist;
+}
+
+static struct page *dma_pte_clear_level(struct dmar_domain *domain, int level,
+					struct dma_pte *pte, unsigned long pfn,
+					unsigned long start_pfn,
+					unsigned long last_pfn,
+					struct page *freelist)
+{
+	struct dma_pte *first_pte = NULL, *last_pte = NULL;
+
+	pfn = max(start_pfn, pfn);
+	pte = &pte[pfn_level_offset(pfn, level)];
+
+	do {
+		unsigned long level_pfn;
+
+		if (!dma_pte_present(pte))
+			goto next;
+
+		level_pfn = pfn & level_mask(level);
+
+		/* If range covers entire pagetable, free it */
+		if (start_pfn <= level_pfn &&
+		    last_pfn >= level_pfn + level_size(level) - 1) {
+			/* These suborbinate page tables are going away entirely. Don't
+			   bother to clear them; we're just going to *free* them. */
+			if (level > 1 && !dma_pte_superpage(pte))
+				freelist = dma_pte_list_pagetables(domain, level - 1, pte, freelist);
+
+			dma_clear_pte(pte);
+			if (!first_pte)
+				first_pte = pte;
+			last_pte = pte;
+		} else if (level > 1) {
+			/* Recurse down into a level that isn't *entirely* obsolete */
+			freelist = dma_pte_clear_level(domain, level - 1,
+						       phys_to_virt(dma_pte_addr(pte)),
+						       level_pfn, start_pfn, last_pfn,
+						       freelist);
+		}
+next:
+		pfn += level_size(level);
+	} while (!first_pte_in_page(++pte) && pfn <= last_pfn);
+
+	if (first_pte)
+		domain_flush_cache(domain, first_pte,
+				   (void *)++last_pte - (void *)first_pte);
+
+	return freelist;
+}
+
+/* We can't just free the pages because the IOMMU may still be walking
+   the page tables, and may have cached the intermediate levels. The
+   pages can only be freed after the IOTLB flush has been done. */
+struct page *domain_unmap(struct dmar_domain *domain,
+			  unsigned long start_pfn,
+			  unsigned long last_pfn)
+{
+	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
+	struct page *freelist = NULL;
+
+	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
+	BUG_ON(start_pfn > last_pfn);
+
+	/* we don't need lock here; nobody else touches the iova range */
+	freelist = dma_pte_clear_level(domain, agaw_to_level(domain->agaw),
+				       domain->pgd, 0, start_pfn, last_pfn, NULL);
+
+	/* free pgd */
+	if (start_pfn == 0 && last_pfn == DOMAIN_MAX_PFN(domain->gaw)) {
+		struct page *pgd_page = virt_to_page(domain->pgd);
+		pgd_page->freelist = freelist;
+		freelist = pgd_page;
+
+		domain->pgd = NULL;
+	}
+
+	return freelist;
+}
+
+void dma_free_pagelist(struct page *freelist)
+{
+	struct page *pg;
+
+	while ((pg = freelist)) {
+		freelist = pg->freelist;
+		free_pgtable_page(page_address(pg));
+	}
+}
+
 /* iommu handling */
 static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 {
@@ -1070,7 +1184,7 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 		break;
 	case DMA_TLB_PSI_FLUSH:
 		val = DMA_TLB_PSI_FLUSH|DMA_TLB_IVT|DMA_TLB_DID(did);
-		/* Note: always flush non-leaf currently */
+		/* IH bit is passed in as part of address */
 		val_iva = size_order | addr;
 		break;
 	default:
@@ -1181,13 +1295,15 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 }
 
 static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
-				  unsigned long pfn, unsigned int pages, int map)
+				  unsigned long pfn, unsigned int pages, int ih, int map)
 {
 	unsigned int mask = ilog2(__roundup_pow_of_two(pages));
 	uint64_t addr = (uint64_t)pfn << VTD_PAGE_SHIFT;
 
 	BUG_ON(pages == 0);
 
+	if (ih)
+		ih = 1 << 6;
 	/*
 	 * Fallback to domain selective flush if no PSI support or the size is
 	 * too big.
@@ -1198,7 +1314,7 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 		iommu->flush.flush_iotlb(iommu, did, 0, 0,
 						DMA_TLB_DSI_FLUSH);
 	else
-		iommu->flush.flush_iotlb(iommu, did, addr, mask,
+		iommu->flush.flush_iotlb(iommu, did, addr | ih, mask,
 						DMA_TLB_PSI_FLUSH);
 
 	/*
@@ -1523,6 +1639,7 @@ static void domain_exit(struct dmar_domain *domain)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
+	struct page *freelist = NULL;
 
 	/* Domain 0 is reserved, so dont process it */
 	if (!domain)
@@ -1538,11 +1655,7 @@ static void domain_exit(struct dmar_domain *domain)
 	/* destroy iovas */
 	put_iova_domain(&domain->iovad);
 
-	/* clear ptes */
-	dma_pte_clear_range(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
-
-	/* free page tables */
-	dma_pte_free_pagetable(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
+	freelist = domain_unmap(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	/* clear attached or cached domains */
 	rcu_read_lock();
@@ -1551,6 +1664,8 @@ static void domain_exit(struct dmar_domain *domain)
 		    test_bit(iommu->seq_id, domain->iommu_bmp))
 			iommu_detach_domain(domain, iommu);
 	rcu_read_unlock();
+
+	dma_free_pagelist(freelist);
 
 	free_domain_mem(domain);
 }
@@ -2851,7 +2966,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, domain->id, mm_to_dma_pfn(iova->pfn_lo), size, 1);
+		iommu_flush_iotlb_psi(iommu, domain->id, mm_to_dma_pfn(iova->pfn_lo), size, 0, 1);
 	else
 		iommu_flush_write_buffer(iommu);
 
@@ -2903,13 +3018,16 @@ static void flush_unmaps(void)
 			/* On real hardware multiple invalidations are expensive */
 			if (cap_caching_mode(iommu->cap))
 				iommu_flush_iotlb_psi(iommu, domain->id,
-				iova->pfn_lo, iova->pfn_hi - iova->pfn_lo + 1, 0);
+					iova->pfn_lo, iova->pfn_hi - iova->pfn_lo + 1,
+					!deferred_flush[i].freelist[j], 0);
 			else {
 				mask = ilog2(mm_to_dma_pfn(iova->pfn_hi - iova->pfn_lo + 1));
 				iommu_flush_dev_iotlb(deferred_flush[i].domain[j],
 						(uint64_t)iova->pfn_lo << PAGE_SHIFT, mask);
 			}
 			__free_iova(&deferred_flush[i].domain[j]->iovad, iova);
+			if (deferred_flush[i].freelist[j])
+				dma_free_pagelist(deferred_flush[i].freelist[j]);
 		}
 		deferred_flush[i].next = 0;
 	}
@@ -2926,7 +3044,7 @@ static void flush_unmaps_timeout(unsigned long data)
 	spin_unlock_irqrestore(&async_umap_flush_lock, flags);
 }
 
-static void add_unmap(struct dmar_domain *dom, struct iova *iova)
+static void add_unmap(struct dmar_domain *dom, struct iova *iova, struct page *freelist)
 {
 	unsigned long flags;
 	int next, iommu_id;
@@ -2942,6 +3060,7 @@ static void add_unmap(struct dmar_domain *dom, struct iova *iova)
 	next = deferred_flush[iommu_id].next;
 	deferred_flush[iommu_id].domain[next] = dom;
 	deferred_flush[iommu_id].iova[next] = iova;
+	deferred_flush[iommu_id].freelist[next] = freelist;
 	deferred_flush[iommu_id].next++;
 
 	if (!timer_on) {
@@ -2961,6 +3080,7 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	unsigned long start_pfn, last_pfn;
 	struct iova *iova;
 	struct intel_iommu *iommu;
+	struct page *freelist;
 
 	if (iommu_no_mapping(dev))
 		return;
@@ -2981,19 +3101,16 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	pr_debug("Device %s unmapping: pfn %lx-%lx\n",
 		 pci_name(pdev), start_pfn, last_pfn);
 
-	/*  clear the whole page */
-	dma_pte_clear_range(domain, start_pfn, last_pfn);
-
-	/* free page tables */
-	dma_pte_free_pagetable(domain, start_pfn, last_pfn);
+	freelist = domain_unmap(domain, start_pfn, last_pfn);
 
 	if (intel_iommu_strict) {
 		iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
-				      last_pfn - start_pfn + 1, 0);
+				      last_pfn - start_pfn + 1, !freelist, 0);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
+		dma_free_pagelist(freelist);
 	} else {
-		add_unmap(domain, iova);
+		add_unmap(domain, iova, freelist);
 		/*
 		 * queue up the release of the unmap to save the 1/6th of the
 		 * cpu used up by the iotlb flush operation...
@@ -3055,6 +3172,7 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	unsigned long start_pfn, last_pfn;
 	struct iova *iova;
 	struct intel_iommu *iommu;
+	struct page *freelist;
 
 	if (iommu_no_mapping(hwdev))
 		return;
@@ -3072,19 +3190,16 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	start_pfn = mm_to_dma_pfn(iova->pfn_lo);
 	last_pfn = mm_to_dma_pfn(iova->pfn_hi + 1) - 1;
 
-	/*  clear the whole page */
-	dma_pte_clear_range(domain, start_pfn, last_pfn);
-
-	/* free page tables */
-	dma_pte_free_pagetable(domain, start_pfn, last_pfn);
+	freelist = domain_unmap(domain, start_pfn, last_pfn);
 
 	if (intel_iommu_strict) {
 		iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
-				      last_pfn - start_pfn + 1, 0);
+				      last_pfn - start_pfn + 1, !freelist, 0);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
+		dma_free_pagelist(freelist);
 	} else {
-		add_unmap(domain, iova);
+		add_unmap(domain, iova, freelist);
 		/*
 		 * queue up the release of the unmap to save the 1/6th of the
 		 * cpu used up by the iotlb flush operation...
@@ -3167,7 +3282,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, domain->id, start_vpfn, size, 1);
+		iommu_flush_iotlb_psi(iommu, domain->id, start_vpfn, size, 0, 1);
 	else
 		iommu_flush_write_buffer(iommu);
 
@@ -3714,6 +3829,7 @@ static int intel_iommu_memory_notifier(struct notifier_block *nb,
 			struct iova *iova;
 			struct dmar_drhd_unit *drhd;
 			struct intel_iommu *iommu;
+			struct page *freelist;
 
 			iova = find_iova(&si_domain->iovad, start_vpfn);
 			if (iova == NULL) {
@@ -3730,16 +3846,17 @@ static int intel_iommu_memory_notifier(struct notifier_block *nb,
 				return NOTIFY_BAD;
 			}
 
+			freelist = domain_unmap(si_domain, iova->pfn_lo,
+					       iova->pfn_hi);
+
 			rcu_read_lock();
 			for_each_active_iommu(iommu, drhd)
 				iommu_flush_iotlb_psi(iommu, si_domain->id,
 					iova->pfn_lo,
-					iova->pfn_hi - iova->pfn_lo + 1, 0);
+					iova->pfn_hi - iova->pfn_lo + 1,
+					!freelist, 0);
 			rcu_read_unlock();
-			dma_pte_clear_range(si_domain, iova->pfn_lo,
-					    iova->pfn_hi);
-			dma_pte_free_pagetable(si_domain, iova->pfn_lo,
-					       iova->pfn_hi);
+			dma_free_pagelist(freelist);
 
 			start_vpfn = iova->pfn_hi + 1;
 			free_iova_mem(iova);
@@ -4100,10 +4217,14 @@ static int intel_iommu_map(struct iommu_domain *domain,
 }
 
 static size_t intel_iommu_unmap(struct iommu_domain *domain,
-			     unsigned long iova, size_t size)
+				unsigned long iova, size_t size)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
-	int level = 0;
+	struct page *freelist = NULL;
+	struct intel_iommu *iommu;
+	unsigned long start_pfn, last_pfn;
+	unsigned int npages;
+	int iommu_id, num, ndomains, level = 0;
 
 	/* Cope with horrid API which requires us to unmap more than the
 	   size argument if it happens to be a large-page mapping. */
@@ -4113,8 +4234,29 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 	if (size < VTD_PAGE_SIZE << level_to_offset_bits(level))
 		size = VTD_PAGE_SIZE << level_to_offset_bits(level);
 
-	dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
-			    (iova + size - 1) >> VTD_PAGE_SHIFT);
+	start_pfn = iova >> VTD_PAGE_SHIFT;
+	last_pfn = (iova + size - 1) >> VTD_PAGE_SHIFT;
+
+	freelist = domain_unmap(dmar_domain, start_pfn, last_pfn);
+
+	npages = last_pfn - start_pfn + 1;
+
+	for_each_set_bit(iommu_id, dmar_domain->iommu_bmp, g_num_of_iommus) {
+               iommu = g_iommus[iommu_id];
+
+               /*
+                * find bit position of dmar_domain
+                */
+               ndomains = cap_ndoms(iommu->cap);
+               for_each_set_bit(num, iommu->domain_ids, ndomains) {
+                       if (iommu->domains[num] == dmar_domain)
+                               iommu_flush_iotlb_psi(iommu, num, start_pfn,
+						     npages, !freelist, 0);
+	       }
+
+	}
+
+	dma_free_pagelist(freelist);
 
 	if (dmar_domain->max_addr == iova + size)
 		dmar_domain->max_addr = iova;
