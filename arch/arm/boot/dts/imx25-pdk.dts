@@ -19,12 +19,29 @@
 	memory {
 		reg = <0x80000000 0x4000000>;
 	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_fec_3v3: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "fec-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 3 0>;
+			enable-active-high;
+		};
+	};
 };
 
 &fec {
 	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
+	phy-supply = <&reg_fec_3v3>;
 	status = "okay";
 };
 
@@ -41,6 +58,7 @@
 				MX25_PAD_FEC_RDATA1__FEC_RDATA1		0x80000000
 				MX25_PAD_FEC_RX_DV__FEC_RX_DV		0x80000000
 				MX25_PAD_FEC_TX_CLK__FEC_TX_CLK		0x1c0
+				MX25_PAD_A17__GPIO_2_3			0x80000000
 			>;
 		};
 
