@@ -126,7 +126,7 @@
 /*******************************************************************************
  *	local functions
  ******************************************************************************/
-void wl_isr_handler( unsigned long p );
+void wl_isr_handler(unsigned long p);
 
 #if 0 //SCULL_USE_PROC /* don't waste space if unused */
 static int scull_read_procmem(struct seq_file *m, void *v);
@@ -394,8 +394,8 @@ struct dbg_info *DbgInfo = &wl_info;
 #ifdef USE_RTS
 
 static p_char  *useRTS = "N";
-MODULE_PARM( useRTS, "s" );
-MODULE_PARM_DESC( useRTS, "Use RTS test interface (<string> N or Y) [N]" );
+MODULE_PARM(useRTS, "s");
+MODULE_PARM_DESC(useRTS, "Use RTS test interface (<string> N or Y) [N]");
 
 #endif  /* USE_RTS */
 /*******************************************************************************
@@ -414,7 +414,7 @@ extern memimage fw_image;            // firmware image to be downloaded
 #endif /* HCF_STA */
 
 
-int wl_insert( struct net_device *dev )
+int wl_insert(struct net_device *dev)
 {
 	int                     result = 0;
 	int                     hcf_status = HCF_SUCCESS;
@@ -423,10 +423,10 @@ int wl_insert( struct net_device *dev )
 	struct wl_private       *lp = wl_priv(dev);
 
 	/* Initialize the adapter hardware. */
-	memset( &( lp->hcfCtx ), 0, sizeof( IFB_STRCT ));
+	memset(&(lp->hcfCtx), 0, sizeof(IFB_STRCT));
 
 	/* Initialize the adapter parameters. */
-	spin_lock_init( &( lp->slock ));
+	spin_lock_init(&(lp->slock));
 
 	/* Initialize states */
 	//lp->lockcount = 0; //PE1DNN
@@ -435,31 +435,31 @@ int wl_insert( struct net_device *dev )
 
 	lp->dev = dev;
 
-	DBG_PARAM( DbgInfo, "irq_mask", "0x%04x", irq_mask & 0x0FFFF );
-	DBG_PARAM( DbgInfo, "irq_list", "0x%02x 0x%02x 0x%02x 0x%02x",
+	DBG_PARAM(DbgInfo, "irq_mask", "0x%04x", irq_mask & 0x0FFFF);
+	DBG_PARAM(DbgInfo, "irq_list", "0x%02x 0x%02x 0x%02x 0x%02x",
 			   irq_list[0] & 0x0FF, irq_list[1] & 0x0FF,
-			   irq_list[2] & 0x0FF, irq_list[3] & 0x0FF );
-	DBG_PARAM( DbgInfo, PARM_NAME_DESIRED_SSID, "\"%s\"", PARM_DESIRED_SSID );
-	DBG_PARAM( DbgInfo, PARM_NAME_OWN_SSID, "\"%s\"", PARM_OWN_SSID );
-	DBG_PARAM( DbgInfo, PARM_NAME_OWN_CHANNEL, "%d", PARM_OWN_CHANNEL);
-	DBG_PARAM( DbgInfo, PARM_NAME_SYSTEM_SCALE, "%d", PARM_SYSTEM_SCALE );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_RATE, "%d", PARM_TX_RATE );
-	DBG_PARAM( DbgInfo, PARM_NAME_RTS_THRESHOLD, "%d", PARM_RTS_THRESHOLD );
-	DBG_PARAM( DbgInfo, PARM_NAME_MICROWAVE_ROBUSTNESS, "\"%s\"", PARM_MICROWAVE_ROBUSTNESS );
-	DBG_PARAM( DbgInfo, PARM_NAME_OWN_NAME, "\"%s\"", PARM_OWN_NAME );
+			   irq_list[2] & 0x0FF, irq_list[3] & 0x0FF);
+	DBG_PARAM(DbgInfo, PARM_NAME_DESIRED_SSID, "\"%s\"", PARM_DESIRED_SSID);
+	DBG_PARAM(DbgInfo, PARM_NAME_OWN_SSID, "\"%s\"", PARM_OWN_SSID);
+	DBG_PARAM(DbgInfo, PARM_NAME_OWN_CHANNEL, "%d", PARM_OWN_CHANNEL);
+	DBG_PARAM(DbgInfo, PARM_NAME_SYSTEM_SCALE, "%d", PARM_SYSTEM_SCALE);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_RATE, "%d", PARM_TX_RATE);
+	DBG_PARAM(DbgInfo, PARM_NAME_RTS_THRESHOLD, "%d", PARM_RTS_THRESHOLD);
+	DBG_PARAM(DbgInfo, PARM_NAME_MICROWAVE_ROBUSTNESS, "\"%s\"", PARM_MICROWAVE_ROBUSTNESS);
+	DBG_PARAM(DbgInfo, PARM_NAME_OWN_NAME, "\"%s\"", PARM_OWN_NAME);
 //;?		DBG_PARAM( DbgInfo, PARM_NAME_ENABLE_ENCRYPTION, "\"%s\"", PARM_ENABLE_ENCRYPTION );
-	DBG_PARAM( DbgInfo, PARM_NAME_KEY1, "\"%s\"", PARM_KEY1 );
-	DBG_PARAM( DbgInfo, PARM_NAME_KEY2, "\"%s\"", PARM_KEY2 );
-	DBG_PARAM( DbgInfo, PARM_NAME_KEY3, "\"%s\"", PARM_KEY3 );
-	DBG_PARAM( DbgInfo, PARM_NAME_KEY4, "\"%s\"", PARM_KEY4 );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_KEY, "%d", PARM_TX_KEY );
-	DBG_PARAM( DbgInfo, PARM_NAME_MULTICAST_RATE, "%d", PARM_MULTICAST_RATE );
-	DBG_PARAM( DbgInfo, PARM_NAME_DOWNLOAD_FIRMWARE, "\"%s\"", PARM_DOWNLOAD_FIRMWARE );
-	DBG_PARAM( DbgInfo, PARM_NAME_AUTH_KEY_MGMT_SUITE, "%d", PARM_AUTH_KEY_MGMT_SUITE );
+	DBG_PARAM(DbgInfo, PARM_NAME_KEY1, "\"%s\"", PARM_KEY1);
+	DBG_PARAM(DbgInfo, PARM_NAME_KEY2, "\"%s\"", PARM_KEY2);
+	DBG_PARAM(DbgInfo, PARM_NAME_KEY3, "\"%s\"", PARM_KEY3);
+	DBG_PARAM(DbgInfo, PARM_NAME_KEY4, "\"%s\"", PARM_KEY4);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_KEY, "%d", PARM_TX_KEY);
+	DBG_PARAM(DbgInfo, PARM_NAME_MULTICAST_RATE, "%d", PARM_MULTICAST_RATE);
+	DBG_PARAM(DbgInfo, PARM_NAME_DOWNLOAD_FIRMWARE, "\"%s\"", PARM_DOWNLOAD_FIRMWARE);
+	DBG_PARAM(DbgInfo, PARM_NAME_AUTH_KEY_MGMT_SUITE, "%d", PARM_AUTH_KEY_MGMT_SUITE);
 //;?#if (HCF_TYPE) & HCF_TYPE_STA
 					//;?should we make this code conditional depending on in STA mode
 //;?        DBG_PARAM( DbgInfo, PARM_NAME_PORT_TYPE, "%d", PARM_PORT_TYPE );
-		DBG_PARAM( DbgInfo, PARM_NAME_PM_ENABLED, "%04x", PARM_PM_ENABLED );
+		DBG_PARAM(DbgInfo, PARM_NAME_PM_ENABLED, "%04x", PARM_PM_ENABLED);
 //;?        DBG_PARAM( DbgInfo, PARM_NAME_CREATE_IBSS, "\"%s\"", PARM_CREATE_IBSS );
 //;?        DBG_PARAM( DbgInfo, PARM_NAME_MULTICAST_RX, "\"%s\"", PARM_MULTICAST_RX );
 //;?        DBG_PARAM( DbgInfo, PARM_NAME_MAX_SLEEP, "%d", PARM_MAX_SLEEP );
@@ -475,24 +475,24 @@ int wl_insert( struct net_device *dev )
 #if 1 //;? (HCF_TYPE) & HCF_TYPE_AP
 		//;?should we restore this to allow smaller memory footprint
 		//;?I guess: no, since this is Debug mode only
-	DBG_PARAM( DbgInfo, PARM_NAME_OWN_DTIM_PERIOD, "%d", PARM_OWN_DTIM_PERIOD );
-	DBG_PARAM( DbgInfo, PARM_NAME_REJECT_ANY, "\"%s\"", PARM_REJECT_ANY );
-	DBG_PARAM( DbgInfo, PARM_NAME_EXCLUDE_UNENCRYPTED, "\"%s\"", PARM_EXCLUDE_UNENCRYPTED );
-	DBG_PARAM( DbgInfo, PARM_NAME_MULTICAST_PM_BUFFERING, "\"%s\"", PARM_MULTICAST_PM_BUFFERING );
-	DBG_PARAM( DbgInfo, PARM_NAME_INTRA_BSS_RELAY, "\"%s\"", PARM_INTRA_BSS_RELAY );
+	DBG_PARAM(DbgInfo, PARM_NAME_OWN_DTIM_PERIOD, "%d", PARM_OWN_DTIM_PERIOD);
+	DBG_PARAM(DbgInfo, PARM_NAME_REJECT_ANY, "\"%s\"", PARM_REJECT_ANY);
+	DBG_PARAM(DbgInfo, PARM_NAME_EXCLUDE_UNENCRYPTED, "\"%s\"", PARM_EXCLUDE_UNENCRYPTED);
+	DBG_PARAM(DbgInfo, PARM_NAME_MULTICAST_PM_BUFFERING, "\"%s\"", PARM_MULTICAST_PM_BUFFERING);
+	DBG_PARAM(DbgInfo, PARM_NAME_INTRA_BSS_RELAY, "\"%s\"", PARM_INTRA_BSS_RELAY);
 #ifdef USE_WDS
-	DBG_PARAM( DbgInfo, PARM_NAME_RTS_THRESHOLD1, "%d", PARM_RTS_THRESHOLD1 );
-	DBG_PARAM( DbgInfo, PARM_NAME_RTS_THRESHOLD2, "%d", PARM_RTS_THRESHOLD2 );
-	DBG_PARAM( DbgInfo, PARM_NAME_RTS_THRESHOLD3, "%d", PARM_RTS_THRESHOLD3 );
-	DBG_PARAM( DbgInfo, PARM_NAME_RTS_THRESHOLD4, "%d", PARM_RTS_THRESHOLD4 );
-	DBG_PARAM( DbgInfo, PARM_NAME_RTS_THRESHOLD5, "%d", PARM_RTS_THRESHOLD5 );
-	DBG_PARAM( DbgInfo, PARM_NAME_RTS_THRESHOLD6, "%d", PARM_RTS_THRESHOLD6 );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_RATE1, "%d", PARM_TX_RATE1 );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_RATE2, "%d", PARM_TX_RATE2 );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_RATE3, "%d", PARM_TX_RATE3 );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_RATE4, "%d", PARM_TX_RATE4 );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_RATE5, "%d", PARM_TX_RATE5 );
-	DBG_PARAM( DbgInfo, PARM_NAME_TX_RATE6, "%d", PARM_TX_RATE6 );
+	DBG_PARAM(DbgInfo, PARM_NAME_RTS_THRESHOLD1, "%d", PARM_RTS_THRESHOLD1);
+	DBG_PARAM(DbgInfo, PARM_NAME_RTS_THRESHOLD2, "%d", PARM_RTS_THRESHOLD2);
+	DBG_PARAM(DbgInfo, PARM_NAME_RTS_THRESHOLD3, "%d", PARM_RTS_THRESHOLD3);
+	DBG_PARAM(DbgInfo, PARM_NAME_RTS_THRESHOLD4, "%d", PARM_RTS_THRESHOLD4);
+	DBG_PARAM(DbgInfo, PARM_NAME_RTS_THRESHOLD5, "%d", PARM_RTS_THRESHOLD5);
+	DBG_PARAM(DbgInfo, PARM_NAME_RTS_THRESHOLD6, "%d", PARM_RTS_THRESHOLD6);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_RATE1, "%d", PARM_TX_RATE1);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_RATE2, "%d", PARM_TX_RATE2);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_RATE3, "%d", PARM_TX_RATE3);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_RATE4, "%d", PARM_TX_RATE4);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_RATE5, "%d", PARM_TX_RATE5);
+	DBG_PARAM(DbgInfo, PARM_NAME_TX_RATE6, "%d", PARM_TX_RATE6);
 	DBG_PARAM(DbgInfo, PARM_NAME_WDS_ADDRESS1, "\"%pM\"",
 			PARM_WDS_ADDRESS1);
 	DBG_PARAM(DbgInfo, PARM_NAME_WDS_ADDRESS2, "\"%pM\"",
@@ -508,28 +508,28 @@ int wl_insert( struct net_device *dev )
 #endif /* USE_WDS */
 #endif /* HCF_AP */
 
-	VALID_PARAM( !PARM_DESIRED_SSID || ( strlen( PARM_DESIRED_SSID ) <= PARM_MAX_NAME_LEN ));
-	VALID_PARAM( !PARM_OWN_SSID || ( strlen( PARM_OWN_SSID ) <= PARM_MAX_NAME_LEN ));
-	VALID_PARAM(( PARM_OWN_CHANNEL <= PARM_MAX_OWN_CHANNEL ));
-	VALID_PARAM(( PARM_SYSTEM_SCALE >= PARM_MIN_SYSTEM_SCALE ) && ( PARM_SYSTEM_SCALE <= PARM_MAX_SYSTEM_SCALE ));
-	VALID_PARAM(( PARM_TX_RATE >= PARM_MIN_TX_RATE ) && ( PARM_TX_RATE <= PARM_MAX_TX_RATE ));
-	VALID_PARAM(( PARM_RTS_THRESHOLD <= PARM_MAX_RTS_THRESHOLD ));
-	VALID_PARAM( !PARM_MICROWAVE_ROBUSTNESS || strchr( "NnYy", PARM_MICROWAVE_ROBUSTNESS[0] ) != NULL );
-	VALID_PARAM( !PARM_OWN_NAME || ( strlen( PARM_NAME_OWN_NAME ) <= PARM_MAX_NAME_LEN ));
-	VALID_PARAM(( PARM_ENABLE_ENCRYPTION <= PARM_MAX_ENABLE_ENCRYPTION ));
-	VALID_PARAM( is_valid_key_string( PARM_KEY1 ));
-	VALID_PARAM( is_valid_key_string( PARM_KEY2 ));
-	VALID_PARAM( is_valid_key_string( PARM_KEY3 ));
-	VALID_PARAM( is_valid_key_string( PARM_KEY4 ));
-	VALID_PARAM(( PARM_TX_KEY >= PARM_MIN_TX_KEY ) && ( PARM_TX_KEY <= PARM_MAX_TX_KEY ));
+	VALID_PARAM(!PARM_DESIRED_SSID || (strlen(PARM_DESIRED_SSID) <= PARM_MAX_NAME_LEN));
+	VALID_PARAM(!PARM_OWN_SSID || (strlen(PARM_OWN_SSID) <= PARM_MAX_NAME_LEN));
+	VALID_PARAM((PARM_OWN_CHANNEL <= PARM_MAX_OWN_CHANNEL));
+	VALID_PARAM((PARM_SYSTEM_SCALE >= PARM_MIN_SYSTEM_SCALE) && (PARM_SYSTEM_SCALE <= PARM_MAX_SYSTEM_SCALE));
+	VALID_PARAM((PARM_TX_RATE >= PARM_MIN_TX_RATE) && (PARM_TX_RATE <= PARM_MAX_TX_RATE));
+	VALID_PARAM((PARM_RTS_THRESHOLD <= PARM_MAX_RTS_THRESHOLD));
+	VALID_PARAM(!PARM_MICROWAVE_ROBUSTNESS || strchr("NnYy", PARM_MICROWAVE_ROBUSTNESS[0]) != NULL);
+	VALID_PARAM(!PARM_OWN_NAME || (strlen(PARM_NAME_OWN_NAME) <= PARM_MAX_NAME_LEN));
+	VALID_PARAM((PARM_ENABLE_ENCRYPTION <= PARM_MAX_ENABLE_ENCRYPTION));
+	VALID_PARAM(is_valid_key_string(PARM_KEY1));
+	VALID_PARAM(is_valid_key_string(PARM_KEY2));
+	VALID_PARAM(is_valid_key_string(PARM_KEY3));
+	VALID_PARAM(is_valid_key_string(PARM_KEY4));
+	VALID_PARAM((PARM_TX_KEY >= PARM_MIN_TX_KEY) && (PARM_TX_KEY <= PARM_MAX_TX_KEY));
 
-	VALID_PARAM(( PARM_MULTICAST_RATE >= PARM_MIN_MULTICAST_RATE ) &&
-					( PARM_MULTICAST_RATE <= PARM_MAX_MULTICAST_RATE ));
+	VALID_PARAM((PARM_MULTICAST_RATE >= PARM_MIN_MULTICAST_RATE) &&
+					(PARM_MULTICAST_RATE <= PARM_MAX_MULTICAST_RATE));
 
-	VALID_PARAM( !PARM_DOWNLOAD_FIRMWARE || ( strlen( PARM_DOWNLOAD_FIRMWARE ) <= 255 /*;?*/ ));
-	VALID_PARAM(( PARM_AUTH_KEY_MGMT_SUITE < PARM_MAX_AUTH_KEY_MGMT_SUITE ));
+	VALID_PARAM(!PARM_DOWNLOAD_FIRMWARE || (strlen(PARM_DOWNLOAD_FIRMWARE) <= 255 /*;?*/));
+	VALID_PARAM((PARM_AUTH_KEY_MGMT_SUITE < PARM_MAX_AUTH_KEY_MGMT_SUITE));
 
-	VALID_PARAM( !PARM_LOAD_BALANCING || strchr( "NnYy", PARM_LOAD_BALANCING[0] ) != NULL );
+	VALID_PARAM(!PARM_LOAD_BALANCING || strchr("NnYy", PARM_LOAD_BALANCING[0]) != NULL);
 	VALID_PARAM( !PARM_MEDIUM_DISTRIBUTION || strchr( "NnYy", PARM_MEDIUM_DISTRIBUTION[0] ) != NULL );
 	VALID_PARAM(( PARM_TX_POW_LEVEL <= PARM_MAX_TX_POW_LEVEL ));
 
