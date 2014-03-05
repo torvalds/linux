@@ -40,7 +40,7 @@ static INT bcm_close(struct net_device *dev)
 }
 
 static u16 bcm_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv)
+			    void *accel_priv, select_queue_fallback_t fallback)
 {
 	return ClassifyPacket(netdev_priv(dev), skb);
 }

@@ -94,6 +94,8 @@
 			resets = <&tegra_car 27>;
 			reset-names = "dc";
 
+			nvidia,head = <0>;
+
 			rgb {
 				status = "disabled";
 			};
@@ -108,6 +110,8 @@
 			clock-names = "dc", "parent";
 			resets = <&tegra_car 26>;
 			reset-names = "dc";
+
+			nvidia,head = <1>;
 
 			rgb {
 				status = "disabled";
