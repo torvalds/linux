@@ -174,6 +174,27 @@ of_err:
 	return NULL;
 }
 
+#ifdef CONFIG_OF_GPIO
+static int davinci_gpio_of_xlate(struct gpio_chip *gc,
+			     const struct of_phandle_args *gpiospec,
+			     u32 *flags)
+{
+	struct davinci_gpio_controller *chips = dev_get_drvdata(gc->dev);
+	struct davinci_gpio_platform_data *pdata = dev_get_platdata(gc->dev);
+
+	if (gpiospec->args[0] > pdata->ngpio)
+		return -EINVAL;
+
+	if (gc != &chips[gpiospec->args[0] / 32].chip)
+		return -EINVAL;
+
+	if (flags)
+		*flags = gpiospec->args[1];
+
+	return gpiospec->args[0] % 32;
+}
+#endif
+
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
 	int i, base;
@@ -238,6 +259,9 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 			chips[i].chip.ngpio = 32;
 
 #ifdef CONFIG_OF_GPIO
+		chips[i].chip.of_gpio_n_cells = 2;
+		chips[i].chip.of_xlate = davinci_gpio_of_xlate;
+		chips[i].chip.dev = dev;
 		chips[i].chip.of_node = dev->of_node;
 #endif
 		spin_lock_init(&chips[i].lock);
