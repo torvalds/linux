@@ -964,7 +964,7 @@ static void exofs_invalidatepage(struct page *page, unsigned int offset,
 
  /* TODO: Should be easy enough to do proprly */
 static ssize_t exofs_direct_IO(int rw, struct kiocb *iocb,
-		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
+		struct iov_iter *iter, loff_t offset)
 {
 	return 0;
 }

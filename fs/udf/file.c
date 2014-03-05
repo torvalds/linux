@@ -119,8 +119,8 @@ static int udf_adinicb_write_end(struct file *file,
 }
 
 static ssize_t udf_adinicb_direct_IO(int rw, struct kiocb *iocb,
-				     const struct iovec *iov,
-				     loff_t offset, unsigned long nr_segs)
+				     struct iov_iter *iter,
+				     loff_t offset)
 {
 	/* Fallback to buffered I/O. */
 	return 0;

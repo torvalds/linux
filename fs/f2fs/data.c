@@ -1010,7 +1010,7 @@ static int check_direct_IO(struct inode *inode, int rw,
 }
 
 static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
-		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
+		struct iov_iter *iter, loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -1019,11 +1019,11 @@ static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
 	if (f2fs_has_inline_data(inode))
 		return 0;
 
-	if (check_direct_IO(inode, rw, iov, offset, nr_segs))
+	if (check_direct_IO(inode, rw, iter->iov, offset, iter->nr_segs))
 		return 0;
 
-	return blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
-							get_data_block);
+	return blockdev_direct_IO(rw, iocb, inode, iter->iov, offset,
+				  iter->nr_segs, get_data_block);
 }
 
 static void f2fs_invalidate_data_page(struct page *page, unsigned int offset,

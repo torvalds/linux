@@ -2890,8 +2890,8 @@ static inline loff_t fuse_round_up(loff_t off)
 }
 
 static ssize_t
-fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
-			loff_t offset, unsigned long nr_segs)
+fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
+			loff_t offset)
 {
 	ssize_t ret = 0;
 	struct file *file = iocb->ki_filp;
@@ -2900,7 +2900,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	loff_t pos = 0;
 	struct inode *inode;
 	loff_t i_size;
-	size_t count = iov_length(iov, nr_segs);
+	size_t count = iov_length(iter->iov, iter->nr_segs);
 	struct fuse_io_priv *io;
 
 	pos = offset;
@@ -2944,9 +2944,9 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		io->async = false;
 
 	if (rw == WRITE)
-		ret = __fuse_direct_write(io, iov, nr_segs, &pos);
+		ret = __fuse_direct_write(io, iter->iov, iter->nr_segs, &pos);
 	else
-		ret = __fuse_direct_read(io, iov, nr_segs, &pos, count);
+		ret = __fuse_direct_read(io, iter->iov, iter->nr_segs, &pos, count);
 
 	if (io->async) {
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);

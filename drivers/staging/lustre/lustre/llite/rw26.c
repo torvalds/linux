@@ -363,15 +363,14 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
 #define MAX_DIO_SIZE ((MAX_MALLOC / sizeof(struct brw_page) * PAGE_CACHE_SIZE) & \
 		      ~(DT_MAX_BRW_SIZE - 1))
 static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
-			       const struct iovec *iov, loff_t file_offset,
-			       unsigned long nr_segs)
+			       struct iov_iter *iter, loff_t file_offset)
 {
 	struct lu_env *env;
 	struct cl_io *io;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct ccc_object *obj = cl_inode2ccc(inode);
-	long count = iov_length(iov, nr_segs);
+	long count = iov_length(iter->iov, iter->nr_segs);
 	long tot_bytes = 0, result = 0;
 	struct ll_inode_info *lli = ll_i2info(inode);
 	unsigned long seg = 0;
@@ -392,9 +391,9 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	       MAX_DIO_SIZE >> PAGE_CACHE_SHIFT);
 
 	/* Check that all user buffers are aligned as well */
-	for (seg = 0; seg < nr_segs; seg++) {
-		if (((unsigned long)iov[seg].iov_base & ~CFS_PAGE_MASK) ||
-		    (iov[seg].iov_len & ~CFS_PAGE_MASK))
+	for (seg = 0; seg < iter->nr_segs; seg++) {
+		if (((unsigned long)iter->iov[seg].iov_base & ~CFS_PAGE_MASK) ||
+		    (iter->iov[seg].iov_len & ~CFS_PAGE_MASK))
 			return -EINVAL;
 	}
 
@@ -411,9 +410,9 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 		mutex_lock(&inode->i_mutex);
 
 	LASSERT(obj->cob_transient_pages == 0);
-	for (seg = 0; seg < nr_segs; seg++) {
-		long iov_left = iov[seg].iov_len;
-		unsigned long user_addr = (unsigned long)iov[seg].iov_base;
+	for (seg = 0; seg < iter->nr_segs; seg++) {
+		long iov_left = iter->iov[seg].iov_len;
+		unsigned long user_addr = (unsigned long)iter->iov[seg].iov_base;
 
 		if (rw == READ) {
 			if (file_offset >= i_size_read(inode))
