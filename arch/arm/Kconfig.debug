@@ -942,6 +942,15 @@ config DEBUG_IMX_UART_PORT
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
 
+config DEBUG_VF_UART_PORT
+	int "Vybrid Debug UART Port Selection" if DEBUG_VF_UART
+	default 1
+	range 0 3
+	depends on SOC_VF610
+	help
+	  Choose UART port on which kernel low-level debug messages
+	  should be output.
+
 config DEBUG_TEGRA_UART
 	bool
 	depends on ARCH_TEGRA
