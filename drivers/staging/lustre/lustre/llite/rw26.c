@@ -391,11 +391,8 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	       MAX_DIO_SIZE >> PAGE_CACHE_SHIFT);
 
 	/* Check that all user buffers are aligned as well */
-	for (seg = 0; seg < iter->nr_segs; seg++) {
-		if (((unsigned long)iter->iov[seg].iov_base & ~CFS_PAGE_MASK) ||
-		    (iter->iov[seg].iov_len & ~CFS_PAGE_MASK))
-			return -EINVAL;
-	}
+	if (iov_iter_alignment(iter) & ~CFS_PAGE_MASK)
+		return -EINVAL;
 
 	env = cl_env_get(&refcheck);
 	LASSERT(!IS_ERR(env));
