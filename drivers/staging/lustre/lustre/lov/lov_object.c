@@ -512,7 +512,7 @@ static int lov_attr_get_raid0(const struct lu_env *env, struct cl_object *obj,
 	return result;
 }
 
-const static struct lov_layout_operations lov_dispatch[] = {
+static const struct lov_layout_operations lov_dispatch[] = {
 	[LLT_EMPTY] = {
 		.llo_init      = lov_init_empty,
 		.llo_delete    = lov_delete_empty,
