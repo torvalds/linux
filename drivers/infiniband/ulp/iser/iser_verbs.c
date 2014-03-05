@@ -275,7 +275,7 @@ void iser_free_fmr_pool(struct iser_conn *ib_conn)
 
 static int
 iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
-			 struct fast_reg_descriptor *desc)
+			 bool pi_enable, struct fast_reg_descriptor *desc)
 {
 	int ret;
 
@@ -294,12 +294,64 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
 		goto fast_reg_mr_failure;
 	}
-	iser_info("Create fr_desc %p page_list %p\n",
-		  desc, desc->data_frpl->page_list);
 	desc->reg_indicators |= ISER_DATA_KEY_VALID;
 
-	return 0;
+	if (pi_enable) {
+		struct ib_mr_init_attr mr_init_attr = {0};
+		struct iser_pi_context *pi_ctx = NULL;
 
+		desc->pi_ctx = kzalloc(sizeof(*desc->pi_ctx), GFP_KERNEL);
+		if (!desc->pi_ctx) {
+			iser_err("Failed to allocate pi context\n");
+			ret = -ENOMEM;
+			goto pi_ctx_alloc_failure;
+		}
+		pi_ctx = desc->pi_ctx;
+
+		pi_ctx->prot_frpl = ib_alloc_fast_reg_page_list(ib_device,
+						    ISCSI_ISER_SG_TABLESIZE);
+		if (IS_ERR(pi_ctx->prot_frpl)) {
+			ret = PTR_ERR(pi_ctx->prot_frpl);
+			iser_err("Failed to allocate prot frpl ret=%d\n",
+				 ret);
+			goto prot_frpl_failure;
+		}
+
+		pi_ctx->prot_mr = ib_alloc_fast_reg_mr(pd,
+						ISCSI_ISER_SG_TABLESIZE + 1);
+		if (IS_ERR(pi_ctx->prot_mr)) {
+			ret = PTR_ERR(pi_ctx->prot_mr);
+			iser_err("Failed to allocate prot frmr ret=%d\n",
+				 ret);
+			goto prot_mr_failure;
+		}
+		desc->reg_indicators |= ISER_PROT_KEY_VALID;
+
+		mr_init_attr.max_reg_descriptors = 2;
+		mr_init_attr.flags |= IB_MR_SIGNATURE_EN;
+		pi_ctx->sig_mr = ib_create_mr(pd, &mr_init_attr);
+		if (IS_ERR(pi_ctx->sig_mr)) {
+			ret = PTR_ERR(pi_ctx->sig_mr);
+			iser_err("Failed to allocate signature enabled mr err=%d\n",
+				 ret);
+			goto sig_mr_failure;
+		}
+		desc->reg_indicators |= ISER_SIG_KEY_VALID;
+	}
+	desc->reg_indicators &= ~ISER_FASTREG_PROTECTED;
+
+	iser_info("Create fr_desc %p page_list %p\n",
+		  desc, desc->data_frpl->page_list);
+
+	return 0;
+sig_mr_failure:
+	ib_dereg_mr(desc->pi_ctx->prot_mr);
+prot_mr_failure:
+	ib_free_fast_reg_page_list(desc->pi_ctx->prot_frpl);
+prot_frpl_failure:
+	kfree(desc->pi_ctx);
+pi_ctx_alloc_failure:
+	ib_dereg_mr(desc->data_mr);
 fast_reg_mr_failure:
 	ib_free_fast_reg_page_list(desc->data_frpl);
 
@@ -320,15 +372,15 @@ int iser_create_fastreg_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 	INIT_LIST_HEAD(&ib_conn->fastreg.pool);
 	ib_conn->fastreg.pool_size = 0;
 	for (i = 0; i < cmds_max; i++) {
-		desc = kmalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 		if (!desc) {
 			iser_err("Failed to allocate a new fast_reg descriptor\n");
 			ret = -ENOMEM;
 			goto err;
 		}
 
-		ret = iser_create_fastreg_desc(device->ib_device,
-					       device->pd, desc);
+		ret = iser_create_fastreg_desc(device->ib_device, device->pd,
+					       ib_conn->pi_support, desc);
 		if (ret) {
 			iser_err("Failed to create fastreg descriptor err=%d\n",
 				 ret);
@@ -364,6 +416,12 @@ void iser_free_fastreg_pool(struct iser_conn *ib_conn)
 		list_del(&desc->list);
 		ib_free_fast_reg_page_list(desc->data_frpl);
 		ib_dereg_mr(desc->data_mr);
+		if (desc->pi_ctx) {
+			ib_free_fast_reg_page_list(desc->pi_ctx->prot_frpl);
+			ib_dereg_mr(desc->pi_ctx->prot_mr);
+			ib_destroy_mr(desc->pi_ctx->sig_mr);
+			kfree(desc->pi_ctx);
+		}
 		kfree(desc);
 		++i;
 	}
@@ -405,12 +463,17 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	init_attr.qp_context	= (void *)ib_conn;
 	init_attr.send_cq	= device->tx_cq[min_index];
 	init_attr.recv_cq	= device->rx_cq[min_index];
-	init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS;
 	init_attr.cap.max_recv_wr  = ISER_QP_MAX_RECV_DTOS;
 	init_attr.cap.max_send_sge = 2;
 	init_attr.cap.max_recv_sge = 1;
 	init_attr.sq_sig_type	= IB_SIGNAL_REQ_WR;
 	init_attr.qp_type	= IB_QPT_RC;
+	if (ib_conn->pi_support) {
+		init_attr.cap.max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS;
+		init_attr.create_flags |= IB_QP_CREATE_SIGNATURE_EN;
+	} else {
+		init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS;
+	}
 
 	ret = rdma_create_qp(ib_conn->cma_id, device->pd, &init_attr);
 	if (ret)

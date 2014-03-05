@@ -134,6 +134,15 @@
 					ISER_MAX_TX_MISC_PDUS        + \
 					ISER_MAX_RX_MISC_PDUS)
 
+/* Max registration work requests per command */
+#define ISER_MAX_REG_WR_PER_CMD		5
+
+/* For Signature we don't support DATAOUTs so no need to make room for them */
+#define ISER_QP_SIG_MAX_REQ_DTOS	(ISER_DEF_XMIT_CMDS_MAX	*       \
+					(1 + ISER_MAX_REG_WR_PER_CMD) + \
+					ISER_MAX_TX_MISC_PDUS         + \
+					ISER_MAX_RX_MISC_PDUS)
+
 #define ISER_VER			0x10
 #define ISER_WSV			0x08
 #define ISER_RSV			0x04
@@ -281,7 +290,16 @@ struct iser_device {
 };
 
 enum iser_reg_indicator {
-	ISER_DATA_KEY_VALID = 1 << 0,
+	ISER_DATA_KEY_VALID	= 1 << 0,
+	ISER_PROT_KEY_VALID	= 1 << 1,
+	ISER_SIG_KEY_VALID	= 1 << 2,
+	ISER_FASTREG_PROTECTED	= 1 << 3,
+};
+
+struct iser_pi_context {
+	struct ib_mr                   *prot_mr;
+	struct ib_fast_reg_page_list   *prot_frpl;
+	struct ib_mr                   *sig_mr;
 };
 
 struct fast_reg_descriptor {
@@ -289,6 +307,7 @@ struct fast_reg_descriptor {
 	/* For fast registration - FRWR */
 	struct ib_mr			 *data_mr;
 	struct ib_fast_reg_page_list     *data_frpl;
+	struct iser_pi_context		 *pi_ctx;
 	/* registration indicators container */
 	u8				  reg_indicators;
 };
