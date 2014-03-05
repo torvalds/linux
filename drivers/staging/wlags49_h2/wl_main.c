@@ -118,8 +118,7 @@
  ******************************************************************************/
 #define VALID_PARAM(C) \
 	{ \
-		if (!(C)) \
-		{ \
+		if (!(C)) { \
 			printk(KERN_INFO "Wireless, parameter error: \"%s\"\n", #C); \
 			goto failed; \
 		} \
