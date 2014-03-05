@@ -172,7 +172,6 @@ config SND_SOC_EUKREA_TLV320
 		|| (OF && ARM)
 	depends on I2C
 	select SND_SOC_TLV320AIC23
-	select SND_SOC_IMX_PCM_FIQ
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_SSI
 	select SND_SOC_FSL_SSI
