@@ -1097,7 +1097,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	}
 
 	rv = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
-				  iter->iov, offset, iter->nr_segs,
+				  iter, offset,
 				  gfs2_get_block_direct, NULL, NULL, 0);
 out:
 	gfs2_glock_dq(&gh);

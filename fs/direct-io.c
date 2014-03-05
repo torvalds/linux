@@ -1107,8 +1107,8 @@ static inline int drop_refcount(struct dio *dio)
  */
 static inline ssize_t
 do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, const struct iovec *iov, loff_t offset, 
-	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
+	struct block_device *bdev, struct iov_iter *iter, loff_t offset, 
+	get_block_t get_block, dio_iodone_t end_io,
 	dio_submit_t submit_io,	int flags)
 {
 	int seg;
@@ -1143,9 +1143,9 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	}
 
 	/* Check the memory alignment.  Blocks cannot straddle pages */
-	for (seg = 0; seg < nr_segs; seg++) {
-		addr = (unsigned long)iov[seg].iov_base;
-		size = iov[seg].iov_len;
+	for (seg = 0; seg < iter->nr_segs; seg++) {
+		addr = (unsigned long)iter->iov[seg].iov_base;
+		size = iter->iov[seg].iov_len;
 		end += size;
 		if (unlikely((addr & blocksize_mask) ||
 			     (size & blocksize_mask))) {
@@ -1256,18 +1256,18 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	if (unlikely(sdio.blkfactor))
 		sdio.pages_in_io = 2;
 
-	for (seg = 0; seg < nr_segs; seg++) {
-		user_addr = (unsigned long)iov[seg].iov_base;
+	for (seg = 0; seg < iter->nr_segs; seg++) {
+		user_addr = (unsigned long)iter->iov[seg].iov_base;
 		sdio.pages_in_io +=
-			((user_addr + iov[seg].iov_len + PAGE_SIZE-1) /
+			((user_addr + iter->iov[seg].iov_len + PAGE_SIZE-1) /
 				PAGE_SIZE - user_addr / PAGE_SIZE);
 	}
 
 	blk_start_plug(&plug);
 
-	for (seg = 0; seg < nr_segs; seg++) {
-		user_addr = (unsigned long)iov[seg].iov_base;
-		sdio.size += bytes = iov[seg].iov_len;
+	for (seg = 0; seg < iter->nr_segs; seg++) {
+		user_addr = (unsigned long)iter->iov[seg].iov_base;
+		sdio.size += bytes = iter->iov[seg].iov_len;
 
 		/* Index into the first page of the first block */
 		sdio.first_block_in_page = (user_addr & ~PAGE_MASK) >> blkbits;
@@ -1288,7 +1288,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 
 		retval = do_direct_IO(dio, &sdio, &map_bh);
 
-		dio->result += iov[seg].iov_len -
+		dio->result += iter->iov[seg].iov_len -
 			((sdio.final_block_in_request - sdio.block_in_file) <<
 					blkbits);
 
@@ -1365,8 +1365,8 @@ out:
 
 ssize_t
 __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, const struct iovec *iov, loff_t offset,
-	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
+	struct block_device *bdev, struct iov_iter *iter, loff_t offset,
+	get_block_t get_block, dio_iodone_t end_io,
 	dio_submit_t submit_io,	int flags)
 {
 	/*
@@ -1381,9 +1381,8 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	prefetch(bdev->bd_queue);
 	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
 
-	return do_blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				     nr_segs, get_block, end_io,
-				     submit_io, flags);
+	return do_blockdev_direct_IO(rw, iocb, inode, bdev, iter, offset,
+				     get_block, end_io, submit_io, flags);
 }
 
 EXPORT_SYMBOL(__blockdev_direct_IO);

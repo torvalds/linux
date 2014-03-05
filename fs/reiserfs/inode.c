@@ -3090,8 +3090,8 @@ static ssize_t reiserfs_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter->iov, offset,
-				 iter->nr_segs, reiserfs_get_blocks_direct_io);
+	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset,
+				 reiserfs_get_blocks_direct_io);
 
 	/*
 	 * In case of error extending write may have instantiated a few

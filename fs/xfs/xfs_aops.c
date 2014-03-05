@@ -1470,17 +1470,15 @@ xfs_vm_direct_IO(
 		if (offset + size > XFS_I(inode)->i_d.di_size)
 			ioend->io_isdirect = 1;
 
-		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iter->iov,
-					    offset, iter->nr_segs,
-					    xfs_get_blocks_direct,
+		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iter,
+					    offset, xfs_get_blocks_direct,
 					    xfs_end_io_direct_write, NULL,
 					    DIO_ASYNC_EXTEND);
 		if (ret != -EIOCBQUEUED && iocb->private)
 			goto out_destroy_ioend;
 	} else {
-		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iter->iov,
-					    offset, iter->nr_segs,
-					    xfs_get_blocks_direct,
+		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iter,
+					    offset, xfs_get_blocks_direct,
 					    NULL, NULL, 0);
 	}
 
