@@ -4229,7 +4229,7 @@ static int __init uncore_pmus_register(void)
 	return 0;
 }
 
-static void uncore_cpumask_init(void)
+static void __init uncore_cpumask_init(void)
 {
 	int cpu;
 
