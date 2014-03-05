@@ -243,10 +243,15 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	u32 port, func;
 	enum pipe p;
 
 	DRM_DEBUG_KMS("\n");
+
+	power_domain = intel_display_port_power_domain(encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
 
 	/* XXX: this only works for one DSI output */
 	for (p = PIPE_A; p <= PIPE_B; p++) {
