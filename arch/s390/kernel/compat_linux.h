@@ -112,5 +112,7 @@ long compat_sys_s390_fadvise64(int fd, u32 high, u32 low, compat_size_t len, int
 long compat_sys_s390_fadvise64_64(struct fadvise64_64_args __user *args);
 long compat_sys_s390_sync_file_range(int fd, u32 offhigh, u32 offlow, u32 nhigh, u32 nlow, unsigned int flags);
 long compat_sys_s390_fallocate(int fd, int mode, u32 offhigh, u32 offlow, u32 lenhigh, u32 lenlow);
+long compat_sys_sigreturn(void);
+long compat_sys_rt_sigreturn(void);
 
 #endif /* _ASM_S390X_S390_H */
