@@ -105,6 +105,17 @@
 		default-brightness-level = <7>;
 		status = "okay";
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds>;
+
+		red {
+		        gpios = <&gpio1 2 0>;
+		        default-state = "on";
+		};
+	};
 };
 
 &audmux {
@@ -419,6 +430,14 @@
 				MX6QDL_PAD_SD3_DAT5__SD3_DATA5		0x17059
 				MX6QDL_PAD_SD3_DAT6__SD3_DATA6		0x17059
 				MX6QDL_PAD_SD3_DAT7__SD3_DATA7		0x17059
+			>;
+		};
+	};
+
+	gpio_leds {
+		pinctrl_gpio_leds: gpioledsgrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_2__GPIO1_IO02 0x80000000
 			>;
 		};
 	};
