@@ -35,6 +35,30 @@
 #define DPCM_MAX_BE_USERS	8
 
 /**
+ * snd_soc_runtime_ignore_pmdown_time() - Check whether to ignore the power down delay
+ * @rtd: The ASoC PCM runtime that should be checked.
+ *
+ * This function checks whether the power down delay should be ignored for a
+ * specific PCM runtime. Returns true if the delay is 0, if it the DAI link has
+ * been configured to ignore the delay, or if none of the components benefits
+ * from having the delay.
+ */
+bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
+{
+	bool ignore = true;
+
+	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
+		return true;
+
+	if (rtd->cpu_dai->codec)
+		ignore &= rtd->cpu_dai->codec->ignore_pmdown_time;
+
+	ignore &= rtd->codec_dai->codec->ignore_pmdown_time;
+
+	return ignore;
+}
+
+/**
  * snd_soc_set_runtime_hwparams - set the runtime hardware parameters
  * @substream: the pcm substream
  * @hw: the hardware parameters
@@ -496,8 +520,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	cpu_dai->runtime = NULL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (!rtd->pmdown_time || codec->ignore_pmdown_time ||
-		    rtd->dai_link->ignore_pmdown_time) {
+		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
 			/* powered down playback stream now */
 			snd_soc_dapm_stream_event(rtd,
 						  SNDRV_PCM_STREAM_PLAYBACK,
