@@ -1990,8 +1990,8 @@ static int snd_echo_create(struct snd_card *card,
 
 	if ((chip->iores = request_mem_region(chip->dsp_registers_phys, sz,
 					      ECHOCARD_NAME)) == NULL) {
-		snd_echo_free(chip);
 		dev_err(chip->card->dev, "cannot get memory region\n");
+		snd_echo_free(chip);
 		return -EBUSY;
 	}
 	chip->dsp_registers = (volatile u32 __iomem *)
@@ -1999,8 +1999,8 @@ static int snd_echo_create(struct snd_card *card,
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
-		snd_echo_free(chip);
 		dev_err(chip->card->dev, "cannot grab irq\n");
+		snd_echo_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
@@ -2012,8 +2012,8 @@ static int snd_echo_create(struct snd_card *card,
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
 				sizeof(struct comm_page),
 				&chip->commpage_dma_buf) < 0) {
-		snd_echo_free(chip);
 		dev_err(chip->card->dev, "cannot allocate the comm page\n");
+		snd_echo_free(chip);
 		return -ENOMEM;
 	}
 	chip->comm_page_phys = chip->commpage_dma_buf.addr;
@@ -2291,8 +2291,8 @@ static int snd_echo_resume(struct device *dev)
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
-		snd_echo_free(chip);
 		dev_err(chip->card->dev, "cannot grab irq\n");
+		snd_echo_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
