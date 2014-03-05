@@ -24,7 +24,7 @@
 #include "dw_mmc-pltfm.h"
 
 #include "rk_sdmmc_of.h"
-u32 mmc_debug_level = MMC_DBG_BOOT | MMC_DBG_ERROR;//|MMC_DBG_WARN|MMC_DBG_ALL;
+//u32 mmc_debug_level = MMC_DBG_ALL;
 
 
 #define NUM_PINS(x)			(x + 2)
@@ -117,7 +117,7 @@ static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
 
 static void dw_mci_rockchip_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 {
-	struct dw_mci_rockchip_priv_data *priv = host->priv;
+	//struct dw_mci_rockchip_priv_data *priv = host->priv;
 /*
 	if (ios->timing == MMC_TIMING_UHS_DDR50)
 		mci_writel(host, CLKSEL, priv->ddr_timing);
@@ -128,12 +128,13 @@ static void dw_mci_rockchip_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 
 static int dw_mci_rockchip_parse_dt(struct dw_mci *host)
 {
+/*
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
 	struct device_node *np = host->dev->of_node;
 	u32 timing[2];
 	u32 div = 0;
 	int ret;
-/*rk set the timing in CRU
+        //rk set the timing in CRU
 	of_property_read_u32(np, "samsung,dw-mshc-ciu-div", &div);
 	priv->ciu_div = div;
 

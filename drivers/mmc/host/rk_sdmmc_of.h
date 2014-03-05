@@ -13,40 +13,41 @@
 
 enum MMC_DBG_MASK{
      MMC_DBG_NONE = 0,
-     MMC_DBG_BOOT = BIT(0),
-     MMC_DBG_INFO = BIT(1),
-     MMC_DBG_ERROR= BIT(2), 
-     MMC_DBG_WARN = BIT(3),
+     MMC_DBG_BOOT = BIT(0),    
+     MMC_DBG_ERROR= BIT(1), 
+     MMC_DBG_WARN = BIT(2),
+     MMC_DBG_INFO = BIT(3),
      MMC_DBG_CMD  = BIT(4),
+     MMC_DBG_DBG  = BIT(5),
      MMC_DBG_ALL  = ~0,
      
 };
+//extern u32 mmc_debug_level = MMC_DBG_ALL;
 
-extern u32 mmc_debug_level ;//= MMC_DBG_BOOT | MMC_DBG_ERROR;/* | MMC_DBG_CMD | ...*/
+#define MMC_DBG_BOOT_FUNC(fmt, arg...) \
+        if(mmc_debug_level >= MMC_DBG_BOOT){ printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);}
+#define MMC_DBG_ERR_FUNC(fmt, arg...) \
+        if(mmc_debug_level >= MMC_DBG_ERROR){ printk(DRIVER_PREFIX "ERROR " fmt "\n", ##arg);}
+#define MMC_DBG_WARN_FUNC(fmt, arg...) \
+        if(mmc_debug_level >= MMC_DBG_WARN){ printk(DRIVER_PREFIX "WARNING " fmt "\n", ##arg);}        
+#define MMC_DBG_INFO_FUNC(fmt, arg...) \
+        if(mmc_debug_level >= MMC_DBG_INFO){ printk(DRIVER_PREFIX fmt "\n", ##arg);}          
+#define MMC_DBG_CMD_FUNC(fmt, arg...) \
+        if(mmc_debug_level >= MMC_DBG_CMD){ printk(DRIVER_PREFIX "CMD" fmt "\n", ##arg);}
+    
 
-#define mmc_error(fmt, arg...) \
-        pr_err(DRIVER_PREFIX "ERROR " fmt "\n", ##arg)
-#define mmc_warning(fmt, arg...) \
-        pr_warning(DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
-    
-#define mmc_cmd(fmt, arg...) \
-        pr_info(DRIVER_PREFIX "CMD" fmt "\n", ##arg)
-    
-#define mmc_info(fmt, arg...) \
-        pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
-    #define mmc_debug(level, fmt, arg...) \
+    #define MMC_DBG_DEBUG_FUNC(level, fmt, arg...) \
     do { \
         if (unlikely(level & mmc_debug_level)) \
             dynamic_pr_debug(DRIVER_PREFIX fmt "\n", ##arg); \
     } while (0)
 #else
-    #define mmc_debug(level, fmt, arg...) \
+    #define MMC_DBG_DEBUG_FUNC(level, fmt, arg...) \
     do { \
         if (unlikely(level & mmc_debug_level)) \
-            printk(KERN_DEBUG pr_fmt(DRIVER_PREFIX fmt "\n"), \
-                   ##arg); \
+            if(mmc_debug_level >= MMC_DBG_DBG){ printk(DRIVER_PREFIX fmt "\n"), ##arg);} \
     } while (0)
 #endif
 
