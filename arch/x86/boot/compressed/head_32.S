@@ -229,12 +229,14 @@ relocated:
 	xorl	%ebx, %ebx
 	jmp	*%eax
 
+#ifdef CONFIG_EFI_STUB
 	.data
 efi32_config:
 	.fill 11,8,0
 	.long efi_call_phys
 	.long 0
 	.byte 0
+#endif
 
 /*
  * Stack and heap for uncompression
