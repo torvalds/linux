@@ -143,12 +143,12 @@ cfs_trimwhite(char *str)
 {
 	char *end;
 
-	while (cfs_iswhite(*str))
+	while (isspace(*str))
 		str++;
 
 	end = str + strlen(str);
 	while (end > str) {
-		if (!cfs_iswhite(end[-1]))
+		if (!isspace(end[-1]))
 			break;
 		end--;
 	}
@@ -178,7 +178,7 @@ cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res)
 
 	/* skip leading white spaces */
 	while (next->ls_len) {
-		if (!cfs_iswhite(*next->ls_str))
+		if (!isspace(*next->ls_str))
 			break;
 		next->ls_str++;
 		next->ls_len--;
@@ -205,7 +205,7 @@ cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res)
 
 	/* skip ending whitespaces */
 	while (--end != res->ls_str) {
-		if (!cfs_iswhite(*end))
+		if (!isspace(*end))
 			break;
 	}
 
@@ -234,7 +234,7 @@ cfs_str2num_check(char *str, int nob, unsigned *num,
 		return 0;
 
 	for (; endp < str + nob; endp++) {
-		if (!cfs_iswhite(*endp))
+		if (!isspace(*endp))
 			return 0;
 	}
 

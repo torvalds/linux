@@ -90,21 +90,6 @@ struct cfs_expr_list {
 	struct list_head	el_exprs;
 };
 
-static inline int
-cfs_iswhite(char c)
-{
-	switch (c) {
-	case ' ':
-	case '\t':
-	case '\n':
-	case '\r':
-		return 1;
-	default:
-		break;
-	}
-	return 0;
-}
-
 char *cfs_trimwhite(char *str);
 int cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res);
 int cfs_str2num_check(char *str, int nob, unsigned *num,
