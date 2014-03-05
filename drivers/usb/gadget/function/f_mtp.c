@@ -1008,6 +1008,25 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 			ret = mtp_send_event(dev, &event);
 		goto out;
 	}
+#ifdef CONFIG_COMPAT
+	case MTP_SEND_EVENT_32:
+	{
+		struct mtp_event_32	event_32;
+		struct mtp_event	event;
+		/* return here so we don't change dev->state below,
+		 * which would interfere with bulk transfer state.
+		 */
+		if (copy_from_user(&event_32, (void __user *)value,
+				   sizeof(event_32)))
+			ret = -EFAULT;
+		else {
+			event.length = event_32.length;
+			event.data = (void *)(unsigned long)event_32.data;
+			ret = mtp_send_event(dev, &event);
+		}
+		goto out;
+	}
+#endif
 	}
 
 fail:
