@@ -5611,6 +5611,10 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
+	if (!intel_display_power_enabled(dev_priv,
+					 POWER_DOMAIN_PIPE(crtc->pipe)))
+		return false;
+
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
@@ -6980,6 +6984,10 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum intel_display_power_domain pfit_domain;
 	uint32_t tmp;
+
+	if (!intel_display_power_enabled(dev_priv,
+					 POWER_DOMAIN_PIPE(crtc->pipe)))
+		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
