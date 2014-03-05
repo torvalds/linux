@@ -127,6 +127,8 @@ struct btree {
 	struct cache_set	*c;
 	struct btree		*parent;
 
+	struct mutex		write_lock;
+
 	unsigned long		flags;
 	uint16_t		written;	/* would be nice to kill */
 	uint8_t			level;
@@ -236,6 +238,7 @@ static inline void rw_unlock(bool w, struct btree *b)
 }
 
 void bch_btree_node_read_done(struct btree *);
+void __bch_btree_node_write(struct btree *, struct closure *);
 void bch_btree_node_write(struct btree *, struct closure *);
 
 void bch_btree_set_root(struct btree *);

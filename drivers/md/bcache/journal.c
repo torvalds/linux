@@ -381,16 +381,15 @@ retry:
 
 	b = best;
 	if (b) {
-		rw_lock(true, b, b->level);
-
+		mutex_lock(&b->write_lock);
 		if (!btree_current_write(b)->journal) {
-			rw_unlock(true, b);
+			mutex_unlock(&b->write_lock);
 			/* We raced */
 			goto retry;
 		}
 
-		bch_btree_node_write(b, NULL);
-		rw_unlock(true, b);
+		__bch_btree_node_write(b, NULL);
+		mutex_unlock(&b->write_lock);
 	}
 }
 
