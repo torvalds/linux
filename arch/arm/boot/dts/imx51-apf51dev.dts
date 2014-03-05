@@ -18,7 +18,6 @@
 
 	display@di1 {
 		compatible = "fsl,imx-parallel-display";
-		crtcs = <&ipu 0>;
 		interface-pix-fmt = "bgr666";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu_disp1_1>;
@@ -39,6 +38,12 @@
 				vsync-active = <1>;
 				de-active = <1>;
 				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			display_in: endpoint {
+				remote-endpoint = <&ipu_di0_disp0>;
 			};
 		};
 	};
@@ -121,4 +126,8 @@
 			>;
 		};
 	};
+};
+
+&ipu_di0_disp0 {
+	remote-endpoint = <&display_in>;
 };
