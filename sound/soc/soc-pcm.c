@@ -107,17 +107,11 @@ void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream)
  */
 bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 {
-	bool ignore = true;
-
 	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
 		return true;
 
-	if (rtd->cpu_dai->codec)
-		ignore &= rtd->cpu_dai->codec->ignore_pmdown_time;
-
-	ignore &= rtd->codec_dai->codec->ignore_pmdown_time;
-
-	return ignore;
+	return rtd->cpu_dai->component->ignore_pmdown_time &&
+			rtd->codec_dai->component->ignore_pmdown_time;
 }
 
 /**

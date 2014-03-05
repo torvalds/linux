@@ -663,6 +663,8 @@ struct snd_soc_component {
 
 	unsigned int active;
 
+	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
+
 	struct list_head list;
 
 	struct snd_soc_dai_driver *dai_drv;
@@ -715,7 +717,6 @@ struct snd_soc_codec {
 
 	/* dapm */
 	struct snd_soc_dapm_context dapm;
-	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_codec_root;
