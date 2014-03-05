@@ -5608,7 +5608,10 @@ static int dgap_param(struct tty_struct *tty)
 		if (cflag != ch->ch_fepcflag) {
 			ch->ch_fepcflag = (u16) (cflag & 0xffff);
 
-			/* Okay to have channel and board locks held calling this */
+			/*
+			 * Okay to have channel and board
+			 * locks held calling this
+			 */
 			dgap_cmdw(ch, SCFLAG, (u16) cflag, 0);
 		}
 
@@ -5623,9 +5626,11 @@ static int dgap_param(struct tty_struct *tty)
 	/*
 	 * Get input flags.
 	 */
-	iflag = ch->ch_c_iflag & (IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK | ISTRIP | IXON | IXANY | IXOFF);
+	iflag = ch->ch_c_iflag & (IGNBRK | BRKINT | IGNPAR | PARMRK |
+				  INPCK | ISTRIP | IXON | IXANY | IXOFF);
 
-	if ((ch->ch_startc == _POSIX_VDISABLE) || (ch->ch_stopc == _POSIX_VDISABLE)) {
+	if ((ch->ch_startc == _POSIX_VDISABLE) ||
+	    (ch->ch_stopc == _POSIX_VDISABLE)) {
 		iflag &= ~(IXON | IXOFF);
 		ch->ch_c_iflag &= ~(IXON | IXOFF);
 	}
@@ -5678,7 +5683,8 @@ static int dgap_param(struct tty_struct *tty)
 
 
 	/*
-	 * Set RTS and/or DTR Toggle if needed, but only if product is FEP5+ based.
+	 * Set RTS and/or DTR Toggle if needed,
+	 * but only if product is FEP5+ based.
 	 */
 	if (bd->bd_flags & BD_FEP5PLUS) {
 		u16 hflow2 = 0;
@@ -5712,7 +5718,8 @@ static int dgap_param(struct tty_struct *tty)
 	/*
 	 * Set the start and stop characters.
 	 */
-	if (ch->ch_startc != ch->ch_fepstartc || ch->ch_stopc != ch->ch_fepstopc) {
+	if (ch->ch_startc != ch->ch_fepstartc ||
+	    ch->ch_stopc != ch->ch_fepstopc) {
 		ch->ch_fepstartc = ch->ch_startc;
 		ch->ch_fepstopc =  ch->ch_stopc;
 
@@ -5723,7 +5730,8 @@ static int dgap_param(struct tty_struct *tty)
 	/*
 	 * Set the Auxiliary start and stop characters.
 	 */
-	if (ch->ch_astartc != ch->ch_fepastartc || ch->ch_astopc != ch->ch_fepastopc) {
+	if (ch->ch_astartc != ch->ch_fepastartc ||
+	    ch->ch_astopc != ch->ch_fepastopc) {
 		ch->ch_fepastartc = ch->ch_astartc;
 		ch->ch_fepastopc = ch->ch_astopc;
 
@@ -5740,7 +5748,8 @@ static int dgap_param(struct tty_struct *tty)
  * Convert the FEP5 way of reporting parity errors and breaks into
  * the Linux line discipline way.
  */
-static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned char *fbuf, int *len)
+static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf,
+				unsigned char *fbuf, int *len)
 {
 	int l = *len;
 	int count = 0;
