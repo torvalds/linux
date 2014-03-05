@@ -215,7 +215,7 @@ void rts51x_try_to_exit_ss(struct rts51x_chip *chip)
  * a USB port reset, whether from this driver or a different one.
  */
 
-int rts51x_pre_reset(struct usb_interface *iface)
+static int rts51x_pre_reset(struct usb_interface *iface)
 {
 	struct rts51x_chip *chip = usb_get_intfdata(iface);
 
@@ -226,7 +226,7 @@ int rts51x_pre_reset(struct usb_interface *iface)
 	return 0;
 }
 
-int rts51x_post_reset(struct usb_interface *iface)
+static int rts51x_post_reset(struct usb_interface *iface)
 {
 	struct rts51x_chip *chip = usb_get_intfdata(iface);
 
