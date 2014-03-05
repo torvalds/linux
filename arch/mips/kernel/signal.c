@@ -280,7 +280,7 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	return err;
 }
 
-void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 			  size_t frame_size)
 {
 	unsigned long sp;
@@ -295,9 +295,7 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	 */
 	sp -= 32;
 
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
-		sp = current->sas_ss_sp + current->sas_ss_size;
+	sp = sigsp(sp, ksig);
 
 	return (void __user *)((sp - frame_size) & (ICACHE_REFILLS_WORKAROUND_WAR ? ~(cpu_icache_line_size()-1) : ALMASK));
 }
@@ -434,7 +432,7 @@ static int setup_frame(void *sig_return, struct ksignal *ksig,
 	struct sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		return -EFAULT;
 
@@ -473,7 +471,7 @@ static int setup_rt_frame(void *sig_return, struct ksignal *ksig,
 	struct rt_sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		return -EFAULT;
 

@@ -496,7 +496,7 @@ static int setup_frame_32(void *sig_return, struct ksignal *ksig,
 	struct sigframe32 __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		return -EFAULT;
 
@@ -536,7 +536,7 @@ static int setup_rt_frame_32(void *sig_return, struct ksignal *ksig,
 	struct rt_sigframe32 __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		return -EFAULT;
 
