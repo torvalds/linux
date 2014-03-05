@@ -63,7 +63,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 {
 	int r;
 
-	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256, true);
+	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256);
 	if (r) {
 		dev_err(rdev->dev, "failed to get a new IB (%d)\n", r);
 		return r;
@@ -145,6 +145,13 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		return r;
 	}
 
+	/* grab a vm id if necessary */
+	if (ib->vm) {
+		struct radeon_fence *vm_id_fence;
+		vm_id_fence = radeon_vm_grab_id(rdev, ib->vm, ib->ring);
+        	radeon_semaphore_sync_to(ib->semaphore, vm_id_fence);
+	}
+
 	/* sync with other rings */
 	r = radeon_semaphore_sync_rings(rdev, ib->semaphore, ib->ring);
 	if (r) {
@@ -153,11 +160,9 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		return r;
 	}
 
-	/* if we can't remember our last VM flush then flush now! */
-	/* XXX figure out why we have to flush for every IB */
-	if (ib->vm /*&& !ib->vm->last_flush*/) {
-		radeon_ring_vm_flush(rdev, ib->ring, ib->vm);
-	}
+	if (ib->vm)
+		radeon_vm_flush(rdev, ib->vm, ib->ring);
+
 	if (const_ib) {
 		radeon_ring_ib_execute(rdev, const_ib->ring, const_ib);
 		radeon_semaphore_free(rdev, &const_ib->semaphore, NULL);
@@ -172,10 +177,10 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	if (const_ib) {
 		const_ib->fence = radeon_fence_ref(ib->fence);
 	}
-	/* we just flushed the VM, remember that */
-	if (ib->vm && !ib->vm->last_flush) {
-		ib->vm->last_flush = radeon_fence_ref(ib->fence);
-	}
+
+	if (ib->vm)
+		radeon_vm_fence(rdev, ib->vm, ib->fence);
+
 	radeon_ring_unlock_commit(rdev, ring);
 	return 0;
 }
@@ -382,7 +387,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		if (ndw < ring->ring_free_dw) {
 			break;
 		}
-		r = radeon_fence_wait_next_locked(rdev, ring->idx);
+		r = radeon_fence_wait_next(rdev, ring->idx);
 		if (r)
 			return r;
 	}
@@ -485,8 +490,8 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 void radeon_ring_lockup_update(struct radeon_device *rdev,
 			       struct radeon_ring *ring)
 {
-	ring->last_rptr = radeon_ring_get_rptr(rdev, ring);
-	ring->last_activity = jiffies;
+	atomic_set(&ring->last_rptr, radeon_ring_get_rptr(rdev, ring));
+	atomic64_set(&ring->last_activity, jiffies_64);
 }
 
 /**
@@ -498,22 +503,19 @@ void radeon_ring_lockup_update(struct radeon_device *rdev,
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	uint32_t rptr = radeon_ring_get_rptr(rdev, ring);
-	unsigned long cjiffies, elapsed;
+	uint64_t last = atomic64_read(&ring->last_activity);
+	uint64_t elapsed;
 
-	cjiffies = jiffies;
-	if (!time_after(cjiffies, ring->last_activity)) {
-		/* likely a wrap around */
+	if (rptr != atomic_read(&ring->last_rptr)) {
+		/* ring is still working, no lockup */
 		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	if (rptr != ring->last_rptr) {
-		/* CP is still working no lockup */
-		radeon_ring_lockup_update(rdev, ring);
-		return false;
-	}
-	elapsed = jiffies_to_msecs(cjiffies - ring->last_activity);
+
+	elapsed = jiffies_to_msecs(jiffies_64 - last);
 	if (radeon_lockup_timeout && elapsed >= radeon_lockup_timeout) {
-		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
+		dev_err(rdev->dev, "ring %d stalled for more than %llumsec\n",
+			ring->idx, elapsed);
 		return true;
 	}
 	/* give a chance to the GPU ... */

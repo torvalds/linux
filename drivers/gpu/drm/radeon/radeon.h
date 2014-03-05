@@ -363,9 +363,8 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, i
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
-int radeon_fence_wait_locked(struct radeon_fence *fence);
-int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring);
-int radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring);
+int radeon_fence_wait_next(struct radeon_device *rdev, int ring);
+int radeon_fence_wait_empty(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_any(struct radeon_device *rdev,
 			  struct radeon_fence **fences,
 			  bool intr);
@@ -457,6 +456,7 @@ struct radeon_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
+	u32				initial_domain;
 	u32				placements[3];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
@@ -478,16 +478,6 @@ struct radeon_bo {
 	pid_t				pid;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
-
-struct radeon_bo_list {
-	struct ttm_validate_buffer tv;
-	struct radeon_bo	*bo;
-	uint64_t		gpu_offset;
-	bool			written;
-	unsigned		domain;
-	unsigned		alt_domain;
-	u32			tiling_flags;
-};
 
 int radeon_gem_debugfs_init(struct radeon_device *rdev);
 
@@ -805,8 +795,8 @@ struct radeon_ring {
 	unsigned		ring_size;
 	unsigned		ring_free_dw;
 	int			count_dw;
-	unsigned long		last_activity;
-	unsigned		last_rptr;
+	atomic_t		last_rptr;
+	atomic64_t		last_activity;
 	uint64_t		gpu_addr;
 	uint32_t		align_mask;
 	uint32_t		ptr_mask;
@@ -858,17 +848,22 @@ struct radeon_mec {
 #define R600_PTE_READABLE	(1 << 5)
 #define R600_PTE_WRITEABLE	(1 << 6)
 
+struct radeon_vm_pt {
+	struct radeon_bo		*bo;
+	uint64_t			addr;
+};
+
 struct radeon_vm {
-	struct list_head		list;
 	struct list_head		va;
 	unsigned			id;
 
 	/* contains the page directory */
-	struct radeon_sa_bo		*page_directory;
+	struct radeon_bo		*page_directory;
 	uint64_t			pd_gpu_addr;
+	unsigned			max_pde_used;
 
 	/* array of page tables, one for each page directory entry */
-	struct radeon_sa_bo		**page_tables;
+	struct radeon_vm_pt		*page_tables;
 
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
@@ -880,10 +875,7 @@ struct radeon_vm {
 };
 
 struct radeon_vm_manager {
-	struct mutex			lock;
-	struct list_head		lru_vm;
 	struct radeon_fence		*active[RADEON_NUM_VM];
-	struct radeon_sa_manager	sa_manager;
 	uint32_t			max_pfn;
 	/* number of VMIDs */
 	unsigned			nvm;
@@ -986,9 +978,12 @@ void cayman_dma_fini(struct radeon_device *rdev);
 struct radeon_cs_reloc {
 	struct drm_gem_object		*gobj;
 	struct radeon_bo		*robj;
-	struct radeon_bo_list		lobj;
+	struct ttm_validate_buffer	tv;
+	uint64_t			gpu_offset;
+	unsigned			domain;
+	unsigned			alt_domain;
+	uint32_t			tiling_flags;
 	uint32_t			handle;
-	uint32_t			flags;
 };
 
 struct radeon_cs_chunk {
@@ -1012,6 +1007,7 @@ struct radeon_cs_parser {
 	unsigned		nrelocs;
 	struct radeon_cs_reloc	*relocs;
 	struct radeon_cs_reloc	**relocs_ptr;
+	struct radeon_cs_reloc	*vm_bos;
 	struct list_head	validated;
 	unsigned		dma_reloc_idx;
 	/* indices of various chunks */
@@ -1635,7 +1631,6 @@ int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
 
 struct radeon_vce {
 	struct radeon_bo	*vcpu_bo;
-	void			*cpu_addr;
 	uint64_t		gpu_addr;
 	unsigned		fw_version;
 	unsigned		fb_version;
@@ -2117,6 +2112,8 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp);
 int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
+int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *filp);
 int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
@@ -2307,6 +2304,10 @@ struct radeon_device {
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
 	struct mutex			gpu_clock_mutex;
+	/* memory stats */
+	atomic64_t			vram_usage;
+	atomic64_t			gtt_usage;
+	atomic64_t			num_bytes_moved;
 	/* ACPI interface */
 	struct radeon_atif		atif;
 	struct radeon_atcs		atcs;
@@ -2794,16 +2795,22 @@ extern void radeon_program_register_sequence(struct radeon_device *rdev,
  */
 int radeon_vm_manager_init(struct radeon_device *rdev);
 void radeon_vm_manager_fini(struct radeon_device *rdev);
-void radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
+int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
-int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm);
-void radeon_vm_add_to_lru(struct radeon_device *rdev, struct radeon_vm *vm);
+struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
+					  struct radeon_vm *vm,
+                                          struct list_head *head);
 struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 				       struct radeon_vm *vm, int ring);
+void radeon_vm_flush(struct radeon_device *rdev,
+                     struct radeon_vm *vm,
+                     int ring);
 void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence);
 uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr);
+int radeon_vm_update_page_directory(struct radeon_device *rdev,
+				    struct radeon_vm *vm);
 int radeon_vm_bo_update(struct radeon_device *rdev,
 			struct radeon_vm *vm,
 			struct radeon_bo *bo,

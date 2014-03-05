@@ -486,6 +486,21 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case RADEON_INFO_VCE_FB_VERSION:
 		*value = rdev->vce.fb_version;
 		break;
+	case RADEON_INFO_NUM_BYTES_MOVED:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->num_bytes_moved);
+		break;
+	case RADEON_INFO_VRAM_USAGE:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->vram_usage);
+		break;
+	case RADEON_INFO_GTT_USAGE:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->gtt_usage);
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
@@ -544,7 +559,13 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 			return -ENOMEM;
 		}
 
-		radeon_vm_init(rdev, &fpriv->vm);
+		r = radeon_vm_init(rdev, &fpriv->vm);
+		if (r)
+			return r;
+
+		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
+		if (r)
+			return r;
 
 		/* map the ib pool buffer read only into
 		 * virtual address space */
@@ -553,6 +574,8 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		r = radeon_vm_bo_set_addr(rdev, bo_va, RADEON_VA_IB_OFFSET,
 					  RADEON_VM_PAGE_READABLE |
 					  RADEON_VM_PAGE_SNOOPED);
+
+		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 		if (r) {
 			radeon_vm_fini(rdev, &fpriv->vm);
 			kfree(fpriv);
@@ -814,5 +837,6 @@ const struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_VA, radeon_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_OP, radeon_gem_op_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 };
 int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);
