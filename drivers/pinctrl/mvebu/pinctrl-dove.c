@@ -832,7 +832,8 @@ static int dove_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	/* Warn on any missing DT resource */
-	WARN(fb_res.start, FW_BUG "Missing pinctrl regs in DTB. Please update your firmware.\n");
+	if (fb_res.start)
+		dev_warn(&pdev->dev, FW_BUG "Missing pinctrl regs in DTB. Please update your firmware.\n");
 
 	return mvebu_pinctrl_probe(pdev);
 }
