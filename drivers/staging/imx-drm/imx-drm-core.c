@@ -501,8 +501,9 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 {
 	struct imx_drm_crtc *imx_crtc = imx_drm_find_crtc(encoder->crtc);
 	struct device_node *ep = NULL;
+	struct of_endpoint endpoint;
 	struct device_node *port;
-	int id, ret;
+	int ret;
 
 	if (!node || !imx_crtc)
 		return -EINVAL;
@@ -515,9 +516,8 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 		port = of_graph_get_remote_port(ep);
 		of_node_put(port);
 		if (port == imx_crtc->port) {
-			ret = of_property_read_u32(ep->parent, "reg", &id);
-			of_node_put(ep);
-			return ret ? ret : id;
+			ret = of_graph_parse_endpoint(ep, &endpoint);
+			return ret ? ret : endpoint.id;
 		}
 	} while (ep);
 
