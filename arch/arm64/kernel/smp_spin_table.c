@@ -128,7 +128,7 @@ static int smp_spin_table_cpu_boot(unsigned int cpu)
 	return secondary_holding_pen_release != INVALID_HWID ? -ENOSYS : 0;
 }
 
-void smp_spin_table_cpu_postboot(void)
+static void smp_spin_table_cpu_postboot(void)
 {
 	/*
 	 * Let the primary processor know we're out of the pen.
