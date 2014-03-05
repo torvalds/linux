@@ -54,10 +54,9 @@
 #include <linux/if_arp.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <net/6lowpan.h>
 #include <net/ipv6.h>
 #include <net/af_ieee802154.h>
-
-#include "6lowpan.h"
 
 /*
  * Uncompress address function for source and
