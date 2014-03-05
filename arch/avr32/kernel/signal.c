@@ -127,12 +127,9 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 }
 
 static inline void __user *
-get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, int framesize)
+get_sigframe(struct ksignal *ksig, struct pt_regs *regs, int framesize)
 {
-	unsigned long sp = regs->sp;
-
-	if ((ka->sa.sa_flags & SA_ONSTACK) && !sas_ss_flags(sp))
-		sp = current->sas_ss_sp + current->sas_ss_size;
+	unsigned long sp = sigsp(regs->sp, ksig);
 
 	return (void __user *)((sp - framesize) & ~3);
 }
@@ -143,7 +140,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	struct rt_sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	err = -EFAULT;
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto out;
