@@ -43,6 +43,11 @@
 #include <linux/fb.h>
 #include <linux/wakelock.h>
 
+#if defined(CONFIG_ION_ROCKCHIP)
+#include <linux/rockchip_ion.h>
+#endif
+
+
 #include "rga.h"
 #include "rga_reg_info.h"
 #include "rga_mmu_info.h"
@@ -92,10 +97,18 @@ struct rga_drvdata {
     struct clk *pd_rga;
 	struct clk *aclk_rga;
     struct clk *hclk_rga;
+
+    //#if defined(CONFIG_ION_ROCKCHIP)
+    struct ion_client * ion_client;
+    //#endif
 };
 
 static struct rga_drvdata *drvdata;
 rga_service_info rga_service;
+
+#if defined(CONFIG_ION_ROCKCHIP)
+extern struct ion_client *rockchip_ion_client_create(const char * name);
+#endif
 
 static int rga_blit_async(rga_session *session, struct rga_req *req);
 static void rga_del_running_list(void);
@@ -778,6 +791,44 @@ static void rga_mem_addr_sel(struct rga_req *req)
 }
 
 
+static int rga_convert_dma_buf(struct rga_req *req)
+{
+    int usr_fd;
+	struct ion_handle *hdl;
+	ion_phys_addr_t phy_addr;
+	size_t len;
+
+    if(!req->src.yrgb_addr) {
+        if (copy_from_user(&usr_fd, &req->src.yrgb_addr, sizeof(usr_fd)))
+            return -EFAULT;
+        hdl = ion_import_dma_buf(drvdata->ion_client, usr_fd);
+	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
+        req->src.yrgb_addr = phy_addr;
+
+        req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+    }
+    else {
+        req->src.yrgb_addr = req->src.uv_addr;
+        req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+    }
+
+    if(!req->dst.yrgb_addr) {
+        if (copy_from_user(&usr_fd, &req->dst.yrgb_addr, sizeof(usr_fd)))
+            return -EFAULT;
+        hdl = ion_import_dma_buf(drvdata->ion_client, usr_fd);
+	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
+        req->dst.yrgb_addr = phy_addr;
+
+        req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+    }
+    else {
+        req->dst.yrgb_addr = req->dst.uv_addr;
+        req->dst.uv_addr = req->dst.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+    }
+
+    return 0;
+}
+
 static int rga_blit(rga_session *session, struct rga_req *req)
 {
     int ret = -1;
@@ -792,10 +843,17 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     daw = req->dst.act_w;
     dah = req->dst.act_h;
 
-    do
-    {
-        if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah)))
-        {
+    if(rga_convert_dma_buf(req)) {
+        printk("RGA : DMA buf copy error\n");
+        return -EFAULT;
+    }
+
+    #if RGA_TEST
+    print_info(req);
+    #endif
+
+    do {
+        if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah))) {
             /* generate 2 cmd for pre scale */
 
             ret = rga_check_param(req);
@@ -828,8 +886,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
             num = 2;
 
         }
-        else
-        {
+        else {
             /* check value if legal */
             ret = rga_check_param(req);
         	if(ret == -EINVAL) {
@@ -838,9 +895,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
         	}
 
             if(req->render_mode == bitblt_mode)
-            {
                 rga_mem_addr_sel(req);
-            }
 
             reg = rga_reg_init(session, req);
             if(reg == NULL) {
@@ -867,8 +922,8 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
 
     #if RGA_TEST
     printk("*** rga_blit_async proc ***\n");
-    print_info(req);
     #endif
+
     atomic_set(&session->done, 0);
     ret = rga_blit(session, req);
 
@@ -882,7 +937,6 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
 
     #if RGA_TEST
     printk("*** rga_blit_sync proc ***\n");
-    print_info(req);
     #endif
 
     atomic_set(&session->done, 0);
@@ -1134,7 +1188,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 {
 	struct rga_drvdata *data;
     struct resource *res;
-    struct device_node *np = pdev->dev.of_node;
+    //struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 
 	mutex_init(&rga_service.lock);
@@ -1185,6 +1239,16 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 	drvdata = data;
+
+    #if defined(CONFIG_ION_ROCKCHIP)
+	data->ion_client = rockchip_ion_client_create("rga");
+	if (IS_ERR(data->ion_client)) {
+		dev_err(&pdev->dev, "failed to create ion client for rga");
+		return PTR_ERR(data->ion_client);
+	} else {
+		dev_info(&pdev->dev, "rga ion client create success!\n");
+	}
+    #endif
 
 	ret = misc_register(&rga_dev);
 	if(ret)
