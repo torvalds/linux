@@ -76,38 +76,23 @@
 #include <linux/seq_file.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-// #include <linux/sched.h>
-// #include <linux/ptrace.h>
-// #include <linux/slab.h>
-// #include <linux/ctype.h>
-// #include <linux/string.h>
-// #include <linux/timer.h>
-//#include <linux/interrupt.h>
-// #include <linux/tqueue.h>
-// #include <linux/in.h>
-// #include <linux/delay.h>
-// #include <asm/io.h>
-// // #include <asm/bitops.h>
 #include <linux/unistd.h>
 #include <asm/uaccess.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-// #include <linux/skbuff.h>
-// #include <linux/if_arp.h>
-// #include <linux/ioport.h>
 
 #define BIN_DL 0
 #if BIN_DL
 #include <linux/vmalloc.h>
-#endif // BIN_DL
+#endif /* BIN_DL */
 
 
 #include <debug.h>
 
 #include <hcf.h>
 #include <dhf.h>
-//in order to get around:: wl_main.c:2229: `HREG_EV_RDMAD' undeclared (first use in this function)
+/* in order to get around:: wl_main.c:2229: `HREG_EV_RDMAD' undeclared (first use in this function) */
 #include <hcfdef.h>
 
 #include <wl_if.h>
@@ -168,7 +153,7 @@ static const struct file_operations scull_read_procmem_fops = {
 /*******************************************************************************
  * module parameter definitions - set with 'insmod'
  ******************************************************************************/
-static p_u16    irq_mask                = 0xdeb8; // IRQ3,4,5,7,9,10,11,12,14,15
+static p_u16    irq_mask                = 0xdeb8; /* IRQ3,4,5,7,9,10,11,12,14,15 */
 static p_s8     irq_list[4]             = { -1 };
 
 #if 0
@@ -183,7 +168,7 @@ static p_u16    PARM_AUTH_KEY_MGMT_SUITE   	= PARM_DEFAULT_AUTH_KEY_MGMT_SUITE;
 static p_u16    PARM_BRSC_2GHZ             	= PARM_DEFAULT_BRSC_2GHZ;
 static p_u16    PARM_BRSC_5GHZ             	= PARM_DEFAULT_BRSC_5GHZ;
 static p_u16    PARM_COEXISTENCE           	= PARM_DEFAULT_COEXISTENCE;
-static p_u16    PARM_CONNECTION_CONTROL    	= PARM_DEFAULT_CONNECTION_CONTROL;  //;?rename and move
+static p_u16    PARM_CONNECTION_CONTROL   	= PARM_DEFAULT_CONNECTION_CONTROL;  /* ;?rename and move */
 static p_char  *PARM_CREATE_IBSS           	= PARM_DEFAULT_CREATE_IBSS_STR;
 static p_char  *PARM_DESIRED_SSID          	= PARM_DEFAULT_SSID;
 static p_char  *PARM_DOWNLOAD_FIRMWARE      = "";
@@ -220,7 +205,7 @@ static p_u16    PARM_RTS_THRESHOLD3        	= PARM_DEFAULT_RTS_THRESHOLD;
 static p_u16    PARM_RTS_THRESHOLD4        	= PARM_DEFAULT_RTS_THRESHOLD;
 static p_u16    PARM_RTS_THRESHOLD5        	= PARM_DEFAULT_RTS_THRESHOLD;
 static p_u16    PARM_RTS_THRESHOLD6        	= PARM_DEFAULT_RTS_THRESHOLD;
-#endif // USE_WDS
+#endif /* USE_WDS */
 static p_u16    PARM_RTS_THRESHOLD         	= PARM_DEFAULT_RTS_THRESHOLD;
 static p_u16    PARM_SRSC_2GHZ             	= PARM_DEFAULT_SRSC_2GHZ;
 static p_u16    PARM_SRSC_5GHZ             	= PARM_DEFAULT_SRSC_5GHZ;
@@ -234,7 +219,7 @@ static p_u16    PARM_TX_RATE3              	= PARM_DEFAULT_TX_RATE_2GHZ;
 static p_u16    PARM_TX_RATE4              	= PARM_DEFAULT_TX_RATE_2GHZ;
 static p_u16    PARM_TX_RATE5              	= PARM_DEFAULT_TX_RATE_2GHZ;
 static p_u16    PARM_TX_RATE6              	= PARM_DEFAULT_TX_RATE_2GHZ;
-#endif // USE_WDS
+#endif /* USE_WDS */
 static p_u16    PARM_TX_RATE               	= PARM_DEFAULT_TX_RATE_2GHZ;
 #ifdef USE_WDS
 static p_u8     PARM_WDS_ADDRESS1[ETH_ALEN]	= PARM_DEFAULT_NETWORK_ADDR;
@@ -243,7 +228,7 @@ static p_u8     PARM_WDS_ADDRESS3[ETH_ALEN]	= PARM_DEFAULT_NETWORK_ADDR;
 static p_u8     PARM_WDS_ADDRESS4[ETH_ALEN]	= PARM_DEFAULT_NETWORK_ADDR;
 static p_u8     PARM_WDS_ADDRESS5[ETH_ALEN]	= PARM_DEFAULT_NETWORK_ADDR;
 static p_u8     PARM_WDS_ADDRESS6[ETH_ALEN]	= PARM_DEFAULT_NETWORK_ADDR;
-#endif // USE_WDS
+#endif /* USE_WDS */
 
 
 #if 0
@@ -299,39 +284,41 @@ MODULE_PARM(PARM_BRSC_2GHZ,             "b");
 MODULE_PARM_DESC(PARM_BRSC_2GHZ,                "Basic Rate Set Control 2.4 GHz");
 MODULE_PARM(PARM_BRSC_5GHZ,             "b");
 MODULE_PARM_DESC(PARM_BRSC_5GHZ,                "Basic Rate Set Control 5.0 GHz");
-#if 1 //;? (HCF_TYPE) & HCF_TYPE_STA
-//;?seems reasonable that even an AP-only driver could afford this small additional footprint
+#if 1 /* (HCF_TYPE) & HCF_TYPE_STA */
+/* ;?seems reasonable that even an AP-only driver could afford this small additional footprint */
 MODULE_PARM(PARM_PM_ENABLED,            "h");
 MODULE_PARM_DESC(PARM_PM_ENABLED,               "Power Management State (0 - 2, 8001 - 8002) [0]");
 MODULE_PARM(PARM_PORT_TYPE,             "b");
 MODULE_PARM_DESC(PARM_PORT_TYPE,                "Port Type (1 - 3) [1]");
-//;?MODULE_PARM(PARM_CREATE_IBSS,           "s");
-//;?MODULE_PARM_DESC(PARM_CREATE_IBSS,              "Create IBSS (<string> N or Y) [N]");
-//;?MODULE_PARM(PARM_MULTICAST_RX,          "s");
-//;?MODULE_PARM_DESC(PARM_MULTICAST_RX,             "Multicast Receive Enable (<string> N or Y) [Y]");
-//;?MODULE_PARM(PARM_MAX_SLEEP,             "h");
-//;?MODULE_PARM_DESC(PARM_MAX_SLEEP,                "Maximum Power Management Sleep Duration (0 - 65535) [100]");
-//;?MODULE_PARM(PARM_NETWORK_ADDR,          "6b");
-//;?MODULE_PARM_DESC(PARM_NETWORK_ADDR,             "Hardware Ethernet Address ([0x00-0xff],[0x00-0xff],[0x00-0xff],[0x00-0xff],[0x00-0xff],[0x00-0xff]) [<factory value>]");
-//;?MODULE_PARM(PARM_AUTHENTICATION,        "b");
-//
-//tracker 12448
-//;?MODULE_PARM_DESC(PARM_AUTHENTICATION,           "Authentication Type (0-2) [0] 0=Open 1=SharedKey 2=LEAP");
-//;?MODULE_PARM_DESC(authentication,         "Authentication Type (1-2) [1] 1=Open 2=SharedKey");
-//tracker 12448
-//
-//;?MODULE_PARM(PARM_OWN_ATIM_WINDOW,       "b");
-//;?MODULE_PARM_DESC(PARM_OWN_ATIM_WINDOW,          "ATIM Window time in TU for IBSS creation (0-100) [0]");
-//;?MODULE_PARM(PARM_PM_HOLDOVER_DURATION,  "b");
-//;?MODULE_PARM_DESC(PARM_PM_HOLDOVER_DURATION,     "Time station remains awake after MAC frame transfer when PM is on (0-65535) [100]");
-//;?MODULE_PARM(PARM_PROMISCUOUS_MODE,      "s");
-//;?MODULE_PARM_DESC(PARM_PROMISCUOUS_MODE,         "Promiscuous Mode Enable (<string> Y or N ) [N]" );
-//;?
+/*
+ * ;?MODULE_PARM(PARM_CREATE_IBSS,           "s");
+ *;?MODULE_PARM_DESC(PARM_CREATE_IBSS,              "Create IBSS (<string> N or Y) [N]");
+ *;?MODULE_PARM(PARM_MULTICAST_RX,          "s");
+ *;?MODULE_PARM_DESC(PARM_MULTICAST_RX,             "Multicast Receive Enable (<string> N or Y) [Y]");
+ *;?MODULE_PARM(PARM_MAX_SLEEP,             "h");
+ *;?MODULE_PARM_DESC(PARM_MAX_SLEEP,                "Maximum Power Management Sleep Duration (0 - 65535) [100]");
+ *;?MODULE_PARM(PARM_NETWORK_ADDR,          "6b");
+ *;?MODULE_PARM_DESC(PARM_NETWORK_ADDR,             "Hardware Ethernet Address ([0x00-0xff],[0x00-0xff],[0x00-0xff],[0x00-0xff],[0x00-0xff],[0x00-0xff]) [<factory value>]");
+ *;?MODULE_PARM(PARM_AUTHENTICATION,        "b");
+ *
+ *tracker 12448
+ *;?MODULE_PARM_DESC(PARM_AUTHENTICATION,           "Authentication Type (0-2) [0] 0=Open 1=SharedKey 2=LEAP");
+ *;?MODULE_PARM_DESC(authentication,         "Authentication Type (1-2) [1] 1=Open 2=SharedKey");
+ *tracker 12448
+ *
+ *;?MODULE_PARM(PARM_OWN_ATIM_WINDOW,       "b");
+ *;?MODULE_PARM_DESC(PARM_OWN_ATIM_WINDOW,          "ATIM Window time in TU for IBSS creation (0-100) [0]");
+ *;?MODULE_PARM(PARM_PM_HOLDOVER_DURATION,  "b");
+ *;?MODULE_PARM_DESC(PARM_PM_HOLDOVER_DURATION,     "Time station remains awake after MAC frame transfer when PM is on (0-65535) [100]");
+ *;?MODULE_PARM(PARM_PROMISCUOUS_MODE,      "s");
+ *;?MODULE_PARM_DESC(PARM_PROMISCUOUS_MODE,         "Promiscuous Mode Enable (<string> Y or N ) [N]" );
+ *;?
+ */
 MODULE_PARM(PARM_CONNECTION_CONTROL,    "b");
 MODULE_PARM_DESC(PARM_CONNECTION_CONTROL,       "Connection Control (0 - 3) [2]");
 #endif /* HCF_STA */
-#if 1 //;? (HCF_TYPE) & HCF_TYPE_AP
-					//;?should we restore this to allow smaller memory footprint
+#if 1 /* ;? (HCF_TYPE) & HCF_TYPE_AP */
+					/* ;?should we restore this to allow smaller memory footprint */
 MODULE_PARM(PARM_OWN_DTIM_PERIOD,       "b");
 MODULE_PARM_DESC(PARM_OWN_DTIM_PERIOD,          "DTIM Period (0 - 255) [1]");
 MODULE_PARM(PARM_REJECT_ANY,            "s");
@@ -394,11 +381,12 @@ MODULE_PARM_DESC(PARM_COEXISTENCE,      "Coexistence (0-7) [0]");
 #if DBG
 
 static p_u32    pc_debug = DBG_LVL;
-//MODULE_PARM(pc_debug, "i");
-/*static ;?conflicts with my understanding of CL parameters and breaks now I moved
+/*
+ * MODULE_PARM(pc_debug, "i");
+ *static ;?conflicts with my understanding of CL parameters and breaks now I moved
  * the correspondig logic to wl_profile
- */ p_u32    DebugFlag = ~0; //recognizable "undefined value" rather then DBG_DEFAULTS;
-//MODULE_PARM(DebugFlag, "l");
+ */ p_u32    DebugFlag = ~0; /* recognizable "undefined value" rather then DBG_DEFAULTS; */
+/* MODULE_PARM(DebugFlag, "l"); */
 
 static struct dbg_info wl_info = { KBUILD_MODNAME, 0, 0 };
 struct dbg_info *DbgInfo = &wl_info;
