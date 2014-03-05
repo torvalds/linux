@@ -1648,7 +1648,7 @@ pids, so one need to either stop or freeze processes being inspected
 if precise results are needed.
 
 
-3.7	/proc/<pid>/fdinfo/<fd> - Information about opened file
+3.8	/proc/<pid>/fdinfo/<fd> - Information about opened file
 ---------------------------------------------------------------
 This file provides information associated with an opened file. The regular
 files have at least two fields -- 'pos' and 'flags'. The 'pos' represents
