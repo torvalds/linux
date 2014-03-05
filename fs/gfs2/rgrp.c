@@ -99,11 +99,11 @@ static inline void gfs2_setbit(const struct gfs2_rbm *rbm, bool do_clone,
 	cur_state = (*byte1 >> bit) & GFS2_BIT_MASK;
 
 	if (unlikely(!valid_change[new_state * 4 + cur_state])) {
-		printk(KERN_WARNING "GFS2: buf_blk = 0x%x old_state=%d, "
+		pr_warn("GFS2: buf_blk = 0x%x old_state=%d, "
 		       "new_state=%d\n", rbm->offset, cur_state, new_state);
-		printk(KERN_WARNING "GFS2: rgrp=0x%llx bi_start=0x%x\n",
+		pr_warn("GFS2: rgrp=0x%llx bi_start=0x%x\n",
 		       (unsigned long long)rbm->rgd->rd_addr, bi->bi_start);
-		printk(KERN_WARNING "GFS2: bi_offset=0x%x bi_len=0x%x\n",
+		pr_warn("GFS2: bi_offset=0x%x bi_len=0x%x\n",
 		       bi->bi_offset, bi->bi_len);
 		dump_stack();
 		gfs2_consist_rgrpd(rbm->rgd);
@@ -736,11 +736,11 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 
 static void gfs2_rindex_print(const struct gfs2_rgrpd *rgd)
 {
-	printk(KERN_INFO "  ri_addr = %llu\n", (unsigned long long)rgd->rd_addr);
-	printk(KERN_INFO "  ri_length = %u\n", rgd->rd_length);
-	printk(KERN_INFO "  ri_data0 = %llu\n", (unsigned long long)rgd->rd_data0);
-	printk(KERN_INFO "  ri_data = %u\n", rgd->rd_data);
-	printk(KERN_INFO "  ri_bitbytes = %u\n", rgd->rd_bitbytes);
+	pr_info("  ri_addr = %llu\n", (unsigned long long)rgd->rd_addr);
+	pr_info("  ri_length = %u\n", rgd->rd_length);
+	pr_info("  ri_data0 = %llu\n", (unsigned long long)rgd->rd_data0);
+	pr_info("  ri_data = %u\n", rgd->rd_data);
+	pr_info("  ri_bitbytes = %u\n", rgd->rd_bitbytes);
 }
 
 /**
@@ -2278,7 +2278,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 		}
 	}
 	if (rbm.rgd->rd_free < *nblocks) {
-		printk(KERN_WARNING "nblocks=%u\n", *nblocks);
+		pr_warn("nblocks=%u\n", *nblocks);
 		goto rgrp_error;
 	}
 

@@ -152,7 +152,7 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 	if (sb->sb_magic != GFS2_MAGIC ||
 	    sb->sb_type != GFS2_METATYPE_SB) {
 		if (!silent)
-			printk(KERN_WARNING "GFS2: not a GFS2 filesystem\n");
+			pr_warn("GFS2: not a GFS2 filesystem\n");
 		return -EINVAL;
 	}
 
@@ -174,7 +174,7 @@ static void end_bio_io_page(struct bio *bio, int error)
 	if (!error)
 		SetPageUptodate(page);
 	else
-		printk(KERN_WARNING "gfs2: error %d reading superblock\n", error);
+		pr_warn("gfs2: error %d reading superblock\n", error);
 	unlock_page(page);
 }
 
@@ -945,7 +945,7 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 		lm = &gfs2_dlm_ops;
 #endif
 	} else {
-		printk(KERN_INFO "GFS2: can't find protocol %s\n", proto);
+		pr_info("GFS2: can't find protocol %s\n", proto);
 		return -ENOENT;
 	}
 
@@ -1052,7 +1052,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 
 	sdp = init_sbd(sb);
 	if (!sdp) {
-		printk(KERN_WARNING "GFS2: can't alloc struct gfs2_sbd\n");
+		pr_warn("GFS2: can't alloc struct gfs2_sbd\n");
 		return -ENOMEM;
 	}
 	sdp->sd_args = *args;
@@ -1300,7 +1300,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 
 	error = gfs2_mount_args(&args, data);
 	if (error) {
-		printk(KERN_WARNING "GFS2: can't parse mount arguments\n");
+		pr_warn("GFS2: can't parse mount arguments\n");
 		goto error_super;
 	}
 
@@ -1350,7 +1350,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 
 	error = kern_path(dev_name, LOOKUP_FOLLOW, &path);
 	if (error) {
-		printk(KERN_WARNING "GFS2: path_lookup on %s returned error %d\n",
+		pr_warn("GFS2: path_lookup on %s returned error %d\n",
 		       dev_name, error);
 		return ERR_PTR(error);
 	}
@@ -1358,7 +1358,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		 path.dentry->d_inode->i_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
-		printk(KERN_WARNING "GFS2: gfs2 mount does not exist\n");
+		pr_warn("GFS2: gfs2 mount does not exist\n");
 		return ERR_CAST(s);
 	}
 	if ((flags ^ s->s_flags) & MS_RDONLY) {

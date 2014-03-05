@@ -165,7 +165,7 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_register_debugfs();
 
-	printk("GFS2 installed\n");
+	pr_info("GFS2 installed\n");
 
 	return 0;
 
