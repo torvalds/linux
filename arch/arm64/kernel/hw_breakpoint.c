@@ -861,7 +861,7 @@ static void hw_breakpoint_reset(void *unused)
 	 * notifier some slots might be initialized; if so they are
 	 * reprogrammed according to the debug slots content.
 	 */
-	for (slots = this_cpu_ptr(bp_on_reg), i = 0; i < core_num_brps; ++i) {
+	for (slots = __get_cpu_var(bp_on_reg), i = 0; i < core_num_brps; ++i) {
 		if (slots[i]) {
 			hw_breakpoint_control(slots[i], HW_BREAKPOINT_RESTORE);
 		} else {
@@ -870,7 +870,7 @@ static void hw_breakpoint_reset(void *unused)
 		}
 	}
 
-	for (slots = this_cpu_ptr(wp_on_reg), i = 0; i < core_num_wrps; ++i) {
+	for (slots = __get_cpu_var(wp_on_reg), i = 0; i < core_num_wrps; ++i) {
 		if (slots[i]) {
 			hw_breakpoint_control(slots[i], HW_BREAKPOINT_RESTORE);
 		} else {
