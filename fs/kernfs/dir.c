@@ -190,7 +190,7 @@ static unsigned int kernfs_name_hash(const char *name, const void *ns)
 	hash = (end_name_hash(hash) ^ hash_ptr((void *)ns, 31));
 	hash &= 0x7fffffffU;
 	/* Reserve hash numbers 0, 1 and INT_MAX for magic directory entries */
-	if (hash < 1)
+	if (hash < 2)
 		hash += 2;
 	if (hash >= INT_MAX)
 		hash = INT_MAX - 1;
