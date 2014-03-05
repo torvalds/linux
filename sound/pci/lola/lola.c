@@ -586,7 +586,6 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip) {
-		dev_err(chip->card->dev, "cannot allocate chip\n");
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
