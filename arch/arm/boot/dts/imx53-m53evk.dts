@@ -23,7 +23,6 @@
 	soc {
 		display1: display@di1 {
 			compatible = "fsl,imx-parallel-display";
-			crtcs = <&ipu 1>;
 			interface-pix-fmt = "bgr666";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_ipu_disp2_1>;
@@ -44,6 +43,12 @@
 				};
 			};
 		};
+
+		port {
+			display1_in: endpoint {
+				remote-endpoint = <&ipu_di1_disp1>;
+			};
+		};
 	};
 
 	backlight {
@@ -51,12 +56,6 @@
 		pwms = <&pwm1 0 3000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
-	};
-
-	imx-drm {
-		compatible = "fsl,imx-drm";
-		crtcs = <&ipu 1>;
-		connectors = <&display1>;
 	};
 
 	leds {
@@ -225,6 +224,10 @@
 			>;
 		};
 	};
+};
+
+&ipu_di1_disp1 {
+	remote-endpoint = <&display1_in>;
 };
 
 &nfc {

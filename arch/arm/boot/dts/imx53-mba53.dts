@@ -38,15 +38,14 @@
 		compatible = "fsl,imx-parallel-display";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_disp1_1>;
-		crtcs = <&ipu 1>;
 		interface-pix-fmt = "rgb24";
 		status = "disabled";
-	};
 
-	imx-drm {
-		compatible = "fsl,imx-drm";
-		crtcs = <&ipu 1>;
-		connectors = <&disp1>, <&tve>;
+		port {
+			display1_in: endpoint {
+				remote-endpoint = <&ipu_di1_disp1>;
+			};
+		};
 	};
 
 	reg_3p2v: 3p2v {
@@ -145,6 +144,10 @@
 			>;
 		};
 	};
+};
+
+&ipu_di1_disp1 {
+	remote-endpoint = <&display1_in>;
 };
 
 &cspi {
