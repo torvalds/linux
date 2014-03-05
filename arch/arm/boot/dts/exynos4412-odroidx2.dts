@@ -159,7 +159,7 @@
 
 		/* HSIC0 is connected to the USB3503, HSIC1 is not used. */
 		port@0 {
-			status = "okay";
+			status = "disabled";
 		};
 		port@1 {
 			status = "okay";
