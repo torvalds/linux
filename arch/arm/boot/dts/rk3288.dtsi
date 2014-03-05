@@ -198,10 +198,10 @@
         status = "disabled";
     };
 	
-	rga@ff930000 {
+	rga@ff920000 {
 		compatible = "rockchip,rga";
-		reg = <0xff930000 0x1000>;
-		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0xff920000 0x1000>;
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
     clock-names = "hclk_rga", "aclk_rga"; 
 		status = "disabled";
         };
