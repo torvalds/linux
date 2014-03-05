@@ -32,7 +32,7 @@ struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
 
 #if IS_ENABLED(CONFIG_HYPERV)
-static irq_handler_t vmbus_handler;
+static void (*vmbus_handler)(void);
 
 void hyperv_vector_handler(struct pt_regs *regs)
 {
@@ -49,7 +49,7 @@ void hyperv_vector_handler(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int hv_setup_vmbus_irq(int irq, irq_handler_t handler, void *dev_id)
+void hv_setup_vmbus_irq(void (*handler)(void))
 {
 	vmbus_handler = handler;
 	/*
@@ -61,7 +61,7 @@ int hv_setup_vmbus_irq(int irq, irq_handler_t handler, void *dev_id)
 				hyperv_callback_vector);
 }
 
-void hv_remove_vmbus_irq(int irq, void *dev_id)
+void hv_remove_vmbus_irq(void)
 {
 	/* We have no way to deallocate the interrupt gate */
 	vmbus_handler = NULL;

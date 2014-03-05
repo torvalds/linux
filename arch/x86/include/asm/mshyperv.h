@@ -17,7 +17,7 @@ void hyperv_callback_vector(void);
 #define trace_hyperv_callback_vector hyperv_callback_vector
 #endif
 void hyperv_vector_handler(struct pt_regs *regs);
-int hv_setup_vmbus_irq(int irq, irq_handler_t handler, void *dev_id);
-void hv_remove_vmbus_irq(int irq, void *dev_id);
+void hv_setup_vmbus_irq(void (*handler)(void));
+void hv_remove_vmbus_irq(void);
 
 #endif
