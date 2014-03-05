@@ -98,8 +98,8 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 
 	acquired = 1;
 
-	queueWasEmpty = SignalQueueIsEmpty(queueinfo->chan, whichqueue);
-	if (!SignalInsert(queueinfo->chan, whichqueue, pSignal))
+	queueWasEmpty = visor_signalqueue_empty(queueinfo->chan, whichqueue);
+	if (!visor_signal_insert(queueinfo->chan, whichqueue, pSignal))
 		RETINT(0);
 	ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId, NULL);
 	acquired = 0;
@@ -138,11 +138,11 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 					issueInterruptIfEmpty,
 					interruptHandle, channelId)) {
 		if (oktowait != OK_TO_WAIT) {
-			LOGERR("****FAILED SignalInsert failed; cannot wait; insert aborted\n");
+			LOGERR("****FAILED visor_signal_insert failed; cannot wait; insert aborted\n");
 			return 0;	/* failed to queue */
 		}
 		/* try again */
-		LOGERR("****FAILED SignalInsert failed; waiting to try again\n");
+		LOGERR("****FAILED visor_signal_insert failed; waiting to try again\n");
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(msecs_to_jiffies(10));
 	}
@@ -156,7 +156,7 @@ int
 uisqueue_get_cmdrsp(struct uisqueue_info *queueinfo,
 		    void *cmdrsp, unsigned int whichqueue)
 {
-	if (!SignalRemove(queueinfo->chan, whichqueue, cmdrsp))
+	if (!visor_signal_remove(queueinfo->chan, whichqueue, cmdrsp))
 		return 0;
 
 	queueinfo->packets_received++;

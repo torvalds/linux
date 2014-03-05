@@ -37,12 +37,12 @@ struct CHARQUEUE_Tag {
 
 
 
-CHARQUEUE *charqueue_create(ulong nslots)
+CHARQUEUE *visor_charqueue_create(ulong nslots)
 {
 	int alloc_size = sizeof(CHARQUEUE) + nslots + 1;
 	CHARQUEUE *cq = kmalloc(alloc_size, GFP_KERNEL|__GFP_NORETRY);
 	if (cq == NULL) {
-		ERRDRV("charqueue_create allocation failed (alloc_size=%d)",
+		ERRDRV("visor_charqueue_create allocation failed (alloc_size=%d)",
 		       alloc_size);
 		return NULL;
 	}
@@ -52,11 +52,11 @@ CHARQUEUE *charqueue_create(ulong nslots)
 	spin_lock_init(&cq->lock);
 	return cq;
 }
-EXPORT_SYMBOL_GPL(charqueue_create);
+EXPORT_SYMBOL_GPL(visor_charqueue_create);
 
 
 
-void charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c)
+void visor_charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c)
 {
 	int alloc_slots = charqueue->nslots+1;  /* 1 slot is always empty */
 
@@ -68,11 +68,11 @@ void charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c)
 	charqueue->buf[charqueue->head] = c;
 	spin_unlock(&charqueue->lock);
 }
-EXPORT_SYMBOL_GPL(charqueue_enqueue);
+EXPORT_SYMBOL_GPL(visor_charqueue_enqueue);
 
 
 
-BOOL charqueue_is_empty(CHARQUEUE *charqueue)
+BOOL visor_charqueue_is_empty(CHARQUEUE *charqueue)
 {
 	BOOL b;
 	spin_lock(&charqueue->lock);
@@ -80,7 +80,7 @@ BOOL charqueue_is_empty(CHARQUEUE *charqueue)
 	spin_unlock(&charqueue->lock);
 	return b;
 }
-EXPORT_SYMBOL_GPL(charqueue_is_empty);
+EXPORT_SYMBOL_GPL(visor_charqueue_is_empty);
 
 
 
@@ -109,7 +109,7 @@ Away:
 
 
 
-int charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n)
+int visor_charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n)
 {
 	int rc = -1, counter = 0, c;
 
@@ -131,14 +131,14 @@ Away:
 	spin_unlock(&charqueue->lock);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(charqueue_dequeue_n);
+EXPORT_SYMBOL_GPL(visor_charqueue_dequeue_n);
 
 
 
-void charqueue_destroy(CHARQUEUE *charqueue)
+void visor_charqueue_destroy(CHARQUEUE *charqueue)
 {
 	if (charqueue == NULL)
 		return;
 	kfree(charqueue);
 }
-EXPORT_SYMBOL_GPL(charqueue_destroy);
+EXPORT_SYMBOL_GPL(visor_charqueue_destroy);

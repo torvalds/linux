@@ -44,7 +44,7 @@
  * 1 if the insertion succeeds, 0 if the queue was full.
  */
 unsigned char
-SignalInsert(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
+visor_signal_insert(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
 {
 	void *psignal;
 	unsigned int head, tail;
@@ -78,7 +78,7 @@ SignalInsert(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
 	pqhdr->NumSignalsSent++;
 	return 1;
 }
-EXPORT_SYMBOL_GPL(SignalInsert);
+EXPORT_SYMBOL_GPL(visor_signal_insert);
 
 /*
  * Routine Description:
@@ -99,7 +99,7 @@ EXPORT_SYMBOL_GPL(SignalInsert);
  * 1 if the removal succeeds, 0 if the queue was empty.
  */
 unsigned char
-SignalRemove(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
+visor_signal_remove(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
 {
 	void *psource;
 	unsigned int head, tail;
@@ -131,7 +131,7 @@ SignalRemove(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
 	pqhdr->NumSignalsReceived++;
 	return 1;
 }
-EXPORT_SYMBOL_GPL(SignalRemove);
+EXPORT_SYMBOL_GPL(visor_signal_remove);
 
 /*
  * Routine Description:
@@ -257,14 +257,14 @@ SignalPeek(pCHANNEL_HEADER pChannel, U32 Queue, U32 Position, void *pSignal)
  * 1 if the signal queue is empty, 0 otherwise.
  */
 unsigned char
-SignalQueueIsEmpty(pCHANNEL_HEADER pChannel, U32 Queue)
+visor_signalqueue_empty(pCHANNEL_HEADER pChannel, U32 Queue)
 {
 	pSIGNAL_QUEUE_HEADER pqhdr =
 	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
 				    pChannel->oChannelSpace) + Queue;
 	return pqhdr->Head == pqhdr->Tail;
 }
-EXPORT_SYMBOL_GPL(SignalQueueIsEmpty);
+EXPORT_SYMBOL_GPL(visor_signalqueue_empty);
 
 /*
  * Routine Description:

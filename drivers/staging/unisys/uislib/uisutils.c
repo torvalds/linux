@@ -48,7 +48,7 @@ atomic_t UisUtils_Registered_Services = ATOMIC_INIT(0);
 /*****************************************************/
 
 int
-util_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
+uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 		      char *format, ...)
 {
 	va_list args;
@@ -69,7 +69,7 @@ util_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 	*total += len;
 	return len;
 }
-EXPORT_SYMBOL_GPL(util_add_proc_line_ex);
+EXPORT_SYMBOL_GPL(uisutil_add_proc_line_ex);
 
 int
 uisctrl_register_req_handler(int type, void *fptr,
@@ -185,7 +185,7 @@ Away:
 EXPORT_SYMBOL_GPL(uisctrl_unregister_req_handler_ex);
 
 /*
- * unsigned int util_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
+ * unsigned int uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
  *					     void *skb_in,
  *					     unsigned int firstfraglen,
  *					     unsigned int frags_max,
@@ -203,9 +203,10 @@ EXPORT_SYMBOL_GPL(uisctrl_unregister_req_handler_ex);
  *					    entries filled in frags
  */
 unsigned int
-util_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
-			     unsigned int firstfraglen, unsigned int frags_max,
-			     struct phys_info frags[])
+uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
+				unsigned int firstfraglen,
+				unsigned int frags_max,
+				struct phys_info frags[])
 {
 	unsigned int count = 0, ii, size, offset = 0, numfrags;
 	struct sk_buff *skb = skb_in;
@@ -259,11 +260,12 @@ util_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
 		for (skbinlist = skb_shinfo(skb)->frag_list; skbinlist;
 		     skbinlist = skbinlist->next) {
 
-			c = util_copy_fragsinfo_from_skb("recursive", skbinlist,
-							 skbinlist->len -
-							 skbinlist->data_len,
-							 frags_max - count,
-							 &frags[count]);
+			c = uisutil_copy_fragsinfo_from_skb("recursive",
+							    skbinlist,
+							    skbinlist->len -
+							    skbinlist->data_len,
+							    frags_max - count,
+							    &frags[count]);
 			if (c == -1) {
 				LOGERR("**** FAILED recursive call failed\n");
 				return -1;
@@ -273,7 +275,7 @@ util_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
 	}
 	return count;
 }
-EXPORT_SYMBOL_GPL(util_copy_fragsinfo_from_skb);
+EXPORT_SYMBOL_GPL(uisutil_copy_fragsinfo_from_skb);
 
 static LIST_HEAD(ReqHandlerInfo_list);	/* list of ReqHandlerInfo_t */
 static DEFINE_SPINLOCK(ReqHandlerInfo_list_lock);

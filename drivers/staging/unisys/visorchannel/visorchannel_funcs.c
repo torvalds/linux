@@ -29,7 +29,7 @@
 #define MYDRVNAME "visorchannel"
 
 struct VISORCHANNEL_Tag {
-	MEMREGION *memregion;	/* from memregion_create() */
+	MEMREGION *memregion;	/* from visor_memregion_create() */
 	CHANNEL_HEADER chan_hdr;
 	GUID guid;
 	ulong size;
@@ -67,24 +67,25 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
 	/* prepare chan_hdr (abstraction to read/write channel memory) */
 	if (parent == NULL)
 		p->memregion =
-		    memregion_create(physaddr, sizeof(CHANNEL_HEADER));
+		    visor_memregion_create(physaddr, sizeof(CHANNEL_HEADER));
 	else
 		p->memregion =
-		    memregion_create_overlapped
-		    (parent->memregion, off, sizeof(CHANNEL_HEADER));
+		    visor_memregion_create_overlapped(parent->memregion,
+						      off,
+						      sizeof(CHANNEL_HEADER));
 	if (p->memregion == NULL)
-		FAIL("memregion_create failed", 0);
-	if (memregion_read(p->memregion, 0, &p->chan_hdr,
-			   sizeof(CHANNEL_HEADER)) < 0)
-		FAIL("memregion_read failed", 0);
+		FAIL("visor_memregion_create failed", 0);
+	if (visor_memregion_read(p->memregion, 0, &p->chan_hdr,
+				 sizeof(CHANNEL_HEADER)) < 0)
+		FAIL("visor_memregion_read failed", 0);
 	if (channelBytes == 0)
 		/* we had better be a CLIENT of this channel */
 		channelBytes = (ulong) p->chan_hdr.Size;
 	if (STRUCTSEQUAL(guid, Guid0))
 		/* we had better be a CLIENT of this channel */
 		guid = p->chan_hdr.Type;
-	if (memregion_resize(p->memregion, channelBytes) < 0)
-		FAIL("memregion_resize failed", 0);
+	if (visor_memregion_resize(p->memregion, channelBytes) < 0)
+		FAIL("visor_memregion_resize failed", 0);
 	p->size = channelBytes;
 	p->guid = guid;
 
@@ -143,7 +144,7 @@ visorchannel_destroy(VISORCHANNEL *channel)
 	if (channel == NULL)
 		return;
 	if (channel->memregion != NULL) {
-		memregion_destroy(channel->memregion);
+		visor_memregion_destroy(channel->memregion);
 		channel->memregion = NULL;
 	}
 	kfree(channel);
@@ -153,7 +154,7 @@ EXPORT_SYMBOL_GPL(visorchannel_destroy);
 HOSTADDRESS
 visorchannel_get_physaddr(VISORCHANNEL *channel)
 {
-	return memregion_get_physaddr(channel->memregion);
+	return visor_memregion_get_physaddr(channel->memregion);
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_physaddr);
 
@@ -228,7 +229,8 @@ int
 visorchannel_read(VISORCHANNEL *channel, ulong offset,
 		  void *local, ulong nbytes)
 {
-	int rc = memregion_read(channel->memregion, offset, local, nbytes);
+	int rc = visor_memregion_read(channel->memregion, offset,
+				      local, nbytes);
 	if ((rc >= 0) && (offset == 0) && (nbytes >= sizeof(CHANNEL_HEADER)))
 		memcpy(&channel->chan_hdr, local, sizeof(CHANNEL_HEADER));
 	return rc;
@@ -241,7 +243,7 @@ visorchannel_write(VISORCHANNEL *channel, ulong offset,
 {
 	if (offset == 0 && nbytes >= sizeof(CHANNEL_HEADER))
 		memcpy(&channel->chan_hdr, local, sizeof(CHANNEL_HEADER));
-	return memregion_write(channel->memregion, offset, local, nbytes);
+	return visor_memregion_write(channel->memregion, offset, local, nbytes);
 }
 EXPORT_SYMBOL_GPL(visorchannel_write);
 
@@ -263,8 +265,8 @@ visorchannel_clear(VISORCHANNEL *channel, ulong offset, U8 ch, ulong nbytes)
 		int x = -1;
 		if (nbytes < thisbytes)
 			thisbytes = nbytes;
-		x = memregion_write(channel->memregion, offset + written,
-				    buf, thisbytes);
+		x = visor_memregion_write(channel->memregion, offset + written,
+					  buf, thisbytes);
 		if (x < 0)
 			RETINT(x);
 		written += thisbytes;
@@ -304,12 +306,12 @@ EXPORT_SYMBOL_GPL(visorchannel_get_header);
 /** Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
  *  into host memory
  */
-#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)                \
-	(memregion_write(channel->memregion,                        \
-			 SIG_QUEUE_OFFSET(&channel->chan_hdr, queue)+\
-			   offsetof(SIGNAL_QUEUE_HEADER, FIELD),     \
-			 &((sig_hdr)->FIELD),                       \
-			 sizeof((sig_hdr)->FIELD)) >= 0)
+#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)			\
+	(visor_memregion_write(channel->memregion,			\
+			       SIG_QUEUE_OFFSET(&channel->chan_hdr, queue)+ \
+			       offsetof(SIGNAL_QUEUE_HEADER, FIELD),	\
+			       &((sig_hdr)->FIELD),			\
+			       sizeof((sig_hdr)->FIELD)) >= 0)
 
 static BOOL
 sig_read_header(VISORCHANNEL *channel, U32 queue,
@@ -322,12 +324,12 @@ sig_read_header(VISORCHANNEL *channel, U32 queue,
 
 	/* Read the appropriate SIGNAL_QUEUE_HEADER into local memory. */
 
-	if (memregion_read(channel->memregion,
-			   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
-			   sig_hdr, sizeof(SIGNAL_QUEUE_HEADER)) < 0) {
+	if (visor_memregion_read(channel->memregion,
+				 SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
+				 sig_hdr, sizeof(SIGNAL_QUEUE_HEADER)) < 0) {
 		ERRDRV("queue=%d SIG_QUEUE_OFFSET=%d",
 		       queue, (int)SIG_QUEUE_OFFSET(&channel->chan_hdr, queue));
-		FAIL("memregion_read of signal queue failed", FALSE);
+		FAIL("visor_memregion_read of signal queue failed", FALSE);
 	}
 	RETBOOL(TRUE);
 Away:
@@ -342,13 +344,16 @@ sig_do_data(VISORCHANNEL *channel, U32 queue,
 	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
 						 sig_hdr, slot);
 	if (is_write) {
-		if (memregion_write(channel->memregion, signal_data_offset,
-				    data, sig_hdr->SignalSize) < 0)
-			FAIL("memregion_write of signal data failed", FALSE);
+		if (visor_memregion_write(channel->memregion,
+					  signal_data_offset,
+					  data, sig_hdr->SignalSize) < 0)
+			FAIL("visor_memregion_write of signal data failed",
+			     FALSE);
 	} else {
-		if (memregion_read(channel->memregion, signal_data_offset,
-				   data, sig_hdr->SignalSize) < 0)
-			FAIL("memregion_read of signal data failed", FALSE);
+		if (visor_memregion_read(channel->memregion, signal_data_offset,
+					 data, sig_hdr->SignalSize) < 0)
+			FAIL("visor_memregion_read of signal data failed",
+			     FALSE);
 	}
 	RETBOOL(TRUE);
 Away:
@@ -414,9 +419,10 @@ visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg)
 	 */
 	MEMORYBARRIER;
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Tail))
-		FAIL("memregion_write of Tail failed", FALSE);
+		FAIL("visor_memregion_write of Tail failed", FALSE);
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsReceived))
-		FAIL("memregion_write of NumSignalsReceived failed", FALSE);
+		FAIL("visor_memregion_write of NumSignalsReceived failed",
+		     FALSE);
 
 	RETBOOL(TRUE);
 
@@ -468,9 +474,10 @@ visorchannel_safesignalremove(VISORCHANNEL *channel, U32 queue, void *msg)
 	 */
 	MEMORYBARRIER;
 	if (!SIG_WRITE_FIELD(channel, queue, &unsafe_sqh, Tail))
-		FAIL("memregion_write of Tail failed", FALSE);
+		FAIL("visor_memregion_write of Tail failed", FALSE);
 	if (!SIG_WRITE_FIELD(channel, queue, &unsafe_sqh, NumSignalsReceived))
-		FAIL("memregion_write of NumSignalsReceived failed", FALSE);
+		FAIL("visor_memregion_write of NumSignalsReceived failed",
+		     FALSE);
 
 	RETBOOL(TRUE);
 
@@ -501,7 +508,8 @@ visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 #endif
 		sig_hdr.NumOverflows++;
 		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumOverflows))
-			FAIL("memregion_write of NumOverflows failed", FALSE);
+			FAIL("visor_memregion_write of NumOverflows failed",
+			     FALSE);
 		RETBOOL(FALSE);
 	}
 
@@ -514,9 +522,9 @@ visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 	 */
 	MEMORYBARRIER;
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Head))
-		FAIL("memregion_write of Head failed", FALSE);
+		FAIL("visor_memregion_write of Head failed", FALSE);
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsSent))
-		FAIL("memregion_write of NumSignalsSent failed", FALSE);
+		FAIL("visor_memregion_write of NumSignalsSent failed", FALSE);
 
 	RETBOOL(TRUE);
 
@@ -595,7 +603,8 @@ visorchannel_safesignalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 #endif
 		unsafe_sqh.NumOverflows++;
 		if (!SIG_WRITE_FIELD(channel, queue, &unsafe_sqh, NumOverflows))
-			FAIL("memregion_write of NumOverflows failed", FALSE);
+			FAIL("visor_memregion_write of NumOverflows failed",
+			     FALSE);
 		RETBOOL(FALSE);
 	}
 
@@ -608,9 +617,9 @@ visorchannel_safesignalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 	 */
 	MEMORYBARRIER;
 	if (!SIG_WRITE_FIELD(channel, queue, &unsafe_sqh, Head))
-		FAIL("memregion_write of Head failed", FALSE);
+		FAIL("visor_memregion_write of Head failed", FALSE);
 	if (!SIG_WRITE_FIELD(channel, queue, &unsafe_sqh, NumSignalsSent))
-		FAIL("memregion_write of NumSignalsSent failed", FALSE);
+		FAIL("visor_memregion_write of NumSignalsSent failed", FALSE);
 
 	RETBOOL(TRUE);
 
@@ -667,8 +676,8 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 		ERRDRV("%s no memregion", __func__);
 		return;
 	}
-	addr = memregion_get_physaddr(memregion);
-	nbytes_region = memregion_get_nbytes(memregion);
+	addr = visor_memregion_get_physaddr(memregion);
+	nbytes_region = visor_memregion_get_nbytes(memregion);
 	errcode = visorchannel_read(channel, off,
 				    phdr, sizeof(CHANNEL_HEADER));
 	if (errcode < 0) {
@@ -748,7 +757,7 @@ visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 		goto Away;
 	}
 	seq_printf(seq, "channel %s:\n", s);
-	hexDumpToBuffer(fmtbuf, fmtbufsize, "  ", buf, len, 16);
+	visor_hexDumpToBuffer(fmtbuf, fmtbufsize, "  ", buf, len, 16);
 	for (i = 0; fmtbuf[i] != '\0'; i++)
 		seq_printf(seq, "%c", fmtbuf[i]);
 

@@ -1624,8 +1624,8 @@ chipset_proc_write(struct file *file, const char __user *buffer,
 
 #define PROCLINE(...)							\
 	do {								\
-		if (util_add_proc_line_ex(&tot, buff,			\
-					  buff_len, __VA_ARGS__) < 0) {	\
+		if (uisutil_add_proc_line_ex(&tot, buff,		\
+					     buff_len, __VA_ARGS__) < 0) { \
 			goto err_done;					\
 		}							\
 	} while (0)

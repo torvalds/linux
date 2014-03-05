@@ -126,11 +126,11 @@ static const struct file_operations proc_fops = {
 
 
 
-MYPROCTYPE *proc_CreateType(struct proc_dir_entry *procDirRoot,
-			    const char **name,
-			    const char **propertyNames,
-			    void (*show_property)(struct seq_file *,
-						  void *, int))
+MYPROCTYPE *visor_proc_CreateType(struct proc_dir_entry *procDirRoot,
+				  const char **name,
+				  const char **propertyNames,
+				  void (*show_property)(struct seq_file *,
+							void *, int))
 {
 	int i = 0;
 	MYPROCTYPE *rc = NULL, *type = NULL;
@@ -174,17 +174,17 @@ MYPROCTYPE *proc_CreateType(struct proc_dir_entry *procDirRoot,
 Away:
 	if (rc == NULL) {
 		if (type != NULL) {
-			proc_DestroyType(type);
+			visor_proc_DestroyType(type);
 			type = NULL;
 		}
 	}
 	return rc;
 }
-EXPORT_SYMBOL_GPL(proc_CreateType);
+EXPORT_SYMBOL_GPL(visor_proc_CreateType);
 
 
 
-void proc_DestroyType(MYPROCTYPE *type)
+void visor_proc_DestroyType(MYPROCTYPE *type)
 {
 	if (type == NULL)
 		return;
@@ -206,12 +206,12 @@ void proc_DestroyType(MYPROCTYPE *type)
 	}
 	kfree(type);
 }
-EXPORT_SYMBOL_GPL(proc_DestroyType);
+EXPORT_SYMBOL_GPL(visor_proc_DestroyType);
 
 
 
-MYPROCOBJECT *proc_CreateObject(MYPROCTYPE *type,
-				const char *name, void *context)
+MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
+				      const char *name, void *context)
 {
 	MYPROCOBJECT *obj = NULL, *rc = NULL;
 	int i = 0;
@@ -272,17 +272,17 @@ MYPROCOBJECT *proc_CreateObject(MYPROCTYPE *type,
 Away:
 	if (rc == NULL) {
 		if (obj != NULL) {
-			proc_DestroyObject(obj);
+			visor_proc_DestroyObject(obj);
 			obj = NULL;
 		}
 	}
 	return rc;
 }
-EXPORT_SYMBOL_GPL(proc_CreateObject);
+EXPORT_SYMBOL_GPL(visor_proc_CreateObject);
 
 
 
-void proc_DestroyObject(MYPROCOBJECT *obj)
+void visor_proc_DestroyObject(MYPROCOBJECT *obj)
 {
 	MYPROCTYPE *type = NULL;
 	if (obj == NULL)
@@ -317,7 +317,7 @@ void proc_DestroyObject(MYPROCOBJECT *obj)
 	}
 	kfree(obj);
 }
-EXPORT_SYMBOL_GPL(proc_DestroyObject);
+EXPORT_SYMBOL_GPL(visor_proc_DestroyObject);
 
 
 

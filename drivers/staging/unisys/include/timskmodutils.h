@@ -39,12 +39,12 @@ void  myprintk(const char *myDrvName, const char *devname,
  *                            (not including the trailing '\0' byte)
  *  @ingroup internal
  */
-int   hexDumpToBuffer(char *dest,
-		      int destSize,
-		      char *prefix,
-		      char *src,
-		      int srcLen,
-		      int bytesToDumpPerLine);
+int   visor_hexDumpToBuffer(char *dest,
+			    int destSize,
+			    char *prefix,
+			    char *src,
+			    int srcLen,
+			    int bytesToDumpPerLine);
 
 /*--------------------------------*
  *---  GENERAL MESSAGEQ STUFF  ---*
@@ -91,7 +91,7 @@ char *cyclesToIterationSeconds(u64 cycles, u64 cyclesPerSecond,
 			       u64 iterations, char *buf, size_t bufsize);
 char *cyclesToSomethingsPerSecond(u64 cycles, u64 cyclesPerSecond,
 				  u64 somethings, char *buf, size_t bufsize);
-struct seq_file *seq_file_new_buffer(void *buf, size_t buf_size);
-void seq_file_done_buffer(struct seq_file *m);
+struct seq_file *visor_seq_file_new_buffer(void *buf, size_t buf_size);
+void visor_seq_file_done_buffer(struct seq_file *m);
 
 #endif

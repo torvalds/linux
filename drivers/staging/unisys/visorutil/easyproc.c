@@ -20,14 +20,14 @@
  *  does it know anything about what information to reveal as part of the proc
  *  entries.  The 2 functions that take care of displaying device and
  *  driver specific information are passed as parameters to
- *  easyproc_InitDriver().
+ *  visor_easyproc_InitDriver().
  *
  *      void show_device_info(struct seq_file *seq, void *p);
  *      void show_driver_info(struct seq_file *seq);
  *
  *  The second parameter to show_device_info is actually a pointer to the
  *  device-specific info to show.  It is the context that was originally
- *  passed to easyproc_InitDevice().
+ *  passed to visor_easyproc_InitDevice().
  *
  ******************************************************************************
  */
@@ -105,10 +105,11 @@ static const struct file_operations proc_fops_device_property = {
 
 
 
-void easyproc_InitDriver(struct easyproc_driver_info *pdriver,
-			 char *procId,
-			 void (*show_driver_info)(struct seq_file *),
-			 void (*show_device_info)(struct seq_file *, void *))
+void visor_easyproc_InitDriver(struct easyproc_driver_info *pdriver,
+			       char *procId,
+			       void (*show_driver_info)(struct seq_file *),
+			       void (*show_device_info)(struct seq_file *,
+							void *))
 {
 	memset(pdriver, 0, sizeof(struct easyproc_driver_info));
 	pdriver->ProcId = procId;
@@ -135,29 +136,33 @@ void easyproc_InitDriver(struct easyproc_driver_info *pdriver,
 			       pdriver->ProcId);
 	}
 }
-EXPORT_SYMBOL_GPL(easyproc_InitDriver);
+EXPORT_SYMBOL_GPL(visor_easyproc_InitDriver);
 
 
 
-void easyproc_InitDriverEx(struct easyproc_driver_info *pdriver,
-			   char *procId,
-			   void (*show_driver_info)(struct seq_file *),
-			   void (*show_device_info)(struct seq_file *, void *),
-			   void (*write_driver_info)(char *buf, size_t count,
-						     loff_t *ppos),
-			   void (*write_device_info)(char *buf, size_t count,
-						     loff_t *ppos, void *p))
+void visor_easyproc_InitDriverEx(struct easyproc_driver_info *pdriver,
+				 char *procId,
+				 void (*show_driver_info)(struct seq_file *),
+				 void (*show_device_info)(struct seq_file *,
+							  void *),
+				 void (*write_driver_info)(char *buf,
+							   size_t count,
+							   loff_t *ppos),
+				 void (*write_device_info)(char *buf,
+							   size_t count,
+							   loff_t *ppos,
+							   void *p))
 {
-	easyproc_InitDriver(pdriver, procId,
-			    show_driver_info, show_device_info);
+	visor_easyproc_InitDriver(pdriver, procId,
+				  show_driver_info, show_device_info);
 	pdriver->Write_driver_info = write_driver_info;
 	pdriver->Write_device_info = write_device_info;
 }
-EXPORT_SYMBOL_GPL(easyproc_InitDriverEx);
+EXPORT_SYMBOL_GPL(visor_easyproc_InitDriverEx);
 
 
 
-void easyproc_DeInitDriver(struct easyproc_driver_info *pdriver)
+void visor_easyproc_DeInitDriver(struct easyproc_driver_info *pdriver)
 {
 	if (pdriver->ProcDriverDiagFile != NULL) {
 		remove_proc_entry("diag", pdriver->ProcDriverDir);
@@ -181,13 +186,13 @@ void easyproc_DeInitDriver(struct easyproc_driver_info *pdriver)
 	pdriver->Write_driver_info = NULL;
 	pdriver->Write_device_info = NULL;
 }
-EXPORT_SYMBOL_GPL(easyproc_DeInitDriver);
+EXPORT_SYMBOL_GPL(visor_easyproc_DeInitDriver);
 
 
 
-void easyproc_InitDevice(struct easyproc_driver_info *pdriver,
-			 struct easyproc_device_info *p, int devno,
-			 void *devdata)
+void visor_easyproc_InitDevice(struct easyproc_driver_info *pdriver,
+			       struct easyproc_device_info *p, int devno,
+			       void *devdata)
 {
 	if ((pdriver->ProcDeviceDir != NULL) && (p->procDevicexDir == NULL)) {
 		char s[29];
@@ -210,13 +215,14 @@ void easyproc_InitDevice(struct easyproc_driver_info *pdriver,
 	memset(&(p->device_property_info[0]), 0,
 	       sizeof(p->device_property_info));
 }
-EXPORT_SYMBOL_GPL(easyproc_InitDevice);
+EXPORT_SYMBOL_GPL(visor_easyproc_InitDevice);
 
 
 
-void easyproc_CreateDeviceProperty(struct easyproc_device_info *p,
-				   void (*show_property_info)(struct seq_file *, void *),
-				   char *property_name)
+void visor_easyproc_CreateDeviceProperty(struct easyproc_device_info *p,
+					 void (*show_property_info)
+					 (struct seq_file *, void *),
+					 char *property_name)
 {
 	size_t i;
 	struct easyproc_device_property_info *px = NULL;
@@ -253,12 +259,12 @@ void easyproc_CreateDeviceProperty(struct easyproc_device_info *p,
 	}
 	px->show_device_property_info = show_property_info;
 }
-EXPORT_SYMBOL_GPL(easyproc_CreateDeviceProperty);
+EXPORT_SYMBOL_GPL(visor_easyproc_CreateDeviceProperty);
 
 
 
-void easyproc_DeInitDevice(struct easyproc_driver_info *pdriver,
-			   struct easyproc_device_info *p, int devno)
+void visor_easyproc_DeInitDevice(struct easyproc_driver_info *pdriver,
+				 struct easyproc_device_info *p, int devno)
 {
 	size_t i;
 	for (i = 0; i < ARRAY_SIZE(p->device_property_info); i++) {
@@ -282,7 +288,7 @@ void easyproc_DeInitDevice(struct easyproc_driver_info *pdriver,
 	p->devdata = NULL;
 	p->pdriver = NULL;
 }
-EXPORT_SYMBOL_GPL(easyproc_DeInitDevice);
+EXPORT_SYMBOL_GPL(visor_easyproc_DeInitDevice);
 
 
 

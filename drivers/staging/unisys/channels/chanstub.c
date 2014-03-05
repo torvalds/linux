@@ -45,7 +45,7 @@ SignalInsert_withLock(pCHANNEL_HEADER pChannel, U32 Queue,
 	unsigned char result;
 	unsigned long flags;
 	spin_lock_irqsave(lock, flags);
-	result = SignalInsert(pChannel, Queue, pSignal);
+	result = visor_signal_insert(pChannel, Queue, pSignal);
 	spin_unlock_irqrestore(lock, flags);
 	return result;
 }
@@ -56,7 +56,7 @@ SignalRemove_withLock(pCHANNEL_HEADER pChannel, U32 Queue,
 {
 	unsigned char result;
 	spin_lock(lock);
-	result = SignalRemove(pChannel, Queue, pSignal);
+	result = visor_signal_remove(pChannel, Queue, pSignal);
 	spin_unlock(lock);
 	return result;
 }

@@ -439,7 +439,7 @@ virthba_ISR(int irq, void *dev_id)
 		mask = ~ULTRA_CHANNEL_ENABLE_INTS;
 		rc1 = uisqueue_InterlockedAnd(virthbainfo->flags_addr, mask);
 	}
-	if (SignalQueueIsEmpty(pChannelHeader, IOCHAN_FROM_IOPART)) {
+	if (visor_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
 		virthbainfo->interrupts_notme++;
 		return IRQ_NONE;
 	}
@@ -1617,7 +1617,8 @@ virthba_serverdown_complete(struct work_struct *work)
 	virthbainfo->serverdown = true;
 	virthbainfo->serverchangingstate = false;
 	/* Return the ServerDown response to Command */
-	device_pause_response(virtpcidev->busNo, virtpcidev->deviceNo, 0);
+	visorchipset_device_pause_response(virtpcidev->busNo,
+					   virtpcidev->deviceNo, 0);
 }
 
 /* As per VirtpciFunc returns 1 for success and 0 for failure */

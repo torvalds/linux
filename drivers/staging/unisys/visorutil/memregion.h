@@ -25,19 +25,19 @@
  */
 typedef struct MEMREGION_Tag MEMREGION;
 
-MEMREGION *memregion_create(HOSTADDRESS physaddr, ulong nbytes);
-MEMREGION *memregion_create_overlapped(MEMREGION *parent,
-				       ulong offset, ulong nbytes);
-int memregion_resize(MEMREGION *memregion, ulong newsize);
-int memregion_read(MEMREGION *memregion,
+MEMREGION *visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes);
+MEMREGION *visor_memregion_create_overlapped(MEMREGION *parent,
+					     ulong offset, ulong nbytes);
+int visor_memregion_resize(MEMREGION *memregion, ulong newsize);
+int visor_memregion_read(MEMREGION *memregion,
 		   ulong offset, void *dest, ulong nbytes);
-int memregion_write(MEMREGION *memregion,
-		    ulong offset, void *src, ulong nbytes);
-void memregion_destroy(MEMREGION *memregion);
-HOSTADDRESS memregion_get_physaddr(MEMREGION *memregion);
-ulong memregion_get_nbytes(MEMREGION *memregion);
+int visor_memregion_write(MEMREGION *memregion,
+			  ulong offset, void *src, ulong nbytes);
+void visor_memregion_destroy(MEMREGION *memregion);
+HOSTADDRESS visor_memregion_get_physaddr(MEMREGION *memregion);
+ulong visor_memregion_get_nbytes(MEMREGION *memregion);
 void memregion_dump(MEMREGION *memregion, char *s,
 		    ulong off, ulong len, struct seq_file *seq);
-void *memregion_get_pointer(MEMREGION *memregion);
+void *visor_memregion_get_pointer(MEMREGION *memregion);
 
 #endif

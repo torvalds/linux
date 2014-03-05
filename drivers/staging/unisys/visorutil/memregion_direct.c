@@ -38,13 +38,13 @@ static BOOL mapit(MEMREGION *memregion);
 static void unmapit(MEMREGION *memregion);
 
 MEMREGION *
-memregion_create(HOSTADDRESS physaddr, ulong nbytes)
+visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 {
 	MEMREGION *rc = NULL;
 	MEMREGION *memregion = kmalloc(sizeof(MEMREGION),
 				       GFP_KERNEL|__GFP_NORETRY);
 	if (memregion == NULL) {
-		ERRDRV("memregion_create allocation failed");
+		ERRDRV("visor_memregion_create allocation failed");
 		return NULL;
 	}
 	memset(memregion, 0, sizeof(MEMREGION));
@@ -58,16 +58,16 @@ memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 Away:
 	if (rc == NULL) {
 		if (memregion != NULL) {
-			memregion_destroy(memregion);
+			visor_memregion_destroy(memregion);
 			memregion = NULL;
 		}
 	}
 	return rc;
 }
-EXPORT_SYMBOL_GPL(memregion_create);
+EXPORT_SYMBOL_GPL(visor_memregion_create);
 
 MEMREGION *
-memregion_create_overlapped(MEMREGION *parent, ulong offset, ulong nbytes)
+visor_memregion_create_overlapped(MEMREGION *parent, ulong offset, ulong nbytes)
 {
 	MEMREGION *memregion = NULL;
 
@@ -98,7 +98,7 @@ memregion_create_overlapped(MEMREGION *parent, ulong offset, ulong nbytes)
 	memregion->overlapped = TRUE;
 	return memregion;
 }
-EXPORT_SYMBOL_GPL(memregion_create_overlapped);
+EXPORT_SYMBOL_GPL(visor_memregion_create_overlapped);
 
 
 static BOOL
@@ -136,28 +136,28 @@ unmapit(MEMREGION *memregion)
 }
 
 HOSTADDRESS
-memregion_get_physaddr(MEMREGION *memregion)
+visor_memregion_get_physaddr(MEMREGION *memregion)
 {
 	return memregion->physaddr;
 }
-EXPORT_SYMBOL_GPL(memregion_get_physaddr);
+EXPORT_SYMBOL_GPL(visor_memregion_get_physaddr);
 
 ulong
-memregion_get_nbytes(MEMREGION *memregion)
+visor_memregion_get_nbytes(MEMREGION *memregion)
 {
 	return memregion->nbytes;
 }
-EXPORT_SYMBOL_GPL(memregion_get_nbytes);
+EXPORT_SYMBOL_GPL(visor_memregion_get_nbytes);
 
 void *
-memregion_get_pointer(MEMREGION *memregion)
+visor_memregion_get_pointer(MEMREGION *memregion)
 {
 	return memregion->mapped;
 }
-EXPORT_SYMBOL_GPL(memregion_get_pointer);
+EXPORT_SYMBOL_GPL(visor_memregion_get_pointer);
 
 int
-memregion_resize(MEMREGION *memregion, ulong newsize)
+visor_memregion_resize(MEMREGION *memregion, ulong newsize)
 {
 	if (newsize == memregion->nbytes)
 		return 0;
@@ -174,7 +174,7 @@ memregion_resize(MEMREGION *memregion, ulong newsize)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(memregion_resize);
+EXPORT_SYMBOL_GPL(visor_memregion_resize);
 
 
 static int
@@ -195,21 +195,23 @@ memregion_readwrite(BOOL is_write,
 }
 
 int
-memregion_read(MEMREGION *memregion, ulong offset, void *dest, ulong nbytes)
+visor_memregion_read(MEMREGION *memregion, ulong offset, void *dest,
+		     ulong nbytes)
 {
 	return memregion_readwrite(FALSE, memregion, offset, dest, nbytes);
 }
-EXPORT_SYMBOL_GPL(memregion_read);
+EXPORT_SYMBOL_GPL(visor_memregion_read);
 
 int
-memregion_write(MEMREGION *memregion, ulong offset, void *src, ulong nbytes)
+visor_memregion_write(MEMREGION *memregion, ulong offset, void *src,
+		      ulong nbytes)
 {
 	return memregion_readwrite(TRUE, memregion, offset, src, nbytes);
 }
-EXPORT_SYMBOL_GPL(memregion_write);
+EXPORT_SYMBOL_GPL(visor_memregion_write);
 
 void
-memregion_destroy(MEMREGION *memregion)
+visor_memregion_destroy(MEMREGION *memregion)
 {
 	if (memregion == NULL)
 		return;
@@ -217,5 +219,5 @@ memregion_destroy(MEMREGION *memregion)
 		unmapit(memregion);
 	kfree(memregion);
 }
-EXPORT_SYMBOL_GPL(memregion_destroy);
+EXPORT_SYMBOL_GPL(visor_memregion_destroy);
 

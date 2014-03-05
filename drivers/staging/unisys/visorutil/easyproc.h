@@ -61,26 +61,32 @@ struct easyproc_device_info {
 	struct easyproc_device_property_info device_property_info[10];
 };
 
-void easyproc_InitDevice(struct easyproc_driver_info *pdriver,
-			 struct easyproc_device_info *p, int devno,
-			 void *devdata);
-void easyproc_DeInitDevice(struct easyproc_driver_info *pdriver,
-			   struct easyproc_device_info *p, int devno);
-void easyproc_InitDriver(struct easyproc_driver_info *pdriver,
-			 char *procId,
-			 void (*show_driver_info)(struct seq_file *),
-			 void (*show_device_info)(struct seq_file *, void *));
-void easyproc_InitDriverEx(struct easyproc_driver_info *pdriver,
-			   char *procId,
-			   void (*show_driver_info)(struct seq_file *),
-			   void (*show_device_info)(struct seq_file *, void *),
-			   void (*Write_driver_info)(char *buf, size_t count,
-						     loff_t *ppos),
-			   void (*Write_device_info)(char *buf, size_t count,
-						     loff_t *ppos, void *p));
-void easyproc_DeInitDriver(struct easyproc_driver_info *pdriver);
-void easyproc_CreateDeviceProperty(struct easyproc_device_info *p,
-				   void (*show_property_info)(struct seq_file *, void *),
-				   char *property_name);
+void visor_easyproc_InitDevice(struct easyproc_driver_info *pdriver,
+			       struct easyproc_device_info *p, int devno,
+			       void *devdata);
+void visor_easyproc_DeInitDevice(struct easyproc_driver_info *pdriver,
+				 struct easyproc_device_info *p, int devno);
+void visor_easyproc_InitDriver(struct easyproc_driver_info *pdriver,
+			       char *procId,
+			       void (*show_driver_info)(struct seq_file *),
+			       void (*show_device_info)(struct seq_file *,
+							void *));
+void visor_easyproc_InitDriverEx(struct easyproc_driver_info *pdriver,
+				 char *procId,
+				 void (*show_driver_info)(struct seq_file *),
+				 void (*show_device_info)(struct seq_file *,
+							  void *),
+				 void (*Write_driver_info)(char *buf,
+							   size_t count,
+							   loff_t *ppos),
+				 void (*Write_device_info)(char *buf,
+							   size_t count,
+							   loff_t *ppos,
+							   void *p));
+void visor_easyproc_DeInitDriver(struct easyproc_driver_info *pdriver);
+void visor_easyproc_CreateDeviceProperty(struct easyproc_device_info *p,
+					 void (*show_property_info)
+					 (struct seq_file *, void *),
+					 char *property_name);
 
 #endif

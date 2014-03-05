@@ -27,14 +27,14 @@
  */
 typedef struct PERIODIC_WORK_Tag PERIODIC_WORK;
 
-PERIODIC_WORK *periodic_work_create(ulong jiffy_interval,
-				     struct workqueue_struct *workqueue,
-				     void (*workfunc)(void *),
-				     void *workfuncarg,
-				     const char *devnam);
-void            periodic_work_destroy(PERIODIC_WORK *periodic_work);
-BOOL            periodic_work_nextperiod(PERIODIC_WORK *periodic_work);
-BOOL            periodic_work_start(PERIODIC_WORK *periodic_work);
-BOOL            periodic_work_stop(PERIODIC_WORK *periodic_work);
+PERIODIC_WORK *visor_periodic_work_create(ulong jiffy_interval,
+					  struct workqueue_struct *workqueue,
+					  void (*workfunc)(void *),
+					  void *workfuncarg,
+					  const char *devnam);
+void            visor_periodic_work_destroy(PERIODIC_WORK *periodic_work);
+BOOL            visor_periodic_work_nextperiod(PERIODIC_WORK *periodic_work);
+BOOL            visor_periodic_work_start(PERIODIC_WORK *periodic_work);
+BOOL            visor_periodic_work_stop(PERIODIC_WORK *periodic_work);
 
 #endif

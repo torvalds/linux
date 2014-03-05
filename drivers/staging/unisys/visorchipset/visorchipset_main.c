@@ -354,7 +354,7 @@ static VISORCHIPSET_BUSDEV_RESPONDERS BusDev_Responders = {
 	.bus_destroy = bus_destroy_response,
 	.device_create = device_create_response,
 	.device_destroy = device_destroy_response,
-	.device_pause = device_pause_response,
+	.device_pause = visorchipset_device_pause_response,
 	.device_resume = device_resume_response,
 };
 
@@ -514,7 +514,7 @@ busInfo_clear(void *v)
 	VISORCHIPSET_BUS_INFO *p = (VISORCHIPSET_BUS_INFO *) (v);
 
 	if (p->procObject) {
-		proc_DestroyObject(p->procObject);
+		visor_proc_DestroyObject(p->procObject);
 		p->procObject = NULL;
 	}
 	kfree(p->name);
@@ -1184,7 +1184,7 @@ bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 
 	visorchannel_GUID_id(&pBusInfo->partitionGuid, s);
 	pBusInfo->procObject =
-	    proc_CreateObject(PartitionType, s, (void *) (pBusInfo));
+	    visor_proc_CreateObject(PartitionType, s, (void *) (pBusInfo));
 	if (pBusInfo->procObject == NULL) {
 		LOGERR("CONTROLVM_BUS_CONFIGURE Failed: busNo=%lu failed to create /proc entry",
 		     busNo);
@@ -2225,14 +2225,14 @@ device_destroy_response(ulong busNo, ulong devNo, int response)
 }
 
 void
-device_pause_response(ulong busNo, ulong devNo, int response)
+visorchipset_device_pause_response(ulong busNo, ulong devNo, int response)
 {
 
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     busNo, devNo, response,
 				     SegmentStateStandby);
 }
-EXPORT_SYMBOL_GPL(device_pause_response);
+EXPORT_SYMBOL_GPL(visorchipset_device_pause_response);
 
 static void
 device_resume_response(ulong busNo, ulong devNo, int response)
@@ -2705,15 +2705,16 @@ visorchipset_init(void)
 	InitPartitionProperties();
 	InitControlVmProperties();
 
-	PartitionType = proc_CreateType(ProcDir, PartitionTypeNames,
-					(const char **) PartitionPropertyNames,
-					&show_partition_property);
+	PartitionType = visor_proc_CreateType(ProcDir, PartitionTypeNames,
+					      (const char **)
+					      PartitionPropertyNames,
+					      &show_partition_property);
 	ControlVmType =
-	    proc_CreateType(ProcDir, ControlVmTypeNames,
-			    (const char **) ControlVmPropertyNames,
-			    &show_controlvm_property);
+	    visor_proc_CreateType(ProcDir, ControlVmTypeNames,
+				  (const char **) ControlVmPropertyNames,
+				  &show_controlvm_property);
 
-	ControlVmObject = proc_CreateObject(ControlVmType, NULL, NULL);
+	ControlVmObject = visor_proc_CreateObject(ControlVmType, NULL, NULL);
 
 	/* Setup Installation fields */
 	installer_file = proc_create("installer", 0644, ProcDir,
@@ -2813,17 +2814,17 @@ visorchipset_exit(void)
 	}
 	filexfer_destructor();
 	if (ControlVmObject) {
-		proc_DestroyObject(ControlVmObject);
+		visor_proc_DestroyObject(ControlVmObject);
 		ControlVmObject = NULL;
 	}
 	cleanup_controlvm_structures();
 
 	if (ControlVmType) {
-		proc_DestroyType(ControlVmType);
+		visor_proc_DestroyType(ControlVmType);
 		ControlVmType = NULL;
 	}
 	if (PartitionType) {
-		proc_DestroyType(PartitionType);
+		visor_proc_DestroyType(PartitionType);
 		PartitionType = NULL;
 	}
 	if (diag_proc_dir) {

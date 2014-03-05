@@ -37,8 +37,8 @@ BOOL Debug_Malloc_Enabled = FALSE;
  *                            (not including the trailing '\0' byte)
  *  @ingroup internal
  */
-int hexDumpToBuffer(char *dest, int destSize, char *prefix, char *src,
-		    int srcLen, int bytesToDumpPerLine)
+int visor_hexDumpToBuffer(char *dest, int destSize, char *prefix, char *src,
+			  int srcLen, int bytesToDumpPerLine)
 {
 	int i = 0;
 	int pos = 0;
@@ -104,7 +104,7 @@ Away:
 		vfree(line);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(hexDumpToBuffer);
+EXPORT_SYMBOL_GPL(visor_hexDumpToBuffer);
 
 
 /** Callers to interfaces that set __GFP_NORETRY flag below
@@ -120,12 +120,12 @@ void *kmalloc_kernel(size_t siz)
 /*  Use these handy-dandy seq_file_xxx functions if you want to call some
  *  functions that write stuff into a seq_file, but you actually just want
  *  to dump that output into a buffer.  Use them as follows:
- *  - call seq_file_new_buffer to create the seq_file (you supply the buf)
+ *  - call visor_seq_file_new_buffer to create the seq_file (you supply the buf)
  *  - call whatever functions you want that take a seq_file as an argument
  *    (the buf you supplied will get the output data)
- *  - call seq_file_done_buffer to dispose of your seq_file
+ *  - call visor_seq_file_done_buffer to dispose of your seq_file
  */
-struct seq_file *seq_file_new_buffer(void *buf, size_t buf_size)
+struct seq_file *visor_seq_file_new_buffer(void *buf, size_t buf_size)
 {
 	struct seq_file *rc = NULL;
 	struct seq_file *m = kmalloc_kernel(sizeof(struct seq_file));
@@ -138,19 +138,19 @@ struct seq_file *seq_file_new_buffer(void *buf, size_t buf_size)
 	RETPTR(m);
 Away:
 	if (rc == NULL) {
-		seq_file_done_buffer(m);
+		visor_seq_file_done_buffer(m);
 		m = NULL;
 	}
 	return rc;
 }
-EXPORT_SYMBOL_GPL(seq_file_new_buffer);
+EXPORT_SYMBOL_GPL(visor_seq_file_new_buffer);
 
 
 
-void seq_file_done_buffer(struct seq_file *m)
+void visor_seq_file_done_buffer(struct seq_file *m)
 {
 	if (!m)
 		return;
 	kfree(m);
 }
-EXPORT_SYMBOL_GPL(seq_file_done_buffer);
+EXPORT_SYMBOL_GPL(visor_seq_file_done_buffer);

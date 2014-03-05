@@ -90,10 +90,10 @@ parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
 		p = __va((ulong) (addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
-		rgn = memregion_create(addr, bytes);
+		rgn = visor_memregion_create(addr, bytes);
 		if (!rgn)
 			RETPTR(NULL);
-		if (memregion_read(rgn, 0, ctx->data, bytes) < 0)
+		if (visor_memregion_read(rgn, 0, ctx->data, bytes) < 0)
 			RETPTR(NULL);
 	}
 	if (!hasStandardPayloadHeader) {
@@ -126,7 +126,7 @@ parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
 
 Away:
 	if (rgn) {
-		memregion_destroy(rgn);
+		visor_memregion_destroy(rgn);
 		rgn = NULL;
 	}
 	if (rc)

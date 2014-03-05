@@ -107,8 +107,8 @@ dbg_iounmap(void *addr, char *file, int line)
 
 #define PROC_READ_BUFFER_SIZE 131072	/* size of the buffer to allocate to
 					 * hold all of /proc/XXX/info */
-int util_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
-			  char *format, ...);
+int uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
+			     char *format, ...);
 
 int uisctrl_register_req_handler(int type, void *fptr,
 				 ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
@@ -212,9 +212,11 @@ struct chaninfo {
 /* CopyFragsInfoFromSkb returns the number of entries added to frags array
  * Returns -1 on failure.
  */
-unsigned int util_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
-			      void *skb_in, unsigned int firstfraglen,
-			      unsigned int frags_max, struct phys_info frags[]);
+unsigned int uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
+					     void *skb_in,
+					     unsigned int firstfraglen,
+					     unsigned int frags_max,
+					     struct phys_info frags[]);
 
 static inline unsigned int
 Issue_VMCALL_IO_CONTROLVM_ADDR(U64 *ControlAddress, U32 *ControlBytes)

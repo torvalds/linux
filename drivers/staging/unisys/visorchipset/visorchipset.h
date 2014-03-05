@@ -268,7 +268,7 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (CONTROLVM_MESSAGE *msg,
 					       int status);
 
-void device_pause_response(ulong busNo, ulong devNo, int response);
+void visorchipset_device_pause_response(ulong busNo, ulong devNo, int response);
 
 BOOL visorchipset_get_bus_info(ulong busNo, VISORCHIPSET_BUS_INFO *busInfo);
 BOOL visorchipset_get_device_info(ulong busNo, ulong devNo,

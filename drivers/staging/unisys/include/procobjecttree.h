@@ -35,14 +35,14 @@
 typedef struct MYPROCOBJECT_Tag MYPROCOBJECT;
 typedef struct MYPROCTYPE_Tag   MYPROCTYPE;
 
-MYPROCOBJECT *proc_CreateObject(MYPROCTYPE *type, const char *name,
-				void *context);
-void          proc_DestroyObject(MYPROCOBJECT *obj);
-MYPROCTYPE   *proc_CreateType(struct proc_dir_entry *procRootDir,
-			      const char **name,
-			      const char **propertyNames,
-			      void (*show_property)(struct seq_file *,
-						    void *, int));
-void          proc_DestroyType(MYPROCTYPE *type);
+MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type, const char *name,
+				      void *context);
+void          visor_proc_DestroyObject(MYPROCOBJECT *obj);
+MYPROCTYPE   *visor_proc_CreateType(struct proc_dir_entry *procRootDir,
+				    const char **name,
+				    const char **propertyNames,
+				    void (*show_property)(struct seq_file *,
+							  void *, int));
+void          visor_proc_DestroyType(MYPROCTYPE *type);
 
 #endif

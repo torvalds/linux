@@ -26,12 +26,12 @@
  */
 typedef struct CHARQUEUE_Tag CHARQUEUE;
 
-CHARQUEUE *charqueue_create(ulong nslots);
-void charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c);
+CHARQUEUE *visor_charqueue_create(ulong nslots);
+void visor_charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c);
 int charqueue_dequeue(CHARQUEUE *charqueue);
-int charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n);
-BOOL charqueue_is_empty(CHARQUEUE *charqueue);
-void charqueue_destroy(CHARQUEUE *charqueue);
+int visor_charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n);
+BOOL visor_charqueue_is_empty(CHARQUEUE *charqueue);
+void visor_charqueue_destroy(CHARQUEUE *charqueue);
 
 #endif
 

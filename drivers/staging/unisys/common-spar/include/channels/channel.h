@@ -283,7 +283,7 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 	U64 NumInterruptsReceived;	/* Total # of Interrupts received.  This
 					 * is incremented by the ISR in the
 					 * guest windows driver */
-	U64 NumEmptyCnt;	/* Number of times that SignalRemove
+	U64 NumEmptyCnt;	/* Number of times that visor_signal_remove
 				 * is called and returned Empty
 				 * Status. */
 	U32 ErrorFlags;		/* Error bits set during SignalReinit
@@ -584,7 +584,8 @@ ULTRA_channel_client_release_os(void *pChannel, U8 *chanId, void *logCtx,
 * full.
 */
 
-unsigned char SignalInsert(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal);
+unsigned char visor_signal_insert(pCHANNEL_HEADER pChannel, U32 Queue,
+				  void *pSignal);
 
 /*
 * Routine Description:
@@ -605,7 +606,8 @@ unsigned char SignalInsert(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal);
 * empty.
 */
 
-unsigned char SignalRemove(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal);
+unsigned char visor_signal_remove(pCHANNEL_HEADER pChannel, U32 Queue,
+				  void *pSignal);
 
 /*
 * Routine Description:
@@ -640,6 +642,6 @@ unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, U32 Queue,
 * Return value:
 * 1 if the signal queue is empty, 0 otherwise.
 */
-unsigned char SignalQueueIsEmpty(pCHANNEL_HEADER pChannel, U32 Queue);
+unsigned char visor_signalqueue_empty(pCHANNEL_HEADER pChannel, U32 Queue);
 
 #endif
