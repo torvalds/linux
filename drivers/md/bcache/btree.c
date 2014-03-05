@@ -1726,9 +1726,9 @@ static int bch_btree_check_recurse(struct btree *b, struct btree_op *op,
 			    !ptr_stale(b->c, k, i)) {
 				g->gen = PTR_GEN(k, i);
 
-				if (b->level)
+				if (b->level && bkey_cmp(k, &ZERO_KEY))
 					g->prio = BTREE_PRIO;
-				else if (g->prio == BTREE_PRIO)
+				else if (!b->level && g->prio == BTREE_PRIO)
 					g->prio = INITIAL_PRIO;
 			}
 		}
