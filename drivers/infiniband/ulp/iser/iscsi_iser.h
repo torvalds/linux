@@ -46,6 +46,8 @@
 #include <linux/printk.h>
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
 
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -289,6 +291,10 @@ struct iser_device {
 							    enum iser_data_dir cmd_dir);
 };
 
+#define ISER_CHECK_GUARD	0xc0
+#define ISER_CHECK_REFTAG	0x0f
+#define ISER_CHECK_APPTAG	0x30
+
 enum iser_reg_indicator {
 	ISER_DATA_KEY_VALID	= 1 << 0,
 	ISER_PROT_KEY_VALID	= 1 << 1,
@@ -361,11 +367,14 @@ struct iscsi_iser_task {
 	struct iser_tx_desc          desc;
 	struct iscsi_iser_conn	     *iser_conn;
 	enum iser_task_status 	     status;
+	struct scsi_cmnd	     *sc;
 	int                          command_sent;  /* set if command  sent  */
 	int                          dir[ISER_DIRS_NUM];      /* set if dir use*/
 	struct iser_regd_buf         rdma_regd[ISER_DIRS_NUM];/* regd rdma buf */
 	struct iser_data_buf         data[ISER_DIRS_NUM];     /* orig. data des*/
 	struct iser_data_buf         data_copy[ISER_DIRS_NUM];/* contig. copy  */
+	struct iser_data_buf         prot[ISER_DIRS_NUM];     /* prot desc     */
+	struct iser_data_buf         prot_copy[ISER_DIRS_NUM];/* prot copy     */
 };
 
 struct iser_page_vec {

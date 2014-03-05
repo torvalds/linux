@@ -62,6 +62,17 @@ static int iser_prepare_read_cmd(struct iscsi_task *task,
 	if (err)
 		return err;
 
+	if (scsi_prot_sg_count(iser_task->sc)) {
+		struct iser_data_buf *pbuf_in = &iser_task->prot[ISER_DIR_IN];
+
+		err = iser_dma_map_task_data(iser_task,
+					     pbuf_in,
+					     ISER_DIR_IN,
+					     DMA_FROM_DEVICE);
+		if (err)
+			return err;
+	}
+
 	if (edtl > iser_task->data[ISER_DIR_IN].data_len) {
 		iser_err("Total data length: %ld, less than EDTL: "
 			 "%d, in READ cmd BHS itt: %d, conn: 0x%p\n",
@@ -112,6 +123,17 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 				     DMA_TO_DEVICE);
 	if (err)
 		return err;
+
+	if (scsi_prot_sg_count(iser_task->sc)) {
+		struct iser_data_buf *pbuf_out = &iser_task->prot[ISER_DIR_OUT];
+
+		err = iser_dma_map_task_data(iser_task,
+					     pbuf_out,
+					     ISER_DIR_OUT,
+					     DMA_TO_DEVICE);
+		if (err)
+			return err;
+	}
 
 	if (edtl > iser_task->data[ISER_DIR_OUT].data_len) {
 		iser_err("Total data length: %ld, less than EDTL: %d, "
@@ -368,7 +390,7 @@ int iser_send_command(struct iscsi_conn *conn,
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	unsigned long edtl;
 	int err;
-	struct iser_data_buf *data_buf;
+	struct iser_data_buf *data_buf, *prot_buf;
 	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
 	struct scsi_cmnd *sc  =  task->sc;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
@@ -379,17 +401,25 @@ int iser_send_command(struct iscsi_conn *conn,
 	tx_desc->type = ISCSI_TX_SCSI_COMMAND;
 	iser_create_send_desc(iser_conn->ib_conn, tx_desc);
 
-	if (hdr->flags & ISCSI_FLAG_CMD_READ)
+	if (hdr->flags & ISCSI_FLAG_CMD_READ) {
 		data_buf = &iser_task->data[ISER_DIR_IN];
-	else
+		prot_buf = &iser_task->prot[ISER_DIR_IN];
+	} else {
 		data_buf = &iser_task->data[ISER_DIR_OUT];
+		prot_buf = &iser_task->prot[ISER_DIR_OUT];
+	}
 
 	if (scsi_sg_count(sc)) { /* using a scatter list */
 		data_buf->buf  = scsi_sglist(sc);
 		data_buf->size = scsi_sg_count(sc);
 	}
-
 	data_buf->data_len = scsi_bufflen(sc);
+
+	if (scsi_prot_sg_count(sc)) {
+		prot_buf->buf  = scsi_prot_sglist(sc);
+		prot_buf->size = scsi_prot_sg_count(sc);
+		prot_buf->data_len = sc->prot_sdb->length;
+	}
 
 	if (hdr->flags & ISCSI_FLAG_CMD_READ) {
 		err = iser_prepare_read_cmd(task, edtl);
@@ -635,6 +665,9 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 	iser_task->data[ISER_DIR_IN].data_len  = 0;
 	iser_task->data[ISER_DIR_OUT].data_len = 0;
 
+	iser_task->prot[ISER_DIR_IN].data_len  = 0;
+	iser_task->prot[ISER_DIR_OUT].data_len = 0;
+
 	memset(&iser_task->rdma_regd[ISER_DIR_IN], 0,
 	       sizeof(struct iser_regd_buf));
 	memset(&iser_task->rdma_regd[ISER_DIR_OUT], 0,
@@ -645,6 +678,8 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 {
 	struct iser_device *device = iser_task->iser_conn->ib_conn->device;
 	int is_rdma_data_aligned = 1;
+	int is_rdma_prot_aligned = 1;
+	int prot_count = scsi_prot_sg_count(iser_task->sc);
 
 	/* if we were reading, copy back to unaligned sglist,
 	 * anyway dma_unmap and free the copy
@@ -665,12 +700,30 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 						ISER_DIR_OUT);
 	}
 
+	if (iser_task->prot_copy[ISER_DIR_IN].copy_buf != NULL) {
+		is_rdma_prot_aligned = 0;
+		iser_finalize_rdma_unaligned_sg(iser_task,
+						&iser_task->prot[ISER_DIR_IN],
+						&iser_task->prot_copy[ISER_DIR_IN],
+						ISER_DIR_IN);
+	}
+
+	if (iser_task->prot_copy[ISER_DIR_OUT].copy_buf != NULL) {
+		is_rdma_prot_aligned = 0;
+		iser_finalize_rdma_unaligned_sg(iser_task,
+						&iser_task->prot[ISER_DIR_OUT],
+						&iser_task->prot_copy[ISER_DIR_OUT],
+						ISER_DIR_OUT);
+	}
+
 	if (iser_task->dir[ISER_DIR_IN]) {
 		device->iser_unreg_rdma_mem(iser_task, ISER_DIR_IN);
 		if (is_rdma_data_aligned)
 			iser_dma_unmap_task_data(iser_task,
 						 &iser_task->data[ISER_DIR_IN]);
-
+		if (prot_count && is_rdma_prot_aligned)
+			iser_dma_unmap_task_data(iser_task,
+						 &iser_task->prot[ISER_DIR_IN]);
 	}
 
 	if (iser_task->dir[ISER_DIR_OUT]) {

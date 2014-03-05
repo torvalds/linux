@@ -184,6 +184,8 @@ iscsi_iser_task_init(struct iscsi_task *task)
 
 	iser_task->command_sent = 0;
 	iser_task_rdma_init(iser_task);
+	iser_task->sc = task->sc;
+
 	return 0;
 }
 
