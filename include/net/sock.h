@@ -2186,7 +2186,6 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 {
 #define FLAGS_TS_OR_DROPS ((1UL << SOCK_RXQ_OVFL)			| \
 			   (1UL << SOCK_RCVTSTAMP)			| \
-			   (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE)	| \
 			   (1UL << SOCK_TIMESTAMPING_SOFTWARE)		| \
 			   (1UL << SOCK_TIMESTAMPING_RAW_HARDWARE)	| \
 			   (1UL << SOCK_TIMESTAMPING_SYS_HARDWARE))
