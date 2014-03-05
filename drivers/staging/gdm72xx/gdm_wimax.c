@@ -169,11 +169,10 @@ static void dump_eth_packet(const char *title, u8 *data, int len)
 		get_port_name(port));
 
 	if (!(data[0] == 0xff && data[1] == 0xff)) {
-		if (protocol == ETH_P_IP) {
+		if (protocol == ETH_P_IP)
 			printk(KERN_DEBUG "     src=%pI4\n", &ih->saddr);
-		} else if (protocol == ETH_P_IPV6) {
+		else if (protocol == ETH_P_IPV6)
 			printk(KERN_DEBUG "     src=%pI6\n", &ih->saddr);
-		}
 	}
 
 	#if (DUMP_PACKET & DUMP_SDU_ALL)
