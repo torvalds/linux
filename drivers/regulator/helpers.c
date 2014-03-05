@@ -37,10 +37,17 @@ int regulator_is_enabled_regmap(struct regulator_dev *rdev)
 	if (ret != 0)
 		return ret;
 
-	if (rdev->desc->enable_is_inverted)
-		return (val & rdev->desc->enable_mask) == 0;
-	else
-		return (val & rdev->desc->enable_mask) != 0;
+	val &= rdev->desc->enable_mask;
+
+	if (rdev->desc->enable_is_inverted) {
+		if (rdev->desc->enable_val)
+			return val != rdev->desc->enable_val;
+		return val == 0;
+	} else {
+		if (rdev->desc->enable_val)
+			return val == rdev->desc->enable_val;
+		return val != 0;
+	}
 }
 EXPORT_SYMBOL_GPL(regulator_is_enabled_regmap);
 
@@ -57,10 +64,13 @@ int regulator_enable_regmap(struct regulator_dev *rdev)
 {
 	unsigned int val;
 
-	if (rdev->desc->enable_is_inverted)
-		val = 0;
-	else
-		val = rdev->desc->enable_mask;
+	if (rdev->desc->enable_is_inverted) {
+		val = rdev->desc->disable_val;
+	} else {
+		val = rdev->desc->enable_val;
+		if (!val)
+			val = rdev->desc->enable_mask;
+	}
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask, val);
@@ -80,10 +90,13 @@ int regulator_disable_regmap(struct regulator_dev *rdev)
 {
 	unsigned int val;
 
-	if (rdev->desc->enable_is_inverted)
-		val = rdev->desc->enable_mask;
-	else
-		val = 0;
+	if (rdev->desc->enable_is_inverted) {
+		val = rdev->desc->enable_val;
+		if (!val)
+			val = rdev->desc->enable_mask;
+	} else {
+		val = rdev->desc->disable_val;
+	}
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask, val);
@@ -419,10 +432,13 @@ int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable)
 {
 	unsigned int val;
 
-	if (enable)
-		val = rdev->desc->bypass_mask;
-	else
-		val = 0;
+	if (enable) {
+		val = rdev->desc->bypass_val_on;
+		if (!val)
+			val = rdev->desc->bypass_mask;
+	} else {
+		val = rdev->desc->bypass_val_off;
+	}
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->bypass_reg,
 				  rdev->desc->bypass_mask, val);
