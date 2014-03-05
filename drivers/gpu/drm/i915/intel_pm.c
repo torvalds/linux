@@ -294,10 +294,13 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 
 	if (IS_IVYBRIDGE(dev)) {
 		/* WaFbcAsynchFlipDisableFbcQueue:ivb */
-		I915_WRITE(ILK_DISPLAY_CHICKEN1, ILK_FBCQ_DIS);
+		I915_WRITE(ILK_DISPLAY_CHICKEN1,
+			   I915_READ(ILK_DISPLAY_CHICKEN1) |
+			   ILK_FBCQ_DIS);
 	} else {
-		/* WaFbcAsynchFlipDisableFbcQueue:hsw */
+		/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
 		I915_WRITE(HSW_PIPE_SLICE_CHICKEN_1(intel_crtc->pipe),
+			   I915_READ(HSW_PIPE_SLICE_CHICKEN_1(intel_crtc->pipe)) |
 			   HSW_BYPASS_FBC_QUEUE);
 	}
 
