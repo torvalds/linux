@@ -4,6 +4,7 @@
 #include <dt-bindings/rkfb/rk_fb.h>
 #include "rk3188_io_vol_domain.dtsi"
 
+#include <dt-bindings/sensor-dev.h>
 
 / {
 	compatible = "rockchip,rk3188";

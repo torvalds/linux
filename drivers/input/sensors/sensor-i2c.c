@@ -25,8 +25,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
-#include <mach/gpio.h>
-#include <mach/board.h> 
+#include <linux/of_gpio.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -100,8 +99,8 @@ static int senosr_i2c_read(struct i2c_adapter *i2c_adap,
 
 int sensor_rx_data(struct i2c_client *client, char *rxData, int length)
 {
-	struct sensor_private_data* sensor = 
-		(struct sensor_private_data *)i2c_get_clientdata(client);
+	//struct sensor_private_data* sensor = 
+	//	(struct sensor_private_data *)i2c_get_clientdata(client);
 	int i = 0;
 	int ret = 0;
 	char reg = rxData[0];
@@ -117,8 +116,8 @@ EXPORT_SYMBOL(sensor_rx_data);
 
 int sensor_tx_data(struct i2c_client *client, char *txData, int length)
 {
-	struct sensor_private_data* sensor = 
-		(struct sensor_private_data *)i2c_get_clientdata(client);
+	//struct sensor_private_data* sensor = 
+		//(struct sensor_private_data *)i2c_get_clientdata(client);
 	int i = 0;
 	int ret = 0;
 
@@ -165,6 +164,37 @@ int sensor_read_reg(struct i2c_client *client, int addr)
 
 EXPORT_SYMBOL(sensor_read_reg);
 
+static int i2c_master_normal_recv(const struct i2c_client *client, char *buf, int count, int scl_rate)
+ {
+     struct i2c_adapter *adap=client->adapter;
+     struct i2c_msg msg;
+    int ret;
+ 
+    msg.addr = client->addr;
+    msg.flags = client->flags | I2C_M_RD;
+	msg.len = count;
+	msg.buf = (char *)buf;
+	msg.scl_rate = scl_rate;
+	ret = i2c_transfer(adap, &msg, 1);
+
+		 return (ret == 1) ? count : ret;
+}
+
+static int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate)
+{
+	int ret;
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg; 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = count;
+	msg.buf = (char *)buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	return (ret == 1) ? count : ret;
+}
 
 int sensor_tx_data_normal(struct i2c_client *client, char *buf, int num)
 {

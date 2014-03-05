@@ -19,23 +19,14 @@
 #include <linux/earlysuspend.h>
 #endif
 
+#include <dt-bindings/sensor-dev.h>
 
 #define SENSOR_ON		1
 #define SENSOR_OFF		0
 #define SENSOR_UNKNOW_DATA	-1
 
-enum sensor_type {
-	SENSOR_TYPE_NULL,		
-	SENSOR_TYPE_ANGLE,
-	SENSOR_TYPE_ACCEL,
-	SENSOR_TYPE_COMPASS,	
-	SENSOR_TYPE_GYROSCOPE,	
-	SENSOR_TYPE_LIGHT,	
-	SENSOR_TYPE_PROXIMITY,
-	SENSOR_TYPE_TEMPERATURE,	
-	SENSOR_TYPE_PRESSURE,
-	SENSOR_NUM_TYPES
-};
+#define GPIO_HIGH 1
+#define GPIO_LOW 0
 
 enum sensor_id {
 	ID_INVALID = 0,
@@ -107,6 +98,10 @@ enum sensor_id {
 	PRESSURE_ID_ALL,
 	PRESSURE_ID_BMA085,
 	PRESSURE_ID_MS5607,
+
+	HALL_ID_ALL,
+	HALL_ID_OCH165T,
+	
 	SENSOR_NUM_ID,
 };
 
@@ -183,6 +178,53 @@ struct sensor_private_data {
 #endif
 };
 
+struct sensor_platform_data {
+	int type;
+	int irq;
+	int irq_pin;
+	int power_pin;
+	int reset_pin;
+	int standby_pin;
+	int irq_enable;         //if irq_enable=1 then use irq else use polling  
+	int poll_delay_ms;      //polling
+	int x_min;              //filter
+	int y_min;
+	int z_min;
+	int factory;
+	int layout;
+	unsigned char address;
+	unsigned long irq_flags;
+	signed char orientation[9];
+	short m_layout[4][3][3];
+	char* project_name;
+};
+
+ struct gsensor_platform_data {
+         u16 model;
+         u16 swap_xy;
+         u16 swap_xyz;
+         signed char orientation[9];
+         int (*get_pendown_state)(void);
+         int (*init_platform_hw)(void);
+         int (*gsensor_platform_sleep)(void);
+         int (*gsensor_platform_wakeup)(void);
+         void (*exit_platform_hw)(void);
+ };
+ 
+ struct akm8975_platform_data {
+         short m_layout[4][3][3];
+         char project_name[64];
+         int gpio_DRDY;
+ };
+ 
+ struct akm_platform_data {
+        short m_layout[4][3][3];
+        char project_name[64];
+        char layout;
+        char outbit;
+        int gpio_DRDY;
+        int gpio_RST;
+ };
 
 extern int sensor_register_slave(int type,struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
@@ -193,7 +235,7 @@ extern int sensor_unregister_slave(int type,struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
 			struct sensor_operate *(*get_sensor_ops)(void));
 
-#if 1
+#if 0
 #define DBG(x...) if((atomic_read(&sensor->flags.debug_flag) == sensor->pdata->type) || (atomic_read(&sensor->flags.debug_flag) == SENSOR_NUM_TYPES))printk(x)
 #else
 #define DBG(x...)

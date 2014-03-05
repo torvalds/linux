@@ -27,13 +27,16 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 #include <linux/proc_fs.h>
-#include <mach/gpio.h>
-#include <mach/board.h> 
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/of.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 #include <linux/l3g4200d.h>
 #include <linux/sensor-dev.h>
+#include <linux/module.h>
+
 
 
 /*
@@ -327,22 +330,22 @@ static int sensor_irq_init(struct i2c_client *client)
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
 	int irq;
-	if((sensor->pdata->irq_enable)&&(sensor->ops->trig != SENSOR_UNKNOW_DATA))
+	if((sensor->pdata->irq_enable)&&(sensor->pdata->irq_flags!= SENSOR_UNKNOW_DATA))
 	{
 		//INIT_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 		if(sensor->pdata->poll_delay_ms < 0)
 			sensor->pdata->poll_delay_ms = 30;
-		
 		result = gpio_request(client->irq, sensor->i2c_id->name);
 		if (result)
 		{
 			printk("%s:fail to request gpio :%d\n",__func__,client->irq);
 		}
-	
-		gpio_pull_updown(client->irq, PullEnable);
+		
+		//gpio_pull_updown(client->irq, PullEnable);
 		irq = gpio_to_irq(client->irq);
 		//result = request_irq(irq, sensor_interrupt, sensor->ops->trig, sensor->ops->name, sensor);
-		result = request_threaded_irq(irq, NULL, sensor_interrupt, sensor->ops->trig, sensor->ops->name, sensor);
+		//result = request_threaded_irq(irq, NULL, sensor_interrupt, sensor->ops->trig, sensor->ops->name, sensor);
+		result = devm_request_threaded_irq(&client->dev, irq, NULL, sensor_interrupt, sensor->pdata->irq_flags | IRQF_ONESHOT, sensor->ops->name, sensor);
 		if (result) {
 			printk(KERN_ERR "%s:fail to request irq = %d, ret = 0x%x\n",__func__, irq, result);	       
 			goto error;	       
@@ -354,7 +357,7 @@ static int sensor_irq_init(struct i2c_client *client)
 		disable_irq_nosync(client->irq);//disable irq	
 		if(((sensor->pdata->type == SENSOR_TYPE_TEMPERATURE) || (sensor->pdata->type == SENSOR_TYPE_PRESSURE))&& (!(sensor->ops->trig & IRQF_SHARED)))		
 		disable_irq_nosync(client->irq);//disable irq
-		printk("%s:use irq=%d\n",__func__,irq);
+		DBG("%s:use irq=%d\n",__func__,irq);
 	}
 	else if(!sensor->pdata->irq_enable)
 	{		
@@ -362,7 +365,7 @@ static int sensor_irq_init(struct i2c_client *client)
 		if(sensor->pdata->poll_delay_ms < 0)
 			sensor->pdata->poll_delay_ms = 30;
 		
-		printk("%s:use polling,delay=%d ms\n",__func__,sensor->pdata->poll_delay_ms);
+		DBG("%s:use polling,delay=%d ms\n",__func__,sensor->pdata->poll_delay_ms);
 	}
 
 error:	
@@ -1647,6 +1650,9 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	struct sensor_platform_data *pdata;
+	struct device_node *np = client->dev.of_node;
+	enum of_gpio_flags rst_flags, pwr_flags;
+	unsigned long irq_flags;
 	int result = 0;
 	int type = 0;
 	
@@ -1656,54 +1662,212 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 		result = -ENODEV;
 		goto out_no_free;
 	}
-
-	pdata = client->dev.platform_data;
+	if (!np) {
+		dev_err(&client->dev, "no device tree\n");
+		return -EINVAL;
+	}
+    pdata = devm_kzalloc(&client->dev,sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		dev_err(&client->adapter->dev,
-			"Missing platform data for slave %s\n", devid->name);
-		result = -EFAULT;
+		result = -ENOMEM;
 		goto out_no_free;
 	}
-
-	sensor = kzalloc(sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc(&client->dev,sizeof(*sensor), GFP_KERNEL);
 	if (!sensor) {
 		result = -ENOMEM;
 		goto out_no_free;
 	}
+	
+	of_property_read_u32(np,"type",&(pdata->type));
 
-	type= pdata->type;	
+	pdata->irq_pin = of_get_named_gpio_flags(np, "irq-gpio", 0,(enum of_gpio_flags *)&irq_flags);
+	pdata->reset_pin = of_get_named_gpio_flags(np, "reset-gpio",0,&rst_flags);
+	pdata->power_pin = of_get_named_gpio_flags(np, "power-gpio",0,&pwr_flags);
+	
+	of_property_read_u32(np,"irq_enable",&(pdata->irq_enable));
+	of_property_read_u32(np,"poll_delay_ms",&(pdata->poll_delay_ms));
+
+	of_property_read_u32(np,"x_min",&(pdata->x_min));
+	of_property_read_u32(np,"y_min",&(pdata->y_min));
+	of_property_read_u32(np,"z_min",&(pdata->z_min));
+	of_property_read_u32(np,"factory",&(pdata->factory));
+	of_property_read_u32(np,"layout",&(pdata->layout));
+
+	of_property_read_u8(np,"address",&(pdata->address));
+	pdata->project_name = of_get_property(np, "project_name", NULL);
+
+
+	switch(pdata->layout)
+	{
+		case 1:
+			pdata->orientation[0] = 1;
+			pdata->orientation[1] = 0;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = 0;
+			pdata->orientation[4] = 1;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = 1;
+			break;
+
+		case 2:
+			pdata->orientation[0] = 0;
+			pdata->orientation[1] = -1;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = 1;
+			pdata->orientation[4] = 0;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = 1;
+			break;
+
+		case 3:
+			pdata->orientation[0] = -1;
+			pdata->orientation[1] = 0;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = 0;
+			pdata->orientation[4] = -1;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = 1;
+			break;
+
+		case 4:
+			pdata->orientation[0] = 0;
+			pdata->orientation[1] = 1;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = -1;
+			pdata->orientation[4] = 0;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = 1;
+			break;
+
+		case 5:
+			pdata->orientation[0] = 1;
+			pdata->orientation[1] = 0;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = 0;
+			pdata->orientation[4] = -1;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = -1;
+			break;
+
+		case 6:
+			pdata->orientation[0] = 0;
+			pdata->orientation[1] = -1;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = -1;
+			pdata->orientation[4] = 0;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = -1;
+			break;
+
+		case 7:
+			pdata->orientation[0] = -1;
+			pdata->orientation[1] = 0;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = 0;
+			pdata->orientation[4] = 1;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = -1;
+			break;
+
+		case 8:
+			pdata->orientation[0] = 0;
+			pdata->orientation[1] = 1;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = 1;
+			pdata->orientation[4] = 0;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = -1;
+			break;
+
+		default:
+			pdata->orientation[0] = 1;
+			pdata->orientation[1] = 0;
+			pdata->orientation[2] = 0;
+
+			pdata->orientation[3] = 0;
+			pdata->orientation[4] = 1;
+			pdata->orientation[5] = 0;
+
+			pdata->orientation[6] = 0;
+			pdata->orientation[7] = 0;
+			pdata->orientation[8] = 1;
+			break;
+	}
+
+	client->irq = pdata->irq_pin;
+	type = pdata->type;
+	pdata->irq_flags = irq_flags;
+	printk("irq_flags = %lu  padta->irq_flags = %lu\n",irq_flags, pdata->irq_flags);
+	printk("type = %d \n",pdata->type);
+	printk("irq = %d \n",pdata->irq);
+	printk("irq_pin = %d \n",pdata->irq_pin);
+	printk("pwer_pin = %d \n",pdata->power_pin);	
+	printk("reset_pin = %d \n",pdata->reset_pin);
+	printk("irq_enable = %d \n",pdata->irq_enable);
+
+	printk("poll_delay_ms = %d \n",pdata->poll_delay_ms);
+	printk("x_min = %d \n",pdata->x_min);
+	printk("y_min = %d \n",pdata->y_min);
+	printk("z_min = %d \n",pdata->z_min);	
+	printk("factory = %d \n",pdata->factory);
+	printk("layout = %d \n",pdata->layout);
+	printk("address = 0x%x \n",pdata->address);
+	printk("project_name = [%s] \n",pdata->project_name);
+	
+	printk(" == %d,%d ,%d \t ,%d ,%d ,%d , \t ,%d, %d, %d ,==%d\n",pdata->orientation[0],pdata->orientation[1],pdata->orientation[2]
+				,pdata->orientation[3],pdata->orientation[4],pdata->orientation[5]
+				,pdata->orientation[6],pdata->orientation[7],pdata->orientation[8],ARRAY_SIZE(pdata->orientation));
+		
 	
 	if((type >= SENSOR_NUM_TYPES) || (type <= SENSOR_TYPE_NULL))
 	{	
-		dev_err(&client->adapter->dev, "sensor type is error %d\n", pdata->type);
+		dev_err(&client->adapter->dev, "sensor type is error %d\n", type);
 		result = -EFAULT;
 		goto out_no_free;	
 	}
-
 	if(((int)devid->driver_data >= SENSOR_NUM_ID) || ((int)devid->driver_data <= ID_INVALID))
 	{	
 		dev_err(&client->adapter->dev, "sensor id is error %d\n", (int)devid->driver_data);
 		result = -EFAULT;
 		goto out_no_free;	
 	}
-	
 	i2c_set_clientdata(client, sensor);
 	sensor->client = client;	
 	sensor->pdata = pdata;	
 	sensor->type = type;
 	sensor->i2c_id = (struct i2c_device_id *)devid;
 
-	if (pdata->init_platform_hw) {
-		result = pdata->init_platform_hw();
-		if (result < 0)
-			goto out_free_memory;
-	}
-
-	if(pdata->reset_pin)
-	gpio_request(pdata->reset_pin,"sensor_reset_pin");
-
-	if(pdata->power_pin)
-	gpio_request(pdata->power_pin,"sensor_power_pin");
 		
 	memset(&(sensor->axis), 0, sizeof(struct sensor_axis) );
 	atomic_set(&(sensor->data_ready), 0);
@@ -1718,7 +1882,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	atomic_set(&sensor->flags.a_flag, 1);
 	atomic_set(&sensor->flags.mv_flag, 1);			
 	atomic_set(&sensor->flags.open_flag, 0);
-	atomic_set(&sensor->flags.debug_flag, 0);
+	atomic_set(&sensor->flags.debug_flag, 1);
 	init_waitqueue_head(&sensor->flags.open_wq);
 	sensor->flags.delay = 100;
 
@@ -1972,6 +2136,47 @@ static const struct i2c_device_id sensor_id[] = {
 	{},
 };
 
+static struct of_device_id sensor_dt_ids[] = {
+	/*gsensor*/
+	{ .compatible = "gs_mma8452" },
+	{ .compatible = "gs_lis3dh" },
+	{ .compatible = "gs_lsm303d" },
+	{ .compatible = "gs_mma7660" },
+	
+	/*compass*/
+	{ .compatible = "ak8975" },
+	{ .compatible = "ak8963" },
+	{ .compatible = "ak09911" },
+	{ .compatible = "mmc314x" },
+
+	/* gyroscop*/
+	{ .compatible = "l3g4200d_gyro" },
+	{ .compatible = "l3g20d_gyro" },
+	{ .compatible = "ewtsa_gyro" },
+	{ .compatible = "k3g" },
+	
+	
+	/*light sensor*/
+	{ .compatible = "light_cm3217" },
+	{ .compatible = "light_cm3232" },
+	{ .compatible = "light_al3006" },
+	{ .compatible = "ls_stk3171" },
+	{ .compatible = "ls_ap321xx" },
+
+	{ .compatible = "ls_photoresistor" },
+	{ .compatible = "ls_us5152" },
+
+	/*temperature sensor*/
+	{ .compatible = "tmp_ms5607" },
+	
+	/*pressure sensor*/
+	{ .compatible = "pr_ms5607" },
+
+	/*hall sensor*/
+	{ .compatible = "hall_och165t" },
+	{ }
+};
+
 
 static struct i2c_driver sensor_driver = {
 	.probe = sensor_probe,
@@ -1981,7 +2186,8 @@ static struct i2c_driver sensor_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = "sensors",
-		   },
+		   .of_match_table = of_match_ptr(sensor_dt_ids),
+	},
 };
 
 static int __init sensor_init(void)

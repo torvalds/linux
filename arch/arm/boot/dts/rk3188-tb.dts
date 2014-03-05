@@ -157,6 +157,15 @@
 		pa_enable_time = <1000>;
 	};
 
+	sensor@1d {
+		compatible = "gs_mma8452";
+		reg = <0x1d>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq-gpio = <&gpio0 GPIO_B7 IRQ_TYPE_EDGE_FALLING>;		
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+	};
 };
 
 &i2c1 {
