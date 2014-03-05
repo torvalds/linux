@@ -281,6 +281,7 @@ static void ahci_imx_host_stop(struct ata_host *host)
 	imx_sata_disable(hpriv);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int imx_ahci_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -308,6 +309,7 @@ static int imx_ahci_resume(struct device *dev)
 
 	return ahci_platform_resume_host(dev);
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ahci_imx_pm_ops, imx_ahci_suspend, imx_ahci_resume);
 
