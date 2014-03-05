@@ -279,6 +279,39 @@ void iser_free_fmr_pool(struct iser_conn *ib_conn)
 	ib_conn->fmr.page_vec = NULL;
 }
 
+static int
+iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
+			 struct fast_reg_descriptor *desc)
+{
+	int ret;
+
+	desc->data_frpl = ib_alloc_fast_reg_page_list(ib_device,
+						      ISCSI_ISER_SG_TABLESIZE + 1);
+	if (IS_ERR(desc->data_frpl)) {
+		ret = PTR_ERR(desc->data_frpl);
+		iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n",
+			 ret);
+		return PTR_ERR(desc->data_frpl);
+	}
+
+	desc->data_mr = ib_alloc_fast_reg_mr(pd, ISCSI_ISER_SG_TABLESIZE + 1);
+	if (IS_ERR(desc->data_mr)) {
+		ret = PTR_ERR(desc->data_mr);
+		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
+		goto fast_reg_mr_failure;
+	}
+	iser_info("Create fr_desc %p page_list %p\n",
+		  desc, desc->data_frpl->page_list);
+	desc->valid = true;
+
+	return 0;
+
+fast_reg_mr_failure:
+	ib_free_fast_reg_page_list(desc->data_frpl);
+
+	return ret;
+}
+
 /**
  * iser_create_fastreg_pool - Creates pool of fast_reg descriptors
  * for fast registration work requests.
@@ -300,32 +333,21 @@ int iser_create_fastreg_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 			goto err;
 		}
 
-		desc->data_frpl = ib_alloc_fast_reg_page_list(device->ib_device,
-							 ISCSI_ISER_SG_TABLESIZE + 1);
-		if (IS_ERR(desc->data_frpl)) {
-			ret = PTR_ERR(desc->data_frpl);
-			iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n", ret);
-			goto fast_reg_page_failure;
+		ret = iser_create_fastreg_desc(device->ib_device,
+					       device->pd, desc);
+		if (ret) {
+			iser_err("Failed to create fastreg descriptor err=%d\n",
+				 ret);
+			kfree(desc);
+			goto err;
 		}
 
-		desc->data_mr = ib_alloc_fast_reg_mr(device->pd,
-						     ISCSI_ISER_SG_TABLESIZE + 1);
-		if (IS_ERR(desc->data_mr)) {
-			ret = PTR_ERR(desc->data_mr);
-			iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
-			goto fast_reg_mr_failure;
-		}
-		desc->valid = true;
 		list_add_tail(&desc->list, &ib_conn->fastreg.pool);
 		ib_conn->fastreg.pool_size++;
 	}
 
 	return 0;
 
-fast_reg_mr_failure:
-	ib_free_fast_reg_page_list(desc->data_frpl);
-fast_reg_page_failure:
-	kfree(desc);
 err:
 	iser_free_fastreg_pool(ib_conn);
 	return ret;
