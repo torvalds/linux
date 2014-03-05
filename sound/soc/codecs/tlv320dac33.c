@@ -461,7 +461,7 @@ static int dac33_set_fifo_mode(struct snd_kcontrol *kcontrol,
 	if (dac33->fifo_mode == ucontrol->value.integer.value[0])
 		return 0;
 	/* Do not allow changes while stream is running*/
-	if (codec->active)
+	if (snd_soc_codec_is_active(codec))
 		return -EPERM;
 
 	if (ucontrol->value.integer.value[0] < 0 ||

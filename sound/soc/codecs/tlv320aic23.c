@@ -400,7 +400,7 @@ static void tlv320aic23_shutdown(struct snd_pcm_substream *substream,
 	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
 
 	/* deactivate */
-	if (!codec->active) {
+	if (!snd_soc_codec_is_active(codec)) {
 		udelay(50);
 		snd_soc_write(codec, TLV320AIC23_ACTIVE, 0x0);
 	}

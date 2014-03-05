@@ -1172,6 +1172,11 @@ static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 	return 1;
 }
 
+static inline bool snd_soc_codec_is_active(struct snd_soc_codec *codec)
+{
+	return codec->active != 0;
+}
+
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
 
