@@ -15,6 +15,9 @@
 #ifndef __NR_futex
 # define __NR_futex 240
 #endif
+#ifndef __NR_gettid
+# define __NR_gettid 224
+#endif
 #endif
 
 #if defined(__x86_64__)
@@ -28,6 +31,9 @@
 #endif
 #ifndef __NR_futex
 # define __NR_futex 202
+#endif
+#ifndef __NR_gettid
+# define __NR_gettid 186
 #endif
 #endif
 
