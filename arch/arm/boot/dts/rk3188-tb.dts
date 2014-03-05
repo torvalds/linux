@@ -69,7 +69,7 @@
 		dais {
 			dai0 {
 				codec-name = "rt5631.0-001a";
-				cpu-dai-name = "rockchip-i2s.1";
+				cpu-dai-name = "rockchip-i2s.0";
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -85,7 +85,7 @@
 		dais {
 			dai0 {
 				codec-name = "rk610_codec.0-0060";
-				cpu-dai-name = "rockchip-i2s.1";
+				cpu-dai-name = "rockchip-i2s.0";
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -101,7 +101,7 @@
 		dais {
 			dai0 {
 				codec-name = "hdmi-i2s";
-				cpu-dai-name = "rockchip-i2s.1";
+				cpu-dai-name = "rockchip-i2s.0";
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;

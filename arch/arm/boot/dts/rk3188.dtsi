@@ -465,10 +465,10 @@
 		pinctrl-0 = <&spdif_tx>;
 	};
 
-	i2s1: rockchip-i2s@0x1011a000 {
+	i2s0: rockchip-i2s@0x1011a000 {
 		compatible = "rockchip-i2s";
 		reg = <0x1011a000 0x2000>;
-		i2s-id = <1>;
+		i2s-id = <0>;
 		clocks = <&clk_i2s>;
 		clock-names = "i2s_clk";
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
