@@ -28,7 +28,7 @@
 #include <asm/chpid.h>
 #include <asm/airq.h>
 #include <asm/isc.h>
-#include <asm/cputime.h>
+#include <linux/cputime.h>
 #include <asm/fcx.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
