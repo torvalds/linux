@@ -96,18 +96,19 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	struct f2fs_dir_entry *de;
 	unsigned long bit_pos = 0;
 	struct f2fs_dentry_block *dentry_blk = kmap(dentry_page);
+	const void *dentry_bits = &dentry_blk->dentry_bitmap;
 	int max_len = 0;
 
 	while (bit_pos < NR_DENTRY_IN_BLOCK) {
-		de = &dentry_blk->dentry[bit_pos];
-		if (!test_bit_le(bit_pos, &dentry_blk->dentry_bitmap)) {
+		if (!test_bit_le(bit_pos, dentry_bits)) {
 			if (bit_pos == 0)
 				max_len = 1;
-			else if (!test_bit_le(bit_pos - 1, &dentry_blk->dentry_bitmap))
+			else if (!test_bit_le(bit_pos - 1, dentry_bits))
 				max_len++;
 			bit_pos++;
 			continue;
 		}
+		de = &dentry_blk->dentry[bit_pos];
 		if (early_match_name(name, namelen, namehash, de)) {
 			if (!memcmp(dentry_blk->filename[bit_pos],
 							name, namelen)) {
