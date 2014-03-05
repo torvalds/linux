@@ -50,7 +50,6 @@
  * @enabled_irqs:   Bitmap of currently enabled irqs.
  * @dual_edge_irqs: Bitmap of irqs that need sw emulated dual edge
  *                  detection.
- * @wake_irqs:      Bitmap of irqs with requested as wakeup source.
  * @soc;            Reference to soc_data of platform specific data.
  * @regs:           Base address for the TLMM register map.
  */
@@ -65,7 +64,6 @@ struct msm_pinctrl {
 
 	DECLARE_BITMAP(dual_edge_irqs, MAX_NR_GPIO);
 	DECLARE_BITMAP(enabled_irqs, MAX_NR_GPIO);
-	DECLARE_BITMAP(wake_irqs, MAX_NR_GPIO);
 
 	const struct msm_pinctrl_soc_data *soc;
 	void __iomem *regs;
@@ -810,22 +808,12 @@ static int msm_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct msm_pinctrl *pctrl;
 	unsigned long flags;
-	unsigned ngpio;
 
 	pctrl = irq_data_get_irq_chip_data(d);
-	ngpio = pctrl->chip.ngpio;
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
-	if (on) {
-		if (bitmap_empty(pctrl->wake_irqs, ngpio))
-			enable_irq_wake(pctrl->irq);
-		set_bit(d->hwirq, pctrl->wake_irqs);
-	} else {
-		clear_bit(d->hwirq, pctrl->wake_irqs);
-		if (bitmap_empty(pctrl->wake_irqs, ngpio))
-			disable_irq_wake(pctrl->irq);
-	}
+	irq_set_irq_wake(pctrl->irq, on);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
