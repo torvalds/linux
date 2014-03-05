@@ -668,12 +668,9 @@ static void trim_stale_devices(struct pci_dev *dev)
 		alive = (ACPI_SUCCESS(status) && device_status_valid(sta))
 			|| acpiphp_no_hotplug(adev);
 	}
-	if (!alive) {
-		u32 v;
+	if (!alive)
+		alive = pci_device_is_present(dev);
 
-		/* Check if the device responds. */
-		alive = pci_bus_read_dev_vendor_id(dev->bus, dev->devfn, &v, 0);
-	}
 	if (!alive) {
 		pci_stop_and_remove_bus_device(dev);
 		if (adev)
