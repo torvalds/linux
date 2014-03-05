@@ -158,19 +158,10 @@ static int setup_sigcontext(struct sigcontext __user *sc, unsigned long mask)
 /*
  * Determine which stack to use..
  */
-static inline void __user *get_sigframe(struct k_sigaction *ka,
+static inline void __user *get_sigframe(struct ksignal *ksig,
 					size_t frame_size)
 {
-	unsigned long sp;
-
-	/* Default to using normal stack */
-	sp = __frame->sp;
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (! sas_ss_flags(sp))
-			sp = current->sas_ss_sp + current->sas_ss_size;
-	}
+	unsigned long sp = sigsp(__frame->sp, ksig);
 
 	return (void __user *) ((sp - frame_size) & ~7UL);
 
@@ -187,7 +178,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set)
 
 	set_fs(USER_DS);
 
-	frame = get_sigframe(&ksig->ka, sizeof(*frame));
+	frame = get_sigframe(ksig, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
@@ -268,7 +259,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set)
 
 	set_fs(USER_DS);
 
-	frame = get_sigframe(&ksig->ka, sizeof(*frame));
+	frame = get_sigframe(ksig, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
