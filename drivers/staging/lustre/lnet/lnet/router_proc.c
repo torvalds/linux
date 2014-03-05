@@ -837,8 +837,8 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 	rc = -EINVAL;
 	lnet_res_lock(0);
 	for (i = 0; portal_rotors[i].pr_name != NULL; i++) {
-		if (cfs_strncasecmp(portal_rotors[i].pr_name, tmp,
-				    strlen(portal_rotors[i].pr_name)) == 0) {
+		if (strncasecmp(portal_rotors[i].pr_name, tmp,
+				strlen(portal_rotors[i].pr_name)) == 0) {
 			portal_rotor = portal_rotors[i].pr_value;
 			rc = 0;
 			break;
