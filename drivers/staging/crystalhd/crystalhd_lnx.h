@@ -58,11 +58,11 @@ struct crystalhd_adp {
 
 	unsigned long		pci_mem_start;
 	uint32_t		pci_mem_len;
-	void			*addr;
+	void __iomem		*addr;
 
 	unsigned long		pci_i2o_start;
 	uint32_t		pci_i2o_len;
-	void			*i2o_addr;
+	void __iomem		*i2o_addr;
 
 	unsigned int		drv_data;
 	unsigned int		dmabits;	/* 32 | 64 */
