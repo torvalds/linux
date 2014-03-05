@@ -53,7 +53,8 @@ enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883 };
 /* LTC3883 only */
 #define LTC3883_MFR_IIN_PEAK		0xe1
 
-#define LTC2974_ID			0x0212
+#define LTC2974_ID_REV1			0x0212
+#define LTC2974_ID_REV2			0x0213
 #define LTC2977_ID			0x0130
 #define LTC2978_ID_REV1			0x0121
 #define LTC2978_ID_REV2			0x0122
@@ -394,7 +395,7 @@ static int ltc2978_probe(struct i2c_client *client,
 	if (chip_id < 0)
 		return chip_id;
 
-	if (chip_id == LTC2974_ID) {
+	if (chip_id == LTC2974_ID_REV1 || chip_id == LTC2974_ID_REV2) {
 		data->id = ltc2974;
 	} else if (chip_id == LTC2977_ID) {
 		data->id = ltc2977;
