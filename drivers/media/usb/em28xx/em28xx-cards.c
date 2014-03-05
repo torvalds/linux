@@ -3418,8 +3418,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if (has_video) {
 	    if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
 		dev->analog_xfer_bulk = 1;
-		em28xx_info("analog set to %s mode.\n",
-			    dev->analog_xfer_bulk ? "bulk" : "isoc");
+	    em28xx_info("analog set to %s mode.\n",
+			dev->analog_xfer_bulk ? "bulk" : "isoc");
 	}
 	if (has_dvb) {
 	    if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
