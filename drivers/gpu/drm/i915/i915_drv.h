@@ -499,7 +499,7 @@ struct intel_uncore {
 	unsigned fw_rendercount;
 	unsigned fw_mediacount;
 
-	struct delayed_work force_wake_work;
+	struct timer_list force_wake_timer;
 };
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \

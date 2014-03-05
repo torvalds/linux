@@ -289,10 +289,9 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void gen6_force_wake_work(struct work_struct *work)
+static void gen6_force_wake_timer(unsigned long arg)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv), uncore.force_wake_work.work);
+	struct drm_i915_private *dev_priv = (void *)arg;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -405,9 +404,8 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (--dev_priv->uncore.forcewake_count == 0) {
 		dev_priv->uncore.forcewake_count++;
-		mod_delayed_work(dev_priv->wq,
-				 &dev_priv->uncore.force_wake_work,
-				 1);
+		mod_timer_pinned(&dev_priv->uncore.force_wake_timer,
+				 jiffies + 1);
 	}
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
@@ -484,17 +482,15 @@ gen5_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 static u##x \
 gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	REG_READ_HEADER(x); \
-	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		if (dev_priv->uncore.forcewake_count == 0) \
-			dev_priv->uncore.funcs.force_wake_get(dev_priv, \
-							FORCEWAKE_ALL); \
-		val = __raw_i915_read##x(dev_priv, reg); \
-		if (dev_priv->uncore.forcewake_count == 0) \
-			dev_priv->uncore.funcs.force_wake_put(dev_priv, \
-							FORCEWAKE_ALL); \
-	} else { \
-		val = __raw_i915_read##x(dev_priv, reg); \
+	if (dev_priv->uncore.forcewake_count == 0 && \
+	    NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		dev_priv->uncore.funcs.force_wake_get(dev_priv, \
+						      FORCEWAKE_ALL); \
+		dev_priv->uncore.forcewake_count++; \
+		mod_timer_pinned(&dev_priv->uncore.force_wake_timer, \
+				 jiffies + 1); \
 	} \
+	val = __raw_i915_read##x(dev_priv, reg); \
 	REG_READ_FOOTER; \
 }
 
@@ -682,8 +678,8 @@ void intel_uncore_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	INIT_DELAYED_WORK(&dev_priv->uncore.force_wake_work,
-			  gen6_force_wake_work);
+	setup_timer(&dev_priv->uncore.force_wake_timer,
+		    gen6_force_wake_timer, (unsigned long)dev_priv);
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
@@ -795,10 +791,11 @@ void intel_uncore_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	flush_delayed_work(&dev_priv->uncore.force_wake_work);
+	del_timer_sync(&dev_priv->uncore.force_wake_timer);
 
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(dev);
+	intel_uncore_forcewake_reset(dev);
 }
 
 static const struct register_whitelist {
