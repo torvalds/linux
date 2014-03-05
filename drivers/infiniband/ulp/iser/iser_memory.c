@@ -422,8 +422,8 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 			 (unsigned long)regd_buf->reg.va,
 			 (unsigned long)regd_buf->reg.len);
 	} else { /* use FMR for multiple dma entries */
-		iser_page_vec_build(mem, ib_conn->fastreg.fmr.page_vec, ibdev);
-		err = iser_reg_page_vec(ib_conn, ib_conn->fastreg.fmr.page_vec,
+		iser_page_vec_build(mem, ib_conn->fmr.page_vec, ibdev);
+		err = iser_reg_page_vec(ib_conn, ib_conn->fmr.page_vec,
 					&regd_buf->reg);
 		if (err && err != -EAGAIN) {
 			iser_data_buf_dump(mem, ibdev);
@@ -431,12 +431,12 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 				 mem->dma_nents,
 				 ntoh24(iser_task->desc.iscsi_header.dlength));
 			iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
-				 ib_conn->fastreg.fmr.page_vec->data_size,
-				 ib_conn->fastreg.fmr.page_vec->length,
-				 ib_conn->fastreg.fmr.page_vec->offset);
-			for (i = 0; i < ib_conn->fastreg.fmr.page_vec->length; i++)
+				 ib_conn->fmr.page_vec->data_size,
+				 ib_conn->fmr.page_vec->length,
+				 ib_conn->fmr.page_vec->offset);
+			for (i = 0; i < ib_conn->fmr.page_vec->length; i++)
 				iser_err("page_vec[%d] = 0x%llx\n", i,
-					 (unsigned long long) ib_conn->fastreg.fmr.page_vec->pages[i]);
+					 (unsigned long long) ib_conn->fmr.page_vec->pages[i]);
 		}
 		if (err)
 			return err;
@@ -457,7 +457,7 @@ static int iser_fast_reg_mr(struct fast_reg_descriptor *desc,
 
 	if (!desc->valid) {
 		memset(&inv_wr, 0, sizeof(inv_wr));
-		inv_wr.wr_id = ISER_FRWR_LI_WRID;
+		inv_wr.wr_id = ISER_FASTREG_LI_WRID;
 		inv_wr.opcode = IB_WR_LOCAL_INV;
 		inv_wr.ex.invalidate_rkey = desc->data_mr->rkey;
 		wr = &inv_wr;
@@ -468,7 +468,7 @@ static int iser_fast_reg_mr(struct fast_reg_descriptor *desc,
 
 	/* Prepare FASTREG WR */
 	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
-	fastreg_wr.wr_id = ISER_FRWR_LI_WRID;
+	fastreg_wr.wr_id = ISER_FASTREG_LI_WRID;
 	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
 	fastreg_wr.wr.fast_reg.iova_start = desc->data_frpl->page_list[0] + offset;
 	fastreg_wr.wr.fast_reg.page_list = desc->data_frpl;
@@ -503,13 +503,13 @@ static int iser_fast_reg_mr(struct fast_reg_descriptor *desc,
 }
 
 /**
- * iser_reg_rdma_mem_frwr - Registers memory intended for RDMA,
+ * iser_reg_rdma_mem_fastreg - Registers memory intended for RDMA,
  * using Fast Registration WR (if possible) obtaining rkey and va
  *
  * returns 0 on success, errno code on failure
  */
-int iser_reg_rdma_mem_frwr(struct iscsi_iser_task *iser_task,
-			   enum iser_data_dir cmd_dir)
+int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
+			      enum iser_data_dir cmd_dir)
 {
 	struct iser_conn *ib_conn = iser_task->iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
@@ -544,7 +544,7 @@ int iser_reg_rdma_mem_frwr(struct iscsi_iser_task *iser_task,
 		regd_buf->reg.is_mr = 0;
 	} else {
 		spin_lock_irqsave(&ib_conn->lock, flags);
-		desc = list_first_entry(&ib_conn->fastreg.frwr.pool,
+		desc = list_first_entry(&ib_conn->fastreg.pool,
 					struct fast_reg_descriptor, list);
 		list_del(&desc->list);
 		spin_unlock_irqrestore(&ib_conn->lock, flags);
@@ -567,7 +567,7 @@ int iser_reg_rdma_mem_frwr(struct iscsi_iser_task *iser_task,
 	return 0;
 err_reg:
 	spin_lock_irqsave(&ib_conn->lock, flags);
-	list_add_tail(&desc->list, &ib_conn->fastreg.frwr.pool);
+	list_add_tail(&desc->list, &ib_conn->fastreg.pool);
 	spin_unlock_irqrestore(&ib_conn->lock, flags);
 	return err;
 }
