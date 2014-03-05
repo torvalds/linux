@@ -32,7 +32,7 @@
  * This feature is compiled in the UBI core, and adds a 'block' parameter
  * to allow early creation of block devices on top of UBI volumes. Runtime
  * block creation/removal for UBI volumes is provided through two UBI ioctls:
- * UBI_IOCVOLATTBLK and UBI_IOCVOLDETBLK.
+ * UBI_IOCVOLCRBLK and UBI_IOCVOLRMBLK.
  */
 
 #include <linux/module.h>
