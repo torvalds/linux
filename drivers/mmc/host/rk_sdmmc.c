@@ -245,10 +245,15 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 
 	cmdr = cmd->opcode;
 
-	if (cmdr == MMC_STOP_TRANSMISSION)
+	if (cmd->opcode == MMC_STOP_TRANSMISSION ||
+	    cmd->opcode == MMC_GO_IDLE_STATE ||
+	    cmd->opcode == MMC_GO_INACTIVE_STATE ||
+	    (cmd->opcode == SD_IO_RW_DIRECT &&
+	     ((cmd->arg >> 9) & 0x1FFFF) == SDIO_CCCR_ABORT))
 		cmdr |= SDMMC_CMD_STOP;
 	else
-		cmdr |= SDMMC_CMD_PRV_DAT_WAIT;
+		if (cmd->opcode != MMC_SEND_STATUS && cmd->data)
+			cmdr |= SDMMC_CMD_PRV_DAT_WAIT;
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		/* We expect a response, so set this bit */
@@ -275,6 +280,40 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 	return cmdr;
 }
 
+static u32 dw_mci_prep_stop_abort(struct dw_mci *host, struct mmc_command *cmd)
+{
+	struct mmc_command *stop;
+	u32 cmdr;
+
+	if (!cmd->data)
+		return 0;
+
+	stop = &host->stop_abort;
+	cmdr = cmd->opcode;
+	memset(stop, 0, sizeof(struct mmc_command));
+
+	if (cmdr == MMC_READ_SINGLE_BLOCK ||
+	    cmdr == MMC_READ_MULTIPLE_BLOCK ||
+	    cmdr == MMC_WRITE_BLOCK ||
+	    cmdr == MMC_WRITE_MULTIPLE_BLOCK) {
+		stop->opcode = MMC_STOP_TRANSMISSION;
+		stop->arg = 0;
+		stop->flags = MMC_RSP_R1B | MMC_CMD_AC;
+	} else if (cmdr == SD_IO_RW_EXTENDED) {
+		stop->opcode = SD_IO_RW_DIRECT;
+		stop->arg |= (1 << 31) | (0 << 28) | (SDIO_CCCR_ABORT << 9) |
+			     ((cmd->arg >> 28) & 0x7);
+		stop->flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_AC;
+	} else {
+		return 0;
+	}
+
+	cmdr = stop->opcode | SDMMC_CMD_STOP |
+		SDMMC_CMD_RESP_CRC | SDMMC_CMD_RESP_EXP;
+
+	return cmdr;
+}
+
 static void dw_mci_start_command(struct dw_mci *host,
 				 struct mmc_command *cmd, u32 cmd_flags)
 {
@@ -289,9 +328,10 @@ static void dw_mci_start_command(struct dw_mci *host,
 	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
 }
 
-static void send_stop_cmd(struct dw_mci *host, struct mmc_data *data)
+static inline void send_stop_abort(struct dw_mci *host, struct mmc_data *data)
 {
-	dw_mci_start_command(host, data->stop, host->stop_cmdr);
+	struct mmc_command *stop = data->stop ? data->stop : &host->stop_abort;
+	dw_mci_start_command(host, stop, host->stop_cmdr);
 }
 
 /* DMA interface functions */
@@ -836,6 +876,8 @@ static void __dw_mci_start_request(struct dw_mci *host,
 
 	if (mrq->stop)
 		host->stop_cmdr = dw_mci_prepare_command(slot->mmc, mrq->stop);
+	else
+		host->stop_cmdr = dw_mci_prep_stop_abort(host, cmd);
 }
 
 static void dw_mci_start_request(struct dw_mci *host,
@@ -1208,13 +1250,9 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			
                         if (cmd->data && cmd->error) {
 				dw_mci_stop_dma(host);
-				if (data->stop) {
-					send_stop_cmd(host, data);
-					state = STATE_SENDING_STOP;
-					break;
-				} else {
-					host->data = NULL;
-				}
+				send_stop_abort(host, data);
+				state = STATE_SENDING_STOP;
+				break;
 			}
 
 
@@ -1230,8 +1268,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			if (test_and_clear_bit(EVENT_DATA_ERROR,
 					       &host->pending_events)) {
 				dw_mci_stop_dma(host);
-				if (data->stop)
-					send_stop_cmd(host, data);
+				send_stop_abort(host, data);
 				state = STATE_DATA_ERROR;
 				break;
 			}
@@ -1291,7 +1328,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				data->error = 0;
 			}
 
-			if (!data->stop) {
+			if (!data->stop && !data->error) {
 				dw_mci_request_end(host, host->mrq);
 				goto unlock;
 			}
@@ -1303,8 +1340,10 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			}
 
 			prev_state = state = STATE_SENDING_STOP;
-			if (!data->error)
-				send_stop_cmd(host, data);
+			if (data->stop && !data->error) {
+				/* stop command for open-ended transfer*/
+				send_stop_abort(host, data);
+			}
 			/* fall through */
 
 		case STATE_SENDING_STOP:
@@ -1324,7 +1363,12 @@ static void dw_mci_tasklet_func(unsigned long priv)
 
 			host->cmd = NULL;
 			host->data = NULL;
-			dw_mci_command_complete(host, host->mrq->stop);
+
+			if (host->mrq->stop)
+				dw_mci_command_complete(host, host->mrq->stop);
+			else
+				host->cmd_status = 0;
+
 			dw_mci_request_end(host, host->mrq);
 			goto unlock;
 
@@ -1904,11 +1948,10 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 					case STATE_DATA_ERROR:
 						if (mrq->data->error == -EINPROGRESS)
 							mrq->data->error = -ENOMEDIUM;
-						if (!mrq->stop)
-							break;
 						/* fall through */
 					case STATE_SENDING_STOP:
-						mrq->stop->error = -ENOMEDIUM;
+						if (mrq->stop)
+							mrq->stop->error = -ENOMEDIUM;
 						break;
 					}
 
