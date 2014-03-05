@@ -1173,7 +1173,7 @@ static void audit_log_execve_info(struct audit_context *context,
 	 */
 	buf = kmalloc(MAX_EXECVE_AUDIT_LEN + 1, GFP_KERNEL);
 	if (!buf) {
-		audit_panic("out of memory for argv string\n");
+		audit_panic("out of memory for argv string");
 		return;
 	}
 
