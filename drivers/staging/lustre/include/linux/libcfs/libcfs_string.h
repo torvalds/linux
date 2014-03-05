@@ -49,18 +49,6 @@ int cfs_strncasecmp(const char *s1, const char *s2, size_t n);
 /* Convert a text string to a bitmask */
 int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 		 int *oldmask, int minmask, int allmask);
-
-/* Allocate space for and copy an existing string.
- * Must free with kfree().
- */
-char *cfs_strdup(const char *str, u_int32_t flags);
-
-/* safe vsnprintf */
-int cfs_vsnprintf(char *buf, size_t size, const char *fmt, va_list args);
-
-/* safe snprintf */
-int cfs_snprintf(char *buf, size_t size, const char *fmt, ...);
-
 /* trim leading and trailing space characters */
 char *cfs_firststr(char *str, size_t size);
 
