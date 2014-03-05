@@ -48,8 +48,6 @@
 
 #include "amlresrc.h"
 
-#pragma pack(push)		/* Set default struct packing */
-
 /*
  * If possible, pack the following structures to byte alignment, since we
  * don't care about performance for debug output. Two cases where we cannot
@@ -379,7 +377,5 @@ extern struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_general_flags[];
 #endif
-
-#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACRESRC_H__ */

@@ -44,8 +44,6 @@
 #ifndef __ACEXCEP_H__
 #define __ACEXCEP_H__
 
-#pragma pack(push)		/* Set default struct packing */
-
 /* This module contains all possible exception codes for acpi_status */
 
 /*
@@ -378,7 +376,5 @@ static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {
 };
 
 #endif				/* EXCEPTION_TABLE */
-
-#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACEXCEP_H__ */

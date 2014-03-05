@@ -44,8 +44,6 @@
 #ifndef __ACGLOBAL_H__
 #define __ACGLOBAL_H__
 
-#pragma pack(push)		/* Set default struct packing */
-
 /*
  * Ensure that the globals are actually defined and initialized only once.
  *
@@ -510,7 +508,5 @@ ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
  ****************************************************************************/
 
 extern const struct ah_predefined_name asl_predefined_info[];
-
-#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACGLOBAL_H__ */

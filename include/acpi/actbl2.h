@@ -44,8 +44,6 @@
 #ifndef __ACTBL2_H__
 #define __ACTBL2_H__
 
-#pragma pack(push)		/* Set default struct packing */
-
 /*******************************************************************************
  *
  * Additional ACPI Tables (2)
@@ -1231,6 +1229,8 @@ struct acpi_table_wdrt {
 	u8 units;
 };
 
-#pragma pack(pop)		/* Restore original struct packing */
+/* Reset to default packing */
+
+#pragma pack()
 
 #endif				/* __ACTBL2_H__ */

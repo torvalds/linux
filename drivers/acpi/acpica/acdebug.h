@@ -44,8 +44,6 @@
 #ifndef __ACDEBUG_H__
 #define __ACDEBUG_H__
 
-#pragma pack(push)		/* Set default struct packing */
-
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000	/* 16K buffer for return objects */
 
 struct acpi_db_command_info {
@@ -283,7 +281,5 @@ void acpi_db_prep_namestring(char *name);
 struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name);
 
 void acpi_db_uint32_to_hex_string(u32 value, char *buffer);
-
-#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACDEBUG_H__ */

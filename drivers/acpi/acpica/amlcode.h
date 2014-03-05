@@ -46,8 +46,6 @@
 #ifndef __AMLCODE_H__
 #define __AMLCODE_H__
 
-#pragma pack(push)		/* Set default struct packing */
-
 /* primary opcodes */
 
 #define AML_NULL_CHAR               (u16) 0x00
@@ -485,7 +483,5 @@ typedef enum {
 #define AML_METHOD_ARG_COUNT        0x07
 #define AML_METHOD_SERIALIZED       0x08
 #define AML_METHOD_SYNC_LEVEL       0xF0
-
-#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __AMLCODE_H__ */
