@@ -26,11 +26,27 @@
 	status = "okay";
 };
 
+&iomuxc {
+	imx25-pdk {
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX25_PAD_UART1_RTS__UART1_RTS		0xe0
+				MX25_PAD_UART1_CTS__UART1_CTS		0xe0
+				MX25_PAD_UART1_TXD__UART1_TXD		0x80000000
+				MX25_PAD_UART1_RXD__UART1_RXD		0xc0
+			>;
+		};
+	};
+};
+
 &nfc {
 	nand-on-flash-bbt;
 	status = "okay";
 };
 
 &uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
