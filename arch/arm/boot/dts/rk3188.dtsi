@@ -437,9 +437,8 @@
 		reg = <0x10114000 0x1000>;
 		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates6 10>, <&clk_gates6 11>;
-    clock-names = "hclk_rga", "aclk_rga"; 
-		status = "disabled";
-        };
+    clock-names = "hclk_rga", "aclk_rga"; 		
+  };
 
     adc: adc@2006c000 {
 	   compatible = "rockchip,saradc";
