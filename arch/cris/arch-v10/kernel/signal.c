@@ -203,15 +203,9 @@ static int setup_sigcontext(struct sigcontext __user *sc,
  * - usually on the stack. */
 
 static inline void __user *
-get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
+get_sigframe(struct ksignal *ksig, size_t frame_size)
 {
-	unsigned long sp = rdusp();
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (! on_sig_stack(sp))
-			sp = current->sas_ss_sp + current->sas_ss_size;
-	}
+	unsigned long sp = sigsp(rdusp(), ksig);
 
 	/* make sure the frame is dword-aligned */
 
@@ -235,7 +229,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	unsigned long return_ip;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
@@ -287,7 +281,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	unsigned long return_ip;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
