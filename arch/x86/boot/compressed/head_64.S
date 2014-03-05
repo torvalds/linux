@@ -440,6 +440,7 @@ gdt:
 	.quad   0x0000000000000000	/* TS continued */
 gdt_end:
 
+#ifdef CONFIG_EFI_STUB
 efi_config:
 	.quad	0
 
@@ -456,6 +457,8 @@ efi64_config:
 	.fill	11,8,0
 	.quad	efi_call6
 	.byte	1
+#endif /* CONFIG_EFI_STUB */
+
 /*
  * Stack and heap for uncompression
  */

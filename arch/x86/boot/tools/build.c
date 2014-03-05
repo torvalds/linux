@@ -256,10 +256,11 @@ static void efi_stub_entry_update(void)
 
 #else
 
-static inline void update_pecoff_setup_and_reloc(unsigned int) {}
-static inline void update_pecoff_text(unsigned int, unsigned int) {}
+static inline void update_pecoff_setup_and_reloc(unsigned int size) {}
+static inline void update_pecoff_text(unsigned int text_start,
+				      unsigned int file_sz) {}
 static inline void efi_stub_defaults(void) {}
-static inline void efi_stup_entry_update(void) {}
+static inline void efi_stub_entry_update(void) {}
 
 static inline int reserve_pecoff_reloc_section(int c)
 {
