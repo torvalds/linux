@@ -77,7 +77,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
