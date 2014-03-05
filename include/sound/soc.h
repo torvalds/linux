@@ -660,6 +660,9 @@ struct snd_soc_component {
 	const char *name;
 	int id;
 	struct device *dev;
+
+	unsigned int active;
+
 	struct list_head list;
 
 	struct snd_soc_dai_driver *dai_drv;
@@ -687,7 +690,6 @@ struct snd_soc_codec {
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
-	unsigned int active;
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
 	unsigned int probed:1; /* Codec has been probed */
@@ -1172,9 +1174,15 @@ static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 	return 1;
 }
 
+static inline bool snd_soc_component_is_active(
+	struct snd_soc_component *component)
+{
+	return component->active != 0;
+}
+
 static inline bool snd_soc_codec_is_active(struct snd_soc_codec *codec)
 {
-	return codec->active != 0;
+	return snd_soc_component_is_active(&codec->component);
 }
 
 int snd_soc_util_init(void);
