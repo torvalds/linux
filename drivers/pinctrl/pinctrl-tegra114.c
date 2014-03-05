@@ -1341,11 +1341,6 @@ static const unsigned drive_uda_pins[] = {
 	TEGRA_PIN_ULPI_STP_PY3,
 };
 
-static const unsigned drive_dev3_pins[] = {
-	TEGRA_PIN_CLK3_OUT_PEE0,
-	TEGRA_PIN_CLK3_REQ_PEE1,
-};
-
 enum tegra_mux {
 	TEGRA_MUX_BLINK,
 	TEGRA_MUX_CEC,
