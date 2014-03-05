@@ -3950,7 +3950,8 @@ static void bond_uninit(struct net_device *bond_dev)
 static int bond_check_params(struct bond_params *params)
 {
 	int arp_validate_value, fail_over_mac_value, primary_reselect_value, i;
-	struct bond_opt_value newval, *valptr;
+	struct bond_opt_value newval;
+	const struct bond_opt_value *valptr;
 	int arp_all_targets_value;
 
 	/*

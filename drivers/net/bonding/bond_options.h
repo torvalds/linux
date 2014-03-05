@@ -81,8 +81,8 @@ struct bonding;
 
 struct bond_option {
 	int id;
-	char *name;
-	char *desc;
+	const char *name;
+	const char *desc;
 	u32 flags;
 
 	/* unsuppmodes is used to denote modes in which the option isn't
@@ -92,7 +92,7 @@ struct bond_option {
 	/* supported values which this option can have, can be a subset of
 	 * BOND_OPTVAL_RANGE's value range
 	 */
-	struct bond_opt_value *values;
+	const struct bond_opt_value *values;
 
 	int (*set)(struct bonding *bond, struct bond_opt_value *val);
 };
@@ -100,10 +100,10 @@ struct bond_option {
 int __bond_opt_set(struct bonding *bond, unsigned int option,
 		   struct bond_opt_value *val);
 int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf);
-struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
+const struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
 				      struct bond_opt_value *val);
-struct bond_option *bond_opt_get(unsigned int option);
-struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val);
+const struct bond_option *bond_opt_get(unsigned int option);
+const struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val);
 
 /* This helper is used to initialize a bond_opt_value structure for parameter
  * passing. There should be either a valid string or value, but not both.
@@ -122,49 +122,6 @@ static inline void __bond_opt_init(struct bond_opt_value *optval,
 #define bond_opt_initval(optval, value) __bond_opt_init(optval, NULL, value)
 #define bond_opt_initstr(optval, str) __bond_opt_init(optval, str, ULLONG_MAX)
 
-int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval);
-int bond_option_pps_set(struct bonding *bond, struct bond_opt_value *newval);
-int bond_option_xmit_hash_policy_set(struct bonding *bond,
-				     struct bond_opt_value *newval);
-int bond_option_arp_validate_set(struct bonding *bond,
-				 struct bond_opt_value *newval);
-int bond_option_arp_all_targets_set(struct bonding *bond,
-				    struct bond_opt_value *newval);
-int bond_option_fail_over_mac_set(struct bonding *bond,
-				  struct bond_opt_value *newval);
-int bond_option_arp_interval_set(struct bonding *bond,
-				 struct bond_opt_value *newval);
-int bond_option_arp_ip_targets_set(struct bonding *bond,
-				   struct bond_opt_value *newval);
 void bond_option_arp_ip_targets_clear(struct bonding *bond);
-int bond_option_downdelay_set(struct bonding *bond,
-			      struct bond_opt_value *newval);
-int bond_option_updelay_set(struct bonding *bond,
-			    struct bond_opt_value *newval);
-int bond_option_lacp_rate_set(struct bonding *bond,
-			      struct bond_opt_value *newval);
-int bond_option_min_links_set(struct bonding *bond,
-			      struct bond_opt_value *newval);
-int bond_option_ad_select_set(struct bonding *bond,
-			      struct bond_opt_value *newval);
-int bond_option_num_peer_notif_set(struct bonding *bond,
-				   struct bond_opt_value *newval);
-int bond_option_miimon_set(struct bonding *bond, struct bond_opt_value *newval);
-int bond_option_primary_set(struct bonding *bond,
-			    struct bond_opt_value *newval);
-int bond_option_primary_reselect_set(struct bonding *bond,
-				     struct bond_opt_value *newval);
-int bond_option_use_carrier_set(struct bonding *bond,
-				struct bond_opt_value *newval);
-int bond_option_active_slave_set(struct bonding *bond,
-				 struct bond_opt_value *newval);
-int bond_option_queue_id_set(struct bonding *bond,
-			     struct bond_opt_value *newval);
-int bond_option_all_slaves_active_set(struct bonding *bond,
-				      struct bond_opt_value *newval);
-int bond_option_resend_igmp_set(struct bonding *bond,
-				struct bond_opt_value *newval);
-int bond_option_lp_interval_set(struct bonding *bond,
-				struct bond_opt_value *newval);
-int bond_option_slaves_set(struct bonding *bond, struct bond_opt_value *newval);
+
 #endif /* _BOND_OPTIONS_H */
