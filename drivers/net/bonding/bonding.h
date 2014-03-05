@@ -495,8 +495,6 @@ void bond_sysfs_slave_del(struct slave *slave);
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count);
-int bond_parse_parm(const char *mode_arg, const struct bond_parm_tbl *tbl);
-int bond_parm_tbl_lookup(int mode, const struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_create_debugfs(void);

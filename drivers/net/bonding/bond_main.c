@@ -3947,52 +3947,6 @@ static void bond_uninit(struct net_device *bond_dev)
 
 /*------------------------- Module initialization ---------------------------*/
 
-int bond_parm_tbl_lookup(int mode, const struct bond_parm_tbl *tbl)
-{
-	int i;
-
-	for (i = 0; tbl[i].modename; i++)
-		if (mode == tbl[i].mode)
-			return tbl[i].mode;
-
-	return -1;
-}
-
-static int bond_parm_tbl_lookup_name(const char *modename,
-				     const struct bond_parm_tbl *tbl)
-{
-	int i;
-
-	for (i = 0; tbl[i].modename; i++)
-		if (strcmp(modename, tbl[i].modename) == 0)
-			return tbl[i].mode;
-
-	return -1;
-}
-
-/*
- * Convert string input module parms.  Accept either the
- * number of the mode or its string name.  A bit complicated because
- * some mode names are substrings of other names, and calls from sysfs
- * may have whitespace in the name (trailing newlines, for example).
- */
-int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
-{
-	int modeint;
-	char *p, modestr[BOND_MAX_MODENAME_LEN + 1];
-
-	for (p = (char *)buf; *p; p++)
-		if (!(isdigit(*p) || isspace(*p)))
-			break;
-
-	if (*p && sscanf(buf, "%20s", modestr) != 0)
-		return bond_parm_tbl_lookup_name(modestr, tbl);
-	else if (sscanf(buf, "%d", &modeint) != 0)
-		return bond_parm_tbl_lookup(modeint, tbl);
-
-	return -1;
-}
-
 static int bond_check_params(struct bond_params *params)
 {
 	int arp_validate_value, fail_over_mac_value, primary_reselect_value, i;
