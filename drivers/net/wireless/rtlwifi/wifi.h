@@ -1587,7 +1587,7 @@ struct rtl_dm {
 	u64 last_rx_ok_cnt;
 };
 
-#define	EFUSE_MAX_LOGICAL_SIZE			256
+#define	EFUSE_MAX_LOGICAL_SIZE			512
 
 struct rtl_efuse {
 	bool autoLoad_ok;

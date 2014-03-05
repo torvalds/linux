@@ -201,14 +201,6 @@ static void _rtl8723be_fill_h2c_command(struct ieee80211_hw *hw, u8 element_id,
 			 "pHalData->last_hmeboxnum  = %d\n",
 			 rtlhal->last_hmeboxnum);
 	}
-	if (!rtlpriv) {
-		pr_err("rtlpriv bad\n");
-		return;
-	}
-	if (!rtlhal) {
-		pr_err("rtlhal bad\n");
-		return;
-	}
 	spin_lock_irqsave(&rtlpriv->locks.h2c_lock, flag);
 	rtlhal->h2c_setinprogress = false;
 	spin_unlock_irqrestore(&rtlpriv->locks.h2c_lock, flag);
