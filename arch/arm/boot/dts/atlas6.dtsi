@@ -39,6 +39,11 @@
 		};
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <29>;
+	};
+
 	axi {
 		compatible = "simple-bus";
 		#address-cells = <1>;
