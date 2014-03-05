@@ -856,13 +856,13 @@ ext2_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
+	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
 	ret = blockdev_direct_IO(rw, iocb, inode, iter->iov, offset,
 				 iter->nr_segs, ext2_get_block);
 	if (ret < 0 && (rw & WRITE))
-		ext2_write_failed(mapping, offset +
-				  iov_length(iter->iov, iter->nr_segs));
+		ext2_write_failed(mapping, offset + count);
 	return ret;
 }
 

@@ -1828,7 +1828,7 @@ static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
 	handle_t *handle;
 	ssize_t ret;
 	int orphan = 0;
-	size_t count = iov_length(iter->iov, iter->nr_segs);
+	size_t count = iov_iter_count(iter);
 	int retries = 0;
 
 	trace_ext3_direct_IO_enter(inode, offset, count, rw);

@@ -191,6 +191,7 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
+	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
 	if (rw == WRITE) {
@@ -203,7 +204,7 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 		 *
 		 * Return 0, and fallback to normal buffered write.
 		 */
-		loff_t size = offset + iov_length(iter->iov, iter->nr_segs);
+		loff_t size = offset + count;
 		if (MSDOS_I(inode)->mmu_private < size)
 			return 0;
 	}
@@ -215,8 +216,7 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 	ret = blockdev_direct_IO(rw, iocb, inode, iter->iov, offset,
 				 iter->nr_segs, fat_get_block);
 	if (ret < 0 && (rw & WRITE))
-		fat_write_failed(mapping, offset +
-			         iov_length(iter->iov, iter->nr_segs));
+		fat_write_failed(mapping, offset + count);
 
 	return ret;
 }

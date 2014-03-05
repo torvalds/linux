@@ -2900,7 +2900,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	loff_t pos = 0;
 	struct inode *inode;
 	loff_t i_size;
-	size_t count = iov_length(iter->iov, iter->nr_segs);
+	size_t count = iov_iter_count(iter);
 	struct fuse_io_priv *io;
 
 	pos = offset;

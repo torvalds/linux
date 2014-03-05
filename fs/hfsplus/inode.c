@@ -128,6 +128,7 @@ static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = file_inode(file)->i_mapping->host;
+	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
 	ret = blockdev_direct_IO(rw, iocb, inode, iter->iov, offset, iter->nr_segs,
@@ -139,7 +140,7 @@ static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
 	 */
 	if (unlikely((rw & WRITE) && ret < 0)) {
 		loff_t isize = i_size_read(inode);
-		loff_t end = offset + iov_length(iter->iov, iter->nr_segs);
+		loff_t end = offset + count;
 
 		if (end > isize)
 			hfsplus_write_failed(mapping, end);

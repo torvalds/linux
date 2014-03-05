@@ -370,7 +370,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct ccc_object *obj = cl_inode2ccc(inode);
-	long count = iov_length(iter->iov, iter->nr_segs);
+	long count = iov_iter_count(iter);
 	long tot_bytes = 0, result = 0;
 	struct ll_inode_info *lli = ll_i2info(inode);
 	unsigned long seg = 0;

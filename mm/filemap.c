@@ -1698,7 +1698,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			goto out; /* skip atime */
 		size = i_size_read(inode);
 		retval = filemap_write_and_wait_range(mapping, pos,
-					pos + iov_length(iov, nr_segs) - 1);
+					pos + count - 1);
 		if (!retval)
 			retval = mapping->a_ops->direct_IO(READ, iocb, &i, pos);
 
