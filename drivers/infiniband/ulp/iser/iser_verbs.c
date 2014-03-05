@@ -1153,3 +1153,50 @@ static void iser_cq_callback(struct ib_cq *cq, void *cq_context)
 
 	tasklet_schedule(&device->cq_tasklet[cq_index]);
 }
+
+u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
+			     enum iser_data_dir cmd_dir, sector_t *sector)
+{
+	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct fast_reg_descriptor *desc = reg->mem_h;
+	unsigned long sector_size = iser_task->sc->device->sector_size;
+	struct ib_mr_status mr_status;
+	int ret;
+
+	if (desc && desc->reg_indicators & ISER_FASTREG_PROTECTED) {
+		desc->reg_indicators &= ~ISER_FASTREG_PROTECTED;
+		ret = ib_check_mr_status(desc->pi_ctx->sig_mr,
+					 IB_MR_CHECK_SIG_STATUS, &mr_status);
+		if (ret) {
+			pr_err("ib_check_mr_status failed, ret %d\n", ret);
+			goto err;
+		}
+
+		if (mr_status.fail_status & IB_MR_CHECK_SIG_STATUS) {
+			sector_t sector_off = mr_status.sig_err.sig_err_offset;
+
+			do_div(sector_off, sector_size + 8);
+			*sector = scsi_get_lba(iser_task->sc) + sector_off;
+
+			pr_err("PI error found type %d at sector %lx "
+			       "expected %x vs actual %x\n",
+			       mr_status.sig_err.err_type, *sector,
+			       mr_status.sig_err.expected,
+			       mr_status.sig_err.actual);
+
+			switch (mr_status.sig_err.err_type) {
+			case IB_SIG_BAD_GUARD:
+				return 0x1;
+			case IB_SIG_BAD_REFTAG:
+				return 0x3;
+			case IB_SIG_BAD_APPTAG:
+				return 0x2;
+			}
+		}
+	}
+
+	return 0;
+err:
+	/* Not alot we can do here, return ambiguous guard error */
+	return 0x1;
+}

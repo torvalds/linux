@@ -483,4 +483,6 @@ int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max);
 void iser_free_fmr_pool(struct iser_conn *ib_conn);
 int iser_create_fastreg_pool(struct iser_conn *ib_conn, unsigned cmds_max);
 void iser_free_fastreg_pool(struct iser_conn *ib_conn);
+u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
+			     enum iser_data_dir cmd_dir, sector_t *sector);
 #endif
