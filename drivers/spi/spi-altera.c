@@ -214,6 +214,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->num_chipselect = 16;
 	master->mode_bits = SPI_CS_HIGH;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
 
 	hw = spi_master_get_devdata(master);
 	platform_set_drvdata(pdev, hw);
