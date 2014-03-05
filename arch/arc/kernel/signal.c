@@ -141,16 +141,12 @@ badframe:
 /*
  * Determine which stack to use..
  */
-static inline void __user *get_sigframe(struct k_sigaction *ka,
+static inline void __user *get_sigframe(struct ksignal *ksig,
 					struct pt_regs *regs,
 					unsigned long framesize)
 {
-	unsigned long sp = regs->sp;
+	unsigned long sp = sigsp(regs->sp, ksig);
 	void __user *frame;
-
-	/* This is the X/Open sanctioned signal stack switching */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && !sas_ss_flags(sp))
-		sp = current->sas_ss_sp + current->sas_ss_size;
 
 	/* No matter what happens, 'sp' must be word
 	 * aligned otherwise nasty things could happen
@@ -185,7 +181,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	unsigned int magic = 0;
 	int err = 0;
 
-	sf = get_sigframe(&ksig->ka, regs, sizeof(struct rt_sigframe));
+	sf = get_sigframe(ksig, regs, sizeof(struct rt_sigframe));
 	if (!sf)
 		return 1;
 
