@@ -296,7 +296,7 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 	}
 	iser_info("Create fr_desc %p page_list %p\n",
 		  desc, desc->data_frpl->page_list);
-	desc->valid = true;
+	desc->reg_indicators |= ISER_DATA_KEY_VALID;
 
 	return 0;
 

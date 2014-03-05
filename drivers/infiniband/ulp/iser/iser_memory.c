@@ -479,7 +479,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		return -EINVAL;
 	}
 
-	if (!desc->valid) {
+	if (!(desc->reg_indicators & ISER_DATA_KEY_VALID)) {
 		memset(&inv_wr, 0, sizeof(inv_wr));
 		inv_wr.wr_id = ISER_FASTREG_LI_WRID;
 		inv_wr.opcode = IB_WR_LOCAL_INV;
@@ -514,7 +514,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		iser_err("fast registration failed, ret:%d\n", ret);
 		return ret;
 	}
-	desc->valid = false;
+	desc->reg_indicators &= ~ISER_DATA_KEY_VALID;
 
 	sge->lkey = desc->data_mr->lkey;
 	sge->addr = desc->data_frpl->page_list[0] + offset;

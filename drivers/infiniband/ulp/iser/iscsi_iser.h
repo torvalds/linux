@@ -280,13 +280,17 @@ struct iser_device {
 							    enum iser_data_dir cmd_dir);
 };
 
+enum iser_reg_indicator {
+	ISER_DATA_KEY_VALID = 1 << 0,
+};
+
 struct fast_reg_descriptor {
 	struct list_head		  list;
 	/* For fast registration - FRWR */
 	struct ib_mr			 *data_mr;
 	struct ib_fast_reg_page_list     *data_frpl;
-	/* Valid for fast registration flag */
-	bool				  valid;
+	/* registration indicators container */
+	u8				  reg_indicators;
 };
 
 struct iser_conn {
