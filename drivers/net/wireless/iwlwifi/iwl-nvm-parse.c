@@ -643,3 +643,156 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	return data;
 }
 IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);
+
+static u32 iwl_nvm_get_regdom_bw_flags(const u8 *nvm_chan,
+				       int ch_idx, u16 nvm_flags)
+{
+	u32 flags = NL80211_RRF_NO_HT40;
+
+	if (ch_idx < NUM_2GHZ_CHANNELS &&
+	    (nvm_flags & NVM_CHANNEL_40MHZ)) {
+		if (nvm_chan[ch_idx] <= LAST_2GHZ_HT_PLUS)
+			flags &= ~NL80211_RRF_NO_HT40PLUS;
+		if (nvm_chan[ch_idx] >= FIRST_2GHZ_HT_MINUS)
+			flags &= ~NL80211_RRF_NO_HT40MINUS;
+	} else if (nvm_chan[ch_idx] <= LAST_5GHZ_HT &&
+		   (nvm_flags & NVM_CHANNEL_40MHZ)) {
+		if ((ch_idx - NUM_2GHZ_CHANNELS) % 2 == 0)
+			flags &= ~NL80211_RRF_NO_HT40PLUS;
+		else
+			flags &= ~NL80211_RRF_NO_HT40MINUS;
+	}
+
+	if (!(nvm_flags & NVM_CHANNEL_80MHZ))
+		flags |= NL80211_RRF_NO_80MHZ;
+	if (!(nvm_flags & NVM_CHANNEL_160MHZ))
+		flags |= NL80211_RRF_NO_160MHZ;
+
+	if (!(nvm_flags & NVM_CHANNEL_IBSS))
+		flags |= NL80211_RRF_NO_IR;
+
+	if (!(nvm_flags & NVM_CHANNEL_ACTIVE))
+		flags |= NL80211_RRF_NO_IR;
+
+	if (nvm_flags & NVM_CHANNEL_RADAR)
+		flags |= NL80211_RRF_DFS;
+
+	if (nvm_flags & NVM_CHANNEL_INDOOR_ONLY)
+		flags |= NL80211_RRF_NO_OUTDOOR;
+
+	/* Set the GO concurrent flag only in case that NO_IR is set.
+	 * Otherwise it is meaningless
+	 */
+	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
+	    (flags & NL80211_RRF_NO_IR))
+		flags |= NL80211_RRF_GO_CONCURRENT;
+
+	return flags;
+}
+
+struct ieee80211_regdomain *
+iwl_parse_nvm_mcc_info(struct device *dev, int num_of_ch, __le32 *channels,
+		       u16 fw_mcc)
+{
+	int ch_idx;
+	u16 ch_flags, prev_ch_flags = 0;
+	const u8 *nvm_chan = iwl_nvm_channels; /* TODO: 8000 series differs */
+	struct ieee80211_regdomain *regd;
+	int size_of_regd;
+	struct ieee80211_reg_rule *rule;
+	enum ieee80211_band band;
+	int center_freq, prev_center_freq = 0;
+	int valid_rules = 0;
+	bool new_rule;
+
+	if (WARN_ON_ONCE(num_of_ch > NL80211_MAX_SUPP_REG_RULES))
+		return ERR_PTR(-EINVAL);
+
+	IWL_DEBUG_DEV(dev, IWL_DL_LAR, "building regdom for %d channels\n",
+		      num_of_ch);
+
+	/* build a regdomain rule for every valid channel */
+	size_of_regd =
+		sizeof(struct ieee80211_regdomain) +
+		num_of_ch * sizeof(struct ieee80211_reg_rule);
+
+	regd = kzalloc(size_of_regd, GFP_KERNEL);
+	if (!regd)
+		return ERR_PTR(-ENOMEM);
+
+	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
+		ch_flags = (u16)__le32_to_cpup(channels + ch_idx);
+		band = (ch_idx < NUM_2GHZ_CHANNELS) ?
+		       IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+		center_freq = ieee80211_channel_to_frequency(nvm_chan[ch_idx],
+							     band);
+		new_rule = false;
+
+		if (!(ch_flags & NVM_CHANNEL_VALID)) {
+			IWL_DEBUG_DEV(dev, IWL_DL_LAR,
+				      "Ch. %d Flags %x [%sGHz] - No traffic\n",
+				      nvm_chan[ch_idx],
+				      ch_flags,
+				      (ch_idx >= NUM_2GHZ_CHANNELS) ?
+				      "5.2" : "2.4");
+			continue;
+		}
+
+		/* we can't continue the same rule */
+		if (ch_idx == 0 || prev_ch_flags != ch_flags ||
+		    center_freq - prev_center_freq > 20) {
+			valid_rules++;
+			new_rule = true;
+		}
+
+		rule = &regd->reg_rules[valid_rules - 1];
+
+		if (new_rule)
+			rule->freq_range.start_freq_khz =
+						MHZ_TO_KHZ(center_freq - 10);
+
+		rule->freq_range.end_freq_khz = MHZ_TO_KHZ(center_freq + 10);
+
+		/* this doesn't matter - not used by FW */
+		rule->power_rule.max_antenna_gain = DBI_TO_MBI(6);
+		rule->power_rule.max_eirp = DBM_TO_MBM(20);
+
+		rule->flags = iwl_nvm_get_regdom_bw_flags(nvm_chan, ch_idx,
+							  ch_flags);
+
+		/* rely on auto-calculation to merge BW of contiguous chans */
+		rule->flags |= NL80211_RRF_AUTO_BW;
+		rule->freq_range.max_bandwidth_khz = 0;
+
+		prev_ch_flags = ch_flags;
+		prev_center_freq = center_freq;
+
+		IWL_DEBUG_DEV(dev, IWL_DL_LAR,
+			      "Ch. %d [%sGHz] %s%s%s%s%s%s%s%s%s%s(0x%02x): Ad-Hoc %ssupported\n",
+			      center_freq,
+			      band == IEEE80211_BAND_5GHZ ? "5.2" : "2.4",
+			      CHECK_AND_PRINT_I(VALID),
+			      CHECK_AND_PRINT_I(IBSS),
+			      CHECK_AND_PRINT_I(ACTIVE),
+			      CHECK_AND_PRINT_I(RADAR),
+			      CHECK_AND_PRINT_I(WIDE),
+			      CHECK_AND_PRINT_I(40MHZ),
+			      CHECK_AND_PRINT_I(80MHZ),
+			      CHECK_AND_PRINT_I(160MHZ),
+			      CHECK_AND_PRINT_I(INDOOR_ONLY),
+			      CHECK_AND_PRINT_I(GO_CONCURRENT),
+			      ch_flags,
+			      ((ch_flags & NVM_CHANNEL_IBSS) &&
+			       !(ch_flags & NVM_CHANNEL_RADAR))
+					 ? "" : "not ");
+	}
+
+	regd->n_reg_rules = valid_rules;
+
+	/* set alpha2 from FW. */
+	regd->alpha2[0] = fw_mcc >> 8;
+	regd->alpha2[1] = fw_mcc & 0xff;
+
+	return regd;
+}
+IWL_EXPORT_SYMBOL(iwl_parse_nvm_mcc_info);
