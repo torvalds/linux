@@ -644,27 +644,42 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 {
 	struct iser_device *device = iser_task->iser_conn->ib_conn->device;
-	int is_rdma_aligned = 1;
+	int is_rdma_data_aligned = 1;
 
 	/* if we were reading, copy back to unaligned sglist,
 	 * anyway dma_unmap and free the copy
 	 */
 	if (iser_task->data_copy[ISER_DIR_IN].copy_buf != NULL) {
-		is_rdma_aligned = 0;
-		iser_finalize_rdma_unaligned_sg(iser_task, ISER_DIR_IN);
+		is_rdma_data_aligned = 0;
+		iser_finalize_rdma_unaligned_sg(iser_task,
+						&iser_task->data[ISER_DIR_IN],
+						&iser_task->data_copy[ISER_DIR_IN],
+						ISER_DIR_IN);
 	}
+
 	if (iser_task->data_copy[ISER_DIR_OUT].copy_buf != NULL) {
-		is_rdma_aligned = 0;
-		iser_finalize_rdma_unaligned_sg(iser_task, ISER_DIR_OUT);
+		is_rdma_data_aligned = 0;
+		iser_finalize_rdma_unaligned_sg(iser_task,
+						&iser_task->data[ISER_DIR_OUT],
+						&iser_task->data_copy[ISER_DIR_OUT],
+						ISER_DIR_OUT);
 	}
 
-	if (iser_task->dir[ISER_DIR_IN])
+	if (iser_task->dir[ISER_DIR_IN]) {
 		device->iser_unreg_rdma_mem(iser_task, ISER_DIR_IN);
+		if (is_rdma_data_aligned)
+			iser_dma_unmap_task_data(iser_task,
+						 &iser_task->data[ISER_DIR_IN]);
 
-	if (iser_task->dir[ISER_DIR_OUT])
+	}
+
+	if (iser_task->dir[ISER_DIR_OUT]) {
 		device->iser_unreg_rdma_mem(iser_task, ISER_DIR_OUT);
-
-       /* if the data was unaligned, it was already unmapped and then copied */
-       if (is_rdma_aligned)
-		iser_dma_unmap_task_data(iser_task);
+		if (is_rdma_data_aligned)
+			iser_dma_unmap_task_data(iser_task,
+						 &iser_task->data[ISER_DIR_OUT]);
+		if (prot_count && is_rdma_prot_aligned)
+			iser_dma_unmap_task_data(iser_task,
+						 &iser_task->prot[ISER_DIR_OUT]);
+	}
 }

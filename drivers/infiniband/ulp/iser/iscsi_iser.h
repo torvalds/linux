@@ -410,8 +410,10 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *task);
 
 void iser_free_rx_descriptors(struct iser_conn *ib_conn);
 
-void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *task,
-				     enum iser_data_dir         cmd_dir);
+void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
+				     struct iser_data_buf *mem,
+				     struct iser_data_buf *mem_copy,
+				     enum iser_data_dir cmd_dir);
 
 int  iser_reg_rdma_mem_fmr(struct iscsi_iser_task *task,
 			   enum iser_data_dir cmd_dir);
@@ -441,7 +443,8 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 			    enum   iser_data_dir       iser_dir,
 			    enum   dma_data_direction  dma_dir);
 
-void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task);
+void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task,
+			      struct iser_data_buf *data);
 int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
 int iser_alloc_rx_descriptors(struct iser_conn *ib_conn, struct iscsi_session *session);
