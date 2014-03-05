@@ -103,6 +103,19 @@ void rk_send_power_key(int state)
 		input_sync(sinput_dev);
 	}
 }
+EXPORT_SYMBOL(rk_send_power_key);
+
+void rk_send_wakeup_key(void)
+{
+	if (!sinput_dev)
+		return;
+
+	input_report_key(sinput_dev, KEY_WAKEUP, 1);
+	input_sync(sinput_dev);
+	input_report_key(sinput_dev, KEY_WAKEUP, 0);
+	input_sync(sinput_dev);
+}
+EXPORT_SYMBOL(rk_send_wakeup_key);
 
 static void keys_timer(unsigned long _data)
 {
