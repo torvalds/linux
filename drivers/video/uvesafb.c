@@ -1812,11 +1812,9 @@ static int uvesafb_remove(struct platform_device *dev)
 		fb_destroy_modedb(info->monspecs.modedb);
 		fb_dealloc_cmap(&info->cmap);
 
-		if (par) {
-			kfree(par->vbe_modes);
-			kfree(par->vbe_state_orig);
-			kfree(par->vbe_state_saved);
-		}
+		kfree(par->vbe_modes);
+		kfree(par->vbe_state_orig);
+		kfree(par->vbe_state_saved);
 
 		framebuffer_release(info);
 	}
