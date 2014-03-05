@@ -21,10 +21,6 @@
 	};
 };
 
-&uart1 {
-	status = "okay";
-};
-
 &fec {
 	phy-mode = "rmii";
 	status = "okay";
@@ -32,5 +28,9 @@
 
 &nfc {
 	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&uart1 {
 	status = "okay";
 };
