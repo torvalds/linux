@@ -138,9 +138,12 @@
  * Block devices on UBI volumes
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * To create or remove a R/O block device on top of an UBI volume the
- * %UBI_IOCVOLCRBLK and %UBI_IOCVOLRMBLK ioctl commands should be used,
- * respectively. These commands take no arguments.
+ * To create a R/O block device on top of an UBI volume the %UBI_IOCVOLCRBLK
+ * should be used. A pointer to a &struct ubi_blkcreate_req object is expected
+ * to be passed, which is not used and reserved for future usage.
+ *
+ * Conversely, to remove a block device the %UBI_IOCVOLRMBLK should be used,
+ * which takes no arguments.
  */
 
 /*
@@ -199,7 +202,7 @@
 #define UBI_IOCSETVOLPROP _IOW(UBI_VOL_IOC_MAGIC, 6, \
 			       struct ubi_set_vol_prop_req)
 /* Create a R/O block device on top of an UBI volume */
-#define UBI_IOCVOLCRBLK _IO(UBI_VOL_IOC_MAGIC, 7)
+#define UBI_IOCVOLCRBLK _IOW(UBI_VOL_IOC_MAGIC, 7, struct ubi_blkcreate_req)
 /* Remove the R/O block device */
 #define UBI_IOCVOLRMBLK _IO(UBI_VOL_IOC_MAGIC, 8)
 
@@ -429,6 +432,14 @@ struct ubi_set_vol_prop_req {
 	__u8  property;
 	__u8  padding[7];
 	__u64 value;
+}  __packed;
+
+/**
+ * struct ubi_blkcreate_req - a data structure used in block creation requests.
+ * @padding: reserved for future, not used, has to be zeroed
+ */
+struct ubi_blkcreate_req {
+	__s8  padding[128];
 }  __packed;
 
 #endif /* __UBI_USER_H__ */
