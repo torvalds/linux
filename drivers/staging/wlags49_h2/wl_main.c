@@ -588,33 +588,25 @@ int wl_insert(struct net_device *dev)
 	lp->MulticastRate[0]    = PARM_DEFAULT_MULTICAST_RATE_2GHZ;
 	lp->MulticastRate[1]    = PARM_DEFAULT_MULTICAST_RATE_5GHZ;
 
-	if ( strchr( "Yy", PARM_MICROWAVE_ROBUSTNESS[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_MICROWAVE_ROBUSTNESS[0] ) != NULL )
 		lp->MicrowaveRobustness = 1;
-	} else {
+	else
 		lp->MicrowaveRobustness = 0;
-	}
-	if ( PARM_DESIRED_SSID && ( strlen( PARM_DESIRED_SSID ) <= HCF_MAX_NAME_LEN )) {
+	if ( PARM_DESIRED_SSID && ( strlen( PARM_DESIRED_SSID ) <= HCF_MAX_NAME_LEN ))
 		strcpy( lp->NetworkName, PARM_DESIRED_SSID );
-	}
-	if ( PARM_OWN_SSID && ( strlen( PARM_OWN_SSID ) <= HCF_MAX_NAME_LEN )) {
+	if ( PARM_OWN_SSID && ( strlen( PARM_OWN_SSID ) <= HCF_MAX_NAME_LEN ))
 		strcpy( lp->NetworkName, PARM_OWN_SSID );
-	}
-	if ( PARM_OWN_NAME && ( strlen( PARM_OWN_NAME ) <= HCF_MAX_NAME_LEN )) {
+	if ( PARM_OWN_NAME && ( strlen( PARM_OWN_NAME ) <= HCF_MAX_NAME_LEN ))
 		strcpy( lp->StationName, PARM_OWN_NAME );
-	}
 	lp->EnableEncryption = PARM_ENABLE_ENCRYPTION;
-	if ( PARM_KEY1 && ( strlen( PARM_KEY1 ) <= MAX_KEY_LEN )) {
+	if ( PARM_KEY1 && ( strlen( PARM_KEY1 ) <= MAX_KEY_LEN ))
 		strcpy( lp->Key1, PARM_KEY1 );
-	}
-	if ( PARM_KEY2 && ( strlen( PARM_KEY2 ) <= MAX_KEY_LEN )) {
+	if ( PARM_KEY2 && ( strlen( PARM_KEY2 ) <= MAX_KEY_LEN ))
 		strcpy( lp->Key2, PARM_KEY2 );
-	}
-	if ( PARM_KEY3 && ( strlen( PARM_KEY3 ) <= MAX_KEY_LEN )) {
+	if ( PARM_KEY3 && ( strlen( PARM_KEY3 ) <= MAX_KEY_LEN ))
 		strcpy( lp->Key3, PARM_KEY3 );
-	}
-	if ( PARM_KEY4 && ( strlen( PARM_KEY4 ) <= MAX_KEY_LEN )) {
+	if ( PARM_KEY4 && ( strlen( PARM_KEY4 ) <= MAX_KEY_LEN ))
 		strcpy( lp->Key4, PARM_KEY4 );
-	}
 
 	lp->TransmitKeyID = PARM_TX_KEY;
 
@@ -626,17 +618,15 @@ int wl_insert(struct net_device *dev)
 	lp->DownloadFirmware = 1 ; //;?to be upgraded PARM_DOWNLOAD_FIRMWARE;
 	lp->AuthKeyMgmtSuite = PARM_AUTH_KEY_MGMT_SUITE;
 
-	if ( strchr( "Yy", PARM_LOAD_BALANCING[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_LOAD_BALANCING[0] ) != NULL )
 		lp->loadBalancing = 1;
-	} else {
+	else
 		lp->loadBalancing = 0;
-	}
 
-	if ( strchr( "Yy", PARM_MEDIUM_DISTRIBUTION[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_MEDIUM_DISTRIBUTION[0] ) != NULL )
 		lp->mediumDistribution = 1;
-	} else {
+	else
 		lp->mediumDistribution = 0;
-	}
 
 	lp->txPowLevel = PARM_TX_POW_LEVEL;
 
@@ -652,24 +642,20 @@ int wl_insert(struct net_device *dev)
 	lp->atimWindow          = PARM_OWN_ATIM_WINDOW;
 	lp->holdoverDuration    = PARM_PM_HOLDOVER_DURATION;
 	lp->PMEnabled           = PARM_PM_ENABLED;  //;?
-	if ( strchr( "Yy", PARM_CREATE_IBSS[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_CREATE_IBSS[0] ) != NULL )
 		lp->CreateIBSS = 1;
-	} else {
+	else
 		lp->CreateIBSS = 0;
-	}
-	if ( strchr( "Nn", PARM_MULTICAST_RX[0] ) != NULL ) {
+	if ( strchr( "Nn", PARM_MULTICAST_RX[0] ) != NULL )
 		lp->MulticastReceive = 0;
-	} else {
+	else
 		lp->MulticastReceive = 1;
-	}
-	if ( strchr( "Yy", PARM_PROMISCUOUS_MODE[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_PROMISCUOUS_MODE[0] ) != NULL )
 		lp->promiscuousMode = 1;
-	} else {
+	else
 		lp->promiscuousMode = 0;
-	}
-	for( i = 0; i < ETH_ALEN; i++ ) {
-	   lp->MACAddress[i] = PARM_NETWORK_ADDR[i];
-	}
+	for( i = 0; i < ETH_ALEN; i++ )
+		lp->MACAddress[i] = PARM_NETWORK_ADDR[i];
 
 	lp->connectionControl = PARM_CONNECTION_CONTROL;
 
@@ -678,26 +664,22 @@ int wl_insert(struct net_device *dev)
 	//;?should we restore this to allow smaller memory footprint
 	lp->DTIMPeriod = PARM_OWN_DTIM_PERIOD;
 
-	if ( strchr( "Yy", PARM_REJECT_ANY[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_REJECT_ANY[0] ) != NULL )
 		lp->RejectAny = 1;
-	} else {
+	else
 		lp->RejectAny = 0;
-	}
-	if ( strchr( "Nn", PARM_EXCLUDE_UNENCRYPTED[0] ) != NULL ) {
+	if ( strchr( "Nn", PARM_EXCLUDE_UNENCRYPTED[0] ) != NULL )
 		lp->ExcludeUnencrypted = 0;
-	} else {
+	else
 		lp->ExcludeUnencrypted = 1;
-	}
-	if ( strchr( "Yy", PARM_MULTICAST_PM_BUFFERING[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_MULTICAST_PM_BUFFERING[0] ) != NULL )
 		lp->multicastPMBuffering = 1;
-	} else {
+	else
 		lp->multicastPMBuffering = 0;
-	}
-	if ( strchr( "Yy", PARM_INTRA_BSS_RELAY[0] ) != NULL ) {
+	if ( strchr( "Yy", PARM_INTRA_BSS_RELAY[0] ) != NULL )
 		lp->intraBSSRelay = 1;
-	} else {
+	else
 		lp->intraBSSRelay = 0;
-	}
 
 	lp->ownBeaconInterval = PARM_OWN_BEACON_INTERVAL;
 	lp->coexistence       = PARM_COEXISTENCE;
@@ -737,11 +719,10 @@ int wl_insert(struct net_device *dev)
 #endif  /* USE_WDS */
 #endif  /* HCF_AP */
 #ifdef USE_RTS
-	if ( strchr( "Yy", useRTS[0] ) != NULL ) {
+	if ( strchr( "Yy", useRTS[0] ) != NULL )
 		lp->useRTS = 1;
-	} else {
+	else
 		lp->useRTS = 0;
-	}
 #endif  /* USE_RTS */
 
 
