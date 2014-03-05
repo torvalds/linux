@@ -26,6 +26,7 @@
 
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 /* SPI register offsets */
 #define SPI_CR					0x0000
@@ -1292,6 +1293,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	struct spi_master	*master;
 	struct atmel_spi	*as;
 
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&pdev->dev);
+
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 		return -ENXIO;
@@ -1446,6 +1450,9 @@ static int atmel_spi_suspend(struct device *dev)
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
 	clk_disable_unprepare(as->clk);
+
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
@@ -1453,6 +1460,8 @@ static int atmel_spi_resume(struct device *dev)
 {
 	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
+
+	pinctrl_pm_select_default_state(dev);
 
 	clk_prepare_enable(as->clk);
 	return 0;
