@@ -3393,7 +3393,6 @@ int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 		ci->max_power         = ch->max_power;
 		ci->reg_power         = ch->max_reg_power;
 		ci->antenna_max       = ch->max_antenna_gain;
-		ci->antenna_max       = 0;
 
 		/* mode & flags share storage */
 		ci->mode              = ch->mode;
