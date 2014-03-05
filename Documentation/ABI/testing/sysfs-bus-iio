@@ -895,6 +895,19 @@ Description:
 		on-chip EEPROM. After power-up or chip reset the device will
 		automatically load the saved configuration.
 
+What:		/sys/.../iio:deviceX/in_proximity_raw
+What:		/sys/.../iio:deviceX/in_proximity_input
+What:		/sys/.../iio:deviceX/in_proximityY_raw
+KernelVersion:	3.4
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Proximity measurement indicating that some
+		object is near the sensor, usually be observing
+		reflectivity of infrared or ultrasound emitted.
+		Often these sensors are unit less and as such conversion
+		to SI units is not possible.  Where it is, the units should
+		be meters.
+
 What:		/sys/.../iio:deviceX/in_illuminanceY_input
 What:		/sys/.../iio:deviceX/in_illuminanceY_raw
 What:		/sys/.../iio:deviceX/in_illuminanceY_mean_raw
