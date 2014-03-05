@@ -135,19 +135,11 @@ static inline int rt_setup_sigcontext(struct sigcontext *sc, struct pt_regs *reg
 	return err;
 }
 
-static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+static inline void *get_sigframe(struct ksignal *ksig,
 				 size_t frame_size)
 {
-	unsigned long usp;
+	unsigned long usp = sigsp(rdusp(), ksig);
 
-	/* Default to using normal stack.  */
-	usp = rdusp();
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (!on_sig_stack(usp))
-			usp = current->sas_ss_sp + current->sas_ss_size;
-	}
 	return (void *)((usp - frame_size) & -8UL);
 }
 
@@ -157,7 +149,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	struct rt_sigframe *frame;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, sizeof(*frame));
 
 	err |= __put_user((current_thread_info()->exec_domain
 			   && current_thread_info()->exec_domain->signal_invmap
