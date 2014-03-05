@@ -535,7 +535,7 @@ static void native_machine_emergency_restart(void)
 						 EFI_RESET_WARM :
 						 EFI_RESET_COLD,
 						 EFI_SUCCESS, 0, NULL);
-			reboot_type = BOOT_CF9;
+			reboot_type = BOOT_CF9_COND;
 			break;
 
 		case BOOT_CF9:
