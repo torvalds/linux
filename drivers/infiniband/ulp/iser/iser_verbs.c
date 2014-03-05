@@ -607,6 +607,19 @@ static int iser_addr_handler(struct rdma_cm_id *cma_id)
 	ib_conn = (struct iser_conn *)cma_id->context;
 	ib_conn->device = device;
 
+	/* connection T10-PI support */
+	if (iser_pi_enable) {
+		if (!(device->dev_attr.device_cap_flags &
+		      IB_DEVICE_SIGNATURE_HANDOVER)) {
+			iser_warn("T10-PI requested but not supported on %s, "
+				  "continue without T10-PI\n",
+				  ib_conn->device->ib_device->name);
+			ib_conn->pi_support = false;
+		} else {
+			ib_conn->pi_support = true;
+		}
+	}
+
 	ret = rdma_resolve_route(cma_id, 1000);
 	if (ret) {
 		iser_err("resolve route failed: %d\n", ret);

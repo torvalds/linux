@@ -317,6 +317,7 @@ struct iser_conn {
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
+	bool			     pi_support;
 
 	/* Connection memory registration pool */
 	union {
@@ -371,6 +372,8 @@ struct iser_global {
 
 extern struct iser_global ig;
 extern int iser_debug_level;
+extern bool iser_pi_enable;
+extern int iser_pi_guard;
 
 /* allocate connection resources needed for rdma functionality */
 int iser_conn_set_full_featured_mode(struct iscsi_conn *conn);
