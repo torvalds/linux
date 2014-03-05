@@ -982,9 +982,9 @@ COMPAT_SYSCALL_DEFINE3(readv, compat_ulong_t, fd,
 	return ret;
 }
 
-COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
-		const struct compat_iovec __user *,vec,
-		unsigned long, vlen, loff_t, pos)
+static long __compat_sys_preadv64(unsigned long fd,
+				  const struct compat_iovec __user *vec,
+				  unsigned long vlen, loff_t pos)
 {
 	struct fd f;
 	ssize_t ret;
@@ -1001,12 +1001,22 @@ COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
 	return ret;
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
+COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos)
+{
+	return __compat_sys_preadv64(fd, vec, vlen, pos);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE5(preadv, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high)
 {
 	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
-	return compat_sys_preadv64(fd, vec, vlen, pos);
+
+	return __compat_sys_preadv64(fd, vec, vlen, pos);
 }
 
 static size_t compat_writev(struct file *file,
@@ -1049,9 +1059,9 @@ COMPAT_SYSCALL_DEFINE3(writev, compat_ulong_t, fd,
 	return ret;
 }
 
-COMPAT_SYSCALL_DEFINE4(pwritev64, unsigned long, fd,
-		const struct compat_iovec __user *,vec,
-		unsigned long, vlen, loff_t, pos)
+static long __compat_sys_pwritev64(unsigned long fd,
+				   const struct compat_iovec __user *vec,
+				   unsigned long vlen, loff_t pos)
 {
 	struct fd f;
 	ssize_t ret;
@@ -1068,12 +1078,22 @@ COMPAT_SYSCALL_DEFINE4(pwritev64, unsigned long, fd,
 	return ret;
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64
+COMPAT_SYSCALL_DEFINE4(pwritev64, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos)
+{
+	return __compat_sys_pwritev64(fd, vec, vlen, pos);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE5(pwritev, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high)
 {
 	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
-	return compat_sys_pwritev64(fd, vec, vlen, pos);
+
+	return __compat_sys_pwritev64(fd, vec, vlen, pos);
 }
 #endif
 
