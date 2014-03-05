@@ -601,10 +601,10 @@ static int mcp251x_do_set_bittiming(struct net_device *net)
 			  (bt->prop_seg - 1));
 	mcp251x_write_bits(spi, CNF3, CNF3_PHSEG2_MASK,
 			   (bt->phase_seg2 - 1));
-	dev_info(&spi->dev, "CNF: 0x%02x 0x%02x 0x%02x\n",
-		 mcp251x_read_reg(spi, CNF1),
-		 mcp251x_read_reg(spi, CNF2),
-		 mcp251x_read_reg(spi, CNF3));
+	dev_dbg(&spi->dev, "CNF: 0x%02x 0x%02x 0x%02x\n",
+		mcp251x_read_reg(spi, CNF1),
+		mcp251x_read_reg(spi, CNF2),
+		mcp251x_read_reg(spi, CNF3));
 
 	return 0;
 }
@@ -1154,8 +1154,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 		goto error_probe;
 
 	devm_can_led_init(net);
-
-	dev_info(&spi->dev, "probed\n");
 
 	return ret;
 
