@@ -1605,7 +1605,7 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 		hdmi->dev_type = device_id->driver_data;
 	}
 
-	ddc_node = of_parse_phandle(np, "ddc", 0);
+	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
 	if (ddc_node) {
 		hdmi->ddc = of_find_i2c_adapter_by_node(ddc_node);
 		if (!hdmi->ddc)
