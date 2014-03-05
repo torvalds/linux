@@ -396,7 +396,7 @@ static void audit_printk_skb(struct sk_buff *skb)
 		if (printk_ratelimit())
 			pr_notice("type=%d %s\n", nlh->nlmsg_type, data);
 		else
-			audit_log_lost("printk limit exceeded\n");
+			audit_log_lost("printk limit exceeded");
 	}
 
 	audit_hold_skb(skb);
@@ -412,7 +412,7 @@ static void kauditd_send_skb(struct sk_buff *skb)
 		BUG_ON(err != -ECONNREFUSED); /* Shouldn't happen */
 		if (audit_pid) {
 			pr_err("*NO* daemon at audit_pid=%d\n", audit_pid);
-			audit_log_lost("auditd disappeared\n");
+			audit_log_lost("auditd disappeared");
 			audit_pid = 0;
 			audit_sock = NULL;
 		}
