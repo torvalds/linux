@@ -2259,7 +2259,7 @@ VBV buffer control.</entry>
 	      </row>
 
 		  <row><entry></entry></row>
-	      <row id=""v4l2-mpeg-video-hor-search-range">
+	      <row id="v4l2-mpeg-video-hor-search-range">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_MV_H_SEARCH_RANGE</constant>&nbsp;</entry>
 		<entry>integer</entry>
 	      </row>
