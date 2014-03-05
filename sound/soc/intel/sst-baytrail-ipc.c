@@ -796,7 +796,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 
 	err = msg_empty_list_init(byt);
 	if (err < 0)
-		goto list_err;
+		return -ENOMEM;
 
 	/* start the IPC message thread */
 	init_kthread_worker(&byt->kworker);
@@ -806,7 +806,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	if (IS_ERR(byt->tx_thread)) {
 		err = PTR_ERR(byt->tx_thread);
 		dev_err(byt->dev, "error failed to create message TX task\n");
-		goto list_err;
+		goto err_free_msg;
 	}
 	init_kthread_work(&byt->kwork, sst_byt_ipc_tx_msgs);
 
@@ -816,7 +816,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	byt->dsp = sst_dsp_new(dev, &byt_dev, pdata);
 	if (byt->dsp == NULL) {
 		err = -ENODEV;
-		goto list_err;
+		goto err_free_msg;
 	}
 
 	/* keep the DSP in reset state for base FW loading */
@@ -848,9 +848,9 @@ boot_err:
 	sst_fw_free(byt_sst_fw);
 fw_err:
 	sst_dsp_free(byt->dsp);
+err_free_msg:
 	kfree(byt->msg);
-list_err:
-	kfree(byt);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(sst_byt_dsp_init);
