@@ -2699,7 +2699,7 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 
 		if (ch->ch_cpstime < current_time) {
 			/* buffer is empty */
-			ch->ch_cpstime = current_time;            /* reset ch_cpstime */
+			ch->ch_cpstime = current_time;   /* reset ch_cpstime */
 			cps_limit = ch->ch_digi.digi_bufsize;
 		} else if (ch->ch_cpstime < buffer_time) {
 			/* still room in the buffer */
@@ -2837,7 +2837,8 @@ static int dgap_tty_put_char(struct tty_struct *tty, unsigned char c)
  * Take data from the user or kernel and send it out to the FEP.
  * In here exists all the Transparent Print magic as well.
  */
-static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
+				int count)
 {
 	struct channel_t *ch = NULL;
 	struct un_t *un = NULL;
@@ -2929,7 +2930,8 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	}
 
 	/*
-	 * If there is nothing left to copy, or I can't handle any more data, leave.
+	 * If there is nothing left to copy, or
+	 * I can't handle any more data, leave.
 	 */
 	if (count <= 0) {
 		dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
@@ -2952,7 +2954,8 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 		if (down_interruptible(&dgap_TmpWriteSem))
 			return -EINTR;
 
-		if (copy_from_user(dgap_TmpWriteBuf, (const uchar __user *) buf, count)) {
+		if (copy_from_user(dgap_TmpWriteBuf, (const uchar __user *)buf,
+					count)) {
 			up(&dgap_TmpWriteSem);
 			return -EFAULT;
 		}
@@ -2976,7 +2979,8 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 		vaddr = ch->ch_taddr + head;
 
 		memcpy_toio(vaddr, (uchar *) buf, remain);
-		dgap_sniff_nowait_nolock(ch, "USER WRITE", (uchar *) buf, remain);
+		dgap_sniff_nowait_nolock(ch, "USER WRITE", (uchar *) buf,
+					remain);
 
 		head = ch->ch_tstart;
 		buf += remain;
@@ -2991,7 +2995,8 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 		remain = n;
 
 		memcpy_toio(vaddr, (uchar *) buf, remain);
-		dgap_sniff_nowait_nolock(ch, "USER WRITE", (uchar *) buf, remain);
+		dgap_sniff_nowait_nolock(ch, "USER WRITE", (uchar *)buf,
+					remain);
 
 		head += remain;
 
@@ -3315,7 +3320,8 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
  *
  * Set modem signals, called by ld.
  */
-static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, unsigned int __user *value)
+static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command,
+				unsigned int __user *value)
 {
 	struct board_t *bd;
 	struct channel_t *ch;
@@ -3409,7 +3415,8 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
  *
  *
  */
-static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retinfo)
+static int dgap_tty_digigeta(struct tty_struct *tty,
+				struct digi_t __user *retinfo)
 {
 	struct channel_t *ch;
 	struct un_t *un;
@@ -3450,7 +3457,8 @@ static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
  *
  *
  */
-static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_info)
+static int dgap_tty_digiseta(struct tty_struct *tty,
+				struct digi_t __user *new_info)
 {
 	struct board_t *bd;
 	struct channel_t *ch;
@@ -3603,7 +3611,8 @@ static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
  *
  * Ioctl to get the current custom baud rate setting.
  */
-static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinfo)
+static int dgap_tty_digigetcustombaud(struct tty_struct *tty,
+					int __user *retinfo)
 {
 	struct channel_t *ch;
 	struct un_t *un;
@@ -3641,7 +3650,8 @@ static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinf
  *
  * Ioctl to set the custom baud rate setting
  */
-static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_info)
+static int dgap_tty_digisetcustombaud(struct tty_struct *tty,
+					int __user *new_info)
 {
 	struct board_t *bd;
 	struct channel_t *ch;
@@ -3688,7 +3698,8 @@ static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_in
 /*
  * dgap_set_termios()
  */
-static void dgap_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void dgap_tty_set_termios(struct tty_struct *tty,
+				struct ktermios *old_termios)
 {
 	struct board_t *bd;
 	struct channel_t *ch;
@@ -4115,7 +4126,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		rc = put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *) arg);
+		rc = put_user(C_CLOCAL(tty) ? 1 : 0,
+				(unsigned long __user *) arg);
 		return rc;
 
 	case TIOCSSOFTCAR:
@@ -4128,7 +4140,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
-		tty->termios.c_cflag = ((tty->termios.c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
+		tty->termios.c_cflag = ((tty->termios.c_cflag & ~CLOCAL) |
+						(arg ? CLOCAL : 0));
 		dgap_param(tty);
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
@@ -4723,15 +4736,20 @@ static void dgap_get_vpd(struct board_t *brd)
 			/*
 			 * Lots of magic numbers here.
 			 *
-			 * The VPD offset is located inside the ROM Data Structure.
+			 * The VPD offset is located inside the ROM Data
+			 * Structure.
+			 *
 			 * We also have to remember the length of each
 			 * ROM Data Structure, so we can "hop" to the next
 			 * entry if the VPD isn't in the current
 			 * ROM Data Structure.
 			 */
-			rom_offset = readw(brd->re_map_membase + base_offset + 0x18);
-			image_length = readw(brd->re_map_membase + rom_offset + 0x10) * 512;
-			vpd_offset = readw(brd->re_map_membase + rom_offset + 0x08);
+			rom_offset = readw(brd->re_map_membase +
+						base_offset + 0x18);
+			image_length = readw(brd->re_map_membase +
+						rom_offset + 0x10) * 512;
+			vpd_offset = readw(brd->re_map_membase +
+						rom_offset + 0x08);
 
 			/* Found the VPD entry */
 			if (vpd_offset)
@@ -4758,8 +4776,10 @@ static void dgap_get_vpd(struct board_t *brd)
 		 */
 		if (vpd_offset) {
 			brd->bd_flags |= BD_HAS_VPD;
-			for (i = 0; i < VPDSIZE; i++)
-				brd->vpd[i] = readb(brd->re_map_membase + vpd_offset + i);
+			for (i = 0; i < VPDSIZE; i++) {
+				brd->vpd[i] = readb(brd->re_map_membase +
+							vpd_offset + i);
+			}
 		}
 	}
 
@@ -4857,7 +4877,8 @@ out:
 		/*
 		 * Match this board to a config the user created for us.
 		 */
-		bd->bd_config = dgap_find_config(bd->type, bd->pci_bus, bd->pci_slot);
+		bd->bd_config = dgap_find_config(bd->type, bd->pci_bus,
+							bd->pci_slot);
 
 		/*
 		 * Because the 4 port Xr products share the same PCI ID
@@ -4866,7 +4887,8 @@ out:
 		 * PAPORT4 attempt as well.
 		 */
 		if (bd->type == PAPORT8 && !bd->bd_config)
-			bd->bd_config = dgap_find_config(PAPORT4, bd->pci_bus, bd->pci_slot);
+			bd->bd_config = dgap_find_config(PAPORT4, bd->pci_bus,
+								bd->pci_slot);
 
 		/*
 		 * Register the ttys (if any) into the kernel.
@@ -4999,7 +5021,8 @@ out:
  *                        in the cmd buffer before returning.
  *
  *=======================================================================*/
-static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2, uint ncmds)
+static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1,
+			uchar byte2, uint ncmds)
 {
 	char		*vaddr = NULL;
 	struct cm_t	*cm_addr = NULL;
@@ -5443,7 +5466,8 @@ static int dgap_param(struct tty_struct *tty)
 		 * Now go get from fep mem, what the fep
 		 * believes the custom baud rate is.
 		 */
-		ch->ch_baud_info = ch->ch_custom_speed = dgap_get_custom_baud(ch);
+		ch->ch_custom_speed = dgap_get_custom_baud(ch);
+		ch->ch_baud_info = ch->ch_custom_speed;
 
 		/* Handle transition from B0 */
 		if (ch->ch_flags & CH_BAUD0) {
@@ -5485,8 +5509,12 @@ static int dgap_param(struct tty_struct *tty)
 				4800,	9600,	19200,	38400 }
 		};
 
-		/* Only use the TXPrint baud rate if the terminal unit is NOT open */
-		if (!(ch->ch_tun.un_flags & UN_ISOPEN) && (un->un_type == DGAP_PRINT))
+		/*
+		 * Only use the TXPrint baud rate if the
+		 * terminal unit is NOT open
+		 */
+		if (!(ch->ch_tun.un_flags & UN_ISOPEN) &&
+		     (un->un_type == DGAP_PRINT))
 			baud = C_BAUD(ch->ch_pun.un_tty) & 0xff;
 		else
 			baud = C_BAUD(ch->ch_tun.un_tty) & 0xff;
@@ -5511,18 +5539,21 @@ static int dgap_param(struct tty_struct *tty)
 		ch->ch_baud_info = baud;
 
 		/*
-		 * CBAUD has bit position 0x1000 set these days to indicate Linux
-		 * baud rate remap.
-		 * We use a different bit assignment for high speed.  Clear this
-		 * bit out while grabbing the parts of "cflag" we want.
+		 * CBAUD has bit position 0x1000 set these days to
+		 * indicate Linux baud rate remap.
+		 * We use a different bit assignment for high speed.
+		 * Clear this bit out while grabbing the parts of
+		 * "cflag" we want.
 		 */
-		cflag = ch->ch_c_cflag & ((CBAUD ^ CBAUDEX) | PARODD | PARENB | CSTOPB | CSIZE);
+		cflag = ch->ch_c_cflag & ((CBAUD ^ CBAUDEX) | PARODD | PARENB |
+						   CSTOPB | CSIZE);
 
 		/*
 		 * HUPCL bit is used by FEP to indicate fast baud
 		 * table is to be used.
 		 */
-		if ((ch->ch_digi.digi_flags & DIGI_FAST) || (ch->ch_c_cflag & CBAUDEX))
+		if ((ch->ch_digi.digi_flags & DIGI_FAST) ||
+		    (ch->ch_c_cflag & CBAUDEX))
 			cflag |= HUPCL;
 
 		if ((ch->ch_c_cflag & CBAUDEX) &&
@@ -5537,7 +5568,10 @@ static int dgap_param(struct tty_struct *tty)
 			tcflag_t tcflag = (ch->ch_c_cflag & CBAUD) | CBAUDEX;
 			int baudpart = 0;
 
-			/* Map high speed requests to index into FEP's baud table */
+			/*
+			 * Map high speed requests to index
+			 * into FEP's baud table
+			 */
 			switch (tcflag) {
 			case B57600:
 				baudpart = 1;
