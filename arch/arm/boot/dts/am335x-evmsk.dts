@@ -473,6 +473,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
+	dual_emac = <1>;
 };
 
 &davinci_mdio {
@@ -484,11 +485,13 @@
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <0>;
 	phy-mode = "rgmii-txid";
+	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <1>;
 	phy-mode = "rgmii-txid";
+	dual_emac_res_vlan = <2>;
 };
 
 &mmc1 {
