@@ -1455,6 +1455,14 @@ static int atmel_spi_suspend(struct device *dev)
 {
 	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
+	int ret;
+
+	/* Stop the queue running */
+	ret = spi_master_suspend(master);
+	if (ret) {
+		dev_warn(dev, "cannot suspend master\n");
+		return ret;
+	}
 
 	clk_disable_unprepare(as->clk);
 	return 0;
@@ -1464,9 +1472,16 @@ static int atmel_spi_resume(struct device *dev)
 {
 	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
+	int ret;
 
 	clk_prepare_enable(as->clk);
-	return 0;
+
+	/* Start the queue running */
+	ret = spi_master_resume(master);
+	if (ret)
+		dev_err(dev, "problem starting queue (%d)\n", ret);
+
+	return ret;
 }
 
 static SIMPLE_DEV_PM_OPS(atmel_spi_pm_ops, atmel_spi_suspend, atmel_spi_resume);
