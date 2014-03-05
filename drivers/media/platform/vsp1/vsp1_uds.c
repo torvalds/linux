@@ -131,14 +131,13 @@ static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 		return 0;
 
 	/* Enable multi-tap scaling. */
-	vsp1_uds_write(uds, VI6_UDS_CTRL, VI6_UDS_CTRL_BC);
+	vsp1_uds_write(uds, VI6_UDS_CTRL, VI6_UDS_CTRL_AON | VI6_UDS_CTRL_BC);
 
 	vsp1_uds_write(uds, VI6_UDS_PASS_BWIDTH,
 		       (uds_passband_width(uds->hscale)
 				<< VI6_UDS_PASS_BWIDTH_H_SHIFT) |
 		       (uds_passband_width(uds->vscale)
 				<< VI6_UDS_PASS_BWIDTH_V_SHIFT));
-
 
 	/* Set the scaling ratios and the output size. */
 	format = &uds->entity.formats[UDS_PAD_SOURCE];
