@@ -1062,7 +1062,7 @@ struct i915_power_well {
 	/* power well enable/disable usage count */
 	int count;
 	unsigned long domains;
-	void *data;
+	unsigned long data;
 	const struct i915_power_well_ops *ops;
 };
 

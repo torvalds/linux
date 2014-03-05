@@ -395,6 +395,8 @@ bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	bool ret;
 
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	ret = !intel_crtc->cpu_fifo_underrun_disabled;
 
 	if (enable == ret)

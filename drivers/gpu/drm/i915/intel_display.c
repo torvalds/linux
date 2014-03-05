@@ -4229,6 +4229,7 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 
 	if (req_cdclk != cur_cdclk)
 		valleyview_set_cdclk(dev, req_cdclk);
+	modeset_update_crtc_power_domains(dev);
 }
 
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
