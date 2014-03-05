@@ -36,7 +36,7 @@
 static void __iomem *sun4i_irq_base;
 static struct irq_domain *sun4i_irq_domain;
 
-static asmlinkage void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs);
+static void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs);
 
 static void sun4i_irq_ack(struct irq_data *irqd)
 {
@@ -136,7 +136,7 @@ static int __init sun4i_of_init(struct device_node *node,
 }
 IRQCHIP_DECLARE(allwinner_sun4i_ic, "allwinner,sun4i-ic", sun4i_of_init);
 
-static asmlinkage void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs)
 {
 	u32 irq, hwirq;
 

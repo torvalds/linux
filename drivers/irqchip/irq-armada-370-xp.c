@@ -410,7 +410,7 @@ static void armada_370_xp_mpic_handle_cascade_irq(unsigned int irq,
 	chained_irq_exit(chip, desc);
 }
 
-static asmlinkage void __exception_irq_entry
+static void __exception_irq_entry
 armada_370_xp_handle_irq(struct pt_regs *regs)
 {
 	u32 irqstat, irqnr;
