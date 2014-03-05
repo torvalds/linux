@@ -260,7 +260,7 @@ struct ieee80211_if_ap {
 
 	/* to be used after channel switch. */
 	struct cfg80211_beacon_data *next_beacon;
-	struct list_head vlans;
+	struct list_head vlans; /* write-protected with RTNL and local->mtx */
 
 	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
@@ -276,7 +276,7 @@ struct ieee80211_if_wds {
 };
 
 struct ieee80211_if_vlan {
-	struct list_head list;
+	struct list_head list; /* write-protected with RTNL and local->mtx */
 
 	/* used for all tx if the VLAN is configured to 4-addr mode */
 	struct sta_info __rcu *sta;
