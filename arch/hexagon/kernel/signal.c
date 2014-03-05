@@ -36,18 +36,10 @@ struct rt_sigframe {
 	struct ucontext uc;
 };
 
-static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 			  size_t frame_size)
 {
-	unsigned long sp = regs->r29;
-
-	/* check if we would overflow the alt stack */
-	if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size)))
-		return (void __user __force *)-1UL;
-
-	/* Switch to signal stack if appropriate */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags(sp) == 0))
-		sp = current->sas_ss_sp + current->sas_ss_size;
+	unsigned long sp = sigsp(regs->r29, ksig);
 
 	return (void __user *)((sp - frame_size) & ~(sizeof(long long) - 1));
 }
@@ -119,7 +111,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	struct rt_sigframe __user *frame;
 	struct hexagon_vdso *vdso = current->mm->context.vdso;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(struct rt_sigframe));
+	frame = get_sigframe(ksig, regs, sizeof(struct rt_sigframe));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(struct rt_sigframe)))
 		return -EFAULT;
