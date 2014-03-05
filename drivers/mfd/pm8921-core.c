@@ -394,9 +394,8 @@ static int pm8921_probe(struct platform_device *pdev)
 {
 	struct pm8921 *pmic;
 	struct regmap *regmap;
-	int rc;
+	int irq, rc;
 	unsigned int val;
-	unsigned int irq;
 	u32 rev;
 	struct pm_irq_chip *chip;
 	unsigned int nirqs = PM8921_NR_IRQS;
