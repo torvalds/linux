@@ -748,6 +748,11 @@ static int spi_sirfsoc_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct sirfsoc_spi *sspi = spi_master_get_devdata(master);
+	int ret;
+
+	ret = spi_master_suspend(master);
+	if (ret)
+		return ret;
 
 	clk_disable(sspi->clk);
 	return 0;
@@ -764,7 +769,7 @@ static int spi_sirfsoc_resume(struct device *dev)
 	writel(SIRFSOC_SPI_FIFO_START, sspi->base + SIRFSOC_SPI_RXFIFO_OP);
 	writel(SIRFSOC_SPI_FIFO_START, sspi->base + SIRFSOC_SPI_TXFIFO_OP);
 
-	return 0;
+	return spi_master_resume(master);
 }
 #endif
 
