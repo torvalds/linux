@@ -678,8 +678,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 			nvec->rx->data[nvec->rx->pos++] = received;
 		else
 			dev_err(nvec->dev,
-				"RX buffer overflow on %p: "
-				"Trying to write byte %u of %u\n",
+				"RX buffer overflow on %p: Trying to write byte %u of %u\n",
 				nvec->rx, nvec->rx ? nvec->rx->pos : 0,
 				NVEC_MSG_SIZE);
 		break;
