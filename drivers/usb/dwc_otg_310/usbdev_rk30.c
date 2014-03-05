@@ -9,11 +9,21 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of_gpio.h>
+#include <linux/of_device.h>
 #include <linux/gpio.h>
+#include <linux/wakelock.h>
+#include <linux/workqueue.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include "usbdev_rk.h"
 #include "dwc_otg_regs.h"
 
 static struct dwc_otg_control_usb *control_usb;
+
+int usb_get_chip_id(void)
+{
+	return control_usb->chip_id;
+}
 
 int dwc_otg_check_dpdm(void)
 {
@@ -155,15 +165,16 @@ struct dwc_otg_platform_data usb20otg_pdata = {
 	.ahbclk = NULL,
 	.busclk = NULL,
 	.phy_status = 0,
-	.hw_init=usb20otg_hw_init,
-	.phy_suspend=usb20otg_phy_suspend,
-	.soft_reset=usb20otg_soft_reset,
-	.clock_init=usb20otg_clock_init,
-	.clock_enable=usb20otg_clock_enable,
-	.get_status=usb20otg_get_status,
-	.power_enable=usb20otg_power_enable,
+	.hw_init = usb20otg_hw_init,
+	.phy_suspend = usb20otg_phy_suspend,
+	.soft_reset = usb20otg_soft_reset,
+	.clock_init = usb20otg_clock_init,
+	.clock_enable = usb20otg_clock_enable,
+	.get_status = usb20otg_get_status,
+	.get_chip_id = usb_get_chip_id,
+	.power_enable = usb20otg_power_enable,
 #ifdef CONFIG_RK_USB_UART
-	.dwc_otg_uart_mode=dwc_otg_uart_mode,
+	.dwc_otg_uart_mode = dwc_otg_uart_mode,
 #endif
 };
 
@@ -273,13 +284,14 @@ struct dwc_otg_platform_data usb20host_pdata = {
 	.ahbclk = NULL,
 	.busclk = NULL,
 	.phy_status = 0,
-	.hw_init=usb20host_hw_init,
-	.phy_suspend=usb20host_phy_suspend,
-	.soft_reset=usb20host_soft_reset,
-	.clock_init=usb20host_clock_init,
-	.clock_enable=usb20host_clock_enable,
-	.get_status=usb20host_get_status,
-	.power_enable=usb20host_power_enable,
+	.hw_init = usb20host_hw_init,
+	.phy_suspend = usb20host_phy_suspend,
+	.soft_reset = usb20host_soft_reset,
+	.clock_init = usb20host_clock_init,
+	.clock_enable = usb20host_clock_enable,
+	.get_status = usb20host_get_status,
+	.get_chip_id = usb_get_chip_id,
+	.power_enable = usb20host_power_enable,
 };
 #endif
 
@@ -381,16 +393,202 @@ struct rkehci_platform_data rkhsic_pdata = {
 	.clock_init = rk_hsic_clock_init,
 	.clock_enable = rk_hsic_clock_enable,
 	.soft_reset = rk_hsic_soft_reset,
+	.get_chip_id = usb_get_chip_id,
 };
+#endif
+
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+#define WAKE_LOCK_TIMEOUT (HZ * 10)
+
+inline static void do_wakeup(struct work_struct *work)
+{
+//	rk28_send_wakeup_key();
+}
+#endif
+
+/********** handler for bvalid irq **********/
+static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
+{
+	unsigned int * phy_con0;
+
+	/* clear irq */
+	if( usb_get_chip_id() == RK3188_USB_CTLR){
+		phy_con0 = (control_usb->grf_uoc0_base + 0xc);
+		*phy_con0 = (1 << 31) | (1 << 15);
+	}
+
+#ifdef CONFIG_RK_USB_UART
+	/* usb otg dp/dm switch to usb phy */
+	dwc_otg_uart_mode(NULL, PHY_USB_MODE);
+#endif
+
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+	wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
+	schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
+#endif
+
+	return IRQ_HANDLED;
+}
+
+/********** handler for otg id rise and fall edge **********/
+static irqreturn_t id_irq_handler(int irq, void *dev_id)
+{
+	/* clear irq */
+	if( usb_get_chip_id() == RK3288_USB_CTLR){
+
+	}
+
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+	wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
+	schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
+#endif
+
+	return IRQ_HANDLED;
+}
+
+/************* register bvalid and otg_id irq **************/
+static int otg_irq_detect_init(struct platform_device *pdev)
+{
+	int ret = 0;
+	int irq = 0;
+	unsigned int * phy_con0;
+
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+	wake_lock_init(&control_usb->usb_wakelock, WAKE_LOCK_SUSPEND, "usb_detect");
+	INIT_DELAYED_WORK(&control_usb->usb_det_wakeup_work, do_wakeup);
+#endif
+
+	irq = platform_get_irq_byname(pdev, "bvalid");
+	if (irq > 0) {
+		ret = request_irq(irq, bvalid_irq_handler, 0, "bvalid", NULL);
+		if(ret < 0){
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+			return ret;
+		}
+
+		/* clear & enable bvalid irq */
+		if( usb_get_chip_id() == RK3188_USB_CTLR){
+			phy_con0 = (control_usb->grf_uoc0_base + 0xc);
+			*phy_con0 = (3 << 30) | (3 << 14);
+		}
+
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+		enable_irq_wake(irq);
+#endif
+	}
+
+	irq = platform_get_irq_byname(pdev, "otg_id");
+	if (irq > 0) {
+		ret = request_irq(irq, id_irq_handler, 0, "otg_id", NULL);
+		if(ret < 0){
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+			return ret;
+		}
+
+		/* clear & enable otg_id change irq */
+		/* for rk3026 & rk3288 enable and clear id_fall_irq & id_rise_irq*/
+		if( usb_get_chip_id() == RK3288_USB_CTLR){
+
+		}
+
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+		enable_irq_wake(irq);
+#endif
+	}
+
+	return ret;
+}
+
+static int usb_grf_ioremap(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct resource *res;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_SOC_STATUS0");
+	control_usb->grf_soc_status0 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(control_usb->grf_soc_status0)){
+		ret = PTR_ERR(control_usb->grf_soc_status0);
+		return ret;
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_UOC0_BASE");
+	control_usb->grf_uoc0_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(control_usb->grf_uoc0_base)){
+		ret = PTR_ERR(control_usb->grf_uoc0_base);
+		return ret;
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_UOC1_BASE");
+	control_usb->grf_uoc1_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(control_usb->grf_uoc1_base)){
+		ret = PTR_ERR(control_usb->grf_uoc1_base);
+		return ret;
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_UOC2_BASE");
+	control_usb->grf_uoc2_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(control_usb->grf_uoc2_base)){
+		ret = PTR_ERR(control_usb->grf_uoc2_base);
+		return ret;
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_UOC3_BASE");
+	control_usb->grf_uoc3_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(control_usb->grf_uoc3_base)){
+		ret = PTR_ERR(control_usb->grf_uoc3_base);
+		return ret;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_OF
+static struct platform_device_id rk_usb_devtype[] = {
+	{
+		.name = "rk3188-usb",
+		.driver_data = RK3188_USB_CTLR,
+	},
+	{
+		.name = "rk3288-usb",
+		.driver_data = RK3288_USB_CTLR,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, rk_usb_devtype);
+
+static const struct of_device_id dwc_otg_control_usb_id_table[] = {
+	{	.compatible = "rockchip,rk3188-dwc-control-usb",
+		.data = &rk_usb_devtype[RK3188_USB_CTLR],
+	},
+	{
+		.compatible = "rockchip,rk3288-dwc-control-usb",
+		.data = &rk_usb_devtype[RK3288_USB_CTLR],
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, dwc_otg_control_usb_id_table);
 #endif
 
 static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 {
-	struct resource	*res;
 	int gpio, err;
 	struct device_node *np = pdev->dev.of_node;
 	struct clk* hclk_usb_peri;
 	int ret = 0;
+	const struct of_device_id *match =
+		of_match_device(of_match_ptr(dwc_otg_control_usb_id_table), &pdev->dev);
+
+	if (match)
+		pdev->id_entry = match->data;
+	else{
+		ret = -EINVAL;
+		goto err1;
+	}
 
 	control_usb = devm_kzalloc(&pdev->dev, sizeof(*control_usb),GFP_KERNEL);
 	if (!control_usb) {
@@ -398,6 +596,8 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret =  -ENOMEM;
 		goto err1;
 	}
+
+	control_usb->chip_id = pdev->id_entry->driver_data;
 
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {
@@ -408,43 +608,9 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	control_usb->hclk_usb_peri = hclk_usb_peri;
 	clk_prepare_enable(hclk_usb_peri);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"GRF_SOC_STATUS0");
-	control_usb->grf_soc_status0 = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(control_usb->grf_soc_status0)){
-		ret = PTR_ERR(control_usb->grf_soc_status0);
-		goto err2;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"GRF_UOC0_BASE");
-	control_usb->grf_uoc0_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(control_usb->grf_uoc0_base)){
-		ret = PTR_ERR(control_usb->grf_uoc0_base);
-		goto err2;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"GRF_UOC1_BASE");
-	control_usb->grf_uoc1_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(control_usb->grf_uoc1_base)){
-		ret = PTR_ERR(control_usb->grf_uoc1_base);
-		goto err2;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"GRF_UOC2_BASE");
-	control_usb->grf_uoc2_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(control_usb->grf_uoc2_base)){
-		ret = PTR_ERR(control_usb->grf_uoc2_base);
-		goto err2;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"GRF_UOC3_BASE");
-	control_usb->grf_uoc3_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(control_usb->grf_uoc3_base)){
-		ret = PTR_ERR(control_usb->grf_uoc3_base);
+	ret = usb_grf_ioremap(pdev);
+	if(ret){
+		dev_err(&pdev->dev, "Failed to ioremap usb grf\n");
 		goto err2;
 	}
 
@@ -483,7 +649,11 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = err;
 		goto err2;
 	}
-
+#if 0 //disable for debug
+	ret = otg_irq_detect_init(pdev);
+	if (ret < 0)
+		goto err2;
+#endif
 	return 0;
 
 err2:
@@ -498,14 +668,6 @@ static int dwc_otg_control_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id dwc_otg_control_usb_id_table[] = {
-	{ .compatible = "rockchip,dwc-control-usb" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, dwc_otg_control_usb_id_table);
-#endif
-
 static struct platform_driver dwc_otg_control_usb_driver = {
 	.probe		= dwc_otg_control_usb_probe,
 	.remove		= dwc_otg_control_usb_remove,
@@ -514,6 +676,7 @@ static struct platform_driver dwc_otg_control_usb_driver = {
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(dwc_otg_control_usb_id_table),
 	},
+	.id_table	= rk_usb_devtype,
 };
 
 static int __init dwc_otg_control_usb_init(void)

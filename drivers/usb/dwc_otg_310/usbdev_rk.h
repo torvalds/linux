@@ -27,6 +27,7 @@ struct dwc_otg_platform_data {
     void (*power_enable)(int enable);
     void (*dwc_otg_uart_mode)(void* pdata, int enter_usb_uart_mode);
     int (*get_status)(int id);
+    int (*get_chip_id)(void);
 };
 
 struct rkehci_platform_data{
@@ -38,6 +39,7 @@ struct rkehci_platform_data{
 	void (*clock_init)(void* pdata);
 	void (*clock_enable)(void *pdata, int enable);
 	void (*soft_reset)(void);
+	int (*get_chip_id)(void);
 	int clk_status;
 };
 
@@ -50,6 +52,14 @@ struct dwc_otg_control_usb {
 	struct gpio *host_gpios;
 	struct gpio *otg_gpios;
 	struct clk* hclk_usb_peri;
+	struct delayed_work usb_det_wakeup_work;
+	struct wake_lock usb_wakelock;
+	int chip_id;
+};
+
+enum {
+	RK3188_USB_CTLR = 0,	/* rk3188 chip usb */
+	RK3288_USB_CTLR,	/* rk3288 chip usb */
 };
 
 #endif

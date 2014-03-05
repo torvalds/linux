@@ -584,7 +584,7 @@
 	};
 
 	dwc_control_usb: dwc-control-usb@0x200080ac {
-		compatible = "rockchip,dwc-control-usb";
+		compatible = "rockchip,rk3188-dwc-control-usb";
 		reg = <0x200080ac 0x4>,
 		      <0x2000810c 0x10>,
 		      <0x2000811c 0x10>,
@@ -595,6 +595,8 @@
 			    "GRF_UOC1_BASE",
 			    "GRF_UOC2_BASE",
 			    "GRF_UOC3_BASE";
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "bvalid";
 		gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_D5 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates4 5>;
 		clock-names = "hclk_usb_peri";
