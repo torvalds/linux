@@ -260,6 +260,7 @@ struct iscsi_iser_task;
 struct iser_device {
 	struct ib_device             *ib_device;
 	struct ib_pd	             *pd;
+	struct ib_device_attr	     dev_attr;
 	struct ib_cq	             *rx_cq[ISER_MAX_CQ];
 	struct ib_cq	             *tx_cq[ISER_MAX_CQ];
 	struct ib_mr	             *mr;

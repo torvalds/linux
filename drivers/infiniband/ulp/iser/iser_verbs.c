@@ -71,17 +71,14 @@ static void iser_event_handler(struct ib_event_handler *handler,
  */
 static int iser_create_device_ib_res(struct iser_device *device)
 {
-	int i, j;
 	struct iser_cq_desc *cq_desc;
-	struct ib_device_attr *dev_attr;
+	struct ib_device_attr *dev_attr = &device->dev_attr;
+	int ret, i, j;
 
-	dev_attr = kmalloc(sizeof(*dev_attr), GFP_KERNEL);
-	if (!dev_attr)
-		return -ENOMEM;
-
-	if (ib_query_device(device->ib_device, dev_attr)) {
+	ret = ib_query_device(device->ib_device, dev_attr);
+	if (ret) {
 		pr_warn("Query device failed for %s\n", device->ib_device->name);
-		goto dev_attr_err;
+		return ret;
 	}
 
 	/* Assign function handles  - based on FMR support */
@@ -101,7 +98,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		device->iser_unreg_rdma_mem = iser_unreg_mem_fastreg;
 	} else {
 		iser_err("IB device does not support FMRs nor FastRegs, can't register memory\n");
-		goto dev_attr_err;
+		return -1;
 	}
 
 	device->cqs_used = min(ISER_MAX_CQ, device->ib_device->num_comp_vectors);
@@ -158,7 +155,6 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	if (ib_register_event_handler(&device->event_handler))
 		goto handler_err;
 
-	kfree(dev_attr);
 	return 0;
 
 handler_err:
@@ -178,8 +174,6 @@ pd_err:
 	kfree(device->cq_desc);
 cq_desc_err:
 	iser_err("failed to allocate an IB resource\n");
-dev_attr_err:
-	kfree(dev_attr);
 	return -1;
 }
 
