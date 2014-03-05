@@ -35,6 +35,66 @@
 #define DPCM_MAX_BE_USERS	8
 
 /**
+ * snd_soc_runtime_activate() - Increment active count for PCM runtime components
+ * @rtd: ASoC PCM runtime that is activated
+ * @stream: Direction of the PCM stream
+ *
+ * Increments the active count for all the DAIs and components attached to a PCM
+ * runtime. Should typically be called when a stream is opened.
+ *
+ * Must be called with the rtd->pcm_mutex being held
+ */
+void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream)
+{
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+
+	lockdep_assert_held(&rtd->pcm_mutex);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		cpu_dai->playback_active++;
+		codec_dai->playback_active++;
+	} else {
+		cpu_dai->capture_active++;
+		codec_dai->capture_active++;
+	}
+
+	cpu_dai->active++;
+	codec_dai->active++;
+	rtd->codec->active++;
+}
+
+/**
+ * snd_soc_runtime_deactivate() - Decrement active count for PCM runtime components
+ * @rtd: ASoC PCM runtime that is deactivated
+ * @stream: Direction of the PCM stream
+ *
+ * Decrements the active count for all the DAIs and components attached to a PCM
+ * runtime. Should typically be called when a stream is closed.
+ *
+ * Must be called with the rtd->pcm_mutex being held
+ */
+void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream)
+{
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+
+	lockdep_assert_held(&rtd->pcm_mutex);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		cpu_dai->playback_active--;
+		codec_dai->playback_active--;
+	} else {
+		cpu_dai->capture_active--;
+		codec_dai->capture_active--;
+	}
+
+	cpu_dai->active--;
+	codec_dai->active--;
+	rtd->codec->active--;
+}
+
+/**
  * snd_soc_runtime_ignore_pmdown_time() - Check whether to ignore the power down delay
  * @rtd: The ASoC PCM runtime that should be checked.
  *
@@ -402,16 +462,9 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		 runtime->hw.rate_max);
 
 dynamic:
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		cpu_dai->playback_active++;
-		codec_dai->playback_active++;
-	} else {
-		cpu_dai->capture_active++;
-		codec_dai->capture_active++;
-	}
-	cpu_dai->active++;
-	codec_dai->active++;
-	rtd->codec->active++;
+
+	snd_soc_runtime_activate(rtd, substream->stream);
+
 	mutex_unlock(&rtd->pcm_mutex);
 	return 0;
 
@@ -483,21 +536,10 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		cpu_dai->playback_active--;
-		codec_dai->playback_active--;
-	} else {
-		cpu_dai->capture_active--;
-		codec_dai->capture_active--;
-	}
-
-	cpu_dai->active--;
-	codec_dai->active--;
-	codec->active--;
+	snd_soc_runtime_deactivate(rtd, substream->stream);
 
 	/* clear the corresponding DAIs rate when inactive */
 	if (!cpu_dai->active)

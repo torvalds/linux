@@ -414,6 +414,8 @@ struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 		const char *dai_link);
 
 bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
+void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream);
+void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream);
 
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
