@@ -133,6 +133,11 @@ static inline pending_ring_idx_t pending_index(unsigned i)
 	return i & (MAX_PENDING_REQS-1);
 }
 
+static inline pending_ring_idx_t nr_free_slots(struct xen_netif_tx_back_ring *ring)
+{
+	return ring->nr_ents -	(ring->sring->req_prod - ring->rsp_prod_pvt);
+}
+
 bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed)
 {
 	RING_IDX prod, cons;
@@ -1716,9 +1721,36 @@ static inline int tx_work_todo(struct xenvif *vif)
 	return 0;
 }
 
+static void xenvif_dealloc_delay(unsigned long data)
+{
+	struct xenvif *vif = (struct xenvif *)data;
+
+	vif->dealloc_delay_timed_out = true;
+	wake_up(&vif->dealloc_wq);
+}
+
 static inline bool tx_dealloc_work_todo(struct xenvif *vif)
 {
-	return vif->dealloc_cons != vif->dealloc_prod;
+	if (vif->dealloc_cons != vif->dealloc_prod) {
+		if ((nr_free_slots(&vif->tx) > 2 * XEN_NETBK_LEGACY_SLOTS_MAX) &&
+		    (vif->dealloc_prod - vif->dealloc_cons < MAX_PENDING_REQS / 4) &&
+		    !vif->dealloc_delay_timed_out) {
+			if (!timer_pending(&vif->dealloc_delay)) {
+				vif->dealloc_delay.function =
+					xenvif_dealloc_delay;
+				vif->dealloc_delay.data = (unsigned long)vif;
+				mod_timer(&vif->dealloc_delay,
+					  jiffies + msecs_to_jiffies(1));
+
+			}
+			return false;
+		}
+		del_timer_sync(&vif->dealloc_delay);
+		vif->dealloc_delay_timed_out = false;
+		return true;
+	}
+
+	return false;
 }
 
 void xenvif_unmap_frontend_rings(struct xenvif *vif)

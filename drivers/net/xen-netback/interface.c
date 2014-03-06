@@ -408,6 +408,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 			  .desc = i };
 		vif->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
 	}
+	init_timer(&vif->dealloc_delay);
 
 	/*
 	 * Initialise a dummy MAC address. We choose the numerically
@@ -556,6 +557,7 @@ void xenvif_disconnect(struct xenvif *vif)
 	}
 
 	if (vif->dealloc_task) {
+		del_timer_sync(&vif->dealloc_delay);
 		kthread_stop(vif->dealloc_task);
 		vif->dealloc_task = NULL;
 	}
