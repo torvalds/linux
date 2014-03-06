@@ -1071,7 +1071,7 @@ u8 rtw_setstakey_cmd(struct adapter *padapter, u8 *psta, u8 unicast_key)
 	ph2c->rsp = (u8 *)psetstakey_rsp;
 	ph2c->rspsz = sizeof(struct set_stakey_rsp);
 
-	memcpy(psetstakey_para->addr, sta->hwaddr, ETH_ALEN);
+	ether_addr_copy(psetstakey_para->addr, sta->hwaddr);
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		psetstakey_para->algorithm = (unsigned char) psecuritypriv->dot11PrivacyAlgrthm;
@@ -1132,7 +1132,7 @@ u8 rtw_clearstakey_cmd(struct adapter *padapter, u8 *psta, u8 entry, u8 enqueue)
 		ph2c->rsp = (u8 *)psetstakey_rsp;
 		ph2c->rspsz = sizeof(struct set_stakey_rsp);
 
-		memcpy(psetstakey_para->addr, sta->hwaddr, ETH_ALEN);
+		ether_addr_copy(psetstakey_para->addr, sta->hwaddr);
 
 		psetstakey_para->algorithm = _NO_PRIVACY_;
 
@@ -1243,7 +1243,7 @@ u8 rtw_setassocsta_cmd(struct adapter  *padapter, u8 *mac_addr)
 	ph2c->rsp = (u8 *)psetassocsta_rsp;
 	ph2c->rspsz = sizeof(struct set_assocsta_rsp);
 
-	memcpy(psetassocsta_para->addr, mac_addr, ETH_ALEN);
+	ether_addr_copy(psetassocsta_para->addr, mac_addr);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
