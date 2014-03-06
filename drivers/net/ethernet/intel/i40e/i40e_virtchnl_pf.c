@@ -434,6 +434,15 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 	if (ret)
 		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
 
+	/* Set VF bandwidth if specified */
+	if (vf->tx_rate) {
+		ret = i40e_aq_config_vsi_bw_limit(&pf->hw, vsi->seid,
+						  vf->tx_rate / 50, 0, NULL);
+		if (ret)
+			dev_err(&pf->pdev->dev, "Unable to set tx rate, VF %d, error code %d.\n",
+				vf->vf_id, ret);
+	}
+
 error_alloc_vsi_res:
 	return ret;
 }
@@ -2184,7 +2193,61 @@ error_pvid:
  **/
 int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int tx_rate)
 {
-	return -EOPNOTSUPP;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_vsi *vsi;
+	struct i40e_vf *vf;
+	int speed = 0;
+	int ret = 0;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d.\n", vf_id);
+		ret = -EINVAL;
+		goto error;
+	}
+
+	vf = &(pf->vf[vf_id]);
+	vsi = pf->vsi[vf->lan_vsi_index];
+	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+		dev_err(&pf->pdev->dev, "Uninitialized VF %d.\n", vf_id);
+		ret = -EINVAL;
+		goto error;
+	}
+
+	switch (pf->hw.phy.link_info.link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		speed = 40000;
+		break;
+	case I40E_LINK_SPEED_10GB:
+		speed = 10000;
+		break;
+	case I40E_LINK_SPEED_1GB:
+		speed = 1000;
+		break;
+	default:
+		break;
+	}
+
+	if (tx_rate > speed) {
+		dev_err(&pf->pdev->dev, "Invalid tx rate %d specified for vf %d.",
+			tx_rate, vf->vf_id);
+		ret = -EINVAL;
+		goto error;
+	}
+
+	/* Tx rate credits are in values of 50Mbps, 0 is disabled*/
+	ret = i40e_aq_config_vsi_bw_limit(&pf->hw, vsi->seid, tx_rate / 50, 0,
+					  NULL);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Unable to set tx rate, error code %d.\n",
+			ret);
+		ret = -EIO;
+		goto error;
+	}
+	vf->tx_rate = tx_rate;
+error:
+	return ret;
 }
 
 /**
@@ -2224,7 +2287,7 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 
 	memcpy(&ivi->mac, vf->default_lan_addr.addr, ETH_ALEN);
 
-	ivi->tx_rate = 0;
+	ivi->tx_rate = vf->tx_rate;
 	ivi->vlan = le16_to_cpu(vsi->info.pvid) & I40E_VLAN_MASK;
 	ivi->qos = (le16_to_cpu(vsi->info.pvid) & I40E_PRIORITY_MASK) >>
 		   I40E_VLAN_PRIORITY_SHIFT;

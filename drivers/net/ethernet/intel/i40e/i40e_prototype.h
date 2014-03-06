@@ -167,6 +167,9 @@ i40e_status i40e_aq_delete_element(struct i40e_hw *hw, u16 seid,
 i40e_status i40e_aq_mac_address_write(struct i40e_hw *hw,
 				    u16 flags, u8 *mac_addr,
 				    struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_config_vsi_bw_limit(struct i40e_hw *hw,
+				u16 seid, u16 credit, u8 max_credit,
+				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_dcb_updated(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_hmc_resource_profile(struct i40e_hw *hw,

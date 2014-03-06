@@ -2253,6 +2253,35 @@ static i40e_status i40e_aq_tx_sched_cmd(struct i40e_hw *hw, u16 seid,
 }
 
 /**
+ * i40e_aq_config_vsi_bw_limit - Configure VSI BW Limit
+ * @hw: pointer to the hw struct
+ * @seid: VSI seid
+ * @credit: BW limit credits (0 = disabled)
+ * @max_credit: Max BW limit credits
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_config_vsi_bw_limit(struct i40e_hw *hw,
+				u16 seid, u16 credit, u8 max_credit,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_configure_vsi_bw_limit *cmd =
+		(struct i40e_aqc_configure_vsi_bw_limit *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_configure_vsi_bw_limit);
+
+	cmd->vsi_seid = cpu_to_le16(seid);
+	cmd->credit = cpu_to_le16(credit);
+	cmd->max_credit = max_credit;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_aq_config_vsi_tc_bw - Config VSI BW Allocation per TC
  * @hw: pointer to the hw struct
  * @seid: VSI seid
