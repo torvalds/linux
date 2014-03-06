@@ -322,7 +322,7 @@
 #define ESAI_xSMB_xS_SHIFT	0
 #define ESAI_xSMB_xS_WIDTH	16
 #define ESAI_xSMB_xS_MASK	(((1 << ESAI_xSMB_xS_WIDTH) - 1) << ESAI_xSMB_xS_SHIFT)
-#define ESAI_xSMB_xS(v)		(((v) >> ESAI_xSMA_xS_WIDTH) & ESAI_xSMA_xS_MASK)
+#define ESAI_xSMB_xS(v)		(((v) >> ESAI_xSMA_xS_WIDTH) & ESAI_xSMB_xS_MASK)
 
 /* Port C Direction Register -- REG_ESAI_PRRC 0xF8 */
 #define ESAI_PRRC_PDC_SHIFT	0

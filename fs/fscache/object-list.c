@@ -50,6 +50,8 @@ void fscache_objlist_add(struct fscache_object *obj)
 	struct fscache_object *xobj;
 	struct rb_node **p = &fscache_object_list.rb_node, *parent = NULL;
 
+	ASSERT(RB_EMPTY_NODE(&obj->objlist_link));
+
 	write_lock(&fscache_object_list_lock);
 
 	while (*p) {
@@ -75,6 +77,9 @@ void fscache_objlist_add(struct fscache_object *obj)
  */
 void fscache_objlist_remove(struct fscache_object *obj)
 {
+	if (RB_EMPTY_NODE(&obj->objlist_link))
+		return;
+
 	write_lock(&fscache_object_list_lock);
 
 	BUG_ON(RB_EMPTY_ROOT(&fscache_object_list));

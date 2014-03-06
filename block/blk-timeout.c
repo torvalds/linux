@@ -91,7 +91,7 @@ static void blk_rq_timed_out(struct request *req)
 	case BLK_EH_HANDLED:
 		/* Can we use req->errors here? */
 		if (q->mq_ops)
-			blk_mq_complete_request(req, req->errors);
+			__blk_mq_complete_request(req);
 		else
 			__blk_complete_request(req);
 		break;

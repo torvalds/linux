@@ -241,19 +241,19 @@ batadv_iv_ogm_orig_get(struct batadv_priv *bat_priv, const uint8_t *addr)
 	size = bat_priv->num_ifaces * sizeof(uint8_t);
 	orig_node->bat_iv.bcast_own_sum = kzalloc(size, GFP_ATOMIC);
 	if (!orig_node->bat_iv.bcast_own_sum)
-		goto free_bcast_own;
+		goto free_orig_node;
 
 	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
 				     batadv_choose_orig, orig_node,
 				     &orig_node->hash_entry);
 	if (hash_added != 0)
-		goto free_bcast_own;
+		goto free_orig_node;
 
 	return orig_node;
 
-free_bcast_own:
-	kfree(orig_node->bat_iv.bcast_own);
 free_orig_node:
+	/* free twice, as batadv_orig_node_new sets refcount to 2 */
+	batadv_orig_node_free_ref(orig_node);
 	batadv_orig_node_free_ref(orig_node);
 
 	return NULL;
@@ -266,7 +266,7 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 			struct batadv_orig_node *orig_neigh)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct batadv_neigh_node *neigh_node;
+	struct batadv_neigh_node *neigh_node, *tmp_neigh_node;
 
 	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr, orig_node);
 	if (!neigh_node)
@@ -281,13 +281,23 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 	neigh_node->orig_node = orig_neigh;
 	neigh_node->if_incoming = hard_iface;
 
-	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
-		   neigh_addr, orig_node->orig, hard_iface->net_dev->name);
-
 	spin_lock_bh(&orig_node->neigh_list_lock);
-	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
+	tmp_neigh_node = batadv_neigh_node_get(orig_node, hard_iface,
+					       neigh_addr);
+	if (!tmp_neigh_node) {
+		hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
+	} else {
+		kfree(neigh_node);
+		batadv_hardif_free_ref(hard_iface);
+		neigh_node = tmp_neigh_node;
+	}
 	spin_unlock_bh(&orig_node->neigh_list_lock);
+
+	if (!tmp_neigh_node)
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+			   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
+			   neigh_addr, orig_node->orig,
+			   hard_iface->net_dev->name);
 
 out:
 	return neigh_node;

@@ -563,3 +563,5 @@ EXPORT(sys_call_table)
 	PTR	sys_process_vm_writev
 	PTR	sys_kcmp
 	PTR	sys_finit_module
+	PTR	sys_sched_setattr
+	PTR	sys_sched_getattr		/* 4350 */

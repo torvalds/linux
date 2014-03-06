@@ -42,14 +42,15 @@ void __init efi_bgrt_init(void)
 
 	if (bgrt_tab->header.length < sizeof(*bgrt_tab))
 		return;
-	if (bgrt_tab->version != 1)
+	if (bgrt_tab->version != 1 || bgrt_tab->status != 1)
 		return;
 	if (bgrt_tab->image_type != 0 || !bgrt_tab->image_address)
 		return;
 
 	image = efi_lookup_mapped_addr(bgrt_tab->image_address);
 	if (!image) {
-		image = ioremap(bgrt_tab->image_address, sizeof(bmp_header));
+		image = early_memremap(bgrt_tab->image_address,
+				       sizeof(bmp_header));
 		ioremapped = true;
 		if (!image)
 			return;
@@ -57,7 +58,7 @@ void __init efi_bgrt_init(void)
 
 	memcpy_fromio(&bmp_header, image, sizeof(bmp_header));
 	if (ioremapped)
-		iounmap(image);
+		early_iounmap(image, sizeof(bmp_header));
 	bgrt_image_size = bmp_header.size;
 
 	bgrt_image = kmalloc(bgrt_image_size, GFP_KERNEL);
@@ -65,7 +66,8 @@ void __init efi_bgrt_init(void)
 		return;
 
 	if (ioremapped) {
-		image = ioremap(bgrt_tab->image_address, bmp_header.size);
+		image = early_memremap(bgrt_tab->image_address,
+				       bmp_header.size);
 		if (!image) {
 			kfree(bgrt_image);
 			bgrt_image = NULL;
@@ -75,5 +77,5 @@ void __init efi_bgrt_init(void)
 
 	memcpy_fromio(bgrt_image, image, bgrt_image_size);
 	if (ioremapped)
-		iounmap(image);
+		early_iounmap(image, bmp_header.size);
 }

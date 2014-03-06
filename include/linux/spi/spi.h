@@ -273,7 +273,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	message while queuing transfers that arrive in the meantime. When the
  *	driver is finished with this message, it must call
  *	spi_finalize_current_message() so the subsystem can issue the next
- *	transfer
+ *	message
  * @unprepare_transfer_hardware: there are currently no more messages on the
  *	queue so the subsystem notifies the driver that it may relax the
  *	hardware by issuing this call
@@ -287,7 +287,10 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *                  - return 1 if the transfer is still in progress. When
  *                    the driver is finished with this transfer it must
  *                    call spi_finalize_current_transfer() so the subsystem
- *                    can issue the next transfer
+ *                    can issue the next transfer. Note: transfer_one and
+ *                    transfer_one_message are mutually exclusive; when both
+ *                    are set, the generic subsystem does not call your
+ *                    transfer_one callback.
  * @unprepare_message: undo any work done by prepare_message().
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that

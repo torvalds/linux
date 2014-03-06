@@ -119,7 +119,7 @@ menu "Compile-time checks and compiler options"
 
 config DEBUG_INFO
 	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && !COMPILE_TEST
 	help
           If you say Y here the resulting kernel image will include
 	  debugging info resulting in a larger kernel image.

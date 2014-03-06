@@ -500,7 +500,7 @@ static inline int core_alua_state_lba_dependent(
 
 			if (segment_mult) {
 				u64 tmp = lba;
-				start_lba = sector_div(tmp, segment_size * segment_mult);
+				start_lba = do_div(tmp, segment_size * segment_mult);
 
 				last_lba = first_lba + segment_size - 1;
 				if (start_lba >= first_lba &&

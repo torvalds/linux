@@ -498,7 +498,7 @@ static int ab3100_regulator_register(struct platform_device *pdev,
 				     struct ab3100_platform_data *plfdata,
 				     struct regulator_init_data *init_data,
 				     struct device_node *np,
-				     int id)
+				     unsigned long id)
 {
 	struct regulator_desc *desc;
 	struct ab3100_regulator *reg;
@@ -646,7 +646,7 @@ ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 		err = ab3100_regulator_register(
 			pdev, NULL, ab3100_regulator_matches[i].init_data,
 			ab3100_regulator_matches[i].of_node,
-			(int) ab3100_regulator_matches[i].driver_data);
+			(unsigned long)ab3100_regulator_matches[i].driver_data);
 		if (err) {
 			ab3100_regulators_remove(pdev);
 			return err;

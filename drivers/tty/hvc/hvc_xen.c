@@ -561,18 +561,7 @@ static int __init xen_hvc_init(void)
 #endif
 	return r;
 }
-
-static void __exit xen_hvc_fini(void)
-{
-	struct xencons_info *entry, *next;
-
-	if (list_empty(&xenconsoles))
-			return;
-
-	list_for_each_entry_safe(entry, next, &xenconsoles, list) {
-		xen_console_remove(entry);
-	}
-}
+device_initcall(xen_hvc_init);
 
 static int xen_cons_init(void)
 {
@@ -598,10 +587,6 @@ static int xen_cons_init(void)
 	hvc_instantiate(HVC_COOKIE, 0, ops);
 	return 0;
 }
-
-
-module_init(xen_hvc_init);
-module_exit(xen_hvc_fini);
 console_initcall(xen_cons_init);
 
 #ifdef CONFIG_EARLY_PRINTK

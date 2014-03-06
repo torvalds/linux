@@ -36,6 +36,8 @@ NinjaSCSI.txt
 	- info on WorkBiT NinjaSCSI-32/32Bi driver
 aacraid.txt
 	- Driver supporting Adaptec RAID controllers
+advansys.txt
+	- List of Advansys Host Adapters
 aha152x.txt
 	- info on driver for Adaptec AHA152x based adapters
 aic79xx.txt
@@ -44,6 +46,12 @@ aic7xxx.txt
 	- info on driver for Adaptec controllers
 arcmsr_spec.txt
 	- ARECA FIRMWARE SPEC (for IOP331 adapter)
+bfa.txt
+	- Brocade FC/FCOE adapter driver.
+bnx2fc.txt
+	- FCoE hardware offload for Broadcom network interfaces.
+cxgb3i.txt
+	- Chelsio iSCSI Linux Driver
 dc395x.txt
 	- README file for the dc395x SCSI driver
 dpti.txt
@@ -52,18 +60,24 @@ dtc3x80.txt
 	- info on driver for DTC 2x80 based adapters
 g_NCR5380.txt
 	- info on driver for NCR5380 and NCR53c400 based adapters
+hpsa.txt
+	- HP Smart Array Controller SCSI driver.
 hptiop.txt
 	- HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
 in2000.txt
 	- info on in2000 driver
 libsas.txt
 	- Serial Attached SCSI management layer.
+link_power_management_policy.txt
+	- Link power management options.
 lpfc.txt
 	- LPFC driver release notes
 megaraid.txt
 	- Common Management Module, shared code handling ioctls for LSI drivers
 ncr53c8xx.txt
 	- info on driver for NCR53c8xx based adapters
+osd.txt
+	Object-Based Storage Device, command set introduction.
 osst.txt
 	- info on driver for OnStream SC-x0 SCSI tape
 ppa.txt
@@ -74,6 +88,8 @@ scsi-changer.txt
 	- README for the SCSI media changer driver
 scsi-generic.txt
 	- info on the sg driver for generic (non-disk/CD/tape) SCSI devices.
+scsi-parameters.txt
+	- List of SCSI-parameters to pass to the kernel at module load-time.
 scsi.txt
 	- short blurb on using SCSI support as a module.
 scsi_mid_low_api.txt

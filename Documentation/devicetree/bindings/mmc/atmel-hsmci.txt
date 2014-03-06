@@ -13,6 +13,9 @@ Required properties:
 - #address-cells: should be one. The cell is the slot id.
 - #size-cells: should be zero.
 - at least one slot node
+- clock-names: tuple listing input clock names.
+	Required elements: "mci_clk"
+- clocks: phandles to input clocks.
 
 The node contains child nodes for each slot that the platform uses
 
@@ -24,6 +27,8 @@ mmc0: mmc@f0008000 {
 	interrupts = <12 4>;
 	#address-cells = <1>;
 	#size-cells = <0>;
+	clock-names = "mci_clk";
+	clocks = <&mci0_clk>;
 
 	[ child node definitions...]
 };

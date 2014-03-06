@@ -53,7 +53,7 @@ static struct freq_desc freq_desc_tables[] = {
 	/* TNG */
 	{ 6, 0x4a, 1, { 0, FREQ_100, FREQ_133, 0, 0, 0, 0, 0 } },
 	/* VLV2 */
-	{ 6, 0x37, 1, { 0, FREQ_100, FREQ_133, FREQ_166, 0, 0, 0, 0 } },
+	{ 6, 0x37, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_166, 0, 0, 0, 0 } },
 	/* ANN */
 	{ 6, 0x5a, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_100, 0, 0, 0, 0 } },
 };
@@ -77,21 +77,18 @@ static int match_cpu(u8 family, u8 model)
 
 /*
  * Do MSR calibration only for known/supported CPUs.
- * Return values:
- * -1: CPU is unknown/unsupported for MSR based calibration
- *  0: CPU is known/supported, but calibration failed
- *  1: CPU is known/supported, and calibration succeeded
+ *
+ * Returns the calibration value or 0 if MSR calibration failed.
  */
-int try_msr_calibrate_tsc(unsigned long *fast_calibrate)
+unsigned long try_msr_calibrate_tsc(void)
 {
-	int cpu_index;
 	u32 lo, hi, ratio, freq_id, freq;
+	unsigned long res;
+	int cpu_index;
 
 	cpu_index = match_cpu(boot_cpu_data.x86, boot_cpu_data.x86_model);
 	if (cpu_index < 0)
-		return -1;
-
-	*fast_calibrate = 0;
+		return 0;
 
 	if (freq_desc_tables[cpu_index].msr_plat) {
 		rdmsr(MSR_PLATFORM_INFO, lo, hi);
@@ -103,7 +100,7 @@ int try_msr_calibrate_tsc(unsigned long *fast_calibrate)
 	pr_info("Maximum core-clock to bus-clock ratio: 0x%x\n", ratio);
 
 	if (!ratio)
-		return 0;
+		goto fail;
 
 	/* Get FSB FREQ ID */
 	rdmsr(MSR_FSB_FREQ, lo, hi);
@@ -112,16 +109,19 @@ int try_msr_calibrate_tsc(unsigned long *fast_calibrate)
 	pr_info("Resolved frequency ID: %u, frequency: %u KHz\n",
 				freq_id, freq);
 	if (!freq)
-		return 0;
+		goto fail;
 
 	/* TSC frequency = maximum resolved freq * maximum resolved bus ratio */
-	*fast_calibrate = freq * ratio;
-	pr_info("TSC runs at %lu KHz\n", *fast_calibrate);
+	res = freq * ratio;
+	pr_info("TSC runs at %lu KHz\n", res);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	lapic_timer_frequency = (freq * 1000) / HZ;
 	pr_info("lapic_timer_frequency = %d\n", lapic_timer_frequency);
 #endif
+	return res;
 
-	return 1;
+fail:
+	pr_warn("Fast TSC calibration using MSR failed\n");
+	return 0;
 }

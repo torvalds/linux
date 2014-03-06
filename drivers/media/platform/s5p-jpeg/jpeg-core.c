@@ -175,7 +175,7 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 	{
 		.name		= "YUV 4:2:0 planar, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12,
-		.depth		= 16,
+		.depth		= 12,
 		.colplanes	= 2,
 		.h_align	= 1,
 		.v_align	= 1,
@@ -188,10 +188,10 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 	{
 		.name		= "YUV 4:2:0 planar, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12,
-		.depth		= 16,
-		.colplanes	= 4,
+		.depth		= 12,
+		.colplanes	= 2,
 		.h_align	= 4,
-		.v_align	= 1,
+		.v_align	= 4,
 		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
 				  SJPEG_FMT_FLAG_DEC_CAPTURE |
 				  SJPEG_FMT_FLAG_S5P |

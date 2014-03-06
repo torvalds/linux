@@ -484,7 +484,6 @@ static void acpi_device_hotplug(void *data, u32 src)
 static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 {
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
-	struct acpi_scan_handler *handler = data;
 	struct acpi_device *adev;
 	acpi_status status;
 
@@ -500,7 +499,10 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
-		if (!handler->hotplug.enabled) {
+		if (!adev->handler)
+			goto err_out;
+
+		if (!adev->handler->hotplug.enabled) {
 			acpi_handle_err(handle, "Eject disabled\n");
 			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
 			goto err_out;

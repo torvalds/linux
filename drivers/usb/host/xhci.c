@@ -611,7 +611,7 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "Event ring:\n");
 	xhci_debug_ring(xhci, xhci->event_ring);
 	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
-	temp_64 = readq(&xhci->ir_set->erst_dequeue);
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	temp_64 &= ~ERST_PTR_MASK;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"ERST deq = 64'h%0lx", (long unsigned int) temp_64);
@@ -756,11 +756,11 @@ static void xhci_save_registers(struct xhci_hcd *xhci)
 {
 	xhci->s3.command = readl(&xhci->op_regs->command);
 	xhci->s3.dev_nt = readl(&xhci->op_regs->dev_notification);
-	xhci->s3.dcbaa_ptr = readq(&xhci->op_regs->dcbaa_ptr);
+	xhci->s3.dcbaa_ptr = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
 	xhci->s3.config_reg = readl(&xhci->op_regs->config_reg);
 	xhci->s3.erst_size = readl(&xhci->ir_set->erst_size);
-	xhci->s3.erst_base = readq(&xhci->ir_set->erst_base);
-	xhci->s3.erst_dequeue = readq(&xhci->ir_set->erst_dequeue);
+	xhci->s3.erst_base = xhci_read_64(xhci, &xhci->ir_set->erst_base);
+	xhci->s3.erst_dequeue = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	xhci->s3.irq_pending = readl(&xhci->ir_set->irq_pending);
 	xhci->s3.irq_control = readl(&xhci->ir_set->irq_control);
 }
@@ -769,11 +769,11 @@ static void xhci_restore_registers(struct xhci_hcd *xhci)
 {
 	writel(xhci->s3.command, &xhci->op_regs->command);
 	writel(xhci->s3.dev_nt, &xhci->op_regs->dev_notification);
-	writeq(xhci->s3.dcbaa_ptr, &xhci->op_regs->dcbaa_ptr);
+	xhci_write_64(xhci, xhci->s3.dcbaa_ptr, &xhci->op_regs->dcbaa_ptr);
 	writel(xhci->s3.config_reg, &xhci->op_regs->config_reg);
 	writel(xhci->s3.erst_size, &xhci->ir_set->erst_size);
-	writeq(xhci->s3.erst_base, &xhci->ir_set->erst_base);
-	writeq(xhci->s3.erst_dequeue, &xhci->ir_set->erst_dequeue);
+	xhci_write_64(xhci, xhci->s3.erst_base, &xhci->ir_set->erst_base);
+	xhci_write_64(xhci, xhci->s3.erst_dequeue, &xhci->ir_set->erst_dequeue);
 	writel(xhci->s3.irq_pending, &xhci->ir_set->irq_pending);
 	writel(xhci->s3.irq_control, &xhci->ir_set->irq_control);
 }
@@ -783,7 +783,7 @@ static void xhci_set_cmd_ring_deq(struct xhci_hcd *xhci)
 	u64	val_64;
 
 	/* step 2: initialize command ring buffer */
-	val_64 = readq(&xhci->op_regs->cmd_ring);
+	val_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
 	val_64 = (val_64 & (u64) CMD_RING_RSVD_BITS) |
 		(xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
 				      xhci->cmd_ring->dequeue) &
@@ -792,7 +792,7 @@ static void xhci_set_cmd_ring_deq(struct xhci_hcd *xhci)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Setting command ring address to 0x%llx",
 			(long unsigned long) val_64);
-	writeq(val_64, &xhci->op_regs->cmd_ring);
+	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
 }
 
 /*
@@ -3842,7 +3842,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	if (ret) {
 		return ret;
 	}
-	temp_64 = readq(&xhci->op_regs->dcbaa_ptr);
+	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 			"Op regs DCBAA ptr = %#016llx", temp_64);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
@@ -4730,11 +4730,8 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	struct device		*dev = hcd->self.controller;
 	int			retval;
 
-	/* Limit the block layer scatter-gather lists to half a segment. */
-	hcd->self.sg_tablesize = TRBS_PER_SEGMENT / 2;
-
-	/* support to build packet from discontinuous buffers */
-	hcd->self.no_sg_constraint = 1;
+	/* Accept arbitrarily long scatter-gather lists */
+	hcd->self.sg_tablesize = ~0;
 
 	/* XHCI controllers don't stop the ep queue on short packets :| */
 	hcd->self.no_stop_on_short = 1;
@@ -4760,6 +4757,14 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		/* xHCI private pointer was set in xhci_pci_probe for the second
 		 * registered roothub.
 		 */
+		xhci = hcd_to_xhci(hcd);
+		/*
+		 * Support arbitrarily aligned sg-list entries on hosts without
+		 * TD fragment rules (which are currently unsupported).
+		 */
+		if (xhci->hci_version < 0x100)
+			hcd->self.no_sg_constraint = 1;
+
 		return 0;
 	}
 
@@ -4787,6 +4792,9 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	 */
 	if (xhci->hci_version > 0x96)
 		xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
+
+	if (xhci->hci_version < 0x100)
+		hcd->self.no_sg_constraint = 1;
 
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);

@@ -3291,7 +3291,8 @@ static void cxt_update_headset_mode(struct hda_codec *codec)
 }
 
 static void cxt_update_headset_mode_hook(struct hda_codec *codec,
-			     struct snd_ctl_elem_value *ucontrol)
+					 struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
 	cxt_update_headset_mode(codec);
 }

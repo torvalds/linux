@@ -225,7 +225,7 @@ static u32 map_id_up(struct uid_gid_map *map, u32 id)
  *
  *	When there is no mapping defined for the user-namespace uid
  *	pair INVALID_UID is returned.  Callers are expected to test
- *	for and handle handle INVALID_UID being returned.  INVALID_UID
+ *	for and handle INVALID_UID being returned.  INVALID_UID
  *	may be tested for using uid_valid().
  */
 kuid_t make_kuid(struct user_namespace *ns, uid_t uid)

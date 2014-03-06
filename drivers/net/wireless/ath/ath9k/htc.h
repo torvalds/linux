@@ -262,6 +262,8 @@ enum tid_aggr_state {
 struct ath9k_htc_sta {
 	u8 index;
 	enum tid_aggr_state tid_state[ATH9K_HTC_MAX_TID];
+	struct work_struct rc_update_work;
+	struct ath9k_htc_priv *htc_priv;
 };
 
 #define ATH9K_HTC_RXBUF 256

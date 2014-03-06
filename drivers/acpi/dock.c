@@ -609,7 +609,7 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 static void dock_notify(struct dock_station *ds, u32 event)
 {
 	acpi_handle handle = ds->handle;
-	struct acpi_device *ad;
+	struct acpi_device *adev = NULL;
 	int surprise_removal = 0;
 
 	/*
@@ -632,7 +632,8 @@ static void dock_notify(struct dock_station *ds, u32 event)
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		if (!dock_in_progress(ds) && acpi_bus_get_device(handle, &ad)) {
+		acpi_bus_get_device(handle, &adev);
+		if (!dock_in_progress(ds) && !acpi_device_enumerated(adev)) {
 			begin_dock(ds);
 			dock(ds);
 			if (!dock_present(ds)) {
@@ -712,13 +713,11 @@ static acpi_status __init find_dock_devices(acpi_handle handle, u32 lvl,
 static ssize_t show_docked(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	struct acpi_device *tmp;
-
 	struct dock_station *dock_station = dev->platform_data;
+	struct acpi_device *adev = NULL;
 
-	if (!acpi_bus_get_device(dock_station->handle, &tmp))
-		return snprintf(buf, PAGE_SIZE, "1\n");
-	return snprintf(buf, PAGE_SIZE, "0\n");
+	acpi_bus_get_device(dock_station->handle, &adev);
+	return snprintf(buf, PAGE_SIZE, "%u\n", acpi_device_enumerated(adev));
 }
 static DEVICE_ATTR(docked, S_IRUGO, show_docked, NULL);
 

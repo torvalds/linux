@@ -169,14 +169,14 @@ static void *my_malloc(size_t size)
 	struct pool *p;
 
 	p = calloc(1, sizeof(struct pool));
-	if (!p) {
+	if (!p)
+		return NULL;
+
+	p->mem = calloc(1, size);
+	if (!p->mem) {
 		free(p);
 		return NULL;
 	}
-
-	p->mem = calloc(1, size);
-	if (!p->mem)
-		return NULL;
 
 	p->next = pool_head;
 	pool_head = p;

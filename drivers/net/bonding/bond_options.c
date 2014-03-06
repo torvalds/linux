@@ -14,7 +14,7 @@
 #include <linux/errno.h>
 #include <linux/if.h>
 #include <linux/netdevice.h>
-#include <linux/rwlock.h>
+#include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/ctype.h>
 #include <linux/inet.h>

@@ -1223,7 +1223,7 @@ int kv_dpm_enable(struct radeon_device *rdev)
 
 int kv_dpm_late_enable(struct radeon_device *rdev)
 {
-	int ret;
+	int ret = 0;
 
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
