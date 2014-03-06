@@ -14,6 +14,9 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <asm/system_info.h>
+#include <linux/types.h>
+#include <linux/stddef.h>
+#include <linux/bug.h>
 
 #include "kprobes.h"
 

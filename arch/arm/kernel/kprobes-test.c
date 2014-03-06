@@ -201,7 +201,9 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kprobes.h>
-
+#include <linux/errno.h>
+#include <linux/stddef.h>
+#include <linux/bug.h>
 #include <asm/opcodes.h>
 
 #include "kprobes.h"

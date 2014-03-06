@@ -27,6 +27,8 @@
 #include <linux/stringify.h>
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
+#include <linux/percpu.h>
+#include <linux/bug.h>
 
 #include "kprobes.h"
 #include "patch.h"
