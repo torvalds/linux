@@ -176,8 +176,12 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 		return -ENXIO;
 	}
 
-	/* Check that we are fully contained within 32 bits space */
-	if (res->end > 0xffffffff) {
+	/* Check that we are fully contained within 32 bits space if we are not
+	 * running on a 460sx or 476fpe which have 64 bit bus addresses.
+	 */
+	if (res->end > 0xffffffff &&
+	    !(of_device_is_compatible(hose->dn, "ibm,plb-pciex-460sx")
+	      || of_device_is_compatible(hose->dn, "ibm,plb-pciex-476fpe"))) {
 		printk(KERN_ERR "%s: dma-ranges outside of 32 bits space\n",
 		       hose->dn->full_name);
 		return -ENXIO;

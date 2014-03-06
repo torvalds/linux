@@ -206,6 +206,8 @@ config AKEBONO
 	select SWIOTLB
 	select 476FPE
 	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_HSTA_MSI
 	select I2C
 	select I2C_IBM_IIC
 	select NETDEVICES

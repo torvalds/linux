@@ -75,23 +75,8 @@ static void ibm_akebono_fixups(void)
 {
 	void *emac;
 	u32 reg;
-	void *devp = finddevice("/");
-	u32 dma_ranges[7];
 
 	dt_fixup_memory(0x0ULL,  ibm_akebono_memsize);
-
-	while ((devp = find_node_by_devtype(devp, "pci"))) {
-		if (getprop(devp, "dma-ranges", dma_ranges,
-			    sizeof(dma_ranges)) < 0) {
-			printf("%s: Failed to get dma-ranges\r\n", __func__);
-			continue;
-		}
-
-		dma_ranges[5] = ibm_akebono_memsize >> 32;
-		dma_ranges[6] = ibm_akebono_memsize & 0xffffffffUL;
-
-		setprop(devp, "dma-ranges", dma_ranges, sizeof(dma_ranges));
-	}
 
 	/* Fixup the SD timeout frequency */
 	mtdcrx(CCTL0_MCO4, 0x1);

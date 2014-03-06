@@ -82,6 +82,28 @@
 		ranges;
 		clock-frequency = <200000000>; // 200Mhz
 
+		HSTA0: hsta@310000e0000 {
+			compatible = "ibm,476gtr-hsta-msi", "ibm,hsta-msi";
+			reg = <0x310 0x000e0000 0x0 0xf0>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <108 0
+				      109 0
+				      110 0
+				      111 0
+				      112 0
+				      113 0
+				      114 0
+				      115 0
+				      116 0
+				      117 0
+				      118 0
+				      119 0
+				      120 0
+				      121 0
+				      122 0
+				      123 0>;
+		};
+
 		MAL0: mcmal {
 			compatible = "ibm,mcmal-476gtr", "ibm,mcmal2";
 			dcr-reg = <0xc0000000 0x062>;
@@ -242,8 +264,10 @@
 			ranges = <0x02000000 0x00000000 0x80000000 0x00000110 0x80000000 0x0 0x80000000
 			          0x01000000 0x0        0x0        0x00000140 0x0        0x0 0x00010000>;
 
-			/* Inbound starting at 0 to memsize filled in by zImage */
-			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x0 0x0>;
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
 
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
@@ -280,8 +304,10 @@
 			ranges = <0x02000000 0x00000000 0x80000000 0x00000210 0x80000000 0x0 0x80000000
 			          0x01000000 0x0        0x0        0x00000240 0x0        0x0 0x00010000>;
 
-			/* Inbound starting at 0 to memsize filled in by zImage */
-			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x0 0x0>;
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
 
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
@@ -318,8 +344,10 @@
 			ranges = <0x02000000 0x00000000 0x80000000 0x00000190 0x80000000 0x0 0x80000000
 			          0x01000000 0x0        0x0        0x000001c0 0x0        0x0 0x00010000>;
 
-			/* Inbound starting at 0 to memsize filled in by zImage */
-			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x0 0x0>;
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
 
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
@@ -356,8 +384,10 @@
 			ranges = <0x02000000 0x00000000 0x80000000 0x00000290 0x80000000 0x0 0x80000000
 			          0x01000000 0x0        0x0        0x000002c0 0x0        0x0 0x00010000>;
 
-			/* Inbound starting at 0 to memsize filled in by zImage */
-			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x0 0x0>;
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
 
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
