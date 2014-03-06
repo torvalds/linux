@@ -149,14 +149,6 @@ static void subscr_timeout(struct tipc_subscription *sub)
 	/* The spin lock per subscriber is used to protect its members */
 	spin_lock_bh(&subscriber->lock);
 
-	/* Validate if the connection related to the subscriber is
-	 * closed (in case subscriber is terminating)
-	 */
-	if (subscriber->conid == 0) {
-		spin_unlock_bh(&subscriber->lock);
-		return;
-	}
-
 	/* Validate timeout (in case subscription is being cancelled) */
 	if (sub->timeout == TIPC_WAIT_FOREVER) {
 		spin_unlock_bh(&subscriber->lock);
@@ -210,9 +202,6 @@ static void subscr_release(struct tipc_subscriber *subscriber)
 	struct tipc_subscription *sub_temp;
 
 	spin_lock_bh(&subscriber->lock);
-
-	/* Invalidate subscriber reference */
-	subscriber->conid = 0;
 
 	/* Destroy any existing subscriptions for subscriber */
 	list_for_each_entry_safe(sub, sub_temp, &subscriber->subscription_list,
