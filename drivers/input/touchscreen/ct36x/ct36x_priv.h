@@ -1,7 +1,7 @@
 #ifndef __CT36X_PRIV__
 #define __CT36X_PRIV__
 
-#include <linux/earlysuspend.h>
+//#include <linux/earlysuspend.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -20,8 +20,8 @@
 
 #include <linux/ct36x.h>
 
-#include <mach/board.h>
-#include <mach/gpio.h>
+//#include <mach/board.h>
+//#include <mach/gpio.h>
 //#if 1
 //#define ct36x_dbg(ts, format, arg...)            \
 //	        dev_printk(KERN_INFO , ts->dev , format , ## arg)
@@ -76,6 +76,42 @@ struct ct36x_data{
 	struct ct36x_ops *ops;
 	void *priv;
 };
+
+int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate)
+{
+        int ret;
+        struct i2c_adapter *adap=client->adapter;
+        struct i2c_msg msg;
+
+        msg.addr = client->addr;
+        msg.flags = client->flags;
+        msg.len = count;
+        msg.buf = (char *)buf;
+        msg.scl_rate = scl_rate;
+        //msg.udelay = client->udelay;
+
+        ret = i2c_transfer(adap, &msg, 1);
+        return (ret == 1) ? count : ret;
+}
+
+static int i2c_master_normal_recv(const struct i2c_client *client, char *buf, int count, int scl_rate)
+{
+        struct i2c_adapter *adap=client->adapter;
+        struct i2c_msg msg;
+        int ret;
+
+        msg.addr = client->addr;
+        msg.flags = client->flags | I2C_M_RD;
+        msg.len = count;
+        msg.buf = (char *)buf;
+        msg.scl_rate = scl_rate;
+        //msg.udelay = client->udelay;
+
+        ret = i2c_transfer(adap, &msg, 1);
+
+        return (ret == 1) ? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_normal_recv);
 
 static inline int ct36x_read(struct ct36x_data *ts, char *buf, int len)
 {

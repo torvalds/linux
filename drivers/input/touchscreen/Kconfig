@@ -19,6 +19,21 @@ config TOUCHSCREEN_GT8XX
 	  code includes that in its table of IIC devices.
 	  If unsure, say N.
 
+config CT36X_TS
+	tristate "CT36X touchscreens support"
+choice
+	prompt "ct36x chip select"
+	depends on CT36X_TS
+	default CT365_TS
+
+	config CT365_TS
+	  bool "ct365"
+	config CT363_TS
+	  bool "ct363"
+	config CT361_TS
+	  bool "ct360"
+endchoice
+	  
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X

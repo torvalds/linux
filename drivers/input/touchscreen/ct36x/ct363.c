@@ -25,7 +25,7 @@ struct ct363_priv{
 static int ct363_init_hw(struct ct36x_data *ts)
 {
 	int ret = 0;
-
+/*
 	ret = gpio_request(ts->rst_io.gpio, "ct363_rst");
 	if(ret < 0){
 		dev_err(ts->dev, "Failed to request rst gpio\n");
@@ -37,10 +37,10 @@ static int ct363_init_hw(struct ct36x_data *ts)
 		gpio_free(ts->rst_io.gpio);
 		dev_err(ts->dev, "Failed to request irq gpio\n");
 		return ret;
-	}
+	}*/
 	gpio_direction_input(ts->irq_io.gpio);
-	gpio_pull_updown(ts->irq_io.gpio, 1);
-
+	//gpio_pull_updown(ts->irq_io.gpio, 1);
+	//gpio_set_value(ts->irq_io.gpio,1);
 	gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
 
 	return 0;
@@ -204,7 +204,7 @@ static void ct363_report(struct ct36x_data *ts)
                    if( (ct363->x > ts->x_max) || (ct363->y > ts->y_max) || (ct363->x < 0) || (ct363->y < 0) ){
                           continue ;
                     }
-                   
+                  	ct363->x=2048-ct363->x; 
 			input_mt_slot(ts->input, ct363->pts[i].id - 1);
 			input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 			input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, 1);

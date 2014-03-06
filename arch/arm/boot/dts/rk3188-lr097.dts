@@ -117,6 +117,17 @@
 		dvdd18-gpio = <&gpio3 GPIO_D4 GPIO_ACTIVE_HIGH>;
 		reset-gpio = <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;
 	};
+
+       ts@01 {
+		compatible = "ct,ct36x";
+		reg = <0x01>;
+		ct-model = <363>;
+		touch-gpio = <&gpio1 GPIO_B7 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio0 GPIO_B6 GPIO_ACTIVE_HIGH>;
+		max-x = <2048>;
+		max-y = <1536>;
+		orientation=<1 0 0 1>;
+       };
 };
 
 &i2c3 {
@@ -136,6 +147,43 @@
 &lcdc1 {
 	status = "okay";
 };
+
+&adc {
+        status = "okay";
+
+        key {
+                compatible = "rockchip,key";
+                io-channels = <&adc 1>;
+
+                vol-up-key {
+                        linux,code = <115>;
+                        label = "volume up";
+                        rockchip,adc_value = <1>;
+                };
+
+                vol-down-key {
+                        linux,code = <114>;
+                        label = "volume down";
+                        rockchip,adc_value = <145>;
+                };
+
+                power-key {
+                        gpios = <&gpio0 GPIO_A4 GPIO_ACTIVE_LOW>;
+                        linux,code = <116>;
+                        label = "power";
+                        gpio-key,wakeup;
+                };
+
+
+                home-key {
+                        linux,code = <102>;
+                        label = "home";
+                        rockchip,adc_value = <355>;
+                };
+
+        };
+};
+
 &pwm3 {
         status = "okay";
 };

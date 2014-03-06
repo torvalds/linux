@@ -1,4 +1,5 @@
 #include "ct36x_priv.h"
+#include <linux/of_gpio.h>
 
 #include "core.c"
 #include "ct360.c"
@@ -141,42 +142,105 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 {
 	int ret = 0, i;
 	struct ct36x_data *ts = NULL;
-	struct ct36x_platform_data *pdata = client->dev.platform_data;
-
+	/*struct ct36x_platform_data *pdata = client->dev.platform_data;
+	
 	if(!pdata){
 		dev_err(&client->dev, "no platform data\n");
 		return -EINVAL;
-	};
-
+	};*/
+	struct device_node *np = client->dev.of_node;
+	enum of_gpio_flags rst_flags;
+	unsigned long irq_flags;
+	u32 val;
+	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "I2C-Adapter doesn't support I2C_FUNC_I2C\n");
 		return -ENODEV;
 	}
 
+	ts = devm_kzalloc(&client->dev, sizeof(struct ct36x_data), GFP_KERNEL);
+		if (ts == NULL) {
+			dev_err(&client->dev, "alloc for struct rk_ts_data fail\n");
+			return -ENOMEM;
+		}
+	
+		if (!np) {
+			dev_err(&client->dev, "no device tree\n");
+			return -EINVAL;
+		}
+	/*
 	ts = kzalloc(sizeof(struct ct36x_data), GFP_KERNEL);
 	if(!ts){
 		dev_err(&client->dev, "No memory for ct36x");
 		return -ENOMEM;
+	}*/
+	if (of_property_read_u32(np, "max-x", &val)) {
+		dev_err(&client->dev, "no max-x defined\n");
+		return -EINVAL;
 	}
-	ts->model = pdata->model;
-	ts->x_max = pdata->x_max;
-	ts->y_max = pdata->y_max;
-	ts->rst_io = pdata->rst_io;
-	ts->irq_io = pdata->irq_io;
+	ts->x_max = val;
+	if (of_property_read_u32(np, "max-y", &val)) {
+		dev_err(&client->dev, "no max-y defined\n");
+		return -EINVAL;
+	}
+	ts->y_max = val;
 
+	printk("the ts->x_max is %d,ts->y_max is %d\n",ts->x_max,ts->y_max);
+	if (of_property_read_u32(np, "ct-model", &val)) {
+		dev_err(&client->dev, "no ct-model defined\n");
+		return -EINVAL;
+	}
+	ts->model = val;//pdata->model;
+	//ts->x_max = pdata->x_max;
+	//ts->y_max = pdata->y_max;
+	//ts->rst_io = pdata->rst_io;
+	//ts->irq_io = pdata->irq_io;
+	ts->irq_io.gpio = of_get_named_gpio_flags(np, "touch-gpio", 0, &irq_flags);
+	ts->rst_io.gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
+
+	printk("the irq_flags is %d,rst_flags is %d\n",irq_flags,rst_flags);
+	int orientation[4];
+	
+	ret = of_property_read_u32_array(np, "orientation",orientation,4);
+	if (ret < 0)
+		return ret;
 	for(i = 0; i < 4; i++)
-		ts->orientation[i] = pdata->orientation[i];
+		ts->orientation[i] = orientation[i];
 
 	ts->client = client;
 	ts->dev = &client->dev;
 
 	i2c_set_clientdata(client, ts);
 
-	ret = ct36x_set_ops(ts, pdata->model);
+	ret = ct36x_set_ops(ts, ts->model);
 	if(ret < 0){
 		dev_err(ts->dev, "Failed to set ct36x ops\n");
 		goto err_ct36x_set_ops;
 	}
+
+	if (gpio_is_valid(ts->rst_io.gpio)) {
+					ts->rst_io.active_low = (rst_flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+					printk("the ts->rst_io.active_low is %d ========\n",ts->rst_io.active_low);
+					ret = devm_gpio_request_one(&client->dev, ts->rst_io.gpio, (rst_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW, "ct363 reset pin");
+					if (ret != 0) {
+						dev_err(&client->dev, "ct363 gpio_request error\n");
+						return -EIO;
+					}
+				msleep(100);
+				} else {
+					dev_info(&client->dev, "reset pin invalid\n");
+				}
+				
+	if (gpio_is_valid(ts->irq_io.gpio)) {
+					ts->irq_io.active_low = (irq_flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+					ret = devm_gpio_request_one(&client->dev, ts->irq_io.gpio, (irq_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW, "ct363 irq pin");
+					if (ret != 0) {
+						dev_err(&client->dev, "ct363 gpio_request error\n");
+						return -EIO;
+					}
+			}
+
+
 
 	if(ts->ops->init){
 		ret = ts->ops->init(ts);
@@ -186,7 +250,7 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 		}
 	}
 
-	ts->input = input_allocate_device();
+	ts->input = devm_input_allocate_device(&ts->client->dev);
 	if(!ts->input){
 		ret = -ENODEV;
 		dev_err(ts->dev, "Failed to allocate input device\n");
@@ -197,9 +261,9 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	ts->input->dev.parent = &client->dev;
 	set_bit(EV_ABS, ts->input->evbit);
 	set_bit(INPUT_PROP_DIRECT, ts->input->propbit);
-	input_mt_init_slots(ts->input, ts->point_num);
-	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, pdata->x_max, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, pdata->y_max, 0, 0);
+	input_mt_init_slots(ts->input, ts->point_num,0);
+	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, ts->x_max, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
 	input_set_abs_params(ts->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 
@@ -216,16 +280,25 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	register_early_suspend(&ts->early_suspend);
 #endif
 	ts->irq = gpio_to_irq(ts->irq_io.gpio);
-	ret = request_threaded_irq(ts->irq, NULL, ct36x_irq_handler, IRQF_TRIGGER_FALLING|IRQF_ONESHOT, CT36X_NAME, ts);
+	if (ts->irq)
+		{
+			ret = devm_request_threaded_irq(&client->dev, ts->irq, NULL, ct36x_irq_handler, irq_flags | IRQF_ONESHOT, client->name, ts);
+			if (ret != 0) {
+				printk(KERN_ALERT "Cannot allocate ts INT!ERRNO:%d\n", ret);
+				goto err_request_threaded_irq;
+			}
+		}
+
+/*	ret = request_threaded_irq(ts->irq, NULL, ct36x_irq_handler, IRQF_TRIGGER_FALLING|IRQF_ONESHOT, CT36X_NAME, ts);
 	if(ret < 0){
 		dev_err(ts->dev, "Failed to request threaded irq\n");
 		goto err_request_threaded_irq;
 	}
-		
+*/		
 	dev_info(ts->dev, "CT363 Successfully initialized\n");
 	return 0;
 err_request_threaded_irq:
-	unregister_early_suspend(&ts->early_suspend);
+	//unregister_early_suspend(&ts->early_suspend);
 	input_unregister_device(ts->input);
 err_input_register_devcie:
 	input_free_device(ts->input);
@@ -246,7 +319,7 @@ static int ct36x_ts_remove(struct i2c_client *client)
 	free_irq(ts->irq, ts);
 	if(ts->ops->deinit)
 		ts->ops->deinit(ts);
-	unregister_early_suspend(&ts->early_suspend);
+	//unregister_early_suspend(&ts->early_suspend);
 	input_unregister_device(ts->input);
 	input_free_device(ts->input);
 	i2c_set_clientdata(client, NULL);
@@ -259,6 +332,11 @@ static const struct i2c_device_id ct36x_ts_id[] = {
 	{ CT36X_NAME, 0 },
 	{ }
 };
+static struct of_device_id ct36x_ts_dt_ids[] = {
+	{ .compatible = "ct,ct36x" },
+	{ }
+};
+
 static struct i2c_driver ct36x_ts_driver = {
 	.probe      = ct36x_ts_probe,
 	.remove     = ct36x_ts_remove,
@@ -266,6 +344,7 @@ static struct i2c_driver ct36x_ts_driver = {
 	.driver = {
 		.owner	= THIS_MODULE, 
 		.name	= CT36X_NAME,
+		.of_match_table = of_match_ptr(ct36x_ts_dt_ids),
 	},
 };
 

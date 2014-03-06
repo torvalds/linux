@@ -8,7 +8,7 @@
 #define CT36X_CHIP_FLASH_SOURCE_SIZE	8
 
 static unsigned char binary_data[] = {
-#include "LX20JS06_A1_CT363_V03_5198_121015.dat"
+#include "wgj97112tsm01_CT363_01_V01_EA50_140224.dat"
 };
 
 int ct36x_chip_set_idle(struct ct36x_data *ts)
