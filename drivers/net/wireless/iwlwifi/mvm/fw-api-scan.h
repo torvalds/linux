@@ -169,8 +169,12 @@ enum iwl_scan_type {
 	SCAN_TYPE_DISCOVERY_FORCED	= 6,
 }; /* SCAN_ACTIVITY_TYPE_E_VER_1 */
 
-/* Maximal number of channels to scan */
-#define MAX_NUM_SCAN_CHANNELS 0x24
+/**
+ * Maximal number of channels to scan
+ * it should be equal to:
+ * max(IWL_NUM_CHANNELS, IWL_NUM_CHANNELS_FAMILY_8000)
+ */
+#define MAX_NUM_SCAN_CHANNELS 50
 
 /**
  * struct iwl_scan_cmd - scan request command
