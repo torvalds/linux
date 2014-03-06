@@ -599,7 +599,11 @@ int register_one_node(int nid)
 
 void unregister_one_node(int nid)
 {
+	if (!node_devices[nid])
+		return;
+
 	unregister_node(node_devices[nid]);
+	kfree(node_devices[nid]);
 	node_devices[nid] = NULL;
 }
 
