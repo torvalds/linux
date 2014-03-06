@@ -143,10 +143,6 @@ int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 	unsigned int chanspec;
 	int chan, range_len, i;
 
-	if (!s->range_table && !s->range_table_list) {
-		dev_err(dev->class_dev, "(bug) no range type list!\n");
-		return -EINVAL;
-	}
 	for (i = 0; i < n; i++) {
 		chanspec = chanlist[i];
 		chan = CR_CHAN(chanspec);
