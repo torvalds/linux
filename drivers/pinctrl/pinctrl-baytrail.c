@@ -60,6 +60,10 @@
 #define BYT_NGPIO_NCORE		28
 #define BYT_NGPIO_SUS		44
 
+#define BYT_SCORE_ACPI_UID	"1"
+#define BYT_NCORE_ACPI_UID	"2"
+#define BYT_SUS_ACPI_UID	"3"
+
 /*
  * Baytrail gpio controller consist of three separate sub-controllers called
  * SCORE, NCORE and SUS. The sub-controllers are identified by their acpi UID.
@@ -102,17 +106,17 @@ static unsigned const sus_pins[BYT_NGPIO_SUS] = {
 
 static struct pinctrl_gpio_range byt_ranges[] = {
 	{
-		.name = "1", /* match with acpi _UID in probe */
+		.name = BYT_SCORE_ACPI_UID, /* match with acpi _UID in probe */
 		.npins = BYT_NGPIO_SCORE,
 		.pins = score_pins,
 	},
 	{
-		.name = "2",
+		.name = BYT_NCORE_ACPI_UID,
 		.npins = BYT_NGPIO_NCORE,
 		.pins = ncore_pins,
 	},
 	{
-		.name = "3",
+		.name = BYT_SUS_ACPI_UID,
 		.npins = BYT_NGPIO_SUS,
 		.pins = sus_pins,
 	},
@@ -145,9 +149,41 @@ static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 	return vg->reg_base + reg_offset + reg;
 }
 
+static bool is_special_pin(struct byt_gpio *vg, unsigned offset)
+{
+	/* SCORE pin 92-93 */
+	if (!strcmp(vg->range->name, BYT_SCORE_ACPI_UID) &&
+		offset >= 92 && offset <= 93)
+		return true;
+
+	/* SUS pin 11-21 */
+	if (!strcmp(vg->range->name, BYT_SUS_ACPI_UID) &&
+		offset >= 11 && offset <= 21)
+		return true;
+
+	return false;
+}
+
 static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
+	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_CONF0_REG);
+	u32 value;
+	bool special;
+
+	/*
+	 * In most cases, func pin mux 000 means GPIO function.
+	 * But, some pins may have func pin mux 001 represents
+	 * GPIO function. Only allow user to export pin with
+	 * func pin mux preset as GPIO function by BIOS/FW.
+	 */
+	value = readl(reg) & BYT_PIN_MUX;
+	special = is_special_pin(vg, offset);
+	if ((special && value != 1) || (!special && value)) {
+		dev_err(&vg->pdev->dev,
+			"pin %u cannot be used as GPIO.\n", offset);
+		return -EINVAL;
+	}
 
 	pm_runtime_get(&vg->pdev->dev);
 
