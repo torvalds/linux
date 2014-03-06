@@ -2087,9 +2087,13 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
 				 "tx_timeout: VSI %d not found\n", vsi_seid);
-			goto netdev_ops_write_done;
-		}
-		if (rtnl_trylock()) {
+		} else if (!vsi->netdev) {
+			dev_info(&pf->pdev->dev, "tx_timeout: no netdev for VSI %d\n",
+				 vsi_seid);
+		} else if (test_bit(__I40E_DOWN, &vsi->state)) {
+			dev_info(&pf->pdev->dev, "tx_timeout: VSI %d not UP\n",
+				 vsi_seid);
+		} else if (rtnl_trylock()) {
 			vsi->netdev->netdev_ops->ndo_tx_timeout(vsi->netdev);
 			rtnl_unlock();
 			dev_info(&pf->pdev->dev, "tx_timeout called\n");
@@ -2108,9 +2112,10 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
 				 "change_mtu: VSI %d not found\n", vsi_seid);
-			goto netdev_ops_write_done;
-		}
-		if (rtnl_trylock()) {
+		} else if (!vsi->netdev) {
+			dev_info(&pf->pdev->dev, "change_mtu: no netdev for VSI %d\n",
+				 vsi_seid);
+		} else if (rtnl_trylock()) {
 			vsi->netdev->netdev_ops->ndo_change_mtu(vsi->netdev,
 								mtu);
 			rtnl_unlock();
@@ -2129,9 +2134,10 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
 				 "set_rx_mode: VSI %d not found\n", vsi_seid);
-			goto netdev_ops_write_done;
-		}
-		if (rtnl_trylock()) {
+		} else if (!vsi->netdev) {
+			dev_info(&pf->pdev->dev, "set_rx_mode: no netdev for VSI %d\n",
+				 vsi_seid);
+		} else if (rtnl_trylock()) {
 			vsi->netdev->netdev_ops->ndo_set_rx_mode(vsi->netdev);
 			rtnl_unlock();
 			dev_info(&pf->pdev->dev, "set_rx_mode called\n");
@@ -2149,11 +2155,14 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		if (!vsi) {
 			dev_info(&pf->pdev->dev, "napi: VSI %d not found\n",
 				 vsi_seid);
-			goto netdev_ops_write_done;
+		} else if (!vsi->netdev) {
+			dev_info(&pf->pdev->dev, "napi: no netdev for VSI %d\n",
+				 vsi_seid);
+		} else {
+			for (i = 0; i < vsi->num_q_vectors; i++)
+				napi_schedule(&vsi->q_vectors[i]->napi);
+			dev_info(&pf->pdev->dev, "napi called\n");
 		}
-		for (i = 0; i < vsi->num_q_vectors; i++)
-			napi_schedule(&vsi->q_vectors[i]->napi);
-		dev_info(&pf->pdev->dev, "napi called\n");
 	} else {
 		dev_info(&pf->pdev->dev, "unknown command '%s'\n",
 			 i40e_dbg_netdev_ops_buf);
