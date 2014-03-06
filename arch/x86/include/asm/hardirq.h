@@ -33,7 +33,7 @@ typedef struct {
 #ifdef CONFIG_X86_MCE_THRESHOLD
 	unsigned int irq_threshold_count;
 #endif
-#if defined(CONFIG_HYPERV) || defined(CONFIG_XEN)
+#if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
 	unsigned int irq_hv_callback_count;
 #endif
 } ____cacheline_aligned irq_cpustat_t;
