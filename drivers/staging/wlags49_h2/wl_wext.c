@@ -3778,7 +3778,7 @@ static const iw_handler wl_private_handler[] =
 #endif
 };
 
-struct iw_priv_args wl_priv_args[] = {
+static struct iw_priv_args wl_priv_args[] = {
         {SIOCSIWNETNAME,    IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN, 0, "snetwork_name" },
         {SIOCGIWNETNAME, 0, IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN,    "gnetwork_name" },
         {SIOCSIWSTANAME,    IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN, 0, "sstation_name" },
