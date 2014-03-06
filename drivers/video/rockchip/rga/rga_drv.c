@@ -798,7 +798,7 @@ static int rga_convert_dma_buf(struct rga_req *req)
 	ion_phys_addr_t phy_addr;
 	size_t len;
 
-    if(!req->src.yrgb_addr) {
+    if(req->src.yrgb_addr) {
         if (copy_from_user(&usr_fd, &req->src.yrgb_addr, sizeof(usr_fd)))
             return -EFAULT;
         hdl = ion_import_dma_buf(drvdata->ion_client, usr_fd);
@@ -812,7 +812,7 @@ static int rga_convert_dma_buf(struct rga_req *req)
         req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
     }
 
-    if(!req->dst.yrgb_addr) {
+    if(req->dst.yrgb_addr) {
         if (copy_from_user(&usr_fd, &req->dst.yrgb_addr, sizeof(usr_fd)))
             return -EFAULT;
         hdl = ion_import_dma_buf(drvdata->ion_client, usr_fd);
