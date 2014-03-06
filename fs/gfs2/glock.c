@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -468,7 +470,7 @@ retry:
 			do_xmote(gl, gh, LM_ST_UNLOCKED);
 			break;
 		default: /* Everything else */
-			pr_err("GFS2: wanted %u got %u\n", gl->gl_target, state);
+			pr_err("wanted %u got %u\n", gl->gl_target, state);
 			GLOCK_BUG_ON(gl, 1);
 		}
 		spin_unlock(&gl->gl_spin);
@@ -542,7 +544,7 @@ __acquires(&gl->gl_spin)
 		/* lock_dlm */
 		ret = sdp->sd_lockstruct.ls_ops->lm_lock(gl, target, lck_flags);
 		if (ret) {
-			pr_err("GFS2: lm_lock ret %d\n", ret);
+			pr_err("lm_lock ret %d\n", ret);
 			GLOCK_BUG_ON(gl, 1);
 		}
 	} else { /* lock_nolock */
@@ -935,7 +937,7 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		pr_err(" %pV", &vaf);
+		pr_err("%pV", &vaf);
 	}
 
 	va_end(args);

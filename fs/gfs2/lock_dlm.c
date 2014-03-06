@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/fs.h>
 #include <linux/dlm.h>
 #include <linux/slab.h>
@@ -176,7 +178,7 @@ static void gdlm_bast(void *arg, int mode)
 		gfs2_glock_cb(gl, LM_ST_SHARED);
 		break;
 	default:
-		pr_err("unknown bast mode %d", mode);
+		pr_err("unknown bast mode %d\n", mode);
 		BUG();
 	}
 }
@@ -195,7 +197,7 @@ static int make_mode(const unsigned int lmstate)
 	case LM_ST_SHARED:
 		return DLM_LOCK_PR;
 	}
-	pr_err("unknown LM state %d", lmstate);
+	pr_err("unknown LM state %d\n", lmstate);
 	BUG();
 	return -1;
 }
@@ -308,7 +310,8 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_VALBLK,
 			   NULL, gl);
 	if (error) {
-		pr_err("gdlm_unlock %x,%llx err=%d\n", gl->gl_name.ln_type,
+		pr_err("gdlm_unlock %x,%llx err=%d\n",
+		       gl->gl_name.ln_type,
 		       (unsigned long long)gl->gl_name.ln_number, error);
 		return;
 	}

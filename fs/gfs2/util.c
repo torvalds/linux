@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
@@ -30,7 +32,7 @@ mempool_t *gfs2_page_pool __read_mostly;
 
 void gfs2_assert_i(struct gfs2_sbd *sdp)
 {
-	pr_emerg("GFS2: fsid=%s: fatal assertion failed\n", sdp->sd_fsname);
+	pr_emerg("fsid=%s: fatal assertion failed\n", sdp->sd_fsname);
 }
 
 int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
@@ -65,7 +67,7 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 	}
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_PANIC)
-		panic("GFS2: fsid=%s: panic requested.\n", sdp->sd_fsname);
+		panic("GFS2: fsid=%s: panic requested\n", sdp->sd_fsname);
 
 	return -1;
 }
@@ -104,10 +106,8 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 		return -2;
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW)
-		pr_warn("GFS2: fsid=%s: warning: assertion \"%s\" failed\n"
-		       "GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
-		       sdp->sd_fsname, assertion,
-		       sdp->sd_fsname, function, file, line);
+		pr_warn("fsid=%s: warning: assertion \"%s\" failed at function = %s, file = %s, line = %u\n",
+			sdp->sd_fsname, assertion, function, file, line);
 
 	if (sdp->sd_args.ar_debug)
 		BUG();

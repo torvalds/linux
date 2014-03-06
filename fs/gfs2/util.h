@@ -10,22 +10,21 @@
 #ifndef __UTIL_DOT_H__
 #define __UTIL_DOT_H__
 
+#ifdef pr_fmt
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#endif
+
 #include <linux/mempool.h>
 
 #include "incore.h"
 
-#define fs_printk(level, fs, fmt, arg...) \
-	printk(level "GFS2: fsid=%s: " fmt , (fs)->sd_fsname , ## arg)
-
-#define fs_info(fs, fmt, arg...) \
-	fs_printk(KERN_INFO , fs , fmt , ## arg)
-
-#define fs_warn(fs, fmt, arg...) \
-	fs_printk(KERN_WARNING , fs , fmt , ## arg)
-
-#define fs_err(fs, fmt, arg...) \
-	fs_printk(KERN_ERR, fs , fmt , ## arg)
-
+#define fs_warn(fs, fmt, ...)						\
+	pr_warn("fsid=%s: " fmt, (fs)->sd_fsname, ##__VA_ARGS__)
+#define fs_err(fs, fmt, ...)						\
+	pr_err("fsid=%s: " fmt, (fs)->sd_fsname, ##__VA_ARGS__)
+#define fs_info(fs, fmt, ...)						\
+	pr_info("fsid=%s: " fmt, (fs)->sd_fsname, ##__VA_ARGS__)
 
 void gfs2_assert_i(struct gfs2_sbd *sdp);
 
@@ -85,7 +84,7 @@ static inline int gfs2_meta_check(struct gfs2_sbd *sdp,
 	struct gfs2_meta_header *mh = (struct gfs2_meta_header *)bh->b_data;
 	u32 magic = be32_to_cpu(mh->mh_magic);
 	if (unlikely(magic != GFS2_MAGIC)) {
-		printk(KERN_ERR "GFS2: Magic number missing at %llu\n",
+		pr_err("Magic number missing at %llu\n",
 		       (unsigned long long)bh->b_blocknr);
 		return -EIO;
 	}

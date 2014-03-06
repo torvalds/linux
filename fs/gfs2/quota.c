@@ -36,6 +36,8 @@
  * the quota file, so it is not being constantly read.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -1081,10 +1083,10 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 
-	pr_info("GFS2: fsid=%s: quota %s for %s %u\n",
-	       sdp->sd_fsname, type,
-	       (qd->qd_id.type == USRQUOTA) ? "user" : "group",
-	       from_kqid(&init_user_ns, qd->qd_id));
+	pr_info("fsid=%s: quota %s for %s %u\n",
+		sdp->sd_fsname, type,
+		(qd->qd_id.type == USRQUOTA) ? "user" : "group",
+		from_kqid(&init_user_ns, qd->qd_id));
 
 	return 0;
 }
