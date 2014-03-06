@@ -302,10 +302,10 @@ emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(probes_opcode_t insn,
 }
 
 const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
-	[PROBES_EMULATE_NONE] = {.handler = kprobe_emulate_none},
-	[PROBES_SIMULATE_NOP] = {.handler = kprobe_simulate_nop},
-	[PROBES_PRELOAD_IMM] = {.handler = kprobe_simulate_nop},
-	[PROBES_PRELOAD_REG] = {.handler = kprobe_simulate_nop},
+	[PROBES_EMULATE_NONE] = {.handler = probes_emulate_none},
+	[PROBES_SIMULATE_NOP] = {.handler = probes_simulate_nop},
+	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_nop},
+	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_nop},
 	[PROBES_BRANCH_IMM] = {.handler = simulate_blx1},
 	[PROBES_MRS] = {.handler = simulate_mrs},
 	[PROBES_BRANCH_REG] = {.handler = simulate_blx2bx},
@@ -326,8 +326,8 @@ const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
 	[PROBES_DATA_PROCESSING_IMM] = {
 		.handler = emulate_rd12rn16rm0rs8_rwflags},
 	[PROBES_MOV_HALFWORD] = {.handler = emulate_rd12rm0_noflags_nopc},
-	[PROBES_SEV] = {.handler = kprobe_emulate_none},
-	[PROBES_WFE] = {.handler = kprobe_simulate_nop},
+	[PROBES_SEV] = {.handler = probes_emulate_none},
+	[PROBES_WFE] = {.handler = probes_simulate_nop},
 	[PROBES_SATURATE] = {.handler = emulate_rd12rn16rm0_rwflags_nopc},
 	[PROBES_REV] = {.handler = emulate_rd12rm0_noflags_nopc},
 	[PROBES_MMI] = {.handler = emulate_rd12rn16rm0_rwflags_nopc},

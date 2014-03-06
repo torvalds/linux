@@ -24,6 +24,8 @@
 #include <linux/kprobes.h>
 #include "kprobes.h"
 
+void __init arm_probes_decode_init(void);
+
 #if __LINUX_ARM_ARCH__ >= 7
 
 /* str_pc_offset is architecturally defined from ARMv7 onwards */
@@ -131,9 +133,9 @@ static inline void __kprobes alu_write_pc(long pcv, struct pt_regs *regs)
 }
 
 
-void __kprobes kprobe_simulate_nop(probes_opcode_t, struct arch_specific_insn *,
+void __kprobes probes_simulate_nop(probes_opcode_t, struct arch_specific_insn *,
 		struct pt_regs *regs);
-void __kprobes kprobe_emulate_none(probes_opcode_t, struct arch_specific_insn *,
+void __kprobes probes_emulate_none(probes_opcode_t, struct arch_specific_insn *,
 		struct pt_regs *regs);
 
 enum kprobe_insn __kprobes

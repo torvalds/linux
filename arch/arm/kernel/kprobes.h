@@ -57,8 +57,6 @@ enum kprobe_insn arm_kprobe_decode_insn(probes_opcode_t,
 
 #endif
 
-void __init arm_kprobe_decode_init(void);
-
 #include "probes.h"
 
 #endif /* _ARM_KERNEL_KPROBES_H */

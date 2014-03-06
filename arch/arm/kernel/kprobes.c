@@ -614,7 +614,7 @@ static struct undef_hook kprobes_arm_break_hook = {
 
 int __init arch_init_kprobes()
 {
-	arm_kprobe_decode_init();
+	arm_probes_decode_init();
 #ifdef CONFIG_THUMB2_KERNEL
 	register_undef_hook(&kprobes_thumb16_break_hook);
 	register_undef_hook(&kprobes_thumb32_break_hook);

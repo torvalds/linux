@@ -76,7 +76,7 @@ void __init test_alu_write_pc_interworking(void)
 #endif /* !test_alu_write_pc_interworking */
 
 
-void __init arm_kprobe_decode_init(void)
+void __init arm_probes_decode_init(void)
 {
 	find_str_pc_offset();
 	test_load_write_pc_interworking();
@@ -175,13 +175,13 @@ probes_check_cc * const probes_condition_checks[16] = {
 };
 
 
-void __kprobes kprobe_simulate_nop(probes_opcode_t opcode,
+void __kprobes probes_simulate_nop(probes_opcode_t opcode,
 	struct arch_specific_insn *asi,
 	struct pt_regs *regs)
 {
 }
 
-void __kprobes kprobe_emulate_none(probes_opcode_t opcode,
+void __kprobes probes_emulate_none(probes_opcode_t opcode,
 	struct arch_specific_insn *asi,
 	struct pt_regs *regs)
 {
