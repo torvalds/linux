@@ -1513,11 +1513,16 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 
 	input->fd_id = fsp->location;
 
+	if (fsp->ring_cookie == RX_CLS_FLOW_DISC)
+		input->dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET;
+	else
+		input->dest_ctl =
+			     I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
+
 	input->q_index = fsp->ring_cookie;
 	input->flex_off = 0;
 	input->pctype = 0;
 	input->dest_vsi = vsi->id;
-	input->dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
 	input->fd_status = I40E_FILTER_PROGRAM_DESC_FD_STATUS_FD_ID;
 	input->cnt_index = 0;
 	input->flow_type = fsp->flow_type;
