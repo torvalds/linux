@@ -31,6 +31,9 @@
 #include <linux/phy/phy.h>
 #include <linux/of_platform.h>
 
+#define USB2PHY_DISCON_BYP_LATCH (1 << 31)
+#define USB2PHY_ANA_CONFIG1 0x4c
+
 /**
  * omap_usb2_set_comparator - links the comparator present in the sytem with
  *	this phy
@@ -116,7 +119,30 @@ static int omap_usb_power_on(struct phy *x)
 	return 0;
 }
 
+static int omap_usb_init(struct phy *x)
+{
+	struct omap_usb *phy = phy_get_drvdata(x);
+	u32 val;
+
+	if (phy->flags & OMAP_USB2_CALIBRATE_FALSE_DISCONNECT) {
+		/*
+		 *
+		 * Reduce the sensitivity of internal PHY by enabling the
+		 * DISCON_BYP_LATCH of the USB2PHY_ANA_CONFIG1 register. This
+		 * resolves issues with certain devices which can otherwise
+		 * be prone to false disconnects.
+		 *
+		 */
+		val = omap_usb_readl(phy->phy_base, USB2PHY_ANA_CONFIG1);
+		val |= USB2PHY_DISCON_BYP_LATCH;
+		omap_usb_writel(phy->phy_base, USB2PHY_ANA_CONFIG1, val);
+	}
+
+	return 0;
+}
+
 static struct phy_ops ops = {
+	.init		= omap_usb_init,
 	.power_on	= omap_usb_power_on,
 	.power_off	= omap_usb_power_off,
 	.owner		= THIS_MODULE,
@@ -128,6 +154,11 @@ static const struct usb_phy_data omap_usb2_data = {
 	.flags = OMAP_USB2_HAS_START_SRP | OMAP_USB2_HAS_SET_VBUS,
 };
 
+static const struct usb_phy_data dra7x_usb2_data = {
+	.label = "dra7x_usb2",
+	.flags = OMAP_USB2_CALIBRATE_FALSE_DISCONNECT,
+};
+
 static const struct usb_phy_data am437x_usb2_data = {
 	.label = "am437x_usb2",
 	.flags =  0,
@@ -137,6 +168,10 @@ static const struct of_device_id omap_usb2_id_table[] = {
 	{
 		.compatible = "ti,omap-usb2",
 		.data = &omap_usb2_data,
+	},
+	{
+		.compatible = "ti,dra7x-usb2",
+		.data = &dra7x_usb2_data,
 	},
 	{
 		.compatible = "ti,am437x-usb2",
@@ -151,6 +186,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 {
 	struct omap_usb	*phy;
 	struct phy *generic_phy;
+	struct resource *res;
 	struct phy_provider *phy_provider;
 	struct usb_otg *otg;
 	struct device_node *node = pdev->dev.of_node;
@@ -184,6 +220,14 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	phy->phy.label		= phy_data->label;
 	phy->phy.otg		= otg;
 	phy->phy.type		= USB_PHY_TYPE_USB2;
+
+	if (phy_data->flags & OMAP_USB2_CALIBRATE_FALSE_DISCONNECT) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		phy->phy_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!phy->phy_base)
+			return -ENOMEM;
+		phy->flags |= OMAP_USB2_CALIBRATE_FALSE_DISCONNECT;
+	}
 
 	control_node = of_parse_phandle(node, "ctrl-module", 0);
 	if (!control_node) {
