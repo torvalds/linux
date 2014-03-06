@@ -833,24 +833,11 @@ again:
 		/* hmm, this isn't really async... */
 		ret = ceph_sync_read(iocb, &i, &checkeof);
 	} else {
-		/*
-		 * We can't modify the content of iov,
-		 * so we only read from beginning.
-		 *
-		 * When we switch generic_file_aio_read() to iov_iter, the
-		 * if () below will be removed -- AV
-		 */
-		if (read) {
-			iocb->ki_pos = pos;
-			len = iocb->ki_nbytes;
-			read = 0;
-			iov_iter_init(&i, iov, nr_segs, len, 0);
-		}
 		dout("aio_read %p %llx.%llx %llu~%u got cap refs on %s\n",
 		     inode, ceph_vinop(inode), pos, (unsigned)len,
 		     ceph_cap_string(got));
 
-		ret = generic_file_aio_read(iocb, iov, nr_segs, pos);
+		ret = generic_file_read_iter(iocb, &i);
 	}
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
 	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);

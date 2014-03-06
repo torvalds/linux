@@ -1663,6 +1663,56 @@ out:
 	return written ? written : error;
 }
 
+ssize_t
+generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+	struct file *file = iocb->ki_filp;
+	ssize_t retval = 0;
+	loff_t *ppos = &iocb->ki_pos;
+	loff_t pos = *ppos;
+
+	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
+	if (file->f_flags & O_DIRECT) {
+		struct address_space *mapping = file->f_mapping;
+		struct inode *inode = mapping->host;
+		size_t count = iov_iter_count(iter);
+		loff_t size;
+
+		if (!count)
+			goto out; /* skip atime */
+		size = i_size_read(inode);
+		retval = filemap_write_and_wait_range(mapping, pos,
+					pos + count - 1);
+		if (!retval) {
+			struct iov_iter data = *iter;
+			retval = mapping->a_ops->direct_IO(READ, iocb, &data, pos);
+		}
+
+		if (retval > 0) {
+			*ppos = pos + retval;
+			iov_iter_advance(iter, retval);
+		}
+
+		/*
+		 * Btrfs can have a short DIO read if we encounter
+		 * compressed extents, so if there was an error, or if
+		 * we've already read everything we wanted to, or if
+		 * there was a short read because we hit EOF, go ahead
+		 * and return.  Otherwise fallthrough to buffered io for
+		 * the rest of the read.
+		 */
+		if (retval < 0 || !iov_iter_count(iter) || *ppos >= size) {
+			file_accessed(file);
+			goto out;
+		}
+	}
+
+	retval = do_generic_file_read(file, ppos, iter, retval);
+out:
+	return retval;
+}
+EXPORT_SYMBOL(generic_file_read_iter);
+
 /**
  * generic_file_aio_read - generic filesystem read routine
  * @iocb:	kernel I/O control block
@@ -1677,60 +1727,11 @@ ssize_t
 generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
-	struct file *filp = iocb->ki_filp;
-	ssize_t retval = 0;
-	size_t count;
-	loff_t *ppos = &iocb->ki_pos;
+	size_t count = iov_length(iov, nr_segs);
 	struct iov_iter i;
 
-	count = iov_length(iov, nr_segs);
 	iov_iter_init(&i, iov, nr_segs, count, 0);
-
-	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
-	if (filp->f_flags & O_DIRECT) {
-		loff_t size;
-		struct address_space *mapping;
-		struct inode *inode;
-
-		mapping = filp->f_mapping;
-		inode = mapping->host;
-		if (!count)
-			goto out; /* skip atime */
-		size = i_size_read(inode);
-		retval = filemap_write_and_wait_range(mapping, pos,
-					pos + count - 1);
-		if (!retval) {
-			struct iov_iter data = i;
-			retval = mapping->a_ops->direct_IO(READ, iocb, &data, pos);
-		}
-
-		if (retval > 0) {
-			*ppos = pos + retval;
-			count -= retval;
-			/*
-			 * If we did a short DIO read we need to skip the
-			 * section of the iov that we've already read data into.
-			 */
-			iov_iter_advance(&i, retval);
-		}
-
-		/*
-		 * Btrfs can have a short DIO read if we encounter
-		 * compressed extents, so if there was an error, or if
-		 * we've already read everything we wanted to, or if
-		 * there was a short read because we hit EOF, go ahead
-		 * and return.  Otherwise fallthrough to buffered io for
-		 * the rest of the read.
-		 */
-		if (retval < 0 || !count || *ppos >= size) {
-			file_accessed(filp);
-			goto out;
-		}
-	}
-
-	retval = do_generic_file_read(filp, ppos, &i, retval);
-out:
-	return retval;
+	return generic_file_read_iter(iocb, &i);
 }
 EXPORT_SYMBOL(generic_file_aio_read);
 
