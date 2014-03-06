@@ -246,4 +246,85 @@
 			reg = <3>;
 		};
 	};
+	
+	mmc: mshc@ff0c0000 {
+	   compatible = "rockchip,rk_mmc";
+	   reg = <0xff0c0000 0x4000>;
+	   interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>; /*irq=64*/
+	   #address-cells = <1>;
+	   #size-cells = <0>;
+	   //pinctrl-names = "default","suspend";
+	   //pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_cd &sdmmc0_wp &sdmmc0_pwr &sdmmc0_bus1 &sdmmc0_bus4>;
+	   //pinctrl-1 = <&sd0_cd_gpio>; //for int gpio?
+	   //clocks = <&clk_gatesX XX> , <&clk_gatesY YY>;
+	   //clock-names = "hclk_mmc","mmc";
+	   clock-frequency = <50000000>;
+	   clock-freq-min-max = <400000 50000000>;
+	   num-slots = <1>;
+	   supports-highspeed;
+	   broken-cd;
+	   card-detect-delay = <200>;
+	   pwr-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>; /*pwr_en = GPIO3_A1*/
+	   fifo-depth = <0x100>;
+	   emmc-compatible = <0>;
+	   status = "okay";
+	};
+	
+	sdio0: mshc@ff0d0000 {
+		compatible = "rockchip,rk_mmc";
+	    reg = <ff0d0000 0x4000>;
+	    interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>; /*irq=65*/
+	    #address-cells = <1>;
+	    #size-cells = <0>;
+	    //pinctrl-names = "default";
+	    //pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_wp &sd1_bus1 &sd1_bus4>;
+	    //clocks = <&clk_gatesX XX> , <&clk_gatesY YY>;
+	    //clock-names = "hclk_sdio0","sdio0";
+        clock-frequency = <50000000>;
+        clock-freq-min-max = <400000 50000000>;    
+        num-slots = <1>;
+	    supports-highspeed;
+	    fifo-depth = <0x100>;
+	    emmc-compatible = <0>;
+	    status = "disabled";
+	};
+	
+	sdio1: mshc@ff0e0000 {
+		compatible = "rockchip,rk_mmc";
+	    reg = <ff0e0000 0x4000>;
+	    interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>; /*irq=66*/
+	    #address-cells = <1>;
+	    #size-cells = <0>;
+	    //pinctrl-names = "default";
+	    //pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_wp &sd1_bus1 &sd1_bus4>;
+	    //clocks = <&clk_gatesX XX> , <&clk_gatesY YY>;
+	    //clock-names = "hclk_sdio1","sdio1";
+        clock-frequency = <50000000>;
+        clock-freq-min-max = <400000 50000000>;    
+        num-slots = <1>;
+	    supports-highspeed;
+	    fifo-depth = <0x100>;
+	    emmc-compatible = <0>;
+	    status = "disabled";
+	};
+	
+	emmc: mshc@ff0f0000 {
+		compatible = "rockchip,rk_mmc";
+	    reg = <ff0f0000 0x4000>;
+	    interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>; /*irq=67*/
+	    #address-cells = <1>;
+	    #size-cells = <0>;
+	    //pinctrl-names = "default";
+	    //pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_wp &sd1_bus1 &sd1_bus4>;
+	    //clocks = <&clk_gatesX XX> , <&clk_gatesY YY>;
+	    //clock-names = "hclk_sdio1","sdio1";
+        clock-frequency = <50000000>;
+        clock-freq-min-max = <400000 50000000>;    
+        num-slots = <1>;
+	    supports-highspeed;
+	    fifo-depth = <0x100>;
+	    emmc-compatible = <1>;
+	    status = "disabled";
+	};
+	
 };
