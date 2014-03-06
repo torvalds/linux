@@ -421,8 +421,8 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		disable_irq(vif->rx_irq);
 	}
 
-	task = kthread_create(xenvif_kthread,
-			      (void *)vif, "%s", vif->dev->name);
+	task = kthread_create(xenvif_kthread_guest_rx,
+			      (void *)vif, "%s-guest-rx", vif->dev->name);
 	if (IS_ERR(task)) {
 		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
 		err = PTR_ERR(task);

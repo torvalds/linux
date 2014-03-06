@@ -63,14 +63,6 @@ static unsigned int fatal_skb_slots = FATAL_SKB_SLOTS_DEFAULT;
 module_param(fatal_skb_slots, uint, 0444);
 
 /*
- * To avoid confusion, we define XEN_NETBK_LEGACY_SLOTS_MAX indicating
- * the maximum slots a valid packet can use. Now this value is defined
- * to be XEN_NETIF_NR_SLOTS_MIN, which is supposed to be supported by
- * all backend.
- */
-#define XEN_NETBK_LEGACY_SLOTS_MAX XEN_NETIF_NR_SLOTS_MIN
-
-/*
  * If head != INVALID_PENDING_RING_IDX, it means this tx request is head of
  * one or more merged tx requests, otherwise it is the continuation of
  * previous tx request.
@@ -129,12 +121,6 @@ static void frag_set_pending_idx(skb_frag_t *frag, u16 pending_idx)
 static inline pending_ring_idx_t pending_index(unsigned i)
 {
 	return i & (MAX_PENDING_REQS-1);
-}
-
-static inline pending_ring_idx_t nr_pending_reqs(struct xenvif *vif)
-{
-	return MAX_PENDING_REQS -
-		vif->pending_prod + vif->pending_cons;
 }
 
 bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed)
@@ -1116,8 +1102,7 @@ static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
 	struct sk_buff *skb;
 	int ret;
 
-	while ((nr_pending_reqs(vif) + XEN_NETBK_LEGACY_SLOTS_MAX
-		< MAX_PENDING_REQS) &&
+	while (xenvif_tx_pending_slots_available(vif) &&
 	       (skb_queue_len(&vif->tx_queue) < budget)) {
 		struct xen_netif_tx_request txreq;
 		struct xen_netif_tx_request txfrags[XEN_NETBK_LEGACY_SLOTS_MAX];
@@ -1487,8 +1472,7 @@ static inline int tx_work_todo(struct xenvif *vif)
 {
 
 	if (likely(RING_HAS_UNCONSUMED_REQUESTS(&vif->tx)) &&
-	    (nr_pending_reqs(vif) + XEN_NETBK_LEGACY_SLOTS_MAX
-	     < MAX_PENDING_REQS))
+	    xenvif_tx_pending_slots_available(vif))
 		return 1;
 
 	return 0;
@@ -1551,7 +1535,7 @@ static void xenvif_start_queue(struct xenvif *vif)
 		netif_wake_queue(vif->dev);
 }
 
-int xenvif_kthread(void *data)
+int xenvif_kthread_guest_rx(void *data)
 {
 	struct xenvif *vif = data;
 	struct sk_buff *skb;

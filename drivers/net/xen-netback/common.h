@@ -108,6 +108,15 @@ struct xenvif_rx_meta {
  */
 #define MAX_GRANT_COPY_OPS (MAX_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
 
+#define NETBACK_INVALID_HANDLE -1
+
+/* To avoid confusion, we define XEN_NETBK_LEGACY_SLOTS_MAX indicating
+ * the maximum slots a valid packet can use. Now this value is defined
+ * to be XEN_NETIF_NR_SLOTS_MIN, which is supposed to be supported by
+ * all backend.
+ */
+#define XEN_NETBK_LEGACY_SLOTS_MAX XEN_NETIF_NR_SLOTS_MIN
+
 struct xenvif {
 	/* Unique identifier for this interface. */
 	domid_t          domid;
@@ -216,7 +225,7 @@ void xenvif_carrier_off(struct xenvif *vif);
 
 int xenvif_tx_action(struct xenvif *vif, int budget);
 
-int xenvif_kthread(void *data);
+int xenvif_kthread_guest_rx(void *data);
 void xenvif_kick_thread(struct xenvif *vif);
 
 /* Determine whether the needed number of slots (req) are available,
@@ -225,6 +234,18 @@ void xenvif_kick_thread(struct xenvif *vif);
 bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed);
 
 void xenvif_stop_queue(struct xenvif *vif);
+
+static inline pending_ring_idx_t nr_pending_reqs(struct xenvif *vif)
+{
+	return MAX_PENDING_REQS -
+		vif->pending_prod + vif->pending_cons;
+}
+
+static inline bool xenvif_tx_pending_slots_available(struct xenvif *vif)
+{
+	return nr_pending_reqs(vif) + XEN_NETBK_LEGACY_SLOTS_MAX
+		< MAX_PENDING_REQS;
+}
 
 extern bool separate_tx_rx_irq;
 
