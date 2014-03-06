@@ -1217,6 +1217,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
 	if (err)
 		goto out;
+	iov_iter_init(&i, iov, nr_segs, count, 0);
 
 	if (count == 0)
 		goto out;
@@ -1230,7 +1231,6 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	if (file->f_flags & O_DIRECT) {
-		iov_iter_init(&i, iov, nr_segs, count, 0);
 		written = generic_file_direct_write(iocb, &i, pos, count, ocount);
 		if (written < 0 || written == count)
 			goto out;
@@ -1256,7 +1256,6 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		written += written_buffered;
 		iocb->ki_pos = pos + written_buffered;
 	} else {
-		iov_iter_init(&i, iov, nr_segs, count, 0);
 		written = fuse_perform_write(file, mapping, &i, pos);
 		if (written >= 0)
 			iocb->ki_pos = pos + written;
