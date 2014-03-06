@@ -96,20 +96,16 @@ static void subscr_send_event(struct tipc_subscription *sub, u32 found_lower,
 {
 	struct tipc_subscriber *subscriber = sub->subscriber;
 	struct kvec msg_sect;
-	int ret;
 
 	msg_sect.iov_base = (void *)&sub->evt;
 	msg_sect.iov_len = sizeof(struct tipc_event);
-
 	sub->evt.event = htohl(event, sub->swap);
 	sub->evt.found_lower = htohl(found_lower, sub->swap);
 	sub->evt.found_upper = htohl(found_upper, sub->swap);
 	sub->evt.port.ref = htohl(port_ref, sub->swap);
 	sub->evt.port.node = htohl(node, sub->swap);
-	ret = tipc_conn_sendmsg(&topsrv, subscriber->conid, NULL,
-				msg_sect.iov_base, msg_sect.iov_len);
-	if (ret < 0)
-		pr_err("Sending subscription event failed, no memory\n");
+	tipc_conn_sendmsg(&topsrv, subscriber->conid, NULL, msg_sect.iov_base,
+			  msg_sect.iov_len);
 }
 
 /**

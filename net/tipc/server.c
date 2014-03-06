@@ -87,7 +87,6 @@ static void tipc_clean_outqueues(struct tipc_conn *con);
 static void tipc_conn_kref_release(struct kref *kref)
 {
 	struct tipc_conn *con = container_of(kref, struct tipc_conn, kref);
-	struct tipc_server *s = con->server;
 
 	if (con->sock) {
 		tipc_sock_release_local(con->sock);
@@ -95,10 +94,6 @@ static void tipc_conn_kref_release(struct kref *kref)
 	}
 
 	tipc_clean_outqueues(con);
-
-	if (con->conid)
-		s->tipc_conn_shutdown(con->conid, con->usr_data);
-
 	kfree(con);
 }
 
@@ -181,6 +176,9 @@ static void tipc_close_conn(struct tipc_conn *con)
 	struct tipc_server *s = con->server;
 
 	if (test_and_clear_bit(CF_CONNECTED, &con->flags)) {
+		if (con->conid)
+			s->tipc_conn_shutdown(con->conid, con->usr_data);
+
 		spin_lock_bh(&s->idr_lock);
 		idr_remove(&s->conn_idr, con->conid);
 		s->idr_in_use--;
