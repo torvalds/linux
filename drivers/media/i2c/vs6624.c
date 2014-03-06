@@ -503,6 +503,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 	return &container_of(ctrl->handler, struct vs6624, hdl)->sd;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vs6624_read(struct v4l2_subdev *sd, u16 index)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -515,6 +516,7 @@ static int vs6624_read(struct v4l2_subdev *sd, u16 index)
 
 	return buf[0];
 }
+#endif
 
 static int vs6624_write(struct v4l2_subdev *sd, u16 index,
 				u8 value)

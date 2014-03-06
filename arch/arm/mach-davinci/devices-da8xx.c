@@ -389,7 +389,7 @@ static struct resource da8xx_watchdog_resources[] = {
 };
 
 static struct platform_device da8xx_wdt_device = {
-	.name		= "watchdog",
+	.name		= "davinci-wdt",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(da8xx_watchdog_resources),
 	.resource	= da8xx_watchdog_resources,
@@ -399,7 +399,7 @@ void da8xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device *dev;
 
-	dev = bus_find_device_by_name(&platform_bus_type, NULL, "watchdog");
+	dev = bus_find_device_by_name(&platform_bus_type, NULL, "davinci-wdt");
 	if (!dev) {
 		pr_err("%s: failed to find watchdog device\n", __func__);
 		return;

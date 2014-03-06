@@ -311,7 +311,7 @@ lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error)
 
 		sfw_abort_rpc(rpc);
 
-		if  (error != ETIMEDOUT)
+		if (error != ETIMEDOUT)
 			continue;
 
 		nd = crpc->crp_node;

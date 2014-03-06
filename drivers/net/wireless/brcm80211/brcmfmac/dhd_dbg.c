@@ -22,7 +22,6 @@
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
-#include "tracepoint.h"
 
 static struct dentry *root_folder;
 
@@ -42,6 +41,40 @@ void brcmf_debugfs_exit(void)
 	root_folder = NULL;
 }
 
+static
+ssize_t brcmf_debugfs_chipinfo_read(struct file *f, char __user *data,
+				   size_t count, loff_t *ppos)
+{
+	struct brcmf_pub *drvr = f->private_data;
+	struct brcmf_bus *bus = drvr->bus_if;
+	char buf[40];
+	int res;
+
+	/* only allow read from start */
+	if (*ppos > 0)
+		return 0;
+
+	res = scnprintf(buf, sizeof(buf), "chip: %x(%u) rev %u\n",
+			bus->chip, bus->chip, bus->chiprev);
+	return simple_read_from_buffer(data, count, ppos, buf, res);
+}
+
+static const struct file_operations brcmf_debugfs_chipinfo_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = brcmf_debugfs_chipinfo_read
+};
+
+static int brcmf_debugfs_create_chipinfo(struct brcmf_pub *drvr)
+{
+	struct dentry *dentry =  drvr->dbgfs_dir;
+
+	if (!IS_ERR_OR_NULL(dentry))
+		debugfs_create_file("chipinfo", S_IRUGO, dentry, drvr,
+				    &brcmf_debugfs_chipinfo_ops);
+	return 0;
+}
+
 int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 {
 	struct device *dev = drvr->bus_if->dev;
@@ -50,6 +83,7 @@ int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 		return -ENODEV;
 
 	drvr->dbgfs_dir = debugfs_create_dir(dev_name(dev), root_folder);
+	brcmf_debugfs_create_chipinfo(drvr);
 	return PTR_ERR_OR_ZERO(drvr->dbgfs_dir);
 }
 

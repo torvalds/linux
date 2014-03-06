@@ -144,6 +144,7 @@ int clp_disable_fh(struct zpci_dev *);
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
 void zpci_rescan(void);
+bool zpci_is_enabled(void);
 #else /* CONFIG_PCI */
 static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}

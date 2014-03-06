@@ -154,6 +154,32 @@ out:
 	return segs;
 }
 
+/* Return the total length of all the extension hdrs, following the same
+ * logic in ipv6_gso_pull_exthdrs() when parsing ext-hdrs.
+ */
+static int ipv6_exthdrs_len(struct ipv6hdr *iph,
+			    const struct net_offload **opps)
+{
+	struct ipv6_opt_hdr *opth = (void *)iph;
+	int len = 0, proto, optlen = sizeof(*iph);
+
+	proto = iph->nexthdr;
+	for (;;) {
+		if (proto != NEXTHDR_HOP) {
+			*opps = rcu_dereference(inet6_offloads[proto]);
+			if (unlikely(!(*opps)))
+				break;
+			if (!((*opps)->flags & INET6_PROTO_GSO_EXTHDR))
+				break;
+		}
+		opth = (void *)opth + optlen;
+		optlen = ipv6_optlen(opth);
+		len += optlen;
+		proto = opth->nexthdr;
+	}
+	return len;
+}
+
 static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
 {
@@ -164,7 +190,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	unsigned int nlen;
 	unsigned int hlen;
 	unsigned int off;
-	int flush = 1;
+	u16 flush = 1;
 	int proto;
 	__wsum csum;
 
@@ -177,6 +203,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 			goto out;
 	}
 
+	skb_set_network_header(skb, off);
 	skb_gro_pull(skb, sizeof(*iph));
 	skb_set_transport_header(skb, skb_gro_offset(skb));
 
@@ -211,12 +238,16 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
 
-		iph2 = ipv6_hdr(p);
+		iph2 = (struct ipv6hdr *)(p->data + off);
 		first_word = *(__be32 *)iph ^ *(__be32 *)iph2 ;
 
-		/* All fields must match except length and Traffic Class. */
-		if (nlen != skb_network_header_len(p) ||
-		    (first_word & htonl(0xF00FFFFF)) ||
+		/* All fields must match except length and Traffic Class.
+		 * XXX skbs on the gro_list have all been parsed and pulled
+		 * already so we don't need to compare nlen
+		 * (nlen != (sizeof(*iph2) + ipv6_exthdrs_len(iph2, &ops)))
+		 * memcmp() alone below is suffcient, right?
+		 */
+		 if ((first_word & htonl(0xF00FFFFF)) ||
 		    memcmp(&iph->nexthdr, &iph2->nexthdr,
 			   nlen - offsetof(struct ipv6hdr, nexthdr))) {
 			NAPI_GRO_CB(p)->same_flow = 0;
@@ -245,21 +276,21 @@ out:
 	return pp;
 }
 
-static int ipv6_gro_complete(struct sk_buff *skb)
+static int ipv6_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct net_offload *ops;
-	struct ipv6hdr *iph = ipv6_hdr(skb);
+	struct ipv6hdr *iph = (struct ipv6hdr *)(skb->data + nhoff);
 	int err = -ENOSYS;
 
-	iph->payload_len = htons(skb->len - skb_network_offset(skb) -
-				 sizeof(*iph));
+	iph->payload_len = htons(skb->len - nhoff - sizeof(*iph));
 
 	rcu_read_lock();
-	ops = rcu_dereference(inet6_offloads[NAPI_GRO_CB(skb)->proto]);
+
+	nhoff += sizeof(*iph) + ipv6_exthdrs_len(iph, &ops);
 	if (WARN_ON(!ops || !ops->callbacks.gro_complete))
 		goto out_unlock;
 
-	err = ops->callbacks.gro_complete(skb);
+	err = ops->callbacks.gro_complete(skb, nhoff);
 
 out_unlock:
 	rcu_read_unlock();

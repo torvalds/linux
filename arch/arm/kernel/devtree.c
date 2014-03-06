@@ -33,7 +33,7 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return alloc_bootmem_align(size, align);
+	return memblock_virt_alloc(size, align);
 }
 
 void __init arm_dt_memblock_reserve(void)
@@ -171,7 +171,7 @@ void __init arm_dt_init_cpu_maps(void)
 
 bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 {
-	return (phys_id & MPIDR_HWID_BITMASK) == cpu_logical_map(cpu);
+	return phys_id == cpu_logical_map(cpu);
 }
 
 static const void * __init arch_get_next_mach(const char *const **match)

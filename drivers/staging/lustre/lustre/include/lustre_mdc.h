@@ -48,12 +48,9 @@
  * @{
  */
 
-# include <linux/fs.h>
-# include <linux/dcache.h>
-# ifdef CONFIG_FS_POSIX_ACL
-#  include <linux/posix_acl_xattr.h>
-# endif /* CONFIG_FS_POSIX_ACL */
-# include <linux/lustre_intent.h>
+#include <linux/fs.h>
+#include <linux/dcache.h>
+#include <linux/lustre_intent.h>
 #include <lustre_handles.h>
 #include <linux/libcfs/libcfs.h>
 #include <obd_class.h>

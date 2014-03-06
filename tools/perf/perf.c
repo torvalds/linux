@@ -13,7 +13,7 @@
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include <pthread.h>
 
 const char perf_usage_string[] =

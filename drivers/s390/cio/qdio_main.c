@@ -1752,6 +1752,97 @@ int qdio_stop_irq(struct ccw_device *cdev, int nr)
 }
 EXPORT_SYMBOL(qdio_stop_irq);
 
+/**
+ * qdio_pnso_brinfo() - perform network subchannel op #0 - bridge info.
+ * @schid:		Subchannel ID.
+ * @cnc:		Boolean Change-Notification Control
+ * @response:		Response code will be stored at this address
+ * @cb: 		Callback function will be executed for each element
+ *			of the address list
+ * @priv:		Pointer passed from the caller to qdio_pnso_brinfo()
+ * @type:		Type of the address entry passed to the callback
+ * @entry:		Entry containg the address of the specified type
+ * @priv:		Pointer to pass to the callback function.
+ *
+ * Performs "Store-network-bridging-information list" operation and calls
+ * the callback function for every entry in the list. If "change-
+ * notification-control" is set, further changes in the address list
+ * will be reported via the IPA command.
+ */
+int qdio_pnso_brinfo(struct subchannel_id schid,
+		int cnc, u16 *response,
+		void (*cb)(void *priv, enum qdio_brinfo_entry_type type,
+				void *entry),
+		void *priv)
+{
+	struct chsc_pnso_area *rr;
+	int rc;
+	u32 prev_instance = 0;
+	int isfirstblock = 1;
+	int i, size, elems;
+
+	rr = (struct chsc_pnso_area *)get_zeroed_page(GFP_KERNEL);
+	if (rr == NULL)
+		return -ENOMEM;
+	do {
+		/* on the first iteration, naihdr.resume_token will be zero */
+		rc = chsc_pnso_brinfo(schid, rr, rr->naihdr.resume_token, cnc);
+		if (rc != 0 && rc != -EBUSY)
+			goto out;
+		if (rr->response.code != 1) {
+			rc = -EIO;
+			continue;
+		} else
+			rc = 0;
+
+		if (cb == NULL)
+			continue;
+
+		size = rr->naihdr.naids;
+		elems = (rr->response.length -
+				sizeof(struct chsc_header) -
+				sizeof(struct chsc_brinfo_naihdr)) /
+				size;
+
+		if (!isfirstblock && (rr->naihdr.instance != prev_instance)) {
+			/* Inform the caller that they need to scrap */
+			/* the data that was already reported via cb */
+				rc = -EAGAIN;
+				break;
+		}
+		isfirstblock = 0;
+		prev_instance = rr->naihdr.instance;
+		for (i = 0; i < elems; i++)
+			switch (size) {
+			case sizeof(struct qdio_brinfo_entry_l3_ipv6):
+				(*cb)(priv, l3_ipv6_addr,
+						&rr->entries.l3_ipv6[i]);
+				break;
+			case sizeof(struct qdio_brinfo_entry_l3_ipv4):
+				(*cb)(priv, l3_ipv4_addr,
+						&rr->entries.l3_ipv4[i]);
+				break;
+			case sizeof(struct qdio_brinfo_entry_l2):
+				(*cb)(priv, l2_addr_lnid,
+						&rr->entries.l2[i]);
+				break;
+			default:
+				WARN_ON_ONCE(1);
+				rc = -EIO;
+				goto out;
+			}
+	} while (rr->response.code == 0x0107 ||  /* channel busy */
+		  (rr->response.code == 1 && /* list stored */
+		   /* resume token is non-zero => list incomplete */
+		   (rr->naihdr.resume_token.t1 || rr->naihdr.resume_token.t2)));
+	(*response) = rr->response.code;
+
+out:
+	free_page((unsigned long)rr);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(qdio_pnso_brinfo);
+
 static int __init init_QDIO(void)
 {
 	int rc;

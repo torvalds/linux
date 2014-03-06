@@ -11,12 +11,16 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
+#include <linux/llist.h>
 
 extern void cpu_idle(void);
 
 typedef void (*smp_call_func_t)(void *info);
 struct call_single_data {
-	struct list_head list;
+	union {
+		struct list_head list;
+		struct llist_node llist;
+	};
 	smp_call_func_t func;
 	void *info;
 	u16 flags;

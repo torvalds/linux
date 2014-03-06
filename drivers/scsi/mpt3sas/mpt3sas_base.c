@@ -131,7 +131,7 @@ static int mpt3sas_remove_dead_ioc_func(void *arg)
 	pdev = ioc->pdev;
 	if ((pdev == NULL))
 		return -1;
-	pci_stop_and_remove_bus_device(pdev);
+	pci_stop_and_remove_bus_device_locked(pdev);
 	return 0;
 }
 

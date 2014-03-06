@@ -178,7 +178,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 	else
 		itn = net_generic(net, ipgre_net_id);
 
-	iph = (const struct iphdr *)skb->data;
+	iph = (const struct iphdr *)(icmp_hdr(skb) + 1);
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
 			     iph->daddr, iph->saddr, tpi->key);
 
@@ -278,7 +278,7 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 free_skb:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 out:
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
@@ -301,7 +301,7 @@ static netdev_tx_t gre_tap_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 free_skb:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 out:
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;

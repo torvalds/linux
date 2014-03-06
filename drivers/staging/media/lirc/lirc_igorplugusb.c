@@ -363,8 +363,8 @@ static int igorplugusb_remote_poll(void *data, struct lirc_buffer *buf)
 		      /*dummy*/ir->buf_in, /*dummy*/ir->len_in,
 		      /*timeout*/HZ * USB_CTRL_GET_TIMEOUT);
 		if (ret < 0)
-			printk(DRIVER_NAME "[%d]: SET_INFRABUFFER_EMPTY: "
-			       "error %d\n", ir->devnum, ret);
+			printk(DRIVER_NAME "[%d]: SET_INFRABUFFER_EMPTY: error %d\n",
+			       ir->devnum, ret);
 		return 0;
 	} else if (ret < 0)
 		printk(DRIVER_NAME "[%d]: GET_INFRACODE: error %d\n",

@@ -68,6 +68,12 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	context->db_rec_addr = cpu_to_be64(priv->res.db.dma << 2);
 	if (!(dev->features & NETIF_F_HW_VLAN_CTAG_RX))
 		context->param3 |= cpu_to_be32(1 << 30);
+
+	if (!is_tx && !rss &&
+	    (mdev->dev->caps.tunnel_offload_mode ==  MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)) {
+		en_dbg(HW, priv, "Setting RX qp %x tunnel mode to RX tunneled & non-tunneled\n", qpn);
+		context->srqn = cpu_to_be32(7 << 28); /* this fills bits 30:28 */
+	}
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich, Antonio Quartulli
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -51,7 +49,7 @@ static int batadv_compare_tt(const struct hlist_node *node, const void *data2)
 	const void *data1 = container_of(node, struct batadv_tt_common_entry,
 					 hash_entry);
 
-	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+	return batadv_compare_eth(data1, data2);
 }
 
 /**
@@ -476,11 +474,13 @@ static void batadv_tt_global_free(struct batadv_priv *bat_priv,
  * @vid: VLAN identifier
  * @ifindex: index of the interface where the client is connected to (useful to
  *  identify wireless clients)
+ * @mark: the value contained in the skb->mark field of the received packet (if
+ *  any)
  *
  * Returns true if the client was successfully added, false otherwise.
  */
 bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
-			 unsigned short vid, int ifindex)
+			 unsigned short vid, int ifindex, uint32_t mark)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	struct batadv_tt_local_entry *tt_local;
@@ -491,6 +491,7 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	int hash_added, table_size, packet_size_max;
 	bool ret = false, roamed_back = false;
 	uint8_t remote_flags;
+	uint32_t match_mark;
 
 	if (ifindex != BATADV_NULL_IFINDEX)
 		in_dev = dev_get_by_index(&init_net, ifindex);
@@ -614,6 +615,17 @@ check_roaming:
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
 	else
 		tt_local->common.flags &= ~BATADV_TT_CLIENT_WIFI;
+
+	/* check the mark in the skb: if it's equal to the configured
+	 * isolation_mark, it means the packet is coming from an isolated
+	 * non-mesh client
+	 */
+	match_mark = (mark & bat_priv->isolation_mark_mask);
+	if (bat_priv->isolation_mark_mask &&
+	    match_mark == bat_priv->isolation_mark)
+		tt_local->common.flags |= BATADV_TT_CLIENT_ISOLA;
+	else
+		tt_local->common.flags &= ~BATADV_TT_CLIENT_ISOLA;
 
 	/* if any "dynamic" flag has been modified, resend an ADD event for this
 	 * entry so that all the nodes can get the new flags
@@ -875,7 +887,7 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq,
 		   "Locally retrieved addresses (from %s) announced via TT (TTVN: %u):\n",
 		   net_dev->name, (uint8_t)atomic_read(&bat_priv->tt.vn));
-	seq_printf(seq, "       %-13s  %s %-7s %-9s (%-10s)\n", "Client", "VID",
+	seq_printf(seq, "       %-13s  %s %-8s %-9s (%-10s)\n", "Client", "VID",
 		   "Flags", "Last seen", "CRC");
 
 	for (i = 0; i < hash->size; i++) {
@@ -903,7 +915,7 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 			}
 
 			seq_printf(seq,
-				   " * %pM %4i [%c%c%c%c%c] %3u.%03u   (%#.8x)\n",
+				   " * %pM %4i [%c%c%c%c%c%c] %3u.%03u   (%#.8x)\n",
 				   tt_common_entry->addr,
 				   BATADV_PRINT_VID(tt_common_entry->vid),
 				   (tt_common_entry->flags &
@@ -915,6 +927,8 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 				    BATADV_TT_CLIENT_PENDING ? 'X' : '.'),
 				   (tt_common_entry->flags &
 				    BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
+				   (tt_common_entry->flags &
+				    BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
 				   no_purge ? 0 : last_seen_secs,
 				   no_purge ? 0 : last_seen_msecs,
 				   vlan->tt.crc);
@@ -1368,7 +1382,8 @@ out:
 	return ret;
 }
 
-/* batadv_transtable_best_orig - Get best originator list entry from tt entry
+/**
+ * batadv_transtable_best_orig - Get best originator list entry from tt entry
  * @bat_priv: the bat priv with all the soft interface information
  * @tt_global_entry: global translation table entry to be analyzed
  *
@@ -1386,12 +1401,14 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 
 	head = &tt_global_entry->orig_list;
 	hlist_for_each_entry_rcu(orig_entry, head, list) {
-		router = batadv_orig_node_get_router(orig_entry->orig_node);
+		router = batadv_orig_router_get(orig_entry->orig_node,
+						BATADV_IF_DEFAULT);
 		if (!router)
 			continue;
 
 		if (best_router &&
-		    bao->bat_neigh_cmp(router, best_router) <= 0) {
+		    bao->bat_neigh_cmp(router, BATADV_IF_DEFAULT,
+				       best_router, BATADV_IF_DEFAULT) <= 0) {
 			batadv_neigh_node_free_ref(router);
 			continue;
 		}
@@ -1410,8 +1427,9 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 	return best_entry;
 }
 
-/* batadv_tt_global_print_entry - print all orig nodes who announce the address
- * for this global entry
+/**
+ * batadv_tt_global_print_entry - print all orig nodes who announce the address
+ *  for this global entry
  * @bat_priv: the bat priv with all the soft interface information
  * @tt_global_entry: global translation table entry to be printed
  * @seq: debugfs table seq_file struct
@@ -1447,13 +1465,14 @@ batadv_tt_global_print_entry(struct batadv_priv *bat_priv,
 
 		last_ttvn = atomic_read(&best_entry->orig_node->last_ttvn);
 		seq_printf(seq,
-			   " %c %pM %4i   (%3u) via %pM     (%3u)   (%#.8x) [%c%c%c]\n",
+			   " %c %pM %4i   (%3u) via %pM     (%3u)   (%#.8x) [%c%c%c%c]\n",
 			   '*', tt_global_entry->common.addr,
 			   BATADV_PRINT_VID(tt_global_entry->common.vid),
 			   best_entry->ttvn, best_entry->orig_node->orig,
 			   last_ttvn, vlan->tt.crc,
 			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
 			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
+			   (flags & BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
 			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
 
 		batadv_orig_node_vlan_free_ref(vlan);
@@ -1478,13 +1497,14 @@ print_list:
 
 		last_ttvn = atomic_read(&orig_entry->orig_node->last_ttvn);
 		seq_printf(seq,
-			   " %c %pM %4d   (%3u) via %pM     (%3u)   (%#.8x) [%c%c%c]\n",
+			   " %c %pM %4d   (%3u) via %pM     (%3u)   (%#.8x) [%c%c%c%c]\n",
 			   '+', tt_global_entry->common.addr,
 			   BATADV_PRINT_VID(tt_global_entry->common.vid),
 			   orig_entry->ttvn, orig_entry->orig_node->orig,
 			   last_ttvn, vlan->tt.crc,
 			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
 			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
+			   (flags & BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
 			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
 
 		batadv_orig_node_vlan_free_ref(vlan);
@@ -1853,6 +1873,11 @@ _batadv_is_ap_isolated(struct batadv_tt_local_entry *tt_local_entry,
 	    tt_global_entry->common.flags & BATADV_TT_CLIENT_WIFI)
 		ret = true;
 
+	/* check if the two clients are marked as isolated */
+	if (tt_local_entry->common.flags & BATADV_TT_CLIENT_ISOLA &&
+	    tt_global_entry->common.flags & BATADV_TT_CLIENT_ISOLA)
+		ret = true;
+
 	return ret;
 }
 
@@ -1879,19 +1904,8 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	struct batadv_tt_global_entry *tt_global_entry = NULL;
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_tt_orig_list_entry *best_entry;
-	bool ap_isolation_enabled = false;
-	struct batadv_softif_vlan *vlan;
 
-	/* if the AP isolation is requested on a VLAN, then check for its
-	 * setting in the proper VLAN private data structure
-	 */
-	vlan = batadv_softif_vlan_get(bat_priv, vid);
-	if (vlan) {
-		ap_isolation_enabled = atomic_read(&vlan->ap_isolation);
-		batadv_softif_vlan_free_ref(vlan);
-	}
-
-	if (src && ap_isolation_enabled) {
+	if (src && batadv_vlan_ap_isola_get(bat_priv, vid)) {
 		tt_local_entry = batadv_tt_local_hash_find(bat_priv, src, vid);
 		if (!tt_local_entry ||
 		    (tt_local_entry->common.flags & BATADV_TT_CLIENT_PENDING))
@@ -3566,4 +3580,30 @@ int batadv_tt_init(struct batadv_priv *bat_priv)
 			   msecs_to_jiffies(BATADV_TT_WORK_PERIOD));
 
 	return 1;
+}
+
+/**
+ * batadv_tt_global_is_isolated - check if a client is marked as isolated
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the mac address of the client
+ * @vid: the identifier of the VLAN where this client is connected
+ *
+ * Returns true if the client is marked with the TT_CLIENT_ISOLA flag, false
+ * otherwise
+ */
+bool batadv_tt_global_is_isolated(struct batadv_priv *bat_priv,
+				  const uint8_t *addr, unsigned short vid)
+{
+	struct batadv_tt_global_entry *tt;
+	bool ret;
+
+	tt = batadv_tt_global_hash_find(bat_priv, addr, vid);
+	if (!tt)
+		return false;
+
+	ret = tt->common.flags & BATADV_TT_CLIENT_ISOLA;
+
+	batadv_tt_global_entry_free_ref(tt);
+
+	return ret;
 }

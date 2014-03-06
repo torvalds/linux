@@ -431,12 +431,6 @@ struct lu_server_seq {
 	struct seq_server_site  *lss_site;
 };
 
-struct com_thread_info;
-int seq_query(struct com_thread_info *info);
-
-struct ptlrpc_request;
-int seq_handle(struct ptlrpc_request *req);
-
 /* Server methods */
 
 int seq_server_init(struct lu_server_seq *seq,

@@ -68,6 +68,8 @@ enum {
 /*module param to indicate if SM assigns the alias_GUID*/
 extern int mlx4_ib_sm_guid_assign;
 
+#define MLX4_IB_UC_STEER_QPN_ALIGN 1
+#define MLX4_IB_UC_MAX_NUM_QPS     256
 struct mlx4_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct mlx4_uar		uar;
@@ -153,6 +155,7 @@ struct mlx4_ib_wq {
 enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_LSO = IB_QP_CREATE_IPOIB_UD_LSO,
 	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
+	MLX4_IB_QP_NETIF = IB_QP_CREATE_NETIF_QP,
 	MLX4_IB_SRIOV_TUNNEL_QP = 1 << 30,
 	MLX4_IB_SRIOV_SQP = 1 << 31,
 };
@@ -270,6 +273,7 @@ struct mlx4_ib_qp {
 	struct list_head	gid_list;
 	struct list_head	steering_rules;
 	struct mlx4_ib_buf	*sqp_proxy_rcv;
+	u64			reg_id;
 
 };
 
@@ -428,7 +432,10 @@ struct mlx4_ib_sriov {
 struct mlx4_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[MLX4_MAX_PORTS];
+	struct net_device      *masters[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
+	struct notifier_block	nb_inet;
+	struct notifier_block	nb_inet6;
 	union ib_gid		gid_table[MLX4_MAX_PORTS][128];
 };
 
@@ -494,6 +501,10 @@ struct mlx4_ib_dev {
 	struct kobject	       *dev_ports_parent[MLX4_MFUNC_MAX];
 	struct mlx4_ib_iov_port	iov_ports[MLX4_MAX_PORTS];
 	struct pkey_mgt		pkeys;
+	unsigned long *ib_uc_qpns_bitmap;
+	int steer_qpn_count;
+	int steer_qpn_base;
+	int steering_support;
 };
 
 struct ib_event_work {
@@ -675,9 +686,6 @@ int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			union ib_gid *gid, int netw_view);
 
-int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
-			u8 *mac, int *is_mcast, u8 port);
-
 static inline bool mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {
 	u8 port = be32_to_cpu(ah->av.ib.port_pd) >> 24 & 3;
@@ -752,5 +760,9 @@ void mlx4_ib_device_unregister_sysfs(struct mlx4_ib_dev *device);
 
 __be64 mlx4_ib_gen_node_guid(void);
 
+int mlx4_ib_steer_qp_alloc(struct mlx4_ib_dev *dev, int count, int *qpn);
+void mlx4_ib_steer_qp_free(struct mlx4_ib_dev *dev, u32 qpn, int count);
+int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
+			 int is_attach);
 
 #endif /* MLX4_IB_H */

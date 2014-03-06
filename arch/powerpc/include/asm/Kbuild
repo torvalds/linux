@@ -4,3 +4,4 @@ generic-y += rwsem.h
 generic-y += trace_clock.h
 generic-y += preempt.h
 generic-y += vtime.h
+generic-y += hash.h

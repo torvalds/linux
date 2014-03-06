@@ -226,6 +226,28 @@ static struct clk clk_spi = {
 };
 
 /*
+ * HSSPI clock
+ */
+static void hsspi_set(struct clk *clk, int enable)
+{
+	u32 mask;
+
+	if (BCMCPU_IS_6328())
+		mask = CKCTL_6328_HSSPI_EN;
+	else if (BCMCPU_IS_6362())
+		mask = CKCTL_6362_HSSPI_EN;
+	else
+		return;
+
+	bcm_hwclock_set(mask, enable);
+}
+
+static struct clk clk_hsspi = {
+	.set	= hsspi_set,
+};
+
+
+/*
  * XTM clock
  */
 static void xtm_set(struct clk *clk, int enable)
@@ -346,6 +368,8 @@ struct clk *clk_get(struct device *dev, const char *id)
 		return &clk_usbd;
 	if (!strcmp(id, "spi"))
 		return &clk_spi;
+	if (!strcmp(id, "hsspi"))
+		return &clk_hsspi;
 	if (!strcmp(id, "xtm"))
 		return &clk_xtm;
 	if (!strcmp(id, "periph"))
@@ -366,3 +390,21 @@ void clk_put(struct clk *clk)
 }
 
 EXPORT_SYMBOL(clk_put);
+
+#define HSSPI_PLL_HZ_6328	133333333
+#define HSSPI_PLL_HZ_6362	400000000
+
+static int __init bcm63xx_clk_init(void)
+{
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6328_CPU_ID:
+		clk_hsspi.rate = HSSPI_PLL_HZ_6328;
+		break;
+	case BCM6362_CPU_ID:
+		clk_hsspi.rate = HSSPI_PLL_HZ_6362;
+		break;
+	}
+
+	return 0;
+}
+arch_initcall(bcm63xx_clk_init);

@@ -698,7 +698,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	 * page in zero copy.
 	 */
 	.maxsize = PAGE_SIZE * (VIRTQUEUE_NUM - 3),
-	.def = 0,
+	.def = 1,
 	.owner = THIS_MODULE,
 };
 

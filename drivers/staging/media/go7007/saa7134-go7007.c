@@ -86,7 +86,7 @@ static const struct go7007_board_info board_voyager = {
 	.audio_main_div	 = 2,
 	.hpi_buffer_cap  = 7,
 	.num_inputs	 = 1,
-	.inputs 	 = {
+	.inputs		 = {
 		{
 			.name		= "SAA7134",
 		},

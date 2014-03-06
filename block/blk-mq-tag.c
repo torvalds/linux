@@ -36,7 +36,8 @@ static unsigned int __blk_mq_get_tag(struct blk_mq_tags *tags, gfp_t gfp)
 {
 	int tag;
 
-	tag = percpu_ida_alloc(&tags->free_tags, gfp);
+	tag = percpu_ida_alloc(&tags->free_tags, (gfp & __GFP_WAIT) ?
+			       TASK_UNINTERRUPTIBLE : TASK_RUNNING);
 	if (tag < 0)
 		return BLK_MQ_TAG_FAIL;
 	return tag + tags->nr_reserved_tags;
@@ -52,7 +53,8 @@ static unsigned int __blk_mq_get_reserved_tag(struct blk_mq_tags *tags,
 		return BLK_MQ_TAG_FAIL;
 	}
 
-	tag = percpu_ida_alloc(&tags->reserved_tags, gfp);
+	tag = percpu_ida_alloc(&tags->reserved_tags, (gfp & __GFP_WAIT) ?
+			       TASK_UNINTERRUPTIBLE : TASK_RUNNING);
 	if (tag < 0)
 		return BLK_MQ_TAG_FAIL;
 	return tag;

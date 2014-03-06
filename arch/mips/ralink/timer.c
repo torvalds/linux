@@ -147,7 +147,7 @@ static int rt_timer_probe(struct platform_device *pdev)
 	rt_timer_config(rt, 2);
 	rt_timer_enable(rt);
 
-	dev_info(&pdev->dev, "maximum frequncy is %luHz\n", rt->timer_freq);
+	dev_info(&pdev->dev, "maximum frequency is %luHz\n", rt->timer_freq);
 
 	return 0;
 }

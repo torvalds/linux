@@ -42,7 +42,7 @@
 #include <linux/kref.h>
 #include <linux/idr.h>
 #include <linux/workqueue.h>
-
+#include <uapi/linux/if_ether.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_cache.h>
 #include "sa.h"
@@ -556,6 +556,13 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 		ah_attr->grh.hop_limit     = rec->hop_limit;
 		ah_attr->grh.traffic_class = rec->traffic_class;
 	}
+	if (force_grh) {
+		memcpy(ah_attr->dmac, rec->dmac, ETH_ALEN);
+		ah_attr->vlan_id = rec->vlan_id;
+	} else {
+		ah_attr->vlan_id = 0xffff;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ib_init_ah_from_path);
@@ -670,6 +677,9 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 
 		ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table),
 			  mad->data, &rec);
+		rec.vlan_id = 0xffff;
+		memset(rec.dmac, 0, ETH_ALEN);
+		memset(rec.smac, 0, ETH_ALEN);
 		query->callback(status, &rec, query->context);
 	} else
 		query->callback(status, NULL, query->context);

@@ -143,12 +143,11 @@ struct xenvif {
 	char rx_irq_name[IFNAMSIZ+4]; /* DEVNAME-rx */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
-
-	/* Allow xenvif_start_xmit() to peek ahead in the rx request
-	 * ring.  This is a prediction of what rx_req_cons will be
-	 * once all queued skbs are put on the ring.
+	bool rx_queue_stopped;
+	/* Set when the RX interrupt is triggered by the frontend.
+	 * The worker thread may need to wake the queue.
 	 */
-	RING_IDX rx_req_cons_peek;
+	bool rx_event;
 
 	/* This array is allocated seperately as it is large */
 	struct gnttab_copy *grant_copy_op;
@@ -205,8 +204,6 @@ void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
 
-int xenvif_rx_ring_full(struct xenvif *vif);
-
 int xenvif_must_stop_queue(struct xenvif *vif);
 
 /* (Un)Map communication rings. */
@@ -218,21 +215,20 @@ int xenvif_map_frontend_rings(struct xenvif *vif,
 /* Check for SKBs from frontend and schedule backend processing */
 void xenvif_check_rx_xenvif(struct xenvif *vif);
 
-/* Queue an SKB for transmission to the frontend */
-void xenvif_queue_tx_skb(struct xenvif *vif, struct sk_buff *skb);
-/* Notify xenvif that ring now has space to send an skb to the frontend */
-void xenvif_notify_tx_completion(struct xenvif *vif);
-
 /* Prevent the device from generating any further traffic. */
 void xenvif_carrier_off(struct xenvif *vif);
 
-/* Returns number of ring slots required to send an skb to the frontend */
-unsigned int xenvif_count_skb_slots(struct xenvif *vif, struct sk_buff *skb);
-
 int xenvif_tx_action(struct xenvif *vif, int budget);
-void xenvif_rx_action(struct xenvif *vif);
 
 int xenvif_kthread(void *data);
+void xenvif_kick_thread(struct xenvif *vif);
+
+/* Determine whether the needed number of slots (req) are available,
+ * and set req_event if not.
+ */
+bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed);
+
+void xenvif_stop_queue(struct xenvif *vif);
 
 extern bool separate_tx_rx_irq;
 

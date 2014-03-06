@@ -24,7 +24,7 @@
  *	- v7/v8 long-descriptor format
  *	- Non-secure access to the SMMU
  *	- 4k and 64k pages, with contiguous pte hints.
- *	- Up to 39-bit addressing
+ *	- Up to 42-bit addressing (dependent on VA_BITS)
  *	- Context fault reporting
  */
 
@@ -61,12 +61,13 @@
 #define ARM_SMMU_GR1(smmu)		((smmu)->base + (smmu)->pagesize)
 
 /* Page table bits */
-#define ARM_SMMU_PTE_PAGE		(((pteval_t)3) << 0)
+#define ARM_SMMU_PTE_XN			(((pteval_t)3) << 53)
 #define ARM_SMMU_PTE_CONT		(((pteval_t)1) << 52)
 #define ARM_SMMU_PTE_AF			(((pteval_t)1) << 10)
 #define ARM_SMMU_PTE_SH_NS		(((pteval_t)0) << 8)
 #define ARM_SMMU_PTE_SH_OS		(((pteval_t)2) << 8)
 #define ARM_SMMU_PTE_SH_IS		(((pteval_t)3) << 8)
+#define ARM_SMMU_PTE_PAGE		(((pteval_t)3) << 0)
 
 #if PAGE_SIZE == SZ_4K
 #define ARM_SMMU_PTE_CONT_ENTRIES	16
@@ -1205,7 +1206,7 @@ static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
 				   unsigned long pfn, int flags, int stage)
 {
 	pte_t *pte, *start;
-	pteval_t pteval = ARM_SMMU_PTE_PAGE | ARM_SMMU_PTE_AF;
+	pteval_t pteval = ARM_SMMU_PTE_PAGE | ARM_SMMU_PTE_AF | ARM_SMMU_PTE_XN;
 
 	if (pmd_none(*pmd)) {
 		/* Allocate a new set of tables */
@@ -1244,7 +1245,9 @@ static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
 	}
 
 	/* If no access, create a faulting entry to avoid TLB fills */
-	if (!(flags & (IOMMU_READ | IOMMU_WRITE)))
+	if (flags & IOMMU_EXEC)
+		pteval &= ~ARM_SMMU_PTE_XN;
+	else if (!(flags & (IOMMU_READ | IOMMU_WRITE)))
 		pteval &= ~ARM_SMMU_PTE_PAGE;
 
 	pteval |= ARM_SMMU_PTE_SH_IS;
@@ -1494,6 +1497,13 @@ static int arm_smmu_add_device(struct device *dev)
 {
 	struct arm_smmu_device *child, *parent, *smmu;
 	struct arm_smmu_master *master = NULL;
+	struct iommu_group *group;
+	int ret;
+
+	if (dev->archdata.iommu) {
+		dev_warn(dev, "IOMMU driver already assigned to device\n");
+		return -EINVAL;
+	}
 
 	spin_lock(&arm_smmu_devices_lock);
 	list_for_each_entry(parent, &arm_smmu_devices, list) {
@@ -1526,13 +1536,23 @@ static int arm_smmu_add_device(struct device *dev)
 	if (!master)
 		return -ENODEV;
 
+	group = iommu_group_alloc();
+	if (IS_ERR(group)) {
+		dev_err(dev, "Failed to allocate IOMMU group\n");
+		return PTR_ERR(group);
+	}
+
+	ret = iommu_group_add_device(group, dev);
+	iommu_group_put(group);
 	dev->archdata.iommu = smmu;
-	return 0;
+
+	return ret;
 }
 
 static void arm_smmu_remove_device(struct device *dev)
 {
 	dev->archdata.iommu = NULL;
+	iommu_group_remove_device(dev);
 }
 
 static struct iommu_ops arm_smmu_ops = {
@@ -1730,7 +1750,6 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	 * allocation (PTRS_PER_PGD).
 	 */
 #ifdef CONFIG_64BIT
-	/* Current maximum output size of 39 bits */
 	smmu->s1_output_size = min(39UL, size);
 #else
 	smmu->s1_output_size = min(32UL, size);
@@ -1745,7 +1764,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	} else {
 #ifdef CONFIG_64BIT
 		size = (id >> ID2_UBS_SHIFT) & ID2_UBS_MASK;
-		size = min(39, arm_smmu_id_size_to_bits(size));
+		size = min(VA_BITS, arm_smmu_id_size_to_bits(size));
 #else
 		size = 32;
 #endif

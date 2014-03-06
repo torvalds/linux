@@ -43,6 +43,10 @@ struct nv50_disp_priv {
 	} pior;
 };
 
+#define HEAD_MTHD(n) (n), (n) + 0x03
+
+int nv50_disp_base_scanoutpos(struct nouveau_object *, u32, void *, u32);
+
 #define DAC_MTHD(n) (n), (n) + 0x03
 
 int nv50_dac_mthd(struct nouveau_object *, u32, void *, u32);
@@ -132,13 +136,12 @@ void nv50_disp_intr(struct nouveau_subdev *);
 
 extern struct nouveau_omthds nv84_disp_base_omthds[];
 
-extern struct nouveau_omthds nva3_disp_base_omthds[];
-
 extern struct nouveau_ofuncs nvd0_disp_mast_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_sync_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_ovly_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_oimm_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_curs_ofuncs;
+extern struct nouveau_omthds nvd0_disp_base_omthds[];
 extern struct nouveau_ofuncs nvd0_disp_base_ofuncs;
 extern struct nouveau_oclass nvd0_disp_cclass;
 void nvd0_disp_intr_supervisor(struct work_struct *);

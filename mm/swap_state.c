@@ -83,9 +83,9 @@ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
 	int error;
 	struct address_space *address_space;
 
-	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(PageSwapCache(page));
-	VM_BUG_ON(!PageSwapBacked(page));
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_PAGE(PageSwapCache(page), page);
+	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
 
 	page_cache_get(page);
 	SetPageSwapCache(page);
@@ -139,9 +139,9 @@ void __delete_from_swap_cache(struct page *page)
 	swp_entry_t entry;
 	struct address_space *address_space;
 
-	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(!PageSwapCache(page));
-	VM_BUG_ON(PageWriteback(page));
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+	VM_BUG_ON_PAGE(PageWriteback(page), page);
 
 	entry.val = page_private(page);
 	address_space = swap_address_space(entry);
@@ -165,8 +165,8 @@ int add_to_swap(struct page *page, struct list_head *list)
 	swp_entry_t entry;
 	int err;
 
-	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(!PageUptodate(page));
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_PAGE(!PageUptodate(page), page);
 
 	entry = get_swap_page();
 	if (!entry.val)

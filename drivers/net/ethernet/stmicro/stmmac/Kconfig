@@ -5,6 +5,7 @@ config STMMAC_ETH
 	select PHYLIB
 	select CRC32
 	select PTP_1588_CLOCK
+	select RESET_CONTROLLER
 	---help---
 	  This is the driver for the Ethernet IPs are built around a
 	  Synopsys IP Core and only tested on the STMicroelectronics
@@ -24,6 +25,17 @@ config STMMAC_PLATFORM
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config DWMAC_SUNXI
+	bool "Allwinner GMAC support"
+	depends on STMMAC_PLATFORM && ARCH_SUNXI
+	default y
+	---help---
+	  Support for Allwinner A20/A31 GMAC ethernet controllers.
+
+	  This selects Allwinner SoC glue layer support for the
+	  stmmac device driver. This driver is used for A20/A31
+	  GMAC 	  ethernet controller.
 
 config STMMAC_PCI
 	bool "STMMAC PCI bus support"

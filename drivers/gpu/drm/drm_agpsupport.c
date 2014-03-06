@@ -53,7 +53,7 @@
  */
 int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info)
 {
-	DRM_AGP_KERN *kern;
+	struct agp_kern_info *kern;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
@@ -198,16 +198,14 @@ int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
 int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 {
 	struct drm_agp_mem *entry;
-	DRM_AGP_MEM *memory;
+	struct agp_memory *memory;
 	unsigned long pages;
 	u32 type;
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
+	if (!(entry = kzalloc(sizeof(*entry), GFP_KERNEL)))
 		return -ENOMEM;
-
-	memset(entry, 0, sizeof(*entry));
 
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request->type;
@@ -393,14 +391,16 @@ int drm_agp_free_ioctl(struct drm_device *dev, void *data,
  * Gets the drm_agp_t structure which is made available by the agpgart module
  * via the inter_module_* functions. Creates and initializes a drm_agp_head
  * structure.
+ *
+ * Note that final cleanup of the kmalloced structure is directly done in
+ * drm_pci_agp_destroy.
  */
 struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
 	struct drm_agp_head *head = NULL;
 
-	if (!(head = kmalloc(sizeof(*head), GFP_KERNEL)))
+	if (!(head = kzalloc(sizeof(*head), GFP_KERNEL)))
 		return NULL;
-	memset((void *)head, 0, sizeof(*head));
 	head->bridge = agp_find_bridge(dev->pdev);
 	if (!head->bridge) {
 		if (!(head->bridge = agp_backend_acquire(dev->pdev))) {
@@ -439,7 +439,7 @@ void drm_agp_clear(struct drm_device *dev)
 {
 	struct drm_agp_mem *entry, *tempe;
 
-	if (!drm_core_has_AGP(dev) || !dev->agp)
+	if (!dev->agp)
 		return;
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
@@ -460,35 +460,20 @@ void drm_agp_clear(struct drm_device *dev)
 }
 
 /**
- * drm_agp_destroy - Destroy AGP head
- * @dev: DRM device
- *
- * Destroy resources that were previously allocated via drm_agp_initp. Caller
- * must ensure to clean up all AGP resources before calling this. See
- * drm_agp_clear().
- *
- * Call this to destroy AGP heads allocated via drm_agp_init().
- */
-void drm_agp_destroy(struct drm_agp_head *agp)
-{
-	kfree(agp);
-}
-
-/**
  * Binds a collection of pages into AGP memory at the given offset, returning
  * the AGP memory structure containing them.
  *
  * No reference is held on the pages during this time -- it is up to the
  * caller to handle that.
  */
-DRM_AGP_MEM *
+struct agp_memory *
 drm_agp_bind_pages(struct drm_device *dev,
 		   struct page **pages,
 		   unsigned long num_pages,
 		   uint32_t gtt_offset,
 		   u32 type)
 {
-	DRM_AGP_MEM *mem;
+	struct agp_memory *mem;
 	int ret, i;
 
 	DRM_DEBUG("\n");

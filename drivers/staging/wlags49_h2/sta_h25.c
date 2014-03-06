@@ -5211,7 +5211,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0000,
  	0x000F429B,					// Start execution address
 	},
-	{ 0000, 0000, 0000, 0000, 00000000, 0000, 00000000}
+	{ 0000, 0000, 0000, 0000, 00000000, 0000, NULL}
 };
 
 static const CFG_RANGE20_STRCT fw_image_infocompat[] = {
@@ -5247,8 +5247,8 @@ memimage fw_image = {
 	"FUPU7D37dhfwci\001C",			//signature, <format number>, C/Bin type
 	(CFG_PROG_STRCT *) fw_image_code,
 	0x000F429B,
-	00000000,					//(dummy) pdaplug
-	00000000,					//(dummy) priplug
+	NULL,					//(dummy) pdaplug
+	NULL,					//(dummy) priplug
 	(CFG_RANGE20_STRCT *) fw_image_infocompat,
 	(CFG_IDENTITY_STRCT *) fw_image_infoidentity,
 };

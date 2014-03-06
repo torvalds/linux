@@ -87,6 +87,7 @@ static unsigned int bw_percentage[VXGE_HW_MAX_VIRTUAL_PATHS] =
 module_param_array(bw_percentage, uint, NULL, 0);
 
 static struct vxge_drv_config *driver_config;
+static enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
 
 static inline int is_vxge_card_up(struct vxgedev *vdev)
 {
@@ -507,7 +508,8 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		 * if rss is disabled/enabled, so key off of that.
 		 */
 		if (ext_info.rth_value)
-			skb->rxhash = ext_info.rth_value;
+			skb_set_hash(skb, ext_info.rth_value,
+				     PKT_HASH_TYPE_L3);
 
 		vxge_rx_complete(ring, skb, ext_info.vlan,
 			pkt_length, &ext_info);
@@ -1429,7 +1431,7 @@ vxge_search_mac_addr_in_da_table(struct vxge_vpath *vpath, struct macInfo *mac)
 		return status;
 	}
 
-	while (memcmp(mac->macaddr, macaddr, ETH_ALEN)) {
+	while (!ether_addr_equal(mac->macaddr, macaddr)) {
 		status = vxge_hw_vpath_mac_addr_get_next(vpath->handle,
 				macaddr, macmask);
 		if (status != VXGE_HW_OK)
@@ -1970,7 +1972,7 @@ static enum vxge_hw_status vxge_rth_configure(struct vxgedev *vdev)
 }
 
 /* reset vpaths */
-enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev)
+static enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxge_vpath *vpath;
@@ -3189,7 +3191,7 @@ static enum vxge_hw_status vxge_timestamp_config(struct __vxge_hw_device *devh)
 	return status;
 }
 
-static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
+static int vxge_hwtstamp_set(struct vxgedev *vdev, void __user *data)
 {
 	struct hwtstamp_config config;
 	int i;
@@ -3250,6 +3252,21 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 	return 0;
 }
 
+static int vxge_hwtstamp_get(struct vxgedev *vdev, void __user *data)
+{
+	struct hwtstamp_config config;
+
+	config.flags = 0;
+	config.tx_type = HWTSTAMP_TX_OFF;
+	config.rx_filter = (vdev->rx_hwts ?
+			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE);
+
+	if (copy_to_user(data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
+}
+
 /**
  * vxge_ioctl
  * @dev: Device pointer.
@@ -3263,19 +3280,15 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 static int vxge_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
-	int ret;
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		ret = vxge_hwtstamp_ioctl(vdev, rq->ifr_data);
-		if (ret)
-			return ret;
-		break;
+		return vxge_hwtstamp_set(vdev, rq->ifr_data);
+	case SIOCGHWTSTAMP:
+		return vxge_hwtstamp_get(vdev, rq->ifr_data);
 	default:
 		return -EOPNOTSUPP;
 	}
-
-	return 0;
 }
 
 /**

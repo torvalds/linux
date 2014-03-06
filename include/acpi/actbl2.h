@@ -327,6 +327,11 @@ struct acpi_table_dbg2 {
 	u32 info_count;
 };
 
+struct acpi_dbg2_header {
+	u32 info_offset;
+	u32 info_count;
+};
+
 /* Debug Device Information Subtable */
 
 struct acpi_dbg2_device {

@@ -369,6 +369,7 @@ static void free_module_desc(struct dsp_module_desc *module)
 			kfree(module->segments[i].data);
 		kfree(module->segments);
 	}
+	kfree(module);
 }
 
 /* firmware binary format:

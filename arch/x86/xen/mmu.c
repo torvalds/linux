@@ -431,7 +431,7 @@ static pteval_t iomap_pte(pteval_t val)
 	return val;
 }
 
-static pteval_t xen_pte_val(pte_t pte)
+__visible pteval_t xen_pte_val(pte_t pte)
 {
 	pteval_t pteval = pte.pte;
 #if 0
@@ -448,7 +448,7 @@ static pteval_t xen_pte_val(pte_t pte)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pte_val);
 
-static pgdval_t xen_pgd_val(pgd_t pgd)
+__visible pgdval_t xen_pgd_val(pgd_t pgd)
 {
 	return pte_mfn_to_pfn(pgd.pgd);
 }
@@ -479,7 +479,7 @@ void xen_set_pat(u64 pat)
 	WARN_ON(pat != 0x0007010600070106ull);
 }
 
-static pte_t xen_make_pte(pteval_t pte)
+__visible pte_t xen_make_pte(pteval_t pte)
 {
 	phys_addr_t addr = (pte & PTE_PFN_MASK);
 #if 0
@@ -514,14 +514,14 @@ static pte_t xen_make_pte(pteval_t pte)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte);
 
-static pgd_t xen_make_pgd(pgdval_t pgd)
+__visible pgd_t xen_make_pgd(pgdval_t pgd)
 {
 	pgd = pte_pfn_to_mfn(pgd);
 	return native_make_pgd(pgd);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pgd);
 
-static pmdval_t xen_pmd_val(pmd_t pmd)
+__visible pmdval_t xen_pmd_val(pmd_t pmd)
 {
 	return pte_mfn_to_pfn(pmd.pmd);
 }
@@ -580,7 +580,7 @@ static void xen_pmd_clear(pmd_t *pmdp)
 }
 #endif	/* CONFIG_X86_PAE */
 
-static pmd_t xen_make_pmd(pmdval_t pmd)
+__visible pmd_t xen_make_pmd(pmdval_t pmd)
 {
 	pmd = pte_pfn_to_mfn(pmd);
 	return native_make_pmd(pmd);
@@ -588,13 +588,13 @@ static pmd_t xen_make_pmd(pmdval_t pmd)
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pmd);
 
 #if PAGETABLE_LEVELS == 4
-static pudval_t xen_pud_val(pud_t pud)
+__visible pudval_t xen_pud_val(pud_t pud)
 {
 	return pte_mfn_to_pfn(pud.pud);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pud_val);
 
-static pud_t xen_make_pud(pudval_t pud)
+__visible pud_t xen_make_pud(pudval_t pud)
 {
 	pud = pte_pfn_to_mfn(pud);
 
@@ -1198,44 +1198,40 @@ static void __init xen_cleanhighmap(unsigned long vaddr,
 	 * instead of somewhere later and be confusing. */
 	xen_mc_flush();
 }
-#endif
-static void __init xen_pagetable_init(void)
+static void __init xen_pagetable_p2m_copy(void)
 {
-#ifdef CONFIG_X86_64
 	unsigned long size;
 	unsigned long addr;
-#endif
-	paging_init();
-	xen_setup_shared_info();
-#ifdef CONFIG_X86_64
-	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		unsigned long new_mfn_list;
+	unsigned long new_mfn_list;
 
-		size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
 
-		/* On 32-bit, we get zero so this never gets executed. */
-		new_mfn_list = xen_revector_p2m_tree();
-		if (new_mfn_list && new_mfn_list != xen_start_info->mfn_list) {
-			/* using __ka address and sticking INVALID_P2M_ENTRY! */
-			memset((void *)xen_start_info->mfn_list, 0xff, size);
+	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 
-			/* We should be in __ka space. */
-			BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
-			addr = xen_start_info->mfn_list;
-			/* We roundup to the PMD, which means that if anybody at this stage is
-			 * using the __ka address of xen_start_info or xen_start_info->shared_info
-			 * they are in going to crash. Fortunatly we have already revectored
-			 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
-			size = roundup(size, PMD_SIZE);
-			xen_cleanhighmap(addr, addr + size);
+	new_mfn_list = xen_revector_p2m_tree();
+	/* No memory or already called. */
+	if (!new_mfn_list || new_mfn_list == xen_start_info->mfn_list)
+		return;
 
-			size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
-			memblock_free(__pa(xen_start_info->mfn_list), size);
-			/* And revector! Bye bye old array */
-			xen_start_info->mfn_list = new_mfn_list;
-		} else
-			goto skip;
-	}
+	/* using __ka address and sticking INVALID_P2M_ENTRY! */
+	memset((void *)xen_start_info->mfn_list, 0xff, size);
+
+	/* We should be in __ka space. */
+	BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
+	addr = xen_start_info->mfn_list;
+	/* We roundup to the PMD, which means that if anybody at this stage is
+	 * using the __ka address of xen_start_info or xen_start_info->shared_info
+	 * they are in going to crash. Fortunatly we have already revectored
+	 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
+	size = roundup(size, PMD_SIZE);
+	xen_cleanhighmap(addr, addr + size);
+
+	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+	memblock_free(__pa(xen_start_info->mfn_list), size);
+	/* And revector! Bye bye old array */
+	xen_start_info->mfn_list = new_mfn_list;
+
 	/* At this stage, cleanup_highmap has already cleaned __ka space
 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
 	 * the ramdisk). We continue on, erasing PMD entries that point to page
@@ -1255,7 +1251,15 @@ static void __init xen_pagetable_init(void)
 	 * anything at this stage. */
 	xen_cleanhighmap(MODULES_VADDR, roundup(MODULES_VADDR, PUD_SIZE) - 1);
 #endif
-skip:
+}
+#endif
+
+static void __init xen_pagetable_init(void)
+{
+	paging_init();
+	xen_setup_shared_info();
+#ifdef CONFIG_X86_64
+	xen_pagetable_p2m_copy();
 #endif
 	xen_post_allocator_init();
 }
@@ -1753,6 +1757,10 @@ static void set_page_prot_flags(void *addr, pgprot_t prot, unsigned long flags)
 	unsigned long pfn = __pa(addr) >> PAGE_SHIFT;
 	pte_t pte = pfn_pte(pfn, prot);
 
+	/* For PVH no need to set R/O or R/W to pin them or unpin them. */
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
 	if (HYPERVISOR_update_va_mapping((unsigned long)addr, pte, flags))
 		BUG();
 }
@@ -1863,6 +1871,7 @@ static void __init check_pt_base(unsigned long *pt_base, unsigned long *pt_end,
  * but that's enough to get __va working.  We need to fill in the rest
  * of the physical mapping once some sort of allocator has been set
  * up.
+ * NOTE: for PVH, the page tables are native.
  */
 void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 {
@@ -1884,17 +1893,18 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	/* Zap identity mapping */
 	init_level4_pgt[0] = __pgd(0);
 
-	/* Pre-constructed entries are in pfn, so convert to mfn */
-	/* L4[272] -> level3_ident_pgt
-	 * L4[511] -> level3_kernel_pgt */
-	convert_pfn_mfn(init_level4_pgt);
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		/* Pre-constructed entries are in pfn, so convert to mfn */
+		/* L4[272] -> level3_ident_pgt
+		 * L4[511] -> level3_kernel_pgt */
+		convert_pfn_mfn(init_level4_pgt);
 
-	/* L3_i[0] -> level2_ident_pgt */
-	convert_pfn_mfn(level3_ident_pgt);
-	/* L3_k[510] -> level2_kernel_pgt
-	 * L3_i[511] -> level2_fixmap_pgt */
-	convert_pfn_mfn(level3_kernel_pgt);
-
+		/* L3_i[0] -> level2_ident_pgt */
+		convert_pfn_mfn(level3_ident_pgt);
+		/* L3_k[510] -> level2_kernel_pgt
+		 * L3_i[511] -> level2_fixmap_pgt */
+		convert_pfn_mfn(level3_kernel_pgt);
+	}
 	/* We get [511][511] and have Xen's version of level2_kernel_pgt */
 	l3 = m2v(pgd[pgd_index(__START_KERNEL_map)].pgd);
 	l2 = m2v(l3[pud_index(__START_KERNEL_map)].pud);
@@ -1918,31 +1928,33 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	copy_page(level2_fixmap_pgt, l2);
 	/* Note that we don't do anything with level1_fixmap_pgt which
 	 * we don't need. */
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		/* Make pagetable pieces RO */
+		set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
+		set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
+		set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
+		set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
+		set_page_prot(level2_ident_pgt, PAGE_KERNEL_RO);
+		set_page_prot(level2_kernel_pgt, PAGE_KERNEL_RO);
+		set_page_prot(level2_fixmap_pgt, PAGE_KERNEL_RO);
 
-	/* Make pagetable pieces RO */
-	set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
-	set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
-	set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
-	set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
-	set_page_prot(level2_ident_pgt, PAGE_KERNEL_RO);
-	set_page_prot(level2_kernel_pgt, PAGE_KERNEL_RO);
-	set_page_prot(level2_fixmap_pgt, PAGE_KERNEL_RO);
+		/* Pin down new L4 */
+		pin_pagetable_pfn(MMUEXT_PIN_L4_TABLE,
+				  PFN_DOWN(__pa_symbol(init_level4_pgt)));
 
-	/* Pin down new L4 */
-	pin_pagetable_pfn(MMUEXT_PIN_L4_TABLE,
-			  PFN_DOWN(__pa_symbol(init_level4_pgt)));
+		/* Unpin Xen-provided one */
+		pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
 
-	/* Unpin Xen-provided one */
-	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
-
-	/*
-	 * At this stage there can be no user pgd, and no page
-	 * structure to attach it to, so make sure we just set kernel
-	 * pgd.
-	 */
-	xen_mc_batch();
-	__xen_write_cr3(true, __pa(init_level4_pgt));
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
+		/*
+		 * At this stage there can be no user pgd, and no page
+		 * structure to attach it to, so make sure we just set kernel
+		 * pgd.
+		 */
+		xen_mc_batch();
+		__xen_write_cr3(true, __pa(init_level4_pgt));
+		xen_mc_issue(PARAVIRT_LAZY_CPU);
+	} else
+		native_write_cr3(__pa(init_level4_pgt));
 
 	/* We can't that easily rip out L3 and L2, as the Xen pagetables are
 	 * set out this way: [L4], [L1], [L2], [L3], [L1], [L1] ...  for
@@ -2103,6 +2115,9 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 
 static void __init xen_post_allocator_init(void)
 {
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
 	pv_mmu_ops.set_pte = xen_set_pte;
 	pv_mmu_ops.set_pmd = xen_set_pmd;
 	pv_mmu_ops.set_pud = xen_set_pud;
@@ -2207,6 +2222,15 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 void __init xen_init_mmu_ops(void)
 {
 	x86_init.paging.pagetable_init = xen_pagetable_init;
+
+	/* Optimization - we can use the HVM one but it has no idea which
+	 * VCPUs are descheduled - which means that it will needlessly IPI
+	 * them. Xen knows so let it do the job.
+	 */
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+		pv_mmu_ops.flush_tlb_others = xen_flush_tlb_others;
+		return;
+	}
 	pv_mmu_ops = xen_mmu_ops;
 
 	memset(dummy_mapping, 0xff, PAGE_SIZE);

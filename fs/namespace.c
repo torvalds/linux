@@ -2790,6 +2790,8 @@ void __init mnt_init(void)
 	for (u = 0; u < HASH_SIZE; u++)
 		INIT_LIST_HEAD(&mountpoint_hashtable[u]);
 
+	kernfs_init();
+
 	err = sysfs_init();
 	if (err)
 		printk(KERN_WARNING "%s: sysfs_init error: %d\n",
@@ -2886,7 +2888,7 @@ bool fs_fully_visible(struct file_system_type *type)
 			struct inode *inode = child->mnt_mountpoint->d_inode;
 			if (!S_ISDIR(inode->i_mode))
 				goto next;
-			if (inode->i_nlink != 2)
+			if (inode->i_nlink > 2)
 				goto next;
 		}
 		visible = true;

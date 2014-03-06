@@ -71,7 +71,7 @@ config CAN_AT91
 	  and AT91SAM9X5 processors.
 
 config CAN_TI_HECC
-	depends on ARCH_OMAP3
+	depends on ARM
 	tristate "TI High End CAN Controller"
 	---help---
 	  Driver for TI HECC (High End CAN Controller) module found on many
@@ -104,7 +104,7 @@ config CAN_JANZ_ICAN3
 
 config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
-	depends on ARM || PPC
+	depends on (ARM && CPU_LITTLE_ENDIAN) || PPC
 	---help---
 	  Say Y here if you want to support for Freescale FlexCAN.
 

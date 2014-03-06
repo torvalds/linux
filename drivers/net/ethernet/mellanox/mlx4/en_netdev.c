@@ -468,6 +468,53 @@ static void mlx4_en_u64_to_mac(unsigned char dst_mac[ETH_ALEN + 2], u64 src_mac)
 	memset(&dst_mac[ETH_ALEN], 0, 2);
 }
 
+
+static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv, unsigned char *addr,
+				    int qpn, u64 *reg_id)
+{
+	int err;
+	struct mlx4_spec_list spec_eth_outer = { {NULL} };
+	struct mlx4_spec_list spec_vxlan     = { {NULL} };
+	struct mlx4_spec_list spec_eth_inner = { {NULL} };
+
+	struct mlx4_net_trans_rule rule = {
+		.queue_mode = MLX4_NET_TRANS_Q_FIFO,
+		.exclusive = 0,
+		.allow_loopback = 1,
+		.promisc_mode = MLX4_FS_REGULAR,
+		.priority = MLX4_DOMAIN_NIC,
+	};
+
+	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
+
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+		return 0; /* do nothing */
+
+	rule.port = priv->port;
+	rule.qpn = qpn;
+	INIT_LIST_HEAD(&rule.list);
+
+	spec_eth_outer.id = MLX4_NET_TRANS_RULE_ID_ETH;
+	memcpy(spec_eth_outer.eth.dst_mac, addr, ETH_ALEN);
+	memcpy(spec_eth_outer.eth.dst_mac_msk, &mac_mask, ETH_ALEN);
+
+	spec_vxlan.id = MLX4_NET_TRANS_RULE_ID_VXLAN;    /* any vxlan header */
+	spec_eth_inner.id = MLX4_NET_TRANS_RULE_ID_ETH;	 /* any inner eth header */
+
+	list_add_tail(&spec_eth_outer.list, &rule.list);
+	list_add_tail(&spec_vxlan.list,     &rule.list);
+	list_add_tail(&spec_eth_inner.list, &rule.list);
+
+	err = mlx4_flow_attach(priv->mdev->dev, &rule, reg_id);
+	if (err) {
+		en_err(priv, "failed to add vxlan steering rule, err %d\n", err);
+		return err;
+	}
+	en_dbg(DRV, priv, "added vxlan steering rule, mac %pM reg_id %llx\n", addr, *reg_id);
+	return 0;
+}
+
+
 static int mlx4_en_uc_steer_add(struct mlx4_en_priv *priv,
 				unsigned char *mac, int *qpn, u64 *reg_id)
 {
@@ -585,6 +632,11 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 	if (err)
 		goto steer_err;
 
+	err = mlx4_en_tunnel_steer_add(priv, priv->dev->dev_addr, *qpn,
+				       &priv->tunnel_reg_id);
+	if (err)
+		goto tunnel_err;
+
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		err = -ENOMEM;
@@ -599,6 +651,9 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 	return 0;
 
 alloc_err:
+	if (priv->tunnel_reg_id)
+		mlx4_flow_detach(priv->mdev->dev, priv->tunnel_reg_id);
+tunnel_err:
 	mlx4_en_uc_steer_release(priv, priv->dev->dev_addr, *qpn, reg_id);
 
 steer_err:
@@ -640,6 +695,11 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 				hlist_del_rcu(&entry->hlist);
 				kfree_rcu(entry, rcu);
 			}
+		}
+
+		if (priv->tunnel_reg_id) {
+			mlx4_flow_detach(priv->mdev->dev, priv->tunnel_reg_id);
+			priv->tunnel_reg_id = 0;
 		}
 
 		en_dbg(DRV, priv, "Releasing qp: port %d, qpn %d\n",
@@ -782,7 +842,7 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 	list_for_each_entry(dst_tmp, dst, list) {
 		found = false;
 		list_for_each_entry(src_tmp, src, list) {
-			if (!memcmp(dst_tmp->addr, src_tmp->addr, ETH_ALEN)) {
+			if (ether_addr_equal(dst_tmp->addr, src_tmp->addr)) {
 				found = true;
 				break;
 			}
@@ -797,7 +857,7 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 	list_for_each_entry(src_tmp, src, list) {
 		found = false;
 		list_for_each_entry(dst_tmp, dst, list) {
-			if (!memcmp(dst_tmp->addr, src_tmp->addr, ETH_ALEN)) {
+			if (ether_addr_equal(dst_tmp->addr, src_tmp->addr)) {
 				dst_tmp->action = MCLIST_NONE;
 				found = true;
 				break;
@@ -1044,6 +1104,12 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 				if (err)
 					en_err(priv, "Fail to detach multicast address\n");
 
+				if (mclist->tunnel_reg_id) {
+					err = mlx4_flow_detach(priv->mdev->dev, mclist->tunnel_reg_id);
+					if (err)
+						en_err(priv, "Failed to detach multicast address\n");
+				}
+
 				/* remove from list */
 				list_del(&mclist->list);
 				kfree(mclist);
@@ -1061,6 +1127,10 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 				if (err)
 					en_err(priv, "Fail to attach multicast address\n");
 
+				err = mlx4_en_tunnel_steer_add(priv, &mc_list[10], priv->base_qpn,
+							       &mclist->tunnel_reg_id);
+				if (err)
+					en_err(priv, "Failed to attach multicast address\n");
 			}
 		}
 	}
@@ -1598,6 +1668,15 @@ int mlx4_en_start_port(struct net_device *dev)
 		goto tx_err;
 	}
 
+	if (mdev->dev->caps.tunnel_offload_mode == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
+		err = mlx4_SET_PORT_VXLAN(mdev->dev, priv->port, VXLAN_STEER_BY_OUTER_MAC);
+		if (err) {
+			en_err(priv, "Failed setting port L2 tunnel configuration, err %d\n",
+			       err);
+			goto tx_err;
+		}
+	}
+
 	/* Init port */
 	en_dbg(HW, priv, "Initializing port\n");
 	err = mlx4_INIT_PORT(mdev->dev, priv->port);
@@ -1910,8 +1989,10 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 				      prof->tx_ring_size, i, TX, node))
 			goto err;
 
-		if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[i], priv->base_tx_qpn + i,
-					   prof->tx_ring_size, TXBB_SIZE, node))
+		if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[i],
+					   priv->base_tx_qpn + i,
+					   prof->tx_ring_size, TXBB_SIZE,
+					   node, i))
 			goto err;
 	}
 
@@ -2025,7 +2106,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static int mlx4_en_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int mlx4_en_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -2084,11 +2165,21 @@ static int mlx4_en_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 			    sizeof(config)) ? -EFAULT : 0;
 }
 
+static int mlx4_en_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	return copy_to_user(ifr->ifr_data, &priv->hwtstamp_config,
+			    sizeof(priv->hwtstamp_config)) ? -EFAULT : 0;
+}
+
 static int mlx4_en_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return mlx4_en_hwtstamp_ioctl(dev, ifr);
+		return mlx4_en_hwtstamp_set(dev, ifr);
+	case SIOCGHWTSTAMP:
+		return mlx4_en_hwtstamp_get(dev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2154,6 +2245,27 @@ static int mlx4_en_set_vf_link_state(struct net_device *dev, int vf, int link_st
 
 	return mlx4_set_vf_link_state(mdev->dev, en_priv->port, vf, link_state);
 }
+
+#define PORT_ID_BYTE_LEN 8
+static int mlx4_en_get_phys_port_id(struct net_device *dev,
+				    struct netdev_phys_port_id *ppid)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_dev *mdev = priv->mdev->dev;
+	int i;
+	u64 phys_port_id = mdev->caps.phys_port_id[priv->port];
+
+	if (!phys_port_id)
+		return -EOPNOTSUPP;
+
+	ppid->id_len = sizeof(phys_port_id);
+	for (i = PORT_ID_BYTE_LEN - 1; i >= 0; --i) {
+		ppid->id[i] =  phys_port_id & 0xff;
+		phys_port_id >>= 8;
+	}
+	return 0;
+}
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2179,6 +2291,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll		= mlx4_en_low_latency_recv,
 #endif
+	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
 };
 
 static const struct net_device_ops mlx4_netdev_ops_master = {
@@ -2207,6 +2320,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
 #endif
+	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
 };
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
@@ -2365,6 +2479,13 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	if (mdev->dev->caps.steering_mode != MLX4_STEERING_MODE_A0)
 		dev->priv_flags |= IFF_UNICAST_FLT;
 
+	if (mdev->dev->caps.tunnel_offload_mode == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
+		dev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+					NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL;
+		dev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+		dev->features    |= NETIF_F_GSO_UDP_TUNNEL;
+	}
+
 	mdev->pndev[port] = dev;
 
 	netif_carrier_off(dev);
@@ -2392,6 +2513,15 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		en_err(priv, "Failed setting port general configurations "
 		       "for port %d, with error %d\n", priv->port, err);
 		goto out;
+	}
+
+	if (mdev->dev->caps.tunnel_offload_mode == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
+		err = mlx4_SET_PORT_VXLAN(mdev->dev, priv->port, VXLAN_STEER_BY_OUTER_MAC);
+		if (err) {
+			en_err(priv, "Failed setting port L2 tunnel configuration, err %d\n",
+			       err);
+			goto out;
+		}
 	}
 
 	/* Init port */

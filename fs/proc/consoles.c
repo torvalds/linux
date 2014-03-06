@@ -109,4 +109,4 @@ static int __init proc_consoles_init(void)
 	proc_create("consoles", 0, NULL, &proc_consoles_operations);
 	return 0;
 }
-module_init(proc_consoles_init);
+fs_initcall(proc_consoles_init);

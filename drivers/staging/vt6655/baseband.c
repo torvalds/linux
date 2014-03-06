@@ -1865,7 +1865,7 @@ BBvCalculateParameter(
 		break;
 
 	case RATE_5M:
-		if (bCCK == false)
+		if (!bCCK)
 			cbBitCount++;
 		cbUsCount = (cbBitCount * 10) / 55;
 		cbTmp = (cbUsCount * 55) / 10;
@@ -1879,7 +1879,7 @@ BBvCalculateParameter(
 
 	case RATE_11M:
 
-		if (bCCK == false)
+		if (!bCCK)
 			cbBitCount++;
 		cbUsCount = cbBitCount / 11;
 		cbTmp = cbUsCount * 11;

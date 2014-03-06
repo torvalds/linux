@@ -87,7 +87,7 @@ void __init omap_barriers_init(void)
 	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
 	dram_io_desc[0].pfn = __phys_to_pfn(paddr);
 	dram_io_desc[0].length = size;
-	dram_io_desc[0].type = MT_MEMORY_SO;
+	dram_io_desc[0].type = MT_MEMORY_RW_SO;
 	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
 	dram_sync = (void __iomem *) dram_io_desc[0].virtual;
 	sram_sync = (void __iomem *) OMAP4_SRAM_VA;
@@ -127,6 +127,12 @@ void gic_dist_disable(void)
 		__raw_writel(0x0, gic_dist_base_addr + GIC_DIST_CTRL);
 }
 
+void gic_dist_enable(void)
+{
+	if (gic_dist_base_addr)
+		__raw_writel(0x1, gic_dist_base_addr + GIC_DIST_CTRL);
+}
+
 bool gic_dist_disabled(void)
 {
 	return !(__raw_readl(gic_dist_base_addr + GIC_DIST_CTRL) & 0x1);
@@ -162,6 +168,7 @@ void __iomem *omap4_get_l2cache_base(void)
 
 static void omap4_l2x0_disable(void)
 {
+	outer_flush_all();
 	/* Disable PL310 L2 Cache controller */
 	omap_smc1(0x102, 0x0);
 }

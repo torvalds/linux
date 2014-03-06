@@ -22,7 +22,6 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of_mdio.h>

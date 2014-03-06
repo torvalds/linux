@@ -1809,8 +1809,28 @@ out_rmdir:
 			return -EFAULT;
 		}
 
-		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), totalsize,
-				   hur, NULL);
+		if (hur->hur_request.hr_action == HUA_RELEASE) {
+			const struct lu_fid *fid;
+			struct inode *f;
+			int i;
+
+			for (i = 0; i < hur->hur_request.hr_itemcount; i++) {
+				fid = &hur->hur_user_item[i].hui_fid;
+				f = search_inode_for_lustre(inode->i_sb, fid);
+				if (IS_ERR(f)) {
+					rc = PTR_ERR(f);
+					break;
+				}
+
+				rc = ll_hsm_release(f);
+				iput(f);
+				if (rc != 0)
+					break;
+			}
+		} else {
+			rc = obd_iocontrol(cmd, ll_i2mdexp(inode), totalsize,
+					   hur, NULL);
+		}
 
 		OBD_FREE_LARGE(hur, totalsize);
 

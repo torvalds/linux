@@ -92,15 +92,9 @@ static int kernel_init(void *);
 
 extern void init_IRQ(void);
 extern void fork_init(unsigned long);
-extern void mca_init(void);
-extern void sbus_init(void);
 extern void radix_tree_init(void);
 #ifndef CONFIG_DEBUG_RODATA
 static inline void mark_rodata_ro(void) { }
-#endif
-
-#ifdef CONFIG_TC
-extern void tc_init(void);
 #endif
 
 /*
@@ -282,7 +276,7 @@ static int __init unknown_bootoption(char *param, char *val, const char *unused)
 		unsigned int i;
 		for (i = 0; envp_init[i]; i++) {
 			if (i == MAX_INIT_ENVS) {
-				panic_later = "Too many boot env vars at `%s'";
+				panic_later = "env";
 				panic_param = param;
 			}
 			if (!strncmp(param, envp_init[i], val - param))
@@ -294,7 +288,7 @@ static int __init unknown_bootoption(char *param, char *val, const char *unused)
 		unsigned int i;
 		for (i = 0; argv_init[i]; i++) {
 			if (i == MAX_INIT_ARGS) {
-				panic_later = "Too many boot init vars at `%s'";
+				panic_later = "init";
 				panic_param = param;
 			}
 		}
@@ -355,9 +349,11 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
  */
 static void __init setup_command_line(char *command_line)
 {
-	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
-	initcall_command_line = alloc_bootmem(strlen (boot_command_line)+1);
-	static_command_line = alloc_bootmem(strlen (command_line)+1);
+	saved_command_line =
+		memblock_virt_alloc(strlen(boot_command_line) + 1, 0);
+	initcall_command_line =
+		memblock_virt_alloc(strlen(boot_command_line) + 1, 0);
+	static_command_line = memblock_virt_alloc(strlen(command_line) + 1, 0);
 	strcpy (saved_command_line, boot_command_line);
 	strcpy (static_command_line, command_line);
 }
@@ -476,7 +472,7 @@ static void __init mm_init(void)
 	mem_init();
 	kmem_cache_init();
 	percpu_init_late();
-	pgtable_cache_init();
+	pgtable_init();
 	vmalloc_init();
 }
 
@@ -565,6 +561,7 @@ asmlinkage void __init start_kernel(void)
 	init_timers();
 	hrtimers_init();
 	softirq_init();
+	acpi_early_init();
 	timekeeping_init();
 	time_init();
 	sched_clock_postinit();
@@ -584,7 +581,8 @@ asmlinkage void __init start_kernel(void)
 	 */
 	console_init();
 	if (panic_later)
-		panic(panic_later, panic_param);
+		panic("Too many boot %s vars at `%s'", panic_later,
+		      panic_param);
 
 	lockdep_info();
 
@@ -641,7 +639,6 @@ asmlinkage void __init start_kernel(void)
 
 	check_bugs();
 
-	acpi_early_init(); /* before LAPIC and SMP init */
 	sfi_init_late();
 
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {

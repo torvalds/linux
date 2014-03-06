@@ -33,6 +33,7 @@ config MV643XX_ETH
 
 config MVMDIO
 	tristate "Marvell MDIO interface support"
+	depends on HAS_IOMEM
 	select PHYLIB
 	---help---
 	  This driver supports the MDIO interface found in the network

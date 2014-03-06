@@ -1050,6 +1050,36 @@ static int r100_cp_init_microcode(struct radeon_device *rdev)
 	return err;
 }
 
+u32 r100_gfx_get_rptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring)
+{
+	u32 rptr;
+
+	if (rdev->wb.enabled)
+		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
+	else
+		rptr = RREG32(RADEON_CP_RB_RPTR);
+
+	return rptr;
+}
+
+u32 r100_gfx_get_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring)
+{
+	u32 wptr;
+
+	wptr = RREG32(RADEON_CP_RB_WPTR);
+
+	return wptr;
+}
+
+void r100_gfx_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring)
+{
+	WREG32(RADEON_CP_RB_WPTR, ring->wptr);
+	(void)RREG32(RADEON_CP_RB_WPTR);
+}
+
 static void r100_cp_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data;
@@ -1102,7 +1132,6 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	ring_size = (1 << (rb_bufsz + 1)) * 4;
 	r100_cp_load_microcode(rdev);
 	r = radeon_ring_init(rdev, ring, ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     RADEON_CP_RB_RPTR, RADEON_CP_RB_WPTR,
 			     RADEON_CP_PACKET2);
 	if (r) {
 		return r;
@@ -3913,6 +3942,8 @@ int r100_resume(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = r100_startup(rdev);
 	if (r) {
@@ -3923,6 +3954,7 @@ int r100_resume(struct radeon_device *rdev)
 
 int r100_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -3933,6 +3965,7 @@ int r100_suspend(struct radeon_device *rdev)
 
 void r100_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -4038,6 +4071,9 @@ int r100_init(struct radeon_device *rdev)
 			return r;
 	}
 	r100_set_safe_registers(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = r100_startup(rdev);

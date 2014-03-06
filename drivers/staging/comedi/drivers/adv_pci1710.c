@@ -115,65 +115,70 @@ Configuration options:
 /* D/A synchronized control (PCI1720_SYNCONT) */
 #define Syncont_SC0	 1	/* set synchronous output mode */
 
-static const struct comedi_lrange range_pci1710_3 = { 9, {
-							  BIP_RANGE(5),
-							  BIP_RANGE(2.5),
-							  BIP_RANGE(1.25),
-							  BIP_RANGE(0.625),
-							  BIP_RANGE(10),
-							  UNI_RANGE(10),
-							  UNI_RANGE(5),
-							  UNI_RANGE(2.5),
-							  UNI_RANGE(1.25)
-							  }
+static const struct comedi_lrange range_pci1710_3 = {
+	9, {
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		BIP_RANGE(10),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 static const char range_codes_pci1710_3[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
 					      0x10, 0x11, 0x12, 0x13 };
 
-static const struct comedi_lrange range_pci1710hg = { 12, {
-							   BIP_RANGE(5),
-							   BIP_RANGE(0.5),
-							   BIP_RANGE(0.05),
-							   BIP_RANGE(0.005),
-							   BIP_RANGE(10),
-							   BIP_RANGE(1),
-							   BIP_RANGE(0.1),
-							   BIP_RANGE(0.01),
-							   UNI_RANGE(10),
-							   UNI_RANGE(1),
-							   UNI_RANGE(0.1),
-							   UNI_RANGE(0.01)
-							   }
+static const struct comedi_lrange range_pci1710hg = {
+	12, {
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.005),
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.01),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };
 
 static const char range_codes_pci1710hg[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
 					      0x05, 0x06, 0x07, 0x10, 0x11,
 					      0x12, 0x13 };
 
-static const struct comedi_lrange range_pci17x1 = { 5, {
-							BIP_RANGE(10),
-							BIP_RANGE(5),
-							BIP_RANGE(2.5),
-							BIP_RANGE(1.25),
-							BIP_RANGE(0.625)
-							}
+static const struct comedi_lrange range_pci17x1 = {
+	5, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625)
+	}
 };
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static const struct comedi_lrange range_pci1720 = { 4, {
-							UNI_RANGE(5),
-							UNI_RANGE(10),
-							BIP_RANGE(5),
-							BIP_RANGE(10)
-							}
+static const struct comedi_lrange range_pci1720 = {
+	4, {
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10)
+	}
 };
 
-static const struct comedi_lrange range_pci171x_da = { 2, {
-							   UNI_RANGE(5),
-							   UNI_RANGE(10),
-							   }
+static const struct comedi_lrange range_pci171x_da = {
+	2, {
+		UNI_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 enum pci1710_boardid {
@@ -731,7 +736,7 @@ static void interrupt_pci1710_every_sample(void *d)
 {
 	struct comedi_device *dev = d;
 	struct pci1710_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int m;
 #ifdef PCI171x_PARANOIDCHECK
 	const struct boardtype *this_board = comedi_board(dev);
@@ -740,16 +745,15 @@ static void interrupt_pci1710_every_sample(void *d)
 
 	m = inw(dev->iobase + PCI171x_STATUS);
 	if (m & Status_FE) {
-		printk("comedi%d: A/D FIFO empty (%4x)\n", dev->minor, m);
+		dev_dbg(dev->class_dev, "A/D FIFO empty (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
 	if (m & Status_FF) {
-		printk
-		    ("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
-		     dev->minor, m);
+		dev_dbg(dev->class_dev,
+			"A/D FIFO Full status (Fatal Error!) (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
@@ -825,12 +829,12 @@ static int move_block_from_fifo(struct comedi_device *dev,
 		sampl = inw(dev->iobase + PCI171x_AD_DATA);
 		if (this_board->cardtype != TYPE_PCI1713)
 			if ((sampl & 0xf000) != devpriv->act_chanlist[j]) {
-				printk
-				    ("comedi%d: A/D  FIFO data dropout: received data from channel %d, expected %d! (%d/%d/%d/%d/%d/%4x)\n",
-				     dev->minor, (sampl & 0xf000) >> 12,
-				     (devpriv->act_chanlist[j] & 0xf000) >> 12,
-				     i, j, devpriv->ai_act_scan, n, turn,
-				     sampl);
+				dev_dbg(dev->class_dev,
+					"A/D FIFO data dropout: received data from channel %d, expected %d! (%d/%d/%d/%d/%d/%4x)\n",
+					(sampl & 0xf000) >> 12,
+					(devpriv->act_chanlist[j] & 0xf000) >> 12,
+					i, j, devpriv->ai_act_scan, n, turn,
+					sampl);
 				pci171x_ai_cancel(dev, s);
 				s->async->events |=
 				    COMEDI_CB_EOA | COMEDI_CB_ERROR;
@@ -860,22 +864,20 @@ static void interrupt_pci1710_half_fifo(void *d)
 	struct comedi_device *dev = d;
 	const struct boardtype *this_board = comedi_board(dev);
 	struct pci1710_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int m, samplesinbuf;
 
 	m = inw(dev->iobase + PCI171x_STATUS);
 	if (!(m & Status_FH)) {
-		printk("comedi%d: A/D FIFO not half full! (%4x)\n",
-		       dev->minor, m);
+		dev_dbg(dev->class_dev, "A/D FIFO not half full! (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
 	if (m & Status_FF) {
-		printk
-		    ("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
-		     dev->minor, m);
+		dev_dbg(dev->class_dev,
+			"A/D FIFO Full status (Fatal Error!) (%4x)\n", m);
 		pci171x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
@@ -1267,21 +1269,21 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	if (this_board->n_aichan) {
 		s = &dev->subdevices[subdev];
-		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
 		if (this_board->n_aichand)
 			s->subdev_flags |= SDF_DIFF;
 		s->n_chan = this_board->n_aichan;
 		s->maxdata = this_board->ai_maxdata;
-		s->len_chanlist = this_board->n_aichan;
 		s->range_table = this_board->rangelist_ai;
-		s->cancel = pci171x_ai_cancel;
 		s->insn_read = pci171x_insn_read_ai;
 		if (dev->irq) {
+			dev->read_subdev = s;
 			s->subdev_flags |= SDF_CMD_READ;
+			s->len_chanlist = s->n_chan;
 			s->do_cmdtest = pci171x_ai_cmdtest;
 			s->do_cmd = pci171x_ai_cmd;
+			s->cancel = pci171x_ai_cancel;
 		}
 		devpriv->i8254_osc_base = I8254_OSC_BASE_10MHZ;
 		subdev++;
@@ -1374,7 +1376,7 @@ static int adv_pci1710_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adv_pci1710_pci_table) = {
+static const struct pci_device_id adv_pci1710_pci_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
 			       PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050),

@@ -277,7 +277,7 @@ static ssize_t display_wss_store(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(name, S_IRUGO, display_name_show, NULL);
+static DEVICE_ATTR(display_name, S_IRUGO, display_name_show, NULL);
 static DEVICE_ATTR(enabled, S_IRUGO|S_IWUSR,
 		display_enabled_show, display_enabled_store);
 static DEVICE_ATTR(tear_elim, S_IRUGO|S_IWUSR,
@@ -292,7 +292,7 @@ static DEVICE_ATTR(wss, S_IRUGO|S_IWUSR,
 		display_wss_show, display_wss_store);
 
 static const struct attribute *display_sysfs_attrs[] = {
-	&dev_attr_name.attr,
+	&dev_attr_display_name.attr,
 	&dev_attr_enabled.attr,
 	&dev_attr_tear_elim.attr,
 	&dev_attr_timings.attr,

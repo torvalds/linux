@@ -1114,10 +1114,8 @@ static int ehci_hub_control (
 		if (test_bit(wIndex, &ehci->port_c_suspend))
 			status |= USB_PORT_STAT_C_SUSPEND << 16;
 
-#ifndef	VERBOSE_DEBUG
-	if (status & ~0xffff)	/* only if wPortChange is interesting */
-#endif
-		dbg_port (ehci, "GetStatus", wIndex + 1, temp);
+		if (status & ~0xffff)	/* only if wPortChange is interesting */
+			dbg_port(ehci, "GetStatus", wIndex + 1, temp);
 		put_unaligned_le32(status, buf);
 		break;
 	case SetHubFeature:

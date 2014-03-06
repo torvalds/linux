@@ -1,11 +1,17 @@
 #include "../perf.h"
 #include "util.h"
+#include "fs.h"
 #include <sys/mman.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
 #include <execinfo.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <limits.h>
+#include <byteswap.h>
+#include <linux/kernel.h>
 
 /*
  * XXX We need to find a better place for these things...
@@ -151,21 +157,40 @@ unsigned long convert_unit(unsigned long value, char *unit)
 	return value;
 }
 
-int readn(int fd, void *buf, size_t n)
+static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 {
 	void *buf_start = buf;
+	size_t left = n;
 
-	while (n) {
-		int ret = read(fd, buf, n);
+	while (left) {
+		ssize_t ret = is_read ? read(fd, buf, left) :
+					write(fd, buf, left);
 
 		if (ret <= 0)
 			return ret;
 
-		n -= ret;
-		buf += ret;
+		left -= ret;
+		buf  += ret;
 	}
 
-	return buf - buf_start;
+	BUG_ON((size_t)(buf - buf_start) != n);
+	return n;
+}
+
+/*
+ * Read exactly 'n' bytes or return an error.
+ */
+ssize_t readn(int fd, void *buf, size_t n)
+{
+	return ion(true, fd, buf, n);
+}
+
+/*
+ * Write exactly 'n' bytes or return an error.
+ */
+ssize_t writen(int fd, void *buf, size_t n)
+{
+	return ion(false, fd, buf, n);
 }
 
 size_t hex_width(u64 v)
@@ -412,4 +437,103 @@ int filename__read_int(const char *filename, int *value)
 
 	close(fd);
 	return err;
+}
+
+int filename__read_str(const char *filename, char **buf, size_t *sizep)
+{
+	size_t size = 0, alloc_size = 0;
+	void *bf = NULL, *nbf;
+	int fd, n, err = 0;
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return -errno;
+
+	do {
+		if (size == alloc_size) {
+			alloc_size += BUFSIZ;
+			nbf = realloc(bf, alloc_size);
+			if (!nbf) {
+				err = -ENOMEM;
+				break;
+			}
+
+			bf = nbf;
+		}
+
+		n = read(fd, bf + size, alloc_size - size);
+		if (n < 0) {
+			if (size) {
+				pr_warning("read failed %d: %s\n",
+					   errno, strerror(errno));
+				err = 0;
+			} else
+				err = -errno;
+
+			break;
+		}
+
+		size += n;
+	} while (n > 0);
+
+	if (!err) {
+		*sizep = size;
+		*buf   = bf;
+	} else
+		free(bf);
+
+	close(fd);
+	return err;
+}
+
+const char *get_filename_for_perf_kvm(void)
+{
+	const char *filename;
+
+	if (perf_host && !perf_guest)
+		filename = strdup("perf.data.host");
+	else if (!perf_host && perf_guest)
+		filename = strdup("perf.data.guest");
+	else
+		filename = strdup("perf.data.kvm");
+
+	return filename;
+}
+
+int perf_event_paranoid(void)
+{
+	char path[PATH_MAX];
+	const char *procfs = procfs__mountpoint();
+	int value;
+
+	if (!procfs)
+		return INT_MAX;
+
+	scnprintf(path, PATH_MAX, "%s/sys/kernel/perf_event_paranoid", procfs);
+
+	if (filename__read_int(path, &value))
+		return INT_MAX;
+
+	return value;
+}
+
+void mem_bswap_32(void *src, int byte_size)
+{
+	u32 *m = src;
+	while (byte_size > 0) {
+		*m = bswap_32(*m);
+		byte_size -= sizeof(u32);
+		++m;
+	}
+}
+
+void mem_bswap_64(void *src, int byte_size)
+{
+	u64 *m = src;
+
+	while (byte_size > 0) {
+		*m = bswap_64(*m);
+		byte_size -= sizeof(u64);
+		++m;
+	}
 }

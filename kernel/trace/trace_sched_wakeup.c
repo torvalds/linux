@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/deadline.h>
 #include <trace/events/sched.h>
 #include "trace.h"
 
@@ -27,6 +28,8 @@ static int			wakeup_cpu;
 static int			wakeup_current_cpu;
 static unsigned			wakeup_prio = -1;
 static int			wakeup_rt;
+static int			wakeup_dl;
+static int			tracing_dl = 0;
 
 static arch_spinlock_t wakeup_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
@@ -437,6 +440,7 @@ static void __wakeup_reset(struct trace_array *tr)
 {
 	wakeup_cpu = -1;
 	wakeup_prio = -1;
+	tracing_dl = 0;
 
 	if (wakeup_task)
 		put_task_struct(wakeup_task);
@@ -472,9 +476,17 @@ probe_wakeup(void *ignore, struct task_struct *p, int success)
 	tracing_record_cmdline(p);
 	tracing_record_cmdline(current);
 
-	if ((wakeup_rt && !rt_task(p)) ||
-			p->prio >= wakeup_prio ||
-			p->prio >= current->prio)
+	/*
+	 * Semantic is like this:
+	 *  - wakeup tracer handles all tasks in the system, independently
+	 *    from their scheduling class;
+	 *  - wakeup_rt tracer handles tasks belonging to sched_dl and
+	 *    sched_rt class;
+	 *  - wakeup_dl handles tasks belonging to sched_dl class only.
+	 */
+	if (tracing_dl || (wakeup_dl && !dl_task(p)) ||
+	    (wakeup_rt && !dl_task(p) && !rt_task(p)) ||
+	    (!dl_task(p) && (p->prio >= wakeup_prio || p->prio >= current->prio)))
 		return;
 
 	pc = preempt_count();
@@ -486,7 +498,8 @@ probe_wakeup(void *ignore, struct task_struct *p, int success)
 	arch_spin_lock(&wakeup_lock);
 
 	/* check for races. */
-	if (!tracer_enabled || p->prio >= wakeup_prio)
+	if (!tracer_enabled || tracing_dl ||
+	    (!dl_task(p) && p->prio >= wakeup_prio))
 		goto out_locked;
 
 	/* reset the trace */
@@ -495,6 +508,15 @@ probe_wakeup(void *ignore, struct task_struct *p, int success)
 	wakeup_cpu = task_cpu(p);
 	wakeup_current_cpu = wakeup_cpu;
 	wakeup_prio = p->prio;
+
+	/*
+	 * Once you start tracing a -deadline task, don't bother tracing
+	 * another task until the first one wakes up.
+	 */
+	if (dl_task(p))
+		tracing_dl = 1;
+	else
+		tracing_dl = 0;
 
 	wakeup_task = p;
 	get_task_struct(wakeup_task);
@@ -597,13 +619,22 @@ static int __wakeup_tracer_init(struct trace_array *tr)
 
 static int wakeup_tracer_init(struct trace_array *tr)
 {
+	wakeup_dl = 0;
 	wakeup_rt = 0;
 	return __wakeup_tracer_init(tr);
 }
 
 static int wakeup_rt_tracer_init(struct trace_array *tr)
 {
+	wakeup_dl = 0;
 	wakeup_rt = 1;
+	return __wakeup_tracer_init(tr);
+}
+
+static int wakeup_dl_tracer_init(struct trace_array *tr)
+{
+	wakeup_dl = 1;
+	wakeup_rt = 0;
 	return __wakeup_tracer_init(tr);
 }
 
@@ -674,6 +705,28 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 	.use_max_tr	= true,
 };
 
+static struct tracer wakeup_dl_tracer __read_mostly =
+{
+	.name		= "wakeup_dl",
+	.init		= wakeup_dl_tracer_init,
+	.reset		= wakeup_tracer_reset,
+	.start		= wakeup_tracer_start,
+	.stop		= wakeup_tracer_stop,
+	.wait_pipe	= poll_wait_pipe,
+	.print_max	= true,
+	.print_header	= wakeup_print_header,
+	.print_line	= wakeup_print_line,
+	.flags		= &tracer_flags,
+	.set_flag	= wakeup_set_flag,
+	.flag_changed	= wakeup_flag_changed,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest    = trace_selftest_startup_wakeup,
+#endif
+	.open		= wakeup_trace_open,
+	.close		= wakeup_trace_close,
+	.use_max_tr	= true,
+};
+
 __init static int init_wakeup_tracer(void)
 {
 	int ret;
@@ -683,6 +736,10 @@ __init static int init_wakeup_tracer(void)
 		return ret;
 
 	ret = register_tracer(&wakeup_rt_tracer);
+	if (ret)
+		return ret;
+
+	ret = register_tracer(&wakeup_dl_tracer);
 	if (ret)
 		return ret;
 

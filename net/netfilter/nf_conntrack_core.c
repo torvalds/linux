@@ -60,12 +60,6 @@ int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
 				      const struct nlattr *attr) __read_mostly;
 EXPORT_SYMBOL_GPL(nfnetlink_parse_nat_setup_hook);
 
-int (*nf_nat_seq_adjust_hook)(struct sk_buff *skb,
-			      struct nf_conn *ct,
-			      enum ip_conntrack_info ctinfo,
-			      unsigned int protoff);
-EXPORT_SYMBOL_GPL(nf_nat_seq_adjust_hook);
-
 DEFINE_SPINLOCK(nf_conntrack_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_lock);
 
@@ -360,15 +354,6 @@ begin:
 
 	return NULL;
 }
-
-struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(struct net *net, u16 zone,
-		    const struct nf_conntrack_tuple *tuple)
-{
-	return ____nf_conntrack_find(net, zone, tuple,
-				     hash_conntrack_raw(tuple, zone));
-}
-EXPORT_SYMBOL_GPL(__nf_conntrack_find);
 
 /* Find a connection corresponding to a tuple. */
 static struct nf_conntrack_tuple_hash *

@@ -35,6 +35,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/pci-acpi.h>
 
 static bool debug;
 static int check_sta_before_sun;

@@ -404,7 +404,7 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	}
 }
 
-void ast_set_sync_reg(struct drm_device *dev, struct drm_display_mode *mode,
+static void ast_set_sync_reg(struct drm_device *dev, struct drm_display_mode *mode,
 		      struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = dev->dev_private;
@@ -415,7 +415,7 @@ void ast_set_sync_reg(struct drm_device *dev, struct drm_display_mode *mode,
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
 }
 
-bool ast_set_dac_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
+static bool ast_set_dac_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		     struct ast_vbios_mode_info *vbios_mode)
 {
 	switch (crtc->fb->bits_per_pixel) {
@@ -427,7 +427,7 @@ bool ast_set_dac_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	return true;
 }
 
-void ast_set_start_address_crt1(struct drm_crtc *crtc, unsigned offset)
+static void ast_set_start_address_crt1(struct drm_crtc *crtc, unsigned offset)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	u32 addr;
@@ -623,7 +623,7 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.destroy = ast_crtc_destroy,
 };
 
-int ast_crtc_init(struct drm_device *dev)
+static int ast_crtc_init(struct drm_device *dev)
 {
 	struct ast_crtc *crtc;
 	int i;
@@ -710,7 +710,7 @@ static const struct drm_encoder_helper_funcs ast_enc_helper_funcs = {
 	.mode_set = ast_encoder_mode_set,
 };
 
-int ast_encoder_init(struct drm_device *dev)
+static int ast_encoder_init(struct drm_device *dev)
 {
 	struct ast_encoder *ast_encoder;
 
@@ -777,7 +777,7 @@ static const struct drm_connector_funcs ast_connector_funcs = {
 	.destroy = ast_connector_destroy,
 };
 
-int ast_connector_init(struct drm_device *dev)
+static int ast_connector_init(struct drm_device *dev)
 {
 	struct ast_connector *ast_connector;
 	struct drm_connector *connector;
@@ -810,7 +810,7 @@ int ast_connector_init(struct drm_device *dev)
 }
 
 /* allocate cursor cache and pin at start of VRAM */
-int ast_cursor_init(struct drm_device *dev)
+static int ast_cursor_init(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	int size;
@@ -847,7 +847,7 @@ fail:
 	return ret;
 }
 
-void ast_cursor_fini(struct drm_device *dev)
+static void ast_cursor_fini(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	ttm_bo_kunmap(&ast->cache_kmap);
@@ -965,7 +965,7 @@ static void ast_i2c_destroy(struct ast_i2c_chan *i2c)
 	kfree(i2c);
 }
 
-void ast_show_cursor(struct drm_crtc *crtc)
+static void ast_show_cursor(struct drm_crtc *crtc)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	u8 jreg;
@@ -976,7 +976,7 @@ void ast_show_cursor(struct drm_crtc *crtc)
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
 }
 
-void ast_hide_cursor(struct drm_crtc *crtc)
+static void ast_hide_cursor(struct drm_crtc *crtc)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);

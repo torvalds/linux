@@ -25,11 +25,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-
+#include <linux/acpi.h>
 #include <asm/io.h>
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 static int pm_tmr_ioport = 0;
 

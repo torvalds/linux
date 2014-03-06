@@ -718,6 +718,8 @@ static void ibm_unconfigure_device(struct pci_func *func)
 					func->device, func->function);
 	debug("func->device << 3 | 0x0  = %x\n", func->device << 3 | 0x0);
 
+	pci_lock_rescan_remove();
+
 	for (j = 0; j < 0x08; j++) {
 		temp = pci_get_bus_and_slot(func->busno, (func->device << 3) | j);
 		if (temp) {
@@ -725,7 +727,10 @@ static void ibm_unconfigure_device(struct pci_func *func)
 			pci_dev_put(temp);
 		}
 	}
+
 	pci_dev_put(func->dev);
+
+	pci_unlock_rescan_remove();
 }
 
 /*
@@ -780,6 +785,8 @@ static int ibm_configure_device(struct pci_func *func)
 	int flag = 0;	/* this is to make sure we don't double scan the bus,
 					for bridged devices primarily */
 
+	pci_lock_rescan_remove();
+
 	if (!(bus_structure_fixup(func->busno)))
 		flag = 1;
 	if (func->dev == NULL)
@@ -789,7 +796,7 @@ static int ibm_configure_device(struct pci_func *func)
 	if (func->dev == NULL) {
 		struct pci_bus *bus = pci_find_bus(0, func->busno);
 		if (!bus)
-			return 0;
+			goto out;
 
 		num = pci_scan_slot(bus,
 				PCI_DEVFN(func->device, func->function));
@@ -800,7 +807,7 @@ static int ibm_configure_device(struct pci_func *func)
 				PCI_DEVFN(func->device, func->function));
 		if (func->dev == NULL) {
 			err("ERROR... : pci_dev still NULL\n");
-			return 0;
+			goto out;
 		}
 	}
 	if (!(flag) && (func->dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)) {
@@ -810,6 +817,8 @@ static int ibm_configure_device(struct pci_func *func)
 			pci_bus_add_devices(child);
 	}
 
+ out:
+	pci_unlock_rescan_remove();
 	return 0;
 }
 

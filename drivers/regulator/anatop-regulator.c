@@ -122,10 +122,8 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	if (!sreg)
 		return -ENOMEM;
 	sreg->initdata = initdata;
-	sreg->name = kstrdup(of_get_property(np, "regulator-name", NULL),
-			     GFP_KERNEL);
+	sreg->name = of_get_property(np, "regulator-name", NULL);
 	rdesc = &sreg->rdesc;
-	memset(rdesc, 0, sizeof(*rdesc));
 	rdesc->name = sreg->name;
 	rdesc->ops = &anatop_rops;
 	rdesc->type = REGULATOR_VOLTAGE;
@@ -143,37 +141,37 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 				   &sreg->control_reg);
 	if (ret) {
 		dev_err(dev, "no anatop-reg-offset property set\n");
-		goto anatop_probe_end;
+		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-vol-bit-width",
 				   &sreg->vol_bit_width);
 	if (ret) {
 		dev_err(dev, "no anatop-vol-bit-width property set\n");
-		goto anatop_probe_end;
+		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-vol-bit-shift",
 				   &sreg->vol_bit_shift);
 	if (ret) {
 		dev_err(dev, "no anatop-vol-bit-shift property set\n");
-		goto anatop_probe_end;
+		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-min-bit-val",
 				   &sreg->min_bit_val);
 	if (ret) {
 		dev_err(dev, "no anatop-min-bit-val property set\n");
-		goto anatop_probe_end;
+		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-min-voltage",
 				   &sreg->min_voltage);
 	if (ret) {
 		dev_err(dev, "no anatop-min-voltage property set\n");
-		goto anatop_probe_end;
+		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-max-voltage",
 				   &sreg->max_voltage);
 	if (ret) {
 		dev_err(dev, "no anatop-max-voltage property set\n");
-		goto anatop_probe_end;
+		return ret;
 	}
 
 	/* read LDO ramp up setting, only for core reg */
@@ -204,26 +202,10 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	if (IS_ERR(rdev)) {
 		dev_err(dev, "failed to register %s\n",
 			rdesc->name);
-		ret = PTR_ERR(rdev);
-		goto anatop_probe_end;
+		return PTR_ERR(rdev);
 	}
 
 	platform_set_drvdata(pdev, rdev);
-
-anatop_probe_end:
-	if (ret)
-		kfree(sreg->name);
-
-	return ret;
-}
-
-static int anatop_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-	struct anatop_regulator *sreg = rdev_get_drvdata(rdev);
-	const char *name = sreg->name;
-
-	kfree(name);
 
 	return 0;
 }
@@ -240,7 +222,6 @@ static struct platform_driver anatop_regulator_driver = {
 		.of_match_table = of_anatop_regulator_match_tbl,
 	},
 	.probe	= anatop_regulator_probe,
-	.remove	= anatop_regulator_remove,
 };
 
 static int __init anatop_regulator_init(void)
@@ -259,3 +240,4 @@ MODULE_AUTHOR("Nancy Chen <Nancy.Chen@freescale.com>");
 MODULE_AUTHOR("Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org>");
 MODULE_DESCRIPTION("ANATOP Regulator driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:anatop_regulator");

@@ -189,21 +189,18 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	if (notes->src == NULL && symbol__alloc_hist(sym) < 0) {
-		pthread_mutex_unlock(&notes->lock);
-		pr_err("Not enough memory for annotating '%s' symbol!\n",
-		       sym->name);
-		sleep(1);
-		return;
-	}
-
 	ip = he->ms.map->map_ip(he->ms.map, ip);
-	err = symbol__inc_addr_samples(sym, he->ms.map, counter, ip);
+	err = hist_entry__inc_addr_samples(he, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 
 	if (err == -ERANGE && !he->ms.map->erange_warned)
 		ui__warn_map_erange(he->ms.map, sym, ip);
+	else if (err == -ENOMEM) {
+		pr_err("Not enough memory for annotating '%s' symbol!\n",
+		       sym->name);
+		sleep(1);
+	}
 }
 
 static void perf_top__show_details(struct perf_top *top)
@@ -485,7 +482,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 				fprintf(stderr, "\nAvailable events:");
 
-				list_for_each_entry(top->sym_evsel, &top->evlist->entries, node)
+				evlist__for_each(top->evlist, top->sym_evsel)
 					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
@@ -496,7 +493,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 					sleep(1);
 					break;
 				}
-				list_for_each_entry(top->sym_evsel, &top->evlist->entries, node)
+				evlist__for_each(top->evlist, top->sym_evsel)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
@@ -578,7 +575,7 @@ static void *display_thread_tui(void *arg)
 	 * Zooming in/out UIDs. For now juse use whatever the user passed
 	 * via --uid.
 	 */
-	list_for_each_entry(pos, &top->evlist->entries, node)
+	evlist__for_each(top->evlist, pos)
 		pos->hists.uid_filter_str = top->record_opts.target.uid_str;
 
 	perf_evlist__tui_browse_hists(top->evlist, help, &hbt, top->min_percent,
@@ -634,26 +631,9 @@ repeat:
 	return NULL;
 }
 
-/* Tag samples to be skipped. */
-static const char *skip_symbols[] = {
-	"intel_idle",
-	"default_idle",
-	"native_safe_halt",
-	"cpu_idle",
-	"enter_idle",
-	"exit_idle",
-	"mwait_idle",
-	"mwait_idle_with_hints",
-	"poll_idle",
-	"ppc64_runlatch_off",
-	"pseries_dedicated_idle_sleep",
-	NULL
-};
-
 static int symbol_filter(struct map *map __maybe_unused, struct symbol *sym)
 {
 	const char *name = sym->name;
-	int i;
 
 	/*
 	 * ppc64 uses function descriptors and appends a '.' to the
@@ -671,12 +651,8 @@ static int symbol_filter(struct map *map __maybe_unused, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	for (i = 0; skip_symbols[i]; i++) {
-		if (!strcmp(skip_symbols[i], name)) {
-			sym->ignore = true;
-			break;
-		}
-	}
+	if (symbol__is_idle(sym))
+		sym->ignore = true;
 
 	return 0;
 }
@@ -767,15 +743,10 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (al.sym == NULL || !al.sym->ignore) {
 		struct hist_entry *he;
 
-		if ((sort__has_parent || symbol_conf.use_callchain) &&
-		    sample->callchain) {
-			err = machine__resolve_callchain(machine, evsel,
-							 al.thread, sample,
-							 &parent, &al,
-							 top->max_stack);
-			if (err)
-				return;
-		}
+		err = sample__resolve_callchain(sample, &parent, evsel, &al,
+						top->max_stack);
+		if (err)
+			return;
 
 		he = perf_evsel__add_hist_entry(evsel, &al, sample);
 		if (he == NULL) {
@@ -783,12 +754,9 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			return;
 		}
 
-		if (symbol_conf.use_callchain) {
-			err = callchain_append(he->callchain, &callchain_cursor,
-					       sample->period);
-			if (err)
-				return;
-		}
+		err = hist_entry__append_callchain(he, sample);
+		if (err)
+			return;
 
 		if (sort__has_sym)
 			perf_top__record_precise_ip(top, he, evsel->idx, ip);
@@ -878,11 +846,11 @@ static int perf_top__start_counters(struct perf_top *top)
 	char msg[512];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
-	struct perf_record_opts *opts = &top->record_opts;
+	struct record_opts *opts = &top->record_opts;
 
 	perf_evlist__config(evlist, opts);
 
-	list_for_each_entry(counter, &evlist->entries, node) {
+	evlist__for_each(evlist, counter) {
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
@@ -930,7 +898,7 @@ static int perf_top__setup_sample_type(struct perf_top *top __maybe_unused)
 
 static int __cmd_top(struct perf_top *top)
 {
-	struct perf_record_opts *opts = &top->record_opts;
+	struct record_opts *opts = &top->record_opts;
 	pthread_t thread;
 	int ret;
 
@@ -1052,7 +1020,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		.max_stack	     = PERF_MAX_STACK_DEPTH,
 		.sym_pcnt_filter     = 5,
 	};
-	struct perf_record_opts *opts = &top.record_opts;
+	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
 	const struct option options[] = {
 	OPT_CALLBACK('e', "event", &top.evlist, "event",
@@ -1084,7 +1052,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 			    "dump the symbol table used for profiling"),
 	OPT_INTEGER('f', "count-filter", &top.count_filter,
 		    "only display functions with more events than this"),
-	OPT_BOOLEAN('g', "group", &opts->group,
+	OPT_BOOLEAN(0, "group", &opts->group,
 			    "put the counters into a counter group"),
 	OPT_BOOLEAN('i', "no-inherit", &opts->no_inherit,
 		    "child tasks do not inherit counters"),
@@ -1105,7 +1073,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		   " abort, in_tx, transaction"),
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
 		    "Show a column with the number of samples"),
-	OPT_CALLBACK_NOOPT('G', NULL, &top.record_opts,
+	OPT_CALLBACK_NOOPT('g', NULL, &top.record_opts,
 			   NULL, "enables call-graph recording",
 			   &callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &top.record_opts,
@@ -1195,7 +1163,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!top.evlist->nr_entries &&
 	    perf_evlist__add_default(top.evlist) < 0) {
 		ui__error("Not enough memory for event selector list\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	symbol_conf.nr_events = top.evlist->nr_entries;
@@ -1203,9 +1171,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (top.delay_secs < 1)
 		top.delay_secs = 1;
 
-	if (perf_record_opts__config(opts)) {
+	if (record_opts__config(opts)) {
 		status = -EINVAL;
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	top.sym_evsel = perf_evlist__first(top.evlist);
@@ -1230,8 +1198,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	status = __cmd_top(&top);
 
-out_delete_maps:
-	perf_evlist__delete_maps(top.evlist);
 out_delete_evlist:
 	perf_evlist__delete(top.evlist);
 

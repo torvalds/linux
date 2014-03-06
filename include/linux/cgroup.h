@@ -21,6 +21,7 @@
 #include <linux/xattr.h>
 #include <linux/fs.h>
 #include <linux/percpu-refcount.h>
+#include <linux/seq_file.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -28,8 +29,6 @@ struct cgroupfs_root;
 struct cgroup_subsys;
 struct inode;
 struct cgroup;
-struct css_id;
-struct eventfd_ctx;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
@@ -79,8 +78,6 @@ struct cgroup_subsys_state {
 	struct cgroup_subsys_state *parent;
 
 	unsigned long flags;
-	/* ID for this css, if possible */
-	struct css_id __rcu *id;
 
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
@@ -239,10 +236,6 @@ struct cgroup {
 	struct rcu_head rcu_head;
 	struct work_struct destroy_work;
 
-	/* List of events which userspace want to receive */
-	struct list_head event_list;
-	spinlock_t event_list_lock;
-
 	/* directory xattrs */
 	struct simple_xattrs xattrs;
 };
@@ -279,6 +272,9 @@ enum {
 	 *
 	 * - "tasks" is removed.  Everything should be at process
 	 *   granularity.  Use "cgroup.procs" instead.
+	 *
+	 * - "cgroup.procs" is not sorted.  pids will be unique unless they
+	 *   got recycled inbetween reads.
 	 *
 	 * - "release_agent" and "notify_on_release" are removed.
 	 *   Replacement notification mechanism will be implemented.
@@ -319,9 +315,6 @@ struct cgroupfs_root {
 
 	/* Unique id for this hierarchy. */
 	int hierarchy_id;
-
-	/* A list running through the attached subsystems */
-	struct list_head subsys_list;
 
 	/* The root cgroup for this hierarchy */
 	struct cgroup top_cgroup;
@@ -389,16 +382,6 @@ struct css_set {
 };
 
 /*
- * cgroup_map_cb is an abstract callback API for reporting map-valued
- * control files
- */
-
-struct cgroup_map_cb {
-	int (*fill)(struct cgroup_map_cb *cb, const char *key, u64 value);
-	void *state;
-};
-
-/*
  * struct cftype: handler definitions for cgroup control files
  *
  * When reading/writing to a file:
@@ -445,10 +428,6 @@ struct cftype {
 	 */
 	struct cgroup_subsys *ss;
 
-	int (*open)(struct inode *inode, struct file *file);
-	ssize_t (*read)(struct cgroup_subsys_state *css, struct cftype *cft,
-			struct file *file,
-			char __user *buf, size_t nbytes, loff_t *ppos);
 	/*
 	 * read_u64() is a shortcut for the common case of returning a
 	 * single integer. Use it in place of read()
@@ -458,24 +437,14 @@ struct cftype {
 	 * read_s64() is a signed version of read_u64()
 	 */
 	s64 (*read_s64)(struct cgroup_subsys_state *css, struct cftype *cft);
-	/*
-	 * read_map() is used for defining a map of key/value
-	 * pairs. It should call cb->fill(cb, key, value) for each
-	 * entry. The key/value pairs (and their ordering) should not
-	 * change between reboots.
-	 */
-	int (*read_map)(struct cgroup_subsys_state *css, struct cftype *cft,
-			struct cgroup_map_cb *cb);
-	/*
-	 * read_seq_string() is used for outputting a simple sequence
-	 * using seqfile.
-	 */
-	int (*read_seq_string)(struct cgroup_subsys_state *css,
-			       struct cftype *cft, struct seq_file *m);
 
-	ssize_t (*write)(struct cgroup_subsys_state *css, struct cftype *cft,
-			 struct file *file,
-			 const char __user *buf, size_t nbytes, loff_t *ppos);
+	/* generic seq_file read interface */
+	int (*seq_show)(struct seq_file *sf, void *v);
+
+	/* optional ops, implement all or none */
+	void *(*seq_start)(struct seq_file *sf, loff_t *ppos);
+	void *(*seq_next)(struct seq_file *sf, void *v, loff_t *ppos);
+	void (*seq_stop)(struct seq_file *sf, void *v);
 
 	/*
 	 * write_u64() is a shortcut for the common case of accepting
@@ -504,27 +473,6 @@ struct cftype {
 	 * kick type for multiplexing.
 	 */
 	int (*trigger)(struct cgroup_subsys_state *css, unsigned int event);
-
-	int (*release)(struct inode *inode, struct file *file);
-
-	/*
-	 * register_event() callback will be used to add new userspace
-	 * waiter for changes related to the cftype. Implement it if
-	 * you want to provide this functionality. Use eventfd_signal()
-	 * on eventfd to send notification to userspace.
-	 */
-	int (*register_event)(struct cgroup_subsys_state *css,
-			      struct cftype *cft, struct eventfd_ctx *eventfd,
-			      const char *args);
-	/*
-	 * unregister_event() callback will be called when userspace
-	 * closes the eventfd or on cgroup removing.
-	 * This callback must be implemented, if you want provide
-	 * notification functionality.
-	 */
-	void (*unregister_event)(struct cgroup_subsys_state *css,
-				 struct cftype *cft,
-				 struct eventfd_ctx *eventfd);
 };
 
 /*
@@ -535,6 +483,26 @@ struct cftype {
 struct cftype_set {
 	struct list_head		node;	/* chained at subsys->cftsets */
 	struct cftype			*cfts;
+};
+
+/*
+ * cgroupfs file entry, pointed to from leaf dentry->d_fsdata.  Don't
+ * access directly.
+ */
+struct cfent {
+	struct list_head		node;
+	struct dentry			*dentry;
+	struct cftype			*type;
+	struct cgroup_subsys_state	*css;
+
+	/* file xattrs */
+	struct simple_xattrs		xattrs;
+};
+
+/* seq_file->private points to the following, only ->priv is public */
+struct cgroup_open_file {
+	struct cfent			*cfe;
+	void				*priv;
 };
 
 /*
@@ -550,6 +518,18 @@ static inline bool cgroup_sane_behavior(const struct cgroup *cgrp)
 static inline const char *cgroup_name(const struct cgroup *cgrp)
 {
 	return rcu_dereference(cgrp->name)->name;
+}
+
+static inline struct cgroup_subsys_state *seq_css(struct seq_file *seq)
+{
+	struct cgroup_open_file *of = seq->private;
+	return of->cfe->css;
+}
+
+static inline struct cftype *seq_cft(struct seq_file *seq)
+{
+	struct cgroup_open_file *of = seq->private;
+	return of->cfe->type;
 }
 
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
@@ -631,12 +611,8 @@ struct cgroup_subsys {
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
-	/*
-	 * Link to parent, and list entry in parent's children.
-	 * Protected by cgroup_lock()
-	 */
+	/* link to parent, protected by cgroup_lock() */
 	struct cgroupfs_root *root;
-	struct list_head sibling;
 
 	/* list of cftype_sets */
 	struct list_head cftsets;

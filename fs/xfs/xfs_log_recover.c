@@ -1654,6 +1654,7 @@ xlog_recover_reorder_trans(
 	int			pass)
 {
 	xlog_recover_item_t	*item, *n;
+	int			error = 0;
 	LIST_HEAD(sort_list);
 	LIST_HEAD(cancel_list);
 	LIST_HEAD(buffer_list);
@@ -1695,9 +1696,17 @@ xlog_recover_reorder_trans(
 				"%s: unrecognized type of log operation",
 				__func__);
 			ASSERT(0);
-			return XFS_ERROR(EIO);
+			/*
+			 * return the remaining items back to the transaction
+			 * item list so they can be freed in caller.
+			 */
+			if (!list_empty(&sort_list))
+				list_splice_init(&sort_list, &trans->r_itemq);
+			error = XFS_ERROR(EIO);
+			goto out;
 		}
 	}
+out:
 	ASSERT(list_empty(&sort_list));
 	if (!list_empty(&buffer_list))
 		list_splice(&buffer_list, &trans->r_itemq);
@@ -1707,7 +1716,7 @@ xlog_recover_reorder_trans(
 		list_splice_tail(&inode_buffer_list, &trans->r_itemq);
 	if (!list_empty(&cancel_list))
 		list_splice_tail(&cancel_list, &trans->r_itemq);
-	return 0;
+	return error;
 }
 
 /*
@@ -2517,19 +2526,19 @@ xlog_recover_buffer_pass2(
 	 *
 	 * Also make sure that only inode buffers with good sizes stay in
 	 * the buffer cache.  The kernel moves inodes in buffers of 1 block
-	 * or XFS_INODE_CLUSTER_SIZE bytes, whichever is bigger.  The inode
+	 * or mp->m_inode_cluster_size bytes, whichever is bigger.  The inode
 	 * buffers in the log can be a different size if the log was generated
 	 * by an older kernel using unclustered inode buffers or a newer kernel
 	 * running with a different inode cluster size.  Regardless, if the
-	 * the inode buffer size isn't MAX(blocksize, XFS_INODE_CLUSTER_SIZE)
-	 * for *our* value of XFS_INODE_CLUSTER_SIZE, then we need to keep
+	 * the inode buffer size isn't MAX(blocksize, mp->m_inode_cluster_size)
+	 * for *our* value of mp->m_inode_cluster_size, then we need to keep
 	 * the buffer out of the buffer cache so that the buffer won't
 	 * overlap with future reads of those inodes.
 	 */
 	if (XFS_DINODE_MAGIC ==
 	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
 	    (BBTOB(bp->b_io_length) != MAX(log->l_mp->m_sb.sb_blocksize,
-			(__uint32_t)XFS_INODE_CLUSTER_SIZE(log->l_mp)))) {
+			(__uint32_t)log->l_mp->m_inode_cluster_size))) {
 		xfs_buf_stale(bp);
 		error = xfs_bwrite(bp);
 	} else {
@@ -3202,10 +3211,10 @@ xlog_recover_do_icreate_pass2(
 	}
 
 	/* existing allocation is fixed value */
-	ASSERT(count == XFS_IALLOC_INODES(mp));
-	ASSERT(length == XFS_IALLOC_BLOCKS(mp));
-	if (count != XFS_IALLOC_INODES(mp) ||
-	     length != XFS_IALLOC_BLOCKS(mp)) {
+	ASSERT(count == mp->m_ialloc_inos);
+	ASSERT(length == mp->m_ialloc_blks);
+	if (count != mp->m_ialloc_inos ||
+	     length != mp->m_ialloc_blks) {
 		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad count 2");
 		return EINVAL;
 	}
@@ -3611,8 +3620,10 @@ xlog_recover_process_data(
 				error = XFS_ERROR(EIO);
 				break;
 			}
-			if (error)
+			if (error) {
+				xlog_recover_free_trans(trans);
 				return error;
+			}
 		}
 		dp += be32_to_cpu(ohead->oh_len);
 		num_logops--;

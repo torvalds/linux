@@ -667,14 +667,16 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		gfn = (fault_ipa & PMD_MASK) >> PAGE_SHIFT;
 	} else {
 		/*
-		 * Pages belonging to VMAs not aligned to the PMD mapping
-		 * granularity cannot be mapped using block descriptors even
-		 * if the pages belong to a THP for the process, because the
-		 * stage-2 block descriptor will cover more than a single THP
-		 * and we loose atomicity for unmapping, updates, and splits
-		 * of the THP or other pages in the stage-2 block range.
+		 * Pages belonging to memslots that don't have the same
+		 * alignment for userspace and IPA cannot be mapped using
+		 * block descriptors even if the pages belong to a THP for
+		 * the process, because the stage-2 block descriptor will
+		 * cover more than a single THP and we loose atomicity for
+		 * unmapping, updates, and splits of the THP or other pages
+		 * in the stage-2 block range.
 		 */
-		if (vma->vm_start & ~PMD_MASK)
+		if ((memslot->userspace_addr & ~PMD_MASK) !=
+		    ((memslot->base_gfn << PAGE_SHIFT) & ~PMD_MASK))
 			force_pte = true;
 	}
 	up_read(&current->mm->mmap_sem);
@@ -916,9 +918,9 @@ int kvm_mmu_init(void)
 {
 	int err;
 
-	hyp_idmap_start = virt_to_phys(__hyp_idmap_text_start);
-	hyp_idmap_end = virt_to_phys(__hyp_idmap_text_end);
-	hyp_idmap_vector = virt_to_phys(__kvm_hyp_init);
+	hyp_idmap_start = kvm_virt_to_phys(__hyp_idmap_text_start);
+	hyp_idmap_end = kvm_virt_to_phys(__hyp_idmap_text_end);
+	hyp_idmap_vector = kvm_virt_to_phys(__kvm_hyp_init);
 
 	if ((hyp_idmap_start ^ hyp_idmap_end) & PAGE_MASK) {
 		/*
@@ -945,7 +947,7 @@ int kvm_mmu_init(void)
 		 */
 		kvm_flush_dcache_to_poc(init_bounce_page, len);
 
-		phys_base = virt_to_phys(init_bounce_page);
+		phys_base = kvm_virt_to_phys(init_bounce_page);
 		hyp_idmap_vector += phys_base - hyp_idmap_start;
 		hyp_idmap_start = phys_base;
 		hyp_idmap_end = phys_base + len;

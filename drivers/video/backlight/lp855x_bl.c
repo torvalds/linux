@@ -125,7 +125,7 @@ static bool lp855x_is_valid_rom_area(struct lp855x *lp, u8 addr)
 		return false;
 	}
 
-	return (addr >= start && addr <= end);
+	return addr >= start && addr <= end;
 }
 
 static int lp8557_bl_off(struct lp855x *lp)

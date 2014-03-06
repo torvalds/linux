@@ -29,6 +29,8 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -88,6 +90,8 @@ static void isp1704_charger_set_power(struct isp1704_charger *isp, bool on)
 
 	if (board && board->set_power)
 		board->set_power(on);
+	else if (board)
+		gpio_set_value(board->enable_gpio, on);
 }
 
 /*
@@ -400,12 +404,47 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	struct isp1704_charger	*isp;
 	int			ret = -ENODEV;
 
+	struct isp1704_charger_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
+
+	if (np) {
+		int gpio = of_get_named_gpio(np, "nxp,enable-gpio", 0);
+
+		if (gpio < 0)
+			return gpio;
+
+		pdata = devm_kzalloc(&pdev->dev,
+			sizeof(struct isp1704_charger_data), GFP_KERNEL);
+		pdata->enable_gpio = gpio;
+
+		dev_info(&pdev->dev, "init gpio %d\n", pdata->enable_gpio);
+
+		ret = devm_gpio_request_one(&pdev->dev, pdata->enable_gpio,
+					GPIOF_OUT_INIT_HIGH, "isp1704_reset");
+		if (ret)
+			goto fail0;
+	}
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "missing platform data!\n");
+		return -ENODEV;
+	}
+
+
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
 		return -ENOMEM;
 
-	isp->phy = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(isp->phy))
+	if (np)
+		isp->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
+	else
+		isp->phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
+
+	if (IS_ERR(isp->phy)) {
+		ret = PTR_ERR(isp->phy);
+		goto fail0;
+	}
+	if (!isp->phy)
 		goto fail0;
 
 	isp->dev = &pdev->dev;
@@ -464,7 +503,6 @@ fail2:
 	power_supply_unregister(&isp->psy);
 fail1:
 	isp1704_charger_set_power(isp, 0);
-	usb_put_phy(isp->phy);
 fail0:
 	dev_err(&pdev->dev, "failed to register isp1704 with error %d\n", ret);
 
@@ -477,15 +515,23 @@ static int isp1704_charger_remove(struct platform_device *pdev)
 
 	usb_unregister_notifier(isp->phy, &isp->nb);
 	power_supply_unregister(&isp->psy);
-	usb_put_phy(isp->phy);
 	isp1704_charger_set_power(isp, 0);
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id omap_isp1704_of_match[] = {
+	{ .compatible = "nxp,isp1704", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_isp1704_of_match);
+#endif
+
 static struct platform_driver isp1704_charger_driver = {
 	.driver = {
 		.name = "isp1704_charger",
+		.of_match_table = of_match_ptr(omap_isp1704_of_match),
 	},
 	.probe = isp1704_charger_probe,
 	.remove = isp1704_charger_remove,

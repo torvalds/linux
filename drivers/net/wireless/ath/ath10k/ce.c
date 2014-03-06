@@ -243,6 +243,16 @@ static inline void ath10k_ce_error_intr_enable(struct ath10k *ar,
 			   misc_ie_addr | CE_ERROR_MASK);
 }
 
+static inline void ath10k_ce_error_intr_disable(struct ath10k *ar,
+						u32 ce_ctrl_addr)
+{
+	u32 misc_ie_addr = ath10k_pci_read32(ar,
+					     ce_ctrl_addr + MISC_IE_ADDRESS);
+
+	ath10k_pci_write32(ar, ce_ctrl_addr + MISC_IE_ADDRESS,
+			   misc_ie_addr & ~CE_ERROR_MASK);
+}
+
 static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
 						     u32 ce_ctrl_addr,
 						     unsigned int mask)
@@ -731,7 +741,6 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 
 void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ce_id, ret;
 	u32 intr_summary;
 
@@ -741,7 +750,7 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 
 	intr_summary = CE_INTERRUPT_SUMMARY(ar);
 
-	for (ce_id = 0; intr_summary && (ce_id < ar_pci->ce_count); ce_id++) {
+	for (ce_id = 0; intr_summary && (ce_id < CE_COUNT); ce_id++) {
 		if (intr_summary & (1 << ce_id))
 			intr_summary &= ~(1 << ce_id);
 		else
@@ -783,22 +792,25 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 	ath10k_pci_sleep(ar);
 }
 
-void ath10k_ce_disable_interrupts(struct ath10k *ar)
+int ath10k_ce_disable_interrupts(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ce_id, ret;
 
 	ret = ath10k_pci_wake(ar);
 	if (ret)
-		return;
+		return ret;
 
-	for (ce_id = 0; ce_id < ar_pci->ce_count; ce_id++) {
-		struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
-		u32 ctrl_addr = ce_state->ctrl_addr;
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
+		u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
+		ath10k_ce_error_intr_disable(ar, ctrl_addr);
+		ath10k_ce_watermark_intr_disable(ar, ctrl_addr);
 	}
+
 	ath10k_pci_sleep(ar);
+
+	return 0;
 }
 
 void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
@@ -1047,8 +1059,18 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 				const struct ce_attr *attr)
 {
 	struct ath10k_ce_pipe *ce_state;
-	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 	int ret;
+
+	/*
+	 * Make sure there's enough CE ringbuffer entries for HTT TX to avoid
+	 * additional TX locking checks.
+	 *
+	 * For the lack of a better place do the check here.
+	 */
+	BUILD_BUG_ON(TARGET_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
+	BUILD_BUG_ON(TARGET_10X_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 
 	ret = ath10k_pci_wake(ar);
 	if (ret)
@@ -1057,7 +1079,7 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 	ce_state = ath10k_ce_init_state(ar, ce_id, attr);
 	if (!ce_state) {
 		ath10k_err("Failed to initialize CE state for ID: %d\n", ce_id);
-		return NULL;
+		goto out;
 	}
 
 	if (attr->src_nentries) {
@@ -1066,7 +1088,8 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 			ath10k_err("Failed to initialize CE src ring for ID: %d (%d)\n",
 				   ce_id, ret);
 			ath10k_ce_deinit(ce_state);
-			return NULL;
+			ce_state = NULL;
+			goto out;
 		}
 	}
 
@@ -1076,15 +1099,13 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 			ath10k_err("Failed to initialize CE dest ring for ID: %d (%d)\n",
 				   ce_id, ret);
 			ath10k_ce_deinit(ce_state);
-			return NULL;
+			ce_state = NULL;
+			goto out;
 		}
 	}
 
-	/* Enable CE error interrupts */
-	ath10k_ce_error_intr_enable(ar, ctrl_addr);
-
+out:
 	ath10k_pci_sleep(ar);
-
 	return ce_state;
 }
 

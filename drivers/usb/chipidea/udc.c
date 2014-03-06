@@ -393,6 +393,14 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 	node->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
 	node->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
 	node->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
+	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == TX) {
+		u32 mul = hwreq->req.length / hwep->ep.maxpacket;
+
+		if (hwreq->req.length == 0
+				|| hwreq->req.length % hwep->ep.maxpacket)
+			mul++;
+		node->ptr->token |= mul << __ffs(TD_MULTO);
+	}
 
 	temp = (u32) (hwreq->req.dma + hwreq->req.actual);
 	if (length) {
@@ -515,10 +523,11 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
 
-	if (hwep->type == USB_ENDPOINT_XFER_ISOC) {
+	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == RX) {
 		u32 mul = hwreq->req.length / hwep->ep.maxpacket;
 
-		if (hwreq->req.length % hwep->ep.maxpacket)
+		if (hwreq->req.length == 0
+				|| hwreq->req.length % hwep->ep.maxpacket)
 			mul++;
 		hwep->qh.ptr->cap |= mul << __ffs(QH_MULT);
 	}
@@ -1173,6 +1182,12 @@ static int ep_enable(struct usb_ep *ep,
 	if (hwep->num)
 		cap |= QH_ZLT;
 	cap |= (hwep->ep.maxpacket << __ffs(QH_MAX_PKT)) & QH_MAX_PKT;
+	/*
+	 * For ISO-TX, we set mult at QH as the largest value, and use
+	 * MultO at TD as real mult value.
+	 */
+	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == TX)
+		cap |= 3 << __ffs(QH_MULT);
 
 	hwep->qh.ptr->cap = cpu_to_le32(cap);
 
@@ -1566,7 +1581,7 @@ static int init_eps(struct ci_hdrc *ci)
 			 * eps, maxP is set by epautoconfig() called
 			 * by gadget layer
 			 */
-			hwep->ep.maxpacket = (unsigned short)~0;
+			usb_ep_set_maxpacket_limit(&hwep->ep, (unsigned short)~0);
 
 			INIT_LIST_HEAD(&hwep->qh.queue);
 			hwep->qh.ptr = dma_pool_alloc(ci->qh_pool, GFP_KERNEL,
@@ -1586,7 +1601,7 @@ static int init_eps(struct ci_hdrc *ci)
 				else
 					ci->ep0in = hwep;
 
-				hwep->ep.maxpacket = CTRL_PAYLOAD_MAX;
+				usb_ep_set_maxpacket_limit(&hwep->ep, CTRL_PAYLOAD_MAX);
 				continue;
 			}
 

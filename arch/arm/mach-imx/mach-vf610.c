@@ -26,7 +26,7 @@ static void __init vf610_init_irq(void)
 	irqchip_init();
 }
 
-static const char *vf610_dt_compat[] __initdata = {
+static const char *vf610_dt_compat[] __initconst = {
 	"fsl,vf610",
 	NULL,
 };

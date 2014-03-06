@@ -27,6 +27,8 @@ void blk_mq_complete_request(struct request *rq, int error);
 void blk_mq_run_request(struct request *rq, bool run_queue, bool async);
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
 void blk_mq_init_flush(struct request_queue *q);
+void blk_mq_drain_queue(struct request_queue *q);
+void blk_mq_free_queue(struct request_queue *q);
 
 /*
  * CPU hotplug helpers
@@ -38,7 +40,6 @@ void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
 void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
 void blk_mq_unregister_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
 void blk_mq_cpu_init(void);
-DECLARE_PER_CPU(struct llist_head, ipi_lists);
 
 /*
  * CPU -> queue mappings

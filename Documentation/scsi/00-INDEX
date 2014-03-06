@@ -42,8 +42,6 @@ aic79xx.txt
 	- Adaptec Ultra320 SCSI host adapters
 aic7xxx.txt
 	- info on driver for Adaptec controllers
-aic7xxx_old.txt
-	- info on driver for Adaptec controllers, old generation
 arcmsr_spec.txt
 	- ARECA FIRMWARE SPEC (for IOP331 adapter)
 dc395x.txt

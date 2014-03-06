@@ -266,7 +266,7 @@ int sis_idle(struct drm_device *dev)
 	 * because its polling frequency is too low.
 	 */
 
-	end = jiffies + (DRM_HZ * 3);
+	end = jiffies + (HZ * 3);
 
 	for (i = 0; i < 4; ++i) {
 		do {

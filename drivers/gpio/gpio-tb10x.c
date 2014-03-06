@@ -222,7 +222,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	tb10x_gpio->gc.free		= tb10x_gpio_free;
 	tb10x_gpio->gc.base		= -1;
 	tb10x_gpio->gc.ngpio		= ngpio;
-	tb10x_gpio->gc.can_sleep	= 0;
+	tb10x_gpio->gc.can_sleep	= false;
 
 
 	ret = gpiochip_add(&tb10x_gpio->gc);
@@ -318,7 +318,7 @@ static struct platform_driver tb10x_gpio_driver = {
 	.remove		= tb10x_gpio_remove,
 	.driver = {
 		.name	= "tb10x-gpio",
-		.of_match_table = of_match_ptr(tb10x_gpio_dt_ids),
+		.of_match_table = tb10x_gpio_dt_ids,
 		.owner	= THIS_MODULE,
 	}
 };

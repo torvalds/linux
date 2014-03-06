@@ -490,10 +490,10 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 					struct ceph_options *opt)
 {
 	struct ceph_fs_client *fsc;
-	const unsigned supported_features =
+	const u64 supported_features =
 		CEPH_FEATURE_FLOCK |
 		CEPH_FEATURE_DIRLAYOUTHASH;
-	const unsigned required_features = 0;
+	const u64 required_features = 0;
 	int page_count;
 	size_t size;
 	int err = -ENOMEM;
@@ -686,6 +686,7 @@ static const struct super_operations ceph_super_ops = {
 	.alloc_inode	= ceph_alloc_inode,
 	.destroy_inode	= ceph_destroy_inode,
 	.write_inode    = ceph_write_inode,
+	.drop_inode	= ceph_drop_inode,
 	.sync_fs        = ceph_sync_fs,
 	.put_super	= ceph_put_super,
 	.show_options   = ceph_show_options,
@@ -818,7 +819,11 @@ static int ceph_set_super(struct super_block *s, void *data)
 
 	s->s_flags = fsc->mount_options->sb_flags;
 	s->s_maxbytes = 1ULL << 40;  /* temp value until we get mdsmap */
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	s->s_flags |= MS_POSIXACL;
+#endif
 
+	s->s_xattr = ceph_xattr_handlers;
 	s->s_fs_info = fsc;
 	fsc->sb = s;
 

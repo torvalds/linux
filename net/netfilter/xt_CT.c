@@ -211,8 +211,10 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	ret = 0;
 	if ((info->ct_events || info->exp_events) &&
 	    !nf_ct_ecache_ext_add(ct, info->ct_events, info->exp_events,
-				  GFP_KERNEL))
+				  GFP_KERNEL)) {
+		ret = -EINVAL;
 		goto err3;
+	}
 
 	if (info->helper[0]) {
 		ret = xt_ct_set_helper(ct, info->helper, par);

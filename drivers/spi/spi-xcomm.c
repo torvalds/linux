@@ -231,20 +231,11 @@ static int spi_xcomm_probe(struct i2c_client *i2c,
 	master->dev.of_node = i2c->dev.of_node;
 	i2c_set_clientdata(i2c, master);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&i2c->dev, master);
 	if (ret < 0)
 		spi_master_put(master);
 
 	return ret;
-}
-
-static int spi_xcomm_remove(struct i2c_client *i2c)
-{
-	struct spi_master *master = i2c_get_clientdata(i2c);
-
-	spi_unregister_master(master);
-
-	return 0;
 }
 
 static const struct i2c_device_id spi_xcomm_ids[] = {
@@ -259,7 +250,6 @@ static struct i2c_driver spi_xcomm_driver = {
 	},
 	.id_table	= spi_xcomm_ids,
 	.probe		= spi_xcomm_probe,
-	.remove		= spi_xcomm_remove,
 };
 module_i2c_driver(spi_xcomm_driver);
 

@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 #include "iwl-io.h"
@@ -368,6 +367,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		goto drop_unlock_priv;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	dev_cmd->hdr.cmd = REPLY_TX;
 	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
 	/* Total # bytes to be transmitted */

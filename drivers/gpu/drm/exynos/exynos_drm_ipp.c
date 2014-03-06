@@ -335,7 +335,7 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 	} else {
 		/*
 		 * Getting ippdrv capability by ipp_id.
-		 * some deivce not supported wb, output interface.
+		 * some device not supported wb, output interface.
 		 * so, user application detect correct ipp driver
 		 * using this ioctl.
 		 */

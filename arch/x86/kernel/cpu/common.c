@@ -472,6 +472,7 @@ u16 __read_mostly tlb_lli_4m[NR_INFO];
 u16 __read_mostly tlb_lld_4k[NR_INFO];
 u16 __read_mostly tlb_lld_2m[NR_INFO];
 u16 __read_mostly tlb_lld_4m[NR_INFO];
+u16 __read_mostly tlb_lld_1g[NR_INFO];
 
 /*
  * tlb_flushall_shift shows the balance point in replacing cr3 write
@@ -486,13 +487,13 @@ void cpu_detect_tlb(struct cpuinfo_x86 *c)
 	if (this_cpu->c_detect_tlb)
 		this_cpu->c_detect_tlb(c);
 
-	printk(KERN_INFO "Last level iTLB entries: 4KB %d, 2MB %d, 4MB %d\n" \
-		"Last level dTLB entries: 4KB %d, 2MB %d, 4MB %d\n"	     \
+	printk(KERN_INFO "Last level iTLB entries: 4KB %d, 2MB %d, 4MB %d\n"
+		"Last level dTLB entries: 4KB %d, 2MB %d, 4MB %d, 1GB %d\n"
 		"tlb_flushall_shift: %d\n",
 		tlb_lli_4k[ENTRIES], tlb_lli_2m[ENTRIES],
 		tlb_lli_4m[ENTRIES], tlb_lld_4k[ENTRIES],
 		tlb_lld_2m[ENTRIES], tlb_lld_4m[ENTRIES],
-		tlb_flushall_shift);
+		tlb_lld_1g[ENTRIES], tlb_flushall_shift);
 }
 
 void detect_ht(struct cpuinfo_x86 *c)

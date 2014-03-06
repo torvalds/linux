@@ -506,7 +506,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 
 	/* get the board structure and prep it */
 	brd = dgap_Board[dgap_NumBoards] =
-	(struct board_t *) dgap_driver_kzmalloc(sizeof(struct board_t), GFP_KERNEL);
+	(struct board_t *) kzalloc(sizeof(struct board_t), GFP_KERNEL);
 	if (!brd) {
 		APR(("memory allocation for board structure failed\n"));
 		return(-ENOMEM);
@@ -514,7 +514,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 
 	/* make a temporary message buffer for the boot messages */
 	brd->msgbuf = brd->msgbuf_head =
-		(char *) dgap_driver_kzmalloc(sizeof(char) * 8192, GFP_KERNEL);
+		(char *) kzalloc(sizeof(char) * 8192, GFP_KERNEL);
 	if(!brd->msgbuf) {
 		kfree(brd);
 		APR(("memory allocation for board msgbuf failed\n"));
@@ -922,20 +922,6 @@ static void dgap_init_globals(void)
  * Utility functions
  *
  ************************************************************************/
-
-
-/*
- * dgap_driver_kzmalloc()
- *
- * Malloc and clear memory,
- */
-void *dgap_driver_kzmalloc(size_t size, int priority)
-{
- 	void *p = kmalloc(size, priority);
-	if(p)
-		memset(p, 0, size);
-	return(p);
-}
 
 
 /*

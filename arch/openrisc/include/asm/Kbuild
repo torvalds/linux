@@ -69,3 +69,4 @@ generic-y += vga.h
 generic-y += word-at-a-time.h
 generic-y += xor.h
 generic-y += preempt.h
+generic-y += hash.h

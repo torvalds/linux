@@ -18,6 +18,7 @@
 					interrupts = <31 0x0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_qt1070_irq>;
+					wakeup-source;
 				};
 			};
 

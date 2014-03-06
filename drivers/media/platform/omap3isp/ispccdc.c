@@ -1516,6 +1516,8 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 
 	if (ccdc_sbl_wait_idle(ccdc, 1000)) {
 		dev_info(isp->dev, "CCDC won't become idle!\n");
+		isp->crashed |= 1U << ccdc->subdev.entity.id;
+		omap3isp_pipeline_cancel_stream(pipe);
 		goto done;
 	}
 
@@ -2484,7 +2486,8 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 	v4l2_set_subdevdata(sd, ccdc);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
 
-	pads[CCDC_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CCDC_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 	pads[CCDC_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;
 	pads[CCDC_PAD_SOURCE_OF].flags = MEDIA_PAD_FL_SOURCE;
 

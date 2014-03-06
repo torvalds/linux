@@ -11,6 +11,8 @@
 #include "util/intlist.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "trace-event.h"
+#include "util/parse-events.h"
 
 #include <libaudit.h>
 #include <stdlib.h>
@@ -144,8 +146,7 @@ static int perf_evsel__init_tp_ptr_field(struct perf_evsel *evsel,
 
 static void perf_evsel__delete_priv(struct perf_evsel *evsel)
 {
-	free(evsel->priv);
-	evsel->priv = NULL;
+	zfree(&evsel->priv);
 	perf_evsel__delete(evsel);
 }
 
@@ -163,14 +164,17 @@ static int perf_evsel__init_syscall_tp(struct perf_evsel *evsel, void *handler)
 	return -ENOMEM;
 
 out_delete:
-	free(evsel->priv);
-	evsel->priv = NULL;
+	zfree(&evsel->priv);
 	return -ENOENT;
 }
 
 static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void *handler)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
+
+	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
+	if (evsel == NULL)
+		evsel = perf_evsel__newtp("syscalls", direction);
 
 	if (evsel) {
 		if (perf_evsel__init_syscall_tp(evsel, handler))
@@ -1153,29 +1157,30 @@ struct trace {
 		int		max;
 		struct syscall  *table;
 	} syscalls;
-	struct perf_record_opts opts;
+	struct record_opts	opts;
 	struct machine		*host;
 	u64			base_time;
-	bool			full_time;
 	FILE			*output;
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
-	bool			not_ev_qualifier;
-	bool			live;
 	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
+	double			duration_filter;
+	double			runtime_ms;
+	struct {
+		u64		vfs_getname,
+				proc_getname;
+	} stats;
+	bool			not_ev_qualifier;
+	bool			live;
+	bool			full_time;
 	bool			sched;
 	bool			multiple_threads;
 	bool			summary;
 	bool			summary_only;
 	bool			show_comm;
 	bool			show_tool_stats;
-	double			duration_filter;
-	double			runtime_ms;
-	struct {
-		u64		vfs_getname, proc_getname;
-	} stats;
 };
 
 static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
@@ -1272,10 +1277,8 @@ static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 	size_t printed = syscall_arg__scnprintf_fd(bf, size, arg);
 	struct thread_trace *ttrace = arg->thread->priv;
 
-	if (ttrace && fd >= 0 && fd <= ttrace->paths.max) {
-		free(ttrace->paths.table[fd]);
-		ttrace->paths.table[fd] = NULL;
-	}
+	if (ttrace && fd >= 0 && fd <= ttrace->paths.max)
+		zfree(&ttrace->paths.table[fd]);
 
 	return printed;
 }
@@ -1430,11 +1433,11 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	sc->fmt  = syscall_fmt__find(sc->name);
 
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
-	sc->tp_format = event_format__new("syscalls", tp_name);
+	sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 
 	if (sc->tp_format == NULL && sc->fmt && sc->fmt->alias) {
 		snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->fmt->alias);
-		sc->tp_format = event_format__new("syscalls", tp_name);
+		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
 	if (sc->tp_format == NULL)
@@ -1764,8 +1767,10 @@ static int trace__process_sample(struct perf_tool *tool,
 	if (!trace->full_time && trace->base_time == 0)
 		trace->base_time = sample->time;
 
-	if (handler)
+	if (handler) {
+		++trace->nr_events;
 		handler(trace, evsel, sample);
+	}
 
 	return err;
 }
@@ -1800,10 +1805,11 @@ static int trace__record(int argc, const char **argv)
 		"-R",
 		"-m", "1024",
 		"-c", "1",
-		"-e", "raw_syscalls:sys_enter,raw_syscalls:sys_exit",
+		"-e",
 	};
 
-	rec_argc = ARRAY_SIZE(record_args) + argc;
+	/* +1 is for the event string below */
+	rec_argc = ARRAY_SIZE(record_args) + 1 + argc;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
 	if (rec_argv == NULL)
@@ -1811,6 +1817,17 @@ static int trace__record(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = record_args[i];
+
+	/* event string may be different for older kernels - e.g., RHEL6 */
+	if (is_valid_tracepoint("raw_syscalls:sys_enter"))
+		rec_argv[i] = "raw_syscalls:sys_enter,raw_syscalls:sys_exit";
+	else if (is_valid_tracepoint("syscalls:sys_enter"))
+		rec_argv[i] = "syscalls:sys_enter,syscalls:sys_exit";
+	else {
+		pr_err("Neither raw_syscalls nor syscalls events exist.\n");
+		return -1;
+	}
+	i++;
 
 	for (j = 0; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
@@ -1869,7 +1886,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = trace__symbols_init(trace, evlist);
 	if (err < 0) {
 		fprintf(trace->output, "Problems initializing symbol libraries!\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__config(evlist, &trace->opts);
@@ -1879,10 +1896,10 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evlist, &trace->opts.target,
-						    argv, false, false);
+						    argv, false, NULL);
 		if (err < 0) {
 			fprintf(trace->output, "Couldn't run the workload!\n");
-			goto out_delete_maps;
+			goto out_delete_evlist;
 		}
 	}
 
@@ -1890,10 +1907,10 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_open;
 
-	err = perf_evlist__mmap(evlist, UINT_MAX, false);
+	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0) {
 		fprintf(trace->output, "Couldn't mmap the events: %s\n", strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__enable(evlist);
@@ -1977,11 +1994,6 @@ out_disable:
 		}
 	}
 
-	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
-out_delete_maps:
-	perf_evlist__delete_maps(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:
@@ -2047,6 +2059,10 @@ static int trace__replay(struct trace *trace)
 
 	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
 						     "raw_syscalls:sys_enter");
+	/* older kernels have syscalls tp versus raw_syscalls */
+	if (evsel == NULL)
+		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+							     "syscalls:sys_enter");
 	if (evsel == NULL) {
 		pr_err("Data file does not have raw_syscalls:sys_enter event\n");
 		goto out;
@@ -2060,6 +2076,9 @@ static int trace__replay(struct trace *trace)
 
 	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
 						     "raw_syscalls:sys_exit");
+	if (evsel == NULL)
+		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+							     "syscalls:sys_exit");
 	if (evsel == NULL) {
 		pr_err("Data file does not have raw_syscalls:sys_exit event\n");
 		goto out;
@@ -2158,7 +2177,6 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 	size_t printed = data->printed;
 	struct trace *trace = data->trace;
 	struct thread_trace *ttrace = thread->priv;
-	const char *color;
 	double ratio;
 
 	if (ttrace == NULL)
@@ -2166,17 +2184,9 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 
 	ratio = (double)ttrace->nr_events / trace->nr_events * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 50.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 25.0)
-		color = PERF_COLOR_GREEN;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
-
-	printed += color_fprintf(fp, color, " %s (%d), ", thread__comm_str(thread), thread->tid);
+	printed += fprintf(fp, " %s (%d), ", thread__comm_str(thread), thread->tid);
 	printed += fprintf(fp, "%lu events, ", ttrace->nr_events);
-	printed += color_fprintf(fp, color, "%.1f%%", ratio);
+	printed += fprintf(fp, "%.1f%%", ratio);
 	printed += fprintf(fp, ", %.3f msec\n", ttrace->runtime_ms);
 	printed += thread__dump_stats(ttrace, trace, fp);
 
@@ -2248,7 +2258,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			},
 			.user_freq     = UINT_MAX,
 			.user_interval = ULLONG_MAX,
-			.no_delay      = true,
+			.no_buffering  = true,
 			.mmap_pages    = 1024,
 		},
 		.output = stdout,

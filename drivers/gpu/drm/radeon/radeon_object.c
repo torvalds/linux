@@ -46,7 +46,7 @@ static void radeon_bo_clear_surface_reg(struct radeon_bo *bo);
  * function are calling it.
  */
 
-void radeon_bo_clear_va(struct radeon_bo *bo)
+static void radeon_bo_clear_va(struct radeon_bo *bo)
 {
 	struct radeon_bo_va *bo_va, *tmp;
 

@@ -140,6 +140,8 @@ struct mlx4_func_cap {
 	u32	qp1_proxy_qpn;
 	u8	physical_port;
 	u8	port_flags;
+	u8	flags1;
+	u64	phys_port_id;
 };
 
 struct mlx4_adapter {

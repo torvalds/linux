@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/init.h>
 #include <asm/cpuinfo.h>
 #include <asm/pvr.h>
@@ -39,6 +40,7 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 	{"8.30.a", 0x17},
 	{"8.40.a", 0x18},
 	{"8.40.b", 0x19},
+	{"8.50.a", 0x1a},
 	{"9.0", 0x1b},
 	{"9.1", 0x1d},
 	{NULL, 0},
@@ -68,11 +70,10 @@ const struct family_string_key family_string_lookup[] = {
 };
 
 struct cpuinfo cpuinfo;
+static struct device_node *cpu;
 
 void __init setup_cpuinfo(void)
 {
-	struct device_node *cpu = NULL;
-
 	cpu = (struct device_node *) of_find_node_by_type(NULL, "cpu");
 	if (!cpu)
 		pr_err("You don't have cpu!!!\n");
@@ -101,4 +102,23 @@ void __init setup_cpuinfo(void)
 	if (cpuinfo.mmu_privins)
 		pr_warn("%s: Stream instructions enabled"
 			" - USERSPACE CAN LOCK THIS KERNEL!\n", __func__);
+}
+
+void __init setup_cpuinfo_clk(void)
+{
+	struct clk *clk;
+
+	clk = of_clk_get(cpu, 0);
+	if (IS_ERR(clk)) {
+		pr_err("ERROR: CPU CCF input clock not found\n");
+		/* take timebase-frequency from DTS */
+		cpuinfo.cpu_clock_freq = fcpu(cpu, "timebase-frequency");
+	} else {
+		cpuinfo.cpu_clock_freq = clk_get_rate(clk);
+	}
+
+	if (!cpuinfo.cpu_clock_freq) {
+		pr_err("ERROR: CPU clock frequency not setup\n");
+		BUG();
+	}
 }

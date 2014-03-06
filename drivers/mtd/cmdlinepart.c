@@ -395,7 +395,8 @@ static int __init cmdline_parser_init(void)
 {
 	if (mtdparts)
 		mtdpart_setup(mtdparts);
-	return register_mtd_parser(&cmdline_parser);
+	register_mtd_parser(&cmdline_parser);
+	return 0;
 }
 
 static void __exit cmdline_parser_exit(void)

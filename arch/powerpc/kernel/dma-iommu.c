@@ -83,10 +83,10 @@ static int dma_iommu_dma_supported(struct device *dev, u64 mask)
 		return 0;
 	}
 
-	if (tbl->it_offset > (mask >> IOMMU_PAGE_SHIFT)) {
+	if (tbl->it_offset > (mask >> tbl->it_page_shift)) {
 		dev_info(dev, "Warning: IOMMU offset too big for device mask\n");
 		dev_info(dev, "mask: 0x%08llx, table offset: 0x%08lx\n",
-				mask, tbl->it_offset << IOMMU_PAGE_SHIFT);
+				mask, tbl->it_offset << tbl->it_page_shift);
 		return 0;
 	} else
 		return 1;

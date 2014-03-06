@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -1731,6 +1730,8 @@ sl811h_probe(struct platform_device *dev)
 	retval = usb_add_hcd(hcd, irq, irqflags);
 	if (retval != 0)
 		goto err6;
+
+	device_wakeup_enable(hcd->self.controller);
 
 	create_debug_file(sl811);
 	return retval;

@@ -7,16 +7,13 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
 #include <linux/platform_data/dma-ste-dma40.h>
 
-#include "devices.h"
 #include "irqs.h"
 #include <linux/platform_data/asoc-ux500-msp.h>
 
 #include "ste-dma40-db8500.h"
 #include "board-mop500.h"
-#include "devices-db8500.h"
 
 static struct stedma40_chan_cfg msp0_dma_rx = {
 	.high_priority = true,

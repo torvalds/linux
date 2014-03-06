@@ -90,6 +90,22 @@ void vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
+u32 vlv_bunit_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = 0;
+
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_BUNIT,
+			PUNIT_OPCODE_REG_READ, reg, &val);
+
+	return val;
+}
+
+void vlv_bunit_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
+{
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_BUNIT,
+			PUNIT_OPCODE_REG_WRITE, reg, &val);
+}
+
 u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr)
 {
 	u32 val = 0;
@@ -160,27 +176,18 @@ void vlv_gps_core_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
 			PUNIT_OPCODE_REG_WRITE, reg, &val);
 }
 
-static u32 vlv_get_phy_port(enum pipe pipe)
-{
-	u32 port = IOSF_PORT_DPIO;
-
-	WARN_ON ((pipe != PIPE_A) && (pipe != PIPE_B));
-
-	return port;
-}
-
 u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg)
 {
 	u32 val = 0;
 
-	vlv_sideband_rw(dev_priv, DPIO_DEVFN, vlv_get_phy_port(pipe),
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, DPIO_PHY_IOSF_PORT(DPIO_PHY(pipe)),
 			DPIO_OPCODE_REG_READ, reg, &val);
 	return val;
 }
 
 void vlv_dpio_write(struct drm_i915_private *dev_priv, enum pipe pipe, int reg, u32 val)
 {
-	vlv_sideband_rw(dev_priv, DPIO_DEVFN, vlv_get_phy_port(pipe),
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, DPIO_PHY_IOSF_PORT(DPIO_PHY(pipe)),
 			DPIO_OPCODE_REG_WRITE, reg, &val);
 }
 
@@ -241,4 +248,18 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 		DRM_ERROR("timeout waiting for SBI to complete write transaction\n");
 		return;
 	}
+}
+
+u32 vlv_flisdsi_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = 0;
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_FLISDSI,
+					DPIO_OPCODE_REG_READ, reg, &val);
+	return val;
+}
+
+void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
+{
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_FLISDSI,
+					DPIO_OPCODE_REG_WRITE, reg, &val);
 }

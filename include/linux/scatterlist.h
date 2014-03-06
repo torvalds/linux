@@ -345,6 +345,7 @@ struct sg_mapping_iter {
 
 void sg_miter_start(struct sg_mapping_iter *miter, struct scatterlist *sgl,
 		    unsigned int nents, unsigned int flags);
+bool sg_miter_skip(struct sg_mapping_iter *miter, off_t offset);
 bool sg_miter_next(struct sg_mapping_iter *miter);
 void sg_miter_stop(struct sg_mapping_iter *miter);
 

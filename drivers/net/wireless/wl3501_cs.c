@@ -29,7 +29,6 @@
 
 #include <linux/delay.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
@@ -44,6 +43,7 @@
 #include <linux/string.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
+#include <linux/etherdevice.h>
 
 #include <net/iw_handler.h>
 
@@ -673,8 +673,7 @@ static void wl3501_mgmt_scan_confirm(struct wl3501_card *this, u16 addr)
 				matchflag = 1;
 			if (matchflag) {
 				for (i = 0; i < this->bss_cnt; i++) {
-					if (!memcmp(this->bss_set[i].bssid,
-						    sig.bssid, ETH_ALEN)) {
+					if (ether_addr_equal_unaligned(this->bss_set[i].bssid, sig.bssid)) {
 						matchflag = 0;
 						break;
 					}

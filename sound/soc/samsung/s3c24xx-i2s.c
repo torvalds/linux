@@ -24,6 +24,8 @@
 #include <sound/pcm_params.h>
 
 #include <mach/dma.h>
+#include <mach/gpio-samsung.h>
+#include <plat/gpio-cfg.h>
 #include "regs-iis.h"
 
 #include "dma.h"

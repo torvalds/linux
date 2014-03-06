@@ -60,6 +60,10 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	rq->rq_disk = bd_disk;
 	rq->end_io = done;
 
+	/*
+	 * don't check dying flag for MQ because the request won't
+	 * be resued after dying flag is set
+	 */
 	if (q->mq_ops) {
 		blk_mq_insert_request(q, rq, true);
 		return;

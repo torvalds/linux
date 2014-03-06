@@ -1071,7 +1071,7 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
 /*
  * Increment the seqid if the OPEN/OPEN_DOWNGRADE/CLOSE succeeded, or
  * failed with a seqid incrementing error -
- * see comments nfs_fs.h:seqid_mutating_error()
+ * see comments nfs4.h:seqid_mutating_error()
  */
 static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 {
@@ -1116,7 +1116,7 @@ void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
 /*
  * Increment the seqid if the LOCK/LOCKU succeeded, or
  * failed with a seqid incrementing error -
- * see comments nfs_fs.h:seqid_mutating_error()
+ * see comments nfs4.h:seqid_mutating_error()
  */
 void nfs_increment_lock_seqid(int status, struct nfs_seqid *seqid)
 {

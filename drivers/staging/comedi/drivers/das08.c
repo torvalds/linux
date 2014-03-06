@@ -120,46 +120,49 @@
 
 /* gainlist same as _pgx_ below */
 
-static const struct comedi_lrange range_das08_pgl = { 9, {
-							  BIP_RANGE(10),
-							  BIP_RANGE(5),
-							  BIP_RANGE(2.5),
-							  BIP_RANGE(1.25),
-							  BIP_RANGE(0.625),
-							  UNI_RANGE(10),
-							  UNI_RANGE(5),
-							  UNI_RANGE(2.5),
-							  UNI_RANGE(1.25)
-							  }
+static const struct comedi_lrange range_das08_pgl = {
+	9, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
-static const struct comedi_lrange range_das08_pgh = { 12, {
-							   BIP_RANGE(10),
-							   BIP_RANGE(5),
-							   BIP_RANGE(1),
-							   BIP_RANGE(0.5),
-							   BIP_RANGE(0.1),
-							   BIP_RANGE(0.05),
-							   BIP_RANGE(0.01),
-							   BIP_RANGE(0.005),
-							   UNI_RANGE(10),
-							   UNI_RANGE(1),
-							   UNI_RANGE(0.1),
-							   UNI_RANGE(0.01),
-							   }
+static const struct comedi_lrange range_das08_pgh = {
+	12, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01),
+		BIP_RANGE(0.005),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };
 
-static const struct comedi_lrange range_das08_pgm = { 9, {
-							  BIP_RANGE(10),
-							  BIP_RANGE(5),
-							  BIP_RANGE(0.5),
-							  BIP_RANGE(0.05),
-							  BIP_RANGE(0.01),
-							  UNI_RANGE(10),
-							  UNI_RANGE(1),
-							  UNI_RANGE(0.1),
-							  UNI_RANGE(0.01)
-							  }
+static const struct comedi_lrange range_das08_pgm = {
+	9, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };				/*
 				   cio-das08jr.pdf
 

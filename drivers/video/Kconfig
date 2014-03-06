@@ -312,7 +312,8 @@ config FB_PM2_FIFO_DISCONNECT
 
 config FB_ARMCLCD
 	tristate "ARM PrimeCell PL110 support"
-	depends on FB && ARM && ARM_AMBA
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on FB && ARM_AMBA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -978,6 +979,22 @@ config FB_PVR2
 	  the meaning of XXX can be found at the end of the main source file
 	  (<file:drivers/video/pvr2fb.c>). Please see the file
 	  <file:Documentation/fb/pvr2fb.txt>.
+
+config FB_OPENCORES
+	tristate "OpenCores VGA/LCD core 2.0 framebuffer support"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This enables support for the OpenCores VGA/LCD core.
+
+	  The OpenCores VGA/LCD core is typically used together with
+	  softcore CPUs (e.g. OpenRISC or Microblaze) or hard processor
+	  systems (e.g. Altera socfpga or Xilinx Zynq) on FPGAs.
+
+	  The source code and specification for the core is available at
+	  <http://opencores.org/project,vga_lcd>
 
 config FB_S1D13XXX
 	tristate "Epson S1D13XXX framebuffer support"

@@ -436,6 +436,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	case LINE6_DEVID_PODXTLIVE:
 	case LINE6_DEVID_PODXTPRO:
 	case LINE6_DEVID_PODHD300:
+	case LINE6_DEVID_PODHD400:
 		ep_read = 0x82;
 		ep_write = 0x01;
 		break;

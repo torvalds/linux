@@ -2896,7 +2896,7 @@ extern void HTConstructCapabilityElement(struct rtllib_device *ieee,
 extern void HTConstructInfoElement(struct rtllib_device *ieee,
 				   u8 *posHTInfo, u8 *len, u8 isEncrypt);
 extern void HTConstructRT2RTAggElement(struct rtllib_device *ieee,
-				       u8 *posRT2RTAgg, u8* len);
+				       u8 *posRT2RTAgg, u8 *len);
 extern void HTOnAssocRsp(struct rtllib_device *ieee);
 extern void HTInitializeHTInfo(struct rtllib_device *ieee);
 extern void HTInitializeBssDesc(struct bss_ht *pBssHT);

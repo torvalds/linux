@@ -37,8 +37,6 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 ACPI_MODULE_NAME("wmi");
 MODULE_AUTHOR("Carlos Corbacho");

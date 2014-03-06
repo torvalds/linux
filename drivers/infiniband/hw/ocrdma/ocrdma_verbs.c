@@ -1326,7 +1326,8 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		new_qps = old_qps;
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	if (!ib_modify_qp_is_ok(old_qps, new_qps, ibqp->qp_type, attr_mask)) {
+	if (!ib_modify_qp_is_ok(old_qps, new_qps, ibqp->qp_type, attr_mask,
+				IB_LINK_LAYER_ETHERNET)) {
 		pr_err("%s(%d) invalid attribute mask=0x%x specified for\n"
 		       "qpn=0x%x of type=0x%x old_qps=0x%x, new_qps=0x%x\n",
 		       __func__, dev->id, attr_mask, qp->id, ibqp->qp_type,

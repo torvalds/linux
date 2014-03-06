@@ -33,7 +33,7 @@ static void nft_log_eval(const struct nft_expr *expr,
 	const struct nft_log *priv = nft_expr_priv(expr);
 	struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
 
-	nf_log_packet(net, priv->family, pkt->hooknum, pkt->skb, pkt->in,
+	nf_log_packet(net, priv->family, pkt->ops->hooknum, pkt->skb, pkt->in,
 		      pkt->out, &priv->loginfo, "%s", priv->prefix);
 }
 

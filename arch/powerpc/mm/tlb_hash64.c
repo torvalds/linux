@@ -23,7 +23,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <asm/pgalloc.h>

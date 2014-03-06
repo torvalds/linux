@@ -25,9 +25,10 @@
 #include <core/gpuobj.h>
 
 #include <subdev/timer.h>
-#include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/vm.h>
+
+#include "priv.h"
 
 struct nv50_bar_priv {
 	struct nouveau_bar base;

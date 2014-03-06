@@ -224,6 +224,31 @@ static const struct reg_default wm5110_revb_patch[] = {
 	{ 0x80, 0x0 },
 };
 
+static const struct reg_default wm5110_revd_patch[] = {
+	{ 0x80, 0x3 },
+	{ 0x80, 0x3 },
+	{ 0x393, 0x27 },
+	{ 0x394, 0x27 },
+	{ 0x395, 0x27 },
+	{ 0x396, 0x27 },
+	{ 0x397, 0x27 },
+	{ 0x398, 0x26 },
+	{ 0x221, 0x90 },
+	{ 0x211, 0x8 },
+	{ 0x36c, 0x1fb },
+	{ 0x26e, 0x64 },
+	{ 0x26f, 0xea },
+	{ 0x270, 0x1f16 },
+	{ 0x51b, 0x1 },
+	{ 0x55b, 0x1 },
+	{ 0x59b, 0x1 },
+	{ 0x4f0, 0x633 },
+	{ 0x441, 0xc059 },
+	{ 0x209, 0x27 },
+	{ 0x80, 0x0 },
+	{ 0x80, 0x0 },
+};
+
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5110_patch(struct arizona *arizona)
 {
@@ -236,7 +261,10 @@ int wm5110_patch(struct arizona *arizona)
 		return regmap_register_patch(arizona->regmap,
 					     wm5110_revb_patch,
 					     ARRAY_SIZE(wm5110_revb_patch));
-
+	case 3:
+		return regmap_register_patch(arizona->regmap,
+					     wm5110_revd_patch,
+					     ARRAY_SIZE(wm5110_revd_patch));
 	default:
 		return 0;
 	}
@@ -505,7 +533,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x000001AA, 0x0004 },    /* R426   - FLL2 GPIO Clock */
 	{ 0x00000200, 0x0006 },    /* R512   - Mic Charge Pump 1 */
 	{ 0x00000210, 0x0184 },    /* R528   - LDO1 Control 1 */
-	{ 0x00000213, 0x0344 },    /* R531   - LDO2 Control 1 */
+	{ 0x00000213, 0x03E4 },    /* R531   - LDO2 Control 1 */
 	{ 0x00000218, 0x01A6 },    /* R536   - Mic Bias Ctrl 1 */
 	{ 0x00000219, 0x01A6 },    /* R537   - Mic Bias Ctrl 2 */
 	{ 0x0000021A, 0x01A6 },    /* R538   - Mic Bias Ctrl 3 */

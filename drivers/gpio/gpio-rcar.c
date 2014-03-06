@@ -285,7 +285,34 @@ static struct irq_domain_ops gpio_rcar_irq_domain_ops = {
 	.map	= gpio_rcar_irq_domain_map,
 };
 
-static void gpio_rcar_parse_pdata(struct gpio_rcar_priv *p)
+struct gpio_rcar_info {
+	bool has_both_edge_trigger;
+};
+
+static const struct of_device_id gpio_rcar_of_table[] = {
+	{
+		.compatible = "renesas,gpio-r8a7790",
+		.data = (void *)&(const struct gpio_rcar_info) {
+			.has_both_edge_trigger = true,
+		},
+	}, {
+		.compatible = "renesas,gpio-r8a7791",
+		.data = (void *)&(const struct gpio_rcar_info) {
+			.has_both_edge_trigger = true,
+		},
+	}, {
+		.compatible = "renesas,gpio-rcar",
+		.data = (void *)&(const struct gpio_rcar_info) {
+			.has_both_edge_trigger = false,
+		},
+	}, {
+		/* Terminator */
+	},
+};
+
+MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
+
+static int gpio_rcar_parse_pdata(struct gpio_rcar_priv *p)
 {
 	struct gpio_rcar_config *pdata = dev_get_platdata(&p->pdev->dev);
 	struct device_node *np = p->pdev->dev.of_node;
@@ -295,11 +322,21 @@ static void gpio_rcar_parse_pdata(struct gpio_rcar_priv *p)
 	if (pdata) {
 		p->config = *pdata;
 	} else if (IS_ENABLED(CONFIG_OF) && np) {
+		const struct of_device_id *match;
+		const struct gpio_rcar_info *info;
+
+		match = of_match_node(gpio_rcar_of_table, np);
+		if (!match)
+			return -EINVAL;
+
+		info = match->data;
+
 		ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0,
 						       &args);
 		p->config.number_of_pins = ret == 0 ? args.args[2]
 					 : RCAR_MAX_GPIO_PER_BANK;
 		p->config.gpio_base = -1;
+		p->config.has_both_edge_trigger = info->has_both_edge_trigger;
 	}
 
 	if (p->config.number_of_pins == 0 ||
@@ -309,6 +346,8 @@ static void gpio_rcar_parse_pdata(struct gpio_rcar_priv *p)
 			 p->config.number_of_pins, RCAR_MAX_GPIO_PER_BANK);
 		p->config.number_of_pins = RCAR_MAX_GPIO_PER_BANK;
 	}
+
+	return 0;
 }
 
 static int gpio_rcar_probe(struct platform_device *pdev)
@@ -331,7 +370,9 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	spin_lock_init(&p->lock);
 
 	/* Get device configuration from DT node or platform data. */
-	gpio_rcar_parse_pdata(p);
+	ret = gpio_rcar_parse_pdata(p);
+	if (ret < 0)
+		return ret;
 
 	platform_set_drvdata(pdev, p);
 
@@ -370,10 +411,9 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	irq_chip->name = name;
 	irq_chip->irq_mask = gpio_rcar_irq_disable;
 	irq_chip->irq_unmask = gpio_rcar_irq_enable;
-	irq_chip->irq_enable = gpio_rcar_irq_enable;
-	irq_chip->irq_disable = gpio_rcar_irq_disable;
 	irq_chip->irq_set_type = gpio_rcar_irq_set_type;
-	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_SET_TYPE_MASKED;
+	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_SET_TYPE_MASKED
+			 | IRQCHIP_MASK_ON_SUSPEND;
 
 	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
 					      p->config.number_of_pins,
@@ -435,17 +475,6 @@ static int gpio_rcar_remove(struct platform_device *pdev)
 	irq_domain_remove(p->irq_domain);
 	return 0;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id gpio_rcar_of_table[] = {
-	{
-		.compatible = "renesas,gpio-rcar",
-	},
-	{ },
-};
-
-MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
-#endif
 
 static struct platform_driver gpio_rcar_device_driver = {
 	.probe		= gpio_rcar_probe,

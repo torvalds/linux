@@ -1,6 +1,10 @@
+config ARCH_SHMOBILE
+	bool
+
 config ARCH_SHMOBILE_MULTI
-	bool "SH-Mobile Series" if ARCH_MULTI_V7
+	bool "Renesas ARM SoCs" if ARCH_MULTI_V7
 	depends on MMU
+	select ARCH_SHMOBILE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
@@ -8,6 +12,7 @@ config ARCH_SHMOBILE_MULTI
 	select HAVE_SMP
 	select ARM_GIC
 	select MIGHT_HAVE_CACHE_L2X0
+	select MIGHT_HAVE_PCI
 	select NO_IOPORT
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
@@ -15,24 +20,47 @@ config ARCH_SHMOBILE_MULTI
 
 if ARCH_SHMOBILE_MULTI
 
-comment "SH-Mobile System Type"
+comment "Renesas ARM SoCs System Type"
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 
-comment "SH-Mobile Board Type"
+config ARCH_R7S72100
+	bool "RZ/A1H (R7S72100)"
+
+config ARCH_R8A7790
+	bool "R-Car H2 (R8A77900)"
+	select RENESAS_IRQC
+
+config ARCH_R8A7791
+	bool "R-Car M2 (R8A77910)"
+	select RENESAS_IRQC
+
+comment "Renesas ARM SoCs Board Type"
+
+config MACH_GENMAI
+	bool "Genmai board"
+	depends on ARCH_R7S72100
+
+config MACH_KOELSCH
+	bool "Koelsch board"
+	depends on ARCH_R8A7791
 
 config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
-comment "SH-Mobile System Configuration"
+config MACH_LAGER
+	bool "Lager board"
+	depends on ARCH_R8A7790
+
+comment "Renesas ARM SoCs System Configuration"
 endif
 
-if ARCH_SHMOBILE
+if ARCH_SHMOBILE_LEGACY
 
-comment "SH-Mobile System Type"
+comment "Renesas ARM SoCs System Type"
 
 config ARCH_SH7372
 	bool "SH-Mobile AP4 (SH7372)"
@@ -92,28 +120,36 @@ config ARCH_R8A7790
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
+	select RENESAS_IRQC
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+	select MIGHT_HAVE_PCI
+	select USE_OF
+	select AUTO_ZRELADDR
 
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
 	select SH_CLK_CPG
 
-comment "SH-Mobile Board Type"
+comment "Renesas ARM SoCs Board Type"
 
 config MACH_APE6EVM
 	bool "APE6EVM board"
@@ -190,6 +226,17 @@ config MACH_GENMAI
 	depends on ARCH_R7S72100
 	select USE_OF
 
+config MACH_GENMAI_REFERENCE
+	bool "Genmai board - Reference Device Tree Implementation"
+	depends on ARCH_R7S72100
+	select USE_OF
+	---help---
+	   Use reference implementation of Genmai board support
+	   which makes use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
@@ -215,27 +262,11 @@ config MACH_LAGER
 	depends on ARCH_R8A7790
 	select USE_OF
 
-config MACH_LAGER_REFERENCE
-	bool "Lager board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7790
-	select USE_OF
-	---help---
-	   Use reference implementation of Lager board support
-	   which makes use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
 config MACH_KOELSCH
 	bool "Koelsch board"
 	depends on ARCH_R8A7791
 	select USE_OF
-
-config MACH_KZM9D
-	bool "KZM9D board"
-	depends on ARCH_EMEV2
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
+	select MICREL_PHY if SH_ETH
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
@@ -261,7 +292,7 @@ config MACH_KZM9G_REFERENCE
 
 	   This is intended to aid developers
 
-comment "SH-Mobile System Configuration"
+comment "Renesas ARM SoCs System Configuration"
 
 config CPU_HAS_INTEVT
         bool
@@ -274,7 +305,7 @@ source "drivers/sh/Kconfig"
 
 endif
 
-if ARCH_SHMOBILE || ARCH_SHMOBILE_MULTI
+if ARCH_SHMOBILE
 
 menu "Timer and clock configuration"
 
@@ -286,8 +317,8 @@ config SHMOBILE_TIMER_HZ
 	  Allows the configuration of the timer frequency. It is customary
 	  to have the timer interrupt run at 1000 Hz or 100 Hz, but in the
 	  case of low timer frequencies other values may be more suitable.
-	  SH-Mobile systems using a 32768 Hz RCLK for clock events may want
-	  to select a HZ value such as 128 that can evenly divide RCLK.
+	  Renesas ARM SoC systems using a 32768 Hz RCLK for clock events may
+	  want to select a HZ value such as 128 that can evenly divide RCLK.
 	  A HZ value that does not divide evenly may cause timer drift.
 
 config SH_TIMER_CMT

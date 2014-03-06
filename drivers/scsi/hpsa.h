@@ -114,6 +114,11 @@ struct ctlr_info {
 	struct TransTable_struct *transtable;
 	unsigned long transMethod;
 
+	/* cap concurrent passthrus at some reasonable maximum */
+#define HPSA_MAX_CONCURRENT_PASSTHRUS (20)
+	spinlock_t passthru_count_lock; /* protects passthru_count */
+	int passthru_count;
+
 	/*
 	 * Performant mode completion buffers
 	 */
@@ -130,7 +135,9 @@ struct ctlr_info {
 	u32 heartbeat_sample_interval;
 	atomic_t firmware_flash_in_progress;
 	u32 lockup_detected;
-	struct list_head lockup_list;
+	struct delayed_work monitor_ctlr_work;
+	int remove_in_progress;
+	u32 fifo_recently_full;
 	/* Address of h->q[x] is passed to intr handler to know which queue */
 	u8 q[MAX_REPLY_QUEUES];
 	u32 TMFSupportFlags; /* cache what task mgmt funcs are supported. */

@@ -72,7 +72,7 @@
 
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
-unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT);
+unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K);
 EXPORT_SYMBOL(CMO_PageSize);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
@@ -470,7 +470,7 @@ static long pseries_little_endian_exceptions(void)
 
 static void __init pSeries_setup_arch(void)
 {
-	panic_timeout = 10;
+	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
 
 	/* Discover PIC type and setup ppc_md accordingly */
 	pseries_discover_pic();
@@ -569,7 +569,7 @@ void pSeries_cmo_feature_init(void)
 {
 	char *ptr, *key, *value, *end;
 	int call_status;
-	int page_order = IOMMU_PAGE_SHIFT;
+	int page_order = IOMMU_PAGE_SHIFT_4K;
 
 	pr_debug(" -> fw_cmo_feature_init()\n");
 	spin_lock(&rtas_data_buf_lock);

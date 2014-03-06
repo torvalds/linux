@@ -1355,67 +1355,6 @@ BeceemFlashBulkWriteStatus_EXIT:
 }
 
 /*
- * Procedure:	PropagateCalParamsFromEEPROMToMemory
- *
- * Description: Dumps the calibration section of EEPROM to DDR.
- *
- * Arguments:
- *		Adapter    - ptr to Adapter object instance
- * Returns:
- *		OSAL_STATUS_CODE
- *
- */
-
-int PropagateCalParamsFromEEPROMToMemory(struct bcm_mini_adapter *Adapter)
-{
-	PCHAR pBuff = kmalloc(BUFFER_4K, GFP_KERNEL);
-	unsigned int uiEepromSize = 0;
-	unsigned int uiIndex = 0;
-	unsigned int uiBytesToCopy = 0;
-	unsigned int uiCalStartAddr = EEPROM_CALPARAM_START;
-	unsigned int uiMemoryLoc = EEPROM_CAL_DATA_INTERNAL_LOC;
-	unsigned int value;
-	int Status = 0;
-
-	if (!pBuff)
-		return -ENOMEM;
-
-	if (0 != BeceemEEPROMBulkRead(Adapter, &uiEepromSize, EEPROM_SIZE_OFFSET, 4)) {
-		kfree(pBuff);
-		return -1;
-	}
-
-	uiEepromSize >>= 16;
-	if (uiEepromSize > 1024 * 1024) {
-		kfree(pBuff);
-		return -1;
-	}
-
-	uiBytesToCopy = MIN(BUFFER_4K, uiEepromSize);
-
-	while (uiBytesToCopy) {
-		if (0 != BeceemEEPROMBulkRead(Adapter, (PUINT)pBuff, uiCalStartAddr, uiBytesToCopy)) {
-			Status = -1;
-			break;
-		}
-		wrm(Adapter, uiMemoryLoc, (PCHAR)(((PULONG)pBuff) + uiIndex), uiBytesToCopy);
-		uiMemoryLoc += uiBytesToCopy;
-		uiEepromSize -= uiBytesToCopy;
-		uiCalStartAddr += uiBytesToCopy;
-		uiIndex += uiBytesToCopy / 4;
-		uiBytesToCopy = MIN(BUFFER_4K, uiEepromSize);
-
-	}
-	value = 0xbeadbead;
-	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 4, &value, sizeof(value));
-	value = 0xbeadbead;
-	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 8, &value, sizeof(value));
-	kfree(pBuff);
-
-	return Status;
-}
-
-/*
  * Procedure:	PropagateCalParamsFromFlashToMemory
  *
  * Description: Dumps the calibration section of EEPROM to DDR.
@@ -2873,7 +2812,7 @@ int BcmFlash2xBulkRead(struct bcm_mini_adapter *Adapter,
 		SectionStartOffset = BcmGetSectionValStartOffset(Adapter, eFlash2xSectionVal);
 
 	if (SectionStartOffset == STATUS_FAILURE) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exixt in Flash 2.x Map ", eFlash2xSectionVal);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exist in Flash 2.x Map ", eFlash2xSectionVal);
 		return -EINVAL;
 	}
 
@@ -2936,7 +2875,7 @@ int BcmFlash2xBulkWrite(struct bcm_mini_adapter *Adapter,
 		FlashSectValStartOffset = BcmGetSectionValStartOffset(Adapter, eFlash2xSectVal);
 
 	if (FlashSectValStartOffset == STATUS_FAILURE) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exixt in Flash Map 2.x", eFlash2xSectVal);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "This Section<%d> does not exist in Flash Map 2.x", eFlash2xSectVal);
 		return -EINVAL;
 	}
 
@@ -3911,7 +3850,7 @@ int validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, struct bcm_flash2
 	uiNumOfBytes = psFlash2xReadWrite->numOfBytes;
 
 	if (IsSectionExistInFlash(Adapter, psFlash2xReadWrite->Section) != TRUE) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%x> does not exixt in Flash", psFlash2xReadWrite->Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%x> does not exist in Flash", psFlash2xReadWrite->Section);
 		return false;
 	}
 	uiSectStartOffset = BcmGetSectionValStartOffset(Adapter, psFlash2xReadWrite->Section);
@@ -3944,6 +3883,15 @@ int validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, struct bcm_flash2
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "End offset :%x\n", uiSectEndOffset);
 
+	/* psFlash2xReadWrite->offset and uiNumOfBytes are user controlled and can lead to integer overflows */
+	if (psFlash2xReadWrite->offset > uiSectEndOffset) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Invalid Request....");
+		return false;
+	}
+	if (uiNumOfBytes > uiSectEndOffset) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Invalid Request....");
+		return false;
+	}
 	/* Checking the boundary condition */
 	if ((uiSectStartOffset + psFlash2xReadWrite->offset + uiNumOfBytes) <= uiSectEndOffset)
 		return TRUE;
@@ -4530,13 +4478,13 @@ int IsSectionWritable(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section
 	int Status = false;
 
 	if (IsSectionExistInFlash(Adapter, Section) == false) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section <%d> does not exixt", Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section <%d> does not exist", Section);
 		return false;
 	}
 
 	offset = BcmGetSectionValStartOffset(Adapter, Section);
 	if (offset == INVALID_OFFSET) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%d> does not exixt", Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Section<%d> does not exist", Section);
 		return false;
 	}
 

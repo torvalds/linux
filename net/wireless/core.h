@@ -67,9 +67,7 @@ struct cfg80211_registered_device {
 	struct work_struct scan_done_wk;
 	struct work_struct sched_scan_results_wk;
 
-#ifdef CONFIG_NL80211_TESTMODE
-	struct genl_info *testmode_info;
-#endif
+	struct genl_info *cur_cmd_info;
 
 	struct work_struct conn_work;
 	struct work_struct event_work;
@@ -317,9 +315,8 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct wireless_dev *wdev,
-			  struct ieee80211_channel *chan, bool offchan,
-			  unsigned int wait, const u8 *buf, size_t len,
-			  bool no_cck, bool dont_wait_for_ack, u64 *cookie);
+			  struct cfg80211_mgmt_tx_params *params,
+			  u64 *cookie);
 void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 			       const struct ieee80211_ht_cap *ht_capa_mask);
 void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
@@ -364,7 +361,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr);
 void __cfg80211_scan_done(struct work_struct *wk);
-void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak);
+void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev);
 void __cfg80211_sched_scan_results(struct work_struct *wk);
 int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 			       bool driver_initiated);
@@ -381,6 +378,19 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 struct ieee80211_channel *chan,
 				 enum cfg80211_chan_mode chanmode,
 				 u8 radar_detect);
+
+/**
+ * cfg80211_chandef_dfs_usable - checks if chandef is DFS usable
+ * @wiphy: the wiphy to validate against
+ * @chandef: the channel definition to check
+ *
+ * Checks if chandef is usable and we can/need start CAC on such channel.
+ *
+ * Return: Return true if all channels available and at least
+ *	   one channel require CAC (NL80211_DFS_USABLE)
+ */
+bool cfg80211_chandef_dfs_usable(struct wiphy *wiphy,
+				 const struct cfg80211_chan_def *chandef);
 
 void cfg80211_set_dfs_state(struct wiphy *wiphy,
 			    const struct cfg80211_chan_def *chandef,

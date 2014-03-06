@@ -23,7 +23,11 @@
  */
 
 #include <core/object.h>
-#include <subdev/bar.h>
+
+#include <subdev/fb.h>
+#include <subdev/vm.h>
+
+#include "priv.h"
 
 struct nouveau_barobj {
 	struct nouveau_object base;

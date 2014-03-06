@@ -964,7 +964,7 @@ static int solo_enc_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 
-	return solo_set_video_type(solo_enc->solo_dev, std & V4L2_STD_PAL);
+	return solo_set_video_type(solo_enc->solo_dev, std & V4L2_STD_625_50);
 }
 
 static int solo_enum_framesizes(struct file *file, void *priv,

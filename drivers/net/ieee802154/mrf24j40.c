@@ -715,7 +715,6 @@ static int mrf24j40_remove(struct spi_device *spi)
 	 * complete? */
 
 	/* Clean up the SPI stuff. */
-	spi_set_drvdata(spi, NULL);
 	kfree(devrec->buf);
 	kfree(devrec);
 	return 0;

@@ -261,7 +261,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		struct drm_agp_mem *entry;
 		int valid = 0;
 
-		if (!drm_core_has_AGP(dev)) {
+		if (!dev->agp) {
 			kfree(map);
 			return -EINVAL;
 		}
@@ -303,9 +303,6 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 
 		break;
 	}
-	case _DRM_GEM:
-		DRM_ERROR("tried to addmap GEM object\n");
-		break;
 	case _DRM_SCATTER_GATHER:
 		if (!dev->sg) {
 			kfree(map);
@@ -482,9 +479,6 @@ int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 		dmah.busaddr = map->offset;
 		dmah.size = map->size;
 		__drm_pci_free(dev, &dmah);
-		break;
-	case _DRM_GEM:
-		DRM_ERROR("tried to rmmap GEM object\n");
 		break;
 	}
 	kfree(map);
@@ -1396,7 +1390,7 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	spin_unlock(&dev->count_lock);
 
 	if (request->count >= dma->buf_count) {
-		if ((drm_core_has_AGP(dev) && (dma->flags & _DRM_DMA_USE_AGP))
+		if ((dev->agp && (dma->flags & _DRM_DMA_USE_AGP))
 		    || (drm_core_check_feature(dev, DRIVER_SG)
 			&& (dma->flags & _DRM_DMA_USE_SG))) {
 			struct drm_local_map *map = dev->agp_buffer_map;

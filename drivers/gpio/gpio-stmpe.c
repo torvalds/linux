@@ -129,7 +129,7 @@ static struct gpio_chip template_chip = {
 	.set			= stmpe_gpio_set,
 	.to_irq			= stmpe_gpio_to_irq,
 	.request		= stmpe_gpio_request,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int stmpe_gpio_irq_set_type(struct irq_data *d, unsigned int type)

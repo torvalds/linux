@@ -138,7 +138,7 @@ int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 			lli->lli_layout_gen,
 			conf->u.coc_md->lsm->lsm_layout_gen);
 
-		lli->lli_has_smd = true;
+		lli->lli_has_smd = lsm_has_objects(conf->u.coc_md->lsm);
 		lli->lli_layout_gen = conf->u.coc_md->lsm->lsm_layout_gen;
 	} else {
 		CDEBUG(D_VFSTRACE, "layout lock destroyed: %u.\n",

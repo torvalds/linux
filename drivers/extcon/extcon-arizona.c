@@ -44,6 +44,15 @@
 #define HPDET_DEBOUNCE 500
 #define DEFAULT_MICD_TIMEOUT 2000
 
+#define MICD_LVL_1_TO_7 (ARIZONA_MICD_LVL_1 | ARIZONA_MICD_LVL_2 | \
+			 ARIZONA_MICD_LVL_3 | ARIZONA_MICD_LVL_4 | \
+			 ARIZONA_MICD_LVL_5 | ARIZONA_MICD_LVL_6 | \
+			 ARIZONA_MICD_LVL_7)
+
+#define MICD_LVL_0_TO_7 (ARIZONA_MICD_LVL_0 | MICD_LVL_1_TO_7)
+
+#define MICD_LVL_0_TO_8 (MICD_LVL_0_TO_7 | ARIZONA_MICD_LVL_8)
+
 struct arizona_extcon_info {
 	struct device *dev;
 	struct arizona *arizona;
@@ -426,26 +435,15 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		val &= ARIZONA_HP_LVL_B_MASK;
+		/* Convert to ohms, the value is in 0.5 ohm increments */
+		val /= 2;
 
 		regmap_read(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
 			    &range);
 		range = (range & ARIZONA_HP_IMPEDANCE_RANGE_MASK)
 			   >> ARIZONA_HP_IMPEDANCE_RANGE_SHIFT;
 
-		/* Skip up or down a range? */
-		if (range && (val < arizona_hpdet_c_ranges[range].min)) {
-			range--;
-			dev_dbg(arizona->dev, "Moving to HPDET range %d-%d\n",
-				arizona_hpdet_c_ranges[range].min,
-				arizona_hpdet_c_ranges[range].max);
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_HEADPHONE_DETECT_1,
-					   ARIZONA_HP_IMPEDANCE_RANGE_MASK,
-					   range <<
-					   ARIZONA_HP_IMPEDANCE_RANGE_SHIFT);
-			return -EAGAIN;
-		}
-
+		/* Skip up a range, or report? */
 		if (range < ARRAY_SIZE(arizona_hpdet_c_ranges) - 1 &&
 		    (val >= arizona_hpdet_c_ranges[range].max)) {
 			range++;
@@ -458,6 +456,12 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 					   range <<
 					   ARIZONA_HP_IMPEDANCE_RANGE_SHIFT);
 			return -EAGAIN;
+		}
+
+		if (range && (val < arizona_hpdet_c_ranges[range].min)) {
+			dev_dbg(arizona->dev, "Reporting range boundary %d\n",
+				arizona_hpdet_c_ranges[range].min);
+			val = arizona_hpdet_c_ranges[range].min;
 		}
 	}
 
@@ -594,9 +598,15 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 		dev_err(arizona->dev, "Failed to report HP/line: %d\n",
 			ret);
 
+done:
+	/* Reset back to starting range */
+	regmap_update_bits(arizona->regmap,
+			   ARIZONA_HEADPHONE_DETECT_1,
+			   ARIZONA_HP_IMPEDANCE_RANGE_MASK | ARIZONA_HP_POLL,
+			   0);
+
 	arizona_extcon_do_magic(info, 0);
 
-done:
 	if (id_gpio)
 		gpio_set_value_cansleep(id_gpio, 0);
 
@@ -765,7 +775,20 @@ static void arizona_micd_detect(struct work_struct *work)
 
 	mutex_lock(&info->lock);
 
-	for (i = 0; i < 10 && !(val & 0x7fc); i++) {
+	/* If the cable was removed while measuring ignore the result */
+	ret = extcon_get_cable_state_(&info->edev, ARIZONA_CABLE_MECHANICAL);
+	if (ret < 0) {
+		dev_err(arizona->dev, "Failed to check cable state: %d\n",
+				ret);
+		mutex_unlock(&info->lock);
+		return;
+	} else if (!ret) {
+		dev_dbg(arizona->dev, "Ignoring MICDET for removed cable\n");
+		mutex_unlock(&info->lock);
+		return;
+	}
+
+	for (i = 0; i < 10 && !(val & MICD_LVL_0_TO_8); i++) {
 		ret = regmap_read(arizona->regmap, ARIZONA_MIC_DETECT_3, &val);
 		if (ret != 0) {
 			dev_err(arizona->dev,
@@ -784,7 +807,7 @@ static void arizona_micd_detect(struct work_struct *work)
 		}
 	}
 
-	if (i == 10 && !(val & 0x7fc)) {
+	if (i == 10 && !(val & MICD_LVL_0_TO_8)) {
 		dev_err(arizona->dev, "Failed to get valid MICDET value\n");
 		mutex_unlock(&info->lock);
 		return;
@@ -798,7 +821,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	}
 
 	/* If we got a high impedence we should have a headset, report it. */
-	if (info->detecting && (val & 0x400)) {
+	if (info->detecting && (val & ARIZONA_MICD_LVL_8)) {
 		arizona_identify_headphone(info);
 
 		ret = extcon_update_state(&info->edev,
@@ -827,7 +850,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	 * plain headphones.  If both polarities report a low
 	 * impedence then give up and report headphones.
 	 */
-	if (info->detecting && (val & 0x3f8)) {
+	if (info->detecting && (val & MICD_LVL_1_TO_7)) {
 		if (info->jack_flips >= info->micd_num_modes * 10) {
 			dev_dbg(arizona->dev, "Detected HP/line\n");
 			arizona_identify_headphone(info);
@@ -851,7 +874,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	 * If we're still detecting and we detect a short then we've
 	 * got a headphone.  Otherwise it's a button press.
 	 */
-	if (val & 0x3fc) {
+	if (val & MICD_LVL_0_TO_7) {
 		if (info->mic) {
 			dev_dbg(arizona->dev, "Mic button detected\n");
 
@@ -1123,6 +1146,16 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		default:
 			info->micd_clamp = true;
 			info->hpdet_ip = 1;
+			break;
+		}
+		break;
+	case WM5110:
+		switch (arizona->rev) {
+		case 0 ... 2:
+			break;
+		default:
+			info->micd_clamp = true;
+			info->hpdet_ip = 2;
 			break;
 		}
 		break;

@@ -82,6 +82,23 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 
 int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
 
+/**
+ * clk_get_accuracy - obtain the clock accuracy in ppb (parts per billion)
+ *		      for a clock source.
+ * @clk: clock source
+ *
+ * This gets the clock source accuracy expressed in ppb.
+ * A perfect clock returns 0.
+ */
+long clk_get_accuracy(struct clk *clk);
+
+#else
+
+static inline long clk_get_accuracy(struct clk *clk)
+{
+	return -ENOTSUPP;
+}
+
 #endif
 
 /**

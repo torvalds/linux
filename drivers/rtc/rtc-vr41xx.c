@@ -293,7 +293,7 @@ static int rtc_probe(struct platform_device *pdev)
 	if (!res)
 		return -EBUSY;
 
-	rtc1_base = ioremap(res->start, resource_size(res));
+	rtc1_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!rtc1_base)
 		return -EBUSY;
 
@@ -303,13 +303,14 @@ static int rtc_probe(struct platform_device *pdev)
 		goto err_rtc1_iounmap;
 	}
 
-	rtc2_base = ioremap(res->start, resource_size(res));
+	rtc2_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!rtc2_base) {
 		retval = -EBUSY;
 		goto err_rtc1_iounmap;
 	}
 
-	rtc = rtc_device_register(rtc_name, &pdev->dev, &vr41xx_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&pdev->dev, rtc_name, &vr41xx_rtc_ops,
+					THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		retval = PTR_ERR(rtc);
 		goto err_iounmap_all;
@@ -330,24 +331,24 @@ static int rtc_probe(struct platform_device *pdev)
 	aie_irq = platform_get_irq(pdev, 0);
 	if (aie_irq <= 0) {
 		retval = -EBUSY;
-		goto err_device_unregister;
+		goto err_iounmap_all;
 	}
 
-	retval = request_irq(aie_irq, elapsedtime_interrupt, 0,
-			     "elapsed_time", pdev);
+	retval = devm_request_irq(&pdev->dev, aie_irq, elapsedtime_interrupt, 0,
+				"elapsed_time", pdev);
 	if (retval < 0)
-		goto err_device_unregister;
+		goto err_iounmap_all;
 
 	pie_irq = platform_get_irq(pdev, 1);
 	if (pie_irq <= 0) {
 		retval = -EBUSY;
-		goto err_free_irq;
+		goto err_iounmap_all;
 	}
 
-	retval = request_irq(pie_irq, rtclong1_interrupt, 0,
-			     "rtclong1", pdev);
+	retval = devm_request_irq(&pdev->dev, pie_irq, rtclong1_interrupt, 0,
+				"rtclong1", pdev);
 	if (retval < 0)
-		goto err_free_irq;
+		goto err_iounmap_all;
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -358,39 +359,13 @@ static int rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_free_irq:
-	free_irq(aie_irq, pdev);
-
-err_device_unregister:
-	rtc_device_unregister(rtc);
-
 err_iounmap_all:
-	iounmap(rtc2_base);
 	rtc2_base = NULL;
 
 err_rtc1_iounmap:
-	iounmap(rtc1_base);
 	rtc1_base = NULL;
 
 	return retval;
-}
-
-static int rtc_remove(struct platform_device *pdev)
-{
-	struct rtc_device *rtc;
-
-	rtc = platform_get_drvdata(pdev);
-	if (rtc)
-		rtc_device_unregister(rtc);
-
-	free_irq(aie_irq, pdev);
-	free_irq(pie_irq, pdev);
-	if (rtc1_base)
-		iounmap(rtc1_base);
-	if (rtc2_base)
-		iounmap(rtc2_base);
-
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -398,7 +373,6 @@ MODULE_ALIAS("platform:RTC");
 
 static struct platform_driver rtc_platform_driver = {
 	.probe		= rtc_probe,
-	.remove		= rtc_remove,
 	.driver		= {
 		.name	= rtc_name,
 		.owner	= THIS_MODULE,

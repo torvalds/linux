@@ -62,7 +62,6 @@ static int
 dump_raw_samples(struct perf_tool *tool,
 		 union perf_event *event,
 		 struct perf_sample *sample,
-		 struct perf_evsel *evsel __maybe_unused,
 		 struct machine *machine)
 {
 	struct perf_mem *mem = container_of(tool, struct perf_mem, tool);
@@ -112,10 +111,10 @@ dump_raw_samples(struct perf_tool *tool,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct perf_evsel *evsel __maybe_unused,
 				struct machine *machine)
 {
-	return dump_raw_samples(tool, event, sample, evsel, machine);
+	return dump_raw_samples(tool, event, sample, machine);
 }
 
 static int report_raw_events(struct perf_mem *mem)

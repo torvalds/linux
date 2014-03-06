@@ -24,10 +24,33 @@
 #include <linux/slab.h>
 
 #include <linux/platform_data/ata-samsung_cf.h>
-#include <plat/regs-ata.h>
 
 #define DRV_NAME "pata_samsung_cf"
 #define DRV_VERSION "0.1"
+
+#define S3C_CFATA_REG(x)	(x)
+#define S3C_CFATA_MUX		S3C_CFATA_REG(0x0)
+#define S3C_ATA_CTRL		S3C_CFATA_REG(0x0)
+#define S3C_ATA_CMD		S3C_CFATA_REG(0x8)
+#define S3C_ATA_IRQ		S3C_CFATA_REG(0x10)
+#define S3C_ATA_IRQ_MSK		S3C_CFATA_REG(0x14)
+#define S3C_ATA_CFG		S3C_CFATA_REG(0x18)
+
+#define S3C_ATA_PIO_TIME	S3C_CFATA_REG(0x2c)
+#define S3C_ATA_PIO_DTR		S3C_CFATA_REG(0x54)
+#define S3C_ATA_PIO_FED		S3C_CFATA_REG(0x58)
+#define S3C_ATA_PIO_SCR		S3C_CFATA_REG(0x5c)
+#define S3C_ATA_PIO_LLR		S3C_CFATA_REG(0x60)
+#define S3C_ATA_PIO_LMR		S3C_CFATA_REG(0x64)
+#define S3C_ATA_PIO_LHR		S3C_CFATA_REG(0x68)
+#define S3C_ATA_PIO_DVR		S3C_CFATA_REG(0x6c)
+#define S3C_ATA_PIO_CSD		S3C_CFATA_REG(0x70)
+#define S3C_ATA_PIO_DAD		S3C_CFATA_REG(0x74)
+#define S3C_ATA_PIO_RDATA	S3C_CFATA_REG(0x7c)
+
+#define S3C_CFATA_MUX_TRUEIDE	0x01
+#define S3C_ATA_CFG_SWAP	0x40
+#define S3C_ATA_CFG_IORDYEN	0x02
 
 enum s3c_cpu_type {
 	TYPE_S3C64XX,
@@ -495,22 +518,10 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 	info->irq = platform_get_irq(pdev, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(dev, "failed to get mem resource\n");
-		return -EINVAL;
-	}
 
-	if (!devm_request_mem_region(dev, res->start,
-				resource_size(res), DRV_NAME)) {
-		dev_err(dev, "error requesting register region\n");
-		return -EBUSY;
-	}
-
-	info->ide_addr = devm_ioremap(dev, res->start, resource_size(res));
-	if (!info->ide_addr) {
-		dev_err(dev, "failed to map IO base address\n");
-		return -ENOMEM;
-	}
+	info->ide_addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(info->ide_addr))
+		return PTR_ERR(info->ide_addr);
 
 	info->clk = devm_clk_get(&pdev->dev, "cfcon");
 	if (IS_ERR(info->clk)) {

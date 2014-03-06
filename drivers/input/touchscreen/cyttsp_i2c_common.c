@@ -31,6 +31,8 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
+#include "cyttsp4_core.h"
+
 int cyttsp_i2c_read_block_data(struct device *dev, u8 *xfer_buf,
 				      u16 addr, u8 length, void *values)
 {

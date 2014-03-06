@@ -127,7 +127,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= tc3589x_gpio_direction_output,
 	.set			= tc3589x_gpio_set,
 	.to_irq			= tc3589x_gpio_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int tc3589x_gpio_irq_set_type(struct irq_data *d, unsigned int type)

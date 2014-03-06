@@ -127,20 +127,20 @@
 
 		power_led {
 			label = "status:white:power_led";
-			gpios = <&gpio0 16 0>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+			default-state = "keep";
 		};
 		rebuild_led {
 			label = "status:white:rebuild_led";
-			gpios = <&gpio1 4 0>;
+			gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 		};
 		health_led {
 			label = "status:red:health_led";
-			gpios = <&gpio1 5 0>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		};
 		backup_led {
 			label = "status:blue:backup_led";
-			gpios = <&gpio0 15 0>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
 	};
 	gpio-keys {
@@ -154,18 +154,18 @@
 
 		Power {
 			label = "Power Button";
-			linux,code = <116>;
-			gpios = <&gpio0 14 1>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 		};
 		Reset {
 			label = "Reset Button";
-			linux,code = <0x198>;
-			gpios = <&gpio0 12 1>;
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 		};
 		OTB {
 			label = "OTB Button";
-			linux,code = <133>;
-			gpios = <&gpio1 3 1>;
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -200,7 +200,6 @@
 	status = "okay";
 
 	ethphy1: ethernet-phy@11 {
-		device_type = "ethernet-phy";
 		reg = <11>;
 	};
 };

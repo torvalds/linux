@@ -94,6 +94,8 @@
 #define	CG_SPLL_FUNC_CNTL_2				0x604
 #define		SCLK_MUX_SEL(x)				((x) << 0)
 #define		SCLK_MUX_SEL_MASK			(0x1ff << 0)
+#define		SPLL_CTLREQ_CHG				(1 << 23)
+#define		SCLK_MUX_UPDATE				(1 << 26)
 #define	CG_SPLL_FUNC_CNTL_3				0x608
 #define		SPLL_FB_DIV(x)				((x) << 0)
 #define		SPLL_FB_DIV_MASK			(0x3ffffff << 0)
@@ -101,7 +103,10 @@
 #define		SPLL_DITHEN				(1 << 28)
 #define	CG_SPLL_FUNC_CNTL_4				0x60c
 
+#define	SPLL_STATUS					0x614
+#define		SPLL_CHG_STATUS				(1 << 1)
 #define	SPLL_CNTL_MODE					0x618
+#define		SPLL_SW_DIR_CONTROL			(1 << 0)
 #	define SPLL_REFCLK_SEL(x)			((x) << 8)
 #	define SPLL_REFCLK_SEL_MASK			0xFF00
 
@@ -559,6 +564,8 @@
 #       define MRDCK0_BYPASS                            (1 << 24)
 #       define MRDCK1_BYPASS                            (1 << 25)
 
+#define	MPLL_CNTL_MODE					0x2bb0
+#       define MPLL_MCLK_SEL                            (1 << 11)
 #define	MPLL_FUNC_CNTL					0x2bb4
 #define		BWCTRL(x)				((x) << 20)
 #define		BWCTRL_MASK				(0xff << 20)
@@ -815,7 +822,7 @@
 #       define GRPH_PFLIP_INT_MASK                      (1 << 0)
 #       define GRPH_PFLIP_INT_TYPE                      (1 << 8)
 
-#define	DACA_AUTODETECT_INT_CONTROL			0x66c8
+#define	DAC_AUTODETECT_INT_CONTROL			0x67c8
 
 #define DC_HPD1_INT_STATUS                              0x601c
 #define DC_HPD2_INT_STATUS                              0x6028

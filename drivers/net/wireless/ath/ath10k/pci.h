@@ -198,9 +198,7 @@ struct ath10k_pci {
 
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct msi_fw_err;
-
-	/* Number of Copy Engines supported */
-	unsigned int ce_count;
+	struct tasklet_struct early_irq_tasklet;
 
 	int started;
 
@@ -316,6 +314,16 @@ static inline u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	return ioread32(ar_pci->mem + offset);
+}
+
+static inline u32 ath10k_pci_soc_read32(struct ath10k *ar, u32 addr)
+{
+	return ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS + addr);
+}
+
+static inline void ath10k_pci_soc_write32(struct ath10k *ar, u32 addr, u32 val)
+{
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + addr, val);
 }
 
 int ath10k_do_pci_wake(struct ath10k *ar);

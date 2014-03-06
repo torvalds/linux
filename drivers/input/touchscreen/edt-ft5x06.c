@@ -623,8 +623,9 @@ static int edt_ft5x06_ts_reset(struct i2c_client *client,
 
 	if (gpio_is_valid(reset_pin)) {
 		/* this pulls reset down, enabling the low active reset */
-		error = gpio_request_one(reset_pin, GPIOF_OUT_INIT_LOW,
-					 "edt-ft5x06 reset");
+		error = devm_gpio_request_one(&client->dev, reset_pin,
+					      GPIOF_OUT_INIT_LOW,
+					      "edt-ft5x06 reset");
 		if (error) {
 			dev_err(&client->dev,
 				"Failed to request GPIO %d as reset pin, error %d\n",
@@ -705,7 +706,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
 	const struct edt_ft5x06_platform_data *pdata =
-						client->dev.platform_data;
+						dev_get_platdata(&client->dev);
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
 	int error;
@@ -723,8 +724,8 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 
 	if (gpio_is_valid(pdata->irq_pin)) {
-		error = gpio_request_one(pdata->irq_pin,
-					 GPIOF_IN, "edt-ft5x06 irq");
+		error = devm_gpio_request_one(&client->dev, pdata->irq_pin,
+					      GPIOF_IN, "edt-ft5x06 irq");
 		if (error) {
 			dev_err(&client->dev,
 				"Failed to request GPIO %d, error %d\n",
@@ -733,12 +734,16 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		}
 	}
 
-	tsdata = kzalloc(sizeof(*tsdata), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!tsdata || !input) {
+	tsdata = devm_kzalloc(&client->dev, sizeof(*tsdata), GFP_KERNEL);
+	if (!tsdata) {
 		dev_err(&client->dev, "failed to allocate driver data.\n");
-		error = -ENOMEM;
-		goto err_free_mem;
+		return -ENOMEM;
+	}
+
+	input = devm_input_allocate_device(&client->dev);
+	if (!input) {
+		dev_err(&client->dev, "failed to allocate input device.\n");
+		return -ENOMEM;
 	}
 
 	mutex_init(&tsdata->mutex);
@@ -749,7 +754,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	error = edt_ft5x06_ts_identify(client, tsdata->name, fw_version);
 	if (error) {
 		dev_err(&client->dev, "touchscreen probe failed\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	edt_ft5x06_ts_get_defaults(tsdata, pdata);
@@ -776,27 +781,30 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
 	if (error) {
 		dev_err(&client->dev, "Unable to init MT slots.\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
 
-	error = request_threaded_irq(client->irq, NULL, edt_ft5x06_ts_isr,
-				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				     client->name, tsdata);
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					  NULL, edt_ft5x06_ts_isr,
+					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  client->name, tsdata);
 	if (error) {
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	error = sysfs_create_group(&client->dev.kobj, &edt_ft5x06_attr_group);
 	if (error)
-		goto err_free_irq;
+		return error;
 
 	error = input_register_device(input);
-	if (error)
-		goto err_remove_attrs;
+	if (error) {
+		sysfs_remove_group(&client->dev.kobj, &edt_ft5x06_attr_group);
+		return error;
+	}
 
 	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
 	device_init_wakeup(&client->dev, 1);
@@ -806,39 +814,14 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		pdata->irq_pin, pdata->reset_pin);
 
 	return 0;
-
-err_remove_attrs:
-	sysfs_remove_group(&client->dev.kobj, &edt_ft5x06_attr_group);
-err_free_irq:
-	free_irq(client->irq, tsdata);
-err_free_mem:
-	input_free_device(input);
-	kfree(tsdata);
-
-	if (gpio_is_valid(pdata->irq_pin))
-		gpio_free(pdata->irq_pin);
-
-	return error;
 }
 
 static int edt_ft5x06_ts_remove(struct i2c_client *client)
 {
-	const struct edt_ft5x06_platform_data *pdata =
-						dev_get_platdata(&client->dev);
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
 
 	edt_ft5x06_ts_teardown_debugfs(tsdata);
 	sysfs_remove_group(&client->dev.kobj, &edt_ft5x06_attr_group);
-
-	free_irq(client->irq, tsdata);
-	input_unregister_device(tsdata->input);
-
-	if (gpio_is_valid(pdata->irq_pin))
-		gpio_free(pdata->irq_pin);
-	if (gpio_is_valid(pdata->reset_pin))
-		gpio_free(pdata->reset_pin);
-
-	kfree(tsdata);
 
 	return 0;
 }

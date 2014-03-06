@@ -37,7 +37,6 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
@@ -53,7 +52,7 @@
 
 /* OS specific PCI information structure and adapter information. */
 struct crystalhd_adp {
-	/* Hardware borad/PCI specifics */
+	/* Hardware board/PCI specifics */
 	char			name[32];
 	struct pci_dev		*pdev;
 

@@ -184,7 +184,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	const struct ili210x_platform_data *pdata = dev->platform_data;
+	const struct ili210x_platform_data *pdata = dev_get_platdata(dev);
 	struct ili210x *priv;
 	struct input_dev *input;
 	struct panel_info panel;

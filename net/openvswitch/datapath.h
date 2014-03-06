@@ -88,6 +88,8 @@ struct datapath {
 	/* Network namespace ref. */
 	struct net *net;
 #endif
+
+	u32 user_features;
 };
 
 /**
@@ -145,6 +147,8 @@ int lockdep_ovsl_is_held(void);
 #define ASSERT_OVSL()		WARN_ON(unlikely(!lockdep_ovsl_is_held()))
 #define ovsl_dereference(p)					\
 	rcu_dereference_protected(p, lockdep_ovsl_is_held())
+#define rcu_dereference_ovsl(p)					\
+	rcu_dereference_check(p, lockdep_ovsl_is_held())
 
 static inline struct net *ovs_dp_get_net(struct datapath *dp)
 {
@@ -178,14 +182,12 @@ static inline struct vport *ovs_vport_ovsl(const struct datapath *dp, int port_n
 
 extern struct notifier_block ovs_dp_device_notifier;
 extern struct genl_family dp_vport_genl_family;
-extern struct genl_multicast_group ovs_dp_vport_multicast_group;
 
 void ovs_dp_process_received_packet(struct vport *, struct sk_buff *);
 void ovs_dp_detach_port(struct vport *);
 int ovs_dp_upcall(struct datapath *, struct sk_buff *,
 		  const struct dp_upcall_info *);
 
-const char *ovs_dp_name(const struct datapath *dp);
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
 					 u8 cmd);
 

@@ -27,8 +27,10 @@
  */
 
 #include <drm/drmP.h>
-#include "i915_drv.h"
 #include <drm/i915_drm.h>
+
+#include "i915_drv.h"
+#include "intel_drv.h"
 #include "i915_trace.h"
 
 static bool
@@ -53,6 +55,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	struct list_head eviction_list, unwind_list;
 	struct i915_vma *vma;
 	int ret = 0;
+	int pass = 0;
 
 	trace_i915_gem_evict(dev, min_size, alignment, mappable);
 
@@ -119,14 +122,24 @@ none:
 	/* Can we unpin some objects such as idle hw contents,
 	 * or pending flips?
 	 */
-	ret = nonblocking ? -ENOSPC : i915_gpu_idle(dev);
-	if (ret)
-		return ret;
+	if (nonblocking)
+		return -ENOSPC;
 
 	/* Only idle the GPU and repeat the search once */
-	i915_gem_retire_requests(dev);
-	nonblocking = true;
-	goto search_again;
+	if (pass++ == 0) {
+		ret = i915_gpu_idle(dev);
+		if (ret)
+			return ret;
+
+		i915_gem_retire_requests(dev);
+		goto search_again;
+	}
+
+	/* If we still have pending pageflip completions, drop
+	 * back to userspace to give our workqueues time to
+	 * acquire our locks and unpin the old scanouts.
+	 */
+	return intel_has_pending_fb_unpin(dev) ? -EAGAIN : -ENOSPC;
 
 found:
 	/* drm_mm doesn't allow any other other operations while

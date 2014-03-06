@@ -240,6 +240,8 @@ int r520_resume(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = r520_startup(rdev);
 	if (r) {
@@ -311,6 +313,9 @@ int r520_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rv515_set_safe_registers(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = r520_startup(rdev);

@@ -1,17 +1,23 @@
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "tegra20.dtsi"
 
 / {
 	model = "NVIDIA Tegra20 Ventana evaluation board";
 	compatible = "nvidia,ventana", "nvidia,tegra20";
 
+	aliases {
+		rtc0 = "/i2c@7000d000/tps6586x@34";
+		rtc1 = "/rtc@7000e000";
+	};
+
 	memory {
 		reg = <0x00000000 0x40000000>;
 	};
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 
 			vdd-supply = <&hdmi_vdd_reg>;
@@ -23,7 +29,7 @@
 		};
 	};
 
-	pinmux {
+	pinmux@70000014 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -189,50 +195,50 @@
 					"irtx", "pta", "rm", "sdc", "sdd",
 					"slxc", "slxd", "slxk", "spdi", "spdo",
 					"uac", "uad", "uca", "ucb", "uda";
-				nvidia,pull = <0>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ate {
 				nvidia,pins = "ate", "csus", "dap3", "gmd",
 					"gpv", "owc", "spia", "spib", "spic",
 					"spid", "spie", "spig";
-				nvidia,pull = <0>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
-				nvidia,pull = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 			};
 			conf_crtp {
 				nvidia,pins = "crtp", "gmb", "slxa", "spih";
-				nvidia,pull = <2>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_dta {
 				nvidia,pins = "dta", "dtb", "dtc", "dtd";
-				nvidia,pull = <1>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_dte {
 				nvidia,pins = "dte", "spif";
-				nvidia,pull = <1>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_hdint {
 				nvidia,pins = "hdint", "lcsn", "ldc", "lm1",
 					"lpw1", "lsck", "lsda", "lsdi", "lvp0";
-				nvidia,tristate = <1>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_kbca {
 				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
 					"kbce", "kbcf", "sdio1", "uaa", "uab";
-				nvidia,pull = <2>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_lc {
 				nvidia,pins = "lc", "ls";
-				nvidia,pull = <2>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 			};
 			conf_ld0 {
 				nvidia,pins = "ld0", "ld1", "ld2", "ld3", "ld4",
@@ -242,22 +248,22 @@
 					"lhp1", "lhp2", "lhs", "lm0", "lpp",
 					"lpw0", "lpw2", "lsc0", "lsc1", "lspi",
 					"lvp1", "lvs", "pmc", "sdb";
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ld17_0 {
 				nvidia,pins = "ld17_0", "ld19_18", "ld21_20",
 					"ld23_22";
-				nvidia,pull = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
 			};
 			drive_sdio1 {
 				nvidia,pins = "drive_sdio1";
-				nvidia,high-speed-mode = <0>;
-				nvidia,schmitt = <1>;
-				nvidia,low-power-mode = <3>;
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,schmitt = <TEGRA_PIN_ENABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,pull-down-strength = <31>;
 				nvidia,pull-up-strength = <31>;
-				nvidia,slew-rate-rising = <3>;
-				nvidia,slew-rate-falling = <3>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
 			};
 		};
 
@@ -492,7 +498,7 @@
 		};
 	};
 
-	pmc {
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <2000>;
@@ -556,7 +562,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;
@@ -570,7 +576,7 @@
 		power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-			linux,code = <116>; /* KEY_POWER */
+			linux,code = <KEY_POWER>;
 			gpio-key,wakeup;
 		};
 	};

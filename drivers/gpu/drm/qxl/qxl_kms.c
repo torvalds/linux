@@ -115,7 +115,7 @@ static void qxl_gc_work(struct work_struct *work)
 	qxl_garbage_collect(qdev);
 }
 
-int qxl_device_init(struct qxl_device *qdev,
+static int qxl_device_init(struct qxl_device *qdev,
 		    struct drm_device *ddev,
 		    struct pci_dev *pdev,
 		    unsigned long flags)

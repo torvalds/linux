@@ -267,7 +267,7 @@ void balloon_page_putback(struct page *page)
 		put_page(page);
 	} else {
 		WARN_ON(1);
-		dump_page(page);
+		dump_page(page, "not movable balloon page");
 	}
 	unlock_page(page);
 }
@@ -287,7 +287,7 @@ int balloon_page_migrate(struct page *newpage,
 	BUG_ON(!trylock_page(newpage));
 
 	if (WARN_ON(!__is_movable_balloon_page(page))) {
-		dump_page(page);
+		dump_page(page, "not movable balloon page");
 		unlock_page(newpage);
 		return rc;
 	}

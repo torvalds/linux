@@ -82,6 +82,20 @@
 #define WLC_N_BW_40ALL			1
 #define WLC_N_BW_20IN2G_40IN5G		2
 
+#define WLC_BW_20MHZ_BIT		BIT(0)
+#define WLC_BW_40MHZ_BIT		BIT(1)
+#define WLC_BW_80MHZ_BIT		BIT(2)
+#define WLC_BW_160MHZ_BIT		BIT(3)
+
+/* Bandwidth capabilities */
+#define WLC_BW_CAP_20MHZ		(WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_40MHZ		(WLC_BW_40MHZ_BIT|WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_80MHZ		(WLC_BW_80MHZ_BIT|WLC_BW_40MHZ_BIT| \
+					 WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_160MHZ		(WLC_BW_160MHZ_BIT|WLC_BW_80MHZ_BIT| \
+					 WLC_BW_40MHZ_BIT|WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_UNRESTRICTED		0xFF
+
 /* band types */
 #define	WLC_BAND_AUTO			0	/* auto-select */
 #define	WLC_BAND_5G			1	/* 5 Ghz */

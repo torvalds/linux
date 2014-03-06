@@ -22,7 +22,6 @@
 #include <sys/socket.h>
 #include <sys/poll.h>
 #include <sys/ioctl.h>
-#include <linux/types.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <mntent.h>

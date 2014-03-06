@@ -1883,21 +1883,27 @@ static struct pmu pmu = {
 
 void arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
 {
+	struct cyc2ns_data *data;
+
 	userpg->cap_user_time = 0;
 	userpg->cap_user_time_zero = 0;
 	userpg->cap_user_rdpmc = x86_pmu.attr_rdpmc;
 	userpg->pmc_width = x86_pmu.cntval_bits;
 
-	if (!sched_clock_stable)
+	if (!sched_clock_stable())
 		return;
 
+	data = cyc2ns_read_begin();
+
 	userpg->cap_user_time = 1;
-	userpg->time_mult = this_cpu_read(cyc2ns);
-	userpg->time_shift = CYC2NS_SCALE_FACTOR;
-	userpg->time_offset = this_cpu_read(cyc2ns_offset) - now;
+	userpg->time_mult = data->cyc2ns_mul;
+	userpg->time_shift = data->cyc2ns_shift;
+	userpg->time_offset = data->cyc2ns_offset - now;
 
 	userpg->cap_user_time_zero = 1;
-	userpg->time_zero = this_cpu_read(cyc2ns_offset);
+	userpg->time_zero = data->cyc2ns_offset;
+
+	cyc2ns_read_end(data);
 }
 
 /*

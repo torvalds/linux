@@ -154,7 +154,7 @@ int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length)
 	return 0;
 }
 /**
- * mei_io_cb_alloc_resp_buf - allocate respose buffer
+ * mei_io_cb_alloc_resp_buf - allocate response buffer
  *
  * @cb: io callback structure
  * @length: size of the buffer
@@ -207,7 +207,7 @@ int mei_cl_flush_queues(struct mei_cl *cl)
 
 
 /**
- * mei_cl_init - initializes intialize cl.
+ * mei_cl_init - initializes cl.
  *
  * @cl: host client to be initialized
  * @dev: mei device
@@ -263,10 +263,10 @@ struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
 	return NULL;
 }
 
-/** mei_cl_link: allocte host id in the host map
+/** mei_cl_link: allocate host id in the host map
  *
  * @cl - host client
- * @id - fixed host id or -1 for genereting one
+ * @id - fixed host id or -1 for generic one
  *
  * returns 0 on success
  *	-EINVAL on incorrect values
@@ -282,19 +282,19 @@ int mei_cl_link(struct mei_cl *cl, int id)
 
 	dev = cl->dev;
 
-	/* If Id is not asigned get one*/
+	/* If Id is not assigned get one*/
 	if (id == MEI_HOST_CLIENT_ID_ANY)
 		id = find_first_zero_bit(dev->host_clients_map,
 					MEI_CLIENTS_MAX);
 
 	if (id >= MEI_CLIENTS_MAX) {
-		dev_err(&dev->pdev->dev, "id exceded %d", MEI_CLIENTS_MAX) ;
+		dev_err(&dev->pdev->dev, "id exceeded %d", MEI_CLIENTS_MAX);
 		return -EMFILE;
 	}
 
 	open_handle_count = dev->open_handle_count + dev->iamthif_open_count;
 	if (open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
-		dev_err(&dev->pdev->dev, "open_handle_count exceded %d",
+		dev_err(&dev->pdev->dev, "open_handle_count exceeded %d",
 			MEI_MAX_OPEN_HANDLE_COUNT);
 		return -EMFILE;
 	}
@@ -344,8 +344,6 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 	cl->state = MEI_FILE_INITIALIZING;
 
-	list_del_init(&cl->link);
-
 	return 0;
 }
 
@@ -372,13 +370,14 @@ void mei_host_client_init(struct work_struct *work)
 	}
 
 	dev->dev_state = MEI_DEV_ENABLED;
+	dev->reset_count = 0;
 
 	mutex_unlock(&dev->device_lock);
 }
 
 
 /**
- * mei_cl_disconnect - disconnect host clinet form the me one
+ * mei_cl_disconnect - disconnect host client from the me one
  *
  * @cl: host client
  *
@@ -457,7 +456,7 @@ free:
  *
  * @cl: private data of the file object
  *
- * returns ture if other client is connected, 0 - otherwise.
+ * returns true if other client is connected, false - otherwise.
  */
 bool mei_cl_is_other_connecting(struct mei_cl *cl)
 {
@@ -481,7 +480,7 @@ bool mei_cl_is_other_connecting(struct mei_cl *cl)
 }
 
 /**
- * mei_cl_connect - connect host clinet to the me one
+ * mei_cl_connect - connect host client to the me one
  *
  * @cl: host client
  *
@@ -729,6 +728,7 @@ int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
 	mei_hdr.reserved = 0;
+	mei_hdr.internal = cb->internal;
 
 	if (*slots >= msg_slots) {
 		mei_hdr.length = len;
@@ -775,7 +775,7 @@ int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
  * @cl: host client
  * @cl: write callback with filled data
  *
- * returns numbe of bytes sent on success, <0 on failure.
+ * returns number of bytes sent on success, <0 on failure.
  */
 int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 {
@@ -828,6 +828,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
 	mei_hdr.reserved = 0;
+	mei_hdr.internal = cb->internal;
 
 
 	rets = mei_write_message(dev, &mei_hdr, buf->data);

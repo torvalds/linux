@@ -235,11 +235,33 @@ static void intel_mid_irq_mask(struct irq_data *d)
 {
 }
 
+static unsigned int intel_mid_irq_startup(struct irq_data *d)
+{
+	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
+
+	if (gpio_lock_as_irq(&priv->chip, irqd_to_hwirq(d)))
+		dev_err(priv->chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			irqd_to_hwirq(d));
+	intel_mid_irq_unmask(d);
+	return 0;
+}
+
+static void intel_mid_irq_shutdown(struct irq_data *d)
+{
+	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
+
+	intel_mid_irq_mask(d);
+	gpio_unlock_as_irq(&priv->chip, irqd_to_hwirq(d));
+}
+
 static struct irq_chip intel_mid_irqchip = {
 	.name		= "INTEL_MID-GPIO",
 	.irq_mask	= intel_mid_irq_mask,
 	.irq_unmask	= intel_mid_irq_unmask,
 	.irq_set_type	= intel_mid_irq_type,
+	.irq_startup	= intel_mid_irq_startup,
+	.irq_shutdown	= intel_mid_irq_shutdown,
 };
 
 static const struct intel_mid_gpio_ddata gpio_lincroft = {
@@ -275,7 +297,7 @@ static const struct intel_mid_gpio_ddata gpio_tangier = {
 	.chip_irq_type = INTEL_MID_IRQ_TYPE_EDGE,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(intel_gpio_ids) = {
+static const struct pci_device_id intel_gpio_ids[] = {
 	{
 		/* Lincroft */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080f),
@@ -358,8 +380,7 @@ static int intel_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 {
 	struct intel_mid_gpio *priv = d->host_data;
 
-	irq_set_chip_and_handler_name(irq, &intel_mid_irqchip,
-				      handle_simple_irq, "demux");
+	irq_set_chip_and_handler(irq, &intel_mid_irqchip, handle_simple_irq);
 	irq_set_chip_data(irq, priv);
 	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 
@@ -418,6 +439,7 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 
 	priv->reg_base = pcim_iomap_table(pdev)[0];
 	priv->chip.label = dev_name(&pdev->dev);
+	priv->chip.dev = &pdev->dev;
 	priv->chip.request = intel_gpio_request;
 	priv->chip.direction_input = intel_gpio_direction_input;
 	priv->chip.direction_output = intel_gpio_direction_output;
@@ -426,7 +448,7 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 	priv->chip.to_irq = intel_gpio_to_irq;
 	priv->chip.base = gpio_base;
 	priv->chip.ngpio = ddata->ngpio;
-	priv->chip.can_sleep = 0;
+	priv->chip.can_sleep = false;
 	priv->pdev = pdev;
 
 	spin_lock_init(&priv->lock);

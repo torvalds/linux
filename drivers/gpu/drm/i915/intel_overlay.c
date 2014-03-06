@@ -1005,7 +1005,7 @@ static int intel_panel_fitter_pipe(struct drm_device *dev)
 	u32  pfit_control;
 
 	/* i830 doesn't have a panel fitter */
-	if (IS_I830(dev))
+	if (INTEL_INFO(dev)->gen <= 3 && (IS_I830(dev) || !IS_MOBILE(dev)))
 		return -1;
 
 	pfit_control = I915_READ(PFIT_CONTROL);

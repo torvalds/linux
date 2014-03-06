@@ -22,7 +22,10 @@
 #include <mach/map.h>
 
 #include <mach/regs-gpio.h>
+
+#ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-irq.h>
+#endif
 
 /* state for IRQs over sleep */
 

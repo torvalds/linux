@@ -57,7 +57,6 @@ struct nuc900_spi {
 	const unsigned char	*tx;
 	unsigned char		*rx;
 	struct clk		*clk;
-	struct resource		*ioarea;
 	struct spi_master	*master;
 	struct spi_device	*curdev;
 	struct device		*dev;
@@ -344,8 +343,7 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(&pdev->dev, sizeof(struct nuc900_spi));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "No memory for spi_master\n");
-		err = -ENOMEM;
-		goto err_nomem;
+		return -ENOMEM;
 	}
 
 	hw = spi_master_get_devdata(master);
@@ -370,46 +368,31 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	hw->bitbang.txrx_bufs      = nuc900_spi_txrx;
 
 	hw->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (hw->res == NULL) {
-		dev_err(&pdev->dev, "Cannot get IORESOURCE_MEM\n");
-		err = -ENOENT;
+	hw->regs = devm_ioremap_resource(&pdev->dev, hw->res);
+	if (IS_ERR(hw->regs)) {
+		err = PTR_ERR(hw->regs);
 		goto err_pdata;
-	}
-
-	hw->ioarea = request_mem_region(hw->res->start,
-					resource_size(hw->res), pdev->name);
-
-	if (hw->ioarea == NULL) {
-		dev_err(&pdev->dev, "Cannot reserve region\n");
-		err = -ENXIO;
-		goto err_pdata;
-	}
-
-	hw->regs = ioremap(hw->res->start, resource_size(hw->res));
-	if (hw->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot map IO\n");
-		err = -ENXIO;
-		goto err_iomap;
 	}
 
 	hw->irq = platform_get_irq(pdev, 0);
 	if (hw->irq < 0) {
 		dev_err(&pdev->dev, "No IRQ specified\n");
 		err = -ENOENT;
-		goto err_irq;
+		goto err_pdata;
 	}
 
-	err = request_irq(hw->irq, nuc900_spi_irq, 0, pdev->name, hw);
+	err = devm_request_irq(&pdev->dev, hw->irq, nuc900_spi_irq, 0,
+				pdev->name, hw);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot claim IRQ\n");
-		goto err_irq;
+		goto err_pdata;
 	}
 
-	hw->clk = clk_get(&pdev->dev, "spi");
+	hw->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(hw->clk)) {
 		dev_err(&pdev->dev, "No clock for device\n");
 		err = PTR_ERR(hw->clk);
-		goto err_clk;
+		goto err_pdata;
 	}
 
 	mfp_set_groupg(&pdev->dev, NULL);
@@ -425,17 +408,8 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 
 err_register:
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
-err_clk:
-	free_irq(hw->irq, hw);
-err_irq:
-	iounmap(hw->regs);
-err_iomap:
-	release_mem_region(hw->res->start, resource_size(hw->res));
-	kfree(hw->ioarea);
 err_pdata:
 	spi_master_put(hw->master);
-err_nomem:
 	return err;
 }
 
@@ -443,18 +417,8 @@ static int nuc900_spi_remove(struct platform_device *dev)
 {
 	struct nuc900_spi *hw = platform_get_drvdata(dev);
 
-	free_irq(hw->irq, hw);
-
 	spi_bitbang_stop(&hw->bitbang);
-
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
-
-	iounmap(hw->regs);
-
-	release_mem_region(hw->res->start, resource_size(hw->res));
-	kfree(hw->ioarea);
-
 	spi_master_put(hw->master);
 	return 0;
 }

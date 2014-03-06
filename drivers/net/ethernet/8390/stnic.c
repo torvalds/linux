@@ -69,6 +69,11 @@ static void stnic_block_output (struct net_device *dev, int count,
 
 static void stnic_init (struct net_device *dev);
 
+static u32 stnic_msg_enable;
+
+module_param_named(msg_enable, stnic_msg_enable, uint, (S_IRUSR|S_IRGRP|S_IROTH));
+MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
+
 /* SH7750 specific read/write io. */
 static inline void
 STNIC_DELAY (void)
@@ -100,6 +105,7 @@ static int __init stnic_probe(void)
 {
   struct net_device *dev;
   int i, err;
+  struct ei_device *ei_local;
 
   /* If we are not running on a SolutionEngine, give up now */
   if (! MACH_SE)
@@ -125,10 +131,10 @@ static int __init stnic_probe(void)
      share and the board will usually be enabled. */
   err = request_irq (dev->irq, ei_interrupt, 0, DRV_NAME, dev);
   if (err)  {
-      printk (KERN_EMERG " unable to get IRQ %d.\n", dev->irq);
-      free_netdev(dev);
-      return err;
-    }
+	netdev_emerg(dev, " unable to get IRQ %d.\n", dev->irq);
+	free_netdev(dev);
+	return err;
+  }
 
   ei_status.name = dev->name;
   ei_status.word16 = 1;
@@ -147,6 +153,8 @@ static int __init stnic_probe(void)
   ei_status.block_output = &stnic_block_output;
 
   stnic_init (dev);
+  ei_local = netdev_priv(dev);
+  ei_local->msg_enable = stnic_msg_enable;
 
   err = register_netdev(dev);
   if (err) {
@@ -156,7 +164,7 @@ static int __init stnic_probe(void)
   }
   stnic_dev = dev;
 
-  printk (KERN_INFO "NS ST-NIC 83902A\n");
+  netdev_info(dev, "NS ST-NIC 83902A\n");
 
   return 0;
 }
@@ -164,10 +172,11 @@ static int __init stnic_probe(void)
 static void
 stnic_reset (struct net_device *dev)
 {
+  struct ei_device *ei_local = netdev_priv(dev);
+
   *(vhalf *) PA_83902_RST = 0;
   udelay (5);
-  if (ei_debug > 1)
-    printk (KERN_WARNING "8390 reset done (%ld).\n", jiffies);
+  netif_warn(ei_local, hw, dev, "8390 reset done (%ld).\n", jiffies);
   *(vhalf *) PA_83902_RST = ~0;
   udelay (5);
 }
@@ -176,6 +185,8 @@ static void
 stnic_get_hdr (struct net_device *dev, struct e8390_pkt_hdr *hdr,
 	       int ring_page)
 {
+  struct ei_device *ei_local = netdev_priv(dev);
+
   half buf[2];
 
   STNIC_WRITE (PG0_RSAR0, 0);
@@ -196,8 +207,7 @@ stnic_get_hdr (struct net_device *dev, struct e8390_pkt_hdr *hdr,
   hdr->count = ((buf[1] >> 8) & 0xff) | (buf[1] << 8);
 #endif
 
-  if (ei_debug > 1)
-    printk (KERN_DEBUG "ring %x status %02x next %02x count %04x.\n",
+  netif_dbg(ei_local, probe, dev, "ring %x status %02x next %02x count %04x.\n",
 	    ring_page, hdr->status, hdr->next, hdr->count);
 
   STNIC_WRITE (STNIC_CR, CR_RDMA | CR_PG0 | CR_STA);

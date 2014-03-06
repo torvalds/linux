@@ -22,8 +22,10 @@ static void mga_hide_cursor(struct mga_device *mdev)
 {
 	WREG8(MGA_CURPOSXL, 0);
 	WREG8(MGA_CURPOSXH, 0);
-	mgag200_bo_unpin(mdev->cursor.pixels_1);
-	mgag200_bo_unpin(mdev->cursor.pixels_2);
+	if (mdev->cursor.pixels_1->pin_count)
+		mgag200_bo_unpin(mdev->cursor.pixels_1);
+	if (mdev->cursor.pixels_2->pin_count)
+		mgag200_bo_unpin(mdev->cursor.pixels_2);
 }
 
 int mga_crtc_cursor_set(struct drm_crtc *crtc,
@@ -32,7 +34,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 			uint32_t width,
 			uint32_t height)
 {
-	struct drm_device *dev = (struct drm_device *)file_priv->minor->dev;
+	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = (struct mga_device *)dev->dev_private;
 	struct mgag200_bo *pixels_1 = mdev->cursor.pixels_1;
 	struct mgag200_bo *pixels_2 = mdev->cursor.pixels_2;

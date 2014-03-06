@@ -177,10 +177,8 @@ static inline int ieee80211_put_snap(u8 *data, u16 h_proto)
 	return SNAP_SIZE + sizeof(u16);
 }
 
-int ieee80211_encrypt_fragment(
-	struct ieee80211_device *ieee,
-	struct sk_buff *frag,
-	int hdr_len)
+int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
+			       struct sk_buff *frag, int hdr_len)
 {
 	struct ieee80211_crypt_data* crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
@@ -279,8 +277,8 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
  * Classify the to-be send data packet
  * Need to acquire the sent queue index.
  */
-static int
-ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
+static int ieee80211_classify(struct sk_buff *skb,
+			      struct ieee80211_network *network)
 {
 	struct ether_header *eh = (struct ether_header *)skb->data;
 	unsigned int wme_UP = 0;
@@ -310,8 +308,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 }
 
 /* SKBs are added to the ieee->tx_queue. */
-int ieee80211_rtl_xmit(struct sk_buff *skb,
-		       struct net_device *dev)
+int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;

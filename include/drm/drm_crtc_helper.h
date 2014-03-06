@@ -120,8 +120,8 @@ struct drm_encoder_helper_funcs {
  */
 struct drm_connector_helper_funcs {
 	int (*get_modes)(struct drm_connector *connector);
-	int (*mode_valid)(struct drm_connector *connector,
-			  struct drm_display_mode *mode);
+	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
+					   struct drm_display_mode *mode);
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
 };
 

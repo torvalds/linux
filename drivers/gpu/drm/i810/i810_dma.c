@@ -1193,6 +1193,10 @@ static int i810_flip_bufs(struct drm_device *dev, void *data,
 
 int i810_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	/* Our userspace depends upon the agp mapping support. */
+	if (!dev->agp)
+		return -EINVAL;
+
 	pci_set_master(dev->pdev);
 
 	return 0;

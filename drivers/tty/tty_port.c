@@ -12,7 +12,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>

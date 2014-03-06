@@ -12,7 +12,6 @@
 #include <linux/module.h>
 
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -571,7 +570,7 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	int i = 0, ret = 0, stop = 0;
 
 	if (i2c->suspended) {
-		dev_err(i2c->dev, "HS-I2C is not initialzed.\n");
+		dev_err(i2c->dev, "HS-I2C is not initialized.\n");
 		return -EIO;
 	}
 

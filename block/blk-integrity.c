@@ -43,30 +43,32 @@ static const char *bi_unsupported_name = "unsupported";
  */
 int blk_rq_count_integrity_sg(struct request_queue *q, struct bio *bio)
 {
-	struct bio_vec *iv, *ivprv = NULL;
+	struct bio_vec iv, ivprv = { NULL };
 	unsigned int segments = 0;
 	unsigned int seg_size = 0;
-	unsigned int i = 0;
+	struct bvec_iter iter;
+	int prev = 0;
 
-	bio_for_each_integrity_vec(iv, bio, i) {
+	bio_for_each_integrity_vec(iv, bio, iter) {
 
-		if (ivprv) {
-			if (!BIOVEC_PHYS_MERGEABLE(ivprv, iv))
+		if (prev) {
+			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
 				goto new_segment;
 
-			if (!BIOVEC_SEG_BOUNDARY(q, ivprv, iv))
+			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
 				goto new_segment;
 
-			if (seg_size + iv->bv_len > queue_max_segment_size(q))
+			if (seg_size + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 
-			seg_size += iv->bv_len;
+			seg_size += iv.bv_len;
 		} else {
 new_segment:
 			segments++;
-			seg_size = iv->bv_len;
+			seg_size = iv.bv_len;
 		}
 
+		prev = 1;
 		ivprv = iv;
 	}
 
@@ -87,24 +89,25 @@ EXPORT_SYMBOL(blk_rq_count_integrity_sg);
 int blk_rq_map_integrity_sg(struct request_queue *q, struct bio *bio,
 			    struct scatterlist *sglist)
 {
-	struct bio_vec *iv, *ivprv = NULL;
+	struct bio_vec iv, ivprv = { NULL };
 	struct scatterlist *sg = NULL;
 	unsigned int segments = 0;
-	unsigned int i = 0;
+	struct bvec_iter iter;
+	int prev = 0;
 
-	bio_for_each_integrity_vec(iv, bio, i) {
+	bio_for_each_integrity_vec(iv, bio, iter) {
 
-		if (ivprv) {
-			if (!BIOVEC_PHYS_MERGEABLE(ivprv, iv))
+		if (prev) {
+			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
 				goto new_segment;
 
-			if (!BIOVEC_SEG_BOUNDARY(q, ivprv, iv))
+			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
 				goto new_segment;
 
-			if (sg->length + iv->bv_len > queue_max_segment_size(q))
+			if (sg->length + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 
-			sg->length += iv->bv_len;
+			sg->length += iv.bv_len;
 		} else {
 new_segment:
 			if (!sg)
@@ -114,10 +117,11 @@ new_segment:
 				sg = sg_next(sg);
 			}
 
-			sg_set_page(sg, iv->bv_page, iv->bv_len, iv->bv_offset);
+			sg_set_page(sg, iv.bv_page, iv.bv_len, iv.bv_offset);
 			segments++;
 		}
 
+		prev = 1;
 		ivprv = iv;
 	}
 

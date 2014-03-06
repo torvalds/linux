@@ -36,6 +36,17 @@ config KVM_ARM_HOST
 	---help---
 	  Provides host support for ARM processors.
 
+config KVM_ARM_MAX_VCPUS
+	int "Number maximum supported virtual CPUs per VM"
+	depends on KVM_ARM_HOST
+	default 4
+	help
+	  Static number of max supported virtual CPUs per VM.
+
+	  If you choose a high number, the vcpu structures will be quite
+	  large, so only choose a reasonable number that you expect to
+	  actually use.
+
 config KVM_ARM_VGIC
 	bool
 	depends on KVM_ARM_HOST && OF
