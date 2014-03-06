@@ -133,7 +133,8 @@ void __kprobes kprobe_simulate_nop(struct kprobe *p, struct pt_regs *regs);
 void __kprobes kprobe_emulate_none(struct kprobe *p, struct pt_regs *regs);
 
 enum kprobe_insn __kprobes
-kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi);
+kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+		const struct decode_header *h);
 
 /*
  * Test if load/store instructions writeback the address register.
@@ -160,7 +161,7 @@ kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi);
  *	{.bits = _type},
  *	{.bits = _mask},
  *	{.bits = _value},
- *	{.handler = _handler},
+ *	{.action = _handler},
  *
  * Initialising a specified member of the union means that the compiler
  * will produce a warning if the argument is of an incorrect type.
@@ -173,19 +174,23 @@ kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi);
  *	Instruction decoding jumps to parsing the new sub-table 'table'.
  *
  * DECODE_CUSTOM(mask, value, decoder)
- *	The custom function 'decoder' is called to the complete decoding
- *	of an instruction.
+ *	The value of 'decoder' is used as an index into the array of
+ *	action functions, and the retrieved decoder function is invoked
+ *	to complete decoding of the instruction.
  *
  * DECODE_SIMULATE(mask, value, handler)
- *	Set the probes instruction handler to 'handler', this will be used
- *	to simulate the instruction when the probe is hit. Decoding returns
- *	with INSN_GOOD_NO_SLOT.
+ *	The probes instruction handler is set to the value found by
+ *	indexing into the action array using the value of 'handler'. This
+ *	will be used to simulate the instruction when the probe is hit.
+ *	Decoding returns with INSN_GOOD_NO_SLOT.
  *
  * DECODE_EMULATE(mask, value, handler)
- *	Set the probes instruction handler to 'handler', this will be used
- *	to emulate the instruction when the probe is hit. The modified
- *	instruction (see below) is placed in the probes instruction slot so it
- *	may be called by the emulation code. Decoding returns with INSN_GOOD.
+ *	The probes instruction handler is set to the value found by
+ *	indexing into the action array using the value of 'handler'. This
+ *	will be used to emulate the instruction when the probe is hit. The
+ *	modified instruction (see below) is placed in the probes instruction
+ *	slot so it may be called by the emulation code. Decoding returns
+ *	with INSN_GOOD.
  *
  * DECODE_REJECT(mask, value)
  *	Instruction decoding fails with INSN_REJECTED
@@ -238,7 +243,7 @@ kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi);
  * Here is a real example which matches ARM instructions of the form
  * "AND <Rd>,<Rn>,<Rm>,<shift> <Rs>"
  *
- *	DECODE_EMULATEX	(0x0e000090, 0x00000010, emulate_rd12rn16rm0rs8_rwflags,
+ *	DECODE_EMULATEX	(0x0e000090, 0x00000010, PROBES_DATA_PROCESSING_REG,
  *						 REGS(ANY, ANY, NOPC, 0, ANY)),
  *						      ^    ^    ^        ^
  *						      Rn   Rd   Rs       Rm
@@ -249,7 +254,8 @@ kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi);
  * Decoding the instruction "AND R4, R5, R6, ASL R7" will be accepted and the
  * instruction will be modified to "AND R0, R2, R3, ASL R1" and then placed into
  * the kprobes instruction slot. This can then be called later by the handler
- * function emulate_rd12rn16rm0rs8_rwflags in order to simulate the instruction.
+ * function emulate_rd12rn16rm0rs8_rwflags (a pointer to which is retrieved from
+ * the indicated slot in the action array), in order to simulate the instruction.
  */
 
 enum decode_type {
@@ -298,10 +304,17 @@ enum decode_reg_type {
 union decode_item {
 	u32			bits;
 	const union decode_item	*table;
-	kprobe_insn_handler_t	*handler;
-	kprobe_decode_insn_t	*decoder;
+	int			action;
 };
 
+typedef enum kprobe_insn (probes_custom_decode_t)(kprobe_opcode_t,
+						  struct arch_specific_insn *,
+						  const struct decode_header *);
+
+union decode_action {
+	kprobe_insn_handler_t	*handler;
+	probes_custom_decode_t	*decoder;
+};
 
 #define DECODE_END			\
 	{.bits = DECODE_TYPE_END}
@@ -336,7 +349,7 @@ struct decode_custom {
 
 #define DECODE_CUSTOM(_mask, _value, _decoder)			\
 	DECODE_HEADER(DECODE_TYPE_CUSTOM, _mask, _value, 0),	\
-	{.decoder = (_decoder)}
+	{.action = (_decoder)}
 
 
 struct decode_simulate {
@@ -346,7 +359,7 @@ struct decode_simulate {
 
 #define DECODE_SIMULATEX(_mask, _value, _handler, _regs)		\
 	DECODE_HEADER(DECODE_TYPE_SIMULATE, _mask, _value, _regs),	\
-	{.handler = (_handler)}
+	{.action = (_handler)}
 
 #define DECODE_SIMULATE(_mask, _value, _handler)	\
 	DECODE_SIMULATEX(_mask, _value, _handler, 0)
@@ -359,7 +372,7 @@ struct decode_emulate {
 
 #define DECODE_EMULATEX(_mask, _value, _handler, _regs)			\
 	DECODE_HEADER(DECODE_TYPE_EMULATE, _mask, _value, _regs),	\
-	{.handler = (_handler)}
+	{.action = (_handler)}
 
 #define DECODE_EMULATE(_mask, _value, _handler)		\
 	DECODE_EMULATEX(_mask, _value, _handler, 0)
@@ -384,14 +397,18 @@ struct decode_reject {
 #ifdef CONFIG_THUMB2_KERNEL
 extern const union decode_item kprobe_decode_thumb16_table[];
 extern const union decode_item kprobe_decode_thumb32_table[];
+extern const union decode_action kprobes_t32_actions[];
+extern const union decode_action kprobes_t16_actions[];
 #else
 extern const union decode_item kprobe_decode_arm_table[];
+extern const union decode_action kprobes_arm_actions[];
 #endif
 
 extern kprobe_check_cc * const kprobe_condition_checks[16];
 
 
 int kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
-		       const union decode_item *table, bool thumb16);
+		       const union decode_item *table, bool thumb16,
+		       const union decode_action *actions);
 
 #endif

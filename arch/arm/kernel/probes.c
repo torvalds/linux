@@ -381,7 +381,8 @@ static const int decode_struct_sizes[NUM_DECODE_TYPES] = {
  */
 int __kprobes
 kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
-		   const union decode_item *table, bool thumb)
+		   const union decode_item *table, bool thumb,
+		   const union decode_action *actions)
 {
 	const struct decode_header *h = (struct decode_header *)table;
 	const struct decode_header *next;
@@ -415,18 +416,18 @@ kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
 
 		case DECODE_TYPE_CUSTOM: {
 			struct decode_custom *d = (struct decode_custom *)h;
-			return (*d->decoder.decoder)(insn, asi);
+			return actions[d->decoder.action].decoder(insn, asi, h);
 		}
 
 		case DECODE_TYPE_SIMULATE: {
 			struct decode_simulate *d = (struct decode_simulate *)h;
-			asi->insn_handler = d->handler.handler;
+			asi->insn_handler = actions[d->handler.action].handler;
 			return INSN_GOOD_NO_SLOT;
 		}
 
 		case DECODE_TYPE_EMULATE: {
 			struct decode_emulate *d = (struct decode_emulate *)h;
-			asi->insn_handler = d->handler.handler;
+			asi->insn_handler = actions[d->handler.action].handler;
 			set_emulated_insn(insn, asi, thumb);
 			return INSN_GOOD;
 		}

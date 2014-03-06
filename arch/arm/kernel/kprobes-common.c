@@ -112,7 +112,8 @@ emulate_ldm_r3_15(struct kprobe *p, struct pt_regs *regs)
 }
 
 enum kprobe_insn __kprobes
-kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi)
+kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+		const struct decode_header *h)
 {
 	kprobe_insn_handler_t *handler = 0;
 	unsigned reglist = insn & 0xffff;
