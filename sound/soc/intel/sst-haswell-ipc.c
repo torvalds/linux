@@ -895,7 +895,7 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 		/* Handle Immediate reply from DSP Core */
 		handled = hsw_process_reply(hsw, ipcx);
 
-		if (handled) {
+		if (handled > 0) {
 			/* clear DONE bit - tell DSP we have completed */
 			sst_dsp_shim_update_bits_unlocked(sst, SST_IPCX,
 				SST_IPCX_DONE, 0);
@@ -913,7 +913,7 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 		handled = hsw_process_notification(hsw);
 
 		/* clear BUSY bit and set DONE bit - accept new messages */
-		if (handled) {
+		if (handled > 0) {
 			sst_dsp_shim_update_bits_unlocked(sst, SST_IPCD,
 				SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
 
