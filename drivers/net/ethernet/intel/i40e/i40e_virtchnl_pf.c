@@ -29,6 +29,24 @@
 /***********************misc routines*****************************/
 
 /**
+ * i40e_vc_disable_vf
+ * @pf: pointer to the pf info
+ * @vf: pointer to the vf info
+ *
+ * Disable the VF through a SW reset
+ **/
+static inline void i40e_vc_disable_vf(struct i40e_pf *pf, struct i40e_vf *vf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	u32 reg;
+
+	reg = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_id));
+	reg |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
+	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_id), reg);
+	i40e_flush(hw);
+}
+
+/**
  * i40e_vc_isvalid_vsi_id
  * @vf: pointer to the vf info
  * @vsi_id: vf relative vsi id
@@ -2088,10 +2106,16 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 		goto error_pvid;
 	}
 
-	if (vsi->info.pvid == 0 && i40e_is_vsi_in_vlan(vsi))
+	if (vsi->info.pvid == 0 && i40e_is_vsi_in_vlan(vsi)) {
 		dev_err(&pf->pdev->dev,
 			"VF %d has already configured VLAN filters and the administrator is requesting a port VLAN override.\nPlease unload and reload the VF driver for this change to take effect.\n",
 			vf_id);
+		/* Administrator Error - knock the VF offline until he does
+		 * the right thing by reconfiguring his network correctly
+		 * and then reloading the VF driver.
+		 */
+		i40e_vc_disable_vf(pf, vf);
+	}
 
 	/* Check for condition where there was already a port VLAN ID
 	 * filter set and now it is being deleted by setting it to zero.
