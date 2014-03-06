@@ -647,6 +647,8 @@ static int max732x_probe(struct i2c_client *client,
 	return 0;
 
 out_failed:
+	if (chip->client_dummy)
+		i2c_unregister_device(chip->client_dummy);
 	max732x_irq_teardown(chip);
 	return ret;
 }
