@@ -706,7 +706,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 							     to_write);
 				if (ret != 0) {
 					adsp_err(dsp,
-						"%s.%d: Failed to write %d bytes at %d in %s: %d\n",
+						"%s.%d: Failed to write %zd bytes at %d in %s: %d\n",
 						file, regions,
 						to_write, offset,
 						region_name, ret);
