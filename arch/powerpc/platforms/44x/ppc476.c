@@ -1,5 +1,5 @@
 /*
- * Currituck board specific routines
+ * PowerPC 476FPE board specific routines
  *
  * Copyright © 2011 Tony Breeds IBM Corporation
  *
@@ -36,7 +36,7 @@
 
 #include <linux/pci.h>
 
-static __initdata struct of_device_id ppc47x_of_bus[] = {
+static struct of_device_id ppc47x_of_bus[] __initdata = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,plb6", },
 	{ .compatible = "ibm,opb", },
@@ -157,7 +157,7 @@ static void __init ppc47x_setup_arch(void)
 {
 
 	/* No need to check the DMA config as we /know/ our windows are all of
- 	 * RAM.  Lets hope that doesn't change */
+	 * RAM.  Lets hope that doesn't change */
 	swiotlb_detect_4g();
 
 	ppc47x_smp_init();
@@ -208,7 +208,7 @@ machine_arch_initcall(ppc47x, ppc47x_get_board_rev);
 static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
 {
 	if (dev->vendor == 0x1033 && (dev->device == 0x0035 ||
-	                              dev->device == 0x00e0)) {
+				      dev->device == 0x00e0)) {
 		if (board_rev == 0) {
 			dev->irq = irq_create_mapping(NULL, 47);
 			pr_info("%s: Mapping irq %d\n", __func__, dev->irq);
