@@ -2882,9 +2882,9 @@ static inline struct dmar_domain *get_valid_domain_for_dev(struct pci_dev *dev)
 	return __get_valid_domain_for_dev(dev);
 }
 
-static int iommu_dummy(struct pci_dev *pdev)
+static int iommu_dummy(struct device *dev)
 {
-	return pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO;
+	return dev->archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO;
 }
 
 /* Check if the pdev needs to go through non-identity map and unmap process.*/
@@ -2896,13 +2896,13 @@ static int iommu_no_mapping(struct device *dev)
 	if (unlikely(!dev_is_pci(dev)))
 		return 1;
 
-	pdev = to_pci_dev(dev);
-	if (iommu_dummy(pdev))
+	if (iommu_dummy(dev))
 		return 1;
 
 	if (!iommu_identity_mapping)
 		return 0;
 
+	pdev = to_pci_dev(dev);
 	found = identity_mapping(pdev);
 	if (found) {
 		if (iommu_should_identity_map(pdev, 0))
@@ -3801,7 +3801,7 @@ static int device_notifier(struct notifier_block *nb,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dmar_domain *domain;
 
-	if (iommu_dummy(pdev))
+	if (iommu_dummy(dev))
 		return 0;
 
 	if (action != BUS_NOTIFY_UNBOUND_DRIVER &&
