@@ -1968,8 +1968,7 @@ static void i40evf_init_task(struct work_struct *work)
 		}
 		err = i40evf_send_api_ver(adapter);
 		if (err) {
-			dev_err(&pdev->dev, "Unable to send to PF (%d)\n",
-				err);
+			dev_err(&pdev->dev, "Unable to send to PF (%d)\n", err);
 			i40evf_shutdown_adminq(hw);
 			goto err;
 		}
@@ -1977,8 +1976,10 @@ static void i40evf_init_task(struct work_struct *work)
 		goto restart;
 		break;
 	case __I40EVF_INIT_VERSION_CHECK:
-		if (!i40evf_asq_done(hw))
+		if (!i40evf_asq_done(hw)) {
+			dev_err(&pdev->dev, "Admin queue command never completed.\n");
 			goto err;
+		}
 
 		/* aq msg sent, awaiting reply */
 		err = i40evf_verify_api_ver(adapter);
