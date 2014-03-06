@@ -1573,6 +1573,7 @@ static void dgap_tty_post_uninit(void)
  */
 static void dgap_tty_uninit(struct board_t *brd)
 {
+	struct device *dev;
 	int i = 0;
 
 	if (brd->dgap_Major_Serial_Registered) {
@@ -1580,7 +1581,8 @@ static void dgap_tty_uninit(struct board_t *brd)
 		brd->dgap_Serial_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
 			tty_port_destroy(&brd->SerialPorts[i]);
-			dgap_remove_tty_sysfs(brd->channels[i]->ch_tun.un_sysfs);
+			dev = brd->channels[i]->ch_tun.un_sysfs;
+			dgap_remove_tty_sysfs(dev);
 			tty_unregister_device(brd->SerialDriver, i);
 		}
 		tty_unregister_driver(brd->SerialDriver);
@@ -1596,7 +1598,8 @@ static void dgap_tty_uninit(struct board_t *brd)
 		brd->dgap_TransparentPrint_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
 			tty_port_destroy(&brd->PrinterPorts[i]);
-			dgap_remove_tty_sysfs(brd->channels[i]->ch_pun.un_sysfs);
+			dev = brd->channels[i]->ch_pun.un_sysfs;
+			dgap_remove_tty_sysfs(dev);
 			tty_unregister_device(brd->PrintDriver, i);
 		}
 		tty_unregister_driver(brd->PrintDriver);
@@ -1613,7 +1616,8 @@ static void dgap_tty_uninit(struct board_t *brd)
  * dgap_sniff - Dump data out to the "sniff" buffer if the
  * proc sniff file is opened...
  */
-static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *buf, int len)
+static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text,
+				     uchar *buf, int len)
 {
 	struct timeval tv;
 	int n;
@@ -1665,13 +1669,15 @@ static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *b
 			 *  Determine the amount of available space left in the
 			 *  buffer.  If there's none, wait until some appears.
 			 */
-			n = (ch->ch_sniff_out - ch->ch_sniff_in - 1) & SNIFF_MASK;
+			n = (ch->ch_sniff_out - ch->ch_sniff_in - 1) &
+			     SNIFF_MASK;
 
 			/*
-			 * If there is no space left to write to in our sniff buffer,
-			 * we have no choice but to drop the data.
-			 * We *cannot* sleep here waiting for space, because this
-			 * function was probably called by the interrupt/timer routines!
+			 * If there is no space left to write to in our sniff
+			 * buffer, we have no choice but to drop the data.
+			 * We *cannot* sleep here waiting for space, because
+			 * this function was probably called by the
+			 * interrupt/timer routines!
 			 */
 			if (n == 0)
 				return;
@@ -1908,7 +1914,8 @@ static void dgap_input(struct channel_t *ch)
 	 * the tty layer, which has its API more well defined.
 	 */
 	if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
-		dgap_parity_scan(ch, ch->ch_bd->flipbuf, ch->ch_bd->flipflagbuf, &len);
+		dgap_parity_scan(ch, ch->ch_bd->flipbuf,
+				 ch->ch_bd->flipflagbuf, &len);
 
 		len = tty_buffer_request_room(tp->port, len);
 		tty_insert_flip_string_flags(tp->port, ch->ch_bd->flipbuf,
@@ -2209,7 +2216,8 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
  *
  * Wait for DCD, if needed.
  */
-static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struct channel_t *ch)
+static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
+				struct channel_t *ch)
 {
 	int retval = 0;
 	struct un_t *un = NULL;
@@ -2235,7 +2243,8 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 		sleep_on_un_flags = 0;
 
 		/*
-		 * If board has failed somehow during our sleep, bail with error.
+		 * If board has failed somehow during our sleep,
+		 * bail with error.
 		 */
 		if (ch->ch_bd->state == BOARD_FAILED) {
 			retval = -ENXIO;
@@ -2255,7 +2264,8 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 		 * touched safely, the close routine will signal the
 		 * ch_wait_flags to wake us back up.
 		 */
-		if (!((ch->ch_tun.un_flags | ch->ch_pun.un_flags) & UN_CLOSING)) {
+		if (!((ch->ch_tun.un_flags | ch->ch_pun.un_flags) &
+		      UN_CLOSING)) {
 
 			/*
 			 * Our conditions to leave cleanly and happily:
@@ -2306,11 +2316,13 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
 		/*
-		 * Wait for something in the flags to change from the current value.
+		 * Wait for something in the flags to change
+		 * from the current value.
 		 */
 		if (sleep_on_un_flags) {
 			retval = wait_event_interruptible(un->un_flags_wait,
-				(old_flags != (ch->ch_tun.un_flags | ch->ch_pun.un_flags)));
+				(old_flags != (ch->ch_tun.un_flags |
+					       ch->ch_pun.un_flags)));
 		} else {
 			retval = wait_event_interruptible(ch->ch_flags_wait,
 				(old_flags != ch->ch_flags));
@@ -2431,7 +2443,8 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 	 * Only officially close channel if count is 0 and
 	 * DIGI_PRINTER bit is not set.
 	 */
-	if ((ch->ch_open_count == 0) && !(ch->ch_digi.digi_flags & DIGI_PRINTER)) {
+	if ((ch->ch_open_count == 0) &&
+	    !(ch->ch_digi.digi_flags & DIGI_PRINTER)) {
 
 		ch->ch_flags &= ~(CH_RXBLOCK);
 
@@ -2632,7 +2645,8 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
 		/* Go to sleep till we get woken up */
-		ret = wait_event_interruptible(un->un_flags_wait, ((un->un_flags & UN_EMPTY) == 0));
+		ret = wait_event_interruptible(un->un_flags_wait,
+					((un->un_flags & UN_EMPTY) == 0));
 		/* If ret is non-zero, user ctrl-c'ed us */
 		if (ret)
 			break;
@@ -2680,7 +2694,8 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 		int cps_limit = 0;
 		unsigned long current_time = jiffies;
 		unsigned long buffer_time = current_time +
-			(HZ * ch->ch_digi.digi_bufsize) / ch->ch_digi.digi_maxcps;
+			(HZ * ch->ch_digi.digi_bufsize) /
+			ch->ch_digi.digi_maxcps;
 
 		if (ch->ch_cpstime < current_time) {
 			/* buffer is empty */
@@ -2688,7 +2703,8 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 			cps_limit = ch->ch_digi.digi_bufsize;
 		} else if (ch->ch_cpstime < buffer_time) {
 			/* still room in the buffer */
-			cps_limit = ((buffer_time - ch->ch_cpstime) * ch->ch_digi.digi_maxcps) / HZ;
+			cps_limit = ((buffer_time - ch->ch_cpstime) *
+				     ch->ch_digi.digi_maxcps) / HZ;
 		} else {
 			/* no room in the buffer */
 			cps_limit = 0;
