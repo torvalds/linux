@@ -204,9 +204,9 @@
 #define __NR_statfs64		265
 #define __NR_fstatfs64		266
 #define __NR_remap_file_pages	267
-/* Number 268 is reserved for new sys_mbind */
-/* Number 269 is reserved for new sys_get_mempolicy */
-/* Number 270 is reserved for new sys_set_mempolicy */
+#define __NR_mbind		268
+#define __NR_get_mempolicy	269
+#define __NR_set_mempolicy	270
 #define __NR_mq_open		271
 #define __NR_mq_unlink		272
 #define __NR_mq_timedsend	273
@@ -223,7 +223,7 @@
 #define __NR_inotify_init	284
 #define __NR_inotify_add_watch	285
 #define __NR_inotify_rm_watch	286
-/* Number 287 is reserved for new sys_migrate_pages */
+#define __NR_migrate_pages	287
 #define __NR_openat		288
 #define __NR_mkdirat		289
 #define __NR_mknodat		290
@@ -245,7 +245,7 @@
 #define __NR_sync_file_range	307
 #define __NR_tee		308
 #define __NR_vmsplice		309
-/* Number 310 is reserved for new sys_move_pages */
+#define __NR_move_pages		310
 #define __NR_getcpu		311
 #define __NR_epoll_pwait	312
 #define __NR_utimes		313

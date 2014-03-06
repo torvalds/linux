@@ -18,7 +18,10 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/nodemask.h>
+#include <linux/node.h>
 #include <asm/sysinfo.h>
+#include <asm/numa.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -260,6 +263,7 @@ static void update_cpu_masks(void)
 		}
 	}
 	spin_unlock_irqrestore(&topology_lock, flags);
+	numa_update_cpu_topology();
 }
 
 void store_topology(struct sysinfo_15_1_x *info)
@@ -274,21 +278,21 @@ int arch_update_cpu_topology(void)
 {
 	struct sysinfo_15_1_x *info = tl_info;
 	struct device *dev;
-	int cpu;
+	int cpu, rc = 0;
 
-	if (!MACHINE_HAS_TOPOLOGY) {
-		update_cpu_masks();
-		topology_update_polarization_simple();
-		return 0;
+	if (MACHINE_HAS_TOPOLOGY) {
+		rc = 1;
+		store_topology(info);
+		tl_to_masks(info);
 	}
-	store_topology(info);
-	tl_to_masks(info);
 	update_cpu_masks();
+	if (!MACHINE_HAS_TOPOLOGY)
+		topology_update_polarization_simple();
 	for_each_online_cpu(cpu) {
 		dev = get_cpu_device(cpu);
 		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
-	return 1;
+	return rc;
 }
 
 static void topology_work_fn(struct work_struct *work)
@@ -450,7 +454,6 @@ static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_thread_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
 	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
 	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
 };
 

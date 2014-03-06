@@ -62,6 +62,7 @@
 #include <asm/os_info.h>
 #include <asm/sclp.h>
 #include <asm/sysinfo.h>
+#include <asm/numa.h>
 #include "entry.h"
 
 /*
@@ -879,6 +880,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_lowcore();
 	smp_fill_possible_mask();
         cpu_init();
+	numa_setup();
 
 	/*
 	 * Setup capabilities (ELF_HWCAP & ELF_PLATFORM).

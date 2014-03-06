@@ -276,9 +276,9 @@ SYSCALL(sys_ni_syscall,compat_sys_s390_fadvise64_64)
 SYSCALL(sys_statfs64,compat_sys_statfs64)
 SYSCALL(sys_fstatfs64,compat_sys_fstatfs64)
 SYSCALL(sys_remap_file_pages,compat_sys_remap_file_pages)
-NI_SYSCALL						/* 268 sys_mbind */
-NI_SYSCALL						/* 269 sys_get_mempolicy */
-NI_SYSCALL						/* 270 sys_set_mempolicy */
+SYSCALL(sys_mbind,compat_sys_mbind)
+SYSCALL(sys_get_mempolicy,compat_sys_get_mempolicy)
+SYSCALL(sys_set_mempolicy,compat_sys_set_mempolicy)
 SYSCALL(sys_mq_open,compat_sys_mq_open)
 SYSCALL(sys_mq_unlink,compat_sys_mq_unlink)
 SYSCALL(sys_mq_timedsend,compat_sys_mq_timedsend)
@@ -295,7 +295,7 @@ SYSCALL(sys_ioprio_get,compat_sys_ioprio_get)
 SYSCALL(sys_inotify_init,sys_inotify_init)
 SYSCALL(sys_inotify_add_watch,compat_sys_inotify_add_watch)	/* 285 */
 SYSCALL(sys_inotify_rm_watch,compat_sys_inotify_rm_watch)
-NI_SYSCALL						/* 287 sys_migrate_pages */
+SYSCALL(sys_migrate_pages,compat_sys_migrate_pages)
 SYSCALL(sys_openat,compat_sys_openat)
 SYSCALL(sys_mkdirat,compat_sys_mkdirat)
 SYSCALL(sys_mknodat,compat_sys_mknodat)			/* 290 */
@@ -318,7 +318,7 @@ SYSCALL(sys_splice,compat_sys_splice)
 SYSCALL(sys_sync_file_range,compat_sys_s390_sync_file_range)
 SYSCALL(sys_tee,compat_sys_tee)
 SYSCALL(sys_vmsplice,compat_sys_vmsplice)
-NI_SYSCALL						/* 310 sys_move_pages */
+SYSCALL(sys_move_pages,compat_sys_move_pages)
 SYSCALL(sys_getcpu,compat_sys_getcpu)
 SYSCALL(sys_epoll_pwait,compat_sys_epoll_pwait)
 SYSCALL(sys_utimes,compat_sys_utimes)

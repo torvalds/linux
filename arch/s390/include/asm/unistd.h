@@ -11,12 +11,12 @@
 
 #define __IGNORE_time
 
-/* Ignore NUMA system calls. Not wired up on s390. */
-#define __IGNORE_mbind
-#define __IGNORE_get_mempolicy
-#define __IGNORE_set_mempolicy
-#define __IGNORE_migrate_pages
-#define __IGNORE_move_pages
+/* NUMA system calls */
+#define  _ARCH_WANT_mbind
+#define __ARCH_WANT_get_mempolicy
+#define __ARCH_WANT_set_mempolicy
+#define __ARCH_WANT_migrate_pages
+#define __ARCH_WANT_move_pages
 
 /* Ignore system calls that are also reachable via sys_socket */
 #define __IGNORE_recvmmsg

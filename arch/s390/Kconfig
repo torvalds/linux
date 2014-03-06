@@ -153,6 +153,10 @@ config S390
 	select TTY
 	select VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
+	select ARCH_SUPPORTS_NUMA_BALANCING
+	select ARCH_WANTS_PROT_NUMA_PROT_NONE
+	select HAVE_ARCH_EARLY_PFN_TO_NID
+
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -385,6 +389,39 @@ config HOTPLUG_CPU
 
 config SCHED_SMT
 	def_bool n
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.	Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.	See memmap_init_zone()
+# for details. <- They meant memory holes!
+config NODES_SPAN_OTHER_NODES
+	def_bool NUMA
+
+config NUMA
+	bool "NUMA support"
+	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	default n
+	help
+	  Enable NUMA support
+
+	  This option adds NUMA support to the kernel.
+
+	  An operation mode can be selected by appending
+	  numa=<method> to the kernel command line.
+
+	  The default behaviour is identical to appending numa=plain to
+	  the command line. This will create just one node with all
+	  available memory and all CPUs in it.
+
+config NODES_SHIFT
+	int "Maximum NUMA nodes (as a power of 2)"
+	range 1 10
+	depends on NUMA
+	default "4"
+	help
+	  Specify the maximum number of NUMA nodes available on the target
+	  system. Increases memory reserved to accommodate various tables.
 
 config SCHED_MC
 	def_bool n
