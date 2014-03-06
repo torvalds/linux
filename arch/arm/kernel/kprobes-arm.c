@@ -74,7 +74,7 @@
 
 static void __kprobes
 emulate_ldrdstrd(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	unsigned long pc = regs->ARM_pc + 4;
 	int rt = (insn >> 12) & 0xf;
@@ -103,7 +103,7 @@ emulate_ldrdstrd(probes_opcode_t insn,
 
 static void __kprobes
 emulate_ldr(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	unsigned long pc = regs->ARM_pc + 4;
 	int rt = (insn >> 12) & 0xf;
@@ -133,7 +133,7 @@ emulate_ldr(probes_opcode_t insn,
 
 static void __kprobes
 emulate_str(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	unsigned long rtpc = regs->ARM_pc - 4 + str_pc_offset;
 	unsigned long rnpc = regs->ARM_pc + 4;
@@ -160,7 +160,7 @@ emulate_str(probes_opcode_t insn,
 
 static void __kprobes
 emulate_rd12rn16rm0rs8_rwflags(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	unsigned long pc = regs->ARM_pc + 4;
 	int rd = (insn >> 12) & 0xf;
@@ -195,7 +195,7 @@ emulate_rd12rn16rm0rs8_rwflags(probes_opcode_t insn,
 
 static void __kprobes
 emulate_rd12rn16rm0_rwflags_nopc(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
@@ -222,7 +222,7 @@ emulate_rd12rn16rm0_rwflags_nopc(probes_opcode_t insn,
 
 static void __kprobes
 emulate_rd16rn12rm0rs8_rwflags_nopc(probes_opcode_t insn,
-	struct arch_specific_insn *asi,
+	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 	int rd = (insn >> 16) & 0xf;
@@ -252,7 +252,7 @@ emulate_rd16rn12rm0rs8_rwflags_nopc(probes_opcode_t insn,
 
 static void __kprobes
 emulate_rd12rm0_noflags_nopc(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 12) & 0xf;
 	int rm = insn & 0xf;
@@ -272,7 +272,7 @@ emulate_rd12rm0_noflags_nopc(probes_opcode_t insn,
 
 static void __kprobes
 emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(probes_opcode_t insn,
-	struct arch_specific_insn *asi,
+	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 	int rdlo = (insn >> 12) & 0xf;

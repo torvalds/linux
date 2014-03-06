@@ -30,11 +30,11 @@
 #define KPROBE_THUMB32_BREAKPOINT_INSTRUCTION	0xf7f0a018
 
 enum probes_insn __kprobes
-kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_probes_insn *asi,
 		const struct decode_header *h);
 
 typedef enum probes_insn (kprobe_decode_insn_t)(probes_opcode_t,
-						struct arch_specific_insn *,
+						struct arch_probes_insn *,
 						bool,
 						const union decode_action *);
 

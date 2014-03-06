@@ -18,7 +18,7 @@
 
 
 static void __kprobes simulate_ldm1stm1(probes_opcode_t insn,
-		struct arch_specific_insn *asi,
+		struct arch_probes_insn *asi,
 		struct pt_regs *regs)
 {
 	int rn = (insn >> 16) & 0xf;
@@ -60,7 +60,7 @@ static void __kprobes simulate_ldm1stm1(probes_opcode_t insn,
 }
 
 static void __kprobes simulate_stm1_pc(probes_opcode_t insn,
-	struct arch_specific_insn *asi,
+	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 	unsigned long addr = regs->ARM_pc - 4;
@@ -71,7 +71,7 @@ static void __kprobes simulate_stm1_pc(probes_opcode_t insn,
 }
 
 static void __kprobes simulate_ldm1_pc(probes_opcode_t insn,
-	struct arch_specific_insn *asi,
+	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 	simulate_ldm1stm1(insn, asi, regs);
@@ -80,7 +80,7 @@ static void __kprobes simulate_ldm1_pc(probes_opcode_t insn,
 
 static void __kprobes
 emulate_generic_r0_12_noflags(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	register void *rregs asm("r1") = regs;
 	register void *rfn asm("lr") = asi->insn_fn;
@@ -108,7 +108,7 @@ emulate_generic_r0_12_noflags(probes_opcode_t insn,
 
 static void __kprobes
 emulate_generic_r2_14_noflags(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	emulate_generic_r0_12_noflags(insn, asi,
 		(struct pt_regs *)(regs->uregs+2));
@@ -116,7 +116,7 @@ emulate_generic_r2_14_noflags(probes_opcode_t insn,
 
 static void __kprobes
 emulate_ldm_r3_15(probes_opcode_t insn,
-	struct arch_specific_insn *asi, struct pt_regs *regs)
+	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	emulate_generic_r0_12_noflags(insn, asi,
 		(struct pt_regs *)(regs->uregs+3));
@@ -124,7 +124,7 @@ emulate_ldm_r3_15(probes_opcode_t insn,
 }
 
 enum probes_insn __kprobes
-kprobe_decode_ldmstm(probes_opcode_t insn, struct arch_specific_insn *asi,
+kprobe_decode_ldmstm(probes_opcode_t insn, struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
 	probes_insn_handler_t *handler = 0;

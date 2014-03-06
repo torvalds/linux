@@ -306,7 +306,7 @@ union decode_item {
 
 struct decode_header;
 typedef enum probes_insn (probes_custom_decode_t)(probes_opcode_t,
-						  struct arch_specific_insn *,
+						  struct arch_probes_insn *,
 						  const struct decode_header *);
 
 union decode_action {
@@ -400,7 +400,7 @@ probes_insn_handler_t probes_simulate_nop;
 probes_insn_handler_t probes_emulate_none;
 
 int __kprobes
-probes_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
+probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 		const union decode_item *table, bool thumb, bool emulate,
 		const union decode_action *actions);
 

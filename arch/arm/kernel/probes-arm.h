@@ -54,20 +54,20 @@ enum probes_arm_action {
 };
 
 void __kprobes simulate_bbl(probes_opcode_t opcode,
-	struct arch_specific_insn *asi, struct pt_regs *regs);
+	struct arch_probes_insn *asi, struct pt_regs *regs);
 void __kprobes simulate_blx1(probes_opcode_t opcode,
-	struct arch_specific_insn *asi, struct pt_regs *regs);
+	struct arch_probes_insn *asi, struct pt_regs *regs);
 void __kprobes simulate_blx2bx(probes_opcode_t opcode,
-	struct arch_specific_insn *asi, struct pt_regs *regs);
+	struct arch_probes_insn *asi, struct pt_regs *regs);
 void __kprobes simulate_mrs(probes_opcode_t opcode,
-	struct arch_specific_insn *asi, struct pt_regs *regs);
+	struct arch_probes_insn *asi, struct pt_regs *regs);
 void __kprobes simulate_mov_ipsp(probes_opcode_t opcode,
-	struct arch_specific_insn *asi, struct pt_regs *regs);
+	struct arch_probes_insn *asi, struct pt_regs *regs);
 
 extern const union decode_item probes_decode_arm_table[];
 
 enum probes_insn arm_probes_decode_insn(probes_opcode_t,
-		struct arch_specific_insn *, bool emulate,
+		struct arch_probes_insn *, bool emulate,
 		const union decode_action *actions);
 
 #endif

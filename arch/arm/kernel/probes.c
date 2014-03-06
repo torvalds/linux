@@ -176,13 +176,13 @@ probes_check_cc * const probes_condition_checks[16] = {
 
 
 void __kprobes probes_simulate_nop(probes_opcode_t opcode,
-	struct arch_specific_insn *asi,
+	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 }
 
 void __kprobes probes_emulate_none(probes_opcode_t opcode,
-	struct arch_specific_insn *asi,
+	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 	asi->insn_fn();
@@ -196,7 +196,7 @@ void __kprobes probes_emulate_none(probes_opcode_t opcode,
  * emulation handler is called.
  */
 static probes_opcode_t __kprobes
-prepare_emulated_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
+prepare_emulated_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 		      bool thumb)
 {
 #ifdef CONFIG_THUMB2_KERNEL
@@ -221,7 +221,7 @@ prepare_emulated_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
  * prepare_emulated_insn
  */
 static void  __kprobes
-set_emulated_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
+set_emulated_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 		  bool thumb)
 {
 #ifdef CONFIG_THUMB2_KERNEL
@@ -385,7 +385,7 @@ static const int decode_struct_sizes[NUM_DECODE_TYPES] = {
  *
  */
 int __kprobes
-probes_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
+probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 		   const union decode_item *table, bool thumb,
 		   bool emulate, const union decode_action *actions)
 {
