@@ -1,7 +1,7 @@
 /*
  * Freescale Vybrid vf610 ADC driver
  *
- * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright 2013-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -605,6 +605,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	struct resource *mem;
 	int irq;
 	int ret;
+	u32 channels;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct vf610_adc));
 	if (!indio_dev) {
@@ -655,13 +656,18 @@ static int vf610_adc_probe(struct platform_device *pdev)
 
 	init_completion(&info->completion);
 
+	ret  = of_property_read_u32(pdev->dev.of_node,
+					"num-channels", &channels);
+	if (ret)
+		channels = ARRAY_SIZE(vf610_adc_iio_channels);
+
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &vf610_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vf610_adc_iio_channels;
-	indio_dev->num_channels = ARRAY_SIZE(vf610_adc_iio_channels);
+	indio_dev->num_channels = (int)channels;
 
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
