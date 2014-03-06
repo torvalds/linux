@@ -649,6 +649,35 @@ void xdr_truncate_encode(struct xdr_stream *xdr, size_t len)
 EXPORT_SYMBOL(xdr_truncate_encode);
 
 /**
+ * xdr_restrict_buflen - decrease available buffer space
+ * @xdr: pointer to xdr_stream
+ * @newbuflen: new maximum number of bytes available
+ *
+ * Adjust our idea of how much space is available in the buffer.
+ * If we've already used too much space in the buffer, returns -1.
+ * If the available space is already smaller than newbuflen, returns 0
+ * and does nothing.  Otherwise, adjusts xdr->buf->buflen to newbuflen
+ * and ensures xdr->end is set at most offset newbuflen from the start
+ * of the buffer.
+ */
+int xdr_restrict_buflen(struct xdr_stream *xdr, int newbuflen)
+{
+	struct xdr_buf *buf = xdr->buf;
+	int left_in_this_buf = (void *)xdr->end - (void *)xdr->p;
+	int end_offset = buf->len + left_in_this_buf;
+
+	if (newbuflen < 0 || newbuflen < buf->len)
+		return -1;
+	if (newbuflen > buf->buflen)
+		return 0;
+	if (newbuflen < end_offset)
+		xdr->end = (void *)xdr->end + newbuflen - end_offset;
+	buf->buflen = newbuflen;
+	return 0;
+}
+EXPORT_SYMBOL(xdr_restrict_buflen);
+
+/**
  * xdr_write_pages - Insert a list of pages into an XDR buffer for sending
  * @xdr: pointer to xdr_stream
  * @pages: list of pages
