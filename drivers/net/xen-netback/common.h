@@ -148,6 +148,9 @@ struct xenvif {
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
 	RING_IDX rx_last_skb_slots;
+	bool rx_queue_purge;
+
+	struct timer_list wake_queue;
 
 	/* This array is allocated seperately as it is large */
 	struct gnttab_copy *grant_copy_op;
@@ -258,5 +261,8 @@ static inline bool xenvif_tx_pending_slots_available(struct xenvif *vif)
 void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
 
 extern bool separate_tx_rx_irq;
+
+extern unsigned int rx_drain_timeout_msecs;
+extern unsigned int rx_drain_timeout_jiffies;
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

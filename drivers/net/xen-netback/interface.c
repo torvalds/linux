@@ -115,6 +115,18 @@ static irqreturn_t xenvif_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void xenvif_wake_queue(unsigned long data)
+{
+	struct xenvif *vif = (struct xenvif *)data;
+
+	if (netif_queue_stopped(vif->dev)) {
+		netdev_err(vif->dev, "draining TX queue\n");
+		vif->rx_queue_purge = true;
+		xenvif_kick_thread(vif);
+		netif_wake_queue(vif->dev);
+	}
+}
+
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
@@ -144,8 +156,13 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * then turn off the queue to give the ring a chance to
 	 * drain.
 	 */
-	if (!xenvif_rx_ring_slots_available(vif, min_slots_needed))
+	if (!xenvif_rx_ring_slots_available(vif, min_slots_needed)) {
+		vif->wake_queue.function = xenvif_wake_queue;
+		vif->wake_queue.data = (unsigned long)vif;
 		xenvif_stop_queue(vif);
+		mod_timer(&vif->wake_queue,
+			jiffies + rx_drain_timeout_jiffies);
+	}
 
 	skb_queue_tail(&vif->rx_queue, skb);
 	xenvif_kick_thread(vif);
@@ -353,6 +370,8 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	init_timer(&vif->credit_timeout);
 	vif->credit_window_start = get_jiffies_64();
 
+	init_timer(&vif->wake_queue);
+
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -531,6 +550,7 @@ void xenvif_disconnect(struct xenvif *vif)
 		xenvif_carrier_off(vif);
 
 	if (vif->task) {
+		del_timer_sync(&vif->wake_queue);
 		kthread_stop(vif->task);
 		vif->task = NULL;
 	}
@@ -556,12 +576,25 @@ void xenvif_disconnect(struct xenvif *vif)
 void xenvif_free(struct xenvif *vif)
 {
 	int i, unmap_timeout = 0;
+	/* Here we want to avoid timeout messages if an skb can be legitimatly
+	 * stucked somewhere else. Realisticly this could be an another vif's
+	 * internal or QDisc queue. That another vif also has this
+	 * rx_drain_timeout_msecs timeout, but the timer only ditches the
+	 * internal queue. After that, the QDisc queue can put in worst case
+	 * XEN_NETIF_RX_RING_SIZE / MAX_SKB_FRAGS skbs into that another vif's
+	 * internal queue, so we need several rounds of such timeouts until we
+	 * can be sure that no another vif should have skb's from us. We are
+	 * not sending more skb's, so newly stucked packets are not interesting
+	 * for us here.
+	 */
+	unsigned int worst_case_skb_lifetime = (rx_drain_timeout_msecs/1000) *
+		DIV_ROUND_UP(XENVIF_QUEUE_LENGTH, (XEN_NETIF_RX_RING_SIZE / MAX_SKB_FRAGS));
 
 	for (i = 0; i < MAX_PENDING_REQS; ++i) {
 		if (vif->grant_tx_handle[i] != NETBACK_INVALID_HANDLE) {
 			unmap_timeout++;
 			schedule_timeout(msecs_to_jiffies(1000));
-			if (unmap_timeout > 9 &&
+			if (unmap_timeout > worst_case_skb_lifetime &&
 			    net_ratelimit())
 				netdev_err(vif->dev,
 					   "Page still granted! Index: %x\n",

@@ -55,6 +55,13 @@
 bool separate_tx_rx_irq = 1;
 module_param(separate_tx_rx_irq, bool, 0644);
 
+/* When guest ring is filled up, qdisc queues the packets for us, but we have
+ * to timeout them, otherwise other guests' packets can get stucked there
+ */
+unsigned int rx_drain_timeout_msecs = 10000;
+module_param(rx_drain_timeout_msecs, uint, 0444);
+unsigned int rx_drain_timeout_jiffies;
+
 /*
  * This is the maximum slots a skb can have. If a guest sends a skb
  * which exceeds this limit it is considered malicious.
@@ -1694,8 +1701,9 @@ void xenvif_idx_unmap(struct xenvif *vif, u16 pending_idx)
 
 static inline int rx_work_todo(struct xenvif *vif)
 {
-	return !skb_queue_empty(&vif->rx_queue) &&
-	       xenvif_rx_ring_slots_available(vif, vif->rx_last_skb_slots);
+	return (!skb_queue_empty(&vif->rx_queue) &&
+	       xenvif_rx_ring_slots_available(vif, vif->rx_last_skb_slots)) ||
+	       vif->rx_queue_purge;
 }
 
 static inline int tx_work_todo(struct xenvif *vif)
@@ -1782,12 +1790,19 @@ int xenvif_kthread_guest_rx(void *data)
 		if (kthread_should_stop())
 			break;
 
+		if (vif->rx_queue_purge) {
+			skb_queue_purge(&vif->rx_queue);
+			vif->rx_queue_purge = false;
+		}
+
 		if (!skb_queue_empty(&vif->rx_queue))
 			xenvif_rx_action(vif);
 
 		if (skb_queue_empty(&vif->rx_queue) &&
-		    netif_queue_stopped(vif->dev))
+		    netif_queue_stopped(vif->dev)) {
+			del_timer_sync(&vif->wake_queue);
 			xenvif_start_queue(vif);
+		}
 
 		cond_resched();
 	}
@@ -1837,6 +1852,8 @@ static int __init netback_init(void)
 	rc = xenvif_xenbus_init();
 	if (rc)
 		goto failed_init;
+
+	rx_drain_timeout_jiffies = msecs_to_jiffies(rx_drain_timeout_msecs);
 
 	return 0;
 
