@@ -334,7 +334,7 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		break;
 
 	case NFC_PROTO_ISO15693:
-		framing = NFC_DIGITAL_FRAMING_ISO15693_TVT;
+		framing = NFC_DIGITAL_FRAMING_ISO15693_T5T;
 		check_crc = digital_skb_check_crc_b;
 		add_crc = digital_skb_add_crc_b;
 		break;
