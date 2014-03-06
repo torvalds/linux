@@ -23,7 +23,6 @@
 #include <linux/regulator/machine.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 
 #include "common.h"
 #include "devices-imx21.h"
@@ -139,11 +138,8 @@ static struct physmap_flash_data mx21ads_flash_data = {
 	.width = 4,
 };
 
-static struct resource mx21ads_flash_resource = {
-	.start = MX21_CS0_BASE_ADDR,
-	.end = MX21_CS0_BASE_ADDR + 0x02000000 - 1,
-	.flags = IORESOURCE_MEM,
-};
+static struct resource mx21ads_flash_resource =
+	DEFINE_RES_MEM(MX21_CS0_BASE_ADDR, SZ_32M);
 
 static struct platform_device mx21ads_nor_mtd_device = {
 	.name = "physmap-flash",
@@ -156,7 +152,7 @@ static struct platform_device mx21ads_nor_mtd_device = {
 };
 
 static struct resource mx21ads_cs8900_resources[] __initdata = {
-	DEFINE_RES_MEM(MX21_CS1_BASE_ADDR, SZ_1K),
+	DEFINE_RES_MEM(MX21ADS_CS8900A_REG, SZ_1K),
 	/* irq number is run-time assigned */
 	DEFINE_RES_IRQ(-1),
 };
