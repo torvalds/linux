@@ -173,7 +173,7 @@ static int mcp23s08_read(struct mcp23s08 *mcp, unsigned reg)
 
 	tx[0] = mcp->addr | 0x01;
 	tx[1] = reg;
-	status = spi_write_then_read(mcp->data, tx, sizeof tx, rx, sizeof rx);
+	status = spi_write_then_read(mcp->data, tx, sizeof(tx), rx, sizeof(rx));
 	return (status < 0) ? status : rx[0];
 }
 
@@ -184,7 +184,7 @@ static int mcp23s08_write(struct mcp23s08 *mcp, unsigned reg, unsigned val)
 	tx[0] = mcp->addr;
 	tx[1] = reg;
 	tx[2] = val;
-	return spi_write_then_read(mcp->data, tx, sizeof tx, NULL, 0);
+	return spi_write_then_read(mcp->data, tx, sizeof(tx), NULL, 0);
 }
 
 static int
@@ -193,13 +193,13 @@ mcp23s08_read_regs(struct mcp23s08 *mcp, unsigned reg, u16 *vals, unsigned n)
 	u8	tx[2], *tmp;
 	int	status;
 
-	if ((n + reg) > sizeof mcp->cache)
+	if ((n + reg) > sizeof(mcp->cache))
 		return -EINVAL;
 	tx[0] = mcp->addr | 0x01;
 	tx[1] = reg;
 
 	tmp = (u8 *)vals;
-	status = spi_write_then_read(mcp->data, tx, sizeof tx, tmp, n);
+	status = spi_write_then_read(mcp->data, tx, sizeof(tx), tmp, n);
 	if (status >= 0) {
 		while (n--)
 			vals[n] = tmp[n]; /* expand to 16bit */
@@ -214,7 +214,7 @@ static int mcp23s17_read(struct mcp23s08 *mcp, unsigned reg)
 
 	tx[0] = mcp->addr | 0x01;
 	tx[1] = reg << 1;
-	status = spi_write_then_read(mcp->data, tx, sizeof tx, rx, sizeof rx);
+	status = spi_write_then_read(mcp->data, tx, sizeof(tx), rx, sizeof(rx));
 	return (status < 0) ? status : (rx[0] | (rx[1] << 8));
 }
 
@@ -226,7 +226,7 @@ static int mcp23s17_write(struct mcp23s08 *mcp, unsigned reg, unsigned val)
 	tx[1] = reg << 1;
 	tx[2] = val;
 	tx[3] = val >> 8;
-	return spi_write_then_read(mcp->data, tx, sizeof tx, NULL, 0);
+	return spi_write_then_read(mcp->data, tx, sizeof(tx), NULL, 0);
 }
 
 static int
@@ -235,12 +235,12 @@ mcp23s17_read_regs(struct mcp23s08 *mcp, unsigned reg, u16 *vals, unsigned n)
 	u8	tx[2];
 	int	status;
 
-	if ((n + reg) > sizeof mcp->cache)
+	if ((n + reg) > sizeof(mcp->cache))
 		return -EINVAL;
 	tx[0] = mcp->addr | 0x01;
 	tx[1] = reg << 1;
 
-	status = spi_write_then_read(mcp->data, tx, sizeof tx,
+	status = spi_write_then_read(mcp->data, tx, sizeof(tx),
 				     (u8 *)vals, n * 2);
 	if (status >= 0) {
 		while (n--)
@@ -567,7 +567,7 @@ static void mcp23s08_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			(mcp->cache[MCP_GPIO] & mask) ? "hi" : "lo",
 			(mcp->cache[MCP_GPPU] & mask) ? "up" : "  ");
 		/* NOTE:  ignoring the irq-related registers */
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 done:
 	mutex_unlock(&mcp->lock);
@@ -789,7 +789,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 		pullups = pdata->chip[0].pullups;
 	}
 
-	mcp = kzalloc(sizeof *mcp, GFP_KERNEL);
+	mcp = kzalloc(sizeof(*mcp), GFP_KERNEL);
 	if (!mcp)
 		return -ENOMEM;
 
@@ -925,7 +925,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 		base = pdata->base;
 	}
 
-	data = kzalloc(sizeof *data + chips * sizeof(struct mcp23s08),
+	data = kzalloc(sizeof(*data) + chips * sizeof(struct mcp23s08),
 			GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
