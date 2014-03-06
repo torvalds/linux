@@ -30,7 +30,6 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0;
-	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 

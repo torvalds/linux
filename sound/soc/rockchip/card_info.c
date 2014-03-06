@@ -55,7 +55,7 @@
 int rockchip_of_get_sound_card_info(struct snd_soc_card *card)
 {
 	struct device_node *dai_node, *child_dai_node;
-	int ret, dai_num;
+	int dai_num;
 
 	dai_node = of_get_child_by_name(card->dev->of_node, "dais");
 	if (!dai_node) {
@@ -70,20 +70,28 @@ int rockchip_of_get_sound_card_info(struct snd_soc_card *card)
 		if (dai_num == 0)
 			card->dai_link[dai_num].dai_fmt = snd_soc_of_parse_daifmt(child_dai_node, NULL);
 
-		ret = of_property_read_string(child_dai_node, "codec-name", &card->dai_link[dai_num].codec_name);
-		if (ret) {
-			dev_err(card->dev, "%s() Can not read property: codec-name for dai %d\n", __FUNCTION__, dai_num);
-			return ret;
+
+		card->dai_link[dai_num].codec_name = NULL;
+		card->dai_link[dai_num].cpu_dai_name = NULL;
+		card->dai_link[dai_num].platform_name= NULL;
+
+		card->dai_link[dai_num].codec_of_node= of_parse_phandle(child_dai_node,
+			"codec-of-node", 0);
+		if (!card->dai_link[dai_num].codec_of_node) {
+			dev_err(card->dev,
+				"Property 'codec-of-node' missing or invalid\n");
+			return -EINVAL;
 		}
 
-		ret = of_property_read_string(child_dai_node, "cpu-dai-name", &card->dai_link[dai_num].cpu_dai_name);
-		if (ret) {
-			dev_err(card->dev, "%s() Can not read property: cpu-dai-name for dai %d\n", __FUNCTION__, dai_num);
-			return ret;
+		card->dai_link[dai_num].cpu_of_node= of_parse_phandle(child_dai_node,
+			"cpu-of-node", 0);
+		if (!card->dai_link[dai_num].cpu_of_node) {
+			dev_err(card->dev,
+				"Property 'cpu-of-node' missing or invalid\n");
+			return -EINVAL;
 		}
 
-		//platform_name is same with cpu_dai_name.
-		card->dai_link[dai_num].platform_name= card->dai_link[dai_num].cpu_dai_name;
+		card->dai_link[dai_num].platform_of_node = card->dai_link[dai_num].cpu_of_node;
 
 		if (++dai_num >= card->num_links)
 			break;
