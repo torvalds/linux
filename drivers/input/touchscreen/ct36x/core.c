@@ -8,7 +8,11 @@
 #define CT36X_CHIP_FLASH_SOURCE_SIZE	8
 
 static unsigned char binary_data[] = {
+#ifdef CONFIG_CT365_TS
+#include "RK_DPT101_CT365_01_V02_099E_140107.dat"
+#else
 #include "wgj97112tsm01_CT363_01_V01_EA50_140224.dat"
+#endif
 };
 
 int ct36x_chip_set_idle(struct ct36x_data *ts)

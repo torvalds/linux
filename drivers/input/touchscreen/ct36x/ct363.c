@@ -204,7 +204,7 @@ static void ct363_report(struct ct36x_data *ts)
                    if( (ct363->x > ts->x_max) || (ct363->y > ts->y_max) || (ct363->x < 0) || (ct363->y < 0) ){
                           continue ;
                     }
-                  	ct363->x=2048-ct363->x; 
+                   
 			input_mt_slot(ts->input, ct363->pts[i].id - 1);
 			input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 			input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, 1);

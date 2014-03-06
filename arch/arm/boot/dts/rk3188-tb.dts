@@ -196,6 +196,16 @@
 		max-x = <1280>;
 		max-y = <800>;
 	};
+	ts@01 {
+		compatible = "ct,ct36x";
+		reg = <0x01>;
+		ct-model = <363>;
+		touch-gpio = <&gpio1 GPIO_B7 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio0 GPIO_B6 GPIO_ACTIVE_HIGH>;
+		max-x = <1280>;
+		max-y = <800>;
+		orientation=<1 0 0 1>;
+	};
 };
 
 &i2c3 {

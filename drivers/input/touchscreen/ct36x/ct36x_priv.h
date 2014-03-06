@@ -77,7 +77,7 @@ struct ct36x_data{
 	void *priv;
 };
 
-int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate)
+static int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate)
 {
         int ret;
         struct i2c_adapter *adap=client->adapter;
