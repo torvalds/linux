@@ -4112,13 +4112,9 @@ static int may_commit_transaction(struct btrfs_root *root,
 		goto commit;
 
 	/* See if there is enough pinned space to make this reservation */
-	spin_lock(&space_info->lock);
 	if (percpu_counter_compare(&space_info->total_bytes_pinned,
-				   bytes) >= 0) {
-		spin_unlock(&space_info->lock);
+				   bytes) >= 0)
 		goto commit;
-	}
-	spin_unlock(&space_info->lock);
 
 	/*
 	 * See if there is some space in the delayed insertion reservation for
@@ -4127,16 +4123,13 @@ static int may_commit_transaction(struct btrfs_root *root,
 	if (space_info != delayed_rsv->space_info)
 		return -ENOSPC;
 
-	spin_lock(&space_info->lock);
 	spin_lock(&delayed_rsv->lock);
 	if (percpu_counter_compare(&space_info->total_bytes_pinned,
 				   bytes - delayed_rsv->size) >= 0) {
 		spin_unlock(&delayed_rsv->lock);
-		spin_unlock(&space_info->lock);
 		return -ENOSPC;
 	}
 	spin_unlock(&delayed_rsv->lock);
-	spin_unlock(&space_info->lock);
 
 commit:
 	trans = btrfs_join_transaction(root);
