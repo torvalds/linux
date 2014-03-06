@@ -3,3 +3,4 @@ obj-$(CONFIG_RK_TRSM) += transmitter/
 obj-$(CONFIG_ROCKCHIP_RGA) += rga/
 obj-$(CONFIG_ROCKCHIP_RGA2) += rga2/
 obj-$(CONFIG_RK_HDMI) += display-sys.o hdmi/
+obj-$(CONFIG_IEP) += iep/
