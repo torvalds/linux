@@ -1259,7 +1259,7 @@ exit:
 
 
 	return res;
- }
+}
 
 u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr)
 {
