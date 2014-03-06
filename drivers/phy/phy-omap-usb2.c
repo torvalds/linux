@@ -154,6 +154,11 @@ static const struct usb_phy_data omap_usb2_data = {
 	.flags = OMAP_USB2_HAS_START_SRP | OMAP_USB2_HAS_SET_VBUS,
 };
 
+static const struct usb_phy_data omap5_usb2_data = {
+	.label = "omap5_usb2",
+	.flags = 0,
+};
+
 static const struct usb_phy_data dra7x_usb2_data = {
 	.label = "dra7x_usb2",
 	.flags = OMAP_USB2_CALIBRATE_FALSE_DISCONNECT,
@@ -168,6 +173,10 @@ static const struct of_device_id omap_usb2_id_table[] = {
 	{
 		.compatible = "ti,omap-usb2",
 		.data = &omap_usb2_data,
+	},
+	{
+		.compatible = "ti,omap5-usb2",
+		.data = &omap5_usb2_data,
 	},
 	{
 		.compatible = "ti,dra7x-usb2",
