@@ -55,7 +55,8 @@ static ssize_t usbip_debug_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
-	sscanf(buf, "%lx", &usbip_debug_flag);
+	if (sscanf(buf, "%lx", &usbip_debug_flag) != 1)
+		return -EINVAL;
 	return count;
 }
 DEVICE_ATTR_RW(usbip_debug);
