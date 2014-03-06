@@ -6111,13 +6111,13 @@ static int i40e_init_msix(struct i40e_pf *pf)
 }
 
 /**
- * i40e_alloc_q_vector - Allocate memory for a single interrupt vector
+ * i40e_vsi_alloc_q_vector - Allocate memory for a single interrupt vector
  * @vsi: the VSI being configured
  * @v_idx: index of the vector in the vsi struct
  *
  * We allocate one q_vector.  If allocation fails we return -ENOMEM.
  **/
-static int i40e_alloc_q_vector(struct i40e_vsi *vsi, int v_idx)
+static int i40e_vsi_alloc_q_vector(struct i40e_vsi *vsi, int v_idx)
 {
 	struct i40e_q_vector *q_vector;
 
@@ -6143,13 +6143,13 @@ static int i40e_alloc_q_vector(struct i40e_vsi *vsi, int v_idx)
 }
 
 /**
- * i40e_alloc_q_vectors - Allocate memory for interrupt vectors
+ * i40e_vsi_alloc_q_vectors - Allocate memory for interrupt vectors
  * @vsi: the VSI being configured
  *
  * We allocate one q_vector per queue interrupt.  If allocation fails we
  * return -ENOMEM.
  **/
-static int i40e_alloc_q_vectors(struct i40e_vsi *vsi)
+static int i40e_vsi_alloc_q_vectors(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 	int v_idx, num_q_vectors;
@@ -6164,7 +6164,7 @@ static int i40e_alloc_q_vectors(struct i40e_vsi *vsi)
 		return -EINVAL;
 
 	for (v_idx = 0; v_idx < num_q_vectors; v_idx++) {
-		err = i40e_alloc_q_vector(vsi, v_idx);
+		err = i40e_vsi_alloc_q_vector(vsi, v_idx);
 		if (err)
 			goto err_out;
 	}
@@ -7020,7 +7020,7 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 		return -EEXIST;
 	}
 
-	ret = i40e_alloc_q_vectors(vsi);
+	ret = i40e_vsi_alloc_q_vectors(vsi);
 	if (ret) {
 		dev_info(&pf->pdev->dev,
 			 "failed to allocate %d q_vector for VSI %d, ret=%d\n",
