@@ -1259,8 +1259,8 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 	unsigned int cbMICHDR = 0;
 	unsigned long dwMICKey0, dwMICKey1;
 	unsigned long dwMIC_Priority;
-	unsigned long *pdwMIC_L;
-	unsigned long *pdwMIC_R;
+	u32 *pdwMIC_L;
+	u32 *pdwMIC_R;
 	unsigned long dwSafeMIC_L, dwSafeMIC_R; //Fix "Last Frag Size" < "MIC length".
 	bool bMIC2Frag = false;
 	unsigned int uMICFragLen = 0;
@@ -1624,10 +1624,10 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 					if (bMIC2Frag == false) {
 						if (uTmpLen != 0)
 							MIC_vAppend((pbyBuffer + uLength), uTmpLen);
-						pdwMIC_L = (unsigned long *)(pbyBuffer + uLength + uTmpLen);
-						pdwMIC_R = (unsigned long *)(pbyBuffer + uLength + uTmpLen + 4);
+						pdwMIC_L = (u32 *)(pbyBuffer + uLength + uTmpLen);
+						pdwMIC_R = (u32 *)(pbyBuffer + uLength + uTmpLen + 4);
 						MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
-						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last MIC:%lX, %lX\n", *pdwMIC_L, *pdwMIC_R);
+						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last MIC:%X, %X\n", *pdwMIC_L, *pdwMIC_R);
 					} else {
 						if (uMICFragLen >= 4) {
 							memcpy((pbyBuffer + uLength), ((unsigned char *)&dwSafeMIC_R + (uMICFragLen - 4)),
@@ -1744,8 +1744,8 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 						uMICFragLen = cbFragPayloadSize - uTmpLen;
 						ASSERT(uMICFragLen < cbMIClen);
 
-						pdwMIC_L = (unsigned long *)(pbyBuffer + uLength + uTmpLen);
-						pdwMIC_R = (unsigned long *)(pbyBuffer + uLength + uTmpLen + 4);
+						pdwMIC_L = (u32 *)(pbyBuffer + uLength + uTmpLen);
+						pdwMIC_R = (u32 *)(pbyBuffer + uLength + uTmpLen + 4);
 						MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
 						dwSafeMIC_L = *pdwMIC_L;
 						dwSafeMIC_R = *pdwMIC_R;
@@ -1759,7 +1759,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 						  }
 						  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 						*/
-						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Get MIC:%lX, %lX\n", *pdwMIC_L, *pdwMIC_R);
+						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Get MIC:%X, %X\n", *pdwMIC_L, *pdwMIC_R);
 					}
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Middle frag len: %d\n", uTmpLen);
 					/*
@@ -1873,8 +1873,8 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 
 			MIC_vAppend((pbyBuffer + uLength - cb802_1_H_len), cbFrameBodySize);
 
-			pdwMIC_L = (unsigned long *)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize);
-			pdwMIC_R = (unsigned long *)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize + 4);
+			pdwMIC_L = (u32 *)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize);
+			pdwMIC_R = (u32 *)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize + 4);
 
 			MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
 			MIC_vUnInit();
@@ -1887,7 +1887,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "uLength: %d, %d\n", uLength, cbFrameBodySize);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "cbReqCount:%d, %d, %d, %d\n", cbReqCount, cbHeaderLength, uPadding, cbIVlen);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC:%lx, %lx\n", *pdwMIC_L, *pdwMIC_R);
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC:%x, %x\n", *pdwMIC_L, *pdwMIC_R);
 /*
   for (ii = 0; ii < 8; ii++) {
   DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", *(((unsigned char *)(pdwMIC_L) + ii)));
@@ -2594,8 +2594,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 	unsigned int uLength = 0;
 	unsigned long dwMICKey0, dwMICKey1;
 	unsigned long dwMIC_Priority;
-	unsigned long *pdwMIC_L;
-	unsigned long *pdwMIC_R;
+	u32 *pdwMIC_L;
+	u32 *pdwMIC_R;
 	unsigned short wTxBufSize;
 	unsigned int cbMacHdLen;
 	SEthernetHeader sEthHeader;
@@ -2855,8 +2855,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
 			MIC_vAppend((pbyTxBufferAddr + uLength), cbFrameBodySize);
 
-			pdwMIC_L = (unsigned long *)(pbyTxBufferAddr + uLength + cbFrameBodySize);
-			pdwMIC_R = (unsigned long *)(pbyTxBufferAddr + uLength + cbFrameBodySize + 4);
+			pdwMIC_L = (u32 *)(pbyTxBufferAddr + uLength + cbFrameBodySize);
+			pdwMIC_R = (u32 *)(pbyTxBufferAddr + uLength + cbFrameBodySize + 4);
 
 			MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
 			MIC_vUnInit();
@@ -2869,7 +2869,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "uLength: %d, %d\n", uLength, cbFrameBodySize);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "cbReqCount:%d, %d, %d, %d\n", cbReqCount, cbHeaderSize, uPadding, cbIVlen);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC:%lx, %lx\n", *pdwMIC_L, *pdwMIC_R);
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC:%x, %x\n", *pdwMIC_L, *pdwMIC_R);
 
 		}
 

@@ -733,8 +733,8 @@ device_receive_frame(
 			unsigned long *pdwMIC_R;
 			unsigned long dwMIC_Priority;
 			unsigned long dwMICKey0 = 0, dwMICKey1 = 0;
-			unsigned long dwLocalMIC_L = 0;
-			unsigned long dwLocalMIC_R = 0;
+			u32 dwLocalMIC_L = 0;
+			u32 dwLocalMIC_R = 0;
 			viawget_wpa_header *wpahdr;
 
 			if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
