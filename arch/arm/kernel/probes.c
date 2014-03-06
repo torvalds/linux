@@ -167,7 +167,7 @@ static unsigned long __kprobes __check_al(unsigned long cpsr)
 	return true;
 }
 
-kprobe_check_cc * const kprobe_condition_checks[16] = {
+probes_check_cc * const probes_condition_checks[16] = {
 	&__check_eq, &__check_ne, &__check_cs, &__check_cc,
 	&__check_mi, &__check_pl, &__check_vs, &__check_vc,
 	&__check_hi, &__check_ls, &__check_ge, &__check_lt,
@@ -175,13 +175,13 @@ kprobe_check_cc * const kprobe_condition_checks[16] = {
 };
 
 
-void __kprobes kprobe_simulate_nop(kprobe_opcode_t opcode,
+void __kprobes kprobe_simulate_nop(probes_opcode_t opcode,
 	struct arch_specific_insn *asi,
 	struct pt_regs *regs)
 {
 }
 
-void __kprobes kprobe_emulate_none(kprobe_opcode_t opcode,
+void __kprobes kprobe_emulate_none(probes_opcode_t opcode,
 	struct arch_specific_insn *asi,
 	struct pt_regs *regs)
 {
@@ -195,8 +195,8 @@ void __kprobes kprobe_emulate_none(kprobe_opcode_t opcode,
  * unconditional as the condition code will already be checked before any
  * emulation handler is called.
  */
-static kprobe_opcode_t __kprobes
-prepare_emulated_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+static probes_opcode_t __kprobes
+prepare_emulated_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		      bool thumb)
 {
 #ifdef CONFIG_THUMB2_KERNEL
@@ -221,7 +221,7 @@ prepare_emulated_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
  * prepare_emulated_insn
  */
 static void  __kprobes
-set_emulated_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+set_emulated_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		  bool thumb)
 {
 #ifdef CONFIG_THUMB2_KERNEL
@@ -257,14 +257,14 @@ set_emulated_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
  * non-zero value, the corresponding nibble in pinsn is validated and modified
  * according to the type.
  */
-static bool __kprobes decode_regs(kprobe_opcode_t *pinsn, u32 regs)
+static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs)
 {
-	kprobe_opcode_t insn = *pinsn;
-	kprobe_opcode_t mask = 0xf; /* Start at least significant nibble */
+	probes_opcode_t insn = *pinsn;
+	probes_opcode_t mask = 0xf; /* Start at least significant nibble */
 
 	for (; regs != 0; regs >>= 4, mask <<= 4) {
 
-		kprobe_opcode_t new_bits = INSN_NEW_BITS;
+		probes_opcode_t new_bits = INSN_NEW_BITS;
 
 		switch (regs & 0xf) {
 
@@ -383,7 +383,7 @@ static const int decode_struct_sizes[NUM_DECODE_TYPES] = {
  *
  */
 int __kprobes
-kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+kprobe_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		   const union decode_item *table, bool thumb,
 		   const union decode_action *actions)
 {

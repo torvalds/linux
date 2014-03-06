@@ -57,7 +57,7 @@
  * read and write of flags.
  */
 
-void __kprobes simulate_bbl(kprobe_opcode_t insn,
+void __kprobes simulate_bbl(probes_opcode_t insn,
 		struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	long iaddr = (long) regs->ARM_pc - 4;
@@ -69,7 +69,7 @@ void __kprobes simulate_bbl(kprobe_opcode_t insn,
 	regs->ARM_pc = iaddr + 8 + disp;
 }
 
-void __kprobes simulate_blx1(kprobe_opcode_t insn,
+void __kprobes simulate_blx1(probes_opcode_t insn,
 		struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	long iaddr = (long) regs->ARM_pc - 4;
@@ -80,7 +80,7 @@ void __kprobes simulate_blx1(kprobe_opcode_t insn,
 	regs->ARM_cpsr |= PSR_T_BIT;
 }
 
-void __kprobes simulate_blx2bx(kprobe_opcode_t insn,
+void __kprobes simulate_blx2bx(probes_opcode_t insn,
 		struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	int rm = insn & 0xf;
@@ -95,7 +95,7 @@ void __kprobes simulate_blx2bx(kprobe_opcode_t insn,
 		regs->ARM_cpsr |= PSR_T_BIT;
 }
 
-void __kprobes simulate_mrs(kprobe_opcode_t insn,
+void __kprobes simulate_mrs(probes_opcode_t insn,
 		struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 12) & 0xf;
@@ -103,7 +103,7 @@ void __kprobes simulate_mrs(kprobe_opcode_t insn,
 	regs->uregs[rd] = regs->ARM_cpsr & mask;
 }
 
-void __kprobes simulate_mov_ipsp(kprobe_opcode_t insn,
+void __kprobes simulate_mov_ipsp(probes_opcode_t insn,
 		struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	regs->uregs[12] = regs->uregs[13];
@@ -704,7 +704,7 @@ const union decode_item kprobe_decode_arm_table[] = {
 EXPORT_SYMBOL_GPL(kprobe_decode_arm_table);
 #endif
 
-static void __kprobes arm_singlestep(kprobe_opcode_t insn,
+static void __kprobes arm_singlestep(probes_opcode_t insn,
 		struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	regs->ARM_pc += 4;
@@ -724,11 +724,11 @@ static void __kprobes arm_singlestep(kprobe_opcode_t insn,
  *   should also be very rare.
  */
 enum kprobe_insn __kprobes
-arm_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+arm_kprobe_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		       const union decode_action *actions)
 {
 	asi->insn_singlestep = arm_singlestep;
-	asi->insn_check_cc = kprobe_condition_checks[insn>>28];
+	asi->insn_check_cc = probes_condition_checks[insn>>28];
 	return kprobe_decode_insn(insn, asi, kprobe_decode_arm_table, false,
 				  actions);
 }

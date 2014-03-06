@@ -131,13 +131,13 @@ static inline void __kprobes alu_write_pc(long pcv, struct pt_regs *regs)
 }
 
 
-void __kprobes kprobe_simulate_nop(kprobe_opcode_t, struct arch_specific_insn *,
+void __kprobes kprobe_simulate_nop(probes_opcode_t, struct arch_specific_insn *,
 		struct pt_regs *regs);
-void __kprobes kprobe_emulate_none(kprobe_opcode_t, struct arch_specific_insn *,
+void __kprobes kprobe_emulate_none(probes_opcode_t, struct arch_specific_insn *,
 		struct pt_regs *regs);
 
 enum kprobe_insn __kprobes
-kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+kprobe_decode_ldmstm(probes_opcode_t insn, struct arch_specific_insn *asi,
 		const struct decode_header *h);
 
 /*
@@ -311,7 +311,7 @@ union decode_item {
 	int			action;
 };
 
-typedef enum kprobe_insn (probes_custom_decode_t)(kprobe_opcode_t,
+typedef enum kprobe_insn (probes_custom_decode_t)(probes_opcode_t,
 						  struct arch_specific_insn *,
 						  const struct decode_header *);
 
@@ -408,10 +408,10 @@ extern const union decode_item kprobe_decode_arm_table[];
 extern const union decode_action kprobes_arm_actions[];
 #endif
 
-extern kprobe_check_cc * const kprobe_condition_checks[16];
+extern probes_check_cc * const probes_condition_checks[16];
 
 
-int kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
+int kprobe_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		       const union decode_item *table, bool thumb16,
 		       const union decode_action *actions);
 

@@ -73,7 +73,7 @@
 #endif
 
 static void __kprobes
-emulate_ldrdstrd(kprobe_opcode_t insn,
+emulate_ldrdstrd(probes_opcode_t insn,
 	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	unsigned long pc = regs->ARM_pc + 4;
@@ -102,7 +102,7 @@ emulate_ldrdstrd(kprobe_opcode_t insn,
 }
 
 static void __kprobes
-emulate_ldr(kprobe_opcode_t insn,
+emulate_ldr(probes_opcode_t insn,
 	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	unsigned long pc = regs->ARM_pc + 4;
@@ -132,7 +132,7 @@ emulate_ldr(kprobe_opcode_t insn,
 }
 
 static void __kprobes
-emulate_str(kprobe_opcode_t insn,
+emulate_str(probes_opcode_t insn,
 	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	unsigned long rtpc = regs->ARM_pc - 4 + str_pc_offset;
@@ -159,7 +159,7 @@ emulate_str(kprobe_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rd12rn16rm0rs8_rwflags(kprobe_opcode_t insn,
+emulate_rd12rn16rm0rs8_rwflags(probes_opcode_t insn,
 	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	unsigned long pc = regs->ARM_pc + 4;
@@ -194,7 +194,7 @@ emulate_rd12rn16rm0rs8_rwflags(kprobe_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rd12rn16rm0_rwflags_nopc(kprobe_opcode_t insn,
+emulate_rd12rn16rm0_rwflags_nopc(probes_opcode_t insn,
 	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 12) & 0xf;
@@ -221,7 +221,7 @@ emulate_rd12rn16rm0_rwflags_nopc(kprobe_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rd16rn12rm0rs8_rwflags_nopc(kprobe_opcode_t insn,
+emulate_rd16rn12rm0rs8_rwflags_nopc(probes_opcode_t insn,
 	struct arch_specific_insn *asi,
 	struct pt_regs *regs)
 {
@@ -251,7 +251,7 @@ emulate_rd16rn12rm0rs8_rwflags_nopc(kprobe_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rd12rm0_noflags_nopc(kprobe_opcode_t insn,
+emulate_rd12rm0_noflags_nopc(probes_opcode_t insn,
 	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 12) & 0xf;
@@ -271,7 +271,7 @@ emulate_rd12rm0_noflags_nopc(kprobe_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(kprobe_opcode_t insn,
+emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(probes_opcode_t insn,
 	struct arch_specific_insn *asi,
 	struct pt_regs *regs)
 {
