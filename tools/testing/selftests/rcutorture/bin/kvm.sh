@@ -276,8 +276,8 @@ awk < $T/cfgcpu.pack \
 	-v ncpus=$cpus \
 	-v rd=$resdir/$ds/ \
 	-v dur=$dur \
-	-v TORTURE_QEMU_ARG=$TORTURE_QEMU_ARG \
-	-v TORTURE_BOOTARGS=$TORTURE_BOOTARGS \
+	-v TORTURE_QEMU_ARG="$TORTURE_QEMU_ARG" \
+	-v TORTURE_BOOTARGS="$TORTURE_BOOTARGS" \
 'BEGIN {
 	i = 0;
 }
