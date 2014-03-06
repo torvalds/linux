@@ -79,6 +79,17 @@ struct pending_tx_info {
 				  * if it is head of one or more tx
 				  * reqs
 				  */
+	/* Callback data for released SKBs. The callback is always
+	 * xenvif_zerocopy_callback, desc contains the pending_idx, which is
+	 * also an index in pending_tx_info array. It is initialized in
+	 * xenvif_alloc and it never changes.
+	 * skb_shinfo(skb)->destructor_arg points to the first mapped slot's
+	 * callback_struct in this array of struct pending_tx_info's, then ctx
+	 * to the next, or NULL if there is no more slot for this skb.
+	 * ubuf_to_vif is a helper which finds the struct xenvif from a pointer
+	 * to this field.
+	 */
+	struct ubuf_info callback_struct;
 };
 
 #define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
@@ -135,13 +146,31 @@ struct xenvif {
 	pending_ring_idx_t pending_cons;
 	u16 pending_ring[MAX_PENDING_REQS];
 	struct pending_tx_info pending_tx_info[MAX_PENDING_REQS];
+	grant_handle_t grant_tx_handle[MAX_PENDING_REQS];
 
 	/* Coalescing tx requests before copying makes number of grant
 	 * copy ops greater or equal to number of slots required. In
 	 * worst case a tx request consumes 2 gnttab_copy.
 	 */
 	struct gnttab_copy tx_copy_ops[2*MAX_PENDING_REQS];
+	struct gnttab_map_grant_ref tx_map_ops[MAX_PENDING_REQS];
+	struct gnttab_unmap_grant_ref tx_unmap_ops[MAX_PENDING_REQS];
+	/* passed to gnttab_[un]map_refs with pages under (un)mapping */
+	struct page *pages_to_map[MAX_PENDING_REQS];
+	struct page *pages_to_unmap[MAX_PENDING_REQS];
 
+	/* This prevents zerocopy callbacks  to race over dealloc_ring */
+	spinlock_t callback_lock;
+	/* This prevents dealloc thread and NAPI instance to race over response
+	 * creation and pending_ring in xenvif_idx_release. In xenvif_tx_err
+	 * it only protect response creation
+	 */
+	spinlock_t response_lock;
+	pending_ring_idx_t dealloc_prod;
+	pending_ring_idx_t dealloc_cons;
+	u16 dealloc_ring[MAX_PENDING_REQS];
+	struct task_struct *dealloc_task;
+	wait_queue_head_t dealloc_wq;
 
 	/* Use kthread for guest RX */
 	struct task_struct *task;
@@ -228,12 +257,20 @@ int xenvif_tx_action(struct xenvif *vif, int budget);
 int xenvif_kthread_guest_rx(void *data);
 void xenvif_kick_thread(struct xenvif *vif);
 
+int xenvif_dealloc_kthread(void *data);
+
 /* Determine whether the needed number of slots (req) are available,
  * and set req_event if not.
  */
 bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed);
 
 void xenvif_stop_queue(struct xenvif *vif);
+
+/* Callback from stack when TX packet can be released */
+void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
+
+/* Unmap a pending page and release it back to the guest */
+void xenvif_idx_unmap(struct xenvif *vif, u16 pending_idx);
 
 static inline pending_ring_idx_t nr_pending_reqs(struct xenvif *vif)
 {
