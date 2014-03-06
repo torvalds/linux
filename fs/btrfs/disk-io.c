@@ -1221,6 +1221,7 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	mutex_init(&root->objectid_mutex);
 	mutex_init(&root->log_mutex);
 	mutex_init(&root->ordered_extent_mutex);
+	mutex_init(&root->delalloc_mutex);
 	init_waitqueue_head(&root->log_writer_wait);
 	init_waitqueue_head(&root->log_commit_wait[0]);
 	init_waitqueue_head(&root->log_commit_wait[1]);
@@ -2209,6 +2210,7 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->buffer_lock);
 	rwlock_init(&fs_info->tree_mod_log_lock);
 	mutex_init(&fs_info->reloc_mutex);
+	mutex_init(&fs_info->delalloc_root_mutex);
 	seqlock_init(&fs_info->profiles_lock);
 
 	init_completion(&fs_info->kobj_unregister);

@@ -1490,6 +1490,7 @@ struct btrfs_fs_info {
 	 */
 	struct list_head ordered_roots;
 
+	struct mutex delalloc_root_mutex;
 	spinlock_t delalloc_root_lock;
 	/* all fs/file tree roots that have delalloc inodes. */
 	struct list_head delalloc_roots;
@@ -1805,6 +1806,7 @@ struct btrfs_root {
 	spinlock_t root_item_lock;
 	atomic_t refs;
 
+	struct mutex delalloc_mutex;
 	spinlock_t delalloc_lock;
 	/*
 	 * all of the inodes that have delalloc bytes.  It is possible for
