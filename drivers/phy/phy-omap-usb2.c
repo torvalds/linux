@@ -122,6 +122,31 @@ static struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
+#ifdef CONFIG_OF
+static const struct usb_phy_data omap_usb2_data = {
+	.label = "omap_usb2",
+	.flags = OMAP_USB2_HAS_START_SRP | OMAP_USB2_HAS_SET_VBUS,
+};
+
+static const struct usb_phy_data am437x_usb2_data = {
+	.label = "am437x_usb2",
+	.flags =  0,
+};
+
+static const struct of_device_id omap_usb2_id_table[] = {
+	{
+		.compatible = "ti,omap-usb2",
+		.data = &omap_usb2_data,
+	},
+	{
+		.compatible = "ti,am437x-usb2",
+		.data = &am437x_usb2_data,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_usb2_id_table);
+#endif
+
 static int omap_usb2_probe(struct platform_device *pdev)
 {
 	struct omap_usb	*phy;
@@ -131,9 +156,15 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *control_node;
 	struct platform_device *control_pdev;
+	const struct of_device_id *of_id;
+	struct usb_phy_data *phy_data;
 
-	if (!node)
+	of_id = of_match_device(of_match_ptr(omap_usb2_id_table), &pdev->dev);
+
+	if (!of_id)
 		return -EINVAL;
+
+	phy_data = (struct usb_phy_data *)of_id->data;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy) {
@@ -150,7 +181,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	phy->dev		= &pdev->dev;
 
 	phy->phy.dev		= phy->dev;
-	phy->phy.label		= "omap-usb2";
+	phy->phy.label		= phy_data->label;
 	phy->phy.otg		= otg;
 	phy->phy.type		= USB_PHY_TYPE_USB2;
 
@@ -171,8 +202,10 @@ static int omap_usb2_probe(struct platform_device *pdev)
 
 	otg->set_host		= omap_usb_set_host;
 	otg->set_peripheral	= omap_usb_set_peripheral;
-	otg->set_vbus		= omap_usb_set_vbus;
-	otg->start_srp		= omap_usb_start_srp;
+	if (phy_data->flags & OMAP_USB2_HAS_SET_VBUS)
+		otg->set_vbus		= omap_usb_set_vbus;
+	if (phy_data->flags & OMAP_USB2_HAS_START_SRP)
+		otg->start_srp		= omap_usb_start_srp;
 	otg->phy		= &phy->phy;
 
 	platform_set_drvdata(pdev, phy);
@@ -270,14 +303,6 @@ static const struct dev_pm_ops omap_usb2_pm_ops = {
 #define DEV_PM_OPS     (&omap_usb2_pm_ops)
 #else
 #define DEV_PM_OPS     NULL
-#endif
-
-#ifdef CONFIG_OF
-static const struct of_device_id omap_usb2_id_table[] = {
-	{ .compatible = "ti,omap-usb2" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, omap_usb2_id_table);
 #endif
 
 static struct platform_driver omap_usb2_driver = {

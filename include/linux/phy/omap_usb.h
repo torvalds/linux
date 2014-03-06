@@ -39,6 +39,15 @@ struct omap_usb {
 	struct clk		*optclk;
 };
 
+struct usb_phy_data {
+	const char *label;
+	u8 flags;
+};
+
+/* Driver Flags */
+#define OMAP_USB2_HAS_START_SRP (1 << 0)
+#define OMAP_USB2_HAS_SET_VBUS (1 << 1)
+
 #define	phy_to_omapusb(x)	container_of((x), struct omap_usb, phy)
 
 #if defined(CONFIG_OMAP_USB2) || defined(CONFIG_OMAP_USB2_MODULE)
