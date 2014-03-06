@@ -52,10 +52,10 @@
 #include <net/af_ieee802154.h>
 #include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
+#include <net/6lowpan.h>
 #include <net/ipv6.h>
 
 #include "reassembly.h"
-#include "6lowpan.h"
 
 static LIST_HEAD(lowpan_devices);
 

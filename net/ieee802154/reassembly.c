@@ -24,10 +24,10 @@
 #include <linux/export.h>
 
 #include <net/ieee802154_netdev.h>
+#include <net/6lowpan.h>
 #include <net/ipv6.h>
 #include <net/inet_frag.h>
 
-#include "6lowpan.h"
 #include "reassembly.h"
 
 static struct inet_frags lowpan_frags;
