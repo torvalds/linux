@@ -30,6 +30,29 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+bool intel_enable_ppgtt(struct drm_device *dev, bool full)
+{
+	if (i915.enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+		return false;
+
+	if (i915.enable_ppgtt == 1 && full)
+		return false;
+
+#ifdef CONFIG_INTEL_IOMMU
+	/* Disable ppgtt on SNB if VT-d is on. */
+	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
+		DRM_INFO("Disabling PPGTT because VT-d is on\n");
+		return false;
+	}
+#endif
+
+	/* Full ppgtt disabled by default for now due to issues. */
+	if (full)
+		return false; /* HAS_PPGTT(dev) */
+	else
+		return HAS_ALIASING_PPGTT(dev);
+}
+
 #define GEN6_PPGTT_PD_ENTRIES 512
 #define I915_PPGTT_PT_ENTRIES (PAGE_SIZE / sizeof(gen6_gtt_pte_t))
 typedef uint64_t gen8_gtt_pte_t;

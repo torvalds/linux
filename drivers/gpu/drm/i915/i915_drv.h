@@ -2377,27 +2377,7 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 		intel_gtt_chipset_flush();
 }
 int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
-static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
-{
-	if (i915.enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
-		return false;
-
-	if (i915.enable_ppgtt == 1 && full)
-		return false;
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Disable ppgtt on SNB if VT-d is on. */
-	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
-		DRM_INFO("Disabling PPGTT because VT-d is on\n");
-		return false;
-	}
-#endif
-
-	if (full)
-		return HAS_PPGTT(dev);
-	else
-		return HAS_ALIASING_PPGTT(dev);
-}
+bool intel_enable_ppgtt(struct drm_device *dev, bool full);
 
 /* i915_gem_stolen.c */
 int i915_gem_init_stolen(struct drm_device *dev);
