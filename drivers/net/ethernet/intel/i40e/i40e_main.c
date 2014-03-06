@@ -26,6 +26,7 @@
 
 /* Local includes */
 #include "i40e.h"
+#include "i40e_diag.h"
 #ifdef CONFIG_I40E_VXLAN
 #include <net/vxlan.h>
 #endif
@@ -2877,12 +2878,14 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		val = rd32(hw, I40E_GLGEN_RSTAT);
 		val = (val & I40E_GLGEN_RSTAT_RESET_TYPE_MASK)
 		       >> I40E_GLGEN_RSTAT_RESET_TYPE_SHIFT;
-		if (val == I40E_RESET_CORER)
+		if (val == I40E_RESET_CORER) {
 			pf->corer_count++;
-		else if (val == I40E_RESET_GLOBR)
+		} else if (val == I40E_RESET_GLOBR) {
 			pf->globr_count++;
-		else if (val == I40E_RESET_EMPR)
+		} else if (val == I40E_RESET_EMPR) {
 			pf->empr_count++;
+			set_bit(__I40E_EMP_RESET_REQUESTED, &pf->state);
+		}
 	}
 
 	if (icr0 & I40E_PFINT_ICR0_HMC_ERR_MASK) {
@@ -4257,8 +4260,9 @@ static int i40e_open(struct net_device *netdev)
 	struct i40e_pf *pf = vsi->back;
 	int err;
 
-	/* disallow open during test */
-	if (test_bit(__I40E_TESTING, &pf->state))
+	/* disallow open during test or if eeprom is broken */
+	if (test_bit(__I40E_TESTING, &pf->state) ||
+	    test_bit(__I40E_BAD_EEPROM, &pf->state))
 		return -EBUSY;
 
 	netif_carrier_off(netdev);
@@ -5078,6 +5082,31 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_verify_eeprom - make sure eeprom is good to use
+ * @pf: board private structure
+ **/
+static void i40e_verify_eeprom(struct i40e_pf *pf)
+{
+	int err;
+
+	err = i40e_diag_eeprom_test(&pf->hw);
+	if (err) {
+		/* retry in case of garbage read */
+		err = i40e_diag_eeprom_test(&pf->hw);
+		if (err) {
+			dev_info(&pf->pdev->dev, "eeprom check failed (%d), Tx/Rx traffic disabled\n",
+				 err);
+			set_bit(__I40E_BAD_EEPROM, &pf->state);
+		}
+	}
+
+	if (!err && test_bit(__I40E_BAD_EEPROM, &pf->state)) {
+		dev_info(&pf->pdev->dev, "eeprom check passed, Tx/Rx traffic enabled\n");
+		clear_bit(__I40E_BAD_EEPROM, &pf->state);
+	}
+}
+
+/**
  * i40e_reconstitute_veb - rebuild the VEB and anything connected to it
  * @veb: pointer to the VEB instance
  *
@@ -5384,6 +5413,12 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	if (ret) {
 		dev_info(&pf->pdev->dev, "Rebuild AdminQ failed, %d\n", ret);
 		goto end_core_reset;
+	}
+
+	/* re-verify the eeprom if we just had an EMP reset */
+	if (test_bit(__I40E_EMP_RESET_REQUESTED, &pf->state)) {
+		clear_bit(__I40E_EMP_RESET_REQUESTED, &pf->state);
+		i40e_verify_eeprom(pf);
 	}
 
 	ret = i40e_get_capabilities(pf);
@@ -8157,6 +8192,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pf_reset;
 	}
 
+	i40e_verify_eeprom(pf);
+
 	i40e_clear_pxe_mode(hw);
 	err = i40e_get_capabilities(pf);
 	if (err)
@@ -8258,7 +8295,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* prep for VF support */
 	if ((pf->flags & I40E_FLAG_SRIOV_ENABLED) &&
-	    (pf->flags & I40E_FLAG_MSIX_ENABLED)) {
+	    (pf->flags & I40E_FLAG_MSIX_ENABLED) &&
+	    !test_bit(__I40E_BAD_EEPROM, &pf->state)) {
 		u32 val;
 
 		/* disable link interrupts for VFs */
