@@ -740,6 +740,7 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 	u32 rx_page, rx_buf;
 	u64 rx_p, rx_b;
 	u64 tx_p, tx_b;
+	u32 val;
 	int i;
 	u16 q;
 
@@ -972,6 +973,20 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 		i40e_stat_update32(hw, I40E_GLPRT_RJC(hw->port),
 				   pf->stat_offsets_loaded,
 				   &osd->rx_jabber, &nsd->rx_jabber);
+
+		val = rd32(hw, I40E_PRTPM_EEE_STAT);
+		nsd->tx_lpi_status =
+			       (val & I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_MASK) >>
+				I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_SHIFT;
+		nsd->rx_lpi_status =
+			       (val & I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_MASK) >>
+				I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_SHIFT;
+		i40e_stat_update32(hw, I40E_PRTPM_TLPIC,
+				   pf->stat_offsets_loaded,
+				   &osd->tx_lpi_count, &nsd->tx_lpi_count);
+		i40e_stat_update32(hw, I40E_PRTPM_RLPIC,
+				   pf->stat_offsets_loaded,
+				   &osd->rx_lpi_count, &nsd->rx_lpi_count);
 	}
 
 	pf->stat_offsets_loaded = true;

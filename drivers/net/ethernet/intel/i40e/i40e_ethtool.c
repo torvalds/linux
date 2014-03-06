@@ -114,6 +114,11 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("VF_admin_queue_requests", vf_aq_requests),
 	I40E_PF_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 	I40E_PF_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+	/* LPI stats */
+	I40E_PF_STAT("tx_lpi_status", stats.tx_lpi_status),
+	I40E_PF_STAT("rx_lpi_status", stats.rx_lpi_status),
+	I40E_PF_STAT("tx_lpi_count", stats.tx_lpi_count),
+	I40E_PF_STAT("rx_lpi_count", stats.rx_lpi_count),
 };
 
 #define I40E_QUEUE_STATS_LEN(n) \
