@@ -346,6 +346,8 @@ iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 	return (void *)vif->drv_priv;
 }
 
+extern const u8 tid_to_mac80211_ac[];
+
 enum iwl_scan_status {
 	IWL_MVM_SCAN_NONE,
 	IWL_MVM_SCAN_OS,
@@ -913,7 +915,7 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
-			   struct ieee80211_tx_info *info);
+			   struct ieee80211_tx_info *info, u8 ac);
 int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id, bool enable);
 
 enum iwl_bt_kill_msk {

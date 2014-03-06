@@ -79,6 +79,7 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	__le16 fc = hdr->frame_control;
 	u32 tx_flags = le32_to_cpu(tx_cmd->tx_flags);
 	u32 len = skb->len + FCS_LEN;
+	u8 ac;
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		tx_flags |= TX_CMD_FLG_ACK;
@@ -89,9 +90,6 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tx_flags |= TX_CMD_FLG_TSF;
 	else if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
-
-	tx_flags |= iwl_mvm_bt_coex_tx_prio(mvm, hdr, info) <<
-			TX_CMD_FLG_BT_PRIO_POS;
 
 	if (ieee80211_has_morefrags(fc))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG;
@@ -107,6 +105,11 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		else
 			tx_flags &= ~TX_CMD_FLG_SEQ_CTL;
 	}
+
+	/* tid_tspec will default to 0 = BE when QOS isn't enabled */
+	ac = tid_to_mac80211_ac[tx_cmd->tid_tspec];
+	tx_flags |= iwl_mvm_bt_coex_tx_prio(mvm, hdr, info, ac) <<
+			TX_CMD_FLG_BT_PRIO_POS;
 
 	if (ieee80211_is_mgmt(fc)) {
 		if (ieee80211_is_assoc_req(fc) || ieee80211_is_reassoc_req(fc))

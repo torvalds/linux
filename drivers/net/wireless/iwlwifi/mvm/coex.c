@@ -1208,16 +1208,30 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 }
 
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
-			   struct ieee80211_tx_info *info)
+			   struct ieee80211_tx_info *info, u8 ac)
 {
 	__le16 fc = hdr->frame_control;
 
+	if (info->band != IEEE80211_BAND_2GHZ)
+		return 0;
+
 	/* High prio packet (wrt. BT coex) if it is EAPOL, MCAST or MGMT */
-	if (info->band == IEEE80211_BAND_2GHZ &&
-	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO ||
+	if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO ||
 	     is_multicast_ether_addr(hdr->addr1) ||
-	     ieee80211_is_back_req(fc) || ieee80211_is_mgmt(fc)))
+	     ieee80211_is_ctl(fc) || ieee80211_is_mgmt(fc) ||
+	     ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc))
+		return 3;
+
+	switch (ac) {
+	case IEEE80211_AC_BE:
+		return 1;
+	case IEEE80211_AC_VO:
+		return 3;
+	case IEEE80211_AC_VI:
 		return 2;
+	default:
+		break;
+	}
 
 	return 0;
 }

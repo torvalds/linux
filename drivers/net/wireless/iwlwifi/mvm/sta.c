@@ -851,7 +851,7 @@ static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
-static const u8 tid_to_mac80211_ac[] = {
+const u8 tid_to_mac80211_ac[] = {
 	IEEE80211_AC_BE,
 	IEEE80211_AC_BK,
 	IEEE80211_AC_BK,
