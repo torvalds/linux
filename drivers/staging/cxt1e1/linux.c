@@ -81,7 +81,6 @@ status_t    musycc_chan_down(ci_t *, int);
 irqreturn_t musycc_intr_th_handler(void *);
 int         musycc_start_xmit(ci_t *, int, void *);
 
-extern char pmcc4_OSSI_release[];
 extern ci_t *CI;
 extern struct s_hdw_info hdw_info[];
 
@@ -990,7 +989,6 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 		CI = ci;                    /* DEBUG, only board 0 usage */
 
 	strcpy(ci->devname, hi->devname);
-	ci->release = &pmcc4_OSSI_release[0];
 
 	/* tasklet */
 #if defined(SBE_ISR_TASKLET)
@@ -1122,7 +1120,6 @@ c4_mod_init(void)
 {
 	int         rtn;
 
-	pr_warning("%s\n", pmcc4_OSSI_release);
 	if ((rtn = c4hw_attach_all()))
 		return -rtn; /* installation failure - see system log */
 

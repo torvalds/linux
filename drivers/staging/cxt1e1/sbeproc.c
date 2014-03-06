@@ -150,7 +150,6 @@ static int sbecom_proc_get_sbe_info(struct seq_file *m, void *v)
 		break;
 	}
 	seq_printf(m, "PCI Bus Speed: %s\n", spd);
-	seq_printf(m, "Release:       %s\n", ci->release);
 
 #ifdef SBE_PMCC4_ENABLE
 	{
