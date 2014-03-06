@@ -68,8 +68,8 @@ void hv_message_intr(struct pt_regs *regs, int intnum)
 #endif
 
 	while (1) {
-		rmi = hv_receive_message(__get_cpu_var(msg_state),
-					 (HV_VirtAddr) message,
+		HV_MsgState *state = this_cpu_ptr(&msg_state);
+		rmi = hv_receive_message(*state, (HV_VirtAddr) message,
 					 sizeof(message));
 		if (rmi.msglen == 0)
 			break;
