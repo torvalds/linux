@@ -61,6 +61,7 @@ struct virtio_ccw_device {
 	unsigned long indicators2;
 	struct vq_config_block *config_block;
 	bool is_thinint;
+	bool going_away;
 	void *airq_info;
 };
 
@@ -995,30 +996,39 @@ static struct virtio_ccw_device *virtio_grab_drvdata(struct ccw_device *cdev)
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	vcdev = dev_get_drvdata(&cdev->dev);
-	if (!vcdev) {
+	if (!vcdev || vcdev->going_away) {
 		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 		return NULL;
 	}
-	dev_set_drvdata(&cdev->dev, NULL);
+	vcdev->going_away = true;
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	return vcdev;
 }
 
 static void virtio_ccw_remove(struct ccw_device *cdev)
 {
+	unsigned long flags;
 	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
 	if (vcdev && cdev->online)
 		unregister_virtio_device(&vcdev->vdev);
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	dev_set_drvdata(&cdev->dev, NULL);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	cdev->handler = NULL;
 }
 
 static int virtio_ccw_offline(struct ccw_device *cdev)
 {
+	unsigned long flags;
 	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
-	if (vcdev)
+	if (vcdev) {
 		unregister_virtio_device(&vcdev->vdev);
+		spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+		dev_set_drvdata(&cdev->dev, NULL);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	}
 	return 0;
 }
 
