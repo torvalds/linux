@@ -24,6 +24,7 @@
 #include <linux/freezer.h>
 #include <linux/workqueue.h>
 #include "async-thread.h"
+#include "ctree.h"
 
 #define WORK_DONE_BIT 0
 #define WORK_ORDER_DONE_BIT 1
@@ -210,6 +211,7 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 		 */
 		if (test_and_set_bit(WORK_ORDER_DONE_BIT, &work->flags))
 			break;
+		trace_btrfs_ordered_sched(work);
 		spin_unlock_irqrestore(lock, flags);
 		work->ordered_func(work);
 
@@ -223,6 +225,7 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 		 * with the lock held though
 		 */
 		work->ordered_free(work);
+		trace_btrfs_all_work_done(work);
 	}
 	spin_unlock_irqrestore(lock, flags);
 }
@@ -246,12 +249,15 @@ static void normal_work_helper(struct work_struct *arg)
 		need_order = 1;
 	wq = work->wq;
 
+	trace_btrfs_work_sched(work);
 	thresh_exec_hook(wq);
 	work->func(work);
 	if (need_order) {
 		set_bit(WORK_DONE_BIT, &work->flags);
 		run_ordered_work(wq);
 	}
+	if (!need_order)
+		trace_btrfs_all_work_done(work);
 }
 
 void btrfs_init_work(struct btrfs_work *work,
@@ -280,6 +286,7 @@ static inline void __btrfs_queue_work(struct __btrfs_workqueue *wq,
 		spin_unlock_irqrestore(&wq->list_lock, flags);
 	}
 	queue_work(wq->normal_wq, &work->normal_work);
+	trace_btrfs_work_queued(work);
 }
 
 void btrfs_queue_work(struct btrfs_workqueue *wq,

@@ -21,6 +21,7 @@ struct btrfs_block_group_cache;
 struct btrfs_free_cluster;
 struct map_lookup;
 struct extent_buffer;
+struct btrfs_work;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -981,6 +982,87 @@ TRACE_EVENT(free_extent_state,
 	TP_printk(" state=%p; caller = %pF", __entry->state,
 		  (void *)__entry->ip)
 );
+
+DECLARE_EVENT_CLASS(btrfs__work,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work),
+
+	TP_STRUCT__entry(
+		__field(	void *,	work			)
+		__field(	void *, wq			)
+		__field(	void *,	func			)
+		__field(	void *,	ordered_func		)
+		__field(	void *,	ordered_free		)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+		__entry->wq		= work->wq;
+		__entry->func		= work->func;
+		__entry->ordered_func	= work->ordered_func;
+		__entry->ordered_free	= work->ordered_free;
+	),
+
+	TP_printk("work=%p, wq=%p, func=%p, ordered_func=%p, ordered_free=%p",
+		  __entry->work, __entry->wq, __entry->func,
+		  __entry->ordered_func, __entry->ordered_free)
+);
+
+/* For situiations that the work is freed */
+DECLARE_EVENT_CLASS(btrfs__work__done,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work),
+
+	TP_STRUCT__entry(
+		__field(	void *,	work			)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+	),
+
+	TP_printk("work->%p", __entry->work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_work_queued,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_work_sched,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_normal_work_done,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work__done, btrfs_all_work_done,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_ordered_sched,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
 
 #endif /* _TRACE_BTRFS_H */
 
