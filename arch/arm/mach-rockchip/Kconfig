@@ -42,10 +42,15 @@ config DDR_FREQ
 	default y
 	select DVFS
 
-config RK29_VPU
+config RK_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
-	depends on ARCH_RK29 || ARCH_RK30 || ARCH_RK2928 || ARCH_RK3026 || ARCH_RK3188 || ARCH_RK319X || ARCH_ROCKCHIP
-	default m
+	depends on ARCH_ROCKCHIP
+	default y
+
+config RK_VCODEC
+	tristate "VCODEC (VPU HEVC) service driver in kernel"
+	depends on ARCH_ROCKCHIP
+	default y
 
 config RK_PL330_DMA_TEST
 	bool "pl330 DMA memcpy test"
