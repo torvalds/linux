@@ -119,7 +119,6 @@ static int igbvf_set_settings(struct net_device *netdev,
 static void igbvf_get_pauseparam(struct net_device *netdev,
                                  struct ethtool_pauseparam *pause)
 {
-	return;
 }
 
 static int igbvf_set_pauseparam(struct net_device *netdev,
