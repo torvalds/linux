@@ -13,7 +13,7 @@ void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
 	int old, new;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if (rt && !(rt->dst.flags & DST_NOPEER)) {
+	if (rt) {
 		struct inet_peer *peer;
 		struct net *net;
 
