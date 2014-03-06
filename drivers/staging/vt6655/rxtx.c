@@ -1257,11 +1257,11 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 //    unsigned char abyTmp[8];
 //    unsigned long dwCRC;
 	unsigned int cbMICHDR = 0;
-	unsigned long dwMICKey0, dwMICKey1;
-	unsigned long dwMIC_Priority;
+	u32 dwMICKey0, dwMICKey1;
+	u32 dwMIC_Priority;
 	u32 *pdwMIC_L;
 	u32 *pdwMIC_R;
-	unsigned long dwSafeMIC_L, dwSafeMIC_R; //Fix "Last Frag Size" < "MIC length".
+	u32 dwSafeMIC_L, dwSafeMIC_R; /* Fix "Last Frag Size" < "MIC length". */
 	bool bMIC2Frag = false;
 	unsigned int uMICFragLen = 0;
 	unsigned int uMACfragNum = 1;
@@ -1434,21 +1434,21 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 //////////////////////////////////////////////////////////////////
 	if ((bNeedEncrypt == true) && (pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
 		if (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-			dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[16]);
-			dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[20]);
+			dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[16]);
+			dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
 		} else if ((pTransmitKey->dwKeyIndex & AUTHENTICATOR_KEY) != 0) {
-			dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[16]);
-			dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[20]);
+			dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[16]);
+			dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
 		} else {
-			dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[24]);
-			dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[28]);
+			dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[24]);
+			dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[28]);
 		}
 		// DO Software Michael
 		MIC_vInit(dwMICKey0, dwMICKey1);
 		MIC_vAppend((unsigned char *)&(psEthHeader->abyDstAddr[0]), 12);
 		dwMIC_Priority = 0;
 		MIC_vAppend((unsigned char *)&dwMIC_Priority, 4);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC KEY: %lX, %lX\n", dwMICKey0, dwMICKey1);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC KEY: %X, %X\n", dwMICKey0, dwMICKey1);
 	}
 
 ///////////////////////////////////////////////////////////////////
@@ -2592,8 +2592,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 	unsigned int uPadding = 0;
 	unsigned int cbMICHDR = 0;
 	unsigned int uLength = 0;
-	unsigned long dwMICKey0, dwMICKey1;
-	unsigned long dwMIC_Priority;
+	u32 dwMICKey0, dwMICKey1;
+	u32 dwMIC_Priority;
 	u32 *pdwMIC_L;
 	u32 *pdwMIC_R;
 	unsigned short wTxBufSize;
@@ -2841,15 +2841,15 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 		}
 
 		if ((pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
-			dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[16]);
-			dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[20]);
+			dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[16]);
+			dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
 
 			// DO Software Michael
 			MIC_vInit(dwMICKey0, dwMICKey1);
 			MIC_vAppend((unsigned char *)&(sEthHeader.abyDstAddr[0]), 12);
 			dwMIC_Priority = 0;
 			MIC_vAppend((unsigned char *)&dwMIC_Priority, 4);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "DMA0_tx_8021:MIC KEY: %lX, %lX\n", dwMICKey0, dwMICKey1);
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "DMA0_tx_8021:MIC KEY: %X, %X\n", dwMICKey0, dwMICKey1);
 
 			uLength = cbHeaderSize + cbMacHdLen + uPadding + cbIVlen;
 
