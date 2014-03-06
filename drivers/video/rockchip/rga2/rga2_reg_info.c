@@ -15,8 +15,6 @@
 #include <asm/io.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <mach/io.h>
-#include <mach/irqs.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <linux/miscdevice.h>

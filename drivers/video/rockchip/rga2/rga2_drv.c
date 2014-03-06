@@ -27,8 +27,6 @@
 #include <asm/io.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <mach/io.h>
-#include <mach/irqs.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <linux/miscdevice.h>
@@ -253,8 +251,8 @@ static void rga2_power_on(void)
 		return;
 
     //clk_enable(rga2_drvdata->rga2);
-	clk_prepare_enable(rga2_drvdata->aclk_rga2);
-	clk_prepare_enable(rga2_drvdata->hclk_rga2);
+	//clk_prepare_enable(rga2_drvdata->aclk_rga2);
+	//clk_prepare_enable(rga2_drvdata->hclk_rga2);
 	//clk_enable(rga2_drvdata->pd_rga2);
 	wake_lock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = true;
@@ -279,8 +277,8 @@ static void rga2_power_off(void)
 
 	//clk_disable(rga2_drvdata->pd_rga2);
     //clk_disable(rga2_drvdata->rga2);
-	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
-	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
+	//clk_disable_unprepare(rga2_drvdata->aclk_rga2);
+	//clk_disable_unprepare(rga2_drvdata->hclk_rga2);
 	wake_unlock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = false;
 }
@@ -548,7 +546,7 @@ static void rga2_try_set_reg(void)
             rga2_write(virt_to_phys(rga2_service.cmd_buff), RGA2_CMD_BASE);
 
 #if RGA2_TEST
-            if(rga2_flag)
+            if(1)//rga2_flag)
             {
                 //printk(KERN_DEBUG "cmd_addr = %.8x\n", rga_read(RGA_CMD_ADDR));
                 uint32_t i, *p;
@@ -573,7 +571,7 @@ static void rga2_try_set_reg(void)
             atomic_set(&reg->session->done, 0);
             rga2_write(0x1, RGA2_CMD_CTRL);
 #if RGA2_TEST
-            if(rga2_flag)
+            if(1)//rga2_flag)
             {
                 uint32_t i;
                 printk("CMD_READ_BACK_REG\n");
@@ -665,20 +663,13 @@ static void rga2_del_running_list_timeout(void)
     }
 }
 
-
-static void rga2_mem_addr_sel(struct rga2_req *req)
-{
-}
-
-
 static int rga2_blit(rga2_session *session, struct rga2_req *req)
 {
     int ret = -1;
     int num = 0;
     struct rga2_reg *reg;
 
-    do
-    {
+    do {
         /* check value if legal */
         ret = rga2_check_param(req);
     	if(ret == -EINVAL) {
@@ -709,7 +700,6 @@ static int rga2_blit_async(rga2_session *session, struct rga2_req *req)
 	int ret = -1;
 
     #if RGA2_TEST_MSG
-    //printk("*** rga_blit_async proc ***\n");
     if (req->src.format >= 0x10) {
         print_info(req);
         rga2_flag = 1;
@@ -995,16 +985,15 @@ static struct miscdevice rga2_dev ={
     .fops  = &rga2_fops,
 };
 
-static const struct of_device_id rockchip_rga_of_match[] = {
-	{ .compatible = "rockchip,rga", .data = NULL, },
+static const struct of_device_id rockchip_rga_dt_ids[] = {
+	{ .compatible = "rockchip,rga", },
 	{},
 };
 
-static int __devinit rga2_drv_probe(struct platform_device *pdev)
+static int rga2_drv_probe(struct platform_device *pdev)
 {
 	struct rga2_drvdata_t *data;
     struct resource *res;
-    struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 
 	mutex_init(&rga2_service.lock);
@@ -1026,8 +1015,8 @@ static int __devinit rga2_drv_probe(struct platform_device *pdev)
 
 	//data->pd_rga2 = clk_get(NULL, "pd_rga");
     //data->rga2 = clk_get(NULL, "rga");
-	data->aclk_rga = devm_clk_get(&pdev->dev, "aclk_rga");
-    data->hclk_rga = devm_clk_get(&pdev->dev, "hclk_rga");
+	//data->aclk_rga2 = devm_clk_get(&pdev->dev, "aclk_rga");
+    //data->hclk_rga2 = devm_clk_get(&pdev->dev, "hclk_rga");
 
 	/* map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1091,8 +1080,8 @@ static int rga2_drv_remove(struct platform_device *pdev)
 
 	//clk_put(data->pd_rga2);
     //clk_put(data->rga2);
-	devm_clk_put(&pdev->dev, data->aclk_rga2);
-	devm_clk_put(&pdev->dev, data->hclk_rga2);
+	//devm_clk_put(&pdev->dev, data->aclk_rga2);
+	//devm_clk_put(&pdev->dev, data->hclk_rga2);
 
 	kfree(data);
 	return 0;
@@ -1100,10 +1089,11 @@ static int rga2_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver rga2_driver = {
 	.probe		= rga2_drv_probe,
-	.remove		= __devexit_p(rga2_drv_remove),
+	.remove		= rga2_drv_remove,
 	.driver		= {
 		.owner  = THIS_MODULE,
 		.name	= "rga",
+		.of_match_table = of_match_ptr(rockchip_rga_dt_ids),
 	},
 };
 
@@ -1202,7 +1192,7 @@ void rga2_test_0(void)
     atomic_set(&session.num_done, 0);
 	//file->private_data = (void *)session;
 
-    fb = rk_get_fb(0);
+    //fb = rk_get_fb(0);
 
     memset(&req, 0, sizeof(struct rga2_req));
     src = kmalloc(800*480*4, GFP_KERNEL);

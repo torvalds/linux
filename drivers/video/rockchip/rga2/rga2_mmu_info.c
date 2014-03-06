@@ -85,7 +85,7 @@ static int rga2_mmu_buf_get_try(struct rga2_mmu_buf_t *t, uint32_t size)
     return 0;
 }
 
-
+#if 0
 static int rga2_mmu_buf_cal(struct rga2_mmu_buf_t *t, uint32_t size)
 {
     if((t->front + size) > t->back) {
@@ -95,6 +95,7 @@ static int rga2_mmu_buf_cal(struct rga2_mmu_buf_t *t, uint32_t size)
         return 0;
     }
 }
+#endif
 
 
 
