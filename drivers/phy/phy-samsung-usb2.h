@@ -63,4 +63,5 @@ struct samsung_usb2_phy_config {
 
 extern const struct samsung_usb2_phy_config exynos4210_usb2_phy_config;
 extern const struct samsung_usb2_phy_config exynos4x12_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exynos5250_usb2_phy_config;
 #endif
