@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 36
+#define DRV_VERSION_BUILD 41
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2312,6 +2312,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	rx_ctx.crcstrip = 1;
 	rx_ctx.l2tsel = 1;
 	rx_ctx.showiv = 1;
+	/* set the prefena field to 1 because the manual says to */
+	rx_ctx.prefena = 1;
 
 	/* clear the context in the HMC */
 	err = i40e_clear_lan_rx_queue_context(hw, pf_q);
@@ -3140,8 +3142,6 @@ static void i40e_netpoll(struct net_device *netdev)
 	pf->flags &= ~I40E_FLAG_IN_NETPOLL;
 }
 #endif
-	/* set the prefena field to 1 because the manual says to */
-	rx_ctx.prefena = 1;
 
 /**
  * i40e_vsi_control_tx - Start or stop a VSI's rings
