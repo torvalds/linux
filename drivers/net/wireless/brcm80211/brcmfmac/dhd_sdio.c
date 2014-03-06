@@ -2444,7 +2444,7 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 	struct brcmf_core *buscore;
 	u32 addr;
 	unsigned long val;
-	int ret;
+	int n, ret;
 
 	buscore = brcmf_chip_get_core(bus->ci, BCMA_CORE_SDIO_DEV);
 	addr = buscore->base + offsetof(struct sdpcmd_regs, intstatus);
@@ -2452,7 +2452,7 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 	val = brcmf_sdiod_regrl(bus->sdiodev, addr, &ret);
 	bus->sdcnt.f1regdata++;
 	if (ret != 0)
-		return ret;
+		val = 0;
 
 	val &= bus->hostintmask;
 	atomic_set(&bus->fcstate, !!(val & I_HMB_FC_STATE));
@@ -2461,7 +2461,13 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 	if (val) {
 		brcmf_sdiod_regwl(bus->sdiodev, addr, val, &ret);
 		bus->sdcnt.f1regdata++;
-		atomic_set_mask(val, &bus->intstatus);
+	}
+
+	if (ret) {
+		atomic_set(&bus->intstatus, 0);
+	} else if (val) {
+		for_each_set_bit(n, &val, 32)
+			set_bit(n, (unsigned long *)&bus->intstatus.counter);
 	}
 
 	return ret;
@@ -2473,7 +2479,7 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	unsigned long intstatus;
 	uint txlimit = bus->txbound;	/* Tx frames to send before resched */
 	uint framecnt;			/* Temporary counter of tx/rx frames */
-	int err = 0;
+	int err = 0, n;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -2577,8 +2583,10 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	}
 
 	/* Keep still-pending events for next scheduling */
-	if (intstatus)
-		atomic_set_mask(intstatus, &bus->intstatus);
+	if (intstatus) {
+		for_each_set_bit(n, &intstatus, 32)
+			set_bit(n, (unsigned long *)&bus->intstatus.counter);
+	}
 
 	brcmf_sdio_clrintr(bus);
 
