@@ -482,8 +482,9 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		}
 	} else if (error ==
 			  (0x1 << I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
-		netdev_info(rx_ring->vsi->netdev, "ntuple filter loc = %d, could not be removed\n",
-			    rx_desc->wb.qword0.hi_dword.fd_id);
+		if (I40E_DEBUG_FD & pf->hw.debug_mask)
+			dev_info(&pdev->dev, "ntuple filter loc = %d, could not be removed\n",
+				 rx_desc->wb.qword0.hi_dword.fd_id);
 	}
 }
 
