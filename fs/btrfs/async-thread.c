@@ -255,9 +255,9 @@ static void normal_work_helper(struct work_struct *arg)
 }
 
 void btrfs_init_work(struct btrfs_work *work,
-		     void (*func)(struct btrfs_work *),
-		     void (*ordered_func)(struct btrfs_work *),
-		     void (*ordered_free)(struct btrfs_work *))
+		     btrfs_func_t func,
+		     btrfs_func_t ordered_func,
+		     btrfs_func_t ordered_free)
 {
 	work->func = func;
 	work->ordered_func = ordered_func;

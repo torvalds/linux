@@ -23,11 +23,13 @@
 struct btrfs_workqueue;
 /* Internal use only */
 struct __btrfs_workqueue;
+struct btrfs_work;
+typedef void (*btrfs_func_t)(struct btrfs_work *arg);
 
 struct btrfs_work {
-	void (*func)(struct btrfs_work *arg);
-	void (*ordered_func)(struct btrfs_work *arg);
-	void (*ordered_free)(struct btrfs_work *arg);
+	btrfs_func_t func;
+	btrfs_func_t ordered_func;
+	btrfs_func_t ordered_free;
 
 	/* Don't touch things below */
 	struct work_struct normal_work;
@@ -37,13 +39,13 @@ struct btrfs_work {
 };
 
 struct btrfs_workqueue *btrfs_alloc_workqueue(char *name,
-						     int flags,
-						     int max_active,
-						     int thresh);
+					      int flags,
+					      int max_active,
+					      int thresh);
 void btrfs_init_work(struct btrfs_work *work,
-		     void (*func)(struct btrfs_work *),
-		     void (*ordered_func)(struct btrfs_work *),
-		     void (*ordered_free)(struct btrfs_work *));
+		     btrfs_func_t func,
+		     btrfs_func_t ordered_func,
+		     btrfs_func_t ordered_free);
 void btrfs_queue_work(struct btrfs_workqueue *wq,
 		      struct btrfs_work *work);
 void btrfs_destroy_workqueue(struct btrfs_workqueue *wq);
