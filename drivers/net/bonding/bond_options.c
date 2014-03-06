@@ -21,55 +21,55 @@
 #include "bonding.h"
 
 static int bond_option_active_slave_set(struct bonding *bond,
-					struct bond_opt_value *newval);
+					const struct bond_opt_value *newval);
 static int bond_option_miimon_set(struct bonding *bond,
-				  struct bond_opt_value *newval);
+				  const struct bond_opt_value *newval);
 static int bond_option_updelay_set(struct bonding *bond,
-				   struct bond_opt_value *newval);
+				   const struct bond_opt_value *newval);
 static int bond_option_downdelay_set(struct bonding *bond,
-				     struct bond_opt_value *newval);
+				     const struct bond_opt_value *newval);
 static int bond_option_use_carrier_set(struct bonding *bond,
-				       struct bond_opt_value *newval);
+				       const struct bond_opt_value *newval);
 static int bond_option_arp_interval_set(struct bonding *bond,
-					struct bond_opt_value *newval);
+					const struct bond_opt_value *newval);
 static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_targets_set(struct bonding *bond,
-					  struct bond_opt_value *newval);
+					  const struct bond_opt_value *newval);
 static int bond_option_arp_validate_set(struct bonding *bond,
-					struct bond_opt_value *newval);
+					const struct bond_opt_value *newval);
 static int bond_option_arp_all_targets_set(struct bonding *bond,
-					   struct bond_opt_value *newval);
+					   const struct bond_opt_value *newval);
 static int bond_option_primary_set(struct bonding *bond,
-				   struct bond_opt_value *newval);
+				   const struct bond_opt_value *newval);
 static int bond_option_primary_reselect_set(struct bonding *bond,
-					    struct bond_opt_value *newval);
+					    const struct bond_opt_value *newval);
 static int bond_option_fail_over_mac_set(struct bonding *bond,
-					 struct bond_opt_value *newval);
+					 const struct bond_opt_value *newval);
 static int bond_option_xmit_hash_policy_set(struct bonding *bond,
-					    struct bond_opt_value *newval);
+					    const struct bond_opt_value *newval);
 static int bond_option_resend_igmp_set(struct bonding *bond,
-				       struct bond_opt_value *newval);
+				       const struct bond_opt_value *newval);
 static int bond_option_num_peer_notif_set(struct bonding *bond,
-					  struct bond_opt_value *newval);
+					  const struct bond_opt_value *newval);
 static int bond_option_all_slaves_active_set(struct bonding *bond,
-					     struct bond_opt_value *newval);
+					     const struct bond_opt_value *newval);
 static int bond_option_min_links_set(struct bonding *bond,
-				     struct bond_opt_value *newval);
+				     const struct bond_opt_value *newval);
 static int bond_option_lp_interval_set(struct bonding *bond,
-				       struct bond_opt_value *newval);
+				       const struct bond_opt_value *newval);
 static int bond_option_pps_set(struct bonding *bond,
-			       struct bond_opt_value *newval);
+			       const struct bond_opt_value *newval);
 static int bond_option_lacp_rate_set(struct bonding *bond,
-				     struct bond_opt_value *newval);
+				     const struct bond_opt_value *newval);
 static int bond_option_ad_select_set(struct bonding *bond,
-				     struct bond_opt_value *newval);
+				     const struct bond_opt_value *newval);
 static int bond_option_queue_id_set(struct bonding *bond,
-				    struct bond_opt_value *newval);
+				    const struct bond_opt_value *newval);
 static int bond_option_mode_set(struct bonding *bond,
-				struct bond_opt_value *newval);
+				const struct bond_opt_value *newval);
 static int bond_option_slaves_set(struct bonding *bond,
-				  struct bond_opt_value *newval);
+				  const struct bond_opt_value *newval);
 
 
 static const struct bond_opt_value bond_mode_tbl[] = {
@@ -504,7 +504,7 @@ static int bond_opt_check_deps(struct bonding *bond,
 static void bond_opt_dep_print(struct bonding *bond,
 			       const struct bond_option *opt)
 {
-	struct bond_opt_value *modeval;
+	const struct bond_opt_value *modeval;
 	struct bond_params *params;
 
 	params = &bond->params;
@@ -517,9 +517,9 @@ static void bond_opt_dep_print(struct bonding *bond,
 
 static void bond_opt_error_interpret(struct bonding *bond,
 				     const struct bond_option *opt,
-				     int error, struct bond_opt_value *val)
+				     int error, const struct bond_opt_value *val)
 {
-	struct bond_opt_value *minval, *maxval;
+	const struct bond_opt_value *minval, *maxval;
 	char *p;
 
 	switch (error) {
@@ -574,7 +574,7 @@ static void bond_opt_error_interpret(struct bonding *bond,
 int __bond_opt_set(struct bonding *bond,
 		   unsigned int option, struct bond_opt_value *val)
 {
-	struct bond_opt_value *retval = NULL;
+	const struct bond_opt_value *retval = NULL;
 	const struct bond_option *opt;
 	int ret = -ENOENT;
 
@@ -637,7 +637,7 @@ const struct bond_option *bond_opt_get(unsigned int option)
 	return &bond_opts[option];
 }
 
-int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval)
+int bond_option_mode_set(struct bonding *bond, const struct bond_opt_value *newval)
 {
 	if (BOND_NO_USES_ARP(newval->value) && bond->params.arp_interval) {
 		pr_info("%s: %s mode is incompatible with arp monitoring, start mii monitoring\n",
@@ -676,7 +676,7 @@ struct net_device *bond_option_active_slave_get(struct bonding *bond)
 }
 
 static int bond_option_active_slave_set(struct bonding *bond,
-					struct bond_opt_value *newval)
+					const struct bond_opt_value *newval)
 {
 	char ifname[IFNAMSIZ] = { 0, };
 	struct net_device *slave_dev;
@@ -745,7 +745,7 @@ static int bond_option_active_slave_set(struct bonding *bond,
 }
 
 static int bond_option_miimon_set(struct bonding *bond,
-				  struct bond_opt_value *newval)
+				  const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting MII monitoring interval to %llu\n",
 		bond->dev->name, newval->value);
@@ -783,7 +783,7 @@ static int bond_option_miimon_set(struct bonding *bond,
 }
 
 static int bond_option_updelay_set(struct bonding *bond,
-				   struct bond_opt_value *newval)
+				   const struct bond_opt_value *newval)
 {
 	int value = newval->value;
 
@@ -807,7 +807,7 @@ static int bond_option_updelay_set(struct bonding *bond,
 }
 
 static int bond_option_downdelay_set(struct bonding *bond,
-				     struct bond_opt_value *newval)
+				     const struct bond_opt_value *newval)
 {
 	int value = newval->value;
 
@@ -831,7 +831,7 @@ static int bond_option_downdelay_set(struct bonding *bond,
 }
 
 static int bond_option_use_carrier_set(struct bonding *bond,
-				       struct bond_opt_value *newval)
+				       const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting use_carrier to %llu\n",
 		bond->dev->name, newval->value);
@@ -841,7 +841,7 @@ static int bond_option_use_carrier_set(struct bonding *bond,
 }
 
 static int bond_option_arp_interval_set(struct bonding *bond,
-					struct bond_opt_value *newval)
+					const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting ARP monitoring interval to %llu\n",
 		bond->dev->name, newval->value);
@@ -991,7 +991,7 @@ void bond_option_arp_ip_targets_clear(struct bonding *bond)
 }
 
 static int bond_option_arp_ip_targets_set(struct bonding *bond,
-					  struct bond_opt_value *newval)
+					  const struct bond_opt_value *newval)
 {
 	int ret = -EPERM;
 	__be32 target;
@@ -1018,7 +1018,7 @@ static int bond_option_arp_ip_targets_set(struct bonding *bond,
 }
 
 static int bond_option_arp_validate_set(struct bonding *bond,
-					struct bond_opt_value *newval)
+					const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting arp_validate to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1035,7 +1035,7 @@ static int bond_option_arp_validate_set(struct bonding *bond,
 }
 
 static int bond_option_arp_all_targets_set(struct bonding *bond,
-					   struct bond_opt_value *newval)
+					   const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting arp_all_targets to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1045,7 +1045,7 @@ static int bond_option_arp_all_targets_set(struct bonding *bond,
 }
 
 static int bond_option_primary_set(struct bonding *bond,
-				   struct bond_opt_value *newval)
+				   const struct bond_opt_value *newval)
 {
 	char *p, *primary = newval->string;
 	struct list_head *iter;
@@ -1098,7 +1098,7 @@ out:
 }
 
 static int bond_option_primary_reselect_set(struct bonding *bond,
-					    struct bond_opt_value *newval)
+					    const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting primary_reselect to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1114,7 +1114,7 @@ static int bond_option_primary_reselect_set(struct bonding *bond,
 }
 
 static int bond_option_fail_over_mac_set(struct bonding *bond,
-					 struct bond_opt_value *newval)
+					 const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting fail_over_mac to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1124,7 +1124,7 @@ static int bond_option_fail_over_mac_set(struct bonding *bond,
 }
 
 static int bond_option_xmit_hash_policy_set(struct bonding *bond,
-					    struct bond_opt_value *newval)
+					    const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting xmit hash policy to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1134,7 +1134,7 @@ static int bond_option_xmit_hash_policy_set(struct bonding *bond,
 }
 
 static int bond_option_resend_igmp_set(struct bonding *bond,
-				       struct bond_opt_value *newval)
+				       const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting resend_igmp to %llu\n",
 		bond->dev->name, newval->value);
@@ -1144,7 +1144,7 @@ static int bond_option_resend_igmp_set(struct bonding *bond,
 }
 
 static int bond_option_num_peer_notif_set(struct bonding *bond,
-				   struct bond_opt_value *newval)
+				   const struct bond_opt_value *newval)
 {
 	bond->params.num_peer_notif = newval->value;
 
@@ -1152,7 +1152,7 @@ static int bond_option_num_peer_notif_set(struct bonding *bond,
 }
 
 static int bond_option_all_slaves_active_set(struct bonding *bond,
-					     struct bond_opt_value *newval)
+					     const struct bond_opt_value *newval)
 {
 	struct list_head *iter;
 	struct slave *slave;
@@ -1173,7 +1173,7 @@ static int bond_option_all_slaves_active_set(struct bonding *bond,
 }
 
 static int bond_option_min_links_set(struct bonding *bond,
-				     struct bond_opt_value *newval)
+				     const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting min links value to %llu\n",
 		bond->dev->name, newval->value);
@@ -1183,7 +1183,7 @@ static int bond_option_min_links_set(struct bonding *bond,
 }
 
 static int bond_option_lp_interval_set(struct bonding *bond,
-				       struct bond_opt_value *newval)
+				       const struct bond_opt_value *newval)
 {
 	bond->params.lp_interval = newval->value;
 
@@ -1191,7 +1191,7 @@ static int bond_option_lp_interval_set(struct bonding *bond,
 }
 
 static int bond_option_pps_set(struct bonding *bond,
-			       struct bond_opt_value *newval)
+			       const struct bond_opt_value *newval)
 {
 	bond->params.packets_per_slave = newval->value;
 	if (newval->value > 0) {
@@ -1209,7 +1209,7 @@ static int bond_option_pps_set(struct bonding *bond,
 }
 
 static int bond_option_lacp_rate_set(struct bonding *bond,
-				     struct bond_opt_value *newval)
+				     const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting LACP rate to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1220,7 +1220,7 @@ static int bond_option_lacp_rate_set(struct bonding *bond,
 }
 
 static int bond_option_ad_select_set(struct bonding *bond,
-				     struct bond_opt_value *newval)
+				     const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting ad_select to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1230,7 +1230,7 @@ static int bond_option_ad_select_set(struct bonding *bond,
 }
 
 static int bond_option_queue_id_set(struct bonding *bond,
-				    struct bond_opt_value *newval)
+				    const struct bond_opt_value *newval)
 {
 	struct slave *slave, *update_slave;
 	struct net_device *sdev;
@@ -1291,7 +1291,7 @@ err_no_cmd:
 }
 
 static int bond_option_slaves_set(struct bonding *bond,
-				  struct bond_opt_value *newval)
+				  const struct bond_opt_value *newval)
 {
 	char command[IFNAMSIZ + 1] = { 0, };
 	struct net_device *dev;

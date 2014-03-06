@@ -94,14 +94,15 @@ struct bond_option {
 	 */
 	const struct bond_opt_value *values;
 
-	int (*set)(struct bonding *bond, struct bond_opt_value *val);
+	int (*set)(struct bonding *bond, const struct bond_opt_value *val);
 };
 
 int __bond_opt_set(struct bonding *bond, unsigned int option,
 		   struct bond_opt_value *val);
 int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf);
+
 const struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
-				      struct bond_opt_value *val);
+					    struct bond_opt_value *val);
 const struct bond_option *bond_opt_get(unsigned int option);
 const struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val);
 

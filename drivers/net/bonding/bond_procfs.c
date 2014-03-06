@@ -65,7 +65,7 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
-	struct bond_opt_value *optval;
+	const struct bond_opt_value *optval;
 	struct slave *curr;
 	int i;
 
