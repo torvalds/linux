@@ -7422,15 +7422,15 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	smp_mb__after_atomic_inc();
 
 	/*
-	 * The generic stuff only does filemap_write_and_wait_range, which isn't
-	 * enough if we've written compressed pages to this area, so we need to
-	 * call btrfs_wait_ordered_range to make absolutely sure that any
-	 * outstanding dirty pages are on disk.
+	 * The generic stuff only does filemap_write_and_wait_range, which
+	 * isn't enough if we've written compressed pages to this area, so
+	 * we need to flush the dirty pages again to make absolutely sure
+	 * that any outstanding dirty pages are on disk.
 	 */
 	count = iov_length(iov, nr_segs);
-	ret = btrfs_wait_ordered_range(inode, offset, count);
-	if (ret)
-		return ret;
+	if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
+		     &BTRFS_I(inode)->runtime_flags))
+		filemap_fdatawrite_range(inode->i_mapping, offset, count);
 
 	if (rw & WRITE) {
 		/*
