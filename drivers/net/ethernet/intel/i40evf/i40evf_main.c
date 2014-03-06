@@ -2133,8 +2133,6 @@ err_alloc:
 	kfree(adapter->vf_res);
 	adapter->vf_res = NULL;
 err:
-	if (hw->aq.asq.count)
-		i40evf_shutdown_adminq(hw); /* ignore error */
 	/* Things went into the weeds, so try again later */
 	if (++adapter->aq_wait_count > I40EVF_AQ_MAX_ERR) {
 		dev_err(&pdev->dev, "Failed to communicate with PF; giving up.\n");
