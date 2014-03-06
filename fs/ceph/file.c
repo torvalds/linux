@@ -806,6 +806,9 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t ret;
 	int want, got = 0;
 	int checkeof = 0, read = 0;
+	struct iov_iter i;
+
+	iov_iter_init(&i, iov, nr_segs, len, 0);
 
 again:
 	dout("aio_read %p %llx.%llx %llu~%u trying to get caps on %p\n",
@@ -822,16 +825,10 @@ again:
 	if ((got & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0 ||
 	    (iocb->ki_filp->f_flags & O_DIRECT) ||
 	    (fi->flags & CEPH_F_SYNC)) {
-		struct iov_iter i;
 
 		dout("aio_sync_read %p %llx.%llx %llu~%u got cap refs on %s\n",
 		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
 		     ceph_cap_string(got));
-
-		if (!read)
-			len = iov_length(iov, nr_segs);
-
-		iov_iter_init(&i, iov, nr_segs, len, read);
 
 		/* hmm, this isn't really async... */
 		ret = ceph_sync_read(iocb, &i, &checkeof);
@@ -839,11 +836,15 @@ again:
 		/*
 		 * We can't modify the content of iov,
 		 * so we only read from beginning.
+		 *
+		 * When we switch generic_file_aio_read() to iov_iter, the
+		 * if () below will be removed -- AV
 		 */
 		if (read) {
 			iocb->ki_pos = pos;
 			len = iocb->ki_nbytes;
 			read = 0;
+			iov_iter_init(&i, iov, nr_segs, len, 0);
 		}
 		dout("aio_read %p %llx.%llx %llu~%u got cap refs on %s\n",
 		     inode, ceph_vinop(inode), pos, (unsigned)len,
@@ -866,6 +867,7 @@ again:
 			     ", reading more\n", iocb->ki_pos,
 			     inode->i_size);
 
+			iov_iter_advance(&i, ret);
 			read += ret;
 			len -= ret;
 			checkeof = 0;
