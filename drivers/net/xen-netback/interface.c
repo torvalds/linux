@@ -253,6 +253,13 @@ static const struct xenvif_stat {
 		"tx_zerocopy_fail",
 		offsetof(struct xenvif, tx_zerocopy_fail)
 	},
+	/* Number of packets exceeding MAX_SKB_FRAG slots. You should use
+	 * a guest with the same MAX_SKB_FRAG
+	 */
+	{
+		"tx_frag_overflow",
+		offsetof(struct xenvif, tx_frag_overflow)
+	},
 };
 
 static int xenvif_get_sset_count(struct net_device *dev, int string_set)
