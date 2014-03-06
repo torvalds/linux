@@ -58,6 +58,18 @@
 			status = "okay";
 		};
 
+		gpio@ff708000 {
+			status = "okay";
+		};
+
+		gpio@ff709000 {
+			status = "okay";
+		};
+
+		gpio@ff70a000 {
+			status = "okay";
+		};
+
 		i2c0: i2c@ffc04000 {
 			speed-mode = <0>;
 			status = "okay";
