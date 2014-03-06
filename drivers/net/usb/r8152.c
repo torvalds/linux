@@ -960,11 +960,6 @@ static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static struct net_device_stats *rtl8152_get_stats(struct net_device *dev)
-{
-	return &dev->stats;
-}
-
 static void read_bulk_callback(struct urb *urb)
 {
 	struct net_device *netdev;
@@ -1052,7 +1047,7 @@ static void write_bulk_callback(struct urb *urb)
 		return;
 
 	netdev = tp->netdev;
-	stats = rtl8152_get_stats(netdev);
+	stats = &netdev->stats;
 	if (status) {
 		if (net_ratelimit())
 			netdev_warn(netdev, "Tx status %d\n", status);
@@ -1442,7 +1437,7 @@ static void rx_bottom(struct r8152 *tp)
 
 		while (urb->actual_length > len_used) {
 			struct net_device *netdev = tp->netdev;
-			struct net_device_stats *stats;
+			struct net_device_stats *stats = &netdev->stats;
 			unsigned int pkt_len;
 			struct sk_buff *skb;
 
@@ -1453,8 +1448,6 @@ static void rx_bottom(struct r8152 *tp)
 			len_used += pkt_len;
 			if (urb->actual_length < len_used)
 				break;
-
-			stats = rtl8152_get_stats(netdev);
 
 			pkt_len -= CRC_SIZE;
 			rx_data += sizeof(struct rx_desc);
@@ -1504,16 +1497,14 @@ static void tx_bottom(struct r8152 *tp)
 
 		res = r8152_tx_agg_fill(tp, agg);
 		if (res) {
-			struct net_device_stats *stats;
-			struct net_device *netdev;
-			unsigned long flags;
-
-			netdev = tp->netdev;
-			stats = rtl8152_get_stats(netdev);
+			struct net_device *netdev = tp->netdev;
 
 			if (res == -ENODEV) {
 				netif_device_detach(netdev);
 			} else {
+				struct net_device_stats *stats = &netdev->stats;
+				unsigned long flags;
+
 				netif_warn(tp, tx_err, netdev,
 					   "failed tx_urb %d\n", res);
 				stats->tx_dropped += agg->skb_num;
