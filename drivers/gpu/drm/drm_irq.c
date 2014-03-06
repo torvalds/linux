@@ -1189,6 +1189,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	DRM_WAIT_ON(ret, dev->vblank[crtc].queue, 3 * HZ,
 		    (((drm_vblank_count(dev, crtc) -
 		       vblwait->request.sequence) <= (1 << 23)) ||
+		     !dev->vblank[crtc].enabled ||
 		     !dev->irq_enabled));
 
 	if (ret != -EINTR) {
