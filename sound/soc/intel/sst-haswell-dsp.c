@@ -503,7 +503,7 @@ static void hsw_free(struct sst_dsp *sst)
 
 struct sst_ops haswell_ops = {
 	.reset = hsw_reset,
-        .boot = hsw_boot,
+	.boot = hsw_boot,
 	.write = sst_shim32_write,
 	.read = sst_shim32_read,
 	.write64 = sst_shim32_write64,
