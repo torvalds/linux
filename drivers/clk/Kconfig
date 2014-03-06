@@ -111,4 +111,5 @@ source "drivers/clk/qcom/Kconfig"
 
 endmenu
 
+source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
