@@ -1360,11 +1360,11 @@ lock_and_cleanup_extent_if_need(struct inode *inode, struct page **pages,
 		struct btrfs_ordered_extent *ordered;
 		lock_extent_bits(&BTRFS_I(inode)->io_tree,
 				 start_pos, last_pos, 0, cached_state);
-		ordered = btrfs_lookup_first_ordered_extent(inode, last_pos);
+		ordered = btrfs_lookup_ordered_range(inode, start_pos,
+						     last_pos - start_pos + 1);
 		if (ordered &&
 		    ordered->file_offset + ordered->len > start_pos &&
 		    ordered->file_offset <= last_pos) {
-			btrfs_put_ordered_extent(ordered);
 			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
 					     start_pos, last_pos,
 					     cached_state, GFP_NOFS);
@@ -1372,12 +1372,9 @@ lock_and_cleanup_extent_if_need(struct inode *inode, struct page **pages,
 				unlock_page(pages[i]);
 				page_cache_release(pages[i]);
 			}
-			ret = btrfs_wait_ordered_range(inode, start_pos,
-						last_pos - start_pos + 1);
-			if (ret)
-				return ret;
-			else
-				return -EAGAIN;
+			btrfs_start_ordered_extent(inode, ordered, 1);
+			btrfs_put_ordered_extent(ordered);
+			return -EAGAIN;
 		}
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
