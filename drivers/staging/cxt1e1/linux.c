@@ -228,7 +228,8 @@ c4_wq_port_init(mpi_t *pi)
 	pr_info(">> %s: creating workqueue <%s> for Port %d.\n",
 		__func__, name, pi->portnum); /* RLD DEBUG */
 #endif
-	if (!(pi->wq_port = create_singlethread_workqueue(name)))
+	pi->wq_port = create_singlethread_workqueue(name);
+	if (!pi->wq_port)
 		return -ENOMEM;
 	return 0;                       /* success */
 }
@@ -285,12 +286,14 @@ chan_open(struct net_device *ndev)
 	const struct c4_priv *priv = hdlc->priv;
 	int         ret;
 
-	if ((ret = hdlc_open(ndev)))
-	{
+	ret = hdlc_open(ndev);
+	if (ret) {
 		pr_info("hdlc_open failure, err %d.\n", ret);
 		return ret;
 	}
-	if ((ret = c4_chan_up(priv->ci, priv->channum)))
+
+	ret = c4_chan_up(priv->ci, priv->channum);
+	if (ret)
 		return -ret;
 	try_module_get(THIS_MODULE);
 	netif_start_queue(ndev);
@@ -647,7 +650,8 @@ do_get_chan(struct net_device *ndev, void *data)
 				sizeof(struct sbecom_chan_param)))
 		return -EFAULT;
 
-	if ((ret = mkret(c4_get_chan(cp.channum, &cp))))
+	ret = mkret(c4_get_chan(cp.channum, &cp));
+	if (ret)
 		return ret;
 
 	if (copy_to_user(data, &cp, sizeof(struct sbecom_chan_param)))
@@ -863,7 +867,8 @@ c4_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		return -EPERM;
 	if (cmd != SIOCDEVPRIVATE + 15)
 		return -EINVAL;
-	if (!(ci = get_ci_by_dev(ndev)))
+	ci = get_ci_by_dev(ndev);
+	if (!ci)
 		return -EINVAL;
 	if (ci->state != C_RUNNING)
 		return -ENODEV;
@@ -1098,9 +1103,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 	tasklet_enable(&ci->ci_musycc_isr_tasklet);
 #endif
 
-
-	if ((error_flag = c4_init2(ci)) != SBE_DRVR_SUCCESS)
-	{
+	error_flag = c4_init2(ci);
+	if (error_flag != SBE_DRVR_SUCCESS) {
 #ifdef CONFIG_PROC_FS
 		sbecom_proc_brd_cleanup(ci);
 #endif
@@ -1120,7 +1124,8 @@ c4_mod_init(void)
 {
 	int         rtn;
 
-	if ((rtn = c4hw_attach_all()))
+	rtn = c4hw_attach_all();
+	if (rtn)
 		return -rtn; /* installation failure - see system log */
 
 	/* housekeeping notifications */
@@ -1170,11 +1175,13 @@ cleanup_hdlc(void)
 		{
 			ci = (ci_t *)(netdev_priv(hi->ndev));
 			for (j = 0; j < ci->max_port; j++)
-				for (k = 0; k < MUSYCC_NCHANS; k++)
-					if ((ndev = ci->port[j].chan[k]->user))
+				for (k = 0; k < MUSYCC_NCHANS; k++) {
+					ndev = ci->port[j].chan[k]->user;
+					if (ndev)
 					{
 						do_deluser(ndev, 0);
 					}
+				}
 		}
 	}
 }
