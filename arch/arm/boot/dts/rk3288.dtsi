@@ -192,7 +192,19 @@
                 reg = <0xff970000 0x4000>;
                 interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
                 status = "disabled";
-        }
+        };
+
+	hdmi:hdmi@ff980000 {
+		compatible = "rockchip,rk3288-hdmi";
+		reg = <0xff980000 0x20000>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,hdmi_lcdc_source = <1>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&i2c5_sda &i2c5_scl>;
+		pinctrl-1 = <&i2c5_gpio>;
+		status = "disabled";
+         };
+
     adc: adc@ff100000 {
         compatible = "rockchip,saradc";
         reg = <0xff100000 0x100>;
@@ -279,7 +291,7 @@
 	
 	sdio0: mshc@ff0d0000 {
 		compatible = "rockchip,rk_mmc";
-	    reg = <ff0d0000 0x4000>;
+	    reg = <0xff0d0000 0x4000>;
 	    interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>; /*irq=65*/
 	    #address-cells = <1>;
 	    #size-cells = <0>;
@@ -298,7 +310,7 @@
 	
 	sdio1: mshc@ff0e0000 {
 		compatible = "rockchip,rk_mmc";
-	    reg = <ff0e0000 0x4000>;
+	    reg = <0xff0e0000 0x4000>;
 	    interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>; /*irq=66*/
 	    #address-cells = <1>;
 	    #size-cells = <0>;
@@ -317,7 +329,7 @@
 	
 	emmc: mshc@ff0f0000 {
 		compatible = "rockchip,rk_mmc";
-	    reg = <ff0f0000 0x4000>;
+	    reg = <0xff0f0000 0x4000>;
 	    interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>; /*irq=67*/
 	    #address-cells = <1>;
 	    #size-cells = <0>;

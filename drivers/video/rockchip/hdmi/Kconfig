@@ -1,5 +1,6 @@
 menuconfig RK_HDMI
        bool "Rockchip HDMI support"
+       depends on FB_ROCKCHIP
        select FB_MODE_HELPERS
        
 if RK_HDMI
