@@ -443,7 +443,7 @@ static int rt5639_readable_register(
 	}
 }
 
-void DC_Calibrate(struct snd_soc_codec *codec)
+static void DC_Calibrate(struct snd_soc_codec *codec)
 {
 	unsigned int sclk_src;
 

@@ -121,7 +121,7 @@ static const u16 rt5631_reg[RT5631_VENDOR_ID2 + 1] = {
 	[RT5631_PSEUDO_SPATL_CTRL] = 0x0553,
 };
 
-void rt5631_codec_set_spk(bool on)
+void rt5631_phone_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rt5631_codec;
 
@@ -1736,7 +1736,7 @@ static const struct pll_div codec_slave_pll_div[] = {
 	{3072000,  12288000,  0x0a90},
 };
 
-struct coeff_clk_div coeff_div[] = {
+static struct coeff_clk_div coeff_div[] = {
 	/* sysclk is 256fs */
 	{2048000,  8000 * 32,  8000, 0x1000},
 	{2048000,  8000 * 64,  8000, 0x0000},
@@ -2269,14 +2269,14 @@ static int rt5631_resume(struct snd_soc_codec *codec)
 			SNDRV_PCM_FMTBIT_S24_LE | \
 			SNDRV_PCM_FMTBIT_S8)
 
-struct snd_soc_dai_ops rt5631_ops = {
+static struct snd_soc_dai_ops rt5631_ops = {
 	.hw_params = rt5631_hifi_pcm_params,
 	.set_fmt = rt5631_hifi_codec_set_dai_fmt,
 	.set_sysclk = rt5631_hifi_codec_set_dai_sysclk,
 	.set_pll = rt5631_codec_set_dai_pll,
 };
 
-struct snd_soc_dai_driver rt5631_dai[] = {
+static struct snd_soc_dai_driver rt5631_dai[] = {
 	{
 		.name = "RT5631 HiFi",
 		.id = RT5631_AIF1,
@@ -2347,12 +2347,23 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	struct rt5631_priv *rt5631;
+	struct device_node *rt5631_np = i2c->dev.of_node;	
 	int ret;
+	int val = 0;
 
 	rt5631 = kzalloc(sizeof(struct rt5631_priv), GFP_KERNEL);
 	if (NULL == rt5631)
 		return -ENOMEM;
-
+	if(!of_property_read_u32(rt5631_np, "rt5631-phone", &val)){
+		if(val)
+		{
+			printk("rt5631 use for phone\n");
+		}
+		else
+			return -1;
+	}
+	else
+		return -1;
 	i2c_set_clientdata(i2c, rt5631);
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5631,
@@ -2381,7 +2392,7 @@ static void rt5631_i2c_shutdown(struct i2c_client *client)
 //	return 0;
 }
 
-struct i2c_driver rt5631_i2c_driver = {
+static struct i2c_driver rt5631_i2c_driver = {
 	.driver = {
 		.name = "RT5631",
 		.owner = THIS_MODULE,

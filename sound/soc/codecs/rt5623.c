@@ -27,13 +27,6 @@
 
 #include "rt5623.h"
 
-#define RT5623_PROC
-#ifdef RT5623_PROC
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/vmalloc.h>
-#endif
-
 #define MODEM_ON 1
 #define MODEM_OFF 0
 
@@ -162,16 +155,11 @@ static const struct i2c_device_id rt5623_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5623_i2c_id);
 
-static int rt5623_proc_init(void);
 
 static int rt5623_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	pr_info("%s(%d)\n", __func__, __LINE__);
-
-	#ifdef RT5623_PROC	
-	rt5623_proc_init();
-	#endif
 
 	i2c_client = i2c;
 	rt5623_reset(i2c);
@@ -180,7 +168,7 @@ static int rt5623_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int __devexit rt5623_i2c_remove(struct i2c_client *i2c)
+static int rt5623_i2c_remove(struct i2c_client *i2c)
 {
 	return 0;
 }
@@ -191,7 +179,7 @@ struct i2c_driver rt5623_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5623_i2c_probe,
-	.remove   = __devexit_p(rt5623_i2c_remove),
+	.remove   = rt5623_i2c_remove,
 	.id_table = rt5623_i2c_id,
 };
 
@@ -211,113 +199,6 @@ MODULE_DESCRIPTION("ASoC RT5623 driver");
 MODULE_AUTHOR("Johnny Hsu <johnnyhsu@realtek.com>");
 MODULE_LICENSE("GPL");
 
-
-#ifdef RT5623_PROC
-
-static ssize_t rt5623_proc_write(struct file *file, const char __user *buffer,
-		unsigned long len, void *data)
-{
-	char *cookie_pot; 
-	char *p;
-	int reg;
-	int value;
-
-	cookie_pot = (char *)vmalloc( len );
-	if (!cookie_pot) 
-	{
-		return -ENOMEM;
-	} 
-	else 
-	{
-		if (copy_from_user( cookie_pot, buffer, len )) 
-			return -EFAULT;
-	}
-
-	switch(cookie_pot[0])
-	{
-		case 'r':
-		case 'R':
-			printk("Read reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,",")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					value = codec_read(i2c_client,reg);
-					printk("codec_read:0x%04x = 0x%04x\n",reg,value);
-				}
-				printk("\n");
-			}
-			else
-			{
-				printk("Error Read reg debug.\n");
-				printk("For example: echo r:22,23,24,25>rt5623_ts\n");
-			}
-			break;
-		case 'w':
-		case 'W':
-			printk("Write reg debug\n");		
-			if(cookie_pot[1] ==':')
-			{
-				strsep(&cookie_pot,":");
-				while((p=strsep(&cookie_pot,"=")))
-				{
-					reg = simple_strtol(p,NULL,16);
-					p=strsep(&cookie_pot,",");
-					value = simple_strtol(p,NULL,16);
-					codec_write(i2c_client,reg,value);
-					printk("codec_write:0x%04x = 0x%04x\n",reg,value);
-				}
-				printk("\n");
-			}
-			else
-			{
-				printk("Error Write reg debug.\n");
-				printk("For example: w:22=0,23=0,24=0,25=0>rt5623_ts\n");
-			}
-			break;
-		case 'a':
-			printk("Dump reg \n");		
-
-			for(reg = 0; reg < 0x6e; reg+=2)
-			{
-				value = codec_read(i2c_client,reg);
-				printk("codec_read:0x%04x = 0x%04x\n",reg,value);
-			}
-
-			break;		
-		default:
-			printk("Help for rt5623_ts .\n-->The Cmd list: \n");
-			printk("-->'d&&D' Open or Off the debug\n");
-			printk("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>rt5623_ts\n");
-			printk("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>rt5623_ts\n");
-			break;
-	}
-
-	return len;
-}
-
-static const struct file_operations rt5623_proc_fops = {
-	.owner		= THIS_MODULE,
-};
-
-static int rt5623_proc_init(void)
-{
-	struct proc_dir_entry *rt5623_proc_entry;
-	rt5623_proc_entry = create_proc_entry("driver/rt5623_ts", 0777, NULL);
-	if(rt5623_proc_entry != NULL)
-	{
-		rt5623_proc_entry->write_proc = rt5623_proc_write;
-		return 0;
-	}
-	else
-	{
-		printk("create proc error !\n");
-		return -1;
-	}
-}
-#endif
 
 
 

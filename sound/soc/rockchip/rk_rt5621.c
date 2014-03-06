@@ -67,12 +67,12 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 
 		if((24576000%params_rate(params))==0)	//for 8k,16k,32k,48k
 		{
-			snd_soc_dai_set_pll(codec_dai,RT5621_PLL_FR_MCLK,pll_out, 24576000);
+			snd_soc_dai_set_pll(codec_dai,0,RT5621_PLL_FR_MCLK,pll_out, 24576000);
 			snd_soc_dai_set_sysclk(codec_dai,0, 24576000, SND_SOC_CLOCK_IN);
 		}
 		else if((22579200%params_rate(params))==0)	//for 11k,22k,44k
 		{
-			snd_soc_dai_set_pll(codec_dai,RT5621_PLL_FR_MCLK,pll_out, 22579200);
+			snd_soc_dai_set_pll(codec_dai,0,RT5621_PLL_FR_MCLK,pll_out, 22579200);
 			snd_soc_dai_set_sysclk(codec_dai,0, 22579200, SND_SOC_CLOCK_IN);
 		}
 	}

@@ -3371,7 +3371,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	}
 	codec->write = rt3261_write;
 
-	#if defined (CONFIG_SND_SOC_RT5623)
+	#if 0//defined (CONFIG_SND_SOC_RT5623)
 	struct clk *iis_clk;
 	//for rt5623 MCLK use
 	iis_clk = clk_get_sys("rk_i2s.2", "i2s");

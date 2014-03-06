@@ -18,7 +18,7 @@
 #include "rt3261-dsp.h"
 #endif
 
-hweq_t hweq_param[] = {
+static hweq_t hweq_param[] = {
 	{/* NORMAL */
 		{0},
 		{0},
@@ -68,7 +68,7 @@ int rt3261_update_eqmode(
 	return 0;
 }
 
-void set_drc_agc_enable(struct snd_soc_codec *codec, int enable, int path)
+static void set_drc_agc_enable(struct snd_soc_codec *codec, int enable, int path)
 {
 	snd_soc_update_bits(codec, RT3261_DRC_AGC_1, RT3261_DRC_AGC_P_MASK |
 		RT3261_DRC_AGC_MASK | RT3261_DRC_AGC_UPD,
@@ -76,7 +76,7 @@ void set_drc_agc_enable(struct snd_soc_codec *codec, int enable, int path)
 		1 << RT3261_DRC_AGC_UPD_BIT);
 }
 
-void set_drc_agc_parameters(struct snd_soc_codec *codec, int attack_rate,
+static void set_drc_agc_parameters(struct snd_soc_codec *codec, int attack_rate,
 			int sample_rate, int recovery_rate, int limit_level)
 {
 	snd_soc_update_bits(codec, RT3261_DRC_AGC_3, RT3261_DRC_AGC_TAR_MASK,
@@ -89,7 +89,7 @@ void set_drc_agc_parameters(struct snd_soc_codec *codec, int attack_rate,
 		0x1 << RT3261_DRC_AGC_UPD_BIT);
 }
 
-void set_digital_boost_gain(struct snd_soc_codec *codec,
+static void set_digital_boost_gain(struct snd_soc_codec *codec,
 			int post_gain, int pre_gain)
 {
 	snd_soc_update_bits(codec, RT3261_DRC_AGC_2,
@@ -100,7 +100,7 @@ void set_digital_boost_gain(struct snd_soc_codec *codec,
 		RT3261_DRC_AGC_UPD, 1 << RT3261_DRC_AGC_UPD_BIT);
 }
 
-void set_noise_gate(struct snd_soc_codec *codec, int noise_gate_en,
+static void set_noise_gate(struct snd_soc_codec *codec, int noise_gate_en,
 	int noise_gate_hold_en, int compression_gain, int noise_gate_th)
 {
 	snd_soc_update_bits(codec, RT3261_DRC_AGC_3,
@@ -114,7 +114,7 @@ void set_noise_gate(struct snd_soc_codec *codec, int noise_gate_en,
 		RT3261_DRC_AGC_UPD, 1 << RT3261_DRC_AGC_UPD_BIT);
 }
 
-void set_drc_agc_compression(struct snd_soc_codec *codec,
+static void set_drc_agc_compression(struct snd_soc_codec *codec,
 		int compression_en, int compression_ratio)
 {
 	snd_soc_update_bits(codec, RT3261_DRC_AGC_2,
@@ -125,7 +125,7 @@ void set_drc_agc_compression(struct snd_soc_codec *codec,
 		RT3261_DRC_AGC_UPD, 1 << RT3261_DRC_AGC_UPD_BIT);
 }
 
-void get_drc_agc_enable(struct snd_soc_codec *codec, int *enable, int *path)
+static void get_drc_agc_enable(struct snd_soc_codec *codec, int *enable, int *path)
 {
 	unsigned int reg = snd_soc_read(codec, RT3261_DRC_AGC_1);
 
@@ -147,7 +147,7 @@ void get_drc_agc_parameters(struct snd_soc_codec *codec, int *attack_rate,
 				RT3261_DRC_AGC_RC_SFT;
 }
 
-void get_digital_boost_gain(struct snd_soc_codec *codec,
+static void get_digital_boost_gain(struct snd_soc_codec *codec,
 			int *post_gain, int *pre_gain)
 {
 	unsigned int reg = snd_soc_read(codec, RT3261_DRC_AGC_2);
@@ -156,7 +156,7 @@ void get_digital_boost_gain(struct snd_soc_codec *codec,
 	*pre_gain = (reg & RT3261_DRC_AGC_PRB_MASK) >> RT3261_DRC_AGC_PRB_SFT;
 }
 
-void get_noise_gate(struct snd_soc_codec *codec, int *noise_gate_en,
+static void get_noise_gate(struct snd_soc_codec *codec, int *noise_gate_en,
 	int *noise_gate_hold_en, int *compression_gain, int *noise_gate_th)
 {
 	unsigned int reg = snd_soc_read(codec, RT3261_DRC_AGC_3);
@@ -172,7 +172,7 @@ void get_noise_gate(struct snd_soc_codec *codec, int *noise_gate_en,
 				RT3261_DRC_AGC_NGT_SFT;
 }
 
-void get_drc_agc_compression(struct snd_soc_codec *codec,
+static void get_drc_agc_compression(struct snd_soc_codec *codec,
 		int *compression_en, int *compression_ratio)
 {
 	unsigned int reg = snd_soc_read(codec, RT3261_DRC_AGC_2);

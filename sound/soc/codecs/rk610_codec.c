@@ -135,7 +135,7 @@ static void spk_ctrl_fun(int status)
 	}
 }
 
-void codec_set_spk(bool on)
+void rk610_codec_set_spk(bool on)
 {
 	struct rk610_codec_priv *rk610_codec;
 	if(!rk610_codec_codec)
@@ -151,7 +151,7 @@ void codec_set_spk(bool on)
 	else
 		gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_LOW);			
 }
-EXPORT_SYMBOL(codec_set_spk);
+EXPORT_SYMBOL(rk610_codec_set_spk);
 
 /*
  * read rk610 register cache

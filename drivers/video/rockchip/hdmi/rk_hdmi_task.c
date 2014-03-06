@@ -5,15 +5,21 @@
 
 #ifdef CONFIG_RK_HDMI_CTL_CODEC
 #ifdef CONFIG_MACH_RK_FAC
-	#ifdef CONFIG_SND_RK29_SOC_ES8323
+	#ifdef CONFIG_SND_RK_SOC_ES8323
 		extern void es8323_codec_set_spk(bool on);
 	#endif
-	#ifdef CONFIG_SND_RK29_SOC_RT5616
+	#ifdef CONFIG_SND_RK_SOC_RT5616
 		extern void rt5616_codec_set_spk(bool on);
 	#endif
 	#ifdef CONFIG_SND_RK_SOC_RK616
 		extern void rk616_codec_set_spk(bool on);
 	#endif
+	#ifdef CONFIG_SND_RK_SOC_RT5631
+		extern void rk610_codec_set_spk(bool on);
+	#endif
+	#ifdef CONFIG_SND_RK_SOC_RK610
+		extern void rk610_codec_set_spk(bool on);
+	#endif	
 #else
 	extern void codec_set_spk(bool on);
 #endif  
@@ -108,15 +114,21 @@ void hdmi_sys_remove(struct hdmi *hdmi)
 	#endif
 	#ifdef CONFIG_RK_HDMI_CTL_CODEC
 #ifdef CONFIG_MACH_RK_FAC
-	#ifdef CONFIG_SND_RK29_SOC_ES8323
+	#ifdef CONFIG_SND_RK_SOC_ES8323
 		es8323_codec_set_spk(1);
 	#endif
-	#ifdef CONFIG_SND_RK29_SOC_RT5616
+	#ifdef CONFIG_SND_RK_SOC_RT5616
 		 rt5616_codec_set_spk(1);
 	#endif
 	#ifdef CONFIG_SND_RK_SOC_RK616
 		 rk616_codec_set_spk(1);
-	#endif 
+	#endif
+	#ifdef CONFIG_SND_RK_SOC_RK610
+		 rk610_codec_set_spk(1);
+	#endif
+	#ifdef CONFIG_SND_RK_SOC_RT5631
+		 rt5631_codec_set_spk(1);
+	#endif	
 #else
 	codec_set_spk(1);
 #endif
@@ -273,7 +285,13 @@ void hdmi_work(struct work_struct *work)
 						#endif		
 						#if defined (CONFIG_SND_RK_SOC_RK616)
 							rk616_codec_set_spk(0);
-						#endif	
+						#endif
+						#ifdef CONFIG_SND_RK_SOC_RK610
+							 rk610_codec_set_spk(1);
+						#endif
+						#ifdef CONFIG_SND_RK_SOC_RT5631
+							 rt5631_codec_set_spk(1);
+						#endif
 					#else
 						codec_set_spk(0);
 					#endif
