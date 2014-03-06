@@ -91,7 +91,7 @@
 *    fall at the end of their respective frames).
 * 5a) The length field is set to include the last of the fixed and fixed
 *     length fields.  It may have to be updated for optional or variable
-* 	length information elements.
+*	length information elements.
 * 6) Optional and variable length information elements are special cases
 *    and must be handled individually by the client code.
 * --------------------------------------------------------------------
