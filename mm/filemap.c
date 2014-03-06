@@ -1730,7 +1730,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	size_t count = iov_length(iov, nr_segs);
 	struct iov_iter i;
 
-	iov_iter_init(&i, iov, nr_segs, count, 0);
+	iov_iter_init(&i, READ, iov, nr_segs, count);
 	return generic_file_read_iter(iocb, &i);
 }
 EXPORT_SYMBOL(generic_file_aio_read);
@@ -2596,7 +2596,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (err)
 		goto out;
 
-	iov_iter_init(&from, iov, nr_segs, count, 0);
+	iov_iter_init(&from, WRITE, iov, nr_segs, count);
 
 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
 	if (unlikely(file->f_flags & O_DIRECT)) {

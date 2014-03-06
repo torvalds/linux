@@ -268,7 +268,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		init_sync_kiocb(&kiocb, swap_file);
 		kiocb.ki_pos = page_file_offset(page);
 		kiocb.ki_nbytes = PAGE_SIZE;
-		iov_iter_init(&from, &iov, 1, PAGE_SIZE, 0);
+		iov_iter_init(&from, KERNEL_WRITE, &iov, 1, PAGE_SIZE);
 
 		set_page_writeback(page);
 		unlock_page(page);

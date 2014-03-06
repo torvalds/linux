@@ -287,7 +287,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 	if (unlikely(total_len == 0))
 		return 0;
 
-	iov_iter_init(&iter, iov, nr_segs, total_len, 0);
+	iov_iter_init(&iter, READ, iov, nr_segs, total_len);
 
 	do_wakeup = 0;
 	ret = 0;

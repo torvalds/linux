@@ -1548,7 +1548,7 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *uiov,
 	if (ret <= 0)
 		return ret;
 
-	iov_iter_init(&iter, iov, nr_segs, count, 0);
+	iov_iter_init(&iter, READ, iov, nr_segs, count);
 
 	sd.len = 0;
 	sd.total_len = count;

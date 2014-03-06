@@ -1217,7 +1217,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
 	if (err)
 		goto out;
-	iov_iter_init(&i, iov, nr_segs, count, 0);
+	iov_iter_init(&i, WRITE, iov, nr_segs, count);
 
 	if (count == 0)
 		goto out;
@@ -1386,7 +1386,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, const struct iovec *iov,
 	struct fuse_req *req;
 	struct iov_iter ii;
 
-	iov_iter_init(&ii, iov, nr_segs, count, 0);
+	iov_iter_init(&ii, write ? WRITE : READ, iov, nr_segs, count);
 
 	if (io->async)
 		req = fuse_get_req_for_background(fc, fuse_iter_npages(&ii));
@@ -2367,7 +2367,7 @@ static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
 	if (!bytes)
 		return 0;
 
-	iov_iter_init(&ii, iov, nr_segs, bytes, 0);
+	iov_iter_init(&ii, to_user ? READ : WRITE, iov, nr_segs, bytes);
 
 	while (iov_iter_count(&ii)) {
 		struct page *page = pages[page_idx++];

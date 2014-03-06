@@ -2424,7 +2424,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	else
 		pid = current->tgid;
 
-	iov_iter_init(&it, iov, nr_segs, len, 0);
+	iov_iter_init(&it, WRITE, iov, nr_segs, len);
 	do {
 		size_t save_len;
 
@@ -2854,7 +2854,7 @@ ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
 	if (!len)
 		return 0;
 
-	iov_iter_init(&to, iov, nr_segs, len, 0);
+	iov_iter_init(&to, READ, iov, nr_segs, len);
 
 	INIT_LIST_HEAD(&rdata_list);
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);

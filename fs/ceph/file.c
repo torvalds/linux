@@ -582,7 +582,7 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		CEPH_OSD_FLAG_ONDISK |
 		CEPH_OSD_FLAG_WRITE;
 
-	iov_iter_init(&i, iov, nr_segs, count, 0);
+	iov_iter_init(&i, WRITE, iov, nr_segs, count);
 
 	while (iov_iter_count(&i) > 0) {
 		void __user *data = i.iov->iov_base + i.iov_offset;
@@ -703,7 +703,7 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
 		CEPH_OSD_FLAG_WRITE |
 		CEPH_OSD_FLAG_ACK;
 
-	iov_iter_init(&i, iov, nr_segs, count, 0);
+	iov_iter_init(&i, WRITE, iov, nr_segs, count);
 
 	while ((len = iov_iter_count(&i)) > 0) {
 		size_t left;
@@ -808,7 +808,7 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	int checkeof = 0, read = 0;
 	struct iov_iter i;
 
-	iov_iter_init(&i, iov, nr_segs, len, 0);
+	iov_iter_init(&i, READ, iov, nr_segs, len);
 
 again:
 	dout("aio_read %p %llx.%llx %llu~%u trying to get caps on %p\n",
@@ -961,7 +961,7 @@ retry_snap:
 		 * are pending vmtruncate. So write and vmtruncate
 		 * can not run at the same time
 		 */
-		iov_iter_init(&from, iov, nr_segs, count, 0);
+		iov_iter_init(&from, WRITE, iov, nr_segs, count);
 		written = generic_perform_write(file, &from, pos);
 		if (likely(written >= 0))
 			iocb->ki_pos = pos + written;

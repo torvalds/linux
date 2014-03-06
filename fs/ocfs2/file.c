@@ -2361,7 +2361,7 @@ relock:
 	if (ret)
 		goto out_dio;
 
-	iov_iter_init(&from, iov, nr_segs, count, 0);
+	iov_iter_init(&from, WRITE, iov, nr_segs, count);
 	if (direct_io) {
 		written = generic_file_direct_write(iocb, &from, *ppos,
 						    count, ocount);

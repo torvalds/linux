@@ -1740,7 +1740,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		goto out;
 	}
 
-	iov_iter_init(&i, iov, nr_segs, count, 0);
+	iov_iter_init(&i, WRITE, iov, nr_segs, count);
 
 	err = file_remove_suid(file);
 	if (err) {

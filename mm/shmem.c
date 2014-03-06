@@ -1417,7 +1417,7 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 	loff_t *ppos = &iocb->ki_pos;
 	struct iov_iter iter;
 
-	iov_iter_init(&iter, iov, nr_segs, count, 0);
+	iov_iter_init(&iter, READ, iov, nr_segs, count);
 
 	/*
 	 * Might this read be for a stacking filesystem?  Then when reading

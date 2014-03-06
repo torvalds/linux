@@ -274,7 +274,7 @@ static ssize_t process_vm_rw(pid_t pid,
 	if (rc <= 0)
 		goto free_iovecs;
 
-	iov_iter_init(&iter, iov_l, liovcnt, rc, 0);
+	iov_iter_init(&iter, vm_write ? WRITE : READ, iov_l, liovcnt, rc);
 
 	rc = rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt, UIO_FASTIOV,
 				   iovstack_r, &iov_r);
@@ -337,7 +337,7 @@ compat_process_vm_rw(compat_pid_t pid,
 						  &iov_l);
 	if (rc <= 0)
 		goto free_iovecs;
-	iov_iter_init(&iter, iov_l, liovcnt, rc, 0);
+	iov_iter_init(&iter, vm_write ? WRITE : READ, iov_l, liovcnt, rc);
 	rc = compat_rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt,
 					  UIO_FASTIOV, iovstack_r,
 					  &iov_r);
