@@ -3140,6 +3140,8 @@ static void i40e_netpoll(struct net_device *netdev)
 	pf->flags &= ~I40E_FLAG_IN_NETPOLL;
 }
 #endif
+	/* set the prefena field to 1 because the manual says to */
+	rx_ctx.prefena = 1;
 
 /**
  * i40e_vsi_control_tx - Start or stop a VSI's rings
