@@ -8,6 +8,8 @@
 #define SWAP_RB			0
 #define LCD_ACLK		800000000
 
+static struct hdmi *m_hdmi_drv = NULL;
+
 static const struct fb_videomode hdmi_mode [] = {
 	//name			refresh		xres	yres	pixclock		h_bp	h_fp	v_bp	v_fp	h_pw	v_pw	polariry	PorI	flag(used for vic)
 //{	"640x480p@60Hz",		60,		640,	480,	25175000,	48,	16,	33,	10,	96,	2,	0,	0,	1	},
@@ -532,16 +534,27 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 }
 
 /**
+ * hdmi_drv_register: init hdmi_drv variable
+ *
+ * NOTES:
+ *
+ */
+int hdmi_drv_register(struct hdmi *hdmi_drv)
+{
+	m_hdmi_drv = hdmi_drv;
+	return 0;
+}
+
+/**
  * hdmi_get_status: get hdmi hotplug status
  * 
  * NOTES:
  * 
  */
-extern struct hdmi *hdmi;
 int hdmi_get_hotplug(void)
 {
-	if(hdmi)
-		return hdmi->hotplug;
+	if(m_hdmi_drv)
+		return m_hdmi_drv->hotplug;
 	else
 		return HDMI_HPD_REMOVED;
 }

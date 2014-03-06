@@ -1,5 +1,6 @@
 #ifndef _RK3288_HDMI_HW_H
 #define _RK3288_HDMI_HW_H
+#include "../../rk_hdmi.h"
 
 enum PWR_MODE{
 	NORMAL,
@@ -409,7 +410,7 @@ enum FRAME_COMPOSER_REG {
 	FC_AUDICONF3,
 	FC_VSDIEEEID2,
 	FC_VSDSIZE,
-	FC_VSDIEEEID1
+	FC_VSDIEEEID1,
 	FC_VSDIEEEID0,
 	FC_VSDPAYLOAD0 = 0x1032,	//0~23
 	FC_SPDVENDORNAME0 = 0x104a,	//0~7
@@ -487,7 +488,7 @@ enum HDMI_SOURCE_PHY_REG {
 #define m_POWER_DOWN_EN		(1 << 7)		//enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0
 #define v_POWER_DOWN_EN(n)	(((n)&0x01) << 7)
 #define m_TMDS_EN		(1 << 6)		//enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0
-#define m_TMDS_EN(n)		(((n)&0x01) << 6)
+#define v_TMDS_EN(n)		(((n)&0x01) << 6)
 #define	m_SVSRET_SIG		(1 << 5)		//depend on PHY_MHL_COMB0=1
 #define v_SVSRET_SIG(n)		(((n)&0x01) << 5)
 #define m_PDDQ_SIG		(1 << 4)		//depend on PHY_GEN2=1 or PHY_EXTERNAL=1
@@ -827,7 +828,7 @@ enum MAIN_CONTROLLER_REG {
 enum COLOR_SPACE_CONVERTER_REG {
 	CSC_CFG = COLOR_SPACE_CONVERTER_BASE,
 	CSC_SCALE,
-	CSC_COEF_A1_MSB
+	CSC_COEF_A1_MSB,
 	CSC_COEF_A1_LSB,
 	CSC_COEF_A2_MSB,
 	CSC_COEF_A2_LSB,
@@ -988,30 +989,43 @@ enum I2C_MASTER_REG {
 };   
 
 
+struct rk3288_hdmi_device {
+	int			irq;
+	void __iomem  		*regbase;
+	int			regbase_phy;
+	int			regsize_phy;
+	int 			lcdc_id;
+	struct device 		*dev;
+	struct clk		*hclk;				//HDMI AHP clk
+	struct hdmi 		driver;
+        struct dentry           *debugfs_dir;
+};
 
 
-static inline int hdmi_readl(struct hdmi *hdmi_drv, u16 offset, u32 *val)
+static inline int hdmi_readl(struct rk3288_hdmi_device *hdmi_dev, u16 offset, u32 *val)
 {
         int ret = 0;
-	*val = readl_relaxed(hdmi_drv->regbase + (offset) * 0x04);
+	*val = readl_relaxed(hdmi_dev->regbase + (offset) * 0x04);
         return ret;
 }
 
-static inline int hdmi_writel(struct hdmi *hdmi_drv, u16 offset, u32 val)
+static inline int hdmi_writel(struct rk3288_hdmi_device *hdmi_dev, u16 offset, u32 val)
 {
         int ret = 0;
-        writel_relaxed(val, hdmi_drv->regbase + (offset) * 0x04);
+        writel_relaxed(val, hdmi_dev->regbase + (offset) * 0x04);
         return ret;
 }
 
-static inline int hdmi_msk_reg(struct hdmi *hdmi_drv, u16 offset, u32 msk, u32 val)
+static inline int hdmi_msk_reg(struct rk3288_hdmi_device *hdmi_dev, u16 offset, u32 msk, u32 val)
 {
         int ret = 0;
         u32 temp;
-        temp = readl_relaxed(hdmi_drv->regbase + (offset) * 0x04) & (0xFF - (msk));
-        writel_relaxed(temp | ( (val) & (msk) ),  hdmi_drv->regbase + (offset) * 0x04);
+        temp = readl_relaxed(hdmi_dev->regbase + (offset) * 0x04) & (0xFF - (msk));
+        writel_relaxed(temp | ( (val) & (msk) ),  hdmi_dev->regbase + (offset) * 0x04);
         return ret;
 }
+
+int rk3288_hdmi_initial(struct hdmi *hdmi_drv);
 
 
 #endif

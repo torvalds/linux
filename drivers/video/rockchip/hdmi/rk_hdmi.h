@@ -253,12 +253,8 @@ struct hdmi_video_para {
 
 struct hdmi {
 	struct device	*dev;
-	struct clk		*hclk;				//HDMI AHP clk
 	int             id;
-	int 			regbase;
-	int				irq;
-	int				regbase_phy;
-	int				regsize_phy;
+	int		irq;
 	struct rk_lcdc_driver *lcdc;
 	
 	#ifdef CONFIG_SWITCH
@@ -323,22 +319,26 @@ struct hdmi {
 #define hdmi_dbg(dev, format, arg...)	
 #endif
 
-//extern struct hdmi *hdmi;
+extern int hdmi_drv_register(struct hdmi *hdmi_drv);
 extern int hdmi_get_hotplug(void);
 extern int hdmi_set_info(struct rk_screen *screen, unsigned int vic);
 extern void hdmi_init_lcdc(struct rk_screen *screen, struct rk29lcd_info *lcd_info);
-extern int hdmi_sys_init(struct hdmi *hdmi);
-extern int hdmi_sys_parse_edid(struct hdmi* hdmi);
+extern int hdmi_sys_init(struct hdmi *hdmi_drv);
+extern int hdmi_sys_parse_edid(struct hdmi* hdmi_drv);
 extern const char *hdmi_get_video_mode_name(unsigned char vic);
 extern int hdmi_videomode_to_vic(struct fb_videomode *vmode);
 extern const struct fb_videomode* hdmi_vic_to_videomode(int vic);
 extern int hdmi_add_videomode(const struct fb_videomode *mode, struct list_head *head);
 extern struct hdmi_video_timing * hdmi_find_mode(int vic);
-extern int hdmi_find_best_mode(struct hdmi* hdmi, int vic);
-extern int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok);
-extern int hdmi_switch_fb(struct hdmi *hdmi, int vic);
+extern int hdmi_find_best_mode(struct hdmi* hdmi_drv, int vic);
+extern int hdmi_ouputmode_select(struct hdmi *hdmi_drv, int edid_ok);
+extern int hdmi_switch_fb(struct hdmi *hdmi_drv, int vic);
 extern void hdmi_work(struct work_struct *work);
+extern void hdmi_register_display_sysfs(struct hdmi *hdmi_drv, struct device *parent);
+extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi_drv);
+
 int rk_hdmi_parse_dt(struct hdmi *hdmi_drv);
 int rk_hdmi_pwr_enable(struct hdmi *dev_drv);
 int rk_hdmi_pwr_disable(struct hdmi *dev_drv);
+
 #endif
