@@ -115,6 +115,12 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_post] = 14,
 };
 
+static void dapm_assert_locked(struct snd_soc_dapm_context *dapm)
+{
+	if (dapm->card && dapm->card->instantiated)
+		lockdep_assert_held(&dapm->card->dapm_mutex);
+}
+
 static void pop_wait(u32 pop_time)
 {
 	if (pop_time)
@@ -148,6 +154,8 @@ static bool dapm_dirty_widget(struct snd_soc_dapm_widget *w)
 
 static void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason)
 {
+	dapm_assert_locked(w->dapm);
+
 	if (!dapm_dirty_widget(w)) {
 		dev_vdbg(w->dapm->dev, "Marking %s dirty due to %s\n",
 			 w->name, reason);
@@ -359,6 +367,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_codec);
 static void dapm_reset(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_widget *w;
+
+	lockdep_assert_held(&card->dapm_mutex);
 
 	memset(&card->dapm_stats, 0, sizeof(card->dapm_stats));
 
@@ -1823,6 +1833,8 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	ASYNC_DOMAIN_EXCLUSIVE(async_domain);
 	enum snd_soc_bias_level bias;
 
+	lockdep_assert_held(&card->dapm_mutex);
+
 	trace_snd_soc_dapm_start(card);
 
 	list_for_each_entry(d, &card->dapm_list, list) {
@@ -2118,6 +2130,8 @@ static int soc_dapm_mux_update_power(struct snd_soc_card *card,
 	struct snd_soc_dapm_path *path;
 	int found = 0;
 
+	lockdep_assert_held(&card->dapm_mutex);
+
 	/* find dapm widget path assoc with kcontrol */
 	dapm_kcontrol_for_each_path(path, kcontrol) {
 		if (!path->name || !e->texts[mux])
@@ -2167,6 +2181,8 @@ static int soc_dapm_mixer_update_power(struct snd_soc_card *card,
 {
 	struct snd_soc_dapm_path *path;
 	int found = 0;
+
+	lockdep_assert_held(&card->dapm_mutex);
 
 	/* find dapm widget path assoc with kcontrol */
 	dapm_kcontrol_for_each_path(path, kcontrol) {
@@ -2332,6 +2348,8 @@ static int snd_soc_dapm_set_pin(struct snd_soc_dapm_context *dapm,
 				const char *pin, int status)
 {
 	struct snd_soc_dapm_widget *w = dapm_find_widget(dapm, pin, true);
+
+	dapm_assert_locked(dapm);
 
 	if (!w) {
 		dev_err(dapm->dev, "ASoC: DAPM unknown pin %s\n", pin);
