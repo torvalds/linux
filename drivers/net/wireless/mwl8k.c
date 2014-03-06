@@ -3088,8 +3088,8 @@ exit:
 	return idx;
 }
 
-void mwl8k_update_survey(struct mwl8k_priv *priv,
-			 struct ieee80211_channel *channel)
+static void mwl8k_update_survey(struct mwl8k_priv *priv,
+				struct ieee80211_channel *channel)
 {
 	u32 cca_cnt, rx_rdy;
 	s8 nf = 0, idx;
