@@ -401,7 +401,7 @@ probes_insn_handler_t probes_emulate_none;
 
 int __kprobes
 probes_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
-		const union decode_item *table, bool thumb,
+		const union decode_item *table, bool thumb, bool emulate,
 		const union decode_action *actions);
 
 #endif

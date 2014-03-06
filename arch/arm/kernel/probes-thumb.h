@@ -89,9 +89,9 @@ extern const union decode_item probes_decode_thumb16_table[];
 
 enum probes_insn __kprobes
 thumb16_probes_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
-		const union decode_action *actions);
+		bool emulate, const union decode_action *actions);
 enum probes_insn __kprobes
 thumb32_probes_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
-		const union decode_action *actions);
+		bool emulate, const union decode_action *actions);
 
 #endif

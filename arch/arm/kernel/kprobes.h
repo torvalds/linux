@@ -35,6 +35,7 @@ kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi,
 
 typedef enum probes_insn (kprobe_decode_insn_t)(probes_opcode_t,
 						struct arch_specific_insn *,
+						bool,
 						const union decode_action *);
 
 #ifdef CONFIG_THUMB2_KERNEL
