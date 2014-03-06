@@ -2741,6 +2741,58 @@ out:
 }
 
 /*
+ * Initialize the DTI URB for reading transfer result notifications and also
+ * the buffer-in URB, for reading buffers. Then we just submit the DTI URB.
+ */
+int wa_dti_start(struct wahc *wa)
+{
+	const struct usb_endpoint_descriptor *dti_epd = wa->dti_epd;
+	struct device *dev = &wa->usb_iface->dev;
+	int result = -ENOMEM;
+
+	if (wa->dti_urb != NULL)	/* DTI URB already started */
+		goto out;
+
+	wa->dti_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (wa->dti_urb == NULL) {
+		dev_err(dev, "Can't allocate DTI URB\n");
+		goto error_dti_urb_alloc;
+	}
+	usb_fill_bulk_urb(
+		wa->dti_urb, wa->usb_dev,
+		usb_rcvbulkpipe(wa->usb_dev, 0x80 | dti_epd->bEndpointAddress),
+		wa->dti_buf, wa->dti_buf_size,
+		wa_dti_cb, wa);
+
+	wa->buf_in_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (wa->buf_in_urb == NULL) {
+		dev_err(dev, "Can't allocate BUF-IN URB\n");
+		goto error_buf_in_urb_alloc;
+	}
+	usb_fill_bulk_urb(
+		wa->buf_in_urb, wa->usb_dev,
+		usb_rcvbulkpipe(wa->usb_dev, 0x80 | dti_epd->bEndpointAddress),
+		NULL, 0, wa_buf_in_cb, wa);
+	result = usb_submit_urb(wa->dti_urb, GFP_KERNEL);
+	if (result < 0) {
+		dev_err(dev, "DTI Error: Could not submit DTI URB (%d) resetting\n",
+			result);
+		goto error_dti_urb_submit;
+	}
+out:
+	return 0;
+
+error_dti_urb_submit:
+	usb_put_urb(wa->buf_in_urb);
+	wa->buf_in_urb = NULL;
+error_buf_in_urb_alloc:
+	usb_put_urb(wa->dti_urb);
+	wa->dti_urb = NULL;
+error_dti_urb_alloc:
+	return result;
+}
+EXPORT_SYMBOL_GPL(wa_dti_start);
+/*
  * Transfer complete notification
  *
  * Called from the notif.c code. We get a notification on EP2 saying
@@ -2754,15 +2806,10 @@ out:
  * Follow up in wa_dti_cb(), as that's where the whole state
  * machine starts.
  *
- * So here we just initialize the DTI URB for reading transfer result
- * notifications and also the buffer-in URB, for reading buffers. Then
- * we just submit the DTI URB.
- *
  * @wa shall be referenced
  */
 void wa_handle_notif_xfer(struct wahc *wa, struct wa_notif_hdr *notif_hdr)
 {
-	int result;
 	struct device *dev = &wa->usb_iface->dev;
 	struct wa_notif_xfer *notif_xfer;
 	const struct usb_endpoint_descriptor *dti_epd = wa->dti_epd;
@@ -2776,45 +2823,13 @@ void wa_handle_notif_xfer(struct wahc *wa, struct wa_notif_hdr *notif_hdr)
 			notif_xfer->bEndpoint, dti_epd->bEndpointAddress);
 		goto error;
 	}
-	if (wa->dti_urb != NULL)	/* DTI URB already started */
-		goto out;
 
-	wa->dti_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (wa->dti_urb == NULL) {
-		dev_err(dev, "Can't allocate DTI URB\n");
-		goto error_dti_urb_alloc;
-	}
-	usb_fill_bulk_urb(
-		wa->dti_urb, wa->usb_dev,
-		usb_rcvbulkpipe(wa->usb_dev, 0x80 | notif_xfer->bEndpoint),
-		wa->dti_buf, wa->dti_buf_size,
-		wa_dti_cb, wa);
+	/* attempt to start the DTI ep processing. */
+	if (wa_dti_start(wa) < 0)
+		goto error;
 
-	wa->buf_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (wa->buf_in_urb == NULL) {
-		dev_err(dev, "Can't allocate BUF-IN URB\n");
-		goto error_buf_in_urb_alloc;
-	}
-	usb_fill_bulk_urb(
-		wa->buf_in_urb, wa->usb_dev,
-		usb_rcvbulkpipe(wa->usb_dev, 0x80 | notif_xfer->bEndpoint),
-		NULL, 0, wa_buf_in_cb, wa);
-	result = usb_submit_urb(wa->dti_urb, GFP_KERNEL);
-	if (result < 0) {
-		dev_err(dev, "DTI Error: Could not submit DTI URB (%d) resetting\n",
-			result);
-		goto error_dti_urb_submit;
-	}
-out:
 	return;
 
-error_dti_urb_submit:
-	usb_put_urb(wa->buf_in_urb);
-	wa->buf_in_urb = NULL;
-error_buf_in_urb_alloc:
-	usb_put_urb(wa->dti_urb);
-	wa->dti_urb = NULL;
-error_dti_urb_alloc:
 error:
 	wa_reset_all(wa);
 }

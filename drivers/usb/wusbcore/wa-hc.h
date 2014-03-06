@@ -134,8 +134,18 @@ enum wa_quirks {
 	 * requests to be concatenated and not sent as separate packets.
 	 */
 	WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC	= 0x01,
+	/*
+	 * The Alereon HWA can be instructed to not send transfer notifications
+	 * as an optimization.
+	 */
+	WUSB_QUIRK_ALEREON_HWA_DISABLE_XFER_NOTIFICATIONS	= 0x02,
 };
 
+enum wa_vendor_specific_requests {
+	WA_REQ_ALEREON_DISABLE_XFER_NOTIFICATIONS = 0x4C,
+	WA_REQ_ALEREON_FEATURE_SET = 0x01,
+	WA_REQ_ALEREON_FEATURE_CLEAR = 0x00,
+};
 /**
  * Instance of a HWA Host Controller
  *
@@ -234,6 +244,7 @@ struct wahc {
 extern int wa_create(struct wahc *wa, struct usb_interface *iface,
 	kernel_ulong_t);
 extern void __wa_destroy(struct wahc *wa);
+extern int wa_dti_start(struct wahc *wa);
 void wa_reset_all(struct wahc *wa);
 
 
