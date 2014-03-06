@@ -19,6 +19,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/basic_mmio_gpio.h>
 #include <linux/gpio.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -191,22 +193,32 @@ static struct platform_device mx21ads_mmgpio = {
 	},
 };
 
-static int mx21ads_fb_init(struct platform_device *pdev)
-{
-	int ret;
+static struct regulator_consumer_supply mx21ads_lcd_regulator_consumer =
+	REGULATOR_SUPPLY("lcd", "imx-fb.0");
 
-	ret = gpio_request(MX21ADS_IO_LCDON, "fb-lcdon");
-	if (ret)
-		return ret;
+static struct regulator_init_data mx21ads_lcd_regulator_init_data = {
+	.constraints = {
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.consumer_supplies	= &mx21ads_lcd_regulator_consumer,
+	.num_consumer_supplies	= 1,
+};
 
-	return gpio_direction_output(MX21ADS_IO_LCDON, 1);
-}
+static struct fixed_voltage_config mx21ads_lcd_regulator_pdata = {
+	.supply_name	= "LCD",
+	.microvolts	= 3300000,
+	.gpio		= MX21ADS_IO_LCDON,
+	.enable_high	= 1,
+	.init_data	= &mx21ads_lcd_regulator_init_data,
+};
 
-static void mx21ads_fb_exit(struct platform_device *pdev)
-{
-	gpio_set_value(MX21ADS_IO_LCDON, 0);
-	gpio_free(MX21ADS_IO_LCDON);
-}
+static struct platform_device mx21ads_lcd_regulator = {
+	.name = "reg-fixed-voltage",
+	.id = PLATFORM_DEVID_AUTO,
+	.dev = {
+		.platform_data = &mx21ads_lcd_regulator_pdata,
+	},
+};
 
 /*
  * Connected is a portrait Sharp-QVGA display
@@ -239,9 +251,6 @@ static const struct imx_fb_platform_data mx21ads_fb_data __initconst = {
 	.pwmr		= 0x00a903ff,
 	.lscr1		= 0x00120300,
 	.dmacr		= 0x00020008,
-
-	.init = mx21ads_fb_init,
-	.exit = mx21ads_fb_exit,
 };
 
 static int mx21ads_sdhc_get_ro(struct device *dev)
@@ -283,6 +292,7 @@ mx21ads_nand_board_info __initconst = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mx21ads_mmgpio,
+	&mx21ads_lcd_regulator,
 	&mx21ads_nor_mtd_device,
 };
 
@@ -296,11 +306,12 @@ static void __init mx21ads_board_init(void)
 	imx21_add_imx_uart0(&uart_pdata_rts);
 	imx21_add_imx_uart2(&uart_pdata_norts);
 	imx21_add_imx_uart3(&uart_pdata_rts);
-	imx21_add_imx_fb(&mx21ads_fb_data);
 	imx21_add_mxc_mmc(0, &mx21ads_sdhc_pdata);
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+
+	imx21_add_imx_fb(&mx21ads_fb_data);
 
 	mx21ads_cs8900_resources[1].start =
 			gpio_to_irq(MX21ADS_CS8900A_IRQ_GPIO);
