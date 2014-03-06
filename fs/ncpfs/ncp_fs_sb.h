@@ -45,9 +45,7 @@ struct ncp_server {
 
 	__u8 name_space[NCP_NUMBER_OF_VOLUMES + 2];
 
-	struct file *ncp_filp;	/* File pointer to ncp socket */
 	struct socket *ncp_sock;/* ncp socket */
-	struct file *info_filp;
 	struct socket *info_sock;
 
 	u8 sequence;
