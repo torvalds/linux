@@ -69,6 +69,7 @@ static int cfi_amdstd_read_user_prot_reg(struct mtd_info *, loff_t, size_t,
 					 size_t *, u_char *);
 static int cfi_amdstd_write_user_prot_reg(struct mtd_info *, loff_t, size_t,
 					  size_t *, u_char *);
+static int cfi_amdstd_lock_user_prot_reg(struct mtd_info *, loff_t, size_t);
 
 static int cfi_amdstd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 				  size_t *retlen, const u_char *buf);
@@ -533,6 +534,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->_get_fact_prot_info = cfi_amdstd_get_fact_prot_info;
 	mtd->_get_user_prot_info = cfi_amdstd_get_user_prot_info;
 	mtd->_write_user_prot_reg = cfi_amdstd_write_user_prot_reg;
+	mtd->_lock_user_prot_reg = cfi_amdstd_lock_user_prot_reg;
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
 	mtd->writesize = 1;
@@ -1153,7 +1155,7 @@ static int cfi_amdstd_read (struct mtd_info *mtd, loff_t from, size_t len, size_
 }
 
 typedef int (*otp_op_t)(struct map_info *map, struct flchip *chip,
-			loff_t adr, size_t len, u_char *buf);
+			loff_t adr, size_t len, u_char *buf, size_t grouplen);
 
 static inline void otp_enter(struct map_info *map, struct flchip *chip,
 			     loff_t adr, size_t len)
@@ -1187,7 +1189,10 @@ static inline void otp_exit(struct map_info *map, struct flchip *chip,
 	INVALIDATE_CACHED_RANGE(map, chip->start + adr, len);
 }
 
-static inline int do_read_secsi_onechip(struct map_info *map, struct flchip *chip, loff_t adr, size_t len, u_char *buf)
+static inline int do_read_secsi_onechip(struct map_info *map,
+					struct flchip *chip, loff_t adr,
+					size_t len, u_char *buf,
+					size_t grouplen)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long timeo = jiffies + HZ;
@@ -1246,7 +1251,8 @@ static int cfi_amdstd_secsi_read (struct mtd_info *mtd, loff_t from, size_t len,
 		else
 			thislen = len;
 
-		ret = do_read_secsi_onechip(map, &cfi->chips[chipnum], ofs, thislen, buf);
+		ret = do_read_secsi_onechip(map, &cfi->chips[chipnum], ofs,
+					    thislen, buf, 0);
 		if (ret)
 			break;
 
@@ -1265,7 +1271,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 				     int mode);
 
 static int do_otp_write(struct map_info *map, struct flchip *chip, loff_t adr,
-			size_t len, u_char *buf)
+			size_t len, u_char *buf, size_t grouplen)
 {
 	int ret;
 	while (len) {
@@ -1292,6 +1298,70 @@ static int do_otp_write(struct map_info *map, struct flchip *chip, loff_t adr,
 	}
 
 	return 0;
+}
+
+static int do_otp_lock(struct map_info *map, struct flchip *chip, loff_t adr,
+		       size_t len, u_char *buf, size_t grouplen)
+{
+	struct cfi_private *cfi = map->fldrv_priv;
+	uint8_t lockreg;
+	unsigned long timeo;
+	int ret;
+
+	/* make sure area matches group boundaries */
+	if ((adr != 0) || (len != grouplen))
+		return -EINVAL;
+
+	mutex_lock(&chip->mutex);
+	ret = get_chip(map, chip, chip->start, FL_LOCKING);
+	if (ret) {
+		mutex_unlock(&chip->mutex);
+		return ret;
+	}
+	chip->state = FL_LOCKING;
+
+	/* Enter lock register command */
+	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x55, cfi->addr_unlock2, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x40, cfi->addr_unlock1, chip->start, map, cfi,
+			 cfi->device_type, NULL);
+
+	/* read lock register */
+	lockreg = cfi_read_query(map, 0);
+
+	/* set bit 0 to protect extended memory block */
+	lockreg &= ~0x01;
+
+	/* set bit 0 to protect extended memory block */
+	/* write lock register */
+	map_write(map, CMD(0xA0), chip->start);
+	map_write(map, CMD(lockreg), chip->start);
+
+	/* wait for chip to become ready */
+	timeo = jiffies + msecs_to_jiffies(2);
+	for (;;) {
+		if (chip_ready(map, adr))
+			break;
+
+		if (time_after(jiffies, timeo)) {
+			pr_err("Waiting for chip to be ready timed out.\n");
+			ret = -EIO;
+			break;
+		}
+		UDELAY(map, chip, 0, 1);
+	}
+
+	/* exit protection commands */
+	map_write(map, CMD(0x90), chip->start);
+	map_write(map, CMD(0x00), chip->start);
+
+	chip->state = FL_READY;
+	put_chip(map, chip, chip->start);
+	mutex_unlock(&chip->mutex);
+
+	return ret;
 }
 
 static int cfi_amdstd_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
@@ -1392,7 +1462,8 @@ static int cfi_amdstd_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 		} else if ((from < otpsize) && (len > 0)) {
 			size_t size;
 			size = (len < otpsize - from) ? len : otpsize - from;
-			ret = action(map, chip, otpoffset + from, size, buf);
+			ret = action(map, chip, otpoffset + from, size, buf,
+				     otpsize);
 			if (ret < 0)
 				return ret;
 
@@ -1443,6 +1514,14 @@ static int cfi_amdstd_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
 {
 	return cfi_amdstd_otp_walk(mtd, from, len, retlen, buf,
 				   do_otp_write, 1);
+}
+
+static int cfi_amdstd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
+					 size_t len)
+{
+	size_t retlen;
+	return cfi_amdstd_otp_walk(mtd, from, len, &retlen, NULL,
+				   do_otp_lock, 1);
 }
 
 static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
