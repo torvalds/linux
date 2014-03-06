@@ -19,6 +19,8 @@
 
 #include "incore.h"
 
+#define fs_emerg(fs, fmt, ...)						\
+	pr_emerg("fsid=%s: " fmt, (fs)->sd_fsname, ##__VA_ARGS__)
 #define fs_warn(fs, fmt, ...)						\
 	pr_warn("fsid=%s: " fmt, (fs)->sd_fsname, ##__VA_ARGS__)
 #define fs_err(fs, fmt, ...)						\

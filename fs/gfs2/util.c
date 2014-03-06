@@ -32,7 +32,7 @@ mempool_t *gfs2_page_pool __read_mostly;
 
 void gfs2_assert_i(struct gfs2_sbd *sdp)
 {
-	pr_emerg("fsid=%s: fatal assertion failed\n", sdp->sd_fsname);
+	fs_emerg(sdp, "fatal assertion failed\n");
 }
 
 int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
@@ -106,8 +106,8 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 		return -2;
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW)
-		pr_warn("fsid=%s: warning: assertion \"%s\" failed at function = %s, file = %s, line = %u\n",
-			sdp->sd_fsname, assertion, function, file, line);
+		fs_warn(sdp, "warning: assertion \"%s\" failed at function = %s, file = %s, line = %u\n",
+			assertion, function, file, line);
 
 	if (sdp->sd_args.ar_debug)
 		BUG();
