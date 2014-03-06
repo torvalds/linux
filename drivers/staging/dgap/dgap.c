@@ -193,7 +193,7 @@ struct class_device;
 static void dgap_create_ports_sysfiles(struct board_t *bd);
 static void dgap_remove_ports_sysfiles(struct board_t *bd);
 
-static void dgap_create_driver_sysfiles(struct pci_driver *);
+static int dgap_create_driver_sysfiles(struct pci_driver *);
 static void dgap_remove_driver_sysfiles(struct pci_driver *);
 
 static void dgap_create_tty_sysfs(struct un_t *un, struct device *c);
@@ -544,8 +544,11 @@ static int dgap_init_module(void)
 
 		dgap_cleanup_module();
 	} else {
-		dgap_create_driver_sysfiles(&dgap_driver);
-		dgap_driver_state = DRIVER_READY;
+		rc = dgap_create_driver_sysfiles(&dgap_driver);
+		if (rc)
+			dgap_cleanup_module();
+		else
+			dgap_driver_state = DRIVER_READY;
 	}
 
 	return rc;
@@ -6037,7 +6040,7 @@ static ssize_t dgap_driver_pollrate_store(struct device_driver *ddp, const char 
 }
 static DRIVER_ATTR(pollrate, (S_IRUSR | S_IWUSR), dgap_driver_pollrate_show, dgap_driver_pollrate_store);
 
-static void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
+static int dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 {
 	int rc = 0;
 	struct device_driver *driverfs = &dgap_driver->driver;
@@ -6048,8 +6051,8 @@ static void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	rc |= driver_create_file(driverfs, &driver_attr_pollcounter);
 	rc |= driver_create_file(driverfs, &driver_attr_state);
-	if (rc)
-		printk(KERN_ERR "DGAP: sysfs driver_create_file failed!\n");
+
+	return rc;
 }
 
 static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
@@ -6266,21 +6269,17 @@ static DEVICE_ATTR(ports_txcount, S_IRUSR, dgap_ports_txcount_show, NULL);
  */
 static void dgap_create_ports_sysfiles(struct board_t *bd)
 {
-	int rc = 0;
-
 	dev_set_drvdata(&bd->pdev->dev, bd);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_state);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_baud);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_msignals);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_iflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_cflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_oflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_lflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_digi_flag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_rxcount);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_txcount);
-	if (rc)
-		printk(KERN_ERR "DGAP: sysfs device_create_file failed!\n");
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_state);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_baud);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_msignals);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_iflag);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_cflag);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_oflag);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_lflag);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_digi_flag);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_rxcount);
+	device_create_file(&(bd->pdev->dev), &dev_attr_ports_txcount);
 }
 
 /* removes all the sys files created for that port */
