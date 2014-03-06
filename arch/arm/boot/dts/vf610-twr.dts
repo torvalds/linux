@@ -113,6 +113,13 @@
 	};
 };
 
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	bus-width = <4>;
+	status = "okay";
+};
+
 &fec0 {
 	phy-mode = "rmii";
 	pinctrl-names = "default";
@@ -157,6 +164,18 @@
 				VF610_PAD_PTB20__DSPI0_SIN		0x1181
 				VF610_PAD_PTB21__DSPI0_SOUT		0x1182
 				VF610_PAD_PTB22__DSPI0_SCK		0x1182
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,fsl,pins = <
+				VF610_PAD_PTA24__ESDHC1_CLK	0x31ef
+				VF610_PAD_PTA25__ESDHC1_CMD	0x31ef
+				VF610_PAD_PTA26__ESDHC1_DAT0	0x31ef
+				VF610_PAD_PTA27__ESDHC1_DAT1	0x31ef
+				VF610_PAD_PTA28__ESDHC1_DATA2	0x31ef
+				VF610_PAD_PTA29__ESDHC1_DAT3	0x31ef
+				VF610_PAD_PTA7__GPIO_134	0x219d
 			>;
 		};
 
