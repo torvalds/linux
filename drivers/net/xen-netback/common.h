@@ -247,6 +247,9 @@ static inline bool xenvif_tx_pending_slots_available(struct xenvif *vif)
 		< MAX_PENDING_REQS;
 }
 
+/* Callback from stack when TX packet can be released */
+void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
+
 extern bool separate_tx_rx_irq;
 
 #endif /* __XEN_NETBACK__COMMON_H__ */
