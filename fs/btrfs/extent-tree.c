@@ -8938,3 +8938,38 @@ int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
 	range->len = trimmed;
 	return ret;
 }
+
+/*
+ * btrfs_{start,end}_write() is similar to mnt_{want, drop}_write(),
+ * they are used to prevent the some tasks writing data into the page cache
+ * by nocow before the subvolume is snapshoted, but flush the data into
+ * the disk after the snapshot creation.
+ */
+void btrfs_end_nocow_write(struct btrfs_root *root)
+{
+	percpu_counter_dec(&root->subv_writers->counter);
+	/*
+	 * Make sure counter is updated before we wake up
+	 * waiters.
+	 */
+	smp_mb();
+	if (waitqueue_active(&root->subv_writers->wait))
+		wake_up(&root->subv_writers->wait);
+}
+
+int btrfs_start_nocow_write(struct btrfs_root *root)
+{
+	if (unlikely(atomic_read(&root->will_be_snapshoted)))
+		return 0;
+
+	percpu_counter_inc(&root->subv_writers->counter);
+	/*
+	 * Make sure counter is updated before we check for snapshot creation.
+	 */
+	smp_mb();
+	if (unlikely(atomic_read(&root->will_be_snapshoted))) {
+		btrfs_end_nocow_write(root);
+		return 0;
+	}
+	return 1;
+}

@@ -1410,6 +1410,10 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 	u64 num_bytes;
 	int ret;
 
+	ret = btrfs_start_nocow_write(root);
+	if (!ret)
+		return -ENOSPC;
+
 	lockstart = round_down(pos, root->sectorsize);
 	lockend = round_up(pos + *write_bytes, root->sectorsize) - 1;
 
@@ -1427,11 +1431,13 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 
 	num_bytes = lockend - lockstart + 1;
 	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
-	if (ret <= 0)
+	if (ret <= 0) {
 		ret = 0;
-	else
+		btrfs_end_nocow_write(root);
+	} else {
 		*write_bytes = min_t(size_t, *write_bytes ,
 				     num_bytes - pos + lockstart);
+	}
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
 
@@ -1520,6 +1526,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 			if (!only_release_metadata)
 				btrfs_free_reserved_data_space(inode,
 							       reserve_bytes);
+			else
+				btrfs_end_nocow_write(root);
 			break;
 		}
 
@@ -1608,6 +1616,9 @@ again:
 		}
 
 		release_bytes = 0;
+		if (only_release_metadata)
+			btrfs_end_nocow_write(root);
+
 		if (only_release_metadata && copied > 0) {
 			u64 lockstart = round_down(pos, root->sectorsize);
 			u64 lockend = lockstart +
@@ -1634,10 +1645,12 @@ again:
 	kfree(pages);
 
 	if (release_bytes) {
-		if (only_release_metadata)
+		if (only_release_metadata) {
+			btrfs_end_nocow_write(root);
 			btrfs_delalloc_release_metadata(inode, release_bytes);
-		else
+		} else {
 			btrfs_delalloc_release_space(inode, release_bytes);
+		}
 	}
 
 	return num_written ? num_written : ret;

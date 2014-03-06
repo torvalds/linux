@@ -1681,6 +1681,11 @@ struct btrfs_fs_info {
 	unsigned int update_uuid_tree_gen:1;
 };
 
+struct btrfs_subvolume_writers {
+	struct percpu_counter	counter;
+	wait_queue_head_t	wait;
+};
+
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
  * and for the extent tree extent_root root.
@@ -1829,6 +1834,8 @@ struct btrfs_root {
 	 * manipulation with the read-only status via SUBVOL_SETFLAGS
 	 */
 	int send_in_progress;
+	struct btrfs_subvolume_writers *subv_writers;
+	atomic_t will_be_snapshoted;
 };
 
 struct btrfs_ioctl_defrag_range_args {
@@ -3353,6 +3360,9 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
 int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info);
 int __get_raid_index(u64 flags);
+
+int btrfs_start_nocow_write(struct btrfs_root *root);
+void btrfs_end_nocow_write(struct btrfs_root *root);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);

@@ -611,6 +611,23 @@ fail:
 	return ret;
 }
 
+static void btrfs_wait_nocow_write(struct btrfs_root *root)
+{
+	s64 writers;
+	DEFINE_WAIT(wait);
+
+	do {
+		prepare_to_wait(&root->subv_writers->wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+
+		writers = percpu_counter_sum(&root->subv_writers->counter);
+		if (writers)
+			schedule();
+
+		finish_wait(&root->subv_writers->wait, &wait);
+	} while (writers);
+}
+
 static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 			   struct dentry *dentry, char *name, int namelen,
 			   u64 *async_transid, bool readonly,
@@ -624,15 +641,21 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (!root->ref_cows)
 		return -EINVAL;
 
+	atomic_inc(&root->will_be_snapshoted);
+	smp_mb__after_atomic_inc();
+	btrfs_wait_nocow_write(root);
+
 	ret = btrfs_start_delalloc_inodes(root, 0);
 	if (ret)
-		return ret;
+		goto out;
 
 	btrfs_wait_ordered_extents(root, -1);
 
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
-	if (!pending_snapshot)
-		return -ENOMEM;
+	if (!pending_snapshot) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	btrfs_init_block_rsv(&pending_snapshot->block_rsv,
 			     BTRFS_BLOCK_RSV_TEMP);
@@ -649,7 +672,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 					&pending_snapshot->qgroup_reserved,
 					false);
 	if (ret)
-		goto out;
+		goto free;
 
 	pending_snapshot->dentry = dentry;
 	pending_snapshot->root = root;
@@ -700,8 +723,10 @@ fail:
 	btrfs_subvolume_release_metadata(BTRFS_I(dir)->root,
 					 &pending_snapshot->block_rsv,
 					 pending_snapshot->qgroup_reserved);
-out:
+free:
 	kfree(pending_snapshot);
+out:
+	atomic_dec(&root->will_be_snapshoted);
 	return ret;
 }
 
