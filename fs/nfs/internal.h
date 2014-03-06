@@ -176,7 +176,8 @@ extern struct nfs_server *nfs4_create_server(
 extern struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *,
 						      struct nfs_fh *);
 extern int nfs4_update_server(struct nfs_server *server, const char *hostname,
-					struct sockaddr *sap, size_t salen);
+					struct sockaddr *sap, size_t salen,
+					struct net *net);
 extern void nfs_free_server(struct nfs_server *server);
 extern struct nfs_server *nfs_clone_server(struct nfs_server *,
 					   struct nfs_fh *,
@@ -279,9 +280,18 @@ static inline void nfs4_label_free(struct nfs4_label *label)
 	}
 	return;
 }
+
+static inline void nfs_zap_label_cache_locked(struct nfs_inode *nfsi)
+{
+	if (nfs_server_capable(&nfsi->vfs_inode, NFS_CAP_SECURITY_LABEL))
+		nfsi->cache_validity |= NFS_INO_INVALID_LABEL;
+}
 #else
 static inline struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags) { return NULL; }
 static inline void nfs4_label_free(void *label) {}
+static inline void nfs_zap_label_cache_locked(struct nfs_inode *nfsi)
+{
+}
 #endif /* CONFIG_NFS_V4_SECURITY_LABEL */
 
 /* proc.c */

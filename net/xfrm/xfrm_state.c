@@ -1171,6 +1171,11 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig)
 	}
 	x->props.aalgo = orig->props.aalgo;
 
+	if (orig->aead) {
+		x->aead = xfrm_algo_aead_clone(orig->aead);
+		if (!x->aead)
+			goto error;
+	}
 	if (orig->ealg) {
 		x->ealg = xfrm_algo_clone(orig->ealg);
 		if (!x->ealg)
@@ -1211,6 +1216,9 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig)
 	x->props.flags = orig->props.flags;
 	x->props.extra_flags = orig->props.extra_flags;
 
+	x->tfcpad = orig->tfcpad;
+	x->replay_maxdiff = orig->replay_maxdiff;
+	x->replay_maxage = orig->replay_maxage;
 	x->curlft.add_time = orig->curlft.add_time;
 	x->km.state = orig->km.state;
 	x->km.seq = orig->km.seq;
@@ -1223,11 +1231,12 @@ out:
 	return NULL;
 }
 
-/* net->xfrm.xfrm_state_lock is held */
 struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *net)
 {
 	unsigned int h;
-	struct xfrm_state *x;
+	struct xfrm_state *x = NULL;
+
+	spin_lock_bh(&net->xfrm.xfrm_state_lock);
 
 	if (m->reqid) {
 		h = xfrm_dst_hash(net, &m->old_daddr, &m->old_saddr,
@@ -1244,7 +1253,7 @@ struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *n
 					     m->old_family))
 				continue;
 			xfrm_state_hold(x);
-			return x;
+			break;
 		}
 	} else {
 		h = xfrm_src_hash(net, &m->old_daddr, &m->old_saddr,
@@ -1259,11 +1268,13 @@ struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *n
 					     m->old_family))
 				continue;
 			xfrm_state_hold(x);
-			return x;
+			break;
 		}
 	}
 
-	return NULL;
+	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
+
+	return x;
 }
 EXPORT_SYMBOL(xfrm_migrate_state_find);
 
@@ -1458,7 +1469,7 @@ xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
 {
 	int err = 0;
 	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	struct net *net = xs_net(*dst);
+	struct net *net = xs_net(*src);
 
 	if (!afinfo)
 		return -EAFNOSUPPORT;

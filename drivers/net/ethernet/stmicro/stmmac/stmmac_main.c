@@ -1705,7 +1705,7 @@ static int stmmac_open(struct net_device *dev)
 	priv->dma_rx_size = STMMAC_ALIGN(dma_rxsize);
 	priv->dma_buf_sz = STMMAC_ALIGN(buf_sz);
 
-	alloc_dma_desc_resources(priv);
+	ret = alloc_dma_desc_resources(priv);
 	if (ret < 0) {
 		pr_err("%s: DMA descriptors allocation failed\n", __func__);
 		goto dma_desc_error;

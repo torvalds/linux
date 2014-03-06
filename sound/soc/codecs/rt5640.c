@@ -2093,6 +2093,7 @@ MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
 #ifdef CONFIG_ACPI
 static struct acpi_device_id rt5640_acpi_match[] = {
 	{ "INT33CA", 0 },
+	{ "10EC5640", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);

@@ -816,8 +816,8 @@ int64_t opal_pci_next_error(uint64_t phb_id, uint64_t *first_frozen_pe,
 int64_t opal_pci_poll(uint64_t phb_id);
 int64_t opal_return_cpu(void);
 
-int64_t opal_xscom_read(uint32_t gcid, uint32_t pcb_addr, __be64 *val);
-int64_t opal_xscom_write(uint32_t gcid, uint32_t pcb_addr, uint64_t val);
+int64_t opal_xscom_read(uint32_t gcid, uint64_t pcb_addr, __be64 *val);
+int64_t opal_xscom_write(uint32_t gcid, uint64_t pcb_addr, uint64_t val);
 
 int64_t opal_lpc_write(uint32_t chip_id, enum OpalLPCAddressType addr_type,
 		       uint32_t addr, uint32_t data, uint32_t sz);

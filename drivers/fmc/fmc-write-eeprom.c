@@ -27,7 +27,7 @@ FMC_PARAM_BUSID(fwe_drv);
 /* The "file=" is like the generic "gateware=" used elsewhere */
 static char *fwe_file[FMC_MAX_CARDS];
 static int fwe_file_n;
-module_param_array_named(file, fwe_file, charp, &fwe_file_n, 444);
+module_param_array_named(file, fwe_file, charp, &fwe_file_n, 0444);
 
 static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
 	int write)

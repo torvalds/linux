@@ -5,7 +5,7 @@
 menu "PHY Subsystem"
 
 config GENERIC_PHY
-	tristate "PHY Core"
+	bool "PHY Core"
 	help
 	  Generic PHY support.
 
@@ -61,6 +61,7 @@ config PHY_EXYNOS_DP_VIDEO
 config BCM_KONA_USB2_PHY
 	tristate "Broadcom Kona USB2 PHY Driver"
 	depends on GENERIC_PHY
+	depends on HAS_IOMEM
 	help
 	  Enable this to support the Broadcom Kona USB 2.0 PHY.
 

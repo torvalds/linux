@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/vmstat.h>
 #include <linux/eventfd.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/printk.h>
 #include <linux/vmpressure.h>

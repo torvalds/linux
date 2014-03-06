@@ -1296,8 +1296,11 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 
 	segs = ERR_PTR(-EPROTONOSUPPORT);
 
-	/* Note : following gso_segment() might change skb->encapsulation */
-	udpfrag = !skb->encapsulation && proto == IPPROTO_UDP;
+	if (skb->encapsulation &&
+	    skb_shinfo(skb)->gso_type & (SKB_GSO_SIT|SKB_GSO_IPIP))
+		udpfrag = proto == IPPROTO_UDP && encap;
+	else
+		udpfrag = proto == IPPROTO_UDP && !skb->encapsulation;
 
 	ops = rcu_dereference(inet_offloads[proto]);
 	if (likely(ops && ops->callbacks.gso_segment))

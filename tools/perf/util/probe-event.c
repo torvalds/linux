@@ -336,8 +336,8 @@ static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 		return ret;
 
 	for (i = 0; i < ntevs && ret >= 0; i++) {
+		/* point.address is the addres of point.symbol + point.offset */
 		offset = tevs[i].point.address - stext;
-		offset += tevs[i].point.offset;
 		tevs[i].point.offset = 0;
 		zfree(&tevs[i].point.symbol);
 		ret = e_snprintf(buf, 32, "0x%lx", offset);

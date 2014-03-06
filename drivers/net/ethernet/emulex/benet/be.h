@@ -350,11 +350,13 @@ struct be_drv_stats {
 	u32 roce_drops_crc;
 };
 
+/* A vlan-id of 0xFFFF must be used to clear transparent vlan-tagging */
+#define BE_RESET_VLAN_TAG_ID	0xFFFF
+
 struct be_vf_cfg {
 	unsigned char mac_addr[ETH_ALEN];
 	int if_handle;
 	int pmac_id;
-	u16 def_vid;
 	u16 vlan_tag;
 	u32 tx_rate;
 };

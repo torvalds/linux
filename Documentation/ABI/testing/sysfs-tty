@@ -3,8 +3,7 @@ Date:		Nov 2010
 Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:
 		 Shows the list of currently configured
-		 tty devices used for the console,
-		 like 'tty1 ttyS0'.
+		 console devices, like 'tty1 ttyS0'.
 		 The last entry in the file is the active
 		 device connected to /dev/console.
 		 The file supports poll() to detect virtual

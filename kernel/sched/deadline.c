@@ -121,7 +121,7 @@ static inline void dl_clear_overload(struct rq *rq)
 
 static void update_dl_migration(struct dl_rq *dl_rq)
 {
-	if (dl_rq->dl_nr_migratory && dl_rq->dl_nr_total > 1) {
+	if (dl_rq->dl_nr_migratory && dl_rq->dl_nr_running > 1) {
 		if (!dl_rq->overloaded) {
 			dl_set_overload(rq_of_dl_rq(dl_rq));
 			dl_rq->overloaded = 1;
@@ -135,9 +135,7 @@ static void update_dl_migration(struct dl_rq *dl_rq)
 static void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
 	struct task_struct *p = dl_task_of(dl_se);
-	dl_rq = &rq_of_dl_rq(dl_rq)->dl;
 
-	dl_rq->dl_nr_total++;
 	if (p->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory++;
 
@@ -147,9 +145,7 @@ static void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 static void dec_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
 	struct task_struct *p = dl_task_of(dl_se);
-	dl_rq = &rq_of_dl_rq(dl_rq)->dl;
 
-	dl_rq->dl_nr_total--;
 	if (p->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory--;
 
@@ -566,6 +562,8 @@ int dl_runtime_exceeded(struct rq *rq, struct sched_dl_entity *dl_se)
 	return 1;
 }
 
+extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
+
 /*
  * Update the current task's runtime statistics (provided it is still
  * a -deadline task and has not been removed from the dl_rq).
@@ -629,11 +627,13 @@ static void update_curr_dl(struct rq *rq)
 		struct rt_rq *rt_rq = &rq->rt;
 
 		raw_spin_lock(&rt_rq->rt_runtime_lock);
-		rt_rq->rt_time += delta_exec;
 		/*
 		 * We'll let actual RT tasks worry about the overflow here, we
-		 * have our own CBS to keep us inline -- see above.
+		 * have our own CBS to keep us inline; only account when RT
+		 * bandwidth is relevant.
 		 */
+		if (sched_rt_bandwidth_account(rt_rq))
+			rt_rq->rt_time += delta_exec;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 	}
 }
@@ -717,6 +717,7 @@ void inc_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 
 	WARN_ON(!dl_prio(prio));
 	dl_rq->dl_nr_running++;
+	inc_nr_running(rq_of_dl_rq(dl_rq));
 
 	inc_dl_deadline(dl_rq, deadline);
 	inc_dl_migration(dl_se, dl_rq);
@@ -730,6 +731,7 @@ void dec_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 	WARN_ON(!dl_prio(prio));
 	WARN_ON(!dl_rq->dl_nr_running);
 	dl_rq->dl_nr_running--;
+	dec_nr_running(rq_of_dl_rq(dl_rq));
 
 	dec_dl_deadline(dl_rq, dl_se->deadline);
 	dec_dl_migration(dl_se, dl_rq);
@@ -836,8 +838,6 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 
 	if (!task_current(rq, p) && p->nr_cpus_allowed > 1)
 		enqueue_pushable_dl_task(rq, p);
-
-	inc_nr_running(rq);
 }
 
 static void __dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
@@ -850,8 +850,6 @@ static void dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_curr_dl(rq);
 	__dequeue_task_dl(rq, p, flags);
-
-	dec_nr_running(rq);
 }
 
 /*

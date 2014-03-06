@@ -282,22 +282,29 @@ xfs_readsb(
 	struct xfs_sb	*sbp = &mp->m_sb;
 	int		error;
 	int		loud = !(flags & XFS_MFSI_QUIET);
+	const struct xfs_buf_ops *buf_ops;
 
 	ASSERT(mp->m_sb_bp == NULL);
 	ASSERT(mp->m_ddev_targp != NULL);
+
+	/*
+	 * For the initial read, we must guess at the sector
+	 * size based on the block device.  It's enough to
+	 * get the sb_sectsize out of the superblock and
+	 * then reread with the proper length.
+	 * We don't verify it yet, because it may not be complete.
+	 */
+	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
+	buf_ops = NULL;
 
 	/*
 	 * Allocate a (locked) buffer to hold the superblock.
 	 * This will be kept around at all times to optimize
 	 * access to the superblock.
 	 */
-	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
-
 reread:
 	bp = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-				   BTOBB(sector_size), 0,
-				   loud ? &xfs_sb_buf_ops
-				        : &xfs_sb_quiet_buf_ops);
+				   BTOBB(sector_size), 0, buf_ops);
 	if (!bp) {
 		if (loud)
 			xfs_warn(mp, "SB buffer read failed");
@@ -328,12 +335,13 @@ reread:
 	}
 
 	/*
-	 * If device sector size is smaller than the superblock size,
-	 * re-read the superblock so the buffer is correctly sized.
+	 * Re-read the superblock so the buffer is correctly sized,
+	 * and properly verified.
 	 */
-	if (sector_size < sbp->sb_sectsize) {
+	if (buf_ops == NULL) {
 		xfs_buf_relse(bp);
 		sector_size = sbp->sb_sectsize;
+		buf_ops = loud ? &xfs_sb_buf_ops : &xfs_sb_quiet_buf_ops;
 		goto reread;
 	}
 

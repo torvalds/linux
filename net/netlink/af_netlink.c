@@ -1489,8 +1489,8 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 	if (addr->sa_family != AF_NETLINK)
 		return -EINVAL;
 
-	/* Only superuser is allowed to send multicasts */
-	if (nladdr->nl_groups && !netlink_capable(sock, NL_CFG_F_NONROOT_SEND))
+	if ((nladdr->nl_groups || nladdr->nl_pid) &&
+	    !netlink_capable(sock, NL_CFG_F_NONROOT_SEND))
 		return -EPERM;
 
 	if (!nlk->portid)

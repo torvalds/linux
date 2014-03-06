@@ -102,6 +102,8 @@ MODULE_DEVICE_TABLE(acpi, thermal_device_ids);
 
 #ifdef CONFIG_PM_SLEEP
 static int acpi_thermal_resume(struct device *dev);
+#else
+#define acpi_thermal_resume NULL
 #endif
 static SIMPLE_DEV_PM_OPS(acpi_thermal_pm, NULL, acpi_thermal_resume);
 

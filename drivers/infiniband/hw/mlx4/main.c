@@ -53,8 +53,8 @@
 #include "user.h"
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
-#define DRV_VERSION	"1.0"
-#define DRV_RELDATE	"April 4, 2008"
+#define DRV_VERSION	"2.2-1"
+#define DRV_RELDATE	"Feb 2014"
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
 #define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF

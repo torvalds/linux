@@ -6206,6 +6206,7 @@ static struct pci_driver cxgb4_driver = {
 	.id_table = cxgb4_pci_tbl,
 	.probe    = init_one,
 	.remove   = remove_one,
+	.shutdown = remove_one,
 	.err_handler = &cxgb4_eeh,
 };
 
