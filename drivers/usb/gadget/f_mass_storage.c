@@ -220,7 +220,11 @@
 
 #include "gadget_chips.h"
 
-
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include <linux/power_supply.h>
+#include <linux/reboot.h>
+#include <linux/syscalls.h>
+#endif
 /*------------------------------------------------------------------------*/
 
 #define FSG_DRIVER_DESC		"Mass Storage Function"
@@ -691,6 +695,13 @@ static int do_read(struct fsg_common *common)
 		amount = min(amount_left, FSG_BUFLEN);
 		amount = min((loff_t)amount,
 			     curlun->file_length - file_offset);
+		/* kever@rk
+		 * max size for dwc_otg ctonroller is 64(max pkt sizt) * 1023(pkt)
+		 * because of the DOEPTSIZ.PKTCNT has only 10 bits
+		 */
+		if((common->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
+			amount = 0x8000;
+
 
 		/* Wait for the next buffer to become available */
 		bh = common->next_buffhd_to_fill;
@@ -857,6 +868,13 @@ static int do_write(struct fsg_common *common)
 			amount_left_to_req -= amount;
 			if (amount_left_to_req == 0)
 				get_some_more = 0;
+
+			/* kever@rk
+			 * max size for dwc_otg ctonroller is 64(max pkt sizt) * 1023(pkt)
+			 * because of the DOEPTSIZ.PKTCNT has only 10 bits
+			 */
+			if((common->gadget->speed != USB_SPEED_HIGH)&&(amount >0x8000))
+				amount = 0x8000;
 
 			/*
 			 * Except at the end of the transfer, amount will be
@@ -1827,6 +1845,156 @@ static int check_command_size_in_blocks(struct fsg_common *common,
 			mask, needs_medium, name);
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static void deferred_restart(struct work_struct *dummy)
+{
+	sys_sync();
+	kernel_restart("loader");
+}
+static DECLARE_WORK(restart_work, deferred_restart);
+
+typedef struct tagLoaderParam
+{
+	int	tag;
+	int	length;
+	char	parameter[1];
+	int	crc;
+} PARM_INFO;
+#define PARM_TAG			0x4D524150
+#define MSC_EXT_DBG			1
+extern int  GetParamterInfo(char * pbuf , int len);
+
+/* the buf is bh->buf,it is large enough. */
+static char * get_param_tag( char* buf , const char* tag )
+{
+	PARM_INFO	*pi;
+	int 		i;
+	char		*pp = buf+256;
+	char		*spp;
+	i = GetParamterInfo( pp , 1024 );
+	pi = (PARM_INFO*)pp;
+	if( pi->tag != PARM_TAG ){
+error_out:
+		printk("paramter error,tag=0x%x\n" , pi->tag );
+		return NULL;
+	}
+	if( pi->length+sizeof(PARM_INFO) > i ) {
+		GetParamterInfo( pp , pi->length+sizeof(PARM_INFO)  + 511 );
+	}
+	pp = strstr( pi->parameter , tag );
+	if( !pp )
+		goto error_out;
+	pp += strlen(tag); // sizeof "MACHINE_MODEL:"
+	while( *pp == ' ' || *pp == '\t' ) {
+		if(pp - pi->parameter >= pi->length)
+			break;
+		pp++;
+	}
+	spp = pp;
+	while( *pp != 0x0d && *pp != 0x0a ) {
+		if(pp - pi->parameter >= pi->length)
+			break;
+		pp++;
+	}
+	*pp = 0;
+	if( spp == pp ) return NULL;
+		return spp;
+}
+
+static int do_get_product_name(int ret ,char *buf)
+{
+	char		*tag = "MACHINE_MODEL:";
+	char		*pname;
+#if MSC_EXT_DBG
+	char 		tbuf[1300];
+	if( buf == NULL )   buf = tbuf;
+#endif
+	memset( buf , 0 , ret );
+	pname = get_param_tag( buf , tag );
+	if( pname ){
+		strcpy( buf , pname);
+	}
+#if MSC_EXT_DBG
+	printk("%s%s\n" , tag , buf );
+#endif
+	return ret;
+}
+
+static int do_get_versions( int ret ,char* buf )
+{
+	/* get boot version and fireware version from cmdline
+	* bootver=2010-07-08#4.02 firmware_ver=1.0.0 // Firmware Ver:16.01.0000
+	* return format: 0x02 0x04 0x00 0x00 0x00 0x01
+	* RK29: bootver=2011-07-18#2.05 firmware_ver=0.2.3 (==00.02.0003)
+	* for the old loader,the firmware_ver may be empty,so get the fw ver from paramter.
+	*/
+#define ASC_BCD0( c )  (((c-'0'))&0xf)
+#define ASC_BCD1( c )  (((c-'0')<<4)&0xf0)
+
+	char *ver = buf;
+	char *p_l , *p_f;
+	char *l_tag = "bootver=";
+	char *fw_tag = "FIRMWARE_VER:";
+
+#if MSC_EXT_DBG
+	char tbuf[1300];
+	if( ver == NULL )
+		ver = tbuf;
+#endif
+
+	memset( ver , 0x00 , ret );
+	p_l = strstr( saved_command_line , l_tag );
+	if( !p_l ) {
+		return ret;
+	}
+	p_l+=strlen( l_tag );
+	if( (p_l = strchr( p_l,'#')) ) {
+		p_l++;
+		if( p_l[1] == '.' ) {
+			ver[1] = ASC_BCD0(p_l[0]);
+			p_l+=2;
+		} else {
+			ver[1] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
+			p_l+=3;
+		}
+		ver[0] = ASC_BCD1(p_l[0])|ASC_BCD0(p_l[1]);
+	}
+
+	p_f = get_param_tag( ver , fw_tag );
+	if( !p_f ) return ret;
+
+	if( p_f[1] == '.' ) {
+		ver[5] = ASC_BCD0(p_f[0]);
+		p_f+=2;
+	} else {
+		ver[5] = ASC_BCD1(p_f[0])|ASC_BCD0(p_f[1]);
+		p_f+=3;
+	}
+	if( p_f[1] == '.' ) {
+		ver[4] = ASC_BCD0(p_f[0]);
+		p_f+=2;
+	} else {
+		ver[4] = ASC_BCD1(p_f[0])|ASC_BCD0(p_f[1]);
+		p_f+=3;
+	}
+	ver[2] = ASC_BCD0(p_f[0]);
+	p_f++;
+	if( p_f[0] != ' ' ){
+		ver[2] |= ASC_BCD1(p_f[0]);
+		p_f++;
+	}
+	// only support 2 byte version.
+	ver[3] = 0;
+
+#if MSC_EXT_DBG
+	printk("VERSION:%02x %02x %02x %02x %02x %02x\n" ,
+	ver[0],ver[1],ver[2],ver[3],ver[4],ver[5]);
+#endif
+	return ret;
+}
+
+#endif
+
 static int do_scsi_command(struct fsg_common *common)
 {
 	struct fsg_buffhd	*bh;
@@ -1834,6 +2002,9 @@ static int do_scsi_command(struct fsg_common *common)
 	int			reply = -EINVAL;
 	int			i;
 	static char		unknown[16];
+#ifdef CONFIG_ARCH_ROCKCHIP
+	struct fsg_common	*fsg = common;
+#endif
 
 	dump_cdb(common);
 
@@ -2027,7 +2198,11 @@ static int do_scsi_command(struct fsg_common *common)
 				      (1<<1) | (0xf<<2) | (3<<7), 1,
 				      "VERIFY");
 		if (reply == 0)
+#ifdef CONFIG_ARCH_ROCKCHIP
+			reply = 0; //zyf 20100302
+#else
 			reply = do_verify(common);
+#endif
 		break;
 
 	case WRITE_6:
@@ -2086,6 +2261,24 @@ unknown_cmnd:
 			reply = -EINVAL;
 		}
 		break;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	case 0xff:
+		if( fsg->cmnd[1] != 0xe0 ||
+		    fsg->cmnd[2] != 0xff || fsg->cmnd[3] != 0xff ||
+		    fsg->cmnd[4] != 0xff )
+		break;
+		if (fsg->cmnd_size >= 6 && fsg->cmnd[5] == 0xfe) {
+			schedule_work(&restart_work);
+		}else if ( fsg->cmnd[5] == 0xf3 ) {
+			fsg->data_size_from_cmnd = fsg->data_size;
+			/* get product name from parameter section */
+			reply = do_get_product_name( fsg->data_size,bh->buf );
+		}else if ( fsg->cmnd[5] == 0xff ){
+			fsg->data_size_from_cmnd = fsg->data_size;
+			reply = do_get_versions( fsg->data_size,bh->buf );
+		}
+		break;
+#endif
 	}
 	up_read(&common->filesem);
 
