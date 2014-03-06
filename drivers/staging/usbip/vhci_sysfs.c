@@ -114,7 +114,8 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 	int err;
 	__u32 rhport = 0;
 
-	sscanf(buf, "%u", &rhport);
+	if (sscanf(buf, "%u", &rhport) != 1)
+		return -EINVAL;
 
 	/* check rhport */
 	if (rhport >= VHCI_NPORTS) {
@@ -182,7 +183,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	 * @devid: unique device identifier in a remote host
 	 * @speed: usb device speed in a remote host
 	 */
-	sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed);
+	if (sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed) != 1)
+		return -EINVAL;
 
 	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
 			     rhport, sockfd, devid, speed);
