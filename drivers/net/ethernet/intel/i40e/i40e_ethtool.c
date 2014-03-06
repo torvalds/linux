@@ -62,8 +62,8 @@ static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_crc_errors),
 };
 
-static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
-				     struct ethtool_rxnfc *cmd, bool add);
+static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
+				 struct ethtool_rxnfc *cmd);
 
 /* These PF_STATs might look like duplicates of some NETDEV_STATs,
  * but they are separate.  This device supports Virtualization, and
@@ -1470,16 +1470,15 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 }
 
 /**
- * i40e_add_del_fdir_ethtool - Add/Remove Flow Director filters
+ * i40e_add_fdir_ethtool - Add/Remove Flow Director filters
  * @vsi: pointer to the targeted VSI
  * @cmd: command to get or set RX flow classification rules
- * @add: true adds a filter, false removes it
  *
- * Add/Remove Flow Director filters for a specific flow spec based on their
- * protocol.  Returns 0 if the filters were successfully added or removed.
+ * Add Flow Director filters for a specific flow spec based on their
+ * protocol.  Returns 0 if the filters were successfully added.
  **/
-static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
-				     struct ethtool_rxnfc *cmd, bool add)
+static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
+				 struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fsp;
 	struct i40e_fdir_filter *input;
@@ -1494,7 +1493,7 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return -EOPNOTSUPP;
 
-	if (add && (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED))
+	if (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)
 		return -ENOSPC;
 
 	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
@@ -1504,7 +1503,7 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 		return -EINVAL;
 	}
 
-	if ((fsp->ring_cookie >= vsi->num_queue_pairs) && add)
+	if (fsp->ring_cookie >= vsi->num_queue_pairs)
 		return -EINVAL;
 
 	input = kzalloc(sizeof(*input), GFP_KERNEL);
@@ -1528,16 +1527,11 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 	input->src_ip[0] = fsp->h_u.tcp_ip4_spec.ip4src;
 	input->dst_ip[0] = fsp->h_u.tcp_ip4_spec.ip4dst;
 
-	ret = i40e_add_del_fdir(vsi, input, add);
-	if (ret) {
+	ret = i40e_add_del_fdir(vsi, input, true);
+	if (ret)
 		kfree(input);
-		return ret;
-	}
-
-	if (!ret && add)
-		i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
 	else
-		kfree(input);
+		i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
 
 	return ret;
 }
@@ -1561,7 +1555,7 @@ static int i40e_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		ret = i40e_set_rss_hash_opt(pf, cmd);
 		break;
 	case ETHTOOL_SRXCLSRLINS:
-		ret = i40e_add_del_fdir_ethtool(vsi, cmd, true);
+		ret = i40e_add_fdir_ethtool(vsi, cmd);
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
 		ret = i40e_del_fdir_entry(vsi, cmd);
