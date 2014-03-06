@@ -41,6 +41,7 @@
 #include <linux/mmc/slot-gpio.h>
 
 #include "rk_sdmmc.h"
+#include "rk_sdmmc_of.h"
 
 /* Common flag combinations */
 #define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | \

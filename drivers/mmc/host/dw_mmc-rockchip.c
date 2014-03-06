@@ -24,8 +24,6 @@
 #include "dw_mmc-pltfm.h"
 
 #include "rk_sdmmc_of.h"
-//u32 mmc_debug_level = MMC_DBG_ALL;
-
 
 #define NUM_PINS(x)			(x + 2)
 

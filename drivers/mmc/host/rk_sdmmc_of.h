@@ -19,10 +19,10 @@ enum MMC_DBG_MASK{
      MMC_DBG_INFO = BIT(3),
      MMC_DBG_CMD  = BIT(4),
      MMC_DBG_DBG  = BIT(5),
-     MMC_DBG_ALL  = ~0,
+     MMC_DBG_ALL  = 0xFF,
      
 };
-//extern u32 mmc_debug_level = MMC_DBG_ALL;
+extern u32 mmc_debug_level;
 
 #define MMC_DBG_BOOT_FUNC(fmt, arg...) \
         if(mmc_debug_level >= MMC_DBG_BOOT){ printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);}
@@ -33,7 +33,7 @@ enum MMC_DBG_MASK{
 #define MMC_DBG_INFO_FUNC(fmt, arg...) \
         if(mmc_debug_level >= MMC_DBG_INFO){ printk(DRIVER_PREFIX fmt "\n", ##arg);}          
 #define MMC_DBG_CMD_FUNC(fmt, arg...) \
-        if(mmc_debug_level >= MMC_DBG_CMD){ printk(DRIVER_PREFIX "CMD" fmt "\n", ##arg);}
+        if(mmc_debug_level >= MMC_DBG_CMD){ printk(DRIVER_PREFIX "CMD " fmt "\n", ##arg);}
     
 
 
