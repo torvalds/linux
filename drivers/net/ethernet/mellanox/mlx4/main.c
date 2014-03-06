@@ -150,6 +150,8 @@ struct mlx4_port_config {
 	struct pci_dev *pdev;
 };
 
+static atomic_t pf_loading = ATOMIC_INIT(0);
+
 int mlx4_check_port_params(struct mlx4_dev *dev,
 			   enum mlx4_port_type *port_type)
 {
@@ -1407,6 +1409,11 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 	u32 slave_read;
 	u32 cmd_channel_ver;
 
+	if (atomic_read(&pf_loading)) {
+		mlx4_warn(dev, "PF is not ready. Deferring probe\n");
+		return -EPROBE_DEFER;
+	}
+
 	mutex_lock(&priv->cmd.slave_cmd_mutex);
 	priv->cmd.max_cmds = 1;
 	mlx4_warn(dev, "Sending reset\n");
@@ -2319,7 +2326,11 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 
 		if (num_vfs) {
 			mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n", num_vfs);
+
+			atomic_inc(&pf_loading);
 			err = pci_enable_sriov(pdev, num_vfs);
+			atomic_dec(&pf_loading);
+
 			if (err) {
 				mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d).\n",
 					 err);
