@@ -3103,11 +3103,11 @@ void mwl8k_update_survey(struct mwl8k_priv *priv,
 
 	survey = &priv->survey[idx];
 
-	cca_cnt = le32_to_cpu(ioread32(priv->regs + NOK_CCA_CNT_REG));
+	cca_cnt = ioread32(priv->regs + NOK_CCA_CNT_REG);
 	cca_cnt /= 1000; /* uSecs to mSecs */
 	survey->channel_time_busy = (u64) cca_cnt;
 
-	rx_rdy = le32_to_cpu(ioread32(priv->regs + BBU_RXRDY_CNT_REG));
+	rx_rdy = ioread32(priv->regs + BBU_RXRDY_CNT_REG);
 	rx_rdy /= 1000; /* uSecs to mSecs */
 	survey->channel_time_rx = (u64) rx_rdy;
 
