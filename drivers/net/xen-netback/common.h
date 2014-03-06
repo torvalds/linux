@@ -48,37 +48,8 @@
 typedef unsigned int pending_ring_idx_t;
 #define INVALID_PENDING_RING_IDX (~0U)
 
-/* For the head field in pending_tx_info: it is used to indicate
- * whether this tx info is the head of one or more coalesced requests.
- *
- * When head != INVALID_PENDING_RING_IDX, it means the start of a new
- * tx requests queue and the end of previous queue.
- *
- * An example sequence of head fields (I = INVALID_PENDING_RING_IDX):
- *
- * ...|0 I I I|5 I|9 I I I|...
- * -->|<-INUSE----------------
- *
- * After consuming the first slot(s) we have:
- *
- * ...|V V V V|5 I|9 I I I|...
- * -----FREE->|<-INUSE--------
- *
- * where V stands for "valid pending ring index". Any number other
- * than INVALID_PENDING_RING_IDX is OK. These entries are considered
- * free and can contain any number other than
- * INVALID_PENDING_RING_IDX. In practice we use 0.
- *
- * The in use non-INVALID_PENDING_RING_IDX (say 0, 5 and 9 in the
- * above example) number is the index into pending_tx_info and
- * mmap_pages arrays.
- */
 struct pending_tx_info {
-	struct xen_netif_tx_request req; /* coalesced tx request */
-	pending_ring_idx_t head; /* head != INVALID_PENDING_RING_IDX
-				  * if it is head of one or more tx
-				  * reqs
-				  */
+	struct xen_netif_tx_request req; /* tx request */
 	/* Callback data for released SKBs. The callback is always
 	 * xenvif_zerocopy_callback, desc contains the pending_idx, which is
 	 * also an index in pending_tx_info array. It is initialized in
@@ -148,11 +119,6 @@ struct xenvif {
 	struct pending_tx_info pending_tx_info[MAX_PENDING_REQS];
 	grant_handle_t grant_tx_handle[MAX_PENDING_REQS];
 
-	/* Coalescing tx requests before copying makes number of grant
-	 * copy ops greater or equal to number of slots required. In
-	 * worst case a tx request consumes 2 gnttab_copy.
-	 */
-	struct gnttab_copy tx_copy_ops[2*MAX_PENDING_REQS];
 	struct gnttab_map_grant_ref tx_map_ops[MAX_PENDING_REQS];
 	struct gnttab_unmap_grant_ref tx_unmap_ops[MAX_PENDING_REQS];
 	/* passed to gnttab_[un]map_refs with pages under (un)mapping */

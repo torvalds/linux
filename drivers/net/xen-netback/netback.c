@@ -62,16 +62,6 @@ module_param(separate_tx_rx_irq, bool, 0644);
 static unsigned int fatal_skb_slots = FATAL_SKB_SLOTS_DEFAULT;
 module_param(fatal_skb_slots, uint, 0444);
 
-/*
- * If head != INVALID_PENDING_RING_IDX, it means this tx request is head of
- * one or more merged tx requests, otherwise it is the continuation of
- * previous tx request.
- */
-static inline int pending_tx_is_head(struct xenvif *vif, RING_IDX idx)
-{
-	return vif->pending_tx_info[idx].head != INVALID_PENDING_RING_IDX;
-}
-
 static void xenvif_idx_release(struct xenvif *vif, u16 pending_idx,
 			       u8 status);
 
@@ -790,19 +780,6 @@ static int xenvif_count_requests(struct xenvif *vif,
 	return slots;
 }
 
-static struct page *xenvif_alloc_page(struct xenvif *vif,
-				      u16 pending_idx)
-{
-	struct page *page;
-
-	page = alloc_page(GFP_ATOMIC|__GFP_COLD);
-	if (!page)
-		return NULL;
-	vif->mmap_pages[pending_idx] = page;
-
-	return page;
-}
-
 
 struct xenvif_tx_cb {
 	u16 pending_idx;
@@ -832,13 +809,9 @@ static struct gnttab_map_grant_ref *xenvif_get_requests(struct xenvif *vif,
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	skb_frag_t *frags = shinfo->frags;
 	u16 pending_idx = XENVIF_TX_CB(skb)->pending_idx;
-	u16 head_idx = 0;
-	int slot, start;
-	struct page *page;
-	pending_ring_idx_t index, start_idx = 0;
-	uint16_t dst_offset;
+	int start;
+	pending_ring_idx_t index;
 	unsigned int nr_slots;
-	struct pending_tx_info *first = NULL;
 
 	/* At this point shinfo->nr_frags is in fact the number of
 	 * slots, which can be as large as XEN_NETBK_LEGACY_SLOTS_MAX.
@@ -850,8 +823,8 @@ static struct gnttab_map_grant_ref *xenvif_get_requests(struct xenvif *vif,
 
 	for (shinfo->nr_frags = start; shinfo->nr_frags < nr_slots;
 	     shinfo->nr_frags++, txp++, gop++) {
-				index = pending_index(vif->pending_cons++);
-				pending_idx = vif->pending_ring[index];
+		index = pending_index(vif->pending_cons++);
+		pending_idx = vif->pending_ring[index];
 		xenvif_tx_create_gop(vif, pending_idx, txp, gop);
 		frag_set_pending_idx(&frags[shinfo->nr_frags], pending_idx);
 	}
@@ -859,18 +832,6 @@ static struct gnttab_map_grant_ref *xenvif_get_requests(struct xenvif *vif,
 	BUG_ON(shinfo->nr_frags > MAX_SKB_FRAGS);
 
 	return gop;
-err:
-	/* Unwind, freeing all pages and sending error responses. */
-	while (shinfo->nr_frags-- > start) {
-		xenvif_idx_release(vif,
-				frag_get_pending_idx(&frags[shinfo->nr_frags]),
-				XEN_NETIF_RSP_ERROR);
-	}
-	/* The head too, if necessary. */
-	if (start)
-		xenvif_idx_release(vif, pending_idx, XEN_NETIF_RSP_ERROR);
-
-	return NULL;
 }
 
 static inline void xenvif_grant_handle_set(struct xenvif *vif,
@@ -910,7 +871,6 @@ static int xenvif_tx_check_gop(struct xenvif *vif,
 	struct pending_tx_info *tx_info;
 	int nr_frags = shinfo->nr_frags;
 	int i, err, start;
-	u16 peek; /* peek into next tx request */
 
 	/* Check status of header. */
 	err = gop->status;
@@ -924,14 +884,12 @@ static int xenvif_tx_check_gop(struct xenvif *vif,
 
 	for (i = start; i < nr_frags; i++) {
 		int j, newerr;
-		pending_ring_idx_t head;
 
 		pending_idx = frag_get_pending_idx(&shinfo->frags[i]);
 		tx_info = &vif->pending_tx_info[pending_idx];
-		head = tx_info->head;
 
 		/* Check error status: if okay then remember grant handle. */
-			newerr = (++gop)->status;
+		newerr = (++gop)->status;
 
 		if (likely(!newerr)) {
 			xenvif_grant_handle_set(vif, pending_idx , gop->handle);
@@ -1136,7 +1094,6 @@ static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
 	       (skb_queue_len(&vif->tx_queue) < budget)) {
 		struct xen_netif_tx_request txreq;
 		struct xen_netif_tx_request txfrags[XEN_NETBK_LEGACY_SLOTS_MAX];
-		struct page *page;
 		struct xen_netif_extra_info extras[XEN_NETIF_EXTRA_TYPE_MAX-1];
 		u16 pending_idx;
 		RING_IDX idx;
@@ -1507,18 +1464,17 @@ static void xenvif_idx_release(struct xenvif *vif, u16 pending_idx,
 {
 	struct pending_tx_info *pending_tx_info;
 	pending_ring_idx_t index;
-	u16 peek; /* peek into next tx request */
 	unsigned long flags;
 
-		pending_tx_info = &vif->pending_tx_info[pending_idx];
-		spin_lock_irqsave(&vif->response_lock, flags);
-		make_tx_response(vif, &pending_tx_info->req, status);
-		index = pending_index(vif->pending_prod);
-		vif->pending_ring[index] = pending_idx;
-		/* TX shouldn't use the index before we give it back here */
-		mb();
-		vif->pending_prod++;
-		spin_unlock_irqrestore(&vif->response_lock, flags);
+	pending_tx_info = &vif->pending_tx_info[pending_idx];
+	spin_lock_irqsave(&vif->response_lock, flags);
+	make_tx_response(vif, &pending_tx_info->req, status);
+	index = pending_index(vif->pending_prod);
+	vif->pending_ring[index] = pending_idx;
+	/* TX shouldn't use the index before we give it back here */
+	mb();
+	vif->pending_prod++;
+	spin_unlock_irqrestore(&vif->response_lock, flags);
 }
 
 
