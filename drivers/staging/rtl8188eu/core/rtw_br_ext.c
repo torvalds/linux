@@ -409,7 +409,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 	db = priv->nethash[hash];
 	while (db != NULL) {
 		if (!memcmp(db->networkAddr, networkAddr, MAX_NETWORK_ADDR_LEN)) {
-			memcpy(db->macAddr, macAddr, ETH_ALEN);
+			ether_addr_copy(db->macAddr, macAddr);
 			db->ageing_timer = jiffies;
 			spin_unlock_bh(&priv->br_ext_lock);
 			return;
@@ -422,7 +422,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 		return;
 	}
 	memcpy(db->networkAddr, networkAddr, MAX_NETWORK_ADDR_LEN);
-	memcpy(db->macAddr, macAddr, ETH_ALEN);
+	ether_addr_copy(db->macAddr, macAddr);
 	atomic_set(&db->use_count, 1);
 	db->ageing_timer = jiffies;
 
