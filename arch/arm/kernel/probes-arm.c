@@ -723,7 +723,7 @@ static void __kprobes arm_singlestep(probes_opcode_t insn,
  *   if the work was put into it, but low return considering they
  *   should also be very rare.
  */
-enum kprobe_insn __kprobes
+enum probes_insn __kprobes
 arm_kprobe_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		       const union decode_action *actions)
 {

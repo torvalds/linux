@@ -138,7 +138,7 @@ void __kprobes probes_simulate_nop(probes_opcode_t, struct arch_specific_insn *,
 void __kprobes probes_emulate_none(probes_opcode_t, struct arch_specific_insn *,
 		struct pt_regs *regs);
 
-enum kprobe_insn __kprobes
+enum probes_insn __kprobes
 kprobe_decode_ldmstm(probes_opcode_t insn, struct arch_specific_insn *asi,
 		const struct decode_header *h);
 
@@ -313,7 +313,7 @@ union decode_item {
 	int			action;
 };
 
-typedef enum kprobe_insn (probes_custom_decode_t)(probes_opcode_t,
+typedef enum probes_insn (probes_custom_decode_t)(probes_opcode_t,
 						  struct arch_specific_insn *,
 						  const struct decode_header *);
 
@@ -391,6 +391,11 @@ struct decode_or {
 #define DECODE_OR(_mask, _value)				\
 	DECODE_HEADER(DECODE_TYPE_OR, _mask, _value, 0)
 
+enum probes_insn {
+	INSN_REJECTED,
+	INSN_GOOD,
+	INSN_GOOD_NO_SLOT
+};
 
 struct decode_reject {
 	struct decode_header	header;

@@ -123,7 +123,7 @@ emulate_ldm_r3_15(probes_opcode_t insn,
 	load_write_pc(regs->ARM_pc, regs);
 }
 
-enum kprobe_insn __kprobes
+enum probes_insn __kprobes
 kprobe_decode_ldmstm(probes_opcode_t insn, struct arch_specific_insn *asi,
 		const struct decode_header *h)
 {

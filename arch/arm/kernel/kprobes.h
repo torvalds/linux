@@ -30,28 +30,22 @@
 struct decode_header;
 union decode_action;
 
-enum kprobe_insn {
-	INSN_REJECTED,
-	INSN_GOOD,
-	INSN_GOOD_NO_SLOT
-};
-
-typedef enum kprobe_insn (kprobe_decode_insn_t)(probes_opcode_t,
+typedef enum probes_insn (kprobe_decode_insn_t)(probes_opcode_t,
 						struct arch_specific_insn *,
 						const union decode_action *);
 
 #ifdef CONFIG_THUMB2_KERNEL
 
-enum kprobe_insn thumb16_kprobe_decode_insn(probes_opcode_t,
+enum probes_insn thumb16_kprobe_decode_insn(probes_opcode_t,
 					    struct arch_specific_insn *,
 					    const union decode_action *);
-enum kprobe_insn thumb32_kprobe_decode_insn(probes_opcode_t,
+enum probes_insn thumb32_kprobe_decode_insn(probes_opcode_t,
 					    struct arch_specific_insn *,
 					    const union decode_action *);
 
 #else /* !CONFIG_THUMB2_KERNEL */
 
-enum kprobe_insn arm_kprobe_decode_insn(probes_opcode_t,
+enum probes_insn arm_kprobe_decode_insn(probes_opcode_t,
 					struct arch_specific_insn *,
 					const union decode_action *);
 
