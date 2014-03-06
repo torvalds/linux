@@ -44,23 +44,30 @@ Optional properties:
 LVDS Channel
 ============
 
-Each LVDS Channel has to contain a display-timings node that describes the
-video timings for the connected LVDS display. For detailed information, also
-have a look at Documentation/devicetree/bindings/video/display-timing.txt.
+Each LVDS Channel has to contain either an of graph link to a panel device node
+or a display-timings node that describes the video timings for the connected
+LVDS display as well as the fsl,data-mapping and fsl,data-width properties.
 
 Required properties:
  - reg : should be <0> or <1>
+ - port: Input and output port nodes with endpoint definitions as defined in
+   Documentation/devicetree/bindings/graph.txt.
+   On i.MX5, the internal two-input-multiplexer is used. Due to hardware
+   limitations, only one input port (port@[0,1]) can be used for each channel
+   (lvds-channel@[0,1], respectively).
+   On i.MX6, there should be four input ports (port@[0-3]) that correspond
+   to the four LVDS multiplexer inputs.
+   A single output port (port@2 on i.MX5, port@4 on i.MX6) must be connected
+   to a panel input port. Optionally, the output port can be left out if
+   display-timings are used instead.
+
+Optional properties (required if display-timings are used):
+ - display-timings : A node that describes the display timings as defined in
+   Documentation/devicetree/bindings/video/display-timing.txt.
  - fsl,data-mapping : should be "spwg" or "jeida"
                       This describes how the color bits are laid out in the
                       serialized LVDS signal.
  - fsl,data-width : should be <18> or <24>
- - port: A port node with endpoint definitions as defined in
-   Documentation/devicetree/bindings/media/video-interfaces.txt.
-   On i.MX5, the internal two-input-multiplexer is used.
-   Due to hardware limitations, only one port (port@[0,1])
-   can be used for each channel (lvds-channel@[0,1], respectively)
-   On i.MX6, there should be four ports (port@[0-3]) that correspond
-   to the four LVDS multiplexer inputs.
 
 example:
 
@@ -73,23 +80,21 @@ ldb: ldb@53fa8008 {
 	#size-cells = <0>;
 	compatible = "fsl,imx53-ldb";
 	gpr = <&gpr>;
-	clocks = <&clks 122>, <&clks 120>,
-		 <&clks 115>, <&clks 116>,
-		 <&clks 123>, <&clks 85>;
+	clocks = <&clks IMX5_CLK_LDB_DI0_SEL>,
+		 <&clks IMX5_CLK_LDB_DI1_SEL>,
+		 <&clks IMX5_CLK_IPU_DI0_SEL>,
+		 <&clks IMX5_CLK_IPU_DI1_SEL>,
+		 <&clks IMX5_CLK_LDB_DI0_GATE>,
+		 <&clks IMX5_CLK_LDB_DI1_GATE>;
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel",
 		      "di0", "di1";
 
+	/* Using an of-graph endpoint link to connect the panel */
 	lvds-channel@0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0>;
-		fsl,data-mapping = "spwg";
-		fsl,data-width = <24>;
-
-		display-timings {
-			/* ... */
-		};
 
 		port@0 {
 			reg = <0>;
@@ -98,8 +103,17 @@ ldb: ldb@53fa8008 {
 				remote-endpoint = <&ipu_di0_lvds0>;
 			};
 		};
+
+		port@2 {
+			reg = <2>;
+
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
 	};
 
+	/* Using display-timings and fsl,data-mapping/width instead */
 	lvds-channel@1 {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -117,6 +131,16 @@ ldb: ldb@53fa8008 {
 			lvds1_in: endpoint {
 				remote-endpoint = <&ipu_di1_lvds1>;
 			};
+		};
+	};
+};
+
+panel: lvds-panel {
+	/* ... */
+
+	port {
+		panel_in: endpoint {
+			remote-endpoint = <&lvds0_out>;
 		};
 	};
 };

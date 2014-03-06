@@ -19,10 +19,11 @@
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_panel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
-#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <video/of_videomode.h>
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
@@ -55,6 +56,7 @@ struct imx_ldb_channel {
 	struct imx_ldb *ldb;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
+	struct drm_panel *panel;
 	struct device_node *child;
 	int chno;
 	void *edid;
@@ -90,6 +92,13 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_ldb_channel *imx_ldb_ch = con_to_imx_ldb_ch(connector);
 	int num_modes = 0;
+
+	if (imx_ldb_ch->panel && imx_ldb_ch->panel->funcs &&
+	    imx_ldb_ch->panel->funcs->get_modes) {
+		num_modes = imx_ldb_ch->panel->funcs->get_modes(imx_ldb_ch->panel);
+		if (num_modes > 0)
+			return num_modes;
+	}
 
 	if (imx_ldb_ch->edid) {
 		drm_mode_connector_update_edid_property(connector,
@@ -190,6 +199,8 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->child, encoder);
 
+	drm_panel_prepare(imx_ldb_ch->panel);
+
 	if (dual) {
 		clk_prepare_enable(ldb->clk[0]);
 		clk_prepare_enable(ldb->clk[1]);
@@ -223,6 +234,8 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 	}
 
 	regmap_write(ldb->regmap, IOMUXC_GPR2, ldb->ldb_ctrl);
+
+	drm_panel_enable(imx_ldb_ch->panel);
 }
 
 static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
@@ -287,6 +300,8 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 		 (ldb->ldb_ctrl & LDB_CH1_MODE_EN_MASK) == 0)
 		return;
 
+	drm_panel_disable(imx_ldb_ch->panel);
+
 	if (imx_ldb_ch == &ldb->channel[0])
 		ldb->ldb_ctrl &= ~LDB_CH0_MODE_EN_MASK;
 	else if (imx_ldb_ch == &ldb->channel[1])
@@ -298,6 +313,8 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 		clk_disable_unprepare(ldb->clk[0]);
 		clk_disable_unprepare(ldb->clk[1]);
 	}
+
+	drm_panel_unprepare(imx_ldb_ch->panel);
 }
 
 static struct drm_connector_funcs imx_ldb_connector_funcs = {
@@ -370,6 +387,9 @@ static int imx_ldb_register(struct drm_device *drm,
 			&imx_ldb_connector_helper_funcs);
 	drm_connector_init(drm, &imx_ldb_ch->connector,
 			   &imx_ldb_connector_funcs, DRM_MODE_CONNECTOR_LVDS);
+
+	if (imx_ldb_ch->panel)
+		drm_panel_attach(imx_ldb_ch->panel, &imx_ldb_ch->connector);
 
 	drm_mode_connector_attach_encoder(&imx_ldb_ch->connector,
 			&imx_ldb_ch->encoder);
@@ -485,6 +505,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 
 	for_each_child_of_node(np, child) {
 		struct imx_ldb_channel *channel;
+		struct device_node *port;
 
 		ret = of_property_read_u32(child, "reg", &i);
 		if (ret || i < 0 || i > 1)
@@ -503,11 +524,34 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		channel->chno = i;
 		channel->child = child;
 
+		/*
+		 * The output port is port@4 with an external 4-port mux or
+		 * port@2 with the internal 2-port mux.
+		 */
+		port = of_graph_get_port_by_id(child, imx_ldb->lvds_mux ? 4 : 2);
+		if (port) {
+			struct device_node *endpoint, *remote;
+
+			endpoint = of_get_child_by_name(port, "endpoint");
+			if (endpoint) {
+				remote = of_graph_get_remote_port_parent(endpoint);
+				if (remote)
+					channel->panel = of_drm_find_panel(remote);
+				else
+					return -EPROBE_DEFER;
+				if (!channel->panel) {
+					dev_err(dev, "panel not found: %s\n",
+						remote->full_name);
+					return -EPROBE_DEFER;
+				}
+			}
+		}
+
 		edidp = of_get_property(child, "edid", &channel->edid_len);
 		if (edidp) {
 			channel->edid = kmemdup(edidp, channel->edid_len,
 						GFP_KERNEL);
-		} else {
+		} else if (!channel->panel) {
 			ret = of_get_drm_display_mode(child, &channel->mode, 0);
 			if (!ret)
 				channel->mode_valid = 1;
