@@ -27,7 +27,7 @@
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
-#include <linux/usb/omap_control_usb.h>
+#include <linux/phy/omap_control_phy.h>
 #include <linux/phy/phy.h>
 #include <linux/of_platform.h>
 
@@ -105,7 +105,7 @@ static int omap_usb_power_off(struct phy *x)
 {
 	struct omap_usb *phy = phy_get_drvdata(x);
 
-	omap_control_usb_phy_power(phy->control_dev, 0);
+	omap_control_phy_power(phy->control_dev, 0);
 
 	return 0;
 }
@@ -114,7 +114,7 @@ static int omap_usb_power_on(struct phy *x)
 {
 	struct omap_usb *phy = phy_get_drvdata(x);
 
-	omap_control_usb_phy_power(phy->control_dev, 1);
+	omap_control_phy_power(phy->control_dev, 1);
 
 	return 0;
 }
@@ -251,7 +251,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	}
 
 	phy->control_dev = &control_pdev->dev;
-	omap_control_usb_phy_power(phy->control_dev, 0);
+	omap_control_phy_power(phy->control_dev, 0);
 
 	otg->set_host		= omap_usb_set_host;
 	otg->set_peripheral	= omap_usb_set_peripheral;

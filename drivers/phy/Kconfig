@@ -31,12 +31,22 @@ config PHY_MVEBU_SATA
 	depends on OF
 	select GENERIC_PHY
 
+config OMAP_CONTROL_PHY
+	tristate "OMAP CONTROL PHY Driver"
+	help
+	  Enable this to add support for the PHY part present in the control
+	  module. This driver has API to power on the USB2 PHY and to write to
+	  the mailbox. The mailbox is present only in omap4 and the register to
+	  power on the USB2 PHY is present in OMAP4 and OMAP5. OMAP5 has an
+	  additional register to power on USB3 PHY/SATA PHY/PCIE PHY
+	  (PIPE3 PHY).
+
 config OMAP_USB2
 	tristate "OMAP USB2 PHY Driver"
 	depends on ARCH_OMAP2PLUS
 	depends on USB_PHY
 	select GENERIC_PHY
-	select OMAP_CONTROL_USB
+	select OMAP_CONTROL_PHY
 	help
 	  Enable this to support the transceiver that is part of SOC. This
 	  driver takes care of all the PHY functionality apart from comparator.
@@ -47,7 +57,7 @@ config TI_PIPE3
 	tristate "TI PIPE3 PHY Driver"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select GENERIC_PHY
-	select OMAP_CONTROL_USB
+	select OMAP_CONTROL_PHY
 	help
 	  Enable this to support the PIPE3 PHY that is part of TI SOCs. This
 	  driver takes care of all the PHY functionality apart from comparator.

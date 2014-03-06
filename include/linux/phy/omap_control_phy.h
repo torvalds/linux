@@ -1,5 +1,5 @@
 /*
- * omap_control_usb.h - Header file for the USB part of control module.
+ * omap_control_phy.h - Header file for the PHY part of control module.
  *
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
  * This program is free software; you can redistribute it and/or modify
@@ -16,10 +16,10 @@
  *
  */
 
-#ifndef __OMAP_CONTROL_USB_H__
-#define __OMAP_CONTROL_USB_H__
+#ifndef __OMAP_CONTROL_PHY_H__
+#define __OMAP_CONTROL_PHY_H__
 
-enum omap_control_usb_type {
+enum omap_control_phy_type {
 	OMAP_CTRL_TYPE_OTGHS = 1,	/* Mailbox OTGHS_CONTROL */
 	OMAP_CTRL_TYPE_USB2,	/* USB2_PHY, power down in CONTROL_DEV_CONF */
 	OMAP_CTRL_TYPE_PIPE3,	/* PIPE3 PHY, DPLL & seperate Rx/Tx power */
@@ -27,7 +27,7 @@ enum omap_control_usb_type {
 	OMAP_CTRL_TYPE_AM437USB2, /* USB2 PHY, power e.g. AM437x */
 };
 
-struct omap_control_usb {
+struct omap_control_phy {
 	struct device *dev;
 
 	u32 __iomem *otghs_control;
@@ -36,7 +36,7 @@ struct omap_control_usb {
 
 	struct clk *sys_clk;
 
-	enum omap_control_usb_type type;
+	enum omap_control_phy_type type;
 };
 
 enum omap_control_usb_mode {
@@ -54,14 +54,14 @@ enum omap_control_usb_mode {
 #define	OMAP_CTRL_DEV_SESSEND		BIT(3)
 #define	OMAP_CTRL_DEV_IDDIG		BIT(4)
 
-#define	OMAP_CTRL_USB_PWRCTL_CLK_CMD_MASK	0x003FC000
-#define	OMAP_CTRL_USB_PWRCTL_CLK_CMD_SHIFT	0xE
+#define	OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_CMD_MASK		0x003FC000
+#define	OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_CMD_SHIFT	0xE
 
-#define	OMAP_CTRL_USB_PWRCTL_CLK_FREQ_MASK	0xFFC00000
-#define	OMAP_CTRL_USB_PWRCTL_CLK_FREQ_SHIFT	0x16
+#define	OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_MASK	0xFFC00000
+#define	OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_SHIFT	0x16
 
-#define	OMAP_CTRL_USB3_PHY_TX_RX_POWERON	0x3
-#define	OMAP_CTRL_USB3_PHY_TX_RX_POWEROFF	0x0
+#define	OMAP_CTRL_PIPE3_PHY_TX_RX_POWERON	0x3
+#define	OMAP_CTRL_PIPE3_PHY_TX_RX_POWEROFF	0x0
 
 #define OMAP_CTRL_USB2_PHY_PD		BIT(28)
 
@@ -70,13 +70,13 @@ enum omap_control_usb_mode {
 #define AM437X_CTRL_USB2_OTGVDET_EN	BIT(19)
 #define AM437X_CTRL_USB2_OTGSESSEND_EN	BIT(20)
 
-#if IS_ENABLED(CONFIG_OMAP_CONTROL_USB)
-extern void omap_control_usb_phy_power(struct device *dev, int on);
-extern void omap_control_usb_set_mode(struct device *dev,
-	enum omap_control_usb_mode mode);
+#if IS_ENABLED(CONFIG_OMAP_CONTROL_PHY)
+void omap_control_phy_power(struct device *dev, int on);
+void omap_control_usb_set_mode(struct device *dev,
+			       enum omap_control_usb_mode mode);
 #else
 
-static inline void omap_control_usb_phy_power(struct device *dev, int on)
+static inline void omap_control_phy_power(struct device *dev, int on)
 {
 }
 
@@ -86,4 +86,4 @@ static inline void omap_control_usb_set_mode(struct device *dev,
 }
 #endif
 
-#endif	/* __OMAP_CONTROL_USB_H__ */
+#endif	/* __OMAP_CONTROL_PHY_H__ */

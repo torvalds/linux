@@ -26,7 +26,7 @@
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
-#include <linux/usb/omap_control_usb.h>
+#include <linux/phy/omap_control_phy.h>
 #include <linux/of_platform.h>
 
 #define	PLL_STATUS		0x00000004
@@ -134,7 +134,7 @@ static int ti_pipe3_power_off(struct phy *x)
 		return -EBUSY;
 	}
 
-	omap_control_usb_phy_power(phy->control_dev, 0);
+	omap_control_phy_power(phy->control_dev, 0);
 
 	return 0;
 }
@@ -232,7 +232,7 @@ static int ti_pipe3_init(struct phy *x)
 	if (ret)
 		return ret;
 
-	omap_control_usb_phy_power(phy->control_dev, 1);
+	omap_control_phy_power(phy->control_dev, 1);
 
 	return 0;
 }
@@ -304,7 +304,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 
 	phy->control_dev = &control_pdev->dev;
 
-	omap_control_usb_phy_power(phy->control_dev, 0);
+	omap_control_phy_power(phy->control_dev, 0);
 
 	platform_set_drvdata(pdev, phy);
 	pm_runtime_enable(phy->dev);
