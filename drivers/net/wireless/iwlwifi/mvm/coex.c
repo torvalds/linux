@@ -61,6 +61,8 @@
  *
  *****************************************************************************/
 
+#include <linux/ieee80211.h>
+#include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
 #include "fw-api-coex.h"
@@ -1203,6 +1205,21 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	 * Tx.
 	 */
 	return iwl_get_coex_type(mvm, mvmsta->vif) == BT_COEX_TIGHT_LUT;
+}
+
+u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
+			   struct ieee80211_tx_info *info)
+{
+	__le16 fc = hdr->frame_control;
+
+	/* High prio packet (wrt. BT coex) if it is EAPOL, MCAST or MGMT */
+	if (info->band == IEEE80211_BAND_2GHZ &&
+	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO ||
+	     is_multicast_ether_addr(hdr->addr1) ||
+	     ieee80211_is_back_req(fc) || ieee80211_is_mgmt(fc)))
+		return 2;
+
+	return 0;
 }
 
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
