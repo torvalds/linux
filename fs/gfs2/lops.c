@@ -520,13 +520,11 @@ static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 static void buf_lo_before_scan(struct gfs2_jdesc *jd,
 			       struct gfs2_log_header_host *head, int pass)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-
 	if (pass != 0)
 		return;
 
-	sdp->sd_found_blocks = 0;
-	sdp->sd_replayed_blocks = 0;
+	jd->jd_found_blocks = 0;
+	jd->jd_replayed_blocks = 0;
 }
 
 static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
@@ -549,9 +547,9 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 	for (; blks; gfs2_replay_incr_blk(sdp, &start), blks--) {
 		blkno = be64_to_cpu(*ptr++);
 
-		sdp->sd_found_blocks++;
+		jd->jd_found_blocks++;
 
-		if (gfs2_revoke_check(sdp, blkno, start))
+		if (gfs2_revoke_check(jd, blkno, start))
 			continue;
 
 		error = gfs2_replay_read_block(jd, start, &bh_log);
@@ -572,7 +570,7 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 		if (error)
 			break;
 
-		sdp->sd_replayed_blocks++;
+		jd->jd_replayed_blocks++;
 	}
 
 	return error;
@@ -615,7 +613,7 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	gfs2_meta_sync(ip->i_gl);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u blocks\n",
-	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
+	        jd->jd_jid, jd->jd_replayed_blocks, jd->jd_found_blocks);
 }
 
 static void revoke_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
@@ -677,13 +675,11 @@ static void revoke_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,
 				  struct gfs2_log_header_host *head, int pass)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-
 	if (pass != 0)
 		return;
 
-	sdp->sd_found_revokes = 0;
-	sdp->sd_replay_tail = head->lh_tail;
+	jd->jd_found_revokes = 0;
+	jd->jd_replay_tail = head->lh_tail;
 }
 
 static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
@@ -715,13 +711,13 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 		while (offset + sizeof(u64) <= sdp->sd_sb.sb_bsize) {
 			blkno = be64_to_cpu(*(__be64 *)(bh->b_data + offset));
 
-			error = gfs2_revoke_add(sdp, blkno, start);
+			error = gfs2_revoke_add(jd, blkno, start);
 			if (error < 0) {
 				brelse(bh);
 				return error;
 			}
 			else if (error)
-				sdp->sd_found_revokes++;
+				jd->jd_found_revokes++;
 
 			if (!--revokes)
 				break;
@@ -741,16 +737,16 @@ static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 
 	if (error) {
-		gfs2_revoke_clean(sdp);
+		gfs2_revoke_clean(jd);
 		return;
 	}
 	if (pass != 1)
 		return;
 
 	fs_info(sdp, "jid=%u: Found %u revoke tags\n",
-	        jd->jd_jid, sdp->sd_found_revokes);
+	        jd->jd_jid, jd->jd_found_revokes);
 
-	gfs2_revoke_clean(sdp);
+	gfs2_revoke_clean(jd);
 }
 
 /**
@@ -789,9 +785,9 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 		blkno = be64_to_cpu(*ptr++);
 		esc = be64_to_cpu(*ptr++);
 
-		sdp->sd_found_blocks++;
+		jd->jd_found_blocks++;
 
-		if (gfs2_revoke_check(sdp, blkno, start))
+		if (gfs2_revoke_check(jd, blkno, start))
 			continue;
 
 		error = gfs2_replay_read_block(jd, start, &bh_log);
@@ -811,7 +807,7 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 		brelse(bh_log);
 		brelse(bh_ip);
 
-		sdp->sd_replayed_blocks++;
+		jd->jd_replayed_blocks++;
 	}
 
 	return error;
@@ -835,7 +831,7 @@ static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	gfs2_meta_sync(ip->i_gl);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u data blocks\n",
-		jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
+		jd->jd_jid, jd->jd_replayed_blocks, jd->jd_found_blocks);
 }
 
 static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
