@@ -169,9 +169,7 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	adapter->tx_timeout_count++;
 	dev_info(&adapter->pdev->dev, "TX timeout detected.\n");
 	if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
-		dev_info(&adapter->pdev->dev, "Requesting reset from PF\n");
-		i40evf_request_reset(adapter);
-		adapter->flags |= I40EVF_FLAG_RESET_PENDING;
+		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
 		schedule_work(&adapter->reset_task);
 	}
 }
@@ -1484,6 +1482,12 @@ static void i40evf_reset_task(struct work_struct *work)
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
 				&adapter->crit_section))
 		udelay(500);
+
+	if (adapter->flags & I40EVF_FLAG_RESET_NEEDED) {
+		dev_info(&adapter->pdev->dev, "Requesting reset from PF\n");
+		i40evf_request_reset(adapter);
+	}
+
 	/* poll until we see the reset actually happen */
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
 		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
