@@ -62,13 +62,13 @@
 			ethernet@30000 {
 				status = "okay";
 				phy = <&phy1>;
-				phy-mode = "rgmii";
+				phy-mode = "rgmii-id";
 			};
 
 			ethernet@70000 {
 				status = "okay";
 				phy = <&phy0>;
-				phy-mode = "rgmii";
+				phy-mode = "rgmii-id";
 			};
 
 			mdio {
