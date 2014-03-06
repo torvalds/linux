@@ -1416,40 +1416,64 @@ error:
 	return ret;
 }
 
+static int __comedi_get_user_cmd(struct comedi_device *dev,
+				 struct comedi_cmd __user *arg,
+				 struct comedi_cmd *cmd)
+{
+	struct comedi_subdevice *s;
+
+	if (copy_from_user(cmd, arg, sizeof(*cmd))) {
+		dev_dbg(dev->class_dev, "bad cmd address\n");
+		return -EFAULT;
+	}
+
+	if (cmd->subdev >= dev->n_subdevices) {
+		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd->subdev);
+		return -ENODEV;
+	}
+
+	s = &dev->subdevices[cmd->subdev];
+
+	if (s->type == COMEDI_SUBD_UNUSED) {
+		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd->subdev);
+		return -EIO;
+	}
+
+	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
+		dev_dbg(dev->class_dev,
+			"subdevice %d does not support commands\n", cmd->subdev);
+		return -EIO;
+	}
+
+	/* make sure channel/gain list isn't too long */
+	if (cmd->chanlist_len > s->len_chanlist) {
+		dev_dbg(dev->class_dev, "channel/gain list too long %d > %d\n",
+			cmd->chanlist_len, s->len_chanlist);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int do_cmd_ioctl(struct comedi_device *dev,
 			struct comedi_cmd __user *arg, void *file)
 {
 	struct comedi_cmd cmd;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
-	int ret = 0;
 	unsigned int __user *user_chanlist;
+	int ret;
 
-	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		dev_dbg(dev->class_dev, "bad cmd address\n");
-		return -EFAULT;
-	}
+	/* get the user's cmd and do some simple validation */
+	ret = __comedi_get_user_cmd(dev, arg, &cmd);
+	if (ret)
+		return ret;
+
 	/* save user's chanlist pointer so it can be restored later */
 	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
-	if (cmd.subdev >= dev->n_subdevices) {
-		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd.subdev);
-		return -ENODEV;
-	}
-
 	s = &dev->subdevices[cmd.subdev];
 	async = s->async;
-
-	if (s->type == COMEDI_SUBD_UNUSED) {
-		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd.subdev);
-		return -EIO;
-	}
-
-	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
-		dev_dbg(dev->class_dev,
-			"subdevice %i does not support commands\n", cmd.subdev);
-		return -EIO;
-	}
 
 	/* are we locked? (ioctl lock) */
 	if (s->lock && s->lock != file) {
@@ -1461,13 +1485,6 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (s->busy) {
 		dev_dbg(dev->class_dev, "subdevice busy\n");
 		return -EBUSY;
-	}
-
-	/* make sure channel/gain list isn't too long */
-	if (cmd.chanlist_len > s->len_chanlist) {
-		dev_dbg(dev->class_dev, "channel/gain list too long %u > %d\n",
-			cmd.chanlist_len, s->len_chanlist);
-		return -EINVAL;
 	}
 
 	/* make sure channel/gain list isn't too short */
@@ -1566,41 +1583,19 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 {
 	struct comedi_cmd cmd;
 	struct comedi_subdevice *s;
-	int ret = 0;
 	unsigned int *chanlist = NULL;
 	unsigned int __user *user_chanlist;
+	int ret;
 
-	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		dev_dbg(dev->class_dev, "bad cmd address\n");
-		return -EFAULT;
-	}
+	/* get the user's cmd and do some simple validation */
+	ret = __comedi_get_user_cmd(dev, arg, &cmd);
+	if (ret)
+		return ret;
+
 	/* save user's chanlist pointer so it can be restored later */
 	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
-	if (cmd.subdev >= dev->n_subdevices) {
-		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd.subdev);
-		return -ENODEV;
-	}
-
 	s = &dev->subdevices[cmd.subdev];
-	if (s->type == COMEDI_SUBD_UNUSED) {
-		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd.subdev);
-		return -EIO;
-	}
-
-	if (!s->do_cmd || !s->do_cmdtest) {
-		dev_dbg(dev->class_dev,
-			"subdevice %i does not support commands\n", cmd.subdev);
-		return -EIO;
-	}
-
-	/* make sure channel/gain list isn't too long */
-	if (cmd.chanlist_len > s->len_chanlist) {
-		dev_dbg(dev->class_dev, "channel/gain list too long %d > %d\n",
-			cmd.chanlist_len, s->len_chanlist);
-		ret = -EINVAL;
-		goto cleanup;
-	}
 
 	/* load channel/gain list */
 	if (cmd.chanlist) {
