@@ -165,7 +165,7 @@ static inline unsigned int gfs2_tune_get_i(struct gfs2_tune *gt,
 #define gfs2_tune_get(sdp, field) \
 gfs2_tune_get_i(&(sdp)->sd_tune, &(sdp)->sd_tune.field)
 
-int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...);
+__printf(2, 3)
+int gfs2_lm_withdraw(struct gfs2_sbd *sdp, const char *fmt, ...);
 
 #endif /* __UTIL_DOT_H__ */
-
