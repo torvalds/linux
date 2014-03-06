@@ -149,9 +149,7 @@ static int dgap_tty_put_char(struct tty_struct *tty, unsigned char c);
 static void dgap_tty_send_xchar(struct tty_struct *tty, char ch);
 
 static int dgap_tty_register(struct board_t *brd);
-static int dgap_tty_preinit(void);
 static int dgap_tty_init(struct board_t *);
-static void dgap_tty_post_uninit(void);
 static void dgap_tty_uninit(struct board_t *);
 static void dgap_carrier(struct channel_t *ch);
 static void dgap_input(struct channel_t *ch);
@@ -262,8 +260,6 @@ static uint dgap_driver_start = FALSE;
 static struct class *dgap_class;
 
 static struct board_t *dgap_BoardsByMajor[256];
-static uchar *dgap_TmpWriteBuf;
-DECLARE_MUTEX(dgap_TmpWriteSem);
 static uint dgap_count = 500;
 
 /*
@@ -597,14 +593,6 @@ static int dgap_start(void)
 			dgap_Major_Control_Registered = TRUE;
 		}
 
-		/*
-		 * Init any global tty stuff.
-		 */
-		rc = dgap_tty_preinit();
-
-		if (rc < 0)
-			return rc;
-
 		/* Start the poller */
 		DGAP_LOCK(dgap_poll_lock, flags);
 		init_timer(&dgap_poll_timer);
@@ -695,12 +683,6 @@ static void dgap_cleanup_module(void)
 		dgap_cleanup_board(dgap_Board[i]);
 	}
 
-	dgap_tty_post_uninit();
-
-#if defined(DGAP_TRACER)
-	/* last thing, make sure we release the tracebuffer */
-	dgap_tracer_free();
-#endif
 	if (dgap_NumBoards)
 		pci_unregister_driver(&dgap_driver);
 }
@@ -1271,27 +1253,6 @@ static int dgap_ms_sleep(ulong ms)
  ************************************************************************/
 
 /*
- * dgap_tty_preinit()
- *
- * Initialize any global tty related data before we download any boards.
- */
-static int dgap_tty_preinit(void)
-{
-	/*
-	 * Allocate a buffer for doing the copy from user space to
-	 * kernel space in dgap_input().  We only use one buffer and
-	 * control access to it with a semaphore.  If we are paging, we
-	 * are already in trouble so one buffer won't hurt much anyway.
-	 */
-	dgap_TmpWriteBuf = kmalloc(WRITEBUFLEN, GFP_ATOMIC);
-
-	if (!dgap_TmpWriteBuf)
-		return -ENOMEM;
-
-	return 0;
-}
-
-/*
  * dgap_tty_register()
  *
  * Init the tty subsystem for this board.
@@ -1552,17 +1513,6 @@ static int dgap_tty_init(struct board_t *brd)
 	}
 
 	return 0;
-}
-
-/*
- * dgap_tty_post_uninit()
- *
- * UnInitialize any global tty related data.
- */
-static void dgap_tty_post_uninit(void)
-{
-	kfree(dgap_TmpWriteBuf);
-	dgap_TmpWriteBuf = NULL;
 }
 
 /*
@@ -2758,7 +2708,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	int ret = 0;
 	ulong   lock_flags = 0;
 
-	if (tty == NULL || dgap_TmpWriteBuf == NULL)
+	if (!tty)
 		return 0;
 
 	un = tty->driver_data;
@@ -2848,9 +2798,8 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	int bufcount = 0, n = 0;
 	int orig_count = 0;
 	ulong lock_flags;
-	int from_user = 0;
 
-	if (tty == NULL || dgap_TmpWriteBuf == NULL)
+	if (!tty)
 		return 0;
 
 	un = tty->driver_data;
@@ -2939,32 +2888,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 		return 0;
 	}
 
-	if (from_user) {
-
-		count = min(count, WRITEBUFLEN);
-
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
-
-		/*
-		 * If data is coming from user space, copy it into a temporary
-		 * buffer so we don't get swapped out while doing the copy to
-		 * the board.
-		 */
-		/* we're allowed to block if it's from_user */
-		if (down_interruptible(&dgap_TmpWriteSem))
-			return -EINTR;
-
-		if (copy_from_user(dgap_TmpWriteBuf, (const uchar __user *)buf,
-					count)) {
-			up(&dgap_TmpWriteSem);
-			return -EFAULT;
-		}
-
-		DGAP_LOCK(ch->ch_lock, lock_flags);
-
-		buf = dgap_TmpWriteBuf;
-	}
-
 	n = count;
 
 	/*
@@ -3037,11 +2960,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
-	if (from_user) {
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
-		up(&dgap_TmpWriteSem);
-	} else
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
 	return count;
 }
