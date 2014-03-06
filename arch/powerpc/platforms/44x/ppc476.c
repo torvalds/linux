@@ -1,7 +1,8 @@
 /*
  * PowerPC 476FPE board specific routines
  *
- * Copyright © 2011 Tony Breeds IBM Corporation
+ * Copyright © 2013 Tony Breeds IBM Corporation
+ * Copyright © 2013 Alistair Popple IBM Corporation
  *
  * Based on earlier code:
  *    Matt Porter <mporter@kernel.crashing.org>
@@ -35,6 +36,7 @@
 #include <asm/mmu.h>
 
 #include <linux/pci.h>
+#include <linux/i2c.h>
 
 static struct of_device_id ppc47x_of_bus[] __initdata = {
 	{ .compatible = "ibm,plb4", },
@@ -55,15 +57,69 @@ static void quirk_ppc_currituck_usb_fixup(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(0x1033, 0x0035, quirk_ppc_currituck_usb_fixup);
 
+/* Akebono has an AVR microcontroller attached to the I2C bus
+ * which is used to power off/reset the system. */
+
+/* AVR I2C Commands */
+#define AVR_PWRCTL_CMD (0x26)
+
+/* Flags for the power control I2C commands */
+#define AVR_PWRCTL_PWROFF (0x01)
+#define AVR_PWRCTL_RESET (0x02)
+
+static struct i2c_client *avr_i2c_client;
+static void avr_halt_system(int pwrctl_flags)
+{
+	/* Request the AVR to reset the system */
+	i2c_smbus_write_byte_data(avr_i2c_client,
+				  AVR_PWRCTL_CMD, pwrctl_flags);
+
+	/* Wait for system to be reset */
+	while (1)
+		;
+}
+
+static void avr_power_off_system(void)
+{
+	avr_halt_system(AVR_PWRCTL_PWROFF);
+}
+
+static void avr_reset_system(char *cmd)
+{
+	avr_halt_system(AVR_PWRCTL_RESET);
+}
+
+static int avr_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
+{
+	avr_i2c_client = client;
+	ppc_md.restart = avr_reset_system;
+	ppc_md.power_off = avr_power_off_system;
+	return 0;
+}
+
+static const struct i2c_device_id avr_id[] = {
+	{ "akebono-avr", 0 },
+	{ }
+};
+
+static struct i2c_driver avr_driver = {
+	.driver = {
+		.name = "akebono-avr",
+	},
+	.probe = avr_probe,
+	.id_table = avr_id,
+};
+
 static int __init ppc47x_device_probe(void)
 {
+	i2c_add_driver(&avr_driver);
 	of_platform_bus_probe(NULL, ppc47x_of_bus, NULL);
 
 	return 0;
 }
 machine_device_initcall(ppc47x, ppc47x_device_probe);
 
-/* We can have either UICs or MPICs */
 static void __init ppc47x_init_irq(void)
 {
 	struct device_node *np;
@@ -163,37 +219,30 @@ static void __init ppc47x_setup_arch(void)
 	ppc47x_smp_init();
 }
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init ppc47x_probe(void)
-{
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "ibm,currituck"))
-		return 0;
-
-	return 1;
-}
-
 static int board_rev = -1;
 static int __init ppc47x_get_board_rev(void)
 {
-	u8 fpga_reg0;
-	void *fpga;
-	struct device_node *np;
+	int reg;
+	u8 *fpga;
+	struct device_node *np = NULL;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,currituck-fpga");
+	if (of_machine_is_compatible("ibm,currituck")) {
+		np = of_find_compatible_node(NULL, NULL, "ibm,currituck-fpga");
+		reg = 0;
+	} else if (of_machine_is_compatible("ibm,akebono")) {
+		np = of_find_compatible_node(NULL, NULL, "ibm,akebono-fpga");
+		reg = 2;
+	}
+
 	if (!np)
 		goto fail;
 
-	fpga = of_iomap(np, 0);
+	fpga = (u8 *) of_iomap(np, 0);
 	of_node_put(np);
 	if (!fpga)
 		goto fail;
 
-	fpga_reg0 = ioread8(fpga);
-	board_rev = fpga_reg0 & 0x03;
+	board_rev = ioread8(fpga + reg) & 0x03;
 	pr_info("%s: Found board revision %d\n", __func__, board_rev);
 	iounmap(fpga);
 	return 0;
@@ -221,13 +270,30 @@ static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
 	}
 }
 
+/*
+ * Called very early, MMU is off, device-tree isn't unflattened
+ */
+static int __init ppc47x_probe(void)
+{
+	unsigned long root = of_get_flat_dt_root();
+
+	if (of_flat_dt_is_compatible(root, "ibm,akebono"))
+		return 1;
+
+	if (of_flat_dt_is_compatible(root, "ibm,currituck")) {
+		ppc_md.pci_irq_fixup = ppc47x_pci_irq_fixup;
+		return 1;
+	}
+
+	return 0;
+}
+
 define_machine(ppc47x) {
 	.name			= "PowerPC 47x",
 	.probe			= ppc47x_probe,
 	.progress		= udbg_progress,
 	.init_IRQ		= ppc47x_init_irq,
 	.setup_arch		= ppc47x_setup_arch,
-	.pci_irq_fixup		= ppc47x_pci_irq_fixup,
 	.restart		= ppc4xx_reset_system,
 	.calibrate_decr		= generic_calibrate_decr,
 };

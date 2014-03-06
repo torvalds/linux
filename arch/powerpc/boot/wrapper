@@ -270,6 +270,9 @@ gamecube|wii)
 treeboot-currituck)
     link_address='0x1000000'
     ;;
+treeboot-akebono)
+    link_address='0x1000000'
+    ;;
 treeboot-iss4xx-mpic)
     platformo="$object/treeboot-iss4xx.o"
     ;;

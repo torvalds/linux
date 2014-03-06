@@ -199,6 +199,32 @@ config CURRITUCK
 	help
 	  This option enables support for the IBM Currituck (476fpe) evaluation board
 
+config AKEBONO
+	bool "IBM Akebono (476gtr) Support"
+	depends on PPC_47x
+	default n
+	select SWIOTLB
+	select 476FPE
+	select PPC4xx_PCI_EXPRESS
+	select I2C
+	select I2C_IBM_IIC
+	select NETDEVICES
+	select ETHERNET
+	select NET_VENDOR_IBM
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII_WOL
+	select USB
+	select USB_OHCI_HCD_PLATFORM
+	select USB_EHCI_HCD_PLATFORM
+	select MMC_SDHCI
+	select MMC_SDHCI_PLTFM
+	select MMC_SDHCI_OF_476GTR
+	select ATA
+	select SATA_AHCI_PLATFORM
+	help
+	  This option enables support for the IBM Akebono (476gtr) evaluation board
+
+
 config ICON
 	bool "Icon"
 	depends on 44x
