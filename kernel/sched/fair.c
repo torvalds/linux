@@ -6710,7 +6710,7 @@ static int idle_balance(struct rq *this_rq)
 	 * While browsing the domains, we released the rq lock.
 	 * A task could have be enqueued in the meantime
 	 */
-	if (this_rq->nr_running && !pulled_task) {
+	if (this_rq->cfs.h_nr_running && !pulled_task) {
 		pulled_task = 1;
 		goto out;
 	}
