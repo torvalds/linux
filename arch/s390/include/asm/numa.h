@@ -26,6 +26,10 @@ extern int numa_debug_enabled;
 
 static inline void numa_setup(void) { }
 static inline void numa_update_cpu_topology(void) { }
+static inline int numa_pfn_to_nid(unsigned long pfn)
+{
+	return 0;
+}
 
 #endif /* CONFIG_NUMA */
 #endif /* _ASM_S390_NUMA_H */

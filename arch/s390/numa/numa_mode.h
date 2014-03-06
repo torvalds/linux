@@ -19,5 +19,6 @@ struct numa_mode {
 };
 
 extern const struct numa_mode numa_mode_plain;
+extern const struct numa_mode numa_mode_emu;
 
 #endif /* __S390_NUMA_MODE_H */

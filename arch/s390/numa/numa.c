@@ -175,6 +175,10 @@ static int __init parse_numa(char *parm)
 {
 	if (strcmp(parm, numa_mode_plain.name) == 0)
 		mode = &numa_mode_plain;
+#ifdef CONFIG_NUMA_EMU
+	if (strcmp(parm, numa_mode_emu.name) == 0)
+		mode = &numa_mode_emu;
+#endif
 	return 0;
 }
 early_param("numa", parse_numa);

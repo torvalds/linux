@@ -423,6 +423,43 @@ config NODES_SHIFT
 	  Specify the maximum number of NUMA nodes available on the target
 	  system. Increases memory reserved to accommodate various tables.
 
+menu "Select NUMA modes"
+	depends on NUMA
+
+config NUMA_EMU
+	bool "NUMA emulation"
+	default y
+	help
+	  Numa emulation mode will split the available system memory into
+	  equal chunks which then are distributed over the configured number
+	  of nodes in a round-robin manner.
+
+	  The number of fake nodes is limited by the number of available memory
+	  chunks (i.e. memory size / fake size) and the number of supported
+	  nodes in the kernel.
+
+	  The CPUs are assigned to the nodes in a way that partially respects
+	  the original machine topology (if supported by the machine).
+	  Fair distribution of the CPUs is not guaranteed.
+
+config EMU_SIZE
+	hex "NUMA emulation memory chunk size"
+	default 0x10000000
+	range 0x400000 0x100000000
+	depends on NUMA_EMU
+	help
+	  Select the default size by which the memory is chopped and then
+	  assigned to emulated NUMA nodes.
+
+	  This can be overridden by specifying
+
+	  emu_size=<n>
+
+	  on the kernel command line where also suffixes K, M, G, and T are
+	  supported.
+
+endmenu
+
 config SCHED_MC
 	def_bool n
 
