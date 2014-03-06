@@ -127,7 +127,7 @@ enum probes_insn __kprobes
 kprobe_decode_ldmstm(probes_opcode_t insn, struct arch_specific_insn *asi,
 		const struct decode_header *h)
 {
-	kprobe_insn_handler_t *handler = 0;
+	probes_insn_handler_t *handler = 0;
 	unsigned reglist = insn & 0xffff;
 	int is_ldm = insn & 0x100000;
 	int rn = (insn >> 16) & 0xf;

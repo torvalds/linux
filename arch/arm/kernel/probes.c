@@ -340,7 +340,7 @@ static const int decode_struct_sizes[NUM_DECODE_TYPES] = {
 };
 
 /*
- * kprobe_decode_insn operates on data tables in order to decode an ARM
+ * probes_decode_insn operates on data tables in order to decode an ARM
  * architecture instruction onto which a kprobe has been placed.
  *
  * These instruction decoding tables are a concatenation of entries each
@@ -383,7 +383,7 @@ static const int decode_struct_sizes[NUM_DECODE_TYPES] = {
  *
  */
 int __kprobes
-kprobe_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
+probes_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		   const union decode_item *table, bool thumb,
 		   const union decode_action *actions)
 {

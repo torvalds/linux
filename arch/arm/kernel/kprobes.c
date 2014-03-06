@@ -31,6 +31,8 @@
 #include <linux/bug.h>
 
 #include "kprobes.h"
+#include "probes-arm.h"
+#include "probes-thumb.h"
 #include "patch.h"
 
 #define MIN_STACK_SIZE(addr) 				\
@@ -69,10 +71,10 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if (is_wide_instruction(insn)) {
 		insn <<= 16;
 		insn |= ((u16 *)addr)[1];
-		decode_insn = thumb32_kprobe_decode_insn;
+		decode_insn = thumb32_probes_decode_insn;
 		actions = kprobes_t32_actions;
 	} else {
-		decode_insn = thumb16_kprobe_decode_insn;
+		decode_insn = thumb16_probes_decode_insn;
 		actions = kprobes_t16_actions;
 	}
 #else /* !CONFIG_THUMB2_KERNEL */
@@ -80,7 +82,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if (addr & 0x3)
 		return -EINVAL;
 	insn = *p->addr;
-	decode_insn = arm_kprobe_decode_insn;
+	decode_insn = arm_probes_decode_insn;
 	actions = kprobes_arm_actions;
 #endif
 
@@ -99,7 +101,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 			p->ainsn.insn[is] = tmp_insn[is];
 		flush_insns(p->ainsn.insn,
 				sizeof(p->ainsn.insn[0]) * MAX_INSN_SIZE);
-		p->ainsn.insn_fn = (kprobe_insn_fn_t *)
+		p->ainsn.insn_fn = (probes_insn_fn_t *)
 					((uintptr_t)p->ainsn.insn | thumb);
 		break;
 

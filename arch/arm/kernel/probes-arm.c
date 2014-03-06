@@ -610,7 +610,7 @@ static const union decode_item arm_cccc_100x_table[] = {
 	DECODE_END
 };
 
-const union decode_item kprobe_decode_arm_table[] = {
+const union decode_item probes_decode_arm_table[] = {
 	/*
 	 * Unconditional instructions
 	 *			1111 xxxx xxxx xxxx xxxx xxxx xxxx xxxx
@@ -701,7 +701,7 @@ const union decode_item kprobe_decode_arm_table[] = {
 	DECODE_END
 };
 #ifdef CONFIG_ARM_KPROBES_TEST_MODULE
-EXPORT_SYMBOL_GPL(kprobe_decode_arm_table);
+EXPORT_SYMBOL_GPL(probes_decode_arm_table);
 #endif
 
 static void __kprobes arm_singlestep(probes_opcode_t insn,
@@ -724,11 +724,11 @@ static void __kprobes arm_singlestep(probes_opcode_t insn,
  *   should also be very rare.
  */
 enum probes_insn __kprobes
-arm_kprobe_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
+arm_probes_decode_insn(probes_opcode_t insn, struct arch_specific_insn *asi,
 		       const union decode_action *actions)
 {
 	asi->insn_singlestep = arm_singlestep;
 	asi->insn_check_cc = probes_condition_checks[insn>>28];
-	return kprobe_decode_insn(insn, asi, kprobe_decode_arm_table, false,
+	return probes_decode_insn(insn, asi, probes_decode_arm_table, false,
 				  actions);
 }

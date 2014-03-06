@@ -64,4 +64,10 @@ void __kprobes simulate_mrs(probes_opcode_t opcode,
 void __kprobes simulate_mov_ipsp(probes_opcode_t opcode,
 	struct arch_specific_insn *asi, struct pt_regs *regs);
 
+extern const union decode_item probes_decode_arm_table[];
+
+enum probes_insn arm_probes_decode_insn(probes_opcode_t,
+		struct arch_specific_insn *,
+		const union decode_action *actions);
+
 #endif
