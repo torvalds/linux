@@ -455,9 +455,11 @@ static void xenvif_add_frag_responses(struct xenvif *vif, int status,
 	}
 }
 
-struct skb_cb_overlay {
+struct xenvif_rx_cb {
 	int meta_slots_used;
 };
+
+#define XENVIF_RX_CB(skb) ((struct xenvif_rx_cb *)(skb)->cb)
 
 void xenvif_kick_thread(struct xenvif *vif)
 {
@@ -474,7 +476,6 @@ static void xenvif_rx_action(struct xenvif *vif)
 	LIST_HEAD(notify);
 	int ret;
 	unsigned long offset;
-	struct skb_cb_overlay *sco;
 	bool need_to_notify = false;
 
 	struct netrx_pending_operations npo = {
@@ -513,9 +514,8 @@ static void xenvif_rx_action(struct xenvif *vif)
 		} else
 			vif->rx_last_skb_slots = 0;
 
-		sco = (struct skb_cb_overlay *)skb->cb;
-		sco->meta_slots_used = xenvif_gop_skb(skb, &npo);
-		BUG_ON(sco->meta_slots_used > max_slots_needed);
+		XENVIF_RX_CB(skb)->meta_slots_used = xenvif_gop_skb(skb, &npo);
+		BUG_ON(XENVIF_RX_CB(skb)->meta_slots_used > max_slots_needed);
 
 		__skb_queue_tail(&rxq, skb);
 	}
@@ -529,7 +529,6 @@ static void xenvif_rx_action(struct xenvif *vif)
 	gnttab_batch_copy(vif->grant_copy_op, npo.copy_prod);
 
 	while ((skb = __skb_dequeue(&rxq)) != NULL) {
-		sco = (struct skb_cb_overlay *)skb->cb;
 
 		if ((1 << vif->meta[npo.meta_cons].gso_type) &
 		    vif->gso_prefix_mask) {
@@ -540,19 +539,21 @@ static void xenvif_rx_action(struct xenvif *vif)
 
 			resp->offset = vif->meta[npo.meta_cons].gso_size;
 			resp->id = vif->meta[npo.meta_cons].id;
-			resp->status = sco->meta_slots_used;
+			resp->status = XENVIF_RX_CB(skb)->meta_slots_used;
 
 			npo.meta_cons++;
-			sco->meta_slots_used--;
+			XENVIF_RX_CB(skb)->meta_slots_used--;
 		}
 
 
 		vif->dev->stats.tx_bytes += skb->len;
 		vif->dev->stats.tx_packets++;
 
-		status = xenvif_check_gop(vif, sco->meta_slots_used, &npo);
+		status = xenvif_check_gop(vif,
+					  XENVIF_RX_CB(skb)->meta_slots_used,
+					  &npo);
 
-		if (sco->meta_slots_used == 1)
+		if (XENVIF_RX_CB(skb)->meta_slots_used == 1)
 			flags = 0;
 		else
 			flags = XEN_NETRXF_more_data;
@@ -589,13 +590,13 @@ static void xenvif_rx_action(struct xenvif *vif)
 
 		xenvif_add_frag_responses(vif, status,
 					  vif->meta + npo.meta_cons + 1,
-					  sco->meta_slots_used);
+					  XENVIF_RX_CB(skb)->meta_slots_used);
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->rx, ret);
 
 		need_to_notify |= !!ret;
 
-		npo.meta_cons += sco->meta_slots_used;
+		npo.meta_cons += XENVIF_RX_CB(skb)->meta_slots_used;
 		dev_kfree_skb(skb);
 	}
 
@@ -772,6 +773,13 @@ static struct page *xenvif_alloc_page(struct xenvif *vif,
 	return page;
 }
 
+
+struct xenvif_tx_cb {
+	u16 pending_idx;
+};
+
+#define XENVIF_TX_CB(skb) ((struct xenvif_tx_cb *)(skb)->cb)
+
 static struct gnttab_copy *xenvif_get_requests(struct xenvif *vif,
 					       struct sk_buff *skb,
 					       struct xen_netif_tx_request *txp,
@@ -779,7 +787,7 @@ static struct gnttab_copy *xenvif_get_requests(struct xenvif *vif,
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	skb_frag_t *frags = shinfo->frags;
-	u16 pending_idx = *((u16 *)skb->data);
+	u16 pending_idx = XENVIF_TX_CB(skb)->pending_idx;
 	u16 head_idx = 0;
 	int slot, start;
 	struct page *page;
@@ -897,7 +905,7 @@ static int xenvif_tx_check_gop(struct xenvif *vif,
 			       struct gnttab_copy **gopp)
 {
 	struct gnttab_copy *gop = *gopp;
-	u16 pending_idx = *((u16 *)skb->data);
+	u16 pending_idx = XENVIF_TX_CB(skb)->pending_idx;
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	struct pending_tx_info *tx_info;
 	int nr_frags = shinfo->nr_frags;
@@ -944,7 +952,7 @@ static int xenvif_tx_check_gop(struct xenvif *vif,
 			continue;
 
 		/* First error: invalidate header and preceding fragments. */
-		pending_idx = *((u16 *)skb->data);
+		pending_idx = XENVIF_TX_CB(skb)->pending_idx;
 		xenvif_idx_release(vif, pending_idx, XEN_NETIF_RSP_OKAY);
 		for (j = start; j < i; j++) {
 			pending_idx = frag_get_pending_idx(&shinfo->frags[j]);
@@ -1236,7 +1244,7 @@ static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
 		memcpy(&vif->pending_tx_info[pending_idx].req,
 		       &txreq, sizeof(txreq));
 		vif->pending_tx_info[pending_idx].head = index;
-		*((u16 *)skb->data) = pending_idx;
+		XENVIF_TX_CB(skb)->pending_idx = pending_idx;
 
 		__skb_put(skb, data_len);
 
@@ -1283,7 +1291,7 @@ static int xenvif_tx_submit(struct xenvif *vif)
 		u16 pending_idx;
 		unsigned data_len;
 
-		pending_idx = *((u16 *)skb->data);
+		pending_idx = XENVIF_TX_CB(skb)->pending_idx;
 		txp = &vif->pending_tx_info[pending_idx].req;
 
 		/* Check the remap error code. */
