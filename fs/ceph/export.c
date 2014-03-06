@@ -202,9 +202,49 @@ static struct dentry *ceph_fh_to_parent(struct super_block *sb,
 	return dentry;
 }
 
+static int ceph_get_name(struct dentry *parent, char *name,
+			 struct dentry *child)
+{
+	struct ceph_mds_client *mdsc;
+	struct ceph_mds_request *req;
+	int err;
+
+	mdsc = ceph_inode_to_client(child->d_inode)->mdsc;
+	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPNAME,
+				       USE_ANY_MDS);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	mutex_lock(&parent->d_inode->i_mutex);
+
+	req->r_inode = child->d_inode;
+	ihold(child->d_inode);
+	req->r_ino2 = ceph_vino(parent->d_inode);
+	req->r_locked_dir = parent->d_inode;
+	req->r_num_caps = 2;
+	err = ceph_mdsc_do_request(mdsc, NULL, req);
+
+	mutex_unlock(&parent->d_inode->i_mutex);
+
+	if (!err) {
+		struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
+		memcpy(name, rinfo->dname, rinfo->dname_len);
+		name[rinfo->dname_len] = 0;
+		dout("get_name %p ino %llx.%llx name %s\n",
+		     child, ceph_vinop(child->d_inode), name);
+	} else {
+		dout("get_name %p ino %llx.%llx err %d\n",
+		     child, ceph_vinop(child->d_inode), err);
+	}
+
+	ceph_mdsc_put_request(req);
+	return err;
+}
+
 const struct export_operations ceph_export_ops = {
 	.encode_fh = ceph_encode_fh,
 	.fh_to_dentry = ceph_fh_to_dentry,
 	.fh_to_parent = ceph_fh_to_parent,
 	.get_parent = ceph_get_parent,
+	.get_name = ceph_get_name,
 };
