@@ -76,6 +76,30 @@ configfrag_hotplug_cpu () {
 	grep -q '^CONFIG_HOTPLUG_CPU=y$' "$1"
 }
 
+# identify_boot_image qemu-cmd
+#
+# Returns the relative path to the kernel build image.  This will be
+# arch/<arch>/boot/bzImage unless overridden with the TORTURE_BOOT_IMAGE
+# environment variable.
+identify_boot_image () {
+	if test -n "$TORTURE_BOOT_IMAGE"
+	then
+		echo $TORTURE_BOOT_IMAGE
+	else
+		case "$1" in
+		qemu-system-x86_64|qemu-system-i386)
+			echo arch/x86/boot/bzImage
+			;;
+		qemu-system-ppc64)
+			echo arch/powerpc/boot/bzImage
+			;;
+		*)
+			echo ""
+			;;
+		esac
+	fi
+}
+
 # identify_qemu builddir
 #
 # Returns our best guess as to which qemu command is appropriate for

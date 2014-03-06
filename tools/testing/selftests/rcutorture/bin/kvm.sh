@@ -39,6 +39,7 @@ dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
 TORTURE_DEFCONFIG=defconfig
+TORTURE_BOOT_IMAGE=""
 TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
 TORTURE_KMAKE_ARG=""
 TORTURE_SUITE=rcu
@@ -53,6 +54,7 @@ kversion=""
 usage () {
 	echo "Usage: $scriptname optional arguments:"
 	echo "       --bootargs kernel-boot-arguments"
+	echo "       --bootimage relative-path-to-kernel-boot-image"
 	echo "       --buildonly"
 	echo "       --configs \"config-file list\""
 	echo "       --cpus N"
@@ -78,6 +80,11 @@ do
 	--bootargs)
 		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
 		TORTURE_BOOTARGS="$2"
+		shift
+		;;
+	--bootimage)
+		checkarg --bootimage "(relative path to kernel boot image)" "$#" "$2" '[a-zA-Z0-9][a-zA-Z0-9_]*' '^--'
+		TORTURE_BOOT_IMAGE="$2"
 		shift
 		;;
 	--buildonly)
@@ -245,6 +252,7 @@ CONFIGFRAG="$CONFIGFRAG"; export CONFIGFRAG
 KVM="$KVM"; export KVM
 KVPATH="$KVPATH"; export KVPATH
 PATH="$PATH"; export PATH
+TORTURE_BOOT_IMAGE="$TORTURE_BOOT_IMAGE"; export TORTURE_BOOT_IMAGE
 TORTURE_BUILDONLY="$TORTURE_BUILDONLY"; export TORTURE_BUILDONLY
 TORTURE_DEFCONFIG="$TORTURE_DEFCONFIG"; export TORTURE_DEFCONFIG
 TORTURE_INITRD="$TORTURE_INITRD"; export TORTURE_INITRD
