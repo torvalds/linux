@@ -4787,17 +4787,16 @@ simple:
 	return p;
 
 idle:
+	new_tasks = idle_balance(rq);
 	/*
 	 * Because idle_balance() releases (and re-acquires) rq->lock, it is
 	 * possible for any higher priority task to appear. In that case we
 	 * must re-start the pick_next_entity() loop.
 	 */
-	new_tasks = idle_balance(rq);
-
-	if (rq->nr_running != rq->cfs.h_nr_running)
+	if (new_tasks < 0)
 		return RETRY_TASK;
 
-	if (new_tasks)
+	if (new_tasks > 0)
 		goto again;
 
 	return NULL;
@@ -6728,8 +6727,14 @@ static int idle_balance(struct rq *this_rq)
 		this_rq->max_idle_balance_cost = curr_cost;
 
 out:
-	if (pulled_task)
+	/* Is there a task of a high priority class? */
+	if (this_rq->nr_running != this_rq->cfs.h_nr_running)
+		pulled_task = -1;
+
+	if (pulled_task) {
+		idle_exit_fair(this_rq);
 		this_rq->idle_stamp = 0;
+	}
 
 	return pulled_task;
 }
