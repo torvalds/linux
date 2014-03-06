@@ -595,7 +595,7 @@ static void btrfs_run_ordered_extent_work(struct btrfs_work *work)
  * wait for all the ordered extents in a root.  This is done when balancing
  * space between drives.
  */
-static int __btrfs_wait_ordered_extents(struct btrfs_root *root, int nr)
+int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr)
 {
 	struct list_head splice, works;
 	struct btrfs_ordered_extent *ordered, *next;
@@ -604,6 +604,7 @@ static int __btrfs_wait_ordered_extents(struct btrfs_root *root, int nr)
 	INIT_LIST_HEAD(&splice);
 	INIT_LIST_HEAD(&works);
 
+	mutex_lock(&root->ordered_extent_mutex);
 	spin_lock(&root->ordered_extent_lock);
 	list_splice_init(&root->ordered_extents, &splice);
 	while (!list_empty(&splice) && nr) {
@@ -635,17 +636,7 @@ static int __btrfs_wait_ordered_extents(struct btrfs_root *root, int nr)
 		btrfs_put_ordered_extent(ordered);
 		cond_resched();
 	}
-
-	return count;
-}
-
-int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr)
-{
-	int count;
-
-	mutex_lock(&root->fs_info->ordered_operations_mutex);
-	count = __btrfs_wait_ordered_extents(root, nr);
-	mutex_unlock(&root->fs_info->ordered_operations_mutex);
+	mutex_unlock(&root->ordered_extent_mutex);
 
 	return count;
 }
@@ -670,7 +661,7 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr)
 			       &fs_info->ordered_roots);
 		spin_unlock(&fs_info->ordered_root_lock);
 
-		done = __btrfs_wait_ordered_extents(root, nr);
+		done = btrfs_wait_ordered_extents(root, nr);
 		btrfs_put_fs_root(root);
 
 		spin_lock(&fs_info->ordered_root_lock);
