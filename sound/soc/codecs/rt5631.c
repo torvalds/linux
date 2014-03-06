@@ -62,9 +62,6 @@ struct work_struct  spk_work;
 static int last_is_spk = -1;	//bard 9-13
 #endif
 
-#ifdef CONFIG_MACH_RK_FAC 
-	rt5631_hdmi_ctrl=0;
-#endif
 static struct snd_soc_codec *rt5631_codec;
 struct delayed_work rt5631_delay_cap; //bard 7-16
 EXPORT_SYMBOL(rt5631_delay_cap); //bard 7-16
@@ -1563,7 +1560,7 @@ static const struct pll_div codec_slave_pll_div[] = {
 	{3072000,  12288000,  0x0a90},
 };
 
-struct coeff_clk_div coeff_div[] = {
+static struct coeff_clk_div coeff_div[] = {
 	/* sysclk is 256fs */
 	{2048000,  8000 * 32,  8000, 0x1000},
 	{2048000,  8000 * 64,  8000, 0x0000},
@@ -1908,7 +1905,7 @@ static DEVICE_ATTR(index_reg, 0444, rt5631_index_reg_show, NULL);
 			SNDRV_PCM_FMTBIT_S24_LE | \
 			SNDRV_PCM_FMTBIT_S8)
 
-struct snd_soc_dai_ops rt5631_ops = {
+static struct snd_soc_dai_ops rt5631_ops = {
 	.hw_params = rt5631_hifi_pcm_params,
 	.set_fmt = rt5631_hifi_codec_set_dai_fmt,
 	.set_sysclk = rt5631_hifi_codec_set_dai_sysclk,
@@ -1918,7 +1915,7 @@ struct snd_soc_dai_ops rt5631_ops = {
 #endif
 };
 
-struct snd_soc_dai_driver rt5631_dai[] = {
+static struct snd_soc_dai_driver rt5631_dai[] = {
 	{
 		.name = "rt5631-hifi",
 		.playback = {
@@ -1938,7 +1935,6 @@ struct snd_soc_dai_driver rt5631_dai[] = {
 		.ops = &rt5631_ops,
 	},
 };
-EXPORT_SYMBOL_GPL(rt5631_dai);
 
 static int rt5631_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
@@ -2099,40 +2095,12 @@ static int rt5631_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_MACH_RK_FAC
 void rt5631_codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rt5631_codec;	
-	if(rt5631_hdmi_ctrl)
-	{
-		DBG("%s: %d\n", __func__, on);
-		
-		if(!codec)
-			return;
-		mutex_lock(&codec->mutex);
-		if(on){
-			DBG("snd_soc_dapm_enable_pin\n");
-			snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-			snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-		}
-		else{
-			DBG("snd_soc_dapm_disable_pin\n");
-			snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-			snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-		}
-	
-		snd_soc_dapm_sync(&codec->dapm);
-		mutex_unlock(&codec->mutex);
-	}
-	return;
-}
-#else
-void codec_set_spk(bool on)
-{
-	struct snd_soc_codec *codec = rt5631_codec;
 
 	DBG("%s: %d\n", __func__, on);
-
+		
 	if(!codec)
 		return;
 	mutex_lock(&codec->mutex);
@@ -2146,12 +2114,12 @@ void codec_set_spk(bool on)
 		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
 		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
 	}
-
 	snd_soc_dapm_sync(&codec->dapm);
 	mutex_unlock(&codec->mutex);
+
 	return;
 }
-#endif 
+EXPORT_SYMBOL_GPL(rt5631_codec_set_spk);
 
 /*
  * detect short current for mic1
@@ -2212,9 +2180,6 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 			rt5631_dai, ARRAY_SIZE(rt5631_dai));
 	if (ret < 0)
 		kfree(rt5631);
-#ifdef CONFIG_MACH_RK_FAC             
-  	rt5631_hdmi_ctrl=1;
-#endif 
 
 	return ret;
 }
@@ -2226,7 +2191,7 @@ static int rt5631_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-struct i2c_driver rt5631_i2c_driver = {
+static struct i2c_driver rt5631_i2c_driver = {
 	.driver = {
 		.name = "rt5631",
 		.owner = THIS_MODULE,
