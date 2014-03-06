@@ -519,37 +519,25 @@ static int dgap_init_module(void)
 
 	dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
 
-	/*
-	 * Initialize global stuff
-	 */
 	rc = dgap_start();
-
-	if (rc < 0)
+	if (rc)
 		return rc;
 
-	/*
-	 * Find and configure all the cards
-	 */
 	rc = dgap_init_pci();
+	if (rc)
+		goto err_cleanup;
 
-	/*
-	 * If something went wrong in the scan, bail out of driver.
-	 */
-	if (rc < 0) {
-		/* Only unregister the pci driver if it was actually registered. */
-		if (dgap_NumBoards)
-			pci_unregister_driver(&dgap_driver);
-		else
-			pr_err("dgap: driver load failed. No boards found.\n");
+	rc = dgap_create_driver_sysfiles(&dgap_driver);
+	if (rc)
+		goto err_cleanup;
 
-		dgap_cleanup_module();
-	} else {
-		rc = dgap_create_driver_sysfiles(&dgap_driver);
-		if (rc)
-			dgap_cleanup_module();
-		else
-			dgap_driver_state = DRIVER_READY;
-	}
+	dgap_driver_state = DRIVER_READY;
+
+	return 0;
+
+err_cleanup:
+
+	dgap_cleanup_module();
 
 	return rc;
 }
