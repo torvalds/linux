@@ -1455,6 +1455,35 @@ static int __comedi_get_user_cmd(struct comedi_device *dev,
 	return 0;
 }
 
+static int __comedi_get_user_chanlist(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      unsigned int __user *user_chanlist,
+				      struct comedi_cmd *cmd)
+{
+	unsigned int *chanlist;
+	int ret;
+
+	/* user_chanlist could be NULL for do_cmdtest ioctls */
+	if (!user_chanlist)
+		return 0;
+
+	chanlist = memdup_user(user_chanlist,
+			       cmd->chanlist_len * sizeof(unsigned int));
+	if (IS_ERR(chanlist))
+		return PTR_ERR(chanlist);
+
+	/* make sure each element in channel/gain list is valid */
+	ret = comedi_check_chanlist(s, cmd->chanlist_len, chanlist);
+	if (ret < 0) {
+		kfree(chanlist);
+		return ret;
+	}
+
+	cmd->chanlist = chanlist;
+
+	return 0;
+}
+
 static int do_cmd_ioctl(struct comedi_device *dev,
 			struct comedi_cmd __user *arg, void *file)
 {
@@ -1496,26 +1525,11 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	async->cmd = cmd;
 	async->cmd.data = NULL;
-	/* load channel/gain list */
-	async->cmd.chanlist = memdup_user(user_chanlist,
-					  async->cmd.chanlist_len *
-					  sizeof(int));
-	if (IS_ERR(async->cmd.chanlist)) {
-		ret = PTR_ERR(async->cmd.chanlist);
-		async->cmd.chanlist = NULL;
-		dev_dbg(dev->class_dev, "memdup_user failed with code %d\n",
-			ret);
-		goto cleanup;
-	}
 
-	/* make sure each element in channel/gain list is valid */
-	ret = comedi_check_chanlist(s,
-				    async->cmd.chanlist_len,
-				    async->cmd.chanlist);
-	if (ret < 0) {
-		dev_dbg(dev->class_dev, "bad chanlist\n");
+	/* load channel/gain list */
+	ret = __comedi_get_user_chanlist(dev, s, user_chanlist, &async->cmd);
+	if (ret)
 		goto cleanup;
-	}
 
 	ret = s->do_cmdtest(dev, s, &async->cmd);
 
@@ -1598,26 +1612,9 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	s = &dev->subdevices[cmd.subdev];
 
 	/* load channel/gain list */
-	if (cmd.chanlist) {
-		chanlist = memdup_user(user_chanlist,
-				       cmd.chanlist_len * sizeof(int));
-		if (IS_ERR(chanlist)) {
-			ret = PTR_ERR(chanlist);
-			chanlist = NULL;
-			dev_dbg(dev->class_dev,
-				"memdup_user exited with code %d", ret);
-			goto cleanup;
-		}
-
-		/* make sure each element in channel/gain list is valid */
-		ret = comedi_check_chanlist(s, cmd.chanlist_len, chanlist);
-		if (ret < 0) {
-			dev_dbg(dev->class_dev, "bad chanlist\n");
-			goto cleanup;
-		}
-
-		cmd.chanlist = chanlist;
-	}
+	ret = __comedi_get_user_chanlist(dev, s, user_chanlist, &cmd);
+	if (ret)
+		return ret;
 
 	ret = s->do_cmdtest(dev, s, &cmd);
 
@@ -1627,9 +1624,8 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
 		dev_dbg(dev->class_dev, "bad cmd address\n");
 		ret = -EFAULT;
-		goto cleanup;
 	}
-cleanup:
+
 	kfree(chanlist);
 
 	return ret;
