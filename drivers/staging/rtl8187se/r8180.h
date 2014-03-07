@@ -167,11 +167,11 @@ typedef union _ThreeWire {
 } ThreeWireReg;
 
 
-typedef struct buffer {
+struct buffer {
 	struct buffer *next;
 	u32 *buf;
 	dma_addr_t dma;
-} buffer;
+};
 
 /* YJ,modified,080828. */
 struct stats {
