@@ -7049,13 +7049,6 @@ void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
 static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
-	WARN(dev_priv->pc8.disable_count < 1,
-	     "pc8.disable_count: %d\n", dev_priv->pc8.disable_count);
-
-	dev_priv->pc8.disable_count--;
-	if (dev_priv->pc8.disable_count != 0)
-		return;
-
 	intel_runtime_pm_put(dev_priv);
 }
 
@@ -7089,13 +7082,6 @@ void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv)
 static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
-	WARN(dev_priv->pc8.disable_count < 0,
-	     "pc8.disable_count: %d\n", dev_priv->pc8.disable_count);
-
-	dev_priv->pc8.disable_count++;
-	if (dev_priv->pc8.disable_count != 1)
-		return;
-
 	intel_runtime_pm_get(dev_priv);
 }
 

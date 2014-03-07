@@ -1393,7 +1393,6 @@ struct i915_package_c8 {
 	bool irqs_disabled;
 	/* Only true after the delayed work task actually enables it. */
 	bool enabled;
-	int disable_count;
 	struct mutex lock;
 
 	struct {
