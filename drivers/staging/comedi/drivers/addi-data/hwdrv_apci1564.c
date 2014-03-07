@@ -46,20 +46,9 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI1564_ADDRESS_RANGE				128
 
-/* DIGITAL INPUT-OUTPUT DEFINE */
-
-/* Output defines */
-#define APCI1564_DIGITAL_OP				0x18
-#define APCI1564_DIGITAL_OP_RW				0
-#define APCI1564_DIGITAL_OP_INTERRUPT			4
-#define APCI1564_DIGITAL_OP_IRQ				12
-
 /* Digital Input IRQ Function Selection */
 #define ADDIDATA_OR					0
 #define ADDIDATA_AND					1
-
-/* Digital Output Interrupt Status */
-#define APCI1564_DIGITAL_OP_INTERRUPT_STATUS		8
 
 /* Digital Input Interrupt Enable Disable. */
 #define APCI1564_DIGITAL_IP_INTERRUPT_ENABLE		0x4
@@ -99,6 +88,10 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI1564_DI_INT_MODE2_REG				0x0c
 #define APCI1564_DI_INT_STATUS_REG				0x10
 #define APCI1564_DI_IRQ_REG					0x14
+#define APCI1564_DO_REG						0x18
+#define APCI1564_DO_INT_CTRL_REG				0x1c
+#define APCI1564_DO_INT_STATUS_REG				0x20
+#define APCI1564_DO_IRQ_REG					0x24
 
 /* Global variables */
 static unsigned int ui_InterruptStatus_1564;
@@ -226,12 +219,8 @@ static int i_APCI1564_ConfigDigitalOutput(struct comedi_device *dev,
 	else
 		ul_Command = ul_Command & 0xFFFFFFFD;
 
-	outl(ul_Command,
-		devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-		APCI1564_DIGITAL_OP_INTERRUPT);
-	ui_InterruptData =
-		inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-		APCI1564_DIGITAL_OP_INTERRUPT);
+	outl(ul_Command, devpriv->i_IobaseAmcc + APCI1564_DO_INT_CTRL_REG);
+	ui_InterruptData = inl(devpriv->i_IobaseAmcc + APCI1564_DO_INT_CTRL_REG);
 	devpriv->tsk_Current = current;
 	return insn->n;
 }
@@ -243,12 +232,10 @@ static int apci1564_do_insn_bits(struct comedi_device *dev,
 {
 	struct addi_private *devpriv = dev->private;
 
-	s->state = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-			APCI1564_DIGITAL_OP_RW);
+	s->state = inl(devpriv->i_IobaseAmcc + APCI1564_DO_REG);
 
 	if (comedi_dio_update_state(s, data))
-		outl(s->state, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-			APCI1564_DIGITAL_OP_RW);
+		outl(s->state, devpriv->i_IobaseAmcc + APCI1564_DO_REG);
 
 	data[1] = s->state;
 
@@ -317,9 +304,7 @@ static int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 		if (data[1] == 1) {
 			outl(0x02, devpriv->i_IobaseAmcc + APCI1564_TIMER + APCI1564_TCW_PROG);	/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
 			outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DI_IRQ_REG);
-			outl(0x0,
-				devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-				APCI1564_DIGITAL_OP_IRQ);
+			outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DO_IRQ_REG);
 			outl(0x0,
 				devpriv->i_IobaseAmcc +
 				APCI1564_DIGITAL_OP_WATCHDOG +
@@ -634,8 +619,7 @@ static void v_APCI1564_Interrupt(int irq, void *d)
 	unsigned int ul_Command2 = 0;
 
 	ui_DI = inl(devpriv->i_IobaseAmcc + APCI1564_DI_IRQ_REG) & 0x01;
-	ui_DO = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-		APCI1564_DIGITAL_OP_IRQ) & 0x01;
+	ui_DO = inl(devpriv->i_IobaseAmcc + APCI1564_DO_IRQ_REG) & 0x01;
 	ui_Timer =
 		inl(devpriv->i_IobaseAmcc + APCI1564_TIMER +
 		APCI1564_TCW_IRQ) & 0x01;
@@ -666,13 +650,9 @@ static void v_APCI1564_Interrupt(int irq, void *d)
 
 	if (ui_DO == 1) {
 		/*  Check for Digital Output interrupt Type - 1: Vcc interrupt 2: CC interrupt. */
-		ui_Type =
-			inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-			APCI1564_DIGITAL_OP_INTERRUPT_STATUS) & 0x3;
+		ui_Type = inl(devpriv->i_IobaseAmcc + APCI1564_DO_INT_STATUS_REG) & 0x3;
 		/* Disable the  Interrupt */
-		outl(0x0,
-			devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-			APCI1564_DIGITAL_OP_INTERRUPT);
+		outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DO_INT_CTRL_REG);
 
 		/* Sends signal to user space */
 		send_sig(SIGIO, devpriv->tsk_Current, 0);
@@ -819,8 +799,10 @@ static int i_APCI1564_Reset(struct comedi_device *dev)
 	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DI_INT_MODE2_REG);
 	devpriv->b_DigitalOutputRegister = 0;
 	ui_Type = 0;
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP);	/* Resets the output channels */
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP_INTERRUPT);	/* Disables the interrupt. */
+	/* Resets the output channels */
+	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DO_REG);
+	/* Disables the interrupt. */
+	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DO_INT_CTRL_REG);
 	outl(0x0,
 		devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP_WATCHDOG +
 		APCI1564_TCW_RELOAD_VALUE);
