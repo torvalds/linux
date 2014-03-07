@@ -1415,6 +1415,18 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 	arizona_fll_dbg(fll, "Fref=%u Fout=%u\n", Fref, fll->fout);
 
+	/* Fvco should be over the targt; don't check the upper bound */
+	div = ARIZONA_FLL_MIN_OUTDIV;
+	while (fll->fout * div < ARIZONA_FLL_MIN_FVCO * fll->vco_mult) {
+		div++;
+		if (div > ARIZONA_FLL_MAX_OUTDIV)
+			return -EINVAL;
+	}
+	target = fll->fout * div / fll->vco_mult;
+	cfg->outdiv = div;
+
+	arizona_fll_dbg(fll, "Fvco=%dHz\n", target);
+
 	/* Fref must be <=13.5MHz */
 	div = 1;
 	cfg->refdiv = 0;
@@ -1428,18 +1440,6 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 	/* Apply the division for our remaining calculations */
 	Fref /= div;
-
-	/* Fvco should be over the targt; don't check the upper bound */
-	div = ARIZONA_FLL_MIN_OUTDIV;
-	while (fll->fout * div < ARIZONA_FLL_MIN_FVCO * fll->vco_mult) {
-		div++;
-		if (div > ARIZONA_FLL_MAX_OUTDIV)
-			return -EINVAL;
-	}
-	target = fll->fout * div / fll->vco_mult;
-	cfg->outdiv = div;
-
-	arizona_fll_dbg(fll, "Fvco=%dHz\n", target);
 
 	/* Find an appropraite FLL_FRATIO and factor it out of the target */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
