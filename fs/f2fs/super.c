@@ -546,11 +546,12 @@ static int segment_info_seq_show(struct seq_file *seq, void *offset)
 
 	for (i = 0; i < total_segs; i++) {
 		seq_printf(seq, "%u", get_valid_blocks(sbi, i, 1));
-		if (i != 0 && (i % 10) == 0)
-			seq_puts(seq, "\n");
+		if ((i % 10) == 9 || i == (total_segs - 1))
+			seq_putc(seq, '\n');
 		else
-			seq_puts(seq, " ");
+			seq_putc(seq, ' ');
 	}
+
 	return 0;
 }
 
