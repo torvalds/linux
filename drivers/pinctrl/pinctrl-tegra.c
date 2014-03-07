@@ -39,6 +39,7 @@ struct tegra_pmx {
 	struct pinctrl_dev *pctl;
 
 	const struct tegra_pinctrl_soc_data *soc;
+	const char **group_pins;
 
 	int nbanks;
 	void __iomem **regs;
@@ -620,6 +621,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	struct tegra_pmx *pmx;
 	struct resource *res;
 	int i;
+	const char **group_pins;
+	int fn, gn, gfn;
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx) {
@@ -628,6 +631,41 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	}
 	pmx->dev = &pdev->dev;
 	pmx->soc = soc_data;
+
+	/*
+	 * Each mux group will appear in 4 functions' list of groups.
+	 * This over-allocates slightly, since not all groups are mux groups.
+	 */
+	pmx->group_pins = devm_kzalloc(&pdev->dev,
+		soc_data->ngroups * 4 * sizeof(*pmx->group_pins),
+		GFP_KERNEL);
+	if (!pmx->group_pins)
+		return -ENOMEM;
+
+	group_pins = pmx->group_pins;
+	for (fn = 0; fn < soc_data->nfunctions; fn++) {
+		struct tegra_function *func = &soc_data->functions[fn];
+
+		func->groups = group_pins;
+
+		for (gn = 0; gn < soc_data->ngroups; gn++) {
+			const struct tegra_pingroup *g = &soc_data->groups[gn];
+
+			if (g->mux_reg == -1)
+				continue;
+
+			for (gfn = 0; gfn < 4; gfn++)
+				if (g->funcs[gfn] == fn)
+					break;
+			if (gfn == 4)
+				continue;
+
+			BUG_ON(group_pins - pmx->group_pins >=
+				soc_data->ngroups * 4);
+			*group_pins++ = g->name;
+			func->ngroups++;
+		}
+	}
 
 	tegra_pinctrl_gpio_range.npins = pmx->soc->ngpios;
 	tegra_pinctrl_desc.name = dev_name(&pdev->dev);
