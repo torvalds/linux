@@ -6677,6 +6677,66 @@ static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 	}
 }
 
+static void ironlake_get_plane_config(struct intel_crtc *crtc,
+				      struct intel_plane_config *plane_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, base, offset;
+	int pipe = crtc->pipe, plane = crtc->plane;
+	int fourcc, pixel_format;
+	int aligned_height;
+
+	plane_config->fb = kzalloc(sizeof(*plane_config->fb), GFP_KERNEL);
+	if (!plane_config->fb) {
+		DRM_DEBUG_KMS("failed to alloc fb\n");
+		return;
+	}
+
+	val = I915_READ(DSPCNTR(plane));
+
+	if (INTEL_INFO(dev)->gen >= 4)
+		if (val & DISPPLANE_TILED)
+			plane_config->tiled = true;
+
+	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
+	fourcc = intel_format_to_fourcc(pixel_format);
+	plane_config->fb->base.pixel_format = fourcc;
+	plane_config->fb->base.bits_per_pixel =
+		drm_format_plane_cpp(fourcc, 0) * 8;
+
+	base = I915_READ(DSPSURF(plane)) & 0xfffff000;
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		offset = I915_READ(DSPOFFSET(plane));
+	} else {
+		if (plane_config->tiled)
+			offset = I915_READ(DSPTILEOFF(plane));
+		else
+			offset = I915_READ(DSPLINOFF(plane));
+	}
+	plane_config->base = base;
+
+	val = I915_READ(PIPESRC(pipe));
+	plane_config->fb->base.width = ((val >> 16) & 0xfff) + 1;
+	plane_config->fb->base.height = ((val >> 0) & 0xfff) + 1;
+
+	val = I915_READ(DSPSTRIDE(pipe));
+	plane_config->fb->base.pitches[0] = val & 0xffffff80;
+
+	aligned_height = intel_align_height(dev, plane_config->fb->base.height,
+					    plane_config->tiled);
+
+	plane_config->size = ALIGN(plane_config->fb->base.pitches[0] *
+				   aligned_height, PAGE_SIZE);
+
+	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		      pipe, plane, plane_config->fb->base.width,
+		      plane_config->fb->base.height,
+		      plane_config->fb->base.bits_per_pixel, base,
+		      plane_config->fb->base.pitches[0],
+		      plane_config->size);
+}
+
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 				     struct intel_crtc_config *pipe_config)
 {
@@ -10875,6 +10935,7 @@ static void intel_init_display(struct drm_device *dev)
 
 	if (HAS_DDI(dev)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
+		dev_priv->display.get_plane_config = ironlake_get_plane_config;
 		dev_priv->display.crtc_mode_set = haswell_crtc_mode_set;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
@@ -10882,6 +10943,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
+		dev_priv->display.get_plane_config = ironlake_get_plane_config;
 		dev_priv->display.crtc_mode_set = ironlake_crtc_mode_set;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
