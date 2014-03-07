@@ -1645,6 +1645,7 @@ static inline void mmc_bus_put(struct mmc_host *host)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+/*
 int mmc_resume_bus(struct mmc_host *host)
 {
 	unsigned long flags;
@@ -1674,6 +1675,7 @@ int mmc_resume_bus(struct mmc_host *host)
 }
 
 EXPORT_SYMBOL(mmc_resume_bus);
+*/
 
 /*
  * Assign a mmc bus handler to a host. Only one bus handler may control a
