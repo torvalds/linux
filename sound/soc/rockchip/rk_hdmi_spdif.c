@@ -63,10 +63,25 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned long pll_out, rclk_rate;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	unsigned long pll_out, rclk_rate, dai_fmt = rtd->dai_link->dai_fmt;
 	int ret, ratio;
 
 	RK_SPDIF_DBG("spdif:Entered %s\n", __func__);
+
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
+	if (ret < 0) {
+		printk("%s():failed to set the format for codec side\n", __func__);
+		return ret;
+	}
+
+	/* set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
+	if (ret < 0) {
+		printk("%s():failed to set the format for cpu side\n", __func__);
+		return ret;
+	}
   
 	switch (params_rate(params)) {
 	case 44100:

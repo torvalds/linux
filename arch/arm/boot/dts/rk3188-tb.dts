@@ -68,8 +68,8 @@
 		compatible = "rockchip-rt5631";
 		dais {
 			dai0 {
-				codec-of-node = <&rt5631>;
-				cpu-of-node = <&i2s0>;
+				audio-codec = <&rt5631>;
+				i2s-controller = <&i2s0>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -84,8 +84,8 @@
 		compatible = "rockchip-rk610";
 		dais {
 			dai0 {
-				codec-of-node = <&rk610_codec>;
-				cpu-of-node = <&i2s0>;
+				audio-codec = <&rk610_codec>;
+				i2s-controller = <&i2s0>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -100,8 +100,8 @@
 		compatible = "rockchip-hdmi-i2s";
 		dais {
 			dai0 {
-				codec-of-node = <&codec_hdmi_i2s>;
-				cpu-of-node = <&i2s0>;
+				audio-codec = <&codec_hdmi_i2s>;
+				i2s-controller = <&i2s0>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;

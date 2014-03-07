@@ -1,6 +1,7 @@
 /dts-v1/;
 
 #include "rk3288.dtsi"
+#include "lcd-td043mgeal.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-fpga";
@@ -86,4 +87,18 @@
 		pa_enable_time = <1000>;
 	};
 
+};
+
+&fb {
+	rockchip,disp-mode = <DUAL>;
+};
+
+&lcdc0 {
+	status = "okay";
+	power_ctr = <&disp_power_ctr>;
+	display-timings = <&disp_timings>;
+};
+
+&lcdc1 {
+	status = "okay";
 };

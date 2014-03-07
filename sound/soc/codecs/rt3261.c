@@ -3580,7 +3580,7 @@ MODULE_DEVICE_TABLE(i2c, rt3261_i2c_id);
 #ifdef CONFIG_OF
 /*
 dts:
-	codec@1c {
+	rt3261: rt3261@1c {
 		compatible = "rt3261";
 		reg = <0x1c>;
 		codec-en-gpio = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;

@@ -25,10 +25,16 @@
 #if defined(CONFIG_OF)
 #include <dt-bindings/rkfb/rk_fb.h>
 #endif
+#include "../../drivers/staging/android/sw_sync.h"
+#include <linux/file.h>
+#include <linux/kthread.h>
+
 
 #define RK30_MAX_LCDC_SUPPORT	4
 #define RK30_MAX_LAYER_SUPPORT	4
-#define RK_MAX_FB_SUPPORT       8
+#define RK_MAX_FB_SUPPORT       4
+#define RK_WIN_MAX_AREA		4
+#define RK_MAX_BUF_NUM       	10
 
 #define FB0_IOCTL_STOP_TIMER_FLUSH		0x6001
 #define FB0_IOCTL_SET_PANEL				0x6002
@@ -61,6 +67,9 @@
 #define RK_FBIOSET_VSYNC_ENABLE		0x4629
 #define RK_FBIOPUT_NUM_BUFFERS 		0x4625
 #define RK_FBIOPUT_COLOR_KEY_CFG	0x4626
+#define RK_FBIOGET_DSP_ADDR     	0x4630
+#define RK_FBIOGET_LIST_STAT   		0X4631
+
 
 /**rk fb events**/
 #define RK_LF_STATUS_FC                  0xef
@@ -149,6 +158,7 @@ enum {
 	HAL_PIXEL_FORMAT_YCrCb_NV12 = 0x20,	// YUY2
 	HAL_PIXEL_FORMAT_YCrCb_NV12_VIDEO = 0x21,	// YUY2
 	HAL_PIXEL_FORMAT_YCrCb_444 = 0x22,	//yuv444
+	HAL_PIXEL_FORMAT_H265 = 0x23,	//yuv444
 
 };
 
@@ -173,7 +183,16 @@ enum fb_win_map_order {
 	FB0_WIN0_FB1_WIN2_FB2_WIN1 = 120,
 	FB0_WIN0_FB1_WIN1_FB2_WIN2 = 210,
 	FB0_WIN1_FB1_WIN0_FB2_WIN2 = 201,
+	FB0_WIN0_FB1_WIN1_FB2_WIN2_FB3_WIN3 = 3210,
 };
+
+enum
+{
+    SCALE_NONE = 0x0,
+    SCALE_UP   = 0x1,
+    SCALE_DOWN = 0x2
+};
+
 
 struct rk_fb_rgb {
 	struct fb_bitfield red;
@@ -224,11 +243,15 @@ typedef enum _TRSP_MODE {
 	TRSP_INVAL
 } TRSP_MODE;
 
-struct rk_lcdc_win {
-	char name[5];
-	int id;
-	bool state;		/*on or off*/
-	u32 pseudo_pal[16];
+struct rk_lcdc_post_cfg{
+	u32 xpos;
+	u32 ypos;
+	u32 xsize;
+	u32 ysize;
+};
+
+struct rk_lcdc_area{
+	bool state;
 	u32 y_offset;		/*yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx*/
 	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
 	u32 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
@@ -241,27 +264,67 @@ struct rk_lcdc_win {
 	u16 yvir;
 	unsigned long smem_start;
 	unsigned long cbr_start;	/*Cbr memory start address*/
-	enum data_format format;
 #if defined(CONFIG_ION_ROCKCHIP)
-	struct ion_handle *ion_hdl;
-	int dma_buf_fd;
+		struct ion_handle *ion_hdl;
+		int dma_buf_fd;
 #endif
-	bool support_3d;
+	u32 dsp_stx;
+	u32 dsp_sty;
+	u32 y_vir_stride;
+	u32 uv_vir_stride;
+	u32 y_addr;
+	u32 uv_addr;
+
+};
+
+
+struct rk_lcdc_win {
+	char name[5];
+	int id;
+	bool state;		/*on or off*/
+	u32 pseudo_pal[16];
+	enum data_format format;
+	u8 z_order;		/*win sel layer*/
+	u8 fmt_cfg;
+	u8 fmt_10;;
+	u8 swap_rb;
+	u32 reserved;
+	u32 area_num;
 	u32 scale_yrgb_x;
 	u32 scale_yrgb_y;
 	u32 scale_cbcr_x;
 	u32 scale_cbcr_y;
-	u32 dsp_stx;
-	u32 dsp_sty;
-	u32 vir_stride;
-	u32 y_addr;
-	u32 uv_addr;
-	u8 fmt_cfg;
-	u8 swap_rb;
-	u32 reserved;
+	bool support_3d;
+
+	u8 win_lb_mode;
+
+	u8 bic_coe_el;
+	u8 yrgb_hor_scl_mode;//h 01:scale up ;10:down
+	u8 yrgb_ver_scl_mode;//v 01:scale up ;10:down
+	u8 yrgb_hsd_mode;//h scale down mode
+	u8 yrgb_vsu_mode;//v scale up mode
+	u8 yrgb_vsd_mode;//v scale down mode
+	u8 cbr_hor_scl_mode;
+	u8 cbr_ver_scl_mode;
+	u8 cbr_hsd_mode;
+	u8 cbr_vsu_mode;
+	u8 cbr_vsd_mode;
+	u8 vsd_yrgb_gt4;
+	u8 vsd_yrgb_gt2;
+	u8 vsd_cbr_gt4;
+	u8 vsd_cbr_gt2;
+
+	u8 alpha_en;
+	u32 alpha_mode;
+	u32 g_alpha_val;
+	u32 color_key_val;
+
+	struct rk_lcdc_area area[RK_WIN_MAX_AREA];
+	struct rk_lcdc_post_cfg post_cfg;
 };
 
 struct rk_lcdc_driver;
+
 
 struct rk_lcdc_drv_ops {
 	int (*open) (struct rk_lcdc_driver * dev_drv, int layer_id, bool open);
@@ -292,7 +355,90 @@ struct rk_lcdc_drv_ops {
 	int (*dpi_open) (struct rk_lcdc_driver * dev_drv, bool open);
 	int (*dpi_win_sel) (struct rk_lcdc_driver * dev_drv, int layer_id);
 	int (*dpi_status) (struct rk_lcdc_driver * dev_drv);
+	int (*get_dsp_addr)(struct rk_lcdc_driver * dev_drv,unsigned int *dsp_addr);
+	int (*set_dsp_cabc) (struct rk_lcdc_driver * dev_drv, int mode);
+	int (*set_dsp_hue) (struct rk_lcdc_driver *dev_drv,int hue);
+	int (*set_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,int bri,int con,int sat);
+};
 
+struct rk_fb_area_par {
+	u16 ion_fd;
+	unsigned long phy_addr;
+	u16 acq_fence_fd;
+	u32 x_offset;
+	u32 y_offset;
+	u32 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
+	u32 ypos;
+	u32 xsize;		/* display window width/height  -->LCDC_WINx_DSP_INFO*/
+	u32 ysize;
+	u32 xact;		/*origin display window size -->LCDC_WINx_ACT_INFO*/
+	u32 yact;
+	u32 xvir;		/*virtual width/height     -->LCDC_WINx_VIR*/
+	u32 yvir;
+};
+
+
+struct rk_fb_win_par {
+	u8 data_format;        /*layer data fmt*/
+	u8 win_id;
+	u8 z_order;		/*win sel layer*/
+	struct rk_fb_area_par area_par[RK_WIN_MAX_AREA];
+	u32 alpha_mode;
+	u32 g_alpha_val;
+};
+
+struct rk_fb_win_cfg_data {
+	u16 ret_fence_fd;
+	u16 rel_fence_fd[RK_MAX_BUF_NUM];
+	struct  rk_fb_win_par win_par[RK30_MAX_LAYER_SUPPORT];
+	struct  rk_lcdc_post_cfg post_cfg;
+	u8      wait_fs;
+	//u8      fence_begin;
+};
+
+struct rk_fb_reg_area_data {
+	struct sync_fence *acq_fence;
+	u8  index_buf;          /*judge if the buffer is index*/
+	u32 y_offset;		/*yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx*/
+	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
+	u32 y_vir_stride;
+	u32 uv_vir_stride;
+	u32 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
+	u32 ypos;
+	u16 xsize;		/* display window width/height  -->LCDC_WINx_DSP_INFO*/
+	u16 ysize;
+	u16 xact;		/*origin display window size -->LCDC_WINx_ACT_INFO*/
+	u16 yact;
+	u16 xvir;		/*virtual width/height     -->LCDC_WINx_VIR*/
+	u16 yvir;
+	unsigned long smem_start;
+	unsigned long cbr_start;	/*Cbr memory start address*/
+	u32 line_length;
+};
+
+struct rk_fb_reg_win_data {
+	u8 data_format;        /*layer data fmt*/
+	u8 win_id;
+	u8 z_order;		/*win sel layer*/
+	u32 area_num;		/*maybe two region have the same dma buff,*/
+	u32 area_buf_num;     /*so area_num  maybe not equal to area_buf_num*/
+	u8 alpha_en;
+	u32 alpha_mode;
+	u32 g_alpha_val;
+	u32 color_key_val;
+
+	struct rk_fb_reg_area_data reg_area_data[RK_WIN_MAX_AREA];
+};
+
+struct rk_fb_reg_data {
+	struct list_head list;
+	int     win_num;
+	int     buf_num;
+	int 	acq_num;
+	struct rk_fb_reg_win_data reg_win_data[RK30_MAX_LAYER_SUPPORT];
+	struct rk_lcdc_post_cfg post_cfg;
+	//struct sync_fence *acq_fence[RK_MAX_BUF_NUM];
+	//int     fence_wait_begin;
 };
 
 struct rk_lcdc_driver {
@@ -302,8 +448,9 @@ struct rk_lcdc_driver {
 	struct device *dev;
 
 	struct rk_lcdc_win *win[RK_MAX_FB_SUPPORT];
-	int num_win;
+	int lcdc_win_num;
 	int num_buf;		//the num_of buffer
+	int atv_layer_cnt;
 	int fb_index_base;	//the first fb index of the lcdc device
 	struct rk_screen *screen0;	//some platform have only one lcdc,but extend
 	struct rk_screen *screen1;	//two display devices for dual display,such as rk2918,rk2928
@@ -313,6 +460,7 @@ struct rk_lcdc_driver {
 	char fb0_win_id;
 	char fb1_win_id;
 	char fb2_win_id;
+	char fb3_win_id;
 	struct mutex fb_win_id_mutex;
 
 	struct completion frame_done;	//sync for pan_display,whe we set a new frame address to lcdc register,we must make sure the frame begain to display
@@ -320,7 +468,16 @@ struct rk_lcdc_driver {
 	int first_frame;
 	struct rk_fb_vsync vsync_info;
 	int wait_fs;		//wait for new frame start in kernel
+	struct sw_sync_timeline *timeline;
+	int			timeline_max;
+	int			suspend_flag;
+	struct list_head	update_regs_list;
+	struct mutex		update_regs_list_lock;
+	struct kthread_worker	update_regs_worker;
+	struct task_struct	*update_regs_thread;
+	struct kthread_work	update_regs_work;
 
+	struct mutex		output_lock;
 	struct rk29fb_info *screen_ctr_info;
 	struct list_head pwrlist_head;
 	struct rk_lcdc_drv_ops *ops;
@@ -338,7 +495,7 @@ struct rk_lcdc_driver {
 struct rk_fb {
 	int disp_mode;
 	struct rk29fb_info *mach_info;
-	struct fb_info *fb[RK_MAX_FB_SUPPORT];
+	struct fb_info *fb[RK_MAX_FB_SUPPORT*2];
 	int num_fb;
 
 	struct rk_lcdc_driver *lcdc_dev_drv[RK30_MAX_LCDC_SUPPORT];
@@ -378,6 +535,8 @@ extern int rkfb_create_sysfs(struct fb_info *fbi);
 extern char *get_format_string(enum data_format, char *fmt);
 extern int support_uboot_display(void);
 extern int  rk_fb_calc_fps(struct rk_screen * screen, u32 pixclock);
+extern void rk_fd_fence_wait(struct rk_lcdc_driver *dev_drv, struct sync_fence *fence);
+extern void rk_fb_free_dma_buf(struct rk_fb_reg_win_data *reg_win_data);
 
 #if defined(CONFIG_BACKLIGHT_RK29_BL)
 void rk29_backlight_set(bool on);

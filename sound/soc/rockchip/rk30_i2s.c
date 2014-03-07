@@ -215,6 +215,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	u32 tx_ctl,rx_ctl;
 	u32 iis_ckr_value;//clock generation register
 	unsigned long flags;
+	int ret = 0;
 
 	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
@@ -236,7 +237,8 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		break;
 	default:
 		I2S_DBG("unknwon master/slave format\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_;
 	}
 
 	writel(iis_ckr_value, &(pheadi2s->I2S_CKR));
@@ -256,7 +258,8 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		break;
 	default:
 		I2S_DBG("Unknown data format\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_;
 	}
 
 	I2S_DBG("Enter::%s----%d, I2S_TXCR=0x%X\n",__FUNCTION__,__LINE__,tx_ctl);
@@ -266,8 +269,11 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	rx_ctl = tx_ctl & 0x00007FFF;
 	writel(rx_ctl, &(pheadi2s->I2S_RXCR));
 
+out_:
+
 	spin_unlock_irqrestore(&lock, flags);
-	return 0;
+
+	return ret;
 }
 
 static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -387,6 +393,7 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	struct rk30_i2s_info *i2s;
 	u32 reg;
 	unsigned long flags;
+	int ret = 0;
 
 	i2s = to_info(cpu_dai);
 
@@ -412,12 +419,15 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	case ROCKCHIP_DIV_PRESCALER:
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_;
 	}
 	writel(reg, &(pheadi2s->I2S_CKR));
+
+out_:
 	spin_unlock_irqrestore(&lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
