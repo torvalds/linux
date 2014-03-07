@@ -868,8 +868,10 @@ struct qib_devdata {
 	/* last buffer for user use */
 	u32 lastctxt_piobuf;
 
-	/* saturating counter of (non-port-specific) device interrupts */
-	u32 int_counter;
+	/* reset value */
+	u64 z_int_counter;
+	/* percpu intcounter */
+	u64 __percpu *int_counter;
 
 	/* pio bufs allocated per ctxt */
 	u32 pbufsctxt;
@@ -1449,6 +1451,10 @@ void qib_nomsi(struct qib_devdata *);
 void qib_nomsix(struct qib_devdata *);
 void qib_pcie_getcmd(struct qib_devdata *, u16 *, u8 *, u8 *);
 void qib_pcie_reenable(struct qib_devdata *, u16, u8, u8);
+/* interrupts for device */
+u64 qib_int_counter(struct qib_devdata *);
+/* interrupt for all devices */
+u64 qib_sps_ints(void);
 
 /*
  * dma_addr wrappers - all 0's invalid for hw

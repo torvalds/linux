@@ -1962,10 +1962,7 @@ static irqreturn_t qib_7220intr(int irq, void *data)
 		goto bail;
 	}
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
-
+	this_cpu_inc(*dd->int_counter);
 	if (unlikely(istat & (~QLOGIC_IB_I_BITSEXTANT |
 			      QLOGIC_IB_I_GPIO | QLOGIC_IB_I_ERROR)))
 		unlikely_7220_intr(dd, istat);
@@ -2120,7 +2117,8 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 	 * isn't set.
 	 */
 	dd->flags &= ~(QIB_INITTED | QIB_PRESENT);
-	dd->int_counter = 0; /* so we check interrupts work again */
+	/* so we check interrupts work again */
+	dd->z_int_counter = qib_int_counter(dd);
 	val = dd->control | QLOGIC_IB_C_RESET;
 	writeq(val, &dd->kregbase[kr_control]);
 	mb(); /* prevent compiler reordering around actual reset */

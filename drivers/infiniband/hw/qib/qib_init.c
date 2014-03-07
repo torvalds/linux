@@ -525,6 +525,7 @@ static void enable_chip(struct qib_devdata *dd)
 static void verify_interrupt(unsigned long opaque)
 {
 	struct qib_devdata *dd = (struct qib_devdata *) opaque;
+	u64 int_counter;
 
 	if (!dd)
 		return; /* being torn down */
@@ -533,7 +534,8 @@ static void verify_interrupt(unsigned long opaque)
 	 * If we don't have a lid or any interrupts, let the user know and
 	 * don't bother checking again.
 	 */
-	if (dd->int_counter == 0) {
+	int_counter = qib_int_counter(dd) - dd->z_int_counter;
+	if (int_counter == 0) {
 		if (!dd->f_intr_fallback(dd))
 			dev_err(&dd->pcidev->dev,
 				"No interrupts detected, not usable.\n");
@@ -1079,7 +1081,32 @@ void qib_free_devdata(struct qib_devdata *dd)
 #ifdef CONFIG_DEBUG_FS
 	qib_dbg_ibdev_exit(&dd->verbs_dev);
 #endif
+	free_percpu(dd->int_counter);
 	ib_dealloc_device(&dd->verbs_dev.ibdev);
+}
+
+u64 qib_int_counter(struct qib_devdata *dd)
+{
+	int cpu;
+	u64 int_counter = 0;
+
+	for_each_possible_cpu(cpu)
+		int_counter += *per_cpu_ptr(dd->int_counter, cpu);
+	return int_counter;
+}
+
+u64 qib_sps_ints(void)
+{
+	unsigned long flags;
+	struct qib_devdata *dd;
+	u64 sps_ints = 0;
+
+	spin_lock_irqsave(&qib_devs_lock, flags);
+	list_for_each_entry(dd, &qib_dev_list, list) {
+		sps_ints += qib_int_counter(dd);
+	}
+	spin_unlock_irqrestore(&qib_devs_lock, flags);
+	return sps_ints;
 }
 
 /*
@@ -1117,6 +1144,13 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	if (ret < 0) {
 		qib_early_err(&pdev->dev,
 			      "Could not allocate unit ID: error %d\n", -ret);
+		goto bail;
+	}
+	dd->int_counter = alloc_percpu(u64);
+	if (!dd->int_counter) {
+		ret = -ENOMEM;
+		qib_early_err(&pdev->dev,
+			      "Could not allocate per-cpu int_counter\n");
 		goto bail;
 	}
 
