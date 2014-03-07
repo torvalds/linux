@@ -627,10 +627,12 @@ static void jr3_pci_poll_dev(unsigned long data)
 static int jr3_pci_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
-	int result;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	int i;
 	struct jr3_pci_dev_private *devpriv;
+	struct jr3_pci_subdev_private *p;
+	struct comedi_subdevice *s;
+	int result;
+	int i;
 
 	if (sizeof(struct jr3_channel) != 0xc00) {
 		dev_err(dev->class_dev,
@@ -679,18 +681,18 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 	dev->open = jr3_pci_open;
 	for (i = 0; i < devpriv->n_channels; i++) {
-		dev->subdevices[i].type = COMEDI_SUBD_AI;
-		dev->subdevices[i].subdev_flags = SDF_READABLE | SDF_GROUND;
-		dev->subdevices[i].n_chan = 8 * 7 + 2;
-		dev->subdevices[i].insn_read = jr3_pci_ai_insn_read;
-		dev->subdevices[i].private =
-			kzalloc(sizeof(struct jr3_pci_subdev_private),
-				GFP_KERNEL);
-		if (dev->subdevices[i].private) {
-			struct jr3_pci_subdev_private *p;
+		s = &dev->subdevices[i];
+		s->type		= COMEDI_SUBD_AI;
+		s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+		s->n_chan	= 8 * 7 + 2;
+		s->insn_read	= jr3_pci_ai_insn_read;
+
+		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		if (p) {
 			int j;
 
-			p = dev->subdevices[i].private;
+			s->private = p;
+
 			p->channel = &devpriv->iobase->channel[i].data;
 			dev_dbg(dev->class_dev, "p->channel %p %p (%tx)\n",
 				p->channel, devpriv->iobase,
@@ -721,11 +723,10 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 			p->maxdata_list[56] = 0xffff;
 			p->maxdata_list[57] = 0xffff;
 			/*  Channel specific range and maxdata */
-			dev->subdevices[i].range_table = NULL;
-			dev->subdevices[i].range_table_list =
-				p->range_table_list;
-			dev->subdevices[i].maxdata = 0;
-			dev->subdevices[i].maxdata_list = p->maxdata_list;
+			s->range_table = NULL;
+			s->range_table_list = p->range_table_list;
+			s->maxdata = 0;
+			s->maxdata_list = p->maxdata_list;
 		}
 	}
 
@@ -762,7 +763,8 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 	/*  Start card timer */
 	for (i = 0; i < devpriv->n_channels; i++) {
-		struct jr3_pci_subdev_private *p = dev->subdevices[i].private;
+		s = &dev->subdevices[i];
+		p = s->private;
 
 		p->next_time_min = jiffies + msecs_to_jiffies(500);
 		p->next_time_max = jiffies + msecs_to_jiffies(2000);
