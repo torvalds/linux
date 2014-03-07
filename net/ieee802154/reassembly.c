@@ -535,7 +535,7 @@ int __init lowpan_net_frag_init(void)
 
 	ret = lowpan_frags_sysctl_register();
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = register_pernet_subsys(&lowpan_frags_ops);
 	if (ret)
@@ -550,9 +550,10 @@ int __init lowpan_net_frag_init(void)
 	lowpan_frags.frag_expire = lowpan_frag_expire;
 	lowpan_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&lowpan_frags);
+
+	return ret;
 err_pernet:
 	lowpan_frags_sysctl_unregister();
-out:
 	return ret;
 }
 
