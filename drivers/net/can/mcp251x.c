@@ -601,10 +601,10 @@ static int mcp251x_do_set_bittiming(struct net_device *net)
 			  (bt->prop_seg - 1));
 	mcp251x_write_bits(spi, CNF3, CNF3_PHSEG2_MASK,
 			   (bt->phase_seg2 - 1));
-	dev_info(&spi->dev, "CNF: 0x%02x 0x%02x 0x%02x\n",
-		 mcp251x_read_reg(spi, CNF1),
-		 mcp251x_read_reg(spi, CNF2),
-		 mcp251x_read_reg(spi, CNF3));
+	dev_dbg(&spi->dev, "CNF: 0x%02x 0x%02x 0x%02x\n",
+		mcp251x_read_reg(spi, CNF1),
+		mcp251x_read_reg(spi, CNF2),
+		mcp251x_read_reg(spi, CNF3));
 
 	return 0;
 }
@@ -1155,8 +1155,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	devm_can_led_init(net);
 
-	dev_info(&spi->dev, "probed\n");
-
 	return ret;
 
 error_probe:
@@ -1197,9 +1195,7 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-
-static int mcp251x_can_suspend(struct device *dev)
+static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
@@ -1229,7 +1225,7 @@ static int mcp251x_can_suspend(struct device *dev)
 	return 0;
 }
 
-static int mcp251x_can_resume(struct device *dev)
+static int __maybe_unused mcp251x_can_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
@@ -1249,7 +1245,6 @@ static int mcp251x_can_resume(struct device *dev)
 	enable_irq(spi->irq);
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(mcp251x_can_pm_ops, mcp251x_can_suspend,
 	mcp251x_can_resume);

@@ -1132,9 +1132,9 @@ static int flexcan_probe(struct platform_device *pdev)
 	of_id = of_match_device(flexcan_of_match, &pdev->dev);
 	if (of_id) {
 		devtype_data = of_id->data;
-	} else if (pdev->id_entry->driver_data) {
+	} else if (platform_get_device_id(pdev)->driver_data) {
 		devtype_data = (struct flexcan_devtype_data *)
-			pdev->id_entry->driver_data;
+			platform_get_device_id(pdev)->driver_data;
 	} else {
 		return -ENODEV;
 	}
@@ -1201,8 +1201,7 @@ static int flexcan_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int flexcan_suspend(struct device *device)
+static int __maybe_unused flexcan_suspend(struct device *device)
 {
 	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
@@ -1221,7 +1220,7 @@ static int flexcan_suspend(struct device *device)
 	return 0;
 }
 
-static int flexcan_resume(struct device *device)
+static int __maybe_unused flexcan_resume(struct device *device)
 {
 	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
@@ -1233,7 +1232,6 @@ static int flexcan_resume(struct device *device)
 	}
 	return flexcan_chip_enable(priv);
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(flexcan_pm_ops, flexcan_suspend, flexcan_resume);
 
