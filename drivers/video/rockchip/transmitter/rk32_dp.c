@@ -35,8 +35,17 @@
 
 static int rk32_edp_init_edp(struct rk32_edp *edp)
 {
+	struct rk_screen *screen = &edp->screen;
+	u32 val = 0;
+#ifndef CONFIG_RK_FPGA
+	if (screen->lcdc_id == 0)  /*select lcdc*/
+		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
+	else
+		val = EDP_SEL_VOP_LIT << 16;
+	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+#endif
 	rk32_edp_reset(edp);
-	rk32_edp_init_analog_param(edp);
+	rk32_edp_init_refclk(edp);
 	rk32_edp_init_interrupt(edp);
 
 	rk32_edp_enable_sw_function(edp);
@@ -1075,8 +1084,6 @@ edp_phy_init:
 		goto out;
 	}
 
-	rk32_edp_disable_rx_zmux(edp);
-
 	
 	ret = rk32_edp_enable_scramble(edp, 0);
 	if (ret) {
@@ -1091,18 +1098,12 @@ edp_phy_init:
 	}
 	rk32_edp_enable_enhanced_mode(edp, 0);
 
-	
-	rk32_edp_rx_control(edp,0);
-
        /* Link Training */
 	ret = rk32_edp_set_link_train(edp, LANE_CNT4, LINK_RATE_2_70GBPS);
 	if (ret) {
 		dev_err(edp->dev, "link train failed\n");
 		goto out;
 	}
-
-	/* Rx data enable */
-	rk32_edp_rx_control(edp,1);
 
 	rk32_edp_set_lane_count(edp, edp->video_info.lane_count);
 	rk32_edp_set_link_bandwidth(edp, edp->video_info.link_rate);
@@ -1188,11 +1189,19 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, edp);
 	dev_set_name(edp->dev, "rk32-edp");
+	
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	edp->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(edp->regs)) {
 		dev_err(&pdev->dev, "ioremap reg failed\n");
 		return PTR_ERR(edp->regs);
+	}
+
+	
+	edp->irq = platform_get_irq(pdev, 0);
+	if (edp->irq < 0) {
+		dev_err(&pdev->dev, "cannot find IRQ\n");
+		return edp->irq;
 	}
 	ret = devm_request_irq(&pdev->dev, edp->irq, rk32_edp_isr, 0,
 			dev_name(&pdev->dev), edp);

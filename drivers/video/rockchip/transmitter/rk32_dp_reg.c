@@ -59,7 +59,7 @@ void rk32_edp_lane_swap(struct rk32_edp *edp, bool enable)
 	writel(val, edp->regs + LANE_MAP);
 }
 
-void rk32_edp_init_analog_param(struct rk32_edp *edp)
+void rk32_edp_init_refclk(struct rk32_edp *edp)
 {
 	u32 val;
 	/*struct rk32_edp_platdata *pdata = edp->dev->platform_data;
@@ -1152,11 +1152,15 @@ int rk32_edp_bist_cfg(struct rk32_edp *edp)
 	val = BIST_EN;
 	writel(val, edp->regs + VIDEO_CTL_4);
 
+#ifndef CONFIG_RK_FPGA
+	val = (GRF_EDP_BIST_EN << 16) | GRF_EDP_BIST_EN;
+	writel_relaxed(val,RK_GRF_VIRT + RK3288_GRF_SOC_CON8);
+#endif
+
+
 	val = readl(edp->regs + VIDEO_CTL_10);
 	val &= ~F_SEL;
 	writel(val, edp->regs + VIDEO_CTL_10);
-
-	rk32_edp_start_video(edp);
 	
 	return 0;
 	

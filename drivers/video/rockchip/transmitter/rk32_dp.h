@@ -364,7 +364,14 @@
 #define MAX_CR_LOOP 5
 #define MAX_EQ_LOOP 5
 
+
+
 #define REF_CLK_FROM_INTER			(1 << 4)
+#define GRF_EDP_HDCP_EN				(1 << 15)
+#define GRF_EDP_BIST_EN				(1 << 14)
+#define GRF_EDP_MEM_CTL_BY_EDP			(1 << 13)
+#define GRF_EDP_SECURE_EN			(1 << 3)
+#define EDP_SEL_VOP_LIT				(1 << 5)
 enum color_coefficient {
 	COLOR_YCBCR601,
 	COLOR_YCBCR709
@@ -487,8 +494,9 @@ struct rk32_edp {
 	struct device 		*dev;
 	void __iomem  		*regs;
 	unsigned int  		irq;
-	struct clk    		*clk_edp;
-	struct clk    		*clk_24m;
+	struct clk    		*clk_edp;  /*clk for edp controller*/
+	struct clk    		*clk_24m;  /*clk for edp phy*/
+	struct clk		*pclk;	   /*clk for phb bus*/
 	struct link_train	link_train;
 	struct video_info	video_info;
 	struct rk_screen	screen;
@@ -499,7 +507,7 @@ struct rk32_edp {
 void rk32_edp_enable_video_mute(struct rk32_edp *edp, bool enable);
 void rk32_edp_stop_video(struct rk32_edp *edp);
 void rk32_edp_lane_swap(struct rk32_edp *edp, bool enable);
-void rk32_edp_init_analog_param(struct rk32_edp *edp);
+void rk32_edp_init_refclk(struct rk32_edp *edp);
 void rk32_edp_init_interrupt(struct rk32_edp *edp);
 void rk32_edp_reset(struct rk32_edp *edp);
 void rk32_edp_config_interrupt(struct rk32_edp *edp);
