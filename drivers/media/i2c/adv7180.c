@@ -123,7 +123,6 @@
 struct adv7180_state {
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct v4l2_subdev	sd;
-	struct work_struct	work;
 	struct mutex		mutex; /* mutual excl. when accessing chip */
 	int			irq;
 	v4l2_std_id		curr_norm;
@@ -449,10 +448,9 @@ static const struct v4l2_subdev_ops adv7180_ops = {
 	.video = &adv7180_video_ops,
 };
 
-static void adv7180_work(struct work_struct *work)
+static irqreturn_t adv7180_irq(int irq, void *devid)
 {
-	struct adv7180_state *state = container_of(work, struct adv7180_state,
-						   work);
+	struct adv7180_state *state = devid;
 	struct i2c_client *client = v4l2_get_subdevdata(&state->sd);
 	u8 isr3;
 
@@ -467,17 +465,6 @@ static void adv7180_work(struct work_struct *work)
 	if (isr3 & ADV7180_IRQ3_AD_CHANGE && state->autodetect)
 		__adv7180_status(client, NULL, &state->curr_norm);
 	mutex_unlock(&state->mutex);
-
-	enable_irq(state->irq);
-}
-
-static irqreturn_t adv7180_irq(int irq, void *devid)
-{
-	struct adv7180_state *state = devid;
-
-	schedule_work(&state->work);
-
-	disable_irq_nosync(state->irq);
 
 	return IRQ_HANDLED;
 }
@@ -533,8 +520,8 @@ static int init_device(struct i2c_client *client, struct adv7180_state *state)
 
 	/* register for interrupts */
 	if (state->irq > 0) {
-		ret = request_irq(state->irq, adv7180_irq, 0, KBUILD_MODNAME,
-				  state);
+		ret = request_threaded_irq(state->irq, NULL, adv7180_irq,
+					   IRQF_ONESHOT, KBUILD_MODNAME, state);
 		if (ret)
 			return ret;
 
@@ -598,7 +585,6 @@ static int adv7180_probe(struct i2c_client *client,
 	}
 
 	state->irq = client->irq;
-	INIT_WORK(&state->work, adv7180_work);
 	mutex_init(&state->mutex);
 	state->autodetect = true;
 	state->input = 0;
@@ -626,17 +612,8 @@ static int adv7180_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
 
-	if (state->irq > 0) {
+	if (state->irq > 0)
 		free_irq(client->irq, state);
-		if (cancel_work_sync(&state->work)) {
-			/*
-			 * Work was pending, therefore we need to enable
-			 * IRQ here to balance the disable_irq() done in the
-			 * interrupt handler.
-			 */
-			enable_irq(state->irq);
-		}
-	}
 
 	v4l2_device_unregister_subdev(sd);
 	adv7180_exit_controls(state);
