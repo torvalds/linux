@@ -66,6 +66,11 @@ struct pipe3_dpll_params {
 	u32	mf;
 };
 
+struct pipe3_dpll_map {
+	unsigned long rate;
+	struct pipe3_dpll_params params;
+};
+
 struct ti_pipe3 {
 	void __iomem		*pll_ctrl_base;
 	struct device		*dev;
@@ -73,20 +78,27 @@ struct ti_pipe3 {
 	struct clk		*wkupclk;
 	struct clk		*sys_clk;
 	struct clk		*refclk;
+	struct pipe3_dpll_map	*dpll_map;
 };
 
-struct pipe3_dpll_map {
-	unsigned long rate;
-	struct pipe3_dpll_params params;
-};
-
-static struct pipe3_dpll_map dpll_map[] = {
+static struct pipe3_dpll_map dpll_map_usb[] = {
 	{12000000, {1250, 5, 4, 20, 0} },	/* 12 MHz */
 	{16800000, {3125, 20, 4, 20, 0} },	/* 16.8 MHz */
 	{19200000, {1172, 8, 4, 20, 65537} },	/* 19.2 MHz */
 	{20000000, {1000, 7, 4, 10, 0} },	/* 20 MHz */
 	{26000000, {1250, 12, 4, 20, 0} },	/* 26 MHz */
 	{38400000, {3125, 47, 4, 20, 92843} },	/* 38.4 MHz */
+	{ },					/* Terminator */
+};
+
+static struct pipe3_dpll_map dpll_map_sata[] = {
+	{12000000, {1000, 7, 4, 6, 0} },	/* 12 MHz */
+	{16800000, {714, 7, 4, 6, 0} },		/* 16.8 MHz */
+	{19200000, {625, 7, 4, 6, 0} },		/* 19.2 MHz */
+	{20000000, {600, 7, 4, 6, 0} },		/* 20 MHz */
+	{26000000, {461, 7, 4, 6, 0} },		/* 26 MHz */
+	{38400000, {312, 7, 4, 6, 0} },		/* 38.4 MHz */
+	{ },					/* Terminator */
 };
 
 static inline u32 ti_pipe3_readl(void __iomem *addr, unsigned offset)
@@ -100,14 +112,19 @@ static inline void ti_pipe3_writel(void __iomem *addr, unsigned offset,
 	__raw_writel(data, addr + offset);
 }
 
-static struct pipe3_dpll_params *ti_pipe3_get_dpll_params(unsigned long rate)
+static struct pipe3_dpll_params *ti_pipe3_get_dpll_params(struct ti_pipe3 *phy)
 {
-	int i;
+	unsigned long rate;
+	struct pipe3_dpll_map *dpll_map = phy->dpll_map;
 
-	for (i = 0; i < ARRAY_SIZE(dpll_map); i++) {
-		if (rate == dpll_map[i].rate)
-			return &dpll_map[i].params;
+	rate = clk_get_rate(phy->sys_clk);
+
+	for (; dpll_map->rate; dpll_map++) {
+		if (rate == dpll_map->rate)
+			return &dpll_map->params;
 	}
+
+	dev_err(phy->dev, "No DPLL configuration for %lu Hz SYS CLK\n", rate);
 
 	return NULL;
 }
@@ -182,16 +199,11 @@ static void ti_pipe3_dpll_relock(struct ti_pipe3 *phy)
 static int ti_pipe3_dpll_lock(struct ti_pipe3 *phy)
 {
 	u32			val;
-	unsigned long		rate;
 	struct pipe3_dpll_params *dpll_params;
 
-	rate = clk_get_rate(phy->sys_clk);
-	dpll_params = ti_pipe3_get_dpll_params(rate);
-	if (!dpll_params) {
-		dev_err(phy->dev,
-			  "No DPLL configuration for %lu Hz SYS CLK\n", rate);
+	dpll_params = ti_pipe3_get_dpll_params(phy);
+	if (!dpll_params)
 		return -EINVAL;
-	}
 
 	val = ti_pipe3_readl(phy->pll_ctrl_base, PLL_CONFIGURATION1);
 	val &= ~PLL_REGN_MASK;
@@ -244,6 +256,10 @@ static struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id ti_pipe3_id_table[];
+#endif
+
 static int ti_pipe3_probe(struct platform_device *pdev)
 {
 	struct ti_pipe3 *phy;
@@ -253,14 +269,22 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *control_node;
 	struct platform_device *control_pdev;
+	const struct of_device_id *match;
 
-	if (!node)
+	match = of_match_device(of_match_ptr(ti_pipe3_id_table), &pdev->dev);
+	if (!match)
 		return -EINVAL;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy) {
 		dev_err(&pdev->dev, "unable to alloc mem for TI PIPE3 PHY\n");
 		return -ENOMEM;
+	}
+
+	phy->dpll_map = (struct pipe3_dpll_map *)match->data;
+	if (!phy->dpll_map) {
+		dev_err(&pdev->dev, "no DPLL data\n");
+		return -EINVAL;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll_ctrl");
@@ -388,8 +412,18 @@ static const struct dev_pm_ops ti_pipe3_pm_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id ti_pipe3_id_table[] = {
-	{ .compatible = "ti,phy-usb3" },
-	{ .compatible = "ti,omap-usb3" },
+	{
+		.compatible = "ti,phy-usb3",
+		.data = dpll_map_usb,
+	},
+	{
+		.compatible = "ti,omap-usb3",
+		.data = dpll_map_usb,
+	},
+	{
+		.compatible = "ti,phy-pipe3-sata",
+		.data = dpll_map_sata,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, ti_pipe3_id_table);
