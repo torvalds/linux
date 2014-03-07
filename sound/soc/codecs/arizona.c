@@ -1455,18 +1455,6 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(fll_gains); i++) {
-		if (fll_gains[i].min <= Fref && Fref <= fll_gains[i].max) {
-			cfg->gain = fll_gains[i].gain;
-			break;
-		}
-	}
-	if (i == ARRAY_SIZE(fll_gains)) {
-		arizona_fll_err(fll, "Unable to find gain for Fref=%uHz\n",
-				Fref);
-		return -EINVAL;
-	}
-
 	cfg->n = target / (ratio * Fref);
 
 	if (target % (ratio * Fref)) {
@@ -1488,6 +1476,18 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	while (cfg->lambda >= (1 << 16)) {
 		cfg->theta >>= 1;
 		cfg->lambda >>= 1;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(fll_gains); i++) {
+		if (fll_gains[i].min <= Fref && Fref <= fll_gains[i].max) {
+			cfg->gain = fll_gains[i].gain;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(fll_gains)) {
+		arizona_fll_err(fll, "Unable to find gain for Fref=%uHz\n",
+				Fref);
+		return -EINVAL;
 	}
 
 	arizona_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
