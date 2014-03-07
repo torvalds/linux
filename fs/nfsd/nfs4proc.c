@@ -1171,9 +1171,7 @@ struct nfsd4_operation {
 
 static struct nfsd4_operation nfsd4_ops[];
 
-#ifdef NFSD_DEBUG
 static const char *nfsd4_op_name(unsigned opnum);
-#endif
 
 /*
  * Enforce NFSv4.1 COMPOUND ordering rules:
@@ -1859,14 +1857,21 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 };
 
-#ifdef NFSD_DEBUG
+void warn_on_nonidempotent_op(struct nfsd4_op *op)
+{
+	if (OPDESC(op)->op_flags & OP_MODIFIES_SOMETHING) {
+		pr_err("unable to encode reply to nonidempotent op %d (%s)\n",
+			op->opnum, nfsd4_op_name(op->opnum));
+		WARN_ON_ONCE(1);
+	}
+}
+
 static const char *nfsd4_op_name(unsigned opnum)
 {
 	if (opnum < ARRAY_SIZE(nfsd4_ops))
 		return nfsd4_ops[opnum].op_name;
 	return "unknown_operation";
 }
-#endif
 
 #define nfsd4_voidres			nfsd4_voidargs
 struct nfsd4_voidargs { int dummy; };
