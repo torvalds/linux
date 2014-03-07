@@ -218,6 +218,13 @@ typedef struct dpll {
 	int	p;
 } intel_clock_t;
 
+struct intel_plane_config {
+	struct intel_framebuffer *fb; /* ends up managed by intel_fbdev.c */
+	bool tiled;
+	int size;
+	u32 base;
+};
+
 struct intel_crtc_config {
 	/**
 	 * quirks - bitfield with hw state readout quirks
@@ -366,6 +373,7 @@ struct intel_crtc {
 	int16_t cursor_width, cursor_height;
 	bool cursor_visible;
 
+	struct intel_plane_config plane_config;
 	struct intel_crtc_config config;
 	struct intel_crtc_config *new_config;
 	bool new_enabled;
@@ -740,6 +748,7 @@ intel_display_port_power_domain(struct intel_encoder *intel_encoder);
 int valleyview_get_vco(struct drm_i915_private *dev_priv);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_config *pipe_config);
+int intel_format_to_fourcc(int format);
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);

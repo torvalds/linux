@@ -2047,6 +2047,70 @@ unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 	}
 }
 
+int intel_format_to_fourcc(int format)
+{
+	switch (format) {
+	case DISPPLANE_8BPP:
+		return DRM_FORMAT_C8;
+	case DISPPLANE_BGRX555:
+		return DRM_FORMAT_XRGB1555;
+	case DISPPLANE_BGRX565:
+		return DRM_FORMAT_RGB565;
+	default:
+	case DISPPLANE_BGRX888:
+		return DRM_FORMAT_XRGB8888;
+	case DISPPLANE_RGBX888:
+		return DRM_FORMAT_XBGR8888;
+	case DISPPLANE_BGRX101010:
+		return DRM_FORMAT_XRGB2101010;
+	case DISPPLANE_RGBX101010:
+		return DRM_FORMAT_XBGR2101010;
+	}
+}
+
+static void intel_alloc_plane_obj(struct intel_crtc *crtc,
+				  struct intel_plane_config *plane_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_gem_object *obj = NULL;
+	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
+	u32 base = plane_config->base;
+
+	if (!plane_config->fb)
+		return;
+
+	obj = i915_gem_object_create_stolen_for_preallocated(dev, base, base,
+							     plane_config->size);
+	if (!obj)
+		return;
+
+	if (plane_config->tiled) {
+		obj->tiling_mode = I915_TILING_X;
+		obj->stride = plane_config->fb->base.pitches[0];
+	}
+
+	mode_cmd.pixel_format = plane_config->fb->base.pixel_format;
+	mode_cmd.width = plane_config->fb->base.width;
+	mode_cmd.height = plane_config->fb->base.height;
+	mode_cmd.pitches[0] = plane_config->fb->base.pitches[0];
+
+	mutex_lock(&dev->struct_mutex);
+
+	if (intel_framebuffer_init(dev, plane_config->fb, &mode_cmd, obj)) {
+		DRM_DEBUG_KMS("intel fb init failed\n");
+		goto out_unref_obj;
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+	DRM_DEBUG_KMS("plane fb obj %p\n", plane_config->fb->obj);
+	return;
+
+out_unref_obj:
+	drm_gem_object_unreference(&obj->base);
+	mutex_unlock(&dev->struct_mutex);
+
+}
+
 static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			     int x, int y)
 {
@@ -11033,6 +11097,7 @@ void intel_modeset_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int sprite, ret;
 	enum pipe pipe;
+	struct intel_crtc *crtc;
 
 	drm_mode_config_init(dev);
 
@@ -11095,6 +11160,33 @@ void intel_modeset_init(struct drm_device *dev)
 	mutex_lock(&dev->mode_config.mutex);
 	intel_modeset_setup_hw_state(dev, false);
 	mutex_unlock(&dev->mode_config.mutex);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		if (!crtc->active)
+			continue;
+
+#if IS_ENABLED(CONFIG_FB)
+		/*
+		 * We don't have a good way of freeing the buffer w/o the FB
+		 * layer owning it...
+		 * Note that reserving the BIOS fb up front prevents us
+		 * from stuffing other stolen allocations like the ring
+		 * on top.  This prevents some ugliness at boot time, and
+		 * can even allow for smooth boot transitions if the BIOS
+		 * fb is large enough for the active pipe configuration.
+		 */
+		if (dev_priv->display.get_plane_config) {
+			dev_priv->display.get_plane_config(crtc,
+							   &crtc->plane_config);
+			/*
+			 * If the fb is shared between multiple heads, we'll
+			 * just get the first one.
+			 */
+			intel_alloc_plane_obj(crtc, &crtc->plane_config);
+		}
+#endif
+	}
 }
 
 static void

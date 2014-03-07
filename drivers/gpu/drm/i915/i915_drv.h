@@ -406,6 +406,7 @@ struct drm_i915_error_state {
 
 struct intel_connector;
 struct intel_crtc_config;
+struct intel_plane_config;
 struct intel_crtc;
 struct intel_limit;
 struct dpll;
@@ -444,6 +445,8 @@ struct drm_i915_display_funcs {
 	 * fills out the pipe-config with the hw state. */
 	bool (*get_pipe_config)(struct intel_crtc *,
 				struct intel_crtc_config *);
+	void (*get_plane_config)(struct intel_crtc *,
+				 struct intel_plane_config *);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
