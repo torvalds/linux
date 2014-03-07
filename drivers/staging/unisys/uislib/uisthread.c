@@ -45,7 +45,7 @@ uisthread_start(struct uisthread_info *thrinfo,
 	/* used to stop the thread */
 	init_completion(&thrinfo->has_stopped);
 	thrinfo->task = kthread_create(threadfn, thrcontext, name, NULL);
-	if (thrinfo->task == NULL) {
+	if (IS_ERR(thrinfo->task)) {
 		thrinfo->id = 0;
 		return 0;	/* failure */
 	}
