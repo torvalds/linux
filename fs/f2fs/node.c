@@ -1875,11 +1875,9 @@ void destroy_node_manager(struct f2fs_sb_info *sbi)
 	while ((found = __gang_lookup_nat_cache(nm_i,
 					nid, NATVEC_SIZE, natvec))) {
 		unsigned idx;
-		for (idx = 0; idx < found; idx++) {
-			struct nat_entry *e = natvec[idx];
-			nid = nat_get_nid(e) + 1;
-			__del_from_nat_cache(nm_i, e);
-		}
+		nid = nat_get_nid(natvec[found - 1]) + 1;
+		for (idx = 0; idx < found; idx++)
+			__del_from_nat_cache(nm_i, natvec[idx]);
 	}
 	f2fs_bug_on(nm_i->nat_cnt);
 	write_unlock(&nm_i->nat_tree_lock);
