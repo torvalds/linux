@@ -112,29 +112,22 @@ static int count_hlist(struct net *net,
 	hlist_for_each_entry_safe(conn, n, head, node) {
 		found    = nf_conntrack_find_get(net, NF_CT_DEFAULT_ZONE,
 						 &conn->tuple);
-		found_ct = NULL;
+		if (found == NULL) {
+			hlist_del(&conn->node);
+			kfree(conn);
+			continue;
+		}
 
-		if (found != NULL)
-			found_ct = nf_ct_tuplehash_to_ctrack(found);
+		found_ct = nf_ct_tuplehash_to_ctrack(found);
 
-		if (found_ct != NULL &&
-		    nf_ct_tuple_equal(&conn->tuple, tuple) &&
-		    !already_closed(found_ct))
+		if (nf_ct_tuple_equal(&conn->tuple, tuple)) {
 			/*
 			 * Just to be sure we have it only once in the list.
 			 * We should not see tuples twice unless someone hooks
 			 * this into a table without "-p tcp --syn".
 			 */
 			addit = false;
-
-		if (found == NULL) {
-			/* this one is gone */
-			hlist_del(&conn->node);
-			kfree(conn);
-			continue;
-		}
-
-		if (already_closed(found_ct)) {
+		} else if (already_closed(found_ct)) {
 			/*
 			 * we do not care about connections which are
 			 * closed already -> ditch it
