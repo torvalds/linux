@@ -1068,7 +1068,6 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 	int omap_pgsz;
 	u32 ret, flags;
 
-	/* we only support mapping a single iommu page for now */
 	omap_pgsz = bytes_to_iopgsz(bytes);
 	if (omap_pgsz < 0) {
 		dev_err(dev, "invalid size to map: %d\n", bytes);
