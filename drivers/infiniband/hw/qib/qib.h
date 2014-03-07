@@ -1186,7 +1186,7 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *);
 void qib_set_ctxtcnt(struct qib_devdata *);
 int qib_create_ctxts(struct qib_devdata *dd);
 struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *, u32, int);
-void qib_init_pportdata(struct qib_pportdata *, struct qib_devdata *, u8, u8);
+int qib_init_pportdata(struct qib_pportdata *, struct qib_devdata *, u8, u8);
 void qib_free_ctxtdata(struct qib_devdata *, struct qib_ctxtdata *);
 
 u32 qib_kreceive(struct qib_ctxtdata *, u32 *, u32 *);

@@ -4059,7 +4059,9 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	init_waitqueue_head(&cpspec->autoneg_wait);
 	INIT_DELAYED_WORK(&cpspec->autoneg_work, autoneg_7220_work);
 
-	qib_init_pportdata(ppd, dd, 0, 1);
+	ret = qib_init_pportdata(ppd, dd, 0, 1);
+	if (ret)
+		goto bail;
 	ppd->link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
 	ppd->link_speed_supported = QIB_IB_SDR | QIB_IB_DDR;
 

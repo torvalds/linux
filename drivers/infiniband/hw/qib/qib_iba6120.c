@@ -3265,7 +3265,9 @@ static int init_6120_variables(struct qib_devdata *dd)
 
 	dd->eep_st_masks[2].errs_to_log = ERR_MASK(ResetNegated);
 
-	qib_init_pportdata(ppd, dd, 0, 1);
+	ret = qib_init_pportdata(ppd, dd, 0, 1);
+	if (ret)
+		goto bail;
 	ppd->link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
 	ppd->link_speed_supported = QIB_IB_SDR;
 	ppd->link_width_enabled = IB_WIDTH_4X;

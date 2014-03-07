@@ -662,7 +662,7 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 		mcast = qib_mcast_find(ibp, &hdr->u.l.grh.dgid);
 		if (mcast == NULL)
 			goto drop;
-		ibp->n_multicast_rcv++;
+		this_cpu_inc(ibp->pmastats->n_multicast_rcv);
 		list_for_each_entry_rcu(p, &mcast->qp_list, list)
 			qib_qp_rcv(rcd, hdr, 1, data, tlen, p->qp);
 		/*
@@ -689,7 +689,7 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 			rcd->lookaside_qpn = qp_num;
 		} else
 			qp = rcd->lookaside_qp;
-		ibp->n_unicast_rcv++;
+		this_cpu_inc(ibp->pmastats->n_unicast_rcv);
 		qib_qp_rcv(rcd, hdr, lnh == QIB_LRH_GRH, data, tlen, qp);
 	}
 	return;

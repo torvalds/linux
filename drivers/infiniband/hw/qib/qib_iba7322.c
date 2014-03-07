@@ -6544,7 +6544,11 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		}
 
 		dd->num_pports++;
-		qib_init_pportdata(ppd, dd, pidx, dd->num_pports);
+		ret = qib_init_pportdata(ppd, dd, pidx, dd->num_pports);
+		if (ret) {
+			dd->num_pports--;
+			goto bail;
+		}
 
 		ppd->link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
 		ppd->link_width_enabled = IB_WIDTH_4X;
