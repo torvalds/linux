@@ -925,12 +925,12 @@ static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 		return 0;
 
 	/* If there is nothing plugged into the port then fail immediately */
-	if (!usb->usbcx_hprt.s.prtconnsts) {
+	if (!usb->usbcx_hprt.s.prtconnsts)
 		return -ETIMEDOUT;
-	}
 
 	/* Program the port reset bit to start the reset process */
-	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt, prtrst, 1);
+	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt,
+			prtrst, 1);
 
 	/*
 	 * Wait at least 50ms (high speed), or 10ms (full speed) for the reset
