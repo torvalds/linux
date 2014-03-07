@@ -194,94 +194,84 @@ static struct six_axis_t get_max_full_scales(struct jr3_channel __iomem
 	return result;
 }
 
+static unsigned int jr3_pci_ai_read_chan(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 unsigned int chan)
+{
+	struct jr3_pci_subdev_private *spriv = s->private;
+	unsigned int val = 0;
+
+	if (spriv->state != state_jr3_done)
+		return 0;
+
+	if (chan < 56) {
+		unsigned int axis = chan % 8;
+		unsigned filter = chan / 8;
+
+		switch (axis) {
+		case 0:
+			val = get_s16(&spriv->channel->filter[filter].fx);
+			break;
+		case 1:
+			val = get_s16(&spriv->channel->filter[filter].fy);
+			break;
+		case 2:
+			val = get_s16(&spriv->channel->filter[filter].fz);
+			break;
+		case 3:
+			val = get_s16(&spriv->channel->filter[filter].mx);
+			break;
+		case 4:
+			val = get_s16(&spriv->channel->filter[filter].my);
+			break;
+		case 5:
+			val = get_s16(&spriv->channel->filter[filter].mz);
+			break;
+		case 6:
+			val = get_s16(&spriv->channel->filter[filter].v1);
+			break;
+		case 7:
+			val = get_s16(&spriv->channel->filter[filter].v2);
+			break;
+		}
+		val += 0x4000;
+	} else if (chan == 56) {
+		val = get_u16(&spriv->channel->model_no);
+	} else if (chan == 57) {
+		val = get_u16(&spriv->channel->serial_no);
+	}
+
+	return val;
+}
+
 static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int result;
-	struct jr3_pci_subdev_private *p;
-	int channel;
+	struct jr3_pci_subdev_private *spriv = s->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	u16 errors;
+	int i;
 
-	p = s->private;
-	channel = CR_CHAN(insn->chanspec);
-	if (p == NULL || channel > 57) {
-		result = -EINVAL;
-	} else {
-		int i;
+	if (!spriv)
+		return -EINVAL;
 
-		result = insn->n;
-		if (p->state != state_jr3_done ||
-		    (get_u16(&p->channel->errors) & (watch_dog | watch_dog2 |
-						     sensor_change))) {
-			/* No sensor or sensor changed */
-			if (p->state == state_jr3_done) {
-				/* Restart polling */
-				p->state = state_jr3_poll;
-			}
-			result = -EAGAIN;
+	errors = get_u16(&spriv->channel->errors);
+	if (spriv->state != state_jr3_done ||
+	    (errors & (watch_dog | watch_dog2 | sensor_change))) {
+		/* No sensor or sensor changed */
+		if (spriv->state == state_jr3_done) {
+			/* Restart polling */
+			spriv->state = state_jr3_poll;
 		}
-		for (i = 0; i < insn->n; i++) {
-			if (channel < 56) {
-				int axis, filter;
-
-				axis = channel % 8;
-				filter = channel / 8;
-				if (p->state != state_jr3_done) {
-					data[i] = 0;
-				} else {
-					int F = 0;
-					switch (axis) {
-					case 0:
-						F = get_s16(&p->channel->
-							    filter[filter].fx);
-						break;
-					case 1:
-						F = get_s16(&p->channel->
-							    filter[filter].fy);
-						break;
-					case 2:
-						F = get_s16(&p->channel->
-							    filter[filter].fz);
-						break;
-					case 3:
-						F = get_s16(&p->channel->
-							    filter[filter].mx);
-						break;
-					case 4:
-						F = get_s16(&p->channel->
-							    filter[filter].my);
-						break;
-					case 5:
-						F = get_s16(&p->channel->
-							    filter[filter].mz);
-						break;
-					case 6:
-						F = get_s16(&p->channel->
-							    filter[filter].v1);
-						break;
-					case 7:
-						F = get_s16(&p->channel->
-							    filter[filter].v2);
-						break;
-					}
-					data[i] = F + 0x4000;
-				}
-			} else if (channel == 56) {
-				if (p->state != state_jr3_done)
-					data[i] = 0;
-				else
-					data[i] =
-					get_u16(&p->channel->model_no);
-			} else if (channel == 57) {
-				if (p->state != state_jr3_done)
-					data[i] = 0;
-				else
-					data[i] =
-					get_u16(&p->channel->serial_no);
-			}
-		}
+		return -EAGAIN;
 	}
-	return result;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = jr3_pci_ai_read_chan(dev, s, chan);
+
+	return insn->n;
 }
 
 static int jr3_pci_open(struct comedi_device *dev)
