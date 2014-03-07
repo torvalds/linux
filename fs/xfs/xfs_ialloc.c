@@ -363,6 +363,18 @@ xfs_ialloc_ag_alloc(
 		args.minleft = args.mp->m_in_maxlevels - 1;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
+
+		/*
+		 * This request might have dirtied the transaction if the AG can
+		 * satisfy the request, but the exact block was not available.
+		 * If the allocation did fail, subsequent requests will relax
+		 * the exact agbno requirement and increase the alignment
+		 * instead. It is critical that the total size of the request
+		 * (len + alignment + slop) does not increase from this point
+		 * on, so reset minalignslop to ensure it is not included in
+		 * subsequent requests.
+		 */
+		args.minalignslop = 0;
 	} else
 		args.fsbno = NULLFSBLOCK;
 
