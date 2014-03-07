@@ -572,6 +572,8 @@ static int __init opal_init(void)
 		opal_flash_init();
 		/* Setup platform dump extract interface */
 		opal_platform_dump_init();
+		/* Setup system parameters interface */
+		opal_sys_param_init();
 	}
 
 	return 0;
