@@ -474,7 +474,7 @@ F:	net/rxrpc/af_rxrpc.c
 
 AGPGART DRIVER
 M:	David Airlie <airlied@linux.ie>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6.git
+T:	git git://people.freedesktop.org/~airlied/linux (part of drm maint)
 S:	Maintained
 F:	drivers/char/agp/
 F:	include/linux/agp*
@@ -6174,6 +6174,12 @@ T:	git git://git.infradead.org/users/willy/linux-nvme.git
 S:	Supported
 F:	drivers/block/nvme*
 F:	include/linux/nvme.h
+
+NXP TDA998X DRM DRIVER
+M:	Russell King <rmk+kernel@arm.linux.org.uk>
+S:	Supported
+F:	drivers/gpu/drm/i2c/tda998x_drv.c
+F:	include/drm/i2c/tda998x.h
 
 OMAP SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
