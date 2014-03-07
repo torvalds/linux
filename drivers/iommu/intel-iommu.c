@@ -382,14 +382,14 @@ struct dmar_rmrr_unit {
 	struct acpi_dmar_header *hdr;	/* ACPI header		*/
 	u64	base_address;		/* reserved base address*/
 	u64	end_address;		/* reserved end address */
-	struct pci_dev __rcu **devices;	/* target devices */
+	struct dmar_dev_scope *devices;	/* target devices */
 	int	devices_cnt;		/* target device count */
 };
 
 struct dmar_atsr_unit {
 	struct list_head list;		/* list of ATSR units */
 	struct acpi_dmar_header *hdr;	/* ACPI header */
-	struct pci_dev __rcu **devices;	/* target devices */
+	struct dmar_dev_scope *devices;	/* target devices */
 	int devices_cnt;		/* target device count */
 	u8 include_all:1;		/* include all ports */
 };
@@ -669,7 +669,8 @@ static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 {
 	struct dmar_drhd_unit *drhd = NULL;
 	struct intel_iommu *iommu;
-	struct pci_dev *dev;
+	struct device *dev;
+	struct pci_dev *pdev;
 	int i;
 
 	rcu_read_lock();
@@ -679,11 +680,14 @@ static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 
 		for_each_active_dev_scope(drhd->devices,
 					  drhd->devices_cnt, i, dev) {
-			if (dev->bus->number == bus && dev->devfn == devfn)
+			if (!dev_is_pci(dev))
+				continue;
+			pdev = to_pci_dev(dev);
+			if (pdev->bus->number == bus && pdev->devfn == devfn)
 				goto out;
-			if (dev->subordinate &&
-			    dev->subordinate->number <= bus &&
-			    dev->subordinate->busn_res.end >= bus)
+			if (pdev->subordinate &&
+			    pdev->subordinate->number <= bus &&
+			    pdev->subordinate->busn_res.end >= bus)
 				goto out;
 		}
 
@@ -2479,7 +2483,7 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 static bool device_has_rmrr(struct pci_dev *dev)
 {
 	struct dmar_rmrr_unit *rmrr;
-	struct pci_dev *tmp;
+	struct device *tmp;
 	int i;
 
 	rcu_read_lock();
@@ -2490,7 +2494,7 @@ static bool device_has_rmrr(struct pci_dev *dev)
 		 */
 		for_each_active_dev_scope(rmrr->devices,
 					  rmrr->devices_cnt, i, tmp)
-			if (tmp == dev) {
+			if (tmp == &dev->dev) {
 				rcu_read_unlock();
 				return true;
 			}
@@ -2602,7 +2606,7 @@ static int __init init_dmars(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct dmar_rmrr_unit *rmrr;
-	struct pci_dev *pdev;
+	struct device *dev;
 	struct intel_iommu *iommu;
 	int i, ret;
 
@@ -2746,8 +2750,10 @@ static int __init init_dmars(void)
 	for_each_rmrr_units(rmrr) {
 		/* some BIOS lists non-exist devices in DMAR table. */
 		for_each_active_dev_scope(rmrr->devices, rmrr->devices_cnt,
-					  i, pdev) {
-			ret = iommu_prepare_rmrr_dev(rmrr, pdev);
+					  i, dev) {
+			if (!dev_is_pci(dev))
+				continue;
+			ret = iommu_prepare_rmrr_dev(rmrr, to_pci_dev(dev));
 			if (ret)
 				printk(KERN_ERR
 				       "IOMMU: mapping reserved region failed\n");
@@ -3434,7 +3440,7 @@ DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT_SNB, quir
 static void __init init_no_remapping_devices(void)
 {
 	struct dmar_drhd_unit *drhd;
-	struct pci_dev *dev;
+	struct device *dev;
 	int i;
 
 	for_each_drhd_unit(drhd) {
@@ -3442,7 +3448,7 @@ static void __init init_no_remapping_devices(void)
 			for_each_active_dev_scope(drhd->devices,
 						  drhd->devices_cnt, i, dev)
 				break;
-			/* ignore DMAR unit if no pci devices exist */
+			/* ignore DMAR unit if no devices exist */
 			if (i == drhd->devices_cnt)
 				drhd->ignored = 1;
 		}
@@ -3454,7 +3460,7 @@ static void __init init_no_remapping_devices(void)
 
 		for_each_active_dev_scope(drhd->devices,
 					  drhd->devices_cnt, i, dev)
-			if (!IS_GFX_DEVICE(dev))
+			if (!dev_is_pci(dev) || !IS_GFX_DEVICE(to_pci_dev(dev)))
 				break;
 		if (i < drhd->devices_cnt)
 			continue;
@@ -3467,7 +3473,7 @@ static void __init init_no_remapping_devices(void)
 			drhd->ignored = 1;
 			for_each_active_dev_scope(drhd->devices,
 						  drhd->devices_cnt, i, dev)
-				dev->dev.archdata.iommu = DUMMY_DEVICE_DOMAIN_INFO;
+				dev->archdata.iommu = DUMMY_DEVICE_DOMAIN_INFO;
 		}
 	}
 }
@@ -3691,7 +3697,8 @@ int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 {
 	int i, ret = 1;
 	struct pci_bus *bus;
-	struct pci_dev *bridge = NULL, *tmp;
+	struct pci_dev *bridge = NULL;
+	struct device *tmp;
 	struct acpi_dmar_atsr *atsr;
 	struct dmar_atsr_unit *atsru;
 
@@ -3714,7 +3721,7 @@ int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 			continue;
 
 		for_each_dev_scope(atsru->devices, atsru->devices_cnt, i, tmp)
-			if (tmp == bridge)
+			if (tmp == &bridge->dev)
 				goto out;
 
 		if (atsru->include_all)

@@ -36,13 +36,19 @@ struct acpi_dmar_header;
 
 struct intel_iommu;
 
+struct dmar_dev_scope {
+	struct device __rcu *dev;
+	u8 bus;
+	u8 devfn;
+};
+
 #ifdef CONFIG_DMAR_TABLE
 extern struct acpi_table_header *dmar_tbl;
 struct dmar_drhd_unit {
 	struct list_head list;		/* list of drhd units	*/
 	struct  acpi_dmar_header *hdr;	/* ACPI header		*/
 	u64	reg_base_addr;		/* register base address*/
-	struct	pci_dev __rcu **devices;/* target device array	*/
+	struct	dmar_dev_scope *devices;/* target device array	*/
 	int	devices_cnt;		/* target device count	*/
 	u16	segment;		/* PCI domain		*/
 	u8	ignored:1; 		/* ignore drhd		*/
@@ -86,7 +92,7 @@ static inline bool dmar_rcu_check(void)
 #define	dmar_rcu_dereference(p)	rcu_dereference_check((p), dmar_rcu_check())
 
 #define	for_each_dev_scope(a, c, p, d)	\
-	for ((p) = 0; ((d) = (p) < (c) ? dmar_rcu_dereference((a)[(p)]) : \
+	for ((p) = 0; ((d) = (p) < (c) ? dmar_rcu_dereference((a)[(p)].dev) : \
 			NULL, (p) < (c)); (p)++)
 
 #define	for_each_active_dev_scope(a, c, p, d)	\
@@ -95,15 +101,15 @@ static inline bool dmar_rcu_check(void)
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
 extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				struct pci_dev ***devices, u16 segment);
+				struct dmar_dev_scope **devices, u16 segment);
 extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);
-extern void dmar_free_dev_scope(struct pci_dev __rcu ***devices, int *cnt);
+extern void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt);
 extern int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 				 void *start, void*end, u16 segment,
-				 struct pci_dev __rcu **devices,
+				 struct dmar_dev_scope *devices,
 				 int devices_cnt);
 extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
-				 u16 segment, struct pci_dev __rcu **devices,
+				 u16 segment, struct dmar_dev_scope *devices,
 				 int count);
 /* Intel IOMMU detection */
 extern int detect_intel_iommu(void);

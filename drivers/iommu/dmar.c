@@ -97,17 +97,17 @@ void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 	if (*cnt == 0)
 		return NULL;
 
-	return kcalloc(*cnt, sizeof(struct pci_dev *), GFP_KERNEL);
+	return kcalloc(*cnt, sizeof(struct dmar_dev_scope), GFP_KERNEL);
 }
 
-void dmar_free_dev_scope(struct pci_dev __rcu ***devices, int *cnt)
+void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt)
 {
 	int i;
-	struct pci_dev *tmp_dev;
+	struct device *tmp_dev;
 
 	if (*devices && *cnt) {
 		for_each_active_dev_scope(*devices, *cnt, i, tmp_dev)
-			pci_dev_put(tmp_dev);
+			put_device(tmp_dev);
 		kfree(*devices);
 	}
 
@@ -191,10 +191,11 @@ static bool dmar_match_pci_path(struct dmar_pci_notify_info *info, int bus,
 /* Return: > 0 if match found, 0 if no match found, < 0 if error happens */
 int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 			  void *start, void*end, u16 segment,
-			  struct pci_dev __rcu **devices, int devices_cnt)
+			  struct dmar_dev_scope *devices,
+			  int devices_cnt)
 {
 	int i, level;
-	struct pci_dev *tmp, *dev = info->dev;
+	struct device *tmp, *dev = &info->dev->dev;
 	struct acpi_dmar_device_scope *scope;
 	struct acpi_dmar_pci_path *path;
 
@@ -213,16 +214,18 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 			continue;
 
 		if ((scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT) ^
-		    (dev->hdr_type == PCI_HEADER_TYPE_NORMAL)) {
+		    (info->dev->hdr_type == PCI_HEADER_TYPE_NORMAL)) {
 			pr_warn("Device scope type does not match for %s\n",
-				pci_name(dev));
+				pci_name(info->dev));
 			return -EINVAL;
 		}
 
 		for_each_dev_scope(devices, devices_cnt, i, tmp)
 			if (tmp == NULL) {
-				rcu_assign_pointer(devices[i],
-						   pci_dev_get(dev));
+				devices[i].bus = info->dev->bus->number;
+				devices[i].devfn = info->dev->devfn;
+				rcu_assign_pointer(devices[i].dev,
+						   get_device(dev));
 				return 1;
 			}
 		BUG_ON(i >= devices_cnt);
@@ -232,19 +235,19 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 }
 
 int dmar_remove_dev_scope(struct dmar_pci_notify_info *info, u16 segment,
-			  struct pci_dev __rcu **devices, int count)
+			  struct dmar_dev_scope *devices, int count)
 {
 	int index;
-	struct pci_dev *tmp;
+	struct device *tmp;
 
 	if (info->seg != segment)
 		return 0;
 
 	for_each_active_dev_scope(devices, count, index, tmp)
-		if (tmp == info->dev) {
-			rcu_assign_pointer(devices[index], NULL);
+		if (tmp == &info->dev->dev) {
+			rcu_assign_pointer(devices[index].dev, NULL);
 			synchronize_rcu();
-			pci_dev_put(tmp);
+			put_device(tmp);
 			return 1;
 		}
 
@@ -562,15 +565,15 @@ parse_dmar_table(void)
 	return ret;
 }
 
-static int dmar_pci_device_match(struct pci_dev __rcu *devices[], int cnt,
-			  struct pci_dev *dev)
+static int dmar_pci_device_match(struct dmar_dev_scope devices[],
+				 int cnt, struct pci_dev *dev)
 {
 	int index;
-	struct pci_dev *tmp;
+	struct device *tmp;
 
 	while (dev) {
 		for_each_active_dev_scope(devices, cnt, index, tmp)
-			if (dev == tmp)
+			if (dev_is_pci(tmp) && dev == to_pci_dev(tmp))
 				return 1;
 
 		/* Check our parent */
