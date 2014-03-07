@@ -5923,8 +5923,6 @@ void intel_init_runtime_pm(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
-	dev_priv->pm.suspended = false;
-
 	if (!HAS_RUNTIME_PM(dev))
 		return;
 
@@ -6160,5 +6158,6 @@ void intel_pm_setup(struct drm_device *dev)
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 
+	dev_priv->pm.suspended = false;
 	dev_priv->pm.irqs_disabled = false;
 }
