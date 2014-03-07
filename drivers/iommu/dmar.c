@@ -373,6 +373,26 @@ static void dmar_free_drhd(struct dmar_drhd_unit *dmaru)
 	kfree(dmaru);
 }
 
+static int __init dmar_parse_one_andd(struct acpi_dmar_header *header)
+{
+	struct acpi_dmar_andd *andd = (void *)header;
+
+	/* Check for NUL termination within the designated length */
+	if (strnlen(andd->object_name, header->length - 8) == header->length - 8) {
+		WARN_TAINT(1, TAINT_FIRMWARE_WORKAROUND,
+			   "Your BIOS is broken; ANDD object name is not NUL-terminated\n"
+			   "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+			   dmi_get_system_info(DMI_BIOS_VENDOR),
+			   dmi_get_system_info(DMI_BIOS_VERSION),
+			   dmi_get_system_info(DMI_PRODUCT_VERSION));
+		return -EINVAL;
+	}
+	pr_info("ANDD device: %x name: %s\n", andd->device_number,
+		andd->object_name);
+
+	return 0;
+}
+
 #ifdef CONFIG_ACPI_NUMA
 static int __init
 dmar_parse_one_rhsa(struct acpi_dmar_header *header)
@@ -435,6 +455,10 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 		pr_info("RHSA base: %#016Lx proximity domain: %#x\n",
 		       (unsigned long long)rhsa->base_address,
 		       rhsa->proximity_domain);
+		break;
+	case ACPI_DMAR_TYPE_ANDD:
+		/* We don't print this here because we need to sanity-check
+		   it first. So print it in dmar_parse_one_andd() instead. */
 		break;
 	}
 }
@@ -520,6 +544,9 @@ parse_dmar_table(void)
 #ifdef CONFIG_ACPI_NUMA
 			ret = dmar_parse_one_rhsa(entry_header);
 #endif
+			break;
+		case ACPI_DMAR_TYPE_ANDD:
+			ret = dmar_parse_one_andd(entry_header);
 			break;
 		default:
 			pr_warn("Unknown DMAR structure type %d\n",
