@@ -1578,7 +1578,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	setup_scripting();
 
 	argc = parse_options(argc, argv, options, script_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+                 PARSE_OPT_KEEP_UNKNOWN);
 
 	file.path = input_name;
 
