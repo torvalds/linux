@@ -672,9 +672,9 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct jr3_pci_dev_private *devpriv;
-	struct jr3_pci_subdev_private *p;
+	struct jr3_pci_subdev_private *spriv;
 	struct comedi_subdevice *s;
-	int result;
+	int ret;
 	int i;
 
 	if (sizeof(struct jr3_channel) != 0xc00) {
@@ -710,17 +710,17 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		break;
 	}
 
-	result = comedi_pci_enable(dev);
-	if (result)
-		return result;
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
 
 	devpriv->iobase = pci_ioremap_bar(pcidev, 0);
 	if (!devpriv->iobase)
 		return -ENOMEM;
 
-	result = comedi_alloc_subdevices(dev, devpriv->n_channels);
-	if (result)
-		return result;
+	ret = comedi_alloc_subdevices(dev, devpriv->n_channels);
+	if (ret)
+		return ret;
 
 	dev->open = jr3_pci_open;
 	for (i = 0; i < devpriv->n_channels; i++) {
@@ -730,24 +730,23 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 8 * 7 + 2;
 		s->insn_read	= jr3_pci_ai_insn_read;
 
-		p = jr3_pci_alloc_spriv(dev, s);
-		if (p) {
+		spriv = jr3_pci_alloc_spriv(dev, s);
+		if (spriv) {
 			/* Channel specific range and maxdata */
-			s->range_table_list	= p->range_table_list;
-			s->maxdata_list		= p->maxdata_list;
+			s->range_table_list	= spriv->range_table_list;
+			s->maxdata_list		= spriv->maxdata_list;
 		}
 	}
 
 	/*  Reset DSP card */
 	writel(0, &devpriv->iobase->channel[0].reset);
 
-	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
-				      "comedi/jr3pci.idm",
-				      jr3_download_firmware, 0);
-	dev_dbg(dev->class_dev, "Firmare load %d\n", result);
-
-	if (result < 0)
-		return result;
+	ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
+				   "comedi/jr3pci.idm",
+				   jr3_download_firmware, 0);
+	dev_dbg(dev->class_dev, "Firmare load %d\n", ret);
+	if (ret < 0)
+		return ret;
 	/*
 	 * TODO: use firmware to load preferred offset tables. Suggested
 	 * format:
@@ -772,10 +771,10 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	/*  Start card timer */
 	for (i = 0; i < devpriv->n_channels; i++) {
 		s = &dev->subdevices[i];
-		p = s->private;
+		spriv = s->private;
 
-		p->next_time_min = jiffies + msecs_to_jiffies(500);
-		p->next_time_max = jiffies + msecs_to_jiffies(2000);
+		spriv->next_time_min = jiffies + msecs_to_jiffies(500);
+		spriv->next_time_max = jiffies + msecs_to_jiffies(2000);
 	}
 
 	devpriv->timer.data = (unsigned long)dev;
