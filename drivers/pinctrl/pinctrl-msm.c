@@ -884,6 +884,12 @@ static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+/*
+ * This lock class tells lockdep that GPIO irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpio_lock_class;
+
 static int msm_gpio_init(struct msm_pinctrl *pctrl)
 {
 	struct gpio_chip *chip;
@@ -922,6 +928,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 
 	for (i = 0; i < chip->ngpio; i++) {
 		irq = irq_create_mapping(pctrl->domain, i);
+		irq_set_lockdep_class(irq, &gpio_lock_class);
 		irq_set_chip_and_handler(irq, &msm_gpio_irq_chip, handle_edge_irq);
 		irq_set_chip_data(irq, pctrl);
 	}
