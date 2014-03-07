@@ -5888,15 +5888,14 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 	intel_power_domains_resume(dev_priv);
 }
 
-/* Disables PC8 so we can use the GMBUS and DP AUX interrupts. */
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
 {
-	hsw_disable_package_c8(dev_priv);
+	intel_runtime_pm_get(dev_priv);
 }
 
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv)
 {
-	hsw_enable_package_c8(dev_priv);
+	intel_runtime_pm_put(dev_priv);
 }
 
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
