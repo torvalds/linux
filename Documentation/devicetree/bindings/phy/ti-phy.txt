@@ -55,6 +55,12 @@ Required properties:
    filled in "reg".
  - #phy-cells: determine the number of cells that should be given in the
    phandle while referencing this phy.
+ - clocks: a list of phandles and clock-specifier pairs, one for each entry in
+   clock-names.
+ - clock-names: should include:
+   * "wkupclk" - wakeup clock.
+   * "sysclk" - system clock.
+   * "refclk" - reference clock.
 
 Optional properties:
  - ctrl-module : phandle of the control module used by PHY driver to power on
@@ -70,4 +76,10 @@ usb3phy@4a084400 {
 	reg-names = "phy_rx", "phy_tx", "pll_ctrl";
 	ctrl-module = <&omap_control_usb>;
 	#phy-cells = <0>;
+	clocks = <&usb_phy_cm_clk32k>,
+		 <&sys_clkin>,
+		 <&usb_otg_ss_refclk960m>;
+	clock-names =	"wkupclk",
+			"sysclk",
+			"refclk";
 };
