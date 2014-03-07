@@ -1041,8 +1041,7 @@ static void iopte_cachep_ctor(void *iopte)
 	clean_dcache_area(iopte, IOPTE_TABLE_SIZE);
 }
 
-static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa,
-				   u32 flags)
+static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa, int pgsz)
 {
 	memset(e, 0, sizeof(*e));
 
@@ -1050,10 +1049,10 @@ static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa,
 	e->pa		= pa;
 	e->valid	= MMU_CAM_V;
 	/* FIXME: add OMAP1 support */
-	e->pgsz		= flags & MMU_CAM_PGSZ_MASK;
-	e->endian	= flags & MMU_RAM_ENDIAN_MASK;
-	e->elsz		= flags & MMU_RAM_ELSZ_MASK;
-	e->mixed	= flags & MMU_RAM_MIXED_MASK;
+	e->pgsz		= pgsz;
+	e->endian	= MMU_RAM_ENDIAN_LITTLE;
+	e->elsz		= MMU_RAM_ELSZ_8;
+	e->mixed	= 0;
 
 	return iopgsz_to_bytes(e->pgsz);
 }
@@ -1066,7 +1065,7 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 	struct device *dev = oiommu->dev;
 	struct iotlb_entry e;
 	int omap_pgsz;
-	u32 ret, flags;
+	u32 ret;
 
 	omap_pgsz = bytes_to_iopgsz(bytes);
 	if (omap_pgsz < 0) {
@@ -1076,9 +1075,7 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 
 	dev_dbg(dev, "mapping da 0x%lx to pa 0x%x size 0x%x\n", da, pa, bytes);
 
-	flags = omap_pgsz | prot;
-
-	iotlb_init_entry(&e, da, pa, flags);
+	iotlb_init_entry(&e, da, pa, omap_pgsz);
 
 	ret = omap_iopgtable_store_entry(oiommu, &e);
 	if (ret)
