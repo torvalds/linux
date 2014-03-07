@@ -2918,7 +2918,7 @@ int radeon_atom_get_memory_pll_dividers(struct radeon_device *rdev,
 			mpll_param->dll_speed = args.ucDllSpeed;
 			mpll_param->bwcntl = args.ucBWCntl;
 			mpll_param->vco_mode =
-				(args.ucPllCntlFlag & MPLL_CNTL_FLAG_VCO_MODE_MASK) ? 1 : 0;
+				(args.ucPllCntlFlag & MPLL_CNTL_FLAG_VCO_MODE_MASK);
 			mpll_param->yclk_sel =
 				(args.ucPllCntlFlag & MPLL_CNTL_FLAG_BYPASS_DQ_PLL) ? 1 : 0;
 			mpll_param->qdr =

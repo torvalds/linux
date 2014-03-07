@@ -62,16 +62,6 @@ static struct clockdomain *dsp_clkdm, *mpu_clkdm, *wkup_clkdm, *gfx_clkdm;
 
 static struct clk *osc_ck, *emul_ck;
 
-static int omap2_fclks_active(void)
-{
-	u32 f1, f2;
-
-	f1 = omap2_cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
-	f2 = omap2_cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
-
-	return (f1 | f2) ? 1 : 0;
-}
-
 static int omap2_enter_full_retention(void)
 {
 	u32 l;
@@ -142,17 +132,7 @@ static int sti_console_enabled;
 
 static int omap2_allow_mpu_retention(void)
 {
-	u32 l;
-
-	/* Check for MMC, UART2, UART1, McSPI2, McSPI1 and DSS1. */
-	l = omap2_cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
-	if (l & (OMAP2420_EN_MMC_MASK | OMAP24XX_EN_UART2_MASK |
-		 OMAP24XX_EN_UART1_MASK | OMAP24XX_EN_MCSPI2_MASK |
-		 OMAP24XX_EN_MCSPI1_MASK | OMAP24XX_EN_DSS1_MASK))
-		return 0;
-	/* Check for UART3. */
-	l = omap2_cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
-	if (l & OMAP24XX_EN_UART3_MASK)
+	if (!omap2xxx_cm_mpu_retention_allowed())
 		return 0;
 	if (sti_console_enabled)
 		return 0;
@@ -188,7 +168,7 @@ static void omap2_enter_mpu_retention(void)
 
 static int omap2_can_sleep(void)
 {
-	if (omap2_fclks_active())
+	if (omap2xxx_cm_fclks_active())
 		return 0;
 	if (__clk_is_enabled(osc_ck))
 		return 0;

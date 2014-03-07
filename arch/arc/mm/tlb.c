@@ -100,7 +100,7 @@
 
 
 /* A copy of the ASID from the PID reg is kept in asid_cache */
-unsigned int asid_cache = MM_CTXT_FIRST_CYCLE;
+DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
 
 /*
  * Utility Routine to erase a J-TLB entry
@@ -274,6 +274,7 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			   unsigned long end)
 {
+	const unsigned int cpu = smp_processor_id();
 	unsigned long flags;
 
 	/* If range @start to @end is more than 32 TLB entries deep,
@@ -297,9 +298,9 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 	local_irq_save(flags);
 
-	if (vma->vm_mm->context.asid != MM_CTXT_NO_ASID) {
+	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
 		while (start < end) {
-			tlb_entry_erase(start | hw_pid(vma->vm_mm));
+			tlb_entry_erase(start | hw_pid(vma->vm_mm, cpu));
 			start += PAGE_SIZE;
 		}
 	}
@@ -346,6 +347,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
+	const unsigned int cpu = smp_processor_id();
 	unsigned long flags;
 
 	/* Note that it is critical that interrupts are DISABLED between
@@ -353,13 +355,86 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	 */
 	local_irq_save(flags);
 
-	if (vma->vm_mm->context.asid != MM_CTXT_NO_ASID) {
-		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm));
+	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
+		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm, cpu));
 		utlb_invalidate();
 	}
 
 	local_irq_restore(flags);
 }
+
+#ifdef CONFIG_SMP
+
+struct tlb_args {
+	struct vm_area_struct *ta_vma;
+	unsigned long ta_start;
+	unsigned long ta_end;
+};
+
+static inline void ipi_flush_tlb_page(void *arg)
+{
+	struct tlb_args *ta = arg;
+
+	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
+}
+
+static inline void ipi_flush_tlb_range(void *arg)
+{
+	struct tlb_args *ta = arg;
+
+	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+}
+
+static inline void ipi_flush_tlb_kernel_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
+}
+
+void flush_tlb_all(void)
+{
+	on_each_cpu((smp_call_func_t)local_flush_tlb_all, NULL, 1);
+}
+
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	on_each_cpu_mask(mm_cpumask(mm), (smp_call_func_t)local_flush_tlb_mm,
+			 mm, 1);
+}
+
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
+{
+	struct tlb_args ta = {
+		.ta_vma = vma,
+		.ta_start = uaddr
+	};
+
+	on_each_cpu_mask(mm_cpumask(vma->vm_mm), ipi_flush_tlb_page, &ta, 1);
+}
+
+void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+		     unsigned long end)
+{
+	struct tlb_args ta = {
+		.ta_vma = vma,
+		.ta_start = start,
+		.ta_end = end
+	};
+
+	on_each_cpu_mask(mm_cpumask(vma->vm_mm), ipi_flush_tlb_range, &ta, 1);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	struct tlb_args ta = {
+		.ta_start = start,
+		.ta_end = end
+	};
+
+	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1);
+}
+#endif
 
 /*
  * Routine to create a TLB entry
@@ -400,7 +475,7 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 
 	local_irq_save(flags);
 
-	tlb_paranoid_check(vma->vm_mm->context.asid, address);
+	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), address);
 
 	address &= PAGE_MASK;
 
@@ -610,9 +685,9 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
 	int set, way, n;
-	unsigned int pd0[4], pd1[4];	/* assume max 4 ways */
 	unsigned long flags, is_valid;
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	unsigned int pd0[mmu->ways], pd1[mmu->ways];
 
 	local_irq_save(flags);
 
@@ -637,7 +712,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			continue;
 
 		/* Scan the set for duplicate ways: needs a nested loop */
-		for (way = 0; way < mmu->ways; way++) {
+		for (way = 0; way < mmu->ways - 1; way++) {
 			if (!pd0[way])
 				continue;
 

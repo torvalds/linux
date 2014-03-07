@@ -119,13 +119,13 @@ struct dm_cache_policy *dm_cache_policy_create(const char *name,
 	type = get_policy(name);
 	if (!type) {
 		DMWARN("unknown policy type");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	p = type->create(cache_size, origin_size, cache_block_size);
 	if (!p) {
 		put_policy(type);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	p->private = type;
 

@@ -118,6 +118,9 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	if (pDevice->Flags & fMP_CONTROL_READS)
 		return STATUS_FAILURE;
 
+	if (pDevice->pControlURB->hcpriv)
+		return STATUS_FAILURE;
+
 	MP_SET_FLAG(pDevice, fMP_CONTROL_WRITES);
 
 	pDevice->sUsbCtlRequest.bRequestType = 0x40;
@@ -175,6 +178,9 @@ int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	return STATUS_FAILURE;
 
 	if (pDevice->Flags & fMP_CONTROL_WRITES)
+		return STATUS_FAILURE;
+
+	if (pDevice->pControlURB->hcpriv)
 		return STATUS_FAILURE;
 
 	MP_SET_FLAG(pDevice, fMP_CONTROL_READS);
@@ -656,8 +662,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Write %d bytes\n",(int)ulBufLen);
         pDevice->ulBulkOutBytesWrite += ulBufLen;
         pDevice->ulBulkOutContCRCError = 0;
-	pDevice->nTxDataTimeCout = 0;
-
     } else {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK Out failed %d\n", status);
         pDevice->ulBulkOutError++;

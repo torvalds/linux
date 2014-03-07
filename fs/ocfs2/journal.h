@@ -524,8 +524,7 @@ static inline int ocfs2_calc_dxi_expand_credits(struct super_block *sb)
  * the result may be wrong.
  */
 static inline int ocfs2_calc_extend_credits(struct super_block *sb,
-					    struct ocfs2_extent_list *root_el,
-					    u32 bits_wanted)
+					    struct ocfs2_extent_list *root_el)
 {
 	int bitmap_blocks, sysfile_bitmap_blocks, extent_blocks;
 

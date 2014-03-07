@@ -424,8 +424,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define CHIP_ID_1271_PG10	           (0x4030101)
 #define CHIP_ID_1271_PG20	           (0x4030111)
 
-#define WL1251_FW_NAME "wl1251-fw.bin"
-#define WL1251_NVS_NAME "wl1251-nvs.bin"
+#define WL1251_FW_NAME "ti-connectivity/wl1251-fw.bin"
+#define WL1251_NVS_NAME "ti-connectivity/wl1251-nvs.bin"
 
 #define WL1251_POWER_ON_SLEEP 10 /* in milliseconds */
 

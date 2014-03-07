@@ -1713,7 +1713,7 @@ void InitialGain819xUsb(struct net_device *dev,	u8 Operation)
 		queue_delayed_work(priv->priv_wq, &priv->initialgain_operate_wq, 0);
 }
 
-extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
+void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work,
 						  work);
@@ -1799,12 +1799,6 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 		RT_TRACE(COMP_SCAN, "Scan BBInitialGainRestore 0xa0a is %x\n",
 			 priv->initgain_backup.cca);
 
-#ifdef RTL8190P
-		SetTxPowerLevel8190(Adapter, priv->CurrentChannel);
-#endif
-#ifdef RTL8192E
-		SetTxPowerLevel8190(Adapter, priv->CurrentChannel);
-#endif
 		rtl8192_phy_setTxPower(dev, priv->ieee80211->current_network.channel);
 
 		if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)

@@ -69,7 +69,7 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 	dst->src = dssdev;
 	dssdev->dst = dst;
 
-	INIT_COMPLETION(ddata->hpd_completion);
+	reinit_completion(&ddata->hpd_completion);
 
 	gpio_set_value_cansleep(ddata->ct_cp_hpd_gpio, 1);
 	/* DC-DC converter needs at max 300us to get to 90% of 5V */

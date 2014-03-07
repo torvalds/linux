@@ -749,7 +749,7 @@ void rds_atomic_send_complete(struct rds_message *rm, int wc_status);
 int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		    struct cmsghdr *cmsg);
 
-extern void __rds_put_mr_final(struct rds_mr *mr);
+void __rds_put_mr_final(struct rds_mr *mr);
 static inline void rds_mr_put(struct rds_mr *mr)
 {
 	if (atomic_dec_and_test(&mr->r_refcount))

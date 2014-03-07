@@ -83,6 +83,7 @@
 #define IFF_SUPP_NOFCS	0x80000		/* device supports sending custom FCS */
 #define IFF_LIVE_ADDR_CHANGE 0x100000	/* device supports hardware address
 					 * change when it's running */
+#define IFF_MACVLAN 0x200000		/* Macvlan device */
 
 
 #define IF_GET_IFACE	0x0001		/* for querying only */

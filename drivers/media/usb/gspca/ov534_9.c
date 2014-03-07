@@ -59,6 +59,7 @@ enum sensors {
 	SENSOR_OV965x,		/* ov9657 */
 	SENSOR_OV971x,		/* ov9712 */
 	SENSOR_OV562x,		/* ov5621 */
+	SENSOR_OV361x,		/* ov3610 */
 	NSENSORS
 };
 
@@ -104,6 +105,274 @@ static const struct v4l2_pix_format ov562x_mode[] = {
 		.sizeimage = 2592 * 1680,
 		.colorspace = V4L2_COLORSPACE_SRGB
 	}
+};
+
+enum ov361x {
+	ov361x_2048 = 0,
+	ov361x_1600,
+	ov361x_1024,
+	ov361x_640,
+	ov361x_320,
+	ov361x_160,
+	ov361x_last
+};
+
+static const struct v4l2_pix_format ov361x_mode[] = {
+	{0x800, 0x600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 0x800,
+		.sizeimage = 0x800 * 0x600,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 1600,
+		.sizeimage = 1600 * 1200,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 768,
+		.sizeimage = 1024 * 768,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120,
+		.colorspace = V4L2_COLORSPACE_SRGB}
+};
+
+static const u8 ov361x_start_2048[][2] = {
+	{0x12, 0x80},
+	{0x13, 0xcf},
+	{0x14, 0x40},
+	{0x15, 0x00},
+	{0x01, 0x80},
+	{0x02, 0x80},
+	{0x04, 0x70},
+	{0x0d, 0x40},
+	{0x0f, 0x47},
+	{0x11, 0x81},
+	{0x32, 0x36},
+	{0x33, 0x0c},
+	{0x34, 0x00},
+	{0x35, 0x90},
+	{0x12, 0x00},
+	{0x17, 0x10},
+	{0x18, 0x90},
+	{0x19, 0x00},
+	{0x1a, 0xc0},
+};
+static const u8 ov361x_bridge_start_2048[][2] = {
+	{0xf1, 0x60},
+	{0x88, 0x00},
+	{0x89, 0x08},
+	{0x8a, 0x00},
+	{0x8b, 0x06},
+	{0x8c, 0x01},
+	{0x8d, 0x10},
+	{0x1c, 0x00},
+	{0x1d, 0x48},
+	{0x1d, 0x00},
+	{0x1d, 0xff},
+	{0x1c, 0x0a},
+	{0x1d, 0x2e},
+	{0x1d, 0x1e},
+};
+
+static const u8 ov361x_start_1600[][2] = {
+	{0x12, 0x80},
+	{0x13, 0xcf},
+	{0x14, 0x40},
+	{0x15, 0x00},
+	{0x01, 0x80},
+	{0x02, 0x80},
+	{0x04, 0x70},
+	{0x0d, 0x40},
+	{0x0f, 0x47},
+	{0x11, 0x81},
+	{0x32, 0x36},
+	{0x33, 0x0C},
+	{0x34, 0x00},
+	{0x35, 0x90},
+	{0x12, 0x00},
+	{0x17, 0x10},
+	{0x18, 0x90},
+	{0x19, 0x00},
+	{0x1a, 0xc0},
+};
+static const u8 ov361x_bridge_start_1600[][2] = {
+	{0xf1, 0x60},  /* Hsize[7:0] */
+	{0x88, 0x00},  /* Hsize[15:8] Write Only, can't read */
+	{0x89, 0x08},  /* Vsize[7:0] */
+	{0x8a, 0x00},  /* Vsize[15:8] Write Only, can't read */
+	{0x8b, 0x06},  /* for Iso */
+	{0x8c, 0x01},  /* RAW input */
+	{0x8d, 0x10},
+	{0x1c, 0x00},  /* RAW output, Iso transfer */
+	{0x1d, 0x48},
+	{0x1d, 0x00},
+	{0x1d, 0xff},
+	{0x1c, 0x0a},  /* turn off JPEG, Iso mode */
+	{0x1d, 0x2e},  /* for Iso */
+	{0x1d, 0x1e},
+};
+
+static const u8 ov361x_start_1024[][2] = {
+	{0x12, 0x80},
+	{0x13, 0xcf},
+	{0x14, 0x40},
+	{0x15, 0x00},
+	{0x01, 0x80},
+	{0x02, 0x80},
+	{0x04, 0x70},
+	{0x0d, 0x40},
+	{0x0f, 0x47},
+	{0x11, 0x81},
+	{0x32, 0x36},
+	{0x33, 0x0C},
+	{0x34, 0x00},
+	{0x35, 0x90},
+	{0x12, 0x40},
+	{0x17, 0x1f},
+	{0x18, 0x5f},
+	{0x19, 0x00},
+	{0x1a, 0x68},
+};
+static const u8 ov361x_bridge_start_1024[][2] = {
+	{0xf1, 0x60},  /* Hsize[7:0] */
+	{0x88, 0x00},  /* Hsize[15:8] Write Only, can't read */
+	{0x89, 0x04},  /* Vsize[7:0] */
+	{0x8a, 0x00},  /* Vsize[15:8] Write Only, can't read */
+	{0x8b, 0x03},  /* for Iso */
+	{0x8c, 0x01},  /* RAW input  */
+	{0x8d, 0x10},
+	{0x1c, 0x00},  /* RAW output, Iso transfer */
+	{0x1d, 0x48},
+	{0x1d, 0x00},
+	{0x1d, 0xff},
+	{0x1c, 0x0a},  /* turn off JPEG, Iso mode */
+	{0x1d, 0x2e},  /* for Iso */
+	{0x1d, 0x1e},
+};
+
+static const u8 ov361x_start_640[][2] = {
+	{0x12, 0x80},
+	{0x13, 0xcf},
+	{0x14, 0x40},
+	{0x15, 0x00},
+	{0x01, 0x80},
+	{0x02, 0x80},
+	{0x04, 0x70},
+	{0x0d, 0x40},
+	{0x0f, 0x47},
+	{0x11, 0x81},
+	{0x32, 0x36},
+	{0x33, 0x0C},
+	{0x34, 0x00},
+	{0x35, 0x90},
+	{0x12, 0x40},
+	{0x17, 0x1f},
+	{0x18, 0x5f},
+	{0x19, 0x00},
+	{0x1a, 0x68},
+};
+
+static const u8 ov361x_bridge_start_640[][2] = {
+	{0xf1, 0x60},  /* Hsize[7:0]*/
+	{0x88, 0x00},  /* Hsize[15:8] Write Only, can't read */
+	{0x89, 0x04},  /* Vsize[7:0] */
+	{0x8a, 0x00},  /* Vsize[15:8] Write Only, can't read */
+	{0x8b, 0x03},  /* for Iso */
+	{0x8c, 0x01},  /* RAW input */
+	{0x8d, 0x10},
+	{0x1c, 0x00},  /* RAW output, Iso transfer */
+	{0x1d, 0x48},
+	{0x1d, 0x00},
+	{0x1d, 0xff},
+	{0x1c, 0x0a},  /* turn off JPEG, Iso mode */
+	{0x1d, 0x2e},  /* for Iso */
+	{0x1d, 0x1e},
+};
+
+static const u8 ov361x_start_320[][2] = {
+	{0x12, 0x80},
+	{0x13, 0xcf},
+	{0x14, 0x40},
+	{0x15, 0x00},
+	{0x01, 0x80},
+	{0x02, 0x80},
+	{0x04, 0x70},
+	{0x0d, 0x40},
+	{0x0f, 0x47},
+	{0x11, 0x81},
+	{0x32, 0x36},
+	{0x33, 0x0C},
+	{0x34, 0x00},
+	{0x35, 0x90},
+	{0x12, 0x40},
+	{0x17, 0x1f},
+	{0x18, 0x5f},
+	{0x19, 0x00},
+	{0x1a, 0x68},
+};
+
+static const u8 ov361x_bridge_start_320[][2] = {
+	{0xf1, 0x60},  /* Hsize[7:0] */
+	{0x88, 0x00},  /* Hsize[15:8] Write Only, can't read */
+	{0x89, 0x04},  /* Vsize[7:0] */
+	{0x8a, 0x00},  /* Vsize[15:8] Write Only, can't read */
+	{0x8b, 0x03},  /* for Iso */
+	{0x8c, 0x01},  /* RAW input */
+	{0x8d, 0x10},
+	{0x1c, 0x00},  /* RAW output, Iso transfer; */
+	{0x1d, 0x48},
+	{0x1d, 0x00},
+	{0x1d, 0xff},
+	{0x1c, 0x0a},  /* turn off JPEG, Iso mode */
+	{0x1d, 0x2e},  /* for Iso */
+	{0x1d, 0x1e},
+};
+
+static const u8 ov361x_start_160[][2] = {
+	{0x12, 0x80},
+	{0x13, 0xcf},
+	{0x14, 0x40},
+	{0x15, 0x00},
+	{0x01, 0x80},
+	{0x02, 0x80},
+	{0x04, 0x70},
+	{0x0d, 0x40},
+	{0x0f, 0x47},
+	{0x11, 0x81},
+	{0x32, 0x36},
+	{0x33, 0x0C},
+	{0x34, 0x00},
+	{0x35, 0x90},
+	{0x12, 0x40},
+	{0x17, 0x1f},
+	{0x18, 0x5f},
+	{0x19, 0x00},
+	{0x1a, 0x68},
+};
+
+static const u8 ov361x_bridge_start_160[][2] = {
+	{0xf1, 0x60},  /* Hsize[7:0] */
+	{0x88, 0x00},  /* Hsize[15:8] Write Only, can't read */
+	{0x89, 0x04},  /* Vsize[7:0] */
+	{0x8a, 0x00},  /* Vsize[15:8] Write Only, can't read */
+	{0x8b, 0x03},  /* for Iso */
+	{0x8c, 0x01},  /* RAW input */
+	{0x8d, 0x10},
+	{0x1c, 0x00},  /* RAW output, Iso transfer */
+	{0x1d, 0x48},
+	{0x1d, 0x00},
+	{0x1d, 0xff},
+	{0x1c, 0x0a},  /* turn off JPEG, Iso mode */
+	{0x1d, 0x2e},  /* for Iso */
+	{0x1d, 0x1e},
 };
 
 static const u8 bridge_init[][2] = {
@@ -898,7 +1167,7 @@ static int sccb_check_status(struct gspca_dev *gspca_dev)
 	int i;
 
 	for (i = 0; i < 5; i++) {
-		msleep(10);
+		msleep(20);
 		data = reg_r(gspca_dev, OV534_REG_STATUS);
 
 		switch (data) {
@@ -1221,10 +1490,64 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sccb_w_array(gspca_dev, ov562x_init_2,
 				ARRAY_SIZE(ov562x_init_2));
 		reg_w(gspca_dev, 0xe0, 0x00);
+	} else if ((sensor_id & 0xfff0) == 0x3610) {
+		sd->sensor = SENSOR_OV361x;
+		gspca_dev->cam.cam_mode = ov361x_mode;
+		gspca_dev->cam.nmodes = ARRAY_SIZE(ov361x_mode);
+		reg_w(gspca_dev, 0xe7, 0x3a);
+		reg_w(gspca_dev, 0xf1, 0x60);
+		sccb_write(gspca_dev, 0x12, 0x80);
 	} else {
 		pr_err("Unknown sensor %04x", sensor_id);
 		return -EINVAL;
 	}
+
+	return gspca_dev->usb_err;
+}
+
+static int sd_start_ov361x(struct gspca_dev *gspca_dev)
+{
+	sccb_write(gspca_dev, 0x12, 0x80);
+	msleep(20);
+	switch (gspca_dev->curr_mode % (ov361x_last)) {
+	case ov361x_2048:
+		reg_w_array(gspca_dev, ov361x_bridge_start_2048,
+			    ARRAY_SIZE(ov361x_bridge_start_2048));
+		sccb_w_array(gspca_dev, ov361x_start_2048,
+			     ARRAY_SIZE(ov361x_start_2048));
+		break;
+	case ov361x_1600:
+		reg_w_array(gspca_dev, ov361x_bridge_start_1600,
+			    ARRAY_SIZE(ov361x_bridge_start_1600));
+		sccb_w_array(gspca_dev, ov361x_start_1600,
+			     ARRAY_SIZE(ov361x_start_1600));
+		break;
+	case ov361x_1024:
+		reg_w_array(gspca_dev, ov361x_bridge_start_1024,
+			    ARRAY_SIZE(ov361x_bridge_start_1024));
+		sccb_w_array(gspca_dev, ov361x_start_1024,
+			     ARRAY_SIZE(ov361x_start_1024));
+		break;
+	case ov361x_640:
+		reg_w_array(gspca_dev, ov361x_bridge_start_640,
+			    ARRAY_SIZE(ov361x_bridge_start_640));
+		sccb_w_array(gspca_dev, ov361x_start_640,
+			     ARRAY_SIZE(ov361x_start_640));
+		break;
+	case ov361x_320:
+		reg_w_array(gspca_dev, ov361x_bridge_start_320,
+			    ARRAY_SIZE(ov361x_bridge_start_320));
+		sccb_w_array(gspca_dev, ov361x_start_320,
+			     ARRAY_SIZE(ov361x_start_320));
+		break;
+	case ov361x_160:
+		reg_w_array(gspca_dev, ov361x_bridge_start_160,
+			    ARRAY_SIZE(ov361x_bridge_start_160));
+		sccb_w_array(gspca_dev, ov361x_start_160,
+			     ARRAY_SIZE(ov361x_start_160));
+		break;
+	}
+	reg_w(gspca_dev, 0xe0, 0x00); /* start transfer */
 
 	return gspca_dev->usb_err;
 }
@@ -1237,6 +1560,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return gspca_dev->usb_err;
 	if (sd->sensor == SENSOR_OV562x)
 		return gspca_dev->usb_err;
+	if (sd->sensor == SENSOR_OV361x)
+		return sd_start_ov361x(gspca_dev);
 
 	switch (gspca_dev->curr_mode) {
 	case QVGA_MODE:			/* 320x240 */
@@ -1290,6 +1615,11 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	if (((struct sd *)gspca_dev)->sensor == SENSOR_OV361x) {
+		reg_w(gspca_dev, 0xe0, 0x01); /* stop transfer */
+		/* reg_w(gspca_dev, 0x31, 0x09); */
+		return;
+	}
 	reg_w(gspca_dev, 0xe0, 0x01);
 	set_led(gspca_dev, 0);
 	reg_w(gspca_dev, 0xe0, 0x00);
@@ -1424,6 +1754,8 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
 	if (sd->sensor == SENSOR_OV971x)
+		return 0;
+	if (sd->sensor == SENSOR_OV361x)
 		return 0;
 	gspca_dev->vdev.ctrl_handler = hdl;
 	v4l2_ctrl_handler_init(hdl, 7);

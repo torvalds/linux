@@ -185,13 +185,13 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	if (own_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE) {
 		vht_cap->cap |= cap_info &
 				(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
-				 IEEE80211_VHT_CAP_BEAMFORMER_ANTENNAS_MAX |
 				 IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MAX);
 	}
 
 	if (own_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)
 		vht_cap->cap |= cap_info &
-				IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
+				(IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+				 IEEE80211_VHT_CAP_BEAMFORMEE_STS_MAX);
 
 	if (own_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)
 		vht_cap->cap |= cap_info &

@@ -154,7 +154,7 @@ static struct xen_bus_type xenbus_frontend = {
 		.probe		= xenbus_frontend_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
-		.dev_attrs	= xenbus_dev_attrs,
+		.dev_groups	= xenbus_dev_groups,
 
 		.pm		= &xenbus_pm_ops,
 	},

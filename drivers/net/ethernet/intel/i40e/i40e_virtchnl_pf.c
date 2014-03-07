@@ -251,7 +251,7 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_idx,
 		reg_idx = I40E_VPINT_LNKLST0(vf->vf_id);
 	else
 		reg_idx = I40E_VPINT_LNKLSTN(
-			    ((pf->hw.func_caps.num_msix_vectors_vf - 1)
+					   (pf->hw.func_caps.num_msix_vectors_vf
 					      * vf->vf_id) + (vector_id - 1));
 
 	if (vecmap->rxq_map == 0 && vecmap->txq_map == 0) {
@@ -383,7 +383,7 @@ static int i40e_config_vsi_tx_queue(struct i40e_vf *vf, u16 vsi_idx,
 
 	/* associate this queue with the PCI VF function */
 	qtx_ctl = I40E_QTX_CTL_VF_QUEUE;
-	qtx_ctl |= ((hw->hmc.hmc_fn_id << I40E_QTX_CTL_PF_INDX_SHIFT)
+	qtx_ctl |= ((hw->pf_id << I40E_QTX_CTL_PF_INDX_SHIFT)
 		    & I40E_QTX_CTL_PF_INDX_MASK);
 	qtx_ctl |= (((vf->vf_id + hw->func_caps.vf_base_id)
 		     << I40E_QTX_CTL_VFVM_INDX_SHIFT)

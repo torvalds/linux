@@ -339,14 +339,11 @@ __isp_video_get_format(struct isp_video *video, struct v4l2_format *format)
 	if (subdev == NULL)
 		return -EINVAL;
 
-	mutex_lock(&video->mutex);
-
 	fmt.pad = pad;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
-	if (ret == -ENOIOCTLCMD)
-		ret = -EINVAL;
 
+	mutex_lock(&video->mutex);
+	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	mutex_unlock(&video->mutex);
 
 	if (ret)

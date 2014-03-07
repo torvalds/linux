@@ -58,8 +58,6 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define THREAD_SIZE_ORDER 1
 #define THREAD_SIZE (2*PAGE_SIZE)
 
-#define PREEMPT_ACTIVE		0x40000000
-
 /*
  * Thread information flags:
  * - these are process state flags and used from assembly

@@ -75,43 +75,6 @@
  * nodes that are pinning the oldest journal entries first.
  */
 
-#define BCACHE_JSET_VERSION_UUIDv1	1
-/* Always latest UUID format */
-#define BCACHE_JSET_VERSION_UUID	1
-#define BCACHE_JSET_VERSION		1
-
-/*
- * On disk format for a journal entry:
- * seq is monotonically increasing; every journal entry has its own unique
- * sequence number.
- *
- * last_seq is the oldest journal entry that still has keys the btree hasn't
- * flushed to disk yet.
- *
- * version is for on disk format changes.
- */
-struct jset {
-	uint64_t		csum;
-	uint64_t		magic;
-	uint64_t		seq;
-	uint32_t		version;
-	uint32_t		keys;
-
-	uint64_t		last_seq;
-
-	BKEY_PADDED(uuid_bucket);
-	BKEY_PADDED(btree_root);
-	uint16_t		btree_level;
-	uint16_t		pad[3];
-
-	uint64_t		prio_bucket[MAX_CACHES_PER_SET];
-
-	union {
-		struct bkey	start[0];
-		uint64_t	d[0];
-	};
-};
-
 /*
  * Only used for holding the journal entries we read in btree_journal_read()
  * during cache_registration
@@ -140,7 +103,8 @@ struct journal {
 	spinlock_t		lock;
 	/* used when waiting because the journal was full */
 	struct closure_waitlist	wait;
-	struct closure_with_timer io;
+	struct closure		io;
+	struct delayed_work	work;
 
 	/* Number of blocks free in the bucket(s) we're currently writing to */
 	unsigned		blocks_free;
@@ -188,8 +152,7 @@ struct journal_device {
 };
 
 #define journal_pin_cmp(c, l, r)				\
-	(fifo_idx(&(c)->journal.pin, (l)->journal) >		\
-	 fifo_idx(&(c)->journal.pin, (r)->journal))
+	(fifo_idx(&(c)->journal.pin, (l)) > fifo_idx(&(c)->journal.pin, (r)))
 
 #define JOURNAL_PIN	20000
 
@@ -199,15 +162,14 @@ struct journal_device {
 struct closure;
 struct cache_set;
 struct btree_op;
+struct keylist;
 
-void bch_journal(struct closure *);
+atomic_t *bch_journal(struct cache_set *, struct keylist *, struct closure *);
 void bch_journal_next(struct journal *);
 void bch_journal_mark(struct cache_set *, struct list_head *);
 void bch_journal_meta(struct cache_set *, struct closure *);
-int bch_journal_read(struct cache_set *, struct list_head *,
-			struct btree_op *);
-int bch_journal_replay(struct cache_set *, struct list_head *,
-			  struct btree_op *);
+int bch_journal_read(struct cache_set *, struct list_head *);
+int bch_journal_replay(struct cache_set *, struct list_head *);
 
 void bch_journal_free(struct cache_set *);
 int bch_journal_alloc(struct cache_set *);

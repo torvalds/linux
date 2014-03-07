@@ -93,7 +93,7 @@ static struct machine *setup_fake_machine(struct machines *machines)
 		if (thread == NULL)
 			goto out;
 
-		thread__set_comm(thread, fake_threads[i].comm);
+		thread__set_comm(thread, fake_threads[i].comm, 0);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_mmap_info); i++) {
@@ -110,7 +110,7 @@ static struct machine *setup_fake_machine(struct machines *machines)
 		strcpy(fake_mmap_event.mmap.filename,
 		       fake_mmap_info[i].filename);
 
-		machine__process_mmap_event(machine, &fake_mmap_event);
+		machine__process_mmap_event(machine, &fake_mmap_event, NULL);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_symbols); i++) {
@@ -222,7 +222,8 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 							  &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(&evsel->hists, &al, NULL, 1, 1);
+			he = __hists__add_entry(&evsel->hists, &al, NULL,
+						NULL, NULL, 1, 1, 0);
 			if (he == NULL)
 				goto out;
 
@@ -244,7 +245,8 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 							  &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(&evsel->hists, &al, NULL, 1, 1);
+			he = __hists__add_entry(&evsel->hists, &al, NULL,
+						NULL, NULL, 1, 1, 0);
 			if (he == NULL)
 				goto out;
 
@@ -419,7 +421,7 @@ static void print_hists(struct hists *hists)
 		he = rb_entry(node, struct hist_entry, rb_node_in);
 
 		pr_info("%2d: entry: %-8s [%-8s] %20s: period = %"PRIu64"\n",
-			i, he->thread->comm, he->ms.map->dso->short_name,
+			i, thread__comm_str(he->thread), he->ms.map->dso->short_name,
 			he->ms.sym->name, he->stat.period);
 
 		i++;
@@ -465,7 +467,7 @@ int test__hists_link(void)
 		goto out;
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
-		hists__collapse_resort(&evsel->hists);
+		hists__collapse_resort(&evsel->hists, NULL);
 
 		if (verbose > 2)
 			print_hists(&evsel->hists);

@@ -557,7 +557,7 @@ _func_enter_;
 			sq_final = ((u32)(src->PhyInfo.SignalQuality)+(u32)(dst->PhyInfo.SignalQuality)*4)/5;
 			rssi_final = (src->Rssi+dst->Rssi*4)/5;
 		} else {
-			/* bss info not receving from the right channel, use the original RX signal infos */
+			/* bss info not receiving from the right channel, use the original RX signal infos */
 			ss_final = dst->PhyInfo.SignalStrength;
 			sq_final = dst->PhyInfo.SignalQuality;
 			rssi_final = dst->Rssi;
@@ -636,7 +636,7 @@ _func_enter_;
 			pnetwork->aid = 0;
 			pnetwork->join_res = 0;
 
-			/* bss info not receving from the right channel */
+			/* bss info not receiving from the right channel */
 			if (pnetwork->network.PhyInfo.SignalQuality == 101)
 				pnetwork->network.PhyInfo.SignalQuality = 0;
 		} else {
@@ -656,7 +656,7 @@ _func_enter_;
 
 			pnetwork->last_scanned = rtw_get_current_time();
 
-			/* bss info not receving from the right channel */
+			/* bss info not receiving from the right channel */
 			if (pnetwork->network.PhyInfo.SignalQuality == 101)
 				pnetwork->network.PhyInfo.SignalQuality = 0;
 			rtw_list_insert_tail(&(pnetwork->list), &(queue->queue));
@@ -670,7 +670,7 @@ _func_enter_;
 
 		pnetwork->last_scanned = rtw_get_current_time();
 
-		/* target.Reserved[0]== 1, means that scaned network is a bcn frame. */
+		/* target.Reserved[0]== 1, means that scanned network is a bcn frame. */
 		if ((pnetwork->network.IELength > target->IELength) && (target->Reserved[0] == 1))
 			update_ie = false;
 
@@ -1130,7 +1130,7 @@ static struct sta_info *rtw_joinbss_update_stainfo(struct adapter *padapter, str
 			padapter->securitypriv.wps_ie_len = 0;
 		}
 		/* for A-MPDU Rx reordering buffer control for bmc_sta & sta_info */
-		/* if A-MPDU Rx is enabled, reseting  rx_ordering_ctrl wstart_b(indicate_seq) to default value = 0xffff */
+		/* if A-MPDU Rx is enabled, resetting  rx_ordering_ctrl wstart_b(indicate_seq) to default value = 0xffff */
 		/* todo: check if AP can send A-MPDU packets */
 		for (i = 0; i < 16; i++) {
 			/* preorder_ctrl = &precvpriv->recvreorder_ctrl[i]; */
@@ -1210,7 +1210,7 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 	rtw_update_ht_cap(padapter, cur_network->network.IEs, cur_network->network.IELength);
 }
 
-/* Notes: the fucntion could be > passive_level (the same context as Rx tasklet) */
+/* Notes: the function could be > passive_level (the same context as Rx tasklet) */
 /* pnetwork: returns from rtw_joinbss_event_callback */
 /* ptarget_wlan: found from scanned_queue */
 /* if join_res > 0, for (fw_state == WIFI_STATION_STATE), we check if  "ptarget_sta" & "ptarget_wlan" exist. */
@@ -2177,7 +2177,7 @@ _func_enter_;
 _func_exit_;
 }
 
-/* the fucntion is at passive_level */
+/* the function is at passive_level */
 void rtw_joinbss_reset(struct adapter *padapter)
 {
 	u8	threshold;
@@ -2205,7 +2205,7 @@ void rtw_joinbss_reset(struct adapter *padapter)
 	}
 }
 
-/* the fucntion is >= passive_level */
+/* the function is >= passive_level */
 unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_ie, uint in_len, uint *pout_len)
 {
 	u32 ielen, out_len;
@@ -2273,7 +2273,7 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 	return phtpriv->ht_option;
 }
 
-/* the fucntion is > passive_level (in critical_section) */
+/* the function is > passive_level (in critical_section) */
 void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len)
 {
 	u8 *p, max_ampdu_sz;
@@ -2332,7 +2332,7 @@ void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len)
 			else
 				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &= MCS_rate_2R[i];
 		}
-		/* switch to the 40M Hz mode accoring to the AP */
+		/* switch to the 40M Hz mode according to the AP */
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_40;
 		switch ((pmlmeinfo->HT_info.infos[0] & 0x3)) {
 		case HT_EXTCHNL_OFFSET_UPPER:

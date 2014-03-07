@@ -1026,8 +1026,10 @@ int vsp1_video_init(struct vsp1_video *video, struct vsp1_entity *rwpf)
 
 	/* ... and the buffers queue... */
 	video->alloc_ctx = vb2_dma_contig_init_ctx(video->vsp1->dev);
-	if (IS_ERR(video->alloc_ctx))
+	if (IS_ERR(video->alloc_ctx)) {
+		ret = PTR_ERR(video->alloc_ctx);
 		goto error;
+	}
 
 	video->queue.type = video->type;
 	video->queue.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;

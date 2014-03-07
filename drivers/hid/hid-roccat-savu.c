@@ -27,98 +27,15 @@
 
 static struct class *savu_class;
 
-static ssize_t savu_sysfs_read(struct file *fp, struct kobject *kobj,
-		char *buf, loff_t off, size_t count,
-		size_t real_size, uint command)
-{
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
-	struct savu_device *savu = hid_get_drvdata(dev_get_drvdata(dev));
-	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
-	int retval;
+ROCCAT_COMMON2_BIN_ATTRIBUTE_W(control, 0x4, 0x03);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(profile, 0x5, 0x03);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(general, 0x6, 0x10);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(buttons, 0x7, 0x2f);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(macro, 0x8, 0x0823);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(info, 0x9, 0x08);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(sensor, 0xc, 0x04);
 
-	if (off >= real_size)
-		return 0;
-
-	if (off != 0 || count != real_size)
-		return -EINVAL;
-
-	mutex_lock(&savu->savu_lock);
-	retval = roccat_common2_receive(usb_dev, command, buf, real_size);
-	mutex_unlock(&savu->savu_lock);
-
-	return retval ? retval : real_size;
-}
-
-static ssize_t savu_sysfs_write(struct file *fp, struct kobject *kobj,
-		void const *buf, loff_t off, size_t count,
-		size_t real_size, uint command)
-{
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
-	struct savu_device *savu = hid_get_drvdata(dev_get_drvdata(dev));
-	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
-	int retval;
-
-	if (off != 0 || count != real_size)
-		return -EINVAL;
-
-	mutex_lock(&savu->savu_lock);
-	retval = roccat_common2_send_with_status(usb_dev, command,
-			(void *)buf, real_size);
-	mutex_unlock(&savu->savu_lock);
-
-	return retval ? retval : real_size;
-}
-
-#define SAVU_SYSFS_W(thingy, THINGY) \
-static ssize_t savu_sysfs_write_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
-{ \
-	return savu_sysfs_write(fp, kobj, buf, off, count, \
-			SAVU_SIZE_ ## THINGY, SAVU_COMMAND_ ## THINGY); \
-}
-
-#define SAVU_SYSFS_R(thingy, THINGY) \
-static ssize_t savu_sysfs_read_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
-{ \
-	return savu_sysfs_read(fp, kobj, buf, off, count, \
-			SAVU_SIZE_ ## THINGY, SAVU_COMMAND_ ## THINGY); \
-}
-
-#define SAVU_SYSFS_RW(thingy, THINGY) \
-SAVU_SYSFS_W(thingy, THINGY) \
-SAVU_SYSFS_R(thingy, THINGY)
-
-#define SAVU_BIN_ATTRIBUTE_RW(thingy, THINGY) \
-SAVU_SYSFS_RW(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
-	.attr = { .name = #thingy, .mode = 0660 }, \
-	.size = SAVU_SIZE_ ## THINGY, \
-	.read = savu_sysfs_read_ ## thingy, \
-	.write = savu_sysfs_write_ ## thingy \
-}
-
-#define SAVU_BIN_ATTRIBUTE_W(thingy, THINGY) \
-SAVU_SYSFS_W(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
-	.attr = { .name = #thingy, .mode = 0220 }, \
-	.size = SAVU_SIZE_ ## THINGY, \
-	.write = savu_sysfs_write_ ## thingy \
-}
-
-SAVU_BIN_ATTRIBUTE_W(control, CONTROL);
-SAVU_BIN_ATTRIBUTE_RW(profile, PROFILE);
-SAVU_BIN_ATTRIBUTE_RW(general, GENERAL);
-SAVU_BIN_ATTRIBUTE_RW(buttons, BUTTONS);
-SAVU_BIN_ATTRIBUTE_RW(macro, MACRO);
-SAVU_BIN_ATTRIBUTE_RW(info, INFO);
-SAVU_BIN_ATTRIBUTE_RW(sensor, SENSOR);
-
-static struct bin_attribute *savu_bin_attributes[] = {
+static struct bin_attribute *savu_bin_attrs[] = {
 	&bin_attr_control,
 	&bin_attr_profile,
 	&bin_attr_general,
@@ -130,7 +47,7 @@ static struct bin_attribute *savu_bin_attributes[] = {
 };
 
 static const struct attribute_group savu_group = {
-	.bin_attrs = savu_bin_attributes,
+	.bin_attrs = savu_bin_attrs,
 };
 
 static const struct attribute_group *savu_groups[] = {
@@ -138,19 +55,11 @@ static const struct attribute_group *savu_groups[] = {
 	NULL,
 };
 
-static int savu_init_savu_device_struct(struct usb_device *usb_dev,
-		struct savu_device *savu)
-{
-	mutex_init(&savu->savu_lock);
-
-	return 0;
-}
-
 static int savu_init_specials(struct hid_device *hdev)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
-	struct savu_device *savu;
+	struct roccat_common2_device *savu;
 	int retval;
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
@@ -166,9 +75,9 @@ static int savu_init_specials(struct hid_device *hdev)
 	}
 	hid_set_drvdata(hdev, savu);
 
-	retval = savu_init_savu_device_struct(usb_dev, savu);
+	retval = roccat_common2_device_init_struct(usb_dev, savu);
 	if (retval) {
-		hid_err(hdev, "couldn't init struct savu_device\n");
+		hid_err(hdev, "couldn't init Savu device\n");
 		goto exit_free;
 	}
 
@@ -190,7 +99,7 @@ exit_free:
 static void savu_remove_specials(struct hid_device *hdev)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct savu_device *savu;
+	struct roccat_common2_device *savu;
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)
@@ -239,7 +148,7 @@ static void savu_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static void savu_report_to_chrdev(struct savu_device const *savu,
+static void savu_report_to_chrdev(struct roccat_common2_device const *savu,
 		u8 const *data)
 {
 	struct savu_roccat_report roccat_report;
@@ -261,7 +170,7 @@ static int savu_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct savu_device *savu = hid_get_drvdata(hdev);
+	struct roccat_common2_device *savu = hid_get_drvdata(hdev);
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)

@@ -29,12 +29,7 @@
 
 //#define JDEBUG
 
-static int ft1000_reset(void *ft1000dev);
 static int ft1000_submit_rx_urb(struct ft1000_info *info);
-static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static int ft1000_open (struct net_device *dev);
-static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev);
-static int ft1000_chkcard (struct ft1000_usb *dev);
 
 static u8 tempbuffer[1600];
 
@@ -526,7 +521,7 @@ void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 //-----------------------------------------------------------------------
 int dsp_reload(struct ft1000_usb *ft1000dev)
 {
-	u16 status;
+	int status;
 	u16 tempword;
 	u32 templong;
 
@@ -633,9 +628,9 @@ static int ft1000_reset_card(struct net_device *dev)
 
 	DEBUG("ft1000_hw:ft1000_reset_card called.....\n");
 
-	ft1000dev->fCondResetPend = 1;
+	ft1000dev->fCondResetPend = true;
 	info->CardReady = 0;
-	ft1000dev->fProvComplete = 0;
+	ft1000dev->fProvComplete = false;
 
 	/* Make sure we free any memory reserve for provisioning */
 	while (list_empty(&info->prov_list) == 0) {
@@ -666,198 +661,9 @@ static int ft1000_reset_card(struct net_device *dev)
 
 	info->CardReady = 1;
 
-	ft1000dev->fCondResetPend = 0;
+	ft1000dev->fCondResetPend = false;
 
 	return TRUE;
-}
-
-static const struct net_device_ops ftnet_ops =
-{
-	.ndo_open = &ft1000_open,
-	.ndo_stop = &ft1000_close,
-	.ndo_start_xmit = &ft1000_start_xmit,
-	.ndo_get_stats = &ft1000_netdev_stats,
-};
-
-
-//---------------------------------------------------------------------------
-// Function:    init_ft1000_netdev
-//
-// Parameters:  ft1000dev  - device structure
-//
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function initialize the network device
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
-{
-	struct net_device *netdev;
-	struct ft1000_info *pInfo = NULL;
-	struct dpram_blk *pdpram_blk;
-	int i, ret_val;
-	struct list_head *cur, *tmp;
-	char card_nr[2];
-	u8 gCardIndex = 0;
-
-	DEBUG("Enter init_ft1000_netdev...\n");
-
-	netdev = alloc_etherdev(sizeof(struct ft1000_info));
-	if (!netdev) {
-		DEBUG("init_ft1000_netdev: can not allocate network device\n");
-		return -ENOMEM;
-	}
-
-	pInfo = netdev_priv(netdev);
-
-	memset(pInfo, 0, sizeof(struct ft1000_info));
-
-	dev_alloc_name(netdev, netdev->name);
-
-	DEBUG("init_ft1000_netdev: network device name is %s\n", netdev->name);
-
-	if (strncmp(netdev->name, "eth", 3) == 0) {
-		card_nr[0] = netdev->name[3];
-		card_nr[1] = '\0';
-		ret_val = kstrtou8(card_nr, 10, &gCardIndex);
-		if (ret_val) {
-			printk(KERN_ERR "Can't parse netdev\n");
-			goto err_net;
-		}
-
-		ft1000dev->CardNumber = gCardIndex;
-		DEBUG("card number = %d\n", ft1000dev->CardNumber);
-	} else {
-		printk(KERN_ERR "ft1000: Invalid device name\n");
-		ret_val = -ENXIO;
-		goto err_net;
-	}
-
-	memset(&pInfo->stats, 0, sizeof(struct net_device_stats));
-
-	spin_lock_init(&pInfo->dpram_lock);
-	pInfo->priv = ft1000dev;
-	pInfo->DrvErrNum = 0;
-	pInfo->registered = 1;
-	pInfo->ft1000_reset = ft1000_reset;
-	pInfo->mediastate = 0;
-	pInfo->fifo_cnt = 0;
-	ft1000dev->DeviceCreated = FALSE;
-	pInfo->CardReady = 0;
-	pInfo->DSP_TIME[0] = 0;
-	pInfo->DSP_TIME[1] = 0;
-	pInfo->DSP_TIME[2] = 0;
-	pInfo->DSP_TIME[3] = 0;
-	ft1000dev->fAppMsgPend = 0;
-	ft1000dev->fCondResetPend = 0;
-	ft1000dev->usbboot = 0;
-	ft1000dev->dspalive = 0;
-	memset(&ft1000dev->tempbuf[0], 0, sizeof(ft1000dev->tempbuf));
-
-	INIT_LIST_HEAD(&pInfo->prov_list);
-
-	INIT_LIST_HEAD(&ft1000dev->nodes.list);
-
-	netdev->netdev_ops = &ftnet_ops;
-
-	ft1000dev->net = netdev;
-
-	DEBUG("Initialize free_buff_lock and freercvpool\n");
-	spin_lock_init(&free_buff_lock);
-
-	/* initialize a list of buffers to be use for queuing
-	 * up receive command data
-	 */
-	INIT_LIST_HEAD(&freercvpool);
-
-	/* create list of free buffers */
-	for (i = 0; i < NUM_OF_FREE_BUFFERS; i++) {
-		/* Get memory for DPRAM_DATA link list */
-		pdpram_blk = kmalloc(sizeof(struct dpram_blk), GFP_KERNEL);
-		if (pdpram_blk == NULL) {
-			ret_val = -ENOMEM;
-			goto err_free;
-		}
-		/* Get a block of memory to store command data */
-		pdpram_blk->pbuffer = kmalloc(MAX_CMD_SQSIZE, GFP_KERNEL);
-		if (pdpram_blk->pbuffer == NULL) {
-			ret_val = -ENOMEM;
-			kfree(pdpram_blk);
-			goto err_free;
-		}
-		/* link provisioning data */
-		list_add_tail(&pdpram_blk->list, &freercvpool);
-	}
-	numofmsgbuf = NUM_OF_FREE_BUFFERS;
-
-	return 0;
-
-err_free:
-	list_for_each_safe(cur, tmp, &freercvpool) {
-		pdpram_blk = list_entry(cur, struct dpram_blk, list);
-		list_del(&pdpram_blk->list);
-		kfree(pdpram_blk->pbuffer);
-		kfree(pdpram_blk);
-	}
-err_net:
-	free_netdev(netdev);
-	return ret_val;
-}
-
-//---------------------------------------------------------------------------
-// Function:    reg_ft1000_netdev
-//
-// Parameters:  ft1000dev  - device structure
-//
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function register the network driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
-		      struct usb_interface *intf)
-{
-	struct net_device *netdev;
-	struct ft1000_info *pInfo;
-	int rc;
-
-	netdev = ft1000dev->net;
-	pInfo = netdev_priv(ft1000dev->net);
-	DEBUG("Enter reg_ft1000_netdev...\n");
-
-	ft1000_read_register(ft1000dev, &pInfo->AsicID, FT1000_REG_ASIC_ID);
-
-	usb_set_intfdata(intf, pInfo);
-	SET_NETDEV_DEV(netdev, &intf->dev);
-
-	rc = register_netdev(netdev);
-	if (rc) {
-		DEBUG("reg_ft1000_netdev: could not register network device\n");
-		free_netdev(netdev);
-		return rc;
-	}
-
-	ft1000_create_dev(ft1000dev);
-
-	DEBUG("reg_ft1000_netdev returned\n");
-
-	pInfo->CardReady = 1;
-
-	return 0;
-}
-
-int ft1000_reset(void *dev)
-{
-	ft1000_reset_card(dev);
-	return 0;
 }
 
 //---------------------------------------------------------------------------
@@ -963,7 +769,6 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 	return 0;
 }
 
-
 //---------------------------------------------------------------------------
 // Function:    ft1000_start_xmit
 //
@@ -1022,6 +827,238 @@ err:
 	return NETDEV_TX_OK;
 }
 
+//---------------------------------------------------------------------------
+// Function:    ft1000_open
+//
+// Parameters:
+//              dev - network device
+//
+//
+// Returns:     none
+//
+// Description: open the network driver
+//
+// Notes:
+//
+//---------------------------------------------------------------------------
+static int ft1000_open(struct net_device *dev)
+{
+	struct ft1000_info *pInfo = netdev_priv(dev);
+	struct ft1000_usb *pFt1000Dev = pInfo->priv;
+	struct timeval tv;
+
+	DEBUG("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
+
+	pInfo->stats.rx_bytes = 0;
+	pInfo->stats.tx_bytes = 0;
+	pInfo->stats.rx_packets = 0;
+	pInfo->stats.tx_packets = 0;
+	do_gettimeofday(&tv);
+	pInfo->ConTm = tv.tv_sec;
+	pInfo->ProgConStat = 0;
+
+	netif_start_queue(dev);
+
+	netif_carrier_on(dev);
+
+	return ft1000_submit_rx_urb(pInfo);
+}
+
+static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
+{
+	struct ft1000_info *info = netdev_priv(dev);
+
+	return &(info->stats);
+}
+
+static const struct net_device_ops ftnet_ops =
+{
+	.ndo_open = &ft1000_open,
+	.ndo_stop = &ft1000_close,
+	.ndo_start_xmit = &ft1000_start_xmit,
+	.ndo_get_stats = &ft1000_netdev_stats,
+};
+
+//---------------------------------------------------------------------------
+// Function:    init_ft1000_netdev
+//
+// Parameters:  ft1000dev  - device structure
+//
+//
+// Returns:     STATUS_SUCCESS - success
+//              STATUS_FAILURE - failure
+//
+// Description: This function initialize the network device
+//
+// Notes:
+//
+//---------------------------------------------------------------------------
+
+static int ft1000_reset(void *dev)
+{
+	ft1000_reset_card(dev);
+	return 0;
+}
+
+int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
+{
+	struct net_device *netdev;
+	struct ft1000_info *pInfo = NULL;
+	struct dpram_blk *pdpram_blk;
+	int i, ret_val;
+	struct list_head *cur, *tmp;
+	char card_nr[2];
+	u8 gCardIndex = 0;
+
+	DEBUG("Enter init_ft1000_netdev...\n");
+
+	netdev = alloc_etherdev(sizeof(struct ft1000_info));
+	if (!netdev) {
+		DEBUG("init_ft1000_netdev: can not allocate network device\n");
+		return -ENOMEM;
+	}
+
+	pInfo = netdev_priv(netdev);
+
+	memset(pInfo, 0, sizeof(struct ft1000_info));
+
+	dev_alloc_name(netdev, netdev->name);
+
+	DEBUG("init_ft1000_netdev: network device name is %s\n", netdev->name);
+
+	if (strncmp(netdev->name, "eth", 3) == 0) {
+		card_nr[0] = netdev->name[3];
+		card_nr[1] = '\0';
+		ret_val = kstrtou8(card_nr, 10, &gCardIndex);
+		if (ret_val) {
+			printk(KERN_ERR "Can't parse netdev\n");
+			goto err_net;
+		}
+
+		ft1000dev->CardNumber = gCardIndex;
+		DEBUG("card number = %d\n", ft1000dev->CardNumber);
+	} else {
+		printk(KERN_ERR "ft1000: Invalid device name\n");
+		ret_val = -ENXIO;
+		goto err_net;
+	}
+
+	memset(&pInfo->stats, 0, sizeof(struct net_device_stats));
+
+	spin_lock_init(&pInfo->dpram_lock);
+	pInfo->priv = ft1000dev;
+	pInfo->DrvErrNum = 0;
+	pInfo->registered = 1;
+	pInfo->ft1000_reset = ft1000_reset;
+	pInfo->mediastate = 0;
+	pInfo->fifo_cnt = 0;
+	ft1000dev->DeviceCreated = FALSE;
+	pInfo->CardReady = 0;
+	pInfo->DSP_TIME[0] = 0;
+	pInfo->DSP_TIME[1] = 0;
+	pInfo->DSP_TIME[2] = 0;
+	pInfo->DSP_TIME[3] = 0;
+	ft1000dev->fAppMsgPend = false;
+	ft1000dev->fCondResetPend = false;
+	ft1000dev->usbboot = 0;
+	ft1000dev->dspalive = 0;
+	memset(&ft1000dev->tempbuf[0], 0, sizeof(ft1000dev->tempbuf));
+
+	INIT_LIST_HEAD(&pInfo->prov_list);
+
+	INIT_LIST_HEAD(&ft1000dev->nodes.list);
+
+	netdev->netdev_ops = &ftnet_ops;
+
+	ft1000dev->net = netdev;
+
+	DEBUG("Initialize free_buff_lock and freercvpool\n");
+	spin_lock_init(&free_buff_lock);
+
+	/* initialize a list of buffers to be use for queuing
+	 * up receive command data
+	 */
+	INIT_LIST_HEAD(&freercvpool);
+
+	/* create list of free buffers */
+	for (i = 0; i < NUM_OF_FREE_BUFFERS; i++) {
+		/* Get memory for DPRAM_DATA link list */
+		pdpram_blk = kmalloc(sizeof(struct dpram_blk), GFP_KERNEL);
+		if (pdpram_blk == NULL) {
+			ret_val = -ENOMEM;
+			goto err_free;
+		}
+		/* Get a block of memory to store command data */
+		pdpram_blk->pbuffer = kmalloc(MAX_CMD_SQSIZE, GFP_KERNEL);
+		if (pdpram_blk->pbuffer == NULL) {
+			ret_val = -ENOMEM;
+			kfree(pdpram_blk);
+			goto err_free;
+		}
+		/* link provisioning data */
+		list_add_tail(&pdpram_blk->list, &freercvpool);
+	}
+	numofmsgbuf = NUM_OF_FREE_BUFFERS;
+
+	return 0;
+
+err_free:
+	list_for_each_safe(cur, tmp, &freercvpool) {
+		pdpram_blk = list_entry(cur, struct dpram_blk, list);
+		list_del(&pdpram_blk->list);
+		kfree(pdpram_blk->pbuffer);
+		kfree(pdpram_blk);
+	}
+err_net:
+	free_netdev(netdev);
+	return ret_val;
+}
+
+//---------------------------------------------------------------------------
+// Function:    reg_ft1000_netdev
+//
+// Parameters:  ft1000dev  - device structure
+//
+//
+// Returns:     STATUS_SUCCESS - success
+//              STATUS_FAILURE - failure
+//
+// Description: This function register the network driver
+//
+// Notes:
+//
+//---------------------------------------------------------------------------
+int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
+		      struct usb_interface *intf)
+{
+	struct net_device *netdev;
+	struct ft1000_info *pInfo;
+	int rc;
+
+	netdev = ft1000dev->net;
+	pInfo = netdev_priv(ft1000dev->net);
+	DEBUG("Enter reg_ft1000_netdev...\n");
+
+	ft1000_read_register(ft1000dev, &pInfo->AsicID, FT1000_REG_ASIC_ID);
+
+	usb_set_intfdata(intf, pInfo);
+	SET_NETDEV_DEV(netdev, &intf->dev);
+
+	rc = register_netdev(netdev);
+	if (rc) {
+		DEBUG("reg_ft1000_netdev: could not register network device\n");
+		free_netdev(netdev);
+		return rc;
+	}
+
+	ft1000_create_dev(ft1000dev);
+
+	DEBUG("reg_ft1000_netdev returned\n");
+
+	pInfo->CardReady = 1;
+
+	return 0;
+}
 
 //---------------------------------------------------------------------------
 //
@@ -1159,44 +1196,6 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 	return 0;
 }
 
-
-//---------------------------------------------------------------------------
-// Function:    ft1000_open
-//
-// Parameters:
-//              dev - network device
-//
-//
-// Returns:     none
-//
-// Description: open the network driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-static int ft1000_open(struct net_device *dev)
-{
-	struct ft1000_info *pInfo = netdev_priv(dev);
-	struct ft1000_usb *pFt1000Dev = pInfo->priv;
-	struct timeval tv;
-
-	DEBUG("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
-
-	pInfo->stats.rx_bytes = 0;
-	pInfo->stats.tx_bytes = 0;
-	pInfo->stats.rx_packets = 0;
-	pInfo->stats.tx_packets = 0;
-	do_gettimeofday(&tv);
-	pInfo->ConTm = tv.tv_sec;
-	pInfo->ProgConStat = 0;
-
-	netif_start_queue(dev);
-
-	netif_carrier_on(dev);
-
-	return ft1000_submit_rx_urb(pInfo);
-}
-
 //---------------------------------------------------------------------------
 // Function:    ft1000_close
 //
@@ -1227,14 +1226,6 @@ int ft1000_close(struct net_device *net)
 
 	return 0;
 }
-
-static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
-{
-	struct ft1000_info *info = netdev_priv(dev);
-
-	return &(info->stats);
-}
-
 
 //---------------------------------------------------------------------------
 //
@@ -1441,7 +1432,7 @@ static int ft1000_dsp_prov(void *arg)
 
 	msleep(100);
 
-	dev->fProvComplete = 1;
+	dev->fProvComplete = true;
 	info->CardReady = 1;
 
 	return STATUS_SUCCESS;
@@ -1567,12 +1558,12 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			 * Send provisioning data to DSP
 			 */
 			if (list_empty(&info->prov_list) == 0) {
-				dev->fProvComplete = 0;
+				dev->fProvComplete = false;
 				status = ft1000_dsp_prov(dev);
 				if (status != STATUS_SUCCESS)
 					goto out;
 			} else {
-				dev->fProvComplete = 1;
+				dev->fProvComplete = true;
 				status =
 				    ft1000_write_register(dev, FT1000_DB_HB,
 							  FT1000_REG_DOORBELL);
@@ -1921,7 +1912,7 @@ int ft1000_poll(void* dev_id)
         else if (tempword & FT1000_DB_COND_RESET) {
             DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type:  FT1000_DB_COND_RESET\n");
 
-	    if (dev->fAppMsgPend == 0) {
+	    if (!dev->fAppMsgPend) {
                // Reset ASIC and DSP
 
                 status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER0, (u8 *)&(info->DSP_TIME[0]), FT1000_MAG_DSP_TIMER0_INDX);
@@ -1934,8 +1925,8 @@ int ft1000_poll(void* dev_id)
                 info->ft1000_reset(dev->net);
             }
             else {
-                dev->fProvComplete = 0;
-                dev->fCondResetPend = 1;
+                dev->fProvComplete = false;
+                dev->fCondResetPend = true;
             }
 
             ft1000_write_register(dev, FT1000_DB_COND_RESET, FT1000_REG_DOORBELL);

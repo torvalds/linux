@@ -158,7 +158,7 @@
 
 /* ORIENT ADXL346 only */
 #define ADXL346_2D_VALID		(1 << 6)
-#define ADXL346_2D_ORIENT(x)		(((x) & 0x3) >> 4)
+#define ADXL346_2D_ORIENT(x)		(((x) & 0x30) >> 4)
 #define ADXL346_3D_VALID		(1 << 3)
 #define ADXL346_3D_ORIENT(x)		((x) & 0x7)
 #define ADXL346_2D_PORTRAIT_POS		0	/* +X */

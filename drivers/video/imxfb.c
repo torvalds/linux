@@ -755,7 +755,7 @@ static int imxfb_resume(struct platform_device *dev)
 
 static int imxfb_init_fbinfo(struct platform_device *pdev)
 {
-	struct imx_fb_platform_data *pdata = pdev->dev.platform_data;
+	struct imx_fb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct fb_info *info = dev_get_drvdata(&pdev->dev);
 	struct imxfb_info *fbi = info->par;
 	struct device_node *np;
@@ -877,7 +877,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	info = framebuffer_alloc(sizeof(struct imxfb_info), &pdev->dev);
 	if (!info)
@@ -1066,7 +1066,7 @@ static int imxfb_remove(struct platform_device *pdev)
 #endif
 	unregister_framebuffer(info);
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata && pdata->exit)
 		pdata->exit(fbi->pdev);
 

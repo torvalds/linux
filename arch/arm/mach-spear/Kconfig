@@ -7,11 +7,9 @@ menuconfig PLAT_SPEAR
 	default PLAT_SPEAR_SINGLE
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
 
 if PLAT_SPEAR
 

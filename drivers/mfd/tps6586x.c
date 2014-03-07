@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/of.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
@@ -124,6 +125,7 @@ struct tps6586x {
 	struct i2c_client	*client;
 	struct regmap		*regmap;
 
+	int			irq;
 	struct irq_chip		irq_chip;
 	struct mutex		irq_lock;
 	int			irq_base;
@@ -261,12 +263,23 @@ static void tps6586x_irq_sync_unlock(struct irq_data *data)
 	mutex_unlock(&tps6586x->irq_lock);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tps6586x_irq_set_wake(struct irq_data *irq_data, unsigned int on)
+{
+	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(irq_data);
+	return irq_set_irq_wake(tps6586x->irq, on);
+}
+#else
+#define tps6586x_irq_set_wake NULL
+#endif
+
 static struct irq_chip tps6586x_irq_chip = {
 	.name = "tps6586x",
 	.irq_bus_lock = tps6586x_irq_lock,
 	.irq_bus_sync_unlock = tps6586x_irq_sync_unlock,
 	.irq_disable = tps6586x_irq_disable,
 	.irq_enable = tps6586x_irq_enable,
+	.irq_set_wake = tps6586x_irq_set_wake,
 };
 
 static int tps6586x_irq_map(struct irq_domain *h, unsigned int virq,
@@ -331,6 +344,8 @@ static int tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	int new_irq_base;
 	int irq_num = ARRAY_SIZE(tps6586x_irqs);
 
+	tps6586x->irq = irq;
+
 	mutex_init(&tps6586x->irq_lock);
 	for (i = 0; i < 5; i++) {
 		tps6586x->mask_reg[i] = 0xff;
@@ -360,10 +375,8 @@ static int tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	ret = request_threaded_irq(irq, NULL, tps6586x_irq, IRQF_ONESHOT,
 				   "tps6586x", tps6586x);
 
-	if (!ret) {
+	if (!ret)
 		device_init_wakeup(tps6586x->dev, 1);
-		enable_irq_wake(irq);
-	}
 
 	return ret;
 }

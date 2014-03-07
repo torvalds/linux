@@ -255,6 +255,12 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, NvCtxSurf2D);
 	BEGIN_NV04(chan, NvSubImageBlit, 0x02fc, 1);
 	OUT_RING(chan, 3);
+	if (device->chipset >= 0x11 /*XXX: oclass == 0x009f*/) {
+		BEGIN_NV04(chan, NvSubImageBlit, 0x0120, 3);
+		OUT_RING(chan, 0);
+		OUT_RING(chan, 1);
+		OUT_RING(chan, 2);
+	}
 
 	BEGIN_NV04(chan, NvSubGdiRect, 0x0000, 1);
 	OUT_RING(chan, NvGdiRect);

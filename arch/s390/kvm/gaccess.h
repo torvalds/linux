@@ -18,20 +18,27 @@
 #include <asm/uaccess.h>
 #include "kvm-s390.h"
 
+/* Convert real to absolute address by applying the prefix of the CPU */
+static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
+						 unsigned long gaddr)
+{
+	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	if (gaddr < 2 * PAGE_SIZE)
+		gaddr += prefix;
+	else if (gaddr >= prefix && gaddr < prefix + 2 * PAGE_SIZE)
+		gaddr -= prefix;
+	return gaddr;
+}
+
 static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
 					  void __user *gptr,
 					  int prefixing)
 {
-	unsigned long prefix  = vcpu->arch.sie_block->prefix;
 	unsigned long gaddr = (unsigned long) gptr;
 	unsigned long uaddr;
 
-	if (prefixing) {
-		if (gaddr < 2 * PAGE_SIZE)
-			gaddr += prefix;
-		else if ((gaddr >= prefix) && (gaddr < prefix + 2 * PAGE_SIZE))
-			gaddr -= prefix;
-	}
+	if (prefixing)
+		gaddr = kvm_s390_real_to_abs(vcpu, gaddr);
 	uaddr = gmap_fault(gaddr, vcpu->arch.gmap);
 	if (IS_ERR_VALUE(uaddr))
 		uaddr = -EFAULT;

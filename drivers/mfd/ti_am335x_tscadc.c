@@ -56,21 +56,25 @@ EXPORT_SYMBOL_GPL(am335x_tsc_se_update);
 
 void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val)
 {
-	spin_lock(&tsadc->reg_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tsadc->reg_lock, flags);
 	tsadc->reg_se_cache = tscadc_readl(tsadc, REG_SE);
 	tsadc->reg_se_cache |= val;
 	am335x_tsc_se_update(tsadc);
-	spin_unlock(&tsadc->reg_lock);
+	spin_unlock_irqrestore(&tsadc->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(am335x_tsc_se_set);
 
 void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val)
 {
-	spin_lock(&tsadc->reg_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tsadc->reg_lock, flags);
 	tsadc->reg_se_cache = tscadc_readl(tsadc, REG_SE);
 	tsadc->reg_se_cache &= ~val;
 	am335x_tsc_se_update(tsadc);
-	spin_unlock(&tsadc->reg_lock);
+	spin_unlock_irqrestore(&tsadc->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(am335x_tsc_se_clr);
 
@@ -95,7 +99,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	const __be32            *cur;
 	u32			val;
 	int			err, ctrl;
-	int			clk_value, clock_rate;
+	int			clock_rate;
 	int			tsc_wires = 0, adc_channels = 0, total_channels;
 	int			readouts = 0;
 
@@ -196,11 +200,11 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	}
 	clock_rate = clk_get_rate(clk);
 	clk_put(clk);
-	clk_value = clock_rate / ADC_CLK;
+	tscadc->clk_div = clock_rate / ADC_CLK;
 
 	/* TSCADC_CLKDIV needs to be configured to the value minus 1 */
-	clk_value = clk_value - 1;
-	tscadc_writel(tscadc, REG_CLKDIV, clk_value);
+	tscadc->clk_div--;
+	tscadc_writel(tscadc, REG_CLKDIV, tscadc->clk_div);
 
 	/* Set the control register bits */
 	ctrl = CNTRLREG_STEPCONFIGWRT |
@@ -303,6 +307,8 @@ static int tscadc_resume(struct device *dev)
 	tscadc_writel(tscadc_dev, REG_CTRL,
 			(restore | CNTRLREG_TSCSSENB));
 
+	tscadc_writel(tscadc_dev, REG_CLKDIV, tscadc_dev->clk_div);
+
 	return 0;
 }
 
@@ -326,7 +332,7 @@ static struct platform_driver ti_tscadc_driver = {
 		.name   = "ti_am3359-tscadc",
 		.owner	= THIS_MODULE,
 		.pm	= TSCADC_PM_OPS,
-		.of_match_table = of_match_ptr(ti_tscadc_dt_ids),
+		.of_match_table = ti_tscadc_dt_ids,
 	},
 	.probe	= ti_tscadc_probe,
 	.remove	= ti_tscadc_remove,

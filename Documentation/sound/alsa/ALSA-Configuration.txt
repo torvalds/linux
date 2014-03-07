@@ -616,7 +616,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     As default, snd-dummy drivers doesn't allocate the real buffers
     but either ignores read/write or mmap a single dummy page to all
-    buffer pages, in order to save the resouces.  If your apps need
+    buffer pages, in order to save the resources.  If your apps need
     the read/ written buffer data to be consistent, pass fake_buffer=0
     option.
 

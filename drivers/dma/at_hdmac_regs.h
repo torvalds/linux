@@ -347,10 +347,6 @@ static struct device *chan2dev(struct dma_chan *chan)
 {
 	return &chan->dev->device;
 }
-static struct device *chan2parent(struct dma_chan *chan)
-{
-	return chan->dev->device.parent;
-}
 
 #if defined(VERBOSE_DEBUG)
 static void vdbg_dump_regs(struct at_dma_chan *atchan)

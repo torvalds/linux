@@ -384,8 +384,8 @@ struct vnt_private {
 
 	struct tasklet_struct CmdWorkItem;
 	struct tasklet_struct EventWorkItem;
-	struct tasklet_struct ReadWorkItem;
-	struct tasklet_struct RxMngWorkItem;
+	struct work_struct read_work_item;
+	struct work_struct rx_mng_work_item;
 
 	u32 rx_buf_sz;
 	int multicast_limit;
@@ -579,6 +579,9 @@ struct vnt_private {
 	u8 abyOFDMAPwrTbl[42];
 
 	u16 wCurrentRate;
+	u16 tx_rate_fb0;
+	u16 tx_rate_fb1;
+
 	u16 wRTSThreshold;
 	u16 wFragmentationThreshold;
 	u8 byShortRetryLimit;
@@ -707,13 +710,12 @@ struct vnt_private {
 	u8 byBBCR09;
 
 	/* command timer */
-	struct timer_list sTimerCommand;
+	struct delayed_work run_command_work;
+	/* One second callback */
+	struct delayed_work second_callback_work;
 
-	struct timer_list sTimerTxData;
-	unsigned long nTxDataTimeCout;
-	int fTxDataInSleep;
-	int IsTxDataTrigger;
-
+	u8 tx_data_time_out;
+	bool tx_trigger;
 	int fWPA_Authened; /*is WPA/WPA-PSK or WPA2/WPA2-PSK authen?? */
 	u8 byReAssocCount;
 	u8 byLinkWaitCount;

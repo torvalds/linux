@@ -181,8 +181,6 @@ static inline struct address_space *gfs2_glock2aspace(struct gfs2_glock *gl)
 extern int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 			  const struct gfs2_glock_operations *glops,
 			  int create, struct gfs2_glock **glp);
-extern void gfs2_glock_hold(struct gfs2_glock *gl);
-extern void gfs2_glock_put_nolock(struct gfs2_glock *gl);
 extern void gfs2_glock_put(struct gfs2_glock *gl);
 extern void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
 			     unsigned flags, struct gfs2_holder *gh);

@@ -1,0 +1,17 @@
+MSM SoC HSUSB controllers
+
+EHCI
+
+Required properties:
+- compatible:	Should contain "qcom,ehci-host"
+- regs:			offset and length of the register set in the memory map
+- usb-phy:		phandle for the PHY device
+
+Example EHCI controller device node:
+
+	ehci: ehci@f9a55000 {
+		compatible = "qcom,ehci-host";
+		reg = <0xf9a55000 0x400>;
+		usb-phy = <&usb_otg>;
+	};
+

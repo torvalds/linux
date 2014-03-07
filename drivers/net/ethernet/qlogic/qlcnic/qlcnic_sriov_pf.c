@@ -75,7 +75,6 @@ static int qlcnic_sriov_pf_cal_res_limit(struct qlcnic_adapter *adapter,
 	num_vfs = sriov->num_vfs;
 	max = num_vfs + 1;
 	info->bit_offsets = 0xffff;
-	info->max_tx_ques = res->num_tx_queues / max;
 	info->max_rx_mcast_mac_filters = res->num_rx_mcast_mac_filters;
 	num_vf_macs = QLCNIC_SRIOV_VF_MAX_MAC;
 
@@ -86,6 +85,7 @@ static int qlcnic_sriov_pf_cal_res_limit(struct qlcnic_adapter *adapter,
 		info->max_tx_mac_filters = temp;
 		info->min_tx_bw = 0;
 		info->max_tx_bw = MAX_BW;
+		info->max_tx_ques = res->num_tx_queues - sriov->num_vfs;
 	} else {
 		id = qlcnic_sriov_func_to_index(adapter, func);
 		if (id < 0)
@@ -95,6 +95,7 @@ static int qlcnic_sriov_pf_cal_res_limit(struct qlcnic_adapter *adapter,
 		info->max_tx_bw = vp->max_tx_bw;
 		info->max_rx_ucast_mac_filters = num_vf_macs;
 		info->max_tx_mac_filters = num_vf_macs;
+		info->max_tx_ques = QLCNIC_SINGLE_RING;
 	}
 
 	info->max_rx_ip_addr = res->num_destip / max;

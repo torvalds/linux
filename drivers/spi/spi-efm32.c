@@ -280,10 +280,6 @@ static irqreturn_t efm32_spi_txirq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static const struct efm32_spi_pdata efm32_spi_pdata_default = {
-	.location = 1,
-};
-
 static u32 efm32_spi_get_configured_location(struct efm32_spi_ddata *ddata)
 {
 	u32 reg = efm32_spi_read32(ddata, REG_ROUTE);
@@ -347,7 +343,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 
 	ddata = spi_master_get_devdata(master);
 
-	ddata->bitbang.master = spi_master_get(master);
+	ddata->bitbang.master = master;
 	ddata->bitbang.chipselect = efm32_spi_chipselect;
 	ddata->bitbang.setup_transfer = efm32_spi_setup_transfer;
 	ddata->bitbang.txrx_bufs = efm32_spi_txrx_bufs;
@@ -387,7 +383,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (resource_size(res) < 60) {
+	if (resource_size(res) < 0x60) {
 		ret = -EINVAL;
 		dev_err(&pdev->dev, "memory resource too small\n");
 		goto err;
@@ -467,7 +463,6 @@ err_disable_clk:
 		clk_disable_unprepare(ddata->clk);
 err:
 		spi_master_put(master);
-		kfree(master);
 	}
 
 	return ret;
@@ -478,13 +473,14 @@ static int efm32_spi_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct efm32_spi_ddata *ddata = spi_master_get_devdata(master);
 
+	spi_bitbang_stop(&ddata->bitbang);
+
 	efm32_spi_write32(ddata, 0, REG_IEN);
 
 	free_irq(ddata->txirq, ddata);
 	free_irq(ddata->rxirq, ddata);
 	clk_disable_unprepare(ddata->clk);
 	spi_master_put(master);
-	kfree(master);
 
 	return 0;
 }

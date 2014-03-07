@@ -29,7 +29,7 @@
 void *module_alloc(unsigned long size)
 {
 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-				    GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
+				    GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
 				    __builtin_return_address(0));
 }
 
@@ -111,6 +111,9 @@ static u32 encode_insn_immediate(enum aarch64_imm_type type, u32 insn, u64 imm)
 	u32 immlo, immhi, lomask, himask, mask;
 	int shift;
 
+	/* The instruction stream is always little endian. */
+	insn = le32_to_cpu(insn);
+
 	switch (type) {
 	case INSN_IMM_MOVNZ:
 		/*
@@ -179,7 +182,7 @@ static u32 encode_insn_immediate(enum aarch64_imm_type type, u32 insn, u64 imm)
 	insn &= ~(mask << shift);
 	insn |= (imm & mask) << shift;
 
-	return insn;
+	return cpu_to_le32(insn);
 }
 
 static int reloc_insn_movw(enum aarch64_reloc_op op, void *place, u64 val,

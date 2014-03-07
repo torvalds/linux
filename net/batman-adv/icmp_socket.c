@@ -29,7 +29,7 @@
 static struct batadv_socket_client *batadv_socket_client_hash[256];
 
 static void batadv_socket_add_packet(struct batadv_socket_client *socket_client,
-				     struct batadv_icmp_packet_rr *icmp_packet,
+				     struct batadv_icmp_header *icmph,
 				     size_t icmp_len);
 
 void batadv_socket_init(void)
@@ -155,13 +155,13 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	struct batadv_priv *bat_priv = socket_client->bat_priv;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct sk_buff *skb;
-	struct batadv_icmp_packet_rr *icmp_packet;
-
+	struct batadv_icmp_packet_rr *icmp_packet_rr;
+	struct batadv_icmp_header *icmp_header;
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_neigh_node *neigh_node = NULL;
 	size_t packet_len = sizeof(struct batadv_icmp_packet);
 
-	if (len < sizeof(struct batadv_icmp_packet)) {
+	if (len < sizeof(struct batadv_icmp_header)) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: invalid packet size\n");
 		return -EINVAL;
@@ -174,8 +174,10 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		goto out;
 	}
 
-	if (len >= sizeof(struct batadv_icmp_packet_rr))
-		packet_len = sizeof(struct batadv_icmp_packet_rr);
+	if (len >= BATADV_ICMP_MAX_PACKET_SIZE)
+		packet_len = BATADV_ICMP_MAX_PACKET_SIZE;
+	else
+		packet_len = len;
 
 	skb = netdev_alloc_skb_ip_align(NULL, packet_len + ETH_HLEN);
 	if (!skb) {
@@ -185,67 +187,78 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, ETH_HLEN);
-	icmp_packet = (struct batadv_icmp_packet_rr *)skb_put(skb, packet_len);
+	icmp_header = (struct batadv_icmp_header *)skb_put(skb, packet_len);
 
-	if (copy_from_user(icmp_packet, buff, packet_len)) {
+	if (copy_from_user(icmp_header, buff, packet_len)) {
 		len = -EFAULT;
 		goto free_skb;
 	}
 
-	if (icmp_packet->header.packet_type != BATADV_ICMP) {
+	if (icmp_header->packet_type != BATADV_ICMP) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
 
-	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
+	switch (icmp_header->msg_type) {
+	case BATADV_ECHO_REQUEST:
+		if (len < sizeof(struct batadv_icmp_packet)) {
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+				   "Error - can't send packet from char device: invalid packet size\n");
+			len = -EINVAL;
+			goto free_skb;
+		}
+
+		if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
+			goto dst_unreach;
+
+		orig_node = batadv_orig_hash_find(bat_priv, icmp_header->dst);
+		if (!orig_node)
+			goto dst_unreach;
+
+		neigh_node = batadv_orig_node_get_router(orig_node);
+		if (!neigh_node)
+			goto dst_unreach;
+
+		if (!neigh_node->if_incoming)
+			goto dst_unreach;
+
+		if (neigh_node->if_incoming->if_status != BATADV_IF_ACTIVE)
+			goto dst_unreach;
+
+		icmp_packet_rr = (struct batadv_icmp_packet_rr *)icmp_header;
+		if (packet_len == sizeof(*icmp_packet_rr))
+			memcpy(icmp_packet_rr->rr,
+			       neigh_node->if_incoming->net_dev->dev_addr,
+			       ETH_ALEN);
+
+		break;
+	default:
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
+			   "Error - can't send packet from char device: got unknown message type\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
 
-	icmp_packet->uid = socket_client->index;
+	icmp_header->uid = socket_client->index;
 
-	if (icmp_packet->header.version != BATADV_COMPAT_VERSION) {
-		icmp_packet->msg_type = BATADV_PARAMETER_PROBLEM;
-		icmp_packet->header.version = BATADV_COMPAT_VERSION;
-		batadv_socket_add_packet(socket_client, icmp_packet,
+	if (icmp_header->version != BATADV_COMPAT_VERSION) {
+		icmp_header->msg_type = BATADV_PARAMETER_PROBLEM;
+		icmp_header->version = BATADV_COMPAT_VERSION;
+		batadv_socket_add_packet(socket_client, icmp_header,
 					 packet_len);
 		goto free_skb;
 	}
 
-	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
-		goto dst_unreach;
-
-	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->dst);
-	if (!orig_node)
-		goto dst_unreach;
-
-	neigh_node = batadv_orig_node_get_router(orig_node);
-	if (!neigh_node)
-		goto dst_unreach;
-
-	if (!neigh_node->if_incoming)
-		goto dst_unreach;
-
-	if (neigh_node->if_incoming->if_status != BATADV_IF_ACTIVE)
-		goto dst_unreach;
-
-	memcpy(icmp_packet->orig,
-	       primary_if->net_dev->dev_addr, ETH_ALEN);
-
-	if (packet_len == sizeof(struct batadv_icmp_packet_rr))
-		memcpy(icmp_packet->rr,
-		       neigh_node->if_incoming->net_dev->dev_addr, ETH_ALEN);
+	memcpy(icmp_header->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 
 	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	goto out;
 
 dst_unreach:
-	icmp_packet->msg_type = BATADV_DESTINATION_UNREACHABLE;
-	batadv_socket_add_packet(socket_client, icmp_packet, packet_len);
+	icmp_header->msg_type = BATADV_DESTINATION_UNREACHABLE;
+	batadv_socket_add_packet(socket_client, icmp_header, packet_len);
 free_skb:
 	kfree_skb(skb);
 out:
@@ -298,27 +311,40 @@ err:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_socket_receive_packet - schedule an icmp packet to be sent to userspace
+ *  on an icmp socket.
+ * @socket_client: the socket this packet belongs to
+ * @icmph: pointer to the header of the icmp packet
+ * @icmp_len: total length of the icmp packet
+ */
 static void batadv_socket_add_packet(struct batadv_socket_client *socket_client,
-				     struct batadv_icmp_packet_rr *icmp_packet,
+				     struct batadv_icmp_header *icmph,
 				     size_t icmp_len)
 {
 	struct batadv_socket_packet *socket_packet;
+	size_t len;
 
 	socket_packet = kmalloc(sizeof(*socket_packet), GFP_ATOMIC);
 
 	if (!socket_packet)
 		return;
 
+	len = icmp_len;
+	/* check the maximum length before filling the buffer */
+	if (len > sizeof(socket_packet->icmp_packet))
+		len = sizeof(socket_packet->icmp_packet);
+
 	INIT_LIST_HEAD(&socket_packet->list);
-	memcpy(&socket_packet->icmp_packet, icmp_packet, icmp_len);
-	socket_packet->icmp_len = icmp_len;
+	memcpy(&socket_packet->icmp_packet, icmph, len);
+	socket_packet->icmp_len = len;
 
 	spin_lock_bh(&socket_client->lock);
 
 	/* while waiting for the lock the socket_client could have been
 	 * deleted
 	 */
-	if (!batadv_socket_client_hash[icmp_packet->uid]) {
+	if (!batadv_socket_client_hash[icmph->uid]) {
 		spin_unlock_bh(&socket_client->lock);
 		kfree(socket_packet);
 		return;
@@ -342,12 +368,18 @@ static void batadv_socket_add_packet(struct batadv_socket_client *socket_client,
 	wake_up(&socket_client->queue_wait);
 }
 
-void batadv_socket_receive_packet(struct batadv_icmp_packet_rr *icmp_packet,
+/**
+ * batadv_socket_receive_packet - schedule an icmp packet to be received
+ *  locally and sent to userspace.
+ * @icmph: pointer to the header of the icmp packet
+ * @icmp_len: total length of the icmp packet
+ */
+void batadv_socket_receive_packet(struct batadv_icmp_header *icmph,
 				  size_t icmp_len)
 {
 	struct batadv_socket_client *hash;
 
-	hash = batadv_socket_client_hash[icmp_packet->uid];
+	hash = batadv_socket_client_hash[icmph->uid];
 	if (hash)
-		batadv_socket_add_packet(hash, icmp_packet, icmp_len);
+		batadv_socket_add_packet(hash, icmph, icmp_len);
 }

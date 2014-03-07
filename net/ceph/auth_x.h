@@ -45,7 +45,7 @@ struct ceph_x_info {
 	struct ceph_x_authorizer auth_authorizer;
 };
 
-extern int ceph_x_init(struct ceph_auth_client *ac);
+int ceph_x_init(struct ceph_auth_client *ac);
 
 #endif
 

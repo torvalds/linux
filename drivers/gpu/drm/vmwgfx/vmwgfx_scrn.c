@@ -310,6 +310,7 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 		crtc->fb = NULL;
 		crtc->x = 0;
 		crtc->y = 0;
+		crtc->enabled = false;
 
 		vmw_sou_del_active(dev_priv, sou);
 
@@ -370,6 +371,7 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 		crtc->fb = NULL;
 		crtc->x = 0;
 		crtc->y = 0;
+		crtc->enabled = false;
 
 		return ret;
 	}
@@ -382,6 +384,7 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 	crtc->fb = fb;
 	crtc->x = set->x;
 	crtc->y = set->y;
+	crtc->enabled = true;
 
 	return 0;
 }
@@ -463,6 +466,8 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
+
+	(void) drm_sysfs_connector_add(connector);
 
 	drm_crtc_init(dev, crtc, &vmw_screen_object_crtc_funcs);
 

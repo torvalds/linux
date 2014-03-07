@@ -5,6 +5,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include <sysdev/cpm2_pic.h>

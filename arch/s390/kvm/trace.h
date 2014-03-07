@@ -4,6 +4,7 @@
 #include <linux/tracepoint.h>
 #include <asm/sigp.h>
 #include <asm/debug.h>
+#include <asm/dis.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm

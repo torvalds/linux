@@ -184,7 +184,7 @@ acpi_ut_execute_SUB(struct acpi_namespace_node *device_node,
 	sub->length = length;
 	*return_id = sub;
 
-      cleanup:
+cleanup:
 
 	/* On exit, we must delete the return object */
 

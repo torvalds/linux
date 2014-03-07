@@ -114,7 +114,6 @@ struct imx_tve {
 	struct drm_encoder encoder;
 	struct imx_drm_encoder *imx_drm_encoder;
 	struct device *dev;
-	spinlock_t enable_lock;	/* serializes tve_enable/disable */
 	spinlock_t lock;	/* register lock */
 	bool enabled;
 	int mode;
@@ -146,12 +145,10 @@ __releases(&tve->lock)
 
 static void tve_enable(struct imx_tve *tve)
 {
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&tve->enable_lock, flags);
 	if (!tve->enabled) {
-		tve->enabled = 1;
+		tve->enabled = true;
 		clk_prepare_enable(tve->clk);
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
 					 TVE_IPU_CLK_EN | TVE_EN,
@@ -169,23 +166,18 @@ static void tve_enable(struct imx_tve *tve)
 			     TVE_CD_SM_IEN |
 			     TVE_CD_LM_IEN |
 			     TVE_CD_MON_END_IEN);
-
-	spin_unlock_irqrestore(&tve->enable_lock, flags);
 }
 
 static void tve_disable(struct imx_tve *tve)
 {
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&tve->enable_lock, flags);
 	if (tve->enabled) {
-		tve->enabled = 0;
+		tve->enabled = false;
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
 					 TVE_IPU_CLK_EN | TVE_EN, 0);
 		clk_disable_unprepare(tve->clk);
 	}
-	spin_unlock_irqrestore(&tve->enable_lock, flags);
 }
 
 static int tve_setup_tvout(struct imx_tve *tve)
@@ -601,7 +593,6 @@ static int imx_tve_probe(struct platform_device *pdev)
 
 	tve->dev = &pdev->dev;
 	spin_lock_init(&tve->lock);
-	spin_lock_init(&tve->enable_lock);
 
 	ddc_node = of_parse_phandle(np, "ddc", 0);
 	if (ddc_node) {
@@ -696,7 +687,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 	if (val != 0x00100000) {
 		dev_err(&pdev->dev, "configuration register default value indicates this is not a TVEv2\n");
 		return -ENODEV;
-	};
+	}
 
 	/* disable cable detection for VGA mode */
 	ret = regmap_write(tve->regmap, TVE_CD_CONT_REG, 0);

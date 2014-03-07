@@ -23,7 +23,7 @@ struct iio_sysfs_trig {
 };
 
 static LIST_HEAD(iio_sysfs_trig_list);
-static DEFINE_MUTEX(iio_syfs_trig_list_mut);
+static DEFINE_MUTEX(iio_sysfs_trig_list_mut);
 
 static int iio_sysfs_trigger_probe(int id);
 static ssize_t iio_sysfs_trig_add(struct device *dev,
@@ -135,7 +135,7 @@ static int iio_sysfs_trigger_probe(int id)
 	struct iio_sysfs_trig *t;
 	int ret;
 	bool foundit = false;
-	mutex_lock(&iio_syfs_trig_list_mut);
+	mutex_lock(&iio_sysfs_trig_list_mut);
 	list_for_each_entry(t, &iio_sysfs_trig_list, l)
 		if (id == t->id) {
 			foundit = true;
@@ -169,7 +169,7 @@ static int iio_sysfs_trigger_probe(int id)
 		goto out2;
 	list_add(&t->l, &iio_sysfs_trig_list);
 	__module_get(THIS_MODULE);
-	mutex_unlock(&iio_syfs_trig_list_mut);
+	mutex_unlock(&iio_sysfs_trig_list_mut);
 	return 0;
 
 out2:
@@ -177,7 +177,7 @@ out2:
 free_t:
 	kfree(t);
 out1:
-	mutex_unlock(&iio_syfs_trig_list_mut);
+	mutex_unlock(&iio_sysfs_trig_list_mut);
 	return ret;
 }
 
@@ -185,14 +185,14 @@ static int iio_sysfs_trigger_remove(int id)
 {
 	bool foundit = false;
 	struct iio_sysfs_trig *t;
-	mutex_lock(&iio_syfs_trig_list_mut);
+	mutex_lock(&iio_sysfs_trig_list_mut);
 	list_for_each_entry(t, &iio_sysfs_trig_list, l)
 		if (id == t->id) {
 			foundit = true;
 			break;
 		}
 	if (!foundit) {
-		mutex_unlock(&iio_syfs_trig_list_mut);
+		mutex_unlock(&iio_sysfs_trig_list_mut);
 		return -EINVAL;
 	}
 
@@ -202,7 +202,7 @@ static int iio_sysfs_trigger_remove(int id)
 	list_del(&t->l);
 	kfree(t);
 	module_put(THIS_MODULE);
-	mutex_unlock(&iio_syfs_trig_list_mut);
+	mutex_unlock(&iio_sysfs_trig_list_mut);
 	return 0;
 }
 

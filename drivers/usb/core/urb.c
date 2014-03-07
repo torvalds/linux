@@ -138,13 +138,19 @@ void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor)
 }
 EXPORT_SYMBOL_GPL(usb_anchor_urb);
 
+static int usb_anchor_check_wakeup(struct usb_anchor *anchor)
+{
+	return atomic_read(&anchor->suspend_wakeups) == 0 &&
+		list_empty(&anchor->urb_list);
+}
+
 /* Callers must hold anchor->lock */
 static void __usb_unanchor_urb(struct urb *urb, struct usb_anchor *anchor)
 {
 	urb->anchor = NULL;
 	list_del(&urb->anchor_list);
 	usb_put_urb(urb);
-	if (list_empty(&anchor->urb_list))
+	if (usb_anchor_check_wakeup(anchor))
 		wake_up(&anchor->wait);
 }
 
@@ -846,6 +852,39 @@ void usb_unlink_anchored_urbs(struct usb_anchor *anchor)
 EXPORT_SYMBOL_GPL(usb_unlink_anchored_urbs);
 
 /**
+ * usb_anchor_suspend_wakeups
+ * @anchor: the anchor you want to suspend wakeups on
+ *
+ * Call this to stop the last urb being unanchored from waking up any
+ * usb_wait_anchor_empty_timeout waiters. This is used in the hcd urb give-
+ * back path to delay waking up until after the completion handler has run.
+ */
+void usb_anchor_suspend_wakeups(struct usb_anchor *anchor)
+{
+	if (anchor)
+		atomic_inc(&anchor->suspend_wakeups);
+}
+EXPORT_SYMBOL_GPL(usb_anchor_suspend_wakeups);
+
+/**
+ * usb_anchor_resume_wakeups
+ * @anchor: the anchor you want to resume wakeups on
+ *
+ * Allow usb_wait_anchor_empty_timeout waiters to be woken up again, and
+ * wake up any current waiters if the anchor is empty.
+ */
+void usb_anchor_resume_wakeups(struct usb_anchor *anchor)
+{
+	if (!anchor)
+		return;
+
+	atomic_dec(&anchor->suspend_wakeups);
+	if (usb_anchor_check_wakeup(anchor))
+		wake_up(&anchor->wait);
+}
+EXPORT_SYMBOL_GPL(usb_anchor_resume_wakeups);
+
+/**
  * usb_wait_anchor_empty_timeout - wait for an anchor to be unused
  * @anchor: the anchor you want to become unused
  * @timeout: how long you are willing to wait in milliseconds
@@ -858,7 +897,8 @@ EXPORT_SYMBOL_GPL(usb_unlink_anchored_urbs);
 int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
 				  unsigned int timeout)
 {
-	return wait_event_timeout(anchor->wait, list_empty(&anchor->urb_list),
+	return wait_event_timeout(anchor->wait,
+				  usb_anchor_check_wakeup(anchor),
 				  msecs_to_jiffies(timeout));
 }
 EXPORT_SYMBOL_GPL(usb_wait_anchor_empty_timeout);

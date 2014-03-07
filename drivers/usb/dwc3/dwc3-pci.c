@@ -165,7 +165,6 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	return 0;
 
 err3:
-	pci_set_drvdata(pci, NULL);
 	platform_device_put(dwc3);
 err1:
 	pci_disable_device(pci);
@@ -180,7 +179,6 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 	platform_device_unregister(glue->dwc3);
 	platform_device_unregister(glue->usb2_phy);
 	platform_device_unregister(glue->usb3_phy);
-	pci_set_drvdata(pci, NULL);
 	pci_disable_device(pci);
 }
 

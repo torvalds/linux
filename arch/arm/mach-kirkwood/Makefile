@@ -1,5 +1,7 @@
 obj-y				+= common.o pcie.o
 obj-$(CONFIG_KIRKWOOD_LEGACY)	+= irq.o mpp.o
+obj-$(CONFIG_PM)		+= pm.o
+
 obj-$(CONFIG_MACH_D2NET_V2)		+= d2net_v2-setup.o lacie_v2-common.o
 obj-$(CONFIG_MACH_NET2BIG_V2)		+= netxbig_v2-setup.o lacie_v2-common.o
 obj-$(CONFIG_MACH_NET5BIG_V2)		+= netxbig_v2-setup.o lacie_v2-common.o

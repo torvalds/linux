@@ -22,8 +22,8 @@
 #include <linux/io.h>
 #include <asm/mach/irq.h>
 
-#include "intr.h"
-#include "dev.h"
+#include "../intr.h"
+#include "../dev.h"
 
 /*
  * Sync point threshold interrupt service function

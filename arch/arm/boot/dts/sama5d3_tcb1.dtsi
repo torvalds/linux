@@ -1,0 +1,27 @@
+/*
+ * at91sama5d3_tcb1.dtsi - Device Tree Include file for AT91SAM9x5 SoC with
+ * 2 TC blocks.
+ *
+ * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
+ *
+ * Licensed under GPLv2.
+ */
+
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	aliases {
+		tcb1 = &tcb1;
+	};
+
+	ahb {
+		apb {
+			tcb1: timer@f8014000 {
+				compatible = "atmel,at91sam9x5-tcb";
+				reg = <0xf8014000 0x100>;
+				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 0>;
+			};
+		};
+	};
+};

@@ -19,6 +19,9 @@
 
 #include <drm/drm.h>
 
+#define DRM_TEGRA_GEM_CREATE_TILED     (1 << 0)
+#define DRM_TEGRA_GEM_CREATE_BOTTOM_UP (1 << 1)
+
 struct drm_tegra_gem_create {
 	__u64 size;
 	__u32 flags;
@@ -62,6 +65,12 @@ struct drm_tegra_close_channel {
 struct drm_tegra_get_syncpt {
 	__u64 context;
 	__u32 index;
+	__u32 id;
+};
+
+struct drm_tegra_get_syncpt_base {
+	__u64 context;
+	__u32 syncpt;
 	__u32 id;
 };
 
@@ -115,15 +124,16 @@ struct drm_tegra_submit {
 	__u32 reserved[5];	/* future expansion */
 };
 
-#define DRM_TEGRA_GEM_CREATE	0x00
-#define DRM_TEGRA_GEM_MMAP	0x01
-#define DRM_TEGRA_SYNCPT_READ	0x02
-#define DRM_TEGRA_SYNCPT_INCR	0x03
-#define DRM_TEGRA_SYNCPT_WAIT	0x04
-#define DRM_TEGRA_OPEN_CHANNEL	0x05
-#define DRM_TEGRA_CLOSE_CHANNEL	0x06
-#define DRM_TEGRA_GET_SYNCPT	0x07
-#define DRM_TEGRA_SUBMIT	0x08
+#define DRM_TEGRA_GEM_CREATE		0x00
+#define DRM_TEGRA_GEM_MMAP		0x01
+#define DRM_TEGRA_SYNCPT_READ		0x02
+#define DRM_TEGRA_SYNCPT_INCR		0x03
+#define DRM_TEGRA_SYNCPT_WAIT		0x04
+#define DRM_TEGRA_OPEN_CHANNEL		0x05
+#define DRM_TEGRA_CLOSE_CHANNEL		0x06
+#define DRM_TEGRA_GET_SYNCPT		0x07
+#define DRM_TEGRA_SUBMIT		0x08
+#define DRM_TEGRA_GET_SYNCPT_BASE	0x09
 
 #define DRM_IOCTL_TEGRA_GEM_CREATE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_CREATE, struct drm_tegra_gem_create)
 #define DRM_IOCTL_TEGRA_GEM_MMAP DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_MMAP, struct drm_tegra_gem_mmap)
@@ -134,5 +144,6 @@ struct drm_tegra_submit {
 #define DRM_IOCTL_TEGRA_CLOSE_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_CLOSE_CHANNEL, struct drm_tegra_open_channel)
 #define DRM_IOCTL_TEGRA_GET_SYNCPT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GET_SYNCPT, struct drm_tegra_get_syncpt)
 #define DRM_IOCTL_TEGRA_SUBMIT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT, struct drm_tegra_submit)
+#define DRM_IOCTL_TEGRA_GET_SYNCPT_BASE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GET_SYNCPT_BASE, struct drm_tegra_get_syncpt_base)
 
 #endif

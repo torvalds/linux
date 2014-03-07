@@ -115,6 +115,12 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 			fprintf(stderr, "Read error or end of file.\n");
 		return -1;
 	}
+	if (strlen(str) > KSYM_NAME_LEN) {
+		fprintf(stderr, "Symbol %s too long for kallsyms (%zu vs %d).\n"
+                                "Please increase KSYM_NAME_LEN both in kernel and kallsyms.c\n",
+			str, strlen(str), KSYM_NAME_LEN);
+		return -1;
+	}
 
 	sym = str;
 	/* skip prefix char */

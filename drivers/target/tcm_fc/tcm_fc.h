@@ -22,6 +22,7 @@
 #define FT_NAMELEN 32		/* length of ASCII WWPNs including pad */
 #define FT_TPG_NAMELEN 32	/* max length of TPG name */
 #define FT_LUN_NAMELEN 32	/* max length of LUN name */
+#define TCM_FC_DEFAULT_TAGS 512	/* tags used for per-session preallocation */
 
 struct ft_transport_id {
 	__u8	format;

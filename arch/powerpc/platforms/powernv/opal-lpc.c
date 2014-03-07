@@ -17,31 +17,32 @@
 #include <asm/firmware.h>
 #include <asm/xics.h>
 #include <asm/opal.h>
+#include <asm/prom.h>
 
 static int opal_lpc_chip_id = -1;
 
 static u8 opal_lpc_inb(unsigned long port)
 {
 	int64_t rc;
-	uint32_t data;
+	__be32 data;
 
 	if (opal_lpc_chip_id < 0 || port > 0xffff)
 		return 0xff;
 	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, &data, 1);
-	return rc ? 0xff : data;
+	return rc ? 0xff : be32_to_cpu(data);
 }
 
 static __le16 __opal_lpc_inw(unsigned long port)
 {
 	int64_t rc;
-	uint32_t data;
+	__be32 data;
 
 	if (opal_lpc_chip_id < 0 || port > 0xfffe)
 		return 0xffff;
 	if (port & 1)
 		return (__le16)opal_lpc_inb(port) << 8 | opal_lpc_inb(port + 1);
 	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, &data, 2);
-	return rc ? 0xffff : data;
+	return rc ? 0xffff : be32_to_cpu(data);
 }
 static u16 opal_lpc_inw(unsigned long port)
 {
@@ -51,7 +52,7 @@ static u16 opal_lpc_inw(unsigned long port)
 static __le32 __opal_lpc_inl(unsigned long port)
 {
 	int64_t rc;
-	uint32_t data;
+	__be32 data;
 
 	if (opal_lpc_chip_id < 0 || port > 0xfffc)
 		return 0xffffffff;
@@ -61,7 +62,7 @@ static __le32 __opal_lpc_inl(unsigned long port)
 		       (__le32)opal_lpc_inb(port + 2) <<  8 |
 			       opal_lpc_inb(port + 3);
 	rc = opal_lpc_read(opal_lpc_chip_id, OPAL_LPC_IO, port, &data, 4);
-	return rc ? 0xffffffff : data;
+	return rc ? 0xffffffff : be32_to_cpu(data);
 }
 
 static u32 opal_lpc_inl(unsigned long port)

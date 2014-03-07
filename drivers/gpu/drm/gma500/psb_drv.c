@@ -251,6 +251,12 @@ static int psb_driver_unload(struct drm_device *dev)
 			iounmap(dev_priv->sgx_reg);
 			dev_priv->sgx_reg = NULL;
 		}
+		if (dev_priv->aux_reg) {
+			iounmap(dev_priv->aux_reg);
+			dev_priv->aux_reg = NULL;
+		}
+		if (dev_priv->aux_pdev)
+			pci_dev_put(dev_priv->aux_pdev);
 
 		/* Destroy VBT data */
 		psb_intel_destroy_bios(dev);
@@ -266,7 +272,7 @@ static int psb_driver_unload(struct drm_device *dev)
 static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct drm_psb_private *dev_priv;
-	unsigned long resource_start;
+	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
 	int ret = -ENOMEM;
 	struct drm_connector *connector;
@@ -295,6 +301,30 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 							PSB_SGX_SIZE);
 	if (!dev_priv->sgx_reg)
 		goto out_err;
+
+	if (IS_MRST(dev)) {
+		dev_priv->aux_pdev = pci_get_bus_and_slot(0, PCI_DEVFN(3, 0));
+
+		if (dev_priv->aux_pdev) {
+			resource_start = pci_resource_start(dev_priv->aux_pdev,
+							    PSB_AUX_RESOURCE);
+			resource_len = pci_resource_len(dev_priv->aux_pdev,
+							PSB_AUX_RESOURCE);
+			dev_priv->aux_reg = ioremap_nocache(resource_start,
+							    resource_len);
+			if (!dev_priv->aux_reg)
+				goto out_err;
+
+			DRM_DEBUG_KMS("Found aux vdc");
+		} else {
+			/* Couldn't find the aux vdc so map to primary vdc */
+			dev_priv->aux_reg = dev_priv->vdc_reg;
+			DRM_DEBUG_KMS("Couldn't find aux pci device");
+		}
+		dev_priv->gmbus_reg = dev_priv->aux_reg;
+	} else {
+		dev_priv->gmbus_reg = dev_priv->vdc_reg;
+	}
 
 	psb_intel_opregion_setup(dev);
 
@@ -359,7 +389,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	drm_irq_install(dev);
 
-	dev->vblank_disable_allowed = 1;
+	dev->vblank_disable_allowed = true;
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
@@ -449,7 +479,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_CONNECTOR);
 	if (!obj) {
 		dev_dbg(dev->dev, "Invalid Connector object.\n");
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	connector = obj_to_connector(obj);
@@ -491,7 +521,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 		obj = drm_mode_object_find(dev, obj_id,
 					DRM_MODE_OBJECT_CONNECTOR);
 		if (!obj) {
-			ret = -EINVAL;
+			ret = -ENOENT;
 			goto mode_op_out;
 		}
 
@@ -646,7 +676,6 @@ static struct drm_driver driver = {
 	.preclose = psb_driver_preclose,
 	.postclose = psb_driver_close,
 
-	.gem_init_object = psb_gem_init_object,
 	.gem_free_object = psb_gem_free_object,
 	.gem_vm_ops = &psb_gem_vm_ops,
 	.dumb_create = psb_gem_dumb_create,

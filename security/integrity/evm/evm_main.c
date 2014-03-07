@@ -123,7 +123,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		goto out;
 	}
 
-	xattr_len = rc - 1;
+	xattr_len = rc;
 
 	/* check value type */
 	switch (xattr_data->type) {
@@ -143,7 +143,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		if (rc)
 			break;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_EVM,
-					xattr_data->digest, xattr_len,
+					(const char *)xattr_data, xattr_len,
 					calc.digest, sizeof(calc.digest));
 		if (!rc) {
 			/* we probably want to replace rsa with hmac here */

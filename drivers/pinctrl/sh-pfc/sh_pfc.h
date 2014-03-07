@@ -254,7 +254,7 @@ struct sh_pfc_soc_info {
 #define PINMUX_GPIO(_pin)						\
 	[GPIO_##_pin] = {						\
 		.pin = (u16)-1,						\
-		.name = __stringify(name),				\
+		.name = __stringify(GPIO_##_pin),			\
 		.enum_id = _pin##_DATA,					\
 	}
 

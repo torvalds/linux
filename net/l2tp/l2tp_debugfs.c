@@ -127,9 +127,10 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tunnel->sock->sk_family == AF_INET6) {
-			struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
+			const struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
+
 			seq_printf(m, " from %pI6c to %pI6c\n",
-				&np->saddr, &np->daddr);
+				&np->saddr, &tunnel->sock->sk_v6_daddr);
 		} else
 #endif
 		seq_printf(m, " from %pI4 to %pI4\n",

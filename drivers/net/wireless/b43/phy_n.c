@@ -164,7 +164,8 @@ static void b43_nphy_rf_ctl_override_rev7(struct b43_wldev *dev, u16 field,
 		}
 		en_addr = en_addrs[override][i];
 
-		val_addr = (i == 0) ? e->val_addr_core0 : e->val_addr_core1;
+		if (e)
+			val_addr = (i == 0) ? e->val_addr_core0 : e->val_addr_core1;
 
 		if (off) {
 			b43_phy_mask(dev, en_addr, ~en_mask);

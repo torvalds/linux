@@ -324,7 +324,14 @@
 	};
 
 	i2c@12C80000 {
-		status = "disabled";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		samsung,i2c-slave-addr = <0x50>;
+
+		hdmiddc@50 {
+			compatible = "samsung,exynos4210-hdmiddc";
+			reg = <0x50>;
+		};
 	};
 
 	i2c@12C90000 {
@@ -360,6 +367,17 @@
 
 	i2c@12CD0000 {
 		status = "disabled";
+	};
+
+	i2c@12CE0000 {
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		samsung,i2c-slave-addr = <0x38>;
+
+		hdmiphy@38 {
+			compatible = "samsung,exynos4212-hdmiphy";
+			reg = <0x38>;
+		};
 	};
 
 	i2c@121D0000 {
@@ -410,6 +428,10 @@
 
 	dwmmc_3: dwmmc3@12230000 {
 		status = "disabled";
+	};
+
+	i2s0: i2s@03830000 {
+		status = "okay";
 	};
 
 	spi_0: spi@12d20000 {
@@ -482,13 +504,15 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		main_dc_reg: fixedregulator@1 {
+		main_dc_reg: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "MAIN_DC";
 		};
 
-		mmc_reg: voltage-regulator {
+		mmc_reg: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "VDD_33ON_2.8V";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
@@ -496,8 +520,9 @@
 			enable-active-high;
 		};
 
-		reg_hdmi_en: fixedregulator@0 {
+		reg_hdmi_en: regulator@2 {
 			compatible = "regulator-fixed";
+			reg = <2>;
 			regulator-name = "hdmi-en";
 		};
 	};

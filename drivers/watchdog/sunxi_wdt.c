@@ -217,7 +217,7 @@ static struct platform_driver sunxi_wdt_driver = {
 	.driver		= {
 		.owner		= THIS_MODULE,
 		.name		= DRV_NAME,
-		.of_match_table	= of_match_ptr(sunxi_wdt_dt_ids)
+		.of_match_table	= sunxi_wdt_dt_ids,
 	},
 };
 

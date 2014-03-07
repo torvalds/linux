@@ -511,6 +511,10 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	dev_set_drvdata(dev, psy);
 	psy->dev = dev;
 
+	rc = dev_set_name(dev, "%s", psy->name);
+	if (rc)
+		goto dev_set_name_failed;
+
 	INIT_WORK(&psy->changed_work, power_supply_changed_work);
 
 	rc = power_supply_check_supplies(psy);
@@ -523,10 +527,6 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	rc = device_init_wakeup(dev, true);
 	if (rc)
 		goto wakeup_init_failed;
-
-	rc = kobject_set_name(&dev->kobj, "%s", psy->name);
-	if (rc)
-		goto kobject_set_name_failed;
 
 	rc = device_add(dev);
 	if (rc)
@@ -553,11 +553,11 @@ create_triggers_failed:
 register_cooler_failed:
 	psy_unregister_thermal(psy);
 register_thermal_failed:
-wakeup_init_failed:
 	device_del(dev);
-kobject_set_name_failed:
 device_add_failed:
+wakeup_init_failed:
 check_supplies_failed:
+dev_set_name_failed:
 	put_device(dev);
 success:
 	return rc;

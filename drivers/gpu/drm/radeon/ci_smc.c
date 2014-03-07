@@ -217,6 +217,10 @@ int ci_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 		ucode_start_address = BONAIRE_SMC_UCODE_START;
 		ucode_size = BONAIRE_SMC_UCODE_SIZE;
 		break;
+	case CHIP_HAWAII:
+		ucode_start_address = HAWAII_SMC_UCODE_START;
+		ucode_size = HAWAII_SMC_UCODE_SIZE;
+		break;
 	default:
 		DRM_ERROR("unknown asic in smc ucode loader\n");
 		BUG();

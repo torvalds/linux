@@ -146,7 +146,7 @@ struct blkif_request_segment_aligned {
 struct blkif_request_rw {
 	uint8_t        nr_segments;  /* number of segments                   */
 	blkif_vdev_t   handle;       /* only for read/write requests         */
-#ifdef CONFIG_X86_64
+#ifndef CONFIG_X86_32
 	uint32_t       _pad1;	     /* offsetof(blkif_request,u.rw.id) == 8 */
 #endif
 	uint64_t       id;           /* private guest value, echoed in resp  */
@@ -163,7 +163,7 @@ struct blkif_request_discard {
 	uint8_t        flag;         /* BLKIF_DISCARD_SECURE or zero.        */
 #define BLKIF_DISCARD_SECURE (1<<0)  /* ignored if discard-secure=0          */
 	blkif_vdev_t   _pad1;        /* only for read/write requests         */
-#ifdef CONFIG_X86_64
+#ifndef CONFIG_X86_32
 	uint32_t       _pad2;        /* offsetof(blkif_req..,u.discard.id)==8*/
 #endif
 	uint64_t       id;           /* private guest value, echoed in resp  */
@@ -175,7 +175,7 @@ struct blkif_request_discard {
 struct blkif_request_other {
 	uint8_t      _pad1;
 	blkif_vdev_t _pad2;        /* only for read/write requests         */
-#ifdef CONFIG_X86_64
+#ifndef CONFIG_X86_32
 	uint32_t     _pad3;        /* offsetof(blkif_req..,u.other.id)==8*/
 #endif
 	uint64_t     id;           /* private guest value, echoed in resp  */
@@ -184,7 +184,7 @@ struct blkif_request_other {
 struct blkif_request_indirect {
 	uint8_t        indirect_op;
 	uint16_t       nr_segments;
-#ifdef CONFIG_X86_64
+#ifndef CONFIG_X86_32
 	uint32_t       _pad1;        /* offsetof(blkif_...,u.indirect.id) == 8 */
 #endif
 	uint64_t       id;
@@ -192,7 +192,7 @@ struct blkif_request_indirect {
 	blkif_vdev_t   handle;
 	uint16_t       _pad2;
 	grant_ref_t    indirect_grefs[BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST];
-#ifdef CONFIG_X86_64
+#ifndef CONFIG_X86_32
 	uint32_t      _pad3;         /* make it 64 byte aligned */
 #else
 	uint64_t      _pad3;         /* make it 64 byte aligned */

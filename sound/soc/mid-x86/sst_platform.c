@@ -40,7 +40,8 @@ static DEFINE_MUTEX(sst_lock);
 
 int sst_register_dsp(struct sst_device *dev)
 {
-	BUG_ON(!dev);
+	if (WARN_ON(!dev))
+		return -EINVAL;
 	if (!try_module_get(dev->dev->driver->owner))
 		return -ENODEV;
 	mutex_lock(&sst_lock);
@@ -59,7 +60,8 @@ EXPORT_SYMBOL_GPL(sst_register_dsp);
 
 int sst_unregister_dsp(struct sst_device *dev)
 {
-	BUG_ON(!dev);
+	if (WARN_ON(!dev))
+		return -EINVAL;
 	if (dev != sst)
 		return -EINVAL;
 

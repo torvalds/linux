@@ -17,17 +17,15 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
@@ -316,7 +314,18 @@ xfs_trans_read_buf_map(
 			ASSERT(bp->b_iodone == NULL);
 			XFS_BUF_READ(bp);
 			bp->b_ops = ops;
-			xfsbdstrat(tp->t_mountp, bp);
+
+			/*
+			 * XXX(hch): clean up the error handling here to be less
+			 * of a mess..
+			 */
+			if (XFS_FORCED_SHUTDOWN(mp)) {
+				trace_xfs_bdstrat_shut(bp, _RET_IP_);
+				xfs_bioerror_relse(bp);
+			} else {
+				xfs_buf_iorequest(bp);
+			}
+
 			error = xfs_buf_iowait(bp);
 			if (error) {
 				xfs_buf_ioerror_alert(bp, __func__);

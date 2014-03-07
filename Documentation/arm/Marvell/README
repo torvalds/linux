@@ -88,6 +88,7 @@ EBU Armada family
         MV78230
         MV78260
         MV78460
+    NOTE: not to be confused with the non-SMP 78xx0 SoCs
 
   Product Brief: http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
   No public datasheet available.

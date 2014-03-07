@@ -52,7 +52,7 @@ bad_area:
 	return 1;
 }
 
-void do_page_fault(struct pt_regs *regs, unsigned long address)
+void do_page_fault(unsigned long address, struct pt_regs *regs)
 {
 	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk = current;

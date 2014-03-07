@@ -46,8 +46,9 @@ static int snd_pcsp_create(struct snd_card *card)
 	int err;
 	int div, min_div, order;
 
+	hrtimer_get_res(CLOCK_MONOTONIC, &tp);
+
 	if (!nopcm) {
-		hrtimer_get_res(CLOCK_MONOTONIC, &tp);
 		if (tp.tv_sec || tp.tv_nsec > PCSP_MAX_PERIOD_NS) {
 			printk(KERN_ERR "PCSP: Timer resolution is not sufficient "
 				"(%linS)\n", tp.tv_nsec);
@@ -187,8 +188,8 @@ static int pcsp_probe(struct platform_device *dev)
 static int pcsp_remove(struct platform_device *dev)
 {
 	struct snd_pcsp *chip = platform_get_drvdata(dev);
-	alsa_card_pcsp_exit(chip);
 	pcspkr_input_remove(chip->input_dev);
+	alsa_card_pcsp_exit(chip);
 	return 0;
 }
 

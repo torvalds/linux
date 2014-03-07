@@ -90,7 +90,8 @@ static void s6000_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		return;
 	}
 
-	BUG_ON(period_size & 15);
+	if (WARN_ON(period_size & 15))
+		return;
 	s6dmac_put_fifo(DMA_MASK_DMAC(channel), DMA_INDEX_CHNL(channel),
 			src, dst, period_size);
 
@@ -444,8 +445,6 @@ static void s6000_pcm_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-static u64 s6000_pcm_dmamask = DMA_BIT_MASK(32);
-
 static int s6000_pcm_new(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_card *card = runtime->card->snd_card;
@@ -456,10 +455,9 @@ static int s6000_pcm_new(struct snd_soc_pcm_runtime *runtime)
 	params = snd_soc_dai_get_dma_data(runtime->cpu_dai,
 			pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream);
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &s6000_pcm_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	res = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (res)
+		return res;
 
 	if (params->dma_in) {
 		s6dmac_disable_chan(DMA_MASK_DMAC(params->dma_in),

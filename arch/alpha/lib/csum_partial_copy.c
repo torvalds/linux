@@ -130,7 +130,7 @@ csum_partial_cfu_aligned(const unsigned long __user *src, unsigned long *dst,
 		*dst = word | tmp;
 		checksum += carry;
 	}
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -185,7 +185,7 @@ csum_partial_cfu_dest_aligned(const unsigned long __user *src,
 		*dst = word | tmp;
 		checksum += carry;
 	}
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -242,7 +242,7 @@ csum_partial_cfu_src_aligned(const unsigned long __user *src,
 	stq_u(partial_dest | second_dest, dst);
 out:
 	checksum += carry;
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -325,7 +325,7 @@ csum_partial_cfu_unaligned(const unsigned long __user * src,
 		stq_u(partial_dest | word | second_dest, dst);
 		checksum += carry;
 	}
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -339,7 +339,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 
 	if (len) {
 		if (!access_ok(VERIFY_READ, src, len)) {
-			*errp = -EFAULT;
+			if (errp) *errp = -EFAULT;
 			memset(dst, 0, len);
 			return sum;
 		}

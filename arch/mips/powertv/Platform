@@ -1,7 +1,0 @@
-#
-# Cisco PowerTV Platform
-#
-platform-$(CONFIG_POWERTV)	+= powertv/
-cflags-$(CONFIG_POWERTV)	+=					\
-		-I$(srctree)/arch/mips/include/asm/mach-powertv
-load-$(CONFIG_POWERTV)		+= 0xffffffff90800000

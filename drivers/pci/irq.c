@@ -25,7 +25,7 @@ static void pci_note_irq_problem(struct pci_dev *pdev, const char *reason)
 /**
  * pci_lost_interrupt - reports a lost PCI interrupt
  * @pdev:	device whose interrupt is lost
- * 
+ *
  * The primary function of this routine is to report a lost interrupt
  * in a standard way which users can recognise (instead of blaming the
  * driver).

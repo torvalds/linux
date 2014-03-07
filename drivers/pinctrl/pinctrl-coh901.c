@@ -529,6 +529,10 @@ static void u300_gpio_irq_enable(struct irq_data *d)
 
 	dev_dbg(gpio->dev, "enable IRQ for hwirq %lu on port %s, offset %d\n",
 		 d->hwirq, port->name, offset);
+	if (gpio_lock_as_irq(&gpio->chip, d->hwirq))
+		dev_err(gpio->dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			d->hwirq);
 	local_irq_save(flags);
 	val = readl(U300_PIN_REG(offset, ien));
 	writel(val | U300_PIN_BIT(offset), U300_PIN_REG(offset, ien));
@@ -547,6 +551,7 @@ static void u300_gpio_irq_disable(struct irq_data *d)
 	val = readl(U300_PIN_REG(offset, ien));
 	writel(val & ~U300_PIN_BIT(offset), U300_PIN_REG(offset, ien));
 	local_irq_restore(flags);
+	gpio_unlock_as_irq(&gpio->chip, d->hwirq);
 }
 
 static struct irq_chip u300_gpio_irqchip = {

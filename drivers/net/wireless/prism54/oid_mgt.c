@@ -682,7 +682,7 @@ mgt_update_addr(islpci_private *priv)
 				     isl_oid[GEN_OID_MACADDRESS].size, &res);
 
 	if ((ret == 0) && res && (res->header->operation != PIMFOR_OP_ERROR))
-		memcpy(priv->ndev->dev_addr, res->data, 6);
+		memcpy(priv->ndev->dev_addr, res->data, ETH_ALEN);
 	else
 		ret = -EIO;
 	if (res)

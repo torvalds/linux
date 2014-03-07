@@ -278,19 +278,12 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 }
 
 static int
-check_smb_hdr(struct smb_hdr *smb, __u16 mid)
+check_smb_hdr(struct smb_hdr *smb)
 {
 	/* does it have the right SMB "signature" ? */
 	if (*(__le32 *) smb->Protocol != cpu_to_le32(0x424d53ff)) {
 		cifs_dbg(VFS, "Bad protocol string signature header 0x%x\n",
 			 *(unsigned int *)smb->Protocol);
-		return 1;
-	}
-
-	/* Make sure that message ids match */
-	if (mid != smb->Mid) {
-		cifs_dbg(VFS, "Mids do not match. received=%u expected=%u\n",
-			 smb->Mid, mid);
 		return 1;
 	}
 
@@ -302,7 +295,8 @@ check_smb_hdr(struct smb_hdr *smb, __u16 mid)
 	if (smb->Command == SMB_COM_LOCKING_ANDX)
 		return 0;
 
-	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n", smb->Mid);
+	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n",
+		 get_mid(smb));
 	return 1;
 }
 
@@ -310,7 +304,6 @@ int
 checkSMB(char *buf, unsigned int total_read)
 {
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
-	__u16 mid = smb->Mid;
 	__u32 rfclen = be32_to_cpu(smb->smb_buf_length);
 	__u32 clc_len;  /* calculated length */
 	cifs_dbg(FYI, "checkSMB Length: 0x%x, smb_buf_length: 0x%x\n",
@@ -348,7 +341,7 @@ checkSMB(char *buf, unsigned int total_read)
 	}
 
 	/* otherwise, there is enough to get to the BCC */
-	if (check_smb_hdr(smb, mid))
+	if (check_smb_hdr(smb))
 		return -EIO;
 	clc_len = smbCalcSize(smb);
 
@@ -359,6 +352,7 @@ checkSMB(char *buf, unsigned int total_read)
 	}
 
 	if (4 + rfclen != clc_len) {
+		__u16 mid = get_mid(smb);
 		/* check if bcc wrapped around for large read responses */
 		if ((rfclen > 64 * 1024) && (rfclen > clc_len)) {
 			/* check if lengths match mod 64K */
@@ -366,11 +360,11 @@ checkSMB(char *buf, unsigned int total_read)
 				return 0; /* bcc wrapped */
 		}
 		cifs_dbg(FYI, "Calculated size %u vs length %u mismatch for mid=%u\n",
-			 clc_len, 4 + rfclen, smb->Mid);
+			 clc_len, 4 + rfclen, mid);
 
 		if (4 + rfclen < clc_len) {
 			cifs_dbg(VFS, "RFC1001 size %u smaller than SMB for mid=%u\n",
-				 rfclen, smb->Mid);
+				 rfclen, mid);
 			return -EIO;
 		} else if (rfclen > clc_len + 512) {
 			/*
@@ -383,7 +377,7 @@ checkSMB(char *buf, unsigned int total_read)
 			 * data to 512 bytes.
 			 */
 			cifs_dbg(VFS, "RFC1001 size %u more than 512 bytes larger than SMB for mid=%u\n",
-				 rfclen, smb->Mid);
+				 rfclen, mid);
 			return -EIO;
 		}
 	}

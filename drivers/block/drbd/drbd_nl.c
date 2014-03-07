@@ -955,7 +955,7 @@ drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags, struct res
 	}
 
 	if (size > la_size_sect)
-		rv = DS_GREW;
+		rv = la_size_sect ? DS_GREW : DS_GREW_FROM_ZERO;
 	if (size < la_size_sect)
 		rv = DS_SHRUNK;
 
@@ -1132,9 +1132,9 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 	/* We may ignore peer limits if the peer is modern enough.
 	   Because new from 8.3.8 onwards the peer can use multiple
 	   BIOs for a single peer_request */
-	if (mdev->state.conn >= C_CONNECTED) {
+	if (mdev->state.conn >= C_WF_REPORT_PARAMS) {
 		if (mdev->tconn->agreed_pro_version < 94)
-			peer = min( mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+			peer = min(mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
 			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
 		else if (mdev->tconn->agreed_pro_version == 94)
 			peer = DRBD_MAX_SIZE_H80_PACKET;

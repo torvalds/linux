@@ -1301,7 +1301,6 @@ static struct uart_ops mpc52xx_uart_ops = {
 	.shutdown	= mpc52xx_uart_shutdown,
 	.set_termios	= mpc52xx_uart_set_termios,
 /*	.pm		= mpc52xx_uart_pm,		Not supported yet */
-/*	.set_wake	= mpc52xx_uart_set_wake,	Not supported yet */
 	.type		= mpc52xx_uart_type,
 	.release_port	= mpc52xx_uart_release_port,
 	.request_port	= mpc52xx_uart_request_port,
@@ -1766,7 +1765,7 @@ mpc52xx_uart_of_remove(struct platform_device *op)
 static int
 mpc52xx_uart_of_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct uart_port *port = (struct uart_port *) platform_get_drvdata(op);
+	struct uart_port *port = platform_get_drvdata(op);
 
 	if (port)
 		uart_suspend_port(&mpc52xx_uart_driver, port);
@@ -1777,7 +1776,7 @@ mpc52xx_uart_of_suspend(struct platform_device *op, pm_message_t state)
 static int
 mpc52xx_uart_of_resume(struct platform_device *op)
 {
-	struct uart_port *port = (struct uart_port *) platform_get_drvdata(op);
+	struct uart_port *port = platform_get_drvdata(op);
 
 	if (port)
 		uart_resume_port(&mpc52xx_uart_driver, port);

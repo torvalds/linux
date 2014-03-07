@@ -702,6 +702,16 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	device_set_options(pDevice);
 	spin_lock_init(&pDevice->lock);
+	INIT_DELAYED_WORK(&pDevice->run_command_work, vRunCommand);
+	INIT_DELAYED_WORK(&pDevice->second_callback_work, BSSvSecondCallBack);
+	INIT_WORK(&pDevice->read_work_item, RXvWorkItem);
+	INIT_WORK(&pDevice->rx_mng_work_item, RXvMngWorkItem);
+
+	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!pDevice->pControlURB) {
+		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc control urb\n");
+		goto err_netdev;
+	}
 
 	pDevice->tx_80211 = device_dma0_tx_80211;
 	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
@@ -713,13 +723,14 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_set_intfdata(intf, pDevice);
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	memcpy(pDevice->dev->dev_addr, fake_mac, ETH_ALEN);
+
+	usb_device_reset(pDevice);
+
 	rc = register_netdev(netdev);
 	if (rc) {
 		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
 		goto err_netdev;
 	}
-
-	usb_device_reset(pDevice);
 
 	return 0;
 
@@ -849,23 +860,15 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
         pRCB++;
     }
 
-	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
-	if (pDevice->pControlURB == NULL) {
-	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc control urb\n");
-	    goto free_rx_tx;
-	}
-
 	pDevice->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (pDevice->pInterruptURB == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int urb\n");
-	    usb_free_urb(pDevice->pControlURB);
 	    goto free_rx_tx;
 	}
 
     pDevice->intBuf.pDataBuf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
 	if (pDevice->intBuf.pDataBuf == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int buf\n");
-	    usb_free_urb(pDevice->pControlURB);
 	    usb_free_urb(pDevice->pInterruptURB);
 	    goto free_rx_tx;
 	}
@@ -981,10 +984,11 @@ static int  device_open(struct net_device *dev)
     }
 
     vMgrObjectInit(pDevice);
-    tasklet_init(&pDevice->RxMngWorkItem, (void *)RXvMngWorkItem, (unsigned long)pDevice);
-    tasklet_init(&pDevice->ReadWorkItem, (void *)RXvWorkItem, (unsigned long)pDevice);
+
     tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
-	add_timer(&pDevice->vnt_mgmt.sTimerSecondCallback);
+
+	schedule_delayed_work(&pDevice->second_callback_work, HZ);
+
 	pDevice->int_interval = 100;  /* max 100 microframes */
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
@@ -1000,7 +1004,7 @@ static int  device_open(struct net_device *dev)
      pDevice->bWPASuppWextEnabled = false;
     pDevice->byReAssocCount = 0;
 
-    RXvWorkItem(pDevice);
+	schedule_work(&pDevice->read_work_item);
     INTvWorkItem(pDevice);
 
     /* if WEP key already set by iwconfig but device not yet open */
@@ -1035,9 +1039,7 @@ free_rx_tx:
     device_free_rx_bufs(pDevice);
     device_free_tx_bufs(pDevice);
     device_free_int_bufs(pDevice);
-	usb_kill_urb(pDevice->pControlURB);
 	usb_kill_urb(pDevice->pInterruptURB);
-    usb_free_urb(pDevice->pControlURB);
     usb_free_urb(pDevice->pInterruptURB);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open fail.. \n");
@@ -1076,18 +1078,19 @@ static int device_close(struct net_device *dev)
     MP_CLEAR_FLAG(pDevice, fMP_POST_WRITES);
     MP_CLEAR_FLAG(pDevice, fMP_POST_READS);
     pDevice->fKillEventPollingThread = true;
-    del_timer(&pDevice->sTimerCommand);
-    del_timer(&pMgmt->sTimerSecondCallback);
 
-    del_timer(&pDevice->sTimerTxData);
+	cancel_delayed_work_sync(&pDevice->run_command_work);
+	cancel_delayed_work_sync(&pDevice->second_callback_work);
 
     if (pDevice->bDiversityRegCtlON) {
         del_timer(&pDevice->TimerSQ3Tmax1);
         del_timer(&pDevice->TimerSQ3Tmax2);
         del_timer(&pDevice->TimerSQ3Tmax3);
     }
-    tasklet_kill(&pDevice->RxMngWorkItem);
-    tasklet_kill(&pDevice->ReadWorkItem);
+
+	cancel_work_sync(&pDevice->rx_mng_work_item);
+	cancel_work_sync(&pDevice->read_work_item);
+
     tasklet_kill(&pDevice->EventWorkItem);
 
    pDevice->bRoaming = false;
@@ -1105,9 +1108,7 @@ static int device_close(struct net_device *dev)
     device_free_int_bufs(pDevice);
     device_free_frag_bufs(pDevice);
 
-	usb_kill_urb(pDevice->pControlURB);
 	usb_kill_urb(pDevice->pInterruptURB);
-    usb_free_urb(pDevice->pControlURB);
     usb_free_urb(pDevice->pInterruptURB);
 
     BSSvClearNodeDBTable(pDevice, 0);
@@ -1131,9 +1132,12 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 	if (device->dev) {
 		unregister_netdev(device->dev);
+
+		usb_kill_urb(device->pControlURB);
+		usb_free_urb(device->pControlURB);
+
 		free_netdev(device->dev);
 	}
-
 }
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)

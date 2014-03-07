@@ -67,7 +67,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 					const char *buf,
 					size_t len)
 {
-	struct spi_message msg;
 	struct spi_transfer xfer;
 	int ret;
 	struct ad9852_config *config = (struct ad9852_config *)buf;
@@ -78,99 +77,77 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 	xfer.tx_buf = &config->phajst0[0];
 	mutex_lock(&st->lock);
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 3;
 	xfer.tx_buf = &config->phajst1[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 6;
 	xfer.tx_buf = &config->fretun1[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 6;
 	xfer.tx_buf = &config->fretun2[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 6;
 	xfer.tx_buf = &config->dltafre[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->updtclk[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 4;
 	xfer.tx_buf = &config->ramprat[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->control[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 3;
 	xfer.tx_buf = &config->outpskm[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 2;
 	xfer.tx_buf = &config->outpskr[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 
 	xfer.len = 3;
 	xfer.tx_buf = &config->daccntl[0];
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 error_ret:
@@ -229,11 +206,9 @@ static int ad9852_probe(struct spi_device *spi)
 	struct iio_dev *idev;
 	int ret = 0;
 
-	idev = iio_device_alloc(sizeof(*st));
-	if (idev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	idev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!idev)
+		return -ENOMEM;
 	st = iio_priv(idev);
 	spi_set_drvdata(spi, idev);
 	mutex_init(&st->lock);
@@ -245,7 +220,7 @@ static int ad9852_probe(struct spi_device *spi)
 
 	ret = iio_device_register(idev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 	spi->max_speed_hz = 2000000;
 	spi->mode = SPI_MODE_3;
 	spi->bits_per_word = 8;
@@ -253,18 +228,11 @@ static int ad9852_probe(struct spi_device *spi)
 	ad9852_init(st);
 
 	return 0;
-
-error_free_dev:
-	iio_device_free(idev);
-
-error_ret:
-	return ret;
 }
 
 static int ad9852_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
-	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }

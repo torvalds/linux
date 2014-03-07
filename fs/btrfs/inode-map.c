@@ -78,10 +78,8 @@ again:
 			    btrfs_transaction_in_commit(fs_info)) {
 				leaf = path->nodes[0];
 
-				if (btrfs_header_nritems(leaf) == 0) {
-					WARN_ON(1);
+				if (WARN_ON(btrfs_header_nritems(leaf) == 0))
 					break;
-				}
 
 				/*
 				 * Save the key so we can advances forward
@@ -237,7 +235,7 @@ again:
 		start_caching(root);
 
 		if (objectid <= root->cache_progress ||
-		    objectid > root->highest_objectid)
+		    objectid >= root->highest_objectid)
 			__btrfs_add_free_space(ctl, objectid, 1);
 		else
 			__btrfs_add_free_space(pinned, objectid, 1);
@@ -412,8 +410,7 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 		return 0;
 
 	/* Don't save inode cache if we are deleting this root */
-	if (btrfs_root_refs(&root->root_item) == 0 &&
-	    root != root->fs_info->tree_root)
+	if (btrfs_root_refs(&root->root_item) == 0)
 		return 0;
 
 	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
@@ -467,7 +464,7 @@ again:
 	}
 
 	if (i_size_read(inode) > 0) {
-		ret = btrfs_truncate_free_space_cache(root, trans, path, inode);
+		ret = btrfs_truncate_free_space_cache(root, trans, inode);
 		if (ret) {
 			if (ret != -ENOSPC)
 				btrfs_abort_transaction(trans, root, ret);
@@ -504,7 +501,7 @@ again:
 	}
 	btrfs_free_reserved_data_space(inode, prealloc);
 
-	ret = btrfs_write_out_ino_cache(root, trans, path);
+	ret = btrfs_write_out_ino_cache(root, trans, path, inode);
 out_put:
 	iput(inode);
 out_release:

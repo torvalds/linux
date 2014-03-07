@@ -73,9 +73,11 @@
 #ifdef MSND_CLASSIC
 #  include "msnd_classic.h"
 #  define LOGNAME			"msnd_classic"
+#  define DEV_NAME			"msnd-classic"
 #else
 #  include "msnd_pinnacle.h"
 #  define LOGNAME			"snd_msnd_pinnacle"
+#  define DEV_NAME			"msnd-pinnacle"
 #endif
 
 static void set_default_audio_parameters(struct snd_msnd *chip)
@@ -1066,8 +1068,6 @@ static int snd_msnd_isa_remove(struct device *pdev, unsigned int dev)
 	snd_msnd_unload(dev_get_drvdata(pdev));
 	return 0;
 }
-
-#define DEV_NAME "msnd-pinnacle"
 
 static struct isa_driver snd_msnd_driver = {
 	.match		= snd_msnd_isa_match,

@@ -25,6 +25,7 @@
 #include <linux/personality.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/perf_event.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
@@ -33,14 +34,18 @@
 #include <asm/ia32.h>
 
 #undef WARN_OLD
-#undef CORE_DUMP /* definitely broken */
 
 static int load_aout_binary(struct linux_binprm *);
 static int load_aout_library(struct file *);
 
-#ifdef CORE_DUMP
-static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
-			  unsigned long limit);
+#ifdef CONFIG_COREDUMP
+static int aout_core_dump(struct coredump_params *);
+
+static unsigned long get_dr(int n)
+{
+	struct perf_event *bp = current->thread.ptrace_bps[n];
+	return bp ? bp->hw.info.address : 0;
+}
 
 /*
  * fill in the user structure for a core dump..
@@ -48,6 +53,7 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 static void dump_thread32(struct pt_regs *regs, struct user32 *dump)
 {
 	u32 fs, gs;
+	memset(dump, 0, sizeof(*dump));
 
 /* changed the size calculations - should hopefully work better. lbt */
 	dump->magic = CMAGIC;
@@ -57,15 +63,12 @@ static void dump_thread32(struct pt_regs *regs, struct user32 *dump)
 	dump->u_dsize = ((unsigned long)
 			 (current->mm->brk + (PAGE_SIZE-1))) >> PAGE_SHIFT;
 	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-	dump->u_debugreg[0] = current->thread.debugreg0;
-	dump->u_debugreg[1] = current->thread.debugreg1;
-	dump->u_debugreg[2] = current->thread.debugreg2;
-	dump->u_debugreg[3] = current->thread.debugreg3;
-	dump->u_debugreg[4] = 0;
-	dump->u_debugreg[5] = 0;
+	dump->u_debugreg[0] = get_dr(0);
+	dump->u_debugreg[1] = get_dr(1);
+	dump->u_debugreg[2] = get_dr(2);
+	dump->u_debugreg[3] = get_dr(3);
 	dump->u_debugreg[6] = current->thread.debugreg6;
-	dump->u_debugreg[7] = current->thread.debugreg7;
+	dump->u_debugreg[7] = current->thread.ptrace_dr7;
 
 	if (dump->start_stack < 0xc0000000) {
 		unsigned long tmp;
@@ -74,24 +77,24 @@ static void dump_thread32(struct pt_regs *regs, struct user32 *dump)
 		dump->u_ssize = tmp >> PAGE_SHIFT;
 	}
 
-	dump->regs.bx = regs->bx;
-	dump->regs.cx = regs->cx;
-	dump->regs.dx = regs->dx;
-	dump->regs.si = regs->si;
-	dump->regs.di = regs->di;
-	dump->regs.bp = regs->bp;
-	dump->regs.ax = regs->ax;
+	dump->regs.ebx = regs->bx;
+	dump->regs.ecx = regs->cx;
+	dump->regs.edx = regs->dx;
+	dump->regs.esi = regs->si;
+	dump->regs.edi = regs->di;
+	dump->regs.ebp = regs->bp;
+	dump->regs.eax = regs->ax;
 	dump->regs.ds = current->thread.ds;
 	dump->regs.es = current->thread.es;
 	savesegment(fs, fs);
 	dump->regs.fs = fs;
 	savesegment(gs, gs);
 	dump->regs.gs = gs;
-	dump->regs.orig_ax = regs->orig_ax;
-	dump->regs.ip = regs->ip;
+	dump->regs.orig_eax = regs->orig_ax;
+	dump->regs.eip = regs->ip;
 	dump->regs.cs = regs->cs;
-	dump->regs.flags = regs->flags;
-	dump->regs.sp = regs->sp;
+	dump->regs.eflags = regs->flags;
+	dump->regs.esp = regs->sp;
 	dump->regs.ss = regs->ss;
 
 #if 1 /* FIXME */
@@ -107,7 +110,7 @@ static struct linux_binfmt aout_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_aout_binary,
 	.load_shlib	= load_aout_library,
-#ifdef CORE_DUMP
+#ifdef CONFIG_COREDUMP
 	.core_dump	= aout_core_dump,
 #endif
 	.min_coredump	= PAGE_SIZE
@@ -122,7 +125,7 @@ static void set_brk(unsigned long start, unsigned long end)
 	vm_brk(start, end - start);
 }
 
-#ifdef CORE_DUMP
+#ifdef CONFIG_COREDUMP
 /*
  * These are the only things you should do on a core-file: use only these
  * macros to write out all the necessary info.
@@ -130,15 +133,7 @@ static void set_brk(unsigned long start, unsigned long end)
 
 #include <linux/coredump.h>
 
-#define DUMP_WRITE(addr, nr)			     \
-	if (!dump_write(file, (void *)(addr), (nr))) \
-		goto end_coredump;
-
-#define DUMP_SEEK(offset)		\
-	if (!dump_seek(file, offset))	\
-		goto end_coredump;
-
-#define START_DATA()	(u.u_tsize << PAGE_SHIFT)
+#define START_DATA(u)	(u.u_tsize << PAGE_SHIFT)
 #define START_STACK(u)	(u.start_stack)
 
 /*
@@ -151,8 +146,7 @@ static void set_brk(unsigned long start, unsigned long end)
  * dumping of the process results in another error..
  */
 
-static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
-			  unsigned long limit)
+static int aout_core_dump(struct coredump_params *cprm)
 {
 	mm_segment_t fs;
 	int has_dumped = 0;
@@ -164,19 +158,19 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 	has_dumped = 1;
 	strncpy(dump.u_comm, current->comm, sizeof(current->comm));
 	dump.u_ar0 = offsetof(struct user32, regs);
-	dump.signal = signr;
-	dump_thread32(regs, &dump);
+	dump.signal = cprm->siginfo->si_signo;
+	dump_thread32(cprm->regs, &dump);
 
 	/*
 	 * If the size of the dump file exceeds the rlimit, then see
 	 * what would happen if we wrote the stack, but not the data
 	 * area.
 	 */
-	if ((dump.u_dsize + dump.u_ssize + 1) * PAGE_SIZE > limit)
+	if ((dump.u_dsize + dump.u_ssize + 1) * PAGE_SIZE > cprm->limit)
 		dump.u_dsize = 0;
 
 	/* Make sure we have enough room to write the stack and data areas. */
-	if ((dump.u_ssize + 1) * PAGE_SIZE > limit)
+	if ((dump.u_ssize + 1) * PAGE_SIZE > cprm->limit)
 		dump.u_ssize = 0;
 
 	/* make sure we actually have a data and stack area to dump */
@@ -190,22 +184,26 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 
 	set_fs(KERNEL_DS);
 	/* struct user */
-	DUMP_WRITE(&dump, sizeof(dump));
+	if (!dump_emit(cprm, &dump, sizeof(dump)))
+		goto end_coredump;
 	/* Now dump all of the user data.  Include malloced stuff as well */
-	DUMP_SEEK(PAGE_SIZE - sizeof(dump));
+	if (!dump_skip(cprm, PAGE_SIZE - sizeof(dump)))
+		goto end_coredump;
 	/* now we start writing out the user space info */
 	set_fs(USER_DS);
 	/* Dump the data area */
 	if (dump.u_dsize != 0) {
 		dump_start = START_DATA(dump);
 		dump_size = dump.u_dsize << PAGE_SHIFT;
-		DUMP_WRITE(dump_start, dump_size);
+		if (!dump_emit(cprm, (void *)dump_start, dump_size))
+			goto end_coredump;
 	}
 	/* Now prepare to dump the stack area */
 	if (dump.u_ssize != 0) {
 		dump_start = START_STACK(dump);
 		dump_size = dump.u_ssize << PAGE_SHIFT;
-		DUMP_WRITE(dump_start, dump_size);
+		if (!dump_emit(cprm, (void *)dump_start, dump_size))
+			goto end_coredump;
 	}
 end_coredump:
 	set_fs(fs);

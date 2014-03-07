@@ -193,7 +193,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	btrfs_info(root->fs_info, "leaf %llu total ptrs %d free space %d",
 		   btrfs_header_bytenr(l), nr, btrfs_leaf_free_space(root, l));
 	for (i = 0 ; i < nr ; i++) {
-		item = btrfs_item_nr(l, i);
+		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
 		type = btrfs_key_type(&key);
 		printk(KERN_INFO "\titem %d key (%llu %u %llu) itemoff %d "

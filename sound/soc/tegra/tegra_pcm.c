@@ -56,7 +56,6 @@ static const struct snd_pcm_hardware tegra_pcm_hardware = {
 static const struct snd_dmaengine_pcm_config tegra_dmaengine_pcm_config = {
 	.pcm_hardware = &tegra_pcm_hardware,
 	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
-	.compat_filter_fn = NULL,
 	.prealloc_buffer_size = PAGE_SIZE * 8,
 };
 

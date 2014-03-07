@@ -83,19 +83,10 @@ static int efivarfs_d_hash(const struct dentry *dentry, struct qstr *qstr)
 	return 0;
 }
 
-/*
- * Retaining negative dentries for an in-memory filesystem just wastes
- * memory and lookup time: arrange for them to be deleted immediately.
- */
-static int efivarfs_delete_dentry(const struct dentry *dentry)
-{
-	return 1;
-}
-
 static struct dentry_operations efivarfs_d_ops = {
 	.d_compare = efivarfs_d_compare,
 	.d_hash = efivarfs_d_hash,
-	.d_delete = efivarfs_delete_dentry,
+	.d_delete = always_delete_dentry,
 };
 
 static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)

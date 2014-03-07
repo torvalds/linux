@@ -136,7 +136,7 @@ static const u16 rtl8225z2_rxgain[] = {
 
 };
 
-void rtl8225z2_set_gain(struct net_device *dev, short gain)
+static void rtl8225z2_set_gain(struct net_device *dev, short gain)
 {
 	const u8 *rtl8225_gain;
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -279,8 +279,8 @@ void rtl8225z2_rf_close(struct net_device *dev)
  * Map dBm into Tx power index according to current HW model, for example,
  * RF and PA, and current wireless mode.
  */
-s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
-		 s32 PowerInDbm)
+static s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
+			s32 PowerInDbm)
 {
 	bool bUseDefault = true;
 	s8 TxPwrIdx = 0;

@@ -25,7 +25,6 @@
 
 unsigned int __nongpreldata pci_probe = 1;
 
-int  __nongpreldata pcibios_last_bus = -1;
 struct pci_ops *__nongpreldata pci_root_ops;
 
 /*
@@ -220,37 +219,6 @@ static struct pci_ops * __init pci_check_direct(void)
 }
 
 /*
- * Discover remaining PCI buses in case there are peer host bridges.
- * We use the number of last PCI bus provided by the PCI BIOS.
- */
-static void __init pcibios_fixup_peer_bridges(void)
-{
-	struct pci_bus bus;
-	struct pci_dev dev;
-	int n;
-	u16 l;
-
-	if (pcibios_last_bus <= 0 || pcibios_last_bus >= 0xff)
-		return;
-	printk("PCI: Peer bridge fixup\n");
-	for (n=0; n <= pcibios_last_bus; n++) {
-		if (pci_find_bus(0, n))
-			continue;
-		bus.number = n;
-		bus.ops = pci_root_ops;
-		dev.bus = &bus;
-		for(dev.devfn=0; dev.devfn<256; dev.devfn += 8)
-			if (!pci_read_config_word(&dev, PCI_VENDOR_ID, &l) &&
-			    l != 0x0000 && l != 0xffff) {
-				printk("Found device at %02x:%02x [%04x]\n", n, dev.devfn, l);
-				printk("PCI: Discovered peer bus %02x\n", n);
-				pci_scan_bus(n, pci_root_ops, NULL);
-				break;
-			}
-	}
-}
-
-/*
  * Exceptions for specific devices. Usually work-arounds for fatal design flaws.
  */
 
@@ -418,7 +386,6 @@ int __init pcibios_init(void)
 	pci_scan_root_bus(NULL, 0, pci_root_ops, NULL, &resources);
 
 	pcibios_irq_init();
-	pcibios_fixup_peer_bridges();
 	pcibios_fixup_irqs();
 	pcibios_resource_survey();
 
@@ -431,9 +398,6 @@ char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
-		return NULL;
-	} else if (!strncmp(str, "lastbus=", 8)) {
-		pcibios_last_bus = simple_strtol(str+8, NULL, 0);
 		return NULL;
 	}
 	return str;

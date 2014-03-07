@@ -13,7 +13,7 @@
  * The CFA-10049 is an expansion board for the CFA-10036 module, thus we
  * need to include the CFA-10036 DTS.
  */
-/include/ "imx28-cfa10036.dts"
+#include "imx28-cfa10036.dts"
 
 / {
 	model = "Crystalfontz CFA-10037 Board";
@@ -25,21 +25,21 @@
 				usb_pins_cfa10037: usb-10037@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0073 /* MX28_PAD_GPMI_D7__GPIO_0_7 */
+						MX28_PAD_GPMI_D07__GPIO_0_7
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				mac0_pins_cfa10037: mac0-10037@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2153 /* MX28_PAD_SSP2_D5__GPIO_2_21 */
+						MX28_PAD_SSP2_SS2__GPIO_2_21
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 		};

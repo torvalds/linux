@@ -20,31 +20,21 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_inum.h"
-#include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_buf_item.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
-#include "xfs_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_ialloc.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
-#include "xfs_quota.h"
-#include "xfs_filestream.h"
-#include "xfs_cksum.h"
 #include "xfs_trace.h"
-#include "xfs_icache.h"
+#include "xfs_attr_sf.h"
+#include "xfs_dinode.h"
 
 kmem_zone_t *xfs_ifork_zone;
 
@@ -1031,15 +1021,14 @@ xfs_iext_add(
 		 * the next index needed in the indirection array.
 		 */
 		else {
-			int	count = ext_diff;
+			uint	count = ext_diff;
 
 			while (count) {
 				erp = xfs_iext_irec_new(ifp, erp_idx);
-				erp->er_extcount = count;
-				count -= MIN(count, (int)XFS_LINEAR_EXTS);
-				if (count) {
+				erp->er_extcount = min(count, XFS_LINEAR_EXTS);
+				count -= erp->er_extcount;
+				if (count)
 					erp_idx++;
-				}
 			}
 		}
 	}
@@ -1359,7 +1348,7 @@ xfs_iext_remove_indirect(
 void
 xfs_iext_realloc_direct(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
-	int		new_size)	/* new size of extents */
+	int		new_size)	/* new size of extents after adding */
 {
 	int		rnew_size;	/* real new size of extents */
 
@@ -1397,13 +1386,8 @@ xfs_iext_realloc_direct(
 				rnew_size - ifp->if_real_bytes);
 		}
 	}
-	/*
-	 * Switch from the inline extent buffer to a direct
-	 * extent list. Be sure to include the inline extent
-	 * bytes in new_size.
-	 */
+	/* Switch from the inline extent buffer to a direct extent list */
 	else {
-		new_size += ifp->if_bytes;
 		if (!is_power_of_2(new_size)) {
 			rnew_size = roundup_pow_of_two(new_size);
 		}

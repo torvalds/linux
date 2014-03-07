@@ -67,7 +67,7 @@ nouveau_gpio_find(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line,
 		}
 	}
 
-	return -EINVAL;
+	return -ENOENT;
 }
 
 static int

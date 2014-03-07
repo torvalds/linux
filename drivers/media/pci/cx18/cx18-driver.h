@@ -262,7 +262,7 @@ struct cx18_options {
 };
 
 /* per-mdl bit flags */
-#define CX18_F_M_NEED_SWAP  0	/* mdl buffer data must be endianess swapped */
+#define CX18_F_M_NEED_SWAP  0	/* mdl buffer data must be endianness swapped */
 
 /* per-stream, s_flags */
 #define CX18_F_S_CLAIMED 	3	/* this stream is claimed */

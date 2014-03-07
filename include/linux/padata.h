@@ -129,10 +129,9 @@ struct parallel_data {
 	struct padata_serial_queue	__percpu *squeue;
 	atomic_t			reorder_objects;
 	atomic_t			refcnt;
+	atomic_t			seq_nr;
 	struct padata_cpumask		cpumask;
 	spinlock_t                      lock ____cacheline_aligned;
-	spinlock_t                      seq_lock;
-	unsigned int			seq_nr;
 	unsigned int			processed;
 	struct timer_list		timer;
 };

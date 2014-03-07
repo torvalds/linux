@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx23.dtsi"
+#include "imx23.dtsi"
 
 / {
 	model = "Freescale STMP378x Development Board";
@@ -39,12 +39,12 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x11d3 /* MX23_PAD_PWM3__GPIO_1_29 */
-						0x11e3 /* MX23_PAD_PWM4__GPIO_1_30 */
+						MX23_PAD_PWM3__GPIO_1_29
+						MX23_PAD_PWM4__GPIO_1_30
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 		};

@@ -384,12 +384,16 @@ static int sm_metadata_new_block(struct dm_space_map *sm, dm_block_t *b)
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
 	int r = sm_metadata_new_block_(sm, b);
-	if (r)
+	if (r) {
 		DMERR("unable to allocate new metadata block");
+		return r;
+	}
 
 	r = sm_metadata_get_nr_free(sm, &count);
-	if (r)
+	if (r) {
 		DMERR("couldn't get free block count");
+		return r;
+	}
 
 	check_threshold(&smm->threshold, count);
 

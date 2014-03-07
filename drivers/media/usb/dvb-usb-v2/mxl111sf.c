@@ -23,6 +23,9 @@
 #include "lgdt3305.h"
 #include "lg2160.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 int dvb_usb_mxl111sf_debug;
 module_param_named(debug, dvb_usb_mxl111sf_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level "
@@ -57,7 +60,12 @@ int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
 {
 	int wo = (rbuf == NULL || rlen == 0); /* write-only */
 	int ret;
-	u8 sndbuf[1+wlen];
+	u8 sndbuf[MAX_XFER_SIZE];
+
+	if (1 + wlen > sizeof(sndbuf)) {
+		pr_warn("%s: len=%d is too big!\n", __func__, wlen);
+		return -EOPNOTSUPP;
+	}
 
 	pr_debug("%s(wlen = %d, rlen = %d)\n", __func__, wlen, rlen);
 
@@ -258,7 +266,7 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
-	/* exit if we didnt initialize the driver yet */
+	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
 		mxl_debug("driver not yet initialized, exit.");
 		goto fail;
@@ -314,7 +322,7 @@ static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
 	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
-	/* exit if we didnt initialize the driver yet */
+	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
 		mxl_debug("driver not yet initialized, exit.");
 		goto fail;

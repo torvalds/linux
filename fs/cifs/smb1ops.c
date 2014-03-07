@@ -67,7 +67,7 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "issued NT_CANCEL for mid %u, rc = %d\n",
-		 in_buf->Mid, rc);
+		 get_mid(in_buf), rc);
 
 	return rc;
 }
@@ -101,7 +101,7 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
-		if (mid->mid == buf->Mid &&
+		if (compare_mid(mid->mid, buf) &&
 		    mid->mid_state == MID_REQUEST_SUBMITTED &&
 		    le16_to_cpu(mid->command) == buf->Command) {
 			spin_unlock(&GlobalMid_Lock);
@@ -534,9 +534,11 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 static int
 cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		     struct cifs_sb_info *cifs_sb, const char *full_path,
-		     FILE_ALL_INFO *data, bool *adjustTZ)
+		     FILE_ALL_INFO *data, bool *adjustTZ, bool *symlink)
 {
 	int rc;
+
+	*symlink = false;
 
 	/* could do find first instead but this returns more info */
 	rc = CIFSSMBQPathInfo(xid, tcon, full_path, data, 0 /* not legacy */,
@@ -554,6 +556,23 @@ cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		*adjustTZ = true;
 	}
+
+	if (!rc && (le32_to_cpu(data->Attributes) & ATTR_REPARSE)) {
+		int tmprc;
+		int oplock = 0;
+		__u16 netfid;
+
+		/* Need to check if this is a symbolic link or not */
+		tmprc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+				    FILE_READ_ATTRIBUTES, 0, &netfid, &oplock,
+				    NULL, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (tmprc == -EOPNOTSUPP)
+			*symlink = true;
+		else
+			CIFSSMBClose(xid, tcon, netfid);
+	}
+
 	return rc;
 }
 
@@ -807,6 +826,13 @@ out:
 }
 
 static int
+cifs_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile)
+{
+	return CIFSSMB_set_compression(xid, tcon, cfile->fid.netfid);
+}
+
+static int
 cifs_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		     const char *path, struct cifs_sb_info *cifs_sb,
 		     struct cifs_fid *fid, __u16 search_flags,
@@ -956,6 +982,7 @@ struct smb_version_operations smb1_operations = {
 	.set_path_size = CIFSSMBSetEOF,
 	.set_file_size = CIFSSMBSetFileSize,
 	.set_file_info = smb_set_file_info,
+	.set_compression = cifs_set_compression,
 	.echo = CIFSSMBEcho,
 	.mkdir = CIFSSMBMkDir,
 	.mkdir_setinfo = cifs_mkdir_setinfo,

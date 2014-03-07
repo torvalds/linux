@@ -489,7 +489,7 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 
 	*new_fe_bh = sb_getblk(osb->sb, fe_blkno);
 	if (!*new_fe_bh) {
-		status = -EIO;
+		status = -ENOMEM;
 		mlog_errno(status);
 		goto leave;
 	}

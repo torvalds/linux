@@ -10,7 +10,7 @@ config KEYBOARD_NVEC
 	tristate "Keyboard on nVidia compliant EC"
 	depends on MFD_NVEC && INPUT
 	help
-	  Say Y here to enable support for a keyboard connected to 
+	  Say Y here to enable support for a keyboard connected to
 	  a nVidia compliant embedded controller.
 
 config SERIO_NVEC_PS2

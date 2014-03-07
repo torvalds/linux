@@ -303,9 +303,7 @@ static int nforce2_verify(struct cpufreq_policy *policy)
 	if (policy->min < (fsb_pol_max * fid * 100))
 		policy->max = (fsb_pol_max + 1) * fid * 100;
 
-	cpufreq_verify_within_limits(policy,
-				     policy->cpuinfo.min_freq,
-				     policy->cpuinfo.max_freq);
+	cpufreq_verify_within_cpu_limits(policy);
 	return 0;
 }
 
@@ -362,7 +360,6 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 	policy->min = policy->cpuinfo.min_freq = min_fsb * fid * 100;
 	policy->max = policy->cpuinfo.max_freq = max_fsb * fid * 100;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-	policy->cur = nforce2_get(policy->cpu);
 
 	return 0;
 }

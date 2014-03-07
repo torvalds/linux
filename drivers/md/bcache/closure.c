@@ -11,17 +11,6 @@
 
 #include "closure.h"
 
-void closure_queue(struct closure *cl)
-{
-	struct workqueue_struct *wq = cl->wq;
-	if (wq) {
-		INIT_WORK(&cl->work, cl->work.func);
-		BUG_ON(!queue_work(wq, &cl->work));
-	} else
-		cl->fn(cl);
-}
-EXPORT_SYMBOL_GPL(closure_queue);
-
 #define CL_FIELD(type, field)					\
 	case TYPE_ ## type:					\
 	return &container_of(cl, struct type, cl)->field
@@ -30,17 +19,6 @@ static struct closure_waitlist *closure_waitlist(struct closure *cl)
 {
 	switch (cl->type) {
 		CL_FIELD(closure_with_waitlist, wait);
-		CL_FIELD(closure_with_waitlist_and_timer, wait);
-	default:
-		return NULL;
-	}
-}
-
-static struct timer_list *closure_timer(struct closure *cl)
-{
-	switch (cl->type) {
-		CL_FIELD(closure_with_timer, timer);
-		CL_FIELD(closure_with_waitlist_and_timer, timer);
 	default:
 		return NULL;
 	}
@@ -51,7 +29,7 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 	int r = flags & CLOSURE_REMAINING_MASK;
 
 	BUG_ON(flags & CLOSURE_GUARD_MASK);
-	BUG_ON(!r && (flags & ~(CLOSURE_DESTRUCTOR|CLOSURE_BLOCKING)));
+	BUG_ON(!r && (flags & ~CLOSURE_DESTRUCTOR));
 
 	/* Must deliver precisely one wakeup */
 	if (r == 1 && (flags & CLOSURE_SLEEPING))
@@ -59,7 +37,6 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 
 	if (!r) {
 		if (cl->fn && !(flags & CLOSURE_DESTRUCTOR)) {
-			/* CLOSURE_BLOCKING might be set - clear it */
 			atomic_set(&cl->remaining,
 				   CLOSURE_REMAINING_INITIALIZER);
 			closure_queue(cl);
@@ -90,13 +67,13 @@ void closure_sub(struct closure *cl, int v)
 {
 	closure_put_after_sub(cl, atomic_sub_return(v, &cl->remaining));
 }
-EXPORT_SYMBOL_GPL(closure_sub);
+EXPORT_SYMBOL(closure_sub);
 
 void closure_put(struct closure *cl)
 {
 	closure_put_after_sub(cl, atomic_dec_return(&cl->remaining));
 }
-EXPORT_SYMBOL_GPL(closure_put);
+EXPORT_SYMBOL(closure_put);
 
 static void set_waiting(struct closure *cl, unsigned long f)
 {
@@ -133,7 +110,7 @@ void __closure_wake_up(struct closure_waitlist *wait_list)
 		closure_sub(cl, CLOSURE_WAITING + 1);
 	}
 }
-EXPORT_SYMBOL_GPL(__closure_wake_up);
+EXPORT_SYMBOL(__closure_wake_up);
 
 bool closure_wait(struct closure_waitlist *list, struct closure *cl)
 {
@@ -146,7 +123,7 @@ bool closure_wait(struct closure_waitlist *list, struct closure *cl)
 
 	return true;
 }
-EXPORT_SYMBOL_GPL(closure_wait);
+EXPORT_SYMBOL(closure_wait);
 
 /**
  * closure_sync() - sleep until a closure a closure has nothing left to wait on
@@ -169,7 +146,7 @@ void closure_sync(struct closure *cl)
 
 	__closure_end_sleep(cl);
 }
-EXPORT_SYMBOL_GPL(closure_sync);
+EXPORT_SYMBOL(closure_sync);
 
 /**
  * closure_trylock() - try to acquire the closure, without waiting
@@ -183,17 +160,17 @@ bool closure_trylock(struct closure *cl, struct closure *parent)
 			   CLOSURE_REMAINING_INITIALIZER) != -1)
 		return false;
 
-	closure_set_ret_ip(cl);
-
 	smp_mb();
+
 	cl->parent = parent;
 	if (parent)
 		closure_get(parent);
 
+	closure_set_ret_ip(cl);
 	closure_debug_create(cl);
 	return true;
 }
-EXPORT_SYMBOL_GPL(closure_trylock);
+EXPORT_SYMBOL(closure_trylock);
 
 void __closure_lock(struct closure *cl, struct closure *parent,
 		    struct closure_waitlist *wait_list)
@@ -205,57 +182,11 @@ void __closure_lock(struct closure *cl, struct closure *parent,
 		if (closure_trylock(cl, parent))
 			return;
 
-		closure_wait_event_sync(wait_list, &wait,
-					atomic_read(&cl->remaining) == -1);
+		closure_wait_event(wait_list, &wait,
+				   atomic_read(&cl->remaining) == -1);
 	}
 }
-EXPORT_SYMBOL_GPL(__closure_lock);
-
-static void closure_delay_timer_fn(unsigned long data)
-{
-	struct closure *cl = (struct closure *) data;
-	closure_sub(cl, CLOSURE_TIMER + 1);
-}
-
-void do_closure_timer_init(struct closure *cl)
-{
-	struct timer_list *timer = closure_timer(cl);
-
-	init_timer(timer);
-	timer->data	= (unsigned long) cl;
-	timer->function = closure_delay_timer_fn;
-}
-EXPORT_SYMBOL_GPL(do_closure_timer_init);
-
-bool __closure_delay(struct closure *cl, unsigned long delay,
-		     struct timer_list *timer)
-{
-	if (atomic_read(&cl->remaining) & CLOSURE_TIMER)
-		return false;
-
-	BUG_ON(timer_pending(timer));
-
-	timer->expires	= jiffies + delay;
-
-	atomic_add(CLOSURE_TIMER + 1, &cl->remaining);
-	add_timer(timer);
-	return true;
-}
-EXPORT_SYMBOL_GPL(__closure_delay);
-
-void __closure_flush(struct closure *cl, struct timer_list *timer)
-{
-	if (del_timer(timer))
-		closure_sub(cl, CLOSURE_TIMER + 1);
-}
-EXPORT_SYMBOL_GPL(__closure_flush);
-
-void __closure_flush_sync(struct closure *cl, struct timer_list *timer)
-{
-	if (del_timer_sync(timer))
-		closure_sub(cl, CLOSURE_TIMER + 1);
-}
-EXPORT_SYMBOL_GPL(__closure_flush_sync);
+EXPORT_SYMBOL(__closure_lock);
 
 #ifdef CONFIG_BCACHE_CLOSURES_DEBUG
 
@@ -273,7 +204,7 @@ void closure_debug_create(struct closure *cl)
 	list_add(&cl->all, &closure_list);
 	spin_unlock_irqrestore(&closure_list_lock, flags);
 }
-EXPORT_SYMBOL_GPL(closure_debug_create);
+EXPORT_SYMBOL(closure_debug_create);
 
 void closure_debug_destroy(struct closure *cl)
 {
@@ -286,7 +217,7 @@ void closure_debug_destroy(struct closure *cl)
 	list_del(&cl->all);
 	spin_unlock_irqrestore(&closure_list_lock, flags);
 }
-EXPORT_SYMBOL_GPL(closure_debug_destroy);
+EXPORT_SYMBOL(closure_debug_destroy);
 
 static struct dentry *debug;
 
@@ -304,14 +235,12 @@ static int debug_seq_show(struct seq_file *f, void *data)
 			   cl, (void *) cl->ip, cl->fn, cl->parent,
 			   r & CLOSURE_REMAINING_MASK);
 
-		seq_printf(f, "%s%s%s%s%s%s\n",
+		seq_printf(f, "%s%s%s%s\n",
 			   test_bit(WORK_STRUCT_PENDING,
 				    work_data_bits(&cl->work)) ? "Q" : "",
 			   r & CLOSURE_RUNNING	? "R" : "",
-			   r & CLOSURE_BLOCKING	? "B" : "",
 			   r & CLOSURE_STACK	? "S" : "",
-			   r & CLOSURE_SLEEPING	? "Sl" : "",
-			   r & CLOSURE_TIMER	? "T" : "");
+			   r & CLOSURE_SLEEPING	? "Sl" : "");
 
 		if (r & CLOSURE_WAITING)
 			seq_printf(f, " W %pF\n",

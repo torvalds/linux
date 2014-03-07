@@ -172,6 +172,7 @@ struct x86_platform_ops {
 
 struct pci_dev;
 struct msi_msg;
+struct msi_desc;
 
 struct x86_msi_ops {
 	int (*setup_msi_irqs)(struct pci_dev *dev, int nvec, int type);
@@ -182,6 +183,8 @@ struct x86_msi_ops {
 	void (*teardown_msi_irqs)(struct pci_dev *dev);
 	void (*restore_msi_irqs)(struct pci_dev *dev, int irq);
 	int  (*setup_hpet_msi)(unsigned int irq, unsigned int id);
+	u32 (*msi_mask_irq)(struct msi_desc *desc, u32 mask, u32 flag);
+	u32 (*msix_mask_irq)(struct msi_desc *desc, u32 flag);
 };
 
 struct IO_APIC_route_entry;

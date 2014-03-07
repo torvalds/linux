@@ -63,16 +63,6 @@ static inline struct dev_cgroup *task_devcgroup(struct task_struct *task)
 
 struct cgroup_subsys devices_subsys;
 
-static int devcgroup_can_attach(struct cgroup_subsys_state *new_css,
-				struct cgroup_taskset *set)
-{
-	struct task_struct *task = cgroup_taskset_first(set);
-
-	if (current != task && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	return 0;
-}
-
 /*
  * called under devcgroup_mutex
  */
@@ -697,7 +687,6 @@ static struct cftype dev_cgroup_files[] = {
 
 struct cgroup_subsys devices_subsys = {
 	.name = "devices",
-	.can_attach = devcgroup_can_attach,
 	.css_alloc = devcgroup_css_alloc,
 	.css_free = devcgroup_css_free,
 	.css_online = devcgroup_online,

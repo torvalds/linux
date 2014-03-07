@@ -148,7 +148,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	ACPI_ERROR((AE_INFO,
 		    "Could not allocate new OwnerId (255 max), AE_OWNER_ID_LIMIT"));
 
-      exit:
+exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
 	return_ACPI_STATUS(status);
 }

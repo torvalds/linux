@@ -51,13 +51,6 @@ config PERCPU_RWSEM
 config ARCH_USE_CMPXCHG_LOCKREF
 	bool
 
-config CMPXCHG_LOCKREF
-	def_bool y if ARCH_USE_CMPXCHG_LOCKREF
-	depends on SMP
-	depends on !GENERIC_LOCKBREAK
-	depends on !DEBUG_SPINLOCK
-	depends on !DEBUG_LOCK_ALLOC
-
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -188,6 +181,13 @@ config AUDIT_GENERIC
 	bool
 	depends on AUDIT && !AUDIT_ARCH
 	default y
+
+config RANDOM32_SELFTEST
+	bool "PRNG perform self test on init"
+	default n
+	help
+	  This option enables the 32 bit PRNG library functions to perform a
+	  self test on initialization.
 
 #
 # compression support is select'ed if needed
@@ -321,6 +321,20 @@ config TEXTSEARCH_FSM
 
 config BTREE
 	boolean
+
+config ASSOCIATIVE_ARRAY
+	bool
+	help
+	  Generic associative array.  Can be searched and iterated over whilst
+	  it is being modified.  It is also reasonably quick to search and
+	  modify.  The algorithms are non-recursive, and the trees are highly
+	  capacious.
+
+	  See:
+
+		Documentation/assoc_array.txt
+
+	  for more information.
 
 config HAS_IOMEM
 	boolean

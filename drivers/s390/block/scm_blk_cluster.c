@@ -187,7 +187,7 @@ bool scm_need_cluster_request(struct scm_request *scmrq)
 void scm_initiate_cluster_request(struct scm_request *scmrq)
 {
 	scm_prepare_cluster_request(scmrq);
-	if (scm_start_aob(scmrq->aob))
+	if (eadm_start_aob(scmrq->aob))
 		scm_request_requeue(scmrq);
 }
 

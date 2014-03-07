@@ -117,7 +117,6 @@ enum {
 struct mcs7830_data {
 	u8 multi_filter[8];
 	u8 config;
-	u8 link_counter;
 };
 
 static const char driver_name[] = "MOSCHIP usb-ethernet driver";
@@ -561,26 +560,16 @@ static void mcs7830_status(struct usbnet *dev, struct urb *urb)
 {
 	u8 *buf = urb->transfer_buffer;
 	bool link, link_changed;
-	struct mcs7830_data *data = mcs7830_get_data(dev);
 
 	if (urb->actual_length < 16)
 		return;
 
-	link = !(buf[1] & 0x20);
+	link = !(buf[1] == 0x20);
 	link_changed = netif_carrier_ok(dev->net) != link;
 	if (link_changed) {
-		data->link_counter++;
-		/*
-		   track link state 20 times to guard against erroneous
-		   link state changes reported sometimes by the chip
-		 */
-		if (data->link_counter > 20) {
-			data->link_counter = 0;
-			usbnet_link_change(dev, link, 0);
-			netdev_dbg(dev->net, "Link Status is: %d\n", link);
-		}
-	} else
-		data->link_counter = 0;
+		usbnet_link_change(dev, link, 0);
+		netdev_dbg(dev->net, "Link Status is: %d\n", link);
+	}
 }
 
 static const struct driver_info moschip_info = {

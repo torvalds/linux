@@ -1530,13 +1530,26 @@ exit_get_chap:
 	return ret;
 }
 
-static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
-			    char *password, uint16_t idx, int bidi)
+/**
+ * qla4xxx_set_chap - Make a chap entry at the given index
+ * @ha: pointer to adapter structure
+ * @username: CHAP username to set
+ * @password: CHAP password to set
+ * @idx: CHAP index at which to make the entry
+ * @bidi: type of chap entry (chap_in or chap_out)
+ *
+ * Create chap entry at the given index with the information provided.
+ *
+ * Note: Caller should acquire the chap lock before getting here.
+ **/
+int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
+		     uint16_t idx, int bidi)
 {
 	int ret = 0;
 	int rval = QLA_ERROR;
 	uint32_t offset = 0;
 	struct ql4_chap_table *chap_table;
+	uint32_t chap_size = 0;
 	dma_addr_t chap_dma;
 
 	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
@@ -1554,7 +1567,20 @@ static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
 	strncpy(chap_table->secret, password, MAX_CHAP_SECRET_LEN);
 	strncpy(chap_table->name, username, MAX_CHAP_NAME_LEN);
 	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
-	offset = FLASH_CHAP_OFFSET | (idx * sizeof(struct ql4_chap_table));
+
+	if (is_qla40XX(ha)) {
+		chap_size = MAX_CHAP_ENTRIES_40XX * sizeof(*chap_table);
+		offset = FLASH_CHAP_OFFSET;
+	} else { /* Single region contains CHAP info for both ports which is
+		  * divided into half for each port.
+		  */
+		chap_size = ha->hw.flt_chap_size / 2;
+		offset = FLASH_RAW_ACCESS_ADDR + (ha->hw.flt_region_chap << 2);
+		if (ha->port_num == 1)
+			offset += chap_size;
+	}
+
+	offset += (idx * sizeof(struct ql4_chap_table));
 	rval = qla4xxx_set_flash(ha, chap_dma, offset,
 				sizeof(struct ql4_chap_table),
 				FLASH_OPT_RMW_COMMIT);
@@ -1611,7 +1637,7 @@ int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 		goto exit_unlock_uni_chap;
 	}
 
-	if (!(chap_table->flags & BIT_6)) {
+	if (!(chap_table->flags & BIT_7)) {
 		ql4_printk(KERN_ERR, ha, "Unidirectional entry not set\n");
 		rval = QLA_ERROR;
 		goto exit_unlock_uni_chap;

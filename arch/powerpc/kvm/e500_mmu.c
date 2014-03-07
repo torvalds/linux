@@ -32,7 +32,7 @@
 #include <asm/kvm_ppc.h>
 
 #include "e500.h"
-#include "trace.h"
+#include "trace_booke.h"
 #include "timing.h"
 #include "e500_mmu_host.h"
 
@@ -536,7 +536,7 @@ gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int index,
 	return get_tlb_raddr(gtlbe) | (eaddr & pgmask);
 }
 
-void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
+void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu)
 {
 }
 

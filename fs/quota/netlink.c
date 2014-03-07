@@ -9,13 +9,25 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
+static const struct genl_multicast_group quota_mcgrps[] = {
+	{ .name = "events", },
+};
+
 /* Netlink family structure for quota */
 static struct genl_family quota_genl_family = {
-	.id = GENL_ID_GENERATE,
+	/*
+	 * Needed due to multicast group ID abuse - old code assumed
+	 * the family ID was also a valid multicast group ID (which
+	 * isn't true) and userspace might thus rely on it. Assign a
+	 * static ID for this group to make dealing with that easier.
+	 */
+	.id = GENL_ID_VFS_DQUOT,
 	.hdrsize = 0,
 	.name = "VFS_DQUOT",
 	.version = 1,
 	.maxattr = QUOTA_NL_A_MAX,
+	.mcgrps = quota_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(quota_mcgrps),
 };
 
 /**
@@ -78,7 +90,7 @@ void quota_send_warning(struct kqid qid, dev_t dev,
 		goto attr_err_out;
 	genlmsg_end(skb, msg_head);
 
-	genlmsg_multicast(skb, 0, quota_genl_family.id, GFP_NOFS);
+	genlmsg_multicast(&quota_genl_family, skb, 0, 0, GFP_NOFS);
 	return;
 attr_err_out:
 	printk(KERN_ERR "VFS: Not enough space to compose quota message!\n");

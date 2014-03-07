@@ -83,7 +83,7 @@ static irqreturn_t mcftmr_tick(int irq, void *dummy)
 
 static struct irqaction mcftmr_timer_irq = {
 	.name	 = "timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = mcftmr_tick,
 };
 
@@ -171,7 +171,7 @@ irqreturn_t coldfire_profile_tick(int irq, void *dummy)
 
 static struct irqaction coldfire_profile_irq = {
 	.name	 = "profile timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = coldfire_profile_tick,
 };
 

@@ -27,6 +27,18 @@ config MFD_AS3711
 	help
 	  Support for the AS3711 PMIC from AMS
 
+config MFD_AS3722
+	bool "ams AS3722 Power Management IC"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y && OF
+	help
+	  The ams AS3722 is a compact system PMU suitable for mobile phones,
+	  tablets etc. It has 4 DC/DC step-down regulators, 3 DC/DC step-down
+	  controllers, 11 LDOs, RTC, automatic battery, temperature and
+	  over current monitoring, GPIOs, ADC and a watchdog.
+
 config PMIC_ADP5520
 	bool "Analog Devices ADP5520/01 MFD PMIC Core Support"
 	depends on I2C=y
@@ -664,14 +676,14 @@ menu "STMicroelectronics STMPE Interface Drivers"
 depends on MFD_STMPE
 
 config STMPE_I2C
-	bool "STMicroelectronics STMPE I2C Inteface"
+	bool "STMicroelectronics STMPE I2C Interface"
 	depends on I2C=y
 	default y
 	help
 	  This is used to enable I2C interface of STMPE
 
 config STMPE_SPI
-	bool "STMicroelectronics STMPE SPI Inteface"
+	bool "STMicroelectronics STMPE SPI Interface"
 	depends on SPI_MASTER
 	help
 	  This is used to enable SPI interface of STMPE
@@ -1150,6 +1162,16 @@ config MFD_WM8994
 	  supported via the relevant subsystems.  This driver provides
 	  core support for the WM8994, in order to use the actual
 	  functionaltiy of the device other drivers must be enabled.
+
+config MFD_STW481X
+	bool "Support for ST Microelectronics STw481x"
+	depends on I2C && ARCH_NOMADIK
+	select REGMAP_I2C
+	select MFD_CORE
+	help
+	  Select this option to enable the STw481x chip driver used
+	  in various ST Microelectronics and ST-Ericsson embedded
+	  Nomadik series.
 
 endmenu
 endif

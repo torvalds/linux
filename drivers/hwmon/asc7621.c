@@ -138,7 +138,7 @@ static inline u8 read_byte(struct i2c_client *client, u8 reg)
 		dev_err(&client->dev,
 			"Unable to read from register 0x%02x.\n", reg);
 		return 0;
-	};
+	}
 	return res & 0xff;
 }
 
@@ -149,7 +149,7 @@ static inline int write_byte(struct i2c_client *client, u8 reg, u8 data)
 		dev_err(&client->dev,
 			"Unable to write value 0x%02x to register 0x%02x.\n",
 			data, reg);
-	};
+	}
 	return res;
 }
 
@@ -1030,7 +1030,7 @@ static struct asc7621_data *asc7621_update_device(struct device *dev)
 			}
 		}
 		data->last_high_reading = jiffies;
-	};			/* last_reading */
+	}			/* last_reading */
 
 	/* Read all the low priority registers. */
 
@@ -1044,7 +1044,7 @@ static struct asc7621_data *asc7621_update_device(struct device *dev)
 			}
 		}
 		data->last_low_reading = jiffies;
-	};			/* last_reading */
+	}			/* last_reading */
 
 	data->valid = 1;
 
@@ -1084,11 +1084,11 @@ static void asc7621_init_client(struct i2c_client *client)
 		dev_err(&client->dev,
 			"Client (%d,0x%02x) config is locked.\n",
 			i2c_adapter_id(client->adapter), client->addr);
-	};
+	}
 	if (!(value & 0x04)) {
 		dev_err(&client->dev, "Client (%d,0x%02x) is not ready.\n",
 			i2c_adapter_id(client->adapter), client->addr);
-	};
+	}
 
 /*
  * Start monitoring

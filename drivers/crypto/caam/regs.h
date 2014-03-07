@@ -245,7 +245,7 @@ struct rngtst {
 
 /* RNG4 TRNG test registers */
 struct rng4tst {
-#define RTMCTL_PRGM 0x00010000	/* 1 -> program mode, 0 -> run mode */
+#define RTMCTL_PRGM	0x00010000	/* 1 -> program mode, 0 -> run mode */
 	u32 rtmctl;		/* misc. control register */
 	u32 rtscmisc;		/* statistical check misc. register */
 	u32 rtpkrrng;		/* poker range register */
@@ -255,6 +255,8 @@ struct rng4tst {
 	};
 #define RTSDCTL_ENT_DLY_SHIFT 16
 #define RTSDCTL_ENT_DLY_MASK (0xffff << RTSDCTL_ENT_DLY_SHIFT)
+#define RTSDCTL_ENT_DLY_MIN 1200
+#define RTSDCTL_ENT_DLY_MAX 12800
 	u32 rtsdctl;		/* seed control register */
 	union {
 		u32 rtsblim;	/* PRGM=1: sparse bit limit register */
@@ -266,7 +268,11 @@ struct rng4tst {
 		u32 rtfrqcnt;	/* PRGM=0: freq. count register */
 	};
 	u32 rsvd1[40];
+#define RDSTA_SKVT 0x80000000
+#define RDSTA_SKVN 0x40000000
 #define RDSTA_IF0 0x00000001
+#define RDSTA_IF1 0x00000002
+#define RDSTA_IFMASK (RDSTA_IF1 | RDSTA_IF0)
 	u32 rdsta;
 	u32 rsvd2[15];
 };
@@ -692,6 +698,7 @@ struct caam_deco {
 	u32 jr_ctl_hi;	/* CxJRR - JobR Control Register      @800 */
 	u32 jr_ctl_lo;
 	u64 jr_descaddr;	/* CxDADR - JobR Descriptor Address */
+#define DECO_OP_STATUS_HI_ERR_MASK 0xF00000FF
 	u32 op_status_hi;	/* DxOPSTA - DECO Operation Status */
 	u32 op_status_lo;
 	u32 rsvd24[2];
@@ -706,12 +713,13 @@ struct caam_deco {
 	u32 rsvd29[48];
 	u32 descbuf[64];	/* DxDESB - Descriptor buffer */
 	u32 rscvd30[193];
+#define DESC_DBG_DECO_STAT_HOST_ERR	0x00D00000
+#define DESC_DBG_DECO_STAT_VALID	0x80000000
+#define DESC_DBG_DECO_STAT_MASK		0x00F00000
 	u32 desc_dbg;		/* DxDDR - DECO Debug Register */
 	u32 rsvd31[126];
 };
 
-/* DECO DBG Register Valid Bit*/
-#define DECO_DBG_VALID		0x80000000
 #define DECO_JQCR_WHL		0x20000000
 #define DECO_JQCR_FOUR		0x10000000
 

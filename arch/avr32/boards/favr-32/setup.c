@@ -125,7 +125,7 @@ static struct fb_monspecs __initdata favr32_default_monspecs = {
 	.dclkmax		= 28000000,
 };
 
-struct atmel_lcdfb_info __initdata favr32_lcdc_data = {
+struct atmel_lcdfb_pdata __initdata favr32_lcdc_data = {
 	.default_bpp		= 16,
 	.default_dmacon		= ATMEL_LCDC_DMAEN | ATMEL_LCDC_DMA2DEN,
 	.default_lcdcon2	= (ATMEL_LCDC_DISTYPE_TFT
@@ -298,8 +298,10 @@ static int __init set_abdac_rate(struct platform_device *pdev)
 	 */
 	retval = clk_round_rate(pll1,
 			CONFIG_BOARD_FAVR32_ABDAC_RATE * 256 * 16);
-	if (retval < 0)
+	if (retval <= 0) {
+		retval = -EINVAL;
 		goto out_abdac;
+	}
 
 	retval = clk_set_rate(pll1, retval);
 	if (retval != 0)

@@ -465,27 +465,26 @@ int irq_create_strict_mappings(struct irq_domain *domain, unsigned int irq_base,
 }
 EXPORT_SYMBOL_GPL(irq_create_strict_mappings);
 
-unsigned int irq_create_of_mapping(struct device_node *controller,
-				   const u32 *intspec, unsigned int intsize)
+unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
 {
 	struct irq_domain *domain;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
 	unsigned int virq;
 
-	domain = controller ? irq_find_host(controller) : irq_default_domain;
+	domain = irq_data->np ? irq_find_host(irq_data->np) : irq_default_domain;
 	if (!domain) {
 		pr_warn("no irq domain found for %s !\n",
-			of_node_full_name(controller));
+			of_node_full_name(irq_data->np));
 		return 0;
 	}
 
 	/* If domain has no translation, then we assume interrupt line */
 	if (domain->ops->xlate == NULL)
-		hwirq = intspec[0];
+		hwirq = irq_data->args[0];
 	else {
-		if (domain->ops->xlate(domain, controller, intspec, intsize,
-				     &hwirq, &type))
+		if (domain->ops->xlate(domain, irq_data->np, irq_data->args,
+					irq_data->args_count, &hwirq, &type))
 			return 0;
 	}
 

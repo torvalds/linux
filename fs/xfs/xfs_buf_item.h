@@ -71,10 +71,6 @@ void	xfs_buf_attach_iodone(struct xfs_buf *,
 void	xfs_buf_iodone_callbacks(struct xfs_buf *);
 void	xfs_buf_iodone(struct xfs_buf *, struct xfs_log_item *);
 
-void	xfs_trans_buf_set_type(struct xfs_trans *, struct xfs_buf *,
-			       enum xfs_blft);
-void	xfs_trans_buf_copy_type(struct xfs_buf *dst_bp, struct xfs_buf *src_bp);
-
 extern kmem_zone_t	*xfs_buf_item_zone;
 
 #endif	/* __XFS_BUF_ITEM_H__ */

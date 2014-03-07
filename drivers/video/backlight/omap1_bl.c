@@ -133,7 +133,7 @@ static int omapbl_probe(struct platform_device *pdev)
 	struct backlight_properties props;
 	struct backlight_device *dev;
 	struct omap_backlight *bl;
-	struct omap_backlight_config *pdata = pdev->dev.platform_data;
+	struct omap_backlight_config *pdata = dev_get_platdata(&pdev->dev);
 
 	if (!pdata)
 		return -ENXIO;

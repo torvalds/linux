@@ -1456,7 +1456,7 @@ static int si4713_probe(struct i2c_client *client,
 
 	if (client->irq) {
 		rval = request_irq(client->irq,
-			si4713_handler, IRQF_TRIGGER_FALLING | IRQF_DISABLED,
+			si4713_handler, IRQF_TRIGGER_FALLING,
 			client->name, sdev);
 		if (rval < 0) {
 			v4l2_err(&sdev->sd, "Could not request IRQ\n");

@@ -89,7 +89,6 @@ struct am35x_glue {
 	struct clk		*phy_clk;
 	struct clk		*clk;
 };
-#define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
 /*
  * am35x_musb_enable - enable interrupts
@@ -452,14 +451,18 @@ static const struct musb_platform_ops am35x_ops = {
 	.set_vbus	= am35x_musb_set_vbus,
 };
 
-static u64 am35x_dmamask = DMA_BIT_MASK(32);
+static const struct platform_device_info am35x_dev_info = {
+	.name		= "musb-hdrc",
+	.id		= PLATFORM_DEVID_AUTO,
+	.dma_mask	= DMA_BIT_MASK(32),
+};
 
 static int am35x_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct am35x_glue		*glue;
-
+	struct platform_device_info	pinfo;
 	struct clk			*phy_clk;
 	struct clk			*clk;
 
@@ -469,12 +472,6 @@ static int am35x_probe(struct platform_device *pdev)
 	if (!glue) {
 		dev_err(&pdev->dev, "failed to allocate glue context\n");
 		goto err0;
-	}
-
-	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
 	}
 
 	phy_clk = clk_get(&pdev->dev, "fck");
@@ -503,12 +500,7 @@ static int am35x_probe(struct platform_device *pdev)
 		goto err6;
 	}
 
-	musb->dev.parent		= &pdev->dev;
-	musb->dev.dma_mask		= &am35x_dmamask;
-	musb->dev.coherent_dma_mask	= am35x_dmamask;
-
 	glue->dev			= &pdev->dev;
-	glue->musb			= musb;
 	glue->phy_clk			= phy_clk;
 	glue->clk			= clk;
 
@@ -516,22 +508,17 @@ static int am35x_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glue);
 
-	ret = platform_device_add_resources(musb, pdev->resource,
-			pdev->num_resources);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err7;
-	}
+	pinfo = am35x_dev_info;
+	pinfo.parent = &pdev->dev;
+	pinfo.res = pdev->resource;
+	pinfo.num_res = pdev->num_resources;
+	pinfo.data = pdata;
+	pinfo.size_data = sizeof(*pdata);
 
-	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err7;
-	}
-
-	ret = platform_device_add(musb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register musb device\n");
+	glue->musb = musb = platform_device_register_full(&pinfo);
+	if (IS_ERR(musb)) {
+		ret = PTR_ERR(musb);
+		dev_err(&pdev->dev, "failed to register musb device: %d\n", ret);
 		goto err7;
 	}
 
@@ -550,9 +537,6 @@ err4:
 	clk_put(phy_clk);
 
 err3:
-	platform_device_put(musb);
-
-err1:
 	kfree(glue);
 
 err0:
@@ -615,23 +599,16 @@ static int am35x_resume(struct device *dev)
 
 	return 0;
 }
-
-static struct dev_pm_ops am35x_pm_ops = {
-	.suspend	= am35x_suspend,
-	.resume		= am35x_resume,
-};
-
-#define DEV_PM_OPS	&am35x_pm_ops
-#else
-#define DEV_PM_OPS	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(am35x_pm_ops, am35x_suspend, am35x_resume);
 
 static struct platform_driver am35x_driver = {
 	.probe		= am35x_probe,
 	.remove		= am35x_remove,
 	.driver		= {
 		.name	= "musb-am35x",
-		.pm	= DEV_PM_OPS,
+		.pm	= &am35x_pm_ops,
 	},
 };
 

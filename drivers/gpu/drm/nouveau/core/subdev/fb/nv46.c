@@ -24,11 +24,7 @@
  *
  */
 
-#include "priv.h"
-
-struct nv46_fb_priv {
-	struct nouveau_fb base;
-};
+#include "nv04.h"
 
 void
 nv46_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
@@ -44,35 +40,19 @@ nv46_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 	tile->pitch = pitch;
 }
 
-static int
-nv46_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nv46_fb_priv *priv;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &nv44_ram_oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.tile.regions = 15;
-	priv->base.tile.init = nv46_fb_tile_init;
-	priv->base.tile.fini = nv20_fb_tile_fini;
-	priv->base.tile.prog = nv44_fb_tile_prog;
-	return 0;
-}
-
-
-struct nouveau_oclass
-nv46_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x46),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv46_fb_ctor,
+struct nouveau_oclass *
+nv46_fb_oclass = &(struct nv04_fb_impl) {
+	.base.base.handle = NV_SUBDEV(FB, 0x46),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
 		.init = nv44_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.base.memtype = nv04_fb_memtype_valid,
+	.base.ram = &nv44_ram_oclass,
+	.tile.regions = 15,
+	.tile.init = nv46_fb_tile_init,
+	.tile.fini = nv20_fb_tile_fini,
+	.tile.prog = nv44_fb_tile_prog,
+}.base.base;

@@ -736,7 +736,7 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		break;
 
 	default:
-		BUG_ON("Unknown DAI driver ID\n");
+		WARN(1, "Unknown DAI driver ID\n");
 		return -EINVAL;
 	}
 

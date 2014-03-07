@@ -412,7 +412,7 @@ static void MLME_GetNextPacket(struct wbsoft_priv *adapter,
 	desc->buffer_size[desc->InternalUsed] = adapter->sMlmeFrame.len;
 	desc->buffer_total_size += adapter->sMlmeFrame.len;
 	desc->buffer_number++;
-	desc->Type = adapter->sMlmeFrame.DataType;
+	desc->Type = adapter->sMlmeFrame.data_type;
 }
 
 static void MLMEfreeMMPDUBuffer(struct wbsoft_priv *adapter, s8 *pData)
@@ -440,7 +440,7 @@ static void MLME_SendComplete(struct wbsoft_priv *adapter, u8 PacketID,
 	MLMEfreeMMPDUBuffer(adapter, adapter->sMlmeFrame.pMMPDU);
 
 	/* Return resource */
-	adapter->sMlmeFrame.IsInUsed = PACKET_FREE_TO_USE;
+	adapter->sMlmeFrame.is_in_used = PACKET_FREE_TO_USE;
 }
 
 void

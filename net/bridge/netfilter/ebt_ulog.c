@@ -181,6 +181,7 @@ static void ebt_ulog_packet(struct net *net, unsigned int hooknr,
 	ub->qlen++;
 
 	pm = nlmsg_data(nlh);
+	memset(pm, 0, sizeof(*pm));
 
 	/* Fill in the ulog data */
 	pm->version = EBT_ULOG_VERSION;
@@ -193,8 +194,6 @@ static void ebt_ulog_packet(struct net *net, unsigned int hooknr,
 	pm->hook = hooknr;
 	if (uloginfo->prefix != NULL)
 		strcpy(pm->prefix, uloginfo->prefix);
-	else
-		*(pm->prefix) = '\0';
 
 	if (in) {
 		strcpy(pm->physindev, in->name);
@@ -204,16 +203,14 @@ static void ebt_ulog_packet(struct net *net, unsigned int hooknr,
 			strcpy(pm->indev, br_port_get_rcu(in)->br->dev->name);
 		else
 			strcpy(pm->indev, in->name);
-	} else
-		pm->indev[0] = pm->physindev[0] = '\0';
+	}
 
 	if (out) {
 		/* If out exists, then out is a bridge port */
 		strcpy(pm->physoutdev, out->name);
 		/* rcu_read_lock()ed by nf_hook_slow */
 		strcpy(pm->outdev, br_port_get_rcu(out)->br->dev->name);
-	} else
-		pm->outdev[0] = pm->physoutdev[0] = '\0';
+	}
 
 	if (skb_copy_bits(skb, -ETH_HLEN, pm->data, copy_len) < 0)
 		BUG();

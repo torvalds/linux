@@ -203,6 +203,7 @@ static const char * const ext_clock_names[3] = {"IEC958 In", "Word Clock 1xFS",
 #define AK4620_DEEMVOL_REG	0x03
 #define AK4620_SMUTE		(1<<7)
 
+#ifdef CONFIG_PROC_FS
 /*
  * Conversion from int value to its binary form. Used for debugging.
  * The output buffer must be allocated prior to calling the function.
@@ -227,6 +228,7 @@ static char *get_binary(char *buffer, int value)
 	buffer[pos] = '\0';
 	return buffer;
 }
+#endif /* CONFIG_PROC_FS */
 
 /*
  * Initial setup of the conversion array GPIO <-> rate

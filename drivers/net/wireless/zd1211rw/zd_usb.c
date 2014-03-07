@@ -1619,7 +1619,7 @@ static void prepare_read_regs_int(struct zd_usb *usb,
 	atomic_set(&intr->read_regs_enabled, 1);
 	intr->read_regs.req = req;
 	intr->read_regs.req_count = count;
-	INIT_COMPLETION(intr->read_regs.completion);
+	reinit_completion(&intr->read_regs.completion);
 	spin_unlock_irq(&intr->lock);
 }
 

@@ -358,8 +358,7 @@ static struct delay_timer u300_delay_timer;
  */
 static void __init u300_timer_init_of(struct device_node *np)
 {
-	struct resource irq_res;
-	int irq;
+	unsigned int irq;
 	struct clk *clk;
 	unsigned long rate;
 
@@ -368,11 +367,11 @@ static void __init u300_timer_init_of(struct device_node *np)
 		panic("could not ioremap system timer\n");
 
 	/* Get the IRQ for the GP1 timer */
-	irq = of_irq_to_resource(np, 2, &irq_res);
-	if (irq <= 0)
+	irq = irq_of_parse_and_map(np, 2);
+	if (!irq)
 		panic("no IRQ for system timer\n");
 
-	pr_info("U300 GP1 timer @ base: %p, IRQ: %d\n", u300_timer_base, irq);
+	pr_info("U300 GP1 timer @ base: %p, IRQ: %u\n", u300_timer_base, irq);
 
 	/* Clock the interrupt controller */
 	clk = of_clk_get(np, 0);

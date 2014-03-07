@@ -20,24 +20,18 @@
 
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
-#include "xfs_inode_item.h"
-#include "xfs_itable.h"
-#include "xfs_bmap.h"
-#include "xfs_rtalloc.h"
+#include "xfs_trans.h"
 #include "xfs_error.h"
-#include "xfs_attr.h"
-#include "xfs_buf_item.h"
+#include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
@@ -287,7 +281,7 @@ xfs_qm_scall_trunc_qfiles(
 	int		error = 0, error2 = 0;
 
 	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0) {
-		xfs_debug(mp, "%s: flags=%x m_qflags=%x\n",
+		xfs_debug(mp, "%s: flags=%x m_qflags=%x",
 			__func__, flags, mp->m_qflags);
 		return XFS_ERROR(EINVAL);
 	}
@@ -325,7 +319,7 @@ xfs_qm_scall_quotaon(
 	sbflags = 0;
 
 	if (flags == 0) {
-		xfs_debug(mp, "%s: zero flags, m_qflags=%x\n",
+		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
 			__func__, mp->m_qflags);
 		return XFS_ERROR(EINVAL);
 	}
@@ -348,7 +342,7 @@ xfs_qm_scall_quotaon(
 	     (mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT) == 0 &&
 	     (flags & XFS_PQUOTA_ENFD))) {
 		xfs_debug(mp,
-			"%s: Can't enforce without acct, flags=%x sbflags=%x\n",
+			"%s: Can't enforce without acct, flags=%x sbflags=%x",
 			__func__, flags, mp->m_sb.sb_qflags);
 		return XFS_ERROR(EINVAL);
 	}
@@ -648,7 +642,7 @@ xfs_qm_scall_setqlim(
 			q->qi_bsoftlimit = soft;
 		}
 	} else {
-		xfs_debug(mp, "blkhard %Ld < blksoft %Ld\n", hard, soft);
+		xfs_debug(mp, "blkhard %Ld < blksoft %Ld", hard, soft);
 	}
 	hard = (newlim->d_fieldmask & FS_DQ_RTBHARD) ?
 		(xfs_qcnt_t) XFS_BB_TO_FSB(mp, newlim->d_rtb_hardlimit) :
@@ -664,7 +658,7 @@ xfs_qm_scall_setqlim(
 			q->qi_rtbsoftlimit = soft;
 		}
 	} else {
-		xfs_debug(mp, "rtbhard %Ld < rtbsoft %Ld\n", hard, soft);
+		xfs_debug(mp, "rtbhard %Ld < rtbsoft %Ld", hard, soft);
 	}
 
 	hard = (newlim->d_fieldmask & FS_DQ_IHARD) ?
@@ -681,7 +675,7 @@ xfs_qm_scall_setqlim(
 			q->qi_isoftlimit = soft;
 		}
 	} else {
-		xfs_debug(mp, "ihard %Ld < isoft %Ld\n", hard, soft);
+		xfs_debug(mp, "ihard %Ld < isoft %Ld", hard, soft);
 	}
 
 	/*

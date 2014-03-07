@@ -255,17 +255,17 @@ static int ds1wm_find_divisor(int gclk)
 static void ds1wm_up(struct ds1wm_data *ds1wm_data)
 {
 	int divisor;
-	struct ds1wm_driver_data *plat = ds1wm_data->pdev->dev.platform_data;
+	struct device *dev = &ds1wm_data->pdev->dev;
+	struct ds1wm_driver_data *plat = dev_get_platdata(dev);
 
 	if (ds1wm_data->cell->enable)
 		ds1wm_data->cell->enable(ds1wm_data->pdev);
 
 	divisor = ds1wm_find_divisor(plat->clock_rate);
-	dev_dbg(&ds1wm_data->pdev->dev,
-		"found divisor 0x%x for clock %d\n", divisor, plat->clock_rate);
+	dev_dbg(dev, "found divisor 0x%x for clock %d\n",
+		divisor, plat->clock_rate);
 	if (divisor == 0) {
-		dev_err(&ds1wm_data->pdev->dev,
-			"no suitable divisor for %dHz clock\n",
+		dev_err(dev, "no suitable divisor for %dHz clock\n",
 			plat->clock_rate);
 		return;
 	}
@@ -481,7 +481,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 	ds1wm_data->cell = mfd_get_cell(pdev);
 	if (!ds1wm_data->cell)
 		return -ENODEV;
-	plat = pdev->dev.platform_data;
+	plat = dev_get_platdata(&pdev->dev);
 	if (!plat)
 		return -ENODEV;
 
@@ -498,7 +498,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_FALLING);
 
 	ret = devm_request_irq(&pdev->dev, ds1wm_data->irq, ds1wm_isr,
-			IRQF_DISABLED | IRQF_SHARED, "ds1wm", ds1wm_data);
+			IRQF_SHARED, "ds1wm", ds1wm_data);
 	if (ret)
 		return ret;
 

@@ -1122,9 +1122,9 @@ struct kvm_cpuid2 {
 	struct kvm_cpuid_entry2 entries[0];
 };
 
-#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
-#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
-#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
+#define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
+#define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
 
 struct kvm_cpuid_entry2 {
 	__u32 function;
@@ -1810,6 +1810,50 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TLB3PS	| 32
   PPC   | KVM_REG_PPC_EPTCFG	| 32
   PPC   | KVM_REG_PPC_ICP_STATE | 64
+  PPC   | KVM_REG_PPC_TB_OFFSET	| 64
+  PPC   | KVM_REG_PPC_SPMC1	| 32
+  PPC   | KVM_REG_PPC_SPMC2	| 32
+  PPC   | KVM_REG_PPC_IAMR	| 64
+  PPC   | KVM_REG_PPC_TFHAR	| 64
+  PPC   | KVM_REG_PPC_TFIAR	| 64
+  PPC   | KVM_REG_PPC_TEXASR	| 64
+  PPC   | KVM_REG_PPC_FSCR	| 64
+  PPC   | KVM_REG_PPC_PSPB	| 32
+  PPC   | KVM_REG_PPC_EBBHR	| 64
+  PPC   | KVM_REG_PPC_EBBRR	| 64
+  PPC   | KVM_REG_PPC_BESCR	| 64
+  PPC   | KVM_REG_PPC_TAR	| 64
+  PPC   | KVM_REG_PPC_DPDES	| 64
+  PPC   | KVM_REG_PPC_DAWR	| 64
+  PPC   | KVM_REG_PPC_DAWRX	| 64
+  PPC   | KVM_REG_PPC_CIABR	| 64
+  PPC   | KVM_REG_PPC_IC	| 64
+  PPC   | KVM_REG_PPC_VTB	| 64
+  PPC   | KVM_REG_PPC_CSIGR	| 64
+  PPC   | KVM_REG_PPC_TACR	| 64
+  PPC   | KVM_REG_PPC_TCSCR	| 64
+  PPC   | KVM_REG_PPC_PID	| 64
+  PPC   | KVM_REG_PPC_ACOP	| 64
+  PPC   | KVM_REG_PPC_VRSAVE	| 32
+  PPC   | KVM_REG_PPC_LPCR	| 64
+  PPC   | KVM_REG_PPC_PPR	| 64
+  PPC   | KVM_REG_PPC_ARCH_COMPAT 32
+  PPC   | KVM_REG_PPC_TM_GPR0	| 64
+          ...
+  PPC   | KVM_REG_PPC_TM_GPR31	| 64
+  PPC   | KVM_REG_PPC_TM_VSR0	| 128
+          ...
+  PPC   | KVM_REG_PPC_TM_VSR63	| 128
+  PPC   | KVM_REG_PPC_TM_CR	| 64
+  PPC   | KVM_REG_PPC_TM_LR	| 64
+  PPC   | KVM_REG_PPC_TM_CTR	| 64
+  PPC   | KVM_REG_PPC_TM_FPSCR	| 64
+  PPC   | KVM_REG_PPC_TM_AMR	| 64
+  PPC   | KVM_REG_PPC_TM_PPR	| 64
+  PPC   | KVM_REG_PPC_TM_VRSAVE	| 64
+  PPC   | KVM_REG_PPC_TM_VSCR	| 32
+  PPC   | KVM_REG_PPC_TM_DSCR	| 64
+  PPC   | KVM_REG_PPC_TM_TAR	| 64
 
 ARM registers are mapped using the lower 32 bits.  The upper 16 of that
 is the register group type, or coprocessor number:
@@ -2304,7 +2348,31 @@ Possible features:
 	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
 
 
-4.83 KVM_GET_REG_LIST
+4.83 KVM_ARM_PREFERRED_TARGET
+
+Capability: basic
+Architectures: arm, arm64
+Type: vm ioctl
+Parameters: struct struct kvm_vcpu_init (out)
+Returns: 0 on success; -1 on error
+Errors:
+  ENODEV:    no preferred target available for the host
+
+This queries KVM for preferred CPU target type which can be emulated
+by KVM on underlying host.
+
+The ioctl returns struct kvm_vcpu_init instance containing information
+about preferred CPU target type and recommended features for it.  The
+kvm_vcpu_init->features bitmap returned will have feature bits set if
+the preferred target recommends setting these features, but this is
+not mandatory.
+
+The information returned by this ioctl can be used to prepare an instance
+of struct kvm_vcpu_init for KVM_ARM_VCPU_INIT ioctl which will result in
+in VCPU matching underlying host.
+
+
+4.84 KVM_GET_REG_LIST
 
 Capability: basic
 Architectures: arm, arm64
@@ -2323,8 +2391,7 @@ struct kvm_reg_list {
 This ioctl returns the guest registers that are supported for the
 KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
 
-
-4.84 KVM_ARM_SET_DEVICE_ADDR
+4.85 KVM_ARM_SET_DEVICE_ADDR
 
 Capability: KVM_CAP_ARM_SET_DEVICE_ADDR
 Architectures: arm, arm64
@@ -2362,7 +2429,7 @@ must be called after calling KVM_CREATE_IRQCHIP, but before calling
 KVM_RUN on any of the VCPUs.  Calling this ioctl twice for any of the
 base addresses will return -EEXIST.
 
-4.85 KVM_PPC_RTAS_DEFINE_TOKEN
+4.86 KVM_PPC_RTAS_DEFINE_TOKEN
 
 Capability: KVM_CAP_PPC_RTAS
 Architectures: ppc
@@ -2659,6 +2726,77 @@ and usually define the validity of a groups of registers. (e.g. one bit
  for general purpose registers)
 
 };
+
+
+4.81 KVM_GET_EMULATED_CPUID
+
+Capability: KVM_CAP_EXT_EMUL_CPUID
+Architectures: x86
+Type: system ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 flags;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+The member 'flags' is used for passing flags from userspace.
+
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
+#define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
+#define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features which are emulated by
+kvm.Userspace can use the information returned by this ioctl to query
+which features are emulated by kvm instead of being present natively.
+
+Userspace invokes KVM_GET_EMULATED_CPUID by passing a kvm_cpuid2
+structure with the 'nent' field indicating the number of entries in
+the variable-size array 'entries'. If the number of entries is too low
+to describe the cpu capabilities, an error (E2BIG) is returned. If the
+number is too high, the 'nent' field is adjusted and an error (ENOMEM)
+is returned. If the number is just right, the 'nent' field is adjusted
+to the number of valid entries in the 'entries' array, which is then
+filled.
+
+The entries returned are the set CPUID bits of the respective features
+which kvm emulates, as returned by the CPUID instruction, with unknown
+or unsupported feature bits cleared.
+
+Features like x2apic, for example, may not be present in the host cpu
+but are exposed by kvm in KVM_GET_SUPPORTED_CPUID because they can be
+emulated efficiently and thus not included here.
+
+The fields in each entry are defined as follows:
+
+  function: the eax value used to obtain the entry
+  index: the ecx value used to obtain the entry (for entries that are
+         affected by ecx)
+  flags: an OR of zero or more of the following:
+        KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
+           if the index field is valid
+        KVM_CPUID_FLAG_STATEFUL_FUNC:
+           if cpuid for this function returns different values for successive
+           invocations; there will be several entries with the same function,
+           all with this flag set
+        KVM_CPUID_FLAG_STATE_READ_NEXT:
+           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
+           the first entry to be read by a cpu
+   eax, ebx, ecx, edx: the values returned by the cpuid instruction for
+         this function/index combination
 
 
 6. Capabilities that can be enabled

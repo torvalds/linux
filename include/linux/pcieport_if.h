@@ -23,7 +23,7 @@
 #define PCIE_PORT_SERVICE_VC		(1 << PCIE_PORT_SERVICE_VC_SHIFT)
 
 struct pcie_device {
-	int 		irq;	    /* Service IRQ/MSI/MSI-X Vector */
+	int		irq;	    /* Service IRQ/MSI/MSI-X Vector */
 	struct pci_dev *port;	    /* Root/Upstream/Downstream Port */
 	u32		service;    /* Port service this device represents */
 	void		*priv_data; /* Service Private Data */

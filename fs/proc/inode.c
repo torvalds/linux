@@ -285,19 +285,27 @@ static int proc_reg_mmap(struct file *file, struct vm_area_struct *vma)
 	return rv;
 }
 
-static unsigned long proc_reg_get_unmapped_area(struct file *file, unsigned long orig_addr, unsigned long len, unsigned long pgoff, unsigned long flags)
+static unsigned long
+proc_reg_get_unmapped_area(struct file *file, unsigned long orig_addr,
+			   unsigned long len, unsigned long pgoff,
+			   unsigned long flags)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	unsigned long rv = -EIO;
-	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long) = NULL;
+
 	if (use_pde(pde)) {
+		typeof(proc_reg_get_unmapped_area) *get_area;
+
+		get_area = pde->proc_fops->get_unmapped_area;
 #ifdef CONFIG_MMU
-		get_unmapped_area = current->mm->get_unmapped_area;
+		if (!get_area)
+			get_area = current->mm->get_unmapped_area;
 #endif
-		if (pde->proc_fops->get_unmapped_area)
-			get_unmapped_area = pde->proc_fops->get_unmapped_area;
-		if (get_unmapped_area)
-			rv = get_unmapped_area(file, orig_addr, len, pgoff, flags);
+
+		if (get_area)
+			rv = get_area(file, orig_addr, len, pgoff, flags);
+		else
+			rv = orig_addr;
 		unuse_pde(pde);
 	}
 	return rv;

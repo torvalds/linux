@@ -1220,8 +1220,6 @@ static void pciserial_txx9_remove_one(struct pci_dev *dev)
 {
 	struct uart_txx9_port *up = pci_get_drvdata(dev);
 
-	pci_set_drvdata(dev, NULL);
-
 	if (up) {
 		serial_txx9_unregister_port(up->port.line);
 		pci_disable_device(dev);

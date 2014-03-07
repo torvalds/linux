@@ -845,11 +845,10 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeIdIndex,
 			VCLKIndex = TVCLKBASE_315_25 + HiTVVCLK;
 
 		if (pVBInfo->SetFlag & TVSimuMode) {
-			if (modeflag & Charx8Dot) {
+			if (modeflag & Charx8Dot)
 				VCLKIndex = TVCLKBASE_315_25 + HiTVSimuVCLK;
-			} else {
+			else
 				VCLKIndex = TVCLKBASE_315_25 + HiTVTextVCLK;
-			}
 		}
 
 		/* 301lv */
@@ -5274,9 +5273,8 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 
 	outb(0x00, pVBInfo->P3c8);
 
-	for (i = 0; i < 256 * 3; i++) {
+	for (i = 0; i < 256 * 3; i++)
 		outb(0x0F, (pVBInfo->P3c8 + 1)); /* DAC_TEST_PARMS */
-	}
 
 	mdelay(1);
 
@@ -5291,9 +5289,8 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	/* avoid display something, set BLACK DAC if not restore DAC */
 	outb(0x00, pVBInfo->P3c8);
 
-	for (i = 0; i < 256 * 3; i++) {
+	for (i = 0; i < 256 * 3; i++)
 		outb(0, (pVBInfo->P3c8 + 1));
-	}
 
 	xgifb_reg_set(pVBInfo->P3c4, 0x01, SR01);
 	xgifb_reg_set(pVBInfo->P3d4, 0x63, CR63);

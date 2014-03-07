@@ -39,7 +39,7 @@ MODULE_DESCRIPTION("Xtables: packet \"rejection\" target for IPv6");
 MODULE_LICENSE("GPL");
 
 /* Send RST reply */
-static void send_reset(struct net *net, struct sk_buff *oldskb)
+static void send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
 	struct tcphdr otcph, *tcph;
@@ -88,8 +88,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	}
 
 	/* Check checksum. */
-	if (csum_ipv6_magic(&oip6h->saddr, &oip6h->daddr, otcplen, IPPROTO_TCP,
-			    skb_checksum(oldskb, tcphoff, otcplen, 0))) {
+	if (nf_ip6_checksum(oldskb, hook, tcphoff, IPPROTO_TCP)) {
 		pr_debug("TCP checksum is invalid\n");
 		return;
 	}
@@ -227,7 +226,7 @@ reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 		/* Do nothing */
 		break;
 	case IP6T_TCP_RESET:
-		send_reset(net, skb);
+		send_reset(net, skb, par->hooknum);
 		break;
 	default:
 		net_info_ratelimited("case %u not handled yet\n", reject->with);

@@ -408,7 +408,7 @@ static struct platform_driver armada_370_pinctrl_driver = {
 	.driver = {
 		.name = "armada-370-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(armada_370_pinctrl_of_match),
+		.of_match_table = armada_370_pinctrl_of_match,
 	},
 	.probe = armada_370_pinctrl_probe,
 	.remove = armada_370_pinctrl_remove,

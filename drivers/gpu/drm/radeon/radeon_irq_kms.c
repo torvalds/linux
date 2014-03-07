@@ -32,6 +32,8 @@
 #include "radeon.h"
 #include "atom.h"
 
+#include <linux/pm_runtime.h>
+
 #define RADEON_WAIT_IDLE_TIMEOUT 200
 
 /**
@@ -47,8 +49,12 @@ irqreturn_t radeon_driver_irq_handler_kms(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	struct radeon_device *rdev = dev->dev_private;
+	irqreturn_t ret;
 
-	return radeon_irq_process(rdev);
+	ret = radeon_irq_process(rdev);
+	if (ret == IRQ_HANDLED)
+		pm_runtime_mark_last_busy(dev->dev);
+	return ret;
 }
 
 /*

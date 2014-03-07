@@ -68,6 +68,7 @@ _stext:
 _GLOBAL(__start)
 	/* NOP this out unconditionally */
 BEGIN_FTR_SECTION
+	FIXUP_ENDIAN
 	b	.__start_initialization_multiplatform
 END_FTR_SECTION(0, 1)
 
@@ -79,6 +80,7 @@ END_FTR_SECTION(0, 1)
 	 * of the function that the cpu should jump to to continue
 	 * initialization.
 	 */
+	.balign 8
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
 	.llong	0x0
@@ -115,6 +117,7 @@ __run_at_load:
  */
 	.globl	__secondary_hold
 __secondary_hold:
+	FIXUP_ENDIAN
 #ifndef CONFIG_PPC_BOOK3E
 	mfmsr	r24
 	ori	r24,r24,MSR_RI
@@ -205,6 +208,7 @@ _GLOBAL(generic_secondary_thread_init)
  * as SCOM before entry).
  */
 _GLOBAL(generic_secondary_smp_init)
+	FIXUP_ENDIAN
 	mr	r24,r3
 	mr	r25,r4
 
@@ -467,6 +471,7 @@ _STATIC(__after_prom_start)
 	mtctr	r8
 	bctr
 
+.balign 8
 p_end:	.llong	_end - _stext
 
 4:	/* Now copy the rest of the kernel up to _end */

@@ -251,14 +251,15 @@ static SIMPLE_DEV_PM_OPS(pm80x_rtc_pm_ops, pm80x_rtc_suspend, pm80x_rtc_resume);
 static int pm80x_rtc_probe(struct platform_device *pdev)
 {
 	struct pm80x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm80x_platform_data *pm80x_pdata;
+	struct pm80x_platform_data *pm80x_pdata =
+				dev_get_platdata(pdev->dev.parent);
 	struct pm80x_rtc_pdata *pdata = NULL;
 	struct pm80x_rtc_info *info;
 	struct rtc_time tm;
 	unsigned long ticks = 0;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata == NULL)
 		dev_warn(&pdev->dev, "No platform data!\n");
 
@@ -326,8 +327,7 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	regmap_update_bits(info->map, PM800_RTC_CONTROL, PM800_RTC1_USE_XO,
 			   PM800_RTC1_USE_XO);
 
-	if (pdev->dev.parent->platform_data) {
-		pm80x_pdata = pdev->dev.parent->platform_data;
+	if (pm80x_pdata) {
 		pdata = pm80x_pdata->rtc;
 		if (pdata)
 			info->rtc_dev->dev.platform_data = &pdata->rtc_wakeup;

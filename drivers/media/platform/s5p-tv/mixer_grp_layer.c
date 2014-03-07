@@ -226,7 +226,7 @@ static void mxr_graph_fix_geometry(struct mxr_layer *layer,
 			src->width + src->x_offset, 32767);
 		src->full_height = clamp_val(src->full_height,
 			src->height + src->y_offset, 2047);
-	};
+	}
 }
 
 /* PUBLIC API */

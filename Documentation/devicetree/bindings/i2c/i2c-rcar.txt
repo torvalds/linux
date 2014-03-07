@@ -1,0 +1,23 @@
+I2C for R-Car platforms
+
+Required properties:
+- compatible: Must be one of
+	"renesas,i2c-rcar"
+	"renesas,i2c-r8a7778"
+	"renesas,i2c-r8a7779"
+	"renesas,i2c-r8a7790"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: interrupt specifier.
+
+Optional properties:
+- clock-frequency: desired I2C bus clock frequency in Hz. The absence of this
+  propoerty indicates the default frequency 100 kHz.
+
+Examples :
+
+i2c0: i2c@e6500000 {
+	compatible = "renesas,i2c-rcar-h2";
+	reg = <0 0xe6500000 0 0x428>;
+	interrupts = <0 174 0x4>;
+};

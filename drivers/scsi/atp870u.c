@@ -3144,8 +3144,6 @@ static void atp870u_remove (struct pci_dev *pdev)
 	atp870u_free_tables(pshost);
 	printk(KERN_INFO "scsi_host_put : %p\n",pshost);
 	scsi_host_put(pshost);
-	printk(KERN_INFO "pci_set_drvdata : %p\n",pdev);
-	pci_set_drvdata(pdev, NULL);	
 }
 MODULE_LICENSE("GPL");
 

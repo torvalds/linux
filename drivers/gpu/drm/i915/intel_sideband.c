@@ -25,7 +25,10 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
-/* IOSF sideband */
+/*
+ * IOSF sideband, see VLV2_SidebandMsg_HAS.docx and
+ * VLV_VLV2_PUNIT_HAS_0.8.docx
+ */
 static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 			   u32 port, u32 opcode, u32 addr, u32 *val)
 {
@@ -101,19 +104,83 @@ u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr)
 	return val;
 }
 
-u32 vlv_dpio_read(struct drm_i915_private *dev_priv, int reg)
+u32 vlv_gpio_nc_read(struct drm_i915_private *dev_priv, u32 reg)
 {
 	u32 val = 0;
-
-	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_DPIO,
-			DPIO_OPCODE_REG_READ, reg, &val);
-
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_GPIO_NC,
+			PUNIT_OPCODE_REG_READ, reg, &val);
 	return val;
 }
 
-void vlv_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val)
+void vlv_gpio_nc_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
 {
-	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_DPIO,
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_GPIO_NC,
+			PUNIT_OPCODE_REG_WRITE, reg, &val);
+}
+
+u32 vlv_cck_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = 0;
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_CCK,
+			PUNIT_OPCODE_REG_READ, reg, &val);
+	return val;
+}
+
+void vlv_cck_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
+{
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_CCK,
+			PUNIT_OPCODE_REG_WRITE, reg, &val);
+}
+
+u32 vlv_ccu_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = 0;
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_CCU,
+			PUNIT_OPCODE_REG_READ, reg, &val);
+	return val;
+}
+
+void vlv_ccu_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
+{
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_CCU,
+			PUNIT_OPCODE_REG_WRITE, reg, &val);
+}
+
+u32 vlv_gps_core_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = 0;
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_GPS_CORE,
+			PUNIT_OPCODE_REG_READ, reg, &val);
+	return val;
+}
+
+void vlv_gps_core_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
+{
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_GPS_CORE,
+			PUNIT_OPCODE_REG_WRITE, reg, &val);
+}
+
+static u32 vlv_get_phy_port(enum pipe pipe)
+{
+	u32 port = IOSF_PORT_DPIO;
+
+	WARN_ON ((pipe != PIPE_A) && (pipe != PIPE_B));
+
+	return port;
+}
+
+u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg)
+{
+	u32 val = 0;
+
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, vlv_get_phy_port(pipe),
+			DPIO_OPCODE_REG_READ, reg, &val);
+	return val;
+}
+
+void vlv_dpio_write(struct drm_i915_private *dev_priv, enum pipe pipe, int reg, u32 val)
+{
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, vlv_get_phy_port(pipe),
 			DPIO_OPCODE_REG_WRITE, reg, &val);
 }
 

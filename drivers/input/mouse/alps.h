@@ -17,6 +17,7 @@
 #define ALPS_PROTO_V3	3
 #define ALPS_PROTO_V4	4
 #define ALPS_PROTO_V5	5
+#define ALPS_PROTO_V6	6
 
 /**
  * struct alps_model_info - touchpad ID table

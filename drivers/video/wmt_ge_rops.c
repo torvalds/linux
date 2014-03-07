@@ -169,13 +169,13 @@ static struct platform_driver wmt_ge_rops_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "wmt_ge_rops",
-		.of_match_table = of_match_ptr(wmt_dt_ids),
+		.of_match_table = wmt_dt_ids,
 	},
 };
 
 module_platform_driver(wmt_ge_rops_driver);
 
-MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com");
+MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com>");
 MODULE_DESCRIPTION("Accelerators for raster operations using "
 		   "WonderMedia Graphics Engine");
 MODULE_LICENSE("GPL v2");

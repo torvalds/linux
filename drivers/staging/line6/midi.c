@@ -144,7 +144,7 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 	if (retval < 0) {
 		dev_err(line6->ifcdev, "usb_submit_urb failed\n");
 		usb_free_urb(urb);
-		return -EINVAL;
+		return retval;
 	}
 
 	++line6->line6midi->num_active_send_urbs;
@@ -205,7 +205,7 @@ static void line6_midi_input_trigger(struct snd_rawmidi_substream *substream,
 	if (up)
 		line6->line6midi->substream_receive = substream;
 	else
-		line6->line6midi->substream_receive = 0;
+		line6->line6midi->substream_receive = NULL;
 }
 
 static struct snd_rawmidi_ops line6_midi_output_ops = {

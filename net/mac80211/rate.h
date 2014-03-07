@@ -144,8 +144,8 @@ void rate_control_deinitialize(struct ieee80211_local *local);
 
 /* Rate control algorithms */
 #ifdef CONFIG_MAC80211_RC_PID
-extern int rc80211_pid_init(void);
-extern void rc80211_pid_exit(void);
+int rc80211_pid_init(void);
+void rc80211_pid_exit(void);
 #else
 static inline int rc80211_pid_init(void)
 {
@@ -157,8 +157,8 @@ static inline void rc80211_pid_exit(void)
 #endif
 
 #ifdef CONFIG_MAC80211_RC_MINSTREL
-extern int rc80211_minstrel_init(void);
-extern void rc80211_minstrel_exit(void);
+int rc80211_minstrel_init(void);
+void rc80211_minstrel_exit(void);
 #else
 static inline int rc80211_minstrel_init(void)
 {
@@ -170,8 +170,8 @@ static inline void rc80211_minstrel_exit(void)
 #endif
 
 #ifdef CONFIG_MAC80211_RC_MINSTREL_HT
-extern int rc80211_minstrel_ht_init(void);
-extern void rc80211_minstrel_ht_exit(void);
+int rc80211_minstrel_ht_init(void);
+void rc80211_minstrel_ht_exit(void);
 #else
 static inline int rc80211_minstrel_ht_init(void)
 {

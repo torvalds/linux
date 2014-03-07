@@ -62,6 +62,15 @@ config PWM_BFIN
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bfin.
 
+config PWM_EP93XX
+	tristate "Cirrus Logic EP93xx PWM support"
+	depends on ARCH_EP93XX
+	help
+	  Generic PWM framework driver for Cirrus Logic EP93xx.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-ep93xx.
+
 config PWM_IMX
 	tristate "i.MX PWM support"
 	depends on ARCH_MXC

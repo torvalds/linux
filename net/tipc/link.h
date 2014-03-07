@@ -41,6 +41,12 @@
 #include "node.h"
 
 /*
+ * Link reassembly status codes
+ */
+#define LINK_REASM_ERROR	-1
+#define LINK_REASM_COMPLETE	1
+
+/*
  * Out-of-range value for link sequence numbers
  */
 #define INVALID_LINK_SEQ 0x10000
@@ -134,7 +140,8 @@ struct tipc_stats {
  * @next_out: ptr to first unsent outbound message in queue
  * @waiting_ports: linked list of ports waiting for link congestion to abate
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
- * @defragm_buf: list of partially reassembled inbound message fragments
+ * @reasm_head: list head of partially reassembled inbound message fragments
+ * @reasm_tail: last fragment received
  * @stats: collects statistics regarding link activity
  */
 struct tipc_link {
@@ -196,9 +203,10 @@ struct tipc_link {
 	struct sk_buff *next_out;
 	struct list_head waiting_ports;
 
-	/* Fragmentation/defragmentation */
+	/* Fragmentation/reassembly */
 	u32 long_msg_seq_no;
-	struct sk_buff *defragm_buf;
+	struct sk_buff *reasm_head;
+	struct sk_buff *reasm_tail;
 
 	/* Statistics */
 	struct tipc_stats stats;
@@ -227,13 +235,11 @@ int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
 int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
-				 const u32 num_sect,
-				 unsigned int total_len,
-				 u32 destnode);
+				 unsigned int len, u32 destnode);
 void tipc_link_recv_bundle(struct sk_buff *buf);
-int  tipc_link_recv_fragment(struct sk_buff **pending,
-			     struct sk_buff **fb,
-			     struct tipc_msg **msg);
+int  tipc_link_recv_fragment(struct sk_buff **reasm_head,
+			     struct sk_buff **reasm_tail,
+			     struct sk_buff **fbuf);
 void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 			      u32 gap, u32 tolerance, u32 priority,
 			      u32 acked_mtu);

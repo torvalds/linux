@@ -427,8 +427,8 @@ int venc_init_platform_driver(void) __init;
 void venc_uninit_platform_driver(void) __exit;
 
 /* HDMI */
-int hdmi_init_platform_driver(void) __init;
-void hdmi_uninit_platform_driver(void) __exit;
+int hdmi4_init_platform_driver(void) __init;
+void hdmi4_uninit_platform_driver(void) __exit;
 
 /* RFBI */
 int rfbi_init_platform_driver(void) __init;

@@ -231,14 +231,6 @@
 		status = "okay";
 	};
 
-	i2s1: i2s@12D60000 {
-		status = "disabled";
-	};
-
-	i2s2: i2s@12D70000 {
-		status = "disabled";
-	};
-
 	sound {
 		compatible = "samsung,smdk-wm8994";
 

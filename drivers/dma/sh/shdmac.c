@@ -685,7 +685,7 @@ MODULE_DEVICE_TABLE(of, sh_dmae_of_match);
 static int sh_dmae_probe(struct platform_device *pdev)
 {
 	const struct sh_dmae_pdata *pdata;
-	unsigned long irqflags = IRQF_DISABLED,
+	unsigned long irqflags = 0,
 		chan_flag[SH_DMAE_MAX_CHANNELS] = {};
 	int errirq, chan_irq[SH_DMAE_MAX_CHANNELS];
 	int err, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
@@ -838,7 +838,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 				    IORESOURCE_IRQ_SHAREABLE)
 					chan_flag[irq_cnt] = IRQF_SHARED;
 				else
-					chan_flag[irq_cnt] = IRQF_DISABLED;
+					chan_flag[irq_cnt] = 0;
 				dev_dbg(&pdev->dev,
 					"Found IRQ %d for channel %d\n",
 					i, irq_cnt);

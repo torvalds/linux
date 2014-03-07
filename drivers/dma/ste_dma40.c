@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/log2.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
@@ -2626,7 +2627,7 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 	}
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS)
+	if (ret != DMA_COMPLETE)
 		dma_set_residue(txstate, stedma40_residue(chan));
 
 	if (d40_is_paused(d40c))
@@ -2796,8 +2797,8 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	    src_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
 	    dst_addr_width <= DMA_SLAVE_BUSWIDTH_UNDEFINED ||
 	    dst_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
-	    ((src_addr_width > 1) && (src_addr_width & 1)) ||
-	    ((dst_addr_width > 1) && (dst_addr_width & 1)))
+	    !is_power_of_2(src_addr_width) ||
+	    !is_power_of_2(dst_addr_width))
 		return -EINVAL;
 
 	cfg->src_info.data_width = src_addr_width;

@@ -85,6 +85,7 @@
  *	a specific SE notifies us about the end of a transaction. The parameter
  *	for this event is the application ID (AID).
  * @NFC_CMD_GET_SE: Dump all discovered secure elements from an NFC controller.
+ * @NFC_CMD_SE_IO: Send/Receive APDUs to/from the selected secure element.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -114,6 +115,7 @@ enum nfc_commands {
 	NFC_EVENT_SE_CONNECTIVITY,
 	NFC_EVENT_SE_TRANSACTION,
 	NFC_CMD_GET_SE,
+	NFC_CMD_SE_IO,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -147,6 +149,7 @@ enum nfc_commands {
  * @NFC_ATTR_SE_INDEX: Secure element index
  * @NFC_ATTR_SE_TYPE: Secure element type (UICC or EMBEDDED)
  * @NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS: Firmware download operation status
+ * @NFC_ATTR_APDU: Secure element APDU
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -174,6 +177,7 @@ enum nfc_attrs {
 	NFC_ATTR_SE_TYPE,
 	NFC_ATTR_SE_AID,
 	NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS,
+	NFC_ATTR_SE_APDU,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

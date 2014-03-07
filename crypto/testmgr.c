@@ -179,7 +179,7 @@ static int do_one_async_hash_op(struct ahash_request *req,
 		ret = wait_for_completion_interruptible(&tr->completion);
 		if (!ret)
 			ret = tr->err;
-		INIT_COMPLETION(tr->completion);
+		reinit_completion(&tr->completion);
 	}
 	return ret;
 }
@@ -336,7 +336,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 				ret = wait_for_completion_interruptible(
 					&tresult.completion);
 				if (!ret && !(ret = tresult.err)) {
-					INIT_COMPLETION(tresult.completion);
+					reinit_completion(&tresult.completion);
 					break;
 				}
 				/* fall through */
@@ -503,16 +503,16 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				goto out;
 			}
 
-			sg_init_one(&sg[0], input,
-				    template[i].ilen + (enc ? authsize : 0));
-
 			if (diff_dst) {
 				output = xoutbuf[0];
 				output += align_offset;
+				sg_init_one(&sg[0], input, template[i].ilen);
 				sg_init_one(&sgout[0], output,
+					    template[i].rlen);
+			} else {
+				sg_init_one(&sg[0], input,
 					    template[i].ilen +
 						(enc ? authsize : 0));
-			} else {
 				output = input;
 			}
 
@@ -543,7 +543,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				ret = wait_for_completion_interruptible(
 					&result.completion);
 				if (!ret && !(ret = result.err)) {
-					INIT_COMPLETION(result.completion);
+					reinit_completion(&result.completion);
 					break;
 				}
 			case -EBADMSG:
@@ -612,12 +612,6 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				memcpy(q, template[i].input + temp,
 				       template[i].tap[k]);
 
-				n = template[i].tap[k];
-				if (k == template[i].np - 1 && enc)
-					n += authsize;
-				if (offset_in_page(q) + n < PAGE_SIZE)
-					q[n] = 0;
-
 				sg_set_buf(&sg[k], q, template[i].tap[k]);
 
 				if (diff_dst) {
@@ -625,12 +619,16 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 					    offset_in_page(IDX[k]);
 
 					memset(q, 0, template[i].tap[k]);
-					if (offset_in_page(q) + n < PAGE_SIZE)
-						q[n] = 0;
 
 					sg_set_buf(&sgout[k], q,
 						   template[i].tap[k]);
 				}
+
+				n = template[i].tap[k];
+				if (k == template[i].np - 1 && enc)
+					n += authsize;
+				if (offset_in_page(q) + n < PAGE_SIZE)
+					q[n] = 0;
 
 				temp += template[i].tap[k];
 			}
@@ -650,10 +648,10 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 					goto out;
 				}
 
-				sg[k - 1].length += authsize;
-
 				if (diff_dst)
 					sgout[k - 1].length += authsize;
+				else
+					sg[k - 1].length += authsize;
 			}
 
 			sg_init_table(asg, template[i].anp);
@@ -697,7 +695,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				ret = wait_for_completion_interruptible(
 					&result.completion);
 				if (!ret && !(ret = result.err)) {
-					INIT_COMPLETION(result.completion);
+					reinit_completion(&result.completion);
 					break;
 				}
 			case -EBADMSG:
@@ -983,7 +981,7 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 				ret = wait_for_completion_interruptible(
 					&result.completion);
 				if (!ret && !((ret = result.err))) {
-					INIT_COMPLETION(result.completion);
+					reinit_completion(&result.completion);
 					break;
 				}
 				/* fall through */
@@ -1086,7 +1084,7 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 				ret = wait_for_completion_interruptible(
 					&result.completion);
 				if (!ret && !((ret = result.err))) {
-					INIT_COMPLETION(result.completion);
+					reinit_completion(&result.completion);
 					break;
 				}
 				/* fall through */

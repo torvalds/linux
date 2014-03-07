@@ -594,7 +594,7 @@ void irq_ctx_init(void)
 	}
 }
 
-static inline void do_softirq_onstack(void)
+void do_softirq_own_stack(void)
 {
 	struct thread_info *curtp, *irqtp;
 
@@ -610,21 +610,6 @@ static inline void do_softirq_onstack(void)
 	 */
 	if (irqtp->flags)
 		set_bits(irqtp->flags, &curtp->flags);
-}
-
-void do_softirq(void)
-{
-	unsigned long flags;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-
-	if (local_softirq_pending())
-		do_softirq_onstack();
-
-	local_irq_restore(flags);
 }
 
 irq_hw_number_t virq_to_hw(unsigned int virq)

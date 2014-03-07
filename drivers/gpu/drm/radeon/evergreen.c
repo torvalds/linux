@@ -1174,23 +1174,72 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 {
-	u16 ctl, v;
-	int err;
+	int readrq;
+	u16 v;
 
-	err = pcie_capability_read_word(rdev->pdev, PCI_EXP_DEVCTL, &ctl);
-	if (err)
-		return;
-
-	v = (ctl & PCI_EXP_DEVCTL_READRQ) >> 12;
-
+	readrq = pcie_get_readrq(rdev->pdev);
+	v = ffs(readrq) - 8;
 	/* if bios or OS sets MAX_READ_REQUEST_SIZE to an invalid value, fix it
 	 * to avoid hangs or perfomance issues
 	 */
-	if ((v == 0) || (v == 6) || (v == 7)) {
-		ctl &= ~PCI_EXP_DEVCTL_READRQ;
-		ctl |= (2 << 12);
-		pcie_capability_write_word(rdev->pdev, PCI_EXP_DEVCTL, ctl);
+	if ((v == 0) || (v == 6) || (v == 7))
+		pcie_set_readrq(rdev->pdev, 512);
+}
+
+void dce4_program_fmt(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	int bpc = 0;
+	u32 tmp = 0;
+	enum radeon_connector_dither dither = RADEON_FMT_DITHER_DISABLE;
+
+	if (connector) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		bpc = radeon_get_monitor_bpc(connector);
+		dither = radeon_connector->dither;
 	}
+
+	/* LVDS/eDP FMT is set up by atom */
+	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
+		return;
+
+	/* not needed for analog */
+	if ((radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1) ||
+	    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2))
+		return;
+
+	if (bpc == 0)
+		return;
+
+	switch (bpc) {
+	case 6:
+		if (dither == RADEON_FMT_DITHER_ENABLE)
+			/* XXX sort out optimal dither settings */
+			tmp |= (FMT_FRAME_RANDOM_ENABLE | FMT_HIGHPASS_RANDOM_ENABLE |
+				FMT_SPATIAL_DITHER_EN);
+		else
+			tmp |= FMT_TRUNCATE_EN;
+		break;
+	case 8:
+		if (dither == RADEON_FMT_DITHER_ENABLE)
+			/* XXX sort out optimal dither settings */
+			tmp |= (FMT_FRAME_RANDOM_ENABLE | FMT_HIGHPASS_RANDOM_ENABLE |
+				FMT_RGB_RANDOM_ENABLE |
+				FMT_SPATIAL_DITHER_EN | FMT_SPATIAL_DITHER_DEPTH);
+		else
+			tmp |= (FMT_TRUNCATE_EN | FMT_TRUNCATE_DEPTH);
+		break;
+	case 10:
+	default:
+		/* not needed */
+		break;
+	}
+
+	WREG32(FMT_BIT_DEPTH_CONTROL + radeon_crtc->crtc_offset, tmp);
 }
 
 static bool dce4_is_in_vblank(struct radeon_device *rdev, int crtc)
@@ -3963,7 +4012,7 @@ int sumo_rlc_init(struct radeon_device *rdev)
 		if (rdev->family >= CHIP_TAHITI) {
 			/* SI */
 			for (i = 0; i < rdev->rlc.reg_list_size; i++)
-				dst_ptr[i] = src_ptr[i];
+				dst_ptr[i] = cpu_to_le32(src_ptr[i]);
 		} else {
 			/* ON/LN/TN */
 			/* format:
@@ -3977,10 +4026,10 @@ int sumo_rlc_init(struct radeon_device *rdev)
 				if (i < dws)
 					data |= (src_ptr[i] >> 2) << 16;
 				j = (((i - 1) * 3) / 2);
-				dst_ptr[j] = data;
+				dst_ptr[j] = cpu_to_le32(data);
 			}
 			j = ((i * 3) / 2);
-			dst_ptr[j] = RLC_SAVE_RESTORE_LIST_END_MARKER;
+			dst_ptr[j] = cpu_to_le32(RLC_SAVE_RESTORE_LIST_END_MARKER);
 		}
 		radeon_bo_kunmap(rdev->rlc.save_restore_obj);
 		radeon_bo_unreserve(rdev->rlc.save_restore_obj);
@@ -4042,40 +4091,40 @@ int sumo_rlc_init(struct radeon_device *rdev)
 			cik_get_csb_buffer(rdev, dst_ptr);
 		} else if (rdev->family >= CHIP_TAHITI) {
 			reg_list_mc_addr = rdev->rlc.clear_state_gpu_addr + 256;
-			dst_ptr[0] = upper_32_bits(reg_list_mc_addr);
-			dst_ptr[1] = lower_32_bits(reg_list_mc_addr);
-			dst_ptr[2] = rdev->rlc.clear_state_size;
+			dst_ptr[0] = cpu_to_le32(upper_32_bits(reg_list_mc_addr));
+			dst_ptr[1] = cpu_to_le32(lower_32_bits(reg_list_mc_addr));
+			dst_ptr[2] = cpu_to_le32(rdev->rlc.clear_state_size);
 			si_get_csb_buffer(rdev, &dst_ptr[(256/4)]);
 		} else {
 			reg_list_hdr_blk_index = 0;
 			reg_list_mc_addr = rdev->rlc.clear_state_gpu_addr + (reg_list_blk_index * 4);
 			data = upper_32_bits(reg_list_mc_addr);
-			dst_ptr[reg_list_hdr_blk_index] = data;
+			dst_ptr[reg_list_hdr_blk_index] = cpu_to_le32(data);
 			reg_list_hdr_blk_index++;
 			for (i = 0; cs_data[i].section != NULL; i++) {
 				for (j = 0; cs_data[i].section[j].extent != NULL; j++) {
 					reg_num = cs_data[i].section[j].reg_count;
 					data = reg_list_mc_addr & 0xffffffff;
-					dst_ptr[reg_list_hdr_blk_index] = data;
+					dst_ptr[reg_list_hdr_blk_index] = cpu_to_le32(data);
 					reg_list_hdr_blk_index++;
 
 					data = (cs_data[i].section[j].reg_index * 4) & 0xffffffff;
-					dst_ptr[reg_list_hdr_blk_index] = data;
+					dst_ptr[reg_list_hdr_blk_index] = cpu_to_le32(data);
 					reg_list_hdr_blk_index++;
 
 					data = 0x08000000 | (reg_num * 4);
-					dst_ptr[reg_list_hdr_blk_index] = data;
+					dst_ptr[reg_list_hdr_blk_index] = cpu_to_le32(data);
 					reg_list_hdr_blk_index++;
 
 					for (k = 0; k < reg_num; k++) {
 						data = cs_data[i].section[j].extent[k];
-						dst_ptr[reg_list_blk_index + k] = data;
+						dst_ptr[reg_list_blk_index + k] = cpu_to_le32(data);
 					}
 					reg_list_mc_addr += reg_num * 4;
 					reg_list_blk_index += reg_num;
 				}
 			}
-			dst_ptr[reg_list_hdr_blk_index] = RLC_CLEAR_STATE_END_MARKER;
+			dst_ptr[reg_list_hdr_blk_index] = cpu_to_le32(RLC_CLEAR_STATE_END_MARKER);
 		}
 		radeon_bo_kunmap(rdev->rlc.clear_state_obj);
 		radeon_bo_unreserve(rdev->rlc.clear_state_obj);

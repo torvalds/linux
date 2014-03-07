@@ -15,10 +15,13 @@
 
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
+
+#define LEGACY_PMC_BASE		0xD8130000
 
 /* All clocks share the same lock as none can be changed concurrently */
 static DEFINE_SPINLOCK(_lock);
@@ -52,6 +55,21 @@ struct clk_pll {
 };
 
 static void __iomem *pmc_base;
+
+static __init void vtwm_set_pmc_base(void)
+{
+	struct device_node *np =
+		of_find_compatible_node(NULL, NULL, "via,vt8500-pmc");
+
+	if (np)
+		pmc_base = of_iomap(np, 0);
+	else
+		pmc_base = ioremap(LEGACY_PMC_BASE, 0x1000);
+	of_node_put(np);
+
+	if (!pmc_base)
+		pr_err("%s:of_iomap(pmc) failed\n", __func__);
+}
 
 #define to_clk_device(_hw) container_of(_hw, struct clk_device, hw)
 
@@ -221,6 +239,9 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 	struct clk_init_data init;
 	int rc;
 	int clk_init_flags = 0;
+
+	if (!pmc_base)
+		vtwm_set_pmc_base();
 
 	dev_clk = kzalloc(sizeof(*dev_clk), GFP_KERNEL);
 	if (WARN_ON(!dev_clk))
@@ -636,6 +657,9 @@ static __init void vtwm_pll_clk_init(struct device_node *node, int pll_type)
 	struct clk_init_data init;
 	int rc;
 
+	if (!pmc_base)
+		vtwm_set_pmc_base();
+
 	rc = of_property_read_u32(node, "reg", &reg);
 	if (WARN_ON(rc))
 		return;
@@ -694,13 +718,3 @@ static void __init wm8850_pll_init(struct device_node *node)
 	vtwm_pll_clk_init(node, PLL_TYPE_WM8850);
 }
 CLK_OF_DECLARE(wm8850_pll, "wm,wm8850-pll-clock", wm8850_pll_init);
-
-void __init vtwm_clk_init(void __iomem *base)
-{
-	if (!base)
-		return;
-
-	pmc_base = base;
-
-	of_clk_init(NULL);
-}

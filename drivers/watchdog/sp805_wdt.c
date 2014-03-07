@@ -268,7 +268,6 @@ static int sp805_wdt_remove(struct amba_device *adev)
 	struct sp805_wdt *wdt = amba_get_drvdata(adev);
 
 	watchdog_unregister_device(&wdt->wdd);
-	amba_set_drvdata(adev, NULL);
 	watchdog_set_drvdata(&wdt->wdd, NULL);
 
 	return 0;

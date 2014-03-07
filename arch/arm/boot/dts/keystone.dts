@@ -100,13 +100,15 @@
 			reg = <0x023100e8 4>;	/* pll reset control reg */
 		};
 
+		/include/ "keystone-clocks.dtsi"
+
 		uart0: serial@02530c00 {
 			compatible = "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			reg = <0x02530c00 0x100>;
-			clock-frequency = <133120000>;
+			clocks	= <&clkuart0>;
 			interrupts = <GIC_SPI 277 IRQ_TYPE_EDGE_RISING>;
 		};
 
@@ -116,9 +118,66 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			reg = <0x02531000 0x100>;
-			clock-frequency = <133120000>;
+			clocks	= <&clkuart1>;
 			interrupts = <GIC_SPI 280 IRQ_TYPE_EDGE_RISING>;
 		};
 
+		i2c0: i2c@2530000 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530000 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 283 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dtt@50 {
+				compatible = "at,24c1024";
+				reg = <0x50>;
+			};
+		};
+
+		i2c1: i2c@2530400 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530400 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		i2c2: i2c@2530800 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530800 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 289 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		spi0: spi@21000400 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000400 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 292 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
+
+		spi1: spi@21000600 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000600 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 296 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
+
+		spi2: spi@21000800 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000800 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
 	};
 };

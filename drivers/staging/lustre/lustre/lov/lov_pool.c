@@ -86,7 +86,7 @@ void lov_pool_putref_locked(struct pool_desc *pool)
  * Chapter 6.4.
  * Addison Wesley, 1973
  */
-static __u32 pool_hashfn(cfs_hash_t *hash_body, const void *key, unsigned mask)
+static __u32 pool_hashfn(struct cfs_hash *hash_body, const void *key, unsigned mask)
 {
 	int i;
 	__u32 result;
@@ -125,7 +125,7 @@ static void *pool_hashobject(struct hlist_node *hnode)
 	return hlist_entry(hnode, struct pool_desc, pool_hash);
 }
 
-static void pool_hashrefcount_get(cfs_hash_t *hs, struct hlist_node *hnode)
+static void pool_hashrefcount_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct pool_desc *pool;
 
@@ -133,7 +133,7 @@ static void pool_hashrefcount_get(cfs_hash_t *hs, struct hlist_node *hnode)
 	lov_pool_getref(pool);
 }
 
-static void pool_hashrefcount_put_locked(cfs_hash_t *hs,
+static void pool_hashrefcount_put_locked(struct cfs_hash *hs,
 					 struct hlist_node *hnode)
 {
 	struct pool_desc *pool;

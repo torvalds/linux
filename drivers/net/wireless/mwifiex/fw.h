@@ -1020,8 +1020,8 @@ struct mwifiex_power_group {
 } __packed;
 
 struct mwifiex_types_power_group {
-	u16 type;
-	u16 length;
+	__le16 type;
+	__le16 length;
 } __packed;
 
 struct host_cmd_ds_txpwr_cfg {

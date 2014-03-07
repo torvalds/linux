@@ -1,0 +1,115 @@
+GPIO Mappings
+=============
+
+This document explains how GPIOs can be assigned to given devices and functions.
+Note that it only applies to the new descriptor-based interface. For a
+description of the deprecated integer-based GPIO interface please refer to
+gpio-legacy.txt (actually, there is no real mapping possible with the old
+interface; you just fetch an integer from somewhere and request the
+corresponding GPIO.
+
+Platforms that make use of GPIOs must select ARCH_REQUIRE_GPIOLIB (if GPIO usage
+is mandatory) or ARCH_WANT_OPTIONAL_GPIOLIB (if GPIO support can be omitted) in
+their Kconfig. Then, how GPIOs are mapped depends on what the platform uses to
+describe its hardware layout. Currently, mappings can be defined through device
+tree, ACPI, and platform data.
+
+Device Tree
+-----------
+GPIOs can easily be mapped to devices and functions in the device tree. The
+exact way to do it depends on the GPIO controller providing the GPIOs, see the
+device tree bindings for your controller.
+
+GPIOs mappings are defined in the consumer device's node, in a property named
+<function>-gpios, where <function> is the function the driver will request
+through gpiod_get(). For example:
+
+	foo_device {
+		compatible = "acme,foo";
+		...
+		led-gpios = <&gpio 15 GPIO_ACTIVE_HIGH>, /* red */
+			    <&gpio 16 GPIO_ACTIVE_HIGH>, /* green */
+			    <&gpio 17 GPIO_ACTIVE_HIGH>; /* blue */
+
+		power-gpio = <&gpio 1 GPIO_ACTIVE_LOW>;
+	};
+
+This property will make GPIOs 15, 16 and 17 available to the driver under the
+"led" function, and GPIO 1 as the "power" GPIO:
+
+	struct gpio_desc *red, *green, *blue, *power;
+
+	red = gpiod_get_index(dev, "led", 0);
+	green = gpiod_get_index(dev, "led", 1);
+	blue = gpiod_get_index(dev, "led", 2);
+
+	power = gpiod_get(dev, "power");
+
+The led GPIOs will be active-high, while the power GPIO will be active-low (i.e.
+gpiod_is_active_low(power) will be true).
+
+ACPI
+----
+ACPI does not support function names for GPIOs. Therefore, only the "idx"
+argument of gpiod_get_index() is useful to discriminate between GPIOs assigned
+to a device. The "con_id" argument can still be set for debugging purposes (it
+will appear under error messages as well as debug and sysfs nodes).
+
+Platform Data
+-------------
+Finally, GPIOs can be bound to devices and functions using platform data. Board
+files that desire to do so need to include the following header:
+
+	#include <linux/gpio/driver.h>
+
+GPIOs are mapped by the means of tables of lookups, containing instances of the
+gpiod_lookup structure. Two macros are defined to help declaring such mappings:
+
+	GPIO_LOOKUP(chip_label, chip_hwnum, dev_id, con_id, flags)
+	GPIO_LOOKUP_IDX(chip_label, chip_hwnum, dev_id, con_id, idx, flags)
+
+where
+
+  - chip_label is the label of the gpiod_chip instance providing the GPIO
+  - chip_hwnum is the hardware number of the GPIO within the chip
+  - dev_id is the identifier of the device that will make use of this GPIO. If
+	NULL, the GPIO will be available to all devices.
+  - con_id is the name of the GPIO function from the device point of view. It
+	can be NULL.
+  - idx is the index of the GPIO within the function.
+  - flags is defined to specify the following properties:
+	* GPIOF_ACTIVE_LOW	- to configure the GPIO as active-low
+	* GPIOF_OPEN_DRAIN	- GPIO pin is open drain type.
+	* GPIOF_OPEN_SOURCE	- GPIO pin is open source type.
+
+In the future, these flags might be extended to support more properties.
+
+Note that GPIO_LOOKUP() is just a shortcut to GPIO_LOOKUP_IDX() where idx = 0.
+
+A lookup table can then be defined as follows:
+
+	struct gpiod_lookup gpios_table[] = {
+	GPIO_LOOKUP_IDX("gpio.0", 15, "foo.0", "led", 0, GPIO_ACTIVE_HIGH),
+	GPIO_LOOKUP_IDX("gpio.0", 16, "foo.0", "led", 1, GPIO_ACTIVE_HIGH),
+	GPIO_LOOKUP_IDX("gpio.0", 17, "foo.0", "led", 2, GPIO_ACTIVE_HIGH),
+	GPIO_LOOKUP("gpio.0", 1, "foo.0", "power", GPIO_ACTIVE_LOW),
+	};
+
+And the table can be added by the board code as follows:
+
+	gpiod_add_table(gpios_table, ARRAY_SIZE(gpios_table));
+
+The driver controlling "foo.0" will then be able to obtain its GPIOs as follows:
+
+	struct gpio_desc *red, *green, *blue, *power;
+
+	red = gpiod_get_index(dev, "led", 0);
+	green = gpiod_get_index(dev, "led", 1);
+	blue = gpiod_get_index(dev, "led", 2);
+
+	power = gpiod_get(dev, "power");
+	gpiod_direction_output(power, 1);
+
+Since the "power" GPIO is mapped as active-low, its actual signal will be 0
+after this code. Contrary to the legacy integer GPIO interface, the active-low
+property is handled during mapping and is thus transparent to GPIO consumers.

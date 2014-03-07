@@ -1,0 +1,16 @@
+/* Disabled modules for secure omaps */
+
+#include "omap36xx.dtsi"
+
+/* Secure omaps have some devices inaccessible depending on the firmware */
+&aes {
+	status = "disabled";
+};
+
+&sham {
+	status = "disabled";
+};
+
+&timer12 {
+	status = "disabled";
+};

@@ -296,4 +296,4 @@ static struct kernel_param_ops audit_param_ops = {
 	.get = param_get_bool,
 };
 
-module_param_cb(mmu_audit, &audit_param_ops, &mmu_audit, 0644);
+arch_param_cb(mmu_audit, &audit_param_ops, &mmu_audit, 0644);

@@ -117,7 +117,7 @@ static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
 #define E500_TLB_USER_PERM_MASK (MAS3_UX|MAS3_UR|MAS3_UW)
 #define E500_TLB_SUPER_PERM_MASK (MAS3_SX|MAS3_SR|MAS3_SW)
 #define MAS2_ATTRIB_MASK \
-	  (MAS2_X0 | MAS2_X1)
+	  (MAS2_X0 | MAS2_X1 | MAS2_E | MAS2_G)
 #define MAS3_ATTRIB_MASK \
 	  (MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3 \
 	   | E500_TLB_USER_PERM_MASK | E500_TLB_SUPER_PERM_MASK)

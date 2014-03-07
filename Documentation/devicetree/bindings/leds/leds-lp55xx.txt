@@ -10,6 +10,7 @@ Each child has own specific current settings
 - max-cur: Maximun current at each led channel.
 
 Optional properties:
+- enable-gpio: GPIO attached to the chip's enable pin
 - label: Used for naming LEDs
 - pwr-sel: LP8501 specific property. Power selection for output channels.
          0: D1~9 are connected to VDD
@@ -17,12 +18,15 @@ Optional properties:
          2: D1~6 with VOUT, D7~9 with VDD
          3: D1~9 are connected to VOUT
 
-Alternatively, each child can have specific channel name
-- chan-name: Name of each channel name
+Alternatively, each child can have a specific channel name and trigger:
+- chan-name (optional): name of channel
+- linux,default-trigger (optional): see
+  Documentation/devicetree/bindings/leds/common.txt
 
 example 1) LP5521
 3 LED channels, external clock used. Channel names are 'lp5521_pri:channel0',
-'lp5521_pri:channel1' and 'lp5521_pri:channel2'
+'lp5521_pri:channel1' and 'lp5521_pri:channel2', with a heartbeat trigger
+on channel 0.
 
 lp5521@32 {
 	compatible = "national,lp5521";
@@ -33,6 +37,7 @@ lp5521@32 {
 	chan0 {
 		led-cur = /bits/ 8 <0x2f>;
 		max-cur = /bits/ 8 <0x5f>;
+		linux,default-trigger = "heartbeat";
 	};
 
 	chan1 {

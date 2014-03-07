@@ -134,7 +134,7 @@ static int xilly_probe(struct pci_dev *pdev,
 	struct xilly_endpoint *endpoint;
 	int rc = 0;
 
-	endpoint = xillybus_init_endpoint(pdev, NULL, &pci_hw);
+	endpoint = xillybus_init_endpoint(pdev, &pdev->dev, &pci_hw);
 
 	if (!endpoint)
 		return -ENOMEM;
@@ -148,29 +148,29 @@ static int xilly_probe(struct pci_dev *pdev,
 	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S);
 
 	if (rc) {
-		pr_err("xillybus: pci_enable_device() failed. "
-		       "Aborting.\n");
+		dev_err(endpoint->dev,
+			"pci_enable_device() failed. Aborting.\n");
 		goto no_enable;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		pr_err("xillybus: Incorrect BAR configuration. "
-		       "Aborting.\n");
+		dev_err(endpoint->dev,
+			"Incorrect BAR configuration. Aborting.\n");
 		rc = -ENODEV;
 		goto bad_bar;
 	}
 
 	rc = pci_request_regions(pdev, xillyname);
 	if (rc) {
-		pr_err("xillybus: pci_request_regions() failed. "
-		       "Aborting.\n");
+		dev_err(endpoint->dev,
+			"pci_request_regions() failed. Aborting.\n");
 		goto failed_request_regions;
 	}
 
 	endpoint->registers = pci_iomap(pdev, 0, 128);
 
 	if (!endpoint->registers) {
-		pr_err("xillybus: Failed to map BAR 0. Aborting.\n");
+		dev_err(endpoint->dev, "Failed to map BAR 0. Aborting.\n");
 		goto failed_iomap0;
 	}
 
@@ -178,16 +178,16 @@ static int xilly_probe(struct pci_dev *pdev,
 
 	/* Set up a single MSI interrupt */
 	if (pci_enable_msi(pdev)) {
-		pr_err("xillybus: Failed to enable MSI interrupts. "
-		       "Aborting.\n");
+		dev_err(endpoint->dev,
+			"Failed to enable MSI interrupts. Aborting.\n");
 		rc = -ENODEV;
 		goto failed_enable_msi;
 	}
 	rc = request_irq(pdev->irq, xillybus_isr, 0, xillyname, endpoint);
 
 	if (rc) {
-		pr_err("xillybus: Failed to register MSI handler. "
-		       "Aborting.\n");
+		dev_err(endpoint->dev,
+			"Failed to register MSI handler. Aborting.\n");
 		rc = -ENODEV;
 		goto failed_register_msi;
 	}
@@ -202,8 +202,7 @@ static int xilly_probe(struct pci_dev *pdev,
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
 		endpoint->dma_using_dac = 0;
 	else {
-		pr_err("xillybus: Failed to set DMA mask. "
-		       "Aborting.\n");
+		dev_err(endpoint->dev, "Failed to set DMA mask. Aborting.\n");
 		rc = -ENODEV;
 		goto failed_dmamask;
 	}

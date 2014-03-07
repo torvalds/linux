@@ -105,7 +105,7 @@ TODO:
 
 struct pci1723_private {
 	unsigned char da_range[8];	/* D/A output range for each channel */
-	short ao_data[8];	/* data output buffer */
+	unsigned short ao_data[8];	/* data output buffer */
 };
 
 /*
@@ -205,19 +205,16 @@ static int pci1723_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-  digital i/o bits read/write
-*/
 static int pci1723_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + PCI1723_WRITE_DIGITAL_OUTPUT_CMD);
-	}
+
 	data[1] = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
+
 	return insn->n;
 }
 

@@ -43,6 +43,7 @@
 
 #include <linux/kthread.h>
 #include <linux/spi/spi.h>
+#include <linux/pm.h>
 
 #include "mrst_max3110.h"
 
@@ -61,6 +62,7 @@ struct uart_max3110 {
 	struct task_struct *main_thread;
 	struct task_struct *read_thread;
 	struct mutex thread_mutex;
+	struct mutex io_mutex;
 
 	u32 baud;
 	u16 cur_conf;
@@ -90,6 +92,7 @@ static int max3110_write_then_read(struct uart_max3110 *max,
 	struct spi_transfer	x;
 	int ret;
 
+	mutex_lock(&max->io_mutex);
 	spi_message_init(&message);
 	memset(&x, 0, sizeof x);
 	x.len = len;
@@ -104,6 +107,7 @@ static int max3110_write_then_read(struct uart_max3110 *max,
 
 	/* Do the i/o */
 	ret = spi_sync(spi, &message);
+	mutex_unlock(&max->io_mutex);
 	return ret;
 }
 
@@ -491,19 +495,9 @@ static int serial_m3110_startup(struct uart_port *port)
 	port->state->port.low_latency = 1;
 
 	if (max->irq) {
-		max->read_thread = NULL;
-		ret = request_irq(max->irq, serial_m3110_irq,
-				IRQ_TYPE_EDGE_FALLING, "max3110", max);
-		if (ret) {
-			max->irq = 0;
-			pr_err(PR_FMT "unable to allocate IRQ, polling\n");
-		}  else {
-			/* Enable RX IRQ only */
-			config |= WC_RXA_IRQ_ENABLE;
-		}
-	}
-
-	if (max->irq == 0) {
+		/* Enable RX IRQ only */
+		config |= WC_RXA_IRQ_ENABLE;
+	} else {
 		/* If IRQ is disabled, start a read thread for input data */
 		max->read_thread =
 			kthread_run(max3110_read_thread, max, "max3110_read");
@@ -517,8 +511,6 @@ static int serial_m3110_startup(struct uart_port *port)
 
 	ret = max3110_out(max, config);
 	if (ret) {
-		if (max->irq)
-			free_irq(max->irq, max);
 		if (max->read_thread)
 			kthread_stop(max->read_thread);
 		max->read_thread = NULL;
@@ -539,9 +531,6 @@ static void serial_m3110_shutdown(struct uart_port *port)
 		kthread_stop(max->read_thread);
 		max->read_thread = NULL;
 	}
-
-	if (max->irq)
-		free_irq(max->irq, max);
 
 	/* Disable interrupts from this port */
 	config = WC_TAG | WC_SW_SHDI;
@@ -749,7 +738,8 @@ static int serial_m3110_suspend(struct device *dev)
 	struct spi_device *spi = to_spi_device(dev);
 	struct uart_max3110 *max = spi_get_drvdata(spi);
 
-	disable_irq(max->irq);
+	if (max->irq > 0)
+		disable_irq(max->irq);
 	uart_suspend_port(&serial_m3110_reg, &max->port);
 	max3110_out(max, max->cur_conf | WC_SW_SHDI);
 	return 0;
@@ -762,7 +752,8 @@ static int serial_m3110_resume(struct device *dev)
 
 	max3110_out(max, max->cur_conf);
 	uart_resume_port(&serial_m3110_reg, &max->port);
-	enable_irq(max->irq);
+	if (max->irq > 0)
+		enable_irq(max->irq);
 	return 0;
 }
 
@@ -803,6 +794,7 @@ static int serial_m3110_probe(struct spi_device *spi)
 	max->irq = (u16)spi->irq;
 
 	mutex_init(&max->thread_mutex);
+	mutex_init(&max->io_mutex);
 
 	max->word_7bits = 0;
 	max->parity = 0;
@@ -840,6 +832,16 @@ static int serial_m3110_probe(struct spi_device *spi)
 		goto err_kthread;
 	}
 
+	if (max->irq) {
+		ret = request_irq(max->irq, serial_m3110_irq,
+				IRQ_TYPE_EDGE_FALLING, "max3110", max);
+		if (ret) {
+			max->irq = 0;
+			dev_warn(&spi->dev,
+			"unable to allocate IRQ, will use polling method\n");
+		}
+	}
+
 	spi_set_drvdata(spi, max);
 	pmax = max;
 
@@ -866,6 +868,9 @@ static int serial_m3110_remove(struct spi_device *dev)
 	uart_remove_one_port(&serial_m3110_reg, &max->port);
 
 	free_page((unsigned long)max->con_xmit.buf);
+
+	if (max->irq)
+		free_irq(max->irq, max);
 
 	if (max->main_thread)
 		kthread_stop(max->main_thread);

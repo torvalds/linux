@@ -88,7 +88,6 @@ extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
 
 extern void bad_trap_tl1(struct pt_regs *regs, long lvl);
 
-extern void do_fpe_common(struct pt_regs *regs);
 extern void do_fpieee(struct pt_regs *regs);
 extern void do_fpother(struct pt_regs *regs);
 extern void do_tof(struct pt_regs *regs);

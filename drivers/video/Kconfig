@@ -19,9 +19,9 @@ source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
 
-source "drivers/gpu/drm/Kconfig"
-
 source "drivers/gpu/host1x/Kconfig"
+
+source "drivers/gpu/drm/Kconfig"
 
 config VGASTATE
        tristate
@@ -996,6 +996,8 @@ config FB_ATMEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  This enables support for the AT91/AT32 LCD Controller.
 

@@ -102,7 +102,7 @@ config AD7280
 
 config LPC32XX_ADC
 	tristate "NXP LPC32XX ADC"
-	depends on ARCH_LPC32XX
+	depends on ARCH_LPC32XX || COMPILE_TEST
 	help
 	  Say yes here to build support for the integrated ADC inside the
 	  LPC32XX SoC. Note that this feature uses the same hardware as the
@@ -113,7 +113,9 @@ config LPC32XX_ADC
 
 config MXS_LRADC
 	tristate "Freescale i.MX23/i.MX28 LRADC"
-	depends on ARCH_MXS
+	depends on ARCH_MXS || COMPILE_TEST
+	depends on INPUT
+	select STMP_DEVICE
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -125,7 +127,7 @@ config MXS_LRADC
 
 config SPEAR_ADC
 	tristate "ST SPEAr ADC"
-	depends on PLAT_SPEAR
+	depends on PLAT_SPEAR || COMPILE_TEST
 	help
 	  Say yes here to build support for the integrated ADC inside the
 	  ST SPEAr SoC. Provides direct access via sysfs.

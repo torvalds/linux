@@ -262,7 +262,7 @@ void BSSvCreateOneNode(struct vnt_private *, u32 *puNodeIndex);
 void BSSvUpdateAPNode(struct vnt_private *, u16 *pwCapInfo,
 	PWLAN_IE_SUPP_RATES pItemRates, PWLAN_IE_SUPP_RATES pExtSuppRates);
 
-void BSSvSecondCallBack(struct vnt_private *);
+void BSSvSecondCallBack(struct work_struct *work);
 
 void BSSvUpdateNodeTxCounter(struct vnt_private *, PSStatCounter pStatistic,
 	u8 byTSR, u8 byPktNO);

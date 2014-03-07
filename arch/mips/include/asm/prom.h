@@ -17,21 +17,7 @@
 #include <linux/types.h>
 #include <asm/bootinfo.h>
 
-extern int early_init_dt_scan_memory_arch(unsigned long node,
-	const char *uname, int depth, void *data);
-
 extern void device_tree_init(void);
-
-static inline unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	/*
-	 * The ioport address can be directly used by inX() / outX()
-	 */
-	BUG_ON(address > IO_SPACE_LIMIT);
-
-	return (unsigned long) address;
-}
-#define pci_address_to_pio pci_address_to_pio
 
 struct boot_param_header;
 

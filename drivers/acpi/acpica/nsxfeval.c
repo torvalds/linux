@@ -42,7 +42,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -138,7 +139,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 
 		/* Caller used ACPI_ALLOCATE_BUFFER, free the return buffer */
 
-		ACPI_FREE(return_buffer->pointer);
+		ACPI_FREE_BUFFER(*return_buffer);
 		return_buffer->pointer = NULL;
 	}
 
@@ -441,7 +442,7 @@ acpi_evaluate_object(acpi_handle handle,
 		acpi_ex_exit_interpreter();
 	}
 
-      cleanup:
+cleanup:
 
 	/* Free the input parameter list (if we created one) */
 
@@ -605,14 +606,22 @@ acpi_walk_namespace(acpi_object_type type,
 		goto unlock_and_exit;
 	}
 
+	/* Now we can validate the starting node */
+
+	if (!acpi_ns_validate_handle(start_object)) {
+		status = AE_BAD_PARAMETER;
+		goto unlock_and_exit2;
+	}
+
 	status = acpi_ns_walk_namespace(type, start_object, max_depth,
 					ACPI_NS_WALK_UNLOCK,
 					descending_callback, ascending_callback,
 					context, return_value);
 
+unlock_and_exit2:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_read_lock(&acpi_gbl_namespace_rw_lock);
 	return_ACPI_STATUS(status);
 }
@@ -856,7 +865,7 @@ acpi_attach_data(acpi_handle obj_handle,
 
 	status = acpi_ns_attach_data(node, handler, data);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
 }
@@ -902,7 +911,7 @@ acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
 
 	status = acpi_ns_detach_data(node, handler);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
 }
@@ -949,7 +958,7 @@ acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
 
 	status = acpi_ns_get_attached_data(node, handler, data);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
 }

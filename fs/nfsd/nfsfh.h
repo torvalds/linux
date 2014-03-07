@@ -173,8 +173,8 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 	BUG_ON(!dentry);
 
 	if (fhp->fh_locked) {
-		printk(KERN_WARNING "fh_lock: %s/%s already locked!\n",
-			dentry->d_parent->d_name.name, dentry->d_name.name);
+		printk(KERN_WARNING "fh_lock: %pd2 already locked!\n",
+			dentry);
 		return;
 	}
 

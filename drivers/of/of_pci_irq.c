@@ -2,10 +2,9 @@
 #include <linux/of_pci.h>
 #include <linux/of_irq.h>
 #include <linux/export.h>
-#include <asm/prom.h>
 
 /**
- * of_irq_map_pci - Resolve the interrupt for a PCI device
+ * of_irq_parse_pci - Resolve the interrupt for a PCI device
  * @pdev:       the device whose interrupt is to be resolved
  * @out_irq:    structure of_irq filled by this function
  *
@@ -15,7 +14,7 @@
  * PCI tree until an device-node is found, at which point it will finish
  * resolving using the OF tree walking.
  */
-int of_irq_map_pci(const struct pci_dev *pdev, struct of_irq *out_irq)
+int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq)
 {
 	struct device_node *dn, *ppnode;
 	struct pci_dev *ppdev;
@@ -30,7 +29,7 @@ int of_irq_map_pci(const struct pci_dev *pdev, struct of_irq *out_irq)
 	 */
 	dn = pci_device_to_OF_node(pdev);
 	if (dn) {
-		rc = of_irq_map_one(dn, 0, out_irq);
+		rc = of_irq_parse_one(dn, 0, out_irq);
 		if (!rc)
 			return rc;
 	}
@@ -85,9 +84,37 @@ int of_irq_map_pci(const struct pci_dev *pdev, struct of_irq *out_irq)
 		pdev = ppdev;
 	}
 
+	out_irq->np = ppnode;
+	out_irq->args_count = 1;
+	out_irq->args[0] = lspec;
 	lspec_be = cpu_to_be32(lspec);
 	laddr[0] = cpu_to_be32((pdev->bus->number << 16) | (pdev->devfn << 8));
-	laddr[1]  = laddr[2] = cpu_to_be32(0);
-	return of_irq_map_raw(ppnode, &lspec_be, 1, laddr, out_irq);
+	laddr[1] = laddr[2] = cpu_to_be32(0);
+	return of_irq_parse_raw(laddr, out_irq);
 }
-EXPORT_SYMBOL_GPL(of_irq_map_pci);
+EXPORT_SYMBOL_GPL(of_irq_parse_pci);
+
+/**
+ * of_irq_parse_and_map_pci() - Decode a PCI irq from the device tree and map to a virq
+ * @dev: The pci device needing an irq
+ * @slot: PCI slot number; passed when used as map_irq callback. Unused
+ * @pin: PCI irq pin number; passed when used as map_irq callback. Unused
+ *
+ * @slot and @pin are unused, but included in the function so that this
+ * function can be used directly as the map_irq callback to pci_fixup_irqs().
+ */
+int of_irq_parse_and_map_pci(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	struct of_phandle_args oirq;
+	int ret;
+
+	ret = of_irq_parse_pci(dev, &oirq);
+	if (ret) {
+		dev_err(&dev->dev, "of_irq_parse_pci() failed with rc=%d\n", ret);
+		return 0; /* Proper return code 0 == NO_IRQ */
+	}
+
+	return irq_create_of_mapping(&oirq);
+}
+EXPORT_SYMBOL_GPL(of_irq_parse_and_map_pci);
+

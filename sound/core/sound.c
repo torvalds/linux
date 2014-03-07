@@ -153,7 +153,7 @@ static int snd_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 	struct snd_minor *mptr = NULL;
-	const struct file_operations *old_fops;
+	const struct file_operations *new_fops;
 	int err = 0;
 
 	if (minor >= ARRAY_SIZE(snd_minors))
@@ -167,24 +167,14 @@ static int snd_open(struct inode *inode, struct file *file)
 			return -ENODEV;
 		}
 	}
-	old_fops = file->f_op;
-	file->f_op = fops_get(mptr->f_ops);
-	if (file->f_op == NULL) {
-		file->f_op = old_fops;
-		err = -ENODEV;
-	}
+	new_fops = fops_get(mptr->f_ops);
 	mutex_unlock(&sound_mutex);
-	if (err < 0)
-		return err;
+	if (!new_fops)
+		return -ENODEV;
+	replace_fops(file, new_fops);
 
-	if (file->f_op->open) {
+	if (file->f_op->open)
 		err = file->f_op->open(inode, file);
-		if (err) {
-			fops_put(file->f_op);
-			file->f_op = fops_get(old_fops);
-		}
-	}
-	fops_put(old_fops);
 	return err;
 }
 

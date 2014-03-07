@@ -559,6 +559,8 @@ static int gssx_enc_cred(struct xdr_stream *xdr,
 
 	/* cred->elements */
 	err = dummy_enc_credel_array(xdr, &cred->elements);
+	if (err)
+		return err;
 
 	/* cred->cred_handle_reference */
 	err = gssx_enc_buffer(xdr, &cred->cred_handle_reference);
@@ -740,22 +742,20 @@ void gssx_enc_accept_sec_context(struct rpc_rqst *req,
 		goto done;
 
 	/* arg->context_handle */
-	if (arg->context_handle) {
+	if (arg->context_handle)
 		err = gssx_enc_ctx(xdr, arg->context_handle);
-		if (err)
-			goto done;
-	} else {
+	else
 		err = gssx_enc_bool(xdr, 0);
-	}
+	if (err)
+		goto done;
 
 	/* arg->cred_handle */
-	if (arg->cred_handle) {
+	if (arg->cred_handle)
 		err = gssx_enc_cred(xdr, arg->cred_handle);
-		if (err)
-			goto done;
-	} else {
+	else
 		err = gssx_enc_bool(xdr, 0);
-	}
+	if (err)
+		goto done;
 
 	/* arg->input_token */
 	err = gssx_enc_in_token(xdr, &arg->input_token);
@@ -763,13 +763,12 @@ void gssx_enc_accept_sec_context(struct rpc_rqst *req,
 		goto done;
 
 	/* arg->input_cb */
-	if (arg->input_cb) {
+	if (arg->input_cb)
 		err = gssx_enc_cb(xdr, arg->input_cb);
-		if (err)
-			goto done;
-	} else {
+	else
 		err = gssx_enc_bool(xdr, 0);
-	}
+	if (err)
+		goto done;
 
 	err = gssx_enc_bool(xdr, arg->ret_deleg_cred);
 	if (err)

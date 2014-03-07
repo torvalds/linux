@@ -169,6 +169,7 @@ struct ttm_tt;
  * @offset: The current GPU offset, which can have different meanings
  * depending on the memory type. For SYSTEM type memory, it should be 0.
  * @cur_placement: Hint of current placement.
+ * @wu_mutex: Wait unreserved mutex.
  *
  * Base class for TTM buffer object, that deals with data placement and CPU
  * mappings. GPU mappings are really up to the driver, but for simpler GPUs
@@ -250,6 +251,7 @@ struct ttm_buffer_object {
 
 	struct reservation_object *resv;
 	struct reservation_object ttm_resv;
+	struct mutex wu_mutex;
 };
 
 /**
@@ -702,5 +704,5 @@ extern ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 			 size_t count, loff_t *f_pos, bool write);
 
 extern void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
-
+extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo);
 #endif

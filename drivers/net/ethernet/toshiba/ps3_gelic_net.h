@@ -359,27 +359,26 @@ static inline void *port_priv(struct gelic_port *port)
 }
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_PS3GELIC
-extern void udbg_shutdown_ps3gelic(void);
+void udbg_shutdown_ps3gelic(void);
 #else
 static inline void udbg_shutdown_ps3gelic(void) {}
 #endif
 
-extern int gelic_card_set_irq_mask(struct gelic_card *card, u64 mask);
+int gelic_card_set_irq_mask(struct gelic_card *card, u64 mask);
 /* shared netdev ops */
-extern void gelic_card_up(struct gelic_card *card);
-extern void gelic_card_down(struct gelic_card *card);
-extern int gelic_net_open(struct net_device *netdev);
-extern int gelic_net_stop(struct net_device *netdev);
-extern int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
-extern void gelic_net_set_multi(struct net_device *netdev);
-extern void gelic_net_tx_timeout(struct net_device *netdev);
-extern int gelic_net_change_mtu(struct net_device *netdev, int new_mtu);
-extern int gelic_net_setup_netdev(struct net_device *netdev,
-				  struct gelic_card *card);
+void gelic_card_up(struct gelic_card *card);
+void gelic_card_down(struct gelic_card *card);
+int gelic_net_open(struct net_device *netdev);
+int gelic_net_stop(struct net_device *netdev);
+int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
+void gelic_net_set_multi(struct net_device *netdev);
+void gelic_net_tx_timeout(struct net_device *netdev);
+int gelic_net_change_mtu(struct net_device *netdev, int new_mtu);
+int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card);
 
 /* shared ethtool ops */
-extern void gelic_net_get_drvinfo(struct net_device *netdev,
-				  struct ethtool_drvinfo *info);
-extern void gelic_net_poll_controller(struct net_device *netdev);
+void gelic_net_get_drvinfo(struct net_device *netdev,
+			   struct ethtool_drvinfo *info);
+void gelic_net_poll_controller(struct net_device *netdev);
 
 #endif /* _GELIC_NET_H */

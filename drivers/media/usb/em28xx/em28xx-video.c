@@ -638,7 +638,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 	if (rc)
 		return rc;
 
-	if (dev->streaming_users++ == 0) {
+	if (dev->streaming_users == 0) {
 		/* First active streaming user, so allocate all the URBs */
 
 		/* Allocate the USB bandwidth */
@@ -657,7 +657,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 					  dev->packet_multiplier,
 					  em28xx_urb_data_copy);
 		if (rc < 0)
-			goto fail;
+			return rc;
 
 		/*
 		 * djh: it's not clear whether this code is still needed.  I'm
@@ -675,7 +675,8 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 	}
 
-fail:
+	dev->streaming_users++;
+
 	return rc;
 }
 
@@ -1663,8 +1664,8 @@ static int em28xx_v4l2_close(struct file *filp)
 
 	em28xx_videodbg("users=%d\n", dev->users);
 
-	mutex_lock(&dev->lock);
 	vb2_fop_release(filp);
+	mutex_lock(&dev->lock);
 
 	if (dev->users == 1) {
 		/* the device is already disconnect,

@@ -52,6 +52,9 @@ Optional properties:
   is specified and the ciu clock is specified then we'll try to set the ciu
   clock to this at probe time.
 
+* clock-freq-min-max: Minimum and Maximum clock frequency for card output
+  clock(cclk_out). If it's not specified, max is 200MHZ and min is 400KHz by default.
+
 * num-slots: specifies the number of slots supported by the controller.
   The number of physical slots actually used could be equal or less than the
   value specified by num-slots. If this property is not specified, the value
@@ -65,6 +68,10 @@ Optional properties:
   insert event. The default value is 0.
 
 * supports-highspeed: Enables support for high speed cards (up to 50MHz)
+
+* caps2-mmc-hs200-1_8v: Supports mmc HS200 SDR 1.8V mode
+
+* caps2-mmc-hs200-1_2v: Supports mmc HS200 SDR 1.2V mode
 
 * broken-cd: as documented in mmc core bindings.
 
@@ -93,8 +100,10 @@ board specific portions as listed below.
 
 	dwmmc0@12200000 {
 		clock-frequency = <400000000>;
+		clock-freq-min-max = <400000 200000000>;
 		num-slots = <1>;
 		supports-highspeed;
+		caps2-mmc-hs200-1_8v;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;

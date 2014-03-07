@@ -114,6 +114,8 @@ rdma_node_get_transport(enum rdma_node_type node_type)
 		return RDMA_TRANSPORT_IB;
 	case RDMA_NODE_RNIC:
 		return RDMA_TRANSPORT_IWARP;
+	case RDMA_NODE_USNIC:
+		return RDMA_TRANSPORT_USNIC;
 	default:
 		BUG();
 		return 0;
@@ -130,6 +132,7 @@ enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_
 	case RDMA_TRANSPORT_IB:
 		return IB_LINK_LAYER_INFINIBAND;
 	case RDMA_TRANSPORT_IWARP:
+	case RDMA_TRANSPORT_USNIC:
 		return IB_LINK_LAYER_ETHERNET;
 	default:
 		return IB_LINK_LAYER_UNSPECIFIED;
@@ -958,6 +961,11 @@ EXPORT_SYMBOL(ib_resize_cq);
 struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 {
 	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
 
 	mr = pd->device->get_dma_mr(pd, mr_access_flags);
 
@@ -980,6 +988,11 @@ struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
 			     u64 *iova_start)
 {
 	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
 
 	if (!pd->device->reg_phys_mr)
 		return ERR_PTR(-ENOSYS);
@@ -1009,6 +1022,10 @@ int ib_rereg_phys_mr(struct ib_mr *mr,
 {
 	struct ib_pd *old_pd;
 	int ret;
+
+	ret = ib_check_mr_access(mr_access_flags);
+	if (ret)
+		return ret;
 
 	if (!mr->device->rereg_phys_mr)
 		return -ENOSYS;

@@ -97,6 +97,7 @@ struct wusb_dev {
 	struct kref refcnt;
 	struct wusbhc *wusbhc;
 	struct list_head cack_node;	/* Connect-Ack list */
+	struct list_head rekey_node;	/* GTK rekey list */
 	u8 port_idx;
 	u8 addr;
 	u8 beacon_type:4;
@@ -107,8 +108,6 @@ struct wusb_dev {
 	struct usb_wireless_cap_descriptor *wusb_cap_descr;
 	struct uwb_mas_bm availability;
 	struct work_struct devconnect_acked_work;
-	struct urb *set_gtk_urb;
-	struct usb_ctrlrequest *set_gtk_req;
 	struct usb_device *usb_dev;
 };
 
@@ -296,8 +295,7 @@ struct wusbhc {
 	} __attribute__((packed)) gtk;
 	u8 gtk_index;
 	u32 gtk_tkid;
-	struct work_struct gtk_rekey_done_work;
-	int pending_set_gtks;
+	struct work_struct gtk_rekey_work;
 
 	struct usb_encryption_descriptor *ccm1_etd;
 };

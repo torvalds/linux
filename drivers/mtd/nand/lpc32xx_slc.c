@@ -893,7 +893,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	/* Avoid extra scan if using BBT, setup BBT support */
 	if (host->ncfg->use_bbt) {
-		chip->options |= NAND_SKIP_BBTSCAN;
 		chip->bbt_options |= NAND_BBT_USE_FLASH;
 
 		/*
@@ -913,13 +912,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	if (nand_scan_tail(mtd)) {
 		res = -ENXIO;
 		goto err_exit3;
-	}
-
-	/* Standard layout in FLASH for bad block tables */
-	if (host->ncfg->use_bbt) {
-		if (nand_default_bbt(mtd) < 0)
-			dev_err(&pdev->dev,
-			       "Error initializing default bad block tables\n");
 	}
 
 	mtd->name = "nxp_lpc3220_slc";
@@ -1023,7 +1015,7 @@ static struct platform_driver lpc32xx_nand_driver = {
 	.driver		= {
 		.name	= LPC32XX_MODNAME,
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(lpc32xx_nand_match),
+		.of_match_table = lpc32xx_nand_match,
 	},
 };
 

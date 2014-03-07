@@ -634,6 +634,7 @@ const struct psb_ops cdv_chip_ops = {
 	.crtcs = 2,
 	.hdmi_mask = (1 << 0) | (1 << 1),
 	.lvds_mask = (1 << 1),
+	.sdvo_mask = (1 << 0),
 	.cursor_needs_phys = 0,
 	.sgx_offset = MRST_SGX_OFFSET,
 	.chip_setup = cdv_chip_setup,

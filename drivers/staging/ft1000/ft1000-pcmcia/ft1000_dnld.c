@@ -304,7 +304,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 	struct dsp_file_hdr *pFileHdr5;
 	struct dsp_image_info *pDspImageInfoV6 = NULL;
 	long requested_version;
-	bool bGoodVersion = 0;
+	bool bGoodVersion = false;
 	struct drv_msg *pMailBoxData;
 	u16 *pUsData = NULL;
 	u16 *pUsFile = NULL;

@@ -39,6 +39,7 @@ EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(__copy_from_user);
 EXPORT_SYMBOL(__copy_to_user);
 EXPORT_SYMBOL(__clear_user);
+EXPORT_SYMBOL(__copy_in_user);
 
 	/* physical memory */
 EXPORT_SYMBOL(memstart_addr);

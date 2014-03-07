@@ -303,6 +303,7 @@ static struct platform_driver poodle_driver = {
 	.driver		= {
 		.name	= "poodle-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= poodle_probe,
 	.remove		= poodle_remove,

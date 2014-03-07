@@ -364,7 +364,7 @@ static void set_graphics_start(struct fb_info *info, int xoffset, int yoffset)
 static void set_dumb_panel_control(struct fb_info *info)
 {
 	struct pxa168fb_info *fbi = info->par;
-	struct pxa168fb_mach_info *mi = fbi->dev->platform_data;
+	struct pxa168fb_mach_info *mi = dev_get_platdata(fbi->dev);
 	u32 x;
 
 	/*
@@ -407,7 +407,7 @@ static int pxa168fb_set_par(struct fb_info *info)
 	u32 x;
 	struct pxa168fb_mach_info *mi;
 
-	mi = fbi->dev->platform_data;
+	mi = dev_get_platdata(fbi->dev);
 
 	/*
 	 * Set additional mode info.
@@ -609,7 +609,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int irq, ret;
 
-	mi = pdev->dev.platform_data;
+	mi = dev_get_platdata(&pdev->dev);
 	if (mi == NULL) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		return -EINVAL;

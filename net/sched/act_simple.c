@@ -142,10 +142,13 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else {
 		d = to_defact(pc);
-		if (!ovr) {
-			tcf_simp_release(d, bind);
+
+		if (bind)
+			return 0;
+		tcf_simp_release(d, bind);
+		if (!ovr)
 			return -EEXIST;
-		}
+
 		reset_policy(d, defdata, parm);
 	}
 
@@ -201,7 +204,6 @@ static struct tc_action_ops act_simp_ops = {
 	.dump		=	tcf_simp_dump,
 	.cleanup	=	tcf_simp_cleanup,
 	.init		=	tcf_simp_init,
-	.walk		=	tcf_generic_walker,
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2005)");

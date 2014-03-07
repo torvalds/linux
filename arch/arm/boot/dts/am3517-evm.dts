@@ -7,11 +7,11 @@
  */
 /dts-v1/;
 
-#include "omap34xx.dtsi"
+#include "am3517.dtsi"
 
 / {
-	model = "TI AM3517 EVM (AM3517/05)";
-	compatible = "ti,am3517-evm", "ti,omap3";
+	model = "TI AM3517 EVM (AM3517/05 TMDSEVM3517)";
+	compatible = "ti,am3517-evm", "ti,am3517", "ti,omap3";
 
 	memory {
 		device_type = "memory";

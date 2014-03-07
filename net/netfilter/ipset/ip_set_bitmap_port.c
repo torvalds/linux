@@ -20,12 +20,13 @@
 #include <linux/netfilter/ipset/ip_set_bitmap.h>
 #include <linux/netfilter/ipset/ip_set_getport.h>
 
-#define REVISION_MIN	0
-#define REVISION_MAX	1	/* Counter support added */
+#define IPSET_TYPE_REV_MIN	0
+/*				1	   Counter support added */
+#define IPSET_TYPE_REV_MAX	2	/* Comment support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-IP_SET_MODULE_DESC("bitmap:port", REVISION_MIN, REVISION_MAX);
+IP_SET_MODULE_DESC("bitmap:port", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_bitmap:port");
 
 #define MTYPE		bitmap_port
@@ -38,9 +39,6 @@ struct bitmap_port {
 	u16 last_port;		/* host byte order, included in range */
 	u32 elements;		/* number of max elements in the set */
 	size_t memsize;		/* members size */
-	size_t dsize;		/* extensions struct size */
-	size_t offset[IPSET_OFFSET_MAX]; /* Offsets to extensions */
-	u32 timeout;		/* timeout parameter */
 	struct timer_list gc;	/* garbage collection */
 };
 
@@ -59,20 +57,20 @@ port_to_id(const struct bitmap_port *m, u16 port)
 
 static inline int
 bitmap_port_do_test(const struct bitmap_port_adt_elem *e,
-		    const struct bitmap_port *map)
+		    const struct bitmap_port *map, size_t dsize)
 {
 	return !!test_bit(e->id, map->members);
 }
 
 static inline int
-bitmap_port_gc_test(u16 id, const struct bitmap_port *map)
+bitmap_port_gc_test(u16 id, const struct bitmap_port *map, size_t dsize)
 {
 	return !!test_bit(id, map->members);
 }
 
 static inline int
 bitmap_port_do_add(const struct bitmap_port_adt_elem *e,
-		   struct bitmap_port *map, u32 flags)
+		   struct bitmap_port *map, u32 flags, size_t dsize)
 {
 	return !!test_and_set_bit(e->id, map->members);
 }
@@ -85,7 +83,8 @@ bitmap_port_do_del(const struct bitmap_port_adt_elem *e,
 }
 
 static inline int
-bitmap_port_do_list(struct sk_buff *skb, const struct bitmap_port *map, u32 id)
+bitmap_port_do_list(struct sk_buff *skb, const struct bitmap_port *map, u32 id,
+		    size_t dsize)
 {
 	return nla_put_net16(skb, IPSET_ATTR_PORT,
 			     htons(map->first_port + id));
@@ -106,7 +105,7 @@ bitmap_port_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct bitmap_port *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct bitmap_port_adt_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, map);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	__be16 __port;
 	u16 port = 0;
 
@@ -131,7 +130,7 @@ bitmap_port_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct bitmap_port *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct bitmap_port_adt_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(map);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 port;	/* wraparound */
 	u16 port_to;
 	int ret = 0;
@@ -191,32 +190,13 @@ bitmap_port_same_set(const struct ip_set *a, const struct ip_set *b)
 
 	return x->first_port == y->first_port &&
 	       x->last_port == y->last_port &&
-	       x->timeout == y->timeout &&
+	       a->timeout == b->timeout &&
 	       a->extensions == b->extensions;
 }
 
 /* Plain variant */
 
 struct bitmap_port_elem {
-};
-
-/* Timeout variant */
-
-struct bitmap_portt_elem {
-	unsigned long timeout;
-};
-
-/* Plain variant with counter */
-
-struct bitmap_portc_elem {
-	struct ip_set_counter counter;
-};
-
-/* Timeout variant with counter */
-
-struct bitmap_portct_elem {
-	unsigned long timeout;
-	struct ip_set_counter counter;
 };
 
 #include "ip_set_bitmap_gen.h"
@@ -230,8 +210,8 @@ init_map_port(struct ip_set *set, struct bitmap_port *map,
 	map->members = ip_set_alloc(map->memsize);
 	if (!map->members)
 		return false;
-	if (map->dsize) {
-		map->extensions = ip_set_alloc(map->dsize * map->elements);
+	if (set->dsize) {
+		map->extensions = ip_set_alloc(set->dsize * map->elements);
 		if (!map->extensions) {
 			kfree(map->members);
 			return false;
@@ -239,7 +219,7 @@ init_map_port(struct ip_set *set, struct bitmap_port *map,
 	}
 	map->first_port = first_port;
 	map->last_port = last_port;
-	map->timeout = IPSET_NO_TIMEOUT;
+	set->timeout = IPSET_NO_TIMEOUT;
 
 	set->data = map;
 	set->family = NFPROTO_UNSPEC;
@@ -248,11 +228,11 @@ init_map_port(struct ip_set *set, struct bitmap_port *map,
 }
 
 static int
-bitmap_port_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
+bitmap_port_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
+		   u32 flags)
 {
 	struct bitmap_port *map;
 	u16 first_port, last_port;
-	u32 cadt_flags = 0;
 
 	if (unlikely(!ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT_TO) ||
@@ -274,55 +254,16 @@ bitmap_port_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 		return -ENOMEM;
 
 	map->elements = last_port - first_port + 1;
-	map->memsize = map->elements * sizeof(unsigned long);
+	map->memsize = bitmap_bytes(0, map->elements);
 	set->variant = &bitmap_port;
-	if (tb[IPSET_ATTR_CADT_FLAGS])
-		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
-	if (cadt_flags & IPSET_FLAG_WITH_COUNTERS) {
-		set->extensions |= IPSET_EXT_COUNTER;
-		if (tb[IPSET_ATTR_TIMEOUT]) {
-			map->dsize = sizeof(struct bitmap_portct_elem);
-			map->offset[IPSET_OFFSET_TIMEOUT] =
-				offsetof(struct bitmap_portct_elem, timeout);
-			map->offset[IPSET_OFFSET_COUNTER] =
-				offsetof(struct bitmap_portct_elem, counter);
-			if (!init_map_port(set, map, first_port, last_port)) {
-				kfree(map);
-				return -ENOMEM;
-			}
-
-			map->timeout =
-				ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
-			set->extensions |= IPSET_EXT_TIMEOUT;
-			bitmap_port_gc_init(set, bitmap_port_gc);
-		} else {
-			map->dsize = sizeof(struct bitmap_portc_elem);
-			map->offset[IPSET_OFFSET_COUNTER] =
-				offsetof(struct bitmap_portc_elem, counter);
-			if (!init_map_port(set, map, first_port, last_port)) {
-				kfree(map);
-				return -ENOMEM;
-			}
-		}
-	} else if (tb[IPSET_ATTR_TIMEOUT]) {
-		map->dsize = sizeof(struct bitmap_portt_elem);
-		map->offset[IPSET_OFFSET_TIMEOUT] =
-			offsetof(struct bitmap_portt_elem, timeout);
-		if (!init_map_port(set, map, first_port, last_port)) {
-			kfree(map);
-			return -ENOMEM;
-		}
-
-		map->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
-		set->extensions |= IPSET_EXT_TIMEOUT;
+	set->dsize = ip_set_elem_len(set, tb, 0);
+	if (!init_map_port(set, map, first_port, last_port)) {
+		kfree(map);
+		return -ENOMEM;
+	}
+	if (tb[IPSET_ATTR_TIMEOUT]) {
+		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 		bitmap_port_gc_init(set, bitmap_port_gc);
-	} else {
-		map->dsize = 0;
-		if (!init_map_port(set, map, first_port, last_port)) {
-			kfree(map);
-			return -ENOMEM;
-		}
-
 	}
 	return 0;
 }
@@ -333,8 +274,8 @@ static struct ip_set_type bitmap_port_type = {
 	.features	= IPSET_TYPE_PORT,
 	.dimension	= IPSET_DIM_ONE,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= REVISION_MIN,
-	.revision_max	= REVISION_MAX,
+	.revision_min	= IPSET_TYPE_REV_MIN,
+	.revision_max	= IPSET_TYPE_REV_MAX,
 	.create		= bitmap_port_create,
 	.create_policy	= {
 		[IPSET_ATTR_PORT]	= { .type = NLA_U16 },
@@ -349,6 +290,7 @@ static struct ip_set_type bitmap_port_type = {
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
+		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING },
 	},
 	.me		= THIS_MODULE,
 };

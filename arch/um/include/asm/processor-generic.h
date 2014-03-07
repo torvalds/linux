@@ -19,8 +19,8 @@ struct task_struct;
 struct mm_struct;
 
 struct thread_struct {
-	struct task_struct *saved_task;
 	struct pt_regs regs;
+	struct pt_regs *segv_regs;
 	int singlestep_syscall;
 	void *fault_addr;
 	jmp_buf *fault_catcher;

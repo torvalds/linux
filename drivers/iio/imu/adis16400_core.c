@@ -651,7 +651,12 @@ static const struct iio_chan_spec adis16448_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.address = ADIS16448_BARO_OUT,
 		.scan_index = ADIS16400_SCAN_BARO,
-		.scan_type = IIO_ST('s', 16, 16, 0),
+		.scan_type = {
+			.sign = 's',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_BE,
+		},
 	},
 	ADIS16400_TEMP_CHAN(ADIS16448_TEMP_OUT, 12),
 	IIO_CHAN_SOFT_TIMESTAMP(11)

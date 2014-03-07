@@ -84,6 +84,8 @@ int log_policy = SMACK_AUDIT_DENIED;
  *
  * Do the object check first because that is more
  * likely to differ.
+ *
+ * Allowing write access implies allowing locking.
  */
 int smk_access_entry(char *subject_label, char *object_label,
 			struct list_head *rule_list)
@@ -99,6 +101,11 @@ int smk_access_entry(char *subject_label, char *object_label,
 		}
 	}
 
+	/*
+	 * MAY_WRITE implies MAY_LOCK.
+	 */
+	if ((may & MAY_WRITE) == MAY_WRITE)
+		may |= MAY_LOCK;
 	return may;
 }
 
@@ -245,6 +252,7 @@ out_audit:
 static inline void smack_str_from_perm(char *string, int access)
 {
 	int i = 0;
+
 	if (access & MAY_READ)
 		string[i++] = 'r';
 	if (access & MAY_WRITE)
@@ -255,6 +263,8 @@ static inline void smack_str_from_perm(char *string, int access)
 		string[i++] = 'a';
 	if (access & MAY_TRANSMUTE)
 		string[i++] = 't';
+	if (access & MAY_LOCK)
+		string[i++] = 'l';
 	string[i] = '\0';
 }
 /**

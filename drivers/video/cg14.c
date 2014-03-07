@@ -330,7 +330,7 @@ static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		default:
 			ret = -ENOSYS;
 			break;
-		};
+		}
 		if (!ret) {
 			sbus_writeb(cur_mode, &regs->mcr);
 			par->mode = mode;
@@ -343,7 +343,7 @@ static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 					  FBTYPE_MDICOLOR, 8,
 					  info->fix.smem_len);
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -582,8 +582,6 @@ static int cg14_remove(struct platform_device *op)
 	cg14_unmap_regs(op, info, par);
 
 	framebuffer_release(info);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

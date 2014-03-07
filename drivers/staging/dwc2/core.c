@@ -564,7 +564,7 @@ void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 
 	/*
 	 * This bit allows dynamic reloading of the HFIR register during
-	 * runtime. This bit needs to be programmed during inital configuration
+	 * runtime. This bit needs to be programmed during initial configuration
 	 * and its value must not be changed during runtime.
 	 */
 	if (hsotg->core_params->reload_ctl > 0) {
@@ -2205,7 +2205,7 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 {
 #ifndef NO_FS_PHY_HW_CHECKS
 	int valid = 0;
-        u32 hs_phy_type, fs_phy_type;
+	u32 hs_phy_type, fs_phy_type;
 #endif
 	int retval = 0;
 
@@ -2553,7 +2553,7 @@ int dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val)
 		hsotg->core_params->ahbcfg = val;
 	else
 		hsotg->core_params->ahbcfg = GAHBCFG_HBSTLEN_INCR4 <<
-                                             GAHBCFG_HBSTLEN_SHIFT;
+						GAHBCFG_HBSTLEN_SHIFT;
 	return 0;
 }
 
@@ -2736,6 +2736,26 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	return 0;
 }
 
+int dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
+{
+	int retval = 0;
+
+	if (DWC2_PARAM_TEST(val, 0, 1)) {
+		if (val >= 0) {
+			dev_err(hsotg->dev,
+				"'%d' invalid for parameter uframe_sched\n",
+				val);
+			dev_err(hsotg->dev, "uframe_sched must be 0 or 1\n");
+		}
+		val = 1;
+		dev_dbg(hsotg->dev, "Setting uframe_sched to %d\n", val);
+		retval = -EINVAL;
+	}
+
+	hsotg->core_params->uframe_sched = val;
+	return retval;
+}
+
 /*
  * This function is called during module intialization to pass module parameters
  * for the DWC_otg core. It returns non-0 if any parameters are invalid.
@@ -2782,6 +2802,7 @@ int dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	retval |= dwc2_set_param_reload_ctl(hsotg, params->reload_ctl);
 	retval |= dwc2_set_param_ahbcfg(hsotg, params->ahbcfg);
 	retval |= dwc2_set_param_otg_ver(hsotg, params->otg_ver);
+	retval |= dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
 
 	return retval;
 }

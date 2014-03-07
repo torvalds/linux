@@ -268,20 +268,14 @@ struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *pDevice,
 
 void vCommandTimerWait(struct vnt_private *pDevice, unsigned long MSecond)
 {
-
-	init_timer(&pDevice->sTimerCommand);
-
-	pDevice->sTimerCommand.data = (unsigned long)pDevice;
-	pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-	pDevice->sTimerCommand.expires = RUN_AT((MSecond * HZ) / 1000);
-
-	add_timer(&pDevice->sTimerCommand);
-
-	return;
+	schedule_delayed_work(&pDevice->run_command_work,
+						msecs_to_jiffies(MSecond));
 }
 
-void vRunCommand(struct vnt_private *pDevice)
+void vRunCommand(struct work_struct *work)
 {
+	struct vnt_private *pDevice =
+		container_of(work, struct vnt_private, run_command_work.work);
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	PWLAN_IE_SSID pItemSSID;
 	PWLAN_IE_SSID pItemSSIDCurr;
@@ -291,6 +285,9 @@ void vRunCommand(struct vnt_private *pDevice)
 	int ii;
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	u8 byData;
+
+	if (pDevice->Flags & fMP_DISCONNECTED)
+		return;
 
     if (pDevice->dwDiagRefCount != 0)
         return;
@@ -660,22 +657,6 @@ void vRunCommand(struct vnt_private *pDevice)
                     netif_wake_queue(pDevice->dev);
                 }
 
-		 if(pDevice->IsTxDataTrigger != false)   {    //TxDataTimer is not triggered at the first time
-                     // printk("Re-initial TxDataTimer****\n");
-		    del_timer(&pDevice->sTimerTxData);
-                      init_timer(&pDevice->sTimerTxData);
-			pDevice->sTimerTxData.data = (unsigned long) pDevice;
-                      pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
-                      pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-                      pDevice->fTxDataInSleep = false;
-                      pDevice->nTxDataTimeCout = 0;
-		 }
-		 else {
-		   // printk("mike:-->First time trigger TimerTxData InSleep\n");
-		 }
-		pDevice->IsTxDataTrigger = true;
-                add_timer(&pDevice->sTimerTxData);
-
             }
 	   else if(pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
                printk("WLAN_ASSOCIATE_WAIT:Association Fail???\n");
@@ -687,7 +668,6 @@ void vRunCommand(struct vnt_private *pDevice)
 	       vCommandTimerWait((void *) pDevice, ASSOCIATE_TIMEOUT/2);
 	       return;
 	   }
-	          pDevice->byLinkWaitCount = 0;
 
             s_bCommandComplete(pDevice);
             break;
@@ -696,7 +676,7 @@ void vRunCommand(struct vnt_private *pDevice)
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_CMD_AP_MODE_START\n");
 
             if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-                del_timer(&pMgmt->sTimerSecondCallback);
+		cancel_delayed_work_sync(&pDevice->second_callback_work);
                 pMgmt->eCurrState = WMAC_STATE_IDLE;
                 pMgmt->eCurrMode = WMAC_MODE_STANDBY;
                 pDevice->bLinkPass = false;
@@ -724,7 +704,7 @@ void vRunCommand(struct vnt_private *pDevice)
                 }
                 pDevice->bLinkPass = true;
                 ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
-                add_timer(&pMgmt->sTimerSecondCallback);
+		schedule_delayed_work(&pDevice->second_callback_work, HZ);
             }
             s_bCommandComplete(pDevice);
             break;
@@ -1156,48 +1136,12 @@ static int s_bClearBSSID_SCAN(struct vnt_private *pDevice)
 //mike add:reset command timer
 void vResetCommandTimer(struct vnt_private *pDevice)
 {
+	cancel_delayed_work_sync(&pDevice->run_command_work);
 
-	//delete timer
-	del_timer(&pDevice->sTimerCommand);
-	//init timer
-	init_timer(&pDevice->sTimerCommand);
-	pDevice->sTimerCommand.data = (unsigned long)pDevice;
-	pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-	pDevice->sTimerCommand.expires = RUN_AT(HZ);
 	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
 	pDevice->uCmdDequeueIdx = 0;
 	pDevice->uCmdEnqueueIdx = 0;
 	pDevice->eCommandState = WLAN_CMD_IDLE;
 	pDevice->bCmdRunning = false;
 	pDevice->bCmdClear = false;
-}
-
-void BSSvSecondTxData(struct vnt_private *pDevice)
-{
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-
-	pDevice->nTxDataTimeCout++;
-
-	if (pDevice->nTxDataTimeCout < 4) {   //don't tx data if timer less than 40s
-		// printk("mike:%s-->no data Tx not exceed the desired Time as %d\n",__FUNCTION__,
-		//  	(int)pDevice->nTxDataTimeCout);
-		pDevice->sTimerTxData.expires = RUN_AT(10 * HZ);      //10s callback
-		add_timer(&pDevice->sTimerTxData);
-		return;
-	}
-
-	spin_lock_irq(&pDevice->lock);
-	//is wap_supplicant running successful OR only open && sharekey mode!
-	if (((pDevice->bLinkPass == true) &&
-		(pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
-		(pDevice->fWPA_Authened == true)) {   //wpa linking
-		//   printk("mike:%s-->InSleep Tx Data Procedure\n",__FUNCTION__);
-		pDevice->fTxDataInSleep = true;
-		PSbSendNullPacket(pDevice);      //send null packet
-		pDevice->fTxDataInSleep = false;
-	}
-	spin_unlock_irq(&pDevice->lock);
-
-	pDevice->sTimerTxData.expires = RUN_AT(10 * HZ);      //10s callback
-	add_timer(&pDevice->sTimerTxData);
 }

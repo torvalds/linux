@@ -73,7 +73,6 @@
 #include "ni_labpc_isadma.h"
 
 #define LABPC_SIZE		0x20	/* size of ISA io region */
-#define LABPC_TIMER_BASE	500	/* 2 MHz master clock */
 #define LABPC_ADC_TIMEOUT	1000
 
 enum scan_mode {
@@ -201,12 +200,6 @@ static int labpc_counter_set_mode(struct comedi_device *dev,
 		return i8254_set_mode(base_address, 0, counter_number, mode);
 }
 
-static bool labpc_range_is_unipolar(struct comedi_subdevice *s,
-				    unsigned int range)
-{
-	return s->range_table->range[range].min >= 0;
-}
-
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct labpc_private *devpriv = dev->private;
@@ -272,7 +265,7 @@ static void labpc_setup_cmd6_reg(struct comedi_device *dev,
 		devpriv->cmd6 &= ~CMD6_NRSE;
 
 	/* bipolar or unipolar range? */
-	if (labpc_range_is_unipolar(s, range))
+	if (comedi_range_is_unipolar(s, range))
 		devpriv->cmd6 |= CMD6_ADCUNI;
 	else
 		devpriv->cmd6 &= ~CMD6_ADCUNI;
@@ -465,13 +458,13 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 		 * clock speed on convert and scan counters)
 		 */
 		devpriv->divisor_b0 = (scan_period - 1) /
-		    (LABPC_TIMER_BASE * max_counter_value) + 1;
+		    (I8254_OSC_BASE_2MHZ * max_counter_value) + 1;
 		if (devpriv->divisor_b0 < min_counter_value)
 			devpriv->divisor_b0 = min_counter_value;
 		if (devpriv->divisor_b0 > max_counter_value)
 			devpriv->divisor_b0 = max_counter_value;
 
-		base_period = LABPC_TIMER_BASE * devpriv->divisor_b0;
+		base_period = I8254_OSC_BASE_2MHZ * devpriv->divisor_b0;
 
 		/*  set a0 for conversion frequency and b1 for scan frequency */
 		switch (cmd->flags & TRIG_ROUND_MASK) {
@@ -516,22 +509,20 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 		 * calculate cascaded counter values
 		 * that give desired scan timing
 		 */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
-					       &(devpriv->divisor_b1),
-					       &(devpriv->divisor_b0),
-					       &scan_period,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
+					  &devpriv->divisor_b1,
+					  &devpriv->divisor_b0,
+					  &scan_period, cmd->flags);
 		labpc_set_ai_scan_period(cmd, mode, scan_period);
 	} else if (convert_period) {
 		/*
 		 * calculate cascaded counter values
 		 * that give desired conversion timing
 		 */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
-					       &(devpriv->divisor_a0),
-					       &(devpriv->divisor_b0),
-					       &convert_period,
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
+					  &devpriv->divisor_a0,
+					  &devpriv->divisor_b0,
+					  &convert_period, cmd->flags);
 		labpc_set_ai_convert_period(cmd, mode, convert_period);
 	}
 }
@@ -902,7 +893,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int labpc_drain_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	short data;
+	unsigned short data;
 	struct comedi_async *async = dev->read_subdev->async;
 	const int timeout = 10000;
 	unsigned int i;
@@ -1046,7 +1037,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 	/* set range */
 	if (board->is_labpc1200) {
 		range = CR_RANGE(insn->chanspec);
-		if (labpc_range_is_unipolar(s, range))
+		if (comedi_range_is_unipolar(s, range))
 			devpriv->cmd6 |= CMD6_DACUNI(channel);
 		else
 			devpriv->cmd6 &= ~CMD6_DACUNI(channel);

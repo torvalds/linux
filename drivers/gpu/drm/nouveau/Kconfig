@@ -3,6 +3,7 @@ config DRM_NOUVEAU
 	depends on DRM && PCI
         select FW_LOADER
 	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
 	select DRM_TTM
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA

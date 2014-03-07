@@ -14,6 +14,8 @@ struct drm_fbdev_cma;
 struct drm_framebuffer;
 struct platform_device;
 
+int imx_drm_crtc_id(struct imx_drm_crtc *crtc);
+
 struct imx_drm_crtc_helper_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);

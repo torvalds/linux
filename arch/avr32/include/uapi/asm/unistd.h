@@ -301,5 +301,4 @@
 #define __NR_eventfd		281
 #define __NR_setns		283
 
-
 #endif /* _UAPI__ASM_AVR32_UNISTD_H */

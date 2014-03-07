@@ -444,8 +444,8 @@ enum acpi_dmar_scope_type {
 };
 
 struct acpi_dmar_pci_path {
-	u8 dev;
-	u8 fn;
+	u8 device;
+	u8 function;
 };
 
 /*

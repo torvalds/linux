@@ -194,15 +194,14 @@ EXPORT_SYMBOL(airq_iv_release);
  */
 unsigned long airq_iv_alloc_bit(struct airq_iv *iv)
 {
-	const unsigned long be_to_le = BITS_PER_LONG - 1;
 	unsigned long bit;
 
 	if (!iv->avail)
 		return -1UL;
 	spin_lock(&iv->lock);
-	bit = find_first_bit_left(iv->avail, iv->bits);
+	bit = find_first_bit_inv(iv->avail, iv->bits);
 	if (bit < iv->bits) {
-		clear_bit(bit ^ be_to_le, iv->avail);
+		clear_bit_inv(bit, iv->avail);
 		if (bit >= iv->end)
 			iv->end = bit + 1;
 	} else
@@ -220,19 +219,17 @@ EXPORT_SYMBOL(airq_iv_alloc_bit);
  */
 void airq_iv_free_bit(struct airq_iv *iv, unsigned long bit)
 {
-	const unsigned long be_to_le = BITS_PER_LONG - 1;
-
 	if (!iv->avail)
 		return;
 	spin_lock(&iv->lock);
 	/* Clear (possibly left over) interrupt bit */
-	clear_bit(bit ^ be_to_le, iv->vector);
+	clear_bit_inv(bit, iv->vector);
 	/* Make the bit position available again */
-	set_bit(bit ^ be_to_le, iv->avail);
+	set_bit_inv(bit, iv->avail);
 	if (bit == iv->end - 1) {
 		/* Find new end of bit-field */
 		while (--iv->end > 0)
-			if (!test_bit((iv->end - 1) ^ be_to_le, iv->avail))
+			if (!test_bit_inv(iv->end - 1, iv->avail))
 				break;
 	}
 	spin_unlock(&iv->lock);
@@ -251,15 +248,13 @@ EXPORT_SYMBOL(airq_iv_free_bit);
 unsigned long airq_iv_scan(struct airq_iv *iv, unsigned long start,
 			   unsigned long end)
 {
-	const unsigned long be_to_le = BITS_PER_LONG - 1;
 	unsigned long bit;
 
 	/* Find non-zero bit starting from 'ivs->next'. */
-	bit = find_next_bit_left(iv->vector, end, start);
+	bit = find_next_bit_inv(iv->vector, end, start);
 	if (bit >= end)
 		return -1UL;
-	/* Clear interrupt bit (find left uses big-endian bit numbers) */
-	clear_bit(bit ^ be_to_le, iv->vector);
+	clear_bit_inv(bit, iv->vector);
 	return bit;
 }
 EXPORT_SYMBOL(airq_iv_scan);

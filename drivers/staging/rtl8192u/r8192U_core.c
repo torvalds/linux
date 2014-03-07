@@ -392,7 +392,7 @@ int read_nic_word(struct net_device *dev, int indx, u16 *data)
 	return 0;
 }
 
-int read_nic_word_E(struct net_device *dev, int indx, u16 *data)
+static int read_nic_word_E(struct net_device *dev, int indx, u16 *data)
 {
 	int status;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -585,7 +585,7 @@ static int proc_get_stats_rx(struct seq_file *m, void *v)
 	return 0;
 }
 
-void rtl8192_proc_module_init(void)
+static void rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
 	rtl8192_proc = proc_mkdir(RTL819xU_MODULE_NAME, init_net.proc_net);
@@ -631,7 +631,7 @@ static const struct rtl8192_proc_file rtl8192_proc_files[] = {
 	{ "" }
 };
 
-void rtl8192_proc_init_one(struct net_device *dev)
+static void rtl8192_proc_init_one(struct net_device *dev)
 {
 	const struct rtl8192_proc_file *f;
 	struct proc_dir_entry *dir;
@@ -656,7 +656,7 @@ void rtl8192_proc_init_one(struct net_device *dev)
 	}
 }
 
-void rtl8192_proc_remove_one(struct net_device *dev)
+static void rtl8192_proc_remove_one(struct net_device *dev)
 {
 	remove_proc_subtree(dev->name, rtl8192_proc);
 }
@@ -755,7 +755,7 @@ void rtl8192_set_chan(struct net_device *dev, short ch)
 
 static void rtl8192_rx_isr(struct urb *urb);
 
-u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
+static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 {
 
 #ifdef USB_RX_AGGREGATION_SUPPORT
@@ -998,8 +998,8 @@ static void rtl8192_rx_isr(struct urb *urb)
 		netdev_err(dev, "can not submit rxurb, err is %x, URB status is %x\n", err, urb->status);
 }
 
-u32 rtl819xusb_rx_command_packet(struct net_device *dev,
-				 struct ieee80211_rx_stats *pstats)
+static u32 rtl819xusb_rx_command_packet(struct net_device *dev,
+					struct ieee80211_rx_stats *pstats)
 {
 	u32	status;
 
@@ -1609,13 +1609,6 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 #else
 	idx_pipe = 0x04;
 #endif
-#ifdef JOHN_DUMP_TXDESC
-	int i;
-	printk("<Tx descriptor>--rate %x---", rate);
-	for (i = 0; i < 8; i++)
-		printk("%8x ", tx[i]);
-	printk("\n");
-#endif
 	usb_fill_bulk_urb(tx_urb, priv->udev, usb_sndbulkpipe(priv->udev, idx_pipe),
 			  skb->data, skb->len, rtl8192_tx_isr, skb);
 
@@ -1636,7 +1629,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
  *
  * \param QUEUEID       Software Queue
 */
-u8 MapHwQueueToFirmwareQueue(u8 QueueID)
+static u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 {
 	u8 QueueSelect = 0x0;       //defualt set to
 
@@ -1723,7 +1716,7 @@ u8 MRateToHwRate8190Pci(u8 rate)
 }
 
 
-u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
+static u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
 {
 	u8   tmp_Short;
 
@@ -1934,7 +1927,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	}
 }
 
-short rtl8192_usb_initendpoints(struct net_device *dev)
+static short rtl8192_usb_initendpoints(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -1992,7 +1985,7 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 
 }
 #ifdef THOMAS_BEACON
-void rtl8192_usb_deleteendpoints(struct net_device *dev)
+static void rtl8192_usb_deleteendpoints(struct net_device *dev)
 {
 	int i;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -2009,7 +2002,7 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 	priv->oldaddr = NULL;
 	if (priv->pp_rxskb) {
 		kfree(priv->pp_rxskb);
-		priv->pp_rxskb = 0;
+		priv->pp_rxskb = NULL;
 	}
 }
 #else
@@ -2292,7 +2285,7 @@ void rtl8192_update_ratr_table(struct net_device *dev)
 
 static u8 ccmp_ie[4] = {0x00, 0x50, 0xf2, 0x04};
 static u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
-bool GetNmodeSupportBySecCfg8192(struct net_device *dev)
+static bool GetNmodeSupportBySecCfg8192(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
@@ -3167,7 +3160,7 @@ static struct net_device_stats *rtl8192_stats(struct net_device *dev)
 	return &priv->ieee80211->stats;
 }
 
-bool HalTxCheckStuck819xUsb(struct net_device *dev)
+static bool HalTxCheckStuck819xUsb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16		RegTxCounter;
@@ -3217,7 +3210,7 @@ RESET_TYPE TxCheckStuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-bool HalRxCheckStuck819xUsb(struct net_device *dev)
+static bool HalRxCheckStuck819xUsb(struct net_device *dev)
 {
 	u16	RegRxCounter;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -3259,7 +3252,7 @@ bool HalRxCheckStuck819xUsb(struct net_device *dev)
 	return bStuck;
 }
 
-RESET_TYPE RxCheckStuck(struct net_device *dev)
+static RESET_TYPE RxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool        bRxCheck = FALSE;
@@ -3796,14 +3789,9 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		goto out;
 	}
 
-	ipw = kmalloc(p->length, GFP_KERNEL);
-	if (ipw == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(ipw, p->pointer, p->length)) {
-		kfree(ipw);
-		ret = -EFAULT;
+	ipw = memdup_user(p->pointer, p->length);
+	if (IS_ERR(ipw)) {
+		ret = PTR_ERR(ipw);
 		goto out;
 	}
 
@@ -3859,15 +3847,6 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				}
 			}
 		}
-#ifdef JOHN_HWSEC_DEBUG
-		//john's test 0711
-		printk("@@ wrq->u pointer = ");
-		for (i = 0; i < wrq->u.data.length; i++) {
-			if (i%10 == 0) printk("\n");
-			printk("%8x|", ((u32 *)wrq->u.data.pointer)[i]);
-		}
-		printk("\n");
-#endif /*JOHN_HWSEC_DEBUG*/
 		ret = ieee80211_wpa_supplicant_ioctl(priv->ieee80211, &wrq->u.data);
 		break;
 
@@ -3952,7 +3931,8 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
  * Return:
  *               None
  */
-void UpdateRxPktTimeStamp8190(struct net_device *dev, struct ieee80211_rx_stats *stats)
+static void UpdateRxPktTimeStamp8190(struct net_device *dev,
+				     struct ieee80211_rx_stats *stats)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
@@ -4209,7 +4189,7 @@ static u8 rtl819x_evm_dbtopercentage(char value)
 //	We want good-looking for signal strength/quality
 //	2007/7/19 01:09, by cosa.
 //
-long rtl819x_signal_scale_mapping(long currsig)
+static long rtl819x_signal_scale_mapping(long currsig)
 {
 	long retsig;
 
@@ -4478,9 +4458,9 @@ void rtl8192_record_rxdesc_forlateruse(struct ieee80211_rx_stats *psrc_stats,
 }
 
 
-void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
-				   struct ieee80211_rx_stats *pstats,
-				   rx_drvinfo_819x_usb  *pdrvinfo)
+static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
+					  struct ieee80211_rx_stats *pstats,
+					  rx_drvinfo_819x_usb  *pdrvinfo)
 {
 	// TODO: We must only check packet for current MAC address. Not finish
 	rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
@@ -4549,8 +4529,9 @@ void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 * Return:
 *		None
 */
-void UpdateReceivedRateHistogramStatistics8190(struct net_device *dev,
-					       struct ieee80211_rx_stats *stats)
+static void
+UpdateReceivedRateHistogramStatistics8190(struct net_device *dev,
+					  struct ieee80211_rx_stats *stats)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	u32 rcvType = 1;   //0: Total, 1:OK, 2:CRC, 3:ICV
@@ -4614,7 +4595,9 @@ void UpdateReceivedRateHistogramStatistics8190(struct net_device *dev,
 }
 
 
-void query_rxdesc_status(struct sk_buff *skb, struct ieee80211_rx_stats *stats, bool bIsRxAggrSubframe)
+static void query_rxdesc_status(struct sk_buff *skb,
+				struct ieee80211_rx_stats *stats,
+				bool bIsRxAggrSubframe)
 {
 	rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
 	struct net_device *dev = info->dev;
@@ -4930,7 +4913,8 @@ void rtl819xusb_process_received_packet(struct net_device *dev,
 
 }
 
-void query_rx_cmdpkt_desc_status(struct sk_buff *skb, struct ieee80211_rx_stats *stats)
+static void query_rx_cmdpkt_desc_status(struct sk_buff *skb,
+					struct ieee80211_rx_stats *stats)
 {
 	rx_desc_819x_usb *desc = (rx_desc_819x_usb *)skb->data;
 

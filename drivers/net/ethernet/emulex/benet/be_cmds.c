@@ -141,11 +141,17 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 		subsystem = resp_hdr->subsystem;
 	}
 
+	if (opcode == OPCODE_LOWLEVEL_LOOPBACK_TEST &&
+	    subsystem == CMD_SUBSYSTEM_LOWLEVEL) {
+		complete(&adapter->et_cmd_compl);
+		return 0;
+	}
+
 	if (((opcode == OPCODE_COMMON_WRITE_FLASHROM) ||
 	     (opcode == OPCODE_COMMON_WRITE_OBJECT)) &&
 	    (subsystem == CMD_SUBSYSTEM_COMMON)) {
 		adapter->flash_status = compl_status;
-		complete(&adapter->flash_compl);
+		complete(&adapter->et_cmd_compl);
 	}
 
 	if (compl_status == MCC_STATUS_SUCCESS) {
@@ -522,7 +528,7 @@ static u16 be_POST_stage_get(struct be_adapter *adapter)
 	return sem & POST_STAGE_MASK;
 }
 
-int lancer_wait_ready(struct be_adapter *adapter)
+static int lancer_wait_ready(struct be_adapter *adapter)
 {
 #define SLIPORT_READY_TIMEOUT 30
 	u32 sliport_status;
@@ -1032,6 +1038,13 @@ int be_cmd_cq_create(struct be_adapter *adapter, struct be_queue_info *cq,
 	} else {
 		req->hdr.version = 2;
 		req->page_size = 1; /* 1 for 4K */
+
+		/* coalesce-wm field in this cmd is not relevant to Lancer.
+		 * Lancer uses COMMON_MODIFY_CQ to set this field
+		 */
+		if (!lancer_chip(adapter))
+			AMAP_SET_BITS(struct amap_cq_context_v2, coalescwm,
+				      ctxt, coalesce_wm);
 		AMAP_SET_BITS(struct amap_cq_context_v2, nodelay, ctxt,
 								no_delay);
 		AMAP_SET_BITS(struct amap_cq_context_v2, count, ctxt,
@@ -1436,8 +1449,12 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 		OPCODE_ETH_GET_STATISTICS, nonemb_cmd->size, wrb, nonemb_cmd);
 
 	/* version 1 of the cmd is not supported only by BE2 */
-	if (!BE2_chip(adapter))
+	if (BE2_chip(adapter))
+		hdr->version = 0;
+	if (BE3_chip(adapter) || lancer_chip(adapter))
 		hdr->version = 1;
+	else
+		hdr->version = 2;
 
 	be_mcc_notify(adapter);
 	adapter->stats_cmd_sent = true;
@@ -1719,11 +1736,12 @@ err:
 /* set the EQ delay interval of an EQ to specified value
  * Uses async mcc
  */
-int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd)
+int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
+		      int num)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_modify_eq_delay *req;
-	int status = 0;
+	int status = 0, i;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -1737,13 +1755,15 @@ int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd)
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_MODIFY_EQ_DELAY, sizeof(*req), wrb, NULL);
 
-	req->num_eq = cpu_to_le32(1);
-	req->delay[0].eq_id = cpu_to_le32(eq_id);
-	req->delay[0].phase = 0;
-	req->delay[0].delay_multiplier = cpu_to_le32(eqd);
+	req->num_eq = cpu_to_le32(num);
+	for (i = 0; i < num; i++) {
+		req->set_eqd[i].eq_id = cpu_to_le32(set_eqd[i].eq_id);
+		req->set_eqd[i].phase = 0;
+		req->set_eqd[i].delay_multiplier =
+				cpu_to_le32(set_eqd[i].delay_multiplier);
+	}
 
 	be_mcc_notify(adapter);
-
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
@@ -1751,7 +1771,7 @@ err:
 
 /* Uses sycnhronous mcc */
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
-			u32 num, bool untagged, bool promiscuous)
+		       u32 num, bool promiscuous)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_vlan_config *req;
@@ -1771,7 +1791,7 @@ int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
 
 	req->interface_id = if_id;
 	req->promiscuous = promiscuous;
-	req->untagged = untagged;
+	req->untagged = BE_IF_FLAGS_UNTAGGED & be_if_cap_flags(adapter) ? 1 : 0;
 	req->num_vlan = num;
 	if (!promiscuous) {
 		memcpy(req->normal_vlan, vtag_array,
@@ -1840,7 +1860,19 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
 	}
 
+	if ((req->if_flags_mask & cpu_to_le32(be_if_cap_flags(adapter))) !=
+	     req->if_flags_mask) {
+		dev_warn(&adapter->pdev->dev,
+			 "Cannot set rx filter flags 0x%x\n",
+			 req->if_flags_mask);
+		dev_warn(&adapter->pdev->dev,
+			 "Interface is capable of 0x%x flags only\n",
+			 be_if_cap_flags(adapter));
+	}
+	req->if_flags_mask &= cpu_to_le32(be_if_cap_flags(adapter));
+
 	status = be_mcc_notify_wait(adapter);
+
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
@@ -1991,6 +2023,9 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 			0x3ea83c02, 0x4a110304};
 	int status;
 
+	if (!(be_if_cap_flags(adapter) & BE_IF_FLAGS_RSS))
+		return 0;
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 
@@ -2134,7 +2169,7 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	be_mcc_notify(adapter);
 	spin_unlock_bh(&adapter->mcc_lock);
 
-	if (!wait_for_completion_timeout(&adapter->flash_compl,
+	if (!wait_for_completion_timeout(&adapter->et_cmd_compl,
 					 msecs_to_jiffies(60000)))
 		status = -1;
 	else
@@ -2229,8 +2264,8 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	be_mcc_notify(adapter);
 	spin_unlock_bh(&adapter->mcc_lock);
 
-	if (!wait_for_completion_timeout(&adapter->flash_compl,
-			msecs_to_jiffies(40000)))
+	if (!wait_for_completion_timeout(&adapter->et_cmd_compl,
+					 msecs_to_jiffies(40000)))
 		status = -1;
 	else
 		status = adapter->flash_status;
@@ -2341,6 +2376,7 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_loopback_test *req;
+	struct be_cmd_resp_loopback_test *resp;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
@@ -2355,8 +2391,8 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
 			OPCODE_LOWLEVEL_LOOPBACK_TEST, sizeof(*req), wrb, NULL);
-	req->hdr.timeout = cpu_to_le32(4);
 
+	req->hdr.timeout = cpu_to_le32(15);
 	req->pattern = cpu_to_le64(pattern);
 	req->src_port = cpu_to_le32(port_num);
 	req->dest_port = cpu_to_le32(port_num);
@@ -2364,12 +2400,15 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 	req->num_pkts = cpu_to_le32(num_pkts);
 	req->loopback_type = cpu_to_le32(loopback_type);
 
-	status = be_mcc_notify_wait(adapter);
-	if (!status) {
-		struct be_cmd_resp_loopback_test *resp = embedded_payload(wrb);
-		status = le32_to_cpu(resp->status);
-	}
+	be_mcc_notify(adapter);
 
+	spin_unlock_bh(&adapter->mcc_lock);
+
+	wait_for_completion(&adapter->et_cmd_compl);
+	resp = embedded_payload(wrb);
+	status = le32_to_cpu(resp->status);
+
+	return status;
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
@@ -3520,7 +3559,7 @@ int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain)
 	struct be_cmd_enable_disable_vf *req;
 	int status;
 
-	if (!lancer_chip(adapter))
+	if (BEx_chip(adapter))
 		return 0;
 
 	spin_lock_bh(&adapter->mcc_lock);

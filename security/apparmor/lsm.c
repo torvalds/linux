@@ -145,7 +145,7 @@ static int apparmor_capable(const struct cred *cred, struct user_namespace *ns,
 	if (!error) {
 		profile = aa_cred_profile(cred);
 		if (!unconfined(profile))
-			error = aa_capable(current, profile, cap, audit);
+			error = aa_capable(profile, cap, audit);
 	}
 	return error;
 }

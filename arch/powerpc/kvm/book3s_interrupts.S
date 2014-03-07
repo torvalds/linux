@@ -26,8 +26,12 @@
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 #define FUNC(name) 		GLUE(.,name)
+#define GET_SHADOW_VCPU(reg)    addi	reg, r13, PACA_SVCPU
+
 #elif defined(CONFIG_PPC_BOOK3S_32)
 #define FUNC(name)		name
+#define GET_SHADOW_VCPU(reg)	lwz     reg, (THREAD + THREAD_KVM_SVCPU)(r2)
+
 #endif /* CONFIG_PPC_BOOK3S_XX */
 
 #define VCPU_LOAD_NVGPRS(vcpu) \
@@ -87,8 +91,14 @@ kvm_start_entry:
 	VCPU_LOAD_NVGPRS(r4)
 
 kvm_start_lightweight:
+	/* Copy registers into shadow vcpu so we can access them in real mode */
+	GET_SHADOW_VCPU(r3)
+	bl	FUNC(kvmppc_copy_to_svcpu)
+	nop
+	REST_GPR(4, r1)
 
 #ifdef CONFIG_PPC_BOOK3S_64
+	/* Get the dcbz32 flag */
 	PPC_LL	r3, VCPU_HFLAGS(r4)
 	rldicl	r3, r3, 0, 63		/* r3 &= 1 */
 	stb	r3, HSTATE_RESTORE_HID5(r13)
@@ -111,9 +121,6 @@ kvm_start_lightweight:
  *
  */
 
-.global kvmppc_handler_highmem
-kvmppc_handler_highmem:
-
 	/*
 	 * Register usage at this point:
 	 *
@@ -122,11 +129,24 @@ kvmppc_handler_highmem:
 	 * R12      = exit handler id
 	 * R13      = PACA
 	 * SVCPU.*  = guest *
+	 * MSR.EE   = 1
 	 *
 	 */
 
-	/* R7 = vcpu */
-	PPC_LL	r7, GPR4(r1)
+	PPC_LL	r3, GPR4(r1)		/* vcpu pointer */
+
+	/*
+	 * kvmppc_copy_from_svcpu can clobber volatile registers, save
+	 * the exit handler id to the vcpu and restore it from there later.
+	 */
+	stw	r12, VCPU_TRAP(r3)
+
+	/* Transfer reg values from shadow vcpu back to vcpu struct */
+	/* On 64-bit, interrupts are still off at this point */
+
+	GET_SHADOW_VCPU(r4)
+	bl	FUNC(kvmppc_copy_from_svcpu)
+	nop
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
@@ -136,6 +156,9 @@ kvmppc_handler_highmem:
 	ld	r3, PACA_SPRG3(r13)
 	mtspr	SPRN_SPRG3, r3
 #endif /* CONFIG_PPC_BOOK3S_64 */
+
+	/* R7 = vcpu */
+	PPC_LL	r7, GPR4(r1)
 
 	PPC_STL	r14, VCPU_GPR(R14)(r7)
 	PPC_STL	r15, VCPU_GPR(R15)(r7)
@@ -157,11 +180,11 @@ kvmppc_handler_highmem:
 	PPC_STL	r31, VCPU_GPR(R31)(r7)
 
 	/* Pass the exit number as 3rd argument to kvmppc_handle_exit */
-	mr	r5, r12
+	lwz	r5, VCPU_TRAP(r7)
 
 	/* Restore r3 (kvm_run) and r4 (vcpu) */
 	REST_2GPRS(3, r1)
-	bl	FUNC(kvmppc_handle_exit)
+	bl	FUNC(kvmppc_handle_exit_pr)
 
 	/* If RESUME_GUEST, get back in the loop */
 	cmpwi	r3, RESUME_GUEST

@@ -521,7 +521,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 	 */
 	type = obj_desc->common.type;
 
-      exit:
+exit:
 	/* Convert internal types to external types */
 
 	switch (type) {

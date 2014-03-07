@@ -14,11 +14,10 @@
 
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/irqchip/bcm2835.h>
+#include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/clk/bcm2835.h>
-#include <linux/clocksource.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -131,10 +130,8 @@ static const char * const bcm2835_compat[] = {
 
 DT_MACHINE_START(BCM2835, "BCM2835")
 	.map_io = bcm2835_map_io,
-	.init_irq = bcm2835_init_irq,
-	.handle_irq = bcm2835_handle_irq,
+	.init_irq = irqchip_init,
 	.init_machine = bcm2835_init,
-	.init_time = clocksource_of_init,
 	.restart = bcm2835_restart,
 	.dt_compat = bcm2835_compat
 MACHINE_END

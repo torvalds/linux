@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <asm/chpid.h>
+#include <asm/cpu.h>
 
 #define SCLP_CHP_INFO_MASK_SIZE		32
 
@@ -37,13 +38,12 @@ struct sclp_cpu_info {
 	unsigned int standby;
 	unsigned int combined;
 	int has_cpu_type;
-	struct sclp_cpu_entry cpu[255];
+	struct sclp_cpu_entry cpu[MAX_CPU_ADDRESS + 1];
 };
 
 int sclp_get_cpu_info(struct sclp_cpu_info *info);
 int sclp_cpu_configure(u8 cpu);
 int sclp_cpu_deconfigure(u8 cpu);
-void sclp_facilities_detect(void);
 unsigned long long sclp_get_rnmax(void);
 unsigned long long sclp_get_rzm(void);
 int sclp_sdias_blk_count(void);
@@ -57,5 +57,7 @@ bool sclp_has_vt220(void);
 int sclp_pci_configure(u32 fid);
 int sclp_pci_deconfigure(u32 fid);
 int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode);
+unsigned long sclp_get_hsa_size(void);
+void sclp_early_detect(void);
 
 #endif /* _ASM_S390_SCLP_H */

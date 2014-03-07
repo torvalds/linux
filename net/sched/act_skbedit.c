@@ -120,10 +120,11 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else {
 		d = to_skbedit(pc);
-		if (!ovr) {
-			tcf_hash_release(pc, bind, &skbedit_hash_info);
+		if (bind)
+			return 0;
+		tcf_hash_release(pc, bind, &skbedit_hash_info);
+		if (!ovr)
 			return -EEXIST;
-		}
 	}
 
 	spin_lock_bh(&d->tcf_lock);
@@ -203,7 +204,6 @@ static struct tc_action_ops act_skbedit_ops = {
 	.dump		=	tcf_skbedit_dump,
 	.cleanup	=	tcf_skbedit_cleanup,
 	.init		=	tcf_skbedit_init,
-	.walk		=	tcf_generic_walker,
 };
 
 MODULE_AUTHOR("Alexander Duyck, <alexander.h.duyck@intel.com>");

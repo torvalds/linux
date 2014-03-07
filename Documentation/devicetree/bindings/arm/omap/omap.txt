@@ -21,7 +21,8 @@ Required properties:
 Optional properties:
 - ti,no_idle_on_suspend: When present, it prevents the PM to idle the module
   during suspend.
-
+- ti,no-reset-on-init: When present, the module should not be reset at init
+- ti,no-idle-on-init: When present, the module should not be idled at init
 
 Example:
 

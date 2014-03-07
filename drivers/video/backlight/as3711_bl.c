@@ -240,7 +240,8 @@ static int as3711_bl_register(struct platform_device *pdev,
 	/* max tuning I = 31uA for voltage- and 38250uA for current-feedback */
 	props.max_brightness = max_brightness;
 
-	bl = backlight_device_register(su->type == AS3711_BL_SU1 ?
+	bl = devm_backlight_device_register(&pdev->dev,
+				       su->type == AS3711_BL_SU1 ?
 				       "as3711-su1" : "as3711-su2",
 				       &pdev->dev, su,
 				       &as3711_bl_ops, &props);
@@ -432,8 +433,7 @@ static int as3711_backlight_probe(struct platform_device *pdev)
 		case AS3711_SU2_LX_SD4:
 			break;
 		default:
-			ret = -EINVAL;
-			goto esu2;
+			return -EINVAL;
 		}
 
 		switch (pdata->su2_feedback) {
@@ -447,8 +447,7 @@ static int as3711_backlight_probe(struct platform_device *pdev)
 			max_brightness = min(pdata->su2_max_uA / 150, 255);
 			break;
 		default:
-			ret = -EINVAL;
-			goto esu2;
+			return -EINVAL;
 		}
 
 		ret = as3711_bl_init_su2(supply);
@@ -457,24 +456,10 @@ static int as3711_backlight_probe(struct platform_device *pdev)
 
 		ret = as3711_bl_register(pdev, max_brightness, su);
 		if (ret < 0)
-			goto esu2;
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, supply);
-
-	return 0;
-
-esu2:
-	backlight_device_unregister(supply->su1.bl);
-	return ret;
-}
-
-static int as3711_backlight_remove(struct platform_device *pdev)
-{
-	struct as3711_bl_supply *supply = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(supply->su1.bl);
-	backlight_device_unregister(supply->su2.bl);
 
 	return 0;
 }
@@ -485,7 +470,6 @@ static struct platform_driver as3711_backlight_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= as3711_backlight_probe,
-	.remove		= as3711_backlight_remove,
 };
 
 module_platform_driver(as3711_backlight_driver);

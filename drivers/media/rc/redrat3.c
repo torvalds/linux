@@ -118,7 +118,7 @@ static int debug;
 #define RR3_IR_IO_LENGTH_FUZZ	0x04
 /* Timeout for end of signal detection */
 #define RR3_IR_IO_SIG_TIMEOUT	0x05
-/* Minumum value for pause recognition. */
+/* Minimum value for pause recognition. */
 #define RR3_IR_IO_MIN_PAUSE	0x06
 
 /* Clock freq. of EZ-USB chip */

@@ -21,8 +21,6 @@ struct device_node;
 
 extern void fsl_rstcr_restart(char *cmd);
 
-#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-
 /* The different ports that the DIU can be connected to */
 enum fsl_diu_monitor_port {
 	FSL_DIU_PORT_DVI,	/* DVI */
@@ -43,7 +41,6 @@ struct platform_diu_data_ops {
 };
 
 extern struct platform_diu_data_ops diu_ops;
-#endif
 
 void fsl_hv_restart(char *cmd);
 void fsl_hv_halt(void);

@@ -227,6 +227,7 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+extern int os_is_signal_stack(void);
 
 /* util.c */
 extern void stack_protections(unsigned long address);

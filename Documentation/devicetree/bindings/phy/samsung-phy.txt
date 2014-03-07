@@ -1,0 +1,22 @@
+Samsung S5P/EXYNOS SoC series MIPI CSIS/DSIM DPHY
+-------------------------------------------------
+
+Required properties:
+- compatible : should be "samsung,s5pv210-mipi-video-phy";
+- reg : offset and length of the MIPI DPHY register set;
+- #phy-cells : from the generic phy bindings, must be 1;
+
+For "samsung,s5pv210-mipi-video-phy" compatible PHYs the second cell in
+the PHY specifier identifies the PHY and its meaning is as follows:
+  0 - MIPI CSIS 0,
+  1 - MIPI DSIM 0,
+  2 - MIPI CSIS 1,
+  3 - MIPI DSIM 1.
+
+Samsung EXYNOS SoC series Display Port PHY
+-------------------------------------------------
+
+Required properties:
+- compatible : should be "samsung,exynos5250-dp-video-phy";
+- reg : offset and length of the Display Port PHY register set;
+- #phy-cells : from the generic PHY bindings, must be 0;

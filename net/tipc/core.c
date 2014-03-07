@@ -113,7 +113,6 @@ err:
 static void tipc_core_stop(void)
 {
 	tipc_netlink_stop();
-	tipc_handler_stop();
 	tipc_cfg_stop();
 	tipc_subscr_stop();
 	tipc_nametbl_stop();
@@ -146,9 +145,10 @@ static int tipc_core_start(void)
 		res = tipc_subscr_start();
 	if (!res)
 		res = tipc_cfg_init();
-	if (res)
+	if (res) {
+		tipc_handler_stop();
 		tipc_core_stop();
-
+	}
 	return res;
 }
 
@@ -178,6 +178,7 @@ static int __init tipc_init(void)
 
 static void __exit tipc_exit(void)
 {
+	tipc_handler_stop();
 	tipc_core_stop_net();
 	tipc_core_stop();
 	pr_info("Deactivated\n");

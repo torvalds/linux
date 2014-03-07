@@ -4,17 +4,25 @@ Required properties:
 - compatible :
 	"ti,dm646x-mcasp-audio"	: for DM646x platforms
 	"ti,da830-mcasp-audio"	: for both DA830 & DA850 platforms
-	"ti,omap2-mcasp-audio"	: for OMAP2 platforms (TI81xx, AM33xx)
+	"ti,am33xx-mcasp-audio"	: for AM33xx platforms (AM33xx, TI81xx)
 
-- reg : Should contain McASP registers offset and length
-- interrupts : Interrupt number for McASP
-- op-mode : I2S/DIT ops mode.
-- tdm-slots : Slots for TDM operation.
-- num-serializer : Serializers used by McASP.
-- serial-dir : A list of serializer pin mode. The list number should be equal
-		to "num-serializer" parameter. Each entry is a number indication
-		serializer pin direction. (0 - INACTIVE, 1 - TX, 2 - RX)
-
+- reg : Should contain reg specifiers for the entries in the reg-names property.
+- reg-names : Should contain:
+         * "mpu" for the main registers (required). For compatibility with
+           existing software, it is recommended this is the first entry.
+         * "dat" for separate data port register access (optional).
+- op-mode : I2S/DIT ops mode. 0 for I2S mode. 1 for DIT mode used for S/PDIF,
+  	    IEC60958-1, and AES-3 formats.
+- tdm-slots : Slots for TDM operation. Indicates number of channels transmitted
+  	      or received over one serializer.
+- serial-dir : A list of serializer configuration. Each entry is a number
+               indication for serializer pin direction.
+               (0 - INACTIVE, 1 - TX, 2 - RX)
+- dmas: two element list of DMA controller phandles and DMA request line
+        ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+	     These strings correspond 1:1 with the ordered pairs in dmas. The dma
+	     identifiers must be "rx" and "tx".
 
 Optional properties:
 
@@ -23,18 +31,23 @@ Optional properties:
 - rx-num-evt : FIFO levels.
 - sram-size-playback : size of sram to be allocated during playback
 - sram-size-capture  : size of sram to be allocated during capture
+- interrupts : Interrupt numbers for McASP, currently not used by the driver
+- interrupt-names : Known interrupt names are "tx" and "rx"
+- pinctrl-0: Should specify pin control group used for this controller.
+- pinctrl-names: Should contain only one value - "default", for more details
+  		 please refer to pinctrl-bindings.txt
+  
 
 Example:
 
 mcasp0: mcasp0@1d00000 {
 	compatible = "ti,da830-mcasp-audio";
-	#address-cells = <1>;
-	#size-cells = <0>;
 	reg = <0x100000 0x3000>;
-	interrupts = <82 83>;
+	reg-names "mpu";
+	interrupts = <82>, <83>;
+	interrupts-names = "tx", "rx";
 	op-mode = <0>;		/* MCASP_IIS_MODE */
 	tdm-slots = <2>;
-	num-serializer = <16>;
 	serial-dir = <
 			0 0 0 0	/* 0: INACTIVE, 1: TX, 2: RX */
 			0 0 0 0

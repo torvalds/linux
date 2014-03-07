@@ -870,8 +870,8 @@ void dw_spi_remove_host(struct dw_spi *dws)
 	/* Remove the queue */
 	status = destroy_queue(dws);
 	if (status != 0)
-		dev_err(&dws->master->dev, "dw_spi_remove: workqueue will not "
-			"complete, message memory not freed\n");
+		dev_err(&dws->master->dev,
+			"dw_spi_remove: workqueue will not complete, message memory not freed\n");
 
 	if (dws->dma_ops && dws->dma_ops->dma_exit)
 		dws->dma_ops->dma_exit(dws);

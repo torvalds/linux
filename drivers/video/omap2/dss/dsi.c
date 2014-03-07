@@ -312,7 +312,7 @@ struct dsi_data {
 	struct dsi_isr_tables isr_tables_copy;
 
 	int update_channel;
-#ifdef DEBUG
+#ifdef DSI_PERF_MEASURE
 	unsigned update_bytes;
 #endif
 
@@ -334,7 +334,7 @@ struct dsi_data {
 
 	u32		errors;
 	spinlock_t	errors_lock;
-#ifdef DEBUG
+#ifdef DSI_PERF_MEASURE
 	ktime_t perf_setup_time;
 	ktime_t perf_start_time;
 #endif
@@ -373,7 +373,7 @@ struct dsi_packet_sent_handler_data {
 	struct completion *completion;
 };
 
-#ifdef DEBUG
+#ifdef DSI_PERF_MEASURE
 static bool dsi_perf;
 module_param(dsi_perf, bool, 0644);
 #endif
@@ -497,7 +497,7 @@ u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 	}
 }
 
-#ifdef DEBUG
+#ifdef DSI_PERF_MEASURE
 static void dsi_perf_mark_setup(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -4066,7 +4066,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		default:
 			r = -EINVAL;
 			goto err_pix_fmt;
-		};
+		}
 
 		dsi_if_enable(dsidev, false);
 		dsi_vc_enable(dsidev, channel, false);
@@ -4277,7 +4277,7 @@ static int dsi_update(struct omap_dss_device *dssdev, int channel,
 	dw = dsi->timings.x_res;
 	dh = dsi->timings.y_res;
 
-#ifdef DEBUG
+#ifdef DSI_PERF_MEASURE
 	dsi->update_bytes = dw * dh *
 		dsi_get_pixel_size(dsi->pix_fmt) / 8;
 #endif

@@ -471,7 +471,7 @@ static void qlt_schedule_sess_for_deletion(struct qla_tgt_sess *sess,
 		schedule_delayed_work(&tgt->sess_del_work, 0);
 	else
 		schedule_delayed_work(&tgt->sess_del_work,
-		    jiffies - sess->expires);
+		    sess->expires - jiffies);
 }
 
 /* ha->hardware_lock supposed to be held on entry */
@@ -550,13 +550,14 @@ static void qlt_del_sess_work_fn(struct delayed_work *work)
 	struct scsi_qla_host *vha = tgt->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt_sess *sess;
-	unsigned long flags;
+	unsigned long flags, elapsed;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	while (!list_empty(&tgt->del_sess_list)) {
 		sess = list_entry(tgt->del_sess_list.next, typeof(*sess),
 		    del_list_entry);
-		if (time_after_eq(jiffies, sess->expires)) {
+		elapsed = jiffies;
+		if (time_after_eq(elapsed, sess->expires)) {
 			qlt_undelete_sess(sess);
 
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf004,
@@ -566,7 +567,7 @@ static void qlt_del_sess_work_fn(struct delayed_work *work)
 			ha->tgt.tgt_ops->put_sess(sess);
 		} else {
 			schedule_delayed_work(&tgt->sess_del_work,
-			    jiffies - sess->expires);
+			    sess->expires - elapsed);
 			break;
 		}
 	}
@@ -4290,6 +4291,7 @@ int qlt_lport_register(struct qla_tgt_func_tmpl *qla_tgt_ops, u64 wwpn,
 		if (rc != 0) {
 			ha->tgt.tgt_ops = NULL;
 			ha->tgt.target_lport_ptr = NULL;
+			scsi_host_put(host);
 		}
 		mutex_unlock(&qla_tgt_mutex);
 		return rc;

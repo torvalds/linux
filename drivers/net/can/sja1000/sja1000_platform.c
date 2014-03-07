@@ -76,7 +76,7 @@ static int sp_probe(struct platform_device *pdev)
 	struct resource *res_mem, *res_irq;
 	struct sja1000_platform_data *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform data provided!\n");
 		err = -ENODEV;

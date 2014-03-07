@@ -110,6 +110,7 @@ struct wlcore_ops {
 			    struct ieee80211_sta_ht_cap *ht_cap,
 			    bool allow_ht_operation,
 			    u32 rate_set, u8 hlid);
+	u32 (*convert_hwaddr)(struct wl1271 *wl, u32 hwaddr);
 	bool (*lnk_high_prio)(struct wl1271 *wl, u8 hlid,
 			      struct wl1271_link *lnk);
 	bool (*lnk_low_prio)(struct wl1271 *wl, u8 hlid,
@@ -290,6 +291,12 @@ struct wl1271 {
 	/* Number of valid bytes in the FW log buffer */
 	ssize_t fwlog_size;
 
+	/* FW log end marker */
+	u32 fwlog_end;
+
+	/* FW memory block size */
+	u32 fw_mem_block_size;
+
 	/* Sysfs FW log entry readers wait queue */
 	wait_queue_head_t fwlog_waitq;
 
@@ -307,6 +314,8 @@ struct wl1271 {
 
 	/* The mbox event mask */
 	u32 event_mask;
+	/* events to unmask only when ap interface is up */
+	u32 ap_event_mask;
 
 	/* Mailbox pointers */
 	u32 mbox_size;
@@ -481,6 +490,8 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		   struct ieee80211_sta *sta,
 		   struct ieee80211_key_conf *key_conf);
 void wlcore_regdomain_config(struct wl1271 *wl);
+void wlcore_update_inconn_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      struct wl1271_station *wl_sta, bool in_conn);
 
 static inline void
 wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,

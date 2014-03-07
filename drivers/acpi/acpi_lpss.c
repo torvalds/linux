@@ -30,6 +30,7 @@ ACPI_MODULE_NAME("acpi_lpss");
 /* Offsets relative to LPSS_PRIVATE_OFFSET */
 #define LPSS_GENERAL			0x08
 #define LPSS_GENERAL_LTR_MODE_SW	BIT(2)
+#define LPSS_GENERAL_UART_RTS_OVRD	BIT(3)
 #define LPSS_SW_LTR			0x10
 #define LPSS_AUTO_LTR			0x14
 #define LPSS_TX_INT			0x20
@@ -68,11 +69,16 @@ struct lpss_private_data {
 
 static void lpss_uart_setup(struct lpss_private_data *pdata)
 {
-	unsigned int tx_int_offset = pdata->dev_desc->prv_offset + LPSS_TX_INT;
+	unsigned int offset;
 	u32 reg;
 
-	reg = readl(pdata->mmio_base + tx_int_offset);
-	writel(reg | LPSS_TX_INT_MASK, pdata->mmio_base + tx_int_offset);
+	offset = pdata->dev_desc->prv_offset + LPSS_TX_INT;
+	reg = readl(pdata->mmio_base + offset);
+	writel(reg | LPSS_TX_INT_MASK, pdata->mmio_base + offset);
+
+	offset = pdata->dev_desc->prv_offset + LPSS_GENERAL;
+	reg = readl(pdata->mmio_base + offset);
+	writel(reg | LPSS_GENERAL_UART_RTS_OVRD, pdata->mmio_base + offset);
 }
 
 static struct lpss_device_desc lpt_dev_desc = {
@@ -156,6 +162,15 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "80860F14", (unsigned long)&byt_sdio_dev_desc },
 	{ "80860F41", (unsigned long)&byt_i2c_dev_desc },
 	{ "INT33B2", },
+
+	{ "INT3430", (unsigned long)&lpt_dev_desc },
+	{ "INT3431", (unsigned long)&lpt_dev_desc },
+	{ "INT3432", (unsigned long)&lpt_dev_desc },
+	{ "INT3433", (unsigned long)&lpt_dev_desc },
+	{ "INT3434", (unsigned long)&lpt_uart_dev_desc },
+	{ "INT3435", (unsigned long)&lpt_uart_dev_desc },
+	{ "INT3436", (unsigned long)&lpt_sdio_dev_desc },
+	{ "INT3437", },
 
 	{ }
 };

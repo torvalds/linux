@@ -215,7 +215,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	rate_fb_ofdm = b43legacy_is_ofdm_rate(rate_fb->hw_value);
 
 	txhdr->mac_frame_ctl = wlhdr->frame_control;
-	memcpy(txhdr->tx_receiver, wlhdr->addr1, 6);
+	memcpy(txhdr->tx_receiver, wlhdr->addr1, ETH_ALEN);
 
 	/* Calculate duration for fallback rate */
 	if ((rate_fb->hw_value == rate) ||

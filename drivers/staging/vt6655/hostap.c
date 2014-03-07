@@ -143,7 +143,8 @@ static int hostap_disable_hostapd(PSDevice pDevice, int rtnl_locked)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Netdevice %s unregistered\n",
 			pDevice->dev->name, pDevice->apdev->name);
 	}
-	free_netdev(pDevice->apdev);
+	if (pDevice->apdev)
+		free_netdev(pDevice->apdev);
 	pDevice->apdev = NULL;
 	pDevice->bEnable8021x = false;
 	pDevice->bEnableHostWEP = false;
@@ -720,7 +721,6 @@ static int hostap_get_encryption(PSDevice pDevice,
  * Return Value:
  *
  */
-
 int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 {
 	struct viawget_hostapd_param *param;
@@ -731,7 +731,7 @@ int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 	    p->length > VIAWGET_HOSTAPD_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = kmalloc((int)p->length, (int)GFP_KERNEL);
+	param = kmalloc((int)p->length, GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 
@@ -755,8 +755,8 @@ int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 		break;
 	case VIAWGET_HOSTAPD_SET_ASSOC_AP_ADDR:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_ASSOC_AP_ADDR \n");
-		return -EOPNOTSUPP;
-		break;
+		ret = -EOPNOTSUPP;
+		goto out;
 	case VIAWGET_HOSTAPD_FLUSH:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_FLUSH \n");
 		spin_lock_irq(&pDevice->lock);
@@ -790,40 +790,36 @@ int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_FLAGS_STA \n");
 		ret = hostap_set_flags_sta(pDevice, param);
 		break;
-
 	case VIAWGET_HOSTAPD_MLME:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_MLME \n");
-		return -EOPNOTSUPP;
-
+		ret = -EOPNOTSUPP;
+		goto out;
 	case VIAWGET_HOSTAPD_SET_GENERIC_ELEMENT:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_GENERIC_ELEMENT \n");
 		ret = hostap_set_generic_element(pDevice, param);
 		break;
-
 	case VIAWGET_HOSTAPD_SCAN_REQ:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SCAN_REQ \n");
-		return -EOPNOTSUPP;
-
+		ret = -EOPNOTSUPP;
+		goto out;
 	case VIAWGET_HOSTAPD_STA_CLEAR_STATS:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_STA_CLEAR_STATS \n");
-		return -EOPNOTSUPP;
-
+		ret = -EOPNOTSUPP;
+		goto out;
 	default:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "vt6655_hostap_ioctl: unknown cmd=%d\n",
 			(int)param->cmd);
-		return -EOPNOTSUPP;
-		break;
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
 	if ((ret == 0) && ap_ioctl) {
 		if (copy_to_user(p->pointer, param, p->length)) {
 			ret = -EFAULT;
-			goto out;
 		}
 	}
 
 out:
 	kfree(param);
-
 	return ret;
 }

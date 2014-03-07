@@ -374,7 +374,6 @@ EXPORT_SYMBOL(ath9k_hw_releasetxqueue);
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_channel *chan = ah->curchan;
 	struct ath9k_tx_queue_info *qi;
 	u32 cwMin, chanCwMin, value;
 
@@ -387,10 +386,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	ath_dbg(common, QUEUE, "Reset TX queue: %u\n", q);
 
 	if (qi->tqi_cwmin == ATH9K_TXQ_USEDEFAULT) {
-		if (chan && IS_CHAN_B(chan))
-			chanCwMin = INIT_CWMIN_11B;
-		else
-			chanCwMin = INIT_CWMIN;
+		chanCwMin = INIT_CWMIN;
 
 		for (cwMin = 1; cwMin < chanCwMin; cwMin = (cwMin << 1) | 1);
 	} else

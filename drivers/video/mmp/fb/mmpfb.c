@@ -392,12 +392,29 @@ static int var_update(struct fb_info *info)
 	return 0;
 }
 
+static void mmpfb_set_win(struct fb_info *info)
+{
+	struct mmpfb_info *fbi = info->par;
+	struct fb_var_screeninfo *var = &info->var;
+	struct mmp_win win;
+	u32 stride;
+
+	memset(&win, 0, sizeof(win));
+	win.xsrc = win.xdst = fbi->mode.xres;
+	win.ysrc = win.ydst = fbi->mode.yres;
+	win.pix_fmt = fbi->pix_fmt;
+	stride = pixfmt_to_stride(win.pix_fmt);
+	win.pitch[0] = var->xres_virtual * stride;
+	win.pitch[1] = win.pitch[2] =
+		(stride == 1) ? (var->xres_virtual >> 1) : 0;
+	mmp_overlay_set_win(fbi->overlay, &win);
+}
+
 static int mmpfb_set_par(struct fb_info *info)
 {
 	struct mmpfb_info *fbi = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 	struct mmp_addr addr;
-	struct mmp_win win;
 	struct mmp_mode mode;
 	int ret;
 
@@ -409,11 +426,8 @@ static int mmpfb_set_par(struct fb_info *info)
 	fbmode_to_mmpmode(&mode, &fbi->mode, fbi->output_fmt);
 	mmp_path_set_mode(fbi->path, &mode);
 
-	memset(&win, 0, sizeof(win));
-	win.xsrc = win.xdst = fbi->mode.xres;
-	win.ysrc = win.ydst = fbi->mode.yres;
-	win.pix_fmt = fbi->pix_fmt;
-	mmp_overlay_set_win(fbi->overlay, &win);
+	/* set window related info */
+	mmpfb_set_win(info);
 
 	/* set address always */
 	memset(&addr, 0, sizeof(addr));
@@ -427,16 +441,12 @@ static int mmpfb_set_par(struct fb_info *info)
 static void mmpfb_power(struct mmpfb_info *fbi, int power)
 {
 	struct mmp_addr addr;
-	struct mmp_win win;
 	struct fb_var_screeninfo *var = &fbi->fb_info->var;
 
 	/* for power on, always set address/window again */
 	if (power) {
-		memset(&win, 0, sizeof(win));
-		win.xsrc = win.xdst = fbi->mode.xres;
-		win.ysrc = win.ydst = fbi->mode.yres;
-		win.pix_fmt = fbi->pix_fmt;
-		mmp_overlay_set_win(fbi->overlay, &win);
+		/* set window related info */
+		mmpfb_set_win(fbi->fb_info);
 
 		/* set address always */
 		memset(&addr, 0, sizeof(addr));

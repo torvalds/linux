@@ -46,10 +46,6 @@
 #define DRX_I2C_MODEFLAGS     0xC0
 #define DRX_I2C_FLAGS         0xF0
 
-#ifndef SIZEOF_ARRAY
-#define SIZEOF_ARRAY(array) (sizeof((array))/sizeof((array)[0]))
-#endif
-
 #define DEFAULT_LOCK_TIMEOUT    1100
 
 #define DRX_CHANNEL_AUTO 0
@@ -1018,7 +1014,7 @@ static int HI_CfgCommand(struct drxd_state *state)
 		status = Write16(state, HI_RA_RAM_SRV_CMD__A,
 				 HI_RA_RAM_SRV_CMD_CONFIG, 0);
 	else
-		status = HI_Command(state, HI_RA_RAM_SRV_CMD_CONFIG, 0);
+		status = HI_Command(state, HI_RA_RAM_SRV_CMD_CONFIG, NULL);
 	mutex_unlock(&state->mutex);
 	return status;
 }
@@ -1039,7 +1035,7 @@ static int HI_ResetCommand(struct drxd_state *state)
 	status = Write16(state, HI_RA_RAM_SRV_RST_KEY__A,
 			 HI_RA_RAM_SRV_RST_KEY_ACT, 0);
 	if (status == 0)
-		status = HI_Command(state, HI_RA_RAM_SRV_CMD_RESET, 0);
+		status = HI_Command(state, HI_RA_RAM_SRV_CMD_RESET, NULL);
 	mutex_unlock(&state->mutex);
 	msleep(1);
 	return status;
@@ -2837,7 +2833,7 @@ static int drxd_init(struct dvb_frontend *fe)
 	int err = 0;
 
 /*	if (request_firmware(&state->fw, "drxd.fw", state->dev)<0) */
-	return DRXD_init(state, 0, 0);
+	return DRXD_init(state, NULL, 0);
 
 	err = DRXD_init(state, state->fw->data, state->fw->size);
 	release_firmware(state->fw);
@@ -2973,7 +2969,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 
 	mutex_init(&state->mutex);
 
-	if (Read16(state, 0, 0, 0) < 0)
+	if (Read16(state, 0, NULL, 0) < 0)
 		goto error;
 
 	state->frontend.ops = drxd_ops;

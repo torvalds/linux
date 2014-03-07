@@ -99,22 +99,22 @@
 					spi-max-frequency = <50000000>;
 				};
 			};
+		};
 
-			pcie-controller {
+		pcie-controller {
+			status = "okay";
+			/*
+			 * The two PCIe units are accessible through
+			 * both standard PCIe slots and mini-PCIe
+			 * slots on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
 				status = "okay";
-				/*
-				 * The two PCIe units are accessible through
-				 * both standard PCIe slots and mini-PCIe
-				 * slots on the board.
-				 */
-				pcie@1,0 {
-					/* Port 0, Lane 0 */
-					status = "okay";
-				};
-				pcie@2,0 {
-					/* Port 1, Lane 0 */
-					status = "okay";
-				};
+			};
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
 			};
 		};
 	};

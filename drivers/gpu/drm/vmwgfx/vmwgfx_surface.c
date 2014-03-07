@@ -38,7 +38,7 @@
  * @size:           TTM accounting size for the surface.
  */
 struct vmw_user_surface {
-	struct ttm_base_object base;
+	struct ttm_prime_object prime;
 	struct vmw_surface srf;
 	uint32_t size;
 	uint32_t backup_handle;
@@ -580,7 +580,8 @@ static int vmw_surface_init(struct vmw_private *dev_priv,
 static struct vmw_resource *
 vmw_user_surface_base_to_res(struct ttm_base_object *base)
 {
-	return &(container_of(base, struct vmw_user_surface, base)->srf.res);
+	return &(container_of(base, struct vmw_user_surface,
+			      prime.base)->srf.res);
 }
 
 /**
@@ -599,7 +600,7 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	kfree(srf->offsets);
 	kfree(srf->sizes);
 	kfree(srf->snooper.image);
-	ttm_base_object_kfree(user_srf, base);
+	ttm_prime_object_kfree(user_srf, prime);
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 }
 
@@ -616,7 +617,7 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 {
 	struct ttm_base_object *base = *p_base;
 	struct vmw_user_surface *user_srf =
-	    container_of(base, struct vmw_user_surface, base);
+	    container_of(base, struct vmw_user_surface, prime.base);
 	struct vmw_resource *res = &user_srf->srf.res;
 
 	*p_base = NULL;
@@ -790,8 +791,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	}
 	srf->snooper.crtc = NULL;
 
-	user_srf->base.shareable = false;
-	user_srf->base.tfile = NULL;
+	user_srf->prime.base.shareable = false;
+	user_srf->prime.base.tfile = NULL;
 
 	/**
 	 * From this point, the generic resource management functions
@@ -803,9 +804,9 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	tmp = vmw_resource_reference(&srf->res);
-	ret = ttm_base_object_init(tfile, &user_srf->base,
-				   req->shareable, VMW_RES_SURFACE,
-				   &vmw_user_surface_base_release, NULL);
+	ret = ttm_prime_object_init(tfile, res->backup_size, &user_srf->prime,
+				    req->shareable, VMW_RES_SURFACE,
+				    &vmw_user_surface_base_release, NULL);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&tmp);
@@ -813,7 +814,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	rep->sid = user_srf->base.hash.key;
+	rep->sid = user_srf->prime.base.hash.key;
 	vmw_resource_unreference(&res);
 
 	ttm_read_unlock(&vmaster->lock);
@@ -823,7 +824,7 @@ out_no_copy:
 out_no_offsets:
 	kfree(srf->sizes);
 out_no_sizes:
-	ttm_base_object_kfree(user_srf, base);
+	ttm_prime_object_kfree(user_srf, prime);
 out_no_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
@@ -859,13 +860,14 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (unlikely(base->object_type != VMW_RES_SURFACE))
+	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE))
 		goto out_bad_resource;
 
-	user_srf = container_of(base, struct vmw_user_surface, base);
+	user_srf = container_of(base, struct vmw_user_surface, prime.base);
 	srf = &user_srf->srf;
 
-	ret = ttm_ref_object_add(tfile, &user_srf->base, TTM_REF_USAGE, NULL);
+	ret = ttm_ref_object_add(tfile, &user_srf->prime.base,
+				 TTM_REF_USAGE, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not add a reference to a surface.\n");
 		goto out_no_reference;

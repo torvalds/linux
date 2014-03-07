@@ -195,9 +195,9 @@ nouveau_i2c_find_type(struct nouveau_i2c *i2c, u16 type)
 
 static int
 nouveau_i2c_identify(struct nouveau_i2c *i2c, int index, const char *what,
-		     struct i2c_board_info *info,
+		     struct nouveau_i2c_board_info *info,
 		     bool (*match)(struct nouveau_i2c_port *,
-				   struct i2c_board_info *))
+				   struct i2c_board_info *, void *), void *data)
 {
 	struct nouveau_i2c_port *port = nouveau_i2c_find(i2c, index);
 	int i;
@@ -208,11 +208,28 @@ nouveau_i2c_identify(struct nouveau_i2c *i2c, int index, const char *what,
 	}
 
 	nv_debug(i2c, "probing %ss on bus: %d\n", what, port->index);
-	for (i = 0; info[i].addr; i++) {
-		if (nv_probe_i2c(port, info[i].addr) &&
-		    (!match || match(port, &info[i]))) {
-			nv_info(i2c, "detected %s: %s\n", what, info[i].type);
+	for (i = 0; info[i].dev.addr; i++) {
+		u8 orig_udelay = 0;
+
+		if ((port->adapter.algo == &i2c_bit_algo) &&
+		    (info[i].udelay != 0)) {
+			struct i2c_algo_bit_data *algo = port->adapter.algo_data;
+			nv_debug(i2c, "using custom udelay %d instead of %d\n",
+			         info[i].udelay, algo->udelay);
+			orig_udelay = algo->udelay;
+			algo->udelay = info[i].udelay;
+		}
+
+		if (nv_probe_i2c(port, info[i].dev.addr) &&
+		    (!match || match(port, &info[i].dev, data))) {
+			nv_info(i2c, "detected %s: %s\n", what,
+				info[i].dev.type);
 			return i;
+		}
+
+		if (orig_udelay) {
+			struct i2c_algo_bit_data *algo = port->adapter.algo_data;
+			algo->udelay = orig_udelay;
 		}
 	}
 

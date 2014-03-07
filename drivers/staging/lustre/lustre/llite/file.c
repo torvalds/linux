@@ -364,7 +364,7 @@ static int ll_intent_file_open(struct file *file, void *lmm,
 	   that case that lock is also ok */
 	/* We can also get here if there was cached open handle in revalidate_it
 	 * but it disappeared while we were getting from there to ll_file_open.
-	 * But this means this file was closed and immediatelly opened which
+	 * But this means this file was closed and immediately opened which
 	 * makes a good candidate for using OPEN lock */
 	/* If lmmsize & lmm are not 0, we are just setting stripe info
 	 * parameters. No need for the open lock */
@@ -2456,8 +2456,8 @@ static int ll_inode_revalidate_fini(struct inode *inode, int rc)
 	if (rc == -ENOENT) {
 		clear_nlink(inode);
 		/* This path cannot be hit for regular files unless in
-		 * case of obscure races, so no need to to validate
-		 * size. */
+		 * case of obscure races, so no need to validate size.
+		 */
 		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
 			return 0;
 	} else if (rc != 0) {
@@ -3011,7 +3011,7 @@ static int ll_layout_lock_set(struct lustre_handle *lockh, ldlm_mode_t mode,
 
 	/* set layout to file. Unlikely this will fail as old layout was
 	 * surely eliminated */
-	memset(&conf, 0, sizeof conf);
+	memset(&conf, 0, sizeof(conf));
 	conf.coc_opc = OBJECT_CONF_SET;
 	conf.coc_inode = inode;
 	conf.coc_lock = lock;
@@ -3034,7 +3034,7 @@ out:
 			ll_get_fsname(inode->i_sb, NULL, 0),
 			inode, PFID(&lli->lli_fid));
 
-		memset(&conf, 0, sizeof conf);
+		memset(&conf, 0, sizeof(conf));
 		conf.coc_opc = OBJECT_CONF_WAIT;
 		conf.coc_inode = inode;
 		rc = ll_layout_conf(inode, &conf);

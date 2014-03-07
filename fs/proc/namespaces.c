@@ -42,12 +42,6 @@ static const struct inode_operations ns_inode_operations = {
 	.setattr	= proc_setattr,
 };
 
-static int ns_delete_dentry(const struct dentry *dentry)
-{
-	/* Don't cache namespace inodes when not in use */
-	return 1;
-}
-
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	struct inode *inode = dentry->d_inode;
@@ -59,7 +53,7 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 
 const struct dentry_operations ns_dentry_operations =
 {
-	.d_delete	= ns_delete_dentry,
+	.d_delete	= always_delete_dentry,
 	.d_dname	= ns_dname,
 };
 

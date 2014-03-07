@@ -60,8 +60,8 @@ struct keypad_data {
 	struct clk			*clk;
 	struct device			*dev;
 	spinlock_t			lock;
-	u32				irq_press;
-	u32				irq_release;
+	int				irq_press;
+	int				irq_release;
 	int				rows, cols, row_shift;
 	int				debounce_ms, active_low;
 	u32				prev_keys[3];

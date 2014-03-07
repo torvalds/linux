@@ -30,6 +30,9 @@
 #include "stb6100_proc.h"
 #include "m88rs2000.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 #ifndef USB_PID_DW2102
 #define USB_PID_DW2102 0x2102
 #endif
@@ -308,7 +311,14 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 	case 2: {
 		/* read */
 		/* first write first register number */
-		u8 ibuf[msg[1].len + 2], obuf[3];
+		u8 ibuf[MAX_XFER_SIZE], obuf[3];
+
+		if (2 + msg[1].len > sizeof(ibuf)) {
+			warn("i2c rd: len=%d is too big!\n",
+			     msg[1].len);
+			return -EOPNOTSUPP;
+		}
+
 		obuf[0] = msg[0].addr << 1;
 		obuf[1] = msg[0].len;
 		obuf[2] = msg[0].buf[0];
@@ -325,7 +335,14 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 		switch (msg[0].addr) {
 		case 0x68: {
 			/* write to register */
-			u8 obuf[msg[0].len + 2];
+			u8 obuf[MAX_XFER_SIZE];
+
+			if (2 + msg[0].len > sizeof(obuf)) {
+				warn("i2c wr: len=%d is too big!\n",
+				     msg[1].len);
+				return -EOPNOTSUPP;
+			}
+
 			obuf[0] = msg[0].addr << 1;
 			obuf[1] = msg[0].len;
 			memcpy(obuf + 2, msg[0].buf, msg[0].len);
@@ -335,7 +352,14 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 		}
 		case 0x61: {
 			/* write to tuner */
-			u8 obuf[msg[0].len + 2];
+			u8 obuf[MAX_XFER_SIZE];
+
+			if (2 + msg[0].len > sizeof(obuf)) {
+				warn("i2c wr: len=%d is too big!\n",
+				     msg[1].len);
+				return -EOPNOTSUPP;
+			}
+
 			obuf[0] = msg[0].addr << 1;
 			obuf[1] = msg[0].len;
 			memcpy(obuf + 2, msg[0].buf, msg[0].len);
@@ -401,7 +425,14 @@ static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], i
 		default: {
 			if (msg[j].flags == I2C_M_RD) {
 				/* read registers */
-				u8  ibuf[msg[j].len + 2];
+				u8  ibuf[MAX_XFER_SIZE];
+
+				if (2 + msg[j].len > sizeof(ibuf)) {
+					warn("i2c rd: len=%d is too big!\n",
+					     msg[j].len);
+					return -EOPNOTSUPP;
+				}
+
 				dw210x_op_rw(d->udev, 0xc3,
 						(msg[j].addr << 1) + 1, 0,
 						ibuf, msg[j].len + 2,
@@ -430,7 +461,14 @@ static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], i
 				} while (len > 0);
 			} else {
 				/* write registers */
-				u8 obuf[msg[j].len + 2];
+				u8 obuf[MAX_XFER_SIZE];
+
+				if (2 + msg[j].len > sizeof(obuf)) {
+					warn("i2c wr: len=%d is too big!\n",
+					     msg[j].len);
+					return -EOPNOTSUPP;
+				}
+
 				obuf[0] = msg[j].addr << 1;
 				obuf[1] = msg[j].len;
 				memcpy(obuf + 2, msg[j].buf, msg[j].len);
@@ -463,7 +501,13 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	case 2: {
 		/* read */
 		/* first write first register number */
-		u8 ibuf[msg[1].len + 2], obuf[3];
+		u8 ibuf[MAX_XFER_SIZE], obuf[3];
+
+		if (2 + msg[1].len > sizeof(ibuf)) {
+			warn("i2c rd: len=%d is too big!\n",
+			     msg[1].len);
+			return -EOPNOTSUPP;
+		}
 		obuf[0] = msg[0].addr << 1;
 		obuf[1] = msg[0].len;
 		obuf[2] = msg[0].buf[0];
@@ -481,7 +525,13 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		case 0x60:
 		case 0x0c: {
 			/* write to register */
-			u8 obuf[msg[0].len + 2];
+			u8 obuf[MAX_XFER_SIZE];
+
+			if (2 + msg[0].len > sizeof(obuf)) {
+				warn("i2c wr: len=%d is too big!\n",
+				     msg[0].len);
+				return -EOPNOTSUPP;
+			}
 			obuf[0] = msg[0].addr << 1;
 			obuf[1] = msg[0].len;
 			memcpy(obuf + 2, msg[0].buf, msg[0].len);
@@ -563,7 +613,14 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		default: {
 			if (msg[j].flags == I2C_M_RD) {
 				/* read registers */
-				u8 ibuf[msg[j].len];
+				u8 ibuf[MAX_XFER_SIZE];
+
+				if (msg[j].len > sizeof(ibuf)) {
+					warn("i2c rd: len=%d is too big!\n",
+					     msg[j].len);
+					return -EOPNOTSUPP;
+				}
+
 				dw210x_op_rw(d->udev, 0x91, 0, 0,
 						ibuf, msg[j].len,
 						DW210X_READ_MSG);
@@ -590,7 +647,14 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				} while (len > 0);
 			} else if (j < (num - 1)) {
 				/* write register addr before read */
-				u8 obuf[msg[j].len + 2];
+				u8 obuf[MAX_XFER_SIZE];
+
+				if (2 + msg[j].len > sizeof(obuf)) {
+					warn("i2c wr: len=%d is too big!\n",
+					     msg[j].len);
+					return -EOPNOTSUPP;
+				}
+
 				obuf[0] = msg[j + 1].len;
 				obuf[1] = (msg[j].addr << 1);
 				memcpy(obuf + 2, msg[j].buf, msg[j].len);
@@ -602,7 +666,13 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				break;
 			} else {
 				/* write registers */
-				u8 obuf[msg[j].len + 2];
+				u8 obuf[MAX_XFER_SIZE];
+
+				if (2 + msg[j].len > sizeof(obuf)) {
+					warn("i2c wr: len=%d is too big!\n",
+					     msg[j].len);
+					return -EOPNOTSUPP;
+				}
 				obuf[0] = msg[j].len + 1;
 				obuf[1] = (msg[j].addr << 1);
 				memcpy(obuf + 2, msg[j].buf, msg[j].len);
@@ -955,15 +1025,22 @@ static struct ds3000_config dw2104_ds3000_config = {
 	.demod_address = 0x68,
 };
 
-static struct ts2020_config dw2104_ts2020_config  = {
+static struct ts2020_config dw2104_ts2020_config = {
 	.tuner_address = 0x60,
 	.clk_out_div = 1,
+	.frequency_div = 1060000,
 };
 
 static struct ds3000_config s660_ds3000_config = {
 	.demod_address = 0x68,
 	.ci_mode = 1,
 	.set_lock_led = dw210x_led_ctrl,
+};
+
+static struct ts2020_config s660_ts2020_config = {
+	.tuner_address = 0x60,
+	.clk_out_div = 1,
+	.frequency_div = 1146000,
 };
 
 static struct stv0900_config dw2104a_stv0900_config = {
@@ -1205,7 +1282,7 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 	if (d->fe_adap[0].fe == NULL)
 		return -EIO;
 
-	dvb_attach(ts2020_attach, d->fe_adap[0].fe, &dw2104_ts2020_config,
+	dvb_attach(ts2020_attach, d->fe_adap[0].fe, &s660_ts2020_config,
 		&d->dev->i2c_adap);
 
 	st->old_set_voltage = d->fe_adap[0].fe->ops.set_voltage;
@@ -1213,7 +1290,7 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 
 	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
 
-	info("Attached ds3000+ds2020!\n");
+	info("Attached ds3000+ts2020!\n");
 
 	return 0;
 }

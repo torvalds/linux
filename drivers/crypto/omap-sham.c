@@ -1818,7 +1818,7 @@ static int omap_sham_get_res_of(struct omap_sham_dev *dd,
 		goto err;
 	}
 
-	dd->irq = of_irq_to_resource(node, 0, NULL);
+	dd->irq = irq_of_parse_and_map(node, 0);
 	if (!dd->irq) {
 		dev_err(dev, "can't translate OF irq value\n");
 		err = -EINVAL;
@@ -2033,3 +2033,4 @@ module_platform_driver(omap_sham_driver);
 MODULE_DESCRIPTION("OMAP SHA1/MD5 hw acceleration support.");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Dmitry Kasatkin");
+MODULE_ALIAS("platform:omap-sham");

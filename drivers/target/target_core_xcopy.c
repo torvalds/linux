@@ -405,9 +405,6 @@ static void xcopy_pt_release_cmd(struct se_cmd *se_cmd)
 	struct xcopy_pt_cmd *xpt_cmd = container_of(se_cmd,
 				struct xcopy_pt_cmd, se_cmd);
 
-	if (xpt_cmd->remote_port)
-		kfree(se_cmd->se_lun);
-
 	kfree(xpt_cmd);
 }
 
@@ -572,22 +569,10 @@ static int target_xcopy_init_pt_lun(
 		return 0;
 	}
 
-	pt_cmd->se_lun = kzalloc(sizeof(struct se_lun), GFP_KERNEL);
-	if (!pt_cmd->se_lun) {
-		pr_err("Unable to allocate pt_cmd->se_lun\n");
-		return -ENOMEM;
-	}
-	init_completion(&pt_cmd->se_lun->lun_shutdown_comp);
-	INIT_LIST_HEAD(&pt_cmd->se_lun->lun_cmd_list);
-	INIT_LIST_HEAD(&pt_cmd->se_lun->lun_acl_list);
-	spin_lock_init(&pt_cmd->se_lun->lun_acl_lock);
-	spin_lock_init(&pt_cmd->se_lun->lun_cmd_lock);
-	spin_lock_init(&pt_cmd->se_lun->lun_sep_lock);
-
+	pt_cmd->se_lun = &se_dev->xcopy_lun;
 	pt_cmd->se_dev = se_dev;
 
 	pr_debug("Setup emulated se_dev: %p from se_dev\n", pt_cmd->se_dev);
-	pt_cmd->se_lun->lun_se_dev = se_dev;
 	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD | SCF_CMD_XCOPY_PASSTHROUGH;
 
 	pr_debug("Setup emulated se_dev: %p to pt_cmd->se_lun->lun_se_dev\n",
@@ -658,8 +643,6 @@ static int target_xcopy_setup_pt_cmd(
 	return 0;
 
 out:
-	if (remote_port == true)
-		kfree(cmd->se_lun);
 	return ret;
 }
 

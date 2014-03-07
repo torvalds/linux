@@ -10,6 +10,7 @@
 #define BLK_BATCH_REQ	32
 
 extern struct kmem_cache *blk_requestq_cachep;
+extern struct kmem_cache *request_cachep;
 extern struct kobj_type blk_queue_ktype;
 extern struct ida blk_queue_ida;
 
@@ -34,14 +35,30 @@ bool __blk_end_bidi_request(struct request *rq, int error,
 			    unsigned int nr_bytes, unsigned int bidi_bytes);
 
 void blk_rq_timed_out_timer(unsigned long data);
+void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
+			  unsigned int *next_set);
+void __blk_add_timer(struct request *req, struct list_head *timeout_list);
 void blk_delete_timer(struct request *);
 void blk_add_timer(struct request *);
+
+
+bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
+			     struct bio *bio);
+bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
+			    struct bio *bio);
+bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
+			    unsigned int *request_count);
+
+void blk_account_io_start(struct request *req, bool new_io);
+void blk_account_io_completion(struct request *req, unsigned int bytes);
+void blk_account_io_done(struct request *req);
 
 /*
  * Internal atomic flags for request handling
  */
 enum rq_atomic_flags {
 	REQ_ATOM_COMPLETE = 0,
+	REQ_ATOM_STARTED,
 };
 
 /*

@@ -86,6 +86,10 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 				 struct btrfs_root *root);
 void btrfs_free_fs_root(struct btrfs_root *root);
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+struct btrfs_root *btrfs_alloc_dummy_root(void);
+#endif
+
 /*
  * This function is used to grab the root, and avoid it is freed when we
  * access it. But it doesn't ensure that the tree is not dropped.

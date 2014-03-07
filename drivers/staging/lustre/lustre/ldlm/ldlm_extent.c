@@ -144,7 +144,7 @@ struct ldlm_interval *ldlm_interval_detach(struct ldlm_lock *l)
 	l->l_tree_node = NULL;
 	list_del_init(&l->l_sl_policy);
 
-	return (list_empty(&n->li_group) ? n : NULL);
+	return list_empty(&n->li_group) ? n : NULL;
 }
 
 static inline int lock_mode_to_index(ldlm_mode_t mode)

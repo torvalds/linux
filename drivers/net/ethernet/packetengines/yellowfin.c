@@ -513,7 +513,6 @@ err_out_unmap_rx:
 err_out_unmap_tx:
         pci_free_consistent(pdev, TX_TOTAL_SIZE, np->tx_ring, np->tx_ring_dma);
 err_out_cleardev:
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
 	pci_release_regions(pdev);
@@ -1392,7 +1391,6 @@ static void yellowfin_remove_one(struct pci_dev *pdev)
 	pci_release_regions (pdev);
 
 	free_netdev (dev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 

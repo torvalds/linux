@@ -52,25 +52,17 @@ static const unsigned int LDO1_VSEL_table[] = {
 };
 
 static const struct regulator_linear_range tps65217_uv1_ranges[] = {
-	{ .min_uV = 900000, .max_uV = 1500000, .min_sel =  0, .max_sel = 24,
-	  .uV_step = 25000 },
-	{ .min_uV = 1550000, .max_uV = 1800000, .min_sel = 25, .max_sel = 30,
-	  .uV_step = 50000 },
-	{ .min_uV = 1850000, .max_uV = 2900000, .min_sel = 31, .max_sel = 52,
-	  .uV_step = 50000 },
-	{ .min_uV = 3000000, .max_uV = 3200000, .min_sel = 53, .max_sel = 55,
-	  .uV_step = 100000 },
-	{ .min_uV = 3300000, .max_uV = 3300000, .min_sel = 56, .max_sel = 62,
-	  .uV_step = 0 },
+	REGULATOR_LINEAR_RANGE(900000, 0, 24, 25000),
+	REGULATOR_LINEAR_RANGE(1550000, 25, 30, 50000),
+	REGULATOR_LINEAR_RANGE(1850000, 31, 52, 50000),
+	REGULATOR_LINEAR_RANGE(3000000, 53, 55, 100000),
+	REGULATOR_LINEAR_RANGE(3300000, 56, 62, 0),
 };
 
 static const struct regulator_linear_range tps65217_uv2_ranges[] = {
-	{ .min_uV = 1500000, .max_uV = 1900000, .min_sel =  0, .max_sel = 8,
-	  .uV_step = 50000 },
-	{ .min_uV = 2000000, .max_uV = 2400000, .min_sel = 9, .max_sel = 13,
-	  .uV_step = 100000 },
-	{ .min_uV = 2450000, .max_uV = 3300000, .min_sel = 14, .max_sel = 31,
-	  .uV_step = 50000 },
+	REGULATOR_LINEAR_RANGE(1500000, 0, 8, 50000),
+	REGULATOR_LINEAR_RANGE(2000000, 9, 13, 100000),
+	REGULATOR_LINEAR_RANGE(2450000, 14, 31, 50000),
 };
 
 static int tps65217_pmic_enable(struct regulator_dev *dev)
@@ -233,7 +225,7 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
-	int i, ret;
+	int i;
 
 	if (tps->dev->of_node)
 		pdata = tps65217_parse_dt(pdev);
@@ -269,34 +261,17 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 		if (tps->dev->of_node)
 			config.of_node = pdata->of_node[i];
 
-		rdev = regulator_register(&regulators[i], &config);
+		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps->dev, "failed to register %s regulator\n",
 				pdev->name);
-			ret = PTR_ERR(rdev);
-			goto err_unregister_regulator;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
 		tps->rdev[i] = rdev;
 	}
-	return 0;
-
-err_unregister_regulator:
-	while (--i >= 0)
-		regulator_unregister(tps->rdev[i]);
-
-	return ret;
-}
-
-static int tps65217_regulator_remove(struct platform_device *pdev)
-{
-	struct tps65217 *tps = platform_get_drvdata(pdev);
-	unsigned int i;
-
-	for (i = 0; i < TPS65217_NUM_REGULATOR; i++)
-		regulator_unregister(tps->rdev[i]);
-
 	return 0;
 }
 
@@ -305,7 +280,6 @@ static struct platform_driver tps65217_regulator_driver = {
 		.name = "tps65217-pmic",
 	},
 	.probe = tps65217_regulator_probe,
-	.remove = tps65217_regulator_remove,
 };
 
 static int __init tps65217_regulator_init(void)

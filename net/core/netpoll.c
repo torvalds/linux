@@ -375,7 +375,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 	if (skb_queue_len(&npinfo->txq) == 0 && !netpoll_owner_active(dev)) {
 		struct netdev_queue *txq;
 
-		txq = netdev_pick_tx(dev, skb);
+		txq = netdev_pick_tx(dev, skb, NULL);
 
 		/* try until next clock tick */
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
@@ -386,8 +386,14 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 					    !vlan_hw_offload_capable(netif_skb_features(skb),
 								     skb->vlan_proto)) {
 						skb = __vlan_put_tag(skb, skb->vlan_proto, vlan_tx_tag_get(skb));
-						if (unlikely(!skb))
-							break;
+						if (unlikely(!skb)) {
+							/* This is actually a packet drop, but we
+							 * don't want the code at the end of this
+							 * function to try and re-queue a NULL skb.
+							 */
+							status = NETDEV_TX_OK;
+							goto unlock_txq;
+						}
 						skb->vlan_tci = 0;
 					}
 
@@ -395,6 +401,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 					if (status == NETDEV_TX_OK)
 						txq_trans_update(txq);
 				}
+			unlock_txq:
 				__netif_tx_unlock(txq);
 
 				if (status == NETDEV_TX_OK)
@@ -636,8 +643,9 @@ static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo
 
 			netpoll_send_skb(np, send_skb);
 
-			/* If there are several rx_hooks for the same address,
-			   we're fine by sending a single reply */
+			/* If there are several rx_skb_hooks for the same
+			 * address we're fine by sending a single reply
+			 */
 			break;
 		}
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
@@ -719,8 +727,9 @@ static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo
 
 			netpoll_send_skb(np, send_skb);
 
-			/* If there are several rx_hooks for the same address,
-			   we're fine by sending a single reply */
+			/* If there are several rx_skb_hooks for the same
+			 * address, we're fine by sending a single reply
+			 */
 			break;
 		}
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
@@ -756,11 +765,12 @@ static bool pkt_is_ns(struct sk_buff *skb)
 
 int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 {
-	int proto, len, ulen;
-	int hits = 0;
+	int proto, len, ulen, data_len;
+	int hits = 0, offset;
 	const struct iphdr *iph;
 	struct udphdr *uh;
 	struct netpoll *np, *tmp;
+	uint16_t source;
 
 	if (list_empty(&npinfo->rx_np))
 		goto out;
@@ -820,7 +830,10 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 
 		len -= iph->ihl*4;
 		uh = (struct udphdr *)(((char *)iph) + iph->ihl*4);
+		offset = (unsigned char *)(uh + 1) - skb->data;
 		ulen = ntohs(uh->len);
+		data_len = skb->len - offset;
+		source = ntohs(uh->source);
 
 		if (ulen != len)
 			goto out;
@@ -834,9 +847,7 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 			if (np->local_port && np->local_port != ntohs(uh->dest))
 				continue;
 
-			np->rx_hook(np, ntohs(uh->source),
-				       (char *)(uh+1),
-				       ulen - sizeof(struct udphdr));
+			np->rx_skb_hook(np, source, skb, offset, data_len);
 			hits++;
 		}
 	} else {
@@ -859,7 +870,10 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 		if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 			goto out;
 		uh = udp_hdr(skb);
+		offset = (unsigned char *)(uh + 1) - skb->data;
 		ulen = ntohs(uh->len);
+		data_len = skb->len - offset;
+		source = ntohs(uh->source);
 		if (ulen != skb->len)
 			goto out;
 		if (udp6_csum_init(skb, uh, IPPROTO_UDP))
@@ -872,9 +886,7 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 			if (np->local_port && np->local_port != ntohs(uh->dest))
 				continue;
 
-			np->rx_hook(np, ntohs(uh->source),
-				       (char *)(uh+1),
-				       ulen - sizeof(struct udphdr));
+			np->rx_skb_hook(np, source, skb, offset, data_len);
 			hits++;
 		}
 #endif
@@ -1062,7 +1074,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 
 	npinfo->netpoll = np;
 
-	if (np->rx_hook) {
+	if (np->rx_skb_hook) {
 		spin_lock_irqsave(&npinfo->rx_lock, flags);
 		npinfo->rx_flags |= NETPOLL_RX_ENABLED;
 		list_add_tail(&np->rx, &npinfo->rx_np);

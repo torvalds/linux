@@ -90,21 +90,21 @@ extern int tipc_random __read_mostly;
 /*
  * Routines available to privileged subsystems
  */
-extern int tipc_core_start_net(unsigned long);
-extern int  tipc_handler_start(void);
-extern void tipc_handler_stop(void);
-extern int  tipc_netlink_start(void);
-extern void tipc_netlink_stop(void);
-extern int  tipc_socket_init(void);
-extern void tipc_socket_stop(void);
-extern int tipc_sock_create_local(int type, struct socket **res);
-extern void tipc_sock_release_local(struct socket *sock);
-extern int tipc_sock_accept_local(struct socket *sock,
-				  struct socket **newsock, int flags);
+int tipc_core_start_net(unsigned long);
+int tipc_handler_start(void);
+void tipc_handler_stop(void);
+int tipc_netlink_start(void);
+void tipc_netlink_stop(void);
+int tipc_socket_init(void);
+void tipc_socket_stop(void);
+int tipc_sock_create_local(int type, struct socket **res);
+void tipc_sock_release_local(struct socket *sock);
+int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
+			   int flags);
 
 #ifdef CONFIG_SYSCTL
-extern int tipc_register_sysctl(void);
-extern void tipc_unregister_sysctl(void);
+int tipc_register_sysctl(void);
+void tipc_unregister_sysctl(void);
 #else
 #define tipc_register_sysctl() 0
 #define tipc_unregister_sysctl()
@@ -201,6 +201,6 @@ static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
 	return (struct tipc_msg *)skb->data;
 }
 
-extern struct sk_buff *tipc_buf_acquire(u32 size);
+struct sk_buff *tipc_buf_acquire(u32 size);
 
 #endif

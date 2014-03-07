@@ -41,6 +41,8 @@
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs_uart_pd.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
@@ -1207,7 +1209,7 @@ static int cpm_uart_init_port(struct device_node *np,
 	pinfo->port.fifosize = pinfo->tx_nrfifos * pinfo->tx_fifosize;
 	spin_lock_init(&pinfo->port.lock);
 
-	pinfo->port.irq = of_irq_to_resource(np, 0, NULL);
+	pinfo->port.irq = irq_of_parse_and_map(np, 0);
 	if (pinfo->port.irq == NO_IRQ) {
 		ret = -EINVAL;
 		goto out_pram;

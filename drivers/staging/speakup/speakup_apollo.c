@@ -179,7 +179,7 @@ static void do_catch_up(struct spk_synth *synth)
 			schedule_timeout(msecs_to_jiffies(full_time_val));
 			continue;
 		}
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			jiffy_delta_val = jiffy_delta->u.n.value;
 			full_time_val = full_time->u.n.value;

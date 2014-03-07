@@ -208,6 +208,8 @@ static int mac802154_header_create(struct sk_buff *skb,
 	head[1] = fc >> 8;
 
 	memcpy(skb_push(skb, pos), head, pos);
+	skb_reset_mac_header(skb);
+	skb->mac_len = pos;
 
 	return pos;
 }

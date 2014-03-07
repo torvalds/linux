@@ -616,7 +616,7 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 		data->gpio = gpio;
 
 		data->last_reading = jiffies;
-	}; /* last_reading */
+	}	/* last_reading */
 
 	if (!data->valid ||
 	    time_after(jiffies, data->last_config + ADM1026_CONFIG_INTERVAL)) {
@@ -700,7 +700,7 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 		}
 
 		data->last_config = jiffies;
-	}; /* last_config */
+	}	/* last_config */
 
 	data->valid = 1;
 	mutex_unlock(&data->update_lock);
@@ -1791,7 +1791,7 @@ static int adm1026_detect(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
 		return -ENODEV;
-	};
+	}
 
 	/* Now, we do the remaining detection. */
 

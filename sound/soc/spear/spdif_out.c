@@ -280,7 +280,6 @@ static int spdif_out_probe(struct platform_device *pdev)
 	struct spdif_out_dev *host;
 	struct spear_spdif_platform_data *pdata;
 	struct resource *res;
-	int ret;
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host) {
@@ -307,16 +306,8 @@ static int spdif_out_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, host);
 
-	ret = snd_soc_register_component(&pdev->dev, &spdif_out_component,
-					 &spdif_out_dai, 1);
-	return ret;
-}
-
-static int spdif_out_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_component(&pdev->dev);
-
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev, &spdif_out_component,
+					       &spdif_out_dai, 1);
 }
 
 #ifdef CONFIG_PM
@@ -357,7 +348,6 @@ static SIMPLE_DEV_PM_OPS(spdif_out_dev_pm_ops, spdif_out_suspend, \
 
 static struct platform_driver spdif_out_driver = {
 	.probe		= spdif_out_probe,
-	.remove		= spdif_out_remove,
 	.driver		= {
 		.name	= "spdif-out",
 		.owner	= THIS_MODULE,

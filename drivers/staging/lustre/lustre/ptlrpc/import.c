@@ -682,7 +682,7 @@ int ptlrpc_connect_import(struct obd_import *imp)
 
 	CLASSERT(sizeof (*aa) <= sizeof (request->rq_async_args));
 	aa = ptlrpc_req_async_args(request);
-	memset(aa, 0, sizeof *aa);
+	memset(aa, 0, sizeof(*aa));
 
 	aa->pcaa_peer_committed = committed_before_reconnect;
 	aa->pcaa_initial_connect = initial_connect;

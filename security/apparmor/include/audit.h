@@ -109,7 +109,6 @@ struct apparmor_audit_data {
 	void *profile;
 	const char *name;
 	const char *info;
-	struct task_struct *tsk;
 	union {
 		void *target;
 		struct {

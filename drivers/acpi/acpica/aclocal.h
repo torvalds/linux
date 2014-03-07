@@ -398,6 +398,14 @@ struct acpi_simple_repair_info {
  *
  ****************************************************************************/
 
+/* Dispatch info for each host-installed SCI handler */
+
+struct acpi_sci_handler_info {
+	struct acpi_sci_handler_info *next;
+	acpi_sci_handler address;	/* Address of handler */
+	void *context;		/* Context to be passed to handler */
+};
+
 /* Dispatch info for each GPE -- either a method or handler, cannot be both */
 
 struct acpi_gpe_handler_info {
@@ -1064,7 +1072,7 @@ struct acpi_db_method_info {
 	char *name;
 	u32 flags;
 	u32 num_loops;
-	char pathname[128];
+	char pathname[ACPI_DB_LINE_BUFFER_SIZE];
 	char **args;
 	acpi_object_type *types;
 
@@ -1086,6 +1094,7 @@ struct acpi_integrity_info {
 	u32 objects;
 };
 
+#define ACPI_DB_DISABLE_OUTPUT          0x00
 #define ACPI_DB_REDIRECTABLE_OUTPUT     0x01
 #define ACPI_DB_CONSOLE_OUTPUT          0x02
 #define ACPI_DB_DUPLICATE_OUTPUT        0x03

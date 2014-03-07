@@ -69,7 +69,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 
 	} else {
 		/* In this case bank2 can point to the same address as bank1.
-		 * Firmware will always occupy the beggining of this area so it is
+		 * Firmware will always occupy the beginning of this area so it is
 		 * impossible having a video frame buffer with zero address. */
 		dev->bank2 = dev->bank1;
 	}

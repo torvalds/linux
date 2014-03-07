@@ -371,7 +371,7 @@ static void ov9640_alter_regs(enum v4l2_mbus_pixelcode code,
 		alt->com13	= OV9640_COM13_RGB_AVG;
 		alt->com15	= OV9640_COM15_RGB_565;
 		break;
-	};
+	}
 }
 
 /* Setup registers according to resolution and color encoding */

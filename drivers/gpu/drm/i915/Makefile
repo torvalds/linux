@@ -21,6 +21,9 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o \
 	  intel_display.o \
 	  intel_crt.o \
 	  intel_lvds.o \
+	  intel_dsi.o \
+	  intel_dsi_cmd.o \
+	  intel_dsi_pll.o \
 	  intel_bios.o \
 	  intel_ddi.o \
 	  intel_dp.o \
@@ -30,7 +33,6 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o \
 	  intel_panel.o \
 	  intel_pm.o \
 	  intel_i2c.o \
-	  intel_fb.o \
 	  intel_tv.o \
 	  intel_dvo.o \
 	  intel_ringbuffer.o \
@@ -50,6 +52,8 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o \
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 
 i915-$(CONFIG_ACPI)	+= intel_acpi.o
+
+i915-$(CONFIG_DRM_I915_FBDEV) += intel_fbdev.o
 
 obj-$(CONFIG_DRM_I915)  += i915.o
 

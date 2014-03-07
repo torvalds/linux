@@ -44,69 +44,14 @@ out:
 	spin_unlock_bh(&ar->data_lock);
 }
 
-void ath10k_txrx_tx_unref(struct ath10k_htt *htt, struct sk_buff *txdesc)
+void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
+			  const struct htt_tx_done *tx_done)
 {
 	struct device *dev = htt->ar->dev;
 	struct ieee80211_tx_info *info;
-	struct sk_buff *txfrag = ATH10K_SKB_CB(txdesc)->htt.txfrag;
-	struct sk_buff *msdu = ATH10K_SKB_CB(txdesc)->htt.msdu;
+	struct ath10k_skb_cb *skb_cb;
+	struct sk_buff *msdu;
 	int ret;
-
-	if (ATH10K_SKB_CB(txdesc)->htt.refcount == 0)
-		return;
-
-	ATH10K_SKB_CB(txdesc)->htt.refcount--;
-
-	if (ATH10K_SKB_CB(txdesc)->htt.refcount > 0)
-		return;
-
-	if (txfrag) {
-		ret = ath10k_skb_unmap(dev, txfrag);
-		if (ret)
-			ath10k_warn("txfrag unmap failed (%d)\n", ret);
-
-		dev_kfree_skb_any(txfrag);
-	}
-
-	ret = ath10k_skb_unmap(dev, msdu);
-	if (ret)
-		ath10k_warn("data skb unmap failed (%d)\n", ret);
-
-	ath10k_report_offchan_tx(htt->ar, msdu);
-
-	info = IEEE80211_SKB_CB(msdu);
-	memset(&info->status, 0, sizeof(info->status));
-
-	if (ATH10K_SKB_CB(txdesc)->htt.discard) {
-		ieee80211_free_txskb(htt->ar->hw, msdu);
-		goto exit;
-	}
-
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
-		info->flags |= IEEE80211_TX_STAT_ACK;
-
-	if (ATH10K_SKB_CB(txdesc)->htt.no_ack)
-		info->flags &= ~IEEE80211_TX_STAT_ACK;
-
-	ieee80211_tx_status(htt->ar->hw, msdu);
-	/* we do not own the msdu anymore */
-
-exit:
-	spin_lock_bh(&htt->tx_lock);
-	htt->pending_tx[ATH10K_SKB_CB(txdesc)->htt.msdu_id] = NULL;
-	ath10k_htt_tx_free_msdu_id(htt, ATH10K_SKB_CB(txdesc)->htt.msdu_id);
-	__ath10k_htt_tx_dec_pending(htt);
-	if (bitmap_empty(htt->used_msdu_ids, htt->max_num_pending_tx))
-		wake_up(&htt->empty_tx_wq);
-	spin_unlock_bh(&htt->tx_lock);
-
-	dev_kfree_skb_any(txdesc);
-}
-
-void ath10k_txrx_tx_completed(struct ath10k_htt *htt,
-			      const struct htt_tx_done *tx_done)
-{
-	struct sk_buff *txdesc;
 
 	ath10k_dbg(ATH10K_DBG_HTT, "htt tx completion msdu_id %u discard %d no_ack %d\n",
 		   tx_done->msdu_id, !!tx_done->discard, !!tx_done->no_ack);
@@ -117,12 +62,42 @@ void ath10k_txrx_tx_completed(struct ath10k_htt *htt,
 		return;
 	}
 
-	txdesc = htt->pending_tx[tx_done->msdu_id];
+	msdu = htt->pending_tx[tx_done->msdu_id];
+	skb_cb = ATH10K_SKB_CB(msdu);
 
-	ATH10K_SKB_CB(txdesc)->htt.discard = tx_done->discard;
-	ATH10K_SKB_CB(txdesc)->htt.no_ack = tx_done->no_ack;
+	ret = ath10k_skb_unmap(dev, msdu);
+	if (ret)
+		ath10k_warn("data skb unmap failed (%d)\n", ret);
 
-	ath10k_txrx_tx_unref(htt, txdesc);
+	if (skb_cb->htt.frag_len)
+		skb_pull(msdu, skb_cb->htt.frag_len + skb_cb->htt.pad_len);
+
+	ath10k_report_offchan_tx(htt->ar, msdu);
+
+	info = IEEE80211_SKB_CB(msdu);
+
+	if (tx_done->discard) {
+		ieee80211_free_txskb(htt->ar->hw, msdu);
+		goto exit;
+	}
+
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+		info->flags |= IEEE80211_TX_STAT_ACK;
+
+	if (tx_done->no_ack)
+		info->flags &= ~IEEE80211_TX_STAT_ACK;
+
+	ieee80211_tx_status(htt->ar->hw, msdu);
+	/* we do not own the msdu anymore */
+
+exit:
+	spin_lock_bh(&htt->tx_lock);
+	htt->pending_tx[tx_done->msdu_id] = NULL;
+	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
+	__ath10k_htt_tx_dec_pending(htt);
+	if (htt->num_pending_tx == 0)
+		wake_up(&htt->empty_tx_wq);
+	spin_unlock_bh(&htt->tx_lock);
 }
 
 static const u8 rx_legacy_rate_idx[] = {
@@ -293,6 +268,8 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 		   status->vht_nss,
 		   status->freq,
 		   status->band);
+	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "rx skb: ",
+			info->skb->data, info->skb->len);
 
 	ieee80211_rx(ar->hw, info->skb);
 }

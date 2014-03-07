@@ -181,7 +181,6 @@ endmenu
 config SMP
 	bool "Symmetric multi-processing support"
 	default y
-	select USE_GENERIC_SMP_HELPERS
 	depends on MN10300_PROC_MN2WS0038 || MN10300_PROC_MN2WS0050
 	---help---
 	  This enables support for systems with more than one CPU. If you have

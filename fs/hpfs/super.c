@@ -101,18 +101,24 @@ int hpfs_stop_cycles(struct super_block *s, int key, int *c1, int *c2,
 	return 0;
 }
 
+static void free_sbi(struct hpfs_sb_info *sbi)
+{
+	kfree(sbi->sb_cp_table);
+	kfree(sbi->sb_bmp_dir);
+	kfree(sbi);
+}
+
+static void lazy_free_sbi(struct rcu_head *rcu)
+{
+	free_sbi(container_of(rcu, struct hpfs_sb_info, rcu));
+}
+
 static void hpfs_put_super(struct super_block *s)
 {
-	struct hpfs_sb_info *sbi = hpfs_sb(s);
-
 	hpfs_lock(s);
 	unmark_dirty(s);
 	hpfs_unlock(s);
-
-	kfree(sbi->sb_cp_table);
-	kfree(sbi->sb_bmp_dir);
-	s->s_fs_info = NULL;
-	kfree(sbi);
+	call_rcu(&hpfs_sb(s)->rcu, lazy_free_sbi);
 }
 
 unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)
@@ -485,9 +491,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	}
 	s->s_fs_info = sbi;
 
-	sbi->sb_bmp_dir = NULL;
-	sbi->sb_cp_table = NULL;
-
 	mutex_init(&sbi->hpfs_mutex);
 	hpfs_lock(s);
 
@@ -679,10 +682,7 @@ bail2:	brelse(bh0);
 bail1:
 bail0:
 	hpfs_unlock(s);
-	kfree(sbi->sb_bmp_dir);
-	kfree(sbi->sb_cp_table);
-	s->s_fs_info = NULL;
-	kfree(sbi);
+	free_sbi(sbi);
 	return -EINVAL;
 }
 

@@ -559,6 +559,17 @@ struct v4l2_subdev_internal_ops {
 /* Set this flag if this subdev generates events. */
 #define V4L2_SUBDEV_FL_HAS_EVENTS		(1U << 3)
 
+struct regulator_bulk_data;
+
+struct v4l2_subdev_platform_data {
+	/* Optional regulators uset to power on/off the subdevice */
+	struct regulator_bulk_data *regulators;
+	int num_regulators;
+
+	/* Per-subdevice data, specific for a certain video host device */
+	void *host_priv;
+};
+
 /* Each instance of a subdev driver should create this struct, either
    stand-alone or embedded in a larger struct.
  */
@@ -592,6 +603,8 @@ struct v4l2_subdev {
 	struct v4l2_async_subdev *asd;
 	/* Pointer to the managing notifier. */
 	struct v4l2_async_notifier *notifier;
+	/* common part of subdevice platform data */
+	struct v4l2_subdev_platform_data *pdata;
 };
 
 #define media_entity_to_v4l2_subdev(ent) \
@@ -622,13 +635,13 @@ struct v4l2_subdev_fh {
 	v4l2_subdev_get_try_##fun_name(struct v4l2_subdev_fh *fh,	\
 				       unsigned int pad)		\
 	{								\
-		BUG_ON(unlikely(pad >= vdev_to_v4l2_subdev(		\
-					fh->vfh.vdev)->entity.num_pads)); \
+		BUG_ON(pad >= vdev_to_v4l2_subdev(			\
+					fh->vfh.vdev)->entity.num_pads); \
 		return &fh->pad[pad].field_name;			\
 	}
 
 __V4L2_SUBDEV_MK_GET_TRY(v4l2_mbus_framefmt, format, try_fmt)
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, crop, try_compose)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, crop, try_crop)
 __V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, compose, try_compose)
 #endif
 

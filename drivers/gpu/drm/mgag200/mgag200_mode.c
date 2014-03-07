@@ -765,8 +765,6 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 	mgag200_bo_unreserve(bo);
 
-	DRM_INFO("mga base %llx\n", gpu_addr);
-
 	mga_set_start_address(crtc, (u32)gpu_addr);
 
 	return 0;

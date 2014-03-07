@@ -1,0 +1,63 @@
+/*
+ * Device Tree Source for am3517 SoC
+ *
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include "omap3.dtsi"
+
+/ {
+	aliases {
+		serial3 = &uart4;
+	};
+
+	ocp {
+		am35x_otg_hs: am35x_otg_hs@5c040000 {
+			compatible = "ti,omap3-musb";
+			ti,hwmods = "am35x_otg_hs";
+			status = "disabled";
+			reg = <0x5c040000 0x1000>;
+			interrupts = <71>;
+			interrupt-names = "mc";
+		};
+
+		davinci_emac: ethernet@0x5c000000 {
+			compatible = "ti,am3517-emac";
+			ti,hwmods = "davinci_emac";
+			status = "disabled";
+			reg = <0x5c000000 0x30000>;
+			interrupts = <67 68 69 70>;
+			ti,davinci-ctrl-reg-offset = <0x10000>;
+			ti,davinci-ctrl-mod-reg-offset = <0>;
+			ti,davinci-ctrl-ram-offset = <0x20000>;
+			ti,davinci-ctrl-ram-size = <0x2000>;
+			ti,davinci-rmii-en = /bits/ 8 <1>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+		};
+
+		davinci_mdio: ethernet@0x5c030000 {
+			compatible = "ti,davinci_mdio";
+			ti,hwmods = "davinci_mdio";
+			status = "disabled";
+			reg = <0x5c030000 0x1000>;
+			bus_freq = <1000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		uart4: serial@4809e000 {
+			compatible = "ti,omap3-uart";
+			ti,hwmods = "uart4";
+			status = "disabled";
+			reg = <0x4809e000 0x400>;
+			interrupts = <84>;
+			dmas = <&sdma 55 &sdma 54>;
+			dma-names = "tx", "rx";
+			clock-frequency = <48000000>;
+		};
+	};
+};

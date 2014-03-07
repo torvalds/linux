@@ -13,7 +13,7 @@
  * The CFA-10049 is an expansion board for the CFA-10036 module, thus we
  * need to include the CFA-10036 DTS.
  */
-/include/ "imx28-cfa10036.dts"
+#include "imx28-cfa10036.dts"
 
 / {
 	model = "Crystalfontz CFA-10049 Board";
@@ -25,150 +25,150 @@
 				usb_pins_cfa10049: usb-10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0073 /* MX28_PAD_GPMI_D7__GPIO_0_7 */
+						MX28_PAD_GPMI_D07__GPIO_0_7
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				i2cmux_pins_cfa10049: i2cmux-10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
-						0x1173 /* MX28_PAD_LCD_D22__GPIO_1_23 */
+						MX28_PAD_LCD_D22__GPIO_1_22
+						MX28_PAD_LCD_D23__GPIO_1_23
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				mac0_pins_cfa10049: mac0-10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2153 /* MX28_PAD_SSP2_D5__GPIO_2_21 */
+						MX28_PAD_SSP2_SS2__GPIO_2_21
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				pca_pins_cfa10049: pca-10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2133 /* MX28_PAD_SSP2_D3__GPIO_2_19 */
+						MX28_PAD_SSP2_SS0__GPIO_2_19
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				rotary_pins_cfa10049: rotary-10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x3183 /* MX28_PAD_I2C0_SCL__GPIO_3_24 */
-						0x3193 /* MX28_PAD_I2C0_SDA__GPIO_3_25 */
+						MX28_PAD_I2C0_SCL__GPIO_3_24
+						MX28_PAD_I2C0_SDA__GPIO_3_25
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				rotary_btn_pins_cfa10049: rotary-btn-10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x31a3 /* MX28_PAD_SAIF_SDATA0__GPIO_3_26 */
+						MX28_PAD_SAIF1_SDATA0__GPIO_3_26
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				spi2_pins_cfa10049: spi2-cfa10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2103 /* MX28_PAD_SSP2_SCK__GPIO_2_16 */
-						0x2113 /* MX28_PAD_SSP2_CMD__GPIO_2_17 */
-						0x2123 /* MX28_PAD_SSP2_D0__GPIO_2_18 */
-						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
+						MX28_PAD_SSP2_SCK__GPIO_2_16
+						MX28_PAD_SSP2_MOSI__GPIO_2_17
+						MX28_PAD_SSP2_MISO__GPIO_2_18
+						MX28_PAD_AUART1_TX__GPIO_3_5
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				spi3_pins_cfa10049: spi3-cfa10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0183 /* MX28_PAD_GPMI_RDN__GPIO_0_24 */
-						0x01c3 /* MX28_PAD_GPMI_RESETN__GPIO_0_28 */
-						0x0113 /* MX28_PAD_GPMI_CE1N__GPIO_0_17 */
-						0x01a3 /* MX28_PAD_GPMI_ALE__GPIO_0_26 */
-						0x01b3 /* MX28_PAD_GPMI_CLE__GPIO_0_27 */
+						MX28_PAD_GPMI_RDN__GPIO_0_24
+						MX28_PAD_GPMI_RESETN__GPIO_0_28
+						MX28_PAD_GPMI_CE1N__GPIO_0_17
+						MX28_PAD_GPMI_ALE__GPIO_0_26
+						MX28_PAD_GPMI_CLE__GPIO_0_27
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				lcdif_18bit_pins_cfa10049: lcdif-18bit@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1000 /* MX28_PAD_LCD_D00__LCD_D0 */
-						0x1010 /* MX28_PAD_LCD_D01__LCD_D1 */
-						0x1020 /* MX28_PAD_LCD_D02__LCD_D2 */
-						0x1030 /* MX28_PAD_LCD_D03__LCD_D3 */
-						0x1040 /* MX28_PAD_LCD_D04__LCD_D4 */
-						0x1050 /* MX28_PAD_LCD_D05__LCD_D5 */
-						0x1060 /* MX28_PAD_LCD_D06__LCD_D6 */
-						0x1070 /* MX28_PAD_LCD_D07__LCD_D7 */
-						0x1080 /* MX28_PAD_LCD_D08__LCD_D8 */
-						0x1090 /* MX28_PAD_LCD_D09__LCD_D9 */
-						0x10a0 /* MX28_PAD_LCD_D10__LCD_D10 */
-						0x10b0 /* MX28_PAD_LCD_D11__LCD_D11 */
-						0x10c0 /* MX28_PAD_LCD_D12__LCD_D12 */
-						0x10d0 /* MX28_PAD_LCD_D13__LCD_D13 */
-						0x10e0 /* MX28_PAD_LCD_D14__LCD_D14 */
-						0x10f0 /* MX28_PAD_LCD_D15__LCD_D15 */
-						0x1100 /* MX28_PAD_LCD_D16__LCD_D16 */
-						0x1110 /* MX28_PAD_LCD_D17__LCD_D17 */
+						MX28_PAD_LCD_D00__LCD_D0
+						MX28_PAD_LCD_D01__LCD_D1
+						MX28_PAD_LCD_D02__LCD_D2
+						MX28_PAD_LCD_D03__LCD_D3
+						MX28_PAD_LCD_D04__LCD_D4
+						MX28_PAD_LCD_D05__LCD_D5
+						MX28_PAD_LCD_D06__LCD_D6
+						MX28_PAD_LCD_D07__LCD_D7
+						MX28_PAD_LCD_D08__LCD_D8
+						MX28_PAD_LCD_D09__LCD_D9
+						MX28_PAD_LCD_D10__LCD_D10
+						MX28_PAD_LCD_D11__LCD_D11
+						MX28_PAD_LCD_D12__LCD_D12
+						MX28_PAD_LCD_D13__LCD_D13
+						MX28_PAD_LCD_D14__LCD_D14
+						MX28_PAD_LCD_D15__LCD_D15
+						MX28_PAD_LCD_D16__LCD_D16
+						MX28_PAD_LCD_D17__LCD_D17
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_cfa10049: lcdif-evk@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
-						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
-						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
-						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+						MX28_PAD_LCD_RD_E__LCD_VSYNC
+						MX28_PAD_LCD_WR_RWN__LCD_HSYNC
+						MX28_PAD_LCD_RS__LCD_DOTCLK
+						MX28_PAD_LCD_CS__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_cfa10049_pullup: lcdif-10049-pullup@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
+						MX28_PAD_LCD_RESET__GPIO_3_30
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				w1_gpio_pins: w1-gpio@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1153 /* MX28_PAD_LCD_D21__GPIO_1_21 */
+						MX28_PAD_LCD_D21__GPIO_1_21
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>; /* 0 will enable the keeper */
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>; /* 0 will enable the keeper */
 				};
 			};
 

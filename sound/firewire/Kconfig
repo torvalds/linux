@@ -11,6 +11,21 @@ config SND_FIREWIRE_LIB
 	tristate
 	depends on SND_PCM
 
+config SND_DICE
+	tristate "DICE-based DACs (EXPERIMENTAL)"
+	select SND_HWDEP
+	select SND_PCM
+	select SND_FIREWIRE_LIB
+	help
+	  Say Y here to include support for many DACs based on the DICE
+	  chip family (DICE-II/Jr/Mini) from TC Applied Technologies.
+
+	  At the moment, this driver supports playback only.  If you
+	  want to use devices that support capturing, use FFADO instead.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-dice.
+
 config SND_FIREWIRE_SPEAKERS
 	tristate "FireWire speakers"
 	select SND_PCM

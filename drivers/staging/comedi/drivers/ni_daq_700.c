@@ -72,18 +72,22 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 
 static int daq700_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	unsigned int mask;
+	unsigned int val;
 
-		if (data[0] & 0xff)
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0xff)
 			outb(s->state & 0xff, dev->iobase + DIO_W);
 	}
 
-	data[1] = s->state & 0xff;
-	data[1] |= inb(dev->iobase + DIO_R) << 8;
+	val = s->state & 0xff;
+	val |= inb(dev->iobase + DIO_R) << 8;
+
+	data[1] = val;
 
 	return insn->n;
 }
@@ -212,7 +216,6 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->insn_bits	= daq700_dio_insn_bits;
 	s->insn_config	= daq700_dio_insn_config;
-	s->state	= 0;
 	s->io_bits	= 0x00ff;
 
 	/* DAQCard-700 ai */

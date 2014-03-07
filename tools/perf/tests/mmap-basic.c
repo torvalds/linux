@@ -65,7 +65,7 @@ int test__basic_mmap(void)
 		char name[64];
 
 		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
-		evsels[i] = perf_evsel__newtp("syscalls", name, i);
+		evsels[i] = perf_evsel__newtp("syscalls", name);
 		if (evsels[i] == NULL) {
 			pr_debug("perf_evsel__new\n");
 			goto out_free_evlist;

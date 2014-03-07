@@ -28,12 +28,6 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-int qxl_gem_object_init(struct drm_gem_object *obj)
-{
-	/* we do nothings here */
-	return 0;
-}
-
 void qxl_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct qxl_bo *qobj = gem_to_qxl_bo(gobj);

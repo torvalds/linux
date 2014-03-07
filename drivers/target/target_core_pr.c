@@ -474,7 +474,7 @@ static int core_scsi3_pr_seq_non_holder(
 	 * statement.
 	 */
 	if (!ret && !other_cdb) {
-		pr_debug("Allowing explict CDB: 0x%02x for %s"
+		pr_debug("Allowing explicit CDB: 0x%02x for %s"
 			" reservation holder\n", cdb[0],
 			core_scsi3_pr_dump_type(pr_reg_type));
 
@@ -507,7 +507,7 @@ static int core_scsi3_pr_seq_non_holder(
 			 */
 
 			if (!registered_nexus) {
-				pr_debug("Allowing implict CDB: 0x%02x"
+				pr_debug("Allowing implicit CDB: 0x%02x"
 					" for %s reservation on unregistered"
 					" nexus\n", cdb[0],
 					core_scsi3_pr_dump_type(pr_reg_type));
@@ -522,7 +522,7 @@ static int core_scsi3_pr_seq_non_holder(
 			 * allow commands from registered nexuses.
 			 */
 
-			pr_debug("Allowing implict CDB: 0x%02x for %s"
+			pr_debug("Allowing implicit CDB: 0x%02x for %s"
 				" reservation\n", cdb[0],
 				core_scsi3_pr_dump_type(pr_reg_type));
 
@@ -683,7 +683,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 					alua_port_list) {
 			/*
 			 * This pointer will be NULL for demo mode MappedLUNs
-			 * that have not been make explict via a ConfigFS
+			 * that have not been make explicit via a ConfigFS
 			 * MappedLUN group for the SCSI Initiator Node ACL.
 			 */
 			if (!deve_tmp->se_lun_acl)
@@ -1158,7 +1158,7 @@ static void core_scsi3_put_pr_reg(struct t10_pr_registration *pr_reg)
 	smp_mb__after_atomic_dec();
 }
 
-static int core_scsi3_check_implict_release(
+static int core_scsi3_check_implicit_release(
 	struct se_device *dev,
 	struct t10_pr_registration *pr_reg)
 {
@@ -1174,7 +1174,7 @@ static int core_scsi3_check_implict_release(
 	}
 	if (pr_res_holder == pr_reg) {
 		/*
-		 * Perform an implict RELEASE if the registration that
+		 * Perform an implicit RELEASE if the registration that
 		 * is being released is holding the reservation.
 		 *
 		 * From spc4r17, section 5.7.11.1:
@@ -1192,7 +1192,7 @@ static int core_scsi3_check_implict_release(
 		 * For 'All Registrants' reservation types, all existing
 		 * registrations are still processed as reservation holders
 		 * in core_scsi3_pr_seq_non_holder() after the initial
-		 * reservation holder is implictly released here.
+		 * reservation holder is implicitly released here.
 		 */
 	} else if (pr_reg->pr_reg_all_tg_pt &&
 		  (!strcmp(pr_res_holder->pr_reg_nacl->initiatorname,
@@ -2125,7 +2125,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		/*
 		 * sa_res_key=0 Unregister Reservation Key for registered I_T Nexus.
 		 */
-		pr_holder = core_scsi3_check_implict_release(
+		pr_holder = core_scsi3_check_implicit_release(
 				cmd->se_dev, pr_reg);
 		if (pr_holder < 0) {
 			ret = TCM_RESERVATION_CONFLICT;
@@ -2402,7 +2402,7 @@ static void __core_scsi3_complete_pro_release(
 	struct se_device *dev,
 	struct se_node_acl *se_nacl,
 	struct t10_pr_registration *pr_reg,
-	int explict)
+	int explicit)
 {
 	struct target_core_fabric_ops *tfo = se_nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
@@ -2416,7 +2416,7 @@ static void __core_scsi3_complete_pro_release(
 
 	pr_debug("SPC-3 PR [%s] Service Action: %s RELEASE cleared"
 		" reservation holder TYPE: %s ALL_TG_PT: %d\n",
-		tfo->get_fabric_name(), (explict) ? "explict" : "implict",
+		tfo->get_fabric_name(), (explicit) ? "explicit" : "implicit",
 		core_scsi3_pr_dump_type(pr_reg->pr_res_type),
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] RELEASE Node: %s%s\n",
@@ -2692,7 +2692,7 @@ static void __core_scsi3_complete_pro_preempt(
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 	/*
-	 * Do an implict RELEASE of the existing reservation.
+	 * Do an implicit RELEASE of the existing reservation.
 	 */
 	if (dev->dev_pr_res_holder)
 		__core_scsi3_complete_pro_release(dev, nacl,
@@ -2845,7 +2845,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 				 * 5.7.11.4 Preempting, Table 52 and Figure 7.
 				 *
 				 * For a ZERO SA Reservation key, release
-				 * all other registrations and do an implict
+				 * all other registrations and do an implicit
 				 * release of active persistent reservation.
 				 *
 				 * For a non-ZERO SA Reservation key, only

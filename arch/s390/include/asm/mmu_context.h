@@ -40,14 +40,8 @@ static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 	pgd_t *pgd = mm->pgd;
 
 	S390_lowcore.user_asce = mm->context.asce_bits | __pa(pgd);
-	if (s390_user_mode != HOME_SPACE_MODE) {
-		/* Load primary space page table origin. */
-		asm volatile(LCTL_OPCODE" 1,1,%0\n"
-			     : : "m" (S390_lowcore.user_asce) );
-	} else
-		/* Load home space page table origin. */
-		asm volatile(LCTL_OPCODE" 13,13,%0"
-			     : : "m" (S390_lowcore.user_asce) );
+	/* Load primary space page table origin. */
+	asm volatile(LCTL_OPCODE" 1,1,%0\n" : : "m" (S390_lowcore.user_asce));
 	set_fs(current->thread.mm_segment);
 }
 

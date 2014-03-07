@@ -1,5 +1,5 @@
 /dts-v1/;
-/include/ "imx28.dtsi"
+#include "imx28.dtsi"
 
 / {
 	model = "Bluegiga APX4 Development Kit";
@@ -40,53 +40,53 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0113 /* MX28_PAD_GPMI_CE1N__GPIO_0_17 */
-						0x0153 /* MX28_PAD_GPMI_RDY1__GPIO_0_21 */
-						0x2123 /* MX28_PAD_SSP2_MISO__GPIO_2_18 */
-						0x2131 /* MX28_PAD_SSP2_SS0__GPIO_2_19 */
-						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
-						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
-						0x4143 /* MX28_PAD_JTAG_RTCK__GPIO_4_20 */
+						MX28_PAD_GPMI_CE1N__GPIO_0_17
+						MX28_PAD_GPMI_RDY1__GPIO_0_21
+						MX28_PAD_SSP2_MISO__GPIO_2_18
+						MX28_PAD_SSP2_SS0__AUART3_TX /* was: 0x2131 - MX28_PAD_SSP2_SS0__GPIO_2_19 */
+						MX28_PAD_PWM3__GPIO_3_28
+						MX28_PAD_LCD_RESET__GPIO_3_30
+						MX28_PAD_JTAG_RTCK__GPIO_4_20
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_apx4: lcdif-apx4@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
-						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
-						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
-						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+						MX28_PAD_LCD_RD_E__LCD_VSYNC
+						MX28_PAD_LCD_WR_RWN__LCD_HSYNC
+						MX28_PAD_LCD_RS__LCD_DOTCLK
+						MX28_PAD_LCD_CS__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				mmc2_4bit_pins_apx4: mmc2-4bit-apx4@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2041 /* MX28_PAD_SSP0_DATA4__SSP2_D0 */
-						0x2051 /* MX28_PAD_SSP0_DATA5__SSP2_D3 */
-						0x2061 /* MX28_PAD_SSP0_DATA6__SSP2_CMD */
-						0x2071 /* MX28_PAD_SSP0_DATA7__SSP2_SCK */
-						0x2141 /* MX28_PAD_SSP2_SS1__SSP2_D1 */
-						0x2151 /* MX28_PAD_SSP2_SS2__SSP2_D2 */
+						MX28_PAD_SSP0_DATA4__SSP2_D0
+						MX28_PAD_SSP0_DATA5__SSP2_D3
+						MX28_PAD_SSP0_DATA6__SSP2_CMD
+						MX28_PAD_SSP0_DATA7__SSP2_SCK
+						MX28_PAD_SSP2_SS1__SSP2_D1
+						MX28_PAD_SSP2_SS2__SSP2_D2
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				mmc2_sck_cfg_apx4: mmc2-sck-cfg-apx4 {
 					fsl,pinmux-ids = <
-						0x2071 /* MX28_PAD_SSP0_DATA7__SSP2_SCK */
+						MX28_PAD_SSP0_DATA7__SSP2_SCK
 					>;
-					fsl,drive-strength = <2>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 

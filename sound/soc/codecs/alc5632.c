@@ -614,7 +614,7 @@ struct _pll_div {
 };
 
 /* Note : pll code from original alc5632 driver. Not sure of how good it is */
-/* usefull only for master mode */
+/* useful only for master mode */
 static const struct _pll_div codec_master_pll_div[] = {
 
 	{  2048000,  8192000,	0x0ea0},

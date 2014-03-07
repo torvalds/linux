@@ -225,6 +225,13 @@ static const unsigned int buzz_keymap[] = {
 struct sony_sc {
 	unsigned long quirks;
 
+#ifdef CONFIG_SONY_FF
+	struct work_struct rumble_worker;
+	struct hid_device *hdev;
+	__u8 left;
+	__u8 right;
+#endif
+
 	void *extra;
 };
 
@@ -419,21 +426,14 @@ static int sixaxis_usb_output_raw_report(struct hid_device *hid, __u8 *buf,
  */
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
 {
-	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct usb_device *dev = interface_to_usbdev(intf);
-	__u16 ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 	int ret;
 	char *buf = kmalloc(18, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
 
-	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-				 HID_REQ_GET_REPORT,
-				 USB_DIR_IN | USB_TYPE_CLASS |
-				 USB_RECIP_INTERFACE,
-				 (3 << 8) | 0xf2, ifnum, buf, 17,
-				 USB_CTRL_GET_TIMEOUT);
+	ret = hdev->hid_get_raw_report(hdev, 0xf2, buf, 17, HID_FEATURE_REPORT);
+
 	if (ret < 0)
 		hid_err(hdev, "can't set operational mode\n");
 
@@ -621,6 +621,76 @@ static void buzz_remove(struct hid_device *hdev)
 	drv_data->extra = NULL;
 }
 
+#ifdef CONFIG_SONY_FF
+static void sony_rumble_worker(struct work_struct *work)
+{
+	struct sony_sc *sc = container_of(work, struct sony_sc, rumble_worker);
+	unsigned char buf[] = {
+		0x01,
+		0x00, 0xff, 0x00, 0xff, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x03,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0x00, 0x00, 0x00, 0x00, 0x00
+	};
+
+	buf[3] = sc->right;
+	buf[5] = sc->left;
+
+	sc->hdev->hid_output_raw_report(sc->hdev, buf, sizeof(buf),
+					HID_OUTPUT_REPORT);
+}
+
+static int sony_play_effect(struct input_dev *dev, void *data,
+			    struct ff_effect *effect)
+{
+	struct hid_device *hid = input_get_drvdata(dev);
+	struct sony_sc *sc = hid_get_drvdata(hid);
+
+	if (effect->type != FF_RUMBLE)
+		return 0;
+
+	sc->left = effect->u.rumble.strong_magnitude / 256;
+	sc->right = effect->u.rumble.weak_magnitude ? 1 : 0;
+
+	schedule_work(&sc->rumble_worker);
+	return 0;
+}
+
+static int sony_init_ff(struct hid_device *hdev)
+{
+	struct hid_input *hidinput = list_entry(hdev->inputs.next,
+						struct hid_input, list);
+	struct input_dev *input_dev = hidinput->input;
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	sc->hdev = hdev;
+	INIT_WORK(&sc->rumble_worker, sony_rumble_worker);
+
+	input_set_capability(input_dev, EV_FF, FF_RUMBLE);
+	return input_ff_create_memless(input_dev, NULL, sony_play_effect);
+}
+
+static void sony_destroy_ff(struct hid_device *hdev)
+{
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	cancel_work_sync(&sc->rumble_worker);
+}
+
+#else
+static int sony_init_ff(struct hid_device *hdev)
+{
+	return 0;
+}
+
+static void sony_destroy_ff(struct hid_device *hdev)
+{
+}
+#endif
+
 static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
@@ -670,6 +740,10 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (ret < 0)
 		goto err_stop;
 
+	ret = sony_init_ff(hdev);
+	if (ret < 0)
+		goto err_stop;
+
 	return 0;
 err_stop:
 	hid_hw_stop(hdev);
@@ -682,6 +756,8 @@ static void sony_remove(struct hid_device *hdev)
 
 	if (sc->quirks & BUZZ_CONTROLLER)
 		buzz_remove(hdev);
+
+	sony_destroy_ff(hdev);
 
 	hid_hw_stop(hdev);
 }

@@ -125,11 +125,6 @@ ipi_interrupt(int irq, void *dev_id)
 	unsigned long ops;
 	unsigned long flags;
 
-	/* Count this now; we may make a call that never returns. */
-	inc_irq_stat(irq_call_count);
-
-	mb();	/* Order interrupt and bit testing. */
-
 	for (;;) {
 		spinlock_t *lock = &per_cpu(ipi_lock, this_cpu);
 		spin_lock_irqsave(lock, flags);

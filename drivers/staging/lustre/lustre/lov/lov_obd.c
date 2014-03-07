@@ -554,7 +554,7 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		struct lov_tgt_desc **newtgts, **old = NULL;
 		__u32 newsize, oldsize = 0;
 
-		newsize = max(lov->lov_tgt_size, (__u32)2);
+		newsize = max_t(__u32, lov->lov_tgt_size, 2);
 		while (newsize < index + 1)
 			newsize = newsize << 1;
 		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
@@ -923,7 +923,7 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 	int cmd;
 	int rc = 0;
 
-	switch(cmd = lcfg->lcfg_command) {
+	switch (cmd = lcfg->lcfg_command) {
 	case LCFG_LOV_ADD_OBD:
 	case LCFG_LOV_ADD_INA:
 	case LCFG_LOV_DEL_OBD: {
@@ -1090,7 +1090,7 @@ static int lov_destroy(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		GOTO(out, rc);
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		if (oa->o_valid & OBD_MD_FLCOOKIE)
@@ -1141,7 +1141,7 @@ static int lov_getattr(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		CDEBUG(D_INFO, "objid "DOSTID"[%d] has subobj "DOSTID" at idx"
@@ -1227,7 +1227,7 @@ static int lov_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
 
 	if (!list_empty(&rqset->set_requests)) {
 		LASSERT(rc == 0);
-		LASSERT (rqset->set_interpret == NULL);
+		LASSERT(rqset->set_interpret == NULL);
 		rqset->set_interpret = lov_getattr_interpret;
 		rqset->set_arg = (void *)lovset;
 		return rc;
@@ -1267,7 +1267,7 @@ static int lov_setattr(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		rc = obd_setattr(env, lov->lov_tgts[req->rq_idx]->ltd_exp,
@@ -1408,7 +1408,7 @@ static int lov_punch(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		rc = obd_punch(env, lov->lov_tgts[req->rq_idx]->ltd_exp,
@@ -1472,7 +1472,7 @@ static int lov_sync(const struct lu_env *env, struct obd_export *exp,
 	CDEBUG(D_INFO, "fsync objid "DOSTID" ["LPX64", "LPX64"]\n",
 	       POSTID(&set->set_oi->oi_oa->o_oi), start, end);
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		rc = obd_sync(env, lov->lov_tgts[req->rq_idx]->ltd_exp,
@@ -1557,7 +1557,7 @@ static int lov_brw(int cmd, struct obd_export *exp, struct obd_info *oinfo,
 	if (rc)
 		return rc;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		struct obd_export *sub_exp;
 		struct brw_page *sub_pga;
 		req = list_entry(pos, struct lov_request, rq_link);
@@ -1612,7 +1612,7 @@ static int lov_enqueue(struct obd_export *exp, struct obd_info *oinfo,
 	if (rc)
 		return rc;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		rc = obd_enqueue(lov->lov_tgts[req->rq_idx]->ltd_exp,
@@ -1828,7 +1828,7 @@ static int lov_statfs_async(struct obd_export *exp, struct obd_info *oinfo,
 	if (rc)
 		return rc;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 		rc = obd_statfs_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
 				      &req->rq_oi, max_age, rqset);
@@ -1909,7 +1909,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 					 (int) sizeof(struct obd_uuid))))
 			return -EFAULT;
 
-		flags = uarg ? *(__u32*)uarg : 0;
+		flags = uarg ? *(__u32 *)uarg : 0;
 		/* got statfs data */
 		rc = obd_statfs(NULL, lov->lov_tgts[index]->ltd_exp, &stat_buf,
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
@@ -2495,7 +2495,7 @@ static int lov_get_info(const struct lu_env *env, struct obd_export *exp,
 		GOTO(out, rc);
 	} else if (KEY_IS(KEY_CONNECT_FLAG)) {
 		struct lov_tgt_desc *tgt;
-		__u64 ost_idx = *((__u64*)val);
+		__u64 ost_idx = *((__u64 *)val);
 
 		LASSERT(*vallen == sizeof(__u64));
 		LASSERT(ost_idx < lov->desc.ld_tgt_count);
@@ -2564,7 +2564,7 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 
 	for (i = 0; i < count; i++, val = (char *)val + incr) {
 		if (next_id) {
-			tgt = lov->lov_tgts[((struct obd_id_info*)val)->idx];
+			tgt = lov->lov_tgts[((struct obd_id_info *)val)->idx];
 		} else {
 			tgt = lov->lov_tgts[i];
 		}
@@ -2593,9 +2593,9 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		} else if (next_id) {
 			err = obd_set_info_async(env, tgt->ltd_exp,
 					 keylen, key, vallen,
-					 ((struct obd_id_info*)val)->data, set);
+					 ((struct obd_id_info *)val)->data, set);
 		} else if (capa) {
-			struct mds_capa_info *info = (struct mds_capa_info*)val;
+			struct mds_capa_info *info = (struct mds_capa_info *)val;
 
 			LASSERT(vallen == sizeof(*info));
 
@@ -2781,7 +2781,7 @@ struct obd_ops lov_obd_ops = {
 	.o_setup	       = lov_setup,
 	.o_precleanup	  = lov_precleanup,
 	.o_cleanup	     = lov_cleanup,
-	//.o_process_config      = lov_process_config,
+	/*.o_process_config      = lov_process_config,*/
 	.o_connect	     = lov_connect,
 	.o_disconnect	  = lov_disconnect,
 	.o_statfs	      = lov_statfs,
@@ -2822,8 +2822,6 @@ struct obd_ops lov_obd_ops = {
 };
 
 struct kmem_cache *lov_oinfo_slab;
-
-extern struct lu_kmem_descr lov_caches[];
 
 int __init lov_init(void)
 {

@@ -32,9 +32,10 @@
 #include <asm/kvm_ppc.h>
 
 #include "e500.h"
-#include "trace.h"
 #include "timing.h"
 #include "e500_mmu_host.h"
+
+#include "trace_booke.h"
 
 #define to_htlb1_esel(esel) (host_tlb_params[1].entries - (esel) - 1)
 
@@ -252,6 +253,9 @@ static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 {
 	ref->pfn = pfn;
 	ref->flags |= E500_TLB_VALID;
+
+	/* Mark the page accessed */
+	kvm_set_pfn_accessed(pfn);
 
 	if (tlbe_is_writable(gtlbe))
 		kvm_set_pfn_dirty(pfn);

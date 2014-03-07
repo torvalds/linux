@@ -22,7 +22,7 @@ do {						\
 	int  i;					\
 	if (1) {				\
 		for (i = 0; i < 1000; i++) {	\
-			udelay(x) ;		\
+			udelay(x);		\
 		}				\
 	} else {				\
 		msleep(x);			\

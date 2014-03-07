@@ -1,21 +1,18 @@
 /*
- *
  * builtin-bench.c
  *
- * General benchmarking subsystem provided by perf
+ * General benchmarking collections provided by perf
  *
  * Copyright (C) 2009, Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
- *
  */
 
 /*
+ * Available benchmark collection list:
  *
- * Available subsystem list:
- *  sched ... scheduler and IPC mechanism
+ *  sched ... scheduler and IPC performance
  *  mem   ... memory access performance
- *
+ *  numa  ... NUMA scheduling and MM performance
  */
-
 #include "perf.h"
 #include "util/util.h"
 #include "util/parse-options.h"
@@ -25,112 +22,92 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 
-struct bench_suite {
-	const char *name;
-	const char *summary;
-	int (*fn)(int, const char **, const char *);
+typedef int (*bench_fn_t)(int argc, const char **argv, const char *prefix);
+
+struct bench {
+	const char	*name;
+	const char	*summary;
+	bench_fn_t	fn;
 };
-						\
-/* sentinel: easy for help */
-#define suite_all { "all", "Test all benchmark suites", NULL }
 
-#ifdef LIBNUMA_SUPPORT
-static struct bench_suite numa_suites[] = {
-	{ "mem",
-	  "Benchmark for NUMA workloads",
-	  bench_numa },
-	suite_all,
-	{ NULL,
-	  NULL,
-	  NULL                  }
+#ifdef HAVE_LIBNUMA_SUPPORT
+static struct bench numa_benchmarks[] = {
+	{ "mem",	"Benchmark for NUMA workloads",			bench_numa		},
+	{ "all",	"Test all NUMA benchmarks",			NULL			},
+	{ NULL,		NULL,						NULL			}
 };
 #endif
 
-static struct bench_suite sched_suites[] = {
-	{ "messaging",
-	  "Benchmark for scheduler and IPC mechanisms",
-	  bench_sched_messaging },
-	{ "pipe",
-	  "Flood of communication over pipe() between two processes",
-	  bench_sched_pipe      },
-	suite_all,
-	{ NULL,
-	  NULL,
-	  NULL                  }
+static struct bench sched_benchmarks[] = {
+	{ "messaging",	"Benchmark for scheduling and IPC",		bench_sched_messaging	},
+	{ "pipe",	"Benchmark for pipe() between two processes",	bench_sched_pipe	},
+	{ "all",	"Test all scheduler benchmarks",		NULL			},
+	{ NULL,		NULL,						NULL			}
 };
 
-static struct bench_suite mem_suites[] = {
-	{ "memcpy",
-	  "Simple memory copy in various ways",
-	  bench_mem_memcpy },
-	{ "memset",
-	  "Simple memory set in various ways",
-	  bench_mem_memset },
-	suite_all,
-	{ NULL,
-	  NULL,
-	  NULL             }
+static struct bench mem_benchmarks[] = {
+	{ "memcpy",	"Benchmark for memcpy()",			bench_mem_memcpy	},
+	{ "memset",	"Benchmark for memset() tests",			bench_mem_memset	},
+	{ "all",	"Test all memory benchmarks",			NULL			},
+	{ NULL,		NULL,						NULL			}
 };
 
-struct bench_subsys {
-	const char *name;
-	const char *summary;
-	struct bench_suite *suites;
+struct collection {
+	const char	*name;
+	const char	*summary;
+	struct bench	*benchmarks;
 };
 
-static struct bench_subsys subsystems[] = {
-#ifdef LIBNUMA_SUPPORT
-	{ "numa",
-	  "NUMA scheduling and MM behavior",
-	  numa_suites },
+static struct collection collections[] = {
+	{ "sched",	"Scheduler and IPC benchmarks",		sched_benchmarks	},
+	{ "mem",	"Memory access benchmarks",			mem_benchmarks		},
+#ifdef HAVE_LIBNUMA_SUPPORT
+	{ "numa",	"NUMA scheduling and MM benchmarks",		numa_benchmarks		},
 #endif
-	{ "sched",
-	  "scheduler and IPC mechanism",
-	  sched_suites },
-	{ "mem",
-	  "memory access performance",
-	  mem_suites },
-	{ "all",		/* sentinel: easy for help */
-	  "all benchmark subsystem",
-	  NULL },
-	{ NULL,
-	  NULL,
-	  NULL       }
+	{ "all",	"All benchmarks",				NULL			},
+	{ NULL,		NULL,						NULL			}
 };
 
-static void dump_suites(int subsys_index)
+/* Iterate over all benchmark collections: */
+#define for_each_collection(coll) \
+	for (coll = collections; coll->name; coll++)
+
+/* Iterate over all benchmarks within a collection: */
+#define for_each_bench(coll, bench) \
+	for (bench = coll->benchmarks; bench->name; bench++)
+
+static void dump_benchmarks(struct collection *coll)
 {
-	int i;
+	struct bench *bench;
 
-	printf("# List of available suites for %s...\n\n",
-	       subsystems[subsys_index].name);
+	printf("\n        # List of available benchmarks for collection '%s':\n\n", coll->name);
 
-	for (i = 0; subsystems[subsys_index].suites[i].name; i++)
-		printf("%14s: %s\n",
-		       subsystems[subsys_index].suites[i].name,
-		       subsystems[subsys_index].suites[i].summary);
+	for_each_bench(coll, bench)
+		printf("%14s: %s\n", bench->name, bench->summary);
 
 	printf("\n");
-	return;
 }
 
 static const char *bench_format_str;
+
+/* Output/formatting style, exported to benchmark modules: */
 int bench_format = BENCH_FORMAT_DEFAULT;
 
 static const struct option bench_options[] = {
-	OPT_STRING('f', "format", &bench_format_str, "default",
-		    "Specify format style"),
+	OPT_STRING('f', "format", &bench_format_str, "default", "Specify format style"),
 	OPT_END()
 };
 
 static const char * const bench_usage[] = {
-	"perf bench [<common options>] <subsystem> <suite> [<options>]",
+	"perf bench [<common options>] <collection> <benchmark> [<options>]",
 	NULL
 };
 
 static void print_usage(void)
 {
+	struct collection *coll;
 	int i;
 
 	printf("Usage: \n");
@@ -138,11 +115,10 @@ static void print_usage(void)
 		printf("\t%s\n", bench_usage[i]);
 	printf("\n");
 
-	printf("# List of available subsystems...\n\n");
+	printf("        # List of all available benchmark collections:\n\n");
 
-	for (i = 0; subsystems[i].name; i++)
-		printf("%14s: %s\n",
-		       subsystems[i].name, subsystems[i].summary);
+	for_each_collection(coll)
+		printf("%14s: %s\n", coll->name, coll->summary);
 	printf("\n");
 }
 
@@ -159,44 +135,74 @@ static int bench_str2int(const char *str)
 	return BENCH_FORMAT_UNKNOWN;
 }
 
-static void all_suite(struct bench_subsys *subsys)	  /* FROM HERE */
+/*
+ * Run a specific benchmark but first rename the running task's ->comm[]
+ * to something meaningful:
+ */
+static int run_bench(const char *coll_name, const char *bench_name, bench_fn_t fn,
+		     int argc, const char **argv, const char *prefix)
 {
-	int i;
+	int size;
+	char *name;
+	int ret;
+
+	size = strlen(coll_name) + 1 + strlen(bench_name) + 1;
+
+	name = zalloc(size);
+	BUG_ON(!name);
+
+	scnprintf(name, size, "%s-%s", coll_name, bench_name);
+
+	prctl(PR_SET_NAME, name);
+	argv[0] = name;
+
+	ret = fn(argc, argv, prefix);
+
+	free(name);
+
+	return ret;
+}
+
+static void run_collection(struct collection *coll)
+{
+	struct bench *bench;
 	const char *argv[2];
-	struct bench_suite *suites = subsys->suites;
 
 	argv[1] = NULL;
 	/*
 	 * TODO:
-	 * preparing preset parameters for
+	 *
+	 * Preparing preset parameters for
 	 * embedded, ordinary PC, HPC, etc...
-	 * will be helpful
+	 * would be helpful.
 	 */
-	for (i = 0; suites[i].fn; i++) {
-		printf("# Running %s/%s benchmark...\n",
-		       subsys->name,
-		       suites[i].name);
+	for_each_bench(coll, bench) {
+		if (!bench->fn)
+			break;
+		printf("# Running %s/%s benchmark...\n", coll->name, bench->name);
 		fflush(stdout);
 
-		argv[1] = suites[i].name;
-		suites[i].fn(1, argv, NULL);
+		argv[1] = bench->name;
+		run_bench(coll->name, bench->name, bench->fn, 1, argv, NULL);
 		printf("\n");
 	}
 }
 
-static void all_subsystem(void)
+static void run_all_collections(void)
 {
-	int i;
-	for (i = 0; subsystems[i].suites; i++)
-		all_suite(&subsystems[i]);
+	struct collection *coll;
+
+	for_each_collection(coll)
+		run_collection(coll);
 }
 
 int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	int i, j, status = 0;
+	struct collection *coll;
+	int ret = 0;
 
 	if (argc < 2) {
-		/* No subsystem specified. */
+		/* No collection specified. */
 		print_usage();
 		goto end;
 	}
@@ -206,7 +212,7 @@ int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	bench_format = bench_str2int(bench_format_str);
 	if (bench_format == BENCH_FORMAT_UNKNOWN) {
-		printf("Unknown format descriptor:%s\n", bench_format_str);
+		printf("Unknown format descriptor: '%s'\n", bench_format_str);
 		goto end;
 	}
 
@@ -216,52 +222,51 @@ int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	if (!strcmp(argv[0], "all")) {
-		all_subsystem();
+		run_all_collections();
 		goto end;
 	}
 
-	for (i = 0; subsystems[i].name; i++) {
-		if (strcmp(subsystems[i].name, argv[0]))
+	for_each_collection(coll) {
+		struct bench *bench;
+
+		if (strcmp(coll->name, argv[0]))
 			continue;
 
 		if (argc < 2) {
-			/* No suite specified. */
-			dump_suites(i);
+			/* No bench specified. */
+			dump_benchmarks(coll);
 			goto end;
 		}
 
 		if (!strcmp(argv[1], "all")) {
-			all_suite(&subsystems[i]);
+			run_collection(coll);
 			goto end;
 		}
 
-		for (j = 0; subsystems[i].suites[j].name; j++) {
-			if (strcmp(subsystems[i].suites[j].name, argv[1]))
+		for_each_bench(coll, bench) {
+			if (strcmp(bench->name, argv[1]))
 				continue;
 
 			if (bench_format == BENCH_FORMAT_DEFAULT)
-				printf("# Running %s/%s benchmark...\n",
-				       subsystems[i].name,
-				       subsystems[i].suites[j].name);
+				printf("# Running '%s/%s' benchmark:\n", coll->name, bench->name);
 			fflush(stdout);
-			status = subsystems[i].suites[j].fn(argc - 1,
-							    argv + 1, prefix);
+			ret = run_bench(coll->name, bench->name, bench->fn, argc-1, argv+1, prefix);
 			goto end;
 		}
 
 		if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-			dump_suites(i);
+			dump_benchmarks(coll);
 			goto end;
 		}
 
-		printf("Unknown suite:%s for %s\n", argv[1], argv[0]);
-		status = 1;
+		printf("Unknown benchmark: '%s' for collection '%s'\n", argv[1], argv[0]);
+		ret = 1;
 		goto end;
 	}
 
-	printf("Unknown subsystem:%s\n", argv[0]);
-	status = 1;
+	printf("Unknown collection: '%s'\n", argv[0]);
+	ret = 1;
 
 end:
-	return status;
+	return ret;
 }

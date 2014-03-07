@@ -307,13 +307,13 @@ int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
 		goto out;
 	}
 
-	/* Always allocate at least 128*4 bytes (2 slots) */
-	if (slots < 2)
-		slots = 2;
-
 	/* For the MEM_BG channel, first try to allocate twice the slots */
 	if (dmfc->data->ipu_channel == IPUV3_CHANNEL_MEM_BG_SYNC)
 		segment = dmfc_find_slots(priv, slots * 2);
+	else if (slots < 2)
+		/* Always allocate at least 128*4 bytes (2 slots) */
+		slots = 2;
+
 	if (segment >= 0)
 		slots *= 2;
 	else

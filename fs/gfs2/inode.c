@@ -379,6 +379,7 @@ static void munge_mode_uid_gid(const struct gfs2_inode *dip,
 static int alloc_dinode(struct gfs2_inode *ip, u32 flags)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_alloc_parms ap = { .target = RES_DINODE, .aflags = flags, };
 	int error;
 	int dblocks = 1;
 
@@ -386,7 +387,7 @@ static int alloc_dinode(struct gfs2_inode *ip, u32 flags)
 	if (error)
 		goto out;
 
-	error = gfs2_inplace_reserve(ip, RES_DINODE, flags);
+	error = gfs2_inplace_reserve(ip, &ap);
 	if (error)
 		goto out_quota;
 
@@ -472,6 +473,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		       struct gfs2_inode *ip, int arq)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
+	struct gfs2_alloc_parms ap = { .target = sdp->sd_max_dirres, };
 	int error;
 
 	if (arq) {
@@ -479,7 +481,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		if (error)
 			goto fail_quota_locks;
 
-		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres, 0);
+		error = gfs2_inplace_reserve(dip, &ap);
 		if (error)
 			goto fail_quota_locks;
 
@@ -584,17 +586,17 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (!IS_ERR(inode)) {
 		d = d_splice_alias(inode, dentry);
 		error = 0;
-		if (file && !IS_ERR(d)) {
-			if (d == NULL)
-				d = dentry;
-			if (S_ISREG(inode->i_mode))
-				error = finish_open(file, d, gfs2_open_common, opened);
-			else
+		if (file) {
+			if (S_ISREG(inode->i_mode)) {
+				WARN_ON(d != NULL);
+				error = finish_open(file, dentry, gfs2_open_common, opened);
+			} else {
 				error = finish_no_open(file, d);
+			}
+		} else {
+			dput(d);
 		}
 		gfs2_glock_dq_uninit(ghs);
-		if (IS_ERR(d))
-			return PTR_ERR(d);
 		return error;
 	} else if (error != -ENOENT) {
 		goto fail_gunlock;
@@ -713,7 +715,7 @@ fail_gunlock2:
 fail_free_inode:
 	if (ip->i_gl)
 		gfs2_glock_put(ip->i_gl);
-	gfs2_rs_delete(ip);
+	gfs2_rs_delete(ip, NULL);
 	free_inode_nonrcu(inode);
 	inode = NULL;
 fail_gunlock:
@@ -781,8 +783,10 @@ static struct dentry *__gfs2_lookup(struct inode *dir, struct dentry *dentry,
 		error = finish_open(file, dentry, gfs2_open_common, opened);
 
 	gfs2_glock_dq_uninit(&gh);
-	if (error)
+	if (error) {
+		dput(d);
 		return ERR_PTR(error);
+	}
 	return d;
 }
 
@@ -874,11 +878,12 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	error = 0;
 
 	if (alloc_required) {
+		struct gfs2_alloc_parms ap = { .target = sdp->sd_max_dirres, };
 		error = gfs2_quota_lock_check(dip);
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres, 0);
+		error = gfs2_inplace_reserve(dip, &ap);
 		if (error)
 			goto out_gunlock_q;
 
@@ -1163,14 +1168,19 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 	d = __gfs2_lookup(dir, dentry, file, opened);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
-	if (d == NULL)
-		d = dentry;
-	if (d->d_inode) {
-		if (!(*opened & FILE_OPENED))
-			return finish_no_open(file, d);
+	if (d != NULL)
+		dentry = d;
+	if (dentry->d_inode) {
+		if (!(*opened & FILE_OPENED)) {
+			if (d == NULL)
+				dget(dentry);
+			return finish_no_open(file, dentry);
+		}
+		dput(d);
 		return 0;
 	}
 
+	BUG_ON(d != NULL);
 	if (!(flags & O_CREAT))
 		return -ENOENT;
 
@@ -1385,11 +1395,12 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		goto out_gunlock;
 
 	if (alloc_required) {
+		struct gfs2_alloc_parms ap = { .target = sdp->sd_max_dirres, };
 		error = gfs2_quota_lock_check(ndip);
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_inplace_reserve(ndip, sdp->sd_max_dirres, 0);
+		error = gfs2_inplace_reserve(ndip, &ap);
 		if (error)
 			goto out_gunlock_q;
 
@@ -1504,13 +1515,6 @@ out:
 	gfs2_glock_dq_uninit(&i_gh);
 	nd_set_link(nd, buf);
 	return NULL;
-}
-
-static void gfs2_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
-{
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		kfree(s);
 }
 
 /**
@@ -1864,7 +1868,7 @@ const struct inode_operations gfs2_dir_iops = {
 const struct inode_operations gfs2_symlink_iops = {
 	.readlink = generic_readlink,
 	.follow_link = gfs2_follow_link,
-	.put_link = gfs2_put_link,
+	.put_link = kfree_put_link,
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,

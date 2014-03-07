@@ -46,7 +46,7 @@ static struct st_var_header var_headers[] = {
 	{ "direct", DIRECT, VAR_NUM, NULL, NULL },
 };
 
-static struct st_var_header *var_ptrs[MAXVARS] = { 0, 0, 0 };
+static struct st_var_header *var_ptrs[MAXVARS] = { NULL, NULL, NULL };
 
 static struct punc_var_t punc_vars[] = {
 	{ PUNC_SOME, 1 },
@@ -280,7 +280,7 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 	if (!cp)
 		cp = spk_punc_info[which].value;
 	else {
-		for ( ; *cp; cp++) {
+		for (; *cp; cp++) {
 			if (*cp < SPACE)
 				break;
 			if (mask < PUNC) {
@@ -294,11 +294,11 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 		cp = (u_char *)input;
 	}
 	if (how&2) {
-		for ( ; *cp; cp++)
+		for (; *cp; cp++)
 			if (*cp > SPACE)
 				spk_chartab[*cp] |= mask;
 	} else {
-		for ( ; *cp; cp++)
+		for (; *cp; cp++)
 			if (*cp > SPACE)
 				spk_chartab[*cp] &= ~mask;
 	}

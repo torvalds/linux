@@ -1300,7 +1300,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 					break;
 				default:
 					break;
-				};
+				}
 
 				NV_WR32(par->PGRAPH, 0x0b38, 0x2ffff800);
 				NV_WR32(par->PGRAPH, 0x0b3c, 0x00006000);

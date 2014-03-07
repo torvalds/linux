@@ -7150,8 +7150,6 @@ static void pcidev_exit(struct pci_dev *pdev)
 	struct platform_info *info = pci_get_drvdata(pdev);
 	struct dev_info *hw_priv = &info->dev_info;
 
-	pci_set_drvdata(pdev, NULL);
-
 	release_mem_region(pci_resource_start(pdev, 0),
 		pci_resource_len(pdev, 0));
 	for (i = 0; i < hw_priv->hw.dev_count; i++) {
@@ -7227,7 +7225,7 @@ static int pcidev_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static char pcidev_name[] = "ksz884xp";
 
-static struct pci_device_id pcidev_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(pcidev_table) = {
 	{ PCI_VENDOR_ID_MICREL_KS, 0x8841,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_MICREL_KS, 0x8842,
