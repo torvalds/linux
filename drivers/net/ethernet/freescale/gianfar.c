@@ -363,7 +363,10 @@ static void gfar_mac_rx_config(struct gfar_private *priv)
 	if (priv->rx_filer_enable) {
 		rctrl |= RCTRL_FILREN;
 		/* Program the RIR0 reg with the required distribution */
-		gfar_write(&regs->rir0, DEFAULT_RIR0);
+		if (priv->poll_mode == GFAR_SQ_POLLING)
+			gfar_write(&regs->rir0, DEFAULT_2RXQ_RIR0);
+		else /* GFAR_MQ_POLLING */
+			gfar_write(&regs->rir0, DEFAULT_8RXQ_RIR0);
 	}
 
 	/* Restore PROMISC mode */
@@ -636,7 +639,6 @@ static int gfar_parse_group(struct device_node *np,
 			    struct gfar_private *priv, const char *model)
 {
 	struct gfar_priv_grp *grp = &priv->gfargrp[priv->num_grps];
-	u32 *queue_mask;
 	int i;
 
 	for (i = 0; i < GFAR_NUM_IRQS; i++) {
@@ -665,12 +667,20 @@ static int gfar_parse_group(struct device_node *np,
 	grp->priv = priv;
 	spin_lock_init(&grp->grplock);
 	if (priv->mode == MQ_MG_MODE) {
-		queue_mask = (u32 *)of_get_property(np, "fsl,rx-bit-map", NULL);
-		grp->rx_bit_map = queue_mask ?
-			*queue_mask : (DEFAULT_MAPPING >> priv->num_grps);
-		queue_mask = (u32 *)of_get_property(np, "fsl,tx-bit-map", NULL);
-		grp->tx_bit_map = queue_mask ?
-			*queue_mask : (DEFAULT_MAPPING >> priv->num_grps);
+		u32 *rxq_mask, *txq_mask;
+		rxq_mask = (u32 *)of_get_property(np, "fsl,rx-bit-map", NULL);
+		txq_mask = (u32 *)of_get_property(np, "fsl,tx-bit-map", NULL);
+
+		if (priv->poll_mode == GFAR_SQ_POLLING) {
+			/* One Q per interrupt group: Q0 to G0, Q1 to G1 */
+			grp->rx_bit_map = (DEFAULT_MAPPING >> priv->num_grps);
+			grp->tx_bit_map = (DEFAULT_MAPPING >> priv->num_grps);
+		} else { /* GFAR_MQ_POLLING */
+			grp->rx_bit_map = rxq_mask ?
+			*rxq_mask : (DEFAULT_MAPPING >> priv->num_grps);
+			grp->tx_bit_map = txq_mask ?
+			*txq_mask : (DEFAULT_MAPPING >> priv->num_grps);
+		}
 	} else {
 		grp->rx_bit_map = 0xFF;
 		grp->tx_bit_map = 0xFF;
@@ -686,6 +696,8 @@ static int gfar_parse_group(struct device_node *np,
 	 * also assign queues to groups
 	 */
 	for_each_set_bit(i, &grp->rx_bit_map, priv->num_rx_queues) {
+		if (!grp->rx_queue)
+			grp->rx_queue = priv->rx_queue[i];
 		grp->num_rx_queues++;
 		grp->rstat |= (RSTAT_CLEAR_RHALT >> i);
 		priv->rqueue |= ((RQUEUE_EN0 | RQUEUE_EX0) >> i);
@@ -693,6 +705,8 @@ static int gfar_parse_group(struct device_node *np,
 	}
 
 	for_each_set_bit(i, &grp->tx_bit_map, priv->num_tx_queues) {
+		if (!grp->tx_queue)
+			grp->tx_queue = priv->tx_queue[i];
 		grp->num_tx_queues++;
 		grp->tstat |= (TSTAT_CLEAR_THALT >> i);
 		priv->tqueue |= (TQUEUE_EN0 >> i);
@@ -723,9 +737,22 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	if (!np || !of_device_is_available(np))
 		return -ENODEV;
 
-	/* parse the num of tx and rx queues */
+	/* parse the num of HW tx and rx queues */
 	tx_queues = (u32 *)of_get_property(np, "fsl,num_tx_queues", NULL);
-	num_tx_qs = tx_queues ? *tx_queues : 1;
+	rx_queues = (u32 *)of_get_property(np, "fsl,num_rx_queues", NULL);
+
+	if (priv->mode == SQ_SG_MODE) {
+		num_tx_qs = 1;
+		num_rx_qs = 1;
+	} else { /* MQ_MG_MODE */
+		if (priv->poll_mode == GFAR_SQ_POLLING) {
+			num_tx_qs = 2; /* one q per int group */
+			num_rx_qs = 2; /* one q per int group */
+		} else { /* GFAR_MQ_POLLING */
+			num_tx_qs = tx_queues ? *tx_queues : 1;
+			num_rx_qs = rx_queues ? *rx_queues : 1;
+		}
+	}
 
 	if (num_tx_qs > MAX_TX_QS) {
 		pr_err("num_tx_qs(=%d) greater than MAX_TX_QS(=%d)\n",
@@ -733,9 +760,6 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		pr_err("Cannot do alloc_etherdev, aborting\n");
 		return -EINVAL;
 	}
-
-	rx_queues = (u32 *)of_get_property(np, "fsl,num_rx_queues", NULL);
-	num_rx_qs = rx_queues ? *rx_queues : 1;
 
 	if (num_rx_qs > MAX_RX_QS) {
 		pr_err("num_rx_qs(=%d) greater than MAX_RX_QS(=%d)\n",
@@ -777,6 +801,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	/* Parse and initialize group specific information */
 	if (of_device_is_compatible(np, "fsl,etsec2")) {
 		priv->mode = MQ_MG_MODE;
+		priv->poll_mode = GFAR_SQ_POLLING;
 		for_each_child_of_node(np, child) {
 			err = gfar_parse_group(child, priv, model);
 			if (err)
@@ -784,6 +809,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		}
 	} else {
 		priv->mode = SQ_SG_MODE;
+		priv->poll_mode = GFAR_SQ_POLLING;
 		err = gfar_parse_group(np, priv, model);
 		if (err)
 			goto err_grp_init;
@@ -1263,13 +1289,13 @@ static int gfar_probe(struct platform_device *ofdev)
 	dev->ethtool_ops = &gfar_ethtool_ops;
 
 	/* Register for napi ...We are registering NAPI for each grp */
-	if (priv->mode == SQ_SG_MODE) {
-		netif_napi_add(dev, &priv->gfargrp[0].napi_rx, gfar_poll_rx_sq,
-			       GFAR_DEV_WEIGHT);
-		netif_napi_add(dev, &priv->gfargrp[0].napi_tx, gfar_poll_tx_sq,
-			       2);
-	} else {
-		for (i = 0; i < priv->num_grps; i++) {
+	for (i = 0; i < priv->num_grps; i++) {
+		if (priv->poll_mode == GFAR_SQ_POLLING) {
+			netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
+				       gfar_poll_rx_sq, GFAR_DEV_WEIGHT);
+			netif_napi_add(dev, &priv->gfargrp[i].napi_tx,
+				       gfar_poll_tx_sq, 2);
+		} else {
 			netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
 				       gfar_poll_rx, GFAR_DEV_WEIGHT);
 			netif_napi_add(dev, &priv->gfargrp[i].napi_tx,
@@ -2819,7 +2845,7 @@ static int gfar_poll_rx_sq(struct napi_struct *napi, int budget)
 	struct gfar_priv_grp *gfargrp =
 		container_of(napi, struct gfar_priv_grp, napi_rx);
 	struct gfar __iomem *regs = gfargrp->regs;
-	struct gfar_priv_rx_q *rx_queue = gfargrp->priv->rx_queue[0];
+	struct gfar_priv_rx_q *rx_queue = gfargrp->rx_queue;
 	int work_done = 0;
 
 	/* Clear IEVENT, so interrupts aren't called again
@@ -2850,7 +2876,7 @@ static int gfar_poll_tx_sq(struct napi_struct *napi, int budget)
 	struct gfar_priv_grp *gfargrp =
 		container_of(napi, struct gfar_priv_grp, napi_tx);
 	struct gfar __iomem *regs = gfargrp->regs;
-	struct gfar_priv_tx_q *tx_queue = gfargrp->priv->tx_queue[0];
+	struct gfar_priv_tx_q *tx_queue = gfargrp->tx_queue;
 	u32 imask;
 
 	/* Clear IEVENT, so interrupts aren't called again

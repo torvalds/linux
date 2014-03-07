@@ -412,7 +412,9 @@ extern const char gfar_driver_version[];
 
 /* This default RIR value directly corresponds
  * to the 3-bit hash value generated */
-#define DEFAULT_RIR0	0x05397700
+#define DEFAULT_8RXQ_RIR0	0x05397700
+/* Map even hash values to Q0, and odd ones to Q1 */
+#define DEFAULT_2RXQ_RIR0	0x04104100
 
 /* RQFCR register bits */
 #define RQFCR_GPI		0x80000000
@@ -907,6 +909,22 @@ enum {
 	MQ_MG_MODE
 };
 
+/* GFAR_SQ_POLLING: Single Queue NAPI polling mode
+ *	The driver supports a single pair of RX/Tx queues
+ *	per interrupt group (Rx/Tx int line). MQ_MG mode
+ *	devices have 2 interrupt groups, so the device will
+ *	have a total of 2 Tx and 2 Rx queues in this case.
+ * GFAR_MQ_POLLING: Multi Queue NAPI polling mode
+ *	The driver supports all the 8 Rx and Tx HW queues
+ *	each queue mapped by the Device Tree to one of
+ *	the 2 interrupt groups. This mode implies significant
+ *	processing overhead (CPU and controller level).
+ */
+enum gfar_poll_mode {
+	GFAR_SQ_POLLING = 0,
+	GFAR_MQ_POLLING
+};
+
 /*
  * Per TX queue stats
  */
@@ -1016,17 +1034,20 @@ struct gfar_irqinfo {
  */
 
 struct gfar_priv_grp {
-	spinlock_t grplock __attribute__ ((aligned (SMP_CACHE_BYTES)));
+	spinlock_t grplock __aligned(SMP_CACHE_BYTES);
 	struct	napi_struct napi_rx;
 	struct	napi_struct napi_tx;
-	struct gfar_private *priv;
 	struct gfar __iomem *regs;
-	unsigned int rstat;
-	unsigned long num_rx_queues;
-	unsigned long rx_bit_map;
+	struct gfar_priv_tx_q *tx_queue;
+	struct gfar_priv_rx_q *rx_queue;
 	unsigned int tstat;
+	unsigned int rstat;
+
+	struct gfar_private *priv;
 	unsigned long num_tx_queues;
 	unsigned long tx_bit_map;
+	unsigned long num_rx_queues;
+	unsigned long rx_bit_map;
 
 	struct gfar_irqinfo *irqinfo[GFAR_NUM_IRQS];
 };
@@ -1056,8 +1077,6 @@ enum gfar_dev_state {
  * the buffer descriptor determines the actual condition.
  */
 struct gfar_private {
-	unsigned int num_rx_queues;
-
 	struct device *dev;
 	struct net_device *ndev;
 	enum gfar_errata errata;
@@ -1065,6 +1084,7 @@ struct gfar_private {
 
 	u16 uses_rxfcb;
 	u16 padding;
+	u32 device_flags;
 
 	/* HW time stamping enabled flag */
 	int hwts_rx_en;
@@ -1075,10 +1095,11 @@ struct gfar_private {
 	struct gfar_priv_grp gfargrp[MAXGROUPS];
 
 	unsigned long state;
-	u32 device_flags;
 
-	unsigned int mode;
+	unsigned short mode;
+	unsigned short poll_mode;
 	unsigned int num_tx_queues;
+	unsigned int num_rx_queues;
 	unsigned int num_grps;
 
 	/* Network Statistics */
