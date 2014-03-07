@@ -648,7 +648,7 @@ struct r8180_priv {
 		BE_PRIORITY)
 
 short rtl8180_tx(struct net_device *dev, u8 *skbuf, int len, int priority,
-		 short morefrag, short fragdesc, int rate);
+		 bool morefrag, short fragdesc, int rate);
 
 u8 read_nic_byte(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);

@@ -1679,7 +1679,7 @@ static void rtl8180_prepare_beacon(struct net_device *dev)
  * it does the DMA transfer.
  */
 short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
-		 short morefrag, short descfrag, int rate)
+		 bool morefrag, short descfrag, int rate)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u32 *tail, *temp_tail;
