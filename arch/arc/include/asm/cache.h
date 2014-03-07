@@ -55,4 +55,31 @@ extern void read_decode_cache_bcr(void);
 
 #endif	/* !__ASSEMBLY__ */
 
+/* Instruction cache related Auxiliary registers */
+#define ARC_REG_IC_BCR		0x77	/* Build Config reg */
+#define ARC_REG_IC_IVIC		0x10
+#define ARC_REG_IC_CTRL		0x11
+#define ARC_REG_IC_IVIL		0x19
+#if defined(CONFIG_ARC_MMU_V3) || defined (CONFIG_ARC_MMU_V4)
+#define ARC_REG_IC_PTAG		0x1E
+#endif
+
+/* Bit val in IC_CTRL */
+#define IC_CTRL_CACHE_DISABLE   0x1
+
+/* Data cache related Auxiliary registers */
+#define ARC_REG_DC_BCR		0x72	/* Build Config reg */
+#define ARC_REG_DC_IVDC		0x47
+#define ARC_REG_DC_CTRL		0x48
+#define ARC_REG_DC_IVDL		0x4A
+#define ARC_REG_DC_FLSH		0x4B
+#define ARC_REG_DC_FLDL		0x4C
+#if defined(CONFIG_ARC_MMU_V3) || defined (CONFIG_ARC_MMU_V4)
+#define ARC_REG_DC_PTAG		0x5C
+#endif
+
+/* Bit val in DC_CTRL */
+#define DC_CTRL_INV_MODE_FLUSH  0x40
+#define DC_CTRL_FLUSH_STATUS    0x100
+
 #endif /* _ASM_CACHE_H */
