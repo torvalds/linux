@@ -2807,9 +2807,9 @@ int dw_mci_resume(struct dw_mci *host)
 			dw_mci_setup_bus(slot, true);
 		}
 
-		ret = mmc_resume_host(host->slot[i]->mmc);
-		if (ret < 0)
-			return ret;
+	//	ret = mmc_resume_host(host->slot[i]->mmc);
+	//	if (ret < 0)
+	//		return ret;
 	}
 	return 0;
 }
