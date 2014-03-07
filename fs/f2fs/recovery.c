@@ -436,7 +436,7 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 	bool need_writecp = false;
 
 	fsync_entry_slab = f2fs_kmem_cache_create("f2fs_fsync_inode_entry",
-			sizeof(struct fsync_inode_entry), NULL);
+			sizeof(struct fsync_inode_entry));
 	if (!fsync_entry_slab)
 		return -ENOMEM;
 

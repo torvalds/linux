@@ -1878,7 +1878,7 @@ void destroy_segment_manager(struct f2fs_sb_info *sbi)
 int __init create_segment_manager_caches(void)
 {
 	discard_entry_slab = f2fs_kmem_cache_create("discard_entry",
-			sizeof(struct discard_entry), NULL);
+			sizeof(struct discard_entry));
 	if (!discard_entry_slab)
 		return -ENOMEM;
 	return 0;
