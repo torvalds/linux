@@ -106,6 +106,7 @@ struct pcpu_chunk {
 	int			map_alloc;	/* # of map entries allocated */
 	int			*map;		/* allocation map */
 	void			*data;		/* chunk data */
+	int			first_free;	/* no free below this */
 	bool			immutable;	/* no [de]population allowed */
 	unsigned long		populated[];	/* populated bitmap */
 };
@@ -441,9 +442,10 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
 	int oslot = pcpu_chunk_slot(chunk);
 	int max_contig = 0;
 	int i, off;
+	bool seen_free = false;
 	int *p;
 
-	for (i = 0, p = chunk->map; i < chunk->map_used; i++, p++) {
+	for (i = chunk->first_free, p = chunk->map + i; i < chunk->map_used; i++, p++) {
 		int head, tail;
 		int this_size;
 
@@ -456,6 +458,10 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
 
 		this_size = (p[1] & ~1) - off;
 		if (this_size < head + size) {
+			if (!seen_free) {
+				chunk->first_free = i;
+				seen_free = true;
+			}
 			max_contig = max(this_size, max_contig);
 			continue;
 		}
@@ -491,6 +497,10 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
 			chunk->map_used += nr_extra;
 
 			if (head) {
+				if (!seen_free) {
+					chunk->first_free = i;
+					seen_free = true;
+				}
 				*++p = off += head;
 				++i;
 				max_contig = max(head, max_contig);
@@ -500,6 +510,9 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
 				max_contig = max(tail, max_contig);
 			}
 		}
+
+		if (!seen_free)
+			chunk->first_free = i + 1;
 
 		/* update hint and mark allocated */
 		if (i + 1 == chunk->map_used)
@@ -557,6 +570,9 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
 			i = j = k;
 	}
 	BUG_ON(off != freeme);
+
+	if (i < chunk->first_free)
+		chunk->first_free = i;
 
 	p = chunk->map + i;
 	*p = off &= ~1;
