@@ -1543,6 +1543,9 @@ static inline void prevent_sleep(struct dvb_frontend_ops *ops)
 
 static int em28xx_dvb_fini(struct em28xx *dev)
 {
+	struct em28xx_dvb *dvb;
+	struct i2c_client *client;
+
 	if (dev->is_audio_only) {
 		/* Shouldn't initialize IR for this interface */
 		return 0;
@@ -1553,34 +1556,35 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 		return 0;
 	}
 
+	if (!dev->dvb)
+		return 0;
+
 	em28xx_info("Closing DVB extension");
 
-	if (dev->dvb) {
-		struct em28xx_dvb *dvb = dev->dvb;
-		struct i2c_client *client = dvb->i2c_client_tuner;
+	dvb = dev->dvb;
+	client = dvb->i2c_client_tuner;
 
-		em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
+	em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 
-		if (dev->disconnected) {
-			/* We cannot tell the device to sleep
-			 * once it has been unplugged. */
-			if (dvb->fe[0])
-				prevent_sleep(&dvb->fe[0]->ops);
-			if (dvb->fe[1])
-				prevent_sleep(&dvb->fe[1]->ops);
-		}
-
-		/* remove I2C tuner */
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-		}
-
-		em28xx_unregister_dvb(dvb);
-		kfree(dvb);
-		dev->dvb = NULL;
-		kref_put(&dev->ref, em28xx_free_device);
+	if (dev->disconnected) {
+		/* We cannot tell the device to sleep
+		 * once it has been unplugged. */
+		if (dvb->fe[0])
+			prevent_sleep(&dvb->fe[0]->ops);
+		if (dvb->fe[1])
+			prevent_sleep(&dvb->fe[1]->ops);
 	}
+
+	/* remove I2C tuner */
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	em28xx_unregister_dvb(dvb);
+	kfree(dvb);
+	dev->dvb = NULL;
+	kref_put(&dev->ref, em28xx_free_device);
 
 	return 0;
 }
