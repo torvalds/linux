@@ -28,7 +28,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
 #include "core.h"
