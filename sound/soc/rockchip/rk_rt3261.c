@@ -38,10 +38,24 @@ static int rockchip_rt3261_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned int pll_out = 0;
+	unsigned int pll_out = 0, dai_fmt = rtd->dai_link->dai_fmt;
 	int ret;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
+	DBG("Enter::%s----%d\n", __FUNCTION__, __LINE__);
+
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
+	if (ret < 0) {
+		printk("%s():failed to set the format for codec side\n", __FUNCTION__);
+		return ret;
+	}
+
+	/* set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
+	if (ret < 0) {
+		printk("%s():failed to set the format for cpu side\n", __FUNCTION__);
+		return ret;
+	}
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -88,13 +102,17 @@ static int rockchip_rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned int pll_out = 0;
+	unsigned int pll_out = 0, dai_fmt = rtd->dai_link->dai_fmt;
 	int ret;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-       
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-		SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBS_CFS ); 
+	DBG("Enter::%s----%d\n", __FUNCTION__, __LINE__);
+
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
+	if (ret < 0) {
+		printk("%s():failed to set the format for codec side\n", __FUNCTION__);
+		return ret;
+	}
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -231,7 +249,6 @@ static struct snd_soc_dai_link rockchip_rt3261_dai[] = {
 		.stream_name = "RT3261 PCM2",
 		.codec_dai_name = "rt3261-aif2",
 		.ops = &rockchip_rt3261_voice_ops,
-		.no_pcm = 1,
 	},
 };
 
@@ -252,14 +269,25 @@ dts:
 		compatible = "rockchip-rt3261";
 		dais {
 			dai0 {
-				codec-name = "rt3261.0-001c";
-				cpu-dai-name = "rockchip-i2s.1";
+				audio-codec = <&rt3261>;
+				i2s-controller = <&i2s0>;
 				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
 			};
 
 			dai1 {
-				codec-name = "rt3261.0-001c";
-				cpu-dai-name = "rockchip-i2s.1";
+				audio-codec = <&rt3261>;
+				i2s-controller = <&i2s0>;
+				format = "dsp_a";
+				//continuous-clock;
+				bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
 			};
 		};
 	};
