@@ -702,10 +702,8 @@ static enum dma_status mv_xor_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_COMPLETE) {
-		mv_xor_clean_completed_slots(mv_chan);
+	if (ret == DMA_COMPLETE)
 		return ret;
-	}
 	mv_xor_slot_cleanup(mv_chan);
 
 	return dma_cookie_status(chan, cookie, txstate);
