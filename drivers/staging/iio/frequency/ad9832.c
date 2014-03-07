@@ -120,7 +120,7 @@ static ssize_t ad9832_write(struct device *dev, struct device_attribute *attr,
 		ret = spi_sync(st->spi, &st->msg);
 		break;
 	case AD9832_PHASE_SYM:
-		if (val < 0 || val > 3) {
+		if (val > 3) {
 			ret = -EINVAL;
 			break;
 		}
