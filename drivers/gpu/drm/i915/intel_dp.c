@@ -91,7 +91,6 @@ static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 }
 
 static void intel_dp_link_down(struct intel_dp *intel_dp);
-static void edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 
 static int
@@ -1162,7 +1161,7 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	return control;
 }
 
-static void edp_panel_vdd_on(struct intel_dp *intel_dp)
+void edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1338,11 +1337,16 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 
+	intel_dp->want_panel_vdd = false;
+
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
 	intel_dp->last_power_cycle = jiffies;
 	wait_panel_off(intel_dp);
+
+	/* We got a reference when we enabled the VDD. */
+	intel_runtime_pm_put(dev_priv);
 }
 
 void intel_edp_backlight_on(struct intel_dp *intel_dp)
@@ -1880,7 +1884,6 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	intel_edp_backlight_off(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	intel_edp_panel_off(intel_dp);
-	edp_panel_vdd_off(intel_dp, true);
 
 	/* cpu edp my only be disable _after_ the cpu pipe/plane is disabled. */
 	if (!(port == PORT_A || IS_VALLEYVIEW(dev)))

@@ -767,6 +767,7 @@ void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_edp_psr_update(struct drm_device *dev);
+void edp_panel_vdd_on(struct intel_dp *intel_dp);
 
 
 /* intel_dsi.c */
