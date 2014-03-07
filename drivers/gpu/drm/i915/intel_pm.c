@@ -6158,7 +6158,8 @@ void intel_pm_setup(struct drm_device *dev)
 	mutex_init(&dev_priv->rps.hw_lock);
 
 	mutex_init(&dev_priv->pc8.lock);
-	dev_priv->pc8.irqs_disabled = false;
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
+
+	dev_priv->pm.irqs_disabled = false;
 }

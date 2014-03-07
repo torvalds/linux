@@ -1390,8 +1390,12 @@ struct ilk_wm_values {
  * For more, read "Display Sequences for Package C8" on our documentation.
  */
 struct i915_package_c8 {
-	bool irqs_disabled;
 	struct mutex lock;
+};
+
+struct i915_runtime_pm {
+	bool suspended;
+	bool irqs_disabled;
 
 	struct {
 		uint32_t deimr;
@@ -1400,10 +1404,6 @@ struct i915_package_c8 {
 		uint32_t gtier;
 		uint32_t gen6_pmimr;
 	} regsave;
-};
-
-struct i915_runtime_pm {
-	bool suspended;
 };
 
 enum intel_pipe_crc_source {
