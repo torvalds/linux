@@ -145,7 +145,7 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 
 //		rockchip_ion_get_heap_adjacent(node, &pdata->heaps[idx]);
 		pdata->heaps[idx].priv = dev;
-		pr_info("%d:  %d  %d  %s  0x%08X\n", idx, pdata->heaps[idx].type, pdata->heaps[idx].id, pdata->heaps[idx].name, pdata->heaps[idx].size);
+		pr_info("%d:  %d  %d  %s  0x%p\n", idx, pdata->heaps[idx].type, pdata->heaps[idx].id, pdata->heaps[idx].name, pdata->heaps[idx].priv);
 
 		++idx;
 	}
@@ -173,22 +173,20 @@ struct ion_cma_heap {
 static int ion_cma_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 				      void *unused)
 {
-
 	struct ion_cma_heap *cma_heap = container_of(heap,
 							struct ion_cma_heap,
 							heap);
 	struct device *dev = cma_heap->dev;
 	struct cma *cma = dev_get_cma_area(dev);
-	unsigned long bit_nr;
 	int i;
+	int rows = cma->count/(SZ_1M >> PAGE_SHIFT);
+	phys_addr_t base = __pfn_to_phys(cma->base_pfn);
 
-	dev_dbg(dev, "%s: %p(%d,%d,%p)\n", __func__, cma, cma->base_pfn, cma->count, cma->bitmap);
+	seq_printf(s, "Heap bitmap:\n");
 
-	bit_nr = (cma->count/sizeof(unsigned long))>>3;
-
-	for(i = (bit_nr>>3) - 1; i>= 0; i--){
-		seq_printf(s, "%.3uM> Bits[%.3d - %.3d]: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
-				i+1, i*8 + 7, i*8,
+	for(i = rows - 1; i>= 0; i--){
+		seq_printf(s, "%.4uM@0x%08X: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
+				i+1, base+(i)*SZ_1M,
 				cma->bitmap[i*8 + 7],
 				cma->bitmap[i*8 + 6],
 				cma->bitmap[i*8 + 5],
@@ -198,7 +196,8 @@ static int ion_cma_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 				cma->bitmap[i*8 + 1],
 				cma->bitmap[i*8]);
 	}
-	seq_printf(s, "Heap size: %luM, heap base: 0x%lx\n", (cma->count)>>8, cma->base_pfn);
+	seq_printf(s, "Heap size: %luM, Heap base: 0x%08X\n",
+		(cma->count)>>8, base);
 
 	return 0;
 }
@@ -212,7 +211,7 @@ EXPORT_SYMBOL(rockchip_ion_client_create);
 static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			      unsigned long arg)
 {
-	pr_info("[%s %d] cmd=%X\n", __func__, __LINE__, cmd);
+	pr_debug("[%s %d] cmd=%X\n", __func__, __LINE__, cmd);
 
 	switch (cmd) {
 	case ION_IOC_CLEAN_CACHES:
@@ -234,7 +233,7 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			return PTR_ERR(handle);
 
 		ret = ion_phys(client, handle, &data.phys, (size_t *)&data.size);
-		pr_info("ret=%d, phys=0x%X\n", ret, data.phys);
+		pr_debug("ret=%d, phys=0x%lX\n", ret, data.phys);
 		ion_handle_put(handle);
 		if(ret < 0)
 			return ret;
