@@ -687,11 +687,9 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 8 * 7 + 2;
 		s->insn_read	= jr3_pci_ai_insn_read;
 
-		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		p = comedi_alloc_spriv(s, sizeof(*p));
 		if (p) {
 			int j;
-
-			s->private = p;
 
 			p->channel = &devpriv->iobase->channel[i].data;
 			dev_dbg(dev->class_dev, "p->channel %p %p (%tx)\n",
@@ -780,16 +778,11 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 static void jr3_pci_detach(struct comedi_device *dev)
 {
-	int i;
 	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	if (devpriv) {
 		del_timer_sync(&devpriv->timer);
 
-		if (dev->subdevices) {
-			for (i = 0; i < devpriv->n_channels; i++)
-				kfree(dev->subdevices[i].private);
-		}
 		if (devpriv->iobase)
 			iounmap(devpriv->iobase);
 	}
