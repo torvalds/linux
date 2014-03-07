@@ -144,7 +144,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 	struct resource *r, avail;
 	resource_size_t max;
 
-	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
+	type_mask |= IORESOURCE_TYPE_BITS;
 
 	pci_bus_for_each_resource(bus, r, i) {
 		if (!r)
