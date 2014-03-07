@@ -208,7 +208,9 @@ static void usb_alphatrack_delete(struct usb_alphatrack *dev)
 	kfree(dev->ring_buffer);
 	kfree(dev->interrupt_in_buffer);
 	kfree(dev->interrupt_out_buffer);
-	kfree(dev);		/* fixme oldi_buffer */
+	kfree(dev->oldi_buffer);
+	kfree(dev->write_buffer);
+	kfree(dev);
 }
 
 /** usb_alphatrack_interrupt_in_callback */
