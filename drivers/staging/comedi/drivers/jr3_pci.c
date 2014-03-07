@@ -624,6 +624,49 @@ static void jr3_pci_poll_dev(unsigned long data)
 	add_timer(&devpriv->timer);
 }
 
+static struct jr3_pci_subdev_private *
+jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_pci_subdev_private *spriv;
+	int j;
+	int k;
+
+	spriv = comedi_alloc_spriv(s, sizeof(*spriv));
+	if (!spriv)
+		return NULL;
+
+	spriv->channel = &devpriv->iobase->channel[s->index].data;
+	spriv->channel_no = s->index;
+
+	for (j = 0; j < 8; j++) {
+		spriv->range[j].length = 1;
+		spriv->range[j].range.min = -1000000;
+		spriv->range[j].range.max = 1000000;
+
+		for (k = 0; k < 7; k++) {
+			spriv->range_table_list[j + k * 8] =
+				(struct comedi_lrange *)&spriv->range[j];
+			spriv->maxdata_list[j + k * 8] = 0x7fff;
+		}
+	}
+	spriv->range[8].length = 1;
+	spriv->range[8].range.min = 0;
+	spriv->range[8].range.max = 65536;
+
+	spriv->range_table_list[56] = (struct comedi_lrange *)&spriv->range[8];
+	spriv->range_table_list[57] = (struct comedi_lrange *)&spriv->range[8];
+	spriv->maxdata_list[56] = 0xffff;
+	spriv->maxdata_list[57] = 0xffff;
+
+	dev_dbg(dev->class_dev, "p->channel %p %p (%tx)\n",
+		spriv->channel, devpriv->iobase,
+		((char __iomem *)spriv->channel -
+		 (char __iomem *)devpriv->iobase));
+
+	return spriv;
+}
+
 static int jr3_pci_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
@@ -687,44 +730,11 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 8 * 7 + 2;
 		s->insn_read	= jr3_pci_ai_insn_read;
 
-		p = comedi_alloc_spriv(s, sizeof(*p));
+		p = jr3_pci_alloc_spriv(dev, s);
 		if (p) {
-			int j;
-
-			p->channel = &devpriv->iobase->channel[i].data;
-			dev_dbg(dev->class_dev, "p->channel %p %p (%tx)\n",
-				p->channel, devpriv->iobase,
-				((char __iomem *)p->channel -
-				 (char __iomem *)devpriv->iobase));
-			p->channel_no = i;
-			for (j = 0; j < 8; j++) {
-				int k;
-
-				p->range[j].length = 1;
-				p->range[j].range.min = -1000000;
-				p->range[j].range.max = 1000000;
-				for (k = 0; k < 7; k++) {
-					p->range_table_list[j + k * 8] =
-					    (struct comedi_lrange *)&p->
-					    range[j];
-					p->maxdata_list[j + k * 8] = 0x7fff;
-				}
-			}
-			p->range[8].length = 1;
-			p->range[8].range.min = 0;
-			p->range[8].range.max = 65536;
-
-			p->range_table_list[56] =
-				(struct comedi_lrange *)&p->range[8];
-			p->range_table_list[57] =
-				(struct comedi_lrange *)&p->range[8];
-			p->maxdata_list[56] = 0xffff;
-			p->maxdata_list[57] = 0xffff;
-			/*  Channel specific range and maxdata */
-			s->range_table = NULL;
-			s->range_table_list = p->range_table_list;
-			s->maxdata = 0;
-			s->maxdata_list = p->maxdata_list;
+			/* Channel specific range and maxdata */
+			s->range_table_list	= p->range_table_list;
+			s->maxdata_list		= p->maxdata_list;
 		}
 	}
 
