@@ -53,6 +53,12 @@
 #define ARIZONA_AIF_RX_ENABLES                  0x1A
 #define ARIZONA_AIF_FORCE_WRITE                 0x1B
 
+#define ARIZONA_FLL_MAX_FREF   13500000
+#define ARIZONA_FLL_MIN_FVCO   90000000
+#define ARIZONA_FLL_MAX_REFDIV 8
+#define ARIZONA_FLL_MIN_OUTDIV 2
+#define ARIZONA_FLL_MAX_OUTDIV 7
+
 #define arizona_fll_err(_fll, fmt, ...) \
 	dev_err(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 #define arizona_fll_warn(_fll, fmt, ...) \
@@ -1390,11 +1396,11 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	/* Fref must be <=13.5MHz */
 	div = 1;
 	cfg->refdiv = 0;
-	while ((Fref / div) > 13500000) {
+	while ((Fref / div) > ARIZONA_FLL_MAX_FREF) {
 		div *= 2;
 		cfg->refdiv++;
 
-		if (div > 8) {
+		if (div > ARIZONA_FLL_MAX_REFDIV) {
 			arizona_fll_err(fll,
 					"Can't scale %dMHz in to <=13.5MHz\n",
 					Fref);
@@ -1406,10 +1412,10 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	Fref /= div;
 
 	/* Fvco should be over the targt; don't check the upper bound */
-	div = 2;
-	while (Fout * div < 90000000 * fll->vco_mult) {
+	div = ARIZONA_FLL_MIN_OUTDIV;
+	while (Fout * div < ARIZONA_FLL_MIN_FVCO * fll->vco_mult) {
 		div++;
-		if (div > 7) {
+		if (div > ARIZONA_FLL_MAX_OUTDIV) {
 			arizona_fll_err(fll, "No FLL_OUTDIV for Fout=%uHz\n",
 					Fout);
 			return -EINVAL;
