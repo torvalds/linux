@@ -39,6 +39,11 @@ struct s2mps11_info {
 	int ramp_delay16;
 	int ramp_delay7810;
 	int ramp_delay9;
+	/*
+	 * One bit for each S2MPS14 regulator whether the suspend mode
+	 * was enabled.
+	 */
+	unsigned int s2mps14_suspend_state:30;
 };
 
 static int get_ramp_delay(int ramp_delay)
@@ -399,15 +404,59 @@ static const struct regulator_desc s2mps11_regulators[] = {
 	regulator_desc_s2mps11_buck10,
 };
 
+static int s2mps14_regulator_enable(struct regulator_dev *rdev)
+{
+	struct s2mps11_info *s2mps11 = rdev_get_drvdata(rdev);
+	unsigned int val;
+
+	if (s2mps11->s2mps14_suspend_state & (1 << rdev_get_id(rdev)))
+		val = S2MPS14_ENABLE_SUSPEND;
+	else
+		val = rdev->desc->enable_mask;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+			rdev->desc->enable_mask, val);
+}
+
+static int s2mps14_regulator_set_suspend_disable(struct regulator_dev *rdev)
+{
+	int ret;
+	unsigned int val;
+	struct s2mps11_info *s2mps11 = rdev_get_drvdata(rdev);
+
+	/* LDO3 should be always on and does not support suspend mode */
+	if (rdev_get_id(rdev) == S2MPS14_LDO3)
+		return 0;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
+	if (ret < 0)
+		return ret;
+
+	s2mps11->s2mps14_suspend_state |= (1 << rdev_get_id(rdev));
+	/*
+	 * Don't enable suspend mode if regulator is already disabled because
+	 * this would effectively for a short time turn on the regulator after
+	 * resuming.
+	 * However we still want to toggle the suspend_state bit for regulator
+	 * in case if it got enabled before suspending the system.
+	 */
+	if (!(val & rdev->desc->enable_mask))
+		return 0;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+			rdev->desc->enable_mask, S2MPS14_ENABLE_SUSPEND);
+}
+
 static struct regulator_ops s2mps14_reg_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
-	.enable			= regulator_enable_regmap,
+	.enable			= s2mps14_regulator_enable,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_suspend_disable	= s2mps14_regulator_set_suspend_disable,
 };
 
 #define regulator_desc_s2mps14_ldo1(num) {		\
