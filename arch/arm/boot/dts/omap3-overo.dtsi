@@ -9,3 +9,11 @@
 #include "omap34xx.dtsi"
 #include "omap3-overo-base.dtsi"
 
+&omap3_pmx_core2 {
+	w3cbw003c_2_pins: pinmux_w3cbw003c_2_pins {
+		pinctrl-single,pins = <
+			OMAP3430_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4)		/* etk_d2.gpio_16 */
+		>;
+	};
+};
+
