@@ -90,14 +90,14 @@ struct jr3_pci_transform {
 	} link[8];
 };
 
+struct jr3_pci_poll_delay {
+	int min;
+	int max;
+};
+
 struct jr3_pci_dev_private {
 	struct jr3_t __iomem *iobase;
 	struct timer_list timer;
-};
-
-struct poll_delay_t {
-	int min;
-	int max;
 };
 
 struct jr3_pci_subdev_private {
@@ -124,9 +124,9 @@ struct jr3_pci_subdev_private {
 	int retries;
 };
 
-static struct poll_delay_t poll_delay_min_max(int min, int max)
+static struct jr3_pci_poll_delay poll_delay_min_max(int min, int max)
 {
-	struct poll_delay_t result;
+	struct jr3_pci_poll_delay result;
 
 	result.min = min;
 	result.max = max;
@@ -447,10 +447,10 @@ static int jr3_download_firmware(struct comedi_device *dev,
 	return 0;
 }
 
-static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
+static struct jr3_pci_poll_delay jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 {
 	struct jr3_pci_subdev_private *spriv = s->private;
-	struct poll_delay_t result = poll_delay_min_max(1000, 2000);
+	struct jr3_pci_poll_delay result = poll_delay_min_max(1000, 2000);
 	struct jr3_channel __iomem *channel;
 	u16 model_no;
 	u16 serial_no;
@@ -610,7 +610,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 		spriv = s->private;
 
 		if (now > spriv->next_time_min) {
-			struct poll_delay_t sub_delay;
+			struct jr3_pci_poll_delay sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(s);
 
