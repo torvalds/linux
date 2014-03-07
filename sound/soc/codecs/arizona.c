@@ -1406,7 +1406,7 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	Fref /= div;
 
 	/* Fvco should be over the targt; don't check the upper bound */
-	div = 1;
+	div = 2;
 	while (Fout * div < 90000000 * fll->vco_mult) {
 		div++;
 		if (div > 7) {
