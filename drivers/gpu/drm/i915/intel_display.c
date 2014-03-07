@@ -7039,8 +7039,6 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
 
-	WARN_ON(!HAS_PC8(dev));
-
 	DRM_DEBUG_KMS("Enabling package C8+\n");
 
 	if (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
@@ -7058,8 +7056,6 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
-
-	WARN_ON(!HAS_PC8(dev));
 
 	DRM_DEBUG_KMS("Disabling package C8+\n");
 

@@ -842,10 +842,7 @@ static void snb_runtime_suspend(struct drm_i915_private *dev_priv)
 
 static void hsw_runtime_suspend(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
-
-	if (HAS_PC8(dev))
-		hsw_enable_pc8(dev_priv);
+	hsw_enable_pc8(dev_priv);
 }
 
 static void snb_runtime_resume(struct drm_i915_private *dev_priv)
@@ -862,10 +859,7 @@ static void snb_runtime_resume(struct drm_i915_private *dev_priv)
 
 static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
-
-	if (HAS_PC8(dev))
-		hsw_disable_pc8(dev_priv);
+	hsw_disable_pc8(dev_priv);
 }
 
 static int intel_runtime_suspend(struct device *device)

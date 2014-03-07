@@ -1865,7 +1865,6 @@ struct drm_i915_cmd_table {
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev))
-#define HAS_PC8(dev)		(IS_HASWELL(dev)) /* XXX HSW:ULX */
 #define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
