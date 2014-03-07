@@ -83,6 +83,8 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_INTERNAL_ERROR	-11
 #define OPAL_BUSY_EVENT		-12
 #define OPAL_HARDWARE_FROZEN	-13
+#define OPAL_WRONG_STATE	-14
+#define OPAL_ASYNC_COMPLETION	-15
 
 /* API Tokens (in r0) */
 #define OPAL_CONSOLE_WRITE			1
@@ -253,7 +255,9 @@ enum OpalPendingState {
 };
 
 enum OpalMessageType {
-	OPAL_MSG_ASYNC_COMP		= 0,
+	OPAL_MSG_ASYNC_COMP = 0,	/* params[0] = token, params[1] = rc,
+					 * additional params function-specific
+					 */
 	OPAL_MSG_MEM_ERR,
 	OPAL_MSG_EPOW,
 	OPAL_MSG_SHUTDOWN,
@@ -879,6 +883,12 @@ extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
 
 extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
 extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
+
+extern int __opal_async_get_token(void);
+extern int opal_async_get_token_interruptible(void);
+extern int __opal_async_release_token(int token);
+extern int opal_async_release_token(int token);
+extern int opal_async_wait_response(uint64_t token, struct opal_msg *msg);
 
 extern void hvc_opal_init_early(void);
 
