@@ -1034,6 +1034,7 @@ rcu_torture_printk(char *page)
 				"??? Writer stall state %d g%lu c%lu f%#x\n",
 				rcu_torture_writer_state,
 				gpnum, completed, flags);
+		rcutorture_trace_dump();
 	}
 	rtcv_snap = rcu_torture_current_version;
 }
