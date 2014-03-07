@@ -106,7 +106,6 @@
 
 /* VTCR_EL2 Registers bits */
 #define VTCR_EL2_PS_MASK	(7 << 16)
-#define VTCR_EL2_PS_40B		(2 << 16)
 #define VTCR_EL2_TG0_MASK	(1 << 14)
 #define VTCR_EL2_TG0_4K		(0 << 14)
 #define VTCR_EL2_TG0_64K	(1 << 14)
@@ -129,10 +128,9 @@
  * 64kB pages (TG0 = 1)
  * 2 level page tables (SL = 1)
  */
-#define VTCR_EL2_FLAGS		(VTCR_EL2_PS_40B | VTCR_EL2_TG0_64K | \
-				 VTCR_EL2_SH0_INNER | VTCR_EL2_ORGN0_WBWA | \
-				 VTCR_EL2_IRGN0_WBWA | VTCR_EL2_SL0_LVL1 | \
-				 VTCR_EL2_T0SZ_40B)
+#define VTCR_EL2_FLAGS		(VTCR_EL2_TG0_64K | VTCR_EL2_SH0_INNER | \
+				 VTCR_EL2_ORGN0_WBWA | VTCR_EL2_IRGN0_WBWA | \
+				 VTCR_EL2_SL0_LVL1 | VTCR_EL2_T0SZ_40B)
 #define VTTBR_X		(38 - VTCR_EL2_T0SZ_40B)
 #else
 /*
@@ -142,10 +140,9 @@
  * 4kB pages (TG0 = 0)
  * 3 level page tables (SL = 1)
  */
-#define VTCR_EL2_FLAGS		(VTCR_EL2_PS_40B | VTCR_EL2_TG0_4K | \
-				 VTCR_EL2_SH0_INNER | VTCR_EL2_ORGN0_WBWA | \
-				 VTCR_EL2_IRGN0_WBWA | VTCR_EL2_SL0_LVL1 | \
-				 VTCR_EL2_T0SZ_40B)
+#define VTCR_EL2_FLAGS		(VTCR_EL2_TG0_4K | VTCR_EL2_SH0_INNER | \
+				 VTCR_EL2_ORGN0_WBWA | VTCR_EL2_IRGN0_WBWA | \
+				 VTCR_EL2_SL0_LVL1 | VTCR_EL2_T0SZ_40B)
 #define VTTBR_X		(37 - VTCR_EL2_T0SZ_40B)
 #endif
 
