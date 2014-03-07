@@ -1663,21 +1663,22 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		desc = NULL;
 	} else if ((strncmp(cmd_buf, "add fd_filter", 13) == 0) ||
 		   (strncmp(cmd_buf, "rem fd_filter", 13) == 0)) {
-		struct i40e_fdir_data fd_data;
+		struct i40e_fdir_filter fd_data;
 		u16 packet_len, i, j = 0;
 		char *asc_packet;
+		u8 *raw_packet;
 		bool add = false;
 		int ret;
 
-		asc_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_LOOKUP,
+		asc_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE,
 				     GFP_KERNEL);
 		if (!asc_packet)
 			goto command_write_done;
 
-		fd_data.raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_LOOKUP,
-					     GFP_KERNEL);
+		raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE,
+				     GFP_KERNEL);
 
-		if (!fd_data.raw_packet) {
+		if (!raw_packet) {
 			kfree(asc_packet);
 			asc_packet = NULL;
 			goto command_write_done;
@@ -1698,36 +1699,36 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				 cnt);
 			kfree(asc_packet);
 			asc_packet = NULL;
-			kfree(fd_data.raw_packet);
+			kfree(raw_packet);
 			goto command_write_done;
 		}
 
 		/* fix packet length if user entered 0 */
 		if (packet_len == 0)
-			packet_len = I40E_FDIR_MAX_RAW_PACKET_LOOKUP;
+			packet_len = I40E_FDIR_MAX_RAW_PACKET_SIZE;
 
 		/* make sure to check the max as well */
 		packet_len = min_t(u16,
-				   packet_len, I40E_FDIR_MAX_RAW_PACKET_LOOKUP);
+				   packet_len, I40E_FDIR_MAX_RAW_PACKET_SIZE);
 
 		for (i = 0; i < packet_len; i++) {
 			sscanf(&asc_packet[j], "%2hhx ",
-			       &fd_data.raw_packet[i]);
+			       &raw_packet[i]);
 			j += 3;
 		}
 		dev_info(&pf->pdev->dev, "FD raw packet dump\n");
 		print_hex_dump(KERN_INFO, "FD raw packet: ",
 			       DUMP_PREFIX_OFFSET, 16, 1,
-			       fd_data.raw_packet, packet_len, true);
-		ret = i40e_program_fdir_filter(&fd_data, pf, add);
+			       raw_packet, packet_len, true);
+		ret = i40e_program_fdir_filter(&fd_data, raw_packet, pf, add);
 		if (!ret) {
 			dev_info(&pf->pdev->dev, "Filter command send Status : Success\n");
 		} else {
 			dev_info(&pf->pdev->dev,
 				 "Filter command send failed %d\n", ret);
 		}
-		kfree(fd_data.raw_packet);
-		fd_data.raw_packet = NULL;
+		kfree(raw_packet);
+		raw_packet = NULL;
 		kfree(asc_packet);
 		asc_packet = NULL;
 	} else if (strncmp(cmd_buf, "fd-atr off", 10) == 0) {

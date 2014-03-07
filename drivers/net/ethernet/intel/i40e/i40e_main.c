@@ -38,7 +38,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 32
+#define DRV_VERSION_BUILD 34
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1965,11 +1965,14 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
 
 	netdev_info(netdev, "adding %pM vid=%d\n", netdev->dev_addr, vid);
 
-	/* If the network stack called us with vid = 0, we should
-	 * indicate to i40e_vsi_add_vlan() that we want to receive
-	 * any traffic (i.e. with any vlan tag, or untagged)
+	/* If the network stack called us with vid = 0 then
+	 * it is asking to receive priority tagged packets with
+	 * vlan id 0.  Our HW receives them by default when configured
+	 * to receive untagged packets so there is no need to add an
+	 * extra filter for vlan 0 tagged packets.
 	 */
-	ret = i40e_vsi_add_vlan(vsi, vid ? vid : I40E_VLAN_ANY);
+	if (vid)
+		ret = i40e_vsi_add_vlan(vsi, vid);
 
 	if (!ret && (vid < VLAN_N_VID))
 		set_bit(vid, vsi->active_vlans);
@@ -2421,6 +2424,25 @@ static void i40e_set_vsi_rx_mode(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_fdir_filter_restore - Restore the Sideband Flow Director filters
+ * @vsi: Pointer to the targeted VSI
+ *
+ * This function replays the hlist on the hw where all the SB Flow Director
+ * filters were saved.
+ **/
+static void i40e_fdir_filter_restore(struct i40e_vsi *vsi)
+{
+	struct i40e_fdir_filter *filter;
+	struct i40e_pf *pf = vsi->back;
+	struct hlist_node *node;
+
+	hlist_for_each_entry_safe(filter, node,
+				  &pf->fdir_filter_list, fdir_node) {
+		i40e_add_del_fdir(vsi, filter, true);
+	}
+}
+
+/**
  * i40e_vsi_configure - Set up the VSI for action
  * @vsi: the VSI being configured
  **/
@@ -2431,6 +2453,8 @@ static int i40e_vsi_configure(struct i40e_vsi *vsi)
 	i40e_set_vsi_rx_mode(vsi);
 	i40e_restore_vlan(vsi);
 	i40e_vsi_config_dcb_rings(vsi);
+	if (vsi->type == I40E_VSI_FDIR)
+		i40e_fdir_filter_restore(vsi);
 	err = i40e_vsi_configure_tx(vsi);
 	if (!err)
 		err = i40e_vsi_configure_rx(vsi);
@@ -4268,6 +4292,26 @@ err_setup_tx:
 }
 
 /**
+ * i40e_fdir_filter_exit - Cleans up the Flow Director accounting
+ * @pf: Pointer to pf
+ *
+ * This function destroys the hlist where all the Flow Director
+ * filters were saved.
+ **/
+static void i40e_fdir_filter_exit(struct i40e_pf *pf)
+{
+	struct i40e_fdir_filter *filter;
+	struct hlist_node *node2;
+
+	hlist_for_each_entry_safe(filter, node2,
+				  &pf->fdir_filter_list, fdir_node) {
+		hlist_del(&filter->fdir_node);
+		kfree(filter);
+	}
+	pf->fdir_pf_active_filters = 0;
+}
+
+/**
  * i40e_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -5052,6 +5096,12 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 	/* increment MSI-X count because current FW skips one */
 	pf->hw.func_caps.num_msix_vectors++;
 
+	if (((pf->hw.aq.fw_maj_ver == 2) && (pf->hw.aq.fw_min_ver < 22)) ||
+	    (pf->hw.aq.fw_maj_ver < 2)) {
+		pf->hw.func_caps.num_msix_vectors++;
+		pf->hw.func_caps.num_msix_vectors_vf++;
+	}
+
 	if (pf->hw.debug_mask & I40E_DEBUG_USER)
 		dev_info(&pf->pdev->dev,
 			 "pf=%d, num_vfs=%d, msix_pf=%d, msix_vf=%d, fd_g=%d, fd_b=%d, pf_max_q=%d num_vsi=%d\n",
@@ -5131,9 +5181,9 @@ static void i40e_fdir_sb_setup(struct i40e_pf *pf)
 		err = i40e_up_complete(vsi);
 		if (err)
 			goto err_up_complete;
+		clear_bit(__I40E_NEEDS_RESTART, &vsi->state);
 	}
 
-	clear_bit(__I40E_NEEDS_RESTART, &vsi->state);
 	return;
 
 err_up_complete:
@@ -5156,6 +5206,7 @@ static void i40e_fdir_teardown(struct i40e_pf *pf)
 {
 	int i;
 
+	i40e_fdir_filter_exit(pf);
 	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
 		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR) {
 			i40e_vsi_release(pf->vsi[i]);
@@ -7930,13 +7981,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = i40e_init_adminq(hw);
 	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
-	if (((hw->nvm.version & I40E_NVM_VERSION_HI_MASK)
-		 >> I40E_NVM_VERSION_HI_SHIFT) != I40E_CURRENT_NVM_VERSION_HI) {
-		dev_info(&pdev->dev,
-			 "warning: NVM version not supported, supported version: %02x.%02x\n",
-			 I40E_CURRENT_NVM_VERSION_HI,
-			 I40E_CURRENT_NVM_VERSION_LO);
-	}
 	if (err) {
 		dev_info(&pdev->dev,
 			 "init_adminq failed: %d expecting API %02x.%02x\n",

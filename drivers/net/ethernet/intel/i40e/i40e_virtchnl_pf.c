@@ -858,7 +858,7 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		}
 	}
 	/* allocate memory */
-	vfs = kzalloc(num_alloc_vfs * sizeof(struct i40e_vf), GFP_KERNEL);
+	vfs = kcalloc(num_alloc_vfs, sizeof(struct i40e_vf), GFP_KERNEL);
 	if (!vfs) {
 		ret = -ENOMEM;
 		goto err_alloc;
