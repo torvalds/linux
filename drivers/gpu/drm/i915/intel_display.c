@@ -2108,7 +2108,6 @@ static void intel_alloc_plane_obj(struct intel_crtc *crtc,
 out_unref_obj:
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
-
 }
 
 static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,

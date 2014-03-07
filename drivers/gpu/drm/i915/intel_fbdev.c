@@ -128,6 +128,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
 	int size, ret;
+	bool prealloc = false;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -139,6 +140,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		intel_fb = ifbdev->fb;
 	} else {
 		DRM_DEBUG_KMS("re-using BIOS fb\n");
+		prealloc = true;
 		sizes->fb_width = intel_fb->base.width;
 		sizes->fb_height = intel_fb->base.height;
 	}
@@ -200,7 +202,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * If the object is stolen however, it will be full of whatever
 	 * garbage was left in there.
 	 */
-	if (ifbdev->fb->obj->stolen)
+	if (ifbdev->fb->obj->stolen && !prealloc)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -454,27 +456,179 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	drm_framebuffer_remove(&ifbdev->fb->base);
 }
 
+/*
+ * Build an intel_fbdev struct using a BIOS allocated framebuffer, if possible.
+ * The core display code will have read out the current plane configuration,
+ * so we use that to figure out if there's an object for us to use as the
+ * fb, and if so, we re-use it for the fbdev configuration.
+ *
+ * Note we only support a single fb shared across pipes for boot (mostly for
+ * fbcon), so we just find the biggest and use that.
+ */
+static bool intel_fbdev_init_bios(struct drm_device *dev,
+				 struct intel_fbdev *ifbdev)
+{
+	struct intel_framebuffer *fb = NULL;
+	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
+	struct intel_plane_config *plane_config = NULL;
+	unsigned int max_size = 0;
+
+	if (!i915.fastboot)
+		return false;
+
+	/* Find the largest fb */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!intel_crtc->active || !intel_crtc->plane_config.fb) {
+			DRM_DEBUG_KMS("pipe %c not active or no fb, skipping\n",
+				      pipe_name(intel_crtc->pipe));
+			continue;
+		}
+
+		if (intel_crtc->plane_config.size > max_size) {
+			DRM_DEBUG_KMS("found possible fb from plane %c\n",
+				      pipe_name(intel_crtc->pipe));
+			plane_config = &intel_crtc->plane_config;
+			fb = plane_config->fb;
+			max_size = plane_config->size;
+		}
+	}
+
+	if (!fb) {
+		DRM_DEBUG_KMS("no active fbs found, not using BIOS config\n");
+		goto out;
+	}
+
+	/* Now make sure all the pipes will fit into it */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		unsigned int cur_size;
+
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!intel_crtc->active) {
+			DRM_DEBUG_KMS("pipe %c not active, skipping\n",
+				      pipe_name(intel_crtc->pipe));
+			continue;
+		}
+
+		DRM_DEBUG_KMS("checking plane %c for BIOS fb\n",
+			      pipe_name(intel_crtc->pipe));
+
+		/*
+		 * See if the plane fb we found above will fit on this
+		 * pipe.  Note we need to use the selected fb's bpp rather
+		 * than the current pipe's, since they could be different.
+		 */
+		cur_size = intel_crtc->config.adjusted_mode.crtc_hdisplay *
+			intel_crtc->config.adjusted_mode.crtc_vdisplay;
+		DRM_DEBUG_KMS("pipe %c area: %d\n", pipe_name(intel_crtc->pipe),
+			      cur_size);
+		cur_size *= fb->base.bits_per_pixel / 8;
+		DRM_DEBUG_KMS("total size %d (bpp %d)\n", cur_size,
+			      fb->base.bits_per_pixel / 8);
+
+		if (cur_size > max_size) {
+			DRM_DEBUG_KMS("fb not big enough for plane %c (%d vs %d)\n",
+				      pipe_name(intel_crtc->pipe),
+				      cur_size, max_size);
+			plane_config = NULL;
+			fb = NULL;
+			break;
+		}
+
+		DRM_DEBUG_KMS("fb big enough for plane %c (%d >= %d)\n",
+			      pipe_name(intel_crtc->pipe),
+			      max_size, cur_size);
+	}
+
+	/* Free unused fbs */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct intel_framebuffer *cur_fb;
+
+		intel_crtc = to_intel_crtc(crtc);
+		cur_fb = intel_crtc->plane_config.fb;
+
+		if (cur_fb && cur_fb != fb)
+			drm_framebuffer_unreference(&cur_fb->base);
+	}
+
+	if (!fb) {
+		DRM_DEBUG_KMS("BIOS fb not suitable for all pipes, not using\n");
+		goto out;
+	}
+
+	ifbdev->preferred_bpp = plane_config->fb->base.bits_per_pixel;
+	ifbdev->fb = fb;
+
+	/* Assuming a single fb across all pipes here */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!intel_crtc->active)
+			continue;
+
+		/*
+		 * This should only fail on the first one so we don't need
+		 * to cleanup any secondary crtc->fbs
+		 */
+		if (intel_pin_and_fence_fb_obj(dev, fb->obj, NULL))
+			goto out_unref_obj;
+
+		crtc->fb = &fb->base;
+		drm_gem_object_reference(&fb->obj->base);
+		drm_framebuffer_reference(&fb->base);
+	}
+
+	/* Final pass to check if any active pipes don't have fbs */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!intel_crtc->active)
+			continue;
+
+		WARN(!crtc->fb,
+		     "re-used BIOS config but lost an fb on crtc %d\n",
+		     crtc->base.id);
+	}
+
+
+	DRM_DEBUG_KMS("using BIOS fb for initial console\n");
+	return true;
+
+out_unref_obj:
+	drm_framebuffer_unreference(&fb->base);
+out:
+
+	return false;
+}
+
 int intel_fbdev_init(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ifbdev = kzalloc(sizeof(*ifbdev), GFP_KERNEL);
-	if (!ifbdev)
+	if (WARN_ON(INTEL_INFO(dev)->num_pipes == 0))
+		return -ENODEV;
+
+	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
+	if (ifbdev == NULL)
 		return -ENOMEM;
 
-	dev_priv->fbdev = ifbdev;
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
+	if (!intel_fbdev_init_bios(dev, ifbdev))
+		ifbdev->preferred_bpp = 32;
 
 	ret = drm_fb_helper_init(dev, &ifbdev->helper,
-				 INTEL_INFO(dev)->num_pipes,
-				 4);
+				 INTEL_INFO(dev)->num_pipes, 4);
 	if (ret) {
 		kfree(ifbdev);
 		return ret;
 	}
 
+	dev_priv->fbdev = ifbdev;
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 
 	return 0;
@@ -483,9 +637,10 @@ int intel_fbdev_init(struct drm_device *dev)
 void intel_fbdev_initial_config(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
-	drm_fb_helper_initial_config(&dev_priv->fbdev->helper, 32);
+	drm_fb_helper_initial_config(&ifbdev->helper, ifbdev->preferred_bpp);
 }
 
 void intel_fbdev_fini(struct drm_device *dev)
@@ -523,7 +678,8 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
+	if (dev_priv->fbdev)
+		drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
 }
 
 void intel_fbdev_restore_mode(struct drm_device *dev)
@@ -531,7 +687,7 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 	int ret;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev)->num_pipes == 0)
+	if (!dev_priv->fbdev)
 		return;
 
 	drm_modeset_lock_all(dev);
