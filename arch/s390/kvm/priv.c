@@ -206,6 +206,9 @@ static int handle_test_block(struct kvm_vcpu *vcpu)
 
 	kvm_s390_get_regs_rre(vcpu, NULL, &reg2);
 	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	addr = kvm_s390_logical_to_effective(vcpu, addr);
+	if (kvm_s390_check_low_addr_protection(vcpu, addr))
+		return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
 	addr = kvm_s390_real_to_abs(vcpu, addr);
 
 	if (kvm_is_error_gpa(vcpu->kvm, addr))
