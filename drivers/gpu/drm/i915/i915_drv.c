@@ -833,12 +833,31 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
+static void snb_runtime_suspend(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	intel_runtime_pm_disable_interrupts(dev);
+}
+
 static void hsw_runtime_suspend(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
 	if (HAS_PC8(dev))
 		hsw_enable_pc8(dev_priv);
+}
+
+static void snb_runtime_resume(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	intel_runtime_pm_restore_interrupts(dev);
+	intel_init_pch_refclk(dev);
+	i915_gem_init_swizzling(dev);
+	mutex_lock(&dev_priv->rps.hw_lock);
+	gen6_update_ring_freq(dev);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
@@ -860,7 +879,9 @@ static int intel_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
-	if (IS_HASWELL(dev))
+	if (IS_GEN6(dev))
+		snb_runtime_suspend(dev_priv);
+	else if (IS_HASWELL(dev))
 		hsw_runtime_suspend(dev_priv);
 
 	i915_gem_release_all_mmaps(dev_priv);
@@ -894,7 +915,9 @@ static int intel_runtime_resume(struct device *device)
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
-	if (IS_HASWELL(dev))
+	if (IS_GEN6(dev))
+		snb_runtime_resume(dev_priv);
+	else if (IS_HASWELL(dev))
 		hsw_runtime_resume(dev_priv);
 
 	DRM_DEBUG_KMS("Device resumed\n");

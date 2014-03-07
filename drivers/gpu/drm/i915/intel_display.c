@@ -7080,6 +7080,11 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
+static void snb_modeset_global_resources(struct drm_device *dev)
+{
+	modeset_update_crtc_power_domains(dev);
+}
+
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
 	modeset_update_crtc_power_domains(dev);
@@ -11040,6 +11045,8 @@ static void intel_init_display(struct drm_device *dev)
 		} else if (IS_GEN6(dev)) {
 			dev_priv->display.fdi_link_train = gen6_fdi_link_train;
 			dev_priv->display.write_eld = ironlake_write_eld;
+			dev_priv->display.modeset_global_resources =
+				snb_modeset_global_resources;
 		} else if (IS_IVYBRIDGE(dev)) {
 			/* FIXME: detect B0+ stepping and use auto training */
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
