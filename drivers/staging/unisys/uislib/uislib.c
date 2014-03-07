@@ -1509,9 +1509,12 @@ vnic_proc_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
 	int action = 0xffff, busNo = 0, i, result = 0;
-	char buf[count];
+	char buf[4];
 	char direction;
 /* GUID guid; */
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
+
 	if (copy_from_user(buf, buffer, count)) {
 		LOGERR("echo > /proc/uislib/vnic copy_from_user ****FAILED.\n");
 		return -EFAULT;
@@ -1566,8 +1569,11 @@ chipset_proc_write(struct file *file, const char __user *buffer,
 		   size_t count, loff_t *ppos)
 {
 	int i, action = 0xffff;
-	char buf[count];
+	char buf[4];
 	CONTROLVM_MESSAGE msg;
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	memset(&msg, 0, sizeof(CONTROLVM_MESSAGE));
 
@@ -1811,9 +1817,12 @@ bus_proc_write(struct file *file, const char __user *buffer,
 {
 	int server_flag = 0;
 	int i, action = 0xffff, result;
-	char buf[count];
+	char buf[16];
 	CONTROLVM_MESSAGE msg;
 	U32 busNo, deviceCount;
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	memset(&msg, 0, sizeof(CONTROLVM_MESSAGE));
 
@@ -1892,9 +1901,12 @@ dev_proc_write(struct file *file, const char __user *buffer,
 	int server_flag = 0;
 	CONTROLVM_MESSAGE msg;
 	U32 busNo, devNo;
-	char buf[count];
+	char buf[32];
 	unsigned int chanptr;
 	int type, i, action = 0xffff, result;
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	if (copy_from_user(buf, buffer, count)) {
 		LOGERR("echo > /proc/uislib/device: copy_from_user ****FAILED.");
@@ -1985,7 +1997,7 @@ static ssize_t
 cycles_before_wait_proc_write(struct file *file, const char __user *buffer,
 			      size_t count, loff_t *ppos)
 {
-	char buf[count];
+	char buf[16];
 
 #define CYCLES_BEFORE_WAIT_USE_ERROR  { \
 	LOGERR("Incorrect Call Home Input.\n"); \
@@ -1993,6 +2005,8 @@ cycles_before_wait_proc_write(struct file *file, const char __user *buffer,
 	pr_info("EventID Category Type[parameter1][parameter2][parameter3][parameter4][parameter5][parameter6]\n"); \
 	return -EFAULT; \
 }
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	if (count == 0)
 		CYCLES_BEFORE_WAIT_USE_ERROR;
@@ -2014,7 +2028,7 @@ static ssize_t
 reset_counts_proc_write(struct file *file, const char __user *buffer,
 			size_t count, loff_t *ppos)
 {
-	char buf[count];
+	char buf[16];
 	unsigned long long new_value;
 	struct bus_info *bus;
 	int i;
@@ -2025,6 +2039,9 @@ reset_counts_proc_write(struct file *file, const char __user *buffer,
 	pr_info("e.g. echo 0 > reset_counts\n"); \
 	return -EFAULT; \
 	}
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	if (count == 0)
 		RESET_COUNTS_USE_ERROR;
@@ -2061,7 +2078,7 @@ static ssize_t
 smart_wakeup_proc_write(struct file *file, const char __user *buffer,
 			size_t count, loff_t *ppos)
 {
-	char buf[count];
+	char buf[16];
 	int new_value;
 
 #define SMART_WAKEUP_USE_ERROR  { \
@@ -2070,6 +2087,9 @@ smart_wakeup_proc_write(struct file *file, const char __user *buffer,
 	pr_info("echo 1 > smart_wakeup\n"); \
 	return -EFAULT; \
 	}
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	if (count == 0)
 		SMART_WAKEUP_USE_ERROR;
@@ -2092,9 +2112,12 @@ test_proc_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
 	int i, action = 0xffff;
-	char buf[count];
+	char buf[16];
 	CONTROLVM_MESSAGE msg;
 	S64 vrtc_offset;
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	memset(&msg, 0, sizeof(CONTROLVM_MESSAGE));
 

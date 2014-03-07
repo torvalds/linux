@@ -1493,8 +1493,11 @@ static ssize_t
 rqwu_proc_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
-	char buf[count];
+	char buf[16];
 	int i, usecs;
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	if (copy_from_user(buf, buffer, count)) {
 		LOGERR("copy_from_user failed. buf<<%.*s>> count<<%lu>>\n",

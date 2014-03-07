@@ -1488,7 +1488,7 @@ static ssize_t info_proc_read(struct file *file, char __user *buf,
 static ssize_t virt_proc_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *ppos)
 {
-	char buf[count];
+	char buf[16];
 	int type, i, action = 0xffff;
 	unsigned int busno, deviceno;
 	void *chanptr;
@@ -1517,6 +1517,9 @@ static ssize_t virt_proc_write(struct file *file, const char __user *buffer,
 	LOGERR("usage: 99-<chanptr>-<busNo>-<deviceNo>	==> INJECT Client add vnic\n"); \
 	return -EINVAL; \
 }
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	if (copy_from_user(buf, buffer, count)) {
 		LOGERR("copy_from_user failed.\n");
