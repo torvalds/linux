@@ -70,7 +70,11 @@ static void call_on_stack(void *func, void *stack)
 }
 
 /* how to get the current stack pointer from C */
-register unsigned long current_stack_pointer asm("esp") __used;
+#define current_stack_pointer ({		\
+	unsigned long sp;			\
+	asm("mov %%esp,%0" : "=g" (sp));	\
+	sp;					\
+})
 
 static inline void *current_stack(void)
 {
