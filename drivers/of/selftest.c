@@ -300,6 +300,72 @@ static void __init of_selftest_parse_interrupts_extended(void)
 	of_node_put(np);
 }
 
+static struct of_device_id match_node_table[] = {
+	{ .data = "A", .name = "name0", }, /* Name alone is lowest priority */
+	{ .data = "B", .type = "type1", }, /* followed by type alone */
+
+	{ .data = "Ca", .name = "name2", .type = "type1", }, /* followed by both together */
+	{ .data = "Cb", .name = "name2", }, /* Only match when type doesn't match */
+	{ .data = "Cc", .name = "name2", .type = "type2", },
+
+	{ .data = "E", .compatible = "compat3" },
+	{ .data = "G", .compatible = "compat2", },
+	{ .data = "H", .compatible = "compat2", .name = "name5", },
+	{ .data = "I", .compatible = "compat2", .type = "type1", },
+	{ .data = "J", .compatible = "compat2", .type = "type1", .name = "name8", },
+	{ .data = "K", .compatible = "compat2", .name = "name9", },
+	{}
+};
+
+static struct {
+	const char *path;
+	const char *data;
+} match_node_tests[] = {
+	{ .path = "/testcase-data/match-node/name0", .data = "A", },
+	{ .path = "/testcase-data/match-node/name1", .data = "B", },
+	{ .path = "/testcase-data/match-node/a/name2", .data = "Ca", },
+	{ .path = "/testcase-data/match-node/b/name2", .data = "Cb", },
+	{ .path = "/testcase-data/match-node/c/name2", .data = "Cc", },
+	{ .path = "/testcase-data/match-node/name3", .data = "E", },
+	{ .path = "/testcase-data/match-node/name4", .data = "G", },
+	{ .path = "/testcase-data/match-node/name5", .data = "H", },
+	{ .path = "/testcase-data/match-node/name6", .data = "G", },
+	{ .path = "/testcase-data/match-node/name7", .data = "I", },
+	{ .path = "/testcase-data/match-node/name8", .data = "J", },
+	{ .path = "/testcase-data/match-node/name9", .data = "K", },
+};
+
+static void __init of_selftest_match_node(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(match_node_tests); i++) {
+		np = of_find_node_by_path(match_node_tests[i].path);
+		if (!np) {
+			selftest(0, "missing testcase node %s\n",
+				match_node_tests[i].path);
+			continue;
+		}
+
+		match = of_match_node(match_node_table, np);
+		if (!match) {
+			selftest(0, "%s didn't match anything\n",
+				match_node_tests[i].path);
+			continue;
+		}
+
+		if (strcmp(match->data, match_node_tests[i].data) != 0) {
+			selftest(0, "%s got wrong match. expected %s, got %s\n",
+				match_node_tests[i].path, match_node_tests[i].data,
+				(const char *)match->data);
+			continue;
+		}
+		selftest(1, "passed");
+	}
+}
+
 static int __init of_selftest(void)
 {
 	struct device_node *np;
@@ -316,6 +382,7 @@ static int __init of_selftest(void)
 	of_selftest_property_match_string();
 	of_selftest_parse_interrupts();
 	of_selftest_parse_interrupts_extended();
+	of_selftest_match_node();
 	pr_info("end of selftest - %i passed, %i failed\n",
 		selftest_results.passed, selftest_results.failed);
 	return 0;

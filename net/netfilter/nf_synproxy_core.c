@@ -363,9 +363,8 @@ static int __net_init synproxy_net_init(struct net *net)
 		goto err2;
 	if (!nfct_synproxy_ext_add(ct))
 		goto err2;
-	__set_bit(IPS_TEMPLATE_BIT, &ct->status);
-	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
 
+	nf_conntrack_tmpl_insert(net, ct);
 	snet->tmpl = ct;
 
 	snet->stats = alloc_percpu(struct synproxy_stats);
@@ -390,7 +389,7 @@ static void __net_exit synproxy_net_exit(struct net *net)
 {
 	struct synproxy_net *snet = synproxy_pernet(net);
 
-	nf_conntrack_free(snet->tmpl);
+	nf_ct_put(snet->tmpl);
 	synproxy_proc_exit(net);
 	free_percpu(snet->stats);
 }

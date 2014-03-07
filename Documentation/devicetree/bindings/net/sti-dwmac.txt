@@ -1,0 +1,58 @@
+STMicroelectronics SoC DWMAC glue layer controller
+
+The device node has following properties.
+
+Required properties:
+ - compatible	: Can be "st,stih415-dwmac", "st,stih416-dwmac" or
+   "st,stid127-dwmac".
+ - reg		: Offset of the glue configuration register map in system
+   configuration regmap pointed by st,syscon property and size.
+
+ - reg-names	: Should be "sti-ethconf".
+
+ - st,syscon	: Should be phandle to system configuration node which
+   encompases this glue registers.
+
+ - st,tx-retime-src: On STi Parts for Giga bit speeds, 125Mhz clocks can be
+   wired up in from different sources. One via TXCLK pin and other via CLK_125
+   pin. This wiring is totally board dependent. However the retiming glue
+   logic should be configured accordingly. Possible values for this property
+
+	   "txclk" - if 125Mhz clock is wired up via txclk line.
+	   "clk_125" - if 125Mhz clock is wired up via clk_125 line.
+
+   This property is only valid for Giga bit setup( GMII, RGMII), and it is
+   un-used for non-giga bit (MII and RMII) setups. Also note that internal
+   clockgen can not generate stable 125Mhz clock.
+
+ - st,ext-phyclk: This boolean property indicates who is generating the clock
+  for tx and rx. This property is only valid for RMII case where the clock can
+  be generated from the MAC or PHY.
+
+ - clock-names: should be "sti-ethclk".
+ - clocks: Should point to ethernet clockgen which can generate phyclk.
+
+
+Example:
+
+ethernet0: dwmac@fe810000 {
+	device_type 	= "network";
+	compatible	= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+	reg 		= <0xfe810000 0x8000>, <0x8bc 0x4>;
+	reg-names	= "stmmaceth", "sti-ethconf";
+	interrupts	= <0 133 0>, <0 134 0>, <0 135 0>;
+	interrupt-names	= "macirq", "eth_wake_irq", "eth_lpi";
+	phy-mode	= "mii";
+
+	st,syscon	= <&syscfg_rear>;
+
+	snps,pbl 	= <32>;
+	snps,mixed-burst;
+
+	resets		= <&softreset STIH416_ETH0_SOFTRESET>;
+	reset-names	= "stmmaceth";
+	pinctrl-0	= <&pinctrl_mii0>;
+	pinctrl-names 	= "default";
+	clocks		= <&CLK_S_GMAC0_PHY>;
+	clock-names	= "stmmaceth";
+};

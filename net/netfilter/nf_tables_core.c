@@ -103,9 +103,9 @@ static struct nf_loginfo trace_loginfo = {
 	},
 };
 
-static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
-				    const struct nft_chain *chain,
-				    int rulenum, enum nft_trace type)
+static void nft_trace_packet(const struct nft_pktinfo *pkt,
+			     const struct nft_chain *chain,
+			     int rulenum, enum nft_trace type)
 {
 	struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
 

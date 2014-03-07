@@ -760,7 +760,8 @@ static inline void hsm_set_cl_error(int *flags, int error)
 	*flags |= (error << CLF_HSM_ERR_L);
 }
 
-#define CR_MAXSIZE cfs_size_round(2*NAME_MAX + 1 + sizeof(struct changelog_rec))
+#define CR_MAXSIZE cfs_size_round(2*NAME_MAX + 1 + \
+				  sizeof(struct changelog_ext_rec))
 
 struct changelog_rec {
 	__u16		 cr_namelen;

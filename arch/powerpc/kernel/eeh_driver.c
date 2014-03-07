@@ -362,9 +362,13 @@ static void *eeh_rmv_device(void *data, void *userdata)
 	 */
 	if (!dev || (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE))
 		return NULL;
+
 	driver = eeh_pcid_get(dev);
-	if (driver && driver->err_handler)
-		return NULL;
+	if (driver) {
+		eeh_pcid_put(dev);
+		if (driver->err_handler)
+			return NULL;
+	}
 
 	/* Remove it from PCI subsystem */
 	pr_debug("EEH: Removing %s without EEH sensitive driver\n",

@@ -441,6 +441,7 @@ common_reg:
 	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++) {
 		if (!reg_np) {
 			config.init_data = pdata->regulators[i].initdata;
+			config.of_node = pdata->regulators[i].reg_node;
 		} else {
 			config.init_data = rdata[i].init_data;
 			config.of_node = rdata[i].of_node;

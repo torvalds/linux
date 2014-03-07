@@ -466,7 +466,9 @@ void ieee80211_request_smps_ap_work(struct work_struct *work)
 			     u.ap.request_smps_work);
 
 	sdata_lock(sdata);
-	__ieee80211_request_smps_ap(sdata, sdata->u.ap.driver_smps_mode);
+	if (sdata_dereference(sdata->u.ap.beacon, sdata))
+		__ieee80211_request_smps_ap(sdata,
+					    sdata->u.ap.driver_smps_mode);
 	sdata_unlock(sdata);
 }
 

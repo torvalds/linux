@@ -373,8 +373,9 @@ extern const char *ceph_mds_op_name(int op);
 /*
  * Ceph setxattr request flags.
  */
-#define CEPH_XATTR_CREATE  1
-#define CEPH_XATTR_REPLACE 2
+#define CEPH_XATTR_CREATE  (1 << 0)
+#define CEPH_XATTR_REPLACE (1 << 1)
+#define CEPH_XATTR_REMOVE  (1 << 31)
 
 union ceph_mds_request_args {
 	struct {
