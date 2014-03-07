@@ -3456,8 +3456,9 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 		__cpu_to_le32(arg->peer_vht_rates.tx_mcs_set);
 
 	ath10k_dbg(ATH10K_DBG_WMI,
-		   "wmi peer assoc vdev %d addr %pM\n",
-		   arg->vdev_id, arg->addr);
+		   "wmi peer assoc vdev %d addr %pM (%s)\n",
+		   arg->vdev_id, arg->addr,
+		   arg->peer_reassoc ? "reassociate" : "new");
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->peer_assoc_cmdid);
 }
 

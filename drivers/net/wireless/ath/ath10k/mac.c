@@ -1524,7 +1524,7 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 }
 
 static int ath10k_station_assoc(struct ath10k *ar, struct ath10k_vif *arvif,
-				struct ieee80211_sta *sta)
+				struct ieee80211_sta *sta, bool reassoc)
 {
 	struct wmi_peer_assoc_complete_arg peer_arg;
 	int ret = 0;
@@ -1538,6 +1538,7 @@ static int ath10k_station_assoc(struct ath10k *ar, struct ath10k_vif *arvif,
 		return ret;
 	}
 
+	peer_arg.peer_reassoc = reassoc;
 	ret = ath10k_wmi_peer_assoc(ar, &peer_arg);
 	if (ret) {
 		ath10k_warn("Peer assoc failed for STA %pM vdev %i: %d\n",
@@ -3195,6 +3196,16 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 				    sta->addr, smps, err);
 	}
 
+	if (changed & IEEE80211_RC_SUPP_RATES_CHANGED) {
+		ath10k_dbg(ATH10K_DBG_MAC, "mac update sta %pM supp rates\n",
+			   sta->addr);
+
+		err = ath10k_station_assoc(ar, arvif, sta, true);
+		if (err)
+			ath10k_warn("Failed to reassociate station: %pM\n",
+				    sta->addr);
+	}
+
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -3275,7 +3286,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		ath10k_dbg(ATH10K_DBG_MAC, "mac sta %pM associated\n",
 			   sta->addr);
 
-		ret = ath10k_station_assoc(ar, arvif, sta);
+		ret = ath10k_station_assoc(ar, arvif, sta, false);
 		if (ret)
 			ath10k_warn("Failed to associate station %pM for vdev %i: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
@@ -4106,15 +4117,6 @@ static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 		}
 
 		arsta->smps = smps;
-	}
-
-	if (changed & IEEE80211_RC_SUPP_RATES_CHANGED) {
-		/* FIXME: Not implemented. Probably the only way to do it would
-		 * be to re-assoc the peer. */
-		changed &= ~IEEE80211_RC_SUPP_RATES_CHANGED;
-		ath10k_dbg(ATH10K_DBG_MAC,
-			   "mac sta rc update for %pM: changing supported rates not implemented\n",
-			   sta->addr);
 	}
 
 	arsta->changed |= changed;
