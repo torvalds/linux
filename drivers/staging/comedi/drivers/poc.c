@@ -36,15 +36,15 @@ Configuration options:
 struct boarddef_struct {
 	const char *name;
 	unsigned int iosize;
-	int (*setup) (struct comedi_device *);
+	int (*setup)(struct comedi_device *);
 	int type;
 	int n_chan;
 	int n_bits;
-	int (*winsn) (struct comedi_device *, struct comedi_subdevice *,
+	int (*winsn)(struct comedi_device *, struct comedi_subdevice *,
 		      struct comedi_insn *, unsigned int *);
-	int (*rinsn) (struct comedi_device *, struct comedi_subdevice *,
+	int (*rinsn)(struct comedi_device *, struct comedi_subdevice *,
 		      struct comedi_insn *, unsigned int *);
-	int (*insnbits) (struct comedi_device *, struct comedi_subdevice *,
+	int (*insnbits)(struct comedi_device *, struct comedi_subdevice *,
 			 struct comedi_insn *, unsigned int *);
 	const struct comedi_lrange *range;
 };
