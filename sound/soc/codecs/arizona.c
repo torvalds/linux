@@ -1408,13 +1408,12 @@ static int arizona_validate_fll(struct arizona_fll *fll,
 
 static int arizona_calc_fll(struct arizona_fll *fll,
 			    struct arizona_fll_cfg *cfg,
-			    unsigned int Fref,
-			    unsigned int Fout)
+			    unsigned int Fref)
 {
 	unsigned int target, div, gcd_fll;
 	int i, ratio;
 
-	arizona_fll_dbg(fll, "Fref=%u Fout=%u\n", Fref, Fout);
+	arizona_fll_dbg(fll, "Fref=%u Fout=%u\n", Fref, fll->fout);
 
 	/* Fref must be <=13.5MHz */
 	div = 1;
@@ -1432,12 +1431,12 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 	/* Fvco should be over the targt; don't check the upper bound */
 	div = ARIZONA_FLL_MIN_OUTDIV;
-	while (Fout * div < ARIZONA_FLL_MIN_FVCO * fll->vco_mult) {
+	while (fll->fout * div < ARIZONA_FLL_MIN_FVCO * fll->vco_mult) {
 		div++;
 		if (div > ARIZONA_FLL_MAX_OUTDIV)
 			return -EINVAL;
 	}
-	target = Fout * div / fll->vco_mult;
+	target = fll->fout * div / fll->vco_mult;
 	cfg->outdiv = div;
 
 	arizona_fll_dbg(fll, "Fvco=%dHz\n", target);
@@ -1565,19 +1564,19 @@ static void arizona_enable_fll(struct arizona_fll *fll)
 	 */
 	if (fll->ref_src >= 0 && fll->ref_freq &&
 	    fll->ref_src != fll->sync_src) {
-		arizona_calc_fll(fll, &cfg, fll->ref_freq, fll->fout);
+		arizona_calc_fll(fll, &cfg, fll->ref_freq);
 
 		arizona_apply_fll(arizona, fll->base, &cfg, fll->ref_src,
 				  false);
 		if (fll->sync_src >= 0) {
-			arizona_calc_fll(fll, &cfg, fll->sync_freq, fll->fout);
+			arizona_calc_fll(fll, &cfg, fll->sync_freq);
 
 			arizona_apply_fll(arizona, fll->base + 0x10, &cfg,
 					  fll->sync_src, true);
 			use_sync = true;
 		}
 	} else if (fll->sync_src >= 0) {
-		arizona_calc_fll(fll, &cfg, fll->sync_freq, fll->fout);
+		arizona_calc_fll(fll, &cfg, fll->sync_freq);
 
 		arizona_apply_fll(arizona, fll->base, &cfg,
 				  fll->sync_src, false);
