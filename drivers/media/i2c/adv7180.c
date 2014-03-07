@@ -641,6 +641,7 @@ static int adv7180_remove(struct i2c_client *client)
 	}
 
 	v4l2_device_unregister_subdev(sd);
+	adv7180_exit_controls(state);
 	mutex_destroy(&state->mutex);
 	return 0;
 }
