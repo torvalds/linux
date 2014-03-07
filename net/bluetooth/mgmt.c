@@ -2351,7 +2351,7 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 					sizeof(struct mgmt_link_key_info);
 	if (expected_len != len) {
 		BT_ERR("load_link_keys: expected %u bytes, got %u bytes",
-		       len, expected_len);
+		       expected_len, len);
 		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LINK_KEYS,
 				  MGMT_STATUS_INVALID_PARAMS);
 	}
@@ -4427,7 +4427,7 @@ static int load_irks(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 	expected_len = sizeof(*cp) + irk_count * sizeof(struct mgmt_irk_info);
 	if (expected_len != len) {
 		BT_ERR("load_irks: expected %u bytes, got %u bytes",
-		       len, expected_len);
+		       expected_len, len);
 		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_IRKS,
 				  MGMT_STATUS_INVALID_PARAMS);
 	}
@@ -4507,7 +4507,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 					sizeof(struct mgmt_ltk_info);
 	if (expected_len != len) {
 		BT_ERR("load_keys: expected %u bytes, got %u bytes",
-		       len, expected_len);
+		       expected_len, len);
 		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LONG_TERM_KEYS,
 				  MGMT_STATUS_INVALID_PARAMS);
 	}
