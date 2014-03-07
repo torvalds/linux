@@ -2782,10 +2782,9 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 		return;
 
 	if (HAS_PCH_IBX(dev)) {
-		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_TRANSB_FIFO_UNDER |
-		       SDE_TRANSA_FIFO_UNDER | SDE_POISON;
+		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_POISON;
 	} else {
-		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT | SDE_ERROR_CPT;
+		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
 
 		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
 	}
@@ -2845,20 +2844,19 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE_IVB |
 				DE_PCH_EVENT_IVB | DE_PLANEC_FLIP_DONE_IVB |
 				DE_PLANEB_FLIP_DONE_IVB |
-				DE_PLANEA_FLIP_DONE_IVB | DE_AUX_CHANNEL_A_IVB |
-				DE_ERR_INT_IVB);
+				DE_PLANEA_FLIP_DONE_IVB | DE_AUX_CHANNEL_A_IVB);
 		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
-			      DE_PIPEA_VBLANK_IVB);
+			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB);
 
 		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
 				DE_AUX_CHANNEL_A |
-				DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
 				DE_PIPEB_CRC_DONE | DE_PIPEA_CRC_DONE |
 				DE_POISON);
-		extra_mask = DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT;
+		extra_mask = DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT |
+				DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN;
 	}
 
 	dev_priv->irq_mask = ~display_mask;
@@ -2974,9 +2972,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t de_pipe_masked = GEN8_PIPE_FLIP_DONE |
 		GEN8_PIPE_CDCLK_CRC_DONE |
-		GEN8_PIPE_FIFO_UNDERRUN |
 		GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
-	uint32_t de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK;
+	uint32_t de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
+		GEN8_PIPE_FIFO_UNDERRUN;
 	int pipe;
 	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_masked;
 	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_masked;
