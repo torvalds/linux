@@ -1,6 +1,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "skeleton.dtsi"
 #include "rk3288-pinctrl.dtsi"
+#include <dt-bindings/rkfb/rk_fb.h>
 
 / {
 	compatible = "rockchip,rk3288";
@@ -14,6 +15,8 @@
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
+		lcdc0 = &lcdc0;
+		lcdc1 = &lcdc1;
 	};
 
 	cpus {
@@ -203,6 +206,34 @@
 		pinctrl-1 = <&i2c5_gpio>;
 		status = "disabled";
          };
+	fb: fb{
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <DUAL>;
+	};
+
+	lcdc0:lcdc@ff940000 {
+		compatible = "rockchip,rk3288-lcdc";
+		rockchip,prop = <PRMRY>;
+		rochchip,pwr18 = <0>;
+		reg = <0xff940000 0x10000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		//pinctrl-names = "default", "gpio";
+		//pinctrl-0 = <&lcdc0_lcdc>;
+		//pinctrl-1 = <&lcdc0_gpio>;		
+		status = "disabled";
+	};
+
+	lcdc1:lcdc@ff930000 {
+		compatible = "rockchip,rk3288-lcdc";
+		rockchip,prop = <EXTEND>;
+		rockchip,pwr18 = <0>;
+		reg = <0xff930000 0x10000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&lcdc0_lcdc>;
+		pinctrl-1 = <&lcdc0_gpio>;
+		status = "disabled";
+  };
 
         adc: adc@ff100000 {
                 compatible = "rockchip,saradc";

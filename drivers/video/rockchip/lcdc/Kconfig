@@ -89,3 +89,18 @@ config LCDC1_IO_18V
         help
          LCDC1 io voltage is 1.8V if you say y here,the default voltage is 3.3V
 
+config LCDC_RK3288
+        bool "rk3288 lcdc support"
+        depends on FB_ROCKCHIP 
+        help
+          Driver for rk3288 lcdc.There are two lcd controllers on rk3288
+config LCDC0_RK3288
+        bool "lcdc0 support"
+        depends on LCDC_RK3288
+        help
+          Support rk3288 lcdc0 if you say y here
+config LCDC1_RK3288
+        bool "lcdc1 support"
+        depends on LCDC_RK3288
+        help
+          Support rk3288 lcdc1 if you say y here
