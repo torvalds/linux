@@ -9031,6 +9031,13 @@ F:	drivers/cdrom/cdrom.c
 F:	include/linux/cdrom.h
 F:	include/uapi/linux/cdrom.h
 
+UNISYS S-PAR DRIVERS
+M:     Benjamin Romer <benjamin.romer@unisys.com>
+M:     David Kershner <david.kershner@unisys.com>
+L:     sparmaintainer@unisys.com (Unisys internal)
+S:     Supported
+F:     drivers/staging/unisys/
+
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
 M:	Vinayak Holikatti <vinholikatti@gmail.com>
 M:	Santosh Y <santoshsy@gmail.com>
