@@ -88,7 +88,7 @@ module_exit(dgnc_cleanup_module);
 /*
  * File operations permitted on Control/Management major.
  */
-static struct file_operations dgnc_BoardFops =
+static const struct file_operations dgnc_BoardFops =
 {
 	.owner		=	THIS_MODULE,
 	.unlocked_ioctl =  	dgnc_mgmt_ioctl,
