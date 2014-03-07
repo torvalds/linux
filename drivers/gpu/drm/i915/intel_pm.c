@@ -2664,8 +2664,10 @@ void ilk_wm_get_hw_state(struct drm_device *dev)
 	hw->wm_lp[2] = I915_READ(WM3_LP_ILK);
 
 	hw->wm_lp_spr[0] = I915_READ(WM1S_LP_ILK);
-	hw->wm_lp_spr[1] = I915_READ(WM2S_LP_IVB);
-	hw->wm_lp_spr[2] = I915_READ(WM3S_LP_IVB);
+	if (INTEL_INFO(dev)->gen >= 7) {
+		hw->wm_lp_spr[1] = I915_READ(WM2S_LP_IVB);
+		hw->wm_lp_spr[2] = I915_READ(WM3S_LP_IVB);
+	}
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hw->partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
