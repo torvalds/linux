@@ -2160,22 +2160,59 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 }
 
 /* Populate the wa->buf_in_urb based on the current isoc transfer state. */
-static void __wa_populate_buf_in_urb_isoc(struct wahc *wa, struct wa_xfer *xfer,
-	struct wa_seg *seg, int curr_iso_frame)
+static int __wa_populate_buf_in_urb_isoc(struct wahc *wa, struct wa_xfer *xfer,
+	struct wa_seg *seg)
 {
+	int urb_start_frame = seg->isoc_frame_index + seg->isoc_frame_offset;
+	int seg_index, total_len = 0, urb_frame_index = urb_start_frame;
+	struct usb_iso_packet_descriptor *iso_frame_desc =
+						xfer->urb->iso_frame_desc;
+	const int dti_packet_size = usb_endpoint_maxp(wa->dti_epd);
+	int next_frame_contiguous;
+	struct usb_iso_packet_descriptor *iso_frame;
+
 	BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
+
+	/*
+	 * If the current frame actual_length is contiguous with the next frame
+	 * and actual_length is a multiple of the DTI endpoint max packet size,
+	 * combine the current frame with the next frame in a single URB.  This
+	 * reduces the number of URBs that must be submitted in that case.
+	 */
+	seg_index = seg->isoc_frame_index;
+	do {
+		next_frame_contiguous = 0;
+
+		iso_frame = &iso_frame_desc[urb_frame_index];
+		total_len += iso_frame->actual_length;
+		++urb_frame_index;
+		++seg_index;
+
+		if (seg_index < seg->isoc_frame_count) {
+			struct usb_iso_packet_descriptor *next_iso_frame;
+
+			next_iso_frame = &iso_frame_desc[urb_frame_index];
+
+			if ((iso_frame->offset + iso_frame->actual_length) ==
+				next_iso_frame->offset)
+				next_frame_contiguous = 1;
+		}
+	} while (next_frame_contiguous
+			&& ((iso_frame->actual_length % dti_packet_size) == 0));
 
 	/* this should always be 0 before a resubmit. */
 	wa->buf_in_urb->num_mapped_sgs	= 0;
 	wa->buf_in_urb->transfer_dma = xfer->urb->transfer_dma +
-		xfer->urb->iso_frame_desc[curr_iso_frame].offset;
-	wa->buf_in_urb->transfer_buffer_length =
-		xfer->urb->iso_frame_desc[curr_iso_frame].actual_length;
+		iso_frame_desc[urb_start_frame].offset;
+	wa->buf_in_urb->transfer_buffer_length = total_len;
 	wa->buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	wa->buf_in_urb->transfer_buffer = NULL;
 	wa->buf_in_urb->sg = NULL;
 	wa->buf_in_urb->num_sgs = 0;
 	wa->buf_in_urb->context = seg;
+
+	/* return the number of frames included in this URB. */
+	return seg_index - seg->isoc_frame_index;
 }
 
 /* Populate the wa->buf_in_urb based on the current transfer state. */
@@ -2458,19 +2495,20 @@ static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 	}
 
 	if (xfer->is_inbound && data_frame_count) {
-		int result;
+		int result, urb_frame_count;
 
 		seg->isoc_frame_index = first_frame_index;
 		/* submit a read URB for the first frame with data. */
-		__wa_populate_buf_in_urb_isoc(wa, xfer, seg,
-			seg->isoc_frame_index + seg->isoc_frame_offset);
+		urb_frame_count = __wa_populate_buf_in_urb_isoc(wa, xfer, seg);
+		/* advance index to start of next read URB. */
+		seg->isoc_frame_index += urb_frame_count;
 
 		result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
 		if (result < 0) {
 			dev_err(dev, "DTI Error: Could not submit buf in URB (%d)",
 				result);
 			wa_reset_all(wa);
-		} else if (data_frame_count > 1)
+		} else if (data_frame_count > urb_frame_count)
 			/* If we need to read multiple frames, set DTI busy. */
 			dti_busy = 1;
 	} else {
@@ -2511,8 +2549,9 @@ static void wa_buf_in_cb(struct urb *urb)
 	struct wahc *wa;
 	struct device *dev;
 	struct wa_rpipe *rpipe;
-	unsigned rpipe_ready = 0, seg_index, isoc_data_frame_count = 0;
+	unsigned rpipe_ready = 0, isoc_data_frame_count = 0;
 	unsigned long flags;
+	int resubmit_dti = 0;
 	u8 done = 0;
 
 	/* free the sg if it was used. */
@@ -2524,17 +2563,16 @@ static void wa_buf_in_cb(struct urb *urb)
 	dev = &wa->usb_iface->dev;
 
 	if (usb_pipeisoc(xfer->urb->pipe)) {
+		struct usb_iso_packet_descriptor *iso_frame_desc =
+			xfer->urb->iso_frame_desc;
+		int	seg_index;
+
 		/*
-		 * Find the next isoc frame with data.  Bail out after
-		 * isoc_data_frame_count > 1 since there is no need to walk
-		 * the entire frame array.  We just need to know if
-		 * isoc_data_frame_count is 0, 1, or >1.
+		 * Find the next isoc frame with data and count how many
+		 * frames with data remain.
 		 */
-		seg_index = seg->isoc_frame_index + 1;
-		while ((seg_index < seg->isoc_frame_count)
-			&& (isoc_data_frame_count <= 1)) {
-			struct usb_iso_packet_descriptor *iso_frame_desc =
-				xfer->urb->iso_frame_desc;
+		seg_index = seg->isoc_frame_index;
+		while (seg_index < seg->isoc_frame_count) {
 			const int urb_frame_index =
 				seg->isoc_frame_offset + seg_index;
 
@@ -2555,16 +2593,28 @@ static void wa_buf_in_cb(struct urb *urb)
 
 		seg->result += urb->actual_length;
 		if (isoc_data_frame_count > 0) {
-			int result;
-			/* submit a read URB for the first frame with data. */
-			__wa_populate_buf_in_urb_isoc(wa, xfer, seg,
-				seg->isoc_frame_index + seg->isoc_frame_offset);
+			int result, urb_frame_count;
+
+			/* submit a read URB for the next frame with data. */
+			urb_frame_count = __wa_populate_buf_in_urb_isoc(wa,
+				 xfer, seg);
+			/* advance index to start of next read URB. */
+			seg->isoc_frame_index += urb_frame_count;
 			result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
 			if (result < 0) {
 				dev_err(dev, "DTI Error: Could not submit buf in URB (%d)",
 					result);
 				wa_reset_all(wa);
 			}
+			/*
+			 * If we are in this callback and
+			 * isoc_data_frame_count > 0, it means that the dti_urb
+			 * submission was delayed in wa_dti_cb.  Once
+			 * we submit the last buf_in_urb, we can submit the
+			 * delayed dti_urb.
+			 */
+			  resubmit_dti = (isoc_data_frame_count ==
+							urb_frame_count);
 		} else {
 			rpipe = xfer->ep->hcpriv;
 			dev_dbg(dev,
@@ -2585,6 +2635,7 @@ static void wa_buf_in_cb(struct urb *urb)
 	case -ENOENT:		/* as it was done by the who unlinked us */
 		break;
 	default:		/* Other errors ... */
+		resubmit_dti = 1;
 		spin_lock_irqsave(&xfer->lock, flags);
 		rpipe = xfer->ep->hcpriv;
 		if (printk_ratelimit())
@@ -2607,13 +2658,8 @@ static void wa_buf_in_cb(struct urb *urb)
 		if (rpipe_ready)
 			wa_xfer_delayed_run(rpipe);
 	}
-	/*
-	 * If we are in this callback and isoc_data_frame_count > 0, it means
-	 * that the dti_urb submission was delayed in wa_dti_cb.  Once
-	 * isoc_data_frame_count gets to 1, we can submit the deferred URB
-	 * since the last buf_in_urb was just submitted.
-	 */
-	if (isoc_data_frame_count == 1) {
+
+	if (resubmit_dti) {
 		int result = usb_submit_urb(wa->dti_urb, GFP_ATOMIC);
 		if (result < 0) {
 			dev_err(dev, "DTI Error: Could not submit DTI URB (%d)\n",
