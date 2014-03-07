@@ -1108,7 +1108,6 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 			  struct flowi *fl, size_t data_len)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
-	struct sock *sk = tunnel->sock;
 	unsigned int len = skb->len;
 	int error;
 
@@ -1132,7 +1131,7 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 	/* Queue the packet to IP for output */
 	skb->local_df = 1;
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == PF_INET6 && !tunnel->v4mapped)
+	if (tunnel->sock->sk_family == PF_INET6 && !tunnel->v4mapped)
 		error = inet6_csk_xmit(skb, NULL);
 	else
 #endif
