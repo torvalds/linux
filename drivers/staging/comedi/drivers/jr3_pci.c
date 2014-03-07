@@ -588,9 +588,11 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 
 static void jr3_pci_poll_dev(unsigned long data)
 {
-	unsigned long flags;
 	struct comedi_device *dev = (struct comedi_device *)data;
 	struct jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_pci_subdev_private *spriv;
+	struct comedi_subdevice *s;
+	unsigned long flags;
 	unsigned long now;
 	int delay;
 	int i;
@@ -598,18 +600,22 @@ static void jr3_pci_poll_dev(unsigned long data)
 	spin_lock_irqsave(&dev->spinlock, flags);
 	delay = 1000;
 	now = jiffies;
-	/*  Poll all channels that are ready to be polled */
+
+	/* Poll all channels that are ready to be polled */
 	for (i = 0; i < devpriv->n_channels; i++) {
-		struct jr3_pci_subdev_private *subdevpriv =
-			dev->subdevices[i].private;
-		if (now > subdevpriv->next_time_min) {
+		s = &dev->subdevices[i];
+		spriv = s->private;
+
+		if (now > spriv->next_time_min) {
 			struct poll_delay_t sub_delay;
 
-			sub_delay = jr3_pci_poll_subdevice(&dev->subdevices[i]);
-			subdevpriv->next_time_min =
-				jiffies + msecs_to_jiffies(sub_delay.min);
-			subdevpriv->next_time_max =
-				jiffies + msecs_to_jiffies(sub_delay.max);
+			sub_delay = jr3_pci_poll_subdevice(s);
+
+			spriv->next_time_min = jiffies +
+					       msecs_to_jiffies(sub_delay.min);
+			spriv->next_time_max = jiffies +
+					       msecs_to_jiffies(sub_delay.max);
+
 			if (sub_delay.max && sub_delay.max < delay)
 				/*
 				 * Wake up as late as possible ->
