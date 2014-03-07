@@ -1821,6 +1821,40 @@ static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
 		return 512;
 }
 
+static unsigned int ilk_plane_wm_reg_max(const struct drm_device *dev,
+					 int level, bool is_sprite)
+{
+	if (INTEL_INFO(dev)->gen >= 8)
+		/* BDW primary/sprite plane watermarks */
+		return level == 0 ? 255 : 2047;
+	else if (INTEL_INFO(dev)->gen >= 7)
+		/* IVB/HSW primary/sprite plane watermarks */
+		return level == 0 ? 127 : 1023;
+	else if (!is_sprite)
+		/* ILK/SNB primary plane watermarks */
+		return level == 0 ? 127 : 511;
+	else
+		/* ILK/SNB sprite plane watermarks */
+		return level == 0 ? 63 : 255;
+}
+
+static unsigned int ilk_cursor_wm_reg_max(const struct drm_device *dev,
+					  int level)
+{
+	if (INTEL_INFO(dev)->gen >= 7)
+		return level == 0 ? 63 : 255;
+	else
+		return level == 0 ? 31 : 63;
+}
+
+static unsigned int ilk_fbc_wm_reg_max(const struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen >= 8)
+		return 31;
+	else
+		return 15;
+}
+
 /* Calculate the maximum primary/sprite plane watermark */
 static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 				     int level,
@@ -1829,7 +1863,6 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 				     bool is_sprite)
 {
 	unsigned int fifo_size = ilk_display_fifo_size(dev);
-	unsigned int max;
 
 	/* if sprites aren't enabled, sprites get nothing */
 	if (is_sprite && !config->sprites_enabled)
@@ -1860,19 +1893,7 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 	}
 
 	/* clamp to max that the registers can hold */
-	if (INTEL_INFO(dev)->gen >= 8)
-		max = level == 0 ? 255 : 2047;
-	else if (INTEL_INFO(dev)->gen >= 7)
-		/* IVB/HSW primary/sprite plane watermarks */
-		max = level == 0 ? 127 : 1023;
-	else if (!is_sprite)
-		/* ILK/SNB primary plane watermarks */
-		max = level == 0 ? 127 : 511;
-	else
-		/* ILK/SNB sprite plane watermarks */
-		max = level == 0 ? 63 : 255;
-
-	return min(fifo_size, max);
+	return min(fifo_size, ilk_plane_wm_reg_max(dev, level, is_sprite));
 }
 
 /* Calculate the maximum cursor plane watermark */
@@ -1885,20 +1906,7 @@ static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
 		return 64;
 
 	/* otherwise just report max that registers can hold */
-	if (INTEL_INFO(dev)->gen >= 7)
-		return level == 0 ? 63 : 255;
-	else
-		return level == 0 ? 31 : 63;
-}
-
-/* Calculate the maximum FBC watermark */
-static unsigned int ilk_fbc_wm_max(const struct drm_device *dev)
-{
-	/* max that registers can hold */
-	if (INTEL_INFO(dev)->gen >= 8)
-		return 31;
-	else
-		return 15;
+	return ilk_cursor_wm_reg_max(dev, level);
 }
 
 static void ilk_compute_wm_maximums(const struct drm_device *dev,
@@ -1910,7 +1918,7 @@ static void ilk_compute_wm_maximums(const struct drm_device *dev,
 	max->pri = ilk_plane_wm_max(dev, level, config, ddb_partitioning, false);
 	max->spr = ilk_plane_wm_max(dev, level, config, ddb_partitioning, true);
 	max->cur = ilk_cursor_wm_max(dev, level, config);
-	max->fbc = ilk_fbc_wm_max(dev);
+	max->fbc = ilk_fbc_wm_reg_max(dev);
 }
 
 static bool ilk_validate_wm_level(int level,
