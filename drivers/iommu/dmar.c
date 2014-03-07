@@ -612,6 +612,79 @@ out:
 	return dmaru;
 }
 
+static void __init dmar_acpi_insert_dev_scope(u8 device_number,
+					      struct acpi_device *adev)
+{
+	struct dmar_drhd_unit *dmaru;
+	struct acpi_dmar_hardware_unit *drhd;
+	struct acpi_dmar_device_scope *scope;
+	struct device *tmp;
+	int i;
+	struct acpi_dmar_pci_path *path;
+
+	for_each_drhd_unit(dmaru) {
+		drhd = container_of(dmaru->hdr,
+				    struct acpi_dmar_hardware_unit,
+				    header);
+
+		for (scope = (void *)(drhd + 1);
+		     (unsigned long)scope < ((unsigned long)drhd) + drhd->header.length;
+		     scope = ((void *)scope) + scope->length) {
+			if (scope->entry_type != ACPI_DMAR_SCOPE_TYPE_ACPI)
+				continue;
+			if (scope->enumeration_id != device_number)
+				continue;
+
+			path = (void *)(scope + 1);
+			pr_info("ACPI device \"%s\" under DMAR at %llx as %02x:%02x.%d\n",
+				dev_name(&adev->dev), dmaru->reg_base_addr,
+				scope->bus, path->device, path->function);
+			for_each_dev_scope(dmaru->devices, dmaru->devices_cnt, i, tmp)
+				if (tmp == NULL) {
+					dmaru->devices[i].bus = scope->bus;
+					dmaru->devices[i].devfn = PCI_DEVFN(path->device,
+									    path->function);
+					rcu_assign_pointer(dmaru->devices[i].dev,
+							   get_device(&adev->dev));
+					return;
+				}
+			BUG_ON(i >= dmaru->devices_cnt);
+		}
+	}
+	pr_warn("No IOMMU scope found for ANDD enumeration ID %d (%s)\n",
+		device_number, dev_name(&adev->dev));
+}
+
+static int __init dmar_acpi_dev_scope_init(void)
+{
+	struct acpi_dmar_andd *andd = (void *)dmar_tbl + sizeof(struct acpi_table_dmar);
+
+	while (((unsigned long)andd) <
+	       ((unsigned long)dmar_tbl) + dmar_tbl->length) {
+		if (andd->header.type == ACPI_DMAR_TYPE_ANDD) {
+			acpi_handle h;
+			struct acpi_device *adev;
+
+			if (!ACPI_SUCCESS(acpi_get_handle(ACPI_ROOT_OBJECT,
+							  andd->object_name,
+							  &h))) {
+				pr_err("Failed to find handle for ACPI object %s\n",
+				       andd->object_name);
+				continue;
+			}
+			acpi_bus_get_device(h, &adev);
+			if (!adev) {
+				pr_err("Failed to get device for ACPI object %s\n",
+				       andd->object_name);
+				continue;
+			}
+			dmar_acpi_insert_dev_scope(andd->device_number, adev);
+		}
+		andd = ((void *)andd) + andd->header.length;
+	}
+	return 0;
+}
+
 int __init dmar_dev_scope_init(void)
 {
 	struct pci_dev *dev = NULL;
@@ -619,6 +692,8 @@ int __init dmar_dev_scope_init(void)
 
 	if (dmar_dev_scope_status != 1)
 		return dmar_dev_scope_status;
+
+	dmar_acpi_dev_scope_init();
 
 	if (list_empty(&dmar_drhd_units)) {
 		dmar_dev_scope_status = -ENODEV;
