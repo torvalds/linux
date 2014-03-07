@@ -849,6 +849,9 @@ static int i915_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	if (HAS_PC8(dev))
+		__hsw_do_enable_pc8(dev_priv);
+
 	i915_gem_release_all_mmaps(dev_priv);
 
 	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
@@ -863,6 +866,7 @@ static int i915_runtime_suspend(struct device *device)
 	 */
 	intel_opregion_notify_adapter(dev, PCI_D1);
 
+	DRM_DEBUG_KMS("Device suspended\n");
 	return 0;
 }
 
@@ -879,6 +883,10 @@ static int i915_runtime_resume(struct device *device)
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
+	if (HAS_PC8(dev))
+		__hsw_do_disable_pc8(dev_priv);
+
+	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;
 }
 

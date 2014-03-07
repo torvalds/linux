@@ -1823,8 +1823,6 @@ int i915_driver_unload(struct drm_device *dev)
 	cancel_work_sync(&dev_priv->gpu_error.work);
 	i915_destroy_error_state(dev);
 
-	cancel_delayed_work_sync(&dev_priv->pc8.enable_work);
-
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 

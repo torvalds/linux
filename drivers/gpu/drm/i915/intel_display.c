@@ -6960,6 +6960,7 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 {
 	uint32_t val;
+	unsigned long irqflags;
 
 	val = I915_READ(LCPLL_CTL);
 
@@ -6967,9 +6968,22 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 		    LCPLL_POWER_DOWN_ALLOW)) == LCPLL_PLL_LOCK)
 		return;
 
-	/* Make sure we're not on PC8 state before disabling PC8, otherwise
-	 * we'll hang the machine! */
-	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+	/*
+	 * Make sure we're not on PC8 state before disabling PC8, otherwise
+	 * we'll hang the machine. To prevent PC8 state, just enable force_wake.
+	 *
+	 * The other problem is that hsw_restore_lcpll() is called as part of
+	 * the runtime PM resume sequence, so we can't just call
+	 * gen6_gt_force_wake_get() because that function calls
+	 * intel_runtime_pm_get(), and we can't change the runtime PM refcount
+	 * while we are on the resume sequence. So to solve this problem we have
+	 * to call special forcewake code that doesn't touch runtime PM and
+	 * doesn't enable the forcewake delayed work.
+	 */
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	if (dev_priv->uncore.forcewake_count++ == 0)
+		dev_priv->uncore.funcs.force_wake_get(dev_priv, FORCEWAKE_ALL);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
@@ -7003,13 +7017,19 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
-	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+	/* See the big comment above. */
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	if (--dev_priv->uncore.forcewake_count == 0)
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
+void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
+
+	WARN_ON(!HAS_PC8(dev));
 
 	DRM_DEBUG_KMS("Enabling package C8+\n");
 
@@ -7026,22 +7046,6 @@ static void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
 	hsw_disable_lcpll(dev_priv, true, true);
 }
 
-void hsw_enable_pc8_work(struct work_struct *__work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(to_delayed_work(__work), struct drm_i915_private,
-			     pc8.enable_work);
-	struct drm_device *dev = dev_priv->dev;
-
-	WARN_ON(!HAS_PC8(dev));
-
-	if (dev_priv->pc8.enabled)
-		return;
-
-	__hsw_do_enable_pc8(dev_priv);
-	intel_runtime_pm_put(dev_priv);
-}
-
 static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
@@ -7052,14 +7056,15 @@ static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 	if (dev_priv->pc8.disable_count != 0)
 		return;
 
-	schedule_delayed_work(&dev_priv->pc8.enable_work,
-			      msecs_to_jiffies(i915.pc8_timeout));
+	intel_runtime_pm_put(dev_priv);
 }
 
-static void __hsw_do_disable_package_c8(struct drm_i915_private *dev_priv)
+void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
+
+	WARN_ON(!HAS_PC8(dev));
 
 	DRM_DEBUG_KMS("Disabling package C8+\n");
 
@@ -7083,8 +7088,6 @@ static void __hsw_do_disable_package_c8(struct drm_i915_private *dev_priv)
 
 static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
-
 	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
 	WARN(dev_priv->pc8.disable_count < 0,
 	     "pc8.disable_count: %d\n", dev_priv->pc8.disable_count);
@@ -7093,14 +7096,7 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 	if (dev_priv->pc8.disable_count != 1)
 		return;
 
-	WARN_ON(!HAS_PC8(dev));
-
-	cancel_delayed_work_sync(&dev_priv->pc8.enable_work);
-	if (!dev_priv->pc8.enabled)
-		return;
-
 	intel_runtime_pm_get(dev_priv);
-	__hsw_do_disable_package_c8(dev_priv);
 }
 
 void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
@@ -7156,9 +7152,6 @@ static void hsw_update_package_c8(struct drm_device *dev)
 	bool allow;
 
 	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	if (!i915.enable_pc8)
 		return;
 
 	mutex_lock(&dev_priv->pc8.lock);

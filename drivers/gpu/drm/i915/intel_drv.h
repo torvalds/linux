@@ -725,7 +725,8 @@ unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 					     unsigned int bpp,
 					     unsigned int pitch);
 void intel_display_handle_reset(struct drm_device *dev);
-void hsw_enable_pc8_work(struct work_struct *__work);
+void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv);
+void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv);
 void hsw_enable_package_c8(struct drm_i915_private *dev_priv);
 void hsw_disable_package_c8(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,

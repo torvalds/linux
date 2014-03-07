@@ -6161,7 +6161,6 @@ void intel_pm_setup(struct drm_device *dev)
 	dev_priv->pc8.irqs_disabled = false;
 	dev_priv->pc8.enabled = false;
 	dev_priv->pc8.disable_count = 1; /* requirements_met */
-	INIT_DELAYED_WORK(&dev_priv->pc8.enable_work, hsw_enable_pc8_work);
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }

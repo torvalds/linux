@@ -1339,6 +1339,10 @@ struct ilk_wm_values {
 /*
  * This struct tracks the state needed for the Package C8+ feature.
  *
+ * TODO: we're merging the Package C8+ feature with the runtime PM support. To
+ * avoid having to update the documentation at each patch of the series, we'll
+ * do a final update at the end.
+ *
  * Package states C8 and deeper are really deep PC states that can only be
  * reached when all the devices on the system allow it, so even if the graphics
  * device allows PC8+, it doesn't mean the system will actually get to these
@@ -1392,7 +1396,6 @@ struct i915_package_c8 {
 	bool enabled;
 	int disable_count;
 	struct mutex lock;
-	struct delayed_work enable_work;
 
 	struct {
 		uint32_t deimr;
@@ -2095,8 +2098,6 @@ struct i915_params {
 	unsigned int preliminary_hw_support;
 	int disable_power_well;
 	int enable_ips;
-	int enable_pc8;
-	int pc8_timeout;
 	int invert_brightness;
 	int enable_cmd_parser;
 	/* leave bools at the end to not create holes */
