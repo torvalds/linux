@@ -152,21 +152,6 @@ typedef union _AC_PARAM {
  * } ThreeWireReg;
  */
 
-typedef union _ThreeWire {
-	struct _ThreeWireStruc {
-		u16 data:1;
-		u16 clk:1;
-		u16 enableB:1;
-		u16 read_write:1;
-		u16 resv1:12;
-		/* u2Byte resv2:14; */
-		/* u2Byte ThreeWireEnable:1; */
-		/* u2Byte resv3:1; */
-	} struc;
-	u16 longData;
-} ThreeWireReg;
-
-
 struct buffer {
 	struct buffer *next;
 	u32 *buf;
