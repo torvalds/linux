@@ -1814,7 +1814,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; req->num_outstanding_cmds; index++) {
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
 		if (handle == req->num_outstanding_cmds)
 			handle = 1;
