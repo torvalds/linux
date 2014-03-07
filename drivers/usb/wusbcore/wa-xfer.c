@@ -2159,9 +2159,9 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 	}
 }
 
-/* Populate the wa->buf_in_urb based on the current isoc transfer state. */
-static int __wa_populate_buf_in_urb_isoc(struct wahc *wa, struct wa_xfer *xfer,
-	struct wa_seg *seg)
+/* Populate the given urb based on the current isoc transfer state. */
+static int __wa_populate_buf_in_urb_isoc(struct wahc *wa,
+	struct urb *buf_in_urb, struct wa_xfer *xfer, struct wa_seg *seg)
 {
 	int urb_start_frame = seg->isoc_frame_index + seg->isoc_frame_offset;
 	int seg_index, total_len = 0, urb_frame_index = urb_start_frame;
@@ -2171,7 +2171,7 @@ static int __wa_populate_buf_in_urb_isoc(struct wahc *wa, struct wa_xfer *xfer,
 	int next_frame_contiguous;
 	struct usb_iso_packet_descriptor *iso_frame;
 
-	BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
+	BUG_ON(buf_in_urb->status == -EINPROGRESS);
 
 	/*
 	 * If the current frame actual_length is contiguous with the next frame
@@ -2201,68 +2201,68 @@ static int __wa_populate_buf_in_urb_isoc(struct wahc *wa, struct wa_xfer *xfer,
 			&& ((iso_frame->actual_length % dti_packet_size) == 0));
 
 	/* this should always be 0 before a resubmit. */
-	wa->buf_in_urb->num_mapped_sgs	= 0;
-	wa->buf_in_urb->transfer_dma = xfer->urb->transfer_dma +
+	buf_in_urb->num_mapped_sgs	= 0;
+	buf_in_urb->transfer_dma = xfer->urb->transfer_dma +
 		iso_frame_desc[urb_start_frame].offset;
-	wa->buf_in_urb->transfer_buffer_length = total_len;
-	wa->buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	wa->buf_in_urb->transfer_buffer = NULL;
-	wa->buf_in_urb->sg = NULL;
-	wa->buf_in_urb->num_sgs = 0;
-	wa->buf_in_urb->context = seg;
+	buf_in_urb->transfer_buffer_length = total_len;
+	buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	buf_in_urb->transfer_buffer = NULL;
+	buf_in_urb->sg = NULL;
+	buf_in_urb->num_sgs = 0;
+	buf_in_urb->context = seg;
 
 	/* return the number of frames included in this URB. */
 	return seg_index - seg->isoc_frame_index;
 }
 
-/* Populate the wa->buf_in_urb based on the current transfer state. */
-static int wa_populate_buf_in_urb(struct wahc *wa, struct wa_xfer *xfer,
+/* Populate the given urb based on the current transfer state. */
+static int wa_populate_buf_in_urb(struct urb *buf_in_urb, struct wa_xfer *xfer,
 	unsigned int seg_idx, unsigned int bytes_transferred)
 {
 	int result = 0;
 	struct wa_seg *seg = xfer->seg[seg_idx];
 
-	BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
+	BUG_ON(buf_in_urb->status == -EINPROGRESS);
 	/* this should always be 0 before a resubmit. */
-	wa->buf_in_urb->num_mapped_sgs	= 0;
+	buf_in_urb->num_mapped_sgs	= 0;
 
 	if (xfer->is_dma) {
-		wa->buf_in_urb->transfer_dma = xfer->urb->transfer_dma
+		buf_in_urb->transfer_dma = xfer->urb->transfer_dma
 			+ (seg_idx * xfer->seg_size);
-		wa->buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-		wa->buf_in_urb->transfer_buffer = NULL;
-		wa->buf_in_urb->sg = NULL;
-		wa->buf_in_urb->num_sgs = 0;
+		buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		buf_in_urb->transfer_buffer = NULL;
+		buf_in_urb->sg = NULL;
+		buf_in_urb->num_sgs = 0;
 	} else {
 		/* do buffer or SG processing. */
-		wa->buf_in_urb->transfer_flags &= ~URB_NO_TRANSFER_DMA_MAP;
+		buf_in_urb->transfer_flags &= ~URB_NO_TRANSFER_DMA_MAP;
 
 		if (xfer->urb->transfer_buffer) {
-			wa->buf_in_urb->transfer_buffer =
+			buf_in_urb->transfer_buffer =
 				xfer->urb->transfer_buffer
 				+ (seg_idx * xfer->seg_size);
-			wa->buf_in_urb->sg = NULL;
-			wa->buf_in_urb->num_sgs = 0;
+			buf_in_urb->sg = NULL;
+			buf_in_urb->num_sgs = 0;
 		} else {
 			/* allocate an SG list to store seg_size bytes
 				and copy the subset of the xfer->urb->sg
 				that matches the buffer subset we are
 				about to read. */
-			wa->buf_in_urb->sg = wa_xfer_create_subset_sg(
+			buf_in_urb->sg = wa_xfer_create_subset_sg(
 				xfer->urb->sg,
 				seg_idx * xfer->seg_size,
 				bytes_transferred,
-				&(wa->buf_in_urb->num_sgs));
+				&(buf_in_urb->num_sgs));
 
-			if (!(wa->buf_in_urb->sg)) {
-				wa->buf_in_urb->num_sgs	= 0;
+			if (!(buf_in_urb->sg)) {
+				buf_in_urb->num_sgs	= 0;
 				result = -ENOMEM;
 			}
-			wa->buf_in_urb->transfer_buffer = NULL;
+			buf_in_urb->transfer_buffer = NULL;
 		}
 	}
-	wa->buf_in_urb->transfer_buffer_length = bytes_transferred;
-	wa->buf_in_urb->context = seg;
+	buf_in_urb->transfer_buffer_length = bytes_transferred;
+	buf_in_urb->context = seg;
 
 	return result;
 }
@@ -2287,6 +2287,7 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	u8 usb_status;
 	unsigned rpipe_ready = 0;
 	unsigned bytes_transferred = le32_to_cpu(xfer_result->dwTransferLength);
+	struct urb *buf_in_urb = &(wa->buf_in_urbs[0]);
 
 	spin_lock_irqsave(&xfer->lock, flags);
 	seg_idx = xfer_result->bTransferSegment & 0x7f;
@@ -2337,13 +2338,16 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 			&& (bytes_transferred > 0)) {
 		/* IN data phase: read to buffer */
 		seg->status = WA_SEG_DTI_PENDING;
-		result = wa_populate_buf_in_urb(wa, xfer, seg_idx,
+		result = wa_populate_buf_in_urb(buf_in_urb, xfer, seg_idx,
 			bytes_transferred);
 		if (result < 0)
 			goto error_buf_in_populate;
-		result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
-		if (result < 0)
+		++(wa->active_buf_in_urbs);
+		result = usb_submit_urb(buf_in_urb, GFP_ATOMIC);
+		if (result < 0) {
+			--(wa->active_buf_in_urbs);
 			goto error_submit_buf_in;
+		}
 	} else {
 		/* OUT data phase or no data, complete it -- */
 		seg->result = bytes_transferred;
@@ -2367,8 +2371,8 @@ error_submit_buf_in:
 		dev_err(dev, "xfer %p#%u: can't submit DTI data phase: %d\n",
 			xfer, seg_idx, result);
 	seg->result = result;
-	kfree(wa->buf_in_urb->sg);
-	wa->buf_in_urb->sg = NULL;
+	kfree(buf_in_urb->sg);
+	buf_in_urb->sg = NULL;
 error_buf_in_populate:
 	__wa_xfer_abort(xfer);
 	seg->status = WA_SEG_ERROR;
@@ -2477,16 +2481,16 @@ static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 	for (seg_index = 0; seg_index < seg->isoc_frame_count; ++seg_index) {
 		struct usb_iso_packet_descriptor *iso_frame_desc =
 			xfer->urb->iso_frame_desc;
-		const int urb_frame_index =
+		const int xfer_frame_index =
 			seg->isoc_frame_offset + seg_index;
 
-		iso_frame_desc[urb_frame_index].status =
+		iso_frame_desc[xfer_frame_index].status =
 			wa_xfer_status_to_errno(
 			le16_to_cpu(status_array[seg_index].PacketStatus));
-		iso_frame_desc[urb_frame_index].actual_length =
+		iso_frame_desc[xfer_frame_index].actual_length =
 			le16_to_cpu(status_array[seg_index].PacketLength);
 		/* track the number of frames successfully transferred. */
-		if (iso_frame_desc[urb_frame_index].actual_length > 0) {
+		if (iso_frame_desc[xfer_frame_index].actual_length > 0) {
 			/* save the starting frame index for buf_in_urb. */
 			if (!data_frame_count)
 				first_frame_index = seg_index;
@@ -2495,21 +2499,53 @@ static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 	}
 
 	if (xfer->is_inbound && data_frame_count) {
-		int result, urb_frame_count;
+		int result, total_frames_read = 0, urb_index = 0;
+		struct urb *buf_in_urb;
 
+		/* IN data phase: read to buffer */
+		seg->status = WA_SEG_DTI_PENDING;
+
+		/* start with the first frame with data. */
 		seg->isoc_frame_index = first_frame_index;
-		/* submit a read URB for the first frame with data. */
-		urb_frame_count = __wa_populate_buf_in_urb_isoc(wa, xfer, seg);
-		/* advance index to start of next read URB. */
-		seg->isoc_frame_index += urb_frame_count;
+		/* submit up to WA_MAX_BUF_IN_URBS read URBs. */
+		do {
+			int urb_frame_index, urb_frame_count;
+			struct usb_iso_packet_descriptor *iso_frame_desc;
 
-		result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
+			buf_in_urb = &(wa->buf_in_urbs[urb_index]);
+			urb_frame_count = __wa_populate_buf_in_urb_isoc(wa,
+				buf_in_urb, xfer, seg);
+			/* advance frame index to start of next read URB. */
+			seg->isoc_frame_index += urb_frame_count;
+			total_frames_read += urb_frame_count;
+
+			++(wa->active_buf_in_urbs);
+			result = usb_submit_urb(buf_in_urb, GFP_ATOMIC);
+
+			/* skip 0-byte frames. */
+			urb_frame_index =
+				seg->isoc_frame_offset + seg->isoc_frame_index;
+			iso_frame_desc =
+				&(xfer->urb->iso_frame_desc[urb_frame_index]);
+			while ((seg->isoc_frame_index <
+						seg->isoc_frame_count) &&
+				 (iso_frame_desc->actual_length == 0)) {
+				++(seg->isoc_frame_index);
+				++iso_frame_desc;
+			}
+			++urb_index;
+
+		} while ((result == 0) && (urb_index < WA_MAX_BUF_IN_URBS)
+				&& (seg->isoc_frame_index <
+						seg->isoc_frame_count));
+
 		if (result < 0) {
+			--(wa->active_buf_in_urbs);
 			dev_err(dev, "DTI Error: Could not submit buf in URB (%d)",
 				result);
 			wa_reset_all(wa);
-		} else if (data_frame_count > urb_frame_count)
-			/* If we need to read multiple frames, set DTI busy. */
+		} else if (data_frame_count > total_frames_read)
+			/* If we need to read more frames, set DTI busy. */
 			dti_busy = 1;
 	} else {
 		/* OUT transfer or no more IN data, complete it -- */
@@ -2517,7 +2553,10 @@ static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 		done = __wa_xfer_mark_seg_as_done(xfer, seg, WA_SEG_DONE);
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
-	wa->dti_state = WA_DTI_TRANSFER_RESULT_PENDING;
+	if (dti_busy)
+		wa->dti_state = WA_DTI_BUF_IN_DATA_PENDING;
+	else
+		wa->dti_state = WA_DTI_TRANSFER_RESULT_PENDING;
 	if (done)
 		wa_xfer_completion(xfer);
 	if (rpipe_ready)
@@ -2551,7 +2590,7 @@ static void wa_buf_in_cb(struct urb *urb)
 	struct wa_rpipe *rpipe;
 	unsigned rpipe_ready = 0, isoc_data_frame_count = 0;
 	unsigned long flags;
-	int resubmit_dti = 0;
+	int resubmit_dti = 0, active_buf_in_urbs;
 	u8 done = 0;
 
 	/* free the sg if it was used. */
@@ -2561,6 +2600,8 @@ static void wa_buf_in_cb(struct urb *urb)
 	spin_lock_irqsave(&xfer->lock, flags);
 	wa = xfer->wa;
 	dev = &wa->usb_iface->dev;
+	--(wa->active_buf_in_urbs);
+	active_buf_in_urbs = wa->active_buf_in_urbs;
 
 	if (usb_pipeisoc(xfer->urb->pipe)) {
 		struct usb_iso_packet_descriptor *iso_frame_desc =
@@ -2596,12 +2637,14 @@ static void wa_buf_in_cb(struct urb *urb)
 			int result, urb_frame_count;
 
 			/* submit a read URB for the next frame with data. */
-			urb_frame_count = __wa_populate_buf_in_urb_isoc(wa,
+			urb_frame_count = __wa_populate_buf_in_urb_isoc(wa, urb,
 				 xfer, seg);
 			/* advance index to start of next read URB. */
 			seg->isoc_frame_index += urb_frame_count;
-			result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
+			++(wa->active_buf_in_urbs);
+			result = usb_submit_urb(urb, GFP_ATOMIC);
 			if (result < 0) {
+				--(wa->active_buf_in_urbs);
 				dev_err(dev, "DTI Error: Could not submit buf in URB (%d)",
 					result);
 				wa_reset_all(wa);
@@ -2615,7 +2658,7 @@ static void wa_buf_in_cb(struct urb *urb)
 			 */
 			  resubmit_dti = (isoc_data_frame_count ==
 							urb_frame_count);
-		} else {
+		} else if (active_buf_in_urbs == 0) {
 			rpipe = xfer->ep->hcpriv;
 			dev_dbg(dev,
 				"xfer %p 0x%08X#%u: data in done (%zu bytes)\n",
@@ -2635,7 +2678,12 @@ static void wa_buf_in_cb(struct urb *urb)
 	case -ENOENT:		/* as it was done by the who unlinked us */
 		break;
 	default:		/* Other errors ... */
-		resubmit_dti = 1;
+		/*
+		 * Error on data buf read.  Only resubmit DTI if it hasn't
+		 * already been done by previously hitting this error or by a
+		 * successful completion of the previous buf_in_urb.
+		 */
+		resubmit_dti = wa->dti_state != WA_DTI_TRANSFER_RESULT_PENDING;
 		spin_lock_irqsave(&xfer->lock, flags);
 		rpipe = xfer->ep->hcpriv;
 		if (printk_ratelimit())
@@ -2650,8 +2698,11 @@ static void wa_buf_in_cb(struct urb *urb)
 		}
 		seg->result = urb->status;
 		rpipe_ready = rpipe_avail_inc(rpipe);
-		__wa_xfer_abort(xfer);
-		done = __wa_xfer_mark_seg_as_done(xfer, seg, WA_SEG_ERROR);
+		if (active_buf_in_urbs == 0)
+			done = __wa_xfer_mark_seg_as_done(xfer, seg,
+				WA_SEG_ERROR);
+		else
+			__wa_xfer_abort(xfer);
 		spin_unlock_irqrestore(&xfer->lock, flags);
 		if (done)
 			wa_xfer_completion(xfer);
@@ -2660,7 +2711,11 @@ static void wa_buf_in_cb(struct urb *urb)
 	}
 
 	if (resubmit_dti) {
-		int result = usb_submit_urb(wa->dti_urb, GFP_ATOMIC);
+		int result;
+
+		wa->dti_state = WA_DTI_TRANSFER_RESULT_PENDING;
+
+		result = usb_submit_urb(wa->dti_urb, GFP_ATOMIC);
 		if (result < 0) {
 			dev_err(dev, "DTI Error: Could not submit DTI URB (%d)\n",
 				result);
@@ -2794,7 +2849,7 @@ int wa_dti_start(struct wahc *wa)
 {
 	const struct usb_endpoint_descriptor *dti_epd = wa->dti_epd;
 	struct device *dev = &wa->usb_iface->dev;
-	int result = -ENOMEM;
+	int result = -ENOMEM, index;
 
 	if (wa->dti_urb != NULL)	/* DTI URB already started */
 		goto out;
@@ -2810,15 +2865,14 @@ int wa_dti_start(struct wahc *wa)
 		wa->dti_buf, wa->dti_buf_size,
 		wa_dti_cb, wa);
 
-	wa->buf_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (wa->buf_in_urb == NULL) {
-		dev_err(dev, "Can't allocate BUF-IN URB\n");
-		goto error_buf_in_urb_alloc;
+	/* init the buf in URBs */
+	for (index = 0; index < WA_MAX_BUF_IN_URBS; ++index) {
+		usb_fill_bulk_urb(
+			&(wa->buf_in_urbs[index]), wa->usb_dev,
+			usb_rcvbulkpipe(wa->usb_dev,
+				0x80 | dti_epd->bEndpointAddress),
+			NULL, 0, wa_buf_in_cb, wa);
 	}
-	usb_fill_bulk_urb(
-		wa->buf_in_urb, wa->usb_dev,
-		usb_rcvbulkpipe(wa->usb_dev, 0x80 | dti_epd->bEndpointAddress),
-		NULL, 0, wa_buf_in_cb, wa);
 	result = usb_submit_urb(wa->dti_urb, GFP_KERNEL);
 	if (result < 0) {
 		dev_err(dev, "DTI Error: Could not submit DTI URB (%d) resetting\n",
@@ -2829,9 +2883,6 @@ out:
 	return 0;
 
 error_dti_urb_submit:
-	usb_put_urb(wa->buf_in_urb);
-	wa->buf_in_urb = NULL;
-error_buf_in_urb_alloc:
 	usb_put_urb(wa->dti_urb);
 	wa->dti_urb = NULL;
 error_dti_urb_alloc:

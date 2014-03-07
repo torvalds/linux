@@ -125,7 +125,8 @@ struct wa_rpipe {
 
 enum wa_dti_state {
 	WA_DTI_TRANSFER_RESULT_PENDING,
-	WA_DTI_ISOC_PACKET_STATUS_PENDING
+	WA_DTI_ISOC_PACKET_STATUS_PENDING,
+	WA_DTI_BUF_IN_DATA_PENDING
 };
 
 enum wa_quirks {
@@ -146,6 +147,8 @@ enum wa_vendor_specific_requests {
 	WA_REQ_ALEREON_FEATURE_SET = 0x01,
 	WA_REQ_ALEREON_FEATURE_CLEAR = 0x00,
 };
+
+#define WA_MAX_BUF_IN_URBS	4
 /**
  * Instance of a HWA Host Controller
  *
@@ -216,7 +219,9 @@ struct wahc {
 	u32 dti_isoc_xfer_in_progress;
 	u8  dti_isoc_xfer_seg;
 	struct urb *dti_urb;		/* URB for reading xfer results */
-	struct urb *buf_in_urb;		/* URB for reading data in */
+					/* URBs for reading data in */
+	struct urb buf_in_urbs[WA_MAX_BUF_IN_URBS];
+	int active_buf_in_urbs;		/* number of buf_in_urbs active. */
 	struct edc dti_edc;		/* DTI error density counter */
 	void *dti_buf;
 	size_t dti_buf_size;
@@ -286,6 +291,8 @@ static inline void wa_rpipe_init(struct wahc *wa)
 
 static inline void wa_init(struct wahc *wa)
 {
+	int index;
+
 	edc_init(&wa->nep_edc);
 	atomic_set(&wa->notifs_queued, 0);
 	wa->dti_state = WA_DTI_TRANSFER_RESULT_PENDING;
@@ -299,6 +306,10 @@ static inline void wa_init(struct wahc *wa)
 	INIT_WORK(&wa->xfer_error_work, wa_process_errored_transfers_run);
 	wa->dto_in_use = 0;
 	atomic_set(&wa->xfer_id_count, 1);
+	/* init the buf in URBs */
+	for (index = 0; index < WA_MAX_BUF_IN_URBS; ++index)
+		usb_init_urb(&(wa->buf_in_urbs[index]));
+	wa->active_buf_in_urbs = 0;
 }
 
 /**
