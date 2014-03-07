@@ -263,8 +263,10 @@ static int msm_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 #define MSM_PULL_DOWN	1
 #define MSM_PULL_UP	3
 
-static const unsigned msm_regval_to_drive[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
-static const unsigned msm_drive_to_regval[] = { -1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6, -1, 7 };
+static unsigned msm_regval_to_drive(u32 val)
+{
+	return (val + 1) * 2;
+}
 
 static int msm_config_group_get(struct pinctrl_dev *pctldev,
 				unsigned int group,
@@ -301,7 +303,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = arg == MSM_PULL_UP;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		arg = msm_regval_to_drive[arg];
+		arg = msm_regval_to_drive(arg);
 		break;
 	case PIN_CONFIG_OUTPUT:
 		/* Pin is not output */
@@ -362,10 +364,10 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			/* Check for invalid values */
-			if (arg >= ARRAY_SIZE(msm_drive_to_regval))
+			if (arg > 16 || arg < 2 || (arg % 2) != 0)
 				arg = -1;
 			else
-				arg = msm_drive_to_regval[arg];
+				arg = (arg / 2) - 1;
 			break;
 		case PIN_CONFIG_OUTPUT:
 			/* set output value */
@@ -558,7 +560,7 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	pull = (ctl_reg >> g->pull_bit) & 3;
 
 	seq_printf(s, " %-8s: %-3s %d", g->name, is_out ? "out" : "in", func);
-	seq_printf(s, " %dmA", msm_regval_to_drive[drive]);
+	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
 	seq_printf(s, " %s", pulls[pull]);
 }
 
