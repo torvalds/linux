@@ -692,6 +692,48 @@
 			};
 		};
 
+		gpio3_rmii {
+			rmii_clkoutpin: rmii-clkoutpin {
+				rockchip,pins = <RMII_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			rmii_clkinpin: rmii-clkinpin {
+				rockchip,pins = <RMII_CLKIN>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			rmii_txpins: rmii-txpins {
+				rockchip,pins = <RMII_TXEN>, <RMII_TXD1>, <RMII_TXD0>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			rmii_rxpins: rmii-rxpins {
+				rockchip,pins = <RMII_RXD0>, <RMII_RXD1>, <RMII_RXERR>, <RMII_CRS>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			rmii_mdpins: rmii-mdpins {
+				rockchip,pins = <RMII_MD>, <RMII_MDCLK>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+		};
+
 		gps {
 			gps_mag:gps-mag {
 				rockchip,pins = <GPS_MAG>;

@@ -1,0 +1,10 @@
+config RK_VMAC_ETH
+	bool "Rockchip 10/100 Ethernet driver"
+	depends on HAS_IOMEM && HAS_DMA
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	---help---
+	  Rockchip 10/100 VMAC Ethernet driver.
+

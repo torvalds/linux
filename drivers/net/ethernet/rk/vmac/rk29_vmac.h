@@ -27,7 +27,7 @@
 #ifndef _ARCVMAC_H
 #define _ARCVMAC_H
 
-#define VMAC_NAME		"rk29 vmac"
+#define VMAC_NAME		"rockchip,vmac"
 #define VMAC_VERSION		"1.0"
 
 /* Buffer descriptors */
@@ -272,5 +272,16 @@ static inline int fifo_inc_ct(int ct, int size)
 {
 	return (++ct == size) ? 0 : ct;
 }
+
+/*vmac*/
+struct rk29_vmac_platform_data {
+    int (*vmac_register_set)(void);
+    int (*rmii_io_init)(void);
+    int (*rmii_io_deinit)(void);
+    int (*rmii_power_control)(int enable);
+    int(*rmii_speed_switch)(int speed);
+};
+
+extern struct rk29_vmac_platform_data board_vmac_data;
 
 #endif	  /* _ARCVMAC_H */

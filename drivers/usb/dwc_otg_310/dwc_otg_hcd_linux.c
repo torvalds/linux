@@ -485,8 +485,8 @@ int otg20_hcd_init( struct platform_device *_dev )
 #endif
 #if 0//LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	/* Do not to do HNP polling if not capable */
-	if (otg_dev->core_if->otg_ver)
-		hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
+	//if (otg_dev->core_if->otg_ver)
+	//	hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
 #endif
 	/*
 	 * Finish generic HCD initialization and start the HCD. This function
@@ -580,8 +580,8 @@ int host20_hcd_init( struct platform_device *_dev )
 #endif
 #if 0//LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	/* Do not to do HNP polling if not capable */
-	if (otg_dev->core_if->otg_ver)
-		hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
+	//if (otg_dev->core_if->otg_ver)
+	//	hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
 #endif
 	/*
 	 * Finish generic HCD initialization and start the HCD. This function

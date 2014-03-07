@@ -626,4 +626,12 @@
 			      "hsicphy12m", "hsic_otgphy1";
 	};
 
+	vmac@0x10204000 {
+		compatible = "rockchip,vmac";
+		reg = <0x10204000 0x4000>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&rmii_clkoutpin &rmii_txpins &rmii_rxpins &rmii_mdpins>;
+		pinctrl-1 = <&rmii_clkinpin &rmii_txpins &rmii_rxpins &rmii_mdpins>;
+	};
 };
