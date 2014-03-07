@@ -377,8 +377,11 @@ extern const char gfar_driver_version[];
 		IMASK_RXFEN0 | IMASK_BSY | IMASK_EBERR | IMASK_BABR | \
 		IMASK_XFUN | IMASK_RXC | IMASK_BABT | IMASK_DPE \
 		| IMASK_PERR)
-#define IMASK_RTX_DISABLED ((~(IMASK_RXFEN0 | IMASK_TXFEN | IMASK_BSY)) \
-			   & IMASK_DEFAULT)
+#define IMASK_RX_DEFAULT (IMASK_RXFEN0 | IMASK_BSY)
+#define IMASK_TX_DEFAULT (IMASK_TXFEN | IMASK_TXBEN)
+
+#define IMASK_RX_DISABLED ((~(IMASK_RX_DEFAULT)) & IMASK_DEFAULT)
+#define IMASK_TX_DISABLED ((~(IMASK_TX_DEFAULT)) & IMASK_DEFAULT)
 
 /* Fifo management */
 #define FIFO_TX_THR_MASK	0x01ff
@@ -1014,13 +1017,13 @@ struct gfar_irqinfo {
 
 struct gfar_priv_grp {
 	spinlock_t grplock __attribute__ ((aligned (SMP_CACHE_BYTES)));
-	struct	napi_struct napi;
+	struct	napi_struct napi_rx;
+	struct	napi_struct napi_tx;
 	struct gfar_private *priv;
 	struct gfar __iomem *regs;
 	unsigned int rstat;
 	unsigned long num_rx_queues;
 	unsigned long rx_bit_map;
-	/* cacheline 3 */
 	unsigned int tstat;
 	unsigned long num_tx_queues;
 	unsigned long tx_bit_map;
