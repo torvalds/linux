@@ -286,18 +286,18 @@ static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 
 static int jr3_pci_open(struct comedi_device *dev)
 {
-	int i;
 	struct jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_pci_subdev_private *spriv;
+	struct comedi_subdevice *s;
+	int i;
 
 	dev_dbg(dev->class_dev, "jr3_pci_open\n");
 	for (i = 0; i < devpriv->n_channels; i++) {
-		struct jr3_pci_subdev_private *p;
-
-		p = dev->subdevices[i].private;
-		if (p) {
-			dev_dbg(dev->class_dev, "serial: %p %d (%d)\n", p,
-				p->serial_no, p->channel_no);
-		}
+		s = &dev->subdevices[i];
+		spriv = s->private;
+		if (spriv)
+			dev_dbg(dev->class_dev, "serial: %p %d (%d)\n",
+				spriv, spriv->serial_no, spriv->channel_no);
 	}
 	return 0;
 }
