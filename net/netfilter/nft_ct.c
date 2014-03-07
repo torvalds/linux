@@ -24,11 +24,10 @@
 struct nft_ct {
 	enum nft_ct_keys	key:8;
 	enum ip_conntrack_dir	dir:8;
-	union{
+	union {
 		enum nft_registers	dreg:8;
 		enum nft_registers	sreg:8;
 	};
-	uint8_t			family;
 };
 
 static void nft_ct_get_eval(const struct nft_expr *expr,
@@ -316,17 +315,13 @@ static int nft_ct_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	priv->family = ctx->afi->family;
-
 	return 0;
 }
 
 static void nft_ct_destroy(const struct nft_ctx *ctx,
 			   const struct nft_expr *expr)
 {
-	struct nft_ct *priv = nft_expr_priv(expr);
-
-	nft_ct_l3proto_module_put(priv->family);
+	nft_ct_l3proto_module_put(ctx->afi->family);
 }
 
 static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
