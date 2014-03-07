@@ -322,7 +322,7 @@ typedef enum _RT_PS_MODE {
 } RT_PS_MODE;
 
 /* by amy for power save. */
-typedef struct r8180_priv {
+struct r8180_priv {
 	struct pci_dev *pdev;
 
 	short epromtype;
@@ -644,7 +644,7 @@ typedef struct r8180_priv {
 	u32 IntrMask;
 
 	struct chnl_access_setting ChannelAccessSetting;
-} r8180_priv;
+};
 
 #define MANAGE_PRIORITY 0
 #define BK_PRIORITY 1
