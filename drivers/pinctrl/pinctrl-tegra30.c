@@ -25,7 +25,7 @@
  * Most pins affected by the pinmux can also be GPIOs. Define these first.
  * These must match how the GPIO driver names/numbers its pins.
  */
-#define _GPIO(offset)				(offset)
+#define _GPIO(offset)			(offset)
 
 #define TEGRA_PIN_CLK_32K_OUT_PA0	_GPIO(0)
 #define TEGRA_PIN_UART3_CTS_N_PA1	_GPIO(1)
@@ -277,8 +277,8 @@
 #define TEGRA_PIN_PEE7			_GPIO(247)
 
 /* All non-GPIO pins follow */
-#define NUM_GPIOS				(TEGRA_PIN_PEE7 + 1)
-#define _PIN(offset)				(NUM_GPIOS + (offset))
+#define NUM_GPIOS			(TEGRA_PIN_PEE7 + 1)
+#define _PIN(offset)			(NUM_GPIOS + (offset))
 
 /* Non-GPIO pins */
 #define TEGRA_PIN_CLK_32K_IN		_PIN(0)
@@ -2105,11 +2105,11 @@ static struct tegra_function tegra30_functions[] = {
 	FUNCTION(vi_alt3),
 };
 
-#define DRV_PINGROUP_REG_A	0x868	/* bank 0 */
-#define PINGROUP_REG_A		0x3000	/* bank 1 */
+#define DRV_PINGROUP_REG_A		0x868	/* bank 0 */
+#define PINGROUP_REG_A			0x3000	/* bank 1 */
 
-#define PINGROUP_REG_Y(r) ((r) - PINGROUP_REG_A)
-#define PINGROUP_REG_N(r) -1
+#define PINGROUP_REG_Y(r)		((r) - PINGROUP_REG_A)
+#define PINGROUP_REG_N(r)		-1
 
 #define PINGROUP(pg_name, f0, f1, f2, f3, f_safe, r, od, ior)	\
 	{							\
@@ -2117,12 +2117,12 @@ static struct tegra_function tegra30_functions[] = {
 		.pins = pg_name##_pins,				\
 		.npins = ARRAY_SIZE(pg_name##_pins),		\
 		.funcs = {					\
-			TEGRA_MUX_ ## f0,			\
-			TEGRA_MUX_ ## f1,			\
-			TEGRA_MUX_ ## f2,			\
-			TEGRA_MUX_ ## f3,			\
+			TEGRA_MUX_##f0,				\
+			TEGRA_MUX_##f1,				\
+			TEGRA_MUX_##f2,				\
+			TEGRA_MUX_##f3,				\
 		},						\
-		.func_safe = TEGRA_MUX_ ## f_safe,		\
+		.func_safe = TEGRA_MUX_##f_safe,		\
 		.mux_reg = PINGROUP_REG_Y(r),			\
 		.mux_bank = 1,					\
 		.mux_bit = 0,					\
@@ -2149,6 +2149,9 @@ static struct tegra_function tegra30_functions[] = {
 		.drvtype_reg = -1,				\
 	}
 
+#define DRV_PINGROUP_REG_Y(r)		((r) - DRV_PINGROUP_REG_A)
+#define DRV_PINGROUP_REG_N(r)		-1
+
 #define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b,	\
 		     drvdn_b, drvdn_w, drvup_b, drvup_w,	\
 		     slwr_b, slwr_w, slwf_b, slwf_w)		\
@@ -2164,7 +2167,7 @@ static struct tegra_function tegra30_functions[] = {
 		.lock_reg = -1,					\
 		.ioreset_reg = -1,				\
 		.rcv_sel_reg = -1,				\
-		.drv_reg = ((r) - DRV_PINGROUP_REG_A),		\
+		.drv_reg = DRV_PINGROUP_REG_Y(r),		\
 		.drv_bank = 0,					\
 		.hsm_bit = hsm_b,				\
 		.schmitt_bit = schmitt_b,			\
@@ -2182,7 +2185,6 @@ static struct tegra_function tegra30_functions[] = {
 
 static const struct tegra_pingroup tegra30_groups[] = {
 	/*       pg_name,              f0,           f1,           f2,           f3,           safe,         r,      od, ior */
-	/* FIXME: Fill in correct data in safe column */
 	PINGROUP(clk_32k_out_pa0,      BLINK,        RSVD2,        RSVD3,        RSVD4,        RSVD4,        0x331c, N, N),
 	PINGROUP(uart3_cts_n_pa1,      UARTC,        RSVD2,        GMI,          RSVD4,        RSVD4,        0x317c, N, N),
 	PINGROUP(dap2_fs_pa2,          I2S1,         HDA,          RSVD3,        GMI,          RSVD3,        0x3358, N, N),
@@ -2495,6 +2497,7 @@ static struct of_device_id tegra30_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra30-pinmux", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra30_pinctrl_of_match);
 
 static struct platform_driver tegra30_pinctrl_driver = {
 	.driver = {
@@ -2510,4 +2513,3 @@ module_platform_driver(tegra30_pinctrl_driver);
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("NVIDIA Tegra30 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, tegra30_pinctrl_of_match);

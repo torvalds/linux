@@ -1,9 +1,7 @@
 /*
- * Pinctrl data and driver for the NVIDIA Tegra114 pinmux
+ * Pinctrl data for the NVIDIA Tegra114 pinmux
  *
  * Copyright (c) 2012-2013, NVIDIA CORPORATION.  All rights reserved.
- *
- * Author:  Pritesh Raithatha <praithatha@nvidia.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -13,9 +11,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -203,8 +198,8 @@
 #define TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5		_GPIO(245)
 
 /* All non-GPIO pins follow */
-#define NUM_GPIOS	(TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5 + 1)
-#define _PIN(offset)	(NUM_GPIOS + (offset))
+#define NUM_GPIOS				(TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5 + 1)
+#define _PIN(offset)				(NUM_GPIOS + (offset))
 
 /* Non-GPIO pins */
 #define TEGRA_PIN_CORE_PWR_REQ			_PIN(0)
@@ -213,7 +208,7 @@
 #define TEGRA_PIN_RESET_OUT_N			_PIN(3)
 #define TEGRA_PIN_OWR				_PIN(4)
 
-static const struct pinctrl_pin_desc  tegra114_pins[] = {
+static const struct pinctrl_pin_desc tegra114_pins[] = {
 	PINCTRL_PIN(TEGRA_PIN_CLK_32K_OUT_PA0, "CLK_32K_OUT PA0"),
 	PINCTRL_PIN(TEGRA_PIN_UART3_CTS_N_PA1, "UART3_CTS_N PA1"),
 	PINCTRL_PIN(TEGRA_PIN_DAP2_FS_PA2, "DAP2_FS PA2"),
@@ -385,9 +380,9 @@ static const struct pinctrl_pin_desc  tegra114_pins[] = {
 	PINCTRL_PIN(TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5, "SDMMC3_CLK_LB_IN PEE5"),
 	PINCTRL_PIN(TEGRA_PIN_CORE_PWR_REQ, "CORE_PWR_REQ"),
 	PINCTRL_PIN(TEGRA_PIN_CPU_PWR_REQ, "CPU_PWR_REQ"),
-	PINCTRL_PIN(TEGRA_PIN_OWR, "OWR"),
 	PINCTRL_PIN(TEGRA_PIN_PWR_INT_N, "PWR_INT_N"),
 	PINCTRL_PIN(TEGRA_PIN_RESET_OUT_N, "RESET_OUT_N"),
+	PINCTRL_PIN(TEGRA_PIN_OWR, "OWR"),
 };
 
 static const unsigned clk_32k_out_pa0_pins[] = {
@@ -1074,16 +1069,16 @@ static const unsigned cpu_pwr_req_pins[] = {
 	TEGRA_PIN_CPU_PWR_REQ,
 };
 
-static const unsigned owr_pins[] = {
-	TEGRA_PIN_OWR,
-};
-
 static const unsigned pwr_int_n_pins[] = {
 	TEGRA_PIN_PWR_INT_N,
 };
 
 static const unsigned reset_out_n_pins[] = {
 	TEGRA_PIN_RESET_OUT_N,
+};
+
+static const unsigned owr_pins[] = {
+	TEGRA_PIN_OWR,
 };
 
 static const unsigned drive_ao1_pins[] = {
@@ -1127,7 +1122,6 @@ static const unsigned drive_at1_pins[] = {
 	TEGRA_PIN_GMI_AD13_PH5,
 	TEGRA_PIN_GMI_AD14_PH6,
 	TEGRA_PIN_GMI_AD15_PH7,
-
 	TEGRA_PIN_GMI_IORDY_PI5,
 	TEGRA_PIN_GMI_CS7_N_PI6,
 };
@@ -1141,15 +1135,12 @@ static const unsigned drive_at2_pins[] = {
 	TEGRA_PIN_GMI_AD5_PG5,
 	TEGRA_PIN_GMI_AD6_PG6,
 	TEGRA_PIN_GMI_AD7_PG7,
-
 	TEGRA_PIN_GMI_WR_N_PI0,
 	TEGRA_PIN_GMI_OE_N_PI1,
 	TEGRA_PIN_GMI_CS6_N_PI3,
 	TEGRA_PIN_GMI_RST_N_PI4,
 	TEGRA_PIN_GMI_WAIT_PI7,
-
 	TEGRA_PIN_GMI_DQS_P_PJ3,
-
 	TEGRA_PIN_GMI_ADV_N_PK0,
 	TEGRA_PIN_GMI_CLK_PK1,
 	TEGRA_PIN_GMI_CS4_N_PK2,
@@ -1425,7 +1416,7 @@ enum tegra_mux {
 		.name = #fname,				\
 	}
 
-static struct tegra_function  tegra114_functions[] = {
+static struct tegra_function tegra114_functions[] = {
 	FUNCTION(blink),
 	FUNCTION(cec),
 	FUNCTION(cldvfs),
@@ -1504,11 +1495,11 @@ static struct tegra_function  tegra114_functions[] = {
 	FUNCTION(vi_alt3),
 };
 
-#define DRV_PINGROUP_REG_START			0x868	/* bank 0 */
-#define PINGROUP_REG_START			0x3000	/* bank 1 */
+#define DRV_PINGROUP_REG_A		0x868	/* bank 0 */
+#define PINGROUP_REG_A			0x3000	/* bank 1 */
 
-#define PINGROUP_REG_Y(r)			((r) - PINGROUP_REG_START)
-#define PINGROUP_REG_N(r)			-1
+#define PINGROUP_REG_Y(r)		((r) - PINGROUP_REG_A)
+#define PINGROUP_REG_N(r)		-1
 
 #define PINGROUP(pg_name, f0, f1, f2, f3, f_safe, r, od, ior, rcv_sel)	\
 	{								\
@@ -1550,13 +1541,14 @@ static struct tegra_function  tegra114_functions[] = {
 		.drvtype_reg = -1,					\
 	}
 
-#define DRV_PINGROUP_DVRTYPE_Y(r) ((r) - DRV_PINGROUP_REG_START)
-#define DRV_PINGROUP_DVRTYPE_N(r) -1
+#define DRV_PINGROUP_REG_Y(r)		((r) - DRV_PINGROUP_REG_A)
+#define DRV_PINGROUP_REG_N(r)		-1
+
 
 #define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b,		\
-			drvdn_b, drvdn_w, drvup_b, drvup_w,		\
-			slwr_b, slwr_w, slwf_b, slwf_w,			\
-			drvtype)					\
+		     drvdn_b, drvdn_w, drvup_b, drvup_w,		\
+		     slwr_b, slwr_w, slwf_b, slwf_w,			\
+		     drvtype)						\
 	{								\
 		.name = "drive_" #pg_name,				\
 		.pins = drive_##pg_name##_pins,				\
@@ -1569,7 +1561,7 @@ static struct tegra_function  tegra114_functions[] = {
 		.lock_reg = -1,						\
 		.ioreset_reg = -1,					\
 		.rcv_sel_reg = -1,					\
-		.drv_reg = DRV_PINGROUP_DVRTYPE_Y(r),			\
+		.drv_reg = DRV_PINGROUP_REG_Y(r),			\
 		.drv_bank = 0,						\
 		.hsm_bit = hsm_b,					\
 		.schmitt_bit = schmitt_b,				\
@@ -1582,14 +1574,13 @@ static struct tegra_function  tegra114_functions[] = {
 		.slwr_width = slwr_w,					\
 		.slwf_bit = slwf_b,					\
 		.slwf_width = slwf_w,					\
-		.drvtype_reg = DRV_PINGROUP_DVRTYPE_##drvtype(r),	\
+		.drvtype_reg = DRV_PINGROUP_REG_##drvtype(r),		\
 		.drvtype_bank = 0,					\
 		.drvtype_bit = 6,					\
 	}
 
 static const struct tegra_pingroup tegra114_groups[] = {
 	/*       pg_name,                f0,         f1,         f2,           f3,          safe,     r,      od, ior, rcv_sel */
-	/* FIXME: Fill in correct data in safe column */
 	PINGROUP(ulpi_data0_po1,         SPI3,       HSI,        UARTA,        ULPI,        ULPI,     0x3000,  N,  N,  N),
 	PINGROUP(ulpi_data1_po2,         SPI3,       HSI,        UARTA,        ULPI,        ULPI,     0x3004,  N,  N,  N),
 	PINGROUP(ulpi_data2_po3,         SPI3,       HSI,        UARTA,        ULPI,        ULPI,     0x3008,  N,  N,  N),
