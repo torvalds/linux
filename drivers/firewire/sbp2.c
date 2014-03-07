@@ -146,6 +146,7 @@ struct sbp2_logical_unit {
 	 */
 	int generation;
 	int retries;
+	work_func_t workfn;
 	struct delayed_work work;
 	bool has_sdev;
 	bool blocked;
@@ -865,7 +866,7 @@ static void sbp2_login(struct work_struct *work)
 	/* set appropriate retry limit(s) in BUSY_TIMEOUT register */
 	sbp2_set_busy_timeout(lu);
 
-	PREPARE_DELAYED_WORK(&lu->work, sbp2_reconnect);
+	lu->workfn = sbp2_reconnect;
 	sbp2_agent_reset(lu);
 
 	/* This was a re-login. */
@@ -919,7 +920,7 @@ static void sbp2_login(struct work_struct *work)
 	 * If a bus reset happened, sbp2_update will have requeued
 	 * lu->work already.  Reset the work from reconnect to login.
 	 */
-	PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
+	lu->workfn = sbp2_login;
 }
 
 static void sbp2_reconnect(struct work_struct *work)
@@ -953,7 +954,7 @@ static void sbp2_reconnect(struct work_struct *work)
 		    lu->retries++ >= 5) {
 			dev_err(tgt_dev(tgt), "failed to reconnect\n");
 			lu->retries = 0;
-			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
+			lu->workfn = sbp2_login;
 		}
 		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
 
@@ -971,6 +972,13 @@ static void sbp2_reconnect(struct work_struct *work)
 	sbp2_agent_reset(lu);
 	sbp2_cancel_orbs(lu);
 	sbp2_conditionally_unblock(lu);
+}
+
+static void sbp2_lu_workfn(struct work_struct *work)
+{
+	struct sbp2_logical_unit *lu = container_of(to_delayed_work(work),
+						struct sbp2_logical_unit, work);
+	lu->workfn(work);
 }
 
 static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
@@ -999,7 +1007,8 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 	lu->blocked  = false;
 	++tgt->dont_block;
 	INIT_LIST_HEAD(&lu->orb_list);
-	INIT_DELAYED_WORK(&lu->work, sbp2_login);
+	lu->workfn = sbp2_login;
+	INIT_DELAYED_WORK(&lu->work, sbp2_lu_workfn);
 
 	list_add_tail(&lu->link, &tgt->lu_list);
 	return 0;
