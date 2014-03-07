@@ -13906,6 +13906,7 @@ static struct pci_driver bnx2x_pci_driver = {
 	.name        = DRV_MODULE_NAME,
 	.id_table    = bnx2x_pci_tbl,
 	.probe       = bnx2x_init_one,
+	.shutdown    = bnx2x_remove_one,
 	.remove      = bnx2x_remove_one,
 	.suspend     = bnx2x_suspend,
 	.resume      = bnx2x_resume,
