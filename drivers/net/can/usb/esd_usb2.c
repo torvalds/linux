@@ -888,6 +888,7 @@ static const struct net_device_ops esd_usb2_netdev_ops = {
 	.ndo_open = esd_usb2_open,
 	.ndo_stop = esd_usb2_close,
 	.ndo_start_xmit = esd_usb2_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const esd_usb2_bittiming_const = {

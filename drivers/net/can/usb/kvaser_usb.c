@@ -1388,6 +1388,7 @@ static const struct net_device_ops kvaser_usb_netdev_ops = {
 	.ndo_open = kvaser_usb_open,
 	.ndo_stop = kvaser_usb_close,
 	.ndo_start_xmit = kvaser_usb_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const kvaser_usb_bittiming_const = {
