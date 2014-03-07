@@ -224,7 +224,7 @@ config PINCTRL_MSM
 
 config PINCTRL_MSM8X74
 	tristate "Qualcomm 8x74 pin controller driver"
-	depends on GPIOLIB && OF && OF_IRQ
+	depends on GPIOLIB && OF
 	select PINCTRL_MSM
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
