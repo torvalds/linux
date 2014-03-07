@@ -112,6 +112,8 @@ static int get_value(struct parse_opt_ctx_t *p,
 			return (*opt->callback)(opt, NULL, 0) ? (-1) : 0;
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
+		if (opt->flags & PARSE_OPT_FINAL_OPTION)
+			return (*opt->callback)(opt, arg, 0)?(-1) : (-3);
 		return (*opt->callback)(opt, arg, 0) ? (-1) : 0;
 
 	case OPTION_INTEGER:
@@ -366,6 +368,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 				return parse_options_usage(usagestr, options, arg + 1, 1);
 			case -2:
 				goto unknown;
+			case -3:
+				return PARSE_OPT_DONE;
 			default:
 				break;
 			}
