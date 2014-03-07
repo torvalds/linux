@@ -94,7 +94,7 @@ static void nft_lookup_destroy(const struct nft_ctx *ctx,
 {
 	struct nft_lookup *priv = nft_expr_priv(expr);
 
-	nf_tables_unbind_set(NULL, priv->set, &priv->binding);
+	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
 }
 
 static int nft_lookup_dump(struct sk_buff *skb, const struct nft_expr *expr)

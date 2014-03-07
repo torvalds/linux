@@ -2442,8 +2442,7 @@ err1:
 static void nf_tables_set_destroy(const struct nft_ctx *ctx, struct nft_set *set)
 {
 	list_del(&set->list);
-	if (!(set->flags & NFT_SET_ANONYMOUS))
-		nf_tables_set_notify(ctx, set, NFT_MSG_DELSET);
+	nf_tables_set_notify(ctx, set, NFT_MSG_DELSET);
 
 	set->ops->destroy(set);
 	module_put(set->ops->owner);
