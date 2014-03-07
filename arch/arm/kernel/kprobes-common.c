@@ -17,9 +17,10 @@
 #include "kprobes.h"
 
 
-static void __kprobes simulate_ldm1stm1(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes simulate_ldm1stm1(kprobe_opcode_t insn,
+		struct arch_specific_insn *asi,
+		struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
 	int rn = (insn >> 16) & 0xf;
 	int lbit = insn & (1 << 20);
 	int wbit = insn & (1 << 21);
@@ -58,24 +59,31 @@ static void __kprobes simulate_ldm1stm1(struct kprobe *p, struct pt_regs *regs)
 	}
 }
 
-static void __kprobes simulate_stm1_pc(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes simulate_stm1_pc(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi,
+	struct pt_regs *regs)
 {
-	regs->ARM_pc = (long)p->addr + str_pc_offset;
-	simulate_ldm1stm1(p, regs);
-	regs->ARM_pc = (long)p->addr + 4;
+	unsigned long addr = regs->ARM_pc - 4;
+
+	regs->ARM_pc = (long)addr + str_pc_offset;
+	simulate_ldm1stm1(insn, asi, regs);
+	regs->ARM_pc = (long)addr + 4;
 }
 
-static void __kprobes simulate_ldm1_pc(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes simulate_ldm1_pc(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi,
+	struct pt_regs *regs)
 {
-	simulate_ldm1stm1(p, regs);
+	simulate_ldm1stm1(insn, asi, regs);
 	load_write_pc(regs->ARM_pc, regs);
 }
 
 static void __kprobes
-emulate_generic_r0_12_noflags(struct kprobe *p, struct pt_regs *regs)
+emulate_generic_r0_12_noflags(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
 	register void *rregs asm("r1") = regs;
-	register void *rfn asm("lr") = p->ainsn.insn_fn;
+	register void *rfn asm("lr") = asi->insn_fn;
 
 	__asm__ __volatile__ (
 		"stmdb	sp!, {%[regs], r11}	\n\t"
@@ -99,15 +107,19 @@ emulate_generic_r0_12_noflags(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_generic_r2_14_noflags(struct kprobe *p, struct pt_regs *regs)
+emulate_generic_r2_14_noflags(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	emulate_generic_r0_12_noflags(p, (struct pt_regs *)(regs->uregs+2));
+	emulate_generic_r0_12_noflags(insn, asi,
+		(struct pt_regs *)(regs->uregs+2));
 }
 
 static void __kprobes
-emulate_ldm_r3_15(struct kprobe *p, struct pt_regs *regs)
+emulate_ldm_r3_15(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	emulate_generic_r0_12_noflags(p, (struct pt_regs *)(regs->uregs+3));
+	emulate_generic_r0_12_noflags(insn, asi,
+		(struct pt_regs *)(regs->uregs+3));
 	load_write_pc(regs->ARM_pc, regs);
 }
 

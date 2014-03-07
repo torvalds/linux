@@ -10,10 +10,9 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
-#include <linux/kprobes.h>
 #include <linux/module.h>
 
-#include "kprobes.h"
+#include "probes.h"
 #include "probes-thumb.h"
 
 
@@ -844,17 +843,21 @@ static unsigned long __kprobes thumb_check_cc(unsigned long cpsr)
 	return true;
 }
 
-static void __kprobes thumb16_singlestep(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes thumb16_singlestep(kprobe_opcode_t opcode,
+		struct arch_specific_insn *asi,
+		struct pt_regs *regs)
 {
 	regs->ARM_pc += 2;
-	p->ainsn.insn_handler(p, regs);
+	asi->insn_handler(opcode, asi, regs);
 	regs->ARM_cpsr = it_advance(regs->ARM_cpsr);
 }
 
-static void __kprobes thumb32_singlestep(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes thumb32_singlestep(kprobe_opcode_t opcode,
+		struct arch_specific_insn *asi,
+		struct pt_regs *regs)
 {
 	regs->ARM_pc += 4;
-	p->ainsn.insn_handler(p, regs);
+	asi->insn_handler(opcode, asi, regs);
 	regs->ARM_cpsr = it_advance(regs->ARM_cpsr);
 }
 

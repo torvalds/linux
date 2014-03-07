@@ -13,12 +13,11 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/kprobes.h>
 #include <asm/system_info.h>
 #include <asm/ptrace.h>
 #include <linux/bug.h>
 
-#include "kprobes.h"
+#include "probes.h"
 
 
 #ifndef find_str_pc_offset
@@ -176,13 +175,17 @@ kprobe_check_cc * const kprobe_condition_checks[16] = {
 };
 
 
-void __kprobes kprobe_simulate_nop(struct kprobe *p, struct pt_regs *regs)
+void __kprobes kprobe_simulate_nop(kprobe_opcode_t opcode,
+	struct arch_specific_insn *asi,
+	struct pt_regs *regs)
 {
 }
 
-void __kprobes kprobe_emulate_none(struct kprobe *p, struct pt_regs *regs)
+void __kprobes kprobe_emulate_none(kprobe_opcode_t opcode,
+	struct arch_specific_insn *asi,
+	struct pt_regs *regs)
 {
-	p->ainsn.insn_fn();
+	asi->insn_fn();
 }
 
 /*

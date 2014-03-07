@@ -204,7 +204,7 @@ singlestep_skip(struct kprobe *p, struct pt_regs *regs)
 static inline void __kprobes
 singlestep(struct kprobe *p, struct pt_regs *regs, struct kprobe_ctlblk *kcb)
 {
-	p->ainsn.insn_singlestep(p, regs);
+	p->ainsn.insn_singlestep(p->opcode, &p->ainsn, regs);
 }
 
 /*

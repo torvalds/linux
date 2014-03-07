@@ -21,9 +21,14 @@
 
 struct kprobe;
 
-typedef void (kprobe_insn_handler_t)(struct kprobe *, struct pt_regs *);
+struct arch_specific_insn;
+typedef void (kprobe_insn_handler_t)(kprobe_opcode_t,
+				     struct arch_specific_insn *,
+				     struct pt_regs *);
 typedef unsigned long (kprobe_check_cc)(unsigned long);
-typedef void (kprobe_insn_singlestep_t)(struct kprobe *, struct pt_regs *);
+typedef void (kprobe_insn_singlestep_t)(kprobe_opcode_t,
+					struct arch_specific_insn *,
+					struct pt_regs *);
 typedef void (kprobe_insn_fn_t)(void);
 
 /* Architecture specific copy of original instruction. */

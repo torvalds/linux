@@ -72,12 +72,11 @@
 			"mov	pc, "reg"	\n\t"
 #endif
 
-
 static void __kprobes
-emulate_ldrdstrd(struct kprobe *p, struct pt_regs *regs)
+emulate_ldrdstrd(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
-	unsigned long pc = (unsigned long)p->addr + 8;
+	unsigned long pc = regs->ARM_pc + 4;
 	int rt = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm = insn & 0xf;
@@ -92,7 +91,7 @@ emulate_ldrdstrd(struct kprobe *p, struct pt_regs *regs)
 		BLX("%[fn]")
 		: "=r" (rtv), "=r" (rt2v), "=r" (rnv)
 		: "0" (rtv), "1" (rt2v), "2" (rnv), "r" (rmv),
-		  [fn] "r" (p->ainsn.insn_fn)
+		  [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
@@ -103,10 +102,10 @@ emulate_ldrdstrd(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_ldr(struct kprobe *p, struct pt_regs *regs)
+emulate_ldr(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
-	unsigned long pc = (unsigned long)p->addr + 8;
+	unsigned long pc = regs->ARM_pc + 4;
 	int rt = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm = insn & 0xf;
@@ -119,7 +118,7 @@ emulate_ldr(struct kprobe *p, struct pt_regs *regs)
 	__asm__ __volatile__ (
 		BLX("%[fn]")
 		: "=r" (rtv), "=r" (rnv)
-		: "1" (rnv), "r" (rmv), [fn] "r" (p->ainsn.insn_fn)
+		: "1" (rnv), "r" (rmv), [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
@@ -133,11 +132,11 @@ emulate_ldr(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_str(struct kprobe *p, struct pt_regs *regs)
+emulate_str(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
-	unsigned long rtpc = (unsigned long)p->addr + str_pc_offset;
-	unsigned long rnpc = (unsigned long)p->addr + 8;
+	unsigned long rtpc = regs->ARM_pc - 4 + str_pc_offset;
+	unsigned long rnpc = regs->ARM_pc + 4;
 	int rt = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm = insn & 0xf;
@@ -151,7 +150,7 @@ emulate_str(struct kprobe *p, struct pt_regs *regs)
 	__asm__ __volatile__ (
 		BLX("%[fn]")
 		: "=r" (rnv)
-		: "r" (rtv), "0" (rnv), "r" (rmv), [fn] "r" (p->ainsn.insn_fn)
+		: "r" (rtv), "0" (rnv), "r" (rmv), [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
@@ -160,10 +159,10 @@ emulate_str(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_rd12rn16rm0rs8_rwflags(struct kprobe *p, struct pt_regs *regs)
+emulate_rd12rn16rm0rs8_rwflags(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
-	unsigned long pc = (unsigned long)p->addr + 8;
+	unsigned long pc = regs->ARM_pc + 4;
 	int rd = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm = insn & 0xf;
@@ -183,7 +182,7 @@ emulate_rd12rn16rm0rs8_rwflags(struct kprobe *p, struct pt_regs *regs)
 		"mrs	%[cpsr], cpsr		\n\t"
 		: "=r" (rdv), [cpsr] "=r" (cpsr)
 		: "0" (rdv), "r" (rnv), "r" (rmv), "r" (rsv),
-		  "1" (cpsr), [fn] "r" (p->ainsn.insn_fn)
+		  "1" (cpsr), [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
@@ -195,9 +194,9 @@ emulate_rd12rn16rm0rs8_rwflags(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_rd12rn16rm0_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
+emulate_rd12rn16rm0_rwflags_nopc(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
 	int rd = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm = insn & 0xf;
@@ -213,7 +212,7 @@ emulate_rd12rn16rm0_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
 		"mrs	%[cpsr], cpsr		\n\t"
 		: "=r" (rdv), [cpsr] "=r" (cpsr)
 		: "0" (rdv), "r" (rnv), "r" (rmv),
-		  "1" (cpsr), [fn] "r" (p->ainsn.insn_fn)
+		  "1" (cpsr), [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
@@ -222,9 +221,10 @@ emulate_rd12rn16rm0_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_rd16rn12rm0rs8_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
+emulate_rd16rn12rm0rs8_rwflags_nopc(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi,
+	struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
 	int rd = (insn >> 16) & 0xf;
 	int rn = (insn >> 12) & 0xf;
 	int rm = insn & 0xf;
@@ -242,7 +242,7 @@ emulate_rd16rn12rm0rs8_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
 		"mrs	%[cpsr], cpsr		\n\t"
 		: "=r" (rdv), [cpsr] "=r" (cpsr)
 		: "0" (rdv), "r" (rnv), "r" (rmv), "r" (rsv),
-		  "1" (cpsr), [fn] "r" (p->ainsn.insn_fn)
+		  "1" (cpsr), [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
@@ -251,9 +251,9 @@ emulate_rd16rn12rm0rs8_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_rd12rm0_noflags_nopc(struct kprobe *p, struct pt_regs *regs)
+emulate_rd12rm0_noflags_nopc(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
 	int rd = (insn >> 12) & 0xf;
 	int rm = insn & 0xf;
 
@@ -263,7 +263,7 @@ emulate_rd12rm0_noflags_nopc(struct kprobe *p, struct pt_regs *regs)
 	__asm__ __volatile__ (
 		BLX("%[fn]")
 		: "=r" (rdv)
-		: "0" (rdv), "r" (rmv), [fn] "r" (p->ainsn.insn_fn)
+		: "0" (rdv), "r" (rmv), [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
@@ -271,9 +271,10 @@ emulate_rd12rm0_noflags_nopc(struct kprobe *p, struct pt_regs *regs)
 }
 
 static void __kprobes
-emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
+emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(kprobe_opcode_t insn,
+	struct arch_specific_insn *asi,
+	struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = p->opcode;
 	int rdlo = (insn >> 12) & 0xf;
 	int rdhi = (insn >> 16) & 0xf;
 	int rn = insn & 0xf;
@@ -291,7 +292,7 @@ emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(struct kprobe *p, struct pt_regs *regs)
 		"mrs	%[cpsr], cpsr		\n\t"
 		: "=r" (rdlov), "=r" (rdhiv), [cpsr] "=r" (cpsr)
 		: "0" (rdlov), "1" (rdhiv), "r" (rnv), "r" (rmv),
-		  "2" (cpsr), [fn] "r" (p->ainsn.insn_fn)
+		  "2" (cpsr), [fn] "r" (asi->insn_fn)
 		: "lr", "memory", "cc"
 	);
 
