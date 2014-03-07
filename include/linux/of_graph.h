@@ -37,7 +37,7 @@ struct device_node *of_graph_get_remote_port(const struct device_node *node);
 #else
 
 static inline int of_graph_parse_endpoint(const struct device_node *node,
-					struct of_endpoint *endpoint);
+					struct of_endpoint *endpoint)
 {
 	return -ENOSYS;
 }
