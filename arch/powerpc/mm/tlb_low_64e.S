@@ -284,7 +284,7 @@ itlb_miss_fault_bolted:
  * r14 = page table base
  * r13 = PACA
  * r11 = tlb_per_core ptr
- * r10 = crap (free to use)
+ * r10 = cpu number
  */
 tlb_miss_common_e6500:
 	/*
@@ -293,15 +293,18 @@ tlb_miss_common_e6500:
 	 *
 	 * MAS6:IND should be already set based on MAS4
 	 */
-	addi	r10,r11,TCD_LOCK
-1:	lbarx	r15,0,r10
+1:	lbarx	r15,0,r11
+	lhz	r10,PACAPACAINDEX(r13)
 	cmpdi	r15,0
+	cmpdi	cr1,r15,1	/* set cr1.eq = 0 for non-recursive */
 	bne	2f
-	li	r15,1
-	stbcx.	r15,0,r10
+	stbcx.	r10,0,r11
 	bne	1b
+3:
 	.subsection 1
-2:	lbz	r15,0(r10)
+2:	cmpd	cr1,r15,r10	/* recursive lock due to mcheck/crit/etc? */
+	beq	cr1,3b		/* unlock will happen if cr1.eq = 0 */
+	lbz	r15,0(r11)
 	cmpdi	r15,0
 	bne	2b
 	b	1b
@@ -379,9 +382,11 @@ tlb_miss_common_e6500:
 
 tlb_miss_done_e6500:
 	.macro	tlb_unlock_e6500
+	beq	cr1,1f		/* no unlock if lock was recursively grabbed */
 	li	r15,0
 	isync
-	stb	r15,TCD_LOCK(r11)
+	stb	r15,0(r11)
+1:
 	.endm
 
 	tlb_unlock_e6500

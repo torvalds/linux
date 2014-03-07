@@ -102,6 +102,8 @@ static void setup_tlb_core_data(void)
 {
 	int cpu;
 
+	BUILD_BUG_ON(offsetof(struct tlb_core_data, lock) != 0);
+
 	for_each_possible_cpu(cpu) {
 		int first = cpu_first_thread_sibling(cpu);
 
