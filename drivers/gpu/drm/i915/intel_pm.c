@@ -5391,7 +5391,6 @@ static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 				  struct i915_power_well *power_well)
 {
-	hsw_disable_package_c8(dev_priv);
 	hsw_set_power_well(dev_priv, power_well, true);
 }
 
@@ -5399,7 +5398,6 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
 	hsw_set_power_well(dev_priv, power_well, false);
-	hsw_enable_package_c8(dev_priv);
 }
 
 static void i9xx_always_on_power_well_noop(struct drm_i915_private *dev_priv,

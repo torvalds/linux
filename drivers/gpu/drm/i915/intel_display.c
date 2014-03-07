@@ -7073,26 +7073,6 @@ void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv)
 	dev_priv->pc8.enabled = false;
 }
 
-void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	mutex_lock(&dev_priv->pc8.lock);
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev_priv->pc8.lock);
-}
-
-void hsw_disable_package_c8(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	mutex_lock(&dev_priv->pc8.lock);
-	intel_runtime_pm_get(dev_priv);
-	mutex_unlock(&dev_priv->pc8.lock);
-}
-
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
 	modeset_update_crtc_power_domains(dev);
