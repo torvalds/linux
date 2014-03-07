@@ -591,8 +591,7 @@ enum {
  * A structure to hold a statistics counter.  We also
  * compute moving averages for this counter.
  */
-struct macounter
-{
+struct macounter {
 	u32		cnt;	/* Total count */
 	ulong		accum;	/* Acuumulator per period */
 	ulong		sma;	/* Simple moving average */
@@ -609,8 +608,7 @@ struct macounter
 /*
  *	Per-board information
  */
-struct board_t
-{
+struct board_t {
 	int		magic;		/* Board Magic number.  */
 	int		boardnum;	/* Board number: 0-3 */
 	int		firstminor;	/* First minor, e.g. 0, 30, 60 */
