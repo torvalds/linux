@@ -1557,7 +1557,7 @@ static void nf_tables_rule_destroy(struct nft_rule *rule)
 static struct nft_expr_info *info;
 
 static struct nft_rule_trans *
-nf_tables_trans_add(struct nft_rule *rule, const struct nft_ctx *ctx)
+nf_tables_trans_add(struct nft_ctx *ctx, struct nft_rule *rule)
 {
 	struct nft_rule_trans *rupd;
 
@@ -1683,7 +1683,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 
 	if (nlh->nlmsg_flags & NLM_F_REPLACE) {
 		if (nft_rule_is_active_next(net, old_rule)) {
-			repl = nf_tables_trans_add(old_rule, &ctx);
+			repl = nf_tables_trans_add(&ctx, old_rule);
 			if (repl == NULL) {
 				err = -ENOMEM;
 				goto err2;
@@ -1706,7 +1706,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 			list_add_rcu(&rule->list, &chain->rules);
 	}
 
-	if (nf_tables_trans_add(rule, &ctx) == NULL) {
+	if (nf_tables_trans_add(&ctx, rule) == NULL) {
 		err = -ENOMEM;
 		goto err3;
 	}
@@ -1735,7 +1735,7 @@ nf_tables_delrule_one(struct nft_ctx *ctx, struct nft_rule *rule)
 {
 	/* You cannot delete the same rule twice */
 	if (nft_rule_is_active_next(ctx->net, rule)) {
-		if (nf_tables_trans_add(rule, ctx) == NULL)
+		if (nf_tables_trans_add(ctx, rule) == NULL)
 			return -ENOMEM;
 		nft_rule_disactivate_next(ctx->net, rule);
 		return 0;
