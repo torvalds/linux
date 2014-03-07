@@ -2881,18 +2881,7 @@ static struct platform_driver tegra20_pinctrl_driver = {
 	.probe = tegra20_pinctrl_probe,
 	.remove = tegra_pinctrl_remove,
 };
-
-static int __init tegra20_pinctrl_init(void)
-{
-	return platform_driver_register(&tegra20_pinctrl_driver);
-}
-arch_initcall(tegra20_pinctrl_init);
-
-static void __exit tegra20_pinctrl_exit(void)
-{
-	platform_driver_unregister(&tegra20_pinctrl_driver);
-}
-module_exit(tegra20_pinctrl_exit);
+module_platform_driver(tegra20_pinctrl_driver);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("NVIDIA Tegra20 pinctrl driver");
