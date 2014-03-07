@@ -85,7 +85,6 @@ static const struct jr3_pci_board jr3_pci_boards[] = {
 
 struct jr3_pci_dev_private {
 	struct jr3_t __iomem *iobase;
-	int n_channels;
 	struct timer_list timer;
 };
 
@@ -302,13 +301,12 @@ static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 
 static int jr3_pci_open(struct comedi_device *dev)
 {
-	struct jr3_pci_dev_private *devpriv = dev->private;
 	struct jr3_pci_subdev_private *spriv;
 	struct comedi_subdevice *s;
 	int i;
 
 	dev_dbg(dev->class_dev, "jr3_pci_open\n");
-	for (i = 0; i < devpriv->n_channels; i++) {
+	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
 		if (spriv)
@@ -434,7 +432,6 @@ static int jr3_download_firmware(struct comedi_device *dev,
 				 const u8 *data, size_t size,
 				 unsigned long context)
 {
-	struct jr3_pci_dev_private *devpriv = dev->private;
 	int subdev;
 	int ret;
 
@@ -444,7 +441,7 @@ static int jr3_download_firmware(struct comedi_device *dev,
 		return ret;
 
 	/* write firmware to each subdevice */
-	for (subdev = 0; subdev < devpriv->n_channels; subdev++)
+	for (subdev = 0; subdev < dev->n_subdevices; subdev++)
 		jr3_write_firmware(dev, subdev, data, size);
 
 	return 0;
@@ -608,7 +605,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	now = jiffies;
 
 	/* Poll all channels that are ready to be polled */
-	for (i = 0; i < devpriv->n_channels; i++) {
+	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
 
@@ -718,13 +715,12 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (!devpriv->iobase)
 		return -ENOMEM;
 
-	devpriv->n_channels = board->n_subdevs;
-	ret = comedi_alloc_subdevices(dev, devpriv->n_channels);
+	ret = comedi_alloc_subdevices(dev, board->n_subdevs);
 	if (ret)
 		return ret;
 
 	dev->open = jr3_pci_open;
-	for (i = 0; i < devpriv->n_channels; i++) {
+	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		s->type		= COMEDI_SUBD_AI;
 		s->subdev_flags	= SDF_READABLE | SDF_GROUND;
@@ -770,7 +766,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	}
 
 	/*  Start card timer */
-	for (i = 0; i < devpriv->n_channels; i++) {
+	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
 
