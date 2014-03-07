@@ -7024,6 +7024,29 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+/*
+ * Package states C8 and deeper are really deep PC states that can only be
+ * reached when all the devices on the system allow it, so even if the graphics
+ * device allows PC8+, it doesn't mean the system will actually get to these
+ * states. Our driver only allows PC8+ when going into runtime PM.
+ *
+ * The requirements for PC8+ are that all the outputs are disabled, the power
+ * well is disabled and most interrupts are disabled, and these are also
+ * requirements for runtime PM. When these conditions are met, we manually do
+ * the other conditions: disable the interrupts, clocks and switch LCPLL refclk
+ * to Fclk. If we're in PC8+ and we get an non-hotplug interrupt, we can hard
+ * hang the machine.
+ *
+ * When we really reach PC8 or deeper states (not just when we allow it) we lose
+ * the state of some registers, so when we come back from PC8+ we need to
+ * restore this state. We don't get into PC8+ if we're not in RC6, so we don't
+ * need to take care of the registers kept by RC6. Notice that this happens even
+ * if we don't put the device in PCI D3 state (which is what currently happens
+ * because of the runtime PM support).
+ *
+ * For more, read "Display Sequences for Package C8" on the hardware
+ * documentation.
+ */
 void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;

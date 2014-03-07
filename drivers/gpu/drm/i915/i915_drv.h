@@ -1337,47 +1337,19 @@ struct ilk_wm_values {
 };
 
 /*
- * This struct tracks the state needed for the Package C8+ feature.
+ * This struct helps tracking the state needed for runtime PM, which puts the
+ * device in PCI D3 state. Notice that when this happens, nothing on the
+ * graphics device works, even register access, so we don't get interrupts nor
+ * anything else.
  *
- * TODO: we're merging the Package C8+ feature with the runtime PM support. To
- * avoid having to update the documentation at each patch of the series, we'll
- * do a final update at the end.
+ * Every piece of our code that needs to actually touch the hardware needs to
+ * either call intel_runtime_pm_get or call intel_display_power_get with the
+ * appropriate power domain.
  *
- * Package states C8 and deeper are really deep PC states that can only be
- * reached when all the devices on the system allow it, so even if the graphics
- * device allows PC8+, it doesn't mean the system will actually get to these
- * states.
- *
- * Our driver only allows PC8+ when all the outputs are disabled, the power well
- * is disabled and the GPU is idle. When these conditions are met, we manually
- * do the other conditions: disable the interrupts, clocks and switch LCPLL
- * refclk to Fclk.
- *
- * When we really reach PC8 or deeper states (not just when we allow it) we lose
- * the state of some registers, so when we come back from PC8+ we need to
- * restore this state. We don't get into PC8+ if we're not in RC6, so we don't
- * need to take care of the registers kept by RC6.
- *
- * The interrupt disabling is part of the requirements. We can only leave the
- * PCH HPD interrupts enabled. If we're in PC8+ and we get another interrupt we
- * can lock the machine.
- *
- * Ideally every piece of our code that needs PC8+ disabled would call
- * hsw_disable_package_c8, which would increment disable_count and prevent the
- * system from reaching PC8+. But we don't have a symmetric way to do this for
- * everything, so we have the requirements_met variable. When we switch
- * requirements_met to true we decrease disable_count, and increase it in the
- * opposite case. The requirements_met variable is true when all the CRTCs,
- * encoders and the power well are disabled.
- *
- * In addition to everything, we only actually enable PC8+ if disable_count
- * stays at zero for at least some seconds. This is implemented with the
- * enable_work variable. We do this so we don't enable/disable PC8 dozens of
- * consecutive times when all screens are disabled and some background app
- * queries the state of our connectors, or we have some application constantly
- * waking up to use the GPU. Only after the enable_work function actually
- * enables PC8+ the "enable" variable will become true, which means that it can
- * be false even if disable_count is 0.
+ * Our driver uses the autosuspend delay feature, which means we'll only really
+ * suspend if we stay with zero refcount for a certain amount of time. The
+ * default value is currently very conservative (see intel_init_runtime_pm), but
+ * it can be changed with the standard runtime PM files from sysfs.
  *
  * The irqs_disabled variable becomes true exactly after we disable the IRQs and
  * goes back to false exactly before we reenable the IRQs. We use this variable
@@ -1387,7 +1359,7 @@ struct ilk_wm_values {
  * inside struct regsave so when we restore the IRQs they will contain the
  * latest expected values.
  *
- * For more, read "Display Sequences for Package C8" on our documentation.
+ * For more, read the Documentation/power/runtime_pm.txt.
  */
 struct i915_runtime_pm {
 	bool suspended;
