@@ -616,7 +616,6 @@ static int adv7180_probe(struct i2c_client *client,
 err_free_ctrl:
 	adv7180_exit_controls(state);
 err_unreg_subdev:
-	v4l2_device_unregister_subdev(sd);
 	mutex_destroy(&state->mutex);
 err:
 	printk(KERN_ERR KBUILD_MODNAME ": Failed to probe: %d\n", ret);
