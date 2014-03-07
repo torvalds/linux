@@ -111,7 +111,6 @@ struct jr3_pci_subdev_private {
 		state_jr3_init_use_offset_complete,
 		state_jr3_done
 	} state;
-	int channel_no;
 	int serial_no;
 	int model_no;
 	struct {
@@ -311,7 +310,7 @@ static int jr3_pci_open(struct comedi_device *dev)
 		spriv = s->private;
 		if (spriv)
 			dev_dbg(dev->class_dev, "serial: %p %d (%d)\n",
-				spriv, spriv->serial_no, spriv->channel_no);
+				spriv, spriv->serial_no, s->index);
 	}
 	return 0;
 }
@@ -646,7 +645,6 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 		return NULL;
 
 	spriv->channel = &devpriv->iobase->channel[s->index].data;
-	spriv->channel_no = s->index;
 
 	for (j = 0; j < 8; j++) {
 		spriv->range[j].length = 1;
