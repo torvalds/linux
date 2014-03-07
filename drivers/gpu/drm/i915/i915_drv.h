@@ -1389,10 +1389,6 @@ struct ilk_wm_values {
  *
  * For more, read "Display Sequences for Package C8" on our documentation.
  */
-struct i915_package_c8 {
-	struct mutex lock;
-};
-
 struct i915_runtime_pm {
 	bool suspended;
 	bool irqs_disabled;
@@ -1632,8 +1628,6 @@ typedef struct drm_i915_private {
 		/* current hardware state */
 		struct ilk_wm_values hw;
 	} wm;
-
-	struct i915_package_c8 pc8;
 
 	struct i915_runtime_pm pm;
 

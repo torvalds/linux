@@ -2012,11 +2012,9 @@ static int i915_pc8_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	mutex_lock(&dev_priv->pc8.lock);
 	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(dev_priv->pm.irqs_disabled));
-	mutex_unlock(&dev_priv->pc8.lock);
 
 	return 0;
 }
