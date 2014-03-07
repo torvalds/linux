@@ -875,8 +875,10 @@ static int intel_runtime_suspend(struct device *device)
 
 	if (IS_GEN6(dev))
 		snb_runtime_suspend(dev_priv);
-	else if (IS_HASWELL(dev))
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_runtime_suspend(dev_priv);
+	else
+		WARN_ON(1);
 
 	i915_gem_release_all_mmaps(dev_priv);
 
@@ -911,8 +913,10 @@ static int intel_runtime_resume(struct device *device)
 
 	if (IS_GEN6(dev))
 		snb_runtime_resume(dev_priv);
-	else if (IS_HASWELL(dev))
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_runtime_resume(dev_priv);
+	else
+		WARN_ON(1);
 
 	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;
