@@ -54,9 +54,15 @@ config SSD2828_RGB2MIPI
         "a chip that change RGB interface parallel signal into DSI serial signal"
 
 config RK616_MIPI_DSI
-        tristate "RK616(JettaB) mipi dsi support"
-        depends on MFD_RK616 && MIPI_DSI
+        tristate "Rockchip mipi dsi support"
+        depends on MIPI_DSI
         help
-           RK616(Jetta B) mipi dstristatei support.		
+           Rockchip mipi dsi support.		
 
 			
+config RK616_MIPI_DSI_RST
+	bool "Reset the rockchip mipi dsi"
+	depends on MFD_RK616 && RK616_MIPI_DSI && RK616_USE_MCLK_12M
+	default y
+	help
+	 if you say y here: inset the hdmi, mipi lcd will be reset.  

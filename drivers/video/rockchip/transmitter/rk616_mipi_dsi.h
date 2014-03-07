@@ -4,226 +4,319 @@ drivers/video/rockchip/transmitter/rk616_mipi_dsi.h
 #ifndef RK616_MIPI_DSI_H
 #define RK616_MIPI_DSI_H
 
-#define DWC_DSI_VERSION	0x3131302A
-
-
 #define MIPI_DSI_PHY_OFFSET		0x0C00
 #define MIPI_DSI_PHY_SIZE		0x34c
 #define MIPI_DSI_HOST_OFFSET	0x1000
+
+#ifdef DWC_DSI_VERSION_0x3131302A
 #define MIPI_DSI_HOST_SIZE		0x74
-
-#define RK_ADDR(A)    (MIPI_DSI_PHY_OFFSET + (A << 2))
-
-//MIPI DSI HOST REGISTER
-#define VERSION 		(MIPI_DSI_HOST_OFFSET + 0x00) 		// Version of the DSI host controller 0x3130312A
-#define PWR_UP 			(MIPI_DSI_HOST_OFFSET + 0x04)		//R/W Core power up 0x0
-#define CLKMGR_CFG 		(MIPI_DSI_HOST_OFFSET + 0x08)		//R/W Number of active data lanes 
-#define DPI_CFG 		(MIPI_DSI_HOST_OFFSET + 0x0C)		//R/W DPI interface configuration 
-//#define DBI_CFG 		(MIPI_DSI_HOST_OFFSET + 0x10)		//R/W DBI interface configuration 0x0
-//#define DBI_CMDSIZE 	(MIPI_DSI_HOST_OFFSET + 0x14)		//R/W DBI command size configuration 0x0
-#define PCKHDL_CFG 		(MIPI_DSI_HOST_OFFSET + 0x18)		//R/W Packet handler configuration 0x0
-#define VID_MODE_CFG 	(MIPI_DSI_HOST_OFFSET + 0x1C)		//R/W Video mode Configuration 0x0
-#define VID_PKT_CFG 	(MIPI_DSI_HOST_OFFSET + 0x20)		//R/W Video packet configuration 0x0
-#define CMD_MODE_CFG 	(MIPI_DSI_HOST_OFFSET + 0x24)		//R/W Command mode configuration 0x0
-#define TMR_LINE_CFG 	(MIPI_DSI_HOST_OFFSET + 0x28)		//R/W Line timer configuration 0x0
-#define VTIMING_CFG 	(MIPI_DSI_HOST_OFFSET + 0x2C)		//R/W Vertical timing configuration 0x0
-#define PHY_TMR_CFG 	(MIPI_DSI_HOST_OFFSET + 0x30)		//R/W D-PHY timing configuration 0x0
-#define GEN_HDR 		(MIPI_DSI_HOST_OFFSET + 0x34)		//R/W Generic packet header configuration 0x0
-#define GEN_PLD_DATA 	(MIPI_DSI_HOST_OFFSET + 0x38)		//R/W Generic payload data in/out 0x0
-#define CMD_PKT_STATUS 	(MIPI_DSI_HOST_OFFSET + 0x3C)		//R Command packet status 0x1515
-#define TO_CNT_CFG 		(MIPI_DSI_HOST_OFFSET + 0x40)		//R/W Timeout timers configuration 
-#define ERROR_ST0 		(MIPI_DSI_HOST_OFFSET + 0x44)		//R Interrupt status register 0 
-#define ERROR_ST1 		(MIPI_DSI_HOST_OFFSET + 0x48)		//R Interrupt status register 1 0x0
-#define ERROR_MSK0 		(MIPI_DSI_HOST_OFFSET + 0x4C)		//R/W Masks the interrupt generation triggered 0x0
-#define ERROR_MSK1 		(MIPI_DSI_HOST_OFFSET + 0x50)		//R/W Masks the interrupt generation triggered 0x0 
-#define PHY_RSTZ 		(MIPI_DSI_HOST_OFFSET + 0x54)		//R/W D-PHY reset control 0x0
-#define PHY_IF_CFG 		(MIPI_DSI_HOST_OFFSET + 0x58)		//R/W D-PHY interface configuration 0x0
-#define PHY_IF_CTRL 	(MIPI_DSI_HOST_OFFSET + 0x5C)		//R/W D-PHY PPI interface control 0x0
-#define PHY_STATUS 		(MIPI_DSI_HOST_OFFSET + 0x60)		//R D-PHY PPI status interface 0x0
-#define PHY_TST_CTRL0 	(MIPI_DSI_HOST_OFFSET + 0x64)		//R/W D-PHY test interface control 0 0x1
-#define PHY_TST_CTRL1 	(MIPI_DSI_HOST_OFFSET + 0x68)		//R/W D-PHY test interface control 1 0x0
-//#define EDPI_CFG 		(MIPI_DSI_HOST_OFFSET + 0x6C)		//R/W eDPI interface configuration 0x0
-#define LP_CMD_TIM 		(MIPI_DSI_HOST_OFFSET + 0x70)		//R/W Low-Power command timing 0x0 configuration 
-
+#else
+#define MIPI_DSI_HOST_SIZE		0xcc
+#endif
 
 //function bits definition    register addr | bits | offest
 #define REG_ADDR(a)			((a) << 16)
 #define REG_BITS(a)			((a) << 8)
 #define BITS_OFFSET(a)		(a)
+#define DSI_HOST_BITS(addr, bits, bit_offset)  (REG_ADDR((addr)+MIPI_DSI_HOST_OFFSET) \
+		| REG_BITS(bits) | BITS_OFFSET(bit_offset))  
+#define DSI_DPHY_BITS(addr, bits, bit_offset)  (REG_ADDR((addr)+MIPI_DSI_PHY_OFFSET) \
+		| REG_BITS(bits) | BITS_OFFSET(bit_offset))
 
-#define shutdownz 					(PWR_UP << 16 | 1 << 8 | 0 )
-#define en18_loosely 				((DPI_CFG << 16) | (1 << 8) | (10))
-#define colorm_active_low 			((DPI_CFG << 16) | (1 << 8) | (9))
-#define shutd_active_low  			((DPI_CFG << 16) | (1 << 8) | (8))
-#define hsync_active_low  			((DPI_CFG << 16) | (1 << 8) | (7))
-#define vsync_active_low  			((DPI_CFG << 16) | (1 << 8) | (6))
-#define dataen_active_low  			((DPI_CFG << 16) | (1 << 8) | (5))
-#define dpi_color_coding 			((DPI_CFG << 16) | (3 << 8) | (2))
-#define dpi_vid						((DPI_CFG << 16) | (1 << 8) | (0))
+#ifdef DWC_DSI_VERSION_0x3131302A
 
-#define hline_time  				(TMR_LINE_CFG << 16 | 14 << 8 | 18 )
-#define hbp_time 					(TMR_LINE_CFG << 16 | 9 << 8 | 9 )
-#define hsa_time 					(TMR_LINE_CFG << 16 | 9 << 8 | 0 )
+#define VERSION 					DSI_HOST_BITS(0x00, 32, 0)
+#define GEN_HDR 					DSI_HOST_BITS(0x34, 32, 0)
+#define GEN_PLD_DATA 				DSI_HOST_BITS(0x38, 32, 0)
+#define ERROR_ST0 					DSI_HOST_BITS(0x44, 21, 0)
+#define ERROR_ST1 					DSI_HOST_BITS(0x48, 18, 0)
+#define ERROR_MSK0 					DSI_HOST_BITS(0x4C, 21, 0)
+#define ERROR_MSK1 					DSI_HOST_BITS(0x50, 18, 0)
 
-#define v_active_lines 				(VTIMING_CFG << 16 | 11 << 8 | 16 )
-#define vfp_lines 					(VTIMING_CFG << 16 | 6 << 8 | 10 )
-#define vbp_lines 					(VTIMING_CFG << 16 | 6 << 8 | 4 )
-#define vsa_lines 					(VTIMING_CFG << 16 | 4 << 8 | 0 )
+#define shutdownz 					DSI_HOST_BITS(0x04, 1, 0)
+#define en18_loosely 				DSI_HOST_BITS(0x0c, 1, 10)
+#define colorm_active_low 			DSI_HOST_BITS(0x0c, 1, 9)
+#define shutd_active_low  			DSI_HOST_BITS(0x0c, 1, 8)
+#define hsync_active_low  			DSI_HOST_BITS(0x0c, 1, 7)
+#define vsync_active_low  			DSI_HOST_BITS(0x0c, 1, 6)
+#define dataen_active_low  			DSI_HOST_BITS(0x0c, 1, 5)
+#define dpi_color_coding 			DSI_HOST_BITS(0x0c, 3, 2)
+#define dpi_vcid					DSI_HOST_BITS(0x0c, 1, 0)
+#define vid_hline_time  			DSI_HOST_BITS(0x28, 14, 18)
+#define vid_hbp_time 				DSI_HOST_BITS(0x28, 9, 9)
+#define vid_hsa_time 				DSI_HOST_BITS(0x28, 9, 0)
+#define vid_active_lines 			DSI_HOST_BITS(0x2c, 11, 16)
+#define vid_vfp_lines 				DSI_HOST_BITS(0x2c, 6, 10)
+#define vid_vbp_lines 				DSI_HOST_BITS(0x2c, 6, 4)
+#define vid_vsa_lines 				DSI_HOST_BITS(0x2c, 4, 0)
+#define TO_CLK_DIVISION 			DSI_HOST_BITS(0x08, 8, 8)
+#define TX_ESC_CLK_DIVISION 		DSI_HOST_BITS(0x08, 8, 0)
+#define gen_vid_rx 					DSI_HOST_BITS(0x18, 2, 5)
+#define crc_rx_en 					DSI_HOST_BITS(0x18, 1, 4)
+#define ecc_rx_en 					DSI_HOST_BITS(0x18, 1, 3)
+#define bta_en 						DSI_HOST_BITS(0x18, 1, 2)
+#define eotp_rx_en 					DSI_HOST_BITS(0x18, 1, 1)
+#define eotp_tx_en 					DSI_HOST_BITS(0x18, 1, 0)
+#define lp_cmd_en  					DSI_HOST_BITS(0x1c, 1, 12)
+#define frame_bta_ack_en 			DSI_HOST_BITS(0x1c, 1, 11)
+#define en_null_pkt 				DSI_HOST_BITS(0x1c, 1, 10)
+#define en_multi_pkt 				DSI_HOST_BITS(0x1c, 1, 9)
+#define lp_hfp_en 					DSI_HOST_BITS(0x1c, 1, 8)
+#define lp_hbp_en 					DSI_HOST_BITS(0x1c, 1, 7)
+#define lp_vact_en 					DSI_HOST_BITS(0x1c, 1, 6)
+#define lp_vfp_en 					DSI_HOST_BITS(0x1c, 1, 5)
+#define lp_vbp_en 					DSI_HOST_BITS(0x1c, 1, 4)
+#define lp_vsa_en 					DSI_HOST_BITS(0x1c, 1, 3)
+#define vid_mode_type 				DSI_HOST_BITS(0x1c, 2, 1)
+#define en_video_mode 				DSI_HOST_BITS(0x1c, 1, 0)
+#define null_pkt_size 				DSI_HOST_BITS(0x20, 10, 21)
+#define num_chunks 					DSI_HOST_BITS(0x20, 10, 11)
+#define vid_pkt_size 				DSI_HOST_BITS(0x20, 11, 0)
+#define tear_fx_en 					DSI_HOST_BITS(0x24, 1, 14)
+#define ack_rqst_en 				DSI_HOST_BITS(0x24, 1, 13)
+#define dcs_lw_tx 					DSI_HOST_BITS(0x24, 1, 12)
+#define gen_lw_tx 					DSI_HOST_BITS(0x24, 1, 11)
+#define max_rd_pkt_size 			DSI_HOST_BITS(0x24, 1, 10)
+#define dcs_sr_0p_tx 				DSI_HOST_BITS(0x24, 1, 9)
+#define dcs_sw_1p_tx 				DSI_HOST_BITS(0x24, 1, 8)
+#define dcs_sw_0p_tx				DSI_HOST_BITS(0x24, 1, 7)
+#define gen_sr_2p_tx				DSI_HOST_BITS(0x24, 1, 6)
+#define gen_sr_1p_tx 				DSI_HOST_BITS(0x24, 1, 5)
+#define gen_sr_0p_tx 				DSI_HOST_BITS(0x24, 1, 4)
+#define gen_sw_2p_tx 				DSI_HOST_BITS(0x24, 1, 3)
+#define gen_sw_1p_tx 				DSI_HOST_BITS(0x24, 1, 2)
+#define gen_sw_0p_tx 				DSI_HOST_BITS(0x24, 1, 1)
+#define en_cmd_mode 				DSI_HOST_BITS(0x24, 1, 0)
+#define phy_hs2lp_time 				DSI_HOST_BITS(0x30, 8, 24)
+#define phy_lp2hs_time 				DSI_HOST_BITS(0x30, 8, 16)
+#define max_rd_time 				DSI_HOST_BITS(0x30, 15, 0)
+#define lprx_to_cnt 				DSI_HOST_BITS(0x40, 16, 16)
+#define hstx_to_cnt 				DSI_HOST_BITS(0x40, 16, 0)
+#define phy_enableclk 				DSI_HOST_BITS(0x54, 1, 2)
+//#define phy_rstz 					DSI_HOST_BITS(0x54, 1, 1)
+//#define phy_shutdownz 				DSI_HOST_BITS(0x54, 1, 0)
 
+#define phy_stop_wait_time 			DSI_HOST_BITS(0x58, 8, 2)
+#define n_lanes 					DSI_HOST_BITS(0x58, 2, 0)
+#define phy_tx_triggers 			DSI_HOST_BITS(0x5c, 4, 5)
+#define phy_txexitulpslan 			DSI_HOST_BITS(0x5c, 1, 4)
+#define phy_txrequlpslan 			DSI_HOST_BITS(0x5c, 1, 3)
+#define phy_txexitulpsclk 			DSI_HOST_BITS(0x5c, 1, 2)
+#define phy_txrequlpsclk 			DSI_HOST_BITS(0x5c, 1, 1)
+#define phy_txrequestclkhs 			DSI_HOST_BITS(0x5c, 1, 0)
+#define phy_testclk 				DSI_HOST_BITS(0x64, 1, 1)
+#define phy_testclr 				DSI_HOST_BITS(0x64, 1, 0)
+#define phy_testen  				DSI_HOST_BITS(0x68, 1, 16)
+#define phy_testdout 				DSI_HOST_BITS(0x68, 8, 8)
+#define phy_testdin 				DSI_HOST_BITS(0x68, 8, 0)
+#define outvact_lpcmd_time  		DSI_HOST_BITS(0x70, 8, 8)
+#define invact_lpcmd_time 			DSI_HOST_BITS(0x70, 8, 0)
+#define gen_rd_cmd_busy  			DSI_HOST_BITS(0x3c, 1, 6)
+#define gen_pld_r_full 				DSI_HOST_BITS(0x3c, 1, 5)
+#define gen_pld_r_empty 			DSI_HOST_BITS(0x3c, 1, 4)
+#define gen_pld_w_full 				DSI_HOST_BITS(0x3c, 1, 3)     //800byte    write GEN_PLD_DATA
+#define gen_pld_w_empty 			DSI_HOST_BITS(0x3c, 1, 2)
+#define gen_cmd_full 				DSI_HOST_BITS(0x3c, 1, 1)     //20   write GEN_HDR
+#define gen_cmd_empty 				DSI_HOST_BITS(0x3c, 1, 0)
+#define phystopstateclklane 		DSI_HOST_BITS(0x60, 1, 2)
+#define phylock 					DSI_HOST_BITS(0x60, 1, 0)
 
-#define TO_CLK_DIVISION 			(REG_ADDR(CLKMGR_CFG) | REG_BITS(8) | BITS_OFFSET(8))
-#define TX_ESC_CLK_DIVISION 		(REG_ADDR(CLKMGR_CFG) | REG_BITS(8) | BITS_OFFSET(0))
+#else  //***************************************************************//
 
-#define gen_vid_rx 					(REG_ADDR(PCKHDL_CFG) | REG_BITS(2) | BITS_OFFSET(5))
-#define en_CRC_rx 					(REG_ADDR(PCKHDL_CFG) | REG_BITS(1) | BITS_OFFSET(4))
-#define en_ECC_rx 					(REG_ADDR(PCKHDL_CFG) | REG_BITS(1) | BITS_OFFSET(3))
-#define en_BTA 						(REG_ADDR(PCKHDL_CFG) | REG_BITS(1) | BITS_OFFSET(2))
-#define en_EOTp_rx 					(REG_ADDR(PCKHDL_CFG) | REG_BITS(1) | BITS_OFFSET(1))
-#define en_EOTp_tx 					(REG_ADDR(PCKHDL_CFG) | REG_BITS(1) | BITS_OFFSET(0))
+#define VERSION 					DSI_HOST_BITS(0x000, 32, 0)
+#define shutdownz 					DSI_HOST_BITS(0x004, 1, 0)
+#define TO_CLK_DIVISION 			DSI_HOST_BITS(0x008, 8, 8)
+#define TX_ESC_CLK_DIVISION 		DSI_HOST_BITS(0x008, 8, 0)
+#define dpi_vcid					DSI_HOST_BITS(0x00c, 2, 0)
+#define en18_loosely 				DSI_HOST_BITS(0x010, 1, 8)
+#define dpi_color_coding 			DSI_HOST_BITS(0x010, 4, 0)        //need modify in code
+#define colorm_active_low 			DSI_HOST_BITS(0x014, 1, 4)
+#define shutd_active_low  			DSI_HOST_BITS(0x014, 1, 3)
+#define hsync_active_low  			DSI_HOST_BITS(0x014, 1, 2)
+#define vsync_active_low  			DSI_HOST_BITS(0x014, 1, 1)
+#define dataen_active_low  			DSI_HOST_BITS(0x014, 1, 0)
+#define outvact_lpcmd_time  		DSI_HOST_BITS(0x018, 8, 16)   //attence
+#define invact_lpcmd_time 			DSI_HOST_BITS(0x018, 8, 0)
+//#define dbi_vcid					DSI_HOST_BITS(0x01c, 2, 0)
+#define crc_rx_en 					DSI_HOST_BITS(0x02c, 1, 4)
+#define ecc_rx_en 					DSI_HOST_BITS(0x02c, 1, 3)
+#define bta_en 						DSI_HOST_BITS(0x02c, 1, 2)
+#define eotp_rx_en 					DSI_HOST_BITS(0x02c, 1, 1)
+#define eotp_tx_en 					DSI_HOST_BITS(0x02c, 1, 0)
+#define gen_vid_rx 					DSI_HOST_BITS(0x030, 2, 5)
+#define cmd_video_mode 				DSI_HOST_BITS(0x034, 1, 0)
+#define lp_cmd_en  					DSI_HOST_BITS(0x038, 1, 15)
+#define frame_bta_ack_en 			DSI_HOST_BITS(0x038, 1, 14)
+#define lp_hfp_en 					DSI_HOST_BITS(0x038, 1, 13)
+#define lp_hbp_en 					DSI_HOST_BITS(0x038, 1, 12)
+#define lp_vact_en 					DSI_HOST_BITS(0x038, 1, 11)
+#define lp_vfp_en 					DSI_HOST_BITS(0x038, 1, 10)
+#define lp_vbp_en 					DSI_HOST_BITS(0x038, 1, 9)
+#define lp_vsa_en 					DSI_HOST_BITS(0x038, 1, 8)
+#define vid_mode_type 				DSI_HOST_BITS(0x038, 2, 0)
+#define vid_pkt_size 				DSI_HOST_BITS(0x03c, 14, 0)
+#define num_chunks 					DSI_HOST_BITS(0x040, 13, 0)
+#define null_pkt_size 				DSI_HOST_BITS(0x044, 13, 0)
+#define vid_hsa_time 				DSI_HOST_BITS(0x048, 12, 0)
+#define vid_hbp_time 				DSI_HOST_BITS(0x04c, 12, 0)
+#define vid_hline_time  			DSI_HOST_BITS(0x050, 15, 0)
+#define vid_vsa_lines 				DSI_HOST_BITS(0x054, 10, 0)
+#define vid_vbp_lines 				DSI_HOST_BITS(0x058, 10, 0)
+#define vid_vfp_lines 				DSI_HOST_BITS(0x05c, 10, 0)
+#define vid_active_lines 			DSI_HOST_BITS(0x060, 14, 0)
+#define max_rd_pkt_size 			DSI_HOST_BITS(0x068, 1, 24)
+#define dcs_lw_tx 					DSI_HOST_BITS(0x068, 1, 19)
+#define dcs_sr_0p_tx 				DSI_HOST_BITS(0x068, 1, 18)
+#define dcs_sw_1p_tx 				DSI_HOST_BITS(0x068, 1, 17)
+#define dcs_sw_0p_tx				DSI_HOST_BITS(0x068, 1, 16)
+#define gen_lw_tx 					DSI_HOST_BITS(0x068, 1, 14)
+#define gen_sr_2p_tx				DSI_HOST_BITS(0x068, 1, 13)
+#define gen_sr_1p_tx 				DSI_HOST_BITS(0x068, 1, 12)
+#define gen_sr_0p_tx 				DSI_HOST_BITS(0x068, 1, 11)
+#define gen_sw_2p_tx 				DSI_HOST_BITS(0x068, 1, 10)
+#define gen_sw_1p_tx 				DSI_HOST_BITS(0x068, 1, 9)
+#define gen_sw_0p_tx 				DSI_HOST_BITS(0x068, 1, 8)
+#define ack_rqst_en 				DSI_HOST_BITS(0x068, 1, 1)
+#define tear_fx_en 					DSI_HOST_BITS(0x068, 1, 0)
+#define GEN_HDR						DSI_HOST_BITS(0x06c, 32, 0)    
+#define GEN_PLD_DATA				DSI_HOST_BITS(0x070, 32, 0)	  //need modify
+#define gen_rd_cmd_busy  			DSI_HOST_BITS(0x074, 1, 6)
+#define gen_pld_r_full 				DSI_HOST_BITS(0x074, 1, 5)
+#define gen_pld_r_empty 			DSI_HOST_BITS(0x074, 1, 4)
+#define gen_pld_w_full 				DSI_HOST_BITS(0x074, 1, 3)     //800byte    write GEN_PLD_DATA
+#define gen_pld_w_empty				DSI_HOST_BITS(0x074, 1, 2)
+#define gen_cmd_full 				DSI_HOST_BITS(0x074, 1, 1)     //20   write GEN_HDR
+#define gen_cmd_empty 				DSI_HOST_BITS(0x074, 1, 0)
+#define hstx_to_cnt 				DSI_HOST_BITS(0x078, 16, 16)   //need modify
+#define lprx_to_cnt 				DSI_HOST_BITS(0x078, 16, 0)
+#define hs_rd_to_cnt 				DSI_HOST_BITS(0x07c, 16, 0)     //new
+#define lp_rd_to_cnt 				DSI_HOST_BITS(0x080, 16, 0)		//new
+#define presp_to_mode 				DSI_HOST_BITS(0x084, 1, 24)		//new
+#define hs_wr_to_cnt 				DSI_HOST_BITS(0x084, 16, 0)		//new
+#define lp_wr_to_cnt 				DSI_HOST_BITS(0x088, 16, 0)		//new
+#define bta_to_cnt 					DSI_HOST_BITS(0x08c, 16, 0)		//new
+//#define send_3d_cfg 				DSI_HOST_BITS(0x090, 1, 16)		//new
+//#define right_first 				DSI_HOST_BITS(0x090, 1, 5)		//new
+//#define second_vsync 				DSI_HOST_BITS(0x090, 1, 4)		//new
+//#define format_3d 					DSI_HOST_BITS(0x090, 2, 2)		//new
+//#define mode_3d		 				DSI_HOST_BITS(0x090, 2, 0)		//new
+#define auto_clklane_ctrl 			DSI_HOST_BITS(0x094, 1, 1)		//new
+#define phy_txrequestclkhs 			DSI_HOST_BITS(0x094, 1, 0)
+#define phy_hs2lp_time 				DSI_HOST_BITS(0x09c, 8, 24)
+#define phy_lp2hs_time 				DSI_HOST_BITS(0x09c, 8, 16)
+#define max_rd_time 				DSI_HOST_BITS(0x09c, 15, 0)
+#define phy_forcepll 				DSI_HOST_BITS(0x0a0, 1, 3)		//new
+#define phy_enableclk 				DSI_HOST_BITS(0x0a0, 1, 2)
+//#define phy_rstz 					DSI_HOST_BITS(0x0a0, 1, 1)
+//#define phy_shutdownz 				DSI_HOST_BITS(0x0a0, 1, 0)
+#define phy_stop_wait_time 			DSI_HOST_BITS(0x0a4, 8, 8)
+#define n_lanes 					DSI_HOST_BITS(0x0a4, 2, 0)
+#define phy_txexitulpslan 			DSI_HOST_BITS(0x0a8, 1, 3)
+#define phy_txrequlpslan 			DSI_HOST_BITS(0x0a8, 1, 2)
+#define phy_txexitulpsclk 			DSI_HOST_BITS(0x0a8, 1, 1)
+#define phy_txrequlpsclk 			DSI_HOST_BITS(0x0a8, 1, 0)
+#define phy_tx_triggers 			DSI_HOST_BITS(0x0ac, 4, 0)
 
-#define lpcmden  					(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(12))
-#define frame_BTA_ack 				(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(11))
-#define en_null_pkt 				(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(10))
-#define en_multi_pkt 				(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(9))
-#define en_lp_hfp 					(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(8))
-#define en_lp_hbp 					(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(7))
-#define en_lp_vact 					(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(6))
-#define en_lp_vfp 					(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(5))
-#define en_lp_vbp 					(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(4))
-#define en_lp_vsa 					(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(3))
-#define vid_mode_type 				(REG_ADDR(VID_MODE_CFG) | REG_BITS(2) | BITS_OFFSET(1))
-#define en_video_mode 				(REG_ADDR(VID_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(0))
+#define phystopstateclklane 		DSI_HOST_BITS(0x0b0, 1, 2)
+#define phylock 					DSI_HOST_BITS(0x0b0, 1, 0)
+#define phy_testclk 				DSI_HOST_BITS(0x0b4, 1, 1)
+#define phy_testclr 				DSI_HOST_BITS(0x0b4, 1, 0)
+#define phy_testen  				DSI_HOST_BITS(0x0b8, 1, 16)
+#define phy_testdout 				DSI_HOST_BITS(0x0b8, 8, 8)
+#define phy_testdin 				DSI_HOST_BITS(0x0b8, 8, 0)
 
-#define null_pkt_size 				(REG_ADDR(VID_PKT_CFG) | REG_BITS(10) | BITS_OFFSET(21))
-#define num_chunks 					(REG_ADDR(VID_PKT_CFG) | REG_BITS(10) | BITS_OFFSET(11))
-#define vid_pkt_size 				(REG_ADDR(VID_PKT_CFG) | REG_BITS(11) | BITS_OFFSET(0))
+#define INT_ST0 					DSI_HOST_BITS(0x0bc, 21, 0)
+#define INT_ST1 					DSI_HOST_BITS(0x0c0, 18, 0)
+#define INT_MKS0 					DSI_HOST_BITS(0x0c4, 21, 0)
+#define INT_MKS1 					DSI_HOST_BITS(0x0c8, 18, 0)
 
-#define en_tear_fx 					(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(14))
-#define en_ack_rqst 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(13))
-#define dcs_lw_tx 					(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(12))
-#define gen_lw_tx 					(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(11))
-#define max_rd_pkt_size 			(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(10))
-#define dcs_sr_0p_tx 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(9))
-#define dcs_sw_1p_tx 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(8))
-#define dcs_sw_0p_tx				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(7))
-#define gen_sr_2p_tx				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(6))
-#define gen_sr_1p_tx 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(5))
-#define gen_sr_0p_tx 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(4))
-#define gen_sw_2p_tx 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(3))
-#define gen_sw_1p_tx 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(2))
-#define gen_sw_0p_tx 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(1))
-#define en_cmd_mode 				(REG_ADDR(CMD_MODE_CFG) | REG_BITS(1) | BITS_OFFSET(0))
+//#define en_null_pkt				DSI_HOST_BITS(0x1c, 1, 13)  //delete
+//#define en_multi_pkt				DSI_HOST_BITS(0x1c, 1, 13)  //delete
+#endif  /* end of DWC_DSI_VERSION_0x3131302A */
 
-#define phy_hs2lp_time 				(REG_ADDR(PHY_TMR_CFG) | REG_BITS(8) | BITS_OFFSET(24))
-#define phy_lp2hs_time 				(REG_ADDR(PHY_TMR_CFG) | REG_BITS(8) | BITS_OFFSET(16))
-#define max_rd_time 				(REG_ADDR(PHY_TMR_CFG) | REG_BITS(15) | BITS_OFFSET(0))
-
-#define lprx_to_cnt 				(REG_ADDR(TO_CNT_CFG) | REG_BITS(16) | BITS_OFFSET(16))
-#define hstx_to_cnt 				(REG_ADDR(TO_CNT_CFG) | REG_BITS(16) | BITS_OFFSET(0))
-
-#define phy_enableclk 				(REG_ADDR(PHY_RSTZ) | REG_BITS(1) | BITS_OFFSET(2))
-//#define phy_rstz 					(REG_ADDR(PHY_RSTZ) | REG_BITS(1) | BITS_OFFSET(1))
-//#define phy_shutdownz 				(REG_ADDR(PHY_RSTZ) | REG_BITS(1) | BITS_OFFSET(0))
-
-#define phy_stop_wait_time 			(REG_ADDR(PHY_IF_CFG) | REG_BITS(8) | BITS_OFFSET(2))
-#define n_lanes 					(REG_ADDR(PHY_IF_CFG) | REG_BITS(2) | BITS_OFFSET(0))
-
-
-#define phy_tx_triggers 			(REG_ADDR(PHY_IF_CTRL) | REG_BITS(4) | BITS_OFFSET(5))
-#define phy_txexitulpslan 			(REG_ADDR(PHY_IF_CTRL) | REG_BITS(1) | BITS_OFFSET(4))
-#define phy_txrequlpslan 			(REG_ADDR(PHY_IF_CTRL) | REG_BITS(1) | BITS_OFFSET(3))
-#define phy_txexitulpsclk 			(REG_ADDR(PHY_IF_CTRL) | REG_BITS(1) | BITS_OFFSET(2))
-#define phy_txrequlpsclk 			(REG_ADDR(PHY_IF_CTRL) | REG_BITS(1) | BITS_OFFSET(1))
-#define phy_txrequestclkhs 			(REG_ADDR(PHY_IF_CTRL) | REG_BITS(1) | BITS_OFFSET(0))
-
-
-#define phy_testclk 				(REG_ADDR(PHY_TST_CTRL0) | REG_BITS(1) | BITS_OFFSET(1))
-#define phy_testclr 				(REG_ADDR(PHY_TST_CTRL0) | REG_BITS(1) | BITS_OFFSET(0))
-
-#define phy_testen  				(REG_ADDR(PHY_TST_CTRL1) | REG_BITS(1) | BITS_OFFSET(16))
-#define phy_testdout 				(REG_ADDR(PHY_TST_CTRL1) | REG_BITS(8) | BITS_OFFSET(8))
-#define phy_testdin 				(REG_ADDR(PHY_TST_CTRL1) | REG_BITS(8) | BITS_OFFSET(0))
-
-#define outvact_lpcmd_time  		(REG_ADDR(LP_CMD_TIM) | REG_BITS(8) | BITS_OFFSET(8))
-#define invact_lpcmd_time 			(REG_ADDR(LP_CMD_TIM) | REG_BITS(8) | BITS_OFFSET(0))
-
-#define gen_rd_cmd_busy  			(REG_ADDR(CMD_PKT_STATUS) | REG_BITS(1) | BITS_OFFSET(6))
-#define gen_pld_r_full 				(REG_ADDR(CMD_PKT_STATUS) | REG_BITS(1) | BITS_OFFSET(5))
-#define gen_pld_r_empty 			(REG_ADDR(CMD_PKT_STATUS) | REG_BITS(1) | BITS_OFFSET(4))
-#define gen_pld_w_full 				(REG_ADDR(CMD_PKT_STATUS) | REG_BITS(1) | BITS_OFFSET(3))     //800byte    write GEN_PLD_DATA
-#define gen_pld_w_empty 			(REG_ADDR(CMD_PKT_STATUS) | REG_BITS(1) | BITS_OFFSET(2))
-#define gen_cmd_full 				(REG_ADDR(CMD_PKT_STATUS) | REG_BITS(1) | BITS_OFFSET(1))     //20   write GEN_HDR
-#define gen_cmd_empty 				(REG_ADDR(CMD_PKT_STATUS) | REG_BITS(1) | BITS_OFFSET(0))
-
-#define phystopstateclklane 		(REG_ADDR(PHY_STATUS) | REG_BITS(1) | BITS_OFFSET(2))
-#define phylock 					(REG_ADDR(PHY_STATUS) | REG_BITS(1) | BITS_OFFSET(0))
 
 
 //MIPI DSI DPHY REGISTERS
-#define DPHY_REGISTER0				(MIPI_DSI_PHY_OFFSET + 0X0000)
-#define DPHY_REGISTER1				(MIPI_DSI_PHY_OFFSET + 0X0004)
-#define DPHY_REGISTER3				(MIPI_DSI_PHY_OFFSET + 0X000C)
-#define DPHY_REGISTER4				(MIPI_DSI_PHY_OFFSET + 0X0010)
-#define DPHY_REGISTER20				(MIPI_DSI_PHY_OFFSET + 0X0080)
+#define DPHY_REGISTER0				DSI_DPHY_BITS(0x00, 32, 0)
+#define DPHY_REGISTER1				DSI_DPHY_BITS(0x04, 32, 0)
+#define DPHY_REGISTER3				DSI_DPHY_BITS(0x0c, 32, 0)
+#define DPHY_REGISTER4				DSI_DPHY_BITS(0x10, 32, 0)
+#define DPHY_REGISTER20				DSI_DPHY_BITS(0X80, 32, 0)
 
-#define lane_en_ck 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(6))
-#define lane_en_3 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(5))
-#define lane_en_2 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(4))
-#define lane_en_1 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(3))
-#define lane_en_0 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(2))
+#define lane_en_ck 					DSI_DPHY_BITS(0x00, 1, 6)
+#define lane_en_3 					DSI_DPHY_BITS(0x00, 1, 5)
+#define lane_en_2 					DSI_DPHY_BITS(0x00, 1, 4)
+#define lane_en_1 					DSI_DPHY_BITS(0x00, 1, 3)
+#define lane_en_0 					DSI_DPHY_BITS(0x00, 1, 2)
 
-#define reg_da_ppfc 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(4))
-#define reg_da_syncrst 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(2))
-#define reg_da_ldopd 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(1))
-#define reg_da_pllpd 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(0))
+#define reg_da_ppfc 				DSI_DPHY_BITS(0x04, 1, 4)
+#define reg_da_syncrst 				DSI_DPHY_BITS(0x04, 1, 2)
+#define reg_da_ldopd 				DSI_DPHY_BITS(0x04, 1, 1)
+#define reg_da_pllpd 				DSI_DPHY_BITS(0x04, 1, 0)
 
+#define reg_fbdiv_8 				DSI_DPHY_BITS(0x0c, 1, 5)
+#define reg_prediv 					DSI_DPHY_BITS(0x0c, 5, 0)
+#define reg_fbdiv 					DSI_DPHY_BITS(0x10, 8, 0)
 
-#define reg_fbdiv_8 				(REG_ADDR(DPHY_REGISTER3) | REG_BITS(1) | BITS_OFFSET(5))
-#define reg_prediv 					(REG_ADDR(DPHY_REGISTER3) | REG_BITS(5) | BITS_OFFSET(0))
-#define reg_fbdiv 					(REG_ADDR(DPHY_REGISTER4) | REG_BITS(8) | BITS_OFFSET(0))
+#define reg_dig_rstn 				DSI_DPHY_BITS(0X80, 1, 0)
 
-#define reg_dig_rstn 				(REG_ADDR(DPHY_REGISTER20) | REG_BITS(1) | BITS_OFFSET(0))
+#define DPHY_CLOCK_OFFSET			REG_ADDR(0X0100)
+#define DPHY_LANE0_OFFSET			REG_ADDR(0X0180)
+#define DPHY_LANE1_OFFSET			REG_ADDR(0X0200)
+#define DPHY_LANE2_OFFSET			REG_ADDR(0X0280)
+#define DPHY_LANE3_OFFSET			REG_ADDR(0X0300)
 
-
-#define DPHY_CLOCK_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0100))
-#define DPHY_LANE0_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0180))
-#define DPHY_LANE1_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0200))
-#define DPHY_LANE2_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0280))
-#define DPHY_LANE3_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0300))
-
-#define reg_ths_settle				(REG_ADDR(0x0000) | REG_BITS(4) | BITS_OFFSET(0))
-#define reg_hs_tlpx					(REG_ADDR(0x0014) | REG_BITS(6) | BITS_OFFSET(0))
-#define reg_hs_ths_prepare			(REG_ADDR(0x0018) | REG_BITS(7) | BITS_OFFSET(0))
-#define reg_hs_the_zero				(REG_ADDR(0x001c) | REG_BITS(6) | BITS_OFFSET(0))
-#define reg_hs_ths_trail			(REG_ADDR(0x0020) | REG_BITS(7) | BITS_OFFSET(0))
-#define reg_hs_ths_exit				(REG_ADDR(0x0024) | REG_BITS(5) | BITS_OFFSET(0))
-#define reg_hs_tclk_post			(REG_ADDR(0x0028) | REG_BITS(4) | BITS_OFFSET(0))
-#define reserved					(REG_ADDR(0x002c) | REG_BITS(1) | BITS_OFFSET(0))
-#define reg_hs_twakup_h				(REG_ADDR(0x0030) | REG_BITS(2) | BITS_OFFSET(0))
-#define reg_hs_twakup_l				(REG_ADDR(0x0034) | REG_BITS(8) | BITS_OFFSET(0))
-#define reg_hs_tclk_pre				(REG_ADDR(0x0038) | REG_BITS(4) | BITS_OFFSET(0))
-#define reg_hs_tta_go				(REG_ADDR(0x0040) | REG_BITS(6) | BITS_OFFSET(0))
-#define reg_hs_tta_sure				(REG_ADDR(0x0044) | REG_BITS(6) | BITS_OFFSET(0))
-#define reg_hs_tta_wait				(REG_ADDR(0x0048) | REG_BITS(6) | BITS_OFFSET(0))
+#define reg_ths_settle				DSI_DPHY_BITS(0x0000, 4, 0)
+#define reg_hs_tlpx					DSI_DPHY_BITS(0x0014, 6, 0)
+#define reg_hs_ths_prepare			DSI_DPHY_BITS(0x0018, 7, 0)
+#define reg_hs_the_zero				DSI_DPHY_BITS(0x001c, 6, 0)
+#define reg_hs_ths_trail			DSI_DPHY_BITS(0x0020, 7, 0)
+#define reg_hs_ths_exit				DSI_DPHY_BITS(0x0024, 5, 0)
+#define reg_hs_tclk_post			DSI_DPHY_BITS(0x0028, 4, 0)
+#define reserved					DSI_DPHY_BITS(0x002c, 1, 0)
+#define reg_hs_twakup_h				DSI_DPHY_BITS(0x0030, 2, 0)
+#define reg_hs_twakup_l				DSI_DPHY_BITS(0x0034, 8, 0)
+#define reg_hs_tclk_pre				DSI_DPHY_BITS(0x0038, 4, 0)
+#define reg_hs_tta_go				DSI_DPHY_BITS(0x0040, 6, 0)
+#define reg_hs_tta_sure				DSI_DPHY_BITS(0x0044, 6, 0)
+#define reg_hs_tta_wait				DSI_DPHY_BITS(0x0048, 6, 0)
 
 
+#ifdef DWC_DSI_VERSION_0x3131302A
 //MISC REGISTERS
+#define DSI_MISC_BITS(addr, bits, bit_offset)  (REG_ADDR(addr) \
+		| REG_BITS(bits) | BITS_OFFSET(bit_offset))
+
 #define CRU_CRU_CLKSEL1_CON			(0x005c)
 #define CRU_CFG_MISC_CON			(0x009c)
 
-#define cfg_mipiclk_gaten 			(REG_ADDR(CRU_CRU_CLKSEL1_CON) | REG_BITS(1) | BITS_OFFSET(10))
+#define cfg_mipiclk_gaten 			DSI_MISC_BITS(CRU_CRU_CLKSEL1_CON, 1, 10)
 
-#define mipi_int 					(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(19))
-#define mipi_edpihalt 				(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(16))
-#define pin_forcetxstopmode_3 		(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(11))
-#define pin_forcetxstopmode_2 		(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(10))
-#define pin_forcetxstopmode_1 		(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(9))
-#define pin_forcetxstopmode_0 		(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(8))
-#define pin_forcerxmode_0 			(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(7))
-#define pin_turndisable_0 			(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(6))
-#define dpicolom 					(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(2))
-#define dpishutdn 					(REG_ADDR(CRU_CFG_MISC_CON) | REG_BITS(1) | BITS_OFFSET(1))
+#define mipi_int 					DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 19)
+#define mipi_edpihalt 				DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 16)
+#define pin_forcetxstopmode_3 		DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 11)
+#define pin_forcetxstopmode_2 		DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 10)
+#define pin_forcetxstopmode_1 		DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 9)
+#define pin_forcetxstopmode_0 		DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 8)
+#define pin_forcerxmode_0 			DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 7)
+#define pin_turndisable_0 			DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 6)
+#define dpicolom 					DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 2)
+#define dpishutdn 					DSI_MISC_BITS(CRU_CFG_MISC_CON, 1, 1)
 
+#else
+
+//#define mipi_int 					
+//#define mipi_edpihalt 				
+#define pin_forcetxstopmode_3 		
+#define pin_forcetxstopmode_2 		
+#define pin_forcetxstopmode_1 		
+#define pin_forcetxstopmode_0 		
+#define pin_forcerxmode_0 			
+#define pin_turndisable_0 			
+#define dpicolom 					
+#define dpishutdn 					
+
+#endif
 
 
 //global operation timing parameter
@@ -276,7 +369,12 @@ struct dsi_phy {
 	u32 Tsys_clk;   	//ps
 	u32 Tpclk;   		//ps
 	u32 Ttxclkesc;		//ps
-	
+
+#ifdef CONFIG_MIPI_DSI_LINUX
+	struct clk	*refclk; 
+	unsigned long iobase;
+	void __iomem *membase;
+#endif	
 	u16 prediv;
 	u16 fbdiv;
 	u8 flag;
@@ -291,20 +389,29 @@ struct dsi_host {
 	u8 format;
 	u8 video_mode;
 	u32 clk;
-
+	u32 irq;
+#ifdef CONFIG_MIPI_DSI_LINUX
+	unsigned long iobase;
+	void __iomem *membase;
+#endif
 };
 
 struct dsi {
-
+	u8 dsi_id;
 	u8 lcdc_id;
 	u8 vid;
 	struct dsi_phy phy;
 	struct dsi_host host;
+	struct mipi_dsi_ops ops;
+	struct mipi_dsi_screen screen;
 #ifdef CONFIG_MIPI_DSI_LINUX
+	struct clk	*dsi_pclk;
+	struct clk	*dsi_pd;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
 #endif
+	struct platform_device *pdev;
 };
 
 
@@ -313,5 +420,5 @@ struct dsi {
 #define MHz   1000000
 #endif
 extern int rk616_mipi_dsi_ft_init(void);
-int rk_mipi_dsi_init_lite(void);
+int rk_mipi_dsi_init_lite(struct dsi *dsi);
 #endif /* end of RK616_MIPI_DSI_H */
