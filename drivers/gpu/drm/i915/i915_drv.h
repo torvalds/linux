@@ -1212,23 +1212,13 @@ struct ilk_wm_values {
  * goes back to false exactly before we reenable the IRQs. We use this variable
  * to check if someone is trying to enable/disable IRQs while they're supposed
  * to be disabled. This shouldn't happen and we'll print some error messages in
- * case it happens, but if it actually happens we'll also update the variables
- * inside struct regsave so when we restore the IRQs they will contain the
- * latest expected values.
+ * case it happens.
  *
  * For more, read the Documentation/power/runtime_pm.txt.
  */
 struct i915_runtime_pm {
 	bool suspended;
 	bool irqs_disabled;
-
-	struct {
-		uint32_t deimr;
-		uint32_t sdeimr;
-		uint32_t gtimr;
-		uint32_t gtier;
-		uint32_t gen6_pmimr;
-	} regsave;
 };
 
 enum intel_pipe_crc_source {

@@ -136,11 +136,8 @@ ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pm.irqs_disabled) {
-		WARN(1, "IRQs disabled\n");
-		dev_priv->pm.regsave.deimr &= ~mask;
+	if (WARN_ON(dev_priv->pm.irqs_disabled))
 		return;
-	}
 
 	if ((dev_priv->irq_mask & mask) != 0) {
 		dev_priv->irq_mask &= ~mask;
@@ -154,11 +151,8 @@ ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pm.irqs_disabled) {
-		WARN(1, "IRQs disabled\n");
-		dev_priv->pm.regsave.deimr |= mask;
+	if (WARN_ON(dev_priv->pm.irqs_disabled))
 		return;
-	}
 
 	if ((dev_priv->irq_mask & mask) != mask) {
 		dev_priv->irq_mask |= mask;
@@ -179,13 +173,8 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pm.irqs_disabled) {
-		WARN(1, "IRQs disabled\n");
-		dev_priv->pm.regsave.gtimr &= ~interrupt_mask;
-		dev_priv->pm.regsave.gtimr |= (~enabled_irq_mask &
-						interrupt_mask);
+	if (WARN_ON(dev_priv->pm.irqs_disabled))
 		return;
-	}
 
 	dev_priv->gt_irq_mask &= ~interrupt_mask;
 	dev_priv->gt_irq_mask |= (~enabled_irq_mask & interrupt_mask);
@@ -217,13 +206,8 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pm.irqs_disabled) {
-		WARN(1, "IRQs disabled\n");
-		dev_priv->pm.regsave.gen6_pmimr &= ~interrupt_mask;
-		dev_priv->pm.regsave.gen6_pmimr |= (~enabled_irq_mask &
-						     interrupt_mask);
+	if (WARN_ON(dev_priv->pm.irqs_disabled))
 		return;
-	}
 
 	new_val = dev_priv->pm_irq_mask;
 	new_val &= ~interrupt_mask;
@@ -363,14 +347,8 @@ static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pm.irqs_disabled &&
-	    (interrupt_mask & SDE_HOTPLUG_MASK_CPT)) {
-		WARN(1, "IRQs disabled\n");
-		dev_priv->pm.regsave.sdeimr &= ~interrupt_mask;
-		dev_priv->pm.regsave.sdeimr |= (~enabled_irq_mask &
-						 interrupt_mask);
+	if (WARN_ON(dev_priv->pm.irqs_disabled))
 		return;
-	}
 
 	I915_WRITE(SDEIMR, sdeimr);
 	POSTING_READ(SDEIMR);
@@ -4126,57 +4104,20 @@ void intel_hpd_init(struct drm_device *dev)
 }
 
 /* Disable interrupts so we can allow runtime PM. */
-void hsw_runtime_pm_disable_interrupts(struct drm_device *dev)
+void intel_runtime_pm_disable_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-
-	dev_priv->pm.regsave.deimr = I915_READ(DEIMR);
-	dev_priv->pm.regsave.sdeimr = I915_READ(SDEIMR);
-	dev_priv->pm.regsave.gtimr = I915_READ(GTIMR);
-	dev_priv->pm.regsave.gtier = I915_READ(GTIER);
-	dev_priv->pm.regsave.gen6_pmimr = I915_READ(GEN6_PMIMR);
-
-	ironlake_disable_display_irq(dev_priv, 0xffffffff);
-	ibx_disable_display_interrupt(dev_priv, 0xffffffff);
-	ilk_disable_gt_irq(dev_priv, 0xffffffff);
-	snb_disable_pm_irq(dev_priv, 0xffffffff);
-
+	dev->driver->irq_uninstall(dev);
 	dev_priv->pm.irqs_disabled = true;
-
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
 /* Restore interrupts so we can recover from runtime PM. */
-void hsw_runtime_pm_restore_interrupts(struct drm_device *dev)
+void intel_runtime_pm_restore_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long irqflags;
-	uint32_t val;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-
-	val = I915_READ(DEIMR);
-	WARN(val != 0xffffffff, "DEIMR is 0x%08x\n", val);
-
-	val = I915_READ(SDEIMR);
-	WARN(val != 0xffffffff, "SDEIMR is 0x%08x\n", val);
-
-	val = I915_READ(GTIMR);
-	WARN(val != 0xffffffff, "GTIMR is 0x%08x\n", val);
-
-	val = I915_READ(GEN6_PMIMR);
-	WARN(val != 0xffffffff, "GEN6_PMIMR is 0x%08x\n", val);
 
 	dev_priv->pm.irqs_disabled = false;
-
-	ironlake_enable_display_irq(dev_priv, ~dev_priv->pm.regsave.deimr);
-	ibx_enable_display_interrupt(dev_priv, ~dev_priv->pm.regsave.sdeimr);
-	ilk_enable_gt_irq(dev_priv, ~dev_priv->pm.regsave.gtimr);
-	snb_enable_pm_irq(dev_priv, ~dev_priv->pm.regsave.gen6_pmimr);
-	I915_WRITE(GTIER, dev_priv->pm.regsave.gtier);
-
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	dev->driver->irq_preinstall(dev);
+	dev->driver->irq_postinstall(dev);
 }
