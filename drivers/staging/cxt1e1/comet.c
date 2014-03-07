@@ -33,7 +33,7 @@ static void WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *t
 static void WrtXmtWaveformTbl(ci_t *ci, struct s_comet_reg *comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
 
 
-void       *TWV_table[12] = {
+static void *TWV_table[12] = {
 	TWVLongHaul0DB, TWVLongHaul7_5DB, TWVLongHaul15DB, TWVLongHaul22_5DB,
 	TWVShortHaul0, TWVShortHaul1, TWVShortHaul2, TWVShortHaul3,
 	TWVShortHaul4, TWVShortHaul5,
