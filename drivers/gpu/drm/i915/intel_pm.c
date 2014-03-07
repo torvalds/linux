@@ -2206,8 +2206,11 @@ static void ilk_merge_wm_level(struct drm_device *dev,
 	const struct intel_crtc *intel_crtc;
 
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) {
-		const struct intel_wm_level *wm =
-			&intel_crtc->wm.active.wm[level];
+		const struct intel_pipe_wm *active = &intel_crtc->wm.active;
+		const struct intel_wm_level *wm = &active->wm[level];
+
+		if (!active->pipe_enabled)
+			continue;
 
 		if (!wm->enable)
 			return;
