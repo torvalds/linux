@@ -49,7 +49,8 @@ usb2phy@4a0ad080 {
 TI PIPE3 PHY
 
 Required properties:
- - compatible: Should be "ti,phy-usb3". "ti,omap-usb3" is deprecated.
+ - compatible: Should be "ti,phy-usb3" or "ti,phy-pipe3-sata".
+   "ti,omap-usb3" is deprecated.
  - reg : Address and length of the register set for the device.
  - reg-names: The names of the register addresses corresponding to the registers
    filled in "reg".
