@@ -597,8 +597,16 @@ static int adv7180_probe(struct i2c_client *client,
 	ret = init_device(client, state);
 	if (ret)
 		goto err_free_ctrl;
+
+	ret = v4l2_async_register_subdev(sd);
+	if (ret)
+		goto err_free_irq;
+
 	return 0;
 
+err_free_irq:
+	if (state->irq > 0)
+		free_irq(client->irq, state);
 err_free_ctrl:
 	adv7180_exit_controls(state);
 err_unreg_subdev:
@@ -611,6 +619,8 @@ static int adv7180_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
+
+	v4l2_async_unregister_subdev(sd);
 
 	if (state->irq > 0)
 		free_irq(client->irq, state);
