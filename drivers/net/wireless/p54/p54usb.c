@@ -1053,6 +1053,10 @@ static int p54u_probe(struct usb_interface *intf,
 		priv->upload_fw = p54u_upload_firmware_net2280;
 	}
 	err = p54u_load_firmware(dev, intf);
+	if (err) {
+		usb_put_dev(udev);
+		p54_free_common(dev);
+	}
 	return err;
 }
 
