@@ -394,6 +394,7 @@ static void flush_iotlb_page(struct omap_iommu *obj, u32 da)
 				__func__, start, da, bytes);
 			iotlb_load_cr(obj, &cr);
 			iommu_write_reg(obj, 1, MMU_FLUSH_ENTRY);
+			break;
 		}
 	}
 	pm_runtime_put_sync(obj->dev);
