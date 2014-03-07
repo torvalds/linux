@@ -1439,11 +1439,14 @@ static ssize_t
 enable_ints_write(struct file *file, const char __user *buffer,
 		  size_t count, loff_t *ppos)
 {
-	char buf[count + 1];
+	char buf[4];
 	int i, new_value;
 	struct virthba_info *virthbainfo;
 	U64 *Features_addr;
 	U64 mask;
+
+	if (count >= ARRAY_SIZE(buf))
+		return -EINVAL;
 
 	buf[count] = '\0';
 	if (copy_from_user(buf, buffer, count)) {
