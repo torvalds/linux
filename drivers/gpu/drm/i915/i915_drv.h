@@ -1390,7 +1390,6 @@ struct ilk_wm_values {
  * For more, read "Display Sequences for Package C8" on our documentation.
  */
 struct i915_package_c8 {
-	bool requirements_met;
 	bool irqs_disabled;
 	/* Only true after the delayed work task actually enables it. */
 	bool enabled;

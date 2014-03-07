@@ -5938,6 +5938,8 @@ void intel_init_runtime_pm(struct drm_i915_private *dev_priv)
 	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
 	pm_runtime_mark_last_busy(device);
 	pm_runtime_use_autosuspend(device);
+
+	pm_runtime_put_autosuspend(device);
 }
 
 void intel_fini_runtime_pm(struct drm_i915_private *dev_priv)
@@ -6161,10 +6163,9 @@ void intel_pm_setup(struct drm_device *dev)
 	mutex_init(&dev_priv->rps.hw_lock);
 
 	mutex_init(&dev_priv->pc8.lock);
-	dev_priv->pc8.requirements_met = false;
 	dev_priv->pc8.irqs_disabled = false;
 	dev_priv->pc8.enabled = false;
-	dev_priv->pc8.disable_count = 1; /* requirements_met */
+	dev_priv->pc8.disable_count = 0;
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }

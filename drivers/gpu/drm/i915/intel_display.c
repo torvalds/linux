@@ -7119,63 +7119,9 @@ void hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->pc8.lock);
 }
 
-static bool hsw_can_enable_package_c8(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-	struct intel_crtc *crtc;
-	uint32_t val;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
-		if (crtc->base.enabled)
-			return false;
-
-	/* This case is still possible since we have the i915.disable_power_well
-	 * parameter and also the KVMr or something else might be requesting the
-	 * power well. */
-	val = I915_READ(HSW_PWR_WELL_DRIVER);
-	if (val != 0) {
-		DRM_DEBUG_KMS("Not enabling PC8: power well on\n");
-		return false;
-	}
-
-	return true;
-}
-
-/* Since we're called from modeset_global_resources there's no way to
- * symmetrically increase and decrease the refcount, so we use
- * dev_priv->pc8.requirements_met to track whether we already have the refcount
- * or not.
- */
-static void hsw_update_package_c8(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	bool allow;
-
-	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	mutex_lock(&dev_priv->pc8.lock);
-
-	allow = hsw_can_enable_package_c8(dev_priv);
-
-	if (allow == dev_priv->pc8.requirements_met)
-		goto done;
-
-	dev_priv->pc8.requirements_met = allow;
-
-	if (allow)
-		__hsw_enable_package_c8(dev_priv);
-	else
-		__hsw_disable_package_c8(dev_priv);
-
-done:
-	mutex_unlock(&dev_priv->pc8.lock);
-}
-
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
 	modeset_update_crtc_power_domains(dev);
-	hsw_update_package_c8(dev);
 }
 
 static int haswell_crtc_mode_set(struct drm_crtc *crtc,
