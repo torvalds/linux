@@ -8409,7 +8409,7 @@ void intel_mark_busy(struct drm_device *dev)
 	if (dev_priv->mm.busy)
 		return;
 
-	hsw_disable_package_c8(dev_priv);
+	intel_runtime_pm_get(dev_priv);
 	i915_update_gfx_val(dev_priv);
 	dev_priv->mm.busy = true;
 }
@@ -8438,7 +8438,7 @@ void intel_mark_idle(struct drm_device *dev)
 		gen6_rps_idle(dev->dev_private);
 
 out:
-	hsw_enable_package_c8(dev_priv);
+	intel_runtime_pm_put(dev_priv);
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
