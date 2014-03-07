@@ -936,7 +936,7 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
 
-	start_params->gre_tunnel_mode = IPGRE_TUNNEL;
+	start_params->gre_tunnel_mode = L2GRE_TUNNEL;
 	start_params->gre_tunnel_rss = GRE_INNER_HEADERS_RSS;
 
 	return bnx2x_func_state_change(bp, &func_params);

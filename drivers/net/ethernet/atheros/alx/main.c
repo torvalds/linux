@@ -1292,6 +1292,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	alx = netdev_priv(netdev);
 	spin_lock_init(&alx->hw.mdio_lock);
 	spin_lock_init(&alx->irq_lock);
+	spin_lock_init(&alx->stats_lock);
 	alx->dev = netdev;
 	alx->hw.pdev = pdev;
 	alx->msg_enable = NETIF_MSG_LINK | NETIF_MSG_HW | NETIF_MSG_IFUP |

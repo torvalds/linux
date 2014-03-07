@@ -21,6 +21,16 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	if (!bio)
 		return 0;
 
+	/*
+	 * This should probably be returning 0, but blk_add_request_payload()
+	 * (Christoph!!!!)
+	 */
+	if (bio->bi_rw & REQ_DISCARD)
+		return 1;
+
+	if (bio->bi_rw & REQ_WRITE_SAME)
+		return 1;
+
 	fbio = bio;
 	cluster = blk_queue_cluster(q);
 	seg_size = 0;
@@ -161,6 +171,48 @@ new_segment:
 	*bvprv = *bvec;
 }
 
+static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
+			     struct scatterlist *sglist,
+			     struct scatterlist **sg)
+{
+	struct bio_vec bvec, bvprv = { NULL };
+	struct bvec_iter iter;
+	int nsegs, cluster;
+
+	nsegs = 0;
+	cluster = blk_queue_cluster(q);
+
+	if (bio->bi_rw & REQ_DISCARD) {
+		/*
+		 * This is a hack - drivers should be neither modifying the
+		 * biovec, nor relying on bi_vcnt - but because of
+		 * blk_add_request_payload(), a discard bio may or may not have
+		 * a payload we need to set up here (thank you Christoph) and
+		 * bi_vcnt is really the only way of telling if we need to.
+		 */
+
+		if (bio->bi_vcnt)
+			goto single_segment;
+
+		return 0;
+	}
+
+	if (bio->bi_rw & REQ_WRITE_SAME) {
+single_segment:
+		*sg = sglist;
+		bvec = bio_iovec(bio);
+		sg_set_page(*sg, bvec.bv_page, bvec.bv_len, bvec.bv_offset);
+		return 1;
+	}
+
+	for_each_bio(bio)
+		bio_for_each_segment(bvec, bio, iter)
+			__blk_segment_map_sg(q, &bvec, sglist, &bvprv, sg,
+					     &nsegs, &cluster);
+
+	return nsegs;
+}
+
 /*
  * map a request to scatterlist, return number of sg entries setup. Caller
  * must make sure sg can hold rq->nr_phys_segments entries
@@ -168,23 +220,11 @@ new_segment:
 int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		  struct scatterlist *sglist)
 {
-	struct bio_vec bvec, bvprv = { NULL };
-	struct req_iterator iter;
-	struct scatterlist *sg;
-	int nsegs, cluster;
+	struct scatterlist *sg = NULL;
+	int nsegs = 0;
 
-	nsegs = 0;
-	cluster = blk_queue_cluster(q);
-
-	/*
-	 * for each bio in rq
-	 */
-	sg = NULL;
-	rq_for_each_segment(bvec, rq, iter) {
-		__blk_segment_map_sg(q, &bvec, sglist, &bvprv, &sg,
-				     &nsegs, &cluster);
-	} /* segments in rq */
-
+	if (rq->bio)
+		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
 
 	if (unlikely(rq->cmd_flags & REQ_COPY_USER) &&
 	    (blk_rq_bytes(rq) & q->dma_pad_mask)) {
@@ -230,20 +270,13 @@ EXPORT_SYMBOL(blk_rq_map_sg);
 int blk_bio_map_sg(struct request_queue *q, struct bio *bio,
 		   struct scatterlist *sglist)
 {
-	struct bio_vec bvec, bvprv = { NULL };
-	struct scatterlist *sg;
-	int nsegs, cluster;
-	struct bvec_iter iter;
+	struct scatterlist *sg = NULL;
+	int nsegs;
+	struct bio *next = bio->bi_next;
+	bio->bi_next = NULL;
 
-	nsegs = 0;
-	cluster = blk_queue_cluster(q);
-
-	sg = NULL;
-	bio_for_each_segment(bvec, bio, iter) {
-		__blk_segment_map_sg(q, &bvec, sglist, &bvprv, &sg,
-				     &nsegs, &cluster);
-	} /* segments in bio */
-
+	nsegs = __blk_bios_map_sg(q, bio, sglist, &sg);
+	bio->bi_next = next;
 	if (sg)
 		sg_mark_end(sg);
 
