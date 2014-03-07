@@ -342,6 +342,9 @@ struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
 	uint32_t linetime;
 	bool fbc_wm_enabled;
+	bool pipe_enabled;
+	bool sprites_enabled;
+	bool sprites_scaled;
 };
 
 struct intel_crtc {

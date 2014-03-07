@@ -2105,38 +2105,52 @@ static void ilk_setup_wm_latency(struct drm_device *dev)
 }
 
 static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
-				      struct ilk_pipe_wm_parameters *p,
-				      struct intel_wm_config *config)
+				      struct ilk_pipe_wm_parameters *p)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_plane *plane;
 
-	p->active = intel_crtc_active(crtc);
-	if (p->active) {
-		p->pipe_htotal = intel_crtc->config.adjusted_mode.crtc_htotal;
-		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
-		p->pri.bytes_per_pixel = crtc->primary->fb->bits_per_pixel / 8;
-		p->cur.bytes_per_pixel = 4;
-		p->pri.horiz_pixels = intel_crtc->config.pipe_src_w;
-		p->cur.horiz_pixels = intel_crtc->cursor_width;
-		/* TODO: for now, assume primary and cursor planes are always enabled. */
-		p->pri.enabled = true;
-		p->cur.enabled = true;
-	}
+	if (!intel_crtc_active(crtc))
+		return;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		config->num_pipes_active += intel_crtc_active(crtc);
+	p->active = true;
+	p->pipe_htotal = intel_crtc->config.adjusted_mode.crtc_htotal;
+	p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
+	p->pri.bytes_per_pixel = crtc->primary->fb->bits_per_pixel / 8;
+	p->cur.bytes_per_pixel = 4;
+	p->pri.horiz_pixels = intel_crtc->config.pipe_src_w;
+	p->cur.horiz_pixels = intel_crtc->cursor_width;
+	/* TODO: for now, assume primary and cursor planes are always enabled. */
+	p->pri.enabled = true;
+	p->cur.enabled = true;
 
 	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
 
-		if (intel_plane->pipe == pipe)
+		if (intel_plane->pipe == pipe) {
 			p->spr = intel_plane->wm;
+			break;
+		}
+	}
+}
 
-		config->sprites_enabled |= intel_plane->wm.enabled;
-		config->sprites_scaled |= intel_plane->wm.scaled;
+static void ilk_compute_wm_config(struct drm_device *dev,
+				  struct intel_wm_config *config)
+{
+	struct intel_crtc *intel_crtc;
+
+	/* Compute the currently _active_ config */
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) {
+		const struct intel_pipe_wm *wm = &intel_crtc->wm.active;
+
+		if (!wm->pipe_enabled)
+			continue;
+
+		config->sprites_enabled |= wm->sprites_enabled;
+		config->sprites_scaled |= wm->sprites_scaled;
+		config->num_pipes_active++;
 	}
 }
 
@@ -2158,6 +2172,10 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
+
+	pipe_wm->pipe_enabled = params->active;
+	pipe_wm->sprites_enabled = params->spr.enabled;
+	pipe_wm->sprites_scaled = params->spr.scaled;
 
 	/* ILK/SNB: LP2+ watermarks only w/o sprites */
 	if (INTEL_INFO(dev)->gen <= 6 && params->spr.enabled)
@@ -2548,7 +2566,7 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct intel_wm_config config = {};
 
-	ilk_compute_wm_parameters(crtc, &params, &config);
+	ilk_compute_wm_parameters(crtc, &params);
 
 	intel_compute_pipe_wm(crtc, &params, &pipe_wm);
 
@@ -2556,6 +2574,8 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 		return;
 
 	intel_crtc->wm.active = pipe_wm;
+
+	ilk_compute_wm_config(dev, &config);
 
 	ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
 	ilk_wm_merge(dev, &config, &max, &lp_wm_1_2);
@@ -2623,7 +2643,9 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
 
-	if (intel_crtc_active(crtc)) {
+	active->pipe_enabled = intel_crtc_active(crtc);
+
+	if (active->pipe_enabled) {
 		u32 tmp = hw->wm_pipe[pipe];
 
 		/*
