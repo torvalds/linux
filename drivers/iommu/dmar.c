@@ -84,7 +84,8 @@ void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 	*cnt = 0;
 	while (start < end) {
 		scope = start;
-		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT ||
+		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ACPI ||
+		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT ||
 		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE)
 			(*cnt)++;
 		else if (scope->entry_type != ACPI_DMAR_SCOPE_TYPE_IOAPIC &&
@@ -342,21 +343,18 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	dmaru->reg_base_addr = drhd->address;
 	dmaru->segment = drhd->segment;
 	dmaru->include_all = drhd->flags & 0x1; /* BIT0: INCLUDE_ALL */
-	if (!dmaru->include_all) {
-		dmaru->devices = dmar_alloc_dev_scope((void *)(drhd + 1),
-					((void *)drhd) + drhd->header.length,
-					&dmaru->devices_cnt);
-		if (dmaru->devices_cnt && dmaru->devices == NULL) {
-			kfree(dmaru);
-			return -ENOMEM;
-		}
+	dmaru->devices = dmar_alloc_dev_scope((void *)(drhd + 1),
+					      ((void *)drhd) + drhd->header.length,
+					      &dmaru->devices_cnt);
+	if (dmaru->devices_cnt && dmaru->devices == NULL) {
+		kfree(dmaru);
+		return -ENOMEM;
 	}
 
 	ret = alloc_iommu(dmaru);
 	if (ret) {
-		if (!dmaru->include_all)
-			dmar_free_dev_scope(&dmaru->devices,
-					    &dmaru->devices_cnt);
+		dmar_free_dev_scope(&dmaru->devices,
+				    &dmaru->devices_cnt);
 		kfree(dmaru);
 		return ret;
 	}
