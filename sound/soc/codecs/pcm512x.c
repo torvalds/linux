@@ -201,10 +201,10 @@ static const unsigned int pcm512x_dsp_program_values[] = {
 	7,
 };
 
-static const SOC_VALUE_ENUM_SINGLE_DECL(pcm512x_dsp_program,
-					PCM512x_DSP_PROGRAM, 0, 0x1f,
-					pcm512x_dsp_program_texts,
-					pcm512x_dsp_program_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(pcm512x_dsp_program,
+				  PCM512x_DSP_PROGRAM, 0, 0x1f,
+				  pcm512x_dsp_program_texts,
+				  pcm512x_dsp_program_values);
 
 static const char * const pcm512x_clk_missing_text[] = {
 	"1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"
