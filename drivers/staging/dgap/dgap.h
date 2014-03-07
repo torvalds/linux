@@ -637,7 +637,7 @@ struct board_t {
 	u32		wait_for_bios;
 	u32		wait_for_fep;
 
-	struct cnode *  bd_config;	/* Config of board */
+	struct cnode    *bd_config;	/* Config of board */
 
 	u16		nasync;		/* Number of ports on card */
 
