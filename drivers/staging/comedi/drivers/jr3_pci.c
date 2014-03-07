@@ -429,160 +429,143 @@ static int jr3_download_firmware(struct comedi_device *dev,
 
 static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 {
+	struct jr3_pci_subdev_private *spriv = s->private;
 	struct poll_delay_t result = poll_delay_min_max(1000, 2000);
-	struct jr3_pci_subdev_private *p = s->private;
+	struct jr3_channel __iomem *channel;
+	u16 model_no;
+	u16 serial_no;
+	int errors;
 	int i;
 
-	if (p) {
-		struct jr3_channel __iomem *channel = p->channel;
-		int errors = get_u16(&channel->errors);
+	if (!spriv)
+		return result;
 
-		if (errors != p->errors)
-			p->errors = errors;
+	channel = spriv->channel;
+	errors = get_u16(&channel->errors);
 
-		if (errors & (watch_dog | watch_dog2 | sensor_change))
-			/*  Sensor communication lost, force poll mode */
-			p->state = state_jr3_poll;
+	if (errors != spriv->errors)
+		spriv->errors = errors;
 
-		switch (p->state) {
-		case state_jr3_poll: {
-				u16 model_no = get_u16(&channel->model_no);
-				u16 serial_no = get_u16(&channel->serial_no);
-				if ((errors & (watch_dog | watch_dog2)) ||
-				    model_no == 0 || serial_no == 0) {
-					/*
-					 * Still no sensor, keep on polling.
-					 * Since it takes up to 10 seconds
-					 * for offsets to stabilize, polling
-					 * each second should suffice.
-					 */
-					result = poll_delay_min_max(1000, 2000);
-				} else {
-					p->retries = 0;
-					p->state =
-						state_jr3_init_wait_for_offset;
-					result = poll_delay_min_max(1000, 2000);
-				}
-			}
-			break;
-		case state_jr3_init_wait_for_offset:
-			p->retries++;
-			if (p->retries < 10) {
-				/*  Wait for offeset to stabilize
-				 *  (< 10 s according to manual) */
-				result = poll_delay_min_max(1000, 2000);
-			} else {
-				struct transform_t transf;
+	/* Sensor communication lost? force poll mode */
+	if (errors & (watch_dog | watch_dog2 | sensor_change))
+		spriv->state = state_jr3_poll;
 
-				p->model_no = get_u16(&channel->model_no);
-				p->serial_no = get_u16(&channel->serial_no);
+	switch (spriv->state) {
+	case state_jr3_poll:
+		model_no = get_u16(&channel->model_no);
+		serial_no = get_u16(&channel->serial_no);
 
-				/*  Transformation all zeros */
-				for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
-					transf.link[i].link_type =
-						(enum link_types)0;
-					transf.link[i].link_amount = 0;
-				}
-
-				set_transforms(channel, transf, 0);
-				use_transform(channel, 0);
-				p->state = state_jr3_init_transform_complete;
-				/*  Allow 20 ms for completion */
-				result = poll_delay_min_max(20, 100);
-			}
-			break;
-		case state_jr3_init_transform_complete:
-			if (!is_complete(channel)) {
-				result = poll_delay_min_max(20, 100);
-			} else {
-				/*  Set full scale */
-				struct six_axis_t min_full_scale;
-				struct six_axis_t max_full_scale;
-
-				min_full_scale = get_min_full_scales(channel);
-				max_full_scale = get_max_full_scales(channel);
-				set_full_scales(channel, max_full_scale);
-
-				p->state =
-					state_jr3_init_set_full_scale_complete;
-				/*  Allow 20 ms for completion */
-				result = poll_delay_min_max(20, 100);
-			}
-			break;
-		case state_jr3_init_set_full_scale_complete:
-			if (!is_complete(channel)) {
-				result = poll_delay_min_max(20, 100);
-			} else {
-				struct force_array __iomem *full_scale;
-
-				/*  Use ranges in kN or we will
-				 *  overflow around 2000N! */
-				full_scale = &channel->full_scale;
-				p->range[0].range.min =
-					-get_s16(&full_scale->fx) * 1000;
-				p->range[0].range.max =
-					get_s16(&full_scale->fx) * 1000;
-				p->range[1].range.min =
-					-get_s16(&full_scale->fy) * 1000;
-				p->range[1].range.max =
-					get_s16(&full_scale->fy) * 1000;
-				p->range[2].range.min =
-					-get_s16(&full_scale->fz) * 1000;
-				p->range[2].range.max =
-					get_s16(&full_scale->fz) * 1000;
-				p->range[3].range.min =
-					-get_s16(&full_scale->mx) * 100;
-				p->range[3].range.max =
-					get_s16(&full_scale->mx) * 100;
-				p->range[4].range.min =
-					-get_s16(&full_scale->my) * 100;
-				p->range[4].range.max =
-					get_s16(&full_scale->my) * 100;
-				p->range[5].range.min =
-					-get_s16(&full_scale->mz) * 100;
-				p->range[5].range.max =
-					get_s16(&full_scale->mz) * 100;	/* ?? */
-				p->range[6].range.min =
-					-get_s16(&full_scale->v1) * 100;/* ?? */
-				p->range[6].range.max =
-					get_s16(&full_scale->v1) * 100;	/* ?? */
-				p->range[7].range.min =
-					-get_s16(&full_scale->v2) * 100;/* ?? */
-				p->range[7].range.max =
-					get_s16(&full_scale->v2) * 100;	/* ?? */
-				p->range[8].range.min = 0;
-				p->range[8].range.max = 65535;
-
-				use_offset(channel, 0);
-				p->state = state_jr3_init_use_offset_complete;
-				/*  Allow 40 ms for completion */
-				result = poll_delay_min_max(40, 100);
-			}
-			break;
-		case state_jr3_init_use_offset_complete:
-			if (!is_complete(channel)) {
-				result = poll_delay_min_max(20, 100);
-			} else {
-				set_s16(&channel->offsets.fx, 0);
-				set_s16(&channel->offsets.fy, 0);
-				set_s16(&channel->offsets.fz, 0);
-				set_s16(&channel->offsets.mx, 0);
-				set_s16(&channel->offsets.my, 0);
-				set_s16(&channel->offsets.mz, 0);
-
-				set_offset(channel);
-
-				p->state = state_jr3_done;
-			}
-			break;
-		case state_jr3_done:
-			poll_delay_min_max(10000, 20000);
-			break;
-		default:
-			poll_delay_min_max(1000, 2000);
-			break;
+		if ((errors & (watch_dog | watch_dog2)) ||
+		    model_no == 0 || serial_no == 0) {
+			/*
+			 * Still no sensor, keep on polling.
+			 * Since it takes up to 10 seconds for offsets to
+			 * stabilize, polling each second should suffice.
+			 */
+		} else {
+			spriv->retries = 0;
+			spriv->state = state_jr3_init_wait_for_offset;
 		}
+		break;
+	case state_jr3_init_wait_for_offset:
+		spriv->retries++;
+		if (spriv->retries < 10) {
+			/*
+			 * Wait for offeset to stabilize
+			 * (< 10 s according to manual)
+			 */
+		} else {
+			struct transform_t transf;
+
+			spriv->model_no = get_u16(&channel->model_no);
+			spriv->serial_no = get_u16(&channel->serial_no);
+
+			/* Transformation all zeros */
+			for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
+				transf.link[i].link_type = (enum link_types)0;
+				transf.link[i].link_amount = 0;
+			}
+
+			set_transforms(channel, transf, 0);
+			use_transform(channel, 0);
+			spriv->state = state_jr3_init_transform_complete;
+			/* Allow 20 ms for completion */
+			result = poll_delay_min_max(20, 100);
+		}
+		break;
+	case state_jr3_init_transform_complete:
+		if (!is_complete(channel)) {
+			result = poll_delay_min_max(20, 100);
+		} else {
+			/* Set full scale */
+			struct six_axis_t min_full_scale;
+			struct six_axis_t max_full_scale;
+
+			min_full_scale = get_min_full_scales(channel);
+			max_full_scale = get_max_full_scales(channel);
+			set_full_scales(channel, max_full_scale);
+
+			spriv->state = state_jr3_init_set_full_scale_complete;
+			/* Allow 20 ms for completion */
+			result = poll_delay_min_max(20, 100);
+		}
+		break;
+	case state_jr3_init_set_full_scale_complete:
+		if (!is_complete(channel)) {
+			result = poll_delay_min_max(20, 100);
+		} else {
+			struct force_array __iomem *fs = &channel->full_scale;
+
+			/* Use ranges in kN or we will overflow around 2000N! */
+			spriv->range[0].range.min = -get_s16(&fs->fx) * 1000;
+			spriv->range[0].range.max = get_s16(&fs->fx) * 1000;
+			spriv->range[1].range.min = -get_s16(&fs->fy) * 1000;
+			spriv->range[1].range.max = get_s16(&fs->fy) * 1000;
+			spriv->range[2].range.min = -get_s16(&fs->fz) * 1000;
+			spriv->range[2].range.max = get_s16(&fs->fz) * 1000;
+			spriv->range[3].range.min = -get_s16(&fs->mx) * 100;
+			spriv->range[3].range.max = get_s16(&fs->mx) * 100;
+			spriv->range[4].range.min = -get_s16(&fs->my) * 100;
+			spriv->range[4].range.max = get_s16(&fs->my) * 100;
+			spriv->range[5].range.min = -get_s16(&fs->mz) * 100;
+			/* the next five are questionable */
+			spriv->range[5].range.max = get_s16(&fs->mz) * 100;
+			spriv->range[6].range.min = -get_s16(&fs->v1) * 100;
+			spriv->range[6].range.max = get_s16(&fs->v1) * 100;
+			spriv->range[7].range.min = -get_s16(&fs->v2) * 100;
+			spriv->range[7].range.max = get_s16(&fs->v2) * 100;
+			spriv->range[8].range.min = 0;
+			spriv->range[8].range.max = 65535;
+
+			use_offset(channel, 0);
+			spriv->state = state_jr3_init_use_offset_complete;
+			/* Allow 40 ms for completion */
+			result = poll_delay_min_max(40, 100);
+		}
+		break;
+	case state_jr3_init_use_offset_complete:
+		if (!is_complete(channel)) {
+			result = poll_delay_min_max(20, 100);
+		} else {
+			set_s16(&channel->offsets.fx, 0);
+			set_s16(&channel->offsets.fy, 0);
+			set_s16(&channel->offsets.fz, 0);
+			set_s16(&channel->offsets.mx, 0);
+			set_s16(&channel->offsets.my, 0);
+			set_s16(&channel->offsets.mz, 0);
+
+			set_offset(channel);
+
+			spriv->state = state_jr3_done;
+		}
+		break;
+	case state_jr3_done:
+		result = poll_delay_min_max(10000, 20000);
+		break;
+	default:
+		break;
 	}
+
 	return result;
 }
 
