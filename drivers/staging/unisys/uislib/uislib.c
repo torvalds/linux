@@ -1622,13 +1622,8 @@ chipset_proc_write(struct file *file, const char __user *buffer,
 	return -EFAULT;
 }
 
-#define PROCLINE(...)							\
-	do {								\
-		if (uisutil_add_proc_line_ex(&tot, buff,		\
-					     buff_len, __VA_ARGS__) < 0) { \
-			goto err_done;					\
-		}							\
-	} while (0)
+#define PLINE(...) uisutil_add_proc_line_ex(&tot, buff, \
+					       buff_len, __VA_ARGS__)
 
 static int
 info_proc_read_helper(char **buff, int *buff_len)
@@ -1636,55 +1631,75 @@ info_proc_read_helper(char **buff, int *buff_len)
 	int i, tot = 0;
 	struct bus_info *bus;
 
-	PROCLINE("\nBuses:\n");
+	if (PLINE("\nBuses:\n") < 0)
+		goto err_done;
 
 	read_lock(&BusListLock);
 	for (bus = BusListHead; bus; bus = bus->next) {
 
-		PROCLINE("    bus=0x%p, busNo=%d, deviceCount=%d\n",
-			 bus, bus->busNo, bus->deviceCount);
+		if (PLINE("    bus=0x%p, busNo=%d, deviceCount=%d\n",
+			  bus, bus->busNo, bus->deviceCount) < 0)
+			goto err_done_unlock;
 
-		PROCLINE("        Devices:\n");
+
+		if (PLINE("        Devices:\n") < 0)
+			goto err_done_unlock;
 
 		for (i = 0; i < bus->deviceCount; i++) {
 			if (bus->device[i]) {
-				PROCLINE("            busNo %d, device[%i]: 0x%p, chanptr=0x%p, swtch=0x%p\n",
-				     bus->busNo, i, bus->device[i],
-				     bus->device[i]->chanptr,
-				     bus->device[i]->swtch);
-				PROCLINE("            first_busy_cnt=%llu, moved_to_tail_cnt=%llu, last_on_list_cnt=%llu\n",
-				     bus->device[i]->first_busy_cnt,
-				     bus->device[i]->moved_to_tail_cnt,
-				     bus->device[i]->last_on_list_cnt);
+				if (PLINE("            busNo %d, device[%i]: 0x%p, chanptr=0x%p, swtch=0x%p\n",
+					  bus->busNo, i, bus->device[i],
+					  bus->device[i]->chanptr,
+					  bus->device[i]->swtch) < 0)
+					goto err_done_unlock;
+
+				if (PLINE("            first_busy_cnt=%llu, moved_to_tail_cnt=%llu, last_on_list_cnt=%llu\n",
+					  bus->device[i]->first_busy_cnt,
+					  bus->device[i]->moved_to_tail_cnt,
+					  bus->device[i]->last_on_list_cnt) < 0)
+					goto err_done_unlock;
 			}
 		}
 	}
 	read_unlock(&BusListLock);
 
-	PROCLINE("Malloc bytes in use: %d\n", atomic_read(&Malloc_BytesInUse));
-	PROCLINE("Malloc buffers in use: %d\n",
-		 atomic_read(&Malloc_BuffersInUse));
-	PROCLINE("Malloc allocation failures: %d\n",
-		 atomic_read(&Malloc_FailuresAlloc));
-	PROCLINE("Malloc free failures: %d\n",
-		 atomic_read(&Malloc_FailuresFree));
-	PROCLINE("Malloc total mallocs: %u (may overflow)\n",
-		 (unsigned) atomic_read(&Malloc_TotalMallocs));
-	PROCLINE("Malloc total frees: %u (may overflow)\n",
-		 (unsigned) atomic_read(&Malloc_TotalFrees));
-	PROCLINE("UisUtils_Registered_Services: %d\n",
-		 atomic_read(&UisUtils_Registered_Services));
-
-	PROCLINE("cycles_before_wait %llu wait_cycles:%llu\n",
-		 cycles_before_wait, wait_cycles);
-	PROCLINE("tot_wakeup_cnt %llu:tot_wait_cnt %llu:tot_schedule_cnt %llu\n",
-	     tot_wakeup_cnt, tot_wait_cnt, tot_schedule_cnt);
-	PROCLINE("en_smart_wakeup %d\n", en_smart_wakeup);
-	PROCLINE("tot_moved_to_tail_cnt %llu\n", tot_moved_to_tail_cnt);
+	if (PLINE("Malloc bytes in use: %d\n",
+		 atomic_read(&Malloc_BytesInUse)) < 0)
+		goto err_done;
+	if (PLINE("Malloc buffers in use: %d\n",
+		  atomic_read(&Malloc_BuffersInUse)) < 0)
+		goto err_done;
+	if (PLINE("Malloc allocation failures: %d\n",
+		  atomic_read(&Malloc_FailuresAlloc)) < 0)
+		goto err_done;
+	if (PLINE("Malloc free failures: %d\n",
+		  atomic_read(&Malloc_FailuresFree)) < 0)
+		goto err_done;
+	if (PLINE("Malloc total mallocs: %u (may overflow)\n",
+		  (unsigned) atomic_read(&Malloc_TotalMallocs)) < 0)
+		goto err_done;
+	if (PLINE("Malloc total frees: %u (may overflow)\n",
+		  (unsigned) atomic_read(&Malloc_TotalFrees)) < 0)
+		goto err_done;
+	if (PLINE("UisUtils_Registered_Services: %d\n",
+		  atomic_read(&UisUtils_Registered_Services)) < 0)
+		goto err_done;
+	if (PLINE("cycles_before_wait %llu wait_cycles:%llu\n",
+		  cycles_before_wait, wait_cycles) < 0)
+			goto err_done;
+	if (PLINE("tot_wakeup_cnt %llu:tot_wait_cnt %llu:tot_schedule_cnt %llu\n",
+		  tot_wakeup_cnt, tot_wait_cnt, tot_schedule_cnt) < 0)
+			goto err_done;
+	if (PLINE("en_smart_wakeup %d\n", en_smart_wakeup) < 0)
+			goto err_done;
+	if (PLINE("tot_moved_to_tail_cnt %llu\n", tot_moved_to_tail_cnt) < 0)
+			goto err_done;
 
 	return tot;
-err_done:
 
+err_done_unlock:
+	read_unlock(&BusListLock);
+err_done:
 	return -1;
 }
 
