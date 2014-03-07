@@ -99,7 +99,7 @@ static inline bool timespec_valid(const struct timespec *ts)
 	/* Dates before 1970 are bogus */
 	if (ts->tv_sec < 0)
 		return false;
-	/* Can't have more nanoseconds then a second */
+	/* Can't have more nanoseconds than a second */
 	if ((unsigned long)ts->tv_nsec >= NSEC_PER_SEC)
 		return false;
 	return true;
