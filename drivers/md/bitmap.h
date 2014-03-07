@@ -131,7 +131,8 @@ typedef struct bitmap_super_s {
 	__le32 sectors_reserved; /* 64 number of 512-byte sectors that are
 				  * reserved for the bitmap. */
 
-	__u8  pad[256 - 68]; /* set to zero */
+	__le32 nodes;        /* 68 the maximum number of nodes in cluster. */
+	__u8  pad[256 - 72]; /* set to zero */
 } bitmap_super_t;
 
 /* notes:
