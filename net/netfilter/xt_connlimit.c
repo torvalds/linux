@@ -44,6 +44,7 @@ struct xt_connlimit_data {
 };
 
 static u_int32_t connlimit_rnd __read_mostly;
+static struct kmem_cache *connlimit_conn_cachep __read_mostly;
 
 static inline unsigned int connlimit_iphash(__be32 addr)
 {
@@ -113,7 +114,7 @@ static int count_hlist(struct net *net,
 						 &conn->tuple);
 		if (found == NULL) {
 			hlist_del(&conn->node);
-			kfree(conn);
+			kmem_cache_free(connlimit_conn_cachep, conn);
 			continue;
 		}
 
@@ -133,7 +134,7 @@ static int count_hlist(struct net *net,
 			 */
 			nf_ct_put(found_ct);
 			hlist_del(&conn->node);
-			kfree(conn);
+			kmem_cache_free(connlimit_conn_cachep, conn);
 			continue;
 		}
 
@@ -152,7 +153,9 @@ static bool add_hlist(struct hlist_head *head,
 		      const struct nf_conntrack_tuple *tuple,
 		      const union nf_inet_addr *addr)
 {
-	struct xt_connlimit_conn *conn = kmalloc(sizeof(*conn), GFP_ATOMIC);
+	struct xt_connlimit_conn *conn;
+
+	conn = kmem_cache_alloc(connlimit_conn_cachep, GFP_ATOMIC);
 	if (conn == NULL)
 		return false;
 	conn->tuple = *tuple;
@@ -285,7 +288,7 @@ static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i) {
 		hlist_for_each_entry_safe(conn, n, &hash[i], node) {
 			hlist_del(&conn->node);
-			kfree(conn);
+			kmem_cache_free(connlimit_conn_cachep, conn);
 		}
 	}
 
@@ -305,12 +308,23 @@ static struct xt_match connlimit_mt_reg __read_mostly = {
 
 static int __init connlimit_mt_init(void)
 {
-	return xt_register_match(&connlimit_mt_reg);
+	int ret;
+	connlimit_conn_cachep = kmem_cache_create("xt_connlimit_conn",
+					   sizeof(struct xt_connlimit_conn),
+					   0, 0, NULL);
+	if (!connlimit_conn_cachep)
+		return -ENOMEM;
+
+	ret = xt_register_match(&connlimit_mt_reg);
+	if (ret != 0)
+		kmem_cache_destroy(connlimit_conn_cachep);
+	return ret;
 }
 
 static void __exit connlimit_mt_exit(void)
 {
 	xt_unregister_match(&connlimit_mt_reg);
+	kmem_cache_destroy(connlimit_conn_cachep);
 }
 
 module_init(connlimit_mt_init);
