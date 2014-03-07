@@ -618,7 +618,6 @@ err_free_ctrl:
 err_unreg_subdev:
 	mutex_destroy(&state->mutex);
 err:
-	printk(KERN_ERR KBUILD_MODNAME ": Failed to probe: %d\n", ret);
 	return ret;
 }
 
