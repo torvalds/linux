@@ -102,7 +102,10 @@ struct usbdevfs_urb {
 	int buffer_length;
 	int actual_length;
 	int start_frame;
-	int number_of_packets;
+	union {
+		int number_of_packets;	/* Only used for isoc urbs */
+		unsigned int stream_id;	/* Only used with bulk streams */
+	};
 	int error_count;
 	unsigned int signr;	/* signal to be sent on completion,
 				  or 0 if none should be sent. */
@@ -144,6 +147,11 @@ struct usbdevfs_disconnect_claim {
 	char driver[USBDEVFS_MAXDRIVERNAME + 1];
 };
 
+struct usbdevfs_streams {
+	unsigned int num_streams; /* Not used by USBDEVFS_FREE_STREAMS */
+	unsigned int num_eps;
+	unsigned char eps[0];
+};
 
 #define USBDEVFS_CONTROL           _IOWR('U', 0, struct usbdevfs_ctrltransfer)
 #define USBDEVFS_CONTROL32           _IOWR('U', 0, struct usbdevfs_ctrltransfer32)
@@ -176,5 +184,7 @@ struct usbdevfs_disconnect_claim {
 #define USBDEVFS_RELEASE_PORT      _IOR('U', 25, unsigned int)
 #define USBDEVFS_GET_CAPABILITIES  _IOR('U', 26, __u32)
 #define USBDEVFS_DISCONNECT_CLAIM  _IOR('U', 27, struct usbdevfs_disconnect_claim)
+#define USBDEVFS_ALLOC_STREAMS     _IOR('U', 28, struct usbdevfs_streams)
+#define USBDEVFS_FREE_STREAMS      _IOR('U', 29, struct usbdevfs_streams)
 
 #endif /* _UAPI_LINUX_USBDEVICE_FS_H */

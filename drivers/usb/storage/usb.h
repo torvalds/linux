@@ -201,4 +201,7 @@ extern int usb_stor_probe1(struct us_data **pus,
 extern int usb_stor_probe2(struct us_data *us);
 extern void usb_stor_disconnect(struct usb_interface *intf);
 
+extern void usb_stor_adjust_quirks(struct usb_device *dev,
+		unsigned long *fflags);
+
 #endif
