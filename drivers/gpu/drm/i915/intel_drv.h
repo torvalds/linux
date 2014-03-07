@@ -220,7 +220,6 @@ typedef struct dpll {
 } intel_clock_t;
 
 struct intel_plane_config {
-	struct intel_framebuffer *fb; /* ends up managed by intel_fbdev.c */
 	bool tiled;
 	int size;
 	u32 base;

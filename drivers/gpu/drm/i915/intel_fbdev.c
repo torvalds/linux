@@ -481,7 +481,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		intel_crtc = to_intel_crtc(crtc);
 
-		if (!intel_crtc->active || !intel_crtc->plane_config.fb) {
+		if (!intel_crtc->active || !crtc->fb) {
 			DRM_DEBUG_KMS("pipe %c not active or no fb, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
@@ -491,7 +491,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			DRM_DEBUG_KMS("found possible fb from plane %c\n",
 				      pipe_name(intel_crtc->pipe));
 			plane_config = &intel_crtc->plane_config;
-			fb = plane_config->fb;
+			fb = to_intel_framebuffer(crtc->fb);
 			max_size = plane_config->size;
 		}
 	}
@@ -543,43 +543,15 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			      max_size, cur_size);
 	}
 
-	/* Free unused fbs */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct intel_framebuffer *cur_fb;
-
-		intel_crtc = to_intel_crtc(crtc);
-		cur_fb = intel_crtc->plane_config.fb;
-
-		if (cur_fb && cur_fb != fb)
-			drm_framebuffer_unreference(&cur_fb->base);
-	}
-
 	if (!fb) {
 		DRM_DEBUG_KMS("BIOS fb not suitable for all pipes, not using\n");
 		goto out;
 	}
 
-	ifbdev->preferred_bpp = plane_config->fb->base.bits_per_pixel;
+	ifbdev->preferred_bpp = fb->base.bits_per_pixel;
 	ifbdev->fb = fb;
 
-	/* Assuming a single fb across all pipes here */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		intel_crtc = to_intel_crtc(crtc);
-
-		if (!intel_crtc->active)
-			continue;
-
-		/*
-		 * This should only fail on the first one so we don't need
-		 * to cleanup any secondary crtc->fbs
-		 */
-		if (intel_pin_and_fence_fb_obj(dev, fb->obj, NULL))
-			goto out_unref_obj;
-
-		crtc->fb = &fb->base;
-		drm_gem_object_reference(&fb->obj->base);
-		drm_framebuffer_reference(&fb->base);
-	}
+	drm_framebuffer_reference(&ifbdev->fb->base);
 
 	/* Final pass to check if any active pipes don't have fbs */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -597,8 +569,6 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	DRM_DEBUG_KMS("using BIOS fb for initial console\n");
 	return true;
 
-out_unref_obj:
-	drm_framebuffer_unreference(&fb->base);
 out:
 
 	return false;

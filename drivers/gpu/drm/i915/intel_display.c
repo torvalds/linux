@@ -2068,7 +2068,7 @@ int intel_format_to_fourcc(int format)
 	}
 }
 
-static void intel_alloc_plane_obj(struct intel_crtc *crtc,
+static bool intel_alloc_plane_obj(struct intel_crtc *crtc,
 				  struct intel_plane_config *plane_config)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -2076,38 +2076,76 @@ static void intel_alloc_plane_obj(struct intel_crtc *crtc,
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	u32 base = plane_config->base;
 
-	if (!plane_config->fb)
-		return;
-
 	obj = i915_gem_object_create_stolen_for_preallocated(dev, base, base,
 							     plane_config->size);
 	if (!obj)
-		return;
+		return false;
 
 	if (plane_config->tiled) {
 		obj->tiling_mode = I915_TILING_X;
-		obj->stride = plane_config->fb->base.pitches[0];
+		obj->stride = crtc->base.fb->pitches[0];
 	}
 
-	mode_cmd.pixel_format = plane_config->fb->base.pixel_format;
-	mode_cmd.width = plane_config->fb->base.width;
-	mode_cmd.height = plane_config->fb->base.height;
-	mode_cmd.pitches[0] = plane_config->fb->base.pitches[0];
+	mode_cmd.pixel_format = crtc->base.fb->pixel_format;
+	mode_cmd.width = crtc->base.fb->width;
+	mode_cmd.height = crtc->base.fb->height;
+	mode_cmd.pitches[0] = crtc->base.fb->pitches[0];
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (intel_framebuffer_init(dev, plane_config->fb, &mode_cmd, obj)) {
+	if (intel_framebuffer_init(dev, to_intel_framebuffer(crtc->base.fb),
+				   &mode_cmd, obj)) {
 		DRM_DEBUG_KMS("intel fb init failed\n");
 		goto out_unref_obj;
 	}
 
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG_KMS("plane fb obj %p\n", plane_config->fb->obj);
-	return;
+
+	DRM_DEBUG_KMS("plane fb obj %p\n", obj);
+	return true;
 
 out_unref_obj:
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
+	return false;
+}
+
+static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
+				 struct intel_plane_config *plane_config)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_crtc *c;
+	struct intel_crtc *i;
+	struct intel_framebuffer *fb;
+
+	if (!intel_crtc->base.fb)
+		return;
+
+	if (intel_alloc_plane_obj(intel_crtc, plane_config))
+		return;
+
+	kfree(intel_crtc->base.fb);
+
+	/*
+	 * Failed to alloc the obj, check to see if we should share
+	 * an fb with another CRTC instead
+	 */
+	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
+		i = to_intel_crtc(c);
+
+		if (c == &intel_crtc->base)
+			continue;
+
+		if (!i->active || !c->fb)
+			continue;
+
+		fb = to_intel_framebuffer(c->fb);
+		if (i915_gem_obj_ggtt_offset(fb->obj) == plane_config->base) {
+			drm_framebuffer_reference(c->fb);
+			intel_crtc->base.fb = c->fb;
+			break;
+		}
+	}
 }
 
 static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -5678,8 +5716,8 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	int fourcc, pixel_format;
 	int aligned_height;
 
-	plane_config->fb = kzalloc(sizeof(*plane_config->fb), GFP_KERNEL);
-	if (!plane_config->fb) {
+	crtc->base.fb = kzalloc(sizeof(struct intel_framebuffer), GFP_KERNEL);
+	if (!crtc->base.fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
 		return;
 	}
@@ -5692,8 +5730,8 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = intel_format_to_fourcc(pixel_format);
-	plane_config->fb->base.pixel_format = fourcc;
-	plane_config->fb->base.bits_per_pixel =
+	crtc->base.fb->pixel_format = fourcc;
+	crtc->base.fb->bits_per_pixel =
 		drm_format_plane_cpp(fourcc, 0) * 8;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -5708,23 +5746,23 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	plane_config->base = base;
 
 	val = I915_READ(PIPESRC(pipe));
-	plane_config->fb->base.width = ((val >> 16) & 0xfff) + 1;
-	plane_config->fb->base.height = ((val >> 0) & 0xfff) + 1;
+	crtc->base.fb->width = ((val >> 16) & 0xfff) + 1;
+	crtc->base.fb->height = ((val >> 0) & 0xfff) + 1;
 
 	val = I915_READ(DSPSTRIDE(pipe));
-	plane_config->fb->base.pitches[0] = val & 0xffffff80;
+	crtc->base.fb->pitches[0] = val & 0xffffff80;
 
-	aligned_height = intel_align_height(dev, plane_config->fb->base.height,
+	aligned_height = intel_align_height(dev, crtc->base.fb->height,
 					    plane_config->tiled);
 
-	plane_config->size = ALIGN(plane_config->fb->base.pitches[0] *
+	plane_config->size = ALIGN(crtc->base.fb->pitches[0] *
 				   aligned_height, PAGE_SIZE);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe, plane, plane_config->fb->base.width,
-		      plane_config->fb->base.height,
-		      plane_config->fb->base.bits_per_pixel, base,
-		      plane_config->fb->base.pitches[0],
+		      pipe, plane, crtc->base.fb->width,
+		      crtc->base.fb->height,
+		      crtc->base.fb->bits_per_pixel, base,
+		      crtc->base.fb->pitches[0],
 		      plane_config->size);
 
 }
@@ -6686,8 +6724,8 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	int fourcc, pixel_format;
 	int aligned_height;
 
-	plane_config->fb = kzalloc(sizeof(*plane_config->fb), GFP_KERNEL);
-	if (!plane_config->fb) {
+	crtc->base.fb = kzalloc(sizeof(struct intel_framebuffer), GFP_KERNEL);
+	if (!crtc->base.fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
 		return;
 	}
@@ -6700,8 +6738,8 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = intel_format_to_fourcc(pixel_format);
-	plane_config->fb->base.pixel_format = fourcc;
-	plane_config->fb->base.bits_per_pixel =
+	crtc->base.fb->pixel_format = fourcc;
+	crtc->base.fb->bits_per_pixel =
 		drm_format_plane_cpp(fourcc, 0) * 8;
 
 	base = I915_READ(DSPSURF(plane)) & 0xfffff000;
@@ -6716,23 +6754,23 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	plane_config->base = base;
 
 	val = I915_READ(PIPESRC(pipe));
-	plane_config->fb->base.width = ((val >> 16) & 0xfff) + 1;
-	plane_config->fb->base.height = ((val >> 0) & 0xfff) + 1;
+	crtc->base.fb->width = ((val >> 16) & 0xfff) + 1;
+	crtc->base.fb->height = ((val >> 0) & 0xfff) + 1;
 
 	val = I915_READ(DSPSTRIDE(pipe));
-	plane_config->fb->base.pitches[0] = val & 0xffffff80;
+	crtc->base.fb->pitches[0] = val & 0xffffff80;
 
-	aligned_height = intel_align_height(dev, plane_config->fb->base.height,
+	aligned_height = intel_align_height(dev, crtc->base.fb->height,
 					    plane_config->tiled);
 
-	plane_config->size = ALIGN(plane_config->fb->base.pitches[0] *
+	plane_config->size = ALIGN(crtc->base.fb->pitches[0] *
 				   aligned_height, PAGE_SIZE);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe, plane, plane_config->fb->base.width,
-		      plane_config->fb->base.height,
-		      plane_config->fb->base.bits_per_pixel, base,
-		      plane_config->fb->base.pitches[0],
+		      pipe, plane, crtc->base.fb->width,
+		      crtc->base.fb->height,
+		      crtc->base.fb->bits_per_pixel, base,
+		      crtc->base.fb->pitches[0],
 		      plane_config->size);
 }
 
@@ -11290,10 +11328,7 @@ void intel_modeset_init(struct drm_device *dev)
 		if (!crtc->active)
 			continue;
 
-#if IS_ENABLED(CONFIG_FB)
 		/*
-		 * We don't have a good way of freeing the buffer w/o the FB
-		 * layer owning it...
 		 * Note that reserving the BIOS fb up front prevents us
 		 * from stuffing other stolen allocations like the ring
 		 * on top.  This prevents some ugliness at boot time, and
@@ -11307,9 +11342,8 @@ void intel_modeset_init(struct drm_device *dev)
 			 * If the fb is shared between multiple heads, we'll
 			 * just get the first one.
 			 */
-			intel_alloc_plane_obj(crtc, &crtc->plane_config);
+			intel_find_plane_obj(crtc, &crtc->plane_config);
 		}
-#endif
 	}
 }
 
@@ -11680,9 +11714,32 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 
 void intel_modeset_gem_init(struct drm_device *dev)
 {
+	struct drm_crtc *c;
+	struct intel_framebuffer *fb;
+
 	intel_modeset_init_hw(dev);
 
 	intel_setup_overlay(dev);
+
+	/*
+	 * Make sure any fbs we allocated at startup are properly
+	 * pinned & fenced.  When we do the allocation it's too early
+	 * for this.
+	 */
+	mutex_lock(&dev->struct_mutex);
+	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
+		if (!c->fb)
+			continue;
+
+		fb = to_intel_framebuffer(c->fb);
+		if (intel_pin_and_fence_fb_obj(dev, fb->obj, NULL)) {
+			DRM_ERROR("failed to pin boot fb on pipe %d\n",
+				  to_intel_crtc(c)->pipe);
+			drm_framebuffer_unreference(c->fb);
+			c->fb = NULL;
+		}
+	}
+	mutex_unlock(&dev->struct_mutex);
 }
 
 void intel_connector_unregister(struct intel_connector *intel_connector)
