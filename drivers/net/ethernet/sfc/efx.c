@@ -1012,7 +1012,7 @@ static int efx_probe_port(struct efx_nic *efx)
 		return rc;
 
 	/* Initialise MAC address to permanent address */
-	memcpy(efx->net_dev->dev_addr, efx->net_dev->perm_addr, ETH_ALEN);
+	ether_addr_copy(efx->net_dev->dev_addr, efx->net_dev->perm_addr);
 
 	return 0;
 }
@@ -2120,7 +2120,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 		return -EADDRNOTAVAIL;
 	}
 
-	memcpy(net_dev->dev_addr, new_addr, net_dev->addr_len);
+	ether_addr_copy(net_dev->dev_addr, new_addr);
 	efx_sriov_mac_address_changed(efx);
 
 	/* Reconfigure the MAC */

@@ -1187,6 +1187,9 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	int rc;
 
 	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_IN_LEN != 0);
+	/* we need __aligned(2) for ether_addr_copy */
+	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0_OFST & 1);
+	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1_OFST & 1);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_BOARD_CFG, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
@@ -1199,11 +1202,10 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	}
 
 	if (mac_address)
-		memcpy(mac_address,
-		       port_num ?
-		       MCDI_PTR(outbuf, GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1) :
-		       MCDI_PTR(outbuf, GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0),
-		       ETH_ALEN);
+		ether_addr_copy(mac_address,
+				port_num ?
+				MCDI_PTR(outbuf, GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1) :
+				MCDI_PTR(outbuf, GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0));
 	if (fw_subtype_list) {
 		for (i = 0;
 		     i < MCDI_VAR_ARRAY_LEN(outlen,
@@ -1532,7 +1534,7 @@ static int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
 	MCDI_SET_DWORD(inbuf, WOL_FILTER_SET_IN_WOL_TYPE, type);
 	MCDI_SET_DWORD(inbuf, WOL_FILTER_SET_IN_FILTER_MODE,
 		       MC_CMD_FILTER_MODE_SIMPLE);
-	memcpy(MCDI_PTR(inbuf, WOL_FILTER_SET_IN_MAGIC_MAC), mac, ETH_ALEN);
+	ether_addr_copy(MCDI_PTR(inbuf, WOL_FILTER_SET_IN_MAGIC_MAC), mac);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_SET, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);

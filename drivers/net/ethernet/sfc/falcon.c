@@ -2183,7 +2183,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 	}
 
 	/* Read the MAC addresses */
-	memcpy(efx->net_dev->perm_addr, nvconfig->mac_address[0], ETH_ALEN);
+	ether_addr_copy(efx->net_dev->perm_addr, nvconfig->mac_address[0]);
 
 	netif_dbg(efx, probe, efx->net_dev, "PHY is %d phy_id %d\n",
 		  efx->phy_type, efx->mdio.prtad);

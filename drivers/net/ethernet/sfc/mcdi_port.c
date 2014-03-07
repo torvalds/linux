@@ -854,8 +854,8 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 
 	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
 
-	memcpy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
-	       efx->net_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
+			efx->net_dev->dev_addr);
 
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_MTU,
 			EFX_MAX_FRAME_LEN(efx->net_dev->mtu));

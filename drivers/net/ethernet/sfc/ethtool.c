@@ -727,7 +727,7 @@ static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 }
 
 /* MAC address mask including only I/G bit */
-static const u8 mac_addr_ig_mask[ETH_ALEN] = { 0x01, 0, 0, 0, 0, 0 };
+static const u8 mac_addr_ig_mask[ETH_ALEN] __aligned(2) = {0x01, 0, 0, 0, 0, 0};
 
 #define IP4_ADDR_FULL_MASK	((__force __be32)~0)
 #define PORT_FULL_MASK		((__force __be16)~0)
@@ -787,16 +787,16 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 		rule->flow_type = ETHER_FLOW;
 		if (spec.match_flags &
 		    (EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_MAC_IG)) {
-			memcpy(mac_entry->h_dest, spec.loc_mac, ETH_ALEN);
+			ether_addr_copy(mac_entry->h_dest, spec.loc_mac);
 			if (spec.match_flags & EFX_FILTER_MATCH_LOC_MAC)
-				memset(mac_mask->h_dest, ~0, ETH_ALEN);
+				eth_broadcast_addr(mac_mask->h_dest);
 			else
-				memcpy(mac_mask->h_dest, mac_addr_ig_mask,
-				       ETH_ALEN);
+				ether_addr_copy(mac_mask->h_dest,
+						mac_addr_ig_mask);
 		}
 		if (spec.match_flags & EFX_FILTER_MATCH_REM_MAC) {
-			memcpy(mac_entry->h_source, spec.rem_mac, ETH_ALEN);
-			memset(mac_mask->h_source, ~0, ETH_ALEN);
+			ether_addr_copy(mac_entry->h_source, spec.rem_mac);
+			eth_broadcast_addr(mac_mask->h_source);
 		}
 		if (spec.match_flags & EFX_FILTER_MATCH_ETHER_TYPE) {
 			mac_entry->h_proto = spec.ether_type;
@@ -968,13 +968,13 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 				spec.match_flags |= EFX_FILTER_MATCH_LOC_MAC;
 			else
 				return -EINVAL;
-			memcpy(spec.loc_mac, mac_entry->h_dest, ETH_ALEN);
+			ether_addr_copy(spec.loc_mac, mac_entry->h_dest);
 		}
 		if (!is_zero_ether_addr(mac_mask->h_source)) {
 			if (!is_broadcast_ether_addr(mac_mask->h_source))
 				return -EINVAL;
 			spec.match_flags |= EFX_FILTER_MATCH_REM_MAC;
-			memcpy(spec.rem_mac, mac_entry->h_source, ETH_ALEN);
+			ether_addr_copy(spec.rem_mac, mac_entry->h_source);
 		}
 		if (mac_mask->h_proto) {
 			if (mac_mask->h_proto != ETHER_TYPE_FULL_MASK)
