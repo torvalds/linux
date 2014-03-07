@@ -5734,9 +5734,16 @@ static const struct dsi_module_id_data dsi_of_data_omap4[] = {
 	{ },
 };
 
+static const struct dsi_module_id_data dsi_of_data_omap5[] = {
+	{ .address = 0x58004000, .id = 0, },
+	{ .address = 0x58009000, .id = 1, },
+	{ },
+};
+
 static const struct of_device_id dsi_of_match[] = {
 	{ .compatible = "ti,omap3-dsi", .data = dsi_of_data_omap3, },
 	{ .compatible = "ti,omap4-dsi", .data = dsi_of_data_omap4, },
+	{ .compatible = "ti,omap5-dsi", .data = dsi_of_data_omap5, },
 	{},
 };
 
