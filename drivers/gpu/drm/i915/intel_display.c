@@ -7033,8 +7033,6 @@ void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG_KMS("Enabling package C8+\n");
 
-	dev_priv->pc8.enabled = true;
-
 	if (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
 		val = I915_READ(SOUTH_DSPCLK_GATE_D);
 		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
@@ -7070,7 +7068,6 @@ void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->rps.hw_lock);
 	gen6_update_ring_freq(dev);
 	mutex_unlock(&dev_priv->rps.hw_lock);
-	dev_priv->pc8.enabled = false;
 }
 
 static void haswell_modeset_global_resources(struct drm_device *dev)

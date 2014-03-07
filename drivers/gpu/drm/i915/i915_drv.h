@@ -1391,8 +1391,6 @@ struct ilk_wm_values {
  */
 struct i915_package_c8 {
 	bool irqs_disabled;
-	/* Only true after the delayed work task actually enables it. */
-	bool enabled;
 	struct mutex lock;
 
 	struct {

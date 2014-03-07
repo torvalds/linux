@@ -5345,8 +5345,6 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	bool is_enabled, enable_requested;
 	uint32_t tmp;
 
-	WARN_ON(dev_priv->pc8.enabled);
-
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	is_enabled = tmp & HSW_PWR_WELL_STATE_ENABLED;
 	enable_requested = tmp & HSW_PWR_WELL_ENABLE_REQUEST;
@@ -6161,7 +6159,6 @@ void intel_pm_setup(struct drm_device *dev)
 
 	mutex_init(&dev_priv->pc8.lock);
 	dev_priv->pc8.irqs_disabled = false;
-	dev_priv->pc8.enabled = false;
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }
