@@ -1502,14 +1502,18 @@ static void arizona_apply_fll(struct arizona *arizona, unsigned int base,
 				 cfg->refdiv << ARIZONA_FLL1_CLK_REF_DIV_SHIFT |
 				 source << ARIZONA_FLL1_CLK_REF_SRC_SHIFT);
 
-	if (sync)
-		regmap_update_bits_async(arizona->regmap, base + 0x7,
-					 ARIZONA_FLL1_GAIN_MASK,
-					 cfg->gain << ARIZONA_FLL1_GAIN_SHIFT);
-	else
-		regmap_update_bits_async(arizona->regmap, base + 0x9,
-					 ARIZONA_FLL1_GAIN_MASK,
-					 cfg->gain << ARIZONA_FLL1_GAIN_SHIFT);
+	if (sync) {
+		regmap_update_bits(arizona->regmap, base + 0x7,
+				   ARIZONA_FLL1_GAIN_MASK,
+				   cfg->gain << ARIZONA_FLL1_GAIN_SHIFT);
+	} else {
+		regmap_update_bits(arizona->regmap, base + 0x5,
+				   ARIZONA_FLL1_OUTDIV_MASK,
+				   cfg->outdiv << ARIZONA_FLL1_OUTDIV_SHIFT);
+		regmap_update_bits(arizona->regmap, base + 0x9,
+				   ARIZONA_FLL1_GAIN_MASK,
+				   cfg->gain << ARIZONA_FLL1_GAIN_SHIFT);
+	}
 
 	regmap_update_bits_async(arizona->regmap, base + 2,
 				 ARIZONA_FLL1_CTRL_UPD | ARIZONA_FLL1_N_MASK,
@@ -1546,10 +1550,6 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 	 */
 	if (fll->ref_src >= 0 && fll->ref_freq &&
 	    fll->ref_src != fll->sync_src) {
-		regmap_update_bits_async(arizona->regmap, fll->base + 5,
-					 ARIZONA_FLL1_OUTDIV_MASK,
-					 ref->outdiv << ARIZONA_FLL1_OUTDIV_SHIFT);
-
 		arizona_apply_fll(arizona, fll->base, ref, fll->ref_src,
 				  false);
 		if (fll->sync_src >= 0) {
@@ -1558,10 +1558,6 @@ static void arizona_enable_fll(struct arizona_fll *fll,
 			use_sync = true;
 		}
 	} else if (fll->sync_src >= 0) {
-		regmap_update_bits_async(arizona->regmap, fll->base + 5,
-					 ARIZONA_FLL1_OUTDIV_MASK,
-					 sync->outdiv << ARIZONA_FLL1_OUTDIV_SHIFT);
-
 		arizona_apply_fll(arizona, fll->base, sync,
 				  fll->sync_src, false);
 
