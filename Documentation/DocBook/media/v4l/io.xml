@@ -1470,10 +1470,9 @@ or application, depending on data direction, must set &v4l2-buffer;
 <constant>V4L2_FIELD_BOTTOM</constant>. Any two successive fields pair
 to build a frame. If fields are successive, without any dropped fields
 between them (fields can drop individually), can be determined from
-the &v4l2-buffer; <structfield>sequence</structfield> field. Image
-sizes refer to the frame, not fields. This format cannot be selected
-when using the read/write I/O method.<!-- Where it's indistinguishable
-from V4L2_FIELD_SEQ_*. --></entry>
+the &v4l2-buffer; <structfield>sequence</structfield> field. This format
+cannot be selected when using the read/write I/O method since there
+is no way to communicate if a field was a top or bottom field.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_FIELD_INTERLACED_TB</constant></entry>
