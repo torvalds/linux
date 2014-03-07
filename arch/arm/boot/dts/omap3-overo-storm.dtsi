@@ -6,6 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "omap34xx.dtsi"
+#include "omap36xx.dtsi"
 #include "omap3-overo-base.dtsi"
 
