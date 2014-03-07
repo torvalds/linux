@@ -1588,15 +1588,8 @@ static int ra_sum_pages(struct f2fs_sb_info *sbi, struct list_head *pages,
 	for (; page_idx < start + nrpages; page_idx++) {
 		/* alloc temporal page for read node summary info*/
 		page = alloc_page(GFP_F2FS_ZERO);
-		if (!page) {
-			struct page *tmp;
-			list_for_each_entry_safe(page, tmp, pages, lru) {
-				list_del(&page->lru);
-				unlock_page(page);
-				__free_pages(page, 0);
-			}
-			return -ENOMEM;
-		}
+		if (!page)
+			break;
 
 		lock_page(page);
 		page->index = page_idx;
@@ -1607,7 +1600,8 @@ static int ra_sum_pages(struct f2fs_sb_info *sbi, struct list_head *pages,
 		f2fs_submit_page_mbio(sbi, page, page->index, &fio);
 
 	f2fs_submit_merged_bio(sbi, META, READ);
-	return 0;
+
+	return page_idx - start;
 }
 
 int restore_node_summary(struct f2fs_sb_info *sbi,
@@ -1626,15 +1620,17 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 	addr = START_BLOCK(sbi, segno);
 	sum_entry = &sum->entries[0];
 
-	for (i = 0; i < last_offset; i += nrpages, addr += nrpages) {
+	for (i = 0; !err && i < last_offset; i += nrpages, addr += nrpages) {
 		nrpages = min(last_offset - i, bio_blocks);
 
 		/* read ahead node pages */
-		err = ra_sum_pages(sbi, &page_list, addr, nrpages);
-		if (err)
-			return err;
+		nrpages = ra_sum_pages(sbi, &page_list, addr, nrpages);
+		if (!nrpages)
+			return -ENOMEM;
 
 		list_for_each_entry_safe(page, tmp, &page_list, lru) {
+			if (err)
+				goto skip;
 
 			lock_page(page);
 			if (unlikely(!PageUptodate(page))) {
@@ -1646,9 +1642,9 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 				sum_entry->ofs_in_node = 0;
 				sum_entry++;
 			}
-
-			list_del(&page->lru);
 			unlock_page(page);
+skip:
+			list_del(&page->lru);
 			__free_pages(page, 0);
 		}
 	}

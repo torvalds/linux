@@ -1160,9 +1160,12 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 				ns->ofs_in_node = 0;
 			}
 		} else {
-			if (restore_node_summary(sbi, segno, sum)) {
+			int err;
+
+			err = restore_node_summary(sbi, segno, sum);
+			if (err) {
 				f2fs_put_page(new, 1);
-				return -EINVAL;
+				return err;
 			}
 		}
 	}
