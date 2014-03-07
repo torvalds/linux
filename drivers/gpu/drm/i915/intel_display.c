@@ -7046,12 +7046,6 @@ void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
 	hsw_disable_lcpll(dev_priv, true, true);
 }
 
-static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
-{
-	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
-	intel_runtime_pm_put(dev_priv);
-}
-
 void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -7079,19 +7073,13 @@ void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv)
 	dev_priv->pc8.enabled = false;
 }
 
-static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
-{
-	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
-	intel_runtime_pm_get(dev_priv);
-}
-
 void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_PC8(dev_priv->dev))
 		return;
 
 	mutex_lock(&dev_priv->pc8.lock);
-	__hsw_enable_package_c8(dev_priv);
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
 }
 
@@ -7101,7 +7089,7 @@ void hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 		return;
 
 	mutex_lock(&dev_priv->pc8.lock);
-	__hsw_disable_package_c8(dev_priv);
+	intel_runtime_pm_get(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
 }
 
