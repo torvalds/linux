@@ -1253,10 +1253,11 @@ err1:
 	return err;
 }
 
-static void nf_tables_expr_destroy(struct nft_expr *expr)
+static void nf_tables_expr_destroy(const struct nft_ctx *ctx,
+				   struct nft_expr *expr)
 {
 	if (expr->ops->destroy)
-		expr->ops->destroy(expr);
+		expr->ops->destroy(ctx, expr);
 	module_put(expr->ops->type->owner);
 }
 
@@ -1536,7 +1537,8 @@ err:
 	return err;
 }
 
-static void nf_tables_rule_destroy(struct nft_rule *rule)
+static void nf_tables_rule_destroy(const struct nft_ctx *ctx,
+				   struct nft_rule *rule)
 {
 	struct nft_expr *expr;
 
@@ -1546,7 +1548,7 @@ static void nf_tables_rule_destroy(struct nft_rule *rule)
 	 */
 	expr = nft_expr_first(rule);
 	while (expr->ops && expr != nft_expr_last(rule)) {
-		nf_tables_expr_destroy(expr);
+		nf_tables_expr_destroy(ctx, expr);
 		expr = nft_expr_next(expr);
 	}
 	kfree(rule);
@@ -1565,11 +1567,8 @@ nf_tables_trans_add(struct nft_ctx *ctx, struct nft_rule *rule)
 	if (rupd == NULL)
 	       return NULL;
 
-	rupd->chain = ctx->chain;
-	rupd->table = ctx->table;
+	rupd->ctx = *ctx;
 	rupd->rule = rule;
-	rupd->family = ctx->afi->family;
-	rupd->nlh = ctx->nlh;
 	list_add_tail(&rupd->list, &ctx->net->nft.commit_list);
 
 	return rupd;
@@ -1721,7 +1720,7 @@ err3:
 		kfree(repl);
 	}
 err2:
-	nf_tables_rule_destroy(rule);
+	nf_tables_rule_destroy(&ctx, rule);
 err1:
 	for (i = 0; i < n; i++) {
 		if (info[i].ops != NULL)
@@ -1831,10 +1830,10 @@ static int nf_tables_commit(struct sk_buff *skb)
 		 */
 		if (nft_rule_is_active(net, rupd->rule)) {
 			nft_rule_clear(net, rupd->rule);
-			nf_tables_rule_notify(skb, rupd->nlh, rupd->table,
-					      rupd->chain, rupd->rule,
-					      NFT_MSG_NEWRULE, 0,
-					      rupd->family);
+			nf_tables_rule_notify(skb, rupd->ctx.nlh,
+					      rupd->ctx.table, rupd->ctx.chain,
+					      rupd->rule, NFT_MSG_NEWRULE, 0,
+					      rupd->ctx.afi->family);
 			list_del(&rupd->list);
 			kfree(rupd);
 			continue;
@@ -1842,9 +1841,10 @@ static int nf_tables_commit(struct sk_buff *skb)
 
 		/* This rule is in the past, get rid of it */
 		list_del_rcu(&rupd->rule->list);
-		nf_tables_rule_notify(skb, rupd->nlh, rupd->table, rupd->chain,
+		nf_tables_rule_notify(skb, rupd->ctx.nlh,
+				      rupd->ctx.table, rupd->ctx.chain,
 				      rupd->rule, NFT_MSG_DELRULE, 0,
-				      rupd->family);
+				      rupd->ctx.afi->family);
 	}
 
 	/* Make sure we don't see any packet traversing old rules */
@@ -1852,7 +1852,7 @@ static int nf_tables_commit(struct sk_buff *skb)
 
 	/* Now we can safely release unused old rules */
 	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
-		nf_tables_rule_destroy(rupd->rule);
+		nf_tables_rule_destroy(&rupd->ctx, rupd->rule);
 		list_del(&rupd->list);
 		kfree(rupd);
 	}
@@ -1881,7 +1881,7 @@ static int nf_tables_abort(struct sk_buff *skb)
 	synchronize_rcu();
 
 	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
-		nf_tables_rule_destroy(rupd->rule);
+		nf_tables_rule_destroy(&rupd->ctx, rupd->rule);
 		list_del(&rupd->list);
 		kfree(rupd);
 	}

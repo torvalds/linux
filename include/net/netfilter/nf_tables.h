@@ -289,7 +289,8 @@ struct nft_expr_ops {
 	int				(*init)(const struct nft_ctx *ctx,
 						const struct nft_expr *expr,
 						const struct nlattr * const tb[]);
-	void				(*destroy)(const struct nft_expr *expr);
+	void				(*destroy)(const struct nft_ctx *ctx,
+						   const struct nft_expr *expr);
 	int				(*dump)(struct sk_buff *skb,
 						const struct nft_expr *expr);
 	int				(*validate)(const struct nft_ctx *ctx,
@@ -343,19 +344,13 @@ struct nft_rule {
  *	struct nft_rule_trans - nf_tables rule update in transaction
  *
  *	@list: used internally
+ *	@ctx: rule context
  *	@rule: rule that needs to be updated
- *	@chain: chain that this rule belongs to
- *	@table: table for which this chain applies
- *	@nlh: netlink header of the message that contain this update
- *	@family: family expressesed as AF_*
  */
 struct nft_rule_trans {
 	struct list_head		list;
+	struct nft_ctx			ctx;
 	struct nft_rule			*rule;
-	const struct nft_chain		*chain;
-	const struct nft_table		*table;
-	const struct nlmsghdr		*nlh;
-	u8				family;
 };
 
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
