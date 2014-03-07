@@ -161,11 +161,10 @@ static void boot_core(unsigned core)
 	write_gcr_access(access);
 
 	if (mips_cpc_present()) {
-		/* Select the appropriate core */
-		write_cpc_cl_other(core << CPC_Cx_OTHER_CORENUM_SHF);
-
 		/* Reset the core */
+		mips_cpc_lock_other(core);
 		write_cpc_co_cmd(CPC_Cx_CMD_RESET);
+		mips_cpc_unlock_other();
 	} else {
 		/* Take the core out of reset */
 		write_gcr_co_reset_release(0);
