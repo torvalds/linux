@@ -725,8 +725,8 @@ unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 					     unsigned int bpp,
 					     unsigned int pitch);
 void intel_display_handle_reset(struct drm_device *dev);
-void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv);
-void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv);
+void hsw_enable_pc8(struct drm_i915_private *dev_priv);
+void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_config *pipe_config);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);

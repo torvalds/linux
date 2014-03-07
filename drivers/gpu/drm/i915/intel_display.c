@@ -7024,7 +7024,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
+void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
@@ -7044,7 +7044,7 @@ void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
 	hsw_disable_lcpll(dev_priv, true, true);
 }
 
-void __hsw_do_disable_pc8(struct drm_i915_private *dev_priv)
+void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;

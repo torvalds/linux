@@ -845,7 +845,7 @@ static int i915_runtime_suspend(struct device *device)
 	DRM_DEBUG_KMS("Suspending device\n");
 
 	if (HAS_PC8(dev))
-		__hsw_do_enable_pc8(dev_priv);
+		hsw_enable_pc8(dev_priv);
 
 	i915_gem_release_all_mmaps(dev_priv);
 
@@ -879,7 +879,7 @@ static int i915_runtime_resume(struct device *device)
 	dev_priv->pm.suspended = false;
 
 	if (HAS_PC8(dev))
-		__hsw_do_disable_pc8(dev_priv);
+		hsw_disable_pc8(dev_priv);
 
 	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;
