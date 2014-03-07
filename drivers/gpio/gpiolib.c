@@ -2167,10 +2167,7 @@ EXPORT_SYMBOL_GPL(gpiod_to_irq);
  * @gpio: the GPIO line to lock as used for IRQ
  *
  * This is used directly by GPIO drivers that want to lock down
- * a certain GPIO line to be used as IRQs, for example in the
- * .to_irq() callback of their gpio_chip, or in the .irq_enable()
- * of its irq_chip implementation if the GPIO is known from that
- * code.
+ * a certain GPIO line to be used for IRQs.
  */
 int gpiod_lock_as_irq(struct gpio_desc *desc)
 {
