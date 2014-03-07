@@ -651,6 +651,7 @@ SiS_GetModeID_LCD(int VGAEngine, unsigned int VBFlags, int HDisplay, int VDispla
 	     switch(VDisplay) {
 	     case 720:
 		ModeIndex = ModeIndex_1280x720[Depth];
+		break;
 	     case 768:
 		if(VGAEngine == SIS_300_VGA) {
 		   ModeIndex = ModeIndex_300_1280x768[Depth];
