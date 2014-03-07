@@ -19,6 +19,8 @@
 #ifndef _ASM_PROBES_H
 #define _ASM_PROBES_H
 
+struct kprobe;
+
 typedef void (kprobe_insn_handler_t)(struct kprobe *, struct pt_regs *);
 typedef unsigned long (kprobe_check_cc)(unsigned long);
 typedef void (kprobe_insn_singlestep_t)(struct kprobe *, struct pt_regs *);
