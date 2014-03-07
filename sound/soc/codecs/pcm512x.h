@@ -17,6 +17,9 @@
 #ifndef _SND_SOC_PCM512X
 #define _SND_SOC_PCM512X
 
+#include <linux/pm.h>
+#include <linux/regmap.h>
+
 #define PCM512x_VIRT_BASE 0x100
 #define PCM512x_PAGE_LEN  0x100
 #define PCM512x_PAGE_BASE(n)  (PCM512x_VIRT_BASE + (PCM512x_PAGE_LEN * n))
@@ -158,5 +161,11 @@
 /* Page 1, Register 7 - analog boost control */
 #define PCM512x_AGBR_SHIFT 0
 #define PCM512x_AGBL_SHIFT 4
+
+extern const struct dev_pm_ops pcm512x_pm_ops;
+extern const struct regmap_config pcm512x_regmap;
+
+int pcm512x_probe(struct device *dev, struct regmap *regmap);
+void pcm512x_remove(struct device *dev);
 
 #endif

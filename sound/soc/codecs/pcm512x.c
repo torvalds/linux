@@ -18,11 +18,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/clk.h>
-#include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
-#include <linux/spi/spi.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
@@ -375,7 +373,7 @@ static const struct regmap_range_cfg pcm512x_range = {
 	.window_start = 0, .window_len = 0x100,
 };
 
-static const struct regmap_config pcm512x_regmap = {
+const struct regmap_config pcm512x_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -390,15 +388,9 @@ static const struct regmap_config pcm512x_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(pcm512x_reg_defaults),
 	.cache_type = REGCACHE_RBTREE,
 };
+EXPORT_SYMBOL_GPL(pcm512x_regmap);
 
-static const struct of_device_id pcm512x_of_match[] = {
-	{ .compatible = "ti,pcm5121", },
-	{ .compatible = "ti,pcm5122", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, pcm512x_of_match);
-
-static int pcm512x_probe(struct device *dev, struct regmap *regmap)
+int pcm512x_probe(struct device *dev, struct regmap *regmap)
 {
 	struct pcm512x_priv *pcm512x;
 	int i, ret;
@@ -510,8 +502,9 @@ err:
 				     pcm512x->supplies);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pcm512x_probe);
 
-static void pcm512x_remove(struct device *dev)
+void pcm512x_remove(struct device *dev)
 {
 	struct pcm512x_priv *pcm512x = dev_get_drvdata(dev);
 
@@ -522,6 +515,7 @@ static void pcm512x_remove(struct device *dev)
 	regulator_bulk_disable(ARRAY_SIZE(pcm512x->supplies),
 			       pcm512x->supplies);
 }
+EXPORT_SYMBOL_GPL(pcm512x_remove);
 
 static int pcm512x_suspend(struct device *dev)
 {
@@ -585,122 +579,10 @@ static int pcm512x_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops pcm512x_pm_ops = {
+const struct dev_pm_ops pcm512x_pm_ops = {
 	SET_RUNTIME_PM_OPS(pcm512x_suspend, pcm512x_resume, NULL)
 };
-
-#if IS_ENABLED(CONFIG_I2C)
-static int pcm512x_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
-{
-	struct regmap *regmap;
-
-	regmap = devm_regmap_init_i2c(i2c, &pcm512x_regmap);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
-	return pcm512x_probe(&i2c->dev, regmap);
-}
-
-static int pcm512x_i2c_remove(struct i2c_client *i2c)
-{
-	pcm512x_remove(&i2c->dev);
-	return 0;
-}
-
-static const struct i2c_device_id pcm512x_i2c_id[] = {
-	{ "pcm5121", },
-	{ "pcm5122", },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, pcm512x_i2c_id);
-
-static struct i2c_driver pcm512x_i2c_driver = {
-	.probe 		= pcm512x_i2c_probe,
-	.remove 	= pcm512x_i2c_remove,
-	.id_table	= pcm512x_i2c_id,
-	.driver		= {
-		.name	= "pcm512x",
-		.owner	= THIS_MODULE,
-		.of_match_table = pcm512x_of_match,
-		.pm     = &pcm512x_pm_ops,
-	},
-};
-#endif
-
-#if defined(CONFIG_SPI_MASTER)
-static int pcm512x_spi_probe(struct spi_device *spi)
-{
-	struct regmap *regmap;
-	int ret;
-
-	regmap = devm_regmap_init_spi(spi, &pcm512x_regmap);
-	if (IS_ERR(regmap)) {
-		ret = PTR_ERR(regmap);
-		return ret;
-	}
-
-	return pcm512x_probe(&spi->dev, regmap);
-}
-
-static int pcm512x_spi_remove(struct spi_device *spi)
-{
-	pcm512x_remove(&spi->dev);
-	return 0;
-}
-
-static const struct spi_device_id pcm512x_spi_id[] = {
-	{ "pcm5121", },
-	{ "pcm5122", },
-	{ },
-};
-MODULE_DEVICE_TABLE(spi, pcm512x_spi_id);
-
-static struct spi_driver pcm512x_spi_driver = {
-	.probe		= pcm512x_spi_probe,
-	.remove		= pcm512x_spi_remove,
-	.id_table	= pcm512x_spi_id,
-	.driver = {
-		.name	= "pcm512x",
-		.owner	= THIS_MODULE,
-		.of_match_table = pcm512x_of_match,
-		.pm     = &pcm512x_pm_ops,
-	},
-};
-#endif
-
-static int __init pcm512x_modinit(void)
-{
-	int ret = 0;
-
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&pcm512x_i2c_driver);
-	if (ret) {
-		printk(KERN_ERR "Failed to register pcm512x I2C driver: %d\n",
-		       ret);
-	}
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&pcm512x_spi_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register pcm512x SPI driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(pcm512x_modinit);
-
-static void __exit pcm512x_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&pcm512x_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&pcm512x_spi_driver);
-#endif
-}
-module_exit(pcm512x_exit);
+EXPORT_SYMBOL_GPL(pcm512x_pm_ops);
 
 MODULE_DESCRIPTION("ASoC PCM512x codec driver");
 MODULE_AUTHOR("Mark Brown <broonie@linaro.org>");
