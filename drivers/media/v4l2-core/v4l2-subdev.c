@@ -349,10 +349,10 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			sd, pad, set_selection, subdev_fh, sel);
 	}
 
-	case VIDIOC_SUBDEV_G_EDID:
+	case VIDIOC_G_EDID:
 		return v4l2_subdev_call(sd, pad, get_edid, arg);
 
-	case VIDIOC_SUBDEV_S_EDID:
+	case VIDIOC_S_EDID:
 		return v4l2_subdev_call(sd, pad, set_edid, arg);
 #endif
 	default:
