@@ -418,48 +418,6 @@ out_unlock:
 }
 
 /**
- * pcpu_split_block - split a map block
- * @chunk: chunk of interest
- * @i: index of map block to split
- * @head: head size in bytes (can be 0)
- * @tail: tail size in bytes (can be 0)
- *
- * Split the @i'th map block into two or three blocks.  If @head is
- * non-zero, @head bytes block is inserted before block @i moving it
- * to @i+1 and reducing its size by @head bytes.
- *
- * If @tail is non-zero, the target block, which can be @i or @i+1
- * depending on @head, is reduced by @tail bytes and @tail byte block
- * is inserted after the target block.
- *
- * @chunk->map must have enough free slots to accommodate the split.
- *
- * CONTEXT:
- * pcpu_lock.
- */
-static void pcpu_split_block(struct pcpu_chunk *chunk, int i,
-			     int head, int tail)
-{
-	int nr_extra = !!head + !!tail;
-
-	BUG_ON(chunk->map_alloc < chunk->map_used + nr_extra);
-
-	/* insert new subblocks */
-	memmove(&chunk->map[i + nr_extra], &chunk->map[i],
-		sizeof(chunk->map[0]) * (chunk->map_used - i));
-	chunk->map_used += nr_extra;
-
-	if (head) {
-		chunk->map[i + 1] = chunk->map[i] - head;
-		chunk->map[i++] = head;
-	}
-	if (tail) {
-		chunk->map[i++] -= tail;
-		chunk->map[i] = tail;
-	}
-}
-
-/**
  * pcpu_alloc_area - allocate area from a pcpu_chunk
  * @chunk: chunk of interest
  * @size: wanted size in bytes
@@ -524,14 +482,25 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
 
 		/* split if warranted */
 		if (head || tail) {
-			pcpu_split_block(chunk, i, head, tail);
+			int nr_extra = !!head + !!tail;
+
+			/* insert new subblocks */
+			memmove(&chunk->map[i + nr_extra], &chunk->map[i],
+				sizeof(chunk->map[0]) * (chunk->map_used - i));
+			chunk->map_used += nr_extra;
+
 			if (head) {
-				i++;
+				chunk->map[i + 1] = chunk->map[i] - head;
+				chunk->map[i] = head;
 				off += head;
-				max_contig = max(chunk->map[i - 1], max_contig);
+				i++;
+				max_contig = max(head, max_contig);
 			}
-			if (tail)
-				max_contig = max(chunk->map[i + 1], max_contig);
+			if (tail) {
+				chunk->map[i] -= tail;
+				chunk->map[i + 1] = tail;
+				max_contig = max(tail, max_contig);
+			}
 		}
 
 		/* update hint and mark allocated */
