@@ -83,6 +83,13 @@ static const struct jr3_pci_board jr3_pci_boards[] = {
 	},
 };
 
+struct jr3_pci_transform {
+	struct {
+		u16 link_type;
+		s16 link_amount;
+	} link[8];
+};
+
 struct jr3_pci_dev_private {
 	struct jr3_t __iomem *iobase;
 	struct timer_list timer;
@@ -131,15 +138,8 @@ static int is_complete(struct jr3_channel __iomem *channel)
 	return get_s16(&channel->command_word0) == 0;
 }
 
-struct transform_t {
-	struct {
-		u16 link_type;
-		s16 link_amount;
-	} link[8];
-};
-
 static void set_transforms(struct jr3_channel __iomem *channel,
-			   struct transform_t transf, short num)
+			   struct jr3_pci_transform transf, short num)
 {
 	int i;
 
@@ -495,7 +495,7 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 			 * (< 10 s according to manual)
 			 */
 		} else {
-			struct transform_t transf;
+			struct jr3_pci_transform transf;
 
 			spriv->model_no = get_u16(&channel->model_no);
 			spriv->serial_no = get_u16(&channel->serial_no);
