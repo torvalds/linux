@@ -2738,7 +2738,7 @@ EXPORT_SYMBOL(dw_mci_remove);
  */
 int dw_mci_suspend(struct dw_mci *host)
 {
-	int i, ret = 0;
+	/*int i, ret = 0;
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
@@ -2754,7 +2754,7 @@ int dw_mci_suspend(struct dw_mci *host)
 			return ret;
 		}
 	}
-
+	*/
 	if (host->vmmc)
 		regulator_disable(host->vmmc);
 
