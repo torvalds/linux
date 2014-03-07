@@ -7006,18 +7006,10 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
-void hsw_enable_pc8_work(struct work_struct *__work)
+static void __hsw_do_enable_pc8(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(to_delayed_work(__work), struct drm_i915_private,
-			     pc8.enable_work);
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
-
-	WARN_ON(!HAS_PC8(dev));
-
-	if (dev_priv->pc8.enabled)
-		return;
 
 	DRM_DEBUG_KMS("Enabling package C8+\n");
 
@@ -7032,7 +7024,21 @@ void hsw_enable_pc8_work(struct work_struct *__work)
 	lpt_disable_clkout_dp(dev);
 	hsw_pc8_disable_interrupts(dev);
 	hsw_disable_lcpll(dev_priv, true, true);
+}
 
+void hsw_enable_pc8_work(struct work_struct *__work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(to_delayed_work(__work), struct drm_i915_private,
+			     pc8.enable_work);
+	struct drm_device *dev = dev_priv->dev;
+
+	WARN_ON(!HAS_PC8(dev));
+
+	if (dev_priv->pc8.enabled)
+		return;
+
+	__hsw_do_enable_pc8(dev_priv);
 	intel_runtime_pm_put(dev_priv);
 }
 
@@ -7050,28 +7056,12 @@ static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 			      msecs_to_jiffies(i915.pc8_timeout));
 }
 
-static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
+static void __hsw_do_disable_package_c8(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
-	WARN(dev_priv->pc8.disable_count < 0,
-	     "pc8.disable_count: %d\n", dev_priv->pc8.disable_count);
-
-	dev_priv->pc8.disable_count++;
-	if (dev_priv->pc8.disable_count != 1)
-		return;
-
-	WARN_ON(!HAS_PC8(dev));
-
-	cancel_delayed_work_sync(&dev_priv->pc8.enable_work);
-	if (!dev_priv->pc8.enabled)
-		return;
-
 	DRM_DEBUG_KMS("Disabling package C8+\n");
-
-	intel_runtime_pm_get(dev_priv);
 
 	hsw_restore_lcpll(dev_priv);
 	hsw_pc8_restore_interrupts(dev);
@@ -7089,6 +7079,28 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 	gen6_update_ring_freq(dev);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 	dev_priv->pc8.enabled = false;
+}
+
+static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
+	WARN(dev_priv->pc8.disable_count < 0,
+	     "pc8.disable_count: %d\n", dev_priv->pc8.disable_count);
+
+	dev_priv->pc8.disable_count++;
+	if (dev_priv->pc8.disable_count != 1)
+		return;
+
+	WARN_ON(!HAS_PC8(dev));
+
+	cancel_delayed_work_sync(&dev_priv->pc8.enable_work);
+	if (!dev_priv->pc8.enabled)
+		return;
+
+	intel_runtime_pm_get(dev_priv);
+	__hsw_do_disable_package_c8(dev_priv);
 }
 
 void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
