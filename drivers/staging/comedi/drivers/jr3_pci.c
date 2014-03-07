@@ -326,105 +326,112 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	return result;
 }
 
-static int jr3_download_firmware(struct comedi_device *dev,
-				 const u8 *data, size_t size,
-				 unsigned long context)
+static int jr3_check_firmware(struct comedi_device *dev,
+			      const u8 *data, size_t size)
 {
+	int more = 1;
+	int pos = 0;
+
 	/*
 	 * IDM file format is:
 	 *   { count, address, data <count> } *
 	 *   ffff
 	 */
-	int result, more, pos, OK;
-
-	result = 0;
-	more = 1;
-	pos = 0;
-	OK = 0;
 	while (more) {
-		unsigned int count, addr;
+		unsigned int count = 0;
+		unsigned int addr = 0;
 
 		more = more && read_idm_word(data, size, &pos, &count);
-		if (more && count == 0xffff) {
-			OK = 1;
-			break;
-		}
+		if (more && count == 0xffff)
+			return 0;
+
 		more = more && read_idm_word(data, size, &pos, &addr);
 		while (more && count > 0) {
-			unsigned int dummy;
+			unsigned int dummy = 0;
+
 			more = more && read_idm_word(data, size, &pos, &dummy);
 			count--;
 		}
 	}
 
-	if (!OK) {
-		result = -ENODATA;
-	} else {
-		int i;
-		struct jr3_pci_dev_private *p = dev->private;
+	return -ENODATA;
+}
 
-		for (i = 0; i < p->n_channels; i++) {
-			struct jr3_pci_subdev_private *sp;
+static void jr3_write_firmware(struct comedi_device *dev,
+			       int subdev, const u8 *data, size_t size)
+{
+	struct jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_t __iomem *iobase = devpriv->iobase;
+	u32 __iomem *lo;
+	u32 __iomem *hi;
+	int more = 1;
+	int pos = 0;
 
-			sp = dev->subdevices[i].private;
-			more = 1;
-			pos = 0;
-			while (more) {
-				unsigned int count, addr;
+	while (more) {
+		unsigned int count = 0;
+		unsigned int addr = 0;
+
+		more = more && read_idm_word(data, size, &pos, &count);
+		if (more && count == 0xffff)
+			return;
+
+		more = more && read_idm_word(data, size, &pos, &addr);
+
+		dev_dbg(dev->class_dev, "Loading#%d %4.4x bytes at %4.4x\n",
+			subdev, count, addr);
+
+		while (more && count > 0) {
+			if (addr & 0x4000) {
+				/* 16 bit data, never seen in real life!! */
+				unsigned int data1 = 0;
+
 				more = more &&
-				       read_idm_word(data, size, &pos, &count);
-				if (more && count == 0xffff)
-					break;
+				       read_idm_word(data, size, &pos, &data1);
+				count--;
+				/* jr3[addr + 0x20000 * pnum] = data1; */
+			} else {
+				/* Download 24 bit program */
+				unsigned int data1 = 0;
+				unsigned int data2 = 0;
+
+				lo = &iobase->channel[subdev].program_lo[addr];
+				hi = &iobase->channel[subdev].program_hi[addr];
+
 				more = more &&
-				       read_idm_word(data, size, &pos, &addr);
-				dev_dbg(dev->class_dev,
-					"Loading#%d %4.4x bytes at %4.4x\n",
-					i, count, addr);
-				while (more && count > 0) {
-					if (addr & 0x4000) {
-						/*  16 bit data, never seen
-						 *  in real life!! */
-						unsigned int data1;
-
-						more = more &&
-						       read_idm_word(data,
-								     size, &pos,
-								     &data1);
-						count--;
-						/* jr3[addr + 0x20000 * pnum] =
-						   data1; */
-					} else {
-						/*   Download 24 bit program */
-						unsigned int data1, data2;
-
-						more = more &&
-						       read_idm_word(data,
-								     size, &pos,
-								     &data1);
-						more = more &&
-						       read_idm_word(data, size,
-								     &pos,
-								     &data2);
-						count -= 2;
-						if (more) {
-							set_u16(&p->
-								iobase->channel
-								[i].program_low
-								[addr], data1);
-							udelay(1);
-							set_u16(&p->
-								iobase->channel
-								[i].program_high
-								[addr], data2);
-							udelay(1);
-						}
-					}
-					addr++;
+				       read_idm_word(data, size, &pos, &data1);
+				more = more &&
+				       read_idm_word(data, size, &pos, &data2);
+				count -= 2;
+				if (more) {
+					set_u16(lo, data1);
+					udelay(1);
+					set_u16(hi, data2);
+					udelay(1);
 				}
 			}
+			addr++;
 		}
 	}
-	return result;
+}
+
+static int jr3_download_firmware(struct comedi_device *dev,
+				 const u8 *data, size_t size,
+				 unsigned long context)
+{
+	struct jr3_pci_dev_private *devpriv = dev->private;
+	int subdev;
+	int ret;
+
+	/* verify IDM file format */
+	ret = jr3_check_firmware(dev, data, size);
+	if (ret)
+		return ret;
+
+	/* write firmware to each subdevice */
+	for (subdev = 0; subdev < devpriv->n_channels; subdev++)
+		jr3_write_firmware(dev, subdev, data, size);
+
+	return 0;
 }
 
 static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
