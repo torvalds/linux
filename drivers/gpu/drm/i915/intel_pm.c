@@ -5577,6 +5577,8 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 	struct i915_power_well *power_well;
 	int i;
 
+	intel_runtime_pm_get(dev_priv);
+
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
@@ -5621,6 +5623,8 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	}
 
 	mutex_unlock(&power_domains->lock);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 static struct i915_power_domains *hsw_pwr;
