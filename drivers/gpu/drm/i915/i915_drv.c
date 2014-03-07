@@ -428,7 +428,6 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
-	hsw_disable_package_c8(dev_priv);
 	intel_display_set_init_power(dev_priv, true);
 
 	drm_kms_helper_poll_disable(dev);
@@ -603,10 +602,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	} else {
 		schedule_work(&dev_priv->console_resume_work);
 	}
-
-	/* Undo what we did at i915_drm_freeze so the refcount goes back to the
-	 * expected level. */
-	hsw_enable_package_c8(dev_priv);
 
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_DONE;
