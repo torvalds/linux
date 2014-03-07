@@ -531,7 +531,6 @@ static int __init init(void)
 
 	return 0;
 
-	mlx5_health_cleanup();
 err_debug:
 	mlx5_unregister_debugfs();
 	return err;
