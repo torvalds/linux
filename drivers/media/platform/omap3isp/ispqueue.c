@@ -148,39 +148,18 @@ out:
 }
 
 /*
- * isp_video_buffer_prepare_kernel - Build scatter list for a vmalloc'ed buffer
+ * isp_video_buffer_prepare_kernel - Build scatter list for a kernel-allocated
+ * buffer
  *
- * Iterate over the vmalloc'ed area and create a scatter list entry for every
- * page.
+ * Retrieve the sgtable using the DMA API.
  */
 static int isp_video_buffer_prepare_kernel(struct isp_video_buffer *buf)
 {
-	struct scatterlist *sg;
-	unsigned int npages;
-	unsigned int i;
-	void *addr;
-	int ret;
+	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
+	struct isp_video *video = vfh->video;
 
-	addr = buf->vaddr;
-	npages = PAGE_ALIGN(buf->vbuf.length) >> PAGE_SHIFT;
-
-	ret = sg_alloc_table(&buf->sgt, npages, GFP_KERNEL);
-	if (ret < 0)
-		return ret;
-
-	for (sg = buf->sgt.sgl, i = 0; i < npages; ++i, addr += PAGE_SIZE) {
-		struct page *page = vmalloc_to_page(addr);
-
-		if (page == NULL || PageHighMem(page)) {
-			sg_free_table(&buf->sgt);
-			return -EINVAL;
-		}
-
-		sg_set_page(sg, page, PAGE_SIZE, 0);
-		sg = sg_next(sg);
-	}
-
-	return 0;
+	return dma_get_sgtable(video->isp->dev, &buf->sgt, buf->vaddr,
+			       buf->paddr, PAGE_ALIGN(buf->vbuf.length));
 }
 
 /*
@@ -601,8 +580,12 @@ static int isp_video_queue_free(struct isp_video_queue *queue)
 
 		isp_video_buffer_cleanup(buf);
 
-		vfree(buf->vaddr);
-		buf->vaddr = NULL;
+		if (buf->vaddr) {
+			dma_free_coherent(queue->dev,
+					  PAGE_ALIGN(buf->vbuf.length),
+					  buf->vaddr, buf->paddr);
+			buf->vaddr = NULL;
+		}
 
 		kfree(buf);
 		queue->buffers[i] = NULL;
@@ -623,6 +606,7 @@ static int isp_video_queue_alloc(struct isp_video_queue *queue,
 				 unsigned int size, enum v4l2_memory memory)
 {
 	struct isp_video_buffer *buf;
+	dma_addr_t dma;
 	unsigned int i;
 	void *mem;
 	int ret;
@@ -646,7 +630,8 @@ static int isp_video_queue_alloc(struct isp_video_queue *queue,
 			/* Allocate video buffers memory for mmap mode. Align
 			 * the size to the page size.
 			 */
-			mem = vmalloc_32_user(PAGE_ALIGN(size));
+			mem = dma_alloc_coherent(queue->dev, PAGE_ALIGN(size),
+						 &dma, GFP_KERNEL);
 			if (mem == NULL) {
 				kfree(buf);
 				break;
@@ -654,6 +639,7 @@ static int isp_video_queue_alloc(struct isp_video_queue *queue,
 
 			buf->vbuf.m.offset = i * PAGE_ALIGN(size);
 			buf->vaddr = mem;
+			buf->paddr = dma;
 		}
 
 		buf->vbuf.index = i;
@@ -1094,10 +1080,17 @@ int omap3isp_video_queue_mmap(struct isp_video_queue *queue,
 		goto done;
 	}
 
-	ret = remap_vmalloc_range(vma, buf->vaddr, 0);
+	/* dma_mmap_coherent() uses vm_pgoff as an offset inside the buffer
+	 * while we used it to identify the buffer and want to map the whole
+	 * buffer.
+	 */
+	vma->vm_pgoff = 0;
+
+	ret = dma_mmap_coherent(queue->dev, vma, buf->vaddr, buf->paddr, size);
 	if (ret < 0)
 		goto done;
 
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &isp_video_queue_vm_ops;
 	vma->vm_private_data = buf;
 	isp_video_queue_vm_open(vma);

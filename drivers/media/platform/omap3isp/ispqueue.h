@@ -68,6 +68,7 @@ enum isp_video_buffer_state {
  * @prepared: Whether the buffer has been prepared
  * @skip_cache: Whether to skip cache management operations for this buffer
  * @vaddr: Memory virtual address (for kernel buffers)
+ * @paddr: Memory physicall address (for kernel buffers)
  * @vm_flags: Buffer VMA flags (for userspace buffers)
  * @npages: Number of pages (for userspace buffers)
  * @pages: Pages table (for userspace non-VM_PFNMAP buffers)
@@ -86,6 +87,7 @@ struct isp_video_buffer {
 
 	/* For kernel buffers. */
 	void *vaddr;
+	dma_addr_t paddr;
 
 	/* For userspace buffers. */
 	vm_flags_t vm_flags;
