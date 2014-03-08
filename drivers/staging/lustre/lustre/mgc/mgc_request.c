@@ -1632,7 +1632,7 @@ static int mgc_llog_local_copy(const struct lu_env *env,
 	/*
 	 * - copy it to backup using llog_backup()
 	 * - copy remote llog to logname using llog_backup()
-	 * - if failed then move bakup to logname again
+	 * - if failed then move backup to logname again
 	 */
 
 	OBD_ALLOC(temp_log, strlen(logname) + 1);

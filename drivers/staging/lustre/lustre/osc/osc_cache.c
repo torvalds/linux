@@ -1020,7 +1020,7 @@ out:
 
 /**
  * This function is used to make the extent prepared for transfer.
- * A race with flusing page - ll_writepage() has to be handled cautiously.
+ * A race with flushing page - ll_writepage() has to be handled cautiously.
  */
 static int osc_extent_make_ready(const struct lu_env *env,
 				 struct osc_extent *ext)

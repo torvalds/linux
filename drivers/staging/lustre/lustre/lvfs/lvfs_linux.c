@@ -55,7 +55,7 @@
 
 struct lprocfs_stats *obd_memory = NULL;
 EXPORT_SYMBOL(obd_memory);
-/* refine later and change to seqlock or simlar from libcfs */
+/* refine later and change to seqlock or similar from libcfs */
 
 /* Debugging check only needed during development */
 #ifdef OBD_CTXT_DEBUG

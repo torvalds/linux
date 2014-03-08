@@ -876,7 +876,7 @@ resend:
 	rc = ldlm_cli_enqueue(exp, &req, einfo, &res_id, policy, &flags, NULL,
 			      0, lvb_type, lockh, 0);
 	if (!it) {
-		/* For flock requests we immediatelly return without further
+		/* For flock requests we immediately return without further
 		   delay and let caller deal with the rest, since rest of
 		   this function metadata processing makes no sense for flock
 		   requests anyway. But in case of problem during comms with
