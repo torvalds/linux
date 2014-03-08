@@ -860,6 +860,7 @@ config COMEDI_DAS08_PCI
 
 config COMEDI_DT3000
 	tristate "Data Translation DT3000 series support"
+	select COMEDI_FC
 	---help---
 	  Enable support for Data Translation DT3000 series
 	  DT3001, DT3001-PGL, DT3002, DT3003, DT3003-PGL, DT3004, DT3005 and
