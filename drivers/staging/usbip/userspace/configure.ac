@@ -44,12 +44,6 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset mkdir regcomp socket strchr strerror strstr dnl
 		strtoul])
 
-AC_CHECK_HEADER([sysfs/libsysfs.h],
-		[AC_CHECK_LIB([sysfs], [sysfs_open_directory_list],
-			      [LIBS="$LIBS -lsysfs"],
-			      [AC_MSG_ERROR([Missing sysfs2 library!])])],
-		[AC_MSG_ERROR([Missing /usr/include/sysfs/libsysfs.h])])
-
 AC_CHECK_HEADER([libudev.h],
 		[AC_CHECK_LIB([udev], [udev_new],
 			      [LIBS="$LIBS -ludev"],
