@@ -802,6 +802,7 @@ struct mwifiex_adapter {
 	atomic_t pending_bridged_pkts;
 	struct semaphore *card_sem;
 	bool ext_scan;
+	u8 fw_api_ver;
 	u8 fw_key_api_major_ver, fw_key_api_minor_ver;
 };
 

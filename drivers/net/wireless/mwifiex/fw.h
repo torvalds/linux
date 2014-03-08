@@ -515,6 +515,8 @@ enum P2P_MODES {
 #define ACT_TDLS_CREATE            0x01
 #define ACT_TDLS_CONFIG            0x02
 
+#define MWIFIEX_FW_V15		   15
+
 struct mwifiex_ie_types_header {
 	__le16 type;
 	__le16 len;
