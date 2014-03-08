@@ -5,7 +5,7 @@
 #ifndef __VHCI_DRIVER_H
 #define __VHCI_DRIVER_H
 
-#include <sysfs/libsysfs.h>
+#include <libudev.h>
 #include <stdint.h>
 
 #include "usbip_common.h"
@@ -27,10 +27,9 @@ struct usbip_imported_device {
 };
 
 struct usbip_vhci_driver {
-	char sysfs_mntpath[SYSFS_PATH_MAX];
 
 	/* /sys/devices/platform/vhci_hcd */
-	struct sysfs_device *hc_device;
+	struct udev_device *hc_device;
 
 	int nports;
 	struct usbip_imported_device idev[MAXNPORT];

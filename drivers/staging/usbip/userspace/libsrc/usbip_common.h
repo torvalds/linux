@@ -5,7 +5,6 @@
 #ifndef __USBIP_COMMON_H
 #define __USBIP_COMMON_H
 
-#include <sysfs/libsysfs.h>
 #include <libudev.h>
 
 #include <stdint.h>
