@@ -5223,9 +5223,6 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 		}
 	} while (err);
 
-	/* increment MSI-X count because current FW skips one */
-	pf->hw.func_caps.num_msix_vectors++;
-
 	if (((pf->hw.aq.fw_maj_ver == 2) && (pf->hw.aq.fw_min_ver < 22)) ||
 	    (pf->hw.aq.fw_maj_ver < 2)) {
 		pf->hw.func_caps.num_msix_vectors++;
