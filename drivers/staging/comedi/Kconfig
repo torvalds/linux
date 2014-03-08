@@ -1101,6 +1101,7 @@ config COMEDI_S626
 
 config COMEDI_MITE
 	depends on HAS_DMA
+	select COMEDI_FC
 	tristate
 
 config COMEDI_NI_TIOCMD
