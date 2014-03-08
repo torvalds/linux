@@ -1185,7 +1185,7 @@ ldlm_handle2lock_long(const struct lustre_handle *h, __u64 flags)
 
 /**
  * Update Lock Value Block Operations (LVBO) on a resource taking into account
- * data from reqest \a r
+ * data from request \a r
  */
 static inline int ldlm_res_lvbo_update(struct ldlm_resource *res,
 				       struct ptlrpc_request *r, int increase)

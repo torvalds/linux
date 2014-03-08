@@ -192,9 +192,9 @@ struct obd_export {
 	struct obd_import	*exp_imp_reverse;
 	struct nid_stat	  *exp_nid_stats;
 	struct lprocfs_stats     *exp_md_stats;
-	/** Active connetion */
+	/** Active connection */
 	struct ptlrpc_connection *exp_connection;
-	/** Connection count value from last succesful reconnect rpc */
+	/** Connection count value from last successful reconnect rpc */
 	__u32		     exp_conn_cnt;
 	/** Hash list of all ldlm locks granted on this export */
 	struct cfs_hash	       *exp_lock_hash;

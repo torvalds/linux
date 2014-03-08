@@ -147,7 +147,7 @@
 #define ldlm_clear_test_lock(_l)        LDLM_CLEAR_FLAG((_l), 1ULL << 19)
 
 /**
- * Immediatelly cancel such locks when they block some other locks. Send
+ * Immediately cancel such locks when they block some other locks. Send
  * cancel notification to original lock holder, but expect no reply. This
  * is for clients (like liblustre) that cannot be expected to reliably
  * response to blocking AST. */
@@ -248,7 +248,7 @@
 
 /**
  * A lock contributes to the known minimum size (KMS) calculation until it
- * has finished the part of its cancelation that performs write back on its
+ * has finished the part of its cancellation that performs write back on its
  * dirty pages.  It can remain on the granted list during this whole time.
  * Threads racing to update the KMS after performing their writeback need
  * to know to exclude each other's locks from the calculation as they walk
