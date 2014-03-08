@@ -1279,7 +1279,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	struct nfsd4_compound_state *cstate = &resp->cstate;
 	struct svc_fh *current_fh = &cstate->current_fh;
 	struct svc_fh *save_fh = &cstate->save_fh;
-	int		slack_bytes;
 	u32		plen = 0;
 	__be32		status;
 
@@ -1330,19 +1329,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		if (op->status) {
 			if (op->opnum == OP_OPEN)
 				op->status = nfsd4_open_omfg(rqstp, cstate, op);
-			goto encode_op;
-		}
-
-		/* We must be able to encode a successful response to
-		 * this operation, with enough room left over to encode a
-		 * failed response to the next operation.  If we don't
-		 * have enough room, fail with ERR_RESOURCE.
-		 */
-		slack_bytes = (char *)resp->xdr.end - (char *)resp->xdr.p;
-		if (slack_bytes < COMPOUND_SLACK_SPACE
-				+ COMPOUND_ERR_SLACK_SPACE) {
-			BUG_ON(slack_bytes < COMPOUND_ERR_SLACK_SPACE);
-			op->status = nfserr_resource;
 			goto encode_op;
 		}
 

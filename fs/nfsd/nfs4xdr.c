@@ -3753,20 +3753,24 @@ static nfsd4_enc nfsd4_enc_ops[] = {
 __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 {
 	struct xdr_buf *buf = &resp->rqstp->rq_res;
-	struct nfsd4_session *session = NULL;
+	struct nfsd4_session *session = resp->cstate.session;
 	struct nfsd4_slot *slot = resp->cstate.slot;
+	int slack_bytes = (char *)resp->xdr.end - (char *)resp->xdr.p;
 
-	if (!nfsd4_has_session(&resp->cstate))
-		return 0;
+	if (nfsd4_has_session(&resp->cstate)) {
 
-	session = resp->cstate.session;
+		if (buf->len + pad > session->se_fchannel.maxresp_sz)
+			return nfserr_rep_too_big;
 
-	if (buf->len + pad > session->se_fchannel.maxresp_sz)
-		return nfserr_rep_too_big;
+		if ((slot->sl_flags & NFSD4_SLOT_CACHETHIS) &&
+		    buf->len + pad > session->se_fchannel.maxresp_cached)
+			return nfserr_rep_too_big_to_cache;
+	}
 
-	if ((slot->sl_flags & NFSD4_SLOT_CACHETHIS) &&
-	    buf->len + pad > session->se_fchannel.maxresp_cached)
-		return nfserr_rep_too_big_to_cache;
+	if (pad > slack_bytes) {
+		WARN_ON_ONCE(nfsd4_has_session(&resp->cstate));
+		return nfserr_resource;
+	}
 
 	return 0;
 }
