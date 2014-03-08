@@ -256,7 +256,6 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_read_eeprom(struct comedi_device *dev, int addr);
 
-static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s);
 #ifndef PCIDMA
 static void ni_handle_fifo_half_full(struct comedi_device *dev);
 static int ni_ao_fifo_half_empty(struct comedi_device *dev,
@@ -272,15 +271,12 @@ static void shutdown_ai_command(struct comedi_device *dev);
 static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 			 unsigned int trignum);
 
-static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s);
-
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg);
 
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 #endif
-static int ni_gpct_cancel(struct comedi_device *dev,
-			  struct comedi_subdevice *s);
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index);
 
@@ -947,32 +943,6 @@ static void shutdown_ai_command(struct comedi_device *dev)
 	s->async->events |= COMEDI_CB_EOA;
 }
 
-static void ni_event(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	if (s->
-	    async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW |
-			     COMEDI_CB_EOA)) {
-		switch (s->index) {
-		case NI_AI_SUBDEV:
-			ni_ai_reset(dev, s);
-			break;
-		case NI_AO_SUBDEV:
-			ni_ao_reset(dev, s);
-			break;
-		case NI_GPCT0_SUBDEV:
-		case NI_GPCT1_SUBDEV:
-			ni_gpct_cancel(dev, s);
-			break;
-		case NI_DIO_SUBDEV:
-			ni_cdio_cancel(dev, s);
-			break;
-		default:
-			break;
-		}
-	}
-	comedi_event(dev, s);
-}
-
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index)
 {
@@ -984,8 +954,7 @@ static void handle_gpct_interrupt(struct comedi_device *dev,
 
 	ni_tio_handle_interrupt(&devpriv->counter_dev->counters[counter_index],
 				s);
-	if (s->async->events)
-		ni_event(dev, s);
+	cfc_handle_events(dev, s);
 #endif
 }
 
@@ -1043,7 +1012,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			if (comedi_is_subdevice_running(s)) {
 				s->async->events |=
 				    COMEDI_CB_ERROR | COMEDI_CB_EOA;
-				ni_event(dev, s);
+				cfc_handle_events(dev, s);
 			}
 			return;
 		}
@@ -1058,8 +1027,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			if (status & (AI_Overrun_St | AI_Overflow_St))
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
-			ni_event(dev, s);
-
+			cfc_handle_events(dev, s);
 			return;
 		}
 		if (status & AI_SC_TC_St) {
@@ -1086,7 +1054,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	if ((status & AI_STOP_St))
 		ni_handle_eos(dev, s);
 
-	ni_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
@@ -1161,7 +1129,7 @@ static void handle_b_interrupt(struct comedi_device *dev,
 	}
 #endif
 
-	ni_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 #ifndef PCIDMA
@@ -3672,7 +3640,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 			  M_Offset_CDIO_Command);
 		/* s->async->events |= COMEDI_CB_EOA; */
 	}
-	ni_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 static int ni_serial_insn_config(struct comedi_device *dev,
@@ -5008,9 +4976,9 @@ static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 #endif
 
+#ifdef PCIDMA
 static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-#ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
 	int retval;
 
@@ -5018,10 +4986,8 @@ static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
 	ni_release_gpct_mite_channel(dev, counter->counter_index);
 	return retval;
-#else
-	return 0;
-#endif
 }
+#endif
 
 /*
  *
