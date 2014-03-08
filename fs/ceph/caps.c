@@ -885,7 +885,10 @@ int __ceph_caps_mds_wanted(struct ceph_inode_info *ci)
 		cap = rb_entry(p, struct ceph_cap, ci_node);
 		if (!__cap_is_valid(cap))
 			continue;
-		mds_wanted |= cap->mds_wanted;
+		if (cap == ci->i_auth_cap)
+			mds_wanted |= cap->mds_wanted;
+		else
+			mds_wanted |= (cap->mds_wanted & ~CEPH_CAP_ANY_FILE_WR);
 	}
 	return mds_wanted;
 }
