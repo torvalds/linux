@@ -307,7 +307,6 @@ static bool pcl816_ai_next_chan(struct comedi_device *dev,
 	if (cmd->stop_src == TRIG_COUNT &&
 	    devpriv->ai_act_scan >= cmd->stop_arg) {
 		/* all data sampled */
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
 		return false;
 	}
@@ -362,7 +361,7 @@ static irqreturn_t pcl816_interrupt(int irq, void *d)
 
 	pcl816_ai_clear_eoc(dev);
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -520,7 +519,7 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
