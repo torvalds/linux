@@ -449,8 +449,8 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	devpriv->adc_count += num_samples;
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (devpriv->adc_count >= cmd->stop_arg * cmd->chanlist_len) {	/* end of acquisition */
-			das16m1_cancel(dev, s);
+		if (devpriv->adc_count >= cmd->stop_arg * cmd->chanlist_len) {
+			/* end of acquisition */
 			async->events |= COMEDI_CB_EOA;
 		}
 	}
@@ -458,13 +458,11 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	/* this probably won't catch overruns since the card doesn't generate
 	 * overrun interrupts, but we might as well try */
 	if (status & OVRUN) {
-		das16m1_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_error(dev, "fifo overflow");
 	}
 
-	comedi_event(dev, s);
-
+	cfc_handle_events(dev, s);
 }
 
 static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
