@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -1701,7 +1694,7 @@ static void e1000_clean_rx_ring(struct e1000_ring *rx_ring)
 	adapter->flags2 &= ~FLAG2_IS_DISCARDING;
 
 	writel(0, rx_ring->head);
-	if (rx_ring->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+	if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
 		e1000e_update_rdt_wa(rx_ring, 0);
 	else
 		writel(0, rx_ring->tail);
@@ -2405,7 +2398,7 @@ static void e1000_clean_tx_ring(struct e1000_ring *tx_ring)
 	tx_ring->next_to_clean = 0;
 
 	writel(0, tx_ring->head);
-	if (tx_ring->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+	if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
 		e1000e_update_tdt_wa(tx_ring, 0);
 	else
 		writel(0, tx_ring->tail);
@@ -3334,6 +3327,9 @@ static void e1000e_set_rx_mode(struct net_device *netdev)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
 
+	if (pm_runtime_suspended(netdev->dev.parent))
+		return;
+
 	/* Check for Promiscuous and All Multicast modes */
 	rctl = er32(RCTL);
 
@@ -3694,10 +3690,6 @@ void e1000e_power_up_phy(struct e1000_adapter *adapter)
  */
 static void e1000_power_down_phy(struct e1000_adapter *adapter)
 {
-	/* WoL is enabled */
-	if (adapter->wol)
-		return;
-
 	if (adapter->hw.phy.ops.power_down)
 		adapter->hw.phy.ops.power_down(&adapter->hw);
 }
@@ -3914,10 +3906,8 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	}
 
 	if (!netif_running(adapter->netdev) &&
-	    !test_bit(__E1000_TESTING, &adapter->state)) {
+	    !test_bit(__E1000_TESTING, &adapter->state))
 		e1000_power_down_phy(adapter);
-		return;
-	}
 
 	e1000_get_phy_info(hw);
 
@@ -3984,7 +3974,12 @@ static void e1000e_flush_descriptors(struct e1000_adapter *adapter)
 
 static void e1000e_update_stats(struct e1000_adapter *adapter);
 
-void e1000e_down(struct e1000_adapter *adapter)
+/**
+ * e1000e_down - quiesce the device and optionally reset the hardware
+ * @adapter: board private structure
+ * @reset: boolean flag to reset the hardware or not
+ */
+void e1000e_down(struct e1000_adapter *adapter, bool reset)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
@@ -4038,12 +4033,8 @@ void e1000e_down(struct e1000_adapter *adapter)
 	    e1000_lv_jumbo_workaround_ich8lan(hw, false))
 		e_dbg("failed to disable jumbo frame workaround mode\n");
 
-	if (!pci_channel_offline(adapter->pdev))
+	if (reset && !pci_channel_offline(adapter->pdev))
 		e1000e_reset(adapter);
-
-	/* TODO: for power management, we could drop the link and
-	 * pci_disable_device here.
-	 */
 }
 
 void e1000e_reinit_locked(struct e1000_adapter *adapter)
@@ -4051,7 +4042,7 @@ void e1000e_reinit_locked(struct e1000_adapter *adapter)
 	might_sleep();
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
-	e1000e_down(adapter);
+	e1000e_down(adapter, true);
 	e1000e_up(adapter);
 	clear_bit(__E1000_RESETTING, &adapter->state);
 }
@@ -4329,7 +4320,6 @@ static int e1000_open(struct net_device *netdev)
 	adapter->tx_hang_recheck = false;
 	netif_start_queue(netdev);
 
-	adapter->idle_check = true;
 	hw->mac.get_link_status = true;
 	pm_runtime_put(&pdev->dev);
 
@@ -4379,13 +4369,14 @@ static int e1000_close(struct net_device *netdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	if (!test_bit(__E1000_DOWN, &adapter->state)) {
-		e1000e_down(adapter);
+		e1000e_down(adapter, true);
 		e1000_free_irq(adapter);
+
+		/* Link status message must follow this format */
+		pr_info("%s NIC Link is Down\n", adapter->netdev->name);
 	}
 
 	napi_disable(&adapter->napi);
-
-	e1000_power_down_phy(adapter);
 
 	e1000e_free_tx_resources(adapter->tx_ring);
 	e1000e_free_rx_resources(adapter->rx_ring);
@@ -4463,11 +4454,16 @@ static void e1000e_update_phy_task(struct work_struct *work)
 	struct e1000_adapter *adapter = container_of(work,
 						     struct e1000_adapter,
 						     update_phy_task);
+	struct e1000_hw *hw = &adapter->hw;
 
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
 
-	e1000_get_phy_info(&adapter->hw);
+	e1000_get_phy_info(hw);
+
+	/* Enable EEE on 82579 after link up */
+	if (hw->phy.type == e1000_phy_82579)
+		e1000_set_eee_pchlan(hw);
 }
 
 /**
@@ -5687,8 +5683,11 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	adapter->max_frame_size = max_frame;
 	e_info("changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
+
+	pm_runtime_get_sync(netdev->dev.parent);
+
 	if (netif_running(netdev))
-		e1000e_down(adapter);
+		e1000e_down(adapter, true);
 
 	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
 	 * means we reserve 2 more, this pushes us to allocate from the next
@@ -5713,6 +5712,8 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		e1000e_up(adapter);
 	else
 		e1000e_reset(adapter);
+
+	pm_runtime_put_sync(netdev->dev.parent);
 
 	clear_bit(__E1000_RESETTING, &adapter->state);
 
@@ -5855,7 +5856,7 @@ static int e1000_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 i, mac_reg;
+	u32 i, mac_reg, wuc;
 	u16 phy_reg, wuc_enable;
 	int retval;
 
@@ -5902,13 +5903,18 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 		phy_reg |= BM_RCTL_RFCE;
 	hw->phy.ops.write_reg_page(&adapter->hw, BM_RCTL, phy_reg);
 
+	wuc = E1000_WUC_PME_EN;
+	if (wufc & (E1000_WUFC_MAG | E1000_WUFC_LNKC))
+		wuc |= E1000_WUC_APME;
+
 	/* enable PHY wakeup in MAC register */
 	ew32(WUFC, wufc);
-	ew32(WUC, E1000_WUC_PHY_WAKE | E1000_WUC_PME_EN);
+	ew32(WUC, (E1000_WUC_PHY_WAKE | E1000_WUC_APMPME |
+		   E1000_WUC_PME_STATUS | wuc));
 
 	/* configure and enable PHY wakeup in PHY registers */
 	hw->phy.ops.write_reg_page(&adapter->hw, BM_WUFC, wufc);
-	hw->phy.ops.write_reg_page(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
+	hw->phy.ops.write_reg_page(&adapter->hw, BM_WUC, wuc);
 
 	/* activate PHY wakeup */
 	wuc_enable |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
@@ -5921,15 +5927,10 @@ release:
 	return retval;
 }
 
-static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
+static int e1000e_pm_freeze(struct device *dev)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = pci_get_drvdata(to_pci_dev(dev));
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-	u32 ctrl, ctrl_ext, rctl, status;
-	/* Runtime suspend should only enable wakeup for link changes */
-	u32 wufc = runtime ? E1000_WUFC_LNKC : adapter->wol;
-	int retval = 0;
 
 	netif_device_detach(netdev);
 
@@ -5940,10 +5941,28 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 			usleep_range(10000, 20000);
 
 		WARN_ON(test_bit(__E1000_RESETTING, &adapter->state));
-		e1000e_down(adapter);
+
+		/* Quiesce the device without resetting the hardware */
+		e1000e_down(adapter, false);
 		e1000_free_irq(adapter);
 	}
 	e1000e_reset_interrupt_capability(adapter);
+
+	/* Allow time for pending master requests to run */
+	e1000e_disable_pcie_master(&adapter->hw);
+
+	return 0;
+}
+
+static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ctrl, ctrl_ext, rctl, status;
+	/* Runtime suspend should only enable wakeup for link changes */
+	u32 wufc = runtime ? E1000_WUFC_LNKC : adapter->wol;
+	int retval = 0;
 
 	status = er32(STATUS);
 	if (status & E1000_STATUS_LU)
@@ -5975,11 +5994,11 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 			ew32(CTRL_EXT, ctrl_ext);
 		}
 
+		if (!runtime)
+			e1000e_power_up_phy(adapter);
+
 		if (adapter->flags & FLAG_IS_ICH)
 			e1000_suspend_workarounds_ich8lan(&adapter->hw);
-
-		/* Allow time for pending master requests to run */
-		e1000e_disable_pcie_master(&adapter->hw);
 
 		if (adapter->flags2 & FLAG2_HAS_PHY_WAKEUP) {
 			/* enable wakeup by the PHY */
@@ -5994,10 +6013,23 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	} else {
 		ew32(WUC, 0);
 		ew32(WUFC, 0);
+
+		e1000_power_down_phy(adapter);
 	}
 
-	if (adapter->hw.phy.type == e1000_phy_igp_3)
+	if (adapter->hw.phy.type == e1000_phy_igp_3) {
 		e1000e_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
+	} else if (hw->mac.type == e1000_pch_lpt) {
+		if (!(wufc & (E1000_WUFC_EX | E1000_WUFC_MC | E1000_WUFC_BC)))
+			/* ULP does not support wake from unicast, multicast
+			 * or broadcast.
+			 */
+			retval = e1000_enable_ulp_lpt_lp(hw, !runtime);
+
+		if (retval)
+			return retval;
+	}
+
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant.
@@ -6105,18 +6137,12 @@ static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 }
 
 #ifdef CONFIG_PM
-static bool e1000e_pm_ready(struct e1000_adapter *adapter)
-{
-	return !!adapter->tx_ring->buffer_info;
-}
-
 static int __e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u16 aspm_disable_flag = 0;
-	u32 err;
 
 	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L0S)
 		aspm_disable_flag = PCIE_LINK_STATE_L0S;
@@ -6126,13 +6152,6 @@ static int __e1000_resume(struct pci_dev *pdev)
 		e1000e_disable_aspm(pdev, aspm_disable_flag);
 
 	pci_set_master(pdev);
-
-	e1000e_set_interrupt_capability(adapter);
-	if (netif_running(netdev)) {
-		err = e1000_request_irq(adapter);
-		if (err)
-			return err;
-	}
 
 	if (hw->mac.type >= e1000_pch2lan)
 		e1000_resume_workarounds_pchlan(&adapter->hw);
@@ -6172,11 +6191,6 @@ static int __e1000_resume(struct pci_dev *pdev)
 
 	e1000_init_manageability_pt(adapter);
 
-	if (netif_running(netdev))
-		e1000e_up(adapter);
-
-	netif_device_attach(netdev);
-
 	/* If the controller has AMT, do not set DRV_LOAD until the interface
 	 * is up.  For all other cases, let the f/w know that the h/w is now
 	 * under the control of the driver.
@@ -6187,75 +6201,111 @@ static int __e1000_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+static int e1000e_pm_thaw(struct device *dev)
+{
+	struct net_device *netdev = pci_get_drvdata(to_pci_dev(dev));
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	e1000e_set_interrupt_capability(adapter);
+	if (netif_running(netdev)) {
+		u32 err = e1000_request_irq(adapter);
+
+		if (err)
+			return err;
+
+		e1000e_up(adapter);
+	}
+
+	netif_device_attach(netdev);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM_SLEEP
-static int e1000_suspend(struct device *dev)
+static int e1000e_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+
+	e1000e_pm_freeze(dev);
 
 	return __e1000_shutdown(pdev, false);
 }
 
-static int e1000_resume(struct device *dev)
+static int e1000e_pm_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev_priv(netdev);
+	int rc;
 
-	if (e1000e_pm_ready(adapter))
-		adapter->idle_check = true;
+	rc = __e1000_resume(pdev);
+	if (rc)
+		return rc;
 
-	return __e1000_resume(pdev);
+	return e1000e_pm_thaw(dev);
 }
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_RUNTIME
-static int e1000_runtime_suspend(struct device *dev)
+static int e1000e_pm_runtime_idle(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	if (!e1000e_pm_ready(adapter))
-		return 0;
-
-	return __e1000_shutdown(pdev, true);
-}
-
-static int e1000_idle(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	if (!e1000e_pm_ready(adapter))
-		return 0;
-
-	if (adapter->idle_check) {
-		adapter->idle_check = false;
-		if (!e1000e_has_link(adapter))
-			pm_schedule_suspend(dev, MSEC_PER_SEC);
-	}
+	if (!e1000e_has_link(adapter))
+		pm_schedule_suspend(dev, 5 * MSEC_PER_SEC);
 
 	return -EBUSY;
 }
 
-static int e1000_runtime_resume(struct device *dev)
+static int e1000e_pm_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	int rc;
+
+	rc = __e1000_resume(pdev);
+	if (rc)
+		return rc;
+
+	if (netdev->flags & IFF_UP)
+		rc = e1000e_up(adapter);
+
+	return rc;
+}
+
+static int e1000e_pm_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	if (!e1000e_pm_ready(adapter))
-		return 0;
+	if (netdev->flags & IFF_UP) {
+		int count = E1000_CHECK_RESET_COUNT;
 
-	adapter->idle_check = !dev->power.runtime_auto;
-	return __e1000_resume(pdev);
+		while (test_bit(__E1000_RESETTING, &adapter->state) && count--)
+			usleep_range(10000, 20000);
+
+		WARN_ON(test_bit(__E1000_RESETTING, &adapter->state));
+
+		/* Down the device without resetting the hardware */
+		e1000e_down(adapter, false);
+	}
+
+	if (__e1000_shutdown(pdev, true)) {
+		e1000e_pm_runtime_resume(dev);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 #endif /* CONFIG_PM_RUNTIME */
 #endif /* CONFIG_PM */
 
 static void e1000_shutdown(struct pci_dev *pdev)
 {
+	e1000e_pm_freeze(&pdev->dev);
+
 	__e1000_shutdown(pdev, false);
 }
 
@@ -6341,7 +6391,7 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (netif_running(netdev))
-		e1000e_down(adapter);
+		e1000e_down(adapter, true);
 	pci_disable_device(pdev);
 
 	/* Request a slot slot reset. */
@@ -6353,7 +6403,7 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
  * @pdev: Pointer to PCI device
  *
  * Restart the card from scratch, as if from a cold-boot. Implementation
- * resembles the first-half of the e1000_resume routine.
+ * resembles the first-half of the e1000e_pm_resume routine.
  */
 static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 {
@@ -6400,7 +6450,7 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
  *
  * This callback is called when the error recovery driver tells us that
  * its OK to resume normal operation. Implementation resembles the
- * second-half of the e1000_resume routine.
+ * second-half of the e1000e_pm_resume routine.
  */
 static void e1000_io_resume(struct pci_dev *pdev)
 {
@@ -6905,9 +6955,6 @@ static void e1000_remove(struct pci_dev *pdev)
 		}
 	}
 
-	if (!(netdev->flags & IFF_UP))
-		e1000_power_down_phy(adapter);
-
 	/* Don't lie to e1000_close() down the road. */
 	if (!down)
 		clear_bit(__E1000_DOWN, &adapter->state);
@@ -7029,9 +7076,14 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 MODULE_DEVICE_TABLE(pci, e1000_pci_tbl);
 
 static const struct dev_pm_ops e1000_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(e1000_suspend, e1000_resume)
-	SET_RUNTIME_PM_OPS(e1000_runtime_suspend, e1000_runtime_resume,
-			   e1000_idle)
+	.suspend	= e1000e_pm_suspend,
+	.resume		= e1000e_pm_resume,
+	.freeze		= e1000e_pm_freeze,
+	.thaw		= e1000e_pm_thaw,
+	.poweroff	= e1000e_pm_suspend,
+	.restore	= e1000e_pm_resume,
+	SET_RUNTIME_PM_OPS(e1000e_pm_runtime_suspend, e1000e_pm_runtime_resume,
+			   e1000e_pm_runtime_idle)
 };
 
 /* PCI Device API Driver */
@@ -7058,7 +7110,7 @@ static int __init e1000_init_module(void)
 	int ret;
 	pr_info("Intel(R) PRO/1000 Network Driver - %s\n",
 		e1000e_driver_version);
-	pr_info("Copyright(c) 1999 - 2013 Intel Corporation.\n");
+	pr_info("Copyright(c) 1999 - 2014 Intel Corporation.\n");
 	ret = pci_register_driver(&e1000_driver);
 
 	return ret;

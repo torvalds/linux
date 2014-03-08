@@ -76,8 +76,6 @@ static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] =
 	{ 36, 72, 144, 1, 2, 4, 8, 16,
 	  35, 70, 140 };
-#define E1000_82580_RXPBS_TABLE_SIZE \
-	(sizeof(e1000_82580_rxpbs_table)/sizeof(u16))
 
 /**
  *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
@@ -2307,7 +2305,7 @@ u16 igb_rxpbs_adjust_82580(u32 data)
 {
 	u16 ret_val = 0;
 
-	if (data < E1000_82580_RXPBS_TABLE_SIZE)
+	if (data < ARRAY_SIZE(e1000_82580_rxpbs_table))
 		ret_val = e1000_82580_rxpbs_table[data];
 
 	return ret_val;
@@ -2713,6 +2711,7 @@ static const u8 e1000_emc_therm_limit[4] = {
 	E1000_EMC_DIODE3_THERM_LIMIT
 };
 
+#ifdef CONFIG_IGB_HWMON
 /**
  *  igb_get_thermal_sensor_data_generic - Gathers thermal sensor data
  *  @hw: pointer to hardware structure
@@ -2835,6 +2834,7 @@ static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 	return status;
 }
 
+#endif
 static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.init_hw              = igb_init_hw_82575,
 	.check_for_link       = igb_check_for_link_82575,
