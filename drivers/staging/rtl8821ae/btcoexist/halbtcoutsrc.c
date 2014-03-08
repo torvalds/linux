@@ -1077,7 +1077,7 @@ void exhalbtc_dbg_control(struct btc_coexist *btcoexist,
 	btcoexist->statistics.cnt_dbg_ctrl++;
 }
 
-void exhalbtc_stack_update_profile_info()
+void exhalbtc_stack_update_profile_info(void)
 {
 }
 
