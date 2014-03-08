@@ -46,7 +46,7 @@ static int rk3288_hdmi_reg_show(struct seq_file *s, void *v)
 	seq_printf(s, "\n-----------------------------------------------------------------");
 
 	for(i=0; i<= I2CM_SCDC_UPDATE1; i++) {
-                hdmi_readl(hdmi_dev, i, &val);
+                val = hdmi_readl(hdmi_dev, i);
 		if(i%16==0)
 			seq_printf(s,"\n>>>hdmi_ctl %2x:", i);
 		seq_printf(s," %02x",val);
@@ -130,6 +130,9 @@ static int rk3288_hdmi_parse_dt(struct rk3288_hdmi_device *hdmi_dev)
 
 	if(!of_property_read_u32(np, "rockchips,hdmi_lcdc_source", &val))
 		hdmi_dev->lcdc_id = val;
+
+	if(!of_property_read_u32(np, "rockchips,hdmi_audio_source", &val))
+		hdmi_dev->driver.audio.type = val;
 
 	return 0;
 }
