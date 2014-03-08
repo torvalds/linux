@@ -13,11 +13,6 @@
 #define USBIP_VHCI_BUS_TYPE "platform"
 #define MAXNPORT 128
 
-struct usbip_class_device {
-	char class_path[SYSFS_PATH_MAX];
-	char dev_path[SYSFS_PATH_MAX];
-};
-
 struct usbip_imported_device {
 	uint8_t port;
 	uint32_t status;
@@ -28,7 +23,6 @@ struct usbip_imported_device {
 	uint8_t devnum;
 
 	/* usbip_class_device list */
-	struct dlist *cdev_list;
 	struct usbip_usb_device udev;
 };
 
@@ -37,9 +31,6 @@ struct usbip_vhci_driver {
 
 	/* /sys/devices/platform/vhci_hcd */
 	struct sysfs_device *hc_device;
-
-	/* usbip_class_device list */
-	struct dlist *cdev_list;
 
 	int nports;
 	struct usbip_imported_device idev[MAXNPORT];
