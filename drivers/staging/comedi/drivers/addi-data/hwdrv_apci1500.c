@@ -1052,7 +1052,7 @@ static int apci1500_di_insn_bits(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1500_ConfigDigitalOutputErrorInterrupt
+| Function   Name   : int i_apci1500_config_output
 |                      (struct comedi_device *dev,struct comedi_subdevice *s struct comedi_insn
 |                      *insn,unsigned int *data)                                  |
 |				                                                     |
@@ -1078,10 +1078,9 @@ static int apci1500_di_insn_bits(struct comedi_device *dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device *dev,
-							struct comedi_subdevice *s,
-							struct comedi_insn *insn,
-							unsigned int *data)
+static int i_acpi1500_config_output(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn,
+	unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -1879,7 +1878,7 @@ static int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1500_StartStopTriggerTimerCounterWatchdog      |
+| Function   Name   : int i_apci1500_timer_watchdog
 |				(struct comedi_device *dev,struct comedi_subdevice *s,
 |                         struct comedi_insn *insn,unsigned int *data);                  |
 +----------------------------------------------------------------------------+
@@ -1905,10 +1904,9 @@ static int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device *dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device *dev,
-							   struct comedi_subdevice *s,
-							   struct comedi_insn *insn,
-							   unsigned int *data)
+static int i_apci1500_timer_watchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn,
+	unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
