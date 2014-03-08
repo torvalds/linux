@@ -86,6 +86,7 @@ struct bus_id_priv {
 	char status;
 	int interf_count;
 	struct stub_device *sdev;
+	struct usb_device *udev;
 	char shutdown_busid;
 };
 

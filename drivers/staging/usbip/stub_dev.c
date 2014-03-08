@@ -386,6 +386,7 @@ static int stub_probe(struct usb_device *udev)
 	/* set private data to usb_device */
 	dev_set_drvdata(&udev->dev, sdev);
 	busid_priv->sdev = sdev;
+	busid_priv->udev = udev;
 
 	err = stub_add_files(&udev->dev);
 	if (err) {
