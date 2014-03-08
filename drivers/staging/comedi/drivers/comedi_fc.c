@@ -44,8 +44,7 @@ unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL_GPL(cfc_bytes_per_scan);
 
-static void increment_scan_progress(struct comedi_subdevice *s,
-				    unsigned int num_bytes)
+void cfc_inc_scan_progress(struct comedi_subdevice *s, unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
 	unsigned int scan_length = cfc_bytes_per_scan(s);
@@ -56,6 +55,7 @@ static void increment_scan_progress(struct comedi_subdevice *s,
 		async->events |= COMEDI_CB_EOS;
 	}
 }
+EXPORT_SYMBOL_GPL(cfc_inc_scan_progress);
 
 /* Writes an array of data points to comedi's buffer */
 unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
@@ -76,7 +76,7 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
 
 	comedi_buf_memcpy_to(async, 0, data, num_bytes);
 	comedi_buf_write_free(async, num_bytes);
-	increment_scan_progress(s, num_bytes);
+	cfc_inc_scan_progress(s, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 
 	return num_bytes;
@@ -94,7 +94,7 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *s,
 	num_bytes = comedi_buf_read_alloc(async, num_bytes);
 	comedi_buf_memcpy_from(async, 0, data, num_bytes);
 	comedi_buf_read_free(async, num_bytes);
-	increment_scan_progress(s, num_bytes);
+	cfc_inc_scan_progress(s, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 
 	return num_bytes;

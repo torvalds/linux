@@ -24,6 +24,7 @@
 #include "../comedidev.h"
 
 unsigned int cfc_bytes_per_scan(struct comedi_subdevice *);
+void cfc_inc_scan_progress(struct comedi_subdevice *, unsigned int num_bytes);
 
 /* Writes an array of data points to comedi's buffer */
 unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *,
