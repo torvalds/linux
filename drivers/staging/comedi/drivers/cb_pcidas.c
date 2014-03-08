@@ -1277,8 +1277,6 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 	unsigned int num_points;
 	unsigned long flags;
 
-	async->events = 0;
-
 	if (status & DAEMI) {
 		/*  clear dac empty interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
@@ -1290,7 +1288,6 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 			    (cmd->stop_src == TRIG_COUNT
 			     && devpriv->ao_count)) {
 				comedi_error(dev, "dac fifo underflow");
-				cb_pcidas_ao_cancel(dev, s);
 				async->events |= COMEDI_CB_ERROR;
 			}
 			async->events |= COMEDI_CB_EOA;
@@ -1320,7 +1317,7 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
@@ -1340,7 +1337,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		return IRQ_NONE;
 
 	async = s->async;
-	async->events = 0;
 
 	s5933_status = inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
@@ -1372,10 +1368,8 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		cfc_write_array_to_buffer(s, devpriv->ai_buffer,
 					  num_samples * sizeof(short));
 		devpriv->count -= num_samples;
-		if (async->cmd.stop_src == TRIG_COUNT && devpriv->count == 0) {
+		if (async->cmd.stop_src == TRIG_COUNT && devpriv->count == 0)
 			async->events |= COMEDI_CB_EOA;
-			cb_pcidas_cancel(dev, s);
-		}
 		/*  clear half-full interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
 		outw(devpriv->adc_fifo_bits | INT,
@@ -1392,7 +1386,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 			if (async->cmd.stop_src == TRIG_COUNT &&
 			    --devpriv->count == 0) {
 				/* end of acquisition */
-				cb_pcidas_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
 				break;
 			}
@@ -1419,11 +1412,10 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		outw(devpriv->adc_fifo_bits | LADFUL,
 		     devpriv->control_status + INT_ADCFIFO);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		cb_pcidas_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
