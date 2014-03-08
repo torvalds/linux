@@ -59,6 +59,7 @@ const struct regmap_config tlv320aic23_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(tlv320aic23_reg),
 	.cache_type = REGCACHE_RBTREE,
 };
+EXPORT_SYMBOL(tlv320aic23_regmap);
 
 static const char *rec_src_text[] = { "Line", "Mic" };
 static const char *deemph_text[] = {"None", "32Khz", "44.1Khz", "48Khz"};
@@ -634,6 +635,7 @@ int tlv320aic23_probe(struct device *dev, struct regmap *regmap)
 	return snd_soc_register_codec(dev, &soc_codec_dev_tlv320aic23,
 				      &tlv320aic23_dai, 1);
 }
+EXPORT_SYMBOL(tlv320aic23_probe);
 
 MODULE_DESCRIPTION("ASoC TLV320AIC23 codec driver");
 MODULE_AUTHOR("Arun KS <arunks@mistralsolutions.com>");
