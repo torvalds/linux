@@ -98,18 +98,17 @@ unsigned int cfc_handle_events(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(cfc_handle_events);
 
-MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
-MODULE_DESCRIPTION("Shared functions for Comedi low-level drivers");
-MODULE_LICENSE("GPL");
-
 static int __init comedi_fc_init_module(void)
 {
 	return 0;
 }
+module_init(comedi_fc_init_module);
 
 static void __exit comedi_fc_cleanup_module(void)
 {
 }
-
-module_init(comedi_fc_init_module);
 module_exit(comedi_fc_cleanup_module);
+
+MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_DESCRIPTION("Shared functions for Comedi low-level drivers");
+MODULE_LICENSE("GPL");
