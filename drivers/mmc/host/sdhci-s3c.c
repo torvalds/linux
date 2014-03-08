@@ -33,9 +33,6 @@
 
 #define MAX_BUS_CLK	(4)
 
-/* Number of gpio's used is max data bus width + command and clock lines */
-#define NUM_GPIOS(x)	(x + 2)
-
 /**
  * struct sdhci_s3c - S3C SDHCI instance
  * @host: The SDHCI host created
