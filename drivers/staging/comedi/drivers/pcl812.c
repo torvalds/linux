@@ -863,7 +863,6 @@ static bool pcl812_ai_next_chan(struct comedi_device *dev,
 	if (cmd->stop_src == TRIG_COUNT &&
 	    devpriv->ai_act_scan >= cmd->stop_arg) {
 		/* all data sampled */
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
 		return false;
 	}
@@ -879,7 +878,6 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 
 	if (pcl812_ai_eoc(dev, s, NULL, 0)) {
 		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return;
 	}
@@ -948,7 +946,7 @@ static irqreturn_t pcl812_interrupt(int irq, void *d)
 
 	pcl812_ai_clear_eoc(dev);
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
