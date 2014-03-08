@@ -3752,32 +3752,20 @@ static nfsd4_enc nfsd4_enc_ops[] = {
  */
 __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 {
-	struct xdr_buf *xb = &resp->rqstp->rq_res;
+	struct xdr_buf *buf = &resp->rqstp->rq_res;
 	struct nfsd4_session *session = NULL;
 	struct nfsd4_slot *slot = resp->cstate.slot;
-	u32 length, tlen = 0;
 
 	if (!nfsd4_has_session(&resp->cstate))
 		return 0;
 
 	session = resp->cstate.session;
 
-	if (xb->page_len == 0) {
-		length = (char *)resp->xdr.p - (char *)xb->head[0].iov_base + pad;
-	} else {
-		if (xb->tail[0].iov_base && xb->tail[0].iov_len > 0)
-			tlen = (char *)resp->xdr.p - (char *)xb->tail[0].iov_base;
-
-		length = xb->head[0].iov_len + xb->page_len + tlen + pad;
-	}
-	dprintk("%s length %u, xb->page_len %u tlen %u pad %u\n", __func__,
-		length, xb->page_len, tlen, pad);
-
-	if (length > session->se_fchannel.maxresp_sz)
+	if (buf->len + pad > session->se_fchannel.maxresp_sz)
 		return nfserr_rep_too_big;
 
 	if ((slot->sl_flags & NFSD4_SLOT_CACHETHIS) &&
-	    length > session->se_fchannel.maxresp_cached)
+	    buf->len + pad > session->se_fchannel.maxresp_cached)
 		return nfserr_rep_too_big_to_cache;
 
 	return 0;
