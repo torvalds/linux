@@ -298,7 +298,7 @@ struct ost_id {
 #define LOV_MAX_STRIPE_COUNT_OLD 160
 /* This calculation is crafted so that input of 4096 will result in 160
  * which in turn is equal to old maximal stripe count.
- * XXX: In fact this is too simpified for now, what it also need is to get
+ * XXX: In fact this is too simplified for now, what it also need is to get
  * ea_type argument to clearly know how much space each stripe consumes.
  *
  * The limit of 12 pages is somewhat arbitrary, but is a reasonably large
@@ -928,7 +928,7 @@ struct hsm_state_set_ioc {
 
 /*
  * This structure describes the current in-progress action for a file.
- * it is retuned to user space and send over the wire
+ * it is returned to user space and send over the wire
  */
 struct hsm_current_action {
 	/**  The current undergoing action, if there is one */

@@ -350,7 +350,7 @@ struct som_attrs {
 	/** Bitfield for supported data in this structure. For future use. */
 	__u32	som_compat;
 
-	/** Incompat feature list. The supported feature mask is availabe in
+	/** Incompat feature list. The supported feature mask is available in
 	 * SOM_INCOMPAT_SUPP */
 	__u32	som_incompat;
 
@@ -933,7 +933,7 @@ enum lu_dirent_attrs {
 	LUDA_TYPE		= 0x0002,
 	LUDA_64BITHASH		= 0x0004,
 
-	/* The following attrs are used for MDT interanl only,
+	/* The following attrs are used for MDT internal only,
 	 * not visible to client */
 
 	/* Verify the dirent consistency */
@@ -2586,7 +2586,7 @@ struct mdt_rec_setxattr {
  * Do NOT change the size of various members, otherwise the value
  * will be broken in lustre_swab_mdt_rec_reint().
  *
- * If you add new members in other mdt_reint_xxx structres and need to use the
+ * If you add new members in other mdt_reint_xxx structures and need to use the
  * rr_padding_x fields, then update lustre_swab_mdt_rec_reint() also.
  */
 struct mdt_rec_reint {
