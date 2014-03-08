@@ -343,7 +343,7 @@ early_idt_handlers:
 ENTRY(early_idt_handler)
 	cld
 
-	cmpl $X86_TRAP_NMI,(%rsp)
+	cmpl $2,(%rsp)		# X86_TRAP_NMI
 	je is_nmi		# Ignore NMI
 
 	cmpl $2,early_recursion_flag(%rip)
