@@ -510,7 +510,6 @@ static bool pcl818_ai_dropout(struct comedi_device *dev,
 			(devpriv->dma) ? "DMA" :
 			(devpriv->usefifo) ? "FIFO" : "IRQ",
 			chan, expected_chan);
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return true;
 	}
@@ -538,7 +537,6 @@ static bool pcl818_ai_next_chan(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan == 0) {
 		/* all data sampled */
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
 		return false;
 	}
@@ -554,7 +552,6 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 
 	if (pcl818_ai_eoc(dev, s, NULL, 0)) {
 		comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return;
 	}
@@ -612,14 +609,12 @@ static void pcl818_handle_fifo(struct comedi_device *dev,
 
 	if (status & 4) {
 		comedi_error(dev, "A/D mode1/3 FIFO overflow!");
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return;
 	}
 
 	if (status & 1) {
 		comedi_error(dev, "A/D mode1/3 FIFO interrupt without data!");
-		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		return;
 	}
@@ -674,7 +669,7 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 
 	pcl818_ai_clear_eoc(dev);
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
