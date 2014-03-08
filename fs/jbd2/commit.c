@@ -555,7 +555,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	blk_start_plug(&plug);
 	jbd2_journal_write_revoke_records(journal, commit_transaction,
 					  &log_bufs, WRITE_SYNC);
-	blk_finish_plug(&plug);
 
 	jbd_debug(3, "JBD2: commit phase 2b\n");
 
@@ -582,7 +581,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	err = 0;
 	bufs = 0;
 	descriptor = NULL;
-	blk_start_plug(&plug);
 	while (commit_transaction->t_buffers) {
 
 		/* Find the next buffer to be journaled... */
