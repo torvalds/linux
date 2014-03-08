@@ -1809,7 +1809,8 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 			if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 				ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATED &&
 				ieee->iw_mode == IW_MODE_INFRA){
-				if (0 == (errcode=assoc_parse(skb, &aid))){
+				errcode = assoc_parse(skb, &aid);
+				if (0 == errcode) {
 					u16 left;
 
 					ieee->state=IEEE80211_LINKED;
@@ -1900,7 +1901,8 @@ associate_complete:
 
 						IEEE80211_DEBUG_MGMT("Received authentication response");
 
-						if (0 == (errcode=auth_parse(skb, &challenge, &chlen))){
+						errcode = auth_parse(skb, &challenge, &chlen);
+						if (0 == errcode) {
 							if(ieee->open_wep || !challenge){
 								ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATED;
 								ieee->softmac_stats.rx_auth_rs_ok++;
