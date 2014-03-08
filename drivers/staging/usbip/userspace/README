@@ -9,8 +9,8 @@
     - USB/IP device drivers
 	Found in the staging directory of the Linux kernel.
 
-    - sysfsutils >= 2.0.0
-	sysfsutils library
+    - libudev >= 2.0
+	libudev library
 
     - libwrap0-dev
 	tcp wrapper library
