@@ -725,10 +725,10 @@ int iwctl_giwaplist(struct net_device *dev, struct iw_request_info *info,
 	if (!wrq->pointer)
 		return -EINVAL;
 
-	sock = kzalloc(sizeof(struct sockaddr) * IW_MAX_AP, GFP_KERNEL);
+	sock = kcalloc(IW_MAX_AP, sizeof(struct sockaddr), GFP_KERNEL);
 	if (sock == NULL)
 		return -ENOMEM;
-	qual = kzalloc(sizeof(struct iw_quality) * IW_MAX_AP, GFP_KERNEL);
+	qual = kcalloc(IW_MAX_AP, sizeof(struct iw_quality), GFP_KERNEL);
 	if (qual == NULL) {
 		kfree(sock);
 		return -ENOMEM;
