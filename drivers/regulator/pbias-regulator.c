@@ -108,7 +108,7 @@ static int pbias_regulator_is_enable(struct regulator_dev *rdev)
 
 	regmap_read(data->syscon, data->pbias_reg, &value);
 
-	return (value & info->enable_mask) == info->enable_mask;
+	return (value & info->enable_mask) == info->enable;
 }
 
 static struct regulator_ops pbias_regulator_voltage_ops = {
