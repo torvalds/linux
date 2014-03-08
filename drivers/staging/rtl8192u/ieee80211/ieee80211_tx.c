@@ -378,7 +378,7 @@ FORCED_AGG_SETTING:
 		return;
 }
 
-extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
+void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -391,7 +391,7 @@ extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_
 	}
 	return;
 }
-extern	void
+void
 ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
