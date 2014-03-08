@@ -6,24 +6,27 @@
 #include "vhci_driver.h"
 #include <limits.h>
 #include <netdb.h>
+#include <libudev.h>
 
 #undef  PROGNAME
 #define PROGNAME "libusbip"
 
 struct usbip_vhci_driver *vhci_driver;
+struct udev *udev_context;
 
 static struct usbip_imported_device *
 imported_device_init(struct usbip_imported_device *idev, char *busid)
 {
-	struct sysfs_device *sudev;
+	struct udev_device *sudev;
 
-	sudev = sysfs_open_device("usb", busid);
+	sudev = udev_device_new_from_subsystem_sysname(udev_context,
+						       "usb", busid);
 	if (!sudev) {
-		dbg("sysfs_open_device failed: %s", busid);
+		dbg("udev_device_new_from_subsystem_sysname failed: %s", busid);
 		goto err;
 	}
 	read_usb_device(sudev, &idev->udev);
-	sysfs_close_device(sudev);
+	udev_device_unref(sudev);
 
 	/* add class devices of this imported device */
 	struct usbip_class_device *cdev;
@@ -410,6 +413,12 @@ int usbip_vhci_driver_open(void)
 	int ret;
 	char hc_busid[SYSFS_BUS_ID_SIZE];
 
+	udev_context = udev_new();
+	if (!udev_context) {
+		err("udev_new failed");
+		return -1;
+	}
+
 	vhci_driver = (struct usbip_vhci_driver *) calloc(1, sizeof(*vhci_driver));
 	if (!vhci_driver) {
 		dbg("calloc failed");
@@ -461,6 +470,9 @@ err:
 		free(vhci_driver);
 
 	vhci_driver = NULL;
+
+	udev_unref(udev_context);
+
 	return -1;
 }
 
@@ -483,6 +495,8 @@ void usbip_vhci_driver_close()
 	free(vhci_driver);
 
 	vhci_driver = NULL;
+
+	udev_unref(udev_context);
 }
 
 

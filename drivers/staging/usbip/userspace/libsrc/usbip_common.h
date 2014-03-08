@@ -6,6 +6,7 @@
 #define __USBIP_COMMON_H
 
 #include <sysfs/libsysfs.h>
+#include <libudev.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -118,8 +119,8 @@ struct usbip_usb_device {
 
 void dump_usb_interface(struct usbip_usb_interface *);
 void dump_usb_device(struct usbip_usb_device *);
-int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev);
-int read_attr_value(struct sysfs_device *dev, const char *name,
+int read_usb_device(struct udev_device *sdev, struct usbip_usb_device *udev);
+int read_attr_value(struct udev_device *dev, const char *name,
 		    const char *format);
 int read_usb_interface(struct usbip_usb_device *udev, int i,
 		       struct usbip_usb_interface *uinf);
