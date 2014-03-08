@@ -768,8 +768,8 @@ struct un_t {
 
 #if !defined(TIOCMODG)
 
-#define	TIOCMODG	('d'<<8) | 250		/* get modem ctrl state	*/
-#define	TIOCMODS	('d'<<8) | 251		/* set modem ctrl state	*/
+#define	TIOCMODG	(('d'<<8) | 250)		/* get modem ctrl state	*/
+#define	TIOCMODS	(('d'<<8) | 251)		/* set modem ctrl state	*/
 
 #ifndef TIOCM_LE
 #define		TIOCM_LE	0x01		/* line enable		*/
@@ -788,44 +788,44 @@ struct un_t {
 #endif
 
 #if !defined(TIOCMSET)
-#define	TIOCMSET	('d'<<8) | 252		/* set modem ctrl state	*/
-#define	TIOCMGET	('d'<<8) | 253		/* set modem ctrl state	*/
+#define	TIOCMSET	(('d'<<8) | 252)		/* set modem ctrl state	*/
+#define	TIOCMGET	(('d'<<8) | 253)		/* set modem ctrl state	*/
 #endif
 
 #if !defined(TIOCMBIC)
-#define	TIOCMBIC	('d'<<8) | 254		/* set modem ctrl state */
-#define	TIOCMBIS	('d'<<8) | 255		/* set modem ctrl state */
+#define	TIOCMBIC	(('d'<<8) | 254)		/* set modem ctrl state */
+#define	TIOCMBIS	(('d'<<8) | 255)		/* set modem ctrl state */
 #endif
 
 
 #if !defined(TIOCSDTR)
-#define	TIOCSDTR	('e'<<8) | 0		/* set DTR		*/
-#define	TIOCCDTR	('e'<<8) | 1		/* clear DTR		*/
+#define	TIOCSDTR	(('e'<<8) | 0)		/* set DTR		*/
+#define	TIOCCDTR	(('e'<<8) | 1)		/* clear DTR		*/
 #endif
 
 /************************************************************************
  * Ioctl command arguments for DIGI parameters.
  ************************************************************************/
-#define DIGI_GETA	('e'<<8) | 94		/* Read params		*/
+#define DIGI_GETA	(('e'<<8) | 94)		/* Read params		*/
 
-#define DIGI_SETA	('e'<<8) | 95		/* Set params		*/
-#define DIGI_SETAW	('e'<<8) | 96		/* Drain & set params	*/
-#define DIGI_SETAF	('e'<<8) | 97		/* Drain, flush & set params */
+#define DIGI_SETA	(('e'<<8) | 95)		/* Set params		*/
+#define DIGI_SETAW	(('e'<<8) | 96)		/* Drain & set params	*/
+#define DIGI_SETAF	(('e'<<8) | 97)		/* Drain, flush & set params */
 
-#define DIGI_KME	('e'<<8) | 98		/* Read/Write Host	*/
+#define DIGI_KME	(('e'<<8) | 98)		/* Read/Write Host	*/
 						/* Adapter Memory	*/
 
-#define	DIGI_GETFLOW	('e'<<8) | 99		/* Get startc/stopc flow */
+#define	DIGI_GETFLOW	(('e'<<8) | 99)		/* Get startc/stopc flow */
 						/* control characters 	 */
-#define	DIGI_SETFLOW	('e'<<8) | 100		/* Set startc/stopc flow */
+#define	DIGI_SETFLOW	(('e'<<8) | 100)		/* Set startc/stopc flow */
 						/* control characters	 */
-#define	DIGI_GETAFLOW	('e'<<8) | 101		/* Get Aux. startc/stopc */
+#define	DIGI_GETAFLOW	(('e'<<8) | 101)		/* Get Aux. startc/stopc */
 						/* flow control chars 	 */
-#define	DIGI_SETAFLOW	('e'<<8) | 102		/* Set Aux. startc/stopc */
+#define	DIGI_SETAFLOW	(('e'<<8) | 102)		/* Set Aux. startc/stopc */
 						/* flow control chars	 */
 
-#define DIGI_GEDELAY	('d'<<8) | 246		/* Get edelay */
-#define DIGI_SEDELAY	('d'<<8) | 247		/* Set edelay */
+#define DIGI_GEDELAY	(('d'<<8) | 246)		/* Get edelay */
+#define DIGI_SEDELAY	(('d'<<8) | 247)		/* Set edelay */
 
 struct	digiflow_t {
 	unsigned char	startc;				/* flow cntl start char	*/
@@ -834,8 +834,8 @@ struct	digiflow_t {
 
 
 #ifdef	FLOW_2200
-#define	F2200_GETA	('e'<<8) | 104		/* Get 2x36 flow cntl flags */
-#define	F2200_SETAW	('e'<<8) | 105		/* Set 2x36 flow cntl flags */
+#define	F2200_GETA	(('e'<<8) | 104)		/* Get 2x36 flow cntl flags */
+#define	F2200_SETAW	(('e'<<8) | 105)		/* Set 2x36 flow cntl flags */
 #define		F2200_MASK	0x03		/* 2200 flow cntl bit mask  */
 #define		FCNTL_2200	0x01		/* 2x36 terminal flow cntl  */
 #define		PCNTL_2200	0x02		/* 2x36 printer flow cntl   */
@@ -971,7 +971,7 @@ struct digi_dinfo {
 	char		dinfo_version[16];	/* driver version       */
 };
 
-#define	DIGI_GETDD	('d'<<8) | 248		/* get driver info      */
+#define	DIGI_GETDD	(('d'<<8) | 248)		/* get driver info      */
 
 /************************************************************************
  * Structure used with ioctl commands for per-board information
@@ -991,7 +991,7 @@ struct digi_info {
 	char		info_reserved[7];	/* for future expansion    */
 };
 
-#define	DIGI_GETBD	('d'<<8) | 249		/* get board info          */
+#define	DIGI_GETBD	(('d'<<8) | 249)		/* get board info          */
 
 struct digi_stat {
 	unsigned int	info_chan;		/* Channel number (0 based)  */
@@ -1006,7 +1006,7 @@ struct digi_stat {
 	unsigned long	info_reserved[8];	/* for future expansion    */
 };
 
-#define	DIGI_GETSTAT	('d'<<8) | 244		/* get board info          */
+#define	DIGI_GETSTAT	(('d'<<8) | 244)		/* get board info          */
 /************************************************************************
  *
  * Structure used with ioctl commands for per-channel information
@@ -1049,7 +1049,7 @@ struct digi_cmd {
 #define INFO_CH_WLOW	0x0020
 #define INFO_XXBUF_BUSY 0x0040
 
-#define	DIGI_GETCH	('d'<<8) | 245		/* get board info          */
+#define	DIGI_GETCH	(('d'<<8) | 245)		/* get board info          */
 
 /* Board type definitions */
 
@@ -1094,12 +1094,12 @@ struct digi_cmd {
 #define BD_TRIBOOT	0x8
 #define	BD_BADKME	0x80
 
-#define DIGI_LOOPBACK	      ('d'<<8) | 252		/* Enable/disable UART internal loopback */
-#define DIGI_SPOLL            ('d'<<8) | 254		/* change poller rate   */
+#define DIGI_LOOPBACK	      (('d'<<8) | 252)		/* Enable/disable UART internal loopback */
+#define DIGI_SPOLL            (('d'<<8) | 254)		/* change poller rate   */
 
 #define DIGI_SETCUSTOMBAUD	_IOW('e', 106, int)	/* Set integer baud rate */
 #define DIGI_GETCUSTOMBAUD	_IOR('e', 107, int)	/* Get integer baud rate */
-#define DIGI_RESET_PORT		('e'<<8) | 93		/* Reset port		*/
+#define DIGI_RESET_PORT		(('e'<<8) | 93)		/* Reset port		*/
 
 /************************************************************************
  * Channel information structure.
