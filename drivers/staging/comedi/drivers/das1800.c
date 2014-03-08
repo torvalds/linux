@@ -665,9 +665,8 @@ static void das1800_ai_handler(struct comedi_device *dev)
 		/*  clear OVF interrupt bit */
 		outb(CLEAR_INTR_MASK & ~OVF, dev->iobase + DAS1800_STATUS);
 		comedi_error(dev, "DAS1800 FIFO overflow");
-		das1800_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		return;
 	}
 	/*  stop taking data if appropriate */
@@ -680,16 +679,12 @@ static void das1800_ai_handler(struct comedi_device *dev)
 			das1800_flush_dma(dev, s);
 		else
 			das1800_handle_fifo_not_empty(dev, s);
-		das1800_cancel(dev, s);	/* disable hardware conversions */
 		async->events |= COMEDI_CB_EOA;
 	} else if (cmd->stop_src == TRIG_COUNT && devpriv->count == 0) {	/*  stop_src TRIG_COUNT */
-		das1800_cancel(dev, s);	/* disable hardware conversions */
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	comedi_event(dev, s);
-
-	return;
+	cfc_handle_events(dev, s);
 }
 
 static int das1800_ai_poll(struct comedi_device *dev,
