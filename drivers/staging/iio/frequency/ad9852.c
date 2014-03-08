@@ -218,7 +218,7 @@ static int ad9852_probe(struct spi_device *spi)
 	idev->info = &ad9852_info;
 	idev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(idev);
+	ret = devm_iio_device_register(&spi->dev, idev);
 	if (ret)
 		return ret;
 	spi->max_speed_hz = 2000000;
@@ -230,20 +230,12 @@ static int ad9852_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ad9852_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
-
-	return 0;
-}
-
 static struct spi_driver ad9852_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 	},
 	.probe = ad9852_probe,
-	.remove = ad9852_remove,
 };
 module_spi_driver(ad9852_driver);
 
