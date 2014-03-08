@@ -26,6 +26,17 @@
 #include "11n.h"
 #include "11n_rxreorder.h"
 
+/* This function will process the rx packet and forward it to kernel/upper
+ * layer.
+ */
+static int mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv, void *payload)
+{
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		return mwifiex_handle_uap_rx_forward(priv, payload);
+
+	return mwifiex_process_rx_packet(priv, payload);
+}
+
 /*
  * This function dispatches all packets in the Rx reorder table until the
  * start window.
@@ -35,8 +46,9 @@
  * circular buffer.
  */
 static void
-mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
-			 struct mwifiex_rx_reorder_tbl *tbl, int start_win)
+mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
+					 struct mwifiex_rx_reorder_tbl *tbl,
+					 int start_win)
 {
 	int pkt_to_send, i;
 	void *rx_tmp_ptr;
@@ -54,12 +66,8 @@ mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		if (rx_tmp_ptr) {
-			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-				mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
-			else
-				mwifiex_process_rx_packet(priv, rx_tmp_ptr);
-		}
+		if (rx_tmp_ptr)
+			mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -101,11 +109,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 		tbl->rx_reorder_ptr[i] = NULL;
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-
-		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-			mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
-		else
-			mwifiex_process_rx_packet(priv, rx_tmp_ptr);
+		mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -141,7 +145,7 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 		return;
 
 	start_win = (tbl->start_win + tbl->win_size) & (MAX_TID_VALUE - 1);
-	mwifiex_11n_dispatch_pkt(priv, tbl, start_win);
+	mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, start_win);
 
 	del_timer_sync(&tbl->timer_context.timer);
 
@@ -238,7 +242,8 @@ mwifiex_flush_data(unsigned long context)
 
 	dev_dbg(ctx->priv->adapter->dev, "info: flush data %d\n", seq_num);
 	start_win = (ctx->ptr->start_win + seq_num + 1) & (MAX_TID_VALUE - 1);
-	mwifiex_11n_dispatch_pkt(ctx->priv, ctx->ptr, start_win);
+	mwifiex_11n_dispatch_pkt_until_start_win(ctx->priv, ctx->ptr,
+						 start_win);
 }
 
 /*
@@ -267,7 +272,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	 */
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (tbl) {
-		mwifiex_11n_dispatch_pkt(priv, tbl, seq_num);
+		mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, seq_num);
 		return;
 	}
 	/* if !tbl then create one */
@@ -459,12 +464,8 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (!tbl) {
-		if (pkt_type != PKT_TYPE_BAR) {
-			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-				mwifiex_handle_uap_rx_forward(priv, payload);
-			else
-				mwifiex_process_rx_packet(priv, payload);
-		}
+		if (pkt_type != PKT_TYPE_BAR)
+			mwifiex_11n_dispatch_pkt(priv, payload);
 		return 0;
 	}
 	start_win = tbl->start_win;
@@ -520,7 +521,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 			start_win = (end_win - win_size) + 1;
 		else
 			start_win = (MAX_TID_VALUE - (win_size - seq_num)) + 1;
-		mwifiex_11n_dispatch_pkt(priv, tbl, start_win);
+		mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, start_win);
 	}
 
 	if (pkt_type != PKT_TYPE_BAR) {
