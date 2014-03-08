@@ -233,12 +233,10 @@ static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
  */
 static int isp_video_buffer_prepare_user(struct isp_video_buffer *buf)
 {
-	struct scatterlist *sg;
 	unsigned int offset;
 	unsigned long data;
 	unsigned int first;
 	unsigned int last;
-	unsigned int i;
 	int ret;
 
 	data = buf->vbuf.m.userptr;
@@ -267,20 +265,10 @@ static int isp_video_buffer_prepare_user(struct isp_video_buffer *buf)
 	if (ret < 0)
 		return ret;
 
-	ret = sg_alloc_table(&buf->sgt, buf->npages, GFP_KERNEL);
+	ret = sg_alloc_table_from_pages(&buf->sgt, buf->pages, buf->npages,
+					offset, buf->vbuf.length, GFP_KERNEL);
 	if (ret < 0)
 		return ret;
-
-	for (sg = buf->sgt.sgl, i = 0; i < buf->npages; ++i) {
-		if (PageHighMem(buf->pages[i])) {
-			sg_free_table(&buf->sgt);
-			return -EINVAL;
-		}
-
-		sg_set_page(sg, buf->pages[i], PAGE_SIZE - offset, offset);
-		sg = sg_next(sg);
-		offset = 0;
-	}
 
 	return 0;
 }
