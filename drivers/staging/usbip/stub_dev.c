@@ -337,7 +337,7 @@ static int stub_probe(struct usb_device *udev)
 {
 	struct stub_device *sdev = NULL;
 	const char *udev_busid = dev_name(&udev->dev);
-	int err = 0, config;
+	int err = 0;
 	struct bus_id_priv *busid_priv;
 
 	dev_dbg(&udev->dev, "Enter\n");
@@ -382,14 +382,6 @@ static int stub_probe(struct usb_device *udev)
 		udev->bus->busnum, udev->devnum);
 
 	busid_priv->shutdown_busid = 0;
-
-	config = usb_choose_configuration(udev);
-	if (config >= 0) {
-		err = usb_set_configuration(udev, config);
-		if (err && err != -ENODEV)
-			dev_err(&udev->dev, "can't set config #%d, error %d\n",
-				config, err);
-	}
 
 	/* set private data to usb_device */
 	dev_set_drvdata(&udev->dev, sdev);
