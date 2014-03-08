@@ -27,16 +27,16 @@
 unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *,
 				       void *data, unsigned int num_bytes);
 
-static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *subd,
+static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *s,
 					       unsigned short data)
 {
-	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
+	return cfc_write_array_to_buffer(s, &data, sizeof(data));
 };
 
-static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice
-						    *subd, unsigned int data)
+static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *s,
+						    unsigned int data)
 {
-	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
+	return cfc_write_array_to_buffer(s, &data, sizeof(data));
 };
 
 unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *,
@@ -45,24 +45,24 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *,
 unsigned int cfc_handle_events(struct comedi_device *,
 			       struct comedi_subdevice *);
 
-static inline unsigned int cfc_bytes_per_scan(struct comedi_subdevice *subd)
+static inline unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
 {
 	int num_samples;
 	int bits_per_sample;
 
-	switch (subd->type) {
+	switch (s->type) {
 	case COMEDI_SUBD_DI:
 	case COMEDI_SUBD_DO:
 	case COMEDI_SUBD_DIO:
-		bits_per_sample = 8 * bytes_per_sample(subd);
-		num_samples = (subd->async->cmd.chanlist_len +
+		bits_per_sample = 8 * bytes_per_sample(s);
+		num_samples = (s->async->cmd.chanlist_len +
 			       bits_per_sample - 1) / bits_per_sample;
 		break;
 	default:
-		num_samples = subd->async->cmd.chanlist_len;
+		num_samples = s->async->cmd.chanlist_len;
 		break;
 	}
-	return num_samples * bytes_per_sample(subd);
+	return num_samples * bytes_per_sample(s);
 }
 
 /**
