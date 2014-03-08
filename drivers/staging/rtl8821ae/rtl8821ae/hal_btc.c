@@ -2025,7 +2025,7 @@ void rtl_8821ae_c2h_command_handle(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, 0x1AF, 0x00);
 		return;
 	}
-	ptmp_buf = (u8 *) kmalloc(c2h_event.cmd_len, GFP_KERNEL);
+	ptmp_buf = kmalloc(c2h_event.cmd_len, GFP_KERNEL);
 	if(ptmp_buf == NULL) {
 		RT_TRACE(COMP_FW, DBG_TRACE, ("malloc cmd buf failed\n"));
 		return;
