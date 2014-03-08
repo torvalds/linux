@@ -254,9 +254,6 @@ static int dgap_poll_tick = 20;	/* Poll interval - 20 ms */
 /*
  * Static vars.
  */
-static int dgap_Major_Control_Registered = FALSE;
-static uint dgap_driver_start = FALSE;
-
 static struct class *dgap_class;
 
 static struct board_t *dgap_BoardsByMajor[256];
@@ -551,52 +548,44 @@ static int dgap_start(void)
 	int rc = 0;
 	unsigned long flags;
 
-	if (dgap_driver_start == FALSE) {
+	/*
+	 * make sure that the globals are
+	 * init'd before we do anything else
+	 */
+	dgap_init_globals();
 
-		dgap_driver_start = TRUE;
+	dgap_NumBoards = 0;
 
-		/*
-		 * make sure that the globals are
-		 * init'd before we do anything else
-		 */
-		dgap_init_globals();
+	pr_info("For the tools package please visit http://www.digi.com\n");
 
-		dgap_NumBoards = 0;
+	/*
+	 * Register our base character device into the kernel.
+	 */
 
-		pr_info("For the tools package please visit http://www.digi.com\n");
+	/*
+	 * Register management/dpa devices
+	 */
+	rc = register_chrdev(DIGI_DGAP_MAJOR, "dgap", &DgapBoardFops);
+	if (rc < 0)
+		return rc;
 
-		/*
-		 * Register our base character device into the kernel.
-		 */
-		if (!dgap_Major_Control_Registered) {
-			/*
-			 * Register management/dpa devices
-			 */
-			rc = register_chrdev(DIGI_DGAP_MAJOR, "dgap",
-						 &DgapBoardFops);
-			if (rc < 0)
-				return rc;
+	dgap_class = class_create(THIS_MODULE, "dgap_mgmt");
+	device_create(dgap_class, NULL,
+		MKDEV(DIGI_DGAP_MAJOR, 0),
+		NULL, "dgap_mgmt");
 
-			dgap_class = class_create(THIS_MODULE, "dgap_mgmt");
-			device_create(dgap_class, NULL,
-				MKDEV(DIGI_DGAP_MAJOR, 0),
-				NULL, "dgap_mgmt");
-			dgap_Major_Control_Registered = TRUE;
-		}
+	/* Start the poller */
+	DGAP_LOCK(dgap_poll_lock, flags);
+	init_timer(&dgap_poll_timer);
+	dgap_poll_timer.function = dgap_poll_handler;
+	dgap_poll_timer.data = 0;
+	dgap_poll_time = jiffies + dgap_jiffies_from_ms(dgap_poll_tick);
+	dgap_poll_timer.expires = dgap_poll_time;
+	DGAP_UNLOCK(dgap_poll_lock, flags);
 
-		/* Start the poller */
-		DGAP_LOCK(dgap_poll_lock, flags);
-		init_timer(&dgap_poll_timer);
-		dgap_poll_timer.function = dgap_poll_handler;
-		dgap_poll_timer.data = 0;
-		dgap_poll_time = jiffies + dgap_jiffies_from_ms(dgap_poll_tick);
-		dgap_poll_timer.expires = dgap_poll_time;
-		DGAP_UNLOCK(dgap_poll_lock, flags);
+	add_timer(&dgap_poll_timer);
 
-		add_timer(&dgap_poll_timer);
-
-		dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
-	}
+	dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
 
 	return rc;
 }
@@ -658,13 +647,9 @@ static void dgap_cleanup_module(void)
 
 	dgap_remove_driver_sysfiles(&dgap_driver);
 
-
-	if (dgap_Major_Control_Registered) {
-		device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
-		device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 1));
-		class_destroy(dgap_class);
-		unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
-	}
+	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
+	class_destroy(dgap_class);
+	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 
 	kfree(dgap_config_buf);
 
