@@ -448,7 +448,6 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	das800_ind_write(dev, conv_bits, CONV_CONTROL);
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
-	async->events = 0;
 	das800_enable(dev);
 	return 0;
 }

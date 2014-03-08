@@ -746,8 +746,6 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	hpdi_intr_status = readl(devpriv->hpdi_iobase + INTERRUPT_STATUS_REG);
 	hpdi_board_status = readl(devpriv->hpdi_iobase + BOARD_STATUS_REG);
 
-	async->events = 0;
-
 	if (hpdi_intr_status) {
 		writel(hpdi_intr_status,
 		       devpriv->hpdi_iobase + INTERRUPT_STATUS_REG);

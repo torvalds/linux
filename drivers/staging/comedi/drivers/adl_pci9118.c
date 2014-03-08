@@ -955,8 +955,6 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 	unsigned short sampl;
 
-	s->async->events = 0;
-
 	if (int_adstat & devpriv->ai_maskerr)
 		if (pci9118_decode_error_status(dev, s, int_adstat))
 			return;

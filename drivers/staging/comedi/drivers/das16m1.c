@@ -416,7 +416,6 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 
 	s = dev->read_subdev;
 	async = s->async;
-	async->events = 0;
 	cmd = &async->cmd;
 
 	/*  figure out how many samples are in fifo */

@@ -2619,7 +2619,6 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 		/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 		/* This value is not used */
 		/* ui_ChannelNumber = inl(devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 24); */
-		s->async->events = 0;
 		/* END JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 
       /*************************************/

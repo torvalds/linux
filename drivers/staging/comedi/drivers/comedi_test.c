@@ -185,7 +185,6 @@ static void waveform_ai_interrupt(unsigned long arg)
 	    (devpriv->usec_remainder + elapsed_time) / devpriv->scan_period;
 	devpriv->usec_remainder =
 	    (devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
-	async->events = 0;
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		unsigned int remaining = cmd->stop_arg - devpriv->ai_count;

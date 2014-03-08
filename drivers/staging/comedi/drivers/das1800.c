@@ -646,7 +646,6 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
 
-	async->events = 0;
 	/*  select adc for base address + 0 */
 	outb(ADC, dev->iobase + DAS1800_SELECT);
 	/*  dma buffer full */
