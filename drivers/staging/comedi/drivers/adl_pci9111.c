@@ -592,9 +592,8 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
 			outb(0, dev->iobase + PCI9111_INT_CLR_REG);
-			pci9111_ai_cancel(dev, s);
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			comedi_event(dev, s);
+			cfc_handle_events(dev, s);
 
 			return IRQ_HANDLED;
 		}
@@ -672,16 +671,14 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		}
 	}
 
-	if ((dev_private->stop_counter == 0) && (!dev_private->stop_is_none)) {
+	if (dev_private->stop_counter == 0 && !dev_private->stop_is_none)
 		async->events |= COMEDI_CB_EOA;
-		pci9111_ai_cancel(dev, s);
-	}
 
 	outb(0, dev->iobase + PCI9111_INT_CLR_REG);
 
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
