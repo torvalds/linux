@@ -533,9 +533,8 @@ static void pci224_ao_start(struct comedi_device *dev,
 	set_bit(AO_CMD_STARTED, &devpriv->state);
 	if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
 		/* An empty acquisition! */
-		pci224_ao_stop(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 	} else {
 		/* Enable interrupts. */
 		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
@@ -585,9 +584,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		room = PCI224_FIFO_ROOM_EMPTY;
 		if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
 			/* FIFO empty at end of counted acquisition. */
-			pci224_ao_stop(dev, s);
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
+			cfc_handle_events(dev, s);
 			return;
 		}
 		break;
@@ -605,9 +603,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		/* FIFO is less than half-full. */
 		if (num_scans == 0) {
 			/* Nothing left to put in the FIFO. */
-			pci224_ao_stop(dev, s);
-			s->async->events |= COMEDI_CB_OVERFLOW;
 			dev_err(dev->class_dev, "AO buffer underrun\n");
+			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
 	}
 	/* Determine how many new scans can be put in the FIFO. */
@@ -670,9 +667,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 					  PCI224_DACCON_TRIG_MASK);
 		outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
 	}
-	if (s->async->events)
-		comedi_event(dev, s);
 
+	cfc_handle_events(dev, s);
 }
 
 /*
