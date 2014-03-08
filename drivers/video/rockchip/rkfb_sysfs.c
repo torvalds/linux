@@ -291,85 +291,6 @@ static ssize_t set_dsp_lut(struct device *dev, struct device_attribute *attr,
 	return count;
 
 }
-static ssize_t show_dsp_cabc(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-
-	return 0;
-}
-
-static ssize_t set_dsp_cabc(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct rk_lcdc_driver *dev_drv =
-	    (struct rk_lcdc_driver *)fbi->par;
-	int ret,mode=0;
-	
-	ret = kstrtoint(buf, 0, &mode);
-	if (ret)
-		return ret;
-
-	ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode);
-	if(ret < 0)
-		return ret;
-	
-	return count;
-
-	
-}
-
-static ssize_t show_hue(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-
-	return 0;
-}
-
-static ssize_t set_hue(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct rk_lcdc_driver *dev_drv =
-	    (struct rk_lcdc_driver *)fbi->par;
-	int ret,hue;
-	
-	ret = kstrtoint(buf, 0, &hue);
-	if (ret)
-		return ret;
-
-	ret = dev_drv->ops->set_dsp_hue(dev_drv, hue);
-	if(ret < 0)
-		return ret;
-	
-	return count;
-}
-
-static ssize_t show_dsp_bcs(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-
-	return 0;
-}
-
-static ssize_t set_dsp_bcs(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct rk_lcdc_driver *dev_drv =
-	    (struct rk_lcdc_driver *)fbi->par;
-	int ret,bri,con,sat;
-	
-	ret = kstrtoint(buf, 0, &bri);
-	if (ret)
-		return ret;
-
-	ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, bri,con,sat);
-	if(ret < 0)
-		return ret;
-	
-	return count;
-}
 
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
@@ -382,9 +303,6 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(fps, S_IRUGO | S_IWUSR, show_fps, set_fps),
 	__ATTR(map, S_IRUGO | S_IWUSR, show_fb_win_map, set_fb_win_map),
 	__ATTR(dsp_lut, S_IRUGO | S_IWUSR, show_dsp_lut, set_dsp_lut),
-	__ATTR(cabc, S_IRUGO | S_IWUSR, show_dsp_cabc, set_dsp_cabc),
-	__ATTR(hue, S_IRUGO | S_IWUSR, show_hue, set_hue),
-	__ATTR(bcs, S_IRUGO | S_IWUSR, show_dsp_bcs, set_dsp_bcs),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)

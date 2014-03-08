@@ -61,12 +61,6 @@ struct rk_screen {
 	u8 lcdc_id;   
 	u8 screen_id; 
 	struct fb_videomode mode;
-	u32 post_dsp_stx;
-	u32 post_dsp_sty;
-	u32 post_xsize;
-	u32 post_ysize;
-	u16 x_mirror;
-	u16 y_mirror;
 	u16 width;
 	u16 height;
 	u8  ft;
