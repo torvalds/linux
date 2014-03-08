@@ -339,6 +339,7 @@ static int stub_probe(struct usb_device *udev)
 	const char *udev_busid = dev_name(&udev->dev);
 	int err = 0;
 	struct bus_id_priv *busid_priv;
+	int rc;
 
 	dev_dbg(&udev->dev, "Enter\n");
 
@@ -388,6 +389,18 @@ static int stub_probe(struct usb_device *udev)
 	busid_priv->sdev = sdev;
 	busid_priv->udev = udev;
 
+	/*
+	 * Claim this hub port.
+	 * It doesn't matter what value we pass as owner
+	 * (struct dev_state) as long as it is unique.
+	 */
+	rc = usb_hub_claim_port(udev->parent, udev->portnum,
+			(struct dev_state *) udev);
+	if (rc) {
+		dev_dbg(&udev->dev, "unable to claim port\n");
+		return rc;
+	}
+
 	err = stub_add_files(&udev->dev);
 	if (err) {
 		dev_err(&udev->dev, "stub_add_files for %s\n", udev_busid);
@@ -424,6 +437,7 @@ static void stub_disconnect(struct usb_device *udev)
 	struct stub_device *sdev;
 	const char *udev_busid = dev_name(&udev->dev);
 	struct bus_id_priv *busid_priv;
+	int rc;
 
 	dev_dbg(&udev->dev, "Enter\n");
 
@@ -447,6 +461,14 @@ static void stub_disconnect(struct usb_device *udev)
 	 * NOTE: rx/tx threads are invoked for each usb_device.
 	 */
 	stub_remove_files(&udev->dev);
+
+	/* release port */
+	rc = usb_hub_release_port(udev->parent, udev->portnum,
+				  (struct dev_state *) udev);
+	if (rc) {
+		dev_dbg(&udev->dev, "unable to release port\n");
+		return;
+	}
 
 	/* If usb reset is called from event handler */
 	if (busid_priv->sdev->ud.eh == current)
