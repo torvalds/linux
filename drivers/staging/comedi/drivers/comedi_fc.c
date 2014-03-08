@@ -22,11 +22,11 @@
 
 #include "comedi_fc.h"
 
-static void increment_scan_progress(struct comedi_subdevice *subd,
+static void increment_scan_progress(struct comedi_subdevice *s,
 				    unsigned int num_bytes)
 {
-	struct comedi_async *async = subd->async;
-	unsigned int scan_length = cfc_bytes_per_scan(subd);
+	struct comedi_async *async = s->async;
+	unsigned int scan_length = cfc_bytes_per_scan(s);
 
 	async->scan_progress += num_bytes;
 	if (async->scan_progress >= scan_length) {
@@ -36,10 +36,10 @@ static void increment_scan_progress(struct comedi_subdevice *subd,
 }
 
 /* Writes an array of data points to comedi's buffer */
-unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd,
+unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
 				       void *data, unsigned int num_bytes)
 {
-	struct comedi_async *async = subd->async;
+	struct comedi_async *async = s->async;
 	unsigned int retval;
 
 	if (num_bytes == 0)
@@ -47,24 +47,24 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd,
 
 	retval = comedi_buf_write_alloc(async, num_bytes);
 	if (retval != num_bytes) {
-		dev_warn(subd->device->class_dev, "comedi: buffer overrun\n");
+		dev_warn(s->device->class_dev, "comedi: buffer overrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
 	}
 
 	comedi_buf_memcpy_to(async, 0, data, num_bytes);
 	comedi_buf_write_free(async, num_bytes);
-	increment_scan_progress(subd, num_bytes);
+	increment_scan_progress(s, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 
 	return num_bytes;
 }
 EXPORT_SYMBOL_GPL(cfc_write_array_to_buffer);
 
-unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
+unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *s,
 					void *data, unsigned int num_bytes)
 {
-	struct comedi_async *async = subd->async;
+	struct comedi_async *async = s->async;
 
 	if (num_bytes == 0)
 		return 0;
@@ -72,7 +72,7 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
 	num_bytes = comedi_buf_read_alloc(async, num_bytes);
 	comedi_buf_memcpy_from(async, 0, data, num_bytes);
 	comedi_buf_read_free(async, num_bytes);
-	increment_scan_progress(subd, num_bytes);
+	increment_scan_progress(s, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 
 	return num_bytes;
@@ -80,17 +80,17 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
 EXPORT_SYMBOL_GPL(cfc_read_array_from_buffer);
 
 unsigned int cfc_handle_events(struct comedi_device *dev,
-			       struct comedi_subdevice *subd)
+			       struct comedi_subdevice *s)
 {
-	unsigned int events = subd->async->events;
+	unsigned int events = s->async->events;
 
 	if (events == 0)
 		return events;
 
 	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
-		subd->cancel(dev, subd);
+		s->cancel(dev, s);
 
-	comedi_event(dev, subd);
+	comedi_event(dev, s);
 
 	return events;
 }
