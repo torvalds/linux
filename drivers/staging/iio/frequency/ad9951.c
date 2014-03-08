@@ -175,7 +175,7 @@ static int ad9951_probe(struct spi_device *spi)
 	idev->info = &ad9951_info;
 	idev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(idev);
+	ret = devm_iio_device_register(&spi->dev, idev);
 	if (ret)
 		return ret;
 	spi->max_speed_hz = 2000000;
@@ -186,20 +186,12 @@ static int ad9951_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ad9951_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
-
-	return 0;
-}
-
 static struct spi_driver ad9951_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 	},
 	.probe = ad9951_probe,
-	.remove = ad9951_remove,
 };
 module_spi_driver(ad9951_driver);
 
