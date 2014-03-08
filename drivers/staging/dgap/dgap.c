@@ -547,6 +547,7 @@ static int dgap_start(void)
 {
 	int rc = 0;
 	unsigned long flags;
+	struct device *device;
 
 	/*
 	 * make sure that the globals are
@@ -570,9 +571,18 @@ static int dgap_start(void)
 		return rc;
 
 	dgap_class = class_create(THIS_MODULE, "dgap_mgmt");
-	device_create(dgap_class, NULL,
+	if (IS_ERR(dgap_class)) {
+		rc = PTR_ERR(dgap_class);
+		goto failed_class;
+	}
+
+	device = device_create(dgap_class, NULL,
 		MKDEV(DIGI_DGAP_MAJOR, 0),
 		NULL, "dgap_mgmt");
+	if (IS_ERR(device)) {
+		rc = PTR_ERR(device);
+		goto failed_device;
+	}
 
 	/* Start the poller */
 	DGAP_LOCK(dgap_poll_lock, flags);
@@ -587,6 +597,12 @@ static int dgap_start(void)
 
 	dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
 
+	return rc;
+
+failed_device:
+	class_destroy(dgap_class);
+failed_class:
+	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 	return rc;
 }
 
