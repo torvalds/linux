@@ -33,7 +33,7 @@ struct linkea_data {
 	 */
 	struct lu_buf		*ld_buf;
 	/**
-	 * The matched header, entry and its lenght in the EA
+	 * The matched header, entry and its length in the EA
 	 */
 	struct link_ea_header	*ld_leh;
 	struct link_ea_entry	*ld_lee;

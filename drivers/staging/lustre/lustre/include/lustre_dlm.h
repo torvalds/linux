@@ -330,7 +330,7 @@ enum {
 };
 
 typedef enum {
-	/** invalide type */
+	/** invalid type */
 	LDLM_NS_TYPE_UNKNOWN    = 0,
 	/** mdc namespace */
 	LDLM_NS_TYPE_MDC,

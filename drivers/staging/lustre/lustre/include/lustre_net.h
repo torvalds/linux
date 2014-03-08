@@ -454,9 +454,9 @@ struct ptlrpc_reply_state {
 	/** Size of the reply message */
 	int		    rs_repdata_len;  /* wrapper msg length */
 	/**
-	 * Actual reply message. Its content is encrupted (if needed) to
+	 * Actual reply message. Its content is encrypted (if needed) to
 	 * produce reply buffer for actual sending. In simple case
-	 * of no network encryption we jus set \a rs_repbuf to \a rs_msg
+	 * of no network encryption we just set \a rs_repbuf to \a rs_msg
 	 */
 	struct lustre_msg     *rs_msg;	  /* reply message */
 
@@ -904,7 +904,7 @@ struct ptlrpc_nrs_pol_conf {
 	 */
 	struct module			  *nc_owner;
 	/**
-	 * Policy registration flags; a bitmast of \e nrs_policy_flags
+	 * Policy registration flags; a bitmask of \e nrs_policy_flags
 	 */
 	unsigned			   nc_flags;
 };

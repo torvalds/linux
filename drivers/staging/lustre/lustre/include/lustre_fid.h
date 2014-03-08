@@ -570,7 +570,7 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
  * Currently, resid from the old client, whose res[0] = object_id,
  * res[1] = object_seq, is just opposite with Metatdata
  * resid, where, res[0] = fid->f_seq, res[1] = fid->f_oid.
- * To unifiy the resid identification, we will reverse the data
+ * To unify the resid identification, we will reverse the data
  * resid to keep it same with Metadata resid, i.e.
  *
  * For resid from the old client,
