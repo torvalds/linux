@@ -1,7 +1,7 @@
 /*
  * VMware PVSCSI header file
  *
- * Copyright (C) 2008-2009, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2014, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 
-#define PVSCSI_DRIVER_VERSION_STRING   "1.0.2.0-k"
+#define PVSCSI_DRIVER_VERSION_STRING   "1.0.3.0-k"
 
 #define PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT 128
 
