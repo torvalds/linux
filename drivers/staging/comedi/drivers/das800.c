@@ -521,10 +521,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 
 	if (fifo_overflow) {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-		das800_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
-		async->events = 0;
+		cfc_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -540,8 +538,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		das800_disable(dev);
 		async->events |= COMEDI_CB_EOA;
 	}
-	comedi_event(dev, s);
-	async->events = 0;
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
