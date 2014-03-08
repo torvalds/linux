@@ -770,6 +770,7 @@ static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
 	usb_set_intfdata(intf, dev);
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
+	netdev->dev_id = ctrl_idx;
 
 	err = register_candev(netdev);
 	if (err) {

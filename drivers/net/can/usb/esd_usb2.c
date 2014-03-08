@@ -1025,6 +1025,7 @@ static int esd_usb2_probe_one_net(struct usb_interface *intf, int index)
 	netdev->netdev_ops = &esd_usb2_netdev_ops;
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
+	netdev->dev_id = index;
 
 	err = register_candev(netdev);
 	if (err) {

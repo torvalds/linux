@@ -833,6 +833,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 			goto netdev_failed;
 		}
+		netdev->dev_id = j;
 		priv = netdev_priv(card->net[j]);
 		priv->index = j;
 		ret = softing_netdev_register(netdev);
