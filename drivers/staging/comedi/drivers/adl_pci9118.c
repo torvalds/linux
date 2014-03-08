@@ -919,8 +919,7 @@ static char pci9118_decode_error_status(struct comedi_device *dev,
 	}
 	if (m & devpriv->ai_maskharderr) {
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		pci9118_ai_cancel(dev, s);
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		return 1;
 	}
 
@@ -973,8 +972,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 				 sampl & 0x000f,
 				 devpriv->chanlist[s->async->cur_chan]);
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			pci9118_ai_cancel(dev, s);
-			comedi_event(dev, s);
+			cfc_handle_events(dev, s);
 			return;
 		}
 	}
@@ -985,16 +983,14 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 							/* one scan done */
 		s->async->cur_chan %= devpriv->ai_n_scanlen;
 		devpriv->ai_act_scan++;
-		if (!(devpriv->ai_neverending))
-			if (devpriv->ai_act_scan >= devpriv->ai_scans) {
-							/* all data sampled */
-				pci9118_ai_cancel(dev, s);
+		if (!devpriv->ai_neverending) {
+			/* all data sampled? */
+			if (devpriv->ai_act_scan >= devpriv->ai_scans)
 				s->async->events |= COMEDI_CB_EOA;
-			}
+		}
 	}
 
-	if (s->async->events)
-		comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
@@ -1009,16 +1005,14 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	if (int_amcc & MASTER_ABORT_INT) {
 		comedi_error(dev, "AMCC IRQ - MASTER DMA ABORT!");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		pci9118_ai_cancel(dev, s);
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		return;
 	}
 
 	if (int_amcc & TARGET_ABORT_INT) {
 		comedi_error(dev, "AMCC IRQ - TARGET DMA ABORT!");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		pci9118_ai_cancel(dev, s);
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		return;
 	}
 	if (int_adstat & devpriv->ai_maskerr)
@@ -1056,12 +1050,11 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		m = m - sampls;		/* m= how many samples was transferred */
 	}
 
-	if (!devpriv->ai_neverending)
-		if (devpriv->ai_act_scan >= devpriv->ai_scans) {
-							/* all data sampled */
-			pci9118_ai_cancel(dev, s);
+	if (!devpriv->ai_neverending) {
+		/* all data sampled? */
+		if (devpriv->ai_act_scan >= devpriv->ai_scans)
 			s->async->events |= COMEDI_CB_EOA;
-		}
+	}
 
 	if (devpriv->dma_doublebuf) {	/* switch dma buffers */
 		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
@@ -1074,7 +1067,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 			interrupt_pci9118_ai_mode4_switch(dev);
 	}
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 static irqreturn_t interrupt_pci9118(int irq, void *d)
