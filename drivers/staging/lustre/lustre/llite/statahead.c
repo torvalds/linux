@@ -577,7 +577,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	 * Someone triggered glimpse within 1 sec before.
 	 * 1) The former glimpse succeeded with glimpse lock granted by OST, and
 	 *    if the lock is still cached on client, AGL needs to do nothing. If
-	 *    it is cancelled by other client, AGL maybe cannot obtaion new lock
+	 *    it is cancelled by other client, AGL maybe cannot obtain new lock
 	 *    for no glimpse callback triggered by AGL.
 	 * 2) The former glimpse succeeded, but OST did not grant glimpse lock.
 	 *    Under such case, it is quite possible that the OST will not grant

@@ -525,7 +525,7 @@ struct ll_sb_info {
 	atomic_t		  ll_agl_total;  /* AGL thread started count */
 
 	dev_t		     ll_sdev_orig; /* save s_dev before assign for
-						 * clustred nfs */
+						 * clustered nfs */
 	struct rmtacl_ctl_table   ll_rct;
 	struct eacl_table	 ll_et;
 	__kernel_fsid_t		  ll_fsid;
@@ -908,7 +908,7 @@ struct ccc_object *cl_inode2ccc(struct inode *inode);
 void vvp_write_pending (struct ccc_object *club, struct ccc_page *page);
 void vvp_write_complete(struct ccc_object *club, struct ccc_page *page);
 
-/* specific achitecture can implement only part of this list */
+/* specific architecture can implement only part of this list */
 enum vvp_io_subtype {
 	/** normal IO */
 	IO_NORMAL,
@@ -1361,7 +1361,7 @@ ll_statahead_enter(struct inode *dir, struct dentry **dentryp, int only_unplug)
 	return do_statahead_enter(dir, dentryp, only_unplug);
 }
 
-/* llite ioctl register support rountine */
+/* llite ioctl register support routine */
 enum llioc_iter {
 	LLIOC_CONT = 0,
 	LLIOC_STOP
@@ -1373,7 +1373,7 @@ enum llioc_iter {
  * Rules to write a callback function:
  *
  * Parameters:
- *  @magic: Dynamic ioctl call routine will feed this vaule with the pointer
+ *  @magic: Dynamic ioctl call routine will feed this value with the pointer
  *      returned to ll_iocontrol_register.  Callback functions should use this
  *      data to check the potential collasion of ioctl cmd. If collasion is
  *      found, callback function should return LLIOC_CONT.
@@ -1398,7 +1398,7 @@ enum llioc_iter ll_iocontrol_call(struct inode *inode, struct file *file,
  * @cb: callback function, it will be called if an ioctl command is found to
  *      belong to the command list @cmd.
  *
- * Return vaule:
+ * Return value:
  *      A magic pointer will be returned if success;
  *      otherwise, NULL will be returned.
  * */
@@ -1508,7 +1508,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		 * separate locks in different namespaces, Master MDT,
 		 * where the name entry is, will grant LOOKUP lock,
 		 * remote MDT, where the object is, will grant
-		 * UPDATE|PERM lock. The inode will be attched to both
+		 * UPDATE|PERM lock. The inode will be attached to both
 		 * LOOKUP and PERM locks, so revoking either locks will
 		 * case the dcache being cleared */
 		if (it->d.lustre.it_remote_lock_mode) {

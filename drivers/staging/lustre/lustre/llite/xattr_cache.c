@@ -242,7 +242,7 @@ int ll_xattr_cache_valid(struct ll_inode_info *lli)
  *
  * Free all xattr memory. @lli is the inode info pointer.
  *
- * \retval 0 no error occured
+ * \retval 0 no error occurred
  */
 static int ll_xattr_cache_destroy_locked(struct ll_inode_info *lli)
 {
@@ -280,7 +280,7 @@ int ll_xattr_cache_destroy(struct inode *inode)
  * the function handles it with a separate enq lock.
  * If successful, the function exits with the list lock held.
  *
- * \retval 0       no error occured
+ * \retval 0       no error occurred
  * \retval -ENOMEM not enough memory
  */
 static int ll_xattr_find_get_lock(struct inode *inode,
@@ -347,7 +347,7 @@ out:
  * a read or a write xattr lock depending on operation in @oit.
  * Intent is dropped on exit unless the operation is setxattr.
  *
- * \retval 0       no error occured
+ * \retval 0       no error occurred
  * \retval -EPROTO network protocol error
  * \retval -ENOMEM not enough memory for the cache
  */
@@ -477,7 +477,7 @@ out_destroy:
  * The resulting value/list is stored in @buffer if the former
  * is not larger than @size.
  *
- * \retval 0        no error occured
+ * \retval 0        no error occurred
  * \retval -EPROTO  network protocol error
  * \retval -ENOMEM  not enough memory for the cache
  * \retval -ERANGE  the buffer is not large enough

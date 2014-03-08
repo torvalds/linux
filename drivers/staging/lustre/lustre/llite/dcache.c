@@ -160,7 +160,7 @@ static int ll_ddelete(const struct dentry *de)
 	/* kernel >= 2.6.38 last refcount is decreased after this function. */
 	LASSERT(d_count(de) == 1);
 
-	/* Disable this piece of code temproarily because this is called
+	/* Disable this piece of code temporarily because this is called
 	 * inside dcache_lock so it's not appropriate to do lots of work
 	 * here. ATTENTION: Before this piece of code enabling, LU-2487 must be
 	 * resolved. */

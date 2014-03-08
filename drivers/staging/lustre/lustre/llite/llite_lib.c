@@ -279,7 +279,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	/* For mount, we only need fs info from MDT0, and also in DNE, it
 	 * can make sure the client can be mounted as long as MDT0 is
-	 * avaible */
+	 * available */
 	err = obd_statfs(NULL, sbi->ll_md_exp, osfs,
 			cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			OBD_STATFS_FOR_MDT0);
@@ -717,7 +717,7 @@ void ll_kill_super(struct super_block *sb)
 		return;
 
 	sbi = ll_s2sbi(sb);
-	/* we need restore s_dev from changed for clustred NFS before put_super
+	/* we need to restore s_dev from changed for clustered NFS before put_super
 	 * because new kernels have cached s_dev and change sb->s_dev in
 	 * put_super not affected real removing devices */
 	if (sbi) {

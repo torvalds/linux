@@ -646,7 +646,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	if (cfio->fault.ft_flags & VM_FAULT_RETRY)
 		return -EAGAIN;
 
-	CERROR("unknow error in page fault %d!\n", cfio->fault.ft_flags);
+	CERROR("Unknown error in page fault %d!\n", cfio->fault.ft_flags);
 	return -EINVAL;
 }
 
@@ -1192,7 +1192,7 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 		if (result == -ENOENT)
 			/* If the inode on MDS has been removed, but the objects
 			 * on OSTs haven't been destroyed (async unlink), layout
-			 * fetch will return -ENOENT, we'd ingore this error
+			 * fetch will return -ENOENT, we'd ignore this error
 			 * and continue with dirty flush. LU-3230. */
 			result = 0;
 		if (result < 0)
@@ -1207,7 +1207,7 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 static struct vvp_io *cl2vvp_io(const struct lu_env *env,
 				const struct cl_io_slice *slice)
 {
-	/* Caling just for assertion */
+	/* Calling just for assertion */
 	cl2ccc_io(env, slice);
 	return vvp_env_io(env);
 }

@@ -1124,7 +1124,7 @@ restart:
 			vio->u.splice.cui_flags = args->u.splice.via_flags;
 			break;
 		default:
-			CERROR("Unknow IO type - %u\n", vio->cui_io_subtype);
+			CERROR("Unknown IO type - %u\n", vio->cui_io_subtype);
 			LBUG();
 		}
 		result = cl_io_loop(env, io);
@@ -2030,7 +2030,7 @@ static int ll_swap_layouts(struct file *file1, struct file *file2,
 		llss->ia2.ia_valid = ATTR_MTIME | ATTR_ATIME;
 	}
 
-	/* ultimate check, before swaping the layouts we check if
+	/* ultimate check, before swapping the layouts we check if
 	 * dataversion has changed (if requested) */
 	if (llss->check_dv1) {
 		rc = ll_data_version(llss->inode1, &dv, 0);
@@ -2695,7 +2695,7 @@ int ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 		LASSERT((cmd == F_SETLKW) || (cmd == F_SETLK));
 		/* flocks are whole-file locks */
 		flock.l_flock.end = OFFSET_MAX;
-		/* For flocks owner is determined by the local file desctiptor*/
+		/* For flocks owner is determined by the local file descriptor*/
 		flock.l_flock.owner = (unsigned long)file_lock->fl_file;
 	} else if (file_lock->fl_flags & FL_POSIX) {
 		flock.l_flock.owner = (unsigned long)file_lock->fl_owner;
@@ -3200,7 +3200,7 @@ struct inode_operations ll_file_inode_operations = {
 	.get_acl	= ll_get_acl,
 };
 
-/* dynamic ioctl number support routins */
+/* dynamic ioctl number support routines */
 static struct llioc_ctl_data {
 	struct rw_semaphore	ioc_sem;
 	struct list_head	      ioc_head;
@@ -3324,7 +3324,7 @@ int ll_layout_conf(struct inode *inode, const struct cl_object_conf *conf)
 		if (result == 0) {
 			/* it can only be allowed to match after layout is
 			 * applied to inode otherwise false layout would be
-			 * seen. Applying layout shoud happen before dropping
+			 * seen. Applying layout should happen before dropping
 			 * the intent lock. */
 			ldlm_lock_allow_match(lock);
 		}

@@ -465,7 +465,7 @@ int ll_lookup_it_finish(struct ptlrpc_request *request,
 	}
 
 	/* Only hash *de if it is unhashed (new dentry).
-	 * Atoimc_open may passin hashed dentries for open.
+	 * Atoimc_open may passing hashed dentries for open.
 	 */
 	if (d_unhashed(*de)) {
 		struct dentry *alias;
