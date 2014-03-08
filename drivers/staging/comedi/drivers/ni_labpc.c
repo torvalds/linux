@@ -947,7 +947,6 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 
 	async = s->async;
 	cmd = &async->cmd;
-	async->events = 0;
 
 	/* read board status */
 	devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
@@ -965,7 +964,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		/* clear error interrupt */
 		devpriv->write_byte(0x1, dev->iobase + ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		comedi_error(dev, "overrun");
 		return IRQ_HANDLED;
 	}
@@ -985,7 +984,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		/*  clear error interrupt */
 		devpriv->write_byte(0x1, dev->iobase + ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		comedi_error(dev, "overflow");
 		return IRQ_HANDLED;
 	}
@@ -993,20 +992,17 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	if (cmd->stop_src == TRIG_EXT) {
 		if (devpriv->stat2 & STAT2_OUTA1) {
 			labpc_drain_dregs(dev);
-			labpc_cancel(dev, s);
 			async->events |= COMEDI_CB_EOA;
 		}
 	}
 
 	/* TRIG_COUNT end of acquisition */
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (devpriv->count == 0) {
-			labpc_cancel(dev, s);
+		if (devpriv->count == 0)
 			async->events |= COMEDI_CB_EOA;
-		}
 	}
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
