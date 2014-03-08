@@ -807,7 +807,12 @@ int __init acpi_sleep_init(void)
 	acpi_sleep_hibernate_setup();
 
 	status = acpi_get_sleep_type_data(ACPI_STATE_S5, &type_a, &type_b);
-	if (ACPI_SUCCESS(status)) {
+	/*
+	 * Check both ACPI S5 object and ACPI sleep registers to
+	 * install pm_power_off_prepare/pm_power_off hook
+	 */
+	if (ACPI_SUCCESS(status) && acpi_gbl_FADT.sleep_control.address
+	    && acpi_gbl_FADT.sleep_status.address) {
 		sleep_states[ACPI_STATE_S5] = 1;
 		pm_power_off_prepare = acpi_power_off_prepare;
 		pm_power_off = acpi_power_off;
