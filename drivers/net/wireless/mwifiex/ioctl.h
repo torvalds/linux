@@ -177,6 +177,7 @@ struct mwifiex_ds_rx_reorder_tbl {
 struct mwifiex_ds_tx_ba_stream_tbl {
 	u16 tid;
 	u8 ra[ETH_ALEN];
+	u8 amsdu;
 };
 
 #define DBG_CMD_NUM	5
