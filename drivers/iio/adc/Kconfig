@@ -216,6 +216,16 @@ config TI_ADC081C
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc081c.
 
+config TI_ADC128S052
+	tristate "Texas Instruments ADC128S052"
+	depends on SPI
+	help
+	  If you say yes here you get support for Texas Instruments ADC128S052
+	  chip.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc128s052.
+
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"
 	depends on MFD_TI_AM335X_TSCADC
