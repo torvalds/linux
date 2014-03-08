@@ -82,7 +82,11 @@ struct rtl8180_priv {
 	struct pci_dev *pdev;
 	u32 rx_conf;
 
-	int r8185;
+	enum {
+		RTL818X_CHIP_FAMILY_RTL8180,
+		RTL818X_CHIP_FAMILY_RTL8185,
+		RTL818X_CHIP_FAMILY_RTL8187SE
+	} chip_family;
 	u32 anaparam;
 	u16 rfparam;
 	u8 csthreshold;
