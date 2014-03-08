@@ -3536,7 +3536,7 @@ void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 }
 
 
-extern void rtl819x_watchdog_wqcallback(struct work_struct *work)
+void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
 	struct r8192_priv *priv = container_of(dwork, struct r8192_priv, watch_dog_wq);
