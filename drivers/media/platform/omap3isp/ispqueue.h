@@ -70,8 +70,8 @@ enum isp_video_buffer_state {
  * @vaddr: Memory virtual address (for kernel buffers)
  * @vm_flags: Buffer VMA flags (for userspace buffers)
  * @npages: Number of pages (for userspace buffers)
+ * @sgt: Scatter gather table (for userspace buffers)
  * @pages: Pages table (for userspace non-VM_PFNMAP buffers)
- * @sgt: Scatter gather table
  * @vbuf: V4L2 buffer
  * @irqlist: List head for insertion into IRQ queue
  * @state: Current buffer state
@@ -90,10 +90,10 @@ struct isp_video_buffer {
 	/* For userspace buffers. */
 	vm_flags_t vm_flags;
 	unsigned int npages;
-	struct page **pages;
-
-	/* For all buffers. */
 	struct sg_table sgt;
+
+	/* For non-VM_PFNMAP userspace buffers. */
+	struct page **pages;
 
 	/* Touched by the interrupt handler. */
 	struct v4l2_buffer vbuf;

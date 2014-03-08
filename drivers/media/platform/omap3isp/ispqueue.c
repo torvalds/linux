@@ -147,21 +147,6 @@ out:
 }
 
 /*
- * isp_video_buffer_prepare_kernel - Build scatter list for a kernel-allocated
- * buffer
- *
- * Retrieve the sgtable using the DMA API.
- */
-static int isp_video_buffer_prepare_kernel(struct isp_video_buffer *buf)
-{
-	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
-	struct isp_video *video = vfh->video;
-
-	return dma_get_sgtable(video->isp->dev, &buf->sgt, buf->vaddr,
-			       buf->dma, PAGE_ALIGN(buf->vbuf.length));
-}
-
-/*
  * isp_video_buffer_cleanup - Release pages for a userspace VMA.
  *
  * Release pages locked by a call isp_video_buffer_prepare_user and free the
@@ -181,9 +166,8 @@ static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
 			  ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 		dma_unmap_sg_attrs(buf->queue->dev, buf->sgt.sgl,
 				   buf->sgt.orig_nents, direction, &attrs);
+		sg_free_table(&buf->sgt);
 	}
-
-	sg_free_table(&buf->sgt);
 
 	if (buf->pages != NULL) {
 		isp_video_buffer_lock_vma(buf, 0);
@@ -400,7 +384,7 @@ done:
  *
  * - validating VMAs (userspace buffers only)
  * - locking pages and VMAs into memory (userspace buffers only)
- * - building page and scatter-gather lists
+ * - building page and scatter-gather lists (userspace buffers only)
  * - mapping buffers for DMA operation
  * - performing driver-specific preparation
  *
@@ -416,9 +400,7 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 
 	switch (buf->vbuf.memory) {
 	case V4L2_MEMORY_MMAP:
-		ret = isp_video_buffer_prepare_kernel(buf);
-		if (ret < 0)
-			goto done;
+		ret = 0;
 		break;
 
 	case V4L2_MEMORY_USERPTR:
