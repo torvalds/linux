@@ -19,6 +19,10 @@
 
     - libtool, automake >= 1.9, autoconf >= 2.5.0, pkg-config
 
+[Optional]
+    - hwdata
+        Contains USB device identification data.
+
 
 [Install]
     0. Generate configuration scripts.
