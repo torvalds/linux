@@ -185,6 +185,13 @@ static int mwifiex_cmd_tx_rate_cfg(struct mwifiex_private *priv,
 		     i++)
 			rate_scope->ht_mcs_rate_bitmap[i] =
 				cpu_to_le16(pbitmap_rates[2 + i]);
+		if (priv->adapter->fw_api_ver == MWIFIEX_FW_V15) {
+			for (i = 0;
+			     i < ARRAY_SIZE(rate_scope->vht_mcs_rate_bitmap);
+			     i++)
+				rate_scope->vht_mcs_rate_bitmap[i] =
+					cpu_to_le16(pbitmap_rates[10 + i]);
+		}
 	} else {
 		rate_scope->hr_dsss_rate_bitmap =
 			cpu_to_le16(priv->bitmap_rates[0]);
@@ -195,6 +202,13 @@ static int mwifiex_cmd_tx_rate_cfg(struct mwifiex_private *priv,
 		     i++)
 			rate_scope->ht_mcs_rate_bitmap[i] =
 				cpu_to_le16(priv->bitmap_rates[2 + i]);
+		if (priv->adapter->fw_api_ver == MWIFIEX_FW_V15) {
+			for (i = 0;
+			     i < ARRAY_SIZE(rate_scope->vht_mcs_rate_bitmap);
+			     i++)
+				rate_scope->vht_mcs_rate_bitmap[i] =
+					cpu_to_le16(priv->bitmap_rates[10 + i]);
+		}
 	}
 
 	rate_drop = (struct mwifiex_rate_drop_pattern *) ((u8 *) rate_scope +

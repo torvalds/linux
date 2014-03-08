@@ -116,7 +116,7 @@ enum {
 #define MWIFIEX_TYPE_DATA				0
 #define MWIFIEX_TYPE_EVENT				3
 
-#define MAX_BITMAP_RATES_SIZE			10
+#define MAX_BITMAP_RATES_SIZE			18
 
 #define MAX_CHANNEL_BAND_BG     14
 #define MAX_CHANNEL_BAND_A      165

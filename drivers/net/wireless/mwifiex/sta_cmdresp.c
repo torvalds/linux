@@ -304,6 +304,15 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 				priv->bitmap_rates[2 + i] =
 					le16_to_cpu(rate_scope->
 						    ht_mcs_rate_bitmap[i]);
+
+			if (priv->adapter->fw_api_ver == MWIFIEX_FW_V15) {
+				for (i = 0; i < ARRAY_SIZE(rate_scope->
+							   vht_mcs_rate_bitmap);
+				     i++)
+					priv->bitmap_rates[10 + i] =
+					    le16_to_cpu(rate_scope->
+							vht_mcs_rate_bitmap[i]);
+			}
 			break;
 			/* Add RATE_DROP tlv here */
 		}

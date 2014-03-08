@@ -1105,6 +1105,7 @@ struct mwifiex_rate_scope {
 	__le16 hr_dsss_rate_bitmap;
 	__le16 ofdm_rate_bitmap;
 	__le16 ht_mcs_rate_bitmap[8];
+	__le16 vht_mcs_rate_bitmap[8];
 } __packed;
 
 struct mwifiex_rate_drop_pattern {
