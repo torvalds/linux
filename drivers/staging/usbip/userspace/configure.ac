@@ -50,6 +50,12 @@ AC_CHECK_HEADER([sysfs/libsysfs.h],
 			      [AC_MSG_ERROR([Missing sysfs2 library!])])],
 		[AC_MSG_ERROR([Missing /usr/include/sysfs/libsysfs.h])])
 
+AC_CHECK_HEADER([libudev.h],
+		[AC_CHECK_LIB([udev], [udev_new],
+			      [LIBS="$LIBS -ludev"],
+			      [AC_MSG_ERROR([Missing udev library!])])],
+		[AC_MSG_ERROR([Missing /usr/include/libudev.h])])
+
 # Checks for libwrap library.
 AC_MSG_CHECKING([whether to use the libwrap (TCP wrappers) library])
 AC_ARG_WITH([tcp-wrappers],
