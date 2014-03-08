@@ -135,12 +135,13 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 			     struct mwifiex_rx_reorder_tbl *tbl)
 {
 	unsigned long flags;
+	int start_win;
 
 	if (!tbl)
 		return;
 
-	mwifiex_11n_dispatch_pkt(priv, tbl, (tbl->start_win + tbl->win_size) &
-					    (MAX_TID_VALUE - 1));
+	start_win = (tbl->start_win + tbl->win_size) & (MAX_TID_VALUE - 1);
+	mwifiex_11n_dispatch_pkt(priv, tbl, start_win);
 
 	del_timer_sync(&tbl->timer_context.timer);
 
@@ -228,17 +229,16 @@ mwifiex_flush_data(unsigned long context)
 {
 	struct reorder_tmr_cnxt *ctx =
 		(struct reorder_tmr_cnxt *) context;
-	int start_win;
+	int start_win, seq_num;
 
-	start_win = mwifiex_11n_find_last_seq_num(ctx->ptr);
+	seq_num = mwifiex_11n_find_last_seq_num(ctx->ptr);
 
-	if (start_win < 0)
+	if (seq_num < 0)
 		return;
 
-	dev_dbg(ctx->priv->adapter->dev, "info: flush data %d\n", start_win);
-	mwifiex_11n_dispatch_pkt(ctx->priv, ctx->ptr,
-				 (ctx->ptr->start_win + start_win + 1) &
-				 (MAX_TID_VALUE - 1));
+	dev_dbg(ctx->priv->adapter->dev, "info: flush data %d\n", seq_num);
+	start_win = (ctx->ptr->start_win + seq_num + 1) & (MAX_TID_VALUE - 1);
+	mwifiex_11n_dispatch_pkt(ctx->priv, ctx->ptr, start_win);
 }
 
 /*
@@ -611,16 +611,7 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 	 * Check if we had rejected the ADDBA, if yes then do not create
 	 * the stream
 	 */
-	if (le16_to_cpu(add_ba_rsp->status_code) == BA_RESULT_SUCCESS) {
-		win_size = (block_ack_param_set &
-			IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK)
-			>> BLOCKACKPARAM_WINSIZE_POS;
-
-		dev_dbg(priv->adapter->dev,
-			"cmd: ADDBA RSP: %pM tid=%d ssn=%d win_size=%d\n",
-			add_ba_rsp->peer_mac_addr, tid,
-			add_ba_rsp->ssn, win_size);
-	} else {
+	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
 		dev_err(priv->adapter->dev, "ADDBA RSP: failed %pM tid=%d)\n",
 			add_ba_rsp->peer_mac_addr, tid);
 
@@ -628,7 +619,16 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 						     add_ba_rsp->peer_mac_addr);
 		if (tbl)
 			mwifiex_del_rx_reorder_entry(priv, tbl);
+
+		return 0;
 	}
+
+	win_size = (block_ack_param_set & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK)
+		    >> BLOCKACKPARAM_WINSIZE_POS;
+
+	dev_dbg(priv->adapter->dev,
+		"cmd: ADDBA RSP: %pM tid=%d ssn=%d win_size=%d\n",
+		add_ba_rsp->peer_mac_addr, tid, add_ba_rsp->ssn, win_size);
 
 	return 0;
 }

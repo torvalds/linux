@@ -166,21 +166,21 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 	tid = (le16_to_cpu(add_ba_rsp->block_ack_param_set)
 		& IEEE80211_ADDBA_PARAM_TID_MASK)
 		>> BLOCKACKPARAM_TID_POS;
-	if (le16_to_cpu(add_ba_rsp->status_code) == BA_RESULT_SUCCESS) {
-		tx_ba_tbl = mwifiex_get_ba_tbl(priv, tid,
-						add_ba_rsp->peer_mac_addr);
-		if (tx_ba_tbl) {
-			dev_dbg(priv->adapter->dev, "info: BA stream complete\n");
-			tx_ba_tbl->ba_status = BA_SETUP_COMPLETE;
-		} else {
-			dev_err(priv->adapter->dev, "BA stream not created\n");
-		}
-	} else {
+	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
 		mwifiex_del_ba_tbl(priv, tid, add_ba_rsp->peer_mac_addr,
 				   TYPE_DELBA_SENT, true);
 		if (add_ba_rsp->add_rsp_result != BA_RESULT_TIMEOUT)
 			priv->aggr_prio_tbl[tid].ampdu_ap =
 				BA_STREAM_NOT_ALLOWED;
+		return 0;
+	}
+
+	tx_ba_tbl = mwifiex_get_ba_tbl(priv, tid, add_ba_rsp->peer_mac_addr);
+	if (tx_ba_tbl) {
+		dev_dbg(priv->adapter->dev, "info: BA stream complete\n");
+		tx_ba_tbl->ba_status = BA_SETUP_COMPLETE;
+	} else {
+		dev_err(priv->adapter->dev, "BA stream not created\n");
 	}
 
 	return 0;
