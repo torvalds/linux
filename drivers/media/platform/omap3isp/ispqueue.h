@@ -72,7 +72,7 @@ enum isp_video_buffer_state {
  * @vm_flags: Buffer VMA flags (for userspace buffers)
  * @npages: Number of pages (for userspace buffers)
  * @pages: Pages table (for userspace non-VM_PFNMAP buffers)
- * @sgt: Scatter gather table (for non-VM_PFNMAP buffers)
+ * @sgt: Scatter gather table
  * @vbuf: V4L2 buffer
  * @irqlist: List head for insertion into IRQ queue
  * @state: Current buffer state
@@ -94,7 +94,7 @@ struct isp_video_buffer {
 	unsigned int npages;
 	struct page **pages;
 
-	/* For all buffers except VM_PFNMAP. */
+	/* For all buffers. */
 	struct sg_table sgt;
 
 	/* Touched by the interrupt handler. */

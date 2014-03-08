@@ -173,6 +173,7 @@ static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
 	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
 	struct isp_video *video = vfh->video;
 	enum dma_data_direction direction;
+	DEFINE_DMA_ATTRS(attrs);
 	unsigned int i;
 
 	if (buf->dma) {
@@ -181,11 +182,14 @@ static void isp_video_buffer_cleanup(struct isp_video_buffer *buf)
 		buf->dma = 0;
 	}
 
-	if (!(buf->vm_flags & VM_PFNMAP)) {
+	if (buf->vbuf.memory == V4L2_MEMORY_USERPTR) {
+		if (buf->skip_cache)
+			dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+
 		direction = buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 			  ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		dma_unmap_sg(buf->queue->dev, buf->sgt.sgl, buf->sgt.orig_nents,
-			     direction);
+		dma_unmap_sg_attrs(buf->queue->dev, buf->sgt.sgl,
+				   buf->sgt.orig_nents, direction, &attrs);
 	}
 
 	sg_free_table(&buf->sgt);
@@ -345,10 +349,6 @@ unlock:
 
 	for (sg = buf->sgt.sgl, i = 0; i < buf->npages; ++i, ++pfn) {
 		sg_set_page(sg, pfn_to_page(pfn), PAGE_SIZE - offset, offset);
-		/* PFNMAP buffers will not get DMA-mapped, set the DMA address
-		 * manually.
-		 */
-		sg_dma_address(sg) = (pfn << PAGE_SHIFT) + offset;
 		sg = sg_next(sg);
 		offset = 0;
 	}
@@ -434,12 +434,15 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 	struct isp_video_fh *vfh = isp_video_queue_to_isp_video_fh(buf->queue);
 	struct isp_video *video = vfh->video;
 	enum dma_data_direction direction;
+	DEFINE_DMA_ATTRS(attrs);
 	unsigned long addr;
 	int ret;
 
 	switch (buf->vbuf.memory) {
 	case V4L2_MEMORY_MMAP:
 		ret = isp_video_buffer_prepare_kernel(buf);
+		if (ret < 0)
+			goto done;
 		break;
 
 	case V4L2_MEMORY_USERPTR:
@@ -451,24 +454,26 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 			ret = isp_video_buffer_prepare_pfnmap(buf);
 		else
 			ret = isp_video_buffer_prepare_user(buf);
-		break;
 
-	default:
-		return -EINVAL;
-	}
+		if (ret < 0)
+			goto done;
 
-	if (ret < 0)
-		goto done;
+		if (buf->skip_cache)
+			dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
 
-	if (!(buf->vm_flags & VM_PFNMAP)) {
 		direction = buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 			  ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		ret = dma_map_sg(buf->queue->dev, buf->sgt.sgl,
-				 buf->sgt.orig_nents, direction);
+		ret = dma_map_sg_attrs(buf->queue->dev, buf->sgt.sgl,
+				       buf->sgt.orig_nents, direction, &attrs);
 		if (ret <= 0) {
 			ret = -EFAULT;
 			goto done;
 		}
+
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
 	addr = omap_iommu_vmap(video->isp->domain, video->isp->dev, 0,
