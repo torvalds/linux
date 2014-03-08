@@ -3527,7 +3527,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 			goto err_out;
 		}
 	}
-	memcpy(adapter->addr, adapter->rom_addr, ETH_ALEN);
+	ether_addr_copy(adapter->addr, adapter->rom_addr);
 out:
 	return rc;
 err_out:
@@ -3774,7 +3774,7 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
 
 	/* Set the MAC address to a default */
-	memcpy(adapter->addr, default_mac, ETH_ALEN);
+	ether_addr_copy(adapter->addr, default_mac);
 
 	return adapter;
 }
