@@ -559,7 +559,7 @@ static int audit_send_reply_thread(void *arg)
 }
 /**
  * audit_send_reply - send an audit reply message via netlink
- * @portid: netlink port to which to send reply
+ * @request_skb: skb of request we are replying to (used to target the reply)
  * @seq: sequence number
  * @type: audit message type
  * @done: done (last) flag

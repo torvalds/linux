@@ -1067,7 +1067,7 @@ int audit_rule_change(int type, __u32 portid, int seq, void *data,
 
 /**
  * audit_list_rules_send - list the audit rules
- * @portid: target portid for netlink audit messages
+ * @request_skb: skb of request we are replying to (used to target the reply)
  * @seq: netlink audit message sequence (serial) number
  */
 int audit_list_rules_send(struct sk_buff *request_skb, int seq)
