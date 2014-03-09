@@ -603,8 +603,6 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-#define FUNCTION_TEXT(A)	((*(unsigned long *)(A)))
-
 static void __init htab_finish_init(void)
 {
 	extern unsigned int *htab_call_hpte_insert1;
@@ -619,31 +617,31 @@ static void __init htab_finish_init(void)
 	extern unsigned int *ht64_call_hpte_updatepp;
 
 	patch_branch(ht64_call_hpte_insert1,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(ht64_call_hpte_insert2,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(ht64_call_hpte_remove,
-		FUNCTION_TEXT(ppc_md.hpte_remove),
+		ppc_function_entry(ppc_md.hpte_remove),
 		BRANCH_SET_LINK);
 	patch_branch(ht64_call_hpte_updatepp,
-		FUNCTION_TEXT(ppc_md.hpte_updatepp),
+		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
 
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 
 	patch_branch(htab_call_hpte_insert1,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(htab_call_hpte_insert2,
-		FUNCTION_TEXT(ppc_md.hpte_insert),
+		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
 	patch_branch(htab_call_hpte_remove,
-		FUNCTION_TEXT(ppc_md.hpte_remove),
+		ppc_function_entry(ppc_md.hpte_remove),
 		BRANCH_SET_LINK);
 	patch_branch(htab_call_hpte_updatepp,
-		FUNCTION_TEXT(ppc_md.hpte_updatepp),
+		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
 }
 
