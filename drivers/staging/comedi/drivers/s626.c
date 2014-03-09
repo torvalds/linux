@@ -209,6 +209,8 @@ static const struct comedi_lrange s626_range_table = {
 static void s626_debi_transfer(struct comedi_device *dev)
 {
 	struct s626_private *devpriv = dev->private;
+	static const int timeout = 10000;
+	int i;
 
 	/* Initiate upload of shadow RAM to DEBI control register */
 	s626_mc_enable(dev, S626_MC2_UPLD_DEBI, S626_P_MC2);
@@ -217,12 +219,22 @@ static void s626_debi_transfer(struct comedi_device *dev)
 	 * Wait for completion of upload from shadow RAM to
 	 * DEBI control register.
 	 */
-	while (!s626_mc_test(dev, S626_MC2_UPLD_DEBI, S626_P_MC2))
-		;
+	for (i = 0; i < timeout; i++) {
+		if (s626_mc_test(dev, S626_MC2_UPLD_DEBI, S626_P_MC2))
+			break;
+		udelay(1);
+	}
+	if (i == timeout)
+		comedi_error(dev, "Timeout while uploading to DEBI control register.");
 
 	/* Wait until DEBI transfer is done */
-	while (readl(devpriv->mmio + S626_P_PSR) & S626_PSR_DEBI_S)
-		;
+	for (i = 0; i < timeout; i++) {
+		if (!(readl(devpriv->mmio + S626_P_PSR) & S626_PSR_DEBI_S))
+			break;
+		udelay(1);
+	}
+	if (i == timeout)
+		comedi_error(dev, "DEBI transfer timeout.");
 }
 
 /*
@@ -351,6 +363,48 @@ static const uint8_t s626_trimadrs[] = {
 	0x40, 0x41, 0x42, 0x50, 0x51, 0x52, 0x53, 0x60, 0x61, 0x62, 0x63
 };
 
+enum {
+	s626_send_dac_wait_not_mc1_a2out,
+	s626_send_dac_wait_ssr_af2_out,
+	s626_send_dac_wait_fb_buffer2_msb_00,
+	s626_send_dac_wait_fb_buffer2_msb_ff
+};
+
+static int s626_send_dac_eoc(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	struct s626_private *devpriv = dev->private;
+	unsigned int status;
+
+	switch (context) {
+	case s626_send_dac_wait_not_mc1_a2out:
+		status = readl(devpriv->mmio + S626_P_MC1);
+		if (!(status & S626_MC1_A2OUT))
+			return 0;
+		break;
+	case s626_send_dac_wait_ssr_af2_out:
+		status = readl(devpriv->mmio + S626_P_SSR);
+		if (status & S626_SSR_AF2_OUT)
+			return 0;
+		break;
+	case s626_send_dac_wait_fb_buffer2_msb_00:
+		status = readl(devpriv->mmio + S626_P_FB_BUFFER2);
+		if (!(status & 0xff000000))
+			return 0;
+		break;
+	case s626_send_dac_wait_fb_buffer2_msb_ff:
+		status = readl(devpriv->mmio + S626_P_FB_BUFFER2);
+		if (status & 0xff000000)
+			return 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return -EBUSY;
+}
+
 /*
  * Private helper function: Transmit serial data to DAC via Audio
  * channel 2.  Assumes: (1) TSL2 slot records initialized, and (2)
@@ -359,6 +413,7 @@ static const uint8_t s626_trimadrs[] = {
 static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 {
 	struct s626_private *devpriv = dev->private;
+	int ret;
 
 	/* START THE SERIAL CLOCK RUNNING ------------- */
 
@@ -404,8 +459,10 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * Done by polling the DMAC enable flag; this flag is automatically
 	 * cleared when the transfer has finished.
 	 */
-	while (readl(devpriv->mmio + S626_P_MC1) & S626_MC1_A2OUT)
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+			     s626_send_dac_wait_not_mc1_a2out);
+	if (ret)
+		comedi_error(dev, "DMA transfer timeout.");
 
 	/* START THE OUTPUT STREAM TO THE TARGET DAC -------------------- */
 
@@ -425,8 +482,10 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * finished transferring the DAC's data DWORD from the output FIFO
 	 * to the output buffer register.
 	 */
-	while (!(readl(devpriv->mmio + S626_P_SSR) & S626_SSR_AF2_OUT))
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+			     s626_send_dac_wait_ssr_af2_out);
+	if (ret)
+		comedi_error(dev, "TSL timeout waiting for slot 1 to execute.");
 
 	/*
 	 * Set up to trap execution at slot 0 when the TSL sequencer cycles
@@ -466,8 +525,10 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 		 * from 0xFF to 0x00, which slot 0 causes to happen by shifting
 		 * out/in on SD2 the 0x00 that is always referenced by slot 5.
 		 */
-		while (readl(devpriv->mmio + S626_P_FB_BUFFER2) & 0xff000000)
-			;
+		ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+				     s626_send_dac_wait_fb_buffer2_msb_00);
+		if (ret)
+			comedi_error(dev, "TSL timeout waiting for slot 0 to execute.");
 	}
 	/*
 	 * Either (1) we were too late setting the slot 0 trap; the TSL
@@ -486,8 +547,10 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * the next DAC write.  This is detected when FB_BUFFER2 MSB changes
 	 * from 0x00 to 0xFF.
 	 */
-	while (!(readl(devpriv->mmio + S626_P_FB_BUFFER2) & 0xff000000))
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+			     s626_send_dac_wait_fb_buffer2_msb_ff);
+	if (ret)
+		comedi_error(dev, "TSL timeout waiting for slot 0 to execute.");
 }
 
 /*
