@@ -141,16 +141,16 @@ enum {
 	APCI1500_RW_PORT_B_PATTERN_MASK
 };
 
-static int i_TimerCounter1Init = 0;
-static int i_TimerCounter2Init = 0;
-static int i_WatchdogCounter3Init = 0;
-static int i_Event1Status = 0, i_Event2Status = 0;
-static int i_TimerCounterWatchdogInterrupt = 0;
-static int i_Logic = 0, i_CounterLogic = 0;
-static int i_InterruptMask = 0;
-static int i_InputChannel = 0;
-static int i_TimerCounter1Enabled = 0, i_TimerCounter2Enabled = 0,
-	   i_WatchdogCounter3Enabled = 0;
+static int i_TimerCounter1Init;
+static int i_TimerCounter2Init;
+static int i_WatchdogCounter3Init;
+static int i_Event1Status, i_Event2Status;
+static int i_TimerCounterWatchdogInterrupt;
+static int i_Logic, i_CounterLogic;
+static int i_InterruptMask;
+static int i_InputChannel;
+static int i_TimerCounter1Enabled, i_TimerCounter2Enabled,
+	   i_WatchdogCounter3Enabled;
 
 /*
   +----------------------------------------------------------------------------+
@@ -977,7 +977,7 @@ static int i_APCI1500_WriteDigitalOutput(struct comedi_device *dev,
 					 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	static unsigned int ui_Temp = 0;
+	static unsigned int ui_Temp;
 	unsigned int ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 
