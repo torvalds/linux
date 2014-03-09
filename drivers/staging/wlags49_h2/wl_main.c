@@ -1528,7 +1528,8 @@ int wl_put_ltv( struct wl_private *lp )
 	hcf_status = hcf_put_info( &lp->hcfCtx, (LTVP)&( lp->ltvRecord ));
 
 	/* Own Name (Station Nickname) */
-	if (( len = ( strlen( lp->StationName ) + 1 ) & ~0x01 ) != 0 ) {
+	len = (strlen(lp->StationName) + 1) & ~0x01;
+	if (len != 0) {
 		//DBG_TRACE( DbgInfo, "CFG_CNF_OWN_NAME                  : %s\n",
 		//           lp->StationName );
 
