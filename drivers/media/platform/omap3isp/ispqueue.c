@@ -465,7 +465,7 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 			  ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 		ret = dma_map_sg(buf->queue->dev, buf->sgt.sgl,
 				 buf->sgt.orig_nents, direction);
-		if (ret != buf->sgt.orig_nents) {
+		if (ret <= 0) {
 			ret = -EFAULT;
 			goto done;
 		}
