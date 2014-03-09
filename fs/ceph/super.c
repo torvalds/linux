@@ -1026,6 +1026,7 @@ static int __init init_ceph(void)
 	if (ret)
 		goto out;
 
+	ceph_flock_init();
 	ceph_xattr_init();
 	ret = register_filesystem(&ceph_fs_type);
 	if (ret)

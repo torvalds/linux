@@ -871,6 +871,7 @@ extern long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern const struct export_operations ceph_export_ops;
 
 /* locks.c */
+extern __init void ceph_flock_init(void);
 extern int ceph_lock(struct file *file, int cmd, struct file_lock *fl);
 extern int ceph_flock(struct file *file, int cmd, struct file_lock *fl);
 extern void ceph_count_locks(struct inode *inode, int *p_num, int *f_num);
