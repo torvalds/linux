@@ -742,6 +742,10 @@ struct ndis_oject_header {
 #define NDIS_OFFLOAD_PARAMETERS_RX_ENABLED_TX_DISABLED 3
 #define NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED 4
 
+#define NDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE	1
+#define NDIS_TCP_LARGE_SEND_OFFLOAD_IPV4	0
+#define NDIS_TCP_LARGE_SEND_OFFLOAD_IPV6	1
+
 /*
  * New offload OIDs for NDIS 6
  */
@@ -804,11 +808,47 @@ struct ndis_tcp_ip_checksum_info {
 	};
 };
 
+struct ndis_tcp_lso_info {
+	union {
+		struct {
+			u32 unused:30;
+			u32 type:1;
+			u32 reserved2:1;
+		} transmit;
+		struct {
+			u32 mss:20;
+			u32 tcp_header_offset:10;
+			u32 type:1;
+			u32 reserved2:1;
+		} lso_v1_transmit;
+		struct {
+			u32 tcp_payload:30;
+			u32 type:1;
+			u32 reserved2:1;
+		} lso_v1_transmit_complete;
+		struct {
+			u32 mss:20;
+			u32 tcp_header_offset:10;
+			u32 type:1;
+			u32 ip_version:1;
+		} lso_v2_transmit;
+		struct {
+			u32 reserved:30;
+			u32 type:1;
+			u32 reserved2:1;
+		} lso_v2_transmit_complete;
+		u32  value;
+	};
+};
+
 #define NDIS_VLAN_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
 		sizeof(struct ndis_pkt_8021q_info))
 
 #define NDIS_CSUM_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
 		sizeof(struct ndis_tcp_ip_checksum_info))
+
+#define NDIS_LSO_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
+		sizeof(struct ndis_tcp_lso_info))
 
 /* Format of Information buffer passed in a SetRequest for the OID */
 /* OID_GEN_RNDIS_CONFIG_PARAMETER. */

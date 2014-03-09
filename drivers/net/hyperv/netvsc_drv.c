@@ -298,6 +298,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	bool isvlan;
 	struct rndis_per_packet_info *ppi;
 	struct ndis_tcp_ip_checksum_info *csum_info;
+	struct ndis_tcp_lso_info *lso_info;
 	int  hdr_offset;
 	u32 net_trans_info;
 
@@ -377,7 +378,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	 * GSO packet.
 	 */
 	if (skb_is_gso(skb))
-		goto do_send;
+		goto do_lso;
 
 	rndis_msg_size += NDIS_CSUM_PPI_SIZE;
 	ppi = init_ppi_data(rndis_msg, NDIS_CSUM_PPI_SIZE,
@@ -397,6 +398,35 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	} else if (net_trans_info & INFO_UDP) {
 		csum_info->transmit.udp_checksum = 1;
 	}
+	goto do_send;
+
+do_lso:
+	rndis_msg_size += NDIS_LSO_PPI_SIZE;
+	ppi = init_ppi_data(rndis_msg, NDIS_LSO_PPI_SIZE,
+			    TCP_LARGESEND_PKTINFO);
+
+	lso_info = (struct ndis_tcp_lso_info *)((void *)ppi +
+			ppi->ppi_offset);
+
+	lso_info->lso_v2_transmit.type = NDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
+	if (net_trans_info & (INFO_IPV4 << 16)) {
+		lso_info->lso_v2_transmit.ip_version =
+			NDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
+		ip_hdr(skb)->tot_len = 0;
+		ip_hdr(skb)->check = 0;
+		tcp_hdr(skb)->check =
+		~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+				   ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+	} else {
+		lso_info->lso_v2_transmit.ip_version =
+			NDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
+		ipv6_hdr(skb)->payload_len = 0;
+		tcp_hdr(skb)->check =
+		~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+				&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+	}
+	lso_info->lso_v2_transmit.tcp_header_offset = hdr_offset;
+	lso_info->lso_v2_transmit.mss = skb_shinfo(skb)->gso_size;
 
 do_send:
 	/* Start filling in the page buffers with the rndis hdr */
@@ -652,10 +682,10 @@ static int netvsc_probe(struct hv_device *dev,
 
 	net->netdev_ops = &device_ops;
 
-	/* TODO: Add GSO and Checksum offload */
-	net->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM;
+	net->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM |
+				NETIF_F_TSO;
 	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG | NETIF_F_RXCSUM |
-			NETIF_F_IP_CSUM;
+			NETIF_F_IP_CSUM | NETIF_F_TSO;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);
