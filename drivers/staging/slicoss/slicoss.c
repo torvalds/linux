@@ -156,17 +156,6 @@ MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
 			_adapter->handle_lock.flags);                   \
 }
 
-#define SLIC_FREE_SLIC_HANDLE(_adapter, _pslic_handle)                  \
-{                                                                       \
-	_pslic_handle->type = SLIC_HANDLE_FREE;                         \
-	spin_lock_irqsave(&_adapter->handle_lock.lock,                  \
-			_adapter->handle_lock.flags);                   \
-	_pslic_handle->next = _adapter->pfree_slic_handles;             \
-	_adapter->pfree_slic_handles = _pslic_handle;                   \
-	spin_unlock_irqrestore(&_adapter->handle_lock.lock,             \
-			_adapter->handle_lock.flags);                   \
-}
-
 static inline void slic_reg32_write(void __iomem *reg, u32 value, bool flush)
 {
 	writel(value, reg);
