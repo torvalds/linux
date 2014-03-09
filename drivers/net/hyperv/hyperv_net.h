@@ -30,6 +30,7 @@
 
 /* Fwd declaration */
 struct hv_netvsc_packet;
+struct ndis_tcp_ip_checksum_info;
 
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
 struct xferpage_packet {
@@ -117,7 +118,8 @@ int netvsc_send(struct hv_device *device,
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				unsigned int status);
 int netvsc_recv_callback(struct hv_device *device_obj,
-			struct hv_netvsc_packet *packet);
+			struct hv_netvsc_packet *packet,
+			struct ndis_tcp_ip_checksum_info *csum_info);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
 int rndis_filter_device_add(struct hv_device *dev,
@@ -776,8 +778,37 @@ struct ndis_offload_params {
 	};
 };
 
+struct ndis_tcp_ip_checksum_info {
+	union {
+		struct {
+			u32 is_ipv4:1;
+			u32 is_ipv6:1;
+			u32 tcp_checksum:1;
+			u32 udp_checksum:1;
+			u32 ip_header_checksum:1;
+			u32 reserved:11;
+			u32 tcp_header_offset:10;
+		} transmit;
+		struct {
+			u32 tcp_checksum_failed:1;
+			u32 udp_checksum_failed:1;
+			u32 ip_checksum_failed:1;
+			u32 tcp_checksum_succeeded:1;
+			u32 udp_checksum_succeeded:1;
+			u32 ip_checksum_succeeded:1;
+			u32 loopback:1;
+			u32 tcp_checksum_value_invalid:1;
+			u32 ip_checksum_value_invalid:1;
+		} receive;
+		u32  value;
+	};
+};
+
 #define NDIS_VLAN_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
 		sizeof(struct ndis_pkt_8021q_info))
+
+#define NDIS_CSUM_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
+		sizeof(struct ndis_tcp_ip_checksum_info))
 
 /* Format of Information buffer passed in a SetRequest for the OID */
 /* OID_GEN_RNDIS_CONFIG_PARAMETER. */

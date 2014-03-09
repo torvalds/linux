@@ -350,6 +350,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	struct rndis_packet *rndis_pkt;
 	u32 data_offset;
 	struct ndis_pkt_8021q_info *vlan;
+	struct ndis_tcp_ip_checksum_info *csum_info;
 
 	rndis_pkt = &msg->msg.pkt;
 
@@ -388,7 +389,8 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 		pkt->vlan_tci = 0;
 	}
 
-	netvsc_recv_callback(dev->net_dev->dev, pkt);
+	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
+	netvsc_recv_callback(dev->net_dev->dev, pkt, csum_info);
 }
 
 int rndis_filter_receive(struct hv_device *dev,

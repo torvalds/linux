@@ -391,7 +391,8 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
  * "wire" on the specified device.
  */
 int netvsc_recv_callback(struct hv_device *device_obj,
-				struct hv_netvsc_packet *packet)
+				struct hv_netvsc_packet *packet,
+				struct ndis_tcp_ip_checksum_info *csum_info)
 {
 	struct net_device *net;
 	struct sk_buff *skb;
@@ -418,7 +419,17 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		packet->total_data_buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
-	skb->ip_summed = CHECKSUM_NONE;
+	if (csum_info) {
+		/* We only look at the IP checksum here.
+		 * Should we be dropping the packet if checksum
+		 * failed? How do we deal with other checksums - TCP/UDP?
+		 */
+		if (csum_info->receive.ip_checksum_succeeded)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		else
+			skb->ip_summed = CHECKSUM_NONE;
+	}
+
 	if (packet->vlan_tci & VLAN_TAG_PRESENT)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       packet->vlan_tci);
@@ -578,8 +589,8 @@ static int netvsc_probe(struct hv_device *dev,
 	net->netdev_ops = &device_ops;
 
 	/* TODO: Add GSO and Checksum offload */
-	net->hw_features = NETIF_F_SG;
-	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG;
+	net->hw_features = NETIF_F_RXCSUM | NETIF_F_SG;
+	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG | NETIF_F_RXCSUM;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);
