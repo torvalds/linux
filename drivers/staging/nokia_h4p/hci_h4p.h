@@ -108,11 +108,11 @@ struct hci_h4p_info {
 struct hci_h4p_radio_hdr {
 	__u8 evt;
 	__u8 dlen;
-} __attribute__ ((packed));
+} __packed;
 
 struct hci_h4p_neg_hdr {
 	__u8 dlen;
-} __attribute__ ((packed));
+} __packed;
 #define H4P_NEG_HDR_SIZE 1
 
 #define H4P_NEG_REQ	0x00
@@ -133,7 +133,7 @@ struct hci_h4p_neg_cmd {
 	__u8	proto;
 	__u16	sys_clk;
 	__u16	unused2;
-} __attribute__ ((packed));
+} __packed;
 
 struct hci_h4p_neg_evt {
 	__u8	ack;
@@ -144,20 +144,20 @@ struct hci_h4p_neg_evt {
 	__u16	unused2;
 	__u8	man_id;
 	__u8	ver_id;
-} __attribute__ ((packed));
+} __packed;
 
 #define H4P_ALIVE_REQ	0x55
 #define H4P_ALIVE_RESP	0xcc
 
 struct hci_h4p_alive_hdr {
 	__u8	dlen;
-} __attribute__ ((packed));
+} __packed;
 #define H4P_ALIVE_HDR_SIZE 1
 
 struct hci_h4p_alive_pkt {
 	__u8	mid;
 	__u8	unused;
-} __attribute__ ((packed));
+} __packed;
 
 #define MAX_BAUD_RATE		921600
 #define BC4_MAX_BAUD_RATE	3692300
@@ -188,7 +188,7 @@ struct hci_fw_event {
 	struct hci_event_hdr hev;
 	struct hci_ev_cmd_complete cmd;
 	u8 status;
-} __attribute__ ((packed));
+} __packed;
 
 int hci_h4p_send_alive_packet(struct hci_h4p_info *info);
 
