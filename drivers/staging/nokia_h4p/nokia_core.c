@@ -1065,7 +1065,8 @@ static int hci_h4p_probe(struct platform_device *pdev)
 	int err;
 
 	dev_info(&pdev->dev, "Registering HCI H4P device\n");
-	info = devm_kzalloc(&pdev->dev, sizeof(struct hci_h4p_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct hci_h4p_info),
+			GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -1125,14 +1126,16 @@ static int hci_h4p_probe(struct platform_device *pdev)
 	}
 
 	info->irq = bt_plat_data->uart_irq;
-	info->uart_base = devm_ioremap(&pdev->dev, bt_plat_data->uart_base, SZ_2K);
+	info->uart_base = devm_ioremap(&pdev->dev, bt_plat_data->uart_base,
+					SZ_2K);
 	info->uart_iclk = devm_clk_get(&pdev->dev, bt_plat_data->uart_iclk);
 	info->uart_fclk = devm_clk_get(&pdev->dev, bt_plat_data->uart_fclk);
 
-	err = devm_request_irq(&pdev->dev, info->irq, hci_h4p_interrupt, IRQF_DISABLED,
-			       "hci_h4p", info);
+	err = devm_request_irq(&pdev->dev, info->irq, hci_h4p_interrupt,
+				IRQF_DISABLED, "hci_h4p", info);
 	if (err < 0) {
-		dev_err(info->dev, "hci_h4p: unable to get IRQ %d\n", info->irq);
+		dev_err(info->dev, "hci_h4p: unable to get IRQ %d\n",
+			info->irq);
 		return err;
 	}
 
