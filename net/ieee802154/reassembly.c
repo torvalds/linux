@@ -441,7 +441,7 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 		table[0].data = &net->ieee802154_lowpan.frags.high_thresh;
 		table[1].data = &net->ieee802154_lowpan.frags.low_thresh;
 		table[2].data = &net->ieee802154_lowpan.frags.timeout;
-		table[2].data = &net->ieee802154_lowpan.max_dsize;
+		table[3].data = &net->ieee802154_lowpan.max_dsize;
 
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns)
