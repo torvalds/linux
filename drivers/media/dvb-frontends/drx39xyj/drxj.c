@@ -561,7 +561,7 @@ static int drxdap_fasi_write_reg32(struct i2c_device_addr *dev_addr,
 				       u32 addr,
 				       u32 data, u32 flags);
 
-struct drxj_data drxj_data_g = {
+static struct drxj_data drxj_data_g = {
 	false,			/* has_lna : true if LNA (aka PGA) present      */
 	false,			/* has_oob : true if OOB supported              */
 	false,			/* has_ntsc: true if NTSC supported             */
@@ -810,7 +810,7 @@ struct drxj_data drxj_data_g = {
 * \var drxj_default_addr_g
 * \brief Default I2C address and device identifier.
 */
-struct i2c_device_addr drxj_default_addr_g = {
+static struct i2c_device_addr drxj_default_addr_g = {
 	DRXJ_DEF_I2C_ADDR,	/* i2c address */
 	DRXJ_DEF_DEMOD_DEV_ID	/* device id */
 };
@@ -819,7 +819,7 @@ struct i2c_device_addr drxj_default_addr_g = {
 * \var drxj_default_comm_attr_g
 * \brief Default common attributes of a drxj demodulator instance.
 */
-struct drx_common_attr drxj_default_comm_attr_g = {
+static struct drx_common_attr drxj_default_comm_attr_g = {
 	NULL,			/* ucode file           */
 	true,			/* ucode verify switch  */
 	{0},			/* version record       */
@@ -890,7 +890,7 @@ struct drx_common_attr drxj_default_comm_attr_g = {
 * \var drxj_default_demod_g
 * \brief Default drxj demodulator instance.
 */
-struct drx_demod_instance drxj_default_demod_g = {
+static struct drx_demod_instance drxj_default_demod_g = {
 	&drxj_default_addr_g,	/* i2c address & device id */
 	&drxj_default_comm_attr_g,	/* demod common attributes */
 	&drxj_data_g		/* demod device specific attributes */
@@ -11291,7 +11291,7 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 *
 */
 
-int drxj_open(struct drx_demod_instance *demod)
+static int drxj_open(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = NULL;
 	struct drxj_data *ext_attr = NULL;
@@ -11504,7 +11504,7 @@ rw_error:
 * \return Status_t Return status.
 *
 */
-int drxj_close(struct drx_demod_instance *demod)
+static int drxj_close(struct drx_demod_instance *demod)
 {
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	int rc;

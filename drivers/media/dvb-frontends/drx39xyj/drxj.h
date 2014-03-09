@@ -647,34 +647,4 @@ DEFINES
 	(x == DRX_LOCK_STATE_2) ? "sync lock" : \
 	"(Invalid)")
 
-/*-------------------------------------------------------------------------
-ENUM
--------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
-STRUCTS
--------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
-Exported FUNCTIONS
--------------------------------------------------------------------------*/
-
-	int drxj_open(struct drx_demod_instance *demod);
-	int drxj_close(struct drx_demod_instance *demod);
-	int drxj_ctrl(struct drx_demod_instance *demod,
-				     u32 ctrl, void *ctrl_data);
-
-/*-------------------------------------------------------------------------
-Exported GLOBAL VARIABLES
--------------------------------------------------------------------------*/
-	extern struct drx_access_func drx_dap_drxj_funct_g;
-	extern struct drx_demod_func drxj_functions_g;
-	extern struct drxj_data drxj_data_g;
-	extern struct i2c_device_addr drxj_default_addr_g;
-	extern struct drx_common_attr drxj_default_comm_attr_g;
-	extern struct drx_demod_instance drxj_default_demod_g;
-
-/*-------------------------------------------------------------------------
-THE END
--------------------------------------------------------------------------*/
 #endif				/* __DRXJ_H__ */
