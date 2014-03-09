@@ -107,7 +107,7 @@ _GLOBAL(tm_reclaim)
 	mflr	r0
 	stw	r6, 8(r1)
 	std	r0, 16(r1)
-	std	r2, 40(r1)
+	std	r2, STK_GOT(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
 
 	/* We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD]. */
@@ -288,7 +288,7 @@ dont_backup_fp:
 	ld	r0, 16(r1)
 	mtcr	r4
 	mtlr	r0
-	ld	r2, 40(r1)
+	ld	r2, STK_GOT(r1)
 
 	/* Load system default DSCR */
 	ld	r4, DSCR_DEFAULT@toc(r2)
@@ -311,7 +311,7 @@ _GLOBAL(__tm_recheckpoint)
 	mflr	r0
 	stw	r5, 8(r1)
 	std	r0, 16(r1)
-	std	r2, 40(r1)
+	std	r2, STK_GOT(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
 
 	/* We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD].
@@ -447,7 +447,7 @@ restore_gprs:
 	ld	r0, 16(r1)
 	mtcr	r4
 	mtlr	r0
-	ld	r2, 40(r1)
+	ld	r2, STK_GOT(r1)
 
 	/* Load system default DSCR */
 	ld	r4, DSCR_DEFAULT@toc(r2)

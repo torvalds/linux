@@ -190,8 +190,10 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2
+#define STK_GOT		24
 #define __STK_PARAM(i)	(32 + ((i)-3)*8)
 #else
+#define STK_GOT		40
 #define __STK_PARAM(i)	(48 + ((i)-3)*8)
 #endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
