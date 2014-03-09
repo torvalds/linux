@@ -2470,25 +2470,24 @@ static int identity_mapping(struct device *dev)
 }
 
 static int domain_add_dev_info(struct dmar_domain *domain,
-			       struct pci_dev *pdev,
-			       int translation)
+			       struct device *dev, int translation)
 {
 	struct dmar_domain *ndomain;
 	struct intel_iommu *iommu;
 	u8 bus, devfn;
 	int ret;
 
-	iommu = device_to_iommu(&pdev->dev, &bus, &devfn);
+	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
-	ndomain = dmar_insert_dev_info(iommu, bus, devfn, &pdev->dev, domain);
+	ndomain = dmar_insert_dev_info(iommu, bus, devfn, dev, domain);
 	if (ndomain != domain)
 		return -EBUSY;
 
-	ret = domain_context_mapping(domain, &pdev->dev, translation);
+	ret = domain_context_mapping(domain, dev, translation);
 	if (ret) {
-		domain_remove_one_dev_info(domain, &pdev->dev);
+		domain_remove_one_dev_info(domain, dev);
 		return ret;
 	}
 
@@ -2607,7 +2606,7 @@ static int __init iommu_prepare_static_identity_mapping(int hw)
 
 	for_each_pci_dev(pdev) {
 		if (iommu_should_identity_map(&pdev->dev, 1)) {
-			ret = domain_add_dev_info(si_domain, pdev,
+			ret = domain_add_dev_info(si_domain, &pdev->dev,
 					     hw ? CONTEXT_TT_PASS_THROUGH :
 						  CONTEXT_TT_MULTI_LEVEL);
 			if (ret) {
@@ -2940,7 +2939,7 @@ static int iommu_no_mapping(struct device *dev)
 		 */
 		if (iommu_should_identity_map(&pdev->dev, 0)) {
 			int ret;
-			ret = domain_add_dev_info(si_domain, pdev,
+			ret = domain_add_dev_info(si_domain, dev,
 						  hw_pass_through ?
 						  CONTEXT_TT_PASS_THROUGH :
 						  CONTEXT_TT_MULTI_LEVEL);
@@ -4201,7 +4200,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		dmar_domain->agaw--;
 	}
 
-	return domain_add_dev_info(dmar_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
+	return domain_add_dev_info(dmar_domain, dev, CONTEXT_TT_MULTI_LEVEL);
 }
 
 static void intel_iommu_detach_device(struct iommu_domain *domain,
