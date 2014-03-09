@@ -1022,7 +1022,8 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 	int qleft = 0;
 
 	/* Store how much space we have left in the queue */
-	if ((qleft = ch->ch_r_tail - ch->ch_r_head - 1) < 0)
+	qleft = ch->ch_r_tail - ch->ch_r_head - 1;
+	if (qleft < 0)
 		qleft += RQUEUEMASK + 1;
 
 	/*
@@ -1116,7 +1117,8 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 	/*
 	 * If channel now has space, wake up anyone waiting on the condition.
 	 */
-	if ((qlen = ch->ch_w_head - ch->ch_w_tail) < 0)
+	qlen = ch->ch_w_head - ch->ch_w_tail;
+	if (qlen < 0)
 		qlen += WQUEUESIZE;
 
 	if (qlen >= (WQUEUESIZE - 256)) {
@@ -1914,7 +1916,8 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 	head = (ch->ch_w_head) & tmask;
 	tail = (ch->ch_w_tail) & tmask;
 
-	if ((ret = tail - head - 1) < 0)
+	ret = tail - head - 1;
+	if (ret < 0)
 		ret += WQUEUESIZE;
 
 	/* Limit printer to maxcps */
@@ -2014,7 +2017,8 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	head = (ch->ch_w_head) & tmask;
 	tail = (ch->ch_w_tail) & tmask;
 
-	if ((bufcount = tail - head - 1) < 0)
+	bufcount = tail - head - 1;
+	if (bufcount < 0)
 		bufcount += WQUEUESIZE;
 
 	DPR_WRITE(("%d: bufcount: %x count: %x tail: %x head: %x tmask: %x\n",
