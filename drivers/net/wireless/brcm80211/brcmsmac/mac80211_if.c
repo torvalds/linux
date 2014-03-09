@@ -1092,12 +1092,6 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
  * Attach to the WL device identified by vendor and device parameters.
  * regs is a host accessible memory address pointing to WL device registers.
  *
- * brcms_attach is not defined as static because in the case where no bus
- * is defined, wl_attach will never be called, and thus, gcc will issue
- * a warning that this function is defined but not used if we declare
- * it as static.
- *
- *
  * is called in brcms_bcma_probe() context, therefore no locking required.
  */
 static struct brcms_info *brcms_attach(struct bcma_device *pdev)
