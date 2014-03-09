@@ -1,0 +1,12 @@
+/*
+ * Support for CompuLab CM-T3530
+ */
+/dts-v1/;
+
+#include "omap34xx.dtsi"
+#include "omap3-cm-t3x30.dtsi"
+
+/ {
+	model = "CompuLab CM-T3530";
+	compatible = "compulab,omap3-cm-t3530", "ti,omap34xx", "ti,omap3";
+};
