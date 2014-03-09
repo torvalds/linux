@@ -34,6 +34,12 @@ struct drx39xxj_state {
 	const struct firmware *fw;
 };
 
+#if IS_ENABLED(CONFIG_DVB_DRX39XYJ)
 struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c);
+#else
+static inline struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c) {
+	return NULL;
+};
+#endif
 
 #endif /* DVB_DUMMY_FE_H */
