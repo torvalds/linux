@@ -144,18 +144,6 @@ static const struct pci_device_id slic_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
 
-#define SLIC_GET_SLIC_HANDLE(_adapter, _pslic_handle)                   \
-{                                                                       \
-	spin_lock_irqsave(&_adapter->handle_lock.lock,                  \
-			_adapter->handle_lock.flags);                   \
-	_pslic_handle  =  _adapter->pfree_slic_handles;                 \
-	if (_pslic_handle) {                                            \
-		_adapter->pfree_slic_handles = _pslic_handle->next;     \
-	}                                                               \
-	spin_unlock_irqrestore(&_adapter->handle_lock.lock,             \
-			_adapter->handle_lock.flags);                   \
-}
-
 static inline void slic_reg32_write(void __iomem *reg, u32 value, bool flush)
 {
 	writel(value, reg);
@@ -1431,7 +1419,13 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 	while ((cmdcnt < SLIC_CMDQ_CMDSINPAGE) &&
 	       (adapter->slic_handle_ix < 256)) {
 		/* Allocate and initialize a SLIC_HANDLE for this command */
-		SLIC_GET_SLIC_HANDLE(adapter, pslic_handle);
+		spin_lock_irqsave(&adapter->handle_lock.lock,
+				adapter->handle_lock.flags);
+		pslic_handle  =  adapter->pfree_slic_handles;
+		if (pslic_handle)
+			adapter->pfree_slic_handles = pslic_handle->next;
+		spin_unlock_irqrestore(&adapter->handle_lock.lock,
+				adapter->handle_lock.flags);
 		pslic_handle->type = SLIC_HANDLE_CMD;
 		pslic_handle->address = (void *) cmd;
 		pslic_handle->offset = (ushort) adapter->slic_handle_ix++;
