@@ -1065,6 +1065,25 @@ restart_loop:
 		goto restart_loop;
 	}
 
+	/* Add the transaction to the checkpoint list
+	 * __journal_remove_checkpoint() can not destroy transaction
+	 * under us because it is not marked as T_FINISHED yet */
+	if (journal->j_checkpoint_transactions == NULL) {
+		journal->j_checkpoint_transactions = commit_transaction;
+		commit_transaction->t_cpnext = commit_transaction;
+		commit_transaction->t_cpprev = commit_transaction;
+	} else {
+		commit_transaction->t_cpnext =
+			journal->j_checkpoint_transactions;
+		commit_transaction->t_cpprev =
+			commit_transaction->t_cpnext->t_cpprev;
+		commit_transaction->t_cpnext->t_cpprev =
+			commit_transaction;
+		commit_transaction->t_cpprev->t_cpnext =
+				commit_transaction;
+	}
+	spin_unlock(&journal->j_list_lock);
+
 	/* Done with this transaction! */
 
 	jbd_debug(3, "JBD2: commit phase 7\n");
@@ -1103,24 +1122,6 @@ restart_loop:
 
 	write_unlock(&journal->j_state_lock);
 
-	if (journal->j_checkpoint_transactions == NULL) {
-		journal->j_checkpoint_transactions = commit_transaction;
-		commit_transaction->t_cpnext = commit_transaction;
-		commit_transaction->t_cpprev = commit_transaction;
-	} else {
-		commit_transaction->t_cpnext =
-			journal->j_checkpoint_transactions;
-		commit_transaction->t_cpprev =
-			commit_transaction->t_cpnext->t_cpprev;
-		commit_transaction->t_cpnext->t_cpprev =
-			commit_transaction;
-		commit_transaction->t_cpprev->t_cpnext =
-				commit_transaction;
-	}
-	spin_unlock(&journal->j_list_lock);
-	/* Drop all spin_locks because commit_callback may be block.
-	 * __journal_remove_checkpoint() can not destroy transaction
-	 * under us because it is not marked as T_FINISHED yet */
 	if (journal->j_commit_callback)
 		journal->j_commit_callback(journal, commit_transaction);
 
@@ -1131,7 +1132,7 @@ restart_loop:
 	write_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);
 	commit_transaction->t_state = T_FINISHED;
-	/* Recheck checkpoint lists after j_list_lock was dropped */
+	/* Check if the transaction can be dropped now that we are finished */
 	if (commit_transaction->t_checkpoint_list == NULL &&
 	    commit_transaction->t_checkpoint_io_list == NULL) {
 		__jbd2_journal_drop_transaction(journal, commit_transaction);
