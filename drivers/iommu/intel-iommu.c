@@ -664,37 +664,53 @@ static void domain_update_iommu_cap(struct dmar_domain *domain)
 	domain_update_iommu_superpage(domain);
 }
 
-static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
+static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
 {
 	struct dmar_drhd_unit *drhd = NULL;
 	struct intel_iommu *iommu;
-	struct device *dev;
-	struct pci_dev *pdev;
+	struct device *tmp;
+	struct pci_dev *ptmp, *pdev = NULL;
+	u16 segment;
 	int i;
+
+	if (dev_is_pci(dev)) {
+		pdev = to_pci_dev(dev);
+		segment = pci_domain_nr(pdev->bus);
+	} else if (ACPI_COMPANION(dev))
+		dev = &ACPI_COMPANION(dev)->dev;
 
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
-		if (segment != drhd->segment)
+		if (pdev && segment != drhd->segment)
 			continue;
 
 		for_each_active_dev_scope(drhd->devices,
-					  drhd->devices_cnt, i, dev) {
-			if (!dev_is_pci(dev))
+					  drhd->devices_cnt, i, tmp) {
+			if (tmp == dev) {
+				*bus = drhd->devices[i].bus;
+				*devfn = drhd->devices[i].devfn;
+				goto out;
+			}
+
+			if (!pdev || !dev_is_pci(tmp))
 				continue;
-			pdev = to_pci_dev(dev);
-			if (pdev->bus->number == bus && pdev->devfn == devfn)
-				goto out;
-			if (pdev->subordinate &&
-			    pdev->subordinate->number <= bus &&
-			    pdev->subordinate->busn_res.end >= bus)
-				goto out;
+
+			ptmp = to_pci_dev(tmp);
+			if (ptmp->subordinate &&
+			    ptmp->subordinate->number <= pdev->bus->number &&
+			    ptmp->subordinate->busn_res.end >= pdev->bus->number)
+				goto got_pdev;
 		}
 
-		if (drhd->include_all)
+		if (pdev && drhd->include_all) {
+		got_pdev:
+			*bus = pdev->bus->number;
+			*devfn = pdev->devfn;
 			goto out;
+		}
 	}
 	iommu = NULL;
-out:
+ out:
 	rcu_read_unlock();
 
 	return iommu;
@@ -1830,14 +1846,13 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
 	int ret;
 	struct pci_dev *tmp, *parent;
 	struct intel_iommu *iommu;
+	u8 bus, devfn;
 
-	iommu = device_to_iommu(pci_domain_nr(pdev->bus), pdev->bus->number,
-				pdev->devfn);
+	iommu = device_to_iommu(&pdev->dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
-	ret = domain_context_mapping_one(domain, iommu,
-					 pdev->bus->number, pdev->devfn,
+	ret = domain_context_mapping_one(domain, iommu, bus, devfn,
 					 translation);
 	if (ret)
 		return ret;
@@ -1872,13 +1887,13 @@ static int domain_context_mapped(struct pci_dev *pdev)
 	int ret;
 	struct pci_dev *tmp, *parent;
 	struct intel_iommu *iommu;
+	u8 bus, devfn;
 
-	iommu = device_to_iommu(pci_domain_nr(pdev->bus), pdev->bus->number,
-				pdev->devfn);
+	iommu = device_to_iommu(&pdev->dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
-	ret = device_context_mapped(iommu, pdev->bus->number, pdev->devfn);
+	ret = device_context_mapped(iommu, bus, devfn);
 	if (!ret)
 		return ret;
 	/* dependent device mapping */
@@ -2459,15 +2474,14 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 {
 	struct dmar_domain *ndomain;
 	struct intel_iommu *iommu;
+	u8 bus, devfn;
 	int ret;
 
-	iommu = device_to_iommu(pci_domain_nr(pdev->bus),
-				pdev->bus->number, pdev->devfn);
+	iommu = device_to_iommu(&pdev->dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
-	ndomain = dmar_insert_dev_info(iommu, pdev->bus->number, pdev->devfn,
-				       &pdev->dev, domain);
+	ndomain = dmar_insert_dev_info(iommu, bus, devfn, &pdev->dev, domain);
 	if (ndomain != domain)
 		return -EBUSY;
 
@@ -4020,9 +4034,9 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 	struct intel_iommu *iommu;
 	unsigned long flags;
 	int found = 0;
+	u8 bus, devfn;
 
-	iommu = device_to_iommu(pci_domain_nr(pdev->bus), pdev->bus->number,
-				pdev->devfn);
+	iommu = device_to_iommu(&pdev->dev, &bus, &devfn);
 	if (!iommu)
 		return;
 
@@ -4142,6 +4156,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct intel_iommu *iommu;
 	int addr_width;
+	u8 bus, devfn;
 
 	/* normally pdev is not mapped */
 	if (unlikely(domain_context_mapped(pdev))) {
@@ -4157,8 +4172,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		}
 	}
 
-	iommu = device_to_iommu(pci_domain_nr(pdev->bus), pdev->bus->number,
-				pdev->devfn);
+	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
@@ -4324,9 +4338,9 @@ static int intel_iommu_add_device(struct device *dev)
 	struct pci_dev *bridge, *dma_pdev = NULL;
 	struct iommu_group *group;
 	int ret;
+	u8 bus, devfn;
 
-	if (!device_to_iommu(pci_domain_nr(pdev->bus),
-			     pdev->bus->number, pdev->devfn))
+	if (!device_to_iommu(dev, &bus, &devfn))
 		return -ENODEV;
 
 	bridge = pci_find_upstream_pcie_bridge(pdev);
