@@ -587,19 +587,6 @@ static int i2c_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 	return ret;
 }
 
-static int __i2c_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
-		size_t count, unsigned char report_type)
-{
-	struct i2c_client *client = hid->driver_data;
-	struct i2c_hid *ihid = i2c_get_clientdata(client);
-	bool data = true; /* SET_REPORT */
-
-	if (report_type == HID_OUTPUT_REPORT)
-		data = le16_to_cpu(ihid->hdesc.wMaxOutputLength) == 0;
-
-	return i2c_hid_output_raw_report(hid, buf, count, report_type, data);
-}
-
 static int i2c_hid_output_report(struct hid_device *hid, __u8 *buf,
 		size_t count)
 {
@@ -1025,7 +1012,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	hid->driver_data = client;
 	hid->ll_driver = &i2c_hid_ll_driver;
-	hid->hid_output_raw_report = __i2c_hid_output_raw_report;
 	hid->dev.parent = &client->dev;
 	ACPI_COMPANION_SET(&hid->dev, ACPI_COMPANION(&client->dev));
 	hid->bus = BUS_I2C;

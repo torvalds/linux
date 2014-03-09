@@ -510,9 +510,6 @@ struct hid_device {							/* device report descriptor */
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
 
-	/* handler for raw output data, used by hidraw */
-	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t, unsigned char);
-
 	/* debugging support via debugfs */
 	unsigned short debug;
 	struct dentry *debug_dir;
@@ -1017,22 +1014,6 @@ static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
 		return hdev->ll_driver->output_report(hdev, buf, len);
 
 	return -ENOSYS;
-}
-
-/**
- * hid_output_raw_report - send an output or a feature report to the device
- *
- * @hdev: hid device
- * @buf: raw data to transfer
- * @len: length of buf
- * @report_type: HID_FEATURE_REPORT or HID_OUTPUT_REPORT
- *
- * @return: count of data transfered, negative if error
- */
-static inline int hid_output_raw_report(struct hid_device *hdev, __u8 *buf,
-					size_t len, unsigned char report_type)
-{
-	return hdev->hid_output_raw_report(hdev, buf, len, report_type);
 }
 
 /**

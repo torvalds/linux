@@ -382,18 +382,6 @@ static int hidp_output_report(struct hid_device *hid, __u8 *data, size_t count)
 				      data, count);
 }
 
-static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data,
-		size_t count, unsigned char report_type)
-{
-	if (report_type == HID_OUTPUT_REPORT) {
-		return hidp_output_report(hid, data, count);
-	} else if (report_type != HID_FEATURE_REPORT) {
-		return -EINVAL;
-	}
-
-	return hidp_set_raw_report(hid, data[0], data, count, report_type);
-}
-
 static int hidp_raw_request(struct hid_device *hid, unsigned char reportnum,
 			    __u8 *buf, size_t len, unsigned char rtype,
 			    int reqtype)
@@ -775,8 +763,6 @@ static int hidp_setup_hid(struct hidp_session *session,
 
 	hid->dev.parent = &session->conn->hcon->dev;
 	hid->ll_driver = &hidp_hid_driver;
-
-	hid->hid_output_raw_report = hidp_output_raw_report;
 
 	/* True if device is blacklisted in drivers/hid/hid-core.c */
 	if (hid_ignore(hid)) {
