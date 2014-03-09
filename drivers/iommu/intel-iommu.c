@@ -2862,26 +2862,24 @@ static struct iova *intel_alloc_iova(struct device *dev,
 	return iova;
 }
 
-static struct dmar_domain *__get_valid_domain_for_dev(struct pci_dev *pdev)
+static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 {
 	struct dmar_domain *domain;
 	int ret;
 
-	domain = get_domain_for_dev(&pdev->dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
 	if (!domain) {
-		printk(KERN_ERR
-			"Allocating domain for %s failed", pci_name(pdev));
+		printk(KERN_ERR "Allocating domain for %s failed",
+		       dev_name(dev));
 		return NULL;
 	}
 
 	/* make sure context mapping is ok */
-	if (unlikely(!domain_context_mapped(&pdev->dev))) {
-		ret = domain_context_mapping(domain, &pdev->dev,
-					     CONTEXT_TT_MULTI_LEVEL);
+	if (unlikely(!domain_context_mapped(dev))) {
+		ret = domain_context_mapping(domain, dev, CONTEXT_TT_MULTI_LEVEL);
 		if (ret) {
-			printk(KERN_ERR
-				"Domain context map for %s failed",
-				pci_name(pdev));
+			printk(KERN_ERR "Domain context map for %s failed",
+			       dev_name(dev));
 			return NULL;
 		}
 	}
@@ -2889,12 +2887,12 @@ static struct dmar_domain *__get_valid_domain_for_dev(struct pci_dev *pdev)
 	return domain;
 }
 
-static inline struct dmar_domain *get_valid_domain_for_dev(struct pci_dev *dev)
+static inline struct dmar_domain *get_valid_domain_for_dev(struct device *dev)
 {
 	struct device_domain_info *info;
 
 	/* No lock here, assumes no domain exit in normal case */
-	info = dev->dev.archdata.iommu;
+	info = dev->archdata.iommu;
 	if (likely(info))
 		return info->domain;
 
@@ -2975,7 +2973,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	if (iommu_no_mapping(hwdev))
 		return paddr;
 
-	domain = get_valid_domain_for_dev(pdev);
+	domain = get_valid_domain_for_dev(hwdev);
 	if (!domain)
 		return 0;
 
@@ -3280,7 +3278,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	if (iommu_no_mapping(hwdev))
 		return intel_nontranslate_map_sg(hwdev, sglist, nelems, dir);
 
-	domain = get_valid_domain_for_dev(pdev);
+	domain = get_valid_domain_for_dev(hwdev);
 	if (!domain)
 		return 0;
 
