@@ -1840,24 +1840,25 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 }
 
 static int
-domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
-			int translation)
+domain_context_mapping(struct dmar_domain *domain, struct device *dev,
+		       int translation)
 {
 	int ret;
-	struct pci_dev *tmp, *parent;
+	struct pci_dev *pdev, *tmp, *parent;
 	struct intel_iommu *iommu;
 	u8 bus, devfn;
 
-	iommu = device_to_iommu(&pdev->dev, &bus, &devfn);
+	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
 	ret = domain_context_mapping_one(domain, iommu, bus, devfn,
 					 translation);
-	if (ret)
+	if (ret || !dev_is_pci(dev))
 		return ret;
 
 	/* dependent device mapping */
+	pdev = to_pci_dev(dev);
 	tmp = pci_find_upstream_pcie_bridge(pdev);
 	if (!tmp)
 		return 0;
@@ -1882,21 +1883,23 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
 						  translation);
 }
 
-static int domain_context_mapped(struct pci_dev *pdev)
+static int domain_context_mapped(struct device *dev)
 {
 	int ret;
-	struct pci_dev *tmp, *parent;
+	struct pci_dev *pdev, *tmp, *parent;
 	struct intel_iommu *iommu;
 	u8 bus, devfn;
 
-	iommu = device_to_iommu(&pdev->dev, &bus, &devfn);
+	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
 	ret = device_context_mapped(iommu, bus, devfn);
-	if (!ret)
+	if (!ret || !dev_is_pci(dev))
 		return ret;
+
 	/* dependent device mapping */
+	pdev = to_pci_dev(dev);
 	tmp = pci_find_upstream_pcie_bridge(pdev);
 	if (!tmp)
 		return ret;
@@ -2361,7 +2364,7 @@ static int iommu_prepare_identity_map(struct pci_dev *pdev,
 		goto error;
 
 	/* context entry init */
-	ret = domain_context_mapping(domain, pdev, CONTEXT_TT_MULTI_LEVEL);
+	ret = domain_context_mapping(domain, &pdev->dev, CONTEXT_TT_MULTI_LEVEL);
 	if (ret)
 		goto error;
 
@@ -2485,7 +2488,7 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 	if (ndomain != domain)
 		return -EBUSY;
 
-	ret = domain_context_mapping(domain, pdev, translation);
+	ret = domain_context_mapping(domain, &pdev->dev, translation);
 	if (ret) {
 		domain_remove_one_dev_info(domain, pdev);
 		return ret;
@@ -2870,8 +2873,8 @@ static struct dmar_domain *__get_valid_domain_for_dev(struct pci_dev *pdev)
 	}
 
 	/* make sure context mapping is ok */
-	if (unlikely(!domain_context_mapped(pdev))) {
-		ret = domain_context_mapping(domain, pdev,
+	if (unlikely(!domain_context_mapped(&pdev->dev))) {
+		ret = domain_context_mapping(domain, &pdev->dev,
 					     CONTEXT_TT_MULTI_LEVEL);
 		if (ret) {
 			printk(KERN_ERR
@@ -4159,7 +4162,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 	u8 bus, devfn;
 
 	/* normally pdev is not mapped */
-	if (unlikely(domain_context_mapped(pdev))) {
+	if (unlikely(domain_context_mapped(&pdev->dev))) {
 		struct dmar_domain *old_domain;
 
 		old_domain = find_domain(dev);
