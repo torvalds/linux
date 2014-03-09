@@ -2147,16 +2147,17 @@ dmar_search_domain_by_dev_info(int segment, int bus, int devfn)
 	return NULL;
 }
 
-static int dmar_insert_dev_info(int segment, int bus, int devfn,
-				struct device *dev, struct dmar_domain **domp)
+static struct dmar_domain *dmar_insert_dev_info(int segment, int bus, int devfn,
+						struct device *dev,
+						struct dmar_domain *domain)
 {
-	struct dmar_domain *found, *domain = *domp;
+	struct dmar_domain *found;
 	struct device_domain_info *info;
 	unsigned long flags;
 
 	info = alloc_devinfo_mem();
 	if (!info)
-		return -ENOMEM;
+		return NULL;
 
 	info->segment = segment;
 	info->bus = bus;
@@ -2174,19 +2175,17 @@ static int dmar_insert_dev_info(int segment, int bus, int devfn,
 	if (found) {
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 		free_devinfo_mem(info);
-		if (found != domain) {
-			domain_exit(domain);
-			*domp = found;
-		}
-	} else {
-		list_add(&info->link, &domain->devices);
-		list_add(&info->global, &device_domain_list);
-		if (dev)
-			dev->archdata.iommu = info;
-		spin_unlock_irqrestore(&device_domain_lock, flags);
+		/* Caller must free the original domain */
+		return found;
 	}
 
-	return 0;
+	list_add(&info->link, &domain->devices);
+	list_add(&info->global, &device_domain_list);
+	if (dev)
+		dev->archdata.iommu = info;
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+
+	return domain;
 }
 
 /* domain is initialized */
@@ -2245,21 +2244,19 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 
 	/* register pcie-to-pci device */
 	if (dev_tmp) {
-		if (dmar_insert_dev_info(segment, bus, devfn, NULL, &domain))
+		domain = dmar_insert_dev_info(segment, bus, devfn, NULL, domain);
+		if (!domain)
 			goto error;
-		else
-			free = NULL;
 	}
 
 found_domain:
-	if (dmar_insert_dev_info(segment, pdev->bus->number, pdev->devfn,
-				 &pdev->dev, &domain) == 0)
-		return domain;
+	domain = dmar_insert_dev_info(segment, pdev->bus->number, pdev->devfn,
+				      &pdev->dev, domain);
 error:
-	if (free)
+	if (free != domain)
 		domain_exit(free);
-	/* recheck it here, maybe others set it */
-	return find_domain(&pdev->dev);
+
+	return domain;
 }
 
 static int iommu_identity_mapping;
