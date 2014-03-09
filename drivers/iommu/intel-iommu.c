@@ -4056,8 +4056,7 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 		 * owned by this domain, clear this iommu in iommu_bmp
 		 * update iommu count and coherency
 		 */
-		if (iommu == device_to_iommu(info->segment, info->bus,
-					    info->devfn))
+		if (info->iommu == iommu)
 			found = 1;
 	}
 
