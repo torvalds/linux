@@ -1240,13 +1240,13 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 			(unsigned long long)DMA_TLB_IAIG(val));
 }
 
-static struct device_domain_info *iommu_support_dev_iotlb(
-	struct dmar_domain *domain, int segment, u8 bus, u8 devfn)
+static struct device_domain_info *
+iommu_support_dev_iotlb (struct dmar_domain *domain, struct intel_iommu *iommu,
+			 u8 bus, u8 devfn)
 {
 	int found = 0;
 	unsigned long flags;
 	struct device_domain_info *info;
-	struct intel_iommu *iommu = device_to_iommu(segment, bus, devfn);
 	struct pci_dev *pdev;
 
 	if (!ecap_dev_iotlb_support(iommu->ecap))
@@ -1700,12 +1700,12 @@ static void domain_exit(struct dmar_domain *domain)
 	free_domain_mem(domain);
 }
 
-static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
-				 u8 bus, u8 devfn, int translation)
+static int domain_context_mapping_one(struct dmar_domain *domain,
+				      struct intel_iommu *iommu,
+				      u8 bus, u8 devfn, int translation)
 {
 	struct context_entry *context;
 	unsigned long flags;
-	struct intel_iommu *iommu;
 	struct dma_pte *pgd;
 	unsigned long num;
 	unsigned long ndomains;
@@ -1719,10 +1719,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 	BUG_ON(!domain->pgd);
 	BUG_ON(translation != CONTEXT_TT_PASS_THROUGH &&
 	       translation != CONTEXT_TT_MULTI_LEVEL);
-
-	iommu = device_to_iommu(segment, bus, devfn);
-	if (!iommu)
-		return -ENODEV;
 
 	context = device_to_context_entry(iommu, bus, devfn);
 	if (!context)
@@ -1781,7 +1777,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 	context_set_domain_id(context, id);
 
 	if (translation != CONTEXT_TT_PASS_THROUGH) {
-		info = iommu_support_dev_iotlb(domain, segment, bus, devfn);
+		info = iommu_support_dev_iotlb(domain, iommu, bus, devfn);
 		translation = info ? CONTEXT_TT_DEV_IOTLB :
 				     CONTEXT_TT_MULTI_LEVEL;
 	}
@@ -1836,8 +1832,14 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
 {
 	int ret;
 	struct pci_dev *tmp, *parent;
+	struct intel_iommu *iommu;
 
-	ret = domain_context_mapping_one(domain, pci_domain_nr(pdev->bus),
+	iommu = device_to_iommu(pci_domain_nr(pdev->bus), pdev->bus->number,
+				pdev->devfn);
+	if (!iommu)
+		return -ENODEV;
+
+	ret = domain_context_mapping_one(domain, iommu,
 					 pdev->bus->number, pdev->devfn,
 					 translation);
 	if (ret)
@@ -1850,8 +1852,7 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
 	/* Secondary interface's bus number and devfn 0 */
 	parent = pdev->bus->self;
 	while (parent != tmp) {
-		ret = domain_context_mapping_one(domain,
-						 pci_domain_nr(parent->bus),
+		ret = domain_context_mapping_one(domain, iommu,
 						 parent->bus->number,
 						 parent->devfn, translation);
 		if (ret)
@@ -1859,13 +1860,11 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
 		parent = parent->bus->self;
 	}
 	if (pci_is_pcie(tmp)) /* this is a PCIe-to-PCI bridge */
-		return domain_context_mapping_one(domain,
-					pci_domain_nr(tmp->subordinate),
+		return domain_context_mapping_one(domain, iommu,
 					tmp->subordinate->number, 0,
 					translation);
 	else /* this is a legacy PCI bridge */
-		return domain_context_mapping_one(domain,
-						  pci_domain_nr(tmp->bus),
+		return domain_context_mapping_one(domain, iommu,
 						  tmp->bus->number,
 						  tmp->devfn,
 						  translation);
