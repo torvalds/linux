@@ -8861,7 +8861,7 @@ qam64auto(struct drx_demod_instance *demod,
 	struct drx_sig_quality sig_quality;
 	struct drxj_data *ext_attr = NULL;
 	int rc;
-	u32 state = NO_LOCK;
+	u32 lck_state = NO_LOCK;
 	u32 start_time = 0;
 	u32 d_locked_time = 0;
 	u32 timeout_ofs = 0;
@@ -8871,7 +8871,7 @@ qam64auto(struct drx_demod_instance *demod,
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	*lock_status = DRX_NOT_LOCKED;
 	start_time = jiffies_to_msecs(jiffies);
-	state = NO_LOCK;
+	lck_state = NO_LOCK;
 	do {
 		rc = ctrl_lock_status(demod, lock_status);
 		if (rc != 0) {
@@ -8879,7 +8879,7 @@ qam64auto(struct drx_demod_instance *demod,
 			goto rw_error;
 		}
 
-		switch (state) {
+		switch (lck_state) {
 		case NO_LOCK:
 			if (*lock_status == DRXJ_DEMOD_LOCK) {
 				rc = ctrl_get_qam_sig_quality(demod, &sig_quality);
@@ -8888,7 +8888,7 @@ qam64auto(struct drx_demod_instance *demod,
 					goto rw_error;
 				}
 				if (sig_quality.MER > 208) {
-					state = DEMOD_LOCKED;
+					lck_state = DEMOD_LOCKED;
 					/* some delay to see if fec_lock possible TODO find the right value */
 					timeout_ofs += DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;	/* see something, waiting longer */
 					d_locked_time = jiffies_to_msecs(jiffies);
@@ -8909,7 +8909,7 @@ qam64auto(struct drx_demod_instance *demod,
 					pr_err("error %d\n", rc);
 					goto rw_error;
 				}
-				state = SYNC_FLIPPED;
+				lck_state = SYNC_FLIPPED;
 				msleep(10);
 			}
 			break;
@@ -8934,7 +8934,7 @@ qam64auto(struct drx_demod_instance *demod,
 						pr_err("error %d\n", rc);
 						goto rw_error;
 					}
-					state = SPEC_MIRRORED;
+					lck_state = SPEC_MIRRORED;
 					/* reset timer TODO: still need 500ms? */
 					start_time = d_locked_time =
 					    jiffies_to_msecs(jiffies);
@@ -9008,7 +9008,7 @@ qam256auto(struct drx_demod_instance *demod,
 	struct drx_sig_quality sig_quality;
 	struct drxj_data *ext_attr = NULL;
 	int rc;
-	u32 state = NO_LOCK;
+	u32 lck_state = NO_LOCK;
 	u32 start_time = 0;
 	u32 d_locked_time = 0;
 	u32 timeout_ofs = DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;
@@ -9017,14 +9017,14 @@ qam256auto(struct drx_demod_instance *demod,
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	*lock_status = DRX_NOT_LOCKED;
 	start_time = jiffies_to_msecs(jiffies);
-	state = NO_LOCK;
+	lck_state = NO_LOCK;
 	do {
 		rc = ctrl_lock_status(demod, lock_status);
 		if (rc != 0) {
 			pr_err("error %d\n", rc);
 			goto rw_error;
 		}
-		switch (state) {
+		switch (lck_state) {
 		case NO_LOCK:
 			if (*lock_status == DRXJ_DEMOD_LOCK) {
 				rc = ctrl_get_qam_sig_quality(demod, &sig_quality);
@@ -9033,7 +9033,7 @@ qam256auto(struct drx_demod_instance *demod,
 					goto rw_error;
 				}
 				if (sig_quality.MER > 268) {
-					state = DEMOD_LOCKED;
+					lck_state = DEMOD_LOCKED;
 					timeout_ofs += DRXJ_QAM_DEMOD_LOCK_EXT_WAITTIME;	/* see something, wait longer */
 					d_locked_time = jiffies_to_msecs(jiffies);
 				}
@@ -9050,7 +9050,7 @@ qam256auto(struct drx_demod_instance *demod,
 						pr_err("error %d\n", rc);
 						goto rw_error;
 					}
-					state = SPEC_MIRRORED;
+					lck_state = SPEC_MIRRORED;
 					/* reset timer TODO: still need 300ms? */
 					start_time = jiffies_to_msecs(jiffies);
 					timeout_ofs = -DRXJ_QAM_MAX_WAITTIME / 2;
