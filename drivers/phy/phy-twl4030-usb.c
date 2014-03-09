@@ -695,11 +695,6 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	otg->set_host		= twl4030_set_host;
 	otg->set_peripheral	= twl4030_set_peripheral;
 
-	phy_provider = devm_of_phy_provider_register(twl->dev,
-		of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
 	phy = devm_phy_create(twl->dev, &ops, init_data);
 	if (IS_ERR(phy)) {
 		dev_dbg(&pdev->dev, "Failed to create PHY\n");
@@ -707,6 +702,11 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	}
 
 	phy_set_drvdata(phy, twl);
+
+	phy_provider = devm_of_phy_provider_register(twl->dev,
+		of_phy_simple_xlate);
+	if (IS_ERR(phy_provider))
+		return PTR_ERR(phy_provider);
 
 	/* init spinlock for workqueue */
 	spin_lock_init(&twl->lock);

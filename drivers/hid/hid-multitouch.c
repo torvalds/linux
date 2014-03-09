@@ -1166,6 +1166,11 @@ static const struct hid_device_id mt_devices[] = {
 		MT_USB_DEVICE(USB_VENDOR_ID_FLATFROG,
 			USB_DEVICE_ID_MULTITOUCH_3200) },
 
+	/* FocalTech Panels */
+	{ .driver_data = MT_CLS_SERIAL,
+		MT_USB_DEVICE(USB_VENDOR_ID_CYGNAL,
+			USB_DEVICE_ID_FOCALTECH_FTXXXX_MULTITOUCH) },
+
 	/* GeneralTouch panel */
 	{ .driver_data = MT_CLS_GENERALTOUCH_TWOFINGERS,
 		MT_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH,
