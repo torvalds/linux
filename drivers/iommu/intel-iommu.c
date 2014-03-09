@@ -1274,8 +1274,6 @@ iommu_support_dev_iotlb (struct dmar_domain *domain, struct intel_iommu *iommu,
 	if (!dmar_find_matched_atsr_unit(pdev))
 		return NULL;
 
-	info->iommu = iommu;
-
 	return info;
 }
 
@@ -2134,7 +2132,7 @@ static struct dmar_domain *find_domain(struct device *dev)
 	return NULL;
 }
 
-static inline struct dmar_domain *
+static inline struct device_domain_info *
 dmar_search_domain_by_dev_info(int segment, int bus, int devfn)
 {
 	struct device_domain_info *info;
@@ -2142,16 +2140,17 @@ dmar_search_domain_by_dev_info(int segment, int bus, int devfn)
 	list_for_each_entry(info, &device_domain_list, global)
 		if (info->segment == segment && info->bus == bus &&
 		    info->devfn == devfn)
-			return info->domain;
+			return info;
 
 	return NULL;
 }
 
-static struct dmar_domain *dmar_insert_dev_info(int segment, int bus, int devfn,
+static struct dmar_domain *dmar_insert_dev_info(struct intel_iommu *iommu,
+						int segment, int bus, int devfn,
 						struct device *dev,
 						struct dmar_domain *domain)
 {
-	struct dmar_domain *found;
+	struct dmar_domain *found = NULL;
 	struct device_domain_info *info;
 	unsigned long flags;
 
@@ -2164,14 +2163,19 @@ static struct dmar_domain *dmar_insert_dev_info(int segment, int bus, int devfn,
 	info->devfn = devfn;
 	info->dev = dev;
 	info->domain = domain;
+	info->iommu = iommu;
 	if (!dev)
 		domain->flags |= DOMAIN_FLAG_P2P_MULTIPLE_DEVICES;
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	if (dev)
 		found = find_domain(dev);
-	else
-		found = dmar_search_domain_by_dev_info(segment, bus, devfn);
+	else {
+		struct device_domain_info *info2;
+		info2 = dmar_search_domain_by_dev_info(segment, bus, devfn);
+		if (info2)
+			found = info2->domain;
+	}
 	if (found) {
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 		free_devinfo_mem(info);
@@ -2192,7 +2196,8 @@ static struct dmar_domain *dmar_insert_dev_info(int segment, int bus, int devfn,
 static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 {
 	struct dmar_domain *domain, *free = NULL;
-	struct intel_iommu *iommu;
+	struct intel_iommu *iommu = NULL;
+	struct device_domain_info *info;
 	struct dmar_drhd_unit *drhd;
 	struct pci_dev *dev_tmp;
 	unsigned long flags;
@@ -2215,10 +2220,13 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 			devfn = dev_tmp->devfn;
 		}
 		spin_lock_irqsave(&device_domain_lock, flags);
-		domain = dmar_search_domain_by_dev_info(segment, bus, devfn);
+		info = dmar_search_domain_by_dev_info(segment, bus, devfn);
+		if (info) {
+			iommu = info->iommu;
+			domain = info->domain;
+		}
 		spin_unlock_irqrestore(&device_domain_lock, flags);
-		/* pcie-pci bridge already has a domain, uses it */
-		if (domain)
+		if (info)
 			goto found_domain;
 	}
 
@@ -2244,14 +2252,15 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 
 	/* register pcie-to-pci device */
 	if (dev_tmp) {
-		domain = dmar_insert_dev_info(segment, bus, devfn, NULL, domain);
+		domain = dmar_insert_dev_info(iommu, segment, bus, devfn, NULL,
+					      domain);
 		if (!domain)
 			goto error;
 	}
 
 found_domain:
-	domain = dmar_insert_dev_info(segment, pdev->bus->number, pdev->devfn,
-				      &pdev->dev, domain);
+	domain = dmar_insert_dev_info(iommu, segment, pdev->bus->number,
+				      pdev->devfn, &pdev->dev, domain);
 error:
 	if (free != domain)
 		domain_exit(free);
@@ -2453,9 +2462,15 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 			       int translation)
 {
 	struct dmar_domain *ndomain;
+	struct intel_iommu *iommu;
 	int ret;
 
-	ndomain = dmar_insert_dev_info(pci_domain_nr(pdev->bus),
+	iommu = device_to_iommu(pci_domain_nr(pdev->bus),
+				pdev->bus->number, pdev->devfn);
+	if (!iommu)
+		return -ENODEV;
+
+	ndomain = dmar_insert_dev_info(iommu, pci_domain_nr(pdev->bus),
 				       pdev->bus->number, pdev->devfn,
 				       &pdev->dev, domain);
 	if (ndomain != domain)
