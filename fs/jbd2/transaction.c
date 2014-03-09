@@ -1416,7 +1416,6 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 	BUFFER_TRACE(bh, "entry");
 
 	jbd_lock_bh_state(bh);
-	spin_lock(&journal->j_list_lock);
 
 	if (!buffer_jbd(bh))
 		goto not_jbd;
@@ -1469,6 +1468,7 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 		 * we know to remove the checkpoint after we commit.
 		 */
 
+		spin_lock(&journal->j_list_lock);
 		if (jh->b_cp_transaction) {
 			__jbd2_journal_temp_unlink_buffer(jh);
 			__jbd2_journal_file_buffer(jh, transaction, BJ_Forget);
@@ -1481,6 +1481,7 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 				goto drop;
 			}
 		}
+		spin_unlock(&journal->j_list_lock);
 	} else if (jh->b_transaction) {
 		J_ASSERT_JH(jh, (jh->b_transaction ==
 				 journal->j_committing_transaction));
@@ -1492,7 +1493,9 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 
 		if (jh->b_next_transaction) {
 			J_ASSERT(jh->b_next_transaction == transaction);
+			spin_lock(&journal->j_list_lock);
 			jh->b_next_transaction = NULL;
+			spin_unlock(&journal->j_list_lock);
 
 			/*
 			 * only drop a reference if this transaction modified
@@ -1504,7 +1507,6 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 	}
 
 not_jbd:
-	spin_unlock(&journal->j_list_lock);
 	jbd_unlock_bh_state(bh);
 	__brelse(bh);
 drop:
