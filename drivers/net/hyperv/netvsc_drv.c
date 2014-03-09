@@ -140,21 +140,123 @@ static void netvsc_xmit_completion(void *context)
 		dev_kfree_skb_any(skb);
 }
 
+static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
+			struct hv_page_buffer *pb)
+{
+	int j = 0;
+
+	/* Deal with compund pages by ignoring unused part
+	 * of the page.
+	 */
+	page += (offset >> PAGE_SHIFT);
+	offset &= ~PAGE_MASK;
+
+	while (len > 0) {
+		unsigned long bytes;
+
+		bytes = PAGE_SIZE - offset;
+		if (bytes > len)
+			bytes = len;
+		pb[j].pfn = page_to_pfn(page);
+		pb[j].offset = offset;
+		pb[j].len = bytes;
+
+		offset += bytes;
+		len -= bytes;
+
+		if (offset == PAGE_SIZE && len) {
+			page++;
+			offset = 0;
+			j++;
+		}
+	}
+
+	return j + 1;
+}
+
+static void init_page_array(void *hdr, u32 len, struct sk_buff *skb,
+			    struct hv_page_buffer *pb)
+{
+	u32 slots_used = 0;
+	char *data = skb->data;
+	int frags = skb_shinfo(skb)->nr_frags;
+	int i;
+
+	/* The packet is laid out thus:
+	 * 1. hdr
+	 * 2. skb linear data
+	 * 3. skb fragment data
+	 */
+	if (hdr != NULL)
+		slots_used += fill_pg_buf(virt_to_page(hdr),
+					offset_in_page(hdr),
+					len, &pb[slots_used]);
+
+	slots_used += fill_pg_buf(virt_to_page(data),
+				offset_in_page(data),
+				skb_headlen(skb), &pb[slots_used]);
+
+	for (i = 0; i < frags; i++) {
+		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
+
+		slots_used += fill_pg_buf(skb_frag_page(frag),
+					frag->page_offset,
+					skb_frag_size(frag), &pb[slots_used]);
+	}
+}
+
+static int count_skb_frag_slots(struct sk_buff *skb)
+{
+	int i, frags = skb_shinfo(skb)->nr_frags;
+	int pages = 0;
+
+	for (i = 0; i < frags; i++) {
+		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
+		unsigned long size = skb_frag_size(frag);
+		unsigned long offset = frag->page_offset;
+
+		/* Skip unused frames from start of page */
+		offset &= ~PAGE_MASK;
+		pages += PFN_UP(offset + size);
+	}
+	return pages;
+}
+
+static int netvsc_get_slots(struct sk_buff *skb)
+{
+	char *data = skb->data;
+	unsigned int offset = offset_in_page(data);
+	unsigned int len = skb_headlen(skb);
+	int slots;
+	int frag_slots;
+
+	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE);
+	frag_slots = count_skb_frag_slots(skb);
+	return slots + frag_slots;
+}
+
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct hv_netvsc_packet *packet;
 	int ret;
-	unsigned int i, num_pages, npg_data;
+	unsigned int num_data_pages;
 
-	/* Add multipages for skb->data and additional 2 for RNDIS */
-	npg_data = (((unsigned long)skb->data + skb_headlen(skb) - 1)
-		>> PAGE_SHIFT) - ((unsigned long)skb->data >> PAGE_SHIFT) + 1;
-	num_pages = skb_shinfo(skb)->nr_frags + npg_data + 2;
+	/* We will atmost need two pages to describe the rndis
+	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
+	 * of pages in a single packet.
+	 */
+	num_data_pages = netvsc_get_slots(skb) + 2;
+	if (num_data_pages > MAX_PAGE_BUFFER_COUNT) {
+		netdev_err(net, "Packet too big: %u\n", skb->len);
+		dev_kfree_skb(skb);
+		net->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
-			 (num_pages * sizeof(struct hv_page_buffer)) +
+			 (num_data_pages * sizeof(struct hv_page_buffer)) +
 			 sizeof(struct rndis_message) +
 			 NDIS_VLAN_PPI_SIZE, GFP_ATOMIC);
 	if (!packet) {
@@ -169,44 +271,17 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->vlan_tci = skb->vlan_tci;
 
 	packet->extension = (void *)(unsigned long)packet +
-				sizeof(struct hv_netvsc_packet) +
-				    (num_pages * sizeof(struct hv_page_buffer));
+			sizeof(struct hv_netvsc_packet) +
+			(num_data_pages * sizeof(struct hv_page_buffer));
 
 	/* If the rndis msg goes beyond 1 page, we will add 1 later */
-	packet->page_buf_cnt = num_pages - 1;
+	packet->page_buf_cnt = num_data_pages - 1;
 
 	/* Initialize it from the skb */
 	packet->total_data_buflen = skb->len;
 
 	/* Start filling in the page buffers starting after RNDIS buffer. */
-	packet->page_buf[1].pfn = virt_to_phys(skb->data) >> PAGE_SHIFT;
-	packet->page_buf[1].offset
-		= (unsigned long)skb->data & (PAGE_SIZE - 1);
-	if (npg_data == 1)
-		packet->page_buf[1].len = skb_headlen(skb);
-	else
-		packet->page_buf[1].len = PAGE_SIZE
-			- packet->page_buf[1].offset;
-
-	for (i = 2; i <= npg_data; i++) {
-		packet->page_buf[i].pfn = virt_to_phys(skb->data
-			+ PAGE_SIZE * (i-1)) >> PAGE_SHIFT;
-		packet->page_buf[i].offset = 0;
-		packet->page_buf[i].len = PAGE_SIZE;
-	}
-	if (npg_data > 1)
-		packet->page_buf[npg_data].len = (((unsigned long)skb->data
-			+ skb_headlen(skb) - 1) & (PAGE_SIZE - 1)) + 1;
-
-	/* Additional fragments are after SKB data */
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const skb_frag_t *f = &skb_shinfo(skb)->frags[i];
-
-		packet->page_buf[i+npg_data+1].pfn =
-			page_to_pfn(skb_frag_page(f));
-		packet->page_buf[i+npg_data+1].offset = f->page_offset;
-		packet->page_buf[i+npg_data+1].len = skb_frag_size(f);
-	}
+	init_page_array(NULL, 0, skb, &packet->page_buf[1]);
 
 	/* Set the completion routine */
 	packet->completion.send.send_completion = netvsc_xmit_completion;
@@ -451,8 +526,8 @@ static int netvsc_probe(struct hv_device *dev,
 	net->netdev_ops = &device_ops;
 
 	/* TODO: Add GSO and Checksum offload */
-	net->hw_features = 0;
-	net->features = NETIF_F_HW_VLAN_CTAG_TX;
+	net->hw_features = NETIF_F_SG;
+	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);
