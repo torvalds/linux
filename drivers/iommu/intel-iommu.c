@@ -2453,8 +2453,6 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 			       int translation)
 {
 	struct dmar_domain *ndomain;
-	struct device_domain_info *info;
-	unsigned long flags;
 	int ret;
 
 	ndomain = dmar_insert_dev_info(pci_domain_nr(pdev->bus),
@@ -2465,11 +2463,7 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 
 	ret = domain_context_mapping(domain, pdev, translation);
 	if (ret) {
-		spin_lock_irqsave(&device_domain_lock, flags);
-		info = pdev->dev.archdata.iommu;
-		unlink_domain_info(info);
-		spin_unlock_irqrestore(&device_domain_lock, flags);
-		free_devinfo_mem(info);
+		domain_remove_one_dev_info(domain, pdev);
 		return ret;
 	}
 
