@@ -458,12 +458,14 @@ static void imx_hdmi_update_csc_coeffs(struct imx_hdmi *hdmi)
 
 	if (is_color_space_conversion(hdmi)) {
 		if (hdmi->hdmi_data.enc_out_format == RGB) {
-			if (hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_601)
+			if (hdmi->hdmi_data.colorimetry ==
+					HDMI_COLORIMETRY_ITU_601)
 				csc_coeff = &csc_coeff_rgb_out_eitu601;
 			else
 				csc_coeff = &csc_coeff_rgb_out_eitu709;
 		} else if (hdmi->hdmi_data.enc_in_format == RGB) {
-			if (hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_601)
+			if (hdmi->hdmi_data.colorimetry ==
+					HDMI_COLORIMETRY_ITU_601)
 				csc_coeff = &csc_coeff_rgb_in_eitu601;
 			else
 				csc_coeff = &csc_coeff_rgb_in_eitu709;
@@ -477,11 +479,13 @@ static void imx_hdmi_update_csc_coeffs(struct imx_hdmi *hdmi)
 		u16 coeff_b = (*csc_coeff)[1][i];
 		u16 coeff_c = (*csc_coeff)[2][i];
 
-		hdmi_writeb(hdmi, coeff_a & 0xff, HDMI_CSC_COEF_A1_LSB + i * 2);
+		hdmi_writeb(hdmi, coeff_a & 0xff,
+			HDMI_CSC_COEF_A1_LSB + i * 2);
 		hdmi_writeb(hdmi, coeff_a >> 8, HDMI_CSC_COEF_A1_MSB + i * 2);
 		hdmi_writeb(hdmi, coeff_b & 0xff, HDMI_CSC_COEF_B1_LSB + i * 2);
 		hdmi_writeb(hdmi, coeff_b >> 8, HDMI_CSC_COEF_B1_MSB + i * 2);
-		hdmi_writeb(hdmi, coeff_c & 0xff, HDMI_CSC_COEF_C1_LSB + i * 2);
+		hdmi_writeb(hdmi, coeff_c & 0xff,
+			HDMI_CSC_COEF_C1_LSB + i * 2);
 		hdmi_writeb(hdmi, coeff_c >> 8, HDMI_CSC_COEF_C1_MSB + i * 2);
 	}
 
@@ -1525,7 +1529,8 @@ static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 		} else {
 			dev_dbg(hdmi->dev, "EVENT=plugout\n");
 
-			hdmi_modb(hdmi, HDMI_PHY_HPD, HDMI_PHY_HPD, HDMI_PHY_POL0);
+			hdmi_modb(hdmi, HDMI_PHY_HPD, HDMI_PHY_HPD,
+				HDMI_PHY_POL0);
 
 			hdmi->connector_status = connector_status_disconnected;
 			imx_hdmi_poweroff(hdmi);
