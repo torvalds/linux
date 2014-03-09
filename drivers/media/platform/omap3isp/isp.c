@@ -1399,14 +1399,14 @@ int omap3isp_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
 	if (isp_pipeline_is_last(me)) {
 		struct isp_video *video = pipe->output;
 		unsigned long flags;
-		spin_lock_irqsave(&video->queue->irqlock, flags);
+		spin_lock_irqsave(&video->irqlock, flags);
 		if (video->dmaqueue_flags & ISP_VIDEO_DMAQUEUE_UNDERRUN) {
-			spin_unlock_irqrestore(&video->queue->irqlock, flags);
+			spin_unlock_irqrestore(&video->irqlock, flags);
 			atomic_set(stopping, 0);
 			smp_mb();
 			return 0;
 		}
-		spin_unlock_irqrestore(&video->queue->irqlock, flags);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 		if (!wait_event_timeout(*wait, !atomic_read(stopping),
 					msecs_to_jiffies(1000))) {
 			atomic_set(stopping, 0);

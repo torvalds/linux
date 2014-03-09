@@ -660,7 +660,6 @@ int omap3isp_video_queue_init(struct isp_video_queue *queue,
 			      struct device *dev, unsigned int bufsize)
 {
 	INIT_LIST_HEAD(&queue->queue);
-	spin_lock_init(&queue->irqlock);
 
 	queue->type = type;
 	queue->ops = ops;
@@ -761,7 +760,6 @@ int omap3isp_video_queue_qbuf(struct isp_video_queue *queue,
 			      struct v4l2_buffer *vbuf)
 {
 	struct isp_video_buffer *buf;
-	unsigned long flags;
 	int ret;
 
 	if (vbuf->type != queue->type)
@@ -801,11 +799,8 @@ int omap3isp_video_queue_qbuf(struct isp_video_queue *queue,
 	buf->state = ISP_BUF_STATE_QUEUED;
 	list_add_tail(&buf->stream, &queue->queue);
 
-	if (queue->streaming) {
-		spin_lock_irqsave(&queue->irqlock, flags);
+	if (queue->streaming)
 		queue->ops->buffer_queue(buf);
-		spin_unlock_irqrestore(&queue->irqlock, flags);
-	}
 
 	return 0;
 }
@@ -862,17 +857,14 @@ int omap3isp_video_queue_dqbuf(struct isp_video_queue *queue,
 int omap3isp_video_queue_streamon(struct isp_video_queue *queue)
 {
 	struct isp_video_buffer *buf;
-	unsigned long flags;
 
 	if (queue->streaming)
 		return 0;
 
 	queue->streaming = 1;
 
-	spin_lock_irqsave(&queue->irqlock, flags);
 	list_for_each_entry(buf, &queue->queue, stream)
 		queue->ops->buffer_queue(buf);
-	spin_unlock_irqrestore(&queue->irqlock, flags);
 
 	return 0;
 }
@@ -890,7 +882,6 @@ int omap3isp_video_queue_streamon(struct isp_video_queue *queue)
 void omap3isp_video_queue_streamoff(struct isp_video_queue *queue)
 {
 	struct isp_video_buffer *buf;
-	unsigned long flags;
 	unsigned int i;
 
 	if (!queue->streaming)
@@ -898,7 +889,6 @@ void omap3isp_video_queue_streamoff(struct isp_video_queue *queue)
 
 	queue->streaming = 0;
 
-	spin_lock_irqsave(&queue->irqlock, flags);
 	for (i = 0; i < queue->count; ++i) {
 		buf = queue->buffers[i];
 
@@ -907,7 +897,6 @@ void omap3isp_video_queue_streamoff(struct isp_video_queue *queue)
 
 		buf->state = ISP_BUF_STATE_IDLE;
 	}
-	spin_unlock_irqrestore(&queue->irqlock, flags);
 
 	INIT_LIST_HEAD(&queue->queue);
 }

@@ -183,6 +183,7 @@ struct isp_video {
 	/* Video buffers queue */
 	struct isp_video_queue *queue;
 	struct mutex queue_lock;	/* protects the queue */
+	spinlock_t irqlock;		/* protects dmaqueue */
 	struct list_head dmaqueue;
 	enum isp_video_dmaqueue_flags dmaqueue_flags;
 

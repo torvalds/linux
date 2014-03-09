@@ -381,14 +381,19 @@ static void isp_video_buffer_queue(struct isp_video_buffer *buf)
 	unsigned int empty;
 	unsigned int start;
 
+	spin_lock_irqsave(&video->irqlock, flags);
+
 	if (unlikely(video->error)) {
 		buf->state = ISP_BUF_STATE_ERROR;
 		wake_up(&buf->wait);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 		return;
 	}
 
 	empty = list_empty(&video->dmaqueue);
 	list_add_tail(&buffer->buffer.irqlist, &video->dmaqueue);
+
+	spin_unlock_irqrestore(&video->irqlock, flags);
 
 	if (empty) {
 		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -445,16 +450,16 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 	unsigned long flags;
 	struct timespec ts;
 
-	spin_lock_irqsave(&queue->irqlock, flags);
+	spin_lock_irqsave(&video->irqlock, flags);
 	if (WARN_ON(list_empty(&video->dmaqueue))) {
-		spin_unlock_irqrestore(&queue->irqlock, flags);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 		return NULL;
 	}
 
 	buf = list_first_entry(&video->dmaqueue, struct isp_video_buffer,
 			       irqlist);
 	list_del(&buf->irqlist);
-	spin_unlock_irqrestore(&queue->irqlock, flags);
+	spin_unlock_irqrestore(&video->irqlock, flags);
 
 	buf->vbuf.bytesused = vfh->format.fmt.pix.sizeimage;
 
@@ -520,10 +525,9 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
  */
 void omap3isp_video_cancel_stream(struct isp_video *video)
 {
-	struct isp_video_queue *queue = video->queue;
 	unsigned long flags;
 
-	spin_lock_irqsave(&queue->irqlock, flags);
+	spin_lock_irqsave(&video->irqlock, flags);
 
 	while (!list_empty(&video->dmaqueue)) {
 		struct isp_video_buffer *buf;
@@ -538,7 +542,7 @@ void omap3isp_video_cancel_stream(struct isp_video *video)
 
 	video->error = true;
 
-	spin_unlock_irqrestore(&queue->irqlock, flags);
+	spin_unlock_irqrestore(&video->irqlock, flags);
 }
 
 /*
@@ -1039,10 +1043,10 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 					      ISP_PIPELINE_STREAM_CONTINUOUS);
 		if (ret < 0)
 			goto err_set_stream;
-		spin_lock_irqsave(&video->queue->irqlock, flags);
+		spin_lock_irqsave(&video->irqlock, flags);
 		if (list_empty(&video->dmaqueue))
 			video->dmaqueue_flags |= ISP_VIDEO_DMAQUEUE_UNDERRUN;
-		spin_unlock_irqrestore(&video->queue->irqlock, flags);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 	}
 
 	video->streaming = 1;
@@ -1324,6 +1328,7 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	spin_lock_init(&video->pipe.lock);
 	mutex_init(&video->stream_lock);
 	mutex_init(&video->queue_lock);
+	spin_lock_init(&video->irqlock);
 
 	/* Initialize the video device. */
 	if (video->ops == NULL)

@@ -114,8 +114,7 @@ struct isp_video_buffer {
  *	the userspace memory address for a USERPTR buffer, with the queue lock
  *	held. Drivers should perform device-specific buffer preparation (such as
  *	mapping the buffer memory in an IOMMU). This operation is optional.
- * @buffer_queue: Called when a buffer is being added to the queue with the
- *	queue irqlock spinlock held.
+ * @buffer_queue: Called when a buffer is being added.
  */
 struct isp_video_queue_operations {
 	void (*queue_prepare)(struct isp_video_queue *queue,
@@ -132,7 +131,6 @@ struct isp_video_queue_operations {
  * @bufsize: Size of a driver-specific buffer object
  * @count: Number of currently allocated buffers
  * @buffers: ISP video buffers
- * @irqlock: Spinlock to protect access to the IRQ queue
  * @streaming: Queue state, indicates whether the queue is streaming
  * @queue: List of all queued buffers
  */
@@ -144,7 +142,6 @@ struct isp_video_queue {
 
 	unsigned int count;
 	struct isp_video_buffer *buffers[ISP_VIDEO_MAX_BUFFERS];
-	spinlock_t irqlock;
 
 	unsigned int streaming:1;
 
