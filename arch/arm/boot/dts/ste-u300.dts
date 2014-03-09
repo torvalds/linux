@@ -457,7 +457,7 @@
 			interrupt-parent = <&vica>;
 			interrupts = <23>;
 			clocks = <&spi_clk>, <&spi_clk>;
-			clock-names = "apb_pclk", "spi_clk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dmac 27 &dmac 28>;
 			dma-names = "tx", "rx";
 			num-cs = <3>;
