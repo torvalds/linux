@@ -2439,14 +2439,14 @@ static int __init si_domain_init(int hw)
 	return 0;
 }
 
-static int identity_mapping(struct pci_dev *pdev)
+static int identity_mapping(struct device *dev)
 {
 	struct device_domain_info *info;
 
 	if (likely(!iommu_identity_mapping))
 		return 0;
 
-	info = pdev->dev.archdata.iommu;
+	info = dev->archdata.iommu;
 	if (info && info != DUMMY_DEVICE_DOMAIN_INFO)
 		return (info->domain == si_domain);
 
@@ -2903,7 +2903,7 @@ static int iommu_no_mapping(struct device *dev)
 		return 0;
 
 	pdev = to_pci_dev(dev);
-	found = identity_mapping(pdev);
+	found = identity_mapping(dev);
 	if (found) {
 		if (iommu_should_identity_map(pdev, 0))
 			return 1;
