@@ -9352,6 +9352,83 @@ rw_error:
 /*============================================================================*/
 
 /**
+ * \fn int get_sig_strength()
+ * \brief Retrieve signal strength for VSB and QAM.
+ * \param demod Pointer to demod instance
+ * \param u16-t Pointer to signal strength data; range 0, .. , 100.
+ * \return int.
+ * \retval 0 sig_strength contains valid data.
+ * \retval -EINVAL sig_strength is NULL.
+ * \retval -EIO Erroneous data, sig_strength contains invalid data.
+ */
+#define DRXJ_AGC_TOP    0x2800
+#define DRXJ_AGC_SNS    0x1600
+#define DRXJ_RFAGC_MAX  0x3fff
+#define DRXJ_RFAGC_MIN  0x800
+
+static int get_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
+{
+	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
+	int rc;
+	u16 rf_gain = 0;
+	u16 if_gain = 0;
+	u16 if_agc_sns = 0;
+	u16 if_agc_top = 0;
+	u16 rf_agc_max = 0;
+	u16 rf_agc_min = 0;
+
+	rc = drxj_dap_read_reg16(dev_addr, IQM_AF_AGC_IF__A, &if_gain, 0);
+	if (rc != 0) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	if_gain &= IQM_AF_AGC_IF__M;
+	rc = drxj_dap_read_reg16(dev_addr, IQM_AF_AGC_RF__A, &rf_gain, 0);
+	if (rc != 0) {
+		pr_err("error %d\n", rc);
+		goto rw_error;
+	}
+	rf_gain &= IQM_AF_AGC_RF__M;
+
+	if_agc_sns = DRXJ_AGC_SNS;
+	if_agc_top = DRXJ_AGC_TOP;
+	rf_agc_max = DRXJ_RFAGC_MAX;
+	rf_agc_min = DRXJ_RFAGC_MIN;
+
+	if (if_gain > if_agc_top) {
+		if (rf_gain > rf_agc_max)
+			*sig_strength = 100;
+		else if (rf_gain > rf_agc_min) {
+			if (rf_agc_max == rf_agc_min) {
+				pr_err("error: rf_agc_max == rf_agc_min\n");
+				return -EIO;
+			}
+			*sig_strength =
+			75 + 25 * (rf_gain - rf_agc_min) / (rf_agc_max -
+								rf_agc_min);
+		} else
+			*sig_strength = 75;
+	} else if (if_gain > if_agc_sns) {
+		if (if_agc_top == if_agc_sns) {
+			pr_err("error: if_agc_top == if_agc_sns\n");
+			return -EIO;
+		}
+		*sig_strength =
+		20 + 55 * (if_gain - if_agc_sns) / (if_agc_top - if_agc_sns);
+	} else {
+		if (!if_agc_sns) {
+			pr_err("error: if_agc_sns is zero!\n");
+			return -EIO;
+		}
+		*sig_strength = (20 * if_gain / if_agc_sns);
+	}
+
+	return 0;
+	rw_error:
+	return -EIO;
+}
+
+/**
 * \fn int ctrl_get_qam_sig_quality()
 * \brief Retreive QAM signal quality from device.
 * \param devmod Pointer to demodulator instance.
