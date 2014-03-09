@@ -18,20 +18,22 @@
 	model = "Olimex A20-Olinuxino Micro";
 	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
 
+	aliases {
+		spi0 = &spi1;
+		spi1 = &spi2;
+	};
+
 	soc@01c00000 {
-		emac: ethernet@01c0b000 {
+		spi1: spi@01c06000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&emac_pins_a>;
-			phy = <&phy1>;
+			pinctrl-0 = <&spi1_pins_a>;
 			status = "okay";
 		};
 
-		mdio@01c0b080 {
+		spi2: spi@01c17000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi2_pins_a>;
 			status = "okay";
-
-			phy1: ethernet-phy@1 {
-				reg = <1>;
-			};
 		};
 
 		pinctrl@01c20800 {
@@ -77,6 +79,18 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c2_pins_a>;
 			status = "okay";
+		};
+
+		gmac: ethernet@01c50000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gmac_pins_mii_a>;
+			phy = <&phy1>;
+			phy-mode = "mii";
+			status = "okay";
+
+			phy1: ethernet-phy@1 {
+				reg = <1>;
+			};
 		};
 	};
 
