@@ -185,8 +185,8 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	buf[1] &= ~(1 << offset);
 	buf[2] = gpio_push_pull;
 
-	ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf),
-					  HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf, sizeof(buf),
+				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	if (ret < 0) {
 		hid_err(hdev, "error setting GPIO config: %d\n", ret);
 		return ret;
@@ -207,8 +207,8 @@ static void cp2112_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	buf[1] = value ? 0xff : 0;
 	buf[2] = 1 << offset;
 
-	ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf),
-					  HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_SET, buf, sizeof(buf),
+				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	if (ret < 0)
 		hid_err(hdev, "error setting GPIO values: %d\n", ret);
 }
@@ -253,8 +253,8 @@ static int cp2112_gpio_direction_output(struct gpio_chip *chip,
 	buf[1] |= 1 << offset;
 	buf[2] = gpio_push_pull;
 
-	ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf),
-					  HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf, sizeof(buf),
+				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	if (ret < 0) {
 		hid_err(hdev, "error setting GPIO config: %d\n", ret);
 		return ret;
