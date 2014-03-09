@@ -273,8 +273,8 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	u8 local_dist = 0, remote_dist = 0;
 
 	if (test_bit(HCI_PAIRABLE, &conn->hcon->hdev->dev_flags)) {
-		local_dist = SMP_DIST_ENC_KEY;
-		remote_dist = SMP_DIST_ENC_KEY;
+		local_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
+		remote_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
 		authreq |= SMP_AUTH_BONDING;
 	} else {
 		authreq &= ~SMP_AUTH_BONDING;
@@ -595,6 +595,9 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 
 	complete = test_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
 	mgmt_smp_complete(conn->hcon, complete);
+
+	kfree(smp->csrk);
+	kfree(smp->slave_csrk);
 
 	/* If pairing failed clean up any keys we might have */
 	if (!complete) {
@@ -1065,6 +1068,41 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	return 0;
 }
 
+static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	struct smp_cmd_sign_info *rp = (void *) skb->data;
+	struct smp_chan *smp = conn->smp_chan;
+	struct hci_dev *hdev = conn->hcon->hdev;
+	struct smp_csrk *csrk;
+
+	BT_DBG("conn %p", conn);
+
+	if (skb->len < sizeof(*rp))
+		return SMP_UNSPECIFIED;
+
+	/* Ignore this PDU if it wasn't requested */
+	if (!(smp->remote_key_dist & SMP_DIST_SIGN))
+		return 0;
+
+	/* Mark the information as received */
+	smp->remote_key_dist &= ~SMP_DIST_SIGN;
+
+	skb_pull(skb, sizeof(*rp));
+
+	hci_dev_lock(hdev);
+	csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
+	if (csrk) {
+		csrk->master = 0x01;
+		memcpy(csrk->val, rp->csrk, sizeof(csrk->val));
+	}
+	smp->csrk = csrk;
+	if (!(smp->remote_key_dist & SMP_DIST_SIGN))
+		smp_distribute_keys(conn);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
 int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct hci_conn *hcon = conn->hcon;
@@ -1147,8 +1185,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 		break;
 
 	case SMP_CMD_SIGN_INFO:
-		/* Just ignored */
-		reason = 0;
+		reason = smp_cmd_sign_info(conn, skb);
 		break;
 
 	default:
@@ -1175,6 +1212,18 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 
 	if (smp->remote_irk)
 		mgmt_new_irk(hdev, smp->remote_irk);
+
+	if (smp->csrk) {
+		smp->csrk->bdaddr_type = hcon->dst_type;
+		bacpy(&smp->csrk->bdaddr, &hcon->dst);
+		mgmt_new_csrk(hdev, smp->csrk);
+	}
+
+	if (smp->slave_csrk) {
+		smp->slave_csrk->bdaddr_type = hcon->dst_type;
+		bacpy(&smp->slave_csrk->bdaddr, &hcon->dst);
+		mgmt_new_csrk(hdev, smp->slave_csrk);
+	}
 
 	if (smp->ltk) {
 		smp->ltk->bdaddr_type = hcon->dst_type;
@@ -1274,9 +1323,17 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 
 	if (*keydist & SMP_DIST_SIGN) {
 		struct smp_cmd_sign_info sign;
+		struct smp_csrk *csrk;
 
-		/* Send a dummy key */
+		/* Generate a new random key */
 		get_random_bytes(sign.csrk, sizeof(sign.csrk));
+
+		csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
+		if (csrk) {
+			csrk->master = 0x00;
+			memcpy(csrk->val, sign.csrk, sizeof(csrk->val));
+		}
+		smp->slave_csrk = csrk;
 
 		smp_send_cmd(conn, SMP_CMD_SIGN_INFO, sizeof(sign), &sign);
 

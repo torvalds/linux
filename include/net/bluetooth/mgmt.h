@@ -551,3 +551,15 @@ struct mgmt_ev_new_irk {
 	bdaddr_t rpa;
 	struct mgmt_irk_info irk;
 } __packed;
+
+struct mgmt_csrk_info {
+	struct mgmt_addr_info addr;
+	__u8 master;
+	__u8 val[16];
+} __packed;
+
+#define MGMT_EV_NEW_CSRK		0x0019
+struct mgmt_ev_new_csrk {
+	__u8 store_hint;
+	struct mgmt_csrk_info key;
+} __packed;
