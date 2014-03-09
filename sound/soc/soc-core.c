@@ -3906,100 +3906,47 @@ static inline char *fmt_multiple_name(struct device *dev,
 }
 
 /**
- * snd_soc_register_dai - Register a DAI with the ASoC core
+ * snd_soc_unregister_dai - Unregister DAIs from the ASoC core
  *
- * @component: The component the DAIs are registered for
- * @dai_drv: DAI driver to use for the DAIs
+ * @component: The component for which the DAIs should be unregistered
  */
-static int snd_soc_register_dai(struct snd_soc_component *component,
-		struct snd_soc_dai_driver *dai_drv)
+static void snd_soc_unregister_dais(struct snd_soc_component *component)
 {
-	struct device *dev = component->dev;
-	struct snd_soc_codec *codec;
-	struct snd_soc_dai *dai;
+	struct snd_soc_dai *dai, *_dai;
 
-	dev_dbg(dev, "ASoC: dai register %s\n", dev_name(dev));
+	mutex_lock(&client_mutex);
+	list_for_each_entry_safe(dai, _dai, &dai_list, list) {
+		if (dai->dev != component->dev)
+			continue;
 
-	dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
-	if (dai == NULL)
-		return -ENOMEM;
+		list_del(&dai->list);
 
-	/* create DAI component name */
-	dai->name = fmt_single_name(dev, &dai->id);
-	if (dai->name == NULL) {
+		dev_dbg(component->dev, "ASoC: Unregistered DAI '%s'\n",
+			dai->name);
+		kfree(dai->name);
 		kfree(dai);
-		return -ENOMEM;
 	}
-
-	dai->component = component;
-	dai->dev = dev;
-	dai->driver = dai_drv;
-	dai->dapm.dev = dev;
-	if (!dai->driver->ops)
-		dai->driver->ops = &null_dai_ops;
-
-	mutex_lock(&client_mutex);
-
-	list_for_each_entry(codec, &codec_list, list) {
-		if (codec->dev == dev) {
-			dev_dbg(dev, "ASoC: Mapped DAI %s to CODEC %s\n",
-				dai->name, codec->name);
-			dai->codec = codec;
-			break;
-		}
-	}
-
-	if (!dai->codec)
-		dai->dapm.idle_bias_off = 1;
-
-	list_add(&dai->list, &dai_list);
-
 	mutex_unlock(&client_mutex);
-
-	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
-
-	return 0;
 }
 
 /**
- * snd_soc_unregister_dai - Unregister a DAI from the ASoC core
- *
- * @dai: DAI to unregister
- */
-static void snd_soc_unregister_dai(struct device *dev)
-{
-	struct snd_soc_dai *dai;
-
-	list_for_each_entry(dai, &dai_list, list) {
-		if (dev == dai->dev)
-			goto found;
-	}
-	return;
-
-found:
-	mutex_lock(&client_mutex);
-	list_del(&dai->list);
-	mutex_unlock(&client_mutex);
-
-	dev_dbg(dev, "ASoC: Unregistered DAI '%s'\n", dai->name);
-	kfree(dai->name);
-	kfree(dai);
-}
-
-/**
- * snd_soc_register_dais - Register multiple DAIs with the ASoC core
+ * snd_soc_register_dais - Register a DAI with the ASoC core
  *
  * @component: The component the DAIs are registered for
  * @dai_drv: DAI driver to use for the DAIs
  * @count: Number of DAIs
+ * @legacy_dai_naming: Use the legacy naming scheme and let the DAI inherit the
+ *                     parent's name.
  */
 static int snd_soc_register_dais(struct snd_soc_component *component,
-		struct snd_soc_dai_driver *dai_drv, size_t count)
+	struct snd_soc_dai_driver *dai_drv, size_t count,
+	bool legacy_dai_naming)
 {
 	struct device *dev = component->dev;
 	struct snd_soc_codec *codec;
 	struct snd_soc_dai *dai;
-	int i, ret = 0;
+	unsigned int i;
+	int ret;
 
 	dev_dbg(dev, "ASoC: dai register %s #%Zu\n", dev_name(dev), count);
 
@@ -4011,21 +3958,32 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 			goto err;
 		}
 
-		/* create DAI component name */
-		dai->name = fmt_multiple_name(dev, &dai_drv[i]);
+		/*
+		 * Back in the old days when we still had component-less DAIs,
+		 * instead of having a static name, component-less DAIs would
+		 * inherit the name of the parent device so it is possible to
+		 * register multiple instances of the DAI. We still need to keep
+		 * the same naming style even though those DAIs are not
+		 * component-less anymore.
+		 */
+		if (count == 1 && legacy_dai_naming) {
+			dai->name = fmt_single_name(dev, &dai->id);
+		} else {
+			dai->name = fmt_multiple_name(dev, &dai_drv[i]);
+			if (dai_drv[i].id)
+				dai->id = dai_drv[i].id;
+			else
+				dai->id = i;
+		}
 		if (dai->name == NULL) {
 			kfree(dai);
-			ret = -EINVAL;
+			ret = -ENOMEM;
 			goto err;
 		}
 
 		dai->component = component;
 		dai->dev = dev;
 		dai->driver = &dai_drv[i];
-		if (dai->driver->id)
-			dai->id = dai->driver->id;
-		else
-			dai->id = i;
 		dai->dapm.dev = dev;
 		if (!dai->driver->ops)
 			dai->driver->ops = &null_dai_ops;
@@ -4034,8 +3992,7 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 
 		list_for_each_entry(codec, &codec_list, list) {
 			if (codec->dev == dev) {
-				dev_dbg(dev,
-					"ASoC: Mapped DAI %s to CODEC %s\n",
+				dev_dbg(dev, "ASoC: Mapped DAI %s to CODEC %s\n",
 					dai->name, codec->name);
 				dai->codec = codec;
 				break;
@@ -4049,30 +4006,15 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 
 		mutex_unlock(&client_mutex);
 
-		dev_dbg(dai->dev, "ASoC: Registered DAI '%s'\n", dai->name);
+		dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	}
 
 	return 0;
 
 err:
-	for (i--; i >= 0; i--)
-		snd_soc_unregister_dai(dev);
+	snd_soc_unregister_dais(component);
 
 	return ret;
-}
-
-/**
- * snd_soc_unregister_dais - Unregister multiple DAIs from the ASoC core
- *
- * @dai: Array of DAIs to unregister
- * @count: Number of DAIs
- */
-static void snd_soc_unregister_dais(struct device *dev, size_t count)
-{
-	int i;
-
-	for (i = 0; i < count; i++)
-		snd_soc_unregister_dai(dev);
 }
 
 /**
@@ -4106,19 +4048,7 @@ __snd_soc_register_component(struct device *dev,
 	cmpnt->dai_drv	= dai_drv;
 	cmpnt->num_dai	= num_dai;
 
-	/*
-	 * snd_soc_register_dai()  uses fmt_single_name(), and
-	 * snd_soc_register_dais() uses fmt_multiple_name()
-	 * for dai->name which is used for name based matching
-	 *
-	 * this function is used from cpu/codec.
-	 * allow_single_dai flag can ignore "codec" driver reworking
-	 * since it had been used snd_soc_register_dais(),
-	 */
-	if ((1 == num_dai) && allow_single_dai)
-		ret = snd_soc_register_dai(cmpnt, dai_drv);
-	else
-		ret = snd_soc_register_dais(cmpnt, dai_drv, num_dai);
+	ret = snd_soc_register_dais(cmpnt, dai_drv, num_dai, allow_single_dai);
 	if (ret < 0) {
 		dev_err(dev, "ASoC: Failed to regster DAIs: %d\n", ret);
 		goto error_component_name;
@@ -4173,7 +4103,7 @@ void snd_soc_unregister_component(struct device *dev)
 	return;
 
 found:
-	snd_soc_unregister_dais(dev, cmpnt->num_dai);
+	snd_soc_unregister_dais(cmpnt);
 
 	mutex_lock(&client_mutex);
 	list_del(&cmpnt->list);
