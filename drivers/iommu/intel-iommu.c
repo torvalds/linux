@@ -2084,7 +2084,6 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
 	unsigned long flags, flags2;
-	struct intel_iommu *iommu;
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	while (!list_empty(&domain->devices)) {
@@ -2094,16 +2093,15 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 
 		iommu_disable_dev_iotlb(info);
-		iommu = device_to_iommu(info->segment, info->bus, info->devfn);
-		iommu_detach_dev(iommu, info->bus, info->devfn);
+		iommu_detach_dev(info->iommu, info->bus, info->devfn);
 
 		if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE) {
-			iommu_detach_dependent_devices(iommu, info->dev);
+			iommu_detach_dependent_devices(info->iommu, info->dev);
 			/* clear this iommu in iommu_bmp, update iommu count
 			 * and capabilities
 			 */
 			spin_lock_irqsave(&domain->iommu_lock, flags2);
-			if (test_and_clear_bit(iommu->seq_id,
+			if (test_and_clear_bit(info->iommu->seq_id,
 					       domain->iommu_bmp)) {
 				domain->iommu_count--;
 				domain_update_iommu_cap(domain);
