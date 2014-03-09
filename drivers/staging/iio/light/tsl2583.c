@@ -433,7 +433,7 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 					TSL258X_CMD_REG | TSL258X_CNTRL, utmp);
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "taos_chip_on failed on CNTRL reg.\n");
-		return -1;
+		return ret;
 	}
 
 	/* Use the following shadow copy for our delay before enabling ADC.
@@ -445,7 +445,7 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 		if (ret < 0) {
 			dev_err(&chip->client->dev,
 				"taos_chip_on failed on reg %d.\n", i);
-			return -1;
+			return ret;
 		}
 	}
 
@@ -458,7 +458,7 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 					utmp);
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "taos_chip_on failed on 2nd CTRL reg.\n");
-		return -1;
+		return ret;
 	}
 	chip->taos_chip_status = TSL258X_CHIP_WORKING;
 
