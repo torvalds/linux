@@ -902,7 +902,7 @@ struct drx_demod_instance drxj_default_demod_g = {
 * This structure is DRXK specific.
 *
 */
-struct drx_aud_data drxj_default_aud_data_g = {
+static struct drx_aud_data drxj_default_aud_data_g = {
 	false,			/* audio_is_active */
 	DRX_AUD_STANDARD_AUTO,	/* audio_standard  */
 
