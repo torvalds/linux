@@ -47,7 +47,7 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 	struct snd_line6_midi *line6midi = line6->line6midi;
 	struct midi_buffer *mb = &line6midi->midibuf_out;
 	unsigned long flags;
-	unsigned char chunk[line6->max_packet_size];
+	unsigned char chunk[LINE6_FALLBACK_MAXPACKETSIZE];
 	int req, done;
 
 	spin_lock_irqsave(&line6->line6midi->midi_transmit_lock, flags);
@@ -64,7 +64,7 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 	}
 
 	for (;;) {
-		done = line6_midibuf_read(mb, chunk, line6->max_packet_size);
+		done = line6_midibuf_read(mb, chunk, LINE6_FALLBACK_MAXPACKETSIZE);
 
 		if (done == 0)
 			break;
