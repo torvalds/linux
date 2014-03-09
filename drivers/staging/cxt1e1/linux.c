@@ -214,15 +214,13 @@ status_t
 c4_wq_port_init(mpi_t *pi)
 {
 
-	char        name[16], *np;  /* NOTE: name of the queue limited by system
+	char        name[16];  /* NOTE: name of the queue limited by system
 				     * to 10 characters */
-
 	if (pi->wq_port)
 		return 0;                   /* already initialized */
 
-	np = name;
-	memset(name, 0, 16);
-	sprintf(np, "%s%d", pi->up->devname, pi->portnum); /* IE pmcc4-01) */
+	/* IE pmcc4-01 */
+	snprintf(name, sizeof(name), "%s%d", pi->up->devname, pi->portnum);
 
 #ifdef RLD_RESTART_DEBUG
 	pr_info(">> %s: creating workqueue <%s> for Port %d.\n",
