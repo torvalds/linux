@@ -16762,12 +16762,12 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 	case DRX_OOB_MODE_A:
 		if (
 			   /* signal is transmitted inverted */
-			   ((oob_param->spectrum_inverted == true) &
+			   ((oob_param->spectrum_inverted == true) &&
 			    /* and tuner is not mirroring the signal */
 			    (!mirror_freq_spect_oob)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
-			   ((oob_param->spectrum_inverted == false) &
+			   ((oob_param->spectrum_inverted == false) &&
 			    /* and tuner is mirroring the signal */
 			    (mirror_freq_spect_oob))
 		    )
@@ -16780,12 +16780,12 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 	case DRX_OOB_MODE_B_GRADE_A:
 		if (
 			   /* signal is transmitted inverted */
-			   ((oob_param->spectrum_inverted == true) &
+			   ((oob_param->spectrum_inverted == true) &&
 			    /* and tuner is not mirroring the signal */
 			    (!mirror_freq_spect_oob)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
-			   ((oob_param->spectrum_inverted == false) &
+			   ((oob_param->spectrum_inverted == false) &&
 			    /* and tuner is mirroring the signal */
 			    (mirror_freq_spect_oob))
 		    )
@@ -16799,12 +16799,12 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 	default:
 		if (
 			   /* signal is transmitted inverted */
-			   ((oob_param->spectrum_inverted == true) &
+			   ((oob_param->spectrum_inverted == true) &&
 			    /* and tuner is not mirroring the signal */
 			    (!mirror_freq_spect_oob)) |
 			   /* or */
 			   /* signal is transmitted noninverted */
-			   ((oob_param->spectrum_inverted == false) &
+			   ((oob_param->spectrum_inverted == false) &&
 			    /* and tuner is mirroring the signal */
 			    (mirror_freq_spect_oob))
 		    )
