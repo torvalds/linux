@@ -1035,6 +1035,16 @@ struct rndis_message {
 #define NDIS_PACKET_TYPE_FUNCTIONAL	0x00000400
 #define NDIS_PACKET_TYPE_MAC_FRAME	0x00000800
 
+#define INFO_IPV4       2
+#define INFO_IPV6       4
+#define INFO_TCP        2
+#define INFO_UDP        4
+
+#define TRANSPORT_INFO_NOT_IP   0
+#define TRANSPORT_INFO_IPV4_TCP ((INFO_IPV4 << 16) | INFO_TCP)
+#define TRANSPORT_INFO_IPV4_UDP ((INFO_IPV4 << 16) | INFO_UDP)
+#define TRANSPORT_INFO_IPV6_TCP ((INFO_IPV6 << 16) | INFO_TCP)
+#define TRANSPORT_INFO_IPV6_UDP ((INFO_IPV6 << 16) | INFO_UDP)
 
 
 #endif /* _HYPERV_NET_H */
