@@ -133,13 +133,13 @@ static void mcfqspi_cs_deselect(struct mcfqspi *mcfqspi, u8 chip_select,
 
 static int mcfqspi_cs_setup(struct mcfqspi *mcfqspi)
 {
-	return (mcfqspi->cs_control && mcfqspi->cs_control->setup) ?
+	return (mcfqspi->cs_control->setup) ?
 		mcfqspi->cs_control->setup(mcfqspi->cs_control) : 0;
 }
 
 static void mcfqspi_cs_teardown(struct mcfqspi *mcfqspi)
 {
-	if (mcfqspi->cs_control && mcfqspi->cs_control->teardown)
+	if (mcfqspi->cs_control->teardown)
 		mcfqspi->cs_control->teardown(mcfqspi->cs_control);
 }
 
@@ -370,6 +370,11 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform data is missing\n");
 		return -ENOENT;
+	}
+
+	if (!pdata->cs_control) {
+		dev_dbg(&pdev->dev, "pdata->cs_control is NULL\n");
+		return -EINVAL;
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*mcfqspi));
