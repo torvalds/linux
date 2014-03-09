@@ -302,8 +302,8 @@ static void journal_kill_thread(journal_t *journal)
 	journal->j_flags |= JBD2_UNMOUNT;
 
 	while (journal->j_task) {
-		wake_up(&journal->j_wait_commit);
 		write_unlock(&journal->j_state_lock);
+		wake_up(&journal->j_wait_commit);
 		wait_event(journal->j_wait_done_commit, journal->j_task == NULL);
 		write_lock(&journal->j_state_lock);
 	}
@@ -710,8 +710,8 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	while (tid_gt(tid, journal->j_commit_sequence)) {
 		jbd_debug(1, "JBD2: want %d, j_commit_sequence=%d\n",
 				  tid, journal->j_commit_sequence);
-		wake_up(&journal->j_wait_commit);
 		read_unlock(&journal->j_state_lock);
+		wake_up(&journal->j_wait_commit);
 		wait_event(journal->j_wait_done_commit,
 				!tid_gt(tid, journal->j_commit_sequence));
 		read_lock(&journal->j_state_lock);
