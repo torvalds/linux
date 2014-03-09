@@ -10333,11 +10333,9 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 {
 	int rc;
 	s32 tuner_freq_offset = 0;
-	s32 intermediate_freq = 0;
 	struct drxj_data *ext_attr = NULL;
 	struct i2c_device_addr *dev_addr = NULL;
 	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
-	struct drx_common_attr *common_attr = NULL;
 #ifndef DRXJ_VSB_ONLY
 	u32 min_symbol_rate = 0;
 	u32 max_symbol_rate = 0;
@@ -10348,7 +10346,6 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 	if ((demod == NULL) || (channel == NULL))
 		return -EINVAL;
 
-	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 	ext_attr = (struct drxj_data *) demod->my_ext_attr;
 	standard = ext_attr->standard;
@@ -10506,7 +10503,6 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 	}
 
 	tuner_freq_offset = 0;
-	intermediate_freq = demod->my_common_attr->intermediate_freq;
 
    /*== Setup demod for specific standard ====================================*/
 	switch (standard) {
