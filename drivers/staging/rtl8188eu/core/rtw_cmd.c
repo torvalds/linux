@@ -1974,13 +1974,17 @@ static void c2h_wk_callback(struct work_struct *work)
 	evtpriv->c2h_wk_alive = true;
 
 	while (!rtw_cbuf_empty(evtpriv->c2h_queue)) {
-		if ((c2h_evt = (struct c2h_evt_hdr *)rtw_cbuf_pop(evtpriv->c2h_queue)) != NULL) {
+		c2h_evt = (struct c2h_evt_hdr *)rtw_cbuf_pop(evtpriv->c2h_queue);
+		if (c2h_evt != NULL) {
 			/* This C2H event is read, clear it */
 			c2h_evt_clear(adapter);
-		} else if ((c2h_evt = (struct c2h_evt_hdr *)rtw_malloc(16)) != NULL) {
+		} else {
+			c2h_evt = (struct c2h_evt_hdr *)rtw_malloc(16);
+			if (c2h_evt != NULL) {
 			/* This C2H event is not read, read & clear now */
-			if (c2h_evt_read(adapter, (u8 *)c2h_evt) != _SUCCESS)
-				continue;
+				if (c2h_evt_read(adapter, (u8 *)c2h_evt) != _SUCCESS)
+					continue;
+			}
 		}
 
 		/* Special pointer to trigger c2h_evt_clear only */
