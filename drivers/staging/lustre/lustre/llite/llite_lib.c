@@ -734,7 +734,8 @@ char *ll_read_opt(const char *opt, char *data)
 	CDEBUG(D_SUPER, "option: %s, data %s\n", opt, data);
 	if (strncmp(opt, data, strlen(opt)))
 		return NULL;
-	if ((value = strchr(data, '=')) == NULL)
+	value = strchr(data, '=');
+	if (value == NULL)
 		return NULL;
 
 	value++;

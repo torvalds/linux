@@ -373,7 +373,8 @@ ksocknal_lib_recv_kiov (ksock_conn_t *conn)
 
 	/* NB we can't trust socket ops to either consume our iovs
 	 * or leave them alone. */
-	if ((addr = ksocknal_lib_kiov_vmap(kiov, niov, scratchiov, pages)) != NULL) {
+	addr = ksocknal_lib_kiov_vmap(kiov, niov, scratchiov, pages);
+	if (addr != NULL) {
 		nob = scratchiov[0].iov_len;
 		msg.msg_iovlen = 1;
 

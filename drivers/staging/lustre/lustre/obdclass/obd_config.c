@@ -61,7 +61,8 @@ int class_find_param(char *buf, char *key, char **valp)
 	if (!buf)
 		return 1;
 
-	if ((ptr = strstr(buf, key)) == NULL)
+	ptr = strstr(buf, key);
+	if (ptr == NULL)
 		return 1;
 
 	if (valp)

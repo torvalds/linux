@@ -1574,8 +1574,8 @@ static int mdc_changelog_send_thread(void *csdata)
 	rc = llog_cat_process(NULL, llh, changelog_kkuc_cb, cs, 0, 0);
 
 	/* Send EOF no matter what our result */
-	if ((kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch),
-				      cs->cs_flags))) {
+	kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch), cs->cs_flags);
+	if (kuch) {
 		kuch->kuc_msgtype = CL_EOF;
 		libcfs_kkuc_msg_put(cs->cs_fp, kuch);
 	}
@@ -1697,11 +1697,16 @@ static int mdc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	if (rc)
 		CERROR("ptlrpc_queue_wait failed, rc: %d\n", rc);
 
-	if (req->rq_repmsg &&
-	    (oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL))) {
-		*oqctl = *oqc;
+	if (req->rq_repmsg) {
+		oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
+		if (oqc) {
+			*oqctl = *oqc;
+		} else if (!rc) {
+			CERROR ("Can't unpack obd_quotactl\n");
+			rc = -EPROTO;
+		}
 	} else if (!rc) {
-		CERROR ("Can't unpack obd_quotactl\n");
+		CERROR("Can't unpack obd_quotactl\n");
 		rc = -EPROTO;
 	}
 	ptlrpc_req_finished(req);

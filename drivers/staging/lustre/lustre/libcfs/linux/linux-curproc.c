@@ -58,7 +58,8 @@
 void cfs_cap_raise(cfs_cap_t cap)
 {
 	struct cred *cred;
-	if ((cred = prepare_creds())) {
+	cred = prepare_creds();
+	if (cred) {
 		cap_raise(cred->cap_effective, cap);
 		commit_creds(cred);
 	}
@@ -67,7 +68,8 @@ void cfs_cap_raise(cfs_cap_t cap)
 void cfs_cap_lower(cfs_cap_t cap)
 {
 	struct cred *cred;
-	if ((cred = prepare_creds())) {
+	cred = prepare_creds();
+	if (cred) {
 		cap_lower(cred->cap_effective, cap);
 		commit_creds(cred);
 	}
