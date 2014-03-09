@@ -73,7 +73,6 @@ enum isp_video_buffer_state {
  * @sgt: Scatter gather table (for userspace buffers)
  * @pages: Pages table (for userspace non-VM_PFNMAP buffers)
  * @vbuf: V4L2 buffer
- * @irqlist: List head for insertion into IRQ queue
  * @state: Current buffer state
  * @wait: Wait queue to signal buffer completion
  */
@@ -97,7 +96,6 @@ struct isp_video_buffer {
 
 	/* Touched by the interrupt handler. */
 	struct v4l2_buffer vbuf;
-	struct list_head irqlist;
 	enum isp_video_buffer_state state;
 	wait_queue_head_t wait;
 	dma_addr_t dma;

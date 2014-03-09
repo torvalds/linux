@@ -127,10 +127,12 @@ static inline int isp_pipeline_ready(struct isp_pipeline *pipe)
 /*
  * struct isp_buffer - ISP buffer
  * @buffer: ISP video buffer
+ * @irqlist: List head for insertion into IRQ queue
  * @isp_addr: MMU mapped address (a.k.a. device address) of the buffer.
  */
 struct isp_buffer {
 	struct isp_video_buffer buffer;
+	struct list_head irqlist;
 	dma_addr_t isp_addr;
 };
 
