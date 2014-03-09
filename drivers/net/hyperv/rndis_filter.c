@@ -607,6 +607,61 @@ cleanup:
 	return ret;
 }
 
+int rndis_filter_set_offload_params(struct hv_device *hdev,
+				struct ndis_offload_params *req_offloads)
+{
+	struct netvsc_device *nvdev = hv_get_drvdata(hdev);
+	struct rndis_device *rdev = nvdev->extension;
+	struct net_device *ndev = nvdev->ndev;
+	struct rndis_request *request;
+	struct rndis_set_request *set;
+	struct ndis_offload_params *offload_params;
+	struct rndis_set_complete *set_complete;
+	u32 extlen = sizeof(struct ndis_offload_params);
+	int ret, t;
+
+	request = get_rndis_request(rdev, RNDIS_MSG_SET,
+		RNDIS_MESSAGE_SIZE(struct rndis_set_request) + extlen);
+	if (!request)
+		return -ENOMEM;
+
+	set = &request->request_msg.msg.set_req;
+	set->oid = OID_TCP_OFFLOAD_PARAMETERS;
+	set->info_buflen = extlen;
+	set->info_buf_offset = sizeof(struct rndis_set_request);
+	set->dev_vc_handle = 0;
+
+	offload_params = (struct ndis_offload_params *)((ulong)set +
+				set->info_buf_offset);
+	*offload_params = *req_offloads;
+	offload_params->header.type = NDIS_OBJECT_TYPE_DEFAULT;
+	offload_params->header.revision = NDIS_OFFLOAD_PARAMETERS_REVISION_3;
+	offload_params->header.size = extlen;
+
+	ret = rndis_filter_send_request(rdev, request);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		netdev_err(ndev, "timeout before we got aOFFLOAD set response...\n");
+		/* can't put_rndis_request, since we may still receive a
+		 * send-completion.
+		 */
+		return -EBUSY;
+	} else {
+		set_complete = &request->response_msg.msg.set_complete;
+		if (set_complete->status != RNDIS_STATUS_SUCCESS) {
+			netdev_err(ndev, "Fail to set MAC on host side:0x%x\n",
+				   set_complete->status);
+			ret = -EINVAL;
+		}
+	}
+
+cleanup:
+	put_rndis_request(rdev, request);
+	return ret;
+}
 
 static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 {
@@ -807,6 +862,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	struct netvsc_device *net_device;
 	struct rndis_device *rndis_device;
 	struct netvsc_device_info *device_info = additional_info;
+	struct ndis_offload_params offloads;
 
 	rndis_device = get_rndis_device();
 	if (!rndis_device)
@@ -846,6 +902,26 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
 
+	/* Turn on the offloads; the host supports all of the relevant
+	 * offloads.
+	 */
+	memset(&offloads, 0, sizeof(struct ndis_offload_params));
+	/* A value of zero means "no change"; now turn on what we
+	 * want.
+	 */
+	offloads.ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.tcp_ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.udp_ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.tcp_ip_v6_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.udp_ip_v6_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.lso_v2_ipv4 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
+
+
+	ret = rndis_filter_set_offload_params(dev, &offloads);
+	if (ret)
+		goto err_dev_remv;
+
+
 	rndis_filter_query_device_link_status(rndis_device);
 
 	device_info->link_state = rndis_device->link_state;
@@ -854,6 +930,10 @@ int rndis_filter_device_add(struct hv_device *dev,
 		 rndis_device->hw_mac_adr,
 		 device_info->link_state ? "down" : "up");
 
+	return ret;
+
+err_dev_remv:
+	rndis_filter_device_remove(dev);
 	return ret;
 }
 

@@ -721,6 +721,61 @@ struct ndis_pkt_8021q_info {
 	};
 };
 
+struct ndis_oject_header {
+	u8 type;
+	u8 revision;
+	u16 size;
+};
+
+#define NDIS_OBJECT_TYPE_DEFAULT	0x80
+#define NDIS_OFFLOAD_PARAMETERS_REVISION_3 3
+#define NDIS_OFFLOAD_PARAMETERS_NO_CHANGE 0
+#define NDIS_OFFLOAD_PARAMETERS_LSOV2_DISABLED 1
+#define NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED  2
+#define NDIS_OFFLOAD_PARAMETERS_LSOV1_ENABLED  2
+#define NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED 1
+#define NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED 2
+#define NDIS_OFFLOAD_PARAMETERS_TX_RX_DISABLED 1
+#define NDIS_OFFLOAD_PARAMETERS_TX_ENABLED_RX_DISABLED 2
+#define NDIS_OFFLOAD_PARAMETERS_RX_ENABLED_TX_DISABLED 3
+#define NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED 4
+
+/*
+ * New offload OIDs for NDIS 6
+ */
+#define OID_TCP_OFFLOAD_CURRENT_CONFIG 0xFC01020B /* query only */
+#define OID_TCP_OFFLOAD_PARAMETERS 0xFC01020C		/* set only */
+#define OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES 0xFC01020D/* query only */
+#define OID_TCP_CONNECTION_OFFLOAD_CURRENT_CONFIG 0xFC01020E /* query only */
+#define OID_TCP_CONNECTION_OFFLOAD_HARDWARE_CAPABILITIES 0xFC01020F /* query */
+#define OID_OFFLOAD_ENCAPSULATION 0x0101010A /* set/query */
+
+struct ndis_offload_params {
+	struct ndis_oject_header header;
+	u8 ip_v4_csum;
+	u8 tcp_ip_v4_csum;
+	u8 udp_ip_v4_csum;
+	u8 tcp_ip_v6_csum;
+	u8 udp_ip_v6_csum;
+	u8 lso_v1;
+	u8 ip_sec_v1;
+	u8 lso_v2_ipv4;
+	u8 lso_v2_ipv6;
+	u8 tcp_connection_ip_v4;
+	u8 tcp_connection_ip_v6;
+	u32 flags;
+	u8 ip_sec_v2;
+	u8 ip_sec_v2_ip_v4;
+	struct {
+		u8 rsc_ip_v4;
+		u8 rsc_ip_v6;
+	};
+	struct {
+		u8 encapsulated_packet_task_offload;
+		u8 encapsulation_types;
+	};
+};
+
 #define NDIS_VLAN_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
 		sizeof(struct ndis_pkt_8021q_info))
 
