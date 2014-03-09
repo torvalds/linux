@@ -93,13 +93,15 @@ void integrator_impd1_clk_init(void __iomem *base, unsigned int id)
 	imc = &impd1_clks[id];
 
 	imc->vco1name = kasprintf(GFP_KERNEL, "lm%x-vco1", id);
-	clk = icst_clk_register(NULL, &impd1_icst1_desc, imc->vco1name, base);
+	clk = icst_clk_register(NULL, &impd1_icst1_desc, imc->vco1name, NULL,
+				base);
 	imc->vco1clk = clk;
 	imc->clks[0] = clkdev_alloc(clk, NULL, "lm%x:01000", id);
 
 	/* VCO2 is also called "CLK2" */
 	imc->vco2name = kasprintf(GFP_KERNEL, "lm%x-vco2", id);
-	clk = icst_clk_register(NULL, &impd1_icst2_desc, imc->vco2name, base);
+	clk = icst_clk_register(NULL, &impd1_icst2_desc, imc->vco2name, NULL,
+				base);
 	imc->vco2clk = clk;
 
 	/* MMCI uses CLK2 right off */
