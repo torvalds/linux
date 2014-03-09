@@ -11510,8 +11510,7 @@ static int drxj_close(struct drx_demod_instance *demod)
 	int rc;
 	enum drx_power_mode power_mode = DRX_POWER_UP;
 
-	if ((demod == NULL) ||
-	    (demod->my_common_attr == NULL) ||
+	if ((demod->my_common_attr == NULL) ||
 	    (demod->my_ext_attr == NULL) ||
 	    (demod->my_i2c_dev_addr == NULL) ||
 	    (!demod->my_common_attr->is_opened)) {
@@ -12217,6 +12216,8 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	struct drx_demod_instance *demod = state->demod;
+
+	drxj_close(demod);
 
 	kfree(demod->my_ext_attr);
 	kfree(demod->my_common_attr);
