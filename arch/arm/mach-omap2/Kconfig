@@ -85,6 +85,7 @@ config SOC_DRA7XX
 	select CPU_V7
 	select HAVE_SMP
 	select HAVE_ARM_ARCH_TIMER
+	select IRQ_CROSSBAR
 
 config ARCH_OMAP2PLUS
 	bool
