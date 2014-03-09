@@ -96,7 +96,6 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_can_xcvr>;
 			gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
-			enable-active-low;
 		};
 
 		reg_usbh1_vbus: regulator@3 {

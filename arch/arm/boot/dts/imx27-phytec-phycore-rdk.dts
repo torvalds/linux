@@ -81,6 +81,23 @@
 			>;
 		};
 
+		pinctrl_usbh2: usbh2grp {
+			fsl,pins = <
+				MX27_PAD_USBH2_CLK__USBH2_CLK 0x0
+				MX27_PAD_USBH2_DIR__USBH2_DIR 0x0
+				MX27_PAD_USBH2_NXT__USBH2_NXT 0x0
+				MX27_PAD_USBH2_STP__USBH2_STP 0x0
+				MX27_PAD_CSPI2_SCLK__USBH2_DATA0 0x0
+				MX27_PAD_CSPI2_MOSI__USBH2_DATA1 0x0
+				MX27_PAD_CSPI2_MISO__USBH2_DATA2 0x0
+				MX27_PAD_CSPI2_SS1__USBH2_DATA3 0x0
+				MX27_PAD_CSPI2_SS2__USBH2_DATA4 0x0
+				MX27_PAD_CSPI1_SS2__USBH2_DATA5 0x0
+				MX27_PAD_CSPI2_SS0__USBH2_DATA6 0x0
+				MX27_PAD_USBH2_DATA7__USBH2_DATA7 0x0
+			>;
+		};
+
 		pinctrl_weim: weimgrp {
 			fsl,pins = <
 				MX27_PAD_CS4_B__CS4_B		0x0 /* CS4 */
@@ -94,6 +111,56 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_owire1>;
 	status = "okay";
+};
+
+&pmicleds {
+	ledr1: led@3 {
+		reg = <3>;
+		label = "system:red1:user";
+	};
+
+	ledg1: led@4 {
+		reg = <4>;
+		label = "system:green1:user";
+	};
+
+	ledb1: led@5 {
+		reg = <5>;
+		label = "system:blue1:user";
+	};
+
+	ledr2: led@6 {
+		reg = <6>;
+		label = "system:red2:user";
+	};
+
+	ledg2: led@7 {
+		reg = <7>;
+		label = "system:green2:user";
+	};
+
+	ledb2: led@8 {
+		reg = <8>;
+		label = "system:blue2:user";
+	};
+
+	ledr3: led@9 {
+		reg = <9>;
+		label = "system:red3:nand";
+		linux,default-trigger = "nand-disk";
+	};
+
+	ledg3: led@10 {
+		reg = <10>;
+		label = "system:green3:live";
+		linux,default-trigger = "heartbeat";
+	};
+
+	ledb3: led@11 {
+		reg = <11>;
+		label = "system:blue3:cpu";
+		linux,default-trigger = "cpu0";
+	};
 };
 
 &sdhci2 {
@@ -118,6 +185,20 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";
+};
+
+&usbh2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh2>;
+	dr_mode = "host";
+	phy_type = "ulpi";
+	vbus-supply = <&reg_5v0>;
+	disable-over-current;
+	status = "okay";
+};
+
+&usbphy2 {
+	vcc-supply = <&reg_5v0>;
 };
 
 &weim {

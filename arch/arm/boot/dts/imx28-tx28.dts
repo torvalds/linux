@@ -91,7 +91,6 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio1 0 0>;
-			enable-active-low;
 			pinctrl-names = "default";
 			pinctrl-0 = <&tx28_flexcan_xcvr_pins>;
 		};

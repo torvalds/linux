@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "imx27-phytec-phycard-s-som.dts"
+#include "imx27-phytec-phycard-s-som.dtsi"
 
 / {
 	model = "Phytec pca100 rapid development kit";
@@ -88,6 +88,18 @@
 			>;
 		};
 
+		pinctrl_sdhc2: sdhc2grp {
+			fsl,pins = <
+				MX27_PAD_SD2_CLK__SD2_CLK 0x0
+				MX27_PAD_SD2_CMD__SD2_CMD 0x0
+				MX27_PAD_SD2_D0__SD2_D0 0x0
+				MX27_PAD_SD2_D1__SD2_D1 0x0
+				MX27_PAD_SD2_D2__SD2_D2 0x0
+				MX27_PAD_SD2_D3__SD2_D3 0x0
+				MX27_PAD_SSI3_RXDAT__GPIO3_29 0x0 /* CD */
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX27_PAD_UART1_TXD__UART1_TXD 0x0
@@ -124,6 +136,8 @@
 };
 
 &sdhci2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhc2>;
 	cd-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

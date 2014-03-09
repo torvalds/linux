@@ -144,7 +144,6 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx27-apf27dev.dtb \
 	imx27-pdk.dtb \
 	imx27-phytec-phycore-rdk.dtb \
-	imx27-phytec-phycard-s-som.dtb \
 	imx27-phytec-phycard-s-rdk.dtb \
 	imx31-bug.dtb \
 	imx35-eukrea-mbimxsd35-baseboard.dtb \
