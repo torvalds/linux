@@ -53,27 +53,32 @@ static int hv7131d_get_ctrl(struct sn9c102_device* cam,
 		}
 		return 0;
 	case V4L2_CID_RED_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x31)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x31);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = 0x3f - (ctrl->value & 0x3f);
 		return 0;
 	case V4L2_CID_BLUE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x33)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x33);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = 0x3f - (ctrl->value & 0x3f);
 		return 0;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x32)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x32);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = 0x3f - (ctrl->value & 0x3f);
 		return 0;
 	case SN9C102_V4L2_CID_RESET_LEVEL:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x30)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x30);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x3f;
 		return 0;
 	case SN9C102_V4L2_CID_PIXEL_BIAS_VOLTAGE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x34)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x34);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x07;
 		return 0;
