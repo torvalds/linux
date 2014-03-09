@@ -3933,17 +3933,18 @@ static void snd_soc_unregister_dais(struct snd_soc_component *component)
  * snd_soc_register_dais - Register a DAI with the ASoC core
  *
  * @component: The component the DAIs are registered for
+ * @codec: The CODEC that the DAIs are registered for, NULL if the component is
+ *         not a CODEC.
  * @dai_drv: DAI driver to use for the DAIs
  * @count: Number of DAIs
  * @legacy_dai_naming: Use the legacy naming scheme and let the DAI inherit the
  *                     parent's name.
  */
 static int snd_soc_register_dais(struct snd_soc_component *component,
-	struct snd_soc_dai_driver *dai_drv, size_t count,
-	bool legacy_dai_naming)
+	struct snd_soc_codec *codec, struct snd_soc_dai_driver *dai_drv,
+	size_t count, bool legacy_dai_naming)
 {
 	struct device *dev = component->dev;
-	struct snd_soc_codec *codec;
 	struct snd_soc_dai *dai;
 	unsigned int i;
 	int ret;
@@ -3982,28 +3983,19 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 		}
 
 		dai->component = component;
+		dai->codec = codec;
 		dai->dev = dev;
 		dai->driver = &dai_drv[i];
 		dai->dapm.dev = dev;
 		if (!dai->driver->ops)
 			dai->driver->ops = &null_dai_ops;
 
-		mutex_lock(&client_mutex);
-
-		list_for_each_entry(codec, &codec_list, list) {
-			if (codec->dev == dev) {
-				dev_dbg(dev, "ASoC: Mapped DAI %s to CODEC %s\n",
-					dai->name, codec->name);
-				dai->codec = codec;
-				break;
-			}
-		}
 
 		if (!dai->codec)
 			dai->dapm.idle_bias_off = 1;
 
+		mutex_lock(&client_mutex);
 		list_add(&dai->list, &dai_list);
-
 		mutex_unlock(&client_mutex);
 
 		dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
@@ -4025,6 +4017,7 @@ static int
 __snd_soc_register_component(struct device *dev,
 			     struct snd_soc_component *cmpnt,
 			     const struct snd_soc_component_driver *cmpnt_drv,
+			     struct snd_soc_codec *codec,
 			     struct snd_soc_dai_driver *dai_drv,
 			     int num_dai, bool allow_single_dai)
 {
@@ -4048,7 +4041,8 @@ __snd_soc_register_component(struct device *dev,
 	cmpnt->dai_drv	= dai_drv;
 	cmpnt->num_dai	= num_dai;
 
-	ret = snd_soc_register_dais(cmpnt, dai_drv, num_dai, allow_single_dai);
+	ret = snd_soc_register_dais(cmpnt, codec, dai_drv, num_dai,
+		allow_single_dai);
 	if (ret < 0) {
 		dev_err(dev, "ASoC: Failed to regster DAIs: %d\n", ret);
 		goto error_component_name;
@@ -4083,7 +4077,7 @@ int snd_soc_register_component(struct device *dev,
 
 	cmpnt->ignore_pmdown_time = true;
 
-	return __snd_soc_register_component(dev, cmpnt, cmpnt_drv,
+	return __snd_soc_register_component(dev, cmpnt, cmpnt_drv, NULL,
 					    dai_drv, num_dai, true);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_component);
@@ -4304,7 +4298,7 @@ int snd_soc_register_codec(struct device *dev,
 	/* register component */
 	ret = __snd_soc_register_component(dev, &codec->component,
 					   &codec_drv->component_driver,
-					   dai_drv, num_dai, false);
+					   codec, dai_drv, num_dai, false);
 	if (ret < 0) {
 		dev_err(codec->dev, "ASoC: Failed to regster component: %d\n", ret);
 		goto fail_codec_name;
