@@ -660,7 +660,6 @@ int omap3isp_video_queue_init(struct isp_video_queue *queue,
 			      struct device *dev, unsigned int bufsize)
 {
 	INIT_LIST_HEAD(&queue->queue);
-	mutex_init(&queue->lock);
 	spin_lock_init(&queue->irqlock);
 
 	queue->type = type;
@@ -712,18 +711,12 @@ int omap3isp_video_queue_reqbufs(struct isp_video_queue *queue,
 
 	nbuffers = min_t(unsigned int, nbuffers, ISP_VIDEO_MAX_BUFFERS);
 
-	mutex_lock(&queue->lock);
-
 	ret = isp_video_queue_alloc(queue, nbuffers, size, rb->memory);
 	if (ret < 0)
-		goto done;
+		return ret;
 
 	rb->count = ret;
-	ret = 0;
-
-done:
-	mutex_unlock(&queue->lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -738,24 +731,17 @@ int omap3isp_video_queue_querybuf(struct isp_video_queue *queue,
 				  struct v4l2_buffer *vbuf)
 {
 	struct isp_video_buffer *buf;
-	int ret = 0;
 
 	if (vbuf->type != queue->type)
 		return -EINVAL;
 
-	mutex_lock(&queue->lock);
-
-	if (vbuf->index >= queue->count) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (vbuf->index >= queue->count)
+		return -EINVAL;
 
 	buf = queue->buffers[vbuf->index];
 	isp_video_buffer_query(buf, vbuf);
 
-done:
-	mutex_unlock(&queue->lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -776,27 +762,25 @@ int omap3isp_video_queue_qbuf(struct isp_video_queue *queue,
 {
 	struct isp_video_buffer *buf;
 	unsigned long flags;
-	int ret = -EINVAL;
+	int ret;
 
 	if (vbuf->type != queue->type)
-		goto done;
-
-	mutex_lock(&queue->lock);
+		return -EINVAL;
 
 	if (vbuf->index >= queue->count)
-		goto done;
+		return -EINVAL;
 
 	buf = queue->buffers[vbuf->index];
 
 	if (vbuf->memory != buf->vbuf.memory)
-		goto done;
+		return -EINVAL;
 
 	if (buf->state != ISP_BUF_STATE_IDLE)
-		goto done;
+		return -EINVAL;
 
 	if (vbuf->memory == V4L2_MEMORY_USERPTR &&
 	    vbuf->length < buf->vbuf.length)
-		goto done;
+		return -EINVAL;
 
 	if (vbuf->memory == V4L2_MEMORY_USERPTR &&
 	    vbuf->m.userptr != buf->vbuf.m.userptr) {
@@ -808,7 +792,7 @@ int omap3isp_video_queue_qbuf(struct isp_video_queue *queue,
 	if (!buf->prepared) {
 		ret = isp_video_buffer_prepare(buf);
 		if (ret < 0)
-			goto done;
+			return ret;
 		buf->prepared = 1;
 	}
 
@@ -823,11 +807,7 @@ int omap3isp_video_queue_qbuf(struct isp_video_queue *queue,
 		spin_unlock_irqrestore(&queue->irqlock, flags);
 	}
 
-	ret = 0;
-
-done:
-	mutex_unlock(&queue->lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -853,17 +833,13 @@ int omap3isp_video_queue_dqbuf(struct isp_video_queue *queue,
 	if (vbuf->type != queue->type)
 		return -EINVAL;
 
-	mutex_lock(&queue->lock);
-
-	if (list_empty(&queue->queue)) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (list_empty(&queue->queue))
+		return -EINVAL;
 
 	buf = list_first_entry(&queue->queue, struct isp_video_buffer, stream);
 	ret = isp_video_buffer_wait(buf, nonblocking);
 	if (ret < 0)
-		goto done;
+		return ret;
 
 	list_del(&buf->stream);
 
@@ -871,9 +847,7 @@ int omap3isp_video_queue_dqbuf(struct isp_video_queue *queue,
 	buf->state = ISP_BUF_STATE_IDLE;
 	vbuf->flags &= ~V4L2_BUF_FLAG_QUEUED;
 
-done:
-	mutex_unlock(&queue->lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -890,10 +864,8 @@ int omap3isp_video_queue_streamon(struct isp_video_queue *queue)
 	struct isp_video_buffer *buf;
 	unsigned long flags;
 
-	mutex_lock(&queue->lock);
-
 	if (queue->streaming)
-		goto done;
+		return 0;
 
 	queue->streaming = 1;
 
@@ -902,8 +874,6 @@ int omap3isp_video_queue_streamon(struct isp_video_queue *queue)
 		queue->ops->buffer_queue(buf);
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 
-done:
-	mutex_unlock(&queue->lock);
 	return 0;
 }
 
@@ -923,10 +893,8 @@ void omap3isp_video_queue_streamoff(struct isp_video_queue *queue)
 	unsigned long flags;
 	unsigned int i;
 
-	mutex_lock(&queue->lock);
-
 	if (!queue->streaming)
-		goto done;
+		return;
 
 	queue->streaming = 0;
 
@@ -942,9 +910,6 @@ void omap3isp_video_queue_streamoff(struct isp_video_queue *queue)
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 
 	INIT_LIST_HEAD(&queue->queue);
-
-done:
-	mutex_unlock(&queue->lock);
 }
 
 /**
@@ -963,10 +928,8 @@ void omap3isp_video_queue_discard_done(struct isp_video_queue *queue)
 	struct isp_video_buffer *buf;
 	unsigned int i;
 
-	mutex_lock(&queue->lock);
-
 	if (!queue->streaming)
-		goto done;
+		return;
 
 	for (i = 0; i < queue->count; ++i) {
 		buf = queue->buffers[i];
@@ -974,9 +937,6 @@ void omap3isp_video_queue_discard_done(struct isp_video_queue *queue)
 		if (buf->state == ISP_BUF_STATE_DONE)
 			buf->state = ISP_BUF_STATE_ERROR;
 	}
-
-done:
-	mutex_unlock(&queue->lock);
 }
 
 static void isp_video_queue_vm_open(struct vm_area_struct *vma)
@@ -1014,26 +974,20 @@ int omap3isp_video_queue_mmap(struct isp_video_queue *queue,
 	unsigned int i;
 	int ret = 0;
 
-	mutex_lock(&queue->lock);
-
 	for (i = 0; i < queue->count; ++i) {
 		buf = queue->buffers[i];
 		if ((buf->vbuf.m.offset >> PAGE_SHIFT) == vma->vm_pgoff)
 			break;
 	}
 
-	if (i == queue->count) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (i == queue->count)
+		return -EINVAL;
 
 	size = vma->vm_end - vma->vm_start;
 
 	if (buf->vbuf.memory != V4L2_MEMORY_MMAP ||
-	    size != PAGE_ALIGN(buf->vbuf.length)) {
-		ret = -EINVAL;
-		goto done;
-	}
+	    size != PAGE_ALIGN(buf->vbuf.length))
+		return -EINVAL;
 
 	/* dma_mmap_coherent() uses vm_pgoff as an offset inside the buffer
 	 * while we used it to identify the buffer and want to map the whole
@@ -1043,16 +997,14 @@ int omap3isp_video_queue_mmap(struct isp_video_queue *queue,
 
 	ret = dma_mmap_coherent(queue->dev, vma, buf->vaddr, buf->dma, size);
 	if (ret < 0)
-		goto done;
+		return ret;
 
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &isp_video_queue_vm_ops;
 	vma->vm_private_data = buf;
 	isp_video_queue_vm_open(vma);
 
-done:
-	mutex_unlock(&queue->lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -1070,7 +1022,6 @@ unsigned int omap3isp_video_queue_poll(struct isp_video_queue *queue,
 	struct isp_video_buffer *buf;
 	unsigned int mask = 0;
 
-	mutex_lock(&queue->lock);
 	if (list_empty(&queue->queue)) {
 		mask |= POLLERR;
 		goto done;
@@ -1087,6 +1038,5 @@ unsigned int omap3isp_video_queue_poll(struct isp_video_queue *queue,
 	}
 
 done:
-	mutex_unlock(&queue->lock);
 	return mask;
 }

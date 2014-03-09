@@ -555,8 +555,11 @@ void omap3isp_video_resume(struct isp_video *video, int continuous)
 {
 	struct isp_buffer *buf = NULL;
 
-	if (continuous && video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (continuous && video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		mutex_lock(&video->queue_lock);
 		omap3isp_video_queue_discard_done(video->queue);
+		mutex_unlock(&video->queue_lock);
+	}
 
 	if (!list_empty(&video->dmaqueue)) {
 		buf = list_first_entry(&video->dmaqueue,
@@ -768,33 +771,57 @@ static int
 isp_video_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *rb)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_reqbufs(&vfh->queue, rb);
+	mutex_lock(&video->queue_lock);
+	ret = omap3isp_video_queue_reqbufs(&vfh->queue, rb);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int
 isp_video_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_querybuf(&vfh->queue, b);
+	mutex_lock(&video->queue_lock);
+	ret = omap3isp_video_queue_querybuf(&vfh->queue, b);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int
 isp_video_qbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_qbuf(&vfh->queue, b);
+	mutex_lock(&video->queue_lock);
+	ret = omap3isp_video_queue_qbuf(&vfh->queue, b);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int
 isp_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_dqbuf(&vfh->queue, b,
-					  file->f_flags & O_NONBLOCK);
+	mutex_lock(&video->queue_lock);
+	ret = omap3isp_video_queue_dqbuf(&vfh->queue, b,
+					 file->f_flags & O_NONBLOCK);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int isp_video_check_external_subdevs(struct isp_video *video,
@@ -997,7 +1024,9 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	INIT_LIST_HEAD(&video->dmaqueue);
 	atomic_set(&pipe->frame_number, -1);
 
+	mutex_lock(&video->queue_lock);
 	ret = omap3isp_video_queue_streamon(&vfh->queue);
+	mutex_unlock(&video->queue_lock);
 	if (ret < 0)
 		goto err_check_format;
 
@@ -1022,7 +1051,9 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	return 0;
 
 err_set_stream:
+	mutex_lock(&video->queue_lock);
 	omap3isp_video_queue_streamoff(&vfh->queue);
+	mutex_unlock(&video->queue_lock);
 err_check_format:
 	media_entity_pipeline_stop(&video->video.entity);
 err_pipeline_start:
@@ -1058,9 +1089,9 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	mutex_lock(&video->stream_lock);
 
 	/* Make sure we're not streaming yet. */
-	mutex_lock(&vfh->queue.lock);
+	mutex_lock(&video->queue_lock);
 	streaming = vfh->queue.streaming;
-	mutex_unlock(&vfh->queue.lock);
+	mutex_unlock(&video->queue_lock);
 
 	if (!streaming)
 		goto done;
@@ -1079,7 +1110,9 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	/* Stop the stream. */
 	omap3isp_pipeline_set_stream(pipe, ISP_PIPELINE_STREAM_STOPPED);
+	mutex_lock(&video->queue_lock);
 	omap3isp_video_queue_streamoff(&vfh->queue);
+	mutex_unlock(&video->queue_lock);
 	video->queue = NULL;
 	video->streaming = 0;
 	video->error = false;
@@ -1201,9 +1234,9 @@ static int isp_video_release(struct file *file)
 	/* Disable streaming and free the buffers queue resources. */
 	isp_video_streamoff(file, vfh, video->type);
 
-	mutex_lock(&handle->queue.lock);
+	mutex_lock(&video->queue_lock);
 	omap3isp_video_queue_cleanup(&handle->queue);
-	mutex_unlock(&handle->queue.lock);
+	mutex_unlock(&video->queue_lock);
 
 	omap3isp_pipeline_pm_use(&video->video.entity, 0);
 
@@ -1220,16 +1253,27 @@ static int isp_video_release(struct file *file)
 static unsigned int isp_video_poll(struct file *file, poll_table *wait)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(file->private_data);
-	struct isp_video_queue *queue = &vfh->queue;
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_poll(queue, file, wait);
+	mutex_lock(&video->queue_lock);
+	ret = omap3isp_video_queue_poll(&vfh->queue, file, wait);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static int isp_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct isp_video_fh *vfh = to_isp_video_fh(file->private_data);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
 
-	return omap3isp_video_queue_mmap(&vfh->queue, vma);
+	mutex_lock(&video->queue_lock);
+	ret = omap3isp_video_queue_mmap(&vfh->queue, vma);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
 }
 
 static struct v4l2_file_operations isp_video_fops = {
@@ -1279,6 +1323,7 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 
 	spin_lock_init(&video->pipe.lock);
 	mutex_init(&video->stream_lock);
+	mutex_init(&video->queue_lock);
 
 	/* Initialize the video device. */
 	if (video->ops == NULL)
@@ -1300,6 +1345,7 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 void omap3isp_video_cleanup(struct isp_video *video)
 {
 	media_entity_cleanup(&video->video.entity);
+	mutex_destroy(&video->queue_lock);
 	mutex_destroy(&video->stream_lock);
 	mutex_destroy(&video->mutex);
 }

@@ -132,7 +132,6 @@ struct isp_video_queue_operations {
  * @bufsize: Size of a driver-specific buffer object
  * @count: Number of currently allocated buffers
  * @buffers: ISP video buffers
- * @lock: Mutex to protect access to the buffers, main queue and state
  * @irqlock: Spinlock to protect access to the IRQ queue
  * @streaming: Queue state, indicates whether the queue is streaming
  * @queue: List of all queued buffers
@@ -145,7 +144,6 @@ struct isp_video_queue {
 
 	unsigned int count;
 	struct isp_video_buffer *buffers[ISP_VIDEO_MAX_BUFFERS];
-	struct mutex lock;
 	spinlock_t irqlock;
 
 	unsigned int streaming:1;
