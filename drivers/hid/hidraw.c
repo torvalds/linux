@@ -149,7 +149,8 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 		goto out_free;
 	}
 
-	if (report_type == HID_OUTPUT_REPORT) {
+	if ((report_type == HID_OUTPUT_REPORT) &&
+	    !(dev->quirks & HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP)) {
 		ret = hid_hw_output_report(dev, buf, count);
 		/*
 		 * compatibility with old implementation of USB-HID and I2C-HID:
