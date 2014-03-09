@@ -20208,11 +20208,13 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 	const u8 *mc_data_init = NULL;
 	u8 *mc_data = NULL;
 	unsigned size;
-	char *mc_file = mc_info->mc_file;
+	char *mc_file;
 
 	/* Check arguments */
-	if (!mc_info || !mc_file)
+	if (!mc_info || !mc_info->mc_file)
 		return -EINVAL;
+
+	mc_file = mc_info->mc_file;
 
 	if (!demod->firmware) {
 		const struct firmware *fw = NULL;
