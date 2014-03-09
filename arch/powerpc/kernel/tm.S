@@ -41,7 +41,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);		\
 /* Stack frame offsets for local variables. */
 #define TM_FRAME_L0	TM_FRAME_SIZE-16
 #define TM_FRAME_L1	TM_FRAME_SIZE-8
-#define STACK_PARAM(x)	(48+((x)*8))
 
 
 /* In order to access the TM SPRs, TM must be enabled.  So, do so: */
@@ -113,7 +112,7 @@ _GLOBAL(tm_reclaim)
 
 	/* We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD]. */
 
-	std	r3, STACK_PARAM(0)(r1)
+	std	r3, STK_PARAM(R3)(r1)
 	SAVE_NVGPRS(r1)
 
 	/* We need to setup MSR for VSX register save instructions.  Here we
@@ -202,7 +201,7 @@ dont_backup_fp:
 	/* Now get some more GPRS free */
 	std	r7, GPR7(r1)			/* Temporary stash */
 	std	r12, GPR12(r1)			/* ''   ''    ''   */
-	ld	r12, STACK_PARAM(0)(r1)		/* Param 0, thread_struct * */
+	ld	r12, STK_PARAM(R3)(r1)		/* Param 0, thread_struct * */
 
 	std	r11, THREAD_TM_PPR(r12)		/* Store PPR and free r11 */
 
