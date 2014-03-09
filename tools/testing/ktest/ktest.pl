@@ -72,7 +72,7 @@ my %default = (
     "IGNORE_UNUSED"		=> 0,
 );
 
-my $ktest_config;
+my $ktest_config = "ktest.conf";
 my $version;
 my $have_version = 0;
 my $machine;
@@ -521,7 +521,7 @@ sub read_ync {
     return read_prompt 1, $prompt;
 }
 
-sub get_ktest_config {
+sub get_mandatory_config {
     my ($config) = @_;
     my $ans;
 
@@ -552,29 +552,29 @@ sub get_ktest_config {
     }
 }
 
-sub get_ktest_configs {
-    get_ktest_config("MACHINE");
-    get_ktest_config("BUILD_DIR");
-    get_ktest_config("OUTPUT_DIR");
+sub get_mandatory_configs {
+    get_mandatory_config("MACHINE");
+    get_mandatory_config("BUILD_DIR");
+    get_mandatory_config("OUTPUT_DIR");
 
     if ($newconfig) {
-	get_ktest_config("BUILD_OPTIONS");
+	get_mandatory_config("BUILD_OPTIONS");
     }
 
     # options required for other than just building a kernel
     if (!$buildonly) {
-	get_ktest_config("POWER_CYCLE");
-	get_ktest_config("CONSOLE");
+	get_mandatory_config("POWER_CYCLE");
+	get_mandatory_config("CONSOLE");
     }
 
     # options required for install and more
     if ($buildonly != 1) {
-	get_ktest_config("SSH_USER");
-	get_ktest_config("BUILD_TARGET");
-	get_ktest_config("TARGET_IMAGE");
+	get_mandatory_config("SSH_USER");
+	get_mandatory_config("BUILD_TARGET");
+	get_mandatory_config("TARGET_IMAGE");
     }
 
-    get_ktest_config("LOCALVERSION");
+    get_mandatory_config("LOCALVERSION");
 
     return if ($buildonly);
 
@@ -582,7 +582,7 @@ sub get_ktest_configs {
 
     if (!defined($rtype)) {
 	if (!defined($opt{"GRUB_MENU"})) {
-	    get_ktest_config("REBOOT_TYPE");
+	    get_mandatory_config("REBOOT_TYPE");
 	    $rtype = $entered_configs{"REBOOT_TYPE"};
 	} else {
 	    $rtype = "grub";
@@ -590,16 +590,16 @@ sub get_ktest_configs {
     }
 
     if ($rtype eq "grub") {
-	get_ktest_config("GRUB_MENU");
+	get_mandatory_config("GRUB_MENU");
     }
 
     if ($rtype eq "grub2") {
-	get_ktest_config("GRUB_MENU");
-	get_ktest_config("GRUB_FILE");
+	get_mandatory_config("GRUB_MENU");
+	get_mandatory_config("GRUB_FILE");
     }
 
     if ($rtype eq "syslinux") {
-	get_ktest_config("SYSLINUX_LABEL");
+	get_mandatory_config("SYSLINUX_LABEL");
     }
 }
 
@@ -1089,7 +1089,7 @@ sub read_config {
     $test_case = __read_config $config, \$test_num;
 
     # make sure we have all mandatory configs
-    get_ktest_configs;
+    get_mandatory_configs;
 
     # was a test specified?
     if (!$test_case) {
@@ -3858,7 +3858,7 @@ sub make_warnings_file {
     success $i;
 }
 
-$#ARGV < 1 or die "ktest.pl version: $VERSION\n   usage: ktest.pl config-file\n";
+$#ARGV < 1 or die "ktest.pl version: $VERSION\n   usage: ktest.pl [config-file]\n";
 
 if ($#ARGV == 0) {
     $ktest_config = $ARGV[0];
@@ -3868,8 +3868,6 @@ if ($#ARGV == 0) {
 	    exit 0;
 	}
     }
-} else {
-    $ktest_config = "ktest.conf";
 }
 
 if (! -f $ktest_config) {
