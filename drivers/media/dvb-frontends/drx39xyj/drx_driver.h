@@ -1033,30 +1033,6 @@ struct drx_channel {
 
 /*========================================*/
 
-/**
-* \struct struct drx_sig_quality * Signal quality metrics.
-*
-* Used by DRX_CTRL_SIG_QUALITY.
-*/
-struct drx_sig_quality {
-	u16 MER;     /**< in steps of 0.1 dB                        */
-	u32 pre_viterbi_ber;
-		       /**< in steps of 1/scale_factor_ber              */
-	u32 post_viterbi_ber;
-		       /**< in steps of 1/scale_factor_ber              */
-	u32 scale_factor_ber;
-		       /**< scale factor for BER                      */
-	u16 packet_error;
-		       /**< number of packet errors                   */
-	u32 post_reed_solomon_ber;
-		       /**< in steps of 1/scale_factor_ber              */
-	u32 pre_ldpc_ber;
-		       /**< in steps of 1/scale_factor_ber              */
-	u32 aver_iter;/**< in steps of 0.01                          */
-	u16 indicator;
-		       /**< indicative signal quality low=0..100=high */
-};
-
 enum drx_cfg_sqi_speed {
 	DRX_SQI_SPEED_FAST = 0,
 	DRX_SQI_SPEED_MEDIUM,
