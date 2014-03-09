@@ -4147,13 +4147,12 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 				     struct device *dev)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
-	struct pci_dev *pdev = to_pci_dev(dev);
 	struct intel_iommu *iommu;
 	int addr_width;
 	u8 bus, devfn;
 
-	/* normally pdev is not mapped */
-	if (unlikely(domain_context_mapped(&pdev->dev))) {
+	/* normally dev is not mapped */
+	if (unlikely(domain_context_mapped(dev))) {
 		struct dmar_domain *old_domain;
 
 		old_domain = find_domain(dev);
