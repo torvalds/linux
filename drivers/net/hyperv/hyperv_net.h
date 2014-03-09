@@ -73,7 +73,7 @@ struct hv_netvsc_packet {
 	} completion;
 
 	/* This points to the memory after page_buf */
-	void *extension;
+	struct rndis_message *rndis_msg;
 
 	u32 total_data_buflen;
 	/* Points to the send/receive buffer where the ethernet frame is */
@@ -124,11 +124,6 @@ int rndis_filter_device_add(struct hv_device *dev,
 			void *additional_info);
 void rndis_filter_device_remove(struct hv_device *dev);
 int rndis_filter_receive(struct hv_device *dev,
-			struct hv_netvsc_packet *pkt);
-
-
-
-int rndis_filter_send(struct hv_device *dev,
 			struct hv_netvsc_packet *pkt);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);

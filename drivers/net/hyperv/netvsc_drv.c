@@ -128,6 +128,27 @@ static int netvsc_close(struct net_device *net)
 	return ret;
 }
 
+static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
+				int pkt_type)
+{
+	struct rndis_packet *rndis_pkt;
+	struct rndis_per_packet_info *ppi;
+
+	rndis_pkt = &msg->msg.pkt;
+	rndis_pkt->data_offset += ppi_size;
+
+	ppi = (struct rndis_per_packet_info *)((void *)rndis_pkt +
+		rndis_pkt->per_pkt_info_offset + rndis_pkt->per_pkt_info_len);
+
+	ppi->size = ppi_size;
+	ppi->type = pkt_type;
+	ppi->ppi_offset = sizeof(struct rndis_per_packet_info);
+
+	rndis_pkt->per_pkt_info_len += ppi_size;
+
+	return ppi;
+}
+
 static void netvsc_xmit_completion(void *context)
 {
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
@@ -174,8 +195,8 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 	return j + 1;
 }
 
-static void init_page_array(void *hdr, u32 len, struct sk_buff *skb,
-			    struct hv_page_buffer *pb)
+static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
+			   struct hv_page_buffer *pb)
 {
 	u32 slots_used = 0;
 	char *data = skb->data;
@@ -203,6 +224,7 @@ static void init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 					frag->page_offset,
 					skb_frag_size(frag), &pb[slots_used]);
 	}
+	return slots_used;
 }
 
 static int count_skb_frag_slots(struct sk_buff *skb)
@@ -240,14 +262,19 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct hv_netvsc_packet *packet;
 	int ret;
-	unsigned int num_data_pages;
+	unsigned int num_data_pgs;
+	struct rndis_message *rndis_msg;
+	struct rndis_packet *rndis_pkt;
+	u32 rndis_msg_size;
+	bool isvlan;
+	struct rndis_per_packet_info *ppi;
 
 	/* We will atmost need two pages to describe the rndis
 	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
 	 * of pages in a single packet.
 	 */
-	num_data_pages = netvsc_get_slots(skb) + 2;
-	if (num_data_pages > MAX_PAGE_BUFFER_COUNT) {
+	num_data_pgs = netvsc_get_slots(skb) + 2;
+	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
 		netdev_err(net, "Packet too big: %u\n", skb->len);
 		dev_kfree_skb(skb);
 		net->stats.tx_dropped++;
@@ -256,7 +283,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
-			 (num_data_pages * sizeof(struct hv_page_buffer)) +
+			 (num_data_pgs * sizeof(struct hv_page_buffer)) +
 			 sizeof(struct rndis_message) +
 			 NDIS_VLAN_PPI_SIZE, GFP_ATOMIC);
 	if (!packet) {
@@ -270,26 +297,51 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	packet->vlan_tci = skb->vlan_tci;
 
-	packet->extension = (void *)(unsigned long)packet +
-			sizeof(struct hv_netvsc_packet) +
-			(num_data_pages * sizeof(struct hv_page_buffer));
-
-	/* If the rndis msg goes beyond 1 page, we will add 1 later */
-	packet->page_buf_cnt = num_data_pages - 1;
-
-	/* Initialize it from the skb */
+	packet->is_data_pkt = true;
 	packet->total_data_buflen = skb->len;
 
-	/* Start filling in the page buffers starting after RNDIS buffer. */
-	init_page_array(NULL, 0, skb, &packet->page_buf[1]);
+	packet->rndis_msg = (struct rndis_message *)((unsigned long)packet +
+				sizeof(struct hv_netvsc_packet) +
+				(num_data_pgs * sizeof(struct hv_page_buffer)));
 
 	/* Set the completion routine */
 	packet->completion.send.send_completion = netvsc_xmit_completion;
 	packet->completion.send.send_completion_ctx = packet;
 	packet->completion.send.send_completion_tid = (unsigned long)skb;
 
-	ret = rndis_filter_send(net_device_ctx->device_ctx,
-				  packet);
+	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
+
+	/* Add the rndis header */
+	rndis_msg = packet->rndis_msg;
+	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
+	rndis_msg->msg_len = packet->total_data_buflen;
+	rndis_pkt = &rndis_msg->msg.pkt;
+	rndis_pkt->data_offset = sizeof(struct rndis_packet);
+	rndis_pkt->data_len = packet->total_data_buflen;
+	rndis_pkt->per_pkt_info_offset = sizeof(struct rndis_packet);
+
+	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+
+	if (isvlan) {
+		struct ndis_pkt_8021q_info *vlan;
+
+		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
+		ppi = init_ppi_data(rndis_msg, NDIS_VLAN_PPI_SIZE,
+					IEEE_8021Q_INFO);
+		vlan = (struct ndis_pkt_8021q_info *)((void *)ppi +
+						ppi->ppi_offset);
+		vlan->vlanid = packet->vlan_tci & VLAN_VID_MASK;
+		vlan->pri = (packet->vlan_tci & VLAN_PRIO_MASK) >>
+				VLAN_PRIO_SHIFT;
+	}
+
+	/* Start filling in the page buffers with the rndis hdr */
+	rndis_msg->msg_len += rndis_msg_size;
+	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
+					skb, &packet->page_buf[0]);
+
+	ret = netvsc_send(net_device_ctx->device_ctx, packet);
+
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
 		net->stats.tx_packets++;
