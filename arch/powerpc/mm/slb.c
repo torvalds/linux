@@ -256,10 +256,14 @@ static inline void patch_slb_encoding(unsigned int *insn_addr,
 	patch_instruction(insn_addr, insn);
 }
 
+extern u32 slb_compare_rr_to_size[];
+extern u32 slb_miss_kernel_load_linear[];
+extern u32 slb_miss_kernel_load_io[];
+extern u32 slb_compare_rr_to_size[];
+extern u32 slb_miss_kernel_load_vmemmap[];
+
 void slb_set_size(u16 size)
 {
-	extern unsigned int *slb_compare_rr_to_size;
-
 	if (mmu_slb_size == size)
 		return;
 
@@ -272,11 +276,7 @@ void slb_initialize(void)
 	unsigned long linear_llp, vmalloc_llp, io_llp;
 	unsigned long lflags, vflags;
 	static int slb_encoding_inited;
-	extern unsigned int *slb_miss_kernel_load_linear;
-	extern unsigned int *slb_miss_kernel_load_io;
-	extern unsigned int *slb_compare_rr_to_size;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	extern unsigned int *slb_miss_kernel_load_vmemmap;
 	unsigned long vmemmap_llp;
 #endif
 

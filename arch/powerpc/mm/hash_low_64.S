@@ -201,7 +201,8 @@ htab_insert_pte:
 	li	r8,MMU_PAGE_4K		/* page size */
 	li	r9,MMU_PAGE_4K		/* actual page size */
 	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
-_GLOBAL(htab_call_hpte_insert1)
+.globl htab_call_hpte_insert1
+htab_call_hpte_insert1:
 	bl	.			/* Patched by htab_finish_init() */
 	cmpdi	0,r3,0
 	bge	htab_pte_insert_ok	/* Insertion successful */
@@ -225,7 +226,8 @@ _GLOBAL(htab_call_hpte_insert1)
 	li	r8,MMU_PAGE_4K		/* page size */
 	li	r9,MMU_PAGE_4K		/* actual page size */
 	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
-_GLOBAL(htab_call_hpte_insert2)
+.globl htab_call_hpte_insert2
+htab_call_hpte_insert2:
 	bl	.			/* Patched by htab_finish_init() */
 	cmpdi	0,r3,0
 	bge+	htab_pte_insert_ok	/* Insertion successful */
@@ -242,7 +244,8 @@ _GLOBAL(htab_call_hpte_insert2)
 2:	and	r0,r5,r27
 	rldicr	r3,r0,3,63-3	/* r0 = (hash & mask) << 3 */	
 	/* Call ppc_md.hpte_remove */
-_GLOBAL(htab_call_hpte_remove)
+.globl htab_call_hpte_remove
+htab_call_hpte_remove:
 	bl	.			/* Patched by htab_finish_init() */
 
 	/* Try all again */
@@ -296,7 +299,8 @@ htab_modify_pte:
 	li	r7,MMU_PAGE_4K		/* actual page size */
 	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
 	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
-_GLOBAL(htab_call_hpte_updatepp)
+.globl htab_call_hpte_updatepp
+htab_call_hpte_updatepp:
 	bl	.			/* Patched by htab_finish_init() */
 
 	/* if we failed because typically the HPTE wasn't really here
@@ -526,7 +530,8 @@ htab_special_pfn:
 	li	r8,MMU_PAGE_4K		/* page size */
 	li	r9,MMU_PAGE_4K		/* actual page size */
 	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
-_GLOBAL(htab_call_hpte_insert1)
+.globl htab_call_hpte_insert1
+htab_call_hpte_insert1:
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
 	bge	htab_pte_insert_ok	/* Insertion successful */
@@ -554,7 +559,8 @@ _GLOBAL(htab_call_hpte_insert1)
 	li	r8,MMU_PAGE_4K		/* page size */
 	li	r9,MMU_PAGE_4K		/* actual page size */
 	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
-_GLOBAL(htab_call_hpte_insert2)
+.globl htab_call_hpte_insert2
+htab_call_hpte_insert2:
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
 	bge+	htab_pte_insert_ok	/* Insertion successful */
@@ -571,7 +577,8 @@ _GLOBAL(htab_call_hpte_insert2)
 2:	and	r0,r5,r27
 	rldicr	r3,r0,3,63-3		/* r0 = (hash & mask) << 3 */
 	/* Call ppc_md.hpte_remove */
-_GLOBAL(htab_call_hpte_remove)
+.globl htab_call_hpte_remove
+htab_call_hpte_remove:
 	bl	.			/* patched by htab_finish_init() */
 
 	/* Try all again */
@@ -660,7 +667,8 @@ htab_modify_pte:
 	li	r7,MMU_PAGE_4K		/* actual page size */
 	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
 	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
-_GLOBAL(htab_call_hpte_updatepp)
+.globl htab_call_hpte_updatepp
+htab_call_hpte_updatepp:
 	bl	.			/* patched by htab_finish_init() */
 
 	/* if we failed because typically the HPTE wasn't really here
@@ -857,7 +865,8 @@ ht64_insert_pte:
 	li	r8,MMU_PAGE_64K
 	li	r9,MMU_PAGE_64K		/* actual page size */
 	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
-_GLOBAL(ht64_call_hpte_insert1)
+.globl ht64_call_hpte_insert1
+ht64_call_hpte_insert1:
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
 	bge	ht64_pte_insert_ok	/* Insertion successful */
@@ -881,7 +890,8 @@ _GLOBAL(ht64_call_hpte_insert1)
 	li	r8,MMU_PAGE_64K
 	li	r9,MMU_PAGE_64K		/* actual page size */
 	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
-_GLOBAL(ht64_call_hpte_insert2)
+.globl ht64_call_hpte_insert2
+ht64_call_hpte_insert2:
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
 	bge+	ht64_pte_insert_ok	/* Insertion successful */
@@ -898,7 +908,8 @@ _GLOBAL(ht64_call_hpte_insert2)
 2:	and	r0,r5,r27
 	rldicr	r3,r0,3,63-3	/* r0 = (hash & mask) << 3 */
 	/* Call ppc_md.hpte_remove */
-_GLOBAL(ht64_call_hpte_remove)
+.globl ht64_call_hpte_remove
+ht64_call_hpte_remove:
 	bl	.			/* patched by htab_finish_init() */
 
 	/* Try all again */
@@ -952,7 +963,8 @@ ht64_modify_pte:
 	li	r7,MMU_PAGE_64K		/* actual page size */
 	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
 	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
-_GLOBAL(ht64_call_hpte_updatepp)
+.globl ht64_call_hpte_updatepp
+ht64_call_hpte_updatepp:
 	bl	.			/* patched by htab_finish_init() */
 
 	/* if we failed because typically the HPTE wasn't really here

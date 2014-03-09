@@ -603,19 +603,18 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+extern u32 htab_call_hpte_insert1[];
+extern u32 htab_call_hpte_insert2[];
+extern u32 htab_call_hpte_remove[];
+extern u32 htab_call_hpte_updatepp[];
+extern u32 ht64_call_hpte_insert1[];
+extern u32 ht64_call_hpte_insert2[];
+extern u32 ht64_call_hpte_remove[];
+extern u32 ht64_call_hpte_updatepp[];
+
 static void __init htab_finish_init(void)
 {
-	extern unsigned int *htab_call_hpte_insert1;
-	extern unsigned int *htab_call_hpte_insert2;
-	extern unsigned int *htab_call_hpte_remove;
-	extern unsigned int *htab_call_hpte_updatepp;
-
 #ifdef CONFIG_PPC_HAS_HASH_64K
-	extern unsigned int *ht64_call_hpte_insert1;
-	extern unsigned int *ht64_call_hpte_insert2;
-	extern unsigned int *ht64_call_hpte_remove;
-	extern unsigned int *ht64_call_hpte_updatepp;
-
 	patch_branch(ht64_call_hpte_insert1,
 		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
@@ -628,7 +627,6 @@ static void __init htab_finish_init(void)
 	patch_branch(ht64_call_hpte_updatepp,
 		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
-
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 
 	patch_branch(htab_call_hpte_insert1,
