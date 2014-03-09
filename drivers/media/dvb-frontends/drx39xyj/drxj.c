@@ -1676,9 +1676,10 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 		 * In single master mode, split the read and write actions.
 		 * No special action is needed for write chunks here.
 		 */
-		rc = drxbsp_i2c_write_read(dev_addr, bufx, buf, 0, 0, 0);
+		rc = drxbsp_i2c_write_read(dev_addr, bufx, buf,
+					   NULL, 0, NULL);
 		if (rc == 0)
-			rc = drxbsp_i2c_write_read(0, 0, 0, dev_addr, todo, data);
+			rc = drxbsp_i2c_write_read(NULL, 0, NULL, dev_addr, todo, data);
 #else
 		/* In multi master mode, do everything in one RW action */
 		rc = drxbsp_i2c_write_read(dev_addr, bufx, buf, dev_addr, todo,
