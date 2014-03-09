@@ -20,3 +20,57 @@ Required properties:
 - compatible : should be "samsung,exynos5250-dp-video-phy";
 - reg : offset and length of the Display Port PHY register set;
 - #phy-cells : from the generic PHY bindings, must be 0;
+
+Samsung S5P/EXYNOS SoC series USB PHY
+-------------------------------------------------
+
+Required properties:
+- compatible : should be one of the listed compatibles:
+	- "samsung,exynos4210-usb2-phy"
+	- "samsung,exynos4x12-usb2-phy"
+	- "samsung,exynos5250-usb2-phy"
+- reg : a list of registers used by phy driver
+	- first and obligatory is the location of phy modules registers
+- samsung,sysreg-phandle - handle to syscon used to control the system registers
+- samsung,pmureg-phandle - handle to syscon used to control PMU registers
+- #phy-cells : from the generic phy bindings, must be 1;
+- clocks and clock-names:
+	- the "phy" clock is required by the phy module, used as a gate
+	- the "ref" clock is used to get the rate of the clock provided to the
+	  PHY module
+
+The first phandle argument in the PHY specifier identifies the PHY, its
+meaning is compatible dependent. For the currently supported SoCs (Exynos 4210
+and Exynos 4212) it is as follows:
+  0 - USB device ("device"),
+  1 - USB host ("host"),
+  2 - HSIC0 ("hsic0"),
+  3 - HSIC1 ("hsic1"),
+
+Exynos 4210 and Exynos 4212 use mode switching and require that mode switch
+register is supplied.
+
+Example:
+
+For Exynos 4412 (compatible with Exynos 4212):
+
+usbphy: phy@125b0000 {
+	compatible = "samsung,exynos4x12-usb2-phy";
+	reg = <0x125b0000 0x100>;
+	clocks = <&clock 305>, <&clock 2>;
+	clock-names = "phy", "ref";
+	status = "okay";
+	#phy-cells = <1>;
+	samsung,sysreg-phandle = <&sys_reg>;
+	samsung,pmureg-phandle = <&pmu_reg>;
+};
+
+Then the PHY can be used in other nodes such as:
+
+phy-consumer@12340000 {
+	phys = <&usbphy 2>;
+	phy-names = "phy";
+};
+
+Refer to DT bindings documentation of particular PHY consumer devices for more
+information about required PHYs and the way of specification.
