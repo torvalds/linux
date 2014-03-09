@@ -365,6 +365,11 @@ static int netvsc_connect_vsp(struct hv_device *device)
 		goto cleanup;
 
 	/* Post the big receive buffer to NetVSP */
+	if (net_device->nvsp_version <= NVSP_PROTOCOL_VERSION_2)
+		net_device->recv_buf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
+	else
+		net_device->recv_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
+
 	ret = netvsc_init_recv_buf(device);
 
 cleanup:
@@ -898,7 +903,6 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	ndev = net_device->ndev;
 
 	/* Initialize the NetVSC channel extension */
-	net_device->recv_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
 	spin_lock_init(&net_device->recv_pkt_list_lock);
 
 	INIT_LIST_HEAD(&net_device->recv_pkt_list);
