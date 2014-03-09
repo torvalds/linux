@@ -387,7 +387,7 @@ struct max8997_dev {
 	struct i2c_client *muic; /* slave addr 0x4a */
 	struct mutex iolock;
 
-	int type;
+	unsigned long type;
 	struct platform_device *battery; /* battery control (not fuel gauge) */
 
 	int irq;

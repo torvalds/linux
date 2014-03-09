@@ -176,6 +176,8 @@ int phy_init(struct phy *phy)
 			dev_err(&phy->dev, "phy init failed --> %d\n", ret);
 			goto out;
 		}
+	} else {
+		ret = 0; /* Override possible ret == -ENOTSUPP */
 	}
 	++phy->init_count;
 
@@ -232,6 +234,8 @@ int phy_power_on(struct phy *phy)
 			dev_err(&phy->dev, "phy poweron failed --> %d\n", ret);
 			goto out;
 		}
+	} else {
+		ret = 0; /* Override possible ret == -ENOTSUPP */
 	}
 	++phy->power_count;
 	mutex_unlock(&phy->mutex);
@@ -404,17 +408,11 @@ struct phy *phy_get(struct device *dev, const char *string)
 		index = of_property_match_string(dev->of_node, "phy-names",
 			string);
 		phy = of_phy_get(dev, index);
-		if (IS_ERR(phy)) {
-			dev_err(dev, "unable to find phy\n");
-			return phy;
-		}
 	} else {
 		phy = phy_lookup(dev, string);
-		if (IS_ERR(phy)) {
-			dev_err(dev, "unable to find phy\n");
-			return phy;
-		}
 	}
+	if (IS_ERR(phy))
+		return phy;
 
 	if (!try_module_get(phy->ops->owner))
 		return ERR_PTR(-EPROBE_DEFER);

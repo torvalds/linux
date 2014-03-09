@@ -75,10 +75,32 @@ static inline pte_t pte_mknuma(pte_t pte)
 	return pte;
 }
 
+#define ptep_set_numa ptep_set_numa
+static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
+				 pte_t *ptep)
+{
+	if ((pte_val(*ptep) & _PAGE_PRESENT) == 0)
+		VM_BUG_ON(1);
+
+	pte_update(mm, addr, ptep, _PAGE_PRESENT, _PAGE_NUMA, 0);
+	return;
+}
+
 #define pmd_numa pmd_numa
 static inline int pmd_numa(pmd_t pmd)
 {
 	return pte_numa(pmd_pte(pmd));
+}
+
+#define pmdp_set_numa pmdp_set_numa
+static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
+				 pmd_t *pmdp)
+{
+	if ((pmd_val(*pmdp) & _PAGE_PRESENT) == 0)
+		VM_BUG_ON(1);
+
+	pmd_hugepage_update(mm, addr, pmdp, _PAGE_PRESENT, _PAGE_NUMA);
+	return;
 }
 
 #define pmd_mknonnuma pmd_mknonnuma
