@@ -1499,14 +1499,14 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 	if (prev->input == PREVIEW_INPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&prev->video_in);
 		if (buffer != NULL)
-			preview_set_inaddr(prev, buffer->isp_addr);
+			preview_set_inaddr(prev, buffer->dma);
 		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 	}
 
 	if (prev->output & PREVIEW_OUTPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&prev->video_out);
 		if (buffer != NULL) {
-			preview_set_outaddr(prev, buffer->isp_addr);
+			preview_set_outaddr(prev, buffer->dma);
 			restart = 1;
 		}
 		pipe->state |= ISP_PIPELINE_IDLE_OUTPUT;
@@ -1577,10 +1577,10 @@ static int preview_video_queue(struct isp_video *video,
 	struct isp_prev_device *prev = &video->isp->isp_prev;
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		preview_set_inaddr(prev, buffer->isp_addr);
+		preview_set_inaddr(prev, buffer->dma);
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		preview_set_outaddr(prev, buffer->isp_addr);
+		preview_set_outaddr(prev, buffer->dma);
 
 	return 0;
 }

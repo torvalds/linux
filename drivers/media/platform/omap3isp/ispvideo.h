@@ -127,12 +127,12 @@ static inline int isp_pipeline_ready(struct isp_pipeline *pipe)
  * struct isp_buffer - ISP video buffer
  * @vb: videobuf2 buffer
  * @irqlist: List head for insertion into IRQ queue
- * @isp_addr: DMA address
+ * @dma: DMA address
  */
 struct isp_buffer {
 	struct vb2_buffer vb;
 	struct list_head irqlist;
-	dma_addr_t isp_addr;
+	dma_addr_t dma;
 };
 
 #define to_isp_buffer(buf)	container_of(buf, struct isp_buffer, vb)

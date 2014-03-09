@@ -1521,7 +1521,7 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 
 	buffer = omap3isp_video_buffer_next(&ccdc->video_out);
 	if (buffer != NULL) {
-		ccdc_set_outaddr(ccdc, buffer->isp_addr);
+		ccdc_set_outaddr(ccdc, buffer->dma);
 		restart = 1;
 	}
 
@@ -1660,7 +1660,7 @@ static int ccdc_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 	if (!(ccdc->output & CCDC_OUTPUT_MEMORY))
 		return -ENODEV;
 
-	ccdc_set_outaddr(ccdc, buffer->isp_addr);
+	ccdc_set_outaddr(ccdc, buffer->dma);
 
 	/* We now have a buffer queued on the output, restart the pipeline
 	 * on the next CCDC interrupt if running in continuous mode (or when

@@ -374,7 +374,7 @@ static int isp_video_buffer_prepare(struct vb2_buffer *buf)
 	}
 
 	vb2_set_plane_payload(&buffer->vb, 0, vfh->format.fmt.pix.sizeimage);
-	buffer->isp_addr = addr;
+	buffer->dma = addr;
 
 	return 0;
 }
