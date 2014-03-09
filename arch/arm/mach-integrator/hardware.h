@@ -1,4 +1,8 @@
 /*
+ *  This file contains the hardware definitions of the Integrator.
+ *
+ *  Copyright (C) 1998-1999 ARM Limited.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -13,26 +17,28 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-/**************************************************************************
- * * Copyright © ARM Limited 1998.  All rights reserved.
- * ***********************************************************************/
-/* ************************************************************************
- *
- *   Integrator address map
- *
- * ***********************************************************************/
+#ifndef INTEGRATOR_HARDWARE_H
+#define INTEGRATOR_HARDWARE_H
 
-#ifndef __address_h
-#define __address_h                     1
+/*
+ * Where in virtual memory the IO devices (timers, system controllers
+ * and so on)
+ */
+#define IO_BASE			0xF0000000                 // VA of IO
+#define IO_SIZE			0x0B000000                 // How much?
+#define IO_START		INTEGRATOR_HDR_BASE        // PA of IO
 
-/* ========================================================================
- *  Integrator definitions
- * ========================================================================
- * ------------------------------------------------------------------------
- *  Memory definitions
- * ------------------------------------------------------------------------
+/* macro to get at IO space when running virtually */
+#ifdef CONFIG_MMU
+#define IO_ADDRESS(x)	(((x) & 0x000fffff) | (((x) >> 4) & 0x0ff00000) | IO_BASE)
+#else
+#define IO_ADDRESS(x)	(x)
+#endif
+
+#define __io_address(n)		((void __iomem *)IO_ADDRESS(n))
+
+/*
  *  Integrator memory map
- *
  */
 #define INTEGRATOR_BOOT_ROM_LO          0x00000000
 #define INTEGRATOR_BOOT_ROM_HI          0x20000000
@@ -40,13 +46,13 @@
 #define INTEGRATOR_BOOT_ROM_SIZE        SZ_512K
 
 /*
- *  New Core Modules have different amounts of SSRAM, the amount of SSRAM
- *  fitted can be found in HDR_STAT.
+ * New Core Modules have different amounts of SSRAM, the amount of SSRAM
+ * fitted can be found in HDR_STAT.
  *
- *  The symbol INTEGRATOR_SSRAM_SIZE is kept, however this now refers to
- *  the minimum amount of SSRAM fitted on any core module.
+ * The symbol INTEGRATOR_SSRAM_SIZE is kept, however this now refers to
+ * the minimum amount of SSRAM fitted on any core module.
  *
- *  New Core Modules also alias the SSRAM.
+ * New Core Modules also alias the SSRAM.
  *
  */
 #define INTEGRATOR_SSRAM_BASE           0x00000000
@@ -61,7 +67,6 @@
 
 /*
  *  SDRAM is a SIMM therefore the size is not known.
- *
  */
 #define INTEGRATOR_SDRAM_BASE           0x00040000
 
@@ -81,10 +86,8 @@
 #define INTEGRATOR_LOGIC_MODULE2_BASE   0xE0000000
 #define INTEGRATOR_LOGIC_MODULE3_BASE   0xF0000000
 
-/* ------------------------------------------------------------------------
- *  Integrator header card registers
- * ------------------------------------------------------------------------
- *
+/*
+ * Integrator header card registers
  */
 #define INTEGRATOR_HDR_ID_OFFSET        0x00
 #define INTEGRATOR_HDR_PROC_OFFSET      0x04
@@ -173,16 +176,12 @@
 
 #define INTEGRATOR_HDR_SDRAM_SPD_OK     (1 << 5)
 
-
-/* ------------------------------------------------------------------------
- *  Integrator system registers
- * ------------------------------------------------------------------------
- *
+/*
+ * Integrator system registers
  */
 
 /*
  *  System Controller
- *
  */
 #define INTEGRATOR_SC_ID_OFFSET         0x00
 #define INTEGRATOR_SC_OSC_OFFSET        0x04
@@ -223,7 +222,6 @@
 
 /*
  *  External Bus Interface
- *
  */
 #define INTEGRATOR_EBI_BASE             0x12000000
 
@@ -272,7 +270,6 @@
 
 /*
  *  LED's & Switches
- *
  */
 #define INTEGRATOR_DBG_ALPHA_OFFSET     0x00
 #define INTEGRATOR_DBG_LEDS_OFFSET      0x04
@@ -292,32 +289,25 @@
 #define INTEGRATOR_CP_SIC_BASE		0xCA000000	/* SIC */
 #define INTEGRATOR_CP_CTL_BASE		0xCB000000	/* CP system control */
 
-/* ------------------------------------------------------------------------
- *  KMI keyboard/mouse definitions
- * ------------------------------------------------------------------------
- */
 /* PS2 Keyboard interface */
 #define KMI0_BASE                       INTEGRATOR_KBD_BASE
 
 /* PS2 Mouse interface */
 #define KMI1_BASE                       INTEGRATOR_MOUSE_BASE
 
-/* KMI definitions are now in include/asm-arm/hardware/amba_kmi.h -- rmk */
-
-/* ------------------------------------------------------------------------
- *  Integrator Interrupt Controllers
- * ------------------------------------------------------------------------
+/*
+ * Integrator Interrupt Controllers
  *
- *  Offsets from interrupt controller base
  *
- *  System Controller interrupt controller base is
+ * Offsets from interrupt controller base
+ *
+ * System Controller interrupt controller base is
  *
  * 	INTEGRATOR_IC_BASE + (header_number << 6)
  *
- *  Core Module interrupt controller base is
+ * Core Module interrupt controller base is
  *
  * 	INTEGRATOR_HDR_IC
- *
  */
 #define IRQ_STATUS                      0
 #define IRQ_RAW_STATUS                  0x04
@@ -335,25 +325,8 @@
 #define FIQ_ENABLE_CLEAR                0x2C
 
 
-/* ------------------------------------------------------------------------
- *  Interrupts
- * ------------------------------------------------------------------------
- *
- *
- *  Each Core Module has two interrupts controllers, one on the core module
- *  itself and one in the system controller on the motherboard.  The
- *  READ_INT macro in target.s reads both interrupt controllers and returns
- *  a 32 bit bitmask, bits 0 to 23 are interrupts from the system controller
- *  and bits 24 to 31 are from the core module.
- *
- *  The following definitions relate to the bitmask returned by READ_INT.
- *
- */
-
-/* ------------------------------------------------------------------------
- *  LED's
- * ------------------------------------------------------------------------
- *
+/*
+ * LED's
  */
 #define GREEN_LED                       0x01
 #define YELLOW_LED                      0x02
@@ -371,7 +344,6 @@
  *
  *  Timer 0 runs at bus frequency
  */
-
 #define INTEGRATOR_TIMER0_BASE          INTEGRATOR_CT_BASE
 #define INTEGRATOR_TIMER1_BASE          (INTEGRATOR_CT_BASE + 0x100)
 #define INTEGRATOR_TIMER2_BASE          (INTEGRATOR_CT_BASE + 0x200)
@@ -379,4 +351,4 @@
 #define INTEGRATOR_CSR_BASE             0x10000000
 #define INTEGRATOR_CSR_SIZE             0x10000000
 
-#endif
+#endif /* INTEGRATOR_HARDWARE_H */

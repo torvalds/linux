@@ -13,9 +13,11 @@
 #include <linux/io.h>
 #include <linux/platform_data/clk-integrator.h>
 
-#include <mach/impd1.h>
-
 #include "clk-icst.h"
+
+#define IMPD1_OSC1	0x00
+#define IMPD1_OSC2	0x04
+#define IMPD1_LOCK	0x08
 
 struct impd1_clk {
 	char *vco1name;
