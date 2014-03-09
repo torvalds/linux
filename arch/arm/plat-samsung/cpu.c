@@ -28,13 +28,6 @@ unsigned int samsung_rev(void)
 }
 EXPORT_SYMBOL(samsung_rev);
 
-void __init s3c24xx_init_cpu(void)
-{
-	/* nothing here yet */
-
-	samsung_cpu_rev = 0;
-}
-
 void __init s3c64xx_init_cpu(void)
 {
 	samsung_cpu_id = __raw_readl(S3C_VA_SYS + 0x118);

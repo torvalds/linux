@@ -20,13 +20,13 @@
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/of.h>
 
 #include <mach/map.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>

@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
@@ -32,7 +33,6 @@
 #include <mach/regs-clock.h>
 
 #include <plat/gpio-cfg.h>
-#include <plat/regs-serial.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>

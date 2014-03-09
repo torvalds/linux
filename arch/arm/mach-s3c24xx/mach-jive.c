@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
@@ -31,7 +32,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <plat/regs-serial.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 

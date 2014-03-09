@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
@@ -32,8 +33,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
-
-#include <plat/regs-serial.h>
 
 static struct cpu_table *cpu;
 

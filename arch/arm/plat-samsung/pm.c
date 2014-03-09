@@ -18,12 +18,11 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
 #include <asm/suspend.h>
-
-#include <plat/regs-serial.h>
 
 #ifdef CONFIG_SAMSUNG_ATAGS
 #include <mach/hardware.h>
