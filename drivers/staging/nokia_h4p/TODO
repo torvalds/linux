@@ -13,14 +13,6 @@ TODO:
 can we please get the naming straight. File names do not start with
 hci_ anymore. We moved away from it since that term is too generic.
 
-> +#define FW_NAME_TI1271_LE    "ti1273_le.bin"
-> +#define FW_NAME_TI1271               "ti1273.bin"
-> +#define FW_NAME_BCM2048              "bcmfw.bin"
-> +#define FW_NAME_CSR          "bc4fw.bin"
-
-We do these have to be global in a header file. This should be
-confined to the specific firmware part.
-
 > +struct hci_h4p_info {
 
 Can we please get rid of the hci_ prefix for everything. Copying from

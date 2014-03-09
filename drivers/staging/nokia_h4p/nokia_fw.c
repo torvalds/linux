@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
 #include <linux/clk.h>
@@ -28,6 +29,12 @@
 #include <net/bluetooth/bluetooth.h>
 
 #include "hci_h4p.h"
+
+#define FW_NAME_TI1271_PRELE	"ti1273_prele.bin"
+#define FW_NAME_TI1271_LE	"ti1273_le.bin"
+#define FW_NAME_TI1271		"ti1273.bin"
+#define FW_NAME_BCM2048		"bcmfw.bin"
+#define FW_NAME_CSR		"bc4fw.bin"
 
 static int fw_pos;
 
@@ -193,3 +200,9 @@ void hci_h4p_parse_fw_event(struct hci_h4p_info *info, struct sk_buff *skb)
 
 	return;
 }
+
+MODULE_FIRMWARE(FW_NAME_TI1271_PRELE);
+MODULE_FIRMWARE(FW_NAME_TI1271_LE);
+MODULE_FIRMWARE(FW_NAME_TI1271);
+MODULE_FIRMWARE(FW_NAME_BCM2048);
+MODULE_FIRMWARE(FW_NAME_CSR);

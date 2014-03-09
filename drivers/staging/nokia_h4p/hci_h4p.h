@@ -26,12 +26,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/hci.h>
 
-#define FW_NAME_TI1271_PRELE	"ti1273_prele.bin"
-#define FW_NAME_TI1271_LE	"ti1273_le.bin"
-#define FW_NAME_TI1271		"ti1273.bin"
-#define FW_NAME_BCM2048		"bcmfw.bin"
-#define FW_NAME_CSR		"bc4fw.bin"
-
 #define UART_SYSC_OMAP_RESET	0x03
 #define UART_SYSS_RESETDONE	0x01
 #define UART_OMAP_SCR_EMPTY_THR	0x08
