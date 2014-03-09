@@ -393,13 +393,13 @@ u8 rtw_setstandby_cmd(struct adapter *padapter, uint action)
 	u8 ret = _SUCCESS;
 
 
-	ph2c = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
 	if (ph2c == NULL) {
 		ret = _FAIL;
 		goto exit;
 	}
 
-	psetusbsuspend = (struct usb_suspend_parm *)rtw_zmalloc(sizeof(struct usb_suspend_parm));
+	psetusbsuspend = kzalloc(sizeof(struct usb_suspend_parm), GFP_KERNEL);
 	if (psetusbsuspend == NULL) {
 		kfree(ph2c);
 		ret = _FAIL;
