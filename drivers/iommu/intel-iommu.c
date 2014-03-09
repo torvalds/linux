@@ -2452,29 +2452,21 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 			       struct pci_dev *pdev,
 			       int translation)
 {
+	struct dmar_domain *ndomain;
 	struct device_domain_info *info;
 	unsigned long flags;
 	int ret;
 
-	info = alloc_devinfo_mem();
-	if (!info)
-		return -ENOMEM;
-
-	info->segment = pci_domain_nr(pdev->bus);
-	info->bus = pdev->bus->number;
-	info->devfn = pdev->devfn;
-	info->dev = &pdev->dev;
-	info->domain = domain;
-
-	spin_lock_irqsave(&device_domain_lock, flags);
-	list_add(&info->link, &domain->devices);
-	list_add(&info->global, &device_domain_list);
-	pdev->dev.archdata.iommu = info;
-	spin_unlock_irqrestore(&device_domain_lock, flags);
+	ndomain = dmar_insert_dev_info(pci_domain_nr(pdev->bus),
+				       pdev->bus->number, pdev->devfn,
+				       &pdev->dev, domain);
+	if (ndomain != domain)
+		return -EBUSY;
 
 	ret = domain_context_mapping(domain, pdev, translation);
 	if (ret) {
 		spin_lock_irqsave(&device_domain_lock, flags);
+		info = pdev->dev.archdata.iommu;
 		unlink_domain_info(info);
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 		free_devinfo_mem(info);
