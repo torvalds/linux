@@ -358,6 +358,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	return 0;
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int kxcjk1013_get_startup_times(struct kxcjk1013_data *data)
 {
 	int i;
@@ -370,6 +371,7 @@ static int kxcjk1013_get_startup_times(struct kxcjk1013_data *data)
 
 	return KXCJK1013_MAX_STARTUP_TIME_US;
 }
+#endif
 
 static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 {
