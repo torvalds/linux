@@ -11708,7 +11708,7 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 		rc = request_firmware(&fw, mc_file, demod->i2c->dev.parent);
 		if (rc < 0) {
 			pr_err("Couldn't read firmware %s\n", mc_file);
-			return -ENOENT;
+			return rc;
 		}
 		demod->firmware = fw;
 
