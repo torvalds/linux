@@ -606,45 +606,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	rtl8225z2_rf_set_chan(dev, priv->chan);
 }
 
-void rtl8225z2_rf_set_mode(struct net_device *dev)
-{
-	struct r8180_priv *priv = ieee80211_priv(dev);
-
-	if (priv->ieee80211->mode == IEEE_A) {
-		write_rtl8225(dev, 0x5, 0x1865);
-		write_nic_dword(dev, RF_PARA, 0x10084);
-		write_nic_dword(dev, RF_TIMING, 0xa8008);
-		write_phy_ofdm(dev, 0x0, 0x0);
-		write_phy_ofdm(dev, 0xa, 0x6);
-		write_phy_ofdm(dev, 0xb, 0x99);
-		write_phy_ofdm(dev, 0xf, 0x20);
-		write_phy_ofdm(dev, 0x11, 0x7);
-
-		rtl8225z2_set_gain(dev, 4);
-
-		write_phy_ofdm(dev, 0x15, 0x40);
-		write_phy_ofdm(dev, 0x17, 0x40);
-
-		write_nic_dword(dev, 0x94, 0x10000000);
-	} else {
-		write_rtl8225(dev, 0x5, 0x1864);
-		write_nic_dword(dev, RF_PARA, 0x10044);
-		write_nic_dword(dev, RF_TIMING, 0xa8008);
-		write_phy_ofdm(dev, 0x0, 0x1);
-		write_phy_ofdm(dev, 0xa, 0x6);
-		write_phy_ofdm(dev, 0xb, 0x99);
-		write_phy_ofdm(dev, 0xf, 0x20);
-		write_phy_ofdm(dev, 0x11, 0x7);
-
-		rtl8225z2_set_gain(dev, 4);
-
-		write_phy_ofdm(dev, 0x15, 0x40);
-		write_phy_ofdm(dev, 0x17, 0x40);
-
-		write_nic_dword(dev, 0x94, 0x04000002);
-	}
-}
-
 #define MAX_DOZE_WAITING_TIMES_85B		20
 #define MAX_POLLING_24F_TIMES_87SE		10
 #define LPS_MAX_SLEEP_WAITING_TIMES_87SE	5
