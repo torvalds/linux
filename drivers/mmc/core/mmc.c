@@ -349,6 +349,10 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		 * There are two boot regions of equal size, defined in
 		 * multiples of 128K.
 		 */
+	       #if 0
+               //emmc: We do NOT alloc boot partition now. noted by xbw, at 2014-03-09
+		card->ext_csd.boot_size = 0;
+          #else  
 		if (ext_csd[EXT_CSD_BOOT_MULT] && mmc_boot_partition_access(card->host)) {
 			for (idx = 0; idx < MMC_NUM_BOOT_PARTITION; idx++) {
 				part_size = ext_csd[EXT_CSD_BOOT_MULT] << 17;
@@ -358,6 +362,7 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 					MMC_BLK_DATA_AREA_BOOT);
 			}
 		}
+	      #endif
 	}
 
 	card->ext_csd.raw_hc_erase_gap_size =
@@ -462,24 +467,6 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		 */
 		card->ext_csd.boot_ro_lock = ext_csd[EXT_CSD_BOOT_WP];
 		card->ext_csd.boot_ro_lockable = true;
-
-		/* Save power class values */
-		card->ext_csd.raw_pwr_cl_52_195 =
-			ext_csd[EXT_CSD_PWR_CL_52_195];
-		card->ext_csd.raw_pwr_cl_26_195 =
-			ext_csd[EXT_CSD_PWR_CL_26_195];
-		card->ext_csd.raw_pwr_cl_52_360 =
-			ext_csd[EXT_CSD_PWR_CL_52_360];
-		card->ext_csd.raw_pwr_cl_26_360 =
-			ext_csd[EXT_CSD_PWR_CL_26_360];
-		card->ext_csd.raw_pwr_cl_200_195 =
-			ext_csd[EXT_CSD_PWR_CL_200_195];
-		card->ext_csd.raw_pwr_cl_200_360 =
-			ext_csd[EXT_CSD_PWR_CL_200_360];
-		card->ext_csd.raw_pwr_cl_ddr_52_195 =
-			ext_csd[EXT_CSD_PWR_CL_DDR_52_195];
-		card->ext_csd.raw_pwr_cl_ddr_52_360 =
-			ext_csd[EXT_CSD_PWR_CL_DDR_52_360];
 	}
 
 	if (card->ext_csd.rev >= 5) {
@@ -630,23 +617,7 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 		(card->ext_csd.raw_sectors[2] ==
 			bw_ext_csd[EXT_CSD_SEC_CNT + 2]) &&
 		(card->ext_csd.raw_sectors[3] ==
-			bw_ext_csd[EXT_CSD_SEC_CNT + 3]) &&
-		(card->ext_csd.raw_pwr_cl_52_195 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_52_195]) &&
-		(card->ext_csd.raw_pwr_cl_26_195 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_26_195]) &&
-		(card->ext_csd.raw_pwr_cl_52_360 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_52_360]) &&
-		(card->ext_csd.raw_pwr_cl_26_360 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_26_360]) &&
-		(card->ext_csd.raw_pwr_cl_200_195 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_200_195]) &&
-		(card->ext_csd.raw_pwr_cl_200_360 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_200_360]) &&
-		(card->ext_csd.raw_pwr_cl_ddr_52_195 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_DDR_52_195]) &&
-		(card->ext_csd.raw_pwr_cl_ddr_52_360 ==
-			bw_ext_csd[EXT_CSD_PWR_CL_DDR_52_360]));
+			bw_ext_csd[EXT_CSD_SEC_CNT + 3]));
 	if (err)
 		err = -EINVAL;
 

@@ -31,7 +31,7 @@ extern u32 mmc_debug_level;
 #define MMC_DBG_WARN_FUNC(fmt, arg...) \
         if(mmc_debug_level >= MMC_DBG_WARN){ printk(DRIVER_PREFIX "WARNING " fmt "\n", ##arg);}        
 #define MMC_DBG_INFO_FUNC(fmt, arg...) \
-        if(mmc_debug_level >= MMC_DBG_INFO){ printk(DRIVER_PREFIX fmt "\n", ##arg);}          
+        if(mmc_debug_level >= MMC_DBG_INFO){ printk(DRIVER_PREFIX "INFO " fmt "\n", ##arg);}          
 #define MMC_DBG_CMD_FUNC(fmt, arg...) \
         if(mmc_debug_level >= MMC_DBG_CMD){ printk(DRIVER_PREFIX "CMD " fmt "\n", ##arg);}
     

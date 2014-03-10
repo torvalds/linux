@@ -6,9 +6,10 @@ u32 mmc_debug_level;
 
 static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
 {
-    mmc_debug_level = MMC_DBG_ALL;//set the value refer to file rk_sdmmc_of.h
+    mmc_debug_level = MMC_DBG_ERROR;//MMC_DBG_ALL;//set the value refer to file rk_sdmmc_of.h
     
-    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info start== 2014-03-05 16:08 ======");
+    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info start== 2014-03-10 11:59 ======");
+ /*   
     MMC_DBG_BOOT_FUNC("mmc,caps: 0x%x",rk_mmc_property->mmc_caps);
     MMC_DBG_BOOT_FUNC("mmc,ocr:  0x%x",rk_mmc_property->mmc_ocr);
     MMC_DBG_BOOT_FUNC("mmc,int:  0x%x",rk_mmc_property->mmc_int_type);
@@ -17,6 +18,7 @@ static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
                                                    rk_mmc_property->mmc_dma_is_used[1]);
     MMC_DBG_BOOT_FUNC("mmc,dma_ch: %d",rk_mmc_property->mmc_dma_chn);
     MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info end================");
+  */  
 }
 
 
