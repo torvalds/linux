@@ -139,6 +139,39 @@ int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
 }
 EXPORT_SYMBOL(mmc_gpio_request_ro);
 
+static void mmc_gpiod_request_cd_irq(struct mmc_host *host)
+{
+	struct mmc_gpio *ctx = host->slot.handler_priv;
+	int ret, irq;
+
+	if (host->slot.cd_irq >= 0 || !ctx || !ctx->cd_gpio)
+		return;
+
+	irq = gpiod_to_irq(ctx->cd_gpio);
+
+	/*
+	 * Even if gpiod_to_irq() returns a valid IRQ number, the platform might
+	 * still prefer to poll, e.g., because that IRQ number is already used
+	 * by another unit and cannot be shared.
+	 */
+	if (irq >= 0 && host->caps & MMC_CAP_NEEDS_POLL)
+		irq = -EINVAL;
+
+	if (irq >= 0) {
+		ret = devm_request_threaded_irq(&host->class_dev, irq,
+			NULL, mmc_gpio_cd_irqt,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			ctx->cd_label, host);
+		if (ret < 0)
+			irq = ret;
+	}
+
+	host->slot.cd_irq = irq;
+
+	if (irq < 0)
+		host->caps |= MMC_CAP_NEEDS_POLL;
+}
+
 /**
  * mmc_gpio_request_cd - request a gpio for card-detection
  * @host: mmc host
@@ -162,7 +195,6 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 			unsigned int debounce)
 {
 	struct mmc_gpio *ctx;
-	int irq = gpio_to_irq(gpio);
 	int ret;
 
 	ret = mmc_gpio_alloc(host);
@@ -187,30 +219,10 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 			return ret;
 	}
 
-	/*
-	 * Even if gpio_to_irq() returns a valid IRQ number, the platform might
-	 * still prefer to poll, e.g., because that IRQ number is already used
-	 * by another unit and cannot be shared.
-	 */
-	if (irq >= 0 && host->caps & MMC_CAP_NEEDS_POLL)
-		irq = -EINVAL;
-
-	if (irq >= 0) {
-		ret = devm_request_threaded_irq(&host->class_dev, irq,
-			NULL, mmc_gpio_cd_irqt,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			ctx->cd_label, host);
-		if (ret < 0)
-			irq = ret;
-	}
-
-	host->slot.cd_irq = irq;
-
-	if (irq < 0)
-		host->caps |= MMC_CAP_NEEDS_POLL;
-
 	ctx->override_cd_active_level = true;
 	ctx->cd_gpio = gpio_to_desc(gpio);
+
+	mmc_gpiod_request_cd_irq(host);
 
 	return 0;
 }
