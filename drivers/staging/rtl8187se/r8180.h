@@ -289,11 +289,11 @@ enum _ReasonCode {
 	dest_not_QSTA = 0x32, /* 50 */
 };
 
-typedef enum _RT_PS_MODE {
-	eActive, /* Active/Continuous access. */
-	eMaxPs,	/* Max power save mode. */
-	eFastPs /* Fast power save mode. */
-} RT_PS_MODE;
+enum rt_ps_mode {
+	ACTIVE, /* Active/Continuous access. */
+	MAX_PS,	/* Max power save mode. */
+	FAST_PS /* Fast power save mode. */
+};
 
 /* by amy for power save. */
 struct r8180_priv {
@@ -462,7 +462,7 @@ struct r8180_priv {
 	bool SetRFPowerStateInProgress;
 	u8 RFProgType;
 	bool bLeisurePs;
-	RT_PS_MODE dot11PowerSaveMode;
+	enum rt_ps_mode dot11PowerSaveMode;
 	/* u32 NumRxOkInPeriod;*/ /* YJ,del,080828 */
 	/* u32 NumTxOkInPeriod;*/ /* YJ,del,080828 */
 	u8 TxPollingTimes;

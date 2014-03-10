@@ -2444,7 +2444,7 @@ static short rtl8180_init(struct net_device *dev)
 	priv->led_strategy = SW_LED_MODE0;
 	priv->TxPollingTimes = 0; /* lzm add 080826 */
 	priv->bLeisurePs = true;
-	priv->dot11PowerSaveMode = eActive;
+	priv->dot11PowerSaveMode = ACTIVE;
 	priv->AdMinCheckPeriod = 5;
 	priv->AdMaxCheckPeriod = 10;
 	priv->AdMaxRxSsThreshold = 30;	/* 60->30 */
@@ -2869,7 +2869,7 @@ static struct net_device_stats *rtl8180_stats(struct net_device *dev)
  * Change current and default preamble mode.
  */
 static bool MgntActSet_802_11_PowerSaveMode(struct r8180_priv *priv,
-				     RT_PS_MODE rtPsMode)
+				     enum rt_ps_mode rtPsMode)
 {
 	/* Currently, we do not change power save mode on IBSS mode. */
 	if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
