@@ -71,9 +71,11 @@
 #define ACPIBASE_GPE_END	0x2f
 #define ACPIBASE_SMI_OFF	0x30
 #define ACPIBASE_SMI_END	0x33
+#define ACPIBASE_PMC_OFF	0x08
+#define ACPIBASE_PMC_END	0x0c
 #define ACPIBASE_TCO_OFF	0x60
 #define ACPIBASE_TCO_END	0x7f
-#define ACPICTRL		0x44
+#define ACPICTRL_PMCBASE	0x44
 
 #define ACPIBASE_GCS_OFF	0x3410
 #define ACPIBASE_GCS_END	0x3414
@@ -93,11 +95,12 @@ struct lpc_ich_priv {
 	int chipset;
 
 	int abase;		/* ACPI base */
-	int actrl;		/* ACPI control or PMC base */
+	int actrl_pbase;	/* ACPI control or PMC base */
 	int gbase;		/* GPIO base */
 	int gctrl;		/* GPIO control */
 
-	int actrl_save;		/* Cached ACPI control base value */
+	int abase_save;		/* Cached ACPI base value */
+	int actrl_pbase_save;		/* Cached ACPI control or PMC base value */
 	int gctrl_save;		/* Cached GPIO control value */
 };
 
@@ -110,7 +113,7 @@ static struct resource wdt_ich_res[] = {
 	{
 		.flags = IORESOURCE_IO,
 	},
-	/* GCS */
+	/* GCS or PMC */
 	{
 		.flags = IORESOURCE_MEM,
 	},
@@ -742,9 +745,15 @@ static void lpc_ich_restore_config_space(struct pci_dev *dev)
 {
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 
-	if (priv->actrl_save >= 0) {
-		pci_write_config_byte(dev, priv->actrl, priv->actrl_save);
-		priv->actrl_save = -1;
+	if (priv->abase_save >= 0) {
+		pci_write_config_byte(dev, priv->abase, priv->abase_save);
+		priv->abase_save = -1;
+	}
+
+	if (priv->actrl_pbase_save >= 0) {
+		pci_write_config_byte(dev, priv->actrl_pbase,
+			priv->actrl_pbase_save);
+		priv->actrl_pbase_save = -1;
 	}
 
 	if (priv->gctrl_save >= 0) {
@@ -758,9 +767,26 @@ static void lpc_ich_enable_acpi_space(struct pci_dev *dev)
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 	u8 reg_save;
 
-	pci_read_config_byte(dev, priv->actrl, &reg_save);
-	pci_write_config_byte(dev, priv->actrl, reg_save | 0x80);
-	priv->actrl_save = reg_save;
+	switch (lpc_chipset_info[priv->chipset].iTCO_version) {
+	case 3:
+		/*
+		 * Some chipsets (eg Avoton) enable the ACPI space in the
+		 * ACPI BASE register.
+		 */
+		pci_read_config_byte(dev, priv->abase, &reg_save);
+		pci_write_config_byte(dev, priv->abase, reg_save | 0x2);
+		priv->abase_save = reg_save;
+		break;
+	default:
+		/*
+		 * Most chipsets enable the ACPI space in the ACPI control
+		 * register.
+		 */
+		pci_read_config_byte(dev, priv->actrl_pbase, &reg_save);
+		pci_write_config_byte(dev, priv->actrl_pbase, reg_save | 0x80);
+		priv->actrl_pbase_save = reg_save;
+		break;
+	}
 }
 
 static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
@@ -771,6 +797,17 @@ static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
 	pci_read_config_byte(dev, priv->gctrl, &reg_save);
 	pci_write_config_byte(dev, priv->gctrl, reg_save | 0x10);
 	priv->gctrl_save = reg_save;
+}
+
+static void lpc_ich_enable_pmc_space(struct pci_dev *dev)
+{
+	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
+	u8 reg_save;
+
+	pci_read_config_byte(dev, priv->actrl_pbase, &reg_save);
+	pci_write_config_byte(dev, priv->actrl_pbase, reg_save | 0x2);
+
+	priv->actrl_pbase_save = reg_save;
 }
 
 static void lpc_ich_finalize_cell(struct pci_dev *dev, struct mfd_cell *cell)
@@ -910,14 +947,20 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	lpc_ich_enable_acpi_space(dev);
 
 	/*
+	 * iTCO v2:
 	 * Get the Memory-Mapped GCS register. To get access to it
 	 * we have to read RCBA from PCI Config space 0xf0 and use
 	 * it as base. GCS = RCBA + ICH6_GCS(0x3410).
+	 *
+	 * iTCO v3:
+	 * Get the Power Management Configuration register.  To get access
+	 * to it we have to read the PMC BASE from config space and address
+	 * the register at offset 0x8.
 	 */
 	if (lpc_chipset_info[priv->chipset].iTCO_version == 1) {
 		/* Don't register iomem for TCO ver 1 */
 		lpc_ich_cells[LPC_WDT].num_resources--;
-	} else {
+	} else if (lpc_chipset_info[priv->chipset].iTCO_version == 2) {
 		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
 		base_addr = base_addr_cfg & 0xffffc000;
 		if (!(base_addr_cfg & 1)) {
@@ -926,9 +969,17 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 			ret = -ENODEV;
 			goto wdt_done;
 		}
-		res = wdt_mem_res(ICH_RES_MEM_GCS);
+		res = wdt_mem_res(ICH_RES_MEM_GCS_PMC);
 		res->start = base_addr + ACPIBASE_GCS_OFF;
 		res->end = base_addr + ACPIBASE_GCS_END;
+	} else if (lpc_chipset_info[priv->chipset].iTCO_version == 3) {
+		lpc_ich_enable_pmc_space(dev);
+		pci_read_config_dword(dev, ACPICTRL_PMCBASE, &base_addr_cfg);
+		base_addr = base_addr_cfg & 0xfffffe00;
+
+		res = wdt_mem_res(ICH_RES_MEM_GCS_PMC);
+		res->start = base_addr + ACPIBASE_PMC_OFF;
+		res->end = base_addr + ACPIBASE_PMC_END;
 	}
 
 	lpc_ich_finalize_cell(dev, &lpc_ich_cells[LPC_WDT]);
@@ -953,9 +1004,11 @@ static int lpc_ich_probe(struct pci_dev *dev,
 
 	priv->chipset = id->driver_data;
 
-	priv->actrl_save = -1;
+	priv->actrl_pbase_save = -1;
+	priv->abase_save = -1;
+
 	priv->abase = ACPIBASE;
-	priv->actrl = ACPICTRL;
+	priv->actrl_pbase = ACPICTRL_PMCBASE;
 
 	priv->gctrl_save = -1;
 	if (priv->chipset <= LPC_ICH5) {
