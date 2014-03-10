@@ -1714,10 +1714,10 @@ struct v4l2_pix_format_mplane {
 } __attribute__ ((packed));
 
 /**
- * struct v4l2_format_sdr - SDR format definition
+ * struct v4l2_sdr_format - SDR format definition
  * @pixelformat:	little endian four character code (fourcc)
  */
-struct v4l2_format_sdr {
+struct v4l2_sdr_format {
 	__u32				pixelformat;
 	__u8				reserved[28];
 } __attribute__ ((packed));
@@ -1740,7 +1740,7 @@ struct v4l2_format {
 		struct v4l2_window		win;     /* V4L2_BUF_TYPE_VIDEO_OVERLAY */
 		struct v4l2_vbi_format		vbi;     /* V4L2_BUF_TYPE_VBI_CAPTURE */
 		struct v4l2_sliced_vbi_format	sliced;  /* V4L2_BUF_TYPE_SLICED_VBI_CAPTURE */
-		struct v4l2_format_sdr		sdr;     /* V4L2_BUF_TYPE_SDR_CAPTURE */
+		struct v4l2_sdr_format		sdr;     /* V4L2_BUF_TYPE_SDR_CAPTURE */
 		__u8	raw_data[200];                   /* user-defined */
 	} fmt;
 };

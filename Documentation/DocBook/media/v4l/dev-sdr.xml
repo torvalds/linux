@@ -78,7 +78,7 @@ of the data format.
     </para>
 
     <table pgwide="1" frame="none" id="v4l2-format-sdr">
-      <title>struct <structname>v4l2_format_sdr</structname></title>
+      <title>struct <structname>v4l2_sdr_format</structname></title>
       <tgroup cols="3">
         &cs-str;
         <tbody valign="top">
