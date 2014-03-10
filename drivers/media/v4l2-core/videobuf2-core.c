@@ -1305,6 +1305,15 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 }
 
 /**
+ * __qbuf_mmap() - handle qbuf of an MMAP buffer
+ */
+static int __qbuf_mmap(struct vb2_buffer *vb, const struct v4l2_buffer *b)
+{
+	__fill_vb2_buffer(vb, b, vb->v4l2_planes);
+	return call_vb_qop(vb, buf_prepare, vb);
+}
+
+/**
  * __qbuf_userptr() - handle qbuf of a USERPTR buffer
  */
 static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
@@ -1405,15 +1414,6 @@ err:
 	}
 
 	return ret;
-}
-
-/**
- * __qbuf_mmap() - handle qbuf of an MMAP buffer
- */
-static int __qbuf_mmap(struct vb2_buffer *vb, const struct v4l2_buffer *b)
-{
-	__fill_vb2_buffer(vb, b, vb->v4l2_planes);
-	return call_vb_qop(vb, buf_prepare, vb);
 }
 
 /**
