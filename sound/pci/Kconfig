@@ -276,7 +276,7 @@ config SND_CS46XX_NEW_DSP
 
 config SND_CS5530
 	tristate "CS5530 Audio"
-	depends on ISA_DMA_API
+	depends on ISA_DMA_API && (X86_32 || COMPILE_TEST)
 	select SND_SB16_DSP
 	help
 	  Say Y here to include support for audio on Cyrix/NatSemi CS5530 chips.
@@ -286,6 +286,7 @@ config SND_CS5530
 
 config SND_CS5535AUDIO
 	tristate "CS5535/CS5536 Audio"
+	depends on X86_32 || COMPILE_TEST
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
