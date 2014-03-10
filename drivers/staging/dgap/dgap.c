@@ -7582,7 +7582,9 @@ static char *dgap_getword(char **in)
 	*in = ptr + 1;
 
 	/* Eat any extra spaces/tabs/newlines that might be present */
-	while (*in && **in && ((**in == ' ') || (**in == '\t') || (**in == '\n'))) {
+	while (*in && **in && ((**in == ' ') ||
+			       (**in == '\t') ||
+			       (**in == '\n'))) {
 		**in = '\0';
 		*in = *in + 1;
 	}
@@ -7765,7 +7767,8 @@ static struct cnode *dgap_find_config(int type, int bus, int slot)
 
 				found = p;
 				/*
-				 * Keep walking thru the list till we find the next board.
+				 * Keep walking thru the list till we
+				 * find the next board.
 				 */
 				while (p->next != NULL) {
 					prev2 = p;
@@ -7773,13 +7776,16 @@ static struct cnode *dgap_find_config(int type, int bus, int slot)
 					if (p->type == BNODE) {
 
 						/*
-						 * Mark the end of our 1 board chain of configs.
+						 * Mark the end of our 1 board
+						 * chain of configs.
 						 */
 						prev2->next = NULL;
 
 						/*
-						 * Link the "next" board to the previous board,
-						 * effectively "unlinking" our board from the main config.
+						 * Link the "next" board to the
+						 * previous board, effectively
+						 * "unlinking" our board from
+						 * the main config.
 						 */
 						prev->next = p;
 
@@ -7855,9 +7861,9 @@ static char *dgap_create_config_string(struct board_t *bd, char *string)
 		case CNODE:
 			/*
 			 * Because the EPC/con concentrators can have EM modules
-			 * hanging off of them, we have to walk ahead in the list
-			 * and keep adding the number of ports on each EM to the config.
-			 * UGH!
+			 * hanging off of them, we have to walk ahead in the
+			 * list and keep adding the number of ports on each EM
+			 * to the config. UGH!
 			 */
 			speed = p->u.conc.speed;
 			q = p->next;
@@ -7865,7 +7871,9 @@ static char *dgap_create_config_string(struct board_t *bd, char *string)
 				*ptr = (p->u.conc.nport + 0x80);
 				ptr++;
 				p = q;
-				while ((q->next != NULL) && (q->next->type) == MNODE) {
+				while ((q->next != NULL) &&
+				       (q->next->type) == MNODE) {
+
 					*ptr = (q->u.module.nport + 0x80);
 					ptr++;
 					p = q;
