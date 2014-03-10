@@ -77,8 +77,7 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 			return -EBUSY;
 		}
 		dgnc_mgmt_in_use[minor]++;
-	}
-	else {
+	} else {
 		DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 		return -ENXIO;
 	}
