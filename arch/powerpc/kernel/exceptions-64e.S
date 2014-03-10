@@ -55,7 +55,6 @@
 	mfspr	r13,SPRN_SPRG_PACA;	/* get PACA */			    \
 	std	r10,PACA_EX##type+EX_R10(r13);				    \
 	std	r11,PACA_EX##type+EX_R11(r13);				    \
-	PROLOG_STORE_RESTORE_SCRATCH_##type;				    \
 	mfcr	r10;			/* save CR */			    \
 	mfspr	r11,SPRN_##type##_SRR1;/* what are we coming from */	    \
 	DO_KVM	intnum,SPRN_##type##_SRR1;    /* KVM hook */		    \
@@ -115,20 +114,6 @@
 
 #define GDBELL_EXCEPTION_PROLOG(n, intnum, addition)			    \
 	EXCEPTION_PROLOG(n, intnum, GDBELL, addition##_GDBELL(n))
-
-/*
- * Store user-visible scratch in PACA exception slots and restore proper value
- */
-#define PROLOG_STORE_RESTORE_SCRATCH_GEN
-#define PROLOG_STORE_RESTORE_SCRATCH_GDBELL
-#define PROLOG_STORE_RESTORE_SCRATCH_DBG
-#define PROLOG_STORE_RESTORE_SCRATCH_MC
-
-#define PROLOG_STORE_RESTORE_SCRATCH_CRIT				    \
-	mfspr	r10,SPRN_SPRG_CRIT_SCRATCH;	/* get r13 */		    \
-	std	r10,PACA_EXCRIT+EX_R13(r13);				    \
-	ld	r11,PACA_SPRG3(r13);					    \
-	mtspr	SPRN_SPRG_CRIT_SCRATCH,r11;
 
 /* Variants of the "addition" argument for the prolog
  */
@@ -529,7 +514,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	mtcr	r10
 	ld	r10,PACA_EXCRIT+EX_R10(r13)	/* restore registers */
 	ld	r11,PACA_EXCRIT+EX_R11(r13)
-	ld	r13,PACA_EXCRIT+EX_R13(r13)
+	mfspr	r13,SPRN_SPRG_CRIT_SCRATCH
 	rfci
 
 	/* Normal debug exception */
@@ -542,7 +527,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	/* Now we mash up things to make it look like we are coming on a
 	 * normal exception
 	 */
-	ld	r15,PACA_EXCRIT+EX_R13(r13)
+	mfspr	r15,SPRN_SPRG_CRIT_SCRATCH
 	mtspr	SPRN_SPRG_GEN_SCRATCH,r15
 	mfspr	r14,SPRN_DBSR
 	EXCEPTION_COMMON(0xd00, PACA_EXCRIT, INTS_DISABLE)

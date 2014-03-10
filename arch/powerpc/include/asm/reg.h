@@ -577,9 +577,13 @@
 #define SPRN_SPRG3	0x113	/* Special Purpose Register General 3 */
 #define SPRN_USPRG3	0x103	/* SPRG3 userspace read */
 #define SPRN_SPRG4	0x114	/* Special Purpose Register General 4 */
+#define SPRN_USPRG4	0x104	/* SPRG4 userspace read */
 #define SPRN_SPRG5	0x115	/* Special Purpose Register General 5 */
+#define SPRN_USPRG5	0x105	/* SPRG5 userspace read */
 #define SPRN_SPRG6	0x116	/* Special Purpose Register General 6 */
+#define SPRN_USPRG6	0x106	/* SPRG6 userspace read */
 #define SPRN_SPRG7	0x117	/* Special Purpose Register General 7 */
+#define SPRN_USPRG7	0x107	/* SPRG7 userspace read */
 #define SPRN_SRR0	0x01A	/* Save/Restore Register 0 */
 #define SPRN_SRR1	0x01B	/* Save/Restore Register 1 */
 #define   SRR1_ISI_NOPT		0x40000000 /* ISI: Not found in hash */
@@ -879,11 +883,10 @@
  * 64-bit embedded
  *	- SPRG0 generic exception scratch
  *	- SPRG2 TLB exception stack
- *	- SPRG3 critical exception scratch and
- *        CPU and NUMA node for VDSO getcpu (user visible)
+ *	- SPRG3 critical exception scratch (user visible, sorry!)
  *	- SPRG4 unused (user visible)
  *	- SPRG6 TLB miss scratch (user visible, sorry !)
- *	- SPRG7 critical exception scratch
+ *	- SPRG7 CPU and NUMA node for VDSO getcpu (user visible)
  *	- SPRG8 machine check exception scratch
  *	- SPRG9 debug exception scratch
  *
@@ -940,6 +943,8 @@
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG2
 #define SPRN_SPRG_HPACA		SPRN_HSPRG0
 #define SPRN_SPRG_HSCRATCH0	SPRN_HSPRG1
+#define SPRN_SPRG_VDSO_READ	SPRN_USPRG3
+#define SPRN_SPRG_VDSO_WRITE	SPRN_SPRG3
 
 #define GET_PACA(rX)					\
 	BEGIN_FTR_SECTION_NESTED(66);			\
@@ -983,6 +988,8 @@
 #define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6
 #define SPRN_SPRG_GEN_SCRATCH	SPRN_SPRG0
 #define SPRN_SPRG_GDBELL_SCRATCH SPRN_SPRG_GEN_SCRATCH
+#define SPRN_SPRG_VDSO_READ	SPRN_USPRG7
+#define SPRN_SPRG_VDSO_WRITE	SPRN_SPRG7
 
 #define SET_PACA(rX)	mtspr	SPRN_SPRG_PACA,rX
 #define GET_PACA(rX)	mfspr	rX,SPRN_SPRG_PACA
