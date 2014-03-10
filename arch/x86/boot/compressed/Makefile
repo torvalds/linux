@@ -28,7 +28,9 @@ HOST_EXTRACFLAGS += -I$(srctree)/tools/include
 
 vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
 	$(obj)/string.o $(obj)/cmdline.o $(obj)/early_serial_console.o \
-	$(obj)/piggy.o $(obj)/cpuflags.o $(obj)/aslr.o
+	$(obj)/piggy.o $(obj)/cpuflags.o
+
+vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/aslr.o
 
 $(obj)/eboot.o: KBUILD_CFLAGS += -fshort-wchar -mno-red-zone
 
