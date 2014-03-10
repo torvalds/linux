@@ -45,7 +45,8 @@
  * @dev: drm device
  *
  * This function takes all modeset locks, suitable where a more fine-grained
- * scheme isn't (yet) implemented.
+ * scheme isn't (yet) implemented. Locks must be dropped with
+ * drm_modeset_unlock_all.
  */
 void drm_modeset_lock_all(struct drm_device *dev)
 {
@@ -61,6 +62,8 @@ EXPORT_SYMBOL(drm_modeset_lock_all);
 /**
  * drm_modeset_unlock_all - drop all modeset locks
  * @dev: device
+ *
+ * This function drop all modeset locks taken by drm_modeset_lock_all.
  */
 void drm_modeset_unlock_all(struct drm_device *dev)
 {
@@ -76,6 +79,8 @@ EXPORT_SYMBOL(drm_modeset_unlock_all);
 /**
  * drm_warn_on_modeset_not_all_locked - check that all modeset locks are locked
  * @dev: device
+ *
+ * Useful as a debug assert.
  */
 void drm_warn_on_modeset_not_all_locked(struct drm_device *dev)
 {
@@ -243,6 +248,15 @@ void drm_connector_ida_destroy(void)
 		ida_destroy(&drm_connector_enum_list[i].ida);
 }
 
+/**
+ * drm_get_encoder_name - return a string for encoder
+ * @encoder: encoder to compute name of
+ *
+ * Note that the buffer used by this function is globally shared and owned by
+ * the function itself.
+ *
+ * FIXME: This isn't really multithreading safe.
+ */
 const char *drm_get_encoder_name(const struct drm_encoder *encoder)
 {
 	static char buf[32];
@@ -254,6 +268,15 @@ const char *drm_get_encoder_name(const struct drm_encoder *encoder)
 }
 EXPORT_SYMBOL(drm_get_encoder_name);
 
+/**
+ * drm_get_connector_name - return a string for connector
+ * @connector: connector to compute name of
+ *
+ * Note that the buffer used by this function is globally shared and owned by
+ * the function itself.
+ *
+ * FIXME: This isn't really multithreading safe.
+ */
 const char *drm_get_connector_name(const struct drm_connector *connector)
 {
 	static char buf[32];
@@ -265,6 +288,13 @@ const char *drm_get_connector_name(const struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_get_connector_name);
 
+/**
+ * drm_get_connector_status_name - return a string for connector status
+ * @status: connector status to compute name of
+ *
+ * In contrast to the other drm_get_*_name functions this one here returns a
+ * const pointer and hence is threadsafe.
+ */
 const char *drm_get_connector_status_name(enum drm_connector_status status)
 {
 	if (status == connector_status_connected)
@@ -294,6 +324,15 @@ static char printable_char(int c)
 	return isascii(c) && isprint(c) ? c : '?';
 }
 
+/**
+ * drm_get_format_name - return a string for drm fourcc format
+ * @format: format to compute name of
+ *
+ * Note that the buffer used by this function is globally shared and owned by
+ * the function itself.
+ *
+ * FIXME: This isn't really multithreading safe.
+ */
 const char *drm_get_format_name(uint32_t format)
 {
 	static char buf[32];
@@ -318,9 +357,11 @@ EXPORT_SYMBOL(drm_get_format_name);
  * @obj_type: object type
  *
  * Create a unique identifier based on @ptr in @dev's identifier space.  Used
- * for tracking modes, CRTCs and connectors.
+ * for tracking modes, CRTCs and connectors. Note that despite the _get postfix
+ * modeset identifiers are _not_ reference counted. Hence don't use this for
+ * reference counted modeset objects like framebuffers.
  *
- * RETURNS:
+ * Returns:
  * New unique (relative to other objects in @dev) integer identifier for the
  * object.
  */
@@ -349,7 +390,9 @@ int drm_mode_object_get(struct drm_device *dev,
  * @dev: DRM device
  * @object: object to free
  *
- * Free @id from @dev's unique identifier pool.
+ * Free @id from @dev's unique identifier pool. Note that despite the _get
+ * postfix modeset identifiers are _not_ reference counted. Hence don't use this
+ * for reference counted modeset objects like framebuffers.
  */
 void drm_mode_object_put(struct drm_device *dev,
 			 struct drm_mode_object *object)
@@ -402,7 +445,7 @@ EXPORT_SYMBOL(drm_mode_object_find);
  * since all the fb attributes are invariant over its lifetime, no further
  * locking but only correct reference counting is required.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, error code on failure.
  */
 int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
@@ -463,7 +506,7 @@ static struct drm_framebuffer *__drm_framebuffer_lookup(struct drm_device *dev,
  *
  * If successful, this grabs an additional reference to the framebuffer -
  * callers need to make sure to eventually unreference the returned framebuffer
- * again.
+ * again, using @drm_framebuffer_unreference.
  */
 struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 					       uint32_t id)
@@ -496,6 +539,8 @@ EXPORT_SYMBOL(drm_framebuffer_unreference);
 /**
  * drm_framebuffer_reference - incr the fb refcnt
  * @fb: framebuffer
+ *
+ * This functions increments the fb's refcount.
  */
 void drm_framebuffer_reference(struct drm_framebuffer *fb)
 {
@@ -552,8 +597,9 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  * drm_framebuffer_cleanup - remove a framebuffer object
  * @fb: framebuffer to remove
  *
- * Cleanup references to a user-created framebuffer. This function is intended
- * to be used from the drivers ->destroy callback.
+ * Cleanup framebuffer. This function is intended to be used from the drivers
+ * ->destroy callback. It can also be used to clean up driver private
+ *  framebuffers embedded into a larger structure.
  *
  * Note that this function does not remove the fb from active usuage - if it is
  * still used anywhere, hilarity can ensue since userspace could call getfb on
@@ -646,7 +692,7 @@ EXPORT_SYMBOL(drm_framebuffer_remove);
  *
  * Inits a new object created as base part of a driver crtc object.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, error code on failure.
  */
 int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
@@ -746,7 +792,7 @@ static void drm_mode_remove(struct drm_connector *connector,
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, error code on failure.
  */
 int drm_connector_init(struct drm_device *dev,
@@ -824,6 +870,14 @@ void drm_connector_cleanup(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
 
+/**
+ * drm_connector_unplug_all - unregister connector userspace interfaces
+ * @dev: drm device
+ *
+ * This function unregisters all connector userspace interfaces in sysfs. Should
+ * be call when the device is disconnected, e.g. from an usb driver's
+ * ->disconnect callback.
+ */
 void drm_connector_unplug_all(struct drm_device *dev)
 {
 	struct drm_connector *connector;
@@ -835,6 +889,18 @@ void drm_connector_unplug_all(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_connector_unplug_all);
 
+/**
+ * drm_bridge_init - initialize a drm transcoder/bridge
+ * @dev: drm device
+ * @bridge: transcoder/bridge to set up
+ * @funcs: bridge function table
+ *
+ * Initialises a preallocated bridge. Bridges should be
+ * subclassed as part of driver connector objects.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
 int drm_bridge_init(struct drm_device *dev, struct drm_bridge *bridge,
 		const struct drm_bridge_funcs *funcs)
 {
@@ -858,6 +924,12 @@ int drm_bridge_init(struct drm_device *dev, struct drm_bridge *bridge,
 }
 EXPORT_SYMBOL(drm_bridge_init);
 
+/**
+ * drm_bridge_cleanup - cleans up an initialised bridge
+ * @bridge: bridge to cleanup
+ *
+ * Cleans up the bridge but doesn't free the object.
+ */
 void drm_bridge_cleanup(struct drm_bridge *bridge)
 {
 	struct drm_device *dev = bridge->dev;
@@ -870,6 +942,19 @@ void drm_bridge_cleanup(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_cleanup);
 
+/**
+ * drm_encoder_init - Init a preallocated encoder
+ * @dev: drm device
+ * @encoder: the encoder to init
+ * @funcs: callbacks for this encoder
+ * @encoder_type: user visible type of the encoder
+ *
+ * Initialises a preallocated encoder. Encoder should be
+ * subclassed as part of driver encoder objects.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
 int drm_encoder_init(struct drm_device *dev,
 		      struct drm_encoder *encoder,
 		      const struct drm_encoder_funcs *funcs,
@@ -897,6 +982,12 @@ int drm_encoder_init(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_encoder_init);
 
+/**
+ * drm_encoder_cleanup - cleans up an initialised encoder
+ * @encoder: encoder to cleanup
+ *
+ * Cleans up the encoder but doesn't free the object.
+ */
 void drm_encoder_cleanup(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
@@ -918,9 +1009,10 @@ EXPORT_SYMBOL(drm_encoder_cleanup);
  * @format_count: number of elements in @formats
  * @priv: plane is private (hidden from userspace)?
  *
- * Inits a new object created as base part of a driver plane object.
+ * Inits a preallocate plane object created as base part of a driver plane
+ * object.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, error code on failure.
  */
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
@@ -1224,6 +1316,10 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	return 0;
 }
 
+/*
+ * NOTE: Driver's shouldn't ever call drm_mode_group_init_legacy_group - it is
+ * the drm core's responsibility to set up mode control groups.
+ */
 int drm_mode_group_init_legacy_group(struct drm_device *dev,
 				     struct drm_mode_group *group)
 {
@@ -1300,7 +1396,7 @@ static void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
  * Convert a drm_mode_modeinfo into a drm_display_mode structure to return to
  * the caller.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 static int drm_crtc_convert_umode(struct drm_display_mode *out,
@@ -1343,7 +1439,7 @@ static int drm_crtc_convert_umode(struct drm_display_mode *out,
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_getresources(struct drm_device *dev, void *data,
@@ -1528,7 +1624,7 @@ out:
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_getcrtc(struct drm_device *dev,
@@ -1597,7 +1693,7 @@ static bool drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_getconnector(struct drm_device *dev, void *data,
@@ -1732,6 +1828,19 @@ out:
 	return ret;
 }
 
+/**
+ * drm_mode_getencoder - get encoder configuration
+ * @dev: drm device for the ioctl
+ * @data: data pointer for the ioctl
+ * @file_priv: drm file for the ioctl call
+ *
+ * Construct a encoder configuration structure to return to the user.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_getencoder(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
@@ -1767,15 +1876,20 @@ out:
 }
 
 /**
- * drm_mode_getplane_res - get plane info
+ * drm_mode_getplane_res - enumerate all plane resources
  * @dev: DRM device
  * @data: ioctl data
  * @file_priv: DRM file info
  *
- * Return an plane count and set of IDs.
+ * Construct a list of plane ids to return to the user.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
  */
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv)
+			  struct drm_file *file_priv)
 {
 	struct drm_mode_get_plane_res *plane_resp = data;
 	struct drm_mode_config *config;
@@ -1813,16 +1927,20 @@ out:
 }
 
 /**
- * drm_mode_getplane - get plane info
+ * drm_mode_getplane - get plane configuration
  * @dev: DRM device
  * @data: ioctl data
  * @file_priv: DRM file info
  *
- * Return plane info, including formats supported, gamma size, any
- * current fb, etc.
+ * Construct a plane configuration structure to return to the user.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
  */
 int drm_mode_getplane(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
+		      struct drm_file *file_priv)
 {
 	struct drm_mode_get_plane *plane_resp = data;
 	struct drm_mode_object *obj;
@@ -1878,16 +1996,19 @@ out:
 }
 
 /**
- * drm_mode_setplane - set up or tear down an plane
+ * drm_mode_setplane - configure a plane's configuration
  * @dev: DRM device
  * @data: ioctl data*
  * @file_priv: DRM file info
  *
- * Set plane info, including placement, fb, scaling, and other factors.
+ * Set plane configuration, including placement, fb, scaling, and other factors.
  * Or pass a NULL fb to disable.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
  */
 int drm_mode_setplane(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
+		      struct drm_file *file_priv)
 {
 	struct drm_mode_set_plane *plane_req = data;
 	struct drm_mode_object *obj;
@@ -2017,6 +2138,9 @@ out:
  *
  * This is a little helper to wrap internal calls to the ->set_config driver
  * interface. The only thing it adds is correct refcounting dance.
+ * 
+ * Returns:
+ * Zero on success, errno on failure.
  */
 int drm_mode_set_config_internal(struct drm_mode_set *set)
 {
@@ -2101,7 +2225,7 @@ static int drm_crtc_check_viewport(const struct drm_crtc *crtc,
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_setcrtc(struct drm_device *dev, void *data,
@@ -2303,8 +2427,23 @@ out:
 	return ret;
 
 }
+
+
+/**
+ * drm_mode_cursor_ioctl - set CRTC's cursor configuration
+ * @dev: drm device for the ioctl
+ * @data: data pointer for the ioctl
+ * @file_priv: drm file for the ioctl call
+ *
+ * Set the cursor configuration based on user request.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_cursor_ioctl(struct drm_device *dev,
-			void *data, struct drm_file *file_priv)
+			  void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_cursor *req = data;
 	struct drm_mode_cursor2 new_req;
@@ -2315,6 +2454,21 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	return drm_mode_cursor_common(dev, &new_req, file_priv);
 }
 
+/**
+ * drm_mode_cursor2_ioctl - set CRTC's cursor configuration
+ * @dev: drm device for the ioctl
+ * @data: data pointer for the ioctl
+ * @file_priv: drm file for the ioctl call
+ *
+ * Set the cursor configuration based on user request. This implements the 2nd
+ * version of the cursor ioctl, which allows userspace to additionally specify
+ * the hotspot of the pointer.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_cursor2_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
 {
@@ -2322,7 +2476,14 @@ int drm_mode_cursor2_ioctl(struct drm_device *dev,
 	return drm_mode_cursor_common(dev, req, file_priv);
 }
 
-/* Original addfb only supported RGB formats, so figure out which one */
+/**
+ * drm_mode_legacy_fb_format - compute drm fourcc code from legacy description
+ * @bpp: bits per pixels
+ * @depth: bit depth per pixel
+ *
+ * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
+ * Useful in fbdev emulation code, since that deals in those values.
+ */
 uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
 {
 	uint32_t fmt;
@@ -2364,11 +2525,12 @@ EXPORT_SYMBOL(drm_mode_legacy_fb_format);
  * @data: data pointer for the ioctl
  * @file_priv: drm file for the ioctl call
  *
- * Add a new FB to the specified CRTC, given a user request.
+ * Add a new FB to the specified CRTC, given a user request. This is the
+ * original addfb ioclt which only supported RGB formats.
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_addfb(struct drm_device *dev,
@@ -2541,11 +2703,13 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
  * @data: data pointer for the ioctl
  * @file_priv: drm file for the ioctl call
  *
- * Add a new FB to the specified CRTC, given a user request with format.
+ * Add a new FB to the specified CRTC, given a user request with format. This is
+ * the 2nd version of the addfb ioctl, which supports multi-planar framebuffers
+ * and uses fourcc codes as pixel format specifiers.
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_addfb2(struct drm_device *dev,
@@ -2605,7 +2769,7 @@ int drm_mode_addfb2(struct drm_device *dev,
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_rmfb(struct drm_device *dev,
@@ -2659,7 +2823,7 @@ fail_lookup:
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 int drm_mode_getfb(struct drm_device *dev,
@@ -2703,6 +2867,25 @@ int drm_mode_getfb(struct drm_device *dev,
 	return ret;
 }
 
+/**
+ * drm_mode_dirtyfb_ioctl - flush frontbuffer rendering on an FB
+ * @dev: drm device for the ioctl
+ * @data: data pointer for the ioctl
+ * @file_priv: drm file for the ioctl call
+ *
+ * Lookup the FB and flush out the damaged area supplied by userspace as a clip
+ * rectangle list. Generic userspace which does frontbuffer rendering must call
+ * this ioctl to flush out the changes on manual-update display outputs, e.g.
+ * usb display-link, mipi manual update panels or edp panel self refresh modes.
+ *
+ * Modesetting drivers which always update the frontbuffer do not need to
+ * implement the corresponding ->dirty framebuffer callback.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
 {
@@ -2780,7 +2963,7 @@ out_err1:
  *
  * Called by the user via ioctl.
  *
- * RETURNS:
+ * Returns:
  * Zero on success, errno on failure.
  */
 void drm_fb_release(struct drm_file *priv)
@@ -2804,6 +2987,20 @@ void drm_fb_release(struct drm_file *priv)
 	mutex_unlock(&priv->fbs_lock);
 }
 
+/**
+ * drm_property_create - create a new property type
+ * @dev: drm device
+ * @flags: flags specifying the property type
+ * @name: name of the property
+ * @num_values: number of pre-defined values
+ *
+ * This creates a new generic drm property which can then be attached to a drm
+ * object with drm_object_attach_property. The returned property object must be
+ * freed with drm_property_destroy.
+ *
+ * Returns:
+ * A pointer to the newly created property on success, NULL on failure.
+ */
 struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 					 const char *name, int num_values)
 {
@@ -2842,6 +3039,24 @@ fail:
 }
 EXPORT_SYMBOL(drm_property_create);
 
+/**
+ * drm_property_create - create a new enumeration property type
+ * @dev: drm device
+ * @flags: flags specifying the property type
+ * @name: name of the property
+ * @props: enumeration lists with property values
+ * @num_values: number of pre-defined values
+ *
+ * This creates a new generic drm property which can then be attached to a drm
+ * object with drm_object_attach_property. The returned property object must be
+ * freed with drm_property_destroy.
+ *
+ * Userspace is only allowed to set one of the predefined values for enumeration
+ * properties.
+ *
+ * Returns:
+ * A pointer to the newly created property on success, NULL on failure.
+ */
 struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
 					 const char *name,
 					 const struct drm_prop_enum_list *props,
@@ -2870,6 +3085,24 @@ struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
 }
 EXPORT_SYMBOL(drm_property_create_enum);
 
+/**
+ * drm_property_create - create a new bitmask property type
+ * @dev: drm device
+ * @flags: flags specifying the property type
+ * @name: name of the property
+ * @props: enumeration lists with property bitflags
+ * @num_values: number of pre-defined values
+ *
+ * This creates a new generic drm property which can then be attached to a drm
+ * object with drm_object_attach_property. The returned property object must be
+ * freed with drm_property_destroy.
+ *
+ * Compared to plain enumeration properties userspace is allowed to set any
+ * or'ed together combination of the predefined property bitflag values
+ *
+ * Returns:
+ * A pointer to the newly created property on success, NULL on failure.
+ */
 struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
 					 int flags, const char *name,
 					 const struct drm_prop_enum_list *props,
@@ -2898,6 +3131,24 @@ struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_property_create_bitmask);
 
+/**
+ * drm_property_create - create a new ranged property type
+ * @dev: drm device
+ * @flags: flags specifying the property type
+ * @name: name of the property
+ * @min: minimum value of the property
+ * @max: maximum value of the property
+ *
+ * This creates a new generic drm property which can then be attached to a drm
+ * object with drm_object_attach_property. The returned property object must be
+ * freed with drm_property_destroy.
+ *
+ * Userspace is allowed to set any interger value in the (min, max) range
+ * inclusive.
+ *
+ * Returns:
+ * A pointer to the newly created property on success, NULL on failure.
+ */
 struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
 					 const char *name,
 					 uint64_t min, uint64_t max)
@@ -2917,6 +3168,21 @@ struct drm_property *drm_property_create_range(struct drm_device *dev, int flags
 }
 EXPORT_SYMBOL(drm_property_create_range);
 
+/**
+ * drm_property_add_enum - add a possible value to an enumeration property
+ * @property: enumeration property to change
+ * @index: index of the new enumeration
+ * @value: value of the new enumeration
+ * @name: symbolic name of the new enumeration
+ *
+ * This functions adds enumerations to a property.
+ *
+ * It's use is deprecated, drivers should use one of the more specific helpers
+ * to directly create the property with all enumerations already attached.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
 int drm_property_add_enum(struct drm_property *property, int index,
 			  uint64_t value, const char *name)
 {
@@ -2956,6 +3222,14 @@ int drm_property_add_enum(struct drm_property *property, int index,
 }
 EXPORT_SYMBOL(drm_property_add_enum);
 
+/**
+ * drm_property_destroy - destroy a drm property
+ * @dev: drm device
+ * @property: property to destry
+ *
+ * This function frees a property including any attached resources like
+ * enumeration values.
+ */
 void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 {
 	struct drm_property_enum *prop_enum, *pt;
@@ -2973,6 +3247,16 @@ void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 }
 EXPORT_SYMBOL(drm_property_destroy);
 
+/**
+ * drm_object_attach_property - attach a property to a modeset object
+ * @obj: drm modeset object
+ * @property: property to attach
+ * @init_val: initial value of the property
+ *
+ * This attaches the given property to the modeset object with the given initial
+ * value. Currently this function cannot fail since the properties are stored in
+ * a statically sized array.
+ */
 void drm_object_attach_property(struct drm_mode_object *obj,
 				struct drm_property *property,
 				uint64_t init_val)
@@ -2993,6 +3277,19 @@ void drm_object_attach_property(struct drm_mode_object *obj,
 }
 EXPORT_SYMBOL(drm_object_attach_property);
 
+/**
+ * drm_object_property_set_value - set the value of a property
+ * @obj: drm mode object to set property value for
+ * @property: property to set
+ * @val: value the property should be set to
+ *
+ * This functions sets a given property on a given object. This function only
+ * changes the software state of the property, it does not call into the
+ * driver's ->set_property callback.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
 int drm_object_property_set_value(struct drm_mode_object *obj,
 				  struct drm_property *property, uint64_t val)
 {
@@ -3009,6 +3306,20 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 }
 EXPORT_SYMBOL(drm_object_property_set_value);
 
+/**
+ * drm_object_property_get_value - retrieve the value of a property
+ * @obj: drm mode object to get property value from
+ * @property: property to retrieve
+ * @val: storage for the property value
+ *
+ * This function retrieves the softare state of the given property for the given
+ * property. Since there is no driver callback to retrieve the current property
+ * value this might be out of sync with the hardware, depending upon the driver
+ * and property.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
 int drm_object_property_get_value(struct drm_mode_object *obj,
 				  struct drm_property *property, uint64_t *val)
 {
@@ -3025,6 +3336,19 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 }
 EXPORT_SYMBOL(drm_object_property_get_value);
 
+/**
+ * drm_mode_getproperty_ioctl - get the current value of a connector's property
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This function retrieves the current value for an connectors's property.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_getproperty_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv)
 {
@@ -3163,6 +3487,20 @@ static void drm_property_destroy_blob(struct drm_device *dev,
 	kfree(blob);
 }
 
+/**
+ * drm_mode_getblob_ioctl - get the contents of a blob property value
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This function retrieves the contents of a blob property. The value stored in
+ * an object's blob property is just a normal modeset object id.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_getblob_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
 {
@@ -3197,6 +3535,17 @@ done:
 	return ret;
 }
 
+/**
+ * drm_mode_connector_update_edid_property - update the edid property of a connector
+ * @connector: drm connector
+ * @edid: new value of the edid property
+ *
+ * This function creates a new blob modeset object and assigns its id to the
+ * connector's edid property.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    struct edid *edid)
 {
@@ -3254,6 +3603,20 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 	}
 }
 
+/**
+ * drm_mode_connector_property_set_ioctl - set the current value of a connector property
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This function sets the current value for a connectors's property. It also
+ * calls into a driver's ->set_property callback to update the hardware state
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 				       void *data, struct drm_file *file_priv)
 {
@@ -3320,6 +3683,21 @@ static int drm_mode_plane_set_obj_prop(struct drm_mode_object *obj,
 	return ret;
 }
 
+/**
+ * drm_mode_getproperty_ioctl - get the current value of a object's property
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This function retrieves the current value for an object's property. Compared
+ * to the connector specific ioctl this one is extended to also work on crtc and
+ * plane objects.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv)
 {
@@ -3376,6 +3754,22 @@ out:
 	return ret;
 }
 
+/**
+ * drm_mode_obj_set_property_ioctl - set the current value of an object's property
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This function sets the current value for an object's property. It also calls
+ * into a driver's ->set_property callback to update the hardware state.
+ * Compared to the connector specific ioctl this one is extended to also work on
+ * crtc and plane objects.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv)
 {
@@ -3435,6 +3829,18 @@ out:
 	return ret;
 }
 
+/**
+ * drm_mode_connector_attach_encoder - attach a connector to an encoder
+ * @connector: connector to attach
+ * @encoder: encoder to attach @connector to
+ *
+ * This function links up a connector to an encoder. Note that the routing
+ * restrictions between encoders and crtcs are exposed to userspace through the
+ * possible_clones and possible_crtcs bitmasks.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 				      struct drm_encoder *encoder)
 {
@@ -3450,8 +3856,20 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_attach_encoder);
 
+/**
+ * drm_mode_crtc_set_gamma_size - set the gamma table size
+ * @crtc: CRTC to set the gamma table size for
+ * @gamma_size: size of the gamma table
+ *
+ * Drivers which support gamma tables should set this to the supported gamma
+ * table size when initializing the CRTC. Currently the drm core only supports a
+ * fixed gamma table size.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
-				  int gamma_size)
+				 int gamma_size)
 {
 	crtc->gamma_size = gamma_size;
 
@@ -3465,6 +3883,20 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drm_mode_crtc_set_gamma_size);
 
+/**
+ * drm_mode_gamma_set_ioctl - set the gamma table
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * Set the gamma table of a CRTC to the one passed in by the user. Userspace can
+ * inquire the required gamma table size through drm_mode_gamma_get_ioctl.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
@@ -3524,6 +3956,21 @@ out:
 
 }
 
+/**
+ * drm_mode_gamma_get_ioctl - get the gamma table
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * Copy the current gamma table into the storage provided. This also provides
+ * the gamma table size the driver expects, which can be used to size the
+ * allocated storage.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
@@ -3574,6 +4021,24 @@ out:
 	return ret;
 }
 
+/**
+ * drm_mode_page_flip_ioctl - schedule an asynchronous fb update
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This schedules an asynchronous update on a given CRTC, called page flip.
+ * Optionally a drm event is generated to signal the completion of the event.
+ * Generic drivers cannot assume that a pageflip with changed framebuffer
+ * properties (including driver specific metadata like tiling layout) will work,
+ * but some drivers support e.g. pixel format changes through the pageflip
+ * ioctl.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
@@ -3686,6 +4151,14 @@ out:
 	return ret;
 }
 
+/**
+ * drm_mode_config_reset - call ->reset callbacks
+ * @dev: drm device
+ *
+ * This functions calls all the crtc's, encoder's and connector's ->reset
+ * callback. Drivers can use this in e.g. their driver load or resume code to
+ * reset hardware and software state.
+ */
 void drm_mode_config_reset(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
@@ -3709,6 +4182,25 @@ void drm_mode_config_reset(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_mode_config_reset);
 
+/**
+ * drm_mode_create_dumb_ioctl - create a dumb backing storage buffer
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This creates a new dumb buffer in the driver's backing storage manager (GEM,
+ * TTM or something else entirely) and returns the resulting buffer handle. This
+ * handle can then be wrapped up into a framebuffer modeset object.
+ *
+ * Note that userspace is not allowed to use such objects for render
+ * acceleration - drivers must create their own private ioctls for such a use
+ * case.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv)
 {
@@ -3719,6 +4211,20 @@ int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 	return dev->driver->dumb_create(file_priv, dev, args);
 }
 
+/**
+ * drm_mode_mmap_dumb_ioctl - create an mmap offset for a dumb backing storage buffer
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * Allocate an offset in the drm device node's address space to be able to
+ * memory map a dumb buffer.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
@@ -3731,6 +4237,21 @@ int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 	return dev->driver->dumb_map_offset(file_priv, dev, args->handle, &args->offset);
 }
 
+/**
+ * drm_mode_destroy_dumb_ioctl - destroy a dumb backing strage buffer
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This destroys the userspace handle for the given dumb backing storage buffer.
+ * Since buffer objects must be reference counted in the kernel a buffer object
+ * won't be immediately freed if a framebuffer modeset object still uses it.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv)
 {
@@ -3742,9 +4263,14 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 	return dev->driver->dumb_destroy(file_priv, dev, args->handle);
 }
 
-/*
- * Just need to support RGB formats here for compat with code that doesn't
- * use pixel formats directly yet.
+/**
+ * drm_fb_get_bpp_depth - get the bpp/depth values for format
+ * @format: pixel format (DRM_FORMAT_*)
+ * @depth: storage for the depth value
+ * @bpp: storage for the bpp value
+ *
+ * This only supports RGB formats here for compat with code that doesn't use
+ * pixel formats directly yet.
  */
 void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 			  int *bpp)
@@ -3816,7 +4342,7 @@ EXPORT_SYMBOL(drm_fb_get_bpp_depth);
  * drm_format_num_planes - get the number of planes for format
  * @format: pixel format (DRM_FORMAT_*)
  *
- * RETURNS:
+ * Returns:
  * The number of planes used by the specified pixel format.
  */
 int drm_format_num_planes(uint32_t format)
@@ -3851,7 +4377,7 @@ EXPORT_SYMBOL(drm_format_num_planes);
  * @format: pixel format (DRM_FORMAT_*)
  * @plane: plane index
  *
- * RETURNS:
+ * Returns:
  * The bytes per pixel value for the specified plane.
  */
 int drm_format_plane_cpp(uint32_t format, int plane)
@@ -3897,7 +4423,7 @@ EXPORT_SYMBOL(drm_format_plane_cpp);
  * drm_format_horz_chroma_subsampling - get the horizontal chroma subsampling factor
  * @format: pixel format (DRM_FORMAT_*)
  *
- * RETURNS:
+ * Returns:
  * The horizontal chroma subsampling factor for the
  * specified pixel format.
  */
@@ -3932,7 +4458,7 @@ EXPORT_SYMBOL(drm_format_horz_chroma_subsampling);
  * drm_format_vert_chroma_subsampling - get the vertical chroma subsampling factor
  * @format: pixel format (DRM_FORMAT_*)
  *
- * RETURNS:
+ * Returns:
  * The vertical chroma subsampling factor for the
  * specified pixel format.
  */
