@@ -1199,19 +1199,30 @@ int locks_mandatory_area(int read_write, struct inode *inode,
 {
 	struct file_lock fl;
 	int error;
+	bool sleep = false;
 
 	locks_init_lock(&fl);
-	fl.fl_owner = current->files;
 	fl.fl_pid = current->tgid;
 	fl.fl_file = filp;
 	fl.fl_flags = FL_POSIX | FL_ACCESS;
 	if (filp && !(filp->f_flags & O_NONBLOCK))
-		fl.fl_flags |= FL_SLEEP;
+		sleep = true;
 	fl.fl_type = (read_write == FLOCK_VERIFY_WRITE) ? F_WRLCK : F_RDLCK;
 	fl.fl_start = offset;
 	fl.fl_end = offset + count - 1;
 
 	for (;;) {
+		if (filp) {
+			fl.fl_owner = (fl_owner_t)filp;
+			fl.fl_flags &= ~FL_SLEEP;
+			error = __posix_lock_file(inode, &fl, NULL);
+			if (!error)
+				break;
+		}
+
+		if (sleep)
+			fl.fl_flags |= FL_SLEEP;
+		fl.fl_owner = current->files;
 		error = __posix_lock_file(inode, &fl, NULL);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
