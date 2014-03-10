@@ -3157,6 +3157,7 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 	case 0x1c:	/* SCO interval rejected */
 	case 0x1a:	/* Unsupported Remote Feature */
 	case 0x1f:	/* Unspecified error */
+	case 0x20:	/* Unsupported LMP Parameter value */
 		if (conn->out) {
 			conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
 					(hdev->esco_type & EDR_ESCO_MASK);
