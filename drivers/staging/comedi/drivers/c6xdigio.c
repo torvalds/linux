@@ -47,6 +47,9 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
  * Register I/O map
  */
 #define C6XDIGIO_DATA_REG	0x00
+#define C6XDIGIO_DATA_CHAN(x)	(((x) + 1) << 4)
+#define C6XDIGIO_DATA_PWM	(1 << 5)
+#define C6XDIGIO_DATA_ENCODER	(1 << 6)
 #define C6XDIGIO_STATUS_REG	0x01
 #define C6XDIGIO_CTRL_REG	0x02
 
@@ -101,13 +104,8 @@ static void c6xdigio_pwm_init(struct comedi_device *dev)
 static void c6xdigio_pwm_write(struct comedi_device *dev,
 			       unsigned int chan, unsigned int val)
 {
+	unsigned int cmd = C6XDIGIO_DATA_PWM | C6XDIGIO_DATA_CHAN(chan);
 	unsigned int bits;
-	unsigned ppcmd;
-
-	if (chan == 0)
-		ppcmd = 0x28;
-	else
-		ppcmd = 0x30;
 
 	if (val > 498)
 		val = 498;
@@ -115,15 +113,15 @@ static void c6xdigio_pwm_write(struct comedi_device *dev,
 		val = 2;
 
 	bits = (val >> 0) & 0x03;
-	c6xdigio_write_data(dev, ppcmd + bits, 0x00);
+	c6xdigio_write_data(dev, cmd | bits | (0 << 2), 0x00);
 	bits = (val >> 2) & 0x03;
-	c6xdigio_write_data(dev, ppcmd + bits + 0x4, 0x80);
+	c6xdigio_write_data(dev, cmd | bits | (1 << 2), 0x80);
 	bits = (val >> 4) & 0x03;
-	c6xdigio_write_data(dev, ppcmd + bits, 0x00);
+	c6xdigio_write_data(dev, cmd | bits | (0 << 2), 0x00);
 	bits = (val >> 6) & 0x03;
-	c6xdigio_write_data(dev, ppcmd + bits + 0x4, 0x80);
+	c6xdigio_write_data(dev, cmd | bits | (1 << 2), 0x80);
 	bits = (val >> 8) & 0x03;
-	c6xdigio_write_data(dev, ppcmd + bits, 0x00);
+	c6xdigio_write_data(dev, cmd | bits | (0 << 2), 0x00);
 
 	c6xdigio_write_data(dev, 0x00, 0x80);
 }
@@ -131,39 +129,34 @@ static void c6xdigio_pwm_write(struct comedi_device *dev,
 static int c6xdigio_encoder_read(struct comedi_device *dev,
 				 unsigned int chan)
 {
+	unsigned int cmd = C6XDIGIO_DATA_ENCODER | C6XDIGIO_DATA_CHAN(chan);
 	unsigned int val = 0;
 	unsigned int bits;
-	unsigned ppcmd;
 
-	if (chan == 0)
-		ppcmd = 0x48;
-	else
-		ppcmd = 0x50;
+	c6xdigio_write_data(dev, cmd, 0x00);
 
-	c6xdigio_write_data(dev, ppcmd, 0x00);
-
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (1 << 2), 0x80);
 	val |= (bits << 0);
 
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (0 << 2), 0x00);
 	val |= (bits << 3);
 
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (1 << 2), 0x80);
 	val |= (bits << 6);
 
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (0 << 2), 0x00);
 	val |= (bits << 9);
 
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (1 << 2), 0x80);
 	val |= (bits << 12);
 
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (0 << 2), 0x00);
 	val |= (bits << 15);
 
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (1 << 2), 0x80);
 	val |= (bits << 18);
 
-	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, cmd | (0 << 2), 0x00);
 	val |= (bits << 21);
 
 	c6xdigio_write_data(dev, 0x00, 0x80);
