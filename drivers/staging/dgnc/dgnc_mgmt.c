@@ -42,7 +42,7 @@
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
 #include <linux/serial_reg.h>
 #include <linux/termios.h>
-#include <asm/uaccess.h>	/* For copy_from_user/copy_to_user */
+#include <linux/uaccess.h>	/* For copy_from_user/copy_to_user */
 
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
