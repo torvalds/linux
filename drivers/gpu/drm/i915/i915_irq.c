@@ -3074,7 +3074,7 @@ static void valleyview_display_irqs_uninstall(struct drm_i915_private *dev_priv)
 
 	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
 		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
+		   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 
 	dev_priv->irq_mask |= iir_mask;
 	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
