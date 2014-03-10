@@ -44,11 +44,12 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 #include "../comedidev.h"
 
 /*
- * port offsets
+ * Register I/O map
  */
-#define C6XDIGIO_PARALLEL_DATA 0
-#define C6XDIGIO_PARALLEL_STATUS 1
-#define C6XDIGIO_PARALLEL_CONTROL 2
+#define C6XDIGIO_DATA_REG	0x00
+#define C6XDIGIO_STATUS_REG	0x01
+#define C6XDIGIO_CTRL_REG	0x02
+
 struct pwmbitstype {
 	unsigned sb0:2;
 	unsigned sb1:2;
@@ -83,7 +84,7 @@ static int c6xdigio_chk_status(struct comedi_device *dev, unsigned long context)
 	int timeout = 0;
 
 	do {
-		status = inb(dev->iobase + 1);
+		status = inb(dev->iobase + C6XDIGIO_STATUS_REG);
 		if ((status & 0x80) != context)
 			return 0;
 		timeout++;
@@ -95,7 +96,7 @@ static int c6xdigio_chk_status(struct comedi_device *dev, unsigned long context)
 static int c6xdigio_write_data(struct comedi_device *dev,
 			       unsigned int val, unsigned int status)
 {
-	outb_p(val, dev->iobase);
+	outb_p(val, dev->iobase + C6XDIGIO_DATA_REG);
 	return c6xdigio_chk_status(dev, status);
 }
 
@@ -146,28 +147,28 @@ static int c6xdigio_encoder_read(struct comedi_device *dev,
 
 	c6xdigio_write_data(dev, ppcmd, 0x00);
 
-	enc.bits.sb0 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb0 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
 
-	enc.bits.sb1 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb1 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd, 0x00);
 
-	enc.bits.sb2 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb2 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
 
-	enc.bits.sb3 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb3 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd, 0x00);
 
-	enc.bits.sb4 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb4 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
 
-	enc.bits.sb5 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb5 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd, 0x00);
 
-	enc.bits.sb6 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb6 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
 
-	enc.bits.sb7 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	enc.bits.sb7 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
 	c6xdigio_write_data(dev, ppcmd, 0x00);
 
 	c6xdigio_write_data(dev, 0x00, 0x80);
