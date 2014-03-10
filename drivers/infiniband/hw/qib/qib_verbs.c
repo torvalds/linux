@@ -678,8 +678,8 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 					&rcd->lookaside_qp->refcount))
 					wake_up(
 					 &rcd->lookaside_qp->wait);
-					rcd->lookaside_qp = NULL;
-				}
+				rcd->lookaside_qp = NULL;
+			}
 		}
 		if (!rcd->lookaside_qp) {
 			qp = qib_lookup_qpn(ibp, qp_num);
