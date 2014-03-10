@@ -93,7 +93,6 @@ static struct cpufreq_driver sc520_freq_driver = {
 	.verify	= cpufreq_generic_frequency_table_verify,
 	.target_index = sc520_freq_target,
 	.init	= sc520_freq_cpu_init,
-	.exit	= cpufreq_generic_exit,
 	.name	= "sc520_freq",
 	.attr	= cpufreq_generic_attr,
 };

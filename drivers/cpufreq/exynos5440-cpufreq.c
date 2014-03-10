@@ -312,7 +312,6 @@ static struct cpufreq_driver exynos_driver = {
 	.target_index	= exynos_target,
 	.get		= cpufreq_generic_get,
 	.init		= exynos_cpufreq_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.name		= CPUFREQ_NAME,
 	.attr		= cpufreq_generic_attr,
 };
