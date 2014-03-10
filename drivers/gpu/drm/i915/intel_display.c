@@ -2076,6 +2076,9 @@ static bool intel_alloc_plane_obj(struct intel_crtc *crtc,
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	u32 base = plane_config->base;
 
+	if (plane_config->size == 0)
+		return false;
+
 	obj = i915_gem_object_create_stolen_for_preallocated(dev, base, base,
 							     plane_config->size);
 	if (!obj)
