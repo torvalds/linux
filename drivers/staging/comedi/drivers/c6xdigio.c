@@ -187,9 +187,10 @@ static int c6xdigio_pwm_insn_write(struct comedi_device *dev,
 	return i;
 }
 
-static int c6xdigio_ei_insn_read(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+static int c6xdigio_encoder_insn_read(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	int n;
@@ -247,13 +248,12 @@ static int c6xdigio_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	/* encoder (counter) subdevice */
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = 2;
-	/* s->trig[0] = c6xdigio_ei; */
-	s->insn_read = c6xdigio_ei_insn_read;
-	s->maxdata = 0xffffff;
-	s->range_table = &range_unknown;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE | SDF_LSAMPL;
+	s->n_chan	= 2;
+	s->maxdata	= 0xffffff;
+	s->range_table	= &range_unknown;
+	s->insn_read	= c6xdigio_encoder_insn_read;
 
 	/*  I will call this init anyway but more than likely the DSP board */
 	/*  will not be connected when device driver is loaded. */
