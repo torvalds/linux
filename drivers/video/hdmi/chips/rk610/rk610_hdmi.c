@@ -66,7 +66,6 @@ static int rk610_hdmi_insert(struct hdmi *hdmi)
 		return -1;
 	Rk610_hdmi_plug(rk610_hdmi->client);
 	rk610_hdmi_param_chg(rk610_hdmi);
-    hdmi_set_spk(HDMI_DISABLE);
     printk("rk610_hdmi_insert hdmi->display_on=%d\n",hdmi->display_on);
 	hdmi->scale = hdmi->scale_set;
 	return 0;
@@ -77,7 +76,6 @@ static int rk610_hdmi_remove(struct hdmi *hdmi)
     RK610_DBG(&rk610_hdmi->client->dev,"%s \n",__FUNCTION__);
 	if(rk610_hdmi->init == 1)
 		return -1;
-	hdmi_set_spk(HDMI_ENABLE);
 	hdmi_switch_fb(hdmi, HDMI_DISABLE);
 	Rk610_hdmi_unplug(rk610_hdmi->client);
 	printk("rk610_hdmi_remove hdmi->display_on=%d\n",hdmi->display_on);
