@@ -195,19 +195,19 @@ static int C6X_encInput(unsigned long baseAddr, unsigned channel)
 	return enc.value ^ 0x800000;
 }
 
-static void C6X_encResetAll(unsigned long baseAddr)
+static void c6xdigio_encoder_reset(struct comedi_device *dev)
 {
-	outb_p(0x68, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(0x68, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(0x6c, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(0x6c, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	outb_p(0x68, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(0x68, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(0x0, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(0x0, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 }
 
 static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
@@ -241,7 +241,7 @@ static int c6xdigio_ei_insn_read(struct comedi_device *dev,
 static void board_init(struct comedi_device *dev)
 {
 	c6xdigio_pwm_init(dev);
-	C6X_encResetAll(dev->iobase);
+	c6xdigio_encoder_reset(dev);
 }
 
 static const struct pnp_device_id c6xdigio_pnp_tbl[] = {
