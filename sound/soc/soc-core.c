@@ -1722,7 +1722,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	snd_soc_dapm_new_widgets(&card->dapm);
 
-//dai_fmt will and need to be setted in hw_parsms for codecs, so ingore here.
+//dai_fmt will and need to be setted in hw_parsms for codecs, so ignore here.
 #ifndef CONFIG_SND_RK_SOC
 	for (i = 0; i < card->num_links; i++) {
 		dai_link = &card->dai_link[i];

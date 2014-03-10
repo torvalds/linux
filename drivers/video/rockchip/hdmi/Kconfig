@@ -13,11 +13,3 @@ config RK_HDMI_DEBUG
         default n
 		help
 		  Enableds verbose debugging the the HDMI drivers
-
-config RK_HDMI_CTL_CODEC
-		bool "Mute Codec When HDMI Actived"
-		depends on RK_HDMI
-		default n
-		help
-			If you say y heres, Codec will be mute when hdmi inserted,
-			and unmute when removed. 

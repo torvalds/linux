@@ -182,30 +182,6 @@ static int rk2928_write_mask(struct snd_soc_codec *codec, unsigned int reg,
 	return rk2928_write(codec, reg, regvalue);
 }
 
-void codec_set_spk(bool on)
-{
-	if(on == 0) {
-		DBG("%s speaker is disabled\n", __FUNCTION__);
-		rk2928_data.hdmi_enable = 1;
-		if(rk2928_data.mute == 0) {
-			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
-			if(rk2928_data.spkctl != INVALID_GPIO) {
-				gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
-			}
-		}
-	}
-	else {
-		DBG("%s speaker is enabled\n", __FUNCTION__);
-		rk2928_data.hdmi_enable = 0;
-		if(rk2928_data.mute == 0) {
-			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
-			if((rk2928_data.spkctl != INVALID_GPIO) && (rk2928_data.headset_status == HP_OUT)) {
-				gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
-			}
-		}
-	}
-}
-
 static void call_delay_work(struct work_struct *work)
 {
 	        struct snd_soc_codec *codec = rk2928_data.codec;

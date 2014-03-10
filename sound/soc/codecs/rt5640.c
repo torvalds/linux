@@ -196,9 +196,6 @@ static const u16 rt5640_reg[RT5640_VENDOR_ID2 + 1] = {
 	[RT5640_VENDOR_ID2] = 0x6231,
 };
 
-/* by magf for codec_set_spk */
-static struct snd_soc_codec *rt5640_codec;
-
 static int rt5640_reset(struct snd_soc_codec *codec)
 {
 	return snd_soc_write(codec, RT5640_RESET, 0);
@@ -3131,32 +3128,6 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-/* add by magf for CONFIG_.._CTL_CODEC option */
-void rt5640_codec_set_spk(bool on)
-{
-    struct snd_soc_codec *codec = rt5640_codec;
-
-    pr_debug("%s: %d\n", __func__, on);
-
-    if(!codec)
-        return;
-    mutex_lock(&codec->mutex);
-    if(on){
-        pr_debug("snd_soc_dapm_enable_pin\n");
-        snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-        snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-    }
-    else{
-        pr_debug("snd_soc_dapm_disable_pin\n");
-        snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-        snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-    }
-
-    snd_soc_dapm_sync(&codec->dapm);
-    mutex_unlock(&codec->mutex);
-    return;
-}
-
 static int rt5640_probe(struct snd_soc_codec *codec)
 {
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
@@ -3206,9 +3177,6 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 	DC_Calibrate(codec);
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	rt5640->codec = codec;
-
-	/* by magf for codec_set_spk */
-	rt5640_codec = codec;
 
 	snd_soc_add_codec_controls(codec, rt5640_snd_controls,
 			ARRAY_SIZE(rt5640_snd_controls));

@@ -60,6 +60,10 @@
   rk3190_hdmi_ctrl=0;
 #endif
 
+#define GPIO_LOW 0
+#define GPIO_HIGH 1
+#define INVALID_GPIO -1
+
 struct rk3190_codec_priv {
 	struct snd_soc_codec *codec;
 
@@ -92,7 +96,7 @@ static struct rk3190_codec_priv *rk3190_priv = NULL;
 #define RK3190_CODEC_CAPTURE	2
 #define RK3190_CODEC_INCALL	3
 
-static bool rk3190_for_mid = 1, is_hdmi_in = false;
+static bool rk3190_for_mid = 1;
 
 static const unsigned int rk3190_reg_defaults[RK3190_PGA_AGC_CTL5+1] = {
 	[RK3190_RESET] = 0x0003,
@@ -391,74 +395,6 @@ int rk3190_headset_mic_detect(bool headset_status)
 }
 EXPORT_SYMBOL(rk3190_headset_mic_detect);
 
-bool get_hdmi_state(void)
-{
-	return is_hdmi_in;
-}
-
-#ifdef CONFIG_MACH_RK_FAC
-void rk3190_codec_set_spk(bool on)
-#else
-void codec_set_spk(bool on)
-#endif
-{
-	struct snd_soc_codec *codec = rk3190_priv->codec;
-
-	DBG("%s : %s\n", __func__, on ? "enable spk" : "disable spk");
-
-	if (!rk3190_priv || !rk3190_priv->codec) {
-		printk("%s : rk3190_priv or rk3190_priv->codec is NULL\n", __func__);
-		return;
-	}
-
-	if (on) {
-		if (rk3190_for_mid)
-		{
-			snd_soc_update_bits(codec, RK3190_HPOUT_CTL,
-				RK3190_HPOUTL_MUTE_MSK, 1);
-			snd_soc_update_bits(codec, RK3190_HPOUT_CTL,
-				RK3190_HPOUTR_MUTE_MSK, RK3190_HPOUTR_MUTE_DIS);
-		}
-		else
-		{
-			snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-			snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-		}
-	} else {
-		if (rk3190_priv->spk_ctl_gpio != INVALID_GPIO) {
-			DBG("%s : set spk ctl gpio LOW\n", __func__);
-			gpio_set_value(rk3190_priv->spk_ctl_gpio, GPIO_LOW);
-		}
-
-		if (rk3190_priv->hp_ctl_gpio != INVALID_GPIO) {
-			DBG("%s : set hp ctl gpio LOW\n", __func__);
-			gpio_set_value(rk3190_priv->hp_ctl_gpio, GPIO_LOW);
-			}
-
-		if (rk3190_for_mid)
-		{
-			snd_soc_update_bits(codec, RK3190_HPOUT_CTL,
-				RK3190_HPOUTL_MUTE_MSK, RK3190_HPOUTL_MUTE_EN);
-			snd_soc_update_bits(codec, RK3190_HPOUT_CTL,
-				RK3190_HPOUTR_MUTE_MSK, RK3190_HPOUTR_MUTE_EN);
-		}
-		else
-		{
-			snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-			snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-		}
-	}
-	snd_soc_dapm_sync(&codec->dapm);
-
-	is_hdmi_in = on ? 0 : 1;
-}
-
-#ifdef CONFIG_MACH_RK_FAC
-EXPORT_SYMBOL_GPL(rk3190_codec_set_spk);
-#else
-EXPORT_SYMBOL_GPL(codec_set_spk);
-#endif
-
 #if 0
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -3900, 150, 0);
 static const DECLARE_TLV_DB_SCALE(pga_vol_tlv, -1800, 150, 0);
@@ -724,9 +660,6 @@ static int rk3190_playback_path_put(struct snd_kcontrol *kcontrol,
 		DBG("%s : set hp ctl gpio LOW\n", __func__);
 		gpio_set_value(rk3190->hp_ctl_gpio, GPIO_LOW);
 	}
-
-	if(get_hdmi_state())
-		return 0;
 
 	switch (rk3190->playback_path) {
 	case OFF:
@@ -1925,7 +1858,6 @@ static int rk3190_codec_power_up(int type)
 				playback_power_up_list[i].value);
          msleep(10);
 		}
-		//codec_set_spk(!get_hdmi_state());
 	} else if (type == RK3190_CODEC_CAPTURE) {
 		for (i = 0; i < RK3190_CODEC_CAPTURE_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, capture_power_up_list[i].reg,

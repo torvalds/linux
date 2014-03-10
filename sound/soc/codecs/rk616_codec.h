@@ -780,6 +780,5 @@ struct rk616_init_bit_typ {
 };
 
 bool rk616_get_for_mid(void);
-bool get_hdmi_state(void);
 
 #endif //__RK616_CODEC_H__

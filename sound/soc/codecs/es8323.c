@@ -565,13 +565,6 @@ static void on_off_ext_amp(int i)
     #endif
 }
 
-#if 0
-void es8323_codec_set_spk(bool on)
-{
-	on_off_ext_amp(on);
-}
-#endif
-
 
 
 /*
@@ -1141,15 +1134,6 @@ static int es8323_remove(struct snd_soc_codec *codec)
 {
 	es8323_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
-}
-
-void es8323_codec_set_spk(bool on)
-{
-	DBG("Enter::%s----%d--, on = %d\n",__FUNCTION__,__LINE__, on);
-
-        set_spk = on;
-        gpio_set_value(es8323_spk_con_gpio, on);
-	//return;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_es8323 = {

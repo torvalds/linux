@@ -2095,32 +2095,6 @@ static int rt5631_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-void rt5631_codec_set_spk(bool on)
-{
-	struct snd_soc_codec *codec = rt5631_codec;	
-
-	DBG("%s: %d\n", __func__, on);
-		
-	if(!codec)
-		return;
-	mutex_lock(&codec->mutex);
-	if(on){
-		DBG("snd_soc_dapm_enable_pin\n");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-	}
-	else{
-		DBG("snd_soc_dapm_disable_pin\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-	}
-	snd_soc_dapm_sync(&codec->dapm);
-	mutex_unlock(&codec->mutex);
-
-	return;
-}
-EXPORT_SYMBOL_GPL(rt5631_codec_set_spk);
-
 /*
  * detect short current for mic1
  */
