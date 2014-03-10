@@ -709,6 +709,20 @@ static int p9_fd_cancel(struct p9_client *client, struct p9_req_t *req)
 	return ret;
 }
 
+static int p9_fd_cancelled(struct p9_client *client, struct p9_req_t *req)
+{
+	p9_debug(P9_DEBUG_TRANS, "client %p req %p\n", client, req);
+
+	/* we haven't received a response for oldreq,
+	 * remove it from the list.
+	 */
+	spin_lock(&client->lock);
+	list_del(&req->req_list);
+	spin_unlock(&client->lock);
+
+	return 0;
+}
+
 /**
  * parse_opts - parse mount options into p9_fd_opts structure
  * @params: options string passed from mount
@@ -1050,6 +1064,7 @@ static struct p9_trans_module p9_tcp_trans = {
 	.close = p9_fd_close,
 	.request = p9_fd_request,
 	.cancel = p9_fd_cancel,
+	.cancelled = p9_fd_cancelled,
 	.owner = THIS_MODULE,
 };
 
@@ -1061,6 +1076,7 @@ static struct p9_trans_module p9_unix_trans = {
 	.close = p9_fd_close,
 	.request = p9_fd_request,
 	.cancel = p9_fd_cancel,
+	.cancelled = p9_fd_cancelled,
 	.owner = THIS_MODULE,
 };
 
@@ -1072,6 +1088,7 @@ static struct p9_trans_module p9_fd_trans = {
 	.close = p9_fd_close,
 	.request = p9_fd_request,
 	.cancel = p9_fd_cancel,
+	.cancelled = p9_fd_cancelled,
 	.owner = THIS_MODULE,
 };
 
