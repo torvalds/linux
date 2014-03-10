@@ -326,15 +326,14 @@ static u32 mmc_clk_delay(u32 val, u32 para, u32 off, u32 len)
 {
 	u32 i;
 
-	if (para >= 0) {
-		for (i = 0; i < len; i++) {
-			if (para % 2)
-				val |= 1 << (off + i);
-			else
-				val &= ~(1 << (off + i));
-			para = para >> 1;
-		}
+	for (i = 0; i < len; i++) {
+		if (para % 2)
+			val |= 1 << (off + i);
+		else
+			val &= ~(1 << (off + i));
+		para = para >> 1;
 	}
+
 	return val;
 }
 
