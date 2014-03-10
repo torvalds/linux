@@ -65,6 +65,14 @@
 #include "mipi_dsi.h"
 #include "rk616_mipi_dsi.h"
 
+
+#ifdef CONFIG_OF
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#endif
+
+
 #if 1
 #define	MIPI_DBG(x...)	printk(KERN_INFO x)
 #else
@@ -925,7 +933,9 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 	rk_mipi_dsi_host_power_up(dsi);
 	rk_mipi_dsi_phy_init(dsi);
 	rk_mipi_dsi_host_init(dsi);
+#if defined(CONFIG_ARCH_RK3288)
 
+#else
 	if(!screen->init) {
 		rk_mipi_dsi_enable_hs_clk(dsi, 1);
 #ifndef CONFIG_MIPI_DSI_FT	
@@ -941,7 +951,7 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 	} else {
 		screen->init();
 	}
-	
+#endif	
 	/*
 		After the core reset, DPI waits for the first VSYNC active transition to start signal sampling, including
 		pixel data, and preventing image transmission in the middle of a frame.
@@ -1180,7 +1190,7 @@ static int rk_mipi_dsi_send_gen_packet(void *arg, void *data, u32 n)
 
 static int rk_mipi_dsi_read_dcs_packet(void *arg, unsigned char *data, u32 n)
 {
-	struct dsi *dsi = arg;
+//	struct dsi *dsi = arg;
 	//DCS READ 
 	return 0;
 }
@@ -1638,12 +1648,226 @@ static irqreturn_t rk616_mipi_dsi_irq_handler(int irq, void *data)
 }
 #endif
 
-static int rk616_mipi_dsi_get_screen(void) {
 
 
-	return 0;
+#if CONFIG_OF
+
+static int mipi_dsi_get_screen_dt(struct device *dev,struct dsi *dsi)
+{
+    struct device_node *node = dev->of_node;
+    struct device_node *childnode, *grandchildnode,*root;
+    struct mipi_dcs_cmd_ctr_list  *dcs_cmd;
+    struct list_head *pos;
+    struct property *prop;
+    enum of_gpio_flags flags;
+    const char *pin_funcs, *strings;
+    u32 value,i,debug,gpio,ret,cmds[20],length;
+
+    if (!node)
+        return -ENODEV;
+
+    memset(dsi, 0, sizeof(*dsi));
+    INIT_LIST_HEAD(&dsi->cmdlist_head);
+
+    childnode = of_get_child_by_name(node, "mipi_dsi_init");
+    if(!childnode )
+    {
+        printk("%s: Can not get child => mipi_init.\n", __func__);
+    }
+    else
+    {
+        ret = of_property_read_u32(childnode, "screen_init", &value);
+        if (ret) {
+            printk("%s: Can not read property: screen_init.\n", __func__);
+        } else {
+            dsi->screen.screen_init = value;
+            printk("%s: dsi->screen->screen_init = %d.\n", __func__, dsi->screen.screen_init ); 
+        }
+        
+        ret = of_property_read_u32(childnode, "dsi_lane", &value);
+        if (ret) {
+            printk("%s: Can not read property: dsi_lane.\n", __func__);
+        } else {
+            dsi->screen.dsi_lane = value;
+            printk("%s: dsi->screen.dsi_lane = %d.\n", __func__, dsi->screen.dsi_lane ); 
+        } 
+            
+        ret = of_property_read_u32(childnode, "dsi_hs_clk", &value);
+        if (ret) {
+            printk("%s: Can not read property: dsi_hs_clk.\n", __func__);
+        } else {
+            dsi->screen.hs_tx_clk = value;
+            printk("%s: dsi->screen->hs_tx_clk = %d.\n", __func__, dsi->screen.hs_tx_clk ); 
+        } 
+        
+        ret = of_property_read_u32(childnode, "mipi_screen_id", &value);
+        if (ret) {
+            printk("%s: Can not read property: mipi_screen_id.\n", __func__);
+        } else {
+            dsi->screen.mipi_screen_id = value ;
+            printk("%s: dsi->screen.mipi_screen_id = %d.\n", __func__, dsi->screen.mipi_screen_id ); 
+        }  
+    }
+
+
+    childnode = of_get_child_by_name(node, "mipi_power_ctr");
+    if(!childnode )
+    {
+        printk("%s: Can not get child => mipi_power_ctr.\n", __func__);
+    }
+    else
+	{
+		grandchildnode = of_get_child_by_name(childnode, "mipi_lcd_rst");
+		if (!grandchildnode)
+        {
+            printk("%s: mipi_lcd_rst = %d.\n", __func__, value ); 
+        }
+        else
+        {
+            ret = of_property_read_u32(grandchildnode, "delay", &value);
+            if (ret)
+           {
+                printk("%s: Can not read property: delay.\n", __func__);
+            } 
+            else 
+            {
+                dsi->screen.lcd_rst_delay = value;
+                printk("%s: dsi->screen->lcd_rst_delay = %d.\n", __func__, dsi->screen.lcd_rst_delay );     
+            } 
+            
+            gpio = of_get_named_gpio_flags(grandchildnode, "gpios", 0, &flags);
+            if (!gpio_is_valid(gpio)){
+                printk("rest: Can not read property: %s->gpios.\n", __func__);
+            } 
+            
+            ret = gpio_request(gpio,"mipi_lcd_rst");
+			if (ret) {
+                printk("request mipi_lcd_rst gpio fail:%d\n",gpio);
+                return -1;
+				}
+            
+            dsi->screen.lcd_rst_gpio = gpio;
+            dsi->screen.lcd_rst_atv_val = flags;
+            
+            printk("dsi->screen.lcd_rst_gpio=%d,dsi->screen.lcd_rst_atv_val=%d\n",dsi->screen.lcd_rst_gpio,dsi->screen.lcd_rst_atv_val);
+		} 
+		
+		grandchildnode = of_get_child_by_name(childnode, "mipi_lcd_en");
+		if (!grandchildnode)
+        {
+			printk("%s: Can not read property: mipi_lcd_en.\n", __func__);
+		} 
+        else 
+		{
+			ret = of_property_read_u32(grandchildnode, "delay", &value);
+            if (ret)
+           {
+                printk("%s: Can not read property: mipi_lcd_en-delay.\n", __func__);
+            } 
+            else 
+            {
+                 dsi->screen.lcd_en_dealay = value;
+                printk("%s: dsi->screen.lcd_en_dealay = %d.\n", __func__, dsi->screen.lcd_en_dealay ); 
+            } 
+            
+            gpio = of_get_named_gpio_flags(grandchildnode, "gpios", 0, &flags);
+            if (!gpio_is_valid(gpio)){
+                printk("rest: Can not read property: %s->gpios.\n", __func__);
+            }  
+            dsi->screen.lcd_en_gpio = gpio;
+            dsi->screen.lcd_en_atv_val= flags;
+            printk("dsi->screen.lcd_en_gpio=%d, dsi->screen.lcd_en_atv_val=%d\n",dsi->screen.lcd_en_gpio,dsi->screen.lcd_en_atv_val);
+		}
+	}
+
+    root= of_find_node_by_name(node,"panel-on-cmds");
+    if (!root) {
+		printk("can't find panel-on-cmds node\n");
+		return -ENODEV;
+	}
+    else
+    {
+    	for_each_child_of_node(root, childnode)
+        {
+		    dcs_cmd = kmalloc(sizeof(struct mipi_dcs_cmd_ctr_list), GFP_KERNEL);
+		    strcpy(dcs_cmd->dcs_cmd.name, childnode->name);
+            
+            prop = of_find_property(childnode, "cmd", &length);
+            if (!prop)
+            {
+                printk("Can not read property: cmds\n");
+                return -EINVAL;
+            }
+
+            printk("length=%d\n\n",(length / sizeof(u32)));
+            
+            ret = of_property_read_u32_array(childnode,  "cmd", cmds, (length / sizeof(u32)));
+		    if(ret < 0) 
+            {
+                printk("%s: Can not read property: %s--->cmds\n", __func__,childnode->name);
+                return ret;
+            }
+            else
+            {
+	            for(i = 0; i < (length / sizeof(u32)); i++)
+                {   
+                   printk("cmd[%d]=%02x£¬",i+1,cmds[i]);
+		           dcs_cmd->dcs_cmd.cmds[i] = cmds[i];
+                }
+                //printk("\n");
+            }
+           
+            ret = of_property_read_u32(childnode, "rockchip,cmd_type", &value);
+            if(ret)
+            {
+                printk("%s: Can not read property: %s--->cmd_type\n", __func__,childnode->name);
+            }
+            else
+            {
+                dcs_cmd->dcs_cmd.type = value;
+            }
+
+            ret = of_property_read_u32(childnode, "rockchip,cmd_delay", &value);
+            if(ret)
+            {
+                printk("%s: Can not read property: %s--->cmd_delay\n", __func__,childnode->name);
+            }
+            else
+            {
+                dcs_cmd->dcs_cmd.delay = value;
+            }
+
+    		list_add_tail(&dcs_cmd->list, &dsi->cmdlist_head);
+        }
+    }
+    ret = of_property_read_u32(root, "rockchip,cmd_debug", &debug);
+    if(ret)
+    {
+        printk("%s: Can not read property: rockchip,cmd_debug.\n", __func__);
+    }
+    else
+    {
+        if (debug) {
+            list_for_each(pos, &dsi->cmdlist_head) {
+                dcs_cmd = list_entry(pos, struct mipi_dcs_cmd_ctr_list, list);
+                printk("dcs_name:%s," "dcs_type:%d," "delay:%d\n\n",
+                        dcs_cmd->dcs_cmd.name,
+                        dcs_cmd->dcs_cmd.type,
+                        dcs_cmd->dcs_cmd.delay);
+            }
+        }
+        else
+        {
+            printk("---close cmd debug---\n");
+        }
+   }
+    
+    ret=-1;
+    return ret;
+    
 }
 
+#endif
 
 static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 {
@@ -1653,18 +1877,25 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	struct rk_screen *screen;
 	struct mipi_dsi_screen *dsi_screen;
 	static int id = 0;
+	
 #if defined(CONFIG_ARCH_RK319X) || defined(CONFIG_ARCH_RK3288)
 	struct resource *res_host, *res_phy, *res_irq;
 #endif
 #if defined(CONFIG_MFD_RK616)
 	struct mfd_rk616 *rk616;
 #endif
-
 	dsi = devm_kzalloc(&pdev->dev, sizeof(struct dsi), GFP_KERNEL);
 	if(!dsi) {
 		dev_err(&pdev->dev,"request struct dsi fail!\n");
 		return -ENOMEM;
 	}
+    //printk("rk616_mipi_dsi_probe----------------------\n");  
+
+     ret = mipi_dsi_get_screen_dt(&pdev->dev, dsi);
+     if (ret < 0) {
+        dev_err(&pdev->dev,"No platform data specified!\n");
+        return ret;
+      }
 
 #if defined(CONFIG_MFD_RK616)
 	rk616 = dev_get_drvdata(pdev->dev.parent);
@@ -1755,7 +1986,7 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	clk_enable(clk_get(NULL, "pclk_mipiphy_dsi"));
 
 #elif defined(CONFIG_ARCH_RK3288)
-	res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	/*res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->host.membase = devm_request_and_ioremap(&pdev->dev, res_host);
 	if (!dsi->host.membase)
 		return -ENOMEM;
@@ -1771,7 +2002,7 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto probe_err1;
 	}
-	disable_irq(dsi->host.irq);
+	disable_irq(dsi->host.irq);*/
 
 
 #endif  /* CONFIG_MFD_RK616 */
@@ -1787,6 +2018,8 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 #ifdef CONFIG_MFD_RK616
 	g_rk29fd_screen = screen;
 #endif
+
+
 
 	dsi->pdev = pdev;
 	ops = &dsi->ops;
@@ -1825,8 +2058,20 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	dsi_screen->dsi_lane = screen->dsi_lane;
 	dsi_screen->dsi_video_mode = screen->dsi_video_mode;
 	dsi_screen->hs_tx_clk = screen->hs_tx_clk;
+    
+  #if   defined(CONFIG_ARCH_RK3288)
+
+  #else
 	dsi_screen->init = screen->init;
 	dsi_screen->standby = screen->standby;
+  #endif   //end CONFIG_ARCH_RK3288
+  
+     printk("dsi_screen->type=%d\n",dsi_screen->type);
+        printk("dsi_screen->pixclock=%d\n",dsi_screen->pixclock);
+      printk("dsi_screen->x_res=%d\n",dsi_screen->x_res);
+      printk("dsi_screen->y_res=%d\n",dsi_screen->y_res);
+
+    
 	dsi->dsi_id = id++;//of_alias_get_id(pdev->dev.of_node, "dsi");
 	sprintf(ops->name, "rk_mipi_dsi.%d", dsi->dsi_id);
 	platform_set_drvdata(pdev, dsi);
@@ -1910,7 +2155,9 @@ static void rk616_mipi_dsi_shutdown(struct platform_device *pdev)
 {
 	u8 dcs[4] = {0};
 	struct dsi *dsi = platform_get_drvdata(pdev);
-	
+    
+#if !defined(CONFIG_ARCH_RK3288)	
+
 	if(!dsi->screen.standby) {
 		rk_mipi_dsi_enable_video_mode(dsi, 0);
 		dcs[0] = HSDT;
@@ -1924,7 +2171,9 @@ static void rk616_mipi_dsi_shutdown(struct platform_device *pdev)
 	} else {
 		dsi->screen.standby(1);
 	}
-	
+    
+#endif
+
 	rk_mipi_dsi_host_power_down(dsi);
 	rk_mipi_dsi_phy_power_down(dsi);
 
@@ -1934,9 +2183,9 @@ static void rk616_mipi_dsi_shutdown(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_rk_mipi_dsi_match[] = {
-	{ .compatible = "rockchip,mipi_dsi" },
-	{ /* Sentinel */ }
-};
+	{ .compatible = "rockchip,mipi_dsi" }, 
+	{ /* Sentinel */ } 
+}; 
 #endif
 
 static struct platform_driver rk616_mipi_dsi_driver = {

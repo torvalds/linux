@@ -1,0 +1,94 @@
+/*
+ * RockChip. LCD_B101ew05
+ *
+ */
+
+/ {
+	mipidsi:rkmipi{
+	
+		compatible = "rockchip,mipi_dsi";
+		disp_mipi_init: mipi_dsi_init{
+					screen_init		= <0>;
+					dsi_lane		= <4>;
+					dsi_hs_clk		= <528>;
+					mipi_screen_id	= <0>;
+		};
+					
+		disp_mipi_power_ctr: mipi_power_ctr {
+					mipi_lcd_rst:mipi_lcd_rst{
+							gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+							delay = <1000>;
+					};
+					mipi_lcd_en:mipi_lcd_en {
+							gpios = <&gpio0 GPIO_B0 GPIO_ACTIVE_LOW>;
+							delay = <100>;
+					};
+		};
+		disp_mipi_init_cmds: panel-on-cmds {
+					rockchip,cmd_debug = <1>;
+					on-cmds1 {
+							rockchip,cmd_type = <1>;
+							cmd = <0xaa 0xab 0xac 0xad 0xae 0xaf 0xa1 0xa2 0xa3 0xa4 0xa5>;
+							rockchip,cmd_delay = <120>;
+					};
+					
+					on-cmds2 {
+							rockchip,cmd_type = <2>;
+							cmd = <0x1a 0x1b 0x1c 0x1d 0x1e 0x1f 0x11 0x12 0x13 0x14 0x15>;
+							rockchip,cmd_delay = <110>;
+					};
+					on-cmds3 {
+							rockchip,cmd_type = <3>;
+							cmd = <0x1a 0x2a 0x3a 0x4a 0x5a 0x6a 0x7a>;
+							rockchip,cmd_delay = <101>;
+					};
+		};
+	 	disp_power_ctr: power_ctr {
+					rockchip,debug = <0>;
+					lcd_en:lcd_en {
+							rockchip,power_type = <GPIO>;
+							gpios = <&gpio0 GPIO_B0 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <10>;
+					};
+					
+				 /*	bl_en:bl_en {
+							rockchip,power_type = <GPIO>;
+							gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <10>;
+					};
+
+					lcd_rst:lcd_rst {
+							rockchip,power_type = <REGULATOR>;
+							rockchip,delay = <5>;
+							rockchip,delay = <10>;
+					};*/
+				};
+		
+		
+
+		disp_timings: display-timings {
+					native-mode = <&timing0>;
+					timing0: timing0 {
+						screen_type = <SCREEN_LVDS>;
+						lvds_format = <LVDS_8BIT_2>;
+						out_face    = <OUT_D888_P666>;
+						clock-frequency = <71000000>;
+						hactive = <1280>;
+						vactive = <800>;
+						hback-porch = <100>;
+						hfront-porch = <18>;
+						vback-porch = <8>;
+						vfront-porch = <6>;
+						hsync-len = <10>;
+						vsync-len = <2>;
+						hsync-active = <0>;
+						vsync-active = <0>;
+						de-active = <0>;
+						pixelclk-active = <0>;
+						swap-rb = <0>;
+						swap-rg = <0>;
+						swap-gb = <0>;
+					};
+		}; 
+	}; 
+};

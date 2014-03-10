@@ -396,6 +396,20 @@ struct dsi_host {
 #endif
 };
 
+
+struct dcs_cmd {
+	int type;
+	int cmds[32];
+	int delay;
+    char name[32];
+};
+
+struct mipi_dcs_cmd_ctr_list {
+	struct list_head list;
+	struct dcs_cmd dcs_cmd;
+};
+
+
 struct dsi {
 	u8 dsi_id;
 	u8 lcdc_id;
@@ -412,6 +426,7 @@ struct dsi {
 #endif
 #endif
 	struct platform_device *pdev;
+    struct list_head cmdlist_head;
 };
 
 

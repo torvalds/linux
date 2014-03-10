@@ -218,10 +218,22 @@ struct mipi_dsi_screen {
 	u8 dsi_lane;
 	u8 dsi_video_mode;
 	u32 hs_tx_clk;
+#if defined(CONFIG_ARCH_RK3288)
+    u8 screen_init; 
+    u8 mipi_screen_id;
 
+    int lcd_rst_gpio;
+    int lcd_rst_delay;
+    u8 lcd_rst_atv_val;
+    
+    int lcd_en_gpio;
+    int lcd_en_dealay;
+    u8 lcd_en_atv_val;
+#else
 	/* Operation function*/
 	int (*init)(void);
 	int (*standby)(u8 enable);
+#endif
 };
 
 
