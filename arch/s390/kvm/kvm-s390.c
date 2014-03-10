@@ -949,8 +949,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	atomic_clear_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
 
-	BUG_ON(kvm_get_vcpu(vcpu->kvm, vcpu->vcpu_id) == NULL);
-
 	switch (kvm_run->exit_reason) {
 	case KVM_EXIT_S390_SIEIC:
 	case KVM_EXIT_UNKNOWN:

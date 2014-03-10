@@ -114,14 +114,12 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 
 static void __set_cpu_idle(struct kvm_vcpu *vcpu)
 {
-	BUG_ON(vcpu->vcpu_id > KVM_MAX_VCPUS - 1);
 	atomic_set_mask(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
 	set_bit(vcpu->vcpu_id, vcpu->arch.local_int.float_int->idle_mask);
 }
 
 static void __unset_cpu_idle(struct kvm_vcpu *vcpu)
 {
-	BUG_ON(vcpu->vcpu_id > KVM_MAX_VCPUS - 1);
 	atomic_clear_mask(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
 	clear_bit(vcpu->vcpu_id, vcpu->arch.local_int.float_int->idle_mask);
 }
