@@ -2439,7 +2439,7 @@ static short rtl8180_init(struct net_device *dev)
 	priv->bInactivePs = true; /* false; */
 	priv->ieee80211->bInactivePs = priv->bInactivePs;
 	priv->bSwRfProcessing = false;
-	priv->eRFPowerState = eRfOff;
+	priv->eRFPowerState = RF_OFF;
 	priv->RfOffReason = 0;
 	priv->led_strategy = SW_LED_MODE0;
 	priv->TxPollingTimes = 0; /* lzm add 080826 */
@@ -2967,7 +2967,7 @@ void rtl8180_watch_dog(struct net_device *dev)
 		if ((priv->ieee80211->iw_mode != IW_MODE_ADHOC) &&
 		    (priv->ieee80211->state == IEEE80211_NOLINK) &&
 		    (priv->ieee80211->beinretry == false) &&
-		    (priv->eRFPowerState == eRfOn))
+		    (priv->eRFPowerState == RF_ON))
 			IPSEnter(dev);
 	}
 	/* YJ,add,080828,for link state check */
@@ -3101,7 +3101,7 @@ int rtl8180_down(struct net_device *dev)
 	cancel_delayed_work(&priv->ieee80211->hw_dig_wq);
 	cancel_delayed_work(&priv->ieee80211->tx_pw_wq);
 	del_timer_sync(&priv->SwAntennaDiversityTimer);
-	SetZebraRFPowerState8185(dev, eRfOff);
+	SetZebraRFPowerState8185(dev, RF_OFF);
 	memset(&priv->ieee80211->current_network,
 		0, sizeof(struct ieee80211_network));
 	priv->ieee80211->state = IEEE80211_NOLINK;
@@ -3752,7 +3752,7 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8 btPSR;
 	u8 btConfig0;
-	RT_RF_POWER_STATE	eRfPowerStateToSet;
+	enum rt_rf_power_state eRfPowerStateToSet;
 	bool bActuallySet = false;
 
 	char *argv[3];
@@ -3774,18 +3774,18 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 	/* HW radio On/Off according to the value of FF51[4](config0) */
 	btConfig0 = btPSR = read_nic_byte(dev, CONFIG0);
 
-	eRfPowerStateToSet = (btConfig0 & BIT4) ?  eRfOn : eRfOff;
+	eRfPowerStateToSet = (btConfig0 & BIT4) ?  RF_ON : RF_OFF;
 
 	/* Turn LED back on when radio enabled */
-	if (eRfPowerStateToSet == eRfOn)
+	if (eRfPowerStateToSet == RF_ON)
 		write_nic_byte(dev, PSR, btPSR | BIT3);
 
 	if ((priv->ieee80211->bHwRadioOff == true) &&
-	   (eRfPowerStateToSet == eRfOn)) {
+	   (eRfPowerStateToSet == RF_ON)) {
 		priv->ieee80211->bHwRadioOff = false;
 		bActuallySet = true;
 	} else if ((priv->ieee80211->bHwRadioOff == false) &&
-		  (eRfPowerStateToSet == eRfOff)) {
+		  (eRfPowerStateToSet == RF_OFF)) {
 		priv->ieee80211->bHwRadioOff = true;
 		bActuallySet = true;
 	}

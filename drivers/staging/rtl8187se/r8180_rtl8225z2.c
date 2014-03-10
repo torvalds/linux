@@ -650,7 +650,7 @@ void rtl8225z2_rf_set_mode(struct net_device *dev)
 #define LPS_MAX_SLEEP_WAITING_TIMES_87SE	5
 
 bool SetZebraRFPowerState8185(struct net_device *dev,
-			      RT_RF_POWER_STATE eRFPowerState)
+			      enum rt_rf_power_state eRFPowerState)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8			btCR9346, btConfig3;
@@ -672,7 +672,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 	write_nic_byte(dev, CONFIG3, (btConfig3 | CONFIG3_PARM_En));
 
 	switch (eRFPowerState) {
-	case eRfOn:
+	case RF_ON:
 		write_nic_word(dev, 0x37C, 0x00EC);
 
 		/* turn on AFE */
@@ -697,7 +697,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 		u1bTmp = read_nic_byte(dev, 0x24E);
 		write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
 		break;
-	case eRfSleep:
+	case RF_SLEEP:
 		for (QueueID = 0, i = 0; QueueID < 6;) {
 			if (get_curr_tx_free_desc(dev, QueueID) ==
 							priv->txringcount) {
@@ -764,7 +764,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 			}
 		}
 		break;
-	case eRfOff:
+	case RF_OFF:
 		for (QueueID = 0, i = 0; QueueID < 6;) {
 			if (get_curr_tx_free_desc(dev, QueueID) ==
 					priv->txringcount) {
@@ -841,10 +841,10 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 
 void rtl8225z4_rf_sleep(struct net_device *dev)
 {
-	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
+	MgntActSet_RF_State(dev, RF_SLEEP, RF_CHANGE_BY_PS);
 }
 
 void rtl8225z4_rf_wakeup(struct net_device *dev)
 {
-	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
+	MgntActSet_RF_State(dev, RF_ON, RF_CHANGE_BY_PS);
 }

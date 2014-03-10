@@ -250,11 +250,11 @@ typedef enum _LED_CTL_MODE {
 	LED_CTL_POWER_OFF = 7
 } LED_CTL_MODE;
 
-typedef enum _RT_RF_POWER_STATE {
-	eRfOn,
-	eRfSleep,
-	eRfOff
-} RT_RF_POWER_STATE;
+enum rt_rf_power_state {
+	RF_ON,
+	RF_SLEEP,
+	RF_OFF
+};
 
 enum _ReasonCode {
 	unspec_reason = 0x1,
@@ -467,8 +467,8 @@ struct r8180_priv {
 	struct timer_list watch_dog_timer;
 	bool bInactivePs;
 	bool bSwRfProcessing;
-	RT_RF_POWER_STATE eInactivePowerState;
-	RT_RF_POWER_STATE eRFPowerState;
+	enum rt_rf_power_state eInactivePowerState;
+	enum rt_rf_power_state eRFPowerState;
 	u32 RfOffReason;
 	bool RFChangeInProgress;
 	bool SetRFPowerStateInProgress;
@@ -694,7 +694,7 @@ void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
 void rtl8180_rate_adapter(struct work_struct *work);
 /* #endif */
-bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
+bool MgntActSet_RF_State(struct net_device *dev, enum rt_rf_power_state StateToSet,
 			 u32 ChangeSource);
 
 #endif
