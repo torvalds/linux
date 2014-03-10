@@ -896,10 +896,11 @@ static int sahara_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	if (devm_request_irq(&pdev->dev, irq, sahara_irq_handler,
-		0, SAHARA_NAME, dev) < 0) {
+	err = devm_request_irq(&pdev->dev, irq, sahara_irq_handler,
+			       0, dev_name(&pdev->dev), dev);
+	if (err) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		return -ENOENT;
+		return err;
 	}
 
 	/* clocks */
