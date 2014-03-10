@@ -1634,7 +1634,8 @@ static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text,
 			r = SNIFF_MAX - ch->ch_sniff_in;
 
 			if (r <= n) {
-				memcpy(ch->ch_sniff_buf + ch->ch_sniff_in, p, r);
+				memcpy(ch->ch_sniff_buf +
+				       ch->ch_sniff_in, p, r);
 
 				n -= r;
 				ch->ch_sniff_in = 0;
@@ -4100,34 +4101,35 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			}
 		}
 
-		if ((arg == TCOFLUSH) || (arg == TCIOFLUSH)) {
-			ch->ch_flags &= ~CH_STOP;
-			head = readw(&(ch->ch_bs->tx_head));
-			dgap_cmdw(ch, FLUSHTX, (u16) head, 0);
-			dgap_cmdw(ch, RESUMETX, 0, 0);
-			if (ch->ch_tun.un_flags & (UN_LOW|UN_EMPTY)) {
-				ch->ch_tun.un_flags &= ~(UN_LOW|UN_EMPTY);
-				wake_up_interruptible(&ch->ch_tun.un_flags_wait);
-			}
-			if (ch->ch_pun.un_flags & (UN_LOW|UN_EMPTY)) {
-				ch->ch_pun.un_flags &= ~(UN_LOW|UN_EMPTY);
-				wake_up_interruptible(&ch->ch_pun.un_flags_wait);
-			}
-			if (waitqueue_active(&tty->write_wait))
-				wake_up_interruptible(&tty->write_wait);
-
-			/* Can't hold any locks when calling tty_wakeup! */
+		if ((arg != TCOFLUSH) && (arg != TCIOFLUSH)) {
+			/* pretend we didn't recognize this IOCTL */
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
-			tty_wakeup(tty);
-			DGAP_LOCK(bd->bd_lock, lock_flags);
-			DGAP_LOCK(ch->ch_lock, lock_flags2);
+
+			return -ENOIOCTLCMD;
 		}
 
-		/* pretend we didn't recognize this IOCTL */
+		ch->ch_flags &= ~CH_STOP;
+		head = readw(&(ch->ch_bs->tx_head));
+		dgap_cmdw(ch, FLUSHTX, (u16) head, 0);
+		dgap_cmdw(ch, RESUMETX, 0, 0);
+		if (ch->ch_tun.un_flags & (UN_LOW|UN_EMPTY)) {
+			ch->ch_tun.un_flags &= ~(UN_LOW|UN_EMPTY);
+			wake_up_interruptible(&ch->ch_tun.un_flags_wait);
+		}
+		if (ch->ch_pun.un_flags & (UN_LOW|UN_EMPTY)) {
+			ch->ch_pun.un_flags &= ~(UN_LOW|UN_EMPTY);
+			wake_up_interruptible(&ch->ch_pun.un_flags_wait);
+		}
+		if (waitqueue_active(&tty->write_wait))
+			wake_up_interruptible(&tty->write_wait);
+
+		/* Can't hold any locks when calling tty_wakeup! */
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		tty_wakeup(tty);
 
+		/* pretend we didn't recognize this IOCTL */
 		return -ENOIOCTLCMD;
 
 	case TCSETSF:
@@ -5852,7 +5854,8 @@ static int dgap_event(struct board_t *bd)
 			if (ch->ch_flags & CH_RWAIT) {
 				ch->ch_flags &= ~CH_RWAIT;
 
-				wake_up_interruptible(&ch->ch_tun.un_flags_wait);
+				wake_up_interruptible
+					(&ch->ch_tun.un_flags_wait);
 			}
 		}
 
@@ -5872,8 +5875,10 @@ static int dgap_event(struct board_t *bd)
 			if (ch->ch_tun.un_tty) {
 				/* A break has been indicated */
 				ch->ch_err_break++;
-				tty_buffer_request_room(ch->ch_tun.un_tty->port, 1);
-				tty_insert_flip_char(ch->ch_tun.un_tty->port, 0, TTY_BREAK);
+				tty_buffer_request_room
+					(ch->ch_tun.un_tty->port, 1);
+				tty_insert_flip_char(ch->ch_tun.un_tty->port,
+						     0, TTY_BREAK);
 				tty_flip_buffer_push(ch->ch_tun.un_tty->port);
 			}
 		}
