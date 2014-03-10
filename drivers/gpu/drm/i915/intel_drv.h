@@ -78,6 +78,12 @@
 #define MAX_OUTPUTS 6
 /* maximum connectors per crtcs in the mode set */
 
+/* Maximum cursor sizes */
+#define GEN2_CURSOR_WIDTH 64
+#define GEN2_CURSOR_HEIGHT 64
+#define CURSOR_WIDTH 256
+#define CURSOR_HEIGHT 256
+
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
 
@@ -367,6 +373,7 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
+	int16_t max_cursor_width, max_cursor_height;
 	bool cursor_visible;
 
 	struct intel_plane_config plane_config;

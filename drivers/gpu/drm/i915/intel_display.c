@@ -7599,10 +7599,26 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 	bool visible = base != 0;
 
 	if (intel_crtc->cursor_visible != visible) {
+		int16_t width = intel_crtc->cursor_width;
 		uint32_t cntl = I915_READ(CURCNTR(pipe));
 		if (base) {
 			cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
-			cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+			cntl |= MCURSOR_GAMMA_ENABLE;
+
+			switch (width) {
+			case 64:
+				cntl |= CURSOR_MODE_64_ARGB_AX;
+				break;
+			case 128:
+				cntl |= CURSOR_MODE_128_ARGB_AX;
+				break;
+			case 256:
+				cntl |= CURSOR_MODE_256_ARGB_AX;
+				break;
+			default:
+				WARN_ON(1);
+				return;
+			}
 			cntl |= pipe << 28; /* Connect to correct pipe */
 		} else {
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
@@ -7627,10 +7643,25 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 	bool visible = base != 0;
 
 	if (intel_crtc->cursor_visible != visible) {
+		int16_t width = intel_crtc->cursor_width;
 		uint32_t cntl = I915_READ(CURCNTR_IVB(pipe));
 		if (base) {
 			cntl &= ~CURSOR_MODE;
-			cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+			cntl |= MCURSOR_GAMMA_ENABLE;
+			switch (width) {
+			case 64:
+				cntl |= CURSOR_MODE_64_ARGB_AX;
+				break;
+			case 128:
+				cntl |= CURSOR_MODE_128_ARGB_AX;
+				break;
+			case 256:
+				cntl |= CURSOR_MODE_256_ARGB_AX;
+				break;
+			default:
+				WARN_ON(1);
+				return;
+			}
 		} else {
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
@@ -7726,9 +7757,11 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		goto finish;
 	}
 
-	/* Currently we only support 64x64 cursors */
-	if (width != 64 || height != 64) {
-		DRM_ERROR("we currently only support 64x64 cursors\n");
+	/* Check for which cursor types we support */
+	if (!((width == 64 && height == 64) ||
+			(width == 128 && height == 128 && !IS_GEN2(dev)) ||
+			(width == 256 && height == 256 && !IS_GEN2(dev)))) {
+		DRM_DEBUG("Cursor dimension not supported\n");
 		return -EINVAL;
 	}
 
@@ -10513,6 +10546,16 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		return;
 
 	drm_crtc_init(dev, &intel_crtc->base, &intel_crtc_funcs);
+
+	if (IS_GEN2(dev)) {
+		intel_crtc->max_cursor_width = GEN2_CURSOR_WIDTH;
+		intel_crtc->max_cursor_height = GEN2_CURSOR_HEIGHT;
+	} else {
+		intel_crtc->max_cursor_width = CURSOR_WIDTH;
+		intel_crtc->max_cursor_height = CURSOR_HEIGHT;
+	}
+	dev->mode_config.cursor_width = intel_crtc->max_cursor_width;
+	dev->mode_config.cursor_height = intel_crtc->max_cursor_height;
 
 	drm_mode_crtc_set_gamma_size(&intel_crtc->base, 256);
 	for (i = 0; i < 256; i++) {
