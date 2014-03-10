@@ -19,16 +19,16 @@
 
 #include "gpiolib.h"
 
-struct acpi_gpio_evt_pin {
+struct acpi_gpio_event {
 	struct list_head node;
-	acpi_handle *evt_handle;
+	acpi_handle handle;
 	unsigned int pin;
 	unsigned int irq;
 };
 
 struct acpi_gpio_chip {
 	struct gpio_chip *chip;
-	struct list_head evt_pins;
+	struct list_head events;
 };
 
 static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
@@ -79,9 +79,9 @@ static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 
 static irqreturn_t acpi_gpio_irq_handler_evt(int irq, void *data)
 {
-	struct acpi_gpio_evt_pin *evt_pin = data;
+	struct acpi_gpio_event *event = data;
 
-	acpi_execute_simple_method(evt_pin->evt_handle, NULL, evt_pin->pin);
+	acpi_execute_simple_method(event->handle, NULL, event->pin);
 
 	return IRQ_HANDLED;
 }
@@ -119,7 +119,7 @@ static void acpi_gpiochip_request_interrupts(struct acpi_gpio_chip *acpi_gpio)
 	if (!handle)
 		return;
 
-	INIT_LIST_HEAD(&acpi_gpio->evt_pins);
+	INIT_LIST_HEAD(&acpi_gpio->events);
 
 	/*
 	 * If a GPIO interrupt has an ACPI event handler method, or _EVT is
@@ -157,22 +157,22 @@ static void acpi_gpiochip_request_interrupts(struct acpi_gpio_chip *acpi_gpio)
 			}
 		}
 		if (!handler) {
-			struct acpi_gpio_evt_pin *evt_pin;
+			struct acpi_gpio_event *event;
 
 			status = acpi_get_handle(handle, "_EVT", &evt_handle);
 			if (ACPI_FAILURE(status))
 				continue
 
-			evt_pin = kzalloc(sizeof(*evt_pin), GFP_KERNEL);
-			if (!evt_pin)
+			event = kzalloc(sizeof(*event), GFP_KERNEL);
+			if (!event)
 				continue;
 
-			list_add_tail(&evt_pin->node, &acpi_gpio->evt_pins);
-			evt_pin->evt_handle = evt_handle;
-			evt_pin->pin = pin;
-			evt_pin->irq = irq;
+			list_add_tail(&event->node, &acpi_gpio->events);
+			event->handle = evt_handle;
+			event->pin = pin;
+			event->irq = irq;
 			handler = acpi_gpio_irq_handler_evt;
-			data = evt_pin;
+			data = event;
 		}
 		if (!handler)
 			continue;
@@ -199,17 +199,16 @@ static void acpi_gpiochip_request_interrupts(struct acpi_gpio_chip *acpi_gpio)
  */
 static void acpi_gpiochip_free_interrupts(struct acpi_gpio_chip *acpi_gpio)
 {
-	struct acpi_gpio_evt_pin *evt_pin, *ep;
+	struct acpi_gpio_event *event, *ep;
 	struct gpio_chip *chip = acpi_gpio->chip;
 
 	if (!chip->dev || !chip->to_irq)
 		return;
 
-	list_for_each_entry_safe_reverse(evt_pin, ep, &acpi_gpio->evt_pins,
-					 node) {
-		devm_free_irq(chip->dev, evt_pin->irq, evt_pin);
-		list_del(&evt_pin->node);
-		kfree(evt_pin);
+	list_for_each_entry_safe_reverse(event, ep, &acpi_gpio->events, node) {
+		devm_free_irq(chip->dev, event->irq, event);
+		list_del(&event->node);
+		kfree(event);
 	}
 }
 
