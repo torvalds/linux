@@ -2068,19 +2068,6 @@ static int __init parse_rcu_nocb_poll(char *arg)
 early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
 
 /*
- * Do any no-CBs CPUs need another grace period?
- *
- * Interrupts must be disabled.  If the caller does not hold the root
- * rnp_node structure's ->lock, the results are advisory only.
- */
-static int rcu_nocb_needs_gp(struct rcu_state *rsp)
-{
-	struct rcu_node *rnp = rcu_get_root(rsp);
-
-	return rnp->need_future_gp[(ACCESS_ONCE(rnp->completed) + 1) & 0x1];
-}
-
-/*
  * Wake up any no-CBs CPUs' kthreads that were waiting on the just-ended
  * grace period.
  */
@@ -2401,11 +2388,6 @@ static bool init_nocb_callback_list(struct rcu_data *rdp)
 }
 
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
-
-static int rcu_nocb_needs_gp(struct rcu_state *rsp)
-{
-	return 0;
-}
 
 static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 {

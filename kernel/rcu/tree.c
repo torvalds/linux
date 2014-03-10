@@ -324,6 +324,28 @@ cpu_has_callbacks_ready_to_invoke(struct rcu_data *rdp)
 }
 
 /*
+ * Return the root node of the specified rcu_state structure.
+ */
+static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
+{
+	return &rsp->node[0];
+}
+
+/*
+ * Is there any need for future grace periods?
+ * Interrupts must be disabled.  If the caller does not hold the root
+ * rnp_node structure's ->lock, the results are advisory only.
+ */
+static int rcu_future_needs_gp(struct rcu_state *rsp)
+{
+	struct rcu_node *rnp = rcu_get_root(rsp);
+	int idx = (ACCESS_ONCE(rnp->completed) + 1) & 0x1;
+	int *fp = &rnp->need_future_gp[idx];
+
+	return ACCESS_ONCE(*fp);
+}
+
+/*
  * Does the current CPU require a not-yet-started grace period?
  * The caller must have disabled interrupts to prevent races with
  * normal callback registry.
@@ -335,7 +357,7 @@ cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	if (rcu_gp_in_progress(rsp))
 		return 0;  /* No, a grace period is already in progress. */
-	if (rcu_nocb_needs_gp(rsp))
+	if (rcu_future_needs_gp(rsp))
 		return 1;  /* Yes, a no-CBs CPU needs one. */
 	if (!rdp->nxttail[RCU_NEXT_TAIL])
 		return 0;  /* No, this is a no-CBs (or offline) CPU. */
@@ -347,14 +369,6 @@ cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 				 rdp->nxtcompleted[i]))
 			return 1;  /* Yes, CBs for future grace period. */
 	return 0; /* No grace period needed. */
-}
-
-/*
- * Return the root node of the specified rcu_state structure.
- */
-static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
-{
-	return &rsp->node[0];
 }
 
 /*
@@ -1672,6 +1686,8 @@ static void rsp_wakeup(struct irq_work *work)
 
 	/* Wake up rcu_gp_kthread() to start the grace period. */
 	wake_up(&rsp->gp_wq);
+	trace_rcu_grace_period(rsp->name, ACCESS_ONCE(rsp->gpnum),
+			       "Workqueuewoken");
 }
 
 /*
@@ -1706,8 +1722,11 @@ rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
 	 * the wakeup to interrupt context.  And don't bother waking
 	 * up the running kthread.
 	 */
-	if (current != rsp->gp_kthread)
+	if (current != rsp->gp_kthread) {
+		trace_rcu_grace_period(rsp->name, ACCESS_ONCE(rsp->gpnum),
+				       "Workqueuewake");
 		irq_work_queue(&rsp->wakeup_work);
+	}
 }
 
 /*
