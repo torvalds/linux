@@ -1288,10 +1288,10 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 		d_buf->timecode = s_buf->timecode;
 	}
 	d_buf->sequence = ctx->sequence;
-	d_buf->field = ctx->field;
 
 	d_q_data = &ctx->q_data[Q_DATA_DST];
 	if (d_q_data->flags & Q_DATA_INTERLACED) {
+		d_buf->field = ctx->field;
 		if (ctx->field == V4L2_FIELD_BOTTOM) {
 			ctx->sequence++;
 			ctx->field = V4L2_FIELD_TOP;
@@ -1300,6 +1300,7 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 			ctx->field = V4L2_FIELD_BOTTOM;
 		}
 	} else {
+		d_buf->field = V4L2_FIELD_NONE;
 		ctx->sequence++;
 	}
 
@@ -1723,6 +1724,16 @@ static int vpe_buf_prepare(struct vb2_buffer *vb)
 
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 	num_planes = q_data->fmt->coplanar ? 2 : 1;
+
+	if (vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		if (!(q_data->flags & Q_DATA_INTERLACED)) {
+			vb->v4l2_buf.field = V4L2_FIELD_NONE;
+		} else {
+			if (vb->v4l2_buf.field != V4L2_FIELD_TOP &&
+					vb->v4l2_buf.field != V4L2_FIELD_BOTTOM)
+				return -EINVAL;
+		}
+	}
 
 	for (i = 0; i < num_planes; i++) {
 		if (vb2_plane_size(vb, i) < q_data->sizeimage[i]) {
