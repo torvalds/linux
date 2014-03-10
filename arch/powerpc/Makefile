@@ -113,9 +113,13 @@ else
 endif
 endif
 
-CFLAGS-$(CONFIG_PPC64)	:= -mtraceback=no -mcall-aixdesc
-CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv1)
-AFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv1)
+CFLAGS-$(CONFIG_PPC64)	:= -mtraceback=no
+ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
+CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2,-mcall-aixdesc)
+AFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2)
+else
+CFLAGS-$(CONFIG_PPC64)	+= -mcall-aixdesc
+endif
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcmodel=medium,-mminimal-toc)
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mno-pointers-to-nested-functions)
 CFLAGS-$(CONFIG_PPC32)	:= -ffixed-r2 $(MULTIPLEWORD)
