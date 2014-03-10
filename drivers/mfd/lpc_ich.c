@@ -89,16 +89,16 @@
 #define wdt_mem_res(i) wdt_res(ICH_RES_MEM_OFF, i)
 #define wdt_res(b, i) (&wdt_ich_res[(b) + (i)])
 
-struct lpc_ich_cfg {
-	int base;
-	int ctrl;
-	int save;
-};
-
 struct lpc_ich_priv {
 	int chipset;
-	struct lpc_ich_cfg acpi;
-	struct lpc_ich_cfg gpio;
+
+	int abase;		/* ACPI base */
+	int actrl;		/* ACPI control or PMC base */
+	int gbase;		/* GPIO base */
+	int gctrl;		/* GPIO control */
+
+	int actrl_save;		/* Cached ACPI control base value */
+	int gctrl_save;		/* Cached GPIO control value */
 };
 
 static struct resource wdt_ich_res[] = {
@@ -742,14 +742,14 @@ static void lpc_ich_restore_config_space(struct pci_dev *dev)
 {
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 
-	if (priv->acpi.save >= 0) {
-		pci_write_config_byte(dev, priv->acpi.ctrl, priv->acpi.save);
-		priv->acpi.save = -1;
+	if (priv->actrl_save >= 0) {
+		pci_write_config_byte(dev, priv->actrl, priv->actrl_save);
+		priv->actrl_save = -1;
 	}
 
-	if (priv->gpio.save >= 0) {
-		pci_write_config_byte(dev, priv->gpio.ctrl, priv->gpio.save);
-		priv->gpio.save = -1;
+	if (priv->gctrl_save >= 0) {
+		pci_write_config_byte(dev, priv->gctrl, priv->gctrl_save);
+		priv->gctrl_save = -1;
 	}
 }
 
@@ -758,9 +758,9 @@ static void lpc_ich_enable_acpi_space(struct pci_dev *dev)
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 	u8 reg_save;
 
-	pci_read_config_byte(dev, priv->acpi.ctrl, &reg_save);
-	pci_write_config_byte(dev, priv->acpi.ctrl, reg_save | 0x80);
-	priv->acpi.save = reg_save;
+	pci_read_config_byte(dev, priv->actrl, &reg_save);
+	pci_write_config_byte(dev, priv->actrl, reg_save | 0x80);
+	priv->actrl_save = reg_save;
 }
 
 static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
@@ -768,9 +768,9 @@ static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 	u8 reg_save;
 
-	pci_read_config_byte(dev, priv->gpio.ctrl, &reg_save);
-	pci_write_config_byte(dev, priv->gpio.ctrl, reg_save | 0x10);
-	priv->gpio.save = reg_save;
+	pci_read_config_byte(dev, priv->gctrl, &reg_save);
+	pci_write_config_byte(dev, priv->gctrl, reg_save | 0x10);
+	priv->gctrl_save = reg_save;
 }
 
 static void lpc_ich_finalize_cell(struct pci_dev *dev, struct mfd_cell *cell)
@@ -815,7 +815,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 	struct resource *res;
 
 	/* Setup power management base register */
-	pci_read_config_dword(dev, priv->acpi.base, &base_addr_cfg);
+	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
 		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
@@ -841,7 +841,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 
 gpe0_done:
 	/* Setup GPIO base register */
-	pci_read_config_dword(dev, priv->gpio.base, &base_addr_cfg);
+	pci_read_config_dword(dev, priv->gbase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
 		dev_notice(&dev->dev, "I/O space for GPIO uninitialized\n");
@@ -891,7 +891,7 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	struct resource *res;
 
 	/* Setup power management base register */
-	pci_read_config_dword(dev, priv->acpi.base, &base_addr_cfg);
+	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
 		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
@@ -952,17 +952,18 @@ static int lpc_ich_probe(struct pci_dev *dev,
 		return -ENOMEM;
 
 	priv->chipset = id->driver_data;
-	priv->acpi.save = -1;
-	priv->acpi.base = ACPIBASE;
-	priv->acpi.ctrl = ACPICTRL;
 
-	priv->gpio.save = -1;
+	priv->actrl_save = -1;
+	priv->abase = ACPIBASE;
+	priv->actrl = ACPICTRL;
+
+	priv->gctrl_save = -1;
 	if (priv->chipset <= LPC_ICH5) {
-		priv->gpio.base = GPIOBASE_ICH0;
-		priv->gpio.ctrl = GPIOCTRL_ICH0;
+		priv->gbase = GPIOBASE_ICH0;
+		priv->gctrl = GPIOCTRL_ICH0;
 	} else {
-		priv->gpio.base = GPIOBASE_ICH6;
-		priv->gpio.ctrl = GPIOCTRL_ICH6;
+		priv->gbase = GPIOBASE_ICH6;
+		priv->gctrl = GPIOCTRL_ICH6;
 	}
 
 	pci_set_drvdata(dev, priv);
