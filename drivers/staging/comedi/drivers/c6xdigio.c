@@ -153,7 +153,7 @@ static int c6xdigio_encoder_read(struct comedi_device *dev,
 
 	c6xdigio_write_data(dev, 0x00, 0x80);
 
-	return val ^ 0x800000;
+	return val;
 }
 
 static int c6xdigio_pwm_insn_write(struct comedi_device *dev,
@@ -177,12 +177,17 @@ static int c6xdigio_encoder_insn_read(struct comedi_device *dev,
 				      unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int n;
+	unsigned int val;
+	int i;
 
-	for (n = 0; n < insn->n; n++)
-		data[n] = (c6xdigio_encoder_read(dev, chan) & 0xffffff);
+	for (i = 0; i < insn->n; i++) {
+		val = c6xdigio_encoder_read(dev, chan);
 
-	return n;
+		/* munge two's complement value to offset binary */
+		data[i] = comedi_offset_munge(s, val);
+	}
+
+	return insn->n;
 }
 
 static void c6xdigio_init(struct comedi_device *dev)
