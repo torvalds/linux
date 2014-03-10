@@ -967,13 +967,17 @@ static int lpc_ich_probe(struct pci_dev *dev,
 
 	pci_set_drvdata(dev, priv);
 
-	ret = lpc_ich_init_wdt(dev);
-	if (!ret)
-		cell_added = true;
+	if (lpc_chipset_info[priv->chipset].iTCO_version) {
+		ret = lpc_ich_init_wdt(dev);
+		if (!ret)
+			cell_added = true;
+	}
 
-	ret = lpc_ich_init_gpio(dev);
-	if (!ret)
-		cell_added = true;
+	if (lpc_chipset_info[priv->chipset].gpio_version) {
+		ret = lpc_ich_init_gpio(dev);
+		if (!ret)
+			cell_added = true;
+	}
 
 	/*
 	 * We only care if at least one or none of the cells registered
