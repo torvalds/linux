@@ -485,7 +485,7 @@ static int iTCO_wdt_probe(struct platform_device *dev)
 	iTCO_wdt_watchdog_dev.bootstatus = 0;
 	iTCO_wdt_watchdog_dev.timeout = WATCHDOG_TIMEOUT;
 	watchdog_set_nowayout(&iTCO_wdt_watchdog_dev, nowayout);
-	iTCO_wdt_watchdog_dev.parent = dev->dev.parent;
+	iTCO_wdt_watchdog_dev.parent = &dev->dev;
 
 	/* Make sure the watchdog is not running */
 	iTCO_wdt_stop(&iTCO_wdt_watchdog_dev);
