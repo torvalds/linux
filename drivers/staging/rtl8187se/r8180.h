@@ -26,7 +26,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-/* #include <linux/config.h> */
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -42,7 +41,6 @@
 #include <linux/if_arp.h>
 #include "ieee80211/ieee80211.h"
 #include <asm/io.h>
-/* #include <asm/semaphore.h> */
 
 #define EPROM_93c46 0
 #define EPROM_93c56 1
@@ -140,18 +138,6 @@ typedef union _AC_PARAM {
 	} f;	/* Field */
 } AC_PARAM, *PAC_PARAM;
 
-/* it is a wrong definition. -xiong-2006-11-17
- * typedef struct ThreeWireReg {
- *	u16	longData;
- *	struct {
- *		u8 enableB;
- *		u8 data;
- *		u8 clk;
- *		u8 read_write;
- *	} struc;
- * } ThreeWireReg;
- */
-
 struct buffer {
 	struct buffer *next;
 	u32 *buf;
@@ -164,8 +150,6 @@ struct stats {
 	unsigned long rxrdu;
 	unsigned long rxnolast;
 	unsigned long rxnodata;
-	/* unsigned long rxreset; */
-	/* unsigned long rxwrkaround; */
 	unsigned long rxnopointer;
 	unsigned long txnperr;
 	unsigned long txresumed;
@@ -318,18 +302,13 @@ struct r8180_priv {
 	short max_sens;
 	u8 chtxpwr[15]; /* channels from 1 to 14, 0 not used. */
 	u8 chtxpwr_ofdm[15]; /* channels from 1 to 14, 0 not used. */
-	/* u8 challow[15]; */ /* channels from 1 to 14, 0 not used. */
 	u8 channel_plan;  /* it's the channel plan index. */
 	short up;
 	short crcmon; /* if 1 allow bad crc frame reception in monitor mode. */
 
 	struct timer_list scan_timer;
-	/* short scanpending;
-	 * short stopscan;
-	 */
 	spinlock_t scan_lock;
 	u8 active_probe;
-	/* u8 active_scan_num; */
 	struct semaphore wx_sem;
 	short hw_wep;
 
@@ -365,27 +344,6 @@ struct r8180_priv {
 
 	u32 rx_prevlen;
 
-	/* TX stuff */
-	/*
-	 * u32 *txlpring;
-	 * u32 *txhpring;
-	 * u32 *txnpring;
-	 * dma_addr_t txlpringdma;
-	 * dma_addr_t txhpringdma;
-	 * dma_addr_t txnpringdma;
-	 * u32 *txlpringtail;
-	 * u32 *txhpringtail;
-	 * u32 *txnpringtail;
-	 * u32 *txlpringhead;
-	 * u32 *txhpringhead;
-	 * u32 *txnpringhead;
-	 * struct buffer *txlpbufs;
-	 * struct buffer *txhpbufs;
-	 * struct buffer *txnpbufs;
-	 * struct buffer *txlpbufstail;
-	 * struct buffer *txhpbufstail;
-	 * struct buffer *txnpbufstail;
-	 */
 	u32 *txmapring;
 	u32 *txbkpring;
 	u32 *txbepring;
@@ -425,11 +383,8 @@ struct r8180_priv {
 
 	int txringcount;
 	int txbuffsize;
-	/* struct tx_pendingbuf txnp_pending; */
-	/* struct tasklet_struct irq_tx_tasklet; */
 	struct tasklet_struct irq_rx_tasklet;
 	u8 dma_poll_mask;
-	/* short tx_suspend; */
 
 	/* adhoc/master mode stuff. */
 	u32 *txbeaconringtail;
@@ -438,10 +393,6 @@ struct r8180_priv {
 	int txbeaconcount;
 	struct buffer *txbeaconbufs;
 	struct buffer *txbeaconbufstail;
-	/* char *master_essid; */
-	/* u16 master_beaconinterval; */
-	/* u32 master_beaconsize; */
-	/* u16 beacon_interval; */
 
 	u8 retry_data;
 	u8 retry_rts;
@@ -463,8 +414,6 @@ struct r8180_priv {
 	u8 RFProgType;
 	bool bLeisurePs;
 	enum rt_ps_mode dot11PowerSaveMode;
-	/* u32 NumRxOkInPeriod;*/ /* YJ,del,080828 */
-	/* u32 NumTxOkInPeriod;*/ /* YJ,del,080828 */
 	u8 TxPollingTimes;
 
 	bool bApBufOurFrame; /* TRUE if AP buffer our unicast data , we will
@@ -599,17 +548,12 @@ struct r8180_priv {
 	u8 TryupingCountNoData;
 
 	u8 CurrentOperaRate;
-	/* by amy for rate adaptive. */
-	/* by amy 080312} */
-	/* short wq_hurryup; */
-	/* struct workqueue_struct *workqueue; */
 	struct work_struct reset_wq;
 	struct work_struct watch_dog_wq;
 	short ack_tx_to_ieee;
 
 	u8 dma_poll_stop_mask;
 
-	/* u8 RegThreeWireMode; */
 	u16 ShortRetryLimit;
 	u16 LongRetryLimit;
 	u16 EarlyRxThreshold;
@@ -671,7 +615,6 @@ void UpdateInitialGain(struct net_device *dev);
 bool SetAntennaConfig87SE(struct net_device *dev, u8 DefaultAnt,
 			  bool bAntDiversity);
 
-/* #ifdef CONFIG_RTL8185B */
 void rtl8185b_adapter_start(struct net_device *dev);
 void rtl8185b_rx_enable(struct net_device *dev);
 void rtl8185b_tx_enable(struct net_device *dev);
@@ -681,7 +624,6 @@ void fix_rx_fifo(struct net_device *dev);
 void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
 void rtl8180_rate_adapter(struct work_struct *work);
-/* #endif */
 bool MgntActSet_RF_State(struct net_device *dev, enum rt_rf_power_state StateToSet,
 			 u32 ChangeSource);
 
