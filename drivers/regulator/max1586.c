@@ -165,8 +165,7 @@ static int max1586_pmic_probe(struct i2c_client *client,
 	struct max1586_data *max1586;
 	int i, id;
 
-	max1586 = devm_kzalloc(&client->dev, sizeof(struct max1586_data) +
-			sizeof(struct regulator_dev *) * (MAX1586_V6 + 1),
+	max1586 = devm_kzalloc(&client->dev, sizeof(struct max1586_data),
 			GFP_KERNEL);
 	if (!max1586)
 		return -ENOMEM;
