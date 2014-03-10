@@ -429,6 +429,7 @@ static int msi001_probe(struct spi_device *spi)
 	}
 
 	s->spi = spi;
+	s->f_tuner = bands[0].rangelow;
 	v4l2_spi_subdev_init(&s->sd, spi, &msi001_ops);
 
 	/* Register controls */
