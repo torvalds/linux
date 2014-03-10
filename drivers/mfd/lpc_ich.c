@@ -759,7 +759,7 @@ static void lpc_ich_enable_acpi_space(struct pci_dev *dev)
 	u8 reg_save;
 
 	pci_read_config_byte(dev, priv->acpi.ctrl, &reg_save);
-	pci_write_config_byte(dev, priv->acpi.ctrl, reg_save | 0x10);
+	pci_write_config_byte(dev, priv->acpi.ctrl, reg_save | 0x80);
 	priv->acpi.save = reg_save;
 }
 
