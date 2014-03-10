@@ -106,9 +106,8 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 
 	/* mgmt device */
 	if (minor < MAXMGMTDEVICES) {
-		if (dgnc_mgmt_in_use[minor]) {
+		if (dgnc_mgmt_in_use[minor])
 			dgnc_mgmt_in_use[minor] = 0;
-		}
 	}
 	DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 
@@ -164,9 +163,8 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		struct digi_info di;
 
-		if (copy_from_user(&brd, uarg, sizeof(int))) {
+		if (copy_from_user(&brd, uarg, sizeof(int)))
 			return -EFAULT;
-		}
 
 		DPR_MGMT(("DIGI_GETBD asking about board: %d\n", brd));
 
@@ -208,9 +206,8 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		uint board = 0;
 		uint channel = 0;
 
-		if (copy_from_user(&ni, uarg, sizeof(ni))) {
+		if (copy_from_user(&ni, uarg, sizeof(ni)))
 			return -EFAULT;
-		}
 
 		DPR_MGMT(("DIGI_GETBD asking about board: %d channel: %d\n",
 			ni.board, ni.channel));
