@@ -238,18 +238,6 @@ enum led_strategy_8185 {
 		 * control modes). */
 };
 
-/* by amy for led. */
-/* by amy for power save. */
-typedef enum _LED_CTL_MODE {
-	LED_CTL_POWER_ON = 1,
-	LED_CTL_LINK = 2,
-	LED_CTL_NO_LINK = 3,
-	LED_CTL_TX = 4,
-	LED_CTL_RX = 5,
-	LED_CTL_SITE_SURVEY = 6,
-	LED_CTL_POWER_OFF = 7
-} LED_CTL_MODE;
-
 enum rt_rf_power_state {
 	RF_ON,
 	RF_SLEEP,
