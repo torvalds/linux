@@ -24,15 +24,6 @@
 
 #include "dot11d.h"
 
-u8 rsn_authen_cipher_suite[16][4] = {
-	{0x00,0x0F,0xAC,0x00}, //Use group key, //Reserved
-	{0x00,0x0F,0xAC,0x01}, //WEP-40         //RSNA default
-	{0x00,0x0F,0xAC,0x02}, //TKIP           //NONE		//{used just as default}
-	{0x00,0x0F,0xAC,0x03}, //WRAP-historical
-	{0x00,0x0F,0xAC,0x04}, //CCMP
-	{0x00,0x0F,0xAC,0x05}, //WEP-104
-};
-
 short ieee80211_is_54g(const struct ieee80211_network *net)
 {
 	return (net->rates_ex_len > 0) || (net->rates_len > 4);
