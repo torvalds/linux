@@ -184,6 +184,7 @@ static inline const char *boot_mode_name(u32 mode)
 	case BOOT_MODE_REBOOT: return "REBOOT";
 	case BOOT_MODE_PANIC: return "PANIC";
 	case BOOT_MODE_WATCHDOG: return "WATCHDOG";
+	case BOOT_MODE_TSADC: return "TSADC";
 	default: return "";
 	}
 }

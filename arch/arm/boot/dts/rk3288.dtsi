@@ -54,6 +54,12 @@
 		      <0xffc02000 0x1000>;
 	};
 
+	sram: sram@ff710000 {
+		compatible = "mmio-sram";
+		reg = <0xff710000 0x8000>; /* 32k */
+		map-exec;
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,

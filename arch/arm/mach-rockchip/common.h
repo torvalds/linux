@@ -29,6 +29,7 @@ extern int rockchip_cpu_disable(unsigned int cpu);
 #define BOOT_MODE_REBOOT		6
 #define BOOT_MODE_PANIC			7
 #define BOOT_MODE_WATCHDOG		8
+#define BOOT_MODE_TSADC			9
 
 extern int rockchip_boot_mode(void);
 extern void __init rockchip_boot_mode_init(u32 flag, u32 mode);

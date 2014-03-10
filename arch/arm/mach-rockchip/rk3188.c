@@ -110,7 +110,7 @@ static bool rk3188_pmu_power_domain_is_on(enum pmu_power_domain pd)
 	return !(readl_relaxed(RK_PMU_VIRT + RK3188_PMU_PWRDN_ST) & BIT(pmu_pd_map[pd]));
 }
 
-static noinline void do_pmu_set_power_domain(enum pmu_power_domain domain, bool on)
+static noinline void rk3188_do_pmu_set_power_domain(enum pmu_power_domain domain, bool on)
 {
 	u8 pd = pmu_pd_map[domain];
 	u32 val = readl_relaxed(RK_PMU_VIRT + RK3188_PMU_PWRDN_CON);
@@ -228,7 +228,7 @@ static int rk3188_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			rk3188_pmu_set_idle_request(IDLE_REQ_GPU, true);
 		}
 	}
-	do_pmu_set_power_domain(pd, on);
+	rk3188_do_pmu_set_power_domain(pd, on);
 	if (on) {
 		/* if power up, idle request release to NIU */
 		if (pd == PD_VIO) {

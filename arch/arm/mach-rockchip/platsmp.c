@@ -110,14 +110,12 @@ static int __init rockchip_smp_prepare_bootram(void)
 	return 0;
 }
 
-static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
+static void __init rockchip_a9_smp_prepare_cpus(unsigned int max_cpus)
 {
-	void __iomem *scu_base_addr = NULL;
-	struct device_node *node;
+	void __iomem *scu_base_addr;
 	unsigned int i, cpu;
 
-	if (scu_a9_has_base())
-		scu_base_addr = ioremap(scu_a9_get_base(), 0x100);
+	scu_base_addr = ioremap(scu_a9_get_base(), 0x100);
 
 	if (!scu_base_addr) {
 		pr_err("%s: could not map scu registers\n", __func__);
@@ -126,12 +124,6 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 
 	if (rockchip_smp_prepare_bootram())
 		return;
-
-	node = of_find_compatible_node(NULL, NULL, "rockchip,pmu");
-	if (!node) {
-		pr_err("%s: could not find pmu dt node\n", __func__);
-		return;
-	}
 
 	/*
 	 * While the number of cpus is gathered from dt, also get the number
@@ -151,6 +143,12 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	iounmap(scu_base_addr);
+}
+
+static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
+{
+	if (scu_a9_has_base())
+		return rockchip_a9_smp_prepare_cpus(max_cpus);
 }
 
 struct smp_operations rockchip_smp_ops __initdata = {

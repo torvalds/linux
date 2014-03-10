@@ -45,7 +45,7 @@
 static struct map_desc rk3288_io_desc[] __initdata = {
 	RK3288_DEVICE(CRU),
 	RK3288_DEVICE(GRF),
-	RK_DEVICE(RK_GRF_VIRT + RK3288_GRF_SIZE, RK3288_SGRF_PHYS, RK3288_SGRF_SIZE),
+	RK3288_DEVICE(SGRF),
 	RK3288_DEVICE(PMU),
 	RK3288_DEVICE(ROM),
 	RK3288_DEVICE(EFUSE),
@@ -69,15 +69,18 @@ static void __init rk3288_boot_mode_init(void)
 {
 	u32 flag = readl_relaxed(RK_PMU_VIRT + RK3288_PMU_SYS_REG0);
 	u32 mode = readl_relaxed(RK_PMU_VIRT + RK3288_PMU_SYS_REG1);
+	u32 rst_st = readl_relaxed(RK_CRU_VIRT + RK3288_CRU_GLB_RST_ST);
 
-	if (flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
+	if (flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER))
 		mode = BOOT_MODE_RECOVERY;
-	}
+	if (rst_st & ((1 << 4) | (1 << 5)))
+		mode = BOOT_MODE_WATCHDOG;
+	else if (rst_st & ((1 << 2) | (1 << 3)))
+		mode = BOOT_MODE_TSADC;
 	rockchip_boot_mode_init(flag, mode);
-#ifdef CONFIG_RK29_WATCHDOG
-	writel_relaxed(BOOT_MODE_WATCHDOG, RK_PMU_VIRT + RK3288_PMU_SYS_REG1);
-#endif
 }
+
+extern void secondary_startup(void);
 
 static void __init rk3288_dt_map_io(void)
 {
@@ -89,21 +92,117 @@ static void __init rk3288_dt_map_io(void)
 	/* rkpwm is used instead of old pwm */
 	//writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
 
+	/* enable fast boot */
+	writel_relaxed(0x01000100, RK_SGRF_VIRT + RK3288_SGRF_SOC_CON0);
+	writel_relaxed(virt_to_phys(secondary_startup), RK_SGRF_VIRT + RK3288_SGRF_FAST_BOOT_ADDR);
+
 	rk3288_boot_mode_init();
 }
 
+static const u8 pmu_st_map[] = {
+	[PD_CPU_0] = 0,
+	[PD_CPU_1] = 1,
+	[PD_CPU_2] = 2,
+	[PD_CPU_3] = 3,
+	[PD_BUS] = 5,
+	[PD_PERI] = 6,
+	[PD_VIO] = 7,
+	[PD_VIDEO] = 8,
+	[PD_GPU] = 9,
+	[PD_HEVC] = 10,
+	[PD_SCU] = 11,
+};
+
 static bool rk3288_pmu_power_domain_is_on(enum pmu_power_domain pd)
 {
-	return true;
+	/* 1'b0: power on, 1'b1: power off */
+	return !(readl_relaxed(RK_PMU_VIRT + RK3288_PMU_PWRDN_ST) & BIT(pmu_st_map[pd]));
 }
+
+static DEFINE_SPINLOCK(pmu_idle_lock);
+
+static const u8 pmu_idle_map[] = {
+	[IDLE_REQ_BUS] = 0,
+	[IDLE_REQ_PERI] = 1,
+	[IDLE_REQ_GPU] = 2,
+	[IDLE_REQ_VIDEO] = 3,
+	[IDLE_REQ_VIO] = 4,
+	[IDLE_REQ_CORE] = 5,
+	[IDLE_REQ_ALIVE] = 6,
+	[IDLE_REQ_DMA] = 7,
+	[IDLE_REQ_CPUP] = 8,
+	[IDLE_REQ_HEVC] = 9,
+};
 
 static int rk3288_pmu_set_idle_request(enum pmu_idle_req req, bool idle)
 {
+	u32 bit = pmu_idle_map[req];
+	u32 idle_mask = BIT(bit) | BIT(bit + 16);
+	u32 idle_target = (idle << bit) | (idle << (bit + 16));
+	u32 mask = BIT(bit);
+	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pmu_idle_lock, flags);
+	val = readl_relaxed(RK_PMU_VIRT + RK3288_PMU_IDLE_REQ);
+	if (idle)
+		val |=  mask;
+	else
+		val &= ~mask;
+	writel_relaxed(val, RK_PMU_VIRT + RK3288_PMU_IDLE_REQ);
+	dsb();
+
+	while ((readl_relaxed(RK_PMU_VIRT + RK3288_PMU_IDLE_ST) & idle_mask) != idle_target)
+		;
+	spin_unlock_irqrestore(&pmu_idle_lock, flags);
+
 	return 0;
+}
+
+static const u8 pmu_pd_map[] = {
+	[PD_CPU_0] = 0,
+	[PD_CPU_1] = 1,
+	[PD_CPU_2] = 2,
+	[PD_CPU_3] = 3,
+	[PD_BUS] = 5,
+	[PD_PERI] = 6,
+	[PD_VIO] = 7,
+	[PD_VIDEO] = 8,
+	[PD_GPU] = 9,
+	[PD_SCU] = 11,
+	[PD_HEVC] = 14,
+};
+
+static DEFINE_SPINLOCK(pmu_pd_lock);
+
+static noinline void rk3288_do_pmu_set_power_domain(enum pmu_power_domain domain, bool on)
+{
+	u8 pd = pmu_pd_map[domain];
+	u32 val = readl_relaxed(RK_PMU_VIRT + RK3288_PMU_PWRDN_CON);
+	if (on)
+		val &= ~BIT(pd);
+	else
+		val |=  BIT(pd);
+	writel_relaxed(val, RK_PMU_VIRT + RK3288_PMU_PWRDN_CON);
+	dsb();
+
+	while ((readl_relaxed(RK_PMU_VIRT + RK3288_PMU_PWRDN_ST) & BIT(pmu_st_map[domain])) == on)
+		;
 }
 
 static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&pmu_pd_lock, flags);
+	if (rk3288_pmu_power_domain_is_on(pd) == on) {
+		spin_unlock_irqrestore(&pmu_pd_lock, flags);
+		return 0;
+	}
+
+	rk3288_do_pmu_set_power_domain(pd, on);
+
+	spin_unlock_irqrestore(&pmu_pd_lock, flags);
 	return 0;
 }
 

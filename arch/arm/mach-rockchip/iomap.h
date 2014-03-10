@@ -9,6 +9,7 @@
 
 #define RK_CRU_VIRT                     RK_IO_ADDRESS(0x00000000)
 #define RK_GRF_VIRT                     RK_IO_ADDRESS(0x00010000)
+#define RK_SGRF_VIRT                    (RK_GRF_VIRT + 0x1000)
 #define RK_PMU_VIRT                     RK_IO_ADDRESS(0x00020000)
 #define RK_ROM_VIRT                     RK_IO_ADDRESS(0x00030000)
 #define RK_EFUSE_VIRT                   RK_IO_ADDRESS(0x00040000)
