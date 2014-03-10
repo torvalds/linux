@@ -279,7 +279,8 @@ static int zforce_start(struct zforce_ts *ts)
 		goto error;
 	}
 
-	if (zforce_setconfig(ts, SETCONFIG_DUALTOUCH)) {
+	ret = zforce_setconfig(ts, SETCONFIG_DUALTOUCH);
+	if (ret) {
 		dev_err(&client->dev, "Unable to set config\n");
 		goto error;
 	}

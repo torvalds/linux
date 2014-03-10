@@ -455,12 +455,10 @@
 
 #define ECC_SECTOR_SIZE     512
 
-#define DENALI_BUF_SIZE		(NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE)
-
 struct nand_buf {
 	int head;
 	int tail;
-	uint8_t buf[DENALI_BUF_SIZE];
+	uint8_t *buf;
 	dma_addr_t dma_buf;
 };
 

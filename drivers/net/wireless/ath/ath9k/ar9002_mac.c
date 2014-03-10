@@ -29,7 +29,8 @@ static void ar9002_hw_set_desc_link(void *ds, u32 ds_link)
 	((struct ath_desc*) ds)->ds_link = ds_link;
 }
 
-static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
+static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
+			      u32 *sync_cause_p)
 {
 	u32 isr = 0;
 	u32 mask2 = 0;
@@ -170,7 +171,8 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 		return true;
 
 	if (sync_cause) {
-		ath9k_debug_sync_cause(common, sync_cause);
+		if (sync_cause_p)
+			*sync_cause_p = sync_cause;
 		fatal_int =
 			(sync_cause &
 			 (AR_INTR_SYNC_HOST1_FATAL | AR_INTR_SYNC_HOST1_PERR))

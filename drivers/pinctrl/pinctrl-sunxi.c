@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -469,12 +470,6 @@ static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return val;
 }
 
-static int sunxi_pinctrl_gpio_direction_output(struct gpio_chip *chip,
-					unsigned offset, int value)
-{
-	return pinctrl_gpio_direction_output(chip->base + offset);
-}
-
 static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 				unsigned offset, int value)
 {
@@ -496,6 +491,13 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 	writel(regval, pctl->membase + reg);
 
 	spin_unlock_irqrestore(&pctl->lock, flags);
+}
+
+static int sunxi_pinctrl_gpio_direction_output(struct gpio_chip *chip,
+					unsigned offset, int value)
+{
+	sunxi_pinctrl_gpio_set(chip, offset, value);
+	return pinctrl_gpio_direction_output(chip->base + offset);
 }
 
 static int sunxi_pinctrl_gpio_of_xlate(struct gpio_chip *gc,
@@ -547,7 +549,7 @@ static struct gpio_chip sunxi_pinctrl_gpio_chip = {
 	.of_xlate		= sunxi_pinctrl_gpio_of_xlate,
 	.to_irq			= sunxi_pinctrl_gpio_to_irq,
 	.of_gpio_n_cells	= 3,
-	.can_sleep		= 0,
+	.can_sleep		= false,
 };
 
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
@@ -583,7 +585,7 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
 	spin_lock_irqsave(&pctl->lock, flags);
 
 	regval = readl(pctl->membase + reg);
-	regval &= ~IRQ_CFG_IRQ_MASK;
+	regval &= ~(IRQ_CFG_IRQ_MASK << index);
 	writel(regval | (mode << index), pctl->membase + reg);
 
 	spin_unlock_irqrestore(&pctl->lock, flags);
@@ -664,6 +666,7 @@ static struct irq_chip sunxi_pinctrl_irq_chip = {
 
 static void sunxi_pinctrl_irq_handler(unsigned irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_get_chip(irq);
 	struct sunxi_pinctrl *pctl = irq_get_handler_data(irq);
 	const unsigned long reg = readl(pctl->membase + IRQ_STATUS_REG);
 
@@ -673,10 +676,12 @@ static void sunxi_pinctrl_irq_handler(unsigned irq, struct irq_desc *desc)
 	if (reg) {
 		int irqoffset;
 
+		chained_irq_enter(chip, desc);
 		for_each_set_bit(irqoffset, &reg, SUNXI_IRQ_NUMBER) {
 			int pin_irq = irq_find_mapping(pctl->domain, irqoffset);
 			generic_handle_irq(pin_irq);
 		}
+		chained_irq_exit(chip, desc);
 	}
 }
 

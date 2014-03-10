@@ -221,4 +221,4 @@ static int __init proc_stat_init(void)
 	proc_create("stat", 0, NULL, &proc_stat_operations);
 	return 0;
 }
-module_init(proc_stat_init);
+fs_initcall(proc_stat_init);

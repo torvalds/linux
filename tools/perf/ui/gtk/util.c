@@ -23,8 +23,7 @@ int perf_gtk__deactivate_context(struct perf_gtk_context **ctx)
 	if (!perf_gtk__is_active_context(*ctx))
 		return -1;
 
-	free(*ctx);
-	*ctx = NULL;
+	zfree(ctx);
 	return 0;
 }
 

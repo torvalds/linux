@@ -19,6 +19,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define DSS_SUBSYS_NAME "HDMICORE"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -125,12 +127,12 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 
 	/* HDMI_CORE_DDC_STATUS_BUS_LOW */
 	if (REG_GET(base, HDMI_CORE_DDC_STATUS, 6, 6) == 1) {
-		pr_err("I2C Bus Low?\n");
+		DSSERR("I2C Bus Low?\n");
 		return -EIO;
 	}
 	/* HDMI_CORE_DDC_STATUS_NO_ACK */
 	if (REG_GET(base, HDMI_CORE_DDC_STATUS, 5, 5) == 1) {
-		pr_err("I2C No Ack\n");
+		DSSERR("I2C No Ack\n");
 		return -EIO;
 	}
 
@@ -161,7 +163,7 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 		checksum += pedid[i];
 
 	if (checksum != 0) {
-		pr_err("E-EDID checksum failed!!\n");
+		DSSERR("E-EDID checksum failed!!\n");
 		return -EIO;
 	}
 
@@ -199,7 +201,7 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
 			struct hdmi_core_infoframe_avi *avi_cfg,
 			struct hdmi_core_packet_enable_repeat *repeat_cfg)
 {
-	pr_debug("Enter hdmi_core_init\n");
+	DSSDBG("Enter hdmi_core_init\n");
 
 	/* video core */
 	video_cfg->ip_bus_width = HDMI_INPUT_8BIT;
@@ -241,19 +243,19 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
 
 static void hdmi_core_powerdown_disable(struct hdmi_core_data *core)
 {
-	pr_debug("Enter hdmi_core_powerdown_disable\n");
+	DSSDBG("Enter hdmi_core_powerdown_disable\n");
 	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SYS_CTRL1, 0x0, 0, 0);
 }
 
 static void hdmi_core_swreset_release(struct hdmi_core_data *core)
 {
-	pr_debug("Enter hdmi_core_swreset_release\n");
+	DSSDBG("Enter hdmi_core_swreset_release\n");
 	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SRST, 0x0, 0, 0);
 }
 
 static void hdmi_core_swreset_assert(struct hdmi_core_data *core)
 {
-	pr_debug("Enter hdmi_core_swreset_assert\n");
+	DSSDBG("Enter hdmi_core_swreset_assert\n");
 	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SRST, 0x1, 0, 0);
 }
 
@@ -1004,7 +1006,7 @@ int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 	struct resource *res;
 	struct resource temp_res;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_core");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
 	if (!res) {
 		DSSDBG("can't get CORE mem resource by name\n");
 		/*

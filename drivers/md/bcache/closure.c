@@ -11,19 +11,6 @@
 
 #include "closure.h"
 
-#define CL_FIELD(type, field)					\
-	case TYPE_ ## type:					\
-	return &container_of(cl, struct type, cl)->field
-
-static struct closure_waitlist *closure_waitlist(struct closure *cl)
-{
-	switch (cl->type) {
-		CL_FIELD(closure_with_waitlist, wait);
-	default:
-		return NULL;
-	}
-}
-
 static inline void closure_put_after_sub(struct closure *cl, int flags)
 {
 	int r = flags & CLOSURE_REMAINING_MASK;
@@ -42,16 +29,9 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 			closure_queue(cl);
 		} else {
 			struct closure *parent = cl->parent;
-			struct closure_waitlist *wait = closure_waitlist(cl);
 			closure_fn *destructor = cl->fn;
 
 			closure_debug_destroy(cl);
-
-			smp_mb();
-			atomic_set(&cl->remaining, -1);
-
-			if (wait)
-				closure_wake_up(wait);
 
 			if (destructor)
 				destructor(cl);
@@ -69,19 +49,18 @@ void closure_sub(struct closure *cl, int v)
 }
 EXPORT_SYMBOL(closure_sub);
 
+/**
+ * closure_put - decrement a closure's refcount
+ */
 void closure_put(struct closure *cl)
 {
 	closure_put_after_sub(cl, atomic_dec_return(&cl->remaining));
 }
 EXPORT_SYMBOL(closure_put);
 
-static void set_waiting(struct closure *cl, unsigned long f)
-{
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
-	cl->waiting_on = f;
-#endif
-}
-
+/**
+ * closure_wake_up - wake up all closures on a wait list, without memory barrier
+ */
 void __closure_wake_up(struct closure_waitlist *wait_list)
 {
 	struct llist_node *list;
@@ -106,27 +85,34 @@ void __closure_wake_up(struct closure_waitlist *wait_list)
 		cl = container_of(reverse, struct closure, list);
 		reverse = llist_next(reverse);
 
-		set_waiting(cl, 0);
+		closure_set_waiting(cl, 0);
 		closure_sub(cl, CLOSURE_WAITING + 1);
 	}
 }
 EXPORT_SYMBOL(__closure_wake_up);
 
-bool closure_wait(struct closure_waitlist *list, struct closure *cl)
+/**
+ * closure_wait - add a closure to a waitlist
+ *
+ * @waitlist will own a ref on @cl, which will be released when
+ * closure_wake_up() is called on @waitlist.
+ *
+ */
+bool closure_wait(struct closure_waitlist *waitlist, struct closure *cl)
 {
 	if (atomic_read(&cl->remaining) & CLOSURE_WAITING)
 		return false;
 
-	set_waiting(cl, _RET_IP_);
+	closure_set_waiting(cl, _RET_IP_);
 	atomic_add(CLOSURE_WAITING + 1, &cl->remaining);
-	llist_add(&cl->list, &list->list);
+	llist_add(&cl->list, &waitlist->list);
 
 	return true;
 }
 EXPORT_SYMBOL(closure_wait);
 
 /**
- * closure_sync() - sleep until a closure a closure has nothing left to wait on
+ * closure_sync - sleep until a closure a closure has nothing left to wait on
  *
  * Sleeps until the refcount hits 1 - the thread that's running the closure owns
  * the last refcount.
@@ -147,46 +133,6 @@ void closure_sync(struct closure *cl)
 	__closure_end_sleep(cl);
 }
 EXPORT_SYMBOL(closure_sync);
-
-/**
- * closure_trylock() - try to acquire the closure, without waiting
- * @cl:		closure to lock
- *
- * Returns true if the closure was succesfully locked.
- */
-bool closure_trylock(struct closure *cl, struct closure *parent)
-{
-	if (atomic_cmpxchg(&cl->remaining, -1,
-			   CLOSURE_REMAINING_INITIALIZER) != -1)
-		return false;
-
-	smp_mb();
-
-	cl->parent = parent;
-	if (parent)
-		closure_get(parent);
-
-	closure_set_ret_ip(cl);
-	closure_debug_create(cl);
-	return true;
-}
-EXPORT_SYMBOL(closure_trylock);
-
-void __closure_lock(struct closure *cl, struct closure *parent,
-		    struct closure_waitlist *wait_list)
-{
-	struct closure wait;
-	closure_init_stack(&wait);
-
-	while (1) {
-		if (closure_trylock(cl, parent))
-			return;
-
-		closure_wait_event(wait_list, &wait,
-				   atomic_read(&cl->remaining) == -1);
-	}
-}
-EXPORT_SYMBOL(__closure_lock);
 
 #ifdef CONFIG_BCACHE_CLOSURES_DEBUG
 

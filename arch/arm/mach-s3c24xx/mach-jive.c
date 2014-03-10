@@ -38,6 +38,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 #include <mach/fb.h>
+#include <mach/gpio-samsung.h>
 
 #include <asm/mach-types.h>
 

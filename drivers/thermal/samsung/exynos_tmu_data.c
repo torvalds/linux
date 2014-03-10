@@ -131,8 +131,8 @@ static const struct exynos_tmu_registers exynos4412_tmu_registers = {
 
 #define EXYNOS4412_TMU_DATA \
 	.threshold_falling = 10, \
-	.trigger_levels[0] = 85, \
-	.trigger_levels[1] = 103, \
+	.trigger_levels[0] = 70, \
+	.trigger_levels[1] = 95, \
 	.trigger_levels[2] = 110, \
 	.trigger_levels[3] = 120, \
 	.trigger_enable[0] = true, \
@@ -155,12 +155,12 @@ static const struct exynos_tmu_registers exynos4412_tmu_registers = {
 	.second_point_trim = 85, \
 	.default_temp_offset = 50, \
 	.freq_tab[0] = { \
-		.freq_clip_max = 800 * 1000, \
-		.temp_level = 85, \
+		.freq_clip_max = 1400 * 1000, \
+		.temp_level = 70, \
 	}, \
 	.freq_tab[1] = { \
-		.freq_clip_max = 200 * 1000, \
-		.temp_level = 103, \
+		.freq_clip_max = 400 * 1000, \
+		.temp_level = 95, \
 	}, \
 	.freq_tab_count = 2, \
 	.registers = &exynos4412_tmu_registers, \

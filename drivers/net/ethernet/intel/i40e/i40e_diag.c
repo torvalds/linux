@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -68,16 +67,16 @@ static i40e_status i40e_diag_reg_pattern_test(struct i40e_hw *hw,
 
 struct i40e_diag_reg_test_info i40e_reg_list[] = {
 	/* offset               mask         elements   stride */
-	{I40E_QTX_CTL(0),       0x0000FFBF,  64, I40E_QTX_CTL(1) - I40E_QTX_CTL(0)},
+	{I40E_QTX_CTL(0),       0x0000FFBF,   4, I40E_QTX_CTL(1) - I40E_QTX_CTL(0)},
 	{I40E_PFINT_ITR0(0),    0x00000FFF,   3, I40E_PFINT_ITR0(1) - I40E_PFINT_ITR0(0)},
-	{I40E_PFINT_ITRN(0, 0), 0x00000FFF,  64, I40E_PFINT_ITRN(0, 1) - I40E_PFINT_ITRN(0, 0)},
-	{I40E_PFINT_ITRN(1, 0), 0x00000FFF,  64, I40E_PFINT_ITRN(1, 1) - I40E_PFINT_ITRN(1, 0)},
-	{I40E_PFINT_ITRN(2, 0), 0x00000FFF,  64, I40E_PFINT_ITRN(2, 1) - I40E_PFINT_ITRN(2, 0)},
+	{I40E_PFINT_ITRN(0, 0), 0x00000FFF,   8, I40E_PFINT_ITRN(0, 1) - I40E_PFINT_ITRN(0, 0)},
+	{I40E_PFINT_ITRN(1, 0), 0x00000FFF,   8, I40E_PFINT_ITRN(1, 1) - I40E_PFINT_ITRN(1, 0)},
+	{I40E_PFINT_ITRN(2, 0), 0x00000FFF,   8, I40E_PFINT_ITRN(2, 1) - I40E_PFINT_ITRN(2, 0)},
 	{I40E_PFINT_STAT_CTL0,  0x0000000C,   1, 0},
 	{I40E_PFINT_LNKLST0,    0x00001FFF,   1, 0},
-	{I40E_PFINT_LNKLSTN(0), 0x000007FF, 511, I40E_PFINT_LNKLSTN(1) - I40E_PFINT_LNKLSTN(0)},
-	{I40E_QINT_TQCTL(0),    0x000000FF, I40E_QINT_TQCTL_MAX_INDEX + 1, I40E_QINT_TQCTL(1) - I40E_QINT_TQCTL(0)},
-	{I40E_QINT_RQCTL(0),    0x000000FF, I40E_QINT_RQCTL_MAX_INDEX + 1, I40E_QINT_RQCTL(1) - I40E_QINT_RQCTL(0)},
+	{I40E_PFINT_LNKLSTN(0), 0x000007FF,  64, I40E_PFINT_LNKLSTN(1) - I40E_PFINT_LNKLSTN(0)},
+	{I40E_QINT_TQCTL(0),    0x000000FF,  64, I40E_QINT_TQCTL(1) - I40E_QINT_TQCTL(0)},
+	{I40E_QINT_RQCTL(0),    0x000000FF,  64, I40E_QINT_RQCTL(1) - I40E_QINT_RQCTL(0)},
 	{I40E_PFINT_ICR0_ENA,   0xF7F20000,   1, 0},
 	{ 0 }
 };
@@ -119,7 +118,7 @@ i40e_status i40e_diag_eeprom_test(struct i40e_hw *hw)
 
 	/* read NVM control word and if NVM valid, validate EEPROM checksum*/
 	ret_code = i40e_read_nvm_word(hw, I40E_SR_NVM_CONTROL_WORD, &reg_val);
-	if ((!ret_code) &&
+	if (!ret_code &&
 	    ((reg_val & I40E_SR_CONTROL_WORD_1_MASK) ==
 	     (0x01 << I40E_SR_CONTROL_WORD_1_SHIFT))) {
 		ret_code = i40e_validate_nvm_checksum(hw, NULL);

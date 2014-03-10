@@ -576,10 +576,10 @@ static const struct iio_info ad7150_info = {
 	.event_attrs = &ad7150_event_attribute_group,
 	.driver_module = THIS_MODULE,
 	.read_raw = &ad7150_read_raw,
-	.read_event_config_new = &ad7150_read_event_config,
-	.write_event_config_new = &ad7150_write_event_config,
-	.read_event_value_new = &ad7150_read_event_value,
-	.write_event_value_new = &ad7150_write_event_value,
+	.read_event_config = &ad7150_read_event_config,
+	.write_event_config = &ad7150_write_event_config,
+	.read_event_value = &ad7150_read_event_value,
+	.write_event_value = &ad7150_write_event_value,
 };
 
 /*

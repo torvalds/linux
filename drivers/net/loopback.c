@@ -39,7 +39,6 @@
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
-#include <linux/init.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

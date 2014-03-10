@@ -468,6 +468,8 @@ struct usb_function_instance {
 	struct config_group group;
 	struct list_head cfs_list;
 	struct usb_function_driver *fd;
+	int (*set_inst_name)(struct usb_function_instance *inst,
+			      const char *name);
 	void (*free_func_inst)(struct usb_function_instance *inst);
 };
 

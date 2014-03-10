@@ -20,13 +20,12 @@
 #define _COMEDIDEV_H
 
 #include <linux/dma-mapping.h>
+#include <linux/mutex.h>
+#include <linux/spinlock_types.h>
+#include <linux/rwsem.h>
+#include <linux/kref.h>
 
 #include "comedi.h"
-
-#define DPRINTK(format, args...)	do {		\
-	if (comedi_debug)				\
-		pr_debug("comedi: " format, ## args);	\
-} while (0)
 
 #define COMEDI_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
 #define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION, \
@@ -100,18 +99,22 @@ struct comedi_buf_page {
 	dma_addr_t dma_addr;
 };
 
+struct comedi_buf_map {
+	struct device *dma_hw_dev;
+	struct comedi_buf_page *page_list;
+	unsigned int n_pages;
+	enum dma_data_direction dma_dir;
+	struct kref refcount;
+};
+
 struct comedi_async {
 	struct comedi_subdevice *subdevice;
 
 	void *prealloc_buf;	/* pre-allocated buffer */
 	unsigned int prealloc_bufsz;	/* buffer size, in bytes */
-	/* virtual and dma address of each page */
-	struct comedi_buf_page *buf_page_list;
-	unsigned n_buf_pages;	/* num elements in buf_page_list */
+	struct comedi_buf_map *buf_map;	/* map of buffer pages */
 
 	unsigned int max_bufsize;	/* maximum buffer size, bytes */
-	/* current number of mmaps of prealloc_buf */
-	unsigned int mmap_count;
 
 	/* byte count for writer (write completed) */
 	unsigned int buf_write_count;
@@ -141,10 +144,7 @@ struct comedi_async {
 
 	wait_queue_head_t wait_head;
 
-	/* callback stuff */
 	unsigned int cb_mask;
-	int (*cb_func) (unsigned int flags, void *);
-	void *cb_arg;
 
 	int (*inttrig) (struct comedi_device *dev, struct comedi_subdevice *s,
 			unsigned int x);
@@ -173,6 +173,7 @@ struct comedi_device {
 
 	struct device *class_dev;
 	int minor;
+	unsigned int detach_count;
 	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers
 	 * for subdevices that have async_dma_dir set to something other than
 	 * DMA_NONE */
@@ -185,6 +186,8 @@ struct comedi_device {
 	bool ioenabled:1;
 	spinlock_t spinlock;
 	struct mutex mutex;
+	struct rw_semaphore attach_lock;
+	struct kref refcount;
 
 	int n_subdevices;
 	struct comedi_subdevice *subdevices;
@@ -208,12 +211,6 @@ static inline const void *comedi_board(const struct comedi_device *dev)
 	return dev->board_ptr;
 }
 
-#ifdef CONFIG_COMEDI_DEBUG
-extern int comedi_debug;
-#else
-static const int comedi_debug;
-#endif
-
 /*
  * function prototypes
  */
@@ -231,7 +228,8 @@ enum comedi_minor_bits {
 static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
 static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
 
-struct comedi_device *comedi_dev_from_minor(unsigned minor);
+struct comedi_device *comedi_dev_get_from_minor(unsigned minor);
+int comedi_dev_put(struct comedi_device *dev);
 
 void init_polling(void);
 void cleanup_polling(void);
@@ -240,7 +238,6 @@ void stop_polling(struct comedi_device *);
 
 /* subdevice runflags */
 enum subdevice_runflags {
-	SRF_USER = 0x00000001,
 	SRF_RT = 0x00000002,
 	/* indicates an COMEDI_CB_ERROR event has occurred since the last
 	 * command was started */
@@ -410,6 +407,7 @@ void comedi_driver_unregister(struct comedi_driver *);
 #define PCI_VENDOR_ID_IOTECH		0x1616
 #define PCI_VENDOR_ID_CONTEC		0x1221
 #define PCI_VENDOR_ID_RTD		0x1435
+#define PCI_VENDOR_ID_HUMUSOFT		0x186c
 
 struct pci_dev;
 struct pci_driver;

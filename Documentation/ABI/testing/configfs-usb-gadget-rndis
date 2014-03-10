@@ -1,6 +1,6 @@
 What:		/config/usb-gadget/gadget/functions/rndis.name
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 		The attributes:
 

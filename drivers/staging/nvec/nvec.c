@@ -82,7 +82,7 @@ enum nvec_sleep_subcmds {
 
 static struct nvec_chip *nvec_power_handle;
 
-static struct mfd_cell nvec_devices[] = {
+static const struct mfd_cell nvec_devices[] = {
 	{
 		.name = "nvec-kbd",
 		.id = 1,

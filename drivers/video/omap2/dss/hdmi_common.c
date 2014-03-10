@@ -13,6 +13,8 @@
  * map it to corresponding CEA or VESA index.
  */
 
+#define DSS_SUBSYS_NAME "HDMI"
+
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <video/omapdss.h>

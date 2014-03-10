@@ -36,11 +36,10 @@ i915-y += i915_cmd_parser.o \
 i915-y += intel_bios.o \
 	  intel_display.o \
 	  intel_modes.o \
-	  intel_opregion.o \
 	  intel_overlay.o \
 	  intel_sideband.o \
 	  intel_sprite.o
-i915-$(CONFIG_ACPI)		+= intel_acpi.o
+i915-$(CONFIG_ACPI)		+= intel_acpi.o intel_opregion.o
 i915-$(CONFIG_DRM_I915_FBDEV)	+= intel_fbdev.o
 
 # modesetting output/encoder code

@@ -639,6 +639,7 @@ static void s5m_rtc_shutdown(struct platform_device *pdev)
 	s5m_rtc_enable_smpl(info, false);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int s5m_rtc_resume(struct device *dev)
 {
 	struct s5m_rtc_info *info = dev_get_drvdata(dev);
@@ -660,6 +661,7 @@ static int s5m_rtc_suspend(struct device *dev)
 
 	return ret;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(s5m_rtc_pm_ops, s5m_rtc_suspend, s5m_rtc_resume);
 

@@ -25,6 +25,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/usb-rcar-phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/fixed.h>
@@ -114,6 +115,11 @@ static void __iomem *fpga;
 static struct regulator_consumer_supply dummy_supplies[] = {
 	REGULATOR_SUPPLY("vddvario", "smsc911x"),
 	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
+
+static struct regulator_consumer_supply fixed3v3_power_consumers[] = {
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif"),
 };
 
 static struct smsc911x_platform_config smsc911x_data __initdata = {
@@ -271,7 +277,6 @@ static struct resource mmc_resources[] __initdata = {
 
 static struct sh_mmcif_plat_data sh_mmcif_plat __initdata = {
 	.sup_pclk	= 0,
-	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
 	.caps		= MMC_CAP_4_BIT_DATA |
 			  MMC_CAP_8_BIT_DATA |
 			  MMC_CAP_NEEDS_POLL,
@@ -328,11 +333,11 @@ static struct rsnd_ssi_platform_info rsnd_ssi[] = {
 	RSND_SSI_UNUSED, /* SSI 1 */
 	RSND_SSI_UNUSED, /* SSI 2 */
 	RSND_SSI_SET(1, 0, gic_iid(0x85), RSND_SSI_PLAY),
-	RSND_SSI_SET(2, 0, gic_iid(0x85), RSND_SSI_CLK_PIN_SHARE | RSND_SSI_CLK_FROM_ADG),
+	RSND_SSI_SET(2, 0, gic_iid(0x85), RSND_SSI_CLK_PIN_SHARE),
 	RSND_SSI_SET(0, 0, gic_iid(0x86), RSND_SSI_PLAY),
 	RSND_SSI_SET(0, 0, gic_iid(0x86), 0),
 	RSND_SSI_SET(3, 0, gic_iid(0x86), RSND_SSI_PLAY),
-	RSND_SSI_SET(4, 0, gic_iid(0x86), RSND_SSI_CLK_PIN_SHARE | RSND_SSI_CLK_FROM_ADG),
+	RSND_SSI_SET(4, 0, gic_iid(0x86), RSND_SSI_CLK_PIN_SHARE),
 };
 
 static struct rsnd_scu_platform_info rsnd_scu[9] = {
@@ -614,6 +619,10 @@ static void __init bockw_init(void)
 		&usb_phy_platform_data,
 		sizeof(struct rcar_phy_platform_data));
 
+	regulator_register_fixed(0, dummy_supplies,
+				 ARRAY_SIZE(dummy_supplies));
+	regulator_register_always_on(1, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
 
 	/* for SMSC */
 	fpga = ioremap_nocache(FPGA, SZ_1M);
@@ -628,9 +637,6 @@ static void __init bockw_init(void)
 		u16 val = ioread16(fpga + IRQ0MR);
 		val &= ~(1 << 4); /* enable SMSC911x */
 		iowrite16(val, fpga + IRQ0MR);
-
-		regulator_register_fixed(0, dummy_supplies,
-					 ARRAY_SIZE(dummy_supplies));
 
 		platform_device_register_resndata(
 			&platform_bus, "smsc911x", -1,

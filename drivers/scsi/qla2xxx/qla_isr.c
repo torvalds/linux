@@ -56,6 +56,16 @@ qla2100_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		hccr = RD_REG_WORD(&reg->hccr);
+		/* Check for PCI disconnection */
+		if (hccr == 0xffff) {
+			/*
+			 * Schedule this on the default system workqueue so that
+			 * all the adapter workqueues and the DPC thread can be
+			 * shutdown cleanly.
+			 */
+			schedule_work(&ha->board_disable);
+			break;
+		}
 		if (hccr & HCCR_RISC_PAUSE) {
 			if (pci_channel_offline(ha->pdev))
 				break;
@@ -110,6 +120,22 @@ qla2100_intr_handler(int irq, void *dev_id)
 	return (IRQ_HANDLED);
 }
 
+bool
+qla2x00_check_reg_for_disconnect(scsi_qla_host_t *vha, uint32_t reg)
+{
+	/* Check for PCI disconnection */
+	if (reg == 0xffffffff) {
+		/*
+		 * Schedule this on the default system workqueue so that all the
+		 * adapter workqueues and the DPC thread can be shutdown
+		 * cleanly.
+		 */
+		schedule_work(&vha->hw->board_disable);
+		return true;
+	} else
+		return false;
+}
+
 /**
  * qla2300_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
@@ -148,11 +174,14 @@ qla2300_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
+		if (qla2x00_check_reg_for_disconnect(vha, stat))
+			break;
 		if (stat & HSR_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
 
 			hccr = RD_REG_WORD(&reg->hccr);
+
 			if (hccr & (BIT_15 | BIT_13 | BIT_11 | BIT_8))
 				ql_log(ql_log_warn, vha, 0x5026,
 				    "Parity error -- HCCR=%x, Dumping "
@@ -269,11 +298,18 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		{ "Complete", "Request Notification", "Time Extension" };
 	int rval;
 	struct device_reg_24xx __iomem *reg24 = &vha->hw->iobase->isp24;
+	struct device_reg_82xx __iomem *reg82 = &vha->hw->iobase->isp82;
 	uint16_t __iomem *wptr;
 	uint16_t cnt, timeout, mb[QLA_IDC_ACK_REGS];
 
 	/* Seed data -- mailbox1 -> mailbox7. */
-	wptr = (uint16_t __iomem *)&reg24->mailbox1;
+	if (IS_QLA81XX(vha->hw) || IS_QLA83XX(vha->hw))
+		wptr = (uint16_t __iomem *)&reg24->mailbox1;
+	else if (IS_QLA8044(vha->hw))
+		wptr = (uint16_t __iomem *)&reg82->mailbox_out[1];
+	else
+		return;
+
 	for (cnt = 0; cnt < QLA_IDC_ACK_REGS; cnt++, wptr++)
 		mb[cnt] = RD_REG_WORD(wptr);
 
@@ -287,7 +323,7 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 	case MBA_IDC_COMPLETE:
 		if (mb[1] >> 15) {
 			vha->hw->flags.idc_compl_status = 1;
-			if (vha->hw->notify_dcbx_comp)
+			if (vha->hw->notify_dcbx_comp && !vha->vp_idx)
 				complete(&vha->hw->dcbx_comp);
 		}
 		break;
@@ -758,7 +794,7 @@ skip_rio:
 			ql_dbg(ql_dbg_async, vha, 0x500d,
 			    "DCBX Completed -- %04x %04x %04x.\n",
 			    mb[1], mb[2], mb[3]);
-			if (ha->notify_dcbx_comp)
+			if (ha->notify_dcbx_comp && !vha->vp_idx)
 				complete(&ha->dcbx_comp);
 
 		} else
@@ -1032,7 +1068,7 @@ skip_rio:
 			}
 		}
 	case MBA_IDC_COMPLETE:
-		if (ha->notify_lb_portup_comp)
+		if (ha->notify_lb_portup_comp && !vha->vp_idx)
 			complete(&ha->lb_portup_comp);
 		/* Fallthru */
 	case MBA_IDC_TIME_EXT:
@@ -1991,7 +2027,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
-		qla2x00_do_host_ramp_up(vha);
 		qla2x00_process_completed_request(vha, req, handle);
 
 		return;
@@ -2249,9 +2284,6 @@ out:
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa, ox_id,
 		    cp->cmnd, scsi_bufflen(cp), rsp_info_len,
 		    resid_len, fw_resid_len);
-
-	if (!res)
-		qla2x00_do_host_ramp_up(vha);
 
 	if (rsp->status_srb == NULL)
 		sp->done(ha, sp, res);
@@ -2575,6 +2607,8 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->host_status);
+		if (qla2x00_check_reg_for_disconnect(vha, stat))
+			break;
 		if (stat & HSRX_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
@@ -2644,6 +2678,7 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	struct device_reg_24xx __iomem *reg;
 	struct scsi_qla_host *vha;
 	unsigned long flags;
+	uint32_t stat = 0;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -2657,11 +2692,19 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	vha = pci_get_drvdata(ha->pdev);
+	/*
+	 * Use host_status register to check to PCI disconnection before we
+	 * we process the response queue.
+	 */
+	stat = RD_REG_DWORD(&reg->host_status);
+	if (qla2x00_check_reg_for_disconnect(vha, stat))
+		goto out;
 	qla24xx_process_response_queue(vha, rsp);
 	if (!ha->flags.disable_msix_handshake) {
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 		RD_REG_DWORD_RELAXED(&reg->hccr);
 	}
+out:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return IRQ_HANDLED;
@@ -2671,9 +2714,11 @@ static irqreturn_t
 qla25xx_msix_rsp_q(int irq, void *dev_id)
 {
 	struct qla_hw_data *ha;
+	scsi_qla_host_t *vha;
 	struct rsp_que *rsp;
 	struct device_reg_24xx __iomem *reg;
 	unsigned long flags;
+	uint32_t hccr = 0;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -2682,17 +2727,21 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 	ha = rsp->hw;
+	vha = pci_get_drvdata(ha->pdev);
 
 	/* Clear the interrupt, if enabled, for this response queue */
 	if (!ha->flags.disable_msix_handshake) {
 		reg = &ha->iobase->isp24;
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-		RD_REG_DWORD_RELAXED(&reg->hccr);
+		hccr = RD_REG_DWORD_RELAXED(&reg->hccr);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
+	if (qla2x00_check_reg_for_disconnect(vha, hccr))
+		goto out;
 	queue_work_on((int) (rsp->id - 1), ha->wq, &rsp->q_work);
 
+out:
 	return IRQ_HANDLED;
 }
 
@@ -2723,6 +2772,8 @@ qla24xx_msix_default(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	do {
 		stat = RD_REG_DWORD(&reg->host_status);
+		if (qla2x00_check_reg_for_disconnect(vha, stat))
+			break;
 		if (stat & HSRX_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
@@ -2937,7 +2988,7 @@ msix_out:
 int
 qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 {
-	int ret;
+	int ret = QLA_FUNCTION_FAILED;
 	device_reg_t __iomem *reg = ha->iobase;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
@@ -2971,9 +3022,11 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 		    ha->chip_revision, ha->fw_attributes);
 		goto clear_risc_ints;
 	}
-	ql_log(ql_log_info, vha, 0x0037,
-	    "MSI-X Falling back-to MSI mode -%d.\n", ret);
+
 skip_msix:
+
+	ql_log(ql_log_info, vha, 0x0037,
+	    "Falling back-to MSI mode -%d.\n", ret);
 
 	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
 	    !IS_QLA8001(ha) && !IS_P3P_TYPE(ha) && !IS_QLAFX00(ha))
@@ -2986,13 +3039,12 @@ skip_msix:
 		ha->flags.msi_enabled = 1;
 	} else
 		ql_log(ql_log_warn, vha, 0x0039,
-		    "MSI-X; Falling back-to INTa mode -- %d.\n", ret);
+		    "Falling back-to INTa mode -- %d.\n", ret);
+skip_msi:
 
 	/* Skip INTx on ISP82xx. */
 	if (!ha->flags.msi_enabled && IS_QLA82XX(ha))
 		return QLA_FUNCTION_FAILED;
-
-skip_msi:
 
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
 	    ha->flags.msi_enabled ? 0 : IRQF_SHARED,

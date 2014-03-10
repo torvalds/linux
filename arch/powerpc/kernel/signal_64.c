@@ -65,8 +65,8 @@ struct rt_sigframe {
 	struct siginfo __user *pinfo;
 	void __user *puc;
 	struct siginfo info;
-	/* 64 bit ABI allows for 288 bytes below sp before decrementing it. */
-	char abigap[288];
+	/* New 64 bit little-endian ABI allows redzone of 512 bytes below sp */
+	char abigap[USER_REDZONE_SIZE];
 } __attribute__ ((aligned (16)));
 
 static const char fmt32[] = KERN_INFO \
@@ -191,6 +191,13 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	long err = 0;
 
 	BUG_ON(!MSR_TM_ACTIVE(regs->msr));
+
+	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
+	 * just indicates to userland that we were doing a transaction, but we
+	 * don't want to return in transactional state.  This also ensures
+	 * that flush_fp_to_thread won't set TIF_RESTORE_TM again.
+	 */
+	regs->msr &= ~MSR_TS_MASK;
 
 	flush_fp_to_thread(current);
 
@@ -749,13 +756,6 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Make sure signal handler doesn't get spurious FP exceptions */
 	current->thread.fp_state.fpscr = 0;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
-	 * just indicates to userland that we were doing a transaction, but we
-	 * don't want to return in transactional state:
-	 */
-	regs->msr &= ~MSR_TS_MASK;
-#endif
 
 	/* Set up to return from userspace. */
 	if (vdso64_rt_sigtramp && current->mm->context.vdso_base) {

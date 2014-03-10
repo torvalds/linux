@@ -131,4 +131,4 @@ static int __init proc_nommu_init(void)
 	return 0;
 }
 
-module_init(proc_nommu_init);
+fs_initcall(proc_nommu_init);

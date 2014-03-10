@@ -268,7 +268,7 @@ static void bcm_can_tx(struct bcm_op *op)
 
 	/* send with loopback */
 	skb->dev = dev;
-	skb->sk = op->sk;
+	can_skb_set_owner(skb, op->sk);
 	can_send(skb, 1);
 
 	/* update statistics */
@@ -1223,7 +1223,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 
 	can_skb_prv(skb)->ifindex = dev->ifindex;
 	skb->dev = dev;
-	skb->sk  = sk;
+	can_skb_set_owner(skb, sk);
 	err = can_send(skb, 1); /* send with loopback */
 	dev_put(dev);
 
@@ -1256,8 +1256,7 @@ static int bcm_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (!ifindex && msg->msg_name) {
 		/* no bound device as default => check msg_name */
-		struct sockaddr_can *addr =
-			(struct sockaddr_can *)msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_can *, addr, msg->msg_name);
 
 		if (msg->msg_namelen < sizeof(*addr))
 			return -EINVAL;
@@ -1568,6 +1567,7 @@ static int bcm_recvmsg(struct kiocb *iocb, struct socket *sock,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (msg->msg_name) {
+		__sockaddr_check_size(sizeof(struct sockaddr_can));
 		msg->msg_namelen = sizeof(struct sockaddr_can);
 		memcpy(msg->msg_name, skb->cb, msg->msg_namelen);
 	}

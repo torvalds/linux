@@ -41,14 +41,31 @@
 #define CHANDEF_PR_ARG	__entry->control_freq, __entry->chan_width,			\
 			__entry->center_freq1, __entry->center_freq2
 
+#define MIN_CHANDEF_ENTRY								\
+			__field(u32, min_control_freq)					\
+			__field(u32, min_chan_width)					\
+			__field(u32, min_center_freq1)					\
+			__field(u32, min_center_freq2)
+
+#define MIN_CHANDEF_ASSIGN(c)								\
+			__entry->min_control_freq = (c)->chan ? (c)->chan->center_freq : 0;	\
+			__entry->min_chan_width = (c)->width;				\
+			__entry->min_center_freq1 = (c)->center_freq1;			\
+			__entry->min_center_freq2 = (c)->center_freq2;
+#define MIN_CHANDEF_PR_FMT	" min_control:%d MHz min_width:%d min_center: %d/%d MHz"
+#define MIN_CHANDEF_PR_ARG	__entry->min_control_freq, __entry->min_chan_width,	\
+			__entry->min_center_freq1, __entry->min_center_freq2
+
 #define CHANCTX_ENTRY	CHANDEF_ENTRY							\
+			MIN_CHANDEF_ENTRY						\
 			__field(u8, rx_chains_static)					\
 			__field(u8, rx_chains_dynamic)
 #define CHANCTX_ASSIGN	CHANDEF_ASSIGN(&ctx->conf.def)					\
+			MIN_CHANDEF_ASSIGN(&ctx->conf.min_def)				\
 			__entry->rx_chains_static = ctx->conf.rx_chains_static;		\
 			__entry->rx_chains_dynamic = ctx->conf.rx_chains_dynamic
-#define CHANCTX_PR_FMT	CHANDEF_PR_FMT " chains:%d/%d"
-#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,							\
+#define CHANCTX_PR_FMT	CHANDEF_PR_FMT MIN_CHANDEF_PR_FMT " chains:%d/%d"
+#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,	MIN_CHANDEF_PR_ARG,				\
 			__entry->rx_chains_static, __entry->rx_chains_dynamic
 
 
@@ -426,30 +443,6 @@ TRACE_EVENT(drv_prepare_multicast,
 	)
 );
 
-TRACE_EVENT(drv_set_multicast_list,
-	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata, int mc_count),
-
-	TP_ARGS(local, sdata, mc_count),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		__field(bool, allmulti)
-		__field(int, mc_count)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		__entry->allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
-		__entry->mc_count = mc_count;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT " configure mc filter, count=%d, allmulti=%d",
-		LOCAL_PR_ARG, __entry->mc_count, __entry->allmulti
-	)
-);
-
 TRACE_EVENT(drv_configure_filter,
 	TP_PROTO(struct ieee80211_local *local,
 		 unsigned int changed_flags,
@@ -560,7 +553,7 @@ TRACE_EVENT(drv_update_tkip_key,
 
 	TP_printk(
 		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " iv32:%#x",
-		LOCAL_PR_ARG,VIF_PR_ARG,STA_PR_ARG, __entry->iv32
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->iv32
 	)
 );
 
@@ -773,7 +766,7 @@ TRACE_EVENT(drv_sta_rc_update,
 	)
 );
 
-TRACE_EVENT(drv_sta_add,
+DECLARE_EVENT_CLASS(sta_event,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_sta *sta),
@@ -798,29 +791,25 @@ TRACE_EVENT(drv_sta_add,
 	)
 );
 
-TRACE_EVENT(drv_sta_remove,
+DEFINE_EVENT(sta_event, drv_sta_add,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
+);
 
-	TP_ARGS(local, sdata, sta),
+DEFINE_EVENT(sta_event, drv_sta_remove,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
+);
 
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		VIF_ENTRY
-		STA_ENTRY
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		VIF_ASSIGN;
-		STA_ASSIGN;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT,
-		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG
-	)
+DEFINE_EVENT(sta_event, drv_sta_pre_rcu_remove,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
 );
 
 TRACE_EVENT(drv_conf_tx,
@@ -1843,6 +1832,33 @@ TRACE_EVENT(api_eosp,
 	TP_printk(
 		LOCAL_PR_FMT STA_PR_FMT,
 		LOCAL_PR_ARG, STA_PR_ARG
+	)
+);
+
+TRACE_EVENT(api_sta_set_buffered,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u8 tid, bool buffered),
+
+	TP_ARGS(local, sta, tid, buffered),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(u8, tid)
+		__field(bool, buffered)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->tid = tid;
+		__entry->buffered = buffered;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT " tid:%d buffered:%d",
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->tid, __entry->buffered
 	)
 );
 

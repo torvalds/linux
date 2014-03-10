@@ -132,11 +132,15 @@ static int gpio_nand_get_config_of(const struct device *dev,
 
 static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 {
-	struct resource *r = devm_kzalloc(&pdev->dev, sizeof(*r), GFP_KERNEL);
+	struct resource *r;
 	u64 addr;
 
-	if (!r || of_property_read_u64(pdev->dev.of_node,
+	if (of_property_read_u64(pdev->dev.of_node,
 				       "gpio-control-nand,io-sync-reg", &addr))
+		return NULL;
+
+	r = devm_kzalloc(&pdev->dev, sizeof(*r), GFP_KERNEL);
+	if (!r)
 		return NULL;
 
 	r->start = addr;
@@ -211,10 +215,8 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	gpiomtd = devm_kzalloc(&pdev->dev, sizeof(*gpiomtd), GFP_KERNEL);
-	if (!gpiomtd) {
-		dev_err(&pdev->dev, "failed to create NAND MTD\n");
+	if (!gpiomtd)
 		return -ENOMEM;
-	}
 
 	chip = &gpiomtd->nand_chip;
 

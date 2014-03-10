@@ -122,7 +122,7 @@ const struct clk_ops tegra_clk_periph_ops = {
 	.disable = clk_periph_disable,
 };
 
-const struct clk_ops tegra_clk_periph_nodiv_ops = {
+static const struct clk_ops tegra_clk_periph_nodiv_ops = {
 	.get_parent = clk_periph_get_parent,
 	.set_parent = clk_periph_set_parent,
 	.is_enabled = clk_periph_is_enabled,

@@ -58,21 +58,17 @@ static int tvp5150_read(struct v4l2_subdev *sd, unsigned char addr)
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 	unsigned char buffer[1];
 	int rc;
+	struct i2c_msg msg[] = {
+		{ .addr = c->addr, .flags = 0,
+		  .buf = &addr, .len = 1 },
+		{ .addr = c->addr, .flags = I2C_M_RD,
+		  .buf = buffer, .len = 1 }
+	};
 
-	buffer[0] = addr;
-
-	rc = i2c_master_send(c, buffer, 1);
-	if (rc < 0) {
-		v4l2_err(sd, "i2c i/o error: rc == %d (should be 1)\n", rc);
-		return rc;
-	}
-
-	msleep(10);
-
-	rc = i2c_master_recv(c, buffer, 1);
-	if (rc < 0) {
-		v4l2_err(sd, "i2c i/o error: rc == %d (should be 1)\n", rc);
-		return rc;
+	rc = i2c_transfer(c->adapter, msg, 2);
+	if (rc < 0 || rc != 2) {
+		v4l2_err(sd, "i2c i/o error: rc == %d (should be 2)\n", rc);
+		return rc < 0 ? rc : -EIO;
 	}
 
 	v4l2_dbg(2, debug, sd, "tvp5150: read 0x%02x = 0x%02x\n", addr, buffer[0]);
@@ -867,7 +863,7 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	struct v4l2_rect rect = a->c;
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std;
-	int hmax;
+	unsigned int hmax;
 
 	v4l2_dbg(1, debug, sd, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect.left, rect.top, rect.width, rect.height);
@@ -877,9 +873,9 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 
 	/* tvp5150 has some special limits */
 	rect.left = clamp(rect.left, 0, TVP5150_MAX_CROP_LEFT);
-	rect.width = clamp(rect.width,
-			   TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
-			   TVP5150_H_MAX - rect.left);
+	rect.width = clamp_t(unsigned int, rect.width,
+			     TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
+			     TVP5150_H_MAX - rect.left);
 	rect.top = clamp(rect.top, 0, TVP5150_MAX_CROP_TOP);
 
 	/* Calculate height based on current standard */
@@ -893,9 +889,9 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	else
 		hmax = TVP5150_V_MAX_OTHERS;
 
-	rect.height = clamp(rect.height,
-			    hmax - TVP5150_MAX_CROP_TOP - rect.top,
-			    hmax - rect.top);
+	rect.height = clamp_t(unsigned int, rect.height,
+			      hmax - TVP5150_MAX_CROP_TOP - rect.top,
+			      hmax - rect.top);
 
 	tvp5150_write(sd, TVP5150_VERT_BLANKING_START, rect.top);
 	tvp5150_write(sd, TVP5150_VERT_BLANKING_STOP,

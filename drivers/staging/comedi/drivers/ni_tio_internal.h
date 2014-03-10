@@ -21,409 +21,26 @@
 
 #include "ni_tio.h"
 
-static inline enum ni_gpct_register NITIO_Gi_Autoincrement_Reg(unsigned
-							       counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Autoincrement_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Autoincrement_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Autoincrement_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Autoincrement_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Command_Reg(unsigned counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Command_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Command_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Command_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Command_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Counting_Mode_Reg(unsigned
-							       counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Counting_Mode_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Counting_Mode_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Counting_Mode_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Counting_Mode_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Input_Select_Reg(unsigned
-							      counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Input_Select_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Input_Select_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Input_Select_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Input_Select_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gxx_Joint_Reset_Reg(unsigned
-							      counter_index)
-{
-	switch (counter_index) {
-	case 0:
-	case 1:
-		return NITIO_G01_Joint_Reset_Reg;
-		break;
-	case 2:
-	case 3:
-		return NITIO_G23_Joint_Reset_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gxx_Joint_Status1_Reg(unsigned
-								counter_index)
-{
-	switch (counter_index) {
-	case 0:
-	case 1:
-		return NITIO_G01_Joint_Status1_Reg;
-		break;
-	case 2:
-	case 3:
-		return NITIO_G23_Joint_Status1_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gxx_Joint_Status2_Reg(unsigned
-								counter_index)
-{
-	switch (counter_index) {
-	case 0:
-	case 1:
-		return NITIO_G01_Joint_Status2_Reg;
-		break;
-	case 2:
-	case 3:
-		return NITIO_G23_Joint_Status2_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gxx_Status_Reg(unsigned counter_index)
-{
-	switch (counter_index) {
-	case 0:
-	case 1:
-		return NITIO_G01_Status_Reg;
-		break;
-	case 2:
-	case 3:
-		return NITIO_G23_Status_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_LoadA_Reg(unsigned counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_LoadA_Reg;
-		break;
-	case 1:
-		return NITIO_G1_LoadA_Reg;
-		break;
-	case 2:
-		return NITIO_G2_LoadA_Reg;
-		break;
-	case 3:
-		return NITIO_G3_LoadA_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_LoadB_Reg(unsigned counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_LoadB_Reg;
-		break;
-	case 1:
-		return NITIO_G1_LoadB_Reg;
-		break;
-	case 2:
-		return NITIO_G2_LoadB_Reg;
-		break;
-	case 3:
-		return NITIO_G3_LoadB_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Mode_Reg(unsigned counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Mode_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Mode_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Mode_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Mode_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_SW_Save_Reg(int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_SW_Save_Reg;
-		break;
-	case 1:
-		return NITIO_G1_SW_Save_Reg;
-		break;
-	case 2:
-		return NITIO_G2_SW_Save_Reg;
-		break;
-	case 3:
-		return NITIO_G3_SW_Save_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Second_Gate_Reg(int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Second_Gate_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Second_Gate_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Second_Gate_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Second_Gate_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_DMA_Config_Reg(int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_DMA_Config_Reg;
-		break;
-	case 1:
-		return NITIO_G1_DMA_Config_Reg;
-		break;
-	case 2:
-		return NITIO_G2_DMA_Config_Reg;
-		break;
-	case 3:
-		return NITIO_G3_DMA_Config_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_DMA_Status_Reg(int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_DMA_Status_Reg;
-		break;
-	case 1:
-		return NITIO_G1_DMA_Status_Reg;
-		break;
-	case 2:
-		return NITIO_G2_DMA_Status_Reg;
-		break;
-	case 3:
-		return NITIO_G3_DMA_Status_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_ABZ_Reg(int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_ABZ_Reg;
-		break;
-	case 1:
-		return NITIO_G1_ABZ_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Interrupt_Acknowledge_Reg(
-	int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Interrupt_Acknowledge_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Interrupt_Acknowledge_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Interrupt_Acknowledge_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Interrupt_Acknowledge_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Status_Reg(int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Status_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Status_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Status_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Status_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
-
-static inline enum ni_gpct_register NITIO_Gi_Interrupt_Enable_Reg(
-	int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NITIO_G0_Interrupt_Enable_Reg;
-		break;
-	case 1:
-		return NITIO_G1_Interrupt_Enable_Reg;
-		break;
-	case 2:
-		return NITIO_G2_Interrupt_Enable_Reg;
-		break;
-	case 3:
-		return NITIO_G3_Interrupt_Enable_Reg;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
-}
+#define NITIO_AUTO_INC_REG(x)		(NITIO_G0_AUTO_INC + (x))
+#define NITIO_CMD_REG(x)		(NITIO_G0_CMD + (x))
+#define NITIO_HW_SAVE_REG(x)		(NITIO_G0_HW_SAVE + (x))
+#define NITIO_SW_SAVE_REG(x)		(NITIO_G0_SW_SAVE + (x))
+#define NITIO_MODE_REG(x)		(NITIO_G0_MODE + (x))
+#define NITIO_LOADA_REG(x)		(NITIO_G0_LOADA + (x))
+#define NITIO_LOADB_REG(x)		(NITIO_G0_LOADB + (x))
+#define NITIO_INPUT_SEL_REG(x)		(NITIO_G0_INPUT_SEL + (x))
+#define NITIO_CNT_MODE_REG(x)		(NITIO_G0_CNT_MODE + (x))
+#define NITIO_GATE2_REG(x)		(NITIO_G0_GATE2 + (x))
+#define NITIO_SHARED_STATUS_REG(x)	(NITIO_G01_STATUS + ((x) / 2))
+#define NITIO_RESET_REG(x)		(NITIO_G01_RESET + ((x) / 2))
+#define NITIO_STATUS1_REG(x)		(NITIO_G01_STATUS1 + ((x) / 2))
+#define NITIO_STATUS2_REG(x)		(NITIO_G01_STATUS2 + ((x) / 2))
+#define NITIO_DMA_CFG_REG(x)		(NITIO_G0_DMA_CFG + (x))
+#define NITIO_DMA_STATUS_REG(x)		(NITIO_G0_DMA_STATUS + (x))
+#define NITIO_ABZ_REG(x)		(NITIO_G0_ABZ + (x))
+#define NITIO_INT_ACK_REG(x)		(NITIO_G0_INT_ACK + (x))
+#define NITIO_STATUS_REG(x)		(NITIO_G0_STATUS + (x))
+#define NITIO_INT_ENA_REG(x)		(NITIO_G0_INT_ENA + (x))
 
 enum Gi_Auto_Increment_Reg_Bits {
 	Gi_Auto_Increment_Mask = 0xff
@@ -699,14 +316,14 @@ static inline unsigned Gi_Gate_Interrupt_Enable_Bit(unsigned counter_index)
 static inline void write_register(struct ni_gpct *counter, unsigned bits,
 				  enum ni_gpct_register reg)
 {
-	BUG_ON(reg >= NITIO_Num_Registers);
+	BUG_ON(reg >= NITIO_NUM_REGS);
 	counter->counter_dev->write_register(counter, bits, reg);
 }
 
 static inline unsigned read_register(struct ni_gpct *counter,
 				     enum ni_gpct_register reg)
 {
-	BUG_ON(reg >= NITIO_Num_Registers);
+	BUG_ON(reg >= NITIO_NUM_REGS);
 	return counter->counter_dev->read_register(counter, reg);
 }
 
@@ -738,7 +355,7 @@ static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned long flags;
 
-	BUG_ON(register_index >= NITIO_Num_Registers);
+	BUG_ON(register_index >= NITIO_NUM_REGS);
 	spin_lock_irqsave(&counter_dev->regs_lock, flags);
 	counter_dev->regs[register_index] &= ~bit_mask;
 	counter_dev->regs[register_index] |= (bit_values & bit_mask);
@@ -773,7 +390,7 @@ static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
 	unsigned long flags;
 	unsigned value;
 
-	BUG_ON(register_index >= NITIO_Num_Registers);
+	BUG_ON(register_index >= NITIO_NUM_REGS);
 	spin_lock_irqsave(&counter_dev->regs_lock, flags);
 	value = counter_dev->regs[register_index];
 	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);

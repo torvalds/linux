@@ -448,6 +448,7 @@ enum {
 	HCI_CONN_SSP_ENABLED,
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
+	HCI_CONN_6LOWPAN,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
@@ -798,6 +799,12 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_transp_capable(dev)    ((dev)->features[0][2] & LMP_TRANSPARENT)
 
 /* ----- Extended LMP capabilities ----- */
+#define lmp_csb_master_capable(dev) ((dev)->features[2][0] & LMP_CSB_MASTER)
+#define lmp_csb_slave_capable(dev)  ((dev)->features[2][0] & LMP_CSB_SLAVE)
+#define lmp_sync_train_capable(dev) ((dev)->features[2][0] & LMP_SYNC_TRAIN)
+#define lmp_sync_scan_capable(dev)  ((dev)->features[2][0] & LMP_SYNC_SCAN)
+
+/* ----- Host capabilities ----- */
 #define lmp_host_ssp_capable(dev)  ((dev)->features[1][0] & LMP_HOST_SSP)
 #define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
 #define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))

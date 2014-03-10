@@ -74,8 +74,8 @@ static size_t copy_in_kernel(size_t count, void __user *to,
 
 /*
  * Returns kernel address for user virtual address. If the returned address is
- * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occured and the address
- * contains the (negative) exception code.
+ * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occurred and the
+ * address contains the (negative) exception code.
  */
 #ifdef CONFIG_64BIT
 
@@ -153,6 +153,8 @@ static __always_inline size_t __user_copy_pt(unsigned long uaddr, void *kptr,
 	unsigned long offset, done, size, kaddr;
 	void *from, *to;
 
+	if (!mm)
+		return n;
 	done = 0;
 retry:
 	spin_lock(&mm->page_table_lock);
@@ -209,7 +211,7 @@ fault:
 	return 0;
 }
 
-size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
+static size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
 {
 	size_t rc;
 
@@ -221,7 +223,7 @@ size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
 	return rc;
 }
 
-size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
+static size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
 {
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel(n, to, (void __user *) from);
@@ -262,6 +264,8 @@ static size_t strnlen_user_pt(size_t count, const char __user *src)
 		return 0;
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return strnlen_kernel(count, src);
+	if (!mm)
+		return 0;
 	done = 0;
 retry:
 	spin_lock(&mm->page_table_lock);
@@ -323,6 +327,8 @@ static size_t copy_in_user_pt(size_t n, void __user *to,
 
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel(n, to, from);
+	if (!mm)
+		return n;
 	done = 0;
 retry:
 	spin_lock(&mm->page_table_lock);
@@ -411,6 +417,8 @@ int futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
 
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return __futex_atomic_op_pt(op, uaddr, oparg, old);
+	if (unlikely(!current->mm))
+		return -EFAULT;
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (u32 __force __user *)
 		__dat_user_addr((__force unsigned long) uaddr, 1);
@@ -448,6 +456,8 @@ int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return __futex_atomic_cmpxchg_pt(uval, uaddr, oldval, newval);
+	if (unlikely(!current->mm))
+		return -EFAULT;
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (u32 __force __user *)
 		__dat_user_addr((__force unsigned long) uaddr, 1);

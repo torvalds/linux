@@ -705,7 +705,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	struct hal_data_8188e		*haldata = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv		*pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
-	u32 init_start_time = rtw_get_current_time();
+	u32 init_start_time = jiffies;
 
 	#define HAL_INIT_PROFILE_TAG(stage) do {} while (0)
 
@@ -1251,7 +1251,7 @@ static void _ReadRFType(struct adapter *Adapter)
 
 static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
-	u32 start = rtw_get_current_time();
+	u32 start = jiffies;
 
 	MSG_88E("====> %s\n", __func__);
 
@@ -1894,7 +1894,7 @@ _func_enter_;
 				/* RQPN Load 0 */
 				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
 				rtw_write32(Adapter, REG_RQPN, 0x80000000);
-				rtw_mdelay_os(10);
+				mdelay(10);
 			}
 		}
 		break;

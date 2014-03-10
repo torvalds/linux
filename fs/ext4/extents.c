@@ -3477,7 +3477,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	WARN_ON(map->m_lblk < ee_block);
 	/*
 	 * It is safe to convert extent to initialized via explicit
-	 * zeroout only if extent is fully insde i_size or new_size.
+	 * zeroout only if extent is fully inside i_size or new_size.
 	 */
 	split_flag |= ee_block + ee_len <= eof_block ? EXT4_EXT_MAY_ZEROOUT : 0;
 
@@ -3906,6 +3906,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		} else
 			err = ret;
 		map->m_flags |= EXT4_MAP_MAPPED;
+		map->m_pblk = newblock;
 		if (allocated > map->m_len)
 			allocated = map->m_len;
 		map->m_len = allocated;

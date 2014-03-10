@@ -428,6 +428,7 @@ struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 				goto failure;
 
 			ipv4_devconf_setall(in_dev);
+			neigh_parms_data_state_setall(in_dev->arp_parms);
 			IPV4_DEVCONF(in_dev->cnf, RP_FILTER) = 0;
 
 			if (dev_open(dev))
@@ -520,6 +521,7 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 	}
 
 	ipv4_devconf_setall(in_dev);
+	neigh_parms_data_state_setall(in_dev->arp_parms);
 	IPV4_DEVCONF(in_dev->cnf, RP_FILTER) = 0;
 	rcu_read_unlock();
 

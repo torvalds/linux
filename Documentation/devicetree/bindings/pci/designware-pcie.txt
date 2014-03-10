@@ -19,6 +19,8 @@ Required properties:
 	to define the mapping of the PCIe interface to interrupt
 	numbers.
 - num-lanes: number of lanes to use
+
+Optional properties:
 - reset-gpio: gpio pin number of power good signal
 
 Optional properties for fsl,imx6q-pcie

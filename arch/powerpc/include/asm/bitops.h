@@ -46,6 +46,11 @@
 #include <asm/asm-compat.h>
 #include <asm/synch.h>
 
+/* PPC bit number conversion */
+#define PPC_BITLSHIFT(be)	(BITS_PER_LONG - 1 - (be))
+#define PPC_BIT(bit)		(1UL << PPC_BITLSHIFT(bit))
+#define PPC_BITMASK(bs, be)	((PPC_BIT(bs) - PPC_BIT(be)) | PPC_BIT(bs))
+
 /*
  * clear_bit doesn't imply a memory barrier
  */

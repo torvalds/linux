@@ -6,7 +6,6 @@
 #define PCI_CFG_SPACE_SIZE	256
 #define PCI_CFG_SPACE_EXP_SIZE	4096
 
-extern const unsigned char pcix_bus_speed[];
 extern const unsigned char pcie_link_speed[];
 
 /* Functions internal to the PCI core code */
@@ -68,7 +67,6 @@ void pci_power_up(struct pci_dev *dev);
 void pci_disable_enabled_device(struct pci_dev *dev);
 int pci_finish_runtime_suspend(struct pci_dev *dev);
 int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
-void pci_wakeup_bus(struct pci_bus *bus);
 void pci_config_pm_runtime_get(struct pci_dev *dev);
 void pci_config_pm_runtime_put(struct pci_dev *dev);
 void pci_pm_init(struct pci_dev *dev);

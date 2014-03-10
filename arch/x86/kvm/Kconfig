@@ -80,7 +80,7 @@ config KVM_MMU_AUDIT
 	depends on KVM && TRACEPOINTS
 	---help---
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
-	 audit  KVM MMU at runtime.
+	 auditing of KVM MMU events at runtime.
 
 config KVM_DEVICE_ASSIGNMENT
 	bool "KVM legacy PCI device assignment support"

@@ -1009,7 +1009,7 @@ static int ipipe_validate_yee_params(struct vpfe_ipipe_yee *yee)
 	    yee->es_ofst_grad > YEE_THR_MASK)
 		return -EINVAL;
 
-	for (i = 0; i < VPFE_IPIPE_MAX_SIZE_YEE_LUT ; i++)
+	for (i = 0; i < VPFE_IPIPE_MAX_SIZE_YEE_LUT; i++)
 		if (yee->table[i] > YEE_ENTRY_MASK)
 			return -EINVAL;
 

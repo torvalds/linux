@@ -1,0 +1,46 @@
+* Hisilicon specific extensions to the Synopsys Designware Mobile
+  Storage Host Controller
+
+Read synopsys-dw-mshc.txt for more details
+
+The Synopsys designware mobile storage host controller is used to interface
+a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
+differences between the core Synopsys dw mshc controller properties described
+by synopsys-dw-mshc.txt and the properties used by the Hisilicon specific
+extensions to the Synopsys Designware Mobile Storage Host Controller.
+
+Required Properties:
+
+* compatible: should be one of the following.
+  - "hisilicon,hi4511-dw-mshc": for controllers with hi4511 specific extentions.
+
+Example:
+
+	/* for Hi3620 */
+
+	/* SoC portion */
+	dwmmc_0: dwmmc0@fcd03000 {
+		compatible = "hisilicon,hi4511-dw-mshc";
+		reg = <0xfcd03000 0x1000>;
+		interrupts = <0 16 4>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&mmc_clock HI3620_SD_CIUCLK>, <&clock HI3620_DDRC_PER_CLK>;
+		clock-names = "ciu", "biu";
+	};
+
+	/* Board portion */
+	dwmmc0@fcd03000 {
+		num-slots = <1>;
+		vmmc-supply = <&ldo12>;
+		fifo-depth = <0x100>;
+		supports-highspeed;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_pmx_pins &sd_cfg_func1 &sd_cfg_func2>;
+		slot@0 {
+			reg = <0>;
+			bus-width = <4>;
+			disable-wp;
+			cd-gpios = <&gpio10 3 0>;
+		};
+	};

@@ -27,8 +27,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include "ixgbe_type.h"
-#include "ixgbe_common.h"
+#include "ixgbe.h"
 #include "ixgbe_mbx.h"
 
 /**

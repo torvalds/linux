@@ -560,7 +560,7 @@ static const char *imx_tve_modes[] = {
 	[TVE_MODE_VGA] = "vga",
 };
 
-const int of_get_tve_mode(struct device_node *np)
+static const int of_get_tve_mode(struct device_node *np)
 {
 	const char *bm;
 	int ret, i;

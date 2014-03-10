@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpufreq.h>
 #include <linux/suspend.h>
+#include <linux/platform_device.h>
 
 #include <plat/cpu.h>
 
@@ -29,11 +30,6 @@ static struct regulator *arm_regulator;
 static unsigned int locking_frequency;
 static bool frequency_locked;
 static DEFINE_MUTEX(cpufreq_lock);
-
-static unsigned int exynos_getspeed(unsigned int cpu)
-{
-	return clk_get_rate(exynos_info->cpu_clk) / 1000;
-}
 
 static int exynos_cpufreq_get_index(unsigned int freq)
 {
@@ -214,25 +210,29 @@ static struct notifier_block exynos_cpufreq_nb = {
 
 static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
+	policy->clk = exynos_info->cpu_clk;
 	return cpufreq_generic_init(policy, exynos_info->freq_table, 100000);
 }
 
 static struct cpufreq_driver exynos_driver = {
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= exynos_target,
-	.get		= exynos_getspeed,
+	.get		= cpufreq_generic_get,
 	.init		= exynos_cpufreq_cpu_init,
 	.exit		= cpufreq_generic_exit,
 	.name		= "exynos_cpufreq",
 	.attr		= cpufreq_generic_attr,
+#ifdef CONFIG_ARM_EXYNOS_CPU_FREQ_BOOST_SW
+	.boost_supported = true,
+#endif
 #ifdef CONFIG_PM
 	.suspend	= exynos_cpufreq_suspend,
 	.resume		= exynos_cpufreq_resume,
 #endif
 };
 
-static int __init exynos_cpufreq_init(void)
+static int exynos_cpufreq_probe(struct platform_device *pdev)
 {
 	int ret = -EINVAL;
 
@@ -263,7 +263,7 @@ static int __init exynos_cpufreq_init(void)
 		goto err_vdd_arm;
 	}
 
-	locking_frequency = exynos_getspeed(0);
+	locking_frequency = clk_get_rate(exynos_info->cpu_clk) / 1000;
 
 	register_pm_notifier(&exynos_cpufreq_nb);
 
@@ -281,4 +281,12 @@ err_vdd_arm:
 	kfree(exynos_info);
 	return -EINVAL;
 }
-late_initcall(exynos_cpufreq_init);
+
+static struct platform_driver exynos_cpufreq_platdrv = {
+	.driver = {
+		.name	= "exynos-cpufreq",
+		.owner	= THIS_MODULE,
+	},
+	.probe = exynos_cpufreq_probe,
+};
+module_platform_driver(exynos_cpufreq_platdrv);

@@ -455,7 +455,7 @@ static int ni6527_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni6527_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
+static const struct pci_device_id ni6527_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x2b10), BOARD_PXI6527 },
 	{ PCI_VDEVICE(NI, 0x2b20), BOARD_PCI6527 },
 	{ 0 }

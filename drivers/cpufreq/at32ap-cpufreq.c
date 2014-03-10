@@ -21,16 +21,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 
-static struct clk *cpuclk;
 static struct cpufreq_frequency_table *freq_table;
-
-static unsigned int at32_get_speed(unsigned int cpu)
-{
-	/* No SMP support */
-	if (cpu)
-		return 0;
-	return (unsigned int)((clk_get_rate(cpuclk) + 500) / 1000);
-}
 
 static unsigned int	ref_freq;
 static unsigned long	loops_per_jiffy_ref;
@@ -39,7 +30,7 @@ static int at32_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned int old_freq, new_freq;
 
-	old_freq = at32_get_speed(0);
+	old_freq = policy->cur;
 	new_freq = freq_table[index].frequency;
 
 	if (!ref_freq) {
@@ -50,7 +41,7 @@ static int at32_set_target(struct cpufreq_policy *policy, unsigned int index)
 	if (old_freq < new_freq)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
 				loops_per_jiffy_ref, ref_freq, new_freq);
-	clk_set_rate(cpuclk, new_freq * 1000);
+	clk_set_rate(policy->clk, new_freq * 1000);
 	if (new_freq < old_freq)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
 				loops_per_jiffy_ref, ref_freq, new_freq);
@@ -61,6 +52,7 @@ static int at32_set_target(struct cpufreq_policy *policy, unsigned int index)
 static int at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
 	unsigned int frequency, rate, min_freq;
+	static struct clk *cpuclk;
 	int retval, steps, i;
 
 	if (policy->cpu != 0)
@@ -103,6 +95,7 @@ static int at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 		frequency /= 2;
 	}
 
+	policy->clk = cpuclk;
 	freq_table[steps - 1].frequency = CPUFREQ_TABLE_END;
 
 	retval = cpufreq_table_validate_and_show(policy, freq_table);
@@ -123,7 +116,7 @@ static struct cpufreq_driver at32_driver = {
 	.init		= at32_cpufreq_driver_init,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= at32_set_target,
-	.get		= at32_get_speed,
+	.get		= cpufreq_generic_get,
 	.flags		= CPUFREQ_STICKY,
 };
 

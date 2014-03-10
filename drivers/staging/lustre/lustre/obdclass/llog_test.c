@@ -947,6 +947,10 @@ static void lprocfs_llog_test_init_vars(struct lprocfs_static_vars *lvars)
     lvars->module_vars  = lprocfs_llog_test_module_vars;
     lvars->obd_vars     = lprocfs_llog_test_obd_vars;
 }
+#else
+static void lprocfs_llog_test_init_vars(struct lprocfs_static_vars *lvars)
+{
+}
 #endif
 
 static int llog_test_cleanup(struct obd_device *obd)
@@ -1048,7 +1052,7 @@ static struct obd_ops llog_obd_ops = {
 
 static int __init llog_test_init(void)
 {
-	struct lprocfs_static_vars lvars;
+	struct lprocfs_static_vars uninitialized_var(lvars);
 
 	lprocfs_llog_test_init_vars(&lvars);
 	return class_register_type(&llog_obd_ops, NULL,

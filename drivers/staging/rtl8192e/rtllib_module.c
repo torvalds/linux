@@ -237,7 +237,7 @@ static const struct file_operations fops = {
 	.release = single_release,
 };
 
-int __init rtllib_init(void)
+static int __init rtllib_init(void)
 {
 	struct proc_dir_entry *e;
 
@@ -257,7 +257,7 @@ int __init rtllib_init(void)
 	return 0;
 }
 
-void __exit rtllib_exit(void)
+static void __exit rtllib_exit(void)
 {
 	if (rtllib_proc) {
 		remove_proc_entry("debug_level", rtllib_proc);

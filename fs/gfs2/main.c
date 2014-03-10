@@ -76,6 +76,7 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_str2qstr(&gfs2_qdot, ".");
 	gfs2_str2qstr(&gfs2_qdotdot, "..");
+	gfs2_quota_hash_init();
 
 	error = gfs2_sys_init();
 	if (error)

@@ -441,8 +441,8 @@ void init_channel_table(void *pDeviceHandler)
 		break;
 	}
 
-	if ((pDevice->dwDiagRefCount != 0) || (pDevice->b11hEnable == true)) {
-		if (bMultiBand == true) {
+	if ((pDevice->dwDiagRefCount != 0) || pDevice->b11hEnable) {
+		if (bMultiBand) {
 			for (ii = 0; ii < CARD_MAX_CHANNEL_TBL; ii++) {
 				sChannelTbl[ii + 1].bValid = true;
 				pDevice->abyRegPwr[ii + 1] = pDevice->abyOFDMDefaultPwr[ii + 1];
@@ -463,7 +463,7 @@ void init_channel_table(void *pDeviceHandler)
 			}
 		}
 	} else if (pDevice->byZoneType <= CCODE_MAX) {
-		if (bMultiBand == true) {
+		if (bMultiBand) {
 			for (ii = 0; ii < CARD_MAX_CHANNEL_TBL; ii++) {
 				if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[ii] != 0) {
 					sChannelTbl[ii + 1].bValid = true;
@@ -531,7 +531,7 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 		return bResult;
 	}
 
-	if (sChannelTbl[uConnectionChannel].bValid == false) {
+	if (!sChannelTbl[uConnectionChannel].bValid) {
 		return false;
 	}
 
@@ -557,7 +557,7 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	bResult &= RFbSelectChannel(pDevice->PortOffset, pDevice->byRFType, (unsigned char)uConnectionChannel);
 
 	// Init Synthesizer Table
-	if (pDevice->bEnablePSMode == true)
+	if (pDevice->bEnablePSMode)
 		RFvWriteWakeProgSyn(pDevice->PortOffset, pDevice->byRFType, uConnectionChannel);
 
 	//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CARDbSetMediaChannel: %d\n", (unsigned char)uConnectionChannel);
@@ -766,7 +766,7 @@ unsigned char auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 
 	if (ePHYType == PHY_TYPE_11A) {
 		for (ii = CB_MAX_CHANNEL_24G + 1; ii <= CB_MAX_CHANNEL; ii++) {
-			if (sChannelTbl[ii].bValid == true) {
+			if (sChannelTbl[ii].bValid) {
 				if (byOptionChannel == 0) {
 					byOptionChannel = (unsigned char) ii;
 				}
@@ -780,7 +780,7 @@ unsigned char auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 	} else {
 		byOptionChannel = 0;
 		for (ii = 1; ii <= CB_MAX_CHANNEL_24G; ii++) {
-			if (sChannelTbl[ii].bValid == true) {
+			if (sChannelTbl[ii].bValid) {
 				if (sChannelTbl[ii].byMAP == 0) {
 					aiWeight[ii] += 100;
 				} else if (sChannelTbl[ii].byMAP & 0x01) {
@@ -807,7 +807,7 @@ unsigned char auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 			}
 		}
 		for (ii = 1; ii <= CB_MAX_CHANNEL_24G; ii++) {
-			if ((sChannelTbl[ii].bValid == true) &&
+			if (sChannelTbl[ii].bValid &&
 			    (aiWeight[ii] > aiWeight[byOptionChannel])) {
 				byOptionChannel = (unsigned char) ii;
 			}

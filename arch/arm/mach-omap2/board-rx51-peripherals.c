@@ -760,7 +760,14 @@ static struct regulator_init_data rx51_vintdig = {
 	},
 };
 
+static const char * const si4713_supply_names[] = {
+	"vio",
+	"vdd",
+};
+
 static struct si4713_platform_data rx51_si4713_i2c_data __initdata_or_module = {
+	.supplies	= ARRAY_SIZE(si4713_supply_names),
+	.supply_names	= si4713_supply_names,
 	.gpio_reset	= RX51_FMTX_RESET_GPIO,
 };
 

@@ -1075,9 +1075,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 
 	last_rssi = priv->rx.last_rssi;
 
-	if (ieee80211_is_beacon(hdr->frame_control) &&
-	    !is_zero_ether_addr(common->curbssid) &&
-	    ether_addr_equal(hdr->addr3, common->curbssid)) {
+	if (ath_is_mybeacon(common, hdr)) {
 		s8 rssi = rxbuf->rxstatus.rs_rssi;
 
 		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))

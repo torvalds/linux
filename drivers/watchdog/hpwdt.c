@@ -39,7 +39,7 @@
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 #include <asm/nmi.h>
 
-#define HPWDT_VERSION			"1.3.2"
+#define HPWDT_VERSION			"1.3.3"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
@@ -55,7 +55,7 @@ static void __iomem *pci_mem_addr;		/* the PCI-memory address */
 static unsigned long __iomem *hpwdt_timer_reg;
 static unsigned long __iomem *hpwdt_timer_con;
 
-static DEFINE_PCI_DEVICE_TABLE(hpwdt_devices) = {
+static const struct pci_device_id hpwdt_devices[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },	/* iLO2 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },	/* iLO3 */
 	{0},			/* terminate list */
@@ -501,8 +501,13 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 				"but unable to determine source.\n");
 		}
 	}
-	panic("An NMI occurred, please see the Integrated "
-		"Management Log for details.\n");
+	panic("An NMI occurred. Depending on your system the reason "
+		"for the NMI is logged in any one of the following "
+		"resources:\n"
+		"1. Integrated Management Log (IML)\n"
+		"2. OA Syslog\n"
+		"3. OA Forward Progress Log\n"
+		"4. iLO Event Log");
 
 out:
 	return NMI_DONE;

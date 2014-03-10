@@ -282,6 +282,7 @@ extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
 extern unsigned int sysctl_tcp_notsent_lowat;
 extern int sysctl_tcp_min_tso_segs;
+extern int sysctl_tcp_autocorking;
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -467,7 +468,6 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 				struct tcp_fastopen_cookie *foc);
 int tcp_disconnect(struct sock *sk, int flags);
 
-void tcp_connect_init(struct sock *sk);
 void tcp_finish_connect(struct sock *sk, struct sk_buff *skb);
 int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size);
 void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb);
@@ -621,8 +621,6 @@ static inline u32 __tcp_set_rto(const struct tcp_sock *tp)
 {
 	return (tp->srtt >> 3) + tp->rttvar;
 }
-
-void tcp_set_rto(struct sock *sk);
 
 static inline void __tcp_fast_path_on(struct tcp_sock *tp, u32 snd_wnd)
 {
@@ -977,13 +975,6 @@ static inline u32 tcp_wnd_end(const struct tcp_sock *tp)
 }
 bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight);
 
-static inline void tcp_minshall_update(struct tcp_sock *tp, unsigned int mss,
-				       const struct sk_buff *skb)
-{
-	if (skb->len < mss)
-		tp->snd_sml = TCP_SKB_CB(skb)->end_seq;
-}
-
 static inline void tcp_check_probe_timer(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
@@ -1312,7 +1303,8 @@ struct tcp_fastopen_request {
 	/* Fast Open cookie. Size 0 means a cookie request */
 	struct tcp_fastopen_cookie	cookie;
 	struct msghdr			*data;  /* data in MSG_FASTOPEN */
-	u16				copied;	/* queued in tcp_connect() */
+	size_t				size;
+	int				copied;	/* queued in tcp_connect() */
 };
 void tcp_free_fastopen_req(struct tcp_sock *tp);
 

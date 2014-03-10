@@ -40,6 +40,7 @@
 #include <asm/uaccess.h>
 
 #include "uverbs.h"
+#include "core_priv.h"
 
 struct uverbs_lock_class {
 	struct lock_class_key	key;
@@ -1961,6 +1962,9 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	attr->alt_ah_attr.port_num 	    = cmd.alt_dest.port_num;
 
 	if (qp->real_qp == qp) {
+		ret = ib_resolve_eth_l2_attrs(qp, attr, &cmd.attr_mask);
+		if (ret)
+			goto out;
 		ret = qp->device->modify_qp(qp, attr,
 			modify_qp_mask(qp->qp_type, cmd.attr_mask), &udata);
 	} else {

@@ -106,8 +106,21 @@ struct kvm_s390_sie_block {
 	__u64	gbea;			/* 0x0180 */
 	__u8	reserved188[24];	/* 0x0188 */
 	__u32	fac;			/* 0x01a0 */
-	__u8	reserved1a4[92];	/* 0x01a4 */
+	__u8	reserved1a4[68];	/* 0x01a4 */
+	__u64	itdba;			/* 0x01e8 */
+	__u8	reserved1f0[16];	/* 0x01f0 */
 } __attribute__((packed));
+
+struct kvm_s390_itdb {
+	__u8	data[256];
+} __packed;
+
+struct sie_page {
+	struct kvm_s390_sie_block sie_block;
+	__u8 reserved200[1024];		/* 0x0200 */
+	struct kvm_s390_itdb itdb;	/* 0x0600 */
+	__u8 reserved700[2304];		/* 0x0700 */
+} __packed;
 
 struct kvm_vcpu_stat {
 	u32 exit_userspace;

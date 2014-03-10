@@ -112,7 +112,7 @@ The Dirty bit is lost in this case.
 
 In order to avoid this kind of issue, we always treat the spte as "volatile"
 if it can be updated out of mmu-lock, see spte_has_volatile_bits(), it means,
-the spte is always atomicly updated in this case.
+the spte is always atomically updated in this case.
 
 3): flush tlbs due to spte updated
 If the spte is updated from writable to readonly, we should flush all TLBs,
@@ -125,7 +125,7 @@ be flushed caused by this reason in mmu_spte_update() since this is a common
 function to update spte (present -> present).
 
 Since the spte is "volatile" if it can be updated out of mmu-lock, we always
-atomicly update the spte, the race caused by fast page fault can be avoided,
+atomically update the spte, the race caused by fast page fault can be avoided,
 See the comments in spte_has_volatile_bits() and mmu_spte_update().
 
 3. Reference

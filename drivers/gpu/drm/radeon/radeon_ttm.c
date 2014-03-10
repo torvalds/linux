@@ -714,6 +714,9 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
+	/* Change the size here instead of the init above so only lpfn is affected */
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+
 	r = radeon_bo_create(rdev, 256 * 1024, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM,
 			     NULL, &rdev->stollen_vga_memory);
@@ -935,7 +938,7 @@ static ssize_t radeon_ttm_gtt_read(struct file *f, char __user *buf,
 	while (size) {
 		loff_t p = *pos / PAGE_SIZE;
 		unsigned off = *pos & ~PAGE_MASK;
-		ssize_t cur_size = min(size, PAGE_SIZE - off);
+		size_t cur_size = min_t(size_t, size, PAGE_SIZE - off);
 		struct page *page;
 		void *ptr;
 

@@ -19,6 +19,7 @@
 
 #include "../../mount.h"
 #include "../fdinfo.h"
+#include "fanotify.h"
 
 #define FANOTIFY_DEFAULT_MAX_EVENTS	16384
 #define FANOTIFY_DEFAULT_MAX_MARKS	8192
@@ -28,11 +29,12 @@ extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
 static struct kmem_cache *fanotify_mark_cache __read_mostly;
 static struct kmem_cache *fanotify_response_event_cache __read_mostly;
+struct kmem_cache *fanotify_event_cachep __read_mostly;
 
 struct fanotify_response_event {
 	struct list_head list;
 	__s32 fd;
-	struct fsnotify_event *event;
+	struct fanotify_event_info *event;
 };
 
 /*
@@ -61,8 +63,8 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 }
 
 static int create_fd(struct fsnotify_group *group,
-			struct fsnotify_event *event,
-			struct file **file)
+		     struct fanotify_event_info *event,
+		     struct file **file)
 {
 	int client_fd;
 	struct file *new_file;
@@ -72,12 +74,6 @@ static int create_fd(struct fsnotify_group *group,
 	client_fd = get_unused_fd();
 	if (client_fd < 0)
 		return client_fd;
-
-	if (event->data_type != FSNOTIFY_EVENT_PATH) {
-		WARN_ON(1);
-		put_unused_fd(client_fd);
-		return -EINVAL;
-	}
 
 	/*
 	 * we need a new file handle for the userspace program so it can read even if it was
@@ -109,23 +105,25 @@ static int create_fd(struct fsnotify_group *group,
 }
 
 static int fill_event_metadata(struct fsnotify_group *group,
-				   struct fanotify_event_metadata *metadata,
-				   struct fsnotify_event *event,
-				   struct file **file)
+			       struct fanotify_event_metadata *metadata,
+			       struct fsnotify_event *fsn_event,
+			       struct file **file)
 {
 	int ret = 0;
+	struct fanotify_event_info *event;
 
 	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__,
-		 group, metadata, event);
+		 group, metadata, fsn_event);
 
 	*file = NULL;
+	event = container_of(fsn_event, struct fanotify_event_info, fse);
 	metadata->event_len = FAN_EVENT_METADATA_LEN;
 	metadata->metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
 	metadata->reserved = 0;
-	metadata->mask = event->mask & FAN_ALL_OUTGOING_EVENTS;
+	metadata->mask = fsn_event->mask & FAN_ALL_OUTGOING_EVENTS;
 	metadata->pid = pid_vnr(event->tgid);
-	if (unlikely(event->mask & FAN_Q_OVERFLOW))
+	if (unlikely(fsn_event->mask & FAN_Q_OVERFLOW))
 		metadata->fd = FAN_NOFD;
 	else {
 		metadata->fd = create_fd(group, event, file);
@@ -209,7 +207,7 @@ static int prepare_for_access_response(struct fsnotify_group *group,
 	if (!re)
 		return -ENOMEM;
 
-	re->event = event;
+	re->event = FANOTIFY_E(event);
 	re->fd = fd;
 
 	mutex_lock(&group->fanotify_data.access_mutex);
@@ -217,7 +215,7 @@ static int prepare_for_access_response(struct fsnotify_group *group,
 	if (atomic_read(&group->fanotify_data.bypass_perm)) {
 		mutex_unlock(&group->fanotify_data.access_mutex);
 		kmem_cache_free(fanotify_response_event_cache, re);
-		event->response = FAN_ALLOW;
+		FANOTIFY_E(event)->response = FAN_ALLOW;
 		return 0;
 	}
 		
@@ -273,7 +271,7 @@ out_close_fd:
 out:
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (event->mask & FAN_ALL_PERM_EVENTS) {
-		event->response = FAN_DENY;
+		FANOTIFY_E(event)->response = FAN_DENY;
 		wake_up(&group->fanotify_data.access_waitq);
 	}
 #endif
@@ -321,7 +319,12 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 			if (IS_ERR(kevent))
 				break;
 			ret = copy_event_to_user(group, kevent, buf);
-			fsnotify_put_event(kevent);
+			/*
+			 * Permission events get destroyed after we
+			 * receive response
+			 */
+			if (!(kevent->mask & FAN_ALL_PERM_EVENTS))
+				fsnotify_destroy_event(group, kevent);
 			if (ret < 0)
 				break;
 			buf += ret;
@@ -409,7 +412,7 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 static long fanotify_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct fsnotify_group *group;
-	struct fsnotify_event_holder *holder;
+	struct fsnotify_event *fsn_event;
 	void __user *p;
 	int ret = -ENOTTY;
 	size_t send_len = 0;
@@ -421,7 +424,7 @@ static long fanotify_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	switch (cmd) {
 	case FIONREAD:
 		mutex_lock(&group->notification_mutex);
-		list_for_each_entry(holder, &group->notification_list, event_list)
+		list_for_each_entry(fsn_event, &group->notification_list, list)
 			send_len += FAN_EVENT_METADATA_LEN;
 		mutex_unlock(&group->notification_mutex);
 		ret = put_user(send_len, (int __user *) p);
@@ -695,6 +698,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	struct fsnotify_group *group;
 	int f_flags, fd;
 	struct user_struct *user;
+	struct fanotify_event_info *oevent;
 
 	pr_debug("%s: flags=%d event_f_flags=%d\n",
 		__func__, flags, event_f_flags);
@@ -727,8 +731,20 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.user = user;
 	atomic_inc(&user->fanotify_listeners);
 
+	oevent = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
+	if (unlikely(!oevent)) {
+		fd = -ENOMEM;
+		goto out_destroy_group;
+	}
+	group->overflow_event = &oevent->fse;
+	fsnotify_init_event(group->overflow_event, NULL, FS_Q_OVERFLOW);
+	oevent->tgid = get_pid(task_tgid(current));
+	oevent->path.mnt = NULL;
+	oevent->path.dentry = NULL;
+
 	group->fanotify_data.f_flags = event_f_flags;
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	oevent->response = 0;
 	mutex_init(&group->fanotify_data.access_mutex);
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
@@ -888,9 +904,9 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
 {
 	return sys_fanotify_mark(fanotify_fd, flags,
 #ifdef __BIG_ENDIAN
-				((__u64)mask1 << 32) | mask0,
-#else
 				((__u64)mask0 << 32) | mask1,
+#else
+				((__u64)mask1 << 32) | mask0,
 #endif
 				 dfd, pathname);
 }
@@ -906,6 +922,7 @@ static int __init fanotify_user_setup(void)
 	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
 	fanotify_response_event_cache = KMEM_CACHE(fanotify_response_event,
 						   SLAB_PANIC);
+	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
 
 	return 0;
 }

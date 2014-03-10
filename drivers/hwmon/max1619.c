@@ -2,7 +2,7 @@
  * max1619.c - Part of lm_sensors, Linux kernel modules for hardware
  *             monitoring
  * Copyright (C) 2003-2004 Oleksij Rempel <bug-track@fisher-privat.net>
- *                         Jean Delvare <khali@linux-fr.org>
+ *                         Jean Delvare <jdelvare@suse.de>
  *
  * Based on the lm90 driver. The MAX1619 is a sensor chip made by Maxim.
  * It reports up to two temperatures (its own plus up to
@@ -357,7 +357,6 @@ static struct max1619_data *max1619_update_device(struct device *dev)
 
 module_i2c_driver(max1619_driver);
 
-MODULE_AUTHOR("Oleksij Rempel <bug-track@fisher-privat.net> and "
-	"Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Oleksij Rempel <bug-track@fisher-privat.net>, Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("MAX1619 sensor driver");
 MODULE_LICENSE("GPL");

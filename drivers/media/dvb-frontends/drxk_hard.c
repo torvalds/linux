@@ -6830,25 +6830,13 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 
 	/* Load firmware and initialize DRX-K */
 	if (state->microcode_name) {
-		if (config->load_firmware_sync) {
-			const struct firmware *fw = NULL;
+		const struct firmware *fw = NULL;
 
-			status = request_firmware(&fw, state->microcode_name,
-						  state->i2c->dev.parent);
-			if (status < 0)
-				fw = NULL;
-			load_firmware_cb(fw, state);
-		} else {
-			status = request_firmware_nowait(THIS_MODULE, 1,
-					      state->microcode_name,
-					      state->i2c->dev.parent,
-					      GFP_KERNEL,
-					      state, load_firmware_cb);
-			if (status < 0) {
-				pr_err("failed to request a firmware\n");
-				return NULL;
-			}
-		}
+		status = request_firmware(&fw, state->microcode_name,
+					  state->i2c->dev.parent);
+		if (status < 0)
+			fw = NULL;
+		load_firmware_cb(fw, state);
 	} else if (init_drxk(state) < 0)
 		goto error;
 

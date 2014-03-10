@@ -158,7 +158,6 @@ static int up_to_host(struct mux_rx *r)
 	unsigned int start_flag;
 	unsigned int payload_size;
 	unsigned short packet_type;
-	int remain;
 	int dummy_cnt;
 	u32 packet_size_sum = r->offset;
 	int index;
@@ -176,8 +175,7 @@ static int up_to_host(struct mux_rx *r)
 			break;
 		}
 
-		remain = (MUX_HEADER_SIZE + payload_size) % 4;
-		dummy_cnt = remain ? (4-remain) : 0;
+		dummy_cnt = ALIGN(MUX_HEADER_SIZE + payload_size, 4);
 
 		if (len - packet_size_sum <
 			MUX_HEADER_SIZE + payload_size + dummy_cnt) {
@@ -361,7 +359,6 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	struct mux_pkt_header *mux_header;
 	struct mux_tx *t = NULL;
 	static u32 seq_num = 1;
-	int remain;
 	int dummy_cnt;
 	int total_len;
 	int ret;
@@ -375,8 +372,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 
 	spin_lock_irqsave(&mux_dev->write_lock, flags);
 
-	remain = (MUX_HEADER_SIZE + len) % 4;
-	dummy_cnt = remain ? (4 - remain) : 0;
+	dummy_cnt = ALIGN(MUX_HEADER_SIZE + len, 4);
 
 	total_len = len + MUX_HEADER_SIZE + dummy_cnt;
 

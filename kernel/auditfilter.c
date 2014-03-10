@@ -972,7 +972,7 @@ out:
 }
 
 /* List rules using struct audit_rule_data. */
-static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
+static void audit_list_rules(__u32 portid, int seq, struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 	struct audit_krule *r;
@@ -987,14 +987,15 @@ static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 			data = audit_krule_to_data(r);
 			if (unlikely(!data))
 				break;
-			skb = audit_make_reply(pid, seq, AUDIT_LIST_RULES, 0, 1,
-					 data, sizeof(*data) + data->buflen);
+			skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES,
+					       0, 1, data,
+					       sizeof(*data) + data->buflen);
 			if (skb)
 				skb_queue_tail(q, skb);
 			kfree(data);
 		}
 	}
-	skb = audit_make_reply(pid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
+	skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
 	if (skb)
 		skb_queue_tail(q, skb);
 }
@@ -1004,7 +1005,7 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 {
 	struct audit_buffer *ab;
 	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
-	u32 sessionid = audit_get_sessionid(current);
+	unsigned int sessionid = audit_get_sessionid(current);
 
 	if (!audit_enabled)
 		return;
@@ -1022,45 +1023,20 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 }
 
 /**
- * audit_receive_filter - apply all rules to the specified message type
+ * audit_rule_change - apply all rules to the specified message type
  * @type: audit message type
- * @pid: target pid for netlink audit messages
+ * @portid: target port id for netlink audit messages
  * @seq: netlink audit message sequence (serial) number
  * @data: payload data
  * @datasz: size of payload data
  */
-int audit_receive_filter(int type, int pid, int seq, void *data, size_t datasz)
+int audit_rule_change(int type, __u32 portid, int seq, void *data,
+			size_t datasz)
 {
-	struct task_struct *tsk;
-	struct audit_netlink_list *dest;
 	int err = 0;
 	struct audit_entry *entry;
 
 	switch (type) {
-	case AUDIT_LIST_RULES:
-		/* We can't just spew out the rules here because we might fill
-		 * the available socket buffer space and deadlock waiting for
-		 * auditctl to read from it... which isn't ever going to
-		 * happen if we're actually running in the context of auditctl
-		 * trying to _send_ the stuff */
-
-		dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
-		if (!dest)
-			return -ENOMEM;
-		dest->pid = pid;
-		skb_queue_head_init(&dest->q);
-
-		mutex_lock(&audit_filter_mutex);
-		audit_list_rules(pid, seq, &dest->q);
-		mutex_unlock(&audit_filter_mutex);
-
-		tsk = kthread_run(audit_send_list, dest, "audit_send_list");
-		if (IS_ERR(tsk)) {
-			skb_queue_purge(&dest->q);
-			kfree(dest);
-			err = PTR_ERR(tsk);
-		}
-		break;
 	case AUDIT_ADD_RULE:
 		entry = audit_data_to_entry(data, datasz);
 		if (IS_ERR(entry))
@@ -1082,6 +1058,44 @@ int audit_receive_filter(int type, int pid, int seq, void *data, size_t datasz)
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	return err;
+}
+
+/**
+ * audit_list_rules_send - list the audit rules
+ * @portid: target portid for netlink audit messages
+ * @seq: netlink audit message sequence (serial) number
+ */
+int audit_list_rules_send(__u32 portid, int seq)
+{
+	struct task_struct *tsk;
+	struct audit_netlink_list *dest;
+	int err = 0;
+
+	/* We can't just spew out the rules here because we might fill
+	 * the available socket buffer space and deadlock waiting for
+	 * auditctl to read from it... which isn't ever going to
+	 * happen if we're actually running in the context of auditctl
+	 * trying to _send_ the stuff */
+
+	dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
+	if (!dest)
+		return -ENOMEM;
+	dest->portid = portid;
+	dest->pid = task_pid_vnr(current);
+	skb_queue_head_init(&dest->q);
+
+	mutex_lock(&audit_filter_mutex);
+	audit_list_rules(portid, seq, &dest->q);
+	mutex_unlock(&audit_filter_mutex);
+
+	tsk = kthread_run(audit_send_list, dest, "audit_send_list");
+	if (IS_ERR(tsk)) {
+		skb_queue_purge(&dest->q);
+		kfree(dest);
+		err = PTR_ERR(tsk);
 	}
 
 	return err;
@@ -1276,19 +1290,22 @@ int audit_filter_user(int type)
 {
 	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;
-	int ret = 1;
+	int rc, ret;
+
+	ret = 1; /* Audit by default */
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
-		if (audit_filter_user_rules(&e->rule, type, &state)) {
-			if (state == AUDIT_DISABLED)
+		rc = audit_filter_user_rules(&e->rule, type, &state);
+		if (rc) {
+			if (rc > 0 && state == AUDIT_DISABLED)
 				ret = 0;
 			break;
 		}
 	}
 	rcu_read_unlock();
 
-	return ret; /* Audit by default */
+	return ret;
 }
 
 int audit_filter_type(int type)

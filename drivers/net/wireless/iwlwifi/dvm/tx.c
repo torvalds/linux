@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 #include "iwl-io.h"
@@ -368,6 +367,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		goto drop_unlock_priv;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	dev_cmd->hdr.cmd = REPLY_TX;
 	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
 	/* Total # bytes to be transmitted */
@@ -1291,8 +1291,6 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	struct iwl_compressed_ba_resp *ba_resp = (void *)pkt->data;
 	struct iwl_ht_agg *agg;
 	struct sk_buff_head reclaimed_skbs;
-	struct ieee80211_tx_info *info;
-	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
 	int sta_id;
 	int tid;
@@ -1379,22 +1377,28 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	freed = 0;
 
 	skb_queue_walk(&reclaimed_skbs, skb) {
-		hdr = (struct ieee80211_hdr *)skb->data;
+		struct ieee80211_hdr *hdr = (void *)skb->data;
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 		if (ieee80211_is_data_qos(hdr->frame_control))
 			freed++;
 		else
 			WARN_ON_ONCE(1);
 
-		info = IEEE80211_SKB_CB(skb);
 		iwl_trans_free_tx_cmd(priv->trans, info->driver_data[1]);
+
+		memset(&info->status, 0, sizeof(info->status));
+		/* Packet was transmitted successfully, failures come as single
+		 * frames because before failing a frame the firmware transmits
+		 * it without aggregation at least once.
+		 */
+		info->flags |= IEEE80211_TX_STAT_ACK;
 
 		if (freed == 1) {
 			/* this is the first skb we deliver in this batch */
 			/* put the rate scaling data there */
 			info = IEEE80211_SKB_CB(skb);
 			memset(&info->status, 0, sizeof(info->status));
-			info->flags |= IEEE80211_TX_STAT_ACK;
 			info->flags |= IEEE80211_TX_STAT_AMPDU;
 			info->status.ampdu_ack_len = ba_resp->txed_2_done;
 			info->status.ampdu_len = ba_resp->txed;

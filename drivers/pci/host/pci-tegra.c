@@ -808,7 +808,7 @@ static int tegra_pcie_enable_controller(struct tegra_pcie *pcie)
 	afi_writel(pcie, value, AFI_PCIE_CONFIG);
 
 	value = afi_readl(pcie, AFI_FUSE);
-	value &= ~AFI_FUSE_PCIE_T0_GEN2_DIS;
+	value |= AFI_FUSE_PCIE_T0_GEN2_DIS;
 	afi_writel(pcie, value, AFI_FUSE);
 
 	/* initialize internal PHY, enable up to 16 PCIE lanes */

@@ -170,6 +170,7 @@ xfs_dir2_block_to_sf(
 	char			*ptr;		/* current data pointer */
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform directory header */
+	xfs_dir2_sf_hdr_t	*dst;		/* temporary data buffer */
 
 	trace_xfs_dir2_block_to_sf(args);
 
@@ -177,35 +178,20 @@ xfs_dir2_block_to_sf(
 	mp = dp->i_mount;
 
 	/*
-	 * Make a copy of the block data, so we can shrink the inode
-	 * and add local data.
+	 * allocate a temporary destination buffer the size of the inode
+	 * to format the data into. Once we have formatted the data, we
+	 * can free the block and copy the formatted data into the inode literal
+	 * area.
 	 */
-	hdr = kmem_alloc(mp->m_dirblksize, KM_SLEEP);
-	memcpy(hdr, bp->b_addr, mp->m_dirblksize);
-	logflags = XFS_ILOG_CORE;
-	if ((error = xfs_dir2_shrink_inode(args, mp->m_dirdatablk, bp))) {
-		ASSERT(error != ENOSPC);
-		goto out;
-	}
+	dst = kmem_alloc(mp->m_sb.sb_inodesize, KM_SLEEP);
+	hdr = bp->b_addr;
 
-	/*
-	 * The buffer is now unconditionally gone, whether
-	 * xfs_dir2_shrink_inode worked or not.
-	 *
-	 * Convert the inode to local format.
-	 */
-	dp->i_df.if_flags &= ~XFS_IFEXTENTS;
-	dp->i_df.if_flags |= XFS_IFINLINE;
-	dp->i_d.di_format = XFS_DINODE_FMT_LOCAL;
-	ASSERT(dp->i_df.if_bytes == 0);
-	xfs_idata_realloc(dp, size, XFS_DATA_FORK);
-	logflags |= XFS_ILOG_DDATA;
 	/*
 	 * Copy the header into the newly allocate local space.
 	 */
-	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
+	sfp = (xfs_dir2_sf_hdr_t *)dst;
 	memcpy(sfp, sfhp, xfs_dir2_sf_hdr_size(sfhp->i8count));
-	dp->i_d.di_size = size;
+
 	/*
 	 * Set up to loop over the block's entries.
 	 */
@@ -258,10 +244,34 @@ xfs_dir2_block_to_sf(
 		ptr += dp->d_ops->data_entsize(dep->namelen);
 	}
 	ASSERT((char *)sfep - (char *)sfp == size);
+
+	/* now we are done with the block, we can shrink the inode */
+	logflags = XFS_ILOG_CORE;
+	error = xfs_dir2_shrink_inode(args, mp->m_dirdatablk, bp);
+	if (error) {
+		ASSERT(error != ENOSPC);
+		goto out;
+	}
+
+	/*
+	 * The buffer is now unconditionally gone, whether
+	 * xfs_dir2_shrink_inode worked or not.
+	 *
+	 * Convert the inode to local format and copy the data in.
+	 */
+	dp->i_df.if_flags &= ~XFS_IFEXTENTS;
+	dp->i_df.if_flags |= XFS_IFINLINE;
+	dp->i_d.di_format = XFS_DINODE_FMT_LOCAL;
+	ASSERT(dp->i_df.if_bytes == 0);
+	xfs_idata_realloc(dp, size, XFS_DATA_FORK);
+
+	logflags |= XFS_ILOG_DDATA;
+	memcpy(dp->i_df.if_u1.if_data, dst, size);
+	dp->i_d.di_size = size;
 	xfs_dir2_sf_check(args);
 out:
 	xfs_trans_log_inode(args->trans, dp, logflags);
-	kmem_free(hdr);
+	kmem_free(dst);
 	return error;
 }
 

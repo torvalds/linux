@@ -195,7 +195,6 @@ struct afs_cell {
 	struct list_head	link;		/* main cell list link */
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
 	struct list_head	proc_link;	/* /proc cell list link */
-	struct proc_dir_entry	*proc_dir;	/* /proc dir for this cell */
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_cookie	*cache;		/* caching cookie */
 #endif

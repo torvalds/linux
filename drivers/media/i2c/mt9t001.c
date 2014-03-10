@@ -291,10 +291,12 @@ static int mt9t001_set_format(struct v4l2_subdev *subdev,
 
 	/* Clamp the width and height to avoid dividing by zero. */
 	width = clamp_t(unsigned int, ALIGN(format->format.width, 2),
-			max(__crop->width / 8, MT9T001_WINDOW_HEIGHT_MIN + 1),
+			max_t(unsigned int, __crop->width / 8,
+			      MT9T001_WINDOW_HEIGHT_MIN + 1),
 			__crop->width);
 	height = clamp_t(unsigned int, ALIGN(format->format.height, 2),
-			 max(__crop->height / 8, MT9T001_WINDOW_HEIGHT_MIN + 1),
+			 max_t(unsigned int, __crop->height / 8,
+			       MT9T001_WINDOW_HEIGHT_MIN + 1),
 			 __crop->height);
 
 	hratio = DIV_ROUND_CLOSEST(__crop->width, width);
@@ -339,15 +341,17 @@ static int mt9t001_set_crop(struct v4l2_subdev *subdev,
 	rect.top = clamp(ALIGN(crop->rect.top, 2),
 			 MT9T001_ROW_START_MIN,
 			 MT9T001_ROW_START_MAX);
-	rect.width = clamp(ALIGN(crop->rect.width, 2),
-			   MT9T001_WINDOW_WIDTH_MIN + 1,
-			   MT9T001_WINDOW_WIDTH_MAX + 1);
-	rect.height = clamp(ALIGN(crop->rect.height, 2),
-			    MT9T001_WINDOW_HEIGHT_MIN + 1,
-			    MT9T001_WINDOW_HEIGHT_MAX + 1);
+	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+			     MT9T001_WINDOW_WIDTH_MIN + 1,
+			     MT9T001_WINDOW_WIDTH_MAX + 1);
+	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+			      MT9T001_WINDOW_HEIGHT_MIN + 1,
+			      MT9T001_WINDOW_HEIGHT_MAX + 1);
 
-	rect.width = min(rect.width, MT9T001_PIXEL_ARRAY_WIDTH - rect.left);
-	rect.height = min(rect.height, MT9T001_PIXEL_ARRAY_HEIGHT - rect.top);
+	rect.width = min_t(unsigned int, rect.width,
+			   MT9T001_PIXEL_ARRAY_WIDTH - rect.left);
+	rect.height = min_t(unsigned int, rect.height,
+			    MT9T001_PIXEL_ARRAY_HEIGHT - rect.top);
 
 	__crop = __mt9t001_get_pad_crop(mt9t001, fh, crop->pad, crop->which);
 

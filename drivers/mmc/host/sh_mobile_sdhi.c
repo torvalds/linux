@@ -33,6 +33,8 @@
 
 #include "tmio_mmc.h"
 
+#define EXT_ACC           0xe4
+
 struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
 };
@@ -54,7 +56,7 @@ static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int 
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
-	int ret = clk_enable(priv->clk);
+	int ret = clk_prepare_enable(priv->clk);
 	if (ret < 0)
 		return ret;
 
@@ -67,7 +69,7 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 }
 
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
@@ -133,9 +135,15 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	struct tmio_mmc_data *mmc_data;
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	struct tmio_mmc_host *host;
+	struct resource *res;
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 	struct tmio_mmc_dma *dma_priv;
+	u16 ver;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct sh_mobile_sdhi), GFP_KERNEL);
 	if (priv == NULL) {
@@ -206,9 +214,20 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->flags |= of_data->tmio_flags;
 	}
 
+	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
+	mmc_data->bus_shift = resource_size(res) >> 9;
+
 	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
 	if (ret < 0)
 		goto eprobe;
+
+	/*
+	 * FIXME:
+	 * this Workaround can be more clever method
+	 */
+	ver = sd_ctrl_read16(host, CTL_VERSION);
+	if (ver == 0xCB0D)
+		sd_ctrl_write16(host, EXT_ACC, 1);
 
 	/*
 	 * Allow one or more specific (named) ISRs or

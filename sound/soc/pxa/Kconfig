@@ -11,7 +11,7 @@ config SND_PXA2XX_SOC
 config SND_MMP_SOC
 	bool "Soc Audio for Marvell MMP chips"
 	depends on ARCH_MMP
-	select SND_DMAENGINE_PCM
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select SND_ARM
 	help
 	  Say Y if you want to add support for codecs attached to

@@ -643,6 +643,15 @@ SE_DEV_ATTR(emulate_caw, S_IRUGO | S_IWUSR);
 DEF_DEV_ATTRIB(emulate_3pc);
 SE_DEV_ATTR(emulate_3pc, S_IRUGO | S_IWUSR);
 
+DEF_DEV_ATTRIB(pi_prot_type);
+SE_DEV_ATTR(pi_prot_type, S_IRUGO | S_IWUSR);
+
+DEF_DEV_ATTRIB_RO(hw_pi_prot_type);
+SE_DEV_ATTR_RO(hw_pi_prot_type);
+
+DEF_DEV_ATTRIB(pi_prot_format);
+SE_DEV_ATTR(pi_prot_format, S_IRUGO | S_IWUSR);
+
 DEF_DEV_ATTRIB(enforce_pr_isids);
 SE_DEV_ATTR(enforce_pr_isids, S_IRUGO | S_IWUSR);
 
@@ -702,6 +711,9 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_emulate_tpws.attr,
 	&target_core_dev_attrib_emulate_caw.attr,
 	&target_core_dev_attrib_emulate_3pc.attr,
+	&target_core_dev_attrib_pi_prot_type.attr,
+	&target_core_dev_attrib_hw_pi_prot_type.attr,
+	&target_core_dev_attrib_pi_prot_format.attr,
 	&target_core_dev_attrib_enforce_pr_isids.attr,
 	&target_core_dev_attrib_is_nonrot.attr,
 	&target_core_dev_attrib_emulate_rest_reord.attr,
@@ -1741,6 +1753,176 @@ static struct target_core_configfs_attribute target_core_attr_dev_alua_lu_gp = {
 	.store	= target_core_store_alua_lu_gp,
 };
 
+static ssize_t target_core_show_dev_lba_map(void *p, char *page)
+{
+	struct se_device *dev = p;
+	struct t10_alua_lba_map *map;
+	struct t10_alua_lba_map_member *mem;
+	char *b = page;
+	int bl = 0;
+	char state;
+
+	spin_lock(&dev->t10_alua.lba_map_lock);
+	if (!list_empty(&dev->t10_alua.lba_map_list))
+	    bl += sprintf(b + bl, "%u %u\n",
+			  dev->t10_alua.lba_map_segment_size,
+			  dev->t10_alua.lba_map_segment_multiplier);
+	list_for_each_entry(map, &dev->t10_alua.lba_map_list, lba_map_list) {
+		bl += sprintf(b + bl, "%llu %llu",
+			      map->lba_map_first_lba, map->lba_map_last_lba);
+		list_for_each_entry(mem, &map->lba_map_mem_list,
+				    lba_map_mem_list) {
+			switch (mem->lba_map_mem_alua_state) {
+			case ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED:
+				state = 'O';
+				break;
+			case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
+				state = 'A';
+				break;
+			case ALUA_ACCESS_STATE_STANDBY:
+				state = 'S';
+				break;
+			case ALUA_ACCESS_STATE_UNAVAILABLE:
+				state = 'U';
+				break;
+			default:
+				state = '.';
+				break;
+			}
+			bl += sprintf(b + bl, " %d:%c",
+				      mem->lba_map_mem_alua_pg_id, state);
+		}
+		bl += sprintf(b + bl, "\n");
+	}
+	spin_unlock(&dev->t10_alua.lba_map_lock);
+	return bl;
+}
+
+static ssize_t target_core_store_dev_lba_map(
+	void *p,
+	const char *page,
+	size_t count)
+{
+	struct se_device *dev = p;
+	struct t10_alua_lba_map *lba_map = NULL;
+	struct list_head lba_list;
+	char *map_entries, *ptr;
+	char state;
+	int pg_num = -1, pg;
+	int ret = 0, num = 0, pg_id, alua_state;
+	unsigned long start_lba = -1, end_lba = -1;
+	unsigned long segment_size = -1, segment_mult = -1;
+
+	map_entries = kstrdup(page, GFP_KERNEL);
+	if (!map_entries)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&lba_list);
+	while ((ptr = strsep(&map_entries, "\n")) != NULL) {
+		if (!*ptr)
+			continue;
+
+		if (num == 0) {
+			if (sscanf(ptr, "%lu %lu\n",
+				   &segment_size, &segment_mult) != 2) {
+				pr_err("Invalid line %d\n", num);
+				ret = -EINVAL;
+				break;
+			}
+			num++;
+			continue;
+		}
+		if (sscanf(ptr, "%lu %lu", &start_lba, &end_lba) != 2) {
+			pr_err("Invalid line %d\n", num);
+			ret = -EINVAL;
+			break;
+		}
+		ptr = strchr(ptr, ' ');
+		if (!ptr) {
+			pr_err("Invalid line %d, missing end lba\n", num);
+			ret = -EINVAL;
+			break;
+		}
+		ptr++;
+		ptr = strchr(ptr, ' ');
+		if (!ptr) {
+			pr_err("Invalid line %d, missing state definitions\n",
+			       num);
+			ret = -EINVAL;
+			break;
+		}
+		ptr++;
+		lba_map = core_alua_allocate_lba_map(&lba_list,
+						     start_lba, end_lba);
+		if (IS_ERR(lba_map)) {
+			ret = PTR_ERR(lba_map);
+			break;
+		}
+		pg = 0;
+		while (sscanf(ptr, "%d:%c", &pg_id, &state) == 2) {
+			switch (state) {
+			case 'O':
+				alua_state = ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED;
+				break;
+			case 'A':
+				alua_state = ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED;
+				break;
+			case 'S':
+				alua_state = ALUA_ACCESS_STATE_STANDBY;
+				break;
+			case 'U':
+				alua_state = ALUA_ACCESS_STATE_UNAVAILABLE;
+				break;
+			default:
+				pr_err("Invalid ALUA state '%c'\n", state);
+				ret = -EINVAL;
+				goto out;
+			}
+
+			ret = core_alua_allocate_lba_map_mem(lba_map,
+							     pg_id, alua_state);
+			if (ret) {
+				pr_err("Invalid target descriptor %d:%c "
+				       "at line %d\n",
+				       pg_id, state, num);
+				break;
+			}
+			pg++;
+			ptr = strchr(ptr, ' ');
+			if (ptr)
+				ptr++;
+			else
+				break;
+		}
+		if (pg_num == -1)
+		    pg_num = pg;
+		else if (pg != pg_num) {
+			pr_err("Only %d from %d port groups definitions "
+			       "at line %d\n", pg, pg_num, num);
+			ret = -EINVAL;
+			break;
+		}
+		num++;
+	}
+out:
+	if (ret) {
+		core_alua_free_lba_map(&lba_list);
+		count = ret;
+	} else
+		core_alua_set_lba_map(dev, &lba_list,
+				      segment_size, segment_mult);
+	kfree(map_entries);
+	return count;
+}
+
+static struct target_core_configfs_attribute target_core_attr_dev_lba_map = {
+	.attr	= { .ca_owner = THIS_MODULE,
+		    .ca_name = "lba_map",
+		    .ca_mode = S_IRUGO | S_IWUSR },
+	.show	= target_core_show_dev_lba_map,
+	.store	= target_core_store_dev_lba_map,
+};
+
 static struct configfs_attribute *lio_core_dev_attrs[] = {
 	&target_core_attr_dev_info.attr,
 	&target_core_attr_dev_control.attr,
@@ -1748,6 +1930,7 @@ static struct configfs_attribute *lio_core_dev_attrs[] = {
 	&target_core_attr_dev_udev_path.attr,
 	&target_core_attr_dev_enable.attr,
 	&target_core_attr_dev_alua_lu_gp.attr,
+	&target_core_attr_dev_lba_map.attr,
 	NULL,
 };
 
@@ -2054,6 +2237,13 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 			" transition while TPGS_IMPLICIT_ALUA is disabled\n");
 		return -EINVAL;
 	}
+	if (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA &&
+	    new_state == ALUA_ACCESS_STATE_LBA_DEPENDENT) {
+		/* LBA DEPENDENT is only allowed with implicit ALUA */
+		pr_err("Unable to process implicit configfs ALUA transition"
+		       " while explicit ALUA management is enabled\n");
+		return -EINVAL;
+	}
 
 	ret = core_alua_do_port_transition(tg_pt_gp, dev,
 					NULL, NULL, new_state, 0);
@@ -2188,7 +2378,7 @@ SE_DEV_ALUA_SUPPORT_STATE_SHOW(lba_dependent,
 			       tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
 SE_DEV_ALUA_SUPPORT_STATE_STORE(lba_dependent,
 				tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
-SE_DEV_ALUA_TG_PT_ATTR(alua_support_lba_dependent, S_IRUGO | S_IWUSR);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_lba_dependent, S_IRUGO);
 
 SE_DEV_ALUA_SUPPORT_STATE_SHOW(unavailable,
 			       tg_pt_gp_alua_supported_states, ALUA_U_SUP);
@@ -2937,7 +3127,7 @@ static int __init target_core_init_configfs(void)
 	 * and ALUA Logical Unit Group and Target Port Group infrastructure.
 	 */
 	target_cg = &subsys->su_group;
-	target_cg->default_groups = kmalloc(sizeof(struct config_group) * 2,
+	target_cg->default_groups = kmalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!target_cg->default_groups) {
 		pr_err("Unable to allocate target_cg->default_groups\n");

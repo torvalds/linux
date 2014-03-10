@@ -383,6 +383,17 @@ bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 	return found;
 }
 
+/*	check if this anycast address is link-local on given interface or
+ *	is global
+ */
+bool ipv6_chk_acast_addr_src(struct net *net, struct net_device *dev,
+			     const struct in6_addr *addr)
+{
+	return ipv6_chk_acast_addr(net,
+				   (ipv6_addr_type(addr) & IPV6_ADDR_LINKLOCAL ?
+				    dev : NULL),
+				   addr);
+}
 
 #ifdef CONFIG_PROC_FS
 struct ac6_iter_state {

@@ -45,7 +45,7 @@ Retry Counter Definition
 Hardware ECC Definition
 ***************************************************************************/
 #define HW_ECC_SUPPORTED    1	   /* Hardware ECC Supported */
-/* No difinition for Software ECC */
+/* No definition for Software ECC */
 
 /***************************************************************************
 SmartMedia Command & Status Definition
@@ -189,12 +189,6 @@ struct keucr_media_area {
 	WORD PhyBlock;	/* Physical Block Number on Zone 0 */
 };
 
-
-extern BYTE IsSSFDCCompliance;
-extern BYTE IsXDCompliance;
-
-extern DWORD	ErrXDCode;
-extern DWORD	ErrCode;
 extern WORD	ReadBlock;
 extern WORD	WriteBlock;
 extern DWORD	MediaChange;

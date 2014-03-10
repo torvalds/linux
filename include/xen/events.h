@@ -7,6 +7,8 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/events.h>
 
+unsigned xen_evtchn_nr_channels(void);
+
 int bind_evtchn_to_irq(unsigned int evtchn);
 int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      irq_handler_t handler,
@@ -36,6 +38,11 @@ int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
  * made with bind_evtchn_to_irqhandler()).
  */
 void unbind_from_irqhandler(unsigned int irq, void *dev_id);
+
+#define XEN_IRQ_PRIORITY_MAX     EVTCHN_FIFO_PRIORITY_MAX
+#define XEN_IRQ_PRIORITY_DEFAULT EVTCHN_FIFO_PRIORITY_DEFAULT
+#define XEN_IRQ_PRIORITY_MIN     EVTCHN_FIFO_PRIORITY_MIN
+int xen_set_irq_priority(unsigned irq, unsigned priority);
 
 /*
  * Allow extra references to event channels exposed to userspace by evtchn
@@ -73,6 +80,8 @@ void xen_poll_irq_timeout(int irq, u64 timeout);
 
 /* Determine the IRQ which is bound to an event channel */
 unsigned irq_from_evtchn(unsigned int evtchn);
+int irq_from_virq(unsigned int cpu, unsigned int virq);
+unsigned int evtchn_from_irq(unsigned irq);
 
 /* Xen HVM evtchn vector callback */
 void xen_hvm_callback_vector(void);

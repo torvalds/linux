@@ -4,8 +4,8 @@
  * Licensed under the GPL-2 or later.
  */
 
-#ifndef _BLACKFIN_SWAB_H
-#define _BLACKFIN_SWAB_H
+#ifndef _UAPI_BLACKFIN_SWAB_H
+#define _UAPI_BLACKFIN_SWAB_H
 
 #include <linux/types.h>
 #include <asm-generic/swab.h>
@@ -47,4 +47,4 @@ static __inline__ __attribute_const__ __u16 __arch_swab16(__u16 xx)
 
 #endif /* __GNUC__ */
 
-#endif				/* _BLACKFIN_SWAB_H */
+#endif /* _UAPI_BLACKFIN_SWAB_H */

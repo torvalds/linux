@@ -31,7 +31,7 @@ module_param_string(channel, test_channel, sizeof(test_channel),
 		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(channel, "Bus ID of the channel to test (default: any)");
 
-static char test_device[20];
+static char test_device[32];
 module_param_string(device, test_device, sizeof(test_device),
 		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(device, "Bus ID of the DMA Engine to test (default: any)");
@@ -89,7 +89,7 @@ MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
 struct dmatest_params {
 	unsigned int	buf_size;
 	char		channel[20];
-	char		device[20];
+	char		device[32];
 	unsigned int	threads_per_chan;
 	unsigned int	max_channels;
 	unsigned int	iterations;

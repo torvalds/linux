@@ -999,7 +999,7 @@ static void s3c_hsudc_initep(struct s3c_hsudc *hsudc,
 
 	hsep->dev = hsudc;
 	hsep->ep.name = hsep->name;
-	hsep->ep.maxpacket = epnum ? 512 : 64;
+	usb_ep_set_maxpacket_limit(&hsep->ep, epnum ? 512 : 64);
 	hsep->ep.ops = &s3c_hsudc_ep_ops;
 	hsep->fifo = hsudc->regs + S3C_BR(epnum);
 	hsep->ep.desc = NULL;

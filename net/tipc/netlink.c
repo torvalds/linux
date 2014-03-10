@@ -83,8 +83,6 @@ static struct genl_ops tipc_genl_ops[] = {
 	},
 };
 
-static int tipc_genl_family_registered;
-
 int tipc_netlink_start(void)
 {
 	int res;
@@ -94,16 +92,10 @@ int tipc_netlink_start(void)
 		pr_err("Failed to register netlink interface\n");
 		return res;
 	}
-
-	tipc_genl_family_registered = 1;
 	return 0;
 }
 
 void tipc_netlink_stop(void)
 {
-	if (!tipc_genl_family_registered)
-		return;
-
 	genl_unregister_family(&tipc_genl_family);
-	tipc_genl_family_registered = 0;
 }

@@ -78,6 +78,7 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_OMAP3
 static const char *omap3_boards_compat[] __initdata = {
+	"ti,omap3430",
 	"ti,omap3",
 	NULL,
 };
@@ -173,6 +174,8 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_OMAP4
 static const char *omap4_boards_compat[] __initdata = {
+	"ti,omap4460",
+	"ti,omap4430",
 	"ti,omap4",
 	NULL,
 };
@@ -193,6 +196,8 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_OMAP5
 static const char *omap5_boards_compat[] __initdata = {
+	"ti,omap5432",
+	"ti,omap5430",
 	"ti,omap5",
 	NULL,
 };
@@ -213,6 +218,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_AM43XX
 static const char *am43_boards_compat[] __initdata = {
+	"ti,am4372",
 	"ti,am43",
 	NULL,
 };
@@ -230,6 +236,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_DRA7XX
 static const char *dra7xx_boards_compat[] __initdata = {
+	"ti,dra7xx",
 	"ti,dra7",
 	NULL,
 };

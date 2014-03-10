@@ -127,11 +127,6 @@ int hsr_create_self_node(struct list_head *self_node_db,
 	return 0;
 }
 
-static void node_entry_reclaim(struct rcu_head *rh)
-{
-	kfree(container_of(rh, struct node_entry, rcu_head));
-}
-
 
 /* Add/merge node to the database of nodes. 'skb' must contain an HSR
  * supervision frame.
@@ -175,7 +170,7 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
 	if (node && !ether_addr_equal(node->MacAddressA, hsr_sp->MacAddressA)) {
 		/* Node has changed its AddrA, frame was received from SlaveB */
 		list_del_rcu(&node->mac_list);
-		call_rcu(&node->rcu_head, node_entry_reclaim);
+		kfree_rcu(node, rcu_head);
 		node = NULL;
 	}
 
@@ -183,7 +178,7 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
 	    !ether_addr_equal(node->MacAddressB, hsr_ethsup->ethhdr.h_source)) {
 		/* Cables have been swapped */
 		list_del_rcu(&node->mac_list);
-		call_rcu(&node->rcu_head, node_entry_reclaim);
+		kfree_rcu(node, rcu_head);
 		node = NULL;
 	}
 
@@ -192,7 +187,7 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
 	    !ether_addr_equal(node->MacAddressA, hsr_ethsup->ethhdr.h_source)) {
 		/* Cables have been swapped */
 		list_del_rcu(&node->mac_list);
-		call_rcu(&node->rcu_head, node_entry_reclaim);
+		kfree_rcu(node, rcu_head);
 		node = NULL;
 	}
 
@@ -302,7 +297,7 @@ static bool seq_nr_after(u16 a, u16 b)
 
 void hsr_register_frame_in(struct node_entry *node, enum hsr_dev_idx dev_idx)
 {
-	if ((dev_idx < 0) || (dev_idx >= HSR_MAX_DEV)) {
+	if ((dev_idx < 0) || (dev_idx >= HSR_MAX_SLAVE)) {
 		WARN_ONCE(1, "%s: Invalid dev_idx (%d)\n", __func__, dev_idx);
 		return;
 	}
@@ -417,7 +412,7 @@ void hsr_prune_nodes(struct hsr_priv *hsr_priv)
 			hsr_nl_nodedown(hsr_priv, node->MacAddressA);
 			list_del_rcu(&node->mac_list);
 			/* Note that we need to free this entry later: */
-			call_rcu(&node->rcu_head, node_entry_reclaim);
+			kfree_rcu(node, rcu_head);
 		}
 	}
 	rcu_read_unlock();

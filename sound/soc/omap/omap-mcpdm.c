@@ -74,12 +74,12 @@ struct omap_mcpdm {
 
 static inline void omap_mcpdm_write(struct omap_mcpdm *mcpdm, u16 reg, u32 val)
 {
-	__raw_writel(val, mcpdm->io_base + reg);
+	writel_relaxed(val, mcpdm->io_base + reg);
 }
 
 static inline int omap_mcpdm_read(struct omap_mcpdm *mcpdm, u16 reg)
 {
-	return __raw_readl(mcpdm->io_base + reg);
+	return readl_relaxed(mcpdm->io_base + reg);
 }
 
 #ifdef DEBUG

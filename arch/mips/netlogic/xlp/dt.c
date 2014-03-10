@@ -42,13 +42,18 @@
 #include <asm/prom.h>
 
 extern u32 __dtb_xlp_evp_begin[], __dtb_xlp_svp_begin[],
-	__dtb_xlp_fvp_begin[], __dtb_start[];
+	__dtb_xlp_fvp_begin[], __dtb_xlp_gvp_begin[], __dtb_start[];
 static void *xlp_fdt_blob;
 
 void __init *xlp_dt_init(void *fdtp)
 {
 	if (!fdtp) {
 		switch (current_cpu_data.processor_id & 0xff00) {
+#ifdef CONFIG_DT_XLP_GVP
+		case PRID_IMP_NETLOGIC_XLP9XX:
+			fdtp = __dtb_xlp_gvp_begin;
+			break;
+#endif
 #ifdef CONFIG_DT_XLP_FVP
 		case PRID_IMP_NETLOGIC_XLP2XX:
 			fdtp = __dtb_xlp_fvp_begin;

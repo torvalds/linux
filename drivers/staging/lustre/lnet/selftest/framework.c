@@ -46,12 +46,12 @@
 lst_sid_t LST_INVALID_SID = {LNET_NID_ANY, -1};
 
 static int session_timeout = 100;
-CFS_MODULE_PARM(session_timeout, "i", int, 0444,
-		"test session timeout in seconds (100 by default, 0 == never)");
+module_param(session_timeout, int, 0444);
+MODULE_PARM_DESC(session_timeout, "test session timeout in seconds (100 by default, 0 == never)");
 
 static int rpc_timeout = 64;
-CFS_MODULE_PARM(rpc_timeout, "i", int, 0644,
-		"rpc timeout in seconds (64 by default, 0 == never)");
+module_param(rpc_timeout, int, 0644);
+MODULE_PARM_DESC(rpc_timeout, "rpc timeout in seconds (64 by default, 0 == never)");
 
 #define sfw_unpack_id(id)	       \
 do {				    \

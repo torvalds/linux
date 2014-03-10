@@ -50,6 +50,7 @@
 
 #include <linux/libcfs/libcfs.h>
 #include <linux/lnet/types.h>
+#include <linux/backing-dev.h>
 
 /****************** on-disk files *********************/
 

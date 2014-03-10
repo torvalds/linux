@@ -77,11 +77,11 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_bytes", IXGBEVF_STAT(stats.vfgotc, stats.base_vfgotc,
 				  stats.saved_reset_vfgotc)},
 	{"tx_busy", IXGBEVF_ZSTAT(tx_busy)},
+	{"tx_restart_queue", IXGBEVF_ZSTAT(restart_queue)},
+	{"tx_timeout_count", IXGBEVF_ZSTAT(tx_timeout_count)},
 	{"multicast", IXGBEVF_STAT(stats.vfmprc, stats.base_vfmprc,
 				   stats.saved_reset_vfmprc)},
-	{"rx_csum_offload_good", IXGBEVF_ZSTAT(hw_csum_rx_good)},
 	{"rx_csum_offload_errors", IXGBEVF_ZSTAT(hw_csum_rx_error)},
-	{"tx_csum_offload_ctxt", IXGBEVF_ZSTAT(hw_csum_tx_good)},
 #ifdef BP_EXTENDED_STATS
 	{"rx_bp_poll_yield", IXGBEVF_ZSTAT(bp_rx_yields)},
 	{"rx_bp_cleaned", IXGBEVF_ZSTAT(bp_rx_cleaned)},
@@ -286,9 +286,9 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i].count = new_tx_count;
+			adapter->tx_ring[i]->count = new_tx_count;
 		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].count = new_rx_count;
+			adapter->rx_ring[i]->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
 		adapter->rx_ring_count = new_rx_count;
 		goto clear_reset;
@@ -303,20 +303,20 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < adapter->num_tx_queues; i++) {
 			/* clone ring and setup updated count */
-			tx_ring[i] = adapter->tx_ring[i];
+			tx_ring[i] = *adapter->tx_ring[i];
 			tx_ring[i].count = new_tx_count;
-			err = ixgbevf_setup_tx_resources(adapter, &tx_ring[i]);
-			if (!err)
-				continue;
-			while (i) {
-				i--;
-				ixgbevf_free_tx_resources(adapter, &tx_ring[i]);
+			err = ixgbevf_setup_tx_resources(&tx_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbevf_free_tx_resources(&tx_ring[i]);
+				}
+
+				vfree(tx_ring);
+				tx_ring = NULL;
+
+				goto clear_reset;
 			}
-
-			vfree(tx_ring);
-			tx_ring = NULL;
-
-			goto clear_reset;
 		}
 	}
 
@@ -329,20 +329,20 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			/* clone ring and setup updated count */
-			rx_ring[i] = adapter->rx_ring[i];
+			rx_ring[i] = *adapter->rx_ring[i];
 			rx_ring[i].count = new_rx_count;
-			err = ixgbevf_setup_rx_resources(adapter, &rx_ring[i]);
-			if (!err)
-				continue;
-			while (i) {
-				i--;
-				ixgbevf_free_rx_resources(adapter, &rx_ring[i]);
+			err = ixgbevf_setup_rx_resources(&rx_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbevf_free_rx_resources(&rx_ring[i]);
+				}
+
+				vfree(rx_ring);
+				rx_ring = NULL;
+
+				goto clear_reset;
 			}
-
-			vfree(rx_ring);
-			rx_ring = NULL;
-
-			goto clear_reset;
 		}
 	}
 
@@ -352,9 +352,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	/* Tx */
 	if (tx_ring) {
 		for (i = 0; i < adapter->num_tx_queues; i++) {
-			ixgbevf_free_tx_resources(adapter,
-						  &adapter->tx_ring[i]);
-			adapter->tx_ring[i] = tx_ring[i];
+			ixgbevf_free_tx_resources(adapter->tx_ring[i]);
+			*adapter->tx_ring[i] = tx_ring[i];
 		}
 		adapter->tx_ring_count = new_tx_count;
 
@@ -365,9 +364,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	/* Rx */
 	if (rx_ring) {
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-			ixgbevf_free_rx_resources(adapter,
-						  &adapter->rx_ring[i]);
-			adapter->rx_ring[i] = rx_ring[i];
+			ixgbevf_free_rx_resources(adapter->rx_ring[i]);
+			*adapter->rx_ring[i] = rx_ring[i];
 		}
 		adapter->rx_ring_count = new_rx_count;
 
@@ -382,7 +380,7 @@ clear_reset:
 	/* free Tx resources if Rx error is encountered */
 	if (tx_ring) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			ixgbevf_free_tx_resources(adapter, &tx_ring[i]);
+			ixgbevf_free_tx_resources(&tx_ring[i]);
 		vfree(tx_ring);
 	}
 
@@ -413,15 +411,15 @@ static void ixgbevf_get_ethtool_stats(struct net_device *netdev,
 	    tx_yields = 0, tx_cleaned = 0, tx_missed = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		rx_yields += adapter->rx_ring[i].bp_yields;
-		rx_cleaned += adapter->rx_ring[i].bp_cleaned;
-		rx_yields += adapter->rx_ring[i].bp_yields;
+		rx_yields += adapter->rx_ring[i]->stats.yields;
+		rx_cleaned += adapter->rx_ring[i]->stats.cleaned;
+		rx_yields += adapter->rx_ring[i]->stats.yields;
 	}
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		tx_yields += adapter->tx_ring[i].bp_yields;
-		tx_cleaned += adapter->tx_ring[i].bp_cleaned;
-		tx_yields += adapter->tx_ring[i].bp_yields;
+		tx_yields += adapter->tx_ring[i]->stats.yields;
+		tx_cleaned += adapter->tx_ring[i]->stats.cleaned;
+		tx_yields += adapter->tx_ring[i]->stats.yields;
 	}
 
 	adapter->bp_rx_yields = rx_yields;

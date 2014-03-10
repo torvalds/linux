@@ -463,6 +463,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
 		goto cleanup_otg_set_host;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return err;
 

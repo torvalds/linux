@@ -29,7 +29,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -390,12 +389,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			netdev_err(ndev, "Tx DMA memory map failed\n");
 		return NETDEV_TX_OK;
 	}
-	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
-	 * it's the last BD of the frame, and to put the CRC on the end.
-	 */
-	status |= (BD_ENET_TX_READY | BD_ENET_TX_INTR
-			| BD_ENET_TX_LAST | BD_ENET_TX_TC);
-	bdp->cbd_sc = status;
 
 	if (fep->bufdesc_ex) {
 
@@ -416,6 +409,13 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				ebdp->cbd_esc |= BD_ENET_TX_PINS;
 		}
 	}
+
+	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
+	 * it's the last BD of the frame, and to put the CRC on the end.
+	 */
+	status |= (BD_ENET_TX_READY | BD_ENET_TX_INTR
+			| BD_ENET_TX_LAST | BD_ENET_TX_TC);
+	bdp->cbd_sc = status;
 
 	bdp_pre = fec_enet_get_prevdesc(bdp, fep);
 	if ((id_entry->driver_data & FEC_QUIRK_ERR006358) &&
@@ -1679,8 +1679,12 @@ static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	if (!phydev)
 		return -ENODEV;
 
-	if (cmd == SIOCSHWTSTAMP && fep->bufdesc_ex)
-		return fec_ptp_ioctl(ndev, rq, cmd);
+	if (fep->bufdesc_ex) {
+		if (cmd == SIOCSHWTSTAMP)
+			return fec_ptp_set(ndev, rq);
+		if (cmd == SIOCGHWTSTAMP)
+			return fec_ptp_get(ndev, rq);
+	}
 
 	return phy_mii_ioctl(phydev, rq, cmd);
 }
@@ -1775,8 +1779,6 @@ fec_enet_open(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int ret;
 
-	napi_enable(&fep->napi);
-
 	/* I should reset the ring buffers here, but I don't yet know
 	 * a simple way to do that.
 	 */
@@ -1791,6 +1793,8 @@ fec_enet_open(struct net_device *ndev)
 		fec_enet_free_buffers(ndev);
 		return ret;
 	}
+
+	napi_enable(&fep->napi);
 	phy_start(fep->phy_dev);
 	netif_start_queue(ndev);
 	fep->opened = 1;

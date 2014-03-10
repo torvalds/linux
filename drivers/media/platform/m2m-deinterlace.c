@@ -918,7 +918,7 @@ static int deinterlace_open(struct file *file)
 		return ret;
 	}
 
-	ctx->xt = kzalloc(sizeof(struct dma_async_tx_descriptor) +
+	ctx->xt = kzalloc(sizeof(struct dma_interleaved_template) +
 				sizeof(struct data_chunk), GFP_KERNEL);
 	if (!ctx->xt) {
 		kfree(ctx);

@@ -35,12 +35,12 @@ void ipmmu_tlb_flush(struct shmobile_ipmmu *ipmmu)
 	if (!ipmmu)
 		return;
 
-	mutex_lock(&ipmmu->flush_lock);
+	spin_lock(&ipmmu->flush_lock);
 	if (ipmmu->tlb_enabled)
 		ipmmu_reg_write(ipmmu, IMCTR1, IMCTR1_FLUSH | IMCTR1_TLBEN);
 	else
 		ipmmu_reg_write(ipmmu, IMCTR1, IMCTR1_FLUSH);
-	mutex_unlock(&ipmmu->flush_lock);
+	spin_unlock(&ipmmu->flush_lock);
 }
 
 void ipmmu_tlb_set(struct shmobile_ipmmu *ipmmu, unsigned long phys, int size,
@@ -49,7 +49,7 @@ void ipmmu_tlb_set(struct shmobile_ipmmu *ipmmu, unsigned long phys, int size,
 	if (!ipmmu)
 		return;
 
-	mutex_lock(&ipmmu->flush_lock);
+	spin_lock(&ipmmu->flush_lock);
 	switch (size) {
 	default:
 		ipmmu->tlb_enabled = 0;
@@ -85,7 +85,7 @@ void ipmmu_tlb_set(struct shmobile_ipmmu *ipmmu, unsigned long phys, int size,
 	}
 	ipmmu_reg_write(ipmmu, IMTTBR, phys);
 	ipmmu_reg_write(ipmmu, IMASID, asid);
-	mutex_unlock(&ipmmu->flush_lock);
+	spin_unlock(&ipmmu->flush_lock);
 }
 
 static int ipmmu_probe(struct platform_device *pdev)
@@ -104,7 +104,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot allocate device data\n");
 		return -ENOMEM;
 	}
-	mutex_init(&ipmmu->flush_lock);
+	spin_lock_init(&ipmmu->flush_lock);
 	ipmmu->dev = &pdev->dev;
 	ipmmu->ipmmu_base = devm_ioremap_nocache(&pdev->dev, res->start,
 						resource_size(res));

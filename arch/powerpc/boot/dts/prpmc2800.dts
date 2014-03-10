@@ -73,17 +73,14 @@
 		mdio {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "mdio";
 			compatible = "marvell,mv64360-mdio";
 			PHY0: ethernet-phy@1 {
-				device_type = "ethernet-phy";
 				compatible = "broadcom,bcm5421";
 				interrupts = <76>;	/* GPP 12 */
 				interrupt-parent = <&PIC>;
 				reg = <1>;
 			};
 			PHY1: ethernet-phy@3 {
-				device_type = "ethernet-phy";
 				compatible = "broadcom,bcm5421";
 				interrupts = <76>;	/* GPP 12 */
 				interrupt-parent = <&PIC>;
@@ -162,7 +159,6 @@
 		};
 
 		MPSC0: mpsc@8000 {
-			device_type = "serial";
 			compatible = "marvell,mv64360-mpsc";
 			reg = <0x8000 0x38>;
 			virtual-reg = <0xf1008000>;
@@ -177,7 +173,6 @@
 		};
 
 		MPSC1: mpsc@9000 {
-			device_type = "serial";
 			compatible = "marvell,mv64360-mpsc";
 			reg = <0x9000 0x38>;
 			virtual-reg = <0xf1009000>;

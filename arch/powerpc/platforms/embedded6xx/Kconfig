@@ -67,6 +67,18 @@ config PPC_C2K
 	  This option enables support for the GE Fanuc C2K board (formerly
 	  an SBS board).
 
+config MVME5100
+	bool "Motorola/Emerson MVME5100"
+	depends on EMBEDDED6xx
+	select MPIC
+	select PCI
+	select PPC_INDIRECT_PCI
+	select PPC_I8259
+	select PPC_NATIVE
+	help
+	  This option enables support for the Motorola (now Emerson) MVME5100
+	  board.
+
 config TSI108_BRIDGE
 	bool
 	select PCI
@@ -113,4 +125,3 @@ config WII
 	help
 	  Select WII if configuring for the Nintendo Wii.
 	  More information at: <http://gc-linux.sourceforge.net/>
-

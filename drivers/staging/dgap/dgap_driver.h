@@ -578,7 +578,6 @@ struct channel_t {
  *************************************************************************/
 
 extern int		dgap_ms_sleep(ulong ms);
-extern void		*dgap_driver_kzmalloc(size_t size, int priority);
 extern char		*dgap_ioctl_name(int cmd);
 extern void		dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len);
 extern void		dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);

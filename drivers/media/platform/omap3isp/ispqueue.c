@@ -553,8 +553,10 @@ static void isp_video_buffer_query(struct isp_video_buffer *buf,
 	switch (buf->state) {
 	case ISP_BUF_STATE_ERROR:
 		vbuf->flags |= V4L2_BUF_FLAG_ERROR;
+		/* Fallthrough */
 	case ISP_BUF_STATE_DONE:
 		vbuf->flags |= V4L2_BUF_FLAG_DONE;
+		break;
 	case ISP_BUF_STATE_QUEUED:
 	case ISP_BUF_STATE_ACTIVE:
 		vbuf->flags |= V4L2_BUF_FLAG_QUEUED;

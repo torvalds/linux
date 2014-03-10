@@ -31,7 +31,6 @@
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -165,7 +164,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	if (d_details->calculate_baud_rate(port, baud_rate, d_details->baudclk,
 				NULL, NULL, NULL, device_port) == KEYSPAN_BAUD_RATE_OK) {
 		/* FIXME - more to do here to ensure rate changes cleanly */
-		/* FIXME - calcuate exact rate from divisor ? */
+		/* FIXME - calculate exact rate from divisor ? */
 		p_priv->baud = baud_rate;
 	} else
 		baud_rate = tty_termios_baud_rate(old_termios);
@@ -1226,10 +1225,8 @@ static struct urb *keyspan_setup_urb(struct usb_serial *serial, int endpoint,
 
 	dev_dbg(&serial->interface->dev, "%s - alloc for endpoint %d.\n", __func__, endpoint);
 	urb = usb_alloc_urb(0, GFP_KERNEL);		/* No ISO */
-	if (urb == NULL) {
-		dev_dbg(&serial->interface->dev, "%s - alloc for endpoint %d failed.\n", __func__, endpoint);
+	if (!urb)
 		return NULL;
-	}
 
 	if (endpoint == 0) {
 		/* control EP filled in when used */
@@ -2312,10 +2309,8 @@ static int keyspan_startup(struct usb_serial *serial)
 
 	/* Setup private data for serial driver */
 	s_priv = kzalloc(sizeof(struct keyspan_serial_private), GFP_KERNEL);
-	if (!s_priv) {
-		dev_dbg(&serial->dev->dev, "%s - kmalloc for keyspan_serial_private failed.\n", __func__);
+	if (!s_priv)
 		return -ENOMEM;
-	}
 
 	s_priv->instat_buf = kzalloc(INSTAT_BUFLEN, GFP_KERNEL);
 	if (!s_priv->instat_buf)

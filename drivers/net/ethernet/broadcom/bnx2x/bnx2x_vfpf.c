@@ -21,9 +21,11 @@
 #include "bnx2x_cmn.h"
 #include <linux/crc32.h>
 
+static int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx);
+
 /* place a given tlv on the tlv buffer at a given offset */
-void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
-		   u16 length)
+static void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list,
+			  u16 offset, u16 type, u16 length)
 {
 	struct channel_tlv *tl =
 		(struct channel_tlv *)(tlvs_list + offset);
@@ -33,8 +35,8 @@ void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
 }
 
 /* Clear the mailbox and init the header of the first tlv */
-void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
-		     u16 type, u16 length)
+static void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
+			    u16 type, u16 length)
 {
 	mutex_lock(&bp->vf2pf_mutex);
 
@@ -52,7 +54,8 @@ void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
 }
 
 /* releases the mailbox */
-void bnx2x_vfpf_finalize(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv)
+static void bnx2x_vfpf_finalize(struct bnx2x *bp,
+				struct vfpf_first_tlv *first_tlv)
 {
 	DP(BNX2X_MSG_IOV, "done sending [%d] tlv over vf pf channel\n",
 	   first_tlv->tl.type);
@@ -85,7 +88,7 @@ static void *bnx2x_search_tlv_list(struct bnx2x *bp, void *tlvs_list,
 }
 
 /* list the types and lengths of the tlvs on the buffer */
-void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list)
+static void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list)
 {
 	int i = 1;
 	struct channel_tlv *tlv = (struct channel_tlv *)tlvs_list;
@@ -633,7 +636,7 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	return rc;
 }
 
-int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx)
+static int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx)
 {
 	struct vfpf_q_op_tlv *req = &bp->vf2pf_mbox->req.q_op;
 	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
@@ -800,14 +803,18 @@ int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 	}
 
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
-		BNX2X_ERR("failed to send rss message to PF over Vf PF channel %d\n",
-			  resp->hdr.status);
-		rc = -EINVAL;
+		/* Since older drivers don't support this feature (and VF has
+		 * no way of knowing other than failing this), don't propagate
+		 * an error in this case.
+		 */
+		DP(BNX2X_MSG_IOV,
+		   "Failed to send rss message to PF over VF-PF channel [%d]\n",
+		   resp->hdr.status);
 	}
 out:
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
 
-	return 0;
+	return rc;
 }
 
 int bnx2x_vfpf_set_mcast(struct net_device *dev)
@@ -1416,6 +1423,14 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				setup_q->rxq.cache_line_log;
 			rxq_params->sb_cq_index = setup_q->rxq.sb_index;
 
+			/* rx setup - multicast engine */
+			if (bnx2x_vfq_is_leading(q)) {
+				u8 mcast_id = FW_VF_HANDLE(vf->abs_vfid);
+
+				rxq_params->mcast_engine_id = mcast_id;
+				__set_bit(BNX2X_Q_FLG_MCAST, &setup_p->flags);
+			}
+
 			bnx2x_vfop_qctor_dump_rx(bp, vf, init_p, setup_p,
 						 q->index, q->sb_idx);
 		}
@@ -1706,7 +1721,7 @@ static void bnx2x_vf_mbx_set_q_filters(struct bnx2x *bp,
 
 		/* ...and only the mac set by the ndo */
 		if (filters->n_mac_vlan_filters == 1 &&
-		    memcmp(filters->filters->mac, bulletin->mac, ETH_ALEN)) {
+		    !ether_addr_equal(filters->filters->mac, bulletin->mac)) {
 			BNX2X_ERR("VF[%d] requested the addition of a mac address not matching the one configured by set_vf_mac ndo\n",
 				  vf->abs_vfid);
 

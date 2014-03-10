@@ -25,3 +25,16 @@ config CEPH_FSCACHE
 	  caching support for Ceph clients using FS-Cache
 
 endif
+
+config CEPH_FS_POSIX_ACL
+	bool "Ceph POSIX Access Control Lists"
+	depends on CEPH_FS
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N

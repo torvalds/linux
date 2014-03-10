@@ -35,6 +35,8 @@ enum {
 	TCP_METRICS_ATTR_FOPEN_SYN_DROPS,	/* u16, count of drops */
 	TCP_METRICS_ATTR_FOPEN_SYN_DROP_TS,	/* msecs age */
 	TCP_METRICS_ATTR_FOPEN_COOKIE,		/* binary */
+	TCP_METRICS_ATTR_SADDR_IPV4,		/* u32 */
+	TCP_METRICS_ATTR_SADDR_IPV6,		/* binary */
 
 	__TCP_METRICS_ATTR_MAX,
 };

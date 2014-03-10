@@ -801,7 +801,7 @@ static int stu300_xfer_msg(struct i2c_adapter *adap,
 	/* Check that the bus is free, or wait until some timeout occurs */
 	ret = stu300_wait_while_busy(dev);
 	if (ret != 0) {
-		dev_err(&dev->pdev->dev, "timout waiting for transfer "
+		dev_err(&dev->pdev->dev, "timeout waiting for transfer "
 		       "to commence.\n");
 		goto exit_disable;
 	}

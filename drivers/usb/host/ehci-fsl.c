@@ -102,18 +102,10 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	}
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
-				driver->description)) {
-		dev_dbg(&pdev->dev, "controller already in use\n");
-		retval = -EBUSY;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		retval = PTR_ERR(hcd->regs);
 		goto err2;
-	}
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-
-	if (hcd->regs == NULL) {
-		dev_dbg(&pdev->dev, "error mapping memory\n");
-		retval = -EFAULT;
-		goto err3;
 	}
 
 	pdata->regs = hcd->regs;
@@ -126,7 +118,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	 */
 	if (pdata->init && pdata->init(pdev)) {
 		retval = -ENODEV;
-		goto err4;
+		goto err2;
 	}
 
 	/* Enable USB controller, 83xx or 8536 */
@@ -137,7 +129,8 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
-		goto err4;
+		goto err2;
+	device_wakeup_enable(hcd->self.controller);
 
 #ifdef CONFIG_USB_OTG
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
@@ -152,21 +145,17 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
 				usb_put_phy(hcd->phy);
-				goto err4;
+				goto err2;
 			}
 		} else {
 			dev_err(&pdev->dev, "can't find phy\n");
 			retval = -ENODEV;
-			goto err4;
+			goto err2;
 		}
 	}
 #endif
 	return retval;
 
-      err4:
-	iounmap(hcd->regs);
-      err3:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
       err2:
 	usb_put_hcd(hcd);
       err1:
@@ -205,8 +194,6 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 	 */
 	if (pdata->exit)
 		pdata->exit(pdev);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 }
 
@@ -267,7 +254,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		if (!(spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
 				PHY_CLK_VALID, FSL_USB_PHY_CLK_TIMEOUT, 0) ||
 				in_be32(non_ehci + FSL_SOC_USB_PRICTRL))) {
-			printk(KERN_WARNING "fsl-ehci: USB PHY clock invalid\n");
+			dev_warn(hcd->self.controller, "USB PHY clock invalid\n");
 			return -EINVAL;
 		}
 	}
@@ -413,7 +400,7 @@ static int ehci_fsl_mpc512x_drv_suspend(struct device *dev)
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(dev);
 	u32 tmp;
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 	u32 mode = ehci_readl(ehci, hcd->regs + FSL_SOC_USB_USBMODE);
 	mode &= USBMODE_CM_MASK;
 	tmp = ehci_readl(ehci, hcd->regs + 0x140);	/* usbcmd */

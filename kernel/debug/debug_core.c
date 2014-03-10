@@ -736,7 +736,8 @@ int kgdb_nmicallback(int cpu, void *regs)
 	return 1;
 }
 
-int kgdb_nmicallin(int cpu, int trapnr, void *regs, atomic_t *send_ready)
+int kgdb_nmicallin(int cpu, int trapnr, void *regs, int err_code,
+							atomic_t *send_ready)
 {
 #ifdef CONFIG_SMP
 	if (!kgdb_io_ready(0) || !send_ready)
@@ -750,7 +751,7 @@ int kgdb_nmicallin(int cpu, int trapnr, void *regs, atomic_t *send_ready)
 		ks->cpu			= cpu;
 		ks->ex_vector		= trapnr;
 		ks->signo		= SIGTRAP;
-		ks->err_code		= KGDB_KDB_REASON_SYSTEM_NMI;
+		ks->err_code		= err_code;
 		ks->linux_regs		= regs;
 		ks->send_ready		= send_ready;
 		kgdb_cpu_enter(ks, regs, DCPU_WANT_MASTER);

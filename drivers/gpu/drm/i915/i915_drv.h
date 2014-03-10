@@ -2015,6 +2015,14 @@ struct drm_i915_cmd_table {
 
 /* Early gen2 have a totally busted CS tlb and require pinned batches. */
 #define HAS_BROKEN_CS_TLB(dev)		(IS_I830(dev) || IS_845G(dev))
+/*
+ * dp aux and gmbus irq on gen4 seems to be able to generate legacy interrupts
+ * even when in MSI mode. This results in spurious interrupt warnings if the
+ * legacy irq no. is shared with another device. The kernel then disables that
+ * interrupt source and so prevents the other device from working properly.
+ */
+#define HAS_AUX_IRQ(dev) (INTEL_INFO(dev)->gen >= 5)
+#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 5)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
@@ -2607,8 +2615,8 @@ extern void intel_i2c_reset(struct drm_device *dev);
 
 /* intel_opregion.c */
 struct intel_encoder;
-extern int intel_opregion_setup(struct drm_device *dev);
 #ifdef CONFIG_ACPI
+extern int intel_opregion_setup(struct drm_device *dev);
 extern void intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_fini(struct drm_device *dev);
 extern void intel_opregion_asle_intr(struct drm_device *dev);
@@ -2617,6 +2625,7 @@ extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 extern int intel_opregion_notify_adapter(struct drm_device *dev,
 					 pci_power_t state);
 #else
+static inline int intel_opregion_setup(struct drm_device *dev) { return 0; }
 static inline void intel_opregion_init(struct drm_device *dev) { return; }
 static inline void intel_opregion_fini(struct drm_device *dev) { return; }
 static inline void intel_opregion_asle_intr(struct drm_device *dev) { return; }

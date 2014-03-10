@@ -10,7 +10,6 @@
 #include <linux/device.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/phy.h>
 #include <linux/mdio-mux.h>
 #include <linux/of_gpio.h>

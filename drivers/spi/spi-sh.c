@@ -171,7 +171,6 @@ static int spi_sh_send(struct spi_sh_data *ss, struct spi_message *mesg,
 	int remain = t->len;
 	int cur_len;
 	unsigned char *data;
-	unsigned long tmp;
 	long ret;
 
 	if (t->len)
@@ -213,9 +212,7 @@ static int spi_sh_send(struct spi_sh_data *ss, struct spi_message *mesg,
 	}
 
 	if (list_is_last(&t->transfer_list, &mesg->transfers)) {
-		tmp = spi_sh_read(ss, SPI_SH_CR1);
-		tmp = tmp & ~(SPI_SH_SSD | SPI_SH_SSDB);
-		spi_sh_write(ss, tmp, SPI_SH_CR1);
+		spi_sh_clear_bit(ss, SPI_SH_SSD | SPI_SH_SSDB, SPI_SH_CR1);
 		spi_sh_set_bit(ss, SPI_SH_SSA, SPI_SH_CR1);
 
 		ss->cr1 &= ~SPI_SH_TBE;
@@ -239,7 +236,6 @@ static int spi_sh_receive(struct spi_sh_data *ss, struct spi_message *mesg,
 	int remain = t->len;
 	int cur_len;
 	unsigned char *data;
-	unsigned long tmp;
 	long ret;
 
 	if (t->len > SPI_SH_MAX_BYTE)
@@ -247,9 +243,7 @@ static int spi_sh_receive(struct spi_sh_data *ss, struct spi_message *mesg,
 	else
 		spi_sh_write(ss, t->len, SPI_SH_CR3);
 
-	tmp = spi_sh_read(ss, SPI_SH_CR1);
-	tmp = tmp & ~(SPI_SH_SSD | SPI_SH_SSDB);
-	spi_sh_write(ss, tmp, SPI_SH_CR1);
+	spi_sh_clear_bit(ss, SPI_SH_SSD | SPI_SH_SSDB, SPI_SH_CR1);
 	spi_sh_set_bit(ss, SPI_SH_SSA, SPI_SH_CR1);
 
 	spi_sh_wait_write_buffer_empty(ss);
@@ -357,9 +351,6 @@ static void spi_sh_work(struct work_struct *work)
 static int spi_sh_setup(struct spi_device *spi)
 {
 	struct spi_sh_data *ss = spi_master_get_devdata(spi->master);
-
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
 
 	pr_debug("%s: enter\n", __func__);
 

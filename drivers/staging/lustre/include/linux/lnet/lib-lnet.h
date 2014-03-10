@@ -650,12 +650,13 @@ extern lnet_ni_t *lnet_net2ni(__u32 net);
 
 int lnet_notify(lnet_ni_t *ni, lnet_nid_t peer, int alive, cfs_time_t when);
 void lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, cfs_time_t when);
-int lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway_nid);
+int lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway_nid,
+		   unsigned int priority);
 int lnet_check_routes(void);
 int lnet_del_route(__u32 net, lnet_nid_t gw_nid);
 void lnet_destroy_routes(void);
 int lnet_get_route(int idx, __u32 *net, __u32 *hops,
-		   lnet_nid_t *gateway, __u32 *alive);
+		   lnet_nid_t *gateway, __u32 *alive, __u32 *priority);
 void lnet_proc_init(void);
 void lnet_proc_fini(void);
 int  lnet_rtrpools_alloc(int im_a_router);

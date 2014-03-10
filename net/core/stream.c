@@ -122,7 +122,7 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 	DEFINE_WAIT(wait);
 
 	if (sk_stream_memory_free(sk))
-		current_timeo = vm_wait = (net_random() % (HZ / 5)) + 2;
+		current_timeo = vm_wait = (prandom_u32() % (HZ / 5)) + 2;
 
 	while (1) {
 		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);

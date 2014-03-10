@@ -78,7 +78,7 @@ static struct kb3886bl_machinfo *bl_machinfo;
 static unsigned long kb3886bl_flags;
 #define KB3886BL_SUSPENDED     0x01
 
-static struct dmi_system_id __initdata kb3886bl_device_table[] = {
+static struct dmi_system_id kb3886bl_device_table[] __initdata = {
 	{
 		.ident = "Sahara Touch-iT",
 		.matches = {

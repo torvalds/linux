@@ -200,3 +200,27 @@ Description:	address and size of the percpu note.
 		note of cpu#.
 
 		crash_notes_size: size of the note of cpu#.
+
+
+What:		/sys/devices/system/cpu/intel_pstate/max_perf_pct
+		/sys/devices/system/cpu/intel_pstate/min_perf_pct
+		/sys/devices/system/cpu/intel_pstate/no_turbo
+Date:		February 2013
+Contact:	linux-pm@vger.kernel.org
+Description:	Parameters for the Intel P-state driver
+
+		Logic for selecting the current P-state in Intel
+		Sandybridge+ processors. The three knobs control
+		limits for the P-state that will be requested by the
+		driver.
+
+		max_perf_pct: limits the maximum P state that will be requested by
+		the driver stated as a percentage of the available performance.
+
+		min_perf_pct: limits the minimum P state that will be requested by
+		the driver stated as a percentage of the available performance.
+
+		no_turbo: limits the driver to selecting P states below the turbo
+		frequency range.
+
+		More details can be found in Documentation/cpu-freq/intel-pstate.txt

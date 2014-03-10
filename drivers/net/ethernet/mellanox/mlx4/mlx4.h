@@ -51,8 +51,8 @@
 
 #define DRV_NAME	"mlx4_core"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"1.1"
-#define DRV_RELDATE	"Dec, 2011"
+#define DRV_VERSION	"2.2-1"
+#define DRV_RELDATE	"Feb, 2014"
 
 #define MLX4_FS_UDP_UC_EN		(1 << 1)
 #define MLX4_FS_TCP_UC_EN		(1 << 2)
@@ -783,6 +783,11 @@ enum {
 	MLX4_PCI_DEV_FORCE_SENSE_PORT	= 1 << 1,
 };
 
+enum {
+	MLX4_NO_RR	= 0,
+	MLX4_USE_RR	= 1,
+};
+
 struct mlx4_priv {
 	struct mlx4_dev		dev;
 
@@ -844,9 +849,10 @@ static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
 extern struct workqueue_struct *mlx4_wq;
 
 u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap);
-void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj);
+void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj, int use_rr);
 u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align);
-void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt);
+void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt,
+			    int use_rr);
 u32 mlx4_bitmap_avail(struct mlx4_bitmap *bitmap);
 int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 		     u32 reserved_bot, u32 resetrved_top);
@@ -1236,6 +1242,11 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_cmd_mailbox *inbox,
 					 struct mlx4_cmd_mailbox *outbox,
 					 struct mlx4_cmd_info *cmd);
+int mlx4_FLOW_STEERING_IB_UC_QP_RANGE_wrapper(struct mlx4_dev *dev, int slave,
+					      struct mlx4_vhcr *vhcr,
+					      struct mlx4_cmd_mailbox *inbox,
+					      struct mlx4_cmd_mailbox *outbox,
+					      struct mlx4_cmd_info *cmd);
 
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev);
 int mlx4_get_qp_per_mgm(struct mlx4_dev *dev);

@@ -2,7 +2,7 @@
  * DMA memory management for framework level HCD code (hc_driver)
  *
  * This implementation plugs in through generic "usb_bus" level methods,
- * and should work with all USB controllers, regardles of bus type.
+ * and should work with all USB controllers, regardless of bus type.
  */
 
 #include <linux/module.h>

@@ -393,7 +393,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ret = snd_soc_set_ac97_ops(&tegra20_ac97_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to set AC'97 ops: %d\n", ret);
-		goto err_asoc_utils_fini;
+		goto err_clk_disable_unprepare;
 	}
 
 	ret = snd_soc_register_component(&pdev->dev, &tegra20_ac97_component,
@@ -401,7 +401,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
-		goto err_asoc_utils_fini;
+		goto err_clk_disable_unprepare;
 	}
 
 	ret = tegra_pcm_platform_register(&pdev->dev);
@@ -417,6 +417,8 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 
 err_unregister_component:
 	snd_soc_unregister_component(&pdev->dev);
+err_clk_disable_unprepare:
+	clk_disable_unprepare(ac97->clk_ac97);
 err_asoc_utils_fini:
 	tegra_asoc_utils_fini(&ac97->util_data);
 err_clk_put:

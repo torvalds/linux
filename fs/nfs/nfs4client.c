@@ -10,6 +10,7 @@
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/bc_xprt.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
 #include "internal.h"
 #include "callback.h"
 #include "delegation.h"
@@ -169,7 +170,7 @@ void nfs41_shutdown_client(struct nfs_client *clp)
 void nfs40_shutdown_client(struct nfs_client *clp)
 {
 	if (clp->cl_slot_tbl) {
-		nfs4_release_slot_table(clp->cl_slot_tbl);
+		nfs4_shutdown_slot_table(clp->cl_slot_tbl);
 		kfree(clp->cl_slot_tbl);
 	}
 }
@@ -370,6 +371,7 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 		__set_bit(NFS_CS_INFINITE_SLOTS, &clp->cl_flags);
 	__set_bit(NFS_CS_DISCRTRY, &clp->cl_flags);
 	__set_bit(NFS_CS_NO_RETRANS_TIMEOUT, &clp->cl_flags);
+
 	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_GSS_KRB5I);
 	if (error == -EINVAL)
 		error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX);
@@ -409,13 +411,11 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 	error = nfs4_discover_server_trunking(clp, &old);
 	if (error < 0)
 		goto error;
-	nfs_put_client(clp);
-	if (clp != old) {
-		clp->cl_preserve_clid = true;
-		clp = old;
-	}
 
-	return clp;
+	if (clp != old)
+		clp->cl_preserve_clid = true;
+	nfs_put_client(clp);
+	return old;
 
 error:
 	nfs_mark_client_ready(clp, error);
@@ -493,9 +493,10 @@ int nfs40_walk_client_list(struct nfs_client *new,
 			prev = pos;
 
 			status = nfs_wait_client_init_complete(pos);
-			spin_lock(&nn->nfs_client_lock);
 			if (status < 0)
-				continue;
+				goto out;
+			status = -NFS4ERR_STALE_CLIENTID;
+			spin_lock(&nn->nfs_client_lock);
 		}
 		if (pos->cl_cons_state != NFS_CS_READY)
 			continue;
@@ -633,7 +634,8 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			}
 			spin_lock(&nn->nfs_client_lock);
 			if (status < 0)
-				continue;
+				break;
+			status = -NFS4ERR_STALE_CLIENTID;
 		}
 		if (pos->cl_cons_state != NFS_CS_READY)
 			continue;
@@ -1133,6 +1135,7 @@ static int nfs_probe_destination(struct nfs_server *server)
  * @hostname: new end-point's hostname
  * @sap: new end-point's socket address
  * @salen: size of "sap"
+ * @net: net namespace
  *
  * The nfs_server must be quiescent before this function is invoked.
  * Either its session is drained (NFSv4.1+), or its transport is
@@ -1141,13 +1144,13 @@ static int nfs_probe_destination(struct nfs_server *server)
  * Returns zero on success, or a negative errno value.
  */
 int nfs4_update_server(struct nfs_server *server, const char *hostname,
-		       struct sockaddr *sap, size_t salen)
+		       struct sockaddr *sap, size_t salen, struct net *net)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct rpc_clnt *clnt = server->client;
 	struct xprt_create xargs = {
 		.ident		= clp->cl_proto,
-		.net		= &init_net,
+		.net		= net,
 		.dstaddr	= sap,
 		.addrlen	= salen,
 		.servername	= hostname,
@@ -1187,7 +1190,7 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
 	error = nfs4_set_client(server, hostname, sap, salen, buf,
 				clp->cl_rpcclient->cl_auth->au_flavor,
 				clp->cl_proto, clnt->cl_timeout,
-				clp->cl_minorversion, clp->cl_net);
+				clp->cl_minorversion, net);
 	nfs_put_client(clp);
 	if (error != 0) {
 		nfs_server_insert_lists(server);

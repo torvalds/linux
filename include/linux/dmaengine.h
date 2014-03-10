@@ -257,7 +257,7 @@ struct dma_chan_percpu {
  * @dev: class device for sysfs
  * @device_node: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
- * @client-count: how many clients are using this channel
+ * @client_count: how many clients are using this channel
  * @table_count: number of appearances in the mem-to-mem allocation table
  * @private: private data for certain client-channel associations
  */
@@ -279,10 +279,10 @@ struct dma_chan {
 
 /**
  * struct dma_chan_dev - relate sysfs device node to backing channel device
- * @chan - driver channel device
- * @device - sysfs device
- * @dev_id - parent dma_device dev_id
- * @idr_ref - reference count to gate release of dma_device dev_id
+ * @chan: driver channel device
+ * @device: sysfs device
+ * @dev_id: parent dma_device dev_id
+ * @idr_ref: reference count to gate release of dma_device dev_id
  */
 struct dma_chan_dev {
 	struct dma_chan *chan;
@@ -306,9 +306,8 @@ enum dma_slave_buswidth {
 /**
  * struct dma_slave_config - dma slave channel runtime config
  * @direction: whether the data shall go in or out on this slave
- * channel, right now. DMA_TO_DEVICE and DMA_FROM_DEVICE are
- * legal values, DMA_BIDIRECTIONAL is not acceptable since we
- * need to differentiate source and target addresses.
+ * channel, right now. DMA_MEM_TO_DEV and DMA_DEV_TO_MEM are
+ * legal values.
  * @src_addr: this is the physical address where DMA slave data
  * should be read (RX), if the source is memory this argument is
  * ignored.
@@ -364,6 +363,32 @@ struct dma_slave_config {
 	unsigned int slave_id;
 };
 
+/**
+ * enum dma_residue_granularity - Granularity of the reported transfer residue
+ * @DMA_RESIDUE_GRANULARITY_DESCRIPTOR: Residue reporting is not support. The
+ *  DMA channel is only able to tell whether a descriptor has been completed or
+ *  not, which means residue reporting is not supported by this channel. The
+ *  residue field of the dma_tx_state field will always be 0.
+ * @DMA_RESIDUE_GRANULARITY_SEGMENT: Residue is updated after each successfully
+ *  completed segment of the transfer (For cyclic transfers this is after each
+ *  period). This is typically implemented by having the hardware generate an
+ *  interrupt after each transferred segment and then the drivers updates the
+ *  outstanding residue by the size of the segment. Another possibility is if
+ *  the hardware supports scatter-gather and the segment descriptor has a field
+ *  which gets set after the segment has been completed. The driver then counts
+ *  the number of segments without the flag set to compute the residue.
+ * @DMA_RESIDUE_GRANULARITY_BURST: Residue is updated after each transferred
+ *  burst. This is typically only supported if the hardware has a progress
+ *  register of some sort (E.g. a register with the current read/write address
+ *  or a register with the amount of bursts/beats/bytes that have been
+ *  transferred or still need to be transferred).
+ */
+enum dma_residue_granularity {
+	DMA_RESIDUE_GRANULARITY_DESCRIPTOR = 0,
+	DMA_RESIDUE_GRANULARITY_SEGMENT = 1,
+	DMA_RESIDUE_GRANULARITY_BURST = 2,
+};
+
 /* struct dma_slave_caps - expose capabilities of a slave channel only
  *
  * @src_addr_widths: bit mask of src addr widths the channel supports
@@ -374,6 +399,7 @@ struct dma_slave_config {
  * 	should be checked by controller as well
  * @cmd_pause: true, if pause and thereby resume is supported
  * @cmd_terminate: true, if terminate cmd is supported
+ * @residue_granularity: granularity of the reported transfer residue
  */
 struct dma_slave_caps {
 	u32 src_addr_widths;
@@ -381,6 +407,7 @@ struct dma_slave_caps {
 	u32 directions;
 	bool cmd_pause;
 	bool cmd_terminate;
+	enum dma_residue_granularity residue_granularity;
 };
 
 static inline const char *dma_chan_name(struct dma_chan *chan)

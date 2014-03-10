@@ -275,7 +275,7 @@ void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev)
 }
 
 static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
-			 int index)
+			 int index, int *is_str)
 {
 	struct mlx5_query_qp_mbox_out *out;
 	struct mlx5_qp_context *ctx;
@@ -293,19 +293,40 @@ static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		goto out;
 	}
 
+	*is_str = 0;
 	ctx = &out->ctx;
 	switch (index) {
 	case QP_PID:
 		param = qp->pid;
 		break;
 	case QP_STATE:
-		param = be32_to_cpu(ctx->flags) >> 28;
+		param = (u64)mlx5_qp_state_str(be32_to_cpu(ctx->flags) >> 28);
+		*is_str = 1;
 		break;
 	case QP_XPORT:
-		param = (be32_to_cpu(ctx->flags) >> 16) & 0xff;
+		param = (u64)mlx5_qp_type_str((be32_to_cpu(ctx->flags) >> 16) & 0xff);
+		*is_str = 1;
 		break;
 	case QP_MTU:
-		param = ctx->mtu_msgmax >> 5;
+		switch (ctx->mtu_msgmax >> 5) {
+		case IB_MTU_256:
+			param = 256;
+			break;
+		case IB_MTU_512:
+			param = 512;
+			break;
+		case IB_MTU_1024:
+			param = 1024;
+			break;
+		case IB_MTU_2048:
+			param = 2048;
+			break;
+		case IB_MTU_4096:
+			param = 4096;
+			break;
+		default:
+			param = 0;
+		}
 		break;
 	case QP_N_RECV:
 		param = 1 << ((ctx->rq_size_stride >> 3) & 0xf);
@@ -414,6 +435,7 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 	struct mlx5_field_desc *desc;
 	struct mlx5_rsc_debug *d;
 	char tbuf[18];
+	int is_str = 0;
 	u64 field;
 	int ret;
 
@@ -424,7 +446,7 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 	d = (void *)(desc - desc->i) - sizeof(*d);
 	switch (d->type) {
 	case MLX5_DBG_RSC_QP:
-		field = qp_read_field(d->dev, d->object, desc->i);
+		field = qp_read_field(d->dev, d->object, desc->i, &is_str);
 		break;
 
 	case MLX5_DBG_RSC_EQ:
@@ -440,7 +462,12 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 		return -EINVAL;
 	}
 
-	ret = snprintf(tbuf, sizeof(tbuf), "0x%llx\n", field);
+
+	if (is_str)
+		ret = snprintf(tbuf, sizeof(tbuf), "%s\n", (const char *)field);
+	else
+		ret = snprintf(tbuf, sizeof(tbuf), "0x%llx\n", field);
+
 	if (ret > 0) {
 		if (copy_to_user(buf, tbuf, ret))
 			return -EFAULT;

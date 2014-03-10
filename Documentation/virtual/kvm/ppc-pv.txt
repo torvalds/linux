@@ -115,7 +115,7 @@ If any other bit changes in the MSR, please still use mtmsr(d).
 Patched instructions
 ====================
 
-The "ld" and "std" instructions are transormed to "lwz" and "stw" instructions
+The "ld" and "std" instructions are transformed to "lwz" and "stw" instructions
 respectively on 32 bit systems with an added offset of 4 to accommodate for big
 endianness.
 

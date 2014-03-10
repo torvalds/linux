@@ -100,11 +100,8 @@ enum {
 
 struct buf {
 	ulong nframesout;
-	ulong resid;
-	ulong bv_resid;
-	sector_t sector;
 	struct bio *bio;
-	struct bio_vec *bv;
+	struct bvec_iter iter;
 	struct request *rq;
 };
 
@@ -120,13 +117,10 @@ struct frame {
 	ulong waited;
 	ulong waited_total;
 	struct aoetgt *t;		/* parent target I belong to */
-	sector_t lba;
 	struct sk_buff *skb;		/* command skb freed on module exit */
 	struct sk_buff *r_skb;		/* response skb for async processing */
 	struct buf *buf;
-	struct bio_vec *bv;
-	ulong bcnt;
-	ulong bv_off;
+	struct bvec_iter iter;
 	char flags;
 };
 

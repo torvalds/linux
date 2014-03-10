@@ -293,7 +293,7 @@ static void ep_reset (struct net2280_regs __iomem *regs, struct net2280_ep *ep)
 	ep->desc = NULL;
 	INIT_LIST_HEAD (&ep->queue);
 
-	ep->ep.maxpacket = ~0;
+	usb_ep_set_maxpacket_limit(&ep->ep, ~0);
 	ep->ep.ops = &net2280_ep_ops;
 
 	/* disable the dma, irqs, endpoint... */
@@ -1805,9 +1805,9 @@ static void usb_reinit (struct net2280 *dev)
 		ep->regs = &dev->epregs [tmp];
 		ep_reset (dev->regs, ep);
 	}
-	dev->ep [0].ep.maxpacket = 64;
-	dev->ep [5].ep.maxpacket = 64;
-	dev->ep [6].ep.maxpacket = 64;
+	usb_ep_set_maxpacket_limit(&dev->ep [0].ep, 64);
+	usb_ep_set_maxpacket_limit(&dev->ep [5].ep, 64);
+	usb_ep_set_maxpacket_limit(&dev->ep [6].ep, 64);
 
 	dev->gadget.ep0 = &dev->ep [0].ep;
 	dev->ep [0].stopped = 0;

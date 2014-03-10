@@ -29,7 +29,7 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 	if (session == NULL)
 		return -ENOMEM;
 
-	list_for_each_entry(pos, &session->evlist->entries, node)
+	evlist__for_each(session->evlist, pos)
 		perf_evsel__fprintf(pos, details, stdout);
 
 	perf_session__delete(session);

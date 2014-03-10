@@ -1,0 +1,60 @@
+ACT8865 regulator
+-------------------
+
+Required properties:
+- compatible: "active-semi,act8865"
+- reg: I2C slave address
+
+Any standard regulator properties can be used to configure the single regulator.
+
+The valid names for regulators are:
+	DCDC_REG1, DCDC_REG2, DCDC_REG3, LDO_REG1, LDO_REG2, LDO_REG3, LDO_REG4.
+
+Example:
+--------
+
+		i2c1: i2c@f0018000 {
+			pmic: act8865@5b {
+				compatible = "active-semi,act8865";
+				reg = <0x5b>;
+				status = "disabled";
+
+				regulators {
+					vcc_1v8_reg: DCDC_REG1 {
+						regulator-name = "VCC_1V8";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
+					};
+
+					vcc_1v2_reg: DCDC_REG2 {
+						regulator-name = "VCC_1V2";
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <1300000>;
+						regulator-suspend-mem-microvolt = <1150000>;
+						regulator-suspend-standby-microvolt = <1150000>;
+						regulator-always-on;
+					};
+
+					vcc_3v3_reg: DCDC_REG3 {
+						regulator-name = "VCC_3V3";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					vddana_reg: LDO_REG1 {
+						regulator-name = "VDDANA";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					vddfuse_reg: LDO_REG2 {
+						regulator-name = "FUSE_2V5";
+						regulator-min-microvolt = <2500000>;
+						regulator-max-microvolt = <2500000>;
+					};
+				};
+			};
+		};

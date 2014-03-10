@@ -1,5 +1,4 @@
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/console.h>
