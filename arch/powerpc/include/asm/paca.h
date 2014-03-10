@@ -116,8 +116,11 @@ struct paca_struct {
 	/* Shared by all threads of a core -- points to tcd of first thread */
 	struct tlb_core_data *tcd_ptr;
 
-	/* We can have up to 3 levels of reentrancy in the TLB miss handler */
-	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)];
+	/*
+	 * We can have up to 3 levels of reentrancy in the TLB miss handler,
+	 * in each of four exception levels (normal, crit, mcheck, debug).
+	 */
+	u64 extlb[12][EX_TLB_SIZE / sizeof(u64)];
 	u64 exmc[8];		/* used for machine checks */
 	u64 excrit[8];		/* used for crit interrupts */
 	u64 exdbg[8];		/* used for debug interrupts */
