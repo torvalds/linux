@@ -503,6 +503,14 @@ static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
 	window->average_tpt = IWL_INVALID_VALUE;
 }
 
+static void rs_rate_scale_clear_tbl_windows(struct iwl_scale_tbl_info *tbl)
+{
+	int i;
+
+	for (i = 0; i < IWL_RATE_COUNT; i++)
+		rs_rate_scale_clear_window(&tbl->win[i]);
+}
+
 static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
 {
 	return (ant_type & valid_antenna) == ant_type;
@@ -1370,7 +1378,6 @@ static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
 static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 {
 	struct iwl_scale_tbl_info *tbl;
-	int i;
 	int active_tbl;
 	int flush_interval_passed = 0;
 	struct iwl_mvm *mvm;
@@ -1431,9 +1438,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 
 				IWL_DEBUG_RATE(mvm,
 					       "LQ: stay in table clear win\n");
-				for (i = 0; i < IWL_RATE_COUNT; i++)
-					rs_rate_scale_clear_window(
-						&(tbl->win[i]));
+				rs_rate_scale_clear_tbl_windows(tbl);
 			}
 		}
 
@@ -1442,8 +1447,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 		 * "search" table). */
 		if (lq_sta->rs_state == RS_STATE_SEARCH_CYCLE_STARTED) {
 			IWL_DEBUG_RATE(mvm, "Clearing up window stats\n");
-			for (i = 0; i < IWL_RATE_COUNT; i++)
-				rs_rate_scale_clear_window(&(tbl->win[i]));
+			rs_rate_scale_clear_tbl_windows(tbl);
 		}
 	}
 }
@@ -1733,7 +1737,6 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	int low = IWL_RATE_INVALID;
 	int high = IWL_RATE_INVALID;
 	int index;
-	int i;
 	struct iwl_rate_scale_data *window = NULL;
 	int current_tpt = IWL_INVALID_VALUE;
 	int low_tpt = IWL_INVALID_VALUE;
@@ -2018,8 +2021,7 @@ lq_update:
 		if (lq_sta->search_better_tbl) {
 			/* Access the "search" table, clear its history. */
 			tbl = &(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
-			for (i = 0; i < IWL_RATE_COUNT; i++)
-				rs_rate_scale_clear_window(&(tbl->win[i]));
+			rs_rate_scale_clear_tbl_windows(tbl);
 
 			/* Use new "search" start rate */
 			index = tbl->rate.index;
@@ -2340,8 +2342,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	lq_sta->lq.sta_id = sta_priv->sta_id;
 
 	for (j = 0; j < LQ_SIZE; j++)
-		for (i = 0; i < IWL_RATE_COUNT; i++)
-			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
+		rs_rate_scale_clear_tbl_windows(&lq_sta->lq_info[j]);
 
 	lq_sta->flush_timer = 0;
 
