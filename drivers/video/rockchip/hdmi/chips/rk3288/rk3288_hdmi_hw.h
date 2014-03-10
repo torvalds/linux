@@ -639,6 +639,9 @@ enum {
 #define I2C_MASTER_PHY_BASE		0x3020
 
 #define	PHY_I2CM_SLAVE			0x3020
+#define PHY_GEN2_ADDR		0x69
+#define PHY_HEAC_ADDR		0x49
+
 #define	PHY_I2CM_ADDRESS		0x3021
 #define	PHY_I2CM_DATAO_1		0x3022
 #define	PHY_I2CM_DATAO_0		0x3023
@@ -687,7 +690,7 @@ enum {
 #define	PHY_I2CM_FS_SCL_HCNT_0_ADDR	0x3030
 #define	PHY_I2CM_FS_SCL_LCNT_1_ADDR	0x3031
 #define	PHY_I2CM_FS_SCL_LCNT_0_ADDR	0x3032
-#define	I2CM_PHY_SDA_HOLD		0x3033
+#define	PHY_I2CM_SDA_HOLD		0x3033
 
 
 /*Audio Sampler Registers*/
@@ -1147,6 +1150,90 @@ enum {
 #define	I2CM_SCDC_UPDATE1		0x7e31
 
 
+
+/*********************************************HDMI TX PHY Define Start*********************************************/
+#define PHYTX_OPMODE_PLLCFG		0x06
+enum {
+	PREP_DIV_BY_2 = 0,	//16 bits
+	PREP_DIV_BY_15,		//12 bits
+	PREP_DIV_BY_125,	//10 bits
+	PREP_DIV_BY_1,		//8 bits
+};
+#define m_PREP_DIV		(0x03 << 13)
+#define v_PREP_DIV(n)		(((n)&0x03) << 13)
+enum {
+	TMDS_DIV_BY_1 = 0,
+	TMDS_DIV_NOT_USED,
+	TMDS_DIV_BY_3,
+	TMDS_DIV_BY_4,
+};
+#define m_TMDS_CNTRL		(0x03 << 11)
+#define v_TMDS_CNTRL(n)		(((n)&0x03) << 11)
+enum OPMODE{
+	OP_HDMI_14 = 0,
+	OP_HDMI_20,
+};
+#define m_OPMODE		(0x03 << 9)
+#define v_OPMODE(n)		(((n)&0x03) << 9)
+enum {
+	FBDIV2_BY_1 = 1,
+	FBDIV2_BY_2,
+	FBDIV2_BY_3,
+	FBDIV2_BY_4,
+	FBDIV2_BY_5,
+	FBDIV2_BY_6,
+};
+#define m_FBDIV2_CNTRL		(0x07 << 6)
+#define v_FBDIV2_CNTRL(n)	(((n)&0x07) << 6)
+enum {
+	FBDIV1_BY_1 = 0,
+	FBDIV1_BY_2,
+	FBDIV1_BY_3,
+	FBDIV1_BY_4,
+};
+#define m_FBDIV1_CNTRL		(0x03 << 4)
+#define v_FBDIV1_CNTRL(n)	(((n)&0x03) << 4)
+enum {
+	REF_DIV_BY_1 = 0,
+	REF_DIV_BY_2,
+	REF_DIV_NOT_USED,
+	REF_DIV_BY_4,
+};
+#define m_REF_CNTRL		(0x03 << 2)
+#define v_REF_CNTRL(n)		(((n)&0x03) << 2)
+#define m_MPLL_N_CNTRL		(0x03 << 0)
+#define v_MPLL_N_CNTRL(n)	(((n)&0x03) << 0)
+
+#define PHYTX_PLLCURRCTRL		0x10
+#define m_MPLL_PROP_CNTRL	(0x07 << 3)
+#define v_MPLL_PROP_CNTRL(n)	(((n)&0x07) << 3)
+#define m_MPLL_INT_CNTRL	(0x07 << 0)
+#define v_MPLL_INT_CNTRL(n)	(((n)&0x07) << 0)
+
+#define PHYTX_PLLGMPCTRL		0x15
+#define m_MPLL_GMP_CNTRL	(0x03 << 0)
+#define v_MPLL_GMP_CNTRL(n)	(((n)&0x03) << 0)
+
+struct phy_mpll_config_tab {
+	u32 pix_clock;
+	u8 pix_repet;
+	u8 color_depth;
+	u16 prep_div;
+	u16 tmdsmhl_cntrl;
+	u16 opmode;
+	u32 fbdiv2_cntrl;
+	u16 fbdiv1_cntrl;
+	u16 ref_cntrl;
+	u16 n_cntrl;
+	u32 prop_cntrl;
+	u32 int_cntrl;
+	u16 gmp_cntrl;
+};
+
+/********************************************* HDMI TX PHY Define End *********************************************/
+
+
+
 enum{
 	INPUT_IIS,
 	INPUT_SPDIF
@@ -1162,6 +1249,10 @@ enum {
 	CSC_ITU709_16_235_TO_RGB_0_255		//YCbCr 16-235 input to RGB 0-255 output according BT709
 };
 
+struct rk3288_hdmi_reg_table {
+	int reg_base;
+	int reg_end;
+};
 
 struct rk3288_hdmi_device {
 	int			irq;
@@ -1170,6 +1261,8 @@ struct rk3288_hdmi_device {
 	int			regsize_phy;
 	int 			lcdc_id;
 	int			edid_status;
+	int 			phy_status;
+	struct mutex 		int_mutex;
 	struct device 		*dev;
 	struct clk		*hclk;				//HDMI AHP clk
 	struct hdmi 		driver;
@@ -1197,6 +1290,7 @@ static inline int hdmi_msk_reg(struct rk3288_hdmi_device *hdmi_dev, u16 offset, 
         writel_relaxed(temp | ( (val) & (msk) ),  hdmi_dev->regbase + (offset) * 0x04);
         return ret;
 }
+
 
 int rk3288_hdmi_initial(struct hdmi *hdmi_drv);
 void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable);

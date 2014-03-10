@@ -35,9 +35,28 @@ extern irqreturn_t hdmi_irq(int irq, void *priv);
 static struct rk3288_hdmi_device *hdmi_dev = NULL;
 
 #if defined(CONFIG_DEBUG_FS)
+static const struct rk3288_hdmi_reg_table hdmi_reg_table[] = {
+	{IDENTIFICATION_BASE, CONFIG3_ID},
+	{INTERRUPT_BASE, IH_MUTE},
+	{VIDEO_SAMPLER_BASE, TX_BCBDATA1},
+	{VIDEO_PACKETIZER_BASE, VP_MASK},
+	{FRAME_COMPOSER_BASE, FC_DBGTMDS2},
+	{HDMI_SOURCE_PHY_BASE, PHY_PLLCFGFREQ2},
+	{I2C_MASTER_PHY_BASE, PHY_I2CM_SDA_HOLD},
+	{AUDIO_SAMPLER_BASE, AHB_DMA_STPADDR_SET1_0},
+	{MAIN_CONTROLLER_BASE, MC_SWRSTZREQ_2},
+	{COLOR_SPACE_CONVERTER_BASE, CSC_SPARE_2},
+	{HDCP_ENCRYPTION_ENGINE_BASE, HDCP_REVOC_LIST},	//HDCP_REVOC_LIST+5059
+	{HDCP_BKSV_BASE, HDCPREG_BKSV4},
+	{HDCP_AN_BASE, HDCPREG_AN7},
+	{ENCRYPTED_DPK_EMBEDDED_BASE, HDCPREG_DPK6},
+	{CEC_ENGINE_BASE, CEC_WKUPCTRL},
+	{I2C_MASTER_BASE, I2CM_SCDC_UPDATE1},
+};
+
 static int rk3288_hdmi_reg_show(struct seq_file *s, void *v)
 {
-	int i = 0;
+	int i = 0,j = 0;
 	u32 val = 0;
 	seq_printf(s, "\n>>>hdmi_ctl reg");
 	for (i = 0; i < 16; i++) {
@@ -45,12 +64,14 @@ static int rk3288_hdmi_reg_show(struct seq_file *s, void *v)
 	}
 	seq_printf(s, "\n-----------------------------------------------------------------");
 
-	for(i=0; i<= I2CM_SCDC_UPDATE1; i++) {
-                val = hdmi_readl(hdmi_dev, i);
-		if(i%16==0)
-			seq_printf(s,"\n>>>hdmi_ctl %2x:", i);
-		seq_printf(s," %02x",val);
+	for(i = 0; i < ARRAY_SIZE(hdmi_reg_table); i++) {
+		for(j = hdmi_reg_table[i].reg_base; j <= hdmi_reg_table[i].reg_end; j++) {
+			val = hdmi_readl(hdmi_dev, j);
+			if((j - hdmi_reg_table[i].reg_base)%16==0)
+				seq_printf(s,"\n>>>hdmi_ctl %2x:", j);
+			seq_printf(s," %02x",val);
 
+		}
 	}
 	seq_printf(s, "\n-----------------------------------------------------------------\n");
 
@@ -158,6 +179,7 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 
 	hdmi_dev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, hdmi_dev);
+	mutex_init(&hdmi_dev->int_mutex);
 
 	rk3288_hdmi_parse_dt(hdmi_dev);
 	//TODO Daisen wait to add cec iomux
