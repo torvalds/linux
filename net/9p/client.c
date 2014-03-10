@@ -667,7 +667,7 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 	 * if we haven't received a response for oldreq,
 	 * remove it from the list
 	 */
-	if (oldreq->status == REQ_STATUS_FLSH)
+	if (oldreq->status == REQ_STATUS_SENT)
 		if (c->trans_mod->cancelled)
 			c->trans_mod->cancelled(c, oldreq);
 

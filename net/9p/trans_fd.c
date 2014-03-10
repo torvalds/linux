@@ -345,8 +345,7 @@ static void p9_read_work(struct work_struct *work)
 			 "mux %p pkt: size: %d bytes tag: %d\n", m, n, tag);
 
 		m->req = p9_tag_lookup(m->client, tag);
-		if (!m->req || (m->req->status != REQ_STATUS_SENT &&
-					m->req->status != REQ_STATUS_FLSH)) {
+		if (!m->req || (m->req->status != REQ_STATUS_SENT)) {
 			p9_debug(P9_DEBUG_ERROR, "Unexpected packet tag %d\n",
 				 tag);
 			err = -EIO;
@@ -701,9 +700,7 @@ static int p9_fd_cancel(struct p9_client *client, struct p9_req_t *req)
 		list_del(&req->req_list);
 		req->status = REQ_STATUS_FLSHD;
 		ret = 0;
-	} else if (req->status == REQ_STATUS_SENT)
-		req->status = REQ_STATUS_FLSH;
-
+	}
 	spin_unlock(&client->lock);
 
 	return ret;
