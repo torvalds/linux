@@ -36,6 +36,7 @@
 #include <trace/events/regulator.h>
 
 #include "dummy.h"
+#include "internal.h"
 
 #define rdev_crit(rdev, fmt, ...)					\
 	pr_crit("%s: " fmt, rdev_get_name(rdev), ##__VA_ARGS__)
@@ -80,25 +81,6 @@ struct regulator_enable_gpio {
 	u32 enable_count;	/* a number of enabled shared GPIO */
 	u32 request_count;	/* a number of requested shared GPIO */
 	unsigned int ena_gpio_invert:1;
-};
-
-/*
- * struct regulator
- *
- * One for each consumer device.
- */
-struct regulator {
-	struct device *dev;
-	struct list_head list;
-	unsigned int always_on:1;
-	unsigned int bypass:1;
-	int uA_load;
-	int min_uV;
-	int max_uV;
-	char *supply_name;
-	struct device_attribute dev_attr;
-	struct regulator_dev *rdev;
-	struct dentry *debugfs;
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
@@ -1354,35 +1336,6 @@ static void devm_regulator_release(struct device *dev, void *res)
 }
 
 /**
- * devm_regulator_get - Resource managed regulator_get()
- * @dev: device for regulator "consumer"
- * @id: Supply name or regulator ID.
- *
- * Managed regulator_get(). Regulators returned from this function are
- * automatically regulator_put() on driver detach. See regulator_get() for more
- * information.
- */
-struct regulator *devm_regulator_get(struct device *dev, const char *id)
-{
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = regulator_get(dev, id);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_get);
-
-/**
  * regulator_get_exclusive - obtain exclusive access to a regulator.
  * @dev: device for regulator "consumer"
  * @id: Supply name or regulator ID.
@@ -1408,6 +1361,35 @@ struct regulator *regulator_get_exclusive(struct device *dev, const char *id)
 	return _regulator_get(dev, id, 1);
 }
 EXPORT_SYMBOL_GPL(regulator_get_exclusive);
+
+/**
+ * regulator_get_optional - obtain optional access to a regulator.
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Returns a struct regulator corresponding to the regulator producer,
+ * or IS_ERR() condition containing errno.  Other consumers will be
+ * unable to obtain this reference is held and the use count for the
+ * regulator will be initialised to reflect the current state of the
+ * regulator.
+ *
+ * This is intended for use by consumers for devices which can have
+ * some supplies unconnected in normal use, such as some MMC devices.
+ * It can allow the regulator core to provide stub supplies for other
+ * supplies requested using normal regulator_get() calls without
+ * disrupting the operation of drivers that can handle absent
+ * supplies.
+ *
+ * Use of supply names configured via regulator_set_device_supply() is
+ * strongly encouraged.  It is recommended that the supply name used
+ * should match the name used for the supply and/or the relevant
+ * device pins in the datasheet.
+ */
+struct regulator *regulator_get_optional(struct device *dev, const char *id)
+{
+	return _regulator_get(dev, id, 0);
+}
+EXPORT_SYMBOL_GPL(regulator_get_optional);
 
 /* Locks held by regulator_put() */
 static void _regulator_put(struct regulator *regulator)
@@ -1449,35 +1431,6 @@ void regulator_put(struct regulator *regulator)
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_put);
-
-static int devm_regulator_match(struct device *dev, void *res, void *data)
-{
-	struct regulator **r = res;
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-	return *r == data;
-}
-
-/**
- * devm_regulator_put - Resource managed regulator_put()
- * @regulator: regulator to free
- *
- * Deallocate a regulator allocated with devm_regulator_get(). Normally
- * this function will not need to be called and the resource management
- * code will ensure that the resource is freed.
- */
-void devm_regulator_put(struct regulator *regulator)
-{
-	int rc;
-
-	rc = devres_release(regulator->dev, devm_regulator_release,
-			    devm_regulator_match, regulator);
-	if (rc != 0)
-		WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_regulator_put);
 
 /* Manage enable GPIO list. Same GPIO pin can be shared among regulators */
 static int regulator_ena_gpio_request(struct regulator_dev *rdev,
@@ -3134,52 +3087,6 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_bulk_get);
-
-/**
- * devm_regulator_bulk_get - managed get multiple regulator consumers
- *
- * @dev:           Device to supply
- * @num_consumers: Number of consumers to register
- * @consumers:     Configuration of consumers; clients are stored here.
- *
- * @return 0 on success, an errno on failure.
- *
- * This helper function allows drivers to get several regulator
- * consumers in one operation with management, the regulators will
- * automatically be freed when the device is unbound.  If any of the
- * regulators cannot be acquired then any regulators that were
- * allocated will be freed before returning to the caller.
- */
-int devm_regulator_bulk_get(struct device *dev, int num_consumers,
-			    struct regulator_bulk_data *consumers)
-{
-	int i;
-	int ret;
-
-	for (i = 0; i < num_consumers; i++)
-		consumers[i].consumer = NULL;
-
-	for (i = 0; i < num_consumers; i++) {
-		consumers[i].consumer = devm_regulator_get(dev,
-							   consumers[i].supply);
-		if (IS_ERR(consumers[i].consumer)) {
-			ret = PTR_ERR(consumers[i].consumer);
-			dev_err(dev, "Failed to get supply '%s': %d\n",
-				consumers[i].supply, ret);
-			consumers[i].consumer = NULL;
-			goto err;
-		}
-	}
-
-	return 0;
-
-err:
-	for (i = 0; i < num_consumers && consumers[i].consumer; i++)
-		devm_regulator_put(consumers[i].consumer);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_bulk_get);
 
 static void regulator_bulk_enable_async(void *data, async_cookie_t cookie)
 {

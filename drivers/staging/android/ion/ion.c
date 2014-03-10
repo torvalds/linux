@@ -673,6 +673,29 @@ void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle)
 }
 EXPORT_SYMBOL(ion_unmap_kernel);
 
+static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
+{
+	struct ion_client *client = s->private;
+	struct rb_node *n;
+	ion_phys_addr_t addr;
+	size_t len;
+
+	seq_printf(s, "----------------------------------------------------\n");
+	mutex_lock(&client->lock);
+	for (n = rb_first(&client->handles); n; n = rb_next(n)) {
+		struct ion_handle *handle = rb_entry(n, struct ion_handle, node);
+		struct ion_buffer *buffer = handle->buffer;
+		if (buffer->heap->ops->phys) {
+			buffer->heap->ops->phys(buffer->heap, buffer, &addr, &len);
+			seq_printf(s, "%16.16s: 0x%08lX %8zuKB %d\n",
+				buffer->heap->name, addr, len>>10, buffer->handle_count);
+		}
+	}
+	mutex_unlock(&client->lock);
+
+	return 0;
+}
+
 static int ion_debug_client_show(struct seq_file *s, void *unused)
 {
 	struct ion_client *client = s->private;
@@ -699,6 +722,7 @@ static int ion_debug_client_show(struct seq_file *s, void *unused)
 			continue;
 		seq_printf(s, "%16.16s: %16zu\n", names[i], sizes[i]);
 	}
+	ion_debug_client_show_buffer(s, unused);
 	return 0;
 }
 

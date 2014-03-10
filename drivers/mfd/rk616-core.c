@@ -475,6 +475,53 @@ static int rk616_core_resume(struct device* dev)
 	return 0;
 }
 
+/*
+dts:
+
+/include/ "rk616.dtsi"
+&rk616 {
+        rk616,scl_rate = <100000>;
+        rk616,lcd0_func = <1>;
+        rk616,lcd1_func = <1>;
+        rk616,lvds_ch_nr = <1>;
+        rk616,hdmi_irq_gpio = <&gpio2 GPIO_D6 1>;
+
+	rk616-codec {
+		spk-ctl-gpio = <&gpio2 GPIO_D7 GPIO_ACTIVE_HIGH>;
+		hp-ctl-gpio = <&gpio2 GPIO_D7 GPIO_ACTIVE_HIGH>;
+		//rcv-ctl-gpio = <&gpio2 GPIO_D7 GPIO_ACTIVE_HIGH>;
+		//mic-sel-gpio = <&gpio2 GPIO_D7 GPIO_ACTIVE_HIGH>;
+
+		//delay for MOSFET or SPK power amplifier chip(ms)
+		spk-amplifier-delay = <150>;
+		hp-mosfet-delay = <50>;
+
+		//hp-mic-capture-from-linein; //If hpmic is connected to linein, set this.
+		//hp-mic-capture-from-mic2in; //If hpmic is connected to mic2, set this.
+		//virtual-hp-gnd; //If hp gnd is not connected to gnd(0V), set this.
+
+		//volume setting: 0 ~ 31, -18dB ~ 28.5dB, Step: 1.5dB
+		skp-volume = <24>;
+		hp-volume = <24>;
+		capture-volume = <24>;
+	};
+
+        power_ctr: rk616_power_ctr {
+                rk616_pwren: rk616_pwren {
+                        rockchip,power_type = <GPIO>;
+                        gpios = <&gpio0 GPIO_A3 GPIO_ACTIVE_HIGH>;
+                        rockchip,delay = <0>;
+                };
+
+                rk616_rst: rk616_rst {
+                        rockchip,power_type = <GPIO>;
+                        gpios = <&gpio3 GPIO_B2 GPIO_ACTIVE_HIGH>;
+                        rockchip,delay = <10>;
+                };
+
+        };
+};
+*/
 #ifdef CONFIG_OF
 static struct rk616_platform_data *rk616_parse_dt(struct mfd_rk616 *rk616)
 {
@@ -509,11 +556,6 @@ static struct rk616_platform_data *rk616_parse_dt(struct mfd_rk616 *rk616)
 	if (!gpio_is_valid(gpio))
 		printk("invalid hdmi_irq_gpio: %d\n",gpio);
 	pdata->hdmi_irq = gpio;
-
-	gpio = of_get_named_gpio(rk616_np,"rk616,spk_ctl_gpio", 0);
-	if (!gpio_is_valid(gpio))
-		printk("invalid spk_ctl_gpio: %d\n",gpio);
-	pdata->spk_ctl_gpio = gpio;
 	//TODO Daisen >>pwr gpio wait to add
 
 	return pdata;

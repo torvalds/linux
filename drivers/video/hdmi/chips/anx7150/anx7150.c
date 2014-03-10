@@ -86,7 +86,6 @@ static int anx7150_insert(struct hdmi *hdmi)
 		dev_dbg(hdmi->dev, "get sense_state error\n");
 		return -1;
 	}
-	hdmi_set_spk(HDMI_DISABLE);
 	hdmi_set_backlight(HDMI_DISABLE);
 	hdmi->scale = hdmi->scale_set;
 	anx7150_param_chg(anx);
@@ -101,7 +100,6 @@ static int anx7150_remove(struct hdmi *hdmi)
 
 	anx7150_unplug(anx->client);
 	hdmi->scale = 100;
-	hdmi_set_spk(HDMI_ENABLE);
 	hdmi_switch_fb(hdmi, HDMI_DISABLE);
 	hdmi_set_backlight(HDMI_ENABLE);
 

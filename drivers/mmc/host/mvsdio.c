@@ -738,6 +738,21 @@ static int __init mvsd_probe(struct platform_device *pdev)
 		host->base_clock = mvsd_data->clock / 2;
 		gpio_card_detect = mvsd_data->gpio_card_detect ? : -EINVAL;
 		gpio_write_protect = mvsd_data->gpio_write_protect ? : -EINVAL;
+		/* GPIO 0 regarded as invalid for backward compatibility */
+		if (mvsd_data->gpio_card_detect &&
+		    gpio_is_valid(mvsd_data->gpio_card_detect)) {
+			ret = mmc_gpio_request_cd(mmc,
+						  mvsd_data->gpio_card_detect,
+						  0);
+			if (ret)
+				goto out;
+		} else {
+			mmc->caps |= MMC_CAP_NEEDS_POLL;
+		}
+
+		if (mvsd_data->gpio_write_protect &&
+		    gpio_is_valid(mvsd_data->gpio_write_protect))
+			mmc_gpio_request_ro(mmc, mvsd_data->gpio_write_protect);
 	}
 
 	mmc->ops = &mvsd_ops;

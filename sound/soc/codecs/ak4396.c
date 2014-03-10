@@ -71,11 +71,6 @@ static void on_off_ext_amp(int i)
     #endif
 }
 
-void ak4396_codec_set_spk(bool on)
-{
-	on_off_ext_amp(on);
-}
-
 static int ak4396_fill_cache(struct snd_soc_codec *codec)
 {
 	int i;

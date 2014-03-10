@@ -580,8 +580,6 @@ struct rk3190_init_bit_typ {
 	unsigned int init0_bit;	
 };
 
-bool get_hdmi_state(void);
-
 struct rk3190_codec_pdata {
 	int spk_ctl_gpio;
 	int hp_ctl_gpio;

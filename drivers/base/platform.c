@@ -888,7 +888,6 @@ int platform_pm_restore(struct device *dev)
 static const struct dev_pm_ops platform_dev_pm_ops = {
 	.runtime_suspend = pm_generic_runtime_suspend,
 	.runtime_resume = pm_generic_runtime_resume,
-	.runtime_idle = pm_generic_runtime_idle,
 	USE_PLATFORM_PM_SLEEP_OPS
 };
 

@@ -17,18 +17,13 @@ enum {
 /*Register and Field Descriptions*/
 /*Identification Registers*/
 #define IDENTIFICATION_BASE		0x0000
-enum IDENTIFICATION_REG{
-	DESIGN_ID = IDENTIFICATION_BASE,
-	REVISION_ID,
-	PRODUCT_ID0,
-	PRODUCT_ID1,
-	CONFIG0_ID,
-	CONFIG1_ID,
-	CONFIG2_ID,
-	CONFIG3_ID
-};
 
-//CONFIG0_ID
+#define	DESIGN_ID 			0x0000
+#define REVISION_ID			0x0001
+#define PRODUCT_ID0			0x0002
+#define PRODUCT_ID1			0x0003
+
+#define CONFIG0_ID			0x0004
 #define m_PREPEN		(1 << 7)
 #define m_AUDSPDIF		(1 << 5)
 #define m_AUDI2S		(1 << 4)
@@ -37,11 +32,11 @@ enum IDENTIFICATION_REG{
 #define m_CEC			(1 << 1)
 #define m_HDCP			(1 << 0)
 
-//CONFIG1_ID
+#define CONFIG1_ID			0x0005
 #define m_HDMI20		(1 << 5)
 #define m_CONFAPB		(1 << 1)
 
-//CONFIG2_ID
+#define CONFIG2_ID			0x0006
 enum PHYTYPE {
 	HDMI_TX_PHY = 0x00,
 	HDMI_MHL_WITH_HEAC_PHY = 0xb2,
@@ -50,39 +45,15 @@ enum PHYTYPE {
 	HDMI_3D_TX_PHY = 0xf2
 };
 
-//CONFIG3_ID
+#define CONFIG3_ID			0x0007
 #define m_AHB_AUD_DMA		(1 << 1)
 #define m_GP_AUD		(1 << 0)
 
 
 /*Interrupt Registers*/
 #define INTERRUPT_BASE                  0x0100
-enum INTERRUPT_REG {
-	IH_FC_STAT0 = INTERRUPT_BASE,
-	IH_FC_STAT1,
-	IH_FC_STAT2,
-	IH_AS_STAT0,
-	IH_PHY_STAT0,
-	IH_I2CM_STAT0,
-	IH_CEC_STAT0,
-	IH_VP_STAT0,
-	IH_I2CMPHY_STAT0,
-	IH_AHBDMAAUD_STAT0,
-	IH_DECODE = 0x0170,
-	IH_MUTE_FC_STAT0 = 0x0180,
-	IH_MUTE_FC_STAT1,
-	IH_MUTE_FC_STAT2,
-	IH_MUTE_AS_STAT0,
-	IH_MUTE_PHY_STAT0,
-	IH_MUTE_I2CM_STAT0,
-	IH_MUTE_CEC_STAT0,
-	IH_MUTE_VP_STAT0,
-	IH_MUTE_I2CMPHY_STAT0,
-	IH_MUTE_AHBDMAAUD_STAT0,
-	IH_MUTE = 0x1ff
-};
 
-//IH_FC_STAT0
+#define IH_FC_STAT0			0x0100
 #define m_AUD_INFOFRAME		(1 << 7)
 #define m_AUD_CONTENT_PROTECT	(1 << 6)
 #define m_AUD_HBR		(1 << 5)
@@ -90,7 +61,7 @@ enum INTERRUPT_REG {
 #define m_AUD_CLK_REGEN		(1 << 1)
 #define m_NULL_PACKET		(1 << 0)
 
-//IH_FC_STAT1
+#define IH_FC_STAT1			0x0101
 #define m_GMD			(1 << 7)
 #define m_ISCR1			(1 << 6)
 #define m_ISCR2			(1 << 5)
@@ -99,18 +70,18 @@ enum INTERRUPT_REG {
 #define m_AVI_INFOFRAME		(1 << 1)
 #define m_GCP			(1 << 0)
 
-//IH_FC_STAT2
+#define IH_FC_STAT2			0x0102
 #define m_LOWPRIO_OVERFLOW	(1 << 1)
 #define m_HIGHPRIO_OVERFLOW	(1 << 0)
 
-//IH_AS_SATA0
+#define IH_AS_SATA0			0x0103
 #define m_FIFO_UNDERRUN		(1 << 4)
 #define m_FIFO_OVERRUN		(1 << 3)
 #define m_AUD_FIFO_UDFLOW_THR	(1 << 2)
 #define m_AUD_FIFO_UDFLOW	(1 << 1)
 #define m_AUD_FIFO_OVERFLOW	(1 << 0)
 
-//IH_PHY_STAT0
+#define IH_PHY_STAT0			0x0104
 #define m_RX_SENSE3		(1 << 5)
 #define m_RX_SENSE2		(1 << 4)
 #define m_RX_SENSE1 		(1 << 3)
@@ -118,12 +89,12 @@ enum INTERRUPT_REG {
 #define m_TX_PHY_LOCK		(1 << 1)
 #define m_HPD			(1 << 0)
 
-//IH_I2CM_STAT0
+#define IH_I2CM_STAT0			0x0105
 #define m_SCDC_READREQ		(1 << 2)
 #define m_I2CM_DONE		(1 << 1)
 #define m_I2CM_ERROR		(1 << 0)
 
-//IH_CEC_STAT0
+#define IH_CEC_STAT0			0x0106
 #define m_WAKEUP		(1 << 6)
 #define m_ERR_FOLLOW		(1 << 5)
 #define m_ERR_INITIATOR		(1 << 4)
@@ -132,7 +103,7 @@ enum INTERRUPT_REG {
 #define m_EOM			(1 << 1)
 #define m_DONE			(1 << 0)
 
-//IH_VP_STAT0
+#define IH_VP_STAT0			0x0107
 #define m_FIFOFULL_REPET	(1 << 7)
 #define m_FIFOEMPTY_REPET	(1 << 6)
 #define m_FIFOFULL_PACK		(1 << 5)
@@ -142,11 +113,11 @@ enum INTERRUPT_REG {
 #define m_FIFOFULL_BYPASS	(1 << 1)
 #define m_FIFOEMPTY_BYPASS	(1 << 0)
 
-//IH_I2CMPHY_STAT0
+#define IH_I2CMPHY_STAT0		0x0108
 #define m_I2CMPHY_DONE		(1 << 1)
 #define m_I2CMPHY_ERR		(1 << 0)
 
-//IH_AHBDMAAUD_STAT0
+#define IH_AHBDMAAUD_STAT0		0x0109
 #define m_AUDDMA_INT_BUFOVERRUN	(1 << 6)
 #define m_AUDDMA_INT_ERR	(1 << 5)
 #define m_AUDDMA_INT_LOST	(1 << 4)
@@ -155,7 +126,7 @@ enum INTERRUPT_REG {
 #define m_AUDDMA_INT_BUFFULL	(1 << 1)
 #define m_AUDDMA_INT_BUFEMPTY	(1 << 0)
 
-//IH_DECODE
+#define IH_DECODE			0x0170
 #define m_IH_FC_STAT0		(1 << 7)
 #define m_IH_FC_STAT1		(1 << 6)
 #define m_IH_FC_STAT2_VP	(1 << 5)
@@ -165,7 +136,7 @@ enum INTERRUPT_REG {
 #define m_IH_CEC_STAT0		(1 << 1)
 #define m_IH_AHBDMAAUD_STAT0	(1 << 0)
 
-//IH_MUTE_FC_STAT0
+#define IH_MUTE_FC_STAT0		0x0180
 #define m_AUDI_MUTE		(1 << 7)
 #define m_ACP_MUTE		(1 << 6)
 #define m_DST_MUTE		(1 << 4)
@@ -174,7 +145,7 @@ enum INTERRUPT_REG {
 #define m_ACR_MUTE		(1 << 1)
 #define m_NULL_MUTE		(1 << 0)
 
-//Ih_MUTE_FC_STAT1
+#define IH_MUTE_FC_STAT1		0x0181
 #define m_GMD_MUTE		(1 << 7)
 #define m_ISCR1_MUTE		(1 << 6)
 #define m_ISCR2_MUTE		(1 << 5)
@@ -183,18 +154,18 @@ enum INTERRUPT_REG {
 #define m_AVI_MUTE		(1 << 1)
 #define m_GCP_MUTE		(1 << 0)
 
-//IH_MUTE_FC_STAT2
+#define IH_MUTE_FC_STAT2		0x0182
 #define m_LPRIO_OVERFLOW_MUTE	(1 << 1)
 #define m_HPRIO_OVERFLOW_MUTE	(1 << 0)
 
-//IH_MUTE_AS_STAT0
+#define IH_MUTE_AS_STAT0		0x0183
 #define m_FIFO_UNDERRUN_MUTE	(1 << 4)
 #define m_FIFO_OVERRUN_MUTE	(1 << 3)
 #define m_AUD_FIFO_UDF_THR_MUTE	(1 << 2)
 #define m_AUD_FIFO_UDF_MUTE	(1 << 1)
 #define m_AUD_FIFO_OVF_MUTE	(1 << 0)
 
-//IH_MUTE_PHY_STAT0
+#define IH_MUTE_PHY_STAT0		0x0184
 #define m_RX_SENSE3_MUTE	(1 << 5)
 #define m_RX_SENSE2_MUTE	(1 << 4)
 #define m_RX_SENSE1_MUTE	(1 << 3)
@@ -202,12 +173,15 @@ enum INTERRUPT_REG {
 #define m_TX_PHY_LOCK_MUTE	(1 << 1)
 #define m_HPD_MUTE		(1 << 0)
 
-//IH_MUTE_I2CM_STAT0
+#define IH_MUTE_I2CM_STAT0		0x0185
 #define m_SCDC_READREQ_MUTE	(1 << 2)
+#define v_SCDC_READREQ_MUTE(n)	(((n)&0x01) << 2)
 #define m_I2CM_DONE_MUTE	(1 << 1)
+#define v_I2CM_DONE_MUTE(n)	(((n)&0x01) << 1)
 #define m_I2CM_ERR_MUTE		(1 << 0)
+#define v_I2CM_ERR_MUTE(n)	(((n)&0x01) << 0)
 
-//IH_MUTE_CEC_STAT0
+#define IH_MUTE_CEC_STAT0		0x0186
 #define m_WAKEUP_MUTE		(1 << 6)
 #define m_ERR_FOLLOW_MUTE	(1 << 5)
 #define m_ERR_INITIATOR_MUTE	(1 << 4)
@@ -216,7 +190,7 @@ enum INTERRUPT_REG {
 #define m_EOM_MUTE		(1 << 1)
 #define m_DONE_MUTE		(1 << 0)
 
-//IH_MUTE_VP_STAT0
+#define IH_MUTE_VP_STAT0		0x0187
 #define m_FIFOFULL_REP_MUTE	(1 << 7)
 #define m_FIFOEMPTY_REP_MUTE	(1 << 6)
 #define m_FIFOFULL_PACK_MUTE	(1 << 5)
@@ -226,25 +200,17 @@ enum INTERRUPT_REG {
 #define m_FIFOFULL_BYP_MUTE	(1 << 1)
 #define m_FIFOEMPTY_BYP_MUTE	(1 << 0)
 
-//IH_MUTE_I2CMPHY_STAT0
+#define IH_MUTE_I2CMPHY_STAT0		0x0188
 #define m_I2CMPHY_DONE_MUTE	(1 << 1)
 #define m_I2CMPHY_ERR_MUTE	(1 << 0)
 
+#define IH_MUTE_AHBDMAAUD_STAT0		0x0189
+#define IH_MUTE				0x01ff
 
 /*Video Sampler Registers*/
 #define VIDEO_SAMPLER_BASE		0x0200
-enum VIDEO_SAMPLER_REG {
-	TX_INVID0 = VIDEO_SAMPLER_BASE,
-	TX_INSTUFFING,
-	TX_GYDATA0,
-	TX_GYDATA1,
-	TX_RCRDATA0,
-	TX_RCRDATA1,
-	TX_BCBDATA0,
-	TX_BCBDATA1
-};
 
-//TX_INVID0
+#define TX_INVID0			0x0200
 #define m_INTERNAL_DE_GEN	(1 << 7)
 #define v_INTERNAL_DE_GEN(n)	(((n)&0x01) << 7)
 enum VIDEO_MODE{
@@ -263,7 +229,7 @@ enum VIDEO_MODE{
 #define m_VIDEO_MAPPING		(0x1f << 0)
 #define v_VIDEO_MAPPING(n)	((n)&0x1f)
 
-//TX_INSTUFFING
+#define TX_INSTUFFING			0x0201
 #define m_BCBDATA_STUFF		(1 << 2)
 #define v_BCBDATA_STUFF(n)	(((n)&0x01) << 2)
 #define m_RCRDATA_STUFF		(1 << 1)
@@ -271,22 +237,21 @@ enum VIDEO_MODE{
 #define m_GYDATA_STUFF		(1 << 0)
 #define v_GYDATA_STUFF(n)	(((n)&0x01) << 0)
 
+#define TX_GYDATA0			0x0202
+#define TX_GYDATA1			0x0203
+#define TX_RCRDATA0			0x0204
+#define TX_RCRDATA1			0x0205
+#define TX_BCBDATA0			0x0206
+#define TX_BCBDATA1			0x0207
+
 
 /*Video Packetizer Registers*/
 #define VIDEO_PACKETIZER_BASE		0x0800
-enum VIDEO_PACKETIZER_REG {
-	VP_STATUS = VIDEO_PACKETIZER_BASE,
-	VP_PR_CD,
-	VP_STUFF,
-	VP_REMAP,
-	VP_CONF,
-	VP_MASK = 0x0807
-};
 
-//VP_STATUS
+#define VP_STATUS			0x0800
 #define m_PACKING_PHASE		(0x0f << 0)
 
-//VP_PR_CD
+#define VP_PR_CD			0x0801
 enum COLOR_DEPTH {
 	COLOR_DEPTH_24BIT_DEFAULT = 0,
 	COLOR_DEPTH_24BIT = 0x04,
@@ -311,7 +276,7 @@ enum PIXEL_REPET {
 #define m_DESIRED_PR_FACTOR	(0x07 << 0)
 #define v_DESIRED_PR_FACTOR(n)	(((n)&0x07) << 0)
 
-//VP_STUFF
+#define VP_STUFF			0x0802
 #define m_IDEFAULT_PHASE	(1 << 5)
 #define v_IDEFAULT_PHASE(n)	(((n)&0x01) << 5)
 #define m_IFIX_PP_TO_LAST	(1 << 4)
@@ -325,7 +290,7 @@ enum {
 #define m_PR_STUFFING		(1 << 0)
 #define v_PR_STUFFING(n)	(((n)&0x01) << 0)
 
-//VP_REMAP
+#define VP_REMAP			0x0803
 enum YCC422_SIZE{
 	YCC422_16BIT = 0,
 	YCC422_20BIT,
@@ -334,7 +299,7 @@ enum YCC422_SIZE{
 #define m_YCC422_SIZE		(0x03 << 0)
 #define v_YCC422_SIZE(n)	(((n)&0x03) << 0)
 
-//VP_CONF
+#define VP_CONF				0x0804
 #define m_BYPASS_EN		(1 << 6)
 #define v_BYPASS_EN(n)		(((n)&0x01) << 6)
 #define m_PIXEL_PACK_EN		(1 << 5)
@@ -353,7 +318,7 @@ enum {
 #define m_OUTPUT_SEL		(0x03 << 0)
 #define v_OUTPUT_SEL(n)		((n&0x03) << 0)
 
-//VP_MASK
+#define VP_MASK				0x0807
 #define m_OINTFULL_REPET	(1 << 7)
 #define m_OINTEMPTY_REPET	(1 << 6)
 #define m_OINTFULL_PACK		(1 << 5)
@@ -366,125 +331,262 @@ enum {
 
 /*Frame Composer Registers*/
 #define FRAME_COMPOSER_BASE		0x1000
-enum FRAME_COMPOSER_REG {
-	FC_INVIDCONF = FRAME_COMPOSER_BASE,
-	FC_INHACTIV0,
-	FC_INHACTIV1,
-	FC_INHBLANK0,
-	FC_INHBLANK1,
-	FC_INVACTIV0,
-	FC_INVACTIV1,
-	FC_INVBLANK,
-	FC_HSYNCINDELAY0,
-	FC_HSYNCINDELAY1,
-	FC_HSYNCINWIDTH0,
-	FC_HSYNCINWIDTH1,
-	FC_VSYNCINDELAY,
-	FC_VSYNCINWIDTH,
-	FC_INFREQ0,
-	FC_INFREQ1,
-	FC_INFREQ2,
-	FC_CTRLDUR,
-	FC_EXCTRLDUR,
-	FC_EXCTRLSPAC,
-	FC_CH0PREAM,
-	FC_CH1PREAM,
-	FC_CH2PREAM,
-	FC_AVICONF3,
-	FC_GCP,
-	FC_AVICONF0,
-	FC_AVICONF1,
-	FC_AVICONF2,
-	FC_AVIVID,
-	FC_AVIETB0,
-	FC_AVIETB1,
-	FC_AVISBB0,
-	FC_AVISBB1,
-	FC_AVIELB0,
-	FC_AVIELB1,
-	FC_AVISRB0,
-	FC_AVISRB1,
-	FC_AUDICONF0,
-	FC_AUDICONF1,
-	FC_AUDICONF2,
-	FC_AUDICONF3,
-	FC_VSDIEEEID2,
-	FC_VSDSIZE,
-	FC_VSDIEEEID1,
-	FC_VSDIEEEID0,
-	FC_VSDPAYLOAD0 = 0x1032,	//0~23
-	FC_SPDVENDORNAME0 = 0x104a,	//0~7
-	FC_SPDPRODUCTNAME0 = 0x1052,	//0~15
-	FC_SPDDEVICEINF	= 0x1062,
-	FC_AUDSCONF,
-	FC_AUDSSTAT,
-	FC_AUDSV,
-	FC_AUDSU,
-	FC_AUDSCHNLS0,			//0~8
-	FC_CTRLQHIGH = 0x1073,
-	FC_CTRLQLOW,
-	FC_ACP0,
-	FC_ACP16 = 0x1082,		//16~1
-	FC_ISCR1_0 = 0x1092,
-	FC_ISCR1_16,			//16~1
-	FC_ISCR2_15 = 0x10a3,		//15~0
-	FC_DATAUTO0 = 0x10B3,
-	FC_DATAUTO1,
-	FC_DATAUTO2,
-	FC_DATMAN,
-	FC_DATAUTO3,
-	FC_RDRB0,
-	FC_RDRB1,
-	FC_RDRB2,
-	FC_RDRB3,
-	FC_RDRB4,
-	FC_RDRB5,
-	FC_RDRB6,
-	FC_RDRB7,
-	FC_MASK0 = 0x10d2,
-	FC_MASK1 = 0x10d6,
-	FC_MASK2 = 0x10da,
-	FC_PRCONF = 0x10e0,
-	FC_SCRAMBLER_CTRL,
-	FC_GMD_STAT,
-	FC_GMD_EN,
-	FC_GMD_UP,
-	FC_GMD_CONF,
-	FC_GMD_HB,
-	FC_GMD_PB0,			//0~27
-	FC_DBGFORCE = 0x1200,
-	FC_DBGAUD0CH0,			//aud0~aud2 ch0
-	FC_DBGAUD0CH1 = 0x1204,		//aud0~aud2 ch1
-	FC_DBGAUD0CH2 = 0x1207,		//aud0~aud2 ch2
-	FC_DBGAUD0CH3 = 0x120a,		//aud0~aud2 ch3
-	FC_DBGAUD0CH4 = 0x120d,		//aud0~aud2 ch4	
-	FC_DBGAUD0CH5 = 0x1210,		//aud0~aud2 ch5
-	FC_DBGAUD0CH6 = 0x1213,		//aud0~aud2 ch6
-	FC_DBGAUD0CH7 = 0x1216,		//aud0~aud2 ch7
-	FC_DBGTMDS0 = 0x1219,
-	FC_DBGTMDS1,
-	FC_DBGTMDS2		
+
+#define	FC_INVIDCONF			0x1000
+#define m_FC_HDCP_KEEPOUT	(1 << 7)
+#define v_FC_HDCP_KEEPOUT(n)	(((n)&0x01) << 7)
+#define m_FC_VSYNC_POL		(1 << 6)
+#define v_FC_VSYNC_POL(n)	(((n)&0x01) << 6)
+#define m_FC_HSYNC_POL		(1 << 5)
+#define v_FC_HSYNC_POL(n)	(((n)&0x01) << 5)
+#define m_FC_DE_POL		(1 << 4)
+#define v_FC_DE_POL(n)		(((n)&0x01) << 4)
+#define m_FC_HDMI_DVI		(1 << 3)
+#define v_FC_HDMI_DVI(n)	(((n)&0x01) << 3)
+#define m_FC_VBLANK		(1 << 1)
+#define v_FC_VBLANK(n)		(((n)&0x01) << 1)
+#define m_FC_INTERLACE_MODE	(1 << 0)
+#define v_FC_INTERLACE_MODE(n)	(((n)&0x01) << 0)
+
+#define	FC_INHACTIV0			0x1001
+
+#define	FC_INHACTIV1			0x1002
+#define m_FC_H_ACTIVE_13	(1 << 5)
+#define v_FC_H_ACTIVE_13(n)	(((n)&0x01) << 5)
+#define m_FC_H_ACTIVE_12	(1 << 4)
+#define v_FC_H_ACTIVE_12(n)	(((n)&0x01) << 4)
+#define m_FC_H_ACTIVE		(0x0f << 0)
+#define v_FC_H_ACTIVE(n)		(((n)&0x0f) << 0)
+
+#define	FC_INHBLANK0			0x1003
+
+#define	FC_INHBLANK1			0x1004
+#define m_FC_H_BLANK_12_11	(0x07 << 2)
+#define v_FC_H_BLANK_12_11(n)	(((n)&0x07) << 2)
+#define m_FC_H_BLANK		(0x03 << 0)
+#define v_FC_H_BLANK(n)		(((n)&0x03) << 0)
+
+#define	FC_INVACTIV0			0x1005
+
+#define	FC_INVACTIV1			0x1006
+#define m_FC_V_ACTIVE_12_11	(0x03 << 3)
+#define v_FC_V_ACTIVE_12_11(n)	(((n)&0x03) << 3)
+#define m_FC_V_ACTIVE		(0x07 << 0)
+#define v_FC_V_ACTIVE(n)	(((n)&0x07) << 0)
+
+#define	FC_INVBLANK			0x1007
+#define	FC_HSYNCINDELAY0		0x1008
+
+#define	FC_HSYNCINDELAY1		0x1009
+#define m_FC_H_SYNCFP_12_11	(0x03 << 3)
+#define v_FC_H_SYNCFP_12_11(n)	(((n)&0x03) << 3)
+#define m_FC_H_SYNCFP		(0x07 << 0)
+#define v_FC_H_SYNCFP(n)	(((n)&0x07) << 0)
+
+#define	FC_HSYNCINWIDTH0		0x100a
+
+#define	FC_HSYNCINWIDTH1		0x100b
+#define m_FC_HSYNC_9		(1 << 1)
+#define v_FC_HSYNC_9(n)		(((n)&0x01) << 1)
+#define m_FC_HSYNC		(1 << 0)
+#define v_FC_HSYNC(n)		(((n)&0x01) << 0)
+
+#define	FC_VSYNCINDELAY			0x100c
+#define	FC_VSYNCINWIDTH			0x100d
+#define	FC_INFREQ0			0x100e
+#define	FC_INFREQ1			0x100f
+#define	FC_INFREQ2			0x1010
+#define	FC_CTRLDUR			0x1011
+#define	FC_EXCTRLDUR			0x1012
+#define	FC_EXCTRLSPAC			0x1013
+#define	FC_CH0PREAM			0x1014
+#define	FC_CH1PREAM			0x1015
+#define	FC_CH2PREAM			0x1016
+
+#define	FC_AVICONF3			0x1017
+enum YCC_QUAN_RANGE {
+	YQ_LIMITED_RANGE = 0,
+	YQ_FULL_RANGE,
+	RESERVED,
 };
+#define m_FC_YQ			(0x03 << 2)
+#define v_FC_YQ(n)		(((n)&0x03) << 2)
+enum IT_CONTENT_TYPE {
+	CN_GRAPHICS = 0,
+	CN_PHOTO,
+	CN_CINEMA,
+	CN_GAME,
+};
+#define m_FC_CN			(0x03 << 0)
+#define v_FC_CN(n)		(((n)&0x03) << 0)
+
+#define	FC_GCP				0x1018
+#define m_FC_DEFAULT_PHASE	(1 << 2)
+#define v_FC_DEFAULT_PHASE(n)	(((n)&0x01) << 2)
+#define m_FC_SET_AVMUTE		(1 << 1)
+#define v_FC_SET_AVMUTE(n)	(((n)&0x01) << 1)
+#define m_FC_CLR_AVMUTE		(1 << 0)
+#define v_FC_CLR_AVMUTE(n)	(((n)&0x01) << 0)
+
+enum {
+	AVI_COLOR_MODE_RGB = 0,
+	AVI_COLOR_MODE_YCBCR422,
+	AVI_COLOR_MODE_YCBCR444
+};
+enum {
+	AVI_COLORIMETRY_NO_DATA = 0,
+	AVI_COLORIMETRY_SMPTE_170M,
+	AVI_COLORIMETRY_ITU709,
+	AVI_COLORIMETRY_EXTENDED
+};
+enum {
+	AVI_CODED_FRAME_ASPECT_NO_DATA,
+	AVI_CODED_FRAME_ASPECT_4_3,
+	AVI_CODED_FRAME_ASPECT_16_9
+};
+enum {
+	ACTIVE_ASPECT_RATE_SAME_AS_CODED_FRAME = 0x08,
+	ACTIVE_ASPECT_RATE_4_3,
+	ACTIVE_ASPECT_RATE_16_9,
+	ACTIVE_ASPECT_RATE_14_9
+};
+
+
+#define	FC_AVICONF0			0x1019
+#define m_FC_RGC_YCC_2		(1 << 7)	//use for HDMI2.0 TX
+#define v_FC_RGC_YCC_2(n)	(((n)&0x01) << 7)
+#define m_FC_ACTIV_FORMAT	(1 << 6)
+#define v_FC_ACTIV_FORMAT(n)	(((n)&0x01) << 6)
+#define m_FC_SCAN_INFO		(0x03 << 4)
+#define v_FC_SCAN_INFO(n)	(((n)&0x03) << 4)
+#define m_FC_BAR_FORMAT		(0x03 << 2)
+#define v_FC_BAR_FORMAT(n)	(((n)&0x03) << 2)
+#define m_FC_RGC_YCC		(0x03 << 0)
+#define v_FC_RGC_YCC(n)		(((n)&0x03) << 0)
+
+#define	FC_AVICONF1			0x101a
+#define m_FC_COLORIMETRY	(0x03 << 6)
+#define v_FC_COLORIMETRY(n)	(((n)&0x03) << 6)
+#define m_FC_PIC_ASPEC_RATIO	(0x03 << 4)
+#define v_FC_PIC_ASPEC_RATIO(n)	(((n)&0x03) << 4)
+#define m_FC_ACT_ASPEC_RATIO	(0x0f << 0)
+#define v_FC_ACT_ASPEC_RATIO(n)	(((n)&0x0f) << 0)
+
+#define	FC_AVICONF2			0x101b
+#define m_FC_IT_CONTENT		(1 << 7)
+#define v_FC_IT_CONTENT(n)	(((n)&0x01) << 7)
+#define m_FC_EXT_COLORIMETRY	(0x07 << 4)
+#define v_FC_EXT_COLORIMETRY(n)	(((n)&0x07) << 4)
+#define m_FC_QUAN_RANGE		(0x03 << 2)
+#define v_FC_QUAN_RANGE(n)	(((n)&0x03) << 2)
+#define m_FC_NUN_PIC_SCALE	(0x03 << 0)
+#define v_FC_NUN_PIC_SCALE(n)	(((n)&0x03) << 0)
+
+#define	FC_AVIVID			0x101c
+#define m_FC_AVIVID_H		(1 << 7)	//use for HDMI2.0 TX
+#define v_FC_AVIVID_H(n)	(((n)&0x01) << 7)
+#define m_FC_AVIVID		(0x7f << 0)
+#define v_FC_AVIVID(n)		(((n)&0x7f) << 0)
+
+#define	FC_AVIETB0			0x101d
+#define	FC_AVIETB1			0x101e
+#define	FC_AVISBB0			0x101f
+#define	FC_AVISBB1			0x1020
+#define	FC_AVIELB0			0x1021
+#define	FC_AVIELB1			0x1022
+#define	FC_AVISRB0			0x1023
+#define	FC_AVISRB1			0x1024
+
+#define	FC_AUDICONF0			0x1025
+#define m_FC_CHN_CNT		(0x07 << 4)
+#define v_FC_CHN_CNT(n)		(((n)&0x07) << 4)
+#define m_FC_CODING_TYEP	(0x0f << 0)
+#define v_FC_CODING_TYEP(n)	(((n)&0x0f) << 0)
+
+#define	FC_AUDICONF1			0x1026
+#define m_FC_SAMPLE_SIZE	(0x03 << 4)
+#define v_FC_SAMPLE_SIZE(n)	(((n)&0x03) << 4)
+#define m_FC_SAMPLE_FREQ	(0x07 << 0)
+#define v_FC_SAMPLE_FREQ(n)	(((n)&0x07) << 0)
+
+#define	FC_AUDICONF2			0x1027
+
+#define	FC_AUDICONF3			0x1028
+#define m_FC_LFE_PBL		(0x03 << 5)	//only use for HDMI1.4 TX
+#define v_FC_LFE_PBL(n)		(((n)&0x03) << 5)
+#define m_FC_DM_INH		(1 << 4)
+#define v_FC_DM_INH(n)		(((n)&0x01) << 4)
+#define m_FC_LSV		(0x0f << 0)
+#define v_FC_LSV(n)		(((n)&0x0f) << 0)
+
+#define	FC_VSDIEEEID2			0x1029
+#define	FC_VSDSIZE			0x102a
+#define	FC_VSDIEEEID1			0x1030
+#define	FC_VSDIEEEID0			0x1031
+#define	FC_VSDPAYLOAD0 			0x1032	//0~23
+#define	FC_SPDVENDORNAME0 		0x104a	//0~7
+#define	FC_SPDPRODUCTNAME0 		0x1052	//0~15
+#define	FC_SPDDEVICEINF			0x1062
+#define	FC_AUDSCONF			0x1063
+#define	FC_AUDSSTAT			0x1064
+#define	FC_AUDSV			0x1065
+#define	FC_AUDSU			0x1066
+#define	FC_AUDSCHNLS0			0x1067	//0~8
+#define	FC_CTRLQHIGH 			0x1073
+#define	FC_CTRLQLOW			0x1074
+#define	FC_ACP0				0x1075
+#define	FC_ACP16 			0x1082	//16~1
+#define	FC_ISCR1_0 			0x1092
+#define	FC_ISCR1_16			0x1093	//16~1
+#define	FC_ISCR2_15 			0x10a3	//15~0
+#define	FC_DATAUTO0 			0x10b3
+#define	FC_DATAUTO1			0x10b4
+#define	FC_DATAUTO2			0x10b5
+#define	FC_DATMAN			0x10b6
+#define	FC_DATAUTO3			0x10b7
+#define	FC_RDRB0			0x10b8
+#define	FC_RDRB1			0x10b9
+#define	FC_RDRB2			0x10ba
+#define	FC_RDRB3			0x10bb
+#define	FC_RDRB4			0x10bc
+#define	FC_RDRB5			0x10bd
+#define	FC_RDRB6			0x10be
+#define	FC_RDRB7			0x10bf
+#define	FC_MASK0 			0x10d2
+#define	FC_MASK1 			0x10d6
+#define	FC_MASK2 			0x10da
+#define	FC_PRCONF 			0x10e0
+
+#define	FC_SCRAMBLER_CTRL		0x10e1
+#define m_FC_SCRAMBLE_UCP	(1 << 4)
+#define v_FC_SCRAMBLE_UCP(n)	(((n)&0x01) << 4)
+#define m_FC_SCRAMBLE_EN	(1 << 0)
+#define v_FC_SCRAMBLE_EN(n)	(((n)&0x01) << 0)
+
+#define	FC_GMD_STAT			0x1100
+#define	FC_GMD_EN			0x1101
+#define	FC_GMD_UP			0x1102
+#define	FC_GMD_CONF			0x1103
+#define	FC_GMD_HB			0x1104
+#define	FC_GMD_PB0			0x1105	//0~27
+#define	FC_DBGFORCE 			0x1200
+#define	FC_DBGAUD0CH0			0x1201	//aud0~aud2 ch0
+#define	FC_DBGAUD0CH1 			0x1204	//aud0~aud2 ch1
+#define	FC_DBGAUD0CH2 			0x1207	//aud0~aud2 ch2
+#define	FC_DBGAUD0CH3 			0x120a	//aud0~aud2 ch3
+#define	FC_DBGAUD0CH4 			0x120d	//aud0~aud2 ch4
+#define	FC_DBGAUD0CH5 			0x1210	//aud0~aud2 ch5
+#define	FC_DBGAUD0CH6 			0x1213	//aud0~aud2 ch6
+#define	FC_DBGAUD0CH7 			0x1216	//aud0~aud2 ch7
+#define	FC_DBGTMDS0 			0x1219
+#define	FC_DBGTMDS1			0x121a
+#define	FC_DBGTMDS2			0x121b
+
 
 /*HDMI Source PHY Registers*/
 #define HDMI_SOURCE_PHY_BASE		0x3000
-enum HDMI_SOURCE_PHY_REG {
-	PHY_CONF0 = HDMI_SOURCE_PHY_BASE,
-	PHY_TST0,
-	PHY_TST1,
-	PHY_TST2,
-	PHY_STAT0,
-	PHY_INT0,
-	PHY_MASK0,
-	PHY_POL0,
-	PHY_PCLFREQ0,
-	PHY_PCLFREQ1,
-	PHY_PLLCFGFREQ0,
-	PHY_PLLCFGFREQ1,
-	PHY_PLLCFGFREQ2
-};
 
-//PHY_CONF0
+#define PHY_CONF0			0x3000
 #define m_POWER_DOWN_EN		(1 << 7)		//enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0
 #define v_POWER_DOWN_EN(n)	(((n)&0x01) << 7)
 #define m_TMDS_EN		(1 << 6)		//enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0
@@ -502,12 +604,17 @@ enum HDMI_SOURCE_PHY_REG {
 #define m_SEL_INTERFACE		(1 << 0)
 #define v_SEL_INTERFACE(n)	(((n)&0x01) << 0)
 
-//PHY_TST0
+#define PHY_TST0			0x3001
 #define m_TEST_CLR_SIG		(1 << 5)
 #define m_TEST_EN_SIG		(1 << 4)
 #define m_TEST_CLK_SIG		(1 << 0)
 
-//PHY_STAT0/PHY_INI0/PHY_MASK/PHY_POL0
+#define PHY_TST1			0x3002
+#define PHY_TST2			0x3003
+#define PHY_STAT0			0x3004
+#define PHY_INI0			0x3005
+#define PHY_MASK			0x3006
+#define PHY_POL0			0x3007
 #define m_PHY_RX_SENSE3		(1 << 7)
 #define v_PHY_TX_SENSE3(n)	(((n)&0x01) << 7)
 #define m_PHY_RX_SENSE2		(1 << 6)
@@ -521,93 +628,72 @@ enum HDMI_SOURCE_PHY_REG {
 #define m_PHY_LOCK		(1 << 0)
 #define v_PHY_LOCK(n)		(((n)&0x01) << 0)
 
+#define PHY_PCLFREQ0			0x3008
+#define PHY_PCLFREQ1			0x3009
+#define PHY_PLLCFGFREQ0			0x300a
+#define PHY_PLLCFGFREQ1			0x300b
+#define PHY_PLLCFGFREQ2			0x300c
+
 
 /*I2C Master PHY Registers*/
 #define I2C_MASTER_PHY_BASE		0x3020
-enum I2C_MASTER_PHY_REG {
-	PHY_I2CM_SLAVE = I2C_MASTER_PHY_BASE,
-	PHY_I2CM_ADDRESS,
-	PHY_I2CM_DATAO_1,
-	PHY_I2CM_DATAO_0,
-	PHY_I2CM_DATAI_1,
-	PHY_I2CM_DATAI_0,
-	PHY_I2CM_OPERATION,
-	PHY_I2CM_INT,
-	PHY_I2CM_CTLINT,
-	PHY_I2CM_DIV,
-	PHY_I2CM_SOFTRSTZ,
-	PHY_I2CM_SS_SCL_HCNT_1_ADDR,
-	PHY_I2CM_SS_SCL_HCNT_0_ADDR,
-	PHY_I2CM_SS_SCL_LCNT_1_ADDR,
-	PHY_I2CM_SS_SCL_LCNT_0_ADDR,
-	PHY_I2CM_FS_SCL_HCNT_1_ADDR,
-	PHY_I2CM_FS_SCL_HCNT_0_ADDR,
-	PHY_I2CM_FS_SCL_LCNT_1_ADDR,
-	PHY_I2CM_FS_SCL_LCNT_0_ADDR,
-	I2CM_PHY_SDA_HOLD
-};
 
-//PHY_I2CM_OPERATION
-#define v_I2CM_WRITE		(1 << 4)
-#define v_I2CM_READ		(1 << 0)
+#define	PHY_I2CM_SLAVE			0x3020
+#define	PHY_I2CM_ADDRESS		0x3021
+#define	PHY_I2CM_DATAO_1		0x3022
+#define	PHY_I2CM_DATAO_0		0x3023
+#define	PHY_I2CM_DATAI_1		0x3024
+#define	PHY_I2CM_DATAI_0		0x3025
 
-//PHY_I2CM_INT
-#define m_I2CM_DONE_INT_POL	(1 << 3)
-#define v_I2CM_DONE_INT_POL(n)	(((n)&0x01) << 3)
-#define m_I2CM_DONE_MASK	(1 << 2)
-#define v_I2CM_DONE_MASK(n)	(((n)&0x01) << 2)
-#define m_I2CM_DONE_INT		(1 << 1)
-#define m_I2CM_DONE_STATUS	(1 << 0)
+#define	PHY_I2CM_OPERATION		0x3026
+#define m_PHY_I2CM_WRITE	(1 << 4)
+#define m_PHY_I2CM_READ		(1 << 0)
 
-//PHY_I2CM_CTLINT
-#define m_I2CM_NACK_POL		(1 << 7)
-#define v_I2CM_NACK_POL(n)	(((n)&0x01) << 7)
-#define m_I2CM_NACK_MASK	(1 << 6)
-#define v_I2CM_NACK_MASK(n)	(((n)&0x01) << 6)
-#define m_I2CM_NACK_INT		(1 << 5)
-#define m_I2CM_NACK_STATUS	(1 << 4)
-#define m_I2CM_ARB_POL		(1 << 3)
-#define v_I2CM_ARB_POL(n)	(((n)&0x01) << 3)
-#define m_I2CM_ARB_MASK		(1 << 2)
-#define v_I2CM_ARB_MASK(n)	(((n)&0x01) << 2)
-#define m_I2CM_ARB_INT		(1 << 1)
-#define m_I2CM_ARB_STATUS	(1 << 0)
+#define	PHY_I2CM_INT			0x3027
+#define m_PHY_I2CM_DONE_INT_POL	(1 << 3)
+#define v_PHY_I2CM_DONE_INT_POL(n) (((n)&0x01) << 3)
+#define m_PHY_I2CM_DONE_MASK	(1 << 2)
+#define v_PHY_I2CM_DONE_MASK(n)	(((n)&0x01) << 2)
+#define m_PHY_I2CM_DONE_INT	(1 << 1)
+#define m_PHY_I2CM_DONE_STATUS	(1 << 0)
 
-//PHY_I2CM_DIV
-enum {
-	STANDARD_MODE = 0,
-	FAST_MODE
-};
-#define m_I2CM_FAST_STD_MODE	(1 << 3)
-#define v_I2CM_FAST_STD_MODE	(((n)&0x01) << 3)
+#define	PHY_I2CM_CTLINT			0x3028
+#define m_PHY_I2CM_NACK_POL	(1 << 7)
+#define v_PHY_I2CM_NACK_POL(n)	(((n)&0x01) << 7)
+#define m_PHY_I2CM_NACK_MASK	(1 << 6)
+#define v_PHY_I2CM_NACK_MASK(n)	(((n)&0x01) << 6)
+#define m_PHY_I2CM_NACK_INT	(1 << 5)
+#define m_PHY_I2CM_NACK_STATUS	(1 << 4)
+#define m_PHY_I2CM_ARB_POL	(1 << 3)
+#define v_PHY_I2CM_ARB_POL(n)	(((n)&0x01) << 3)
+#define m_PHY_I2CM_ARB_MASK	(1 << 2)
+#define v_PHY_I2CM_ARB_MASK(n)	(((n)&0x01) << 2)
+#define m_PHY_I2CM_ARB_INT	(1 << 1)
+#define m_PHY_I2CM_ARB_STATUS	(1 << 0)
 
-//PHY_I2CM_SOFTRSTZ
-#define m_I2CM_SOFTRST		(1 << 0)
-#define v_I2CM_SOFTRST		(((n)&0x01) << 0)
+#define	PHY_I2CM_DIV			0x3029
+#define m_PHY_I2CM_FAST_STD	(1 << 3)
+#define v_PHY_I2CM_FAST_STD(n)	(((n)&0x01) << 3)
+
+#define	PHY_I2CM_SOFTRSTZ		0x302a
+#define m_PHY_I2CM_SOFTRST	(1 << 0)
+#define v_PHY_I2CM_SOFTRST(n)	(((n)&0x01) << 0)
+
+#define	PHY_I2CM_SS_SCL_HCNT_1_ADDR	0x302b
+#define	PHY_I2CM_SS_SCL_HCNT_0_ADDR	0x302c
+#define	PHY_I2CM_SS_SCL_LCNT_1_ADDR	0x302d
+#define	PHY_I2CM_SS_SCL_LCNT_0_ADDR	0x302e
+#define	PHY_I2CM_FS_SCL_HCNT_1_ADDR	0x302f
+#define	PHY_I2CM_FS_SCL_HCNT_0_ADDR	0x3030
+#define	PHY_I2CM_FS_SCL_LCNT_1_ADDR	0x3031
+#define	PHY_I2CM_FS_SCL_LCNT_0_ADDR	0x3032
+#define	I2CM_PHY_SDA_HOLD		0x3033
 
 
 /*Audio Sampler Registers*/
 #define AUDIO_SAMPLER_BASE		0x3100
-enum AUDIO_SAMPLER_REG {
-	AUD_CONF0 = AUDIO_SAMPLER_BASE,
-	AUD_CONF1,
-	AUD_INT,
-	AUD_CONF2,
-	AUD_INT1,
-	AUD_N1 = 0x3200,
-	AUD_N2,
-	AUD_N3,
-	AUD_CTS1,
-	AUD_CTS2,
-	AUD_CTS3,
-	AUD_INPUTCLKFS,
-	AUD_SPDIF0 = 0x3300,
-	AUD_SPDIF1,
-	AUD_SPDIFINT,
-	AUD_SPDIFINT1
-};
 
-//AUD_CONF0
+#define AUD_CONF0			0x3100
 #define m_SW_AUD_FIFO_RST	(1 << 7)
 #define v_SW_AUD_FIFO_RST(n)	(((n)&0x01) << 7)
 enum {
@@ -616,10 +702,16 @@ enum {
 };
 #define m_I2S_SEL		(1 << 5)
 #define v_I2S_SEL(n)		(((n)&0x01) << 5)
+enum {
+	I2S_CHANNEL_1_2 = 1,
+	I2S_CHANNEL_3_4 = 3,
+	I2S_CHANNEL_5_6 = 7,
+	I2S_CHANNEL_7_8 = 0xf
+};
 #define m_I2S_IN_EN		(0x0f << 0)
-#define v_I2S_IN_EN(v)		(((n)&0x0f) << 0)
+#define v_I2S_IN_EN(n)		(((n)&0x0f) << 0)
 
-//AUD_CONF1
+#define AUD_CONF1			0x3101
 enum I2S_MODE {
 	I2S_STANDARD_MODE = 0,
 	I2S_RIGHT_JUSTIFIED_MODE,
@@ -643,29 +735,64 @@ enum I2S_WIDTH {
 #define m_I2S_WIDTH		(0x1f << 0)
 #define v_I2S_WIDTH(n)		(((n)&0x1f) << 0)
 
-//AUD_INT/AUD_SPDIFINT
+#define AUD_INT				0x3102
+#define AUD_SPDIFINT			0x3302
 #define m_FIFO_EMPTY_MASK	(1 << 3)
 #define v_FIFO_EMPTY_MASK(n)	(((n)&0x01) << 3)
 #define m_FIFO_FULL_MASK	(1 << 2)
 #define v_FIFO_FULL_MASK(n)	(((n)&0x01) << 2)
 
-//AUD_CONF2
+#define AUD_CONF2			0x3103
 #define m_NLPCM_EN		(1 << 1)
 #define v_NLPCM_EN(n)		(((n)&0x01) << 1)
 #define m_HBR_EN		(1 << 0)
 #define v_HBR_EN(n)		(((n)&0x01) << 0)
 
-//AUD_INT1/AUD_SPDIFINT1
+#define AUD_INT1			0x3104
+#define AUD_SPDIFINT1			0x3303
 #define m_FIFO_OVERRUN_MASK	(1 << 4)
 #define v_FIFO_OVERRUN_MASK(n)	(((n)&0x01) << 4)
 
-//AUD_N3
+/***************N-CTS Table**************/
+/*	TMDS LOWCLK:	<=148.5M	*/
+/*	TMDS MIDCLK: 	297M		*/
+/*	TMDS HIGHCLK: 	594M		*/
+#define N_32K_LOWCLK 		0x1000
+#define N_32K_MIDCLK		0x0c00
+#define N_32K_HIGHCLK		0x0c00
+#define N_441K_LOWCLK 		0x1880
+#define N_441K_MIDCLK		0x1260
+#define N_441K_HIGHCLK		0x24c0
+#define N_48K_LOWCLK 		0x1800
+#define N_48K_MIDCLK 		0x1400
+#define N_48K_HIGHCLK 		0x1800
+#define N_882K_LOWCLK 		0x3100
+#define N_882K_MIDCLK 		0x24c0
+#define N_882K_HIGHCLK 		0x4980
+#define N_96K_LOWCLK		0x3000
+#define N_96K_MIDCLK		0x2800
+#define N_96K_HIGHCLK		0x3000
+#define N_1764K_LOWCLK 		0x6200
+#define N_1764K_MIDCLK 		0x4980
+#define N_1764K_HIGHCLK 	0x9300
+#define N_192K_LOWCLK 		0x6000
+#define N_192K_MIDCLK 		0x5000
+#define N_192K_HIGHCLK 		0x6000
+/****************************************/
+
+#define AUD_N1				0x3200
+#define AUD_N2				0x3201
+
+#define AUD_N3				0x3202
 #define m_NCTS_ATOMIC_WR	(1 << 7)
 #define v_NCTS_ATOMIC_WR(n)	(((n)&0x01) << 7)
 #define m_AUD_N3		(0x0f << 0)
 #define v_AUD_N3(n)		(((n)&0x0f) << 0)
 
-//AUD_CTS3
+#define AUD_CTS1			0x3203
+#define AUD_CTS2			0x3204
+
+#define AUD_CTS3			0x3205
 enum {
 	N_SHIFT_1 = 0,
 	N_SHIFT_16,
@@ -682,7 +809,7 @@ enum {
 #define m_AUD_CTS3		(0x0f << 0)
 #define v_AUD_CTS3(n)		(((n)&0x0f) << 0)
 
-//AUD_INPUTCLKFS
+#define AUD_INPUTCLKFS			0x3206
 enum {
 	FS_128 = 0,
 	FS_256,
@@ -693,13 +820,17 @@ enum {
 #define m_LFS_FACTOR		(0x07 << 0)
 #define v_LFS_FACTOR(n)		(((n)&0x07) << 0)
 
-//AUD_SPDIF0
+#define AUD_SPDIF0			0x3300
 #define m_SW_SAUD_FIFO_RST	(1 << 7)
 #define v_SW_SAUD_FIFO_RST	(((n)&0x01) << 7)
 
-//AUD_SPDIF1
+#define AUD_SPDIF1			0x3301
+enum {
+	PCM_LINEAR = 0,
+	PCM_NONLINEAR
+};
 #define m_SET_NLPCM		(1 << 7)
-#define v_SET_NLPCM		(((n)&0x01) << 7)
+#define v_SET_NLPCM(n)		(((n)&0x01) << 7)
 #define m_SPDIF_HBR_MODE	(1 << 6)
 #define v_SPDIF_HBR_MODE(n)	(((n)&0x01) << 6)
 #define m_SPDIF_WIDTH		(0x1f << 0)
@@ -708,49 +839,38 @@ enum {
 
 /*Generic Parallel Audio Interface Registers*/
 #define GP_AUDIO_INTERFACE_BASE		0x3500
-enum GP_AUDIO_INTERFACE_REG {
-	GP_CONF0 = GP_AUDIO_INTERFACE_BASE,
-	GP_CONF1,
-	GP_CONF2,
-	GP_MASK = 0x3506
-};
+
+#define	GP_CONF0			0x3500
+#define	GP_CONF1			0x3501
+#define	GP_CONF2			0x3502
+#define	GP_MASK				0x3506
+
 
 /*Audio DMA Registers*/
 #define AUDIO_DMA_BASE			0x3600
-enum AUDIO_DMA_REG {
-	AHB_DMA_CONF0 = AUDIO_DMA_BASE,
-	AHB_DMA_START,
-	AHB_DMA_STOP,
-	AHB_DMA_THRSLD,
-	AHB_DMA_STRADDR_SET0_0,		//0~3
-	AHB_DMA_STPADDR_SET0_0 = 0x3608,//0~3
-	AHB_DMA_BSTADDR0 = 0x360c,	//0~3
-	AHB_DMA_MBLENGTH0 = 0x3610,	//0~3,
-	AHB_DMA_MASK = 0x3614,
-	AHB_DMA_CONF1 = 0x3616,
-	AHB_DMA_BUFFMASK = 0x3619,
-	AHB_DMA_MASK1 = 0x361b,
-	AHB_DMA_STATUS,
-	AHB_DMA_CONF2,
-	AHB_DMA_STRADDR_SET1_0 = 0x3620,//0~3
-	AHB_DMA_STPADDR_SET1_0 = 0x3624 //0~3
-};
+
+#define	AHB_DMA_CONF0			0x3600
+#define	AHB_DMA_START			0x3601
+#define	AHB_DMA_STOP			0x3602
+#define	AHB_DMA_THRSLD			0x3603
+#define	AHB_DMA_STRADDR_SET0_0		0x3604	//0~3
+#define	AHB_DMA_STPADDR_SET0_0 		0x3608	//0~3
+#define	AHB_DMA_BSTADDR0 		0x360c	//0~3
+#define	AHB_DMA_MBLENGTH0 		0x3610	//0~3,
+#define	AHB_DMA_MASK 			0x3614
+#define	AHB_DMA_CONF1 			0x3616
+#define	AHB_DMA_BUFFMASK 		0x3619
+#define	AHB_DMA_MASK1 			0x361b
+#define	AHB_DMA_STATUS			0x361c
+#define	AHB_DMA_CONF2			0x361d
+#define	AHB_DMA_STRADDR_SET1_0 		0x3620	//0~3
+#define	AHB_DMA_STPADDR_SET1_0 		0x3624 	//0~3
+
 
 /*Main Controller Registers*/
-#define MAIN_CONTROLLER_BASE		0X4000
-enum MAIN_CONTROLLER_REG {
-	MC_CLKDIS = 0x4001,
-	MC_SWRSTZREQ,
-	MC_OPCTRL,
-	MC_FLOWCTRL,
-	MC_PHYRSTZ,
-	MC_LOCKONCLOCK,
-	MC_HEACPHY_RST,
-	MC_LOCKONCLOCK2,
-	MC_SWRSTZREQ_2
-};
+#define MAIN_CONTROLLER_BASE		0x4000
 
-//MC_CLKDIS
+#define MC_CLKDIS			0x4001
 #define m_HDCPCLK_DISABLE	(1 << 6)
 #define v_HDCPCLK_DISABLE(n)	(((n)&0x01) << 6)
 #define m_CECCLK_DISABLE	(1 << 5)
@@ -766,7 +886,7 @@ enum MAIN_CONTROLLER_REG {
 #define m_PIXELCLK_DISABLE	(1 << 0)
 #define v_PIXELCLK_DISABLE(n)	(((n)&0x01) << 0)
 
-//MC_SWRSTZREQ
+#define MC_SWRSTZREQ			0x4002
 #define m_IGPA_SWRST		(1 << 7)
 #define v_IGPA_SWRST(n)		(((n)&0x01) << 7)
 #define m_CEC_SWRST		(1 << 6)
@@ -782,19 +902,19 @@ enum MAIN_CONTROLLER_REG {
 #define m_PIXEL_SWRST           (1 << 0)
 #define v_PIXEL_SWRST(n)        (((n)&0x01) << 0)
 
-//MC_OPCTRL
+#define MC_OPCTRL			0x4003
 #define m_HDCP_BLOCK_BYP	(1 << 0)
 #define v_HDCP_BLOCK_BYP(n)	(((n)&0x01) << 0)
 
-//MC_FLOWCTRL
+#define MC_FLOWCTRL			0x4004
 #define m_FEED_THROUGH_OFF      (1 << 0)
 #define v_FEED_THROUGH_OFF(n)   (((n)&0x01) << 0)
 
-//MC_PHYRSTZ
+#define MC_PHYRSTZ			0x4005
 #define m_PHY_RSTZ		(1 << 0)
 #define v_PHY_RSTZ(n)		(((n)&0x01) << 0)
 
-//MC_LOCKONCLOCK
+#define MC_LOCKONCLOCK			0x4006
 #define m_IGPACLK_ON		(1 << 7)
 #define v_IGPACLK_ON(n)		(((n)&0x01) << 7)
 #define m_PCLK_ON		(1 << 6)
@@ -810,183 +930,237 @@ enum MAIN_CONTROLLER_REG {
 #define m_CECCLK_ON            	(1 << 0)
 #define v_CECCLK_ON(n)         	(((n)&0x01) << 0)
 
-//MC_HEACPHY_RST
+#define MC_HEACPHY_RST			0x4007
 #define m_HEAC_PHY_RST		(1 << 0)
 #define v_HEAC_PHY_RST(n)	(((n)&0x01) << 0)
 
-//MC_LOCKONCLOCK_2
+#define MC_LOCKONCLOCK_2		0x4009
 #define m_AHB_AUD_DMA_CLK       (1 << 0)
 #define v_AHB_AUD_DMA_CLK(n)    (((n)&0x01) << 0)
 
-//MC_SWRSTZREQ_2
+#define MC_SWRSTZREQ_2			0x400a
 #define m_AHB_AUD_DMA_RST       (1 << 7)
 #define v_AHB_AUD_DMA_RST(n)    (((n)&0x01) << 7)
 
 
 /*Color Space Converter Registers*/
 #define COLOR_SPACE_CONVERTER_BASE	0x4100
-enum COLOR_SPACE_CONVERTER_REG {
-	CSC_CFG = COLOR_SPACE_CONVERTER_BASE,
-	CSC_SCALE,
-	CSC_COEF_A1_MSB,
-	CSC_COEF_A1_LSB,
-	CSC_COEF_A2_MSB,
-	CSC_COEF_A2_LSB,
-	CSC_COEF_A3_MSB,
-	CSC_COEF_A3_LSB,
-	CSC_COEF_A4_MSB,
-	CSC_COEF_A4_LSB,
-	CSC_COEF_B1_MSB,
-	CSC_COEF_B1_LSB,
-	CSC_COEF_B2_MSB,
-	CSC_COEF_B2_LSB,
-	CSC_COEF_B3_MSB,
-	CSC_COEF_B3_LSB,
-	CSC_COEF_B4_MSB,
-	CSC_COEF_B4_LSB,
-	CSC_COEF_C1_MSB,
-	CSC_COEF_C1_LSB,
-	CSC_COEF_C2_MSB,
-	CSC_COEF_C2_LSB,
-	CSC_COEF_C3_MSB,
-	CSC_COEF_C3_LSB,
-	CSC_COEF_C4_MSB,
-	CSC_COEF_C4_LSB,
-	CSC_SPARE_1,
-	CSC_SPARE_2
-};
 
-//CSC_CFG
-#define m_INTMODE		(0x03 << 4)
-#define v_INTMODE(n)		(((n)&0x03) << 4)
-#define m_DECMODE		(0x03 << 0)
-#define v_DECMODE(n)		(((n)&0x03) << 0)
+#define	CSC_CFG				0x4100
+#define m_CSC_INTMODE		(0x03 << 4)
+#define v_CSC_INTMODE(n)	(((n)&0x03) << 4)
+#define m_CSC_DECMODE		(0x03 << 0)
+#define v_CSC_DECMODE(n)	(((n)&0x03) << 0)
 
-//CSC_SCALE
+#define	CSC_SCALE			0x4101
 #define m_CSC_COLOR_DEPTH	(0x0f << 4)
-#define v_CSC_COLOR_DEPTH	(((n)&0x0f) >> 4)
+#define v_CSC_COLOR_DEPTH(n)	(((n)&0x0f) >> 4)
 #define m_CSC_SCALE       	(0x03 << 0)
-#define v_CSC_SCALE       	(((n)&0x03) >> 0)
+#define v_CSC_SCALE(n)       	(((n)&0x03) >> 0)
 
+#define	CSC_COEF_A1_MSB			0x4102
+#define	CSC_COEF_A1_LSB			0x4103
+#define	CSC_COEF_A2_MSB			0x4104
+#define	CSC_COEF_A2_LSB			0x4105
+#define	CSC_COEF_A3_MSB			0x4106
+#define	CSC_COEF_A3_LSB			0x4107
+#define	CSC_COEF_A4_MSB			0x4108
+#define	CSC_COEF_A4_LSB			0x4109
+#define	CSC_COEF_B1_MSB			0x410a
+#define	CSC_COEF_B1_LSB			0x410b
+#define	CSC_COEF_B2_MSB			0x410c
+#define	CSC_COEF_B2_LSB			0x410d
+#define	CSC_COEF_B3_MSB			0x410e
+#define	CSC_COEF_B3_LSB			0x410f
+#define	CSC_COEF_B4_MSB			0x4110
+#define	CSC_COEF_B4_LSB			0x4111
+#define	CSC_COEF_C1_MSB			0x4112
+#define	CSC_COEF_C1_LSB			0x4113
+#define	CSC_COEF_C2_MSB			0x4114
+#define	CSC_COEF_C2_LSB			0x4115
+#define	CSC_COEF_C3_MSB			0x4116
+#define	CSC_COEF_C3_LSB			0x4117
+#define	CSC_COEF_C4_MSB			0x4118
+#define	CSC_COEF_C4_LSB			0x4119
+#define	CSC_SPARE_1			0x411a
+#define	CSC_SPARE_2			0x411b
 
 
 /*HDCP Encryption Engine Registers*/
 #define HDCP_ENCRYPTION_ENGINE_BASE	0x5000
-enum HDCP_ENCRYPTION_REG {
-	A_HDCPCFG0 = HDCP_ENCRYPTION_ENGINE_BASE,
-	A_HDCPCFG1,
-	A_HDCPOBS0,
-	A_HDCPOBS1,
-	A_HDCPOBS2,
-	A_HDCPOBS3,
-	A_APIINTCLR,
-	A_APIINTSTAT,
-	A_APIINTMSK,
-	A_VIDPOLCFG,
-	A_OESSWCFG,
-	A_COREVERLSB = 0x5014,
-	A_COREVERMSB,
-	A_KSVMEMCTRL,
-	HDCP_BSTATUS_0 = 0x5020,
-	HDCP_BSTATUS_1,
-	HDCP_M0_0,
-	HDCP_M0_1,
-	HDCP_M0_2,
-	HDCP_M0_3,
-	HDCP_M0_4,
-	HDCP_M0_5,
-	HDCP_M0_6,
-	HDCP_M0_7,
-	HDCP_KSV,			//0~634
-	HDCP_VH = 0x52a5,		//0~19
-	HDCP_REVOC_SIZE_0 = 0x52b9,
-	HDCP_REVOC_SIZE_1,
-	HDCP_REVOC_LIST,		//0~5059
-};
+
+#define	A_HDCPCFG0 			0x5000
+#define	A_HDCPCFG1			0x5001
+#define	A_HDCPOBS0			0x5002
+#define	A_HDCPOBS1			0x5003
+#define	A_HDCPOBS2			0x5004
+#define	A_HDCPOBS3			0x5005
+#define	A_APIINTCLR			0x5006
+#define	A_APIINTSTAT			0x5007
+#define	A_APIINTMSK			0x5008
+#define	A_VIDPOLCFG			0x5009
+#define	A_OESSWCFG			0x500a
+#define	A_COREVERLSB 			0x5014
+#define	A_COREVERMSB			0x5015
+#define	A_KSVMEMCTRL			0x5016
+#define	HDCP_BSTATUS_0 			0x5020
+#define	HDCP_BSTATUS_1			0x5021
+#define	HDCP_M0_0			0x5022
+#define	HDCP_M0_1			0x5023
+#define	HDCP_M0_2			0x5024
+#define	HDCP_M0_3			0x5025
+#define	HDCP_M0_4			0x5026
+#define	HDCP_M0_5			0x5027
+#define	HDCP_M0_6			0x5028
+#define	HDCP_M0_7			0x5029
+#define	HDCP_KSV			0x502a	//0~634
+#define	HDCP_VH 			0x52a5	//0~19
+#define	HDCP_REVOC_SIZE_0 		0x52b9
+#define	HDCP_REVOC_SIZE_1		0x52ba
+#define	HDCP_REVOC_LIST			0x52bb	//0~5059
+
 
 /*HDCP BKSV Registers*/
 #define HDCP_BKSV_BASE			0x7800
-enum HDCP_BKSV_REG {
-	HDCPREG_BKSV0 = HDCP_BKSV_BASE,
-	HDCPREG_BKSV1,
-	HDCPREG_BKSV2,
-	HDCPREG_BKSV3,
-	HDCPREG_BKSV4
-};
+
+#define	HDCPREG_BKSV0			0x7800
+#define	HDCPREG_BKSV1			0x7801
+#define	HDCPREG_BKSV2			0x7802
+#define	HDCPREG_BKSV3			0x7803
+#define	HDCPREG_BKSV4			0x7804
+
 
 /*HDCP AN Registers*/
 #define HDCP_AN_BASE			0x7805
-enum HDCP_AN_REG {
-	HDCPREG_ANCONF = HDCP_AN_BASE,
-	HDCPREG_AN0,
-	HDCPREG_AN1,
-	HDCPREG_AN2,
-	HDCPREG_AN3,
-	HDCPREG_AN4,
-	HDCPREG_AN5,
-	HDCPREG_AN6,
-	HDCPREG_AN7
-};
+
+#define	HDCPREG_ANCONF			0x7805
+#define	HDCPREG_AN0			0x7806
+#define	HDCPREG_AN1			0x7807
+#define	HDCPREG_AN2			0x7808
+#define	HDCPREG_AN3			0x7809
+#define	HDCPREG_AN4			0x780a
+#define	HDCPREG_AN5			0x780b
+#define	HDCPREG_AN6			0x780c
+#define	HDCPREG_AN7			0x780d
+
 
 /*Encrypted DPK Embedded Storage Registers*/
 #define ENCRYPTED_DPK_EMBEDDED_BASE	0x780e
-enum ENCRYPTED_DPK_EMBEDDED_REG {
-	HDCPREG_RMCTL = ENCRYPTED_DPK_EMBEDDED_BASE,
-	HDCPREG_RMSTS,
-	HDCPREG_SEED0,
-	HDCPREG_SEED1,
-	HDCPREG_DPK0,
-	HDCPREG_DPK1,
-	HDCPREG_DPK2,
-	HDCPREG_DPK3,
-	HDCPREG_DPK4,
-	HDCPREG_DPK5,
-	HDCPREG_DPK6
-};
+
+#define	HDCPREG_RMCTL 			0x780e
+#define	HDCPREG_RMSTS			0x780f
+#define	HDCPREG_SEED0			0x7810
+#define	HDCPREG_SEED1			0x7811
+#define	HDCPREG_DPK0			0x7812
+#define	HDCPREG_DPK1			0x7813
+#define	HDCPREG_DPK2			0x7814
+#define	HDCPREG_DPK3			0x7815
+#define	HDCPREG_DPK4			0x7816
+#define	HDCPREG_DPK5			0x7817
+#define	HDCPREG_DPK6			0x7818
+
 
 /*CEC Engine Registers*/
 #define CEC_ENGINE_BASE			0x7d00
-enum CEC_ENGINE_REG {
-	CEC_CTRL = CEC_ENGINE_BASE,
-	CEC_MASK = 0x7d02,
-	CEC_ADDR_L = 0x7d05,
-	CEC_ADDR_H,
-	CEC_TX_CNT,
-	CEC_RX_CNT,
-	CEC_TX_DATA0 = 0x7d10,		//txdata0~txdata15
-	CEC_RX_DATA0 = 0x7d20,		//rxdata0~rxdata15
-	CEC_LOCK = 0x7d30,
-	CEC_WKUPCTRL
-};
+
+#define	CEC_CTRL 			0x7d00
+#define	CEC_MASK 			0x7d02
+#define	CEC_ADDR_L 			0x7d05
+#define	CEC_ADDR_H			0x7d06
+#define	CEC_TX_CNT			0x7d07
+#define	CEC_RX_CNT			0x7d08
+#define	CEC_TX_DATA0 			0x7d10	//txdata0~txdata15
+#define	CEC_RX_DATA0 			0x7d20	//rxdata0~rxdata15
+#define	CEC_LOCK 			0x7d30
+#define	CEC_WKUPCTRL			0x7d31
+
 
 /*I2C Master Registers*/
 #define I2C_MASTER_BASE			0x7e00
-enum I2C_MASTER_REG {
-	I2CM_SLAVE = I2C_MASTER_BASE,
-	I2CM_ADDRESS,
-	I2CM_DATAO,
-	I2CM_DATAI,
-	I2CM_OPERATION,
-	I2CM_INT,
-	I2CM_CTLINT,
-	I2CM_DIV,
-	I2CM_SEGADDR,
-	I2CM_SOFTRSTZ,
-	I2CM_SEGPTR,
-	I2CM_SS_SCL_HCNT_1_ADDR,
-	I2CM_SS_SCL_HCNT_0_ADDR,
-	I2CM_SS_SCL_LCNT_1_ADDR,
-	I2CM_SS_SCL_LCNT_0_ADDR,
-	I2CM_FS_SCL_HCNT_1_ADDR,
-	I2CM_FS_SCL_HCNT_0_ADDR,
-	I2CM_FS_SCL_LCNT_1_ADDR,
-	I2CM_FS_SCL_LCNT_0_ADDR,
-	I2CM_SDA_HOLD,
-	I2CM_SCDC_READ_UPDATE,
-	I2CM_READ_BUFF0 = 0x7e20,		//buff0~buff7
-	I2CM_SCDC_UPDATE0 = 0x7e30,
-	I2CM_SCDC_UPDATE1
-};   
+
+#define	I2CM_SLAVE 			0x7e00
+#define	I2CM_ADDRESS			0x7e01
+#define	I2CM_DATAO			0x7e02
+#define	I2CM_DATAI			0x7e03
+
+#define I2CM_OPERATION			0x7e04
+#define m_I2CM_WR		(1 << 4)
+#define v_I2CM_WR(n)		(((n)&0x01) << 4)
+#define m_I2CM_RD8_EXT		(1 << 3)
+#define v_I2CM_RD8_EXT(n)	(((n)&0x01) << 3)
+#define m_I2CM_RD8		(1 << 2)
+#define v_I2CM_RD8(n)		(((n)&0x01) << 2)
+#define m_I2CM_RD_EXT		(1 << 1)
+#define v_I2CM_RD_EXT(n)	(((n)&0x01) << 1)
+#define m_I2CM_RD		(1 << 0)
+#define v_I2CM_RD(n)		(((n)&0x01) << 0)
+
+#define	I2CM_INT			0x7e05
+#define m_I2CM_RD_REQ_MASK	(1 << 6)
+#define v_I2CM_RD_REQ_MASK(n)	(((n)&0x01) << 6)
+#define m_I2CM_DONE_MASK	(1 << 2)
+#define v_I2CM_DONE_MASK(n)	(((n)&0x01) << 2)
+
+#define	I2CM_CTLINT			0x7e06
+#define m_I2CM_NACK_MASK	(1 << 6)
+#define v_I2CM_NACK_MASK(n)	(((n)&0x01) << 6)
+#define m_I2CM_ARB_MASK		(1 << 2)
+#define v_I2CM_ARB_MASK(n)	(((n)&0x01) << 2)
+
+#define	I2CM_DIV			0x7e07
+enum {
+	STANDARD_MODE = 0,
+	FAST_MODE
+};
+#define m_I2CM_FAST_STD_MODE	(1 << 3)
+#define v_I2CM_FAST_STD_MODE(n)	(((n)&0x01) << 3)
+
+#define	I2CM_SEGADDR			0x7e08
+#define m_I2CM_SEG_ADDR		(0x7f << 0)
+#define v_I2CM_SEG_ADDR(n)	(((n)&0x7f) << 0)
+
+#define	I2CM_SOFTRSTZ			0x7e09
+#define m_I2CM_SOFTRST		(1 << 0)
+#define v_I2CM_SOFTRST(n)	(((n)&0x01) << 0)
+
+#define	I2CM_SEGPTR			0x7e0a
+#define	I2CM_SS_SCL_HCNT_1_ADDR		0x7e0b
+#define	I2CM_SS_SCL_HCNT_0_ADDR		0x7e0c
+#define	I2CM_SS_SCL_LCNT_1_ADDR		0x7e0d
+#define	I2CM_SS_SCL_LCNT_0_ADDR		0x7e0e
+#define	I2CM_FS_SCL_HCNT_1_ADDR		0x7e0f
+#define	I2CM_FS_SCL_HCNT_0_ADDR		0x7e10
+#define	I2CM_FS_SCL_LCNT_1_ADDR		0x7e11
+#define	I2CM_FS_SCL_LCNT_0_ADDR		0x7e12
+#define	I2CM_SDA_HOLD			0x7e13
+
+#define	I2CM_SCDC_READ_UPDATE		0x7e14
+#define m_I2CM_UPRD_VSYNC_EN	(1 << 5)
+#define v_I2CM_UPRD_VSYNC_EN(n) (((n)&0x01) << 5)
+#define m_I2CM_READ_REQ_EN	(1 << 4)
+#define v_I2CM_READ_REQ_EN(n)	(((n)&0x01) << 4)
+#define m_I2CM_READ_UPDATE	(1 << 0)
+#define v_I2CM_READ_UPDATE(n)	(((n)&0x01) << 0)
+
+#define	I2CM_READ_BUFF0 		0x7e20	//buff0~buff7
+#define	I2CM_SCDC_UPDATE0 		0x7e30
+#define	I2CM_SCDC_UPDATE1		0x7e31
+
+
+enum{
+	INPUT_IIS,
+	INPUT_SPDIF
+};
+
+/* Color Space Convertion Mode */
+enum {
+	CSC_RGB_0_255_TO_ITU601_16_235 = 0,	//RGB 0-255 input to YCbCr 16-235 output according BT601
+	CSC_RGB_0_255_TO_ITU709_16_235,		//RGB 0-255 input to YCbCr 16-235 output accroding BT709
+	CSC_ITU601_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT601
+	CSC_ITU709_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT709
+	CSC_ITU601_16_235_TO_RGB_0_255,		//YCbCr 16-235 input to RGB 0-255 output according BT601
+	CSC_ITU709_16_235_TO_RGB_0_255		//YCbCr 16-235 input to RGB 0-255 output according BT709
+};
 
 
 struct rk3288_hdmi_device {
@@ -995,6 +1169,7 @@ struct rk3288_hdmi_device {
 	int			regbase_phy;
 	int			regsize_phy;
 	int 			lcdc_id;
+	int			edid_status;
 	struct device 		*dev;
 	struct clk		*hclk;				//HDMI AHP clk
 	struct hdmi 		driver;
@@ -1002,11 +1177,9 @@ struct rk3288_hdmi_device {
 };
 
 
-static inline int hdmi_readl(struct rk3288_hdmi_device *hdmi_dev, u16 offset, u32 *val)
+static inline u32 hdmi_readl(struct rk3288_hdmi_device *hdmi_dev, u16 offset)
 {
-        int ret = 0;
-	*val = readl_relaxed(hdmi_dev->regbase + (offset) * 0x04);
-        return ret;
+	return readl_relaxed(hdmi_dev->regbase + (offset) * 0x04);
 }
 
 static inline int hdmi_writel(struct rk3288_hdmi_device *hdmi_dev, u16 offset, u32 val)
@@ -1026,6 +1199,7 @@ static inline int hdmi_msk_reg(struct rk3288_hdmi_device *hdmi_dev, u16 offset, 
 }
 
 int rk3288_hdmi_initial(struct hdmi *hdmi_drv);
+void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable);
 
 
 #endif

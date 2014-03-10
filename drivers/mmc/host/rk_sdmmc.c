@@ -114,6 +114,20 @@ static const u8 tuning_blk_pattern_8bit[] = {
 	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
 };
 
+/*printk the all register of current host*/
+static int dw_mci_regs_printk(struct dw_mci *host)
+{
+    struct sdmmc_reg *regs = dw_mci_regs;
+
+    while( regs->name != 0 ){
+        printk("%s: (0x%04x) = 0x%08x\n", regs->name, regs->addr, mci_readreg(host,regs->addr));
+        regs++;
+    }
+    printk("=======printk %s-register end =========\n", mmc_hostname(host->mmc));
+    return 0;
+}
+
+
 #if defined(CONFIG_DEBUG_FS)
 static int dw_mci_req_show(struct seq_file *s, void *v)
 {
@@ -251,15 +265,10 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 
 	cmdr = cmd->opcode;
 
-	if (cmd->opcode == MMC_STOP_TRANSMISSION ||
-	    cmd->opcode == MMC_GO_IDLE_STATE ||
-	    cmd->opcode == MMC_GO_INACTIVE_STATE ||
-	    (cmd->opcode == SD_IO_RW_DIRECT &&
-	     ((cmd->arg >> 9) & 0x1FFFF) == SDIO_CCCR_ABORT))
+	if (cmdr == MMC_STOP_TRANSMISSION)
 		cmdr |= SDMMC_CMD_STOP;
 	else
-		if (cmd->opcode != MMC_SEND_STATUS && cmd->data)
-			cmdr |= SDMMC_CMD_PRV_DAT_WAIT;
+		cmdr |= SDMMC_CMD_PRV_DAT_WAIT;
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		/* We expect a response, so set this bit */
@@ -330,14 +339,15 @@ static void dw_mci_start_command(struct dw_mci *host,
 
 	mci_writel(host, CMDARG, cmd->arg);
 	wmb();
+    MMC_DBG_CMD_FUNC("%d..%s start cmd=%d, arg=0x%x[%s]",__LINE__, __FUNCTION__,cmd->opcode, cmd->arg,mmc_hostname(host->mmc));
+    //dw_mci_regs_printk(host);
 
-	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
+	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START|SDMMC_CMD_USE_HOLD_REG); //always use SDMMC_CMD_USE_HOLD_REG 
 }
 
-static inline void send_stop_abort(struct dw_mci *host, struct mmc_data *data)
+static void send_stop_cmd(struct dw_mci *host, struct mmc_data *data)
 {
-	struct mmc_command *stop = data->stop ? data->stop : &host->stop_abort;
-	dw_mci_start_command(host, stop, host->stop_cmdr);
+	dw_mci_start_command(host, data->stop, host->stop_cmdr);
 }
 
 /* DMA interface functions */
@@ -403,6 +413,8 @@ static void dw_mci_idmac_complete_dma(struct dw_mci *host)
 	struct mmc_data *data = host->data;
 
 	dev_vdbg(host->dev, "DMA complete\n");
+    MMC_DBG_CMD_FUNC(" DMA complete cmd=%d(arg=0x%x), blocks=%d,blksz=%d[%s]", \
+        host->cmd->opcode,host->cmd->arg,data->blocks,data->blksz,mmc_hostname(host->mmc));
 
 	host->dma_ops->cleanup(host);
 
@@ -718,6 +730,9 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 	} else {
 		host->dir_status = DW_MCI_SEND_STATUS;
 	}
+	
+ //   MMC_DBG_CMD_FUNC(" cmd=%d(arg=0x%x),blocks=%d,blksz=%d [%s]",\
+  //      host->cmd->opcode, host->cmd->arg, data->blocks, data->blksz, mmc_hostname(host->mmc));
 
 	if (dw_mci_submit_data_dma(host, data)) {
 		int flags = SG_MITER_ATOMIC;
@@ -882,8 +897,6 @@ static void __dw_mci_start_request(struct dw_mci *host,
 
 	if (mrq->stop)
 		host->stop_cmdr = dw_mci_prepare_command(slot->mmc, mrq->stop);
-	else
-		host->stop_cmdr = dw_mci_prep_stop_abort(host, cmd);
 }
 
 static void dw_mci_start_request(struct dw_mci *host,
@@ -891,7 +904,10 @@ static void dw_mci_start_request(struct dw_mci *host,
 {
 	struct mmc_request *mrq = slot->mrq;
 	struct mmc_command *cmd;
-
+	
+    MMC_DBG_CMD_FUNC(" Begin to start the new request. cmd=%d(arg=0x%x)[%s]", \
+        mrq->cmd->opcode, mrq->cmd->arg, mmc_hostname(host->mmc));
+        
 	cmd = mrq->sbc ? mrq->sbc : mrq->cmd;
 	__dw_mci_start_request(host, slot, cmd);
 }
@@ -930,9 +946,14 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (!test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
 		spin_unlock_bh(&host->lock);
 		mrq->cmd->error = -ENOMEDIUM;
+		
+		MMC_DBG_CMD_FUNC("dw_mci_reqeust--reqeuest done, cmd=%d [%s]",mrq->cmd->opcode, mmc_hostname(host->mmc));
+            
 		mmc_request_done(mmc, mrq);
 		return;
 	}
+    MMC_DBG_CMD_FUNC("======>\n    pull a new request from MMC-frame to dw_mci_queue. cmd=%d(arg=0x%x)[%s]", \
+        mrq->cmd->opcode, mrq->cmd->arg, mmc_hostname(host->mmc));
 
 	dw_mci_queue_request(host, slot, mrq);
 
@@ -949,9 +970,11 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_BUS_WIDTH_4:
 		slot->ctype = SDMMC_CTYPE_4BIT;
 		break;
-	case MMC_BUS_WIDTH_8:
+#if 0//test, use sd to emmc		
+	case MMC_BUS_WIDTH_8: 
 		slot->ctype = SDMMC_CTYPE_8BIT;
 		break;
+#endif		
 	default:
 		/* set default 1 bit mode */
 		slot->ctype = SDMMC_CTYPE_1BIT;
@@ -1159,6 +1182,13 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 
 	WARN_ON(host->cmd || host->data);
 
+	if(mrq->cmd)
+       MMC_DBG_CMD_FUNC(" reqeust end--reqeuest done, cmd=%d, cmderr=%d, host->state=%d [%s]",\
+            mrq->cmd->opcode,mrq->cmd->error, host->state,mmc_hostname(host->mmc));
+	if(mrq->data)
+       MMC_DBG_CMD_FUNC(" reqeust end--reqeuest done, cmd=%d, dataerr=%d, host->state=%d [%s]",\
+            mrq->cmd->opcode,mrq->data->error, host->state, mmc_hostname(host->mmc));
+
 	host->cur_slot->mrq = NULL;
 	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
@@ -1168,6 +1198,7 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 		dev_vdbg(host->dev, "list not empty: %s is next\n",
 			 mmc_hostname(slot->mmc));
 		host->state = STATE_SENDING_CMD;
+		MMC_DBG_CMD_FUNC(" list is not empty. run the request in list. [%s]", mmc_hostname(host->mmc));
 		dw_mci_start_request(host, slot);
 	} else {
 		dev_vdbg(host->dev, "list empty\n");
@@ -1192,11 +1223,16 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 			cmd->resp[2] = mci_readl(host, RESP1);
 			cmd->resp[1] = mci_readl(host, RESP2);
 			cmd->resp[0] = mci_readl(host, RESP3);
+			
+            MMC_DBG_CMD_FUNC(" command complete [%s], \ncmd=%d,resp[3]=0x%x, resp[2]=0x%x,resp[1]=0x%x,resp[0]=0x%x", \
+                    mmc_hostname(host->mmc), cmd->opcode,cmd->resp[3], cmd->resp[2], cmd->resp[1], cmd->resp[0]);
 		} else {
 			cmd->resp[0] = mci_readl(host, RESP0);
 			cmd->resp[1] = 0;
 			cmd->resp[2] = 0;
-			cmd->resp[3] = 0;
+			cmd->resp[3] = 0;			
+            MMC_DBG_CMD_FUNC(" command complete [%s], cmd=%d,resp[0]=0x%x",\
+                    mmc_hostname(host->mmc),cmd->opcode, cmd->resp[0]);
 		}
 	}
 
@@ -1208,6 +1244,7 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 		cmd->error = -EIO;
 	else
 		cmd->error = 0;
+    MMC_DBG_CMD_FUNC(" command complete, cmd=%d,cmdError=0x%x [%s]",cmd->opcode, cmd->error,mmc_hostname(host->mmc));
 
 	if (cmd->error) {
 		/* newer ip versions need a delay between retries */
@@ -1254,11 +1291,21 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				goto unlock;
 			}
 			
-                        if (cmd->data && cmd->error) {
+            if (cmd->data && cmd->error) {
 				dw_mci_stop_dma(host);
+				#if 1
+                if (data->stop) {
+                    send_stop_cmd(host, data);
+                    state = STATE_SENDING_STOP;
+                    break;
+                } else {
+                    host->data = NULL;
+                }
+				#else
 				send_stop_abort(host, data);
 				state = STATE_SENDING_STOP;
 				break;
+				#endif
 			}
 
 
@@ -1274,15 +1321,24 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			if (test_and_clear_bit(EVENT_DATA_ERROR,
 					       &host->pending_events)) {
 				dw_mci_stop_dma(host);
+				#if 1
+				if (data->stop)
+					send_stop_cmd(host, data);
+				#else
 				send_stop_abort(host, data);
+				#endif
 				state = STATE_DATA_ERROR;
 				break;
 			}
+            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: STATE_SENDING_DATA, wait for EVENT_XFER_COMPLETE.[%s]",\
+                        prev_state,state, mmc_hostname(host->mmc));
 
 			if (!test_and_clear_bit(EVENT_XFER_COMPLETE,
 						&host->pending_events))
 				break;
-
+            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]:  STATE_SENDING_DATA, wait for EVENT_DATA_COMPLETE. [%s]",\
+                        prev_state,state,mmc_hostname(host->mmc));
+            
 			set_bit(EVENT_XFER_COMPLETE, &host->completed_events);
 			prev_state = state = STATE_DATA_BUSY;
 			/* fall through */
@@ -1291,13 +1347,17 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			if (!test_and_clear_bit(EVENT_DATA_COMPLETE,
 						&host->pending_events))
 				break;
+            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: STATE_DATA_BUSY, after EVENT_DATA_COMPLETE. [%s]", \
+                    prev_state,state,mmc_hostname(host->mmc));
 
 			host->data = NULL;
 			set_bit(EVENT_DATA_COMPLETE, &host->completed_events);
 			status = host->data_status;
 
-			if (status & DW_MCI_DATA_ERROR_FLAGS) {
-		if (status & SDMMC_INT_DRTO) {
+			if (status & DW_MCI_DATA_ERROR_FLAGS) {		
+                MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: DW_MCI_DATA_ERROR_FLAGS, datastatus=0x%x [%s]",\
+                        prev_state,state,status, mmc_hostname(host->mmc));
+		        if (status & SDMMC_INT_DRTO) {
 					data->error = -ETIMEDOUT;
 				} else if (status & SDMMC_INT_DCRC) {
 					data->error = -EILSEQ;
@@ -1334,30 +1394,49 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				data->error = 0;
 			}
 
-			if (!data->stop && !data->error) {
+			if (!data->stop) {
+		        MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: no stop and no dataerr, exit. [%s]", \
+                    prev_state,state,mmc_hostname(host->mmc));
 				dw_mci_request_end(host, host->mrq);
 				goto unlock;
 			}
+		    MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: begin to stop . [%s]", \
+                prev_state,state,mmc_hostname(host->mmc));
 
 			if (host->mrq->sbc && !data->error) {
 				data->stop->error = 0;
+				
+    	        MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: have stop and sbc, exit. [%s]", \
+                    prev_state,state,mmc_hostname(host->mmc));
+
 				dw_mci_request_end(host, host->mrq);
 				goto unlock;
 			}
+            printk("%d..%s: ===test===\n", __LINE__, __FUNCTION__); 
 
 			prev_state = state = STATE_SENDING_STOP;
+			if (!data->error)
+			    send_stop_cmd(host, data);
+			#if 0
 			if (data->stop && !data->error) {
 				/* stop command for open-ended transfer*/
+				
+                printk("%d..%s: ===test===\n", __LINE__, __FUNCTION__); 
 				send_stop_abort(host, data);
 			}
+			#endif
 			/* fall through */
+            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: begin to STATE_SENDING_STOP . [%s]", \
+                prev_state,state,mmc_hostname(host->mmc));
 
 		case STATE_SENDING_STOP:
 			if (!test_and_clear_bit(EVENT_CMD_COMPLETE,
 						&host->pending_events))
 				break;
+            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: begin to send cmd12 . [%s]", \
+                prev_state,state,mmc_hostname(host->mmc));
                         
-                        /* CMD error in data command */
+             /* CMD error in data command */
 			if (host->mrq->cmd->error && host->mrq->data) {
 				sg_miter_stop(&host->sg_miter);
 				host->sg = NULL;
@@ -1366,22 +1445,26 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				mci_writel(host, CTRL, ctrl);
 			}
 
-
 			host->cmd = NULL;
 			host->data = NULL;
-
+            #if 1
+            dw_mci_command_complete(host, host->mrq->stop);
+            #else
 			if (host->mrq->stop)
 				dw_mci_command_complete(host, host->mrq->stop);
 			else
 				host->cmd_status = 0;
-
+            #endif
+            
 			dw_mci_request_end(host, host->mrq);
 			goto unlock;
+            printk("%d..%s: ===test===\n", __LINE__, __FUNCTION__); 
 
 		case STATE_DATA_ERROR:
 			if (!test_and_clear_bit(EVENT_XFER_COMPLETE,
 						&host->pending_events))
 				break;
+            printk("%d..%s: ===test===\n", __LINE__, __FUNCTION__); 
 
 			state = STATE_DATA_BUSY;
 			break;
@@ -1913,7 +1996,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 {
 	struct dw_mci *host = container_of(work, struct dw_mci, card_work);
 	int i;
-
+	
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
 		struct mmc_host *mmc = slot->mmc;
@@ -1925,6 +2008,8 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		while (present != slot->last_detect_state) {
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
+            MMC_DBG_BOOT_FUNC("card %s,  devname=%s \n",
+				present ? "inserted" : "removed", mmc_hostname(mmc));
 
 			spin_lock_bh(&host->lock);
 
@@ -1954,10 +2039,11 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 					case STATE_DATA_ERROR:
 						if (mrq->data->error == -EINPROGRESS)
 							mrq->data->error = -ENOMEDIUM;
+						if (!mrq->stop)
+							break;
 						/* fall through */
 					case STATE_SENDING_STOP:
-						if (mrq->stop)
-							mrq->stop->error = -ENOMEDIUM;
+						mrq->stop->error = -ENOMEDIUM;
 						break;
 					}
 
@@ -1969,6 +2055,8 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 						mrq->data->error = -ENOMEDIUM;
 					if (mrq->stop)
 						mrq->stop->error = -ENOMEDIUM;
+						
+                    MMC_DBG_CMD_FUNC("dw_mci_work--reqeuest done, cmd=%d [%s]",mrq->cmd->opcode, mmc_hostname(mmc));
 
 					spin_unlock(&host->lock);
 					mmc_request_done(slot->mmc, mrq);
@@ -2133,7 +2221,7 @@ static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
 	if (!gpio_is_valid(gpio))
 		return;
 
-	if (mmc_gpio_request_cd(mmc, gpio))
+	if (mmc_gpio_request_cd(mmc, gpio, 0))
 		dev_warn(dev, "gpio [%d] request failed\n", gpio);
 }
 #else /* CONFIG_OF */
@@ -2178,6 +2266,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	slot->mmc = mmc;
 	slot->host = host;
 	host->slot[id] = slot;
+	host->mmc = mmc;
 
 	slot->quirks = dw_mci_of_get_slot_quirks(host->dev, slot->id);
 
@@ -2185,7 +2274,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 #if 0
     mmc->f_min = DIV_ROUND_UP(host->bus_hz, 510);
     mmc->f_max = host->bus_hz;
-printk("%d..%s: fmin=%d, fmax=%d, bus_hz=%d \n", __LINE__,__FUNCTION__,mmc->f_min, mmc->f_max, host->bus_hz);    
+    printk("%d..%s: fmin=%d, fmax=%d, bus_hz=%d \n", __LINE__,__FUNCTION__,mmc->f_min, mmc->f_max, host->bus_hz);    
 #else
 	if (of_property_read_u32_array(host->dev->of_node,
 				       "clock-freq-min-max", freq, 2)) {
@@ -2738,7 +2827,7 @@ EXPORT_SYMBOL(dw_mci_remove);
  */
 int dw_mci_suspend(struct dw_mci *host)
 {
-	int i, ret = 0;
+	/*int i, ret = 0;
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
@@ -2754,7 +2843,7 @@ int dw_mci_suspend(struct dw_mci *host)
 			return ret;
 		}
 	}
-
+	*/
 	if (host->vmmc)
 		regulator_disable(host->vmmc);
 
@@ -2807,9 +2896,9 @@ int dw_mci_resume(struct dw_mci *host)
 			dw_mci_setup_bus(slot, true);
 		}
 
-		ret = mmc_resume_host(host->slot[i]->mmc);
-		if (ret < 0)
-			return ret;
+	//	ret = mmc_resume_host(host->slot[i]->mmc);
+	//	if (ret < 0)
+	//		return ret;
 	}
 	return 0;
 }

@@ -50,7 +50,6 @@ struct act8846_regulator_subdev {
 struct act8846_platform_data {
 	int ono;
 	int num_regulators;
-	int (*set_init)(struct act8846 *act8846);
 	struct act8846_regulator_subdev *regulators;
 	
 	int pmic_sleep_gpio; /* */

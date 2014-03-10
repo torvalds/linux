@@ -31,6 +31,29 @@
 #define	DBG(x...)
 #endif
 
+#ifdef CONFIG_HDMI
+	extern int hdmi_is_insert(void);
+#endif
+
+#ifdef CONFIG_HDMI_RK30
+	extern int hdmi_get_hotplug(void);
+#endif
+
+static bool get_hdmi_state(void)
+{
+#ifdef CONFIG_HDMI
+	if(hdmi_is_insert())
+		return true;
+#endif
+
+#ifdef CONFIG_HDMI_RK30
+	if(hdmi_get_hotplug() == 2/*HDMI_HPD_ACTIVED*/)
+		return true;
+#endif
+
+			return false;
+}
+
 static const struct snd_soc_dapm_widget rk_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Jack", NULL),
@@ -263,7 +286,35 @@ static struct snd_soc_card rockchip_rk616_snd_card = {
 	.dai_link = rk_dai,
 	.num_links = 2,
 };
+/*
+dts:
+	rockchip-rk616 {
+		compatible = "rockchip-rk616";
+		dais {
+			dai0 {
+				audio-codec = <&rk616>;
+				i2s-controller = <&i2s0>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
 
+			dai1 {
+				audio-codec = <&rk616>;
+				i2s-controller = <&i2s0>;
+				format = "dsp_a";
+				//continuous-clock;
+				bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+*/
 static int rockchip_rk616_audio_probe(struct platform_device *pdev)
 {
 	int ret;

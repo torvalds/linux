@@ -964,32 +964,6 @@ static int rt5621_reg_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
-void rt5621_codec_set_spk(bool on)
-{
-	struct snd_soc_codec *codec = rt5621_codec; 
-
-	DBG("%s: %d\n", __func__, on);
-
-	if(!codec)
-		return;
-
-	if(on){
-		DBG("snd_soc_dapm_enable_pin\n");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-	}
-	else{
-
-		DBG("snd_soc_dapm_disable_pin\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-	}
-
-	snd_soc_dapm_sync(&codec->dapm);
-
-	return;
-}
-
 static void rt5621_work(struct work_struct *work)
 {
 	struct snd_soc_codec *codec = rt5621_codec;

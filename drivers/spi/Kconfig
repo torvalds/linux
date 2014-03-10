@@ -508,6 +508,23 @@ config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"
 	depends on SPI_DESIGNWARE && HAVE_CLK
 
+config SPI_ROCKCHIP_CORE
+	tristate "ROCKCHIP SPI controller core support"
+	help
+	  general driver for SPI controller core from ROCKCHIP
+
+config SPI_ROCKCHIP
+	tristate "ROCKCHIP SPI interface driver"
+	depends on SPI_ROCKCHIP_CORE
+
+config SPI_ROCKCHIP_DMA
+	bool "DMA support for ROCKCHIP SPI"
+	depends on SPI_ROCKCHIP
+
+config SPI_ROCKCHIP_TEST
+	bool "ROCKCHIP spi test code"
+	depends on SPI_ROCKCHIP
+
 #
 # There are lots of SPI device types, with sensors and memory
 # being probably the most widely used ones.

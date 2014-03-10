@@ -135,24 +135,6 @@ static void spk_ctrl_fun(int status)
 	}
 }
 
-void rk610_codec_set_spk(bool on)
-{
-	struct rk610_codec_priv *rk610_codec;
-	if(!rk610_codec_codec)
-		return;
-		
-	rk610_codec=snd_soc_codec_get_drvdata(rk610_codec_codec);
-	if(!rk610_codec)
-		return;
-	
-	rk610_codec->hdmi_ndet = on;
-	if(on)
-		gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_HIGH);
-	else
-		gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_LOW);			
-}
-EXPORT_SYMBOL(rk610_codec_set_spk);
-
 /*
  * read rk610 register cache
  */

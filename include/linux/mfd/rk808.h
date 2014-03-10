@@ -105,6 +105,20 @@
 #define RK808_NUM_IRQ  9
 
 #define rk808_NUM_REGULATORS 12
+
+#define RK808_VBAT_LOW_2V8  0x00
+#define RK808_VBAT_LOW_2V9  0x01
+#define RK808_VBAT_LOW_3V0  0x02
+#define RK808_VBAT_LOW_3V1  0x03
+#define RK808_VBAT_LOW_3V2  0x04
+#define RK808_VBAT_LOW_3V3  0x05
+#define RK808_VBAT_LOW_3V4  0x06
+#define RK808_VBAT_LOW_3V5  0x07
+#define VBAT_LOW_VOL_MASK (0x07 << 0)
+#define EN_VABT_LOW_SHUT_DOWN (0x00 << 4)
+#define EN_VBAT_LOW_IRQ (0x1 <<4 )
+#define VBAT_LOW_ACT_MASK (0x1 << 4)
+
 struct rk808;
 
 struct rk808_board {
@@ -152,8 +166,6 @@ struct rk808 {
 
 struct rk808_platform_data {
 	int num_regulators;
-	int (*pre_init)(struct rk808 *rk808);
-	int (*set_init)(struct rk808 *rk808);
 	struct rk808_regulator_subdev *regulators;
 	int irq;
 	int irq_base;

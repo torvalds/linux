@@ -1479,28 +1479,6 @@ static int rt5616_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-void rt5616_codec_set_spk(bool on)
-{
-
-	struct snd_soc_codec *codec = rt5616_codec;
-	printk("%s: %d\n", __func__, on);
-
-	if(!codec)
-		return;
-
-	mutex_lock(&codec->mutex);
-	if(on){
-		printk(">>>> snd_soc_dapm_enable_pin\n");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-	}else{
-		printk(">>>> snd_soc_dapm_disable_pin\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-	}
-	snd_soc_dapm_sync(&codec->dapm);
-	mutex_unlock(&codec->mutex);
-}
 static int rt5616_probe(struct snd_soc_codec *codec)
 {
 	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
