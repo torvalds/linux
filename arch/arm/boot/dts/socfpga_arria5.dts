@@ -39,14 +39,6 @@
 	};
 
 	soc {
-		clkmgr@ffd04000 {
-			clocks {
-				osc1 {
-					clock-frequency = <25000000>;
-				};
-			};
-		};
-
 		dwmmc0@ff704000 {
 			num-slots = <1>;
 			supports-highspeed;
@@ -71,28 +63,8 @@
 			status = "okay";
 		};
 
-		timer0@ffc08000 {
-			clock-frequency = <100000000>;
-		};
-
-		timer1@ffc09000 {
-			clock-frequency = <100000000>;
-		};
-
-		timer2@ffd00000 {
-			clock-frequency = <25000000>;
-		};
-
-		timer3@ffd01000 {
-			clock-frequency = <25000000>;
-		};
-
 		serial0@ffc02000 {
-			clock-frequency = <100000000>;
-		};
-
-		serial1@ffc03000 {
-			clock-frequency = <100000000>;
+			status = "okay";
 		};
 
 		sysmgr@ffd08000 {
@@ -100,6 +72,10 @@
 		};
 
 		usb1: usb@ffb40000 {
+			status = "okay";
+		};
+
+		watchdog0: wd@ffd02000 {
 			status = "okay";
 		};
 
@@ -128,6 +104,22 @@
 	};
 };
 
+&gmac1 {
+	phy-mode = "rgmii";
+	snps,phy-addr = <0xffffffff>; /* probe for phy addr */
+	rxd0-skew-ps = <0>;
+	rxd0-skew-ps = <0>;
+	rxd1-skew-ps = <0>;
+	rxd2-skew-ps = <0>;
+	rxd3-skew-ps = <0>;
+	txen-skew-ps = <0>;
+	txc-skew-ps = <2600>;
+	rxdv-skew-ps = <0>;
+	rxc-skew-ps = <3000>;
+	snps,max-mtu = <3800>;
+	status = "okay";
+};
+
 &i2c0 {
 	lcd: lcd@28 {
 		compatible = "newhaven,nhd-0216k3z-nsw-bbw";
@@ -147,6 +139,10 @@
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 	};
+};
+
+&osc1 {
+	clock-frequency = <25000000>;
 };
 
 &qspi {
