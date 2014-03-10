@@ -1812,7 +1812,7 @@ struct pcpu_sw_netstats {
 
 #define netdev_alloc_pcpu_stats(type)				\
 ({								\
-	typeof(type) *pcpu_stats = alloc_percpu(type);		\
+	typeof(type) __percpu *pcpu_stats = alloc_percpu(type); \
 	if (pcpu_stats)	{					\
 		int i;						\
 		for_each_possible_cpu(i) {			\
