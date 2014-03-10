@@ -2441,7 +2441,7 @@ static short rtl8180_init(struct net_device *dev)
 	priv->bSwRfProcessing = false;
 	priv->eRFPowerState = eRfOff;
 	priv->RfOffReason = 0;
-	priv->LedStrategy = SW_LED_MODE0;
+	priv->led_strategy = SW_LED_MODE0;
 	priv->TxPollingTimes = 0; /* lzm add 080826 */
 	priv->bLeisurePs = true;
 	priv->dot11PowerSaveMode = eActive;

@@ -231,12 +231,13 @@ struct link_detect_t {
  * LED customization.
  * ==========================================================================
  */
-typedef enum _LED_STRATEGY_8185 {
+enum led_strategy_8185 {
 	SW_LED_MODE0,
 	SW_LED_MODE1,
 	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different
 		 * control modes). */
-} LED_STRATEGY_8185, *PLED_STRATEGY_8185;
+};
+
 /* by amy for led. */
 /* by amy for power save. */
 typedef enum _LED_CTL_MODE {
@@ -459,7 +460,7 @@ struct r8180_priv {
 	u16 rts;
 
 	/* by amy for led. */
-	LED_STRATEGY_8185 LedStrategy;
+	enum led_strategy_8185 led_strategy;
 	/* by amy for led. */
 
 	/* by amy for power save. */
