@@ -1134,6 +1134,7 @@ static int msi3101_g_fmt_sdr_cap(struct file *file, void *priv,
 	dev_dbg(&s->udev->dev, "%s: pixelformat fourcc %4.4s\n", __func__,
 			(char *)&s->pixelformat);
 
+	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	f->fmt.sdr.pixelformat = s->pixelformat;
 
 	return 0;
@@ -1151,6 +1152,7 @@ static int msi3101_s_fmt_sdr_cap(struct file *file, void *priv,
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
+	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	for (i = 0; i < NUM_FORMATS; i++) {
 		if (formats[i].pixelformat == f->fmt.sdr.pixelformat) {
 			s->pixelformat = f->fmt.sdr.pixelformat;
@@ -1172,6 +1174,7 @@ static int msi3101_try_fmt_sdr_cap(struct file *file, void *priv,
 	dev_dbg(&s->udev->dev, "%s: pixelformat fourcc %4.4s\n", __func__,
 			(char *)&f->fmt.sdr.pixelformat);
 
+	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	for (i = 0; i < NUM_FORMATS; i++) {
 		if (formats[i].pixelformat == f->fmt.sdr.pixelformat)
 			return 0;
@@ -1233,6 +1236,7 @@ static int msi3101_g_frequency(struct file *file, void *priv,
 		f->frequency = s->f_adc;
 		ret = 0;
 	} else if (f->tuner == 1) {
+		f->type = V4L2_TUNER_RF;
 		ret = v4l2_subdev_call(s->v4l2_subdev, tuner, g_frequency, f);
 	} else {
 		ret = -EINVAL;
