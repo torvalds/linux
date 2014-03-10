@@ -71,20 +71,66 @@ int mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 
 
 /**
+ * mei_cl_cmp_id - tells if the clients are the same
+ *
+ * @cl1: host client 1
+ * @cl2: host client 2
+ *
+ * returns true  - if the clients has same host and me ids
+ *         false - otherwise
+ */
+static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
+				const struct mei_cl *cl2)
+{
+	return cl1 && cl2 &&
+		(cl1->host_client_id == cl2->host_client_id) &&
+		(cl1->me_client_id == cl2->me_client_id);
+}
+
+/**
+ * mei_io_list_flush - removes cbs belonging to cl.
+ *
+ * @list:  an instance of our list structure
+ * @cl:    host client, can be NULL for flushing the whole list
+ * @free:  whether to free the cbs
+ */
+static void __mei_io_list_flush(struct mei_cl_cb *list,
+				struct mei_cl *cl, bool free)
+{
+	struct mei_cl_cb *cb;
+	struct mei_cl_cb *next;
+
+	/* enable removing everything if no cl is specified */
+	list_for_each_entry_safe(cb, next, &list->list, list) {
+		if (!cl || (cb->cl && mei_cl_cmp_id(cl, cb->cl))) {
+			list_del(&cb->list);
+			if (free)
+				mei_io_cb_free(cb);
+		}
+	}
+}
+
+/**
  * mei_io_list_flush - removes list entry belonging to cl.
  *
  * @list:  An instance of our list structure
  * @cl: host client
  */
-void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
+static inline void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
 {
-	struct mei_cl_cb *cb;
-	struct mei_cl_cb *next;
+	__mei_io_list_flush(list, cl, false);
+}
 
-	list_for_each_entry_safe(cb, next, &list->list, list) {
-		if (cb->cl && mei_cl_cmp_id(cl, cb->cl))
-			list_del(&cb->list);
-	}
+
+/**
+ * mei_io_list_free - removes cb belonging to cl and free them
+ *
+ * @list:  An instance of our list structure
+ * @cl: host client
+ */
+static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
+{
+	__mei_io_list_flush(list, cl, true);
 }
 
 /**
@@ -193,8 +239,8 @@ int mei_cl_flush_queues(struct mei_cl *cl)
 
 	cl_dbg(dev, cl, "remove list entry belonging to cl\n");
 	mei_io_list_flush(&cl->dev->read_list, cl);
-	mei_io_list_flush(&cl->dev->write_list, cl);
-	mei_io_list_flush(&cl->dev->write_waiting_list, cl);
+	mei_io_list_free(&cl->dev->write_list, cl);
+	mei_io_list_free(&cl->dev->write_waiting_list, cl);
 	mei_io_list_flush(&cl->dev->ctrl_wr_list, cl);
 	mei_io_list_flush(&cl->dev->ctrl_rd_list, cl);
 	mei_io_list_flush(&cl->dev->amthif_cmd_list, cl);
@@ -956,20 +1002,8 @@ void mei_cl_all_wakeup(struct mei_device *dev)
  */
 void mei_cl_all_write_clear(struct mei_device *dev)
 {
-	struct mei_cl_cb *cb, *next;
-	struct list_head *list;
-
-	list = &dev->write_list.list;
-	list_for_each_entry_safe(cb, next, list, list) {
-		list_del(&cb->list);
-		mei_io_cb_free(cb);
-	}
-
-	list = &dev->write_waiting_list.list;
-	list_for_each_entry_safe(cb, next, list, list) {
-		list_del(&cb->list);
-		mei_io_cb_free(cb);
-	}
+	mei_io_list_free(&dev->write_list, NULL);
+	mei_io_list_free(&dev->write_waiting_list, NULL);
 }
 
 
