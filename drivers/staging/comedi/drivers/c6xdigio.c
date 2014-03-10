@@ -43,8 +43,6 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 
 #include "../comedidev.h"
 
-#define C6XDIGIO_SIZE 3
-
 /*
  * port offsets
  */
@@ -356,7 +354,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], C6XDIGIO_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x03);
 	if (ret)
 		return ret;
 
