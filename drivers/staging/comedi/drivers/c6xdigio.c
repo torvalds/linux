@@ -143,54 +143,55 @@ static void c6xdigio_pwm_write(struct comedi_device *dev,
 	c6xdigio_chk_status(dev->iobase, 0x80);
 }
 
-static int C6X_encInput(unsigned long baseAddr, unsigned channel)
+static int c6xdigio_encoder_read(struct comedi_device *dev,
+				 unsigned int chan)
 {
 	unsigned ppcmd;
 	union encvaluetype enc;
 
 	enc.value = 0;
-	if (channel == 0)
+	if (chan == 0)
 		ppcmd = 0x48;
 	else
 		ppcmd = 0x50;
 
-	outb_p(ppcmd, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(ppcmd, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	enc.bits.sb0 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd + 0x4, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	enc.bits.sb0 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd + 0x4, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	enc.bits.sb1 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	enc.bits.sb1 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	enc.bits.sb2 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd + 0x4, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	enc.bits.sb2 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd + 0x4, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	enc.bits.sb3 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	enc.bits.sb3 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	enc.bits.sb4 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd + 0x4, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	enc.bits.sb4 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd + 0x4, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	enc.bits.sb5 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	enc.bits.sb5 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	enc.bits.sb6 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd + 0x4, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	enc.bits.sb6 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd + 0x4, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	enc.bits.sb7 = ((inb(baseAddr + 1) >> 3) & 0x7);
-	outb_p(ppcmd, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	enc.bits.sb7 = ((inb(dev->iobase + 1) >> 3) & 0x7);
+	outb_p(ppcmd, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(0x0, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(0x0, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
 	return enc.value ^ 0x800000;
 }
@@ -229,11 +230,11 @@ static int c6xdigio_ei_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int n;
-	int chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++)
-		data[n] = (C6X_encInput(dev->iobase, chan) & 0xffffff);
+		data[n] = (c6xdigio_encoder_read(dev, chan) & 0xffffff);
 
 	return n;
 }
