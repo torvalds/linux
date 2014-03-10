@@ -213,6 +213,7 @@ enum lpc_chipsets {
 	LPC_LPT_LP,	/* Lynx Point-LP */
 	LPC_WBG,	/* Wellsburg */
 	LPC_AVN,	/* Avoton SoC */
+	LPC_BAYTRAIL,   /* Bay Trail SoC */
 	LPC_COLETO,	/* Coleto Creek */
 	LPC_WPT_LP,	/* Wildcat Point-LP */
 };
@@ -505,6 +506,10 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.iTCO_version = 3,
 		.gpio_version = AVOTON_GPIO,
 	},
+	[LPC_BAYTRAIL] = {
+		.name = "Bay Trail SoC",
+		.iTCO_version = 3,
+	},
 	[LPC_COLETO] = {
 		.name = "Coleto Creek",
 		.iTCO_version = 2,
@@ -730,6 +735,7 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x1f39), LPC_AVN},
 	{ PCI_VDEVICE(INTEL, 0x1f3a), LPC_AVN},
 	{ PCI_VDEVICE(INTEL, 0x1f3b), LPC_AVN},
+	{ PCI_VDEVICE(INTEL, 0x0f1c), LPC_BAYTRAIL},
 	{ PCI_VDEVICE(INTEL, 0x2390), LPC_COLETO},
 	{ PCI_VDEVICE(INTEL, 0x9cc1), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc2), LPC_WPT_LP},
