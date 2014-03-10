@@ -182,6 +182,22 @@ static int rk808_ldo_disable(struct regulator_dev *dev)
 	return rk808_set_bits(rk808, RK808_LDO_EN_REG, 1 << ldo, 0);
 
 }
+static int rk808_ldo_suspend_enable(struct regulator_dev *dev)
+{
+	struct rk808 *rk808 = rdev_get_drvdata(dev);
+	int ldo= rdev_get_id(dev) - RK808_LDO1;
+	
+	return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG2, 1 << ldo, 0);
+	
+}
+static int rk808_ldo_suspend_disable(struct regulator_dev *dev)
+{
+	struct rk808 *rk808 = rdev_get_drvdata(dev);
+	int ldo= rdev_get_id(dev) - RK808_LDO1;
+	
+	return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG2, 1 << ldo, 1 << ldo);
+
+}
 static int rk808_ldo_get_voltage(struct regulator_dev *dev)
 {
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
@@ -316,6 +332,8 @@ static struct regulator_ops rk808_ldo_ops = {
 	.is_enabled = rk808_ldo_is_enabled,
 	.enable = rk808_ldo_enable,
 	.disable = rk808_ldo_disable,
+	.set_suspend_enable =rk808_ldo_suspend_enable,
+	.set_suspend_disable =rk808_ldo_suspend_disable,
 	.get_mode = rk808_ldo_get_mode,
 	.set_mode = rk808_ldo_set_mode,
 	.set_suspend_voltage = rk808_ldo_set_sleep_voltage,
@@ -376,6 +394,22 @@ static int rk808_dcdc_disable(struct regulator_dev *dev)
 	int buck = rdev_get_id(dev) - RK808_DCDC1;
 	
 	 return rk808_set_bits(rk808, RK808_DCDC_EN_REG, 1 << buck , 0);
+}
+
+static int rk808_dcdc_suspend_enable(struct regulator_dev *dev)
+{
+	struct rk808 *rk808 = rdev_get_drvdata(dev);
+	int buck = rdev_get_id(dev) - RK808_DCDC1;
+
+	return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG1, 1 << buck, 0);
+
+}
+static int rk808_dcdc_suspend_disable(struct regulator_dev *dev)
+{
+	struct rk808 *rk808 = rdev_get_drvdata(dev);
+	int buck = rdev_get_id(dev) - RK808_DCDC1;
+	
+	 return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG1, 1 << buck , 1 << buck);
 }
 static int rk808_dcdc_get_voltage(struct regulator_dev *dev)
 {
@@ -504,6 +538,24 @@ static int rk808_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 	}
 
 }
+static int rk808_dcdc_set_suspend_mode(struct regulator_dev *dev, unsigned int mode)
+{
+	struct rk808 *rk808 = rdev_get_drvdata(dev);
+	int buck = rdev_get_id(dev) - RK808_DCDC1;
+	u16 mask = 0x80;
+
+	switch(mode)
+	{
+	case REGULATOR_MODE_FAST:
+		return rk808_set_bits(rk808, (rk808_BUCK_SET_VOL_REG(buck) + 0x01), mask, mask);
+	case REGULATOR_MODE_NORMAL:
+		return rk808_set_bits(rk808, (rk808_BUCK_SET_VOL_REG(buck) + 0x01), mask, 0);
+	default:
+		printk("error:pmu_rk808 only powersave and pwm mode\n");
+		return -EINVAL;
+	}
+
+}
 static int rk808_dcdc_set_voltage_time_sel(struct regulator_dev *dev,   unsigned int old_selector,
 				     unsigned int new_selector)
 {
@@ -527,8 +579,11 @@ static struct regulator_ops rk808_dcdc_ops = {
 	.is_enabled = rk808_dcdc_is_enabled,
 	.enable = rk808_dcdc_enable,
 	.disable = rk808_dcdc_disable,
+	.set_suspend_enable =rk808_dcdc_suspend_enable,
+	.set_suspend_disable =rk808_dcdc_suspend_disable,
 	.get_mode = rk808_dcdc_get_mode,
 	.set_mode = rk808_dcdc_set_mode,
+	.set_suspend_mode = rk808_dcdc_set_suspend_mode,
 	.set_suspend_voltage = rk808_dcdc_set_sleep_voltage,
 	.set_voltage_time_sel = rk808_dcdc_set_voltage_time_sel,
 };
@@ -1076,6 +1131,112 @@ __weak void rk808_early_suspend(struct early_suspend *h) {}
 __weak void rk808_late_resume(struct early_suspend *h) {}
 #endif
 
+static int rk808_pre_init(struct rk808 *rk808)
+{
+	int ret,val;
+	 printk("%s,line=%d\n", __func__,__LINE__);
+	 /***********set ILIM ************/
+	val = rk808_reg_read(rk808,RK808_BUCK3_CONFIG_REG);
+	val &= (~(0x7 <<0));
+	val |= (0x2 <<0);
+	ret = rk808_reg_write(rk808,RK808_BUCK3_CONFIG_REG,val);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write RK808_BUCK3_CONFIG_REG reg\n");
+                return ret;
+        }
+
+	val = rk808_reg_read(rk808,RK808_BUCK4_CONFIG_REG);
+	val &= (~(0x7 <<0));
+	val |= (0x3 <<0);
+	ret = rk808_reg_write(rk808,RK808_BUCK4_CONFIG_REG,val);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write RK808_BUCK4_CONFIG_REG reg\n");
+                return ret;
+        }
+	
+	val = rk808_reg_read(rk808,RK808_BOOST_CONFIG_REG);
+	val &= (~(0x7 <<0));
+	val |= (0x1 <<0);
+	ret = rk808_reg_write(rk808,RK808_BOOST_CONFIG_REG,val);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write RK808_BOOST_CONFIG_REG reg\n");
+                return ret;
+        }
+	/*****************************************/
+	/***********set buck OTP function************/
+	ret = rk808_reg_write(rk808,0x6f,0x5a);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write 0x6f reg\n");
+                return ret;
+        }
+	
+	ret = rk808_reg_write(rk808,0x91,0x80);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write 0x91 reg\n");
+                return ret;
+        }
+
+        ret = rk808_reg_write(rk808,0x92,0x55);
+	 if (ret <0) {
+                printk(KERN_ERR "Unable to write 0x92 reg\n");
+                return ret;
+        }
+	/*****************************************/
+	/***********set buck 12.5mv/us ************/
+	val = rk808_reg_read(rk808,RK808_BUCK1_CONFIG_REG);
+	val &= (~(0x3 <<3));
+	val |= (0x3 <<0);
+	ret = rk808_reg_write(rk808,RK808_BUCK1_CONFIG_REG,val);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write RK808_BUCK1_CONFIG_REG reg\n");
+                return ret;
+        }
+
+	val = rk808_reg_read(rk808,RK808_BUCK2_CONFIG_REG);
+        val &= (~(0x3 <<3));
+	val |= (0x3 <<0);
+        ret = rk808_reg_write(rk808,RK808_BUCK2_CONFIG_REG,val);
+	 if (ret <0) {
+                printk(KERN_ERR "Unable to write RK808_BUCK2_CONFIG_REG reg\n");
+                return ret;
+        }
+	/*****************************************/
+
+	/*******enable switch and boost***********/
+	val = rk808_reg_read(rk808,RK808_DCDC_EN_REG);
+        val |= (0x3 << 5);    //enable switch1/2
+	val |= (0x1 << 4);    //enable boost
+        ret = rk808_reg_write(rk808,RK808_DCDC_EN_REG,val);
+         if (ret <0) {
+                printk(KERN_ERR "Unable to write RK808_DCDC_EN_REG reg\n");
+                return ret;
+	}
+	/****************************************/
+	
+
+	/****************set vbat low **********/
+	val = rk808_reg_read(rk808,RK808_VB_MON_REG);
+       val &=(~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK));
+       val |= (RK808_VBAT_LOW_3V5 | EN_VBAT_LOW_IRQ);
+       ret = rk808_reg_write(rk808,RK808_VB_MON_REG,val);
+         if (ret <0) {
+                printk(KERN_ERR "Unable to write RK818_VB_MON_REG reg\n");
+                return ret;
+        }
+	/**************************************/
+	
+	/**********mask int****************/
+	 val = rk808_reg_read(rk808,RK808_INT_STS_MSK_REG1);
+         val |= (0x1<<0); //mask vout_lo_int    
+        ret = rk808_reg_write(rk808,RK808_INT_STS_MSK_REG1,val);
+         if (ret <0) {
+                printk(KERN_ERR "Unable to write RK808_INT_STS_MSK_REG1 reg\n");
+                return ret;
+        }
+	/**********************************/
+	return 0;
+}
+
 static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct rk808 *rk808;	
@@ -1097,7 +1258,7 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 		}
 	}
 
-	rk808 = kzalloc(sizeof(struct rk808), GFP_KERNEL);
+	rk808 = devm_kzalloc(&i2c->dev,sizeof(struct rk808), GFP_KERNEL);
 	if (rk808 == NULL) {
 		ret = -ENOMEM;		
 		goto err;
@@ -1119,14 +1280,14 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 	ret = rk808_reg_read(rk808,0x2f);
 	if ((ret < 0) || (ret == 0xff)){
 		printk("The device is not rk808 %d\n",ret);
-		return 0;
-	}
-	rk808_set_bits(rk808,0x21,(1<<4),(1 <<4));
-	rk808_set_bits(rk808,0x21,(7<<0),(7 <<0));
-	rk808_set_bits(rk808,0x23,(7<<4),(7 <<4)); //enable boost &swith0\1
-
-	if (ret < 0)
 		goto err;
+	}
+
+	ret = rk808_pre_init(rk808);
+	if (ret < 0){
+		printk("The rk808_pre_init failed %d\n",ret);
+		goto err;
+	}
 
 	if (rk808->dev->of_node)
 		pdev = rk808_parse_dt(rk808);
@@ -1229,6 +1390,7 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 	return 0;
 
 err:
+	mfd_remove_devices(rk808->dev);
 	return ret;	
 
 }

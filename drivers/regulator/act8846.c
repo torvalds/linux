@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/mfd/core.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -853,7 +854,7 @@ static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 		}
 	}
 
-	act8846 = kzalloc(sizeof(struct act8846), GFP_KERNEL);
+	act8846 = devm_kzalloc(&i2c->dev,sizeof(struct act8846), GFP_KERNEL);
 	if (act8846 == NULL) {
 		ret = -ENOMEM;		
 		goto err;
@@ -875,7 +876,7 @@ static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 	ret = act8846_reg_read(act8846,0x22);
 	if ((ret < 0) || (ret == 0xff)){
 		printk("The device is not act8846 %x \n",ret);
-		return 0;
+		goto err;
 	}
 
 	ret = act8846_set_bits(act8846, 0xf4,(0x1<<7),(0x0<<7));
