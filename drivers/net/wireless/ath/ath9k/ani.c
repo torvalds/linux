@@ -318,17 +318,6 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	BUG_ON(aniState == NULL);
 	ah->stats.ast_ani_reset++;
 
-	/* only allow a subset of functions in AP mode */
-	if (ah->opmode == NL80211_IFTYPE_AP) {
-		if (IS_CHAN_2GHZ(chan)) {
-			ah->ani_function = (ATH9K_ANI_SPUR_IMMUNITY_LEVEL |
-					    ATH9K_ANI_FIRSTEP_LEVEL);
-			if (AR_SREV_9300_20_OR_LATER(ah))
-				ah->ani_function |= ATH9K_ANI_MRC_CCK;
-		} else
-			ah->ani_function = 0;
-	}
-
 	ofdm_nil = max_t(int, ATH9K_ANI_OFDM_DEF_LEVEL,
 			 aniState->ofdmNoiseImmunityLevel);
 	cck_nil = max_t(int, ATH9K_ANI_CCK_DEF_LEVEL,
