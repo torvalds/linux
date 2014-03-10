@@ -287,7 +287,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		}
 
 		if (!cinfo->name	||
-		    !cinfo->card	||
 		    !cinfo->codec_dai.name	||
 		    !cinfo->codec	||
 		    !cinfo->platform	||
@@ -296,7 +295,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		priv->snd_card.name	= cinfo->card;
+		priv->snd_card.name	= (cinfo->card) ? cinfo->card : cinfo->name;
 		dai_link->name		= cinfo->name;
 		dai_link->stream_name	= cinfo->name;
 		dai_link->platform_name	= cinfo->platform;
