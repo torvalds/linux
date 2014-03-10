@@ -33,6 +33,8 @@
 #include <linux/wakelock.h>
 #include <linux/cdev.h>
 #include <linux/of.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/cru.h>
 
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
@@ -41,14 +43,11 @@
 #include <linux/debugfs.h>
 #endif
 
-#include "cru.h"
-
 #if defined(CONFIG_ARCH_RK319X)
 #include <mach/grf.h>
 #endif
 
 #include "vcodec_service.h"
-#include "cpu.h"
 
 #define HEVC_TEST_ENABLE    0
 #define HEVC_SIM_ENABLE		0

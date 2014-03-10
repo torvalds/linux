@@ -1,6 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/cpu.h>
-#include "cpu.h"
+#include <linux/rockchip/cpu.h>
 
 unsigned long rockchip_soc_id;
 EXPORT_SYMBOL(rockchip_soc_id);

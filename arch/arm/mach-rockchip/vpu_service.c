@@ -38,6 +38,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wakelock.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/cru.h>
 
 #include <asm/uaccess.h>
 #if 0
@@ -47,22 +49,12 @@
 #define IRQ_VEPU                        41
 #define IRQ_VDPU                        42
 #endif
-#if 0
-#include <mach/cru.h>
-#else
-#include "cru.h"
-#endif
 
 #if defined(CONFIG_ARCH_RK319X)
 #include <mach/grf.h>
 #endif
-#if 0
-#include <plat/vpu_service.h>
-#include <plat/cpu.h>
-#else
+
 #include "vpu_service.h"
-#include "cpu.h"
-#endif
 
 typedef enum {
 	VPU_DEC_ID_9190		= 0x6731,

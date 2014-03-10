@@ -3,7 +3,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
-#include "../../../arch/arm/mach-rockchip/cru.h"
+#include <linux/rockchip/cru.h>
 
 
 #define CLK_LOOPS_JIFFY_REF	(11996091ULL)

@@ -1,9 +1,9 @@
 #ifndef __RK_CLK_OPS_H
 #define __RK_CLK_OPS_H
-#include <dt-bindings/clock/rockchip,rk3188.h>
-#include "../../../arch/arm/mach-rockchip/iomap.h"
-#include "../../../arch/arm/mach-rockchip/grf.h"
 
+#include <dt-bindings/clock/rockchip,rk3188.h>
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/grf.h>
 
 #define MHZ			(1000UL * 1000UL)
 #define KHZ			(1000UL)

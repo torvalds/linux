@@ -16,7 +16,7 @@
 #include <asm/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include "cpu.h"
+#include <linux/rockchip/cpu.h>
 
 static void __iomem *gic_cpu_base;
 

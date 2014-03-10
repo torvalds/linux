@@ -20,7 +20,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <asm/hardware/cache-l2x0.h>
-#include "common.h"
+#include <linux/rockchip/common.h>
 #include "cpu_axi.h"
 #include "loader.h"
 #include "pmu.h"

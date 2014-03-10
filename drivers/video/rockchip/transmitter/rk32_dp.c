@@ -23,9 +23,9 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/grf.h>
 #include "rk32_dp.h"
-#include "../../../arch/arm/mach-rockchip/iomap.h"
-#include "../../../arch/arm/mach-rockchip/grf.h"
 
 #if defined(CONFIG_OF)
 #include <linux/of.h>

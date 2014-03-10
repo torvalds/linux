@@ -26,11 +26,11 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/grf.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
-#include "../../../arch/arm/mach-rockchip/cpu.h"
-#include "../../../arch/arm/mach-rockchip/iomap.h"
-#include "../../../arch/arm/mach-rockchip/grf.h"
 
 #include "rk3288_lcdc.h"
 

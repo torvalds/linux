@@ -6,11 +6,9 @@
 #include <linux/of_address.h>
 #include <linux/clk-private.h>
 #include <linux/delay.h>
+#include <linux/rockchip/common.h>
 
 #include "clk-ops.h"
-#include "../../../arch/arm/mach-rockchip/common.h"
-
-
 
 /* mux_ops */
 struct clk_ops_table rk_clk_mux_ops_table[] = {

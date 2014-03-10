@@ -19,7 +19,7 @@
 #include <linux/cpu.h>
 #include <dt-bindings/clock/ddr.h>
 
-#include "cru.h"
+#include <linux/rockchip/cru.h>
 
 typedef uint32_t uint32;
 

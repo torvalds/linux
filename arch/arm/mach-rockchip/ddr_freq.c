@@ -16,10 +16,9 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <linux/vmalloc.h>
+#include <linux/rockchip/common.h>
 #include <linux/rockchip/dvfs.h>
 #include <dt-bindings/clock/ddr.h>
-
-#include "common.h"
 
 enum {
 	DEBUG_DDR = 1U << 0,

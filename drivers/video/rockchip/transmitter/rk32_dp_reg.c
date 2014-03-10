@@ -13,9 +13,9 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include "../../../arch/arm/mach-rockchip/cpu.h"
-#include "../../../arch/arm/mach-rockchip/iomap.h"
-#include "../../../arch/arm/mach-rockchip/grf.h"
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/grf.h>
 
 #include "rk32_dp.h"
 
