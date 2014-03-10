@@ -85,10 +85,10 @@ struct chnl_access_setting {
 	u16 cwmax_index;
 };
 
-typedef enum {
+enum nic_t {
 	NIC_8185 = 1,
 	NIC_8185B
-	} nic_t;
+};
 
 typedef u32 AC_CODING;
 #define AC0_BE	0 /* ACI: 0x00 */ /* Best Effort. */
