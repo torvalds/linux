@@ -77,45 +77,40 @@ union encvaluetype {
 
 #define C6XDIGIO_TIME_OUT 20
 
-static void C6X_pwmInit(unsigned long baseAddr)
+static int c6xdigio_chk_status(unsigned long baseAddr, unsigned long context)
 {
+	unsigned int status;
 	int timeout = 0;
 
-	outb_p(0x70, baseAddr);
-	while (((inb(baseAddr + 1) & 0x80) == 0)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
+	do {
+		status = inb(baseAddr + 1);
+		if ((status & 0x80) != context)
+			return 0;
 		timeout++;
-	}
+	} while  (timeout < C6XDIGIO_TIME_OUT);
+
+	return -EBUSY;
+}
+
+static void C6X_pwmInit(unsigned long baseAddr)
+{
+	outb_p(0x70, baseAddr);
+	c6xdigio_chk_status(baseAddr, 0x00);
 
 	outb_p(0x74, baseAddr);
-	timeout = 0;
-	while (((inb(baseAddr + 1) & 0x80) == 0x80)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
 
 	outb_p(0x70, baseAddr);
-	timeout = 0;
-	while (((inb(baseAddr + 1) & 0x80) == 0x0)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
 
 	outb_p(0x0, baseAddr);
-	timeout = 0;
-	while (((inb(baseAddr + 1) & 0x80) == 0x80)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
-		timeout++;
-	}
-
+	c6xdigio_chk_status(baseAddr, 0x80);
 }
 
 static void C6X_pwmOutput(unsigned long baseAddr, unsigned channel, int value)
 {
 	unsigned ppcmd;
 	union pwmcmdtype pwm;
-	int timeout = 0;
-	unsigned tmp;
 
 	pwm.cmd = value;
 	if (pwm.cmd > 498)
@@ -130,58 +125,28 @@ static void C6X_pwmOutput(unsigned long baseAddr, unsigned channel, int value)
 	}			/* endif */
 
 	outb_p(ppcmd + pwm.bits.sb0, baseAddr);
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
 
 	outb_p(ppcmd + pwm.bits.sb1 + 0x4, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
 
 	outb_p(ppcmd + pwm.bits.sb2, baseAddr);
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
 
 	outb_p(ppcmd + pwm.bits.sb3 + 0x4, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
 
 	outb_p(ppcmd + pwm.bits.sb4, baseAddr);
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
 
 	outb_p(0x0, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
-
+	c6xdigio_chk_status(baseAddr, 0x80);
 }
 
 static int C6X_encInput(unsigned long baseAddr, unsigned channel)
 {
 	unsigned ppcmd;
 	union encvaluetype enc;
-	int timeout = 0;
-	int tmp;
 
 	enc.value = 0;
 	if (channel == 0)
@@ -190,115 +155,59 @@ static int C6X_encInput(unsigned long baseAddr, unsigned channel)
 		ppcmd = 0x50;
 
 	outb_p(ppcmd, baseAddr);
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
 
 	enc.bits.sb0 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
+
 	enc.bits.sb1 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
+
 	enc.bits.sb2 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
+
 	enc.bits.sb3 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
+
 	enc.bits.sb4 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
+
 	enc.bits.sb5 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
+
 	enc.bits.sb6 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
+
 	enc.bits.sb7 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	outb_p(ppcmd, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
 
 	outb_p(0x0, baseAddr);
-	timeout = 0;
-	tmp = inb(baseAddr + 1);
-	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = inb(baseAddr + 1);
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
 
 	return enc.value ^ 0x800000;
 }
 
 static void C6X_encResetAll(unsigned long baseAddr)
 {
-	unsigned timeout = 0;
+	outb_p(0x68, baseAddr);
+	c6xdigio_chk_status(baseAddr, 0x00);
+
+	outb_p(0x6c, baseAddr);
+	c6xdigio_chk_status(baseAddr, 0x80);
 
 	outb_p(0x68, baseAddr);
-	while (((inb(baseAddr + 1) & 0x80) == 0)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
-		timeout++;
-	}
-	outb_p(0x6c, baseAddr);
-	timeout = 0;
-	while (((inb(baseAddr + 1) & 0x80) == 0x80)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
-		timeout++;
-	}
-	outb_p(0x68, baseAddr);
-	timeout = 0;
-	while (((inb(baseAddr + 1) & 0x80) == 0x0)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x00);
+
 	outb_p(0x0, baseAddr);
-	timeout = 0;
-	while (((inb(baseAddr + 1) & 0x80) == 0x80)
-	       && (timeout < C6XDIGIO_TIME_OUT)) {
-		timeout++;
-	}
+	c6xdigio_chk_status(baseAddr, 0x80);
 }
 
 static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
