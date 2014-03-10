@@ -92,19 +92,19 @@ static int c6xdigio_chk_status(unsigned long baseAddr, unsigned long context)
 	return -EBUSY;
 }
 
-static void C6X_pwmInit(unsigned long baseAddr)
+static void c6xdigio_pwm_init(struct comedi_device *dev)
 {
-	outb_p(0x70, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(0x70, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(0x74, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(0x74, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	outb_p(0x70, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(0x70, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(0x0, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(0x0, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 }
 
 static void C6X_pwmOutput(unsigned long baseAddr, unsigned channel, int value)
@@ -240,7 +240,7 @@ static int c6xdigio_ei_insn_read(struct comedi_device *dev,
 
 static void board_init(struct comedi_device *dev)
 {
-	C6X_pwmInit(dev->iobase);
+	c6xdigio_pwm_init(dev);
 	C6X_encResetAll(dev->iobase);
 }
 
