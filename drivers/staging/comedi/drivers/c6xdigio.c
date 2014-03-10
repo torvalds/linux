@@ -50,18 +50,6 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 #define C6XDIGIO_STATUS_REG	0x01
 #define C6XDIGIO_CTRL_REG	0x02
 
-struct pwmbitstype {
-	unsigned sb0:2;
-	unsigned sb1:2;
-	unsigned sb2:2;
-	unsigned sb3:2;
-	unsigned sb4:2;
-};
-union pwmcmdtype {
-	unsigned cmd;		/*  assuming here that int is 32bit */
-	struct pwmbitstype bits;
-};
-
 #define C6XDIGIO_TIME_OUT 20
 
 static int c6xdigio_chk_status(struct comedi_device *dev, unsigned long context)
@@ -113,25 +101,30 @@ static void c6xdigio_pwm_init(struct comedi_device *dev)
 static void c6xdigio_pwm_write(struct comedi_device *dev,
 			       unsigned int chan, unsigned int val)
 {
+	unsigned int bits;
 	unsigned ppcmd;
-	union pwmcmdtype pwm;
-
-	pwm.cmd = val;
-	if (pwm.cmd > 498)
-		pwm.cmd = 498;
-	if (pwm.cmd < 2)
-		pwm.cmd = 2;
 
 	if (chan == 0)
 		ppcmd = 0x28;
 	else
 		ppcmd = 0x30;
 
-	c6xdigio_write_data(dev, ppcmd + pwm.bits.sb0, 0x00);
-	c6xdigio_write_data(dev, ppcmd + pwm.bits.sb1 + 0x4, 0x80);
-	c6xdigio_write_data(dev, ppcmd + pwm.bits.sb2, 0x00);
-	c6xdigio_write_data(dev, ppcmd + pwm.bits.sb3 + 0x4, 0x80);
-	c6xdigio_write_data(dev, ppcmd + pwm.bits.sb4, 0x00);
+	if (val > 498)
+		val = 498;
+	if (val < 2)
+		val = 2;
+
+	bits = (val >> 0) & 0x03;
+	c6xdigio_write_data(dev, ppcmd + bits, 0x00);
+	bits = (val >> 2) & 0x03;
+	c6xdigio_write_data(dev, ppcmd + bits + 0x4, 0x80);
+	bits = (val >> 4) & 0x03;
+	c6xdigio_write_data(dev, ppcmd + bits, 0x00);
+	bits = (val >> 6) & 0x03;
+	c6xdigio_write_data(dev, ppcmd + bits + 0x4, 0x80);
+	bits = (val >> 8) & 0x03;
+	c6xdigio_write_data(dev, ppcmd + bits, 0x00);
+
 	c6xdigio_write_data(dev, 0x00, 0x80);
 }
 
