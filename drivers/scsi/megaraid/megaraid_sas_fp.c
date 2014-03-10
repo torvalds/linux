@@ -975,7 +975,10 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 			regSize += stripSize;
 	}
 
-	pRAID_Context->timeoutValue     = cpu_to_le16(map->raidMap.fpPdIoTimeoutSec);
+	pRAID_Context->timeoutValue =
+		cpu_to_le16(raid->fpIoTimeoutForLd ?
+			    raid->fpIoTimeoutForLd :
+			    map->raidMap.fpPdIoTimeoutSec);
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
 		pRAID_Context->regLockFlags = (isRead) ?
