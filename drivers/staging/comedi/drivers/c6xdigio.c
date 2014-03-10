@@ -61,20 +61,6 @@ union pwmcmdtype {
 	unsigned cmd;		/*  assuming here that int is 32bit */
 	struct pwmbitstype bits;
 };
-struct encbitstype {
-	unsigned sb0:3;
-	unsigned sb1:3;
-	unsigned sb2:3;
-	unsigned sb3:3;
-	unsigned sb4:3;
-	unsigned sb5:3;
-	unsigned sb6:3;
-	unsigned sb7:3;
-};
-union encvaluetype {
-	unsigned value;
-	struct encbitstype bits;
-};
 
 #define C6XDIGIO_TIME_OUT 20
 
@@ -98,6 +84,22 @@ static int c6xdigio_write_data(struct comedi_device *dev,
 {
 	outb_p(val, dev->iobase + C6XDIGIO_DATA_REG);
 	return c6xdigio_chk_status(dev, status);
+}
+
+static int c6xdigio_get_encoder_bits(struct comedi_device *dev,
+				     unsigned int *bits,
+				     unsigned int cmd,
+				     unsigned int status)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + C6XDIGIO_STATUS_REG);
+	val >>= 3;
+	val &= 0x07;
+
+	*bits = val;
+
+	return c6xdigio_write_data(dev, cmd, status);
 }
 
 static void c6xdigio_pwm_init(struct comedi_device *dev)
@@ -136,10 +138,10 @@ static void c6xdigio_pwm_write(struct comedi_device *dev,
 static int c6xdigio_encoder_read(struct comedi_device *dev,
 				 unsigned int chan)
 {
+	unsigned int val = 0;
+	unsigned int bits;
 	unsigned ppcmd;
-	union encvaluetype enc;
 
-	enc.value = 0;
 	if (chan == 0)
 		ppcmd = 0x48;
 	else
@@ -147,33 +149,33 @@ static int c6xdigio_encoder_read(struct comedi_device *dev,
 
 	c6xdigio_write_data(dev, ppcmd, 0x00);
 
-	enc.bits.sb0 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	val |= (bits << 0);
 
-	enc.bits.sb1 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	val |= (bits << 3);
 
-	enc.bits.sb2 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	val |= (bits << 6);
 
-	enc.bits.sb3 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	val |= (bits << 9);
 
-	enc.bits.sb4 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	val |= (bits << 12);
 
-	enc.bits.sb5 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	val |= (bits << 15);
 
-	enc.bits.sb6 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd + 0x4, 0x80);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd + 0x04, 0x80);
+	val |= (bits << 18);
 
-	enc.bits.sb7 = ((inb(dev->iobase + C6XDIGIO_STATUS_REG) >> 3) & 0x7);
-	c6xdigio_write_data(dev, ppcmd, 0x00);
+	c6xdigio_get_encoder_bits(dev, &bits, ppcmd, 0x00);
+	val |= (bits << 21);
 
 	c6xdigio_write_data(dev, 0x00, 0x80);
 
-	return enc.value ^ 0x800000;
+	return val ^ 0x800000;
 }
 
 static void c6xdigio_encoder_reset(struct comedi_device *dev)
