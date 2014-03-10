@@ -566,18 +566,12 @@ static s32 get_expected_tpt(struct iwl_scale_tbl_info *tbl, int rs_index)
  * at this rate.  window->data contains the bitmask of successful
  * packets.
  */
-static int rs_collect_tx_data(struct iwl_scale_tbl_info *tbl,
-			      int scale_index, int attempts, int successes)
+static int _rs_collect_tx_data(struct iwl_scale_tbl_info *tbl,
+			       int scale_index, int attempts, int successes,
+			       struct iwl_rate_scale_data *window)
 {
-	struct iwl_rate_scale_data *window = NULL;
 	static const u64 mask = (((u64)1) << (IWL_RATE_MAX_WINDOW - 1));
 	s32 fail_count, tpt;
-
-	if (scale_index < 0 || scale_index >= IWL_RATE_COUNT)
-		return -EINVAL;
-
-	/* Select window for current tx bit rate */
-	window = &(tbl->win[scale_index]);
 
 	/* Get expected throughput */
 	tpt = get_expected_tpt(tbl, scale_index);
@@ -634,6 +628,21 @@ static int rs_collect_tx_data(struct iwl_scale_tbl_info *tbl,
 		window->average_tpt = IWL_INVALID_VALUE;
 
 	return 0;
+}
+
+static int rs_collect_tx_data(struct iwl_scale_tbl_info *tbl,
+			      int scale_index, int attempts, int successes)
+{
+	struct iwl_rate_scale_data *window = NULL;
+
+	if (scale_index < 0 || scale_index >= IWL_RATE_COUNT)
+		return -EINVAL;
+
+	/* Select window for current tx bit rate */
+	window = &(tbl->win[scale_index]);
+
+	return _rs_collect_tx_data(tbl, scale_index, attempts, successes,
+				   window);
 }
 
 /* Convert rs_rate object into ucode rate bitmask */
