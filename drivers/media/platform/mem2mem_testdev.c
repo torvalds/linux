@@ -60,9 +60,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define MEM2MEM_VID_MEM_LIMIT	(16 * 1024 * 1024)
 
 /* Default transaction time in msec */
-#define MEM2MEM_DEF_TRANSTIME	1000
-/* Default number of buffers per transaction */
-#define MEM2MEM_DEF_TRANSLEN	1
+#define MEM2MEM_DEF_TRANSTIME	40
 #define MEM2MEM_COLOR_STEP	(0xff >> 4)
 #define MEM2MEM_NUM_TILES	8
 
@@ -804,10 +802,10 @@ static const struct v4l2_ctrl_config m2mtest_ctrl_trans_time_msec = {
 	.id = V4L2_CID_TRANS_TIME_MSEC,
 	.name = "Transaction Time (msec)",
 	.type = V4L2_CTRL_TYPE_INTEGER,
-	.def = 1001,
+	.def = MEM2MEM_DEF_TRANSTIME,
 	.min = 1,
 	.max = 10001,
-	.step = 100,
+	.step = 1,
 };
 
 static const struct v4l2_ctrl_config m2mtest_ctrl_trans_num_bufs = {
