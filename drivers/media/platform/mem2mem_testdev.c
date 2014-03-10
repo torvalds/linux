@@ -543,7 +543,11 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	fmt = find_format(f);
-	if (!fmt || !(fmt->types & MEM2MEM_CAPTURE)) {
+	if (!fmt) {
+		f->fmt.pix.pixelformat = formats[0].fourcc;
+		fmt = find_format(f);
+	}
+	if (!(fmt->types & MEM2MEM_CAPTURE)) {
 		v4l2_err(&ctx->dev->v4l2_dev,
 			 "Fourcc format (0x%08x) invalid.\n",
 			 f->fmt.pix.pixelformat);
@@ -561,7 +565,11 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	fmt = find_format(f);
-	if (!fmt || !(fmt->types & MEM2MEM_OUTPUT)) {
+	if (!fmt) {
+		f->fmt.pix.pixelformat = formats[0].fourcc;
+		fmt = find_format(f);
+	}
+	if (!(fmt->types & MEM2MEM_OUTPUT)) {
 		v4l2_err(&ctx->dev->v4l2_dev,
 			 "Fourcc format (0x%08x) invalid.\n",
 			 f->fmt.pix.pixelformat);
