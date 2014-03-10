@@ -48,6 +48,9 @@ do {							\
 static unsigned long module_load_offset;
 static int randomize_modules = 1;
 
+/* Mutex protects the module_load_offset. */
+static DEFINE_MUTEX(module_kaslr_mutex);
+
 static int __init parse_nokaslr(char *p)
 {
 	randomize_modules = 0;
@@ -58,7 +61,7 @@ early_param("nokaslr", parse_nokaslr);
 static unsigned long int get_module_load_offset(void)
 {
 	if (randomize_modules) {
-		mutex_lock(&module_mutex);
+		mutex_lock(&module_kaslr_mutex);
 		/*
 		 * Calculate the module_load_offset the first time this
 		 * code is called. Once calculated it stays the same until
@@ -67,7 +70,7 @@ static unsigned long int get_module_load_offset(void)
 		if (module_load_offset == 0)
 			module_load_offset =
 				(get_random_int() % 1024 + 1) * PAGE_SIZE;
-		mutex_unlock(&module_mutex);
+		mutex_unlock(&module_kaslr_mutex);
 	}
 	return module_load_offset;
 }
