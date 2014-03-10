@@ -279,8 +279,8 @@ void rtl8225z2_rf_close(struct net_device *dev)
  * Map dBm into Tx power index according to current HW model, for example,
  * RF and PA, and current wireless mode.
  */
-static s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
-			s32 PowerInDbm)
+static s8 DbmToTxPwrIdx(struct r8180_priv *priv,
+			enum wireless_mode mode, s32 PowerInDbm)
 {
 	bool bUseDefault = true;
 	s8 TxPwrIdx = 0;
@@ -291,7 +291,7 @@ static s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
 	 */
 	s32 tmp = 0;
 
-	if (WirelessMode == WIRELESS_MODE_G) {
+	if (mode == WIRELESS_MODE_G) {
 		bUseDefault = false;
 		tmp = (2 * PowerInDbm);
 
@@ -301,7 +301,7 @@ static s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
 			TxPwrIdx = 40;
 		else
 			TxPwrIdx = (s8)tmp;
-	} else if (WirelessMode == WIRELESS_MODE_B) {
+	} else if (mode == WIRELESS_MODE_B) {
 		bUseDefault = false;
 		tmp = (4 * PowerInDbm) - 52;
 

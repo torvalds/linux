@@ -872,7 +872,7 @@ static u8 GetSupportedWirelessMode8185(struct net_device *dev)
 
 static void
 ActUpdateChannelAccessSetting(struct net_device *dev,
-			      WIRELESS_MODE WirelessMode,
+			      enum wireless_mode mode,
 			      struct chnl_access_setting *chnl_access_setting)
 {
 	AC_CODING	eACI;
@@ -959,7 +959,7 @@ static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 	 * wireless mode if we switch to specified band successfully.
 	 */
 
-	ieee->mode = (WIRELESS_MODE)btWirelessMode;
+	ieee->mode = (enum wireless_mode)btWirelessMode;
 
 	/* 3. Change related setting. */
 	if (ieee->mode == WIRELESS_MODE_A)
@@ -1385,7 +1385,7 @@ void rtl8185b_adapter_start(struct net_device *dev)
 
 		/* Initialize RegWirelessMode if it is not a valid one.	*/
 		if (bInvalidWirelessMode)
-			ieee->mode = (WIRELESS_MODE)InitWirelessMode;
+			ieee->mode = (enum wireless_mode)InitWirelessMode;
 
 	} else {
 	/* One of B, G, A. */

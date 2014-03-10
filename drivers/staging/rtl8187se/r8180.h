@@ -68,13 +68,13 @@
 /* +by amy 080312. */
 #define RATE_ADAPTIVE_TIMER_PERIOD 300
 
-typedef enum _WIRELESS_MODE {
+enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
 	WIRELESS_MODE_B = 0x02,
 	WIRELESS_MODE_G = 0x04,
 	WIRELESS_MODE_AUTO = 0x08,
-} WIRELESS_MODE;
+};
 
 struct chnl_access_setting {
 	u16 sifs_timer;
