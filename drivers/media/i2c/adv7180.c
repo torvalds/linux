@@ -127,6 +127,7 @@ struct adv7180_state {
 	int			irq;
 	v4l2_std_id		curr_norm;
 	bool			autodetect;
+	bool			powered;
 	u8			input;
 };
 #define to_adv7180_sd(_ctrl) (&container_of(_ctrl->handler,		\
@@ -311,6 +312,37 @@ out:
 	return ret;
 }
 
+static int adv7180_set_power(struct adv7180_state *state,
+	struct i2c_client *client, bool on)
+{
+	u8 val;
+
+	if (on)
+		val = ADV7180_PWR_MAN_ON;
+	else
+		val = ADV7180_PWR_MAN_OFF;
+
+	return i2c_smbus_write_byte_data(client, ADV7180_PWR_MAN_REG, val);
+}
+
+static int adv7180_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct adv7180_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret;
+
+	ret = mutex_lock_interruptible(&state->mutex);
+	if (ret)
+		return ret;
+
+	ret = adv7180_set_power(state, client, on);
+	if (ret == 0)
+		state->powered = on;
+
+	mutex_unlock(&state->mutex);
+	return ret;
+}
+
 static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_adv7180_sd(ctrl);
@@ -441,6 +473,7 @@ static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 
 static const struct v4l2_subdev_core_ops adv7180_core_ops = {
 	.s_std = adv7180_s_std,
+	.s_power = adv7180_s_power,
 };
 
 static const struct v4l2_subdev_ops adv7180_ops = {
@@ -587,6 +620,7 @@ static int adv7180_probe(struct i2c_client *client,
 	state->irq = client->irq;
 	mutex_init(&state->mutex);
 	state->autodetect = true;
+	state->powered = true;
 	state->input = 0;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
@@ -640,13 +674,10 @@ static const struct i2c_device_id adv7180_id[] = {
 static int adv7180_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	int ret;
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct adv7180_state *state = to_state(sd);
 
-	ret = i2c_smbus_write_byte_data(client, ADV7180_PWR_MAN_REG,
-					ADV7180_PWR_MAN_OFF);
-	if (ret < 0)
-		return ret;
-	return 0;
+	return adv7180_set_power(state, client, false);
 }
 
 static int adv7180_resume(struct device *dev)
@@ -656,10 +687,11 @@ static int adv7180_resume(struct device *dev)
 	struct adv7180_state *state = to_state(sd);
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(client, ADV7180_PWR_MAN_REG,
-					ADV7180_PWR_MAN_ON);
-	if (ret < 0)
-		return ret;
+	if (state->powered) {
+		ret = adv7180_set_power(state, client, true);
+		if (ret)
+			return ret;
+	}
 	ret = init_device(client, state);
 	if (ret < 0)
 		return ret;
