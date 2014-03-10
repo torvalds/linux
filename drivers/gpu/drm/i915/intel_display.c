@@ -2125,6 +2125,7 @@ static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
 		return;
 
 	kfree(intel_crtc->base.fb);
+	intel_crtc->base.fb = NULL;
 
 	/*
 	 * Failed to alloc the obj, check to see if we should share
