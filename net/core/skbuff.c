@@ -2850,7 +2850,7 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 {
 	struct sk_buff *segs = NULL;
 	struct sk_buff *tail = NULL;
-	struct sk_buff *fskb = skb_shinfo(head_skb)->frag_list;
+	struct sk_buff *list_skb = skb_shinfo(head_skb)->frag_list;
 	skb_frag_t *frag = skb_shinfo(head_skb)->frags;
 	unsigned int mss = skb_shinfo(head_skb)->gso_size;
 	unsigned int doffset = head_skb->data - skb_mac_header(head_skb);
@@ -2891,14 +2891,14 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		if (hsize > len || !sg)
 			hsize = len;
 
-		if (!hsize && i >= nfrags && skb_headlen(fskb) &&
-		    (skb_headlen(fskb) == len || sg)) {
-			BUG_ON(skb_headlen(fskb) > len);
+		if (!hsize && i >= nfrags && skb_headlen(list_skb) &&
+		    (skb_headlen(list_skb) == len || sg)) {
+			BUG_ON(skb_headlen(list_skb) > len);
 
 			i = 0;
-			nfrags = skb_shinfo(fskb)->nr_frags;
-			frag = skb_shinfo(fskb)->frags;
-			pos += skb_headlen(fskb);
+			nfrags = skb_shinfo(list_skb)->nr_frags;
+			frag = skb_shinfo(list_skb)->frags;
+			pos += skb_headlen(list_skb);
 
 			while (pos < offset + len) {
 				BUG_ON(i >= nfrags);
@@ -2912,8 +2912,8 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 				frag++;
 			}
 
-			nskb = skb_clone(fskb, GFP_ATOMIC);
-			fskb = fskb->next;
+			nskb = skb_clone(list_skb, GFP_ATOMIC);
+			list_skb = list_skb->next;
 
 			if (unlikely(!nskb))
 				goto err;
@@ -2980,15 +2980,15 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 
 		while (pos < offset + len) {
 			if (i >= nfrags) {
-				BUG_ON(skb_headlen(fskb));
+				BUG_ON(skb_headlen(list_skb));
 
 				i = 0;
-				nfrags = skb_shinfo(fskb)->nr_frags;
-				frag = skb_shinfo(fskb)->frags;
+				nfrags = skb_shinfo(list_skb)->nr_frags;
+				frag = skb_shinfo(list_skb)->frags;
 
 				BUG_ON(!nfrags);
 
-				fskb = fskb->next;
+				list_skb = list_skb->next;
 			}
 
 			if (unlikely(skb_shinfo(nskb)->nr_frags >=
