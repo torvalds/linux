@@ -22,7 +22,7 @@
 #define OZ_TIMER_HEARTBEAT	2
 #define OZ_TIMER_STOP		3
 
-/* 
+/*
  *External spinlock variable
  */
 extern spinlock_t g_polling_lock;
