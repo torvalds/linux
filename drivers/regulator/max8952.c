@@ -48,9 +48,7 @@ enum {
 
 struct max8952_data {
 	struct i2c_client	*client;
-	struct device		*dev;
 	struct max8952_platform_data *pdata;
-	struct regulator_dev	*rdev;
 
 	bool vid0;
 	bool vid1;
@@ -197,6 +195,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	struct max8952_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	struct max8952_data *max8952;
+	struct regulator_dev *rdev;
 
 	int ret = 0, err = 0;
 
@@ -217,10 +216,9 @@ static int max8952_pmic_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	max8952->client = client;
-	max8952->dev = &client->dev;
 	max8952->pdata = pdata;
 
-	config.dev = max8952->dev;
+	config.dev = &client->dev;
 	config.init_data = pdata->reg_data;
 	config.driver_data = max8952;
 	config.of_node = client->dev.of_node;
@@ -229,11 +227,11 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	if (pdata->reg_data->constraints.boot_on)
 		config.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
 
-	max8952->rdev = regulator_register(&regulator, &config);
+	rdev = devm_regulator_register(&client->dev, &regulator, &config);
 
-	if (IS_ERR(max8952->rdev)) {
-		ret = PTR_ERR(max8952->rdev);
-		dev_err(max8952->dev, "regulator init failed (%d)\n", ret);
+	if (IS_ERR(rdev)) {
+		ret = PTR_ERR(rdev);
+		dev_err(&client->dev, "regulator init failed (%d)\n", ret);
 		return ret;
 	}
 
@@ -261,7 +259,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 		err = 3;
 
 	if (err) {
-		dev_warn(max8952->dev, "VID0/1 gpio invalid: "
+		dev_warn(&client->dev, "VID0/1 gpio invalid: "
 				"DVS not available.\n");
 		max8952->vid0 = 0;
 		max8952->vid1 = 0;
@@ -272,7 +270,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 		/* Disable Pulldown of EN only */
 		max8952_write_reg(max8952, MAX8952_REG_CONTROL, 0x60);
 
-		dev_err(max8952->dev, "DVS modes disabled because VID0 and VID1"
+		dev_err(&client->dev, "DVS modes disabled because VID0 and VID1"
 				" do not have proper controls.\n");
 	} else {
 		/*
@@ -319,9 +317,6 @@ static int max8952_pmic_remove(struct i2c_client *client)
 {
 	struct max8952_data *max8952 = i2c_get_clientdata(client);
 	struct max8952_platform_data *pdata = max8952->pdata;
-	struct regulator_dev *rdev = max8952->rdev;
-
-	regulator_unregister(rdev);
 
 	gpio_free(pdata->gpio_vid0);
 	gpio_free(pdata->gpio_vid1);
