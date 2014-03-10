@@ -2435,11 +2435,14 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 							instance,
 							cmd_mfi->context.smid
 							-1);
-						if (!req_desc)
+						if (!req_desc) {
 							printk(KERN_WARNING
 							       "req_desc NULL"
 							       "\n");
-						else {
+							/* Return leaked MPT
+							   frame */
+							megasas_return_cmd_fusion(instance, cmd_fusion);
+						} else {
 							instance->instancet->
 							fire_cmd(instance,
 								 req_desc->
