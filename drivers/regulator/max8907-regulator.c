@@ -34,7 +34,6 @@
 
 struct max8907_regulator {
 	struct regulator_desc desc[MAX8907_NUM_REGULATORS];
-	struct regulator_dev *rdev[MAX8907_NUM_REGULATORS];
 };
 
 #define REG_MBATT() \
@@ -310,6 +309,8 @@ static int max8907_regulator_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < MAX8907_NUM_REGULATORS; i++) {
+		struct regulator_dev *rdev;
+
 		config.dev = pdev->dev.parent;
 		if (pdata)
 			idata = pdata->init_data[i];
@@ -349,13 +350,13 @@ static int max8907_regulator_probe(struct platform_device *pdev)
 				pmic->desc[i].ops = &max8907_out5v_hwctl_ops;
 		}
 
-		pmic->rdev[i] = devm_regulator_register(&pdev->dev,
+		rdev = devm_regulator_register(&pdev->dev,
 						&pmic->desc[i], &config);
-		if (IS_ERR(pmic->rdev[i])) {
+		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev,
 				"failed to register %s regulator\n",
 				pmic->desc[i].name);
-			return PTR_ERR(pmic->rdev[i]);
+			return PTR_ERR(rdev);
 		}
 	}
 
