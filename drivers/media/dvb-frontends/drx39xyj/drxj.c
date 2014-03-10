@@ -9420,6 +9420,9 @@ static int get_sig_strength(struct drx_demod_instance *demod, u16 *sig_strength)
 		*sig_strength = (20 * if_gain / if_agc_sns);
 	}
 
+	if (*sig_strength <= 7)
+		*sig_strength = 0;
+
 	return 0;
 	rw_error:
 	return -EIO;
