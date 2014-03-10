@@ -629,18 +629,22 @@ static void _rtl8723be_store_tx_power_by_rate(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	u8 rate_section = _rtl8723be_get_rate_section_index(regaddr);
 
-	if (band != BAND_ON_2_4G && band != BAND_ON_5G)
+	if (band != BAND_ON_2_4G && band != BAND_ON_5G) {
 		RT_TRACE(rtlpriv, COMP_POWER, PHY_TXPWR,
 			 "Invalid Band %d\n", band);
+		return;
+	}
 
-	if (rfpath > MAX_RF_PATH)
+	if (rfpath > TX_PWR_BY_RATE_NUM_RF) {
 		RT_TRACE(rtlpriv, COMP_POWER, PHY_TXPWR,
 			 "Invalid RfPath %d\n", rfpath);
-
-	if (txnum > MAX_RF_PATH)
+		return;
+	}
+	if (txnum > TX_PWR_BY_RATE_NUM_RF) {
 		RT_TRACE(rtlpriv, COMP_POWER, PHY_TXPWR,
 			 "Invalid TxNum %d\n", txnum);
-
+		return;
+	}
 	rtlphy->tx_power_by_rate_offset[band][rfpath][txnum][rate_section] =
 									data;
 }
