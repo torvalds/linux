@@ -168,12 +168,6 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 			dev_err(&client->dev, "no device tree\n");
 			return -EINVAL;
 		}
-	/*
-	ts = kzalloc(sizeof(struct ct36x_data), GFP_KERNEL);
-	if(!ts){
-		dev_err(&client->dev, "No memory for ct36x");
-		return -ENOMEM;
-	}*/
 	if (of_property_read_u32(np, "max-x", &val)) {
 		dev_err(&client->dev, "no max-x defined\n");
 		return -EINVAL;
@@ -299,16 +293,13 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	return 0;
 err_request_threaded_irq:
 	//unregister_early_suspend(&ts->early_suspend);
-	input_unregister_device(ts->input);
 err_input_register_devcie:
-	input_free_device(ts->input);
 err_input_allocate_device:
 	if(ts->ops->deinit)
 		ts->ops->deinit(ts);
 err_ct36x_init_chip:
 err_ct36x_set_ops:
 	i2c_set_clientdata(client, NULL);
-	kfree(ts);
 	return ret;
 }
 
@@ -316,14 +307,10 @@ static int ct36x_ts_remove(struct i2c_client *client)
 {
 	struct ct36x_data *ts = i2c_get_clientdata(client);
 	
-	free_irq(ts->irq, ts);
 	if(ts->ops->deinit)
 		ts->ops->deinit(ts);
 	//unregister_early_suspend(&ts->early_suspend);
-	input_unregister_device(ts->input);
-	input_free_device(ts->input);
 	i2c_set_clientdata(client, NULL);
-	kfree(ts);
 
 	return 0;
 }
