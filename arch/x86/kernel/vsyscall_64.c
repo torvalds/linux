@@ -393,9 +393,13 @@ static int __init vsyscall_init(void)
 {
 	BUG_ON(VSYSCALL_ADDR(0) != __fix_to_virt(VSYSCALL_FIRST_PAGE));
 
+	cpu_notifier_register_begin();
+
 	on_each_cpu(cpu_vsyscall_init, NULL, 1);
 	/* notifier priority > KVM */
-	hotcpu_notifier(cpu_vsyscall_notifier, 30);
+	__hotcpu_notifier(cpu_vsyscall_notifier, 30);
+
+	cpu_notifier_register_done();
 
 	return 0;
 }
