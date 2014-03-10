@@ -1959,7 +1959,8 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_network network_resp;
 			struct ieee80211_network *network = &network_resp;
 
-			if (0 == (errcode=assoc_parse(ieee,skb, &aid))){
+			errcode = assoc_parse(ieee, skb, &aid);
+			if (!errcode) {
 				ieee->state=IEEE80211_LINKED;
 				ieee->assoc_id = aid;
 				ieee->softmac_stats.rx_ass_ok++;
@@ -2017,7 +2018,8 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 					IEEE80211_DEBUG_MGMT("Received authentication response");
 
-					if (0 == (errcode=auth_parse(skb, &challenge, &chlen))){
+					errcode = auth_parse(skb, &challenge, &chlen);
+					if (!errcode) {
 						if(ieee->open_wep || !challenge){
 							ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATED;
 							ieee->softmac_stats.rx_auth_rs_ok++;
