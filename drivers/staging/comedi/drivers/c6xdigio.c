@@ -162,13 +162,41 @@ static int c6xdigio_pwm_insn_write(struct comedi_device *dev,
 				   unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = (s->state >> (16 * chan)) & 0xffff;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		c6xdigio_pwm_write(dev, chan, data[i]);
-		/*    devpriv->ao_readback[chan] = data[i]; */
+		val = data[i];
+		c6xdigio_pwm_write(dev, chan, val);
 	}
-	return i;
+
+	/*
+	 * There are only 2 PWM channels and they have a maxdata of 500.
+	 * Instead of allocating private data to save the values in for
+	 * readback this driver just packs the values for the two channels
+	 * in the s->state.
+	 */
+	s->state &= (0xffff << (16 * chan));
+	s->state |= (val << (16 * chan));
+
+	return insn->n;
+}
+
+static int c6xdigio_pwm_insn_read(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
+
+	val = (s->state >> (16 * chan)) & 0xffff;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = val;
+
+	return insn->n;
 }
 
 static int c6xdigio_encoder_insn_read(struct comedi_device *dev,
@@ -243,6 +271,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s->maxdata	= 500;
 	s->range_table	= &range_unknown;
 	s->insn_write	= c6xdigio_pwm_insn_write;
+	s->insn_read	= c6xdigio_pwm_insn_read;
 
 	s = &dev->subdevices[1];
 	/* encoder (counter) subdevice */
