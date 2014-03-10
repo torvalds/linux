@@ -77,13 +77,13 @@ union encvaluetype {
 
 #define C6XDIGIO_TIME_OUT 20
 
-static int c6xdigio_chk_status(unsigned long baseAddr, unsigned long context)
+static int c6xdigio_chk_status(struct comedi_device *dev, unsigned long context)
 {
 	unsigned int status;
 	int timeout = 0;
 
 	do {
-		status = inb(baseAddr + 1);
+		status = inb(dev->iobase + 1);
 		if ((status & 0x80) != context)
 			return 0;
 		timeout++;
@@ -95,16 +95,16 @@ static int c6xdigio_chk_status(unsigned long baseAddr, unsigned long context)
 static void c6xdigio_pwm_init(struct comedi_device *dev)
 {
 	outb_p(0x70, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(0x74, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	outb_p(0x70, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(0x0, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 }
 
 static void c6xdigio_pwm_write(struct comedi_device *dev,
@@ -125,22 +125,22 @@ static void c6xdigio_pwm_write(struct comedi_device *dev,
 		ppcmd = 0x30;
 
 	outb_p(ppcmd + pwm.bits.sb0, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(ppcmd + pwm.bits.sb1 + 0x4, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	outb_p(ppcmd + pwm.bits.sb2, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(ppcmd + pwm.bits.sb3 + 0x4, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	outb_p(ppcmd + pwm.bits.sb4, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(0x0, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 }
 
 static int c6xdigio_encoder_read(struct comedi_device *dev,
@@ -156,42 +156,42 @@ static int c6xdigio_encoder_read(struct comedi_device *dev,
 		ppcmd = 0x50;
 
 	outb_p(ppcmd, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	enc.bits.sb0 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	enc.bits.sb1 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	enc.bits.sb2 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	enc.bits.sb3 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	enc.bits.sb4 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	enc.bits.sb5 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	enc.bits.sb6 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd + 0x4, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	enc.bits.sb7 = ((inb(dev->iobase + 1) >> 3) & 0x7);
 	outb_p(ppcmd, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(0x0, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	return enc.value ^ 0x800000;
 }
@@ -199,16 +199,16 @@ static int c6xdigio_encoder_read(struct comedi_device *dev,
 static void c6xdigio_encoder_reset(struct comedi_device *dev)
 {
 	outb_p(0x68, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(0x6c, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 
 	outb_p(0x68, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x00);
+	c6xdigio_chk_status(dev, 0x00);
 
 	outb_p(0x0, dev->iobase);
-	c6xdigio_chk_status(dev->iobase, 0x80);
+	c6xdigio_chk_status(dev, 0x80);
 }
 
 static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
