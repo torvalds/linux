@@ -1788,7 +1788,7 @@ hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
  * to one of these "claimed" ports, the program will "own" the device.
  */
 static int find_port_owner(struct usb_device *hdev, unsigned port1,
-		struct dev_state ***ppowner)
+		struct usb_dev_state ***ppowner)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
 
@@ -1806,10 +1806,10 @@ static int find_port_owner(struct usb_device *hdev, unsigned port1,
 
 /* In the following three functions, the caller must hold hdev's lock */
 int usb_hub_claim_port(struct usb_device *hdev, unsigned port1,
-		       struct dev_state *owner)
+		       struct usb_dev_state *owner)
 {
 	int rc;
-	struct dev_state **powner;
+	struct usb_dev_state **powner;
 
 	rc = find_port_owner(hdev, port1, &powner);
 	if (rc)
@@ -1822,10 +1822,10 @@ int usb_hub_claim_port(struct usb_device *hdev, unsigned port1,
 EXPORT_SYMBOL_GPL(usb_hub_claim_port);
 
 int usb_hub_release_port(struct usb_device *hdev, unsigned port1,
-			 struct dev_state *owner)
+			 struct usb_dev_state *owner)
 {
 	int rc;
-	struct dev_state **powner;
+	struct usb_dev_state **powner;
 
 	rc = find_port_owner(hdev, port1, &powner);
 	if (rc)
@@ -1837,7 +1837,7 @@ int usb_hub_release_port(struct usb_device *hdev, unsigned port1,
 }
 EXPORT_SYMBOL_GPL(usb_hub_release_port);
 
-void usb_hub_release_all_ports(struct usb_device *hdev, struct dev_state *owner)
+void usb_hub_release_all_ports(struct usb_device *hdev, struct usb_dev_state *owner)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
 	int n;

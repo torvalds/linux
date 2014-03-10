@@ -395,7 +395,7 @@ static int stub_probe(struct usb_device *udev)
 	 * (struct dev_state) as long as it is unique.
 	 */
 	rc = usb_hub_claim_port(udev->parent, udev->portnum,
-			(struct dev_state *) udev);
+			(struct usb_dev_state *) udev);
 	if (rc) {
 		dev_dbg(&udev->dev, "unable to claim port\n");
 		return rc;
@@ -464,7 +464,7 @@ static void stub_disconnect(struct usb_device *udev)
 
 	/* release port */
 	rc = usb_hub_release_port(udev->parent, udev->portnum,
-				  (struct dev_state *) udev);
+				  (struct usb_dev_state *) udev);
 	if (rc) {
 		dev_dbg(&udev->dev, "unable to release port\n");
 		return;
