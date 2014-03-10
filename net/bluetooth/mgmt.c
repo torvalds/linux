@@ -5005,7 +5005,7 @@ void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
 }
 
-void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key)
+void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 {
 	struct mgmt_ev_new_long_term_key ev;
 
@@ -5026,7 +5026,7 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key)
 	    (key->bdaddr.b[5] & 0xc0) != 0xc0)
 		ev.store_hint = 0x00;
 	else
-		ev.store_hint = 0x01;
+		ev.store_hint = persistent;
 
 	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
 	ev.key.addr.type = link_to_bdaddr(LE_LINK, key->bdaddr_type);
@@ -5073,7 +5073,8 @@ void mgmt_new_irk(struct hci_dev *hdev, struct smp_irk *irk)
 	mgmt_event(MGMT_EV_NEW_IRK, hdev, &ev, sizeof(ev), NULL);
 }
 
-void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk)
+void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk,
+		   bool persistent)
 {
 	struct mgmt_ev_new_csrk ev;
 
@@ -5092,7 +5093,7 @@ void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk)
 	    (csrk->bdaddr.b[5] & 0xc0) != 0xc0)
 		ev.store_hint = 0x00;
 	else
-		ev.store_hint = 0x01;
+		ev.store_hint = persistent;
 
 	bacpy(&ev.key.addr.bdaddr, &csrk->bdaddr);
 	ev.key.addr.type = link_to_bdaddr(LE_LINK, csrk->bdaddr_type);

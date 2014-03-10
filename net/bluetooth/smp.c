@@ -1209,32 +1209,40 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	struct smp_chan *smp = conn->smp_chan;
 	struct hci_conn *hcon = conn->hcon;
 	struct hci_dev *hdev = hcon->hdev;
+	struct smp_cmd_pairing *req = (void *) &smp->preq[1];
+	struct smp_cmd_pairing *rsp = (void *) &smp->prsp[1];
+	bool persistent;
 
 	if (smp->remote_irk)
 		mgmt_new_irk(hdev, smp->remote_irk);
 
+	/* The LTKs and CSRKs should be persistent only if both sides
+	 * had the bonding bit set in their authentication requests.
+	 */
+	persistent = !!((req->auth_req & rsp->auth_req) & SMP_AUTH_BONDING);
+
 	if (smp->csrk) {
 		smp->csrk->bdaddr_type = hcon->dst_type;
 		bacpy(&smp->csrk->bdaddr, &hcon->dst);
-		mgmt_new_csrk(hdev, smp->csrk);
+		mgmt_new_csrk(hdev, smp->csrk, persistent);
 	}
 
 	if (smp->slave_csrk) {
 		smp->slave_csrk->bdaddr_type = hcon->dst_type;
 		bacpy(&smp->slave_csrk->bdaddr, &hcon->dst);
-		mgmt_new_csrk(hdev, smp->slave_csrk);
+		mgmt_new_csrk(hdev, smp->slave_csrk, persistent);
 	}
 
 	if (smp->ltk) {
 		smp->ltk->bdaddr_type = hcon->dst_type;
 		bacpy(&smp->ltk->bdaddr, &hcon->dst);
-		mgmt_new_ltk(hdev, smp->ltk);
+		mgmt_new_ltk(hdev, smp->ltk, persistent);
 	}
 
 	if (smp->slave_ltk) {
 		smp->slave_ltk->bdaddr_type = hcon->dst_type;
 		bacpy(&smp->slave_ltk->bdaddr, &hcon->dst);
-		mgmt_new_ltk(hdev, smp->slave_ltk);
+		mgmt_new_ltk(hdev, smp->slave_ltk, persistent);
 	}
 }
 
