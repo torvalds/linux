@@ -5270,7 +5270,7 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 
 	memset(&enable_cp, 0, sizeof(enable_cp));
 	enable_cp.enable = LE_SCAN_ENABLE;
-	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_DISABLE;
+	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
 		    &enable_cp);
 }
@@ -5313,10 +5313,6 @@ void hci_update_background_scan(struct hci_dev *hdev)
 		 * keep the background scan running.
 		 */
 
-		/* If controller is already scanning we are done. */
-		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
-			return;
-
 		/* If controller is connecting, we should not start scanning
 		 * since some controllers are not able to scan and connect at
 		 * the same time.
@@ -5324,6 +5320,12 @@ void hci_update_background_scan(struct hci_dev *hdev)
 		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
 		if (conn)
 			return;
+
+		/* If controller is currently scanning, we stop it to ensure we
+		 * don't miss any advertising (due to duplicates filter).
+		 */
+		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+			hci_req_add_le_scan_disable(&req);
 
 		hci_req_add_le_passive_scan(&req);
 
