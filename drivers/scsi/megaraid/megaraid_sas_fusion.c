@@ -585,7 +585,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	struct megasas_cmd *cmd;
 	u8 ret;
 	struct fusion_context *fusion;
-	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
+	union MEGASAS_REQUEST_DESCRIPTOR_UNION req_desc;
 	int i;
 	struct megasas_header *frame_hdr;
 
@@ -650,15 +650,12 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		cpu_to_le32(lower_32_bits(ioc_init_handle));
 	init_frame->data_xfer_len = cpu_to_le32(sizeof(struct MPI2_IOC_INIT_REQUEST));
 
-	req_desc =
-	  (union MEGASAS_REQUEST_DESCRIPTOR_UNION *)fusion->req_frames_desc;
-
-	req_desc->Words = 0;
-	req_desc->MFAIo.RequestFlags =
+	req_desc.Words = 0;
+	req_desc.MFAIo.RequestFlags =
 		(MEGASAS_REQ_DESCRIPT_FLAGS_MFA <<
 		 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-	cpu_to_le32s((u32 *)&req_desc->MFAIo);
-	req_desc->Words |= cpu_to_le64(cmd->frame_phys_addr);
+	cpu_to_le32s((u32 *)&req_desc.MFAIo);
+	req_desc.Words |= cpu_to_le64(cmd->frame_phys_addr);
 
 	/*
 	 * disable the intr before firing the init frame
@@ -672,8 +669,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 			break;
 	}
 
-	instance->instancet->fire_cmd(instance, req_desc->u.low,
-				      req_desc->u.high, instance->reg_set);
+	instance->instancet->fire_cmd(instance, req_desc.u.low,
+				      req_desc.u.high, instance->reg_set);
 
 	wait_and_poll(instance, cmd);
 
