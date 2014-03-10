@@ -1222,7 +1222,6 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 	}
 	write->wr_head.iov_base = p;
 	write->wr_head.iov_len = avail;
-	WARN_ON(avail != (XDR_QUADLEN(avail) << 2));
 	write->wr_pagelist = argp->pagelist;
 
 	len = XDR_QUADLEN(write->wr_buflen) << 2;
@@ -3696,6 +3695,12 @@ int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp)
 int
 nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compoundargs *args)
 {
+	if (rqstp->rq_arg.head[0].iov_len % 4) {
+		/* client is nuts */
+		dprintk("%s: compound not properly padded! (peeraddr=%pISc xid=0x%x)",
+			__func__, svc_addr(rqstp), be32_to_cpu(rqstp->rq_xid));
+		return 0;
+	}
 	args->p = p;
 	args->end = rqstp->rq_arg.head[0].iov_base + rqstp->rq_arg.head[0].iov_len;
 	args->pagelist = rqstp->rq_arg.pages;
