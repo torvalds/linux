@@ -36,9 +36,7 @@
 
 struct max8925_regulator_info {
 	struct regulator_desc	desc;
-	struct regulator_dev	*regulator;
 	struct i2c_client	*i2c;
-	struct max8925_chip	*chip;
 
 	int	vol_reg;
 	int	enable_reg;
@@ -303,7 +301,6 @@ static int max8925_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	ri->i2c = chip->i2c;
-	ri->chip = chip;
 
 	config.dev = &pdev->dev;
 	config.driver_data = ri;
