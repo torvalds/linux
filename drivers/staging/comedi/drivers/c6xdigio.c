@@ -172,10 +172,10 @@ static void c6xdigio_encoder_reset(struct comedi_device *dev)
 	c6xdigio_write_data(dev, 0x00, 0x80);
 }
 
-static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
+static int c6xdigio_pwm_insn_write(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
@@ -238,13 +238,12 @@ static int c6xdigio_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	/* pwm output subdevice */
-	s->type = COMEDI_SUBD_AO;	/*  Not sure what to put here */
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 2;
-	/*      s->trig[0] = c6xdigio_pwmo; */
-	s->insn_write = c6xdigio_pwmo_insn_write;
-	s->maxdata = 500;
-	s->range_table = &range_bipolar10;	/*  A suitable lie */
+	s->type		= COMEDI_SUBD_PWM;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 500;
+	s->range_table	= &range_unknown;
+	s->insn_write	= c6xdigio_pwm_insn_write;
 
 	s = &dev->subdevices[1];
 	/* encoder (counter) subdevice */
