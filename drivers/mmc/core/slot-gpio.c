@@ -10,6 +10,7 @@
 
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/mmc/host.h>
@@ -18,8 +19,10 @@
 #include <linux/slab.h>
 
 struct mmc_gpio {
-	int ro_gpio;
-	int cd_gpio;
+	struct gpio_desc *ro_gpio;
+	struct gpio_desc *cd_gpio;
+	bool override_ro_active_level;
+	bool override_cd_active_level;
 	char *ro_label;
 	char cd_label[0];
 };
@@ -57,8 +60,6 @@ static int mmc_gpio_alloc(struct mmc_host *host)
 			ctx->ro_label = ctx->cd_label + len;
 			snprintf(ctx->cd_label, len, "%s cd", dev_name(host->parent));
 			snprintf(ctx->ro_label, len, "%s ro", dev_name(host->parent));
-			ctx->cd_gpio = -EINVAL;
-			ctx->ro_gpio = -EINVAL;
 			host->slot.handler_priv = ctx;
 		}
 	}
@@ -72,11 +73,14 @@ int mmc_gpio_get_ro(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 
-	if (!ctx || !gpio_is_valid(ctx->ro_gpio))
+	if (!ctx || !ctx->ro_gpio)
 		return -ENOSYS;
 
-	return !gpio_get_value_cansleep(ctx->ro_gpio) ^
-		!!(host->caps2 & MMC_CAP2_RO_ACTIVE_HIGH);
+	if (ctx->override_ro_active_level)
+		return !gpiod_get_raw_value_cansleep(ctx->ro_gpio) ^
+			!!(host->caps2 & MMC_CAP2_RO_ACTIVE_HIGH);
+
+	return gpiod_get_value_cansleep(ctx->ro_gpio);
 }
 EXPORT_SYMBOL(mmc_gpio_get_ro);
 
@@ -84,11 +88,14 @@ int mmc_gpio_get_cd(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 
-	if (!ctx || !gpio_is_valid(ctx->cd_gpio))
+	if (!ctx || !ctx->cd_gpio)
 		return -ENOSYS;
 
-	return !gpio_get_value_cansleep(ctx->cd_gpio) ^
-		!!(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH);
+	if (ctx->override_cd_active_level)
+		return !gpiod_get_raw_value_cansleep(ctx->cd_gpio) ^
+			!!(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH);
+
+	return gpiod_get_value_cansleep(ctx->cd_gpio);
 }
 EXPORT_SYMBOL(mmc_gpio_get_cd);
 
@@ -125,7 +132,8 @@ int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
 	if (ret < 0)
 		return ret;
 
-	ctx->ro_gpio = gpio;
+	ctx->override_ro_active_level = true;
+	ctx->ro_gpio = gpio_to_desc(gpio);
 
 	return 0;
 }
@@ -201,7 +209,8 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 	if (irq < 0)
 		host->caps |= MMC_CAP_NEEDS_POLL;
 
-	ctx->cd_gpio = gpio;
+	ctx->override_cd_active_level = true;
+	ctx->cd_gpio = gpio_to_desc(gpio);
 
 	return 0;
 }
@@ -219,11 +228,11 @@ void mmc_gpio_free_ro(struct mmc_host *host)
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	int gpio;
 
-	if (!ctx || !gpio_is_valid(ctx->ro_gpio))
+	if (!ctx || !ctx->ro_gpio)
 		return;
 
-	gpio = ctx->ro_gpio;
-	ctx->ro_gpio = -EINVAL;
+	gpio = desc_to_gpio(ctx->ro_gpio);
+	ctx->ro_gpio = NULL;
 
 	devm_gpio_free(&host->class_dev, gpio);
 }
@@ -241,7 +250,7 @@ void mmc_gpio_free_cd(struct mmc_host *host)
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	int gpio;
 
-	if (!ctx || !gpio_is_valid(ctx->cd_gpio))
+	if (!ctx || !ctx->cd_gpio)
 		return;
 
 	if (host->slot.cd_irq >= 0) {
@@ -249,8 +258,8 @@ void mmc_gpio_free_cd(struct mmc_host *host)
 		host->slot.cd_irq = -EINVAL;
 	}
 
-	gpio = ctx->cd_gpio;
-	ctx->cd_gpio = -EINVAL;
+	gpio = desc_to_gpio(ctx->cd_gpio);
+	ctx->cd_gpio = NULL;
 
 	devm_gpio_free(&host->class_dev, gpio);
 }
