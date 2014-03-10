@@ -1003,6 +1003,7 @@ do_holes:
 						1 << blkbits);
 				sdio->block_in_file++;
 				block_in_page++;
+				dio->result += 1 << blkbits;
 				goto next_block;
 			}
 
@@ -1044,6 +1045,7 @@ do_holes:
 			sdio->block_in_file += this_chunk_blocks;
 			block_in_page += this_chunk_blocks;
 			sdio->blocks_available -= this_chunk_blocks;
+			dio->result += this_chunk_blocks << blkbits;
 next_block:
 			BUG_ON(sdio->block_in_file > sdio->final_block_in_request);
 			if (sdio->block_in_file == sdio->final_block_in_request)
@@ -1270,10 +1272,6 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		sdio.curr_user_address = user_addr;
 
 		retval = do_direct_IO(dio, &sdio, &map_bh);
-
-		dio->result += iter->iov[seg].iov_len -
-			((sdio.final_block_in_request - sdio.block_in_file) <<
-					blkbits);
 
 		if (retval) {
 			dio_cleanup(dio, &sdio);
