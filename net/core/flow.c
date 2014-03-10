@@ -45,6 +45,8 @@ struct flow_flush_info {
 	struct completion		completion;
 };
 
+static struct kmem_cache *flow_cachep __read_mostly;
+
 #define flow_cache_hash_size(cache)	(1 << (cache)->hash_shift)
 #define FLOW_HASH_RND_PERIOD		(10 * 60 * HZ)
 
@@ -75,7 +77,7 @@ static void flow_entry_kill(struct flow_cache_entry *fle,
 {
 	if (fle->object)
 		fle->object->ops->delete(fle->object);
-	kmem_cache_free(xfrm->flow_cachep, fle);
+	kmem_cache_free(flow_cachep, fle);
 }
 
 static void flow_cache_gc_task(struct work_struct *work)
@@ -230,7 +232,7 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 		if (fcp->hash_count > fc->high_watermark)
 			flow_cache_shrink(fc, fcp);
 
-		fle = kmem_cache_alloc(net->xfrm.flow_cachep, GFP_ATOMIC);
+		fle = kmem_cache_alloc(flow_cachep, GFP_ATOMIC);
 		if (fle) {
 			fle->net = net;
 			fle->family = family;
@@ -435,10 +437,10 @@ int flow_cache_init(struct net *net)
 	int i;
 	struct flow_cache *fc = &net->xfrm.flow_cache_global;
 
-	/* Initialize per-net flow cache global variables here */
-	net->xfrm.flow_cachep = kmem_cache_create("flow_cache",
-					sizeof(struct flow_cache_entry),
-					0, SLAB_PANIC, NULL);
+	if (!flow_cachep)
+		flow_cachep = kmem_cache_create("flow_cache",
+						sizeof(struct flow_cache_entry),
+						0, SLAB_PANIC, NULL);
 	spin_lock_init(&net->xfrm.flow_cache_gc_lock);
 	INIT_LIST_HEAD(&net->xfrm.flow_cache_gc_list);
 	INIT_WORK(&net->xfrm.flow_cache_gc_work, flow_cache_gc_task);
