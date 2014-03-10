@@ -139,7 +139,7 @@ int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
 }
 EXPORT_SYMBOL(mmc_gpio_request_ro);
 
-static void mmc_gpiod_request_cd_irq(struct mmc_host *host)
+void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	int ret, irq;
@@ -171,6 +171,7 @@ static void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 	if (irq < 0)
 		host->caps |= MMC_CAP_NEEDS_POLL;
 }
+EXPORT_SYMBOL(mmc_gpiod_request_cd_irq);
 
 /**
  * mmc_gpio_request_cd - request a gpio for card-detection
@@ -276,3 +277,81 @@ void mmc_gpio_free_cd(struct mmc_host *host)
 	devm_gpio_free(&host->class_dev, gpio);
 }
 EXPORT_SYMBOL(mmc_gpio_free_cd);
+
+/**
+ * mmc_gpiod_request_cd - request a gpio descriptor for card-detection
+ * @host: mmc host
+ * @con_id: function within the GPIO consumer
+ * @idx: index of the GPIO to obtain in the consumer
+ * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
+ * @debounce: debounce time in microseconds
+ *
+ * Use this function in place of mmc_gpio_request_cd() to use the GPIO
+ * descriptor API.  Note that it is paired with mmc_gpiod_free_cd() not
+ * mmc_gpio_free_cd().  Note also that it must be called prior to mmc_add_host()
+ * otherwise the caller must also call mmc_gpiod_request_cd_irq().
+ *
+ * Returns zero on success, else an error.
+ */
+int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
+			 unsigned int idx, bool override_active_level,
+			 unsigned int debounce)
+{
+	struct mmc_gpio *ctx;
+	struct gpio_desc *desc;
+	int ret;
+
+	ret = mmc_gpio_alloc(host);
+	if (ret < 0)
+		return ret;
+
+	ctx = host->slot.handler_priv;
+
+	if (!con_id)
+		con_id = ctx->cd_label;
+
+	desc = devm_gpiod_get_index(host->parent, con_id, idx);
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+
+	ret = gpiod_direction_input(desc);
+	if (ret < 0)
+		return ret;
+
+	if (debounce) {
+		ret = gpiod_set_debounce(desc, debounce);
+		if (ret < 0)
+			return ret;
+	}
+
+	ctx->override_cd_active_level = override_active_level;
+	ctx->cd_gpio = desc;
+
+	return 0;
+}
+EXPORT_SYMBOL(mmc_gpiod_request_cd);
+
+/**
+ * mmc_gpiod_free_cd - free the card-detection gpio descriptor
+ * @host: mmc host
+ *
+ * It's provided only for cases that client drivers need to manually free
+ * up the card-detection gpio requested by mmc_gpiod_request_cd().
+ */
+void mmc_gpiod_free_cd(struct mmc_host *host)
+{
+	struct mmc_gpio *ctx = host->slot.handler_priv;
+
+	if (!ctx || !ctx->cd_gpio)
+		return;
+
+	if (host->slot.cd_irq >= 0) {
+		devm_free_irq(&host->class_dev, host->slot.cd_irq, host);
+		host->slot.cd_irq = -EINVAL;
+	}
+
+	devm_gpiod_put(&host->class_dev, ctx->cd_gpio);
+
+	ctx->cd_gpio = NULL;
+}
+EXPORT_SYMBOL(mmc_gpiod_free_cd);
