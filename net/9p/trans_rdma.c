@@ -587,10 +587,22 @@ static struct p9_trans_rdma *alloc_rdma(struct p9_rdma_opts *opts)
 	return rdma;
 }
 
-/* its not clear to me we can do anything after send has been posted */
 static int rdma_cancel(struct p9_client *client, struct p9_req_t *req)
 {
+	/* Nothing to do here.
+	 * We will take care of it (if we have to) in rdma_cancelled()
+	 */
 	return 1;
+}
+
+/* A request has been fully flushed without a reply.
+ * That means we have posted one buffer in excess.
+ */
+static int rdma_cancelled(struct p9_client *client, struct p9_req_t *req)
+{
+	struct p9_trans_rdma *rdma = client->trans;
+	atomic_inc(&rdma->excess_rc);
+	return 0;
 }
 
 /**
@@ -726,6 +738,7 @@ static struct p9_trans_module p9_rdma_trans = {
 	.close = rdma_close,
 	.request = rdma_request,
 	.cancel = rdma_cancel,
+	.cancelled = rdma_cancelled,
 };
 
 /**
