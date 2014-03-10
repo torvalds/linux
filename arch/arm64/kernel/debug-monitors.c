@@ -155,12 +155,16 @@ static struct notifier_block os_lock_nb = {
 
 static int debug_monitors_init(void)
 {
+	cpu_notifier_register_begin();
+
 	/* Clear the OS lock. */
 	smp_call_function(clear_os_lock, NULL, 1);
 	clear_os_lock(NULL);
 
 	/* Register hotplug handler. */
-	register_cpu_notifier(&os_lock_nb);
+	__register_cpu_notifier(&os_lock_nb);
+
+	cpu_notifier_register_done();
 	return 0;
 }
 postcore_initcall(debug_monitors_init);
