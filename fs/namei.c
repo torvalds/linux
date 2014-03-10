@@ -2542,7 +2542,7 @@ static int handle_truncate(struct file *filp)
 	/*
 	 * Refuse to truncate files with mandatory locks held on them.
 	 */
-	error = locks_verify_locked(inode);
+	error = locks_verify_locked(filp);
 	if (!error)
 		error = security_path_truncate(path);
 	if (!error) {

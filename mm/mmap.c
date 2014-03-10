@@ -1299,7 +1299,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 			/*
 			 * Make sure there are no mandatory locks on the file.
 			 */
-			if (locks_verify_locked(inode))
+			if (locks_verify_locked(file))
 				return -EAGAIN;
 
 			vm_flags |= VM_SHARED | VM_MAYSHARE;
