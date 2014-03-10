@@ -2972,6 +2972,12 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 	tcp_connect_queue_skb(sk, data);
 	fo->copied = data->len;
 
+	/* syn_data is about to be sent, we need to take current time stamps
+	 * for the packets that are in write queue : SYN packet and DATA
+	 */
+	skb_mstamp_get(&syn->skb_mstamp);
+	data->skb_mstamp = syn->skb_mstamp;
+
 	if (tcp_transmit_skb(sk, syn_data, 0, sk->sk_allocation) == 0) {
 		tp->syn_data = (fo->copied > 0);
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPORIGDATASENT);

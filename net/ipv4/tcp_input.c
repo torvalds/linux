@@ -3067,6 +3067,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			flag |= FLAG_RETRANS_DATA_ACKED;
 		} else {
 			last_ackt = skb->skb_mstamp;
+			WARN_ON_ONCE(last_ackt.v64 == 0);
 			if (!first_ackt.v64)
 				first_ackt = last_ackt;
 
