@@ -461,7 +461,6 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		if (res_mmap == NULL) {
 			dev_err(&pdev->dev,
 				"memory mapped resource not required\n");
-			return -ENODEV;
 		}
 	}
 
