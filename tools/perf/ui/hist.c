@@ -118,29 +118,27 @@ int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 
 #define __HPP_HEADER_FN(_type, _str, _min_width, _unit_width) 		\
 static int hpp__header_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	\
-			       struct perf_hpp *hpp)			\
+			       struct perf_hpp *hpp,			\
+			       struct perf_evsel *evsel)		\
 {									\
 	int len = _min_width;						\
 									\
-	if (symbol_conf.event_group) {					\
-		struct perf_evsel *evsel = hpp->ptr;			\
-									\
+	if (symbol_conf.event_group)					\
 		len = max(len, evsel->nr_members * _unit_width);	\
-	}								\
+									\
 	return scnprintf(hpp->buf, hpp->size, "%*s", len, _str);	\
 }
 
 #define __HPP_WIDTH_FN(_type, _min_width, _unit_width) 			\
 static int hpp__width_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	\
-			      struct perf_hpp *hpp __maybe_unused)	\
+			      struct perf_hpp *hpp __maybe_unused,	\
+			      struct perf_evsel *evsel)			\
 {									\
 	int len = _min_width;						\
 									\
-	if (symbol_conf.event_group) {					\
-		struct perf_evsel *evsel = hpp->ptr;			\
-									\
+	if (symbol_conf.event_group)					\
 		len = max(len, evsel->nr_members * _unit_width);	\
-	}								\
+									\
 	return len;							\
 }
 
@@ -329,15 +327,13 @@ unsigned int hists__sort_list_width(struct hists *hists)
 	struct perf_hpp_fmt *fmt;
 	struct sort_entry *se;
 	int i = 0, ret = 0;
-	struct perf_hpp dummy_hpp = {
-		.ptr	= hists_to_evsel(hists),
-	};
+	struct perf_hpp dummy_hpp;
 
 	perf_hpp__for_each_format(fmt) {
 		if (i)
 			ret += 2;
 
-		ret += fmt->width(fmt, &dummy_hpp);
+		ret += fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
 	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list)
