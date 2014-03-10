@@ -2777,6 +2777,9 @@ struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 						 skb_put(nskb, hsize), hsize);
 
 		while (pos < offset + len && i < nfrags) {
+			if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
+				goto err;
+
 			*frag = skb_shinfo(skb)->frags[i];
 			__skb_frag_ref(frag);
 			size = skb_frag_size(frag);
