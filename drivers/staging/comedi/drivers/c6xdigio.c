@@ -93,14 +93,6 @@ static int c6xdigio_get_encoder_bits(struct comedi_device *dev,
 	return c6xdigio_write_data(dev, cmd, status);
 }
 
-static void c6xdigio_pwm_init(struct comedi_device *dev)
-{
-	c6xdigio_write_data(dev, 0x70, 0x00);
-	c6xdigio_write_data(dev, 0x74, 0x80);
-	c6xdigio_write_data(dev, 0x70, 0x00);
-	c6xdigio_write_data(dev, 0x00, 0x80);
-}
-
 static void c6xdigio_pwm_write(struct comedi_device *dev,
 			       unsigned int chan, unsigned int val)
 {
@@ -164,14 +156,6 @@ static int c6xdigio_encoder_read(struct comedi_device *dev,
 	return val ^ 0x800000;
 }
 
-static void c6xdigio_encoder_reset(struct comedi_device *dev)
-{
-	c6xdigio_write_data(dev, 0x68, 0x00);
-	c6xdigio_write_data(dev, 0x6c, 0x80);
-	c6xdigio_write_data(dev, 0x68, 0x00);
-	c6xdigio_write_data(dev, 0x00, 0x80);
-}
-
 static int c6xdigio_pwm_insn_write(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -201,10 +185,19 @@ static int c6xdigio_encoder_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static void board_init(struct comedi_device *dev)
+static void c6xdigio_init(struct comedi_device *dev)
 {
-	c6xdigio_pwm_init(dev);
-	c6xdigio_encoder_reset(dev);
+	/* Initialize the PWM */
+	c6xdigio_write_data(dev, 0x70, 0x00);
+	c6xdigio_write_data(dev, 0x74, 0x80);
+	c6xdigio_write_data(dev, 0x70, 0x00);
+	c6xdigio_write_data(dev, 0x00, 0x80);
+
+	/* Reset the encoders */
+	c6xdigio_write_data(dev, 0x68, 0x00);
+	c6xdigio_write_data(dev, 0x6c, 0x80);
+	c6xdigio_write_data(dev, 0x68, 0x00);
+	c6xdigio_write_data(dev, 0x00, 0x80);
 }
 
 static const struct pnp_device_id c6xdigio_pnp_tbl[] = {
@@ -257,7 +250,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 
 	/*  I will call this init anyway but more than likely the DSP board */
 	/*  will not be connected when device driver is loaded. */
-	board_init(dev);
+	c6xdigio_init(dev);
 
 	return 0;
 }
