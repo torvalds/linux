@@ -128,8 +128,10 @@ static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
 static void gfar_configure_serdes(struct net_device *dev);
-static int gfar_poll(struct napi_struct *napi, int budget);
-static int gfar_poll_sq(struct napi_struct *napi, int budget);
+static int gfar_poll_rx(struct napi_struct *napi, int budget);
+static int gfar_poll_tx(struct napi_struct *napi, int budget);
+static int gfar_poll_rx_sq(struct napi_struct *napi, int budget);
+static int gfar_poll_tx_sq(struct napi_struct *napi, int budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void gfar_netpoll(struct net_device *dev);
 #endif
@@ -361,7 +363,10 @@ static void gfar_mac_rx_config(struct gfar_private *priv)
 	if (priv->rx_filer_enable) {
 		rctrl |= RCTRL_FILREN;
 		/* Program the RIR0 reg with the required distribution */
-		gfar_write(&regs->rir0, DEFAULT_RIR0);
+		if (priv->poll_mode == GFAR_SQ_POLLING)
+			gfar_write(&regs->rir0, DEFAULT_2RXQ_RIR0);
+		else /* GFAR_MQ_POLLING */
+			gfar_write(&regs->rir0, DEFAULT_8RXQ_RIR0);
 	}
 
 	/* Restore PROMISC mode */
@@ -614,23 +619,26 @@ static void disable_napi(struct gfar_private *priv)
 {
 	int i;
 
-	for (i = 0; i < priv->num_grps; i++)
-		napi_disable(&priv->gfargrp[i].napi);
+	for (i = 0; i < priv->num_grps; i++) {
+		napi_disable(&priv->gfargrp[i].napi_rx);
+		napi_disable(&priv->gfargrp[i].napi_tx);
+	}
 }
 
 static void enable_napi(struct gfar_private *priv)
 {
 	int i;
 
-	for (i = 0; i < priv->num_grps; i++)
-		napi_enable(&priv->gfargrp[i].napi);
+	for (i = 0; i < priv->num_grps; i++) {
+		napi_enable(&priv->gfargrp[i].napi_rx);
+		napi_enable(&priv->gfargrp[i].napi_tx);
+	}
 }
 
 static int gfar_parse_group(struct device_node *np,
 			    struct gfar_private *priv, const char *model)
 {
 	struct gfar_priv_grp *grp = &priv->gfargrp[priv->num_grps];
-	u32 *queue_mask;
 	int i;
 
 	for (i = 0; i < GFAR_NUM_IRQS; i++) {
@@ -659,12 +667,20 @@ static int gfar_parse_group(struct device_node *np,
 	grp->priv = priv;
 	spin_lock_init(&grp->grplock);
 	if (priv->mode == MQ_MG_MODE) {
-		queue_mask = (u32 *)of_get_property(np, "fsl,rx-bit-map", NULL);
-		grp->rx_bit_map = queue_mask ?
-			*queue_mask : (DEFAULT_MAPPING >> priv->num_grps);
-		queue_mask = (u32 *)of_get_property(np, "fsl,tx-bit-map", NULL);
-		grp->tx_bit_map = queue_mask ?
-			*queue_mask : (DEFAULT_MAPPING >> priv->num_grps);
+		u32 *rxq_mask, *txq_mask;
+		rxq_mask = (u32 *)of_get_property(np, "fsl,rx-bit-map", NULL);
+		txq_mask = (u32 *)of_get_property(np, "fsl,tx-bit-map", NULL);
+
+		if (priv->poll_mode == GFAR_SQ_POLLING) {
+			/* One Q per interrupt group: Q0 to G0, Q1 to G1 */
+			grp->rx_bit_map = (DEFAULT_MAPPING >> priv->num_grps);
+			grp->tx_bit_map = (DEFAULT_MAPPING >> priv->num_grps);
+		} else { /* GFAR_MQ_POLLING */
+			grp->rx_bit_map = rxq_mask ?
+			*rxq_mask : (DEFAULT_MAPPING >> priv->num_grps);
+			grp->tx_bit_map = txq_mask ?
+			*txq_mask : (DEFAULT_MAPPING >> priv->num_grps);
+		}
 	} else {
 		grp->rx_bit_map = 0xFF;
 		grp->tx_bit_map = 0xFF;
@@ -680,6 +696,8 @@ static int gfar_parse_group(struct device_node *np,
 	 * also assign queues to groups
 	 */
 	for_each_set_bit(i, &grp->rx_bit_map, priv->num_rx_queues) {
+		if (!grp->rx_queue)
+			grp->rx_queue = priv->rx_queue[i];
 		grp->num_rx_queues++;
 		grp->rstat |= (RSTAT_CLEAR_RHALT >> i);
 		priv->rqueue |= ((RQUEUE_EN0 | RQUEUE_EX0) >> i);
@@ -687,6 +705,8 @@ static int gfar_parse_group(struct device_node *np,
 	}
 
 	for_each_set_bit(i, &grp->tx_bit_map, priv->num_tx_queues) {
+		if (!grp->tx_queue)
+			grp->tx_queue = priv->tx_queue[i];
 		grp->num_tx_queues++;
 		grp->tstat |= (TSTAT_CLEAR_THALT >> i);
 		priv->tqueue |= (TQUEUE_EN0 >> i);
@@ -717,9 +737,22 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	if (!np || !of_device_is_available(np))
 		return -ENODEV;
 
-	/* parse the num of tx and rx queues */
+	/* parse the num of HW tx and rx queues */
 	tx_queues = (u32 *)of_get_property(np, "fsl,num_tx_queues", NULL);
-	num_tx_qs = tx_queues ? *tx_queues : 1;
+	rx_queues = (u32 *)of_get_property(np, "fsl,num_rx_queues", NULL);
+
+	if (priv->mode == SQ_SG_MODE) {
+		num_tx_qs = 1;
+		num_rx_qs = 1;
+	} else { /* MQ_MG_MODE */
+		if (priv->poll_mode == GFAR_SQ_POLLING) {
+			num_tx_qs = 2; /* one q per int group */
+			num_rx_qs = 2; /* one q per int group */
+		} else { /* GFAR_MQ_POLLING */
+			num_tx_qs = tx_queues ? *tx_queues : 1;
+			num_rx_qs = rx_queues ? *rx_queues : 1;
+		}
+	}
 
 	if (num_tx_qs > MAX_TX_QS) {
 		pr_err("num_tx_qs(=%d) greater than MAX_TX_QS(=%d)\n",
@@ -727,9 +760,6 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		pr_err("Cannot do alloc_etherdev, aborting\n");
 		return -EINVAL;
 	}
-
-	rx_queues = (u32 *)of_get_property(np, "fsl,num_rx_queues", NULL);
-	num_rx_qs = rx_queues ? *rx_queues : 1;
 
 	if (num_rx_qs > MAX_RX_QS) {
 		pr_err("num_rx_qs(=%d) greater than MAX_RX_QS(=%d)\n",
@@ -771,6 +801,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	/* Parse and initialize group specific information */
 	if (of_device_is_compatible(np, "fsl,etsec2")) {
 		priv->mode = MQ_MG_MODE;
+		priv->poll_mode = GFAR_SQ_POLLING;
 		for_each_child_of_node(np, child) {
 			err = gfar_parse_group(child, priv, model);
 			if (err)
@@ -778,6 +809,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		}
 	} else {
 		priv->mode = SQ_SG_MODE;
+		priv->poll_mode = GFAR_SQ_POLLING;
 		err = gfar_parse_group(np, priv, model);
 		if (err)
 			goto err_grp_init;
@@ -1257,13 +1289,19 @@ static int gfar_probe(struct platform_device *ofdev)
 	dev->ethtool_ops = &gfar_ethtool_ops;
 
 	/* Register for napi ...We are registering NAPI for each grp */
-	if (priv->mode == SQ_SG_MODE)
-		netif_napi_add(dev, &priv->gfargrp[0].napi, gfar_poll_sq,
-			       GFAR_DEV_WEIGHT);
-	else
-		for (i = 0; i < priv->num_grps; i++)
-			netif_napi_add(dev, &priv->gfargrp[i].napi, gfar_poll,
-				       GFAR_DEV_WEIGHT);
+	for (i = 0; i < priv->num_grps; i++) {
+		if (priv->poll_mode == GFAR_SQ_POLLING) {
+			netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
+				       gfar_poll_rx_sq, GFAR_DEV_WEIGHT);
+			netif_napi_add(dev, &priv->gfargrp[i].napi_tx,
+				       gfar_poll_tx_sq, 2);
+		} else {
+			netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
+				       gfar_poll_rx, GFAR_DEV_WEIGHT);
+			netif_napi_add(dev, &priv->gfargrp[i].napi_tx,
+				       gfar_poll_tx, 2);
+		}
+	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM) {
 		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
@@ -2538,31 +2576,6 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	netdev_tx_completed_queue(txq, howmany, bytes_sent);
 }
 
-static void gfar_schedule_cleanup(struct gfar_priv_grp *gfargrp)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&gfargrp->grplock, flags);
-	if (napi_schedule_prep(&gfargrp->napi)) {
-		gfar_write(&gfargrp->regs->imask, IMASK_RTX_DISABLED);
-		__napi_schedule(&gfargrp->napi);
-	} else {
-		/* Clear IEVENT, so interrupts aren't called again
-		 * because of the packets that have already arrived.
-		 */
-		gfar_write(&gfargrp->regs->ievent, IEVENT_RTX_MASK);
-	}
-	spin_unlock_irqrestore(&gfargrp->grplock, flags);
-
-}
-
-/* Interrupt Handler for Transmit complete */
-static irqreturn_t gfar_transmit(int irq, void *grp_id)
-{
-	gfar_schedule_cleanup((struct gfar_priv_grp *)grp_id);
-	return IRQ_HANDLED;
-}
-
 static void gfar_new_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 			   struct sk_buff *skb)
 {
@@ -2633,7 +2646,48 @@ static inline void count_errors(unsigned short status, struct net_device *dev)
 
 irqreturn_t gfar_receive(int irq, void *grp_id)
 {
-	gfar_schedule_cleanup((struct gfar_priv_grp *)grp_id);
+	struct gfar_priv_grp *grp = (struct gfar_priv_grp *)grp_id;
+	unsigned long flags;
+	u32 imask;
+
+	if (likely(napi_schedule_prep(&grp->napi_rx))) {
+		spin_lock_irqsave(&grp->grplock, flags);
+		imask = gfar_read(&grp->regs->imask);
+		imask &= IMASK_RX_DISABLED;
+		gfar_write(&grp->regs->imask, imask);
+		spin_unlock_irqrestore(&grp->grplock, flags);
+		__napi_schedule(&grp->napi_rx);
+	} else {
+		/* Clear IEVENT, so interrupts aren't called again
+		 * because of the packets that have already arrived.
+		 */
+		gfar_write(&grp->regs->ievent, IEVENT_RX_MASK);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/* Interrupt Handler for Transmit complete */
+static irqreturn_t gfar_transmit(int irq, void *grp_id)
+{
+	struct gfar_priv_grp *grp = (struct gfar_priv_grp *)grp_id;
+	unsigned long flags;
+	u32 imask;
+
+	if (likely(napi_schedule_prep(&grp->napi_tx))) {
+		spin_lock_irqsave(&grp->grplock, flags);
+		imask = gfar_read(&grp->regs->imask);
+		imask &= IMASK_TX_DISABLED;
+		gfar_write(&grp->regs->imask, imask);
+		spin_unlock_irqrestore(&grp->grplock, flags);
+		__napi_schedule(&grp->napi_tx);
+	} else {
+		/* Clear IEVENT, so interrupts aren't called again
+		 * because of the packets that have already arrived.
+		 */
+		gfar_write(&grp->regs->ievent, IEVENT_TX_MASK);
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -2757,7 +2811,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 				rx_queue->stats.rx_bytes += pkt_len;
 				skb_record_rx_queue(skb, rx_queue->qindex);
 				gfar_process_frame(dev, skb, amount_pull,
-						   &rx_queue->grp->napi);
+						   &rx_queue->grp->napi_rx);
 
 			} else {
 				netif_warn(priv, rx_err, dev, "Missing skb!\n");
@@ -2786,70 +2840,87 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 	return howmany;
 }
 
-static int gfar_poll_sq(struct napi_struct *napi, int budget)
+static int gfar_poll_rx_sq(struct napi_struct *napi, int budget)
 {
 	struct gfar_priv_grp *gfargrp =
-		container_of(napi, struct gfar_priv_grp, napi);
+		container_of(napi, struct gfar_priv_grp, napi_rx);
 	struct gfar __iomem *regs = gfargrp->regs;
-	struct gfar_priv_tx_q *tx_queue = gfargrp->priv->tx_queue[0];
-	struct gfar_priv_rx_q *rx_queue = gfargrp->priv->rx_queue[0];
+	struct gfar_priv_rx_q *rx_queue = gfargrp->rx_queue;
 	int work_done = 0;
 
 	/* Clear IEVENT, so interrupts aren't called again
 	 * because of the packets that have already arrived
 	 */
-	gfar_write(&regs->ievent, IEVENT_RTX_MASK);
-
-	/* run Tx cleanup to completion */
-	if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx])
-		gfar_clean_tx_ring(tx_queue);
+	gfar_write(&regs->ievent, IEVENT_RX_MASK);
 
 	work_done = gfar_clean_rx_ring(rx_queue, budget);
 
 	if (work_done < budget) {
+		u32 imask;
 		napi_complete(napi);
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&regs->rstat, gfargrp->rstat);
 
-		gfar_write(&regs->imask, IMASK_DEFAULT);
+		spin_lock_irq(&gfargrp->grplock);
+		imask = gfar_read(&regs->imask);
+		imask |= IMASK_RX_DEFAULT;
+		gfar_write(&regs->imask, imask);
+		spin_unlock_irq(&gfargrp->grplock);
 	}
 
 	return work_done;
 }
 
-static int gfar_poll(struct napi_struct *napi, int budget)
+static int gfar_poll_tx_sq(struct napi_struct *napi, int budget)
 {
 	struct gfar_priv_grp *gfargrp =
-		container_of(napi, struct gfar_priv_grp, napi);
+		container_of(napi, struct gfar_priv_grp, napi_tx);
+	struct gfar __iomem *regs = gfargrp->regs;
+	struct gfar_priv_tx_q *tx_queue = gfargrp->tx_queue;
+	u32 imask;
+
+	/* Clear IEVENT, so interrupts aren't called again
+	 * because of the packets that have already arrived
+	 */
+	gfar_write(&regs->ievent, IEVENT_TX_MASK);
+
+	/* run Tx cleanup to completion */
+	if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx])
+		gfar_clean_tx_ring(tx_queue);
+
+	napi_complete(napi);
+
+	spin_lock_irq(&gfargrp->grplock);
+	imask = gfar_read(&regs->imask);
+	imask |= IMASK_TX_DEFAULT;
+	gfar_write(&regs->imask, imask);
+	spin_unlock_irq(&gfargrp->grplock);
+
+	return 0;
+}
+
+static int gfar_poll_rx(struct napi_struct *napi, int budget)
+{
+	struct gfar_priv_grp *gfargrp =
+		container_of(napi, struct gfar_priv_grp, napi_rx);
 	struct gfar_private *priv = gfargrp->priv;
 	struct gfar __iomem *regs = gfargrp->regs;
-	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	int work_done = 0, work_done_per_q = 0;
 	int i, budget_per_q = 0;
-	int has_tx_work = 0;
 	unsigned long rstat_rxf;
 	int num_act_queues;
 
 	/* Clear IEVENT, so interrupts aren't called again
 	 * because of the packets that have already arrived
 	 */
-	gfar_write(&regs->ievent, IEVENT_RTX_MASK);
+	gfar_write(&regs->ievent, IEVENT_RX_MASK);
 
 	rstat_rxf = gfar_read(&regs->rstat) & RSTAT_RXF_MASK;
 
 	num_act_queues = bitmap_weight(&rstat_rxf, MAX_RX_QS);
 	if (num_act_queues)
 		budget_per_q = budget/num_act_queues;
-
-	for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
-		tx_queue = priv->tx_queue[i];
-		/* run Tx cleanup to completion */
-		if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
-			gfar_clean_tx_ring(tx_queue);
-			has_tx_work = 1;
-		}
-	}
 
 	for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
 		/* skip queue if not active */
@@ -2873,18 +2944,61 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	if (!num_act_queues && !has_tx_work) {
-
+	if (!num_act_queues) {
+		u32 imask;
 		napi_complete(napi);
 
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&regs->rstat, gfargrp->rstat);
 
-		gfar_write(&regs->imask, IMASK_DEFAULT);
+		spin_lock_irq(&gfargrp->grplock);
+		imask = gfar_read(&regs->imask);
+		imask |= IMASK_RX_DEFAULT;
+		gfar_write(&regs->imask, imask);
+		spin_unlock_irq(&gfargrp->grplock);
 	}
 
 	return work_done;
 }
+
+static int gfar_poll_tx(struct napi_struct *napi, int budget)
+{
+	struct gfar_priv_grp *gfargrp =
+		container_of(napi, struct gfar_priv_grp, napi_tx);
+	struct gfar_private *priv = gfargrp->priv;
+	struct gfar __iomem *regs = gfargrp->regs;
+	struct gfar_priv_tx_q *tx_queue = NULL;
+	int has_tx_work = 0;
+	int i;
+
+	/* Clear IEVENT, so interrupts aren't called again
+	 * because of the packets that have already arrived
+	 */
+	gfar_write(&regs->ievent, IEVENT_TX_MASK);
+
+	for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
+		tx_queue = priv->tx_queue[i];
+		/* run Tx cleanup to completion */
+		if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
+			gfar_clean_tx_ring(tx_queue);
+			has_tx_work = 1;
+		}
+	}
+
+	if (!has_tx_work) {
+		u32 imask;
+		napi_complete(napi);
+
+		spin_lock_irq(&gfargrp->grplock);
+		imask = gfar_read(&regs->imask);
+		imask |= IMASK_TX_DEFAULT;
+		gfar_write(&regs->imask, imask);
+		spin_unlock_irq(&gfargrp->grplock);
+	}
+
+	return 0;
+}
+
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* Polling 'interrupt' - used by things like netconsole to send skbs
