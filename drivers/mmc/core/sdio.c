@@ -1275,7 +1275,7 @@ err:
 	return err;
 }
 
-/*
+
 int sdio_reset_comm(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
@@ -1293,13 +1293,13 @@ int sdio_reset_comm(struct mmc_card *card)
 	if (err)
 		goto err;
 
-	host->ocr = mmc_select_voltage(host, ocr);
-	if (!host->ocr) {
+	host->ocr_avail_sdio = mmc_select_voltage(host, ocr);
+	if (!host->ocr_avail_sdio) {
 		err = -EINVAL;
 		goto err;
 	}
 
-	err = mmc_sdio_init_card(host, host->ocr, card, 0);
+	err = mmc_sdio_init_card(host, host->ocr_avail_sdio, card, 0);
 	if (err)
 		goto err;
 
@@ -1312,4 +1312,4 @@ err:
 	return err;
 }
 EXPORT_SYMBOL(sdio_reset_comm);
-*/
+
