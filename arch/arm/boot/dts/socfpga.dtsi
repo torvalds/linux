@@ -563,7 +563,7 @@
 			reg = <0xffd05000 0x1000>;
 		};
 
-		sysmgr@ffd08000 {
+		sysmgr: sysmgr@ffd08000 {
 			compatible = "altr,sys-mgr", "syscon";
 			reg = <0xffd08000 0x4000>;
 		};
