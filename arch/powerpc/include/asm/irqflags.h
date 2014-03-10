@@ -20,9 +20,9 @@
  */
 #define TRACE_WITH_FRAME_BUFFER(func)		\
 	mflr	r0;				\
-	stdu	r1, -32(r1);			\
+	stdu	r1, -STACK_FRAME_OVERHEAD(r1);	\
 	std	r0, 16(r1);			\
-	stdu	r1, -32(r1);			\
+	stdu	r1, -STACK_FRAME_OVERHEAD(r1);	\
 	bl func;				\
 	ld	r1, 0(r1);			\
 	ld	r1, 0(r1);
