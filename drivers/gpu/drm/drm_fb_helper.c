@@ -516,6 +516,9 @@ int drm_fb_helper_init(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i;
 
+	if (!max_conn_count)
+		return -EINVAL;
+
 	fb_helper->dev = dev;
 
 	INIT_LIST_HEAD(&fb_helper->kernel_fb_list);
