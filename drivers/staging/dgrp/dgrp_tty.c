@@ -2798,6 +2798,7 @@ static int dgrp_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		}
 
 		/* pretend we didn't recognize this */
+		/* fall-through */
 
 	case DIGI_SETA:
 		return dgrp_tty_digiseta(tty, (struct digi_struct *) arg);
