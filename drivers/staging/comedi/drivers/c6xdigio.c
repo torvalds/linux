@@ -43,12 +43,6 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 
 #include "../comedidev.h"
 
-static u8 ReadByteFromHwPort(unsigned long addr)
-{
-	u8 result = inb(addr);
-	return result;
-}
-
 static void WriteByteToHwPort(unsigned long addr, u8 val)
 {
 	outb_p(val, addr);
@@ -95,28 +89,28 @@ static void C6X_pwmInit(unsigned long baseAddr)
 	int timeout = 0;
 
 	WriteByteToHwPort(baseAddr, 0x70);
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0)
+	while (((inb(baseAddr + 1) & 0x80) == 0)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x74);
 	timeout = 0;
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
+	while (((inb(baseAddr + 1) & 0x80) == 0x80)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x70);
 	timeout = 0;
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x0)
+	while (((inb(baseAddr + 1) & 0x80) == 0x0)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
+	while (((inb(baseAddr + 1) & 0x80) == 0x80)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
@@ -143,47 +137,47 @@ static void C6X_pwmOutput(unsigned long baseAddr, unsigned channel, int value)
 	}			/* endif */
 
 	WriteByteToHwPort(baseAddr, ppcmd + pwm.bits.sb0);
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, ppcmd + pwm.bits.sb1 + 0x4);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, ppcmd + pwm.bits.sb2);
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, ppcmd + pwm.bits.sb3 + 0x4);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, ppcmd + pwm.bits.sb4);
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
@@ -203,82 +197,82 @@ static int C6X_encInput(unsigned long baseAddr, unsigned channel)
 		ppcmd = 0x50;
 
 	WriteByteToHwPort(baseAddr, ppcmd);
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
-	enc.bits.sb0 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb0 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd + 0x4);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
-	enc.bits.sb1 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb1 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
-	enc.bits.sb2 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb2 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd + 0x4);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
-	enc.bits.sb3 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb3 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
-	enc.bits.sb4 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb4 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd + 0x4);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
-	enc.bits.sb5 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb5 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
-	enc.bits.sb6 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb6 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd + 0x4);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
-	enc.bits.sb7 = ((ReadByteFromHwPort(baseAddr + 1) >> 3) & 0x7);
+	enc.bits.sb7 = ((inb(baseAddr + 1) >> 3) & 0x7);
 	WriteByteToHwPort(baseAddr, ppcmd);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x0) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
-	tmp = ReadByteFromHwPort(baseAddr + 1);
+	tmp = inb(baseAddr + 1);
 	while (((tmp & 0x80) == 0x80) && (timeout < C6XDIGIO_TIME_OUT)) {
-		tmp = ReadByteFromHwPort(baseAddr + 1);
+		tmp = inb(baseAddr + 1);
 		timeout++;
 	}
 
@@ -290,25 +284,25 @@ static void C6X_encResetAll(unsigned long baseAddr)
 	unsigned timeout = 0;
 
 	WriteByteToHwPort(baseAddr, 0x68);
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0)
+	while (((inb(baseAddr + 1) & 0x80) == 0)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x6C);
 	timeout = 0;
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
+	while (((inb(baseAddr + 1) & 0x80) == 0x80)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x68);
 	timeout = 0;
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x0)
+	while (((inb(baseAddr + 1) & 0x80) == 0x0)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
-	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
+	while (((inb(baseAddr + 1) & 0x80) == 0x80)
 	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
