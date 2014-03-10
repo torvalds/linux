@@ -107,40 +107,40 @@ static void c6xdigio_pwm_init(struct comedi_device *dev)
 	c6xdigio_chk_status(dev->iobase, 0x80);
 }
 
-static void C6X_pwmOutput(unsigned long baseAddr, unsigned channel, int value)
+static void c6xdigio_pwm_write(struct comedi_device *dev,
+			       unsigned int chan, unsigned int val)
 {
 	unsigned ppcmd;
 	union pwmcmdtype pwm;
 
-	pwm.cmd = value;
+	pwm.cmd = val;
 	if (pwm.cmd > 498)
 		pwm.cmd = 498;
 	if (pwm.cmd < 2)
 		pwm.cmd = 2;
 
-	if (channel == 0) {
+	if (chan == 0)
 		ppcmd = 0x28;
-	} else {		/*  if channel == 1 */
+	else
 		ppcmd = 0x30;
-	}			/* endif */
 
-	outb_p(ppcmd + pwm.bits.sb0, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(ppcmd + pwm.bits.sb0, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(ppcmd + pwm.bits.sb1 + 0x4, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(ppcmd + pwm.bits.sb1 + 0x4, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	outb_p(ppcmd + pwm.bits.sb2, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(ppcmd + pwm.bits.sb2, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(ppcmd + pwm.bits.sb3 + 0x4, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(ppcmd + pwm.bits.sb3 + 0x4, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 
-	outb_p(ppcmd + pwm.bits.sb4, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x00);
+	outb_p(ppcmd + pwm.bits.sb4, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x00);
 
-	outb_p(0x0, baseAddr);
-	c6xdigio_chk_status(baseAddr, 0x80);
+	outb_p(0x0, dev->iobase);
+	c6xdigio_chk_status(dev->iobase, 0x80);
 }
 
 static int C6X_encInput(unsigned long baseAddr, unsigned channel)
@@ -215,11 +215,11 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++) {
-		C6X_pwmOutput(dev->iobase, chan, data[i]);
+		c6xdigio_pwm_write(dev, chan, data[i]);
 		/*    devpriv->ao_readback[chan] = data[i]; */
 	}
 	return i;
