@@ -228,7 +228,6 @@ static int __exit corenet_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	struct cpu_data *data = per_cpu(cpu_data, policy->cpu);
 	unsigned int cpu;
 
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	of_node_put(data->parent);
 	kfree(data->table);
 	kfree(data);

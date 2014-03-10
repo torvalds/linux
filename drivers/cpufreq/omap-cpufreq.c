@@ -143,7 +143,6 @@ fail:
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)
 {
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	freq_table_free();
 	clk_put(policy->clk);
 	return 0;

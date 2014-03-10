@@ -382,7 +382,6 @@ static int eps_cpu_exit(struct cpufreq_policy *policy)
 	unsigned int cpu = policy->cpu;
 
 	/* Bye */
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	kfree(eps_cpu[cpu]);
 	eps_cpu[cpu] = NULL;
 	return 0;
