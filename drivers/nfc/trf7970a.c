@@ -87,7 +87,8 @@
  * the trf7970a_per_cmd_config() routine.
  */
 
-#define TRF7970A_SUPPORTED_PROTOCOLS		NFC_PROTO_MIFARE_MASK
+#define TRF7970A_SUPPORTED_PROTOCOLS \
+		(NFC_PROTO_MIFARE_MASK | NFC_PROTO_ISO14443_MASK)
 
 /* TX data must be prefixed with a FIFO reset cmd, a cmd that depends
  * on what the current framing is, the address of the TX length byte 1
@@ -821,6 +822,7 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 		trf->iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
 	case NFC_DIGITAL_FRAMING_NFCA_STANDARD_WITH_CRC_A:
+	case NFC_DIGITAL_FRAMING_NFCA_T4T:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT;
 		trf->iso_ctrl &= ~TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
