@@ -229,13 +229,20 @@
 	stw	r10, VCPU_CR(r4)
 	PPC_STL r11, VCPU_GPR(R4)(r4)
 	PPC_STL	r5, VCPU_GPR(R5)(r4)
-	mfspr	r5, \scratch
 	PPC_STL	r6, VCPU_GPR(R6)(r4)
 	PPC_STL	r8, VCPU_GPR(R8)(r4)
 	PPC_STL	r9, VCPU_GPR(R9)(r4)
-	PPC_STL r5, VCPU_GPR(R13)(r4)
+	.if \type == EX_TLB
+	PPC_LL	r5, EX_TLB_R13(r12)
+	PPC_LL	r6, EX_TLB_R10(r12)
+	PPC_LL	r8, EX_TLB_R11(r12)
+	mfspr	r12, \scratch
+	.else
+	mfspr	r5, \scratch
 	PPC_LL	r6, (\paca_ex + \ex_r10)(r13)
 	PPC_LL	r8, (\paca_ex + \ex_r11)(r13)
+	.endif
+	PPC_STL r5, VCPU_GPR(R13)(r4)
 	PPC_STL r3, VCPU_GPR(R3)(r4)
 	PPC_STL r7, VCPU_GPR(R7)(r4)
 	PPC_STL r12, VCPU_GPR(R12)(r4)
