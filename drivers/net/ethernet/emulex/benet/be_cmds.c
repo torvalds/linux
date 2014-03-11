@@ -244,10 +244,12 @@ static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
 static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
 		struct be_async_event_grp5_pvid_state *evt)
 {
-	if (evt->enabled)
+	if (evt->enabled) {
 		adapter->pvid = le16_to_cpu(evt->tag) & VLAN_VID_MASK;
-	else
+		dev_info(&adapter->pdev->dev, "LPVID: %d\n", adapter->pvid);
+	} else {
 		adapter->pvid = 0;
+	}
 }
 
 static void be_async_grp5_evt_process(struct be_adapter *adapter,
