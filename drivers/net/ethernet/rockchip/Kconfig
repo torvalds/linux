@@ -11,6 +11,7 @@ config NET_VENDOR_ROCKCHIP
 
 if NET_VENDOR_ROCKCHIP
 
-source "drivers/net/ethernet/rk/vmac/Kconfig"
+source "drivers/net/ethernet/rockchip/vmac/Kconfig"
+source "drivers/net/ethernet/rockchip/gmac/Kconfig"
 
 endif # NET_VENDOR_ROCKCHIP

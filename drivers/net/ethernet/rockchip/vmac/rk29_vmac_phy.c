@@ -148,14 +148,14 @@ static int vmac_phy_remove(struct platform_device *pdev)
 }
 
 static struct of_device_id vmac_phy_of_match[] = {
-	{ .compatible = "vmac-phy" },
+	{ .compatible = "rockchip,vmac-phy" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, vmac_phy_of_match);
 
 static struct platform_driver vmac_phy_driver = {
 	.driver		= {
-		.name		= "vmac-phy",
+		.name		= "rockchip,vmac-phy",
 		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(vmac_phy_of_match),
 	},

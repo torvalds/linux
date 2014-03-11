@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_RK_VMAC_ETH) += vmac/
+obj-$(CONFIG_RK_GMAC_ETH) += gmac/

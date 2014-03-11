@@ -1,0 +1,31 @@
+config RK_GMAC_ETH
+	tristate "Rockchip 10/100/1000 Ethernet driver"
+	depends on HAS_IOMEM && HAS_DMA
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	select PTP_1588_CLOCK
+	---help---
+	  Rockchip 10/100/1000 Ethernet driver.
+
+if RK_GMAC_ETH
+
+config GMAC_DEBUG_FS
+	bool "Enable monitoring via sysFS "
+	default n
+	depends on RK_GMAC_ETH && DEBUG_FS
+	---help---
+	  The gmac entry in /sys reports DMA TX/RX rings
+	  or (if supported) the HW cap register.
+
+config GMAC_DA
+	bool "GMAC DMA arbitration scheme"
+	default n
+	---help---
+	  Selecting this option, rx has priority over Tx (only for Giga
+	  Ethernet device).
+	  By default, the DMA arbitration scheme is based on Round-robin
+	  (rx:tx priority is 1:1).
+
+endif

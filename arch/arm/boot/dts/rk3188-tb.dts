@@ -121,7 +121,7 @@
 	};
 	
 	vmac-phy {
-		compatible = "vmac-phy";
+		compatible = "rockchip,vmac-phy";
 		power-gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_HIGH>;
 	};
 };
