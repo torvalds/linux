@@ -212,6 +212,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long cpu_id = (unsigned long)v - 1;
 	unsigned int pvr;
+	unsigned long proc_freq;
 	unsigned short maj;
 	unsigned short min;
 
@@ -263,12 +264,19 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif /* CONFIG_TAU */
 
 	/*
-	 * Assume here that all clock rates are the same in a
-	 * smp system.  -- Cort
+	 * Platforms that have variable clock rates, should implement
+	 * the method ppc_md.get_proc_freq() that reports the clock
+	 * rate of a given cpu. The rest can use ppc_proc_freq to
+	 * report the clock rate that is same across all cpus.
 	 */
-	if (ppc_proc_freq)
+	if (ppc_md.get_proc_freq)
+		proc_freq = ppc_md.get_proc_freq(cpu_id);
+	else
+		proc_freq = ppc_proc_freq;
+
+	if (proc_freq)
 		seq_printf(m, "clock\t\t: %lu.%06luMHz\n",
-			   ppc_proc_freq / 1000000, ppc_proc_freq % 1000000);
+			   proc_freq / 1000000, proc_freq % 1000000);
 
 	if (ppc_md.show_percpuinfo != NULL)
 		ppc_md.show_percpuinfo(m, cpu_id);
