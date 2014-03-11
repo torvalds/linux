@@ -428,7 +428,7 @@ static int sci_probe_regmap(struct plat_sci_port *cfg)
 		cfg->regtype = SCIx_HSCIF_REGTYPE;
 		break;
 	default:
-		printk(KERN_ERR "Can't probe register map for given port\n");
+		pr_err("Can't probe register map for given port\n");
 		return -EINVAL;
 	}
 
@@ -2389,8 +2389,7 @@ static inline int sci_probe_earlyprintk(struct platform_device *pdev)
 
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-static char banner[] __initdata =
-	KERN_INFO "SuperH (H)SCI(F) driver initialized\n";
+static const char banner[] __initconst = "SuperH (H)SCI(F) driver initialized";
 
 static struct uart_driver sci_uart_driver = {
 	.owner		= THIS_MODULE,
@@ -2616,7 +2615,7 @@ static int __init sci_init(void)
 {
 	int ret;
 
-	printk(banner);
+	pr_info("%s\n", banner);
 
 	ret = uart_register_driver(&sci_uart_driver);
 	if (likely(ret == 0)) {
