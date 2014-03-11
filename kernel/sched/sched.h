@@ -444,7 +444,6 @@ struct dl_rq {
 	} earliest_dl;
 
 	unsigned long dl_nr_migratory;
-	unsigned long dl_nr_total;
 	int overloaded;
 
 	/*

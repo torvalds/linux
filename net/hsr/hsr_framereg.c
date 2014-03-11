@@ -297,7 +297,7 @@ static bool seq_nr_after(u16 a, u16 b)
 
 void hsr_register_frame_in(struct node_entry *node, enum hsr_dev_idx dev_idx)
 {
-	if ((dev_idx < 0) || (dev_idx >= HSR_MAX_DEV)) {
+	if ((dev_idx < 0) || (dev_idx >= HSR_MAX_SLAVE)) {
 		WARN_ONCE(1, "%s: Invalid dev_idx (%d)\n", __func__, dev_idx);
 		return;
 	}

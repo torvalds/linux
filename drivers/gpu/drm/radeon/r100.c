@@ -3942,8 +3942,6 @@ int r100_resume(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 
-	radeon_pm_resume(rdev);
-
 	rdev->accel_working = true;
 	r = r100_startup(rdev);
 	if (r) {
