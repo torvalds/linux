@@ -10,6 +10,22 @@
  * Peripherals common to all Gumstix Overo boards (Tobi, Summit, Palo43,...)
  */
 
+/ {
+	lis33_3v3: lis33-3v3-reg {
+		compatible = "regulator-fixed";
+		regulator-name = "lis33-3v3-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	lis33_1v8: lis33-1v8-reg {
+		compatible = "regulator-fixed";
+		regulator-name = "lis33-1v8-reg";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
 &omap3_pmx_core {
 	i2c3_pins: pinmux_i2c3_pins {
 		pinctrl-single,pins = <
@@ -36,6 +52,34 @@
 		compatible = "atmel,24c01";
 		reg = <0x51>;
 		pagesize = <8>;
+	};
+
+	lis33de: lis33de@1d {
+		compatible = "st,lis33de", "st,lis3lv02d";
+		reg = <0x1d>;
+		Vdd-supply = <&lis33_1v8>;
+		Vdd_IO-supply = <&lis33_3v3>;
+
+		st,click-single-x;
+		st,click-single-y;
+		st,click-single-z;
+		st,click-thresh-x = <10>;
+		st,click-thresh-y = <10>;
+		st,click-thresh-z = <10>;
+		st,irq1-click;
+		st,irq2-click;
+		st,wakeup-x-lo;
+		st,wakeup-x-hi;
+		st,wakeup-y-lo;
+		st,wakeup-y-hi;
+		st,wakeup-z-lo;
+		st,wakeup-z-hi;
+		st,min-limit-x = <120>;
+		st,min-limit-y = <120>;
+		st,min-limit-z = <140>;
+		st,max-limit-x = <550>;
+		st,max-limit-y = <550>;
+		st,max-limit-z = <750>;
 	};
 };
 

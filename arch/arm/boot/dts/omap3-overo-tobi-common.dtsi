@@ -35,3 +35,7 @@
 	};
 };
 
+&lis33de {
+	status = "disabled";
+};
+
