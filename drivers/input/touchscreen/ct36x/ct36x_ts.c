@@ -10,6 +10,7 @@ int inline ct36x_set_ops(struct ct36x_data *ts, int model)
 	switch(model){
 		case 360: ts->ops = &ct360_ops; break;
 		case 363: ts->ops = &ct363_ops; break;
+		case 365: ts->ops = &ct363_ops; break;
 		default: return -EINVAL;
 	};
 
@@ -185,6 +186,7 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 		return -EINVAL;
 	}
 	ts->model = val;//pdata->model;
+	flag_ct36x_model = ts->model;
 	//ts->x_max = pdata->x_max;
 	//ts->y_max = pdata->y_max;
 	//ts->rst_io = pdata->rst_io;

@@ -28,6 +28,8 @@
 //#else
 //#define ct36x_dbg(ts, format, arg...)
 //#endif
+int flag_ct36x_model;
+
 int ct36x_dbg_level = 0;
 module_param_named(dbg_level, ct36x_dbg_level, int, 0644);
 #if 1

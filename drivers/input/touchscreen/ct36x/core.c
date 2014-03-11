@@ -7,13 +7,14 @@
 #define CT36X_CHIP_FLASH_SECTOR_SIZE	128
 #define CT36X_CHIP_FLASH_SOURCE_SIZE	8
 
-static unsigned char binary_data[] = {
-#ifdef CONFIG_CT365_TS
+static unsigned char ct365_binary_data[] = {
 #include "RK_DPT101_CT365_01_V02_099E_140107.dat"
-#else
-#include "wgj97112tsm01_CT363_01_V01_EA50_140224.dat"
-#endif
 };
+
+static unsigned char ct363_binary_data[] = {
+#include "wgj97112tsm01_CT363_01_V01_EA50_140224.dat"
+};
+
 
 int ct36x_chip_set_idle(struct ct36x_data *ts)
 {
@@ -86,7 +87,13 @@ static int ct36x_chip_set_code(unsigned short flash_addr, char *buf)
 	buf[2] = (char)(flash_addr >> 8);
 	buf[3] = (char)(flash_addr & 0xFF);
 	buf[4] = 0x08;
-
+	unsigned char *binary_data;
+	
+	if(flag_ct36x_model ==365)
+		binary_data = ct365_binary_data;
+	else if(flag_ct36x_model ==363)
+		binary_data = ct363_binary_data;
+		
 	// Fill firmware source data
 	if ( flash_addr == (160) || flash_addr == (168) ) {
 		buf[6] = ~binary_data[flash_addr + 0];
