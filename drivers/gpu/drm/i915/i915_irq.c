@@ -618,33 +618,25 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 
 /* raw reads, only for fast reads of display block, no need for forcewake etc. */
 #define __raw_i915_read32(dev_priv__, reg__) readl((dev_priv__)->regs + (reg__))
-#define __raw_i915_read16(dev_priv__, reg__) readw((dev_priv__)->regs + (reg__))
 
 static bool ilk_pipe_in_vblank_locked(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t status;
+	int reg;
 
-	if (INTEL_INFO(dev)->gen < 7) {
-		status = pipe == PIPE_A ?
-			DE_PIPEA_VBLANK :
-			DE_PIPEB_VBLANK;
+	if (INTEL_INFO(dev)->gen >= 8) {
+		status = GEN8_PIPE_VBLANK;
+		reg = GEN8_DE_PIPE_ISR(pipe);
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		status = DE_PIPE_VBLANK_IVB(pipe);
+		reg = DEISR;
 	} else {
-		switch (pipe) {
-		default:
-		case PIPE_A:
-			status = DE_PIPEA_VBLANK_IVB;
-			break;
-		case PIPE_B:
-			status = DE_PIPEB_VBLANK_IVB;
-			break;
-		case PIPE_C:
-			status = DE_PIPEC_VBLANK_IVB;
-			break;
-		}
+		status = DE_PIPE_VBLANK(pipe);
+		reg = DEISR;
 	}
 
-	return __raw_i915_read32(dev_priv, DEISR) & status;
+	return __raw_i915_read32(dev_priv, reg) & status;
 }
 
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
