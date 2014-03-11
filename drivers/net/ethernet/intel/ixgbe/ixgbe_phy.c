@@ -107,7 +107,7 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
  * have this bit just return false since the link can not be blocked
  * via this method.
  **/
-s32 ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
+bool ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
 {
 	u32 mmngc;
 
