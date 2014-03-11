@@ -192,11 +192,14 @@
 		status = "disabled";
 	};
 
+	lvds: lvds@ff96c000 {
+		compatible = "rockchip, rk32-lvds";
+		reg = <0xff960000 0x20000>;
+	}
 	edp: edp@ff970000 {
 		compatible = "rockchip,rk32-edp";
 		reg = <0xff970000 0x4000>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
         };
 
 	hdmi: hdmi@ff980000 {
