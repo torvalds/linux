@@ -17,9 +17,11 @@
 #include <linux/reboot.h>
 #include <linux/reset-controller.h>
 
+#include <asm/system_misc.h>
+
 #define SIRFSOC_RSTBIT_NUM	64
 
-void __iomem *sirfsoc_rstc_base;
+static void __iomem *sirfsoc_rstc_base;
 static DEFINE_MUTEX(rstc_lock);
 
 static int sirfsoc_reset_module(struct reset_controller_dev *rcdev,
@@ -71,6 +73,13 @@ static struct reset_controller_dev sirfsoc_reset_controller = {
 	.nr_resets = SIRFSOC_RSTBIT_NUM,
 };
 
+#define SIRFSOC_SYS_RST_BIT  BIT(31)
+
+static void sirfsoc_restart(enum reboot_mode mode, const char *cmd)
+{
+	writel(SIRFSOC_SYS_RST_BIT, sirfsoc_rstc_base);
+}
+
 static int sirfsoc_rstc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -81,8 +90,10 @@ static int sirfsoc_rstc_probe(struct platform_device *pdev)
 	}
 
 	sirfsoc_reset_controller.of_node = np;
+	arm_pm_restart = sirfsoc_restart;
 
-	reset_controller_register(&sirfsoc_reset_controller);
+	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))
+		reset_controller_register(&sirfsoc_reset_controller);
 
 	return 0;
 }
@@ -107,10 +118,3 @@ static int __init sirfsoc_rstc_init(void)
 	return platform_driver_register(&sirfsoc_rstc_driver);
 }
 subsys_initcall(sirfsoc_rstc_init);
-
-#define SIRFSOC_SYS_RST_BIT  BIT(31)
-
-void sirfsoc_restart(enum reboot_mode mode, const char *cmd)
-{
-	writel(SIRFSOC_SYS_RST_BIT, sirfsoc_rstc_base);
-}
