@@ -7199,14 +7199,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
-	int pipe = intel_crtc->pipe;
 	int ret;
 
-	drm_vblank_pre_modeset(dev, pipe);
-
 	ret = dev_priv->display.crtc_mode_set(crtc, x, y, fb);
-
-	drm_vblank_post_modeset(dev, pipe);
 
 	if (ret != 0)
 		return ret;
