@@ -378,7 +378,17 @@ tracepoint_add_probe(const char *name, void *probe, void *data)
  * @probe: probe handler
  * @data: probe private data
  *
- * Returns 0 if ok, error value on error.
+ * Returns:
+ * - 0 if the probe was successfully registered, and tracepoint
+ *   callsites are currently loaded for that probe,
+ * - -ENODEV if the probe was successfully registered, but no tracepoint
+ *   callsite is currently loaded for that probe,
+ * - other negative error value on error.
+ *
+ * When tracepoint_probe_register() returns either 0 or -ENODEV,
+ * parameters @name, @probe, and @data may be used by the tracepoint
+ * infrastructure until the probe is unregistered.
+ *
  * The probe address must at least be aligned on the architecture pointer size.
  */
 int tracepoint_probe_register(const char *name, void *probe, void *data)
