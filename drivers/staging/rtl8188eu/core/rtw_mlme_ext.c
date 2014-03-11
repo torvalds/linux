@@ -6109,17 +6109,26 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 		case 1: /* ADDBA rsp */
 			pframe = rtw_set_fixed_ie(pframe, 1, &(pmlmeinfo->ADDBA_req.dialog_token), &(pattrib->pktlen));
 			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)(&status), &(pattrib->pktlen));
+
+			BA_para_set = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
 			rtw_hal_get_def_var(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR, &max_rx_ampdu_factor);
-			if (MAX_AMPDU_FACTOR_64K == max_rx_ampdu_factor)
-				BA_para_set = (((pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
-			else if (MAX_AMPDU_FACTOR_32K == max_rx_ampdu_factor)
-				BA_para_set = (((pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0800); /* 32 buffer size */
-			else if (MAX_AMPDU_FACTOR_16K == max_rx_ampdu_factor)
-				BA_para_set = (((pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0400); /* 16 buffer size */
-			else if (MAX_AMPDU_FACTOR_8K == max_rx_ampdu_factor)
-				BA_para_set = (((pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0200); /* 8 buffer size */
-			else
-				BA_para_set = (((pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
+			switch (max_rx_ampdu_factor) {
+			case MAX_AMPDU_FACTOR_64K:
+				BA_para_set |= 0x1000; /* 64 buffer size */
+				break;
+			case MAX_AMPDU_FACTOR_32K:
+				BA_para_set |= 0x0800; /* 32 buffer size */
+				break;
+			case MAX_AMPDU_FACTOR_16K:
+				BA_para_set |= 0x0400; /* 16 buffer size */
+				break;
+			case MAX_AMPDU_FACTOR_8K:
+				BA_para_set |= 0x0200; /* 8 buffer size */
+				break;
+			default:
+				BA_para_set |= 0x1000; /* 64 buffer size */
+				break;
+			}
 
 			if (pregpriv->ampdu_amsdu == 0)/* disabled */
 				BA_para_set = BA_para_set & ~BIT(0);
