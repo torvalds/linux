@@ -9620,7 +9620,8 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 		p->pre_bit_count.stat[0].uvalue += rs_bit_cnt >> e;
 	}
 
-	p->post_bit_error.stat[0].uvalue = qam_post_rs_ber;
+	p->post_bit_error.stat[0].uvalue += qam_post_rs_ber;
+	p->post_bit_count.stat[0].uvalue += rs_bit_cnt >> e;
 
 	p->block_error.stat[0].uvalue += pkt_errs;
 
