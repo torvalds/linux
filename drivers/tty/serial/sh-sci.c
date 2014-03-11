@@ -1955,7 +1955,7 @@ static void sci_pm(struct uart_port *port, unsigned int state,
 	struct sci_port *sci_port = to_sci_port(port);
 
 	switch (state) {
-	case 3:
+	case UART_PM_STATE_OFF:
 		sci_port_disable(sci_port);
 		break;
 	default:
