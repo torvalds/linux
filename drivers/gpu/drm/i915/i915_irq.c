@@ -702,7 +702,28 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		else
 			position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
-		if (HAS_PCH_SPLIT(dev)) {
+		if (HAS_DDI(dev)) {
+			/*
+			 * On HSW HDMI outputs there seems to be a 2 line
+			 * difference, whereas eDP has the normal 1 line
+			 * difference that earlier platforms have. External
+			 * DP is unknown. For now just check for the 2 line
+			 * difference case on all output types on HSW+.
+			 *
+			 * This might misinterpret the scanline counter being
+			 * one line too far along on eDP, but that's less
+			 * dangerous than the alternative since that would lead
+			 * the vblank timestamp code astray when it sees a
+			 * scanline count before vblank_start during a vblank
+			 * interrupt.
+			 */
+			in_vbl = ilk_pipe_in_vblank_locked(dev, pipe);
+			if ((in_vbl && (position == vbl_start - 2 ||
+					position == vbl_start - 1)) ||
+			    (!in_vbl && (position == vbl_end - 2 ||
+					 position == vbl_end - 1)))
+				position = (position + 2) % vtotal;
+		} else if (HAS_PCH_SPLIT(dev)) {
 			/*
 			 * The scanline counter increments at the leading edge
 			 * of hsync, ie. it completely misses the active portion
