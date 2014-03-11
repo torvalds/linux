@@ -1089,6 +1089,27 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	return present;
 }
 
+static void dw_mci_hw_reset(struct mmc_host *mmc)
+{
+    struct dw_mci_slot *slot = mmc_priv(mmc);
+
+    /* 
+     * According to eMMC spec 
+     * tRstW >= 1us ;   RST_n pulse width
+     * tRSCA >= 200us ; RST_n to Command time
+     * tRSTH >= 1us ;   RST_n high period
+     */
+
+    mci_writel(slot->host, RST_n, 0x1);
+    dsb();
+    udelay(10); //10us for bad quality eMMc.
+
+    mci_writel(slot->host, RST_n, 0x0);
+    dsb();
+    usleep_range(300, 1000); //ay least 300(> 200us)
+    
+}
+
 /*
  * Disable lower power mode.
  *
@@ -1177,6 +1198,7 @@ static const struct mmc_host_ops dw_mci_ops = {
 	.set_ios		= dw_mci_set_ios,
 	.get_ro			= dw_mci_get_ro,
 	.get_cd			= dw_mci_get_cd,
+	.hw_reset       = dw_mci_hw_reset,
 	.enable_sdio_irq	= dw_mci_enable_sdio_irq,
 	.execute_tuning		= dw_mci_execute_tuning,
 };
