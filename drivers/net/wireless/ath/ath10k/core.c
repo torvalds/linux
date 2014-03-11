@@ -254,23 +254,34 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 
 	/* OTP is optional */
 
-	if (!ar->otp_data || !ar->otp_len)
+	if (!ar->otp_data || !ar->otp_len) {
+		ath10k_warn("Not running otp, calibration will be incorrect!\n");
 		return 0;
+	}
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot upload otp to 0x%x len %zd\n",
+		   address, ar->otp_len);
 
 	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
 	if (ret) {
 		ath10k_err("could not write otp (%d)\n", ret);
-		goto exit;
+		return ret;
 	}
 
 	ret = ath10k_bmi_execute(ar, address, 0, &result);
 	if (ret) {
 		ath10k_err("could not execute otp (%d)\n", ret);
-		goto exit;
+		return ret;
 	}
 
-exit:
-	return ret;
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot otp execute result %d\n", result);
+
+	if (result != 0) {
+		ath10k_err("otp calibration failed: %d", result);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int ath10k_download_fw(struct ath10k *ar)
