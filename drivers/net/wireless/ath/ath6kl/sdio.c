@@ -348,7 +348,7 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 	int i, scat_req_sz, scat_list_sz, size;
 	u8 *virt_buf;
 
-	scat_list_sz = (n_scat_entry - 1) * sizeof(struct hif_scatter_item);
+	scat_list_sz = n_scat_entry * sizeof(struct hif_scatter_item);
 	scat_req_sz = sizeof(*s_req) + scat_list_sz;
 
 	if (!virt_scat)
