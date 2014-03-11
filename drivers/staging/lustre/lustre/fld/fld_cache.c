@@ -236,8 +236,8 @@ static int fld_cache_shrink(struct fld_cache *cache)
 		num++;
 	}
 
-	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by "
-	       "%d entries\n", cache->fci_name, num);
+	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by %d entries\n",
+			cache->fci_name, num);
 
 	return 0;
 }
