@@ -1137,9 +1137,15 @@ static int soc_probe_codec(struct snd_soc_card *card,
 
 	codec->dapm.idle_bias_off = driver->idle_bias_off;
 
-	/* Set the default I/O up try regmap */
-	if (dev_get_regmap(codec->dev, NULL))
-		snd_soc_codec_set_cache_io(codec, NULL);
+	if (!codec->write && dev_get_regmap(codec->dev, NULL)) {
+		/* Set the default I/O up try regmap */
+		ret = snd_soc_codec_set_cache_io(codec, NULL);
+		if (ret < 0) {
+			dev_err(codec->dev,
+				"Failed to set cache I/O: %d\n", ret);
+			goto err_probe;
+		}
+	}
 
 	if (driver->probe) {
 		ret = driver->probe(codec);
