@@ -3076,18 +3076,20 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	len = maxcount;
 	v = 0;
-	while (len > 0) {
+	while (len) {
+		int thislen;
+
 		page = *(resp->rqstp->rq_next_page);
 		if (!page) { /* ran out of pages */
 			maxcount -= len;
 			break;
 		}
+		thislen = min_t(long, len, PAGE_SIZE);
 		resp->rqstp->rq_vec[v].iov_base = page_address(page);
-		resp->rqstp->rq_vec[v].iov_len =
-			len < PAGE_SIZE ? len : PAGE_SIZE;
+		resp->rqstp->rq_vec[v].iov_len = thislen;
 		resp->rqstp->rq_next_page++;
 		v++;
-		len -= PAGE_SIZE;
+		len -= thislen;
 	}
 	read->rd_vlen = v;
 
