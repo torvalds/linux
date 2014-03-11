@@ -6061,12 +6061,10 @@ void fix_small_imbalance(struct lb_env *env, struct sd_lb_stats *sds)
 	pwr_now /= SCHED_POWER_SCALE;
 
 	/* Amount of load we'd subtract */
-	tmp = (busiest->load_per_task * SCHED_POWER_SCALE) /
-		busiest->group_power;
-	if (busiest->avg_load > tmp) {
+	if (busiest->avg_load > scaled_busy_load_per_task) {
 		pwr_move += busiest->group_power *
 			    min(busiest->load_per_task,
-				busiest->avg_load - tmp);
+				busiest->avg_load - scaled_busy_load_per_task);
 	}
 
 	/* Amount of load we'd add */
