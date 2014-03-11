@@ -2716,6 +2716,48 @@ int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_put_value_enum_double);
 
 /**
+ * snd_soc_read_signed - Read a codec register and interprete as signed value
+ * @codec: codec
+ * @reg: Register to read
+ * @mask: Mask to use after shifting the register value
+ * @shift: Right shift of register value
+ * @sign_bit: Bit that describes if a number is negative or not.
+ *
+ * This functions reads a codec register. The register value is shifted right
+ * by 'shift' bits and masked with the given 'mask'. Afterwards it translates
+ * the given registervalue into a signed integer if sign_bit is non-zero.
+ *
+ * Returns the register value as signed int.
+ */
+static int snd_soc_read_signed(struct snd_soc_codec *codec, unsigned int reg,
+		unsigned int mask, unsigned int shift, unsigned int sign_bit)
+{
+	int ret;
+	unsigned int val;
+
+	val = (snd_soc_read(codec, reg) >> shift) & mask;
+
+	if (!sign_bit)
+		return val;
+
+	/* non-negative number */
+	if (!(val & BIT(sign_bit)))
+		return val;
+
+	ret = val;
+
+	/*
+	 * The register most probably does not contain a full-sized int.
+	 * Instead we have an arbitrary number of bits in a signed
+	 * representation which has to be translated into a full-sized int.
+	 * This is done by filling up all bits above the sign-bit.
+	 */
+	ret |= ~((int)(BIT(sign_bit) - 1));
+
+	return ret;
+}
+
+/**
  * snd_soc_info_volsw - single mixer info callback
  * @kcontrol: mixer control
  * @uinfo: control element information
@@ -2743,7 +2785,7 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 
 	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = platform_max;
+	uinfo->value.integer.max = platform_max - mc->min;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_volsw);
@@ -2769,11 +2811,16 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int shift = mc->shift;
 	unsigned int rshift = mc->rshift;
 	int max = mc->max;
+	int min = mc->min;
+	int sign_bit = mc->sign_bit;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 
-	ucontrol->value.integer.value[0] =
-		(snd_soc_read(codec, reg) >> shift) & mask;
+	if (sign_bit)
+		mask = BIT(sign_bit + 1) - 1;
+
+	ucontrol->value.integer.value[0] = snd_soc_read_signed(codec, reg, mask,
+			shift, sign_bit) - min;
 	if (invert)
 		ucontrol->value.integer.value[0] =
 			max - ucontrol->value.integer.value[0];
@@ -2781,10 +2828,12 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	if (snd_soc_volsw_is_stereo(mc)) {
 		if (reg == reg2)
 			ucontrol->value.integer.value[1] =
-				(snd_soc_read(codec, reg) >> rshift) & mask;
+				snd_soc_read_signed(codec, reg, mask, rshift,
+						sign_bit) - min;
 		else
 			ucontrol->value.integer.value[1] =
-				(snd_soc_read(codec, reg2) >> shift) & mask;
+				snd_soc_read_signed(codec, reg2, mask, shift,
+						sign_bit) - min;
 		if (invert)
 			ucontrol->value.integer.value[1] =
 				max - ucontrol->value.integer.value[1];
@@ -2815,6 +2864,8 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int shift = mc->shift;
 	unsigned int rshift = mc->rshift;
 	int max = mc->max;
+	int min = mc->min;
+	unsigned int sign_bit = mc->sign_bit;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	int err;
@@ -2822,13 +2873,16 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int val2 = 0;
 	unsigned int val, val_mask;
 
-	val = (ucontrol->value.integer.value[0] & mask);
+	if (sign_bit)
+		mask = BIT(sign_bit + 1) - 1;
+
+	val = ((ucontrol->value.integer.value[0] + min) & mask);
 	if (invert)
 		val = max - val;
 	val_mask = mask << shift;
 	val = val << shift;
 	if (snd_soc_volsw_is_stereo(mc)) {
-		val2 = (ucontrol->value.integer.value[1] & mask);
+		val2 = ((ucontrol->value.integer.value[1] + min) & mask);
 		if (invert)
 			val2 = max - val2;
 		if (reg == reg2) {
