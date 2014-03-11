@@ -39,6 +39,8 @@
 #include "spi-rockchip-core.h"
 
 #ifdef CONFIG_SPI_ROCKCHIP_DMA
+#define DMA_BUFFER_SIZE (PAGE_SIZE<<4)
+
 
 struct spi_dma_slave {
 	struct dma_chan *ch;
@@ -52,81 +54,148 @@ struct spi_dma {
 	struct spi_dma_slave	dmas_rx;
 };
 
-static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
+static void printk_transfer_data(struct dw_spi *dws, char *buf, int len)
 {
-	struct dw_spi *dws = param;
-	int ret = 0;
-	ret = dws->parent_dev && (&dws->parent_dev == chan->device->dev);
+	int i = 0;
+	for(i=0; i<len; i++)
+		DBG_SPI("0x%02x,",*buf++);
 
-	printk("%s:ret=%d\n",__func__, ret);
-	return ret;
+	DBG_SPI("\n");
+
 }
-
 
 static int mid_spi_dma_init(struct dw_spi *dws)
 {
 	struct spi_dma *dw_dma = dws->dma_priv;
 	struct spi_dma_slave *rxs, *txs;
 	dma_cap_mask_t mask;
-
-	/*
-	 * Get pci device for DMA controller, currently it could only
-	 * be the DMA controller of either Moorestown or Medfield
-	 */
-	//dws->dmac = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0813, NULL);
-	//if (!dws->dmac)
-	//	dws->dmac = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0827, NULL);
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
+	
+	DBG_SPI("%s:start\n",__func__);
 
 	/* 1. Init rx channel */
-	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, dws);
+	dws->rxchan = dma_request_slave_channel(dws->parent_dev, "rx");
 	if (!dws->rxchan)
+	{
+		dev_err(dws->parent_dev, "Failed to get RX DMA channel\n");
 		goto err_exit;
+	}
+	
+	DBG_SPI("%s:rx_chan_id=%d\n",__func__,dws->rxchan->chan_id);
+	
 	rxs = &dw_dma->dmas_rx;
-	//rxs->hs_mode = LNW_DMA_HW_HS;
-	//rxs->cfg_mode = LNW_DMA_PER_TO_MEM;
 	dws->rxchan->private = rxs;
 
 	/* 2. Init tx channel */
-	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, dws);
-	if (!dws->txchan)
-		goto free_rxchan;
+	dws->txchan = dma_request_slave_channel(dws->parent_dev, "tx");
+	if (!dws->rxchan)
+	{
+		dev_err(dws->parent_dev, "Failed to get RX DMA channel\n");
+		goto err_exit;
+	}
 	txs = &dw_dma->dmas_tx;
-	//txs->hs_mode = LNW_DMA_HW_HS;
-	//txs->cfg_mode = LNW_DMA_MEM_TO_PER;
 	dws->txchan->private = txs;
+	
+	DBG_SPI("%s:tx_chan_id=%d\n",__func__,dws->txchan->chan_id);
 
 	dws->dma_inited = 1;
+
+	DBG_SPI("%s:line=%d\n",__func__,__LINE__);
 	return 0;
 
-	free_rxchan:
+free_rxchan:
 	dma_release_channel(dws->rxchan);
-	err_exit:
+err_exit:
 	return -1;
 
 }
 
 static void mid_spi_dma_exit(struct dw_spi *dws)
 {
+	DBG_SPI("%s:start\n",__func__);
 	dma_release_channel(dws->txchan);
 	dma_release_channel(dws->rxchan);
 }
 
-/*
- * dws->dma_chan_done is cleared before the dma transfer starts,
- * callback for rx/tx channel will each increment it by 1.
- * Reaching 2 means the whole spi transaction is done.
- */
-static void dw_spi_dma_done(void *arg)
+
+static void dw_spi_dma_rxcb(void *arg)
 {
 	struct dw_spi *dws = arg;
+	unsigned long flags;
+	struct dma_tx_state		state;
+	int				dma_status;
 
-	if (++dws->dma_chan_done != 2)
-		return;
-	dw_spi_xfer_done(dws);
+	dma_sync_single_for_device(dws->rxchan->device->dev, dws->rx_dma,
+				   dws->len, DMA_FROM_DEVICE);
+	
+	dma_status = dmaengine_tx_status(dws->rxchan, dws->rx_cookie, &state);
+	
+	DBG_SPI("%s:dma_status=0x%x\n", __FUNCTION__, dma_status);
+	
+	spin_lock_irqsave(&dws->lock, flags);		
+	if (dma_status == DMA_SUCCESS)
+		dws->state &= ~RXBUSY;
+	else
+		dev_err(&dws->master->dev, "error:rx dma_status=%x\n", dma_status);
+
+	//copy data from dma to transfer buf
+	if(dws->cur_transfer && (dws->cur_transfer->rx_buf != NULL))
+	{
+		memcpy(dws->cur_transfer->rx_buf, dws->rx_buffer, dws->cur_transfer->len);
+		
+		DBG_SPI("dma rx:");
+		printk_transfer_data(dws, dws->cur_transfer->rx_buf, dws->cur_transfer->len);
+	}
+	
+	spin_unlock_irqrestore(&dws->lock, flags);
+	
+	/* If the other done */
+	if (!(dws->state & TXBUSY))
+	{
+		complete(&dws->xfer_completion);	
+		DBG_SPI("%s:complete\n", __FUNCTION__);		
+		//DMA could not lose intterupt
+		dw_spi_xfer_done(dws);
+	}
+
 }
+
+static void dw_spi_dma_txcb(void *arg)
+{
+	struct dw_spi *dws = arg;
+	unsigned long flags;
+	struct dma_tx_state		state;
+	int				dma_status;
+
+	dma_sync_single_for_device(dws->txchan->device->dev, dws->tx_dma,
+				   dws->len, DMA_TO_DEVICE);
+	
+	dma_status = dmaengine_tx_status(dws->txchan, dws->tx_cookie, &state);
+	
+	DBG_SPI("%s:dma_status=0x%x\n", __FUNCTION__, dma_status);
+	DBG_SPI("dma tx:");
+	printk_transfer_data(dws, (char *)dws->cur_transfer->tx_buf, dws->cur_transfer->len);
+	
+	spin_lock_irqsave(&dws->lock, flags);
+	
+	if (dma_status == DMA_SUCCESS)
+		dws->state &= ~TXBUSY;
+	else	
+		dev_err(&dws->master->dev, "error:tx dma_status=%x\n", dma_status);	
+
+	spin_unlock_irqrestore(&dws->lock, flags);
+	
+	/* If the other done */
+	if (!(dws->state & RXBUSY)) 
+	{
+		complete(&dws->xfer_completion);		
+		DBG_SPI("%s:complete\n", __FUNCTION__);
+
+		//DMA could not lose intterupt
+		dw_spi_xfer_done(dws);
+	}
+
+}
+
 
 static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 {
@@ -134,73 +203,137 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	struct dma_chan *txchan, *rxchan;
 	struct dma_slave_config txconf, rxconf;
 	u16 dma_ctrl = 0;
+	int ret = 0;
+	
+	enum dma_slave_buswidth width;
 
-	/* 1. setup DMA related registers */
-	if (cs_change) {
-		spi_enable_chip(dws, 0);
-		dw_writew(dws, SPIM_DMARDLR, 0xf);
-		dw_writew(dws, SPIM_DMATDLR, 0x10);
-		if (dws->tx_dma)
-			dma_ctrl |= 0x2;
-		if (dws->rx_dma)
-			dma_ctrl |= 0x1;
-		dw_writew(dws, SPIM_DMACR, dma_ctrl);
-		spi_enable_chip(dws, 1);
+	DBG_SPI("%s:cs_change=%d\n",__func__,cs_change);
+	
+	//alloc dma buffer default while cur_transfer->tx_dma or cur_transfer->rx_dma is null
+	if((dws->cur_transfer->tx_buf) && dws->dma_mapped && (!dws->cur_transfer->tx_dma))
+	{
+		//printk("%s:warning tx_dma is %p\n",__func__, (int *)dws->tx_dma);
+		memcpy(dws->tx_buffer, dws->cur_transfer->tx_buf, dws->cur_transfer->len);		
+		dws->tx_dma = dws->tx_dma_init;
 	}
 
+	if((dws->cur_transfer->rx_buf) && dws->dma_mapped && (!dws->cur_transfer->rx_dma))
+	{		
+		//printk("%s:warning rx_dma is %p\n",__func__, (int *)dws->rx_dma);
+		dws->rx_dma = dws->rx_dma_init;
+	}
+
+	
+	if (dws->tx)
+		dws->state |= TXBUSY;	
+	if (dws->rx)
+		dws->state |= RXBUSY;
+
+	
+	switch (dws->n_bytes) {
+	case 1:
+		width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+		break;
+	case 2:
+		width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+		break;
+	default:
+		width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		break;
+	}
+		
 	dws->dma_chan_done = 0;
+	
+	if (dws->tx)
 	txchan = dws->txchan;
+	
+	if (dws->rx)
 	rxchan = dws->rxchan;
+	
+	if (dws->tx)
+	{
+		/* 2. Prepare the TX dma transfer */
+		txconf.direction = DMA_MEM_TO_DEV;
+		txconf.dst_addr = dws->tx_dma_addr;
+		txconf.dst_maxburst = dws->dma_width;
+		//txconf.src_addr_width = width;
+		txconf.dst_addr_width = width;
+		//txconf.device_fc = false;
 
-	/* 2. Prepare the TX dma transfer */
-	txconf.direction = DMA_MEM_TO_DEV;
-	txconf.dst_addr = dws->dma_addr;
-	txconf.dst_maxburst = 0x03;//LNW_DMA_MSIZE_16;
-	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	txconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-	txconf.device_fc = false;
+		ret = dmaengine_slave_config(txchan, &txconf);
+		if (ret) {
+			dev_warn(dws->parent_dev, "TX DMA slave config failed\n");
+			return -1;
+		}
+		
+		memset(&dws->tx_sgl, 0, sizeof(dws->tx_sgl));
+		dws->tx_sgl.dma_address = dws->tx_dma;
+		dws->tx_sgl.length = dws->len;
 
-	txchan->device->device_control(txchan, DMA_SLAVE_CONFIG,
-				       (unsigned long) &txconf);
+		txdesc = dmaengine_prep_slave_sg(txchan,
+					&dws->tx_sgl,
+					1,
+					DMA_MEM_TO_DEV,
+					DMA_PREP_INTERRUPT);
+		
+		txdesc->callback = dw_spi_dma_txcb;
+		txdesc->callback_param = dws;
 
-	memset(&dws->tx_sgl, 0, sizeof(dws->tx_sgl));
-	dws->tx_sgl.dma_address = dws->tx_dma;
-	dws->tx_sgl.length = dws->len;
+		DBG_SPI("%s:dst_addr=0x%p,tx_dma=0x%p,len=%d,burst=%d,width=%d\n",__func__,(int *)dws->tx_dma_addr, (int *)dws->tx_dma, dws->len,dws->dma_width, width);
+	}
 
-	txdesc = dmaengine_prep_slave_sg(txchan,
-				&dws->tx_sgl,
-				1,
-				DMA_MEM_TO_DEV,
-				DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_DEST_UNMAP);
-	txdesc->callback = dw_spi_dma_done;
-	txdesc->callback_param = dws;
+	if (dws->rx)
+	{
+		/* 3. Prepare the RX dma transfer */
+		rxconf.direction = DMA_DEV_TO_MEM;
+		rxconf.src_addr = dws->rx_dma_addr;
+		rxconf.src_maxburst = dws->dma_width; 
+		//rxconf.dst_addr_width = width;
+		rxconf.src_addr_width = width;
+		//rxconf.device_fc = false;
 
-	/* 3. Prepare the RX dma transfer */
-	rxconf.direction = DMA_DEV_TO_MEM;
-	rxconf.src_addr = dws->dma_addr;
-	rxconf.src_maxburst = 0x03; //LNW_DMA_MSIZE_16;
-	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	rxconf.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-	rxconf.device_fc = false;
+		ret = dmaengine_slave_config(rxchan, &rxconf);
+		if (ret) {
+			dev_warn(dws->parent_dev, "RX DMA slave config failed\n");
+			return -1;
+		}
 
-	rxchan->device->device_control(rxchan, DMA_SLAVE_CONFIG,
-				       (unsigned long) &rxconf);
+		memset(&dws->rx_sgl, 0, sizeof(dws->rx_sgl));
+		dws->rx_sgl.dma_address = dws->rx_dma;
+		dws->rx_sgl.length = dws->len;				
 
-	memset(&dws->rx_sgl, 0, sizeof(dws->rx_sgl));
-	dws->rx_sgl.dma_address = dws->rx_dma;
-	dws->rx_sgl.length = dws->len;
-
-	rxdesc = dmaengine_prep_slave_sg(rxchan,
-				&dws->rx_sgl,
-				1,
-				DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_DEST_UNMAP);
-	rxdesc->callback = dw_spi_dma_done;
-	rxdesc->callback_param = dws;
-
-	/* rx must be started before tx due to spi instinct */
-	rxdesc->tx_submit(rxdesc);
-	txdesc->tx_submit(txdesc);
+		rxdesc = dmaengine_prep_slave_sg(rxchan,
+					&dws->rx_sgl,
+					1,
+					DMA_DEV_TO_MEM,
+					DMA_PREP_INTERRUPT);
+		rxdesc->callback = dw_spi_dma_rxcb;
+		rxdesc->callback_param = dws;
+		
+		DBG_SPI("%s:src_addr=0x%p,rx_dma=0x%p,len=%d,burst=%d,width=%d\n",__func__, (int *)dws->rx_dma_addr, (int *)dws->rx_dma, dws->len, dws->dma_width, width);
+	}
+	
+	/* rx must be started before tx due to spi instinct */	
+	if (dws->rx)
+	{		
+		dws->rx_cookie = dmaengine_submit(rxdesc);
+		dma_sync_single_for_device(rxchan->device->dev, dws->rx_dma,
+				   dws->len, DMA_FROM_DEVICE);
+		dma_async_issue_pending(rxchan);
+		
+		DBG_SPI("%s:rx end\n",__func__);
+	}
+	
+	if (dws->tx)
+	{		
+		dws->tx_cookie = dmaengine_submit(txdesc);
+		dma_sync_single_for_device(txchan->device->dev, dws->tx_dma,
+				   dws->len, DMA_TO_DEVICE);
+		dma_async_issue_pending(txchan);
+		
+		DBG_SPI("%s:tx end\n",__func__);
+	}
+	
 	return 0;
 }
 
@@ -212,11 +345,33 @@ static struct dw_spi_dma_ops spi_dma_ops = {
 
 int dw_spi_dma_init(struct dw_spi *dws)
 {
-
+	DBG_SPI("%s:start\n",__func__);
 	dws->dma_priv = kzalloc(sizeof(struct spi_dma), GFP_KERNEL);
 	if (!dws->dma_priv)
 		return -ENOMEM;
 	dws->dma_ops = &spi_dma_ops;
+
+	dws->tx_buffer = dma_alloc_coherent(dws->parent_dev, DMA_BUFFER_SIZE, &dws->tx_dma_init, GFP_KERNEL | GFP_DMA);
+	if (!dws->tx_buffer)
+	{
+		dev_err(dws->parent_dev, "fail to dma tx buffer alloc\n");
+		return -1;
+	}
+
+	dws->rx_buffer = dma_alloc_coherent(dws->parent_dev, DMA_BUFFER_SIZE, &dws->rx_dma_init, GFP_KERNEL | GFP_DMA);
+	if (!dws->rx_buffer)
+	{
+		dev_err(dws->parent_dev, "fail to dma rx buffer alloc\n");
+		return -1;
+	}
+
+	memset(dws->tx_buffer, 0, DMA_BUFFER_SIZE);
+	memset(dws->rx_buffer, 0, DMA_BUFFER_SIZE);
+
+	dws->state = 0;
+	
+	init_completion(&dws->xfer_completion);
+	
 	return 0;
 }
 #endif

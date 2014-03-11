@@ -46,11 +46,11 @@ static struct spi_test_data *g_spi_test_data[MAX_SPI_BUS_NUM];
 static struct dw_spi_chip spi_test_chip[] = {
 {
 	//.poll_mode = 1,
-	//.enable_dma = 1,
+	.enable_dma = 1,
 },
 {
 	//.poll_mode = 1,
-	//.enable_dma = 1,
+	.enable_dma = 1,
 },
 
 };
@@ -153,7 +153,7 @@ static ssize_t spi_test_write(struct file *file,
 			break;
 	}
 
-	for(i=0; i<1; i++)
+	for(i=0; i<100; i++)
 	{
 		ret = spi_write(spi, txbuf, 256);
 		ret = spi_read(spi, rxbuf, 256);

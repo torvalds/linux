@@ -217,6 +217,7 @@ static inline void spi_debugfs_remove(struct dw_spi *dws)
 }
 #endif /* CONFIG_DEBUG_FS */
 
+
 static void wait_till_not_busy(struct dw_spi *dws)
 {
 	unsigned long end = jiffies + 1 + usecs_to_jiffies(1000);
@@ -369,8 +370,7 @@ static void *next_transfer(struct dw_spi *dws)
  */
 static int map_dma_buffers(struct dw_spi *dws)
 {
-	if (!dws->cur_msg->is_dma_mapped
-		|| !dws->dma_inited
+	if (!dws->dma_inited
 		|| !dws->cur_chip->enable_dma
 		|| !dws->dma_ops)
 		return 0;
@@ -400,6 +400,7 @@ static void giveback(struct dw_spi *dws)
 	dws->prev_chip = dws->cur_chip;
 	dws->cur_chip = NULL;
 	dws->dma_mapped = 0;
+	dws->state = 0;
 	//queue_work(dws->workqueue, &dws->pump_messages);
 
 	/*it is important to close intterrupt*/
@@ -442,8 +443,7 @@ static void int_error_stop(struct dw_spi *dws, const char *msg)
 
 	dev_err(&dws->master->dev, "%s\n", msg);
 	dws->cur_msg->state = ERROR_STATE;
-	tasklet_schedule(&dws->pump_transfers);
-	
+	tasklet_schedule(&dws->pump_transfers);	
 	DBG_SPI("%s:line=%d\n",__func__,__LINE__);
 }
 
@@ -570,7 +570,9 @@ static void pump_transfers(unsigned long data)
 	u16 rxint_level = 0;
 	u16 clk_div = 0;
 	u32 speed = 0;
-	u32 cr0 = 0;
+	u32 cr0 = 0;	
+	u16 dma_ctrl = 0;
+	int ret = 0;
 
 
 	/* Get current state information */
@@ -679,8 +681,6 @@ static void pump_transfers(unsigned long data)
 		else
 			chip->tmode = SPI_TMOD_TO;
 
-		//cr0 &= ~SPI_TMOD_MASK;
-		//cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 
 		cr0 &= ~(0x3 << SPI_MODE_OFFSET);		
 		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);
@@ -715,13 +715,16 @@ static void pump_transfers(unsigned long data)
 		dws->transfer_handler = interrupt_transfer;
 	}
 
+
 	/*
 	 * Reprogram registers only if
 	 *	1. chip select changes
 	 *	2. clk_div is changed
 	 *	3. control value changes
 	 */
-	if (dw_readw(dws, SPIM_CTRLR0) != cr0 || cs_change || clk_div || imask) {
+	//if (dw_readw(dws, SPIM_CTRLR0) != cr0 || cs_change || clk_div || imask) 		
+	if(dws->tx || dws->rx)
+	{
 		spi_enable_chip(dws, 0);
 		if (dw_readl(dws, SPIM_CTRLR0) != cr0)
 			dw_writel(dws, SPIM_CTRLR0, cr0);
@@ -743,15 +746,42 @@ static void pump_transfers(unsigned long data)
 		spi_mask_intr(dws, 0xff);
 		if (imask)
 			spi_umask_intr(dws, imask);
-	
+
+		/* setup DMA related registers */
+		if(dws->dma_mapped)
+		{
+			/* Set the interrupt mask, for poll mode just diable all int */
+			spi_mask_intr(dws, 0xff);		
+			if(dws->tx)
+			{
+				dma_ctrl |= SPI_DMACR_TX_ENABLE;		
+				dw_writew(dws, SPIM_DMATDLR, 8);
+				dw_writew(dws, SPIM_CTRLR1, dws->len-1);	
+			}
+			
+			if (dws->rx)
+			{
+				dma_ctrl |= SPI_DMACR_RX_ENABLE;	
+				dw_writew(dws, SPIM_DMARDLR, 0);			
+				dw_writew(dws, SPIM_CTRLR1, dws->len-1);	
+			}
+			dw_writew(dws, SPIM_DMACR, dma_ctrl);
+
+			DBG_SPI("%s:dma_ctrl=0x%x\n",__func__,dw_readw(dws, SPIM_DMACR));
+			
+		}
+		
 		spi_enable_chip(dws, 1);	
 		
 		if (cs_change)
 			dws->prev_chip = chip;
+
+		DBG_SPI("%s:ctrl0=0x%x\n",__func__,dw_readw(dws, SPIM_CTRLR0));
 	}
 
+	/*dma should be ready before spi_enable_chip*/
 	if (dws->dma_mapped)
-		dws->dma_ops->dma_transfer(dws, cs_change);
+	dws->dma_ops->dma_transfer(dws, cs_change); 
 
 	if (chip->poll_mode)
 		poll_transfer(dws);
@@ -763,50 +793,12 @@ early_exit:
 	return;
 }
 
-static void pump_messages(struct work_struct *work)
-{
-	struct dw_spi *dws =
-		container_of(work, struct dw_spi, pump_messages);
-	unsigned long flags;
-
-	/* Lock queue and check for queue work */
-	spin_lock_irqsave(&dws->lock, flags);
-	if (list_empty(&dws->queue) || dws->run == QUEUE_STOPPED) {
-		dws->busy = 0;
-		spin_unlock_irqrestore(&dws->lock, flags);
-		return;
-	}
-
-	/* Make sure we are not already running a message */
-	if (dws->cur_msg) {
-		spin_unlock_irqrestore(&dws->lock, flags);
-		return;
-	}
-
-	/* Extract head of queue */
-	dws->cur_msg = list_entry(dws->queue.next, struct spi_message, queue);
-	list_del_init(&dws->cur_msg->queue);
-
-	/* Initial message state*/
-	dws->cur_msg->state = START_STATE;
-	dws->cur_transfer = list_entry(dws->cur_msg->transfers.next,
-						struct spi_transfer,
-						transfer_list);
-	dws->cur_chip = spi_get_ctldata(dws->cur_msg->spi);
-
-	/* Mark as busy and launch transfers */
-	tasklet_schedule(&dws->pump_transfers);
-
-	dws->busy = 1;
-	spin_unlock_irqrestore(&dws->lock, flags);
-}
-
-
 static int dw_spi_transfer_one_message(struct spi_master *master,
 					   struct spi_message *msg)
 {
 	struct dw_spi *dws = spi_master_get_devdata(master);
-
+	int ret = 0;
+	
 	dws->cur_msg = msg;
 	/* Initial message state*/
 	dws->cur_msg->state = START_STATE;
@@ -817,11 +809,28 @@ static int dw_spi_transfer_one_message(struct spi_master *master,
 	/* prepare to setup the SSP, in pump_transfers, using the per
 	 * chip configuration */
 	dws->cur_chip = spi_get_ctldata(dws->cur_msg->spi);
-
+	
+	dws->dma_mapped = map_dma_buffers(dws);	
+	INIT_COMPLETION(dws->xfer_completion);
+	
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&dws->pump_transfers);
 	
 	DBG_SPI("%s:line=%d\n",__func__,__LINE__);
+	if (dws->dma_mapped)
+	{
+		ret = wait_for_completion_timeout(&dws->xfer_completion,
+							msecs_to_jiffies(2000));
+		if(ret == 0)
+		{
+			dev_err(&dws->master->dev, "dma transfer timeout\n");			
+			giveback(dws);
+			return 0;
+		}
+		
+		DBG_SPI("%s:wait %d\n",__func__, ret);
+	}
+		
 	return 0;
 }
 
@@ -953,7 +962,7 @@ static void spi_hw_init(struct dw_spi *dws)
 		dw_writew(dws, SPIM_TXFTLR, 0);
 	}
 	
-	spi_enable_chip(dws, 1);
+	//spi_enable_chip(dws, 1);
 	flush(dws);
 	DBG_SPI("%s:fifo_len=%d\n",__func__, dws->fifo_len);
 }
@@ -975,7 +984,8 @@ int dw_spi_add_host(struct dw_spi *dws)
 	dws->type = SSI_MOTO_SPI;
 	dws->prev_chip = NULL;
 	dws->dma_inited = 0;
-	dws->dma_addr = (dma_addr_t)(dws->paddr + 0x60);
+	dws->tx_dma_addr = (dma_addr_t)(dws->paddr + SPIM_TXDR);	
+	dws->rx_dma_addr = (dma_addr_t)(dws->paddr + SPIM_RXDR);
 	snprintf(dws->name, sizeof(dws->name), "dw_spi%d",
 			dws->bus_num);
 
@@ -1006,7 +1016,7 @@ int dw_spi_add_host(struct dw_spi *dws)
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
 		ret = dws->dma_ops->dma_init(dws);
 		if (ret) {
-			dev_warn(&master->dev, "DMA init failed\n");
+			dev_warn(&master->dev, "DMA init failed,ret=%d\n",ret);
 			dws->dma_inited = 0;
 		}
 	}

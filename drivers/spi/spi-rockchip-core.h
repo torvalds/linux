@@ -3,6 +3,7 @@
 
 #include <linux/io.h>
 #include <linux/scatterlist.h>
+#include <linux/dmaengine.h>
 
 
 #if 1
@@ -110,66 +111,11 @@
 #define SPI_CLEAR_INT_RXOI      (1 << 2)
 #define SPI_CLEAR_INT_TXOI      (1 << 3)
 
+#define SUSPND    (1<<0)
+#define SPIBUSY   (1<<1)
+#define RXBUSY    (1<<2)
+#define TXBUSY    (1<<3)
 
-#if 0
-
-
-/* Bit fields in CTRLR0 */
-#define SPI_DFS_OFFSET			0
-
-#define SPI_FRF_OFFSET			4
-#define SPI_FRF_SPI			0x0
-#define SPI_FRF_SSP			0x1
-#define SPI_FRF_MICROWIRE		0x2
-#define SPI_FRF_RESV			0x3
-
-#define SPI_MODE_OFFSET			6
-#define SPI_SCPH_OFFSET			6
-#define SPI_SCOL_OFFSET			7
-
-#define SPI_TMOD_OFFSET			8
-#define SPI_TMOD_MASK			(0x3 << SPI_TMOD_OFFSET)
-#define	SPI_TMOD_TR			0x0		/* xmit & recv */
-#define SPI_TMOD_TO			0x1		/* xmit only */
-#define SPI_TMOD_RO			0x2		/* recv only */
-#define SPI_TMOD_EPROMREAD		0x3		/* eeprom read mode */
-
-#define SPI_SLVOE_OFFSET		10
-#define SPI_SRL_OFFSET			11
-#define SPI_CFS_OFFSET			12
-
-/* Bit fields in SR, 7 bits */
-#define SR_MASK				0x7f		/* cover 7 bits */
-#define SR_BUSY				(1 << 0)
-#define SR_TF_NOT_FULL			(1 << 1)
-#define SR_TF_EMPT			(1 << 2)
-#define SR_RF_NOT_EMPT			(1 << 3)
-#define SR_RF_FULL			(1 << 4)
-#define SR_TX_ERR			(1 << 5)
-#define SR_DCOL				(1 << 6)
-
-/* Bit fields in ISR, IMR, RISR, 7 bits */
-#define SPI_INT_TXEI			(1 << 0)
-#define SPI_INT_TXOI			(1 << 1)
-#define SPI_INT_RXUI			(1 << 2)
-#define SPI_INT_RXOI			(1 << 3)
-#define SPI_INT_RXFI			(1 << 4)
-#define SPI_INT_MSTI			(1 << 5)
-
-/* Bit fields in DMACR */
-#define SPI_DMACR_TX_ENABLE     (1 << 1)
-#define SPI_DMACR_RX_ENABLE     (1 << 0)
-
-/* Bit fields in ICR */
-#define SPI_CLEAR_INT_ALL       (1<< 0)
-#define SPI_CLEAR_INT_RXUI      (1 << 1)
-#define SPI_CLEAR_INT_RXOI      (1 << 2)
-#define SPI_CLEAR_INT_TXOI      (1 << 3)
-
-
-/* TX RX interrupt level threshold, max can be 256 */
-#define SPI_INT_THRESHOLD		16
-#endif
 
 enum dw_ssi_type {
 	SSI_MOTO_SPI = 0,
@@ -225,7 +171,7 @@ struct dw_spi {
 	void			*tx_end;
 	void			*rx;
 	void			*rx_end;
-	int			dma_mapped;
+	int				dma_mapped;
 	dma_addr_t		rx_dma;
 	dma_addr_t		tx_dma;
 	size_t			rx_map_len;
@@ -234,6 +180,14 @@ struct dw_spi {
 	u8			max_bits_per_word;	/* maxim is 16b */
 	u32			dma_width;
 	int			cs_change;
+	void			*tx_buffer;
+	void			*rx_buffer;
+	dma_addr_t		rx_dma_init;
+	dma_addr_t		tx_dma_init;
+	dma_cookie_t		rx_cookie;
+	dma_cookie_t		tx_cookie;
+	int 			state;
+	struct completion	xfer_completion;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	void			(*cs_control)(struct dw_spi *dws, u32 cs, u8 flag);
 
@@ -245,7 +199,8 @@ struct dw_spi {
 	struct scatterlist	rx_sgl;
 	int			dma_chan_done;
 	struct device		*dma_dev;
-	dma_addr_t		dma_addr; /* phy address of the Data register */
+	dma_addr_t		tx_dma_addr; /* phy address of the Data register */	
+	dma_addr_t		rx_dma_addr; /* phy address of the Data register */
 	struct dw_spi_dma_ops	*dma_ops;
 	void			*dma_priv; /* platform relate info */
 	
@@ -341,7 +296,7 @@ struct dw_spi_chip {
 	u8 poll_mode;	/* 0 for contoller polling mode */
 	u8 type;	/* SPI/SSP/Micrwire */
 	u8 enable_dma;
-	void (*cs_control)(u32 command);
+	void (*cs_control)(struct dw_spi *dws, u32 cs, u8 flag);
 };
 
 extern int dw_spi_add_host(struct dw_spi *dws);

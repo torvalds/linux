@@ -83,7 +83,7 @@ static struct rockchip_spi_info *rockchip_spi_parse_dt(struct device *dev)
 	}
 
 	if (of_property_read_u32(dev->of_node, "max-freq", &temp)) {
-		dev_warn(dev, "fail to get max-freq\n");
+		dev_warn(dev, "fail to get max-freq,default set %dHZ\n",SPI_MAX_FREQUENCY);
 		info->spi_freq = SPI_MAX_FREQUENCY;
 	} else {
 		info->spi_freq = temp;
@@ -254,6 +254,8 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	dw_spi_remove_host(&sdd->dws);
 	iounmap(sdd->dws.regs);
 	kfree(sdd);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -336,7 +338,7 @@ static int __init rockchip_spi_init(void)
 {
 	return platform_driver_probe(&rockchip_spi_driver, rockchip_spi_probe);
 }
-subsys_initcall(rockchip_spi_init);
+module_init(rockchip_spi_init);
 
 static void __exit rockchip_spi_exit(void)
 {

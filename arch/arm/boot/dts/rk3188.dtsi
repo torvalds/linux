@@ -230,6 +230,7 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
+
 		};
 
 		pdma1: pdma@20078000 {
@@ -238,8 +239,10 @@
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
+
 		};
 	};
+
 
 	uart0: serial@10124000 {
 		compatible = "rockchip,serial";
@@ -314,7 +317,7 @@
 
 	spi0: spi@20070000 {
 		compatible = "rockchip,rockchip-spi";
-		reg = <0x20070000 0x500>;
+		reg = <0x20070000 0x1000>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -324,7 +327,7 @@
         	num-cs = <2>;
 		clocks =<&clk_spi0>, <&clk_gates7 12>;
 		clock-names = "spi","pclk_spi0";
-		dmas = <&pdma0 16>, <&pdma0 17>;
+		dmas = <&pdma1 10>, <&pdma1 11>;
 		#dma-cells = <2>;
 		dma-names = "tx", "rx";
 		status = "disabled";
@@ -332,7 +335,7 @@
 
 	spi1: spi@20074000 {
 		compatible = "rockchip,rockchip-spi";
-		reg = <0x20074000 0x500>;
+		reg = <0x20074000 0x1000>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -342,7 +345,7 @@
         	num-cs = <2>;
 		clocks = <&clk_spi1>, <&clk_gates7 13>;
 		clock-names = "spi","pclk_spi1";
-		dmas = <&pdma0 16>, <&pdma0 17>;
+		dmas = <&pdma1 12>, <&pdma1 13>;
 		#dma-cells = <2>;
 		dma-names = "tx", "rx";
 		status = "disabled";
