@@ -2477,8 +2477,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	ret = intel_pin_and_fence_fb_obj(dev,
 					 to_intel_framebuffer(fb)->obj,
 					 NULL);
+	mutex_unlock(&dev->struct_mutex);
 	if (ret != 0) {
-		mutex_unlock(&dev->struct_mutex);
 		DRM_ERROR("pin & fence failed\n");
 		return ret;
 	}
@@ -2516,6 +2516,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	ret = dev_priv->display.update_plane(crtc, fb, x, y);
 	if (ret) {
+		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(to_intel_framebuffer(fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 		DRM_ERROR("failed to update base address\n");
@@ -2530,9 +2531,12 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (old_fb) {
 		if (intel_crtc->active && old_fb != fb)
 			intel_wait_for_vblank(dev, intel_crtc->pipe);
+		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
+	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
 	intel_edp_psr_update(dev);
 	mutex_unlock(&dev->struct_mutex);
