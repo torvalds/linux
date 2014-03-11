@@ -260,6 +260,14 @@ config COMEDI_RTI802
 	  To compile this driver as a module, choose M here: the module will be
 	  called rti802.
 
+config COMEDI_DAC02
+	tristate "Keithley Metrabyte DAC02 compatible ISA card support"
+	---help---
+	  Enable support for Keithley Metrabyte DAC02 compatible ISA cards.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called dac02.
+
 config COMEDI_DAS16M1
 	tristate "MeasurementComputing CIO-DAS16/M1DAS-16 ISA card support"
 	select COMEDI_8255
