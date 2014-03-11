@@ -49,11 +49,6 @@
 		clock-frequency = <400000>;
 	};
 
-	sdio1: sdio@3f180000 {
-		max-frequency = <48000000>;
-		status = "okay";
-	};
-
 	sdio2: sdio@3f190000 {
 		non-removable;
 		max-frequency = <48000000>;
