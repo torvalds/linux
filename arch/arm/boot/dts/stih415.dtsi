@@ -10,6 +10,7 @@
 #include "stih415-clock.dtsi"
 #include "stih415-pinctrl.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset-controller/stih415-resets.h>
 / {
 
 	L2: cache-controller {
@@ -27,6 +28,11 @@
 		interrupt-parent = <&intc>;
 		ranges;
 		compatible	= "simple-bus";
+
+		powerdown: powerdown-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih415-powerdown";
+		};
 
 		syscfg_sbc: sbc-syscfg@fe600000{
 			compatible      = "st,stih415-sbc-syscfg", "syscon";
