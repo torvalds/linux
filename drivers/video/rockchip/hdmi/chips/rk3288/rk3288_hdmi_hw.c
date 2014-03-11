@@ -31,6 +31,7 @@ const struct phy_mpll_config_tab* get_phy_mpll_tab(int pixClock, char pixRepet, 
 
 static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 {
+	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 	if(hdmi_drv->pwr_mode == mode)
 		return;
 
@@ -379,7 +380,7 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	if(hdmi_drv->pwr_mode == LOWER_PWR)
-		rk3288_hdmi_set_pwr_mode(NORMAL);
+		rk3288_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
 
 	switch(vpara->input_color)
 	{
@@ -615,7 +616,7 @@ void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 	}
 	else {
 		if(hdmi_drv->pwr_mode == LOWER_PWR)
-			rk3288_hdmi_set_pwr_mode(NORMAL);
+			rk3288_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
 		hdmi_msk_reg(hdmi_dev, FC_GCP, m_FC_SET_AVMUTE, v_FC_SET_AVMUTE(0));
 	}
 }

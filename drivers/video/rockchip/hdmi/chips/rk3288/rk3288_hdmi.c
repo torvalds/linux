@@ -17,6 +17,8 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/uaccess.h>
+#include <linux/rockchip/grf.h>
+#include <linux/rockchip/iomap.h>
 #if defined(CONFIG_OF)
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -27,8 +29,6 @@
 #include <linux/seq_file.h>
 #endif
 
-#include "../../../../../../arch/arm/mach-rockchip/grf.h"
-#include "../../../../../../arch/arm/mach-rockchip/iomap.h"
 #include "rk3288_hdmi_hw.h"
 #include "rk3288_hdmi.h"
 
