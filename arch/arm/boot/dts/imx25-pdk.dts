@@ -34,7 +34,44 @@
 			gpio = <&gpio2 3 0>;
 			enable-active-high;
 		};
+
+		reg_2p5v: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "2P5V";
+			regulator-min-microvolt = <2500000>;
+			regulator-max-microvolt = <2500000>;
+		};
+
+		reg_3p3v: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
 	};
+
+	sound {
+		compatible = "fsl,imx25-pdk-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx25-pdk-sgtl5000";
+		ssi-controller = <&ssi1>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <1>;
+		mux-ext-port = <4>;
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>;
+	status = "okay";
 };
 
 &esdhc1 {
@@ -54,8 +91,32 @@
 	status = "okay";
 };
 
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	codec: sgtl5000@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&clks 129>;
+		VDDA-supply = <&reg_2p5v>;
+		VDDIO-supply = <&reg_3p3v>;
+	};
+};
+
 &iomuxc {
 	imx25-pdk {
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX25_PAD_RW__AUD4_TXFS			0xe0
+				MX25_PAD_OE__AUD4_TXC			0xe0
+				MX25_PAD_EB0__AUD4_TXD			0xe0
+				MX25_PAD_EB1__AUD4_RXD			0xe0
+			>;
+		};
+
 		pinctrl_esdhc1: esdhc1grp {
 			fsl,pins = <
 				MX25_PAD_SD1_CMD__SD1_CMD		0x80000000
@@ -85,6 +146,13 @@
 			>;
 		};
 
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX25_PAD_I2C1_CLK__I2C1_CLK		0x80000000
+				MX25_PAD_I2C1_DAT__I2C1_DAT		0x80000000
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX25_PAD_UART1_RTS__UART1_RTS		0xe0
@@ -98,6 +166,12 @@
 
 &nfc {
 	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&ssi1 {
+	codec-handle = <&codec>;
+	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
