@@ -1089,11 +1089,9 @@ static int ntb_setup_snb_msix(struct ntb_device *ndev, int msix_entries)
 	if (msix_entries < ndev->limits.msix_cnt)
 		return -ENOSPC;
 
-	rc = pci_enable_msix(pdev, ndev->msix_entries, msix_entries);
+	rc = pci_enable_msix_exact(pdev, ndev->msix_entries, msix_entries);
 	if (rc < 0)
 		return rc;
-	else if (rc > 0)
-		return -ENOSPC;
 
 	for (i = 0; i < msix_entries; i++) {
 		msix = &ndev->msix_entries[i];
@@ -1139,18 +1137,10 @@ static int ntb_setup_bwd_msix(struct ntb_device *ndev, int msix_entries)
 	struct msix_entry *msix;
 	int rc, i;
 
-retry:
-	rc = pci_enable_msix(pdev, ndev->msix_entries, msix_entries);
-	if (rc < 0)
-		return rc;
-	else if (rc > 0) {
-		dev_warn(&pdev->dev,
-			 "Only %d MSI-X vectors. "
-			 "Limiting the number of queues to that number.\n",
-			 rc);
-		msix_entries = rc;
-		goto retry;
-	}
+	msix_entries = pci_enable_msix_range(pdev, ndev->msix_entries,
+					     1, msix_entries);
+	if (msix_entries < 0)
+		return msix_entries;
 
 	for (i = 0; i < msix_entries; i++) {
 		msix = &ndev->msix_entries[i];
