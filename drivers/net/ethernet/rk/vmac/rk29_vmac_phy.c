@@ -17,6 +17,7 @@
 #include <linux/wakelock.h>
 #include <linux/version.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <asm/irq.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
@@ -25,6 +26,12 @@
 #include <linux/rockchip/grf.h>
 
 #include "rk29_vmac.h"
+
+struct vmac_phy_data {
+	int power_io;
+	int power_io_enable;
+};
+struct vmac_phy_data g_vmac_phy_data;
 
 #define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
 #define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
@@ -38,23 +45,10 @@ static int rk30_vmac_register_set(void)
 
 static int rk30_rmii_io_init(void)
 {
-	int err;
-	long val;
-	printk("enter %s ",__func__);
+	printk("enter %s \n",__func__);
 
 	//rk3188 gpio3 and sdio drive strength , 
-	val = grf_readl(RK3188_GRF_IO_CON3);
-	grf_writel(val|(0x0f<<16)|0x0f, RK3188_GRF_IO_CON3);
-	  
-	//phy power gpio
-	/*err = gpio_request(PHY_PWR_EN_GPIO, "phy_power_en");
-	if (err) {
-	      printk("request phy power en pin faile ! \n");
-		return -1;
-	}
-	//phy power down
-	gpio_direction_output(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
-	gpio_set_value(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);*/
+	grf_writel((0x0f<<16)|0x0f, RK3188_GRF_IO_CON3);
 
 	return 0;
 }
@@ -62,28 +56,25 @@ static int rk30_rmii_io_init(void)
 static int rk30_rmii_io_deinit(void)
 {
 	//phy power down
-	printk("enter %s ",__func__);
-	//gpio_direction_output(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
-	//gpio_set_value(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
-	//free
-	//gpio_free(PHY_PWR_EN_GPIO);
+	printk("enter %s \n",__func__);
 	return 0;
 }
 
 static int rk30_rmii_power_control(int enable)
 {
-      printk("enter %s ,enable = %d ",__func__,enable);
-	if (enable) {
-		//enable phy power
-		printk("power on phy\n");
+	struct vmac_phy_data *pdata = &g_vmac_phy_data;
 	
-		//gpio_direction_output(PHY_PWR_EN_GPIO, PHY_PWR_EN_VALUE);
-		//gpio_set_value(PHY_PWR_EN_GPIO, PHY_PWR_EN_VALUE);
-
-		//gpio reset		
+	printk("enter %s ,enable = %d \n",__func__,enable);
+	if (enable) {
+		if (gpio_is_valid(pdata->power_io)) {
+			gpio_direction_output(pdata->power_io, pdata->power_io_enable);
+			gpio_set_value(pdata->power_io, pdata->power_io_enable);
+		}	
 	}else {
-		//gpio_direction_output(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
-		//gpio_set_value(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
+		if (gpio_is_valid(pdata->power_io)) {
+			gpio_direction_output(pdata->power_io, !pdata->power_io_enable);
+			gpio_set_value(pdata->power_io, !pdata->power_io_enable);
+		}
 	}
 	return 0;
 }
@@ -92,12 +83,13 @@ static int rk30_rmii_power_control(int enable)
 #define BIT_EMAC_SPEED_10M       (0 << 1)
 static int rk29_vmac_speed_switch(int speed)
 {
-	//printk("%s--speed=%d\n", __FUNCTION__, speed);
+	//printk("%s: speed = %d\n", __func__, speed);
 	if (10 == speed) {
 	    writel_relaxed((2<<16)|BIT_EMAC_SPEED_10M, RK_GRF_VIRT + RK3188_GRF_SOC_CON1);
 	} else {
 	    writel_relaxed((2<<16)|BIT_EMAC_SPEED_100M, RK_GRF_VIRT + RK3188_GRF_SOC_CON1);
 	}
+	return 0;
 }
 
 struct rk29_vmac_platform_data board_vmac_data = {
@@ -107,3 +99,71 @@ struct rk29_vmac_platform_data board_vmac_data = {
 	.rmii_power_control = rk30_rmii_power_control,
 	.rmii_speed_switch = rk29_vmac_speed_switch,
 };
+
+static int vmac_phy_probe(struct platform_device *pdev)
+{
+	struct vmac_phy_data *pdata = pdev->dev.platform_data;
+	enum of_gpio_flags flags;
+	int ret = 0, err;
+	struct device_node *node = pdev->dev.of_node;
+
+    printk("enter %s \n",__func__);
+	if (!pdata) {
+		pdata = &g_vmac_phy_data;
+
+		pdata->power_io = of_get_named_gpio_flags(node, "power-gpios", 0, &flags);
+		if (!gpio_is_valid(pdata->power_io)) {
+			printk("%s: Get power-gpios failed.\n", __func__);
+			return -EINVAL;
+		}
+		
+		if(flags & OF_GPIO_ACTIVE_LOW)
+			pdata->power_io_enable = 0;
+		else
+			pdata->power_io_enable = 1;
+	}
+	
+	// disable power
+	/*err = gpio_request(pdata->power_io, "vmac_phy_power");
+	if (err) {
+		printk("%s: Request vmac phy power pin failed.\n", __func__);
+		return -EINVAL;
+	}*/	
+	
+	gpio_direction_output(pdata->power_io, !pdata->power_io_enable);
+	gpio_set_value(pdata->power_io, !pdata->power_io_enable);
+
+	return ret;
+}
+
+static int vmac_phy_remove(struct platform_device *pdev)
+{
+	struct vmac_phy_data *pdata = pdev->dev.platform_data;
+	
+	printk("enter %s \n",__func__);
+	if (gpio_is_valid(pdata->power_io))
+		gpio_free(pdata->power_io);
+		
+	return 0;
+}
+
+static struct of_device_id vmac_phy_of_match[] = {
+	{ .compatible = "vmac-phy" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, vmac_phy_of_match);
+
+static struct platform_driver vmac_phy_driver = {
+	.driver		= {
+		.name		= "vmac-phy",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(vmac_phy_of_match),
+	},
+	.probe		= vmac_phy_probe,
+	.remove		= vmac_phy_remove,
+};
+
+module_platform_driver(vmac_phy_driver);
+
+MODULE_DESCRIPTION("VMAC PHY Power Driver");
+MODULE_LICENSE("GPL");

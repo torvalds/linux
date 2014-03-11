@@ -119,6 +119,11 @@
 	rockchip-hdmi-spdif {
 		compatible = "rockchip-hdmi-spdif";
 	};
+	
+	vmac-phy {
+		compatible = "vmac-phy";
+		power-gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &uart0 {
