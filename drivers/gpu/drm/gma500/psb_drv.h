@@ -266,6 +266,7 @@ struct psb_intel_opregion {
 	struct opregion_asle *asle;
 	void *vbt;
 	u32 __iomem *lid_state;
+	struct work_struct asle_work;
 };
 
 struct sdvo_device_mapping {
