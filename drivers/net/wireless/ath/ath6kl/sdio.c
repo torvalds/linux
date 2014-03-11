@@ -425,8 +425,9 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 			memcpy(tbuf, buf, len);
 
 		bounced = true;
-	} else
+	} else {
 		tbuf = buf;
+	}
 
 	ret = ath6kl_sdio_io(ar_sdio->func, request, addr, tbuf, len);
 	if ((request & HIF_READ) && bounced)
@@ -441,9 +442,9 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 static void __ath6kl_sdio_write_async(struct ath6kl_sdio *ar_sdio,
 				      struct bus_request *req)
 {
-	if (req->scat_req)
+	if (req->scat_req) {
 		ath6kl_sdio_scat_rw(ar_sdio, req);
-	else {
+	} else {
 		void *context;
 		int status;
 
@@ -673,9 +674,9 @@ static int ath6kl_sdio_async_rw_scatter(struct ath6kl *ar,
 		   "hif-scatter: total len: %d scatter entries: %d\n",
 		   scat_req->len, scat_req->scat_entries);
 
-	if (request & HIF_SYNCHRONOUS)
+	if (request & HIF_SYNCHRONOUS) {
 		status = ath6kl_sdio_scat_rw(ar_sdio, scat_req->busrequest);
-	else {
+	} else {
 		spin_lock_bh(&ar_sdio->wr_async_lock);
 		list_add_tail(&scat_req->busrequest->list, &ar_sdio->wr_asyncq);
 		spin_unlock_bh(&ar_sdio->wr_async_lock);

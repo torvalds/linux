@@ -112,9 +112,9 @@ static void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_info,
 		if (cur_ep_dist->endpoint == ENDPOINT_0)
 			continue;
 
-		if (cur_ep_dist->svc_id == WMI_CONTROL_SVC)
+		if (cur_ep_dist->svc_id == WMI_CONTROL_SVC) {
 			cur_ep_dist->cred_norm = cur_ep_dist->cred_per_msg;
-		else {
+		} else {
 			/*
 			 * For the remaining data endpoints, we assume that
 			 * each cred_per_msg are the same. We use a simple
@@ -1418,9 +1418,9 @@ static int ath6kl_htc_rx_setup(struct htc_target *target,
 				}
 			}
 
-			if (list_empty(&ep->rx_bufq))
+			if (list_empty(&ep->rx_bufq)) {
 				packet = NULL;
-			else {
+			} else {
 				packet = list_first_entry(&ep->rx_bufq,
 						struct htc_packet, list);
 				list_del(&packet->list);
@@ -2813,8 +2813,9 @@ static int ath6kl_htc_reset(struct htc_target *target)
 			packet->buf = packet->buf_start;
 			packet->endpoint = ENDPOINT_0;
 			list_add_tail(&packet->list, &target->free_ctrl_rxbuf);
-		} else
+		} else {
 			list_add_tail(&packet->list, &target->free_ctrl_txbuf);
+		}
 	}
 
 	return 0;

@@ -724,8 +724,9 @@ ath6kl_add_bss_if_needed(struct ath6kl_vif *vif,
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "added bss %pM to cfg80211\n", bssid);
 		kfree(ie);
-	} else
+	} else {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "cfg80211 already has a bss\n");
+	}
 
 	return bss;
 }
@@ -2848,8 +2849,9 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (p.prwise_crypto_type == 0) {
 		p.prwise_crypto_type = NONE_CRYPT;
 		ath6kl_set_cipher(vif, 0, true);
-	} else if (info->crypto.n_ciphers_pairwise == 1)
+	} else if (info->crypto.n_ciphers_pairwise == 1) {
 		ath6kl_set_cipher(vif, info->crypto.ciphers_pairwise[0], true);
+	}
 
 	switch (info->crypto.cipher_group) {
 	case WLAN_CIPHER_SUITE_WEP40:
