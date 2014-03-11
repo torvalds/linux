@@ -1,6 +1,6 @@
 config R8821AE
 	tristate "RealTek RTL8821AE Wireless LAN NIC driver"
-	depends on PCI && WLAN
+	depends on PCI && WLAN && MAC80211
 	depends on m
 	select WIRELESS_EXT
 	select WEXT_PRIV

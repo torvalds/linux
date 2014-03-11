@@ -6,7 +6,7 @@
 	.globl vdso64_start, vdso64_end
 	.balign PAGE_SIZE
 vdso64_start:
-	.incbin "arch/powerpc/kernel/vdso64/vdso64.so"
+	.incbin "arch/powerpc/kernel/vdso64/vdso64.so.dbg"
 	.balign PAGE_SIZE
 vdso64_end:
 

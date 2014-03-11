@@ -13,9 +13,6 @@
 #include "omap3-overo.dtsi"
 
 / {
-	model = "TI OMAP3 Gumstix Overo on Tobi";
-	compatible = "ti,omap3-tobi", "ti,omap3-overo", "ti,omap3";
-
 	leds {
 		compatible = "gpio-leds";
 		heartbeat {

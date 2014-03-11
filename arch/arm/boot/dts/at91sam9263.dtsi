@@ -523,7 +523,7 @@
 			};
 
 			i2c0: i2c@fff88000 {
-				compatible = "atmel,at91sam9263-i2c";
+				compatible = "atmel,at91sam9260-i2c";
 				reg = <0xfff88000 0x100>;
 				interrupts = <13 IRQ_TYPE_LEVEL_HIGH 6>;
 				#address-cells = <1>;

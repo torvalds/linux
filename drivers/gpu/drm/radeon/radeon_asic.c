@@ -1555,7 +1555,7 @@ static struct radeon_asic btc_asic = {
 		.get_sclk = &btc_dpm_get_sclk,
 		.get_mclk = &btc_dpm_get_mclk,
 		.print_power_state = &rv770_dpm_print_power_state,
-		.debugfs_print_current_performance_level = &rv770_dpm_debugfs_print_current_performance_level,
+		.debugfs_print_current_performance_level = &btc_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &rv770_dpm_force_performance_level,
 		.vblank_too_short = &btc_dpm_vblank_too_short,
 	},
