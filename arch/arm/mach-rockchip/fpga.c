@@ -20,11 +20,11 @@
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/rockchip/common.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/iomap.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include "common.h"
-#include "cpu.h"
-#include "iomap.h"
 
 static struct map_desc rk3288_io_desc[] __initdata = {
 	{
