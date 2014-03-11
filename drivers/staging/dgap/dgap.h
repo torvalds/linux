@@ -46,34 +46,6 @@ typedef unsigned char		uchar;
 # define TTY_FLIPBUF_SIZE 512
 #endif
 
-/* Sparse stuff */
-# ifndef __user
-#  define __user
-#  define __kernel
-#  define __safe
-#  define __force
-#  define __chk_user_ptr(x) (void)0
-# endif
-
-
-#  define PARM_STR(VAR, INIT, PERM, DESC) \
-		static char *VAR = INIT; \
-		char *dgap_##VAR; \
-		module_param(VAR, charp, PERM); \
-		MODULE_PARM_DESC(VAR, DESC);
-
-#  define PARM_INT(VAR, INIT, PERM, DESC) \
-		static int VAR = INIT; \
-		int dgap_##VAR; \
-		module_param(VAR, int, PERM); \
-		MODULE_PARM_DESC(VAR, DESC);
-
-#  define PARM_ULONG(VAR, INIT, PERM, DESC) \
-		static ulong VAR = INIT; \
-		ulong dgap_##VAR; \
-		module_param(VAR, long, PERM); \
-		MODULE_PARM_DESC(VAR, DESC);
-
 /*************************************************************************
  *
  * Driver defines
@@ -81,27 +53,11 @@ typedef unsigned char		uchar;
  *************************************************************************/
 
 /*
- * Driver identification, error and debugging statments
- *
- * In theory, you can change all occurrences of "digi" in the next
- * three lines, and the driver printk's will all automagically change.
- *
- * APR((fmt, args, ...));	Always prints message
- * DPR((fmt, args, ...));	Only prints if DGAP_TRACER is defined at
- *				  compile time and dgap_debug!=0
+ * Driver identification
  */
 #define	DG_NAME		"dgap-1.3-16"
 #define	DG_PART		"40002347_C"
-
-#define	PROCSTR		"dgap"			/* /proc entries	 */
-#define	DEVSTR		"/dev/dg/dgap"		/* /dev entries		 */
-#define	DRVSTR		"dgap"			/* Driver name string
-						 * displayed by APR	 */
-#define	APR(args)	do { PRINTF_TO_KMEM(args); printk(DRVSTR": "); printk args; \
-			   } while (0)
-#define	RAPR(args)	do { PRINTF_TO_KMEM(args); printk args; } while (0)
-
-#define TRC_TO_CONSOLE 1
+#define	DRVSTR		"dgap"
 
 /*
  * defines from dgap_pci.h
@@ -755,11 +711,6 @@ struct un_t {
 /************************************************************************
  ***	Definitions for Digi ditty(1) command.
  ************************************************************************/
-
-
-/*
- * Copyright (c) 1988-96 Digi International Inc., All Rights Reserved.
- */
 
 /************************************************************************
  * This module provides application access to special Digi
