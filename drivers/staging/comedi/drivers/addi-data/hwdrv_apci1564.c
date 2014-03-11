@@ -1,48 +1,25 @@
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-	ADDI-DATA GmbH
-	Dieselstrasse 3
-	D-77833 Ottersweier
-	Tel: +19(0)7223/9493-0
-	Fax: +49(0)7223/9493-92
-	http://www.addi-data.com
-	info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-@endverbatim
-*/
 /*
-
-  +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
-  +-----------------------------------------------------------------------+
-  | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
-  | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
-  +-------------------------------+---------------------------------------+
-  | Project     : APCI-1564       | Compiler   : GCC                      |
-  | Module name : hwdrv_apci1564.c| Version    : 2.96                     |
-  +-------------------------------+---------------------------------------+
-  | Project manager: Eric Stolz   | Date       :  02/12/2002              |
-  +-------------------------------+---------------------------------------+
-  | Description :   Hardware Layer Access For APCI-1564                   |
-  +-----------------------------------------------------------------------+
-  |                             UPDATES                                   |
-  +----------+-----------+------------------------------------------------+
-  |   Date   |   Author  |          Description of updates                |
-  +----------+-----------+------------------------------------------------+
-  |          |           |                                                |
-  |          |           |                                                |
-  |          |           |                                                |
-  +----------+-----------+------------------------------------------------+
-*/
-
-/*********      Definitions for APCI-1564 card  *****/
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data.com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 2 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ */
 
 #define APCI1564_ADDRESS_RANGE				128
 
@@ -115,32 +92,13 @@ static unsigned int ui_InterruptStatus_1564;
 static unsigned int ui_InterruptData, ui_Type;
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1564_di_config                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures the digital input Subdevice                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains         |
-|                                          configuration parameters as below |
-|                                                                            |
-|			  data[0]            : 1 Enable  Digital Input Interrupt |
-|								   0 Disable Digital Input Interrupt |
-|			  data[1]            : 0 ADDIDATA Interrupt OR LOGIC	 |
-|								 : 1 ADDIDATA Interrupt AND LOGIC    |
-|			  data[2]			 : Interrupt mask for the mode 1	 |
-|			  data[3]			 : Interrupt mask for the mode 2	 |
-|																	 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures the digital input Subdevice
+ *
+ * data[0] 1 = Enable interrupt, 0 = Disable interrupt
+ * data[1] 0 = ADDIDATA Interrupt OR LOGIC, 1 = ADDIDATA Interrupt AND LOGIC
+ * data[2] Interrupt mask for the mode 1
+ * data[3] Interrupt mask for the mode 2
+ */
 static int apci1564_di_config(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -182,30 +140,11 @@ static int apci1564_di_insn_bits(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1564_do_config                     |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Digital Output Subdevice.               |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[1]            : 1 Enable  VCC  Interrupt  |
-|										   0 Disable VCC  Interrupt  |
-|					  data[2]            : 1 Enable  CC  Interrupt   |
-|										   0 Disable CC  Interrupt   |
-|																	 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures The Digital Output Subdevice.
+ *
+ * data[1] 0 = Disable VCC Interrupt, 1 = Enable VCC Interrupt
+ * data[2] 0 = Disable CC Interrupt, 1 = Enable CC Interrupt
+ */
 static int apci1564_do_config(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -259,35 +198,16 @@ static int apci1564_do_insn_bits(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1564_timer_config              |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Timer , Counter or Watchdog             |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[0]            : 0 Configure As Timer      |
-|										   1 Configure As Counter    |
-|										   2 Configure As Watchdog   |
-|					  data[1]            : 1 Enable  Interrupt       |
-|										   0 Disable Interrupt 	     |
-|					  data[2]            : Time Unit                 |
-|					  data[3]			 : Reload Value			     |
-|					  data[4]            : Timer Mode             	 |
-|					  data[5]			 : Timer Counter Watchdog Number|
-                              data[6]            :  Counter Direction
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures The Timer, Counter or Watchdog
+ *
+ * data[0] Configure as: 0 = Timer, 1 = Counter, 2 = Watchdog
+ * data[1] 1 = Enable Interrupt, 0 = Disable Interrupt
+ * data[2] Time Unit
+ * data[3] Reload Value
+ * data[4] Timer Mode
+ * data[5] Timer Counter Watchdog Number
+ * data[6] Counter Direction
+ */
 static int apci1564_timer_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -382,31 +302,11 @@ static int apci1564_timer_config(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1564_timer_write      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Start / Stop The Selected Timer , Counter or Watchdog  |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[0]            : 0 Timer                   |
-|										   1 Counter                 |
-|										   2 Watchdog        		 |                             |					         data[1]            : 1 Start                   |
-|										   0 Stop                    |
-|                                                  2 Trigger             	 |
-|                                                    Clear (Only Counter)    |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Start / Stop The Selected Timer, Counter or Watchdog
+ *
+ * data[0] Configure as: 0 = Timer, 1 = Counter, 2 = Watchdog
+ * data[1] 0 = Stop, 1 = Start, 2 = Trigger Clear (Only Counter)
+ */
 static int apci1564_timer_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -470,26 +370,8 @@ static int apci1564_timer_write(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1564_timer_read                |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read The Selected Timer , Counter or Watchdog          |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Read The Selected Timer, Counter or Watchdog
+ */
 static int apci1564_timer_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -537,22 +419,8 @@ static int apci1564_timer_read(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   :  int apci1564_do_read                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              :Reads the interrupt status register                     |
-+----------------------------------------------------------------------------+
-| Input Parameters  :                                                        |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
+ * Reads the interrupt status register
+ */
 static int apci1564_do_read(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn,
@@ -563,22 +431,8 @@ static int apci1564_do_read(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : static void apci1564_interrupt
-|					  (int irq , void *d)      |
-+----------------------------------------------------------------------------+
-| Task              : Interrupt handler for the interruptible digital inputs |
-+----------------------------------------------------------------------------+
-| Input Parameters  : int irq                 : irq number                   |
-|                     void *d                 : void pointer                 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Interrupt handler for the interruptible digital inputs
+ */
 static void apci1564_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -723,21 +577,6 @@ static void apci1564_interrupt(int irq, void *d)
 	}
 	return;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1564_reset(struct comedi_device *dev)
-+----------------------------------------------------------------------------+
-| Task              :resets all the registers                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
 
 static int apci1564_reset(struct comedi_device *dev)
 {

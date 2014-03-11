@@ -1,48 +1,25 @@
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-	ADDI-DATA GmbH
-	Dieselstrasse 3
-	D-77833 Ottersweier
-	Tel: +19(0)7223/9493-0
-	Fax: +49(0)7223/9493-92
-	http://www.addi-data.com
-	info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-@endverbatim
-*/
 /*
-
-  +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
-  +-----------------------------------------------------------------------+
-  | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
-  | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
-  +-------------------------------+---------------------------------------+
-  | Project     : APCI-1500       | Compiler   : GCC                      |
-  | Module name : hwdrv_apci1500.c| Version    : 2.96                     |
-  +-------------------------------+---------------------------------------+
-  | Project manager: Eric Stolz   | Date       :  02/12/2002              |
-  +-------------------------------+---------------------------------------+
-  | Description :   Hardware Layer Access For APCI-1500                   |
-  +-----------------------------------------------------------------------+
-  |                             UPDATES                                   |
-  +----------+-----------+------------------------------------------------+
-  |   Date   |   Author  |          Description of updates                |
-  +----------+-----------+------------------------------------------------+
-  |          |           |                                                |
-  |          |           |                                                |
-  |          |           |                                                |
-  +----------+-----------+------------------------------------------------+
-*/
-
-/*********      Definitions for APCI-1500 card  *****/
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data.com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 2 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ */
 
 /* Card Specific information */
 #define APCI1500_ADDRESS_RANGE		4
@@ -153,83 +130,29 @@ static int i_TimerCounter1Enabled, i_TimerCounter2Enabled,
 	   i_WatchdogCounter3Enabled;
 
 /*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int apci1500_di_config                 |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : An event can be generated for each port.               |
-|                     The first event is related to the first 8 channels     |
-|                     (port 1) and the second to the following 6 channels    |
-|                     (port 2). An interrupt is generated when one or both   |
-|                     events have occurred                                   |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data     : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|			  data[0]            :Number of the input port on        |
-|                                         which the event will take place    |
-|                                         (1 or 2)
-|                      data[1]            : The event logic for port 1 has    |
-|                                            three possibilities             |
-|                                        :0  APCI1500_AND       :This logic  |
-|                                                                links       |
-|                                                                the inputs  |
-|                                                                with an AND |
-|                                                                logic.      |
-|                                          1 APCI1500_OR        :This logic  |
-|                                                                links       |
-|                                                                the inputs  |
-|                                                                with a      |
-|                                                                OR logic.   |
-|                                          2    APCI1500_OR_PRIORITY        |
-|								:This logic                          |
-|                                                                links       |
-|                                                                the inputs  |
-|                                                                with a      |
-|                                                                priority    |
-|                                                                OR logic.   |
-|                                                                Input 1     |
-|                                                                has the     |
-|                                                                highest     |
-|                                                                priority    |
-|                                                                level and   |
-|                                                                input   8   |
-|                                                                the smallest|
-|                                            For the second port the user has|
-|                                            1 possibility:                  |
-|                                            APCI1500_OR        :This logic  |
-|                                                                links       |
-|                                                                the inputs  |
-|                                                                with a      |
-|                                                                polarity    |
-|                                                                OR logic    |
-|                     data[2]              : These 8-character word for port1|
-|                                            and 6-character word for port 2 |
-|                                            give the mask of the event.     |
-|                                            Each place gives the state      |
-|                                            of the input channels and can   |
-|                                            have one of these six characters|
-|                                                     |
-|                                       0  : This input must be on 0         |
-|                                       1  : This input must be on 1         |
-|                                       2  : This input reacts to            |
-|                                            a falling edge                  |
-|                                       3  : This input reacts to a          |
-|                                            rising edge                     |
-|                                       4  : This input reacts to both edges |
-|
-|								5  : This input is not               |
-|                                            used for event   				 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * An event can be generated for each port. The first event is related to the
+ * first 8 channels (port 1) and the second to the following 6 channels (port 2)
+ * An interrupt is generated when one or both events have occurred.
+ *
+ * data[0] Number of the input port on which the event will take place (1 or 2)
+ * data[1] The event logic for port 1 has three possibilities:
+ *	APCI1500_AND		This logic links the inputs with an AND logic.
+ *	APCI1500_OR		This logic links the inputs with a OR logic.
+ *	APCI1500_OR_PRIORITY	This logic links the inputs with a priority OR
+ *				logic. Input 1 has the highest priority level
+ *				and input 8 the	smallest.
+ *	For the second port the user has 1 possibility:
+ *	APCI1500_OR	This logic links the inputs with a polarity OR logic
+ * data[2] These 8-character word for port1 and 6-character word for port 2
+ *	   give the mask of the event. Each place gives the state of the input
+ *	   channels and can have one of these six characters
+ *	0 This input must be on 0
+ *	1 This input must be on 1
+ *	2 This input reacts to a falling edge
+ *	3 This input reacts to a rising edge
+ *	4 This input reacts to both edges
+ *	5 This input is not used for event
+ */
 static int apci1500_di_config(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -537,27 +460,11 @@ static int apci1500_di_config(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_di_write                     |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              :  Allows or disallows a port event                      |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              unsigned int ui_Channel : Channel number to read       |
-|                     unsigned int *data          : Data Pointer to read status  |
-|                      data[0]                 :0 Start input event
-|                                               1 Stop input event
-|                      data[1]                 :No of port (1 or 2)
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Allows or disallows a port event
+ *
+ * data[0] 0 = Start input event, 1 = Stop input event
+ * data[1] Number of port (1 or 2)
+ */
 static int apci1500_di_write(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn,
@@ -748,24 +655,8 @@ static int apci1500_di_write(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_di_read                          |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the digital input                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              unsigned int ui_Channel : Channel number to read       |
-|                     unsigned int *data          : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Return the status of the digital input
+ */
 static int apci1500_di_read(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn,
@@ -915,33 +806,11 @@ static int apci1500_di_insn_bits(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_do_config
-|                      (struct comedi_device *dev,struct comedi_subdevice *s struct comedi_insn
-|                      *insn,unsigned int *data)                                  |
-|				                                                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures the digital output memory and the digital
-|                      output error interrupt                                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains         |
-|                                          configuration parameters as below |
-|                      struct comedi_subdevice *s,   :pointer to subdevice structure
-|                       struct comedi_insn *insn      :pointer to insn structure                                                                                                                |
-|					  data[0]  :1:Memory on                          |
-|					            0:Memory off                         |
-|                              data[1]  :1 Enable the voltage error interrupt
-|							   :0 Disable the voltage error interrupt 		                                                                                                    |
-|																	 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures the digital output memory and the digital output error interrupt
+ *
+ * data[1] 1 = Enable the voltage error interrupt
+ *	   2 = Disable the voltage error interrupt
+ */
 static int apci1500_do_config(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -954,24 +823,8 @@ static int apci1500_do_config(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_do_write                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Writes port value  To the selected port                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Writes port value to the selected port
+ */
 static int apci1500_do_write(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn,
@@ -1125,53 +978,19 @@ static int apci1500_do_write(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_timer_config(comedi_device
-|                   *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
-|				                                                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Watchdog                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     struct comedi_subdevice *s,   :pointer to subdevice structure
-|                      struct comedi_insn *insn      :pointer to insn structure      |
-|                     unsigned int *data         : Data Pointer to read status                                                       data[0]                : 2     APCI1500_1_8_KHZ
-|                                              1     APCI1500_3_6_KHZ        |
-|                                              0     APCI1500_115_KHZ
-|                      data[1]                : 0     Counter1/Timer1
-|                                               1     Counter2/Timer2
-|                                               2     Counter3/Watchdog
-|                      data[2]                : 0     Counter
-|                                               1     Timer/Watchdog
-|                      data[3]                :         This parameter has    |
-|                                                      two meanings.         |
-|                                                    - If the counter/timer  |
-|                                                      is used as a counter  |
-|                                                      the limit value of    |
-|                                                      the counter is given  |
-|                                                                            |
-|                                                    - If the counter/timer  |
-|                                                      is used as a timer,   |
-|                                                      the divider factor    |
-|                                                      for the output is     |
-|                                                      given.
-|                       data[4]                 : 0    APCI1500_CONTINUOUS
-|                                                 1    APCI1500_SINGLE
-|                       data[5]                 : 0    Software Trigger
-|                                                 1    Hardware Trigger
-|
-|                       data[6]                  :0    Software gate
-|                                                 1    Hardware gate
-|                       data[7]                  :0    Interrupt Disable
-|                                                 1    Interrupt Enable
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures The Watchdog
+ *
+ * data[0] 0 = APCI1500_115_KHZ, 1 = APCI1500_3_6_KHZ, 2 = APCI1500_1_8_KHZ
+ * data[1] 0 = Counter1/Timer1, 1 =  Counter2/Timer2, 2 = Counter3/Watchdog
+ * data[2] 0 = Counter, 1 = Timer/Watchdog
+ * data[3] This parameter has two meanings. If the counter/timer is used as
+ *	a counter the limit value of the counter is given. If the counter/timer
+ *	is used as a timer, the divider factor for the output is given.
+ * data[4] 0 = APCI1500_CONTINUOUS, 1 = APCI1500_SINGLE
+ * data[5] 0 = Software Trigger, 1 = Hardware Trigger
+ * data[6] 0 = Software gate, 1 = Hardware gate
+ * data[7] 0 = Interrupt Disable, 1 = Interrupt Enable
+ */
 static int apci1500_timer_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -1663,33 +1482,12 @@ static int apci1500_timer_config(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_timer_write
-|				(struct comedi_device *dev,struct comedi_subdevice *s,
-|                         struct comedi_insn *insn,unsigned int *data);                  |
-+----------------------------------------------------------------------------+
-| Task              : Start / Stop or trigger the timer counter or Watchdog  |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev     : Driver handle                 |
-|                     struct comedi_subdevice *s,   :pointer to subdevice structure
-|                      struct comedi_insn *insn      :pointer to insn structure      |
-|                     unsigned int *data         : Data Pointer to read status   |
-|                      data[0]                : 0     Counter1/Timer1
-|                                               1     Counter2/Timer2
-|                                               2     Counter3/Watchdog
-|                      data[1]                : 0     start
-|                                               1     stop
-|                                               2     Trigger
-|                      data[2]                : 0     Counter
-|                                               1     Timer/Watchdog
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Start / Stop or trigger the timer counter or Watchdog
+ *
+ * data[0] 0 = Counter1/Timer1, 1 =  Counter2/Timer2, 2 = Counter3/Watchdog
+ * data[1] 0 = Start, 1 = Stop, 2 = Trigger
+ * data[2] 0 = Counter, 1 = Timer/Watchdog
+ */
 static int apci1500_timer_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -1959,29 +1757,10 @@ static int apci1500_timer_write(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_timer_bits                |
-|			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-|                    unsigned int *data); 	                                     |
-+----------------------------------------------------------------------------+
-| Task              : Read The Watchdog                                      |
-+----------------------------------------------------------------------------+
-| Input Parameters  :   struct comedi_device *dev      : Driver handle              |
-|                     struct comedi_subdevice *s,   :pointer to subdevice structure
-|                      struct comedi_insn *insn      :pointer to insn structure      |
-|                     unsigned int *data          : Data Pointer to read status  |
-|                      data[0]                : 0     Counter1/Timer1
-|                                               1     Counter2/Timer2
-|                                               2     Counter3/Watchdog
-|
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Read The Watchdog
+ *
+ * data[0] 0 = Counter1/Timer1, 1 =  Counter2/Timer2, 2 = Counter3/Watchdog
+ */
 static int apci1500_timer_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -2133,27 +1912,11 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int  apci1500_timer_read                      |
-|			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-|                    unsigned int *data); 	                                     |
-+----------------------------------------------------------------------------+
-| Task              : Read the interrupt mask                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  :   struct comedi_device *dev      : Driver handle              |
-|                     struct comedi_subdevice *s,   :pointer to subdevice structure
-|                      struct comedi_insn *insn      :pointer to insn structure      |
-|                     unsigned int *data          : Data Pointer to read status  |
-
-
-+----------------------------------------------------------------------------+
-| Output Parameters :	--	data[0]:The interrupt mask value												                           data[1]:Channel no
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Read the interrupt mask
+ *
+ * data[0] The interrupt mask value
+ * data[1] Channel Number
+ */
 static int apci1500_timer_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -2166,27 +1929,8 @@ static int apci1500_timer_read(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int  apci1500_do_bits                     |
-|			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-|                    unsigned int *data); 	                                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures the interrupt registers                     |
-+----------------------------------------------------------------------------+
-| Input Parameters  :   struct comedi_device *dev      : Driver handle              |
-|                     struct comedi_subdevice *s,   :pointer to subdevice structure
-|                      struct comedi_insn *insn      :pointer to insn structure      |
-|                     unsigned int *data          : Data Pointer                 |
-|
-
-+----------------------------------------------------------------------------+
-| Output Parameters :	--
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures the interrupt registers
+ */
 static int apci1500_do_bits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn,
@@ -2310,23 +2054,6 @@ static int apci1500_do_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : static void apci1500_interrupt
-|					  (int irq , void *d)      |
-+----------------------------------------------------------------------------+
-| Task              : Interrupt handler                                      |
-+----------------------------------------------------------------------------+
-| Input Parameters  : int irq                 : irq number                   |
-|                     void *d                 : void pointer                 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
 static void apci1500_interrupt(int irq, void *d)
 {
 
@@ -2505,20 +2232,6 @@ static void apci1500_interrupt(int irq, void *d)
 	return;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci1500_reset(struct comedi_device *dev)
-+----------------------------------------------------------------------------+
-| Task              :resets all the registers                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
 static int apci1500_reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;

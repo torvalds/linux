@@ -1,46 +1,24 @@
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-	ADDI-DATA GmbH
-	Dieselstrasse 3
-	D-77833 Ottersweier
-	Tel: +19(0)7223/9493-0
-	Fax: +49(0)7223/9493-92
-	http://www.addi-data.com
-	info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-@endverbatim
-*/
 /*
-
-  +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
-  +-----------------------------------------------------------------------+
-  | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
-  | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
-  +-------------------------------+---------------------------------------+
-  | Project     : APCI-035        | Compiler   : GCC                      |
-  | Module name : hwdrv_apci035.c | Version    : 2.96                     |
-  +-------------------------------+---------------------------------------+
-  | Project manager: Eric Stolz   | Date       :  02/12/2002              |
-  +-------------------------------+---------------------------------------+
-  | Description :   Hardware Layer Access For APCI-035                    |
-  +-----------------------------------------------------------------------+
-  |                             UPDATES                                   |
-  +----------+-----------+------------------------------------------------+
-  |   Date   |   Author  |          Description of updates                |
-  +----------+-----------+------------------------------------------------+
-  |          |           |                                                |
-  |          |           |                                                |
-  |          |           |                                                |
-  +----------+-----------+------------------------------------------------+
-*/
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data.com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 2 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ */
 
 /* Card Specific information */
 #define APCI035_ADDRESS_RANGE		255
@@ -109,60 +87,32 @@ static struct comedi_lrange range_apci035_ai = {
 static int i_WatchdogNbr;
 static int i_Temp;
 static int i_Flag = 1;
+
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci035_timer_config                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Timer , Counter or Watchdog             |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[0]            : 0 Configure As Timer      |
-|										   1 Configure As Watchdog   |
-|                                         data[1]            : Watchdog number
-|					  data[2]            : Time base Unit            |
-|					  data[3]			 : Reload Value			     |
-|                                         data[4]            : External Trigger          |
-|                                                              1:Enable
-|                                                           0:Disable
-|                              data[5]            :External Trigger Level
-|                                                  00 Trigger Disabled
-|                                                  01 Trigger Enabled (Low level)
-|                                                  10 Trigger Enabled (High Level)
-|                                                  11 Trigger Enabled (High/Low level)
-|                              data[6]            : External Gate            |
-|                                                   1:Enable
-|                                                   0:Disable
-|                              data[7]            : External Gate level
-|                                                  00 Gate Disabled
-|                                                  01 Gate Enabled (Low level)
-|                                                  10 Gate Enabled (High Level)
-|                              data[8]            :Warning Relay
-|                                                  1: ENABLE
-|                                                  0: DISABLE
-|                              data[9]            :Warning Delay available
-|                              data[10]           :Warning Relay Time unit
-|                              data[11]           :Warning Relay Time Reload value
-|                              data[12]           :Reset Relay
-|                                                  1 : ENABLE
-|                                                  0 : DISABLE
-|                              data[13]           :Interrupt
-|                                                  1 : ENABLE
-|                                                  0 : DISABLE
-|
-|
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures The Timer , Counter or Watchdog
+ *
+ * data[0] 0 = Configure As Timer, 1 = Configure As Watchdog
+ * data[1] Watchdog number
+ * data[2] Time base Unit
+ * data[3] Reload Value
+ * data[4] External Trigger, 1 = Enable, 0 = Disable
+ * data[5] External Trigger Level
+ *	00 = Trigger Disabled
+ *	01 = Trigger Enabled (Low level)
+ *	10 = Trigger Enabled (High Level)
+ *	11 = Trigger Enabled (High/Low level)
+ * data[6] External Gate, 1 = Enable, 0 = Disable
+ * data[7] External Gate level
+ *	00 = Gate Disabled
+ *	01 = Gate Enabled (Low level)
+ *	10 = Gate Enabled (High Level)
+ * data[8] Warning Relay, 1 = Enable, 0 = Disable
+ * data[9] Warning Delay available
+ * data[10] Warning Relay Time unit
+ * data[11] Warning Relay Time Reload value
+ * data[12] Reset Relay, 1 = Enable, 0 = Disable
+ * data[13] Interrupt, 1 = Enable, 0 = Disable
+ */
 static int apci035_timer_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -286,32 +236,16 @@ static int apci035_timer_config(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci035_timer_write              |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Start / Stop The Selected Timer , or Watchdog  |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|					                                                 |
-|					  data[0] : 0 - Stop Selected Timer/Watchdog     |
-|					            1 - Start Selected Timer/Watchdog    |
-|					            2 - Trigger Selected Timer/Watchdog  |
-|					            3 - Stop All Timer/Watchdog          |
-|					            4 - Start All Timer/Watchdog         |
-|					            5 - Trigger All Timer/Watchdog       |
-|					                                                 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error			 |
-|					                                                 |
-+----------------------------------------------------------------------------+
-*/
+ * Start / Stop The Selected Timer , or Watchdog
+ *
+ * data[0]
+ *	0 - Stop Selected Timer/Watchdog
+ *	1 - Start Selected Timer/Watch*dog
+ *	2 - Trigger Selected Timer/Watchdog
+ *	3 - Stop All Timer/Watchdog
+ *	4 - Start All Timer/Watchdog
+ *	5 - Trigger All Timer/Watchdog
+ */
 static int apci035_timer_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -401,32 +335,14 @@ static int apci035_timer_write(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci035_timer_read                        |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read The Selected Timer , Counter or Watchdog          |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|     																	 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	data[0]            : software trigger status
-|                       data[1]            : hardware trigger status
-|     	  	        data[2]            : Software clear status
-|                       data[3]            : Overflow status
-|                       data[4]            : Timer actual value
-|
-
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Read The Selected Timer , Counter or Watchdog
+ *
+ * data[0] software trigger status
+ * data[1] hardware trigger status
+ * data[2] Software clear status
+ * data[3] Overflow status
+ * data[4] Timer actual value
+ */
 static int apci035_timer_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -458,28 +374,10 @@ static int apci035_timer_read(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci035_ai_config                        |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Analog Input Subdevice                  |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     struct comedi_subdevice *s     : Subdevice Pointer            |
-|                     struct comedi_insn *insn       : Insn Structure Pointer       |
-|                     unsigned int *data          : Data Pointer contains        |
-|                                          configuration parameters as below |
-|                     data[0]                  : Warning delay value
-|                                                                            |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Configures The Analog Input Subdevice
+ *
+ * data[0] Warning delay value
+ */
 static int apci035_ai_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn,
@@ -500,26 +398,10 @@ static int apci035_ai_config(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int apci035_ai_read                          |
-|			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-|                     struct comedi_insn *insn,unsigned int *data)                      |
-+----------------------------------------------------------------------------+
-| Task              : Read  value  of the selected channel			         |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-|			          data[0]  : Digital Value Of Input              |
-|			                                                         |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * Read value of the selected channel
+ *
+ * data[0] Digital Value Of Input
+ */
 static int apci035_ai_read(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn,
@@ -539,21 +421,6 @@ static int apci035_ai_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   :  int apci035_reset(struct comedi_device *dev)
-|					                                                         |
-+----------------------------------------------------------------------------+
-| Task              :Resets the registers of the card                        |
-+----------------------------------------------------------------------------+
-| Input Parameters  :                                                        |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                                 |
-+----------------------------------------------------------------------------+
-*/
 static int apci035_reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
@@ -570,23 +437,6 @@ static int apci035_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : static void apci035_interrupt
-|					  (int irq , void *d)      |
-+----------------------------------------------------------------------------+
-| Task              : Interrupt processing Routine                           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : int irq                 : irq number                   |
-|                     void *d                 : void pointer                 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
 static void apci035_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
