@@ -33,6 +33,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/rspi.h>
@@ -1111,7 +1112,7 @@ static int rspi_remove(struct platform_device *pdev)
 	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
 	rspi_release_dma(rspi);
-	clk_disable_unprepare(rspi->clk);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -1242,16 +1243,13 @@ static int rspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
-	ret = clk_prepare_enable(rspi->clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to prepare/enable clock\n");
-		goto error1;
-	}
+	pm_runtime_enable(&pdev->dev);
 
 	init_waitqueue_head(&rspi->wait);
 
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
+	master->auto_runtime_pm = true;
 	master->transfer_one = ops->transfer_one;
 	master->prepare_message = rspi_prepare_message;
 	master->unprepare_message = rspi_unprepare_message;
@@ -1312,7 +1310,7 @@ static int rspi_probe(struct platform_device *pdev)
 error3:
 	rspi_release_dma(rspi);
 error2:
-	clk_disable_unprepare(rspi->clk);
+	pm_runtime_disable(&pdev->dev);
 error1:
 	spi_master_put(master);
 
