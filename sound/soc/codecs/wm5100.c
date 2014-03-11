@@ -2337,13 +2337,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	wm5100->codec = codec;
-	codec->control_data = wm5100->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100_dig_vu); i++)
 		snd_soc_update_bits(codec, wm5100_dig_vu[i], WM5100_OUT_VU,

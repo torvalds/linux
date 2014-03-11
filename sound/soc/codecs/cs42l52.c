@@ -1115,14 +1115,7 @@ static void cs42l52_free_beep(struct snd_soc_codec *codec)
 static int cs42l52_probe(struct snd_soc_codec *codec)
 {
 	struct cs42l52_private *cs42l52 = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
-	codec->control_data = cs42l52->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 	regcache_cache_only(cs42l52->regmap, true);
 
 	cs42l52_add_mic_controls(codec);
@@ -1134,7 +1127,7 @@ static int cs42l52_probe(struct snd_soc_codec *codec)
 	cs42l52->sysclk = CS42L52_DEFAULT_CLK;
 	cs42l52->config.format = CS42L52_DEFAULT_FORMAT;
 
-	return ret;
+	return 0;
 }
 
 static int cs42l52_remove(struct snd_soc_codec *codec)

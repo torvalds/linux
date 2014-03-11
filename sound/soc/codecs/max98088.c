@@ -1915,12 +1915,6 @@ static int max98088_probe(struct snd_soc_codec *codec)
 
        regcache_mark_dirty(max98088->regmap);
 
-       ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-       if (ret != 0) {
-               dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-               return ret;
-       }
-
        /* initialize private data */
 
        max98088->sysclk = (unsigned)-1;

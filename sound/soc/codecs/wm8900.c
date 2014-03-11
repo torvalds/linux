@@ -1178,13 +1178,7 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 
 static int wm8900_probe(struct snd_soc_codec *codec)
 {
-	int ret = 0, reg;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
+	int reg;
 
 	reg = snd_soc_read(codec, WM8900_REG_ID);
 	if (reg != 0x8900) {

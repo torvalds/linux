@@ -1516,23 +1516,14 @@ static int da732x_probe(struct snd_soc_codec *codec)
 {
 	struct da732x_priv *da732x = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret = 0;
 
 	da732x->codec = codec;
 
 	dapm->idle_bias_off = false;
 
-	codec->control_data = da732x->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec.\n");
-		goto err;
-	}
-
 	da732x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-err:
-	return ret;
+
+	return 0;
 }
 
 static int da732x_remove(struct snd_soc_codec *codec)

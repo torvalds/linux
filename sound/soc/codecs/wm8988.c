@@ -810,15 +810,7 @@ static int wm8988_resume(struct snd_soc_codec *codec)
 
 static int wm8988_probe(struct snd_soc_codec *codec)
 {
-	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
-
-	codec->control_data = wm8988->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	ret = wm8988_reset(codec);
 	if (ret < 0) {

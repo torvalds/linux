@@ -295,8 +295,6 @@ static int aic26_probe(struct snd_soc_codec *codec)
 	struct aic26 *aic26 = dev_get_drvdata(codec->dev);
 	int ret, reg;
 
-	snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-
 	aic26->codec = codec;
 
 	/* Reset the codec to power on defaults */

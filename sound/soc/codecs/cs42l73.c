@@ -1348,16 +1348,7 @@ static int cs42l73_resume(struct snd_soc_codec *codec)
 
 static int cs42l73_probe(struct snd_soc_codec *codec)
 {
-	int ret;
 	struct cs42l73_private *cs42l73 = snd_soc_codec_get_drvdata(codec);
-
-	codec->control_data = cs42l73->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	cs42l73_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1371,7 +1362,7 @@ static int cs42l73_probe(struct snd_soc_codec *codec)
 	cs42l73->mclksel = CS42L73_CLKID_MCLK1;
 	cs42l73->mclk = 0;
 
-	return ret;
+	return 0;
 }
 
 static int cs42l73_remove(struct snd_soc_codec *codec)

@@ -586,16 +586,6 @@ static int ml26124_resume(struct snd_soc_codec *codec)
 
 static int ml26124_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
-	codec->control_data = priv->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* Software Reset */
 	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 1);
 	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 0);
