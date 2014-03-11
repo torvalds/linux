@@ -34,9 +34,9 @@
 		disp_timings: display-timings {
                         native-mode = <&timing0>;
                         timing0: timing0 {
-				screen_type = <SCREEN_LVDS>;
-				lvds_format = <LVDS_8BIT_2>;
-				out_face    = <OUT_D888_P666>;
+				screen-ype = <SCREEN_LVDS>;
+				lvds-format = <LVDS_8BIT_2>;
+				out-face    = <OUT_D888_P666>;
 				clock-frequency = <71000000>;
 				hactive = <1280>;
 				vactive = <800>;
