@@ -215,7 +215,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	if (IS_ERR(table)) {
 		heap->ops->free(buffer);
 		kfree(buffer);
-		return ERR_PTR(PTR_ERR(table));
+		return ERR_CAST(table);
 	}
 	buffer->sg_table = table;
 	if (ion_buffer_fault_user_mappings(buffer)) {
@@ -508,7 +508,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		return ERR_PTR(-ENODEV);
 
 	if (IS_ERR(buffer))
-		return ERR_PTR(PTR_ERR(buffer));
+		return ERR_CAST(buffer);
 
 	handle = ion_handle_create(client, buffer);
 
@@ -1147,7 +1147,7 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf))
-		return ERR_PTR(PTR_ERR(dmabuf));
+		return ERR_CAST(dmabuf);
 	/* if this memory came from ion */
 
 	if (dmabuf->ops != &dma_buf_ops) {
