@@ -128,7 +128,6 @@ struct p9_req_t {
  * @proto_version: 9P protocol version to use
  * @trans_mod: module API instantiated with this client
  * @trans: tranport instance state and API
- * @conn: connection state information used by trans_fd
  * @fidpool: fid handle accounting for session
  * @fidlist: List of active fid handles
  * @tagpool - transaction id accounting for session
@@ -157,7 +156,6 @@ struct p9_client {
 	struct p9_trans_module *trans_mod;
 	enum p9_trans_status status;
 	void *trans;
-	struct p9_conn *conn;
 
 	struct p9_idpool *fidpool;
 	struct list_head fidlist;
