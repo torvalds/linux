@@ -2153,6 +2153,7 @@ static int rtw_wx_read32(struct net_device *dev,
 	u32 data32;
 	u32 bytes;
 	u8 *ptmp;
+	int rv;
 
 	padapter = (struct adapter *)rtw_netdev_priv(dev);
 	p = &wrqu->data;
@@ -2168,7 +2169,11 @@ static int rtw_wx_read32(struct net_device *dev,
 
 	bytes = 0;
 	addr = 0;
-	sscanf(ptmp, "%d,%x", &bytes, &addr);
+	rv = sscanf(ptmp, "%d,%x", &bytes, &addr);
+	if (rv != 2) {
+		kfree(ptmp);
+		return -EINVAL;
+	}
 
 	switch (bytes) {
 	case 1:
@@ -2198,6 +2203,7 @@ static int rtw_wx_write32(struct net_device *dev,
 			    union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
+	int rv;
 
 	u32 addr;
 	u32 data32;
@@ -2206,7 +2212,9 @@ static int rtw_wx_write32(struct net_device *dev,
 	bytes = 0;
 	addr = 0;
 	data32 = 0;
-	sscanf(extra, "%d,%x,%x", &bytes, &addr, &data32);
+	rv = sscanf(extra, "%d,%x,%x", &bytes, &addr, &data32);
+	if (rv != 3)
+		return -EINVAL;
 
 	switch (bytes) {
 	case 1:
@@ -5652,10 +5660,14 @@ static int rtw_pm_set(struct net_device *dev,
 	DBG_88E("[%s] extra = %s\n", __func__, extra);
 
 	if (!memcmp(extra, "lps =", 4)) {
-		sscanf(extra+4, "%u", &mode);
+		ret = sscanf(extra+4, "%u", &mode);
+		if (ret != 1)
+			return -EINVAL;
 		ret = rtw_pm_set_lps(padapter, mode);
 	} else if (!memcmp(extra, "ips =", 4)) {
-		sscanf(extra+4, "%u", &mode);
+		ret = sscanf(extra+4, "%u", &mode);
+		if (ret != 1)
+			return -EINVAL;
 		ret = rtw_pm_set_ips(padapter, mode);
 	} else {
 		ret = -EINVAL;
@@ -6755,8 +6767,11 @@ static int rtw_mp_bandwidth(struct net_device *dev,
 {
 	u32 bandwidth = 0, sg = 0;
 	struct adapter *padapter = rtw_netdev_priv(dev);
+	int rv;
 
-	sscanf(extra, "40M =%d, shortGI =%d", &bandwidth, &sg);
+	rv = sscanf(extra, "40M =%d, shortGI =%d", &bandwidth, &sg);
+	if (rv != 2)
+		return -EINVAL;
 
 	if (bandwidth != HT_CHANNEL_WIDTH_40)
 		bandwidth = HT_CHANNEL_WIDTH_20;
@@ -6776,6 +6791,7 @@ static int rtw_mp_txpower(struct net_device *dev,
 	u32		idx_a = 0, idx_b = 0;
 	char	*input = kmalloc(wrqu->length, GFP_KERNEL);
 	struct adapter *padapter = rtw_netdev_priv(dev);
+	int rv;
 
 	if (!input)
 		return -ENOMEM;
@@ -6783,7 +6799,11 @@ static int rtw_mp_txpower(struct net_device *dev,
 		kfree(input);
 		return -EFAULT;
 	}
-	sscanf(input, "patha =%d, pathb =%d", &idx_a, &idx_b);
+	rv = sscanf(input, "patha =%d, pathb =%d", &idx_a, &idx_b);
+	if (rv != 2) {
+		kfree(input);
+		return -EINVAL;
+	}
 
 	sprintf(extra, "Set power level path_A:%d path_B:%d", idx_a, idx_b);
 	padapter->mppriv.txpoweridx = (u8)idx_a;
@@ -6877,6 +6897,7 @@ static int rtw_mp_ctx(struct net_device *dev,
 	u32 pkTx = 1, countPkTx = 1, cotuTx = 1, CarrSprTx = 1, scTx = 1, sgleTx = 1, stop = 1;
 	u32 bStartTest = 1;
 	u32 count = 0;
+	int rv;
 	struct mp_priv *pmp_priv;
 	struct pkt_attrib *pattrib;
 
@@ -6896,7 +6917,9 @@ static int rtw_mp_ctx(struct net_device *dev,
 	sgleTx = strncmp(extra, "background, stone", 20);
 	pkTx = strncmp(extra, "background, pkt", 20);
 	stop = strncmp(extra, "stop", 4);
-	sscanf(extra, "count =%d, pkt", &count);
+	rv = sscanf(extra, "count =%d, pkt", &count);
+	if (rv != 2)
+		return -EINVAL;
 
 	_rtw_memset(extra, '\0', sizeof(*extra));
 
@@ -7255,6 +7278,7 @@ static int rtw_mp_phypara(struct net_device *dev,
 {
 	char	*input = kmalloc(wrqu->length, GFP_KERNEL);
 	u32		valxcap;
+	int rv;
 
 	if (!input)
 		return -ENOMEM;
@@ -7265,7 +7289,11 @@ static int rtw_mp_phypara(struct net_device *dev,
 
 	DBG_88E("%s:iwpriv in =%s\n", __func__, input);
 
-	sscanf(input, "xcap =%d", &valxcap);
+	rv = sscanf(input, "xcap =%d", &valxcap);
+	if (rv != 1) {
+		kfree(input);
+		return -EINVAL;
+	}
 
 	kfree(input);
 	return 0;
@@ -7831,6 +7859,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 	s32 len;
 	u8 *extra = NULL;
 	u32 extra_size = 0;
+	int rv;
 
 	s32 k;
 	const iw_handler *priv;		/* Private ioctl */
@@ -7856,7 +7885,11 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 	ptr = input;
 	len = input_len;
 
-	sscanf(ptr, "%16s", cmdname);
+	rv = sscanf(ptr, "%16s", cmdname);
+	if (rv != 1) {
+		err = -EINVAL;
+		goto exit;
+	}
 	cmdlen = strlen(cmdname);
 	DBG_88E("%s: cmd =%s\n", __func__, cmdname);
 
