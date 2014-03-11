@@ -1828,6 +1828,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mce *mce = (struct mce *)data;
 	struct mem_ctl_info *mci;
 	struct sbridge_pvt *pvt;
+	char *type;
 
 	if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
@@ -1846,10 +1847,15 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if ((mce->status & 0xefff) >> 7 != 1)
 		return NOTIFY_DONE;
 
+	if (mce->mcgstatus & MCG_STATUS_MCIP)
+		type = "Exception";
+	else
+		type = "Event";
+
 	printk("sbridge: HANDLING MCE MEMORY ERROR\n");
 
-	printk("CPU %d: Machine Check Exception: %Lx Bank %d: %016Lx\n",
-	       mce->extcpu, mce->mcgstatus, mce->bank, mce->status);
+	printk("CPU %d: Machine Check %s: %Lx Bank %d: %016Lx\n",
+	       mce->extcpu, type, mce->mcgstatus, mce->bank, mce->status);
 	printk("TSC %llx ", mce->tsc);
 	printk("ADDR %llx ", mce->addr);
 	printk("MISC %llx ", mce->misc);
