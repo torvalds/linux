@@ -1,0 +1,21 @@
+/*
+ * This header provides constants for the reset controller
+ * based peripheral powerdown requests on the STMicroelectronics
+ * STiH416 SoC.
+ */
+#ifndef _DT_BINDINGS_RESET_CONTROLLER_STIH416
+#define _DT_BINDINGS_RESET_CONTROLLER_STIH416
+
+#define STIH416_EMISS_POWERDOWN		0
+#define STIH416_NAND_POWERDOWN		1
+#define STIH416_KEYSCAN_POWERDOWN	2
+#define STIH416_USB0_POWERDOWN		3
+#define STIH416_USB1_POWERDOWN		4
+#define STIH416_USB2_POWERDOWN		5
+#define STIH416_USB3_POWERDOWN		6
+#define STIH416_SATA0_POWERDOWN		7
+#define STIH416_SATA1_POWERDOWN		8
+#define STIH416_PCIE0_POWERDOWN		9
+#define STIH416_PCIE1_POWERDOWN		10
+
+#endif /* _DT_BINDINGS_RESET_CONTROLLER_STIH416 */

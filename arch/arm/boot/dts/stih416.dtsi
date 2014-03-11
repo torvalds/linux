@@ -10,6 +10,7 @@
 #include "stih416-clock.dtsi"
 #include "stih416-pinctrl.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset-controller/stih416-resets.h>
 / {
 	L2: cache-controller {
 		compatible = "arm,pl310-cache";
@@ -26,6 +27,11 @@
 		interrupt-parent = <&intc>;
 		ranges;
 		compatible	= "simple-bus";
+
+		powerdown: powerdown-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih416-powerdown";
+		};
 
 		syscfg_sbc:sbc-syscfg@fe600000{
 			compatible	= "st,stih416-sbc-syscfg", "syscon";
