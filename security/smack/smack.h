@@ -225,6 +225,7 @@ struct inode_smack *new_inode_smack(char *);
  */
 int smk_access_entry(char *, char *, struct list_head *);
 int smk_access(struct smack_known *, char *, int, struct smk_audit_info *);
+int smk_tskacc(struct task_smack *, char *, u32, struct smk_audit_info *);
 int smk_curacc(char *, u32, struct smk_audit_info *);
 struct smack_known *smack_from_secid(const u32);
 char *smk_parse_smack(const char *string, int len);

@@ -207,11 +207,11 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
 	if (rc != 0)
 		return rc;
 
-	skp = smk_of_task(task_security(ptp));
+	skp = smk_of_task(current_security());
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, ptp);
 
-	rc = smk_curacc(skp->smk_known, MAY_READWRITE, &ad);
+	rc = smk_tskacc(ptp, skp->smk_known, MAY_READWRITE, &ad);
 	return rc;
 }
 
