@@ -367,6 +367,9 @@ int ip6_forward(struct sk_buff *skb)
 	if (net->ipv6.devconf_all->forwarding == 0)
 		goto error;
 
+	if (skb->pkt_type != PACKET_HOST)
+		goto drop;
+
 	if (skb_warn_if_lro(skb))
 		goto drop;
 
@@ -375,9 +378,6 @@ int ip6_forward(struct sk_buff *skb)
 				 IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
-
-	if (skb->pkt_type != PACKET_HOST)
-		goto drop;
 
 	skb_forward_csum(skb);
 
