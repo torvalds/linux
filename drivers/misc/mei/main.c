@@ -40,7 +40,6 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
 #include "client.h"
 
 /**

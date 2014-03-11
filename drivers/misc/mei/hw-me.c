@@ -20,10 +20,10 @@
 #include <linux/interrupt.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
-
 #include "hbm.h"
 
+#include "hw-me.h"
+#include "hw-me-regs.h"
 
 /**
  * mei_me_reg_read - Reads 32bit data from the mei device

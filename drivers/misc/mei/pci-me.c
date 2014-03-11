@@ -39,8 +39,9 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
 #include "client.h"
+#include "hw-me-regs.h"
+#include "hw-me.h"
 
 /* mei_pci_tbl - PCI Device ID Table */
 static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {

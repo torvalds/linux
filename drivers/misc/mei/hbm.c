@@ -21,7 +21,6 @@
 
 #include "mei_dev.h"
 #include "hbm.h"
-#include "hw-me.h"
 #include "client.h"
 
 static const char *mei_cl_conn_status_str(enum mei_cl_connect_status status)

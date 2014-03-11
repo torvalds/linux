@@ -24,7 +24,6 @@
 #include <linux/mei_cl_bus.h>
 
 #include "hw.h"
-#include "hw-me-regs.h"
 #include "hbm.h"
 
 /*

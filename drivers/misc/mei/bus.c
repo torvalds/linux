@@ -26,7 +26,6 @@
 #include <linux/mei_cl_bus.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
 #include "client.h"
 
 #define to_mei_cl_driver(d) container_of(d, struct mei_cl_driver, driver)
