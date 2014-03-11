@@ -3023,7 +3023,7 @@ static dma_addr_t intel_map_page(struct device *dev, struct page *page,
 				 struct dma_attrs *attrs)
 {
 	return __intel_map_single(dev, page_to_phys(page) + offset, size,
-				  dir, to_pci_dev(dev)->dma_mask);
+				  dir, *dev->dma_mask);
 }
 
 static void flush_unmaps(void)
