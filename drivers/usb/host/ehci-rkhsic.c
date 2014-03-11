@@ -382,7 +382,7 @@ static struct platform_driver ehci_rkhsic_driver = {
 	.probe	= ehci_rkhsic_probe,
 	.remove	= ehci_rkhsic_remove,
 	.driver = {
-		   .name = "rk_hsic_host",
+		   .name = "rockchip_hsic_host",
 		   .of_match_table = of_match_ptr(rk_hsic_of_match),
 #ifdef CONFIG_PM
 		   .pm = &ehci_rkhsic_dev_pm_ops,

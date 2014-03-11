@@ -1262,13 +1262,13 @@ MODULE_LICENSE ("GPL");
 #endif
 
 #ifdef CONFIG_USB_EHCI_RK
-#include "ehci-rk.c"
+#include "ehci-rockchip.c"
 #define PLATFORM_DRIVER         ehci_rk_driver
 #endif
 
 #ifdef CONFIG_USB_EHCI_RKHSIC
 #include "ehci-rkhsic.c"
-#define RK_PLATFORM_DRIVER         ehci_rkhsic_driver
+#define ROCKCHIP_PLATFORM_DRIVER         ehci_rkhsic_driver
 #endif
 
 #ifdef CONFIG_USB_EHCI_HCD_PMC_MSP
@@ -1347,15 +1347,15 @@ static int __init ehci_hcd_init(void)
 		goto clean4;
 #endif
 
-#ifdef RK_PLATFORM_DRIVER
-	retval = platform_driver_register(&RK_PLATFORM_DRIVER);
+#ifdef ROCKCHIP_PLATFORM_DRIVER
+	retval = platform_driver_register(&ROCKCHIP_PLATFORM_DRIVER);
 	if (retval < 0)
 		goto clean5;
 #endif
 	return retval;
 
-#ifdef RK_PLATFORM_DRIVER
-	platform_driver_unregister(&RK_PLATFORM_DRIVER);
+#ifdef ROCKCHIP_PLATFORM_DRIVER
+	platform_driver_unregister(&ROCKCHIP_PLATFORM_DRIVER);
 clean5:
 #endif
 
@@ -1387,8 +1387,8 @@ module_init(ehci_hcd_init);
 
 static void __exit ehci_hcd_cleanup(void)
 {
-#ifdef RK_PLATFORM_DRIVER
-	platform_driver_unregister(&RK_PLATFORM_DRIVER);
+#ifdef ROCKCHIP_PLATFORM_DRIVER
+	platform_driver_unregister(&ROCKCHIP_PLATFORM_DRIVER);
 #endif
 #ifdef XILINX_OF_PLATFORM_DRIVER
 	platform_driver_unregister(&XILINX_OF_PLATFORM_DRIVER);

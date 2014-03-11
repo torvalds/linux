@@ -1192,7 +1192,7 @@ MODULE_LICENSE ("GPL");
 #endif
 
 #ifdef CONFIG_USB_OHCI_HCD_RK
-#include "ohci-rk.c"
+#include "ohci-rockchip.c"
 #define PLATFORM_DRIVER		ohci_hcd_rk_driver
 #endif
 
