@@ -164,13 +164,18 @@ BEGIN_FTR_SECTION
 	 */
 	mfspr	r13,SPRN_SRR1
 	rlwinm.	r13,r13,47-31,30,31
+	OPT_GET_SPR(r13, SPRN_CFAR, CPU_FTR_CFAR)
 	beq	9f
 
+	mfspr	r13,SPRN_SRR1
+	rlwinm.	r13,r13,47-31,30,31
 	/* waking up from powersave (nap) state */
 	cmpwi	cr1,r13,2
 	/* Total loss of HV state is fatal. let's just stay stuck here */
+	OPT_GET_SPR(r13, SPRN_CFAR, CPU_FTR_CFAR)
 	bgt	cr1,.
 9:
+	OPT_SET_SPR(r13, SPRN_CFAR, CPU_FTR_CFAR)
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #endif /* CONFIG_PPC_P7_NAP */
 	EXCEPTION_PROLOG_0(PACA_EXMC)
