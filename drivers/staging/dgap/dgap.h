@@ -198,7 +198,6 @@ typedef unsigned char		uchar;
  * Lock function/defines.
  * Makes spotting lock/unlock locations easier.
  */
-# define DGAP_SPINLOCK_INIT(x)		spin_lock_init(&(x))
 # define DGAP_LOCK(x,y)			spin_lock_irqsave(&(x), y)
 # define DGAP_UNLOCK(x,y)		spin_unlock_irqrestore(&(x), y)
 

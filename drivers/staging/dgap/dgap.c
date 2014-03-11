@@ -754,7 +754,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	brd->dpastatus = BD_NOFEP;
 	init_waitqueue_head(&brd->state_wait);
 
-	DGAP_SPINLOCK_INIT(brd->bd_lock);
+	spin_lock_init(&brd->bd_lock);
 
 	brd->state		= BOARD_FOUND;
 	brd->runwait		= 0;
@@ -1422,7 +1422,7 @@ static int dgap_tty_init(struct board_t *brd)
 		if (!brd->channels[i])
 			continue;
 
-		DGAP_SPINLOCK_INIT(ch->ch_lock);
+		spin_lock_init(&ch->ch_lock);
 
 		/* Store all our magic numbers */
 		ch->magic = DGAP_CHANNEL_MAGIC;
