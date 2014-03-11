@@ -3314,9 +3314,8 @@ static int be_get_config(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	/* primary mac needs 1 pmac entry */
-	adapter->pmac_id = kcalloc(be_max_uc(adapter) + 1, sizeof(u32),
-				   GFP_KERNEL);
+	adapter->pmac_id = kcalloc(be_max_uc(adapter),
+				   sizeof(*adapter->pmac_id), GFP_KERNEL);
 	if (!adapter->pmac_id)
 		return -ENOMEM;
 
