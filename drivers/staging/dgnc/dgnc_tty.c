@@ -964,8 +964,10 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 	int deltahigh;
 	int deltalow;
 
-	if (newrate < 0)
-		newrate = 0;
+	if (newrate <= 0) {
+		ch->ch_custom_speed = 0;
+		return;
+	}
 
 	/*
 	 *  Since the divisor is stored in a 16-bit integer, we make sure
@@ -978,7 +980,7 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 	if (newrate && newrate > ch->ch_bd->bd_dividend)
 		newrate = ch->ch_bd->bd_dividend;
 
-	while (newrate > 0) {
+	if (newrate > 0) {
 		testdiv = ch->ch_bd->bd_dividend / newrate;
 
 		/*
@@ -995,28 +997,23 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 		 *  If the rate for the requested divisor is correct, just
 		 *  use it and be done.
 		 */
-		if (testrate_high == newrate )
-			break;
+		if (testrate_high != newrate) {
+			/*
+			 *  Otherwise, pick the rate that is closer (i.e. whichever rate
+			 *  has a smaller delta).
+			 */
+			deltahigh = testrate_high - newrate;
+			deltalow = newrate - testrate_low;
 
-		/*
-		 *  Otherwise, pick the rate that is closer (i.e. whichever rate
-		 *  has a smaller delta).
-		 */
-		deltahigh = testrate_high - newrate;
-		deltalow = newrate - testrate_low;
-
-		if (deltahigh < deltalow) {
-			newrate = testrate_high;
-		} else {
-			newrate = testrate_low;
+			if (deltahigh < deltalow) {
+				newrate = testrate_high;
+			} else {
+				newrate = testrate_low;
+			}
 		}
-
-		break;
 	}
 
 	ch->ch_custom_speed = newrate;
-
-	return;
 }
 
 
@@ -3316,10 +3313,10 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	case DIGI_SETCUSTOMBAUD:
 	{
-		uint new_rate;
+		int new_rate;
 		/* Let go of locks when accessing user space, could sleep */
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		rc = get_user(new_rate, (unsigned int __user *) arg);
+		rc = get_user(new_rate, (int __user *) arg);
 		if (rc)
 			return rc;
 		DGNC_LOCK(ch->ch_lock, lock_flags);
