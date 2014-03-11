@@ -73,6 +73,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TAS5086 if I2C
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
+	select SND_SOC_TLV320AIC31XX if I2C
 	select SND_SOC_TLV320AIC32X4 if I2C
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
@@ -360,6 +361,9 @@ config SND_SOC_TLV320AIC23
 config SND_SOC_TLV320AIC26
 	tristate
 	depends on SPI
+
+config SND_SOC_TLV320AIC31XX
+        tristate
 
 config SND_SOC_TLV320AIC32X4
 	tristate
