@@ -193,6 +193,8 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
+		if (token == Opt_err)
+			continue;
 		r = match_int(&args[0], &option);
 		if (r < 0) {
 			p9_debug(P9_DEBUG_ERROR,
