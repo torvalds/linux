@@ -361,7 +361,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	u32 map_no = 0;
 	u16 htc_tag = ATH6KL_DATA_PKT_TAG;
-	u8 ac = 99 ; /* initialize to unmapped ac */
+	u8 ac = 99; /* initialize to unmapped ac */
 	bool chk_adhoc_ps_mapping = false;
 	int ret;
 	struct wmi_tx_meta_v2 meta_v2;
@@ -1214,7 +1214,7 @@ static bool aggr_process_recv_frm(struct aggr_info_conn *agg_conn, u8 tid,
 		return is_queued;
 
 	spin_lock_bh(&rxtid->lock);
-	for (idx = 0 ; idx < rxtid->hold_q_sz; idx++) {
+	for (idx = 0; idx < rxtid->hold_q_sz; idx++) {
 		if (rxtid->hold_q[idx].skb) {
 			/*
 			 * There is a frame in the queue and no
