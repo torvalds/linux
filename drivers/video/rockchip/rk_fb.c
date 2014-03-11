@@ -87,7 +87,7 @@ int rk_fb_pixel_width(int data_format)
 static int rk_fb_data_fmt(int data_format,int bits_per_pixel)
 {
 	int fb_data_fmt;
-	if(bits_per_pixel == 0){
+	if(data_format){
 		switch(data_format){
 		case HAL_PIXEL_FORMAT_RGBX_8888: 
 			fb_data_fmt = XBGR888;
@@ -253,6 +253,7 @@ int rk_fb_video_mode_from_timing(const struct display_timing *dt,
 	screen->type = dt->screen_type;
 	screen->lvds_format = dt->lvds_format;
 	screen->face = dt->face;
+
 	if (dt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
 		screen->pin_dclk = 1;
 	else
@@ -293,7 +294,10 @@ int rk_disp_prase_timing_dt(struct rk_lcdc_driver *dev_drv)
 			 "vactive:%d\n"
 			 "vback_porch:%d\n"
 			 "vfront_porch:%d\n"
-			 "vsync_len:%d\n",
+			 "vsync_len:%d\n"
+			 "screen_type:%d\n"
+			 "lvds_format:%d\n"
+			 "face:%d\n",
 			dt->pixelclock.typ,
 			dt->hactive.typ,
 			dt->hback_porch.typ,
@@ -302,7 +306,10 @@ int rk_disp_prase_timing_dt(struct rk_lcdc_driver *dev_drv)
 			dt->vactive.typ,
 			dt->vback_porch.typ,
 			dt->vfront_porch.typ,
-			dt->vsync_len.typ);
+			dt->vsync_len.typ,
+			dt->screen_type,
+			dt->lvds_format,
+			dt->face);
 	return 0;
 
 }
@@ -772,9 +779,6 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		uv_y_off   = yoffset;
 		fix->line_length = stride<<2;
 		break;
-	default:
-		printk(KERN_ERR "%s:un supported format:0x%x\n", __func__, data_format);
-		return -EINVAL;
 	}
 
 	// x y mirror ,jump line
@@ -807,10 +811,6 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		win->area[0].y_offset = yoffset*xvir + xoffset;
 		win->area[0].c_offset = yoffset*2*xvir + (xoffset<<1);
 		break;
-	default:
-		printk(KERN_ERR "%s un supported format:0x%x\n",
-			__func__, data_format);
-		return -EINVAL;
 	}
 	win->area[0].smem_start = fix->smem_start;
 	win->area[0].cbr_start = fix->smem_start + xvir * yvir;
@@ -1285,7 +1285,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 	int num_buf; /*buffer_number*/
 	int ret;
 	struct rk_fb_win_cfg_data win_data;
-	unsigned int dsp_addr[2];
+	unsigned int dsp_addr[4];
 	int list_stat;
 
 	int  win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
@@ -1975,8 +1975,8 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 	int ret;
 	int win_id;
 
-	if (rk_fb->disp_mode != DUAL)
-		rk29_backlight_set(0);
+	//if (rk_fb->disp_mode != DUAL)
+	//	rk29_backlight_set(0);
 
 	sprintf(name, "lcdc%d", lcdc_id);
 
@@ -2092,8 +2092,8 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 		}
 	}
 
-	if (rk_fb->disp_mode != DUAL)
-		rk29_backlight_set(1);
+	//if (rk_fb->disp_mode != DUAL)
+	//	rk29_backlight_set(1);
 	hdmi_switch_complete = enable;
 	return 0;
 

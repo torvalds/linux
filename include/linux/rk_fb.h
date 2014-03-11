@@ -96,6 +96,7 @@ extern bool rk_fb_poll_wait_frame_complete(void);
 #define OUT_CCIR656         6
 #define OUT_S888            8
 #define OUT_S888DUMY        12
+#define OUT_RGB_AAA	    15
 #define OUT_P16BPP4         24
 #define OUT_D888_P666       0x21	//18bit screen,connect to lcdc D2~D7, D10~D15, D18~D23
 #define OUT_D888_P565       0x22
@@ -538,19 +539,5 @@ extern int  rk_fb_calc_fps(struct rk_screen * screen, u32 pixclock);
 extern void rk_fd_fence_wait(struct rk_lcdc_driver *dev_drv, struct sync_fence *fence);
 extern void rk_fb_free_dma_buf(struct rk_fb_reg_win_data *reg_win_data);
 
-#if defined(CONFIG_BACKLIGHT_RK29_BL)
-void rk29_backlight_set(bool on);
-bool rk29_get_backlight_status(void);
-#else
-static void rk29_backlight_set(bool on)
-{
-	while (0) ;
-}
-
-static bool rk29_get_backlight_status(void)
-{
-	return false;
-}
-#endif
 
 #endif

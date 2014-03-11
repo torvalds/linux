@@ -67,6 +67,7 @@ struct rk_screen {
 	u32 post_ysize;
 	u16 x_mirror;
 	u16 y_mirror;
+	int interlace;
 	u16 width;
 	u16 height;
 	u8  ft;
