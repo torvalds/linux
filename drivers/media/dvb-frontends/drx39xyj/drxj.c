@@ -59,6 +59,7 @@ INCLUDE FILES
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <asm/div64.h>
 
 #include "dvb_frontend.h"
 #include "drx39xxj.h"
@@ -12002,13 +12003,16 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u64 tmp64;
 
 	if (p->cnr.stat[0].scale == FE_SCALE_NOT_AVAILABLE) {
 		*snr = 0;
 		return 0;
 	}
 
-	*snr = p->cnr.stat[0].svalue / 10;
+	tmp64 = p->cnr.stat[0].svalue;
+	do_div(tmp64, 10);
+	*snr = tmp64;
 	return 0;
 }
 
