@@ -284,7 +284,7 @@ static struct exynos_drm_ippdrv *ipp_find_drv_by_handle(u32 prop_id)
 	/*
 	 * This case is search ipp driver by prop_id handle.
 	 * sometimes, ipp subsystem find driver by prop_id.
-	 * e.g PAUSE state, queue buf, command contro.
+	 * e.g PAUSE state, queue buf, command control.
 	 */
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
 		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n", count++, (int)ippdrv);
