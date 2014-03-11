@@ -1591,6 +1591,8 @@ musycc_chan_down(ci_t *dummy, int channum)
 #endif
 
 
+#if 0
+/* TODO: determine if these functions will not be needed and can be removed */
 int
 musycc_del_chan(ci_t *ci, int channum)
 {
@@ -1622,6 +1624,7 @@ musycc_del_chan_stats(ci_t *ci, int channum)
     memset(&ch->s, 0, sizeof(struct sbecom_chan_stats));
     return 0;
 }
+#endif
 
 
 int
