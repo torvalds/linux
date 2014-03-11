@@ -111,7 +111,7 @@ static int i_Temp;
 static int i_Flag = 1;
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI035_ConfigTimerWatchdog                      |
+| Function   Name   : int apci035_timer_config                      |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
@@ -163,10 +163,10 @@ static int i_Flag = 1;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
-					 struct comedi_subdevice *s,
-					 struct comedi_insn *insn,
-					 unsigned int *data)
+static int apci035_timer_config(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Status;
@@ -287,7 +287,7 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI035_StartStopWriteTimerWatchdog              |
+| Function   Name   : int apci035_timer_write              |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
@@ -312,10 +312,10 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 |					                                                 |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
-						 struct comedi_subdevice *s,
-						 struct comedi_insn *insn,
-						 unsigned int *data)
+static int apci035_timer_write(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Command;
@@ -402,7 +402,7 @@ static int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI035_ReadTimerWatchdog                        |
+| Function   Name   : int apci035_timer_read                        |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
@@ -427,10 +427,10 @@ static int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev,
-				       struct comedi_subdevice *s,
-				       struct comedi_insn *insn,
-				       unsigned int *data)
+static int apci035_timer_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Status;	/*  Status register */
@@ -459,7 +459,7 @@ static int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI035_ConfigAnalogInput                        |
+| Function   Name   : int apci035_ai_config                        |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
@@ -480,10 +480,10 @@ static int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI035_ConfigAnalogInput(struct comedi_device *dev,
-				       struct comedi_subdevice *s,
-				       struct comedi_insn *insn,
-				       unsigned int *data)
+static int apci035_ai_config(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -501,7 +501,7 @@ static int i_APCI035_ConfigAnalogInput(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI035_ReadAnalogInput                          |
+| Function   Name   : int apci035_ai_read                          |
 |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
 |                     struct comedi_insn *insn,unsigned int *data)                      |
 +----------------------------------------------------------------------------+
@@ -520,10 +520,10 @@ static int i_APCI035_ConfigAnalogInput(struct comedi_device *dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI035_ReadAnalogInput(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
+static int apci035_ai_read(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_CommandRegister;
@@ -541,7 +541,7 @@ static int i_APCI035_ReadAnalogInput(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   :  int i_APCI035_Reset(struct comedi_device *dev)			     |
+| Function   Name   :  int apci035_reset(struct comedi_device *dev)
 |					                                                         |
 +----------------------------------------------------------------------------+
 | Task              :Resets the registers of the card                        |
@@ -554,7 +554,7 @@ static int i_APCI035_ReadAnalogInput(struct comedi_device *dev,
 |			                                                                 |
 +----------------------------------------------------------------------------+
 */
-static int i_APCI035_Reset(struct comedi_device *dev)
+static int apci035_reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_Count;
@@ -572,7 +572,7 @@ static int i_APCI035_Reset(struct comedi_device *dev)
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : static void v_APCI035_Interrupt					     |
+| Function   Name   : static void apci035_interrupt
 |					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
 | Task              : Interrupt processing Routine                           |
@@ -587,7 +587,7 @@ static int i_APCI035_Reset(struct comedi_device *dev)
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static void v_APCI035_Interrupt(int irq, void *d)
+static void apci035_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
