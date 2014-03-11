@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
+#include <asm/syscall.h>
 
 struct audit_sig_info {
 	uid_t		uid;
@@ -141,12 +142,12 @@ static inline void audit_free(struct task_struct *task)
 	if (unlikely(task->audit_context))
 		__audit_free(task);
 }
-static inline void audit_syscall_entry(int arch, int major, unsigned long a0,
+static inline void audit_syscall_entry(int major, unsigned long a0,
 				       unsigned long a1, unsigned long a2,
 				       unsigned long a3)
 {
 	if (unlikely(current->audit_context))
-		__audit_syscall_entry(arch, major, a0, a1, a2, a3);
+		__audit_syscall_entry(syscall_get_arch(), major, a0, a1, a2, a3);
 }
 static inline void audit_syscall_exit(void *pt_regs)
 {
@@ -322,7 +323,7 @@ static inline int audit_alloc(struct task_struct *task)
 }
 static inline void audit_free(struct task_struct *task)
 { }
-static inline void audit_syscall_entry(int arch, int major, unsigned long a0,
+static inline void audit_syscall_entry(int major, unsigned long a0,
 				       unsigned long a1, unsigned long a2,
 				       unsigned long a3)
 { }

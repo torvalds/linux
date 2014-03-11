@@ -321,7 +321,7 @@ asmlinkage unsigned long syscall_trace_enter(void)
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(current_pt_regs()))
 		ret = -1UL;
-	audit_syscall_entry(AUDIT_ARCH_ALPHA, regs->r0, regs->r16, regs->r17, regs->r18, regs->r19);
+	audit_syscall_entry(regs->r0, regs->r16, regs->r17, regs->r18, regs->r19);
 	return ret ?: current_pt_regs()->r0;
 }
 
