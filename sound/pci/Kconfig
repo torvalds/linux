@@ -795,7 +795,7 @@ config SND_RME9652
 
 config SND_SIS7019
 	tristate "SiS 7019 Audio Accelerator"
-	depends on X86 && !X86_64
+	depends on X86_32
 	select SND_AC97_CODEC
 	select ZONE_DMA
 	help
