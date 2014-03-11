@@ -9583,7 +9583,7 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 	if (m > (rs_bit_cnt >> (e + 1)) || (rs_bit_cnt >> e) == 0)
 		qam_pre_rs_ber = 500000 * rs_bit_cnt >> e;
 	else
-		qam_pre_rs_ber = m;
+		qam_pre_rs_ber = ber_cnt;
 
 	/* post RS BER = 1000000* (11.17 * FEC_OC_SNC_FAIL_COUNT__A) /  */
 	/*               (1504.0 * FEC_OC_SNC_FAIL_PERIOD__A)  */
