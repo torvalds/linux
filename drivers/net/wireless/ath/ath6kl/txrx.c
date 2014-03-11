@@ -702,7 +702,6 @@ void ath6kl_tx_complete(struct htc_target *target,
 
 	/* reap completed packets */
 	while (!list_empty(packet_queue)) {
-
 		packet = list_first_entry(packet_queue, struct htc_packet,
 					  list);
 		list_del(&packet->list);
@@ -1265,7 +1264,6 @@ static void ath6kl_uapsd_trigger_frame_rx(struct ath6kl_vif *vif,
 	is_apsdq_empty_at_start = is_apsdq_empty;
 
 	while ((!is_apsdq_empty) && (num_frames_to_deliver)) {
-
 		spin_lock_bh(&conn->psq_lock);
 		skb = skb_dequeue(&conn->apsdq);
 		is_apsdq_empty = skb_queue_empty(&conn->apsdq);
@@ -1766,7 +1764,6 @@ void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,
 		skb_queue_head_init(&rxtid->q);
 		spin_lock_init(&rxtid->lock);
 	}
-
 }
 
 struct aggr_info *aggr_init(struct ath6kl_vif *vif)
