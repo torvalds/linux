@@ -709,7 +709,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 		struct platform_device *pdev,
 		struct of_regulator_match **da9063_reg_matches)
 {
-	da9063_reg_matches = NULL;
+	*da9063_reg_matches = NULL;
 	return ERR_PTR(-ENODEV);
 }
 #endif
