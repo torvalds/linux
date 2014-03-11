@@ -175,7 +175,7 @@ int ath10k_bmi_write_memory(struct ath10k *ar,
 	return 0;
 }
 
-int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param)
+int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result)
 {
 	struct bmi_cmd cmd;
 	union bmi_resp resp;
@@ -184,7 +184,7 @@ int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param)
 	int ret;
 
 	ath10k_dbg(ATH10K_DBG_BMI, "bmi execute address 0x%x param 0x%x\n",
-		   address, *param);
+		   address, param);
 
 	if (ar->bmi.done_sent) {
 		ath10k_warn("command disallowed\n");
@@ -193,7 +193,7 @@ int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param)
 
 	cmd.id            = __cpu_to_le32(BMI_EXECUTE);
 	cmd.execute.addr  = __cpu_to_le32(address);
-	cmd.execute.param = __cpu_to_le32(*param);
+	cmd.execute.param = __cpu_to_le32(param);
 
 	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, &resp, &resplen);
 	if (ret) {
@@ -204,10 +204,13 @@ int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param)
 	if (resplen < sizeof(resp.execute)) {
 		ath10k_warn("invalid execute response length (%d)\n",
 			    resplen);
-		return ret;
+		return -EIO;
 	}
 
-	*param = __le32_to_cpu(resp.execute.result);
+	*result = __le32_to_cpu(resp.execute.result);
+
+	ath10k_dbg(ATH10K_DBG_BMI, "bmi execute result 0x%x\n", *result);
+
 	return 0;
 }
 

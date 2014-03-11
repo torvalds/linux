@@ -249,8 +249,7 @@ exit:
 
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
-	u32 address = ar->hw_params.patch_load_addr;
-	u32 exec_param;
+	u32 result, address = ar->hw_params.patch_load_addr;
 	int ret;
 
 	/* OTP is optional */
@@ -264,8 +263,7 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 		goto exit;
 	}
 
-	exec_param = 0;
-	ret = ath10k_bmi_execute(ar, address, &exec_param);
+	ret = ath10k_bmi_execute(ar, address, 0, &result);
 	if (ret) {
 		ath10k_err("could not execute otp (%d)\n", ret);
 		goto exit;
