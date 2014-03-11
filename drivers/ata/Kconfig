@@ -411,7 +411,7 @@ config PATA_CMD64X
 
 config PATA_CS5520
 	tristate "CS5510/5520 PATA support"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the Cyrix 5510/5520
 	  companion chip used with the MediaGX/Geode processor family.
@@ -420,7 +420,7 @@ config PATA_CS5520
 
 config PATA_CS5530
 	tristate "CS5530 PATA support"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the Cyrix/NatSemi/AMD CS5530
 	  companion chip used with the MediaGX/Geode processor family.
@@ -429,7 +429,7 @@ config PATA_CS5530
 
 config PATA_CS5535
 	tristate "CS5535 PATA support (Experimental)"
-	depends on PCI && X86 && !X86_64
+	depends on PCI && X86_32
 	help
 	  This option enables support for the NatSemi/AMD CS5535
 	  companion chip used with the Geode processor family.
@@ -438,7 +438,7 @@ config PATA_CS5535
 
 config PATA_CS5536
 	tristate "CS5536 PATA support"
-	depends on PCI
+	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
 	help
 	  This option enables support for the AMD CS5536
 	  companion chip used with the Geode LX processor family.
