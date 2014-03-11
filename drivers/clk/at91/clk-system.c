@@ -84,7 +84,7 @@ at91_clk_register_system(struct at91_pmc *pmc, const char *name,
 	 * (see drivers/memory) which would request and enable the ddrck clock.
 	 * When this is done we will be able to remove CLK_IGNORE_UNUSED flag.
 	 */
-	init.flags = CLK_IGNORE_UNUSED;
+	init.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED;
 
 	sys->id = id;
 	sys->hw.init = &init;
