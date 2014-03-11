@@ -315,6 +315,7 @@ void btrfs_destroy_workqueue(struct btrfs_workqueue *wq)
 	if (wq->high)
 		__btrfs_destroy_workqueue(wq->high);
 	__btrfs_destroy_workqueue(wq->normal);
+	kfree(wq);
 }
 
 void btrfs_workqueue_set_max(struct btrfs_workqueue *wq, int max)
