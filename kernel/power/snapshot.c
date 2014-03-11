@@ -1268,7 +1268,7 @@ static void free_unnecessary_pages(void)
  * [number of saveable pages] - [number of pages that can be freed in theory]
  *
  * where the second term is the sum of (1) reclaimable slab pages, (2) active
- * and (3) inactive anonymouns pages, (4) active and (5) inactive file pages,
+ * and (3) inactive anonymous pages, (4) active and (5) inactive file pages,
  * minus mapped file pages.
  */
 static unsigned long minimum_image_size(unsigned long saveable)
