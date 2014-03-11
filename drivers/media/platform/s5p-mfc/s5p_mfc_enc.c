@@ -772,13 +772,16 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 
 	if (p->seq_hdr_mode == V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE) {
 		spin_lock_irqsave(&dev->irqlock, flags);
-		dst_mb = list_entry(ctx->dst_queue.next,
-				struct s5p_mfc_buf, list);
-		list_del(&dst_mb->list);
-		ctx->dst_queue_cnt--;
-		vb2_set_plane_payload(dst_mb->b, 0,
-			s5p_mfc_hw_call(dev->mfc_ops, get_enc_strm_size, dev));
-		vb2_buffer_done(dst_mb->b, VB2_BUF_STATE_DONE);
+		if (!list_empty(&ctx->dst_queue)) {
+			dst_mb = list_entry(ctx->dst_queue.next,
+					struct s5p_mfc_buf, list);
+			list_del(&dst_mb->list);
+			ctx->dst_queue_cnt--;
+			vb2_set_plane_payload(dst_mb->b, 0,
+				s5p_mfc_hw_call(dev->mfc_ops, get_enc_strm_size,
+						dev));
+			vb2_buffer_done(dst_mb->b, VB2_BUF_STATE_DONE);
+		}
 		spin_unlock_irqrestore(&dev->irqlock, flags);
 	}
 
@@ -883,8 +886,7 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 		mfc_debug(2, "enc src count: %d, enc ref count: %d\n",
 			  ctx->src_queue_cnt, ctx->ref_queue_cnt);
 	}
-	if (strm_size > 0) {
-		/* at least one more dest. buffers exist always  */
+	if ((ctx->dst_queue_cnt > 0) && (strm_size > 0)) {
 		mb_entry = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf,
 									list);
 		list_del(&mb_entry->list);
