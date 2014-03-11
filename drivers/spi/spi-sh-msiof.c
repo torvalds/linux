@@ -449,25 +449,12 @@ static int sh_msiof_prepare_message(struct spi_master *master,
 	struct sh_msiof_spi_priv *p = spi_master_get_devdata(master);
 	const struct spi_device *spi = msg->spi;
 
-	pm_runtime_get_sync(&p->pdev->dev);
-	clk_enable(p->clk);
-
 	/* Configure pins before asserting CS */
 	sh_msiof_spi_set_pin_regs(p, !!(spi->mode & SPI_CPOL),
 				  !!(spi->mode & SPI_CPHA),
 				  !!(spi->mode & SPI_3WIRE),
 				  !!(spi->mode & SPI_LSB_FIRST),
 				  !!(spi->mode & SPI_CS_HIGH));
-	return 0;
-}
-
-static int sh_msiof_unprepare_message(struct spi_master *master,
-				      struct spi_message *msg)
-{
-	struct sh_msiof_spi_priv *p = spi_master_get_devdata(master);
-
-	clk_disable(p->clk);
-	pm_runtime_put(&p->pdev->dev);
 	return 0;
 }
 
@@ -743,12 +730,6 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	ret = clk_prepare(p->clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to prepare clock\n");
-		goto err1;
-	}
-
 	p->pdev = pdev;
 	pm_runtime_enable(&pdev->dev);
 
@@ -769,8 +750,8 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = p->info->num_chipselect;
 	master->setup = sh_msiof_spi_setup;
 	master->prepare_message = sh_msiof_prepare_message;
-	master->unprepare_message = sh_msiof_unprepare_message;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
+	master->auto_runtime_pm = true;
 	master->transfer_one = sh_msiof_transfer_one;
 
 	ret = devm_spi_register_master(&pdev->dev, master);
@@ -783,7 +764,6 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
  err2:
 	pm_runtime_disable(&pdev->dev);
-	clk_unprepare(p->clk);
  err1:
 	spi_master_put(master);
 	return ret;
@@ -791,10 +771,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 static int sh_msiof_spi_remove(struct platform_device *pdev)
 {
-	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
-
 	pm_runtime_disable(&pdev->dev);
-	clk_unprepare(p->clk);
 	return 0;
 }
 
