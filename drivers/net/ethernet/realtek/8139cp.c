@@ -476,7 +476,7 @@ rx_status_loop:
 	rx = 0;
 	cpw16(IntrStatus, cp_rx_intr_mask);
 
-	while (1) {
+	while (rx < budget) {
 		u32 status, len;
 		dma_addr_t mapping, new_mapping;
 		struct sk_buff *skb, *new_skb;
@@ -554,9 +554,6 @@ rx_next:
 		else
 			desc->opts1 = cpu_to_le32(DescOwn | cp->rx_buf_sz);
 		rx_tail = NEXT_RX(rx_tail);
-
-		if (rx >= budget)
-			break;
 	}
 
 	cp->rx_tail = rx_tail;
