@@ -151,7 +151,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		DPR_MGMT(("DIGI_GETDD returning numboards: %d version: %s\n",
 			ddi.dinfo_nboards, ddi.dinfo_version));
 
-		if (copy_to_user(uarg, &ddi, sizeof (ddi)))
+		if (copy_to_user(uarg, &ddi, sizeof(ddi)))
 			return -EFAULT;
 
 		break;
@@ -192,7 +192,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		DPR_MGMT(("DIGI_GETBD returning type: %x state: %x ports: %x size: %x\n",
 			di.info_bdtype, di.info_bdstate, di.info_nports, di.info_physsize));
 
-		if (copy_to_user(uarg, &di, sizeof (di)))
+		if (copy_to_user(uarg, &di, sizeof(di)))
 			return -EFAULT;
 
 		break;
