@@ -9,7 +9,9 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr, char
 {
 	const char *type;
 
-	if (cpu_is_rk319x())
+	if (cpu_is_rk3288())
+		type = "rk3288";
+	else if (cpu_is_rk319x())
 		type = "rk319x";
 	else if (cpu_is_rk3188())
 		type = "rk3188";
@@ -33,7 +35,9 @@ static ssize_t soc_show(struct device *dev, struct device_attribute *attr, char 
 {
 	const char *soc;
 
-	if (soc_is_rk3190())
+	if (soc_is_rk3288())
+		soc = "rk3288";
+	else if (soc_is_rk3190())
 		soc = "rk3190";
 	else if (soc_is_rk3188plus())
 		soc = "rk3188+";
