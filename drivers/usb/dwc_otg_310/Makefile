@@ -25,7 +25,7 @@ endif
 dwc_otg-objs	+= common_port/dwc_common_linux.o
 
 #objs relative to RK platform 
-dwc_otg-objs 	+= usbdev_rk30.o
+dwc_otg-objs 	+= usbdev_rk30.o usbdev_rk32.o
 #dwc_otg-objs 	+= usbdev_rk3190.o
 #dwc_otg-objs	+= dwc_otg_rk_common.o
 obj-$(CONFIG_DWC_OTG_310) := dwc_otg.o

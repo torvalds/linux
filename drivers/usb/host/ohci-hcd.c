@@ -1191,6 +1191,11 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_tilegx_driver
 #endif
 
+#ifdef CONFIG_USB_OHCI_HCD_RK
+#include "ohci-rk.c"
+#define PLATFORM_DRIVER		ohci_hcd_rk_driver
+#endif
+
 #ifdef CONFIG_USB_OHCI_HCD_PLATFORM
 #include "ohci-platform.c"
 #define PLATFORM_DRIVER		ohci_platform_driver

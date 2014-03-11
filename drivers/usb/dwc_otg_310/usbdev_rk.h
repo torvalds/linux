@@ -1,5 +1,8 @@
 #ifndef __USBDEV_RK_H
 #define __USBDEV_RK_H
+#include <linux/wakelock.h>
+#include <linux/workqueue.h>
+#include "usbdev_grf_regs.h"
 
 #define USB_PHY_ENABLED (0)
 #define USB_PHY_SUSPEND (1)
@@ -11,6 +14,17 @@
 #define USB_STATUS_DPDM	 	  (2)
 #define USB_STATUS_ID         (3)
 #define USB_STATUS_UARTMODE   (4)
+
+/* rk3188 platform data */
+extern struct dwc_otg_platform_data usb20otg_pdata_rk3188;
+extern struct dwc_otg_platform_data usb20host_pdata_rk3188;
+extern struct rkehci_platform_data rkhsic_pdata_rk3188;
+/* rk3288 platform data */
+extern struct dwc_otg_platform_data usb20otg_pdata_rk3288;
+extern struct dwc_otg_platform_data usb20host_pdata_rk3288;
+extern struct rkehci_platform_data rkhsic_pdata_rk3288;
+extern struct rkehci_platform_data rkehci_pdata_rk3288;
+extern struct rkehci_platform_data rkohci_pdata_rk3288;
 
 struct dwc_otg_platform_data {
     void *privdata;
@@ -35,6 +49,8 @@ struct rkehci_platform_data{
 	struct clk* hclk_hsic;
 	struct clk* hsic_phy_480m;
 	struct clk* hsic_phy_12m;
+	struct clk* phyclk;
+	struct clk* ahbclk;
 	void (*hw_init)(void);
 	void (*clock_init)(void* pdata);
 	void (*clock_enable)(void *pdata, int enable);
@@ -44,11 +60,16 @@ struct rkehci_platform_data{
 };
 
 struct dwc_otg_control_usb {
-	void *grf_soc_status0;
-	void *grf_uoc0_base;
-	void *grf_uoc1_base;
-	void *grf_uoc2_base;
-	void *grf_uoc3_base;
+	pGRF_UOC0_REG grf_uoc0_base;
+	pGRF_UOC1_REG grf_uoc1_base;
+	pGRF_UOC2_REG grf_uoc2_base;
+	pGRF_UOC3_REG grf_uoc3_base;
+	pGRF_UOC4_REG grf_uoc4_base;
+	pGRF_SOC_STATUS_RK3188 grf_soc_status0_rk3188;
+	pGRF_SOC_STATUS1_RK3288 grf_soc_status1_rk3288;
+	pGRF_SOC_STATUS2_RK3288 grf_soc_status2_rk3288;
+	pGRF_SOC_STATUS19_RK3288 grf_soc_status19_rk3288;
+	pGRF_SOC_STATUS21_RK3288 grf_soc_status21_rk3288;
 	struct gpio *host_gpios;
 	struct gpio *otg_gpios;
 	struct clk* hclk_usb_peri;
@@ -62,4 +83,18 @@ enum {
 	RK3288_USB_CTLR,	/* rk3288 chip usb */
 };
 
+struct usb20otg_pdata_id {
+	char name[32];
+	struct dwc_otg_platform_data *pdata;
+};
+
+struct usb20host_pdata_id {
+	char name[32];
+	struct dwc_otg_platform_data *pdata;
+};
+
+struct rkehci_pdata_id {
+	char name[32];
+	struct rkehci_platform_data *pdata;
+};
 #endif

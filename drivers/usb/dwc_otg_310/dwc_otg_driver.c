@@ -76,8 +76,29 @@ extern int pcd_remove(     struct platform_device *_dev );
 extern void hcd_remove(     struct platform_device *_dev);
 extern void dwc_otg_adp_start( dwc_otg_core_if_t * core_if, uint8_t is_host);
 
-extern struct dwc_otg_platform_data usb20otg_pdata;
-extern struct dwc_otg_platform_data usb20host_pdata;
+static struct usb20otg_pdata_id usb20otg_pdata[] = {
+	{
+		.name = "rk3188-usb20otg",
+		.pdata = &usb20otg_pdata_rk3188,
+	},
+	{
+		.name = "rk3288-usb20otg",
+		.pdata = &usb20otg_pdata_rk3288,
+	},
+	{ },
+};
+
+static struct usb20host_pdata_id usb20host_pdata[] = {
+	{
+		.name = "rk3188-usb20host",
+		.pdata = &usb20host_pdata_rk3188,
+	},
+	{
+		.name = "rk3288-usb20host",
+		.pdata = &usb20host_pdata_rk3288,
+	},
+	{ },
+};
 
 /*-------------------------------------------------------------------------*/
 /* Encapsulate the module parameter settings */
@@ -755,6 +776,19 @@ static int host20_driver_remove( struct platform_device *_dev )
 	return 0;
 }
 
+static const struct of_device_id usb20_host_of_match[] = {
+	{
+		.compatible = "rockchip,rk3188_usb20_host", 
+		.data = &usb20host_pdata[RK3188_USB_CTLR],
+	},
+	{
+		.compatible = "rockchip,rk3288_usb20_host",
+		.data = &usb20host_pdata[RK3288_USB_CTLR],
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, usb20_host_of_match);
+
 /**
  * This function is called when an lm_device is bound to a
  * dwc_otg_driver. It creates the driver components required to
@@ -766,7 +800,7 @@ static int host20_driver_remove( struct platform_device *_dev )
  *
  * @param _dev Bus device
  */
-static int host20_driver_probe(      struct platform_device *_dev)
+static int host20_driver_probe(struct platform_device *_dev)
 {
 	int retval = 0;
 	int irq;
@@ -775,8 +809,18 @@ static int host20_driver_probe(      struct platform_device *_dev)
 	struct device           *dev = &_dev->dev;
 	struct device_node      *node = _dev->dev.of_node;
 	struct dwc_otg_platform_data *pldata;
+	struct usb20host_pdata_id *p;
+	const struct of_device_id *match =
+		of_match_device(of_match_ptr( usb20_host_of_match ), &_dev->dev);
 
-	dev->platform_data = &usb20host_pdata;
+	if (match){
+		p = (struct usb20host_pdata_id *)match->data;
+	}else{
+		dev_err(dev, "usb20host match failed\n");
+		return -EINVAL;
+	}
+
+	dev->platform_data = p->pdata;
 	pldata = dev->platform_data;
 	pldata->dev = dev;
 
@@ -805,7 +849,8 @@ static int host20_driver_probe(      struct platform_device *_dev)
 
 	if (!dwc_otg_device) {
 		dev_err(&_dev->dev, "kmalloc of dwc_otg_device failed\n");
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto clk_disable;
 	}
 
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
@@ -820,7 +865,8 @@ static int host20_driver_probe(      struct platform_device *_dev)
 	if (!dwc_otg_device->os_dep.base) {
 		dev_err(&_dev->dev, "ioremap() failed\n");
 		DWC_FREE(dwc_otg_device);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto clk_disable;
 	}
 	dev_dbg(&_dev->dev, "base=0x%08x\n",
 		(unsigned)dwc_otg_device->os_dep.base);
@@ -929,6 +975,10 @@ static int host20_driver_probe(      struct platform_device *_dev)
 
 fail:
 	host20_driver_remove(_dev);
+clk_disable:
+	if(pldata->clock_enable)
+		pldata->clock_enable(pldata, 0);
+
 	return retval;
 }
 
@@ -982,11 +1032,6 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev )
  * to this driver. The remove function is called when a device is
  * unregistered with the bus driver.
  */
-static const struct of_device_id usb20_host_of_match[] = {
-	{ .compatible = "rockchip,usb20_host", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, usb20_host_of_match);
 
 static struct platform_driver dwc_host_driver = {
 	.driver = {
@@ -1077,6 +1122,19 @@ static int otg20_driver_remove( struct platform_device *_dev )
 	return 0;
 }
 
+static const struct of_device_id usb20_otg_of_match[] = {
+	{
+		.compatible = "rockchip,rk3188_usb20_otg",
+		.data = &usb20otg_pdata[RK3188_USB_CTLR],
+	},
+	{
+		.compatible = "rockchip,rk3288_usb20_otg",
+		.data = &usb20otg_pdata[RK3288_USB_CTLR],
+	},
+	{
+	},
+};
+MODULE_DEVICE_TABLE(of, usb20_otg_of_match);
 
 /**
  * This function is called when an lm_device is bound to a
@@ -1089,7 +1147,7 @@ static int otg20_driver_remove( struct platform_device *_dev )
  *
  * @param _dev Bus device
  */
-static int otg20_driver_probe(      struct platform_device *_dev)
+static int otg20_driver_probe(struct platform_device *_dev)
 {
 	int retval = 0;
 	int irq;
@@ -1098,9 +1156,19 @@ static int otg20_driver_probe(      struct platform_device *_dev)
 	struct device 		*dev = &_dev->dev;
 	struct device_node      *node = _dev->dev.of_node;
 	struct dwc_otg_platform_data *pldata;
+	struct usb20otg_pdata_id *p;
+	const struct of_device_id *match =
+		of_match_device(of_match_ptr( usb20_otg_of_match ), &_dev->dev);
 
+	if (match){
+		p = (struct usb20otg_pdata_id *)match->data;
+	}else{
+		dev_err(dev, "usb20otg match failed\n");
+		return -EINVAL;
+	}
 
-	dev->platform_data = &usb20otg_pdata;
+	dev->platform_data = p->pdata;
+//	dev->platform_data = &usb20otg_pdata;
 	pldata =  dev->platform_data;
 	pldata->dev = dev;
 
@@ -1108,7 +1176,6 @@ static int otg20_driver_probe(      struct platform_device *_dev)
 		dev_err(dev, "device node not found\n");
 		return -EINVAL;
 	}
-
 	/*todo : move to usbdev_rk-XX.c*/
 	if(pldata->hw_init)
 		pldata->hw_init();
@@ -1132,7 +1199,8 @@ static int otg20_driver_probe(      struct platform_device *_dev)
 
 	if (!dwc_otg_device) {
 		dev_err(&_dev->dev, "kmalloc of dwc_otg_device failed\n");
-		return -ENOMEM;
+		retval = -ENOMEM;	
+		goto clk_disable;
 	}
 
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
@@ -1147,7 +1215,8 @@ static int otg20_driver_probe(      struct platform_device *_dev)
 	if (!dwc_otg_device->os_dep.base) {
 		dev_err(&_dev->dev, "ioremap() failed\n");
 		DWC_FREE(dwc_otg_device);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto clk_disable;
 	}
 	dev_dbg(&_dev->dev, "base=0x%08x\n",
 		(unsigned)dwc_otg_device->os_dep.base);
@@ -1267,14 +1336,14 @@ static int otg20_driver_probe(      struct platform_device *_dev)
 
 fail:
 	otg20_driver_remove(_dev);
+
+clk_disable:
+	if(pldata->clock_enable)
+		pldata->clock_enable(pldata, 0);
+
 	return retval;
 }
 
-static const struct of_device_id usb20_otg_of_match[] = {
-	{ .compatible = "rockchip,usb20_otg", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, usb20_otg_of_match);
 static struct platform_driver dwc_otg_driver = {
 	.driver = {
 		.name = (char *)dwc_otg20_driver_name,

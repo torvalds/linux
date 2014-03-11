@@ -619,7 +619,7 @@
 		};
 	};
 
-	dwc_control_usb: dwc-control-usb@0x200080ac {
+	dwc_control_usb: dwc-control-usb@200080ac {
 		compatible = "rockchip,rk3188-dwc-control-usb";
 		reg = <0x200080ac 0x4>,
 		      <0x2000810c 0x10>,
@@ -639,7 +639,7 @@
 	};
 
 	usb@10180000 {
-		compatible = "rockchip,usb20_otg";
+		compatible = "rockchip,rk3188_usb20_otg";
 		reg = <0x10180000 0x40000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_otgphy0_480m>, <&clk_gates5 13>;
@@ -647,7 +647,7 @@
 	};
 
 	usb@101c0000 {
-		compatible = "rockchip,usb20_host";
+		compatible = "rockchip,rk3188_usb20_host";
 		reg = <0x101c0000 0x40000>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_otgphy1_480m>, <&clk_gates7 3>;
@@ -655,7 +655,7 @@
 	};
 
 	hsic@10240000 {
-		compatible = "rockchip,rk_hsic_host";
+		compatible = "rockchip,rk3188_rk_hsic_host";
 		reg = <0x10240000 0x40000>;
 		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_hsicphy480m>, <&clk_gates7 4>,

@@ -102,6 +102,7 @@ if USB_EHCI_HCD
 
 config USB_EHCI_RKHSIC
 	tristate "Rockchip EHCI HSIC support"
+	depends on ARCH_ROCKCHIP
 	select USB_EHCI_ROOT_HUB_TT
 	default n
 	---help---
@@ -109,6 +110,7 @@ config USB_EHCI_RKHSIC
 
 config USB_EHCI_RK
 	tristate "Rockchip EHCI HOST20 support"
+	depends on ARCH_ROCKCHIP
 	select USB_EHCI_ROOT_HUB_TT
 	default n
 	---help---
@@ -378,6 +380,13 @@ config USB_OHCI_HCD
 	  module will be called ohci-hcd.
 
 if USB_OHCI_HCD
+
+config USB_OHCI_HCD_RK
+	bool "OHCI support for RK3288 and later chips"
+	depends on ARCH_ROCKCHIP
+	default n
+	---help---
+	  Enable support for the OHCI controller on RK3288 and later chips.
 
 config USB_OHCI_HCD_OMAP1
 	bool "OHCI support for OMAP1/2 chips"

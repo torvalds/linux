@@ -36,14 +36,23 @@
 # include "../dwc_otg_310/usbdev_rk.h"
 #endif
 
-static int rkehci_status = 1;
-static struct ehci_hcd *g_ehci;
-#define EHCI_DEVICE_FILE        "/sys/devices/platform/rk_hsusb_host/ehci_power"
-#define EHCI_PRINT(x...)	printk( KERN_INFO "EHCI: " x )
+static int rkhsic_status = 1;
+static struct ehci_hcd *g_hsic_ehci;
+#define HSIC_EHCI_PRINT(x...)	printk( KERN_INFO "HSIC_EHCI: " x )
 
-extern struct rkehci_platform_data rkhsic_pdata;
+static struct rkehci_pdata_id rkhsic_pdata[] = {
+	{
+		.name = "rk3188-hsic",
+		.pdata = &rkhsic_pdata_rk3188,
+	},
+	{
+		.name = "rk3288-hsic",
+		.pdata = &rkhsic_pdata_rk3288,
+	},
+	{ },
+};
 
-static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
+static void ehci_rkhsic_port_power (struct ehci_hcd *ehci, int is_on)
 {
 	unsigned port;
 
@@ -61,9 +70,9 @@ static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
 	msleep(20);
 }
 
-static struct hc_driver rk_hc_driver = {
+static struct hc_driver rk_hsic_driver = {
 	.description		= hcd_name,
-	.product_desc		= "Rockchip On-Chip EHCI Host Controller",
+	.product_desc		= "Rockchip On-Chip HSIC EHCI Host Controller",
 	.hcd_priv_size		= sizeof(struct ehci_hcd),
 
 	/*
@@ -109,12 +118,12 @@ static struct hc_driver rk_hc_driver = {
 #endif
 };
 
-static ssize_t ehci_power_show( struct device *_dev, 
+static ssize_t ehci_rkhsic_power_show( struct device *_dev, 
 				struct device_attribute *attr, char *buf) 
 {
-	return sprintf(buf, "%d\n", rkehci_status);
+	return sprintf(buf, "%d\n", rkhsic_status);
 }
-static ssize_t ehci_power_store( struct device *_dev,
+static ssize_t ehci_rkhsic_power_store( struct device *_dev,
 					struct device_attribute *attr, 
 					const char *buf, size_t count ) 
 {
@@ -123,14 +132,14 @@ static ssize_t ehci_power_store( struct device *_dev,
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct rkehci_platform_data *pldata = _dev->platform_data;
 
-	printk("%s: %d setting to: %d\n", __func__, rkehci_status, val);
-	if(val == rkehci_status)
+	printk("%s: %d setting to: %d\n", __func__, rkhsic_status, val);
+	if(val == rkhsic_status)
 		goto out;
 	
-	rkehci_status = val;
+	rkhsic_status = val;
 	switch(val){
 		case 0: //power down
-			ehci_port_power(ehci, 0);
+			ehci_rkhsic_port_power(ehci, 0);
 			writel_relaxed(0 ,hcd->regs +0xb0);
 			dsb();
 			msleep(5);
@@ -140,7 +149,7 @@ static ssize_t ehci_power_store( struct device *_dev,
 			pldata->soft_reset();
           		usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
         
-    			ehci_port_power(ehci, 1);
+    			ehci_rkhsic_port_power(ehci, 1);
     			writel_relaxed(1 ,hcd->regs +0xb0);
     			writel_relaxed(0x1d4d ,hcd->regs +0x90);
 			writel_relaxed(0x4 ,hcd->regs +0xa0);
@@ -152,42 +161,56 @@ static ssize_t ehci_power_store( struct device *_dev,
 out:
 	return count;
 }
-static DEVICE_ATTR(ehci_power, S_IRUGO|S_IWUSR, ehci_power_show, ehci_power_store);
+static DEVICE_ATTR(ehci_rkhsic_power, S_IRUGO|S_IWUSR, ehci_rkhsic_power_show, ehci_rkhsic_power_store);
 
-static ssize_t debug_show( struct device *_dev,
+static ssize_t hsic_debug_show( struct device *_dev,
 				struct device_attribute *attr, char *buf)
 {
 	volatile uint32_t *addr;
 
-	EHCI_PRINT("******** EHCI Capability Registers **********\n");
-	addr = &g_ehci->caps->hc_capbase;
-	EHCI_PRINT("HCIVERSION / CAPLENGTH  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->caps->hcs_params;
-	EHCI_PRINT("HCSPARAMS               @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->caps->hcc_params;
-	EHCI_PRINT("HCCPARAMS               @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	EHCI_PRINT("********* EHCI Operational Registers *********\n");
-	addr = &g_ehci->regs->command;
-	EHCI_PRINT("USBCMD                  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->regs->status;
-	EHCI_PRINT("USBSTS                  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->regs->intr_enable;
-	EHCI_PRINT("USBINTR                 @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->regs->frame_index;
-	EHCI_PRINT("FRINDEX                 @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->regs->segment;
-	EHCI_PRINT("CTRLDSSEGMENT           @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->regs->frame_list;
-	EHCI_PRINT("PERIODICLISTBASE        @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr)); 
-	addr = &g_ehci->regs->async_next;
-	EHCI_PRINT("ASYNCLISTADDR           @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = &g_ehci->regs->configured_flag;
-	EHCI_PRINT("CONFIGFLAG              @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	addr = g_ehci->regs->port_status;
-	EHCI_PRINT("PORTSC                  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
-	return sprintf(buf, "EHCI Registers Dump\n");
+	HSIC_EHCI_PRINT("******** EHCI Capability Registers **********\n");
+	addr = &g_hsic_ehci->caps->hc_capbase;
+	HSIC_EHCI_PRINT("HCIVERSION / CAPLENGTH  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->caps->hcs_params;
+	HSIC_EHCI_PRINT("HCSPARAMS               @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->caps->hcc_params;
+	HSIC_EHCI_PRINT("HCCPARAMS               @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	HSIC_EHCI_PRINT("********* EHCI Operational Registers *********\n");
+	addr = &g_hsic_ehci->regs->command;
+	HSIC_EHCI_PRINT("USBCMD                  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->regs->status;
+	HSIC_EHCI_PRINT("USBSTS                  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->regs->intr_enable;
+	HSIC_EHCI_PRINT("USBINTR                 @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->regs->frame_index;
+	HSIC_EHCI_PRINT("FRINDEX                 @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->regs->segment;
+	HSIC_EHCI_PRINT("CTRLDSSEGMENT           @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->regs->frame_list;
+	HSIC_EHCI_PRINT("PERIODICLISTBASE        @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr)); 
+	addr = &g_hsic_ehci->regs->async_next;
+	HSIC_EHCI_PRINT("ASYNCLISTADDR           @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = &g_hsic_ehci->regs->configured_flag;
+	HSIC_EHCI_PRINT("CONFIGFLAG              @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	addr = g_hsic_ehci->regs->port_status;
+	HSIC_EHCI_PRINT("PORTSC                  @0x%08x:  0x%08x\n", (uint32_t)addr, readl_relaxed(addr));
+	return sprintf(buf, "HSIC_EHCI Registers Dump\n");
 }
-static DEVICE_ATTR(debug_ehci, S_IRUGO, debug_show, NULL);
+static DEVICE_ATTR(hsic_debug_ehci, S_IRUGO, hsic_debug_show, NULL);
+
+static struct of_device_id rk_hsic_of_match[] = {
+	{
+		.compatible = "rockchip,rk3188_rk_hsic_host",
+		.data = &rkhsic_pdata[RK3188_USB_CTLR],
+	},
+	{
+		.compatible = "rockchip,rk3288_rk_hsic_host",
+		.data = &rkhsic_pdata[RK3288_USB_CTLR],
+	},
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, rk_hsic_of_match);
 
 static int ehci_rkhsic_probe(struct platform_device *pdev)
 {
@@ -200,10 +223,20 @@ static int ehci_rkhsic_probe(struct platform_device *pdev)
 	int retval = 0;
 	static u64 usb_dmamask = 0xffffffffUL;
 	struct device_node *node = pdev->dev.of_node;
+	struct rkehci_pdata_id *p;
+	const struct of_device_id *match =
+		of_match_device(of_match_ptr( rk_hsic_of_match ), &pdev->dev);
 
 	dev_dbg(&pdev->dev, "ehci_rkhsic proble\n");
 
-	dev->platform_data = &rkhsic_pdata;
+	if (match){
+		p = (struct rkehci_pdata_id *)match->data;
+	}else{
+		dev_err(dev, "ehci_rkhsic match failed\n");
+		return -EINVAL;
+	}
+
+	dev->platform_data = p->pdata;
 	pldata = dev->platform_data;
 	pldata->dev = dev;
 
@@ -214,17 +247,24 @@ static int ehci_rkhsic_probe(struct platform_device *pdev)
 
 	dev->dma_mask = &usb_dmamask;
 
-	retval = device_create_file(dev, &dev_attr_ehci_power);
-	retval = device_create_file(dev, &dev_attr_debug_ehci);
-	hcd = usb_create_hcd(&rk_hc_driver, &pdev->dev, dev_name(&pdev->dev));
+	retval = device_create_file(dev, &dev_attr_ehci_rkhsic_power);
+	retval = device_create_file(dev, &dev_attr_hsic_debug_ehci);
+	hcd = usb_create_hcd(&rk_hsic_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		dev_err(&pdev->dev, "Unable to create HCD\n");
 		return  -ENOMEM;
 	}
+	
+	if(pldata->hw_init)
+		pldata->hw_init();
 
-	pldata->hw_init();
-	pldata->clock_init(pldata);
-	pldata->clock_enable(pldata, 1);
+	if(pldata->clock_init){
+		pldata->clock_init(pldata);
+		pldata->clock_enable(pldata, 1);
+	}
+	
+	if(pldata->soft_reset)
+		pldata->soft_reset();
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -263,11 +303,11 @@ static int ehci_rkhsic_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
-		goto unmap;
+		goto put_hcd;
 	}
 	
-	g_ehci = ehci;
-	ehci_port_power(ehci, 1);
+	g_hsic_ehci = ehci;
+	ehci_rkhsic_port_power(ehci, 1);
 	writel_relaxed(1 ,hcd->regs +0xb0);
 	writel_relaxed(0x1d4d ,hcd->regs +0x90);
 	writel_relaxed(0x4 ,hcd->regs +0xa0);
@@ -278,9 +318,9 @@ static int ehci_rkhsic_probe(struct platform_device *pdev)
 
 	return 0;
 
-unmap:
-	iounmap(hcd->regs);
 put_hcd:
+	if(pldata->clock_enable)
+		pldata->clock_enable(pldata, 0);
 	usb_put_hcd(hcd);
 
 	return ret;
@@ -337,13 +377,6 @@ static const struct dev_pm_ops ehci_rkhsic_dev_pm_ops = {
 	.suspend         = ehci_rkhsic_pm_suspend,
 	.resume          = ehci_rkhsic_pm_resume,
 };
-
-static struct of_device_id rk_hsic_of_match[] = {
-	{ .compatible = "rockchip,rk_hsic_host", },
-	{ },
-};
-
-MODULE_DEVICE_TABLE(of, rk_hsic_of_match);
 
 static struct platform_driver ehci_rkhsic_driver = {
 	.probe	= ehci_rkhsic_probe,

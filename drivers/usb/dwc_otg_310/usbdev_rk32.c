@@ -18,7 +18,6 @@
 #include "usbdev_grf_regs.h"
 #include "usbdev_rk.h"
 #include "dwc_otg_regs.h"
-
 static struct dwc_otg_control_usb *control_usb;
 
 static int usb_get_chip_id(void)
@@ -27,22 +26,22 @@ static int usb_get_chip_id(void)
 }
 
 #ifdef CONFIG_USB20_OTG
-
 static void usb20otg_hw_init(void)
 {
 #ifndef CONFIG_USB20_HOST
 	//enable soft control
-	control_usb->grf_uoc1_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
+	control_usb->grf_uoc2_base->CON2 = (0x01<<2)|((0x01<<2)<<16);	
 	// enter suspend
-	control_usb->grf_uoc1_base->CON3 = 0x2A|(0x3F<<16);
+	control_usb->grf_uoc2_base->CON3 = 0x2A|(0x3F<<16); 	
 #endif
 	/* usb phy config init
 	 * usb phy enter usb mode */
-	control_usb->grf_uoc0_base->CON0 = (0x0300 << 16);
+	control_usb->grf_uoc0_base->CON3 = (0x00c0 << 16);
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
+//	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
+
 }
 
 static void usb20otg_phy_suspend(void* pdata, int suspend)
@@ -52,7 +51,7 @@ static void usb20otg_phy_suspend(void* pdata, int suspend)
 	if(suspend){
 		//enable soft control
 		control_usb->grf_uoc0_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
-		// enter suspend
+		//enter suspend
 		control_usb->grf_uoc0_base->CON3 = 0x2A|(0x3F<<16);
 		usbpdata->phy_status = 1;
 	}else{
@@ -68,6 +67,7 @@ static void usb20otg_soft_reset(void)
 
 static void usb20otg_clock_init(void* pdata)
 {
+	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
@@ -85,10 +85,12 @@ static void usb20otg_clock_init(void* pdata)
 
 	usbpdata->phyclk = phyclk;
 	usbpdata->ahbclk = ahbclk;
+	*/
 }
 
 static void usb20otg_clock_enable(void* pdata, int enable)
 {
+	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 
 	if(enable){
@@ -97,7 +99,7 @@ static void usb20otg_clock_enable(void* pdata, int enable)
 	}else{
 		clk_disable_unprepare(usbpdata->ahbclk);
 		clk_disable_unprepare(usbpdata->phyclk);
-	}
+	}*/
 }
 
 static int usb20otg_get_status(int id)
@@ -107,15 +109,15 @@ static int usb20otg_get_status(int id)
 	switch(id){
 		case USB_STATUS_BVABLID:
 			// bvalid in grf
-			ret = control_usb->grf_soc_status0_rk3188->otg_bvalid;
+			ret = control_usb->grf_soc_status2_rk3288->otg_bvalid;
 			break;
 		case USB_STATUS_DPDM:
 			// dpdm in grf
-			ret = control_usb->grf_soc_status0_rk3188->otg_linestate;
+			ret = control_usb->grf_soc_status2_rk3288->otg_linestate;
 			break;
 		case USB_STATUS_ID:
 			// id in grf
-			ret = control_usb->grf_soc_status0_rk3188->otg_iddig;
+			ret = control_usb->grf_soc_status2_rk3288->otg_iddig;
 			break;
 		default:
 			break;
@@ -128,30 +130,27 @@ static int usb20otg_get_status(int id)
 static void dwc_otg_uart_mode(void* pdata, int enter_usb_uart_mode)
 {
 	if(1 == enter_usb_uart_mode){
-		/* enter uart mode
-		 * note: can't disable otg here! If otg disable, the ID change
-		 * interrupt can't be triggered when otg cable connect without
-		 * device.At the same time, uart can't be used normally
-		 */
-		/* bypass dm, enter uart mode */
-		control_usb->grf_uoc0_base->CON0 = (0x0300 | (0x0300 << 16));
+		/* bypass dm, enter uart mode*/
+		control_usb->grf_uoc0_base->CON3 = (0x00c0 | (0x00c0 << 16));
+	
 	}else if(0 == enter_usb_uart_mode){
 		/* enter usb mode */
-		control_usb->grf_uoc0_base->CON0 = (0x0300 << 16);
+		control_usb->grf_uoc0_base->CON3 = (0x00c0 << 16);
 	}
 }
 #endif
 
 static void usb20otg_power_enable(int enable)
-{
+{	/*
 	if(0 == enable){//disable otg_drv power
 		gpio_set_value(control_usb->otg_gpios->gpio, 0);
 	}else if(1 == enable){//enable otg_drv power
 		gpio_set_value(control_usb->otg_gpios->gpio, 1);
-	}
+	}*/
 }
 
-struct dwc_otg_platform_data usb20otg_pdata_rk3188 = {
+
+struct dwc_otg_platform_data usb20otg_pdata_rk3288 = {
 	.phyclk = NULL,
 	.ahbclk = NULL,
 	.busclk = NULL,
@@ -163,6 +162,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3188 = {
 	.clock_enable = usb20otg_clock_enable,
 	.get_status = usb20otg_get_status,
 	.get_chip_id = usb_get_chip_id,
+	
 	.power_enable = usb20otg_power_enable,
 #ifdef CONFIG_RK_USB_UART
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
@@ -172,14 +172,14 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3188 = {
 #endif
 
 #ifdef CONFIG_USB20_HOST
+
 static void usb20host_hw_init(void)
 {
 	/* usb phy config init */
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-	gpio_direction_output(control_usb->host_gpios->gpio, 1);
-
+//	gpio_direction_output(control_usb->host_gpios->gpio, 1);
 }
 
 static void usb20host_phy_suspend(void* pdata, int suspend)
@@ -188,13 +188,13 @@ static void usb20host_phy_suspend(void* pdata, int suspend)
 
 	if(suspend){
 		// enable soft control
-		control_usb->grf_uoc1_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
+		control_usb->grf_uoc2_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
 		// enter suspend
-		control_usb->grf_uoc1_base->CON3 = 0x2A|(0x3F<<16); 
+		control_usb->grf_uoc2_base->CON3 = 0x2A|(0x3F<<16); 
 		usbpdata->phy_status = 1;
 	}else{
 		//exit suspend.
-		control_usb->grf_uoc1_base->CON2 = ((0x01<<2)<<16);
+		control_usb->grf_uoc2_base->CON2 = ((0x01<<2)<<16);
 		usbpdata->phy_status = 0;
 	}
 }
@@ -205,6 +205,7 @@ static void usb20host_soft_reset(void)
 
 static void usb20host_clock_init(void* pdata)
 {
+	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
@@ -222,10 +223,12 @@ static void usb20host_clock_init(void* pdata)
 
 	usbpdata->phyclk = phyclk;
 	usbpdata->ahbclk = ahbclk;
+	*/
 }
 
 static void usb20host_clock_enable(void* pdata, int enable)
 {
+	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 
 	if(enable){
@@ -235,6 +238,7 @@ static void usb20host_clock_enable(void* pdata, int enable)
 		clk_disable_unprepare(usbpdata->ahbclk);
 		clk_disable_unprepare(usbpdata->phyclk);
 	}
+	*/
 }
 
 static int usb20host_get_status(int id)
@@ -244,15 +248,15 @@ static int usb20host_get_status(int id)
 	switch(id){
 		case USB_STATUS_BVABLID:
 			// bvalid in grf
-			ret = control_usb->grf_soc_status0_rk3188->uhost_bvalid;
+			ret = control_usb->grf_soc_status2_rk3288->host1_bvalid;	
 			break;
 		case USB_STATUS_DPDM:
 			// dpdm in grf
-			ret = control_usb->grf_soc_status0_rk3188->uhost_linestate;
+			ret = control_usb->grf_soc_status2_rk3288->host1_linestate;
 			break;
 		case USB_STATUS_ID:
 			// id in grf
-			ret = control_usb->grf_soc_status0_rk3188->uhost_iddig;
+			ret = control_usb->grf_soc_status2_rk3288->host1_iddig;
 			break;
 		default:
 			break;
@@ -262,15 +266,16 @@ static int usb20host_get_status(int id)
 }
 
 static void usb20host_power_enable(int enable)
-{
+{	/*
 	if(0 == enable){//disable host_drv power
 		//do not disable power in default
 	}else if(1 == enable){//enable host_drv power
 		gpio_set_value(control_usb->host_gpios->gpio, 1);
-	}
+	}*/
 }
 
-struct dwc_otg_platform_data usb20host_pdata_rk3188 = {
+
+struct dwc_otg_platform_data usb20host_pdata_rk3288 = {
 	.phyclk = NULL,
 	.ahbclk = NULL,
 	.busclk = NULL,
@@ -284,6 +289,7 @@ struct dwc_otg_platform_data usb20host_pdata_rk3188 = {
 	.get_chip_id = usb_get_chip_id,
 	.power_enable = usb20host_power_enable,
 };
+
 #endif
 
 #ifdef CONFIG_USB_EHCI_RKHSIC
@@ -291,19 +297,17 @@ static void rk_hsic_hw_init(void)
 {
 	// usb phy config init
 	// hsic phy config init, set hsicphy_txsrtune
-	control_usb->grf_uoc2_base->CON0 = ((0xf<<6)<<16)|(0xf<<6);
+	control_usb->grf_uoc3_base->CON0 = ((0xf<<6)<<16)|(0xf<<6);
 
 	/* other haredware init
 	 * set common_on, in suspend mode, otg/host PLL blocks remain powered
-	 * for RK3168 set control_usb->grf_uoc0_base->CON0 = (1<<16)|0;
-	 * for Rk3188 set control_usb->grf_uoc1_base->CON0 = (1<<16)|0;
 	 */
-	control_usb->grf_uoc1_base->CON0 = (1<<16)|0;
+
 
 	/* change INCR to INCR16 or INCR8(beats less than 16)
 	 * or INCR4(beats less than 8) or SINGLE(beats less than 4)
 	 */
-	control_usb->grf_uoc3_base->CON0 = 0x00ff00bc;
+	control_usb->grf_uoc4_base->CON0 = 0x00ff00bc;
 }
 
 static void rk_hsic_clock_init(void* pdata)
@@ -312,6 +316,7 @@ static void rk_hsic_clock_init(void* pdata)
 	 * rk3188 must use host phy 480MHz clk, because if otg bypass
 	 * to uart mode, otg phy 480MHz clk will be closed automatically
 	 */
+	/*
 	struct rkehci_platform_data *usbpdata=pdata;
 	struct clk *ahbclk, *phyclk480m_hsic, *phyclk12m_hsic, *phyclk_otgphy1;
 
@@ -344,10 +349,12 @@ static void rk_hsic_clock_init(void* pdata)
 	usbpdata->hclk_hsic = ahbclk;
 	usbpdata->hsic_phy_480m = phyclk480m_hsic;
 	usbpdata->hsic_phy_12m = phyclk12m_hsic;
+	*/
 }
 
 static void rk_hsic_clock_enable(void* pdata, int enable)
 {
+	/*
 	struct rkehci_platform_data *usbpdata=pdata;
 
 	if(enable == usbpdata->clk_status)
@@ -363,14 +370,14 @@ static void rk_hsic_clock_enable(void* pdata, int enable)
 		clk_disable_unprepare(usbpdata->hsic_phy_12m);
 		usbpdata->clk_status = 0;
 	}
+	*/
 }
 
 static void rk_hsic_soft_reset(void)
 {
-
 }
 
-struct rkehci_platform_data rkhsic_pdata_rk3188 = {
+struct rkehci_platform_data rkhsic_pdata_rk3288 = {
 	.hclk_hsic = NULL,
 	.hsic_phy_12m = NULL,
 	.hsic_phy_480m = NULL,
@@ -383,12 +390,73 @@ struct rkehci_platform_data rkhsic_pdata_rk3188 = {
 };
 #endif
 
+#ifdef CONFIG_USB_EHCI_RK
+static void rk_ehci_hw_init(void)
+{
+
+}
+
+static void rk_ehci_clock_init(void* pdata)
+{
+
+}
+
+static void rk_ehci_clock_enable(void* pdata, int enable)
+{
+
+}
+
+static void rk_ehci_soft_reset(void)
+{
+
+}
+
+struct rkehci_platform_data rkehci_pdata_rk3288 = {
+	.phyclk = NULL,
+	.ahbclk = NULL,
+	.clk_status = -1,
+	.hw_init = rk_ehci_hw_init,
+	.clock_init = rk_ehci_clock_init,
+	.clock_enable = rk_ehci_clock_enable,
+	.soft_reset = rk_ehci_soft_reset,
+	.get_chip_id = usb_get_chip_id,
+};
+#endif
+
+#ifdef CONFIG_USB_OHCI_HCD_RK
+static void rk_ohci_hw_init(void)
+{
+}
+
+static void rk_ohci_clock_init(void* pdata)
+{
+}
+
+static void rk_ohci_clock_enable(void* pdata, int enable)
+{
+}
+
+static void rk_ohci_soft_reset(void)
+{
+}
+
+struct rkehci_platform_data rkohci_pdata_rk3288 = {
+	.phyclk = NULL,
+	.ahbclk = NULL,
+	.clk_status = -1,
+	.hw_init = rk_ohci_hw_init,
+	.clock_init = rk_ohci_clock_init,
+	.clock_enable = rk_ohci_clock_enable,
+	.soft_reset = rk_ohci_soft_reset,
+	.get_chip_id = usb_get_chip_id,
+};
+#endif
+
 #ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 #define WAKE_LOCK_TIMEOUT (HZ * 10)
-
 inline static void do_wakeup(struct work_struct *work)
 {
-//	rk28_send_wakeup_key();
+//      rk28_send_wakeup_key();
 }
 #endif
 
@@ -396,7 +464,7 @@ inline static void do_wakeup(struct work_struct *work)
 static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 {
 	/* clear irq */
-	control_usb->grf_uoc0_base->CON3 = (1 << 31) | (1 << 15);
+	control_usb->grf_uoc0_base->CON4 = (0x0008 | (0x0008 << 16));
 
 #ifdef CONFIG_RK_USB_UART
 	/* usb otg dp/dm switch to usb phy */
@@ -411,7 +479,7 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/************* register bvalid irq **************/
+/************* register usb irq **************/
 static int otg_irq_detect_init(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -431,12 +499,13 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 		}
 
 		/* clear & enable bvalid irq */
-		control_usb->grf_uoc0_base->CON3 = (3 << 30) | (3 << 14);
+		control_usb->grf_uoc0_base->CON4 = (0x000c | (0x000c << 16));
 
 #ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 		enable_irq_wake(irq);
 #endif
 	}
+
 
 	return ret;
 }
@@ -445,20 +514,51 @@ static int usb_grf_ioremap(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct resource *res;
-	void *grf_soc_status0;
+	void *grf_soc_status1;
+	void *grf_soc_status2;
+	void *grf_soc_status19;
+	void *grf_soc_status21;
 	void *grf_uoc0_base;
 	void *grf_uoc1_base;
 	void *grf_uoc2_base;
 	void *grf_uoc3_base;
+	void *grf_uoc4_base;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"GRF_SOC_STATUS0");
-	grf_soc_status0 = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(grf_soc_status0)){
-		ret = PTR_ERR(grf_soc_status0);
+						"GRF_SOC_STATUS1");
+	grf_soc_status1 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(grf_soc_status1)){
+		ret = PTR_ERR(grf_soc_status1);
 		return ret;
 	}
-	control_usb->grf_soc_status0_rk3188 = (pGRF_SOC_STATUS_RK3188)grf_soc_status0;
+	control_usb->grf_soc_status1_rk3288 = (pGRF_SOC_STATUS1_RK3288)grf_soc_status1;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_SOC_STATUS2");
+	grf_soc_status2 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(grf_soc_status2)){
+		ret = PTR_ERR(grf_soc_status2);
+		return ret;
+	}
+	control_usb->grf_soc_status2_rk3288 = (pGRF_SOC_STATUS2_RK3288)grf_soc_status2;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_SOC_STATUS19");
+	grf_soc_status19 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(grf_soc_status19)){
+		ret = PTR_ERR(grf_soc_status19);
+		return ret;
+	}
+	control_usb->grf_soc_status19_rk3288 = (pGRF_SOC_STATUS19_RK3288)grf_soc_status19;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_SOC_STATUS21");
+	grf_soc_status21 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(grf_soc_status21)){
+		ret = PTR_ERR(grf_soc_status21);
+		return ret;
+	}
+	control_usb->grf_soc_status21_rk3288 = (pGRF_SOC_STATUS21_RK3288)grf_soc_status21;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"GRF_UOC0_BASE");
@@ -496,6 +596,15 @@ static int usb_grf_ioremap(struct platform_device *pdev)
 	}
 	control_usb->grf_uoc3_base = (pGRF_UOC3_REG)grf_uoc3_base;
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"GRF_UOC4_BASE");
+	grf_uoc4_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(grf_uoc4_base)){
+		ret = PTR_ERR(grf_uoc4_base);
+		return ret;
+	}
+	control_usb->grf_uoc4_base = (pGRF_UOC4_REG)grf_uoc4_base;
+
 	return ret;
 }
 
@@ -503,18 +612,18 @@ static int usb_grf_ioremap(struct platform_device *pdev)
 
 static const struct of_device_id dwc_otg_control_usb_id_table[] = {
 	{
-		.compatible = "rockchip,rk3188-dwc-control-usb",
+		.compatible = "rockchip,rk3288-dwc-control-usb",
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, dwc_otg_control_usb_id_table);
+
 #endif
 
 static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 {
 	int gpio, err;
 	struct device_node *np = pdev->dev.of_node;
-	struct clk* hclk_usb_peri;
+//	struct clk* hclk_usb_peri;
 	int ret = 0;
 
 	control_usb = devm_kzalloc(&pdev->dev, sizeof(*control_usb),GFP_KERNEL);
@@ -524,8 +633,8 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	control_usb->chip_id = RK3188_USB_CTLR;
-
+	control_usb->chip_id = RK3288_USB_CTLR;
+/*	disable for debug
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {
 		dev_err(&pdev->dev, "Failed to get hclk_usb_peri\n");
@@ -535,13 +644,13 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 
 	control_usb->hclk_usb_peri = hclk_usb_peri;
 	clk_prepare_enable(hclk_usb_peri);
-
+*/
 	ret = usb_grf_ioremap(pdev);
 	if(ret){
 		dev_err(&pdev->dev, "Failed to ioremap usb grf\n");
 		goto err2;
 	}
-
+/*
 	control_usb->host_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
 
 	gpio =  of_get_named_gpio(np, "gpios", 0);
@@ -577,6 +686,7 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = err;
 		goto err2;
 	}
+*/
 #if 0 //disable for debug
 	ret = otg_irq_detect_init(pdev);
 	if (ret < 0)
@@ -585,23 +695,25 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	return 0;
 
 err2:
-	clk_disable_unprepare(hclk_usb_peri);
+//	disable for debug
+//	clk_disable_unprepare(hclk_usb_peri);
 err1:
 	return ret;
 }
 
 static int dwc_otg_control_usb_remove(struct platform_device *pdev)
 {
-	clk_disable_unprepare(control_usb->hclk_usb_peri);
+//	disable for debug
+//	clk_disable_unprepare(control_usb->hclk_usb_peri);
 	return 0;
 }
 
 static struct platform_driver dwc_otg_control_usb_driver = {
-	.probe		= dwc_otg_control_usb_probe,
-	.remove		= dwc_otg_control_usb_remove,
-	.driver		= {
-		.name	= "rk3188-dwc-control-usb",
-		.owner	= THIS_MODULE,
+	.probe          = dwc_otg_control_usb_probe,
+	.remove         = dwc_otg_control_usb_remove,
+	.driver         = {
+		.name   = "rk3288-dwc-control-usb",
+		.owner  = THIS_MODULE,
 		.of_match_table = of_match_ptr(dwc_otg_control_usb_id_table),
 	},
 };
@@ -610,6 +722,7 @@ static int __init dwc_otg_control_usb_init(void)
 {
 	return platform_driver_register(&dwc_otg_control_usb_driver);
 }
+
 subsys_initcall(dwc_otg_control_usb_init);
 
 static void __exit dwc_otg_control_usb_exit(void)
