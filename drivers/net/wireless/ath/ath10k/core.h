@@ -260,6 +260,8 @@ struct ath10k_vif {
 	u8 fixed_rate;
 	u8 fixed_nss;
 	u8 force_sgi;
+	bool use_cts_prot;
+	int num_legacy_stations;
 };
 
 struct ath10k_vif_iter {

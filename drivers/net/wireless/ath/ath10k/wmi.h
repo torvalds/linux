@@ -2210,6 +2210,19 @@ enum ath10k_protmode {
 	ATH10K_PROT_RTSCTS   = 2,    /* RTS-CTS */
 };
 
+enum wmi_rtscts_profile {
+	WMI_RTSCTS_FOR_NO_RATESERIES = 0,
+	WMI_RTSCTS_FOR_SECOND_RATESERIES,
+	WMI_RTSCTS_ACROSS_SW_RETRIES
+};
+
+#define WMI_RTSCTS_ENABLED		1
+#define WMI_RTSCTS_SET_MASK		0x0f
+#define WMI_RTSCTS_SET_LSB		0
+
+#define WMI_RTSCTS_PROFILE_MASK		0xf0
+#define WMI_RTSCTS_PROFILE_LSB		4
+
 enum wmi_beacon_gen_mode {
 	WMI_BEACON_STAGGERED_MODE = 0,
 	WMI_BEACON_BURST_MODE = 1

@@ -739,6 +739,26 @@ static int ath10k_monitor_destroy(struct ath10k *ar)
 	return ret;
 }
 
+static int ath10k_recalc_rtscts_prot(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+	u32 vdev_param, rts_cts = 0;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	vdev_param = ar->wmi.vdev_param->enable_rtscts;
+
+	if (arvif->use_cts_prot || arvif->num_legacy_stations > 0)
+		rts_cts |= SM(WMI_RTSCTS_ENABLED, WMI_RTSCTS_SET);
+
+	if (arvif->num_legacy_stations > 0)
+		rts_cts |= SM(WMI_RTSCTS_ACROSS_SW_RETRIES,
+			      WMI_RTSCTS_PROFILE);
+
+	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+					 rts_cts);
+}
+
 static int ath10k_start_cac(struct ath10k *ar)
 {
 	int ret;
@@ -1552,6 +1572,16 @@ static int ath10k_station_assoc(struct ath10k *ar, struct ath10k_vif *arvif,
 		return ret;
 	}
 
+	if (!sta->wme) {
+		arvif->num_legacy_stations++;
+		ret  = ath10k_recalc_rtscts_prot(arvif);
+		if (ret) {
+			ath10k_warn("failed to recalculate rts/cts prot for vdev %d: %d\n",
+				    arvif->vdev_id, ret);
+			return ret;
+		}
+	}
+
 	ret = ath10k_install_peer_wep_keys(arvif, sta->addr);
 	if (ret) {
 		ath10k_warn("could not install peer wep keys for vdev %i: %d\n",
@@ -1575,6 +1605,16 @@ static int ath10k_station_disassoc(struct ath10k *ar, struct ath10k_vif *arvif,
 	int ret = 0;
 
 	lockdep_assert_held(&ar->conf_mutex);
+
+	if (!sta->wme) {
+		arvif->num_legacy_stations--;
+		ret = ath10k_recalc_rtscts_prot(arvif);
+		if (ret) {
+			ath10k_warn("failed to recalculate rts/cts prot for vdev %d: %d\n",
+				    arvif->vdev_id, ret);
+			return ret;
+		}
+	}
 
 	ret = ath10k_clear_peer_keys(arvif, sta->addr);
 	if (ret) {
@@ -2869,20 +2909,13 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 		ath10k_control_beaconing(arvif, info);
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		u32 cts_prot;
-		if (info->use_cts_prot)
-			cts_prot = 1;
-		else
-			cts_prot = 0;
-
+		arvif->use_cts_prot = info->use_cts_prot;
 		ath10k_dbg(ATH10K_DBG_MAC, "mac vdev %d cts_prot %d\n",
-			   arvif->vdev_id, cts_prot);
+			   arvif->vdev_id, info->use_cts_prot);
 
-		vdev_param = ar->wmi.vdev_param->enable_rtscts;
-		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
-						cts_prot);
+		ret = ath10k_recalc_rtscts_prot(arvif);
 		if (ret)
-			ath10k_warn("Failed to set CTS prot for vdev %d: %d\n",
+			ath10k_warn("Failed to recalculate rts/cts prot for vdev %d: %d\n",
 				    arvif->vdev_id, ret);
 	}
 
