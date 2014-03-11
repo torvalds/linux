@@ -279,11 +279,13 @@ static int hspi_probe(struct platform_device *pdev)
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
-		goto error1;
+		goto error2;
 	}
 
 	return 0;
 
+ error2:
+	pm_runtime_disable(&pdev->dev);
  error1:
 	clk_put(clk);
  error0:
