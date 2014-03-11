@@ -1279,7 +1279,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	struct nfsd4_compound_state *cstate = &resp->cstate;
 	struct svc_fh *current_fh = &cstate->current_fh;
 	struct svc_fh *save_fh = &cstate->save_fh;
-	u32		plen = 0;
 	__be32		status;
 
 	svcxdr_init_encode(rqstp, resp);
@@ -1349,9 +1348,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 
 		/* If op is non-idempotent */
 		if (opdesc->op_flags & OP_MODIFIES_SOMETHING) {
-			plen = opdesc->op_rsize_bop(rqstp, op);
 			/*
-			 * If there's still another operation, make sure
+			 * Don't execute this op if we couldn't encode a
+			 * succesful reply:
+			 */
+			u32 plen = opdesc->op_rsize_bop(rqstp, op);
+			/*
+			 * Plus if there's another operation, make sure
 			 * we'll have space to at least encode an error:
 			 */
 			if (resp->opcnt < args->opcnt)

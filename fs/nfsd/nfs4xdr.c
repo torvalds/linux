@@ -3739,35 +3739,36 @@ static nfsd4_enc nfsd4_enc_ops[] = {
 };
 
 /*
- * Calculate the total amount of memory that the compound response has taken
- * after encoding the current operation with pad.
+ * Calculate whether we still have space to encode repsize bytes.
+ * There are two considerations:
+ *     - For NFS versions >=4.1, the size of the reply must stay within
+ *       session limits
+ *     - For all NFS versions, we must stay within limited preallocated
+ *       buffer space.
  *
- * pad: if operation is non-idempotent, pad was calculate by op_rsize_bop()
- *      which was specified at nfsd4_operation, else pad is zero.
- *
- * Compare this length to the session se_fmaxresp_sz and se_fmaxresp_cached.
- *
- * Our se_fmaxresp_cached will always be a multiple of PAGE_SIZE, and so
- * will be at least a page and will therefore hold the xdr_buf head.
+ * This is called before the operation is processed, so can only provide
+ * an upper estimate.  For some nonidempotent operations (such as
+ * getattr), it's not necessarily a problem if that estimate is wrong,
+ * as we can fail it after processing without significant side effects.
  */
-__be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
+__be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 respsize)
 {
 	struct xdr_buf *buf = &resp->rqstp->rq_res;
 	struct nfsd4_session *session = resp->cstate.session;
-	struct nfsd4_slot *slot = resp->cstate.slot;
 	int slack_bytes = (char *)resp->xdr.end - (char *)resp->xdr.p;
 
 	if (nfsd4_has_session(&resp->cstate)) {
+		struct nfsd4_slot *slot = resp->cstate.slot;
 
-		if (buf->len + pad > session->se_fchannel.maxresp_sz)
+		if (buf->len + respsize > session->se_fchannel.maxresp_sz)
 			return nfserr_rep_too_big;
 
 		if ((slot->sl_flags & NFSD4_SLOT_CACHETHIS) &&
-		    buf->len + pad > session->se_fchannel.maxresp_cached)
+		    buf->len + respsize > session->se_fchannel.maxresp_cached)
 			return nfserr_rep_too_big_to_cache;
 	}
 
-	if (pad > slack_bytes) {
+	if (respsize > slack_bytes) {
 		WARN_ON_ONCE(nfsd4_has_session(&resp->cstate));
 		return nfserr_resource;
 	}
