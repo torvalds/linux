@@ -1280,13 +1280,12 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 	s_buf = &s_vb->v4l2_buf;
 	d_buf = &d_vb->v4l2_buf;
 
+	d_buf->flags = s_buf->flags;
+
 	d_buf->timestamp = s_buf->timestamp;
-	d_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	d_buf->flags |= s_buf->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	if (s_buf->flags & V4L2_BUF_FLAG_TIMECODE) {
-		d_buf->flags |= V4L2_BUF_FLAG_TIMECODE;
+	if (s_buf->flags & V4L2_BUF_FLAG_TIMECODE)
 		d_buf->timecode = s_buf->timecode;
-	}
+
 	d_buf->sequence = ctx->sequence;
 
 	d_q_data = &ctx->q_data[Q_DATA_DST];
