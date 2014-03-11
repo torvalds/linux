@@ -51,11 +51,37 @@
 #include "jr3_pci.h"
 
 #define PCI_VENDOR_ID_JR3 0x1762
-#define PCI_DEVICE_ID_JR3_1_CHANNEL 0x3111
-#define PCI_DEVICE_ID_JR3_1_CHANNEL_NEW 0x1111
-#define PCI_DEVICE_ID_JR3_2_CHANNEL 0x3112
-#define PCI_DEVICE_ID_JR3_3_CHANNEL 0x3113
-#define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
+
+enum jr3_pci_boardid {
+	BOARD_JR3_1,
+	BOARD_JR3_2,
+	BOARD_JR3_3,
+	BOARD_JR3_4,
+};
+
+struct jr3_pci_board {
+	const char *name;
+	int n_subdevs;
+};
+
+static const struct jr3_pci_board jr3_pci_boards[] = {
+	[BOARD_JR3_1] = {
+		.name		= "jr3_pci_1",
+		.n_subdevs	= 1,
+	},
+	[BOARD_JR3_2] = {
+		.name		= "jr3_pci_2",
+		.n_subdevs	= 2,
+	},
+	[BOARD_JR3_3] = {
+		.name		= "jr3_pci_3",
+		.n_subdevs	= 3,
+	},
+	[BOARD_JR3_4] = {
+		.name		= "jr3_pci_4",
+		.n_subdevs	= 4,
+	},
+};
 
 struct jr3_pci_dev_private {
 	struct jr3_t __iomem *iobase;
@@ -654,9 +680,10 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 static int jr3_pci_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	static const struct jr3_pci_board *board = NULL;
 	struct jr3_pci_dev_private *devpriv;
 	struct jr3_pci_subdev_private *spriv;
 	struct comedi_subdevice *s;
@@ -670,31 +697,18 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
+	if (context < ARRAY_SIZE(jr3_pci_boards))
+		board = &jr3_pci_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
 
 	init_timer(&devpriv->timer);
-	switch (pcidev->device) {
-	case PCI_DEVICE_ID_JR3_1_CHANNEL:
-	case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:
-		devpriv->n_channels = 1;
-		break;
-	case PCI_DEVICE_ID_JR3_2_CHANNEL:
-		devpriv->n_channels = 2;
-		break;
-	case PCI_DEVICE_ID_JR3_3_CHANNEL:
-		devpriv->n_channels = 3;
-		break;
-	case PCI_DEVICE_ID_JR3_4_CHANNEL:
-		devpriv->n_channels = 4;
-		break;
-	default:
-		dev_err(dev->class_dev, "jr3_pci: pci %s not supported\n",
-			pci_name(pcidev));
-		return -EINVAL;
-		break;
-	}
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -704,6 +718,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (!devpriv->iobase)
 		return -ENOMEM;
 
+	devpriv->n_channels = board->n_subdevs;
 	ret = comedi_alloc_subdevices(dev, devpriv->n_channels);
 	if (ret)
 		return ret;
@@ -798,11 +813,11 @@ static int jr3_pci_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id jr3_pci_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL_NEW) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_2_CHANNEL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_3_CHANNEL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_4_CHANNEL) },
+	{ PCI_VDEVICE(JR3, 0x1111), BOARD_JR3_1 },
+	{ PCI_VDEVICE(JR3, 0x3111), BOARD_JR3_1 },
+	{ PCI_VDEVICE(JR3, 0x3112), BOARD_JR3_2 },
+	{ PCI_VDEVICE(JR3, 0x3113), BOARD_JR3_3 },
+	{ PCI_VDEVICE(JR3, 0x3114), BOARD_JR3_4 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, jr3_pci_pci_table);
