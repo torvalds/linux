@@ -76,10 +76,9 @@ END_FTR_SECTION(0, 1)
 	/* Catch branch to 0 in real mode */
 	trap
 
-	/* Secondary processors spin on this value until it becomes nonzero.
-	 * When it does it contains the real address of the descriptor
-	 * of the function that the cpu should jump to to continue
-	 * initialization.
+	/* Secondary processors spin on this value until it becomes non-zero.
+	 * When non-zero, it contains the real address of the function the cpu
+	 * should jump to.
 	 */
 	.balign 8
 	.globl  __secondary_hold_spinloop
@@ -147,9 +146,6 @@ __secondary_hold:
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
 #ifdef CONFIG_PPC_BOOK3E
 	tovirt(r12,r12)
-#endif
-#if !defined(_CALL_ELF) || _CALL_ELF != 2
-	ld	r12,0(r12)		/* deref function descriptor */
 #endif
 	mtctr	r12
 	mr	r3,r24
@@ -266,10 +262,12 @@ generic_secondary_common_init:
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
 	ld	r23,0(r23)
-	ld	r23,CPU_SPEC_RESTORE(r23)
-	cmpdi	0,r23,0
+	ld	r12,CPU_SPEC_RESTORE(r23)
+	cmpdi	0,r12,0
 	beq	3f
-	ld	r12,0(r23)
+#if !defined(_CALL_ELF) || _CALL_ELF != 2
+	ld	r12,0(r12)
+#endif
 	mtctr	r12
 	bctrl
 

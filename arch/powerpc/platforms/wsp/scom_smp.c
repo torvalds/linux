@@ -20,6 +20,7 @@
 #include <asm/reg_a2.h>
 #include <asm/scom.h>
 #include <asm/udbg.h>
+#include <asm/code-patching.h>
 
 #include "wsp.h"
 
@@ -405,7 +406,7 @@ int a2_scom_startup_cpu(unsigned int lcpu, int thr_idx, struct device_node *np)
 			goto fail;
 	}
 
-	start_here = *(unsigned long *)(core_setup ? generic_secondary_smp_init
+	start_here = ppc_function_entry(core_setup ? generic_secondary_smp_init
 					: generic_secondary_thread_init);
 	pr_devel("CPU%d entry point at 0x%lx...\n", lcpu, start_here);
 
