@@ -1434,9 +1434,9 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	s_idx = cb->args[0];
 	s_q_idx = q_idx = cb->args[1];
 
-	rcu_read_lock();
 	idx = 0;
-	for_each_netdev_rcu(net, dev) {
+	ASSERT_RTNL();
+	for_each_netdev(net, dev) {
 		struct netdev_queue *dev_queue;
 
 		if (idx < s_idx)
@@ -1459,8 +1459,6 @@ cont:
 	}
 
 done:
-	rcu_read_unlock();
-
 	cb->args[0] = idx;
 	cb->args[1] = q_idx;
 
