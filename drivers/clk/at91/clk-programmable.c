@@ -102,40 +102,40 @@ static unsigned long clk_programmable_recalc_rate(struct clk_hw *hw,
 	return parent_rate >> prog->pres;
 }
 
-static long clk_programmable_round_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long *parent_rate)
+static long clk_programmable_determine_rate(struct clk_hw *hw,
+					    unsigned long rate,
+					    unsigned long *best_parent_rate,
+					    struct clk **best_parent_clk)
 {
-	unsigned long best_rate = *parent_rate;
-	unsigned long best_diff;
-	unsigned long new_diff;
-	unsigned long cur_rate;
-	int shift = shift;
+	struct clk *parent = NULL;
+	long best_rate = -EINVAL;
+	unsigned long parent_rate;
+	unsigned long tmp_rate;
+	int shift;
+	int i;
 
-	if (rate > *parent_rate)
-		return *parent_rate;
-	else
-		best_diff = *parent_rate - rate;
+	for (i = 0; i < __clk_get_num_parents(hw->clk); i++) {
+		parent = clk_get_parent_by_index(hw->clk, i);
+		if (!parent)
+			continue;
 
-	if (!best_diff)
-		return best_rate;
-
-	for (shift = 1; shift < PROG_PRES_MASK; shift++) {
-		cur_rate = *parent_rate >> shift;
-
-		if (cur_rate > rate)
-			new_diff = cur_rate - rate;
-		else
-			new_diff = rate - cur_rate;
-
-		if (!new_diff)
-			return cur_rate;
-
-		if (new_diff < best_diff) {
-			best_diff = new_diff;
-			best_rate = cur_rate;
+		parent_rate = __clk_get_rate(parent);
+		for (shift = 0; shift < PROG_PRES_MASK; shift++) {
+			tmp_rate = parent_rate >> shift;
+			if (tmp_rate <= rate)
+				break;
 		}
 
-		if (rate > cur_rate)
+		if (tmp_rate > rate)
+			continue;
+
+		if (best_rate < 0 || (rate - tmp_rate) < (rate - best_rate)) {
+			best_rate = tmp_rate;
+			*best_parent_rate = parent_rate;
+			*best_parent_clk = parent;
+		}
+
+		if (!best_rate)
 			break;
 	}
 
@@ -228,7 +228,7 @@ static const struct clk_ops programmable_ops = {
 	.prepare = clk_programmable_prepare,
 	.is_prepared = clk_programmable_is_ready,
 	.recalc_rate = clk_programmable_recalc_rate,
-	.round_rate = clk_programmable_round_rate,
+	.determine_rate = clk_programmable_determine_rate,
 	.get_parent = clk_programmable_get_parent,
 	.set_parent = clk_programmable_set_parent,
 	.set_rate = clk_programmable_set_rate,
