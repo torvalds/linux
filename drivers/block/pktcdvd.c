@@ -1463,7 +1463,7 @@ static int kcdrwd(void *foobar)
 	struct packet_data *pkt;
 	long min_sleep_time, residue;
 
-	set_user_nice(current, -20);
+	set_user_nice(current, MIN_NICE);
 	set_freezable();
 
 	for (;;) {
