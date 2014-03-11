@@ -32,6 +32,8 @@
                 
                 num-slots = <1>;
   	  	supports-highspeed;
+		supports-emmc;
+                bootpart-no-access;
   	  	fifo-depth = <0x80>;
 
                  
@@ -57,10 +59,11 @@
 		pinctrl-1 = <&sd0_cd_gpio>; //for int gpio?
 	    clocks = <&clk_gates2 11>;
             clock-frequency = <50000000>;
-            clock-freq-min-max = <200000 50000000>;	    
+            clock-freq-min-max = <400000 50000000>;	    
 
    	    num-slots = <1>;
 	    supports-highspeed;
+	    supports-sd;
 	    broken-cd;
 	    card-detect-delay = <200>;
 	    pwr-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>; /*pwr_en = GPIO3_A1*/
@@ -94,6 +97,7 @@
             
             num-slots = <1>;
 	    supports-highspeed;
+            supports-sdio;
 	    fifo-depth = <0x100>;
 	    
             mmc,caps = <(MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED)>;

@@ -18,3 +18,6 @@ obj-$(CONFIG_IBM_PARTITION) += ibm.o
 obj-$(CONFIG_EFI_PARTITION) += efi.o
 obj-$(CONFIG_KARMA_PARTITION) += karma.o
 obj-$(CONFIG_SYSV68_PARTITION) += sysv68.o
+
+#added for emmc in Rockchip project.
+obj-$(CONFIG_MMC_DW_ROCKCHIP) += mtdpart.o

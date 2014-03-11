@@ -196,10 +196,6 @@ struct mmc_supply {
 	struct regulator *vqmmc;	/* Optional Vccq supply */
 };
 
-#define HOST_IS_EMMC(host)  (host->unused)
-#define SDMMC_SUPPORT_EMMC(host)    (host->rk_sdmmc_emmc_used)
-
-
 struct mmc_host {
 	struct device		*parent;
 	struct device		class_dev;
@@ -289,6 +285,11 @@ struct mmc_host {
 #define MMC_CAP2_SANITIZE	(1 << 15)		/* Support Sanitize */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
+	
+    u32        cardtype_restrict;	/*restrict the SDMMC controller to support card type;1--SD card; 2--sdio; 4--eMMC */
+#define RESTRICT_CARD_TYPE_SD	(1 << 0)	/*noted by XBW, Rockchip Co.Ld*/
+#define RESTRICT_CARD_TYPE_SDIO	(1 << 1)	
+#define RESTRICT_CARD_TYPE_EMMC	(1 << 2)	
 
 #ifdef CONFIG_MMC_CLKGATE
 	int			clk_requests;	/* internal reference counter */
@@ -310,8 +311,6 @@ struct mmc_host {
 	unsigned int		max_blk_size;	/* maximum size of one mmc block */
 	unsigned int		max_blk_count;	/* maximum number of blocks in one req */
 	unsigned int		max_discard_to;	/* max. discard timeout in ms */
-	unsigned short      rk_sdmmc_emmc_used; //rk29_sdmmc driver support emmc
-	int                 host_dev_id;
 
 	/* private data */
 	spinlock_t		lock;		/* lock for claim and bus ops */

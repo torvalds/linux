@@ -1056,6 +1056,14 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	struct dw_mci_board *brd = slot->host->pdata;
 	struct dw_mci *host = slot->host;
 	int gpio_cd = mmc_gpio_get_cd(mmc);
+	
+    if (mmc->cardtype_restrict & RESTRICT_CARD_TYPE_SDIO){
+        spin_lock_bh(&host->lock);
+        set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+        spin_unlock_bh(&host->lock);
+        
+        return 1;
+    }
 
 	/* Use platform get_cd function, else try onboard card detect */
 	if (brd->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
@@ -1458,13 +1466,11 @@ static void dw_mci_tasklet_func(unsigned long priv)
             
 			dw_mci_request_end(host, host->mrq);
 			goto unlock;
-            printk("%d..%s: ===test===\n", __LINE__, __FUNCTION__); 
 
 		case STATE_DATA_ERROR:
 			if (!test_and_clear_bit(EVENT_XFER_COMPLETE,
 						&host->pending_events))
 				break;
-            printk("%d..%s: ===test===\n", __LINE__, __FUNCTION__); 
 
 			state = STATE_DATA_BUSY;
 			break;
@@ -2289,6 +2295,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
         printk("%d..%s: fmin=%d, fmax=%d \n", __LINE__,__FUNCTION__,mmc->f_min, mmc->f_max);    
 	}
 #endif
+
+	if (of_find_property(host->dev->of_node, "supports-sd", NULL))
+		mmc->cardtype_restrict |= RESTRICT_CARD_TYPE_SD;	
+	if (of_find_property(host->dev->of_node, "supports-sdio", NULL))
+		mmc->cardtype_restrict |= RESTRICT_CARD_TYPE_SDIO;	
+	if (of_find_property(host->dev->of_node, "supports-emmc", NULL))
+		mmc->cardtype_restrict |= RESTRICT_CARD_TYPE_EMMC;
+
 	if (host->pdata->get_ocr)
 		mmc->ocr_avail = host->pdata->get_ocr(id);
 	else
@@ -2528,6 +2542,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_find_property(np, "keep-power-in-suspend", NULL))
 		pdata->pm_caps |= MMC_PM_KEEP_POWER;
+		
+
 
 	if (of_find_property(np, "enable-sdio-wakeup", NULL))
 		pdata->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
@@ -2543,6 +2559,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_get_property(np, "cd-inverted", NULL))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+	if (of_get_property(np, "bootpart-no-access", NULL))
+		pdata->caps2 |= MMC_CAP2_BOOTPART_NOACC;	
 
 	return pdata;
 }

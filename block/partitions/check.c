@@ -19,6 +19,7 @@
 #include <linux/genhd.h>
 
 #include "check.h"
+#include "mtdpart.h"
 
 #include "acorn.h"
 #include "amiga.h"
@@ -104,6 +105,11 @@ static int (*check_part[])(struct parsed_partitions *) = {
 #ifdef CONFIG_SYSV68_PARTITION
 	sysv68_partition,
 #endif
+
+#if CONFIG_MMC_DW_ROCKCHIP
+    mtdpart_partition,
+#endif
+
 	NULL
 };
 
