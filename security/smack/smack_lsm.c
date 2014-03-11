@@ -178,7 +178,8 @@ static inline unsigned int smk_ptrace_mode(unsigned int mode)
 /**
  * smk_ptrace_rule_check - helper for ptrace access
  * @tracer: tracer process
- * @tracee_label: label of the process that's about to be traced
+ * @tracee_label: label of the process that's about to be traced,
+ *                the pointer must originate from smack structures
  * @mode: ptrace attachment mode (PTRACE_MODE_*)
  * @func: name of the function that called us, used for audit
  *
@@ -201,6 +202,25 @@ static int smk_ptrace_rule_check(struct task_struct *tracer, char *tracee_label,
 	tsp = task_security(tracer);
 	skp = smk_of_task(tsp);
 
+	if ((mode & PTRACE_MODE_ATTACH) &&
+	    (smack_ptrace_rule == SMACK_PTRACE_EXACT ||
+	     smack_ptrace_rule == SMACK_PTRACE_DRACONIAN)) {
+		if (skp->smk_known == tracee_label)
+			rc = 0;
+		else if (smack_ptrace_rule == SMACK_PTRACE_DRACONIAN)
+			rc = -EACCES;
+		else if (capable(CAP_SYS_PTRACE))
+			rc = 0;
+		else
+			rc = -EACCES;
+
+		if (saip)
+			smack_log(skp->smk_known, tracee_label, 0, rc, saip);
+
+		return rc;
+	}
+
+	/* In case of rule==SMACK_PTRACE_DEFAULT or mode==PTRACE_MODE_READ */
 	rc = smk_tskacc(tsp, tracee_label, smk_ptrace_mode(mode), saip);
 	return rc;
 }

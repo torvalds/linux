@@ -177,6 +177,14 @@ struct smk_port_label {
 #define SMACK_CIPSO_MAXCATNUM           184     /* 23 * 8 */
 
 /*
+ * Ptrace rules
+ */
+#define SMACK_PTRACE_DEFAULT	0
+#define SMACK_PTRACE_EXACT	1
+#define SMACK_PTRACE_DRACONIAN	2
+#define SMACK_PTRACE_MAX	SMACK_PTRACE_DRACONIAN
+
+/*
  * Flags for untraditional access modes.
  * It shouldn't be necessary to avoid conflicts with definitions
  * in fs.h, but do so anyway.
@@ -245,6 +253,7 @@ extern struct smack_known *smack_net_ambient;
 extern struct smack_known *smack_onlycap;
 extern struct smack_known *smack_syslog_label;
 extern const char *smack_cipso_option;
+extern int smack_ptrace_rule;
 
 extern struct smack_known smack_known_floor;
 extern struct smack_known smack_known_hat;

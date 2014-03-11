@@ -304,7 +304,10 @@ static void smack_log_callback(struct audit_buffer *ab, void *a)
 	audit_log_untrustedstring(ab, sad->subject);
 	audit_log_format(ab, " object=");
 	audit_log_untrustedstring(ab, sad->object);
-	audit_log_format(ab, " requested=%s", sad->request);
+	if (sad->request[0] == '\0')
+		audit_log_format(ab, " labels_differ");
+	else
+		audit_log_format(ab, " requested=%s", sad->request);
 }
 
 /**
