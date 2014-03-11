@@ -3150,13 +3150,16 @@ static void BEx_get_resources(struct be_adapter *adapter,
 {
 	struct pci_dev *pdev = adapter->pdev;
 	bool use_sriov = false;
-	int max_vfs;
+	int max_vfs = 0;
 
-	max_vfs = pci_sriov_get_totalvfs(pdev);
-
-	if (BE3_chip(adapter) && sriov_want(adapter)) {
-		res->max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
-		use_sriov = res->max_vfs;
+	if (be_physfn(adapter) && BE3_chip(adapter)) {
+		be_cmd_get_profile_config(adapter, res, 0);
+		/* Some old versions of BE3 FW don't report max_vfs value */
+		if (res->max_vfs == 0) {
+			max_vfs = pci_sriov_get_totalvfs(pdev);
+			res->max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
+		}
+		use_sriov = res->max_vfs && sriov_want(adapter);
 	}
 
 	if (be_physfn(adapter))
@@ -3197,7 +3200,7 @@ static void BEx_get_resources(struct be_adapter *adapter,
 	res->max_rx_qs = res->max_rss_qs + 1;
 
 	if (be_physfn(adapter))
-		res->max_evt_qs = (max_vfs > 0) ?
+		res->max_evt_qs = (res->max_vfs > 0) ?
 					BE3_SRIOV_MAX_EVT_QS : BE3_MAX_EVT_QS;
 	else
 		res->max_evt_qs = 1;
