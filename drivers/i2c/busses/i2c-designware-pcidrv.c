@@ -58,6 +58,14 @@ enum dw_pci_ctl_id_t {
 	baytrail,
 };
 
+struct dw_scl_sda_cfg {
+	u32 ss_hcnt;
+	u32 fs_hcnt;
+	u32 ss_lcnt;
+	u32 fs_lcnt;
+	u32 sda_hold;
+};
+
 struct dw_pci_controller {
 	u32 bus_num;
 	u32 bus_cfg;
@@ -65,6 +73,7 @@ struct dw_pci_controller {
 	u32 rx_fifo_depth;
 	u32 clk_khz;
 	u32 functionality;
+	struct dw_scl_sda_cfg *scl_sda_cfg;
 };
 
 #define INTEL_MID_STD_CFG  (DW_IC_CON_MASTER |			\
@@ -76,6 +85,15 @@ struct dw_pci_controller {
 					I2C_FUNC_SMBUS_BYTE_DATA |	\
 					I2C_FUNC_SMBUS_WORD_DATA |	\
 					I2C_FUNC_SMBUS_I2C_BLOCK)
+
+/* BayTrail HCNT/LCNT/SDA hold time */
+static struct dw_scl_sda_cfg byt_config = {
+	.ss_hcnt = 0x200,
+	.fs_hcnt = 0x55,
+	.ss_lcnt = 0x200,
+	.fs_lcnt = 0x99,
+	.sda_hold = 0x6,
+};
 
 static struct  dw_pci_controller  dw_pci_controllers[] = {
 	[moorestown_0] = {
@@ -148,6 +166,7 @@ static struct  dw_pci_controller  dw_pci_controllers[] = {
 		.rx_fifo_depth = 32,
 		.clk_khz = 100000,
 		.functionality = I2C_FUNC_10BIT_ADDR,
+		.scl_sda_cfg = &byt_config,
 	},
 };
 static struct i2c_algorithm i2c_dw_algo = {
@@ -187,6 +206,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	struct i2c_adapter *adap;
 	int r;
 	struct  dw_pci_controller *controller;
+	struct dw_scl_sda_cfg *cfg;
 
 	if (id->driver_data >= ARRAY_SIZE(dw_pci_controllers)) {
 		dev_err(&pdev->dev, "%s: invalid driver data %ld\n", __func__,
@@ -224,6 +244,14 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 				DW_DEFAULT_FUNCTIONALITY;
 
 	dev->master_cfg =  controller->bus_cfg;
+	if (controller->scl_sda_cfg) {
+		cfg = controller->scl_sda_cfg;
+		dev->ss_hcnt = cfg->ss_hcnt;
+		dev->fs_hcnt = cfg->fs_hcnt;
+		dev->ss_lcnt = cfg->ss_lcnt;
+		dev->fs_lcnt = cfg->fs_lcnt;
+		dev->sda_hold_time = cfg->sda_hold;
+	}
 
 	pci_set_drvdata(pdev, dev);
 
