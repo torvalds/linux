@@ -321,12 +321,6 @@ menu "CPU Power Management"
 
 source "drivers/cpuidle/Kconfig"
 
-endmenu
-
-menu "Power management options"
-
-source "kernel/power/Kconfig"
-
 source "drivers/cpufreq/Kconfig"
 
 endmenu
