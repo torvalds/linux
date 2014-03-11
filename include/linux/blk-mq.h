@@ -121,8 +121,7 @@ void blk_mq_init_commands(struct request_queue *, void (*init)(void *data, struc
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
 
-void blk_mq_insert_request(struct request_queue *, struct request *,
-		bool, bool);
+void blk_mq_insert_request(struct request *, bool, bool, bool);
 void blk_mq_run_queues(struct request_queue *q, bool async);
 void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
@@ -134,7 +133,13 @@ struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_ind
 struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_reg *, unsigned int);
 void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *, unsigned int);
 
-void blk_mq_end_io(struct request *rq, int error);
+bool blk_mq_end_io_partial(struct request *rq, int error,
+		unsigned int nr_bytes);
+static inline void blk_mq_end_io(struct request *rq, int error)
+{
+	bool done = !blk_mq_end_io_partial(rq, error, blk_rq_bytes(rq));
+	BUG_ON(!done);
+}
 
 void blk_mq_complete_request(struct request *rq);
 

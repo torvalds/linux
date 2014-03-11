@@ -1074,31 +1074,36 @@ sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 	struct scatterlist *psg;
 	void *paddr, *addr;
 	unsigned int i, len, left;
-	unsigned int offset = 0;
+	unsigned int offset = sg_off;
 
 	left = sectors * dev->prot_length;
 
 	for_each_sg(cmd->t_prot_sg, psg, cmd->t_prot_nents, i) {
-
-		len = min(psg->length, left);
-		if (offset >= sg->length) {
-			sg = sg_next(sg);
-			offset = 0;
-			sg_off = sg->offset;
-		}
+		unsigned int psg_len, copied = 0;
 
 		paddr = kmap_atomic(sg_page(psg)) + psg->offset;
-		addr = kmap_atomic(sg_page(sg)) + sg_off;
+		psg_len = min(left, psg->length);
+		while (psg_len) {
+			len = min(psg_len, sg->length - offset);
+			addr = kmap_atomic(sg_page(sg)) + sg->offset + offset;
 
-		if (read)
-			memcpy(paddr, addr, len);
-		else
-			memcpy(addr, paddr, len);
+			if (read)
+				memcpy(paddr + copied, addr, len);
+			else
+				memcpy(addr, paddr + copied, len);
 
-		left -= len;
-		offset += len;
+			left -= len;
+			offset += len;
+			copied += len;
+			psg_len -= len;
+
+			if (offset >= sg->length) {
+				sg = sg_next(sg);
+				offset = 0;
+			}
+			kunmap_atomic(addr);
+		}
 		kunmap_atomic(paddr);
-		kunmap_atomic(addr);
 	}
 }
 
@@ -1163,7 +1168,7 @@ sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_dif_v1_tuple *sdt;
-	struct scatterlist *dsg;
+	struct scatterlist *dsg, *psg = sg;
 	sector_t sector = start;
 	void *daddr, *paddr;
 	int i, j, offset = sg_off;
@@ -1171,14 +1176,14 @@ sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 
 	for_each_sg(cmd->t_data_sg, dsg, cmd->t_data_nents, i) {
 		daddr = kmap_atomic(sg_page(dsg)) + dsg->offset;
-		paddr = kmap_atomic(sg_page(sg)) + sg->offset;
+		paddr = kmap_atomic(sg_page(psg)) + sg->offset;
 
 		for (j = 0; j < dsg->length; j += dev->dev_attrib.block_size) {
 
-			if (offset >= sg->length) {
+			if (offset >= psg->length) {
 				kunmap_atomic(paddr);
-				sg = sg_next(sg);
-				paddr = kmap_atomic(sg_page(sg)) + sg->offset;
+				psg = sg_next(psg);
+				paddr = kmap_atomic(sg_page(psg)) + psg->offset;
 				offset = 0;
 			}
 
