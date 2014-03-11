@@ -2054,11 +2054,8 @@ Away:
 		}
 	}
 
-	if (queue_delayed_work(Periodic_controlvm_workqueue,
-			       &Periodic_controlvm_work, Poll_jiffies) < 0) {
-		LOGERR("queue_delayed_work failed!");
-		POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC, POSTCODE_SEVERITY_ERR);
-	}
+	queue_delayed_work(Periodic_controlvm_workqueue,
+			   &Periodic_controlvm_work, Poll_jiffies);
 }
 
 static void
@@ -2192,11 +2189,8 @@ Away:
 
 	Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 
-	if (queue_delayed_work(Periodic_controlvm_workqueue,
-			       &Periodic_controlvm_work, Poll_jiffies) < 0) {
-		LOGERR("queue_delayed_work failed!");
-		POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC, POSTCODE_SEVERITY_ERR);
-	}
+	queue_delayed_work(Periodic_controlvm_workqueue,
+			   &Periodic_controlvm_work, Poll_jiffies);
 }
 
 static void
