@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/bug.h>
 #include <linux/pci.h>
+#include <linux/cpufreq.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
@@ -290,6 +291,25 @@ static int __init pnv_probe(void)
 	return 1;
 }
 
+/*
+ * Returns the cpu frequency for 'cpu' in Hz. This is used by
+ * /proc/cpuinfo
+ */
+unsigned long pnv_get_proc_freq(unsigned int cpu)
+{
+	unsigned long ret_freq;
+
+	ret_freq = cpufreq_quick_get(cpu) * 1000ul;
+
+	/*
+	 * If the backend cpufreq driver does not exist,
+         * then fallback to old way of reporting the clockrate.
+	 */
+	if (!ret_freq)
+		ret_freq = ppc_proc_freq;
+	return ret_freq;
+}
+
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
@@ -297,6 +317,7 @@ define_machine(powernv) {
 	.setup_arch		= pnv_setup_arch,
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,
+	.get_proc_freq          = pnv_get_proc_freq,
 	.progress		= pnv_progress,
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = power7_idle,
