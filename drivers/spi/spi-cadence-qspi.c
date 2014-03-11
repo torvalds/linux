@@ -1,23 +1,21 @@
 /*
  * Driver for Cadence QSPI Controller
  *
- * Copyright (C) 2012 Altera Corporation
+ * Copyright Altera Corporation (C) 2012-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * it under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -243,12 +241,6 @@ static int cadence_qspi_of_get_pdata(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	pdata->num_chipselect = prop;
-
-	if (of_property_read_u32(np, "master-ref-clk", &prop)) {
-		dev_err(&pdev->dev, "couldn't determine master-ref-clk\n");
-		return -ENXIO;
-	}
-	pdata->master_ref_clk_hz = prop;
 
 	if (of_property_read_u32(np, "ext-decoder", &prop)) {
 		dev_err(&pdev->dev, "couldn't determine ext-decoder\n");
@@ -504,6 +496,13 @@ static int cadence_qspi_probe(struct platform_device *pdev)
 
 	pdev->dev.platform_data = pdata;
 	pdata->qspi_ahb_phy = res_ahb->start;
+
+	cadence_qspi->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(cadence_qspi->clk)) {
+		dev_err(&pdev->dev, "cannot get qspi clk\n");
+		return PTR_ERR(cadence_qspi->clk);
+	}
+	pdata->master_ref_clk_hz = clk_get_rate(cadence_qspi->clk);
 
 	status = cadence_qspi_of_get_pdata(pdev);
 	if (status) {
