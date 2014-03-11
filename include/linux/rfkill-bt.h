@@ -25,17 +25,18 @@
 
 #define RFKILL_RK_GPIO_NAME_SIZE   64
 
-struct rfkill_rk_iomux {
-    char    *name;
-    int     fgpio;
-    int     fmux;
-};
+//struct rfkill_rk_iomux {
+//    char    *name;
+//    int     fgpio;
+//    int     fmux;
+//};
 
 struct rfkill_rk_gpio {
     int     io;
     char    name[RFKILL_RK_GPIO_NAME_SIZE];
     int     enable; // disable = !enable
-    struct rfkill_rk_iomux  iomux;
+    struct  pinctrl_state    *gpio_state;
+    struct  pinctrl_state    *default_state;
 };
 
 struct rfkill_rk_irq {
@@ -55,23 +56,12 @@ struct rfkill_rk_irq {
 struct rfkill_rk_platform_data {
     char                    *name;
     enum rfkill_type        type;
+    struct pinctrl          *pinctrl;
     struct rfkill_rk_gpio   poweron_gpio;
     struct rfkill_rk_gpio   reset_gpio;
     struct rfkill_rk_gpio   wake_gpio;      // Host wake or sleep BT
     struct rfkill_rk_irq    wake_host_irq;  // BT wakeup host
     struct rfkill_rk_gpio   rts_gpio;
-};
-
-struct mt6622_platform_data {
-    struct rfkill_rk_gpio   power_gpio;
-    struct rfkill_rk_gpio   reset_gpio;
-    struct rfkill_rk_gpio   irq_gpio;
-    struct rfkill_rk_gpio   rts_gpio;
-};
-
-struct tcc_bt_platform_data {
-    struct rfkill_rk_gpio   power_gpio;
-    struct rfkill_rk_gpio   wake_host_gpio;
 };
 
 #endif /* __RFKILL_GPIO_H */

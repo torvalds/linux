@@ -48,6 +48,20 @@
         };
     };
 
+    wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+
+        support_uart_rts_ctrl;
+        uart_rts_gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_LOW>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&uart0_rts>;
+
+        BT,power_gpio = <&gpio3 GPIO_C7 GPIO_ACTIVE_HIGH>;
+        BT,reset_gpio = <&gpio3 GPIO_D1 GPIO_ACTIVE_HIGH>;
+        BT,wake_gpio = <&gpio3 GPIO_C6 GPIO_ACTIVE_HIGH>;
+        BT,wake_host_irq = <&gpio0 GPIO_A5 GPIO_ACTIVE_LOW>;
+    };
+
 	backlight {
         	compatible = "pwm-backlight";
 	        pwms = <&pwm3 0 25000>;
