@@ -62,7 +62,7 @@ struct rc_map *rc_map_get(const char *name)
 	map = seek_rc_map(name);
 #ifdef MODULE
 	if (!map) {
-		int rc = request_module(name);
+		int rc = request_module("%s", name);
 		if (rc < 0) {
 			printk(KERN_ERR "Couldn't load IR keymap %s\n", name);
 			return NULL;
