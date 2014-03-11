@@ -157,6 +157,54 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 	return rc;
 }
 
+/**
+ * smk_ptrace_mode - helper function for converting PTRACE_MODE_* into MAY_*
+ * @mode - input mode in form of PTRACE_MODE_*
+ *
+ * Returns a converted MAY_* mode usable by smack rules
+ */
+static inline unsigned int smk_ptrace_mode(unsigned int mode)
+{
+	switch (mode) {
+	case PTRACE_MODE_READ:
+		return MAY_READ;
+	case PTRACE_MODE_ATTACH:
+		return MAY_READWRITE;
+	}
+
+	return 0;
+}
+
+/**
+ * smk_ptrace_rule_check - helper for ptrace access
+ * @tracer: tracer process
+ * @tracee_label: label of the process that's about to be traced
+ * @mode: ptrace attachment mode (PTRACE_MODE_*)
+ * @func: name of the function that called us, used for audit
+ *
+ * Returns 0 on access granted, -error on error
+ */
+static int smk_ptrace_rule_check(struct task_struct *tracer, char *tracee_label,
+				 unsigned int mode, const char *func)
+{
+	int rc;
+	struct smk_audit_info ad, *saip = NULL;
+	struct task_smack *tsp;
+	struct smack_known *skp;
+
+	if ((mode & PTRACE_MODE_NOAUDIT) == 0) {
+		smk_ad_init(&ad, func, LSM_AUDIT_DATA_TASK);
+		smk_ad_setfield_u_tsk(&ad, tracer);
+		saip = &ad;
+	}
+
+	tsp = task_security(tracer);
+	skp = smk_of_task(tsp);
+
+	rc = smk_tskacc(tsp, tracee_label, smk_ptrace_mode(mode), saip);
+	return rc;
+}
+
 /*
  * LSM hooks.
  * We he, that is fun!
@@ -165,16 +213,15 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 /**
  * smack_ptrace_access_check - Smack approval on PTRACE_ATTACH
  * @ctp: child task pointer
- * @mode: ptrace attachment mode
+ * @mode: ptrace attachment mode (PTRACE_MODE_*)
  *
  * Returns 0 if access is OK, an error code otherwise
  *
- * Do the capability checks, and require read and write.
+ * Do the capability checks.
  */
 static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 {
 	int rc;
-	struct smk_audit_info ad;
 	struct smack_known *skp;
 
 	rc = cap_ptrace_access_check(ctp, mode);
@@ -182,10 +229,8 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 		return rc;
 
 	skp = smk_of_task(task_security(ctp));
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
-	smk_ad_setfield_u_tsk(&ad, ctp);
 
-	rc = smk_curacc(skp->smk_known, mode, &ad);
+	rc = smk_ptrace_rule_check(current, skp->smk_known, mode, __func__);
 	return rc;
 }
 
@@ -195,12 +240,11 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
  *
  * Returns 0 if access is OK, an error code otherwise
  *
- * Do the capability checks, and require read and write.
+ * Do the capability checks, and require PTRACE_MODE_ATTACH.
  */
 static int smack_ptrace_traceme(struct task_struct *ptp)
 {
 	int rc;
-	struct smk_audit_info ad;
 	struct smack_known *skp;
 
 	rc = cap_ptrace_traceme(ptp);
@@ -208,10 +252,9 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
 		return rc;
 
 	skp = smk_of_task(current_security());
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
-	smk_ad_setfield_u_tsk(&ad, ptp);
 
-	rc = smk_tskacc(ptp, skp->smk_known, MAY_READWRITE, &ad);
+	rc = smk_ptrace_rule_check(ptp, skp->smk_known,
+				   PTRACE_MODE_ATTACH, __func__);
 	return rc;
 }
 
@@ -455,7 +498,7 @@ static int smack_sb_statfs(struct dentry *dentry)
  * smack_bprm_set_creds - set creds for exec
  * @bprm: the exec information
  *
- * Returns 0 if it gets a blob, -ENOMEM otherwise
+ * Returns 0 if it gets a blob, -EPERM if exec forbidden and -ENOMEM otherwise
  */
 static int smack_bprm_set_creds(struct linux_binprm *bprm)
 {
@@ -475,7 +518,22 @@ static int smack_bprm_set_creds(struct linux_binprm *bprm)
 	if (isp->smk_task == NULL || isp->smk_task == bsp->smk_task)
 		return 0;
 
-	if (bprm->unsafe)
+	if (bprm->unsafe & (LSM_UNSAFE_PTRACE | LSM_UNSAFE_PTRACE_CAP)) {
+		struct task_struct *tracer;
+		rc = 0;
+
+		rcu_read_lock();
+		tracer = ptrace_parent(current);
+		if (likely(tracer != NULL))
+			rc = smk_ptrace_rule_check(tracer,
+						   isp->smk_task->smk_known,
+						   PTRACE_MODE_ATTACH,
+						   __func__);
+		rcu_read_unlock();
+
+		if (rc != 0)
+			return rc;
+	} else if (bprm->unsafe)
 		return -EPERM;
 
 	bsp->smk_task = isp->smk_task;
