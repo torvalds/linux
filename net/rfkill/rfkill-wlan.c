@@ -31,6 +31,7 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
+#include <dt-bindings/gpio/gpio.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -235,23 +236,23 @@ int rockchip_wifi_power(int on)
 
 		if (on){
 			if (gpio_is_valid(poweron->io)) {
-				gpio_set_value(poweron->io, !(poweron->enable));
+				gpio_set_value(poweron->io, poweron->enable);
 			}
 			mdelay(100);
 
 			if (gpio_is_valid(reset->io)) {
-				gpio_set_value(reset->io, !(reset->enable));
+				gpio_set_value(reset->io, reset->enable);
 			}
 			mdelay(100);
 			LOG("wifi turn on power. %d\n", poweron->io);
 		}else{
 			if (gpio_is_valid(poweron->io)) {
-				gpio_set_value(poweron->io, poweron->enable);
+				gpio_set_value(poweron->io, !(poweron->enable));
 			}
 
 			mdelay(100);
 			if (gpio_is_valid(reset->io)) {
-				gpio_set_value(reset->io, reset->enable);
+				gpio_set_value(reset->io, !(reset->enable));
 			}
 
 			LOG("wifi shut off power.\n");
@@ -370,8 +371,7 @@ static int wlan_platdata_parse_dt(struct device *dev,
                   struct rksdmmc_gpio_wifi_moudle *data)
 {
     struct device_node *node = dev->of_node;
-    struct device_node *childnode, *grandchildnode;
-    const char *pin_funcs, *strings;
+    const char *strings;
     u32 value;
     int gpio,ret;
     enum of_gpio_flags flags;
@@ -387,72 +387,46 @@ static int wlan_platdata_parse_dt(struct device *dev,
 
     data->sdio_vol = value;
 
-    childnode = of_get_child_by_name(node, "wlan_ctrl_pmic");
-	if (!childnode) {
-		LOG("%s: Can not get child => wlan_ctrl_pmic.\n", __func__);
+    if (of_find_property(node, "power_ctrl_by_pmu", NULL)) {
+        data->mregulator.power_ctrl_by_pmu = true;
+        ret = of_property_read_string(node, "pmu_regulator", &strings);
+        if (ret) {
+            LOG("%s: Can not read property: pmu_regulator.\n", __func__);
+            data->mregulator.power_ctrl_by_pmu = false;
+        } else {
+            LOG("%s: wifi power controled by pmu(%s).\n", __func__, strings);
+            sprintf(data->mregulator.pmu_regulator, "%s", strings);
+        }
+        ret = of_property_read_u32(node, "pmu_enable_level", &value);
+        if (ret) {
+            LOG("%s: Can not read property: pmu_enable_level.\n", __func__);
+            data->mregulator.power_ctrl_by_pmu = false;
+        } else {
+            LOG("%s: wifi power controled by pmu(level = %s).\n", __func__, (value == 1)?"HIGH":"LOW");
+            data->mregulator.enable = value;
+        }
 	} else {
-		ret = of_property_read_string(childnode, "power_ctrl_by_pmu", &strings);
-		if (ret) {
-			LOG("%s: Can not read property: power_ctrl_by_pmu.\n", __func__);
-			data->mregulator.power_ctrl_by_pmu = false;
-		}
-		if (0 == strcmp(strings, "true")) {
-			data->mregulator.power_ctrl_by_pmu = true;
-			ret = of_property_read_string(childnode, "pmu_regulator", &strings);
-			if (ret) {
-				LOG("%s: Can not read property: pmu_regulator.\n", __func__);
-				data->mregulator.power_ctrl_by_pmu = false;
-			} else {
-				LOG("%s: wifi power controled by pmu(%s).\n", __func__, strings);
-                sprintf(data->mregulator.pmu_regulator, "%s", strings);
-			}
-			ret = of_property_read_u32(childnode, "pmu_enable_level", &value);
-			if (ret) {
-				LOG("%s: Can not read property: pmu_enable_level.\n", __func__);
-				data->mregulator.power_ctrl_by_pmu = false;
-			} else {
-				LOG("%s: wifi power controled by pmu(level = %s).\n", __func__, (value == 1)?"HIGH":"LOW");
-                data->mregulator.enable = value;
-			}
-		} else {
-			data->mregulator.power_ctrl_by_pmu = false;
-			LOG("%s: wifi power controled by gpio.\n", __func__);
-		}
-    }
-
-    childnode = of_get_child_by_name(node, "wlan_ctrl_gpios");
-	if (!childnode) {
-		LOG("%s: Can not get child => wlan_ctrl_gpios.\n", __func__);
-		return -EINVAL;
+		data->mregulator.power_ctrl_by_pmu = false;
+		LOG("%s: wifi power controled by gpio.\n", __func__);
+        gpio = of_get_named_gpio_flags(node, "WIFI,poweren_gpio", 0, &flags);
+        if (gpio_is_valid(gpio)){
+			data->power_n.io = gpio;
+			data->power_n.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
+			LOG("%s: get property: WIFI,poweren_gpio = %d, flags = %d.\n", __func__, gpio, flags);
+        }
+        gpio = of_get_named_gpio_flags(node, "WIFI,reset_gpio", 0, &flags);
+        if (gpio_is_valid(gpio)){
+			data->reset_n.io = gpio;
+			data->reset_n.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
+			LOG("%s: get property: WIFI,reset_gpio = %d, flags = %d.\n", __func__, gpio, flags);
+        }
+        gpio = of_get_named_gpio_flags(node, "WIFI,host_wake_irq", 0, &flags);
+        if (gpio_is_valid(gpio)){
+			data->wifi_int_b.io = gpio;
+			data->wifi_int_b.enable = flags;
+			LOG("%s: get property: WIFI,host_wake_irq = %d, flags = %d.\n", __func__, gpio, flags);
+        }
 	}
-
-    for_each_child_of_node(childnode, grandchildnode) {
-        ret = of_property_read_string(grandchildnode, "pin-func", &pin_funcs);
-		if (ret) {
-			LOG("%s: Can not read property: pin-func.\n", __func__);
-            continue;
-		}
-        gpio = of_get_named_gpio_flags(grandchildnode, "gpios", 0, &flags);
-        if (!gpio_is_valid(gpio)){
-            LOG("%s: Can not read property: %s->gpios.\n", __func__, pin_funcs);
-            continue;
-        }
-
-        if (0 == strcmp(pin_funcs, "wlan_poweren")) {
-            data->power_n.io = gpio;
-            data->power_n.enable = flags;
-		    LOG("pin_funcs = %s, gpio = %d, flags = %d", pin_funcs, gpio, flags);
-        } else if (0 == strcmp(pin_funcs, "wlan_reset")) {
-            data->reset_n.io = gpio;
-            data->reset_n.enable = flags;
-		    LOG("pin_funcs = %s, gpio = %d, flags = %d", pin_funcs, gpio, flags);
-        } else if (0 == strcmp(pin_funcs, "wlan_wake_host_irq")) {
-            data->wifi_int_b.io = gpio;
-            data->wifi_int_b.enable = flags;
-		    LOG("pin_funcs = %s, gpio = %d, flags = %d", pin_funcs, gpio, flags);
-        }
-
-    }
 
     return 0;
 }
@@ -515,30 +489,14 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 
     LOG("%s: init gpio\n", __func__);
 
-    ret = rfkill_rk_setup_gpio(&pdata->power_n, wlan_name, "wlan_poweren");
-    if (ret) goto fail_alloc;
+    if (!pdata->mregulator.power_ctrl_by_pmu) {
+        ret = rfkill_rk_setup_gpio(&pdata->power_n, wlan_name, "wlan_poweren");
+        if (ret) goto fail_alloc;
 
-    ret = rfkill_rk_setup_gpio(&pdata->reset_n, wlan_name, "wlan_reset");
-    if (ret) goto fail_alloc;
-/*
-	ret = rfkill_rk_setup_gpio(&pdata->vddio, IOMUX_FGPIO, wlan_name, "wlan-vddio");
-	if (ret) goto fail_alloc;
+        ret = rfkill_rk_setup_gpio(&pdata->reset_n, wlan_name, "wlan_reset");
+        if (ret) goto fail_alloc;
+    }
 
-	ret = rfkill_rk_setup_gpio(&pdata->bgf_int_b, IOMUX_FGPIO, wlan_name, "bgf_int_b");
-	if (ret) goto fail_alloc;
-
-    ret = rfkill_rk_setup_gpio(&pdata->gps_sync, IOMUX_FGPIO, wlan_name, "gps_sync");
-    if (ret) goto fail_alloc;
-
-	ret = rfkill_rk_setup_gpio(&pdata->ANTSEL2, IOMUX_FGPIO, wlan_name, "ANTSEL2");
-	if (ret) goto fail_alloc;
-
-	ret = rfkill_rk_setup_gpio(&pdata->ANTSEL3, IOMUX_FGPIO, wlan_name, "ANTSEL3");
-	if (ret) goto fail_alloc;
-
-	ret = rfkill_rk_setup_gpio(&pdata->GPS_LAN, IOMUX_FGPIO, wlan_name, "GPS_LAN");
-	if (ret) goto fail_alloc;
-*/
     wake_lock_init(&(rfkill->wlan_irq_wl), WAKE_LOCK_SUSPEND, "rfkill_wlan_wake");
 
     // Turn off wifi power as default
