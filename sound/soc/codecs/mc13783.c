@@ -614,8 +614,8 @@ static int mc13783_probe(struct snd_soc_codec *codec)
 	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
-	ret = snd_soc_codec_set_cache_io(codec, 8, 24, SND_SOC_REGMAP);
+	ret = snd_soc_codec_set_cache_io(codec,
+			dev_get_regmap(codec->dev->parent, NULL));
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;

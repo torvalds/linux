@@ -1052,9 +1052,7 @@ static int wm8997_codec_probe(struct snd_soc_codec *codec)
 	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = priv->core.arizona->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 32, 16, SND_SOC_REGMAP);
+	ret = snd_soc_codec_set_cache_io(codec, priv->core.arizona->regmap);
 	if (ret != 0)
 		return ret;
 

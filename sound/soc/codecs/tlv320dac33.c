@@ -122,7 +122,6 @@ struct tlv320dac33_priv {
 	unsigned int uthr;
 
 	enum dac33_state state;
-	enum snd_soc_control_type control_type;
 	void *control_data;
 };
 
