@@ -761,6 +761,10 @@ static int init_phy(struct net_device *dev)
 			&altera_tse_adjust_link, 0, priv->phy_iface);
 	}
 
+	if (!phydev) {
+		netdev_err(dev, "Could not find the PHY\n");
+		return -ENODEV;
+	}
 	/* Stop Advertising 1000BASE Capability if interface is not GMII
 	 * Note: Checkpatch throws CHECKs for the camel case defines below,
 	 * it's ok to ignore.
