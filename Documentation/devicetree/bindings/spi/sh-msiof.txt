@@ -5,7 +5,6 @@ Required properties:
 			 "renesas,sh-msiof" for SuperH, or
 			 "renesas,sh-mobile-msiof" for SH Mobile series.
 			 Examples with soctypes are:
-			 "renesas,msiof-sh7724" (SH)
 			 "renesas,msiof-r8a7790" (R-Car H2)
 			 "renesas,msiof-r8a7791" (R-Car M2)
 - reg                  : Offset and length of the register set for the device
