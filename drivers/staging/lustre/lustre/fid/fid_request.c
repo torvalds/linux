@@ -196,8 +196,8 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	if (range_is_exhausted(&seq->lcs_space)) {
 		rc = seq_client_alloc_meta(env, seq);
 		if (rc) {
-			CERROR("%s: Can't allocate new meta-sequence,"
-			       "rc %d\n", seq->lcs_name, rc);
+			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
+				seq->lcs_name, rc);
 			return rc;
 		} else {
 			CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
@@ -266,15 +266,15 @@ int seq_client_get_seq(const struct lu_env *env,
 
 	rc = seq_client_alloc_seq(env, seq, seqnr);
 	if (rc) {
-		CERROR("%s: Can't allocate new sequence, "
-		       "rc %d\n", seq->lcs_name, rc);
+		CERROR("%s: Can't allocate new sequence, rc %d\n",
+			seq->lcs_name, rc);
 		seq_fid_alloc_fini(seq);
 		mutex_unlock(&seq->lcs_mutex);
 		return rc;
 	}
 
-	CDEBUG(D_INFO, "%s: allocate sequence "
-	       "[0x%16.16"LPF64"x]\n", seq->lcs_name, *seqnr);
+	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16"LPF64"x]\n",
+			seq->lcs_name, *seqnr);
 
 	/* Since the caller require the whole seq,
 	 * so marked this seq to be used */
@@ -329,15 +329,15 @@ int seq_client_alloc_fid(const struct lu_env *env,
 
 		rc = seq_client_alloc_seq(env, seq, &seqnr);
 		if (rc) {
-			CERROR("%s: Can't allocate new sequence, "
-			       "rc %d\n", seq->lcs_name, rc);
+			CERROR("%s: Can't allocate new sequence, rc %d\n",
+				seq->lcs_name, rc);
 			seq_fid_alloc_fini(seq);
 			mutex_unlock(&seq->lcs_mutex);
 			return rc;
 		}
 
-		CDEBUG(D_INFO, "%s: Switch to sequence "
-		       "[0x%16.16"LPF64"x]\n", seq->lcs_name, seqnr);
+		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16"LPF64"x]\n",
+				seq->lcs_name, seqnr);
 
 		seq->lcs_fid.f_oid = LUSTRE_FID_INIT_OID;
 		seq->lcs_fid.f_seq = seqnr;
@@ -428,8 +428,8 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 	rc = lprocfs_add_vars(seq->lcs_proc_dir,
 			      seq_client_proc_list, seq);
 	if (rc) {
-		CERROR("%s: Can't init sequence manager "
-		       "proc, rc %d\n", seq->lcs_name, rc);
+		CERROR("%s: Can't init sequence manager proc, rc %d\n",
+			seq->lcs_name, rc);
 		GOTO(out_cleanup, rc);
 	}
 
