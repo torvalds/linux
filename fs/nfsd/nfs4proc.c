@@ -1854,6 +1854,18 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 };
 
+int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	struct nfsd4_operation *opdesc;
+	nfsd4op_rsize estimator;
+
+	if (op->opnum == OP_ILLEGAL)
+		return op_encode_hdr_size * sizeof(__be32);
+	opdesc = OPDESC(op);
+	estimator = opdesc->op_rsize_bop;
+	return estimator ? estimator(rqstp, op) : PAGE_SIZE;
+}
+
 void warn_on_nonidempotent_op(struct nfsd4_op *op)
 {
 	if (OPDESC(op)->op_flags & OP_MODIFIES_SOMETHING) {
