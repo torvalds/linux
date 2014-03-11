@@ -34,6 +34,11 @@
 			compatible = "st,stih415-powerdown";
 		};
 
+		softreset: softreset-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih415-softreset";
+		};
+
 		syscfg_sbc: sbc-syscfg@fe600000{
 			compatible      = "st,stih415-sbc-syscfg", "syscon";
 			reg		= <0xfe600000 0xb4>;
