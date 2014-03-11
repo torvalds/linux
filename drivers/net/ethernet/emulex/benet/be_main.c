@@ -3209,9 +3209,13 @@ static void BEx_get_resources(struct be_adapter *adapter,
 
 	res->max_mcast_mac = BE_MAX_MC;
 
-	/* For BE3 1Gb ports, F/W does not properly support multiple TXQs */
-	if (BE2_chip(adapter) || use_sriov || be_is_mc(adapter) ||
-	    !be_physfn(adapter) || (adapter->port_num > 1))
+	/* 1) For BE3 1Gb ports, FW does not support multiple TXQs
+	 * 2) Create multiple TX rings on a BE3-R multi-channel interface
+	 *    *only* if it is RSS-capable.
+	 */
+	if (BE2_chip(adapter) || use_sriov ||  (adapter->port_num > 1) ||
+	    !be_physfn(adapter) || (be_is_mc(adapter) &&
+	    !(adapter->function_caps & BE_FUNCTION_CAPS_RSS)))
 		res->max_tx_qs = 1;
 	else
 		res->max_tx_qs = BE3_MAX_TX_QS;
