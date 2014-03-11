@@ -3925,7 +3925,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 
 	case NAND_ECC_SOFT_BCH:
 		if (!mtd_nand_has_bch()) {
-			pr_warn("CONFIG_MTD_ECC_BCH not enabled\n");
+			pr_warn("CONFIG_MTD_NAND_ECC_BCH not enabled\n");
 			BUG();
 		}
 		ecc->calculate = nand_bch_calculate_ecc;
