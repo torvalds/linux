@@ -37,12 +37,12 @@
 #include <linux/power_supply.h>
 
 #include "sbshc.h"
+#include "battery.h"
 
 #define PREFIX "ACPI: "
 
 #define ACPI_SBS_CLASS			"sbs"
 #define ACPI_AC_CLASS			"ac_adapter"
-#define ACPI_BATTERY_CLASS		"battery"
 #define ACPI_SBS_DEVICE_NAME		"Smart Battery System"
 #define ACPI_SBS_FILE_INFO		"info"
 #define ACPI_SBS_FILE_STATE		"state"
