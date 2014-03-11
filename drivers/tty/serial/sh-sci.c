@@ -788,7 +788,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
 			copied++;
 
-		dev_notice(port->dev, "overrun error");
+		dev_notice(port->dev, "overrun error\n");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -830,7 +830,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_PARITY))
 			copied++;
 
-		dev_notice(port->dev, "parity error");
+		dev_notice(port->dev, "parity error\n");
 	}
 
 	if (copied)
@@ -1292,7 +1292,8 @@ static void sci_dma_rx_complete(void *arg)
 	unsigned long flags;
 	int count;
 
-	dev_dbg(port->dev, "%s(%d) active #%d\n", __func__, port->line, s->active_rx);
+	dev_dbg(port->dev, "%s(%d) active #%d\n",
+		__func__, port->line, s->active_rx);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1368,8 +1369,8 @@ static void sci_submit_rx(struct sci_port *s)
 			sci_rx_dma_release(s, true);
 			return;
 		}
-		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n", __func__,
-			s->cookie_rx[i], i);
+		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n",
+			__func__, s->cookie_rx[i], i);
 	}
 
 	s->active_rx = s->cookie_rx[0];
@@ -1428,8 +1429,8 @@ static void work_fn_rx(struct work_struct *work)
 
 	s->active_rx = s->cookie_rx[!new];
 
-	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n", __func__,
-		s->cookie_rx[new], new, s->active_rx);
+	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n",
+		__func__, s->cookie_rx[new], new, s->active_rx);
 }
 
 static void work_fn_tx(struct work_struct *work)
@@ -1482,8 +1483,8 @@ static void work_fn_tx(struct work_struct *work)
 		return;
 	}
 
-	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n", __func__,
-		xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
+	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n",
+		__func__, xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
 
 	dma_async_issue_pending(chan);
 }
@@ -1602,8 +1603,8 @@ static bool filter(struct dma_chan *chan, void *slave)
 {
 	struct sh_dmae_slave *param = slave;
 
-	dev_dbg(chan->device->dev, "%s: slave ID %d\n", __func__,
-		param->shdma_slave.slave_id);
+	dev_dbg(chan->device->dev, "%s: slave ID %d\n",
+		__func__, param->shdma_slave.slave_id);
 
 	chan->private = &param->shdma_slave;
 	return true;
@@ -1632,8 +1633,7 @@ static void sci_request_dma(struct uart_port *port)
 	dma_cap_mask_t mask;
 	int nent;
 
-	dev_dbg(port->dev, "%s: port %d\n", __func__,
-		port->line);
+	dev_dbg(port->dev, "%s: port %d\n", __func__, port->line);
 
 	if (s->cfg->dma_slave_tx <= 0 || s->cfg->dma_slave_rx <= 0)
 		return;
@@ -1661,7 +1661,8 @@ static void sci_request_dma(struct uart_port *port)
 		if (!nent)
 			sci_tx_dma_release(s, false);
 		else
-			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
+			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n",
+				__func__,
 				sg_dma_len(&s->sg_tx), port->state->xmit.buf,
 				&sg_dma_address(&s->sg_tx));
 
@@ -1935,8 +1936,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (s->chan_rx) {
 		s->rx_timeout = (port->timeout - HZ / 50) * s->buf_len_rx * 3 /
 			port->fifosize / 2;
-		dev_dbg(port->dev,
-			"DMA Rx t-out %ums, tty t-out %u jiffies\n",
+		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
 			s->rx_timeout * 1000 / HZ, port->timeout);
 		if (s->rx_timeout < msecs_to_jiffies(20))
 			s->rx_timeout = msecs_to_jiffies(20);
@@ -2503,11 +2503,9 @@ static int sci_probe_single(struct platform_device *dev,
 
 	/* Sanity check */
 	if (unlikely(index >= SCI_NPORTS)) {
-		dev_notice(&dev->dev, "Attempting to register port "
-			   "%d when only %d are available.\n",
+		dev_notice(&dev->dev, "Attempting to register port %d when only %d are available\n",
 			   index+1, SCI_NPORTS);
-		dev_notice(&dev->dev, "Consider bumping "
-			   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
+		dev_notice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
 		return -EINVAL;
 	}
 
