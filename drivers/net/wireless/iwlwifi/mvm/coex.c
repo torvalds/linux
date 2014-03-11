@@ -63,7 +63,7 @@
 
 #include <net/mac80211.h>
 
-#include "fw-api-bt-coex.h"
+#include "fw-api-coex.h"
 #include "iwl-modparams.h"
 #include "mvm.h"
 #include "iwl-debug.h"
@@ -1168,8 +1168,8 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000)
 #define LINK_QUAL_AGG_TIME_LIMIT_BT_ACT	(1200)
 
-u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
-				   struct ieee80211_sta *sta)
+u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
+				struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	enum iwl_bt_coex_lut_type lut_type;

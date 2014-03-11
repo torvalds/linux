@@ -70,7 +70,7 @@
 #include "fw-api-mac.h"
 #include "fw-api-power.h"
 #include "fw-api-d3.h"
-#include "fw-api-bt-coex.h"
+#include "fw-api-coex.h"
 
 /* maximal number of Tx queues in any platform */
 #define IWL_MVM_MAX_QUEUES	20

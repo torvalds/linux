@@ -2591,7 +2591,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 
 	if (sta)
 		lq_cmd->agg_time_limit =
-			cpu_to_le16(iwl_mvm_bt_coex_agg_time_limit(mvm, sta));
+			cpu_to_le16(iwl_mvm_coex_agg_time_limit(mvm, sta));
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
