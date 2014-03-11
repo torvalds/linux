@@ -911,7 +911,7 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 		/* Disable future Rx interrupts */
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 			disable_irq_nosync(irq);
-			scr |= 0x4000;
+			scr |= SCSCR_RDRQE;
 		} else {
 			scr &= ~SCSCR_RIE;
 		}
@@ -1200,7 +1200,9 @@ static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		 */
 		reg = sci_getreg(port, SCFCR);
 		if (reg->size)
-			serial_port_out(port, SCFCR, serial_port_in(port, SCFCR) | 1);
+			serial_port_out(port, SCFCR,
+					serial_port_in(port, SCFCR) |
+					SCFCR_LOOP);
 	}
 }
 
@@ -1496,9 +1498,9 @@ static void sci_start_tx(struct uart_port *port)
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 		u16 new, scr = serial_port_in(port, SCSCR);
 		if (s->chan_tx)
-			new = scr | 0x8000;
+			new = scr | SCSCR_TDRQE;
 		else
-			new = scr & ~0x8000;
+			new = scr & ~SCSCR_TDRQE;
 		if (new != scr)
 			serial_port_out(port, SCSCR, new);
 	}
@@ -1525,7 +1527,7 @@ static void sci_stop_tx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x8000;
+		ctrl &= ~SCSCR_TDRQE;
 
 	ctrl &= ~SCSCR_TIE;
 
@@ -1539,7 +1541,7 @@ static void sci_start_rx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR) | port_rx_irq_mask(port);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x4000;
+		ctrl &= ~SCSCR_RDRQE;
 
 	serial_port_out(port, SCSCR, ctrl);
 }
@@ -1551,7 +1553,7 @@ static void sci_stop_rx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x4000;
+		ctrl &= ~SCSCR_RDRQE;
 
 	ctrl &= ~port_rx_irq_mask(port);
 
@@ -1614,7 +1616,7 @@ static void rx_timer_fn(unsigned long arg)
 	u16 scr = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
-		scr &= ~0x4000;
+		scr &= ~SCSCR_RDRQE;
 		enable_irq(s->irqs[SCIx_RXI_IRQ]);
 	}
 	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
@@ -1871,13 +1873,13 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	smr_val = serial_port_in(port, SCSMR) & 3;
 
 	if ((termios->c_cflag & CSIZE) == CS7)
-		smr_val |= 0x40;
+		smr_val |= SCSMR_CHR;
 	if (termios->c_cflag & PARENB)
-		smr_val |= 0x20;
+		smr_val |= SCSMR_PE;
 	if (termios->c_cflag & PARODD)
-		smr_val |= 0x30;
+		smr_val |= SCSMR_PE | SCSMR_ODD;
 	if (termios->c_cflag & CSTOPB)
-		smr_val |= 0x08;
+		smr_val |= SCSMR_STOP;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
@@ -1885,7 +1887,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		__func__, smr_val, cks, t, s->cfg->scscr);
 
 	if (t >= 0) {
-		serial_port_out(port, SCSMR, (smr_val & ~3) | cks);
+		serial_port_out(port, SCSMR, (smr_val & ~SCSMR_CKS) | cks);
 		serial_port_out(port, SCBRR, t);
 		reg = sci_getreg(port, HSSRR);
 		if (reg->size)
