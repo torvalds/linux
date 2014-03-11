@@ -201,7 +201,6 @@ typedef unsigned char		uchar;
 # define DGAP_SPINLOCK_INIT(x)		spin_lock_init(&(x))
 # define DGAP_LOCK(x,y)			spin_lock_irqsave(&(x), y)
 # define DGAP_UNLOCK(x,y)		spin_unlock_irqrestore(&(x), y)
-# define DGAP_TRYLOCK(x,y)		spin_trylock(&(x))
 
 /************************************************************************
  *      FEP memory offsets
