@@ -657,7 +657,7 @@ static void build_rdma0_msg(struct nes_cm_node *cm_node, struct nes_qp **nesqp_a
 	struct nes_qp *nesqp = *nesqp_addr;
 	struct nes_hw_qp_wqe *wqe = &nesqp->hwqp.sq_vbase[0];
 
-	u64temp = (unsigned long)nesqp;
+	u64temp = (unsigned long)nesqp->nesuqp_addr;
 	u64temp |= NES_SW_CONTEXT_ALIGN >> 1;
 	set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_COMP_CTX_LOW_IDX, u64temp);
 

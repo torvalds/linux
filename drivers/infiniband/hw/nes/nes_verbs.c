@@ -1191,6 +1191,8 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				if (req.user_wqe_buffers) {
 					virt_wqs = 1;
 				}
+				if (req.user_qp_buffer)
+					nesqp->nesuqp_addr = req.user_qp_buffer;
 				if ((ibpd->uobject) && (ibpd->uobject->context)) {
 					nesqp->user_mode = 1;
 					nes_ucontext = to_nesucontext(ibpd->uobject->context);
