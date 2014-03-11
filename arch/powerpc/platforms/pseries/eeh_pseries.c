@@ -265,7 +265,7 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 			enable = 1;
 
 		if (enable) {
-			eeh_subsystem_enabled = 1;
+			eeh_set_enable(true);
 			eeh_add_to_parent_pe(edev);
 
 			pr_debug("%s: EEH enabled on %s PHB#%d-PE#%x, config addr#%x\n",

@@ -1006,11 +1006,6 @@ static int dp83640_probe(struct phy_device *phydev)
 	} else
 		list_add_tail(&dp83640->list, &clock->phylist);
 
-	if (clock->chosen && !list_empty(&clock->phylist))
-		recalibrate(clock);
-	else
-		enable_broadcast(dp83640->phydev, clock->page, 1);
-
 	dp83640_clock_put(clock);
 	return 0;
 
@@ -1063,6 +1058,14 @@ static void dp83640_remove(struct phy_device *phydev)
 
 static int dp83640_config_init(struct phy_device *phydev)
 {
+	struct dp83640_private *dp83640 = phydev->priv;
+	struct dp83640_clock *clock = dp83640->clock;
+
+	if (clock->chosen && !list_empty(&clock->phylist))
+		recalibrate(clock);
+	else
+		enable_broadcast(phydev, clock->page, 1);
+
 	enable_status_frames(phydev, true);
 	ext_write(0, phydev, PAGE4, PTP_CTL, PTP_ENABLE);
 	return 0;

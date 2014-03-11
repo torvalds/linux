@@ -758,6 +758,13 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(struct net *net,
 		struct sctp_chunk auth;
 		sctp_ierror_t ret;
 
+		/* Make sure that we and the peer are AUTH capable */
+		if (!net->sctp.auth_enable || !new_asoc->peer.auth_capable) {
+			kfree_skb(chunk->auth_chunk);
+			sctp_association_free(new_asoc);
+			return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+		}
+
 		/* set-up our fake chunk so that we can process it */
 		auth.skb = chunk->auth_chunk;
 		auth.asoc = chunk->asoc;
@@ -6176,7 +6183,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * PMTU.  In cases, such as loopback, this might be a rather
 	 * large spill over.
 	 */
-	if ((!chunk->data_accepted) && (!asoc->rwnd || asoc->rwnd_over ||
+	if ((!chunk->data_accepted) && (!asoc->rwnd ||
 	    (datalen > asoc->rwnd + asoc->frag_point))) {
 
 		/* If this is the next TSN, consider reneging to make
