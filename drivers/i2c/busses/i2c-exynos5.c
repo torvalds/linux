@@ -566,7 +566,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
-	struct exynos5_i2c *i2c = (struct exynos5_i2c *)adap->algo_data;
+	struct exynos5_i2c *i2c = adap->algo_data;
 	int i = 0, ret = 0, stop = 0;
 
 	if (i2c->suspended) {
