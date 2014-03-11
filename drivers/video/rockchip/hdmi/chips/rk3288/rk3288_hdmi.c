@@ -27,8 +27,15 @@
 #include <linux/seq_file.h>
 #endif
 
+#include "../../../../../../arch/arm/mach-rockchip/grf.h"
+#include "../../../../../../arch/arm/mach-rockchip/iomap.h"
 #include "rk3288_hdmi_hw.h"
 #include "rk3288_hdmi.h"
+
+
+#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
+#define grf_writel(v,offset) 	do{ writel_relaxed(v, RK_GRF_VIRT + offset);dsb();} while (0)
+
 
 extern irqreturn_t hdmi_irq(int irq, void *priv);
 
@@ -118,7 +125,7 @@ static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 	int ret = 0;
 	//struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk_hdmi_device, driver);
 
-        //grf_writel(HDMI_SEL_LCDC(hdmi_dev->lcdc_id),GRF_SOC_CON6);	//lcdc source select-->have config at lcdc driver so delete it
+        grf_writel(HDMI_SEL_LCDC(hdmi_dev->lcdc_id), RK3288_GRF_SOC_CON6);	//lcdc source select
 	if(hdmi_dev->lcdc_id == 0)
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc0");
 	else

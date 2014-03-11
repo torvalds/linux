@@ -29,6 +29,32 @@ const struct phy_mpll_config_tab* get_phy_mpll_tab(int pixClock, char pixRepet, 
 	return NULL;
 }
 
+static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
+{
+	if(hdmi_drv->pwr_mode == mode)
+		return;
+
+	hdmi_dbg(hdmi->dev,"%s change pwr_mode %d --> %d\n",__FUNCTION__, hdmi_drv->pwr_mode, mode);
+	switch(mode)
+	{
+		case NORMAL:
+			hdmi_msk_reg(hdmi_dev, MC_SWRSTZREQ, m_TMDS_SWRST | m_PIXEL_SWRST,
+				v_TMDS_SWRST(0) | v_PIXEL_SWRST(0));
+			hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
+				v_AUDCLK_DISABLE(0) | v_PREPCLK_DISABLE(0) | v_TMDSCLK_DISABLE(0) | v_PIXELCLK_DISABLE(0));
+			hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(1));
+			hdmi_msk_reg(hdmi_dev, FC_GCP, m_FC_SET_AVMUTE, v_FC_SET_AVMUTE(1));
+			break;
+		case LOWER_PWR:
+			hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
+				v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
+			hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(0));
+			break;
+		default:
+			hdmi_dbg(hdmi_drv->dev,"unkown hdmi pwr mode %d\n",mode);
+	}
+	hdmi_drv->pwr_mode = mode;
+}
 
 //i2c master reset
 void rk3288_hdmi_i2cm_reset(struct rk3288_hdmi_device *hdmi_dev)
@@ -204,6 +230,8 @@ static void rk3288_hdmi_config_avi(struct hdmi *hdmi_drv, unsigned char vic, uns
 		y1y0 = AVI_COLOR_MODE_YCBCR444;
 	else if(output_color == VIDEO_OUTPUT_YCBCR422)
 		y1y0 = AVI_COLOR_MODE_YCBCR422;
+	else if(output_color == VIDEO_OUTPUT_YCBCR420)
+		y1y0 = AVI_COLOR_MODE_YCBCR420;
 	else
 		y1y0 = AVI_COLOR_MODE_RGB;
 
@@ -298,6 +326,7 @@ static void rk3288_hdmi_config_csc(struct hdmi *hdmi_drv, struct hdmi_video_para
 	if( ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) && (vpara->output_color == VIDEO_OUTPUT_RGB444)) ||
 		((vpara->input_color == VIDEO_INPUT_COLOR_YCBCR) && (vpara->output_color != VIDEO_OUTPUT_RGB444) ))
 	{
+		hdmi_msk_reg(hdmi_dev, MC_FLOWCTRL, m_FEED_THROUGH_OFF, v_FEED_THROUGH_OFF(0));
 		return;
 	}
 
@@ -335,6 +364,7 @@ static void rk3288_hdmi_config_csc(struct hdmi *hdmi_drv, struct hdmi_video_para
 		hdmi_writel(hdmi_dev, CSC_COEF_A1_MSB + i, coeff[i]);
 
 	//enable CSC TODO Daisen wait to add
+	hdmi_msk_reg(hdmi_dev, MC_FLOWCTRL, m_FEED_THROUGH_OFF, v_FEED_THROUGH_OFF(1));
 }
 
 
@@ -347,6 +377,9 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 	int hsync_pol = hdmi_drv->lcdc->cur_screen->pin_hsync;
 	int de_pol = hdmi_drv->lcdc->cur_screen->pin_den;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
+
+	if(hdmi_drv->pwr_mode == LOWER_PWR)
+		rk3288_hdmi_set_pwr_mode(NORMAL);
 
 	switch(vpara->input_color)
 	{
@@ -433,16 +466,25 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 
 static void rk3288_hdmi_config_aai(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 {
-	//struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
+	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-	//hdmi_writel(hdmi_dev, FC_AUDICONF0, m_FC_CHN_CNT | m_FC_CODING_TYEP, v_FC_CHN_CNT(audio->channel) | v_FC_CODING_TYEP());
+	//Refer to CEA861-E Audio infoFrame
+	//Set both Audio Channel Count and Audio Coding Type Refer to Stream Head for HDMI
+	hdmi_msk_reg(hdmi_dev, FC_AUDICONF0, m_FC_CHN_CNT | m_FC_CODING_TYEP, v_FC_CHN_CNT(0) | v_FC_CODING_TYEP(0));
 
-	//TODO Daisen wait to add
+	//Set both Audio Sample Size and Sample Frequency Refer to Stream Head for HDMI
+	hdmi_msk_reg(hdmi_dev, FC_AUDICONF1, m_FC_SAMPLE_SIZE | m_FC_SAMPLE_FREQ, v_FC_SAMPLE_SIZE(0) | v_FC_SAMPLE_FREQ(0));
+
+	//Set Channel Allocation
+	hdmi_writel(hdmi_dev, FC_AUDICONF2, 0x00);
+
+	//Set LFEPBL¡¢DOWN-MIX INH and LSV
+	hdmi_writel(hdmi_dev, FC_AUDICONF3, 0x00);
 }
 
 int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 {
-	int word_length = 0,channel = 0,N = 0;
+	int word_length = 0, channel = 0, N = 0, mclk_fs;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	if(audio->channel < 3)	//TODO Daisen
@@ -457,6 +499,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 	switch(audio->rate)
 	{
 		case HDMI_AUDIO_FS_32000:
+			mclk_fs = FS_128;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_32K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -465,6 +508,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_32K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_44100:
+			mclk_fs = FS_128;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_441K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -473,7 +517,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_441K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_48000:
-			if(hdmi_drv->tmdsclk >= 594000000)
+			mclk_fs = FS_128;
+			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
 				N = N_48K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
 				N = N_48K_MIDCLK;
@@ -481,6 +526,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_48K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_88200:
+			mclk_fs = FS_128;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_882K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -489,7 +535,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_882K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_96000:
-			if(hdmi_drv->tmdsclk >= 594000000)
+			mclk_fs = FS_128;
+			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
 				N = N_96K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
 				N = N_96K_MIDCLK;
@@ -497,6 +544,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_96K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_176400:
+			mclk_fs = FS_128;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_1764K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -505,7 +553,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_1764K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_192000:
-			if(hdmi_drv->tmdsclk >= 594000000)
+			mclk_fs = FS_128;
+			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
 				N = N_192K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
 				N = N_192K_MIDCLK;
@@ -541,7 +590,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 		hdmi_writel(hdmi_dev, AUD_CONF1, v_I2S_MODE(I2S_STANDARD_MODE) | v_I2S_WIDTH(word_length));
 	}
 
-	hdmi_msk_reg(hdmi_dev, AUD_INPUTCLKFS, m_LFS_FACTOR, v_LFS_FACTOR(FS_128));
+	hdmi_msk_reg(hdmi_dev, AUD_INPUTCLKFS, m_LFS_FACTOR, v_LFS_FACTOR(mclk_fs));
 
 	//Set N value
 	hdmi_msk_reg(hdmi_dev, AUD_N3, m_AUD_N3, v_AUD_N3(N >> 16));
@@ -550,6 +599,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 	//Set Automatic CTS generation
 	hdmi_msk_reg(hdmi_dev, AUD_CTS3, m_CTS_MANUAL, v_CTS_MANUAL(0));
 
+	hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE, v_AUDCLK_DISABLE(0));
 	rk3288_hdmi_config_aai(hdmi_drv, audio);
 
 	return 0;
@@ -557,11 +607,23 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 
 void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 {
+	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
+	hdmi_dbg(hdmi_drv->dev, "[%s] %d\n", __FUNCTION__, enable);
+	if(enable == 0) {
+		hdmi_msk_reg(hdmi_dev, FC_GCP, m_FC_SET_AVMUTE, v_FC_SET_AVMUTE(1));
+	}
+	else {
+		if(hdmi_drv->pwr_mode == LOWER_PWR)
+			rk3288_hdmi_set_pwr_mode(NORMAL);
+		hdmi_msk_reg(hdmi_dev, FC_GCP, m_FC_SET_AVMUTE, v_FC_SET_AVMUTE(0));
+	}
 }
 
 int rk3288_hdmi_removed(struct hdmi *hdmi_drv)
 {
+	rk3288_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
+	dev_printk(KERN_INFO , hdmi_drv->dev , "Removed.\n");
 	return 0;
 }
 
