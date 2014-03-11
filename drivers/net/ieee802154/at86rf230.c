@@ -244,6 +244,7 @@ static bool is_rf212(struct at86rf230_local *local)
 #define STATE_TX_ON		0x09
 /* 0x0a - 0x0e */			/* 0x0a - UNSUPPORTED_ATTRIBUTE */
 #define STATE_SLEEP		0x0F
+#define STATE_PREP_DEEP_SLEEP	0x10
 #define STATE_BUSY_RX_AACK	0x11
 #define STATE_BUSY_TX_ARET	0x12
 #define STATE_RX_AACK_ON	0x16
@@ -1107,6 +1108,10 @@ static int at86rf230_probe(struct spi_device *spi)
 		chip = "at86rf212";
 		if (version == 1)
 			ops = &at86rf212_ops;
+		break;
+	case 11:
+		chip = "at86rf233";
+		ops = &at86rf230_ops;
 		break;
 	default:
 		chip = "UNKNOWN";
