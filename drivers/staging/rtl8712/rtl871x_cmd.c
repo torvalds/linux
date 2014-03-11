@@ -910,7 +910,7 @@ void r8712_joinbss_cmd_callback(struct _adapter *padapter, struct cmd_obj *pcmd)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	if ((pcmd->res != H2C_SUCCESS))
+	if (pcmd->res != H2C_SUCCESS)
 		_set_timer(&pmlmepriv->assoc_timer, 1);
 	r8712_free_cmd_obj(pcmd);
 }
@@ -927,7 +927,7 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 					      pcmd->parmbuf;
 	struct wlan_network *tgt_network = &(pmlmepriv->cur_network);
 
-	if ((pcmd->res != H2C_SUCCESS))
+	if (pcmd->res != H2C_SUCCESS)
 		_set_timer(&pmlmepriv->assoc_timer, 1);
 	_cancel_timer(&pmlmepriv->assoc_timer, &timer_cancelled);
 #ifdef __BIG_ENDIAN
