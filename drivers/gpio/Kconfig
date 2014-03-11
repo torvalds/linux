@@ -290,6 +290,12 @@ config GPIO_STA2X11
 	  Say yes here to support the STA2x11/ConneXt GPIO device.
 	  The GPIO module has 128 GPIO pins with alternate functions.
 
+config GPIO_SYSCON
+	tristate "GPIO based on SYSCON"
+	depends on MFD_SYSCON && OF
+	help
+	  Say yes here to support GPIO functionality though SYSCON driver.
+
 config GPIO_TS5500
 	tristate "TS-5500 DIO blocks and compatibles"
 	depends on TS5500 || COMPILE_TEST
