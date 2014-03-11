@@ -1852,17 +1852,18 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	else
 		type = "Event";
 
-	printk("sbridge: HANDLING MCE MEMORY ERROR\n");
+	sbridge_mc_printk(mci, KERN_DEBUG, "HANDLING MCE MEMORY ERROR\n");
 
-	printk("CPU %d: Machine Check %s: %Lx Bank %d: %016Lx\n",
-	       mce->extcpu, type, mce->mcgstatus, mce->bank, mce->status);
-	printk("TSC %llx ", mce->tsc);
-	printk("ADDR %llx ", mce->addr);
-	printk("MISC %llx ", mce->misc);
+	sbridge_mc_printk(mci, KERN_DEBUG, "CPU %d: Machine Check %s: %Lx "
+			  "Bank %d: %016Lx\n", mce->extcpu, type,
+			  mce->mcgstatus, mce->bank, mce->status);
+	sbridge_mc_printk(mci, KERN_DEBUG, "TSC %llx ", mce->tsc);
+	sbridge_mc_printk(mci, KERN_DEBUG, "ADDR %llx ", mce->addr);
+	sbridge_mc_printk(mci, KERN_DEBUG, "MISC %llx ", mce->misc);
 
-	printk("PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
-		mce->cpuvendor, mce->cpuid, mce->time,
-		mce->socketid, mce->apicid);
+	sbridge_mc_printk(mci, KERN_DEBUG, "PROCESSOR %u:%x TIME %llu SOCKET "
+			  "%u APIC %x\n", mce->cpuvendor, mce->cpuid,
+			  mce->time, mce->socketid, mce->apicid);
 
 	/* Only handle if it is the right mc controller */
 	if (cpu_data(mce->cpu).phys_proc_id != pvt->sbridge_dev->mc)
