@@ -1,7 +1,7 @@
 /*
  * net/tipc/port.c: TIPC port code
  *
- * Copyright (c) 1992-2007, Ericsson AB
+ * Copyright (c) 1992-2007, 2014, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -38,6 +38,7 @@
 #include "config.h"
 #include "port.h"
 #include "name_table.h"
+#include "socket.h"
 
 /* Connection management: */
 #define PROBING_INTERVAL 3600000	/* [ms] => 1 h */
@@ -200,23 +201,16 @@ struct tipc_port *tipc_createport(struct sock *sk,
 				  void (*wakeup)(struct tipc_port *),
 				  const u32 importance)
 {
-	struct tipc_port *p_ptr;
+	struct tipc_port *p_ptr = tipc_sk_port(sk);
 	struct tipc_msg *msg;
 	u32 ref;
 
-	p_ptr = kzalloc(sizeof(*p_ptr), GFP_ATOMIC);
-	if (!p_ptr) {
-		pr_warn("Port creation failed, no memory\n");
-		return NULL;
-	}
 	ref = tipc_ref_acquire(p_ptr, &p_ptr->lock);
 	if (!ref) {
-		pr_warn("Port creation failed, ref. table exhausted\n");
-		kfree(p_ptr);
+		pr_warn("Port registration failed, ref. table exhausted\n");
 		return NULL;
 	}
 
-	p_ptr->sk = sk;
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->ref = ref;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
@@ -262,7 +256,6 @@ int tipc_deleteport(struct tipc_port *p_ptr)
 	list_del(&p_ptr->wait_list);
 	spin_unlock_bh(&tipc_port_list_lock);
 	k_term_timer(&p_ptr->timer);
-	kfree(p_ptr);
 	tipc_net_route_msg(buf);
 	return 0;
 }

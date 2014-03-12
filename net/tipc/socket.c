@@ -1,7 +1,7 @@
 /*
  * net/tipc/socket.c: TIPC socket API
  *
- * Copyright (c) 2001-2007, 2012 Ericsson AB
+ * Copyright (c) 2001-2007, 2012-2014, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -38,21 +38,12 @@
 #include "port.h"
 
 #include <linux/export.h>
-#include <net/sock.h>
 
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
 
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 
-struct tipc_sock {
-	struct sock sk;
-	struct tipc_port *p;
-	unsigned int conn_timeout;
-};
-
-#define tipc_sk(sk) ((struct tipc_sock *)(sk))
-#define tipc_sk_port(sk) (tipc_sk(sk)->p)
 
 static int backlog_rcv(struct sock *sk, struct sk_buff *skb);
 static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf);
@@ -113,6 +104,8 @@ static struct proto tipc_proto_kern;
  *   - pointer to port structure
  *   - port reference
  */
+
+#include "socket.h"
 
 /**
  * advance_rx_queue - discard first buffer in socket receive queue
@@ -205,7 +198,6 @@ static int tipc_sk_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
 	sk->sk_write_space = tipc_write_space;
-	tipc_sk(sk)->p = tp_ptr;
 	tipc_sk(sk)->conn_timeout = CONN_TIMEOUT_DEFAULT;
 
 	spin_unlock_bh(tp_ptr->lock);
@@ -437,18 +429,17 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
 			int *uaddr_len, int peer)
 {
 	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
-	struct tipc_sock *tsock = tipc_sk(sock->sk);
+	struct tipc_port *port = tipc_sk_port(sock->sk);
 
 	memset(addr, 0, sizeof(*addr));
 	if (peer) {
 		if ((sock->state != SS_CONNECTED) &&
 			((peer != 2) || (sock->state != SS_DISCONNECTING)))
 			return -ENOTCONN;
-
-		addr->addr.id.ref = tipc_port_peerport(tsock->p);
-		addr->addr.id.node = tipc_port_peernode(tsock->p);
+		addr->addr.id.ref = tipc_port_peerport(port);
+		addr->addr.id.node = tipc_port_peernode(port);
 	} else {
-		addr->addr.id.ref = tsock->p->ref;
+		addr->addr.id.ref = port->ref;
 		addr->addr.id.node = tipc_own_addr;
 	}
 
@@ -879,14 +870,13 @@ exit:
  */
 static int auto_connect(struct socket *sock, struct tipc_msg *msg)
 {
-	struct tipc_sock *tsock = tipc_sk(sock->sk);
-	struct tipc_port *p_ptr;
+	struct tipc_port *p_ptr = tipc_sk_port(sock->sk);
 	struct tipc_portid peer;
 
 	peer.ref = msg_origport(msg);
 	peer.node = msg_orignode(msg);
 
-	p_ptr = tipc_port_deref(tsock->p->ref);
+	p_ptr = tipc_port_deref(p_ptr->ref);
 	if (!p_ptr)
 		return -EINVAL;
 
@@ -1270,17 +1260,18 @@ static void tipc_data_ready(struct sock *sk, int len)
 
 /**
  * filter_connect - Handle all incoming messages for a connection-based socket
- * @tsock: TIPC socket
+ * @port: TIPC port
  * @msg: message
  *
  * Returns TIPC error status code and socket error status code
  * once it encounters some errors
  */
-static u32 filter_connect(struct tipc_sock *tsock, struct sk_buff **buf)
+static u32 filter_connect(struct tipc_port *port, struct sk_buff **buf)
 {
-	struct socket *sock = tsock->sk.sk_socket;
+	struct sock *sk = tipc_port_to_sk(port);
+	struct socket *sock = sk->sk_socket;
 	struct tipc_msg *msg = buf_msg(*buf);
-	struct sock *sk = &tsock->sk;
+
 	u32 retval = TIPC_ERR_NO_PORT;
 	int res;
 
@@ -1290,10 +1281,10 @@ static u32 filter_connect(struct tipc_sock *tsock, struct sk_buff **buf)
 	switch ((int)sock->state) {
 	case SS_CONNECTED:
 		/* Accept only connection-based messages sent by peer */
-		if (msg_connected(msg) && tipc_port_peer_msg(tsock->p, msg)) {
+		if (msg_connected(msg) && tipc_port_peer_msg(port, msg)) {
 			if (unlikely(msg_errcode(msg))) {
 				sock->state = SS_DISCONNECTING;
-				__tipc_port_disconnect(tsock->p);
+				__tipc_port_disconnect(port);
 			}
 			retval = TIPC_OK;
 		}
@@ -1401,7 +1392,7 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		if (msg_connected(msg))
 			return TIPC_ERR_NO_PORT;
 	} else {
-		res = filter_connect(tipc_sk(sk), &buf);
+		res = filter_connect(tipc_sk_port(sk), &buf);
 		if (res != TIPC_OK || buf == NULL)
 			return res;
 	}
@@ -1447,9 +1438,9 @@ static int backlog_rcv(struct sock *sk, struct sk_buff *buf)
  *
  * Returns TIPC error status code (TIPC_OK if message is not to be rejected)
  */
-static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
+static u32 dispatch(struct tipc_port *port, struct sk_buff *buf)
 {
-	struct sock *sk = tport->sk;
+	struct sock *sk = tipc_port_to_sk(port);
 	u32 res;
 
 	/*
@@ -1478,10 +1469,9 @@ static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
  *
  * Called with port lock already taken.
  */
-static void wakeupdispatch(struct tipc_port *tport)
+static void wakeupdispatch(struct tipc_port *port)
 {
-	struct sock *sk = tport->sk;
-
+	struct sock *sk = tipc_port_to_sk(port);
 	sk->sk_write_space(sk);
 }
 
@@ -1661,8 +1651,7 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 {
 	struct sock *new_sk, *sk = sock->sk;
 	struct sk_buff *buf;
-	struct tipc_sock *new_tsock;
-	struct tipc_port *new_tport;
+	struct tipc_port *new_port;
 	struct tipc_msg *msg;
 	struct tipc_portid peer;
 	u32 new_ref;
@@ -1675,7 +1664,6 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 		res = -EINVAL;
 		goto exit;
 	}
-
 	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 	res = tipc_wait_for_accept(sock, timeo);
 	if (res)
@@ -1688,9 +1676,8 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 		goto exit;
 
 	new_sk = new_sock->sk;
-	new_tsock = tipc_sk(new_sk);
-	new_tport = new_tsock->p;
-	new_ref = new_tport->ref;
+	new_port = tipc_sk_port(new_sk);
+	new_ref = new_port->ref;
 	msg = buf_msg(buf);
 
 	/* we lock on new_sk; but lockdep sees the lock on sk */
@@ -1710,8 +1697,8 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 
 	tipc_set_portimportance(new_ref, msg_importance(msg));
 	if (msg_named(msg)) {
-		new_tport->conn_type = msg_nametype(msg);
-		new_tport->conn_instance = msg_nameinst(msg);
+		new_port->conn_type = msg_nametype(msg);
+		new_port->conn_instance = msg_nameinst(msg);
 	}
 
 	/*
@@ -1729,7 +1716,6 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 		skb_set_owner_r(buf, new_sk);
 	}
 	release_sock(new_sk);
-
 exit:
 	release_sock(sk);
 	return res;

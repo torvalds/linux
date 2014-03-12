@@ -1,7 +1,7 @@
 /*
  * net/tipc/port.h: Include file for TIPC port code
  *
- * Copyright (c) 1994-2007, Ericsson AB
+ * Copyright (c) 1994-2007, 2014, Ericsson AB
  * Copyright (c) 2004-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -48,7 +48,6 @@
 
 /**
  * struct tipc_port - TIPC port structure
- * @sk: pointer to socket handle
  * @lock: pointer to spinlock for controlling access to port
  * @connected: non-zero if port is currently connected to a peer port
  * @conn_type: TIPC type used when connection was established
@@ -74,7 +73,6 @@
  * @subscription: "node down" subscription used to terminate failed connections
  */
 struct tipc_port {
-	struct sock *sk;
 	spinlock_t *lock;
 	int connected;
 	u32 conn_type;
