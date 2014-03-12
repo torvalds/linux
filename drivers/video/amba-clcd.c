@@ -780,10 +780,10 @@ static int clcdfb_dt_init(struct clcd_fb *fb)
 
 	if (!fb->panel)
 		return -EINVAL;
-	fb->fb.fix.smem_len = fb->panel->mode.xres * fb->panel->mode.yres * 2;
+	fb->fb.fix.smem_len = fb->panel->mode.xres * fb->panel->mode.yres * 4;
 
 	fb->board->name		= "Device Tree CLCD PL111";
-	fb->board->caps		= CLCD_CAP_5551 | CLCD_CAP_565;
+	fb->board->caps		= CLCD_CAP_5551 | CLCD_CAP_565 | CLCD_CAP_888;
 	fb->board->check	= clcdfb_check;
 	fb->board->decode	= clcdfb_decode;
 
