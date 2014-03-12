@@ -511,6 +511,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			      regmap_irq_get_domain(tps65910->irq_data));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
+		tps65910_irq_exit(tps65910);
 		return ret;
 	}
 
