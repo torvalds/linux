@@ -89,6 +89,7 @@
 		camldo1_reg: camldo1 {
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
 		};
 
 		sdldo_reg: sdldo {
