@@ -431,17 +431,26 @@ static int fsl_esai_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int fsl_esai_startup(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
+	int ret;
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
 
 	/*
 	 * Some platforms might use the same bit to gate all three or two of
 	 * clocks, so keep all clocks open/close at the same time for safety
 	 */
-	clk_prepare_enable(esai_priv->coreclk);
-	if (!IS_ERR(esai_priv->extalclk))
-		clk_prepare_enable(esai_priv->extalclk);
-	if (!IS_ERR(esai_priv->fsysclk))
-		clk_prepare_enable(esai_priv->fsysclk);
+	ret = clk_prepare_enable(esai_priv->coreclk);
+	if (ret)
+		return ret;
+	if (!IS_ERR(esai_priv->extalclk)) {
+		ret = clk_prepare_enable(esai_priv->extalclk);
+		if (ret)
+			goto err_extalck;
+	}
+	if (!IS_ERR(esai_priv->fsysclk)) {
+		ret = clk_prepare_enable(esai_priv->fsysclk);
+		if (ret)
+			goto err_fsysclk;
+	}
 
 	if (!dai->active) {
 		/* Reset Port C */
@@ -463,6 +472,14 @@ static int fsl_esai_startup(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
+
+err_fsysclk:
+	if (!IS_ERR(esai_priv->extalclk))
+		clk_disable_unprepare(esai_priv->extalclk);
+err_extalck:
+	clk_disable_unprepare(esai_priv->coreclk);
+
+	return ret;
 }
 
 static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
@@ -661,7 +678,7 @@ static bool fsl_esai_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_config fsl_esai_regmap_config = {
+static struct regmap_config fsl_esai_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -686,6 +703,9 @@ static int fsl_esai_probe(struct platform_device *pdev)
 
 	esai_priv->pdev = pdev;
 	strcpy(esai_priv->name, np->name);
+
+	if (of_property_read_bool(np, "big-endian"))
+		fsl_esai_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
