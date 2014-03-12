@@ -2029,14 +2029,15 @@ static int rk3288_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 		dev_drv->screen_ctr_info->io_disable();
 	dev_drv->suspend_flag = 1;
 	flush_kthread_worker(&dev_drv->update_regs_worker);
-
+	rk3288_lcdc_disable_irq(lcdc_dev);
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
-		rk3288_lcdc_disable_irq(lcdc_dev);
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLANK_EN,
+					v_DSP_BLANK_EN(1));	
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_OUT_ZERO,
-			     v_DSP_OUT_ZERO(1));
+			     		v_DSP_OUT_ZERO(1));
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
-			     v_STANDBY_EN(1));
+			    		v_STANDBY_EN(1));
 		lcdc_cfg_done(lcdc_dev);
 		spin_unlock(&lcdc_dev->reg_lock);
 	} else {
@@ -2082,6 +2083,8 @@ static int rk3288_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 			     v_DSP_OUT_ZERO(0));
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
 			     v_STANDBY_EN(0));
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLANK_EN,
+					v_DSP_BLANK_EN(0));	
 		lcdc_cfg_done(lcdc_dev);
 
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -2098,29 +2101,22 @@ static int rk3288_lcdc_blank(struct rk_lcdc_driver *dev_drv,
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 
-	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		switch (blank_mode) {
 		case FB_BLANK_UNBLANK:
 			rk3288_lcdc_early_resume(dev_drv);
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLANK_EN,
-				     v_DSP_BLANK_EN(0));
 			break;
 		case FB_BLANK_NORMAL:
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLANK_EN,
-				     v_DSP_BLANK_EN(1));
+
 			rk3288_lcdc_early_suspend(dev_drv);
 			break;
 		default:
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLANK_EN,
-				     v_DSP_BLANK_EN(1));
 			rk3288_lcdc_early_suspend(dev_drv);
 			break;
 		}
 		lcdc_cfg_done(lcdc_dev);
 
 	}
-	spin_unlock(&lcdc_dev->reg_lock);
 
 	dev_info(dev_drv->dev, "blank mode:%d\n", blank_mode);
 
