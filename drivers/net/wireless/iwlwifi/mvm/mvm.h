@@ -984,6 +984,8 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 /* Low latency */
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       bool value);
+/* get SystemLowLatencyMode - only needed for beacon threshold? */
+bool iwl_mvm_low_latency(struct iwl_mvm *mvm);
 /* get VMACLowLatencyMode */
 static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 {

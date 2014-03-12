@@ -74,6 +74,11 @@
 struct iwl_mvm_scan_params {
 	u32 max_out_time;
 	u32 suspend_time;
+	bool passive_fragmented;
+	struct _dwell {
+		u16 passive;
+		u16 active;
+	} dwell[IEEE80211_NUM_BANDS];
 };
 
 static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
@@ -165,15 +170,14 @@ static u16 iwl_mvm_get_passive_dwell(enum ieee80211_band band)
 
 static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
 				       struct cfg80211_scan_request *req,
-				       bool basic_ssid)
+				       bool basic_ssid,
+				       struct iwl_mvm_scan_params *params)
 {
-	u16 passive_dwell = iwl_mvm_get_passive_dwell(req->channels[0]->band);
-	u16 active_dwell = iwl_mvm_get_active_dwell(req->channels[0]->band,
-						    req->n_ssids);
 	struct iwl_scan_channel *chan = (struct iwl_scan_channel *)
 		(cmd->data + le16_to_cpu(cmd->tx_cmd.len));
 	int i;
 	int type = BIT(req->n_ssids) - 1;
+	enum ieee80211_band band = req->channels[0]->band;
 
 	if (!basic_ssid)
 		type |= BIT(req->n_ssids);
@@ -183,8 +187,8 @@ static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
 		chan->type = cpu_to_le32(type);
 		if (req->channels[i]->flags & IEEE80211_CHAN_NO_IR)
 			chan->type &= cpu_to_le32(~SCAN_CHANNEL_TYPE_ACTIVE);
-		chan->active_dwell = cpu_to_le16(active_dwell);
-		chan->passive_dwell = cpu_to_le16(passive_dwell);
+		chan->active_dwell = cpu_to_le16(params->dwell[band].active);
+		chan->passive_dwell = cpu_to_le16(params->dwell[band].passive);
 		chan->iteration_count = cpu_to_le16(1);
 		chan++;
 	}
@@ -262,19 +266,65 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 }
 
 static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     int n_ssids,
 				     struct iwl_mvm_scan_params *params)
 {
 	bool global_bound = false;
+	enum ieee80211_band band;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_scan_condition_iterator,
 					    &global_bound);
-	if (!global_bound)
-		return;
+	/*
+	 * Under low latency traffic passive scan is fragmented meaning
+	 * that dwell on a particular channel will be fragmented. Each fragment
+	 * dwell time is 20ms and fragments period is 105ms. Skipping to next
+	 * channel will be delayed by the same period - 105ms. So suspend_time
+	 * parameter describing both fragments and channels skipping periods is
+	 * set to 105ms. This value is chosen so that overall passive scan
+	 * duration will not be too long. Max_out_time in this case is set to
+	 * 70ms, so for active scanning operating channel will be left for 70ms
+	 * while for passive still for 20ms (fragment dwell).
+	 */
+	if (global_bound) {
+		if (!iwl_mvm_low_latency(mvm)) {
+			params->suspend_time = ieee80211_tu_to_usec(100);
+			params->max_out_time = ieee80211_tu_to_usec(600);
+		} else {
+			params->suspend_time = ieee80211_tu_to_usec(105);
+			/* P2P doesn't support fragmented passive scan, so
+			 * configure max_out_time to be at least longest dwell
+			 * time for passive scan.
+			 */
+			if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p) {
+				params->max_out_time = ieee80211_tu_to_usec(70);
+				params->passive_fragmented = true;
+			} else {
+				u32 passive_dwell;
 
-	params->suspend_time = ieee80211_tu_to_usec(100);
-	params->max_out_time = ieee80211_tu_to_usec(600);
+				/*
+				 * Use band G so that passive channel dwell time
+				 * will be assigned with maximum value.
+				 */
+				band = IEEE80211_BAND_2GHZ;
+				passive_dwell = iwl_mvm_get_passive_dwell(band);
+				params->max_out_time =
+					ieee80211_tu_to_usec(passive_dwell);
+			}
+		}
+	}
+
+	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
+		if (params->passive_fragmented)
+			params->dwell[band].passive = 20;
+		else
+			params->dwell[band].passive =
+				iwl_mvm_get_passive_dwell(band);
+		params->dwell[band].active = iwl_mvm_get_active_dwell(band,
+								      n_ssids);
+	}
 }
 
 int iwl_mvm_scan_request(struct iwl_mvm *mvm,
@@ -311,9 +361,11 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	cmd->quiet_plcp_th = cpu_to_le16(IWL_PLCP_QUIET_THRESH);
 	cmd->rxchain_sel_flags = iwl_mvm_scan_rx_chain(mvm);
 
-	iwl_mvm_scan_calc_params(mvm, &params);
+	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, &params);
 	cmd->max_out_time = cpu_to_le32(params.max_out_time);
 	cmd->suspend_time = cpu_to_le32(params.suspend_time);
+	if (params.passive_fragmented)
+		cmd->scan_flags |= SCAN_FLAGS_FRAGMENTED_SCAN;
 
 	cmd->rxon_flags = iwl_mvm_scan_rxon_flags(req);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
@@ -360,7 +412,7 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 			    req->ie, req->ie_len,
 			    mvm->fw->ucode_capa.max_probe_length));
 
-	iwl_mvm_scan_fill_channels(cmd, req, basic_ssid);
+	iwl_mvm_scan_fill_channels(cmd, req, basic_ssid, &params);
 
 	cmd->len = cpu_to_le16(sizeof(struct iwl_scan_cmd) +
 		le16_to_cpu(cmd->tx_cmd.len) +
@@ -554,10 +606,9 @@ static void iwl_scan_offload_build_tx_cmd(struct iwl_mvm *mvm,
 static void iwl_build_scan_cmd(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       struct cfg80211_sched_scan_request *req,
-			       struct iwl_scan_offload_cmd *scan)
+			       struct iwl_scan_offload_cmd *scan,
+			       struct iwl_mvm_scan_params *params)
 {
-	struct iwl_mvm_scan_params params = {};
-
 	scan->channel_count =
 		mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels +
 		mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
@@ -566,14 +617,16 @@ static void iwl_build_scan_cmd(struct iwl_mvm *mvm,
 	scan->good_CRC_th = IWL_GOOD_CRC_TH_DEFAULT;
 	scan->rx_chain = iwl_mvm_scan_rx_chain(mvm);
 
-	iwl_mvm_scan_calc_params(mvm, &params);
-	scan->max_out_time = cpu_to_le32(params.max_out_time);
-	scan->suspend_time = cpu_to_le32(params.suspend_time);
+	scan->max_out_time = cpu_to_le32(params->max_out_time);
+	scan->suspend_time = cpu_to_le32(params->suspend_time);
 
 	scan->filter_flags |= cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					  MAC_FILTER_IN_BEACON);
 	scan->scan_type = cpu_to_le32(SCAN_TYPE_BACKGROUND);
 	scan->rep_count = cpu_to_le32(1);
+
+	if (params->passive_fragmented)
+		scan->scan_flags |= SCAN_FLAGS_FRAGMENTED_SCAN;
 }
 
 static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
@@ -638,12 +691,11 @@ static void iwl_build_channel_cfg(struct iwl_mvm *mvm,
 				  struct iwl_scan_channel_cfg *channels,
 				  enum ieee80211_band band,
 				  int *head, int *tail,
-				  u32 ssid_bitmap)
+				  u32 ssid_bitmap,
+				  struct iwl_mvm_scan_params *params)
 {
 	struct ieee80211_supported_band *s_band;
-	int n_probes = req->n_ssids;
 	int n_channels = req->n_channels;
-	u8 active_dwell, passive_dwell;
 	int i, j, index = 0;
 	bool partial;
 
@@ -653,8 +705,6 @@ static void iwl_build_channel_cfg(struct iwl_mvm *mvm,
 	 * to scan. So add requested channels to head of the list and others to
 	 * the end.
 	*/
-	active_dwell = iwl_mvm_get_active_dwell(band, n_probes);
-	passive_dwell = iwl_mvm_get_passive_dwell(band);
 	s_band = &mvm->nvm_data->bands[band];
 
 	for (i = 0; i < s_band->n_channels && *head <= *tail; i++) {
@@ -678,8 +728,8 @@ static void iwl_build_channel_cfg(struct iwl_mvm *mvm,
 		channels->channel_number[index] =
 			cpu_to_le16(ieee80211_frequency_to_channel(
 					s_band->channels[i].center_freq));
-		channels->dwell_time[index][0] = active_dwell;
-		channels->dwell_time[index][1] = passive_dwell;
+		channels->dwell_time[index][0] = params->dwell[band].active;
+		channels->dwell_time[index][1] = params->dwell[band].passive;
 
 		channels->iter_count[index] = cpu_to_le16(1);
 		channels->iter_interval[index] = 0;
@@ -721,6 +771,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 		.id = SCAN_OFFLOAD_CONFIG_CMD,
 		.flags = CMD_SYNC,
 	};
+	struct iwl_mvm_scan_params params = {};
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -731,7 +782,8 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	if (!scan_cfg)
 		return -ENOMEM;
 
-	iwl_build_scan_cmd(mvm, vif, req, &scan_cfg->scan_cmd);
+	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, &params);
+	iwl_build_scan_cmd(mvm, vif, req, &scan_cfg->scan_cmd, &params);
 	scan_cfg->scan_cmd.len = cpu_to_le16(cmd_len);
 
 	iwl_scan_offload_build_ssid(req, &scan_cfg->scan_cmd, &ssid_bitmap);
@@ -743,7 +795,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 					      scan_cfg->data);
 		iwl_build_channel_cfg(mvm, req, &scan_cfg->channel_cfg,
 				      IEEE80211_BAND_2GHZ, &head, &tail,
-				      ssid_bitmap);
+				      ssid_bitmap, &params);
 	}
 	if (band_5ghz) {
 		iwl_scan_offload_build_tx_cmd(mvm, vif, ies,
@@ -753,7 +805,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 						SCAN_OFFLOAD_PROBE_REQ_SIZE);
 		iwl_build_channel_cfg(mvm, req, &scan_cfg->channel_cfg,
 				      IEEE80211_BAND_5GHZ, &head, &tail,
-				      ssid_bitmap);
+				      ssid_bitmap, &params);
 	}
 
 	cmd.data[0] = scan_cfg;

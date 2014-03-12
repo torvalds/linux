@@ -622,3 +622,22 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	return iwl_mvm_power_update_mac(mvm, vif);
 }
+
+static void iwl_mvm_ll_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
+{
+	bool *result = _data;
+
+	if (iwl_mvm_vif_low_latency(iwl_mvm_vif_from_mac80211(vif)))
+		*result = true;
+}
+
+bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
+{
+	bool result = false;
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_ll_iter, &result);
+
+	return result;
+}
