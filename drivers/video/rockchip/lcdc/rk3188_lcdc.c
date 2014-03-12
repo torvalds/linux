@@ -993,37 +993,6 @@ static int rk3188_lcdc_set_par(struct rk_lcdc_driver *dev_drv,int win_id)
 }
 
 
-static int rk3188_lcdc_blank(struct rk_lcdc_driver *dev_drv,
-			     int win_id, int blank_mode)
-{
-	struct lcdc_device *lcdc_dev =
-	    container_of(dev_drv, struct lcdc_device, driver);
-
-	spin_lock(&lcdc_dev->reg_lock);
-	if (likely(lcdc_dev->clk_on)) {
-		switch (blank_mode) {
-		case FB_BLANK_UNBLANK:
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN,
-				     v_BLANK_EN(0));
-			break;
-		case FB_BLANK_NORMAL:
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN,
-				     v_BLANK_EN(1));
-			break;
-		default:
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN,
-				     v_BLANK_EN(1));
-			break;
-		}
-		lcdc_cfg_done(lcdc_dev);
-
-	}
-	spin_unlock(&lcdc_dev->reg_lock);
-
-	dev_info(dev_drv->dev, "blank mode:%d\n", blank_mode);
-
-	return 0;
-}
 
 static int rk3188_lcdc_ioctl(struct rk_lcdc_driver *dev_drv, unsigned int cmd,
 			     unsigned long arg, int win_id)
@@ -1064,15 +1033,16 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	if (dev_drv->screen0->standby)
-		dev_drv->screen0->standby(1);
-	if (dev_drv->screen_ctr_info->io_disable)
-		dev_drv->screen_ctr_info->io_disable();
+	if (dev_drv->suspend_flag)
+		return 0;
+	
 	dev_drv->suspend_flag = 1;
 	flush_kthread_worker(&dev_drv->update_regs_worker);
-
+	
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN,
+			     v_BLANK_EN(1));
 		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_FS_INT_CLEAR,
 			     v_FS_INT_CLEAR(1));
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_OUT_ZERO,
@@ -1086,16 +1056,7 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 		return 0;
 	}
 	rk3188_lcdc_clk_disable(lcdc_dev);
-#if defined(CONFIG_ARCH_RK3026)
-	int gpio_dclk = iomux_mode_to_gpio(LCDC0_DCLK);
-	int ret = gpio_request(gpio_dclk, NULL);
-	if (unlikely(ret < 0)) {
-		dev_info(dev_drv->dev, "Failed to request gpio:lcdc dclk\n");
-		return ret;
-	}
-	gpio_direction_output(gpio_dclk, GPIO_LOW);
-#endif
-
+	rk_disp_pwr_disable(dev_drv);
 	return 0;
 }
 
@@ -1106,14 +1067,10 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	int i = 0;
 	int __iomem *c;
 	int v;
-#if defined(CONFIG_ARCH_RK3026)
-	int gpio_dclk = iomux_mode_to_gpio(LCDC0_DCLK);
-	gpio_free(gpio_dclk);
-	iomux_set(LCDC0_DCLK);
-#endif
 
-	if (dev_drv->screen_ctr_info->io_enable)
-		dev_drv->screen_ctr_info->io_enable();
+	if (!dev_drv->suspend_flag)
+		return 0;
+	rk_disp_pwr_enable(dev_drv);
 	dev_drv->suspend_flag = 0;
 
 	if (lcdc_dev->atv_layer_cnt) {
@@ -1139,13 +1096,39 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 			     v_DSP_OUT_ZERO(0));
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
 			     v_LCDC_STANDBY(0));
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN,
+			     v_BLANK_EN(0));
 		lcdc_cfg_done(lcdc_dev);
 
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
 
-	if (dev_drv->screen0->standby)
-		dev_drv->screen0->standby(0);
+	return 0;
+}
+
+
+static int rk3188_lcdc_blank(struct rk_lcdc_driver *dev_drv,
+			     int win_id, int blank_mode)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+
+	switch (blank_mode) {
+	case FB_BLANK_UNBLANK:
+		rk3188_lcdc_early_resume(dev_drv);
+		break;
+	case FB_BLANK_NORMAL:
+		rk3188_lcdc_early_suspend(dev_drv);
+		break;
+	default:
+		rk3188_lcdc_early_suspend(dev_drv);
+		break;
+	}
+		
+
+	
+
+	dev_info(dev_drv->dev, "blank mode:%d\n", blank_mode);
 
 	return 0;
 }
