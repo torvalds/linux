@@ -778,6 +778,8 @@ static struct of_device_id ext_clk_match[] __initdata = {
 /* register exynos5420 clocks */
 static void __init exynos5420_clk_init(struct device_node *np)
 {
+	struct samsung_clk_provider *ctx;
+
 	if (np) {
 		reg_base = of_iomap(np, 0);
 		if (!reg_base)
@@ -786,21 +788,25 @@ static void __init exynos5420_clk_init(struct device_node *np)
 		panic("%s: unable to determine soc\n", __func__);
 	}
 
-	samsung_clk_init(np, reg_base, CLK_NR_CLKS);
-	samsung_clk_of_register_fixed_ext(exynos5420_fixed_rate_ext_clks,
+	ctx = samsung_clk_init(np, reg_base, CLK_NR_CLKS);
+	if (!ctx)
+		panic("%s: unable to allocate context.\n", __func__);
+
+	samsung_clk_of_register_fixed_ext(ctx, exynos5420_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos5420_fixed_rate_ext_clks),
 			ext_clk_match);
-	samsung_clk_register_pll(exynos5420_plls, ARRAY_SIZE(exynos5420_plls),
-					reg_base);
-	samsung_clk_register_fixed_rate(exynos5420_fixed_rate_clks,
+	samsung_clk_register_pll(ctx, exynos5420_plls,
+			ARRAY_SIZE(exynos5420_plls),
+			reg_base);
+	samsung_clk_register_fixed_rate(ctx, exynos5420_fixed_rate_clks,
 			ARRAY_SIZE(exynos5420_fixed_rate_clks));
-	samsung_clk_register_fixed_factor(exynos5420_fixed_factor_clks,
+	samsung_clk_register_fixed_factor(ctx, exynos5420_fixed_factor_clks,
 			ARRAY_SIZE(exynos5420_fixed_factor_clks));
-	samsung_clk_register_mux(exynos5420_mux_clks,
+	samsung_clk_register_mux(ctx, exynos5420_mux_clks,
 			ARRAY_SIZE(exynos5420_mux_clks));
-	samsung_clk_register_div(exynos5420_div_clks,
+	samsung_clk_register_div(ctx, exynos5420_div_clks,
 			ARRAY_SIZE(exynos5420_div_clks));
-	samsung_clk_register_gate(exynos5420_gate_clks,
+	samsung_clk_register_gate(ctx, exynos5420_gate_clks,
 			ARRAY_SIZE(exynos5420_gate_clks));
 
 	exynos5420_clk_sleep_init();

@@ -947,8 +947,9 @@ struct clk * __init samsung_clk_register_pll2550x(const char *name,
 	return clk;
 }
 
-static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
-						void __iomem *base)
+static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
+				struct samsung_pll_clock *pll_clk,
+				void __iomem *base)
 {
 	struct samsung_clk_pll *pll;
 	struct clk *clk;
@@ -1066,7 +1067,7 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 		return;
 	}
 
-	samsung_clk_add_lookup(clk, pll_clk->id);
+	samsung_clk_add_lookup(ctx, clk, pll_clk->id);
 
 	if (!pll_clk->alias)
 		return;
@@ -1077,11 +1078,12 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 			__func__, pll_clk->name, ret);
 }
 
-void __init samsung_clk_register_pll(struct samsung_pll_clock *pll_list,
-				unsigned int nr_pll, void __iomem *base)
+void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
+			struct samsung_pll_clock *pll_list,
+			unsigned int nr_pll, void __iomem *base)
 {
 	int cnt;
 
 	for (cnt = 0; cnt < nr_pll; cnt++)
-		_samsung_clk_register_pll(&pll_list[cnt], base);
+		_samsung_clk_register_pll(ctx, &pll_list[cnt], base);
 }

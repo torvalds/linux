@@ -442,12 +442,14 @@ static struct samsung_clock_alias s3c6410_clock_aliases[] = {
 	ALIAS(MEM0_SROM, NULL, "srom"),
 };
 
-static void __init s3c64xx_clk_register_fixed_ext(unsigned long fin_pll_f,
-							unsigned long xusbxti_f)
+static void __init s3c64xx_clk_register_fixed_ext(
+				struct samsung_clk_provider *ctx,
+				unsigned long fin_pll_f,
+				unsigned long xusbxti_f)
 {
 	s3c64xx_fixed_rate_ext_clks[0].fixed_rate = fin_pll_f;
 	s3c64xx_fixed_rate_ext_clks[1].fixed_rate = xusbxti_f;
-	samsung_clk_register_fixed_rate(s3c64xx_fixed_rate_ext_clks,
+	samsung_clk_register_fixed_rate(ctx, s3c64xx_fixed_rate_ext_clks,
 				ARRAY_SIZE(s3c64xx_fixed_rate_ext_clks));
 }
 
@@ -456,6 +458,8 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 			     unsigned long xusbxti_f, bool s3c6400,
 			     void __iomem *base)
 {
+	struct samsung_clk_provider *ctx;
+
 	reg_base = base;
 	is_s3c6400 = s3c6400;
 
@@ -465,48 +469,50 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 			panic("%s: failed to map registers\n", __func__);
 	}
 
-	samsung_clk_init(np, reg_base, NR_CLKS);
+	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
+	if (!ctx)
+		panic("%s: unable to allocate context.\n", __func__);
 
 	/* Register external clocks. */
 	if (!np)
-		s3c64xx_clk_register_fixed_ext(xtal_f, xusbxti_f);
+		s3c64xx_clk_register_fixed_ext(ctx, xtal_f, xusbxti_f);
 
 	/* Register PLLs. */
-	samsung_clk_register_pll(s3c64xx_pll_clks,
+	samsung_clk_register_pll(ctx, s3c64xx_pll_clks,
 				ARRAY_SIZE(s3c64xx_pll_clks), reg_base);
 
 	/* Register common internal clocks. */
-	samsung_clk_register_fixed_rate(s3c64xx_fixed_rate_clks,
+	samsung_clk_register_fixed_rate(ctx, s3c64xx_fixed_rate_clks,
 					ARRAY_SIZE(s3c64xx_fixed_rate_clks));
-	samsung_clk_register_mux(s3c64xx_mux_clks,
+	samsung_clk_register_mux(ctx, s3c64xx_mux_clks,
 					ARRAY_SIZE(s3c64xx_mux_clks));
-	samsung_clk_register_div(s3c64xx_div_clks,
+	samsung_clk_register_div(ctx, s3c64xx_div_clks,
 					ARRAY_SIZE(s3c64xx_div_clks));
-	samsung_clk_register_gate(s3c64xx_gate_clks,
+	samsung_clk_register_gate(ctx, s3c64xx_gate_clks,
 					ARRAY_SIZE(s3c64xx_gate_clks));
 
 	/* Register SoC-specific clocks. */
 	if (is_s3c6400) {
-		samsung_clk_register_mux(s3c6400_mux_clks,
+		samsung_clk_register_mux(ctx, s3c6400_mux_clks,
 					ARRAY_SIZE(s3c6400_mux_clks));
-		samsung_clk_register_div(s3c6400_div_clks,
+		samsung_clk_register_div(ctx, s3c6400_div_clks,
 					ARRAY_SIZE(s3c6400_div_clks));
-		samsung_clk_register_gate(s3c6400_gate_clks,
+		samsung_clk_register_gate(ctx, s3c6400_gate_clks,
 					ARRAY_SIZE(s3c6400_gate_clks));
-		samsung_clk_register_alias(s3c6400_clock_aliases,
+		samsung_clk_register_alias(ctx, s3c6400_clock_aliases,
 					ARRAY_SIZE(s3c6400_clock_aliases));
 	} else {
-		samsung_clk_register_mux(s3c6410_mux_clks,
+		samsung_clk_register_mux(ctx, s3c6410_mux_clks,
 					ARRAY_SIZE(s3c6410_mux_clks));
-		samsung_clk_register_div(s3c6410_div_clks,
+		samsung_clk_register_div(ctx, s3c6410_div_clks,
 					ARRAY_SIZE(s3c6410_div_clks));
-		samsung_clk_register_gate(s3c6410_gate_clks,
+		samsung_clk_register_gate(ctx, s3c6410_gate_clks,
 					ARRAY_SIZE(s3c6410_gate_clks));
-		samsung_clk_register_alias(s3c6410_clock_aliases,
+		samsung_clk_register_alias(ctx, s3c6410_clock_aliases,
 					ARRAY_SIZE(s3c6410_clock_aliases));
 	}
 
-	samsung_clk_register_alias(s3c64xx_clock_aliases,
+	samsung_clk_register_alias(ctx, s3c64xx_clock_aliases,
 					ARRAY_SIZE(s3c64xx_clock_aliases));
 	s3c64xx_clk_sleep_init();
 

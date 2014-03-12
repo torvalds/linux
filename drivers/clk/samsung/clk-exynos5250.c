@@ -686,6 +686,8 @@ static struct of_device_id ext_clk_match[] __initdata = {
 /* register exynox5250 clocks */
 static void __init exynos5250_clk_init(struct device_node *np)
 {
+	struct samsung_clk_provider *ctx;
+
 	if (np) {
 		reg_base = of_iomap(np, 0);
 		if (!reg_base)
@@ -694,11 +696,13 @@ static void __init exynos5250_clk_init(struct device_node *np)
 		panic("%s: unable to determine soc\n", __func__);
 	}
 
-	samsung_clk_init(np, reg_base, CLK_NR_CLKS);
-	samsung_clk_of_register_fixed_ext(exynos5250_fixed_rate_ext_clks,
+	ctx = samsung_clk_init(np, reg_base, CLK_NR_CLKS);
+	if (!ctx)
+		panic("%s: unable to allocate context.\n", __func__);
+	samsung_clk_of_register_fixed_ext(ctx, exynos5250_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos5250_fixed_rate_ext_clks),
 			ext_clk_match);
-	samsung_clk_register_mux(exynos5250_pll_pmux_clks,
+	samsung_clk_register_mux(ctx, exynos5250_pll_pmux_clks,
 				ARRAY_SIZE(exynos5250_pll_pmux_clks));
 
 	if (_get_rate("fin_pll") == 24 * MHZ) {
@@ -709,17 +713,18 @@ static void __init exynos5250_clk_init(struct device_node *np)
 	if (_get_rate("mout_vpllsrc") == 24 * MHZ)
 		exynos5250_plls[vpll].rate_table =  vpll_24mhz_tbl;
 
-	samsung_clk_register_pll(exynos5250_plls, ARRAY_SIZE(exynos5250_plls),
-					reg_base);
-	samsung_clk_register_fixed_rate(exynos5250_fixed_rate_clks,
+	samsung_clk_register_pll(ctx, exynos5250_plls,
+			ARRAY_SIZE(exynos5250_plls),
+			reg_base);
+	samsung_clk_register_fixed_rate(ctx, exynos5250_fixed_rate_clks,
 			ARRAY_SIZE(exynos5250_fixed_rate_clks));
-	samsung_clk_register_fixed_factor(exynos5250_fixed_factor_clks,
+	samsung_clk_register_fixed_factor(ctx, exynos5250_fixed_factor_clks,
 			ARRAY_SIZE(exynos5250_fixed_factor_clks));
-	samsung_clk_register_mux(exynos5250_mux_clks,
+	samsung_clk_register_mux(ctx, exynos5250_mux_clks,
 			ARRAY_SIZE(exynos5250_mux_clks));
-	samsung_clk_register_div(exynos5250_div_clks,
+	samsung_clk_register_div(ctx, exynos5250_div_clks,
 			ARRAY_SIZE(exynos5250_div_clks));
-	samsung_clk_register_gate(exynos5250_gate_clks,
+	samsung_clk_register_gate(ctx, exynos5250_gate_clks,
 			ARRAY_SIZE(exynos5250_gate_clks));
 
 	exynos5250_clk_sleep_init();
