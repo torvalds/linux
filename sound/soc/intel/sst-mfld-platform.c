@@ -1,5 +1,5 @@
 /*
- *  sst_platform.c - Intel MID Platform driver
+ *  sst_mfld_platform.c - Intel MID Platform driver
  *
  *  Copyright (C) 2010-2013 Intel Corp
  *  Author: Vinod Koul <vinod.koul@intel.com>
@@ -33,7 +33,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/compress_driver.h>
-#include "sst_platform.h"
+#include "sst-mfld-platform.h"
 
 static struct sst_device *sst;
 static DEFINE_MUTEX(sst_lock);
@@ -709,7 +709,7 @@ static int sst_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver sst_platform_driver = {
 	.driver		= {
-		.name		= "sst-platform",
+		.name		= "sst-mfld-platform",
 		.owner		= THIS_MODULE,
 	},
 	.probe		= sst_platform_probe,
@@ -722,4 +722,4 @@ MODULE_DESCRIPTION("ASoC Intel(R) MID Platform driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:sst-platform");
+MODULE_ALIAS("platform:sst-mfld-platform");

@@ -111,14 +111,9 @@ static void spitz_ext_control(struct snd_soc_dapm_context *dapm)
 static int spitz_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
-
-	mutex_lock(&codec->mutex);
 
 	/* check the jack status at stream startup */
-	spitz_ext_control(&codec->dapm);
-
-	mutex_unlock(&codec->mutex);
+	spitz_ext_control(&rtd->card->dapm);
 
 	return 0;
 }
