@@ -279,7 +279,7 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 			 * the generic firmware, but are not used with
 			 * NMEA and SiRF protocols */
 			dev_dbg(&port->dev,
-				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS",
+				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS\n",
 				__func__, new_rate);
 			return -1;
 		}
