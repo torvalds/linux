@@ -745,7 +745,6 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 
 	spin_lock_init(&brd->bd_lock);
 
-	brd->state		= BOARD_FOUND;
 	brd->runwait		= 0;
 	brd->inhibit_poller	= FALSE;
 	brd->wait_for_bios	= 0;
@@ -820,8 +819,6 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	i = dgap_do_remap(brd);
 	if (i)
 		brd->state = BOARD_FAILED;
-	else
-		brd->state = NEED_RESET;
 
 	return 0;
 }
@@ -4550,8 +4547,6 @@ static void dgap_do_reset_board(struct board_t *brd)
 		return;
 	}
 
-	if (brd->state != BOARD_FAILED)
-		brd->state = FINISHED_RESET;
 }
 
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
