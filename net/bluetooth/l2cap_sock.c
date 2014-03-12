@@ -111,7 +111,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
 		/* We only allow ATT user space socket */
 		if (la.l2_cid &&
-		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
+		    la.l2_cid != cpu_to_le16(L2CAP_CID_ATT))
 			return -EINVAL;
 	}
 
@@ -209,7 +209,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 		 * ATT. Anything else is an invalid combination.
 		 */
 		if (chan->scid != L2CAP_CID_ATT ||
-		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
+		    la.l2_cid != cpu_to_le16(L2CAP_CID_ATT))
 			return -EINVAL;
 
 		/* We don't have the hdev available here to make a
@@ -227,7 +227,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
 		/* We only allow ATT user space socket */
 		if (la.l2_cid &&
-		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
+		    la.l2_cid != cpu_to_le16(L2CAP_CID_ATT))
 			return -EINVAL;
 	}
 

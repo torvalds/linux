@@ -1349,7 +1349,7 @@ static void bredr_setup(struct hci_request *req)
 	hci_req_add(req, HCI_OP_SET_EVENT_FLT, 1, &flt_type);
 
 	/* Connection accept timeout ~20 secs */
-	param = __constant_cpu_to_le16(0x7d00);
+	param = cpu_to_le16(0x7d00);
 	hci_req_add(req, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
 
 	/* AVM Berlin (31), aka "BlueFRITZ!", reports version 1.2,

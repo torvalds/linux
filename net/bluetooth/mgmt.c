@@ -213,7 +213,7 @@ static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
 
-	hdr->opcode = __constant_cpu_to_le16(MGMT_EV_CMD_STATUS);
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_STATUS);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev));
 
@@ -244,7 +244,7 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
 
-	hdr->opcode = __constant_cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev) + rp_len);
 
@@ -270,7 +270,7 @@ static int read_version(struct sock *sk, struct hci_dev *hdev, void *data,
 	BT_DBG("sock %p", sk);
 
 	rp.version = MGMT_VERSION;
-	rp.revision = __constant_cpu_to_le16(MGMT_REVISION);
+	rp.revision = cpu_to_le16(MGMT_REVISION);
 
 	return cmd_complete(sk, MGMT_INDEX_NONE, MGMT_OP_READ_VERSION, 0, &rp,
 			    sizeof(rp));
@@ -294,8 +294,8 @@ static int read_commands(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (!rp)
 		return -ENOMEM;
 
-	rp->num_commands = __constant_cpu_to_le16(num_commands);
-	rp->num_events = __constant_cpu_to_le16(num_events);
+	rp->num_commands = cpu_to_le16(num_commands);
+	rp->num_events = cpu_to_le16(num_events);
 
 	for (i = 0, opcode = rp->opcodes; i < num_commands; i++, opcode++)
 		put_unaligned_le16(mgmt_commands[i], opcode);
@@ -858,8 +858,8 @@ static void enable_advertising(struct hci_request *req)
 		return;
 
 	memset(&cp, 0, sizeof(cp));
-	cp.min_interval = __constant_cpu_to_le16(0x0800);
-	cp.max_interval = __constant_cpu_to_le16(0x0800);
+	cp.min_interval = cpu_to_le16(0x0800);
+	cp.max_interval = cpu_to_le16(0x0800);
 	cp.type = connectable ? LE_ADV_IND : LE_ADV_NONCONN_IND;
 	cp.own_address_type = own_addr_type;
 	cp.channel_map = hdev->le_adv_channel_map;
@@ -1181,7 +1181,7 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 data_len,
 	if (hdev)
 		hdr->index = cpu_to_le16(hdev->id);
 	else
-		hdr->index = __constant_cpu_to_le16(MGMT_INDEX_NONE);
+		hdr->index = cpu_to_le16(MGMT_INDEX_NONE);
 	hdr->len = cpu_to_le16(data_len);
 
 	if (data)
@@ -1493,15 +1493,15 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 		type = PAGE_SCAN_TYPE_INTERLACED;
 
 		/* 160 msec page scan interval */
-		acp.interval = __constant_cpu_to_le16(0x0100);
+		acp.interval = cpu_to_le16(0x0100);
 	} else {
 		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
 
 		/* default 1.28 sec page scan */
-		acp.interval = __constant_cpu_to_le16(0x0800);
+		acp.interval = cpu_to_le16(0x0800);
 	}
 
-	acp.window = __constant_cpu_to_le16(0x0012);
+	acp.window = cpu_to_le16(0x0012);
 
 	if (__cpu_to_le16(hdev->page_scan_interval) != acp.interval ||
 	    __cpu_to_le16(hdev->page_scan_window) != acp.window)
@@ -5696,9 +5696,9 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	ev->rssi = rssi;
 	if (cfm_name)
-		ev->flags |= __constant_cpu_to_le32(MGMT_DEV_FOUND_CONFIRM_NAME);
+		ev->flags |= cpu_to_le32(MGMT_DEV_FOUND_CONFIRM_NAME);
 	if (!ssp)
-		ev->flags |= __constant_cpu_to_le32(MGMT_DEV_FOUND_LEGACY_PAIRING);
+		ev->flags |= cpu_to_le32(MGMT_DEV_FOUND_LEGACY_PAIRING);
 
 	if (eir_len > 0)
 		memcpy(ev->eir, eir, eir_len);
