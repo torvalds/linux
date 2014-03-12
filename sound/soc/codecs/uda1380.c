@@ -237,25 +237,27 @@ static const char *uda1380_os_setting[] = {
 };
 
 static const struct soc_enum uda1380_deemp_enum[] = {
-	SOC_ENUM_SINGLE(UDA1380_DEEMP, 8, 5, uda1380_deemp),
-	SOC_ENUM_SINGLE(UDA1380_DEEMP, 0, 5, uda1380_deemp),
+	SOC_ENUM_SINGLE(UDA1380_DEEMP, 8, ARRAY_SIZE(uda1380_deemp),
+			uda1380_deemp),
+	SOC_ENUM_SINGLE(UDA1380_DEEMP, 0, ARRAY_SIZE(uda1380_deemp),
+			uda1380_deemp),
 };
-static const struct soc_enum uda1380_input_sel_enum =
-	SOC_ENUM_SINGLE(UDA1380_ADC, 2, 4, uda1380_input_sel);		/* SEL_MIC, SEL_LNA */
-static const struct soc_enum uda1380_output_sel_enum =
-	SOC_ENUM_SINGLE(UDA1380_PM, 7, 2, uda1380_output_sel);		/* R02_EN_AVC */
-static const struct soc_enum uda1380_spf_enum =
-	SOC_ENUM_SINGLE(UDA1380_MODE, 14, 4, uda1380_spf_mode);		/* M */
-static const struct soc_enum uda1380_capture_sel_enum =
-	SOC_ENUM_SINGLE(UDA1380_IFACE, 6, 2, uda1380_capture_sel);	/* SEL_SOURCE */
-static const struct soc_enum uda1380_sel_ns_enum =
-	SOC_ENUM_SINGLE(UDA1380_MIXER, 14, 2, uda1380_sel_ns);		/* SEL_NS */
-static const struct soc_enum uda1380_mix_enum =
-	SOC_ENUM_SINGLE(UDA1380_MIXER, 12, 4, uda1380_mix_control);	/* MIX, MIX_POS */
-static const struct soc_enum uda1380_sdet_enum =
-	SOC_ENUM_SINGLE(UDA1380_MIXER, 4, 4, uda1380_sdet_setting);	/* SD_VALUE */
-static const struct soc_enum uda1380_os_enum =
-	SOC_ENUM_SINGLE(UDA1380_MIXER, 0, 3, uda1380_os_setting);	/* OS */
+static SOC_ENUM_SINGLE_DECL(uda1380_input_sel_enum,
+			    UDA1380_ADC, 2, uda1380_input_sel);		/* SEL_MIC, SEL_LNA */
+static SOC_ENUM_SINGLE_DECL(uda1380_output_sel_enum,
+			    UDA1380_PM, 7, uda1380_output_sel);		/* R02_EN_AVC */
+static SOC_ENUM_SINGLE_DECL(uda1380_spf_enum,
+			    UDA1380_MODE, 14, uda1380_spf_mode);		/* M */
+static SOC_ENUM_SINGLE_DECL(uda1380_capture_sel_enum,
+			    UDA1380_IFACE, 6, uda1380_capture_sel);	/* SEL_SOURCE */
+static SOC_ENUM_SINGLE_DECL(uda1380_sel_ns_enum,
+			    UDA1380_MIXER, 14, uda1380_sel_ns);		/* SEL_NS */
+static SOC_ENUM_SINGLE_DECL(uda1380_mix_enum,
+			    UDA1380_MIXER, 12, uda1380_mix_control);	/* MIX, MIX_POS */
+static SOC_ENUM_SINGLE_DECL(uda1380_sdet_enum,
+			    UDA1380_MIXER, 4, uda1380_sdet_setting);	/* SD_VALUE */
+static SOC_ENUM_SINGLE_DECL(uda1380_os_enum,
+			    UDA1380_MIXER, 0, uda1380_os_setting);	/* OS */
 
 /*
  * from -48 dB in 1.5 dB steps (mute instead of -49.5 dB)
