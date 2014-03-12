@@ -942,7 +942,7 @@ rcu_torture_reader(void *arg)
 		__this_cpu_inc(rcu_torture_batch[completed]);
 		preempt_enable();
 		cur_ops->readunlock(idx);
-		schedule();
+		cond_resched();
 		stutter_wait("rcu_torture_reader");
 	} while (!torture_must_stop());
 	if (irqreader && cur_ops->irq_capable)
@@ -1482,10 +1482,13 @@ rcu_torture_init(void)
 	if (cur_ops->init)
 		cur_ops->init(); /* no "goto unwind" prior to this point!!! */
 
-	if (nreaders >= 0)
+	if (nreaders >= 0) {
 		nrealreaders = nreaders;
-	else
-		nrealreaders = 2 * num_online_cpus();
+	} else {
+		nrealreaders = num_online_cpus() - 1;
+		if (nrealreaders <= 0)
+			nrealreaders = 1;
+	}
 	rcu_torture_print_module_parms(cur_ops, "Start of test");
 
 	/* Set up the freelist. */
