@@ -70,6 +70,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x20082000 0x100>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 12>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -252,7 +253,7 @@
 			};
 		};
 
-		gpio1_i2c3 {
+		gpio3_i2c3 {
 			i2c3_sda:i2c3-sda {
 				rockchip,pins = <I2C3_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -734,7 +735,7 @@
 			};
 		};
 
-		gps {
+		gpio1_gps {
 			gps_mag:gps-mag {
 				rockchip,pins = <GPS_MAG>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -805,8 +806,10 @@
 				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC1_VCC>;
 				rockchip,voltage = <VALUE_VOL_DEFAULT>;
 			};
+
 			
-	ap0_vcc_18:ap0-vcc-18 {
+			
+			ap0_vcc_18:ap0-vcc-18 {
 				rockchip,pins = <VIRTUAL_PIN_FOR_AP0_VCC>;
 				rockchip,voltage = <VALUE_VOL_1V8>;
 			};
@@ -845,6 +848,8 @@
 				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC1_VCC>;
 				rockchip,voltage = <VALUE_VOL_1V8>;
 			};
+
+			
 
 			ap0_vcc_33:ap0-vcc-33 {
 				rockchip,pins = <VIRTUAL_PIN_FOR_AP0_VCC>;
