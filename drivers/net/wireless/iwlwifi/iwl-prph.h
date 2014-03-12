@@ -260,4 +260,8 @@ static inline unsigned int SCD_QUEUE_STATUS_BITS(unsigned int chnl)
 
 /*********************** END TX SCHEDULER *************************************/
 
+/* Oscillator clock */
+#define OSC_CLK				(0xa04068)
+#define OSC_CLK_FORCE_CONTROL		(0x8)
+
 #endif				/* __iwl_prph_h__ */

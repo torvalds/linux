@@ -181,6 +181,8 @@ int dm_pool_get_data_block_size(struct dm_pool_metadata *pmd, sector_t *result);
 
 int dm_pool_get_data_dev_size(struct dm_pool_metadata *pmd, dm_block_t *result);
 
+int dm_pool_block_is_used(struct dm_pool_metadata *pmd, dm_block_t b, bool *result);
+
 /*
  * Returns -ENOSPC if the new size is too small and already allocated
  * blocks would be lost.
