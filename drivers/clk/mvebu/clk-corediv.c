@@ -213,7 +213,7 @@ static const struct clk_corediv_soc_desc armada375_corediv_soc = {
 		.set_rate = clk_corediv_set_rate,
 	},
 	.ratio_reload = BIT(8),
-	.ratio_offset = 0x8,
+	.ratio_offset = 0x4,
 };
 
 static void __init
