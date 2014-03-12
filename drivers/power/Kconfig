@@ -171,6 +171,17 @@ config BATTERY_BQ27X00_PLATFORM
 	help
 	  Say Y here to enable support for batteries with BQ27000 (HDQ) chips.
 
+config BATTERY_BQ24296	
+	tristate "BQ24296 chargeIC driver"
+	help
+	  Say Y here to enable support for batteries with BQ24296 (I2C/HDQ) chips.
+
+config BATTERY_BQ27320
+	tristate "BQ27320 battery driver"
+	depends on I2C 
+	help
+	  Say Y here to enable support for batteries with BQ27320(I2C) chip.
+
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
 	depends on PMIC_DA903X
