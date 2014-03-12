@@ -363,8 +363,8 @@ ENTRY(sys_call_table)
 	.long sys_sendmsg		/* 360 */
 	.long sys_recvmsg
 	.long sys_accept4
-	.long sys_ni_syscall
-	.long sys_ni_syscall
+	.long sys_preadv
+	.long sys_pwritev
 	.long sys_rt_tgsigqueueinfo	/* 365 */
 	.long sys_perf_event_open
 	.long sys_recvmmsg
