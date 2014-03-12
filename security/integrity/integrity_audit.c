@@ -7,7 +7,7 @@
  * the Free Software Foundation, version 2 of the License.
  *
  * File: integrity_audit.c
- * 	Audit calls for the integrity subsystem
+ *	Audit calls for the integrity subsystem
  */
 
 #include <linux/fs.h>
@@ -33,6 +33,7 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const char *cause, int result, int audit_info)
 {
 	struct audit_buffer *ab;
+	char name[TASK_COMM_LEN];
 
 	if (!integrity_audit_info && audit_info == 1)	/* Skip info messages */
 		return;
@@ -49,7 +50,7 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 	audit_log_format(ab, " cause=");
 	audit_log_string(ab, cause);
 	audit_log_format(ab, " comm=");
-	audit_log_untrustedstring(ab, current->comm);
+	audit_log_untrustedstring(ab, get_task_comm(name, current));
 	if (fname) {
 		audit_log_format(ab, " name=");
 		audit_log_untrustedstring(ab, fname);

@@ -151,7 +151,7 @@ static void init_once(void *foo)
 {
 	struct integrity_iint_cache *iint = foo;
 
-	memset(iint, 0, sizeof *iint);
+	memset(iint, 0, sizeof(*iint));
 	iint->version = 0;
 	iint->flags = 0UL;
 	iint->ima_file_status = INTEGRITY_UNKNOWN;
