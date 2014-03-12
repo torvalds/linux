@@ -592,18 +592,31 @@ static struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 
 static void domain_update_iommu_coherency(struct dmar_domain *domain)
 {
-	int i;
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
+	int i, found = 0;
 
-	i = find_first_bit(domain->iommu_bmp, g_num_of_iommus);
-
-	domain->iommu_coherency = i < g_num_of_iommus ? 1 : 0;
+	domain->iommu_coherency = 1;
 
 	for_each_set_bit(i, domain->iommu_bmp, g_num_of_iommus) {
+		found = 1;
 		if (!ecap_coherent(g_iommus[i]->ecap)) {
 			domain->iommu_coherency = 0;
 			break;
 		}
 	}
+	if (found)
+		return;
+
+	/* No hardware attached; use lowest common denominator */
+	rcu_read_lock();
+	for_each_active_iommu(iommu, drhd) {
+		if (!ecap_coherent(iommu->ecap)) {
+			domain->iommu_coherency = 0;
+			break;
+		}
+	}
+	rcu_read_unlock();
 }
 
 static void domain_update_iommu_snooping(struct dmar_domain *domain)
