@@ -29,6 +29,8 @@ dtb-$(CONFIG_ARCH_AT91) += at91sam9m10g45ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += pm9g45.dtb
 # sam9n12
 dtb-$(CONFIG_ARCH_AT91) += at91sam9n12ek.dtb
+# sam9rl
+dtb-$(CONFIG_ARCH_AT91) += at91sam9rlek.dtb
 # sam9x5
 dtb-$(CONFIG_ARCH_AT91) += at91-ariag25.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91-cosino_mega2560.dtb
