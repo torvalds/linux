@@ -444,6 +444,8 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	I915_WRITE_CTL(ring, 0);
 	I915_WRITE_HEAD(ring, 0);
 	ring->write_tail(ring, 0);
+	if (wait_for_atomic((I915_READ_MODE(ring) & MODE_IDLE) != 0, 1000))
+		DRM_ERROR("%s :timed out trying to stop ring\n", ring->name);
 
 	if (I915_NEED_GFX_HWS(dev))
 		intel_ring_setup_status_page(ring);

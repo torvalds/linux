@@ -748,6 +748,7 @@ enum punit_power_well {
 #define RING_INSTPS(base)	((base)+0x70)
 #define RING_DMA_FADD(base)	((base)+0x78)
 #define RING_INSTPM(base)	((base)+0xc0)
+#define RING_MI_MODE(base)	((base)+0x9c)
 #define INSTPS		0x02070 /* 965+ only */
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
@@ -824,6 +825,7 @@ enum punit_power_well {
 # define VS_TIMER_DISPATCH				(1 << 6)
 # define MI_FLUSH_ENABLE				(1 << 12)
 # define ASYNC_FLIP_PERF_DISABLE			(1 << 14)
+# define MODE_IDLE					(1 << 9)
 
 #define GEN6_GT_MODE	0x20d0
 #define GEN7_GT_MODE	0x7008
