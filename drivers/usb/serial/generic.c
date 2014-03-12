@@ -397,7 +397,6 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = urb->context;
-	int status = urb->status;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
@@ -409,17 +408,27 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 	set_bit(i, &port->write_urbs_free);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	if (status) {
-		dev_dbg(&port->dev, "%s - non-zero urb status: %d\n",
-			__func__, status);
-
-		spin_lock_irqsave(&port->lock, flags);
-		kfifo_reset_out(&port->write_fifo);
-		spin_unlock_irqrestore(&port->lock, flags);
-	} else {
-		usb_serial_generic_write_start(port, GFP_ATOMIC);
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+		dev_dbg(&port->dev, "%s - urb stopped: %d\n",
+							__func__, urb->status);
+		return;
+	case -EPIPE:
+		dev_err_console(port, "%s - urb stopped: %d\n",
+							__func__, urb->status);
+		return;
+	default:
+		dev_err_console(port, "%s - nonzero urb status: %d\n",
+							__func__, urb->status);
+		goto resubmit;
 	}
 
+resubmit:
+	usb_serial_generic_write_start(port, GFP_ATOMIC);
 	usb_serial_port_softint(port);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);
