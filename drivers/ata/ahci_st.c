@@ -235,5 +235,5 @@ module_platform_driver(st_ahci_driver);
 
 MODULE_AUTHOR("Alexandre Torgue <alexandre.torgue@st.com>");
 MODULE_AUTHOR("Francesco Virlinzi <francesco.virlinzi@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics Sata Ahci driver");
+MODULE_DESCRIPTION("STMicroelectronics SATA AHCI Driver");
 MODULE_LICENSE("GPL v2");
