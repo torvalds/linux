@@ -644,6 +644,8 @@ static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
 
 	if (unlikely(ino < F2FS_ROOT_INO(sbi)))
 		return ERR_PTR(-ESTALE);
+	if (unlikely(ino >= NM_I(sbi)->max_nid))
+		return ERR_PTR(-ESTALE);
 
 	/*
 	 * f2fs_iget isn't quite right if the inode is currently unallocated!
