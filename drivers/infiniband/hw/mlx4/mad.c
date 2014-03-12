@@ -467,6 +467,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	int ret = 0;
 	u16 tun_pkey_ix;
 	u16 cached_pkey;
+	u8 is_eth = dev->dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH;
 
 	if (dest_qpt > IB_QPT_GSI)
 		return -EINVAL;
@@ -509,6 +510,12 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	 * The driver will set the force loopback bit in post_send */
 	memset(&attr, 0, sizeof attr);
 	attr.port_num = port;
+	if (is_eth) {
+		ret = mlx4_get_roce_gid_from_slave(dev->dev, port, slave, attr.grh.dgid.raw);
+		if (ret)
+			return ret;
+		attr.ah_flags = IB_AH_GRH;
+	}
 	ah = ib_create_ah(tun_ctx->pd, &attr);
 	if (IS_ERR(ah))
 		return -ENOMEM;
@@ -580,6 +587,41 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 	int err;
 	int slave;
 	u8 *slave_id;
+	int is_eth = 0;
+
+	if (rdma_port_get_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND)
+		is_eth = 0;
+	else
+		is_eth = 1;
+
+	if (is_eth) {
+		if (!(wc->wc_flags & IB_WC_GRH)) {
+			mlx4_ib_warn(ibdev, "RoCE grh not present.\n");
+			return -EINVAL;
+		}
+		if (mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_CM) {
+			mlx4_ib_warn(ibdev, "RoCE mgmt class is not CM\n");
+			return -EINVAL;
+		}
+		if (mlx4_get_slave_from_roce_gid(dev->dev, port, grh->dgid.raw, &slave)) {
+			mlx4_ib_warn(ibdev, "failed matching grh\n");
+			return -ENOENT;
+		}
+		if (slave >= dev->dev->caps.sqp_demux) {
+			mlx4_ib_warn(ibdev, "slave id: %d is bigger than allowed:%d\n",
+				     slave, dev->dev->caps.sqp_demux);
+			return -ENOENT;
+		}
+
+		if (mlx4_ib_demux_cm_handler(ibdev, port, NULL, mad))
+			return 0;
+
+		err = mlx4_ib_send_to_slave(dev, slave, port, wc->qp->qp_type, wc, grh, mad);
+		if (err)
+			pr_debug("failed sending to slave %d via tunnel qp (%d)\n",
+				 slave, err);
+		return 0;
+	}
 
 	/* Initially assume that this mad is for us */
 	slave = mlx4_master_func_num(dev->dev);
@@ -1260,12 +1302,8 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	memcpy(&ah.av, &tunnel->hdr.av, sizeof (struct mlx4_av));
 	ah.ibah.device = ctx->ib_dev;
 	mlx4_ib_query_ah(&ah.ibah, &ah_attr);
-	if ((ah_attr.ah_flags & IB_AH_GRH) &&
-	    (ah_attr.grh.sgid_index != slave)) {
-		mlx4_ib_warn(ctx->ib_dev, "slave:%d accessed invalid sgid_index:%d\n",
-			     slave, ah_attr.grh.sgid_index);
-		return;
-	}
+	if (ah_attr.ah_flags & IB_AH_GRH)
+		ah_attr.grh.sgid_index = slave;
 
 	mlx4_ib_send_to_wire(dev, slave, ctx->port,
 			     is_proxy_qp0(dev, wc->src_qp, slave) ?

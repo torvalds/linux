@@ -927,3 +927,37 @@ void mlx4_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap)
 		*stats_bitmap |= MLX4_STATS_ERROR_COUNTERS_MASK;
 }
 EXPORT_SYMBOL(mlx4_set_stats_bitmap);
+
+int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid, int *slave_id)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i, found_ix = -1;
+
+	if (!mlx4_is_mfunc(dev))
+		return -EINVAL;
+
+	for (i = 0; i < MLX4_ROCE_MAX_GIDS; i++) {
+		if (!memcmp(priv->roce_gids[port - 1][i].raw, gid, 16)) {
+			found_ix = i;
+			break;
+		}
+	}
+
+	if (found_ix >= 0)
+		*slave_id = found_ix;
+
+	return (found_ix >= 0) ? 0 : -EINVAL;
+}
+EXPORT_SYMBOL(mlx4_get_slave_from_roce_gid);
+
+int mlx4_get_roce_gid_from_slave(struct mlx4_dev *dev, int port, int slave_id, u8 *gid)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (!mlx4_is_master(dev))
+		return -EINVAL;
+
+	memcpy(gid, priv->roce_gids[port - 1][slave_id].raw, 16);
+	return 0;
+}
+EXPORT_SYMBOL(mlx4_get_roce_gid_from_slave);

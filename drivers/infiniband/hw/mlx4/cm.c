@@ -315,13 +315,16 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 }
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
-							     struct ib_mad *mad)
+			     struct ib_mad *mad)
 {
 	u32 pv_cm_id;
 	struct id_map_entry *id;
 
 	if (mad->mad_hdr.attr_id == CM_REQ_ATTR_ID) {
 		union ib_gid gid;
+
+		if (!slave)
+			return 0;
 
 		gid = gid_from_req_msg(ibdev, mad);
 		*slave = mlx4_ib_find_real_gid(ibdev, port, gid.global.interface_id);
@@ -341,7 +344,8 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 		return -ENOENT;
 	}
 
-	*slave = id->slave_id;
+	if (slave)
+		*slave = id->slave_id;
 	set_remote_comm_id(mad, id->sl_cm_id);
 
 	if (mad->mad_hdr.attr_id == CM_DREQ_ATTR_ID)
