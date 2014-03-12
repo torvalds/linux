@@ -100,7 +100,6 @@ config SATA_AHCI_PLATFORM
 config AHCI_ST
 	tristate "ST AHCI SATA support"
 	depends on SATA_AHCI_PLATFORM
-	select GENERIC_PHY
 	help
 	  This option enables support for ST AHCI SATA controller.
 

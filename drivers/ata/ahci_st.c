@@ -16,7 +16,6 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/ahci_platform.h>
-#include <linux/phy/phy.h>
 #include <linux/libata.h>
 #include <linux/reset.h>
 #include <linux/io.h>
@@ -33,7 +32,6 @@
 
 struct st_ahci_drv_data {
 	struct platform_device *ahci;
-	struct phy *phy;
 	struct reset_control *pwr;
 	struct reset_control *sw_rst;
 	struct reset_control *pwr_rst;
