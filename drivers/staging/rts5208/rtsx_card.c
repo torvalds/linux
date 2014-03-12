@@ -624,7 +624,7 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 
 static inline u8 double_depth(u8 depth)
 {
-	return ((depth > 1) ? (depth - 1) : depth);
+	return (depth > 1) ? (depth - 1) : depth;
 }
 
 int switch_ssc_clock(struct rtsx_chip *chip, int clk)
