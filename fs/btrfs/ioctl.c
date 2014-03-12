@@ -935,12 +935,14 @@ static int find_new_extents(struct btrfs_root *root,
 	min_key.type = BTRFS_EXTENT_DATA_KEY;
 	min_key.offset = *off;
 
-	path->keep_locks = 1;
-
 	while (1) {
+		path->keep_locks = 1;
 		ret = btrfs_search_forward(root, &min_key, path, newer_than);
 		if (ret != 0)
 			goto none;
+		path->keep_locks = 0;
+		btrfs_unlock_up_safe(path, 1);
+process_slot:
 		if (min_key.objectid != ino)
 			goto none;
 		if (min_key.type != BTRFS_EXTENT_DATA_KEY)
@@ -957,6 +959,12 @@ static int find_new_extents(struct btrfs_root *root,
 			*off = min_key.offset;
 			btrfs_free_path(path);
 			return 0;
+		}
+
+		path->slots[0]++;
+		if (path->slots[0] < btrfs_header_nritems(leaf)) {
+			btrfs_item_key_to_cpu(leaf, &min_key, path->slots[0]);
+			goto process_slot;
 		}
 
 		if (min_key.offset == (u64)-1)
