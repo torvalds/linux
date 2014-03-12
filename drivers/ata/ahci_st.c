@@ -186,6 +186,10 @@ static int st_ahci_suspend(struct device *dev)
 	struct ahci_host_priv *hpriv = drv_data->hpriv;
 	int err;
 
+	ret = ahci_platform_suspend_host(dev);
+	if (ret)
+		return ret;
+
 	if (drv_data->pwr) {
 		err = reset_control_assert(drv_data->pwr);
 		if (err) {
@@ -215,7 +219,7 @@ static int st_ahci_resume(struct device *dev)
 		return err;
 	}
 
-	return 0;
+	return ahci_platform_resume_host(dev);
 }
 #endif
 
