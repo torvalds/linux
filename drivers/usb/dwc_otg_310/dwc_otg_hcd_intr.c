@@ -34,7 +34,12 @@
 
 #include "dwc_otg_hcd.h"
 #include "dwc_otg_regs.h"
-
+#include <linux/usb.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
+#include <../drivers/usb/core/hcd.h>
+#else
+#include <linux/usb/hcd.h>
+#endif
 /** @file
  * This file contains the implementation of the HCD Interrupt handlers.
  */
@@ -303,6 +308,7 @@ int32_t dwc_otg_hcd_handle_perio_tx_fifo_empty_intr(dwc_otg_hcd_t * dwc_otg_hcd)
 	return 1;
 }
 
+extern inline struct usb_hcd *dwc_otg_hcd_to_hcd(dwc_otg_hcd_t * dwc_otg_hcd);
 /** There are multiple conditions that can cause a port interrupt. This function
  * determines which interrupt conditions have occurred and handles them
  * appropriately. */
@@ -311,6 +317,8 @@ int32_t dwc_otg_hcd_handle_port_intr(dwc_otg_hcd_t * dwc_otg_hcd)
 	int retval = 0;
 	hprt0_data_t hprt0;
 	hprt0_data_t hprt0_modify;
+	struct usb_hcd *hcd = dwc_otg_hcd_to_hcd(dwc_otg_hcd);
+	struct usb_bus *bus = hcd_to_bus(hcd);
 
 	hprt0.d32 = DWC_READ_REG32(dwc_otg_hcd->core_if->host_if->hprt0);
 	hprt0_modify.d32 = DWC_READ_REG32(dwc_otg_hcd->core_if->host_if->hprt0);
@@ -351,6 +359,14 @@ int32_t dwc_otg_hcd_handle_port_intr(dwc_otg_hcd_t * dwc_otg_hcd)
 			cil_hcd_start(dwc_otg_hcd->core_if);*/
 		} else {
 			hprt0_data_t hprt0_local;
+			/* check if root hub is in suspend state
+			 * if root hub in suspend, resume it.
+			 */
+			if ((bus->root_hub) && (hcd->state == HC_STATE_SUSPENDED) ) {
+				DWC_PRINTF("%s: hcd->state = %d, hcd->flags = %ld\n",
+						__func__, hcd->state, hcd->flags);
+				usb_hcd_resume_root_hub(hcd);
+			}
 			DWC_DEBUGPL(DBG_HCD, "--Port Interrupt HPRT0=0x%08x "
 				    "Port Connect Detected--\n", hprt0.d32);
 			dwc_otg_hcd->flags.b.port_connect_status_change = 1;
