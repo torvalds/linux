@@ -1160,9 +1160,9 @@ static int usb_serial_reset_resume(struct usb_interface *intf)
 	usb_serial_unpoison_port_urbs(serial);
 
 	serial->suspending = 0;
-	if (serial->type->reset_resume)
+	if (serial->type->reset_resume) {
 		rv = serial->type->reset_resume(serial);
-	else {
+	} else {
 		rv = -EOPNOTSUPP;
 		intf->needs_binding = 1;
 	}
@@ -1337,9 +1337,9 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 	if (retval) {
 		pr_err("problem %d when registering driver %s\n", retval, driver->description);
 		list_del(&driver->driver_list);
-	} else
+	} else {
 		pr_info("USB Serial support registered for %s\n", driver->description);
-
+	}
 	mutex_unlock(&table_lock);
 	return retval;
 }

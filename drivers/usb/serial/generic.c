@@ -332,9 +332,9 @@ void usb_serial_generic_process_read_urb(struct urb *urb)
 	 * stuff like 3G modems, so shortcircuit it in the 99.9999999% of
 	 * cases where the USB serial is not a console anyway.
 	 */
-	if (!port->port.console || !port->sysrq)
+	if (!port->port.console || !port->sysrq) {
 		tty_insert_flip_string(&port->port, ch, urb->actual_length);
-	else {
+	} else {
 		for (i = 0; i < urb->actual_length; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
 				tty_insert_flip_char(&port->port, *ch, TTY_NORMAL);
@@ -388,8 +388,9 @@ resubmit:
 	if (!port->throttled) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		usb_serial_generic_submit_read_urb(port, i, GFP_ATOMIC);
-	} else
+	} else {
 		spin_unlock_irqrestore(&port->lock, flags);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 
@@ -399,10 +400,10 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
+	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i) {
 		if (port->write_urbs[i] == urb)
 			break;
-
+	}
 	spin_lock_irqsave(&port->lock, flags);
 	port->tx_bytes -= urb->transfer_buffer_length;
 	set_bit(i, &port->write_urbs_free);
