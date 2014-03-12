@@ -1299,6 +1299,10 @@ static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 		}
 
 		tmp = gfs2_lookupi(dir, &gfs2_qdotdot, 1);
+		if (!tmp) {
+			error = -ENOENT;
+			break;
+		}
 		if (IS_ERR(tmp)) {
 			error = PTR_ERR(tmp);
 			break;
