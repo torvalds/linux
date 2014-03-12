@@ -166,9 +166,10 @@
 				status = "disabled";
 			};
 
-			kpp@43fa8000 {
+			kpp: kpp@43fa8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
+				compatible = "fsl,imx25-kpp", "fsl,imx21-kpp";
 				reg = <0x43fa8000 0x4000>;
 				clocks = <&clks 102>;
 				clock-names = "";

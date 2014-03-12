@@ -10,6 +10,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include "imx25.dtsi"
 
 / {
@@ -153,6 +154,20 @@
 			>;
 		};
 
+		pinctrl_kpp: kppgrp {
+			fsl,pins = <
+				MX25_PAD_KPP_ROW0__KPP_ROW0	0x80000000
+				MX25_PAD_KPP_ROW1__KPP_ROW1	0x80000000
+				MX25_PAD_KPP_ROW2__KPP_ROW2	0x80000000
+				MX25_PAD_KPP_ROW3__KPP_ROW3	0x80000000
+				MX25_PAD_KPP_COL0__KPP_COL0	0x80000000
+				MX25_PAD_KPP_COL1__KPP_COL1	0x80000000
+				MX25_PAD_KPP_COL2__KPP_COL2	0x80000000
+				MX25_PAD_KPP_COL3__KPP_COL3	0x80000000
+			>;
+		};
+
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX25_PAD_UART1_RTS__UART1_RTS		0xe0
@@ -166,6 +181,30 @@
 
 &nfc {
 	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&kpp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_kpp>;
+	linux,keymap = <
+			MATRIX_KEY(0x0, 0x0, KEY_UP)
+			MATRIX_KEY(0x0, 0x1, KEY_DOWN)
+			MATRIX_KEY(0x0, 0x2, KEY_VOLUMEDOWN)
+			MATRIX_KEY(0x0, 0x3, KEY_HOME)
+			MATRIX_KEY(0x1, 0x0, KEY_RIGHT)
+			MATRIX_KEY(0x1, 0x1, KEY_LEFT)
+			MATRIX_KEY(0x1, 0x2, KEY_ENTER)
+			MATRIX_KEY(0x1, 0x3, KEY_VOLUMEUP)
+			MATRIX_KEY(0x2, 0x0, KEY_F6)
+			MATRIX_KEY(0x2, 0x1, KEY_F8)
+			MATRIX_KEY(0x2, 0x2, KEY_F9)
+			MATRIX_KEY(0x2, 0x3, KEY_F10)
+			MATRIX_KEY(0x3, 0x0, KEY_F1)
+			MATRIX_KEY(0x3, 0x1, KEY_F2)
+			MATRIX_KEY(0x3, 0x2, KEY_F3)
+			MATRIX_KEY(0x3, 0x2, KEY_POWER)
+	>;
 	status = "okay";
 };
 
