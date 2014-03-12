@@ -3865,24 +3865,33 @@ static int rtw_p2p_get(struct net_device *dev,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 
 	if (padapter->bShowGetP2PState)
-		DBG_88E("[%s] extra = %s\n", __func__, (char *)wrqu->data.pointer);
-	if (!memcmp(wrqu->data.pointer, "status", 6)) {
+		DBG_88E("[%s] extra = %s\n", __func__,
+			(char __user *)wrqu->data.pointer);
+	if (!memcmp((__force const char *)wrqu->data.pointer,
+			"status", 6)) {
 		rtw_p2p_get_status(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "role", 4)) {
+	} else if (!memcmp((__force const char *)wrqu->data.pointer,
+			"role", 4)) {
 		rtw_p2p_get_role(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "peer_ifa", 8)) {
+	} else if (!memcmp((__force const char *)wrqu->data.pointer,
+			"peer_ifa", 8)) {
 		rtw_p2p_get_peer_ifaddr(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "req_cm", 6)) {
+	} else if (!memcmp((__force const char *)wrqu->data.pointer,
+			"req_cm", 6)) {
 		rtw_p2p_get_req_cm(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "peer_deva", 9)) {
+	} else if (!memcmp((__force const char *)wrqu->data.pointer,
+			"peer_deva", 9)) {
 		/*	Get the P2P device address when receiving the provision discovery request frame. */
 		rtw_p2p_get_peer_devaddr(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "group_id", 8)) {
+	} else if (!memcmp((__force const char *)wrqu->data.pointer,
+			"group_id", 8)) {
 		rtw_p2p_get_groupid(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "peer_deva_inv", 9)) {
+	} else if (!memcmp((__force const char *)wrqu->data.pointer,
+			"peer_deva_inv", 9)) {
 		/*	Get the P2P device address when receiving the P2P Invitation request frame. */
 		rtw_p2p_get_peer_devaddr_by_invitation(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "op_ch", 5)) {
+	} else if (!memcmp((__force const char *)wrqu->data.pointer,
+			"op_ch", 5)) {
 		rtw_p2p_get_op_ch(dev, info, wrqu, extra);
 	}
 #endif /* CONFIG_88EU_P2P */
@@ -3896,7 +3905,8 @@ static int rtw_p2p_get2(struct net_device *dev,
 	int ret = 0;
 
 #ifdef CONFIG_88EU_P2P
-	DBG_88E("[%s] extra = %s\n", __func__, (char *)wrqu->data.pointer);
+	DBG_88E("[%s] extra = %s\n", __func__,
+			(char __user *)wrqu->data.pointer);
 	if (!memcmp(extra, "wpsCM =", 6)) {
 		wrqu->data.length -= 6;
 		rtw_p2p_get_wps_configmethod(dev, info, wrqu,  &extra[6]);
