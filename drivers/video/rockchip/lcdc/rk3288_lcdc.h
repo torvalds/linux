@@ -1239,6 +1239,71 @@
 #define PWM_MODE_ONE_SHOT		(0x0)
 #define PWM_MODE_CONTINUOUS		(0x1)
 #define PWM_MODE_CAPTURE		(0x2)
+enum lb_mode {
+    LB_YUV_3840X5 = 0x0,
+    LB_YUV_2560X8 = 0x1,
+    LB_RGB_3840X2 = 0x2,
+    LB_RGB_2560X4 = 0x3,
+    LB_RGB_1920X5 = 0x4,
+    LB_RGB_1280X8 = 0x5 
+};
+
+enum sacle_up_mode {
+    SCALE_UP_BIL = 0x0,
+    SCALE_UP_BIC = 0x1
+};
+
+enum scale_down_mode {
+    SCALE_DOWN_BIL = 0x0,
+    SCALE_DOWN_AVG = 0x1
+};
+
+/*ALPHA BLENDING MODE*/
+enum alpha_mode {               /*  Fs       Fd */
+	AB_USER_DEFINE     = 0x0,
+	AB_CLEAR    	   = 0x1,/*  0          0*/
+	AB_SRC      	   = 0x2,/*  1          0*/
+	AB_DST    	   = 0x3,/*  0          1  */
+	AB_SRC_OVER   	   = 0x4,/*  1   	    1-As''*/
+	AB_DST_OVER    	   = 0x5,/*  1-Ad''   1*/
+	AB_SRC_IN    	   = 0x6,
+	AB_DST_IN    	   = 0x7,
+	AB_SRC_OUT    	   = 0x8,
+	AB_DST_OUT    	   = 0x9,
+	AB_SRC_ATOP        = 0xa,
+	AB_DST_ATOP    	   = 0xb,
+	XOR                = 0xc,
+	AB_SRC_OVER_GLOBAL = 0xd
+}; /*alpha_blending_mode*/
+
+enum src_alpha_mode {
+	AA_STRAIGHT	   = 0x0,
+	AA_INVERSE         = 0x1
+};/*src_alpha_mode*/
+
+enum global_alpha_mode {
+	AA_GLOBAL 	  = 0x0,
+	AA_PER_PIX        = 0x1,
+	AA_PER_PIX_GLOBAL = 0x2
+};/*src_global_alpha_mode*/
+
+enum src_alpha_sel {
+	AA_SAT		= 0x0,
+	AA_NO_SAT	= 0x1
+};/*src_alpha_sel*/
+
+enum src_color_mode {
+	AA_SRC_PRE_MUL	       = 0x0,
+	AA_SRC_NO_PRE_MUL      = 0x1
+};/*src_color_mode*/
+
+enum factor_mode {
+	AA_ZERO			= 0x0,
+	AA_ONE   	   	= 0x1,
+	AA_SRC			= 0x2,
+	AA_SRC_INVERSE          = 0x3,
+	AA_SRC_GLOBAL           = 0x4
+};/*src_factor_mode  &&  dst_factor_mode*/
 
 struct lcdc_device{
 	int id;
@@ -1253,6 +1318,7 @@ struct lcdc_device{
 	spinlock_t  reg_lock;		/*one time only one process allowed to config the register*/
 	
 	int __iomem *dsp_lut_addr_base;
+
 
 	int prop;			/*used for primary or extended display device*/
 	bool pre_init;
@@ -1273,13 +1339,13 @@ struct lcdc_device{
 };
 
 struct alpha_config{
-	u8 src_alpha_mode;       /*win0_src_alpha_m0*/
-	u8 src_global_alpha_val; /*win0_src_global_alpha*/
-	u8 src_global_alpha_mode;/*win0_src_blend_m0*/
-	u8 src_alpha_sel;	 /*win0_src_alpha_cal_m0*/
-	u8 src_color_mode;	 /*win0_src_color_m0*/
-	u8 src_factor_mode;	 /*win0_src_factor_m0*/
-	u8 dst_factor_mode;      /*win0_dst_factor_m0*/
+	enum src_alpha_mode src_alpha_mode;       /*win0_src_alpha_m0*/
+	u32 src_global_alpha_val; /*win0_src_global_alpha*/
+	enum global_alpha_mode src_global_alpha_mode;/*win0_src_blend_m0*/
+	enum src_alpha_sel src_alpha_sel;	 /*win0_src_alpha_cal_m0*/
+	enum src_color_mode src_color_mode;	 /*win0_src_color_m0*/
+	enum factor_mode src_factor_mode;	 /*win0_src_factor_m0*/
+	enum factor_mode dst_factor_mode;      /*win0_dst_factor_m0*/
 };
 
 static inline void lcdc_writel(struct lcdc_device *lcdc_dev,u32 offset,u32 v)
@@ -1391,7 +1457,7 @@ static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev)
 
 /*ScaleFactor must >= dst/src, or pixels at end of line may be unused*/
 /*ScaleFactor must < dst/(src-1), or dst buffer may overflow*/
-/*avrg old code:       ((((dst) << SCALE_FACTOR_AVRG_FIXPOINT_SHIFT))/((src) - 1)) /*hxx_chg/*src*/
+/*avrg old code:       ((((dst) << SCALE_FACTOR_AVRG_FIXPOINT_SHIFT))/((src) - 1)) hxx_chgsrc*/
 /*modified by hpz:*/
 #define GET_SCALE_FACTOR_AVRG(src, dst)  ((((dst) << (SCALE_FACTOR_AVRG_FIXPOINT_SHIFT+1)))/(2*(src) - 1))
 
@@ -1438,71 +1504,4 @@ u32 getHardWareVSkipLines(u32 srcH, u32 dstH)
 
     return vScaleDnMult;
 }
-
-
-enum lb_mode {
-    LB_YUV_3840X5 = 0x0,
-    LB_YUV_2560X8 = 0x1,
-    LB_RGB_3840X2 = 0x2,
-    LB_RGB_2560X4 = 0x3,
-    LB_RGB_1920X5 = 0x4,
-    LB_RGB_1280X8 = 0x5 
-};
-
-enum sacle_up_mode {
-    SCALE_UP_BIL = 0x0,
-    SCALE_UP_BIC = 0x1
-};
-
-enum scale_down_mode {
-    SCALE_DOWN_BIL = 0x0,
-    SCALE_DOWN_AVG = 0x1
-};
-
-/*ALPHA BLENDING MODE*/
-enum alpha_mode {               /*  Fs       Fd */
-	AB_USER_DEFINE     = 0x0,
-	AB_CLEAR    	   = 0x1,/*  0          0*/
-	AB_SRC      	   = 0x2,/*  1          0*/
-	AB_DST    	   = 0x3,/*  0          1  */
-	AB_SRC_OVER   	   = 0x4,/*  1   	    1-As''*/
-	AB_DST_OVER    	   = 0x5,/*  1-Ad''   1*/
-	AB_SRC_IN    	   = 0x6,
-	AB_DST_IN    	   = 0x7,
-	AB_SRC_OUT    	   = 0x8,
-	AB_DST_OUT    	   = 0x9,
-	AB_SRC_ATOP        = 0xa,
-	AB_DST_ATOP    	   = 0xb,
-	XOR                = 0xc,
-	AB_SRC_OVER_GLOBAL = 0xd
-}; /*alpha_blending_mode*/
-
-enum src_alpha_mode {
-	AA_STRAIGHT	   = 0x0,
-	AA_INVERSE         = 0x1
-};/*src_alpha_mode*/
-
-enum global_alpha_mode {
-	AA_GLOBAL 	  = 0x0,
-	AA_PER_PIX        = 0x1,
-	AA_PER_PIX_GLOBAL = 0x2
-};/*src_global_alpha_mode*/
-
-enum src_alpha_sel {
-	AA_SAT		= 0x0,
-	AA_NO_SAT	= 0x1
-};/*src_alpha_sel*/
-
-enum src_color_mode {
-	AA_SRC_PRE_MUL	       = 0x0,
-	AA_SRC_NO_PRE_MUL      = 0x1
-};/*src_color_mode*/
-
-enum factor_mode {
-	AA_ZERO			= 0x0,
-	AA_ONE   	   	= 0x1,
-	AA_SRC			= 0x2,
-	AA_SRC_INVERSE          = 0x3,
-	AA_SRC_GLOBAL           = 0x4
-};/*src_factor_mode  &&  dst_factor_mode*/
 #endif

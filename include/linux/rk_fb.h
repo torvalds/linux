@@ -360,6 +360,7 @@ struct rk_lcdc_drv_ops {
 	int (*set_dsp_cabc) (struct rk_lcdc_driver * dev_drv, int mode);
 	int (*set_dsp_hue) (struct rk_lcdc_driver *dev_drv,int hue);
 	int (*set_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,int bri,int con,int sat);
+	int (*dump_reg) (struct rk_lcdc_driver * dev_drv);
 };
 
 struct rk_fb_area_par {
@@ -536,8 +537,4 @@ extern int rkfb_create_sysfs(struct fb_info *fbi);
 extern char *get_format_string(enum data_format, char *fmt);
 extern int support_uboot_display(void);
 extern int  rk_fb_calc_fps(struct rk_screen * screen, u32 pixclock);
-extern void rk_fd_fence_wait(struct rk_lcdc_driver *dev_drv, struct sync_fence *fence);
-extern void rk_fb_free_dma_buf(struct rk_fb_reg_win_data *reg_win_data);
-
-
 #endif

@@ -125,6 +125,8 @@ static int rk_fb_data_fmt(int data_format,int bits_per_pixel)
 		case 16:
 			fb_data_fmt = RGB565;
 			break;
+		default:
+			break;
 		}
 	}
 	return fb_data_fmt;
@@ -718,7 +720,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	u32 yoffset = var->yoffset;
 	u32 xvir = var->xres_virtual;
 	u32 yvir = var->yres_virtual;
-	u8 data_format = var->nonstd&0xff;
+	/*u8 data_format = var->nonstd&0xff;*/
 
 	u8  pixel_width;
 	u32 vir_width_bit;
@@ -779,6 +781,8 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		uv_y_off   = yoffset;
 		fix->line_length = stride<<2;
 		break;
+	default:
+		break;
 	}
 
 	// x y mirror ,jump line
@@ -810,6 +814,8 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	case  YUV444:
 		win->area[0].y_offset = yoffset*xvir + xoffset;
 		win->area[0].c_offset = yoffset*2*xvir + (xoffset<<1);
+		break;
+	default:
 		break;
 	}
 	win->area[0].smem_start = fix->smem_start;
@@ -1153,6 +1159,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		uv_y_off   = yoffset;
 		fix->line_length = stride<<2;
 		break;
+	default:
+		break;
 	}
 	if(is_pic_yuv == 1){
 		reg_win_data->reg_area_data[0].cbr_start = 
@@ -1421,12 +1429,14 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int win_id;
+#if defined(CONFIG_RK_HDMI)
+	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
+#endif
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fix->id);
 	if (win_id < 0)
 		return  -ENODEV;
-#if defined(CONFIG_RK_HDMI)
-	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
+#if defined(CONFIG_RK_HDMI)	
 	if ((rk_fb->disp_mode == ONE_DUAL) && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)) {
 		printk(KERN_INFO "hdmi is connect , not blank lcdc\n");
 	} else
@@ -1719,6 +1729,8 @@ if (rk_fb->disp_mode != DUAL) {
 		uv_y_off   = yoffset;
 		fix->line_length = stride<<2;
 		cblen = crlen = (xvir*yvir);
+		break;
+	default:
 		break;
 	}
 

@@ -181,8 +181,11 @@ static int rk3288_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	mdelay(1);
 	return 0;
 }
-static void rk3288_lcdc_reg_dump(struct lcdc_device *lcdc_dev)
+static int rk3288_lcdc_reg_dump(struct rk_lcdc_driver *dev_drv)
 {
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						struct lcdc_device,
+						driver);
 	int *cbase = (int *)lcdc_dev->regs;
 	int *regsbak = (int *)lcdc_dev->regsbak;
 	int i, j;
@@ -202,6 +205,7 @@ static void rk3288_lcdc_reg_dump(struct lcdc_device *lcdc_dev)
 			printk("%08x  ", readl_relaxed(cbase + i * 4 + j));
 		printk("\n");
 	}
+	return 0;
 
 }
 
@@ -246,7 +250,7 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	}
 
 	/*rk3288_lcdc_read_reg_defalut_cfg(lcdc_dev);*/
-	/*rk3288_lcdc_reg_dump(lcdc_dev);*/
+	/*rk3288_lcdc_reg_dump(dev_drv);*/
 	for (i = 0; i <= (0x200 >> 4); i++) {
 		for (j = 0; j < 4; j++)
 			readl_relaxed(cbase + i * 4 + j);
@@ -881,8 +885,8 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		case SCREEN_DUAL_LVDS:			
 			mask = m_RGB_OUT_EN;
 			val = v_RGB_OUT_EN(1);
-			/*v = 1 << (3+16);
-			v |= (lcdc_dev->id << 3);*/
+			v = 1 << (3+16);
+			v |= (lcdc_dev->id << 3);
 			break;
 		case SCREEN_HDMI:
 			mask = m_HDMI_OUT_EN;
@@ -2211,7 +2215,7 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	h_pw_bp = hsync_len + left_margin;
 	v_pw_bp = vsync_len + upper_margin;
 	dclk_freq = screen->mode.pixclock;
-	rk3288_lcdc_reg_dump(lcdc_dev);
+	rk3288_lcdc_reg_dump(dev_drv);
 
 	spin_lock(&lcdc_dev->reg_lock);		
 	if (lcdc_dev->clk_on) {
@@ -2374,7 +2378,7 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 
 		dsp_info = lcdc_readl(lcdc_dev,WIN2_DSP_INFO3);
 		dsp_st = lcdc_readl(lcdc_dev,WIN2_DSP_ST3);
-		w2_3_dsp_x = dsp_info & m_WIN2_DSP_WIDTH3+1;
+		w2_3_dsp_x = (dsp_info & m_WIN2_DSP_WIDTH3)+1;
 		w2_3_dsp_y = ((dsp_info & m_WIN2_DSP_HEIGHT3)>>16)+1;
 		w2_3_st_x = dsp_st & m_WIN2_DSP_XST3;
 		w2_3_st_y = (dsp_st & m_WIN2_DSP_YST3)>>16;
@@ -2942,6 +2946,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.set_dsp_cabc = rk3288_lcdc_set_dsp_cabc,
 	.set_dsp_hue = rk3288_lcdc_set_hue,
 	.set_dsp_bcsh_bcs = rk3288_lcdc_set_bcsh_bcs,
+	.dump_reg = rk3288_lcdc_reg_dump,
 };
 static int rk3288_lcdc_parse_irq(struct lcdc_device *lcdc_dev,unsigned int reg_val)
 {
