@@ -600,10 +600,10 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
+	struct tipc_port *port = &tsk->port;
 	DECLARE_SOCKADDR(struct sockaddr_tipc *, dest, m->msg_name);
 	int needs_conn;
 	long timeo;
-	u32 ref = tsk->port.ref;
 	int res = -EINVAL;
 
 	if (unlikely(!dest))
@@ -646,13 +646,13 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 			res = dest_name_check(dest, m);
 			if (res)
 				break;
-			res = tipc_send2name(ref,
+			res = tipc_send2name(port,
 					     &dest->addr.name.name,
 					     dest->addr.name.domain,
 					     m->msg_iov,
 					     total_len);
 		} else if (dest->addrtype == TIPC_ADDR_ID) {
-			res = tipc_send2port(ref,
+			res = tipc_send2port(port,
 					     &dest->addr.id,
 					     m->msg_iov,
 					     total_len);
@@ -664,7 +664,7 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 			res = dest_name_check(dest, m);
 			if (res)
 				break;
-			res = tipc_port_mcast_xmit(ref,
+			res = tipc_port_mcast_xmit(port,
 						   &dest->addr.nameseq,
 						   m->msg_iov,
 						   total_len);
@@ -754,7 +754,7 @@ static int tipc_send_packet(struct kiocb *iocb, struct socket *sock,
 
 	timeo = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
 	do {
-		res = tipc_send(tsk->port.ref, m->msg_iov, total_len);
+		res = tipc_send(&tsk->port, m->msg_iov, total_len);
 		if (likely(res != -ELINKCONG))
 			break;
 		res = tipc_wait_for_sndpkt(sock, &timeo);
@@ -880,10 +880,6 @@ static int auto_connect(struct tipc_sock *tsk, struct tipc_msg *msg)
 
 	peer.ref = msg_origport(msg);
 	peer.node = msg_orignode(msg);
-
-	port = tipc_port_deref(port->ref);
-	if (!port)
-		return -EINVAL;
 
 	__tipc_port_connect(port->ref, port, &peer);
 

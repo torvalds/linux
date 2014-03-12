@@ -80,19 +80,17 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg)
  * tipc_port_mcast_xmit - send a multicast message to local and remote
  * destinations
  */
-int tipc_port_mcast_xmit(u32 ref, struct tipc_name_seq const *seq,
-			 struct iovec const *msg_sect, unsigned int len)
+int tipc_port_mcast_xmit(struct tipc_port *oport,
+			 struct tipc_name_seq const *seq,
+			 struct iovec const *msg_sect,
+			 unsigned int len)
 {
 	struct tipc_msg *hdr;
 	struct sk_buff *buf;
 	struct sk_buff *ibuf = NULL;
 	struct tipc_port_list dports = {0, NULL, };
-	struct tipc_port *oport = tipc_port_deref(ref);
 	int ext_targets;
 	int res;
-
-	if (unlikely(!oport))
-		return -EINVAL;
 
 	/* Create multicast message */
 	hdr = &oport->phdr;
@@ -807,14 +805,14 @@ static int tipc_port_iovec_rcv(struct tipc_port *sender,
 /**
  * tipc_send - send message sections on connection
  */
-int tipc_send(u32 ref, struct iovec const *msg_sect, unsigned int len)
+int tipc_send(struct tipc_port *p_ptr,
+	      struct iovec const *msg_sect,
+	      unsigned int len)
 {
-	struct tipc_port *p_ptr;
 	u32 destnode;
 	int res;
 
-	p_ptr = tipc_port_deref(ref);
-	if (!p_ptr || !p_ptr->connected)
+	if (!p_ptr->connected)
 		return -EINVAL;
 
 	p_ptr->congested = 1;
@@ -843,17 +841,18 @@ int tipc_send(u32 ref, struct iovec const *msg_sect, unsigned int len)
 /**
  * tipc_send2name - send message sections to port name
  */
-int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
-		   struct iovec const *msg_sect, unsigned int len)
+int tipc_send2name(struct tipc_port *p_ptr,
+		   struct tipc_name const *name,
+		   unsigned int domain,
+		   struct iovec const *msg_sect,
+		   unsigned int len)
 {
-	struct tipc_port *p_ptr;
 	struct tipc_msg *msg;
 	u32 destnode = domain;
 	u32 destport;
 	int res;
 
-	p_ptr = tipc_port_deref(ref);
-	if (!p_ptr || p_ptr->connected)
+	if (p_ptr->connected)
 		return -EINVAL;
 
 	msg = &p_ptr->phdr;
@@ -892,15 +891,15 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 /**
  * tipc_send2port - send message sections to port identity
  */
-int tipc_send2port(u32 ref, struct tipc_portid const *dest,
-		   struct iovec const *msg_sect, unsigned int len)
+int tipc_send2port(struct tipc_port *p_ptr,
+		   struct tipc_portid const *dest,
+		   struct iovec const *msg_sect,
+		   unsigned int len)
 {
-	struct tipc_port *p_ptr;
 	struct tipc_msg *msg;
 	int res;
 
-	p_ptr = tipc_port_deref(ref);
-	if (!p_ptr || p_ptr->connected)
+	if (p_ptr->connected)
 		return -EINVAL;
 
 	msg = &p_ptr->phdr;
