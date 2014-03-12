@@ -575,7 +575,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 }
 
 static struct packet_type tipc_packet_type __read_mostly = {
-	.type = __constant_htons(ETH_P_TIPC),
+	.type = htons(ETH_P_TIPC),
 	.func = tipc_l2_rcv_msg,
 };
 
