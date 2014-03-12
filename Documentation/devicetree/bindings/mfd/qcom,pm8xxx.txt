@@ -1,6 +1,9 @@
 Qualcomm PM8xxx PMIC multi-function devices
 
-PROPERTIES
+The PM8xxx family of Power Management ICs are used to provide regulated
+voltages and other various functionality to Qualcomm SoCs.
+
+= PROPERTIES
 
 - compatible:
 	Usage: required
@@ -45,7 +48,37 @@ PROPERTIES
 	Value type: <empty>
 	Definition: identifies this node as an interrupt controller
 
-EXAMPLE
+= SUBCOMPONENTS
+
+The PMIC contains multiple independent functions, each described in a subnode.
+The below bindings specify the set of valid subnodes.
+
+== Real-Time Clock
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,pm8058-rtc"
+		    "qcom,pm8921-rtc"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: single entry specifying the base address of the RTC registers
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: single entry specifying the RTC's alarm interrupt
+
+- allow-set-time:
+	Usage: optional
+	Value type: <empty>
+	Definition: indicates that the setting of RTC time is allowed by
+		    the host CPU
+
+= EXAMPLE
 
 	pmicintc: pmic@0 {
 		compatible = "qcom,pm8921";
@@ -55,9 +88,9 @@ EXAMPLE
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pwrkey {
-			compatible = "qcom,pm8921-pwrkey";
-			interrupt-parent = <&pmicintc>;
-			interrupts = <50 1>, <51 1>;
+		rtc@11d {
+			compatible = "qcom,pm8921-rtc";
+			reg = <0x11d>;
+			interrupts = <0x27 0>;
 		};
 	};
