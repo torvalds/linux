@@ -25,6 +25,7 @@
 #include <linux/clkdev.h>
 #include <mach/clock.h>
 #include <mach/common.h>
+#include <mach/rcar-gen2.h>
 
 /*
  *   MD		EXTAL		PLL0	PLL1	PLL3
@@ -42,8 +43,6 @@
  * *1 :	Table 7.6 indicates VCO ouput (PLLx = VCO/2)
  *	see "p1 / 2" on R8A7791_CLOCK_ROOT() below
  */
-
-#define MD(nr)	(1 << nr)
 
 #define CPG_BASE 0xe6150000
 #define CPG_LEN 0x1000
@@ -68,7 +67,6 @@
 #define MSTPSR9		IOMEM(0xe61509a4)
 #define MSTPSR11	IOMEM(0xe61509ac)
 
-#define MODEMR		0xE6160060
 #define SDCKCR		0xE6150074
 #define SD1CKCR		0xE6150078
 #define SD2CKCR		0xE615026c
@@ -295,13 +293,8 @@ static struct clk_lookup lookups[] = {
 
 void __init r8a7791_clock_init(void)
 {
-	void __iomem *modemr = ioremap_nocache(MODEMR, PAGE_SIZE);
-	u32 mode;
+	u32 mode = rcar_gen2_read_mode_pins();
 	int k, ret = 0;
-
-	BUG_ON(!modemr);
-	mode = ioread32(modemr);
-	iounmap(modemr);
 
 	switch (mode & (MD(14) | MD(13))) {
 	case 0:
