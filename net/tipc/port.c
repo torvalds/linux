@@ -258,64 +258,6 @@ void tipc_port_destroy(struct tipc_port *p_ptr)
 	tipc_net_route_msg(buf);
 }
 
-static int port_unreliable(struct tipc_port *p_ptr)
-{
-	return msg_src_droppable(&p_ptr->phdr);
-}
-
-int tipc_portunreliable(u32 ref, unsigned int *isunreliable)
-{
-	struct tipc_port *p_ptr;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	*isunreliable = port_unreliable(p_ptr);
-	tipc_port_unlock(p_ptr);
-	return 0;
-}
-
-int tipc_set_portunreliable(u32 ref, unsigned int isunreliable)
-{
-	struct tipc_port *p_ptr;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	msg_set_src_droppable(&p_ptr->phdr, (isunreliable != 0));
-	tipc_port_unlock(p_ptr);
-	return 0;
-}
-
-static int port_unreturnable(struct tipc_port *p_ptr)
-{
-	return msg_dest_droppable(&p_ptr->phdr);
-}
-
-int tipc_portunreturnable(u32 ref, unsigned int *isunrejectable)
-{
-	struct tipc_port *p_ptr;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	*isunrejectable = port_unreturnable(p_ptr);
-	tipc_port_unlock(p_ptr);
-	return 0;
-}
-
-int tipc_set_portunreturnable(u32 ref, unsigned int isunrejectable)
-{
-	struct tipc_port *p_ptr;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	msg_set_dest_droppable(&p_ptr->phdr, (isunrejectable != 0));
-	tipc_port_unlock(p_ptr);
-	return 0;
-}
-
 /*
  * port_build_proto_msg(): create connection protocol message for port
  *
@@ -653,34 +595,6 @@ void tipc_acknowledge(u32 ref, u32 ack)
 	tipc_net_route_msg(buf);
 }
 
-int tipc_portimportance(u32 ref, unsigned int *importance)
-{
-	struct tipc_port *p_ptr;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	*importance = (unsigned int)msg_importance(&p_ptr->phdr);
-	tipc_port_unlock(p_ptr);
-	return 0;
-}
-
-int tipc_set_portimportance(u32 ref, unsigned int imp)
-{
-	struct tipc_port *p_ptr;
-
-	if (imp > TIPC_CRITICAL_IMPORTANCE)
-		return -EINVAL;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
-	msg_set_importance(&p_ptr->phdr, (u32)imp);
-	tipc_port_unlock(p_ptr);
-	return 0;
-}
-
-
 int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
 		 struct tipc_name_seq const *seq)
 {
@@ -919,7 +833,7 @@ int tipc_send(u32 ref, struct iovec const *msg_sect, unsigned int len)
 			return res;
 		}
 	}
-	if (port_unreliable(p_ptr)) {
+	if (tipc_port_unreliable(p_ptr)) {
 		p_ptr->congested = 0;
 		return len;
 	}
@@ -966,9 +880,9 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 				p_ptr->sent++;
 			return res;
 		}
-		if (port_unreliable(p_ptr)) {
+		if (tipc_port_unreliable(p_ptr))
 			return len;
-		}
+
 		return -ELINKCONG;
 	}
 	return tipc_port_iovec_reject(p_ptr, msg, msg_sect, len,
@@ -1009,8 +923,8 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 			p_ptr->sent++;
 		return res;
 	}
-	if (port_unreliable(p_ptr)) {
+	if (tipc_port_unreliable(p_ptr))
 		return len;
-	}
+
 	return -ELINKCONG;
 }

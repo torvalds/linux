@@ -197,9 +197,9 @@ static int tipc_sk_create(struct net *net, struct socket *sock, int protocol,
 	spin_unlock_bh(tp_ptr->lock);
 
 	if (sock->state == SS_READY) {
-		tipc_set_portunreturnable(tp_ptr->ref, 1);
+		tipc_port_set_unreturnable(tp_ptr, true);
 		if (sock->type == SOCK_DGRAM)
-			tipc_set_portunreliable(tp_ptr->ref, 1);
+			tipc_port_set_unreliable(tp_ptr, true);
 	}
 	return 0;
 }
@@ -1675,7 +1675,7 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 	tipc_port_connect(new_ref, &peer);
 	new_sock->state = SS_CONNECTED;
 
-	tipc_set_portimportance(new_ref, msg_importance(msg));
+	tipc_port_set_importance(new_port, msg_importance(msg));
 	if (msg_named(msg)) {
 		new_port->conn_type = msg_nametype(msg);
 		new_port->conn_instance = msg_nameinst(msg);
@@ -1797,16 +1797,16 @@ static int tipc_setsockopt(struct socket *sock, int lvl, int opt,
 
 	switch (opt) {
 	case TIPC_IMPORTANCE:
-		res = tipc_set_portimportance(tport->ref, value);
+		tipc_port_set_importance(tport, value);
 		break;
 	case TIPC_SRC_DROPPABLE:
 		if (sock->type != SOCK_STREAM)
-			res = tipc_set_portunreliable(tport->ref, value);
+			tipc_port_set_unreliable(tport, value);
 		else
 			res = -ENOPROTOOPT;
 		break;
 	case TIPC_DEST_DROPPABLE:
-		res = tipc_set_portunreturnable(tport->ref, value);
+		tipc_port_set_unreturnable(tport, value);
 		break;
 	case TIPC_CONN_TIMEOUT:
 		tipc_sk(sk)->conn_timeout = value;
@@ -1855,13 +1855,13 @@ static int tipc_getsockopt(struct socket *sock, int lvl, int opt,
 
 	switch (opt) {
 	case TIPC_IMPORTANCE:
-		res = tipc_portimportance(tport->ref, &value);
+		value = tipc_port_importance(tport);
 		break;
 	case TIPC_SRC_DROPPABLE:
-		res = tipc_portunreliable(tport->ref, &value);
+		value = tipc_port_unreliable(tport);
 		break;
 	case TIPC_DEST_DROPPABLE:
-		res = tipc_portunreturnable(tport->ref, &value);
+		value = tipc_port_unreturnable(tport);
 		break;
 	case TIPC_CONN_TIMEOUT:
 		value = tipc_sk(sk)->conn_timeout;

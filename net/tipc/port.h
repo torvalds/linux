@@ -109,15 +109,6 @@ void tipc_acknowledge(u32 port_ref, u32 ack);
 
 void tipc_port_destroy(struct tipc_port *p_ptr);
 
-int tipc_portimportance(u32 portref, unsigned int *importance);
-int tipc_set_portimportance(u32 portref, unsigned int importance);
-
-int tipc_portunreliable(u32 portref, unsigned int *isunreliable);
-int tipc_set_portunreliable(u32 portref, unsigned int isunreliable);
-
-int tipc_portunreturnable(u32 portref, unsigned int *isunreturnable);
-int tipc_set_portunreturnable(u32 portref, unsigned int isunreturnable);
-
 int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
 		 struct tipc_name_seq const *name_seq);
 int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
@@ -199,6 +190,39 @@ static inline u32 tipc_port_peernode(struct tipc_port *p_ptr)
 static inline u32 tipc_port_peerport(struct tipc_port *p_ptr)
 {
 	return msg_destport(&p_ptr->phdr);
+}
+
+static inline  bool tipc_port_unreliable(struct tipc_port *port)
+{
+	return msg_src_droppable(&port->phdr) != 0;
+}
+
+static inline void tipc_port_set_unreliable(struct tipc_port *port,
+					    bool unreliable)
+{
+	msg_set_src_droppable(&port->phdr, unreliable ? 1 : 0);
+}
+
+static inline bool tipc_port_unreturnable(struct tipc_port *port)
+{
+	return msg_dest_droppable(&port->phdr) != 0;
+}
+
+static inline void tipc_port_set_unreturnable(struct tipc_port *port,
+					     bool unreturnable)
+{
+	msg_set_dest_droppable(&port->phdr, unreturnable ? 1 : 0);
+}
+
+
+static inline int tipc_port_importance(struct tipc_port *port)
+{
+	return msg_importance(&port->phdr);
+}
+
+static inline void tipc_port_set_importance(struct tipc_port *port, int imp)
+{
+	msg_set_importance(&port->phdr, (u32)imp);
 }
 
 #endif
