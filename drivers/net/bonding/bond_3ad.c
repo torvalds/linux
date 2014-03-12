@@ -2479,7 +2479,7 @@ out:
 	return NETDEV_TX_OK;
 err_free:
 	/* no suitable interface, frame not sent */
-	kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	goto out;
 }
 
