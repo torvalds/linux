@@ -74,4 +74,4 @@ obj-$(CONFIG_NET_VENDOR_VIA) += via/
 obj-$(CONFIG_NET_VENDOR_WIZNET) += wiznet/
 obj-$(CONFIG_NET_VENDOR_XILINX) += xilinx/
 obj-$(CONFIG_NET_VENDOR_XIRCOM) += xircom/
-obj-$(CONFIG_NET_VENDOR_ROCKCHIP) += rk/
+obj-$(CONFIG_NET_VENDOR_ROCKCHIP) += rockchip/
