@@ -193,7 +193,7 @@ exit:
 
 void tipc_port_wakeup(struct tipc_port *port)
 {
-	tipc_sk_wakeup(tipc_port_to_sk(port));
+	tipc_sock_wakeup(tipc_port_to_sock(port));
 }
 
 /* tipc_port_init - intiate TIPC port and lock it
@@ -776,7 +776,7 @@ int tipc_port_rcv(struct sk_buff *buf)
 	/* validate destination & pass to port, otherwise reject message */
 	p_ptr = tipc_port_lock(destport);
 	if (likely(p_ptr)) {
-		err = tipc_sk_rcv(tipc_port_to_sk(p_ptr), buf);
+		err = tipc_sk_rcv(&tipc_port_to_sock(p_ptr)->sk, buf);
 		tipc_port_unlock(p_ptr);
 		if (likely(!err))
 			return dsz;
