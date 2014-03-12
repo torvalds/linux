@@ -511,9 +511,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	memset(&attr, 0, sizeof attr);
 	attr.port_num = port;
 	if (is_eth) {
-		ret = mlx4_get_roce_gid_from_slave(dev->dev, port, slave, attr.grh.dgid.raw);
-		if (ret)
-			return ret;
+		memcpy(&attr.grh.dgid.raw[0], &grh->dgid.raw[0], 16);
 		attr.ah_flags = IB_AH_GRH;
 	}
 	ah = ib_create_ah(tun_ctx->pd, &attr);
@@ -1216,6 +1214,34 @@ out:
 	return ret;
 }
 
+static int get_slave_base_gid_ix(struct mlx4_ib_dev *dev, int slave, int port)
+{
+	int gids;
+	int vfs;
+
+	if (rdma_port_get_link_layer(&dev->ib_dev, port) == IB_LINK_LAYER_INFINIBAND)
+		return slave;
+
+	gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
+	vfs = dev->dev->num_vfs;
+
+	if (slave == 0)
+		return 0;
+	if (slave <= gids % vfs)
+		return MLX4_ROCE_PF_GIDS + ((gids / vfs) + 1) * (slave - 1);
+
+	return MLX4_ROCE_PF_GIDS + (gids % vfs) + ((gids / vfs) * (slave - 1));
+}
+
+static void fill_in_real_sgid_index(struct mlx4_ib_dev *dev, int slave, int port,
+				    struct ib_ah_attr *ah_attr)
+{
+	if (rdma_port_get_link_layer(&dev->ib_dev, port) == IB_LINK_LAYER_INFINIBAND)
+		ah_attr->grh.sgid_index = slave;
+	else
+		ah_attr->grh.sgid_index += get_slave_base_gid_ix(dev, slave, port);
+}
+
 static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc *wc)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ctx->ib_dev);
@@ -1303,7 +1329,7 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	ah.ibah.device = ctx->ib_dev;
 	mlx4_ib_query_ah(&ah.ibah, &ah_attr);
 	if (ah_attr.ah_flags & IB_AH_GRH)
-		ah_attr.grh.sgid_index = slave;
+		fill_in_real_sgid_index(dev, slave, ctx->port, &ah_attr);
 
 	mlx4_ib_send_to_wire(dev, slave, ctx->port,
 			     is_proxy_qp0(dev, wc->src_qp, slave) ?

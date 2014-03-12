@@ -1287,4 +1287,7 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work);
 
 void mlx4_init_quotas(struct mlx4_dev *dev);
 
+int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave);
+int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave);
+
 #endif /* MLX4_H */

@@ -49,6 +49,7 @@
 #define MIN_MSIX_P_PORT		5
 
 #define MLX4_ROCE_MAX_GIDS	128
+#define MLX4_ROCE_PF_GIDS	16
 
 enum {
 	MLX4_FLAG_MSI_X		= 1 << 0,

@@ -219,6 +219,11 @@ struct res_fs_rule {
 	int			qpn;
 };
 
+static int mlx4_is_eth(struct mlx4_dev *dev, int port)
+{
+	return dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB ? 0 : 1;
+}
+
 static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
 {
 	struct rb_node *node = root->rb_node;
@@ -600,15 +605,34 @@ static void update_gid(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *inbox,
 	struct mlx4_qp_context	*qp_ctx = inbox->buf + 8;
 	enum mlx4_qp_optpar	optpar = be32_to_cpu(*(__be32 *) inbox->buf);
 	u32			ts = (be32_to_cpu(qp_ctx->flags) >> 16) & 0xff;
+	int port;
 
-	if (MLX4_QP_ST_UD == ts)
-		qp_ctx->pri_path.mgid_index = 0x80 | slave;
+	if (MLX4_QP_ST_UD == ts) {
+		port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
+		if (mlx4_is_eth(dev, port))
+			qp_ctx->pri_path.mgid_index = mlx4_get_base_gid_ix(dev, slave) | 0x80;
+		else
+			qp_ctx->pri_path.mgid_index = slave | 0x80;
 
-	if (MLX4_QP_ST_RC == ts || MLX4_QP_ST_UC == ts) {
-		if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH)
-			qp_ctx->pri_path.mgid_index = slave & 0x7F;
-		if (optpar & MLX4_QP_OPTPAR_ALT_ADDR_PATH)
-			qp_ctx->alt_path.mgid_index = slave & 0x7F;
+	} else if (MLX4_QP_ST_RC == ts || MLX4_QP_ST_XRC == ts || MLX4_QP_ST_UC == ts) {
+		if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH) {
+			port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
+			if (mlx4_is_eth(dev, port)) {
+				qp_ctx->pri_path.mgid_index += mlx4_get_base_gid_ix(dev, slave);
+				qp_ctx->pri_path.mgid_index &= 0x7f;
+			} else {
+				qp_ctx->pri_path.mgid_index = slave & 0x7F;
+			}
+		}
+		if (optpar & MLX4_QP_OPTPAR_ALT_ADDR_PATH) {
+			port = (qp_ctx->alt_path.sched_queue >> 6 & 1) + 1;
+			if (mlx4_is_eth(dev, port)) {
+				qp_ctx->alt_path.mgid_index += mlx4_get_base_gid_ix(dev, slave);
+				qp_ctx->alt_path.mgid_index &= 0x7f;
+			} else {
+				qp_ctx->alt_path.mgid_index = slave & 0x7F;
+			}
+		}
 	}
 }
 
@@ -2734,6 +2758,8 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 	u32			qp_type;
 	struct mlx4_qp_context	*qp_ctx;
 	enum mlx4_qp_optpar	optpar;
+	int port;
+	int num_gids;
 
 	qp_ctx  = inbox->buf + 8;
 	qp_type	= (be32_to_cpu(qp_ctx->flags) >> 16) & 0xff;
@@ -2741,6 +2767,7 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 
 	switch (qp_type) {
 	case MLX4_QP_ST_RC:
+	case MLX4_QP_ST_XRC:
 	case MLX4_QP_ST_UC:
 		switch (transition) {
 		case QP_TRANS_INIT2RTR:
@@ -2749,13 +2776,24 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 		case QP_TRANS_SQD2SQD:
 		case QP_TRANS_SQD2RTS:
 			if (slave != mlx4_master_func_num(dev))
-				/* slaves have only gid index 0 */
-				if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH)
-					if (qp_ctx->pri_path.mgid_index)
+				if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH) {
+					port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
+					if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB)
+						num_gids = mlx4_get_slave_num_gids(dev, slave);
+					else
+						num_gids = 1;
+					if (qp_ctx->pri_path.mgid_index >= num_gids)
 						return -EINVAL;
-				if (optpar & MLX4_QP_OPTPAR_ALT_ADDR_PATH)
-					if (qp_ctx->alt_path.mgid_index)
+				}
+				if (optpar & MLX4_QP_OPTPAR_ALT_ADDR_PATH) {
+					port = (qp_ctx->alt_path.sched_queue >> 6 & 1) + 1;
+					if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB)
+						num_gids = mlx4_get_slave_num_gids(dev, slave);
+					else
+						num_gids = 1;
+					if (qp_ctx->alt_path.mgid_index >= num_gids)
 						return -EINVAL;
+				}
 			break;
 		default:
 			break;

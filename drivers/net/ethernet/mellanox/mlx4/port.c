@@ -507,6 +507,31 @@ int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps)
 }
 static struct mlx4_roce_gid_entry zgid_entry;
 
+int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave)
+{
+	if (slave == 0)
+		return MLX4_ROCE_PF_GIDS;
+	if (slave <= ((MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) % dev->num_vfs))
+		return ((MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) / dev->num_vfs) + 1;
+	return (MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) / dev->num_vfs;
+}
+
+int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave)
+{
+	int gids;
+	int vfs;
+
+	gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
+	vfs = dev->num_vfs;
+
+	if (slave == 0)
+		return 0;
+	if (slave <= gids % vfs)
+		return MLX4_ROCE_PF_GIDS + ((gids / vfs) + 1) * (slave - 1);
+
+	return MLX4_ROCE_PF_GIDS + (gids % vfs) + ((gids / vfs) * (slave - 1));
+}
+
 static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				u8 op_mod, struct mlx4_cmd_mailbox *inbox)
 {
@@ -516,15 +541,18 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	struct mlx4_slave_state *slave_st = &master->slave_state[slave];
 	struct mlx4_set_port_rqp_calc_context *qpn_context;
 	struct mlx4_set_port_general_context *gen_context;
-	struct mlx4_roce_gid_entry *gid_entry;
+	struct mlx4_roce_gid_entry *gid_entry_tbl, *gid_entry_mbox, *gid_entry_mb1;
 	int reset_qkey_viols;
 	int port;
 	int is_eth;
+	int num_gids;
+	int base;
 	u32 in_modifier;
 	u32 promisc;
 	u16 mtu, prev_mtu;
 	int err;
-	int i;
+	int i, j;
+	int offset;
 	__be32 agg_cap_mask;
 	__be32 slave_cap_mask;
 	__be32 new_cap_mask;
@@ -585,26 +613,65 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 			gen_context->mtu = cpu_to_be16(master->max_mtu[port]);
 			break;
 		case MLX4_SET_PORT_GID_TABLE:
-			gid_entry = (struct mlx4_roce_gid_entry *)(inbox->buf);
-			/* check that do not have duplicates */
-			if (memcmp(gid_entry->raw, zgid_entry.raw, 16)) {
-				for (i = 0; i < MLX4_ROCE_MAX_GIDS; i++) {
-					if (slave != i &&
-					    !memcmp(gid_entry->raw, priv->roce_gids[port - 1][i].raw, 16)) {
-						mlx4_warn(dev, "requested gid entry for slave:%d "
-							  "is a duplicate of slave %d\n",
-							  slave, i);
-						return -EEXIST;
+			/* change to MULTIPLE entries: number of guest's gids
+			 * need a FOR-loop here over number of gids the guest has.
+			 * 1. Check no duplicates in gids passed by slave
+			 */
+			num_gids = mlx4_get_slave_num_gids(dev, slave);
+			base = mlx4_get_base_gid_ix(dev, slave);
+			gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+			for (i = 0; i < num_gids; gid_entry_mbox++, i++) {
+				if (!memcmp(gid_entry_mbox->raw, zgid_entry.raw,
+					    sizeof(zgid_entry)))
+					continue;
+				gid_entry_mb1 = gid_entry_mbox + 1;
+				for (j = i + 1; j < num_gids; gid_entry_mb1++, j++) {
+					if (!memcmp(gid_entry_mb1->raw,
+						    zgid_entry.raw, sizeof(zgid_entry)))
+						continue;
+					if (!memcmp(gid_entry_mb1->raw, gid_entry_mbox->raw,
+						    sizeof(gid_entry_mbox->raw))) {
+						/* found duplicate */
+						return -EINVAL;
 					}
 				}
 			}
-			/* insert slave GID at proper index */
-			memcpy(priv->roce_gids[port - 1][slave].raw, gid_entry->raw, 16);
-			/* rewrite roce port gids table to FW */
+
+			/* 2. Check that do not have duplicates in OTHER
+			 *    entries in the port GID table
+			 */
 			for (i = 0; i < MLX4_ROCE_MAX_GIDS; i++) {
-				memcpy(gid_entry->raw, priv->roce_gids[port - 1][i].raw, 16);
-				gid_entry++;
+				if (i >= base && i < base + num_gids)
+					continue; /* don't compare to slave's current gids */
+				gid_entry_tbl = &priv->roce_gids[port - 1][i];
+				if (!memcmp(gid_entry_tbl->raw, zgid_entry.raw, sizeof(zgid_entry)))
+					continue;
+				gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+				for (j = 0; j < num_gids; gid_entry_mbox++, j++) {
+					if (!memcmp(gid_entry_mbox->raw, zgid_entry.raw,
+						    sizeof(zgid_entry)))
+						continue;
+					if (!memcmp(gid_entry_mbox->raw, gid_entry_tbl->raw,
+						    sizeof(gid_entry_tbl->raw))) {
+						/* found duplicate */
+						mlx4_warn(dev, "requested gid entry for slave:%d "
+							  "is a duplicate of gid at index %d\n",
+							  slave, i);
+						return -EINVAL;
+					}
+				}
 			}
+
+			/* insert slave GIDs with memcpy, starting at slave's base index */
+			gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+			for (i = 0, offset = base; i < num_gids; gid_entry_mbox++, offset++, i++)
+				memcpy(priv->roce_gids[port - 1][offset].raw, gid_entry_mbox->raw, 16);
+
+			/* Now, copy roce port gids table to current mailbox for passing to FW */
+			gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+			for (i = 0; i < MLX4_ROCE_MAX_GIDS; gid_entry_mbox++, i++)
+				memcpy(gid_entry_mbox->raw, priv->roce_gids[port - 1][i].raw, 16);
+
 			break;
 		}
 		return mlx4_cmd(dev, inbox->dma, in_mod, op_mod,
@@ -958,6 +1025,7 @@ int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int i, found_ix = -1;
+	int vf_gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
 
 	if (!mlx4_is_mfunc(dev))
 		return -EINVAL;
@@ -969,8 +1037,19 @@ int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 		}
 	}
 
-	if (found_ix >= 0)
-		*slave_id = found_ix;
+	if (found_ix >= 0) {
+		if (found_ix < MLX4_ROCE_PF_GIDS)
+			*slave_id = 0;
+		else if (found_ix < MLX4_ROCE_PF_GIDS + (vf_gids % dev->num_vfs) *
+			 (vf_gids / dev->num_vfs + 1))
+			*slave_id = ((found_ix - MLX4_ROCE_PF_GIDS) /
+				     (vf_gids / dev->num_vfs + 1)) + 1;
+		else
+			*slave_id =
+			((found_ix - MLX4_ROCE_PF_GIDS -
+			  ((vf_gids % dev->num_vfs) * ((vf_gids / dev->num_vfs + 1)))) /
+			 (vf_gids / dev->num_vfs)) + vf_gids % dev->num_vfs + 1;
+	}
 
 	return (found_ix >= 0) ? 0 : -EINVAL;
 }
