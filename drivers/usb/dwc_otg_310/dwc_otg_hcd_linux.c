@@ -749,7 +749,7 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 		pcgcctl.b.stoppclk = 1;//stop phy clk
 		DWC_WRITE_REG32(core_if->pcgcctl, pcgcctl.d32);
 	}
-#if 0 //ndef CONFIG_DWC_REMOTE_WAKEUP
+#ifndef CONFIG_DWC_REMOTE_WAKEUP
 	else{ //no device connect
 		if(pldata->phy_suspend) 
 		pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
@@ -784,7 +784,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 		return 0;
 //#endif
 
-#if 0 //ndef CONFIG_DWC_REMOTE_WAKEUP
+#ifndef CONFIG_DWC_REMOTE_WAKEUP
 	if (pldata->clock_enable) 
 		pldata->clock_enable( pldata, 1);
 #endif
@@ -843,7 +843,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	
 		mdelay(10);
 	}
-#if 0 //ndef CONFIG_DWC_REMOTE_WAKEUP
+#ifndef CONFIG_DWC_REMOTE_WAKEUP
 	else{
 		if(pldata->phy_suspend) 
 		pldata->phy_suspend( pldata, USB_PHY_ENABLED);
