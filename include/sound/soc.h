@@ -413,6 +413,10 @@ struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 		const char *dai_link);
 
+bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
+void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream);
+void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream);
+
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
 int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params);
@@ -656,12 +660,19 @@ struct snd_soc_component {
 	const char *name;
 	int id;
 	struct device *dev;
+
+	unsigned int active;
+
+	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
+
 	struct list_head list;
 
 	struct snd_soc_dai_driver *dai_drv;
 	int num_dai;
 
 	const struct snd_soc_component_driver *driver;
+
+	struct list_head dai_list;
 };
 
 /* SoC Audio Codec device */
@@ -683,7 +694,6 @@ struct snd_soc_codec {
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
-	unsigned int active;
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
 	unsigned int probed:1; /* Codec has been probed */
@@ -709,7 +719,6 @@ struct snd_soc_codec {
 
 	/* dapm */
 	struct snd_soc_dapm_context dapm;
-	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_codec_root;
@@ -1166,6 +1175,17 @@ static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 	 * stereo (bits in one register or in two registers)
 	 */
 	return 1;
+}
+
+static inline bool snd_soc_component_is_active(
+	struct snd_soc_component *component)
+{
+	return component->active != 0;
+}
+
+static inline bool snd_soc_codec_is_active(struct snd_soc_codec *codec)
+{
+	return snd_soc_component_is_active(&codec->component);
 }
 
 int snd_soc_util_init(void);

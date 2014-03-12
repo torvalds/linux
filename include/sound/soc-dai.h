@@ -270,6 +270,7 @@ struct snd_soc_dai {
 	/* parent platform/codec */
 	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
 	struct snd_soc_card *card;
 
