@@ -326,7 +326,7 @@ static int fsl_esai_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_TSMA,
 			   ESAI_xSMA_xS_MASK, ESAI_xSMA_xS(tx_mask));
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_TSMB,
-			   ESAI_xSMA_xS_MASK, ESAI_xSMB_xS(tx_mask));
+			   ESAI_xSMB_xS_MASK, ESAI_xSMB_xS(tx_mask));
 
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_RCCR,
 			   ESAI_xCCR_xDC_MASK, ESAI_xCCR_xDC(slots));
@@ -334,7 +334,7 @@ static int fsl_esai_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_RSMA,
 			   ESAI_xSMA_xS_MASK, ESAI_xSMA_xS(rx_mask));
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_RSMB,
-			   ESAI_xSMA_xS_MASK, ESAI_xSMB_xS(rx_mask));
+			   ESAI_xSMB_xS_MASK, ESAI_xSMB_xS(rx_mask));
 
 	esai_priv->slot_width = slot_width;
 
