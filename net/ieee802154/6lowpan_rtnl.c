@@ -613,7 +613,7 @@ static struct notifier_block lowpan_dev_notifier = {
 };
 
 static struct packet_type lowpan_packet_type = {
-	.type = __constant_htons(ETH_P_IEEE802154),
+	.type = htons(ETH_P_IEEE802154),
 	.func = lowpan_rcv,
 };
 
