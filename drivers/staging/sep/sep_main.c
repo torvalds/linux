@@ -3073,6 +3073,7 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		dev_dbg(&sep->pdev->dev,
 			"[PID%d] SEP_IOCPREPAREDCB start\n",
 			current->pid);
+		/* fall-through */
 	case SEP_IOCPREPAREDCB_SECURE_DMA:
 		dev_dbg(&sep->pdev->dev,
 			"[PID%d] SEP_IOCPREPAREDCB_SECURE_DMA start\n",
