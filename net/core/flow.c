@@ -484,3 +484,22 @@ err:
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(flow_cache_init);
+
+void flow_cache_fini(struct net *net)
+{
+	int i;
+	struct flow_cache *fc = &net->xfrm.flow_cache_global;
+
+	del_timer_sync(&fc->rnd_timer);
+	unregister_hotcpu_notifier(&fc->hotcpu_notifier);
+
+	for_each_possible_cpu(i) {
+		struct flow_cache_percpu *fcp = per_cpu_ptr(fc->percpu, i);
+		kfree(fcp->hash_table);
+		fcp->hash_table = NULL;
+	}
+
+	free_percpu(fc->percpu);
+	fc->percpu = NULL;
+}
+EXPORT_SYMBOL(flow_cache_fini);

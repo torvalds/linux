@@ -219,6 +219,7 @@ struct flow_cache_object *flow_cache_lookup(struct net *net,
 					    u8 dir, flow_resolve_t resolver,
 					    void *ctx);
 int flow_cache_init(struct net *net);
+void flow_cache_fini(struct net *net);
 
 void flow_cache_flush(struct net *net);
 void flow_cache_flush_deferred(struct net *net);
