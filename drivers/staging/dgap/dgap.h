@@ -487,8 +487,6 @@ enum {
  */
 enum {
 	BOARD_FAILED = 0,
-	FINISHED_BIOS_LOAD,
-	FINISHED_FEP_LOAD,
 	BOARD_READY
 };
 
