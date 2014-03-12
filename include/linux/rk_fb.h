@@ -326,6 +326,10 @@ struct rk_lcdc_win {
 
 struct rk_lcdc_driver;
 
+struct rk_fb_trsm_ops {
+	int (*enable)(void);
+	int (*disable)(void);
+};
 
 struct rk_lcdc_drv_ops {
 	int (*open) (struct rk_lcdc_driver * dev_drv, int layer_id, bool open);
@@ -483,6 +487,7 @@ struct rk_lcdc_driver {
 	struct rk29fb_info *screen_ctr_info;
 	struct list_head pwrlist_head;
 	struct rk_lcdc_drv_ops *ops;
+	struct rk_fb_trsm_ops *trsm_ops;
 
 };
 
@@ -509,6 +514,9 @@ struct rk_fb {
 
 
 };
+
+extern int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type);
+extern struct rk_fb_trsm_ops * rk_fb_trsm_ops_get(int type);
 extern int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				struct rk_lcdc_win *win, int id);
 extern int rk_fb_unregister(struct rk_lcdc_driver *dev_drv);
@@ -519,6 +527,8 @@ extern int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv);
 extern int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv);
 extern int rk_disp_pwr_disable(struct rk_lcdc_driver *dev_drv);
 extern bool is_prmry_rk_lcdc_registered(void);
+extern int rk_fb_prase_timing_dt(struct device_node *np,
+		struct rk_screen *screen);
 
 static int inline support_uboot_display(void)
 {

@@ -58,6 +58,58 @@ EXPORT_SYMBOL(video_data_to_mirroring);
 #endif
 
 
+static struct rk_fb_trsm_ops *trsm_lvds_ops;
+static struct rk_fb_trsm_ops *trsm_edp_ops;
+static struct rk_fb_trsm_ops *trsm_mipi_ops;
+
+int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type)
+{
+	switch (type) {
+	case SCREEN_RGB:
+	case SCREEN_LVDS:
+	case SCREEN_DUAL_LVDS:
+		trsm_lvds_ops = ops;
+		break;
+	case SCREEN_EDP:
+		trsm_edp_ops = ops;
+		break;
+	case SCREEN_MIPI:
+	case SCREEN_DUAL_MIPI:
+		trsm_mipi_ops = ops;
+		break;
+	default:
+		printk(KERN_WARNING "%s:un supported transmitter:%d!\n",
+			__func__, type);
+		break;
+	}
+	return 0;
+}
+
+struct rk_fb_trsm_ops *rk_fb_trsm_ops_get(int type)
+{
+	struct rk_fb_trsm_ops *ops;
+	switch (type) {
+	case SCREEN_RGB:
+	case SCREEN_LVDS:
+	case SCREEN_DUAL_LVDS:
+		ops = trsm_lvds_ops;
+		break;
+	case SCREEN_EDP:
+		ops = trsm_edp_ops;
+		break;
+	case SCREEN_MIPI:
+	case SCREEN_DUAL_MIPI:
+		ops = trsm_mipi_ops;
+		break;
+	default:
+		ops = NULL;
+		printk(KERN_WARNING "%s:un supported transmitter:%d!\n",
+			__func__, type);
+		break;
+	}
+	return ops;
+}
+
 int rk_fb_pixel_width(int data_format)
 {
 	int pixel_width;
@@ -276,14 +328,14 @@ int rk_fb_video_mode_from_timing(const struct display_timing *dt,
 	return 0;
 	
 }
-int rk_disp_prase_timing_dt(struct rk_lcdc_driver *dev_drv)
+
+int rk_fb_prase_timing_dt(struct device_node *np, struct rk_screen *screen)
 {
 	struct display_timings *disp_timing;
 	struct display_timing *dt;
-	struct rk_screen *screen = dev_drv->cur_screen;
-	disp_timing = of_get_display_timings(dev_drv->dev->of_node);
+	disp_timing = of_get_display_timings(np);
 	if (!disp_timing) {
-		dev_err(dev_drv->dev, "parse display timing err\n");
+		pr_err("parse display timing err\n");
 		return -EINVAL;
 	}
 	dt = display_timings_get(disp_timing, 0);
@@ -462,14 +514,6 @@ static struct rk_lcdc_driver  *rk_get_extend_lcdc_drv(void)
 	return dev_drv;
 }
 
-int rk_fb_get_prmry_screen(struct rk_screen *screen)
-{
-	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
-	memcpy(screen, dev_drv->screen0, sizeof(struct rk_screen));
-	return 0;
-	
-
-}
 
 u32 rk_fb_get_prmry_screen_pixclock(void)
 {
@@ -2339,7 +2383,8 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->ops->fb_win_remap(dev_drv, FB_DEFAULT_ORDER);
 	dev_drv->first_frame = 1;
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
-	rk_disp_prase_timing_dt(dev_drv);
+	if (dev_drv->prop == PRMRY)
+		rk_fb_get_prmry_screen(screen);
 
 	return 0;
 }
