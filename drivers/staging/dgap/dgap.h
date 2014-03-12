@@ -479,8 +479,6 @@ typedef unsigned char		uchar;
  */
 enum {
 	DRIVER_INITIALIZED = 0,
-	DRIVER_NEED_CONFIG_LOAD,
-	DRIVER_REQUESTED_CONFIG,
 	DRIVER_READY
 };
 

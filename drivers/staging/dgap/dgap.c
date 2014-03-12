@@ -372,13 +372,6 @@ static struct firmware_info fw_info[] = {
 	{0,}
 };
 
-static char *dgap_driver_state_text[] = {
-	"Driver Initialized",
-	"Driver needs configuration load.",
-	"Driver requested configuration from download daemon.",
-	"Driver Ready."
-};
-
 /*
  * Default transparent print information.
  */
@@ -514,8 +507,6 @@ static int dgap_init_module(void)
 
 	pr_info("%s, Digi International Part Number %s\n", DG_NAME, DG_PART);
 
-	dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
-
 	rc = dgap_start();
 	if (rc)
 		return rc;
@@ -594,8 +585,6 @@ static int dgap_start(void)
 	DGAP_UNLOCK(dgap_poll_lock, flags);
 
 	add_timer(&dgap_poll_timer);
-
-	dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
 
 	return rc;
 
@@ -874,8 +863,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 	dgap_get_vpd(brd);
 	dgap_do_reset_board(brd);
 
-	if ((fw_info[card_type].conf_name) &&
-	    (dgap_driver_state == DRIVER_NEED_CONFIG_LOAD)) {
+	if (fw_info[card_type].conf_name) {
 		ret = request_firmware(&fw, fw_info[card_type].conf_name,
 					 &pdev->dev);
 		if (ret) {
@@ -897,8 +885,6 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 
 		if (dgap_parsefile(&dgap_config_buf, TRUE) != 0)
 			return -EINVAL;
-
-		dgap_driver_state = -1;
 	}
 
 	ret = dgap_after_config_loaded(brd->boardnum);
@@ -5866,14 +5852,6 @@ static ssize_t dgap_driver_pollcounter_show(struct device_driver *ddp,
 }
 static DRIVER_ATTR(pollcounter, S_IRUSR, dgap_driver_pollcounter_show, NULL);
 
-
-static ssize_t dgap_driver_state_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			dgap_driver_state_text[dgap_driver_state]);
-}
-static DRIVER_ATTR(state, S_IRUSR, dgap_driver_state_show, NULL);
-
 static ssize_t dgap_driver_pollrate_show(struct device_driver *ddp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%dms\n", dgap_poll_tick);
@@ -5899,7 +5877,6 @@ static int dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	rc |= driver_create_file(driverfs, &driver_attr_pollcounter);
-	rc |= driver_create_file(driverfs, &driver_attr_state);
 
 	return rc;
 }
@@ -5912,7 +5889,6 @@ static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
 	driver_remove_file(driverfs, &driver_attr_maxboards);
 	driver_remove_file(driverfs, &driver_attr_pollrate);
 	driver_remove_file(driverfs, &driver_attr_pollcounter);
-	driver_remove_file(driverfs, &driver_attr_state);
 }
 
 static struct board_t *dgap_verify_board(struct device *p)
