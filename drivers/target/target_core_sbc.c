@@ -1079,25 +1079,31 @@ sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 	left = sectors * dev->prot_length;
 
 	for_each_sg(cmd->t_prot_sg, psg, cmd->t_prot_nents, i) {
-
-		len = min(psg->length, left);
-		if (offset >= sg->length) {
-			sg = sg_next(sg);
-			offset = 0;
-		}
+		unsigned int psg_len, copied = 0;
 
 		paddr = kmap_atomic(sg_page(psg)) + psg->offset;
-		addr = kmap_atomic(sg_page(sg)) + sg->offset + offset;
+		psg_len = min(left, psg->length);
+		while (psg_len) {
+			len = min(psg_len, sg->length - offset);
+			addr = kmap_atomic(sg_page(sg)) + sg->offset + offset;
 
-		if (read)
-			memcpy(paddr, addr, len);
-		else
-			memcpy(addr, paddr, len);
+			if (read)
+				memcpy(paddr + copied, addr, len);
+			else
+				memcpy(addr, paddr + copied, len);
 
-		left -= len;
-		offset += len;
+			left -= len;
+			offset += len;
+			copied += len;
+			psg_len -= len;
+
+			if (offset >= sg->length) {
+				sg = sg_next(sg);
+				offset = 0;
+			}
+			kunmap_atomic(addr);
+		}
 		kunmap_atomic(paddr);
-		kunmap_atomic(addr);
 	}
 }
 

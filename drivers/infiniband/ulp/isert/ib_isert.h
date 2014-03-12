@@ -6,6 +6,7 @@
 
 #define ISERT_RDMA_LISTEN_BACKLOG	10
 #define ISCSI_ISER_SG_TABLESIZE		256
+#define ISER_FASTREG_LI_WRID		0xffffffffffffffffULL
 
 enum isert_desc_type {
 	ISCSI_TX_CONTROL,
@@ -45,6 +46,7 @@ struct iser_tx_desc {
 	struct isert_cmd *isert_cmd;
 	struct llist_node *comp_llnode_batch;
 	struct llist_node comp_llnode;
+	bool		llnode_active;
 	struct ib_send_wr send_wr;
 } __packed;
 
@@ -116,8 +118,8 @@ struct isert_conn {
 	struct isert_device	*conn_device;
 	struct work_struct	conn_logout_work;
 	struct mutex		conn_mutex;
-	wait_queue_head_t	conn_wait;
-	wait_queue_head_t	conn_wait_comp_err;
+	struct completion	conn_wait;
+	struct completion	conn_wait_comp_err;
 	struct kref		conn_kref;
 	struct list_head	conn_fr_pool;
 	int			conn_fr_pool_size;
@@ -126,7 +128,6 @@ struct isert_conn {
 #define ISERT_COMP_BATCH_COUNT	8
 	int			conn_comp_batch;
 	struct llist_head	conn_comp_llist;
-	struct mutex		conn_comp_mutex;
 };
 
 #define ISERT_MAX_CQ 64
