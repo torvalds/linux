@@ -1313,7 +1313,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 			     journal->j_running_transaction)) {
 			printk(KERN_ERR "JBD2: %s: "
 			       "jh->b_transaction (%llu, %p, %u) != "
-			       "journal->j_running_transaction (%p, %u)",
+			       "journal->j_running_transaction (%p, %u)\n",
 			       journal->j_devname,
 			       (unsigned long long) bh->b_blocknr,
 			       jh->b_transaction,
@@ -1336,30 +1336,25 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 	 */
 	if (jh->b_transaction != transaction) {
 		JBUFFER_TRACE(jh, "already on other transaction");
-		if (unlikely(jh->b_transaction !=
-			     journal->j_committing_transaction)) {
-			printk(KERN_ERR "JBD2: %s: "
-			       "jh->b_transaction (%llu, %p, %u) != "
-			       "journal->j_committing_transaction (%p, %u)",
+		if (unlikely(((jh->b_transaction !=
+			       journal->j_committing_transaction)) ||
+			     (jh->b_next_transaction != transaction))) {
+			printk(KERN_ERR "jbd2_journal_dirty_metadata: %s: "
+			       "bad jh for block %llu: "
+			       "transaction (%p, %u), "
+			       "jh->b_transaction (%p, %u), "
+			       "jh->b_next_transaction (%p, %u), jlist %u\n",
 			       journal->j_devname,
 			       (unsigned long long) bh->b_blocknr,
+			       transaction, transaction->t_tid,
 			       jh->b_transaction,
-			       jh->b_transaction ? jh->b_transaction->t_tid : 0,
-			       journal->j_committing_transaction,
-			       journal->j_committing_transaction ?
-			       journal->j_committing_transaction->t_tid : 0);
-			ret = -EINVAL;
-		}
-		if (unlikely(jh->b_next_transaction != transaction)) {
-			printk(KERN_ERR "JBD2: %s: "
-			       "jh->b_next_transaction (%llu, %p, %u) != "
-			       "transaction (%p, %u)",
-			       journal->j_devname,
-			       (unsigned long long) bh->b_blocknr,
+			       jh->b_transaction ?
+			       jh->b_transaction->t_tid : 0,
 			       jh->b_next_transaction,
 			       jh->b_next_transaction ?
 			       jh->b_next_transaction->t_tid : 0,
-			       transaction, transaction->t_tid);
+			       jh->b_jlist);
+			WARN_ON(1);
 			ret = -EINVAL;
 		}
 		/* And this case is illegal: we can't reuse another
