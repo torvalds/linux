@@ -2289,6 +2289,30 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_vlan);
 
+ /* mlx4_get_slave_default_vlan -
+ * return true if VST ( default vlan)
+ * if VST, will return vlan & qos (if not NULL)
+ */
+bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave,
+				 u16 *vlan, u8 *qos)
+{
+	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_priv *priv;
+
+	priv = mlx4_priv(dev);
+	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
+
+	if (MLX4_VGT != vp_oper->state.default_vlan) {
+		if (vlan)
+			*vlan = vp_oper->state.default_vlan;
+		if (qos)
+			*qos = vp_oper->state.default_qos;
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_slave_default_vlan);
+
 int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);

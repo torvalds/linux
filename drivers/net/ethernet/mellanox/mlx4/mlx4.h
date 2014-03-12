@@ -788,6 +788,10 @@ enum {
 	MLX4_USE_RR	= 1,
 };
 
+struct mlx4_roce_gid_entry {
+	u8 raw[16];
+};
+
 struct mlx4_priv {
 	struct mlx4_dev		dev;
 
@@ -834,6 +838,7 @@ struct mlx4_priv {
 	int			fs_hash_mode;
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
 	__be64			slave_node_guids[MLX4_MFUNC_MAX];
+	struct mlx4_roce_gid_entry roce_gids[MLX4_MAX_PORTS][MLX4_ROCE_MAX_GIDS];
 
 	atomic_t		opreq_count;
 	struct work_struct	opreq_task;
@@ -1281,5 +1286,8 @@ static inline spinlock_t *mlx4_tlock(struct mlx4_dev *dev)
 void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work);
 
 void mlx4_init_quotas(struct mlx4_dev *dev);
+
+int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave);
+int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave);
 
 #endif /* MLX4_H */

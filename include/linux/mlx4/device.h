@@ -48,6 +48,9 @@
 #define MSIX_LEGACY_SZ		4
 #define MIN_MSIX_P_PORT		5
 
+#define MLX4_ROCE_MAX_GIDS	128
+#define MLX4_ROCE_PF_GIDS	16
+
 enum {
 	MLX4_FLAG_MSI_X		= 1 << 0,
 	MLX4_FLAG_OLD_PORT_CMDS	= 1 << 1,
@@ -629,7 +632,8 @@ struct mlx4_eth_av {
 	u8		hop_limit;
 	__be32		sl_tclass_flowlabel;
 	u8		dgid[16];
-	u32		reserved4[2];
+	u8		s_mac[6];
+	u8		reserved4[2];
 	__be16		vlan;
 	u8		mac[ETH_ALEN];
 };
@@ -1182,6 +1186,11 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave, u8 port, int 
 
 void mlx4_put_slave_node_guid(struct mlx4_dev *dev, int slave, __be64 guid);
 __be64 mlx4_get_slave_node_guid(struct mlx4_dev *dev, int slave);
+
+int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
+				 int *slave_id);
+int mlx4_get_roce_gid_from_slave(struct mlx4_dev *dev, int port, int slave_id,
+				 u8 *gid);
 
 int mlx4_FLOW_STEERING_IB_UC_QP_RANGE(struct mlx4_dev *dev, u32 min_range_qpn,
 				      u32 max_range_qpn);
