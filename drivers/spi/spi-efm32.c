@@ -287,15 +287,12 @@ static u32 efm32_spi_get_configured_location(struct efm32_spi_ddata *ddata)
 	return (reg & REG_ROUTE_LOCATION__MASK) >> __ffs(REG_ROUTE_LOCATION__MASK);
 }
 
-static int efm32_spi_probe_dt(struct platform_device *pdev,
+static void efm32_spi_probe_dt(struct platform_device *pdev,
 		struct spi_master *master, struct efm32_spi_ddata *ddata)
 {
 	struct device_node *np = pdev->dev.of_node;
 	u32 location;
 	int ret;
-
-	if (!np)
-		return 1;
 
 	ret = of_property_read_u32(np, "location", &location);
 	if (!ret) {
@@ -308,7 +305,6 @@ static int efm32_spi_probe_dt(struct platform_device *pdev,
 	}
 
 	ddata->pdata.location = location;
-	return 0;
 }
 
 static int efm32_spi_probe(struct platform_device *pdev)
@@ -318,9 +314,14 @@ static int efm32_spi_probe(struct platform_device *pdev)
 	int ret;
 	struct spi_master *master;
 	struct device_node *np = pdev->dev.of_node;
-	unsigned int num_cs, i;
+	int num_cs, i;
+
+	if (!np)
+		return -EINVAL;
 
 	num_cs = of_gpio_named_count(np, "cs-gpios");
+	if (num_cs < 0)
+		return num_cs;
 
 	master = spi_alloc_master(&pdev->dev,
 			sizeof(*ddata) + num_cs * sizeof(unsigned));
@@ -411,23 +412,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = efm32_spi_probe_dt(pdev, master, ddata);
-	if (ret > 0) {
-		/* not created by device tree */
-		const struct efm32_spi_pdata *pdata =
-			dev_get_platdata(&pdev->dev);
-
-		if (pdata)
-			ddata->pdata = *pdata;
-		else
-			ddata->pdata.location =
-				efm32_spi_get_configured_location(ddata);
-
-		master->bus_num = pdev->id;
-
-	} else if (ret < 0) {
-		goto err_disable_clk;
-	}
+	efm32_spi_probe_dt(pdev, master, ddata);
 
 	efm32_spi_write32(ddata, 0, REG_IEN);
 	efm32_spi_write32(ddata, REG_ROUTE_TXPEN | REG_ROUTE_RXPEN |
