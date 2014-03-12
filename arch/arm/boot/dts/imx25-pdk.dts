@@ -52,6 +52,14 @@
 			regulator-max-microvolt = <3300000>;
 		};
 
+		reg_can_3v3: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "can-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio4 6 0>;
+		};
 	};
 
 	sound {
@@ -72,6 +80,13 @@
 &audmux {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_audmux>;
+	status = "okay";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can1>;
+	xceiver-supply = <&reg_can_3v3>;
 	status = "okay";
 };
 
@@ -115,6 +130,14 @@
 				MX25_PAD_OE__AUD4_TXC			0xe0
 				MX25_PAD_EB0__AUD4_TXD			0xe0
 				MX25_PAD_EB1__AUD4_RXD			0xe0
+			>;
+		};
+
+		pinctrl_can1: can1grp {
+			fsl,pins = <
+				MX25_PAD_GPIO_A__CAN1_TX		0x0
+				MX25_PAD_GPIO_B__CAN1_RX		0x0
+				MX25_PAD_D14__GPIO_4_6 			0x80000000
 			>;
 		};
 
