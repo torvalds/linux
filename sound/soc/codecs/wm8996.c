@@ -2600,7 +2600,7 @@ static void wm8996_retune_mobile_pdata(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Allocated %d unique ReTune Mobile names\n",
 		wm8996->num_retune_mobile_texts);
 
-	wm8996->retune_mobile_enum.max = wm8996->num_retune_mobile_texts;
+	wm8996->retune_mobile_enum.items = wm8996->num_retune_mobile_texts;
 	wm8996->retune_mobile_enum.texts = wm8996->retune_mobile_texts;
 
 	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
