@@ -984,6 +984,10 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 	/* Flush the TLB for this page */
 	if (INTEL_INFO(dev)->gen >= 6) {
 		u32 reg = RING_INSTPM(ring->mmio_base);
+
+		/* ring should be idle before issuing a sync flush*/
+		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+
 		I915_WRITE(reg,
 			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
 					      INSTPM_SYNC_FLUSH));
