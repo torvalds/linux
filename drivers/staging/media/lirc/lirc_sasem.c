@@ -865,15 +865,20 @@ alloc_status_switch:
 			usb_free_urb(tx_urb);
 	case 6:
 		usb_free_urb(rx_urb);
+		/* fall-through */
 	case 5:
 		lirc_buffer_free(rbuf);
+		/* fall-through */
 	case 4:
 		kfree(rbuf);
+		/* fall-through */
 	case 3:
 		kfree(driver);
+		/* fall-through */
 	case 2:
 		kfree(context);
 		context = NULL;
+		/* fall-through */
 	case 1:
 		if (retval == 0)
 			retval = -ENOMEM;
