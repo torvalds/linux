@@ -1324,8 +1324,8 @@ static void rtl8180_rx(struct net_device *dev)
 			priv->rx_skb_complete = 1;
 		}
 
-		signal = (unsigned char)(*(priv->rxringtail + 3) &
-			0x00ff0000) >> 16;
+		signal = (unsigned char)((*(priv->rxringtail + 3) &
+			0x00ff0000) >> 16);
 		signal = (signal & 0xfe) >> 1;
 
 		quality = (unsigned char)((*(priv->rxringtail+3)) & (0xff));
