@@ -545,10 +545,35 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 
 	/* adjust tunnel data */
 	tun_mad->hdr.pkey_index = cpu_to_be16(tun_pkey_ix);
-	tun_mad->hdr.sl_vid = cpu_to_be16(((u16)(wc->sl)) << 12);
-	tun_mad->hdr.slid_mac_47_32 = cpu_to_be16(wc->slid);
 	tun_mad->hdr.flags_src_qp = cpu_to_be32(wc->src_qp & 0xFFFFFF);
 	tun_mad->hdr.g_ml_path = (grh && (wc->wc_flags & IB_WC_GRH)) ? 0x80 : 0;
+
+	if (is_eth) {
+		u16 vlan = 0;
+		if (mlx4_get_slave_default_vlan(dev->dev, port, slave, &vlan,
+						NULL)) {
+			/* VST mode */
+			if (vlan != wc->vlan_id)
+				/* Packet vlan is not the VST-assigned vlan.
+				 * Drop the packet.
+				 */
+				goto out;
+			 else
+				/* Remove the vlan tag before forwarding
+				 * the packet to the VF.
+				 */
+				vlan = 0xffff;
+		} else {
+			vlan = wc->vlan_id;
+		}
+
+		tun_mad->hdr.sl_vid = cpu_to_be16(vlan);
+		memcpy((char *)&tun_mad->hdr.mac_31_0, &(wc->smac[0]), 4);
+		memcpy((char *)&tun_mad->hdr.slid_mac_47_32, &(wc->smac[4]), 2);
+	} else {
+		tun_mad->hdr.sl_vid = cpu_to_be16(((u16)(wc->sl)) << 12);
+		tun_mad->hdr.slid_mac_47_32 = cpu_to_be16(wc->slid);
+	}
 
 	ib_dma_sync_single_for_device(&dev->ib_dev,
 				      tun_qp->tx_ring[tun_tx_ix].buf.map,
@@ -1116,8 +1141,9 @@ static int is_proxy_qp0(struct mlx4_ib_dev *dev, int qpn, int slave)
 
 
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
-			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
-			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad)
+			 enum ib_qp_type dest_qpt, u16 pkey_index,
+			 u32 remote_qpn, u32 qkey, struct ib_ah_attr *attr,
+			 u8 *s_mac, struct ib_mad *mad)
 {
 	struct ib_sge list;
 	struct ib_send_wr wr, *bad_wr;
@@ -1206,6 +1232,9 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 	wr.num_sge = 1;
 	wr.opcode = IB_WR_SEND;
 	wr.send_flags = IB_SEND_SIGNALED;
+	if (s_mac)
+		memcpy(to_mah(ah)->av.eth.s_mac, s_mac, 6);
+
 
 	ret = ib_post_send(send_qp, &wr, &bad_wr);
 out:
@@ -1331,13 +1360,19 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	if (ah_attr.ah_flags & IB_AH_GRH)
 		fill_in_real_sgid_index(dev, slave, ctx->port, &ah_attr);
 
+	memcpy(ah_attr.dmac, tunnel->hdr.mac, 6);
+	ah_attr.vlan_id = be16_to_cpu(tunnel->hdr.vlan);
+	/* if slave have default vlan use it */
+	mlx4_get_slave_default_vlan(dev->dev, ctx->port, slave,
+				    &ah_attr.vlan_id, &ah_attr.sl);
+
 	mlx4_ib_send_to_wire(dev, slave, ctx->port,
 			     is_proxy_qp0(dev, wc->src_qp, slave) ?
 			     IB_QPT_SMI : IB_QPT_GSI,
 			     be16_to_cpu(tunnel->hdr.pkey_index),
 			     be32_to_cpu(tunnel->hdr.remote_qpn),
 			     be32_to_cpu(tunnel->hdr.qkey),
-			     &ah_attr, &tunnel->mad);
+			     &ah_attr, wc->smac, &tunnel->mad);
 }
 
 static int mlx4_ib_alloc_pv_bufs(struct mlx4_ib_demux_pv_ctx *ctx,

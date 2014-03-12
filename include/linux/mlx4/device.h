@@ -632,7 +632,8 @@ struct mlx4_eth_av {
 	u8		hop_limit;
 	__be32		sl_tclass_flowlabel;
 	u8		dgid[16];
-	u32		reserved4[2];
+	u8		s_mac[6];
+	u8		reserved4[2];
 	__be16		vlan;
 	u8		mac[ETH_ALEN];
 };

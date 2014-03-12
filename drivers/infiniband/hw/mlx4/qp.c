@@ -2152,7 +2152,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	}
 
 	if (is_eth) {
-		u8 smac[6];
+		u8 *smac;
 		struct in6_addr in6;
 
 		u16 pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
@@ -2164,7 +2164,12 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		memcpy(&ctrl->srcrb_flags16[0], ah->av.eth.mac, 2);
 		memcpy(&ctrl->imm, ah->av.eth.mac + 2, 4);
 		memcpy(&in6, sgid.raw, sizeof(in6));
-		rdma_get_ll_mac(&in6, smac);
+
+		if (!mlx4_is_mfunc(to_mdev(ib_dev)->dev))
+			smac = to_mdev(sqp->qp.ibqp.device)->
+				iboe.netdevs[sqp->qp.port - 1]->dev_addr;
+		else	/* use the src mac of the tunnel */
+			smac = ah->av.eth.s_mac;
 		memcpy(sqp->ud_header.eth.smac_h, smac, 6);
 		if (!memcmp(sqp->ud_header.eth.smac_h, sqp->ud_header.eth.dmac_h, 6))
 			mlx->flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
@@ -2396,6 +2401,8 @@ static void build_tunnel_header(struct ib_send_wr *wr, void *wqe, unsigned *mlx_
 	hdr.remote_qpn = cpu_to_be32(wr->wr.ud.remote_qpn);
 	hdr.pkey_index = cpu_to_be16(wr->wr.ud.pkey_index);
 	hdr.qkey = cpu_to_be32(wr->wr.ud.remote_qkey);
+	memcpy(hdr.mac, ah->av.eth.mac, 6);
+	hdr.vlan = ah->av.eth.vlan;
 
 	spc = MLX4_INLINE_ALIGN -
 		((unsigned long) (inl + 1) & (MLX4_INLINE_ALIGN - 1));

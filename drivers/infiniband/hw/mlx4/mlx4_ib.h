@@ -737,9 +737,12 @@ void mlx4_ib_tunnels_update_work(struct work_struct *work);
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  enum ib_qp_type qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad);
+
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
-			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad);
+			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac,
+			 struct ib_mad *mad);
+
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
