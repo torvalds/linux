@@ -12,7 +12,7 @@
  *
  */
 
-#include <../mach-rockchip/iomap.h>
+#include <linux/rockchip/iomap.h>
 #define UART_SHIFT 2
 
 	.macro addruart, rp, rv, tmp
