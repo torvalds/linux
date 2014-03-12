@@ -615,7 +615,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		rockchip,ion-heap@1 { /* CMA HEAP */
+			compatible = "rockchip,ion-reserve";
 			reg = <1>;
+			memory-reservation = <0x00000000 0x10000000>; /* 256MB */
 		};
 		rockchip,ion-heap@3 { /* SYSTEM HEAP */
 			reg = <3>;

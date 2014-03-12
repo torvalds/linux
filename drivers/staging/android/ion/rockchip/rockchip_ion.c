@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <video/of_display_timing.h>
+#include <linux/of_fdt.h>
 #endif
 
 static struct ion_device *idev;
@@ -66,6 +67,11 @@ static struct ion_heap_desc ion_heap_meta[] = {
 	},
 };
 
+struct device rockchip_ion_cma_dev = {
+	.coherent_dma_mask = DMA_BIT_MASK(32),
+	.init_name = "rockchip_ion_cma",
+};
+
 static int rockchip_ion_populate_heap(struct ion_platform_heap *heap)
 {
 	unsigned int i;
@@ -75,6 +81,8 @@ static int rockchip_ion_populate_heap(struct ion_platform_heap *heap)
 		if (ion_heap_meta[i].id == heap->id) {
 			heap->name = ion_heap_meta[i].name;
 			heap->type = ion_heap_meta[i].type;
+			if(heap->id == ION_CMA_HEAP_ID)
+				heap->priv = &rockchip_ion_cma_dev;
 			ret = 0;
 			break;
 		}
@@ -144,7 +152,6 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 			goto free_heaps;
 
 //		rockchip_ion_get_heap_adjacent(node, &pdata->heaps[idx]);
-		pdata->heaps[idx].priv = dev;
 		pr_info("%d:  %d  %d  %s  0x%p\n", idx, pdata->heaps[idx].type, pdata->heaps[idx].id, pdata->heaps[idx].name, pdata->heaps[idx].priv);
 
 		++idx;
@@ -255,7 +262,7 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			return PTR_ERR(dmabuf);
 
 		data.id = (unsigned int)dmabuf;
-		dma_buf_put(dmabuf);
+//		dma_buf_put(dmabuf);
 
 		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_share_id_data)))
 			return -EFAULT;
@@ -355,6 +362,31 @@ static int rockchip_ion_remove(struct platform_device *pdev)
 		ion_heap_destroy(heaps[i]);
 	kfree(heaps);
 	return 0;
+}
+
+int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
+				int depth, void *data)
+{
+	__be32 *prop;
+	unsigned long len;
+	phys_addr_t size;
+	phys_addr_t base;
+
+	if (!of_flat_dt_is_compatible(node, "rockchip,ion-reserve"))
+		return 0;
+
+	prop = of_get_flat_dt_prop(node, "memory-reservation", &len);
+	if (!prop || (len != 2 * sizeof(unsigned long)))
+		return 0;
+
+	base = be32_to_cpu(prop[0]);
+	size = be32_to_cpu(prop[1]);
+
+	pr_info("%s: reserve cma memory: %x %x\n", __func__, base, size);
+
+	dma_declare_contiguous(&rockchip_ion_cma_dev, size, base, 0);
+
+	return 1;
 }
 
 static const struct of_device_id rockchip_ion_dt_ids[] = {
