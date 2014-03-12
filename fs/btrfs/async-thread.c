@@ -56,7 +56,8 @@ struct btrfs_workqueue {
 };
 
 static inline struct __btrfs_workqueue
-*__btrfs_alloc_workqueue(char *name, int flags, int max_active, int thresh)
+*__btrfs_alloc_workqueue(const char *name, int flags, int max_active,
+			 int thresh)
 {
 	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
@@ -92,13 +93,14 @@ static inline struct __btrfs_workqueue
 	INIT_LIST_HEAD(&ret->ordered_list);
 	spin_lock_init(&ret->list_lock);
 	spin_lock_init(&ret->thres_lock);
+	trace_btrfs_workqueue_alloc(ret, name, flags & WQ_HIGHPRI);
 	return ret;
 }
 
 static inline void
 __btrfs_destroy_workqueue(struct __btrfs_workqueue *wq);
 
-struct btrfs_workqueue *btrfs_alloc_workqueue(char *name,
+struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 					      int flags,
 					      int max_active,
 					      int thresh)
@@ -305,6 +307,7 @@ static inline void
 __btrfs_destroy_workqueue(struct __btrfs_workqueue *wq)
 {
 	destroy_workqueue(wq->normal_wq);
+	trace_btrfs_workqueue_destroy(wq);
 	kfree(wq);
 }
 

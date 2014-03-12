@@ -38,7 +38,7 @@ struct btrfs_work {
 	unsigned long flags;
 };
 
-struct btrfs_workqueue *btrfs_alloc_workqueue(char *name,
+struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 					      int flags,
 					      int max_active,
 					      int thresh);
