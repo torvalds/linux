@@ -54,17 +54,6 @@ static struct sk_buff *port_build_self_abort_msg(struct tipc_port *, u32 err);
 static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *, u32 err);
 static void port_timeout(unsigned long ref);
 
-
-static u32 port_peernode(struct tipc_port *p_ptr)
-{
-	return msg_destnode(&p_ptr->phdr);
-}
-
-static u32 port_peerport(struct tipc_port *p_ptr)
-{
-	return msg_destport(&p_ptr->phdr);
-}
-
 /**
  * tipc_port_peer_msg - verify message was sent by connected port's peer
  *
@@ -76,11 +65,11 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg)
 	u32 peernode;
 	u32 orignode;
 
-	if (msg_origport(msg) != port_peerport(p_ptr))
+	if (msg_origport(msg) != tipc_port_peerport(p_ptr))
 		return 0;
 
 	orignode = msg_orignode(msg);
-	peernode = port_peernode(p_ptr);
+	peernode = tipc_port_peernode(p_ptr);
 	return (orignode == peernode) ||
 		(!orignode && (peernode == tipc_own_addr)) ||
 		(!peernode && (orignode == tipc_own_addr));
@@ -351,8 +340,8 @@ static struct sk_buff *port_build_proto_msg(struct tipc_port *p_ptr,
 	if (buf) {
 		msg = buf_msg(buf);
 		tipc_msg_init(msg, CONN_MANAGER, type, INT_H_SIZE,
-			      port_peernode(p_ptr));
-		msg_set_destport(msg, port_peerport(p_ptr));
+			      tipc_port_peernode(p_ptr));
+		msg_set_destport(msg, tipc_port_peerport(p_ptr));
 		msg_set_origport(msg, p_ptr->ref);
 		msg_set_msgcnt(msg, ack);
 	}
@@ -585,8 +574,8 @@ static int port_print(struct tipc_port *p_ptr, char *buf, int len, int full_id)
 		ret = tipc_snprintf(buf, len, "%-10u:", p_ptr->ref);
 
 	if (p_ptr->connected) {
-		u32 dport = port_peerport(p_ptr);
-		u32 destnode = port_peernode(p_ptr);
+		u32 dport = tipc_port_peerport(p_ptr);
+		u32 destnode = tipc_port_peernode(p_ptr);
 
 		ret += tipc_snprintf(buf + ret, len - ret,
 				     " connected to <%u.%u.%u:%u>",
@@ -926,7 +915,7 @@ int tipc_send(u32 ref, struct iovec const *msg_sect, unsigned int len)
 
 	p_ptr->congested = 1;
 	if (!tipc_port_congested(p_ptr)) {
-		destnode = port_peernode(p_ptr);
+		destnode = tipc_port_peernode(p_ptr);
 		if (likely(!in_own_node(destnode)))
 			res = tipc_link_iovec_xmit_fast(p_ptr, msg_sect, len,
 							destnode);

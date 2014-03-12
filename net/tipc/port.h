@@ -198,4 +198,15 @@ static inline int tipc_port_congested(struct tipc_port *p_ptr)
 	return (p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2);
 }
 
+
+static inline u32 tipc_port_peernode(struct tipc_port *p_ptr)
+{
+	return msg_destnode(&p_ptr->phdr);
+}
+
+static inline u32 tipc_port_peerport(struct tipc_port *p_ptr)
+{
+	return msg_destport(&p_ptr->phdr);
+}
+
 #endif

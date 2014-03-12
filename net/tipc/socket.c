@@ -48,7 +48,6 @@
 struct tipc_sock {
 	struct sock sk;
 	struct tipc_port *p;
-	struct tipc_portid peer_name;
 	unsigned int conn_timeout;
 };
 
@@ -445,8 +444,9 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
 		if ((sock->state != SS_CONNECTED) &&
 			((peer != 2) || (sock->state != SS_DISCONNECTING)))
 			return -ENOTCONN;
-		addr->addr.id.ref = tsock->peer_name.ref;
-		addr->addr.id.node = tsock->peer_name.node;
+
+		addr->addr.id.ref = tipc_port_peerport(tsock->p);
+		addr->addr.id.node = tipc_port_peernode(tsock->p);
 	} else {
 		addr->addr.id.ref = tsock->p->ref;
 		addr->addr.id.node = tipc_own_addr;
@@ -881,14 +881,16 @@ static int auto_connect(struct socket *sock, struct tipc_msg *msg)
 {
 	struct tipc_sock *tsock = tipc_sk(sock->sk);
 	struct tipc_port *p_ptr;
+	struct tipc_portid peer;
 
-	tsock->peer_name.ref = msg_origport(msg);
-	tsock->peer_name.node = msg_orignode(msg);
+	peer.ref = msg_origport(msg);
+	peer.node = msg_orignode(msg);
+
 	p_ptr = tipc_port_deref(tsock->p->ref);
 	if (!p_ptr)
 		return -EINVAL;
 
-	__tipc_port_connect(tsock->p->ref, p_ptr, &tsock->peer_name);
+	__tipc_port_connect(p_ptr->ref, p_ptr, &peer);
 
 	if (msg_importance(msg) > TIPC_CRITICAL_IMPORTANCE)
 		return -EINVAL;
@@ -1662,6 +1664,7 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 	struct tipc_sock *new_tsock;
 	struct tipc_port *new_tport;
 	struct tipc_msg *msg;
+	struct tipc_portid peer;
 	u32 new_ref;
 	long timeo;
 	int res;
@@ -1700,9 +1703,9 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 	reject_rx_queue(new_sk);
 
 	/* Connect new socket to it's peer */
-	new_tsock->peer_name.ref = msg_origport(msg);
-	new_tsock->peer_name.node = msg_orignode(msg);
-	tipc_port_connect(new_ref, &new_tsock->peer_name);
+	peer.ref = msg_origport(msg);
+	peer.node = msg_orignode(msg);
+	tipc_port_connect(new_ref, &peer);
 	new_sock->state = SS_CONNECTED;
 
 	tipc_set_portimportance(new_ref, msg_importance(msg));
