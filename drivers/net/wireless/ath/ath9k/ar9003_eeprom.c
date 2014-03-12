@@ -23,8 +23,8 @@
 #define COMP_HDR_LEN 4
 #define COMP_CKSUM_LEN 2
 
-#define LE16(x) __constant_cpu_to_le16(x)
-#define LE32(x) __constant_cpu_to_le32(x)
+#define LE16(x) cpu_to_le16(x)
+#define LE32(x) cpu_to_le32(x)
 
 /* Local defines to distinguish between extension and control CTL's */
 #define EXT_ADDITIVE (0x8000)
