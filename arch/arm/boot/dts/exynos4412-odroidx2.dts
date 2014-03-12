@@ -324,6 +324,35 @@
 		samsung,i2c-max-bus-freq = <400000>;
 	};
 
+	hdmi {
+		compatible = "samsung,exynos4212-hdmi";
+		reg = <0x12D00000 0x100000>;
+		interrupts = <0 92 0>;
+		hpd-gpio = <&gpx3 7 0>;
+
+		clocks = <&clock 271>, <&clock 136>, <&clock 139>,
+			<&clock 178>, <&clock 396>;
+		clock-names = "hdmi", "sclk_hdmi", "sclk_pixel",
+			"sclk_hdmiphy", "mout_hdmi";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_hpd_irq>;
+
+		samsung,power-domain = <&pd_tv>;
+
+		vdd_osc-supply = <&ldo10_reg>;
+		vdd_pll-supply = <&ldo8_reg>;
+		vdd-supply = <&ldo8_reg>;
+		hdmi-en-supply = <&reg_sysvdd>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		phy-power-control {
+			reg = <0x10020700 0x04>;
+		};
+	};
+
 	i2c_2: i2c@13880000 {
 		status = "okay";
 		pinctrl-0 = <&i2c2_bus>;
