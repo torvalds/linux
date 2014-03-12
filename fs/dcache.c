@@ -2706,6 +2706,11 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 				dput(new);
 				return ERR_PTR(-EIO);
 			}
+			if (d_ancestor(new, dentry)) {
+				spin_unlock(&inode->i_lock);
+				dput(new);
+				return ERR_PTR(-EIO);
+			}
 			write_seqlock(&rename_lock);
 			__d_materialise_dentry(dentry, new);
 			write_sequnlock(&rename_lock);
