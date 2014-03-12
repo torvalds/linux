@@ -24,8 +24,8 @@ struct ct363_priv{
 
 static int ct363_init_hw(struct ct36x_data *ts)
 {
-	int ret = 0;
 /*
+	int ret = 0;
 	ret = gpio_request(ts->rst_io.gpio, "ct363_rst");
 	if(ret < 0){
 		dev_err(ts->dev, "Failed to request rst gpio\n");
@@ -163,6 +163,7 @@ static int ct363_resume(struct ct36x_data *ts)
 
 static void ct363_report(struct ct36x_data *ts)
 {
+	int t ,m;
 	int i, ret = 0;
 	int sync = 0, x, y;
 	int len = sizeof(struct ct363_finger_data) * ts->point_num;
@@ -174,7 +175,6 @@ static void ct363_report(struct ct36x_data *ts)
 		return;
 	}
 
-       int t ,m;
        if(ct36x_dbg_level==2)
        for(t=0;t< ts->point_num;t++){
             ct36x_dbg(ts, "CT363buf[%d]: ", t);

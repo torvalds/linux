@@ -81,13 +81,13 @@ static int ct36x_chip_era_flash(struct ct36x_data *ts)
 static int ct36x_chip_set_code(unsigned short flash_addr, char *buf)
 {
 	unsigned char cod_chksum;
+	unsigned char *binary_data;
 
 	// Flash address
 	// data length
 	buf[2] = (char)(flash_addr >> 8);
 	buf[3] = (char)(flash_addr & 0xFF);
 	buf[4] = 0x08;
-	unsigned char *binary_data;
 	
 	if(flag_ct36x_model ==365)
 		binary_data = ct365_binary_data;

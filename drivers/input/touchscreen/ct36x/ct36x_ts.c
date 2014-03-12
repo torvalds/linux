@@ -1,5 +1,6 @@
 #include "ct36x_priv.h"
 #include <linux/of_gpio.h>
+#include <linux/async.h>
 
 #include "core.c"
 #include "ct360.c"
@@ -141,6 +142,7 @@ static void ct36x_ts_late_resume(struct early_suspend *h)
 
 static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+	int orientation[4];
 	int ret = 0, i;
 	struct ct36x_data *ts = NULL;
 	/*struct ct36x_platform_data *pdata = client->dev.platform_data;
@@ -191,11 +193,10 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	//ts->y_max = pdata->y_max;
 	//ts->rst_io = pdata->rst_io;
 	//ts->irq_io = pdata->irq_io;
-	ts->irq_io.gpio = of_get_named_gpio_flags(np, "touch-gpio", 0, &irq_flags);
+	ts->irq_io.gpio = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)&irq_flags);
 	ts->rst_io.gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
 
-	printk("the irq_flags is %d,rst_flags is %d\n",irq_flags,rst_flags);
-	int orientation[4];
+	printk("the irq_flags is %ld,rst_flags is %d\n",irq_flags,rst_flags);
 	
 	ret = of_property_read_u32_array(np, "orientation",orientation,4);
 	if (ret < 0)
@@ -337,7 +338,7 @@ static struct i2c_driver ct36x_ts_driver = {
 	},
 };
 
-static int __init ct36x_ts_init(void)
+static void __init ct36x_ts_init_async(void *unused, async_cookie_t cookie)
 {
 #ifndef CONFIG_CT36X_TS   //make modules
 	int ret = 0;
@@ -355,7 +356,13 @@ static int __init ct36x_ts_init(void)
 		return ret;
 	}
 #endif
-	return i2c_add_driver(&ct36x_ts_driver);
+	i2c_add_driver(&ct36x_ts_driver);
+}
+
+static int __init ct36x_ts_init(void)
+{
+	async_schedule(ct36x_ts_init_async, NULL);
+	return 0;
 }
 
 static void __exit ct36x_ts_exit(void)

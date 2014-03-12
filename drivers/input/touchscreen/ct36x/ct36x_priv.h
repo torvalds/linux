@@ -20,14 +20,6 @@
 
 #include <linux/ct36x.h>
 
-//#include <mach/board.h>
-//#include <mach/gpio.h>
-//#if 1
-//#define ct36x_dbg(ts, format, arg...)            \
-//	        dev_printk(KERN_INFO , ts->dev , format , ## arg)
-//#else
-//#define ct36x_dbg(ts, format, arg...)
-//#endif
 int flag_ct36x_model;
 
 int ct36x_dbg_level = 0;
