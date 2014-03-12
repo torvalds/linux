@@ -3495,11 +3495,11 @@ EXPORT_SYMBOL_GPL(netdev_rx_handler_unregister);
 static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 {
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_ARP):
-	case __constant_htons(ETH_P_IP):
-	case __constant_htons(ETH_P_IPV6):
-	case __constant_htons(ETH_P_8021Q):
-	case __constant_htons(ETH_P_8021AD):
+	case htons(ETH_P_ARP):
+	case htons(ETH_P_IP):
+	case htons(ETH_P_IPV6):
+	case htons(ETH_P_8021Q):
+	case htons(ETH_P_8021AD):
 		return true;
 	default:
 		return false;

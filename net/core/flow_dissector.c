@@ -61,7 +61,7 @@ bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
 
 again:
 	switch (proto) {
-	case __constant_htons(ETH_P_IP): {
+	case htons(ETH_P_IP): {
 		const struct iphdr *iph;
 		struct iphdr _iph;
 ip:
@@ -77,7 +77,7 @@ ip:
 		iph_to_flow_copy_addrs(flow, iph);
 		break;
 	}
-	case __constant_htons(ETH_P_IPV6): {
+	case htons(ETH_P_IPV6): {
 		const struct ipv6hdr *iph;
 		struct ipv6hdr _iph;
 ipv6:
@@ -91,8 +91,8 @@ ipv6:
 		nhoff += sizeof(struct ipv6hdr);
 		break;
 	}
-	case __constant_htons(ETH_P_8021AD):
-	case __constant_htons(ETH_P_8021Q): {
+	case htons(ETH_P_8021AD):
+	case htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
 		struct vlan_hdr _vlan;
 
@@ -104,7 +104,7 @@ ipv6:
 		nhoff += sizeof(*vlan);
 		goto again;
 	}
-	case __constant_htons(ETH_P_PPP_SES): {
+	case htons(ETH_P_PPP_SES): {
 		struct {
 			struct pppoe_hdr hdr;
 			__be16 proto;
@@ -115,9 +115,9 @@ ipv6:
 		proto = hdr->proto;
 		nhoff += PPPOE_SES_HLEN;
 		switch (proto) {
-		case __constant_htons(PPP_IP):
+		case htons(PPP_IP):
 			goto ip;
-		case __constant_htons(PPP_IPV6):
+		case htons(PPP_IPV6):
 			goto ipv6;
 		default:
 			return false;
