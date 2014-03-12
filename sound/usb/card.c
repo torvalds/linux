@@ -45,6 +45,7 @@
 #include <linux/usb/audio.h>
 #include <linux/usb/audio-v2.h>
 #include <linux/module.h>
+#include <linux/switch.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
@@ -112,6 +113,10 @@ MODULE_PARM_DESC(autoclock, "Enable auto-clock selection for UAC2 devices (defau
 static DEFINE_MUTEX(register_mutex);
 static struct snd_usb_audio *usb_chip[SNDRV_CARDS];
 static struct usb_driver usb_audio_driver;
+#ifdef CONFIG_SND_RK_SOC
+#define USB_AUDIO_CARD_NUM 2
+struct switch_dev *usb_audio_sdev;
+#endif
 
 /*
  * disconnect streams
@@ -355,8 +360,11 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		snd_printk(KERN_ERR "unknown device speed %d\n", snd_usb_get_speed(dev));
 		return -ENXIO;
 	}
-
+#ifdef CONFIG_SND_RK_SOC
+	err = snd_card_create(USB_AUDIO_CARD_NUM, id[idx], THIS_MODULE, 0, &card);
+#else
 	err = snd_card_create(index[idx], id[idx], THIS_MODULE, 0, &card);
+#endif
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot create card instance %d\n", idx);
 		return err;
@@ -631,6 +639,9 @@ static int usb_audio_probe(struct usb_interface *intf,
 	chip = snd_usb_audio_probe(interface_to_usbdev(intf), intf, id);
 	if (chip) {
 		usb_set_intfdata(intf, chip);
+#ifdef CONFIG_SND_RK_SOC
+		switch_set_state(usb_audio_sdev, 1);
+#endif
 		return 0;
 	} else
 		return -EIO;
@@ -638,6 +649,9 @@ static int usb_audio_probe(struct usb_interface *intf,
 
 static void usb_audio_disconnect(struct usb_interface *intf)
 {
+#ifdef CONFIG_SND_RK_SOC
+	switch_set_state(usb_audio_sdev, 0);
+#endif
 	snd_usb_audio_disconnect(interface_to_usbdev(intf),
 				 usb_get_intfdata(intf));
 }
@@ -760,12 +774,26 @@ static int __init snd_usb_audio_init(void)
 		printk(KERN_WARNING "invalid nrpacks value.\n");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_SND_RK_SOC
+	usb_audio_sdev = kzalloc(sizeof(usb_audio_sdev), GFP_KERNEL);
+	usb_audio_sdev->name = "usb_audio";
+	switch_dev_register(usb_audio_sdev);
+	if (!usb_audio_sdev) {
+		printk(KERN_WARNING "usb-audio kmalloc fail!");
+		return -ENOMEM;
+	}
+#endif
+
 	return usb_register(&usb_audio_driver);
 }
 
 static void __exit snd_usb_audio_cleanup(void)
 {
 	usb_deregister(&usb_audio_driver);
+#ifdef CONFIG_SND_RK_SOC
+	kfree(usb_audio_sdev);
+#endif
 }
 
 module_init(snd_usb_audio_init);
