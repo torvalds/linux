@@ -293,6 +293,11 @@ void cik_sdma_enable(struct radeon_device *rdev, bool enable)
 	u32 me_cntl, reg_offset;
 	int i;
 
+	if (enable == false) {
+		cik_sdma_gfx_stop(rdev);
+		cik_sdma_rlc_stop(rdev);
+	}
+
 	for (i = 0; i < 2; i++) {
 		if (i == 0)
 			reg_offset = SDMA0_REGISTER_OFFSET;
@@ -422,10 +427,6 @@ static int cik_sdma_load_microcode(struct radeon_device *rdev)
 	if (!rdev->sdma_fw)
 		return -EINVAL;
 
-	/* stop the gfx rings and rlc compute queues */
-	cik_sdma_gfx_stop(rdev);
-	cik_sdma_rlc_stop(rdev);
-
 	/* halt the MEs */
 	cik_sdma_enable(rdev, false);
 
@@ -494,9 +495,6 @@ int cik_sdma_resume(struct radeon_device *rdev)
  */
 void cik_sdma_fini(struct radeon_device *rdev)
 {
-	/* stop the gfx rings and rlc compute queues */
-	cik_sdma_gfx_stop(rdev);
-	cik_sdma_rlc_stop(rdev);
 	/* halt the MEs */
 	cik_sdma_enable(rdev, false);
 	radeon_ring_fini(rdev, &rdev->ring[R600_RING_TYPE_DMA_INDEX]);
