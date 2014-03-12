@@ -5061,7 +5061,7 @@ by the driver.</entry>
               <entry spanname="descr">Filter(s) on tuner signal path are used to
 filter signal according to receiving party needs. Driver configures filters to
 fulfill desired bandwidth requirement. Used when V4L2_CID_RF_TUNER_BANDWIDTH_AUTO is not
-set. The range and step are driver-specific.</entry>
+set. Unit is in Hz. The range and step are driver-specific.</entry>
             </row>
             <row>
               <entry spanname="id"><constant>V4L2_CID_RF_TUNER_LNA_GAIN_AUTO</constant>&nbsp;</entry>
