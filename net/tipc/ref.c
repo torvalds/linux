@@ -89,7 +89,7 @@ struct ref_table {
 
 static struct ref_table tipc_ref_table;
 
-static DEFINE_RWLOCK(ref_table_lock);
+static DEFINE_SPINLOCK(ref_table_lock);
 
 /**
  * tipc_ref_table_init - create reference table for objects
@@ -159,7 +159,7 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 	}
 
 	/* take a free entry, if available; otherwise initialize a new entry */
-	write_lock_bh(&ref_table_lock);
+	spin_lock_bh(&ref_table_lock);
 	if (tipc_ref_table.first_free) {
 		index = tipc_ref_table.first_free;
 		entry = &(tipc_ref_table.entries[index]);
@@ -175,7 +175,7 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 	} else {
 		ref = 0;
 	}
-	write_unlock_bh(&ref_table_lock);
+	spin_unlock_bh(&ref_table_lock);
 
 	/*
 	 * Grab the lock so no one else can modify this entry
@@ -216,7 +216,7 @@ void tipc_ref_discard(u32 ref)
 	index = ref & index_mask;
 	entry = &(tipc_ref_table.entries[index]);
 
-	write_lock_bh(&ref_table_lock);
+	spin_lock_bh(&ref_table_lock);
 
 	if (!entry->object) {
 		pr_err("Attempt to discard ref. to non-existent obj\n");
@@ -242,7 +242,7 @@ void tipc_ref_discard(u32 ref)
 	tipc_ref_table.last_free = index;
 
 exit:
-	write_unlock_bh(&ref_table_lock);
+	spin_unlock_bh(&ref_table_lock);
 }
 
 /**
