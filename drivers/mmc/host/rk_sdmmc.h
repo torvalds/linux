@@ -184,6 +184,13 @@ static struct sdmmc_reg dw_mci_regs[] =
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
 #define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FFF)
+#define SDMMC_STAUTS_MC_BUSY	    BIT(10)
+#define SDMMC_STAUTS_DATA_BUSY	    BIT(9)          //Card busy
+#define SDMMC_CMD_FSM_MASK		    (0x0F << 4)	    //Command FSM status mask
+#define SDMMC_CMD_FSM_IDLE          (0x00)			//CMD FSM is IDLE
+#define SDMMC_STAUTS_FIFO_FULL	    BIT(3)          //FIFO is full status
+#define SDMMC_STAUTS_FIFO_EMPTY	    BIT(2)          //FIFO is empty status
+
 /* FIFOTH register defines */
 #define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \
 					 ((r) & 0xFFF) << 16 | \

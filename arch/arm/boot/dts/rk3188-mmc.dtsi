@@ -83,7 +83,7 @@
 
 
 	sdio: rksdmmc@10218000 {
-		compatible = "rockchip,rk_mmc";
+	    compatible = "rockchip,rk_mmc";
 	    reg = <0x10218000 0x4000>;
 	    interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 	    #address-cells = <1>;

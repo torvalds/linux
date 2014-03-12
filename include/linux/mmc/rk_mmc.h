@@ -172,6 +172,7 @@ struct dw_mci {
 	struct clk		*ciu_clk;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 	struct mmc_host		*mmc;
+	struct mmc_command	*pre_cmd;
 
 	/* FIFO push and pull */
 	int			fifo_depth;

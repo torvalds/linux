@@ -1,3 +1,13 @@
+/*
+ * Synopsys DesignWare Multimedia Card Interface driver
+ *
+ * Copyright (C) 2014 Fuzhou Rockchip Electronics Co.Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
 
 
 #include "rk_sdmmc_of.h"
@@ -8,7 +18,7 @@ static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
 {
     mmc_debug_level = MMC_DBG_ERROR;//MMC_DBG_ALL;//set the value refer to file rk_sdmmc_of.h
     
-    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info start== 2014-03-10 11:59 ======");
+    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info start== 2014-03-12 14:23 ======");
  /*   
     MMC_DBG_BOOT_FUNC("mmc,caps: 0x%x",rk_mmc_property->mmc_caps);
     MMC_DBG_BOOT_FUNC("mmc,ocr:  0x%x",rk_mmc_property->mmc_ocr);

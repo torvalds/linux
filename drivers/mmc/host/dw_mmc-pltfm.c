@@ -19,10 +19,11 @@
 #include <linux/slab.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
-#include <linux/mmc/dw_mmc.h>
+#include <linux/mmc/rk_mmc.h>
 #include <linux/of.h>
 
-#include "dw_mmc.h"
+#include "rk_sdmmc.h"
+
 
 int dw_mci_pltfm_register(struct platform_device *pdev,
 				const struct dw_mci_drv_data *drv_data)

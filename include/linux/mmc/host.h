@@ -286,7 +286,7 @@ struct mmc_host {
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 	
-    u32        cardtype_restrict;	/*restrict the SDMMC controller to support card type;1--SD card; 2--sdio; 4--eMMC */
+    u32      restrict_caps;	/*restrict the SDMMC controller to support card type;1--SD card; 2--sdio; 4--eMMC */
 #define RESTRICT_CARD_TYPE_SD	(1 << 0)	/*noted by XBW, Rockchip Co.Ld*/
 #define RESTRICT_CARD_TYPE_SDIO	(1 << 1)	
 #define RESTRICT_CARD_TYPE_EMMC	(1 << 2)	
