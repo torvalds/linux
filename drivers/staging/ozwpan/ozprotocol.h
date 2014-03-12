@@ -192,7 +192,7 @@ struct oz_get_desc_req {
 	u16	size;
 	u8	req_type;
 	u8	desc_type;
-	u16	w_index;
+	__le16	w_index;
 	u8	index;
 } PACKED;
 
