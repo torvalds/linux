@@ -27,6 +27,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/spi/spi.h>
+#include <linux/uaccess.h>
 
 #define MAX310X_NAME			"max310x"
 #define MAX310X_MAJOR			204
