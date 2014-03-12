@@ -482,7 +482,8 @@ struct iwl_mvm_tx_resp {
 	u8 pa_integ_res_b[3];
 	u8 pa_integ_res_c[3];
 	__le16 measurement_req_id;
-	__le16 reserved;
+	u8 reduced_tpc;
+	u8 reserved;
 
 	__le32 tfd_info;
 	__le16 seq_ctl;

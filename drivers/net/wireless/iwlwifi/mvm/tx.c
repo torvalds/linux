@@ -636,6 +636,10 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 		}
 
+		BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
+		info->status.status_driver_data[0] =
+				(void *)(uintptr_t)tx_resp->reduced_tpc;
+
 		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
@@ -815,6 +819,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		mvmsta->tid_data[tid].rate_n_flags =
 			le32_to_cpu(tx_resp->initial_rate);
+		mvmsta->tid_data[tid].reduced_tpc = tx_resp->reduced_tpc;
 	}
 
 	rcu_read_unlock();
@@ -928,6 +933,8 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			info->status.ampdu_len = ba_notif->txed;
 			iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
 						    info);
+			info->status.status_driver_data[0] =
+				(void *)(uintptr_t)tid_data->reduced_tpc;
 		}
 	}
 
