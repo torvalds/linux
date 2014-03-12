@@ -440,15 +440,15 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 
 	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
-	if (I915_NEED_GFX_HWS(dev))
-		intel_ring_setup_status_page(ring);
-	else
-		ring_setup_phys_status_page(ring);
-
 	/* Stop the ring if it's running. */
 	I915_WRITE_CTL(ring, 0);
 	I915_WRITE_HEAD(ring, 0);
 	ring->write_tail(ring, 0);
+
+	if (I915_NEED_GFX_HWS(dev))
+		intel_ring_setup_status_page(ring);
+	else
+		ring_setup_phys_status_page(ring);
 
 	head = I915_READ_HEAD(ring) & HEAD_ADDR;
 
