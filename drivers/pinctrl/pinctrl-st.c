@@ -384,9 +384,9 @@ static unsigned int stih416_delays[] = {0, 300, 500, 750, 1000, 1250, 1500,
 static const struct st_pctl_data  stih416_data = {
 	.rt_style	= st_retime_style_dedicated,
 	.input_delays	= stih416_delays,
-	.ninput_delays	= 14,
+	.ninput_delays	= ARRAY_SIZE(stih416_delays),
 	.output_delays	= stih416_delays,
-	.noutput_delays = 14,
+	.noutput_delays = ARRAY_SIZE(stih416_delays),
 	.alt = 0, .oe = 40, .pu = 50, .od = 60, .rt = 100,
 };
 
