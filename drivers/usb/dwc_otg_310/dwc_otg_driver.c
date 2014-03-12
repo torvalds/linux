@@ -76,6 +76,7 @@ extern int pcd_remove(     struct platform_device *_dev );
 extern void hcd_remove(     struct platform_device *_dev);
 extern void dwc_otg_adp_start( dwc_otg_core_if_t * core_if, uint8_t is_host);
 
+#ifdef CONFIG_USB20_OTG
 static struct usb20otg_pdata_id usb20otg_pdata[] = {
 	{
 		.name = "rk3188-usb20otg",
@@ -87,7 +88,9 @@ static struct usb20otg_pdata_id usb20otg_pdata[] = {
 	},
 	{ },
 };
+#endif
 
+#ifdef CONFIG_USB20_HOST
 static struct usb20host_pdata_id usb20host_pdata[] = {
 	{
 		.name = "rk3188-usb20host",
@@ -99,6 +102,7 @@ static struct usb20host_pdata_id usb20host_pdata[] = {
 	},
 	{ },
 };
+#endif
 
 /*-------------------------------------------------------------------------*/
 /* Encapsulate the module parameter settings */
@@ -239,7 +243,7 @@ static struct dwc_otg_driver_module_params dwc_otg_module_params = {
 	.adp_enable = 0,
 };
 
-
+#ifdef CONFIG_USB20_HOST
 static struct dwc_otg_driver_module_params dwc_host_module_params = {
 	.opt = -1,
 	.otg_cap = DWC_OTG_CAP_PARAM_NO_HNP_SRP_CAPABLE,
@@ -325,7 +329,7 @@ static struct dwc_otg_driver_module_params dwc_host_module_params = {
 	.otg_ver = -1,
 	.adp_enable = 0,
 };
-
+#endif
 
 /**
  * This function shows the Driver Version.
@@ -697,6 +701,7 @@ static irqreturn_t dwc_otg_common_irq(int irq, void *dev)
 	return IRQ_RETVAL(retval);
 }
 
+#ifdef CONFIG_USB20_HOST
 /**
  * This function is called when a lm_device is unregistered with the
  * dwc_otg_driver. This happens, for example, when the rmmod command is
@@ -981,6 +986,7 @@ clk_disable:
 
 	return retval;
 }
+#endif
 
 static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t state )
 {
@@ -1032,7 +1038,7 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev )
  * to this driver. The remove function is called when a device is
  * unregistered with the bus driver.
  */
-
+#ifdef CONFIG_USB20_HOST
 static struct platform_driver dwc_host_driver = {
 	.driver = {
 		.name = (char *)dwc_host20_driver_name,
@@ -1043,8 +1049,9 @@ static struct platform_driver dwc_host_driver = {
 	.suspend = dwc_otg_driver_suspend,
 	.resume = dwc_otg_driver_resume,
 };
+#endif
 
-
+#ifdef CONFIG_USB20_OTG
 /**
  * This function is called when a lm_device is unregistered with the
  * dwc_otg_driver. This happens, for example, when the rmmod command is
@@ -1355,7 +1362,7 @@ static struct platform_driver dwc_otg_driver = {
 	.resume = dwc_otg_driver_resume,
 	.shutdown = dwc_otg_driver_shutdown,
 };
-
+#endif
 
 /**
  * This function is called when the dwc_otg_driver is installed with the
@@ -1372,6 +1379,7 @@ static int __init dwc_otg_driver_init(void)
 	int retval = 0;
 	int error;
 	//register host20
+#ifdef CONFIG_USB20_HOST
 	printk(KERN_INFO "%s: version %s\n", dwc_host20_driver_name,
 	       DWC_DRIVER_VERSION);
 
@@ -1383,7 +1391,9 @@ static int __init dwc_otg_driver_init(void)
 
 	error = driver_create_file(&dwc_host_driver.driver, &driver_attr_version);
 	error = driver_create_file(&dwc_host_driver.driver, &driver_attr_debuglevel);
+#endif
 
+#ifdef CONFIG_USB20_OTG
 	//register otg20
 	printk(KERN_INFO "%s: version %s\n", dwc_otg20_driver_name,
 	       DWC_DRIVER_VERSION);
@@ -1398,7 +1408,7 @@ static int __init dwc_otg_driver_init(void)
 	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_debuglevel);
 	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
 	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
-
+#endif
 	return retval;
 }
 
@@ -1414,19 +1424,23 @@ static void __exit dwc_otg_driver_cleanup(void)
 {
 	printk(KERN_DEBUG "dwc_otg_driver_cleanup()\n");
 
-    /*for host20*/
+#ifdef CONFIG_USB20_HOST
+	/*for host20*/
 	driver_remove_file(&dwc_host_driver.driver, &driver_attr_debuglevel);
 	driver_remove_file(&dwc_host_driver.driver, &driver_attr_version);
 	platform_driver_unregister(&dwc_host_driver);
 	printk(KERN_INFO "%s module removed\n", dwc_host20_driver_name);
+#endif
 
-    /*for otg*/
+#ifdef CONFIG_USB20_OTG
+	/*for otg*/
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_debuglevel);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_version);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
 	platform_driver_unregister(&dwc_otg_driver);
 	printk(KERN_INFO "%s module removed\n", dwc_otg20_driver_name);
+#endif
 }
 
 module_exit(dwc_otg_driver_cleanup);
