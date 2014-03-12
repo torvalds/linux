@@ -359,16 +359,29 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 
 	dev_dbg(&port->dev, "%s - urb %d, len %d\n", __func__, i,
 							urb->actual_length);
-
-	if (urb->status) {
-		dev_dbg(&port->dev, "%s - non-zero urb status: %d\n",
-			__func__, urb->status);
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+		dev_dbg(&port->dev, "%s - urb stopped: %d\n",
+							__func__, urb->status);
 		return;
+	case -EPIPE:
+		dev_err(&port->dev, "%s - urb stopped: %d\n",
+							__func__, urb->status);
+		return;
+	default:
+		dev_err(&port->dev, "%s - nonzero urb status: %d\n",
+							__func__, urb->status);
+		goto resubmit;
 	}
 
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 	port->serial->type->process_read_urb(urb);
 
+resubmit:
 	/* Throttle the device if requested by tty */
 	spin_lock_irqsave(&port->lock, flags);
 	port->throttled = port->throttle_req;
