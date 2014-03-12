@@ -645,7 +645,6 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 	struct mlx4_qp_context	*qpc = inbox->buf + 8;
 	struct mlx4_vport_oper_state *vp_oper;
 	struct mlx4_priv *priv;
-	u32 qp_type;
 	int port;
 
 	port = (qpc->pri_path.sched_queue & 0x40) ? 2 : 1;
@@ -653,12 +652,6 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 
 	if (MLX4_VGT != vp_oper->state.default_vlan) {
-		qp_type	= (be32_to_cpu(qpc->flags) >> 16) & 0xff;
-		if (MLX4_QP_ST_RC == qp_type ||
-		    (MLX4_QP_ST_UD == qp_type &&
-		     !mlx4_is_qp_reserved(dev, qpn)))
-			return -EINVAL;
-
 		/* the reserved QPs (special, proxy, tunnel)
 		 * do not operate over vlans
 		 */
