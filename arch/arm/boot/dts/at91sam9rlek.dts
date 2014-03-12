@@ -105,6 +105,12 @@
 				};
 			};
 
+			pmc: pmc@fffffc00 {
+				main: mainck {
+					clock-frequency = <12000000>;
+				};
+			};
+
 			watchdog@fffffd40 {
 				status = "okay";
 			};
