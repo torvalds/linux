@@ -72,7 +72,8 @@ static int sbecom_proc_get_sbe_info(struct seq_file *m, void *v)
 	char       *spd;
 	struct sbe_brd_info *bip;
 
-	if (!(bip = OS_kmalloc(sizeof(struct sbe_brd_info))))
+	bip = OS_kmalloc(sizeof(struct sbe_brd_info));
+	if (!bip)
 		return -ENOMEM;
 
 	pr_devel(">> sbecom_proc_get_sbe_info: entered\n");
