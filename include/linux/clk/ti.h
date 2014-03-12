@@ -215,15 +215,14 @@ struct ti_dt_clk {
 		.node_name = name,	\
 	}
 
-/* Maximum number of clock memmaps */
-#define CLK_MAX_MEMMAPS			4
-
 /* Static memmap indices */
 enum {
 	TI_CLKM_CM = 0,
 	TI_CLKM_CM2,
 	TI_CLKM_PRM,
 	TI_CLKM_SCRM,
+	TI_CLKM_CTRL,
+	CLK_MAX_MEMMAPS
 };
 
 typedef void (*ti_of_clk_init_cb_t)(struct clk_hw *, struct device_node *);

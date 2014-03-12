@@ -15,10 +15,13 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "cm2xxx.h"
 #include "cm3xxx.h"
 #include "cm44xx.h"
+#include "clock.h"
 
 /*
  * cm_ll_data: function pointers to SoC-specific implementations of
@@ -209,6 +212,54 @@ int cm_unregister(struct cm_ll_data *cld)
 		return -EINVAL;
 
 	cm_ll_data = &null_cm_ll_data;
+
+	return 0;
+}
+
+static struct omap_prcm_init_data cm_data = {
+	.index = TI_CLKM_CM,
+};
+
+static struct omap_prcm_init_data cm2_data = {
+	.index = TI_CLKM_CM2,
+};
+
+static const struct of_device_id omap_cm_dt_match_table[] = {
+	{ .compatible = "ti,omap3-cm", .data = &cm_data },
+	{ .compatible = "ti,omap4-cm1", .data = &cm_data },
+	{ .compatible = "ti,omap4-cm2", .data = &cm2_data },
+	{ .compatible = "ti,omap5-cm-core-aon", .data = &cm_data },
+	{ .compatible = "ti,omap5-cm-core", .data = &cm2_data },
+	{ .compatible = "ti,dra7-cm-core-aon", .data = &cm_data },
+	{ .compatible = "ti,dra7-cm-core", .data = &cm2_data },
+	{ }
+};
+
+/**
+ * omap_cm_init - low level init for the CM drivers
+ *
+ * Initializes the low level clock infrastructure for CM drivers.
+ * Returns 0 in success, negative error value in failure.
+ */
+int __init omap_cm_init(void)
+{
+	struct device_node *np;
+	void __iomem *mem;
+	const struct of_device_id *match;
+	const struct omap_prcm_init_data *data;
+	int ret;
+
+	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
+		data = match->data;
+
+		mem = of_iomap(np, 0);
+		if (!mem)
+			return -ENOMEM;
+
+		ret = omap2_clk_provider_init(np, data->index, mem);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

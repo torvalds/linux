@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 
 #include "soc.h"
 #include "iomap.h"
@@ -25,6 +26,7 @@
 #include "sdrc.h"
 #include "pm.h"
 #include "control.h"
+#include "clock.h"
 
 /* Used by omap3_ctrl_save_padconf() */
 #define START_PADCONF_SAVE		0x2
@@ -611,3 +613,48 @@ void __init omap3_ctrl_init(void)
 	omap3_ctrl_setup_d2d_padconf();
 }
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
+
+struct control_init_data {
+	int index;
+};
+
+static struct control_init_data ctrl_data = {
+	.index = TI_CLKM_CTRL,
+};
+
+static const struct of_device_id omap_scrm_dt_match_table[] = {
+	{ .compatible = "ti,am3-scrm", .data = &ctrl_data },
+	{ .compatible = "ti,am4-scrm", .data = &ctrl_data },
+	{ .compatible = "ti,omap2-scrm", .data = &ctrl_data },
+	{ .compatible = "ti,omap3-scrm", .data = &ctrl_data },
+	{ }
+};
+
+/**
+ * omap_control_init - low level init for the control driver
+ *
+ * Initializes the low level clock infrastructure for control driver.
+ * Returns 0 in success, negative error value in failure.
+ */
+int __init omap_control_init(void)
+{
+	struct device_node *np;
+	void __iomem *mem;
+	const struct of_device_id *match;
+	const struct omap_prcm_init_data *data;
+	int ret;
+
+	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
+		data = match->data;
+
+		mem = of_iomap(np, 0);
+		if (!mem)
+			return -ENOMEM;
+
+		ret = omap2_clk_provider_init(np, data->index, mem);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}

@@ -637,43 +637,22 @@ static struct omap_prcm_init_data prm_data = {
 	.index = TI_CLKM_PRM,
 };
 
-static struct omap_prcm_init_data cm_data = {
-	.index = TI_CLKM_CM,
-};
-
-static struct omap_prcm_init_data cm2_data = {
-	.index = TI_CLKM_CM2,
-};
-
 static struct omap_prcm_init_data scrm_data = {
 	.index = TI_CLKM_SCRM,
 };
 
 static const struct of_device_id omap_prcm_dt_match_table[] = {
 	{ .compatible = "ti,am3-prcm", .data = &prm_data },
-	{ .compatible = "ti,am3-scrm", .data = &scrm_data },
 	{ .compatible = "ti,am4-prcm", .data = &prm_data },
-	{ .compatible = "ti,am4-scrm", .data = &scrm_data },
 	{ .compatible = "ti,dm814-prcm", .data = &prm_data },
-	{ .compatible = "ti,dm814-scrm", .data = &scrm_data },
 	{ .compatible = "ti,dm816-prcm", .data = &prm_data },
-	{ .compatible = "ti,dm816-scrm", .data = &scrm_data },
 	{ .compatible = "ti,omap2-prcm", .data = &prm_data },
-	{ .compatible = "ti,omap2-scrm", .data = &scrm_data },
 	{ .compatible = "ti,omap3-prm", .data = &prm_data },
-	{ .compatible = "ti,omap3-cm", .data = &cm_data },
-	{ .compatible = "ti,omap3-scrm", .data = &scrm_data },
-	{ .compatible = "ti,omap4-cm1", .data = &cm_data },
 	{ .compatible = "ti,omap4-prm", .data = &prm_data },
-	{ .compatible = "ti,omap4-cm2", .data = &cm2_data },
 	{ .compatible = "ti,omap4-scrm", .data = &scrm_data },
 	{ .compatible = "ti,omap5-prm", .data = &prm_data },
-	{ .compatible = "ti,omap5-cm-core-aon", .data = &cm_data },
 	{ .compatible = "ti,omap5-scrm", .data = &scrm_data },
-	{ .compatible = "ti,omap5-cm-core", .data = &cm2_data },
 	{ .compatible = "ti,dra7-prm", .data = &prm_data },
-	{ .compatible = "ti,dra7-cm-core-aon", .data = &cm_data },
-	{ .compatible = "ti,dra7-cm-core", .data = &cm2_data },
 	{ }
 };
 
@@ -702,6 +681,8 @@ int __init omap_prcm_init(void)
 		if (ret)
 			return ret;
 	}
+
+	omap_cm_init();
 
 	return 0;
 }
