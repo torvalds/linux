@@ -328,7 +328,7 @@ extern struct lockdep_map rcu_lock_map;
 extern struct lockdep_map rcu_bh_lock_map;
 extern struct lockdep_map rcu_sched_lock_map;
 extern struct lockdep_map rcu_callback_map;
-extern int debug_lockdep_rcu_enabled(void);
+int debug_lockdep_rcu_enabled(void);
 
 /**
  * rcu_read_lock_held() - might we be in RCU read-side critical section?
