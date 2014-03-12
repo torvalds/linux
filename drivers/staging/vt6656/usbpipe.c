@@ -105,6 +105,8 @@ int PIPEnsControlOutAsyn(struct vnt_private *pDevice, u8 byRequest,
 
 int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 		u16 wIndex, u16 wLength, u8 *pbyBuffer)
+		__releases(&pDevice->lock)
+		__acquires(&pDevice->lock)
 {
 	int ntStatus = 0;
 	int ii;
@@ -167,6 +169,8 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 
 int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	u16 wIndex, u16 wLength,  u8 *pbyBuffer)
+	__releases(&pDevice->lock)
+	__acquires(&pDevice->lock)
 {
 	int ntStatus = 0;
 	int ii;
