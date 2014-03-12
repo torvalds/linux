@@ -32,6 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
+#include <linux/sched/rt.h>
 #include <asm/fiq_debugger.h>
 #include <linux/irqchip/arm-gic.h>
 #include "rk_fiq_debugger.h"

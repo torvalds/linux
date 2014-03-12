@@ -77,9 +77,11 @@ struct fiq_debugger_state {
 	char debug_buf[DEBUG_MAX];
 	int debug_count;
 
+#ifdef CONFIG_ARCH_ROCKCHIP
 	char cmd_buf[CMD_COUNT+1][DEBUG_MAX];
 	int back_pointer;
 	int current_pointer;
+#endif
 	bool no_sleep;
 	bool debug_enable;
 	bool ignore_next_wakeup_irq;
@@ -217,7 +219,7 @@ static void debug_puts(struct fiq_debugger_state *state, char *s)
 
 static void debug_prompt(struct fiq_debugger_state *state)
 {
-	debug_puts(state, "FIQ debug> ");
+	debug_puts(state, "debug> ");
 }
 
 static void dump_kernel_log(struct fiq_debugger_state *state)
@@ -236,7 +238,7 @@ static void dump_kernel_log(struct fiq_debugger_state *state)
 	}
 }
 
-#ifdef CONFIG_RK29_LAST_LOG
+#ifdef CONFIG_RK_LAST_LOG
 #include <linux/ctype.h>
 extern char *last_log_get(unsigned *size);
 static void dump_last_kernel_log(struct fiq_debugger_state *state)
@@ -654,6 +656,7 @@ static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
 #endif
 	else if (!strncmp(cmd, "reboot", 6))
 		debug_schedule_work(state, cmd);
+#ifdef CONFIG_ARCH_ROCKCHIP
 	else {
 		invalid_cmd = 1;
 		memset(state->debug_buf, 0, DEBUG_MAX);
@@ -670,8 +673,10 @@ static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
 		state->current_pointer = (state->current_pointer+1) & CMD_COUNT;
 		state->back_pointer = state->current_pointer;
 	}
+#endif
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
 static char cmd_buf[][16] = {
 		{"pc"},
 		{"regs"},
@@ -680,7 +685,7 @@ static char cmd_buf[][16] = {
 		{"reboot"},
 		{"irqs"},
 		{"kmsg"},
-#ifdef CONFIG_RK29_LAST_LOG
+#ifdef CONFIG_RK_LAST_LOG
 		{"last_kmsg"},
 #endif
 		{"version"},
@@ -695,6 +700,7 @@ static char cmd_buf[][16] = {
 		{"kgdb"},
 #endif
 };
+#endif
 
 static void debug_help(struct fiq_debugger_state *state)
 {
@@ -708,7 +714,7 @@ static void debug_help(struct fiq_debugger_state *state)
 				" irqs          Interupt status\n"
 				" kmsg          Kernel log\n"
 				" version       Kernel version\n");
-#ifdef CONFIG_RK29_LAST_LOG
+#ifdef CONFIG_RK_LAST_LOG
 	debug_printf(state,	" last_kmsg     Last kernel log\n");
 #endif
 	debug_printf(state,	" sleep         Allow sleep while in FIQ\n"
@@ -789,7 +795,7 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 		dump_irqs(state);
 	} else if (!strcmp(cmd, "kmsg")) {
 		dump_kernel_log(state);
-#ifdef CONFIG_RK29_LAST_LOG
+#ifdef CONFIG_RK_LAST_LOG
 	} else if (!strcmp(cmd, "last_kmsg")) {
 		dump_last_kernel_log(state);
 #endif
@@ -1061,18 +1067,24 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 			}
 		} else if (c == FIQ_DEBUGGER_BREAK) {
 			state->console_enable = false;
-			debug_puts(state, "\nwelcome to fiq debugger mode\n");
-			debug_puts(state, "Enter ? to get command help\n");
+#ifdef CONFIG_ARCH_ROCKCHIP
+			debug_puts(state, "\nWelcome to ");
+#endif
+			debug_puts(state, "fiq debugger mode\n");
 			state->debug_count = 0;
+#ifdef CONFIG_ARCH_ROCKCHIP
+			debug_puts(state, "Enter ? to get command help\n");
 			state->back_pointer = CMD_COUNT;
 			state->current_pointer = CMD_COUNT;
 			memset(state->cmd_buf, 0, (CMD_COUNT+1)*DEBUG_MAX);
+#endif
 			debug_prompt(state);
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 		} else if (state->console_enable && state->tty_rbuf) {
 			fiq_debugger_ringbuf_push(state->tty_rbuf, c);
 			signal_helper = true;
 #endif
+#ifdef CONFIG_ARCH_ROCKCHIP
 		} else if (last_c == '[' && (c == 'A' || c == 'B' || c == 'C' || c == 'D')) {
 			if (state->debug_count > 0) {
 				state->debug_count--;
@@ -1084,6 +1096,7 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 			//tab
 		} else if (c == 9) {
 			debug_cmd_tab(state);
+#endif
 		} else if ((c >= ' ') && (c < 127)) {
 			if (state->debug_count < (DEBUG_MAX - 1)) {
 				state->debug_buf[state->debug_count++] = c;
@@ -1104,6 +1117,7 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 			if (state->debug_count) {
 				state->debug_buf[state->debug_count] = 0;
 				state->debug_count = 0;
+#ifdef CONFIG_ARCH_ROCKCHIP
 				signal_helper |=
 					debug_fiq_exec(state, state->debug_buf,
 						       regs, svc_sp);
@@ -1118,6 +1132,7 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 					state->current_pointer = (state->current_pointer+1) & CMD_COUNT;
 					state->back_pointer = state->current_pointer;
 				}
+#endif
 			} else {
 				debug_prompt(state);
 			}
@@ -1230,6 +1245,13 @@ static void debug_console_write(struct console *co,
 
 	if (!state->console_enable && !state->syslog_dumping)
 		return;
+
+#ifdef CONFIG_RK_CONSOLE_THREAD
+	if (state->pdata->console_write) {
+		state->pdata->console_write(state->pdev, s, count);
+		return;
+	}
+#endif
 
 	debug_uart_enable(state);
 	spin_lock_irqsave(&state->console_lock, flags);
@@ -1536,10 +1558,12 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 			pr_err("%s: could not install fiq handler\n", __func__);
 			goto err_register_fiq;
 		}
+#ifdef CONFIG_ARCH_ROCKCHIP
 		//set state->fiq to secure state, so fiq is avalable
 		gic_set_irq_secure(irq_get_irq_data(state->fiq));
 		//set state->fiq priority a little higher than other interrupts (normal is 0xa0)
 		gic_set_irq_priority(irq_get_irq_data(state->fiq), 0x90);
+#endif
 		pdata->fiq_enable(pdev, state->fiq, 1);
 	} else {
 		ret = request_irq(state->uart_irq, debug_uart_irq,
