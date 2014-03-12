@@ -520,6 +520,19 @@ config SPI_XILINX
 
 	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
 
+config SPI_XTENSA_XTFPGA
+	tristate "Xtensa SPI controller for xtfpga"
+	depends on XTENSA && XTENSA_PLATFORM_XTFPGA
+	select SPI_BITBANG
+	help
+	  SPI driver for xtfpga SPI master controller.
+
+	  This simple SPI master controller is built into xtfpga bitstreams
+	  and is used to control daughterboard audio codec. It always transfers
+	  16 bit words in SPI mode 0, automatically asserting CS on transfer
+	  start and deasserting on end.
+
+
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
 	depends on ARCH_W90X900
