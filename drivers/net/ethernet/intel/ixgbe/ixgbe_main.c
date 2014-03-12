@@ -5566,6 +5566,8 @@ static int ixgbe_resume(struct pci_dev *pdev)
 		e_dev_err("Cannot enable PCI device from suspend\n");
 		return err;
 	}
+	smp_mb__before_clear_bit();
+	clear_bit(__IXGBE_DISABLED, &adapter->state);
 	pci_set_master(pdev);
 
 	pci_wake_from_d3(pdev, false);
@@ -5663,7 +5665,8 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	ixgbe_release_hw_control(adapter);
 
-	pci_disable_device(pdev);
+	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+		pci_disable_device(pdev);
 
 	return 0;
 }
@@ -8313,7 +8316,8 @@ err_alloc_etherdev:
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_reg:
 err_dma:
-	pci_disable_device(pdev);
+	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+		pci_disable_device(pdev);
 	return err;
 }
 
@@ -8382,7 +8386,8 @@ static void ixgbe_remove(struct pci_dev *pdev)
 
 	pci_disable_pcie_error_reporting(pdev);
 
-	pci_disable_device(pdev);
+	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+		pci_disable_device(pdev);
 }
 
 /**
@@ -8489,14 +8494,20 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 
 skip_bad_vf_detection:
 #endif /* CONFIG_PCI_IOV */
+	rtnl_lock();
 	netif_device_detach(netdev);
 
-	if (state == pci_channel_io_perm_failure)
+	if (state == pci_channel_io_perm_failure) {
+		rtnl_unlock();
 		return PCI_ERS_RESULT_DISCONNECT;
+	}
 
 	if (netif_running(netdev))
 		ixgbe_down(adapter);
-	pci_disable_device(pdev);
+
+	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+		pci_disable_device(pdev);
+	rtnl_unlock();
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
@@ -8518,6 +8529,8 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 		e_err(probe, "Cannot re-enable PCI device after reset.\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
 	} else {
+		smp_mb__before_clear_bit();
+		clear_bit(__IXGBE_DISABLED, &adapter->state);
 		adapter->hw.hw_addr = adapter->io_addr;
 		pci_set_master(pdev);
 		pci_restore_state(pdev);
