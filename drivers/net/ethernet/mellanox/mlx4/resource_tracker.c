@@ -52,6 +52,8 @@
 struct mac_res {
 	struct list_head list;
 	u64 mac;
+	int ref_count;
+	u8 smac_index;
 	u8 port;
 };
 
@@ -1683,11 +1685,39 @@ static int srq_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	return err;
 }
 
-static int mac_add_to_slave(struct mlx4_dev *dev, int slave, u64 mac, int port)
+static int mac_find_smac_ix_in_slave(struct mlx4_dev *dev, int slave, int port,
+				     u8 smac_index, u64 *mac)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
-	struct mac_res *res;
+	struct list_head *mac_list =
+		&tracker->slave_list[slave].res_list[RES_MAC];
+	struct mac_res *res, *tmp;
+
+	list_for_each_entry_safe(res, tmp, mac_list, list) {
+		if (res->smac_index == smac_index && res->port == (u8) port) {
+			*mac = res->mac;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+static int mac_add_to_slave(struct mlx4_dev *dev, int slave, u64 mac, int port, u8 smac_index)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
+	struct list_head *mac_list =
+		&tracker->slave_list[slave].res_list[RES_MAC];
+	struct mac_res *res, *tmp;
+
+	list_for_each_entry_safe(res, tmp, mac_list, list) {
+		if (res->mac == mac && res->port == (u8) port) {
+			/* mac found. update ref count */
+			++res->ref_count;
+			return 0;
+		}
+	}
 
 	if (mlx4_grant_resource(dev, slave, RES_MAC, 1, port))
 		return -EINVAL;
@@ -1698,6 +1728,8 @@ static int mac_add_to_slave(struct mlx4_dev *dev, int slave, u64 mac, int port)
 	}
 	res->mac = mac;
 	res->port = (u8) port;
+	res->smac_index = smac_index;
+	res->ref_count = 1;
 	list_add_tail(&res->list,
 		      &tracker->slave_list[slave].res_list[RES_MAC]);
 	return 0;
@@ -1714,9 +1746,11 @@ static void mac_del_from_slave(struct mlx4_dev *dev, int slave, u64 mac,
 
 	list_for_each_entry_safe(res, tmp, mac_list, list) {
 		if (res->mac == mac && res->port == (u8) port) {
-			list_del(&res->list);
-			mlx4_release_resource(dev, slave, RES_MAC, 1, port);
-			kfree(res);
+			if (!--res->ref_count) {
+				list_del(&res->list);
+				mlx4_release_resource(dev, slave, RES_MAC, 1, port);
+				kfree(res);
+			}
 			break;
 		}
 	}
@@ -1729,10 +1763,13 @@ static void rem_slave_macs(struct mlx4_dev *dev, int slave)
 	struct list_head *mac_list =
 		&tracker->slave_list[slave].res_list[RES_MAC];
 	struct mac_res *res, *tmp;
+	int i;
 
 	list_for_each_entry_safe(res, tmp, mac_list, list) {
 		list_del(&res->list);
-		__mlx4_unregister_mac(dev, res->port, res->mac);
+		/* dereference the mac the num times the slave referenced it */
+		for (i = 0; i < res->ref_count; i++)
+			__mlx4_unregister_mac(dev, res->port, res->mac);
 		mlx4_release_resource(dev, slave, RES_MAC, 1, res->port);
 		kfree(res);
 	}
@@ -1744,6 +1781,7 @@ static int mac_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	int err = -EINVAL;
 	int port;
 	u64 mac;
+	u8 smac_index;
 
 	if (op != RES_OP_RESERVE_AND_MAP)
 		return err;
@@ -1753,12 +1791,13 @@ static int mac_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 
 	err = __mlx4_register_mac(dev, port, mac);
 	if (err >= 0) {
+		smac_index = err;
 		set_param_l(out_param, err);
 		err = 0;
 	}
 
 	if (!err) {
-		err = mac_add_to_slave(dev, slave, mac, port);
+		err = mac_add_to_slave(dev, slave, mac, port, smac_index);
 		if (err)
 			__mlx4_unregister_mac(dev, port, mac);
 	}
@@ -3306,6 +3345,25 @@ int mlx4_INIT2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 }
 
+static int roce_verify_mac(struct mlx4_dev *dev, int slave,
+				struct mlx4_qp_context *qpc,
+				struct mlx4_cmd_mailbox *inbox)
+{
+	u64 mac;
+	int port;
+	u32 ts = (be32_to_cpu(qpc->flags) >> 16) & 0xff;
+	u8 sched = *(u8 *)(inbox->buf + 64);
+	u8 smac_ix;
+
+	port = (sched >> 6 & 1) + 1;
+	if (mlx4_is_eth(dev, port) && (ts != MLX4_QP_ST_MLX)) {
+		smac_ix = qpc->pri_path.grh_mylmc & 0x7f;
+		if (mac_find_smac_ix_in_slave(dev, slave, port, smac_ix, &mac))
+			return -ENOENT;
+	}
+	return 0;
+}
+
 int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 			     struct mlx4_vhcr *vhcr,
 			     struct mlx4_cmd_mailbox *inbox,
@@ -3327,6 +3385,9 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = verify_qp_parameters(dev, inbox, QP_TRANS_INIT2RTR, slave);
 	if (err)
 		return err;
+
+	if (roce_verify_mac(dev, slave, qpc, inbox))
+		return -EINVAL;
 
 	update_pkey_index(dev, slave, inbox);
 	update_gid(dev, inbox, (u8)slave);
