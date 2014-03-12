@@ -44,10 +44,7 @@
 
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 
-
 static int backlog_rcv(struct sock *sk, struct sk_buff *skb);
-static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf);
-static void wakeupdispatch(struct tipc_port *tport);
 static void tipc_data_ready(struct sock *sk, int len);
 static void tipc_write_space(struct sock *sk);
 static int tipc_release(struct socket *sock);
@@ -181,10 +178,8 @@ static int tipc_sk_create(struct net *net, struct socket *sock, int protocol,
 	if (sk == NULL)
 		return -ENOMEM;
 
-	/* Allocate TIPC port for socket to use */
-	tp_ptr = tipc_createport(sk, &dispatch, &wakeupdispatch,
-				 TIPC_LOW_IMPORTANCE);
-	if (unlikely(!tp_ptr)) {
+	tp_ptr = tipc_sk_port(sk);
+	if (!tipc_port_init(tp_ptr, TIPC_LOW_IMPORTANCE)) {
 		sk_free(sk);
 		return -ENOMEM;
 	}
@@ -199,7 +194,6 @@ static int tipc_sk_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_data_ready = tipc_data_ready;
 	sk->sk_write_space = tipc_write_space;
 	tipc_sk(sk)->conn_timeout = CONN_TIMEOUT_DEFAULT;
-
 	spin_unlock_bh(tp_ptr->lock);
 
 	if (sock->state == SS_READY) {
@@ -207,7 +201,6 @@ static int tipc_sk_create(struct net *net, struct socket *sock, int protocol,
 		if (sock->type == SOCK_DGRAM)
 			tipc_set_portunreliable(tp_ptr->ref, 1);
 	}
-
 	return 0;
 }
 
@@ -337,7 +330,7 @@ static int tipc_release(struct socket *sock)
 	 * Delete TIPC port; this ensures no more messages are queued
 	 * (also disconnects an active connection & sends a 'FIN-' to peer)
 	 */
-	res = tipc_deleteport(tport);
+	tipc_port_destroy(tport);
 
 	/* Discard any remaining (connection-based) messages in receive queue */
 	__skb_queue_purge(&sk->sk_receive_queue);
@@ -1430,17 +1423,16 @@ static int backlog_rcv(struct sock *sk, struct sk_buff *buf)
 }
 
 /**
- * dispatch - handle incoming message
- * @tport: TIPC port that received message
+ * tipc_sk_rcv - handle incoming message
+ * @sk:  socket receiving message
  * @buf: message
  *
  * Called with port lock already taken.
  *
  * Returns TIPC error status code (TIPC_OK if message is not to be rejected)
  */
-static u32 dispatch(struct tipc_port *port, struct sk_buff *buf)
+u32 tipc_sk_rcv(struct sock *sk, struct sk_buff *buf)
 {
-	struct sock *sk = tipc_port_to_sk(port);
 	u32 res;
 
 	/*
@@ -1461,18 +1453,6 @@ static u32 dispatch(struct tipc_port *port, struct sk_buff *buf)
 	bh_unlock_sock(sk);
 
 	return res;
-}
-
-/**
- * wakeupdispatch - wake up port after congestion
- * @tport: port to wakeup
- *
- * Called with port lock already taken.
- */
-static void wakeupdispatch(struct tipc_port *port)
-{
-	struct sock *sk = tipc_port_to_sk(port);
-	sk->sk_write_space(sk);
 }
 
 static int tipc_wait_for_connect(struct socket *sock, long *timeo_p)

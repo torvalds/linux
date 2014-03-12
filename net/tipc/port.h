@@ -59,8 +59,6 @@
  * @ref: unique reference to port in TIPC object registry
  * @phdr: preformatted message header used when sending messages
  * @port_list: adjacent ports in TIPC's global list of ports
- * @dispatcher: ptr to routine which handles received messages
- * @wakeup: ptr to routine to call when port is no longer congested
  * @wait_list: adjacent ports in list of ports waiting on link congestion
  * @waiting_pkts:
  * @sent: # of non-empty messages sent by port
@@ -84,8 +82,6 @@ struct tipc_port {
 	u32 ref;
 	struct tipc_msg phdr;
 	struct list_head port_list;
-	u32 (*dispatcher)(struct tipc_port *, struct sk_buff *);
-	void (*wakeup)(struct tipc_port *);
 	struct list_head wait_list;
 	u32 waiting_pkts;
 	u32 sent;
@@ -104,17 +100,14 @@ struct tipc_port_list;
 /*
  * TIPC port manipulation routines
  */
-struct tipc_port *tipc_createport(struct sock *sk,
-				  u32 (*dispatcher)(struct tipc_port *,
-				  struct sk_buff *),
-				  void (*wakeup)(struct tipc_port *),
-				  const u32 importance);
+u32 tipc_port_init(struct tipc_port *p_ptr,
+		   const unsigned int importance);
 
 int tipc_reject_msg(struct sk_buff *buf, u32 err);
 
 void tipc_acknowledge(u32 port_ref, u32 ack);
 
-int tipc_deleteport(struct tipc_port *p_ptr);
+void tipc_port_destroy(struct tipc_port *p_ptr);
 
 int tipc_portimportance(u32 portref, unsigned int *importance);
 int tipc_set_portimportance(u32 portref, unsigned int importance);
@@ -136,6 +129,7 @@ int tipc_port_disconnect(u32 portref);
 
 int tipc_port_shutdown(u32 ref);
 
+void tipc_port_wakeup(struct tipc_port *port);
 
 /*
  * The following routines require that the port be locked on entry

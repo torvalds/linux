@@ -67,4 +67,11 @@ static inline struct sock *tipc_port_to_sk(const struct tipc_port *port)
 	return &(container_of(port, struct tipc_sock, port))->sk;
 }
 
+static inline void tipc_sk_wakeup(struct sock *sk)
+{
+	sk->sk_write_space(sk);
+}
+
+u32 tipc_sk_rcv(struct sock *sk, struct sk_buff *buf);
+
 #endif

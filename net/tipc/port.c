@@ -190,33 +190,32 @@ exit:
 	tipc_port_list_free(dp);
 }
 
-/**
- * tipc_createport - create a generic TIPC port
- *
- * Returns pointer to (locked) TIPC port, or NULL if unable to create it
- */
-struct tipc_port *tipc_createport(struct sock *sk,
-				  u32 (*dispatcher)(struct tipc_port *,
-				  struct sk_buff *),
-				  void (*wakeup)(struct tipc_port *),
-				  const u32 importance)
+
+void tipc_port_wakeup(struct tipc_port *port)
 {
-	struct tipc_port *p_ptr = tipc_sk_port(sk);
+	tipc_sk_wakeup(tipc_port_to_sk(port));
+}
+
+/* tipc_port_init - intiate TIPC port and lock it
+ *
+ * Returns obtained reference if initialization is successful, zero otherwise
+ */
+u32 tipc_port_init(struct tipc_port *p_ptr,
+		   const unsigned int importance)
+{
 	struct tipc_msg *msg;
 	u32 ref;
 
 	ref = tipc_ref_acquire(p_ptr, &p_ptr->lock);
 	if (!ref) {
 		pr_warn("Port registration failed, ref. table exhausted\n");
-		return NULL;
+		return 0;
 	}
 
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->ref = ref;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
-	p_ptr->dispatcher = dispatcher;
-	p_ptr->wakeup = wakeup;
 	k_init_timer(&p_ptr->timer, (Handler)port_timeout, ref);
 	INIT_LIST_HEAD(&p_ptr->publications);
 	INIT_LIST_HEAD(&p_ptr->port_list);
@@ -232,10 +231,10 @@ struct tipc_port *tipc_createport(struct sock *sk,
 	msg_set_origport(msg, ref);
 	list_add_tail(&p_ptr->port_list, &ports);
 	spin_unlock_bh(&tipc_port_list_lock);
-	return p_ptr;
+	return ref;
 }
 
-int tipc_deleteport(struct tipc_port *p_ptr)
+void tipc_port_destroy(struct tipc_port *p_ptr)
 {
 	struct sk_buff *buf = NULL;
 
@@ -257,7 +256,6 @@ int tipc_deleteport(struct tipc_port *p_ptr)
 	spin_unlock_bh(&tipc_port_list_lock);
 	k_term_timer(&p_ptr->timer);
 	tipc_net_route_msg(buf);
-	return 0;
 }
 
 static int port_unreliable(struct tipc_port *p_ptr)
@@ -530,13 +528,12 @@ void tipc_port_proto_rcv(struct sk_buff *buf)
 	/* Process protocol message sent by peer */
 	switch (msg_type(msg)) {
 	case CONN_ACK:
-		wakeable = tipc_port_congested(p_ptr) && p_ptr->congested &&
-			p_ptr->wakeup;
+		wakeable = tipc_port_congested(p_ptr) && p_ptr->congested;
 		p_ptr->acked += msg_msgcnt(msg);
 		if (!tipc_port_congested(p_ptr)) {
 			p_ptr->congested = 0;
 			if (wakeable)
-				p_ptr->wakeup(p_ptr);
+				tipc_port_wakeup(p_ptr);
 		}
 		break;
 	case CONN_PROBE:
@@ -865,7 +862,7 @@ int tipc_port_rcv(struct sk_buff *buf)
 	/* validate destination & pass to port, otherwise reject message */
 	p_ptr = tipc_port_lock(destport);
 	if (likely(p_ptr)) {
-		err = p_ptr->dispatcher(p_ptr, buf);
+		err = tipc_sk_rcv(tipc_port_to_sk(p_ptr), buf);
 		tipc_port_unlock(p_ptr);
 		if (likely(!err))
 			return dsz;
