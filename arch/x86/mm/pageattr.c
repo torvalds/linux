@@ -1377,10 +1377,10 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	cache = cache_attr(mask_set);
 
 	/*
-	 * On success we use clflush, when the CPU supports it to
-	 * avoid the wbindv. If the CPU does not support it and in the
+	 * On success we use CLFLUSH, when the CPU supports it to
+	 * avoid the WBINVD. If the CPU does not support it and in the
 	 * error case we fall back to cpa_flush_all (which uses
-	 * wbindv):
+	 * WBINVD):
 	 */
 	if (!ret && cpu_has_clflush) {
 		if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY)) {
