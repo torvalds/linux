@@ -108,6 +108,9 @@
 #define IPR_SUBS_DEV_ID_57EE    0x049A
 #define IPR_SUBS_DEV_ID_57EF    0x049B
 #define IPR_SUBS_DEV_ID_57F0    0x049C
+#define IPR_SUBS_DEV_ID_2CCA	0x04C7
+#define IPR_SUBS_DEV_ID_2CD2	0x04C8
+#define IPR_SUBS_DEV_ID_2CCD	0x04C9
 #define IPR_NAME				"ipr"
 
 /*
