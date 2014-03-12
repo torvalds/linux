@@ -1243,8 +1243,6 @@ ppgtt_bind_vma(struct i915_vma *vma,
 	       enum i915_cache_level cache_level,
 	       u32 flags)
 {
-	WARN_ON(flags);
-
 	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
 				cache_level);
 }
