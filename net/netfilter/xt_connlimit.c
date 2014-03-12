@@ -78,13 +78,14 @@ static inline bool already_closed(const struct nf_conn *conn)
 		return 0;
 }
 
-static inline unsigned int
+static int
 same_source_net(const union nf_inet_addr *addr,
 		const union nf_inet_addr *mask,
 		const union nf_inet_addr *u3, u_int8_t family)
 {
 	if (family == NFPROTO_IPV4) {
-		return (addr->ip & mask->ip) == (u3->ip & mask->ip);
+		return ntohl(addr->ip & mask->ip) -
+		       ntohl(u3->ip & mask->ip);
 	} else {
 		union nf_inet_addr lh, rh;
 		unsigned int i;
@@ -94,7 +95,7 @@ same_source_net(const union nf_inet_addr *addr,
 			rh.ip6[i] = u3->ip6[i] & mask->ip6[i];
 		}
 
-		return memcmp(&lh.ip6, &rh.ip6, sizeof(lh.ip6)) == 0;
+		return memcmp(&lh.ip6, &rh.ip6, sizeof(lh.ip6));
 	}
 }
 
@@ -143,7 +144,7 @@ static int count_hlist(struct net *net,
 			continue;
 		}
 
-		if (same_source_net(addr, mask, &conn->addr, family))
+		if (same_source_net(addr, mask, &conn->addr, family) == 0)
 			/* same source network -> be counted! */
 			++matches;
 		nf_ct_put(found_ct);
