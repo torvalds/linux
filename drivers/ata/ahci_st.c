@@ -87,6 +87,23 @@ static int st_ahci_deassert_resets(struct device *dev)
 	return 0;
 }
 
+static int st_ahci_exit(struct device *dev)
+{
+	struct st_ahci_drv_data *drv_data = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = drv_data->hpriv;
+	int err;
+
+	if (drv_data->pwr) {
+		err = reset_control_assert(drv_data->pwr);
+		if (err)
+			dev_err(&pdev->dev, "unable to pwrdwn\n");
+	}
+
+	ahci_platform_disable_resources(hpriv);
+
+	return 0;
+}
+
 static int st_ahci_probe_resets(struct platform_device *pdev)
 {
 	struct st_ahci_drv_data *drv_data = platform_get_drvdata(pdev);
@@ -122,6 +139,7 @@ static const struct ata_port_info st_ahci_port_info = {
 static int st_ahci_probe(struct platform_device *pdev)
 {
 	struct st_ahci_drv_data *drv_data;
+	struct ahci_platform_data *pdata;
 	struct ahci_host_priv *hpriv;
 	int err;
 
@@ -130,6 +148,13 @@ static int st_ahci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, drv_data);
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	pdata->exit = st_ahci_exit;
+	pdev->dev.platform_data = pdata;
 
 	hpriv = ahci_platform_get_resources(pdev);
 	if (IS_ERR(hpriv))
@@ -150,23 +175,6 @@ static int st_ahci_probe(struct platform_device *pdev)
 		ahci_platform_disable_resources(hpriv);
 		return err;
 	}
-
-	return 0;
-}
-
-static int st_ahci_remove(struct platform_device *pdev)
-{
-	struct st_ahci_drv_data *drv_data = platform_get_drvdata(pdev);
-	struct ahci_host_priv *hpriv = drv_data->hpriv;
-	int err;
-
-	if (drv_data->pwr) {
-		err = reset_control_assert(drv_data->pwr);
-		if (err)
-			dev_err(&pdev->dev, "unable to pwrdwn\n");
-	}
-
-	ahci_platform_disable_resources(hpriv);
 
 	return 0;
 }
@@ -227,7 +235,7 @@ static struct platform_driver st_ahci_driver = {
 		.of_match_table = of_match_ptr(st_ahci_match),
 	},
 	.probe = st_ahci_probe,
-	.remove = st_ahci_remove,
+	.remove = ata_platform_remove_one,
 };
 module_platform_driver(st_ahci_driver);
 
