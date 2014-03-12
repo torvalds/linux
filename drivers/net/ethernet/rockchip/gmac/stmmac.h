@@ -107,7 +107,17 @@ struct stmmac_priv {
 	u32 adv_ts;
 	int use_riwt;
 	spinlock_t ptp_lock;
+	struct rk_gmac_platform_data *rk_pdata;
 };
+
+struct rk_gmac_platform_data {
+    int (*gmac_register_init)(void);
+    int (*gmac_io_init)(struct device *device);
+    int (*gmac_io_deinit)(struct device *device);
+    int(*gmac_speed_switch)(int speed);
+};
+
+extern struct rk_gmac_platform_data rk_board_gmac_data;
 
 extern int phyaddr;
 

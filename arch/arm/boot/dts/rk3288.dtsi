@@ -477,4 +477,15 @@
 		/*clock-names = "hsicphy480m", "hclk_hsic",*/
 		/*	      "hsicphy12m", "hsic_otgphy1";*/
 	};
+	
+	gmac: eth@ff290000 {
+		compatible = "rockchip,gmac";
+		reg = <0xff290000 0x10000>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;  /*irq=59*/
+		interrupt-names = "macirq";
+		phy-mode = "rmii";
+		//phy-mode = "gmii";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mac_clk &mac_txpins &mac_rxpins &mac_mdpins>;
+	};
 };

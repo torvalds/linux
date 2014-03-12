@@ -49,9 +49,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	 * are provided. All other properties should be added
 	 * once needed on other platforms.
 	 */
-	if (of_device_is_compatible(np, "st,spear600-gmac") ||
-		of_device_is_compatible(np, "snps,dwmac-3.70a") ||
-		of_device_is_compatible(np, "snps,dwmac")) {
+	if (of_device_is_compatible(np, "rockchip,gmac")) {
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}
@@ -151,6 +149,11 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv->dev);
 
+	priv->rk_pdata = &rk_board_gmac_data;
+	if (priv->rk_pdata->gmac_register_init) {
+		priv->rk_pdata->gmac_register_init();
+	}
+
 	pr_debug("STMMAC platform driver registration completed");
 
 	return 0;
@@ -229,9 +232,7 @@ static const struct dev_pm_ops stmmac_pltfr_pm_ops;
 #endif /* CONFIG_PM */
 
 static const struct of_device_id stmmac_dt_ids[] = {
-	{ .compatible = "st,spear600-gmac"},
-	{ .compatible = "snps,dwmac-3.70a"},
-	{ .compatible = "snps,dwmac"},
+	{ .compatible = "rockchip,gmac"},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, stmmac_dt_ids);

@@ -248,6 +248,10 @@ static inline void stmmac_hw_fix_mac_speed(struct stmmac_priv *priv)
 
 	if (likely(priv->plat->fix_mac_speed))
 		priv->plat->fix_mac_speed(priv->plat->bsp_priv, phydev->speed);
+
+	if (priv->rk_pdata->gmac_speed_switch) {
+		priv->rk_pdata->gmac_speed_switch(phydev->speed);
+	}
 }
 
 /**
@@ -1571,6 +1575,10 @@ static int stmmac_open(struct net_device *dev)
 
 	clk_prepare_enable(priv->stmmac_clk);
 
+	if (priv->rk_pdata->gmac_io_init) {
+		priv->rk_pdata->gmac_io_init(priv->device);
+	}
+
 	stmmac_check_ether_addr(priv);
 
 	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
@@ -1758,6 +1766,10 @@ static int stmmac_release(struct net_device *dev)
 	clk_disable_unprepare(priv->stmmac_clk);
 
 	stmmac_release_ptp(priv);
+
+	if (priv->rk_pdata->gmac_io_deinit) {
+		priv->rk_pdata->gmac_io_deinit(priv->device);
+	}
 
 	return 0;
 }
