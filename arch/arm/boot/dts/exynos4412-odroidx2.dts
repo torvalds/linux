@@ -332,6 +332,36 @@
 		samsung,i2c-slave-addr = <0x10>;
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <400000>;
+
+		hdmiddc@50 {
+			compatible = "samsung,exynos4210-hdmiddc";
+			reg = <0x50>;
+		};
+	};
+
+	i2c_8: i2c@138e0000 {
+		status = "okay";
+
+		samsung,i2c-slave-addr = <0x10>;
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <400000>;
+
+		compatible = "samsung,s3c2440-hdmiphy-i2c";
+		reg = <0x138E0000 0x1000>;
+
+		interrupts = <0 93 0>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clocks = <&clock 325>;
+		clock-names = "i2c";
+
+		hdmiphy@38 {
+			compatible = "samsung,exynos4212-hdmiphy";
+			reg = <0x38>;
+		};
+
 	};
 
 	i2c_0: i2c@13860000 {
