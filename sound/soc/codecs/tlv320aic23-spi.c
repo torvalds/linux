@@ -25,7 +25,6 @@ static int aic23_spi_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "probing tlv320aic23 spi device\n");
 
-	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
 	ret = spi_setup(spi);
 	if (ret < 0)
