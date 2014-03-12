@@ -1501,7 +1501,7 @@ void recover_inline_xattr(struct inode *inode, struct page *page)
 	struct page *ipage;
 	struct f2fs_inode *ri;
 
-	if (!is_inode_flag_set(F2FS_I(inode), FI_INLINE_XATTR))
+	if (!f2fs_has_inline_xattr(inode))
 		return;
 
 	if (!IS_INODE(page))
