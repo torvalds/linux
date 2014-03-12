@@ -79,7 +79,8 @@ int rk3288_hdmi_detect_hotplug(struct hdmi *hdmi_drv)
 
 int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 {
-	int i = 0,index = 0,interrupt = 0,ret = -1,trytime = 2;
+	int i = 0, n = 0, index = 0, interrupt = 0, ret = -1, trytime = 2;
+	int offset = (block%2)*0x80;
 	unsigned long flags;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
@@ -94,57 +95,65 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 	hdmi_msk_reg(hdmi_dev, I2CM_DIV, m_I2CM_FAST_STD_MODE, v_I2CM_FAST_STD_MODE(STANDARD_MODE));	//Set Standard Mode
 
 	//Enable edid interrupt
-	hdmi_writel(hdmi_dev, IH_MUTE_I2CM_STAT0, v_SCDC_READREQ_MUTE(0) | v_I2CM_DONE_MUTE(0) | v_I2CM_ERR_MUTE(0));
+	//hdmi_writel(hdmi_dev, IH_MUTE_I2CM_STAT0, v_SCDC_READREQ_MUTE(0) | v_I2CM_DONE_MUTE(0) | v_I2CM_ERR_MUTE(0));
 
-	//hdmi_writel(hdmi_dev, I2CM_SLAVE,);	//TODO Daisen wait to add!!
+	hdmi_writel(hdmi_dev, I2CM_SLAVE, DDC_I2C_EDID_ADDR);
+	hdmi_writel(hdmi_dev, I2CM_SEGADDR, DDC_I2C_SEG_ADDR);
 	while(trytime--) {
-		// Config EDID block and segment addr
-		hdmi_writel(hdmi_dev, I2CM_SEGADDR, (block%2) * 0x80);
-		hdmi_writel(hdmi_dev, I2CM_SEGPTR, block/2);
-		//enable Extended sequential read operation
-		hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8_EXT, v_I2CM_RD8_EXT(1));
+		for(n = 0; n < HDMI_EDID_BLOCK_SIZE/8; n++) {
+			// Config EDID block and segment addr
+			hdmi_writel(hdmi_dev, I2CM_SEGPTR, block/2);
+			hdmi_writel(hdmi_dev, I2CM_ADDRESS, offset + 8*n);
+			//enable extend sequential read operation
+			hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8_EXT, v_I2CM_RD8_EXT(1));
 
-		i = 100;
-		while(i--)
-		{
-			spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
-			interrupt = hdmi_dev->edid_status;
-			hdmi_dev->edid_status = 0;
-			spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
-			if(interrupt & (m_SCDC_READREQ | m_I2CM_DONE | m_I2CM_ERROR))
+			i = 200;
+			while(i--)
+			{
+				spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
+				interrupt = hdmi_dev->edid_status;
+				hdmi_dev->edid_status = 0;
+				spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
+				if(interrupt & (m_SCDC_READREQ | m_I2CM_DONE | m_I2CM_ERROR))
+					break;
+				msleep(5);
+			}
+
+			if((i == 0) || (interrupt & m_I2CM_ERROR)) {
+				hdmi_err(hdmi_drv->dev, "[%s] edid read error\n", __FUNCTION__);
+				rk3288_hdmi_i2cm_reset(hdmi_dev);
 				break;
-			msleep(10);
-		}
-
-		if(interrupt & (m_SCDC_READREQ | m_I2CM_DONE)) {
-			for(i = 0; i < HDMI_EDID_BLOCK_SIZE/8; i++) {
-				for(index = 0; index < 8; index++)
-					buff[i] = hdmi_readl(hdmi_dev, I2CM_READ_BUFF0 + index);
 			}
 
-			ret = 0;
-			hdmi_dbg(hdmi_drv->dev, "[%s] edid read sucess\n", __FUNCTION__);
-#ifdef HDMI_DEBUG
-			for(i = 0; i < 128; i++) {
-				printk("%02x ,", buff[i]);
-				if( (i + 1) % 16 == 0)
-					printk("\n");
-			}
-#endif
-			break;
-		}
+			if(interrupt & (m_SCDC_READREQ | m_I2CM_DONE)) {
+				for(index = 0; index < 8; index++) {
+					buff[8*n + index] = hdmi_readl(hdmi_dev, I2CM_READ_BUFF0 + index);
+				}
+				continue;
 
-		if(interrupt & m_I2CM_ERROR) {
-			hdmi_err(hdmi_drv->dev, "[%s] edid read error\n", __FUNCTION__);
-			rk3288_hdmi_i2cm_reset(hdmi_dev);
+				if(n == HDMI_EDID_BLOCK_SIZE/8 - 1) {
+					ret = 0;
+					hdmi_dbg(hdmi_drv->dev, "[%s] edid read sucess\n", __FUNCTION__);
+
+				#ifdef HDMI_DEBUG
+					for(i = 0; i < 128; i++) {
+						printk("%02x ,", buff[i]);
+						if( (i + 1) % 16 == 0)
+							printk("\n");
+					}
+				#endif
+					goto exit;
+				}
+			}
 		}
 
 		hdmi_dbg(hdmi_drv->dev, "[%s] edid try times %d\n", __FUNCTION__, trytime);
 		msleep(100);
 	}
 
+exit:
 	// Disable edid interrupt
-	hdmi_writel(hdmi_dev, IH_MUTE_I2CM_STAT0, v_SCDC_READREQ_MUTE(1) | v_I2CM_DONE_MUTE(1) | v_I2CM_ERR_MUTE(1)); //TODO Daisen HDCP enable it??
+	//hdmi_writel(hdmi_dev, IH_MUTE_I2CM_STAT0, v_SCDC_READREQ_MUTE(1) | v_I2CM_DONE_MUTE(1) | v_I2CM_ERR_MUTE(1));
 	return ret;
 }
 

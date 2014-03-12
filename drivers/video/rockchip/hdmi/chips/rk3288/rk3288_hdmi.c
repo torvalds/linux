@@ -120,6 +120,27 @@ static const struct file_operations rk3288_hdmi_reg_fops = {
 };
 #endif
 
+
+struct hdmi* rk3288_hdmi_register_hdcp_callbacks(
+					 void (*hdcp_cb)(void),
+					 void (*hdcp_irq_cb)(int status),
+					 int (*hdcp_power_on_cb)(void),
+					 void (*hdcp_power_off_cb)(void))
+{
+	struct hdmi *hdmi_drv = NULL;
+
+	if(hdmi_dev == NULL)
+		return NULL;
+
+	hdmi_drv = &hdmi_dev->driver;
+	hdmi_drv->hdcp_cb = hdcp_cb;
+	hdmi_drv->hdcp_irq_cb = hdcp_irq_cb;
+	hdmi_drv->hdcp_power_on_cb = hdcp_power_on_cb;
+	hdmi_drv->hdcp_power_off_cb = hdcp_power_off_cb;
+
+	return hdmi_drv;
+}
+
 static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 {
 	int ret = 0;

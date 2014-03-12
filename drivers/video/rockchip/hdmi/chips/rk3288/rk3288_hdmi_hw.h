@@ -10,9 +10,25 @@ enum {
 	OUTPUT_DVI = 0,
 	OUTPUT_HDMI,
 };
+enum{
+	INPUT_IIS,
+	INPUT_SPDIF
+};
+
+/* Color Space Convertion Mode */
+enum {
+	CSC_RGB_0_255_TO_ITU601_16_235 = 0,	//RGB 0-255 input to YCbCr 16-235 output according BT601
+	CSC_RGB_0_255_TO_ITU709_16_235,		//RGB 0-255 input to YCbCr 16-235 output accroding BT709
+	CSC_ITU601_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT601
+	CSC_ITU709_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT709
+	CSC_ITU601_16_235_TO_RGB_0_255,		//YCbCr 16-235 input to RGB 0-255 output according BT601
+	CSC_ITU709_16_235_TO_RGB_0_255		//YCbCr 16-235 input to RGB 0-255 output according BT709
+};
 
 
-#define HDMI_SCL_RATE            (100*1000)
+#define HDMI_SCL_RATE		(100*1000)
+#define DDC_I2C_EDID_ADDR	0x50	// 0xA0/2 = 0x50
+#define DDC_I2C_SEG_ADDR	0x30	// 0x60/2 = 0x30
 
 /*Register and Field Descriptions*/
 /*Identification Registers*/
@@ -994,19 +1010,96 @@ enum {
 #define HDCP_ENCRYPTION_ENGINE_BASE	0x5000
 
 #define	A_HDCPCFG0 			0x5000
+#define m_HDCP_ENHANCE_LIKE	(1 << 7)
+#define v_HDCP_ENHANCE_LIKE(n)	(((n)&0x01) << 7)
+#define m_I2C_FAST_MODE		(1 << 6)
+#define v_I2C_FAST_MODE(n)	(((n)&0x01) << 6)
+#define m_ENCRYPT_BYPASS	(1 << 5)
+#define v_ENCRYPT_BYPASS(n)	(((n)&0x01) << 5)
+#define m_SYNC_RI_CHECK		(1 << 4)
+#define v_SYNC_RI_CHECK(n)	(((n)&0x01) << 4)
+#define m_AVMUTE		(1 << 3)
+#define m_RX_DETECT		(1 << 2)
+#define v_RX_DETECT(n)		(((n)&0x01) << 2)
+#define m_FEATURE11_EN		(1 << 1)
+#define v_FEATURE11_EN(n)	(((n)&0x01) << 1)
+#define m_HDMI_DVI		(1 << 0)
+#define v_HDMI_DVI(n)		(((n)&0x01) << 0)
+
 #define	A_HDCPCFG1			0x5001
+#define m_HDCP_LOCK		(1 << 4)
+#define v_HDCP_LOCK(n)		(((n)&0x01) << 4)
+#define m_SHA1_CHECK_DISABLE	(1 << 3)
+#define v_SHA1_CHECK_DISBALE(n)	(((n)&0x01) << 3)
+#define m_PH2UPSHFTENC		(1 << 2)
+#define v_PH2UPSHFTENC(n)	(((n)&0x01) << 2)
+#define m_ENCRYPT_DISBALE	(1 << 1)
+#define v_ENCRYPT_DISBALE(n)	(((n)&0x01) << 1)
+#define m_HDCP_SW_RST		(1 << 0)
+#define v_HDCP_SW_RST(n)	(((n)&0x01) << 0)
+
 #define	A_HDCPOBS0			0x5002
+#define m_STATE_AUTH		(0x0f << 4)
+#define m_SUB_STATE_AUTH	(0x07 << 1)
+#define m_STATE_HDCP_ENGAGED	(1 << 0)
+
 #define	A_HDCPOBS1			0x5003
+#define m_STATE_OESS		(0x07 << 3)
+#define m_STATE_REVO		(0x07 << 0)
+
 #define	A_HDCPOBS2			0x5004
+#define m_STATE_CIPHER		(0x07 << 3)
+#define m_STATE_EESS		(0x07 << 0)
+
 #define	A_HDCPOBS3			0x5005
+#define m_BCAP_REPEATER		(1 << 6)
+#define m_BCAP_KSVFIFO_READY	(1 << 5)
+#define m_BCAP_FAST_I2C		(1 << 4)
+#define m_BCAP_HDMI_MODE	(1 << 2)
+#define m_BCAP_FEATURES11	(1 << 1)
+#define m_BCAP_FAST_REAUTH	(1 << 0)
+
 #define	A_APIINTCLR			0x5006
 #define	A_APIINTSTAT			0x5007
 #define	A_APIINTMSK			0x5008
+#define m_HDCP_ENGAGED		(1 << 7)
+#define m_HDCP_FAILED		(1 << 6)
+#define m_HDCP_I2C_NOACK	(1 << 4)
+#define m_HDCP_LOST_ARBI	(1 << 3)
+#define m_KEEP_ERR_INT		(1 << 2)
+#define m_KSVSHA1_CALC_INT	(1 << 1)
+#define m_KSV_ACCESS_INT	(1 << 0)
+#define v_HDCP_ENGAGED(n)	(((n)&0x01) << 7)
+#define v_HDCP_FAILED(n)	(((n)&0x01) << 6)
+#define v_HDCP_I2C_NOACK(n)	(((n)&0x01) << 4)
+#define v_HDCP_LOST_ARBI(n)	(((n)&0x01) << 3)
+#define v_KEEP_ERR_INT(n)	(((n)&0x01) << 1)
+#define v_KSVSHA1_CALC_INT(n)	(((n)&0x01) << 1)
+#define v_KSV_ACCESS_INT(n)	(((n)&0x01) << 0)
+
 #define	A_VIDPOLCFG			0x5009
+#define m_UNENCRYT_CONF		(0x03 << 5)
+#define v_UNENCRYT_CONF(n)	(((n)&0x03) << 5)
+#define m_DATAEN_POL		(1 << 4)
+#define v_DATAEN_POL(n)		(((n)&0x01) << 4)
+#define m_VSYNC_POL		(1 << 3)
+#define v_VSYNC_POL(n)		(((n)&0x01) << 3)
+#define m_HSYNC_POL		(1 << 1)
+#define v_HSYNC_POL(n)		(((n)&0x01) << 1)
+
 #define	A_OESSWCFG			0x500a
 #define	A_COREVERLSB 			0x5014
 #define	A_COREVERMSB			0x5015
+
 #define	A_KSVMEMCTRL			0x5016
+#define m_SHA1_FAIL		(1 << 3)
+#define v_SHA1_FAIL(n)		(((n)&0x01) << 3)
+#define m_KSV_UPDATE		(1 << 2)
+#define v_KSV_UPDATE(n)		(((n)&0x01) << 2)
+#define m_KSV_MEM_ACCESS	(1 << 1)
+#define m_KSV_MEM_REQ		(1 << 0)
+#define v_KSV_MEM_REQ(n)	(((n)&0x01) << 0)
+
 #define	HDCP_BSTATUS_0 			0x5020
 #define	HDCP_BSTATUS_1			0x5021
 #define	HDCP_M0_0			0x5022
@@ -1038,6 +1131,9 @@ enum {
 #define HDCP_AN_BASE			0x7805
 
 #define	HDCPREG_ANCONF			0x7805
+#define m_OAN_BYPASS		(1 << 0)
+#define v_OAN_BYPASS(n)		(((n)&0x01) << 0)
+
 #define	HDCPREG_AN0			0x7806
 #define	HDCPREG_AN1			0x7807
 #define	HDCPREG_AN2			0x7808
@@ -1052,7 +1148,13 @@ enum {
 #define ENCRYPTED_DPK_EMBEDDED_BASE	0x780e
 
 #define	HDCPREG_RMCTL 			0x780e
+#define m_DPK_DECRYPT_EN	(1 << 0)
+#define v_DPK_DECRYPT_EN(n)	(((n)&0x01) <<0)
+
 #define	HDCPREG_RMSTS			0x780f
+#define m_DPK_WR_OK_STS		(1 << 6)
+#define m_DPK_DATA_INDEX	(0x3f << 6)
+
 #define	HDCPREG_SEED0			0x7810
 #define	HDCPREG_SEED1			0x7811
 #define	HDCPREG_DPK0			0x7812
@@ -1234,21 +1336,6 @@ struct phy_mpll_config_tab {
 /********************************************* HDMI TX PHY Define End *********************************************/
 
 
-
-enum{
-	INPUT_IIS,
-	INPUT_SPDIF
-};
-
-/* Color Space Convertion Mode */
-enum {
-	CSC_RGB_0_255_TO_ITU601_16_235 = 0,	//RGB 0-255 input to YCbCr 16-235 output according BT601
-	CSC_RGB_0_255_TO_ITU709_16_235,		//RGB 0-255 input to YCbCr 16-235 output accroding BT709
-	CSC_ITU601_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT601
-	CSC_ITU709_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT709
-	CSC_ITU601_16_235_TO_RGB_0_255,		//YCbCr 16-235 input to RGB 0-255 output according BT601
-	CSC_ITU709_16_235_TO_RGB_0_255		//YCbCr 16-235 input to RGB 0-255 output according BT709
-};
 
 struct rk3288_hdmi_reg_table {
 	int reg_base;
