@@ -2368,6 +2368,42 @@ static void ipr_log_generic_error(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
+ * ipr_log_sis64_device_error - Log a cache error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_sis64_device_error(struct ipr_ioa_cfg *ioa_cfg,
+					 struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_21_error *error;
+	char buffer[IPR_MAX_RES_PATH_LENGTH];
+
+	error = &hostrcb->hcam.u.error64.u.type_21_error;
+
+	ipr_err("-----Failing Device Information-----\n");
+	ipr_err("World Wide Unique ID: %08X%08X%08X%08X\n",
+		be32_to_cpu(error->wwn[0]), be32_to_cpu(error->wwn[1]),
+		 be32_to_cpu(error->wwn[2]), be32_to_cpu(error->wwn[3]));
+	ipr_err("Device Resource Path: %s\n",
+		__ipr_format_res_path(error->res_path,
+				      buffer, sizeof(buffer)));
+	error->primary_problem_desc[sizeof(error->primary_problem_desc) - 1] = '\0';
+	error->second_problem_desc[sizeof(error->second_problem_desc) - 1] = '\0';
+	ipr_err("Primary Problem Description: %s\n", error->primary_problem_desc);
+	ipr_err("Secondary Problem Description:  %s\n", error->second_problem_desc);
+	ipr_err("SCSI Sense Data:\n");
+	ipr_log_hex_data(ioa_cfg, error->sense_data, sizeof(error->sense_data));
+	ipr_err("SCSI Command Descriptor Block: \n");
+	ipr_log_hex_data(ioa_cfg, error->cdb, sizeof(error->cdb));
+
+	ipr_err("Additional IOA Data:\n");
+	ipr_log_hex_data(ioa_cfg, error->ioa_data, be32_to_cpu(error->length_of_error));
+}
+
+/**
  * ipr_get_error - Find the specfied IOASC in the ipr_error_table.
  * @ioasc:	IOASC
  *
@@ -2467,6 +2503,9 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_20:
 		ipr_log_fabric_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_21:
+		ipr_log_sis64_device_error(ioa_cfg, hostrcb);
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_23:
 		ipr_log_sis64_config_error(ioa_cfg, hostrcb);
