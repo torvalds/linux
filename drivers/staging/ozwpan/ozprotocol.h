@@ -219,8 +219,8 @@ struct oz_get_desc_rsp {
 	u8	elt_seq_num;
 	u8	type;
 	u8	req_id;
-	u16	offset;
-	u16	total_size;
+	__le16	offset;
+	__le16	total_size;
 	u8	rcode;
 	u8	data[1];
 } PACKED;
