@@ -14,7 +14,8 @@ config SND_BF5XX_SOC_SSM2602
 	depends on SND_BF5XX_I2S && SND_SOC_I2C_AND_SPI
 	select SND_BF5XX_SOC_I2S if !BF60x
 	select SND_BF6XX_SOC_I2S if BF60x
-	select SND_SOC_SSM2602
+	select SND_SOC_SSM2602_SPI if SPI_MASTER
+	select SND_SOC_SSM2602_I2C if I2C
 	help
 	  Say Y if you want to add support for the Analog Devices
 	  SSM2602 Audio Codec Add-On Card.
