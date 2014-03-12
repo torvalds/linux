@@ -681,14 +681,16 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 	size_t len;
 
 	seq_printf(s, "----------------------------------------------------\n");
+	seq_printf(s, "%16.s: %12.s %8.s %4.s %4.s %4.s\n", "heap_name", "addr", "size", "HC", "IBR", "IHR");
 	mutex_lock(&client->lock);
 	for (n = rb_first(&client->handles); n; n = rb_next(n)) {
 		struct ion_handle *handle = rb_entry(n, struct ion_handle, node);
 		struct ion_buffer *buffer = handle->buffer;
 		if (buffer->heap->ops->phys) {
 			buffer->heap->ops->phys(buffer->heap, buffer, &addr, &len);
-			seq_printf(s, "%16.16s: 0x%08lX %8zuKB %d\n",
-				buffer->heap->name, addr, len>>10, buffer->handle_count);
+			seq_printf(s, "%16.16s: 0x%08lx %8zuKB %4d %4d %4d\n",
+				buffer->heap->name, addr, len>>10, buffer->handle_count,
+				atomic_read(&buffer->ref.refcount), atomic_read(&handle->ref.refcount));
 		}
 	}
 	mutex_unlock(&client->lock);

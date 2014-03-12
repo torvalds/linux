@@ -192,7 +192,7 @@ static int ion_cma_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 	seq_printf(s, "Heap bitmap:\n");
 
 	for(i = rows - 1; i>= 0; i--){
-		seq_printf(s, "%.4uM@0x%08X: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
+		seq_printf(s, "%.4uM@0x%08x: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 				i+1, base+(i)*SZ_1M,
 				cma->bitmap[i*8 + 7],
 				cma->bitmap[i*8 + 6],
@@ -203,7 +203,7 @@ static int ion_cma_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 				cma->bitmap[i*8 + 1],
 				cma->bitmap[i*8]);
 	}
-	seq_printf(s, "Heap size: %luM, Heap base: 0x%08X\n",
+	seq_printf(s, "Heap size: %luM, Heap base: 0x%08x\n",
 		(cma->count)>>8, base);
 
 	return 0;
