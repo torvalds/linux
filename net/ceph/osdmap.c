@@ -687,9 +687,10 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 {
 	u16 version;
-	u32 len, max, i;
 	u32 epoch = 0;
 	void *start = *p;
+	u32 max;
+	u32 len, i;
 	int err;
 	struct ceph_pg_pool_info *pi;
 
@@ -736,7 +737,8 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 
 	ceph_decode_32_safe(p, end, map->flags, e_inval);
 
-	max = ceph_decode_32(p);
+	/* max_osd */
+	ceph_decode_32_safe(p, end, max, e_inval);
 
 	/* (re)alloc osd arrays */
 	err = osdmap_set_max_osd(map, max);
