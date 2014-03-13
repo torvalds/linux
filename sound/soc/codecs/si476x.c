@@ -210,7 +210,7 @@ out:
 static int si476x_codec_probe(struct snd_soc_codec *codec)
 {
 	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
-	return 0;
+	return snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
 }
 
 static struct snd_soc_dai_ops si476x_dai_ops = {
