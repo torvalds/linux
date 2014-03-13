@@ -6616,8 +6616,14 @@ loop:
 		loop++;
 		if (loop == LOOP_ALLOC_CHUNK) {
 			struct btrfs_trans_handle *trans;
+			int exist = 0;
 
-			trans = btrfs_join_transaction(root);
+			trans = current->journal_info;
+			if (trans)
+				exist = 1;
+			else
+				trans = btrfs_join_transaction(root);
+
 			if (IS_ERR(trans)) {
 				ret = PTR_ERR(trans);
 				goto out;
@@ -6634,7 +6640,8 @@ loop:
 							root, ret);
 			else
 				ret = 0;
-			btrfs_end_transaction(trans, root);
+			if (!exist)
+				btrfs_end_transaction(trans, root);
 			if (ret)
 				goto out;
 		}
