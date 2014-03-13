@@ -952,11 +952,10 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		if (err < 0)
 			goto bad;
 	}
-	if (version >= 5) {
-		err = __decode_pool_names(p, end, map);
-		if (err)
-			goto bad;
-	}
+
+	err = __decode_pool_names(p, end, map);
+	if (err)
+		goto bad;
 
 	/* old_pool */
 	ceph_decode_32_safe(p, end, len, e_inval);
