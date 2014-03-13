@@ -336,7 +336,9 @@ struct iwl_lq_sta {
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
+	struct dentry *rs_sta_dbgfs_reduced_txp_file;
 	u32 dbg_fixed_rate;
+	u8 dbg_fixed_txp_reduction;
 #endif
 	struct iwl_mvm *drv;
 

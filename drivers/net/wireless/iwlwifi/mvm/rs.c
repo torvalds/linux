@@ -1863,6 +1863,15 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 	int weak, strong;
 	int weak_tpt = IWL_INVALID_VALUE, strong_tpt = IWL_INVALID_VALUE;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (lq_sta->dbg_fixed_txp_reduction <= TPC_MAX_REDUCTION) {
+		IWL_DEBUG_RATE(mvm, "fixed tpc: %d",
+			       lq_sta->dbg_fixed_txp_reduction);
+		lq_sta->lq.reduced_tpc = lq_sta->dbg_fixed_txp_reduction;
+		return cur != lq_sta->dbg_fixed_txp_reduction;
+	}
+#endif
+
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(vif->chanctx_conf);
 	if (WARN_ON(!chanctx_conf))
@@ -2613,6 +2622,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	lq_sta->is_agg = 0;
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
+	lq_sta->dbg_fixed_txp_reduction = TPC_INVALID;
 #endif
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm, &mvm->drv_rx_stats);
@@ -3076,6 +3086,9 @@ static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
 	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
 		debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
 				  &lq_sta->tx_agg_tid_en);
+	lq_sta->rs_sta_dbgfs_reduced_txp_file =
+		debugfs_create_u8("reduced_tpc", S_IRUSR | S_IWUSR, dir,
+				  &lq_sta->dbg_fixed_txp_reduction);
 }
 
 static void rs_remove_debugfs(void *mvm, void *mvm_sta)
@@ -3084,6 +3097,7 @@ static void rs_remove_debugfs(void *mvm, void *mvm_sta)
 	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
+	debugfs_remove(lq_sta->rs_sta_dbgfs_reduced_txp_file);
 }
 #endif
 
