@@ -562,7 +562,7 @@ static int gsc_hpdi_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int init_hpdi(struct comedi_device *dev)
+static int gsc_hpdi_init(struct comedi_device *dev)
 {
 	struct hpdi_private *devpriv = dev->private;
 	uint32_t plx_intcsr_bits;
@@ -730,7 +730,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	s->do_cmdtest	= gsc_hpdi_cmd_test;
 	s->cancel	= gsc_hpdi_cancel;
 
-	return init_hpdi(dev);
+	return gsc_hpdi_init(dev);
 }
 
 static void gsc_hpdi_detach(struct comedi_device *dev)
