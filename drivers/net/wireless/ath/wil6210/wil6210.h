@@ -215,6 +215,46 @@ enum { /* for wil6210_priv.status */
 
 struct pci_dev;
 
+/**
+ * struct tid_ampdu_rx - TID aggregation information (Rx).
+ *
+ * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @reorder_time: jiffies when skb was added
+ * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @reorder_timer: releases expired frames from the reorder buffer.
+ * @last_rx: jiffies of last rx activity
+ * @head_seq_num: head sequence number in reordering buffer.
+ * @stored_mpdu_num: number of MPDUs in reordering buffer
+ * @ssn: Starting Sequence Number expected to be aggregated.
+ * @buf_size: buffer size for incoming A-MPDUs
+ * @timeout: reset timer value (in TUs).
+ * @dialog_token: dialog token for aggregation session
+ * @rcu_head: RCU head used for freeing this struct
+ * @reorder_lock: serializes access to reorder buffer, see below.
+ *
+ * This structure's lifetime is managed by RCU, assignments to
+ * the array holding it must hold the aggregation mutex.
+ *
+ * The @reorder_lock is used to protect the members of this
+ * struct, except for @timeout, @buf_size and @dialog_token,
+ * which are constant across the lifetime of the struct (the
+ * dialog token being used only for debugging).
+ */
+struct wil_tid_ampdu_rx {
+	spinlock_t reorder_lock; /* see above */
+	struct sk_buff **reorder_buf;
+	unsigned long *reorder_time;
+	struct timer_list session_timer;
+	struct timer_list reorder_timer;
+	unsigned long last_rx;
+	u16 head_seq_num;
+	u16 stored_mpdu_num;
+	u16 ssn;
+	u16 buf_size;
+	u16 timeout;
+	u8 dialog_token;
+};
+
 struct wil6210_stats {
 	u64 tsf;
 	u32 snr;
@@ -224,6 +264,42 @@ struct wil6210_stats {
 	u16 my_tx_sector;
 	u16 peer_rx_sector;
 	u16 peer_tx_sector;
+};
+
+enum wil_sta_status {
+	wil_sta_unused = 0,
+	wil_sta_conn_pending = 1,
+	wil_sta_connected = 2,
+};
+
+#define WIL_STA_TID_NUM (16)
+
+struct wil_net_stats {
+	unsigned long	rx_packets;
+	unsigned long	tx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_bytes;
+	unsigned long	tx_errors;
+	unsigned long	rx_dropped;
+	u16 last_mcs_rx;
+};
+
+/**
+ * struct wil_sta_info - data for peer
+ *
+ * Peer identified by its CID (connection ID)
+ * NIC performs beam forming for each peer;
+ * if no beam forming done, frame exchange is not
+ * possible.
+ */
+struct wil_sta_info {
+	u8 addr[ETH_ALEN];
+	enum wil_sta_status status;
+	struct wil_net_stats stats;
+	/* Rx BACK */
+	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
+	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];
+	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 };
 
 struct wil6210_priv {
@@ -267,7 +343,8 @@ struct wil6210_priv {
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
-	u8 dst_addr[WIL6210_MAX_TX_RINGS][ETH_ALEN];
+	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
+	struct wil_sta_info sta[WIL6210_MAX_CID];
 	/* scan */
 	struct cfg80211_scan_request *scan_request;
 
@@ -334,6 +411,7 @@ void wil_link_off(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
+int wil_find_cid(struct wil6210_priv *wil, const u8 *mac);
 
 void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr);
 void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr);
@@ -357,7 +435,9 @@ int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
 int wmi_p2p_cfg(struct wil6210_priv *wil, int channel);
+int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
+int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason);
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);

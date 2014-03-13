@@ -404,6 +404,38 @@ static int iwl_set_default_calib(struct iwl_drv *drv, const u8 *data)
 	return 0;
 }
 
+static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
+				   struct iwl_ucode_capabilities *capa)
+{
+	const struct iwl_ucode_api *ucode_api = (void *)data;
+	u32 api_index = le32_to_cpu(ucode_api->api_index);
+
+	if (api_index >= IWL_API_ARRAY_SIZE) {
+		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		return -EINVAL;
+	}
+
+	capa->api[api_index] = le32_to_cpu(ucode_api->api_flags);
+
+	return 0;
+}
+
+static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
+				      struct iwl_ucode_capabilities *capa)
+{
+	const struct iwl_ucode_capa *ucode_capa = (void *)data;
+	u32 api_index = le32_to_cpu(ucode_capa->api_index);
+
+	if (api_index >= IWL_CAPABILITIES_ARRAY_SIZE) {
+		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		return -EINVAL;
+	}
+
+	capa->capa[api_index] = le32_to_cpu(ucode_capa->api_capa);
+
+	return 0;
+}
+
 static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 				    const struct firmware *ucode_raw,
 				    struct iwl_firmware_pieces *pieces)
@@ -638,6 +670,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			 */
 			capa->flags = le32_to_cpup((__le32 *)tlv_data);
 			break;
+		case IWL_UCODE_TLV_API_CHANGES_SET:
+			if (tlv_len != sizeof(struct iwl_ucode_api))
+				goto invalid_tlv_len;
+			if (iwl_set_ucode_api_flags(drv, tlv_data, capa))
+				goto tlv_error;
+			break;
+		case IWL_UCODE_TLV_ENABLED_CAPABILITIES:
+			if (tlv_len != sizeof(struct iwl_ucode_capa))
+				goto invalid_tlv_len;
+			if (iwl_set_ucode_capabilities(drv, tlv_data, capa))
+				goto tlv_error;
+			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
@@ -728,6 +772,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			drv->fw.phy_config = le32_to_cpup((__le32 *)tlv_data);
+			drv->fw.valid_tx_ant = (drv->fw.phy_config &
+						FW_PHY_CFG_TX_CHAIN) >>
+						FW_PHY_CFG_TX_CHAIN_POS;
+			drv->fw.valid_rx_ant = (drv->fw.phy_config &
+						FW_PHY_CFG_RX_CHAIN) >>
+						FW_PHY_CFG_RX_CHAIN_POS;
 			break;
 		 case IWL_UCODE_TLV_SECURE_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
@@ -1301,8 +1351,7 @@ MODULE_PARM_DESC(antenna_coupling,
 
 module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
-		"Disable stuck queue watchdog timer 0=system default, "
-		"1=disable, 2=enable (default: 0)");
+		"Disable stuck queue watchdog timer 0=system default, 1=disable (default: 1)");
 
 module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, S_IRUGO);
 MODULE_PARM_DESC(nvm_file, "NVM file name");

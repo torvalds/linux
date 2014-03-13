@@ -21,6 +21,8 @@
 #include "hw.h"
 #include "hw-ops.h"
 
+#include "common-init.h"
+
 /* Common header for Atheros 802.11n base driver cores */
 
 #define WME_BA_BMP_SIZE         64

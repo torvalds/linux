@@ -69,7 +69,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_beacon_state bs;
 	enum ath9k_int imask = 0;
-	int dtimperiod, dtimcount, sleepduration;
+	int dtimperiod, dtimcount;
 	int bmiss_timeout;
 	u32 nexttbtt = 0, intval, tsftu;
 	__be32 htc_imask = 0;
@@ -93,10 +93,6 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	dtimcount = 1;
 	if (dtimcount >= dtimperiod)	/* NB: sanity check */
 		dtimcount = 0;
-
-	sleepduration = intval;
-	if (sleepduration <= 0)
-		sleepduration = intval;
 
 	/*
 	 * Pull nexttbtt forward to reflect the current
@@ -128,15 +124,11 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	 * need calculate based	on the beacon interval.  Note that we clamp the
 	 * result to at most 15 beacons.
 	 */
-	if (sleepduration > intval) {
-		bs.bs_bmissthreshold = ATH_DEFAULT_BMISS_LIMIT / 2;
-	} else {
-		bs.bs_bmissthreshold = DIV_ROUND_UP(bmiss_timeout, intval);
-		if (bs.bs_bmissthreshold > 15)
-			bs.bs_bmissthreshold = 15;
-		else if (bs.bs_bmissthreshold <= 0)
-			bs.bs_bmissthreshold = 1;
-	}
+	bs.bs_bmissthreshold = DIV_ROUND_UP(bmiss_timeout, intval);
+	if (bs.bs_bmissthreshold > 15)
+		bs.bs_bmissthreshold = 15;
+	else if (bs.bs_bmissthreshold <= 0)
+		bs.bs_bmissthreshold = 1;
 
 	/*
 	 * Calculate sleep duration. The configuration is given in ms.
@@ -148,7 +140,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	 */
 
 	bs.bs_sleepduration = TU_TO_USEC(roundup(IEEE80211_MS_TO_TU(100),
-						 sleepduration));
+						 intval));
 	if (bs.bs_sleepduration > bs.bs_dtimperiod)
 		bs.bs_sleepduration = bs.bs_dtimperiod;
 

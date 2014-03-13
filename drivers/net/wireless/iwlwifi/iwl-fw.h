@@ -92,8 +92,8 @@
  * @IWL_UCODE_TLV_FLAGS_STA_KEY_CMD: new ADD_STA and ADD_STA_KEY command API
  * @IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD: support device wide power command
  *	containing CAM (Continuous Active Mode) indication.
- * @IWL_UCODE_TLV_FLAGS_P2P_PS: P2P client power save is supported (only on a
- *	single bound interface).
+ * @IWL_UCODE_TLV_FLAGS_P2P_BSS_PS_DCM: support power save on BSS station and
+ *	P2P client interfaces simultaneously if they are in different bindings.
  * @IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD: P2P client supports uAPSD power save
  * @IWL_UCODE_TLV_FLAGS_BCAST_FILTERING: uCode supports broadcast filtering.
  * @IWL_UCODE_TLV_FLAGS_GO_UAPSD: AP/GO interfaces support uAPSD clients
@@ -118,7 +118,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_SCHED_SCAN		= BIT(17),
 	IWL_UCODE_TLV_FLAGS_STA_KEY_CMD		= BIT(19),
 	IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD	= BIT(20),
-	IWL_UCODE_TLV_FLAGS_P2P_PS		= BIT(21),
+	IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_DCM	= BIT(22),
 	IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT	= BIT(24),
 	IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD	= BIT(26),
 	IWL_UCODE_TLV_FLAGS_BCAST_FILTERING	= BIT(29),
@@ -165,11 +165,15 @@ enum iwl_ucode_sec {
  * just an offset to the HW address.
  */
 #define IWL_UCODE_SECTION_MAX 12
+#define IWL_API_ARRAY_SIZE	1
+#define IWL_CAPABILITIES_ARRAY_SIZE	1
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 api[IWL_API_ARRAY_SIZE];
+	u32 capa[IWL_CAPABILITIES_ARRAY_SIZE];
 };
 
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
@@ -288,22 +292,12 @@ struct iwl_fw {
 
 	struct iwl_tlv_calib_ctrl default_calib[IWL_UCODE_TYPE_MAX];
 	u32 phy_config;
+	u8 valid_tx_ant;
+	u8 valid_rx_ant;
 
 	bool mvm_fw;
 
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 };
-
-static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)
-{
-	return (fw->phy_config & FW_PHY_CFG_TX_CHAIN) >>
-		FW_PHY_CFG_TX_CHAIN_POS;
-}
-
-static inline u8 iwl_fw_valid_rx_ant(const struct iwl_fw *fw)
-{
-	return (fw->phy_config & FW_PHY_CFG_RX_CHAIN) >>
-		FW_PHY_CFG_RX_CHAIN_POS;
-}
 
 #endif  /* __iwl_fw_h__ */

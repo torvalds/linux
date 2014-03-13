@@ -283,6 +283,11 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
 					    &chandef);
+	if (err < 0) {
+		sdata_info(sdata,
+			   "Failed to join IBSS, invalid chandef\n");
+		return;
+	}
 	if (err > 0) {
 		if (!ifibss->userspace_handles_dfs) {
 			sdata_info(sdata,

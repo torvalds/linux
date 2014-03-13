@@ -68,6 +68,7 @@
 #include <linux/ip.h>
 #include <linux/if_arp.h>
 #include <net/mac80211.h>
+#include <net/ieee80211_radiotap.h>
 #include <net/tcp.h>
 
 #include "iwl-op-mode.h"
@@ -280,6 +281,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->queues = mvm->first_agg_queue;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
+	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FEC |
+				    IEEE80211_RADIOTAP_MCS_HAVE_STBC;
+	hw->radiotap_vht_details |= IEEE80211_RADIOTAP_VHT_KNOWN_STBC;
 	hw->rate_control_algorithm = "iwl-mvm-rs";
 
 	/*
@@ -1319,7 +1323,6 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	mvmvif->ap_ibss_active = true;
 
 	/* power updated needs to be done before quotas */
-	mvm->bound_vif_cnt++;
 	iwl_mvm_power_update_mac(mvm, vif);
 
 	ret = iwl_mvm_update_quotas(mvm, vif);
@@ -1338,7 +1341,6 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	return 0;
 
 out_quota_failed:
-	mvm->bound_vif_cnt--;
 	iwl_mvm_power_update_mac(mvm, vif);
 	mvmvif->ap_ibss_active = false;
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
@@ -1375,7 +1377,6 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
-	mvm->bound_vif_cnt--;
 	iwl_mvm_power_update_mac(mvm, vif);
 
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
@@ -1764,14 +1765,16 @@ out:
 	return ret;
 }
 
-static void iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
-					struct ieee80211_vif *vif)
+static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_sched_scan_stop(mvm);
 	mutex_unlock(&mvm->mutex);
+
+	return 0;
 }
 
 static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
@@ -2109,7 +2112,6 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	 * Power state must be updated before quotas,
 	 * otherwise fw will complain.
 	 */
-	mvm->bound_vif_cnt++;
 	iwl_mvm_power_update_mac(mvm, vif);
 
 	/* Setting the quota at this stage is only required for monitor
@@ -2127,7 +2129,6 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 
  out_remove_binding:
 	iwl_mvm_binding_remove_vif(mvm, vif);
-	mvm->bound_vif_cnt--;
 	iwl_mvm_power_update_mac(mvm, vif);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
@@ -2160,7 +2161,6 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	}
 
 	iwl_mvm_binding_remove_vif(mvm, vif);
-	mvm->bound_vif_cnt--;
 	iwl_mvm_power_update_mac(mvm, vif);
 
 out_unlock:
@@ -2251,7 +2251,7 @@ static int iwl_mvm_mac_testmode_cmd(struct ieee80211_hw *hw,
 }
 #endif
 
-struct ieee80211_ops iwl_mvm_hw_ops = {
+const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
 	.start = iwl_mvm_mac_start,

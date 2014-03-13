@@ -38,10 +38,11 @@
 #include "def.h"
 #include "phy.h"
 #include "dm.h"
+#include "../rtl8723com/dm_common.h"
 #include "fw.h"
+#include "../rtl8723com/fw_common.h"
 #include "led.h"
 #include "hw.h"
-#include "pwrseqcmd.h"
 #include "pwrseq.h"
 #include "btc.h"
 
@@ -304,9 +305,9 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break; }
 	case HW_VAR_AC_PARAM:{
 		u8 e_aci = *((u8 *) val);
-		rtl8723ae_dm_init_edca_turbo(hw);
+		rtl8723_dm_init_edca_turbo(hw);
 
-		if (rtlpci->acm_method != eAcmWay2_SW)
+		if (rtlpci->acm_method != EACMWAY2_SW)
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_ACM_CTRL,
 						      (u8 *) (&e_aci));
@@ -880,23 +881,33 @@ int rtl8723ae_hw_init(struct ieee80211_hw *hw)
 	bool rtstatus = true;
 	int err;
 	u8 tmp_u1b;
+	unsigned long flags;
 
 	rtlpriv->rtlhal.being_init_adapter = true;
+	/* As this function can take a very long time (up to 350 ms)
+	 * and can be called with irqs disabled, reenable the irqs
+	 * to let the other devices continue being serviced.
+	 *
+	 * It is safe doing so since our own interrupts will only be enabled
+	 * in a subsequent step.
+	 */
+	local_save_flags(flags);
+	local_irq_enable();
+
 	rtlpriv->intf_ops->disable_aspm(hw);
 	rtstatus = _rtl8712e_init_mac(hw);
 	if (rtstatus != true) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
 		err = 1;
-		return err;
+		goto exit;
 	}
 
-	err = rtl8723ae_download_fw(hw);
+	err = rtl8723_download_fw(hw, false);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW now..\n");
 		err = 1;
-		rtlhal->fw_ready = false;
-		return err;
+		goto exit;
 	} else {
 		rtlhal->fw_ready = true;
 	}
@@ -971,6 +982,8 @@ int rtl8723ae_hw_init(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "under 1.5V\n");
 	}
 	rtl8723ae_dm_init(hw);
+exit:
+	local_irq_restore(flags);
 	rtlpriv->rtlhal.being_init_adapter = false;
 	return err;
 }
@@ -1112,11 +1125,12 @@ static int _rtl8723ae_set_media_status(struct ieee80211_hw *hw,
 void rtl8723ae_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	u32 reg_rcr = rtlpci->receive_config;
+	u32 reg_rcr;
 
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
+
+	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 
 	if (check_bssid == true) {
 		reg_rcr |= (RCR_CBSSID_DATA | RCR_CBSSID_BCN);
@@ -1153,7 +1167,7 @@ void rtl8723ae_set_qos(struct ieee80211_hw *hw, int aci)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	rtl8723ae_dm_init_edca_turbo(hw);
+	rtl8723_dm_init_edca_turbo(hw);
 	switch (aci) {
 	case AC1_BK:
 		rtl_write_dword(rtlpriv, REG_EDCA_BK_PARAM, 0xa44f);
@@ -1655,7 +1669,7 @@ static void _rtl8723ae_read_adapter_info(struct ieee80211_hw *hw,
 				    CHK_SVID_SMID(0x10EC, 0x9185))
 					rtlhal->oem_id = RT_CID_TOSHIBA;
 				else if (rtlefuse->eeprom_svid == 0x1025)
-					rtlhal->oem_id = RT_CID_819x_Acer;
+					rtlhal->oem_id = RT_CID_819X_ACER;
 				else if (CHK_SVID_SMID(0x10EC, 0x6191) ||
 					 CHK_SVID_SMID(0x10EC, 0x6192) ||
 					 CHK_SVID_SMID(0x10EC, 0x6193) ||
@@ -1665,7 +1679,7 @@ static void _rtl8723ae_read_adapter_info(struct ieee80211_hw *hw,
 					 CHK_SVID_SMID(0x10EC, 0x8191) ||
 					 CHK_SVID_SMID(0x10EC, 0x8192) ||
 					 CHK_SVID_SMID(0x10EC, 0x8193))
-					rtlhal->oem_id = RT_CID_819x_SAMSUNG;
+					rtlhal->oem_id = RT_CID_819X_SAMSUNG;
 				else if (CHK_SVID_SMID(0x10EC, 0x8195) ||
 					 CHK_SVID_SMID(0x10EC, 0x9195) ||
 					 CHK_SVID_SMID(0x10EC, 0x7194) ||
@@ -1673,24 +1687,24 @@ static void _rtl8723ae_read_adapter_info(struct ieee80211_hw *hw,
 					 CHK_SVID_SMID(0x10EC, 0x8201) ||
 					 CHK_SVID_SMID(0x10EC, 0x8202) ||
 					 CHK_SVID_SMID(0x10EC, 0x9200))
-					rtlhal->oem_id = RT_CID_819x_Lenovo;
+					rtlhal->oem_id = RT_CID_819X_LENOVO;
 				else if (CHK_SVID_SMID(0x10EC, 0x8197) ||
 					 CHK_SVID_SMID(0x10EC, 0x9196))
-					rtlhal->oem_id = RT_CID_819x_CLEVO;
+					rtlhal->oem_id = RT_CID_819X_CLEVO;
 				else if (CHK_SVID_SMID(0x1028, 0x8194) ||
 					 CHK_SVID_SMID(0x1028, 0x8198) ||
 					 CHK_SVID_SMID(0x1028, 0x9197) ||
 					 CHK_SVID_SMID(0x1028, 0x9198))
-					rtlhal->oem_id = RT_CID_819x_DELL;
+					rtlhal->oem_id = RT_CID_819X_DELL;
 				else if (CHK_SVID_SMID(0x103C, 0x1629))
-					rtlhal->oem_id = RT_CID_819x_HP;
+					rtlhal->oem_id = RT_CID_819X_HP;
 				else if (CHK_SVID_SMID(0x1A32, 0x2315))
-					rtlhal->oem_id = RT_CID_819x_QMI;
+					rtlhal->oem_id = RT_CID_819X_QMI;
 				else if (CHK_SVID_SMID(0x10EC, 0x8203))
-					rtlhal->oem_id = RT_CID_819x_PRONETS;
+					rtlhal->oem_id = RT_CID_819X_PRONETS;
 				else if (CHK_SVID_SMID(0x1043, 0x84B5))
 					rtlhal->oem_id =
-						 RT_CID_819x_Edimax_ASUS;
+						 RT_CID_819X_EDIMAX_ASUS;
 				else
 					rtlhal->oem_id = RT_CID_DEFAULT;
 			} else if (rtlefuse->eeprom_did == 0x8178) {
@@ -1712,12 +1726,12 @@ static void _rtl8723ae_read_adapter_info(struct ieee80211_hw *hw,
 				    CHK_SVID_SMID(0x10EC, 0x9185))
 					rtlhal->oem_id = RT_CID_TOSHIBA;
 				else if (rtlefuse->eeprom_svid == 0x1025)
-					rtlhal->oem_id = RT_CID_819x_Acer;
+					rtlhal->oem_id = RT_CID_819X_ACER;
 				else if (CHK_SVID_SMID(0x10EC, 0x8186))
-					rtlhal->oem_id = RT_CID_819x_PRONETS;
+					rtlhal->oem_id = RT_CID_819X_PRONETS;
 				else if (CHK_SVID_SMID(0x1043, 0x8486))
 					rtlhal->oem_id =
-						     RT_CID_819x_Edimax_ASUS;
+						     RT_CID_819X_EDIMAX_ASUS;
 				else
 					rtlhal->oem_id = RT_CID_DEFAULT;
 			} else {
@@ -1731,7 +1745,7 @@ static void _rtl8723ae_read_adapter_info(struct ieee80211_hw *hw,
 			rtlhal->oem_id = RT_CID_CCX;
 			break;
 		case EEPROM_CID_QMI:
-			rtlhal->oem_id = RT_CID_819x_QMI;
+			rtlhal->oem_id = RT_CID_819X_QMI;
 			break;
 		case EEPROM_CID_WHQL:
 				break;

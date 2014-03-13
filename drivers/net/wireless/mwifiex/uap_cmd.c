@@ -226,8 +226,8 @@ void mwifiex_set_vht_width(struct mwifiex_private *priv,
 	if (ap_11ac_enable && width >= NL80211_CHAN_WIDTH_80)
 		vht_cfg.misc_config |= VHT_BW_80_160_80P80;
 
-	mwifiex_send_cmd_sync(priv, HostCmd_CMD_11AC_CFG,
-			      HostCmd_ACT_GEN_SET, 0, &vht_cfg);
+	mwifiex_send_cmd(priv, HostCmd_CMD_11AC_CFG,
+			 HostCmd_ACT_GEN_SET, 0, &vht_cfg, true);
 
 	return;
 }

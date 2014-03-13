@@ -236,8 +236,21 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
  */
 #define MWIFIEX_FW_DEF_HTTXCFG (BIT(1) | BIT(4) | BIT(5) | BIT(6))
 
+/* 11AC Tx and Rx MCS map for 1x1 mode:
+ * IEEE80211_VHT_MCS_SUPPORT_0_9 for stream 1
+ * IEEE80211_VHT_MCS_NOT_SUPPORTED for remaining 7 streams
+ */
+#define MWIFIEX_11AC_MCS_MAP_1X1	0xfffefffe
+
+/* 11AC Tx and Rx MCS map for 2x2 mode:
+ * IEEE80211_VHT_MCS_SUPPORT_0_9 for stream 1 and 2
+ * IEEE80211_VHT_MCS_NOT_SUPPORTED for remaining 6 streams
+ */
+#define MWIFIEX_11AC_MCS_MAP_2X2	0xfffafffa
+
 #define GET_RXMCSSUPP(DevMCSSupported) (DevMCSSupported & 0x0f)
 #define SETHT_MCS32(x) (x[4] |= 1)
+#define HT_STREAM_1X1	0x11
 #define HT_STREAM_2X2	0x22
 
 #define SET_SECONDARYCHAN(RadioType, SECCHAN) (RadioType |= (SECCHAN << 4))

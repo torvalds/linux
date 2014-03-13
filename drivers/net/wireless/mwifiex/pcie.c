@@ -190,6 +190,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		card->pcie.firmware = data->firmware;
 		card->pcie.reg = data->reg;
 		card->pcie.blksz_fw_dl = data->blksz_fw_dl;
+		card->pcie.tx_buf_size = data->tx_buf_size;
 	}
 
 	if (mwifiex_add_card(card, &add_remove_card_sem, &pcie_ops,
@@ -210,7 +211,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	struct pcie_service_card *card;
 	struct mwifiex_adapter *adapter;
 	struct mwifiex_private *priv;
-	int i;
 
 	card = pci_get_drvdata(pdev);
 	if (!card)
@@ -229,11 +229,7 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 			mwifiex_pcie_resume(&pdev->dev);
 #endif
 
-		for (i = 0; i < adapter->priv_num; i++)
-			if ((GET_BSS_ROLE(adapter->priv[i]) ==
-			     MWIFIEX_BSS_ROLE_STA) &&
-			    adapter->priv[i]->media_connected)
-				mwifiex_deauthenticate(adapter->priv[i], NULL);
+		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
@@ -2320,6 +2316,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	}
 
 	adapter->dev = &pdev->dev;
+	adapter->tx_buf_size = card->pcie.tx_buf_size;
 	strcpy(adapter->fw_name, card->pcie.firmware);
 
 	return 0;

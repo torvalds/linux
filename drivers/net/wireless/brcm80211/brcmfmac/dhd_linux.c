@@ -1040,11 +1040,11 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_cfg80211_detach(drvr->config);
 
+	brcmf_fws_deinit(drvr);
+
 	brcmf_bus_detach(drvr);
 
 	brcmf_proto_detach(drvr);
-
-	brcmf_fws_deinit(drvr);
 
 	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;
