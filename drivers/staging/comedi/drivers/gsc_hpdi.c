@@ -268,7 +268,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	/*  XXX check for buffer overrun somehow */
 }
 
-static irqreturn_t handle_interrupt(int irq, void *d)
+static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct hpdi_private *devpriv = dev->private;
@@ -680,7 +680,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	init_plx9080(dev);
 
 	/*  get irq */
-	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
+	if (request_irq(pcidev->irq, gsc_hpdi_interrupt, IRQF_SHARED,
 			dev->board_name, dev)) {
 		dev_warn(dev->class_dev,
 			 "unable to allocate irq %u\n", pcidev->irq);
