@@ -2776,8 +2776,8 @@ static int t4_sge_init_hard(struct adapter *adap)
 int t4_sge_init(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	u32 sge_control;
-	int ret;
+	u32 sge_control, sge_conm_ctrl;
+	int ret, egress_threshold;
 
 	/*
 	 * Ingress Padding Boundary and Egress Status Page Size are set up by
@@ -2802,10 +2802,18 @@ int t4_sge_init(struct adapter *adap)
 	 * SGE's Egress Congestion Threshold.  If it isn't, then we can get
 	 * stuck waiting for new packets while the SGE is waiting for us to
 	 * give it more Free List entries.  (Note that the SGE's Egress
-	 * Congestion Threshold is in units of 2 Free List pointers.)
+	 * Congestion Threshold is in units of 2 Free List pointers.) For T4,
+	 * there was only a single field to control this.  For T5 there's the
+	 * original field which now only applies to Unpacked Mode Free List
+	 * buffers and a new field which only applies to Packed Mode Free List
+	 * buffers.
 	 */
-	s->fl_starve_thres
-		= EGRTHRESHOLD_GET(t4_read_reg(adap, SGE_CONM_CTRL))*2 + 1;
+	sge_conm_ctrl = t4_read_reg(adap, SGE_CONM_CTRL);
+	if (is_t4(adap->params.chip))
+		egress_threshold = EGRTHRESHOLD_GET(sge_conm_ctrl);
+	else
+		egress_threshold = EGRTHRESHOLDPACKING_GET(sge_conm_ctrl);
+	s->fl_starve_thres = 2*egress_threshold + 1;
 
 	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adap);
 	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adap);
