@@ -1,0 +1,19 @@
+Altera SLD HUB driver
+
+Required properties:
+
+- #address-cells, #size-cells : Both #address-cells
+  and #size-cells must be equal to 1.
+
+- compatible : "altr,sld-hub";
+
+- reg : Base address and size of register space in SLD HUB controller
+
+Example:
+
+	sldhub: debugger {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "altr,sld-hub";
+		reg = <0xFF240000 0x80>;
+	};

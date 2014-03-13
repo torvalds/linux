@@ -62,3 +62,5 @@ obj-$(CONFIG_JS_RTC)		+= js-rtc.o
 js-rtc-y = rtc.o
 
 obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
+
+obj-$(CONFIG_SLDHUB)	+= sld-hub.o

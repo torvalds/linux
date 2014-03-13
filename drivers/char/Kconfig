@@ -605,5 +605,12 @@ config TILE_SROM
 	  device appear much like a simple EEPROM, and knows
 	  how to partition a single ROM for multiple purposes.
 
+config SLDHUB
+	tristate "SLD HUB driver"
+	depends on m
+	depends on OF
+	help
+		The System-Level Debug HUB supports debugging of Altera FPGA Designs
+
 endmenu
 
