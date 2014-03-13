@@ -5,6 +5,7 @@ Required properties:
 - compatible:
   "marvell,kirkwood-audio" for Kirkwood platforms
   "marvell,dove-audio" for Dove platforms
+  "marvell,armada370-audio" for Armada 370 platforms
 
 - reg: physical base address of the controller and length of memory mapped
   region.
