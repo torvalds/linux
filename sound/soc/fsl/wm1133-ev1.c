@@ -214,12 +214,6 @@ static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(dapm, wm1133_ev1_widgets,
-				  ARRAY_SIZE(wm1133_ev1_widgets));
-
-	snd_soc_dapm_add_routes(dapm, wm1133_ev1_map,
-				ARRAY_SIZE(wm1133_ev1_map));
-
 	/* Headphone jack detection */
 	snd_soc_jack_new(codec, "Headphone", SND_JACK_HEADPHONE, &hp_jack);
 	snd_soc_jack_add_pins(&hp_jack, ARRAY_SIZE(hp_jack_pins),
@@ -257,6 +251,11 @@ static struct snd_soc_card wm1133_ev1 = {
 	.owner = THIS_MODULE,
 	.dai_link = &wm1133_ev1_dai,
 	.num_links = 1,
+
+	.dapm_widgets = wm1133_ev1_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm1133_ev1_widgets),
+	.dapm_routes = wm1133_ev1_map,
+	.num_dapm_routes = ARRAY_SIZE(wm1133_ev1_map),
 };
 
 static struct platform_device *wm1133_ev1_snd_device;

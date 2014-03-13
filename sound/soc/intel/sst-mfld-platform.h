@@ -1,5 +1,5 @@
 /*
- *  sst_platform.h - Intel MID Platform driver header file
+ *  sst_mfld_platform.h - Intel MID Platform driver header file
  *
  *  Copyright (C) 2010 Intel Corp
  *  Author: Vinod Koul <vinod.koul@intel.com>
@@ -27,7 +27,7 @@
 #ifndef __SST_PLATFORMDRV_H__
 #define __SST_PLATFORMDRV_H__
 
-#include "sst_dsp.h"
+#include "sst-mfld-dsp.h"
 
 #define SST_MONO		1
 #define SST_STEREO		2
