@@ -1005,7 +1005,7 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	memset(&pkt, 0, size);
 	ether_addr_copy(pkt.mac_dst, mac_addr);
 	ether_addr_copy(pkt.mac_src, mac_addr);
-	pkt.type = cpu_to_be16(ETH_P_LOOP);
+	pkt.type = cpu_to_be16(ETH_P_LOOPBACK);
 
 	skb = dev_alloc_skb(size);
 	if (!skb)
