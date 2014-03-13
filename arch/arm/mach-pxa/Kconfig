@@ -183,6 +183,7 @@ config MACH_TRIZEPS4
 config MACH_TRIZEPS4WL
 	bool "Keith und Koep Trizeps4-WL DIMM-Module"
 	depends on TRIZEPS_PXA
+	select MACH_TRIZEPS4
 	select PXA27x
 	select TRIZEPS_PCMCIA
 
