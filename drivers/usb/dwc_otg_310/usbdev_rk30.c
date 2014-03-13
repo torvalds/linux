@@ -422,9 +422,9 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&control_usb->usb_det_wakeup_work, do_wakeup);
 #endif
 
-	irq = platform_get_irq_byname(pdev, "bvalid");
+	irq = platform_get_irq_byname(pdev, "otg_bvalid");
 	if (irq > 0) {
-		ret = request_irq(irq, bvalid_irq_handler, 0, "bvalid", NULL);
+		ret = request_irq(irq, bvalid_irq_handler, 0, "otg_bvalid", NULL);
 		if(ret < 0){
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
 			return ret;

@@ -452,6 +452,10 @@ struct rkehci_platform_data rkohci_pdata_rk3288 = {
 };
 #endif
 
+/*********************************************************************
+                        rk3288 usb detections 
+*********************************************************************/
+
 #ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 #define WAKE_LOCK_TIMEOUT (HZ * 10)
 inline static void do_wakeup(struct work_struct *work)
@@ -479,7 +483,56 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/************* register usb irq **************/
+/***** handler for otg id rise and fall edge *****/
+static irqreturn_t id_irq_handler(int irq, void *dev_id)
+{
+    unsigned int uoc_con;
+
+     /* clear irq */
+    uoc_con = control_usb->grf_uoc0_base->CON4;
+    
+    if(uoc_con & (1<<5))//id rise 
+    {
+        control_usb->grf_uoc0_base->CON4 = ((1<<5)|(1<<21)); //clear id rise irq pandding
+    }
+    
+    if(uoc_con & (1<<7))//id fall
+    { 
+#ifdef CONFIG_RK_USB_UART
+        /* usb otg dp/dm switch to usb phy */
+        dwc_otg_uart_mode(NULL, PHY_USB_MODE);
+#endif
+        control_usb->grf_uoc0_base->CON4 = ((1<<7)|(1<<23));//clear id fall irq pandding
+    }
+    
+    schedule_delayed_work(&control_usb->usb_wakelock, HZ/10);
+    return IRQ_HANDLED;
+}
+
+/***** handler for otg line status change *****/
+
+static irqreturn_t line_irq_handler(int irq, void *dev_id)
+{
+    unsigned int uoc_con;
+    /* clear irq */
+    
+    if(control_usb->grf_uoc0_base->CON0 & 1<<15){
+        control_usb->grf_uoc0_base->CON0 = (1<<15 | 1<<31);
+    }  
+    
+    if(control_usb->grf_uoc1_base->CON0 & 1<<15){
+        control_usb->grf_uoc1_base->CON0 = (1<<15 | 1<<31);
+    }    
+    
+    if(control_usb->grf_uoc2_base->CON0 & 1<<15){
+        control_usb->grf_uoc2_base->CON0 = (1<<15 | 1<<31);
+    }   
+    /* wake up system*/
+    //schedule_delayed_work(&usb_det_wakeup_work, HZ/10);
+    return IRQ_HANDLED;
+}
+
+/************* register usb detection irqs **************/
 static int otg_irq_detect_init(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -490,25 +543,60 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&control_usb->usb_det_wakeup_work, do_wakeup);
 #endif
 
-	irq = platform_get_irq_byname(pdev, "bvalid");
+    /*register otg_bvalid irq*/
+	irq = platform_get_irq_byname(pdev, "otg_bvalid");
 	if (irq > 0) {
-		ret = request_irq(irq, bvalid_irq_handler, 0, "bvalid", NULL);
-		if(ret < 0){
+		ret = request_irq(irq, bvalid_irq_handler, 0, "otg_bvalid", NULL);
+		if(ret < 0)
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-			return ret;
-		}
-
-		/* clear & enable bvalid irq */
-		control_usb->grf_uoc0_base->CON4 = (0x000c | (0x000c << 16));
-
-#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
-		enable_irq_wake(irq);
-#endif
+        else
+		    control_usb->grf_uoc0_base->CON4 = 0x000c000c;// enable bvalid irq 
 	}
 
+    /*register otg_id irq*/
+    irq = platform_get_irq_byname(pdev, "otg_id");
+    if(irq > 0){
+        ret = request_irq(irq, id_irq_handler, 0, "otg_id", NULL);
+        if(ret < 0)
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+		else
+		    control_usb->grf_uoc0_base->CON4 = 0x00f000f0;
+    }
 
+    /*register otg_linestate irq*/
+    irq = platform_get_irq_byname(pdev, "otg_linestate");
+    if(irq > 0){
+        ret = request_irq(irq, line_irq_handler, 0, "otg_linestate", NULL);
+        if(ret < 0)
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+		else
+		    control_usb->grf_uoc0_base->CON0 = 0xc000c000;
+    }
+    
+    /*register host0_linestate irq*/
+    irq = platform_get_irq_byname(pdev, "host0_linestate");
+    if(irq > 0){
+        ret = request_irq(irq, line_irq_handler, 0, "host0_linestate", NULL);
+        if(ret < 0)
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+		else
+		    control_usb->grf_uoc1_base->CON0 = 0xc000c000;
+    }
+    
+    /*register host1_linestate irq*/
+    irq = platform_get_irq_byname(pdev, "host1_linestate");
+    if(irq > 0){
+        ret = request_irq(irq, line_irq_handler, 0, "host1_linestate", NULL);
+        if(ret < 0)
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+		else
+		    control_usb->grf_uoc2_base->CON0 = 0xc000c000;
+    }
+	
 	return ret;
 }
+
+/********** end of rk3288 usb detections **********/
 
 static int usb_grf_ioremap(struct platform_device *pdev)
 {
@@ -687,11 +775,10 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		goto err2;
 	}
 */
-#if 0 //disable for debug
 	ret = otg_irq_detect_init(pdev);
 	if (ret < 0)
 		goto err2;
-#endif
+
 	return 0;
 
 err2:
