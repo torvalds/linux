@@ -57,6 +57,7 @@ struct btrfs_transaction {
 	struct list_head pending_snapshots;
 	struct list_head ordered_operations;
 	struct list_head pending_chunks;
+	struct list_head switch_commits;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
 };

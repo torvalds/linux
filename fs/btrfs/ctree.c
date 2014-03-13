@@ -5360,7 +5360,6 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 {
 	int ret;
 	int cmp;
-	struct btrfs_trans_handle *trans = NULL;
 	struct btrfs_path *left_path = NULL;
 	struct btrfs_path *right_path = NULL;
 	struct btrfs_key left_key;
@@ -5378,9 +5377,6 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 	u64 right_blockptr;
 	u64 left_gen;
 	u64 right_gen;
-	u64 left_start_ctransid;
-	u64 right_start_ctransid;
-	u64 ctransid;
 
 	left_path = btrfs_alloc_path();
 	if (!left_path) {
@@ -5403,21 +5399,6 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 	left_path->skip_locking = 1;
 	right_path->search_commit_root = 1;
 	right_path->skip_locking = 1;
-
-	spin_lock(&left_root->root_item_lock);
-	left_start_ctransid = btrfs_root_ctransid(&left_root->root_item);
-	spin_unlock(&left_root->root_item_lock);
-
-	spin_lock(&right_root->root_item_lock);
-	right_start_ctransid = btrfs_root_ctransid(&right_root->root_item);
-	spin_unlock(&right_root->root_item_lock);
-
-	trans = btrfs_join_transaction(left_root);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		trans = NULL;
-		goto out;
-	}
 
 	/*
 	 * Strategy: Go to the first items of both trees. Then do
@@ -5482,67 +5463,6 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 	advance_left = advance_right = 0;
 
 	while (1) {
-		/*
-		 * We need to make sure the transaction does not get committed
-		 * while we do anything on commit roots. This means, we need to
-		 * join and leave transactions for every item that we process.
-		 */
-		if (trans && btrfs_should_end_transaction(trans, left_root)) {
-			btrfs_release_path(left_path);
-			btrfs_release_path(right_path);
-
-			ret = btrfs_end_transaction(trans, left_root);
-			trans = NULL;
-			if (ret < 0)
-				goto out;
-		}
-		/* now rejoin the transaction */
-		if (!trans) {
-			trans = btrfs_join_transaction(left_root);
-			if (IS_ERR(trans)) {
-				ret = PTR_ERR(trans);
-				trans = NULL;
-				goto out;
-			}
-
-			spin_lock(&left_root->root_item_lock);
-			ctransid = btrfs_root_ctransid(&left_root->root_item);
-			spin_unlock(&left_root->root_item_lock);
-			if (ctransid != left_start_ctransid)
-				left_start_ctransid = 0;
-
-			spin_lock(&right_root->root_item_lock);
-			ctransid = btrfs_root_ctransid(&right_root->root_item);
-			spin_unlock(&right_root->root_item_lock);
-			if (ctransid != right_start_ctransid)
-				right_start_ctransid = 0;
-
-			if (!left_start_ctransid || !right_start_ctransid) {
-				WARN(1, KERN_WARNING
-					"BTRFS: btrfs_compare_tree detected "
-					"a change in one of the trees while "
-					"iterating. This is probably a "
-					"bug.\n");
-				ret = -EIO;
-				goto out;
-			}
-
-			/*
-			 * the commit root may have changed, so start again
-			 * where we stopped
-			 */
-			left_path->lowest_level = left_level;
-			right_path->lowest_level = right_level;
-			ret = btrfs_search_slot(NULL, left_root,
-					&left_key, left_path, 0, 0);
-			if (ret < 0)
-				goto out;
-			ret = btrfs_search_slot(NULL, right_root,
-					&right_key, right_path, 0, 0);
-			if (ret < 0)
-				goto out;
-		}
-
 		if (advance_left && !left_end_reached) {
 			ret = tree_advance(left_root, left_path, &left_level,
 					left_root_level,
@@ -5672,14 +5592,6 @@ out:
 	btrfs_free_path(left_path);
 	btrfs_free_path(right_path);
 	kfree(tmp_buf);
-
-	if (trans) {
-		if (!ret)
-			ret = btrfs_end_transaction(trans, left_root);
-		else
-			btrfs_end_transaction(trans, left_root);
-	}
-
 	return ret;
 }
 
