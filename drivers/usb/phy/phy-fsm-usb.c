@@ -314,7 +314,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_VBUS_ERR);
 		else if (fsm->b_conn)
 			otg_set_state(fsm, OTG_STATE_A_HOST);
-		else if (fsm->id | fsm->a_bus_drop | fsm->a_wait_bcon_tmout)
+		else if (fsm->id || fsm->a_bus_drop || fsm->a_wait_bcon_tmout)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
 		break;
 	case OTG_STATE_A_HOST:
