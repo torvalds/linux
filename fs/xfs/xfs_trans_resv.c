@@ -81,20 +81,28 @@ xfs_calc_buf_res(
  * on disk. Hence we need an inode reservation function that calculates all this
  * correctly. So, we log:
  *
- * - log op headers for object
+ * - 4 log op headers for object
+ *	- for the ilf, the inode core and 2 forks
  * - inode log format object
- * - the entire inode contents (core + 2 forks)
- * - two bmap btree block headers
+ * - the inode core
+ * - two inode forks containing bmap btree root blocks.
+ *	- the btree data contained by both forks will fit into the inode size,
+ *	  hence when combined with the inode core above, we have a total of the
+ *	  actual inode size.
+ *	- the BMBT headers need to be accounted separately, as they are
+ *	  additional to the records and pointers that fit inside the inode
+ *	  forks.
  */
 STATIC uint
 xfs_calc_inode_res(
 	struct xfs_mount	*mp,
 	uint			ninodes)
 {
-	return ninodes * (sizeof(struct xlog_op_header) +
-			  sizeof(struct xfs_inode_log_format) +
-			  mp->m_sb.sb_inodesize +
-			  2 * XFS_BMBT_BLOCK_LEN(mp));
+	return ninodes *
+		(4 * sizeof(struct xlog_op_header) +
+		 sizeof(struct xfs_inode_log_format) +
+		 mp->m_sb.sb_inodesize +
+		 2 * XFS_BMBT_BLOCK_LEN(mp));
 }
 
 /*
