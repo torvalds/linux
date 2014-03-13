@@ -52,115 +52,80 @@
 #include "plx9080.h"
 #include "comedi_fc.h"
 
-#define TIMER_BASE 50		/*  20MHz master clock */
-#define DMA_BUFFER_SIZE 0x10000
-#define NUM_DMA_BUFFERS 4
-#define NUM_DMA_DESCRIPTORS 256
+/*
+ * PCI BAR2 Register map (devpriv->mmio)
+ */
+#define FIRMWARE_REV_REG			0x00
+#define FEATURES_REG_PRESENT_BIT		(1 << 15)
+#define BOARD_CONTROL_REG			0x04
+#define BOARD_RESET_BIT				(1 << 0)
+#define TX_FIFO_RESET_BIT			(1 << 1)
+#define RX_FIFO_RESET_BIT			(1 << 2)
+#define TX_ENABLE_BIT				(1 << 4)
+#define RX_ENABLE_BIT				(1 << 5)
+#define DEMAND_DMA_DIRECTION_TX_BIT		(1 << 6)  /* ch 0 only */
+#define LINE_VALID_ON_STATUS_VALID_BIT		(1 << 7)
+#define START_TX_BIT				(1 << 8)
+#define CABLE_THROTTLE_ENABLE_BIT		(1 << 9)
+#define TEST_MODE_ENABLE_BIT			(1 << 31)
+#define BOARD_STATUS_REG			0x08
+#define COMMAND_LINE_STATUS_MASK		(0x7f << 0)
+#define TX_IN_PROGRESS_BIT			(1 << 7)
+#define TX_NOT_EMPTY_BIT			(1 << 8)
+#define TX_NOT_ALMOST_EMPTY_BIT			(1 << 9)
+#define TX_NOT_ALMOST_FULL_BIT			(1 << 10)
+#define TX_NOT_FULL_BIT				(1 << 11)
+#define RX_NOT_EMPTY_BIT			(1 << 12)
+#define RX_NOT_ALMOST_EMPTY_BIT			(1 << 13)
+#define RX_NOT_ALMOST_FULL_BIT			(1 << 14)
+#define RX_NOT_FULL_BIT				(1 << 15)
+#define BOARD_JUMPER0_INSTALLED_BIT		(1 << 16)
+#define BOARD_JUMPER1_INSTALLED_BIT		(1 << 17)
+#define TX_OVERRUN_BIT				(1 << 21)
+#define RX_UNDERRUN_BIT				(1 << 22)
+#define RX_OVERRUN_BIT				(1 << 23)
+#define TX_PROG_ALMOST_REG			0x0c
+#define RX_PROG_ALMOST_REG			0x10
+#define ALMOST_EMPTY_BITS(x)			(((x) & 0xffff) << 0)
+#define ALMOST_FULL_BITS(x)			(((x) & 0xff) << 16)
+#define FEATURES_REG				0x14
+#define FIFO_SIZE_PRESENT_BIT			(1 << 0)
+#define FIFO_WORDS_PRESENT_BIT			(1 << 1)
+#define LEVEL_EDGE_INTERRUPTS_PRESENT_BIT	(1 << 2)
+#define GPIO_SUPPORTED_BIT			(1 << 3)
+#define PLX_DMA_CH1_SUPPORTED_BIT		(1 << 4)
+#define OVERRUN_UNDERRUN_SUPPORTED_BIT		(1 << 5)
+#define FIFO_REG				0x18
+#define TX_STATUS_COUNT_REG			0x1c
+#define TX_LINE_VALID_COUNT_REG			0x20,
+#define TX_LINE_INVALID_COUNT_REG		0x24
+#define RX_STATUS_COUNT_REG			0x28
+#define RX_LINE_COUNT_REG			0x2c
+#define INTERRUPT_CONTROL_REG			0x30
+#define FRAME_VALID_START_INTR			(1 << 0)
+#define FRAME_VALID_END_INTR			(1 << 1)
+#define TX_FIFO_EMPTY_INTR			(1 << 8)
+#define TX_FIFO_ALMOST_EMPTY_INTR		(1 << 9)
+#define TX_FIFO_ALMOST_FULL_INTR		(1 << 10)
+#define TX_FIFO_FULL_INTR			(1 << 11)
+#define RX_EMPTY_INTR				(1 << 12)
+#define RX_ALMOST_EMPTY_INTR			(1 << 13)
+#define RX_ALMOST_FULL_INTR			(1 << 14)
+#define RX_FULL_INTR				(1 << 15)
+#define INTERRUPT_STATUS_REG			0x34
+#define TX_CLOCK_DIVIDER_REG			0x38
+#define TX_FIFO_SIZE_REG			0x40
+#define RX_FIFO_SIZE_REG			0x44
+#define FIFO_SIZE_MASK				(0xfffff << 0)
+#define TX_FIFO_WORDS_REG			0x48
+#define RX_FIFO_WORDS_REG			0x4c
+#define INTERRUPT_EDGE_LEVEL_REG		0x50
+#define INTERRUPT_POLARITY_REG			0x54
 
-enum hpdi_registers {
-	FIRMWARE_REV_REG = 0x0,
-	BOARD_CONTROL_REG = 0x4,
-	BOARD_STATUS_REG = 0x8,
-	TX_PROG_ALMOST_REG = 0xc,
-	RX_PROG_ALMOST_REG = 0x10,
-	FEATURES_REG = 0x14,
-	FIFO_REG = 0x18,
-	TX_STATUS_COUNT_REG = 0x1c,
-	TX_LINE_VALID_COUNT_REG = 0x20,
-	TX_LINE_INVALID_COUNT_REG = 0x24,
-	RX_STATUS_COUNT_REG = 0x28,
-	RX_LINE_COUNT_REG = 0x2c,
-	INTERRUPT_CONTROL_REG = 0x30,
-	INTERRUPT_STATUS_REG = 0x34,
-	TX_CLOCK_DIVIDER_REG = 0x38,
-	TX_FIFO_SIZE_REG = 0x40,
-	RX_FIFO_SIZE_REG = 0x44,
-	TX_FIFO_WORDS_REG = 0x48,
-	RX_FIFO_WORDS_REG = 0x4c,
-	INTERRUPT_EDGE_LEVEL_REG = 0x50,
-	INTERRUPT_POLARITY_REG = 0x54,
-};
-
-/* bit definitions */
-
-enum firmware_revision_bits {
-	FEATURES_REG_PRESENT_BIT = 0x8000,
-};
-
-enum board_control_bits {
-	BOARD_RESET_BIT = 0x1,	/* wait 10usec before accessing fifos */
-	TX_FIFO_RESET_BIT = 0x2,
-	RX_FIFO_RESET_BIT = 0x4,
-	TX_ENABLE_BIT = 0x10,
-	RX_ENABLE_BIT = 0x20,
-	DEMAND_DMA_DIRECTION_TX_BIT = 0x40,
-		/* for ch 0, ch 1 can only transmit (when present) */
-	LINE_VALID_ON_STATUS_VALID_BIT = 0x80,
-	START_TX_BIT = 0x10,
-	CABLE_THROTTLE_ENABLE_BIT = 0x20,
-	TEST_MODE_ENABLE_BIT = 0x80000000,
-};
-
-enum board_status_bits {
-	COMMAND_LINE_STATUS_MASK = 0x7f,
-	TX_IN_PROGRESS_BIT = 0x80,
-	TX_NOT_EMPTY_BIT = 0x100,
-	TX_NOT_ALMOST_EMPTY_BIT = 0x200,
-	TX_NOT_ALMOST_FULL_BIT = 0x400,
-	TX_NOT_FULL_BIT = 0x800,
-	RX_NOT_EMPTY_BIT = 0x1000,
-	RX_NOT_ALMOST_EMPTY_BIT = 0x2000,
-	RX_NOT_ALMOST_FULL_BIT = 0x4000,
-	RX_NOT_FULL_BIT = 0x8000,
-	BOARD_JUMPER0_INSTALLED_BIT = 0x10000,
-	BOARD_JUMPER1_INSTALLED_BIT = 0x20000,
-	TX_OVERRUN_BIT = 0x200000,
-	RX_UNDERRUN_BIT = 0x400000,
-	RX_OVERRUN_BIT = 0x800000,
-};
-
-static uint32_t almost_full_bits(unsigned int num_words)
-{
-	/* XXX need to add or subtract one? */
-	return (num_words << 16) & 0xff0000;
-}
-
-static uint32_t almost_empty_bits(unsigned int num_words)
-{
-	return num_words & 0xffff;
-}
-
-enum features_bits {
-	FIFO_SIZE_PRESENT_BIT = 0x1,
-	FIFO_WORDS_PRESENT_BIT = 0x2,
-	LEVEL_EDGE_INTERRUPTS_PRESENT_BIT = 0x4,
-	GPIO_SUPPORTED_BIT = 0x8,
-	PLX_DMA_CH1_SUPPORTED_BIT = 0x10,
-	OVERRUN_UNDERRUN_SUPPORTED_BIT = 0x20,
-};
-
-enum interrupt_sources {
-	FRAME_VALID_START_INTR = 0,
-	FRAME_VALID_END_INTR = 1,
-	TX_FIFO_EMPTY_INTR = 8,
-	TX_FIFO_ALMOST_EMPTY_INTR = 9,
-	TX_FIFO_ALMOST_FULL_INTR = 10,
-	TX_FIFO_FULL_INTR = 11,
-	RX_EMPTY_INTR = 12,
-	RX_ALMOST_EMPTY_INTR = 13,
-	RX_ALMOST_FULL_INTR = 14,
-	RX_FULL_INTR = 15,
-};
-
-static uint32_t intr_bit(int interrupt_source)
-{
-	return 0x1 << interrupt_source;
-}
-
-static unsigned int fifo_size(uint32_t fifo_size_bits)
-{
-	return fifo_size_bits & 0xfffff;
-}
+#define TIMER_BASE				50	/* 20MHz master clock */
+#define DMA_BUFFER_SIZE				0x10000
+#define NUM_DMA_BUFFERS				4
+#define NUM_DMA_DESCRIPTORS			256
 
 struct hpdi_board {
 	const char *name;	/*  board name */
@@ -390,7 +355,7 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	       devpriv->mmio + BOARD_STATUS_REG);
 
 	/* enable interrupts */
-	writel(intr_bit(RX_FULL_INTR), devpriv->mmio + INTERRUPT_CONTROL_REG);
+	writel(RX_FULL_INTR, devpriv->mmio + INTERRUPT_CONTROL_REG);
 
 	writel(RX_ENABLE_BIT, devpriv->mmio + BOARD_CONTROL_REG);
 
@@ -541,18 +506,19 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 	struct hpdi_private *devpriv = dev->private;
 	uint32_t plx_intcsr_bits;
 
+	/* wait 10usec after reset before accessing fifos */
 	writel(BOARD_RESET_BIT, devpriv->mmio + BOARD_CONTROL_REG);
 	udelay(10);
 
-	writel(almost_empty_bits(32) | almost_full_bits(32),
+	writel(ALMOST_EMPTY_BITS(32) | ALMOST_FULL_BITS(32),
 	       devpriv->mmio + RX_PROG_ALMOST_REG);
-	writel(almost_empty_bits(32) | almost_full_bits(32),
+	writel(ALMOST_EMPTY_BITS(32) | ALMOST_FULL_BITS(32),
 	       devpriv->mmio + TX_PROG_ALMOST_REG);
 
-	devpriv->tx_fifo_size = fifo_size(readl(devpriv->mmio +
-						  TX_FIFO_SIZE_REG));
-	devpriv->rx_fifo_size = fifo_size(readl(devpriv->mmio +
-						  RX_FIFO_SIZE_REG));
+	devpriv->tx_fifo_size = readl(devpriv->mmio + TX_FIFO_SIZE_REG) &
+				FIFO_SIZE_MASK;
+	devpriv->rx_fifo_size = readl(devpriv->mmio + RX_FIFO_SIZE_REG) &
+				FIFO_SIZE_MASK;
 
 	writel(0, devpriv->mmio + INTERRUPT_CONTROL_REG);
 
