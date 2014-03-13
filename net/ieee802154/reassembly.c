@@ -58,7 +58,7 @@ static unsigned int lowpan_hashfn(struct inet_frag_queue *q)
 	return lowpan_hash_frag(fq->tag, fq->d_size, &fq->saddr, &fq->daddr);
 }
 
-bool lowpan_frag_match(struct inet_frag_queue *q, void *a)
+static bool lowpan_frag_match(struct inet_frag_queue *q, void *a)
 {
 	struct lowpan_frag_queue *fq;
 	struct lowpan_create_arg *arg = a;
@@ -68,9 +68,8 @@ bool lowpan_frag_match(struct inet_frag_queue *q, void *a)
 		ieee802154_addr_addr_equal(&fq->saddr, arg->src) &&
 		ieee802154_addr_addr_equal(&fq->daddr, arg->dst);
 }
-EXPORT_SYMBOL(lowpan_frag_match);
 
-void lowpan_frag_init(struct inet_frag_queue *q, void *a)
+static void lowpan_frag_init(struct inet_frag_queue *q, void *a)
 {
 	struct lowpan_frag_queue *fq;
 	struct lowpan_create_arg *arg = a;
@@ -82,21 +81,6 @@ void lowpan_frag_init(struct inet_frag_queue *q, void *a)
 	fq->saddr = *arg->src;
 	fq->daddr = *arg->dst;
 }
-EXPORT_SYMBOL(lowpan_frag_init);
-
-void lowpan_expire_frag_queue(struct frag_queue *fq, struct inet_frags *frags)
-{
-	spin_lock(&fq->q.lock);
-
-	if (fq->q.last_in & INET_FRAG_COMPLETE)
-		goto out;
-
-	inet_frag_kill(&fq->q, frags);
-out:
-	spin_unlock(&fq->q.lock);
-	inet_frag_put(&fq->q, frags);
-}
-EXPORT_SYMBOL(lowpan_expire_frag_queue);
 
 static void lowpan_frag_expire(unsigned long data)
 {
@@ -106,7 +90,15 @@ static void lowpan_frag_expire(unsigned long data)
 	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
 	net = container_of(fq->q.net, struct net, ieee802154_lowpan.frags);
 
-	lowpan_expire_frag_queue(fq, &lowpan_frags);
+	spin_lock(&fq->q.lock);
+
+	if (fq->q.last_in & INET_FRAG_COMPLETE)
+		goto out;
+
+	inet_frag_kill(&fq->q, &lowpan_frags);
+out:
+	spin_unlock(&fq->q.lock);
+	inet_frag_put(&fq->q, &lowpan_frags);
 }
 
 static inline struct lowpan_frag_queue *
