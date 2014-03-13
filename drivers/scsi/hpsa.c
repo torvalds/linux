@@ -3828,8 +3828,8 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 #else
 		first_group = (first_block % stripesize) / r5or6_blocks_per_row;
 		last_group = (last_block % stripesize) / r5or6_blocks_per_row;
-		if (first_group != last_group)
 #endif
+		if (first_group != last_group)
 			return IO_ACCEL_INELIGIBLE;
 
 		/* Verify request is in a single row of RAID 5/6 */
