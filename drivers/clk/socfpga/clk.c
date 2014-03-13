@@ -28,7 +28,7 @@
 
 void __iomem *clk_mgr_base_addr;
 
-static struct of_device_id socfpga_child_clocks[] = {
+static const struct of_device_id socfpga_child_clocks[] __initconst = {
 	{ .compatible = "altr,socfpga-pll-clock", socfpga_pll_init, },
 	{ .compatible = "altr,socfpga-perip-clk", socfpga_periph_init, },
 	{ .compatible = "altr,socfpga-gate-clk", socfpga_gate_init, },
