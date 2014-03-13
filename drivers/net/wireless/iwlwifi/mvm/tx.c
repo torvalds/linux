@@ -127,9 +127,6 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tx_cmd->pm_frame_timeout = 0;
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_AMPDU)
-		tx_flags |= TX_CMD_FLG_PROT_REQUIRE;
-
 	if (ieee80211_is_data(fc) && len > mvm->rts_threshold &&
 	    !is_multicast_ether_addr(ieee80211_get_DA(hdr)))
 		tx_flags |= TX_CMD_FLG_PROT_REQUIRE;
