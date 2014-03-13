@@ -209,13 +209,6 @@ struct hpdi_private {
 	volatile unsigned int block_size;
 };
 
-static void disable_plx_interrupts(struct comedi_device *dev)
-{
-	struct hpdi_private *devpriv = dev->private;
-
-	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
-}
-
 static inline void hpdi_writel(struct comedi_device *dev, uint32_t bits,
 			       unsigned int offset)
 {
@@ -604,7 +597,7 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 #endif
 	writel(bits, devpriv->plx9080_iobase + PLX_BIGEND_REG);
 
-	disable_plx_interrupts(dev);
+	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 
 	gsc_hpdi_abort_dma(dev, 0);
 	gsc_hpdi_abort_dma(dev, 1);
@@ -743,7 +736,7 @@ static void gsc_hpdi_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->plx9080_iobase) {
-			disable_plx_interrupts(dev);
+			writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 			iounmap(devpriv->plx9080_iobase);
 		}
 		if (devpriv->hpdi_iobase)
