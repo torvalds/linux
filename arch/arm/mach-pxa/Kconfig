@@ -53,12 +53,16 @@ config MACH_TAVOREVB
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
+	select FB
+	select FB_PXA
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
+	select FB
+	select FB_PXA
 
 comment "Third Party Dev Platforms (sorted by vendor name)"
 
