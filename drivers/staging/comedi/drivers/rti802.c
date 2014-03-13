@@ -35,9 +35,12 @@ Configuration Options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#define RTI802_SELECT 0
-#define RTI802_DATALOW 1
-#define RTI802_DATAHIGH 2
+/*
+ * Register I/O map
+ */
+#define RTI802_SELECT		0x00
+#define RTI802_DATALOW		0x01
+#define RTI802_DATAHIGH		0x02
 
 struct rti802_private {
 	enum {
