@@ -553,7 +553,8 @@ static int rk3188_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	screen->ft = 1000 / fps;
 	dev_info(lcdc_dev->dev, "%s: dclk:%lu>>fps:%d ",
 		 lcdc_dev->driver.name, clk_get_rate(lcdc_dev->dclk), fps);
-
+	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
+		dev_drv->trsm_ops->enable();
 	if (screen->init)
 		screen->init();
 
@@ -1038,7 +1039,9 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 	
 	dev_drv->suspend_flag = 1;
 	flush_kthread_worker(&dev_drv->update_regs_worker);
-	
+
+	if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+		dev_drv->trsm_ops->disable();
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN,
@@ -1102,7 +1105,8 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
-
+	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
+		dev_drv->trsm_ops->enable();
 	return 0;
 }
 

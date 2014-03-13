@@ -2385,6 +2385,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
 	if (dev_drv->prop == PRMRY)
 		rk_fb_get_prmry_screen(screen);
+	dev_drv->trsm_ops = rk_fb_trsm_ops_get(screen->type);
 
 	return 0;
 }
