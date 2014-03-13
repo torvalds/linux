@@ -672,7 +672,7 @@ void oz_binding_add(const char *net_dev)
 	if (!binding)
 		return;
 
-	binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
+	binding->ptype.type = htons(OZ_ETHERTYPE);
 	binding->ptype.func = oz_pkt_recv;
 	if (net_dev && *net_dev) {
 		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
