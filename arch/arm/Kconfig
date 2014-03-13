@@ -733,6 +733,7 @@ config ARCH_S3C24XX
 	bool "Samsung S3C24XX SoCs"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select GENERIC_CLOCKEVENTS
@@ -755,6 +756,7 @@ config ARCH_S3C64XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select COMMON_CLK
@@ -778,6 +780,7 @@ config ARCH_S3C64XX
 
 config ARCH_S5P64X0
 	bool "Samsung S5P6440 S5P6450"
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select CPU_V6
@@ -796,6 +799,7 @@ config ARCH_S5P64X0
 config ARCH_S5PC100
 	bool "Samsung S5PC100"
 	select ARCH_REQUIRE_GPIOLIB
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select CPU_V7
@@ -815,6 +819,7 @@ config ARCH_S5PV210
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SPARSEMEM_ENABLE
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select CPU_V7
