@@ -308,65 +308,6 @@ static inline void hpdi_writel(struct comedi_device *dev, uint32_t bits,
 	       devpriv->hpdi_iobase + offset);
 }
 
-static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct hpdi_private *devpriv = dev->private;
-	uint32_t bits;
-	unsigned long flags;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-
-	hpdi_writel(dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG);
-
-	abort_dma(dev, 0);
-
-	devpriv->dma_desc_index = 0;
-
-	/* These register are supposedly unused during chained dma,
-	 * but I have found that left over values from last operation
-	 * occasionally cause problems with transfer of first dma
-	 * block.  Initializing them to zero seems to fix the problem. */
-	writel(0, devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
-	writel(0, devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
-	writel(0, devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
-	/*  give location of first dma descriptor */
-	bits =
-	    devpriv->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT |
-	    PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
-	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
-
-	/*  spinlock for plx dma control/status reg */
-	spin_lock_irqsave(&dev->spinlock, flags);
-	/*  enable dma transfer */
-	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
-	       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->dio_count = cmd->stop_arg;
-	else
-		devpriv->dio_count = 1;
-
-	/*  clear over/under run status flags */
-	writel(RX_UNDERRUN_BIT | RX_OVERRUN_BIT,
-	       devpriv->hpdi_iobase + BOARD_STATUS_REG);
-	/*  enable interrupts */
-	writel(intr_bit(RX_FULL_INTR),
-	       devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
-
-	hpdi_writel(dev, RX_ENABLE_BIT, BOARD_CONTROL_REG);
-
-	return 0;
-}
-
-static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	if (s->io_bits)
-		return -EINVAL;
-	else
-		return di_cmd(dev, s);
-}
-
 static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 {
 	struct hpdi_private *devpriv = dev->private;
@@ -503,6 +444,63 @@ static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
 	abort_dma(dev, 0);
+
+	return 0;
+}
+
+static int gsc_hpdi_cmd(struct comedi_device *dev,
+			struct comedi_subdevice *s)
+{
+	struct hpdi_private *devpriv = dev->private;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned long flags;
+	uint32_t bits;
+
+	if (s->io_bits)
+		return -EINVAL;
+
+	hpdi_writel(dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG);
+
+	abort_dma(dev, 0);
+
+	devpriv->dma_desc_index = 0;
+
+	/*
+	 * These register are supposedly unused during chained dma,
+	 * but I have found that left over values from last operation
+	 * occasionally cause problems with transfer of first dma
+	 * block.  Initializing them to zero seems to fix the problem.
+	 */
+	writel(0, devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
+	writel(0, devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
+	writel(0, devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
+
+	/* give location of first dma descriptor */
+	bits = devpriv->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT |
+	       PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
+	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
+
+	/* enable dma transfer */
+	spin_lock_irqsave(&dev->spinlock, flags);
+	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
+	       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		devpriv->dio_count = cmd->stop_arg;
+	else
+		devpriv->dio_count = 1;
+
+	/* clear over/under run status flags */
+	writel(RX_UNDERRUN_BIT | RX_OVERRUN_BIT,
+	       devpriv->hpdi_iobase + BOARD_STATUS_REG);
+
+	/* enable interrupts */
+	writel(intr_bit(RX_FULL_INTR),
+	       devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
+
+	hpdi_writel(dev, RX_ENABLE_BIT, BOARD_CONTROL_REG);
 
 	return 0;
 }
@@ -740,7 +738,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_config	= gsc_hpdi_dio_insn_config;
-	s->do_cmd	= hpdi_cmd;
+	s->do_cmd	= gsc_hpdi_cmd;
 	s->do_cmdtest	= hpdi_cmd_test;
 	s->cancel	= hpdi_cancel;
 
