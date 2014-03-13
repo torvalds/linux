@@ -40,8 +40,6 @@
  * support could be added to this driver.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
