@@ -52,8 +52,6 @@
 #include "plx9080.h"
 #include "comedi_fc.h"
 
-static void abort_dma(struct comedi_device *dev, unsigned int channel);
-
 #define TIMER_BASE 50		/*  20MHz master clock */
 #define DMA_BUFFER_SIZE 0x10000
 #define NUM_DMA_BUFFERS 4
@@ -341,7 +339,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void abort_dma(struct comedi_device *dev, unsigned int channel)
+static void gsc_hpdi_abort_dma(struct comedi_device *dev, unsigned int channel)
 {
 	struct hpdi_private *devpriv = dev->private;
 	unsigned long flags;
@@ -363,7 +361,7 @@ static int gsc_hpdi_cancel(struct comedi_device *dev,
 
 	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
-	abort_dma(dev, 0);
+	gsc_hpdi_abort_dma(dev, 0);
 
 	return 0;
 }
@@ -382,7 +380,7 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 
 	hpdi_writel(dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG);
 
-	abort_dma(dev, 0);
+	gsc_hpdi_abort_dma(dev, 0);
 
 	devpriv->dma_desc_index = 0;
 
@@ -608,8 +606,8 @@ static void init_plx9080(struct comedi_device *dev)
 
 	disable_plx_interrupts(dev);
 
-	abort_dma(dev, 0);
-	abort_dma(dev, 1);
+	gsc_hpdi_abort_dma(dev, 0);
+	gsc_hpdi_abort_dma(dev, 1);
 
 	/*  configure dma0 mode */
 	bits = 0;
