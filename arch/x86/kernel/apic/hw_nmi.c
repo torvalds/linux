@@ -57,7 +57,7 @@ void arch_trigger_all_cpu_backtrace(void)
 	}
 
 	clear_bit(0, &backtrace_flag);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 static int __kprobes
