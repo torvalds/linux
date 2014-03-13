@@ -975,8 +975,8 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: "
-				"%pM", psfCSType->cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: %pM",
+				psfCSType->cCPacketClassificationRule.
 						u8EthernetSourceMACAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthertypeLength: 0x%02X ",
@@ -1092,18 +1092,16 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8ProtocolSourcePortRange[4]: "
-				"0x%*ph ", 4, psfCSType->
-						cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8ProtocolSourcePortRange[4]: 0x%*ph ",
+				4, psfCSType->cCPacketClassificationRule.
 						u8ProtocolSourcePortRange);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ProtocolDestPortRangeLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8ProtocolDestPortRange[4]: "
-				"0x%*ph ", 4, psfCSType->
-						cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8ProtocolDestPortRange[4]: 0x%*ph ",
+				4, psfCSType->cCPacketClassificationRule.
 						u8ProtocolDestPortRange);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetDestMacAddressLength: 0x%02X ",
@@ -1118,8 +1116,8 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: "
-				"%pM", psfCSType->cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: %pM",
+				psfCSType->cCPacketClassificationRule.
 						u8EthernetSourceMACAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthertypeLength: 0x%02X ", psfCSType->cCPacketClassificationRule.u8EthertypeLength);
@@ -1694,7 +1692,7 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 				uiSearchRuleIndex);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Direction:0x%X ",
 				pstAddIndication->u8Direction);
-		if ((uiSearchRuleIndex < NO_OF_QUEUES)) {
+		if (uiSearchRuleIndex < NO_OF_QUEUES) {
 			Adapter->PackInfo[uiSearchRuleIndex].ucDirection =
 				pstAddIndication->u8Direction;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "bValid:0x%X ",
@@ -1801,7 +1799,7 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 		if (uiSearchRuleIndex > NO_OF_QUEUES-1)
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "SF doesn't exist for which DSC_ACK is received");
 
-		if ((uiSearchRuleIndex < NO_OF_QUEUES)) {
+		if (uiSearchRuleIndex < NO_OF_QUEUES) {
 			Adapter->PackInfo[uiSearchRuleIndex].ucDirection = pstChangeIndication->u8Direction;
 			if (pstChangeIndication->sfActiveSet.bValid == TRUE)
 				Adapter->PackInfo[uiSearchRuleIndex].bActiveSet = TRUE;
