@@ -21,6 +21,7 @@
 #endif
 
 
+static struct edp_anx6345 *edp;
 //#define BIST_MODE 0
 static int i2c_master_reg8_send(const struct i2c_client *client,
 		const char reg, const char *buf, int count, int scl_rate)
@@ -1201,24 +1202,46 @@ static int anx6345_init(struct i2c_client *client)
 }
 
 
+static int  anx6345_disable(void)
+{
+	struct edp_anx6345 *anx6345 = edp;
+
+	if (!anx6345->pdata->pwron)
+		return 0;
+	gpio_set_value(anx6345->pdata->dvdd33_en_pin,!anx6345->pdata->dvdd33_en_val);
+	gpio_set_value(anx6345->pdata->dvdd18_en_pin,!anx6345->pdata->dvdd18_en_val);
+	anx6345->pdata->pwron = false;
+
+	return 0;
+	
+}
+	
+
+static int anx6345_enable(void)
+{
+	struct edp_anx6345 *anx6345 = edp;
+
+	if (!anx6345->pdata->pwron) {
+		gpio_set_value(anx6345->pdata->dvdd33_en_pin,anx6345->pdata->dvdd33_en_val);
+		msleep(5);
+		gpio_set_value(anx6345->pdata->dvdd18_en_pin,anx6345->pdata->dvdd18_en_val);
+		gpio_set_value(anx6345->pdata->edp_rst_pin,0);
+		msleep(50);
+		gpio_set_value(anx6345->pdata->edp_rst_pin,1);
+		anx6345->pdata->pwron = true;
+	}
+	anx6345->edp_anx_init(anx6345->client);
+	return 0;
+}
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void anx6345_early_suspend(struct early_suspend *h)
 {
-	struct edp_anx6345 *anx6345 = container_of(h, struct edp_anx6345, early_suspend);
-	gpio_set_value(anx6345->pdata->dvdd33_en_pin,!anx6345->pdata->dvdd33_en_val);
-	gpio_set_value(anx6345->pdata->dvdd18_en_pin,!anx6345->pdata->dvdd18_en_val);
+	anx6345_disable();
 }
 
 static void anx6345_late_resume(struct early_suspend *h)
 {
-	struct edp_anx6345 *anx6345 = container_of(h, struct edp_anx6345, early_suspend);
-	gpio_set_value(anx6345->pdata->dvdd33_en_pin,anx6345->pdata->dvdd33_en_val);
-	msleep(5);
-	gpio_set_value(anx6345->pdata->dvdd18_en_pin,anx6345->pdata->dvdd18_en_val);
-	gpio_set_value(anx6345->pdata->edp_rst_pin,0);
-	msleep(50);
-	gpio_set_value(anx6345->pdata->edp_rst_pin,1);
-	anx6345->edp_anx_init(anx6345->client);
+	anx6345_enable();
 }
 #endif				
 
@@ -1256,10 +1279,17 @@ static int anx6345_power_ctl(struct anx6345_platform_data  *pdata)
 	       msleep(50);
 	       gpio_direction_output(pdata->edp_rst_pin, 1);
        }
+       pdata->pwron = true;
        return 0;
 
 }
 
+
+struct rk_fb_trsm_ops  trsm_edp_ops = {
+	.enable = anx6345_enable,
+	.disable = anx6345_disable,
+	
+};
 static void anx6345_parse_dt(struct edp_anx6345 *anx6345)
 {
 	struct device_node *np = anx6345->client->dev.of_node;
@@ -1312,14 +1342,17 @@ static int anx6345_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 	}
 	i2c_set_clientdata(client,anx6345);
 	rk_fb_get_prmry_screen(&anx6345->screen);
+	if (anx6345->screen.type != SCREEN_EDP){
+		dev_err(&client->dev, "screen is not edp!\n");
+		return -EINVAL;
+	}
 	if(anx6345->pdata->power_ctl)
 		anx6345->pdata->power_ctl(anx6345->pdata);
 
 #if defined(CONFIG_DEBUG_FS)
 	anx6345->debugfs_dir = debugfs_create_dir("edp", NULL);
-	if (IS_ERR(anx6345->debugfs_dir))
-	{
-		printk(KERN_ERR "failed to create debugfs dir for edp!\n");
+	if (IS_ERR(anx6345->debugfs_dir)) {
+		dev_err(&client->dev, "failed to create debugfs dir for edp!\n");
 	}
 	else
 		debugfs_create_file("edp-reg", S_IRUSR,anx6345->debugfs_dir,anx6345,&edp_reg_fops);
@@ -1336,8 +1369,9 @@ static int anx6345_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 		anx6345->edp_anx_init = anx980x_init;
 	else
 		anx6345->edp_anx_init = anx6345_init;
+	edp = anx6345;
 
-	anx6345->edp_anx_init(client);
+	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
 
 	dev_info(&client->dev, "edp anx%x probe ok \n", get_dp_chip_id(client));
 	
@@ -1385,6 +1419,6 @@ static void __exit anx6345_module_exit(void)
 	i2c_del_driver(&anx6345_i2c_driver);
 }
 
-fs_initcall_sync(anx6345_module_init);
+subsys_initcall_sync(anx6345_module_init);
 module_exit(anx6345_module_exit);
 

@@ -33,6 +33,7 @@
 
 /*#define EDP_BIST_MODE*/
 
+static struct rk32_edp *rk32_edp;
 static int rk32_edp_init_edp(struct rk32_edp *edp)
 {
 	struct rk_screen *screen = &edp->screen;
@@ -1061,11 +1062,11 @@ static irqreturn_t rk32_edp_isr(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int rk32_edp_enable(struct rk32_edp *edp)
+static int rk32_edp_enable(void)
 {
 	int ret = 0;
 	int retry = 0;
-
+	struct rk32_edp *edp = rk32_edp;
 	if (edp->enabled)
 		goto out;
 
@@ -1133,10 +1134,12 @@ out:
 	return ret;
 }
 	
-static void rk32_edp_disable(struct rk32_edp *edp)
+static int  rk32_edp_disable(void )
 {
+	struct rk32_edp *edp = rk32_edp;
+
 	if (!edp->enabled)
-		return ;
+		return 0;
 
 	edp->enabled = 0;
 
@@ -1145,15 +1148,14 @@ static void rk32_edp_disable(struct rk32_edp *edp)
 
 	clk_disable(edp->clk_24m);
 	clk_disable(edp->clk_edp);
+	return 0;
 }
 
 
-
-static void rk32_edp_init(struct rk32_edp *edp)
-{
-
-	rk32_edp_enable(edp);
-}
+static struct rk_fb_trsm_ops trsm_edp_ops = {
+	.enable = rk32_edp_enable,
+	.disable = rk32_edp_disable,
+};
 static int rk32_edp_probe(struct platform_device *pdev)
 {
 	struct rk32_edp *edp;
@@ -1209,8 +1211,8 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", edp->irq);
 		return ret;
 	}
-	
-	rk32_edp_init(edp);
+	rk32_edp = edp;
+	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
 	dev_info(&pdev->dev, "rk32 edp driver probe success\n");
 
 	return 0;
@@ -1252,5 +1254,5 @@ static void __exit rk32_edp_module_exit(void)
 
 }
 
-fs_initcall(rk32_edp_module_init);
+subsys_initcall_sync(rk32_edp_module_init);
 module_exit(rk32_edp_module_exit);

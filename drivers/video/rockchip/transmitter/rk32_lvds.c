@@ -15,16 +15,19 @@
 #include "rk32_lvds.h"
 
 
-static int rk32_lvds_disable(struct rk32_lvds *lvds)
+static struct rk32_lvds *rk32_lvds;
+static int rk32_lvds_disable(void)
 {
+	struct rk32_lvds *lvds = rk32_lvds;
 	writel_relaxed(0x80008000, RK_GRF_VIRT + RK3288_GRF_SOC_CON7);
 	writel_relaxed(0x00, lvds->regs + LVDS_CFG_REG_21); /*disable tx*/
 	writel_relaxed(0xff, lvds->regs + LVDS_CFG_REG_c); /*disable pll*/
 	return 0;
 }
 
-static int rk32_lvds_en(struct rk32_lvds *lvds)
+static int rk32_lvds_en(void)
 {
+	struct rk32_lvds *lvds = rk32_lvds;
 	struct rk_screen *screen = &lvds->screen;
 	u32 h_bp = screen->mode.hsync_len + screen->mode.left_margin;
 	u32 val ;
@@ -77,16 +80,11 @@ static int rk32_lvds_en(struct rk32_lvds *lvds)
 }
 
 
-static int rk32_lvds_init(struct rk32_lvds *lvds, bool enable)
-{
-	
-	if (enable) 
-		rk32_lvds_en(lvds);
-	else
-		rk32_lvds_disable(lvds);
 
-	return 0;
-}
+static struct rk_fb_trsm_ops trsm_lvds_ops = {
+	.enable = rk32_lvds_en,
+	.disable = rk32_lvds_disable,
+};
 
 static int rk32_lvds_probe(struct platform_device *pdev)
 {
@@ -120,7 +118,9 @@ static int rk32_lvds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap reg failed\n");
 		return PTR_ERR(lvds->regs);
 	}
-	rk32_lvds_init(lvds, true);
+
+	rk32_lvds = lvds;
+	rk_fb_trsm_ops_register(&trsm_lvds_ops,SCREEN_LVDS);
 	dev_info(&pdev->dev, "rk32 lvds driver probe success\n");
 
 	return 0;

@@ -670,6 +670,7 @@ struct  anx6345_platform_data {
 	int 	     dvdd18_en_val;
 	unsigned int edp_rst_pin;
 	int (*power_ctl)(struct anx6345_platform_data *pdata);
+	bool pwron;
 };
 
 struct edp_anx6345 {
