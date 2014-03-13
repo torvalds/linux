@@ -52,22 +52,26 @@ static int fl512_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	int n;
-	unsigned int lo_byte, hi_byte;
-	char chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
 
-	for (n = 0; n < insn->n; n++) {	/* sample n times on selected channel */
-		/* XXX probably can move next step out of for() loop -- will
-		 * make AI a little bit faster. */
-		outb(chan, dev->iobase + FL512_AI_MUX_REG);
+	outb(chan, dev->iobase + FL512_AI_MUX_REG);
+
+	for (i = 0; i < insn->n; i++) {
 		outb(0, dev->iobase + FL512_AI_START_CONV_REG);
+
 		/* XXX should test "done" flag instead of delay */
-		udelay(30);	/* sleep 30 usec */
-		lo_byte = inb(dev->iobase + FL512_AI_LSB_REG);
-		hi_byte = inb(dev->iobase + FL512_AI_MSB_REG) & 0xf;
-		data[n] = lo_byte + (hi_byte << 8);
+		udelay(30);
+
+		val = inb(dev->iobase + FL512_AI_LSB_REG);
+		val |= (inb(dev->iobase + FL512_AI_MSB_REG) << 8);
+		val &= s->maxdata;
+
+		data[i] = val;
 	}
-	return n;
+
+	return insn->n;
 }
 
 static int fl512_ao_insn_write(struct comedi_device *dev,
