@@ -354,7 +354,8 @@ static struct oz_endpoint *oz_ep_alloc(int buffer_size, gfp_t mem_flags)
  * disabled.
  * Context: softirq or process
  */
-static struct oz_urb_link *oz_uncancel_urb(struct oz_hcd *ozhcd, struct urb *urb)
+static struct oz_urb_link *oz_uncancel_urb(struct oz_hcd *ozhcd,
+		struct urb *urb)
 {
 	struct oz_urb_link *urbl;
 	struct list_head *e;
