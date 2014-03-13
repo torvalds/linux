@@ -184,8 +184,7 @@ static const struct hpdi_board hpdi_boards[] = {
 };
 
 struct hpdi_private {
-	/*  base addresses (ioremapped) */
-	void __iomem *plx9080_iobase;
+	void __iomem *plx9080_mmio;
 	void __iomem *hpdi_iobase;
 	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/*  dma buffers */
 	/* physical addresses of dma buffers */
@@ -219,9 +218,9 @@ static void gsc_hpdi_drain_dma(struct comedi_device *dev, unsigned int channel)
 	unsigned int next;
 
 	if (channel)
-		next = readl(devpriv->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG);
+		next = readl(devpriv->plx9080_mmio + PLX_DMA1_PCI_ADDRESS_REG);
 	else
-		next = readl(devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
+		next = readl(devpriv->plx9080_mmio + PLX_DMA0_PCI_ADDRESS_REG);
 
 	idx = devpriv->dma_desc_index;
 	start = le32_to_cpu(devpriv->dma_desc[idx].pci_start_addr);
@@ -261,7 +260,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	plx_status = readl(devpriv->plx9080_mmio + PLX_INTRCS_REG);
 	if ((plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LIA)) == 0)
 		return IRQ_NONE;
 
@@ -274,10 +273,10 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	}
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma0_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	dma0_status = readb(devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
 	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
-		       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		       devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
 
 		if (dma0_status & PLX_DMA_EN_BIT)
 			gsc_hpdi_drain_dma(dev, 0);
@@ -286,17 +285,17 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma1_status = readb(devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+	dma1_status = readb(devpriv->plx9080_mmio + PLX_DMA1_CS_REG);
 	if (plx_status & ICS_DMA1_A) {	/*  XXX *//*  dma chan 1 interrupt */
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
-		       devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+		       devpriv->plx9080_mmio + PLX_DMA1_CS_REG);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  clear possible plx9080 interrupt sources */
 	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
-		plx_bits = readl(devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
-		writel(plx_bits, devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
+		plx_bits = readl(devpriv->plx9080_mmio + PLX_DBR_OUT_REG);
+		writel(plx_bits, devpriv->plx9080_mmio + PLX_DBR_OUT_REG);
 	}
 
 	if (hpdi_board_status & RX_OVERRUN_BIT) {
@@ -325,7 +324,7 @@ static void gsc_hpdi_abort_dma(struct comedi_device *dev, unsigned int channel)
 	/*  spinlock for plx dma control/status reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 
-	plx9080_abort_dma(devpriv->plx9080_iobase, channel);
+	plx9080_abort_dma(devpriv->plx9080_mmio, channel);
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
@@ -367,19 +366,19 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	 * occasionally cause problems with transfer of first dma
 	 * block.  Initializing them to zero seems to fix the problem.
 	 */
-	writel(0, devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
-	writel(0, devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
-	writel(0, devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
+	writel(0, devpriv->plx9080_mmio + PLX_DMA0_TRANSFER_SIZE_REG);
+	writel(0, devpriv->plx9080_mmio + PLX_DMA0_PCI_ADDRESS_REG);
+	writel(0, devpriv->plx9080_mmio + PLX_DMA0_LOCAL_ADDRESS_REG);
 
 	/* give location of first dma descriptor */
 	bits = devpriv->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT |
 	       PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
-	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
+	writel(bits, devpriv->plx9080_mmio + PLX_DMA0_DESCRIPTOR_REG);
 
 	/* enable dma transfer */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
-	       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	       devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	if (cmd->stop_src == TRIG_COUNT)
@@ -563,7 +562,7 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 	plx_intcsr_bits =
 	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
 	    ICS_DMA0_E;
-	writel(plx_intcsr_bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	writel(plx_intcsr_bits, devpriv->plx9080_mmio + PLX_INTRCS_REG);
 
 	return 0;
 }
@@ -572,16 +571,16 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 {
 	struct hpdi_private *devpriv = dev->private;
 	uint32_t bits;
-	void __iomem *plx_iobase = devpriv->plx9080_iobase;
+	void __iomem *plx_iobase = devpriv->plx9080_mmio;
 
 #ifdef __BIG_ENDIAN
 	bits = BIGEND_DMA0 | BIGEND_DMA1;
 #else
 	bits = 0;
 #endif
-	writel(bits, devpriv->plx9080_iobase + PLX_BIGEND_REG);
+	writel(bits, devpriv->plx9080_mmio + PLX_BIGEND_REG);
 
-	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	writel(0, devpriv->plx9080_mmio + PLX_INTRCS_REG);
 
 	gsc_hpdi_abort_dma(dev, 0);
 	gsc_hpdi_abort_dma(dev, 1);
@@ -647,9 +646,9 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 		return retval;
 	pci_set_master(pcidev);
 
-	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
+	devpriv->plx9080_mmio = pci_ioremap_bar(pcidev, 0);
 	devpriv->hpdi_iobase = pci_ioremap_bar(pcidev, 2);
-	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
+	if (!devpriv->plx9080_mmio || !devpriv->hpdi_iobase) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
 	}
@@ -719,9 +718,9 @@ static void gsc_hpdi_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
-		if (devpriv->plx9080_iobase) {
-			writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
-			iounmap(devpriv->plx9080_iobase);
+		if (devpriv->plx9080_mmio) {
+			writel(0, devpriv->plx9080_mmio + PLX_INTRCS_REG);
+			iounmap(devpriv->plx9080_mmio);
 		}
 		if (devpriv->hpdi_iobase)
 			iounmap(devpriv->hpdi_iobase);
