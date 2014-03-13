@@ -75,47 +75,6 @@
 			status = "okay";
 		};
 
-		qspi: spi@ff705000 {
-			compatible = "cadence,qspi";
-                        #address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0xff705000 0x1000>,
-				<0xffa00000 0x1000>;
-			interrupts = <0 151 4>;
-			master-ref-clk = <400000000>;
-			ext-decoder = <0>;  /* external decoder */
-			num-chipselect = <4>;
-			fifo-depth = <128>;
-			bus-num = <2>;
-
-			flash0: n25q00@0 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				compatible = "n25q00";
-				reg = <0>;      /* chip select */
-				spi-max-frequency = <100000000>;
-				m25p,fast-read;
-				page-size = <256>;
-				block-size = <16>; /* 2^16, 64KB */
-				read-delay = <4>;  /* delay value in read data capture register */
-				tshsl-ns = <50>;
-				tsd2d-ns = <50>;
-				tchsh-ns = <4>;
-				tslch-ns = <4>;
-
-				partition@qspi-boot {
-					/* 8MB for raw data. */
-					label = "Flash 0 Raw Data";
-					reg = <0x0 0x800000>;
-				};
-				partition@qspi-rootfs {
-					/* 120MB for jffs2 data. */
-					label = "Flash 0 jffs2 Filesystem";
-					reg = <0x800000 0x7800000>;
-				};
-			};
-		};
-
 		serial0@ffc02000 {
 			status = "okay";
 		};
@@ -192,4 +151,35 @@
 	rxc-skew-ps = <2000>;
 	snps,max-mtu = <3800>;
 	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+	flash0: n25q00@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q00";
+		reg = <0>;      /* chip select */
+		spi-max-frequency = <100000000>;
+		m25p,fast-read;
+		page-size = <256>;
+		block-size = <16>; /* 2^16, 64KB */
+		read-delay = <4>;  /* delay value in read data capture register */
+		tshsl-ns = <50>;
+		tsd2d-ns = <50>;
+		tchsh-ns = <4>;
+		tslch-ns = <4>;
+
+		partition@qspi-boot {
+		/* 8MB for raw data. */
+		label = "Flash 0 Raw Data";
+		reg = <0x0 0x800000>;
+		};
+
+		partition@qspi-rootfs {
+		/* 120MB for jffs2 data. */
+		label = "Flash 0 jffs2 Filesystem";
+		reg = <0x800000 0x7800000>;
+		};
+	};
 };
