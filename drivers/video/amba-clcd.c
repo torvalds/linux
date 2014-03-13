@@ -249,6 +249,17 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 		bgr = caps & CLCD_CAP_BGR && var->blue.offset == 0;
 		rgb = caps & CLCD_CAP_RGB && var->red.offset == 0;
 
+		/*
+		 * Seems that for 32-bit mode there is confusion about RGB
+		 * ordering somewhere between user-side, kernel and hardware.
+		 * The following hack seems get things working, at least on
+		 * vexpress hardware and models...
+		 */
+		if (var->bits_per_pixel == 32) {
+			bgr = false;
+			rgb = true;
+		}
+
 		if (!bgr && !rgb)
 			/*
 			 * The requested format was not possible, try just
