@@ -342,7 +342,8 @@ static void serial_omap_stop_tx(struct uart_port *port)
 
 	if ((up->rs485.flags & SER_RS485_ENABLED) &&
 	    !(up->rs485.flags & SER_RS485_RX_DURING_TX)) {
-		up->ier = UART_IER_RLSI | UART_IER_RDI;
+		up->ier |= UART_IER_RLSI | UART_IER_RDI;
+		up->port.read_status_mask |= UART_LSR_DR;
 		serial_out(up, UART_IER, up->ier);
 	}
 
@@ -355,7 +356,7 @@ static void serial_omap_stop_rx(struct uart_port *port)
 	struct uart_omap_port *up = to_uart_omap_port(port);
 
 	pm_runtime_get_sync(up->dev);
-	up->ier &= ~UART_IER_RLSI;
+	up->ier &= ~(UART_IER_RLSI | UART_IER_RDI);
 	up->port.read_status_mask &= ~UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
 	pm_runtime_mark_last_busy(up->dev);
