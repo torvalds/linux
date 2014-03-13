@@ -230,6 +230,8 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_P2P_CLIENT,
 	IWL_MVM_REF_AP_IBSS,
 	IWL_MVM_REF_USER,
+	IWL_MVM_REF_TX,
+	IWL_MVM_REF_TX_AGG,
 
 	IWL_MVM_REF_COUNT,
 };
@@ -593,7 +595,12 @@ struct iwl_mvm {
 
 	/* d0i3 */
 	u8 d0i3_ap_sta_id;
+	bool d0i3_offloading;
 	struct work_struct d0i3_exit_work;
+	struct sk_buff_head d0i3_tx;
+	/* sync d0i3_tx queue and IWL_MVM_STATUS_IN_D0I3 status flag */
+	spinlock_t d0i3_tx_lock;
+	wait_queue_head_t d0i3_exit_waitq;
 
 	/* BT-Coex */
 	u8 bt_kill_msk;
@@ -634,6 +641,7 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_HW_CTKILL,
 	IWL_MVM_STATUS_ROC_RUNNING,
 	IWL_MVM_STATUS_IN_HW_RESTART,
+	IWL_MVM_STATUS_IN_D0I3,
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
@@ -903,6 +911,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 /* D0i3 */
 void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
 void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
+void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq);
 
 /* BT Coex */
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);

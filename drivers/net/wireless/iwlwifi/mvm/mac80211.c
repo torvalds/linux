@@ -424,6 +424,47 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	return ret;
 }
 
+static bool iwl_mvm_defer_tx(struct iwl_mvm *mvm,
+			     struct ieee80211_sta *sta,
+			     struct sk_buff *skb)
+{
+	struct iwl_mvm_sta *mvmsta;
+	bool defer = false;
+
+	/*
+	 * double check the IN_D0I3 flag both before and after
+	 * taking the spinlock, in order to prevent taking
+	 * the spinlock when not needed.
+	 */
+	if (likely(!test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status)))
+		return false;
+
+	spin_lock(&mvm->d0i3_tx_lock);
+	/*
+	 * testing the flag again ensures the skb dequeue
+	 * loop (on d0i3 exit) hasn't run yet.
+	 */
+	if (!test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status))
+		goto out;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	if (mvmsta->sta_id == IWL_MVM_STATION_COUNT ||
+	    mvmsta->sta_id != mvm->d0i3_ap_sta_id)
+		goto out;
+
+	__skb_queue_tail(&mvm->d0i3_tx, skb);
+	ieee80211_stop_queues(mvm->hw);
+
+	/* trigger wakeup */
+	iwl_mvm_ref(mvm, IWL_MVM_REF_TX);
+	iwl_mvm_unref(mvm, IWL_MVM_REF_TX);
+
+	defer = true;
+out:
+	spin_unlock(&mvm->d0i3_tx_lock);
+	return defer;
+}
+
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 			   struct ieee80211_tx_control *control,
 			   struct sk_buff *skb)
@@ -451,6 +492,8 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 		sta = NULL;
 
 	if (sta) {
+		if (iwl_mvm_defer_tx(mvm, sta, skb))
+			return;
 		if (iwl_mvm_tx_skb(mvm, skb, sta))
 			goto drop;
 		return;
@@ -471,12 +514,30 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
+	bool tx_agg_ref = false;
 
 	IWL_DEBUG_HT(mvm, "A-MPDU action on addr %pM tid %d: action %d\n",
 		     sta->addr, tid, action);
 
 	if (!(mvm->nvm_data->sku_cap_11n_enable))
 		return -EACCES;
+
+	/* return from D0i3 before starting a new Tx aggregation */
+	if (action == IEEE80211_AMPDU_TX_START) {
+		iwl_mvm_ref(mvm, IWL_MVM_REF_TX_AGG);
+		tx_agg_ref = true;
+
+		/*
+		 * wait synchronously until D0i3 exit to get the correct
+		 * sequence number for the tid
+		 */
+		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
+			  !test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status), HZ)) {
+			WARN_ON_ONCE(1);
+			iwl_mvm_unref(mvm, IWL_MVM_REF_TX_AGG);
+			return -EIO;
+		}
+	}
 
 	mutex_lock(&mvm->mutex);
 
@@ -514,6 +575,13 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	}
 	mutex_unlock(&mvm->mutex);
+
+	/*
+	 * If the tid is marked as started, we won't use it for offloaded
+	 * traffic on the next D0i3 entry. It's safe to unref.
+	 */
+	if (tx_agg_ref)
+		iwl_mvm_unref(mvm, IWL_MVM_REF_TX_AGG);
 
 	return ret;
 }
@@ -592,6 +660,7 @@ static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
 	mutex_lock(&mvm->mutex);
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+	iwl_mvm_d0i3_enable_tx(mvm, NULL);
 	ret = iwl_mvm_update_quotas(mvm, NULL);
 	if (ret)
 		IWL_ERR(mvm, "Failed to update quotas after restart (%d)\n",
