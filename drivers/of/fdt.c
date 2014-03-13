@@ -557,6 +557,9 @@ static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
  */
 void __init early_init_fdt_scan_reserved_mem(void)
 {
+	if (!initial_boot_params)
+		return;
+
 	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
 	fdt_init_reserved_mem();
 }
