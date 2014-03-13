@@ -684,9 +684,8 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 /*
  * decode a full map.
  */
-struct ceph_osdmap *osdmap_decode(void **p, void *end)
+static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 {
-	struct ceph_osdmap *map;
 	u16 version;
 	u32 len, max, i;
 	int err = -EINVAL;
@@ -694,14 +693,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	void *start = *p;
 	struct ceph_pg_pool_info *pi;
 
-	dout("osdmap_decode %p to %p len %d\n", *p, end, (int)(end - *p));
-
-	map = kzalloc(sizeof(*map), GFP_NOFS);
-	if (map == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	map->pg_temp = RB_ROOT;
-	mutex_init(&map->crush_scratch_mutex);
+	dout("%s %p to %p len %d\n", __func__, *p, end, (int)(end - *p));
 
 	ceph_decode_16_safe(p, end, version, bad);
 	if (version > 6) {
@@ -751,7 +743,6 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	err = osdmap_set_max_osd(map, max);
 	if (err < 0)
 		goto bad;
-	dout("osdmap_decode max_osd = %d\n", map->max_osd);
 
 	/* osds */
 	err = -EINVAL;
@@ -819,7 +810,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	*p = end;
 
 	dout("full osdmap epoch %d max_osd %d\n", map->epoch, map->max_osd);
-	return map;
+	return 0;
 
 bad:
 	pr_err("corrupt full osdmap (%d) epoch %d off %d (%p of %p-%p)\n",
@@ -827,8 +818,31 @@ bad:
 	print_hex_dump(KERN_DEBUG, "osdmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
-	ceph_osdmap_destroy(map);
-	return ERR_PTR(err);
+	return err;
+}
+
+/*
+ * Allocate and decode a full map.
+ */
+struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end)
+{
+	struct ceph_osdmap *map;
+	int ret;
+
+	map = kzalloc(sizeof(*map), GFP_NOFS);
+	if (!map)
+		return ERR_PTR(-ENOMEM);
+
+	map->pg_temp = RB_ROOT;
+	mutex_init(&map->crush_scratch_mutex);
+
+	ret = osdmap_decode(p, end, map);
+	if (ret) {
+		ceph_osdmap_destroy(map);
+		return ERR_PTR(ret);
+	}
+
+	return map;
 }
 
 /*
@@ -872,7 +886,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	if (len > 0) {
 		dout("apply_incremental full map len %d, %p to %p\n",
 		     len, *p, end);
-		return osdmap_decode(p, min(*p+len, end));
+		return ceph_osdmap_decode(p, min(*p+len, end));
 	}
 
 	/* new crush? */

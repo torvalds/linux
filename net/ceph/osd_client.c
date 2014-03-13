@@ -2062,7 +2062,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 			int skipped_map = 0;
 
 			dout("taking full map %u len %d\n", epoch, maplen);
-			newmap = osdmap_decode(&p, p+maplen);
+			newmap = ceph_osdmap_decode(&p, p+maplen);
 			if (IS_ERR(newmap)) {
 				err = PTR_ERR(newmap);
 				goto bad;

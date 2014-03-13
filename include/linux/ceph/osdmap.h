@@ -156,7 +156,7 @@ static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 	return 0;
 }
 
-extern struct ceph_osdmap *osdmap_decode(void **p, void *end);
+extern struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end);
 extern struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 					    struct ceph_osdmap *map,
 					    struct ceph_messenger *msgr);
