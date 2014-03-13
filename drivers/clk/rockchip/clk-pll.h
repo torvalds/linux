@@ -12,6 +12,37 @@
 	div_u64(CLK_LOOPS_JIFFY_REF*(rate),CLK_LOOPS_RATE_REF*MHZ)
 
 /*******************RK3188 PLL******************************/
+/*******************PLL MODE*************************/
+#define RK3188_PLL_CON(i)	((i) * 4)
+
+#define _RK3188_PLL_MODE_MSK		0x3
+#define _RK3188_PLL_MODE_SLOW		0x0
+#define _RK3188_PLL_MODE_NORM		0x1
+#define _RK3188_PLL_MODE_DEEP		0x2
+
+#define _RK3188_PLL_MODE_GET(offset, shift)	\
+	((cru_readl(offset) >> (shift)) & _RK3188_PLL_MODE_MSK)
+
+#define _RK3188_PLL_MODE_IS_SLOW(offset, shift)	\
+	(_RK3188_PLL_MODE_GET(offset, shift) == _RK3188_PLL_MODE_SLOW)
+
+#define _RK3188_PLL_MODE_IS_NORM(offset, shift)	\
+	(_RK3188_PLL_MODE_GET(offset, shift) == _RK3188_PLL_MODE_NORM)
+
+#define _RK3188_PLL_MODE_IS_DEEP(offset, shift)	\
+	(_RK3188_PLL_MODE_GET(offset, shift) == _RK3188_PLL_MODE_DEEP)
+
+#define _RK3188_PLL_MODE_SET(val, shift)	\
+	((val) << (shift)) | CRU_W_MSK(shift, _RK3188_PLL_MODE_MSK)
+
+#define _RK3188_PLL_MODE_SLOW_SET(shift)	\
+	_RK3188_PLL_MODE_SET(_RK3188_PLL_MODE_SLOW, shift)
+
+#define _RK3188_PLL_MODE_NORM_SET(shift)	\
+	_RK3188_PLL_MODE_SET(_RK3188_PLL_MODE_NORM, shift)
+
+#define _RK3188_PLL_MODE_DEEP_SET(shift)	\
+	_RK3188_PLL_MODE_SET(_RK3188_PLL_MODE_DEEP, shift)
 
 /*******************PLL CON0 BITS***************************/
 #define RK3188_PLL_CLKFACTOR_SET(val, shift, msk) \
@@ -157,15 +188,22 @@ struct clk_pll {
 	struct clk_hw	hw;
 	void __iomem	*reg;
 	u32		width;
-	u8		id;
+	u32		mode_offset;
+	u8		mode_shift;
+	u32		status_offset;
+	u8		status_shift;
+	u32		flags;
 	const void	*table;
 	spinlock_t	*lock;
 };
 
-extern const struct clk_ops clk_pll_ops;
+const struct clk_ops *rk_get_pll_ops(u32 pll_flags);
+
 struct clk *rk_clk_register_pll(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags, void __iomem *reg,
-		u32 width, u8 id, spinlock_t *lock);
+		u32 width, u32 mode_offset, u8 mode_shift,
+		u32 status_offset, u8 status_shift, u32 pll_flags,
+		spinlock_t *lock);
 
 
 #endif /* __RK_CLK_PLL_H */

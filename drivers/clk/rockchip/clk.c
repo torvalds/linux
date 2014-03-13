@@ -643,7 +643,7 @@ static int __init rkclk_init_pllcon(struct device_node *np)
 	int ret = 0;
 	struct rkclk *rkclk = NULL;
 	u32 flags;
-	u32 pll_id;
+	u32 mode_shift, status_shift;
 
 
 	for_each_available_child_of_node(np, node) {
@@ -690,19 +690,54 @@ static int __init rkclk_init_pllcon(struct device_node *np)
 			goto out;
 		}
 
-		ret = of_property_read_u32(node, "rockchip,pll-id", &pll_id);
+		ret = of_property_read_u32_index(node, "mode-reg", 0,
+				&pll->mode_offset);
 		if (ret != 0) {
-			clk_err("%s: can not get pll-id\n", __func__);
+			clk_err("%s: can not get mode_reg offset\n", __func__);
 			goto out;
-		} else {
-			pll->id = (u8)pll_id;
 		}
 
-		clk_debug("%s: pllname=%s, parent=%s, flags=%u, "
-				"addr=0x%x, len=0x%x, id=%d\n",
+		ret = of_property_read_u32_index(node, "mode-reg", 1,
+				&mode_shift);
+		if (ret != 0) {
+			clk_err("%s: can not get mode_reg shift\n", __func__);
+			goto out;
+		} else {
+			pll->mode_shift = (u8)mode_shift;
+		}
+
+		ret = of_property_read_u32_index(node, "status-reg", 0,
+				&pll->status_offset);
+		if (ret != 0) {
+			clk_err("%s: can not get status_reg offset\n", __func__);
+			goto out;
+		}
+
+		ret = of_property_read_u32_index(node, "status-reg", 1,
+				&status_shift);
+		if (ret != 0) {
+			clk_err("%s: can not get status_reg shift\n", __func__);
+			goto out;
+		} else {
+			pll->status_shift= (u8)status_shift;
+		}
+
+		ret = of_property_read_u32(node, "rockchip,pll-type", &pll->flags);
+		if (ret != 0) {
+			clk_err("%s: can not get pll-type\n", __func__);
+			goto out;
+		}
+
+		clk_debug("%s: pllname=%s, parent=%s, flags=0x%x\n",
 				__func__, pllinfo->clk_name,
-				pllinfo->parent_name, flags,
-				(u32)pll->reg, pll->width, pll->id);
+				pllinfo->parent_name, flags);
+
+		clk_debug("\t\taddr=0x%x, len=0x%x, mode:offset=0x%x, shift=0x%x,"
+				" status:offset=0x%x, shift=0x%x, pll->flags=0x%x\n",
+				(u32)pll->reg, pll->width,
+				pll->mode_offset, pll->mode_shift,
+				pll->status_offset, pll->status_shift,
+				pll->flags);
 
 		found = 0;
 		list_for_each_entry(rkclk, &rk_clks, node) {
@@ -810,7 +845,9 @@ static int rkclk_register(struct rkclk *rkclk)
 			clk = rk_clk_register_pll(NULL, rkclk->clk_name,
 					rkclk->pll_info->parent_name,
 					rkclk->flags, pll->reg, pll->width,
-					pll->id, &clk_lock);
+					pll->mode_offset, pll->mode_shift,
+					pll->status_offset, pll->status_shift,
+					pll->flags, &clk_lock);
 			//kfree!!!!!!!
 			goto add_lookup;
 		case RKCLK_DIV_TYPE:
@@ -889,7 +926,7 @@ rgs_comp:
 			rate_ops = &clk_divider_ops;
 	} else if (rkclk->clk_type & RKCLK_PLL_TYPE) {
 		rate_hw = &pll->hw;
-		rate_ops = &clk_pll_ops;
+		rate_ops = rk_get_pll_ops(pll->flags);
 	} else if (rkclk->clk_type & RKCLK_FRAC_TYPE) {
 		rate_hw = &frac->hw;
 		rate_ops = rk_get_clkops(rkclk->frac_info->clkops_idx);
@@ -914,7 +951,7 @@ rgs_comp:
 
 	clk_debug("parent_num=%d, mux_hw=%d mux_ops=%d, rate_hw=%d rate_ops=%d,"
 			" gate_hw=%d gate_ops=%d\n",
-			parent_num, mux_hw?1:0, mux_ops?1:0, rate_hw?1:0, 
+			parent_num, mux_hw?1:0, mux_ops?1:0, rate_hw?1:0,
 			rate_ops?1:0, gate_hw?1:0, gate_ops?1:0);
 
 	clk = clk_register_composite(NULL, rkclk->clk_name, parent_names,
@@ -1102,8 +1139,14 @@ void rkclk_dump_info(struct rkclk *rkclk)
 				rkclk->pll_info->parent_name,
 				rkclk->pll_info->clkops_idx);
 		if (pll) {
-			clk_debug("\t\tpll: reg=0x%x, width=0x%x, id=%d\n",
-					(u32)pll->reg, pll->width, pll->id);
+			clk_debug("\t\tpll: reg=0x%x, width=0x%x, "
+					"mode_offset=0x%x, mode_shift=%u, "
+					"status_offset=0x%x, status_shift=%u, "
+					"pll->flags=%u\n",
+					(u32)pll->reg, pll->width,
+					pll->mode_offset, pll->mode_shift,
+					pll->status_offset, pll->status_shift,
+					pll->flags);
 		}
 	}
 	if (rkclk->div_info) {
@@ -1176,8 +1219,8 @@ struct test_table t_table[] = {
 	{.name = "clk_hsadc",	.rate = 12288000},
 	{.name = "clk_mac",  	.rate = 50000000},
 
-	{.name = "clk_apll",	.rate = 500000000},
-	{.name = "clk_dpll",	.rate = 400000000},
+//	{.name = "clk_apll",	.rate = 500000000},
+//	{.name = "clk_dpll",	.rate = 400000000},
 	{.name = "clk_cpll",	.rate = 600000000},
 	{.name = "clk_gpll",	.rate = 800000000},
 

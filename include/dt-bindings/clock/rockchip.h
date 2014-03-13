@@ -29,5 +29,10 @@
 #define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
 #define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
 
+/* Rockchip pll flags */
+#define CLK_PLL_3188		BIT(0)
+#define CLK_PLL_3188_APLL	BIT(1)
+#define CLK_PLL_3188PLUS	BIT(2)
+#define CLK_PLL_3188PLUS_APLL	BIT(3)
 
 #endif /* _DT_BINDINGS_CLOCK_ROCKCHIP_H */

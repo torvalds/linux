@@ -98,41 +98,45 @@
 				clk_apll: pll-clk@0000 {
 					compatible = "rockchip,rk3188-pll-clk";
 					reg = <0x0000 0x10>;
-					clock-frequency = <24000000>;
+					mode-reg = <0x0040 0>;
+					status-reg = <0x00ac 6>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_apll";
-					rockchip,pll-id = <RK3188_APLL_ID>;
+					rockchip,pll-type = <CLK_PLL_3188_APLL>;
 					#clock-cells = <0>;
 				};
 
 				clk_dpll: pll-clk@0010 {
 					compatible = "rockchip,rk3188-pll-clk";
-					clock-frequency = <24000000>;
 					reg = <0x0010 0x10>;
+					mode-reg = <0x0040 4>;
+					status-reg = <0x00ac 5>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_dpll";
-					rockchip,pll-id = <RK3188_DPLL_ID>;
+					rockchip,pll-type = <CLK_PLL_3188>;
 					#clock-cells = <0>;
 				};
 
 				clk_cpll: pll-clk@0020 {
 					compatible = "rockchip,rk3188-pll-clk";
-					clock-frequency = <24000000>;
 					reg = <0x0020 0x10>;
+					mode-reg = <0x0040 8>;
+					status-reg = <0x00ac 7>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_cpll";
-					rockchip,pll-id = <RK3188_CPLL_ID>;
+					rockchip,pll-type = <CLK_PLL_3188>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};
 
 				clk_gpll: pll-clk@0030 {
 					compatible = "rockchip,rk3188-pll-clk";
-					clock-frequency = <24000000>;
 					reg = <0x0030 0x10>;
+					mode-reg = <0x0040 12>;
+					status-reg = <0x00ac 8>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_gpll";
-					rockchip,pll-id = <RK3188_GPLL_ID>;
+					rockchip,pll-type = <CLK_PLL_3188>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};
