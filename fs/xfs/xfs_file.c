@@ -824,7 +824,7 @@ xfs_file_fallocate(
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
-		     FALLOC_FL_COLLAPSE_RANGE))
+		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
 		return -EOPNOTSUPP;
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
@@ -855,8 +855,11 @@ xfs_file_fallocate(
 				goto out_unlock;
 		}
 
-		error = xfs_alloc_file_space(ip, offset, len,
-					     XFS_BMAPI_PREALLOC);
+		if (mode & FALLOC_FL_ZERO_RANGE)
+			error = xfs_zero_file_space(ip, offset, len);
+		else
+			error = xfs_alloc_file_space(ip, offset, len,
+						     XFS_BMAPI_PREALLOC);
 		if (error)
 			goto out_unlock;
 	}
