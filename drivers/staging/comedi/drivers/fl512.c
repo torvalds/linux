@@ -38,12 +38,10 @@ static const struct comedi_lrange range_fl512 = {
 	}
 };
 
-/*
- * fl512_ai_insn : this is the analog input function
- */
-static int fl512_ai_insn(struct comedi_device *dev,
-			 struct comedi_subdevice *s, struct comedi_insn *insn,
-			 unsigned int *data)
+static int fl512_ai_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	int n;
 	unsigned int lo_byte, hi_byte;
@@ -64,12 +62,10 @@ static int fl512_ai_insn(struct comedi_device *dev,
 	return n;
 }
 
-/*
- * fl512_ao_insn : used to write to a DA port n times
- */
-static int fl512_ao_insn(struct comedi_device *dev,
-			 struct comedi_subdevice *s, struct comedi_insn *insn,
-			 unsigned int *data)
+static int fl512_ao_insn_write(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct fl512_private *devpriv = dev->private;
 	int n;
@@ -88,13 +84,10 @@ static int fl512_ao_insn(struct comedi_device *dev,
 	return n;
 }
 
-/*
- * fl512_ao_insn_readback : used to read previous values written to
- * DA port
- */
-static int fl512_ao_insn_readback(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+static int fl512_ao_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct fl512_private *devpriv = dev->private;
 	int n;
@@ -131,7 +124,7 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan	= 16;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_fl512;
-	s->insn_read	= fl512_ai_insn;
+	s->insn_read	= fl512_ai_insn_read;
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
@@ -140,8 +133,8 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_fl512;
-	s->insn_write	= fl512_ao_insn;
-	s->insn_read	= fl512_ao_insn_readback;
+	s->insn_write	= fl512_ao_insn_write;
+	s->insn_read	= fl512_ao_insn_read;
 
 	return 0;
 }
