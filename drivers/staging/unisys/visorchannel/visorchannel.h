@@ -92,7 +92,7 @@ void *visorchannel_get_header(VISORCHANNEL *channel);
 	do {								\
 		U8 *p = (U8 *)visorchannel_get_header(chan);		\
 		if (p) {						\
-			ULTRA_CHANNEL_CLIENT_TRANSITION(p, chanId, CliStateOS, \
+			ULTRA_CHANNEL_CLIENT_TRANSITION(p, chanId,	\
 							newstate, logCtx); \
 			visorchannel_write				\
 				(chan,					\
