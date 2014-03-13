@@ -32,7 +32,7 @@
 #endif	/*  */
 
 /* define subsystem number for AppOS, used in uislib driver  */
-#define MDS_APPOS 0x4000000000000000	/* subsystem = 62 - AppOS */
+#define MDS_APPOS 0x4000000000000000L	/* subsystem = 62 - AppOS */
 typedef enum {		/* VMCALL identification tuples  */
 	    /* Note: when a new VMCALL is added:
 	     * - the 1st 2 hex digits correspond to one of the

@@ -105,7 +105,7 @@ ULTRA_CHANNELCLI_STRING(U32 v)
 
 #define ULTRA_CHANNELSRV_IS_READY(x)     ((x) == CHANNELSRV_READY)
 #define ULTRA_CHANNEL_SERVER_READY(pChannel) \
-	(ULTRA_CHANNELSRV_IS_READY((pChannel)->SrvState))
+	(ULTRA_CHANNELSRV_IS_READY(readl(&(pChannel)->SrvState)))
 
 #define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n)				\
 	(((((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_DISABLED)) || \
@@ -144,25 +144,30 @@ ULTRA_CHANNELCLI_STRING(U32 v)
 				      line);				\
 	} while (0)
 
-#define ULTRA_CHANNEL_CLIENT_TRANSITION(pChan, chanId, field, \
+#define ULTRA_CHANNEL_CLIENT_TRANSITION(pChan, chanId,			\
 					newstate, logCtx)		\
 	do {								\
 		ULTRA_CHANNEL_CLIENT_CHK_TRANSITION(			\
-			(((CHANNEL_HEADER *)(pChan))->field), newstate, \
+			readl(&(((CHANNEL_HEADER __iomem *) \
+				 (pChan))->CliStateOS)),		\
+			newstate,					\
 			chanId, logCtx, __FILE__, __LINE__);		\
 		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK, \
 			CHANNELSTATE_DIAG_SEVERITY, \
 			      CHANNELSTATE_DIAG_SUBSYS,			\
 			      __func__, __LINE__,			\
 			      "%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n", \
-			      chanId, #field,				\
-			      ULTRA_CHANNELCLI_STRING(((CHANNEL_HEADER *) \
-						       (pChan))->field), \
-			      ((CHANNEL_HEADER *)(pChan))->field,	\
+			      chanId, "CliStateOS",			\
+			      ULTRA_CHANNELCLI_STRING( \
+				      readl(&((CHANNEL_HEADER __iomem *) \
+					      (pChan))->CliStateOS)),	\
+			      readl(&((CHANNEL_HEADER __iomem *) \
+				      (pChan))->CliStateOS),		\
 			      ULTRA_CHANNELCLI_STRING(newstate),	\
 			      newstate,					\
 			      PathName_Last_N_Nodes(__FILE__, 4), __LINE__); \
-		((CHANNEL_HEADER *)(pChan))->field = newstate;		\
+		writel(newstate, &((CHANNEL_HEADER __iomem *) \
+				   (pChan))->CliStateOS);		\
 		MEMORYBARRIER;						\
 	} while (0)
 
@@ -314,7 +319,7 @@ typedef struct _SIGNAL_QUEUE_HEADER {
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 static inline int
-ULTRA_check_channel_client(void *pChannel,
+ULTRA_check_channel_client(void __iomem *pChannel,
 			   GUID expectedTypeGuid,
 			   char *channelName,
 			   U64 expectedMinBytes,
@@ -324,43 +329,44 @@ ULTRA_check_channel_client(void *pChannel,
 {
 	if (MEMCMP(&expectedTypeGuid, &Guid0, sizeof(GUID)) != 0)
 		/* caller wants us to verify type GUID */
-		if (MEMCMP(&(((CHANNEL_HEADER *) (pChannel))->Type),
+		if (MEMCMP_IO(&(((CHANNEL_HEADER __iomem *) (pChannel))->Type),
 			   &expectedTypeGuid, sizeof(GUID)) != 0) {
 			CHANNEL_GUID_MISMATCH(expectedTypeGuid, channelName,
 					      "type", expectedTypeGuid,
-					      ((CHANNEL_HEADER *)
+					      ((CHANNEL_HEADER __iomem *)
 					       (pChannel))->Type, fileName,
 					      lineNumber, logCtx);
 			return 0;
 		}
 	if (expectedMinBytes > 0)	/* caller wants us to verify
 					 * channel size */
-		if (((CHANNEL_HEADER *) (pChannel))->Size < expectedMinBytes) {
+		if (readq(&((CHANNEL_HEADER __iomem *)
+			   (pChannel))->Size) < expectedMinBytes) {
 			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
 					     "size", expectedMinBytes,
-					     ((CHANNEL_HEADER *)
+					     ((CHANNEL_HEADER __iomem *)
 					      (pChannel))->Size, fileName,
 					     lineNumber, logCtx);
 			return 0;
 		}
 	if (expectedVersionId > 0)	/* caller wants us to verify
 					 * channel version */
-		if (((CHANNEL_HEADER *) (pChannel))->VersionId !=
-		    expectedVersionId) {
+		if (readl(&((CHANNEL_HEADER __iomem *) (pChannel))->VersionId)
+		    != expectedVersionId) {
 			CHANNEL_U32_MISMATCH(expectedTypeGuid, channelName,
 					     "version", expectedVersionId,
-					     ((CHANNEL_HEADER *)
+					     ((CHANNEL_HEADER __iomem *)
 					      (pChannel))->VersionId, fileName,
 					     lineNumber, logCtx);
 			return 0;
 		}
 	if (expectedSignature > 0)	/* caller wants us to verify
 					 * channel signature */
-		if (((CHANNEL_HEADER *) (pChannel))->Signature !=
-		    expectedSignature) {
+		if (readq(&((CHANNEL_HEADER __iomem *) (pChannel))->Signature)
+		    != expectedSignature) {
 			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
 					     "signature", expectedSignature,
-					     ((CHANNEL_HEADER *)
+					     ((CHANNEL_HEADER __iomem *)
 					      (pChannel))->Signature, fileName,
 					     lineNumber, logCtx);
 			return 0;
@@ -422,17 +428,18 @@ PathName_Last_N_Nodes(U8 *s, unsigned int n)
 }
 
 static inline int
-ULTRA_channel_client_acquire_os(void *pChannel, U8 *chanId, void *logCtx,
-				char *file, int line, char *func)
+ULTRA_channel_client_acquire_os(void __iomem *pChannel, U8 *chanId,
+				void *logCtx, char *file, int line, char *func)
 {
-	CHANNEL_HEADER *pChan = (CHANNEL_HEADER *) (pChannel);
+	CHANNEL_HEADER __iomem *pChan = pChannel;
 
-	if (pChan->CliStateOS == CHANNELCLI_DISABLED) {
-		if ((pChan->
-		     CliErrorOS & ULTRA_CLIERROROS_THROTTLEMSG_DISABLED) == 0) {
+	if (readl(&pChan->CliStateOS) == CHANNELCLI_DISABLED) {
+		if ((readb(&pChan->CliErrorOS)
+		     & ULTRA_CLIERROROS_THROTTLEMSG_DISABLED) == 0) {
 			/* we are NOT throttling this message */
-			pChan->CliErrorOS |=
-				ULTRA_CLIERROROS_THROTTLEMSG_DISABLED;
+			writeb(readb(&pChan->CliErrorOS) |
+			       ULTRA_CLIERROROS_THROTTLEMSG_DISABLED,
+			       &pChan->CliErrorOS);
 			/* throttle until acquire successful */
 
 			UltraLogEvent(logCtx,
@@ -445,24 +452,25 @@ ULTRA_channel_client_acquire_os(void *pChannel, U8 *chanId, void *logCtx,
 		}
 		return 0;
 	}
-	if ((pChan->CliStateOS != CHANNELCLI_OWNED)
-	    && (pChan->CliStateBoot == CHANNELCLI_DISABLED)) {
+	if ((readl(&pChan->CliStateOS) != CHANNELCLI_OWNED)
+	    && (readl(&pChan->CliStateBoot) == CHANNELCLI_DISABLED)) {
 		/* Our competitor is DISABLED, so we can transition to OWNED */
 		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
 			      CHANNELSTATE_DIAG_SEVERITY,
 			      CHANNELSTATE_DIAG_SUBSYS, func, line,
 			      "%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n",
 			      chanId, "CliStateOS",
-			      ULTRA_CHANNELCLI_STRING(pChan->CliStateOS),
-			      pChan->CliStateOS,
+			      ULTRA_CHANNELCLI_STRING(
+				      readl(&pChan->CliStateOS)),
+			      readl(&pChan->CliStateOS),
 			      ULTRA_CHANNELCLI_STRING(CHANNELCLI_OWNED),
 			      CHANNELCLI_OWNED,
 			      PathName_Last_N_Nodes((U8 *) file, 4), line);
-		pChan->CliStateOS = CHANNELCLI_OWNED;
+		writel(CHANNELCLI_OWNED, &pChan->CliStateOS);
 		MEMORYBARRIER;
 	}
-	if (pChan->CliStateOS == CHANNELCLI_OWNED) {
-		if (pChan->CliErrorOS != 0) {
+	if (readl(&pChan->CliStateOS) == CHANNELCLI_OWNED) {
+		if (readb(&pChan->CliErrorOS) != 0) {
 			/* we are in an error msg throttling state;
 			 * come out of it */
 			UltraLogEvent(logCtx,
@@ -472,7 +480,7 @@ ULTRA_channel_client_acquire_os(void *pChannel, U8 *chanId, void *logCtx,
 				      "%s Channel OS client acquire now successful @%s:%d\n",
 				      chanId, PathName_Last_N_Nodes((U8 *) file,
 								    4), line);
-			pChan->CliErrorOS = 0;
+			writeb(0, &pChan->CliErrorOS);
 		}
 		return 1;
 	}
@@ -480,13 +488,13 @@ ULTRA_channel_client_acquire_os(void *pChannel, U8 *chanId, void *logCtx,
 	/* We have to do it the "hard way".  We transition to BUSY,
 	* and can use the channel iff our competitor has not also
 	* transitioned to BUSY. */
-	if (pChan->CliStateOS != CHANNELCLI_ATTACHED) {
-		if ((pChan->
-		     CliErrorOS & ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED) ==
-		    0) {
+	if (readl(&pChan->CliStateOS) != CHANNELCLI_ATTACHED) {
+		if ((readb(&pChan->CliErrorOS)
+		     & ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED) == 0) {
 			/* we are NOT throttling this message */
-			pChan->CliErrorOS |=
-				ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED;
+			writeb(readb(&pChan->CliErrorOS) |
+			       ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED,
+			       &pChan->CliErrorOS);
 			/* throttle until acquire successful */
 			UltraLogEvent(logCtx,
 				      CHANNELSTATE_DIAG_EVENTID_TRANSITERR,
@@ -494,20 +502,23 @@ ULTRA_channel_client_acquire_os(void *pChannel, U8 *chanId, void *logCtx,
 				      CHANNELSTATE_DIAG_SUBSYS, func, line,
 				      "%s Channel StateTransition INVALID! - acquire failed because OS client NOT ATTACHED (state=%s(%d)) @%s:%d\n",
 				      chanId,
-				      ULTRA_CHANNELCLI_STRING(pChan->CliStateOS),
-				      pChan->CliStateOS,
+				      ULTRA_CHANNELCLI_STRING(
+					      readl(&pChan->CliStateOS)),
+				      readl(&pChan->CliStateOS),
 				      PathName_Last_N_Nodes((U8 *) file, 4),
 				      line);
 		}
 		return 0;
 	}
-	pChan->CliStateOS = CHANNELCLI_BUSY;
+	writel(CHANNELCLI_BUSY, &pChan->CliStateOS);
 	MEMORYBARRIER;
-	if (pChan->CliStateBoot == CHANNELCLI_BUSY) {
-		if ((pChan->CliErrorOS & ULTRA_CLIERROROS_THROTTLEMSG_BUSY) ==
-		    0) {
+	if (readl(&pChan->CliStateBoot) == CHANNELCLI_BUSY) {
+		if ((readb(&pChan->CliErrorOS)
+		     & ULTRA_CLIERROROS_THROTTLEMSG_BUSY) == 0) {
 			/* we are NOT throttling this message */
-			pChan->CliErrorOS |= ULTRA_CLIERROROS_THROTTLEMSG_BUSY;
+			writeb(readb(&pChan->CliErrorOS) |
+			       ULTRA_CLIERROROS_THROTTLEMSG_BUSY,
+			       &pChan->CliErrorOS);
 			/* throttle until acquire successful */
 			UltraLogEvent(logCtx,
 				      CHANNELSTATE_DIAG_EVENTID_TRANSITBUSY,
@@ -517,11 +528,12 @@ ULTRA_channel_client_acquire_os(void *pChannel, U8 *chanId, void *logCtx,
 				      chanId, PathName_Last_N_Nodes((U8 *) file,
 								    4), line);
 		}
-		pChan->CliStateOS = CHANNELCLI_ATTACHED;	/* reset busy */
+		/* reset busy */
+		writel(CHANNELCLI_ATTACHED, &pChan->CliStateOS);
 		MEMORYBARRIER;
 		return 0;
 	}
-	if (pChan->CliErrorOS != 0) {
+	if (readb(&pChan->CliErrorOS) != 0) {
 		/* we are in an error msg throttling state; come out of it */
 		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
 			      CHANNELSTATE_DIAG_SEVERITY,
@@ -529,17 +541,17 @@ ULTRA_channel_client_acquire_os(void *pChannel, U8 *chanId, void *logCtx,
 			      "%s Channel OS client acquire now successful @%s:%d\n",
 			      chanId, PathName_Last_N_Nodes((U8 *) file, 4),
 			      line);
-		pChan->CliErrorOS = 0;
+		writeb(0, &pChan->CliErrorOS);
 	}
 	return 1;
 }
 
 static inline void
-ULTRA_channel_client_release_os(void *pChannel, U8 *chanId, void *logCtx,
-				char *file, int line, char *func)
+ULTRA_channel_client_release_os(void __iomem *pChannel, U8 *chanId,
+				void *logCtx, char *file, int line, char *func)
 {
-	CHANNEL_HEADER *pChan = (CHANNEL_HEADER *) (pChannel);
-	if (pChan->CliErrorOS != 0) {
+	CHANNEL_HEADER __iomem *pChan = pChannel;
+	if (readb(&pChan->CliErrorOS) != 0) {
 		/* we are in an error msg throttling state; come out of it */
 		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
 			      CHANNELSTATE_DIAG_SEVERITY,
@@ -547,22 +559,23 @@ ULTRA_channel_client_release_os(void *pChannel, U8 *chanId, void *logCtx,
 			      "%s Channel OS client error state cleared @%s:%d\n",
 			      chanId, PathName_Last_N_Nodes((U8 *) file, 4),
 			      line);
-		pChan->CliErrorOS = 0;
+		writeb(0, &pChan->CliErrorOS);
 	}
-	if (pChan->CliStateOS == CHANNELCLI_OWNED)
+	if (readl(&pChan->CliStateOS) == CHANNELCLI_OWNED)
 		return;
-	if (pChan->CliStateOS != CHANNELCLI_BUSY) {
+	if (readl(&pChan->CliStateOS) != CHANNELCLI_BUSY) {
 		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITERR,
 			      CHANNELSTATE_DIAG_SEVERITY,
 			      CHANNELSTATE_DIAG_SUBSYS, func, line,
 			      "%s Channel StateTransition INVALID! - release failed because OS client NOT BUSY (state=%s(%d)) @%s:%d\n",
 			      chanId,
-			      ULTRA_CHANNELCLI_STRING(pChan->CliStateOS),
-			      pChan->CliStateOS,
+			      ULTRA_CHANNELCLI_STRING(
+				      readl(&pChan->CliStateOS)),
+			      readl(&pChan->CliStateOS),
 			      PathName_Last_N_Nodes((U8 *) file, 4), line);
 		/* return; */
 	}
-	pChan->CliStateOS = CHANNELCLI_ATTACHED;	/* release busy */
+	writel(CHANNELCLI_ATTACHED, &pChan->CliStateOS); /* release busy */
 }
 
 /*
@@ -584,7 +597,7 @@ ULTRA_channel_client_release_os(void *pChannel, U8 *chanId, void *logCtx,
 * full.
 */
 
-unsigned char visor_signal_insert(pCHANNEL_HEADER pChannel, U32 Queue,
+unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 				  void *pSignal);
 
 /*
@@ -606,7 +619,7 @@ unsigned char visor_signal_insert(pCHANNEL_HEADER pChannel, U32 Queue,
 * empty.
 */
 
-unsigned char visor_signal_remove(pCHANNEL_HEADER pChannel, U32 Queue,
+unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 				  void *pSignal);
 
 /*
@@ -642,6 +655,7 @@ unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, U32 Queue,
 * Return value:
 * 1 if the signal queue is empty, 0 otherwise.
 */
-unsigned char visor_signalqueue_empty(pCHANNEL_HEADER pChannel, U32 Queue);
+unsigned char visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel,
+				      U32 Queue);
 
 #endif

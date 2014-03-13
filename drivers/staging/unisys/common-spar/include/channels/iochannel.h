@@ -33,6 +33,7 @@
 #include "vmcallinterface.h"
 
 #define _ULTRA_CONTROLVM_CHANNEL_INLINE_
+#include <linux/dma-direction.h>
 #include "controlvmchannel.h"
 #include "vbuschannel.h"
 #undef _ULTRA_CONTROLVM_CHANNEL_INLINE_
@@ -142,12 +143,6 @@
 
 /* size of cdb - i.e., scsi cmnd */
 #define MAX_CMND_SIZE 16
-enum dma_data_dir {
-	DMA_DIR_BIDIR = 0,
-	DMA_DIR_TO_DEV,
-	DMA_DIR_FROM_DEV,
-	DMA_DIR_NONE
-};
 
 #define MAX_SENSE_SIZE 64
 
@@ -297,7 +292,7 @@ struct uiscmdrsp_scsi {
 	struct guest_phys_info gpi_list[MAX_PHYS_INFO];	/* physical address
 							 * information for each
 							 * fragment */
-	enum dma_data_dir data_dir;	/* direction of the data, if any */
+	enum dma_data_direction  data_dir; /* direction of the data, if any */
 	struct uisscsi_dest vdest;	/* identifies the virtual hba, id,
 					 * channel, lun to which cmd was sent */
 

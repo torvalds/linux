@@ -62,7 +62,7 @@ static int ProcReadBufferValid;
 static char *ProcReadBuffer;	/* Note this MUST be global,
 					 * because the contents must */
 static unsigned int chipset_inited;
-int callback_count = 0;
+
 #define WAIT_ON_CALLBACK(handle)	\
 	do {			\
 		if (handle)		\
@@ -77,31 +77,16 @@ static int MaxBusCount;		/* maximum number of buses expected */
 static U64 PhysicalDataChan;
 static int PlatformNumber;
 
-/* This is a list of controlvm messages which could not complete
- * immediately, but instead must be occasionally retried until they
- * ultimately succeed/fail.  When this happens,
- * msg->hdr.Flags.responseExpected determines whether or not we will
- * send a controlvm response.
- */
-struct controlvm_retry_entry {
-	CONTROLVM_MESSAGE msg;
-	struct io_msgs cmd;
-	void *obj;
-	int (*controlChanFunc)(struct io_msgs *);
-	struct list_head list_link;
-};
-LIST_HEAD(ControlVmRetryQHead);
-
 static struct uisthread_info Incoming_ThreadInfo;
 static BOOL Incoming_Thread_Started = FALSE;
-LIST_HEAD(List_Polling_Device_Channels);
-unsigned long long tot_moved_to_tail_cnt = 0;
-unsigned long long tot_wait_cnt = 0;
-unsigned long long tot_wakeup_cnt = 0;
-unsigned long long tot_schedule_cnt = 0;
-int en_smart_wakeup = 1;
+static LIST_HEAD(List_Polling_Device_Channels);
+static unsigned long long tot_moved_to_tail_cnt;
+static unsigned long long tot_wait_cnt;
+static unsigned long long tot_wakeup_cnt;
+static unsigned long long tot_schedule_cnt;
+static int en_smart_wakeup = 1;
 static DEFINE_SEMAPHORE(Lock_Polling_Device_Channels);	/* unlocked */
-DECLARE_WAIT_QUEUE_HEAD(Wakeup_Polling_Device_Channels);
+static DECLARE_WAIT_QUEUE_HEAD(Wakeup_Polling_Device_Channels);
 static int Go_Polling_Device_Channels;
 
 static struct proc_dir_entry *uislib_proc_dir;
@@ -144,7 +129,7 @@ static struct proc_dir_entry *disable_proc_entry;
 static struct proc_dir_entry *test_proc_entry;
 #define TEST_PROC_ENTRY_FN "test"
 #endif
-unsigned long long cycles_before_wait, wait_cycles;
+static unsigned long long cycles_before_wait, wait_cycles;
 
 /*****************************************************/
 /* local functions                                   */
@@ -276,11 +261,11 @@ create_bus_proc_entries(struct bus_info *bus)
 
 }
 
-static void *
+static __iomem void *
 init_vbus_channel(U64 channelAddr, U32 channelBytes, int isServer)
 {
 	void *rc = NULL;
-	void *pChan = uislib_ioremap_cache(channelAddr, channelBytes);
+	void __iomem *pChan = uislib_ioremap_cache(channelAddr, channelBytes);
 	if (!pChan) {
 		LOGERR("CONTROLVM_BUS_CREATE error: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
 		     (unsigned long long) channelAddr,
@@ -288,7 +273,7 @@ init_vbus_channel(U64 channelAddr, U32 channelBytes, int isServer)
 		RETPTR(NULL);
 	}
 	if (isServer) {
-		memset(pChan, 0, channelBytes);
+		memset_io(pChan, 0, channelBytes);
 		if (!ULTRA_VBUS_CHANNEL_OK_SERVER(channelBytes, NULL)) {
 			ERRDRV("%s channel cannot be used", __func__);
 			uislib_iounmap(pChan);
@@ -540,7 +525,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 	sprintf(dev->devid, "vbus%u:dev%u", (unsigned) busNo, (unsigned) devNo);
 	/* map the channel memory for the device. */
 	if (msg->hdr.Flags.testMessage)
-		dev->chanptr = __va(dev->channelAddr);
+		dev->chanptr = (void __iomem *)__va(dev->channelAddr);
 	else {
 		pReqHandler = ReqHandlerFind(dev->channelTypeGuid);
 		if (pReqHandler)
@@ -609,7 +594,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 				     &UltraVhbaChannelProtocolGuid,
 				     sizeof(GUID))) {
 					WAIT_FOR_VALID_GUID(((CHANNEL_HEADER
-							      *) (dev->
+							      __iomem *) (dev->
 								  chanptr))->
 							    Type);
 					if (!ULTRA_VHBA_CHANNEL_OK_CLIENT
@@ -636,7 +621,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					 &UltraVnicChannelProtocolGuid,
 					 sizeof(GUID))) {
 					WAIT_FOR_VALID_GUID(((CHANNEL_HEADER
-							      *) (dev->
+							      __iomem *) (dev->
 								  chanptr))->
 							    Type);
 					if (!ULTRA_VNIC_CHANNEL_OK_CLIENT
@@ -946,55 +931,6 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 	}
 
 	return CONTROLVM_RESP_SUCCESS;
-}
-
-void
-ULTRA_disp_channel_header(CHANNEL_HEADER *x)
-{
-	LOGINF("Sig=%llx, HdrSz=%lx, Sz=%llx, Feat=%llx, hPart=%llx, Hndl=%llx, ChSpace=%llx, Ver=%lx, PartIdx=%lx\n",
-	     x->Signature, (long unsigned int) x->HeaderSize, x->Size,
-	     x->Features, x->PartitionHandle, x->Handle, x->oChannelSpace,
-	     (long unsigned int) x->VersionId,
-	     (long unsigned int) x->PartitionIndex);
-
-	LOGINF("ClientStr=%lx, CliStBoot=%lx, CmdStCli=%lx, CliStOS=%lx, ChCharistics=%lx, CmdStSrv=%lx, SrvSt=%lx\n",
-	     (long unsigned int) x->oClientString,
-	     (long unsigned int) x->CliStateBoot,
-	     (long unsigned int) x->CmdStateCli,
-	     (long unsigned int) x->CliStateOS,
-	     (long unsigned int) x->ChannelCharacteristics,
-	     (long unsigned int) x->CmdStateSrv,
-	     (long unsigned int) x->SrvState);
-
-}
-
-void
-ULTRA_disp_channel(ULTRA_IO_CHANNEL_PROTOCOL *x)
-{
-	ULTRA_disp_channel_header(&x->ChannelHeader);
-	LOGINF("cmdQ.Type=%lx\n", (long unsigned int) x->cmdQ.Type);
-	LOGINF("cmdQ.Size=%llx\n", x->cmdQ.Size);
-	LOGINF("cmdQ.oSignalBase=%llx\n", x->cmdQ.oSignalBase);
-	LOGINF("cmdQ.SignalSize=%lx\n", (long unsigned int) x->cmdQ.SignalSize);
-	LOGINF("cmdQ.MaxSignalSlots=%lx\n",
-	       (long unsigned int) x->cmdQ.MaxSignalSlots);
-	LOGINF("cmdQ.MaxSignals=%lx\n", (long unsigned int) x->cmdQ.MaxSignals);
-	LOGINF("rspQ.Type=%lx\n", (long unsigned int) x->rspQ.Type);
-	LOGINF("rspQ.Size=%llx\n", x->rspQ.Size);
-	LOGINF("rspQ.oSignalBase=%llx\n", x->rspQ.oSignalBase);
-	LOGINF("rspQ.SignalSize=%lx\n", (long unsigned int) x->rspQ.SignalSize);
-	LOGINF("rspQ.MaxSignalSlots=%lx\n",
-	       (long unsigned int) x->rspQ.MaxSignalSlots);
-	LOGINF("rspQ.MaxSignals=%lx\n", (long unsigned int) x->rspQ.MaxSignals);
-	LOGINF("SIZEOF_CMDRSP=%lx\n", SIZEOF_CMDRSP);
-	LOGINF("SIZEOF_PROTOCOL=%lx\n", SIZEOF_PROTOCOL);
-}
-
-void
-ULTRA_disp_vnic_channel(ULTRA_IO_CHANNEL_PROTOCOL *x)
-{
-	LOGINF("num_rcv_bufs=%lx\n", (long unsigned int) x->vnic.num_rcv_bufs);
-	LOGINF("mtu=%lx\n", (long unsigned int) x->vnic.mtu);
 }
 
 static int
@@ -1332,7 +1268,7 @@ uislib_client_inject_del_vnic(U32 busNo, U32 devNo)
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_del_vnic);
 
-int
+static int
 uislib_client_add_vnic(U32 busNo)
 {
 	BOOL busCreated = FALSE;
@@ -1382,7 +1318,7 @@ AwayCleanup:
 }				/* end uislib_client_add_vnic */
 EXPORT_SYMBOL_GPL(uislib_client_add_vnic);
 
-int
+static int
 uislib_client_delete_vnic(U32 busNo)
 {
 	int devNo = 0;		/* Default to 0, since only one device
@@ -1791,16 +1727,16 @@ proc_info_vbus_show(struct seq_file *m, void *v)
 	    (bus->busChannelBytes -
 	     sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL)) /
 	    sizeof(ULTRA_VBUS_DEVICEINFO);
-	x = VBUSCHANNEL_devInfoToStringBuffer(bus->pBusChannel->ChpInfo, buf,
+	x = VBUSCHANNEL_devInfoToStringBuffer(&bus->pBusChannel->ChpInfo, buf,
 					      sizeof(buf) - 1, -1);
 	buf[x] = '\0';
 	seq_printf(m, "%s", buf);
-	x = VBUSCHANNEL_devInfoToStringBuffer(bus->pBusChannel->BusInfo,
+	x = VBUSCHANNEL_devInfoToStringBuffer(&bus->pBusChannel->BusInfo,
 					      buf, sizeof(buf) - 1, -1);
 	buf[x] = '\0';
 	seq_printf(m, "%s", buf);
 	for (i = 0; i < devInfoCount; i++) {
-		x = VBUSCHANNEL_devInfoToStringBuffer(bus->pBusChannel->
+		x = VBUSCHANNEL_devInfoToStringBuffer(&bus->pBusChannel->
 						      DevInfo[i], buf,
 						      sizeof(buf) - 1, i);
 		if (x > 0) {
@@ -2393,8 +2329,8 @@ do_wakeup_polling_device_channels(struct work_struct *dummy)
 	}
 }
 
-DECLARE_WORK(Work_wakeup_polling_device_channels,
-	     do_wakeup_polling_device_channels);
+static DECLARE_WORK(Work_wakeup_polling_device_channels,
+		    do_wakeup_polling_device_channels);
 
 /*  Call this function when you want to send a hint to Process_Incoming() that
  *  your device might have more requests.
@@ -2560,13 +2496,6 @@ uislib_mod_exit(void)
 
 module_init(uislib_mod_init);
 module_exit(uislib_mod_exit);
-
-int uis_mandatory_services = -1;
-
-module_param_named(mandatory_services, uis_mandatory_services,
-		   int, S_IRUGO);
-MODULE_PARM_DESC(uis_mandatory_services,
-		 "number of server drivers we expect to register (default=-1 for legacy behavior)");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Usha Srinivasan");

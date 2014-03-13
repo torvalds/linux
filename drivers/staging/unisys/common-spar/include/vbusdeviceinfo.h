@@ -50,12 +50,12 @@ typedef struct _ULTRA_VBUS_DEVICEINFO {
  * to a buffer at <p>, had it been infinitely big.
  */
 static inline int
-VBUSCHANNEL_sanitize_buffer(char *p, int remain, char *src, int srcmax)
+VBUSCHANNEL_sanitize_buffer(char *p, int remain, char __iomem *src, int srcmax)
 {
 	int chars = 0;
 	int nonprintable_streak = 0;
 	while (srcmax > 0) {
-		if ((*src >= ' ') && (*src < 0x7f)) {
+		if ((readb(src) >= ' ') && (readb(src) < 0x7f)) {
 			if (nonprintable_streak) {
 				if (remain > 0) {
 					*p = ' ';
@@ -67,7 +67,7 @@ VBUSCHANNEL_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 				nonprintable_streak = 0;
 			}
 			if (remain > 0) {
-				*p = *src;
+				*p = readb(src);
 				p++;
 				remain--;
 				chars++;
@@ -146,15 +146,15 @@ VBUSCHANNEL_itoa(char *p, int remain, int num)
  * Returns the number of bytes written to <p>.
  */
 static inline int
-VBUSCHANNEL_devInfoToStringBuffer(ULTRA_VBUS_DEVICEINFO devInfo,
+VBUSCHANNEL_devInfoToStringBuffer(ULTRA_VBUS_DEVICEINFO __iomem *devInfo,
 				  char *p, int remain, int devix)
 {
-	char *psrc;
+	char __iomem *psrc;
 	int nsrc, x, i, pad;
 	int chars = 0;
 
-	psrc = &(devInfo.devType[0]);
-	nsrc = sizeof(devInfo.devType);
+	psrc = &(devInfo->devType[0]);
+	nsrc = sizeof(devInfo->devType);
 	if (VBUSCHANNEL_sanitize_buffer(NULL, 0, psrc, nsrc) <= 0)
 		return 0;
 
@@ -183,8 +183,8 @@ VBUSCHANNEL_devInfoToStringBuffer(ULTRA_VBUS_DEVICEINFO devInfo,
 	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
 
 	/* emit driver name */
-	psrc = &(devInfo.drvName[0]);
-	nsrc = sizeof(devInfo.drvName);
+	psrc = &(devInfo->drvName[0]);
+	nsrc = sizeof(devInfo->drvName);
 	x = VBUSCHANNEL_sanitize_buffer(p, remain, psrc, nsrc);
 	p += x;
 	remain -= x;
@@ -195,8 +195,8 @@ VBUSCHANNEL_devInfoToStringBuffer(ULTRA_VBUS_DEVICEINFO devInfo,
 	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
 
 	/* emit strings */
-	psrc = &(devInfo.infoStrings[0]);
-	nsrc = sizeof(devInfo.infoStrings);
+	psrc = &(devInfo->infoStrings[0]);
+	nsrc = sizeof(devInfo->infoStrings);
 	x = VBUSCHANNEL_sanitize_buffer(p, remain, psrc, nsrc);
 	p += x;
 	remain -= x;

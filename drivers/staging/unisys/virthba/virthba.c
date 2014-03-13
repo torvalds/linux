@@ -81,11 +81,14 @@ static const char *virthba_get_info(struct Scsi_Host *shp);
 static int virthba_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 static int virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 				     void (*virthba_cmnd_done)(struct scsi_cmnd *));
+
 #ifdef DEF_SCSI_QCMD
 DEF_SCSI_QCMD(virthba_queue_command)
 #else
 #define virthba_queue_command virthba_queue_command_lck
 #endif
+
+
 static int virthba_slave_alloc(struct scsi_device *scsidev);
 static int virthba_slave_configure(struct scsi_device *scsidev);
 static void virthba_slave_destroy(struct scsi_device *scsidev);
@@ -108,11 +111,11 @@ static ssize_t enable_ints_write(struct file *file, const char __user *buffer,
 /* Globals                                           */
 /*****************************************************/
 
-int rsltq_wait_usecs = 4000;	/* Default 4ms */
+static int rsltq_wait_usecs = 4000;	/* Default 4ms */
 static unsigned int MaxBuffLen;
 
 /* Module options */
-char *virthba_options = "NONE";
+static char *virthba_options = "NONE";
 
 static const struct pci_device_id virthba_id_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_UNISYS, PCI_DEVICE_ID_VIRTHBA)},
@@ -179,7 +182,7 @@ struct virthba_info {
 	unsigned long long interrupts_notme;
 	unsigned long long interrupts_disabled;
 	struct work_struct serverdown_completion;
-	U64 *flags_addr;
+	U64 __iomem *flags_addr;
 	atomic_t interrupt_rcvd;
 	wait_queue_head_t rsp_queue;
 	struct virtdisk_info head;
@@ -322,9 +325,9 @@ del_scsipending_entry(struct virthba_info *vhbainfo, uintptr_t del)
 
 /* DARWorkQ (Disk Add/Remove) */
 static struct work_struct DARWorkQ;
-struct diskaddremove *DARWorkQHead = NULL;
-spinlock_t DARWorkQLock;
-unsigned short DARWorkQSched = 0;
+static struct diskaddremove *DARWorkQHead;
+static spinlock_t DARWorkQLock;
+static unsigned short DARWorkQSched;
 #define QUEUE_DISKADDREMOVE(dar) { \
 	spin_lock_irqsave(&DARWorkQLock, flags); \
 	if (!DARWorkQHead) { \
@@ -418,12 +421,12 @@ process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
 /*****************************************************/
 /* Probe Remove Functions                            */
 /*****************************************************/
-irqreturn_t
+static irqreturn_t
 virthba_ISR(int irq, void *dev_id)
 {
 	struct virthba_info *virthbainfo = (struct virthba_info *) dev_id;
-	pCHANNEL_HEADER pChannelHeader;
-	pSIGNAL_QUEUE_HEADER pqhdr;
+	CHANNEL_HEADER __iomem *pChannelHeader;
+	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
 	U64 mask;
 	unsigned long long rc1;
 
@@ -431,9 +434,10 @@ virthba_ISR(int irq, void *dev_id)
 		return IRQ_NONE;
 	virthbainfo->interrupts_rcvd++;
 	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	if (((pChannelHeader->Features
+	if (((readq(&pChannelHeader->Features)
 	      & ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS) != 0)
-	    && ((pChannelHeader->Features & ULTRA_IO_DRIVER_DISABLES_INTS) !=
+	    && ((readq(&pChannelHeader->Features) &
+		 ULTRA_IO_DRIVER_DISABLES_INTS) !=
 		0)) {
 		virthbainfo->interrupts_disabled++;
 		mask = ~ULTRA_CHANNEL_ENABLE_INTS;
@@ -443,10 +447,11 @@ virthba_ISR(int irq, void *dev_id)
 		virthbainfo->interrupts_notme++;
 		return IRQ_NONE;
 	}
-	pqhdr = (pSIGNAL_QUEUE_HEADER) ((char *) pChannelHeader +
-					pChannelHeader->oChannelSpace) +
-					IOCHAN_FROM_IOPART;
-	pqhdr->NumInterruptsReceived++;
+	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
+		((char __iomem *) pChannelHeader +
+		 readq(&pChannelHeader->oChannelSpace)) + IOCHAN_FROM_IOPART;
+	writeq(readq(&pqhdr->NumInterruptsReceived) + 1,
+	       &pqhdr->NumInterruptsReceived);
 	atomic_set(&virthbainfo->interrupt_rcvd, 1);
 	wake_up_interruptible(&virthbainfo->rsp_queue);
 	return IRQ_HANDLED;
@@ -461,8 +466,8 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	int rsp;
 	int i;
 	irq_handler_t handler = virthba_ISR;
-	pCHANNEL_HEADER pChannelHeader;
-	pSIGNAL_QUEUE_HEADER pqhdr;
+	CHANNEL_HEADER __iomem *pChannelHeader;
+	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
 	U64 mask;
 
 	LOGVER("entering virthba_probe...\n");
@@ -578,16 +583,17 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	INIT_WORK(&virthbainfo->serverdown_completion,
 		  virthba_serverdown_complete);
 
-	virthbainfo->chinfo.queueinfo->chan->Features |=
-	    ULTRA_IO_CHANNEL_IS_POLLING;
+	writeq(readq(&virthbainfo->chinfo.queueinfo->chan->Features) |
+	       ULTRA_IO_CHANNEL_IS_POLLING,
+	       &virthbainfo->chinfo.queueinfo->chan->Features);
 	/* start thread that will receive scsicmnd responses */
 	DBGINF("starting rsp thread -- queueinfo: 0x%p, threadinfo: 0x%p.\n",
 	       virthbainfo->chinfo.queueinfo, &virthbainfo->chinfo.threadinfo);
 
 	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	pqhdr = (pSIGNAL_QUEUE_HEADER) ((char *) pChannelHeader +
-					pChannelHeader->oChannelSpace) +
-					IOCHAN_FROM_IOPART;
+	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
+		((char __iomem *)pChannelHeader +
+		 readq(&pChannelHeader->oChannelSpace)) + IOCHAN_FROM_IOPART;
 	virthbainfo->flags_addr = &pqhdr->FeatureFlags;
 
 	if (!uisthread_start(&virthbainfo->chinfo.threadinfo,
@@ -620,7 +626,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		virthbainfo->interrupt_vector = -1;
 		POSTCODE_LINUX_2(VHBA_PROBE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 	} else {
-		U64 *Features_addr =
+		U64 __iomem *Features_addr =
 		    &virthbainfo->chinfo.queueinfo->chan->Features;
 		LOGERR("request_irq(%d) uislib_virthba_ISR request succeeded\n",
 		       virthbainfo->interrupt_vector);
@@ -1408,14 +1414,13 @@ info_proc_read(struct file *file, char __user *buf, size_t len, loff_t *offset)
 				  virthbainfo->interrupts_disabled);
 		length += sprintf(vbuf + length, "\ninterrupts_notme = %llu,\n",
 				  virthbainfo->interrupts_notme);
-		phys_flags_addr = virt_to_phys(virthbainfo->flags_addr);
-
+		phys_flags_addr = virt_to_phys((__force  void *)
+					       virthbainfo->flags_addr);
 		length += sprintf(vbuf + length, "flags_addr = %p, phys_flags_addr=0x%016llx, FeatureFlags=%llu\n",
 			  virthbainfo->flags_addr, phys_flags_addr,
-			  *virthbainfo->flags_addr);
+				  (__le64)readq(virthbainfo->flags_addr));
 		length += sprintf(vbuf + length, "acquire_failed_cnt:%llu\n",
 				  virthbainfo->acquire_failed_cnt);
-
 		length += sprintf(vbuf + length, "\n");
 	}
 	if (copy_to_user(buf, vbuf, length)) {
@@ -1442,7 +1447,7 @@ enable_ints_write(struct file *file, const char __user *buffer,
 	char buf[4];
 	int i, new_value;
 	struct virthba_info *virthbainfo;
-	U64 *Features_addr;
+	U64 __iomem *Features_addr;
 	U64 mask;
 
 	if (count >= ARRAY_SIZE(buf))
@@ -1544,7 +1549,6 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	 */
 	ULTRA_CHANNEL_CLIENT_TRANSITION(virthbainfo->chinfo.queueinfo->chan,
 					dev_name(&virtpcidev->generic_dev),
-					CliStateOS,
 					CHANNELCLI_ATTACHED, NULL);
 
 	/* Start Processing the IOVM Response Queue Again */
