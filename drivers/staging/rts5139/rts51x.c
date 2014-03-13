@@ -832,7 +832,7 @@ static void rts51x_disconnect(struct usb_interface *intf)
  * Initialization and registration
  ***********************************************************************/
 
-struct usb_device_id rts5139_usb_ids[] = {
+static struct usb_device_id rts5139_usb_ids[] = {
 	{USB_DEVICE(0x0BDA, 0x0139)},
 	{USB_DEVICE(0x0BDA, 0x0129)},
 	{}			/* Terminating entry */
