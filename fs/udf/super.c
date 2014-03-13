@@ -646,6 +646,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	int error = 0;
 	struct logicalVolIntegrityDescImpUse *lvidiu = udf_sb_lvidiu(sb);
 
+	sync_filesystem(sb);
 	if (lvidiu) {
 		int write_rev = le16_to_cpu(lvidiu->minUDFWriteRev);
 		if (write_rev > UDF_MAX_WRITE_VERSION && !(*flags & MS_RDONLY))
