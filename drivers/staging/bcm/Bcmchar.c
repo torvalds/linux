@@ -1428,10 +1428,8 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 		return STATUS_FAILURE;
 
 	if (stNVMReadWrite.uiOffset >
-		Adapter->uiNVMDSDSize - stNVMReadWrite.uiNumBytes) {
-		/* BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Can't allow access beyond NVM Size: 0x%x 0x%x\n", stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes); */
+		Adapter->uiNVMDSDSize - stNVMReadWrite.uiNumBytes)
 		return STATUS_FAILURE;
-	}
 
 	pReadData = memdup_user(stNVMReadWrite.pBuffer,
 				stNVMReadWrite.uiNumBytes);
