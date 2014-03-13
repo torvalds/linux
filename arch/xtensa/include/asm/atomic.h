@@ -19,6 +19,7 @@
 #ifdef __KERNEL__
 #include <asm/processor.h>
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #define ATOMIC_INIT(i)	{ (i) }
 
@@ -386,12 +387,6 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 			);
 #endif
 }
-
-/* Atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 #endif /* __KERNEL__ */
 
