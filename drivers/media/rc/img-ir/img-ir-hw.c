@@ -497,7 +497,7 @@ set_unlock:
 		break;
 	default:
 		ret = -EINVAL;
-	};
+	}
 
 unlock:
 	spin_unlock_irq(&priv->lock);
