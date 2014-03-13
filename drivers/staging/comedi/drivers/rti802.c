@@ -64,21 +64,30 @@ static int rti802_ao_insn_read(struct comedi_device *dev,
 
 static int rti802_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct rti802_private *devpriv = dev->private;
-	int i, d;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
+
+	outb(chan, dev->iobase + RTI802_SELECT);
 
 	for (i = 0; i < insn->n; i++) {
-		d = devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+
+		devpriv->ao_readback[chan] = val;
+
+		/* munge offset binary to two's complement if needed */
 		if (devpriv->dac_coding[chan] == dac_2comp)
-			d ^= 0x800;
-		outb(chan, dev->iobase + RTI802_SELECT);
-		outb(d & 0xff, dev->iobase + RTI802_DATALOW);
-		outb(d >> 8, dev->iobase + RTI802_DATAHIGH);
+			val = comedi_offset_munge(s, val);
+
+		outb(val & 0xff, dev->iobase + RTI802_DATALOW);
+		outb((val >> 8) & 0xff, dev->iobase + RTI802_DATAHIGH);
 	}
-	return i;
+
+	return insn->n;
 }
 
 static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
