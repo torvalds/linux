@@ -986,7 +986,6 @@ static void add_out_dtd(struct vpe_ctx *ctx, int port)
 	struct vpe_q_data *q_data = &ctx->q_data[Q_DATA_DST];
 	const struct vpe_port_data *p_data = &port_data[port];
 	struct vb2_buffer *vb = ctx->dst_vb;
-	struct v4l2_rect *c_rect = &q_data->c_rect;
 	struct vpe_fmt *fmt = q_data->fmt;
 	const struct vpdma_data_format *vpdma_fmt;
 	int mv_buf_selector = !ctx->src_mv_buf_selector;
@@ -1015,8 +1014,8 @@ static void add_out_dtd(struct vpe_ctx *ctx, int port)
 	if (q_data->flags & Q_DATA_MODE_TILED)
 		flags |= VPDMA_DATA_MODE_TILED;
 
-	vpdma_add_out_dtd(&ctx->desc_list, c_rect, vpdma_fmt, dma_addr,
-		p_data->channel, flags);
+	vpdma_add_out_dtd(&ctx->desc_list, q_data->width, &q_data->c_rect,
+		vpdma_fmt, dma_addr, p_data->channel, flags);
 }
 
 static void add_in_dtd(struct vpe_ctx *ctx, int port)
@@ -1024,11 +1023,11 @@ static void add_in_dtd(struct vpe_ctx *ctx, int port)
 	struct vpe_q_data *q_data = &ctx->q_data[Q_DATA_SRC];
 	const struct vpe_port_data *p_data = &port_data[port];
 	struct vb2_buffer *vb = ctx->src_vbs[p_data->vb_index];
-	struct v4l2_rect *c_rect = &q_data->c_rect;
 	struct vpe_fmt *fmt = q_data->fmt;
 	const struct vpdma_data_format *vpdma_fmt;
 	int mv_buf_selector = ctx->src_mv_buf_selector;
 	int field = vb->v4l2_buf.field == V4L2_FIELD_BOTTOM;
+	int frame_width, frame_height;
 	dma_addr_t dma_addr;
 	u32 flags = 0;
 
@@ -1055,8 +1054,15 @@ static void add_in_dtd(struct vpe_ctx *ctx, int port)
 	if (q_data->flags & Q_DATA_MODE_TILED)
 		flags |= VPDMA_DATA_MODE_TILED;
 
-	vpdma_add_in_dtd(&ctx->desc_list, q_data->width, q_data->height,
-		c_rect, vpdma_fmt, dma_addr, p_data->channel, field, flags);
+	frame_width = q_data->c_rect.width;
+	frame_height = q_data->c_rect.height;
+
+	if (p_data->vb_part && fmt->fourcc == V4L2_PIX_FMT_NV12)
+		frame_height /= 2;
+
+	vpdma_add_in_dtd(&ctx->desc_list, q_data->width, &q_data->c_rect,
+		vpdma_fmt, dma_addr, p_data->channel, field, flags, frame_width,
+		frame_height, 0, 0);
 }
 
 /*

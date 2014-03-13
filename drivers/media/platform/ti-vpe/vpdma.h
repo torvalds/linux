@@ -186,13 +186,15 @@ void vpdma_add_cfd_adb(struct vpdma_desc_list *list, int client,
 		struct vpdma_buf *adb);
 void vpdma_add_sync_on_channel_ctd(struct vpdma_desc_list *list,
 		enum vpdma_channel chan);
-void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
+void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		enum vpdma_channel chan, u32 flags);
-void vpdma_add_in_dtd(struct vpdma_desc_list *list, int frame_width,
-		int frame_height, struct v4l2_rect *c_rect,
+void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
-		enum vpdma_channel chan, int field, u32 flags);
+		enum vpdma_channel chan, int field, u32 flags, int frame_width,
+		int frame_height, int start_h, int start_v);
 
 /* vpdma list interrupt management */
 void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int list_num,
