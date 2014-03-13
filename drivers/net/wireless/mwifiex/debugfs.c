@@ -85,8 +85,8 @@ static struct mwifiex_debug_data items[] = {
 	 item_addr(hs_activated), 1},
 	{"num_tx_timeout", item_size(num_tx_timeout),
 	 item_addr(num_tx_timeout), 1},
-	{"num_cmd_timeout", item_size(num_cmd_timeout),
-	 item_addr(num_cmd_timeout), 1},
+	{"is_cmd_timedout", item_size(is_cmd_timedout),
+	 item_addr(is_cmd_timedout), 1},
 	{"timeout_cmd_id", item_size(timeout_cmd_id),
 	 item_addr(timeout_cmd_id), 1},
 	{"timeout_cmd_act", item_size(timeout_cmd_act),
@@ -493,7 +493,7 @@ mwifiex_regrdwr_write(struct file *file,
 {
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	size_t buf_size = min(count, (size_t) (PAGE_SIZE - 1));
+	size_t buf_size = min_t(size_t, count, PAGE_SIZE - 1);
 	int ret;
 	u32 reg_type = 0, reg_offset = 0, reg_value = UINT_MAX;
 
@@ -594,7 +594,7 @@ mwifiex_rdeeprom_write(struct file *file,
 {
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	size_t buf_size = min(count, (size_t) (PAGE_SIZE - 1));
+	size_t buf_size = min_t(size_t, count, PAGE_SIZE - 1);
 	int ret = 0;
 	int offset = -1, bytes = -1;
 

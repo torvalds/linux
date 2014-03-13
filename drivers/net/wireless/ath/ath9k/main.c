@@ -451,7 +451,7 @@ void ath9k_tasklet(unsigned long data)
 		 * interrupts are enabled in the reset routine.
 		 */
 		atomic_inc(&ah->intr_ref_cnt);
-		ath_dbg(common, ANY, "FATAL: Skipping interrupts\n");
+		ath_dbg(common, RESET, "FATAL: Skipping interrupts\n");
 		goto out;
 	}
 
@@ -471,7 +471,7 @@ void ath9k_tasklet(unsigned long data)
 			 * interrupts are enabled in the reset routine.
 			 */
 			atomic_inc(&ah->intr_ref_cnt);
-			ath_dbg(common, ANY,
+			ath_dbg(common, RESET,
 				"BB_WATCHDOG: Skipping interrupts\n");
 			goto out;
 		}
@@ -484,7 +484,7 @@ void ath9k_tasklet(unsigned long data)
 			type = RESET_TYPE_TX_GTT;
 			ath9k_queue_reset(sc, type);
 			atomic_inc(&ah->intr_ref_cnt);
-			ath_dbg(common, ANY,
+			ath_dbg(common, RESET,
 				"GTT: Skipping interrupts\n");
 			goto out;
 		}
@@ -2053,7 +2053,7 @@ static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 		ah->rxchainmask = fill_chainmask(ah->caps.rx_chainmask, rx_ant);
 
 	ah->txchainmask = fill_chainmask(ah->caps.tx_chainmask, tx_ant);
-	ath9k_reload_chainmask_settings(sc);
+	ath9k_cmn_reload_chainmask(ah);
 
 	return 0;
 }

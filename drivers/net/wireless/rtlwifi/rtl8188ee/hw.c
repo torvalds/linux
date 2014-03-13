@@ -41,7 +41,6 @@
 #include "fw.h"
 #include "led.h"
 #include "hw.h"
-#include "pwrseqcmd.h"
 #include "pwrseq.h"
 
 #define LLT_CONFIG		5
@@ -509,7 +508,7 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		u8 e_aci = *((u8 *)val);
 		rtl88e_dm_init_edca_turbo(hw);
 
-		if (rtlpci->acm_method != eAcmWay2_SW)
+		if (rtlpci->acm_method != EACMWAY2_SW)
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ACM_CTRL,
 						      (u8 *)(&e_aci));
 		break; }
@@ -815,11 +814,11 @@ static bool _rtl88ee_init_mac(struct ieee80211_hw *hw)
 
 	rtl_write_byte(rtlpriv, REG_RSV_CTRL, 0x00);
 	/* HW Power on sequence */
-	if (!rtl88_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK,
-					PWR_FAB_ALL_MSK, PWR_INTF_PCI_MSK,
-					Rtl8188E_NIC_ENABLE_FLOW)) {
+	if (!rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK,
+				      PWR_FAB_ALL_MSK, PWR_INTF_PCI_MSK,
+				      Rtl8188E_NIC_ENABLE_FLOW)) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-			 "init MAC Fail as rtl88_hal_pwrseqcmdparsing\n");
+			 "init MAC Fail as rtl_hal_pwrseqcmdparsing\n");
 		return false;
 	}
 
@@ -1025,9 +1024,20 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	bool rtstatus = true;
 	int err = 0;
 	u8 tmp_u1b, u1byte;
+	unsigned long flags;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Rtl8188EE hw init\n");
 	rtlpriv->rtlhal.being_init_adapter = true;
+	/* As this function can take a very long time (up to 350 ms)
+	 * and can be called with irqs disabled, reenable the irqs
+	 * to let the other devices continue being serviced.
+	 *
+	 * It is safe doing so since our own interrupts will only be enabled
+	 * in a subsequent step.
+	 */
+	local_save_flags(flags);
+	local_irq_enable();
+
 	rtlpriv->intf_ops->disable_aspm(hw);
 
 	tmp_u1b = rtl_read_byte(rtlpriv, REG_SYS_CLKR+1);
@@ -1043,7 +1053,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	if (rtstatus != true) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
 		err = 1;
-		return err;
+		goto exit;
 	}
 
 	err = rtl88e_download_fw(hw, false);
@@ -1051,8 +1061,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW now..\n");
 		err = 1;
-		rtlhal->fw_ready = false;
-		return err;
+		goto exit;
 	} else {
 		rtlhal->fw_ready = true;
 	}
@@ -1097,7 +1106,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	if (ppsc->rfpwr_state == ERFON) {
 		if ((rtlefuse->antenna_div_type == CGCS_RX_HW_ANTDIV) ||
 		    ((rtlefuse->antenna_div_type == CG_TRX_HW_ANTDIV) &&
-		    (rtlhal->oem_id == RT_CID_819x_HP))) {
+		    (rtlhal->oem_id == RT_CID_819X_HP))) {
 			rtl88e_phy_set_rfpath_switch(hw, true);
 			rtlpriv->dm.fat_table.rx_idle_ant = MAIN_ANT;
 		} else {
@@ -1135,10 +1144,12 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	}
 	rtl_write_byte(rtlpriv, REG_NAV_CTRL+2,  ((30000+127)/128));
 	rtl88e_dm_init(hw);
+exit:
+	local_irq_restore(flags);
 	rtlpriv->rtlhal.being_init_adapter = false;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "end of Rtl8188EE hw init %x\n",
 		 err);
-	return 0;
+	return err;
 }
 
 static enum version_8188e _rtl88ee_read_chip_version(struct ieee80211_hw *hw)
@@ -1235,11 +1246,12 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 void rtl88ee_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	u32 reg_rcr = rtlpci->receive_config;
+	u32 reg_rcr;
 
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
+
+	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 
 	if (check_bssid == true) {
 		reg_rcr |= (RCR_CBSSID_DATA | RCR_CBSSID_BCN);
@@ -1345,9 +1357,9 @@ static void _rtl88ee_poweroff_adapter(struct ieee80211_hw *hw)
 	}
 	rtl_write_byte(rtlpriv, REG_PCIE_CTRL_REG+1, 0xFF);
 
-	rtl88_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-				   PWR_INTF_PCI_MSK,
-				   Rtl8188E_NIC_LPS_ENTER_FLOW);
+	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
+				 PWR_INTF_PCI_MSK,
+				 Rtl8188E_NIC_LPS_ENTER_FLOW);
 
 	rtl_write_byte(rtlpriv, REG_RF_CTRL, 0x00);
 
@@ -1361,8 +1373,8 @@ static void _rtl88ee_poweroff_adapter(struct ieee80211_hw *hw)
 	u1b_tmp = rtl_read_byte(rtlpriv, REG_32K_CTRL);
 	rtl_write_byte(rtlpriv, REG_32K_CTRL, (u1b_tmp & (~BIT(0))));
 
-	rtl88_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-				   PWR_INTF_PCI_MSK, Rtl8188E_NIC_DISABLE_FLOW);
+	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
+				 PWR_INTF_PCI_MSK, Rtl8188E_NIC_DISABLE_FLOW);
 
 	u1b_tmp = rtl_read_byte(rtlpriv, REG_RSV_CTRL+1);
 	rtl_write_byte(rtlpriv, REG_RSV_CTRL+1, (u1b_tmp & (~BIT(3))));
@@ -1872,15 +1884,15 @@ static void _rtl88ee_read_adapter_info(struct ieee80211_hw *hw)
 		case EEPROM_CID_DEFAULT:
 			if (rtlefuse->eeprom_did == 0x8179) {
 				if (rtlefuse->eeprom_svid == 0x1025) {
-					rtlhal->oem_id = RT_CID_819x_Acer;
+					rtlhal->oem_id = RT_CID_819X_ACER;
 				} else if ((rtlefuse->eeprom_svid == 0x10EC &&
 					    rtlefuse->eeprom_smid == 0x0179) ||
 					    (rtlefuse->eeprom_svid == 0x17AA &&
 					    rtlefuse->eeprom_smid == 0x0179)) {
-					rtlhal->oem_id = RT_CID_819x_Lenovo;
+					rtlhal->oem_id = RT_CID_819X_LENOVO;
 				} else if (rtlefuse->eeprom_svid == 0x103c &&
 					 rtlefuse->eeprom_smid == 0x197d) {
-					rtlhal->oem_id = RT_CID_819x_HP;
+					rtlhal->oem_id = RT_CID_819X_HP;
 				} else {
 					rtlhal->oem_id = RT_CID_DEFAULT;
 				}
@@ -1892,7 +1904,7 @@ static void _rtl88ee_read_adapter_info(struct ieee80211_hw *hw)
 			rtlhal->oem_id = RT_CID_TOSHIBA;
 			break;
 		case EEPROM_CID_QMI:
-			rtlhal->oem_id = RT_CID_819x_QMI;
+			rtlhal->oem_id = RT_CID_819X_QMI;
 			break;
 		case EEPROM_CID_WHQL:
 		default:
@@ -1911,14 +1923,14 @@ static void _rtl88ee_hal_customized_behavior(struct ieee80211_hw *hw)
 	pcipriv->ledctl.led_opendrain = true;
 
 	switch (rtlhal->oem_id) {
-	case RT_CID_819x_HP:
+	case RT_CID_819X_HP:
 		pcipriv->ledctl.led_opendrain = true;
 		break;
-	case RT_CID_819x_Lenovo:
+	case RT_CID_819X_LENOVO:
 	case RT_CID_DEFAULT:
 	case RT_CID_TOSHIBA:
 	case RT_CID_CCX:
-	case RT_CID_819x_Acer:
+	case RT_CID_819X_ACER:
 	case RT_CID_WHQL:
 	default:
 		break;

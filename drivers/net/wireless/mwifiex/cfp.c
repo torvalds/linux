@@ -253,7 +253,7 @@ u32 mwifiex_index_to_data_rate(struct mwifiex_private *priv,
 			       u8 index, u8 ht_info)
 {
 	u32 mcs_num_supp =
-		(priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2) ? 16 : 8;
+		(priv->adapter->user_dev_mcs_support == HT_STREAM_2X2) ? 16 : 8;
 	u32 rate;
 
 	if (priv->adapter->is_hw_11ac_capable)

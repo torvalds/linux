@@ -108,6 +108,9 @@ enum {
  * @HWSIM_ATTR_REG_CUSTOM_REG: custom regulatory domain index (u32 attribute)
  * @HWSIM_ATTR_REG_STRICT_REG: request REGULATORY_STRICT_REG (flag attribute)
  * @HWSIM_ATTR_SUPPORT_P2P_DEVICE: support P2P Device virtual interface (flag)
+ * @HWSIM_ATTR_USE_CHANCTX: used with the %HWSIM_CMD_CREATE_RADIO
+ *	command to force use of channel contexts even when only a
+ *	single channel is supported
  * @__HWSIM_ATTR_MAX: enum limit
  */
 
@@ -128,6 +131,7 @@ enum {
 	HWSIM_ATTR_REG_CUSTOM_REG,
 	HWSIM_ATTR_REG_STRICT_REG,
 	HWSIM_ATTR_SUPPORT_P2P_DEVICE,
+	HWSIM_ATTR_USE_CHANCTX,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)

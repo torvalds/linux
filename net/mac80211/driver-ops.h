@@ -354,16 +354,20 @@ drv_sched_scan_start(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline void drv_sched_scan_stop(struct ieee80211_local *local,
-				       struct ieee80211_sub_if_data *sdata)
+static inline int drv_sched_scan_stop(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata)
 {
+	int ret;
+
 	might_sleep();
 
 	check_sdata_in_driver(sdata);
 
 	trace_drv_sched_scan_stop(local, sdata);
-	local->ops->sched_scan_stop(&local->hw, &sdata->vif);
-	trace_drv_return_void(local);
+	ret = local->ops->sched_scan_stop(&local->hw, &sdata->vif);
+	trace_drv_return_int(local, ret);
+
+	return ret;
 }
 
 static inline void drv_sw_scan_start(struct ieee80211_local *local)

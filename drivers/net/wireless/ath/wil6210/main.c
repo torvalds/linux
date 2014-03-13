@@ -16,8 +16,10 @@
 
 #include <linux/moduleparam.h>
 #include <linux/if_arp.h>
+#include <linux/etherdevice.h>
 
 #include "wil6210.h"
+#include "txrx.h"
 
 /*
  * Due to a hardware issue,
@@ -52,29 +54,75 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 		__raw_writel(*s++, d++);
 }
 
-static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
+static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 {
 	uint i;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct wil_sta_info *sta = &wil->sta[cid];
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
-
-	wil_link_off(wil);
-	if (test_bit(wil_status_fwconnected, &wil->status)) {
-		clear_bit(wil_status_fwconnected, &wil->status);
-		cfg80211_disconnected(ndev,
-				      WLAN_STATUS_UNSPECIFIED_FAILURE,
-				      NULL, 0, GFP_KERNEL);
-	} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
-		cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
-					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					GFP_KERNEL);
+	if (sta->status != wil_sta_unused) {
+		wmi_disconnect_sta(wil, sta->addr, WLAN_REASON_DEAUTH_LEAVING);
+		sta->status = wil_sta_unused;
 	}
-	clear_bit(wil_status_fwconnecting, &wil->status);
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
-		wil_vring_fini_tx(wil, i);
 
-	clear_bit(wil_status_dontscan, &wil->status);
+	for (i = 0; i < WIL_STA_TID_NUM; i++) {
+		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+		sta->tid_rx[i] = NULL;
+		wil_tid_ampdu_rx_free(wil, r);
+	}
+	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
+		if (wil->vring2cid_tid[i][0] == cid)
+			wil_vring_fini_tx(wil, i);
+	}
+	memset(&sta->stats, 0, sizeof(sta->stats));
+}
+
+static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
+{
+	int cid = -ENOENT;
+	struct net_device *ndev = wil_to_ndev(wil);
+	struct wireless_dev *wdev = wil->wdev;
+
+	might_sleep();
+	if (bssid) {
+		cid = wil_find_cid(wil, bssid);
+		wil_dbg_misc(wil, "%s(%pM, CID %d)\n", __func__, bssid, cid);
+	} else {
+		wil_dbg_misc(wil, "%s(all)\n", __func__);
+	}
+
+	if (cid >= 0) /* disconnect 1 peer */
+		wil_disconnect_cid(wil, cid);
+	else /* disconnect all */
+		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
+			wil_disconnect_cid(wil, cid);
+
+	/* link state */
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		wil_link_off(wil);
+		if (test_bit(wil_status_fwconnected, &wil->status)) {
+			clear_bit(wil_status_fwconnected, &wil->status);
+			cfg80211_disconnected(ndev,
+					      WLAN_STATUS_UNSPECIFIED_FAILURE,
+					      NULL, 0, GFP_KERNEL);
+		} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
+			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
+						WLAN_STATUS_UNSPECIFIED_FAILURE,
+						GFP_KERNEL);
+		}
+		clear_bit(wil_status_fwconnecting, &wil->status);
+		wil_dbg_misc(wil, "clear_bit(wil_status_dontscan)\n");
+		clear_bit(wil_status_dontscan, &wil->status);
+		break;
+	default:
+		/* AP-like interface and monitor:
+		 * never scan, always connected
+		 */
+		if (bssid)
+			cfg80211_del_sta(ndev, bssid, GFP_KERNEL);
+		break;
+	}
 }
 
 static void wil_disconnect_worker(struct work_struct *work)
@@ -97,12 +145,23 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
+static int wil_find_free_vring(struct wil6210_priv *wil)
+{
+	int i;
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		if (!wil->vring_tx[i].va)
+			return i;
+	}
+	return -EINVAL;
+}
+
 static void wil_connect_worker(struct work_struct *work)
 {
 	int rc;
 	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
 						connect_worker);
 	int cid = wil->pending_connect_cid;
+	int ringid = wil_find_free_vring(wil);
 
 	if (cid < 0) {
 		wil_err(wil, "No connection pending\n");
@@ -111,15 +170,21 @@ static void wil_connect_worker(struct work_struct *work)
 
 	wil_dbg_wmi(wil, "Configure for connection CID %d\n", cid);
 
-	rc = wil_vring_init_tx(wil, 0, WIL6210_TX_RING_SIZE, cid, 0);
+	rc = wil_vring_init_tx(wil, ringid, WIL6210_TX_RING_SIZE, cid, 0);
 	wil->pending_connect_cid = -1;
-	if (rc == 0)
+	if (rc == 0) {
+		wil->sta[cid].status = wil_sta_connected;
 		wil_link_on(wil);
+	} else {
+		wil->sta[cid].status = wil_sta_unused;
+	}
 }
 
 int wil_priv_init(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	memset(wil->sta, 0, sizeof(wil->sta));
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);
@@ -367,6 +432,22 @@ int wil_down(struct wil6210_priv *wil)
 	mutex_lock(&wil->mutex);
 	rc = __wil_down(wil);
 	mutex_unlock(&wil->mutex);
+
+	return rc;
+}
+
+int wil_find_cid(struct wil6210_priv *wil, const u8 *mac)
+{
+	int i;
+	int rc = -ENOENT;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		if ((wil->sta[i].status != wil_sta_unused) &&
+		    ether_addr_equal(wil->sta[i].addr, mac)) {
+			rc = i;
+			break;
+		}
+	}
 
 	return rc;
 }

@@ -128,12 +128,11 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 #endif
 	check_chan = params->chandef.chan;
 	if (params->userspace_handles_dfs) {
-		/* use channel NULL to check for radar even if the current
-		 * channel is not a radar channel - it might decide to change
-		 * to DFS channel later.
+		/* Check for radar even if the current channel is not
+		 * a radar channel - it might decide to change to DFS
+		 * channel later.
 		 */
 		radar_detect_width = BIT(params->chandef.width);
-		check_chan = NULL;
 	}
 
 	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,

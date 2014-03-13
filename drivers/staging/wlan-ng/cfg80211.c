@@ -416,7 +416,7 @@ static int prism2_scan(struct wiphy *wiphy,
 		memcpy(&ie_buf[2], &(msg2.ssid.data.data), msg2.ssid.data.len);
 		bss = cfg80211_inform_bss(wiphy,
 			ieee80211_get_channel(wiphy,
-			      ieee80211_dsss_chan_to_freq(msg2.dschannel.data)),
+			      ieee80211_channel_to_frequency(msg2.dschannel.data, IEEE80211_BAND_2GHZ)),
 			(const u8 *) &(msg2.bssid.data.data),
 			msg2.timestamp.data, msg2.capinfo.data,
 			msg2.beaconperiod.data,

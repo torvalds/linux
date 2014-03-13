@@ -142,7 +142,7 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 	mwifiex_11n_dispatch_pkt(priv, tbl, (tbl->start_win + tbl->win_size) &
 					    (MAX_TID_VALUE - 1));
 
-	del_timer(&tbl->timer_context.timer);
+	del_timer_sync(&tbl->timer_context.timer);
 
 	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	list_del(&tbl->list);
@@ -279,6 +279,8 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	new_node->tid = tid;
 	memcpy(new_node->ta, ta, ETH_ALEN);
 	new_node->start_win = seq_num;
+	new_node->init_win = seq_num;
+	new_node->flags = 0;
 
 	if (mwifiex_queuing_ra_based(priv)) {
 		dev_dbg(priv->adapter->dev,
@@ -298,11 +300,12 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	}
 
 	if (last_seq != MWIFIEX_DEF_11N_RX_SEQ_NUM &&
-	    last_seq >= new_node->start_win)
+	    last_seq >= new_node->start_win) {
 		new_node->start_win = last_seq + 1;
+		new_node->flags |= RXREOR_INIT_WINDOW_SHIFT;
+	}
 
 	new_node->win_size = win_size;
-	new_node->flags = 0;
 
 	new_node->rx_reorder_ptr = kzalloc(sizeof(void *) * win_size,
 					GFP_KERNEL);
@@ -452,6 +455,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	struct mwifiex_rx_reorder_tbl *tbl;
 	int start_win, end_win, win_size;
 	u16 pkt_index;
+	bool init_window_shift = false;
 
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (!tbl) {
@@ -466,19 +470,29 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	start_win = tbl->start_win;
 	win_size = tbl->win_size;
 	end_win = ((start_win + win_size) - 1) & (MAX_TID_VALUE - 1);
-	del_timer(&tbl->timer_context.timer);
+	if (tbl->flags & RXREOR_INIT_WINDOW_SHIFT) {
+		init_window_shift = true;
+		tbl->flags &= ~RXREOR_INIT_WINDOW_SHIFT;
+	}
 	mod_timer(&tbl->timer_context.timer,
 		  jiffies + msecs_to_jiffies(MIN_FLUSH_TIMER_MS * win_size));
 
-	/*
-	 * If seq_num is less then starting win then ignore and drop the
-	 * packet
-	 */
 	if (tbl->flags & RXREOR_FORCE_NO_DROP) {
 		dev_dbg(priv->adapter->dev,
 			"RXREOR_FORCE_NO_DROP when HS is activated\n");
 		tbl->flags &= ~RXREOR_FORCE_NO_DROP;
+	} else if (init_window_shift && seq_num < start_win &&
+		   seq_num >= tbl->init_win) {
+		dev_dbg(priv->adapter->dev,
+			"Sender TID sequence number reset %d->%d for SSN %d\n",
+			start_win, seq_num, tbl->init_win);
+		tbl->start_win = start_win = seq_num;
+		end_win = ((start_win + win_size) - 1) & (MAX_TID_VALUE - 1);
 	} else {
+		/*
+		 * If seq_num is less then starting win then ignore and drop
+		 * the packet
+		 */
 		if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {
 			if (seq_num >= ((start_win + TWOPOW11) &
 					(MAX_TID_VALUE - 1)) &&
@@ -636,7 +650,7 @@ void mwifiex_11n_ba_stream_timeout(struct mwifiex_private *priv,
 	delba.del_ba_param_set |= cpu_to_le16(
 		(u16) event->origninator << DELBA_INITIATOR_POS);
 	delba.reason_code = cpu_to_le16(WLAN_REASON_QSTA_TIMEOUT);
-	mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_DELBA, 0, 0, &delba);
+	mwifiex_send_cmd(priv, HostCmd_CMD_11N_DELBA, 0, 0, &delba, false);
 }
 
 /*

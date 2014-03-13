@@ -158,8 +158,8 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 
 	priv->subsc_evt_rssi_state = EVENT_HANDLED;
 
-	mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
-			       0, 0, subsc_evt);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+			 0, 0, subsc_evt, false);
 
 	return 0;
 }
@@ -317,9 +317,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	if (priv->is_data_rate_auto)
 		priv->data_rate = 0;
 	else
-		return mwifiex_send_cmd_async(priv,
-					      HostCmd_CMD_802_11_TX_RATE_QUERY,
-					      HostCmd_ACT_GEN_GET, 0, NULL);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_TX_RATE_QUERY,
+					HostCmd_ACT_GEN_GET, 0, NULL, false);
 
 	return 0;
 }

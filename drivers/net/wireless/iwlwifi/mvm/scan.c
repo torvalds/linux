@@ -82,7 +82,7 @@ static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 	if (mvm->scan_rx_ant != ANT_NONE)
 		rx_ant = mvm->scan_rx_ant;
 	else
-		rx_ant = iwl_fw_valid_rx_ant(mvm->fw);
+		rx_ant = mvm->fw->valid_rx_ant;
 	rx_chain = rx_ant << PHY_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << PHY_RX_CHAIN_FORCE_MIMO_SEL_POS;
 	rx_chain |= rx_ant << PHY_RX_CHAIN_FORCE_SEL_POS;
@@ -124,7 +124,7 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
 	u32 tx_ant;
 
 	mvm->scan_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, iwl_fw_valid_tx_ant(mvm->fw),
+		iwl_mvm_next_antenna(mvm, mvm->fw->valid_tx_ant,
 				     mvm->scan_last_antenna_idx);
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 

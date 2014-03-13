@@ -513,7 +513,7 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	if (!buf)
 		return -ENOMEM;
 
-	left = block_size = min((size_t)P54U_FW_BLOCK, priv->fw->size);
+	left = block_size = min_t(size_t, P54U_FW_BLOCK, priv->fw->size);
 	strcpy(buf, p54u_firmware_upload_3887);
 	left -= strlen(p54u_firmware_upload_3887);
 	tmp += strlen(p54u_firmware_upload_3887);

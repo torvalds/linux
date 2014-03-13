@@ -105,6 +105,8 @@ function parse_reg_rule()
 			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
 		} else if (flagarray[arg] == "NO-IR") {
 			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
+		} else if (flagarray[arg] == "AUTO-BW") {
+			flags = flags "\n\t\t\tNL80211_RRF_AUTO_BW | "
 		}
 
 	}

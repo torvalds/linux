@@ -871,8 +871,16 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	if (WARN_ON(!ah->curchan))
 		return -EINVAL;
 
-	if (ath9k_cmn_process_rate(common, hw, rx_stats, rx_status))
+	if (ath9k_cmn_process_rate(common, hw, rx_stats, rx_status)) {
+		/*
+		 * No valid hardware bitrate found -- we should not get here
+		 * because hardware has already validated this frame as OK.
+		 */
+		ath_dbg(common, ANY, "unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
+			rx_stats->rs_rate);
+		RX_STAT_INC(rx_rate_err);
 		return -EINVAL;
+	}
 
 	ath9k_cmn_process_rssi(common, hw, rx_stats, rx_status);
 

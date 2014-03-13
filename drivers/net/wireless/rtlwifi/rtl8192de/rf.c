@@ -125,7 +125,7 @@ void rtl92d_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 	}
 
 	tmpval = tx_agc[RF90_PATH_A] & 0xff;
-	rtl_set_bbreg(hw, RTXAGC_A_CCK1_MCS32, BMASKBYTE1, tmpval);
+	rtl_set_bbreg(hw, RTXAGC_A_CCK1_MCS32, MASKBYTE1, tmpval);
 	RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
 		"CCK PWR 1M (rf-A) = 0x%x (reg 0x%x)\n",
 		tmpval, RTXAGC_A_CCK1_MCS32);
@@ -135,7 +135,7 @@ void rtl92d_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 		"CCK PWR 2~11M (rf-A) = 0x%x (reg 0x%x)\n",
 		tmpval, RTXAGC_B_CCK11_A_CCK2_11);
 	tmpval = tx_agc[RF90_PATH_B] >> 24;
-	rtl_set_bbreg(hw, RTXAGC_B_CCK11_A_CCK2_11, BMASKBYTE0, tmpval);
+	rtl_set_bbreg(hw, RTXAGC_B_CCK11_A_CCK2_11, MASKBYTE0, tmpval);
 	RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
 		"CCK PWR 11M (rf-B) = 0x%x (reg 0x%x)\n",
 		tmpval, RTXAGC_B_CCK11_A_CCK2_11);
@@ -360,7 +360,7 @@ static void _rtl92d_write_ofdm_power_reg(struct ieee80211_hw *hw,
 			regoffset = regoffset_a[index];
 		else
 			regoffset = regoffset_b[index];
-		rtl_set_bbreg(hw, regoffset, BMASKDWORD, writeval);
+		rtl_set_bbreg(hw, regoffset, MASKDWORD, writeval);
 		RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
 			"Set 0x%x = %08x\n", regoffset, writeval);
 		if (((get_rf_type(rtlphy) == RF_2T2R) &&

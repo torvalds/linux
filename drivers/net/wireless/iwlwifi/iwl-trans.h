@@ -393,7 +393,7 @@ struct iwl_trans_config {
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
 	unsigned int queue_watchdog_timeout;
-	const char **command_names;
+	const char *const *command_names;
 };
 
 struct iwl_trans;
