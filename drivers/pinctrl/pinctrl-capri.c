@@ -1435,7 +1435,7 @@ int __init capri_pinctrl_probe(struct platform_device *pdev)
 }
 
 static struct of_device_id capri_pinctrl_of_match[] = {
-	{ .compatible = "brcm,capri-pinctrl", },
+	{ .compatible = "brcm,bcm11351-pinctrl", },
 	{ },
 };
 

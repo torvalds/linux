@@ -247,7 +247,7 @@ extern void		    audit_panic(const char *message);
 
 struct audit_netlink_list {
 	__u32 portid;
-	pid_t pid;
+	struct net *net;
 	struct sk_buff_head q;
 };
 
