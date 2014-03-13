@@ -943,7 +943,6 @@ static void aic31xx_clk_on(struct snd_soc_codec *codec)
 
 static void aic31xx_clk_off(struct snd_soc_codec *codec)
 {
-	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
 	u8 mask = AIC31XX_PM_MASK;
 	u8 off = 0;
 
