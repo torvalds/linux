@@ -172,19 +172,7 @@ static int read_fsr(struct m25p *flash)
  */
 static int read_sr(struct m25p *flash)
 {
-	ssize_t retval;
-	u8 code = OPCODE_RFSR;
-	u8 val;
-
-	retval = spi_write_then_read(flash->spi, &code, 1, &val, 1);
-
-	if (retval < 0) {
-		dev_err(&flash->spi->dev, "error %d reading SR\n",
-				(int) retval);
-		return retval;
-	}
-
-	return val;
+	return read_spi_reg(flash, OPCODE_RDSR, "SR");
 }
 
 /*
@@ -327,7 +315,7 @@ static int write_ear(struct m25p *flash, u32 addr)
 	int ret;
 
 	/* Wait until finished previous write command. */
-	if (_wait_till_ready(flash))
+	if (flash->wait_till_ready(flash))
 		return 1;
 
 	if (flash->mtd.size <= (0x1000000) << flash->shift)
@@ -646,6 +634,7 @@ static int m25p80_read_ext(struct mtd_info *mtd, loff_t from, size_t len,
 	*retlen = read_count;
 
 	mutex_unlock(&flash->lock);
+
 	return 0;
 }
 
@@ -676,10 +665,8 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	spi_message_add_tail(&t[1], &m);
 
 	/* Wait until finished previous write command. */
-	if (flash->wait_till_ready(flash)) {
-		mutex_unlock(&flash->lock);
+	if (flash->wait_till_ready(flash))
 		return 1;
-	}
 
 	write_enable(flash);
 
@@ -731,8 +718,6 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 	flash->wait_till_ready(flash);
-
-	mutex_unlock(&flash->lock);
 
 	return 0;
 }
@@ -996,11 +981,11 @@ struct flash_info {
 #define	SECT_4K		0x01		/* OPCODE_BE_4K works uniformly */
 #define	M25P_NO_ERASE	0x02		/* No erase command needed */
 #define	SST_WRITE	0x04		/* use SST byte programming */
-#define	SECT_32K	0x10		/* OPCODE_BE_32K */
 #define	M25P_NO_FR	0x08		/* Can't do fastread */
-#define	SECT_4K_PMC	0x10		/* OPCODE_BE_4K_PMC works uniformly */
-#define	USE_FSR		0x20		/* use flag status register */
-#define	SHUTDOWN_3BYTE	0x40		/* set 3-byte mode on shutdown */
+#define	SECT_32K	0x10		/* OPCODE_BE_32K */
+#define	SECT_4K_PMC	0x20		/* OPCODE_BE_4K_PMC works uniformly */
+#define	USE_FSR		0x40		/* use flag status register */
+#define	SHUTDOWN_3BYTE	0x80		/* set 3-byte mode on shutdown */
 };
 
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
