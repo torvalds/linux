@@ -106,10 +106,13 @@
 	rockchip,disp-mode = <DUAL>;
 };
 
+&rk_screen {
+         display-timings = <&disp_timings>;
+};
+
 &lcdc0 {
 	status = "okay";
 	power_ctr = <&disp_power_ctr>;
-	display-timings = <&disp_timings>;
 };
 
 &lcdc1 {

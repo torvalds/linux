@@ -195,7 +195,8 @@
 	lvds: lvds@ff96c000 {
 		compatible = "rockchip, rk32-lvds";
 		reg = <0xff960000 0x20000>;
-	}
+	};
+
 	edp: edp@ff970000 {
 		compatible = "rockchip,rk32-edp";
 		reg = <0xff970000 0x4000>;
@@ -212,10 +213,15 @@
 		pinctrl-1 = <&i2c5_gpio>;
 		status = "disabled";
 	};
+
 	fb: fb{
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
 	};
+	
+	rk_screen: rk_screen{
+                compatible = "rockchip,screen";
+        };
 
 	lcdc0: lcdc@ff940000 {
 		compatible = "rockchip,rk3288-lcdc";

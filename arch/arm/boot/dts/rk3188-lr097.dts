@@ -3,7 +3,8 @@
 #include "rk3188.dtsi"
 #include "rk3188-clocks.dtsi"
 #include "lcd-LP097Qx1.dtsi"
-
+#include "rk3188-mmc.dtsi"
+#include <dt-bindings/clock/ddr.h>
 / {
 	memory {
 		device_type = "memory";
@@ -18,23 +19,52 @@
 		status = "okay";
 	};
 
-	 backlight {
-                compatible = "pwm-backlight";
-                pwms = <&pwm3 0 5000000>;
-                brightness-levels = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46
-47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 1
-02 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 1
-44 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 1
-86 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 225 226 227 2
-28 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255>;
-                default-brightness-level = <128>;
-                enable-gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
-        };
-	codec-hdmi-i2s {
+    wireless-wlan {
+        compatible = "wlan-platdata";
+
+        wifi_chip_type = "";
+        sdio_vref = <28000>;
+
+        //power_ctrl_by_pmu;
+        pmu_regulator = "act_ldo3";
+        pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+        WIFI,poweren_gpio = <&gpio3 GPIO_D0 GPIO_ACTIVE_HIGH>;
+        WIFI,host_wake_irq = <&gpio3 GPIO_D2 GPIO_ACTIVE_HIGH>;
+        //WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+        status = "okay";
+    };
+
+    wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+
+        support_uart_rts_ctrl;
+        uart_rts_gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_LOW>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&uart0_rts>;
+
+        BT,power_gpio = <&gpio3 GPIO_C7 GPIO_ACTIVE_HIGH>;
+        BT,reset_gpio = <&gpio3 GPIO_D1 GPIO_ACTIVE_HIGH>;
+        BT,wake_gpio = <&gpio3 GPIO_C6 GPIO_ACTIVE_HIGH>;
+        BT,wake_host_irq = <&gpio0 GPIO_A5 GPIO_ACTIVE_LOW>;
+
+        status = "okay";
+    };
+
+	backlight {
+        	compatible = "pwm-backlight";
+	        pwms = <&pwm3 0 25000>;
+		brightness-levels = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255>;
+	        default-brightness-level = <128>;
+		enable-gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+	};
+
+	codec_hdmi_i2s: codec-hdmi-i2s {
 		compatible = "hdmi-i2s";
 	};
 
-	codec-hdmi-spdif {
+	codec_hdmi_spdif: codec-hdmi-spdif {
 		compatible = "hdmi-spdif";
 	};
 
@@ -42,8 +72,24 @@
 		compatible = "rockchip-rt5631";
 		dais {
 			dai0 {
-				codec-name = "rt5631.0-001a";
-				cpu-dai-name = "rockchip-i2s.1";
+				audio-codec = <&rt5631>;
+				i2s-controller = <&i2s0>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
+	rockchip-rk610 {
+		compatible = "rockchip-rk610";
+		dais {
+			dai0 {
+				audio-codec = <&rk610_codec>;
+				i2s-controller = <&i2s0>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -58,8 +104,8 @@
 		compatible = "rockchip-hdmi-i2s";
 		dais {
 			dai0 {
-				codec-name = "hdmi-i2s";
-				cpu-dai-name = "rockchip-i2s.1";
+				audio-codec = <&codec_hdmi_i2s>;
+				i2s-controller = <&i2s0>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -73,21 +119,61 @@
 	rockchip-hdmi-spdif {
 		compatible = "rockchip-hdmi-spdif";
 	};
+	
+	vmac-phy {
+		compatible = "rockchip,vmac-phy";
+		power-gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &uart0 {
 	status = "okay";
+	dma-names = "!tx", "!rx";
 };
+
 
 &uart3 {
 	status = "okay";
+	dma-names = "!tx", "!rx";
+};
+
+&watchdog {
+		rockchip,timeout = <50>;
+		rockchip,debug = <1>;
+		status = "disabled";
 };
 
 &i2c0 {
 	status = "okay";
-	codec@1a {
+	rt5631: rt5631@1a {
 		compatible = "rt5631";
 		reg = <0x1a>;
+	};
+
+	rk610ctl@40 {
+		compatible = "rk610_ctl";
+		reg = <0x40>;
+		rk610-reset-io = <&gpio3 GPIO_B2 GPIO_ACTIVE_HIGH>;
+		clocks = <&clk_i2s>;
+		clock-names = "i2s_clk";
+	};
+
+	rk610_codec: rk610codec@60 {//RK610_CODEC addr  from 0x60 to 0x80 (0x60~0x80)
+		compatible = "rk610_codec";
+		reg = <0x60>;
+		spk_ctl_io = <&gpio2 GPIO_D7 GPIO_ACTIVE_HIGH>;
+		boot_depop = <1>;
+		pa_enable_time = <1000>;
+	};
+
+	sensor@1d {
+		compatible = "gs_mma8452";
+		reg = <0x1d>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq-gpio = <&gpio0 GPIO_B7 IRQ_TYPE_EDGE_FALLING>;		
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+		layout = <1>;
 	};
 };
 
@@ -138,10 +224,13 @@
 	rockchip,disp-mode = <DUAL>;
 };
 
+&rk_screen {
+         display-timings = <&disp_timings>;
+};
+
 &lcdc0 {
 	status = "okay";
 	power_ctr = <&disp_power_ctr>;
-	display-timings = <&disp_timings>;
 };
 
 &lcdc1 {
@@ -206,7 +295,7 @@
 		/* KHz    uV */
 		200000 1200000
 		300000 1200000
-		400000 1300000
+		400000 1200000
 		>;
 };
 
@@ -215,7 +304,15 @@
 		/* KHz    uV */
 		200000 1200000
 		300000 1200000
-		400000 1300000
+		400000 1200000
+		>;
+
+	freq_table = <
+		/*status		freq(KHz)*/
+		SYS_STATUS_NORMAL	400000
+		SYS_STATUS_SUSPEND	200000
+		SYS_STATUS_VIDEO	300000
+		SYS_STATUS_DUALVIEW	500000
 		>;
 };
 
@@ -246,8 +343,8 @@ regulators {
 		};
 
 		dcdc4_reg: regulator@3 {
-			regulator-name= "act_dcdc4";
-			regulator-min-microvolt = <3300000>;
+			regulator-name= "vccio";
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
@@ -345,8 +442,8 @@ regulators {
 		};
 
 		rk808_dcdc4_reg: regulator@3 {
-			regulator-name= "rk_dcdc4";
-			regulator-min-microvolt = <3300000>;
+			regulator-name= "vccio";
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
