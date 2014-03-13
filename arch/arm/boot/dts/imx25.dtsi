@@ -483,22 +483,13 @@
 				clocks = <&clks 99>;
 			};
 
-			usbphy1: usbphy@1 {
-				compatible = "nop-usbphy";
-				status = "disabled";
-			};
-
-			usbphy2: usbphy@2 {
-				compatible = "nop-usbphy";
-				status = "disabled";
-			};
-
 			usbotg: usb@53ff4000 {
 				compatible = "fsl,imx25-usb", "fsl,imx27-usb";
 				reg = <0x53ff4000 0x0200>;
 				interrupts = <37>;
 				clocks = <&clks 70>;
 				fsl,usbmisc = <&usbmisc 0>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -508,6 +499,7 @@
 				interrupts = <35>;
 				clocks = <&clks 70>;
 				fsl,usbmisc = <&usbmisc 1>;
+				fsl,usbphy = <&usbphy1>;
 				status = "disabled";
 			};
 
@@ -517,7 +509,6 @@
 				clocks = <&clks 9>, <&clks 70>, <&clks 8>;
 				clock-names = "ipg", "ahb", "per";
 				reg = <0x53ff4600 0x00f>;
-				status = "disabled";
 			};
 
 			dryice@53ffc000 {
@@ -547,6 +538,22 @@
 				interrupts = <33>;
 				status = "disabled";
 			};
+		};
+	};
+
+	usbphy {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbphy0: usb-phy@0 {
+			reg = <0>;
+			compatible = "usb-nop-xceiv";
+		};
+
+		usbphy1: usb-phy@1 {
+			reg = <1>;
+			compatible = "usb-nop-xceiv";
 		};
 	};
 };
