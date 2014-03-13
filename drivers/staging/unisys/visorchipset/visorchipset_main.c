@@ -52,9 +52,9 @@
 * message, we switch back to fast polling mode.
 */
 #define MIN_IDLE_SECONDS 10
-ulong Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-ulong Most_recent_message_jiffies;	/* when we got our last
-					 * controlvm message */
+static ulong Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+static ulong Most_recent_message_jiffies;	/* when we got our last
+						 * controlvm message */
 static inline char *
 NONULLSTR(char *s)
 {
@@ -72,7 +72,7 @@ static U8 chipset_events[MAX_CHIPSET_EVENTS] = { 0, 0 };
 
 static struct delayed_work Periodic_controlvm_work;
 static struct workqueue_struct *Periodic_controlvm_workqueue;
-DEFINE_SEMAPHORE(NotifierLock);
+static DEFINE_SEMAPHORE(NotifierLock);
 
 typedef struct {
 	CONTROLVM_MESSAGE message;
@@ -215,7 +215,7 @@ static const struct file_operations proc_bootToTool_fops = {
 };
 
 typedef struct {
-	U8 *ptr;		/* pointer to base address of payload pool */
+	U8 __iomem *ptr;	/* pointer to base address of payload pool */
 	U64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
 	U32 bytes;		/* number of bytes in payload pool */
@@ -324,7 +324,7 @@ struct putfile_request {
 	int completion_status;
 };
 
-atomic_t Visorchipset_cache_buffers_in_use = ATOMIC_INIT(0);
+static atomic_t Visorchipset_cache_buffers_in_use = ATOMIC_INIT(0);
 
 struct parahotplug_request {
 	struct list_head list;
@@ -1343,7 +1343,7 @@ static int
 initialize_controlvm_payload_info(HOSTADDRESS phys_addr, U64 offset, U32 bytes,
 				  CONTROLVM_PAYLOAD_INFO *info)
 {
-	U8 *payload = NULL;
+	U8 __iomem *payload = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	if (info == NULL) {
@@ -1677,7 +1677,7 @@ parahotplug_request_complete(int id, U16 active)
 /*
  * Enables or disables a PCI device by kicking off a udev script
  */
-void
+static void
 parahotplug_process_message(CONTROLVM_MESSAGE *inmsg)
 {
 	struct parahotplug_request *req;

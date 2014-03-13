@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include "uisutils.h"
+#include "file.h"
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_file_c
 

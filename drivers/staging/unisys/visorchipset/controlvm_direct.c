@@ -21,6 +21,7 @@
 
 #include "globals.h"
 #include "uisutils.h"
+#include "controlvm.h"
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_controlvm_direct_c
 
 
