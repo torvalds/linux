@@ -631,7 +631,7 @@ static void init_plx9080(struct comedi_device *dev)
 	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
 }
 
-static const struct hpdi_board *hpdi_find_board(struct pci_dev *pcidev)
+static const struct hpdi_board *gsc_hpdi_find_board(struct pci_dev *pcidev)
 {
 	unsigned int i;
 
@@ -652,7 +652,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	int i;
 	int retval;
 
-	thisboard = hpdi_find_board(pcidev);
+	thisboard = gsc_hpdi_find_board(pcidev);
 	if (!thisboard) {
 		dev_err(dev->class_dev, "gsc_hpdi: pci %s not supported\n",
 			pci_name(pcidev));
