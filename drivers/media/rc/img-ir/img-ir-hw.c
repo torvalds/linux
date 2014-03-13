@@ -240,9 +240,9 @@ static u32 img_ir_free_timing(const struct img_ir_free_timing *timing,
 	ft_min = (timing->ft_min*clock_hz + 999999) / 1000000;
 	ft_min = (ft_min + 7) >> 3;
 	/* construct register value */
-	return	(timing->maxlen	<< IMG_IR_MAXLEN_SHIFT)	|
-		(timing->minlen	<< IMG_IR_MINLEN_SHIFT)	|
-		(ft_min		<< IMG_IR_FT_MIN_SHIFT);
+	return	(maxlen << IMG_IR_MAXLEN_SHIFT)	|
+		(minlen << IMG_IR_MINLEN_SHIFT)	|
+		(ft_min << IMG_IR_FT_MIN_SHIFT);
 }
 
 /**
