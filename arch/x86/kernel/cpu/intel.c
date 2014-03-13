@@ -31,7 +31,8 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 
 	/* Unmask CPUID levels if masked: */
 	if (c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xd)) {
-		if (msr_clear_bit(MSR_IA32_MISC_ENABLE, MSR_BIT_LIMIT_CPUID) > 0) {
+		if (msr_clear_bit(MSR_IA32_MISC_ENABLE,
+				  MSR_IA32_MISC_ENABLE_LIMIT_CPUID_BIT) > 0) {
 			c->cpuid_level = cpuid_eax(0);
 			get_cpu_cap(c);
 		}
@@ -126,7 +127,8 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	 * (model 2) with the same problem.
 	 */
 	if (c->x86 == 15)
-		if (msr_clear_bit(MSR_IA32_MISC_ENABLE, MSR_BIT_FAST_STRING) > 0)
+		if (msr_clear_bit(MSR_IA32_MISC_ENABLE,
+				  MSR_IA32_MISC_ENABLE_FAST_STRING_BIT) > 0)
 			pr_info("kmemcheck: Disabling fast string operations\n");
 #endif
 
@@ -216,7 +218,9 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 	 * Hardware prefetcher may cause stale data to be loaded into the cache.
 	 */
 	if ((c->x86 == 15) && (c->x86_model == 1) && (c->x86_mask == 1)) {
-		if (msr_set_bit(MSR_IA32_MISC_ENABLE, MSR_BIT_PRF_DIS) > 0) {
+		if (msr_set_bit(MSR_IA32_MISC_ENABLE,
+				MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE_BIT)
+		    > 0) {
 			pr_info("CPU: C0 stepping P4 Xeon detected.\n");
 			pr_info("CPU: Disabling hardware prefetching (Errata 037)\n");
 		}
