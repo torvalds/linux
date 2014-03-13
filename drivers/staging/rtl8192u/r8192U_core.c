@@ -1555,11 +1555,6 @@ u16 N_DBPSOfRate(u16 DataRate)
 	return N_DBPS;
 }
 
-void rtl819xU_cmd_isr(struct urb *tx_cmd_urb, struct pt_regs *regs)
-{
-	usb_free_urb(tx_cmd_urb);
-}
-
 unsigned int txqueue2outpipe(struct r8192_priv *priv, unsigned int tx_queue)
 {
 	if (tx_queue >= 9) {
