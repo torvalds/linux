@@ -109,22 +109,21 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[0];
-	/* ao subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->maxdata = 0xfff;
-	s->n_chan = 8;
-	s->insn_read = rti802_ao_insn_read;
-	s->insn_write = rti802_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->maxdata	= 0xfff;
+	s->n_chan	= 8;
+	s->insn_read	= rti802_ao_insn_read;
+	s->insn_write	= rti802_ao_insn_write;
 	s->range_table_list = devpriv->range_type_list;
 
 	for (i = 0; i < 8; i++) {
 		devpriv->dac_coding[i] = (it->options[3 + 2 * i])
-		    ? (dac_straight)
-		    : (dac_2comp);
+			? (dac_straight) : (dac_2comp);
 		devpriv->range_type_list[i] = (it->options[2 + 2 * i])
-		    ? &range_unipolar10 : &range_bipolar10;
+			? &range_unipolar10 : &range_bipolar10;
 	}
 
 	return 0;
