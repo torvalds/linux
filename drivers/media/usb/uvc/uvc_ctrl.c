@@ -1847,7 +1847,7 @@ done:
  * - Handle restore order (Auto-Exposure Mode should be restored before
  *   Exposure Time).
  */
-int uvc_ctrl_resume_device(struct uvc_device *dev)
+int uvc_ctrl_restore_values(struct uvc_device *dev)
 {
 	struct uvc_control *ctrl;
 	struct uvc_entity *entity;
