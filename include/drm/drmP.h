@@ -1202,7 +1202,7 @@ static inline bool drm_modeset_is_locked(struct drm_device *dev)
 	return mutex_is_locked(&dev->mode_config.mutex);
 }
 
-static inline bool drm_is_render_client(struct drm_file *file_priv)
+static inline bool drm_is_render_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_RENDER;
 }
@@ -1210,6 +1210,11 @@ static inline bool drm_is_render_client(struct drm_file *file_priv)
 static inline bool drm_is_control_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_CONTROL;
+}
+
+static inline bool drm_is_primary_client(const struct drm_file *file_priv)
+{
+	return file_priv->minor->type == DRM_MINOR_LEGACY;
 }
 
 /******************************************************************/

@@ -232,8 +232,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	/* if there is no current master make this fd it, but do not create
 	 * any master object for render clients */
 	mutex_lock(&dev->struct_mutex);
-	if (!priv->minor->master && !drm_is_render_client(priv) &&
-	    !drm_is_control_client(priv)) {
+	if (drm_is_primary_client(priv) && !priv->minor->master) {
 		/* create a new master */
 		priv->minor->master = drm_master_create(priv->minor);
 		if (!priv->minor->master) {
@@ -271,8 +270,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 				goto out_close;
 			}
 		}
-	} else if (!drm_is_render_client(priv) &&
-		   !drm_is_control_client(priv)) {
+	} else if (drm_is_primary_client(priv)) {
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
 	}
