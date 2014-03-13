@@ -159,7 +159,7 @@ qla2x00_sysfs_read_fw_dump_template(struct file *filp, struct kobject *kobj,
 		return 0;
 
 	ql_dbg(ql_dbg_user, vha, 0x70e2,
-	    "chunk <- off=%llx count=%lx\n", off, count);
+	    "chunk <- off=%llx count=%zx\n", off, count);
 	return memory_read_from_buffer(buf, count, &off,
 	    ha->fw_dump_template, ha->fw_dump_template_len);
 }
@@ -200,11 +200,11 @@ qla2x00_sysfs_write_fw_dump_template(struct file *filp, struct kobject *kobj,
 	if (off + count > ha->fw_dump_template_len) {
 		count = ha->fw_dump_template_len - off;
 		ql_dbg(ql_dbg_user, vha, 0x70d3,
-		    "chunk -> truncating to %lx bytes.\n", count);
+		    "chunk -> truncating to %zx bytes.\n", count);
 	}
 
 	ql_dbg(ql_dbg_user, vha, 0x70d4,
-	    "chunk -> off=%llx count=%lx\n", off, count);
+	    "chunk -> off=%llx count=%zx\n", off, count);
 	memcpy(ha->fw_dump_template + off, buf, count);
 
 	if (off + count == ha->fw_dump_template_len) {
