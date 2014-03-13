@@ -35,8 +35,8 @@ struct vpdma_data {
 
 	struct platform_device	*pdev;
 
-	/* tells whether vpdma firmware is loaded or not */
-	bool ready;
+	/* callback to VPE driver when the firmware is loaded */
+	void (*cb)(struct platform_device *pdev);
 };
 
 enum vpdma_data_format_type {
@@ -208,6 +208,7 @@ void vpdma_set_frame_start_event(struct vpdma_data *vpdma,
 void vpdma_dump_regs(struct vpdma_data *vpdma);
 
 /* initialize vpdma, passed with VPE's platform device pointer */
-struct vpdma_data *vpdma_create(struct platform_device *pdev);
+struct vpdma_data *vpdma_create(struct platform_device *pdev,
+		void (*cb)(struct platform_device *pdev));
 
 #endif
