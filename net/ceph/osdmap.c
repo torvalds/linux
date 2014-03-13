@@ -706,7 +706,9 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 		goto e_inval;
 	}
 
-	ceph_decode_need(p, end, 2*sizeof(u64)+6*sizeof(u32), e_inval);
+	/* fsid, epoch, created, modified */
+	ceph_decode_need(p, end, sizeof(map->fsid) + sizeof(u32) +
+			 sizeof(map->created) + sizeof(map->modified), e_inval);
 	ceph_decode_copy(p, &map->fsid, sizeof(map->fsid));
 	epoch = map->epoch = ceph_decode_32(p);
 	ceph_decode_copy(p, &map->created, sizeof(map->created));
@@ -878,8 +880,9 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		goto e_inval;
 	}
 
-	ceph_decode_need(p, end, sizeof(fsid)+sizeof(modified)+2*sizeof(u32),
-			 e_inval);
+	/* fsid, epoch, modified, new_pool_max, new_flags */
+	ceph_decode_need(p, end, sizeof(fsid) + sizeof(u32) + sizeof(modified) +
+			 sizeof(u64) + sizeof(u32), e_inval);
 	ceph_decode_copy(p, &fsid, sizeof(fsid));
 	epoch = ceph_decode_32(p);
 	BUG_ON(epoch != map->epoch+1);
@@ -913,10 +916,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	if (new_pool_max >= 0)
 		map->pool_max = new_pool_max;
 
-	ceph_decode_need(p, end, 5*sizeof(u32), e_inval);
-
 	/* new max? */
-	max = ceph_decode_32(p);
+	ceph_decode_32_safe(p, end, max, e_inval);
 	if (max >= 0) {
 		err = osdmap_set_max_osd(map, max);
 		if (err)
