@@ -1492,9 +1492,9 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	mutex_unlock(&file_priv->fbs_lock);
 
 	drm_modeset_lock_all(dev);
-	mode_group = &file_priv->master->minor->mode_group;
-	if (file_priv->master->minor->type == DRM_MINOR_CONTROL) {
+	if (file_priv->minor->type != DRM_MINOR_LEGACY) {
 
+		mode_group = NULL;
 		list_for_each(lh, &dev->mode_config.crtc_list)
 			crtc_count++;
 
@@ -1505,6 +1505,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 			encoder_count++;
 	} else {
 
+		mode_group = &file_priv->master->minor->mode_group;
 		crtc_count = mode_group->num_crtcs;
 		connector_count = mode_group->num_connectors;
 		encoder_count = mode_group->num_encoders;
@@ -1519,7 +1520,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	if (card_res->count_crtcs >= crtc_count) {
 		copied = 0;
 		crtc_id = (uint32_t __user *)(unsigned long)card_res->crtc_id_ptr;
-		if (file_priv->master->minor->type == DRM_MINOR_CONTROL) {
+		if (!mode_group) {
 			list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 					    head) {
 				DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
@@ -1546,7 +1547,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	if (card_res->count_encoders >= encoder_count) {
 		copied = 0;
 		encoder_id = (uint32_t __user *)(unsigned long)card_res->encoder_id_ptr;
-		if (file_priv->master->minor->type == DRM_MINOR_CONTROL) {
+		if (!mode_group) {
 			list_for_each_entry(encoder,
 					    &dev->mode_config.encoder_list,
 					    head) {
@@ -1577,7 +1578,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	if (card_res->count_connectors >= connector_count) {
 		copied = 0;
 		connector_id = (uint32_t __user *)(unsigned long)card_res->connector_id_ptr;
-		if (file_priv->master->minor->type == DRM_MINOR_CONTROL) {
+		if (!mode_group) {
 			list_for_each_entry(connector,
 					    &dev->mode_config.connector_list,
 					    head) {
@@ -2846,7 +2847,8 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->bpp = fb->bits_per_pixel;
 	r->pitch = fb->pitches[0];
 	if (fb->funcs->create_handle) {
-		if (file_priv->is_master || capable(CAP_SYS_ADMIN)) {
+		if (file_priv->is_master || capable(CAP_SYS_ADMIN) ||
+		    file_priv->minor->type == DRM_MINOR_CONTROL) {
 			ret = fb->funcs->create_handle(fb, file_priv,
 						       &r->handle);
 		} else {
