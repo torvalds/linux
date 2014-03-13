@@ -689,24 +689,6 @@ void dump_eprom(struct net_device *dev)
 		RT_TRACE(COMP_EPROM, "EEPROM addr %x : %x", i, eprom_read(dev, i));
 }
 
-
-/****************************************************************************
-      ------------------------------HW STUFF---------------------------
-*****************************************************************************/
-
-
-void rtl8192_set_mode(struct net_device *dev, int mode)
-{
-	u8 ecmd;
-	read_nic_byte(dev, EPROM_CMD, &ecmd);
-	ecmd = ecmd & ~EPROM_CMD_OPERATING_MODE_MASK;
-	ecmd = ecmd | (mode<<EPROM_CMD_OPERATING_MODE_SHIFT);
-	ecmd = ecmd & ~EPROM_CS_BIT;
-	ecmd = ecmd & ~EPROM_CK_BIT;
-	write_nic_byte(dev, EPROM_CMD, ecmd);
-}
-
-
 void rtl8192_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
