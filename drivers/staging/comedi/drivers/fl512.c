@@ -76,20 +76,21 @@ static int fl512_ao_insn_write(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct fl512_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);	/* get chan to write */
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
+	int i;
 
-	for (n = 0; n < insn->n; n++) {	/* write n data set */
-		/* write low byte   */
-		outb(data[n] & 0x0ff, dev->iobase + FL512_AO_DATA_REG(chan));
-		/* write high byte  */
-		outb((data[n] & 0xf00) >> 8,
-		     dev->iobase + FL512_AO_DATA_REG(chan));
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+
+		/* write LSB, MSB then trigger conversion */
+		outb(val & 0x0ff, dev->iobase + FL512_AO_DATA_REG(chan));
+		outb((val >> 8) & 0xf, dev->iobase + FL512_AO_DATA_REG(chan));
 		inb(dev->iobase + FL512_AO_TRIG_REG(chan));
-
-		devpriv->ao_readback[chan] = data[n];
 	}
-	return n;
+	devpriv->ao_readback[chan] = val;
+
+	return insn->n;
 }
 
 static int fl512_ao_insn_read(struct comedi_device *dev,
