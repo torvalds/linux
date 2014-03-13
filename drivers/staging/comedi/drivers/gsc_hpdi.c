@@ -210,42 +210,38 @@ struct hpdi_private {
 static void gsc_hpdi_drain_dma(struct comedi_device *dev, unsigned int channel)
 {
 	struct hpdi_private *devpriv = dev->private;
-	struct comedi_async *async = dev->read_subdev->async;
-	uint32_t next_transfer_addr;
-	int j;
-	int num_samples = 0;
-	void __iomem *pci_addr_reg;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int idx;
+	unsigned int start;
+	unsigned int desc;
+	unsigned int size;
+	unsigned int next;
 
 	if (channel)
-		pci_addr_reg =
-		    devpriv->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG;
+		next = readl(devpriv->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG);
 	else
-		pci_addr_reg =
-		    devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
+		next = readl(devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
 
-	/*  loop until we have read all the full buffers */
-	j = 0;
-	for (next_transfer_addr = readl(pci_addr_reg);
-	     (next_transfer_addr <
-	      le32_to_cpu(devpriv->dma_desc[devpriv->dma_desc_index].
-			  pci_start_addr)
-	      || next_transfer_addr >=
-	      le32_to_cpu(devpriv->dma_desc[devpriv->dma_desc_index].
-			  pci_start_addr) + devpriv->block_size)
-	     && j < devpriv->num_dma_descriptors; j++) {
-		/*  transfer data from dma buffer to comedi buffer */
-		num_samples = devpriv->block_size / sizeof(uint32_t);
-		if (async->cmd.stop_src == TRIG_COUNT) {
-			if (num_samples > devpriv->dio_count)
-				num_samples = devpriv->dio_count;
-			devpriv->dio_count -= num_samples;
+	idx = devpriv->dma_desc_index;
+	start = le32_to_cpu(devpriv->dma_desc[idx].pci_start_addr);
+	/* loop until we have read all the full buffers */
+	for (desc = 0; (next < start || next >= start + devpriv->block_size) &&
+	     desc < devpriv->num_dma_descriptors; desc++) {
+		/* transfer data from dma buffer to comedi buffer */
+		size = devpriv->block_size / sizeof(uint32_t);
+		if (cmd->stop_src == TRIG_COUNT) {
+			if (size > devpriv->dio_count)
+				size = devpriv->dio_count;
+			devpriv->dio_count -= size;
 		}
-		cfc_write_array_to_buffer(dev->read_subdev,
-					  devpriv->desc_dio_buffer[devpriv->
-								     dma_desc_index],
-					  num_samples * sizeof(uint32_t));
-		devpriv->dma_desc_index++;
-		devpriv->dma_desc_index %= devpriv->num_dma_descriptors;
+		cfc_write_array_to_buffer(s, devpriv->desc_dio_buffer[idx],
+					  size * sizeof(uint32_t));
+		idx++;
+		idx %= devpriv->num_dma_descriptors;
+		start = le32_to_cpu(devpriv->dma_desc[idx].pci_start_addr);
+
+		devpriv->dma_desc_index = idx;
 	}
 	/*  XXX check for buffer overrun somehow */
 }
