@@ -185,7 +185,7 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	timings->interlace = param->timings.interlace;
 }
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
 		struct hdmi_audio_format *aud_fmt)
 {
