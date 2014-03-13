@@ -2646,8 +2646,6 @@ static int vlv_pipe_crc_ctl_reg(struct drm_device *dev,
 	if (need_stable_symbols) {
 		uint32_t tmp = I915_READ(PORT_DFT2_G4X);
 
-		WARN_ON(!IS_G4X(dev));
-
 		tmp |= DC_BALANCE_RESET_VLV;
 		if (pipe == PIPE_A)
 			tmp |= PIPE_A_SCRAMBLE_RESET;
