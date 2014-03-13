@@ -697,11 +697,11 @@ struct ieee80211_tx_info {
 		} control;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
-			int ack_signal;
+			s32 ack_signal;
 			u8 ampdu_ack_len;
 			u8 ampdu_len;
 			u8 antenna;
-			/* 21 bytes free */
+			void *status_driver_data[21 / sizeof(void *)];
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
