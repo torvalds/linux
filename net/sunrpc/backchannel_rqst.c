@@ -64,7 +64,6 @@ static void xprt_free_allocation(struct rpc_rqst *req)
 	free_page((unsigned long)xbufp->head[0].iov_base);
 	xbufp = &req->rq_snd_buf;
 	free_page((unsigned long)xbufp->head[0].iov_base);
-	list_del(&req->rq_bc_pa_list);
 	kfree(req);
 }
 
@@ -168,8 +167,10 @@ out_free:
 	/*
 	 * Memory allocation failed, free the temporary list
 	 */
-	list_for_each_entry_safe(req, tmp, &tmp_list, rq_bc_pa_list)
+	list_for_each_entry_safe(req, tmp, &tmp_list, rq_bc_pa_list) {
+		list_del(&req->rq_bc_pa_list);
 		xprt_free_allocation(req);
+	}
 
 	dprintk("RPC:       setup backchannel transport failed\n");
 	return -ENOMEM;
@@ -198,6 +199,7 @@ void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 	xprt_dec_alloc_count(xprt, max_reqs);
 	list_for_each_entry_safe(req, tmp, &xprt->bc_pa_list, rq_bc_pa_list) {
 		dprintk("RPC:        req=%p\n", req);
+		list_del(&req->rq_bc_pa_list);
 		xprt_free_allocation(req);
 		if (--max_reqs == 0)
 			break;

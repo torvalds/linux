@@ -62,25 +62,25 @@ static const char *stac9766_boost1[] = {"0dB", "10dB"};
 static const char *stac9766_boost2[] = {"0dB", "20dB"};
 static const char *stac9766_stereo_mic[] = {"Off", "On"};
 
-static const struct soc_enum stac9766_record_enum =
-	SOC_ENUM_DOUBLE(AC97_REC_SEL, 8, 0, 8, stac9766_record_mux);
-static const struct soc_enum stac9766_mono_enum =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 9, 2, stac9766_mono_mux);
-static const struct soc_enum stac9766_mic_enum =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 8, 2, stac9766_mic_mux);
-static const struct soc_enum stac9766_SPDIF_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_DA_CONTROL, 1, 2, stac9766_SPDIF_mux);
-static const struct soc_enum stac9766_popbypass_enum =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 15, 2, stac9766_popbypass_mux);
-static const struct soc_enum stac9766_record_all_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_ANALOG_SPECIAL, 12, 2,
-			stac9766_record_all_mux);
-static const struct soc_enum stac9766_boost1_enum =
-	SOC_ENUM_SINGLE(AC97_MIC, 6, 2, stac9766_boost1); /* 0/10dB */
-static const struct soc_enum stac9766_boost2_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_ANALOG_SPECIAL, 2, 2, stac9766_boost2); /* 0/20dB */
-static const struct soc_enum stac9766_stereo_mic_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_STEREO_MIC, 2, 1, stac9766_stereo_mic);
+static SOC_ENUM_DOUBLE_DECL(stac9766_record_enum,
+			    AC97_REC_SEL, 8, 0, stac9766_record_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_mono_enum,
+			    AC97_GENERAL_PURPOSE, 9, stac9766_mono_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_mic_enum,
+			    AC97_GENERAL_PURPOSE, 8, stac9766_mic_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_SPDIF_enum,
+			    AC97_STAC_DA_CONTROL, 1, stac9766_SPDIF_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_popbypass_enum,
+			    AC97_GENERAL_PURPOSE, 15, stac9766_popbypass_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_record_all_enum,
+			    AC97_STAC_ANALOG_SPECIAL, 12,
+			    stac9766_record_all_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_boost1_enum,
+			    AC97_MIC, 6, stac9766_boost1); /* 0/10dB */
+static SOC_ENUM_SINGLE_DECL(stac9766_boost2_enum,
+			    AC97_STAC_ANALOG_SPECIAL, 2, stac9766_boost2); /* 0/20dB */
+static SOC_ENUM_SINGLE_DECL(stac9766_stereo_mic_enum,
+			    AC97_STAC_STEREO_MIC, 2, stac9766_stereo_mic);
 
 static const DECLARE_TLV_DB_LINEAR(master_tlv, -4600, 0);
 static const DECLARE_TLV_DB_LINEAR(record_tlv, 0, 2250);

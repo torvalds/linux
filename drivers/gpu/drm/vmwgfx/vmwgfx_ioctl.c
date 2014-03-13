@@ -102,6 +102,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		vmw_fp->gb_aware = true;
 		param->value = dev_priv->max_mob_pages * PAGE_SIZE;
 		break;
+	case DRM_VMW_PARAM_MAX_MOB_SIZE:
+		param->value = dev_priv->max_mob_size;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);

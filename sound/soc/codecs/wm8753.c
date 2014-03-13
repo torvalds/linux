@@ -251,7 +251,7 @@ static int wm8753_set_dai(struct snd_kcontrol *kcontrol,
 	if (wm8753->dai_func == ucontrol->value.integer.value[0])
 		return 0;
 
-	if (codec->active)
+	if (snd_soc_codec_is_active(codec))
 		return -EBUSY;
 
 	ioctl = snd_soc_read(codec, WM8753_IOCTL);
@@ -1314,7 +1314,7 @@ static int wm8753_mute(struct snd_soc_dai *dai, int mute)
 	/* the digital mute covers the HiFi and Voice DAC's on the WM8753.
 	 * make sure we check if they are not both active when we mute */
 	if (mute && wm8753->dai_func == 1) {
-		if (!codec->active)
+		if (!snd_soc_codec_is_active(codec))
 			snd_soc_write(codec, WM8753_DAC, mute_reg | 0x8);
 	} else {
 		if (mute)
@@ -1440,7 +1440,6 @@ static void wm8753_work(struct work_struct *work)
 static int wm8753_suspend(struct snd_soc_codec *codec)
 {
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	codec->cache_sync = 1;
 	return 0;
 }
 

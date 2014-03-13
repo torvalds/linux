@@ -108,7 +108,6 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 	nf_reset(skb);
 	secpath_reset(skb);
 	skb_clear_hash_if_not_l4(skb);
-	skb_dst_drop(skb);
 	skb->vlan_tci = 0;
 	skb_set_queue_mapping(skb, 0);
 	skb->pkt_type = PACKET_HOST;
@@ -148,3 +147,49 @@ error:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
+
+/* Often modified stats are per cpu, other are shared (netdev->stats) */
+struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *tot)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		const struct pcpu_sw_netstats *tstats =
+						   per_cpu_ptr(dev->tstats, i);
+		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin_bh(&tstats->syncp);
+			rx_packets = tstats->rx_packets;
+			tx_packets = tstats->tx_packets;
+			rx_bytes = tstats->rx_bytes;
+			tx_bytes = tstats->tx_bytes;
+		} while (u64_stats_fetch_retry_bh(&tstats->syncp, start));
+
+		tot->rx_packets += rx_packets;
+		tot->tx_packets += tx_packets;
+		tot->rx_bytes   += rx_bytes;
+		tot->tx_bytes   += tx_bytes;
+	}
+
+	tot->multicast = dev->stats.multicast;
+
+	tot->rx_crc_errors = dev->stats.rx_crc_errors;
+	tot->rx_fifo_errors = dev->stats.rx_fifo_errors;
+	tot->rx_length_errors = dev->stats.rx_length_errors;
+	tot->rx_frame_errors = dev->stats.rx_frame_errors;
+	tot->rx_errors = dev->stats.rx_errors;
+
+	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
+	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
+	tot->tx_dropped = dev->stats.tx_dropped;
+	tot->tx_aborted_errors = dev->stats.tx_aborted_errors;
+	tot->tx_errors = dev->stats.tx_errors;
+
+	tot->collisions  = dev->stats.collisions;
+
+	return tot;
+}
+EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);

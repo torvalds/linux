@@ -1025,6 +1025,9 @@ static void ad1884_fixup_thinkpad(struct hda_codec *codec,
 		spec->gen.keep_eapd_on = 1;
 		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
 		spec->eapd_nid = 0x12;
+		/* Analog PC Beeper - allow firmware/ACPI beeps */
+		spec->beep_amp = HDA_COMPOSE_AMP_VAL(0x20, 3, 3, HDA_INPUT);
+		spec->gen.beep_nid = 0; /* no digital beep */
 	}
 }
 
@@ -1091,6 +1094,7 @@ static int patch_ad1884(struct hda_codec *codec)
 	spec = codec->spec;
 
 	spec->gen.mixer_nid = 0x20;
+	spec->gen.mixer_merge_nid = 0x21;
 	spec->gen.beep_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
 
