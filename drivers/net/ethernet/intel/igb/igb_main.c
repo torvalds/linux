@@ -1978,7 +1978,7 @@ void igb_reset(struct igb_adapter *adapter)
 		}
 	}
 #endif
-	/*Re-establish EEE setting */
+	/* Re-establish EEE setting */
 	if (hw->phy.media_type == e1000_media_type_copper) {
 		switch (mac->type) {
 		case e1000_i350:
