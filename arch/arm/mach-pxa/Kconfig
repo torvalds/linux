@@ -73,8 +73,7 @@ config ARCH_PXA_IDP
 config ARCH_VIPER
 	bool "Arcom/Eurotech VIPER SBC"
 	select ARCOM_PCMCIA
-	select HAVE_PWM
-	select I2C_GPIO
+	select I2C_GPIO if I2C=y
 	select ISA
 	select PXA25x
 	select PXA_HAVE_ISA_IRQS
