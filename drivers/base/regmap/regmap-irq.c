@@ -368,8 +368,6 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	if (!d)
 		return -ENOMEM;
 
-	*data = d;
-
 	d->status_buf = kzalloc(sizeof(unsigned int) * chip->num_regs,
 				GFP_KERNEL);
 	if (!d->status_buf)
@@ -505,6 +503,8 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			irq, chip->name, ret);
 		goto err_domain;
 	}
+
+	*data = d;
 
 	return 0;
 
