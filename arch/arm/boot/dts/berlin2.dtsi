@@ -72,6 +72,11 @@
 			cache-level = <2>;
 		};
 
+		scu: snoop-control-unit@ad0000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xad0000 0x58>;
+		};
+
 		gic: interrupt-controller@ad1000 {
 			compatible = "arm,cortex-a9-gic";
 			reg = <0xad1000 0x1000>, <0xad0100 0x0100>;
@@ -174,6 +179,11 @@
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			};
+		};
+
+		generic-regs@ea0184 {
+			compatible = "marvell,berlin-generic-regs", "syscon";
+			reg = <0xea0184 0x10>;
 		};
 
 		apb@fc0000 {

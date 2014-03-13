@@ -87,6 +87,11 @@
 			cache-level = <2>;
 		};
 
+		scu: snoop-control-unit@ad0000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xad0000 0x58>;
+		};
+
 		local-timer@ad0600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xad0600 0x20>;
@@ -181,6 +186,11 @@
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			};
+		};
+
+		generic-regs@ea0110 {
+			compatible = "marvell,berlin-generic-regs", "syscon";
+			reg = <0xea0110 0x10>;
 		};
 
 		apb@fc0000 {
