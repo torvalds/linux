@@ -591,12 +591,6 @@ static void rtl8192_proc_module_init(void)
 	rtl8192_proc = proc_mkdir(RTL819xU_MODULE_NAME, init_net.proc_net);
 }
 
-
-void rtl8192_proc_module_remove(void)
-{
-	remove_proc_entry(RTL819xU_MODULE_NAME, init_net.proc_net);
-}
-
 /*
  * seq_file wrappers for procfile show routines.
  */
