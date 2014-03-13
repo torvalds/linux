@@ -237,8 +237,14 @@ bsearch:
 		for (i = 0; i < ca->sb.njournal_buckets; i++)
 			if (ja->seq[i] > seq) {
 				seq = ja->seq[i];
-				ja->cur_idx = ja->discard_idx =
-					ja->last_idx = i;
+				/*
+				 * When journal_reclaim() goes to allocate for
+				 * the first time, it'll use the bucket after
+				 * ja->cur_idx
+				 */
+				ja->cur_idx = i;
+				ja->last_idx = ja->discard_idx = (i + 1) %
+					ca->sb.njournal_buckets;
 
 			}
 	}
