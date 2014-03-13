@@ -274,9 +274,8 @@ static int rfkill_rk_set_power(void *data, bool blocked)
             msleep(20);
 			gpio_direction_output(reset->io, reset->enable);
         }
-
 #if defined(CONFIG_AP6210) || defined(CONFIG_AP6335)
-        if (gpio_is_valid(rts->io))
+        if (pinctrl != NULL && gpio_is_valid(rts->io))
         {
             pinctrl_select_state(pinctrl, rts->gpio_state);
             LOG("ENABLE UART_RTS\n");
@@ -287,7 +286,6 @@ static int rfkill_rk_set_power(void *data, bool blocked)
             pinctrl_select_state(pinctrl, rts->default_state);
         }
 #endif
-
     	LOG("bt turn on power\n");
 	} else {
             if (gpio_is_valid(poweron->io))
@@ -323,11 +321,11 @@ static int rfkill_rk_pm_prepare(struct device *dev)
     wake_host_irq = &rfkill->pdata->wake_host_irq;
 
     //To prevent uart to receive bt data when suspended
-    if (gpio_is_valid(rts->io))
+    if (pinctrl != NULL && gpio_is_valid(rts->io))
     {
         DBG("Disable UART_RTS\n");
-        //pinctrl_select_state(pinctrl, rts->gpio_state);
-        //gpio_direction_output(rts->io, !rts->enable);
+        pinctrl_select_state(pinctrl, rts->gpio_state);
+        gpio_direction_output(rts->io, !rts->enable);
     }
 
 #ifdef CONFIG_BT_AUTOSLEEP
@@ -370,7 +368,7 @@ static void rfkill_rk_pm_complete(struct device *dev)
         disable_irq(wake_host_irq->irq);
     }
 
-    if (gpio_is_valid(rts->io))
+    if (pinctrl != NULL && gpio_is_valid(rts->io))
     {
         DBG("Enable UART_RTS\n");
         gpio_direction_output(rts->io, rts->enable);
@@ -439,23 +437,24 @@ static int bluetooth_platdata_parse_dt(struct device *dev,
 
     memset(data, 0, sizeof(*data));
 
-    if (of_find_property(node, "support_uart_rts_ctrl", NULL)) {
-        gpio = of_get_named_gpio_flags(node, "uart_rts_gpios", 0, &flags);
-        if (gpio_is_valid(gpio)) {
-            data->rts_gpio.io = gpio;
-            data->rts_gpio.enable = flags;
-            LOG("%s: get property: uart_rts_gpios = %d.\n", __func__, gpio);
-            data->pinctrl = devm_pinctrl_get(dev);
-            if (!IS_ERR(data->pinctrl)) {
-                data->rts_gpio.default_state = pinctrl_lookup_state(data->pinctrl, "default");
-            } else {
-                LOG("%s: dts does't define the uart rts iomux.\n", __func__);
-                return -EINVAL;
-            }
+    gpio = of_get_named_gpio_flags(node, "uart_rts_gpios", 0, &flags);
+    if (gpio_is_valid(gpio)) {
+        data->rts_gpio.io = gpio;
+        data->rts_gpio.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
+        LOG("%s: get property: uart_rts_gpios = %d.\n", __func__, gpio);
+        data->pinctrl = devm_pinctrl_get(dev);
+        if (!IS_ERR(data->pinctrl)) {
+            data->rts_gpio.default_state = pinctrl_lookup_state(data->pinctrl, "default");
+            data->rts_gpio.gpio_state = pinctrl_lookup_state(data->pinctrl, "rts_gpio");
         } else {
-            LOG("%s: uart_rts_gpios is unvalid.\n", __func__);
+            data->pinctrl = NULL;
+            LOG("%s: dts does't define the uart rts iomux.\n", __func__);
             return -EINVAL;
         }
+    } else {
+        data->pinctrl = NULL;
+        LOG("%s: uart_rts_gpios is unvalid.\n", __func__);
+        return -EINVAL;
     }
 
     gpio = of_get_named_gpio_flags(node, "BT,power_gpio", 0, &flags);
@@ -579,8 +578,8 @@ static int rfkill_rk_probe(struct platform_device *pdev)
     ret = rfkill_rk_setup_wake_irq(rfkill);
     if (ret) goto fail_gpio;
 
-    //ret = rfkill_rk_setup_gpio(pdev, &pdata->rts_gpio, rfkill->pdata->name, "rts"); 
-    //if (ret) goto fail_gpio;
+    ret = rfkill_rk_setup_gpio(pdev, &pdata->rts_gpio, rfkill->pdata->name, "rts"); 
+    if (ret) goto fail_gpio;
 
     DBG("setup rfkill\n");
 	rfkill->rfkill_dev = rfkill_alloc(pdata->name, &pdev->dev, pdata->type,

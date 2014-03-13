@@ -116,6 +116,11 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+
+			uart0_rts_gpio: uart0-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART0_RTSN)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
 		};
 
 		gpio1_uart1 {
@@ -142,6 +147,11 @@
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart1_rts_gpio: uart1-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART1_RTSN)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 		};
 
@@ -181,6 +191,11 @@
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart3_rts_gpio: uart3-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART3_RTSN)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 		};
 
