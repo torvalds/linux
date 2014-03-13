@@ -1800,6 +1800,8 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 		mc_list[5] = priv->port;
 		mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp,
 				      mc_list, MLX4_PROT_ETH, mclist->reg_id);
+		if (mclist->tunnel_reg_id)
+			mlx4_flow_detach(mdev->dev, mclist->tunnel_reg_id);
 	}
 	mlx4_en_clear_list(dev);
 	list_for_each_entry_safe(mclist, tmp, &priv->curr_list, list) {
