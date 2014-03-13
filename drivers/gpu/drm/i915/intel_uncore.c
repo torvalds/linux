@@ -805,6 +805,10 @@ void intel_uncore_fini(struct drm_device *dev)
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(dev);
 	intel_uncore_forcewake_reset(dev);
+
+	dev_priv->uncore.forcewake_count = 0;
+	dev_priv->uncore.fw_rendercount = 0;
+	dev_priv->uncore.fw_mediacount = 0;
 }
 
 static const struct register_whitelist {
