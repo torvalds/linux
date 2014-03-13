@@ -802,16 +802,13 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 
 	/* crush */
 	ceph_decode_32_safe(p, end, len, e_inval);
-	dout("osdmap_decode crush len %d from off 0x%x\n", len,
-	     (int)(*p - start));
-	ceph_decode_need(p, end, len, e_inval);
-	map->crush = crush_decode(*p, end);
-	*p += len;
+	map->crush = crush_decode(*p, min(*p + len, end));
 	if (IS_ERR(map->crush)) {
 		err = PTR_ERR(map->crush);
 		map->crush = NULL;
 		goto bad;
 	}
+	*p += len;
 
 	/* ignore the rest */
 	*p = end;
