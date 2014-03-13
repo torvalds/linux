@@ -499,9 +499,9 @@ static bool bch_extent_bad_expensive(struct btree *b, const struct bkey *k,
 
 	if (mutex_trylock(&b->c->bucket_lock)) {
 		if (b->c->gc_mark_valid &&
-		    ((GC_MARK(g) != GC_MARK_DIRTY &&
-		      KEY_DIRTY(k)) ||
-		     GC_MARK(g) == GC_MARK_METADATA))
+		    (!GC_MARK(g) ||
+		     GC_MARK(g) == GC_MARK_METADATA ||
+		     (GC_MARK(g) != GC_MARK_DIRTY && KEY_DIRTY(k))))
 			goto err;
 
 		if (g->prio == BTREE_PRIO)

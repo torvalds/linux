@@ -155,7 +155,8 @@ add:
 
 static bool can_invalidate_bucket(struct cache *ca, struct bucket *b)
 {
-	return GC_MARK(b) == GC_MARK_RECLAIMABLE &&
+	return (!GC_MARK(b) ||
+		GC_MARK(b) == GC_MARK_RECLAIMABLE) &&
 		!atomic_read(&b->pin) &&
 		can_inc_bucket_gen(b);
 }
@@ -475,7 +476,7 @@ void bch_bucket_free(struct cache_set *c, struct bkey *k)
 	for (i = 0; i < KEY_PTRS(k); i++) {
 		struct bucket *b = PTR_BUCKET(c, k, i);
 
-		SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
+		SET_GC_MARK(b, 0);
 		SET_GC_SECTORS_USED(b, 0);
 		bch_bucket_add_unused(PTR_CACHE(c, k, i), b);
 	}

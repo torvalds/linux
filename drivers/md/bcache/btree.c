@@ -1160,6 +1160,8 @@ static uint8_t __bch_btree_mark_key(struct cache_set *c, int level,
 			SET_GC_MARK(g, GC_MARK_METADATA);
 		else if (KEY_DIRTY(k))
 			SET_GC_MARK(g, GC_MARK_DIRTY);
+		else if (!GC_MARK(g))
+			SET_GC_MARK(g, GC_MARK_RECLAIMABLE);
 
 		/* guard against overflow */
 		SET_GC_SECTORS_USED(g, min_t(unsigned,
@@ -1559,7 +1561,7 @@ static void btree_gc_start(struct cache_set *c)
 		for_each_bucket(b, ca) {
 			b->gc_gen = b->gen;
 			if (!atomic_read(&b->pin)) {
-				SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
+				SET_GC_MARK(b, 0);
 				SET_GC_SECTORS_USED(b, 0);
 			}
 		}
@@ -1622,12 +1624,16 @@ size_t bch_btree_gc_finish(struct cache_set *c)
 			b->last_gc	= b->gc_gen;
 			c->need_gc	= max(c->need_gc, bucket_gc_gen(b));
 
-			if (!atomic_read(&b->pin) &&
-			    GC_MARK(b) == GC_MARK_RECLAIMABLE) {
+			if (atomic_read(&b->pin))
+				continue;
+
+			BUG_ON(!GC_MARK(b) && GC_SECTORS_USED(b));
+
+			if (!GC_MARK(b) || GC_MARK(b) == GC_MARK_RECLAIMABLE)
 				available++;
-				if (!GC_SECTORS_USED(b))
-					bch_bucket_add_unused(ca, b);
-			}
+
+			if (!GC_MARK(b))
+				bch_bucket_add_unused(ca, b);
 		}
 	}
 
