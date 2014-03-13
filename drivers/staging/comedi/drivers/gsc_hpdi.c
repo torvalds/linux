@@ -53,7 +53,6 @@
 #include "comedi_fc.h"
 
 static void abort_dma(struct comedi_device *dev, unsigned int channel);
-static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 
 #define TIMER_BASE 50		/*  20MHz master clock */
 #define DMA_BUFFER_SIZE 0x10000
@@ -212,26 +211,6 @@ struct hpdi_private {
 	volatile unsigned int block_size;
 };
 
-static int dio_config_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	int ret;
-
-	switch (data[0]) {
-	case INSN_CONFIG_BLOCK_SIZE:
-		return dio_config_block_size(dev, data);
-	default:
-		ret = comedi_dio_insn_config(dev, s, insn, data, 0xffffffff);
-		if (ret)
-			return ret;
-		break;
-	}
-
-	return insn->n;
-}
-
 static void disable_plx_interrupts(struct comedi_device *dev)
 {
 	struct hpdi_private *devpriv = dev->private;
@@ -288,22 +267,6 @@ static int setup_dma_descriptors(struct comedi_device *dev,
 	devpriv->block_size = transfer_size;
 
 	return transfer_size;
-}
-
-static int dio_config_block_size(struct comedi_device *dev, unsigned int *data)
-{
-	unsigned int requested_block_size;
-	int retval;
-
-	requested_block_size = data[1];
-
-	retval = setup_dma_descriptors(dev, requested_block_size);
-	if (retval < 0)
-		return retval;
-
-	data[1] = retval;
-
-	return 2;
 }
 
 static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -595,6 +558,31 @@ static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int gsc_hpdi_dio_insn_config(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	int ret;
+
+	switch (data[0]) {
+	case INSN_CONFIG_BLOCK_SIZE:
+		ret = setup_dma_descriptors(dev, data[1]);
+		if (ret)
+			return ret;
+
+		data[1] = ret;
+		break;
+	default:
+		ret = comedi_dio_insn_config(dev, s, insn, data, 0xffffffff);
+		if (ret)
+			return ret;
+		break;
+	}
+
+	return insn->n;
+}
+
 static int init_hpdi(struct comedi_device *dev)
 {
 	struct hpdi_private *devpriv = dev->private;
@@ -758,7 +746,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	s->len_chanlist	= 32;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_config	= dio_config_insn;
+	s->insn_config	= gsc_hpdi_dio_insn_config;
 	s->do_cmd	= hpdi_cmd;
 	s->do_cmdtest	= hpdi_cmd_test;
 	s->cancel	= hpdi_cancel;
