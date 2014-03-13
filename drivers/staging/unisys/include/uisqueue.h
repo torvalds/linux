@@ -34,7 +34,7 @@
 
 struct uisqueue_info {
 
-	pCHANNEL_HEADER chan;
+	CHANNEL_HEADER __iomem *chan;
 	/* channel containing queues in which scsi commands &
 	 * responses are queued
 	 */
@@ -75,9 +75,9 @@ struct uisqueue_info {
 		".previous\n"                   \
 		"661:\n\tlock; "
 
-unsigned long long uisqueue_InterlockedOr(volatile unsigned long long *Target,
+unsigned long long uisqueue_InterlockedOr(unsigned long long __iomem *Target,
 					  unsigned long long Set);
-unsigned long long uisqueue_InterlockedAnd(volatile unsigned long long *Target,
+unsigned long long uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
 					   unsigned long long Set);
 
 unsigned int uisqueue_send_int_if_needed(struct uisqueue_info *pqueueinfo,
@@ -133,7 +133,7 @@ struct extport_info {
 };
 
 struct device_info {
-	void *chanptr;
+	void __iomem *chanptr;
 	U64 channelAddr;
 	U64 channelBytes;
 	GUID channelTypeGuid;
@@ -164,7 +164,7 @@ struct bus_info {
 	struct device_info **device;
 	U64 guestHandle, recvBusInterruptHandle;
 	GUID busInstGuid;
-	ULTRA_VBUS_CHANNEL_PROTOCOL *pBusChannel;
+	ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *pBusChannel;
 	int busChannelBytes;
 	struct proc_dir_entry *proc_dir;	/* proc/uislib/vbus/<x> */
 	struct proc_dir_entry *proc_info;	/* proc/uislib/vbus/<x>/info */
@@ -352,8 +352,8 @@ typedef enum {
 } GUESTPART_MSG_TYPE;
 
 struct add_vbus_guestpart {
-	void *chanptr;		/* pointer to data channel for bus -
-				 * NOT YET USED */
+	void __iomem *chanptr;		/* pointer to data channel for bus -
+					 * NOT YET USED */
 	U32 busNo;		/* bus number to be created/deleted */
 	U32 deviceCount;	/* max num of devices on bus */
 	GUID busTypeGuid;	/* indicates type of bus */
@@ -368,7 +368,7 @@ struct del_vbus_guestpart {
 };
 
 struct add_virt_guestpart {
-	void *chanptr;		/* pointer to data channel */
+	void __iomem *chanptr;		/* pointer to data channel */
 	U32 busNo;		/* bus number for the operation */
 	U32 deviceNo;		/* number of device on the bus */
 	GUID devInstGuid;	/* instance guid for device */
@@ -382,15 +382,15 @@ struct add_virt_guestpart {
 };
 
 struct pause_virt_guestpart {
-	void *chanptr;		/* pointer to data channel */
+	void __iomem *chanptr;		/* pointer to data channel */
 };
 
 struct resume_virt_guestpart {
-	void *chanptr;		/* pointer to data channel */
+	void __iomem *chanptr;		/* pointer to data channel */
 };
 
 struct del_virt_guestpart {
-	void *chanptr;		/* pointer to data channel */
+	void __iomem *chanptr;		/* pointer to data channel */
 };
 
 struct init_chipset_guestpart {
@@ -435,38 +435,6 @@ struct guest_msgs {
 *  guests.
 */
 
-static inline unsigned long
-uislibcmpxchg64(volatile void *ptr, unsigned long old, unsigned long new,
-		int size)
-{
-	unsigned long prev;
-	switch (size) {
-	case 1:
-	      __asm__ __volatile__(UISLIB_LOCK_PREFIX "cmpxchgb %b1,%2":"=a"(prev)
-	      :		     "q"(new), "m"(*__xg(ptr)),
-				     "0"(old)
-	      :		     "memory");
-		return prev;
-	case 2:
-	      __asm__ __volatile__(UISLIB_LOCK_PREFIX "cmpxchgw %w1,%2":"=a"(prev)
-	      :		     "r"(new), "m"(*__xg(ptr)),
-				     "0"(old)
-	      :		     "memory");
-		return prev;
-	case 4:
-	      __asm__ __volatile__(UISLIB_LOCK_PREFIX "cmpxchgl %k1,%2":"=a"(prev)
-	      :		     "r"(new), "m"(*__xg(ptr)),
-				     "0"(old)
-	      :		     "memory");
-		return prev;
-	case 8:
-	      __asm__ __volatile__(UISLIB_LOCK_PREFIX "cmpxchgq %1,%2":"=a"(prev)
-	      :		     "r"(new), "m"(*__xg(ptr)),
-				     "0"(old)
-	      :		     "memory");
-		return prev;
-	}
-	return old;
-}
+#define uislibcmpxchg64(p, o, n, s) cmpxchg(p, o, n)
 
 #endif				/* __UISQUEUE_H__ */

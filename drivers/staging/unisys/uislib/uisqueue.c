@@ -39,16 +39,16 @@
 /* Exported functions                                */
 /*****************************************************/
 unsigned long long
-uisqueue_InterlockedOr(volatile unsigned long long *Target,
+uisqueue_InterlockedOr(unsigned long long __iomem *Target,
 		       unsigned long long Set)
 {
 	unsigned long long i;
 	unsigned long long j;
 
-	j = *Target;
+	j = readq(Target);
 	do {
 		i = j;
-		j = uislibcmpxchg64((unsigned long long *) Target,
+		j = uislibcmpxchg64((__force unsigned long long *)Target,
 				    i, i | Set, sizeof(*(Target)));
 
 	} while (i != j);
@@ -58,16 +58,16 @@ uisqueue_InterlockedOr(volatile unsigned long long *Target,
 EXPORT_SYMBOL_GPL(uisqueue_InterlockedOr);
 
 unsigned long long
-uisqueue_InterlockedAnd(volatile unsigned long long *Target,
+uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
 			unsigned long long Set)
 {
 	unsigned long long i;
 	unsigned long long j;
 
-	j = *Target;
+	j = readq(Target);
 	do {
 		i = j;
-		j = uislibcmpxchg64((unsigned long long *) Target,
+		j = uislibcmpxchg64((__force unsigned long long *)Target,
 				    i, i & Set, sizeof(*(Target)));
 
 	} while (i != j);

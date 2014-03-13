@@ -79,10 +79,10 @@ int ReqHandlerDel(GUID switchTypeGuid);
 #define uislib_ioremap_cache(addr, size) \
 	dbg_ioremap_cache(addr, size, __FILE__, __LINE__)
 
-static inline void *
+static inline void __iomem *
 dbg_ioremap_cache(U64 addr, unsigned long size, char *file, int line)
 {
-	void *new;
+	void __iomem *new;
 	new = ioremap_cache(addr, size);
 	return new;
 }
@@ -100,7 +100,7 @@ dbg_ioremap(U64 addr, unsigned long size, char *file, int line)
 #define uislib_iounmap(addr) dbg_iounmap(addr, __FILE__, __LINE__)
 
 static inline void
-dbg_iounmap(void *addr, char *file, int line)
+dbg_iounmap(void __iomem *addr, char *file, int line)
 {
 	iounmap(addr);
 }
@@ -202,7 +202,7 @@ struct chaninfo {
  */
 #define WAIT_FOR_VALID_GUID(guid) \
 	do {						   \
-		while (memcmp(&guid, &Guid0, sizeof(Guid0)) == 0) {	\
+		while (MEMCMP_IO(&guid, &Guid0, sizeof(Guid0)) == 0) {	\
 			LOGERR("Waiting for non-0 GUID (why???)...\n"); \
 			UIS_THREAD_WAIT_SEC(5);				\
 		}							\
