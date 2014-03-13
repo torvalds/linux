@@ -781,6 +781,48 @@ bail:
 	return status;
 }
 
+int ocfs2_free_local_alloc_bits(struct ocfs2_super *osb,
+				handle_t *handle,
+				struct ocfs2_alloc_context *ac,
+				u32 bit_off,
+				u32 num_bits)
+{
+	int status, start;
+	u32 clear_bits;
+	struct inode *local_alloc_inode;
+	void *bitmap;
+	struct ocfs2_dinode *alloc;
+	struct ocfs2_local_alloc *la;
+
+	BUG_ON(ac->ac_which != OCFS2_AC_USE_LOCAL);
+
+	local_alloc_inode = ac->ac_inode;
+	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
+	la = OCFS2_LOCAL_ALLOC(alloc);
+
+	bitmap = la->la_bitmap;
+	start = bit_off - le32_to_cpu(la->la_bm_off);
+	clear_bits = num_bits;
+
+	status = ocfs2_journal_access_di(handle,
+			INODE_CACHE(local_alloc_inode),
+			osb->local_alloc_bh,
+			OCFS2_JOURNAL_ACCESS_WRITE);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	while (clear_bits--)
+		ocfs2_clear_bit(start++, bitmap);
+
+	le32_add_cpu(&alloc->id1.bitmap1.i_used, -num_bits);
+	ocfs2_journal_dirty(handle, osb->local_alloc_bh);
+
+bail:
+	return status;
+}
+
 static u32 ocfs2_local_alloc_count_bits(struct ocfs2_dinode *alloc)
 {
 	u32 count;

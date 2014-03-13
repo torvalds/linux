@@ -121,9 +121,8 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 }
 
 static size_t nfs_parse_server_name(char *string, size_t len,
-		struct sockaddr *sa, size_t salen, struct nfs_server *server)
+		struct sockaddr *sa, size_t salen, struct net *net)
 {
-	struct net *net = rpc_net_ns(server->client);
 	ssize_t ret;
 
 	ret = rpc_pton(net, string, len, sa, salen);
@@ -223,6 +222,7 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 				     const struct nfs4_fs_location *location)
 {
 	const size_t addr_bufsize = sizeof(struct sockaddr_storage);
+	struct net *net = rpc_net_ns(NFS_SB(mountdata->sb)->client);
 	struct vfsmount *mnt = ERR_PTR(-ENOENT);
 	char *mnt_path;
 	unsigned int maxbuflen;
@@ -248,8 +248,7 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 			continue;
 
 		mountdata->addrlen = nfs_parse_server_name(buf->data, buf->len,
-				mountdata->addr, addr_bufsize,
-				NFS_SB(mountdata->sb));
+				mountdata->addr, addr_bufsize, net);
 		if (mountdata->addrlen == 0)
 			continue;
 
@@ -419,6 +418,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 		const struct nfs4_fs_location *location)
 {
 	const size_t addr_bufsize = sizeof(struct sockaddr_storage);
+	struct net *net = rpc_net_ns(server->client);
 	struct sockaddr *sap;
 	unsigned int s;
 	size_t salen;
@@ -440,7 +440,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 			continue;
 
 		salen = nfs_parse_server_name(buf->data, buf->len,
-						sap, addr_bufsize, server);
+						sap, addr_bufsize, net);
 		if (salen == 0)
 			continue;
 		rpc_set_port(sap, NFS_PORT);
@@ -450,7 +450,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 		if (hostname == NULL)
 			break;
 
-		error = nfs4_update_server(server, hostname, sap, salen);
+		error = nfs4_update_server(server, hostname, sap, salen, net);
 		kfree(hostname);
 		if (error == 0)
 			break;

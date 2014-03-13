@@ -66,10 +66,6 @@ static int h1940_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	runtime->hw.rate_min = hw_rates.list[0];
-	runtime->hw.rate_max = hw_rates.list[hw_rates.count - 1];
-	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
-
 	return snd_pcm_hw_constraint_list(runtime, 0,
 					SNDRV_PCM_HW_PARAM_RATE,
 					&hw_rates);
@@ -94,7 +90,7 @@ static int h1940_hw_params(struct snd_pcm_substream *substream,
 			div++;
 		break;
 	default:
-		dev_err(&rtd->dev, "%s: rate %d is not supported\n",
+		dev_err(rtd->dev, "%s: rate %d is not supported\n",
 			__func__, rate);
 		return -EINVAL;
 	}
@@ -181,7 +177,6 @@ static int h1940_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(dapm, "Speaker");
