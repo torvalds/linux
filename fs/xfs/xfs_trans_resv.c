@@ -212,6 +212,19 @@ xfs_calc_rename_reservation(
 }
 
 /*
+ * For removing an inode from unlinked list at first, we can modify:
+ *    the agi hash list and counters: sector size
+ *    the on disk inode before ours in the agi hash list: inode cluster size
+ */
+STATIC uint
+xfs_calc_iunlink_remove_reservation(
+	struct xfs_mount        *mp)
+{
+	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
+	       max_t(uint, XFS_FSB_TO_B(mp, 1), mp->m_inode_cluster_size);
+}
+
+/*
  * For creating a link to an inode:
  *    the parent directory inode: inode size
  *    the linked inode: inode size
@@ -228,12 +241,25 @@ xfs_calc_link_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
+		xfs_calc_iunlink_remove_reservation(mp) +
 		MAX((xfs_calc_inode_res(mp, 2) +
 		     xfs_calc_buf_res(XFS_DIROP_LOG_COUNT(mp),
 				      XFS_FSB_TO_B(mp, 1))),
 		    (xfs_calc_buf_res(3, mp->m_sb.sb_sectsize) +
 		     xfs_calc_buf_res(XFS_ALLOCFREE_LOG_COUNT(mp, 1),
 				      XFS_FSB_TO_B(mp, 1))));
+}
+
+/*
+ * For adding an inode to unlinked list we can modify:
+ *    the agi hash list: sector size
+ *    the unlinked inode: inode size
+ */
+STATIC uint
+xfs_calc_iunlink_add_reservation(xfs_mount_t *mp)
+{
+	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
+		xfs_calc_inode_res(mp, 1);
 }
 
 /*
@@ -253,10 +279,11 @@ xfs_calc_remove_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		MAX((xfs_calc_inode_res(mp, 2) +
+		xfs_calc_iunlink_add_reservation(mp) +
+		MAX((xfs_calc_inode_res(mp, 1) +
 		     xfs_calc_buf_res(XFS_DIROP_LOG_COUNT(mp),
 				      XFS_FSB_TO_B(mp, 1))),
-		    (xfs_calc_buf_res(5, mp->m_sb.sb_sectsize) +
+		    (xfs_calc_buf_res(4, mp->m_sb.sb_sectsize) +
 		     xfs_calc_buf_res(XFS_ALLOCFREE_LOG_COUNT(mp, 2),
 				      XFS_FSB_TO_B(mp, 1))));
 }
@@ -351,6 +378,20 @@ xfs_calc_create_reservation(
 
 }
 
+STATIC uint
+xfs_calc_create_tmpfile_reservation(
+	struct xfs_mount        *mp)
+{
+	uint	res = XFS_DQUOT_LOGRES(mp);
+
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		res += xfs_calc_icreate_resv_alloc(mp);
+	else
+		res += xfs_calc_create_resv_alloc(mp);
+
+	return res + xfs_calc_iunlink_add_reservation(mp);
+}
+
 /*
  * Making a new directory is the same as creating a new file.
  */
@@ -391,9 +432,9 @@ xfs_calc_ifree_reservation(
 {
 	return XFS_DQUOT_LOGRES(mp) +
 		xfs_calc_inode_res(mp, 1) +
-		xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
+		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
 		xfs_calc_buf_res(1, XFS_FSB_TO_B(mp, 1)) +
-		max_t(uint, XFS_FSB_TO_B(mp, 1), mp->m_inode_cluster_size) +
+		xfs_calc_iunlink_remove_reservation(mp) +
 		xfs_calc_buf_res(1, 0) +
 		xfs_calc_buf_res(2 + mp->m_ialloc_blks +
 				 mp->m_in_maxlevels, 0) +
@@ -735,6 +776,11 @@ xfs_trans_resv_calc(
 	resp->tr_create.tr_logres = xfs_calc_create_reservation(mp);
 	resp->tr_create.tr_logcount = XFS_CREATE_LOG_COUNT;
 	resp->tr_create.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_create_tmpfile.tr_logres =
+			xfs_calc_create_tmpfile_reservation(mp);
+	resp->tr_create_tmpfile.tr_logcount = XFS_CREATE_TMPFILE_LOG_COUNT;
+	resp->tr_create_tmpfile.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
 	resp->tr_mkdir.tr_logres = xfs_calc_mkdir_reservation(mp);
 	resp->tr_mkdir.tr_logcount = XFS_MKDIR_LOG_COUNT;
