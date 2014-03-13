@@ -1,36 +1,34 @@
 /*
-   comedi/drivers/rti802.c
-   Hardware driver for Analog Devices RTI-802 board
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * rti802.c
+ * Comedi driver for Analog Devices RTI-802 board
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
-/*
-Driver: rti802
-Description: Analog Devices RTI-802
-Author: Anders Blomdell <anders.blomdell@control.lth.se>
-Devices: [Analog Devices] RTI-802 (rti802)
-Status: works
 
-Configuration Options:
-    [0] - i/o base
-    [1] - unused
-    [2] - dac#0  0=two's comp, 1=straight
-    [3] - dac#0  0=bipolar, 1=unipolar
-    [4] - dac#1 ...
-    ...
-    [17] - dac#7 ...
-*/
+/*
+ * Driver: rti802
+ * Description: Analog Devices RTI-802
+ * Author: Anders Blomdell <anders.blomdell@control.lth.se>
+ * Devices: (Analog Devices) RTI-802 [rti802]
+ * Status: works
+ *
+ * Configuration Options:
+ *   [0] - i/o base
+ *   [1] - unused
+ *   [2,4,6,8,10,12,14,16] - dac#[0-7]  0=two's comp, 1=straight
+ *   [3,5,7,9,11,13,15,17] - dac#[0-7]  0=bipolar, 1=unipolar
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
