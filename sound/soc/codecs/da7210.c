@@ -1071,16 +1071,8 @@ static struct snd_soc_dai_driver da7210_dai = {
 static int da7210_probe(struct snd_soc_codec *codec)
 {
 	struct da7210_priv *da7210 = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
 	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
-
-	codec->control_data = da7210->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	da7210->mclk_rate       = 0;    /* This will be set from set_sysclk() */
 	da7210->master          = 0;    /* This will be set from set_fmt() */

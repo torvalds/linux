@@ -322,14 +322,6 @@ static struct snd_soc_dai_driver ad193x_dai = {
 static int ad193x_codec_probe(struct snd_soc_codec *codec)
 {
 	struct ad193x_priv *ad193x = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = ad193x->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* default setting for ad193x */
 
@@ -347,7 +339,7 @@ static int ad193x_codec_probe(struct snd_soc_codec *codec)
 	regmap_write(ad193x->regmap, AD193X_PLL_CLK_CTRL0, 0x99); /* mclk=24.576Mhz: 0x9D; mclk=12.288Mhz: 0x99 */
 	regmap_write(ad193x->regmap, AD193X_PLL_CLK_CTRL1, 0x04);
 
-	return ret;
+	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ad193x = {

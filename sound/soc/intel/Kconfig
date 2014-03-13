@@ -32,7 +32,7 @@ config SND_SOC_INTEL_BAYTRAIL
 
 config SND_SOC_INTEL_HASWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Haswell Lynxpoint"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
 	select SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT5640
 	help
@@ -43,7 +43,7 @@ config SND_SOC_INTEL_HASWELL_MACH
 
 config SND_SOC_INTEL_BYT_RT5640_MACH
 	tristate "ASoC Audio driver for Intel Baytrail with RT5640 codec"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
 	select SND_SOC_INTEL_BAYTRAIL
 	select SND_SOC_RT5640
 	help

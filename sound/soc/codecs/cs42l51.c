@@ -488,12 +488,6 @@ static int cs42l51_probe(struct snd_soc_codec *codec)
 {
 	int ret, reg;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/*
 	 * DAC configuration
 	 * - Use signal processor

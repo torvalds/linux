@@ -1470,13 +1470,6 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 
 	INIT_DELAYED_WORK(&codec->dapm.delayed_work, wm8753_work);
 
-	codec->control_data = wm8753->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	ret = wm8753_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);

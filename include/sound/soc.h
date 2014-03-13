@@ -354,12 +354,6 @@ typedef int (*hw_write_t)(void *,const char* ,int);
 
 extern struct snd_ac97_bus_ops *soc_ac97_ops;
 
-enum snd_soc_control_type {
-	SND_SOC_I2C = 1,
-	SND_SOC_SPI,
-	SND_SOC_REGMAP,
-};
-
 enum snd_soc_pcm_subclass {
 	SND_SOC_PCM_CLASS_PCM	= 0,
 	SND_SOC_PCM_CLASS_BE	= 1,
@@ -406,8 +400,7 @@ int snd_soc_codec_readable_register(struct snd_soc_codec *codec,
 int snd_soc_codec_writable_register(struct snd_soc_codec *codec,
 				    unsigned int reg);
 int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
-			       int addr_bits, int data_bits,
-			       enum snd_soc_control_type control);
+			       struct regmap *regmap);
 int snd_soc_cache_sync(struct snd_soc_codec *codec);
 int snd_soc_cache_init(struct snd_soc_codec *codec);
 int snd_soc_cache_exit(struct snd_soc_codec *codec);
@@ -614,7 +607,8 @@ struct snd_soc_jack_gpio {
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
 
-	int (*jack_status_check)(void);
+	void *data;
+	int (*jack_status_check)(void *data);
 };
 
 struct snd_soc_jack {
@@ -717,7 +711,6 @@ struct snd_soc_codec {
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
 	hw_write_t hw_write;
-	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	void *reg_cache;

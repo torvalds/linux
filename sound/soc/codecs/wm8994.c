@@ -3998,9 +3998,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	wm8994->hubs.codec = codec;
-	codec->control_data = control->regmap;
 
-	snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
+	snd_soc_codec_set_cache_io(codec, control->regmap);
 
 	mutex_init(&wm8994->accdet_lock);
 	INIT_DELAYED_WORK(&wm8994->jackdet_bootstrap,
