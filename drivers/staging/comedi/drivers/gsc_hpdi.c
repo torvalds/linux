@@ -203,20 +203,9 @@ struct hpdi_private {
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
 	volatile unsigned long dio_count;
-	/* software copies of values written to hpdi registers */
-	volatile uint32_t bits[24];
 	/* number of bytes at which to generate COMEDI_CB_BLOCK events */
 	volatile unsigned int block_size;
 };
-
-static inline void hpdi_writel(struct comedi_device *dev, uint32_t bits,
-			       unsigned int offset)
-{
-	struct hpdi_private *devpriv = dev->private;
-
-	writel(bits | devpriv->bits[offset / sizeof(uint32_t)],
-	       devpriv->hpdi_iobase + offset);
-}
 
 static void gsc_hpdi_drain_dma(struct comedi_device *dev, unsigned int channel)
 {
@@ -350,8 +339,7 @@ static int gsc_hpdi_cancel(struct comedi_device *dev,
 {
 	struct hpdi_private *devpriv = dev->private;
 
-	hpdi_writel(dev, 0, BOARD_CONTROL_REG);
-
+	writel(0, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
 	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
 	gsc_hpdi_abort_dma(dev, 0);
@@ -371,7 +359,7 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	if (s->io_bits)
 		return -EINVAL;
 
-	hpdi_writel(dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG);
+	writel(RX_FIFO_RESET_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
 
 	gsc_hpdi_abort_dma(dev, 0);
 
@@ -411,7 +399,7 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	writel(intr_bit(RX_FULL_INTR),
 	       devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
-	hpdi_writel(dev, RX_ENABLE_BIT, BOARD_CONTROL_REG);
+	writel(RX_ENABLE_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
 
 	return 0;
 }
