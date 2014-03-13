@@ -157,6 +157,13 @@ enum {
 #define IWL_RATE_INCREASE_TH		6400	/*  50% */
 #define RS_SR_FORCE_DECREASE		1920	/*  15% */
 
+#define TPC_SR_FORCE_INCREASE		9600	/* 75% */
+#define TPC_SR_NO_INCREASE		10880	/* 85% */
+#define TPC_TX_POWER_STEP		3
+#define TPC_MAX_REDUCTION		15
+#define TPC_NO_REDUCTION		0
+#define TPC_INVALID			0xff
+
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
 #define LINK_QUAL_AGG_TIME_LIMIT_MAX	(8000)
 #define LINK_QUAL_AGG_TIME_LIMIT_MIN	(100)
@@ -279,6 +286,8 @@ struct iwl_scale_tbl_info {
 	enum rs_column column;
 	const u16 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
 	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
+	/* per txpower-reduction history */
+	struct iwl_rate_scale_data tpc_win[TPC_MAX_REDUCTION + 1];
 };
 
 enum {
@@ -337,6 +346,9 @@ struct iwl_lq_sta {
 	u32 last_rate_n_flags;
 	/* packets destined for this STA are aggregated */
 	u8 is_agg;
+
+	/* tx power reduce for this sta */
+	int tpc_reduce;
 };
 
 /* Initialize station's rate scaling information after adding station */

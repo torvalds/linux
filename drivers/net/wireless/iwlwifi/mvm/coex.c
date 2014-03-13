@@ -1215,6 +1215,17 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	return iwl_get_coex_type(mvm, mvmsta->vif) == BT_COEX_TIGHT_LUT;
 }
 
+bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
+				    enum ieee80211_band band)
+{
+	u32 bt_activity = le32_to_cpu(mvm->last_bt_notif.bt_activity_grading);
+
+	if (band != IEEE80211_BAND_2GHZ)
+		return false;
+
+	return bt_activity >= BT_LOW_TRAFFIC;
+}
+
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac)
 {
