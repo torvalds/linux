@@ -420,6 +420,7 @@ config ARCH_EFM32
 	bool "Energy Micro efm32"
 	depends on !MMU
 	select ARCH_REQUIRE_GPIOLIB
+	select AUTO_ZRELADDR
 	select ARM_NVIC
 	# CLKSRC_MMIO is wrong here, but needed until a proper fix is merged,
 	# i.e. CLKSRC_EFM32 selecting CLKSRC_MMIO
