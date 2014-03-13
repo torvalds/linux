@@ -341,6 +341,13 @@
 	};
 
 	clocks {
+		/* 2 GHz fixed main PLL */
+		mainpll: mainpll {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <2000000000>;
+		};
+
 		/* 25 MHz reference crystal */
 		refclk: oscillator {
 			compatible = "fixed-clock";
