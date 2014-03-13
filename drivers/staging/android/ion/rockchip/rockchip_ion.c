@@ -164,6 +164,8 @@ free_heaps:
 	return ERR_PTR(ret);
 }
 
+#ifdef CONFIG_CMA
+
 // struct "cma" quoted from drivers/base/dma-contiguous.c
 struct cma {
 	unsigned long	base_pfn;
@@ -208,6 +210,8 @@ static int ion_cma_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 
 	return 0;
 }
+
+#endif
 
 struct ion_client *rockchip_ion_client_create(const char *name)
 {
@@ -331,8 +335,10 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 			err = PTR_ERR(heaps[i]);
 			goto err;
 		}
+#ifdef CONFIG_CMA
 		if (ION_HEAP_TYPE_DMA==heap_data->type)
 			heaps[i]->debug_show = ion_cma_heap_debug_show;
+#endif
 		ion_device_add_heap(idev, heaps[i]);
 	}
 	platform_set_drvdata(pdev, idev);
@@ -367,6 +373,7 @@ static int rockchip_ion_remove(struct platform_device *pdev)
 int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
 				int depth, void *data)
 {
+#ifdef CONFIG_CMA
 	__be32 *prop;
 	unsigned long len;
 	phys_addr_t size;
@@ -385,6 +392,7 @@ int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
 	pr_info("%s: reserve cma memory: %x %x\n", __func__, base, size);
 
 	dma_declare_contiguous(&rockchip_ion_cma_dev, size, base, 0);
+#endif
 
 	return 1;
 }
