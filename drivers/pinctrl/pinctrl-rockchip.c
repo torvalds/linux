@@ -1101,7 +1101,7 @@ static int _rockchip_pinconf_get(struct rockchip_pin_bank *bank,
 
 
 static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
-					int pin_num, int param, int config_type, unsigned group)
+					int pin_num, int arg, int config_type, unsigned group)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;	
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
@@ -1220,22 +1220,18 @@ static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 	for(i=0; i < j; i++)
 	{
 		reg = info->reg_base + reg_offset[i].reg_offset;
-		data |= ((param & reg_offset[i].bit_mask) << (16 + reg_offset[i].bit_offset));
-		data |= ((param & reg_offset[i].bit_mask) << reg_offset[i].bit_offset);
+		data |= ((arg & reg_offset[i].bit_mask) << (16 + reg_offset[i].bit_offset));
+		data |= ((arg & reg_offset[i].bit_mask) << reg_offset[i].bit_offset);
 		spin_lock_irqsave(&bank->slock, flags);
-		//writel_relaxed(data, reg);	
+		writel_relaxed(data, reg);	
 		value = readl_relaxed(reg);
 		spin_unlock_irqrestore(&bank->slock, flags);
-		//if((value != 0xff12) && (value && 0xff00) && (reg_offset[i].reg_offset == 0x104))
-		DBG_PINCTRL("%s:reg_offset[%d]=0x%x,,bit_offset[%d]=%d,data[%d]=0x%08x,result=0x%08x\n",__func__, i, reg_offset[i].reg_offset, i, reg_offset[i].bit_offset, i, data, value);			
+		DBG_PINCTRL("%s:reg_offset[%d]=0x%x,,bit_offset[%d]=%d,data[%d]=0x%08x,result=0x%08x,arg=%d\n",__func__, i, reg_offset[i].reg_offset, i, reg_offset[i].bit_offset, i, data, value, arg);
 	}
 	
 	
 	return 0;
 }
-
-
-
 
 
 /* set the pin config settings for a specified pin */
@@ -1276,18 +1272,18 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 		
 	case PIN_CONFIG_POWER_SOURCE:
-		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, param, TYPE_VOL_REG, group);
+		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, arg, TYPE_VOL_REG, group);
 		if (rc)
 		return rc;
 		break;
 
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, param, TYPE_DRV_REG, group);
+		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, arg, TYPE_DRV_REG, group);
 		if (rc)
 		return rc;
 		break;
 	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
-		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, param, TYPE_TRI_REG, group);
+		rc = _rockchip_pinconf_set(bank, pin - bank->pin_base, arg, TYPE_TRI_REG, group);
 		if (rc)
 		return rc;
 		break;
@@ -1296,7 +1292,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 	}
 	
-	DBG_PINCTRL("%s,pin=%d,param=%d\n",__func__,pin, param);
+	DBG_PINCTRL("%s,pin=%d,param=%d, arg=%d\n",__func__,pin, param, arg);
 
 	return 0;
 }
@@ -1411,7 +1407,8 @@ static const struct pinconf_ops rockchip_pinconf_ops = {
 
 static const struct of_device_id rockchip_bank_match[] = {
 	{ .compatible = "rockchip,gpio-bank" },
-	{ .compatible = "rockchip,rk3188-gpio-bank0" },
+	{ .compatible = "rockchip,rk3188-gpio-bank0" },	
+	{ .compatible = "rockchip,rk3288-gpio-bank0" },
 	{},
 };
 
@@ -2554,7 +2551,7 @@ static struct rockchip_pin_ctrl rk3288_pin_ctrl = {
 		.nr_banks		= ARRAY_SIZE(rk3288_pin_banks),
 		.label			= "RK3288-GPIO",
 		.type			= RK3288,
-		.mux_offset		= 0x60,
+		.mux_offset		= 0x0,
 };
 
 
