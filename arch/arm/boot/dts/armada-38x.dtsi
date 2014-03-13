@@ -337,6 +337,14 @@
 				compatible = "marvell,orion-mdio";
 				reg = <0x72004 0x4>;
 			};
+
+			coredivclk: clock@e4250 {
+				compatible = "marvell,armada-380-corediv-clock";
+				reg = <0xe4250 0xc>;
+				#clock-cells = <1>;
+				clocks = <&mainpll>;
+				clock-output-names = "nand";
+			};
 		};
 	};
 
