@@ -303,10 +303,11 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VRISE);
 		break;
 	case OTG_STATE_A_WAIT_VRISE:
-		if (fsm->id || fsm->a_bus_drop || fsm->a_vbus_vld ||
-				fsm->a_wait_vrise_tmout) {
+		if (fsm->a_vbus_vld)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_BCON);
-		}
+		else if (fsm->id || fsm->a_bus_drop ||
+				fsm->a_wait_vrise_tmout)
+			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
 		break;
 	case OTG_STATE_A_WAIT_BCON:
 		if (!fsm->a_vbus_vld)
