@@ -24,15 +24,6 @@
 
 #include "dot11d.h"
 
-u8 rsn_authen_cipher_suite[16][4] = {
-	{0x00,0x0F,0xAC,0x00}, //Use group key, //Reserved
-	{0x00,0x0F,0xAC,0x01}, //WEP-40         //RSNA default
-	{0x00,0x0F,0xAC,0x02}, //TKIP           //NONE		//{used just as default}
-	{0x00,0x0F,0xAC,0x03}, //WRAP-historical
-	{0x00,0x0F,0xAC,0x04}, //CCMP
-	{0x00,0x0F,0xAC,0x05}, //WEP-104
-};
-
 short ieee80211_is_54g(const struct ieee80211_network *net)
 {
 	return (net->rates_ex_len > 0) || (net->rates_len > 4);
@@ -1959,7 +1950,8 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_network network_resp;
 			struct ieee80211_network *network = &network_resp;
 
-			if (0 == (errcode=assoc_parse(ieee,skb, &aid))){
+			errcode = assoc_parse(ieee, skb, &aid);
+			if (!errcode) {
 				ieee->state=IEEE80211_LINKED;
 				ieee->assoc_id = aid;
 				ieee->softmac_stats.rx_ass_ok++;
@@ -2017,7 +2009,8 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 					IEEE80211_DEBUG_MGMT("Received authentication response");
 
-					if (0 == (errcode=auth_parse(skb, &challenge, &chlen))){
+					errcode = auth_parse(skb, &challenge, &chlen);
+					if (!errcode) {
 						if(ieee->open_wep || !challenge){
 							ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATED;
 							ieee->softmac_stats.rx_auth_rs_ok++;

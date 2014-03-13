@@ -1318,7 +1318,8 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 		/* Don't send data frame during scanning.*/
 		if ((skb_queue_len(&priv->ieee80211->skb_waitQ[queue_index]) != 0) &&
 		    (!(priv->ieee80211->queue_stop))) {
-			if (NULL != (skb = skb_dequeue(&(priv->ieee80211->skb_waitQ[queue_index]))))
+			skb = skb_dequeue(&(priv->ieee80211->skb_waitQ[queue_index]));
+			if (skb)
 				priv->ieee80211->softmac_hard_start_xmit(skb, dev);
 
 			return; //modified by david to avoid further processing AMSDU
