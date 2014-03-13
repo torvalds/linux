@@ -21,6 +21,16 @@ Configuration options:
 
 #include <linux/delay.h>
 
+/*
+ * Register I/O map
+ */
+#define FL512_AI_LSB_REG		0x02
+#define FL512_AI_MSB_REG		0x03
+#define FL512_AI_MUX_REG		0x02
+#define FL512_AI_START_CONV_REG		0x03
+#define FL512_AO_DATA_REG(x)		(0x04 + ((x) * 2))
+#define FL512_AO_TRIG_REG(x)		(0x04 + ((x) * 2))
+
 struct fl512_private {
 	unsigned short ao_readback[2];
 };
@@ -45,17 +55,16 @@ static int fl512_ai_insn_read(struct comedi_device *dev,
 	int n;
 	unsigned int lo_byte, hi_byte;
 	char chan = CR_CHAN(insn->chanspec);
-	unsigned long iobase = dev->iobase;
 
 	for (n = 0; n < insn->n; n++) {	/* sample n times on selected channel */
 		/* XXX probably can move next step out of for() loop -- will
 		 * make AI a little bit faster. */
-		outb(chan, iobase + 2);	/* select chan */
-		outb(0, iobase + 3);	/* start conversion */
+		outb(chan, dev->iobase + FL512_AI_MUX_REG);
+		outb(0, dev->iobase + FL512_AI_START_CONV_REG);
 		/* XXX should test "done" flag instead of delay */
 		udelay(30);	/* sleep 30 usec */
-		lo_byte = inb(iobase + 2);	/* low 8 byte */
-		hi_byte = inb(iobase + 3) & 0xf; /* high 4 bit and mask */
+		lo_byte = inb(dev->iobase + FL512_AI_LSB_REG);
+		hi_byte = inb(dev->iobase + FL512_AI_MSB_REG) & 0xf;
 		data[n] = lo_byte + (hi_byte << 8);
 	}
 	return n;
@@ -69,14 +78,14 @@ static int fl512_ao_insn_write(struct comedi_device *dev,
 	struct fl512_private *devpriv = dev->private;
 	int n;
 	int chan = CR_CHAN(insn->chanspec);	/* get chan to write */
-	unsigned long iobase = dev->iobase;	/* get base address  */
 
 	for (n = 0; n < insn->n; n++) {	/* write n data set */
 		/* write low byte   */
-		outb(data[n] & 0x0ff, iobase + 4 + 2 * chan);
+		outb(data[n] & 0x0ff, dev->iobase + FL512_AO_DATA_REG(chan));
 		/* write high byte  */
-		outb((data[n] & 0xf00) >> 8, iobase + 4 + 2 * chan);
-		inb(iobase + 4 + 2 * chan);	/* trig */
+		outb((data[n] & 0xf00) >> 8,
+		     dev->iobase + FL512_AO_DATA_REG(chan));
+		inb(dev->iobase + FL512_AO_TRIG_REG(chan));
 
 		devpriv->ao_readback[chan] = data[n];
 	}
