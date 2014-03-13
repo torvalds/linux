@@ -1836,17 +1836,29 @@ config DEBUG_HOTPLUG_CPU0
 	  If unsure, say N.
 
 config COMPAT_VDSO
-	def_bool y
-	prompt "Compat VDSO support"
+	def_bool n
+	prompt "Disable the 32-bit vDSO (needed for glibc 2.3.3)"
 	depends on X86_32 || IA32_EMULATION
 	---help---
-	  Map the 32-bit VDSO to the predictable old-style address too.
+	  Certain buggy versions of glibc will crash if they are
+	  presented with a 32-bit vDSO that is not mapped at the address
+	  indicated in its segment table.
 
-	  Say N here if you are running a sufficiently recent glibc
-	  version (2.3.3 or later), to remove the high-mapped
-	  VDSO mapping and to exclusively use the randomized VDSO.
+	  The bug was introduced by f866314b89d56845f55e6f365e18b31ec978ec3a
+	  and fixed by 3b3ddb4f7db98ec9e912ccdf54d35df4aa30e04a and
+	  49ad572a70b8aeb91e57483a11dd1b77e31c4468.  Glibc 2.3.3 is
+	  the only released version with the bug, but OpenSUSE 9
+	  contains a buggy "glibc 2.3.2".
 
-	  If unsure, say Y.
+	  The symptom of the bug is that everything crashes on startup, saying:
+	  dl_main: Assertion `(void *) ph->p_vaddr == _rtld_local._dl_sysinfo_dso' failed!
+
+	  Saying Y here changes the default value of the vdso32 boot
+	  option from 1 to 0, which turns off the 32-bit vDSO entirely.
+	  This works around the glibc bug but hurts performance.
+
+	  If unsure, say N: if you are compiling your own kernel, you
+	  are unlikely to be using a buggy version of glibc.
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"

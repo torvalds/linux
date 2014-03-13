@@ -2,8 +2,6 @@
 #define _ASM_X86_VDSO_H
 
 #if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-extern const char VDSO32_PRELINK[];
-
 /*
  * Given a pointer to the vDSO image, find the pointer to VDSO32_name
  * as that symbol is defined in the vDSO sources or linker script.
@@ -11,8 +9,7 @@ extern const char VDSO32_PRELINK[];
 #define VDSO32_SYMBOL(base, name)					\
 ({									\
 	extern const char VDSO32_##name[];				\
-	(void __user *)(VDSO32_##name - VDSO32_PRELINK +		\
-			(unsigned long)(base));				\
+	(void __user *)(VDSO32_##name + (unsigned long)(base));		\
 })
 #endif
 
