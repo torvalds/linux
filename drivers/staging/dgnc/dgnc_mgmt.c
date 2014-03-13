@@ -168,7 +168,8 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		DPR_MGMT(("DIGI_GETBD asking about board: %d\n", brd));
 
-		if ((brd < 0) || (brd > dgnc_NumBoards) || (dgnc_NumBoards == 0))
+		if ((brd < 0) || (brd > dgnc_NumBoards) ||
+		    (dgnc_NumBoards == 0))
 			return -ENODEV;
 
 		memset(&di, 0, sizeof(di));
@@ -264,12 +265,14 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ni.cflag = ch->ch_c_cflag;
 		ni.lflag = ch->ch_c_lflag;
 
-		if (ch->ch_digi.digi_flags & CTSPACE || ch->ch_c_cflag & CRTSCTS)
+		if (ch->ch_digi.digi_flags & CTSPACE ||
+		    ch->ch_c_cflag & CRTSCTS)
 			ni.hflow = 1;
 		else
 			ni.hflow = 0;
 
-		if ((ch->ch_flags & CH_STOPI) || (ch->ch_flags & CH_FORCED_STOPI))
+		if ((ch->ch_flags & CH_STOPI) ||
+		    (ch->ch_flags & CH_FORCED_STOPI))
 			ni.recv_stopped = 1;
 		else
 			ni.recv_stopped = 0;
