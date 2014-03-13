@@ -171,12 +171,33 @@ static void __extract_prog_irq(struct kvm_vcpu *vcpu,
 	}
 }
 
+/*
+ * restore ITDB to program-interruption TDB in guest lowcore
+ * and set TX abort indication if required
+*/
+static int handle_itdb(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_itdb *itdb;
+	int rc;
+
+	if (!IS_TE_ENABLED(vcpu) || !IS_ITDB_VALID(vcpu))
+		return 0;
+	if (current->thread.per_flags & PER_FLAG_NO_TE)
+		return 0;
+	itdb = (struct kvm_s390_itdb *)vcpu->arch.sie_block->itdba;
+	rc = write_guest_lc(vcpu, __LC_PGM_TDB, itdb, sizeof(*itdb));
+	if (rc)
+		return rc;
+	memset(itdb, 0, sizeof(*itdb));
+
+	return 0;
+}
+
 #define per_event(vcpu) (vcpu->arch.sie_block->iprcc & PGM_PER)
 
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_pgm_info pgm_info;
-	struct kvm_s390_itdb *itdb;
 	int rc;
 
 	vcpu->stat.exit_program_interruption++;
@@ -188,20 +209,13 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 			return 0;
 	}
 
-	/* Restore ITDB to Program-Interruption TDB in guest memory */
-	if (!IS_TE_ENABLED(vcpu) || !IS_ITDB_VALID(vcpu))
-		goto skip_itdb;
-	if (current->thread.per_flags & PER_FLAG_NO_TE)
-		goto skip_itdb;
-	itdb = (struct kvm_s390_itdb *)vcpu->arch.sie_block->itdba;
-	rc = write_guest_lc(vcpu, __LC_PGM_TDB, itdb, sizeof(*itdb));
+	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
+
+	rc = handle_itdb(vcpu);
 	if (rc)
 		return rc;
-	memset(itdb, 0, sizeof(*itdb));
-skip_itdb:
-	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
-	__extract_prog_irq(vcpu, &pgm_info);
 
+	__extract_prog_irq(vcpu, &pgm_info);
 	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
 }
 
