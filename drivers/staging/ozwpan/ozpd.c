@@ -8,6 +8,7 @@
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/errno.h>
 #include "ozdbg.h"
 #include "ozprotocol.h"
@@ -173,7 +174,7 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 		pd->last_rx_pkt_num = 0xffffffff;
 		oz_pd_set_state(pd, OZ_PD_S_IDLE);
 		pd->max_tx_size = OZ_MAX_TX_SIZE;
-		memcpy(pd->mac_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(pd->mac_addr, mac_addr);
 		if (0 != oz_elt_buf_init(&pd->elt_buff)) {
 			kfree(pd);
 			pd = NULL;
