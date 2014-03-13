@@ -53,10 +53,6 @@
 #include "comedi_fc.h"
 
 static void abort_dma(struct comedi_device *dev, unsigned int channel);
-static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_cmd *cmd);
-static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 
 #define TIMER_BASE 50		/*  20MHz master clock */
@@ -282,36 +278,6 @@ static void init_plx9080(struct comedi_device *dev)
 	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
 	bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
 	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
-}
-
-/* Allocate and initialize the subdevice structures.
- */
-static int setup_subdevices(struct comedi_device *dev)
-{
-	struct comedi_subdevice *s;
-	int ret;
-
-	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret)
-		return ret;
-
-	s = &dev->subdevices[0];
-	/* analog input subdevice */
-	dev->read_subdev = s;
-/*	dev->write_subdev = s; */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags =
-	    SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL | SDF_CMD_READ;
-	s->n_chan = 32;
-	s->len_chanlist = 32;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_config = dio_config_insn;
-	s->do_cmd = hpdi_cmd;
-	s->do_cmdtest = hpdi_cmd_test;
-	s->cancel = hpdi_cancel;
-
-	return 0;
 }
 
 static int init_hpdi(struct comedi_device *dev)
@@ -716,6 +682,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct hpdi_board *thisboard;
 	struct hpdi_private *devpriv;
+	struct comedi_subdevice *s;
 	int i;
 	int retval;
 
@@ -778,9 +745,24 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	if (retval < 0)
 		return retval;
 
-	retval = setup_subdevices(dev);
-	if (retval < 0)
+	retval = comedi_alloc_subdevices(dev, 1);
+	if (retval)
 		return retval;
+
+	/* Digital I/O subdevice */
+	s = &dev->subdevices[0];
+	dev->read_subdev = s;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL |
+			  SDF_CMD_READ;
+	s->n_chan	= 32;
+	s->len_chanlist	= 32;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_config	= dio_config_insn;
+	s->do_cmd	= hpdi_cmd;
+	s->do_cmdtest	= hpdi_cmd_test;
+	s->cancel	= hpdi_cancel;
 
 	return init_hpdi(dev);
 }
