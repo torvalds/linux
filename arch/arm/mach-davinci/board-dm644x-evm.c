@@ -799,11 +799,12 @@ static __init void davinci_evm_init(void)
 	/* irlml6401 switches over 1A, in under 8 msec */
 	davinci_setup_usb(1000, 8);
 
-	soc_info->emac_pdata->phy_id = DM644X_EVM_PHY_ID;
-	/* Register the fixup for PHY on DaVinci */
-	phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
-					davinci_phy_fixup);
-
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
+		soc_info->emac_pdata->phy_id = DM644X_EVM_PHY_ID;
+		/* Register the fixup for PHY on DaVinci */
+		phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
+						davinci_phy_fixup);
+	}
 }
 
 MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
