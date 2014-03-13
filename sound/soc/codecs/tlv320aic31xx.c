@@ -129,7 +129,7 @@ static const struct regmap_range_cfg aic31xx_ranges[] = {
 	},
 };
 
-struct regmap_config aic31xx_i2c_regmap = {
+static const struct regmap_config aic31xx_i2c_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.writeable_reg = aic31xx_writeable,
@@ -321,9 +321,9 @@ static const struct snd_kcontrol_new ldac_in_control =
 static const struct snd_kcontrol_new rdac_in_control =
 	SOC_DAPM_ENUM("DAC Right Input", rdac_in_enum);
 
-int aic31xx_wait_bits(struct aic31xx_priv *aic31xx, unsigned int reg,
-		      unsigned int mask, unsigned int wbits, int sleep,
-		      int count)
+static int aic31xx_wait_bits(struct aic31xx_priv *aic31xx, unsigned int reg,
+			     unsigned int mask, unsigned int wbits, int sleep,
+			     int count)
 {
 	unsigned int bits;
 	int counter = count;
@@ -943,7 +943,6 @@ static void aic31xx_clk_on(struct snd_soc_codec *codec)
 
 static void aic31xx_clk_off(struct snd_soc_codec *codec)
 {
-	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
 	u8 mask = AIC31XX_PM_MASK;
 	u8 off = 0;
 
@@ -1050,17 +1049,8 @@ static int aic31xx_codec_probe(struct snd_soc_codec *codec)
 	dev_dbg(aic31xx->dev, "## %s\n", __func__);
 
 	aic31xx = snd_soc_codec_get_drvdata(codec);
-	codec->control_data = aic31xx->regmap;
 
 	aic31xx->codec = codec;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-
-	if (ret != 0) {
-		dev_err(codec->dev, "snd_soc_codec_set_cache_io failed %d\n",
-			ret);
-		return ret;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++) {
 		aic31xx->disable_nb[i].nb.notifier_call =
@@ -1187,7 +1177,7 @@ static void aic31xx_pdata_from_of(struct aic31xx_priv *aic31xx)
 }
 #endif /* CONFIG_OF */
 
-void aic31xx_device_init(struct aic31xx_priv *aic31xx)
+static void aic31xx_device_init(struct aic31xx_priv *aic31xx)
 {
 	int ret, i;
 
