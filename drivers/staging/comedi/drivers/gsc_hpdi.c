@@ -185,7 +185,7 @@ static const struct hpdi_board hpdi_boards[] = {
 
 struct hpdi_private {
 	void __iomem *plx9080_mmio;
-	void __iomem *hpdi_iobase;
+	void __iomem *mmio;
 	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/*  dma buffers */
 	/* physical addresses of dma buffers */
 	dma_addr_t dio_buffer_phys_addr[NUM_DMA_BUFFERS];
@@ -264,13 +264,12 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	if ((plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LIA)) == 0)
 		return IRQ_NONE;
 
-	hpdi_intr_status = readl(devpriv->hpdi_iobase + INTERRUPT_STATUS_REG);
-	hpdi_board_status = readl(devpriv->hpdi_iobase + BOARD_STATUS_REG);
+	hpdi_intr_status = readl(devpriv->mmio + INTERRUPT_STATUS_REG);
+	hpdi_board_status = readl(devpriv->mmio + BOARD_STATUS_REG);
 
-	if (hpdi_intr_status) {
-		writel(hpdi_intr_status,
-		       devpriv->hpdi_iobase + INTERRUPT_STATUS_REG);
-	}
+	if (hpdi_intr_status)
+		writel(hpdi_intr_status, devpriv->mmio + INTERRUPT_STATUS_REG);
+
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
@@ -334,8 +333,8 @@ static int gsc_hpdi_cancel(struct comedi_device *dev,
 {
 	struct hpdi_private *devpriv = dev->private;
 
-	writel(0, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
-	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
+	writel(0, devpriv->mmio + BOARD_CONTROL_REG);
+	writel(0, devpriv->mmio + INTERRUPT_CONTROL_REG);
 
 	gsc_hpdi_abort_dma(dev, 0);
 
@@ -354,7 +353,7 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	if (s->io_bits)
 		return -EINVAL;
 
-	writel(RX_FIFO_RESET_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
+	writel(RX_FIFO_RESET_BIT, devpriv->mmio + BOARD_CONTROL_REG);
 
 	gsc_hpdi_abort_dma(dev, 0);
 
@@ -388,13 +387,12 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 
 	/* clear over/under run status flags */
 	writel(RX_UNDERRUN_BIT | RX_OVERRUN_BIT,
-	       devpriv->hpdi_iobase + BOARD_STATUS_REG);
+	       devpriv->mmio + BOARD_STATUS_REG);
 
 	/* enable interrupts */
-	writel(intr_bit(RX_FULL_INTR),
-	       devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
+	writel(intr_bit(RX_FULL_INTR), devpriv->mmio + INTERRUPT_CONTROL_REG);
 
-	writel(RX_ENABLE_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
+	writel(RX_ENABLE_BIT, devpriv->mmio + BOARD_CONTROL_REG);
 
 	return 0;
 }
@@ -543,20 +541,20 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 	struct hpdi_private *devpriv = dev->private;
 	uint32_t plx_intcsr_bits;
 
-	writel(BOARD_RESET_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
+	writel(BOARD_RESET_BIT, devpriv->mmio + BOARD_CONTROL_REG);
 	udelay(10);
 
 	writel(almost_empty_bits(32) | almost_full_bits(32),
-	       devpriv->hpdi_iobase + RX_PROG_ALMOST_REG);
+	       devpriv->mmio + RX_PROG_ALMOST_REG);
 	writel(almost_empty_bits(32) | almost_full_bits(32),
-	       devpriv->hpdi_iobase + TX_PROG_ALMOST_REG);
+	       devpriv->mmio + TX_PROG_ALMOST_REG);
 
-	devpriv->tx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
+	devpriv->tx_fifo_size = fifo_size(readl(devpriv->mmio +
 						  TX_FIFO_SIZE_REG));
-	devpriv->rx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
+	devpriv->rx_fifo_size = fifo_size(readl(devpriv->mmio +
 						  RX_FIFO_SIZE_REG));
 
-	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
+	writel(0, devpriv->mmio + INTERRUPT_CONTROL_REG);
 
 	/*  enable interrupts */
 	plx_intcsr_bits =
@@ -647,8 +645,8 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	pci_set_master(pcidev);
 
 	devpriv->plx9080_mmio = pci_ioremap_bar(pcidev, 0);
-	devpriv->hpdi_iobase = pci_ioremap_bar(pcidev, 2);
-	if (!devpriv->plx9080_mmio || !devpriv->hpdi_iobase) {
+	devpriv->mmio = pci_ioremap_bar(pcidev, 2);
+	if (!devpriv->plx9080_mmio || !devpriv->mmio) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
 	}
@@ -722,8 +720,8 @@ static void gsc_hpdi_detach(struct comedi_device *dev)
 			writel(0, devpriv->plx9080_mmio + PLX_INTRCS_REG);
 			iounmap(devpriv->plx9080_mmio);
 		}
-		if (devpriv->hpdi_iobase)
-			iounmap(devpriv->hpdi_iobase);
+		if (devpriv->mmio)
+			iounmap(devpriv->mmio);
 		/*  free pci dma buffers */
 		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 			if (devpriv->dio_buffer[i])
