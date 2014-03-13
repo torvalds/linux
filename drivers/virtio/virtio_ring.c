@@ -204,6 +204,11 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 
 	BUG_ON(data == NULL);
 
+	if (unlikely(vq->broken)) {
+		END_USE(vq);
+		return -EIO;
+	}
+
 #ifdef DEBUG
 	{
 		ktime_t now = ktime_get();
@@ -310,7 +315,7 @@ add_head:
  * Caller must ensure we don't call this with other virtqueue operations
  * at the same time (except where noted).
  *
- * Returns zero or a negative error (ie. ENOSPC, ENOMEM).
+ * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
  */
 int virtqueue_add_sgs(struct virtqueue *_vq,
 		      struct scatterlist *sgs[],
@@ -348,7 +353,7 @@ EXPORT_SYMBOL_GPL(virtqueue_add_sgs);
  * Caller must ensure we don't call this with other virtqueue operations
  * at the same time (except where noted).
  *
- * Returns zero or a negative error (ie. ENOSPC, ENOMEM).
+ * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
  */
 int virtqueue_add_outbuf(struct virtqueue *vq,
 			 struct scatterlist sg[], unsigned int num,
@@ -370,7 +375,7 @@ EXPORT_SYMBOL_GPL(virtqueue_add_outbuf);
  * Caller must ensure we don't call this with other virtqueue operations
  * at the same time (except where noted).
  *
- * Returns zero or a negative error (ie. ENOSPC, ENOMEM).
+ * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
  */
 int virtqueue_add_inbuf(struct virtqueue *vq,
 			struct scatterlist sg[], unsigned int num,
