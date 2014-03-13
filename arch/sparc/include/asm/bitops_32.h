@@ -90,9 +90,6 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 
 #include <asm-generic/bitops/non-atomic.h>
 
-#define smp_mb__before_clear_bit()	do { } while(0)
-#define smp_mb__after_clear_bit()	do { } while(0)
-
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/sched.h>

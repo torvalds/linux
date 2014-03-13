@@ -14,6 +14,7 @@
 #include <linux/types.h>
 
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 #include <asm-generic/atomic64.h>
 
 
@@ -51,11 +52,5 @@ extern void atomic_set(atomic_t *, int);
 
 #define atomic_dec_and_test(v) (atomic_dec_return(v) == 0)
 #define atomic_sub_and_test(i, v) (atomic_sub_return(i, v) == 0)
-
-/* Atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 #endif /* !(__ARCH_SPARC_ATOMIC__) */
