@@ -176,6 +176,13 @@ ENDPROC(efi_call6)
  * This function must be invoked with a 1:1 mapped stack.
  */
 ENTRY(__efi64_thunk)
+	movl	%ds, %eax
+	push	%rax
+	movl	%es, %eax
+	push	%rax
+	movl	%ss, %eax
+	push	%rax
+
 	subq	$32, %rsp
 	movl	%esi, 0x0(%rsp)
 	movl	%edx, 0x4(%rsp)
@@ -191,7 +198,7 @@ ENTRY(__efi64_thunk)
 	movq	%rbx, func_rt_ptr(%rip)
 
 	/* Switch to gdt with 32-bit segments */
-	movl	40(%rsp), %eax
+	movl	64(%rsp), %eax
 	lgdt	(%rax)
 
 	leaq	efi_enter32(%rip), %rax
@@ -202,6 +209,13 @@ ENTRY(__efi64_thunk)
 1:	addq	$32, %rsp
 
 	lgdt	save_gdt(%rip)
+
+	pop	%rbx
+	movl	%ebx, %ss
+	pop	%rbx
+	movl	%ebx, %es
+	pop	%rbx
+	movl	%ebx, %ds
 
 	/*
 	 * Convert 32-bit status code into 64-bit.
@@ -218,11 +232,6 @@ ENTRY(__efi64_thunk)
 ENDPROC(__efi64_thunk)
 
 ENTRY(efi_exit32)
-	xorq	%rax, %rax
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	%eax, %ss
-
 	movq	func_rt_ptr(%rip), %rax
 	push	%rax
 	mov	%rdi, %rax
@@ -267,7 +276,7 @@ ENTRY(efi_enter32)
 	 */
 	cli
 
-	movl	44(%esp), %eax
+	movl	68(%esp), %eax
 	movl	%eax, 2(%eax)
 	lgdtl	(%eax)
 
@@ -286,7 +295,7 @@ ENTRY(efi_enter32)
 	xorl	%eax, %eax
 	lldt	%ax
 
-	movl	48(%esp), %eax
+	movl	72(%esp), %eax
 	pushl	$__KERNEL_CS
 	pushl	%eax
 
