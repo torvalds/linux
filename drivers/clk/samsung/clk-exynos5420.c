@@ -34,7 +34,7 @@
 #define RPLL_LOCK		0x10050
 #define IPLL_LOCK		0x10060
 #define SPLL_LOCK		0x10070
-#define VPLL_LOCK		0x10070
+#define VPLL_LOCK		0x10080
 #define MPLL_LOCK		0x10090
 #define CPLL_CON0		0x10120
 #define DPLL_CON0		0x10128
