@@ -164,7 +164,6 @@ config MACH_XCEP
 	select MTD_CFI_INTELEXT
 	select MTD_PHYSMAP
 	select PXA25x
-	select SMC91X
 	help
 	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
 	  Tuned for usage in Libera instruments for particle accelerators.
