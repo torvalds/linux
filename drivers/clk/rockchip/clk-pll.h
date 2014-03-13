@@ -11,6 +11,9 @@
 #define CLK_LOOPS_RECALC(rate)  \
 	div_u64(CLK_LOOPS_JIFFY_REF*(rate),CLK_LOOPS_RATE_REF*MHZ)
 
+#define CLK_DIV_PLUS_ONE_SET(i, shift, width)	\
+	((((i)-1) << (shift)) | (((2<<(width)) - 1) << ((shift)+16)))
+
 /*******************RK3188 PLL******************************/
 #define RK3188_PLL_CON(i)	((i) * 4)
 /*******************PLL WORK MODE*************************/
@@ -180,10 +183,60 @@
 	.pllcon0 = RK3188_PLL_CLKR_SET(nr) | RK3188_PLL_CLKOD_SET(no), \
 	.pllcon1 = RK3188_PLL_CLKF_SET(nf),\
 	.pllcon2 = RK3188_PLL_CLK_BWADJ_SET(nf >> 1),\
+	.rst_dly = ((nr*500)/24+1),\
 	.clksel0 = RK3188_CORE_PERIPH_W_MSK | RK3188_CORE_PERIPH_##_periph_div,\
 	.clksel1 = RK3188_CORE_ACLK_W_MSK | RK3188_CORE_ACLK_##_aclk_div,\
 	.lpj = (CLK_LOOPS_JIFFY_REF*_mhz) / CLK_LOOPS_RATE_REF,\
+}
+
+/*******************RK3288 PLL***********************************/
+/*******************CLKSEL0 BITS***************************/
+#define RK3288_CORE_SEL_PLL_W_MSK	(1 << 31)
+#define RK3288_CORE_SEL_APLL		(0 << 15)
+#define RK3288_CORE_SEL_GPLL		(1 << 15)
+
+#define RK3288_CORE_CLK_SHIFT		8
+#define RK3288_CORE_CLK_WIDTH		5
+#define RK3288_CORE_CLK_DIV(i)	\
+	CLK_DIV_PLUS_ONE_SET(i, RK3288_CORE_CLK_SHIFT, RK3288_CORE_CLK_WIDTH)
+#define RK3288_CORE_CLK_MAX_DIV		(2<<RK3288_CORE_CLK_WIDTH)
+
+#define RK3288_ACLK_M0_SHIFT		0
+#define RK3288_ACLK_M0_WIDTH		4
+#define RK3288_ACLK_M0_DIV(i)	\
+	CLK_DIV_PLUS_ONE_SET(i, RK3288_ACLK_M0_SHIFT, RK3288_ACLK_M0_WIDTH)
+
+#define RK3288_ACLK_MP_SHIFT		4
+#define RK3288_ACLK_MP_WIDTH		4
+#define RK3288_ACLK_MP_DIV(i)	\
+	CLK_DIV_PLUS_ONE_SET(i, RK3288_ACLK_MP_SHIFT, RK3288_ACLK_MP_WIDTH)
+
+/*******************CLKSEL37 BITS***************************/
+#define RK3288_CLK_L2RAM_SHIFT		0
+#define RK3288_CLK_L2RAM_WIDTH		3
+#define RK3288_CLK_L2RAM_DIV(i)	\
+	CLK_DIV_PLUS_ONE_SET(i, RK3288_CLK_L2RAM_SHIFT, RK3288_CLK_L2RAM_WIDTH)
+
+#define RK3288_ATCLK_SHIFT		4
+#define RK3288_ATCLK_WIDTH		5
+#define RK3288_ATCLK_DIV(i)	\
+	CLK_DIV_PLUS_ONE_SET(i, RK3288_ATCLK_SHIFT, RK3288_ATCLK_WIDTH)
+
+#define RK3288_PCLK_DBG_SHIFT		9
+#define RK3288_PCLK_DBG_WIDTH		5
+#define RK3288_PCLK_DBG_DIV(i)	\
+	CLK_DIV_PLUS_ONE_SET(i, RK3288_PCLK_DBG_SHIFT, RK3288_PCLK_DBG_WIDTH)
+
+#define _RK3288_APLL_SET_CLKS(_mhz, nr, nf, no, l2_div, m0_div, mp_div, atclk_div, pclk_dbg_div) \
+{ \
+	.rate   = _mhz * MHZ, \
+	.pllcon0 = RK3188_PLL_CLKR_SET(nr) | RK3188_PLL_CLKOD_SET(no), \
+	.pllcon1 = RK3188_PLL_CLKF_SET(nf),\
+	.pllcon2 = RK3188_PLL_CLK_BWADJ_SET(nf >> 1),\
 	.rst_dly = ((nr*500)/24+1),\
+	.clksel0 = RK3288_ACLK_M0_DIV(m0_div) | RK3288_ACLK_MP_DIV(mp_div),\
+	.clksel1 = RK3288_CLK_L2RAM_DIV(l2_div) | RK3288_ATCLK_DIV(atclk_div) | RK3288_PCLK_DBG_DIV(pclk_dbg_div),\
+	.lpj = (CLK_LOOPS_JIFFY_REF*_mhz) / CLK_LOOPS_RATE_REF,\
 }
 
 

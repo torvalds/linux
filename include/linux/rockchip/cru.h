@@ -39,6 +39,17 @@
 #define RK3188_PLL_MODE_NORM(id)	((0x1<<((id)*4))|(0x3<<(16+(id)*4)))
 #define RK3188_PLL_MODE_DEEP(id)	((0x2<<((id)*4))|(0x3<<(16+(id)*4)))
 
+
+/*******************RK3288********************************/
+/*******************CRU OFFSET*********************/
+#define RK3288_CRU_MODE_CON		0x50
+#define RK3288_CRU_CLKSEL_CON		0x60
+#define RK3288_CRU_CLKGATE_CON		0x160
+
+#define RK3288_PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
+#define RK3288_CRU_CLKSELS_CON(i)	(RK3288_CRU_CLKSEL_CON + ((i) * 4))
+#define RK3288_CRU_CLKGATES_CON(i)	(RK3288_CRU_CLKGATE_CON + ((i) * 4))
+
 #define RK3288_CRU_GLB_SRST_FST_VALUE   0x1b0
 #define RK3288_CRU_GLB_SRST_SND_VALUE   0x1b4
 #define RK3288_CRU_MISC_CON             0x1e8
