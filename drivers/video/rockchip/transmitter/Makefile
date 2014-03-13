@@ -5,7 +5,6 @@ obj-$(CONFIG_RK2928_LVDS)       += rk2928_lvds.o
 obj-$(CONFIG_RK3026_LVDS)       += rk3026_lvds.o
 obj-$(CONFIG_RK610_LVDS)	+= rk610_lcd.o
 obj-$(CONFIG_RK616_LVDS)        += rk616_lvds.o
-obj-$(CONFIG_RK319x_LVDS)       += rk319x_lvds.o
 obj-$(CONFIG_RK32_LVDS)         += rk32_lvds.o
 obj-$(CONFIG_DP_ANX6345)        += dp_anx6345.o
 obj-$(CONFIG_DP501)          	+= dp501.o
