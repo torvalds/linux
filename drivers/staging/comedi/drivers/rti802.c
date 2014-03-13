@@ -49,15 +49,17 @@ struct rti802_private {
 
 static int rti802_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct rti802_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
 
 	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
+		data[i] = devpriv->ao_readback[chan];
 
-	return i;
+	return insn->n;
 }
 
 static int rti802_ao_insn_write(struct comedi_device *dev,
