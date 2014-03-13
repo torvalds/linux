@@ -427,8 +427,7 @@ comment "Power management"
 
 config SAMSUNG_PM_DEBUG
 	bool "S3C2410 PM Suspend debug"
-	depends on PM
-	select DEBUG_LL
+	depends on PM && DEBUG_KERNEL && DEBUG_S3C_UART
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
