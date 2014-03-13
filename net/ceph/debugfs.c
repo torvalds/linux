@@ -82,6 +82,17 @@ static int osdmap_show(struct seq_file *s, void *p)
 			   ((map->osd_weight[i]*100) >> 16),
 			   ceph_osdmap_state_str(sb, sizeof(sb), state));
 	}
+	for (n = rb_first(&map->pg_temp); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "pg_temp %llu.%x [", pg->pgid.pool,
+			   pg->pgid.seed);
+		for (i = 0; i < pg->len; i++)
+			seq_printf(s, "%s%d", (i == 0 ? "" : ","),
+				   pg->osds[i]);
+		seq_printf(s, "]\n");
+	}
 
 	return 0;
 }
