@@ -31,8 +31,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 #define _COMPONENT			ACPI_CONTAINER_COMPONENT
 ACPI_MODULE_NAME("container");
 
