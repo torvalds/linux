@@ -212,17 +212,17 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 }
 #endif
 
-static inline int sec_i2c_get_driver_data(struct i2c_client *i2c,
+static inline unsigned long sec_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
 #ifdef CONFIG_OF
 	if (i2c->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(sec_dt_match, i2c->dev.of_node);
-		return (int)match->data;
+		return (unsigned long)match->data;
 	}
 #endif
-	return (int)id->driver_data;
+	return id->driver_data;
 }
 
 static int sec_pmic_probe(struct i2c_client *i2c,

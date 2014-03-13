@@ -51,7 +51,7 @@ struct sec_pmic_dev {
 	struct regmap_irq_chip_data *irq_data;
 
 	int ono;
-	int type;
+	unsigned long type;
 	bool wakeup;
 	bool wtsr_smpl;
 };
