@@ -218,57 +218,6 @@ static void disable_plx_interrupts(struct comedi_device *dev)
 	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 }
 
-/* setup dma descriptors so a link completes every 'transfer_size' bytes */
-static int setup_dma_descriptors(struct comedi_device *dev,
-				 unsigned int transfer_size)
-{
-	struct hpdi_private *devpriv = dev->private;
-	unsigned int buffer_index, buffer_offset;
-	uint32_t next_bits = PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
-	    PLX_XFER_LOCAL_TO_PCI;
-	unsigned int i;
-
-	if (transfer_size > DMA_BUFFER_SIZE)
-		transfer_size = DMA_BUFFER_SIZE;
-	transfer_size -= transfer_size % sizeof(uint32_t);
-	if (transfer_size == 0)
-		return -1;
-
-	buffer_offset = 0;
-	buffer_index = 0;
-	for (i = 0; i < NUM_DMA_DESCRIPTORS &&
-	     buffer_index < NUM_DMA_BUFFERS; i++) {
-		devpriv->dma_desc[i].pci_start_addr =
-		    cpu_to_le32(devpriv->dio_buffer_phys_addr[buffer_index] +
-				buffer_offset);
-		devpriv->dma_desc[i].local_start_addr = cpu_to_le32(FIFO_REG);
-		devpriv->dma_desc[i].transfer_size =
-		    cpu_to_le32(transfer_size);
-		devpriv->dma_desc[i].next =
-		    cpu_to_le32((devpriv->dma_desc_phys_addr + (i +
-								  1) *
-				 sizeof(devpriv->dma_desc[0])) | next_bits);
-
-		devpriv->desc_dio_buffer[i] =
-		    devpriv->dio_buffer[buffer_index] +
-		    (buffer_offset / sizeof(uint32_t));
-
-		buffer_offset += transfer_size;
-		if (transfer_size + buffer_offset > DMA_BUFFER_SIZE) {
-			buffer_offset = 0;
-			buffer_index++;
-		}
-	}
-	devpriv->num_dma_descriptors = i;
-	/*  fix last descriptor to point back to first */
-	devpriv->dma_desc[i - 1].next =
-	    cpu_to_le32(devpriv->dma_desc_phys_addr | next_bits);
-
-	devpriv->block_size = transfer_size;
-
-	return transfer_size;
-}
-
 static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 		       struct comedi_cmd *cmd)
 {
@@ -558,6 +507,50 @@ static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+/* setup dma descriptors so a link completes every 'len' bytes */
+static int gsc_hpdi_setup_dma_descriptors(struct comedi_device *dev,
+					  unsigned int len)
+{
+	struct hpdi_private *devpriv = dev->private;
+	dma_addr_t phys_addr = devpriv->dma_desc_phys_addr;
+	uint32_t next_bits = PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
+			     PLX_XFER_LOCAL_TO_PCI;
+	unsigned int offset = 0;
+	unsigned int idx = 0;
+	unsigned int i;
+
+	if (len > DMA_BUFFER_SIZE)
+		len = DMA_BUFFER_SIZE;
+	len -= len % sizeof(uint32_t);
+	if (len == 0)
+		return -EINVAL;
+
+	for (i = 0; i < NUM_DMA_DESCRIPTORS && idx < NUM_DMA_BUFFERS; i++) {
+		devpriv->dma_desc[i].pci_start_addr =
+		    cpu_to_le32(devpriv->dio_buffer_phys_addr[idx] + offset);
+		devpriv->dma_desc[i].local_start_addr = cpu_to_le32(FIFO_REG);
+		devpriv->dma_desc[i].transfer_size = cpu_to_le32(len);
+		devpriv->dma_desc[i].next = cpu_to_le32((phys_addr +
+			(i + 1) * sizeof(devpriv->dma_desc[0])) | next_bits);
+
+		devpriv->desc_dio_buffer[i] = devpriv->dio_buffer[idx] +
+					      (offset / sizeof(uint32_t));
+
+		offset += len;
+		if (len + offset > DMA_BUFFER_SIZE) {
+			offset = 0;
+			idx++;
+		}
+	}
+	devpriv->num_dma_descriptors = i;
+	/* fix last descriptor to point back to first */
+	devpriv->dma_desc[i - 1].next = cpu_to_le32(phys_addr | next_bits);
+
+	devpriv->block_size = len;
+
+	return len;
+}
+
 static int gsc_hpdi_dio_insn_config(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -567,7 +560,7 @@ static int gsc_hpdi_dio_insn_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case INSN_CONFIG_BLOCK_SIZE:
-		ret = setup_dma_descriptors(dev, data[1]);
+		ret = gsc_hpdi_setup_dma_descriptors(dev, data[1]);
 		if (ret)
 			return ret;
 
@@ -728,7 +721,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	retval = setup_dma_descriptors(dev, 0x1000);
+	retval = gsc_hpdi_setup_dma_descriptors(dev, 0x1000);
 	if (retval < 0)
 		return retval;
 
