@@ -678,9 +678,9 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	__be64 *pages;
 	int shift, n, len;
-	int i, j, k;
+	int i, k, entry;
 	int err = 0;
-	struct ib_umem_chunk *chunk;
+	struct scatterlist *sg;
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
 	struct c4iw_mr *mhp;
@@ -710,10 +710,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	shift = ffs(mhp->umem->page_size) - 1;
 
-	n = 0;
-	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
-		n += chunk->nents;
-
+	n = mhp->umem->nmap;
 	err = alloc_pbl(mhp, n);
 	if (err)
 		goto err;
@@ -726,24 +723,22 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	i = n = 0;
 
-	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
-		for (j = 0; j < chunk->nmap; ++j) {
-			len = sg_dma_len(&chunk->page_list[j]) >> shift;
-			for (k = 0; k < len; ++k) {
-				pages[i++] = cpu_to_be64(sg_dma_address(
-					&chunk->page_list[j]) +
-					mhp->umem->page_size * k);
-				if (i == PAGE_SIZE / sizeof *pages) {
-					err = write_pbl(&mhp->rhp->rdev,
-					      pages,
-					      mhp->attr.pbl_addr + (n << 3), i);
-					if (err)
-						goto pbl_done;
-					n += i;
-					i = 0;
-				}
+	for_each_sg(mhp->umem->sg_head.sgl, sg, mhp->umem->nmap, entry) {
+		len = sg_dma_len(sg) >> shift;
+		for (k = 0; k < len; ++k) {
+			pages[i++] = cpu_to_be64(sg_dma_address(sg) +
+				mhp->umem->page_size * k);
+			if (i == PAGE_SIZE / sizeof *pages) {
+				err = write_pbl(&mhp->rhp->rdev,
+				      pages,
+				      mhp->attr.pbl_addr + (n << 3), i);
+				if (err)
+					goto pbl_done;
+				n += i;
+				i = 0;
 			}
 		}
+	}
 
 	if (i)
 		err = write_pbl(&mhp->rhp->rdev, pages,
