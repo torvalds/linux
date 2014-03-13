@@ -361,6 +361,33 @@ static int tegra_dsi_get_muldiv(enum mipi_dsi_pixel_format format,
 	return 0;
 }
 
+static int tegra_dsi_get_format(enum mipi_dsi_pixel_format format,
+				enum tegra_dsi_format *fmt)
+{
+	switch (format) {
+	case MIPI_DSI_FMT_RGB888:
+		*fmt = TEGRA_DSI_FORMAT_24P;
+		break;
+
+	case MIPI_DSI_FMT_RGB666:
+		*fmt = TEGRA_DSI_FORMAT_18NP;
+		break;
+
+	case MIPI_DSI_FMT_RGB666_PACKED:
+		*fmt = TEGRA_DSI_FORMAT_18P;
+		break;
+
+	case MIPI_DSI_FMT_RGB565:
+		*fmt = TEGRA_DSI_FORMAT_16P;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int tegra_output_dsi_enable(struct tegra_output *output)
 {
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
@@ -369,10 +396,15 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 	struct tegra_dsi *dsi = to_dsi(output);
 	/* FIXME: don't hardcode this */
 	const u32 *pkt_seq = pkt_seq_vnb_syne;
+	enum tegra_dsi_format format;
 	unsigned long value;
 	int err;
 
 	err = tegra_dsi_get_muldiv(dsi->format, &mul, &div);
+	if (err < 0)
+		return err;
+
+	err = tegra_dsi_get_format(dsi->format, &format);
 	if (err < 0)
 		return err;
 
@@ -382,7 +414,7 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 
 	reset_control_deassert(dsi->rst);
 
-	value = DSI_CONTROL_CHANNEL(0) | DSI_CONTROL_FORMAT(dsi->format) |
+	value = DSI_CONTROL_CHANNEL(0) | DSI_CONTROL_FORMAT(format) |
 		DSI_CONTROL_LANES(dsi->lanes - 1) |
 		DSI_CONTROL_SOURCE(dc->pipe);
 	tegra_dsi_writel(dsi, value, DSI_CONTROL);
