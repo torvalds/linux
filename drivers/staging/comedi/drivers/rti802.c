@@ -35,8 +35,6 @@ Configuration Options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#define RTI802_SIZE 4
-
 #define RTI802_SELECT 0
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
@@ -88,7 +86,7 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], RTI802_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x04);
 	if (ret)
 		return ret;
 
