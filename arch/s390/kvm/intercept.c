@@ -16,6 +16,7 @@
 #include <linux/pagemap.h>
 
 #include <asm/kvm_host.h>
+#include <asm/asm-offsets.h>
 
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -193,7 +194,7 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	if (current->thread.per_flags & PER_FLAG_NO_TE)
 		goto skip_itdb;
 	itdb = (struct kvm_s390_itdb *)vcpu->arch.sie_block->itdba;
-	rc = write_guest_lc(vcpu, TDB_ADDR, itdb, sizeof(*itdb));
+	rc = write_guest_lc(vcpu, __LC_PGM_TDB, itdb, sizeof(*itdb));
 	if (rc)
 		return rc;
 	memset(itdb, 0, sizeof(*itdb));
