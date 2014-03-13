@@ -1291,13 +1291,13 @@ EXPORT_SYMBOL_GPL(rk_clk_test);
 
 void rkclk_init_clks(struct device_node *node);
 
+static struct device_node * clk_root_node=NULL;
 static void __init rk_clk_tree_init(struct device_node *np)
 {
 	struct device_node *node, *node_tmp, *node_prd, *node_init;
 	struct rkclk *rkclk;
 	const char *compatible;
-
-
+    
 	printk("%s start! cru base = 0x%08x\n", __func__, (u32)RK_CRU_VIRT);
 
 	node_init=of_find_node_by_name(NULL,"clocks-init");
@@ -1305,6 +1305,7 @@ static void __init rk_clk_tree_init(struct device_node *np)
 		clk_err("%s: can not get clocks-init node\n", __func__);
 		return;
 	}
+        clk_root_node=np;
 
 	for_each_available_child_of_node(np, node) {
 		clk_debug("\n");
@@ -1466,7 +1467,7 @@ void rkclk_init_clks(struct device_node *np)
 	cnt_parent = of_count_phandle_with_args(np,
 			"rockchip,clocks-init-parent", "#clock-init-cells");
 
-	printk("%s: cnt_parent = %d\n",__FUNCTION__,cnt_parent);
+	clk_debug("%s: cnt_parent = %d\n",__FUNCTION__,cnt_parent);
 
 	for (i = 0; i < cnt_parent; i++) {
 		clk_parent_name=NULL;
@@ -1490,7 +1491,7 @@ void rkclk_init_clks(struct device_node *np)
 	cnt_rate = of_count_phandle_with_args(np, "rockchip,clocks-init-rate",
 			"#clock-init-cells");
 
-	printk("%s: cnt_rate = %d\n",__FUNCTION__,cnt_rate);
+	clk_debug("%s: cnt_rate = %d\n",__FUNCTION__,cnt_rate);
 
 	for (i = 0; i < cnt_rate; i++) {
 		clk_name=of_clk_init_rate_get_info(np, i, &clk_rate);
@@ -1508,9 +1509,89 @@ void rkclk_init_clks(struct device_node *np)
 
 		clk_set_rate(clk_c, clk_rate);
 
-		printk("%s: set %s rate = %u\n", __FUNCTION__, clk_name,
+		clk_debug("%s: set %s rate = %u\n", __FUNCTION__, clk_name,
 				clk_rate);
 	}
 
 }
+
+u32 clk_suspend_clkgt_info_get(u32 *clk_ungt_msk,u32 *clk_ungt_msk_last,u32 buf_cnt)
+{
+
+    struct device_node *node,*node_gt;
+    u32 temp_val[2];
+    int gt_cnt;
+    int ret;
+    void __iomem *cru_base,*gt_base, *reg_n, *reg_p;
+
+    gt_cnt=0;
+    cru_base= of_iomap(clk_root_node, 0);
+        
+    for_each_available_child_of_node(clk_root_node, node) {
+        
+           if (of_device_is_compatible(node,"rockchip,rk-gate-cons"))
+            {
+
+                for_each_available_child_of_node(node, node_gt) {
+
+                    if(gt_cnt>=buf_cnt)
+                    {
+                        clk_err("%s:save buf is overflow\n",__FUNCTION__);
+                        return 0;
+                    }
+
+                    ret = of_property_read_u32_array(node_gt,"rockchip,suspend-clkgating-setting",temp_val,2);
+                    if(!ret)
+                    {
+                        clk_ungt_msk[gt_cnt]=temp_val[0];
+                        clk_ungt_msk_last[gt_cnt]=temp_val[1];
+                    }
+                    else
+                    {   
+                        clk_ungt_msk[gt_cnt]=0xffff;
+                        clk_ungt_msk_last[gt_cnt]=0xffff;
+                    }
+
+                    if(gt_cnt==0)
+                    {      
+                        gt_base=of_iomap(node_gt, 0);
+                        reg_p=gt_base;
+                        reg_n=gt_base;                         
+                    }
+                    else
+                    {
+                        reg_n=of_iomap(node_gt, 0);
+
+                        if(((u32)reg_n-(u32)reg_p)!=4)
+                        {
+                            printk("%s: gt reg is not continue\n",__FUNCTION__);
+                            return 0;
+                        }                                
+                        reg_p=reg_n;
+                    }
+
+                    clk_debug("%s:gt%d,reg=%x,val=(%x,%x)\n",__FUNCTION__,gt_cnt,(u32)reg_n,
+                    clk_ungt_msk[gt_cnt], clk_ungt_msk_last[gt_cnt]);
+
+                    gt_cnt++;
+
+                }
+
+                break;
+            }      
+    }
+
+    if(gt_cnt!=buf_cnt)
+    {
+           clk_err("%s:save buf is not  Enough\n",__FUNCTION__);
+           return 0;
+    }
+    clk_debug("%s:crubase=%x,gtbase=%x\n",__FUNCTION__,cru_base,gt_base);
+     
+    return (u32)(gt_base-cru_base);
+
+}
+
+
+
 

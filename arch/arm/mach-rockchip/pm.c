@@ -1,17 +1,460 @@
+#include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/suspend.h>
+#include "pm.h"
 
-static int rockchip_suspend_enter(suspend_state_t state)
+
+static struct rkpm_ops pm_ops={NULL};
+
+static struct rkpm_sram_ops *p_pm_sram_ops=NULL;//pie point for pm_sram_ops
+static rkpm_sram_suspend_arg_cb p_suspend_pie_cb=NULL;
+
+// for user setting
+static u32   rkpm_ctrbits=0;
+//for judging rkpm_ctrbits valid ,save ifself
+static u32   rkpm_jdg_ctrbits=0;
+static u32   rkpm_jdg_sram_ctrbits=0;
+
+/**************************************ddr callback setting***************************************/
+
+void rkpm_set_pie_info(struct rkpm_sram_ops *pm_sram_ops,rkpm_sram_suspend_arg_cb pie_cb)
 {
-	cpu_do_idle();
+
+    p_pm_sram_ops=pm_sram_ops;
+    p_suspend_pie_cb=pie_cb;
+
+
+}
+
+
+void rkpm_set_ops_prepare_finish(rkpm_ops_void_callback prepare,rkpm_ops_void_callback finish)
+{
+	pm_ops.prepare=prepare;	
+	pm_ops.finish=finish;	
+}
+
+void rkpm_set_ops_pwr_dmns(rkpm_ops_void_callback pwr_dmns,rkpm_ops_void_callback re_pwr_dmns)
+{
+	pm_ops.pwr_dmns=pwr_dmns;	
+	pm_ops.re_pwr_dmns=re_pwr_dmns;
+}
+
+void rkpm_set_ops_gtclks(rkpm_ops_void_callback gtclks,rkpm_ops_void_callback re_gtclks)
+{
+	pm_ops.gtclks=gtclks;	
+	pm_ops.re_gtclks=re_gtclks;
+}
+
+
+void rkpm_set_ops_plls(rkpm_ops_void_callback plls,rkpm_ops_void_callback re_plls)
+{
+	pm_ops.plls=plls;	
+	pm_ops.re_plls=re_plls;
+}
+
+
+void rkpm_set_ops_gpios(rkpm_ops_void_callback gpios,rkpm_ops_void_callback re_gpios)
+{
+	pm_ops.gpios=gpios;	
+	pm_ops.re_gpios=re_gpios;
+}
+void rkpm_set_ops_printch(rkpm_ops_printch_callback printch)
+{
+	pm_ops.printch=printch;	
+}
+
+void rkpm_set_ops_regs_pread(rkpm_ops_void_callback regs_pread)
+{
+	pm_ops.regs_pread=regs_pread;	
+}
+
+
+
+/**************************************sram callback setting***************************************/
+void rkpm_set_sram_ops_volt(rkpm_ops_void_callback volts,rkpm_ops_void_callback re_volts)
+{
+        if(p_pm_sram_ops)
+        {
+            p_pm_sram_ops->volts=volts;	
+            p_pm_sram_ops->re_volts=re_volts;
+        }
+}
+
+void rkpm_set_sram_ops_gtclks(rkpm_ops_void_callback gtclks,rkpm_ops_void_callback re_gtclks)
+{
+         if(p_pm_sram_ops)
+        {
+        	p_pm_sram_ops->gtclks=gtclks;	
+        	p_pm_sram_ops->re_gtclks=re_gtclks;
+        }
+}
+
+void rkpm_set_sram_ops_sysclk(rkpm_ops_paramter_u32_cb sysclk,rkpm_ops_paramter_u32_cb re_sysclk)
+{
+         if(p_pm_sram_ops)
+        {
+        	p_pm_sram_ops->sysclk=sysclk;	
+        	p_pm_sram_ops->re_sysclk=re_sysclk;
+        }
+}
+
+void rkpm_set_sram_ops_pmic(rkpm_ops_void_callback pmic,rkpm_ops_void_callback re_pmic)
+{
+     if(p_pm_sram_ops)
+    {
+        p_pm_sram_ops->pmic=pmic;	
+        p_pm_sram_ops->re_pmic=re_pmic;
+    }
+}
+
+void rkpm_set_sram_ops_ddr(rkpm_ops_void_callback ddr,rkpm_ops_void_callback re_ddr)
+{
+    if(p_pm_sram_ops)
+    {
+        p_pm_sram_ops->ddr=ddr;	
+        p_pm_sram_ops->re_ddr=re_ddr;
+    }
+}
+void rkpm_set_sram_ops_printch(rkpm_ops_printch_callback printch)
+{  
+    if(p_pm_sram_ops)
+	p_pm_sram_ops->printch=printch;	
+}
+
+/******************for user ************************/
+void inline rkpm_set_ctrbits(u32 bits)
+{	
+	rkpm_ctrbits = bits;
+	
+}
+void inline rkpm_add_ctrbits(u32 bits)
+{	
+	rkpm_ctrbits |= bits;
+	
+}
+u32  inline rkpm_get_ctrbits(void)
+{	
+	return rkpm_ctrbits;
+}
+void inline  rkpm_add_ctrbit(int bit)
+{	
+	rkpm_ctrbits|=bit;
+}
+u32 inline  rkpm_chk_ctrbit(int bit)
+{	
+	return (rkpm_ctrbits&bit);
+}
+
+//clear
+void inline rkpm_clr_ctrbit(int bit)
+{
+	rkpm_ctrbits&=~bit;
+}
+
+/****************** for pm.c************************/
+
+static void inline rkpm_set_jdg_ctrbits(u32 bits)
+{	
+	rkpm_jdg_ctrbits = bits;
+	
+}
+static u32  inline rkpm_get_jdg_ctrbits(void)
+{	
+	return rkpm_jdg_ctrbits;
+}
+
+static void inline rkpm_add_jdg_ctrbit(int bit)
+{	
+	rkpm_jdg_ctrbits|=bit;
+}
+
+static u32 inline rkpm_chk_jdg_ctrbit(int bit)
+{	
+	return (rkpm_jdg_ctrbits&bit);
+}
+static u32 inline rkpm_chk_jdg_ctrbits(int bits)
+{	
+	return (rkpm_jdg_ctrbits&bits);
+}
+//clear
+static void inline rkpm_clr_jdg_ctrbit(int bit)
+{
+	rkpm_jdg_ctrbits&=~bit;
+}
+
+
+#define  RKPM_DDR_FUN(fun) \
+	if(pm_ops.fun)\
+		(pm_ops.fun)()
+    
+
+#define  RKPM_BITCTR_DDR_FUN(ctr,fun) \
+	if(rkpm_chk_jdg_ctrbit(RKPM_CTR_##ctr)&&pm_ops.fun)\
+		(pm_ops.fun)()
+
+
+
+void rkpm_ctrbits_prepare(void)
+{
+	
+	//rkpm_sram_ctrbits=rkpm_ctrbits;
+	
+	rkpm_jdg_ctrbits=rkpm_ctrbits;
+
+        //if plls is no pd,clk rate is high, volts can not setting low,so we need to judge ctrbits
+	if(rkpm_chk_jdg_ctrbit(RKPM_CTR_VOLTS))
+	{
+		rkpm_clr_jdg_ctrbit(RKPM_CTR_VOLTS);
+	}
+    
+        rkpm_jdg_sram_ctrbits=rkpm_jdg_ctrbits;
+        
+        //clk gating will gate ddr clk in sram
+        if(!rkpm_chk_val_ctrbit(rkpm_jdg_sram_ctrbits,RKPM_CTR_DDR))
+        {
+           // rkpm_clr_val_ctrbit(rkpm_jdg_sram_ctrbits,RKPM_CTR_GTCLKS);
+        }
+    
+}
+
+struct rk_soc_pm_info_st {
+    int offset;
+    char *name;
+};
+
+#define RK_SOC_PM_HELP_(id,NAME)\
+        {\
+        .offset= RKPM_CTR_##id,\
+        .name= NAME,\
+        }
+    
+struct rk_soc_pm_info_st rk_soc_pm_helps[]={
+#if 0
+    RK_SOC_PM_HELP_(NO_PD,"pd is not power dn"),
+    RK_SOC_PM_HELP_(NO_CLK_GATING,"clk is not gating"),
+    RK_SOC_PM_HELP_(NO_PLL,"pll is not power dn"),
+    RK_SOC_PM_HELP_(NO_VOLT,"volt is not set suspend"),
+    RK_SOC_PM_HELP_(NO_GPIO,"gpio is not control "),
+    //RK_SOC_PM_HELP_(NO_SRAM,"not enter sram code"),
+    RK_SOC_PM_HELP_(NO_DDR,"ddr is not reflash"),
+    RK_SOC_PM_HELP_(NO_PMIC,"pmic is not suspend"),
+    RK_SOC_PM_HELP_(RET_DIRT,"sys return from pm_enter directly"),
+    RK_SOC_PM_HELP_(SRAM_NO_WFI,"sys is not runing wfi in sram"),
+    RK_SOC_PM_HELP_(WAKE_UP_KEY,"send a power key to wake up lcd"),
+#endif
+};
+    
+ssize_t rk_soc_pm_helps_sprintf(char *buf)
+{
+    char *s = buf;
+    int i;
+
+    for(i=0;i<ARRAY_SIZE(rk_soc_pm_helps);i++)
+    {
+        s += sprintf(s, "bit(%d): %s\n", rk_soc_pm_helps[i].offset,rk_soc_pm_helps[i].name);
+    }
+
+    return (s-buf);
+}   
+    
+void rk_soc_pm_helps_printk(void)
+{
+    int i;
+    printk("**************rkpm_ctr_bits bits help***********:\n");
+    for(i=0;i<ARRAY_SIZE(rk_soc_pm_helps);i++)
+    {
+        printk("bit(%d): %s\n", rk_soc_pm_helps[i].offset,rk_soc_pm_helps[i].name);
+    }
+}   
+
+#if 0
+static int __init early_param_rk_soc_pm_ctr(char *str)
+{
+    get_option(&str, &rkpm_ctrbits);
+    
+    printk("********rkpm_ctr_bits information is following:*********\n");
+    printk("rkpm_ctr_bits=%x\n",rkpm_ctrbits);
+    if(rkpm_ctrbits)
+    {
+        rk_soc_pm_helps_printk();
+    }
+    printk("********rkpm_ctr_bits information end*********\n");
+    return 0;
+}
+#endif
+
+/*******************************************log*********************************************/
+
+
+bool  pm_log;
+
+extern void pm_emit_log_char(char c);
+
+/********************************ddr print**********************************/
+void rkpm_ddr_printch(char byte)
+{
+        if(pm_ops.printch)
+            pm_ops.printch(byte);	
+        
+	if (byte == '\n')
+		rkpm_ddr_printch('\r');
+}
+void rkpm_ddr_printascii(const char *s)
+{
+	while (*s) {
+		rkpm_ddr_printch(*s);
+		s++;
+	}
+}
+
+void  rkpm_ddr_printhex(unsigned int hex)
+{
+	int i = 8;
+	rkpm_ddr_printch('0');
+	rkpm_ddr_printch('x');
+	while (i--) {
+		unsigned char c = (hex & 0xF0000000) >> 28;
+		rkpm_ddr_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		hex <<= 4;
+	}
+}
+
+inline int rkpm_dbgctr_enter(void)
+{
+    if(rkpm_chk_jdg_ctrbits(RKPM_OR_2BITS(RET_DIRT,ONLY_WFI)))
+    {
+        if(rkpm_chk_jdg_ctrbit(RKPM_CTR_ONLY_WFI))
+        {
+            local_fiq_disable();
+            dsb();
+            wfi();
+            local_fiq_enable();
+        }
+        return -1;
+    }
+    return 0;
+}
+void plls_resume(void);
+
+static int rkpm_enter(suspend_state_t state)
+{
+
+    printk("%s\n",__FUNCTION__);
+    printk(KERN_DEBUG "pm: ");
+
+    rkpm_ctrbits_prepare();
+    
+    if(rkpm_dbgctr_enter())
+        return 0;
+
+    RKPM_DDR_FUN(prepare);
+
+
+    rkpm_ddr_printch('0');
+
+    RKPM_BITCTR_DDR_FUN(PWR_DMNS,pwr_dmns);
+
+    rkpm_ddr_printch('1');
+    
+    local_fiq_disable();
+
+    RKPM_BITCTR_DDR_FUN(GTCLKS,gtclks);
+
+    rkpm_ddr_printch('2');
+    
+    RKPM_BITCTR_DDR_FUN(PLLS,plls);
+
+    rkpm_ddr_printch('3');
+
+    RKPM_BITCTR_DDR_FUN(GPIOS,gpios);
+
+    RKPM_DDR_FUN(regs_pread);
+
+    rkpm_ddr_printch('4');
+    
+    pm_log = false;
+
+    if(rkpm_chk_jdg_ctrbit(RKPM_CTR_NORIDLE_MD))
+        call_with_stack(p_suspend_pie_cb,&rkpm_jdg_sram_ctrbits, rockchip_sram_stack);
+  {
+            dsb();
+            wfi();
+   }
+
+    pm_log = true;
+    
+    rkpm_ddr_printch('4');
+
+    RKPM_BITCTR_DDR_FUN(GPIOS,re_gpios);
+    
+    rkpm_ddr_printch('3');
+    
+    RKPM_BITCTR_DDR_FUN(PLLS,re_plls);
+
+    rkpm_ddr_printch('2');
+
+    RKPM_BITCTR_DDR_FUN(GTCLKS,re_gtclks);
+
+    local_fiq_enable();
+    
+    rkpm_ddr_printch('1');
+
+    RKPM_BITCTR_DDR_FUN(PWR_DMNS,re_pwr_dmns);
+
+    rkpm_ddr_printch('0');
+    
+    pm_log = false;
+    
+    printk(KERN_CONT "\n");
+    
+    rkpm_ddr_printch('\n');
+    
+    RKPM_DDR_FUN(finish);
+    return 0;
+}
+
+int rkpm_enter_tst(void)
+{
+
+       return rkpm_enter(0);
+
+}
+
+static int rkpm_suspend_prepare(void)
+{
+	/* disable entering idle by disable_hlt() */
+	//disable_hlt();
 	return 0;
 }
 
-static const struct platform_suspend_ops rockchip_suspend_ops = {
-	.valid		= suspend_valid_only_mem,
-	.enter		= rockchip_suspend_enter,
-};
+static void rkpm_suspend_finish(void)
+{
+	//enable_hlt();
+	
+	#if 0 //def CONFIG_KEYS_RK29
+	if(rkpm_check_ctrbits(1<<RKPM_CTR_WAKE_UP_KEY))
+	{
+		rk28_send_wakeup_key();
+		printk("rk30_pm_finish rk28_send_wakeup_key\n");
+	}
+	#endif
+}
 
+
+
+
+
+static struct platform_suspend_ops rockchip_suspend_ops = {
+	.enter		= rkpm_enter,
+	.valid		= suspend_valid_only_mem,
+	.prepare 	= rkpm_suspend_prepare,
+	.finish		= rkpm_suspend_finish,
+};
 void __init rockchip_suspend_init(void)
 {
-	suspend_set_ops(&rockchip_suspend_ops);
+    printk("%s\n",__FUNCTION__);
+    suspend_set_ops(&rockchip_suspend_ops);
+    return;
 }
+
+
