@@ -2208,11 +2208,13 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	       struct nfsd4_sequence *seq)
 {
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
+	struct xdr_stream *xdr = &resp->xdr;
 	struct nfsd4_session *session;
 	struct nfs4_client *clp;
 	struct nfsd4_slot *slot;
 	struct nfsd4_conn *conn;
 	__be32 status;
+	int buflen;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	if (resp->opcnt != 1)
@@ -2281,6 +2283,15 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	if (status)
 		goto out_put_session;
 
+	buflen = (seq->cachethis) ?
+			session->se_fchannel.maxresp_cached :
+			session->se_fchannel.maxresp_sz;
+	status = (seq->cachethis) ? nfserr_rep_too_big_to_cache :
+				    nfserr_rep_too_big;
+	if (xdr_restrict_buflen(xdr, buflen - 2 * RPC_MAX_AUTH_SIZE))
+		goto out_put_session;
+
+	status = nfs_ok;
 	/* Success! bump slot seqid */
 	slot->sl_seqid = seq->seqid;
 	slot->sl_flags |= NFSD4_SLOT_INUSE;
