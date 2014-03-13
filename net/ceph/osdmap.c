@@ -690,6 +690,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	u16 version;
 	u32 len, max, i;
 	int err = -EINVAL;
+	u32 epoch = 0;
 	void *start = *p;
 	struct ceph_pg_pool_info *pi;
 
@@ -714,7 +715,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 
 	ceph_decode_need(p, end, 2*sizeof(u64)+6*sizeof(u32), bad);
 	ceph_decode_copy(p, &map->fsid, sizeof(map->fsid));
-	map->epoch = ceph_decode_32(p);
+	epoch = map->epoch = ceph_decode_32(p);
 	ceph_decode_copy(p, &map->created, sizeof(map->created));
 	ceph_decode_copy(p, &map->modified, sizeof(map->modified));
 
@@ -814,14 +815,18 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		goto bad;
 	}
 
-	/* ignore the rest of the map */
+	/* ignore the rest */
 	*p = end;
 
-	dout("osdmap_decode done %p %p\n", *p, end);
+	dout("full osdmap epoch %d max_osd %d\n", map->epoch, map->max_osd);
 	return map;
 
 bad:
-	dout("osdmap_decode fail err %d\n", err);
+	pr_err("corrupt full osdmap (%d) epoch %d off %d (%p of %p-%p)\n",
+	       err, epoch, (int)(*p - start), *p, start, end);
+	print_hex_dump(KERN_DEBUG, "osdmap: ",
+		       DUMP_PREFIX_OFFSET, 16, 1,
+		       start, end - start, true);
 	ceph_osdmap_destroy(map);
 	return ERR_PTR(err);
 }
@@ -844,6 +849,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	void *start = *p;
 	int err = -EINVAL;
 	u16 version;
+
+	dout("%s %p to %p len %d\n", __func__, *p, end, (int)(end - *p));
 
 	ceph_decode_16_safe(p, end, version, bad);
 	if (version != 6) {
@@ -1032,11 +1039,13 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 
 	/* ignore the rest */
 	*p = end;
+
+	dout("inc osdmap epoch %d max_osd %d\n", map->epoch, map->max_osd);
 	return map;
 
 bad:
-	pr_err("corrupt inc osdmap epoch %d off %d (%p of %p-%p)\n",
-	       epoch, (int)(*p - start), *p, start, end);
+	pr_err("corrupt inc osdmap (%d) epoch %d off %d (%p of %p-%p)\n",
+	       err, epoch, (int)(*p - start), *p, start, end);
 	print_hex_dump(KERN_DEBUG, "osdmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
