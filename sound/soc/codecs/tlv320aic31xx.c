@@ -1049,17 +1049,8 @@ static int aic31xx_codec_probe(struct snd_soc_codec *codec)
 	dev_dbg(aic31xx->dev, "## %s\n", __func__);
 
 	aic31xx = snd_soc_codec_get_drvdata(codec);
-	codec->control_data = aic31xx->regmap;
 
 	aic31xx->codec = codec;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-
-	if (ret != 0) {
-		dev_err(codec->dev, "snd_soc_codec_set_cache_io failed %d\n",
-			ret);
-		return ret;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++) {
 		aic31xx->disable_nb[i].nb.notifier_call =
