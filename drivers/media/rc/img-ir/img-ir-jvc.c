@@ -49,7 +49,6 @@ struct img_ir_decoder img_ir_jvc = {
 	.control = {
 		.decoden = 1,
 		.code_type = IMG_IR_CODETYPE_PULSEDIST,
-		.decodend2 = 1,
 	},
 	/* main timings */
 	.unit = 527500, /* 527.5 us */
@@ -65,16 +64,6 @@ struct img_ir_decoder img_ir_jvc = {
 			.space = { 1	/* 527.5 us */ },
 		},
 		/* 1 symbol */
-		.s01 = {
-			.pulse = { 1	/* 527.5 us +-60 us */ },
-			.space = { 3	/* 1.5825 ms +-40 us */ },
-		},
-		/* 0 symbol (no leader) */
-		.s00 = {
-			.pulse = { 1	/* 527.5 us +-60 us */ },
-			.space = { 1	/* 527.5 us */ },
-		},
-		/* 1 symbol (no leader) */
 		.s01 = {
 			.pulse = { 1	/* 527.5 us +-60 us */ },
 			.space = { 3	/* 1.5825 ms +-40 us */ },
