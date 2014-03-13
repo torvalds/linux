@@ -766,7 +766,7 @@ config ARCH_S3C64XX
 	select HAVE_TCM
 	select NO_IOPORT
 	select PLAT_SAMSUNG
-	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS if PM
 	select S3C_DEV_NAND
 	select S3C_GPIO_TRACK
 	select SAMSUNG_ATAGS
