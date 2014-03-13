@@ -219,7 +219,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 /*
 *	Return:		true if station in half n mode and AP supports 40 bw
 */
-bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
+static bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
 {
 	bool			retValue = false;
 	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
@@ -238,7 +238,7 @@ bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
 	return retValue;
 }
 
-bool IsHTHalfNmodeSGI(struct ieee80211_device *ieee, bool is40MHz)
+static bool IsHTHalfNmodeSGI(struct ieee80211_device *ieee, bool is40MHz)
 {
 	bool			retValue = false;
 	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
@@ -376,7 +376,7 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee)
  *  return:
  *  notice:
  * *****************************************************************************************************************/
-void HTIOTPeerDetermine(struct ieee80211_device *ieee)
+static void HTIOTPeerDetermine(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	struct ieee80211_network *net = &ieee->current_network;
@@ -413,7 +413,7 @@ void HTIOTPeerDetermine(struct ieee80211_device *ieee)
  *  output:  none
  *  return:  return 1 if driver should declare MCS13 only(otherwise return 0)
   * *****************************************************************************************************************/
-u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
+static u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
 {
 	u8 ret = 0;
 	return ret;
@@ -432,7 +432,7 @@ u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
 * Return:	true if driver should disable MCS15
 * 2008.04.15	Emily
 */
-bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
+static bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
 {
 	bool retValue = false;
 
@@ -469,7 +469,8 @@ bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
 * Return:	true if driver should disable all two spatial stream packet
 * 2008.04.21	Emily
 */
-bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee, u8 *PeerMacAddr)
+static bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee,
+						 u8 *PeerMacAddr)
 {
 	bool retValue = false;
 
@@ -486,7 +487,8 @@ bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee, u8 *Pee
  *  output:  none
  *  return:  return 1 if driver should disable EDCA turbo mode(otherwise return 0)
   * *****************************************************************************************************************/
-u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee, u8 *PeerMacAddr)
+static u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee,
+				     u8 *PeerMacAddr)
 {
 	u8	retValue = false;	// default enable EDCA Turbo mode.
 	// Set specific EDCA parameter for different AP in DM handler.
@@ -500,7 +502,7 @@ u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee, u8 *PeerMacAddr)
  *  output:  none
  *  return:  return 1 if true
   * *****************************************************************************************************************/
-u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
+static u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
 {
 	u8	retValue = 0;
 
@@ -515,7 +517,7 @@ u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
 	return retValue;
 }
 
-u8 HTIOTActIsCCDFsync(u8 *PeerMacAddr)
+static u8 HTIOTActIsCCDFsync(u8 *PeerMacAddr)
 {
 	u8	retValue = 0;
 	if(	(memcmp(PeerMacAddr, UNKNOWN_BORADCOM, 3)==0) ||
@@ -792,7 +794,7 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
  *  return:  always we return true
  *  notice:
   * *****************************************************************************************************************/
-u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
+static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 {
 	u8					i;
 	if (pOperateMCS == NULL)
@@ -907,7 +909,8 @@ u8 HTGetHighestMCSRate(struct ieee80211_device *ieee, u8 *pMCSRateSet, u8 *pMCSF
 **
 ** \pHTSupportedCap: the connected STA's supported rate Capability element
 */
-u8 HTFilterMCSRate( struct ieee80211_device *ieee, u8 *pSupportMCS, u8 *pOperateMCS)
+static u8 HTFilterMCSRate(struct ieee80211_device *ieee, u8 *pSupportMCS,
+			  u8 *pOperateMCS)
 {
 
 	u8 i=0;
