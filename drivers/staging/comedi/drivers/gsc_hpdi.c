@@ -57,7 +57,6 @@ static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd);
 static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-static irqreturn_t handle_interrupt(int irq, void *d);
 static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 
 #define TIMER_BASE 50		/*  20MHz master clock */
@@ -406,116 +405,6 @@ static const struct hpdi_board *hpdi_find_board(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int hpdi_auto_attach(struct comedi_device *dev,
-				      unsigned long context_unused)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct hpdi_board *thisboard;
-	struct hpdi_private *devpriv;
-	int i;
-	int retval;
-
-	thisboard = hpdi_find_board(pcidev);
-	if (!thisboard) {
-		dev_err(dev->class_dev, "gsc_hpdi: pci %s not supported\n",
-			pci_name(pcidev));
-		return -EINVAL;
-	}
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
-	retval = comedi_pci_enable(dev);
-	if (retval)
-		return retval;
-	pci_set_master(pcidev);
-
-	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
-	devpriv->hpdi_iobase = pci_ioremap_bar(pcidev, 2);
-	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
-		dev_warn(dev->class_dev, "failed to remap io memory\n");
-		return -ENOMEM;
-	}
-
-	init_plx9080(dev);
-
-	/*  get irq */
-	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
-			dev->board_name, dev)) {
-		dev_warn(dev->class_dev,
-			 "unable to allocate irq %u\n", pcidev->irq);
-		return -EINVAL;
-	}
-	dev->irq = pcidev->irq;
-
-	dev_dbg(dev->class_dev, " irq %u\n", dev->irq);
-
-	/*  allocate pci dma buffers */
-	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
-		devpriv->dio_buffer[i] =
-		    pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
-					 &devpriv->dio_buffer_phys_addr[i]);
-	}
-	/*  allocate dma descriptors */
-	devpriv->dma_desc = pci_alloc_consistent(pcidev,
-						 sizeof(struct plx_dma_desc) *
-						 NUM_DMA_DESCRIPTORS,
-						 &devpriv->dma_desc_phys_addr);
-	if (devpriv->dma_desc_phys_addr & 0xf) {
-		dev_warn(dev->class_dev,
-			 " dma descriptors not quad-word aligned (bug)\n");
-		return -EIO;
-	}
-
-	retval = setup_dma_descriptors(dev, 0x1000);
-	if (retval < 0)
-		return retval;
-
-	retval = setup_subdevices(dev);
-	if (retval < 0)
-		return retval;
-
-	return init_hpdi(dev);
-}
-
-static void hpdi_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct hpdi_private *devpriv = dev->private;
-	unsigned int i;
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->plx9080_iobase) {
-			disable_plx_interrupts(dev);
-			iounmap(devpriv->plx9080_iobase);
-		}
-		if (devpriv->hpdi_iobase)
-			iounmap(devpriv->hpdi_iobase);
-		/*  free pci dma buffers */
-		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
-			if (devpriv->dio_buffer[i])
-				pci_free_consistent(pcidev,
-						    DMA_BUFFER_SIZE,
-						    devpriv->dio_buffer[i],
-						    devpriv->
-						    dio_buffer_phys_addr[i]);
-		}
-		/*  free dma descriptors */
-		if (devpriv->dma_desc)
-			pci_free_consistent(pcidev,
-					    sizeof(struct plx_dma_desc) *
-					    NUM_DMA_DESCRIPTORS,
-					    devpriv->dma_desc,
-					    devpriv->dma_desc_phys_addr);
-	}
-	comedi_pci_disable(dev);
-}
-
 static int dio_config_block_size(struct comedi_device *dev, unsigned int *data)
 {
 	unsigned int requested_block_size;
@@ -819,6 +708,116 @@ static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	abort_dma(dev, 0);
 
 	return 0;
+}
+
+static int hpdi_auto_attach(struct comedi_device *dev,
+				      unsigned long context_unused)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct hpdi_board *thisboard;
+	struct hpdi_private *devpriv;
+	int i;
+	int retval;
+
+	thisboard = hpdi_find_board(pcidev);
+	if (!thisboard) {
+		dev_err(dev->class_dev, "gsc_hpdi: pci %s not supported\n",
+			pci_name(pcidev));
+		return -EINVAL;
+	}
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
+
+	retval = comedi_pci_enable(dev);
+	if (retval)
+		return retval;
+	pci_set_master(pcidev);
+
+	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
+	devpriv->hpdi_iobase = pci_ioremap_bar(pcidev, 2);
+	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
+		dev_warn(dev->class_dev, "failed to remap io memory\n");
+		return -ENOMEM;
+	}
+
+	init_plx9080(dev);
+
+	/*  get irq */
+	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
+			dev->board_name, dev)) {
+		dev_warn(dev->class_dev,
+			 "unable to allocate irq %u\n", pcidev->irq);
+		return -EINVAL;
+	}
+	dev->irq = pcidev->irq;
+
+	dev_dbg(dev->class_dev, " irq %u\n", dev->irq);
+
+	/*  allocate pci dma buffers */
+	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
+		devpriv->dio_buffer[i] =
+		    pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
+					 &devpriv->dio_buffer_phys_addr[i]);
+	}
+	/*  allocate dma descriptors */
+	devpriv->dma_desc = pci_alloc_consistent(pcidev,
+						 sizeof(struct plx_dma_desc) *
+						 NUM_DMA_DESCRIPTORS,
+						 &devpriv->dma_desc_phys_addr);
+	if (devpriv->dma_desc_phys_addr & 0xf) {
+		dev_warn(dev->class_dev,
+			 " dma descriptors not quad-word aligned (bug)\n");
+		return -EIO;
+	}
+
+	retval = setup_dma_descriptors(dev, 0x1000);
+	if (retval < 0)
+		return retval;
+
+	retval = setup_subdevices(dev);
+	if (retval < 0)
+		return retval;
+
+	return init_hpdi(dev);
+}
+
+static void hpdi_detach(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct hpdi_private *devpriv = dev->private;
+	unsigned int i;
+
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (devpriv) {
+		if (devpriv->plx9080_iobase) {
+			disable_plx_interrupts(dev);
+			iounmap(devpriv->plx9080_iobase);
+		}
+		if (devpriv->hpdi_iobase)
+			iounmap(devpriv->hpdi_iobase);
+		/*  free pci dma buffers */
+		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
+			if (devpriv->dio_buffer[i])
+				pci_free_consistent(pcidev,
+						    DMA_BUFFER_SIZE,
+						    devpriv->dio_buffer[i],
+						    devpriv->
+						    dio_buffer_phys_addr[i]);
+		}
+		/*  free dma descriptors */
+		if (devpriv->dma_desc)
+			pci_free_consistent(pcidev,
+					    sizeof(struct plx_dma_desc) *
+					    NUM_DMA_DESCRIPTORS,
+					    devpriv->dma_desc,
+					    devpriv->dma_desc_phys_addr);
+	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver gsc_hpdi_driver = {
