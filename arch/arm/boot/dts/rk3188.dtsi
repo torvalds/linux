@@ -610,7 +610,7 @@
 			};
 		};
 	};
-	ion: ion{
+	ion{
 		compatible = "rockchip,ion";
 		#address-cells = <1>;
 		#size-cells = <0>;

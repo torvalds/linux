@@ -35,5 +35,6 @@ extern int rockchip_boot_mode(void);
 extern void __init rockchip_boot_mode_init(u32 flag, u32 mode);
 extern void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode);
 extern void __init rockchip_suspend_init(void);
+extern void __init rockchip_ion_reserve(void);
 
 #endif

@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/of_fdt.h>
 #include <linux/rockchip/dvfs.h>
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/cpu.h>
@@ -263,12 +262,10 @@ static void __init rk3188_dt_init_timer(void)
 	of_dvfs_init();
 }
 
-extern int __init rockchip_ion_find_reserve_mem(unsigned long node,
-				const char *uname, int depth, void *data);
 static void __init rk3188_reserve(void)
 {
-	printk("%s\n", __func__);
-	of_scan_flat_dt(rockchip_ion_find_reserve_mem, NULL);
+	/* reserve memory for ION */
+	rockchip_ion_reserve();
 }
 
 static const char * const rk3188_dt_compat[] __initconst = {

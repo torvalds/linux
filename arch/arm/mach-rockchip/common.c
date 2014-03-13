@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/of_fdt.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/rockchip/common.h>
 #include "cpu_axi.h"
@@ -219,4 +220,12 @@ struct rockchip_pmu_operations rockchip_pmu_ops;
 int (*ddr_change_freq)(uint32_t nMHz) = NULL;
 long (*ddr_round_rate)(uint32_t nMHz) = NULL;
 void (*ddr_set_auto_self_refresh)(bool en) = NULL;
+
+extern int __init rockchip_ion_find_reserve_mem(unsigned long node,
+				const char *uname, int depth, void *data);
+void __init rockchip_ion_reserve(void)
+{
+	printk("%s\n", __func__);
+	of_scan_flat_dt(rockchip_ion_find_reserve_mem, NULL);
+}
 

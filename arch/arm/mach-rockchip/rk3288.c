@@ -216,6 +216,12 @@ static void __init rk3288_dt_init_timer(void)
 	of_dvfs_init();
 }
 
+static void __init rk3288_reserve(void)
+{
+	/* reserve memory for ION */
+	rockchip_ion_reserve();
+}
+
 static const char * const rk3288_dt_compat[] __initconst = {
 	"rockchip,rk3288",
 	NULL,
@@ -241,6 +247,7 @@ DT_MACHINE_START(RK3288_DT, "RK30board")
 	.init_time	= rk3288_dt_init_timer,
 	.dt_compat	= rk3288_dt_compat,
 	.init_late	= rockchip_suspend_init,
+	.reserve	= rk3288_reserve,
 	.restart	= rk3288_restart,
 MACHINE_END
 
