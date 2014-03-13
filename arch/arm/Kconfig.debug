@@ -1162,7 +1162,7 @@ config DEBUG_UNCOMPRESS
 config UNCOMPRESS_INCLUDE
 	string
 	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					ARCH_EXYNOS
+					ARCH_EXYNOS || ARCH_EFM32
 	default "mach/uncompress.h"
 
 config EARLY_PRINTK
