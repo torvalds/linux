@@ -981,8 +981,14 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
 	POSTING_READ(mmio);
 
-	/* Flush the TLB for this page */
-	if (INTEL_INFO(dev)->gen >= 6) {
+	/*
+	 * Flush the TLB for this page
+	 *
+	 * FIXME: These two bits have disappeared on gen8, so a question
+	 * arises: do we still need this and if so how should we go about
+	 * invalidating the TLB?
+	 */
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
 		u32 reg = RING_INSTPM(ring->mmio_base);
 
 		/* ring should be idle before issuing a sync flush*/
