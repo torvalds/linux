@@ -1383,15 +1383,7 @@ static int da9055_set_bias_level(struct snd_soc_codec *codec,
 
 static int da9055_probe(struct snd_soc_codec *codec)
 {
-	int ret;
 	struct da9055_priv *da9055 = snd_soc_codec_get_drvdata(codec);
-
-	codec->control_data = da9055->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* Enable all Gain Ramps */
 	snd_soc_update_bits(codec, DA9055_AUX_L_CTRL,

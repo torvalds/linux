@@ -1409,22 +1409,6 @@ static int lm49453_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int lm49453_probe(struct snd_soc_codec *codec)
-{
-	struct lm49453_priv *lm49453 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
-
-	codec->control_data = lm49453->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
 /* power down chip */
 static int lm49453_remove(struct snd_soc_codec *codec)
 {
@@ -1433,7 +1417,6 @@ static int lm49453_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_lm49453 = {
-	.probe = lm49453_probe,
 	.remove = lm49453_remove,
 	.suspend = lm49453_suspend,
 	.resume = lm49453_resume,

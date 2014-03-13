@@ -1393,16 +1393,8 @@ static int da7213_set_bias_level(struct snd_soc_codec *codec,
 
 static int da7213_probe(struct snd_soc_codec *codec)
 {
-	int ret;
 	struct da7213_priv *da7213 = snd_soc_codec_get_drvdata(codec);
 	struct da7213_platform_data *pdata = da7213->pdata;
-
-	codec->control_data = da7213->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* Default to using ALC auto offset calibration mode. */
 	snd_soc_update_bits(codec, DA7213_ALC_CTRL1,

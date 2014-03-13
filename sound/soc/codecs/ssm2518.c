@@ -648,16 +648,6 @@ static struct snd_soc_dai_driver ssm2518_dai = {
 
 static int ssm2518_probe(struct snd_soc_codec *codec)
 {
-	struct ssm2518 *ssm2518 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = ssm2518->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	return ssm2518_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }
 
