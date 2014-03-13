@@ -642,8 +642,8 @@ static const struct hpdi_board *hpdi_find_board(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int hpdi_auto_attach(struct comedi_device *dev,
-			    unsigned long context_unused)
+static int gsc_hpdi_auto_attach(struct comedi_device *dev,
+				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct hpdi_board *thisboard;
@@ -733,7 +733,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	return init_hpdi(dev);
 }
 
-static void hpdi_detach(struct comedi_device *dev)
+static void gsc_hpdi_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct hpdi_private *devpriv = dev->private;
@@ -771,8 +771,8 @@ static void hpdi_detach(struct comedi_device *dev)
 static struct comedi_driver gsc_hpdi_driver = {
 	.driver_name	= "gsc_hpdi",
 	.module		= THIS_MODULE,
-	.auto_attach	= hpdi_auto_attach,
-	.detach		= hpdi_detach,
+	.auto_attach	= gsc_hpdi_auto_attach,
+	.detach		= gsc_hpdi_detach,
 };
 
 static int gsc_hpdi_pci_probe(struct pci_dev *dev,
