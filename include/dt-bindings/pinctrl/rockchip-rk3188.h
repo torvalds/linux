@@ -20,6 +20,9 @@
 
 
 /* GPIO0_A */
+#define GPIO0_A0 0x0A00
+#define GPIO0_A1 0x0A10
+
 /* GPIO0_B */
 /* GPIO0_C */
 #define GPIO0_C0 0x0c00

@@ -84,6 +84,7 @@
 
 		clock_regs {
 			compatible = "rockchip,rk-clock-regs";
+			reg = <0x0000 0x3ff>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -1180,6 +1181,7 @@
 
 						"reserved",		"clk_spdif_div",
 						"clk_spdif_frac",	"g_testclk";
+						rockchip,suspend-clkgating-setting=<0x00bf 0x00bf>;
 
 					#clock-cells = <1>;
 				};
@@ -1211,6 +1213,7 @@
 
 						"clk_uart2_div",	"clk_uart2_frac",
 						"clk_uart3_div",	"clk_uart3_frac";
+						rockchip,suspend-clkgating-setting=<0x0 0x0>;
 
 					#clock-cells = <1>;
 				};
@@ -1242,6 +1245,8 @@
 
 						"g_mac_lbtest",		"clk_sdio",
 						"clk_emmc",		"reserved";
+						//rockchip,suspend-clkgating-setting=<0x1f 0x1b>;
+						rockchip,suspend-clkgating-setting=<0x1f 0x1b>;
 
 					#clock-cells = <1>;
 				};
@@ -1277,6 +1282,7 @@
 
 						"g_h_vdpu",		"reserved",
 						"timer6",		"clk_gpu";
+					rockchip,suspend-clkgating-setting=<0x0 0x0>;
 
 					#clock-cells = <1>;
 				};
@@ -1314,6 +1320,8 @@
 						"g_a_intmem",		"reserved",
 						"g_h_imem1",		"g_h_imem0";
 
+					//rockchip,suspend-clkgating-setting=<0xd75e 0xd75e>;
+					rockchip,suspend-clkgating-setting=<0xd75e 0xd75e>;
 					#clock-cells = <1>;
 				};
 
@@ -1342,6 +1350,7 @@
 						"g_h_sdmmc0",		"g_h_sdio",
 
 						"g_h_emmc",		"g_h_otg0";
+					rockchip,suspend-clkgating-setting=<0x80 0x80>;
 
 					#clock-cells = <1>;
 				};
@@ -1372,6 +1381,7 @@
 
 						"g_h_vio_bus",		"g_a_vio0";
 
+					rockchip,suspend-clkgating-setting=<0x0 0x0>;
 					#clock-cells = <1>;
 				};
 
@@ -1402,6 +1412,7 @@
 
 						"g_p_spi0",		"g_p_spi1",
 						"g_p_saradc",		"g_p_wdt";
+					rockchip,suspend-clkgating-setting=<0x0 0x0>;
 
 					#clock-cells = <1>;
 				};
@@ -1431,6 +1442,7 @@
 						"g_p_gpio1",		"g_p_gpio2",
 
 						"g_p_gpio3",		"g_a_gps";
+						rockchip,suspend-clkgating-setting=<0x200 0x200>;
 
 					#clock-cells = <1>;
 				};
@@ -1450,6 +1462,7 @@
 
 						"g_clk_l2c",		"g_a_vio1",
 						"g_p_ddrpubl",		"g_a_gpu";
+					rockchip,suspend-clkgating-setting=<0x50 0x50>;
 
 					#clock-cells = <1>;
 				};

@@ -354,3 +354,7 @@ static int __init rk3188_ddr_init(void)
 	return 0;
 }
 arch_initcall_sync(rk3188_ddr_init);
+
+#include "pm-rk3188.c"
+
+

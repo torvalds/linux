@@ -2,6 +2,7 @@
 #include "skeleton.dtsi"
 #include "rk3188-pinctrl.dtsi"
 #include <dt-bindings/rkfb/rk_fb.h>
+#include <dt-bindings/suspend/rockchip-pm.h>
 #include "rk3188_io_vol_domain.dtsi"
 
 #include <dt-bindings/sensor-dev.h>
@@ -441,7 +442,25 @@
 			<&clk_gpu 200000000>, <&aclk_lcdc0 300000000>,
 			<&aclk_lcdc1 300000000>;
 	};
-
+	rkpm_suspend {
+                compatible = "rockchip,rkpm_suspend";
+                
+                // define value is in dt-bindint/suspend/rockchip-pm.h
+                rockchip,ctrbits = <	
+                				(
+                				RKPM_CTR_PWR_DMNS
+                				|RKPM_CTR_GTCLKS
+                				|RKPM_CTR_PLLS
+                				|RKPM_CTR_SYSCLK_DIV
+                				|RKPM_CTR_NORIDLE_MD
+                				)
+                			>;
+              rockchip,pmic-gpios=<
+                                                RKPM_GPIOS_SETTING(GPIO0_A0,RKPM_GPIOS_OUTPUT,RKPM_GPIOS_OUT_H) 
+                                                RKPM_GPIOS_SETTING(GPIO0_A1,RKPM_GPIOS_OUTPUT,RKPM_GPIOS_OUT_H)                           
+                                                >;
+       
+        };
 	fb: fb{
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
