@@ -44,38 +44,41 @@
  * 1 if the insertion succeeds, 0 if the queue was full.
  */
 unsigned char
-visor_signal_insert(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
+visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, U32 Queue, void *pSignal)
 {
-	void *psignal;
-	unsigned int head, tail;
-	pSIGNAL_QUEUE_HEADER pqhdr =
-	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
+	void __iomem *psignal;
+	unsigned int head, tail, nof;
+
+	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
+	    (SIGNAL_QUEUE_HEADER __iomem *)
+		((char __iomem *) pChannel + readq(&pChannel->oChannelSpace))
+		+ Queue;
 
 	/* capture current head and tail */
-	head = pqhdr->Head;
-	tail = pqhdr->Tail;
+	head = readl(&pqhdr->Head);
+	tail = readl(&pqhdr->Tail);
 
 	/* queue is full if (head + 1) % n equals tail */
-	if (((head + 1) % pqhdr->MaxSignalSlots) == tail) {
-		pqhdr->NumOverflows++;
+	if (((head + 1) % readl(&pqhdr->MaxSignalSlots)) == tail) {
+		nof = readq(&pqhdr->NumOverflows) + 1;
+		writeq(nof, &pqhdr->NumOverflows);
 		return 0;
 	}
 
 	/* increment the head index */
-	head = (head + 1) % pqhdr->MaxSignalSlots;
+	head = (head + 1) % readl(&pqhdr->MaxSignalSlots);
 
 	/* copy signal to the head location from the area pointed to
 	 * by pSignal
 	 */
-	psignal =
-	    (char *) pqhdr + pqhdr->oSignalBase + (head * pqhdr->SignalSize);
-	MEMCPY(psignal, pSignal, pqhdr->SignalSize);
+	psignal = (char __iomem *)pqhdr + readq(&pqhdr->oSignalBase) +
+		(head * readl(&pqhdr->SignalSize));
+	MEMCPY_TOIO(psignal, pSignal, readl(&pqhdr->SignalSize));
 
 	VolatileBarrier();
-	pqhdr->Head = head;
+	writel(head, &pqhdr->Head);
 
-	pqhdr->NumSignalsSent++;
+	writeq(readq(&pqhdr->NumSignalsSent) + 1, &pqhdr->NumSignalsSent);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(visor_signal_insert);
@@ -99,36 +102,37 @@ EXPORT_SYMBOL_GPL(visor_signal_insert);
  * 1 if the removal succeeds, 0 if the queue was empty.
  */
 unsigned char
-visor_signal_remove(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
+visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, U32 Queue, void *pSignal)
 {
-	void *psource;
+	void __iomem *psource;
 	unsigned int head, tail;
-	pSIGNAL_QUEUE_HEADER pqhdr =
-	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
+	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
+	    (SIGNAL_QUEUE_HEADER __iomem *) ((char __iomem *) pChannel +
+				    readq(&pChannel->oChannelSpace)) + Queue;
 
 	/* capture current head and tail */
-	head = pqhdr->Head;
-	tail = pqhdr->Tail;
+	head = readl(&pqhdr->Head);
+	tail = readl(&pqhdr->Tail);
 
 	/* queue is empty if the head index equals the tail index */
 	if (head == tail) {
-		pqhdr->NumEmptyCnt++;
+		writeq(readq(&pqhdr->NumEmptyCnt) + 1, &pqhdr->NumEmptyCnt);
 		return 0;
 	}
 
 	/* advance past the 'empty' front slot */
-	tail = (tail + 1) % pqhdr->MaxSignalSlots;
+	tail = (tail + 1) % readl(&pqhdr->MaxSignalSlots);
 
 	/* copy signal from tail location to the area pointed to by pSignal */
-	psource =
-	    (char *) pqhdr + pqhdr->oSignalBase + (tail * pqhdr->SignalSize);
-	MEMCPY(pSignal, psource, pqhdr->SignalSize);
+	psource = (char __iomem *) pqhdr + readq(&pqhdr->oSignalBase) +
+		(tail * readl(&pqhdr->SignalSize));
+	MEMCPY_FROMIO(pSignal, psource, readl(&pqhdr->SignalSize));
 
 	VolatileBarrier();
-	pqhdr->Tail = tail;
+	writel(tail, &pqhdr->Tail);
 
-	pqhdr->NumSignalsReceived++;
+	writeq(readq(&pqhdr->NumSignalsReceived) + 1,
+	       &pqhdr->NumSignalsReceived);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(visor_signal_remove);
@@ -194,59 +198,6 @@ SignalRemoveAll(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
 
 /*
  * Routine Description:
- * Copies one signal from channel pChannel's nth Queue at the given position
- * at the time of the call into the memory pointed to by pSignal.
- *
- * Parameters:
- * pChannel: (IN) points to the IO Channel
- * Queue: (IN) nth Queue of the IO Channel
- * Position: (IN) nth entry in Queue of the IO Channel
- * pSignal: (IN) pointer to where the signals are to be copied
- *
- * Assumptions:
- * - pChannel and Queue are valid.
- * - pSignal points to a memory area large enough to hold queue's SignalSize
- *
- * Return value:
- * 1 if the copy succeeds, 0 if the queue was empty or Position was invalid.
- */
-unsigned char
-SignalPeek(pCHANNEL_HEADER pChannel, U32 Queue, U32 Position, void *pSignal)
-{
-	void *psignal;
-	unsigned int head, tail;
-	pSIGNAL_QUEUE_HEADER pqhdr =
-	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
-
-	head = pqhdr->Head;
-	tail = pqhdr->Tail;
-
-	/* check if Position is out of range or queue is empty */
-	if (Position >= pqhdr->MaxSignalSlots || Position == tail
-	    || head == tail)
-		return 0;
-
-	/* check if Position is between tail and head */
-	if (head > tail) {
-		if (Position > head || Position < tail)
-			return 0;
-	} else if ((Position > head) && (Position < tail))
-		return 0;
-
-	/* copy signal from Position location to the area pointed to
-	 * by pSignal
-	 */
-	psignal =
-	    (char *) pqhdr + pqhdr->oSignalBase +
-	    (Position * pqhdr->SignalSize);
-	MEMCPY(pSignal, psignal, pqhdr->SignalSize);
-
-	return 1;
-}
-
-/*
- * Routine Description:
  * Determine whether a signal queue is empty.
  *
  * Parameters:
@@ -257,51 +208,12 @@ SignalPeek(pCHANNEL_HEADER pChannel, U32 Queue, U32 Position, void *pSignal)
  * 1 if the signal queue is empty, 0 otherwise.
  */
 unsigned char
-visor_signalqueue_empty(pCHANNEL_HEADER pChannel, U32 Queue)
+visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel, U32 Queue)
 {
-	pSIGNAL_QUEUE_HEADER pqhdr =
-	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
-	return pqhdr->Head == pqhdr->Tail;
+	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
+	    (SIGNAL_QUEUE_HEADER __iomem *) ((char __iomem *) pChannel +
+				    readq(&pChannel->oChannelSpace)) + Queue;
+	return readl(&pqhdr->Head) == readl(&pqhdr->Tail);
 }
 EXPORT_SYMBOL_GPL(visor_signalqueue_empty);
 
-/*
- * Routine Description:
- * Determine whether a signal queue is empty.
- *
- * Parameters:
- * pChannel: (IN) points to the IO Channel
- * Queue: (IN) nth Queue of the IO Channel
- *
- * Return value:
- * 1 if the signal queue has 1 element, 0 otherwise.
- */
-unsigned char
-SignalQueueHasOneElement(pCHANNEL_HEADER pChannel, U32 Queue)
-{
-	pSIGNAL_QUEUE_HEADER pqhdr =
-	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
-	return ((pqhdr->Tail + 1) % pqhdr->MaxSignalSlots) == pqhdr->Head;
-}
-
-/*
- * Routine Description:
- * Determine whether a signal queue is full.
- *
- * Parameters:
- * pChannel: (IN) points to the IO Channel
- * Queue: (IN) nth Queue of the IO Channel
- *
- * Return value:
- * 1 if the signal queue is full, 0 otherwise.
- */
-unsigned char
-SignalQueueIsFull(pCHANNEL_HEADER pChannel, U32 Queue)
-{
-	pSIGNAL_QUEUE_HEADER pqhdr =
-	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
-	return ((pqhdr->Head + 1) % pqhdr->MaxSignalSlots) == pqhdr->Tail;
-}

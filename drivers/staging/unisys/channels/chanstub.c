@@ -27,19 +27,19 @@
 #include "chanstub.h"
 #include "version.h"
 
-__init int
+static __init int
 channel_mod_init(void)
 {
 	return 0;
 }
 
-__exit void
+static __exit void
 channel_mod_exit(void)
 {
 }
 
 unsigned char
-SignalInsert_withLock(pCHANNEL_HEADER pChannel, U32 Queue,
+SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 		      void *pSignal, spinlock_t *lock)
 {
 	unsigned char result;
@@ -51,7 +51,7 @@ SignalInsert_withLock(pCHANNEL_HEADER pChannel, U32 Queue,
 }
 
 unsigned char
-SignalRemove_withLock(pCHANNEL_HEADER pChannel, U32 Queue,
+SignalRemove_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 		      void *pSignal, spinlock_t *lock)
 {
 	unsigned char result;

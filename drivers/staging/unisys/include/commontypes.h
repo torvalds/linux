@@ -23,6 +23,7 @@
 #ifdef __KERNEL__
 #include <linux/types.h>
 #include <linux/version.h>
+#include <linux/io.h>
 #else
 #include <stdint.h>
 #include <syslog.h>
@@ -72,6 +73,7 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 
 #define MEMSET(ptr, val, len) memset(ptr, val, len)
 #define MEMCMP(m1, m2, len) memcmp(m1, m2, len)
+#define MEMCMP_IO(m1, m2, len) memcmp((void __force *)m1, m2, len)
 #define STRLEN(s) ((UINTN)strlen((const char *)s))
 #define STRCPY(d, s) (strcpy((char *)d, (const char *)s))
 
@@ -81,6 +83,8 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 #ifdef __KERNEL__
 #define MEMORYBARRIER mb()
 #define MEMCPY(dest, src, len) memcpy(dest, src, len)
+#define MEMCPY_TOIO(dest, src, len) memcpy_toio(dest, src, len)
+#define MEMCPY_FROMIO(dest, src, len) memcpy_fromio(dest, src, len)
 
 #define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
 			      lin, logCtx)				\
