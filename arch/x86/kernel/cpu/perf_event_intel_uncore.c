@@ -1989,6 +1989,7 @@ static DEFINE_PCI_DEVICE_TABLE(snb_uncore_pci_ids) = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SNB_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* end: all zeroes */ },
 };
 
 static DEFINE_PCI_DEVICE_TABLE(ivb_uncore_pci_ids) = {
@@ -1996,6 +1997,7 @@ static DEFINE_PCI_DEVICE_TABLE(ivb_uncore_pci_ids) = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* end: all zeroes */ },
 };
 
 static DEFINE_PCI_DEVICE_TABLE(hsw_uncore_pci_ids) = {
@@ -2003,6 +2005,7 @@ static DEFINE_PCI_DEVICE_TABLE(hsw_uncore_pci_ids) = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HSW_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* end: all zeroes */ },
 };
 
 static struct pci_driver snb_uncore_pci_driver = {
