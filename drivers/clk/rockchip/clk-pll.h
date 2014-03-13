@@ -12,9 +12,8 @@
 	div_u64(CLK_LOOPS_JIFFY_REF*(rate),CLK_LOOPS_RATE_REF*MHZ)
 
 /*******************RK3188 PLL******************************/
-/*******************PLL MODE*************************/
 #define RK3188_PLL_CON(i)	((i) * 4)
-
+/*******************PLL WORK MODE*************************/
 #define _RK3188_PLL_MODE_MSK		0x3
 #define _RK3188_PLL_MODE_SLOW		0x0
 #define _RK3188_PLL_MODE_NORM		0x1
@@ -43,6 +42,32 @@
 
 #define _RK3188_PLL_MODE_DEEP_SET(shift)	\
 	_RK3188_PLL_MODE_SET(_RK3188_PLL_MODE_DEEP, shift)
+
+/*******************PLL OPERATION MODE*********************/
+#define _RK3188_PLL_BYPASS_SHIFT	0
+#define _RK3188_PLL_POWERDOWN_SHIFT	1
+
+#define _RK3188PLUS_PLL_BYPASS_SHIFT	0
+#define _RK3188PLUS_PLL_POWERDOWN_SHIFT	1
+#define _RK3188PLUS_PLL_RESET_SHIFT	5
+
+#define _RK3188_PLL_OP_SET(val, shift)	\
+	((val) << (shift)) | CRU_W_MSK(shift, 1)
+
+#define _RK3188_PLL_BYPASS_SET(val)	\
+	_RK3188_PLL_OP_SET(val, _RK3188_PLL_BYPASS_SHIFT)
+
+#define _RK3188_PLL_POWERDOWN_SET(val)	\
+	_RK3188_PLL_OP_SET(val, _RK3188_PLL_POWERDOWN_SHIFT)
+
+#define _RK3188PLUS_PLL_BYPASS_SET(val)	\
+	_RK3188_PLL_OP_SET(val, _RK3188PLUS_PLL_BYPASS_SHIFT)
+
+#define _RK3188PLUS_PLL_POWERDOWN_SET(val)	\
+	_RK3188_PLL_OP_SET(val, _RK3188PLUS_PLL_POWERDOWN_SHIFT)
+
+#define _RK3188PLUS_PLL_RESET_SET(val)	\
+	_RK3188_PLL_OP_SET(val, _RK3188PLUS_PLL_RESET_SHIFT)
 
 /*******************PLL CON0 BITS***************************/
 #define RK3188_PLL_CLKFACTOR_SET(val, shift, msk) \
@@ -151,14 +176,14 @@
 
 #define _RK3188_APLL_SET_CLKS(_mhz, nr, nf, no, _periph_div, _aclk_div) \
 { \
-        .rate   = _mhz * MHZ, \
-        .pllcon0 = RK3188_PLL_CLKR_SET(nr) | RK3188_PLL_CLKOD_SET(no), \
-        .pllcon1 = RK3188_PLL_CLKF_SET(nf),\
-        .pllcon2 = RK3188_PLL_CLK_BWADJ_SET(nf >> 1),\
-        .clksel0 = RK3188_CORE_PERIPH_W_MSK | RK3188_CORE_PERIPH_##_periph_div,\
-        .clksel1 = RK3188_CORE_ACLK_W_MSK | RK3188_CORE_ACLK_##_aclk_div,\
-        .lpj = (CLK_LOOPS_JIFFY_REF*_mhz) / CLK_LOOPS_RATE_REF,\
-        .rst_dly = ((nr*500)/24+1),\
+	.rate   = _mhz * MHZ, \
+	.pllcon0 = RK3188_PLL_CLKR_SET(nr) | RK3188_PLL_CLKOD_SET(no), \
+	.pllcon1 = RK3188_PLL_CLKF_SET(nf),\
+	.pllcon2 = RK3188_PLL_CLK_BWADJ_SET(nf >> 1),\
+	.clksel0 = RK3188_CORE_PERIPH_W_MSK | RK3188_CORE_PERIPH_##_periph_div,\
+	.clksel1 = RK3188_CORE_ACLK_W_MSK | RK3188_CORE_ACLK_##_aclk_div,\
+	.lpj = (CLK_LOOPS_JIFFY_REF*_mhz) / CLK_LOOPS_RATE_REF,\
+	.rst_dly = ((nr*500)/24+1),\
 }
 
 
