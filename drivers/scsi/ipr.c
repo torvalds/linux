@@ -3630,16 +3630,14 @@ static ssize_t ipr_store_iopoll_weight(struct device *dev,
 		return strlen(buf);
 	}
 
-	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
-			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
 		for (i = 1; i < ioa_cfg->hrrq_num; i++)
 			blk_iopoll_disable(&ioa_cfg->hrrq[i].iopoll);
 	}
 
 	spin_lock_irqsave(shost->host_lock, lock_flags);
 	ioa_cfg->iopoll_weight = user_iopoll_weight;
-	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
-			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
 		for (i = 1; i < ioa_cfg->hrrq_num; i++) {
 			blk_iopoll_init(&ioa_cfg->hrrq[i].iopoll,
 					ioa_cfg->iopoll_weight, ipr_iopoll);
@@ -5484,8 +5482,7 @@ static irqreturn_t ipr_isr_mhrrq(int irq, void *devp)
 		return IRQ_NONE;
 	}
 
-	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
-			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
 		if ((be32_to_cpu(*hrrq->hrrq_curr) & IPR_HRRQ_TOGGLE_BIT) ==
 		       hrrq->toggle_bit) {
 			if (!blk_iopoll_sched_prep(&hrrq->iopoll))
@@ -9859,8 +9856,7 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	ioa_cfg->host->max_channel = IPR_VSET_BUS;
 	ioa_cfg->iopoll_weight = ioa_cfg->chip_cfg->iopoll_weight;
 
-	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
-			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
 		for (i = 1; i < ioa_cfg->hrrq_num; i++) {
 			blk_iopoll_init(&ioa_cfg->hrrq[i].iopoll,
 					ioa_cfg->iopoll_weight, ipr_iopoll);
@@ -9889,8 +9885,7 @@ static void ipr_shutdown(struct pci_dev *pdev)
 	int i;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
-	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
-			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
 		ioa_cfg->iopoll_weight = 0;
 		for (i = 1; i < ioa_cfg->hrrq_num; i++)
 			blk_iopoll_disable(&ioa_cfg->hrrq[i].iopoll);

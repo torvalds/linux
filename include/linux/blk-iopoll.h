@@ -43,6 +43,4 @@ extern void __blk_iopoll_complete(struct blk_iopoll *);
 extern void blk_iopoll_enable(struct blk_iopoll *);
 extern void blk_iopoll_disable(struct blk_iopoll *);
 
-extern int blk_iopoll_enabled;
-
 #endif
