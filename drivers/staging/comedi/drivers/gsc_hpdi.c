@@ -591,7 +591,7 @@ static int init_hpdi(struct comedi_device *dev)
 	return 0;
 }
 
-static void init_plx9080(struct comedi_device *dev)
+static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 {
 	struct hpdi_private *devpriv = dev->private;
 	uint32_t bits;
@@ -677,7 +677,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 
-	init_plx9080(dev);
+	gsc_hpdi_init_plx9080(dev);
 
 	/*  get irq */
 	if (request_irq(pcidev->irq, gsc_hpdi_interrupt, IRQF_SHARED,
