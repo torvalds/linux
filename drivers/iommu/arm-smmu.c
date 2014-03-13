@@ -1804,7 +1804,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	 * allocation (PTRS_PER_PGD).
 	 */
 #ifdef CONFIG_64BIT
-	smmu->s1_output_size = min(39UL, size);
+	smmu->s1_output_size = min((unsigned long)VA_BITS, size);
 #else
 	smmu->s1_output_size = min(32UL, size);
 #endif
