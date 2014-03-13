@@ -21,7 +21,6 @@ Configuration options:
 
 #include <linux/delay.h>
 
-#define FL512_SIZE 16		/* the size of the used memory */
 struct fl512_private {
 	unsigned short ao_readback[2];
 };
@@ -105,7 +104,7 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], FL512_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
