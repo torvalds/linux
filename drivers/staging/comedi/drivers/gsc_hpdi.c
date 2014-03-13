@@ -354,7 +354,8 @@ static void abort_dma(struct comedi_device *dev, unsigned int channel)
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
-static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int gsc_hpdi_cancel(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	struct hpdi_private *devpriv = dev->private;
 
@@ -729,7 +730,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	s->insn_config	= gsc_hpdi_dio_insn_config;
 	s->do_cmd	= gsc_hpdi_cmd;
 	s->do_cmdtest	= gsc_hpdi_cmd_test;
-	s->cancel	= hpdi_cancel;
+	s->cancel	= gsc_hpdi_cancel;
 
 	return init_hpdi(dev);
 }
