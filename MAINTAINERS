@@ -6003,6 +6003,7 @@ F:	include/uapi/linux/in.h
 F:	include/uapi/linux/net.h
 F:	include/uapi/linux/netdevice.h
 F:	tools/net/
+F:	tools/testing/selftests/net/
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
