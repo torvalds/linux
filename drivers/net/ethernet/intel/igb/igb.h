@@ -41,6 +41,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/pci.h>
+#include <linux/mdio.h>
 
 struct igb_adapter;
 
@@ -455,6 +456,7 @@ struct igb_adapter {
 	unsigned long link_check_timeout;
 	int copper_tries;
 	struct e1000_info ei;
+	u16 eee_advert;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -471,6 +473,7 @@ struct igb_adapter {
 #define IGB_FLAG_MAS_CAPABLE		(1 << 11)
 #define IGB_FLAG_MAS_ENABLE		(1 << 12)
 #define IGB_FLAG_HAS_MSIX		(1 << 13)
+#define IGB_FLAG_EEE			(1 << 14)
 
 /* Media Auto Sense */
 #define IGB_MAS_ENABLE_0		0X0001

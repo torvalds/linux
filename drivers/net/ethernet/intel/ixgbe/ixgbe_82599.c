@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -270,6 +271,7 @@ static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
 	mac->mcft_size = IXGBE_82599_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_82599_VFT_TBL_SIZE;
 	mac->num_rar_entries = IXGBE_82599_RAR_ENTRIES;
+	mac->rx_pb_size = IXGBE_82599_RX_PB_SIZE;
 	mac->max_rx_queues = IXGBE_82599_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_82599_MAX_TX_QUEUES;
 	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
@@ -510,7 +512,7 @@ out:
  *
  * Disables link, should be called during D3 power down sequence.
  *
- */
+ **/
 static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
 {
 	u32 autoc2_reg;
@@ -1003,8 +1005,7 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 
 out:
 	if (link_up && (link_speed == IXGBE_LINK_SPEED_1GB_FULL))
-		hw_dbg(hw, "Smartspeed has downgraded the link speed from "
-		       "the maximum advertised\n");
+		hw_dbg(hw, "Smartspeed has downgraded the link speed from the maximum advertised\n");
 	return status;
 }
 
@@ -1112,8 +1113,7 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 				if (!(links_reg & IXGBE_LINKS_KX_AN_COMP)) {
 					status =
 					        IXGBE_ERR_AUTONEG_NOT_COMPLETE;
-					hw_dbg(hw, "Autoneg did not "
-					       "complete.\n");
+					hw_dbg(hw, "Autoneg did not complete.\n");
 				}
 			}
 		}
@@ -2025,7 +2025,6 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
-	hw->mac.rx_pb_size = IXGBE_82599_RX_PB_SIZE;
 
 	if (ret_val == 0)
 		ret_val = ixgbe_verify_fw_version_82599(hw);
