@@ -1153,7 +1153,7 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 	},
 };
 
-static int brcmf_sdio_pd_probe(struct platform_device *pdev)
+static int __init brcmf_sdio_pd_probe(struct platform_device *pdev)
 {
 	brcmf_dbg(SDIO, "Enter\n");
 
