@@ -89,13 +89,13 @@ static int fl512_ao_insn_read(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	struct fl512_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_readback[chan];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
 
-	return n;
+	return insn->n;
 }
 
 static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
