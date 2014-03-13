@@ -53,7 +53,8 @@ This has a number of options available:
 
      If this is off (ie. "permissive"), then modules for which the key is not
      available and modules that are unsigned are permitted, but the kernel will
-     be marked as being tainted.
+     be marked as being tainted, and the concerned modules will be marked as
+     tainted, shown with the character 'X'.
 
      If this is on (ie. "restrictive"), only modules that have a valid
      signature that can be verified by a public key in the kernel's possession

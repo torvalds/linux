@@ -792,6 +792,8 @@ can be ORed together:
 1024 - A module from drivers/staging was loaded.
 2048 - The system is working around a severe firmware bug.
 4096 - An out-of-tree module has been loaded.
+8192 - An unsigned module has been loaded in a kernel supporting module
+       signature.
 
 ==============================================================
 

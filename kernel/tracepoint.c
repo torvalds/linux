@@ -633,7 +633,8 @@ EXPORT_SYMBOL_GPL(tracepoint_iter_reset);
 #ifdef CONFIG_MODULES
 bool trace_module_has_bad_taint(struct module *mod)
 {
-	return mod->taints & ~((1 << TAINT_OOT_MODULE) | (1 << TAINT_CRAP));
+	return mod->taints & ~((1 << TAINT_OOT_MODULE) | (1 << TAINT_CRAP) |
+			       (1 << TAINT_UNSIGNED_MODULE));
 }
 
 static int tracepoint_module_coming(struct module *mod)
@@ -644,7 +645,7 @@ static int tracepoint_module_coming(struct module *mod)
 	/*
 	 * We skip modules that taint the kernel, especially those with different
 	 * module headers (for forced load), to make sure we don't cause a crash.
-	 * Staging and out-of-tree GPL modules are fine.
+	 * Staging, out-of-tree, and unsigned GPL modules are fine.
 	 */
 	if (trace_module_has_bad_taint(mod))
 		return 0;
