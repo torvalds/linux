@@ -124,40 +124,24 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	/*
-	 * this if the definitions of the supdevices, 2 have been defined
-	 */
-	/* Analog indput */
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* define subdevice as Analog In */
-	s->type = COMEDI_SUBD_AI;
-	/* you can read it from userspace */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	/* Number of Analog input channels */
-	s->n_chan = 16;
-	/* accept only 12 bits of data */
-	s->maxdata = 0x0fff;
-	/* device use one of the ranges */
-	s->range_table = &range_fl512;
-	/* function to call when read AD */
-	s->insn_read = fl512_ai_insn;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= 16;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &range_fl512;
+	s->insn_read	= fl512_ai_insn;
 
-	/* Analog output */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* define subdevice as Analog OUT */
-	s->type = COMEDI_SUBD_AO;
-	/* you can write it from userspace */
-	s->subdev_flags = SDF_WRITABLE;
-	/* Number of Analog output channels */
-	s->n_chan = 2;
-	/* accept only 12 bits of data */
-	s->maxdata = 0x0fff;
-	/* device use one of the ranges */
-	s->range_table = &range_fl512;
-	/* function to call when write DA */
-	s->insn_write = fl512_ao_insn;
-	/* function to call when reading DA */
-	s->insn_read = fl512_ao_insn_readback;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &range_fl512;
+	s->insn_write	= fl512_ao_insn;
+	s->insn_read	= fl512_ao_insn_readback;
 
 	return 0;
 }
