@@ -28,6 +28,10 @@ config RK_DEBUG_UART
 	help
 	  Select a UART for debugging. -1 disable.
 
+config RK_USB_UART
+        bool "Support USB UART Bypass Function"
+        depends on (RK_DEBUG_UART = 2) 
+
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
 	depends on FIQ_DEBUGGER_CONSOLE

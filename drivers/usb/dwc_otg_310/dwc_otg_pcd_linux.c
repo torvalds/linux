@@ -1614,6 +1614,9 @@ EXPORT_SYMBOL(dwc_vbus_status);
 
 static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd, struct platform_device *dev)
 {
+
+	struct dwc_otg_device* otg_dev = pcd->otg_dev;
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 	pcd->vbus_status  = 0;
 	pcd->phy_suspend  = 0;
 

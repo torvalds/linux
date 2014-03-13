@@ -577,11 +577,11 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = err;
 		goto err2;
 	}
-#if 0 //disable for debug
+
 	ret = otg_irq_detect_init(pdev);
 	if (ret < 0)
 		goto err2;
-#endif
+
 	return 0;
 
 err2:
