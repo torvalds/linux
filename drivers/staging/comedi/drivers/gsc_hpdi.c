@@ -218,87 +218,6 @@ static void disable_plx_interrupts(struct comedi_device *dev)
 	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 }
 
-static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
-		       struct comedi_cmd *cmd)
-{
-	int err = 0;
-	int i;
-
-	/* Step 1 : check if triggers are trivially valid */
-
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
-
-	if (err)
-		return 1;
-
-	/* Step 2a : make sure trigger sources are unique */
-
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
-
-	/* Step 2b : and mutually compatible */
-
-	if (err)
-		return 2;
-
-	/* Step 3: check if arguments are trivially valid */
-
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 32;
-		err |= -EINVAL;
-	}
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
-		break;
-	case TRIG_NONE:
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-		break;
-	default:
-		break;
-	}
-
-	if (err)
-		return 3;
-
-	/* step 4: fix up any arguments */
-
-	if (err)
-		return 4;
-
-	if (!cmd->chanlist)
-		return 0;
-
-	for (i = 1; i < cmd->chanlist_len; i++) {
-		if (CR_CHAN(cmd->chanlist[i]) != i) {
-			/*  XXX could support 8 or 16 channels */
-			comedi_error(dev,
-				     "chanlist must be ch 0 to 31 in order");
-			err++;
-			break;
-		}
-	}
-
-	if (err)
-		return 5;
-
-	return 0;
-}
-
-static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_cmd *cmd)
-{
-	if (s->io_bits)
-		return -EINVAL;
-	else
-		return di_cmd_test(dev, s, cmd);
-}
-
 static inline void hpdi_writel(struct comedi_device *dev, uint32_t bits,
 			       unsigned int offset)
 {
@@ -503,6 +422,76 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	hpdi_writel(dev, RX_ENABLE_BIT, BOARD_CONTROL_REG);
 
 	return 0;
+}
+
+static int gsc_hpdi_cmd_test(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_cmd *cmd)
+{
+	int err = 0;
+	int i;
+
+	if (s->io_bits)
+		return -EINVAL;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	if (!cmd->chanlist_len || !cmd->chanlist) {
+		cmd->chanlist_len = 32;
+		err |= -EINVAL;
+	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	if (err)
+		return 4;
+
+	/* step 5: complain about special chanlist considerations */
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		if (CR_CHAN(cmd->chanlist[i]) != i) {
+			/*  XXX could support 8 or 16 channels */
+			dev_err(dev->class_dev,
+				"chanlist must be ch 0 to 31 in order");
+			err |= -EINVAL;
+			break;
+		}
+	}
+
+	if (err)
+		return 5;
+
+	return 0;
+
 }
 
 /* setup dma descriptors so a link completes every 'len' bytes */
@@ -739,7 +728,7 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_config	= gsc_hpdi_dio_insn_config;
 	s->do_cmd	= gsc_hpdi_cmd;
-	s->do_cmdtest	= hpdi_cmd_test;
+	s->do_cmdtest	= gsc_hpdi_cmd_test;
 	s->cancel	= hpdi_cancel;
 
 	return init_hpdi(dev);
