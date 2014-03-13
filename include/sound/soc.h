@@ -1188,4 +1188,15 @@ extern struct dentry *snd_soc_debugfs_root;
 
 extern const struct dev_pm_ops snd_soc_pm_ops;
 
+/* Helper functions */
+static inline void snd_soc_dapm_mutex_lock(struct snd_soc_dapm_context *dapm)
+{
+	mutex_lock(&dapm->card->dapm_mutex);
+}
+
+static inline void snd_soc_dapm_mutex_unlock(struct snd_soc_dapm_context *dapm)
+{
+	mutex_unlock(&dapm->card->dapm_mutex);
+}
+
 #endif
