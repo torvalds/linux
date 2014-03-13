@@ -362,12 +362,25 @@
                                                        * Filter - RW */
 #define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
 
-#define wr32(reg, value) (writel(value, hw->hw_addr + reg))
-#define rd32(reg) (readl(hw->hw_addr + reg))
+struct e1000_hw;
+
+u32 igb_rd32(struct e1000_hw *hw, u32 reg);
+
+/* write operations, indexed using DWORDS */
+#define wr32(reg, val) \
+do { \
+	u8 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+	if (!E1000_REMOVED(hw_addr)) \
+		writel((val), &hw_addr[(reg)]); \
+} while (0)
+
+#define rd32(reg) (igb_rd32(hw, reg))
+
 #define wrfl() ((void)rd32(E1000_STATUS))
 
 #define array_wr32(reg, offset, value) \
-	(writel(value, hw->hw_addr + reg + ((offset) << 2)))
+	wr32((reg) + ((offset) << 2), (value))
+
 #define array_rd32(reg, offset) \
 	(readl(hw->hw_addr + reg + ((offset) << 2)))
 
@@ -405,5 +418,7 @@
 
 #define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
 #define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */
+
+#define E1000_REMOVED(h) unlikely(!(h))
 
 #endif
