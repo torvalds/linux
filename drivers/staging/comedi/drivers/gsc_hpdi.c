@@ -225,7 +225,7 @@ static inline void hpdi_writel(struct comedi_device *dev, uint32_t bits,
 	       devpriv->hpdi_iobase + offset);
 }
 
-static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
+static void gsc_hpdi_drain_dma(struct comedi_device *dev, unsigned int channel)
 {
 	struct hpdi_private *devpriv = dev->private;
 	struct comedi_async *async = dev->read_subdev->async;
@@ -302,7 +302,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 		       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
 
 		if (dma0_status & PLX_DMA_EN_BIT)
-			drain_dma_buffers(dev, 0);
+			gsc_hpdi_drain_dma(dev, 0);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
