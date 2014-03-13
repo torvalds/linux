@@ -903,12 +903,6 @@ void rtl8192_rtx_disable(struct net_device *dev)
 	return;
 }
 
-
-int alloc_tx_beacon_desc_ring(struct net_device *dev, int count)
-{
-	return 0;
-}
-
 inline u16 ieeerate2rtlrate(int rate)
 {
 	switch (rate) {
