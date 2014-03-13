@@ -239,76 +239,6 @@ static void disable_plx_interrupts(struct comedi_device *dev)
 	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 }
 
-/* initialize plx9080 chip */
-static void init_plx9080(struct comedi_device *dev)
-{
-	struct hpdi_private *devpriv = dev->private;
-	uint32_t bits;
-	void __iomem *plx_iobase = devpriv->plx9080_iobase;
-
-#ifdef __BIG_ENDIAN
-	bits = BIGEND_DMA0 | BIGEND_DMA1;
-#else
-	bits = 0;
-#endif
-	writel(bits, devpriv->plx9080_iobase + PLX_BIGEND_REG);
-
-	disable_plx_interrupts(dev);
-
-	abort_dma(dev, 0);
-	abort_dma(dev, 1);
-
-	/*  configure dma0 mode */
-	bits = 0;
-	/*  enable ready input */
-	bits |= PLX_DMA_EN_READYIN_BIT;
-	/*  enable dma chaining */
-	bits |= PLX_EN_CHAIN_BIT;
-	/*  enable interrupt on dma done
-	 *  (probably don't need this, since chain never finishes) */
-	bits |= PLX_EN_DMA_DONE_INTR_BIT;
-	/*  don't increment local address during transfers
-	 *  (we are transferring from a fixed fifo register) */
-	bits |= PLX_LOCAL_ADDR_CONST_BIT;
-	/*  route dma interrupt to pci bus */
-	bits |= PLX_DMA_INTR_PCI_BIT;
-	/*  enable demand mode */
-	bits |= PLX_DEMAND_MODE_BIT;
-	/*  enable local burst mode */
-	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
-	bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
-	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
-}
-
-static int init_hpdi(struct comedi_device *dev)
-{
-	struct hpdi_private *devpriv = dev->private;
-	uint32_t plx_intcsr_bits;
-
-	writel(BOARD_RESET_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
-	udelay(10);
-
-	writel(almost_empty_bits(32) | almost_full_bits(32),
-	       devpriv->hpdi_iobase + RX_PROG_ALMOST_REG);
-	writel(almost_empty_bits(32) | almost_full_bits(32),
-	       devpriv->hpdi_iobase + TX_PROG_ALMOST_REG);
-
-	devpriv->tx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
-						  TX_FIFO_SIZE_REG));
-	devpriv->rx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
-						  RX_FIFO_SIZE_REG));
-
-	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
-
-	/*  enable interrupts */
-	plx_intcsr_bits =
-	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
-	    ICS_DMA0_E;
-	writel(plx_intcsr_bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
-
-	return 0;
-}
-
 /* setup dma descriptors so a link completes every 'transfer_size' bytes */
 static int setup_dma_descriptors(struct comedi_device *dev,
 				 unsigned int transfer_size)
@@ -358,17 +288,6 @@ static int setup_dma_descriptors(struct comedi_device *dev,
 	devpriv->block_size = transfer_size;
 
 	return transfer_size;
-}
-
-static const struct hpdi_board *hpdi_find_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(hpdi_boards); i++)
-		if (pcidev->device == hpdi_boards[i].device_id &&
-		    pcidev->subsystem_device == hpdi_boards[i].subdevice_id)
-			return &hpdi_boards[i];
-	return NULL;
 }
 
 static int dio_config_block_size(struct comedi_device *dev, unsigned int *data)
@@ -676,8 +595,88 @@ static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int init_hpdi(struct comedi_device *dev)
+{
+	struct hpdi_private *devpriv = dev->private;
+	uint32_t plx_intcsr_bits;
+
+	writel(BOARD_RESET_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
+	udelay(10);
+
+	writel(almost_empty_bits(32) | almost_full_bits(32),
+	       devpriv->hpdi_iobase + RX_PROG_ALMOST_REG);
+	writel(almost_empty_bits(32) | almost_full_bits(32),
+	       devpriv->hpdi_iobase + TX_PROG_ALMOST_REG);
+
+	devpriv->tx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
+						  TX_FIFO_SIZE_REG));
+	devpriv->rx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
+						  RX_FIFO_SIZE_REG));
+
+	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
+
+	/*  enable interrupts */
+	plx_intcsr_bits =
+	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
+	    ICS_DMA0_E;
+	writel(plx_intcsr_bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
+
+	return 0;
+}
+
+static void init_plx9080(struct comedi_device *dev)
+{
+	struct hpdi_private *devpriv = dev->private;
+	uint32_t bits;
+	void __iomem *plx_iobase = devpriv->plx9080_iobase;
+
+#ifdef __BIG_ENDIAN
+	bits = BIGEND_DMA0 | BIGEND_DMA1;
+#else
+	bits = 0;
+#endif
+	writel(bits, devpriv->plx9080_iobase + PLX_BIGEND_REG);
+
+	disable_plx_interrupts(dev);
+
+	abort_dma(dev, 0);
+	abort_dma(dev, 1);
+
+	/*  configure dma0 mode */
+	bits = 0;
+	/*  enable ready input */
+	bits |= PLX_DMA_EN_READYIN_BIT;
+	/*  enable dma chaining */
+	bits |= PLX_EN_CHAIN_BIT;
+	/*  enable interrupt on dma done
+	 *  (probably don't need this, since chain never finishes) */
+	bits |= PLX_EN_DMA_DONE_INTR_BIT;
+	/*  don't increment local address during transfers
+	 *  (we are transferring from a fixed fifo register) */
+	bits |= PLX_LOCAL_ADDR_CONST_BIT;
+	/*  route dma interrupt to pci bus */
+	bits |= PLX_DMA_INTR_PCI_BIT;
+	/*  enable demand mode */
+	bits |= PLX_DEMAND_MODE_BIT;
+	/*  enable local burst mode */
+	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
+	bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
+	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
+}
+
+static const struct hpdi_board *hpdi_find_board(struct pci_dev *pcidev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hpdi_boards); i++)
+		if (pcidev->device == hpdi_boards[i].device_id &&
+		    pcidev->subsystem_device == hpdi_boards[i].subdevice_id)
+			return &hpdi_boards[i];
+	return NULL;
+}
+
 static int hpdi_auto_attach(struct comedi_device *dev,
-				      unsigned long context_unused)
+			    unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct hpdi_board *thisboard;
