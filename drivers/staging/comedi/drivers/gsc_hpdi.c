@@ -199,12 +199,12 @@ struct hpdi_private {
 	/* pointer to start of buffers indexed by descriptor */
 	uint32_t *desc_dio_buffer[NUM_DMA_DESCRIPTORS];
 	/* index of the dma descriptor that is currently being used */
-	volatile unsigned int dma_desc_index;
+	unsigned int dma_desc_index;
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
-	volatile unsigned long dio_count;
+	unsigned long dio_count;
 	/* number of bytes at which to generate COMEDI_CB_BLOCK events */
-	volatile unsigned int block_size;
+	unsigned int block_size;
 };
 
 static void gsc_hpdi_drain_dma(struct comedi_device *dev, unsigned int channel)
