@@ -1804,8 +1804,10 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 				shost_printk(KERN_WARNING, shost,
 					     PFX "SRP_LOGIN_REJ: requested max_it_iu_len too large\n");
 			else
-				shost_printk(KERN_WARNING, shost,
-					    PFX "SRP LOGIN REJECTED, reason 0x%08x\n", reason);
+				shost_printk(KERN_WARNING, shost, PFX
+					     "SRP LOGIN from %pI6 to %pI6 REJECTED, reason 0x%08x\n",
+					     target->path.sgid.raw,
+					     target->orig_dgid, reason);
 		} else
 			shost_printk(KERN_WARNING, shost,
 				     "  REJ reason: IB_CM_REJ_CONSUMER_DEFINED,"
@@ -2653,15 +2655,6 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret)
 		goto err_free_mem;
 
-	shost_printk(KERN_DEBUG, target->scsi_host, PFX
-		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x "
-		     "service_id %016llx dgid %pI6\n",
-	       (unsigned long long) be64_to_cpu(target->id_ext),
-	       (unsigned long long) be64_to_cpu(target->ioc_guid),
-	       be16_to_cpu(target->path.pkey),
-	       (unsigned long long) be64_to_cpu(target->service_id),
-	       target->path.dgid.raw);
-
 	ret = srp_create_target_ib(target);
 	if (ret)
 		goto err_free_mem;
@@ -2680,6 +2673,14 @@ static ssize_t srp_create_target(struct device *dev,
 	ret = srp_add_target(host, target);
 	if (ret)
 		goto err_disconnect;
+
+	shost_printk(KERN_DEBUG, target->scsi_host, PFX
+		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x service_id %016llx sgid %pI6 dgid %pI6\n",
+		     be64_to_cpu(target->id_ext),
+		     be64_to_cpu(target->ioc_guid),
+		     be16_to_cpu(target->path.pkey),
+		     be64_to_cpu(target->service_id),
+		     target->path.sgid.raw, target->path.dgid.raw);
 
 	return count;
 
