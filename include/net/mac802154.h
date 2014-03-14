@@ -20,6 +20,7 @@
 #define NET_MAC802154_H
 
 #include <net/af_ieee802154.h>
+#include <linux/skbuff.h>
 
 /* General MAC frame format:
  *  2 bytes: Frame Control

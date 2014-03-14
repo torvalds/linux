@@ -28,6 +28,28 @@
 #define IEEE802154_NETDEVICE_H
 
 #include <net/af_ieee802154.h>
+#include <linux/netdevice.h>
+#include <linux/skbuff.h>
+
+struct ieee802154_sechdr {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 level:3,
+	   key_id_mode:2,
+	   reserved:3;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u8 reserved:3,
+	   key_id_mode:2,
+	   level:3;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+	u8 key_id;
+	__le32 frame_counter;
+	union {
+		__le32 short_src;
+		__le64 extended_src;
+	};
+};
 
 struct ieee802154_addr {
 	u8 mode;
@@ -37,6 +59,71 @@ struct ieee802154_addr {
 		__le64 extended_addr;
 	};
 };
+
+struct ieee802154_hdr_fc {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u16 type:3,
+	    security_enabled:1,
+	    frame_pending:1,
+	    ack_request:1,
+	    intra_pan:1,
+	    reserved:3,
+	    dest_addr_mode:2,
+	    version:2,
+	    source_addr_mode:2;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u16 reserved:1,
+	    intra_pan:1,
+	    ack_request:1,
+	    frame_pending:1,
+	    security_enabled:1,
+	    type:3,
+	    source_addr_mode:2,
+	    version:2,
+	    dest_addr_mode:2,
+	    reserved2:2;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+};
+
+struct ieee802154_hdr {
+	struct ieee802154_hdr_fc fc;
+	u8 seq;
+	struct ieee802154_addr source;
+	struct ieee802154_addr dest;
+	struct ieee802154_sechdr sec;
+};
+
+/* pushes hdr onto the skb. fields of hdr->fc that can be calculated from
+ * the contents of hdr will be, and the actual value of those bits in
+ * hdr->fc will be ignored. this includes the INTRA_PAN bit and the frame
+ * version, if SECEN is set.
+ */
+int ieee802154_hdr_push(struct sk_buff *skb, const struct ieee802154_hdr *hdr);
+
+/* pulls the entire 802.15.4 header off of the skb, including the security
+ * header, and performs pan id decompression
+ */
+int ieee802154_hdr_pull(struct sk_buff *skb, struct ieee802154_hdr *hdr);
+
+/* parses the frame control, sequence number of address fields in a given skb
+ * and stores them into hdr, performing pan id decompression and length checks
+ * to be suitable for use in header_ops.parse
+ */
+int ieee802154_hdr_peek_addrs(const struct sk_buff *skb,
+			      struct ieee802154_hdr *hdr);
+
+static inline int ieee802154_hdr_length(struct sk_buff *skb)
+{
+	struct ieee802154_hdr hdr;
+	int len = ieee802154_hdr_pull(skb, &hdr);
+
+	if (len > 0)
+		skb_push(skb, len);
+
+	return len;
+}
 
 static inline bool ieee802154_addr_equal(const struct ieee802154_addr *a1,
 					 const struct ieee802154_addr *a2)
