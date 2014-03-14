@@ -4765,8 +4765,6 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 #endif
 	char *orig_data = kstrdup(data, GFP_KERNEL);
 
-	sync_filesystem(sb);
-
 	/* Store the original options */
 	old_sb_flags = sb->s_flags;
 	old_opts.s_mount_opt = sbi->s_mount_opt;
@@ -4837,6 +4835,9 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		}
 
 		if (*flags & MS_RDONLY) {
+			err = sync_filesystem(sb);
+			if (err < 0)
+				goto restore_opts;
 			err = dquot_suspend(sb, -1);
 			if (err < 0)
 				goto restore_opts;
