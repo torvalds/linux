@@ -116,6 +116,7 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	struct e4000 *s = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i, sigma_delta;
+	unsigned int pll_n, pll_f;
 	u64 f_vco;
 	u8 buf[5], i_data[4], q_data[4];
 
@@ -141,8 +142,9 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	}
 
 	f_vco = 1ull * c->frequency * e4000_pll_lut[i].mul;
-	sigma_delta = div_u64(0x10000ULL * (f_vco % s->clock), s->clock);
-	buf[0] = div_u64(f_vco, s->clock);
+	pll_n = div_u64_rem(f_vco, s->clock, &pll_f);
+	sigma_delta = div_u64(0x10000ULL * pll_f, s->clock);
+	buf[0] = pll_n;
 	buf[1] = (sigma_delta >> 0) & 0xff;
 	buf[2] = (sigma_delta >> 8) & 0xff;
 	buf[3] = 0x00;
