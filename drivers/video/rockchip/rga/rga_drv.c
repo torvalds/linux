@@ -802,6 +802,7 @@ static int rga_convert_dma_buf(struct rga_req *req)
 	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
         req->src.yrgb_addr = phy_addr;
         req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+        ion_free(drvdata->ion_client, hdl);
     }
     else {
         req->src.yrgb_addr = req->src.uv_addr;
@@ -813,6 +814,7 @@ static int rga_convert_dma_buf(struct rga_req *req)
 	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
         req->dst.yrgb_addr = phy_addr;
         req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+        ion_free(drvdata->ion_client, hdl);
     }
     else {
         req->dst.yrgb_addr = req->dst.uv_addr;
