@@ -1,11 +1,13 @@
+#include <dt-bindings/clock/ddr.h>
+#include <dt-bindings/rkfb/rk_fb.h>
+#include <dt-bindings/suspend/rockchip-pm.h>
+#include <dt-bindings/sensor-dev.h>
 
 #include "skeleton.dtsi"
 #include "rk3188-pinctrl.dtsi"
-#include <dt-bindings/rkfb/rk_fb.h>
-#include <dt-bindings/suspend/rockchip-pm.h>
+#include "rk3188-clocks.dtsi"
 #include "rk3188_io_vol_domain.dtsi"
-
-#include <dt-bindings/sensor-dev.h>
+#include "rk3188-mmc.dtsi"
 
 / {
 	compatible = "rockchip,rk3188";
@@ -443,10 +445,10 @@
 			<&aclk_lcdc1 300000000>;
 	};
 	rkpm_suspend {
-                compatible = "rockchip,rkpm_suspend";
-                
-                // define value is in dt-bindint/suspend/rockchip-pm.h
-                rockchip,ctrbits = <	
+		compatible = "rockchip,rkpm_suspend";
+
+		// define value is in dt-bindint/suspend/rockchip-pm.h
+		rockchip,ctrbits = <	
                 				(
                 				RKPM_CTR_PWR_DMNS
                 				|RKPM_CTR_GTCLKS
@@ -457,10 +459,10 @@
                 			>;
               rockchip,pmic-gpios=<
                                                 RKPM_GPIOS_SETTING(GPIO0_A0,RKPM_GPIOS_OUTPUT,RKPM_GPIOS_OUT_H) 
-                                                RKPM_GPIOS_SETTING(GPIO0_A1,RKPM_GPIOS_OUTPUT,RKPM_GPIOS_OUT_H)                           
+                                                RKPM_GPIOS_SETTING(GPIO0_A1,RKPM_GPIOS_OUTPUT,RKPM_GPIOS_OUT_H) 
                                                 >;
-       
-        };
+
+	};
 	fb: fb{
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
@@ -496,26 +498,27 @@
 		pinctrl-1 = <&lcdc1_gpio>;
 		status = "disabled";
   	};
-  rga@10114000 {
+
+	rga@10114000 {
 		compatible = "rockchip,rga";
 		reg = <0x10114000 0x1000>;
 		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates6 10>, <&clk_gates6 11>;
-    clock-names = "hclk_rga", "aclk_rga"; 		
-  };
+		clock-names = "hclk_rga", "aclk_rga"; 		
+	};
 
-    adc: adc@2006c000 {
-	   compatible = "rockchip,saradc";
-	   reg = <0x2006c000 0x100>;
-	   interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
-           #io-channel-cells = <1>;
-	   io-channel-ranges;
-           rockchip,adc-vref = <1800>;
-           clock-frequency = <1000000>;
-           clocks = <&clk_saradc>, <&clk_gates7 14>;
-           clock-names = "saradc", "pclk_saradc"; 
-           status = "disabled";
-    };
+	adc: adc@2006c000 {
+		compatible = "rockchip,saradc";
+		reg = <0x2006c000 0x100>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		#io-channel-cells = <1>;
+		io-channel-ranges;
+		rockchip,adc-vref = <1800>;
+		clock-frequency = <1000000>;
+		clocks = <&clk_saradc>, <&clk_gates7 14>;
+		clock-names = "saradc", "pclk_saradc";
+		status = "disabled";
+	};
 
 	spdif: rockchip-spdif@0x1011e000 {
 		compatible = "rockchip-spdif";
@@ -545,7 +548,7 @@
 
 	pwm0: pwm@20030000{
                 compatible = "rockchip,pwm";
-                reg = <0x20030000 0x10>; 
+                reg = <0x20030000 0x10>;
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
                 pinctrl-0 = <&pwm0_pin>;
