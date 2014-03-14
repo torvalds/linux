@@ -109,8 +109,10 @@ enum rockchip_pin_bank_type {
  * @slock: spinlock for the gpio bank
  */
 struct rockchip_pin_bank {
-	void __iomem			*reg_base;
-	void __iomem			*reg_pull;
+	void __iomem			*reg_base;	
+	void __iomem			*reg_mux_bank0;
+	void __iomem			*reg_pull_bank0;
+	void __iomem			*reg_drv_bank0;
 	struct clk			*clk;
 	int				irq;
 	u32				pin_base;
@@ -187,7 +189,11 @@ struct rockchip_pmx_func {
 
 struct rockchip_pinctrl {
 	void __iomem			*reg_base;
+	
+	void __iomem			*reg_mux;
 	void __iomem			*reg_pull;
+	void __iomem			*reg_drv;
+	
 	struct device			*dev;
 	struct rockchip_pin_ctrl	*ctrl;
 	struct pinctrl_desc		pctl;
@@ -808,7 +814,7 @@ static void rk3188_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 
 	/* The first 12 pins of the first bank are located elsewhere */
 	if (bank->bank_type == RK3188_BANK0 && pin_num < 12) {
-		*reg = bank->reg_pull +
+		*reg = bank->reg_pull_bank0 +
 				((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
 		*bit = pin_num % RK3188_PULL_PINS_PER_REG;
 		*bit *= RK3188_PULL_BITS_PER_PIN;
@@ -2243,33 +2249,78 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 				  struct device *dev)
 {
 	struct resource res;
+	int rk3188 = 0, rk3288 = 0;
 
+	//"base", "mux_bank0", "pull_bank0", "drv_bank0"
 	if (of_address_to_resource(bank->of_node, 0, &res)) {
 		dev_err(dev, "cannot find IO resource for bank %s\n", bank->name);
 		return -ENOENT;
 	}
-
 	bank->reg_base = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(bank->reg_base))
 		return PTR_ERR(bank->reg_base);
+	
+	printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res.name, res.start, res.end);
 
 	/*
 	 * special case, where parts of the pull setting-registers are
 	 * part of the PMU register space
 	 */
-	if (of_device_is_compatible(bank->of_node,
-				    "rockchip,rk3188-gpio-bank0")) {
+	rk3188 = of_device_is_compatible(bank->of_node, "rockchip,rk3188-gpio-bank0");
+	
+	rk3288 = of_device_is_compatible(bank->of_node, "rockchip,rk3288-gpio-bank0");
+
+	if(rk3188)
+	{	
 		bank->bank_type = RK3188_BANK0;
 
 		if (of_address_to_resource(bank->of_node, 1, &res)) {
 			dev_err(dev, "cannot find IO resource for bank %s\n", bank->name);
 			return -ENOENT;
 		}
+		bank->reg_pull_bank0 = devm_ioremap_resource(dev, &res);
+		if (IS_ERR(bank->reg_pull_bank0))
+		return PTR_ERR(bank->reg_pull_bank0);
+		
+		printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res.name, res.start, res.end);
 
-		bank->reg_pull = devm_ioremap_resource(dev, &res);
-		if (IS_ERR(bank->reg_pull))
-			return PTR_ERR(bank->reg_pull);
-	} else {
+	}
+	else if (rk3288)
+	{
+		bank->bank_type = RK3288_BANK0;	
+		if (of_address_to_resource(bank->of_node, 1, &res)) {
+			dev_err(dev, "cannot find IO resource for bank %s\n", bank->name);
+			return -ENOENT;
+		}
+		bank->reg_mux_bank0 = devm_ioremap_resource(dev, &res);
+		if (IS_ERR(bank->reg_mux_bank0))
+		return PTR_ERR(bank->reg_mux_bank0);
+		
+		printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res.name, res.start, res.end);
+
+		if (of_address_to_resource(bank->of_node, 2, &res)) {
+			dev_err(dev, "cannot find IO resource for bank %s\n", bank->name);
+			return -ENOENT;
+		}
+		bank->reg_pull_bank0 = devm_ioremap_resource(dev, &res);
+		if (IS_ERR(bank->reg_pull_bank0))
+		return PTR_ERR(bank->reg_pull_bank0);
+		
+		printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res.name, res.start, res.end);
+
+		if (of_address_to_resource(bank->of_node, 3, &res)) {
+			dev_err(dev, "cannot find IO resource for bank %s\n", bank->name);
+			return -ENOENT;
+		}
+		bank->reg_drv_bank0 = devm_ioremap_resource(dev, &res);
+		if (IS_ERR(bank->reg_drv_bank0))
+		return PTR_ERR(bank->reg_drv_bank0);
+		
+		printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res.name, res.start, res.end);
+	
+	} 
+	else 
+	{
 		bank->bank_type = COMMON_BANK;
 	}
 
@@ -2420,23 +2471,77 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	
 	g_info = info;
 	atomic_set(&info->debug_flag, 0);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(info->reg_base))
-		return PTR_ERR(info->reg_base);
 	
-	DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x,\n",__func__, res->name, res->start, res->end);
+	printk("%s:name=%s,type=%d\n",__func__, ctrl->label, (int)ctrl->type);
 
-	/* The RK3188 has its pull registers in a separate place */
-	if (ctrl->type == RK3188) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(info->reg_base))
+	//"base", "mux", "pull", "drv";
+	switch(ctrl->type)
+	{
+		case RK2928:	
+		case RK3066B:
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+			info->reg_base = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_base))
 			return PTR_ERR(info->reg_base);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			break;
 
-		DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+		case RK3188:
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+			info->reg_base = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_base))
+			return PTR_ERR(info->reg_base);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			info->reg_mux = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_mux))
+			return PTR_ERR(info->reg_mux);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+			info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_pull))
+			return PTR_ERR(info->reg_pull);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+			info->reg_drv = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_drv))
+			return PTR_ERR(info->reg_drv);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+
+			break;
+
+		case RK3288:
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+			info->reg_base = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_base))
+			return PTR_ERR(info->reg_base);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+	
+			info->reg_mux = info->reg_base;
+			
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_pull))
+			return PTR_ERR(info->reg_pull);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+			info->reg_drv = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(info->reg_drv))
+			return PTR_ERR(info->reg_drv);
+			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+
+			break;
+			
+		defualt:
+			printk("%s:unknown chip type\n",__func__, ctrl->type);
+			return -1;
+
 	}
+
 
 	ret = rockchip_gpiolib_register(pdev, info);
 	if (ret)
@@ -2449,8 +2554,6 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	}
 	
 	pinctrl_debugfs_init(info);
-
-	printk("%s:io-con4:0x%08x\n",__func__, readl_relaxed(info->reg_base + 0x104)); 
 
 	platform_set_drvdata(pdev, info);
 

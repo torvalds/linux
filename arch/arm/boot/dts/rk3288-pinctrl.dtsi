@@ -6,14 +6,21 @@
 / { 
 	pinctrl@ff770000 {
 		compatible = "rockchip,rk3288-pinctrl";
-		reg = <0xff770000 0x100>;
+		reg = <0xff770000 0x140>,
+		      <0xff770140 0x80>,
+		      <0xff7701c0 0x80>,
+		reg-names = "base", "pull", "drv";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
 		gpio0: gpio0@ff750000 {
 			compatible = "rockchip,rk3288-gpio-bank0";
-			reg = <0xff770000 0x100>;
+			reg =	<0xff750000 0x100>,
+				<0xff730080 0x10>,
+		      		<0xff730060 0x0c>,
+		      		<0xff73006c 0x0c>,
+			reg-names = "base", "mux_bank0", "pull_bank0", "drv_bank0";
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			//clocks = <&clk_gates8 9>;
 
