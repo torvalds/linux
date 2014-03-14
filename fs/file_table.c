@@ -325,6 +325,5 @@ void __init files_init(unsigned long mempages)
 
 	n = (mempages * (PAGE_SIZE / 1024)) / 10;
 	files_stat.max_files = max_t(unsigned long, n, NR_FILE);
-	files_defer_init();
 	percpu_counter_init(&nr_files, 0);
 } 
