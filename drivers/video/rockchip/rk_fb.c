@@ -189,8 +189,8 @@ static int rk_fb_data_fmt(int data_format,int bits_per_pixel)
 */
 int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 {
-	struct device_node *root  = of_parse_phandle(dev_drv->dev->of_node,
-				"power_ctr", 0);
+	struct device_node *root  = of_get_child_by_name(dev_drv->dev->of_node,
+				"power_ctr");
 	struct device_node *child;
 	struct rk_disp_pwr_ctr_list *pwr_ctr;
 	struct list_head *pos;
