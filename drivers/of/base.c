@@ -783,23 +783,78 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_get_child_by_name);
 
+static struct device_node *__of_find_node_by_path(struct device_node *parent,
+						const char *path)
+{
+	struct device_node *child;
+	int len = strchrnul(path, '/') - path;
+
+	if (!len)
+		return NULL;
+
+	__for_each_child_of_node(parent, child) {
+		const char *name = strrchr(child->full_name, '/');
+		if (WARN(!name, "malformed device_node %s\n", child->full_name))
+			continue;
+		name++;
+		if (strncmp(path, name, len) == 0 && (strlen(name) == len))
+			return child;
+	}
+	return NULL;
+}
+
 /**
  *	of_find_node_by_path - Find a node matching a full OF path
- *	@path:	The full path to match
+ *	@path: Either the full path to match, or if the path does not
+ *	       start with '/', the name of a property of the /aliases
+ *	       node (an alias).  In the case of an alias, the node
+ *	       matching the alias' value will be returned.
+ *
+ *	Valid paths:
+ *		/foo/bar	Full path
+ *		foo		Valid alias
+ *		foo/bar		Valid alias + relative path
  *
  *	Returns a node pointer with refcount incremented, use
  *	of_node_put() on it when done.
  */
 struct device_node *of_find_node_by_path(const char *path)
 {
-	struct device_node *np = of_allnodes;
+	struct device_node *np = NULL;
+	struct property *pp;
 	unsigned long flags;
 
+	if (strcmp(path, "/") == 0)
+		return of_node_get(of_allnodes);
+
+	/* The path could begin with an alias */
+	if (*path != '/') {
+		char *p = strchrnul(path, '/');
+		int len = p - path;
+
+		/* of_aliases must not be NULL */
+		if (!of_aliases)
+			return NULL;
+
+		for_each_property_of_node(of_aliases, pp) {
+			if (strlen(pp->name) == len && !strncmp(pp->name, path, len)) {
+				np = of_find_node_by_path(pp->value);
+				break;
+			}
+		}
+		if (!np)
+			return NULL;
+		path = p;
+	}
+
+	/* Step down the tree matching path components */
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	for (; np; np = np->allnext) {
-		if (np->full_name && (of_node_cmp(np->full_name, path) == 0)
-		    && of_node_get(np))
-			break;
+	if (!np)
+		np = of_node_get(of_allnodes);
+	while (np && *path == '/') {
+		path++; /* Increment past '/' delimiter */
+		np = __of_find_node_by_path(np, path);
+		path = strchrnul(path, '/');
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
