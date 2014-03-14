@@ -963,7 +963,7 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 
 	/* attach demodulator */
 	adap->fe[0] = dvb_attach(af9033_attach, &state->af9033_config[adap->id],
-			&d->i2c_adap);
+			&d->i2c_adap, &state->ops);
 	if (adap->fe[0] == NULL) {
 		ret = -ENODEV;
 		goto err;
@@ -1373,13 +1373,17 @@ static int af9035_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 
 static int af9035_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	return af9033_pid_filter_ctrl(adap->fe[0], onoff);
+	struct state *state = adap_to_priv(adap);
+
+	return state->ops.pid_filter_ctrl(adap->fe[0], onoff);
 }
 
 static int af9035_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
 		int onoff)
 {
-	return af9033_pid_filter(adap->fe[0], index, pid, onoff);
+	struct state *state = adap_to_priv(adap);
+
+	return state->ops.pid_filter(adap->fe[0], index, pid, onoff);
 }
 
 static int af9035_probe(struct usb_interface *intf,

@@ -989,7 +989,7 @@ err:
 	return ret;
 }
 
-int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
 {
 	struct af9033_state *state = fe->demodulator_priv;
 	int ret;
@@ -1007,9 +1007,8 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL(af9033_pid_filter_ctrl);
 
-int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid, int onoff)
+static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid, int onoff)
 {
 	struct af9033_state *state = fe->demodulator_priv;
 	int ret;
@@ -1040,12 +1039,12 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL(af9033_pid_filter);
 
 static struct dvb_frontend_ops af9033_ops;
 
 struct dvb_frontend *af9033_attach(const struct af9033_config *config,
-		struct i2c_adapter *i2c)
+				   struct i2c_adapter *i2c,
+				   struct af9033_ops *ops)
 {
 	int ret;
 	struct af9033_state *state;
@@ -1119,6 +1118,11 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 	/* create dvb_frontend */
 	memcpy(&state->fe.ops, &af9033_ops, sizeof(struct dvb_frontend_ops));
 	state->fe.demodulator_priv = state;
+
+	if (ops) {
+		ops->pid_filter = af9033_pid_filter;
+		ops->pid_filter_ctrl = af9033_pid_filter_ctrl;
+	}
 
 	return &state->fe;
 
