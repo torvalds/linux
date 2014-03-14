@@ -602,7 +602,6 @@ static int tegra_output_dsi_setup_clock(struct tegra_output *output,
 	DRM_DEBUG_KMS("vrefresh: %u\n", vrefresh);
 
 	/* compute byte clock */
-	pclk = mode->htotal * mode->vtotal * vrefresh;
 	bclk = (pclk * mul) / (div * dsi->lanes);
 
 	/*
