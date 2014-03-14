@@ -4306,24 +4306,27 @@ int i40e_vsi_open(struct i40e_vsi *vsi)
 	if (err)
 		goto err_setup_rx;
 
-	if (!vsi->netdev) {
+	if (vsi->netdev) {
+		snprintf(int_name, sizeof(int_name) - 1, "%s-%s",
+			 dev_driver_string(&pf->pdev->dev), vsi->netdev->name);
+		err = i40e_vsi_request_irq(vsi, int_name);
+		if (err)
+			goto err_setup_rx;
+
+		/* Notify the stack of the actual queue counts. */
+		err = netif_set_real_num_tx_queues(vsi->netdev,
+						   vsi->num_queue_pairs);
+		if (err)
+			goto err_set_queues;
+
+		err = netif_set_real_num_rx_queues(vsi->netdev,
+						   vsi->num_queue_pairs);
+		if (err)
+			goto err_set_queues;
+	} else {
 		err = EINVAL;
 		goto err_setup_rx;
 	}
-	snprintf(int_name, sizeof(int_name) - 1, "%s-%s",
-		 dev_driver_string(&pf->pdev->dev), vsi->netdev->name);
-	err = i40e_vsi_request_irq(vsi, int_name);
-	if (err)
-		goto err_setup_rx;
-
-	/* Notify the stack of the actual queue counts. */
-	err = netif_set_real_num_tx_queues(vsi->netdev, vsi->num_queue_pairs);
-	if (err)
-		goto err_set_queues;
-
-	err = netif_set_real_num_rx_queues(vsi->netdev, vsi->num_queue_pairs);
-	if (err)
-		goto err_set_queues;
 
 	err = i40e_up_complete(vsi);
 	if (err)
