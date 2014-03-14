@@ -216,21 +216,15 @@ static inline struct ieee802154_mac_cb *mac_cb(struct sk_buff *skb)
 
 #define MAC_CB_FLAG_ACKREQ		(1 << 3)
 #define MAC_CB_FLAG_SECEN		(1 << 4)
-#define MAC_CB_FLAG_INTRAPAN		(1 << 5)
 
-static inline int mac_cb_is_ackreq(struct sk_buff *skb)
+static inline bool mac_cb_is_ackreq(struct sk_buff *skb)
 {
 	return mac_cb(skb)->flags & MAC_CB_FLAG_ACKREQ;
 }
 
-static inline int mac_cb_is_secen(struct sk_buff *skb)
+static inline bool mac_cb_is_secen(struct sk_buff *skb)
 {
 	return mac_cb(skb)->flags & MAC_CB_FLAG_SECEN;
-}
-
-static inline int mac_cb_is_intrapan(struct sk_buff *skb)
-{
-	return mac_cb(skb)->flags & MAC_CB_FLAG_INTRAPAN;
 }
 
 static inline int mac_cb_type(struct sk_buff *skb)

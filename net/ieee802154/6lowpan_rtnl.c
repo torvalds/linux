@@ -91,7 +91,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 {
 	const u8 *saddr = _saddr;
 	const u8 *daddr = _daddr;
-	struct ieee802154_addr_sa sa, da;
+	struct ieee802154_addr sa, da;
 
 	/* TODO:
 	 * if this package isn't ipv6 one, where should it be routed?
@@ -119,10 +119,10 @@ static int lowpan_header_create(struct sk_buff *skb,
 	mac_cb(skb)->seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
 
 	/* prepare wpan address data */
-	sa.addr_type = IEEE802154_ADDR_LONG;
-	sa.pan_id = le16_to_cpu(ieee802154_mlme_ops(dev)->get_pan_id(dev));
+	sa.mode = IEEE802154_ADDR_LONG;
+	sa.pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
+	sa.extended_addr = ieee802154_devaddr_from_raw(saddr);
 
-	memcpy(&(sa.hwaddr), saddr, 8);
 	/* intra-PAN communications */
 	da.pan_id = sa.pan_id;
 
@@ -130,11 +130,11 @@ static int lowpan_header_create(struct sk_buff *skb,
 	 * corresponding short address
 	 */
 	if (lowpan_is_addr_broadcast(daddr)) {
-		da.addr_type = IEEE802154_ADDR_SHORT;
-		da.short_addr = IEEE802154_ADDR_BROADCAST;
+		da.mode = IEEE802154_ADDR_SHORT;
+		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 	} else {
-		da.addr_type = IEEE802154_ADDR_LONG;
-		memcpy(&(da.hwaddr), daddr, IEEE802154_ADDR_LEN);
+		da.mode = IEEE802154_ADDR_LONG;
+		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
 
 		/* request acknowledgment */
 		mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;

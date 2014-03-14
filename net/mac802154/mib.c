@@ -26,6 +26,7 @@
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/wpan-phy.h>
+#include <net/ieee802154_netdev.h>
 
 #include "mac802154.h"
 
@@ -115,13 +116,12 @@ void mac802154_dev_set_ieee_addr(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	struct mac802154_priv *mac = priv->hw;
-	__le64 addr;
 
-	addr = ieee802154_devaddr_from_raw(dev->dev_addr);
-	priv->extended_addr = addr;
+	priv->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
 
-	if (mac->ops->set_hw_addr_filt && mac->hw.hw_filt.ieee_addr != addr) {
-		mac->hw.hw_filt.ieee_addr = addr;
+	if (mac->ops->set_hw_addr_filt &&
+	    mac->hw.hw_filt.ieee_addr != priv->extended_addr) {
+		mac->hw.hw_filt.ieee_addr = priv->extended_addr;
 		set_hw_addr_filt(dev, IEEE802515_AFILT_IEEEADDR_CHANGED);
 	}
 }
