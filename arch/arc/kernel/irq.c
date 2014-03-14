@@ -24,15 +24,12 @@
  * -Needed for each CPU (hence not foldable into init_IRQ)
  *
  * what it does ?
- * -setup Vector Table Base Reg - in case Linux not linked at 0x8000_0000
  * -Disable all IRQs (on CPU side)
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */
 void __cpuinit arc_init_IRQ(void)
 {
 	int level_mask = 0;
-
-	write_aux_reg(AUX_INTR_VEC_BASE, _int_vec_base_lds);
 
 	/* Disable all IRQs: enable them as devices request */
 	write_aux_reg(AUX_IENABLE, 0);

@@ -9,6 +9,8 @@
 
 /dts-v1/;
 
+/memreserve/ 0xbf000000 0x01000000;
+
 / {
 	model = "V2P-CA15";
 	arm,hbi = <0x237>;
@@ -57,6 +59,8 @@
 		interrupts = <0 85 4>;
 		clocks = <&oscclk5>;
 		clock-names = "pxlclk";
+		mode = "1024x768-16@60";
+		framebuffer = <0 0xff000000 0 0x01000000>;
 	};
 
 	memory-controller@2b0a0000 {

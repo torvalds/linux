@@ -161,6 +161,8 @@ int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block);
  */
 bool dm_thin_changed_this_transaction(struct dm_thin_device *td);
 
+bool dm_pool_changed_this_transaction(struct dm_pool_metadata *pmd);
+
 bool dm_thin_aborted_changes(struct dm_thin_device *td);
 
 int dm_thin_get_highest_mapped_block(struct dm_thin_device *td,
@@ -180,6 +182,8 @@ int dm_pool_get_metadata_dev_size(struct dm_pool_metadata *pmd,
 int dm_pool_get_data_block_size(struct dm_pool_metadata *pmd, sector_t *result);
 
 int dm_pool_get_data_dev_size(struct dm_pool_metadata *pmd, dm_block_t *result);
+
+int dm_pool_block_is_used(struct dm_pool_metadata *pmd, dm_block_t b, bool *result);
 
 /*
  * Returns -ENOSPC if the new size is too small and already allocated

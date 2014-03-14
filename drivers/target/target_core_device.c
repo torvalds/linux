@@ -1078,6 +1078,11 @@ int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 	dev->dev_attrib.block_size = block_size;
 	pr_debug("dev[%p]: SE Device block_size changed to %u\n",
 			dev, block_size);
+
+	if (dev->dev_attrib.max_bytes_per_io)
+		dev->dev_attrib.hw_max_sectors =
+			dev->dev_attrib.max_bytes_per_io / block_size;
+
 	return 0;
 }
 

@@ -187,6 +187,12 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		}
 
 		omap->phy[i] = phy;
+
+		if (pdata->port_mode[i] == OMAP_EHCI_PORT_MODE_PHY) {
+			usb_phy_init(omap->phy[i]);
+			/* bring PHY out of suspend */
+			usb_phy_set_suspend(omap->phy[i], 0);
+		}
 	}
 
 	pm_runtime_enable(dev);
@@ -211,13 +217,14 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Bring PHYs out of reset.
+	 * Bring PHYs out of reset for non PHY modes.
 	 * Even though HSIC mode is a PHY-less mode, the reset
 	 * line exists between the chips and can be modelled
 	 * as a PHY device for reset control.
 	 */
 	for (i = 0; i < omap->nports; i++) {
-		if (!omap->phy[i])
+		if (!omap->phy[i] ||
+		     pdata->port_mode[i] == OMAP_EHCI_PORT_MODE_PHY)
 			continue;
 
 		usb_phy_init(omap->phy[i]);

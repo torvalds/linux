@@ -86,29 +86,13 @@ void vexpress_config_bridge_unregister(struct vexpress_config_bridge *bridge)
 }
 EXPORT_SYMBOL(vexpress_config_bridge_unregister);
 
-
-struct vexpress_config_func {
-	struct vexpress_config_bridge *bridge;
-	void *func;
-};
-
-struct vexpress_config_func *__vexpress_config_func_get(struct device *dev,
-		struct device_node *node)
+static struct vexpress_config_bridge *
+		vexpress_config_bridge_find(struct device_node *node)
 {
-	struct device_node *bridge_node;
-	struct vexpress_config_func *func;
 	int i;
+	struct vexpress_config_bridge *res = NULL;
+	struct device_node *bridge_node = of_node_get(node);
 
-	if (WARN_ON(dev && node && dev->of_node != node))
-		return NULL;
-	if (dev && !node)
-		node = dev->of_node;
-
-	func = kzalloc(sizeof(*func), GFP_KERNEL);
-	if (!func)
-		return NULL;
-
-	bridge_node = of_node_get(node);
 	while (bridge_node) {
 		const __be32 *prop = of_get_property(bridge_node,
 				"arm,vexpress,config-bridge", NULL);
@@ -129,12 +113,45 @@ struct vexpress_config_func *__vexpress_config_func_get(struct device *dev,
 
 		if (test_bit(i, vexpress_config_bridges_map) &&
 				bridge->node == bridge_node) {
-			func->bridge = bridge;
-			func->func = bridge->info->func_get(dev, node);
+			res = bridge;
 			break;
 		}
 	}
 	mutex_unlock(&vexpress_config_bridges_mutex);
+
+	return res;
+}
+
+
+struct vexpress_config_func {
+	struct vexpress_config_bridge *bridge;
+	void *func;
+};
+
+struct vexpress_config_func *__vexpress_config_func_get(
+		struct vexpress_config_bridge *bridge,
+		struct device *dev,
+		struct device_node *node,
+		const char *id)
+{
+	struct vexpress_config_func *func;
+
+	if (WARN_ON(dev && node && dev->of_node != node))
+		return NULL;
+	if (dev && !node)
+		node = dev->of_node;
+
+	if (!bridge)
+		bridge = vexpress_config_bridge_find(node);
+	if (!bridge)
+		return NULL;
+
+	func = kzalloc(sizeof(*func), GFP_KERNEL);
+	if (!func)
+		return NULL;
+
+	func->bridge = bridge;
+	func->func = bridge->info->func_get(dev, node, id);
 
 	if (!func->func) {
 		of_node_put(node);

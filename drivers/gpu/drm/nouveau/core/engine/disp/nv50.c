@@ -1107,11 +1107,12 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
 	u32 hval, hreg = 0x614200 + (head * 0x800);
 	u32 oval, oreg;
+	u32 mask;
 	u32 conf = exec_clkcmp(priv, head, 0xff, pclk, &outp);
 	if (conf != ~0) {
 		if (outp.location == 0 && outp.type == DCB_OUTPUT_DP) {
 			u32 soff = (ffs(outp.or) - 1) * 0x08;
-			u32 ctrl = nv_rd32(priv, 0x610798 + soff);
+			u32 ctrl = nv_rd32(priv, 0x610794 + soff);
 			u32 datarate;
 
 			switch ((ctrl & 0x000f0000) >> 16) {
@@ -1133,6 +1134,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 			oreg = 0x614280 + (ffs(outp.or) - 1) * 0x800;
 			oval = 0x00000000;
 			hval = 0x00000000;
+			mask = 0xffffffff;
 		} else
 		if (!outp.location) {
 			if (outp.type == DCB_OUTPUT_DP)
@@ -1140,14 +1142,16 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 			oreg = 0x614300 + (ffs(outp.or) - 1) * 0x800;
 			oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
 			hval = 0x00000000;
+			mask = 0x00000707;
 		} else {
 			oreg = 0x614380 + (ffs(outp.or) - 1) * 0x800;
 			oval = 0x00000001;
 			hval = 0x00000001;
+			mask = 0x00000707;
 		}
 
 		nv_mask(priv, hreg, 0x0000000f, hval);
-		nv_mask(priv, oreg, 0x00000707, oval);
+		nv_mask(priv, oreg, mask, oval);
 	}
 }
 
