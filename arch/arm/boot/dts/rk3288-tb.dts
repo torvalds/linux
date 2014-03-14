@@ -142,28 +142,23 @@ codec_hdmi_i2s: codec-hdmi-i2s {
 	status = "okay";
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
-		lcd_en:lcd_en {
+		/*lcd_en:lcd_en {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio7 GPIO_A3 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <10>;
 		};
 
-     	bl_en:bl_en {
-                rockchip,power_type = <GPIO>;
-                gpios = <&gpio7 GPIO_A2 GPIO_ACTIVE_HIGH>;
-                rockchip,delay = <10>;
-        };
-			/*   
-                        bl_ctr:bl_ctr {
-                                rockchip,power_type = <GPIO>;
-                                gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
-                                rockchip,delay = <10>;
-                        };
+			   
+		lcd_cs:lcd_cs {
+			rockchip,power_type = <REGULATOR>;
+			rockchip,delay = <10>;
+		};
 
-                        lcd_rst:lcd_rst {
-                                rockchip,power_type = <REGULATOR>;
-                                rockchip,delay = <5>;
-                        };*/
+		lcd_rst:lcd_rst {
+			rockchip,power_type = <GPIO>;
+			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
+			rockchip,delay = <5>;
+		};*/
 
 	};
 };

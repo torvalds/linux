@@ -197,27 +197,6 @@
 		status = "disabled";
 	};
 
-	lvds: lvds@ff96c000 {
-		compatible = "rockchip, rk32-lvds";
-		reg = <0xff960000 0x20000>;
-	};
-
-	edp: edp@ff970000 {
-		compatible = "rockchip,rk32-edp";
-		reg = <0xff970000 0x4000>;
-		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
-	hdmi: hdmi@ff980000 {
-		compatible = "rockchip,rk3288-hdmi";
-		reg = <0xff980000 0x20000>;
-		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,hdmi_lcdc_source = <1>;
-		pinctrl-names = "default", "gpio";
-		pinctrl-0 = <&i2c5_sda &i2c5_scl>;
-		pinctrl-1 = <&i2c5_gpio>;
-		status = "disabled";
-	};
 
 	fb: fb{
 		compatible = "rockchip,rk-fb";
@@ -227,6 +206,28 @@
 	rk_screen: rk_screen{
 			compatible = "rockchip,screen";
 	};
+	
+	lvds: lvds@ff96c000 {
+                compatible = "rockchip, rk32-lvds";
+                reg = <0xff960000 0x20000>;
+        };
+	
+	edp: edp@ff970000 {
+                compatible = "rockchip,rk32-edp";
+                reg = <0xff970000 0x4000>;
+                interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+        };
+	
+	hdmi: hdmi@ff980000 {
+                compatible = "rockchip,rk3288-hdmi";
+                reg = <0xff980000 0x20000>;
+                interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+                rockchip,hdmi_lcdc_source = <1>;
+                pinctrl-names = "default", "gpio";
+                pinctrl-0 = <&i2c5_sda &i2c5_scl>;
+                pinctrl-1 = <&i2c5_gpio>;
+                status = "disabled";
+        };
 
 	lcdc0: lcdc@ff940000 {
 		compatible = "rockchip,rk3288-lcdc";
