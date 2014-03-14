@@ -446,9 +446,12 @@ static int bL_cpufreq_init(struct cpufreq_policy *policy)
 	}
 
 	if (cur_cluster < MAX_CLUSTERS) {
+		int cpu;
+
 		cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
 
-		per_cpu(physical_cluster, policy->cpu) = cur_cluster;
+		for_each_cpu(cpu, policy->cpus)
+			per_cpu(physical_cluster, cpu) = cur_cluster;
 	} else {
 		/* Assumption: during init, we are always running on A15 */
 		per_cpu(physical_cluster, policy->cpu) = A15_CLUSTER;
