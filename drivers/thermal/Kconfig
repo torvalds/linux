@@ -235,7 +235,7 @@ config INTEL_SOC_DTS_THERMAL
 	  was set by the driver based on the TJ MAX temperature.
 
 config INT340X_THERMAL
-	bool
+	tristate "ACPI INT340X thermal drivers"
 	depends on X86 && ACPI
 	help
 	  Newer laptops and tablets that use ACPI may have thermal sensors and

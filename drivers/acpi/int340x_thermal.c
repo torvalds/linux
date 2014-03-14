@@ -33,7 +33,7 @@ static const struct acpi_device_id int340x_thermal_device_ids[] = {
 static int int340x_thermal_handler_attach(struct acpi_device *adev,
 					const struct acpi_device_id *id)
 {
-#ifdef CONFIG_INT340X_THERMAL
+#if defined(CONFIG_INT340X_THERMAL) || defined(CONFIG_INT340X_THERMAL_MODULE)
 	if (id->driver_data == DO_ENUMERATION)
 		acpi_create_platform_device(adev);
 #endif
