@@ -84,7 +84,7 @@
 			status = "disabled";
 		};
 
-		spi2: spi@40x4000c800 { /* USART2 */
+		spi2: spi@4000c800 { /* USART2 */
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "efm32,spi";
@@ -110,7 +110,7 @@
 			status = "disabled";
 		};
 
-		uart2: uart@40x4000c800 { /* USART2 */
+		uart2: uart@4000c800 { /* USART2 */
 			compatible = "efm32,uart";
 			reg = <0x4000c800 0x400>;
 			interrupts = <18 19>;
