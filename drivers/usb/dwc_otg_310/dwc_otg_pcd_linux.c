@@ -61,7 +61,6 @@
 #include "dwc_otg_attr.h"
 
 #include "usbdev_rk.h"
-
 static struct gadget_wrapper {
 	dwc_otg_pcd_t *pcd;
 
@@ -1509,13 +1508,20 @@ static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
 			pldata->clock_enable( pldata, 1);
 			pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 		}
-	       dwc_otg_enable_global_interrupts(otg_dev->core_if);
+		if( pldata->bc_detect_cb != NULL )
+            pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DISCNT );
+        else
+            _pcd->vbus_status = USB_BC_TYPE_DISCNT;
+	    dwc_otg_enable_global_interrupts(otg_dev->core_if);
 
 	}else if(pldata->get_status(USB_STATUS_BVABLID)){
 		/* if usb not connect before ,then start connect */
-		if( _pcd->vbus_status == 0 ) {
+		if( _pcd->vbus_status == USB_BC_TYPE_DISCNT ) {
 			printk("*******************vbus detect*********************\n");
-			_pcd->vbus_status = 1;
+            if( pldata->bc_detect_cb != NULL )
+                pldata->bc_detect_cb( _pcd->vbus_status = usb_battery_charger_detect(1) );
+            else
+                _pcd->vbus_status = USB_BC_TYPE_SDP;
 			if(_pcd->conn_en){
 				goto connect;
 			}
@@ -1534,10 +1540,10 @@ static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
 			 */
 			dwc_otg_msc_unlock(_pcd);
 			_pcd->conn_status++;
-			if((DWC_READ_REG32((uint32_t*)((uint8_t *)_pcd->otg_dev->os_dep.base
-			    + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
-			_pcd->vbus_status = 2;
-                
+            if( pldata->bc_detect_cb != NULL )
+               pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DCP ); 
+            else
+                _pcd->vbus_status = USB_BC_TYPE_DCP;
 			/* fail to connect, suspend usb phy and disable clk */
 			if( pldata->phy_status == USB_PHY_ENABLED ){
 				pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
@@ -1546,7 +1552,10 @@ static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
 			}
 		}
 	}else {
-		_pcd->vbus_status = 0;
+        if( pldata->bc_detect_cb != NULL )
+            pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DISCNT );
+        else
+		    _pcd->vbus_status = USB_BC_TYPE_DISCNT;
 
 		if(_pcd->conn_status){
 			_pcd->conn_status = 0;
@@ -1617,13 +1626,13 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd, struct platform_device *de
 
 	struct dwc_otg_device* otg_dev = pcd->otg_dev;
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
-	pcd->vbus_status  = 0;
-	pcd->phy_suspend  = 0;
+	pcd->vbus_status  = USB_BC_TYPE_DISCNT;
+	pcd->phy_suspend  = USB_PHY_ENABLED;
 
 	INIT_DELAYED_WORK(&pcd->reconnect , dwc_phy_reconnect);
 	INIT_DELAYED_WORK(&pcd->check_vbus_work , dwc_otg_pcd_check_vbus_work);
 
-	wake_lock_init(&pcd->wake_lock, WAKE_LOCK_SUSPEND,"usb_pcd");
+	wake_lock_init(&pcd->wake_lock, WAKE_LOCK_SUSPEND, "usb_pcd");
     
 	if(dwc_otg_is_device_mode(pcd->core_if)){
 #ifdef CONFIG_RK_USB_UART        

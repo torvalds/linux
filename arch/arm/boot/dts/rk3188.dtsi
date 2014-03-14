@@ -667,7 +667,13 @@
 		gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_D5 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates4 5>;
 		clock-names = "hclk_usb_peri";
+
+		usb_bc{
+			compatible = "rockchip,ctrl";
+			rk_usb,bvalid     = <0xac  10 1>;
+		};
 	};
+	
 
 	usb@10180000 {
 		compatible = "rockchip,rk3188_usb20_otg";

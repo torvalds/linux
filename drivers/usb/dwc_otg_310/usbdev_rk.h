@@ -1,8 +1,28 @@
 #ifndef __USBDEV_RK_H
 #define __USBDEV_RK_H
+
+#include <linux/kernel.h>
+#include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/clk.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/of_gpio.h>
+#include <linux/of_device.h>
+#include <linux/of_address.h>
+#include <linux/gpio.h>
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+
+
 #include "usbdev_grf_regs.h"
+#include "usbdev_bc.h"
+#include "usbdev_rkuoc.h"
 
 #define USB_PHY_ENABLED (0)
 #define USB_PHY_SUSPEND (1)
@@ -40,6 +60,7 @@ struct dwc_otg_platform_data {
     void (*clock_enable)(void* pdata, int enable);
     void (*power_enable)(int enable);
     void (*dwc_otg_uart_mode)(void* pdata, int enter_usb_uart_mode);
+    void (*bc_detect_cb)(int bc_type);
     int (*get_status)(int id);
     int (*get_chip_id)(void);
 };

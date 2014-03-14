@@ -1,22 +1,6 @@
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
-#include <linux/clk.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/err.h>
-#include <linux/io.h>
-#include <linux/of_gpio.h>
-#include <linux/of_device.h>
-#include <linux/gpio.h>
-#include <linux/wakelock.h>
-#include <linux/workqueue.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include "usbdev_grf_regs.h"
+
 #include "usbdev_rk.h"
+#include "usbdev_grf_regs.h"
 #include "dwc_otg_regs.h"
 static struct dwc_otg_control_usb *control_usb;
 
@@ -167,6 +151,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3288 = {
 #ifdef CONFIG_RK_USB_UART
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
 #endif
+    .bc_detect_cb=usb20otg_battery_charger_detect_cb,
 };
 
 #endif

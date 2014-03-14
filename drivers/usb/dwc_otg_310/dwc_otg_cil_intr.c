@@ -45,6 +45,7 @@
 #include "dwc_otg_driver.h"
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_hcd.h"
+#include "usbdev_rk.h"
 
 #ifdef DEBUG
 inline const char *op_state_str(dwc_otg_core_if_t * core_if)
@@ -105,7 +106,7 @@ int32_t dwc_otg_handle_otg_intr(dwc_otg_core_if_t * core_if)
 		dctl.b.sftdiscon = 1;
 		DWC_WRITE_REG32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
 		dwc_otg_disable_global_interrupts(core_if);
-		core_if->otg_dev->pcd->vbus_status = 0;
+		core_if->otg_dev->pcd->vbus_status = USB_BC_TYPE_DISCNT;
 		DWC_PRINTF("********session end ,soft disconnect************************\n");
 
 		gotgctl.d32 = DWC_READ_REG32(&global_regs->gotgctl);
