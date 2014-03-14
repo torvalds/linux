@@ -150,6 +150,9 @@ static int mac802154_header_create(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 	skb->mac_len = hlen;
 
+	if (hlen + len + 2 > dev->mtu)
+		return -EMSGSIZE;
+
 	return hlen;
 }
 

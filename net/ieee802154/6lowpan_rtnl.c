@@ -141,7 +141,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 	}
 
 	return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,
-			type, (void *)&da, (void *)&sa, skb->len);
+			type, (void *)&da, (void *)&sa, 0);
 }
 
 static int lowpan_give_skb_to_devices(struct sk_buff *skb,

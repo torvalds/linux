@@ -233,7 +233,7 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	if (size > mtu) {
 		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
-		err = -EINVAL;
+		err = -EMSGSIZE;
 		goto out_dev;
 	}
 
