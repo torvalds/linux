@@ -131,8 +131,8 @@ static int pata_imx_probe(struct platform_device *pdev)
 
 	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->host_regs = devm_ioremap_resource(&pdev->dev, io_res);
-	if (!priv->host_regs) {
-		ret = -EBUSY;
+	if (IS_ERR(priv->host_regs)) {
+		ret = PTR_ERR(priv->host_regs);
 		goto err;
 	}
 
