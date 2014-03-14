@@ -26,6 +26,7 @@
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/rtc.h>
+#include <linux/mfd/samsung/s2mpa01.h>
 #include <linux/mfd/samsung/s2mps11.h>
 #include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s5m8763.h>
@@ -80,20 +81,42 @@ static const struct mfd_cell s2mps14_devs[] = {
 	}
 };
 
+static const struct mfd_cell s2mpa01_devs[] = {
+	{
+		.name = "s2mpa01-pmic",
+	},
+};
+
 #ifdef CONFIG_OF
 static struct of_device_id sec_dt_match[] = {
 	{	.compatible = "samsung,s5m8767-pmic",
 		.data = (void *)S5M8767X,
-	},
-	{	.compatible = "samsung,s2mps11-pmic",
+	}, {
+		.compatible = "samsung,s2mps11-pmic",
 		.data = (void *)S2MPS11X,
-	},
-	{	.compatible = "samsung,s2mps14-pmic",
+	}, {
+		.compatible = "samsung,s2mps14-pmic",
 		.data = (void *)S2MPS14X,
+	}, {
+		.compatible = "samsung,s2mpa01-pmic",
+		.data = (void *)S2MPA01,
+	}, {
+		/* Sentinel */
 	},
-	{},
 };
 #endif
+
+static bool s2mpa01_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case S2MPA01_REG_INT1M:
+	case S2MPA01_REG_INT2M:
+	case S2MPA01_REG_INT3M:
+		return false;
+	default:
+		return true;
+	}
+}
 
 static bool s2mps11_volatile(struct device *dev, unsigned int reg)
 {
@@ -123,6 +146,15 @@ static bool s5m8763_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config sec_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+};
+
+static const struct regmap_config s2mpa01_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPA01_REG_LDO_OVCB4,
+	.volatile_reg = s2mpa01_volatile,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static const struct regmap_config s2mps11_regmap_config = {
@@ -261,6 +293,9 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	}
 
 	switch (sec_pmic->device_type) {
+	case S2MPA01:
+		regmap = &s2mpa01_regmap_config;
+		break;
 	case S2MPS11X:
 		regmap = &s2mps11_regmap_config;
 		/*
@@ -331,6 +366,10 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	case S5M8767X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8767_devs,
 				      ARRAY_SIZE(s5m8767_devs), NULL, 0, NULL);
+		break;
+	case S2MPA01:
+		ret = mfd_add_devices(sec_pmic->dev, -1, s2mpa01_devs,
+				      ARRAY_SIZE(s2mpa01_devs), NULL, 0, NULL);
 		break;
 	case S2MPS11X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps11_devs,
