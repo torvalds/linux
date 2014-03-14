@@ -121,6 +121,7 @@ static struct bond_opt_value bond_resend_igmp_tbl[] = {
 static struct bond_opt_value bond_lp_interval_tbl[] = {
 	{ "minval",  1,       BOND_VALFLAG_MIN | BOND_VALFLAG_DEFAULT},
 	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
+	{ NULL,      -1,      0},
 };
 
 static struct bond_option bond_opts[] = {
