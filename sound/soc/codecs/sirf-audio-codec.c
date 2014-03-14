@@ -337,18 +337,9 @@ struct snd_soc_dai_driver sirf_audio_codec_dai = {
 
 static int sirf_audio_codec_probe(struct snd_soc_codec *codec)
 {
-	int ret;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct sirf_audio_codec *sirf_audio_codec = snd_soc_codec_get_drvdata(codec);
 
 	pm_runtime_enable(codec->dev);
-	codec->control_data = sirf_audio_codec->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	if (of_device_is_compatible(codec->dev->of_node, "sirf,prima2-audio-codec")) {
 		snd_soc_dapm_new_controls(dapm,
