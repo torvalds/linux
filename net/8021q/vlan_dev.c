@@ -678,13 +678,13 @@ static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, st
 
 			p = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, i);
 			do {
-				start = u64_stats_fetch_begin_bh(&p->syncp);
+				start = u64_stats_fetch_begin_irq(&p->syncp);
 				rxpackets	= p->rx_packets;
 				rxbytes		= p->rx_bytes;
 				rxmulticast	= p->rx_multicast;
 				txpackets	= p->tx_packets;
 				txbytes		= p->tx_bytes;
-			} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+			} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 			stats->rx_packets	+= rxpackets;
 			stats->rx_bytes		+= rxbytes;

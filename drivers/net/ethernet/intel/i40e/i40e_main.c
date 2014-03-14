@@ -376,20 +376,20 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 			continue;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&tx_ring->syncp);
+			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
 			packets = tx_ring->stats.packets;
 			bytes   = tx_ring->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&tx_ring->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
 
 		stats->tx_packets += packets;
 		stats->tx_bytes   += bytes;
 		rx_ring = &tx_ring[1];
 
 		do {
-			start = u64_stats_fetch_begin_bh(&rx_ring->syncp);
+			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
 			packets = rx_ring->stats.packets;
 			bytes   = rx_ring->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&rx_ring->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
 
 		stats->rx_packets += packets;
 		stats->rx_bytes   += bytes;
@@ -770,10 +770,10 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 		p = ACCESS_ONCE(vsi->tx_rings[q]);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&p->syncp);
+			start = u64_stats_fetch_begin_irq(&p->syncp);
 			packets = p->stats.packets;
 			bytes = p->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 		tx_b += bytes;
 		tx_p += packets;
 		tx_restart += p->tx_stats.restart_queue;
@@ -782,10 +782,10 @@ void i40e_update_stats(struct i40e_vsi *vsi)
 		/* Rx queue is part of the same block as Tx queue */
 		p = &p[1];
 		do {
-			start = u64_stats_fetch_begin_bh(&p->syncp);
+			start = u64_stats_fetch_begin_irq(&p->syncp);
 			packets = p->stats.packets;
 			bytes = p->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 		rx_b += bytes;
 		rx_p += packets;
 		rx_buf += p->rx_stats.alloc_buff_failed;

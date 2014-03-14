@@ -653,18 +653,18 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 
 		/* process Tx ring statistics */
 		do {
-			start = u64_stats_fetch_begin_bh(&tx_ring->syncp);
+			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
 			data[i] = tx_ring->stats.packets;
 			data[i + 1] = tx_ring->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&tx_ring->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
 
 		/* Rx ring is the 2nd half of the queue pair */
 		rx_ring = &tx_ring[1];
 		do {
-			start = u64_stats_fetch_begin_bh(&rx_ring->syncp);
+			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
 			data[i + 2] = rx_ring->stats.packets;
 			data[i + 3] = rx_ring->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&rx_ring->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
 	}
 	rcu_read_unlock();
 	if (vsi == pf->vsi[pf->lan_vsi]) {

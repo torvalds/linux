@@ -90,10 +90,10 @@ nlmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		nl_stats = per_cpu_ptr(dev->lstats, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&nl_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&nl_stats->syncp);
 			tbytes = nl_stats->bytes;
 			tpackets = nl_stats->packets;
-		} while (u64_stats_fetch_retry_bh(&nl_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&nl_stats->syncp, start));
 
 		packets += tpackets;
 		bytes += tbytes;

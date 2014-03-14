@@ -7293,10 +7293,10 @@ static struct rtnl_link_stats64 *ixgbe_get_stats64(struct net_device *netdev,
 
 		if (ring) {
 			do {
-				start = u64_stats_fetch_begin_bh(&ring->syncp);
+				start = u64_stats_fetch_begin_irq(&ring->syncp);
 				packets = ring->stats.packets;
 				bytes   = ring->stats.bytes;
-			} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+			} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 			stats->rx_packets += packets;
 			stats->rx_bytes   += bytes;
 		}
@@ -7309,10 +7309,10 @@ static struct rtnl_link_stats64 *ixgbe_get_stats64(struct net_device *netdev,
 
 		if (ring) {
 			do {
-				start = u64_stats_fetch_begin_bh(&ring->syncp);
+				start = u64_stats_fetch_begin_irq(&ring->syncp);
 				packets = ring->stats.packets;
 				bytes   = ring->stats.bytes;
-			} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+			} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 			stats->tx_packets += packets;
 			stats->tx_bytes   += bytes;
 		}

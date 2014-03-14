@@ -2068,14 +2068,14 @@ static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
 		cpu_stats = &priv->cpu[i]->stats;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&cpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
 			trx_packets = cpu_stats->rx_packets;
 			ttx_packets = cpu_stats->tx_packets;
 			trx_bytes   = cpu_stats->rx_bytes;
 			ttx_bytes   = cpu_stats->tx_bytes;
 			trx_errors  = cpu_stats->rx_errors;
 			trx_dropped = cpu_stats->rx_dropped;
-		} while (u64_stats_fetch_retry_bh(&cpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		rx_packets += trx_packets;
 		tx_packets += ttx_packets;

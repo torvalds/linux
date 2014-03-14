@@ -1761,13 +1761,13 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	for_each_possible_cpu(i) {
 		p = per_cpu_ptr(team->pcpu_stats, i);
 		do {
-			start = u64_stats_fetch_begin_bh(&p->syncp);
+			start = u64_stats_fetch_begin_irq(&p->syncp);
 			rx_packets	= p->rx_packets;
 			rx_bytes	= p->rx_bytes;
 			rx_multicast	= p->rx_multicast;
 			tx_packets	= p->tx_packets;
 			tx_bytes	= p->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 		stats->rx_packets	+= rx_packets;
 		stats->rx_bytes		+= rx_bytes;

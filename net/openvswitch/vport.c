@@ -277,9 +277,9 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 		percpu_stats = per_cpu_ptr(vport->percpu_stats, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&percpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&percpu_stats->syncp);
 			local_stats = *percpu_stats;
-		} while (u64_stats_fetch_retry_bh(&percpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&percpu_stats->syncp, start));
 
 		stats->rx_bytes		+= local_stats.rx_bytes;
 		stats->rx_packets	+= local_stats.rx_packets;

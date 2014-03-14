@@ -6590,17 +6590,17 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		rtl8169_rx_missed(dev, ioaddr);
 
 	do {
-		start = u64_stats_fetch_begin_bh(&tp->rx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&tp->rx_stats.syncp);
 		stats->rx_packets = tp->rx_stats.packets;
 		stats->rx_bytes	= tp->rx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&tp->rx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&tp->rx_stats.syncp, start));
 
 
 	do {
-		start = u64_stats_fetch_begin_bh(&tp->tx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&tp->tx_stats.syncp);
 		stats->tx_packets = tp->tx_stats.packets;
 		stats->tx_bytes	= tp->tx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&tp->tx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&tp->tx_stats.syncp, start));
 
 	stats->rx_dropped	= dev->stats.rx_dropped;
 	stats->tx_dropped	= dev->stats.tx_dropped;

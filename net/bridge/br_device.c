@@ -136,9 +136,9 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 		const struct pcpu_sw_netstats *bstats
 			= per_cpu_ptr(br->stats, cpu);
 		do {
-			start = u64_stats_fetch_begin_bh(&bstats->syncp);
+			start = u64_stats_fetch_begin_irq(&bstats->syncp);
 			memcpy(&tmp, bstats, sizeof(tmp));
-		} while (u64_stats_fetch_retry_bh(&bstats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&bstats->syncp, start));
 		sum.tx_bytes   += tmp.tx_bytes;
 		sum.tx_packets += tmp.tx_packets;
 		sum.rx_bytes   += tmp.rx_bytes;

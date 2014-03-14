@@ -3908,19 +3908,19 @@ static struct rtnl_link_stats64 *sky2_get_stats(struct net_device *dev,
 	u64 _bytes, _packets;
 
 	do {
-		start = u64_stats_fetch_begin_bh(&sky2->rx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&sky2->rx_stats.syncp);
 		_bytes = sky2->rx_stats.bytes;
 		_packets = sky2->rx_stats.packets;
-	} while (u64_stats_fetch_retry_bh(&sky2->rx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&sky2->rx_stats.syncp, start));
 
 	stats->rx_packets = _packets;
 	stats->rx_bytes = _bytes;
 
 	do {
-		start = u64_stats_fetch_begin_bh(&sky2->tx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&sky2->tx_stats.syncp);
 		_bytes = sky2->tx_stats.bytes;
 		_packets = sky2->tx_stats.packets;
-	} while (u64_stats_fetch_retry_bh(&sky2->tx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&sky2->tx_stats.syncp, start));
 
 	stats->tx_packets = _packets;
 	stats->tx_bytes = _bytes;
