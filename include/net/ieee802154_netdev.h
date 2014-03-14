@@ -29,6 +29,78 @@
 
 #include <net/af_ieee802154.h>
 
+struct ieee802154_addr {
+	u8 mode;
+	__le16 pan_id;
+	union {
+		__le16 short_addr;
+		__le64 extended_addr;
+	};
+};
+
+static inline bool ieee802154_addr_equal(const struct ieee802154_addr *a1,
+					 const struct ieee802154_addr *a2)
+{
+	if (a1->pan_id != a2->pan_id || a1->mode != a2->mode)
+		return false;
+
+	if ((a1->mode == IEEE802154_ADDR_LONG &&
+	     a1->extended_addr != a2->extended_addr) ||
+	    (a1->mode == IEEE802154_ADDR_SHORT &&
+	     a1->short_addr != a2->short_addr))
+		return false;
+
+	return true;
+}
+
+static inline __le64 ieee802154_devaddr_from_raw(const void *raw)
+{
+	u64 temp;
+
+	memcpy(&temp, raw, IEEE802154_ADDR_LEN);
+	return (__force __le64)swab64(temp);
+}
+
+static inline void ieee802154_devaddr_to_raw(void *raw, __le64 addr)
+{
+	u64 temp = swab64((__force u64)addr);
+
+	memcpy(raw, &temp, IEEE802154_ADDR_LEN);
+}
+
+static inline void ieee802154_addr_from_sa(struct ieee802154_addr *a,
+					   const struct ieee802154_addr_sa *sa)
+{
+	a->mode = sa->addr_type;
+	a->pan_id = cpu_to_le16(sa->pan_id);
+
+	switch (a->mode) {
+	case IEEE802154_ADDR_SHORT:
+		a->short_addr = cpu_to_le16(sa->short_addr);
+		break;
+	case IEEE802154_ADDR_LONG:
+		a->extended_addr = ieee802154_devaddr_from_raw(sa->hwaddr);
+		break;
+	}
+}
+
+static inline void ieee802154_addr_to_sa(struct ieee802154_addr_sa *sa,
+					 const struct ieee802154_addr *a)
+{
+	sa->addr_type = a->mode;
+	sa->pan_id = le16_to_cpu(a->pan_id);
+
+	switch (a->mode) {
+	case IEEE802154_ADDR_SHORT:
+		sa->short_addr = le16_to_cpu(a->short_addr);
+		break;
+	case IEEE802154_ADDR_LONG:
+		ieee802154_devaddr_to_raw(sa->hwaddr, a->extended_addr);
+		break;
+	}
+}
+
+
 struct ieee802154_frag_info {
 	__be16 d_tag;
 	u16 d_size;
