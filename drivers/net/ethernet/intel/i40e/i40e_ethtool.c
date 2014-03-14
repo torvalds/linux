@@ -649,7 +649,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	rcu_read_lock();
-	for (j = 0; j < vsi->num_queue_pairs; j++, i += 4) {
+	for (j = 0; j < vsi->num_queue_pairs; j++) {
 		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
 		struct i40e_ring *rx_ring;
 
@@ -662,14 +662,16 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 			data[i] = tx_ring->stats.packets;
 			data[i + 1] = tx_ring->stats.bytes;
 		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+		i += 2;
 
 		/* Rx ring is the 2nd half of the queue pair */
 		rx_ring = &tx_ring[1];
 		do {
 			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
-			data[i + 2] = rx_ring->stats.packets;
-			data[i + 3] = rx_ring->stats.bytes;
+			data[i] = rx_ring->stats.packets;
+			data[i + 1] = rx_ring->stats.bytes;
 		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
+		i += 2;
 	}
 	rcu_read_unlock();
 	if (vsi == pf->vsi[pf->lan_vsi]) {
