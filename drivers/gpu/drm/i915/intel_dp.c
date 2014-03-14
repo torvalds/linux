@@ -645,19 +645,25 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
+	const char *name = NULL;
+	int ret;
 
 	switch (port) {
 	case PORT_A:
 		intel_dp->aux_ch_ctl_reg = DPA_AUX_CH_CTL;
+		name = "DPDDC-A";
 		break;
 	case PORT_B:
 		intel_dp->aux_ch_ctl_reg = PCH_DPB_AUX_CH_CTL;
+		name = "DPDDC-B";
 		break;
 	case PORT_C:
 		intel_dp->aux_ch_ctl_reg = PCH_DPC_AUX_CH_CTL;
+		name = "DPDDC-C";
 		break;
 	case PORT_D:
 		intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
+		name = "DPDDC-D";
 		break;
 	default:
 		BUG();
@@ -666,128 +672,27 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	if (!HAS_DDI(dev))
 		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
+	intel_dp->aux.name = name;
 	intel_dp->aux.dev = dev->dev;
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
-}
 
-static int
-intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
-		    uint8_t write_byte, uint8_t *read_byte)
-{
-	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	struct intel_dp *intel_dp = container_of(adapter,
-						struct intel_dp,
-						adapter);
-	uint16_t address = algo_data->address;
-	uint8_t msg[5];
-	uint8_t reply[2];
-	unsigned retry;
-	int msg_bytes;
-	int reply_bytes;
-	int ret;
+	DRM_DEBUG_KMS("registering %s bus for %s\n", name,
+		      connector->base.kdev->kobj.name);
 
-	/* Set up the command byte */
-	if (mode & MODE_I2C_READ)
-		msg[0] = DP_AUX_I2C_READ << 4;
-	else
-		msg[0] = DP_AUX_I2C_WRITE << 4;
-
-	if (!(mode & MODE_I2C_STOP))
-		msg[0] |= DP_AUX_I2C_MOT << 4;
-
-	msg[1] = address >> 8;
-	msg[2] = address;
-
-	switch (mode) {
-	case MODE_I2C_WRITE:
-		msg[3] = 0;
-		msg[4] = write_byte;
-		msg_bytes = 5;
-		reply_bytes = 1;
-		break;
-	case MODE_I2C_READ:
-		msg[3] = 0;
-		msg_bytes = 4;
-		reply_bytes = 2;
-		break;
-	default:
-		msg_bytes = 3;
-		reply_bytes = 1;
-		break;
+	ret = drm_dp_aux_register_i2c_bus(&intel_dp->aux);
+	if (ret < 0) {
+		DRM_ERROR("drm_dp_aux_register_i2c_bus() for %s failed (%d)\n",
+			  name, ret);
+		return;
 	}
 
-	/*
-	 * DP1.2 sections 2.7.7.1.5.6.1 and 2.7.7.1.6.6.1: A DP Source device is
-	 * required to retry at least seven times upon receiving AUX_DEFER
-	 * before giving up the AUX transaction.
-	 */
-	for (retry = 0; retry < 7; retry++) {
-		ret = intel_dp_aux_ch(intel_dp,
-				      msg, msg_bytes,
-				      reply, reply_bytes);
-		if (ret < 0) {
-			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
-			goto out;
-		}
-
-		switch ((reply[0] >> 4) & DP_AUX_NATIVE_REPLY_MASK) {
-		case DP_AUX_NATIVE_REPLY_ACK:
-			/* I2C-over-AUX Reply field is only valid
-			 * when paired with AUX ACK.
-			 */
-			break;
-		case DP_AUX_NATIVE_REPLY_NACK:
-			DRM_DEBUG_KMS("aux_ch native nack\n");
-			ret = -EREMOTEIO;
-			goto out;
-		case DP_AUX_NATIVE_REPLY_DEFER:
-			/*
-			 * For now, just give more slack to branch devices. We
-			 * could check the DPCD for I2C bit rate capabilities,
-			 * and if available, adjust the interval. We could also
-			 * be more careful with DP-to-Legacy adapters where a
-			 * long legacy cable may force very low I2C bit rates.
-			 */
-			if (intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-			    DP_DWN_STRM_PORT_PRESENT)
-				usleep_range(500, 600);
-			else
-				usleep_range(300, 400);
-			continue;
-		default:
-			DRM_ERROR("aux_ch invalid native reply 0x%02x\n",
-				  reply[0]);
-			ret = -EREMOTEIO;
-			goto out;
-		}
-
-		switch ((reply[0] >> 4) & DP_AUX_I2C_REPLY_MASK) {
-		case DP_AUX_I2C_REPLY_ACK:
-			if (mode == MODE_I2C_READ) {
-				*read_byte = reply[1];
-			}
-			ret = reply_bytes - 1;
-			goto out;
-		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("aux_i2c nack\n");
-			ret = -EREMOTEIO;
-			goto out;
-		case DP_AUX_I2C_REPLY_DEFER:
-			DRM_DEBUG_KMS("aux_i2c defer\n");
-			udelay(100);
-			break;
-		default:
-			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", reply[0]);
-			ret = -EREMOTEIO;
-			goto out;
-		}
+	ret = sysfs_create_link(&connector->base.kdev->kobj,
+				&intel_dp->aux.ddc.dev.kobj,
+				intel_dp->aux.ddc.dev.kobj.name);
+	if (ret < 0) {
+		DRM_ERROR("sysfs_create_link() for %s failed (%d)\n", name, ret);
+		drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
 	}
-
-	DRM_ERROR("too many retries, giving up\n");
-	ret = -EREMOTEIO;
-
-out:
-	return ret;
 }
 
 static void
@@ -796,41 +701,8 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 	struct intel_dp *intel_dp = intel_attached_dp(&intel_connector->base);
 
 	sysfs_remove_link(&intel_connector->base.kdev->kobj,
-			  intel_dp->adapter.dev.kobj.name);
+			  intel_dp->aux.ddc.dev.kobj.name);
 	intel_connector_unregister(intel_connector);
-}
-
-static int
-intel_dp_i2c_init(struct intel_dp *intel_dp,
-		  struct intel_connector *intel_connector, const char *name)
-{
-	int	ret;
-
-	DRM_DEBUG_KMS("i2c_init %s\n", name);
-	intel_dp->algo.running = false;
-	intel_dp->algo.address = 0;
-	intel_dp->algo.aux_ch = intel_dp_i2c_aux_ch;
-
-	memset(&intel_dp->adapter, '\0', sizeof(intel_dp->adapter));
-	intel_dp->adapter.owner = THIS_MODULE;
-	intel_dp->adapter.class = I2C_CLASS_DDC;
-	strncpy(intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
-	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
-	intel_dp->adapter.algo_data = &intel_dp->algo;
-	intel_dp->adapter.dev.parent = intel_connector->base.dev->dev;
-
-	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
-	if (ret < 0)
-		return ret;
-
-	ret = sysfs_create_link(&intel_connector->base.kdev->kobj,
-				&intel_dp->adapter.dev.kobj,
-				intel_dp->adapter.dev.kobj.name);
-
-	if (ret < 0)
-		i2c_del_adapter(&intel_dp->adapter);
-
-	return ret;
 }
 
 static void
@@ -3098,7 +2970,7 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	}
 
 	/* If no HPD, poke DDC gently */
-	if (drm_probe_ddc(&intel_dp->adapter))
+	if (drm_probe_ddc(&intel_dp->aux.ddc))
 		return connector_status_connected;
 
 	/* Well we tried, say unknown for unreliable port types */
@@ -3266,7 +3138,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	if (intel_dp->force_audio != HDMI_AUDIO_AUTO) {
 		intel_dp->has_audio = (intel_dp->force_audio == HDMI_AUDIO_ON);
 	} else {
-		edid = intel_dp_get_edid(connector, &intel_dp->adapter);
+		edid = intel_dp_get_edid(connector, &intel_dp->aux.ddc);
 		if (edid) {
 			intel_dp->has_audio = drm_detect_monitor_audio(edid);
 			kfree(edid);
@@ -3302,7 +3174,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	ret = intel_dp_get_edid_modes(connector, &intel_dp->adapter);
+	ret = intel_dp_get_edid_modes(connector, &intel_dp->aux.ddc);
 	intel_display_power_put(dev_priv, power_domain);
 	if (ret)
 		return ret;
@@ -3335,7 +3207,7 @@ intel_dp_detect_audio(struct drm_connector *connector)
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	edid = intel_dp_get_edid(connector, &intel_dp->adapter);
+	edid = intel_dp_get_edid(connector, &intel_dp->aux.ddc);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
 		kfree(edid);
@@ -3457,7 +3329,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	i2c_del_adapter(&intel_dp->adapter);
+	drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
@@ -3769,7 +3641,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	/* We now know it's not a ghost, init power sequence regs. */
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp, power_seq);
 
-	edid = drm_get_edid(connector, &intel_dp->adapter);
+	edid = drm_get_edid(connector, &intel_dp->aux.ddc);
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
 			drm_mode_connector_update_edid_property(connector,
@@ -3817,8 +3689,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
 	struct edp_power_seq power_seq = { 0 };
-	const char *name = NULL;
-	int type, error;
+	int type;
 
 	/* intel_dp vfuncs */
 	if (IS_VALLEYVIEW(dev))
@@ -3871,23 +3742,19 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
 	intel_connector->unregister = intel_dp_connector_unregister;
 
-	/* Set up the DDC bus. */
+	/* Set up the hotplug pin. */
 	switch (port) {
 	case PORT_A:
 		intel_encoder->hpd_pin = HPD_PORT_A;
-		name = "DPDDC-A";
 		break;
 	case PORT_B:
 		intel_encoder->hpd_pin = HPD_PORT_B;
-		name = "DPDDC-B";
 		break;
 	case PORT_C:
 		intel_encoder->hpd_pin = HPD_PORT_C;
-		name = "DPDDC-C";
 		break;
 	case PORT_D:
 		intel_encoder->hpd_pin = HPD_PORT_D;
-		name = "DPDDC-D";
 		break;
 	default:
 		BUG();
@@ -3900,14 +3767,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_dp_aux_init(intel_dp, intel_connector);
 
-	error = intel_dp_i2c_init(intel_dp, intel_connector, name);
-	WARN(error, "intel_dp_i2c_init failed with error %d for port %c\n",
-	     error, port_name(port));
-
 	intel_dp->psr_setup_done = false;
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector, &power_seq)) {
-		i2c_del_adapter(&intel_dp->adapter);
+		drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
 		if (is_edp(intel_dp)) {
 			cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 			mutex_lock(&dev->mode_config.mutex);
