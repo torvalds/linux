@@ -260,6 +260,12 @@ static struct plat_smp_ops cps_smp_ops = {
 	.cpus_done		= cps_cpus_done,
 };
 
+bool mips_cps_smp_in_use(void)
+{
+	extern struct plat_smp_ops *mp_ops;
+	return mp_ops == &cps_smp_ops;
+}
+
 int register_cps_smp_ops(void)
 {
 	if (!mips_cm_present()) {
