@@ -1058,8 +1058,46 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	blk_mq_put_ctx(ctx);
 }
 
-static void blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
-				    void (*init)(void *, struct blk_mq_hw_ctx *,
+static int blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
+				   int (*init)(void *, struct blk_mq_hw_ctx *,
+					struct request *, unsigned int),
+				   void *data)
+{
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0; i < hctx->queue_depth; i++) {
+		struct request *rq = hctx->rqs[i];
+
+		ret = init(data, hctx, rq, i);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+int blk_mq_init_commands(struct request_queue *q,
+			 int (*init)(void *, struct blk_mq_hw_ctx *,
+					struct request *, unsigned int),
+			 void *data)
+{
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+	int ret = 0;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		ret = blk_mq_init_hw_commands(hctx, init, data);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(blk_mq_init_commands);
+
+static void blk_mq_free_hw_commands(struct blk_mq_hw_ctx *hctx,
+				    void (*free)(void *, struct blk_mq_hw_ctx *,
 					struct request *, unsigned int),
 				    void *data)
 {
@@ -1068,12 +1106,12 @@ static void blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
 	for (i = 0; i < hctx->queue_depth; i++) {
 		struct request *rq = hctx->rqs[i];
 
-		init(data, hctx, rq, i);
+		free(data, hctx, rq, i);
 	}
 }
 
-void blk_mq_init_commands(struct request_queue *q,
-			  void (*init)(void *, struct blk_mq_hw_ctx *,
+void blk_mq_free_commands(struct request_queue *q,
+			  void (*free)(void *, struct blk_mq_hw_ctx *,
 					struct request *, unsigned int),
 			  void *data)
 {
@@ -1081,9 +1119,9 @@ void blk_mq_init_commands(struct request_queue *q,
 	unsigned int i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
-		blk_mq_init_hw_commands(hctx, init, data);
+		blk_mq_free_hw_commands(hctx, free, data);
 }
-EXPORT_SYMBOL(blk_mq_init_commands);
+EXPORT_SYMBOL(blk_mq_free_commands);
 
 static void blk_mq_free_rq_map(struct blk_mq_hw_ctx *hctx)
 {
