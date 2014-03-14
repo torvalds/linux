@@ -10,6 +10,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt)	"power8-pmu: " fmt
+
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
 #include <asm/firmware.h>
@@ -773,6 +775,9 @@ static int __init init_power8_pmu(void)
 
 	/* Tell userspace that EBB is supported */
 	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_EBB;
+
+	if (cpu_has_feature(CPU_FTR_PMAO_BUG))
+		pr_info("PMAO restore workaround active.\n");
 
 	return 0;
 }

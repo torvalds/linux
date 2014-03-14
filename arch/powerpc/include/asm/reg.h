@@ -670,6 +670,7 @@
 #define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
 #define   MMCR0_PMCjCE	0x00004000UL /* PMCj count enable*/
 #define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
+#define   MMCR0_PMAO_SYNC 0x00000800UL /* PMU interrupt is synchronous */
 #define   MMCR0_PMAO	0x00000080UL /* performance monitor alert has occurred, set to 0 after handling exception */
 #define   MMCR0_SHRFC	0x00000040UL /* SHRre freeze conditions between threads */
 #define   MMCR0_FC56	0x00000010UL /* freeze counters 5 and 6 */
@@ -703,6 +704,7 @@
 #define SPRN_EBBHR	804	/* Event based branch handler register */
 #define SPRN_EBBRR	805	/* Event based branch return register */
 #define SPRN_BESCR	806	/* Branch event status and control register */
+#define   BESCR_GE	0x8000000000000000ULL /* Global Enable */
 #define SPRN_WORT	895	/* Workload optimization register - thread */
 
 #define SPRN_PMC1	787
