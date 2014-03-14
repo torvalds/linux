@@ -1026,6 +1026,7 @@ nodata:
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct davinci_pcm_dma_params *dma_params;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct resource *mem, *ioarea, *res, *dat;
 	struct davinci_mcasp_pdata *pdata;
 	struct davinci_mcasp *mcasp;
@@ -1095,6 +1096,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		mcasp->dat_port = true;
 
 	dma_params = &mcasp->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
+	dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
 	dma_params->asp_chan_q = pdata->asp_chan_q;
 	dma_params->ram_chan_q = pdata->ram_chan_q;
 	dma_params->sram_pool = pdata->sram_pool;
@@ -1105,7 +1107,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		dma_params->dma_addr = mem->start + pdata->tx_dma_offset;
 
 	/* Unconditional dmaengine stuff */
-	mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].addr = dma_params->dma_addr;
+	dma_data->addr = dma_params->dma_addr;
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (res)
@@ -1113,7 +1115,14 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	else
 		dma_params->channel = pdata->tx_dma_channel;
 
+	/* dmaengine filter data for DT and non-DT boot */
+	if (pdev->dev.of_node)
+		dma_data->filter_data = "tx";
+	else
+		dma_data->filter_data = &dma_params->channel;
+
 	dma_params = &mcasp->dma_params[SNDRV_PCM_STREAM_CAPTURE];
+	dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
 	dma_params->asp_chan_q = pdata->asp_chan_q;
 	dma_params->ram_chan_q = pdata->ram_chan_q;
 	dma_params->sram_pool = pdata->sram_pool;
@@ -1124,7 +1133,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		dma_params->dma_addr = mem->start + pdata->rx_dma_offset;
 
 	/* Unconditional dmaengine stuff */
-	mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE].addr = dma_params->dma_addr;
+	dma_data->addr = dma_params->dma_addr;
 
 	if (mcasp->version < MCASP_VERSION_3) {
 		mcasp->fifo_base = DAVINCI_MCASP_V2_AFIFO_BASE;
@@ -1140,9 +1149,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	else
 		dma_params->channel = pdata->rx_dma_channel;
 
-	/* Unconditional dmaengine stuff */
-	mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].filter_data = "tx";
-	mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE].filter_data = "rx";
+	/* dmaengine filter data for DT and non-DT boot */
+	if (pdev->dev.of_node)
+		dma_data->filter_data = "rx";
+	else
+		dma_data->filter_data = &dma_params->channel;
 
 	dev_set_drvdata(&pdev->dev, mcasp);
 
