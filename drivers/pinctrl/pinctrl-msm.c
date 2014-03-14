@@ -215,7 +215,6 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*mask = 7;
 		break;
 	case PIN_CONFIG_OUTPUT:
-		*reg = g->ctl_reg;
 		*bit = g->oe_bit;
 		*mask = 1;
 		break;
