@@ -436,13 +436,6 @@ kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc, uint32_t cause,
 	sel = inst & 0x7;
 	co_bit = (inst >> 25) & 1;
 
-	/* Verify that the register is valid */
-	if (rd > MIPS_CP0_DESAVE) {
-		printk("Invalid rd: %d\n", rd);
-		er = EMULATE_FAIL;
-		goto done;
-	}
-
 	if (co_bit) {
 		op = (inst) & 0xff;
 
