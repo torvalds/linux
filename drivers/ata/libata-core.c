@@ -5450,7 +5450,7 @@ static void ata_port_resume_async(struct ata_port *ap, pm_message_t mesg)
 
 static int ata_port_pm_resume(struct device *dev)
 {
-	ata_port_resume(to_ata_port(dev), PMSG_RESUME);
+	ata_port_resume_async(to_ata_port(dev), PMSG_RESUME);
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
