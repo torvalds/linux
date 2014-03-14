@@ -600,7 +600,7 @@ int Set_D_SsfdcModel(BYTE dcode)
 }
 
 /* ----- _Check_D_DevCode() --------------------------------------------- */
-BYTE _Check_D_DevCode(BYTE dcode)
+static BYTE _Check_D_DevCode(BYTE dcode)
 {
 	switch (dcode) {
 	case 0x6E:
