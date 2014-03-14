@@ -324,6 +324,65 @@ nobufs:
 EXPORT_SYMBOL(ir_raw_gen_manchester);
 
 /**
+ * ir_raw_gen_pd() - Encode data to raw events with pulse-distance modulation.
+ * @ev:		Pointer to pointer to next free event. *@ev is incremented for
+ *		each raw event filled.
+ * @max:	Maximum number of raw events to fill.
+ * @timings:	Pulse distance modulation timings.
+ * @n:		Number of bits of data.
+ * @data:	Data bits to encode.
+ *
+ * Encodes the @n least significant bits of @data using pulse-distance
+ * modulation with the timing characteristics described by @timings, writing up
+ * to @max raw IR events using the *@ev pointer.
+ *
+ * Returns:	0 on success.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		full encoded data. In this case all @max events will have been
+ *		written.
+ */
+int ir_raw_gen_pd(struct ir_raw_event **ev, unsigned int max,
+		  const struct ir_raw_timings_pd *timings,
+		  unsigned int n, u64 data)
+{
+	int i;
+	int ret;
+	unsigned int space;
+
+	if (timings->header_pulse) {
+		ret = ir_raw_gen_pulse_space(ev, &max, timings->header_pulse,
+					     timings->header_space);
+		if (ret)
+			return ret;
+	}
+
+	if (timings->msb_first) {
+		for (i = n - 1; i >= 0; --i) {
+			space = timings->bit_space[(data >> i) & 1];
+			ret = ir_raw_gen_pulse_space(ev, &max,
+						     timings->bit_pulse,
+						     space);
+			if (ret)
+				return ret;
+		}
+	} else {
+		for (i = 0; i < n; ++i, data >>= 1) {
+			space = timings->bit_space[data & 1];
+			ret = ir_raw_gen_pulse_space(ev, &max,
+						     timings->bit_pulse,
+						     space);
+			if (ret)
+				return ret;
+		}
+	}
+
+	ret = ir_raw_gen_pulse_space(ev, &max, timings->trailer_pulse,
+				     timings->trailer_space);
+	return ret;
+}
+EXPORT_SYMBOL(ir_raw_gen_pd);
+
+/**
  * ir_raw_encode_scancode() - Encode a scancode as raw events
  *
  * @protocol:		protocol
