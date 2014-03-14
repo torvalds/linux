@@ -156,7 +156,9 @@ static int rtl2832_sdr_wr(struct rtl2832_sdr_state *s, u8 reg, const u8 *val,
 		int len)
 {
 	int ret;
-	u8 buf[1 + len];
+#define MAX_WR_LEN 24
+#define MAX_WR_XFER_LEN (MAX_WR_LEN + 1)
+	u8 buf[MAX_WR_XFER_LEN];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = s->cfg->i2c_addr,
@@ -165,6 +167,9 @@ static int rtl2832_sdr_wr(struct rtl2832_sdr_state *s, u8 reg, const u8 *val,
 			.buf = buf,
 		}
 	};
+
+	if (WARN_ON(len > MAX_WR_LEN))
+		return -EINVAL;
 
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
