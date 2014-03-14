@@ -656,28 +656,26 @@ static int do_dentry_open(struct file *f,
 	f->f_mode = OPEN_FMODE(f->f_flags) | FMODE_LSEEK |
 				FMODE_PREAD | FMODE_PWRITE;
 
-	if (unlikely(f->f_flags & O_PATH))
-		f->f_mode = FMODE_PATH;
-
 	path_get(&f->f_path);
 	inode = f->f_inode = f->f_path.dentry->d_inode;
+	f->f_mapping = inode->i_mapping;
+
+	if (unlikely(f->f_flags & O_PATH)) {
+		f->f_mode = FMODE_PATH;
+		f->f_op = &empty_fops;
+		return 0;
+	}
+
 	if (f->f_mode & FMODE_WRITE && !special_file(inode->i_mode)) {
 		error = get_write_access(inode);
-		if (error)
+		if (unlikely(error))
 			goto cleanup_file;
 		error = __mnt_want_write(f->f_path.mnt);
-		if (error) {
+		if (unlikely(error)) {
 			put_write_access(inode);
 			goto cleanup_file;
 		}
 		f->f_mode |= FMODE_WRITER;
-	}
-
-	f->f_mapping = inode->i_mapping;
-
-	if (unlikely(f->f_mode & FMODE_PATH)) {
-		f->f_op = &empty_fops;
-		return 0;
 	}
 
 	/* POSIX.1-2008/SUSv4 Section XSI 2.9.7 */
