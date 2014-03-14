@@ -216,7 +216,9 @@ static int sq_overhead(enum ib_qp_type qp_type)
 
 	case IB_QPT_UC:
 		size += sizeof(struct mlx5_wqe_ctrl_seg) +
-			sizeof(struct mlx5_wqe_raddr_seg);
+			sizeof(struct mlx5_wqe_raddr_seg) +
+			sizeof(struct mlx5_wqe_umr_ctrl_seg) +
+			sizeof(struct mlx5_mkey_seg);
 		break;
 
 	case IB_QPT_UD:
@@ -428,11 +430,17 @@ static int alloc_uuar(struct mlx5_uuar_info *uuari,
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_MEDIUM:
-		uuarn = alloc_med_class_uuar(uuari);
+		if (uuari->ver < 2)
+			uuarn = -ENOMEM;
+		else
+			uuarn = alloc_med_class_uuar(uuari);
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_HIGH:
-		uuarn = alloc_high_class_uuar(uuari);
+		if (uuari->ver < 2)
+			uuarn = -ENOMEM;
+		else
+			uuarn = alloc_high_class_uuar(uuari);
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_FAST_PATH:
@@ -657,8 +665,8 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	int err;
 
 	uuari = &dev->mdev.priv.uuari;
-	if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
-		qp->flags |= MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK;
+	if (init_attr->create_flags)
+		return -EINVAL;
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
 		lc = MLX5_IB_LATENCY_CLASS_FAST_PATH;

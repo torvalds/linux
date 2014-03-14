@@ -74,6 +74,8 @@ static inline int __enable_fpu(enum fpu_mode mode)
 	default:
 		BUG();
 	}
+
+	return SIGFPE;
 }
 
 #define __disable_fpu()							\

@@ -1873,7 +1873,7 @@ void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 }
 
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       void *accel_priv)
+		       void *accel_priv, select_queue_fallback_t fallback)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1895,7 +1895,7 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	/* select a non-FCoE queue */
-	return __netdev_pick_tx(dev, skb) % BNX2X_NUM_ETH_QUEUES(bp);
+	return fallback(dev, skb) % BNX2X_NUM_ETH_QUEUES(bp);
 }
 
 void bnx2x_set_num_queues(struct bnx2x *bp)
@@ -3875,7 +3875,9 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						     xmit_type);
 		}
 
-		/* Add the macs to the parsing BD this is a vf */
+		/* Add the macs to the parsing BD if this is a vf or if
+		 * Tx Switching is enabled.
+		 */
 		if (IS_VF(bp)) {
 			/* override GRE parameters in BD */
 			bnx2x_set_fw_mac_addr(&pbd_e2->data.mac_addr.src_hi,
@@ -3883,6 +3885,11 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					      &pbd_e2->data.mac_addr.src_lo,
 					      eth->h_source);
 
+			bnx2x_set_fw_mac_addr(&pbd_e2->data.mac_addr.dst_hi,
+					      &pbd_e2->data.mac_addr.dst_mid,
+					      &pbd_e2->data.mac_addr.dst_lo,
+					      eth->h_dest);
+		} else if (bp->flags & TX_SWITCHING) {
 			bnx2x_set_fw_mac_addr(&pbd_e2->data.mac_addr.dst_hi,
 					      &pbd_e2->data.mac_addr.dst_mid,
 					      &pbd_e2->data.mac_addr.dst_lo,

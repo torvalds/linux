@@ -1316,7 +1316,7 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		udelay(50);
 	else if (AR_SREV_9100(ah))
-		udelay(10000);
+		mdelay(10);
 	else
 		udelay(100);
 
@@ -1534,7 +1534,7 @@ EXPORT_SYMBOL(ath9k_hw_check_nav);
 bool ath9k_hw_check_alive(struct ath_hw *ah)
 {
 	int count = 50;
-	u32 reg;
+	u32 reg, last_val;
 
 	if (AR_SREV_9300(ah))
 		return !ath9k_hw_detect_mac_hang(ah);
@@ -1542,9 +1542,13 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 	if (AR_SREV_9285_12_OR_LATER(ah))
 		return true;
 
+	last_val = REG_READ(ah, AR_OBS_BUS_1);
 	do {
 		reg = REG_READ(ah, AR_OBS_BUS_1);
+		if (reg != last_val)
+			return true;
 
+		last_val = reg;
 		if ((reg & 0x7E7FFFEF) == 0x00702400)
 			continue;
 
@@ -1556,6 +1560,8 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 		default:
 			return true;
 		}
+
+		udelay(1);
 	} while (count-- > 0);
 
 	return false;
@@ -2051,9 +2057,8 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah)
 
 	REG_SET_BIT(ah, AR_RTC_FORCE_WAKE,
 		    AR_RTC_FORCE_WAKE_EN);
-
 	if (AR_SREV_9100(ah))
-		udelay(10000);
+		mdelay(10);
 	else
 		udelay(50);
 

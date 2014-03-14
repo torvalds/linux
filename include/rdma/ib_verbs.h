@@ -226,7 +226,8 @@ enum ib_port_cap_flags {
 	IB_PORT_CAP_MASK_NOTICE_SUP		= 1 << 22,
 	IB_PORT_BOOT_MGMT_SUP			= 1 << 23,
 	IB_PORT_LINK_LATENCY_SUP		= 1 << 24,
-	IB_PORT_CLIENT_REG_SUP			= 1 << 25
+	IB_PORT_CLIENT_REG_SUP			= 1 << 25,
+	IB_PORT_IP_BASED_GIDS			= 1 << 26
 };
 
 enum ib_port_width {

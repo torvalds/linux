@@ -6338,6 +6338,10 @@ restart_ih:
 				break;
 			}
 			break;
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
+			break;
 		case 146:
 		case 147:
 			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
@@ -6614,7 +6618,8 @@ int si_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	si_init_golden_registers(rdev);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r = si_startup(rdev);

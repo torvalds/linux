@@ -1092,12 +1092,12 @@ static void assert_cursor(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	bool cur_state;
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-		cur_state = I915_READ(CURCNTR_IVB(pipe)) & CURSOR_MODE;
-	else if (IS_845G(dev) || IS_I865G(dev))
+	if (IS_845G(dev) || IS_I865G(dev))
 		cur_state = I915_READ(_CURACNTR) & CURSOR_ENABLE;
-	else
+	else if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev))
 		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
+	else
+		cur_state = I915_READ(CURCNTR_IVB(pipe)) & CURSOR_MODE;
 
 	WARN(cur_state != state,
 	     "cursor on pipe %c assertion failure (expected %s, current %s)\n",
@@ -8585,6 +8585,20 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	len = 4;
 	if (ring->id == RCS)
 		len += 6;
+
+	/*
+	 * BSpec MI_DISPLAY_FLIP for IVB:
+	 * "The full packet must be contained within the same cache line."
+	 *
+	 * Currently the LRI+SRM+MI_DISPLAY_FLIP all fit within the same
+	 * cacheline, if we ever start emitting more commands before
+	 * the MI_DISPLAY_FLIP we may need to first emit everything else,
+	 * then do the cacheline alignment, and finally emit the
+	 * MI_DISPLAY_FLIP.
+	 */
+	ret = intel_ring_cacheline_align(ring);
+	if (ret)
+		goto err_unpin;
 
 	ret = intel_ring_begin(ring, len);
 	if (ret)

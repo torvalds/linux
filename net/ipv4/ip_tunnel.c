@@ -93,83 +93,32 @@ static void tunnel_dst_reset(struct ip_tunnel *t)
 	tunnel_dst_set(t, NULL);
 }
 
-static void tunnel_dst_reset_all(struct ip_tunnel *t)
+void ip_tunnel_dst_reset_all(struct ip_tunnel *t)
 {
 	int i;
 
 	for_each_possible_cpu(i)
 		__tunnel_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
 }
+EXPORT_SYMBOL(ip_tunnel_dst_reset_all);
 
-static struct dst_entry *tunnel_dst_get(struct ip_tunnel *t)
+static struct rtable *tunnel_rtable_get(struct ip_tunnel *t, u32 cookie)
 {
 	struct dst_entry *dst;
 
 	rcu_read_lock();
 	dst = rcu_dereference(this_cpu_ptr(t->dst_cache)->dst);
-	if (dst)
+	if (dst) {
+		if (dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+			rcu_read_unlock();
+			tunnel_dst_reset(t);
+			return NULL;
+		}
 		dst_hold(dst);
+	}
 	rcu_read_unlock();
-	return dst;
+	return (struct rtable *)dst;
 }
-
-static struct dst_entry *tunnel_dst_check(struct ip_tunnel *t, u32 cookie)
-{
-	struct dst_entry *dst = tunnel_dst_get(t);
-
-	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
-		tunnel_dst_reset(t);
-		return NULL;
-	}
-
-	return dst;
-}
-
-/* Often modified stats are per cpu, other are shared (netdev->stats) */
-struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *tot)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		const struct pcpu_sw_netstats *tstats =
-						   per_cpu_ptr(dev->tstats, i);
-		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
-		unsigned int start;
-
-		do {
-			start = u64_stats_fetch_begin_bh(&tstats->syncp);
-			rx_packets = tstats->rx_packets;
-			tx_packets = tstats->tx_packets;
-			rx_bytes = tstats->rx_bytes;
-			tx_bytes = tstats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&tstats->syncp, start));
-
-		tot->rx_packets += rx_packets;
-		tot->tx_packets += tx_packets;
-		tot->rx_bytes   += rx_bytes;
-		tot->tx_bytes   += tx_bytes;
-	}
-
-	tot->multicast = dev->stats.multicast;
-
-	tot->rx_crc_errors = dev->stats.rx_crc_errors;
-	tot->rx_fifo_errors = dev->stats.rx_fifo_errors;
-	tot->rx_length_errors = dev->stats.rx_length_errors;
-	tot->rx_frame_errors = dev->stats.rx_frame_errors;
-	tot->rx_errors = dev->stats.rx_errors;
-
-	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
-	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
-	tot->tx_dropped = dev->stats.tx_dropped;
-	tot->tx_aborted_errors = dev->stats.tx_aborted_errors;
-	tot->tx_errors = dev->stats.tx_errors;
-
-	tot->collisions  = dev->stats.collisions;
-
-	return tot;
-}
-EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);
 
 static bool ip_tunnel_key_match(const struct ip_tunnel_parm *p,
 				__be16 flags, __be32 key)
@@ -584,7 +533,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	struct flowi4 fl4;
 	u8     tos, ttl;
 	__be16 df;
-	struct rtable *rt = NULL;	/* Route to the other host */
+	struct rtable *rt;		/* Route to the other host */
 	unsigned int max_headroom;	/* The extra header space needed */
 	__be32 dst;
 	int err;
@@ -657,8 +606,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
 			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link);
 
-	if (connected)
-		rt = (struct rtable *)tunnel_dst_check(tunnel, 0);
+	rt = connected ? tunnel_rtable_get(tunnel, 0) : NULL;
 
 	if (!rt) {
 		rt = ip_route_output_key(tunnel->net, &fl4);
@@ -766,7 +714,7 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 		if (set_mtu)
 			dev->mtu = mtu;
 	}
-	tunnel_dst_reset_all(t);
+	ip_tunnel_dst_reset_all(t);
 	netdev_state_change(dev);
 }
 
@@ -1095,7 +1043,7 @@ void ip_tunnel_uninit(struct net_device *dev)
 	if (itn->fb_tunnel_dev != dev)
 		ip_tunnel_del(netdev_priv(dev));
 
-	tunnel_dst_reset_all(tunnel);
+	ip_tunnel_dst_reset_all(tunnel);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_uninit);
 

@@ -566,7 +566,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				kfree(num);
 
 				if (info->max_inline) {
-					info->max_inline = max_t(u64,
+					info->max_inline = min_t(u64,
 						info->max_inline,
 						root->sectorsize);
 				}
@@ -855,6 +855,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 	struct btrfs_path *path;
 	struct btrfs_key location;
 	struct inode *inode;
+	struct dentry *dentry;
 	u64 dir_id;
 	int new = 0;
 
@@ -925,7 +926,13 @@ setup_root:
 		return dget(sb->s_root);
 	}
 
-	return d_obtain_alias(inode);
+	dentry = d_obtain_alias(inode);
+	if (!IS_ERR(dentry)) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_DISCONNECTED;
+		spin_unlock(&dentry->d_lock);
+	}
+	return dentry;
 }
 
 static int btrfs_fill_super(struct super_block *sb,
@@ -1996,7 +2003,7 @@ static void __exit exit_btrfs_fs(void)
 	btrfs_hash_exit();
 }
 
-module_init(init_btrfs_fs)
+late_initcall(init_btrfs_fs);
 module_exit(exit_btrfs_fs)
 
 MODULE_LICENSE("GPL");

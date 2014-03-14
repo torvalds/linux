@@ -169,16 +169,16 @@ static struct max8998_platform_data *max8998_i2c_parse_dt_pdata(
 	return pd;
 }
 
-static inline int max8998_i2c_get_driver_data(struct i2c_client *i2c,
+static inline unsigned long max8998_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
 	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(max8998_dt_match, i2c->dev.of_node);
-		return (int)(long)match->data;
+		return (unsigned long)match->data;
 	}
 
-	return (int)id->driver_data;
+	return id->driver_data;
 }
 
 static int max8998_i2c_probe(struct i2c_client *i2c,
