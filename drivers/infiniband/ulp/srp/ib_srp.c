@@ -411,6 +411,8 @@ static void srp_path_rec_completion(int status,
 
 static int srp_lookup_path(struct srp_target_port *target)
 {
+	int ret;
+
 	target->path.numb_path = 1;
 
 	init_completion(&target->done);
@@ -431,7 +433,9 @@ static int srp_lookup_path(struct srp_target_port *target)
 	if (target->path_query_id < 0)
 		return target->path_query_id;
 
-	wait_for_completion(&target->done);
+	ret = wait_for_completion_interruptible(&target->done);
+	if (ret < 0)
+		return ret;
 
 	if (target->status < 0)
 		shost_printk(KERN_WARNING, target->scsi_host,
@@ -710,7 +714,9 @@ static int srp_connect_target(struct srp_target_port *target)
 		ret = srp_send_req(target);
 		if (ret)
 			return ret;
-		wait_for_completion(&target->done);
+		ret = wait_for_completion_interruptible(&target->done);
+		if (ret < 0)
+			return ret;
 
 		/*
 		 * The CM event handling code will set status to
