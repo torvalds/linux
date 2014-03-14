@@ -1320,51 +1320,6 @@ void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_
 	}
 }
 
-void HTUseDefaultSetting(struct ieee80211_device *ieee)
-{
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
-//	u8	regBwOpMode;
-
-	if(pHTInfo->bEnableHT)
-	{
-		pHTInfo->bCurrentHTSupport = true;
-
-		pHTInfo->bCurSuppCCK = pHTInfo->bRegSuppCCK;
-
-		pHTInfo->bCurBW40MHz = pHTInfo->bRegBW40MHz;
-
-		pHTInfo->bCurShortGI20MHz= pHTInfo->bRegShortGI20MHz;
-
-		pHTInfo->bCurShortGI40MHz= pHTInfo->bRegShortGI40MHz;
-
-		pHTInfo->bCurrent_AMSDU_Support = pHTInfo->bAMSDU_Support;
-
-		pHTInfo->nCurrent_AMSDU_MaxSize = pHTInfo->nAMSDU_MaxSize;
-
-		pHTInfo->bCurrentAMPDUEnable = pHTInfo->bAMPDUEnable;
-
-		pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
-
-		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
-
-		// Set BWOpMode register
-
-		//update RATR index0
-		HTFilterMCSRate(ieee, ieee->Regdot11HTOperationalRateSet, ieee->dot11HTOperationalRateSet);
-	//function below is not implemented at all. WB
-#ifdef TODO
-		Adapter->HalFunc.InitHalRATRTableHandler( Adapter, &pMgntInfo->dot11OperationalRateSet, pMgntInfo->dot11HTOperationalRateSet);
-#endif
-		ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee, ieee->dot11HTOperationalRateSet, MCS_FILTER_ALL);
-		ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
-
-	}
-	else
-	{
-		pHTInfo->bCurrentHTSupport = false;
-	}
-	return;
-}
 /********************************************************************************************************************
  *function:  check whether HT control field exists
  *   input:  struct ieee80211_device	*ieee
