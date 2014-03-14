@@ -244,6 +244,28 @@ TRACE_EVENT(kvm_s390_enable_css,
 		      __entry->kvm)
 	);
 
+/*
+ * Trace point for enabling and disabling interlocking-and-broadcasting
+ * suppression.
+ */
+TRACE_EVENT(kvm_s390_enable_disable_ibs,
+	    TP_PROTO(unsigned int id, int state),
+	    TP_ARGS(id, state),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int, id)
+		    __field(int, state)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->id = id;
+		    __entry->state = state;
+		    ),
+
+	    TP_printk("%s ibs on cpu %d",
+		      __entry->state ? "enabling" : "disabling", __entry->id)
+	);
+
 
 #endif /* _TRACE_KVMS390_H */
 

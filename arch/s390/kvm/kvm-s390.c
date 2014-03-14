@@ -458,6 +458,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.css_support = 0;
 	kvm->arch.use_irqchip = 0;
 
+	spin_lock_init(&kvm->arch.start_stop_lock);
+
 	return 0;
 out_nogmap:
 	debug_unregister(kvm->arch.dbf);
@@ -996,8 +998,15 @@ bool kvm_s390_cmma_enabled(struct kvm *kvm)
 	return true;
 }
 
+static bool ibs_enabled(struct kvm_vcpu *vcpu)
+{
+	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_IBS;
+}
+
 static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 {
+retry:
+	s390_vcpu_unblock(vcpu);
 	/*
 	 * We use MMU_RELOAD just to re-arm the ipte notifier for the
 	 * guest prefix page. gmap_ipte_notify will wait on the ptl lock.
@@ -1005,15 +1014,34 @@ static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 	 * already finished. We might race against a second unmapper that
 	 * wants to set the blocking bit. Lets just retry the request loop.
 	 */
-	while (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu)) {
+	if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu)) {
 		int rc;
 		rc = gmap_ipte_notify(vcpu->arch.gmap,
 				      vcpu->arch.sie_block->prefix,
 				      PAGE_SIZE * 2);
 		if (rc)
 			return rc;
-		s390_vcpu_unblock(vcpu);
+		goto retry;
 	}
+
+	if (kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu)) {
+		if (!ibs_enabled(vcpu)) {
+			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 1);
+			atomic_set_mask(CPUSTAT_IBS,
+					&vcpu->arch.sie_block->cpuflags);
+		}
+		goto retry;
+	}
+
+	if (kvm_check_request(KVM_REQ_DISABLE_IBS, vcpu)) {
+		if (ibs_enabled(vcpu)) {
+			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 0);
+			atomic_clear_mask(CPUSTAT_IBS,
+					  &vcpu->arch.sie_block->cpuflags);
+		}
+		goto retry;
+	}
+
 	return 0;
 }
 
@@ -1362,16 +1390,107 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	return kvm_s390_store_status_unloaded(vcpu, addr);
 }
 
+static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
+{
+	return atomic_read(&(vcpu)->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
+}
+
+static void __disable_ibs_on_vcpu(struct kvm_vcpu *vcpu)
+{
+	kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu);
+	kvm_make_request(KVM_REQ_DISABLE_IBS, vcpu);
+	exit_sie_sync(vcpu);
+}
+
+static void __disable_ibs_on_all_vcpus(struct kvm *kvm)
+{
+	unsigned int i;
+	struct kvm_vcpu *vcpu;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		__disable_ibs_on_vcpu(vcpu);
+	}
+}
+
+static void __enable_ibs_on_vcpu(struct kvm_vcpu *vcpu)
+{
+	kvm_check_request(KVM_REQ_DISABLE_IBS, vcpu);
+	kvm_make_request(KVM_REQ_ENABLE_IBS, vcpu);
+	exit_sie_sync(vcpu);
+}
+
 void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 {
+	int i, online_vcpus, started_vcpus = 0;
+
+	if (!is_vcpu_stopped(vcpu))
+		return;
+
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 1);
+	/* Only one cpu at a time may enter/leave the STOPPED state. */
+	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
+
+	for (i = 0; i < online_vcpus; i++) {
+		if (!is_vcpu_stopped(vcpu->kvm->vcpus[i]))
+			started_vcpus++;
+	}
+
+	if (started_vcpus == 0) {
+		/* we're the only active VCPU -> speed it up */
+		__enable_ibs_on_vcpu(vcpu);
+	} else if (started_vcpus == 1) {
+		/*
+		 * As we are starting a second VCPU, we have to disable
+		 * the IBS facility on all VCPUs to remove potentially
+		 * oustanding ENABLE requests.
+		 */
+		__disable_ibs_on_all_vcpus(vcpu->kvm);
+	}
+
 	atomic_clear_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	/*
+	 * Another VCPU might have used IBS while we were offline.
+	 * Let's play safe and flush the VCPU at startup.
+	 */
+	vcpu->arch.sie_block->ihcpu  = 0xffff;
+	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	return;
 }
 
 void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 {
+	int i, online_vcpus, started_vcpus = 0;
+	struct kvm_vcpu *started_vcpu = NULL;
+
+	if (is_vcpu_stopped(vcpu))
+		return;
+
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 0);
+	/* Only one cpu at a time may enter/leave the STOPPED state. */
+	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
+
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	__disable_ibs_on_vcpu(vcpu);
+
+	for (i = 0; i < online_vcpus; i++) {
+		if (!is_vcpu_stopped(vcpu->kvm->vcpus[i])) {
+			started_vcpus++;
+			started_vcpu = vcpu->kvm->vcpus[i];
+		}
+	}
+
+	if (started_vcpus == 1) {
+		/*
+		 * As we only have one VCPU left, we want to enable the
+		 * IBS facility for that VCPU to speed it up.
+		 */
+		__enable_ibs_on_vcpu(started_vcpu);
+	}
+
+	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	return;
 }
 
 static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
