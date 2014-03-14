@@ -2143,6 +2143,7 @@ static int origin_write_extent(struct dm_snapshot *merging_snap,
 
 struct dm_origin {
 	struct dm_dev *dev;
+	unsigned split_boundary;
 };
 
 /*
@@ -2194,13 +2195,24 @@ static void origin_dtr(struct dm_target *ti)
 static int origin_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_origin *o = ti->private;
+	unsigned available_sectors;
+
 	bio->bi_bdev = o->dev->bdev;
 
-	if (bio->bi_rw & REQ_FLUSH)
+	if (unlikely(bio->bi_rw & REQ_FLUSH))
 		return DM_MAPIO_REMAPPED;
 
+	if (bio_rw(bio) != WRITE)
+		return DM_MAPIO_REMAPPED;
+
+	available_sectors = o->split_boundary -
+		((unsigned)bio->bi_iter.bi_sector & (o->split_boundary - 1));
+
+	if (bio_sectors(bio) > available_sectors)
+		dm_accept_partial_bio(bio, available_sectors);
+
 	/* Only tell snapshots if this is a write */
-	return (bio_rw(bio) == WRITE) ? do_origin(o->dev, bio) : DM_MAPIO_REMAPPED;
+	return do_origin(o->dev, bio);
 }
 
 /*
@@ -2211,7 +2223,7 @@ static void origin_resume(struct dm_target *ti)
 {
 	struct dm_origin *o = ti->private;
 
-	ti->max_io_len = get_origin_minimum_chunksize(o->dev->bdev);
+	o->split_boundary = get_origin_minimum_chunksize(o->dev->bdev);
 }
 
 static void origin_status(struct dm_target *ti, status_type_t type,
