@@ -643,6 +643,28 @@ static void
 intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	enum port port = intel_dig_port->port;
+
+	switch (port) {
+	case PORT_A:
+		intel_dp->aux_ch_ctl_reg = DPA_AUX_CH_CTL;
+		break;
+	case PORT_B:
+		intel_dp->aux_ch_ctl_reg = PCH_DPB_AUX_CH_CTL;
+		break;
+	case PORT_C:
+		intel_dp->aux_ch_ctl_reg = PCH_DPC_AUX_CH_CTL;
+		break;
+	case PORT_D:
+		intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
+		break;
+	default:
+		BUG();
+	}
+
+	if (!HAS_DDI(dev))
+		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
 	intel_dp->aux.dev = dev->dev;
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
@@ -3848,26 +3870,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
 	intel_connector->unregister = intel_dp_connector_unregister;
-
-	intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
-	if (HAS_DDI(dev)) {
-		switch (intel_dig_port->port) {
-		case PORT_A:
-			intel_dp->aux_ch_ctl_reg = DPA_AUX_CH_CTL;
-			break;
-		case PORT_B:
-			intel_dp->aux_ch_ctl_reg = PCH_DPB_AUX_CH_CTL;
-			break;
-		case PORT_C:
-			intel_dp->aux_ch_ctl_reg = PCH_DPC_AUX_CH_CTL;
-			break;
-		case PORT_D:
-			intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
-			break;
-		default:
-			BUG();
-		}
-	}
 
 	/* Set up the DDC bus. */
 	switch (port) {
