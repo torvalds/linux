@@ -410,4 +410,4 @@ module_platform_driver(bcm590xx_regulator_driver);
 MODULE_AUTHOR("Matt Porter <mporter@linaro.org>");
 MODULE_DESCRIPTION("BCM590xx voltage regulator driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:bcm590xx-regulator");
+MODULE_ALIAS("platform:bcm590xx-vregs");
