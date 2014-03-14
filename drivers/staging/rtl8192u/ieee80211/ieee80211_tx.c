@@ -378,7 +378,8 @@ FORCED_AGG_SETTING:
 		return;
 }
 
-void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
+static void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee,
+					      cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -391,7 +392,7 @@ void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_desc *t
 	}
 	return;
 }
-void
+static void
 ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
