@@ -1374,6 +1374,16 @@ struct xfrm4_protocol {
 	int priority;
 };
 
+struct xfrm6_protocol {
+	int (*handler)(struct sk_buff *skb);
+	int (*cb_handler)(struct sk_buff *skb, int err);
+	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			   u8 type, u8 code, int offset, __be32 info);
+
+	struct xfrm6_protocol __rcu *next;
+	int priority;
+};
+
 /* XFRM tunnel handlers.  */
 struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
@@ -1408,6 +1418,8 @@ int xfrm6_init(void);
 void xfrm6_fini(void);
 int xfrm6_state_init(void);
 void xfrm6_state_fini(void);
+int xfrm6_protocol_init(void);
+void xfrm6_protocol_fini(void);
 #else
 static inline int xfrm6_init(void)
 {
@@ -1552,6 +1564,9 @@ int xfrm6_rcv(struct sk_buff *skb);
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto);
 void xfrm6_local_error(struct sk_buff *skb, u32 mtu);
+int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
+int xfrm6_protocol_register(struct xfrm6_protocol *handler, unsigned char protocol);
+int xfrm6_protocol_deregister(struct xfrm6_protocol *handler, unsigned char protocol);
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
 int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
 __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
