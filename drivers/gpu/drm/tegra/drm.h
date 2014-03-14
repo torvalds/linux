@@ -164,9 +164,6 @@ struct tegra_dc_window {
 };
 
 /* from dc.c */
-unsigned int tegra_dc_format(uint32_t format, unsigned int *swap);
-int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
-			  const struct tegra_dc_window *window);
 void tegra_dc_enable_vblank(struct tegra_dc *dc);
 void tegra_dc_disable_vblank(struct tegra_dc *dc);
 void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file);
