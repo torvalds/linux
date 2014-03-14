@@ -92,6 +92,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_MEMDIE		18	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	19	/* restore signal mask in do_signal() */
 #define TIF_SINGLE_STEP		20	/* This task is single stepped */
+#define TIF_BLOCK_STEP		21	/* This task is block stepped */
 
 #define _TIF_SYSCALL		(1<<TIF_SYSCALL)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)

@@ -85,7 +85,10 @@ void update_cr_regs(struct task_struct *task)
 
 	/* merge TIF_SINGLE_STEP into user specified PER registers. */
 	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP)) {
-		new.control |= PER_EVENT_IFETCH;
+		if (test_tsk_thread_flag(task, TIF_BLOCK_STEP))
+			new.control |= PER_EVENT_BRANCH;
+		else
+			new.control |= PER_EVENT_IFETCH;
 #ifdef CONFIG_64BIT
 		new.control |= PER_CONTROL_SUSPENSION;
 		new.control |= PER_EVENT_TRANSACTION_END;
@@ -107,12 +110,20 @@ void update_cr_regs(struct task_struct *task)
 
 void user_enable_single_step(struct task_struct *task)
 {
+	clear_tsk_thread_flag(task, TIF_BLOCK_STEP);
 	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
 }
 
 void user_disable_single_step(struct task_struct *task)
 {
+	clear_tsk_thread_flag(task, TIF_BLOCK_STEP);
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
+}
+
+void user_enable_block_step(struct task_struct *task)
+{
+	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
+	set_tsk_thread_flag(task, TIF_BLOCK_STEP);
 }
 
 /*
