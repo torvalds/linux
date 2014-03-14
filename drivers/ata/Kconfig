@@ -124,6 +124,13 @@ config AHCI_SUNXI
 
 	  If unsure, say N.
 
+config AHCI_XGENE
+	tristate "APM X-Gene 6.0Gbps AHCI SATA host controller support"
+	depends on SATA_AHCI_PLATFORM && (ARM64 || COMPILE_TEST)
+	select PHY_XGENE
+	help
+	 This option enables support for APM X-Gene SoC SATA host controller.
+
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
 	depends on FSL_SOC

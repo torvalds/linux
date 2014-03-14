@@ -13,6 +13,7 @@ obj-$(CONFIG_SATA_HIGHBANK)	+= sata_highbank.o libahci.o
 obj-$(CONFIG_AHCI_IMX)		+= ahci_imx.o
 obj-$(CONFIG_AHCI_SUNXI)	+= ahci_sunxi.o
 obj-$(CONFIG_AHCI_ST)		+= ahci_st.o
+obj-$(CONFIG_AHCI_XGENE)	+= ahci_xgene.o
 
 # SFF w/ custom DMA
 obj-$(CONFIG_PDC_ADMA)		+= pdc_adma.o
