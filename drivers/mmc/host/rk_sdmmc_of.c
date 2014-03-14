@@ -12,13 +12,12 @@
 
 #include "rk_sdmmc_of.h"
 
-u32 mmc_debug_level;
+u32 mmc_debug_level= MMC_DBG_ERROR;//MMC_DBG_ALL;//set the value refer to file rk_sdmmc_of.h
+
 
 static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
-{
-    mmc_debug_level = MMC_DBG_ERROR;//MMC_DBG_ALL;//set the value refer to file rk_sdmmc_of.h
-    
-    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info start== 2014-03-12 14:23 ======");
+{    
+    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info start== 2014-03-14 15:51 ======");
  /*   
     MMC_DBG_BOOT_FUNC("mmc,caps: 0x%x",rk_mmc_property->mmc_caps);
     MMC_DBG_BOOT_FUNC("mmc,ocr:  0x%x",rk_mmc_property->mmc_ocr);

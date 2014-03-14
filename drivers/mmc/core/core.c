@@ -2369,6 +2369,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * if the card is being re-initialized, just send it.  CMD52
 	 * should be ignored by SD/eMMC cards.
 	 */
+#if 0
 	sdio_reset(host);
 	mmc_go_idle(host);
 
@@ -2381,6 +2382,30 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		return 0;
 	if (!mmc_attach_mmc(host))
 		return 0;
+#else
+    /*
+    * Simplifying the process of initializing the card.
+    * modifyed by xbw, at 2014-03-14
+    */
+	if(host->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
+	    sdio_reset(host);
+
+	mmc_go_idle(host);
+	
+	if(host->restrict_caps & (RESTRICT_CARD_TYPE_SDIO |RESTRICT_CARD_TYPE_SD))
+	    mmc_send_if_cond(host, host->ocr_avail);
+
+    /* Order's important: probe SDIO, then SD, then MMC */
+	if ((host->restrict_caps &RESTRICT_CARD_TYPE_SDIO) && !mmc_attach_sdio(host))
+		return 0;
+	if ((host->restrict_caps &RESTRICT_CARD_TYPE_SD) && !mmc_attach_sd(host))
+		return 0;
+	if ((host->restrict_caps &(RESTRICT_CARD_TYPE_EMMC|RESTRICT_CARD_TYPE_SD)) && !mmc_attach_mmc(host))
+		return 0;   
+#endif
+
+
+
 
 	mmc_power_off(host);
 	return -EIO;

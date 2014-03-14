@@ -58,9 +58,9 @@
 #define DW_MCI_FREQ_MAX	50000000//200000000	/* unit: HZ */
 #define DW_MCI_FREQ_MIN	300000//400000		/* unit: HZ */
 
-#define SDMMC_DATA_TIMEOUT_SD	500000; /*max is 250ms refer to Spec; Maybe adapt the value to the sick card.*/
-#define SDMMC_DATA_TIMEOUT_SDIO	250000
-#define SDMMC_DATA_TIMEOUT_EMMC	2500000
+#define SDMMC_DATA_TIMEOUT_SD	500; /*max is 250ms refer to Spec; Maybe adapt the value to the sick card.*/
+#define SDMMC_DATA_TIMEOUT_SDIO	250
+#define SDMMC_DATA_TIMEOUT_EMMC	2500
 
 #ifdef CONFIG_MMC_DW_IDMAC
 #define IDMAC_INT_CLR		(SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
@@ -856,8 +856,15 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 	host->current_speed = clock;
 
+    if(slot->ctype != slot->pre_ctype)
+            MMC_DBG_BOOT_FUNC("Bus speed=%dHz,Bus width=%s.[%s]", \
+                div ? ((host->bus_hz / div) >> 1):host->bus_hz, \
+                (slot->ctype == SDMMC_CTYPE_4BIT)?"4bits":"8bits", mmc_hostname(host->mmc));
+    slot->pre_ctype = slot->ctype;
+
 	/* Set the current slot bus width */
 	mci_writel(host, CTYPE, (slot->ctype << slot->id));
+
 }
 
 static void dw_mci_wait_unbusy(struct dw_mci *host)
@@ -1013,6 +1020,7 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	default:
 		/* set default 1 bit mode */
 		slot->ctype = SDMMC_CTYPE_1BIT;
+		slot->pre_ctype = SDMMC_CTYPE_1BIT;
 	}
 
 	regs = mci_readl(slot->host, UHS_REG);
@@ -1335,8 +1343,9 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
     MMC_DBG_CMD_FUNC(" command complete, cmd=%d,cmdError=0x%x [%s]",cmd->opcode, cmd->error,mmc_hostname(host->mmc));
 
 	if (cmd->error) {
-	    MMC_DBG_ERR_FUNC(" command complete, cmd=%d,cmdError=0x%x [%s]",\
-	        cmd->opcode, cmd->error,mmc_hostname(host->mmc));
+	    if(MMC_SEND_STATUS != cmd->opcode)
+    	    MMC_DBG_ERR_FUNC(" command complete, cmd=%d,cmdError=0x%x [%s]",\
+    	        cmd->opcode, cmd->error,mmc_hostname(host->mmc));
 	        
 		/* newer ip versions need a delay between retries */
 		if (host->quirks & DW_MCI_QUIRK_RETRY_DELAY)
@@ -1348,6 +1357,7 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 static void dw_mci_tasklet_func(unsigned long priv)
 {
 	struct dw_mci *host = (struct dw_mci *)priv;
+    struct dw_mci_slot *slot = mmc_priv(host->mmc);
 	struct mmc_data	*data;
 	struct mmc_command *cmd;
 	enum dw_mci_state state;
@@ -1447,9 +1457,11 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			set_bit(EVENT_DATA_COMPLETE, &host->completed_events);
 			status = host->data_status;
 
-			if (status & DW_MCI_DATA_ERROR_FLAGS) {		
-                MMC_DBG_ERR_FUNC("Pre-state[%d]-->NowState[%d]: DW_MCI_DATA_ERROR_FLAGS, datastatus=0x%x [%s]",\
-                        prev_state,state,status, mmc_hostname(host->mmc));
+			if (status & DW_MCI_DATA_ERROR_FLAGS) {	
+			    if((SDMMC_CTYPE_1BIT != slot->ctype)&&(MMC_SEND_EXT_CSD == host->mrq->cmd->opcode))
+                    MMC_DBG_ERR_FUNC("Pre-state[%d]-->NowState[%d]: DW_MCI_DATA_ERROR_FLAGS,datastatus=0x%x [%s]",\
+                            prev_state,state, status, mmc_hostname(host->mmc));
+                            
 		        if (status & SDMMC_INT_DRTO) {
 					data->error = -ETIMEDOUT;
 				} else if (status & SDMMC_INT_DCRC) {

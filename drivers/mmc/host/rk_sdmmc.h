@@ -281,6 +281,7 @@ struct dw_mci_slot {
 	int			wp_gpio;
     int         pwr_en_gpio;
 	u32			ctype;
+	u32         pre_ctype;
 
 	struct mmc_request	*mrq;
 	struct list_head	queue_node;
