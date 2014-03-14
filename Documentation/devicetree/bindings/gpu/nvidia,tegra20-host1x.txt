@@ -181,6 +181,7 @@ of the following host1x client modules:
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - dsi
+  - avdd-dsi-supply: phandle of a supply that powers the DSI controller
   - nvidia,mipi-calibrate: Should contain a phandle and a specifier specifying
     which pads are used by this DSI output and need to be calibrated. See also
     ../mipi/nvidia,tegra114-mipi.txt.

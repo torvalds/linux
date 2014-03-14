@@ -14,6 +14,8 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
+#include <linux/regulator/consumer.h>
+
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 
@@ -48,6 +50,8 @@ struct tegra_dsi {
 
 	struct tegra_mipi_device *mipi;
 	struct mipi_dsi_host host;
+
+	struct regulator *vdd;
 };
 
 static inline struct tegra_dsi *
@@ -821,6 +825,18 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	dsi->vdd = devm_regulator_get(&pdev->dev, "avdd-dsi-csi");
+	if (IS_ERR(dsi->vdd)) {
+		dev_err(&pdev->dev, "cannot get VDD supply\n");
+		return PTR_ERR(dsi->vdd);
+	}
+
+	err = regulator_enable(dsi->vdd);
+	if (err < 0) {
+		dev_err(&pdev->dev, "cannot enable VDD supply\n");
+		return err;
+	}
+
 	err = tegra_dsi_setup_clocks(dsi);
 	if (err < 0) {
 		dev_err(&pdev->dev, "cannot setup clocks\n");
@@ -876,6 +892,7 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 	mipi_dsi_host_unregister(&dsi->host);
 	tegra_mipi_free(dsi->mipi);
 
+	regulator_disable(dsi->vdd);
 	clk_disable_unprepare(dsi->clk_parent);
 	clk_disable_unprepare(dsi->clk_lp);
 	clk_disable_unprepare(dsi->clk);
