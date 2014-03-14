@@ -349,19 +349,16 @@ static void ahash_def_finup_finish2(struct ahash_request *req, int err)
 		memcpy(priv->result, req->result,
 		       crypto_ahash_digestsize(crypto_ahash_reqtfm(req)));
 
-	kzfree(priv);
+	ahash_restore_req(req);
 }
 
 static void ahash_def_finup_done2(struct crypto_async_request *req, int err)
 {
 	struct ahash_request *areq = req->data;
-	struct ahash_request_priv *priv = areq->priv;
-	crypto_completion_t complete = priv->complete;
-	void *data = priv->data;
 
 	ahash_def_finup_finish2(areq, err);
 
-	complete(data, err);
+	areq->base.complete(&areq->base, err);
 }
 
 static int ahash_def_finup_finish1(struct ahash_request *req, int err)
@@ -381,38 +378,23 @@ out:
 static void ahash_def_finup_done1(struct crypto_async_request *req, int err)
 {
 	struct ahash_request *areq = req->data;
-	struct ahash_request_priv *priv = areq->priv;
-	crypto_completion_t complete = priv->complete;
-	void *data = priv->data;
 
 	err = ahash_def_finup_finish1(areq, err);
 
-	complete(data, err);
+	areq->base.complete(&areq->base, err);
 }
 
 static int ahash_def_finup(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	unsigned long alignmask = crypto_ahash_alignmask(tfm);
-	unsigned int ds = crypto_ahash_digestsize(tfm);
-	struct ahash_request_priv *priv;
+	int err;
 
-	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
-		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
-		       GFP_KERNEL : GFP_ATOMIC);
-	if (!priv)
-		return -ENOMEM;
+	err = ahash_save_req(req, ahash_def_finup_done1);
+	if (err)
+		return err;
 
-	priv->result = req->result;
-	priv->complete = req->base.complete;
-	priv->data = req->base.data;
-
-	req->result = PTR_ALIGN((u8 *)priv->ubuf, alignmask + 1);
-	req->base.complete = ahash_def_finup_done1;
-	req->base.data = req;
-	req->priv = priv;
-
-	return ahash_def_finup_finish1(req, tfm->update(req));
+	err = tfm->update(req);
+	return ahash_def_finup_finish1(req, err);
 }
 
 static int ahash_no_export(struct ahash_request *req, void *out)
