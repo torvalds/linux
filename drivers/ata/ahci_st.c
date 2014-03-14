@@ -87,10 +87,11 @@ static int st_ahci_deassert_resets(struct device *dev)
 	return 0;
 }
 
-static void st_ahci_exit(struct device *dev)
+static void st_ahci_host_stop(struct ata_host *host)
 {
+	struct ahci_host_priv *hpriv = host->private_data;
+	struct device *dev = host->dev;
 	struct st_ahci_drv_data *drv_data = dev_get_drvdata(dev);
-	struct ahci_host_priv *hpriv = drv_data->hpriv;
 	int err;
 
 	if (drv_data->pwr) {
@@ -127,17 +128,21 @@ static int st_ahci_probe_resets(struct platform_device *pdev)
 	return st_ahci_deassert_resets(&pdev->dev);
 }
 
+static struct ata_port_operations st_ahci_port_ops = {
+	.inherits	= &ahci_platform_ops,
+	.host_stop	= st_ahci_host_stop,
+};
+
 static const struct ata_port_info st_ahci_port_info = {
 	.flags          = AHCI_FLAG_COMMON,
 	.pio_mask       = ATA_PIO4,
 	.udma_mask      = ATA_UDMA6,
-	.port_ops       = &ahci_platform_ops,
+	.port_ops       = &st_ahci_port_ops,
 };
 
 static int st_ahci_probe(struct platform_device *pdev)
 {
 	struct st_ahci_drv_data *drv_data;
-	struct ahci_platform_data *pdata;
 	struct ahci_host_priv *hpriv;
 	int err;
 
@@ -146,13 +151,6 @@ static int st_ahci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, drv_data);
-
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-
-	pdata->exit = st_ahci_exit;
-	pdev->dev.platform_data = pdata;
 
 	hpriv = ahci_platform_get_resources(pdev);
 	if (IS_ERR(hpriv))
