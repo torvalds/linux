@@ -2614,6 +2614,8 @@ static ssize_t srp_create_target(struct device *dev,
 	target->tl_retry_count	= 7;
 	target->queue_size	= SRP_DEFAULT_QUEUE_SIZE;
 
+	mutex_lock(&host->add_target_mutex);
+
 	ret = srp_parse_options(buf, target);
 	if (ret)
 		goto err;
@@ -2682,7 +2684,11 @@ static ssize_t srp_create_target(struct device *dev,
 		     be64_to_cpu(target->service_id),
 		     target->path.sgid.raw, target->path.dgid.raw);
 
-	return count;
+	ret = count;
+
+out:
+	mutex_unlock(&host->add_target_mutex);
+	return ret;
 
 err_disconnect:
 	srp_disconnect_target(target);
@@ -2698,8 +2704,7 @@ err_free_mem:
 
 err:
 	scsi_host_put(target_host);
-
-	return ret;
+	goto out;
 }
 
 static DEVICE_ATTR(add_target, S_IWUSR, NULL, srp_create_target);
@@ -2735,6 +2740,7 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 	INIT_LIST_HEAD(&host->target_list);
 	spin_lock_init(&host->target_lock);
 	init_completion(&host->released);
+	mutex_init(&host->add_target_mutex);
 	host->srp_dev = device;
 	host->port = port;
 
