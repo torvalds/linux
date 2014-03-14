@@ -133,7 +133,7 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	prd = div;
 	div *= duty_ns;
 	do_div(div, period_ns);
-	dty = div;
+	dty = prd - div;
 
 	ret = clk_enable(atmel_pwm->clk);
 	if (ret) {
