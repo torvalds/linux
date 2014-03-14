@@ -632,24 +632,6 @@ out:
 	return error;
 }
 
-/*
- * You have to be very careful that these write
- * counts get cleaned up in error cases and
- * upon __fput().  This should probably never
- * be called outside of __dentry_open().
- */
-static inline int __get_file_write_access(struct inode *inode,
-					  struct vfsmount *mnt)
-{
-	int error = get_write_access(inode);
-	if (error)
-		return error;
-	error = __mnt_want_write(mnt);
-	if (error)
-		put_write_access(inode);
-	return error;
-}
-
 int open_check_o_direct(struct file *f)
 {
 	/* NB: we're sure to have correct a_ops only after f_op->open */
@@ -680,9 +662,14 @@ static int do_dentry_open(struct file *f,
 	path_get(&f->f_path);
 	inode = f->f_inode = f->f_path.dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE && !special_file(inode->i_mode)) {
-		error = __get_file_write_access(inode, f->f_path.mnt);
+		error = get_write_access(inode);
 		if (error)
 			goto cleanup_file;
+		error = __mnt_want_write(f->f_path.mnt);
+		if (error) {
+			put_write_access(inode);
+			goto cleanup_file;
+		}
 	}
 
 	f->f_mapping = inode->i_mapping;
