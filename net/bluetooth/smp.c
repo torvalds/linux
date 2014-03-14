@@ -748,6 +748,11 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&smp->prsp[1], rsp, sizeof(*rsp));
 
+	/* Update remote key distribution in case the remote cleared
+	 * some bits that we had enabled in our request.
+	 */
+	smp->remote_key_dist &= rsp->resp_key_dist;
+
 	if ((req->auth_req & SMP_AUTH_BONDING) &&
 	    (rsp->auth_req & SMP_AUTH_BONDING))
 		auth = SMP_AUTH_BONDING;
