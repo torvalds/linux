@@ -204,8 +204,7 @@ static void AESv128(unsigned char *key, unsigned char *data, unsigned char *ciph
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);
 			xor_128(TmpdataB, abyRoundKey, ciphertext);
-		} else /* round 1 ~ 9 */
-		{
+		} else /* round 1 ~ 9 */{
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);
 			MixColumns(&TmpdataB[0], &TmpdataA[0]);
