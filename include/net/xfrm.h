@@ -349,6 +349,16 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
 struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
 void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
+struct xfrm_input_afinfo {
+	unsigned int		family;
+	struct module		*owner;
+	int			(*callback)(struct sk_buff *skb, u8 protocol,
+					    int err);
+};
+
+int xfrm_input_register_afinfo(struct xfrm_input_afinfo *afinfo);
+int xfrm_input_unregister_afinfo(struct xfrm_input_afinfo *afinfo);
+
 void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
 struct xfrm_type {
@@ -1392,6 +1402,7 @@ void xfrm4_init(void);
 int xfrm_state_init(struct net *net);
 void xfrm_state_fini(struct net *net);
 void xfrm4_state_init(void);
+void xfrm4_protocol_init(void);
 #ifdef CONFIG_XFRM
 int xfrm6_init(void);
 void xfrm6_fini(void);
@@ -1771,18 +1782,6 @@ static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 	if (m->m | m->v)
 		ret = nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
 	return ret;
-}
-
-static inline int xfrm_rcv_cb(struct sk_buff *skb, unsigned int family,
-			      u8 protocol, int err)
-{
-	switch(family) {
-#ifdef CONFIG_INET
-	case AF_INET:
-		return xfrm4_rcv_cb(skb, protocol, err);
-#endif
-	}
-	return 0;
 }
 
 static inline int xfrm_tunnel_check(struct sk_buff *skb, struct xfrm_state *x,
