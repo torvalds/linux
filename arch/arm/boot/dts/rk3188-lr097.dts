@@ -230,7 +230,6 @@
 
 &lcdc0 {
 	status = "okay";
-	power_ctr = <&disp_power_ctr>;
 };
 
 &lcdc1 {
