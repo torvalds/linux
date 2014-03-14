@@ -153,7 +153,6 @@ static struct bcm590xx_info bcm590xx_regs[] = {
 struct bcm590xx_reg {
 	struct regulator_desc *desc;
 	struct bcm590xx *mfd;
-	struct regulator_dev **rdev;
 	struct bcm590xx_info **info;
 };
 
@@ -334,13 +333,6 @@ static int bcm590xx_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	pmu->rdev = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
-			sizeof(struct regulator_dev *), GFP_KERNEL);
-	if (!pmu->rdev) {
-		dev_err(&pdev->dev, "Memory alloc fails for rdev\n");
-		return -ENOMEM;
-	}
-
 	info = bcm590xx_regs;
 
 	for (i = 0; i < BCM590XX_NUM_REGS; i++, info++) {
@@ -391,8 +383,6 @@ static int bcm590xx_probe(struct platform_device *pdev)
 				pdev->name);
 			return PTR_ERR(rdev);
 		}
-
-		pmu->rdev[i] = rdev;
 	}
 
 	return 0;
