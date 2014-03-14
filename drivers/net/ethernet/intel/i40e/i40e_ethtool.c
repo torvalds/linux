@@ -1189,6 +1189,12 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 		return -EINVAL;
 
 	fsp->flow_type = rule->flow_type;
+	if (fsp->flow_type == IP_USER_FLOW) {
+		fsp->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+		fsp->h_u.usr_ip4_spec.proto = 0;
+		fsp->m_u.usr_ip4_spec.proto = 0;
+	}
+
 	fsp->h_u.tcp_ip4_spec.psrc = rule->src_port;
 	fsp->h_u.tcp_ip4_spec.pdst = rule->dst_port;
 	fsp->h_u.tcp_ip4_spec.ip4src = rule->src_ip[0];
