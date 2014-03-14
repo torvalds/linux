@@ -2380,6 +2380,11 @@ static void caam_cra_exit(struct crypto_tfm *tfm)
 		dma_unmap_single(ctx->jrdev, ctx->sh_desc_givenc_dma,
 				 desc_bytes(ctx->sh_desc_givenc),
 				 DMA_TO_DEVICE);
+	if (ctx->key_dma &&
+	    !dma_mapping_error(ctx->jrdev, ctx->key_dma))
+		dma_unmap_single(ctx->jrdev, ctx->key_dma,
+				 ctx->enckeylen + ctx->split_key_pad_len,
+				 DMA_TO_DEVICE);
 
 	caam_jr_free(ctx->jrdev);
 }
