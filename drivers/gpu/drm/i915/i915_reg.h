@@ -244,7 +244,8 @@
 #define   MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
 #define   MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
 #define   MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
-#define   MI_SEMAPHORE_SYNC_INVALID  (3<<16)
+#define   MI_SEMAPHORE_SYNC_INVALID (3<<16)
+#define   MI_SEMAPHORE_SYNC_MASK    (3<<16)
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)

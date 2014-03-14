@@ -2501,6 +2501,23 @@ ring_idle(struct intel_ring_buffer *ring, u32 seqno)
 		i915_seqno_passed(seqno, ring_last_seqno(ring)));
 }
 
+static bool
+ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
+{
+	if (INTEL_INFO(dev)->gen >= 8) {
+		/*
+		 * FIXME: gen8 semaphore support - currently we don't emit
+		 * semaphores on bdw anyway, but this needs to be addressed when
+		 * we merge that code.
+		 */
+		return false;
+	} else {
+		ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
+		return ipehr == (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE |
+				 MI_SEMAPHORE_REGISTER);
+	}
+}
+
 static struct intel_ring_buffer *
 semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
 {
@@ -2509,8 +2526,7 @@ semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
 	int i;
 
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
-	if ((ipehr & ~(0x3 << 16)) !=
-	    (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE | MI_SEMAPHORE_REGISTER))
+	if (!ipehr_is_semaphore_wait(ring->dev, ipehr))
 		return NULL;
 
 	/*
