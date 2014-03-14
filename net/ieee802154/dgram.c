@@ -41,8 +41,8 @@ static DEFINE_RWLOCK(dgram_lock);
 struct dgram_sock {
 	struct sock sk;
 
-	struct ieee802154_addr src_addr;
-	struct ieee802154_addr dst_addr;
+	struct ieee802154_addr_sa src_addr;
+	struct ieee802154_addr_sa dst_addr;
 
 	unsigned int bound:1;
 	unsigned int want_ack:1;
@@ -113,7 +113,7 @@ static int dgram_bind(struct sock *sk, struct sockaddr *uaddr, int len)
 		goto out_put;
 	}
 
-	memcpy(&ro->src_addr, &addr->addr, sizeof(struct ieee802154_addr));
+	memcpy(&ro->src_addr, &addr->addr, sizeof(struct ieee802154_addr_sa));
 
 	ro->bound = 1;
 	err = 0;
@@ -181,7 +181,7 @@ static int dgram_connect(struct sock *sk, struct sockaddr *uaddr,
 		goto out;
 	}
 
-	memcpy(&ro->dst_addr, &addr->addr, sizeof(struct ieee802154_addr));
+	memcpy(&ro->dst_addr, &addr->addr, sizeof(struct ieee802154_addr_sa));
 
 out:
 	release_sock(sk);

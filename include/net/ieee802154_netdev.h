@@ -41,8 +41,8 @@ struct ieee802154_frag_info {
  */
 struct ieee802154_mac_cb {
 	u8 lqi;
-	struct ieee802154_addr sa;
-	struct ieee802154_addr da;
+	struct ieee802154_addr_sa sa;
+	struct ieee802154_addr_sa da;
 	u8 flags;
 	u8 seq;
 	struct ieee802154_frag_info frag_info;
@@ -95,16 +95,16 @@ struct ieee802154_mlme_ops {
 	/* The following fields are optional (can be NULL). */
 
 	int (*assoc_req)(struct net_device *dev,
-			struct ieee802154_addr *addr,
+			struct ieee802154_addr_sa *addr,
 			u8 channel, u8 page, u8 cap);
 	int (*assoc_resp)(struct net_device *dev,
-			struct ieee802154_addr *addr,
+			struct ieee802154_addr_sa *addr,
 			u16 short_addr, u8 status);
 	int (*disassoc_req)(struct net_device *dev,
-			struct ieee802154_addr *addr,
+			struct ieee802154_addr_sa *addr,
 			u8 reason);
 	int (*start_req)(struct net_device *dev,
-			struct ieee802154_addr *addr,
+			struct ieee802154_addr_sa *addr,
 			u8 channel, u8 page, u8 bcn_ord, u8 sf_ord,
 			u8 pan_coord, u8 blx, u8 coord_realign);
 	int (*scan_req)(struct net_device *dev,

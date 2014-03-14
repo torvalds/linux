@@ -40,7 +40,7 @@
 #include "ieee802154.h"
 
 int ieee802154_nl_assoc_indic(struct net_device *dev,
-		struct ieee802154_addr *addr, u8 cap)
+		struct ieee802154_addr_sa *addr, u8 cap)
 {
 	struct sk_buff *msg;
 
@@ -99,7 +99,7 @@ nla_put_failure:
 EXPORT_SYMBOL(ieee802154_nl_assoc_confirm);
 
 int ieee802154_nl_disassoc_indic(struct net_device *dev,
-		struct ieee802154_addr *addr, u8 reason)
+		struct ieee802154_addr_sa *addr, u8 reason)
 {
 	struct sk_buff *msg;
 
@@ -304,7 +304,7 @@ static struct net_device *ieee802154_nl_get_dev(struct genl_info *info)
 int ieee802154_associate_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
-	struct ieee802154_addr addr;
+	struct ieee802154_addr_sa addr;
 	u8 page;
 	int ret = -EOPNOTSUPP;
 
@@ -351,7 +351,7 @@ out:
 int ieee802154_associate_resp(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
-	struct ieee802154_addr addr;
+	struct ieee802154_addr_sa addr;
 	int ret = -EOPNOTSUPP;
 
 	if (!info->attrs[IEEE802154_ATTR_STATUS] ||
@@ -383,7 +383,7 @@ out:
 int ieee802154_disassociate_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
-	struct ieee802154_addr addr;
+	struct ieee802154_addr_sa addr;
 	int ret = -EOPNOTSUPP;
 
 	if ((!info->attrs[IEEE802154_ATTR_DEST_HW_ADDR] &&
@@ -425,7 +425,7 @@ out:
 int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
-	struct ieee802154_addr addr;
+	struct ieee802154_addr_sa addr;
 
 	u8 channel, bcn_ord, sf_ord;
 	u8 page;

@@ -6,8 +6,8 @@
 struct lowpan_create_arg {
 	__be16 tag;
 	u16 d_size;
-	const struct ieee802154_addr *src;
-	const struct ieee802154_addr *dst;
+	const struct ieee802154_addr_sa *src;
+	const struct ieee802154_addr_sa *dst;
 };
 
 /* Equivalent of ipv4 struct ip
@@ -17,11 +17,11 @@ struct lowpan_frag_queue {
 
 	__be16			tag;
 	u16			d_size;
-	struct ieee802154_addr	saddr;
-	struct ieee802154_addr	daddr;
+	struct ieee802154_addr_sa	saddr;
+	struct ieee802154_addr_sa	daddr;
 };
 
-static inline u32 ieee802154_addr_hash(const struct ieee802154_addr *a)
+static inline u32 ieee802154_addr_hash(const struct ieee802154_addr_sa *a)
 {
 	switch (a->addr_type) {
 	case IEEE802154_ADDR_LONG:
@@ -34,8 +34,9 @@ static inline u32 ieee802154_addr_hash(const struct ieee802154_addr *a)
 	}
 }
 
-static inline bool ieee802154_addr_addr_equal(const struct ieee802154_addr *a1,
-				   const struct ieee802154_addr *a2)
+static inline bool
+ieee802154_addr_addr_equal(const struct ieee802154_addr_sa *a1,
+			   const struct ieee802154_addr_sa *a2)
 {
 	if (a1->pan_id != a2->pan_id)
 		return false;

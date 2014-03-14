@@ -36,8 +36,8 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
 			     struct sk_buff *prev, struct net_device *dev);
 
 static unsigned int lowpan_hash_frag(__be16 tag, u16 d_size,
-				     const struct ieee802154_addr *saddr,
-				     const struct ieee802154_addr *daddr)
+				     const struct ieee802154_addr_sa *saddr,
+				     const struct ieee802154_addr_sa *daddr)
 {
 	u32 c;
 
@@ -103,7 +103,7 @@ out:
 
 static inline struct lowpan_frag_queue *
 fq_find(struct net *net, const struct ieee802154_frag_info *frag_info,
-	const struct ieee802154_addr *src, const struct ieee802154_addr *dst)
+	const struct ieee802154_addr_sa *src, const struct ieee802154_addr_sa *dst)
 {
 	struct inet_frag_queue *q;
 	struct lowpan_create_arg arg;

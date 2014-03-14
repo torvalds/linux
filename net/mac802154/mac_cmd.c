@@ -34,7 +34,7 @@
 #include "mac802154.h"
 
 static int mac802154_mlme_start_req(struct net_device *dev,
-				    struct ieee802154_addr *addr,
+				    struct ieee802154_addr_sa *addr,
 				    u8 channel, u8 page,
 				    u8 bcn_ord, u8 sf_ord,
 				    u8 pan_coord, u8 blx,

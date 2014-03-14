@@ -91,7 +91,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 {
 	const u8 *saddr = _saddr;
 	const u8 *daddr = _daddr;
-	struct ieee802154_addr sa, da;
+	struct ieee802154_addr_sa sa, da;
 
 	/* TODO:
 	 * if this package isn't ipv6 one, where should it be routed?
@@ -171,7 +171,7 @@ static int lowpan_give_skb_to_devices(struct sk_buff *skb,
 static int process_data(struct sk_buff *skb)
 {
 	u8 iphc0, iphc1;
-	const struct ieee802154_addr *_saddr, *_daddr;
+	const struct ieee802154_addr_sa *_saddr, *_daddr;
 
 	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
 	/* at least two bytes will be used for the encoding */

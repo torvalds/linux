@@ -132,9 +132,9 @@ static int mac802154_header_create(struct sk_buff *skb,
 				   const void *_saddr,
 				   unsigned len)
 {
-	const struct ieee802154_addr *saddr = _saddr;
-	const struct ieee802154_addr *daddr = _daddr;
-	struct ieee802154_addr dev_addr;
+	const struct ieee802154_addr_sa *saddr = _saddr;
+	const struct ieee802154_addr_sa *daddr = _daddr;
+	struct ieee802154_addr_sa dev_addr;
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	int pos = 2;
 	u8 head[MAC802154_FRAME_HARD_HEADER_LEN];
@@ -219,7 +219,7 @@ mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	const u8 *hdr = skb_mac_header(skb);
 	const u8 *tail = skb_tail_pointer(skb);
-	struct ieee802154_addr *addr = (struct ieee802154_addr *)haddr;
+	struct ieee802154_addr_sa *addr = (struct ieee802154_addr_sa *)haddr;
 	u16 fc;
 	int da_type;
 
@@ -304,7 +304,7 @@ mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 		goto malformed;
 	}
 
-	return sizeof(struct ieee802154_addr);
+	return sizeof(struct ieee802154_addr_sa);
 
 malformed:
 	pr_debug("malformed packet\n");

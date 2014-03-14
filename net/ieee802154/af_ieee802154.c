@@ -44,7 +44,7 @@
  * Utility function for families
  */
 struct net_device *ieee802154_get_dev(struct net *net,
-		struct ieee802154_addr *addr)
+		struct ieee802154_addr_sa *addr)
 {
 	struct net_device *dev = NULL;
 	struct net_device *tmp;
