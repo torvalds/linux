@@ -270,18 +270,20 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 	cache = (event >> EVENT_CACHE_SEL_SHIFT)  & EVENT_CACHE_SEL_MASK;
 	ebb   = (event >> EVENT_EBB_SHIFT)        & EVENT_EBB_MASK;
 
-	/* Clear the EBB bit in the event, so event checks work below */
-	event &= ~(EVENT_EBB_MASK << EVENT_EBB_SHIFT);
-
 	if (pmc) {
+		u64 base_event;
+
 		if (pmc > 6)
+			return -1;
+
+		/* Ignore Linux defined bits when checking event below */
+		base_event = event & ~(EVENT_EBB_MASK << EVENT_EBB_SHIFT);
+
+		if (pmc >= 5 && base_event != 0x500fa && base_event != 0x600f4)
 			return -1;
 
 		mask  |= CNST_PMC_MASK(pmc);
 		value |= CNST_PMC_VAL(pmc);
-
-		if (pmc >= 5 && event != 0x500fa && event != 0x600f4)
-			return -1;
 	}
 
 	if (pmc <= 4) {
