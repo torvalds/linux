@@ -848,10 +848,6 @@ static unsigned int nmk_gpio_irq_startup(struct irq_data *d)
 {
 	struct nmk_gpio_chip *nmk_chip = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&nmk_chip->chip, d->hwirq))
-		dev_err(nmk_chip->chip.dev,
-			"unable to lock HW IRQ %lu for IRQ\n",
-			d->hwirq);
 	clk_enable(nmk_chip->clk);
 	nmk_gpio_irq_unmask(d);
 	return 0;
@@ -863,6 +859,25 @@ static void nmk_gpio_irq_shutdown(struct irq_data *d)
 
 	nmk_gpio_irq_mask(d);
 	clk_disable(nmk_chip->clk);
+}
+
+static int nmk_gpio_irq_reqres(struct irq_data *d)
+{
+	struct nmk_gpio_chip *nmk_chip = irq_data_get_irq_chip_data(d);
+
+	if (gpio_lock_as_irq(&nmk_chip->chip, d->hwirq)) {
+		dev_err(nmk_chip->chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			d->hwirq);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void nmk_gpio_irq_relres(struct irq_data *d)
+{
+	struct nmk_gpio_chip *nmk_chip = irq_data_get_irq_chip_data(d);
+
 	gpio_unlock_as_irq(&nmk_chip->chip, d->hwirq);
 }
 
@@ -875,6 +890,8 @@ static struct irq_chip nmk_gpio_irq_chip = {
 	.irq_set_wake	= nmk_gpio_irq_set_wake,
 	.irq_startup	= nmk_gpio_irq_startup,
 	.irq_shutdown	= nmk_gpio_irq_shutdown,
+	.irq_request_resources = nmk_gpio_irq_reqres,
+	.irq_release_resources = nmk_gpio_irq_relres,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND,
 };
 

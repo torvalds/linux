@@ -233,23 +233,23 @@ static void pl061_irq_unmask(struct irq_data *d)
 	spin_unlock(&chip->lock);
 }
 
-static unsigned int pl061_irq_startup(struct irq_data *d)
+static int pl061_irq_reqres(struct irq_data *d)
 {
 	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&chip->gc, irqd_to_hwirq(d)))
+	if (gpio_lock_as_irq(&chip->gc, irqd_to_hwirq(d))) {
 		dev_err(chip->gc.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-	pl061_irq_unmask(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void pl061_irq_shutdown(struct irq_data *d)
+static void pl061_irq_relres(struct irq_data *d)
 {
 	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
 
-	pl061_irq_mask(d);
 	gpio_unlock_as_irq(&chip->gc, irqd_to_hwirq(d));
 }
 
@@ -258,8 +258,8 @@ static struct irq_chip pl061_irqchip = {
 	.irq_mask	= pl061_irq_mask,
 	.irq_unmask	= pl061_irq_unmask,
 	.irq_set_type	= pl061_irq_type,
-	.irq_startup	= pl061_irq_startup,
-	.irq_shutdown	= pl061_irq_shutdown,
+	.irq_request_resources = pl061_irq_reqres,
+	.irq_release_resources = pl061_irq_relres,
 };
 
 static int pl061_irq_map(struct irq_domain *d, unsigned int irq,

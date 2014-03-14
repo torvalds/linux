@@ -440,24 +440,24 @@ static void mcp23s08_irq_bus_unlock(struct irq_data *data)
 	mutex_unlock(&mcp->irq_lock);
 }
 
-static unsigned int mcp23s08_irq_startup(struct irq_data *data)
+static int mcp23s08_irq_reqres(struct irq_data *data)
 {
 	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
 
-	if (gpio_lock_as_irq(&mcp->chip, data->hwirq))
+	if (gpio_lock_as_irq(&mcp->chip, data->hwirq)) {
 		dev_err(mcp->chip.dev,
 			"unable to lock HW IRQ %lu for IRQ usage\n",
 			data->hwirq);
+		return -EINVAL;
+	}
 
-	mcp23s08_irq_unmask(data);
 	return 0;
 }
 
-static void mcp23s08_irq_shutdown(struct irq_data *data)
+static void mcp23s08_irq_relres(struct irq_data *data)
 {
 	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
 
-	mcp23s08_irq_mask(data);
 	gpio_unlock_as_irq(&mcp->chip, data->hwirq);
 }
 
@@ -468,8 +468,8 @@ static struct irq_chip mcp23s08_irq_chip = {
 	.irq_set_type = mcp23s08_irq_set_type,
 	.irq_bus_lock = mcp23s08_irq_bus_lock,
 	.irq_bus_sync_unlock = mcp23s08_irq_bus_unlock,
-	.irq_startup = mcp23s08_irq_startup,
-	.irq_shutdown = mcp23s08_irq_shutdown,
+	.irq_request_resources = mcp23s08_irq_reqres,
+	.irq_release_resources = mcp23s08_irq_relres,
 };
 
 static int mcp23s08_irq_setup(struct mcp23s08 *mcp)

@@ -324,6 +324,7 @@ static unsigned int adi_gpio_irq_startup(struct irq_data *d)
 
 	if (!port) {
 		pr_err("GPIO IRQ %d :Not exist\n", d->irq);
+		/* FIXME: negative return code will be ignored */
 		return -ENODEV;
 	}
 

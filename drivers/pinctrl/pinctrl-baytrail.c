@@ -371,23 +371,23 @@ static void byt_irq_mask(struct irq_data *d)
 {
 }
 
-static unsigned int byt_irq_startup(struct irq_data *d)
+static int byt_irq_reqres(struct irq_data *d)
 {
 	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&vg->chip, irqd_to_hwirq(d)))
+	if (gpio_lock_as_irq(&vg->chip, irqd_to_hwirq(d))) {
 		dev_err(vg->chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-	byt_irq_unmask(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void byt_irq_shutdown(struct irq_data *d)
+static void byt_irq_relres(struct irq_data *d)
 {
 	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
 
-	byt_irq_mask(d);
 	gpio_unlock_as_irq(&vg->chip, irqd_to_hwirq(d));
 }
 
@@ -396,8 +396,8 @@ static struct irq_chip byt_irqchip = {
 	.irq_mask = byt_irq_mask,
 	.irq_unmask = byt_irq_unmask,
 	.irq_set_type = byt_irq_type,
-	.irq_startup = byt_irq_startup,
-	.irq_shutdown = byt_irq_shutdown,
+	.irq_request_resources = byt_irq_reqres,
+	.irq_release_resources = byt_irq_relres,
 };
 
 static void byt_gpio_irq_init_hw(struct byt_gpio *vg)

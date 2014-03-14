@@ -136,26 +136,26 @@ static void dwapb_irq_disable(struct irq_data *d)
 	spin_unlock_irqrestore(&bgc->lock, flags);
 }
 
-static unsigned int dwapb_irq_startup(struct irq_data *d)
+static int dwapb_irq_reqres(struct irq_data *d)
 {
 	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
 	struct dwapb_gpio *gpio = igc->private;
 	struct bgpio_chip *bgc = &gpio->ports[0].bgc;
 
-	if (gpio_lock_as_irq(&bgc->gc, irqd_to_hwirq(d)))
+	if (gpio_lock_as_irq(&bgc->gc, irqd_to_hwirq(d))) {
 		dev_err(gpio->dev, "unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-	dwapb_irq_enable(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void dwapb_irq_shutdown(struct irq_data *d)
+static void dwapb_irq_relres(struct irq_data *d)
 {
 	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
 	struct dwapb_gpio *gpio = igc->private;
 	struct bgpio_chip *bgc = &gpio->ports[0].bgc;
 
-	dwapb_irq_disable(d);
 	gpio_unlock_as_irq(&bgc->gc, irqd_to_hwirq(d));
 }
 
@@ -255,8 +255,8 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	ct->chip.irq_set_type = dwapb_irq_set_type;
 	ct->chip.irq_enable = dwapb_irq_enable;
 	ct->chip.irq_disable = dwapb_irq_disable;
-	ct->chip.irq_startup = dwapb_irq_startup;
-	ct->chip.irq_shutdown = dwapb_irq_shutdown;
+	ct->chip.irq_request_resources = dwapb_irq_reqres;
+	ct->chip.irq_release_resources = dwapb_irq_relres;
 	ct->regs.ack = GPIO_PORTA_EOI;
 	ct->regs.mask = GPIO_INTMASK;
 

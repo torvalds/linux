@@ -301,23 +301,23 @@ static void lp_irq_disable(struct irq_data *d)
 	spin_unlock_irqrestore(&lg->lock, flags);
 }
 
-static unsigned int lp_irq_startup(struct irq_data *d)
+static int lp_irq_reqres(struct irq_data *d)
 {
 	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&lg->chip, irqd_to_hwirq(d)))
+	if (gpio_lock_as_irq(&lg->chip, irqd_to_hwirq(d))) {
 		dev_err(lg->chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-	lp_irq_enable(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void lp_irq_shutdown(struct irq_data *d)
+static void lp_irq_relres(struct irq_data *d)
 {
 	struct lp_gpio *lg = irq_data_get_irq_chip_data(d);
 
-	lp_irq_disable(d);
 	gpio_unlock_as_irq(&lg->chip, irqd_to_hwirq(d));
 }
 
@@ -328,8 +328,8 @@ static struct irq_chip lp_irqchip = {
 	.irq_enable = lp_irq_enable,
 	.irq_disable = lp_irq_disable,
 	.irq_set_type = lp_irq_type,
-	.irq_startup = lp_irq_startup,
-	.irq_shutdown = lp_irq_shutdown,
+	.irq_request_resources = lp_irq_reqres,
+	.irq_release_resources = lp_irq_relres,
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 

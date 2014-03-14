@@ -594,23 +594,23 @@ static int sirfsoc_gpio_irq_type(struct irq_data *d, unsigned type)
 	return 0;
 }
 
-static unsigned int sirfsoc_gpio_irq_startup(struct irq_data *d)
+static int sirfsoc_gpio_irq_reqres(struct irq_data *d)
 {
 	struct sirfsoc_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&bank->chip.gc, d->hwirq % SIRFSOC_GPIO_BANK_SIZE))
+	if (gpio_lock_as_irq(&bank->chip.gc, d->hwirq % SIRFSOC_GPIO_BANK_SIZE)) {
 		dev_err(bank->chip.gc.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
-	sirfsoc_gpio_irq_unmask(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void sirfsoc_gpio_irq_shutdown(struct irq_data *d)
+static void sirfsoc_gpio_irq_relres(struct irq_data *d)
 {
 	struct sirfsoc_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 
-	sirfsoc_gpio_irq_mask(d);
 	gpio_unlock_as_irq(&bank->chip.gc, d->hwirq % SIRFSOC_GPIO_BANK_SIZE);
 }
 
@@ -620,8 +620,8 @@ static struct irq_chip sirfsoc_irq_chip = {
 	.irq_mask = sirfsoc_gpio_irq_mask,
 	.irq_unmask = sirfsoc_gpio_irq_unmask,
 	.irq_set_type = sirfsoc_gpio_irq_type,
-	.irq_startup = sirfsoc_gpio_irq_startup,
-	.irq_shutdown = sirfsoc_gpio_irq_shutdown,
+	.irq_request_resources = sirfsoc_gpio_irq_reqres,
+	.irq_release_resources = sirfsoc_gpio_irq_relres,
 };
 
 static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
