@@ -22,7 +22,7 @@
 #define IEEE802154_NL_H
 
 struct net_device;
-struct ieee802154_addr_sa;
+struct ieee802154_addr;
 
 /**
  * ieee802154_nl_assoc_indic - Notify userland of an association request.
@@ -37,7 +37,7 @@ struct ieee802154_addr_sa;
  * Note: This is in section 7.3.1 of the IEEE 802.15.4-2006 document.
  */
 int ieee802154_nl_assoc_indic(struct net_device *dev,
-		struct ieee802154_addr_sa *addr, u8 cap);
+		struct ieee802154_addr *addr, u8 cap);
 
 /**
  * ieee802154_nl_assoc_confirm - Notify userland of association.
@@ -65,7 +65,7 @@ int ieee802154_nl_assoc_confirm(struct net_device *dev,
  * Note: This is in section 7.3.3 of the IEEE 802.15.4 document.
  */
 int ieee802154_nl_disassoc_indic(struct net_device *dev,
-		struct ieee802154_addr_sa *addr, u8 reason);
+		struct ieee802154_addr *addr, u8 reason);
 
 /**
  * ieee802154_nl_disassoc_confirm - Notify userland of disassociation

@@ -34,16 +34,16 @@
 #include "mac802154.h"
 
 static int mac802154_mlme_start_req(struct net_device *dev,
-				    struct ieee802154_addr_sa *addr,
+				    struct ieee802154_addr *addr,
 				    u8 channel, u8 page,
 				    u8 bcn_ord, u8 sf_ord,
 				    u8 pan_coord, u8 blx,
 				    u8 coord_realign)
 {
-	BUG_ON(addr->addr_type != IEEE802154_ADDR_SHORT);
+	BUG_ON(addr->mode != IEEE802154_ADDR_SHORT);
 
-	mac802154_dev_set_pan_id(dev, cpu_to_le16(addr->pan_id));
-	mac802154_dev_set_short_addr(dev, cpu_to_le16(addr->short_addr));
+	mac802154_dev_set_pan_id(dev, addr->pan_id);
+	mac802154_dev_set_short_addr(dev, addr->short_addr);
 	mac802154_dev_set_ieee_addr(dev);
 	mac802154_dev_set_page_channel(dev, page, channel);
 

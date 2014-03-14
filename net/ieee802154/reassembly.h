@@ -6,8 +6,8 @@
 struct lowpan_create_arg {
 	__be16 tag;
 	u16 d_size;
-	const struct ieee802154_addr_sa *src;
-	const struct ieee802154_addr_sa *dst;
+	const struct ieee802154_addr *src;
+	const struct ieee802154_addr *dst;
 };
 
 /* Equivalent of ipv4 struct ip
@@ -17,47 +17,21 @@ struct lowpan_frag_queue {
 
 	__be16			tag;
 	u16			d_size;
-	struct ieee802154_addr_sa	saddr;
-	struct ieee802154_addr_sa	daddr;
+	struct ieee802154_addr	saddr;
+	struct ieee802154_addr	daddr;
 };
 
-static inline u32 ieee802154_addr_hash(const struct ieee802154_addr_sa *a)
+static inline u32 ieee802154_addr_hash(const struct ieee802154_addr *a)
 {
-	switch (a->addr_type) {
+	switch (a->mode) {
 	case IEEE802154_ADDR_LONG:
-		return (__force u32)((((u32 *)a->hwaddr))[0] ^
-				      ((u32 *)(a->hwaddr))[1]);
+		return (((__force u64)a->extended_addr) >> 32) ^
+			(((__force u64)a->extended_addr) & 0xffffffff);
 	case IEEE802154_ADDR_SHORT:
 		return (__force u32)(a->short_addr);
 	default:
 		return 0;
 	}
-}
-
-static inline bool
-ieee802154_addr_addr_equal(const struct ieee802154_addr_sa *a1,
-			   const struct ieee802154_addr_sa *a2)
-{
-	if (a1->pan_id != a2->pan_id)
-		return false;
-
-	if (a1->addr_type != a2->addr_type)
-		return false;
-
-	switch (a1->addr_type) {
-	case IEEE802154_ADDR_LONG:
-		if (memcmp(a1->hwaddr, a2->hwaddr, IEEE802154_ADDR_LEN))
-			return false;
-		break;
-	case IEEE802154_ADDR_SHORT:
-		if (a1->short_addr != a2->short_addr)
-			return false;
-		break;
-	default:
-		return false;
-	}
-
-	return true;
 }
 
 int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type);

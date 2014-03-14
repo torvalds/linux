@@ -168,10 +168,11 @@ static int lowpan_give_skb_to_devices(struct sk_buff *skb,
 	return stat;
 }
 
-static int process_data(struct sk_buff *skb)
+static int process_data(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
 	u8 iphc0, iphc1;
-	const struct ieee802154_addr_sa *_saddr, *_daddr;
+	struct ieee802154_addr_sa sa, da;
+	void *sap, *dap;
 
 	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
 	/* at least two bytes will be used for the encoding */
@@ -184,14 +185,23 @@ static int process_data(struct sk_buff *skb)
 	if (lowpan_fetch_skb_u8(skb, &iphc1))
 		goto drop;
 
-	_saddr = &mac_cb(skb)->sa;
-	_daddr = &mac_cb(skb)->da;
+	ieee802154_addr_to_sa(&sa, &hdr->source);
+	ieee802154_addr_to_sa(&da, &hdr->dest);
 
-	return lowpan_process_data(skb, skb->dev, (u8 *)_saddr->hwaddr,
-				_saddr->addr_type, IEEE802154_ADDR_LEN,
-				(u8 *)_daddr->hwaddr, _daddr->addr_type,
-				IEEE802154_ADDR_LEN, iphc0, iphc1,
-				lowpan_give_skb_to_devices);
+	if (sa.addr_type == IEEE802154_ADDR_SHORT)
+		sap = &sa.short_addr;
+	else
+		sap = &sa.hwaddr;
+
+	if (da.addr_type == IEEE802154_ADDR_SHORT)
+		dap = &da.short_addr;
+	else
+		dap = &da.hwaddr;
+
+	return lowpan_process_data(skb, skb->dev, sap, sa.addr_type,
+				   IEEE802154_ADDR_LEN, dap, da.addr_type,
+				   IEEE802154_ADDR_LEN, iphc0, iphc1,
+				   lowpan_give_skb_to_devices);
 
 drop:
 	kfree_skb(skb);
@@ -438,12 +448,16 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sk_buff *local_skb;
+	struct ieee802154_hdr hdr;
 	int ret;
 
 	if (!netif_running(dev))
 		goto drop_skb;
 
 	if (dev->type != ARPHRD_IEEE802154)
+		goto drop_skb;
+
+	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
 		goto drop_skb;
 
 	local_skb = skb_clone(skb, GFP_ATOMIC);
@@ -466,14 +480,14 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		switch (skb->data[0] & 0xe0) {
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
-			ret = process_data(local_skb);
+			ret = process_data(local_skb, &hdr);
 			if (ret == NET_RX_DROP)
 				goto drop;
 			break;
 		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
 			ret = lowpan_frag_rcv(local_skb, LOWPAN_DISPATCH_FRAG1);
 			if (ret == 1) {
-				ret = process_data(local_skb);
+				ret = process_data(local_skb, &hdr);
 				if (ret == NET_RX_DROP)
 					goto drop;
 			}
@@ -481,7 +495,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 		case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
 			ret = lowpan_frag_rcv(local_skb, LOWPAN_DISPATCH_FRAGN);
 			if (ret == 1) {
-				ret = process_data(local_skb);
+				ret = process_data(local_skb, &hdr);
 				if (ret == NET_RX_DROP)
 					goto drop;
 			}

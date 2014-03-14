@@ -251,18 +251,18 @@ static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
 static int
 mac802154_subif_frame(struct mac802154_sub_if_data *sdata, struct sk_buff *skb)
 {
-	u16 span, sshort;
+	__le16 span, sshort;
 
 	pr_debug("getting packet via slave interface %s\n", sdata->dev->name);
 
 	spin_lock_bh(&sdata->mib_lock);
 
-	span = le16_to_cpu(sdata->pan_id);
-	sshort = le16_to_cpu(sdata->short_addr);
+	span = sdata->pan_id;
+	sshort = sdata->short_addr;
 
-	switch (mac_cb(skb)->da.addr_type) {
+	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
-		if (mac_cb(skb)->sa.addr_type != IEEE802154_ADDR_NONE)
+		if (mac_cb(skb)->dest.mode != IEEE802154_ADDR_NONE)
 			/* FIXME: check if we are PAN coordinator */
 			skb->pkt_type = PACKET_OTHERHOST;
 		else
@@ -270,23 +270,22 @@ mac802154_subif_frame(struct mac802154_sub_if_data *sdata, struct sk_buff *skb)
 			skb->pkt_type = PACKET_HOST;
 		break;
 	case IEEE802154_ADDR_LONG:
-		if (mac_cb(skb)->da.pan_id != span &&
-		    mac_cb(skb)->da.pan_id != IEEE802154_PANID_BROADCAST)
+		if (mac_cb(skb)->dest.pan_id != span &&
+		    mac_cb(skb)->dest.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST))
 			skb->pkt_type = PACKET_OTHERHOST;
-		else if (!memcmp(mac_cb(skb)->da.hwaddr, sdata->dev->dev_addr,
-				 IEEE802154_ADDR_LEN))
+		else if (mac_cb(skb)->dest.extended_addr == sdata->extended_addr)
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
 		break;
 	case IEEE802154_ADDR_SHORT:
-		if (mac_cb(skb)->da.pan_id != span &&
-		    mac_cb(skb)->da.pan_id != IEEE802154_PANID_BROADCAST)
+		if (mac_cb(skb)->dest.pan_id != span &&
+		    mac_cb(skb)->dest.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST))
 			skb->pkt_type = PACKET_OTHERHOST;
-		else if (mac_cb(skb)->da.short_addr == sshort)
+		else if (mac_cb(skb)->dest.short_addr == sshort)
 			skb->pkt_type = PACKET_HOST;
-		else if (mac_cb(skb)->da.short_addr ==
-					IEEE802154_ADDR_BROADCAST)
+		else if (mac_cb(skb)->dest.short_addr ==
+			  cpu_to_le16(IEEE802154_ADDR_BROADCAST))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -332,8 +331,8 @@ static void mac802154_print_addr(const char *name,
 
 static int mac802154_parse_frame_start(struct sk_buff *skb)
 {
-	struct ieee802154_hdr hdr;
 	int hlen;
+	struct ieee802154_hdr hdr;
 
 	hlen = ieee802154_hdr_pull(skb, &hdr);
 	if (hlen < 0)
@@ -346,9 +345,6 @@ static int mac802154_parse_frame_start(struct sk_buff *skb)
 
 	mac_cb(skb)->flags = hdr.fc.type;
 
-	ieee802154_addr_to_sa(&mac_cb(skb)->sa, &hdr.source);
-	ieee802154_addr_to_sa(&mac_cb(skb)->da, &hdr.dest);
-
 	if (hdr.fc.ack_request)
 		mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
 	if (hdr.fc.security_enabled)
@@ -356,6 +352,9 @@ static int mac802154_parse_frame_start(struct sk_buff *skb)
 
 	mac802154_print_addr("destination", &hdr.dest);
 	mac802154_print_addr("source", &hdr.source);
+
+	mac_cb(skb)->source = hdr.source;
+	mac_cb(skb)->dest = hdr.dest;
 
 	if (hdr.fc.security_enabled) {
 		u64 key;

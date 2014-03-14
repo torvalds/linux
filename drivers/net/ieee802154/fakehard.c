@@ -119,7 +119,7 @@ static u8 fake_get_dsn(const struct net_device *dev)
  *       802.15.4-2006 document.
  */
 static int fake_assoc_req(struct net_device *dev,
-		struct ieee802154_addr_sa *addr, u8 channel, u8 page, u8 cap)
+		struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
 	struct wpan_phy *phy = fake_to_phy(dev);
 
@@ -149,7 +149,7 @@ static int fake_assoc_req(struct net_device *dev,
  *       802.15.4-2006 document.
  */
 static int fake_assoc_resp(struct net_device *dev,
-		struct ieee802154_addr_sa *addr, __le16 short_addr, u8 status)
+		struct ieee802154_addr *addr, __le16 short_addr, u8 status)
 {
 	return 0;
 }
@@ -167,7 +167,7 @@ static int fake_assoc_resp(struct net_device *dev,
  *       document, with the reason described in 7.3.3.2.
  */
 static int fake_disassoc_req(struct net_device *dev,
-		struct ieee802154_addr_sa *addr, u8 reason)
+		struct ieee802154_addr *addr, u8 reason)
 {
 	return ieee802154_nl_disassoc_confirm(dev, IEEE802154_SUCCESS);
 }
@@ -192,7 +192,7 @@ static int fake_disassoc_req(struct net_device *dev,
  * document, with 7.3.8 describing coordinator realignment.
  */
 static int fake_start_req(struct net_device *dev,
-			  struct ieee802154_addr_sa *addr, u8 channel, u8 page,
+			  struct ieee802154_addr *addr, u8 channel, u8 page,
 			  u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx,
 			  u8 coord_realign)
 {
