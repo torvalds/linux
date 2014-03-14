@@ -60,7 +60,7 @@ config ATA_ACPI
 
 config SATA_ZPODD
 	bool "SATA Zero Power Optical Disc Drive (ZPODD) support"
-	depends on ATA_ACPI
+	depends on ATA_ACPI && PM_RUNTIME
 	default n
 	help
 	  This option adds support for SATA Zero Power Optical Disc
