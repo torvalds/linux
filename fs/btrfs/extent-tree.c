@@ -5745,6 +5745,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			"unable to find ref byte nr %llu parent %llu root %llu  owner %llu offset %llu",
 			bytenr, parent, root_objectid, owner_objectid,
 			owner_offset);
+		btrfs_abort_transaction(trans, extent_root, ret);
+		goto out;
 	} else {
 		btrfs_abort_transaction(trans, extent_root, ret);
 		goto out;
