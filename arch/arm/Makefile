@@ -337,3 +337,7 @@ kernel.img: zImage
 	$(srctree)/mkkrnlimg $(objtree)/zImage-dtb $(objtree)/kernel.img >/dev/null && \
 	rm -f $(objtree)/zImage-dtb
 	@echo '  Image:  kernel.img (with $*.dtb) is ready'
+
+%.img: %.dtb kernel.img
+	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb
+	@echo '  Image:  resource.img (with $*.dtb) is ready'
