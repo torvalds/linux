@@ -3511,6 +3511,7 @@ static int smack_key_permission(key_ref_t key_ref,
 	struct key *keyp;
 	struct smk_audit_info ad;
 	struct smack_known *tkp = smk_of_task(cred->security);
+	int request = 0;
 
 	keyp = key_ref_to_ptr(key_ref);
 	if (keyp == NULL)
@@ -3531,7 +3532,11 @@ static int smack_key_permission(key_ref_t key_ref,
 	ad.a.u.key_struct.key = keyp->serial;
 	ad.a.u.key_struct.key_desc = keyp->description;
 #endif
-	return smk_access(tkp, keyp->security, MAY_READWRITE, &ad);
+	if (perm & KEY_NEED_READ)
+		request = MAY_READ;
+	if (perm & (KEY_NEED_WRITE | KEY_NEED_LINK | KEY_NEED_SETATTR))
+		request = MAY_WRITE;
+	return smk_access(tkp, keyp->security, request, &ad);
 }
 #endif /* CONFIG_KEYS */
 
