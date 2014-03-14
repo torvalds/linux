@@ -909,14 +909,12 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	}
 
 	/* add a Virtual Device */
-	virtpcidev = kmalloc(sizeof(struct virtpci_dev), GFP_ATOMIC);
+	virtpcidev = kzalloc(sizeof(struct virtpci_dev), GFP_ATOMIC);
 	if (virtpcidev == NULL) {
 		LOGERR("can't add device - malloc FALLED\n");
 		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
 	}
-
-	memset(virtpcidev, 0, sizeof(struct virtpci_dev));
 
 	/* initialize stuff unique to virtpci_dev struct */
 	virtpcidev->devtype = devtype;

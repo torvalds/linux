@@ -1081,16 +1081,15 @@ bus_create(CONTROLVM_MESSAGE *inmsg)
 				 POSTCODE_SEVERITY_ERR);
 		RETINT(-CONTROLVM_RESP_ERROR_ALREADY_DONE);
 	}
-	pBusInfo = kmalloc(sizeof(VISORCHIPSET_BUS_INFO), GFP_KERNEL);
+	pBusInfo = kzalloc(sizeof(VISORCHIPSET_BUS_INFO), GFP_KERNEL);
 	if (pBusInfo == NULL) {
-		LOGERR("CONTROLVM_BUS_CREATE Failed: bus %lu kmalloc failed",
+		LOGERR("CONTROLVM_BUS_CREATE Failed: bus %lu kzalloc failed",
 		       busNo);
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
 		RETINT(-CONTROLVM_RESP_ERROR_KMALLOC_FAILED);
 	}
 
-	memset(pBusInfo, 0, sizeof(VISORCHIPSET_BUS_INFO));
 	INIT_LIST_HEAD(&pBusInfo->entry);
 	pBusInfo->busNo = busNo;
 	pBusInfo->devNo = cmd->createBus.deviceCount;
@@ -1231,7 +1230,7 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 				 POSTCODE_SEVERITY_ERR);
 		RETINT(-CONTROLVM_RESP_ERROR_BUS_INVALID);
 	}
-	pDevInfo = kmalloc(sizeof(VISORCHIPSET_DEVICE_INFO), GFP_KERNEL);
+	pDevInfo = kzalloc(sizeof(VISORCHIPSET_DEVICE_INFO), GFP_KERNEL);
 	if (pDevInfo == NULL) {
 		LOGERR("CONTROLVM_DEVICE_CREATE Failed: busNo=%lu, devNo=%lu kmaloc failed",
 		     busNo, devNo);
@@ -1239,7 +1238,7 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 				 POSTCODE_SEVERITY_ERR);
 		RETINT(-CONTROLVM_RESP_ERROR_KMALLOC_FAILED);
 	}
-	memset(pDevInfo, 0, sizeof(VISORCHIPSET_DEVICE_INFO));
+
 	INIT_LIST_HEAD(&pDevInfo->entry);
 	pDevInfo->busNo = busNo;
 	pDevInfo->devNo = devNo;

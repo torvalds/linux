@@ -85,12 +85,12 @@ visor_memregion_create_overlapped(MEMREGION *parent, ulong offset, ulong nbytes)
 		       __func__, offset, nbytes);
 		return NULL;
 	}
-	memregion = kmalloc(sizeof(MEMREGION), GFP_KERNEL|__GFP_NORETRY);
+	memregion = kzalloc(sizeof(MEMREGION), GFP_KERNEL|__GFP_NORETRY);
 	if (memregion == NULL) {
 		ERRDRV("%s allocation failed", __func__);
 		return NULL;
 	}
-	memset(memregion, 0, sizeof(MEMREGION));
+
 	memregion->physaddr = parent->physaddr + offset;
 	memregion->nbytes = nbytes;
 	memregion->mapped = ((u8 *) (parent->mapped)) + offset;

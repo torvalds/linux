@@ -1060,12 +1060,12 @@ virthba_slave_alloc(struct scsi_device *scsidev)
 		    (vdisk->next->lun == scsidev->lun))
 			return 0;
 	}
-	tmpvdisk = kmalloc(sizeof(struct virtdisk_info), GFP_ATOMIC);
+	tmpvdisk = kzalloc(sizeof(struct virtdisk_info), GFP_ATOMIC);
 	if (!tmpvdisk) {	/* error allocating */
 		LOGERR("Could not allocate memory for disk\n");
 		return 0;
 	}
-	memset(tmpvdisk, 0, sizeof(struct virtdisk_info));
+
 	tmpvdisk->channel = scsidev->channel;
 	tmpvdisk->id = scsidev->id;
 	tmpvdisk->lun = scsidev->lun;

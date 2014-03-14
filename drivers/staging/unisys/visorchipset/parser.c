@@ -65,7 +65,7 @@ parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
 			*tryAgain = TRUE;
 		RETPTR(NULL);
 	}
-	ctx = kmalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
+	ctx = kzalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
 	if (ctx == NULL) {
 		ERRDRV("%s (%s:%d) - failed to allocate %d bytes",
 		       __func__, __FILE__, __LINE__, allocbytes);
@@ -73,7 +73,7 @@ parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
 			*tryAgain = TRUE;
 		RETPTR(NULL);
 	}
-	memset(ctx, 0, allocbytes);
+
 	ctx->allocbytes = allocbytes;
 	ctx->param_bytes = bytes;
 	ctx->curr = NULL;
