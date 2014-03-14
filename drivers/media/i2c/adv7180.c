@@ -561,40 +561,44 @@ static int init_device(struct i2c_client *client, struct adv7180_state *state)
 		ret = i2c_smbus_write_byte_data(client, ADV7180_ADI_CTRL_REG,
 						ADV7180_ADI_CTRL_IRQ_SPACE);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		/* config the Interrupt pin to be active low */
 		ret = i2c_smbus_write_byte_data(client, ADV7180_ICONF1_ADI,
 						ADV7180_ICONF1_ACTIVE_LOW |
 						ADV7180_ICONF1_PSYNC_ONLY);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR1_ADI, 0);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR2_ADI, 0);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		/* enable AD change interrupts interrupts */
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR3_ADI,
 						ADV7180_IRQ3_AD_CHANGE);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR4_ADI, 0);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_ADI_CTRL_REG,
 						0);
 		if (ret < 0)
-			return ret;
+			goto err;
 	}
 
 	return 0;
+
+err:
+	free_irq(state->irq, state);
+	return ret;
 }
 
 static int adv7180_probe(struct i2c_client *client,
