@@ -1152,10 +1152,10 @@ struct clone_info {
 	struct bio *bio;
 	struct dm_io *io;
 	sector_t sector;
-	sector_t sector_count;
+	unsigned sector_count;
 };
 
-static void bio_setup_sector(struct bio *bio, sector_t sector, sector_t len)
+static void bio_setup_sector(struct bio *bio, sector_t sector, unsigned len)
 {
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_iter.bi_size = to_bytes(len);
@@ -1200,7 +1200,7 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci,
 
 static void __clone_and_map_simple_bio(struct clone_info *ci,
 				       struct dm_target *ti,
-				       unsigned target_bio_nr, sector_t len)
+				       unsigned target_bio_nr, unsigned len)
 {
 	struct dm_target_io *tio = alloc_tio(ci, ti, ci->bio->bi_max_vecs, target_bio_nr);
 	struct bio *clone = &tio->clone;
@@ -1218,7 +1218,7 @@ static void __clone_and_map_simple_bio(struct clone_info *ci,
 }
 
 static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
-				  unsigned num_bios, sector_t len)
+				  unsigned num_bios, unsigned len)
 {
 	unsigned target_bio_nr;
 
@@ -1283,7 +1283,7 @@ static int __send_changing_extent_only(struct clone_info *ci,
 				       is_split_required_fn is_split_required)
 {
 	struct dm_target *ti;
-	sector_t len;
+	unsigned len;
 	unsigned num_bios;
 
 	do {
@@ -1302,9 +1302,9 @@ static int __send_changing_extent_only(struct clone_info *ci,
 			return -EOPNOTSUPP;
 
 		if (is_split_required && !is_split_required(ti))
-			len = min(ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
+			len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
 		else
-			len = min(ci->sector_count, max_io_len(ci->sector, ti));
+			len = min((sector_t)ci->sector_count, max_io_len(ci->sector, ti));
 
 		__send_duplicate_bios(ci, ti, num_bios, len);
 
