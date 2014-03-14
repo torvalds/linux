@@ -670,6 +670,9 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 		fbi->cmap_static = of_property_read_bool(np, "cmap-static");
 
 		fbi->lscr1 = IMXFB_LSCR1_DEFAULT;
+
+		of_property_read_u32(np, "fsl,lpccr", &fbi->pwmr);
+
 		of_property_read_u32(np, "fsl,lscr1", &fbi->lscr1);
 
 		of_property_read_u32(np, "fsl,dmacr", &fbi->dmacr);
