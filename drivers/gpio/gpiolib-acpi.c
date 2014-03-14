@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 
 #include "gpiolib.h"
 
@@ -26,7 +27,20 @@ struct acpi_gpio_event {
 	unsigned int irq;
 };
 
+struct acpi_gpio_connection {
+	struct list_head node;
+	struct gpio_desc *desc;
+};
+
 struct acpi_gpio_chip {
+	/*
+	 * ACPICA requires that the first field of the context parameter
+	 * passed to acpi_install_address_space_handler() is large enough
+	 * to hold struct acpi_connection_info.
+	 */
+	struct acpi_connection_info conn_info;
+	struct list_head conns;
+	struct mutex conn_lock;
 	struct gpio_chip *chip;
 	struct list_head events;
 };
@@ -334,6 +348,153 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct device *dev, int index,
 	return lookup.desc ? lookup.desc : ERR_PTR(-ENOENT);
 }
 
+static acpi_status
+acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
+			    u32 bits, u64 *value, void *handler_context,
+			    void *region_context)
+{
+	struct acpi_gpio_chip *achip = region_context;
+	struct gpio_chip *chip = achip->chip;
+	struct acpi_resource_gpio *agpio;
+	struct acpi_resource *ares;
+	acpi_status status;
+	bool pull_up;
+	int i;
+
+	status = acpi_buffer_to_resource(achip->conn_info.connection,
+					 achip->conn_info.length, &ares);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	if (WARN_ON(ares->type != ACPI_RESOURCE_TYPE_GPIO)) {
+		ACPI_FREE(ares);
+		return AE_BAD_PARAMETER;
+	}
+
+	agpio = &ares->data.gpio;
+	pull_up = agpio->pin_config == ACPI_PIN_CONFIG_PULLUP;
+
+	if (WARN_ON(agpio->io_restriction == ACPI_IO_RESTRICT_INPUT &&
+	    function == ACPI_WRITE)) {
+		ACPI_FREE(ares);
+		return AE_BAD_PARAMETER;
+	}
+
+	for (i = 0; i < agpio->pin_table_length; i++) {
+		unsigned pin = agpio->pin_table[i];
+		struct acpi_gpio_connection *conn;
+		struct gpio_desc *desc;
+		bool found;
+
+		desc = gpiochip_get_desc(chip, pin);
+		if (IS_ERR(desc)) {
+			status = AE_ERROR;
+			goto out;
+		}
+
+		mutex_lock(&achip->conn_lock);
+
+		found = false;
+		list_for_each_entry(conn, &achip->conns, node) {
+			if (conn->desc == desc) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			int ret;
+
+			ret = gpiochip_request_own_desc(desc, "ACPI:OpRegion");
+			if (ret) {
+				status = AE_ERROR;
+				mutex_unlock(&achip->conn_lock);
+				goto out;
+			}
+
+			switch (agpio->io_restriction) {
+			case ACPI_IO_RESTRICT_INPUT:
+				gpiod_direction_input(desc);
+				break;
+			case ACPI_IO_RESTRICT_OUTPUT:
+				/*
+				 * ACPI GPIO resources don't contain an
+				 * initial value for the GPIO. Therefore we
+				 * deduce that value from the pull field
+				 * instead. If the pin is pulled up we
+				 * assume default to be high, otherwise
+				 * low.
+				 */
+				gpiod_direction_output(desc, pull_up);
+				break;
+			default:
+				/*
+				 * Assume that the BIOS has configured the
+				 * direction and pull accordingly.
+				 */
+				break;
+			}
+
+			conn = kzalloc(sizeof(*conn), GFP_KERNEL);
+			if (!conn) {
+				status = AE_NO_MEMORY;
+				gpiochip_free_own_desc(desc);
+				mutex_unlock(&achip->conn_lock);
+				goto out;
+			}
+
+			conn->desc = desc;
+			list_add_tail(&conn->node, &achip->conns);
+		}
+
+		mutex_unlock(&achip->conn_lock);
+
+		if (function == ACPI_WRITE)
+			gpiod_set_raw_value(desc, !!((1 << i) & *value));
+		else
+			*value |= gpiod_get_raw_value(desc) << i;
+	}
+
+out:
+	ACPI_FREE(ares);
+	return status;
+}
+
+static void acpi_gpiochip_request_regions(struct acpi_gpio_chip *achip)
+{
+	struct gpio_chip *chip = achip->chip;
+	acpi_handle handle = ACPI_HANDLE(chip->dev);
+	acpi_status status;
+
+	INIT_LIST_HEAD(&achip->conns);
+	mutex_init(&achip->conn_lock);
+	status = acpi_install_address_space_handler(handle, ACPI_ADR_SPACE_GPIO,
+						    acpi_gpio_adr_space_handler,
+						    NULL, achip);
+	if (ACPI_FAILURE(status))
+		dev_err(chip->dev, "Failed to install GPIO OpRegion handler\n");
+}
+
+static void acpi_gpiochip_free_regions(struct acpi_gpio_chip *achip)
+{
+	struct gpio_chip *chip = achip->chip;
+	acpi_handle handle = ACPI_HANDLE(chip->dev);
+	struct acpi_gpio_connection *conn, *tmp;
+	acpi_status status;
+
+	status = acpi_remove_address_space_handler(handle, ACPI_ADR_SPACE_GPIO,
+						   acpi_gpio_adr_space_handler);
+	if (ACPI_FAILURE(status)) {
+		dev_err(chip->dev, "Failed to remove GPIO OpRegion handler\n");
+		return;
+	}
+
+	list_for_each_entry_safe_reverse(conn, tmp, &achip->conns, node) {
+		gpiochip_free_own_desc(conn->desc);
+		list_del(&conn->node);
+		kfree(conn);
+	}
+}
+
 void acpi_gpiochip_add(struct gpio_chip *chip)
 {
 	struct acpi_gpio_chip *acpi_gpio;
@@ -361,6 +522,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 	}
 
 	acpi_gpiochip_request_interrupts(acpi_gpio);
+	acpi_gpiochip_request_regions(acpi_gpio);
 }
 
 void acpi_gpiochip_remove(struct gpio_chip *chip)
@@ -379,6 +541,7 @@ void acpi_gpiochip_remove(struct gpio_chip *chip)
 		return;
 	}
 
+	acpi_gpiochip_free_regions(acpi_gpio);
 	acpi_gpiochip_free_interrupts(acpi_gpio);
 
 	acpi_detach_data(handle, acpi_gpio_chip_dh);
