@@ -503,8 +503,11 @@ static int ebb_event_check(struct perf_event *event)
 		if (!leader->attr.pinned || !leader->attr.exclusive)
 			return -EINVAL;
 
-		if (event->attr.inherit || event->attr.sample_period ||
-		    event->attr.enable_on_exec || event->attr.freq)
+		if (event->attr.freq ||
+		    event->attr.inherit ||
+		    event->attr.sample_type ||
+		    event->attr.sample_period ||
+		    event->attr.enable_on_exec)
 			return -EINVAL;
 	}
 
