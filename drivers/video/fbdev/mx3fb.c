@@ -1496,7 +1496,7 @@ static int mx3fb_probe(struct platform_device *pdev)
 	if (!sdc_reg)
 		return -EINVAL;
 
-	mx3fb = kzalloc(sizeof(*mx3fb), GFP_KERNEL);
+	mx3fb = devm_kzalloc(&pdev->dev, sizeof(*mx3fb), GFP_KERNEL);
 	if (!mx3fb)
 		return -ENOMEM;
 
@@ -1542,7 +1542,6 @@ ersdc0:
 	dmaengine_put();
 	iounmap(mx3fb->reg_base);
 eremap:
-	kfree(mx3fb);
 	dev_err(dev, "mx3fb: failed to register fb\n");
 	return ret;
 }
@@ -1561,7 +1560,6 @@ static int mx3fb_remove(struct platform_device *dev)
 	dmaengine_put();
 
 	iounmap(mx3fb->reg_base);
-	kfree(mx3fb);
 	return 0;
 }
 
