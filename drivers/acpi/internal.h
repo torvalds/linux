@@ -169,13 +169,6 @@ static inline void suspend_nvs_restore(void) {}
 #endif
 
 /*--------------------------------------------------------------------------
-				Platform bus support
-  -------------------------------------------------------------------------- */
-struct platform_device;
-
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev);
-
-/*--------------------------------------------------------------------------
 					Video
   -------------------------------------------------------------------------- */
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
