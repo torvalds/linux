@@ -45,6 +45,7 @@ struct tegra_dsi {
 	struct drm_minor *minor;
 	struct dentry *debugfs;
 
+	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
 
@@ -248,8 +249,10 @@ static int tegra_dsi_debugfs_exit(struct tegra_dsi *dsi)
 #define PKT_LP		(1 << 30)
 #define NUM_PKT_SEQ	12
 
-/* non-burst mode with sync-end */
-static const u32 pkt_seq_vnb_syne[NUM_PKT_SEQ] = {
+/*
+ * non-burst mode with sync pulses
+ */
+static const u32 pkt_seq_video_non_burst_sync_pulses[NUM_PKT_SEQ] = {
 	[ 0] = PKT_ID0(MIPI_DSI_V_SYNC_START) | PKT_LEN0(0) |
 	       PKT_ID1(MIPI_DSI_BLANKING_PACKET) | PKT_LEN1(1) |
 	       PKT_ID2(MIPI_DSI_H_SYNC_END) | PKT_LEN2(0) |
@@ -282,6 +285,36 @@ static const u32 pkt_seq_vnb_syne[NUM_PKT_SEQ] = {
 	[11] = PKT_ID0(MIPI_DSI_BLANKING_PACKET) | PKT_LEN0(2) |
 	       PKT_ID1(MIPI_DSI_PACKED_PIXEL_STREAM_24) | PKT_LEN1(3) |
 	       PKT_ID2(MIPI_DSI_BLANKING_PACKET) | PKT_LEN2(4),
+};
+
+/*
+ * non-burst mode with sync events
+ */
+static const u32 pkt_seq_video_non_burst_sync_events[NUM_PKT_SEQ] = {
+	[ 0] = PKT_ID0(MIPI_DSI_V_SYNC_START) | PKT_LEN0(0) |
+	       PKT_ID1(MIPI_DSI_END_OF_TRANSMISSION) | PKT_LEN1(7) |
+	       PKT_LP,
+	[ 1] = 0,
+	[ 2] = PKT_ID0(MIPI_DSI_H_SYNC_START) | PKT_LEN0(0) |
+	       PKT_ID1(MIPI_DSI_END_OF_TRANSMISSION) | PKT_LEN1(7) |
+	       PKT_LP,
+	[ 3] = 0,
+	[ 4] = PKT_ID0(MIPI_DSI_H_SYNC_START) | PKT_LEN0(0) |
+	       PKT_ID1(MIPI_DSI_END_OF_TRANSMISSION) | PKT_LEN1(7) |
+	       PKT_LP,
+	[ 5] = 0,
+	[ 6] = PKT_ID0(MIPI_DSI_H_SYNC_START) | PKT_LEN0(0) |
+	       PKT_ID1(MIPI_DSI_BLANKING_PACKET) | PKT_LEN1(2) |
+	       PKT_ID2(MIPI_DSI_PACKED_PIXEL_STREAM_24) | PKT_LEN2(3),
+	[ 7] = PKT_ID0(MIPI_DSI_BLANKING_PACKET) | PKT_LEN0(4),
+	[ 8] = PKT_ID0(MIPI_DSI_H_SYNC_START) | PKT_LEN0(0) |
+	       PKT_ID1(MIPI_DSI_END_OF_TRANSMISSION) | PKT_LEN1(7) |
+	       PKT_LP,
+	[ 9] = 0,
+	[10] = PKT_ID0(MIPI_DSI_H_SYNC_START) | PKT_LEN0(0) |
+	       PKT_ID1(MIPI_DSI_BLANKING_PACKET) | PKT_LEN1(2) |
+	       PKT_ID2(MIPI_DSI_PACKED_PIXEL_STREAM_24) | PKT_LEN2(3),
+	[11] = PKT_ID0(MIPI_DSI_BLANKING_PACKET) | PKT_LEN0(4),
 };
 
 static int tegra_dsi_set_phy_timing(struct tegra_dsi *dsi)
@@ -398,11 +431,18 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 	struct drm_display_mode *mode = &dc->base.mode;
 	unsigned int hact, hsw, hbp, hfp, i, mul, div;
 	struct tegra_dsi *dsi = to_dsi(output);
-	/* FIXME: don't hardcode this */
-	const u32 *pkt_seq = pkt_seq_vnb_syne;
 	enum tegra_dsi_format format;
 	unsigned long value;
+	const u32 *pkt_seq;
 	int err;
+
+	if (dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
+		DRM_DEBUG_KMS("Non-burst video mode with sync pulses\n");
+		pkt_seq = pkt_seq_video_non_burst_sync_pulses;
+	} else {
+		DRM_DEBUG_KMS("Non-burst video mode with sync events\n");
+		pkt_seq = pkt_seq_video_non_burst_sync_events;
+	}
 
 	err = tegra_dsi_get_muldiv(dsi->format, &mul, &div);
 	if (err < 0)
@@ -728,6 +768,7 @@ static int tegra_dsi_host_attach(struct mipi_dsi_host *host,
 	struct tegra_dsi *dsi = host_to_tegra(host);
 	struct tegra_output *output = &dsi->output;
 
+	dsi->flags = device->mode_flags;
 	dsi->format = device->format;
 	dsi->lanes = device->lanes;
 
@@ -782,6 +823,7 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	 * attaches to the DSI host, the parameters will be taken from
 	 * the attached device.
 	 */
+	dsi->flags = MIPI_DSI_MODE_VIDEO;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = 4;
 
