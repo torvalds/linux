@@ -3165,9 +3165,7 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 			usleep_range(1000, 2000);
 		}
 		/* Skip if the queue is already in the requested state */
-		if (enable && (tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
-			continue;
-		if (!enable && !(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
+		if (enable == !!(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
 			continue;
 
 		/* turn on/off the queue */
@@ -3183,13 +3181,8 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		/* wait for the change to finish */
 		for (j = 0; j < 10; j++) {
 			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
-			if (enable) {
-				if ((tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
-					break;
-			} else {
-				if (!(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
-					break;
-			}
+			if (enable == !!(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
+				break;
 
 			udelay(10);
 		}
@@ -3228,15 +3221,9 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 			usleep_range(1000, 2000);
 		}
 
-		if (enable) {
-			/* is STAT set ? */
-			if ((rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
-				continue;
-		} else {
-			/* is !STAT set ? */
-			if (!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
-				continue;
-		}
+		/* Skip if the queue is already in the requested state */
+		if (enable == !!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
+			continue;
 
 		/* turn on/off the queue */
 		if (enable)
@@ -3249,13 +3236,8 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 		for (j = 0; j < 10; j++) {
 			rx_reg = rd32(hw, I40E_QRX_ENA(pf_q));
 
-			if (enable) {
-				if ((rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
-					break;
-			} else {
-				if (!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
-					break;
-			}
+			if (enable == !!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
+				break;
 
 			udelay(10);
 		}
