@@ -860,9 +860,10 @@ static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
 static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 {
 	unsigned int *wr, index;
+	unsigned long flags;
 
 	wmb();            /* write descriptors before telling HW */
-	spin_lock(&q->db_lock);
+	spin_lock_irqsave(&q->db_lock, flags);
 	if (!q->db_disabled) {
 		if (is_t4(adap->params.chip)) {
 			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
@@ -878,9 +879,10 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 				writel(n,  adap->bar2 + q->udb + 8);
 			wmb();
 		}
-	}
+	} else
+		q->db_pidx_inc += n;
 	q->db_pidx = q->pidx;
-	spin_unlock(&q->db_lock);
+	spin_unlock_irqrestore(&q->db_lock, flags);
 }
 
 /**

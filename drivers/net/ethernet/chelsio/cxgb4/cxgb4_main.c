@@ -3578,14 +3578,25 @@ static void drain_db_fifo(struct adapter *adap, int usecs)
 
 static void disable_txq_db(struct sge_txq *q)
 {
-	spin_lock_irq(&q->db_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->db_lock, flags);
 	q->db_disabled = 1;
-	spin_unlock_irq(&q->db_lock);
+	spin_unlock_irqrestore(&q->db_lock, flags);
 }
 
-static void enable_txq_db(struct sge_txq *q)
+static void enable_txq_db(struct adapter *adap, struct sge_txq *q)
 {
 	spin_lock_irq(&q->db_lock);
+	if (q->db_pidx_inc) {
+		/* Make sure that all writes to the TX descriptors
+		 * are committed before we tell HW about them.
+		 */
+		wmb();
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+			     QID(q->cntxt_id) | PIDX(q->db_pidx_inc));
+		q->db_pidx_inc = 0;
+	}
 	q->db_disabled = 0;
 	spin_unlock_irq(&q->db_lock);
 }
@@ -3607,11 +3618,32 @@ static void enable_dbs(struct adapter *adap)
 	int i;
 
 	for_each_ethrxq(&adap->sge, i)
-		enable_txq_db(&adap->sge.ethtxq[i].q);
+		enable_txq_db(adap, &adap->sge.ethtxq[i].q);
 	for_each_ofldrxq(&adap->sge, i)
-		enable_txq_db(&adap->sge.ofldtxq[i].q);
+		enable_txq_db(adap, &adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
-		enable_txq_db(&adap->sge.ctrlq[i].q);
+		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
+}
+
+static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
+{
+	if (adap->uld_handle[CXGB4_ULD_RDMA])
+		ulds[CXGB4_ULD_RDMA].control(adap->uld_handle[CXGB4_ULD_RDMA],
+				cmd);
+}
+
+static void process_db_full(struct work_struct *work)
+{
+	struct adapter *adap;
+
+	adap = container_of(work, struct adapter, db_full_task);
+
+	drain_db_fifo(adap, dbfifo_drain_delay);
+	enable_dbs(adap);
+	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
+	t4_set_reg_field(adap, SGE_INT_ENABLE3,
+			 DBFIFO_HP_INT | DBFIFO_LP_INT,
+			 DBFIFO_HP_INT | DBFIFO_LP_INT);
 }
 
 static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
@@ -3619,7 +3651,7 @@ static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
 	u16 hw_pidx, hw_cidx;
 	int ret;
 
-	spin_lock_bh(&q->db_lock);
+	spin_lock_irq(&q->db_lock);
 	ret = read_eq_indices(adap, (u16)q->cntxt_id, &hw_pidx, &hw_cidx);
 	if (ret)
 		goto out;
@@ -3636,7 +3668,8 @@ static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
 	}
 out:
 	q->db_disabled = 0;
-	spin_unlock_bh(&q->db_lock);
+	q->db_pidx_inc = 0;
+	spin_unlock_irq(&q->db_lock);
 	if (ret)
 		CH_WARN(adap, "DB drop recovery failed.\n");
 }
@@ -3652,29 +3685,6 @@ static void recover_all_queues(struct adapter *adap)
 		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
 }
 
-static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
-{
-	mutex_lock(&uld_mutex);
-	if (adap->uld_handle[CXGB4_ULD_RDMA])
-		ulds[CXGB4_ULD_RDMA].control(adap->uld_handle[CXGB4_ULD_RDMA],
-				cmd);
-	mutex_unlock(&uld_mutex);
-}
-
-static void process_db_full(struct work_struct *work)
-{
-	struct adapter *adap;
-
-	adap = container_of(work, struct adapter, db_full_task);
-
-	notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
-	drain_db_fifo(adap, dbfifo_drain_delay);
-	t4_set_reg_field(adap, SGE_INT_ENABLE3,
-			 DBFIFO_HP_INT | DBFIFO_LP_INT,
-			 DBFIFO_HP_INT | DBFIFO_LP_INT);
-	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
-}
-
 static void process_db_drop(struct work_struct *work)
 {
 	struct adapter *adap;
@@ -3682,11 +3692,13 @@ static void process_db_drop(struct work_struct *work)
 	adap = container_of(work, struct adapter, db_drop_task);
 
 	if (is_t4(adap->params.chip)) {
-		disable_dbs(adap);
+		drain_db_fifo(adap, dbfifo_drain_delay);
 		notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
-		drain_db_fifo(adap, 1);
+		drain_db_fifo(adap, dbfifo_drain_delay);
 		recover_all_queues(adap);
+		drain_db_fifo(adap, dbfifo_drain_delay);
 		enable_dbs(adap);
+		notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
 	} else {
 		u32 dropped_db = t4_read_reg(adap, 0x010ac);
 		u16 qid = (dropped_db >> 15) & 0x1ffff;
@@ -3727,6 +3739,8 @@ static void process_db_drop(struct work_struct *work)
 void t4_db_full(struct adapter *adap)
 {
 	if (is_t4(adap->params.chip)) {
+		disable_dbs(adap);
+		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
 		t4_set_reg_field(adap, SGE_INT_ENABLE3,
 				 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
 		queue_work(workq, &adap->db_full_task);
@@ -3735,8 +3749,11 @@ void t4_db_full(struct adapter *adap)
 
 void t4_db_dropped(struct adapter *adap)
 {
-	if (is_t4(adap->params.chip))
-		queue_work(workq, &adap->db_drop_task);
+	if (is_t4(adap->params.chip)) {
+		disable_dbs(adap);
+		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
+	}
+	queue_work(workq, &adap->db_drop_task);
 }
 
 static void uld_attach(struct adapter *adap, unsigned int uld)
