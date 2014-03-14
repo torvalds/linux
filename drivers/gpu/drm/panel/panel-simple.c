@@ -106,7 +106,7 @@ static int panel_simple_disable(struct drm_panel *panel)
 	}
 
 	if (p->enable_gpio)
-		gpiod_set_value(p->enable_gpio, 0);
+		gpiod_set_value_cansleep(p->enable_gpio, 0);
 
 	regulator_disable(p->supply);
 	p->enabled = false;
@@ -129,7 +129,7 @@ static int panel_simple_enable(struct drm_panel *panel)
 	}
 
 	if (p->enable_gpio)
-		gpiod_set_value(p->enable_gpio, 1);
+		gpiod_set_value_cansleep(p->enable_gpio, 1);
 
 	if (p->backlight) {
 		p->backlight->props.power = FB_BLANK_UNBLANK;
