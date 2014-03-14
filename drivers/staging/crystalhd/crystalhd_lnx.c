@@ -153,7 +153,8 @@ static int chd_dec_fetch_cdata(struct crystalhd_adp *adp,
 
 	io->add_cdata_sz = m_sz;
 	ua_off = ua + sizeof(io->udata);
-	rc = crystalhd_user_data((void __user *)ua_off, io->add_cdata, io->add_cdata_sz, 0);
+	rc = crystalhd_user_data((void __user *)ua_off, io->add_cdata,
+			io->add_cdata_sz, 0);
 	if (rc) {
 		BCMLOG_ERR("failed to pull add_cdata sz:%x ua_off:%x\n",
 			   io->add_cdata_sz, (unsigned int)ua_off);
@@ -208,7 +209,8 @@ static int chd_dec_proc_user_data(struct crystalhd_adp *adp,
 		return -EINVAL;
 	}
 
-	rc = crystalhd_user_data((void __user *)ua, &io->udata, sizeof(io->udata), set);
+	rc = crystalhd_user_data((void __user *)ua, &io->udata,
+			sizeof(io->udata), set);
 	if (rc) {
 		BCMLOG_ERR("failed to %s iodata\n", (set ? "set" : "get"));
 		return rc;
@@ -546,9 +548,10 @@ static int chd_dec_pci_probe(struct pci_dev *pdev,
 	int rc;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 
-	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x s_vendor:0x%04x s_device: 0x%04x\n",
-	       pdev->vendor, pdev->device, pdev->subsystem_vendor,
-	       pdev->subsystem_device);
+	BCMLOG(BCMLOG_DBG,
+		"PCI_INFO: Vendor:0x%04x Device:0x%04x s_vendor:0x%04x s_device: 0x%04x\n",
+		pdev->vendor, pdev->device, pdev->subsystem_vendor,
+		pdev->subsystem_device);
 
 	pinfo = kzalloc(sizeof(struct crystalhd_adp), GFP_KERNEL);
 	if (!pinfo) {
