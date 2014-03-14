@@ -177,42 +177,11 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_mode = mode;
 	file->f_op = fop;
-
-	/*
-	 * These mounts don't really matter in practice
-	 * for r/o bind mounts.  They aren't userspace-
-	 * visible.  We do this for consistency, and so
-	 * that we can do debugging checks at __fput()
-	 */
-	if ((mode & FMODE_WRITE) && !special_file(path->dentry->d_inode->i_mode)) {
-		WARN_ON(mnt_clone_write(path->mnt));
-	}
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		i_readcount_inc(path->dentry->d_inode);
 	return file;
 }
 EXPORT_SYMBOL(alloc_file);
-
-/**
- * drop_file_write_access - give up ability to write to a file
- * @file: the file to which we will stop writing
- *
- * This is a central place which will give up the ability
- * to write to @file, along with access to write through
- * its vfsmount.
- */
-static void drop_file_write_access(struct file *file)
-{
-	struct vfsmount *mnt = file->f_path.mnt;
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
-
-	if (special_file(inode->i_mode))
-		return;
-
-	put_write_access(inode);
-	__mnt_drop_write(mnt);
-}
 
 /* the real guts of fput() - releasing the last reference to file
  */
@@ -248,8 +217,10 @@ static void __fput(struct file *file)
 	put_pid(file->f_owner.pid);
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		i_readcount_dec(inode);
-	if (file->f_mode & FMODE_WRITE)
-		drop_file_write_access(file);
+	if (file->f_mode & FMODE_WRITER) {
+		put_write_access(inode);
+		__mnt_drop_write(mnt);
+	}
 	file->f_path.dentry = NULL;
 	file->f_path.mnt = NULL;
 	file->f_inode = NULL;

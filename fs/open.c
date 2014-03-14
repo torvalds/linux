@@ -670,6 +670,7 @@ static int do_dentry_open(struct file *f,
 			put_write_access(inode);
 			goto cleanup_file;
 		}
+		f->f_mode |= FMODE_WRITER;
 	}
 
 	f->f_mapping = inode->i_mapping;
@@ -715,11 +716,9 @@ static int do_dentry_open(struct file *f,
 
 cleanup_all:
 	fops_put(f->f_op);
-	if (f->f_mode & FMODE_WRITE) {
-		if (!special_file(inode->i_mode)) {
-			put_write_access(inode);
-			__mnt_drop_write(f->f_path.mnt);
-		}
+	if (f->f_mode & FMODE_WRITER) {
+		put_write_access(inode);
+		__mnt_drop_write(f->f_path.mnt);
 	}
 cleanup_file:
 	path_put(&f->f_path);
