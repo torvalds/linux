@@ -683,7 +683,6 @@ static int do_dentry_open(struct file *f,
 		error = __get_file_write_access(inode, f->f_path.mnt);
 		if (error)
 			goto cleanup_file;
-		file_take_write(f);
 	}
 
 	f->f_mapping = inode->i_mapping;
@@ -731,14 +730,7 @@ cleanup_all:
 	fops_put(f->f_op);
 	if (f->f_mode & FMODE_WRITE) {
 		if (!special_file(inode->i_mode)) {
-			/*
-			 * We don't consider this a real
-			 * mnt_want/drop_write() pair
-			 * because it all happenend right
-			 * here, so just reset the state.
-			 */
 			put_write_access(inode);
-			file_reset_write(f);
 			__mnt_drop_write(f->f_path.mnt);
 		}
 	}
