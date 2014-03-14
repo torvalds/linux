@@ -443,18 +443,9 @@ static void vti6_link_config(struct ip6_tnl *t)
 	struct dst_entry *dst;
 	struct net_device *dev = t->dev;
 	struct __ip6_tnl_parm *p = &t->parms;
-	struct flowi6 *fl6 = &t->fl.u.ip6;
 
 	memcpy(dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
 	memcpy(dev->broadcast, &p->raddr, sizeof(struct in6_addr));
-
-	/* Set up flowi template */
-	fl6->saddr = p->laddr;
-	fl6->daddr = p->raddr;
-	fl6->flowi6_oif = p->link;
-	fl6->flowi6_mark = be32_to_cpu(p->i_key);
-	fl6->flowi6_proto = p->proto;
-	fl6->flowlabel = 0;
 
 	p->flags &= ~(IP6_TNL_F_CAP_XMIT | IP6_TNL_F_CAP_RCV |
 		      IP6_TNL_F_CAP_PER_PACKET);
@@ -466,28 +457,6 @@ static void vti6_link_config(struct ip6_tnl *t)
 		dev->flags &= ~IFF_POINTOPOINT;
 
 	dev->iflink = p->link;
-
-	if (p->flags & IP6_TNL_F_CAP_XMIT) {
-
-		dst = ip6_route_output(dev_net(dev), NULL, fl6);
-		if (dst->error)
-			return;
-
-		dst = xfrm_lookup(dev_net(dev), dst, flowi6_to_flowi(fl6),
-				  NULL, 0);
-		if (IS_ERR(dst))
-			return;
-
-		if (dst->dev) {
-			dev->hard_header_len = dst->dev->hard_header_len;
-
-			dev->mtu = dst_mtu(dst);
-
-			if (dev->mtu < IPV6_MIN_MTU)
-				dev->mtu = IPV6_MIN_MTU;
-		}
-		dst_release(dst);
-	}
 }
 
 /**
