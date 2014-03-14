@@ -416,6 +416,13 @@ config REGULATOR_RC5T583
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
 
+config REGULATOR_S2MPA01
+	tristate "Samsung S2MPA01 voltage regulator"
+	depends on MFD_SEC_CORE
+	help
+	 This driver controls Samsung S2MPA01 voltage output regulator
+	 via I2C bus. S2MPA01 has 10 Bucks and 26 LDO outputs.
+
 config REGULATOR_S2MPS11
 	tristate "Samsung S2MPS11 voltage regulator"
 	depends on MFD_SEC_CORE
