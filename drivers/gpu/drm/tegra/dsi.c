@@ -53,6 +53,7 @@ struct tegra_dsi {
 	struct mipi_dsi_host host;
 
 	struct regulator *vdd;
+	bool enabled;
 };
 
 static inline struct tegra_dsi *
@@ -436,6 +437,9 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 	const u32 *pkt_seq;
 	int err;
 
+	if (dsi->enabled)
+		return 0;
+
 	if (dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
 		DRM_DEBUG_KMS("Non-burst video mode with sync pulses\n");
 		pkt_seq = pkt_seq_video_non_burst_sync_pulses;
@@ -530,6 +534,8 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 	value |= DSI_POWER_CONTROL_ENABLE;
 	tegra_dsi_writel(dsi, value, DSI_POWER_CONTROL);
 
+	dsi->enabled = true;
+
 	return 0;
 }
 
@@ -538,6 +544,9 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct tegra_dsi *dsi = to_dsi(output);
 	unsigned long value;
+
+	if (!dsi->enabled)
+		return 0;
 
 	/* disable DSI controller */
 	value = tegra_dsi_readl(dsi, DSI_POWER_CONTROL);
@@ -567,6 +576,8 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 	}
 
 	clk_disable(dsi->clk);
+
+	dsi->enabled = false;
 
 	return 0;
 }
