@@ -376,6 +376,29 @@ vti6_addr_conflict(const struct ip6_tnl *t, const struct ipv6hdr *hdr)
 	return ipv6_addr_equal(&t->parms.raddr, &hdr->saddr);
 }
 
+static bool vti6_state_check(const struct xfrm_state *x,
+			     const struct in6_addr *dst,
+			     const struct in6_addr *src)
+{
+	xfrm_address_t *daddr = (xfrm_address_t *)dst;
+	xfrm_address_t *saddr = (xfrm_address_t *)src;
+
+	/* if there is no transform then this tunnel is not functional.
+	 * Or if the xfrm is not mode tunnel.
+	 */
+	if (!x || x->props.mode != XFRM_MODE_TUNNEL ||
+	    x->props.family != AF_INET6)
+		return false;
+
+	if (ipv6_addr_any(dst))
+		return xfrm_addr_equal(saddr, &x->props.saddr, AF_INET6);
+
+	if (!xfrm_state_addr_check(x, daddr, saddr, AF_INET6))
+		return false;
+
+	return true;
+}
+
 /**
  * vti6_xmit - send a packet
  *   @skb: the outgoing socket buffer
@@ -402,7 +425,7 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 		goto tx_err_link_failure;
 	}
 
-	if (!dst->xfrm || dst->xfrm->props.mode != XFRM_MODE_TUNNEL)
+	if (!vti6_state_check(dst->xfrm, &t->parms.raddr, &t->parms.laddr))
 		goto tx_err_link_failure;
 
 	tdev = dst->dev;
