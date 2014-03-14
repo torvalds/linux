@@ -949,6 +949,7 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(dsi->clk_parent);
 	clk_disable_unprepare(dsi->clk_lp);
 	clk_disable_unprepare(dsi->clk);
+	reset_control_assert(dsi->rst);
 
 	err = tegra_output_remove(&dsi->output);
 	if (err < 0) {
