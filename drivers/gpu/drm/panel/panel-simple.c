@@ -425,6 +425,7 @@ static struct platform_driver panel_simple_platform_driver = {
 struct panel_desc_dsi {
 	struct panel_desc desc;
 
+	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
 };
@@ -451,6 +452,7 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 			.height = 136,
 		},
 	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 };
@@ -481,6 +483,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	if (err < 0)
 		return err;
 
+	dsi->mode_flags = desc->flags;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
