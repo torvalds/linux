@@ -4005,10 +4005,6 @@ out1:
 	map->m_pblk = newblock;
 	map->m_len = allocated;
 out2:
-	if (path) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-	}
 	return err ? err : allocated;
 }
 
@@ -4208,7 +4204,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 				err = ret;
 			else
 				allocated = ret;
-			goto out3;
+			goto out2;
 		}
 	}
 
@@ -4489,7 +4485,6 @@ out2:
 		kfree(path);
 	}
 
-out3:
 	trace_ext4_ext_map_blocks_exit(inode, flags, map,
 				       err ? err : allocated);
 	ext4_es_lru_add(inode);
