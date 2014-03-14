@@ -55,8 +55,6 @@ static int k_mode_stop;
 static int init_usb(struct usbwm_dev *udev);
 static void release_usb(struct usbwm_dev *udev);
 
-/*#define DEBUG */
-
 static struct usb_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
 	struct usb_tx *t = kzalloc(sizeof(*t), GFP_ATOMIC);
@@ -423,10 +421,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 	struct usb_tx *t;
 	u16 cmd_evt;
 	unsigned long flags, flags2;
-
-#ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	struct usb_device *dev = urb->dev;
-#endif
 
 	/* Completion by usb_unlink_urb */
 	if (urb->status == -ECONNRESET)
@@ -440,15 +435,11 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 				     r->buf, urb->actual_length, false);
 		if (cmd_evt == WIMAX_SDU_TX_FLOW) {
 			if (r->buf[4] == 0) {
-#ifdef DEBUG
-				printk(KERN_DEBUG "WIMAX ==> STOP SDU TX\n");
-#endif
+				dev_dbg(&dev->dev, "WIMAX ==> STOP SDU TX\n");
 				list_for_each_entry(t, &tx->sdu_list, list)
 					usb_unlink_urb(t->urb);
 			} else if (r->buf[4] == 1) {
-#ifdef DEBUG
-				printk(KERN_DEBUG "WIMAX ==> START SDU TX\n");
-#endif
+				dev_dbg(&dev->dev, "WIMAX ==> START SDU TX\n");
 				list_for_each_entry(t, &tx->sdu_list, list) {
 					usb_submit_urb(t->urb, GFP_ATOMIC);
 				}

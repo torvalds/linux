@@ -38,8 +38,6 @@
 #define TX_HZ	2000
 #define TX_INTERVAL	(1000000/TX_HZ)
 
-/*#define DEBUG*/
-
 static int init_sdio(struct sdiowm_dev *sdev);
 static void release_sdio(struct sdiowm_dev *sdev);
 
@@ -457,14 +455,10 @@ static int control_sdu_tx_flow(struct sdiowm_dev *sdev, u8 *hci_data, int len)
 		goto out;
 
 	if (hci_data[4] == 0) {
-#ifdef DEBUG
-		printk(KERN_DEBUG "WIMAX ==> STOP SDU TX\n");
-#endif
+		dev_dbg(&sdev->func->dev, "WIMAX ==> STOP SDU TX\n");
 		tx->stop_sdu_tx = 1;
 	} else if (hci_data[4] == 1) {
-#ifdef DEBUG
-		printk(KERN_DEBUG "WIMAX ==> START SDU TX\n");
-#endif
+		dev_dbg(&sdev->func->dev, "WIMAX ==> START SDU TX\n");
 		tx->stop_sdu_tx = 0;
 		if (tx->can_send)
 			schedule_work(&sdev->ws);
@@ -515,18 +509,14 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 	if (hdr[3] == 1) {	/* Ack */
-#ifdef DEBUG
 		u32 *ack_seq = (u32 *)&hdr[4];
-#endif
 		spin_lock_irqsave(&tx->lock, flags);
 		tx->can_send = 1;
 
 		if (!list_empty(&tx->sdu_list) || !list_empty(&tx->hci_list))
 			schedule_work(&sdev->ws);
 		spin_unlock_irqrestore(&tx->lock, flags);
-#ifdef DEBUG
-		printk(KERN_DEBUG "Ack... %0x\n", ntohl(*ack_seq));
-#endif
+		dev_dbg(&func->dev, "Ack... %0x\n", ntohl(*ack_seq));
 		goto done;
 	}
 

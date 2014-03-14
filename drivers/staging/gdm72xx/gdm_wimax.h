@@ -62,10 +62,6 @@ struct nic {
 
 };
 
-/*#define DEBUG_SDU */
-
-/*#define DEBUG_HCI */
-
 /*#define LOOPBACK_TEST */
 
 extern int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
