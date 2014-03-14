@@ -8,26 +8,22 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
-
 #include "rk_sdmmc_of.h"
 
-u32 mmc_debug_level= MMC_DBG_ERROR;//MMC_DBG_ALL;//set the value refer to file rk_sdmmc_of.h
-
+u32 mmc_debug_level= MMC_DBG_INFO;//MMC_DBG_CMD//set the value refer to file rk_sdmmc_of.h
+char dbg_flag[]="mmc0mmc1mmc2"; 
 
 static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
 {    
-    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info start== 2014-03-14 15:51 ======");
- /*   
-    MMC_DBG_BOOT_FUNC("mmc,caps: 0x%x",rk_mmc_property->mmc_caps);
-    MMC_DBG_BOOT_FUNC("mmc,ocr:  0x%x",rk_mmc_property->mmc_ocr);
-    MMC_DBG_BOOT_FUNC("mmc,int:  0x%x",rk_mmc_property->mmc_int_type);
-    MMC_DBG_BOOT_FUNC("mmc,emmc_is_selected: 0x%x",rk_mmc_property->emmc_is_selected);
-    MMC_DBG_BOOT_FUNC("mmc,use_dma:  %d %d",rk_mmc_property->mmc_dma_is_used[0],
+    printk("=========rockchip mmc dts dump info start== 2014-03-14 20:39 ======");
+    mmc_debug(MMC_DBG_BOOT,"mmc,caps: 0x%x\n",rk_mmc_property->mmc_caps);
+    mmc_debug(MMC_DBG_BOOT,"mmc,ocr:  0x%x\n",rk_mmc_property->mmc_ocr);
+    mmc_debug(MMC_DBG_BOOT,"mmc,int:  0x%x\n",rk_mmc_property->mmc_int_type);
+    mmc_debug(MMC_DBG_BOOT,"mmc,emmc_is_selected: 0x%x\n",rk_mmc_property->emmc_is_selected);
+    mmc_debug(MMC_DBG_BOOT,"mmc,use_dma:  %d %d\n",rk_mmc_property->mmc_dma_is_used[0],
                                                    rk_mmc_property->mmc_dma_is_used[1]);
-    MMC_DBG_BOOT_FUNC("mmc,dma_ch: %d",rk_mmc_property->mmc_dma_chn);
-    MMC_DBG_BOOT_FUNC("=========rockchip mmc dts dump info end================");
-  */  
+    mmc_debug(MMC_DBG_BOOT,"mmc,dma_ch: %d\n",rk_mmc_property->mmc_dma_chn);
+    mmc_debug(MMC_DBG_BOOT,"=========rockchip mmc dts dump info end================\n");
 }
 
 
@@ -38,6 +34,7 @@ void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *rk_mmc_pro
     of_property_read_u32(np, "mmc,int", &rk_mmc_property->mmc_int_type);
     of_property_read_u32(np, "mmc,emmc_is_selected", &rk_mmc_property->emmc_is_selected);
     of_property_read_u32_array(np, "mmc,use_dma", rk_mmc_property->mmc_dma_is_used,2);
+
     if((&rk_mmc_property->mmc_dma_is_used[0] == MMC_USE_DMA))
     {   
            if(rk_mmc_property->mmc_dma_is_used[1] == 0)
@@ -51,8 +48,9 @@ void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *rk_mmc_pro
            of_property_read_u32(np, "mmc,dma_ch", &rk_mmc_property->mmc_dma_chn);
         
     }else{
-        MMC_DBG_WARN_FUNC("Device Tree configure mmc drivers to use pio!\n");
+        mmc_debug(MMC_DBG_WARN,"Device Tree configure mmc drivers to use pio!\n");
     }
+  
     rockchip_mmc_of_dump(rk_mmc_property);
     return ;
 

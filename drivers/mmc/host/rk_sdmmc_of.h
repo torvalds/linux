@@ -33,33 +33,64 @@ enum MMC_DBG_MASK{
      MMC_DBG_ALL  = 0xFF,
      
 };
+
 extern u32 mmc_debug_level;
+extern char dbg_flag[];
 
-#define MMC_DBG_BOOT_FUNC(fmt, arg...) \
-        if(mmc_debug_level >= MMC_DBG_BOOT){ printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);}
-#define MMC_DBG_ERR_FUNC(fmt, arg...) \
-        if(mmc_debug_level >= MMC_DBG_ERROR){ printk(DRIVER_PREFIX "ERROR " fmt "\n", ##arg);}
-#define MMC_DBG_WARN_FUNC(fmt, arg...) \
-        if(mmc_debug_level >= MMC_DBG_WARN){ printk(DRIVER_PREFIX "WARNING " fmt "\n", ##arg);}        
-#define MMC_DBG_INFO_FUNC(fmt, arg...) \
-        if(mmc_debug_level >= MMC_DBG_INFO){ printk(DRIVER_PREFIX "INFO " fmt "\n", ##arg);}          
-#define MMC_DBG_CMD_FUNC(fmt, arg...) \
-        if(mmc_debug_level >= MMC_DBG_CMD){ printk(DRIVER_PREFIX "CMD " fmt "\n", ##arg);}
-    
-
+#define MMC_DBG_BOOT_FUNC(mmc_host,fmt, arg...) \
+    do { \
+        if(mmc_debug_level >= MMC_DBG_NONE) { \
+            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+                printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);\
+            } \
+        } \
+    }while(0)
+#define MMC_DBG_ERR_FUNC(mmc_host,fmt, arg...) \
+    do{ \
+        if(mmc_debug_level >= MMC_DBG_NONE) { \
+            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+                printk(DRIVER_PREFIX "ERROR " fmt "\n", ##arg);\
+            } \
+        } \
+    }while(0)
+#define MMC_DBG_WARN_FUNC(mmc_host,fmt, arg...) \
+    do { \
+        if(mmc_debug_level >= MMC_DBG_NONE) { \
+            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+                printk(DRIVER_PREFIX "WARN " fmt "\n", ##arg);\
+            } \
+        } \
+    }while(0)
+#define MMC_DBG_INFO_FUNC(mmc_host,fmt, arg...) \
+    do { \
+        if(mmc_debug_level >= MMC_DBG_NONE) { \
+            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+                printk(DRIVER_PREFIX "INFO " fmt "\n", ##arg);\
+            } \
+        } \
+    }while(0)
+#define MMC_DBG_CMD_FUNC(mmc_host,fmt, arg...) \
+   do { \
+        if(mmc_debug_level >= MMC_DBG_NONE) { \
+            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+                printk(DRIVER_PREFIX "CMD " fmt "\n", ##arg);\
+            } \
+        } \
+    }while(0)
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
-    #define MMC_DBG_DEBUG_FUNC(level, fmt, arg...) \
-    do { \
-        if (unlikely(level & mmc_debug_level)) \
-            dynamic_pr_debug(DRIVER_PREFIX fmt "\n", ##arg); \
-    } while (0)
+    #define mmc_debug(level, fmt, arg...) \
+           do { \
+               if (unlikely(level & mmc_debug_level)) \
+                   dynamic_pr_debug(DRIVER_PREFIX fmt "\n", ##arg); \
+           } while (0)
 #else
-    #define MMC_DBG_DEBUG_FUNC(level, fmt, arg...) \
-    do { \
-        if (unlikely(level & mmc_debug_level)) \
-            if(mmc_debug_level >= MMC_DBG_DBG){ printk(DRIVER_PREFIX fmt "\n"), ##arg);} \
-    } while (0)
+    #define mmc_debug(level, fmt, arg...) \
+           do { \
+               if (unlikely(level & mmc_debug_level)) \
+                   printk(KERN_DEBUG pr_fmt(DRIVER_PREFIX fmt "\n"), \
+                   ##arg); \
+           } while (0)
 #endif
 
 struct rk_sdmmc_of

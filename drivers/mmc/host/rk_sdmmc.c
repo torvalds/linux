@@ -343,7 +343,7 @@ static void dw_mci_start_command(struct dw_mci *host,
 
 	mci_writel(host, CMDARG, cmd->arg);
 	wmb();
-    MMC_DBG_INFO_FUNC("%d..%s start cmd=%d, arg=0x%x[%s]",__LINE__, __FUNCTION__,cmd->opcode, cmd->arg,mmc_hostname(host->mmc));
+    MMC_DBG_INFO_FUNC(host->mmc,"%d..%s start cmd=%d, arg=0x%x[%s]",__LINE__, __FUNCTION__,cmd->opcode, cmd->arg,mmc_hostname(host->mmc));
     //dw_mci_regs_printk(host);
 
 	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START|SDMMC_CMD_USE_HOLD_REG); //always use SDMMC_CMD_USE_HOLD_REG 
@@ -417,7 +417,7 @@ static void dw_mci_idmac_complete_dma(struct dw_mci *host)
 	struct mmc_data *data = host->data;
 
 	dev_vdbg(host->dev, "DMA complete\n");
-    MMC_DBG_CMD_FUNC(" DMA complete cmd=%d(arg=0x%x), blocks=%d,blksz=%d[%s]", \
+    MMC_DBG_CMD_FUNC(host->mmc," DMA complete cmd=%d(arg=0x%x), blocks=%d,blksz=%d[%s]", \
         host->cmd->opcode,host->cmd->arg,data->blocks,data->blksz,mmc_hostname(host->mmc));
 
 	host->dma_ops->cleanup(host);
@@ -735,7 +735,7 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 		host->dir_status = DW_MCI_SEND_STATUS;
 	}
 	
-    MMC_DBG_INFO_FUNC(" dw_mci_submit_data,blocks=%d,blksz=%d [%s]",\
+    MMC_DBG_INFO_FUNC(host->mmc," dw_mci_submit_data,blocks=%d,blksz=%d [%s]",\
          data->blocks, data->blksz, mmc_hostname(host->mmc));
 
 	if (dw_mci_submit_data_dma(host, data)) {
@@ -857,7 +857,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 	host->current_speed = clock;
 
     if(slot->ctype != slot->pre_ctype)
-            MMC_DBG_BOOT_FUNC("Bus speed=%dHz,Bus width=%s.[%s]", \
+            MMC_DBG_BOOT_FUNC(host->mmc, "Bus speed=%dHz,Bus width=%s.[%s]", \
                 div ? ((host->bus_hz / div) >> 1):host->bus_hz, \
                 (slot->ctype == SDMMC_CTYPE_4BIT)?"4bits":"8bits", mmc_hostname(host->mmc));
     slot->pre_ctype = slot->ctype;
@@ -873,7 +873,7 @@ static void dw_mci_wait_unbusy(struct dw_mci *host)
     unsigned long   time_loop;
     unsigned int    status;
 
-    MMC_DBG_INFO_FUNC("dw_mci_wait_unbusy, status=0x%x ", mci_readl(host, STATUS));
+    MMC_DBG_INFO_FUNC(host->mmc, "dw_mci_wait_unbusy, status=0x%x ", mci_readl(host, STATUS));
     
     if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
         timeout = SDMMC_DATA_TIMEOUT_EMMC;
@@ -947,7 +947,7 @@ static void dw_mci_start_request(struct dw_mci *host,
 	struct mmc_request *mrq = slot->mrq;
 	struct mmc_command *cmd;
 	
-    MMC_DBG_INFO_FUNC(" Begin to start the new request. cmd=%d(arg=0x%x)[%s]", \
+    MMC_DBG_INFO_FUNC(host->mmc, " Begin to start the new request. cmd=%d(arg=0x%x)[%s]", \
         mrq->cmd->opcode, mrq->cmd->arg, mmc_hostname(host->mmc));
         
 	cmd = mrq->sbc ? mrq->sbc : mrq->cmd;
@@ -989,12 +989,12 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		spin_unlock_bh(&host->lock);
 		mrq->cmd->error = -ENOMEDIUM;
 		
-		MMC_DBG_CMD_FUNC("dw_mci_reqeust--reqeuest done, cmd=%d [%s]",mrq->cmd->opcode, mmc_hostname(host->mmc));
+		MMC_DBG_CMD_FUNC(host->mmc, "dw_mci_reqeust--reqeuest done, cmd=%d [%s]",mrq->cmd->opcode, mmc_hostname(host->mmc));
             
 		mmc_request_done(mmc, mrq);
 		return;
 	}
-    MMC_DBG_CMD_FUNC("======>\n    pull a new request from MMC-frame to dw_mci_queue. cmd=%d(arg=0x%x)[%s]", \
+    MMC_DBG_CMD_FUNC(host->mmc, "======>\n    pull a new request from MMC-frame to dw_mci_queue. cmd=%d(arg=0x%x)[%s]", \
         mrq->cmd->opcode, mrq->cmd->arg, mmc_hostname(host->mmc));
 
 	dw_mci_queue_request(host, slot, mrq);
@@ -1279,10 +1279,10 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
     dw_mci_deal_data_end(host, mrq);
 
 	if(mrq->cmd)
-       MMC_DBG_CMD_FUNC(" reqeust end--reqeuest done, cmd=%d, cmderr=%d, host->state=%d [%s]",\
+       MMC_DBG_CMD_FUNC(host->mmc, " reqeust end--reqeuest done, cmd=%d, cmderr=%d, host->state=%d [%s]",\
             mrq->cmd->opcode,mrq->cmd->error, host->state,mmc_hostname(host->mmc));
 	if(mrq->data)
-       MMC_DBG_CMD_FUNC(" reqeust end--reqeuest done, cmd=%d, dataerr=%d, host->state=%d [%s]",\
+       MMC_DBG_CMD_FUNC(host->mmc, " reqeust end--reqeuest done, cmd=%d, dataerr=%d, host->state=%d [%s]",\
             mrq->cmd->opcode,mrq->data->error, host->state, mmc_hostname(host->mmc));
 
 	host->cur_slot->mrq = NULL;
@@ -1294,7 +1294,7 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 		dev_vdbg(host->dev, "list not empty: %s is next\n",
 			 mmc_hostname(slot->mmc));
 		host->state = STATE_SENDING_CMD;
-		MMC_DBG_CMD_FUNC(" list is not empty. run the request in list. [%s]", mmc_hostname(host->mmc));
+		MMC_DBG_CMD_FUNC(host->mmc, " list is not empty. run the request in list. [%s]", mmc_hostname(host->mmc));
 		dw_mci_start_request(host, slot);
 	} else {
 		dev_vdbg(host->dev, "list empty\n");
@@ -1320,14 +1320,14 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 			cmd->resp[1] = mci_readl(host, RESP2);
 			cmd->resp[0] = mci_readl(host, RESP3);
 			
-            MMC_DBG_INFO_FUNC(" command complete [%s], \ncmd=%d,resp[3]=0x%x, resp[2]=0x%x,resp[1]=0x%x,resp[0]=0x%x", \
+            MMC_DBG_INFO_FUNC(host->mmc," command complete [%s], \ncmd=%d,resp[3]=0x%x, resp[2]=0x%x,resp[1]=0x%x,resp[0]=0x%x", \
                     mmc_hostname(host->mmc), cmd->opcode,cmd->resp[3], cmd->resp[2], cmd->resp[1], cmd->resp[0]);
 		} else {
 			cmd->resp[0] = mci_readl(host, RESP0);
 			cmd->resp[1] = 0;
 			cmd->resp[2] = 0;
 			cmd->resp[3] = 0;			
-            MMC_DBG_INFO_FUNC(" command complete [%s], cmd=%d,resp[0]=0x%x",\
+            MMC_DBG_INFO_FUNC(host->mmc, " command complete [%s], cmd=%d,resp[0]=0x%x",\
                     mmc_hostname(host->mmc),cmd->opcode, cmd->resp[0]);
 		}
 	}
@@ -1340,11 +1340,11 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 		cmd->error = -EIO;
 	else
 		cmd->error = 0;
-    MMC_DBG_CMD_FUNC(" command complete, cmd=%d,cmdError=0x%x [%s]",cmd->opcode, cmd->error,mmc_hostname(host->mmc));
+    MMC_DBG_CMD_FUNC(host->mmc, " command complete, cmd=%d,cmdError=0x%x [%s]",cmd->opcode, cmd->error,mmc_hostname(host->mmc));
 
 	if (cmd->error) {
 	    if(MMC_SEND_STATUS != cmd->opcode)
-    	    MMC_DBG_ERR_FUNC(" command complete, cmd=%d,cmdError=0x%x [%s]",\
+    	    MMC_DBG_ERR_FUNC(host->mmc, " command complete, cmd=%d,cmdError=0x%x [%s]",\
     	        cmd->opcode, cmd->error,mmc_hostname(host->mmc));
 	        
 		/* newer ip versions need a delay between retries */
@@ -1431,13 +1431,13 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				state = STATE_DATA_ERROR;
 				break;
 			}
-            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: STATE_SENDING_DATA, wait for EVENT_XFER_COMPLETE.[%s]",\
+            MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: STATE_SENDING_DATA, wait for EVENT_XFER_COMPLETE.[%s]",\
                         prev_state,state, mmc_hostname(host->mmc));
 
 			if (!test_and_clear_bit(EVENT_XFER_COMPLETE,
 						&host->pending_events))
 				break;
-            MMC_DBG_INFO_FUNC("Pre-state[%d]-->NowState[%d]:  STATE_SENDING_DATA, wait for EVENT_DATA_COMPLETE. [%s]",\
+            MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]:  STATE_SENDING_DATA, wait for EVENT_DATA_COMPLETE. [%s]",\
                         prev_state,state,mmc_hostname(host->mmc));
             
 			set_bit(EVENT_XFER_COMPLETE, &host->completed_events);
@@ -1450,7 +1450,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				break;
 				
 			dw_mci_deal_data_end(host, host->mrq);			
-            MMC_DBG_INFO_FUNC("Pre-state[%d]-->NowState[%d]: STATE_DATA_BUSY, after EVENT_DATA_COMPLETE. [%s]", \
+            MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: STATE_DATA_BUSY, after EVENT_DATA_COMPLETE. [%s]", \
                     prev_state,state,mmc_hostname(host->mmc));
 
 			host->data = NULL;
@@ -1459,7 +1459,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 
 			if (status & DW_MCI_DATA_ERROR_FLAGS) {	
 			    if((SDMMC_CTYPE_1BIT != slot->ctype)&&(MMC_SEND_EXT_CSD == host->mrq->cmd->opcode))
-                    MMC_DBG_ERR_FUNC("Pre-state[%d]-->NowState[%d]: DW_MCI_DATA_ERROR_FLAGS,datastatus=0x%x [%s]",\
+                    MMC_DBG_ERR_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: DW_MCI_DATA_ERROR_FLAGS,datastatus=0x%x [%s]",\
                             prev_state,state, status, mmc_hostname(host->mmc));
                             
 		        if (status & SDMMC_INT_DRTO) {
@@ -1500,18 +1500,18 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			}
 
 			if (!data->stop) {
-		        MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: no stop and no dataerr, exit. [%s]", \
+		        MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: no stop and no dataerr, exit. [%s]", \
                     prev_state,state,mmc_hostname(host->mmc));
 				dw_mci_request_end(host, host->mrq);
 				goto unlock;
 			}
-		    MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: begin to stop . [%s]", \
+		    MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: begin to stop . [%s]", \
                 prev_state,state,mmc_hostname(host->mmc));
 
 			if (host->mrq->sbc && !data->error) {
 				data->stop->error = 0;
 				
-    	        MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: have stop and sbc, exit. [%s]", \
+    	        MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: have stop and sbc, exit. [%s]", \
                     prev_state,state,mmc_hostname(host->mmc));
 
 				dw_mci_request_end(host, host->mrq);
@@ -1529,14 +1529,14 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			}
 			#endif
 			/* fall through */
-            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: begin to STATE_SENDING_STOP . [%s]", \
+            MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: begin to STATE_SENDING_STOP . [%s]", \
                 prev_state,state,mmc_hostname(host->mmc));
 
 		case STATE_SENDING_STOP:
 			if (!test_and_clear_bit(EVENT_CMD_COMPLETE,
 						&host->pending_events))
 				break;
-            MMC_DBG_CMD_FUNC("Pre-state[%d]-->NowState[%d]: begin to send cmd12 . [%s]", \
+            MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: begin to send cmd12 . [%s]", \
                 prev_state,state,mmc_hostname(host->mmc));
                         
              /* CMD error in data command */
@@ -2036,7 +2036,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_DATA_OVER) {
 			mci_writel(host, RINTSTS, SDMMC_INT_DATA_OVER);
-			MMC_DBG_CMD_FUNC("SDMMC_INT_DATA_OVER, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
+			MMC_DBG_CMD_FUNC(host->mmc, "SDMMC_INT_DATA_OVER, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
 			if (!host->data_status)
 				host->data_status = pending;
 			smp_wmb();
@@ -2061,7 +2061,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		}
 
 		if (pending & SDMMC_INT_CMD_DONE) {
-    		MMC_DBG_CMD_FUNC("SDMMC_INT_CMD_DONE, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
+    		MMC_DBG_CMD_FUNC(host->mmc, "SDMMC_INT_CMD_DONE, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
 			mci_writel(host, RINTSTS, SDMMC_INT_CMD_DONE);
 			dw_mci_cmd_interrupt(host, pending);
 		}
@@ -2111,7 +2111,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		while (present != slot->last_detect_state) {
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
-            MMC_DBG_BOOT_FUNC("card %s,  devname=%s \n",
+            MMC_DBG_BOOT_FUNC(mmc, "card %s,  devname=%s \n",
 				present ? "inserted" : "removed", mmc_hostname(mmc));
 
 			spin_lock_bh(&host->lock);
@@ -2159,7 +2159,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 					if (mrq->stop)
 						mrq->stop->error = -ENOMEDIUM;
 						
-                    MMC_DBG_CMD_FUNC("dw_mci_work--reqeuest done, cmd=%d [%s]",mrq->cmd->opcode, mmc_hostname(mmc));
+                    MMC_DBG_CMD_FUNC(host->mmc, "dw_mci_work--reqeuest done, cmd=%d [%s]",mrq->cmd->opcode, mmc_hostname(mmc));
 
 					spin_unlock(&host->lock);
 					mmc_request_done(slot->mmc, mrq);
@@ -2873,6 +2873,7 @@ int dw_mci_probe(struct dw_mci *host)
 					"but failed on all\n", host->num_slots);
 		goto err_workqueue;
 	}
+
 
 	if (host->quirks & DW_MCI_QUIRK_IDMAC_DTO)
 		dev_info(host->dev, "Internal DMAC interrupt fix enabled.\n");
