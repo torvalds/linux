@@ -152,9 +152,8 @@ static void SubBytes(unsigned char *in, unsigned char *out)
 {
 	int i;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 16; i++)
 		out[i] = sbox_table[in[i]];
-	}
 }
 
 static void ShiftRows(unsigned char *in, unsigned char *out)
@@ -309,13 +308,11 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 
 	/* CCMP */
 	AESv128(pbyRxKey, MIC_IV, abyMIC);
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyTmp[kk] = MIC_HDR1[kk] ^ abyMIC[kk];
-	}
 	AESv128(pbyRxKey, abyTmp, abyMIC);
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyTmp[kk] = MIC_HDR2[kk] ^ abyMIC[kk];
-	}
 	AESv128(pbyRxKey, abyTmp, abyMIC);
 
 	wCnt = 1;
@@ -328,12 +325,10 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 
 		AESv128(pbyRxKey, abyCTRPLD, abyTmp);
 
-		for (kk = 0; kk < 16; kk++) {
+		for (kk = 0; kk < 16; kk++)
 			abyPlainText[kk] = abyTmp[kk] ^ pbyPayload[kk];
-		}
-		for (kk = 0; kk < 16; kk++) {
+		for (kk = 0; kk < 16; kk++)
 			abyTmp[kk] = abyMIC[kk] ^ abyPlainText[kk];
-		}
 		AESv128(pbyRxKey, abyTmp, abyMIC);
 
 		memcpy(pbyPayload, abyPlainText, 16);
@@ -343,27 +338,23 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 
 	/* last payload */
 	memcpy(&(abyLastCipher[0]), pbyPayload, jj);
-	for (ii = jj; ii < 16; ii++) {
+	for (ii = jj; ii < 16; ii++)
 		abyLastCipher[ii] = 0x00;
-	}
 
 	abyCTRPLD[14] = (unsigned char)(wCnt >> 8);
 	abyCTRPLD[15] = (unsigned char)(wCnt & 0xff);
 
 	AESv128(pbyRxKey, abyCTRPLD, abyTmp);
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyPlainText[kk] = abyTmp[kk] ^ abyLastCipher[kk];
-	}
 	memcpy(pbyPayload, abyPlainText, jj);
 	pbyPayload += jj;
 
 	/* for MIC calculation */
-	for (ii = jj; ii < 16; ii++) {
+	for (ii = jj; ii < 16; ii++)
 		abyPlainText[ii] = 0x00;
-	}
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyTmp[kk] = abyMIC[kk] ^ abyPlainText[kk];
-	}
 	AESv128(pbyRxKey, abyTmp, abyMIC);
 
 	/* =>above is the calculate MIC */
@@ -373,9 +364,8 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	abyCTRPLD[14] = (unsigned char)(wCnt >> 8);
 	abyCTRPLD[15] = (unsigned char)(wCnt & 0xff);
 	AESv128(pbyRxKey, abyCTRPLD, abyTmp);
-	for (kk = 0; kk < 8; kk++) {
+	for (kk = 0; kk < 8; kk++)
 		abyTmp[kk] = abyTmp[kk] ^ pbyPayload[kk];
-	}
 	/* =>above is the dec-MIC from packet */
 	/* -------------------------------------------- */
 
