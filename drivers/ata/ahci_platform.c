@@ -199,8 +199,7 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
  * RETURNS:
  * The allocated ahci_host_priv on success, otherwise an ERR_PTR value
  */
-struct ahci_host_priv *ahci_platform_get_resources(
-	struct platform_device *pdev)
+struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
@@ -219,8 +218,9 @@ struct ahci_host_priv *ahci_platform_get_resources(
 
 	hpriv->mmio = devm_ioremap_resource(dev,
 			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
-	if (!hpriv->mmio) {
+	if (IS_ERR(hpriv->mmio)) {
 		dev_err(dev, "no mmio space\n");
+		rc = PTR_ERR(hpriv->mmio);
 		goto err_out;
 	}
 
