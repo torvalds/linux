@@ -495,6 +495,7 @@ update_existing_head_ref(struct btrfs_delayed_ref_node *existing,
 	ref = btrfs_delayed_node_to_head(update);
 	BUG_ON(existing_ref->is_data != ref->is_data);
 
+	spin_lock(&existing_ref->lock);
 	if (ref->must_insert_reserved) {
 		/* if the extent was freed and then
 		 * reallocated before the delayed ref
@@ -536,7 +537,6 @@ update_existing_head_ref(struct btrfs_delayed_ref_node *existing,
 	 * only need the lock for this case cause we could be processing it
 	 * currently, for refs we just added we know we're a-ok.
 	 */
-	spin_lock(&existing_ref->lock);
 	existing->ref_mod += update->ref_mod;
 	spin_unlock(&existing_ref->lock);
 }
