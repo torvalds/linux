@@ -20,93 +20,42 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/regulator/driver.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
-#include <mach/iomux.h>
 #include <linux/gpio.h>
-#include <mach/board.h>
-#include <plat/pwm.h>
+#include <linux/of_gpio.h>
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/err.h>
+#include <linux/pwm.h>
 
-#if 0
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/regulator/of_regulator.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
+
+
+#if 1
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
 #endif
 
-struct rk_pwm_dcdc {
-        char name[16];
-        struct regulator_desc desc;
-        int pwm_id;
-        struct clk *pwm_clk;
-        const void __iomem *pwm_base;
-        u32 suspend_hrc;
-        u32 suspend_lrc;
-        u32 backup_hrc;
-        u32 backup_lrc;
-        struct regulator_dev *regulator;
-	struct pwm_platform_data *pdata;
-};
-
-#if defined(CONFIG_SOC_RK3168) || defined(CONFIG_SOC_RK3168M) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK3026)
 const static int pwm_voltage_map[] = {
-	800000,825000,850000, 875000,900000, 925000 ,950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000,1375000
+	925000 ,950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000,1375000,1400000
 };
-#else
-const static int pwm_voltage_map[] = {
-	950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
-};
-#endif
-
-static struct rk_pwm_dcdc *g_dcdc;
-
-static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
-{
-	u32 lrc, hrc;
-	int id = pdata->pwm_id;
-	unsigned long clkrate;
-
-	clkrate = clk_get_rate(g_dcdc->pwm_clk);
 	
-	DBG("%s:id=%d,rate=%d,clkrate=%d\n",__func__,id,rate,clkrate); 
+static struct pwm_platform_data *g_pdata;
 
-	if(rate == 0)
-	{
-		// iomux pwm to gpio
-		rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_gpio);
-		//disable pull up or down
-		gpio_pull_updown(pdata->pwm_gpio,PullDisable);
-		// set gpio to low level
-		gpio_direction_output(pdata->pwm_gpio,GPIO_LOW);
-	}
-	else if (rate < 100)
-	{
-		lrc = clkrate / nHz;
-		lrc = lrc >> (1+(PWM_DIV>>9));
-		lrc = lrc ? lrc : 1;
-		hrc = lrc * rate / 100;
-		hrc = hrc ? hrc : 1;
+static int pwm_set_rate(struct pwm_platform_data *pdata,u32 rate)
+{
+	int duty_cycle;
+	DBG("%s:id=%d,rate=%d clkrate =%d\n",__func__,pdata->pwm_id,rate,pdata->period); 
 
-		// iomux pwm
-		rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_pwm);
+	duty_cycle = (rate * (pdata->period ) / 100) ;
 
-		rk_pwm_setup(id, PWM_DIV, hrc, lrc);
-	}
-	else if (rate == 100)
-	{
-		// iomux pwm to gpio
-		rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_gpio);
-		//disable pull up or down
-		gpio_pull_updown(pdata->pwm_gpio,PullDisable);
-		// set gpio to low level
-		gpio_direction_output(pdata->pwm_gpio,GPIO_HIGH);
-
-	}
-	else
-	{
-		printk("%s:rate error\n",__func__);
-		return -1;
-	}
-
+	pwm_config(pdata->pwm, duty_cycle, pdata->period);
+	
 	usleep_range(10*1000, 10*1000);
 
 	return (0);
@@ -114,9 +63,8 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 
 static int pwm_regulator_list_voltage(struct regulator_dev *dev,unsigned int index)
 {
-	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
-	if (index < dcdc->desc.n_voltages)
-	return dcdc->pdata->pwm_voltage_map[index];
+	if (index <( g_pdata->pwm_vol_map_count +1))
+	return g_pdata->pwm_voltage_map[index];
 	else
 		return -1;
 }
@@ -140,30 +88,30 @@ static int pwm_regulator_disable(struct regulator_dev *dev)
 }
 
 static int pwm_regulator_get_voltage(struct regulator_dev *dev)
-{
-	//struct pwm_platform_data *pdata = rdev_get_drvdata(dev);
-	
-	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
+{	
+	u32 vol;
 
 	DBG("Enter %s\n",__FUNCTION__);  
 
-	return (dcdc->pdata->pwm_voltage);
+	vol = g_pdata->pwm_voltage;
+
+	return vol;
 }
 
 static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 		int min_uV, int max_uV, unsigned *selector)
 {	   
-	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
-	const int *voltage_map = dcdc->pdata->pwm_voltage_map;
-	int max = dcdc->pdata->max_uV;
-	int coefficient = dcdc->pdata->coefficient;
-	u32 size = dcdc->desc.n_voltages, i, vol,pwm_value;
+	const int *voltage_map = g_pdata->pwm_voltage_map;
+	int max = g_pdata->max_uV;
+	int coefficient = g_pdata->coefficient;
+	u32 size = g_pdata->pwm_vol_map_count;
+	u32 i, vol,pwm_value;
 
-	DBG("%s:  min_uV = %d, max_uV = %d\n",__FUNCTION__, min_uV,max_uV);
+	DBG("%s:  min_uV = %d, max_uV = %d \n",__FUNCTION__, min_uV,max_uV);
 
-	if (min_uV < voltage_map[0] ||max_uV > voltage_map[size-1])
+	if (min_uV < voltage_map[0] ||max_uV > voltage_map[size])
 	{
-		printk("%s:voltage is out of table\n",__func__);
+		printk("%s: voltage_map voltage is out of table\n",__func__);
 		return -EINVAL;
 	}
 
@@ -172,25 +120,21 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 		if (voltage_map[i] >= min_uV)
 			break;
 	}
-
-
 	vol =  voltage_map[i];
-
-	dcdc->pdata->pwm_voltage = vol;
+	g_pdata->pwm_voltage = vol;
 
 	// VDD12 = 1.40 - 0.455*D , 其中D为PWM占空比, 
 	pwm_value = (max-vol)/coefficient/10;  // pwm_value %, coefficient *1000
 
-	if (pwm_set_rate(dcdc->pdata,1000*1000,pwm_value)!=0)
+	if (pwm_set_rate(g_pdata,pwm_value)!=0)
 	{
 		printk("%s:fail to set pwm rate,pwm_value=%d\n",__func__,pwm_value);
 		return -1;
 
 	}
-
 	*selector = i;
 
-	DBG("%s:ok,vol=%d,pwm_value=%d\n",__FUNCTION__,vol,pwm_value);
+	DBG("%s:ok,vol=%d,pwm_value=%d %d\n",__FUNCTION__,vol,pwm_value,g_pdata->pwm_voltage);
 
 	return 0;
 
@@ -204,105 +148,234 @@ static struct regulator_ops pwm_voltage_ops = {
 	.disable	= pwm_regulator_disable,
 	.is_enabled	= pwm_regulator_is_enabled,
 };
+static struct regulator_desc regulators[] = {
 
-static int __devinit pwm_regulator_probe(struct platform_device *pdev)
+        {
+		.name = "PWM_DCDC1",
+		.id = 0,
+		.ops = &pwm_voltage_ops,
+		.n_voltages =  ARRAY_SIZE(pwm_voltage_map),
+		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
+	},
+};
+
+#ifdef CONFIG_OF
+static struct of_device_id pwm_of_match[] = {
+	{ .compatible = "rockchip_pwm_regulator"},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, pwm_of_match);
+
+static struct of_regulator_match pwm_matches[] = {
+	{ .name = "pwm_dcdc1",	.driver_data = (void *)0  },
+};
+
+static struct pwm_regulator_board *pwm_regulator_parse_dt(
+		struct platform_device *pdev,
+		struct of_regulator_match **pwm_reg_matches)
+{
+	struct pwm_regulator_board *pwm_plat_data;
+	struct device_node *np, *regulators;
+	struct of_regulator_match *matches;
+	int idx = 0, ret, count;
+	struct property *prop;
+	int length;
+	const __be32 *init_vol, *max_vol,*min_vol,*suspend_vol,*coefficient,*id;
+	
+	 DBG("%s,line=%d\n", __func__,__LINE__);
+
+	pwm_plat_data = devm_kzalloc(&pdev->dev, sizeof(*pwm_plat_data),
+					GFP_KERNEL);
+
+	if (!pwm_plat_data) {
+		dev_err(&pdev->dev, "Failure to alloc pdata for regulators.\n");
+		return NULL;
+	}
+
+	np = of_node_get(pdev->dev.of_node);
+	regulators = of_find_node_by_name(np, "regulators");
+	if (!regulators) {
+		dev_err(&pdev->dev, "regulator node not found\n");
+		return NULL;
+	}
+	count = ARRAY_SIZE(pwm_matches);
+	matches = pwm_matches;	
+	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
+	of_node_put(regulators);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
+			ret);
+		return NULL;
+	}
+	
+	pwm_plat_data ->num_regulators = count;
+	*pwm_reg_matches = matches;
+	
+	for (idx = 0; idx < count; idx++) {
+		if (!matches[idx].init_data || !matches[idx].of_node)
+			continue;
+		pwm_plat_data->pwm_init_data[idx] =matches[idx].init_data;
+		pwm_plat_data->of_node[idx]=matches[idx].of_node;
+	}
+	
+	init_vol = of_get_property(np, "rockchip,pwm_voltage", NULL);
+	if (init_vol)
+		pwm_plat_data->pwm_init_vol = be32_to_cpu(*init_vol);
+	
+	max_vol = of_get_property(np, "rockchip,pwm_max_voltage", NULL);
+	if (max_vol)
+		pwm_plat_data->pwm_max_vol = be32_to_cpu(*max_vol);
+	
+	min_vol = of_get_property(np, "rockchip,pwm_min_voltage", NULL);
+	if (min_vol)
+		pwm_plat_data->pwm_min_vol = be32_to_cpu(*min_vol);
+	
+	suspend_vol = of_get_property(np, "rockchip,pwm_suspend_voltage", NULL);
+	if (suspend_vol)
+		pwm_plat_data->pwm_suspend_vol = be32_to_cpu(*suspend_vol);
+
+	coefficient  = of_get_property(np, "rockchip,pwm_coefficient", NULL);
+	if (coefficient )
+		pwm_plat_data->pwm_coefficient = be32_to_cpu(*coefficient );
+	
+	id  = of_get_property(np, "rockchip,pwm_id", NULL);
+	if (id )
+		pwm_plat_data->pwm_id = be32_to_cpu(*id );
+
+	prop = of_find_property(np, "rockchip,pwm_voltage_map", &length);
+	if (!prop)
+		return NULL;
+	pwm_plat_data->pwm_vol_map_count = length / sizeof(u32);
+	if (pwm_plat_data->pwm_vol_map_count > 0) {
+		size_t size = sizeof(*pwm_plat_data->pwm_voltage_map) * pwm_plat_data->pwm_vol_map_count;
+
+	pwm_plat_data->pwm_voltage_map = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (! pwm_plat_data->pwm_voltage_map)
+		return NULL;
+	ret = of_property_read_u32_array(np, "rockchip,pwm_voltage_map",pwm_plat_data->pwm_voltage_map, pwm_plat_data->pwm_vol_map_count);
+	if (ret < 0)
+		printk("pwm voltage map not specified\n");
+	}
+	return pwm_plat_data;
+}
+#else
+static inline struct pwm_regulator_board *pwm_regulator_parse_dt(
+			struct platform_device *pdev,
+			struct of_regulator_match **pwm_reg_matches)
+{
+	return NULL;
+}
+#endif
+
+
+static int __init pwm_regulator_probe(struct platform_device *pdev)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
-	struct rk_pwm_dcdc *dcdc;
-	int pwm_id  =  pdata->pwm_id;
-	int id = pdev->id;
-	int ret ;
-    	char gpio_name[20];
-	unsigned selector = 0;
+	struct pwm_regulator_board *pwm_pdev;
+	struct of_regulator_match *pwm_reg_matches = NULL;
+	struct regulator_init_data *reg_data;
+	struct regulator_config config = { };
+	const char *rail_name = NULL;
+	struct regulator_dev *pwm_rdev;
+	int ret,i=0;
+	struct regulator *dc;
+
+	pwm_pdev = devm_kzalloc(&pdev->dev, sizeof(*pwm_pdev),
+					GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata),
+					GFP_KERNEL);
 	
-	if (!pdata)
-		return -ENODEV;
+	if (pdev->dev.of_node)
+		pwm_pdev = pwm_regulator_parse_dt(pdev,&pwm_reg_matches);
 
-	if (!pdata->pwm_voltage)
-		pdata->pwm_voltage = 1100000;	// default 1.1v
-
-	if(!pdata->pwm_voltage_map)
-		pdata->pwm_voltage_map = pwm_voltage_map;
-
-	if(!pdata->max_uV)
-		pdata->max_uV = 1400000;
-
-	if(!pdata->min_uV)
-		pdata->min_uV = 1000000;
-	
-	if(pdata->suspend_voltage < pdata->min_uV)
-		pdata->suspend_voltage = pdata->min_uV;
-	
-	if(pdata->suspend_voltage > pdata->max_uV)	
-		pdata->suspend_voltage = pdata->max_uV;
-	
-	dcdc = kzalloc(sizeof(struct rk_pwm_dcdc), GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
-		return -ENOMEM;
-	}
-
-	snprintf(dcdc->name, sizeof(dcdc->name), "PWM_DCDC%d", id + 1);
-	dcdc->desc.name = dcdc->name;
-	dcdc->desc.id = id;
-	dcdc->desc.type = REGULATOR_VOLTAGE;
-	dcdc->desc.n_voltages = ARRAY_SIZE(pwm_voltage_map);
-	dcdc->desc.ops = &pwm_voltage_ops;
-	dcdc->desc.owner = THIS_MODULE;
-	dcdc->pdata = pdata;
-	printk("%s:n_voltages=%d\n",__func__,dcdc->desc.n_voltages);
-	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
-					     pdata->init_data, dcdc);
-	if (IS_ERR(dcdc->regulator)) {
-		ret = PTR_ERR(dcdc->regulator);
-		dev_err(&pdev->dev, "Failed to register PWM_DCDC%d: %d\n",
-			id + 1, ret);
-		goto err;
-	}
-
-	snprintf(gpio_name, sizeof(gpio_name), "PWM_DCDC%d", id + 1);
-	ret = gpio_request(pdata->pwm_gpio,gpio_name);
-	if (ret) {
-		dev_err(&pdev->dev,"failed to request pwm gpio\n");
-		goto err_gpio;
-	}
-
-	dcdc->pwm_clk = rk_pwm_get_clk(pwm_id);
-	dcdc->pwm_base = rk_pwm_get_base(pwm_id);
-	if (IS_ERR(dcdc->pwm_clk)) {
-		printk("pwm_clk get error %p\n", dcdc->pwm_clk);
+	if (!pwm_pdev) {
+		dev_err(&pdev->dev, "Platform data not found\n");
 		return -EINVAL;
 	}
-	clk_enable(dcdc->pwm_clk);
-
-	dcdc->suspend_lrc = 0x12;
-	switch (pdata->suspend_voltage)
-	{
-	case 1000000:
-	default:
-		dcdc->suspend_hrc = 0x10;
-		break;
-	case 1050000:
-		dcdc->suspend_hrc = 0x0e;
-		break;
-	case 1100000:
-		dcdc->suspend_hrc = 0x0c;
-		break;
-	case 1150000:
-		dcdc->suspend_hrc = 0x0a;
-		break;
-	}
-
-	g_dcdc	= dcdc;
-	platform_set_drvdata(pdev, dcdc);	
-	printk(KERN_INFO "pwm_regulator.%d: driver initialized\n",id);
-	pwm_regulator_set_voltage(dcdc->regulator,pdata->pwm_voltage,pdata->pwm_voltage,&selector);
 	
+	if (!pwm_pdev->pwm_init_vol)
+		pdata->pwm_voltage = 1100000;	// default 1.1v
+	else
+		pdata->pwm_voltage = pwm_pdev->pwm_init_vol;	
+
+	if(!pwm_pdev->pwm_max_vol)
+		pdata->max_uV = 1400000;
+	else
+		pdata->max_uV = pwm_pdev->pwm_max_vol;
+
+	if(!pwm_pdev->pwm_min_vol)
+		pdata->min_uV = 1000000;
+	else
+		pdata->min_uV = pwm_pdev->pwm_min_vol;
+
+	if(pwm_pdev->pwm_suspend_vol < pwm_pdev->pwm_min_vol)
+		pdata->suspend_voltage = pwm_pdev->pwm_min_vol;
+	else if(pwm_pdev->pwm_suspend_vol > pwm_pdev->pwm_max_vol)
+		pdata->suspend_voltage = pwm_pdev->pwm_max_vol;
+	else
+		pdata->suspend_voltage = pwm_pdev->pwm_suspend_vol;
+	
+	pdata->pwm_voltage_map = pwm_pdev->pwm_voltage_map;
+	pdata->pwm_id = pwm_pdev->pwm_id;
+	pdata->coefficient = pwm_pdev->pwm_coefficient;
+	pdata->pwm_vol_map_count = pwm_pdev->pwm_vol_map_count;
+	
+	pdata->pwm = devm_pwm_get(&pdev->dev, NULL);
+	if (IS_ERR(pdata->pwm)) {
+		dev_err(&pdev->dev, "unable to request PWM, trying legacy API\n");
+
+		pdata->pwm = pwm_request(pdata->pwm_id, "pwm-regulator");
+		if (IS_ERR(pdata->pwm)) {
+			dev_err(&pdev->dev, "unable to request legacy PWM\n");
+			ret = PTR_ERR(pdata->pwm);
+			goto err;
+		}
+	}
+	pwm_enable(pdata->pwm);
+	if (pdata->pwm_period_ns > 0)
+		pwm_set_period(pdata->pwm, pdata->pwm_period_ns);
+
+	pdata->period = pwm_get_period(pdata->pwm);
+
+	g_pdata = pdata;
+	
+	if (pwm_pdev){
+		pdata->num_regulators = pwm_pdev ->num_regulators;
+		pdata->rdev = kcalloc(pdata->num_regulators,sizeof(struct regulator_dev *), GFP_KERNEL);
+		if (!pdata->rdev) {
+			return -ENOMEM;
+		}
+		/* Instantiate the regulators */
+		for (i = 0; i < pdata->num_regulators; i++) {
+		reg_data = pwm_pdev->pwm_init_data[i];
+		if (!reg_data)
+			continue;
+		config.dev = &pdev->dev;
+		config.driver_data = pdata;
+		if (&pdev->dev.of_node)
+			config.of_node = pwm_pdev->of_node[i];
+		if (reg_data && reg_data->constraints.name)
+				rail_name = reg_data->constraints.name;
+			else
+				rail_name = regulators[i].name;
+			reg_data->supply_regulator = rail_name;
+	
+		config.init_data =reg_data;
+
+		pwm_rdev = regulator_register(&regulators[i],&config);
+		if (IS_ERR(pwm_rdev)) {
+			printk("failed to register %d regulator\n",i);
+		goto err;
+		}
+		pdata->rdev[i] = pwm_rdev;
+		}
+	}
+	/*********set pwm vol by defult***********/
+	//dc = regulator_get(NULL,"vdd_gpu");
+	//regulator_set_voltage(dc,pdata->pwm_voltage,pdata->pwm_voltage);
+	/**************************************/
 	return 0;
-
-
-err_gpio:
-	gpio_free(pdata->pwm_gpio);
 err:
 	printk("%s:error\n",__func__);
 	return ret;
@@ -311,42 +384,32 @@ err:
 
 void pwm_suspend_voltage(void)
 {
-	struct rk_pwm_dcdc *dcdc = g_dcdc;
 	
-	if(!dcdc)
-		return;
-	
-	dcdc->backup_hrc = readl_relaxed(dcdc->pwm_base + PWM_REG_HRC);
-	dcdc->backup_lrc = readl_relaxed(dcdc->pwm_base + PWM_REG_LRC);
-
-	__rk_pwm_setup(dcdc->pwm_base, PWM_DIV, dcdc->suspend_hrc, dcdc->suspend_lrc);
 }
 
 void pwm_resume_voltage(void)
 {
-	struct rk_pwm_dcdc *dcdc = g_dcdc;	
-	
-	if(!dcdc)
-		return;
-	__rk_pwm_setup(dcdc->pwm_base, PWM_DIV, dcdc->backup_hrc, dcdc->backup_lrc);
+
 }
 
-static int __devexit pwm_regulator_remove(struct platform_device *pdev)
+static int pwm_regulator_remove(struct platform_device *pdev)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
+	int i;
 
-	regulator_unregister(rdev);
-	gpio_free(pdata->pwm_gpio);
-
+	for (i = 0; i < pdata->num_regulators; i++)
+		if (pdata->rdev[i])
+			regulator_unregister(pdata->rdev[i]);
+	kfree(pdata->rdev);
 	return 0;
 }
 
 static struct platform_driver pwm_regulator_driver = {
 	.driver = {
 		.name = "pwm-voltage-regulator",
+		.of_match_table =of_match_ptr(pwm_of_match),
 	},
-	.remove = __devexit_p(pwm_regulator_remove),
+	.remove = pwm_regulator_remove,
 };
 
 
@@ -360,6 +423,7 @@ static void __exit pwm_regulator_module_exit(void)
 	platform_driver_unregister(&pwm_regulator_driver);
 }
 
-fs_initcall(pwm_regulator_module_init);
+//fs_initcall(pwm_regulator_module_init);
+module_init(pwm_regulator_module_init);
 module_exit(pwm_regulator_module_exit);
 MODULE_LICENSE("GPL");

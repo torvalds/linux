@@ -262,6 +262,11 @@ config ACT8846_SUPPORT_RESET
 	help
 	  Support short press key to restart.
 
+config RK30_PWM_REGULATOR
+	tristate "rk30 pwm voltage regulator for discrete dcdc or ldo"
+	help
+	  Say Y to enable support for the voltage regulators control on the RK30 .
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP

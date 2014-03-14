@@ -58,6 +58,31 @@
 		enable-gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
 	};
 
+	pwm_regulator {
+       compatible = "rockchip_pwm_regulator";
+	pwms = <&pwm0 0 25000>;
+	rockchip,pwm_id= <0>;
+       rockchip,pwm_voltage_map= <925000 950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000>;
+	rockchip,pwm_voltage= <1000000>;
+	rockchip,pwm_min_voltage= <925000>;
+	rockchip,pwm_max_voltage= <1400000>;
+	rockchip,pwm_suspend_voltage= <950000>;
+	rockchip,pwm_coefficient= <475>;
+	regulators {
+		#address-cells = <1>;
+		#size-cells = <0>;			
+		 pwm_reg0: regulator@0{
+			regulator-compatible = "pwm_dcdc1";
+			regulator-name= "vdd_gpu";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1400000>;	
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	    };
+	};
+
+
 	codec_hdmi_i2s: codec-hdmi-i2s {
 		compatible = "hdmi-i2s";
 	};
@@ -328,6 +353,10 @@
 
 &pwm3 {
 	status = "okay";
+};
+
+&pwm0 {
+        status = "disable";
 };
 
 &clk_core_dvfs_table {
