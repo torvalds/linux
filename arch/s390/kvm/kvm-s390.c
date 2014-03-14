@@ -592,7 +592,7 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->pp = 0;
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
-	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_vcpu_stop(vcpu);
 	kvm_s390_clear_local_irqs(vcpu);
 }
 
@@ -1235,7 +1235,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
-	atomic_clear_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_vcpu_start(vcpu);
 
 	switch (kvm_run->exit_reason) {
 	case KVM_EXIT_S390_SIEIC:
@@ -1360,6 +1360,18 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	return kvm_s390_store_status_unloaded(vcpu, addr);
+}
+
+void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
+{
+	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 1);
+	atomic_clear_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+}
+
+void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
+{
+	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 0);
+	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
 }
 
 static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,

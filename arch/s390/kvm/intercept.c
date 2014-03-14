@@ -65,8 +65,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	trace_kvm_s390_stop_request(vcpu->arch.local_int.action_bits);
 
 	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
-		atomic_set_mask(CPUSTAT_STOPPED,
-				&vcpu->arch.sie_block->cpuflags);
+		kvm_s390_vcpu_stop(vcpu);
 		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
 		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
 		rc = -EOPNOTSUPP;
