@@ -644,7 +644,6 @@ static int tegra_dsi_init(struct host1x_client *client)
 {
 	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
-	unsigned long value, i;
 	int err;
 
 	dsi->output.type = TEGRA_OUTPUT_DSI;
@@ -663,39 +662,11 @@ static int tegra_dsi_init(struct host1x_client *client)
 			dev_err(dsi->dev, "debugfs setup failed: %d\n", err);
 	}
 
-	/*
-	 * enable high-speed mode, checksum generation, ECC generation and
-	 * disable raw mode
-	 */
-	value = tegra_dsi_readl(dsi, DSI_HOST_CONTROL);
-	value |= DSI_HOST_CONTROL_ECC | DSI_HOST_CONTROL_CS |
-		 DSI_HOST_CONTROL_HS;
-	value &= ~DSI_HOST_CONTROL_RAW;
-	tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
-
-	tegra_dsi_writel(dsi, 0, DSI_SOL_DELAY);
-	tegra_dsi_writel(dsi, 0, DSI_MAX_THRESHOLD);
-
-	tegra_dsi_writel(dsi, 0, DSI_INIT_SEQ_CONTROL);
-
-	for (i = 0; i < 8; i++) {
-		tegra_dsi_writel(dsi, 0, DSI_INIT_SEQ_DATA_0 + i);
-		tegra_dsi_writel(dsi, 0, DSI_INIT_SEQ_DATA_8 + i);
-	}
-
-	for (i = 0; i < 12; i++)
-		tegra_dsi_writel(dsi, 0, DSI_PKT_SEQ_0_LO + i);
-
-	tegra_dsi_writel(dsi, 0, DSI_DCS_CMDS);
-
 	err = tegra_dsi_pad_calibrate(dsi);
 	if (err < 0) {
 		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
 		return err;
 	}
-
-	tegra_dsi_writel(dsi, DSI_POWER_CONTROL_ENABLE, DSI_POWER_CONTROL);
-	usleep_range(300, 1000);
 
 	return 0;
 }
@@ -745,60 +716,6 @@ static int tegra_dsi_setup_clocks(struct tegra_dsi *dsi)
 		return err;
 
 	return 0;
-}
-
-static void tegra_dsi_initialize(struct tegra_dsi *dsi)
-{
-	unsigned int i;
-
-	tegra_dsi_writel(dsi, 0, DSI_POWER_CONTROL);
-
-	tegra_dsi_writel(dsi, 0, DSI_INT_ENABLE);
-	tegra_dsi_writel(dsi, 0, DSI_INT_STATUS);
-	tegra_dsi_writel(dsi, 0, DSI_INT_MASK);
-
-	tegra_dsi_writel(dsi, 0, DSI_HOST_CONTROL);
-	tegra_dsi_writel(dsi, 0, DSI_CONTROL);
-
-	tegra_dsi_writel(dsi, 0, DSI_SOL_DELAY);
-	tegra_dsi_writel(dsi, 0, DSI_MAX_THRESHOLD);
-
-	tegra_dsi_writel(dsi, 0, DSI_INIT_SEQ_CONTROL);
-
-	for (i = 0; i < 8; i++) {
-		tegra_dsi_writel(dsi, 0, DSI_INIT_SEQ_DATA_0 + i);
-		tegra_dsi_writel(dsi, 0, DSI_INIT_SEQ_DATA_8 + i);
-	}
-
-	for (i = 0; i < 12; i++)
-		tegra_dsi_writel(dsi, 0, DSI_PKT_SEQ_0_LO + i);
-
-	tegra_dsi_writel(dsi, 0, DSI_DCS_CMDS);
-
-	for (i = 0; i < 4; i++)
-		tegra_dsi_writel(dsi, 0, DSI_PKT_LEN_0_1 + i);
-
-	tegra_dsi_writel(dsi, 0x00000000, DSI_PHY_TIMING_0);
-	tegra_dsi_writel(dsi, 0x00000000, DSI_PHY_TIMING_1);
-	tegra_dsi_writel(dsi, 0x000000ff, DSI_PHY_TIMING_2);
-	tegra_dsi_writel(dsi, 0x00000000, DSI_BTA_TIMING);
-
-	tegra_dsi_writel(dsi, 0, DSI_TIMEOUT_0);
-	tegra_dsi_writel(dsi, 0, DSI_TIMEOUT_1);
-	tegra_dsi_writel(dsi, 0, DSI_TO_TALLY);
-
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_0);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_CD);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CD_STATUS);
-	tegra_dsi_writel(dsi, 0, DSI_VIDEO_MODE_CONTROL);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_1);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_2);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_3);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_4);
-
-	tegra_dsi_writel(dsi, 0, DSI_GANGED_MODE_CONTROL);
-	tegra_dsi_writel(dsi, 0, DSI_GANGED_MODE_START);
-	tegra_dsi_writel(dsi, 0, DSI_GANGED_MODE_SIZE);
 }
 
 static int tegra_dsi_host_attach(struct mipi_dsi_host *host,
@@ -914,8 +831,6 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	dsi->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
-
-	tegra_dsi_initialize(dsi);
 
 	dsi->mipi = tegra_mipi_request(&pdev->dev);
 	if (IS_ERR(dsi->mipi))
