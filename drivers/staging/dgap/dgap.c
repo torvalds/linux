@@ -4426,7 +4426,7 @@ static void dgap_do_wait_for_bios(struct board_t *brd)
  * Copies the FEP code from the user to the board,
  * and starts the FEP running.
  */
-static void dgap_do_fep_load(struct board_t *brd, uchar *ufep, int len)
+static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len)
 {
 	uchar *addr;
 	uint offset;
