@@ -187,13 +187,6 @@ static inline void ieee802154_addr_to_sa(struct ieee802154_addr_sa *sa,
 	}
 }
 
-
-struct ieee802154_frag_info {
-	__be16 d_tag;
-	u16 d_size;
-	u8 d_offset;
-};
-
 /*
  * A control block of skb passed between the ARPHRD_IEEE802154 device
  * and other stack parts.
@@ -202,7 +195,6 @@ struct ieee802154_mac_cb {
 	u8 lqi;
 	u8 flags;
 	u8 seq;
-	struct ieee802154_frag_info frag_info;
 	struct ieee802154_addr source;
 	struct ieee802154_addr dest;
 };

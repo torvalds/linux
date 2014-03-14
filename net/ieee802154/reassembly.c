@@ -30,6 +30,17 @@
 
 #include "reassembly.h"
 
+struct lowpan_frag_info {
+	__be16 d_tag;
+	u16 d_size;
+	u8 d_offset;
+};
+
+struct lowpan_frag_info *lowpan_cb(struct sk_buff *skb)
+{
+	return (struct lowpan_frag_info *)skb->cb;
+}
+
 static struct inet_frags lowpan_frags;
 
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
@@ -102,7 +113,7 @@ out:
 }
 
 static inline struct lowpan_frag_queue *
-fq_find(struct net *net, const struct ieee802154_frag_info *frag_info,
+fq_find(struct net *net, const struct lowpan_frag_info *frag_info,
 	const struct ieee802154_addr *src,
 	const struct ieee802154_addr *dst)
 {
@@ -137,8 +148,8 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	if (fq->q.last_in & INET_FRAG_COMPLETE)
 		goto err;
 
-	offset = mac_cb(skb)->frag_info.d_offset << 3;
-	end = mac_cb(skb)->frag_info.d_size;
+	offset = lowpan_cb(skb)->d_offset << 3;
+	end = lowpan_cb(skb)->d_size;
 
 	/* Is this the final fragment? */
 	if (offset + skb->len == end) {
@@ -164,15 +175,13 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	 * this fragment, right?
 	 */
 	prev = fq->q.fragments_tail;
-	if (!prev || mac_cb(prev)->frag_info.d_offset <
-		     mac_cb(skb)->frag_info.d_offset) {
+	if (!prev || lowpan_cb(prev)->d_offset < lowpan_cb(skb)->d_offset) {
 		next = NULL;
 		goto found;
 	}
 	prev = NULL;
 	for (next = fq->q.fragments; next != NULL; next = next->next) {
-		if (mac_cb(next)->frag_info.d_offset >=
-		    mac_cb(skb)->frag_info.d_offset)
+		if (lowpan_cb(next)->d_offset >= lowpan_cb(skb)->d_offset)
 			break;	/* bingo! */
 		prev = next;
 	}
@@ -319,7 +328,7 @@ out_oom:
 }
 
 static int lowpan_get_frag_info(struct sk_buff *skb, const u8 frag_type,
-				struct ieee802154_frag_info *frag_info)
+				struct lowpan_frag_info *frag_info)
 {
 	bool fail;
 	u8 pattern = 0, low = 0;
@@ -346,7 +355,7 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
 {
 	struct lowpan_frag_queue *fq;
 	struct net *net = dev_net(skb->dev);
-	struct ieee802154_frag_info *frag_info = &mac_cb(skb)->frag_info;
+	struct lowpan_frag_info *frag_info = lowpan_cb(skb);
 	struct ieee802154_addr source, dest;
 	int err;
 
