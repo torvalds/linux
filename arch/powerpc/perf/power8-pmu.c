@@ -325,9 +325,10 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 		 * HV writable, and there is no API for guest kernels to modify
 		 * it. The solution is for the hypervisor to initialise the
 		 * field to zeroes, and for us to only ever allow events that
-		 * have a cache selector of zero.
+		 * have a cache selector of zero. The bank selector (bit 3) is
+		 * irrelevant, as long as the rest of the value is 0.
 		 */
-		if (cache)
+		if (cache & 0x7)
 			return -1;
 
 	} else if (event & EVENT_IS_L1) {
