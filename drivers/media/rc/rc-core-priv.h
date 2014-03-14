@@ -187,6 +187,58 @@ int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 			  const struct ir_raw_timings_manchester *timings,
 			  unsigned int n, unsigned int data);
 
+/**
+ * ir_raw_gen_pulse_space() - generate pulse and space raw events.
+ * @ev:			Pointer to pointer to next free raw event.
+ *			Will be incremented for each raw event written.
+ * @max:		Pointer to number of raw events available in buffer.
+ *			Will be decremented for each raw event written.
+ * @pulse_width:	Width of pulse in ns.
+ * @space_width:	Width of space in ns.
+ *
+ * Returns:	0 on success.
+ *		-ENOBUFS if there isn't enough buffer space to write both raw
+ *		events. In this case @max events will have been written.
+ */
+static inline int ir_raw_gen_pulse_space(struct ir_raw_event **ev,
+					 unsigned int *max,
+					 unsigned int pulse_width,
+					 unsigned int space_width)
+{
+	if (!*max)
+		return -ENOBUFS;
+	init_ir_raw_event_duration((*ev)++, 1, pulse_width);
+	if (!--*max)
+		return -ENOBUFS;
+	init_ir_raw_event_duration((*ev)++, 0, space_width);
+	--*max;
+	return 0;
+}
+
+/**
+ * struct ir_raw_timings_pd - pulse-distance modulation timings
+ * @header_pulse:	duration of header pulse in ns (0 for none)
+ * @header_space:	duration of header space in ns
+ * @bit_pulse:		duration of bit pulse in ns
+ * @bit_space:		duration of bit space (for logic 0 and 1) in ns
+ * @trailer_pulse:	duration of trailer pulse in ns
+ * @trailer_space:	duration of trailer space in ns
+ * @msb_first:		1 if most significant bit is sent first
+ */
+struct ir_raw_timings_pd {
+	unsigned int header_pulse;
+	unsigned int header_space;
+	unsigned int bit_pulse;
+	unsigned int bit_space[2];
+	unsigned int trailer_pulse;
+	unsigned int trailer_space;
+	unsigned int msb_first:1;
+};
+
+int ir_raw_gen_pd(struct ir_raw_event **ev, unsigned int max,
+		  const struct ir_raw_timings_pd *timings,
+		  unsigned int n, u64 data);
+
 /*
  * Routines from rc-raw.c to be used internally and by decoders
  */
