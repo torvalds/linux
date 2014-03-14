@@ -3560,7 +3560,7 @@ static void i40e_unquiesce_vsi(struct i40e_vsi *vsi)
 	if (vsi->netdev && netif_running(vsi->netdev))
 		vsi->netdev->netdev_ops->ndo_open(vsi->netdev);
 	else
-		i40e_up(vsi);   /* this clears the DOWN bit */
+		i40e_vsi_open(vsi);   /* this clears the DOWN bit */
 }
 
 /**
