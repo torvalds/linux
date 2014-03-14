@@ -87,7 +87,7 @@ static int st_ahci_deassert_resets(struct device *dev)
 	return 0;
 }
 
-static int st_ahci_exit(struct device *dev)
+static void st_ahci_exit(struct device *dev)
 {
 	struct st_ahci_drv_data *drv_data = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = drv_data->hpriv;
@@ -96,12 +96,10 @@ static int st_ahci_exit(struct device *dev)
 	if (drv_data->pwr) {
 		err = reset_control_assert(drv_data->pwr);
 		if (err)
-			dev_err(&pdev->dev, "unable to pwrdwn\n");
+			dev_err(dev, "unable to pwrdwn\n");
 	}
 
 	ahci_platform_disable_resources(hpriv);
-
-	return 0;
 }
 
 static int st_ahci_probe_resets(struct platform_device *pdev)
@@ -186,9 +184,9 @@ static int st_ahci_suspend(struct device *dev)
 	struct ahci_host_priv *hpriv = drv_data->hpriv;
 	int err;
 
-	ret = ahci_platform_suspend_host(dev);
-	if (ret)
-		return ret;
+	err = ahci_platform_suspend_host(dev);
+	if (err)
+		return err;
 
 	if (drv_data->pwr) {
 		err = reset_control_assert(drv_data->pwr);
