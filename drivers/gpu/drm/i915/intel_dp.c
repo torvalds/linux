@@ -91,6 +91,7 @@ static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 }
 
 static void intel_dp_link_down(struct intel_dp *intel_dp);
+static bool _edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 
@@ -1162,23 +1163,21 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	return control;
 }
 
-static void edp_panel_vdd_on(struct intel_dp *intel_dp)
+static bool _edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 	u32 pp_stat_reg, pp_ctrl_reg;
+	bool need_to_disable = !intel_dp->want_panel_vdd;
 
 	if (!is_edp(intel_dp))
-		return;
-
-	WARN(intel_dp->want_panel_vdd,
-	     "eDP VDD already requested on\n");
+		return false;
 
 	intel_dp->want_panel_vdd = true;
 
 	if (edp_have_panel_vdd(intel_dp))
-		return;
+		return need_to_disable;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -1203,6 +1202,17 @@ static void edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (!edp_have_panel_power(intel_dp)) {
 		DRM_DEBUG_KMS("eDP was not running\n");
 		msleep(intel_dp->panel_power_up_delay);
+	}
+
+	return need_to_disable;
+}
+
+static void edp_panel_vdd_on(struct intel_dp *intel_dp)
+{
+	if (is_edp(intel_dp)) {
+		bool vdd = _edp_panel_vdd_on(intel_dp);
+
+		WARN(!vdd, "eDP VDD already requested on\n");
 	}
 }
 
