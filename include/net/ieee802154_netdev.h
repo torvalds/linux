@@ -171,7 +171,7 @@ struct ieee802154_mlme_ops {
 			u8 channel, u8 page, u8 cap);
 	int (*assoc_resp)(struct net_device *dev,
 			struct ieee802154_addr_sa *addr,
-			u16 short_addr, u8 status);
+			__le16 short_addr, u8 status);
 	int (*disassoc_req)(struct net_device *dev,
 			struct ieee802154_addr_sa *addr,
 			u8 reason);
@@ -190,8 +190,8 @@ struct ieee802154_mlme_ops {
 	 * FIXME: these should become the part of PIB/MIB interface.
 	 * However we still don't have IB interface of any kind
 	 */
-	u16 (*get_pan_id)(const struct net_device *dev);
-	u16 (*get_short_addr)(const struct net_device *dev);
+	__le16 (*get_pan_id)(const struct net_device *dev);
+	__le16 (*get_short_addr)(const struct net_device *dev);
 	u8 (*get_dsn)(const struct net_device *dev);
 };
 

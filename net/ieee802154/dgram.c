@@ -363,8 +363,8 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	/* Data frame processing */
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
-	short_addr = ieee802154_mlme_ops(dev)->get_short_addr(dev);
+	pan_id = le16_to_cpu(ieee802154_mlme_ops(dev)->get_pan_id(dev));
+	short_addr = le16_to_cpu(ieee802154_mlme_ops(dev)->get_short_addr(dev));
 
 	read_lock(&dgram_lock);
 	sk_for_each(sk, &dgram_head) {

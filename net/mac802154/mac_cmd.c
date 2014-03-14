@@ -42,8 +42,8 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 {
 	BUG_ON(addr->addr_type != IEEE802154_ADDR_SHORT);
 
-	mac802154_dev_set_pan_id(dev, addr->pan_id);
-	mac802154_dev_set_short_addr(dev, addr->short_addr);
+	mac802154_dev_set_pan_id(dev, cpu_to_le16(addr->pan_id));
+	mac802154_dev_set_short_addr(dev, cpu_to_le16(addr->short_addr));
 	mac802154_dev_set_ieee_addr(dev);
 	mac802154_dev_set_page_channel(dev, page, channel);
 

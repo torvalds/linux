@@ -24,6 +24,7 @@
 #include <linux/if_arp.h>
 
 #include <net/mac802154.h>
+#include <net/ieee802154_netdev.h>
 #include <net/wpan-phy.h>
 
 #include "mac802154.h"
@@ -79,7 +80,7 @@ static void set_hw_addr_filt(struct net_device *dev, unsigned long changed)
 	queue_work(priv->hw->dev_workqueue, &work->work);
 }
 
-void mac802154_dev_set_short_addr(struct net_device *dev, u16 val)
+void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 
@@ -96,10 +97,10 @@ void mac802154_dev_set_short_addr(struct net_device *dev, u16 val)
 	}
 }
 
-u16 mac802154_dev_get_short_addr(const struct net_device *dev)
+__le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	u16 ret;
+	__le16 ret;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -114,20 +115,21 @@ void mac802154_dev_set_ieee_addr(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	struct mac802154_priv *mac = priv->hw;
+	__le64 addr;
 
-	if (mac->ops->set_hw_addr_filt &&
-	    memcmp(mac->hw.hw_filt.ieee_addr,
-		   dev->dev_addr, IEEE802154_ADDR_LEN)) {
-		memcpy(mac->hw.hw_filt.ieee_addr,
-		       dev->dev_addr, IEEE802154_ADDR_LEN);
+	addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	priv->extended_addr = addr;
+
+	if (mac->ops->set_hw_addr_filt && mac->hw.hw_filt.ieee_addr != addr) {
+		mac->hw.hw_filt.ieee_addr = addr;
 		set_hw_addr_filt(dev, IEEE802515_AFILT_IEEEADDR_CHANGED);
 	}
 }
 
-u16 mac802154_dev_get_pan_id(const struct net_device *dev)
+__le16 mac802154_dev_get_pan_id(const struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	u16 ret;
+	__le16 ret;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -138,7 +140,7 @@ u16 mac802154_dev_get_pan_id(const struct net_device *dev)
 	return ret;
 }
 
-void mac802154_dev_set_pan_id(struct net_device *dev, u16 val)
+void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 

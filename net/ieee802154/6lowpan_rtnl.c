@@ -120,11 +120,11 @@ static int lowpan_header_create(struct sk_buff *skb,
 
 	/* prepare wpan address data */
 	sa.addr_type = IEEE802154_ADDR_LONG;
-	sa.pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
+	sa.pan_id = le16_to_cpu(ieee802154_mlme_ops(dev)->get_pan_id(dev));
 
 	memcpy(&(sa.hwaddr), saddr, 8);
 	/* intra-PAN communications */
-	da.pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
+	da.pan_id = sa.pan_id;
 
 	/* if the destination address is the broadcast address, use the
 	 * corresponding short address
@@ -352,13 +352,13 @@ static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
 	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
 }
 
-static u16 lowpan_get_pan_id(const struct net_device *dev)
+static __le16 lowpan_get_pan_id(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
 	return ieee802154_mlme_ops(real_dev)->get_pan_id(real_dev);
 }
 
-static u16 lowpan_get_short_addr(const struct net_device *dev)
+static __le16 lowpan_get_short_addr(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
 	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);

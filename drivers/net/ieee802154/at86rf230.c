@@ -745,30 +745,31 @@ at86rf230_set_hw_addr_filt(struct ieee802154_dev *dev,
 	struct at86rf230_local *lp = dev->priv;
 
 	if (changed & IEEE802515_AFILT_SADDR_CHANGED) {
+		u16 addr = le16_to_cpu(filt->short_addr);
+
 		dev_vdbg(&lp->spi->dev,
 			"at86rf230_set_hw_addr_filt called for saddr\n");
-		__at86rf230_write(lp, RG_SHORT_ADDR_0, filt->short_addr);
-		__at86rf230_write(lp, RG_SHORT_ADDR_1, filt->short_addr >> 8);
+		__at86rf230_write(lp, RG_SHORT_ADDR_0, addr);
+		__at86rf230_write(lp, RG_SHORT_ADDR_1, addr >> 8);
 	}
 
 	if (changed & IEEE802515_AFILT_PANID_CHANGED) {
+		u16 pan = le16_to_cpu(filt->pan_id);
+
 		dev_vdbg(&lp->spi->dev,
 			"at86rf230_set_hw_addr_filt called for pan id\n");
-		__at86rf230_write(lp, RG_PAN_ID_0, filt->pan_id);
-		__at86rf230_write(lp, RG_PAN_ID_1, filt->pan_id >> 8);
+		__at86rf230_write(lp, RG_PAN_ID_0, pan);
+		__at86rf230_write(lp, RG_PAN_ID_1, pan >> 8);
 	}
 
 	if (changed & IEEE802515_AFILT_IEEEADDR_CHANGED) {
+		u8 i, addr[8];
+
+		memcpy(addr, &filt->ieee_addr, 8);
 		dev_vdbg(&lp->spi->dev,
 			"at86rf230_set_hw_addr_filt called for IEEE addr\n");
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_0, filt->ieee_addr[7]);
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_1, filt->ieee_addr[6]);
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_2, filt->ieee_addr[5]);
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_3, filt->ieee_addr[4]);
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_4, filt->ieee_addr[3]);
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_5, filt->ieee_addr[2]);
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_6, filt->ieee_addr[1]);
-		at86rf230_write_subreg(lp, SR_IEEE_ADDR_7, filt->ieee_addr[0]);
+		for (i = 0; i < 8; i++)
+			__at86rf230_write(lp, RG_IEEE_ADDR_0 + i, addr[i]);
 	}
 
 	if (changed & IEEE802515_AFILT_PANC_CHANGED) {

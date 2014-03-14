@@ -63,11 +63,11 @@ static struct wpan_phy *fake_get_phy(const struct net_device *dev)
  *
  * Return the ID of the PAN from the PIB.
  */
-static u16 fake_get_pan_id(const struct net_device *dev)
+static __le16 fake_get_pan_id(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return 0xeba1;
+	return cpu_to_le16(0xeba1);
 }
 
 /**
@@ -78,11 +78,11 @@ static u16 fake_get_pan_id(const struct net_device *dev)
  * device. If the device has not yet had a short address assigned
  * then this should return 0xFFFF to indicate a lack of association.
  */
-static u16 fake_get_short_addr(const struct net_device *dev)
+static __le16 fake_get_short_addr(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return 0x1;
+	return cpu_to_le16(0x1);
 }
 
 /**
@@ -149,7 +149,7 @@ static int fake_assoc_req(struct net_device *dev,
  *       802.15.4-2006 document.
  */
 static int fake_assoc_resp(struct net_device *dev,
-		struct ieee802154_addr_sa *addr, u16 short_addr, u8 status)
+		struct ieee802154_addr_sa *addr, __le16 short_addr, u8 status)
 {
 	return 0;
 }
@@ -281,8 +281,8 @@ static int ieee802154_fake_ioctl(struct net_device *dev, struct ifreq *ifr,
 	switch (cmd) {
 	case SIOCGIFADDR:
 		/* FIXME: fixed here, get from device IRL */
-		pan_id = fake_get_pan_id(dev);
-		short_addr = fake_get_short_addr(dev);
+		pan_id = le16_to_cpu(fake_get_pan_id(dev));
+		short_addr = le16_to_cpu(fake_get_short_addr(dev));
 		if (pan_id == IEEE802154_PANID_BROADCAST ||
 		    short_addr == IEEE802154_ADDR_BROADCAST)
 			return -EADDRNOTAVAIL;

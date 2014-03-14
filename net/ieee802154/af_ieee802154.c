@@ -48,7 +48,7 @@ struct net_device *ieee802154_get_dev(struct net *net,
 {
 	struct net_device *dev = NULL;
 	struct net_device *tmp;
-	u16 pan_id, short_addr;
+	__le16 pan_id, short_addr;
 
 	switch (addr->addr_type) {
 	case IEEE802154_ADDR_LONG:
@@ -59,9 +59,9 @@ struct net_device *ieee802154_get_dev(struct net *net,
 		rcu_read_unlock();
 		break;
 	case IEEE802154_ADDR_SHORT:
-		if (addr->pan_id == 0xffff ||
+		if (addr->pan_id == IEEE802154_PANID_BROADCAST ||
 		    addr->short_addr == IEEE802154_ADDR_UNDEF ||
-		    addr->short_addr == 0xffff)
+		    addr->short_addr == IEEE802154_ADDR_UNDEF)
 			break;
 
 		rtnl_lock();
@@ -74,8 +74,8 @@ struct net_device *ieee802154_get_dev(struct net *net,
 			short_addr =
 				ieee802154_mlme_ops(tmp)->get_short_addr(tmp);
 
-			if (pan_id == addr->pan_id &&
-			    short_addr == addr->short_addr) {
+			if (le16_to_cpu(pan_id) == addr->pan_id &&
+			    le16_to_cpu(short_addr) == addr->short_addr) {
 				dev = tmp;
 				dev_hold(dev);
 				break;

@@ -27,6 +27,7 @@
 #include <net/netlink.h>
 #include <linux/nl802154.h>
 #include <net/mac802154.h>
+#include <net/ieee802154_netdev.h>
 #include <net/route.h>
 #include <net/wpan-phy.h>
 
@@ -46,7 +47,9 @@ int mac802154_slave_open(struct net_device *dev)
 	}
 
 	if (ipriv->ops->ieee_addr) {
-		res = ipriv->ops->ieee_addr(&ipriv->hw, dev->dev_addr);
+		__le64 addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+
+		res = ipriv->ops->ieee_addr(&ipriv->hw, addr);
 		WARN_ON(res);
 		if (res)
 			goto err;
