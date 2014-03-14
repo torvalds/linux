@@ -438,6 +438,9 @@ struct drm_dp_aux_msg {
  * The .dev field should be set to a pointer to the device that implements
  * the AUX channel.
  *
+ * The .name field may be used to specify the name of the I2C adapter. If set to
+ * NULL, dev_name() of .dev will be used.
+ *
  * Drivers provide a hardware-specific implementation of how transactions
  * are executed via the .transfer() function. A pointer to a drm_dp_aux_msg
  * structure describing the transaction is passed into this function. Upon
@@ -455,6 +458,7 @@ struct drm_dp_aux_msg {
  * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
  */
 struct drm_dp_aux {
+	const char *name;
 	struct i2c_adapter ddc;
 	struct device *dev;
 
