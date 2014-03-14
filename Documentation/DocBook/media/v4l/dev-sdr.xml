@@ -69,15 +69,15 @@ must be supported as well.
     <para>
 To use the <link linkend="format">format</link> ioctls applications set the
 <structfield>type</structfield> field of a &v4l2-format; to
-<constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant> and use the &v4l2-format-sdr;
+<constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant> and use the &v4l2-sdr-format;
 <structfield>sdr</structfield> member of the <structfield>fmt</structfield>
 union as needed per the desired operation.
 Currently only the <structfield>pixelformat</structfield> field of
-&v4l2-format-sdr; is used. The content of that field is the V4L2 fourcc code
+&v4l2-sdr-format; is used. The content of that field is the V4L2 fourcc code
 of the data format.
     </para>
 
-    <table pgwide="1" frame="none" id="v4l2-format-sdr">
+    <table pgwide="1" frame="none" id="v4l2-sdr-format">
       <title>struct <structname>v4l2_sdr_format</structname></title>
       <tgroup cols="3">
         &cs-str;
