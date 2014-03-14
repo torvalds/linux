@@ -78,6 +78,7 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 #define MMCR0_FC56		0
 #define MMCR0_PMAO		0
 #define MMCR0_EBE		0
+#define MMCR0_BHRBA		0
 #define MMCR0_PMCC		0
 #define MMCR0_PMCC_U6		0
 
@@ -546,8 +547,8 @@ static unsigned long ebb_switch_in(bool ebb, unsigned long mmcr0)
 	if (!ebb)
 		goto out;
 
-	/* Enable EBB and read/write to all 6 PMCs for userspace */
-	mmcr0 |= MMCR0_EBE | MMCR0_PMCC_U6;
+	/* Enable EBB and read/write to all 6 PMCs and BHRB for userspace */
+	mmcr0 |= MMCR0_EBE | MMCR0_BHRBA | MMCR0_PMCC_U6;
 
 	/*
 	 * Add any bits from the user MMCR0, FC or PMAO. This is compatible
@@ -1117,11 +1118,12 @@ static void power_pmu_disable(struct pmu *pmu)
 		}
 
 		/*
-		 * Set the 'freeze counters' bit, clear EBE/PMCC/PMAO/FC56.
+		 * Set the 'freeze counters' bit, clear EBE/BHRBA/PMCC/PMAO/FC56
 		 */
 		val  = mmcr0 = mfspr(SPRN_MMCR0);
 		val |= MMCR0_FC;
-		val &= ~(MMCR0_EBE | MMCR0_PMCC | MMCR0_PMAO | MMCR0_FC56);
+		val &= ~(MMCR0_EBE | MMCR0_BHRBA | MMCR0_PMCC | MMCR0_PMAO |
+			 MMCR0_FC56);
 
 		/*
 		 * The barrier is to make sure the mtspr has been

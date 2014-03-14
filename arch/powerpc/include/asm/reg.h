@@ -664,6 +664,7 @@
 #define   MMCR0_PMXE	0x04000000UL /* performance monitor exception enable */
 #define   MMCR0_FCECE	0x02000000UL /* freeze ctrs on enabled cond or event */
 #define   MMCR0_TBEE	0x00400000UL /* time base exception enable */
+#define   MMCR0_BHRBA	0x00200000UL /* BHRB Access allowed in userspace */
 #define   MMCR0_EBE	0x00100000UL /* Event based branch enable */
 #define   MMCR0_PMCC	0x000c0000UL /* PMC control */
 #define   MMCR0_PMCC_U6	0x00080000UL /* PMC1-6 are R/W by user (PR) */
