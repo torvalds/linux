@@ -1264,7 +1264,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 					goto err;
 			}
 			mmc_card_set_ddr_mode(card);
-			mmc_set_timing(card->host, MMC_TIMING_UHS_DDR50);
+			mmc_set_timing(card->host, MMC_TIMING_MMC_DDR52);
 			mmc_set_bus_width(card->host, bus_width);
 		}
 	}
