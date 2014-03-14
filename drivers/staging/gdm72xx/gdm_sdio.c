@@ -43,21 +43,6 @@
 static int init_sdio(struct sdiowm_dev *sdev);
 static void release_sdio(struct sdiowm_dev *sdev);
 
-#ifdef DEBUG
-static void hexdump(char *title, u8 *data, int len)
-{
-	int i;
-
-	printk(KERN_DEBUG "%s: length = %d\n", title, len);
-	for (i = 0; i < len; i++) {
-		printk(KERN_DEBUG "%02x ", data[i]);
-		if ((i & 0xf) == 0xf)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-}
-#endif
-
 static struct sdio_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
 	struct sdio_tx *t = kzalloc(sizeof(*t), GFP_ATOMIC);
@@ -297,10 +282,9 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-#ifdef DEBUG
-	hexdump("sdio_send", tx->sdu_buf + TYPE_A_HEADER_SIZE,
-		aggr_len - TYPE_A_HEADER_SIZE);
-#endif
+	print_hex_dump_debug("sdio_send: ", DUMP_PREFIX_NONE, 16, 1,
+			     tx->sdu_buf + TYPE_A_HEADER_SIZE,
+			     aggr_len - TYPE_A_HEADER_SIZE, false);
 
 	for (pos = TYPE_A_HEADER_SIZE; pos < aggr_len; pos += TX_CHUNK_SIZE) {
 		len = aggr_len - pos;
@@ -335,10 +319,9 @@ static void send_hci(struct sdio_func *func, struct tx_cxt *tx,
 {
 	unsigned long flags;
 
-#ifdef DEBUG
-	hexdump("sdio_send", t->buf + TYPE_A_HEADER_SIZE,
-		t->len - TYPE_A_HEADER_SIZE);
-#endif
+	print_hex_dump_debug("sdio_send: ", DUMP_PREFIX_NONE, 16, 1,
+			     t->buf + TYPE_A_HEADER_SIZE,
+			     t->len - TYPE_A_HEADER_SIZE, false);
 	send_sdio_pkt(func, t->buf, t->len);
 
 	spin_lock_irqsave(&tx->lock, flags);
@@ -579,9 +562,8 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 end_io:
-#ifdef DEBUG
-	hexdump("sdio_receive", rx->rx_buf, len);
-#endif
+	print_hex_dump_debug("sdio_receive: ", DUMP_PREFIX_NONE, 16, 1,
+			     rx->rx_buf, len, false);
 	len = control_sdu_tx_flow(sdev, rx->rx_buf, len);
 
 	spin_lock_irqsave(&rx->lock, flags);

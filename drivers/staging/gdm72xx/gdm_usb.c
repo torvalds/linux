@@ -56,20 +56,6 @@ static int init_usb(struct usbwm_dev *udev);
 static void release_usb(struct usbwm_dev *udev);
 
 /*#define DEBUG */
-#ifdef DEBUG
-static void hexdump(char *title, u8 *data, int len)
-{
-	int i;
-
-	printk(KERN_DEBUG "%s: length = %d\n", title, len);
-	for (i = 0; i < len; i++) {
-		printk(KERN_DEBUG "%02x ", data[i]);
-		if ((i & 0xf) == 0xf)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-}
-#endif
 
 static struct usb_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
@@ -368,9 +354,8 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 			gdm_usb_send_complete,
 			t);
 
-#ifdef DEBUG
-	hexdump("usb_send", t->buf, len + padding);
-#endif
+	print_hex_dump_debug("usb_send: ", DUMP_PREFIX_NONE, 16, 1,
+			     t->buf, len + padding, false);
 #ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	if (usbdev->state & USB_STATE_SUSPENDED) {
 		list_add_tail(&t->p_list, &tx->pending_list);
@@ -451,9 +436,8 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 
 	if (!urb->status) {
 		cmd_evt = (r->buf[0] << 8) | (r->buf[1]);
-#ifdef DEBUG
-		hexdump("usb_receive", r->buf, urb->actual_length);
-#endif
+		print_hex_dump_debug("usb_receive: ", DUMP_PREFIX_NONE, 16, 1,
+				     r->buf, urb->actual_length, false);
 		if (cmd_evt == WIMAX_SDU_TX_FLOW) {
 			if (r->buf[4] == 0) {
 #ifdef DEBUG

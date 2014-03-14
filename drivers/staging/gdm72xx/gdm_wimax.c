@@ -63,20 +63,6 @@ static void gdm_wimax_ind_fsm_update(struct net_device *dev, struct fsm_s *fsm);
 static void gdm_wimax_ind_if_updown(struct net_device *dev, int if_up);
 
 #if defined(DEBUG_SDU)
-static void printk_hex(u8 *buf, u32 size)
-{
-	int i;
-
-	for (i = 0; i < size; i++) {
-		if (i && i % 16 == 0)
-			printk(KERN_DEBUG "\n%02x ", *buf++);
-		else
-			printk(KERN_DEBUG "%02x ", *buf++);
-	}
-
-	printk(KERN_DEBUG "\n");
-}
-
 static const char *get_protocol_name(u16 protocol)
 {
 	static char buf[32];
@@ -175,31 +161,7 @@ static void dump_eth_packet(const char *title, u8 *data, int len)
 			printk(KERN_DEBUG "     src=%pI6\n", &ih->saddr);
 	}
 
-	#if (DUMP_PACKET & DUMP_SDU_ALL)
-	printk_hex(data, len);
-	#else
-		#if (DUMP_PACKET & DUMP_SDU_ARP)
-		if (protocol == ETH_P_ARP)
-			printk_hex(data, len);
-		#endif
-		#if (DUMP_PACKET & DUMP_SDU_IP)
-		if (protocol == ETH_P_IP || protocol == ETH_P_IPV6)
-			printk_hex(data, len);
-		#else
-			#if (DUMP_PACKET & DUMP_SDU_IP_TCP)
-			if (ip_protocol == IPPROTO_TCP)
-				printk_hex(data, len);
-			#endif
-			#if (DUMP_PACKET & DUMP_SDU_IP_UDP)
-			if (ip_protocol == IPPROTO_UDP)
-				printk_hex(data, len);
-			#endif
-			#if (DUMP_PACKET & DUMP_SDU_IP_ICMP)
-			if (ip_protocol == IPPROTO_ICMP)
-				printk_hex(data, len);
-			#endif
-		#endif
-	#endif
+	print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1, data, len, false);
 }
 #endif
 
