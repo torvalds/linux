@@ -488,6 +488,7 @@ config BLK_DEV_JMICRON
 
 config BLK_DEV_SC1200
 	tristate "National SCx200 chipset support"
+	depends on X86_32 || COMPILE_TEST
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  This driver adds support for the on-board IDE controller on the
