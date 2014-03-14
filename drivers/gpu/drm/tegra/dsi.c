@@ -550,7 +550,7 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 
 	/* disable DSI controller */
 	value = tegra_dsi_readl(dsi, DSI_POWER_CONTROL);
-	value &= DSI_POWER_CONTROL_ENABLE;
+	value &= ~DSI_POWER_CONTROL_ENABLE;
 	tegra_dsi_writel(dsi, value, DSI_POWER_CONTROL);
 
 	/*
