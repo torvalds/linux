@@ -66,8 +66,8 @@
 
 /* length of descriptors text */
 #define DESC_AEAD_BASE			(4 * CAAM_CMD_SZ)
-#define DESC_AEAD_ENC_LEN		(DESC_AEAD_BASE + 16 * CAAM_CMD_SZ)
-#define DESC_AEAD_DEC_LEN		(DESC_AEAD_BASE + 21 * CAAM_CMD_SZ)
+#define DESC_AEAD_ENC_LEN		(DESC_AEAD_BASE + 15 * CAAM_CMD_SZ)
+#define DESC_AEAD_DEC_LEN		(DESC_AEAD_BASE + 18 * CAAM_CMD_SZ)
 #define DESC_AEAD_GIVENC_LEN		(DESC_AEAD_ENC_LEN + 7 * CAAM_CMD_SZ)
 
 #define DESC_ABLKCIPHER_BASE		(3 * CAAM_CMD_SZ)
@@ -101,19 +101,6 @@ static inline void append_dec_op1(u32 *desc, u32 type)
 	append_operation(desc, type | OP_ALG_AS_INITFINAL |
 			 OP_ALG_DECRYPT | OP_ALG_AAI_DK);
 	set_jump_tgt_here(desc, uncond_jump_cmd);
-}
-
-/*
- * Wait for completion of class 1 key loading before allowing
- * error propagation
- */
-static inline void append_dec_shr_done(u32 *desc)
-{
-	u32 *jump_cmd;
-
-	jump_cmd = append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TEST_ALL);
-	set_jump_tgt_here(desc, jump_cmd);
-	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 }
 
 /*
@@ -211,9 +198,6 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 	append_key_aead(desc, ctx, keys_fit_inline);
 
 	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Propagate errors from shared to job descriptor */
-	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 }
 
 static int aead_set_sh_desc(struct crypto_aead *aead)
@@ -222,7 +206,6 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
 	bool keys_fit_inline = false;
-	u32 *key_jump_cmd, *jump_cmd;
 	u32 geniv, moveiv;
 	u32 *desc;
 
@@ -253,7 +236,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	/* assoclen + cryptlen = seqinlen - ivsize */
 	append_math_sub_imm_u32(desc, REG2, SEQINLEN, IMM, tfm->ivsize);
 
-	/* assoclen + cryptlen = (assoclen + cryptlen) - cryptlen */
+	/* assoclen = (assoclen + cryptlen) - cryptlen */
 	append_math_sub(desc, VARSEQINLEN, REG2, REG3, CAAM_CMD_SZ);
 
 	/* read assoc before reading payload */
@@ -296,28 +279,16 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	    CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
 
+	/* aead_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 
-	/* aead_decrypt shared descriptor */
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	append_key_aead(desc, ctx, keys_fit_inline);
-
-	/* Only propagate error immediately if shared */
-	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
-	set_jump_tgt_here(desc, key_jump_cmd);
-	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
-	set_jump_tgt_here(desc, jump_cmd);
+	init_sh_desc_key_aead(desc, ctx, keys_fit_inline);
 
 	/* Class 2 operation */
 	append_operation(desc, ctx->class2_alg_type |
 			 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
-	/* assoclen + cryptlen = seqinlen - ivsize */
+	/* assoclen + cryptlen = seqinlen - ivsize - authsize */
 	append_math_sub_imm_u32(desc, REG3, SEQINLEN, IMM,
 				ctx->authsize + tfm->ivsize)
 	/* assoclen = (assoclen + cryptlen) - cryptlen */
@@ -340,7 +311,6 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	/* Load ICV */
 	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS2 |
 			     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_ICV);
-	append_dec_shr_done(desc);
 
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
@@ -532,7 +502,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	struct ablkcipher_tfm *tfm = &ablkcipher->base.crt_ablkcipher;
 	struct device *jrdev = ctx->jrdev;
 	int ret = 0;
-	u32 *key_jump_cmd, *jump_cmd;
+	u32 *key_jump_cmd;
 	u32 *desc;
 
 #ifdef DEBUG
@@ -562,9 +532,6 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			  KEY_DEST_CLASS_REG);
 
 	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Propagate errors from shared to job descriptor */
-	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 
 	/* Load iv */
 	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
@@ -603,11 +570,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			  ctx->enckeylen, CLASS_1 |
 			  KEY_DEST_CLASS_REG);
 
-	/* For aead, only propagate error immediately if shared */
-	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, key_jump_cmd);
-	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
-	set_jump_tgt_here(desc, jump_cmd);
 
 	/* load IV */
 	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
@@ -618,9 +581,6 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 	/* Perform operation */
 	ablkcipher_append_src_dst(desc);
-
-	/* Wait for key to load before allowing propagating error */
-	append_dec_shr_done(desc);
 
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
