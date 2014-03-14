@@ -51,22 +51,16 @@ show_two(hdw_info_t *hi, int brdno)
 	struct pci_dev *pdev;
 	char       *bid;
 	char       banner[80];
-	char	sn[6];
-
-	/* clear print buffer */
-	memset(banner, 0, 80);
+	char	sn[6] = {0,};
 
 	ci = (ci_t *)(netdev_priv(hi->ndev));
 	bid = sbeid_get_bdname(ci);
 	switch (hi->promfmt) {
 	case PROM_FORMAT_TYPE1:
-		memcpy(sn, (FLD_TYPE1 *)(hi->mfg_info.pft1.Serial), 6);
+		memcpy(sn, hi->mfg_info.pft1.Serial, 6);
 		break;
 	case PROM_FORMAT_TYPE2:
-		memcpy(sn, (FLD_TYPE2 *)(hi->mfg_info.pft2.Serial), 6);
-		break;
-	default:
-		memset(sn, 0, 6);
+		memcpy(sn, hi->mfg_info.pft2.Serial, 6);
 		break;
 	}
 
