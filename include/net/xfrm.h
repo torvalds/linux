@@ -1393,12 +1393,6 @@ struct xfrm_tunnel {
 	int priority;
 };
 
-struct xfrm_tunnel_notifier {
-	int (*handler)(struct sk_buff *skb);
-	struct xfrm_tunnel_notifier __rcu *next;
-	int priority;
-};
-
 struct xfrm6_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -1554,8 +1548,6 @@ int xfrm4_protocol_deregister(struct xfrm4_protocol *handler, unsigned char prot
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 void xfrm4_local_error(struct sk_buff *skb, u32 mtu);
-int xfrm6_mode_tunnel_input_register(struct xfrm_tunnel_notifier *handler);
-int xfrm6_mode_tunnel_input_deregister(struct xfrm_tunnel_notifier *handler);
 int xfrm6_extract_header(struct sk_buff *skb);
 int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
