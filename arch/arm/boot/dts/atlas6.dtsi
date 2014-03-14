@@ -172,6 +172,7 @@
 				compatible = "sirf,prima2-dspif";
 				reg = <0xa8000000 0x10000>;
 				interrupts = <9>;
+				resets = <&rstc 1>;
 			};
 
 			gps@a8010000 {
@@ -179,6 +180,7 @@
 				reg = <0xa8010000 0x10000>;
 				interrupts = <7>;
 				clocks = <&clks 9>;
+				resets = <&rstc 2>;
 			};
 
 			dsp@a9000000 {
@@ -186,6 +188,7 @@
 				reg = <0xa9000000 0x1000000>;
 				interrupts = <8>;
 				clocks = <&clks 8>;
+				resets = <&rstc 0>;
 			};
 		};
 
