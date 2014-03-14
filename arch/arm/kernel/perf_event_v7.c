@@ -950,6 +950,51 @@ static void armv7_pmnc_dump_regs(struct arm_pmu *cpu_pmu)
 }
 #endif
 
+static void armv7pmu_save_regs(struct arm_pmu *cpu_pmu,
+					struct cpupmu_regs *regs)
+{
+	unsigned int cnt;
+	asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r" (regs->pmc));
+	if (!(regs->pmc & ARMV7_PMNC_E))
+		return;
+
+	asm volatile("mrc p15, 0, %0, c9, c12, 1" : "=r" (regs->pmcntenset));
+	asm volatile("mrc p15, 0, %0, c9, c14, 0" : "=r" (regs->pmuseren));
+	asm volatile("mrc p15, 0, %0, c9, c14, 1" : "=r" (regs->pmintenset));
+	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r" (regs->pmxevtcnt[0]));
+	for (cnt = ARMV7_IDX_COUNTER0;
+			cnt <= ARMV7_IDX_COUNTER_LAST(cpu_pmu); cnt++) {
+		armv7_pmnc_select_counter(cnt);
+		asm volatile("mrc p15, 0, %0, c9, c13, 1"
+					: "=r"(regs->pmxevttype[cnt]));
+		asm volatile("mrc p15, 0, %0, c9, c13, 2"
+					: "=r"(regs->pmxevtcnt[cnt]));
+	}
+	return;
+}
+
+static void armv7pmu_restore_regs(struct arm_pmu *cpu_pmu,
+					struct cpupmu_regs *regs)
+{
+	unsigned int cnt;
+	if (!(regs->pmc & ARMV7_PMNC_E))
+		return;
+
+	asm volatile("mcr p15, 0, %0, c9, c12, 1" : : "r" (regs->pmcntenset));
+	asm volatile("mcr p15, 0, %0, c9, c14, 0" : : "r" (regs->pmuseren));
+	asm volatile("mcr p15, 0, %0, c9, c14, 1" : : "r" (regs->pmintenset));
+	asm volatile("mcr p15, 0, %0, c9, c13, 0" : : "r" (regs->pmxevtcnt[0]));
+	for (cnt = ARMV7_IDX_COUNTER0;
+			cnt <= ARMV7_IDX_COUNTER_LAST(cpu_pmu); cnt++) {
+		armv7_pmnc_select_counter(cnt);
+		asm volatile("mcr p15, 0, %0, c9, c13, 1"
+					: : "r"(regs->pmxevttype[cnt]));
+		asm volatile("mcr p15, 0, %0, c9, c13, 2"
+					: : "r"(regs->pmxevtcnt[cnt]));
+	}
+	asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r" (regs->pmc));
+}
+
 static void armv7pmu_enable_event(struct perf_event *event)
 {
 	unsigned long flags;
@@ -1223,6 +1268,8 @@ static void armv7pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->start		= armv7pmu_start;
 	cpu_pmu->stop		= armv7pmu_stop;
 	cpu_pmu->reset		= armv7pmu_reset;
+	cpu_pmu->save_regs	= armv7pmu_save_regs;
+	cpu_pmu->restore_regs	= armv7pmu_restore_regs;
 	cpu_pmu->max_period	= (1LLU << 32) - 1;
 };
 
@@ -1240,7 +1287,7 @@ static u32 armv7_read_num_pmnc_events(void)
 static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A8";
+	cpu_pmu->name		= "ARMv7_Cortex_A8";
 	cpu_pmu->map_event	= armv7_a8_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	return 0;
@@ -1249,7 +1296,7 @@ static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A9";
+	cpu_pmu->name		= "ARMv7_Cortex_A9";
 	cpu_pmu->map_event	= armv7_a9_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	return 0;
@@ -1258,7 +1305,7 @@ static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A5";
+	cpu_pmu->name		= "ARMv7_Cortex_A5";
 	cpu_pmu->map_event	= armv7_a5_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	return 0;
@@ -1267,7 +1314,7 @@ static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A15";
+	cpu_pmu->name		= "ARMv7_Cortex_A15";
 	cpu_pmu->map_event	= armv7_a15_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
@@ -1277,7 +1324,7 @@ static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A7";
+	cpu_pmu->name		= "ARMv7_Cortex_A7";
 	cpu_pmu->map_event	= armv7_a7_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;

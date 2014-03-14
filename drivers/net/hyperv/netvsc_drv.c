@@ -328,7 +328,6 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 		return -EINVAL;
 
 	nvdev->start_remove = true;
-	cancel_delayed_work_sync(&ndevctx->dwork);
 	cancel_work_sync(&ndevctx->work);
 	netif_tx_disable(ndev);
 	rndis_filter_device_remove(hdev);
@@ -431,8 +430,8 @@ static int netvsc_probe(struct hv_device *dev,
 	net->netdev_ops = &device_ops;
 
 	/* TODO: Add GSO and Checksum offload */
-	net->hw_features = NETIF_F_SG;
-	net->features = NETIF_F_SG | NETIF_F_HW_VLAN_CTAG_TX;
+	net->hw_features = 0;
+	net->features = NETIF_F_HW_VLAN_CTAG_TX;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);

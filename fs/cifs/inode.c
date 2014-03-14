@@ -490,10 +490,15 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
 
-	rc = CIFSSMBQAllEAs(xid, tcon, path, "SETFILEBITS",
-			    ea_value, 4 /* size of buf */, cifs_sb->local_nls,
-			    cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (tcon->ses->server->ops->query_all_EAs == NULL) {
+		cifs_put_tlink(tlink);
+		return -EOPNOTSUPP;
+	}
+
+	rc = tcon->ses->server->ops->query_all_EAs(xid, tcon, path,
+			"SETFILEBITS", ea_value, 4 /* size of buf */,
+			cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	cifs_put_tlink(tlink);
 	if (rc < 0)
 		return (int)rc;
@@ -558,6 +563,11 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 			fattr->cf_mode &= ~(S_IWUGO);
 
 		fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
+		if (fattr->cf_nlink < 1) {
+			cifs_dbg(1, "replacing bogus file nlink value %u\n",
+				fattr->cf_nlink);
+			fattr->cf_nlink = 1;
+		}
 	}
 
 	fattr->cf_uid = cifs_sb->mnt_uid;

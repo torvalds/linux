@@ -326,9 +326,24 @@ static void do_btree_write(struct btree *b)
 	i->csum		= btree_csum_set(b, i);
 
 	btree_bio_init(b);
-	b->bio->bi_rw	= REQ_META|WRITE_SYNC;
+	b->bio->bi_rw	= REQ_META|WRITE_SYNC|REQ_FUA;
 	b->bio->bi_size	= set_blocks(i, b->c) * block_bytes(b->c);
 	bch_bio_map(b->bio, i);
+
+	/*
+	 * If we're appending to a leaf node, we don't technically need FUA -
+	 * this write just needs to be persisted before the next journal write,
+	 * which will be marked FLUSH|FUA.
+	 *
+	 * Similarly if we're writing a new btree root - the pointer is going to
+	 * be in the next journal entry.
+	 *
+	 * But if we're writing a new btree node (that isn't a root) or
+	 * appending to a non leaf btree node, we need either FUA or a flush
+	 * when we write the parent with the new pointer. FUA is cheaper than a
+	 * flush, and writes appending to leaf nodes aren't blocking anything so
+	 * just make all btree node writes FUA to keep things sane.
+	 */
 
 	bkey_copy(&k.key, &b->key);
 	SET_PTR_OFFSET(&k.key, 0, PTR_OFFSET(&k.key, 0) + bset_offset(b, i));
@@ -618,7 +633,7 @@ static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
 		return mca_can_free(c) * c->btree_pages;
 
 	/* Return -1 if we can't do anything right now */
-	if (sc->gfp_mask & __GFP_WAIT)
+	if (sc->gfp_mask & __GFP_IO)
 		mutex_lock(&c->bucket_lock);
 	else if (!mutex_trylock(&c->bucket_lock))
 		return -1;
@@ -1419,8 +1434,10 @@ static void btree_gc_start(struct cache_set *c)
 	for_each_cache(ca, c, i)
 		for_each_bucket(b, ca) {
 			b->gc_gen = b->gen;
-			if (!atomic_read(&b->pin))
+			if (!atomic_read(&b->pin)) {
 				SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
+				SET_GC_SECTORS_USED(b, 0);
+			}
 		}
 
 	for (d = c->devices;
@@ -2140,6 +2157,9 @@ int bch_btree_insert(struct btree_op *op, struct cache_set *c)
 void bch_btree_set_root(struct btree *b)
 {
 	unsigned i;
+	struct closure cl;
+
+	closure_init_stack(&cl);
 
 	BUG_ON(!b->written);
 
@@ -2153,8 +2173,9 @@ void bch_btree_set_root(struct btree *b)
 	b->c->root = b;
 	__bkey_put(b->c, &b->key);
 
-	bch_journal_meta(b->c, NULL);
+	bch_journal_meta(b->c, &cl);
 	pr_debug("%s for %pf", pbtree(b), __builtin_return_address(0));
+	closure_sync(&cl);
 }
 
 /* Cache lookup */

@@ -118,17 +118,18 @@ static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		clk_put(cpuclk);
 		return -EINVAL;
 	}
-	ret = clk_set_rate(cpuclk, rate);
-	if (ret) {
-		clk_put(cpuclk);
-		return ret;
-	}
 
 	/* clock table init */
 	for (i = 2;
 	     (loongson2_clockmod_table[i].frequency != CPUFREQ_TABLE_END);
 	     i++)
 		loongson2_clockmod_table[i].frequency = (rate * i) / 8;
+
+	ret = clk_set_rate(cpuclk, rate);
+	if (ret) {
+		clk_put(cpuclk);
+		return ret;
+	}
 
 	policy->cur = loongson2_cpufreq_get(policy->cpu);
 

@@ -16,7 +16,10 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
+#include <linux/of.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -29,6 +32,16 @@
 #include <asm/sizes.h>
 
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
+
+#ifdef CONFIG_ARM
+#define clcdfb_dma_alloc	dma_alloc_writecombine
+#define clcdfb_dma_free		dma_free_writecombine
+#define clcdfb_dma_mmap		dma_mmap_writecombine
+#else
+#define clcdfb_dma_alloc	dma_alloc_coherent
+#define clcdfb_dma_free		dma_free_coherent
+#define clcdfb_dma_mmap		dma_mmap_coherent
+#endif
 
 /* This is limited to 16 characters when displayed by X startup */
 static const char *clcd_name = "CLCD FB";
@@ -392,6 +405,44 @@ static int clcdfb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
+int clcdfb_mmap_dma(struct clcd_fb *fb, struct vm_area_struct *vma)
+{
+	return clcdfb_dma_mmap(&fb->dev->dev, vma,
+			       fb->fb.screen_base,
+			       fb->fb.fix.smem_start,
+			       fb->fb.fix.smem_len);
+}
+
+int clcdfb_mmap_io(struct clcd_fb *fb, struct vm_area_struct *vma)
+{
+	unsigned long user_count, count, pfn, off;
+
+	user_count	= (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	count		= PAGE_ALIGN(fb->fb.fix.smem_len) >> PAGE_SHIFT;
+	pfn		= fb->fb.fix.smem_start >> PAGE_SHIFT;
+	off		= vma->vm_pgoff;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (off < count && user_count <= (count - off))
+		return remap_pfn_range(vma, vma->vm_start, pfn + off,
+				       user_count << PAGE_SHIFT,
+				       vma->vm_page_prot);
+
+	return -ENXIO;
+}
+
+void clcdfb_remove_dma(struct clcd_fb *fb)
+{
+	clcdfb_dma_free(&fb->dev->dev, fb->fb.fix.smem_len,
+			fb->fb.screen_base, fb->fb.fix.smem_start);
+}
+
+void clcdfb_remove_io(struct clcd_fb *fb)
+{
+	iounmap(fb->fb.screen_base);
+}
+
 static int clcdfb_mmap(struct fb_info *info,
 		       struct vm_area_struct *vma)
 {
@@ -542,14 +593,239 @@ static int clcdfb_register(struct clcd_fb *fb)
 	return ret;
 }
 
+struct string_lookup {
+	const char *string;
+	const u32	val;
+};
+
+static struct string_lookup vmode_lookups[] = {
+	{ "FB_VMODE_NONINTERLACED", FB_VMODE_NONINTERLACED},
+	{ "FB_VMODE_INTERLACED",    FB_VMODE_INTERLACED},
+	{ "FB_VMODE_DOUBLE",        FB_VMODE_DOUBLE},
+	{ "FB_VMODE_ODD_FLD_FIRST", FB_VMODE_ODD_FLD_FIRST},
+	{ NULL, 0 },
+};
+
+static struct string_lookup tim2_lookups[] = {
+	{ "TIM2_CLKSEL", TIM2_CLKSEL},
+	{ "TIM2_IVS",    TIM2_IVS},
+	{ "TIM2_IHS",    TIM2_IHS},
+	{ "TIM2_IPC",    TIM2_IPC},
+	{ "TIM2_IOE",    TIM2_IOE},
+	{ "TIM2_BCD",    TIM2_BCD},
+	{ NULL, 0},
+};
+static struct string_lookup cntl_lookups[] = {
+	{"CNTL_LCDEN",        CNTL_LCDEN},
+	{"CNTL_LCDBPP1",      CNTL_LCDBPP1},
+	{"CNTL_LCDBPP2",      CNTL_LCDBPP2},
+	{"CNTL_LCDBPP4",      CNTL_LCDBPP4},
+	{"CNTL_LCDBPP8",      CNTL_LCDBPP8},
+	{"CNTL_LCDBPP16",     CNTL_LCDBPP16},
+	{"CNTL_LCDBPP16_565", CNTL_LCDBPP16_565},
+	{"CNTL_LCDBPP16_444", CNTL_LCDBPP16_444},
+	{"CNTL_LCDBPP24",     CNTL_LCDBPP24},
+	{"CNTL_LCDBW",        CNTL_LCDBW},
+	{"CNTL_LCDTFT",       CNTL_LCDTFT},
+	{"CNTL_LCDMONO8",     CNTL_LCDMONO8},
+	{"CNTL_LCDDUAL",      CNTL_LCDDUAL},
+	{"CNTL_BGR",          CNTL_BGR},
+	{"CNTL_BEBO",         CNTL_BEBO},
+	{"CNTL_BEPO",         CNTL_BEPO},
+	{"CNTL_LCDPWR",       CNTL_LCDPWR},
+	{"CNTL_LCDVCOMP(1)",  CNTL_LCDVCOMP(1)},
+	{"CNTL_LCDVCOMP(2)",  CNTL_LCDVCOMP(2)},
+	{"CNTL_LCDVCOMP(3)",  CNTL_LCDVCOMP(3)},
+	{"CNTL_LCDVCOMP(4)",  CNTL_LCDVCOMP(4)},
+	{"CNTL_LCDVCOMP(5)",  CNTL_LCDVCOMP(5)},
+	{"CNTL_LCDVCOMP(6)",  CNTL_LCDVCOMP(6)},
+	{"CNTL_LCDVCOMP(7)",  CNTL_LCDVCOMP(7)},
+	{"CNTL_LDMAFIFOTIME", CNTL_LDMAFIFOTIME},
+	{"CNTL_WATERMARK",    CNTL_WATERMARK},
+	{ NULL, 0},
+};
+static struct string_lookup caps_lookups[] = {
+	{"CLCD_CAP_RGB444",  CLCD_CAP_RGB444},
+	{"CLCD_CAP_RGB5551", CLCD_CAP_RGB5551},
+	{"CLCD_CAP_RGB565",  CLCD_CAP_RGB565},
+	{"CLCD_CAP_RGB888",  CLCD_CAP_RGB888},
+	{"CLCD_CAP_BGR444",  CLCD_CAP_BGR444},
+	{"CLCD_CAP_BGR5551", CLCD_CAP_BGR5551},
+	{"CLCD_CAP_BGR565",  CLCD_CAP_BGR565},
+	{"CLCD_CAP_BGR888",  CLCD_CAP_BGR888},
+	{"CLCD_CAP_444",     CLCD_CAP_444},
+	{"CLCD_CAP_5551",    CLCD_CAP_5551},
+	{"CLCD_CAP_565",     CLCD_CAP_565},
+	{"CLCD_CAP_888",     CLCD_CAP_888},
+	{"CLCD_CAP_RGB",     CLCD_CAP_RGB},
+	{"CLCD_CAP_BGR",     CLCD_CAP_BGR},
+	{"CLCD_CAP_ALL",     CLCD_CAP_ALL},
+	{ NULL, 0},
+};
+
+u32 parse_setting(struct string_lookup *lookup, const char *name)
+{
+	int i = 0;
+	while (lookup[i].string != NULL) {
+		if (strcmp(lookup[i].string, name) == 0)
+			return lookup[i].val;
+		++i;
+	}
+	return -EINVAL;
+}
+
+u32 get_string_lookup(struct device_node *node, const char *name,
+		      struct string_lookup *lookup)
+{
+	const char *string;
+	int count, i, ret = 0;
+
+	count = of_property_count_strings(node, name);
+	if (count >= 0)
+		for (i = 0; i < count; i++)
+			if (of_property_read_string_index(node, name, i,
+					&string) == 0)
+				ret |= parse_setting(lookup, string);
+	return ret;
+}
+
+int get_val(struct device_node *node, const char *string)
+{
+	u32 ret = 0;
+
+	if (of_property_read_u32(node, string, &ret))
+		ret = -1;
+	return ret;
+}
+
+struct clcd_panel *getPanel(struct device_node *node)
+{
+	static struct clcd_panel panel;
+
+	panel.mode.refresh      = get_val(node, "refresh");
+	panel.mode.xres         = get_val(node, "xres");
+	panel.mode.yres         = get_val(node, "yres");
+	panel.mode.pixclock     = get_val(node, "pixclock");
+	panel.mode.left_margin  = get_val(node, "left_margin");
+	panel.mode.right_margin = get_val(node, "right_margin");
+	panel.mode.upper_margin = get_val(node, "upper_margin");
+	panel.mode.lower_margin = get_val(node, "lower_margin");
+	panel.mode.hsync_len    = get_val(node, "hsync_len");
+	panel.mode.vsync_len    = get_val(node, "vsync_len");
+	panel.mode.sync         = get_val(node, "sync");
+	panel.bpp               = get_val(node, "bpp");
+	panel.width             = (signed short) get_val(node, "width");
+	panel.height            = (signed short) get_val(node, "height");
+
+	panel.mode.vmode = get_string_lookup(node, "vmode", vmode_lookups);
+	panel.tim2       = get_string_lookup(node, "tim2",  tim2_lookups);
+	panel.cntl       = get_string_lookup(node, "cntl",  cntl_lookups);
+	panel.caps       = get_string_lookup(node, "caps",  caps_lookups);
+
+	return &panel;
+}
+
+struct clcd_panel *clcdfb_get_panel(const char *name)
+{
+	struct device_node *node = NULL;
+	const char *mode;
+	struct clcd_panel *panel = NULL;
+
+	do {
+		node = of_find_compatible_node(node, NULL, "panel");
+		if (node)
+			if (of_property_read_string(node, "mode", &mode) == 0)
+				if (strcmp(mode, name) == 0) {
+					panel = getPanel(node);
+					panel->mode.name = name;
+				}
+	} while (node != NULL);
+
+	return panel;
+}
+
+#ifdef CONFIG_OF
+static int clcdfb_dt_init(struct clcd_fb *fb)
+{
+	int err = 0;
+	struct device_node *node;
+	const char *mode;
+	dma_addr_t dma;
+	u32 use_dma;
+	const __be32 *prop;
+	int len, na, ns;
+	phys_addr_t fb_base, fb_size;
+
+	node = fb->dev->dev.of_node;
+	if (!node)
+		return -ENODEV;
+
+	na = of_n_addr_cells(node);
+	ns = of_n_size_cells(node);
+
+	if (WARN_ON(of_property_read_string(node, "mode", &mode)))
+		return -ENODEV;
+
+	fb->panel = clcdfb_get_panel(mode);
+	if (!fb->panel)
+		return -EINVAL;
+	fb->fb.fix.smem_len = fb->panel->mode.xres * fb->panel->mode.yres * 2;
+
+	fb->board->name		= "Device Tree CLCD PL111";
+	fb->board->caps		= CLCD_CAP_5551 | CLCD_CAP_565;
+	fb->board->check	= clcdfb_check;
+	fb->board->decode	= clcdfb_decode;
+
+	if (of_property_read_u32(node, "use_dma", &use_dma))
+		use_dma = 0;
+
+	if (use_dma) {
+		fb->fb.screen_base = clcdfb_dma_alloc(&fb->dev->dev,
+						      fb->fb.fix.smem_len,
+						      &dma, GFP_KERNEL);
+		if (!fb->fb.screen_base) {
+			pr_err("CLCD: unable to map framebuffer\n");
+			return -ENOMEM;
+		}
+
+		fb->fb.fix.smem_start	= dma;
+		fb->board->mmap		= clcdfb_mmap_dma;
+		fb->board->remove	= clcdfb_remove_dma;
+	} else {
+		prop = of_get_property(node, "framebuffer", &len);
+		if (WARN_ON(!prop || len < (na + ns) * sizeof(*prop)))
+			return -EINVAL;
+
+		fb_base = of_read_number(prop, na);
+		fb_size = of_read_number(prop + na, ns);
+
+		fb->fb.fix.smem_start	= fb_base;
+		fb->fb.screen_base	= ioremap_wc(fb_base, fb_size);
+		fb->board->mmap		= clcdfb_mmap_io;
+		fb->board->remove	= clcdfb_remove_io;
+	}
+
+	return err;
+}
+#endif /* CONFIG_OF */
+
 static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct clcd_board *board = dev->dev.platform_data;
 	struct clcd_fb *fb;
 	int ret;
 
-	if (!board)
-		return -EINVAL;
+	if (!board) {
+#ifdef CONFIG_OF
+		if (dev->dev.of_node) {
+			board = kzalloc(sizeof(struct clcd_board), GFP_KERNEL);
+			if (!board)
+				return -ENOMEM;
+			board->setup   = clcdfb_dt_init;
+		} else
+#endif
+			return -EINVAL;
+	}
 
 	ret = amba_request_regions(dev, NULL);
 	if (ret) {

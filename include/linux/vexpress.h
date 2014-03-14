@@ -68,7 +68,8 @@
  */
 struct vexpress_config_bridge_info {
 	const char *name;
-	void *(*func_get)(struct device *dev, struct device_node *node);
+	void *(*func_get)(struct device *dev, struct device_node *node,
+			  const char *id);
 	void (*func_put)(void *func);
 	int (*func_exec)(void *func, int offset, bool write, u32 *data);
 };
@@ -87,12 +88,17 @@ void vexpress_config_complete(struct vexpress_config_bridge *bridge,
 
 struct vexpress_config_func;
 
-struct vexpress_config_func *__vexpress_config_func_get(struct device *dev,
-		struct device_node *node);
+struct vexpress_config_func *__vexpress_config_func_get(
+		struct vexpress_config_bridge *bridge,
+		struct device *dev,
+		struct device_node *node,
+		const char *id);
+#define vexpress_config_func_get(bridge, id) \
+		__vexpress_config_func_get(bridge, NULL, NULL, id)
 #define vexpress_config_func_get_by_dev(dev) \
-		__vexpress_config_func_get(dev, NULL)
+		__vexpress_config_func_get(NULL, dev, NULL, NULL)
 #define vexpress_config_func_get_by_node(node) \
-		__vexpress_config_func_get(NULL, node)
+		__vexpress_config_func_get(NULL, NULL, node, NULL)
 void vexpress_config_func_put(struct vexpress_config_func *func);
 
 /* Both may sleep! */
@@ -120,7 +126,53 @@ void vexpress_sysreg_of_early_init(void);
 struct clk *vexpress_osc_setup(struct device *dev);
 void vexpress_osc_of_setup(struct device_node *node);
 
+struct clk *vexpress_clk_register_spc(const char *name, int cluster_id);
+void vexpress_clk_of_register_spc(void);
+
 void vexpress_clk_init(void __iomem *sp810_base);
 void vexpress_clk_of_init(void);
+
+/* SPC */
+
+#define	VEXPRESS_SPC_WAKE_INTR_IRQ(cluster, cpu) \
+			(1 << (4 * (cluster) + (cpu)))
+#define	VEXPRESS_SPC_WAKE_INTR_FIQ(cluster, cpu) \
+			(1 << (7 * (cluster) + (cpu)))
+#define	VEXPRESS_SPC_WAKE_INTR_SWDOG		(1 << 10)
+#define	VEXPRESS_SPC_WAKE_INTR_GTIMER		(1 << 11)
+#define	VEXPRESS_SPC_WAKE_INTR_MASK		0xFFF
+
+#ifdef CONFIG_VEXPRESS_SPC
+extern bool vexpress_spc_check_loaded(void);
+extern void vexpress_spc_set_cpu_wakeup_irq(u32 cpu, u32 cluster, bool set);
+extern void vexpress_spc_set_global_wakeup_intr(bool set);
+extern int vexpress_spc_get_freq_table(u32 cluster, u32 **fptr);
+extern int vexpress_spc_get_performance(u32 cluster, u32 *freq);
+extern int vexpress_spc_set_performance(u32 cluster, u32 freq);
+extern void vexpress_spc_write_resume_reg(u32 cluster, u32 cpu, u32 addr);
+extern int vexpress_spc_get_nb_cpus(u32 cluster);
+extern void vexpress_spc_powerdown_enable(u32 cluster, bool enable);
+#else
+static inline bool vexpress_spc_check_loaded(void) { return false; }
+static inline void vexpress_spc_set_cpu_wakeup_irq(u32 cpu, u32 cluster,
+						   bool set) { }
+static inline void vexpress_spc_set_global_wakeup_intr(bool set) { }
+static inline int vexpress_spc_get_freq_table(u32 cluster, u32 **fptr)
+{
+	return -ENODEV;
+}
+static inline int vexpress_spc_get_performance(u32 cluster, u32 *freq)
+{
+	return -ENODEV;
+}
+static inline int vexpress_spc_set_performance(u32 cluster, u32 freq)
+{
+	return -ENODEV;
+}
+static inline void vexpress_spc_write_resume_reg(u32 cluster,
+						 u32 cpu, u32 addr) { }
+static inline int vexpress_spc_get_nb_cpus(u32 cluster) { return -ENODEV; }
+static inline void vexpress_spc_powerdown_enable(u32 cluster, bool enable) { }
+#endif
 
 #endif

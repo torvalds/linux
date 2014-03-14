@@ -238,6 +238,7 @@ static int ext4_alloc_group_tables(struct super_block *sb,
 	ext4_group_t group;
 	ext4_group_t last_group;
 	unsigned overhead;
+	__u16 uninit_mask = (flexbg_size > 1) ? ~EXT4_BG_BLOCK_UNINIT : ~0;
 
 	BUG_ON(flex_gd->count == 0 || group_data == NULL);
 
@@ -261,7 +262,7 @@ next_group:
 	src_group++;
 	for (; src_group <= last_group; src_group++) {
 		overhead = ext4_group_overhead_blocks(sb, src_group);
-		if (overhead != 0)
+		if (overhead == 0)
 			last_blk += group_data[src_group - group].blocks_count;
 		else
 			break;
@@ -275,8 +276,7 @@ next_group:
 		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count--;
-		if (flexbg_size > 1)
-			flex_gd->bg_flags[group] &= ~EXT4_BG_BLOCK_UNINIT;
+		flex_gd->bg_flags[group] &= uninit_mask;
 	}
 
 	/* Allocate inode bitmaps */
@@ -287,22 +287,30 @@ next_group:
 		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count--;
-		if (flexbg_size > 1)
-			flex_gd->bg_flags[group] &= ~EXT4_BG_BLOCK_UNINIT;
+		flex_gd->bg_flags[group] &= uninit_mask;
 	}
 
 	/* Allocate inode tables */
 	for (; it_index < flex_gd->count; it_index++) {
-		if (start_blk + EXT4_SB(sb)->s_itb_per_group > last_blk)
+		unsigned int itb = EXT4_SB(sb)->s_itb_per_group;
+		ext4_fsblk_t next_group_start;
+
+		if (start_blk + itb > last_blk)
 			goto next_group;
 		group_data[it_index].inode_table = start_blk;
-		group = ext4_get_group_number(sb, start_blk - 1);
+		group = ext4_get_group_number(sb, start_blk);
+		next_group_start = ext4_group_first_block_no(sb, group + 1);
 		group -= group_data[0].group;
-		group_data[group].free_blocks_count -=
-					EXT4_SB(sb)->s_itb_per_group;
-		if (flexbg_size > 1)
-			flex_gd->bg_flags[group] &= ~EXT4_BG_BLOCK_UNINIT;
 
+		if (start_blk + itb > next_group_start) {
+			flex_gd->bg_flags[group + 1] &= uninit_mask;
+			overhead = start_blk + itb - next_group_start;
+			group_data[group + 1].free_blocks_count -= overhead;
+			itb -= overhead;
+		}
+
+		group_data[group].free_blocks_count -= itb;
+		flex_gd->bg_flags[group] &= uninit_mask;
 		start_blk += EXT4_SB(sb)->s_itb_per_group;
 	}
 
@@ -396,7 +404,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 		start = ext4_group_first_block_no(sb, group);
 		group -= flex_gd->groups[0].group;
 
-		count2 = sb->s_blocksize * 8 - (block - start);
+		count2 = EXT4_BLOCKS_PER_GROUP(sb) - (block - start);
 		if (count2 > count)
 			count2 = count;
 
@@ -615,7 +623,7 @@ handle_ib:
 			if (err)
 				goto out;
 			count = group_table_count[j];
-			start = group_data[i].block_bitmap;
+			start = (&group_data[i].block_bitmap)[j];
 			block = start;
 		}
 
@@ -1656,12 +1664,10 @@ errout:
 		err = err2;
 
 	if (!err) {
-		ext4_fsblk_t first_block;
-		first_block = ext4_group_first_block_no(sb, 0);
 		if (test_opt(sb, DEBUG))
 			printk(KERN_DEBUG "EXT4-fs: extended group to %llu "
 			       "blocks\n", ext4_blocks_count(es));
-		update_backups(sb, EXT4_SB(sb)->s_sbh->b_blocknr - first_block,
+		update_backups(sb, EXT4_SB(sb)->s_sbh->b_blocknr,
 			       (char *)es, sizeof(struct ext4_super_block), 0);
 	}
 	return err;

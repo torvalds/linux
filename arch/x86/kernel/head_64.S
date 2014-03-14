@@ -513,7 +513,7 @@ ENTRY(phys_base)
 #include "../../x86/xen/xen-head.S"
 	
 	.section .bss, "aw", @nobits
-	.align L1_CACHE_BYTES
+	.align PAGE_SIZE
 ENTRY(idt_table)
 	.skip IDT_ENTRIES * 16
 

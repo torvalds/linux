@@ -2392,7 +2392,7 @@ static void rt2800_config_channel_rf55xx(struct rt2x00_dev *rt2x00dev,
 	rt2800_rfcsr_write(rt2x00dev, 49, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 50, &rfcsr);
-	if (info->default_power1 > power_bound)
+	if (info->default_power2 > power_bound)
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX, power_bound);
 	else
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX, info->default_power2);
@@ -2765,6 +2765,13 @@ static int rt2800_get_gain_calibration_delta(struct rt2x00_dev *rt2x00dev)
 	u16 eeprom;
 	u8 step;
 	int i;
+
+	/*
+	 * First check if temperature compensation is supported.
+	 */
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
+	if (!rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_TX_ALC))
+		return 0;
 
 	/*
 	 * Read TSSI boundaries for temperature compensation from
@@ -3393,10 +3400,13 @@ void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 
 	vgc = rt2800_get_default_vgc(rt2x00dev);
 
-	if (rt2x00_rt(rt2x00dev, RT5592) && qual->rssi > -65)
-		vgc += 0x20;
-	else if (qual->rssi > -80)
-		vgc += 0x10;
+	if (rt2x00_rt(rt2x00dev, RT5592)) {
+		if (qual->rssi > -65)
+			vgc += 0x20;
+	} else {
+		if (qual->rssi > -80)
+			vgc += 0x10;
+	}
 
 	rt2800_set_vgc(rt2x00dev, qual, vgc);
 }
@@ -4040,10 +4050,6 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	u16 eeprom;
 	u8 reg_id;
 	u8 value;
-
-	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev) ||
-		     rt2800_wait_bbp_ready(rt2x00dev)))
-		return -EACCES;
 
 	if (rt2x00_rt(rt2x00dev, RT5592)) {
 		rt2800_init_bbp_5592(rt2x00dev);
@@ -5185,20 +5191,23 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 		     rt2800_init_registers(rt2x00dev)))
 		return -EIO;
 
+	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev)))
+		return -EIO;
+
 	/*
 	 * Send signal to firmware during boot time.
 	 */
 	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
-	if (rt2x00_is_usb(rt2x00dev)) {
+	if (rt2x00_is_usb(rt2x00dev))
 		rt2800_register_write(rt2x00dev, H2M_INT_SRC, 0);
-		rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
-	}
+	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
 	msleep(1);
 
-	if (unlikely(rt2800_init_bbp(rt2x00dev)))
+	if (unlikely(rt2800_wait_bbp_ready(rt2x00dev)))
 		return -EIO;
 
+	rt2800_init_bbp(rt2x00dev);
 	rt2800_init_rfcsr(rt2x00dev);
 
 	if (rt2x00_is_usb(rt2x00dev) &&
@@ -5912,7 +5921,8 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK |
 	    IEEE80211_HW_AMPDU_AGGREGATION |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
+	    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+	    IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	/*
 	 * Don't set IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING for USB devices
@@ -6056,8 +6066,8 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		default_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A2);
 
 		for (i = 14; i < spec->num_channels; i++) {
-			info[i].default_power1 = default_power1[i];
-			info[i].default_power2 = default_power2[i];
+			info[i].default_power1 = default_power1[i - 14];
+			info[i].default_power2 = default_power2[i - 14];
 		}
 	}
 

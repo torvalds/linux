@@ -467,6 +467,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 		size *= 2;
 		r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
 					      RADEON_GPU_PAGE_ALIGN(size),
+					      RADEON_GPU_PAGE_SIZE,
 					      RADEON_GEM_DOMAIN_VRAM);
 		if (r) {
 			dev_err(rdev->dev, "failed to allocate vm bo (%dKB)\n",
@@ -1156,6 +1157,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		return -ENOMEM;
 
 	r = radeon_ib_get(rdev, ridx, &ib, NULL, ndw * 4);
+	if (r)
+		return r;
 	ib.length_dw = 0;
 
 	r = radeon_vm_update_pdes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset);

@@ -226,9 +226,6 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
 			mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
 
-	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
-		mvm_sta->tfd_queue_msk |= BIT(vif->cab_queue);
-
 	/* for HW restart - need to reset the seq_number etc... */
 	memset(mvm_sta->tid_data, 0, sizeof(mvm_sta->tid_data));
 
@@ -621,8 +618,12 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
 	cmd.sta_id = mvm_sta->sta_id;
 	cmd.add_modify = STA_MODE_MODIFY;
-	cmd.add_immediate_ba_tid = (u8) tid;
-	cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+	if (start) {
+		cmd.add_immediate_ba_tid = (u8) tid;
+		cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+	} else {
+		cmd.remove_immediate_ba_tid = (u8) tid;
+	}
 	cmd.modify_mask = start ? STA_MODIFY_ADD_BA_TID :
 				  STA_MODIFY_REMOVE_BA_TID;
 
@@ -894,6 +895,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	u16 txq_id;
+	enum iwl_mvm_agg_state old_state;
 
 	/*
 	 * First set the agg state to OFF to avoid calling
@@ -903,13 +905,17 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	txq_id = tid_data->txq_id;
 	IWL_DEBUG_TX_QUEUES(mvm, "Flush AGG: sta %d tid %d q %d state %d\n",
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
+	old_state = tid_data->state;
 	tid_data->state = IWL_AGG_OFF;
 	spin_unlock_bh(&mvmsta->lock);
 
-	if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
-		IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
+	if (old_state >= IWL_AGG_ON) {
+		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
+			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 
-	iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+	}
+
 	mvm->queue_to_mac80211[tid_data->txq_id] =
 				IWL_INVALID_MAC80211_QUEUE;
 
@@ -1287,17 +1293,11 @@ void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.add_modify = STA_MODE_MODIFY,
 		.sta_id = mvmsta->sta_id,
-		.modify_mask = STA_MODIFY_SLEEPING_STA_TX_COUNT,
-		.sleep_state_flags = cpu_to_le16(STA_SLEEP_STATE_AWAKE),
+		.station_flags_msk = cpu_to_le32(STA_FLG_PS),
 		.mac_id_n_color = cpu_to_le32(mvmsta->mac_id_n_color),
 	};
 	int ret;
 
-	/*
-	 * Same modify mask for sleep_tx_count and sleep_state_flags but this
-	 * should be fine since if we set the STA as "awake", then
-	 * sleep_tx_count is not relevant.
-	 */
 	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);

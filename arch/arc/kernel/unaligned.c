@@ -233,6 +233,12 @@ int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 		regs->status32 &= ~STATUS_DE_MASK;
 	} else {
 		regs->ret += state.instr_len;
+
+		/* handle zero-overhead-loop */
+		if ((regs->ret == regs->lp_end) && (regs->lp_count)) {
+			regs->ret = regs->lp_start;
+			regs->lp_count--;
+		}
 	}
 
 	return 0;

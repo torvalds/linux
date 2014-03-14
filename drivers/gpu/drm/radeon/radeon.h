@@ -408,6 +408,7 @@ struct radeon_sa_manager {
 	uint64_t		gpu_addr;
 	void			*cpu_ptr;
 	uint32_t		domain;
+	uint32_t		align;
 };
 
 struct radeon_sa_bo;
@@ -1144,6 +1145,7 @@ struct radeon_uvd {
 	struct radeon_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
+	void			*saved_bo;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
 	struct delayed_work	idle_work;
@@ -1762,7 +1764,7 @@ void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 		WREG32(reg, tmp_);				\
 	} while (0)
 #define WREG32_AND(reg, and) WREG32_P(reg, 0, and)
-#define WREG32_OR(reg, or) WREG32_P(reg, or, ~or)
+#define WREG32_OR(reg, or) WREG32_P(reg, or, ~(or))
 #define WREG32_PLL_P(reg, val, mask)				\
 	do {							\
 		uint32_t tmp_ = RREG32_PLL(reg);		\

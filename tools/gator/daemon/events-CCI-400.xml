@@ -1,0 +1,107 @@
+  <counter_set name="cci-400_cnt" count="4"/>
+  <category name="CCI-400" counter_set="cci-400_cnt" per_cpu="no" supports_event_based_sampling="yes">
+    <event counter="cci-400_ccnt" event="0xff" title="CCI-400 Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" description="The number of core clock cycles"/>
+
+    <option_set name="Slave">
+      <option event_delta="0x00" name="S0" description="Slave interface 0"/>
+      <option event_delta="0x20" name="S1" description="Slave interface 1"/>
+      <option event_delta="0x40" name="S2" description="Slave interface 2"/>
+      <option event_delta="0x60" name="S3" description="Slave interface 3"/>
+      <option event_delta="0x80" name="S4" description="Slave interface 4"/>
+    </option_set>
+
+    <event event="0x00" option_set="Slave" title="CCI-400" name="Read: any" description="Read request handshake: any"/>
+    <event event="0x01" option_set="Slave" title="CCI-400" name="Read: transaction" description="Read request handshake: device transaction"/>
+    <event event="0x02" option_set="Slave" title="CCI-400" name="Read: normal" description="Read request handshake: normal, non-shareable or system-shareable, but not barrier or cache maintenance operation"/>
+    <event event="0x03" option_set="Slave" title="CCI-400" name="Read: shareable" description="Read request handshake: inner- or outer-shareable, but not barrier, DVM message or cache maintenance operation"/>
+    <event event="0x04" option_set="Slave" title="CCI-400" name="Read: cache" description="Read request handshake: cache maintenance operation, CleanInvalid, CleanShared, MakeInvalid"/>
+    <event event="0x05" option_set="Slave" title="CCI-400" name="Read: memory barrier" description="Read request handshake: memory barrier"/>
+    <event event="0x06" option_set="Slave" title="CCI-400" name="Read: sync barrier" description="Read request handshake: synchronization barrier"/>
+    <event event="0x07" option_set="Slave" title="CCI-400" name="Read: DVM message, no sync" description="Read request handshake: DVM message, not synchronization"/>
+    <event event="0x08" option_set="Slave" title="CCI-400" name="Read: DVM message, sync" description="Read request handshake: DVM message, synchronization"/>
+    <event event="0x09" option_set="Slave" title="CCI-400" name="Read: stall" description="Read request stall cycle because the transaction tracker is full. Increase SIx_R_MAX to avoid this stall"/>
+    <event event="0x0a" option_set="Slave" title="CCI-400" name="Read data last handshake" description="Read data last handshake: data returned from the snoop instead of from downstream"/>
+    <event event="0x0b" option_set="Slave" title="CCI-400" name="Read data stall cycle" description="Read data stall cycle: RVALIDS is HIGH, RREADYS is LOW"/>
+    <event event="0x0c" option_set="Slave" title="CCI-400" name="Write: any" description="Write request handshake: any"/>
+    <event event="0x0d" option_set="Slave" title="CCI-400" name="Write: transaction" description="Write request handshake: device transaction"/>
+    <event event="0x0e" option_set="Slave" title="CCI-400" name="Write: normal" description="Write request handshake: normal, non-shareable, or system-shareable, but not barrier"/>
+    <event event="0x0f" option_set="Slave" title="CCI-400" name="Write: shareable" description="Write request handshake: inner- or outer-shareable, WriteBack or WriteClean"/>
+    <event event="0x10" option_set="Slave" title="CCI-400" name="Write: WriteUnique" description="Write request handshake: WriteUnique"/>
+    <event event="0x11" option_set="Slave" title="CCI-400" name="Write: WriteLineUnique" description="Write request handshake: WriteLineUnique"/>
+    <event event="0x12" option_set="Slave" title="CCI-400" name="Write: Evict" description="Write request handshake: Evict"/>
+    <event event="0x13" option_set="Slave" title="CCI-400" name="Write stall: tracker full" description="Write request stall cycle because the transaction tracker is full. Increase SIx_W_MAX to avoid this stall"/>
+
+    <option_set name="Master">
+      <option event_delta="0xa0" name="M0" description="Master interface 0"/>
+      <option event_delta="0xc0" name="M1" description="Master interface 1"/>
+      <option event_delta="0xe0" name="M2" description="Master interface 2"/>
+    </option_set>
+
+    <event event="0x14" option_set="Master" title="CCI-400" name="Retry fetch" description="RETRY of speculative fetch transaction"/>
+    <event event="0x15" option_set="Master" title="CCI-400" name="Read stall: address hazard" description="Read request stall cycle because of an address hazard"/>
+    <event event="0x16" option_set="Master" title="CCI-400" name="Read stall: ID hazard" description="Read request stall cycle because of an ID hazard"/>
+    <event event="0x17" option_set="Master" title="CCI-400" name="Read stall: tracker full" description="Read request stall cycle because the transaction tracker is full. Increase MIx_R_MAX to avoid this stall. See the CoreLink CCI-400 Cache Coherent Interconnect Integration Manual"/>
+    <event event="0x18" option_set="Master" title="CCI-400" name="Read stall: barrier hazard" description="Read request stall cycle because of a barrier hazard"/>
+    <event event="0x19" option_set="Master" title="CCI-400" name="Write stall: barrier hazard" description="Write request stall cycle because of a barrier hazard"/>
+    <event event="0x1a" option_set="Master" title="CCI-400" name="Write stall: tracker full" description="Write request stall cycle because the transaction tracker is full. Increase MIx_W_MAX to avoid this stall. See the CoreLink CCI-400 Cache Coherent Interconnect Integration Manual"/>
+  </category>
+
+  <counter_set name="cci-400-r1_cnt" count="4"/>
+  <category name="CCI-400" counter_set="cci-400-r1_cnt" per_cpu="no" supports_event_based_sampling="yes">
+    <event counter="cci-400-r1_ccnt" event="0xff" title="CCI-400 Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" description="The number of core clock cycles"/>
+
+    <option_set name="Slave">
+      <option event_delta="0x00" name="S0" description="Slave interface 0"/>
+      <option event_delta="0x20" name="S1" description="Slave interface 1"/>
+      <option event_delta="0x40" name="S2" description="Slave interface 2"/>
+      <option event_delta="0x60" name="S3" description="Slave interface 3"/>
+      <option event_delta="0x80" name="S4" description="Slave interface 4"/>
+    </option_set>
+
+    <event event="0x00" option_set="Slave" title="CCI-400" name="Read: any" description="Read request handshake: any"/>
+    <event event="0x01" option_set="Slave" title="CCI-400" name="Read: transaction" description="Read request handshake: device transaction"/>
+    <event event="0x02" option_set="Slave" title="CCI-400" name="Read: normal" description="Read request handshake: normal, non-shareable or system-shareable, but not barrier or cache maintenance operation"/>
+    <event event="0x03" option_set="Slave" title="CCI-400" name="Read: shareable" description="Read request handshake: inner- or outer-shareable, but not barrier, DVM message or cache maintenance operation"/>
+    <event event="0x04" option_set="Slave" title="CCI-400" name="Read: cache" description="Read request handshake: cache maintenance operation"/>
+    <event event="0x05" option_set="Slave" title="CCI-400" name="Read: memory barrier" description="Read request handshake: memory barrier"/>
+    <event event="0x06" option_set="Slave" title="CCI-400" name="Read: sync barrier" description="Read request handshake: synchronization barrier"/>
+    <event event="0x07" option_set="Slave" title="CCI-400" name="Read: DVM message, no sync" description="Read request handshake: DVM message, not synchronization"/>
+    <event event="0x08" option_set="Slave" title="CCI-400" name="Read: DVM message, sync" description="Read request handshake: DVM message, synchronization"/>
+    <event event="0x09" option_set="Slave" title="CCI-400" name="Read: stall" description="Read request stall cycle because the transaction tracker is full. Increase SIx_R_MAX to avoid this stall"/>
+    <event event="0x0a" option_set="Slave" title="CCI-400" name="Read data last handshake" description="Read data last handshake: data returned from the snoop instead of from downstream"/>
+    <event event="0x0b" option_set="Slave" title="CCI-400" name="Read data stall cycle" description="Read data stall cycle: RVALIDS is HIGH, RREADYS is LOW"/>
+    <event event="0x0c" option_set="Slave" title="CCI-400" name="Write: any" description="Write request handshake: any"/>
+    <event event="0x0d" option_set="Slave" title="CCI-400" name="Write: transaction" description="Write request handshake: device transaction"/>
+    <event event="0x0e" option_set="Slave" title="CCI-400" name="Write: normal" description="Write request handshake: normal, non-shareable, or system-shareable, but not barrier"/>
+    <event event="0x0f" option_set="Slave" title="CCI-400" name="Write: shareable" description="Write request handshake: inner- or outer-shareable, WriteBack or WriteClean"/>
+    <event event="0x10" option_set="Slave" title="CCI-400" name="Write: WriteUnique" description="Write request handshake: WriteUnique"/>
+    <event event="0x11" option_set="Slave" title="CCI-400" name="Write: WriteLineUnique" description="Write request handshake: WriteLineUnique"/>
+    <event event="0x12" option_set="Slave" title="CCI-400" name="Write: Evict" description="Write request handshake: Evict"/>
+    <event event="0x13" option_set="Slave" title="CCI-400" name="Write stall: tracker full" description="Write request stall cycle because the transaction tracker is full. Increase SIx_W_MAX to avoid this stall"/>
+    <event event="0x14" option_set="Slave" title="CCI-400" name="Read stall: slave hazard" description="Read request stall cycle because of a slave interface ID hazard"/>
+
+    <option_set name="Master">
+      <option event_delta="0xa0" name="M0" description="Master interface 0"/>
+      <option event_delta="0xc0" name="M1" description="Master interface 1"/>
+      <option event_delta="0xe0" name="M2" description="Master interface 2"/>
+    </option_set>
+
+    <event event="0x00" option_set="Master" title="CCI-400" name="Retry fetch" description="RETRY of speculative fetch transaction"/>
+    <event event="0x01" option_set="Master" title="CCI-400" name="Read stall: address hazard" description="Stall cycle because of an address hazard. A read or write invalidation is stalled because of an outstanding transaction to an overlapping address"/>
+    <event event="0x02" option_set="Master" title="CCI-400" name="Read stall: ID hazard" description="Read request stall cycle because of a master interface ID hazard"/>
+    <event event="0x03" option_set="Master" title="CCI-400" name="Read stall: tracker full" description="A read request with a QoS value in the high priority group is stalled for a cycle because the read transaction queue is full. Increase MIx_R_MAX to avoid this stall"/>
+    <event event="0x04" option_set="Master" title="CCI-400" name="Read stall: barrier hazard" description="Read request stall cycle because of a barrier hazard"/>
+    <event event="0x05" option_set="Master" title="CCI-400" name="Write stall: barrier hazard" description="Write request stall cycle because of a barrier hazard"/>
+    <event event="0x06" option_set="Master" title="CCI-400" name="Write stall: tracker full" description="A write request is stalled for a cycle because the write transaction tracker is full. Increase MIx_W_MAX to avoid this stall"/>
+    <event event="0x07" option_set="Master" title="CCI-400" name="Read Stall: Low Priority" description="A read request with a QoS value in the low priority group is stalled for a cycle because there are no slots available in the read queue for the low priority group"/>
+    <event event="0x08" option_set="Master" title="CCI-400" name="Read Stall: Medium Priority" description="A read request with a QoS value in the medium priority group is stalled for a cycle because there are no slots available in the read queue for the medium priority group"/>
+    <event event="0x09" option_set="Master" title="CCI-400" name="Read Stall: VN0" description="A read request is stalled for a cycle while it was waiting for a QVN token on VN0"/>
+    <event event="0x0a" option_set="Master" title="CCI-400" name="Read Stall: VN1" description="A read request is stalled for a cycle while it was waiting for a QVN token on VN1"/>
+    <event event="0x0b" option_set="Master" title="CCI-400" name="Read Stall: VN2" description="A read request is stalled for a cycle while it was waiting for a QVN token on VN2"/>
+    <event event="0x0c" option_set="Master" title="CCI-400" name="Read Stall: VN3" description="A read request is stalled for a cycle while it was waiting for a QVN token on VN3"/>
+    <event event="0x0d" option_set="Master" title="CCI-400" name="Write Stall: VN0" description="A write request is stalled for a cycle while it was waiting for a QVN token on VN0"/>
+    <event event="0x0e" option_set="Master" title="CCI-400" name="Write Stall: VN1" description="A write request is stalled for a cycle while it was waiting for a QVN token on VN1"/>
+    <event event="0x0f" option_set="Master" title="CCI-400" name="Write Stall: VN2" description="A write request is stalled for a cycle while it was waiting for a QVN token on VN2"/>
+    <event event="0x10" option_set="Master" title="CCI-400" name="Write Stall: VN" description="A write request is stalled for a cycle while it was waiting for a QVN token on VN"/>
+    <event event="0x11" option_set="Master" title="CCI-400" name="WriteUnique or WriteLineUnique Stall" description="A WriteUnique or WriteLineUnique request is stalled for a cycle because of an address hazard"/>
+  </category>

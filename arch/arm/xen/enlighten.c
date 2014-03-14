@@ -170,6 +170,7 @@ static void __init xen_percpu_init(void *unused)
 	per_cpu(xen_vcpu, cpu) = vcpup;
 
 	enable_percpu_irq(xen_events_irq, 0);
+	put_cpu();
 }
 
 static void xen_restart(char str, const char *cmd)
@@ -272,12 +273,15 @@ core_initcall(xen_guest_init);
 
 static int __init xen_pm_init(void)
 {
+	if (!xen_domain())
+		return -ENODEV;
+
 	pm_power_off = xen_power_off;
 	arm_pm_restart = xen_restart;
 
 	return 0;
 }
-subsys_initcall(xen_pm_init);
+late_initcall(xen_pm_init);
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)
 {

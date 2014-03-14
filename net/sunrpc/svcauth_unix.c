@@ -493,8 +493,6 @@ static int unix_gid_parse(struct cache_detail *cd,
 	if (rv)
 		return -EINVAL;
 	uid = make_kuid(&init_user_ns, id);
-	if (!uid_valid(uid))
-		return -EINVAL;
 	ug.uid = uid;
 
 	expiry = get_expiry(&mesg);

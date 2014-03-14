@@ -65,7 +65,6 @@ static int get_callid(const char *dptr, unsigned int dataoff,
 static int
 ip_vs_sip_fill_param(struct ip_vs_conn_param *p, struct sk_buff *skb)
 {
-	struct sk_buff *reasm = skb_nfct_reasm(skb);
 	struct ip_vs_iphdr iph;
 	unsigned int dataoff, datalen, matchoff, matchlen;
 	const char *dptr;
@@ -79,15 +78,10 @@ ip_vs_sip_fill_param(struct ip_vs_conn_param *p, struct sk_buff *skb)
 	/* todo: IPv6 fragments:
 	 *       I think this only should be done for the first fragment. /HS
 	 */
-	if (reasm) {
-		skb = reasm;
-		dataoff = iph.thoff_reasm + sizeof(struct udphdr);
-	} else
-		dataoff = iph.len + sizeof(struct udphdr);
+	dataoff = iph.len + sizeof(struct udphdr);
 
 	if (dataoff >= skb->len)
 		return -EINVAL;
-	/* todo: Check if this will mess-up the reasm skb !!! /HS */
 	retc = skb_linearize(skb);
 	if (retc < 0)
 		return retc;

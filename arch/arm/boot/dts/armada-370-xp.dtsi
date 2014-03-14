@@ -51,7 +51,7 @@
 
 			coherency-fabric@20200 {
 				compatible = "marvell,coherency-fabric";
-				reg = <0x20200 0xb0>, <0x21810 0x1c>;
+				reg = <0x20200 0xb0>, <0x21010 0x1c>;
 			};
 
 			serial@12000 {

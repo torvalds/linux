@@ -75,8 +75,11 @@ static unsigned int ipv6_defrag(unsigned int hooknum,
 	if (reasm == skb)
 		return NF_ACCEPT;
 
-	nf_ct_frag6_output(hooknum, reasm, (struct net_device *)in,
-			   (struct net_device *)out, okfn);
+	nf_ct_frag6_consume_orig(reasm);
+
+	NF_HOOK_THRESH(NFPROTO_IPV6, hooknum, reasm,
+		       (struct net_device *) in, (struct net_device *) out,
+		       okfn, NF_IP6_PRI_CONNTRACK_DEFRAG + 1);
 
 	return NF_STOLEN;
 }

@@ -730,7 +730,7 @@ static int core_alua_write_tpg_metadata(
 	if (ret < 0)
 		pr_err("Error writing ALUA metadata file: %s\n", path);
 	fput(file);
-	return ret ? -EIO : 0;
+	return (ret < 0) ? -EIO : 0;
 }
 
 /*

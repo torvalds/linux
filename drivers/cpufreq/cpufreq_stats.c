@@ -21,6 +21,9 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <asm/cputime.h>
+#ifdef CONFIG_BL_SWITCHER
+#include <asm/bL_switcher.h>
+#endif
 
 static spinlock_t cpufreq_stats_lock;
 
@@ -349,16 +352,15 @@ static int __cpuinit cpufreq_stat_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		cpufreq_update_policy(cpu);
 		break;
 	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
 		cpufreq_stats_free_sysfs(cpu);
 		break;
 	case CPU_DEAD:
-		cpufreq_stats_free_table(cpu);
-		break;
-	case CPU_UP_CANCELED_FROZEN:
-		cpufreq_stats_free_sysfs(cpu);
+	case CPU_DEAD_FROZEN:
 		cpufreq_stats_free_table(cpu);
 		break;
 	}
@@ -379,7 +381,7 @@ static struct notifier_block notifier_trans_block = {
 	.notifier_call = cpufreq_stat_notifier_trans
 };
 
-static int __init cpufreq_stats_init(void)
+static int cpufreq_stats_setup(void)
 {
 	int ret;
 	unsigned int cpu;
@@ -407,7 +409,8 @@ static int __init cpufreq_stats_init(void)
 
 	return 0;
 }
-static void __exit cpufreq_stats_exit(void)
+
+static void cpufreq_stats_cleanup(void)
 {
 	unsigned int cpu;
 
@@ -420,6 +423,54 @@ static void __exit cpufreq_stats_exit(void)
 		cpufreq_stats_free_table(cpu);
 		cpufreq_stats_free_sysfs(cpu);
 	}
+}
+
+#ifdef CONFIG_BL_SWITCHER
+static int cpufreq_stats_switcher_notifier(struct notifier_block *nfb,
+					unsigned long action, void *_arg)
+{
+	switch (action) {
+	case BL_NOTIFY_PRE_ENABLE:
+	case BL_NOTIFY_PRE_DISABLE:
+		cpufreq_stats_cleanup();
+		break;
+
+	case BL_NOTIFY_POST_ENABLE:
+	case BL_NOTIFY_POST_DISABLE:
+		cpufreq_stats_setup();
+		break;
+
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block switcher_notifier = {
+	.notifier_call = cpufreq_stats_switcher_notifier,
+};
+#endif
+
+static int __init cpufreq_stats_init(void)
+{
+	int ret;
+	spin_lock_init(&cpufreq_stats_lock);
+
+	ret = cpufreq_stats_setup();
+#ifdef CONFIG_BL_SWITCHER
+	if (!ret)
+		bL_switcher_register_notifier(&switcher_notifier);
+#endif
+	return ret;
+}
+
+static void __exit cpufreq_stats_exit(void)
+{
+#ifdef CONFIG_BL_SWITCHER
+	bL_switcher_unregister_notifier(&switcher_notifier);
+#endif
+	cpufreq_stats_cleanup();
 }
 
 MODULE_AUTHOR("Zou Nan hai <nanhai.zou@intel.com>");

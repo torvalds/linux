@@ -512,6 +512,7 @@ struct dm_thin_new_mapping {
 	unsigned quiesced:1;
 	unsigned prepared:1;
 	unsigned pass_discard:1;
+	unsigned definitely_not_shared:1;
 
 	struct thin_c *tc;
 	dm_block_t virt_block;
@@ -640,7 +641,9 @@ static void process_prepared_mapping(struct dm_thin_new_mapping *m)
 	 */
 	r = dm_thin_insert_block(tc->td, m->virt_block, m->data_block);
 	if (r) {
-		DMERR_LIMIT("dm_thin_insert_block() failed");
+		DMERR_LIMIT("%s: dm_thin_insert_block() failed: error = %d",
+			    dm_device_name(pool->pool_md), r);
+		set_pool_mode(pool, PM_READ_ONLY);
 		cell_error(pool, m->cell);
 		goto out;
 	}
@@ -681,7 +684,15 @@ static void process_prepared_discard_passdown(struct dm_thin_new_mapping *m)
 	cell_defer_no_holder(tc, m->cell2);
 
 	if (m->pass_discard)
-		remap_and_issue(tc, m->bio, m->data_block);
+		if (m->definitely_not_shared)
+			remap_and_issue(tc, m->bio, m->data_block);
+		else {
+			bool used = false;
+			if (dm_pool_block_is_used(tc->pool->pmd, m->data_block, &used) || used)
+				bio_endio(m->bio, 0);
+			else
+				remap_and_issue(tc, m->bio, m->data_block);
+		}
 	else
 		bio_endio(m->bio, 0);
 
@@ -749,13 +760,17 @@ static int ensure_next_mapping(struct pool *pool)
 
 static struct dm_thin_new_mapping *get_next_mapping(struct pool *pool)
 {
-	struct dm_thin_new_mapping *r = pool->next_mapping;
+	struct dm_thin_new_mapping *m = pool->next_mapping;
 
 	BUG_ON(!pool->next_mapping);
 
+	memset(m, 0, sizeof(struct dm_thin_new_mapping));
+	INIT_LIST_HEAD(&m->list);
+	m->bio = NULL;
+
 	pool->next_mapping = NULL;
 
-	return r;
+	return m;
 }
 
 static void schedule_copy(struct thin_c *tc, dm_block_t virt_block,
@@ -767,15 +782,10 @@ static void schedule_copy(struct thin_c *tc, dm_block_t virt_block,
 	struct pool *pool = tc->pool;
 	struct dm_thin_new_mapping *m = get_next_mapping(pool);
 
-	INIT_LIST_HEAD(&m->list);
-	m->quiesced = 0;
-	m->prepared = 0;
 	m->tc = tc;
 	m->virt_block = virt_block;
 	m->data_block = data_dest;
 	m->cell = cell;
-	m->err = 0;
-	m->bio = NULL;
 
 	if (!dm_deferred_set_add_work(pool->shared_read_ds, &m->list))
 		m->quiesced = 1;
@@ -838,15 +848,12 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	struct pool *pool = tc->pool;
 	struct dm_thin_new_mapping *m = get_next_mapping(pool);
 
-	INIT_LIST_HEAD(&m->list);
 	m->quiesced = 1;
 	m->prepared = 0;
 	m->tc = tc;
 	m->virt_block = virt_block;
 	m->data_block = data_block;
 	m->cell = cell;
-	m->err = 0;
-	m->bio = NULL;
 
 	/*
 	 * If the whole block of data is being overwritten or we are not
@@ -1030,12 +1037,12 @@ static void process_discard(struct thin_c *tc, struct bio *bio)
 			 */
 			m = get_next_mapping(pool);
 			m->tc = tc;
-			m->pass_discard = (!lookup_result.shared) && pool->pf.discard_passdown;
+			m->pass_discard = pool->pf.discard_passdown;
+			m->definitely_not_shared = !lookup_result.shared;
 			m->virt_block = block;
 			m->data_block = lookup_result.block;
 			m->cell = cell;
 			m->cell2 = cell2;
-			m->err = 0;
 			m->bio = bio;
 
 			if (!dm_deferred_set_add_work(pool->all_io_ds, &m->list)) {
@@ -1337,7 +1344,8 @@ static void process_deferred_bios(struct pool *pool)
 	bio_list_init(&pool->deferred_flush_bios);
 	spin_unlock_irqrestore(&pool->lock, flags);
 
-	if (bio_list_empty(&bios) && !need_commit_due_to_time(pool))
+	if (bio_list_empty(&bios) &&
+	    !(dm_pool_changed_this_transaction(pool->pmd) && need_commit_due_to_time(pool)))
 		return;
 
 	if (commit_or_fallback(pool)) {
@@ -2776,6 +2784,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	if (get_pool_mode(tc->pool) == PM_FAIL) {
 		ti->error = "Couldn't open thin device, Pool is in fail mode";
+		r = -EINVAL;
 		goto bad_thin_open;
 	}
 
@@ -2787,7 +2796,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	r = dm_set_target_max_io_len(ti, tc->pool->sectors_per_block);
 	if (r)
-		goto bad_thin_open;
+		goto bad_target_max_io_len;
 
 	ti->num_flush_bios = 1;
 	ti->flush_supported = true;
@@ -2808,6 +2817,8 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	return 0;
 
+bad_target_max_io_len:
+	dm_pool_close_thin_device(tc->td);
 bad_thin_open:
 	__pool_dec(tc->pool);
 bad_pool_lookup:
