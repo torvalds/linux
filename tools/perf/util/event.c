@@ -129,6 +129,28 @@ out:
 	return tgid;
 }
 
+static int perf_event__synthesize_fork(struct perf_tool *tool,
+				       union perf_event *event, pid_t pid,
+				       pid_t tgid, perf_event__handler_t process,
+				       struct machine *machine)
+{
+	memset(&event->fork, 0, sizeof(event->fork) + machine->id_hdr_size);
+
+	/* this is really a clone event but we use fork to synthesize it */
+	event->fork.ppid = tgid;
+	event->fork.ptid = tgid;
+	event->fork.pid  = tgid;
+	event->fork.tid  = pid;
+	event->fork.header.type = PERF_RECORD_FORK;
+
+	event->fork.header.size = (sizeof(event->fork) + machine->id_hdr_size);
+
+	if (process(tool, event, &synth_sample, machine) != 0)
+		return -1;
+
+	return 0;
+}
+
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       union perf_event *event,
 				       pid_t pid, pid_t tgid,
@@ -278,6 +300,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 
 static int __event__synthesize_thread(union perf_event *comm_event,
 				      union perf_event *mmap_event,
+				      union perf_event *fork_event,
 				      pid_t pid, int full,
 					  perf_event__handler_t process,
 				      struct perf_tool *tool,
@@ -326,9 +349,15 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		if (tgid == -1)
 			return -1;
 
-		/* process the thread's maps too */
-		rc = perf_event__synthesize_mmap_events(tool, mmap_event, _pid, tgid,
-							process, machine, mmap_data);
+		if (_pid == pid) {
+			/* process the parent's maps too */
+			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
+						process, machine, mmap_data);
+		} else {
+			/* only fork the tid's map, to save time */
+			rc = perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
+						 process, machine);
+		}
 
 		if (rc)
 			return rc;
@@ -344,7 +373,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct machine *machine,
 				      bool mmap_data)
 {
-	union perf_event *comm_event, *mmap_event;
+	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1, thread, j;
 
 	comm_event = malloc(sizeof(comm_event->comm) + machine->id_hdr_size);
@@ -355,9 +384,14 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
+	fork_event = malloc(sizeof(fork_event->fork) + machine->id_hdr_size);
+	if (fork_event == NULL)
+		goto out_free_mmap;
+
 	err = 0;
 	for (thread = 0; thread < threads->nr; ++thread) {
 		if (__event__synthesize_thread(comm_event, mmap_event,
+					       fork_event,
 					       threads->map[thread], 0,
 					       process, tool, machine,
 					       mmap_data)) {
@@ -383,6 +417,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 			/* if not, generate events for it */
 			if (need_leader &&
 			    __event__synthesize_thread(comm_event, mmap_event,
+						       fork_event,
 						       comm_event->comm.pid, 0,
 						       process, tool, machine,
 						       mmap_data)) {
@@ -391,6 +426,8 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 			}
 		}
 	}
+	free(fork_event);
+out_free_mmap:
 	free(mmap_event);
 out_free_comm:
 	free(comm_event);
@@ -405,7 +442,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	DIR *proc;
 	char proc_path[PATH_MAX];
 	struct dirent dirent, *next;
-	union perf_event *comm_event, *mmap_event;
+	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1;
 
 	comm_event = malloc(sizeof(comm_event->comm) + machine->id_hdr_size);
@@ -416,6 +453,10 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
+	fork_event = malloc(sizeof(fork_event->fork) + machine->id_hdr_size);
+	if (fork_event == NULL)
+		goto out_free_mmap;
+
 	if (machine__is_default_guest(machine))
 		return 0;
 
@@ -423,7 +464,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	proc = opendir(proc_path);
 
 	if (proc == NULL)
-		goto out_free_mmap;
+		goto out_free_fork;
 
 	while (!readdir_r(proc, &dirent, &next) && next) {
 		char *end;
@@ -435,12 +476,14 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
  		 * We may race with exiting thread, so don't stop just because
  		 * one thread couldn't be synthesized.
  		 */
-		__event__synthesize_thread(comm_event, mmap_event, pid, 1,
-					   process, tool, machine, mmap_data);
+		__event__synthesize_thread(comm_event, mmap_event, fork_event, pid,
+					   1, process, tool, machine, mmap_data);
 	}
 
 	err = 0;
 	closedir(proc);
+out_free_fork:
+	free(fork_event);
 out_free_mmap:
 	free(mmap_event);
 out_free_comm:
