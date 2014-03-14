@@ -803,7 +803,6 @@ static void vti6_dev_setup(struct net_device *dev)
 	t = netdev_priv(dev);
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
-	dev->features |= NETIF_F_NETNS_LOCAL;
 	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 }
 
