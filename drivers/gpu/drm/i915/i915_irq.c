@@ -2530,29 +2530,43 @@ static struct intel_ring_buffer *
 semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	u32 cmd, ipehr, acthd, acthd_min;
+	u32 cmd, ipehr, head;
+	int i;
 
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
 	if ((ipehr & ~(0x3 << 16)) !=
 	    (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE | MI_SEMAPHORE_REGISTER))
 		return NULL;
 
-	/* ACTHD is likely pointing to the dword after the actual command,
-	 * so scan backwards until we find the MBOX.
+	/*
+	 * HEAD is likely pointing to the dword after the actual command,
+	 * so scan backwards until we find the MBOX. But limit it to just 3
+	 * dwords. Note that we don't care about ACTHD here since that might
+	 * point at at batch, and semaphores are always emitted into the
+	 * ringbuffer itself.
 	 */
-	acthd = intel_ring_get_active_head(ring) & HEAD_ADDR;
-	acthd_min = max((int)acthd - 3 * 4, 0);
-	do {
-		cmd = ioread32(ring->virtual_start + acthd);
+	head = I915_READ_HEAD(ring) & HEAD_ADDR;
+
+	for (i = 4; i; --i) {
+		/*
+		 * Be paranoid and presume the hw has gone off into the wild -
+		 * our ring is smaller than what the hardware (and hence
+		 * HEAD_ADDR) allows. Also handles wrap-around.
+		 */
+		head &= ring->size - 1;
+
+		/* This here seems to blow up */
+		cmd = ioread32(ring->virtual_start + head);
 		if (cmd == ipehr)
 			break;
 
-		acthd -= 4;
-		if (acthd < acthd_min)
-			return NULL;
-	} while (1);
+		head -= 4;
+	}
 
-	*seqno = ioread32(ring->virtual_start+acthd+4)+1;
+	if (!i)
+		return NULL;
+
+	*seqno = ioread32(ring->virtual_start + head + 4) + 1;
 	return &dev_priv->ring[(ring->id + (((ipehr >> 17) & 1) + 1)) % 3];
 }
 
