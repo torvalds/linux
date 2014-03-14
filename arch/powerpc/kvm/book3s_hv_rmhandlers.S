@@ -1504,73 +1504,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 1:	addi	r8,r8,16
 	.endr
 
-	/* Save DEC */
-	mfspr	r5,SPRN_DEC
-	mftb	r6
-	extsw	r5,r5
-	add	r5,r5,r6
-	std	r5,VCPU_DEC_EXPIRES(r9)
-
-BEGIN_FTR_SECTION
-	b	8f
-END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
-	/* Turn on TM so we can access TFHAR/TFIAR/TEXASR */
-	mfmsr	r8
-	li	r0, 1
-	rldimi	r8, r0, MSR_TM_LG, 63-MSR_TM_LG
-	mtmsrd	r8
-
-	/* Save POWER8-specific registers */
-	mfspr	r5, SPRN_IAMR
-	mfspr	r6, SPRN_PSPB
-	mfspr	r7, SPRN_FSCR
-	std	r5, VCPU_IAMR(r9)
-	stw	r6, VCPU_PSPB(r9)
-	std	r7, VCPU_FSCR(r9)
-	mfspr	r5, SPRN_IC
-	mfspr	r6, SPRN_VTB
-	mfspr	r7, SPRN_TAR
-	std	r5, VCPU_IC(r9)
-	std	r6, VCPU_VTB(r9)
-	std	r7, VCPU_TAR(r9)
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	mfspr	r5, SPRN_TFHAR
-	mfspr	r6, SPRN_TFIAR
-	mfspr	r7, SPRN_TEXASR
-	std	r5, VCPU_TFHAR(r9)
-	std	r6, VCPU_TFIAR(r9)
-	std	r7, VCPU_TEXASR(r9)
-#endif
-	mfspr	r8, SPRN_EBBHR
-	std	r8, VCPU_EBBHR(r9)
-	mfspr	r5, SPRN_EBBRR
-	mfspr	r6, SPRN_BESCR
-	mfspr	r7, SPRN_CSIGR
-	mfspr	r8, SPRN_TACR
-	std	r5, VCPU_EBBRR(r9)
-	std	r6, VCPU_BESCR(r9)
-	std	r7, VCPU_CSIGR(r9)
-	std	r8, VCPU_TACR(r9)
-	mfspr	r5, SPRN_TCSCR
-	mfspr	r6, SPRN_ACOP
-	mfspr	r7, SPRN_PID
-	mfspr	r8, SPRN_WORT
-	std	r5, VCPU_TCSCR(r9)
-	std	r6, VCPU_ACOP(r9)
-	stw	r7, VCPU_GUEST_PID(r9)
-	std	r8, VCPU_WORT(r9)
-8:
-
-	/* Save and reset AMR and UAMOR before turning on the MMU */
-BEGIN_FTR_SECTION
-	mfspr	r5,SPRN_AMR
-	mfspr	r6,SPRN_UAMOR
-	std	r5,VCPU_AMR(r9)
-	std	r6,VCPU_UAMOR(r9)
-	li	r6,0
-	mtspr	SPRN_AMR,r6
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
-
 	/* Unset guest mode */
 	li	r0, KVM_GUEST_MODE_NONE
 	stb	r0, HSTATE_IN_GUEST(r13)
@@ -2203,7 +2136,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 	mfspr	r6,SPRN_VRSAVE
-	stw	r6,VCPU_VRSAVE(r3)
+	stw	r6,VCPU_VRSAVE(r31)
 	mtlr	r30
 	mtmsrd	r5
 	isync
@@ -2240,7 +2173,7 @@ BEGIN_FTR_SECTION
 	bl	.load_vr_state
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
-	lwz	r7,VCPU_VRSAVE(r4)
+	lwz	r7,VCPU_VRSAVE(r31)
 	mtspr	SPRN_VRSAVE,r7
 	mtlr	r30
 	mr	r4,r31
