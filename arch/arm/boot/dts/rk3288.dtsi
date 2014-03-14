@@ -1,7 +1,12 @@
+#include <dt-bindings/clock/ddr.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/rkfb/rk_fb.h>
+#include <dt-bindings/suspend/rockchip-pm.h>
+#include <dt-bindings/sensor-dev.h>
+
 #include "skeleton.dtsi"
 #include "rk3288-pinctrl.dtsi"
-#include <dt-bindings/rkfb/rk_fb.h>
+#include "rk3288-clocks.dtsi"
 
 / {
 	compatible = "rockchip,rk3288";
@@ -128,8 +133,8 @@
 		//pinctrl-1 = <&i2c1_gpio>;
 		//gpios = <&gpio8 GPIO_A4 GPIO_ACTIVE_LOW>, <&gpio8 GPIO_A5 GPIO_ACTIVE_LOW>;
 		//clocks = <&clk_gates8 5>;
-        rockchip,check-idle = <1>;
-        status = "disabled";
+		rockchip,check-idle = <1>;
+		status = "disabled";
 	};
 
 	i2c2: i2c@ff660000 {
@@ -201,7 +206,7 @@
 		compatible = "rockchip,rk32-edp";
 		reg = <0xff970000 0x4000>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-        };
+	};
 
 	hdmi: hdmi@ff980000 {
 		compatible = "rockchip,rk3288-hdmi";
@@ -220,8 +225,8 @@
 	};
 	
 	rk_screen: rk_screen{
-                compatible = "rockchip,screen";
-        };
+			compatible = "rockchip,screen";
+	};
 
 	lcdc0: lcdc@ff940000 {
 		compatible = "rockchip,rk3288-lcdc";
@@ -419,7 +424,7 @@
 		/*clocks = <&clk_gate3 9>, <&clk_gate3 10>;
 		clock_names = "aclk_iep", "hclk_iep";*/
 		status = "disabled";
-        };
+	};
 
 	dwc_control_usb: dwc-control-usb@ff770284 {
 		compatible = "rockchip,rk3288-dwc-control-usb";
