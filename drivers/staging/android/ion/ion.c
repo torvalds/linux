@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
 #include <linux/idr.h>
+#include <linux/rockchip_ion.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -1386,6 +1387,47 @@ static const struct file_operations ion_fops = {
 	.unlocked_ioctl = ion_ioctl,
 	.compat_ioctl   = compat_ion_ioctl,
 };
+
+int ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
+			void *uaddr, unsigned long offset, unsigned long len,
+			unsigned int cmd)
+{
+	struct ion_buffer *buffer;
+	int ret = -EINVAL;
+
+	mutex_lock(&client->lock);
+	if (!ion_handle_validate(client, handle)) {
+		pr_err("%s: invalid handle passed to do_cache_op.\n",
+		       __func__);
+		mutex_unlock(&client->lock);
+		return -EINVAL;
+	}
+	buffer = handle->buffer;
+	mutex_lock(&buffer->lock);
+
+	if (!ION_IS_CACHED(buffer->flags)) {
+		ret = 0;
+		goto out;
+	}
+
+	if (!handle->buffer->heap->ops->cache_op) {
+		pr_err("%s: cache_op is not implemented by this heap.\n",
+		       __func__);
+		ret = -ENODEV;
+		goto out;
+	}
+
+
+	ret = buffer->heap->ops->cache_op(buffer->heap, buffer, uaddr,
+						offset, len, cmd);
+
+out:
+	mutex_unlock(&buffer->lock);
+	mutex_unlock(&client->lock);
+	return ret;
+
+}
+EXPORT_SYMBOL(ion_do_cache_op);
 
 static size_t ion_debug_heap_total(struct ion_client *client,
 				   unsigned int id)

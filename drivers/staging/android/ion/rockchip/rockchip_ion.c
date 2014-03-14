@@ -44,6 +44,10 @@ extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
  						int id);
 extern int ion_handle_put(struct ion_handle *handle);
 
+extern int ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
+			void *uaddr, unsigned long offset, unsigned long len,
+			unsigned int cmd);
+
 static struct ion_heap_desc ion_heap_meta[] = {
 	{
 		.id		= ION_SYSTEM_HEAP_ID,
@@ -219,6 +223,31 @@ struct ion_client *rockchip_ion_client_create(const char *name)
 }
 EXPORT_SYMBOL(rockchip_ion_client_create);
 
+static int check_vaddr_bounds(unsigned long start, unsigned long end)
+{
+	struct mm_struct *mm = current->active_mm;
+	struct vm_area_struct *vma;
+	int ret = 1;
+
+	if (end < start)
+		goto out;
+
+	down_read(&mm->mmap_sem);
+	vma = find_vma(mm, start);
+	if (vma && vma->vm_start < end) {
+		if (start < vma->vm_start)
+			goto out_up;
+		if (end > vma->vm_end)
+			goto out_up;
+		ret = 0;
+	}
+
+out_up:
+	up_read(&mm->mmap_sem);
+out:
+	return ret;
+}
+
 static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			      unsigned long arg)
 {
@@ -228,7 +257,50 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 	case ION_IOC_CLEAN_CACHES:
 	case ION_IOC_INV_CACHES:
 	case ION_IOC_CLEAN_INV_CACHES:
+	{
+		struct ion_flush_data data;
+		unsigned long start, end;
+		struct ion_handle *handle = NULL;
+		int ret;
+		int is_import_fd = 0;
+
+		if (copy_from_user(&data, (void __user *)arg,
+					sizeof(struct ion_flush_data)))
+			return -EFAULT;
+
+		start = (unsigned long) data.vaddr;
+		end = (unsigned long) data.vaddr + data.length;
+
+		if (check_vaddr_bounds(start, end)) {
+			pr_err("%s: virtual address %p is out of bounds\n",
+				__func__, data.vaddr);
+			return -EINVAL;
+		}
+
+		handle = ion_handle_get_by_id(client, data.handle);
+
+		if (IS_ERR(handle)) {
+			handle = ion_import_dma_buf(client, data.fd);
+			is_import_fd = 1;
+			if (IS_ERR(handle)) {
+				pr_info("%s: Could not import handle: %d\n",
+					__func__, (int)handle);
+				return -EINVAL;
+			}
+		}
+
+		ret = ion_do_cache_op(client, handle,
+				data.vaddr, data.offset, data.length,cmd);
+
+		if (is_import_fd)
+			ion_free(client, handle);
+		else
+			ion_handle_put(handle);
+
+		if (ret < 0)
+			return ret;
 		break;
+	}
 	case ION_IOC_GET_PHYS:
 	{
 		struct ion_phys_data data;

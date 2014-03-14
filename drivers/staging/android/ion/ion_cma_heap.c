@@ -20,6 +20,8 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
+#include <asm/cacheflush.h>
+#include <linux/rockchip_ion.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -37,6 +39,7 @@ struct ion_cma_buffer_info {
 	void *cpu_addr;
 	dma_addr_t handle;
 	struct sg_table *table;
+	bool is_cached;
 };
 
 /*
@@ -69,8 +72,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	dev_dbg(dev, "Request buffer allocation len %ld\n", len);
 
-	if (buffer->flags & ION_FLAG_CACHED)
-		return -EINVAL;
+//	if (buffer->flags & ION_FLAG_CACHED)
+//		return -EINVAL;
 
 	if (align > PAGE_SIZE)
 		return -EINVAL;
@@ -81,8 +84,13 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		return ION_CMA_ALLOCATE_FAILED;
 	}
 
-	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
-						GFP_HIGHUSER | __GFP_ZERO);
+	if (!ION_IS_CACHED(flags)) {
+		info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
+							GFP_HIGHUSER | __GFP_ZERO);
+	} else {
+		info->cpu_addr = dma_alloc_nonconsistent(dev, len,
+					&(info->handle), GFP_HIGHUSER | __GFP_ZERO/*0*/);
+	}
 
 	if (!info->cpu_addr) {
 		dev_err(dev, "Fail to allocate buffer\n");
@@ -94,6 +102,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		dev_err(dev, "Fail to allocate sg table\n");
 		goto free_mem;
 	}
+
+	info->is_cached = ION_IS_CACHED(flags);
 
 	if (ion_cma_get_sgtable
 	    (dev, info->table, info->cpu_addr, info->handle, len))
@@ -165,8 +175,13 @@ static int ion_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,
 	struct device *dev = cma_heap->dev;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	return dma_mmap_coherent(dev, vma, info->cpu_addr, info->handle,
-				 buffer->size);
+
+	if (info->is_cached)
+		return dma_mmap_nonconsistent(dev, vma, info->cpu_addr,
+				info->handle, buffer->size);
+	else
+		return dma_mmap_coherent(dev, vma, info->cpu_addr, info->handle,
+				buffer->size);
 }
 
 static void *ion_cma_map_kernel(struct ion_heap *heap,
@@ -182,6 +197,36 @@ static void ion_cma_unmap_kernel(struct ion_heap *heap,
 {
 }
 
+int ion_cma_cache_ops(struct ion_heap *heap,
+			struct ion_buffer *buffer, void *vaddr,
+			unsigned int offset, unsigned int length,
+			unsigned int cmd)
+{
+	struct ion_cma_buffer_info *info = buffer->priv_virt;
+	void (*outer_cache_op)(phys_addr_t, phys_addr_t);
+
+	switch (cmd) {
+	case ION_IOC_CLEAN_CACHES:
+		dmac_map_area(vaddr, length, DMA_TO_DEVICE);
+		outer_cache_op = outer_clean_range;
+		break;
+	case ION_IOC_INV_CACHES:
+		dmac_unmap_area(vaddr, length, DMA_FROM_DEVICE);
+		outer_cache_op = outer_inv_range;
+		break;
+	case ION_IOC_CLEAN_INV_CACHES:
+		dmac_flush_range(vaddr, vaddr + length);
+		outer_cache_op = outer_flush_range;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	outer_cache_op(info->handle, info->handle + length);
+
+	return 0;
+}
+
 static struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
@@ -191,6 +236,7 @@ static struct ion_heap_ops ion_cma_ops = {
 	.map_user = ion_cma_mmap,
 	.map_kernel = ion_cma_map_kernel,
 	.unmap_kernel = ion_cma_unmap_kernel,
+	.cache_op = ion_cma_cache_ops,
 };
 
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
