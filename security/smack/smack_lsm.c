@@ -3506,7 +3506,7 @@ static void smack_key_free(struct key *key)
  * an error code otherwise
  */
 static int smack_key_permission(key_ref_t key_ref,
-				const struct cred *cred, key_perm_t perm)
+				const struct cred *cred, unsigned perm)
 {
 	struct key *keyp;
 	struct smk_audit_info ad;
