@@ -185,6 +185,12 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t * reg_base_addr)
 	core_if->hwcfg4.d32 =
 	    DWC_READ_REG32(&core_if->core_global_regs->ghwcfg4);
 
+	/* do not get HPTXFSIZ here, it's unused.
+	 * set global_regs->hptxfsiz in dwc_otg_core_host_init.
+	 * for 3.10a version, host20 FIFO can't be configed,
+	 * because host20 hwcfg2.b.dynamic_fifo = 0.
+	 */
+#if 0
 	/* Force host mode to get HPTXFSIZ exact power on value */
 	{
 		gusbcfg_data_t gusbcfg = {.d32 = 0 };
@@ -199,6 +205,7 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t * reg_base_addr)
 		DWC_WRITE_REG32(&core_if->core_global_regs->gusbcfg, gusbcfg.d32);
 		dwc_mdelay(100);
 	}
+#endif
 
 	DWC_DEBUGPL(DBG_CILV, "hwcfg1=%08x\n", core_if->hwcfg1.d32);
 	DWC_DEBUGPL(DBG_CILV, "hwcfg2=%08x\n", core_if->hwcfg2.d32);
@@ -5365,7 +5372,6 @@ static int dwc_otg_param_initialized(int32_t val)
 
 static int dwc_otg_setup_params(dwc_otg_core_if_t * core_if)
 {
-	int i;
 	gintsts_data_t gintsts;
 	gintsts.d32 = DWC_READ_REG32(&core_if->core_global_regs->gintsts);
 
@@ -5422,7 +5428,11 @@ static int dwc_otg_setup_params(dwc_otg_core_if_t * core_if)
 	dwc_otg_set_param_ulpi_fs_ls(core_if, dwc_param_ulpi_fs_ls_default);
 	dwc_otg_set_param_en_multiple_tx_fifo(core_if,
 					      dwc_param_en_multiple_tx_fifo_default);
-	
+
+	/* do not set dev_perio_tx_fifo_size and dev_tx_fifo_size here
+	 * set validate parameter values in "set_parameters" later.
+	 */
+#if 0
 	if (gintsts.b.curmode) {
 		/* Force device mode to get power-on values of device FIFOs */
 		gusbcfg_data_t gusbcfg = {.d32 = 0 };
@@ -5452,7 +5462,7 @@ static int dwc_otg_setup_params(dwc_otg_core_if_t * core_if)
 				dwc_param_dev_tx_fifo_size_default, i);
 		}
 	}
-
+#endif
 	dwc_otg_set_param_thr_ctl(core_if, dwc_param_thr_ctl_default);
 	dwc_otg_set_param_mpi_enable(core_if, dwc_param_mpi_enable_default);
 	dwc_otg_set_param_pti_enable(core_if, dwc_param_pti_enable_default);
