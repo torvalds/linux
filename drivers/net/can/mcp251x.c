@@ -672,7 +672,7 @@ static int mcp251x_hw_probe(struct spi_device *spi)
 
 static int mcp251x_power_enable(struct regulator *reg, int enable)
 {
-	if (IS_ERR(reg))
+	if (IS_ERR_OR_NULL(reg))
 		return 0;
 
 	if (enable)
@@ -1218,7 +1218,7 @@ static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 		priv->after_suspend = AFTER_SUSPEND_DOWN;
 	}
 
-	if (!IS_ERR(priv->power)) {
+	if (!IS_ERR_OR_NULL(priv->power)) {
 		regulator_disable(priv->power);
 		priv->after_suspend |= AFTER_SUSPEND_POWER;
 	}
