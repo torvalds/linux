@@ -793,18 +793,14 @@ static void rga_mem_addr_sel(struct rga_req *req)
 
 static int rga_convert_dma_buf(struct rga_req *req)
 {
-    int usr_fd;
 	struct ion_handle *hdl;
 	ion_phys_addr_t phy_addr;
 	size_t len;
 
     if(req->src.yrgb_addr) {
-        if (copy_from_user(&usr_fd, &req->src.yrgb_addr, sizeof(usr_fd)))
-            return -EFAULT;
-        hdl = ion_import_dma_buf(drvdata->ion_client, usr_fd);
+        hdl = ion_import_dma_buf(drvdata->ion_client, req->src.yrgb_addr);
 	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
         req->src.yrgb_addr = phy_addr;
-
         req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
     }
     else {
@@ -813,12 +809,9 @@ static int rga_convert_dma_buf(struct rga_req *req)
     }
 
     if(req->dst.yrgb_addr) {
-        if (copy_from_user(&usr_fd, &req->dst.yrgb_addr, sizeof(usr_fd)))
-            return -EFAULT;
-        hdl = ion_import_dma_buf(drvdata->ion_client, usr_fd);
+        hdl = ion_import_dma_buf(drvdata->ion_client, req->dst.yrgb_addr);
 	    ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
         req->dst.yrgb_addr = phy_addr;
-
         req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
     }
     else {
@@ -926,7 +919,6 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
 
     atomic_set(&session->done, 0);
     ret = rga_blit(session, req);
-
     return ret;
 }
 
@@ -940,26 +932,19 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     #endif
 
     atomic_set(&session->done, 0);
-
     ret = rga_blit(session, req);
     if(ret < 0)
-    {
         return ret;
-    }
 
     ret_timeout = wait_event_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
 
-    if (unlikely(ret_timeout< 0))
-    {
-		//pr_err("sync pid %d wait task ret %d\n", session->pid, ret_timeout);
+    if (unlikely(ret_timeout< 0)) {
         mutex_lock(&rga_service.lock);
         rga_del_running_list();
         mutex_unlock(&rga_service.lock);
         ret = ret_timeout;
 	}
-    else if (0 == ret_timeout)
-    {
-		//pr_err("sync pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+    else if (0 == ret_timeout) {
         mutex_lock(&rga_service.lock);
         rga_del_running_list_timeout();
         rga_try_set_reg();
@@ -987,8 +972,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
     session = (rga_session *)file->private_data;
 
-	if (NULL == session)
-    {
+	if (NULL == session) {
         printk("%s [%d] rga thread session is null\n",__FUNCTION__,__LINE__);
         mutex_unlock(&rga_service.mutex);
 		return -EINVAL;
@@ -996,8 +980,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
     memset(&req, 0x0, sizeof(req));
 
-	switch (cmd)
-	{
+	switch (cmd) {
 		case RGA_BLIT_SYNC:
     		if (unlikely(copy_from_user(&req, (struct rga_req*)arg, sizeof(struct rga_req))))
             {
@@ -1055,15 +1038,13 @@ long rga_ioctl_kernel(struct rga_req *req)
 
     session = &rga_session_global;
 
-	if (NULL == session)
-    {
+	if (NULL == session) {
         printk("%s [%d] rga thread session is null\n",__FUNCTION__,__LINE__);
         mutex_unlock(&rga_service.mutex);
 		return -EINVAL;
 	}
 
-	switch (RGA_BLIT_SYNC)
-	{
+	switch (RGA_BLIT_SYNC) {
 		case RGA_BLIT_SYNC:
             ret = rga_blit_sync(session, req);
             break;
