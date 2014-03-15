@@ -280,12 +280,17 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (fw_engine & FORCEWAKE_RENDER &&
-	    --dev_priv->uncore.fw_rendercount != 0)
-		fw_engine &= ~FORCEWAKE_RENDER;
-	if (fw_engine & FORCEWAKE_MEDIA &&
-	    --dev_priv->uncore.fw_mediacount != 0)
-		fw_engine &= ~FORCEWAKE_MEDIA;
+	if (fw_engine & FORCEWAKE_RENDER) {
+		WARN_ON(!dev_priv->uncore.fw_rendercount);
+		if (--dev_priv->uncore.fw_rendercount != 0)
+			fw_engine &= ~FORCEWAKE_RENDER;
+	}
+
+	if (fw_engine & FORCEWAKE_MEDIA) {
+		WARN_ON(!dev_priv->uncore.fw_mediacount);
+		if (--dev_priv->uncore.fw_mediacount != 0)
+			fw_engine &= ~FORCEWAKE_MEDIA;
+	}
 
 	if (fw_engine)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw_engine);
@@ -301,6 +306,8 @@ static void gen6_force_wake_timer(unsigned long arg)
 	assert_device_not_suspended(dev_priv);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	WARN_ON(!dev_priv->uncore.forcewake_count);
+
 	if (--dev_priv->uncore.forcewake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
@@ -452,6 +459,8 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	WARN_ON(!dev_priv->uncore.forcewake_count);
+
 	if (--dev_priv->uncore.forcewake_count == 0) {
 		dev_priv->uncore.forcewake_count++;
 		delayed = true;
