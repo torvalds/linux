@@ -40,7 +40,7 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 				    u8 pan_coord, u8 blx,
 				    u8 coord_realign)
 {
-	BUG_ON(addr->addr_type != IEEE802154_ADDR_SHORT);
+	BUG_ON(addr->mode != IEEE802154_ADDR_SHORT);
 
 	mac802154_dev_set_pan_id(dev, addr->pan_id);
 	mac802154_dev_set_short_addr(dev, addr->short_addr);

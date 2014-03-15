@@ -20,6 +20,7 @@
 #define NET_MAC802154_H
 
 #include <net/af_ieee802154.h>
+#include <linux/skbuff.h>
 
 /* General MAC frame format:
  *  2 bytes: Frame Control
@@ -50,7 +51,7 @@ struct ieee802154_hw_addr_filt {
 				 * devices across independent networks.
 				 */
 	__le16	short_addr;
-	u8	ieee_addr[IEEE802154_ADDR_LEN];
+	__le64	ieee_addr;
 	u8	pan_coord;
 };
 
@@ -153,8 +154,7 @@ struct ieee802154_ops {
 	int		(*set_hw_addr_filt)(struct ieee802154_dev *dev,
 					  struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed);
-	int		(*ieee_addr)(struct ieee802154_dev *dev,
-				     u8 addr[IEEE802154_ADDR_LEN]);
+	int		(*ieee_addr)(struct ieee802154_dev *dev, __le64 addr);
 	int		(*set_txpower)(struct ieee802154_dev *dev, int db);
 	int		(*set_lbt)(struct ieee802154_dev *dev, bool on);
 	int		(*set_cca_mode)(struct ieee802154_dev *dev, u8 mode);
