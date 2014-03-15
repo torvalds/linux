@@ -77,6 +77,13 @@
 #define RK_LF_STATUS_NC                  0xfe
 #define RK_LF_MAX_TIMEOUT 			 (1600000UL << 6)	//>0.64s
 
+
+/*for x y mirror*/
+#define NO_MIRROR	0
+#define X_MIRROR    	1
+#define Y_MIRROR    	2
+#define X_Y_MIRROR    	3
+
 /*#define USE_ION_MMU 1*/
 #if defined(CONFIG_ION_ROCKCHIP)
 extern struct ion_client *rockchip_ion_client_create(const char * name);
@@ -252,7 +259,7 @@ struct rk_lcdc_post_cfg{
 	u32 ysize;
 };
 
-struct rk_lcdc_area{
+struct rk_lcdc_win_area{
 	bool state;
 	u32 y_offset;		/*yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx*/
 	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
@@ -321,7 +328,7 @@ struct rk_lcdc_win {
 	u32 g_alpha_val;
 	u32 color_key_val;
 
-	struct rk_lcdc_area area[RK_WIN_MAX_AREA];
+	struct rk_lcdc_win_area area[RK_WIN_MAX_AREA];
 	struct rk_lcdc_post_cfg post_cfg;
 };
 

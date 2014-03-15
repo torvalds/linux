@@ -36,6 +36,13 @@
 #define LVDS_8BIT_2     1
 #define LVDS_8BIT_3     2
 #define LVDS_6BIT       3
+
+#define NO_MIRROR	0
+#define X_MIRROR    	1
+#define Y_MIRROR    	2
+#define X_Y_MIRROR    	3
+
+
 /*      	lvds connect config       
  *                                        
  *          	LVDS_8BIT_1    LVDS_8BIT_2     LVDS_8BIT_3     LVDS_6BIT
