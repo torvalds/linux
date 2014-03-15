@@ -970,6 +970,9 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		}
 	}
 
+	if (sdev->scsi_level >= SCSI_3)
+		scsi_attach_vpd(sdev);
+
 	sdev->max_queue_depth = sdev->queue_depth;
 
 	/*

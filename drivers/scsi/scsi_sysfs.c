@@ -412,6 +412,8 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	/* NULL queue means the device can't be used */
 	sdev->request_queue = NULL;
 
+	kfree(sdev->vpd_pg83);
+	kfree(sdev->vpd_pg80);
 	kfree(sdev->inquiry);
 	kfree(sdev);
 
@@ -751,8 +753,32 @@ store_queue_type_field(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(queue_type, S_IRUGO | S_IWUSR, show_queue_type_field,
 		   store_queue_type_field);
 
+#define sdev_vpd_pg_attr(_page)						\
+static ssize_t							\
+show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
+		 struct bin_attribute *bin_attr,			\
+		 char *buf, loff_t off, size_t count)			\
+{									\
+	struct device *dev = container_of(kobj, struct device, kobj);	\
+	struct scsi_device *sdev = to_scsi_device(dev);			\
+	if (!sdev->vpd_##_page)						\
+		return -EINVAL;						\
+	return memory_read_from_buffer(buf, count, &off,		\
+				       sdev->vpd_##_page,		\
+				       sdev->vpd_##_page##_len);	\
+}									\
+static struct bin_attribute dev_attr_vpd_##_page = {		\
+	.attr =	{.name = __stringify(vpd_##_page), .mode = S_IRUGO },	\
+	.size = 0,							\
+	.read = show_vpd_##_page,					\
+};
+
+sdev_vpd_pg_attr(pg83);
+sdev_vpd_pg_attr(pg80);
+
 static ssize_t
-show_iostat_counterbits(struct device *dev, struct device_attribute *attr, 				char *buf)
+show_iostat_counterbits(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 20, "%d\n", (int)sizeof(atomic_t) * 8);
 }
@@ -936,8 +962,14 @@ static struct attribute *scsi_sdev_attrs[] = {
 	NULL
 };
 
+static struct bin_attribute *scsi_sdev_bin_attrs[] = {
+	&dev_attr_vpd_pg83,
+	&dev_attr_vpd_pg80,
+	NULL
+};
 static struct attribute_group scsi_sdev_attr_group = {
 	.attrs =	scsi_sdev_attrs,
+	.bin_attrs =	scsi_sdev_bin_attrs,
 	.is_visible =	scsi_sdev_attr_is_visible,
 };
 
