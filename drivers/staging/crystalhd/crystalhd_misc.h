@@ -225,7 +225,7 @@ do {					\
 #define BCMLOG_ERR(fmt, args...)				\
 do {								\
 	if (g_linklog_level & BCMLOG_ERROR)			\
-		pr_err("*ERR*:%s:%d: "fmt,      		\
+		pr_err("*ERR*:%s:%d: "fmt,			\
 				__FILE__, __LINE__, ##args);	\
 } while (0)
 
