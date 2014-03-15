@@ -2914,6 +2914,9 @@ static int rx_intr_handler(struct ring_info *ring_data, int budget)
 	struct RxD1 *rxdp1;
 	struct RxD3 *rxdp3;
 
+	if (budget <= 0)
+		return napi_pkts;
+
 	get_info = ring_data->rx_curr_get_info;
 	get_block = get_info.block_index;
 	memcpy(&put_info, &ring_data->rx_curr_put_info, sizeof(put_info));
