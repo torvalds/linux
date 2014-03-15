@@ -642,96 +642,6 @@ static void fsl_ssi_setup_ac97(struct fsl_ssi_private *ssi_private)
 	write_ssi(CCSR_SSI_SOR_WAIT(3), &ssi->sor);
 }
 
-static int fsl_ssi_setup(struct fsl_ssi_private *ssi_private)
-{
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-	u8 wm;
-	int synchronous = ssi_private->cpu_dai_drv.symmetric_rates;
-
-	fsl_ssi_setup_reg_vals(ssi_private);
-
-	if (ssi_private->imx_ac97)
-		ssi_private->i2s_mode = CCSR_SSI_SCR_I2S_MODE_NORMAL | CCSR_SSI_SCR_NET;
-	else
-		ssi_private->i2s_mode = CCSR_SSI_SCR_I2S_MODE_SLAVE;
-
-	/*
-	 * Section 16.5 of the MPC8610 reference manual says that the SSI needs
-	 * to be disabled before updating the registers we set here.
-	 */
-	write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_SSIEN, 0);
-
-	/*
-	 * Program the SSI into I2S Slave Non-Network Synchronous mode. Also
-	 * enable the transmit and receive FIFO.
-	 *
-	 * FIXME: Little-endian samples require a different shift dir
-	 */
-	write_ssi_mask(&ssi->scr,
-		CCSR_SSI_SCR_I2S_MODE_MASK | CCSR_SSI_SCR_SYN,
-		CCSR_SSI_SCR_TFR_CLK_DIS |
-		ssi_private->i2s_mode |
-		(synchronous ? CCSR_SSI_SCR_SYN : 0));
-
-	write_ssi(CCSR_SSI_STCR_TXBIT0 | CCSR_SSI_STCR_TFSI |
-			CCSR_SSI_STCR_TEFS | CCSR_SSI_STCR_TSCKP, &ssi->stcr);
-
-	write_ssi(CCSR_SSI_SRCR_RXBIT0 | CCSR_SSI_SRCR_RFSI |
-			CCSR_SSI_SRCR_REFS | CCSR_SSI_SRCR_RSCKP, &ssi->srcr);
-
-	/*
-	 * The DC and PM bits are only used if the SSI is the clock master.
-	 */
-
-	/*
-	 * Set the watermark for transmit FIFI 0 and receive FIFO 0. We don't
-	 * use FIFO 1. We program the transmit water to signal a DMA transfer
-	 * if there are only two (or fewer) elements left in the FIFO. Two
-	 * elements equals one frame (left channel, right channel). This value,
-	 * however, depends on the depth of the transmit buffer.
-	 *
-	 * We set the watermark on the same level as the DMA burstsize.  For
-	 * fiq it is probably better to use the biggest possible watermark
-	 * size.
-	 */
-	if (ssi_private->use_dma)
-		wm = ssi_private->fifo_depth - 2;
-	else
-		wm = ssi_private->fifo_depth;
-
-	write_ssi(CCSR_SSI_SFCSR_TFWM0(wm) | CCSR_SSI_SFCSR_RFWM0(wm) |
-		CCSR_SSI_SFCSR_TFWM1(wm) | CCSR_SSI_SFCSR_RFWM1(wm),
-		&ssi->sfcsr);
-
-	/*
-	 * For ac97 interrupts are enabled with the startup of the substream
-	 * because it is also running without an active substream. Normally SSI
-	 * is only enabled when there is a substream.
-	 */
-	if (ssi_private->imx_ac97)
-		fsl_ssi_setup_ac97(ssi_private);
-
-	/*
-	 * Set a default slot number so that there is no need for those common
-	 * cases like I2S mode to call the extra set_tdm_slot() any more.
-	 */
-	if (!ssi_private->imx_ac97) {
-		write_ssi_mask(&ssi->stccr, CCSR_SSI_SxCCR_DC_MASK,
-				CCSR_SSI_SxCCR_DC(2));
-		write_ssi_mask(&ssi->srccr, CCSR_SSI_SxCCR_DC_MASK,
-				CCSR_SSI_SxCCR_DC(2));
-	}
-
-	if (ssi_private->use_dual_fifo) {
-		write_ssi_mask(&ssi->srcr, 0, CCSR_SSI_SRCR_RFEN1);
-		write_ssi_mask(&ssi->stcr, 0, CCSR_SSI_STCR_TFEN1);
-		write_ssi_mask(&ssi->scr, 0, CCSR_SSI_SCR_TCH_EN);
-	}
-
-	return 0;
-}
-
-
 /**
  * fsl_ssi_startup: create a new substream
  *
@@ -748,12 +658,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	unsigned long flags;
 
-	/* First, we only do fsl_ssi_setup() when SSI is going to be active.
-	 * Second, fsl_ssi_setup was already called by ac97_init earlier if
-	 * the driver is in ac97 mode.
-	 */
 	if (!dai->active && !ssi_private->imx_ac97) {
-		fsl_ssi_setup(ssi_private);
 		spin_lock_irqsave(&ssi_private->baudclk_lock, flags);
 		ssi_private->baudclk_locked = false;
 		spin_unlock_irqrestore(&ssi_private->baudclk_lock, flags);
@@ -835,6 +740,9 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
 	u32 strcr = 0, stcr, srcr, scr, mask;
+	u8 wm;
+
+	fsl_ssi_setup_reg_vals(ssi_private);
 
 	scr = read_ssi(&ssi->scr) & ~(CCSR_SSI_SCR_SYN | CCSR_SSI_SCR_I2S_MODE_MASK);
 	scr |= CCSR_SSI_SCR_NET;
@@ -857,7 +765,6 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		default:
 			return -EINVAL;
 		}
-		scr |= ssi_private->i2s_mode;
 
 		/* Data on rising edge of bclk, frame low, 1clk before data */
 		strcr |= CCSR_SSI_STCR_TFSI | CCSR_SSI_STCR_TSCKP |
@@ -877,9 +784,13 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		strcr |= CCSR_SSI_STCR_TFSL | CCSR_SSI_STCR_TSCKP |
 			CCSR_SSI_STCR_TXBIT0;
 		break;
+	case SND_SOC_DAIFMT_AC97:
+		ssi_private->i2s_mode = CCSR_SSI_SCR_I2S_MODE_NORMAL;
+		break;
 	default:
 		return -EINVAL;
 	}
+	scr |= ssi_private->i2s_mode;
 
 	/* DAI clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
@@ -928,6 +839,38 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	write_ssi(stcr, &ssi->stcr);
 	write_ssi(srcr, &ssi->srcr);
 	write_ssi(scr, &ssi->scr);
+
+	/*
+	 * Set the watermark for transmit FIFI 0 and receive FIFO 0. We don't
+	 * use FIFO 1. We program the transmit water to signal a DMA transfer
+	 * if there are only two (or fewer) elements left in the FIFO. Two
+	 * elements equals one frame (left channel, right channel). This value,
+	 * however, depends on the depth of the transmit buffer.
+	 *
+	 * We set the watermark on the same level as the DMA burstsize.  For
+	 * fiq it is probably better to use the biggest possible watermark
+	 * size.
+	 */
+	if (ssi_private->use_dma)
+		wm = ssi_private->fifo_depth - 2;
+	else
+		wm = ssi_private->fifo_depth;
+
+	write_ssi(CCSR_SSI_SFCSR_TFWM0(wm) | CCSR_SSI_SFCSR_RFWM0(wm) |
+			CCSR_SSI_SFCSR_TFWM1(wm) | CCSR_SSI_SFCSR_RFWM1(wm),
+			&ssi->sfcsr);
+
+	if (ssi_private->use_dual_fifo) {
+		write_ssi_mask(&ssi->srcr, CCSR_SSI_SRCR_RFEN1,
+				CCSR_SSI_SRCR_RFEN1);
+		write_ssi_mask(&ssi->stcr, CCSR_SSI_STCR_TFEN1,
+				CCSR_SSI_STCR_TFEN1);
+		write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_TCH_EN,
+				CCSR_SSI_SCR_TCH_EN);
+	}
+
+	if (fmt & SND_SOC_DAIFMT_AC97)
+		fsl_ssi_setup_ac97(ssi_private);
 
 	return 0;
 }
@@ -1183,11 +1126,6 @@ static struct snd_soc_dai_driver fsl_ssi_ac97_dai = {
 
 
 static struct fsl_ssi_private *fsl_ac97_data;
-
-static void fsl_ssi_ac97_init(void)
-{
-	fsl_ssi_setup(fsl_ac97_data);
-}
 
 static void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 		unsigned short val)
@@ -1547,9 +1485,6 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 done:
-	if (ssi_private->imx_ac97)
-		fsl_ssi_ac97_init();
-
 	return 0;
 
 error_dai:
