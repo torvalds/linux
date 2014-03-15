@@ -55,6 +55,7 @@ struct orion_watchdog_data {
 	int wdt_counter_offset;
 	int wdt_enable_bit;
 	int rstout_enable_bit;
+	int rstout_mask_bit;
 	int (*clock_init)(struct platform_device *,
 			  struct orion_watchdog *);
 	int (*enabled)(struct orion_watchdog *);
@@ -66,6 +67,7 @@ struct orion_watchdog {
 	struct watchdog_device wdt;
 	void __iomem *reg;
 	void __iomem *rstout;
+	void __iomem *rstout_mask;
 	unsigned long clk_rate;
 	struct clk *clk;
 	const struct orion_watchdog_data *data;
@@ -144,6 +146,31 @@ static int orion_wdt_ping(struct watchdog_device *wdt_dev)
 	return 0;
 }
 
+static int armada375_start(struct watchdog_device *wdt_dev)
+{
+	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
+	u32 reg;
+
+	/* Set watchdog duration */
+	writel(dev->clk_rate * wdt_dev->timeout,
+	       dev->reg + dev->data->wdt_counter_offset);
+
+	/* Clear the watchdog expiration bit */
+	atomic_io_modify(dev->reg + TIMER_A370_STATUS, WDT_A370_EXPIRED, 0);
+
+	/* Enable watchdog timer */
+	atomic_io_modify(dev->reg + TIMER_CTRL, dev->data->wdt_enable_bit,
+						dev->data->wdt_enable_bit);
+
+	/* Enable reset on watchdog */
+	reg = readl(dev->rstout);
+	reg |= dev->data->rstout_enable_bit;
+	writel(reg, dev->rstout);
+
+	atomic_io_modify(dev->rstout_mask, dev->data->rstout_mask_bit, 0);
+	return 0;
+}
+
 static int armada370_start(struct watchdog_device *wdt_dev)
 {
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
@@ -207,6 +234,24 @@ static int orion_stop(struct watchdog_device *wdt_dev)
 	return 0;
 }
 
+static int armada375_stop(struct watchdog_device *wdt_dev)
+{
+	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
+	u32 reg;
+
+	/* Disable reset on watchdog */
+	atomic_io_modify(dev->rstout_mask, dev->data->rstout_mask_bit,
+					   dev->data->rstout_mask_bit);
+	reg = readl(dev->rstout);
+	reg &= ~dev->data->rstout_enable_bit;
+	writel(reg, dev->rstout);
+
+	/* Disable watchdog timer */
+	atomic_io_modify(dev->reg + TIMER_CTRL, dev->data->wdt_enable_bit, 0);
+
+	return 0;
+}
+
 static int armada370_stop(struct watchdog_device *wdt_dev)
 {
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
@@ -238,6 +283,17 @@ static int orion_enabled(struct orion_watchdog *dev)
 	running = readl(dev->reg + TIMER_CTRL) & dev->data->wdt_enable_bit;
 
 	return enabled && running;
+}
+
+static int armada375_enabled(struct orion_watchdog *dev)
+{
+	bool masked, enabled, running;
+
+	masked = readl(dev->rstout_mask) & dev->data->rstout_mask_bit;
+	enabled = readl(dev->rstout) & dev->data->rstout_enable_bit;
+	running = readl(dev->reg + TIMER_CTRL) & dev->data->wdt_enable_bit;
+
+	return !masked && enabled && running;
 }
 
 static int orion_wdt_enabled(struct watchdog_device *wdt_dev)
@@ -333,6 +389,28 @@ static const struct orion_watchdog_data armadaxp_data = {
 	.stop = armada370_stop,
 };
 
+static const struct orion_watchdog_data armada375_data = {
+	.rstout_enable_bit = BIT(8),
+	.rstout_mask_bit = BIT(10),
+	.wdt_enable_bit = BIT(8),
+	.wdt_counter_offset = 0x34,
+	.clock_init = armada370_wdt_clock_init,
+	.enabled = armada375_enabled,
+	.start = armada375_start,
+	.stop = armada375_stop,
+};
+
+static const struct orion_watchdog_data armada380_data = {
+	.rstout_enable_bit = BIT(8),
+	.rstout_mask_bit = BIT(10),
+	.wdt_enable_bit = BIT(8),
+	.wdt_counter_offset = 0x34,
+	.clock_init = armadaxp_wdt_clock_init,
+	.enabled = armada375_enabled,
+	.start = armada375_start,
+	.stop = armada375_stop,
+};
+
 static const struct of_device_id orion_wdt_of_match_table[] = {
 	{
 		.compatible = "marvell,orion-wdt",
@@ -345,6 +423,14 @@ static const struct of_device_id orion_wdt_of_match_table[] = {
 	{
 		.compatible = "marvell,armada-xp-wdt",
 		.data = &armadaxp_data,
+	},
+	{
+		.compatible = "marvell,armada-375-wdt",
+		.data = &armada375_data,
+	},
+	{
+		.compatible = "marvell,armada-380-wdt",
+		.data = &armada380_data,
 	},
 	{},
 };
@@ -380,6 +466,23 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
+
+	} else if (of_device_is_compatible(node, "marvell,armada-375-wdt") ||
+		   of_device_is_compatible(node, "marvell,armada-380-wdt")) {
+
+		/* Dedicated RSTOUT register, can be requested. */
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(dev->rstout))
+			return PTR_ERR(dev->rstout);
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+		if (!res)
+			return -ENODEV;
+		dev->rstout_mask = devm_ioremap(&pdev->dev, res->start,
+						resource_size(res));
+		if (!dev->rstout_mask)
+			return -ENOMEM;
 
 	} else {
 		return -ENODEV;
