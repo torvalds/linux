@@ -71,6 +71,8 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 unsigned long iov_iter_alignment(const struct iov_iter *i);
 void iov_iter_init(struct iov_iter *i, int direction, const struct iovec *iov,
 			unsigned long nr_segs, size_t count);
+ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
+			size_t maxsize, size_t *start);
 
 static inline size_t iov_iter_count(struct iov_iter *i)
 {
