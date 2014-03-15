@@ -2703,7 +2703,6 @@ static const u16 *sh_eth_get_register_offset(int register_type)
 		reg_offset = sh_eth_offset_fast_sh3_sh2;
 		break;
 	default:
-		pr_err("Unknown register type (%d)\n", register_type);
 		break;
 	}
 
@@ -2859,6 +2858,12 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		mdp->cd = (struct sh_eth_cpu_data *)match->data;
 	}
 	mdp->reg_offset = sh_eth_get_register_offset(mdp->cd->register_type);
+	if (!mdp->reg_offset) {
+		dev_err(&pdev->dev, "Unknown register type (%d)\n",
+			mdp->cd->register_type);
+		ret = -EINVAL;
+		goto out_release;
+	}
 	sh_eth_set_default_cpu_data(mdp->cd);
 
 	/* set function */
