@@ -474,7 +474,7 @@ F:	net/rxrpc/af_rxrpc.c
 
 AGPGART DRIVER
 M:	David Airlie <airlied@linux.ie>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6.git
+T:	git git://people.freedesktop.org/~airlied/linux (part of drm maint)
 S:	Maintained
 F:	drivers/char/agp/
 F:	include/linux/agp*
@@ -1738,6 +1738,7 @@ F:	include/uapi/linux/bfs_fs.h
 BLACKFIN ARCHITECTURE
 M:	Steven Miao <realmz6@gmail.com>
 L:	adi-buildroot-devel@lists.sourceforge.net
+T:	git git://git.code.sf.net/p/adi-linux/code
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	arch/blackfin/
@@ -6008,6 +6009,8 @@ F:	include/linux/netdevice.h
 F:	include/uapi/linux/in.h
 F:	include/uapi/linux/net.h
 F:	include/uapi/linux/netdevice.h
+F:	tools/net/
+F:	tools/testing/selftests/net/
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
@@ -6181,6 +6184,12 @@ T:	git git://git.infradead.org/users/willy/linux-nvme.git
 S:	Supported
 F:	drivers/block/nvme*
 F:	include/linux/nvme.h
+
+NXP TDA998X DRM DRIVER
+M:	Russell King <rmk+kernel@arm.linux.org.uk>
+S:	Supported
+F:	drivers/gpu/drm/i2c/tda998x_drv.c
+F:	include/drm/i2c/tda998x.h
 
 OMAP SUPPORT
 M:	Tony Lindgren <tony@atomide.com>

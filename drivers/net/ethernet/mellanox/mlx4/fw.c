@@ -129,13 +129,14 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[0] = "RSS support",
 		[1] = "RSS Toeplitz Hash Function support",
 		[2] = "RSS XOR Hash Function support",
-		[3] = "Device manage flow steering support",
+		[3] = "Device managed flow steering support",
 		[4] = "Automatic MAC reassignment support",
 		[5] = "Time stamping support",
 		[6] = "VST (control vlan insertion/stripping) support",
 		[7] = "FSM (MAC anti-spoofing) support",
 		[8] = "Dynamic QP updates support",
-		[9] = "TCP/IP offloads/flow-steering for VXLAN support"
+		[9] = "Device managed flow steering IPoIB support",
+		[10] = "TCP/IP offloads/flow-steering for VXLAN support"
 	};
 	int i;
 
@@ -859,7 +860,7 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET);
 
 	/* For guests, disable vxlan tunneling */
-	MLX4_GET(field, outbox, QUERY_DEV_CAP_VXLAN);
+	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_VXLAN);
 	field &= 0xf7;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_VXLAN);
 
@@ -869,7 +870,7 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_BF_OFFSET);
 
 	/* For guests, disable mw type 2 */
-	MLX4_GET(bmme_flags, outbox, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
+	MLX4_GET(bmme_flags, outbox->buf, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 	bmme_flags &= ~MLX4_BMME_FLAG_TYPE_2_WIN;
 	MLX4_PUT(outbox->buf, bmme_flags, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 
@@ -883,7 +884,7 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	}
 
 	/* turn off ipoib managed steering for guests */
-	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET);
+	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET);
 	field &= ~0x80;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET);
 

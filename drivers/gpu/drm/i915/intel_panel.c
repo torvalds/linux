@@ -698,7 +698,7 @@ static void i9xx_enable_backlight(struct intel_connector *connector)
 		freq /= 0xff;
 
 	ctl = freq << 17;
-	if (IS_GEN2(dev) && panel->backlight.combination_mode)
+	if (panel->backlight.combination_mode)
 		ctl |= BLM_LEGACY_MODE;
 	if (IS_PINEVIEW(dev) && panel->backlight.active_low_pwm)
 		ctl |= BLM_POLARITY_PNV;
@@ -979,7 +979,7 @@ static int i9xx_setup_backlight(struct intel_connector *connector)
 
 	ctl = I915_READ(BLC_PWM_CTL);
 
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev) || IS_I915GM(dev) || IS_I945GM(dev))
 		panel->backlight.combination_mode = ctl & BLM_LEGACY_MODE;
 
 	if (IS_PINEVIEW(dev))
