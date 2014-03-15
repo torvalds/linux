@@ -545,9 +545,10 @@ static void __init __l2c_init(const struct l2c_init_data *data,
 
 	outer_cache = fns;
 
-	pr_info("%s cache controller enabled\n", type);
-	pr_info("l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d kB\n",
-		ways, cache_id, aux, l2x0_size >> 10);
+	pr_info("%s cache controller enabled, %d ways, %d kB\n",
+		type, ways, l2x0_size >> 10);
+	pr_info("%s: CACHE_ID 0x%08x, AUX_CTRL 0x%08x\n",
+		type, cache_id, aux);
 }
 
 void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
