@@ -174,9 +174,6 @@ static void poll_napi(struct net_device *dev, int budget)
 		    spin_trylock(&napi->poll_lock)) {
 			budget = poll_one_napi(napi, budget);
 			spin_unlock(&napi->poll_lock);
-
-			if (!budget)
-				break;
 		}
 	}
 }
