@@ -39,7 +39,6 @@ struct netpoll {
 struct netpoll_info {
 	atomic_t refcnt;
 
-	unsigned long rx_flags;
 	spinlock_t rx_lock;
 	struct semaphore dev_lock;
 	struct list_head rx_np; /* netpolls that registered an rx_skb_hook */
@@ -99,7 +98,7 @@ static inline bool netpoll_rx_on(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
-	return npinfo && (netpoll_rx_processing(npinfo) || npinfo->rx_flags);
+	return npinfo && netpoll_rx_processing(npinfo);
 }
 
 static inline bool netpoll_rx(struct sk_buff *skb)

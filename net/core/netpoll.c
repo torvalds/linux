@@ -51,8 +51,6 @@ static atomic_t trapped;
 DEFINE_STATIC_SRCU(netpoll_srcu);
 
 #define USEC_PER_POLL	50
-#define NETPOLL_RX_ENABLED  1
-#define NETPOLL_RX_DROP     2
 
 #define MAX_SKB_SIZE							\
 	(sizeof(struct ethhdr) +					\
@@ -193,7 +191,8 @@ static void netpoll_poll_dev(struct net_device *dev)
 {
 	const struct net_device_ops *ops;
 	struct netpoll_info *ni = rcu_dereference_bh(dev->npinfo);
-	int budget = 16;
+	bool rx_processing = netpoll_rx_processing(ni);
+	int budget = rx_processing? 16 : 0;
 
 	/* Don't do any rx activity if the dev_lock mutex is held
 	 * the dev_open/close paths use this to block netpoll activity
@@ -207,8 +206,8 @@ static void netpoll_poll_dev(struct net_device *dev)
 		return;
 	}
 
-	ni->rx_flags |= NETPOLL_RX_DROP;
-	atomic_inc(&trapped);
+	if (rx_processing)
+		atomic_inc(&trapped);
 
 	ops = dev->netdev_ops;
 	if (!ops->ndo_poll_controller) {
@@ -221,8 +220,8 @@ static void netpoll_poll_dev(struct net_device *dev)
 
 	poll_napi(dev, budget);
 
-	atomic_dec(&trapped);
-	ni->rx_flags &= ~NETPOLL_RX_DROP;
+	if (rx_processing)
+		atomic_dec(&trapped);
 
 	up(&ni->dev_lock);
 
@@ -1050,7 +1049,6 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 			goto out;
 		}
 
-		npinfo->rx_flags = 0;
 		INIT_LIST_HEAD(&npinfo->rx_np);
 
 		spin_lock_init(&npinfo->rx_lock);
@@ -1076,7 +1074,6 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 
 	if (np->rx_skb_hook) {
 		spin_lock_irqsave(&npinfo->rx_lock, flags);
-		npinfo->rx_flags |= NETPOLL_RX_ENABLED;
 		list_add_tail(&np->rx, &npinfo->rx_np);
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
@@ -1258,8 +1255,6 @@ void __netpoll_cleanup(struct netpoll *np)
 	if (!list_empty(&npinfo->rx_np)) {
 		spin_lock_irqsave(&npinfo->rx_lock, flags);
 		list_del(&np->rx);
-		if (list_empty(&npinfo->rx_np))
-			npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
 
