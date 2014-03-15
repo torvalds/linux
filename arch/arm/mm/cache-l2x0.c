@@ -53,7 +53,7 @@ static bool of_init = false;
 /*
  * Common code for all cache controllers.
  */
-static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
+static inline void l2c_wait_mask(void __iomem *reg, unsigned long mask)
 {
 	/* wait for cache operation by line or way to complete */
 	while (readl_relaxed(reg) & mask)
@@ -73,7 +73,7 @@ static inline void l2c_set_debug(void __iomem *base, unsigned long val)
 static void __l2c_op_way(void __iomem *reg)
 {
 	writel_relaxed(l2x0_way_mask, reg);
-	cache_wait_way(reg, l2x0_way_mask);
+	l2c_wait_mask(reg, l2x0_way_mask);
 }
 
 static inline void l2c_unlock(void __iomem *base, unsigned num)
@@ -94,7 +94,7 @@ static inline void cache_wait(void __iomem *reg, unsigned long mask)
 	/* cache operations by line are atomic on PL310 */
 }
 #else
-#define cache_wait	cache_wait_way
+#define cache_wait	l2c_wait_mask
 #endif
 
 static inline void cache_sync(void)
