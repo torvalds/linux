@@ -414,7 +414,6 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		outer_cache.flush_range = l2x0_flush_range;
 		outer_cache.sync = l2x0_cache_sync;
 		outer_cache.flush_all = l2x0_flush_all;
-		outer_cache.inv_all = l2x0_inv_all;
 		outer_cache.disable = l2x0_disable;
 	}
 
@@ -884,7 +883,6 @@ static const struct l2x0_of_data pl310_data = {
 		.flush_range = l2x0_flush_range,
 		.sync        = l2x0_cache_sync,
 		.flush_all   = l2x0_flush_all,
-		.inv_all     = l2x0_inv_all,
 		.disable     = l2x0_disable,
 	},
 };
@@ -899,7 +897,6 @@ static const struct l2x0_of_data l2x0_data = {
 		.flush_range = l2x0_flush_range,
 		.sync        = l2x0_cache_sync,
 		.flush_all   = l2x0_flush_all,
-		.inv_all     = l2x0_inv_all,
 		.disable     = l2x0_disable,
 	},
 };
@@ -914,7 +911,6 @@ static const struct l2x0_of_data aurora_with_outer_data = {
 		.flush_range = aurora_flush_range,
 		.sync        = l2x0_cache_sync,
 		.flush_all   = l2x0_flush_all,
-		.inv_all     = l2x0_inv_all,
 		.disable     = l2x0_disable,
 	},
 };
@@ -946,7 +942,6 @@ static const struct l2x0_of_data bcm_l2x0_data = {
 		.flush_range = bcm_flush_range,
 		.sync        = l2x0_cache_sync,
 		.flush_all   = l2x0_flush_all,
-		.inv_all     = l2x0_inv_all,
 		.disable     = l2x0_disable,
 	},
 };
