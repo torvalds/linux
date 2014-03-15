@@ -31,12 +31,6 @@ struct netpoll {
 	u8 remote_mac[ETH_ALEN];
 
 	struct work_struct cleanup_work;
-
-#ifdef CONFIG_NETPOLL_TRAP
-	void (*rx_skb_hook)(struct netpoll *np, int source, struct sk_buff *skb,
-			    int offset, int len);
-	struct list_head rx; /* rx_np list element */
-#endif
 };
 
 struct netpoll_info {
@@ -50,12 +44,6 @@ struct netpoll_info {
 
 	struct netpoll *netpoll;
 	struct rcu_head rcu;
-
-#ifdef CONFIG_NETPOLL_TRAP
-	spinlock_t rx_lock;
-	struct list_head rx_np; /* netpolls that registered an rx_skb_hook */
-	struct sk_buff_head neigh_tx; /* list of neigh requests to reply to */
-#endif
 };
 
 #ifdef CONFIG_NETPOLL
@@ -83,78 +71,6 @@ static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	netpoll_send_skb_on_dev(np, skb, np->dev);
 	local_irq_restore(flags);
 }
-
-#ifdef CONFIG_NETPOLL_TRAP
-int netpoll_trap(void);
-void netpoll_set_trap(int trap);
-int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo);
-static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
-{
-	return !list_empty(&npinfo->rx_np);
-}
-
-static inline bool netpoll_rx_on(struct sk_buff *skb)
-{
-	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
-
-	return npinfo && netpoll_rx_processing(npinfo);
-}
-
-static inline bool netpoll_rx(struct sk_buff *skb)
-{
-	struct netpoll_info *npinfo;
-	unsigned long flags;
-	bool ret = false;
-
-	local_irq_save(flags);
-
-	if (!netpoll_rx_on(skb))
-		goto out;
-
-	npinfo = rcu_dereference_bh(skb->dev->npinfo);
-	spin_lock(&npinfo->rx_lock);
-	/* check rx_processing again with the lock held */
-	if (netpoll_rx_processing(npinfo) && __netpoll_rx(skb, npinfo))
-		ret = true;
-	spin_unlock(&npinfo->rx_lock);
-
-out:
-	local_irq_restore(flags);
-	return ret;
-}
-
-static inline int netpoll_receive_skb(struct sk_buff *skb)
-{
-	if (!list_empty(&skb->dev->napi_list))
-		return netpoll_rx(skb);
-	return 0;
-}
-
-#else
-static inline int netpoll_trap(void)
-{
-	return 0;
-}
-static inline void netpoll_set_trap(int trap)
-{
-}
-static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
-{
-	return false;
-}
-static inline bool netpoll_rx(struct sk_buff *skb)
-{
-	return false;
-}
-static inline bool netpoll_rx_on(struct sk_buff *skb)
-{
-	return false;
-}
-static inline int netpoll_receive_skb(struct sk_buff *skb)
-{
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_NETPOLL
 static inline void *netpoll_poll_lock(struct napi_struct *napi)
