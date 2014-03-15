@@ -374,7 +374,7 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		/* Unmapped register. */
 		sync_reg_offset = L2X0_DUMMY_REG;
 #endif
-		if ((cache_id & L2X0_CACHE_ID_RTL_MASK) <= L2X0_CACHE_ID_RTL_R3P0)
+		if ((cache_id & L2X0_CACHE_ID_RTL_MASK) <= L310_CACHE_ID_RTL_R3P0)
 			outer_cache.set_debug = pl310_set_debug;
 		break;
 	case L2X0_CACHE_ID_PART_L210:
@@ -768,7 +768,7 @@ static void __init pl310_save(void)
 	l2x0_saved_regs.filter_start = readl_relaxed(l2x0_base +
 		L2X0_ADDR_FILTER_START);
 
-	if (l2x0_revision >= L2X0_CACHE_ID_RTL_R2P0) {
+	if (l2x0_revision >= L310_CACHE_ID_RTL_R2P0) {
 		/*
 		 * From r2p0, there is Prefetch offset/control register
 		 */
@@ -777,7 +777,7 @@ static void __init pl310_save(void)
 		/*
 		 * From r3p0, there is Power control register
 		 */
-		if (l2x0_revision >= L2X0_CACHE_ID_RTL_R3P0)
+		if (l2x0_revision >= L310_CACHE_ID_RTL_R3P0)
 			l2x0_saved_regs.pwr_ctrl = readl_relaxed(l2x0_base +
 				L2X0_POWER_CTRL);
 	}
@@ -830,10 +830,10 @@ static void pl310_resume(void)
 		l2x0_revision = readl_relaxed(l2x0_base + L2X0_CACHE_ID) &
 			L2X0_CACHE_ID_RTL_MASK;
 
-		if (l2x0_revision >= L2X0_CACHE_ID_RTL_R2P0) {
+		if (l2x0_revision >= L310_CACHE_ID_RTL_R2P0) {
 			writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
 				l2x0_base + L2X0_PREFETCH_CTRL);
-			if (l2x0_revision >= L2X0_CACHE_ID_RTL_R3P0)
+			if (l2x0_revision >= L310_CACHE_ID_RTL_R3P0)
 				writel_relaxed(l2x0_saved_regs.pwr_ctrl,
 					l2x0_base + L2X0_POWER_CTRL);
 		}
