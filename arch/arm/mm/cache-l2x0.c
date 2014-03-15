@@ -701,6 +701,7 @@ static void __init __l2c_init(const struct l2c_init_data *data,
 		break;
 
 	case L2X0_CACHE_ID_PART_L210:
+	case L2X0_CACHE_ID_PART_L220:
 		ways = (aux >> 13) & 0xf;
 		break;
 
