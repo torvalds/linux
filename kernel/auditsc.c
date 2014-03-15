@@ -2424,6 +2424,7 @@ static void audit_log_task(struct audit_buffer *ab)
 	kgid_t gid;
 	unsigned int sessionid;
 	struct mm_struct *mm = current->mm;
+	char comm[sizeof(current->comm)];
 
 	auid = audit_get_loginuid(current);
 	sessionid = audit_get_sessionid(current);
@@ -2436,7 +2437,7 @@ static void audit_log_task(struct audit_buffer *ab)
 			 sessionid);
 	audit_log_task_context(ab);
 	audit_log_format(ab, " pid=%d comm=", task_pid_nr(current));
-	audit_log_untrustedstring(ab, current->comm);
+	audit_log_untrustedstring(ab, get_task_comm(comm, current));
 	if (mm) {
 		down_read(&mm->mmap_sem);
 		if (mm->exe_file)
