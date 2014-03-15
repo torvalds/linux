@@ -914,8 +914,8 @@ static void at86rf230_irqwork(struct work_struct *work)
 	status &= ~IRQ_TRX_UR; /* FIXME: possibly handle ???*/
 
 	if (status & IRQ_TRX_END) {
-		spin_lock_irqsave(&lp->lock, flags);
 		status &= ~IRQ_TRX_END;
+		spin_lock_irqsave(&lp->lock, flags);
 		if (lp->is_tx) {
 			lp->is_tx = 0;
 			spin_unlock_irqrestore(&lp->lock, flags);
