@@ -179,14 +179,23 @@ static void poll_napi(struct net_device *dev, int budget)
 	}
 }
 
-static void service_neigh_queue(struct netpoll_info *npi)
+static void service_neigh_queue(struct net_device *dev,
+				struct netpoll_info *npi)
 {
-	if (npi) {
-		struct sk_buff *skb;
+	struct sk_buff *skb;
+	if (dev->flags & IFF_SLAVE) {
+		struct net_device *bond_dev;
+		struct netpoll_info *bond_ni;
 
-		while ((skb = skb_dequeue(&npi->neigh_tx)))
-			netpoll_neigh_reply(skb, npi);
+		bond_dev = netdev_master_upper_dev_get_rcu(dev);
+		bond_ni = rcu_dereference_bh(bond_dev->npinfo);
+		while ((skb = skb_dequeue(&npi->neigh_tx))) {
+			skb->dev = bond_dev;
+			skb_queue_tail(&bond_ni->neigh_tx, skb);
+		}
 	}
+	while ((skb = skb_dequeue(&npi->neigh_tx)))
+		netpoll_neigh_reply(skb, npi);
 }
 
 static void netpoll_poll_dev(struct net_device *dev)
@@ -227,22 +236,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 
 	up(&ni->dev_lock);
 
-	if (dev->flags & IFF_SLAVE) {
-		if (ni) {
-			struct net_device *bond_dev;
-			struct sk_buff *skb;
-			struct netpoll_info *bond_ni;
-
-			bond_dev = netdev_master_upper_dev_get_rcu(dev);
-			bond_ni = rcu_dereference_bh(bond_dev->npinfo);
-			while ((skb = skb_dequeue(&ni->neigh_tx))) {
-				skb->dev = bond_dev;
-				skb_queue_tail(&bond_ni->neigh_tx, skb);
-			}
-		}
-	}
-
-	service_neigh_queue(ni);
+	service_neigh_queue(dev, ni);
 
 	zap_completion_queue();
 }
