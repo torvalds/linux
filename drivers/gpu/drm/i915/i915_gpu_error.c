@@ -850,10 +850,12 @@ static void i915_record_ring_state(struct drm_device *dev,
 			}
 			break;
 		case 7:
-			ering->vm_info.pp_dir_base = RING_PP_DIR_BASE(ring);
+			ering->vm_info.pp_dir_base =
+				I915_READ(RING_PP_DIR_BASE(ring));
 			break;
 		case 6:
-			ering->vm_info.pp_dir_base = RING_PP_DIR_BASE_READ(ring);
+			ering->vm_info.pp_dir_base =
+				I915_READ(RING_PP_DIR_BASE_READ(ring));
 			break;
 		}
 	}
