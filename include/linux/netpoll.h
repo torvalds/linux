@@ -24,32 +24,38 @@ struct netpoll {
 	struct net_device *dev;
 	char dev_name[IFNAMSIZ];
 	const char *name;
-	void (*rx_skb_hook)(struct netpoll *np, int source, struct sk_buff *skb,
-			    int offset, int len);
 
 	union inet_addr local_ip, remote_ip;
 	bool ipv6;
 	u16 local_port, remote_port;
 	u8 remote_mac[ETH_ALEN];
 
-	struct list_head rx; /* rx_np list element */
 	struct work_struct cleanup_work;
+
+#ifdef CONFIG_NETPOLL_TRAP
+	void (*rx_skb_hook)(struct netpoll *np, int source, struct sk_buff *skb,
+			    int offset, int len);
+	struct list_head rx; /* rx_np list element */
+#endif
 };
 
 struct netpoll_info {
 	atomic_t refcnt;
 
-	spinlock_t rx_lock;
 	struct semaphore dev_lock;
-	struct list_head rx_np; /* netpolls that registered an rx_skb_hook */
 
-	struct sk_buff_head neigh_tx; /* list of neigh requests to reply to */
 	struct sk_buff_head txq;
 
 	struct delayed_work tx_work;
 
 	struct netpoll *netpoll;
 	struct rcu_head rcu;
+
+#ifdef CONFIG_NETPOLL_TRAP
+	spinlock_t rx_lock;
+	struct list_head rx_np; /* netpolls that registered an rx_skb_hook */
+	struct sk_buff_head neigh_tx; /* list of neigh requests to reply to */
+#endif
 };
 
 #ifdef CONFIG_NETPOLL
@@ -68,7 +74,6 @@ int netpoll_setup(struct netpoll *np);
 void __netpoll_cleanup(struct netpoll *np);
 void __netpoll_free_async(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
-int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo);
 void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 			     struct net_device *dev);
 static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
@@ -82,25 +87,12 @@ static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 #ifdef CONFIG_NETPOLL_TRAP
 int netpoll_trap(void);
 void netpoll_set_trap(int trap);
+int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo);
 static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
 {
 	return !list_empty(&npinfo->rx_np);
 }
-#else
-static inline int netpoll_trap(void)
-{
-	return 0;
-}
-static inline void netpoll_set_trap(int trap)
-{
-}
-static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
-{
-	return false;
-}
-#endif
 
-#ifdef CONFIG_NETPOLL
 static inline bool netpoll_rx_on(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
@@ -138,6 +130,33 @@ static inline int netpoll_receive_skb(struct sk_buff *skb)
 	return 0;
 }
 
+#else
+static inline int netpoll_trap(void)
+{
+	return 0;
+}
+static inline void netpoll_set_trap(int trap)
+{
+}
+static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
+{
+	return false;
+}
+static inline bool netpoll_rx(struct sk_buff *skb)
+{
+	return false;
+}
+static inline bool netpoll_rx_on(struct sk_buff *skb)
+{
+	return false;
+}
+static inline int netpoll_receive_skb(struct sk_buff *skb)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_NETPOLL
 static inline void *netpoll_poll_lock(struct napi_struct *napi)
 {
 	struct net_device *dev = napi->dev;
@@ -166,18 +185,6 @@ static inline bool netpoll_tx_running(struct net_device *dev)
 }
 
 #else
-static inline bool netpoll_rx(struct sk_buff *skb)
-{
-	return false;
-}
-static inline bool netpoll_rx_on(struct sk_buff *skb)
-{
-	return false;
-}
-static inline int netpoll_receive_skb(struct sk_buff *skb)
-{
-	return 0;
-}
 static inline void *netpoll_poll_lock(struct napi_struct *napi)
 {
 	return NULL;

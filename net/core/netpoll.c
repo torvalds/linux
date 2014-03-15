@@ -48,6 +48,7 @@ static struct sk_buff_head skb_pool;
 
 #ifdef CONFIG_NETPOLL_TRAP
 static atomic_t trapped;
+static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo);
 #endif
 
 DEFINE_STATIC_SRCU(netpoll_srcu);
@@ -61,7 +62,6 @@ DEFINE_STATIC_SRCU(netpoll_srcu);
 	 MAX_UDP_CHUNK)
 
 static void zap_completion_queue(void);
-static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo);
 static void netpoll_async_cleanup(struct work_struct *work);
 
 static unsigned int carrier_timeout = 4;
@@ -109,6 +109,7 @@ static void queue_process(struct work_struct *work)
 	}
 }
 
+#ifdef CONFIG_NETPOLL_TRAP
 static __sum16 checksum_udp(struct sk_buff *skb, struct udphdr *uh,
 			    unsigned short ulen, __be32 saddr, __be32 daddr)
 {
@@ -127,6 +128,7 @@ static __sum16 checksum_udp(struct sk_buff *skb, struct udphdr *uh,
 
 	return __skb_checksum_complete(skb);
 }
+#endif /* CONFIG_NETPOLL_TRAP */
 
 /*
  * Check whether delayed processing was scheduled for our NIC. If so,
@@ -179,6 +181,7 @@ static void poll_napi(struct net_device *dev, int budget)
 	}
 }
 
+#ifdef CONFIG_NETPOLL_TRAP
 static void service_neigh_queue(struct net_device *dev,
 				struct netpoll_info *npi)
 {
@@ -197,6 +200,12 @@ static void service_neigh_queue(struct net_device *dev,
 	while ((skb = skb_dequeue(&npi->neigh_tx)))
 		netpoll_neigh_reply(skb, npi);
 }
+#else /* !CONFIG_NETPOLL_TRAP */
+static inline void service_neigh_queue(struct net_device *dev,
+				struct netpoll_info *npi)
+{
+}
+#endif /* CONFIG_NETPOLL_TRAP */
 
 static void netpoll_poll_dev(struct net_device *dev)
 {
@@ -522,6 +531,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 }
 EXPORT_SYMBOL(netpoll_send_udp);
 
+#ifdef CONFIG_NETPOLL_TRAP
 static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo)
 {
 	int size, type = ARPOP_REPLY;
@@ -900,6 +910,55 @@ out:
 	return 0;
 }
 
+static void netpoll_trap_setup_info(struct netpoll_info *npinfo)
+{
+	INIT_LIST_HEAD(&npinfo->rx_np);
+	spin_lock_init(&npinfo->rx_lock);
+	skb_queue_head_init(&npinfo->neigh_tx);
+}
+
+static void netpoll_trap_cleanup_info(struct netpoll_info *npinfo)
+{
+	skb_queue_purge(&npinfo->neigh_tx);
+}
+
+static void netpoll_trap_setup(struct netpoll *np, struct netpoll_info *npinfo)
+{
+	unsigned long flags;
+	if (np->rx_skb_hook) {
+		spin_lock_irqsave(&npinfo->rx_lock, flags);
+		list_add_tail(&np->rx, &npinfo->rx_np);
+		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+	}
+}
+
+static void netpoll_trap_cleanup(struct netpoll *np, struct netpoll_info *npinfo)
+{
+	unsigned long flags;
+	if (!list_empty(&npinfo->rx_np)) {
+		spin_lock_irqsave(&npinfo->rx_lock, flags);
+		list_del(&np->rx);
+		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+	}
+}
+
+#else /* !CONFIG_NETPOLL_TRAP */
+static inline void netpoll_trap_setup_info(struct netpoll_info *npinfo)
+{
+}
+static inline void netpoll_trap_cleanup_info(struct netpoll_info *npinfo)
+{
+}
+static inline
+void netpoll_trap_setup(struct netpoll *np, struct netpoll_info *npinfo)
+{
+}
+static inline
+void netpoll_trap_cleanup(struct netpoll *np, struct netpoll_info *npinfo)
+{
+}
+#endif /* CONFIG_NETPOLL_TRAP */
+
 void netpoll_print_options(struct netpoll *np)
 {
 	np_info(np, "local port %d\n", np->local_port);
@@ -1023,7 +1082,6 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 {
 	struct netpoll_info *npinfo;
 	const struct net_device_ops *ops;
-	unsigned long flags;
 	int err;
 
 	np->dev = ndev;
@@ -1045,11 +1103,9 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 			goto out;
 		}
 
-		INIT_LIST_HEAD(&npinfo->rx_np);
+		netpoll_trap_setup_info(npinfo);
 
-		spin_lock_init(&npinfo->rx_lock);
 		sema_init(&npinfo->dev_lock, 1);
-		skb_queue_head_init(&npinfo->neigh_tx);
 		skb_queue_head_init(&npinfo->txq);
 		INIT_DELAYED_WORK(&npinfo->tx_work, queue_process);
 
@@ -1068,11 +1124,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 
 	npinfo->netpoll = np;
 
-	if (np->rx_skb_hook) {
-		spin_lock_irqsave(&npinfo->rx_lock, flags);
-		list_add_tail(&np->rx, &npinfo->rx_np);
-		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
-	}
+	netpoll_trap_setup(np, npinfo);
 
 	/* last thing to do is link it to the net device structure */
 	rcu_assign_pointer(ndev->npinfo, npinfo);
@@ -1222,7 +1274,7 @@ static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 	struct netpoll_info *npinfo =
 			container_of(rcu_head, struct netpoll_info, rcu);
 
-	skb_queue_purge(&npinfo->neigh_tx);
+	netpoll_trap_cleanup_info(npinfo);
 	skb_queue_purge(&npinfo->txq);
 
 	/* we can't call cancel_delayed_work_sync here, as we are in softirq */
@@ -1238,7 +1290,6 @@ static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 void __netpoll_cleanup(struct netpoll *np)
 {
 	struct netpoll_info *npinfo;
-	unsigned long flags;
 
 	/* rtnl_dereference would be preferable here but
 	 * rcu_cleanup_netpoll path can put us in here safely without
@@ -1248,11 +1299,7 @@ void __netpoll_cleanup(struct netpoll *np)
 	if (!npinfo)
 		return;
 
-	if (!list_empty(&npinfo->rx_np)) {
-		spin_lock_irqsave(&npinfo->rx_lock, flags);
-		list_del(&np->rx);
-		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
-	}
+	netpoll_trap_cleanup(np, npinfo);
 
 	synchronize_srcu(&netpoll_srcu);
 
