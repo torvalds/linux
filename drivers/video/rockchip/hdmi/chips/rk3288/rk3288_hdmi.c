@@ -190,7 +190,6 @@ static const struct of_device_id rk3288_hdmi_dt_ids[] = {
 	{.compatible = "rockchips,rk3288-hdmi",},
 	{}
 };
-MODULE_DEVICE_TABLE(of, rk3288_hdmi_dt_ids);
 #endif
 
 static int rk3288_hdmi_probe(struct platform_device *pdev)

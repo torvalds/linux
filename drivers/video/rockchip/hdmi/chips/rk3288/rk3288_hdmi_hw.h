@@ -17,12 +17,10 @@ enum{
 
 /* Color Space Convertion Mode */
 enum {
-	CSC_RGB_0_255_TO_ITU601_16_235 = 0,	//RGB 0-255 input to YCbCr 16-235 output according BT601
-	CSC_RGB_0_255_TO_ITU709_16_235,		//RGB 0-255 input to YCbCr 16-235 output accroding BT709
-	CSC_ITU601_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT601
-	CSC_ITU709_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT709
-	CSC_ITU601_16_235_TO_RGB_0_255,		//YCbCr 16-235 input to RGB 0-255 output according BT601
-	CSC_ITU709_16_235_TO_RGB_0_255		//YCbCr 16-235 input to RGB 0-255 output according BT709
+	CSC_RGB_TO_ITU601 = 0,	//RGB input to YCbCr output according BT601
+	CSC_RGB_TO_ITU709,	//RGB input to YCbCr output accroding BT709
+	CSC_ITU601_TO_RGB,	//YCbCr input to RGB output according BT601
+	CSC_ITU709_TO_RGB,	//YCbCr input to RGB output according BT709
 };
 
 
@@ -289,8 +287,8 @@ enum PIXEL_REPET {
         PIXEL_SENT_9TIMES,
         PIXEL_SENT_10TIMES
 };
-#define m_DESIRED_PR_FACTOR	(0x07 << 0)
-#define v_DESIRED_PR_FACTOR(n)	(((n)&0x07) << 0)
+#define m_DESIRED_PR_FACTOR	(0x0f << 0)
+#define v_DESIRED_PR_FACTOR(n)	(((n)&0x0f) << 0)
 
 #define VP_STUFF			0x0802
 #define m_IDEFAULT_PHASE	(1 << 5)
@@ -302,7 +300,9 @@ enum {
 	STUFFING_MODE
 };
 #define m_YCC422_STUFFING	(1 << 2)
-#define v_YCC422_STUFFING(n)	(((n)&0x01) << 1)
+#define v_YCC422_STUFFING(n)	(((n)&0x01) << 2)
+#define m_PP_STUFFING		(1 << 1)
+#define v_PP_STUFFING(n)	(((n)&0x01) << 1)
 #define m_PR_STUFFING		(1 << 0)
 #define v_PR_STUFFING(n)	(((n)&0x01) << 0)
 
@@ -367,16 +367,18 @@ enum {
 #define	FC_INHACTIV0			0x1001
 
 #define	FC_INHACTIV1			0x1002
+#define v_FC_HACTIVE1(n)	((n) & 0x3f)
 #define m_FC_H_ACTIVE_13	(1 << 5)
 #define v_FC_H_ACTIVE_13(n)	(((n)&0x01) << 5)
 #define m_FC_H_ACTIVE_12	(1 << 4)
 #define v_FC_H_ACTIVE_12(n)	(((n)&0x01) << 4)
 #define m_FC_H_ACTIVE		(0x0f << 0)
-#define v_FC_H_ACTIVE(n)		(((n)&0x0f) << 0)
+#define v_FC_H_ACTIVE(n)	(((n)&0x0f) << 0)
 
 #define	FC_INHBLANK0			0x1003
 
 #define	FC_INHBLANK1			0x1004
+#define v_FC_HBLANK1(n)		((n) & 0x1f)
 #define m_FC_H_BLANK_12_11	(0x07 << 2)
 #define v_FC_H_BLANK_12_11(n)	(((n)&0x07) << 2)
 #define m_FC_H_BLANK		(0x03 << 0)
@@ -385,6 +387,7 @@ enum {
 #define	FC_INVACTIV0			0x1005
 
 #define	FC_INVACTIV1			0x1006
+#define v_FC_VACTIVE1(n)	((n) & 0x1f)
 #define m_FC_V_ACTIVE_12_11	(0x03 << 3)
 #define v_FC_V_ACTIVE_12_11(n)	(((n)&0x03) << 3)
 #define m_FC_V_ACTIVE		(0x07 << 0)
@@ -394,6 +397,7 @@ enum {
 #define	FC_HSYNCINDELAY0		0x1008
 
 #define	FC_HSYNCINDELAY1		0x1009
+#define v_FC_HSYNCINDEAY1(n)	((n) & 0x1f)
 #define m_FC_H_SYNCFP_12_11	(0x03 << 3)
 #define v_FC_H_SYNCFP_12_11(n)	(((n)&0x03) << 3)
 #define m_FC_H_SYNCFP		(0x07 << 0)
@@ -402,6 +406,7 @@ enum {
 #define	FC_HSYNCINWIDTH0		0x100a
 
 #define	FC_HSYNCINWIDTH1		0x100b
+#define v_FC_HSYNCWIDTH1(n)	((n) & 0x03)
 #define m_FC_HSYNC_9		(1 << 1)
 #define v_FC_HSYNC_9(n)		(((n)&0x01) << 1)
 #define m_FC_HSYNC		(1 << 0)
@@ -544,7 +549,13 @@ enum {
 #define	FC_SPDVENDORNAME0 		0x104a	//0~7
 #define	FC_SPDPRODUCTNAME0 		0x1052	//0~15
 #define	FC_SPDDEVICEINF			0x1062
+
 #define	FC_AUDSCONF			0x1063
+#define m_AUD_PACK_SAMPFIT	(0x0f << 4)
+#define v_AUD_PACK_SAMPFIT(n)	(((n)&0x0f) << 4)
+#define m_AUD_PACK_LAYOUT	(1 << 0)
+#define v_AUD_PACK_LAYOUT(n)	(((n)&0x01) << 0)
+
 #define	FC_AUDSSTAT			0x1064
 #define	FC_AUDSV			0x1065
 #define	FC_AUDSU			0x1066
@@ -572,7 +583,10 @@ enum {
 #define	FC_MASK0 			0x10d2
 #define	FC_MASK1 			0x10d6
 #define	FC_MASK2 			0x10da
+
 #define	FC_PRCONF 			0x10e0
+#define m_FC_PR_FACTOR		(0x0f << 4)
+#define v_FC_PR_FACTOR(n)	(((n)&0x0f) << 4)
 
 #define	FC_SCRAMBLER_CTRL		0x10e1
 #define m_FC_SCRAMBLE_UCP	(1 << 4)
@@ -586,7 +600,13 @@ enum {
 #define	FC_GMD_CONF			0x1103
 #define	FC_GMD_HB			0x1104
 #define	FC_GMD_PB0			0x1105	//0~27
+
 #define	FC_DBGFORCE 			0x1200
+#define m_FC_FORCEAUDIO		(1 << 4)
+#define v_FC_FORCEAUDIO(n)	(((n)&0x01) << 4)
+#define m_FC_FORCEVIDEO		(1 << 0)
+#define v_FC_FORCEVIDEO(n)	(((n)&0x01) << 0)
+
 #define	FC_DBGAUD0CH0			0x1201	//aud0~aud2 ch0
 #define	FC_DBGAUD0CH1 			0x1204	//aud0~aud2 ch1
 #define	FC_DBGAUD0CH2 			0x1207	//aud0~aud2 ch2
@@ -842,7 +862,7 @@ enum {
 
 #define AUD_SPDIF0			0x3300
 #define m_SW_SAUD_FIFO_RST	(1 << 7)
-#define v_SW_SAUD_FIFO_RST	(((n)&0x01) << 7)
+#define v_SW_SAUD_FIFO_RST(n)	(((n)&0x01) << 7)
 
 #define AUD_SPDIF1			0x3301
 enum {
@@ -967,10 +987,10 @@ enum {
 #define COLOR_SPACE_CONVERTER_BASE	0x4100
 
 #define	CSC_CFG				0x4100
-#define m_CSC_INTMODE		(0x03 << 4)
-#define v_CSC_INTMODE(n)	(((n)&0x03) << 4)
-#define m_CSC_DECMODE		(0x03 << 0)
-#define v_CSC_DECMODE(n)	(((n)&0x03) << 0)
+#define m_CSC_INTPMODE		(0x03 << 4)
+#define v_CSC_INTPMODE(n)	(((n)&0x03) << 4)
+#define m_CSC_DECIMODE		(0x03 << 0)
+#define v_CSC_DECIMODE(n)	(((n)&0x03) << 0)
 
 #define	CSC_SCALE			0x4101
 #define m_CSC_COLOR_DEPTH	(0x0f << 4)
@@ -1101,6 +1121,9 @@ enum {
 #define v_KSV_MEM_REQ(n)	(((n)&0x01) << 0)
 
 #define	HDCP_BSTATUS_0 			0x5020
+#define m_MAX_DEVS_EXCEEDED	(1 << 7)
+#define m_DEVICE_COUNT		(0x7f << 0)
+
 #define	HDCP_BSTATUS_1			0x5021
 #define	HDCP_M0_0			0x5022
 #define	HDCP_M0_1			0x5023
@@ -1348,8 +1371,8 @@ struct rk3288_hdmi_device {
 	int			regbase_phy;
 	int			regsize_phy;
 	int 			lcdc_id;
-	int			edid_status;
-	int 			phy_status;
+	int			i2cm_int;
+	int 			phy_i2cm_int;
 	struct mutex 		int_mutex;
 	struct device 		*dev;
 	struct clk		*hclk;				//HDMI AHP clk

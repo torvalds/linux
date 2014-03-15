@@ -318,7 +318,7 @@ static void rk30_hdmi_config_csc(struct hdmi_video_para *vpara)
 	char *coeff = NULL;
 		
 	if( ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) && (vpara->output_color == VIDEO_OUTPUT_RGB444)) ||
-		((vpara->input_color == VIDEO_INPUT_COLOR_YCBCR) && (vpara->output_color != VIDEO_OUTPUT_RGB444) ))
+		((vpara->input_color != VIDEO_INPUT_COLOR_RGB) && (vpara->output_color != VIDEO_OUTPUT_RGB444) ))
 	{
 		return;
 	}

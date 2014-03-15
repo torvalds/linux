@@ -227,7 +227,7 @@ void hdmi_work(struct work_struct *work)
 				{
 					hdmi->state = SYSTEM_CONFIG;	
 					kobject_uevent_env(&hdmi->dev->kobj, KOBJ_ADD, envp);
-					hdmi_dbg(hdmi->dev,"[%s],base_audio_support =%d,sink_hdmi = %d\n",hdmi->edid.base_audio_support,hdmi->edid.sink_hdmi );
+					hdmi_dbg(hdmi->dev,"[%s] base_audio_support =%d,sink_hdmi = %d\n", __FUNCTION__, hdmi->edid.base_audio_support, hdmi->edid.sink_hdmi);
 					#ifdef CONFIG_SWITCH
 					if(hdmi->edid.base_audio_support == 1 &&  hdmi->edid.sink_hdmi == 1)
 						switch_set_state(&(hdmi->switch_hdmi), 1);

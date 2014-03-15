@@ -56,7 +56,9 @@ enum {
 
 enum {
 	VIDEO_INPUT_COLOR_RGB = 0,
-	VIDEO_INPUT_COLOR_YCBCR
+	VIDEO_INPUT_COLOR_YCBCR444,
+	VIDEO_INPUT_COLOR_YCBCR422,
+	VIDEO_INPUT_COLOR_YCBCR420
 };
 /********************************************************************
 **                          结构定义                                *

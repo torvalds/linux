@@ -60,6 +60,7 @@ static const struct fb_videomode hdmi_mode [] = {
 {	"720x480p@240Hz",	240,		720,	480,	108000000,	60,	16,	30,	9,	62,	6,		0,			0,		56	},
 {	"1440x480i@240Hz",	240,		1440,	480,	108000000,	114,	38,	15,	4,	12,	3,		0,			1,		58	},
 */
+{	"3840x2160p@30Hz",	30,		3840,	2160,	297000000,	296,	1276,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		93	},					
 
 };
 
@@ -123,7 +124,7 @@ int hdmi_set_info(struct rk_screen *screen, unsigned int vic)
 	else
 		screen->pin_vsync = 0;
 #endif
-	screen->pin_den = 0;
+	screen->pin_den = 1;	//TODO modify by Daisen
 	screen->pin_dclk = DCLK_POL;
 
 	/* Swap rule */
