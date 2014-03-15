@@ -866,6 +866,72 @@ static int rtl8180_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
+static int rtl8180_conf_tx(struct ieee80211_hw *dev,
+			    struct ieee80211_vif *vif, u16 queue,
+			    const struct ieee80211_tx_queue_params *params)
+{
+	struct rtl8180_priv *priv = dev->priv;
+	u8 cw_min, cw_max;
+
+	/* nothing to do ? */
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
+		return 0;
+
+	cw_min = fls(params->cw_min);
+	cw_max = fls(params->cw_max);
+
+	rtl818x_iowrite8(priv, &priv->map->CW_VAL, (cw_max << 4) | cw_min);
+
+	return 0;
+}
+
+static void rtl8180_conf_erp(struct ieee80211_hw *dev,
+			    struct ieee80211_bss_conf *info)
+{
+	struct rtl8180_priv *priv = dev->priv;
+	u8 sifs, difs;
+	int eifs;
+	u8 hw_eifs;
+
+	/* TODO: should we do something ? */
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
+		return;
+
+	/* I _hope_ this means 10uS for the HW.
+	 * In reference code it is 0x22 for
+	 * both rtl8187L and rtl8187SE
+	 */
+	sifs = 0x22;
+
+	if (info->use_short_slot)
+		priv->slot_time = 9;
+	else
+		priv->slot_time = 20;
+
+	/* 10 is SIFS time in uS */
+	difs = 10 + 2 * priv->slot_time;
+	eifs = 10 + difs + priv->ack_time;
+
+	/* HW should use 4uS units for EIFS (I'm sure for rtl8185)*/
+	hw_eifs = DIV_ROUND_UP(eifs, 4);
+
+
+	rtl818x_iowrite8(priv, &priv->map->SLOT, priv->slot_time);
+	rtl818x_iowrite8(priv, &priv->map->SIFS, sifs);
+	rtl818x_iowrite8(priv, &priv->map->DIFS, difs);
+
+	/* from reference code. set ack timeout reg = eifs reg */
+	rtl818x_iowrite8(priv, &priv->map->CARRIER_SENSE_COUNTER, hw_eifs);
+
+	/* rtl8187/rtl8185 HW bug. After EIFS is elapsed,
+	 * the HW still wait for DIFS.
+	 * HW uses 4uS units for EIFS.
+	 */
+	hw_eifs = DIV_ROUND_UP(eifs - difs, 4);
+
+	rtl818x_iowrite8(priv, &priv->map->EIFS, hw_eifs);
+}
+
 static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *info,
@@ -896,8 +962,20 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	if (changed & BSS_CHANGED_BASIC_RATES)
 		rtl8180_conf_basic_rates(dev, info->basic_rates);
 
-	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)
-		priv->rf->conf_erp(dev, info);
+	if (changed & (BSS_CHANGED_ERP_SLOT | BSS_CHANGED_ERP_PREAMBLE)) {
+
+		/* when preamble changes, acktime duration changes, and erp must
+		 * be recalculated. ACK time is calculated at lowest rate.
+		 * Since mac80211 include SIFS time we remove it (-10)
+		 */
+		priv->ack_time =
+			le16_to_cpu(ieee80211_generic_frame_duration(dev,
+					priv->vif,
+					IEEE80211_BAND_2GHZ, 10,
+					&priv->rates[0])) - 10;
+
+		rtl8180_conf_erp(dev, info);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED)
 		vif_priv->enable_beacon = info->enable_beacon;
@@ -955,6 +1033,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 	.remove_interface	= rtl8180_remove_interface,
 	.config			= rtl8180_config,
 	.bss_info_changed	= rtl8180_bss_info_changed,
+	.conf_tx		= rtl8180_conf_tx,
 	.prepare_multicast	= rtl8180_prepare_multicast,
 	.configure_filter	= rtl8180_configure_filter,
 	.get_tsf		= rtl8180_get_tsf,
