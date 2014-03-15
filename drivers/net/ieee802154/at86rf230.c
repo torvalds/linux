@@ -1080,11 +1080,11 @@ static int at86rf230_probe(struct spi_device *spi)
 	}
 
 	/* Reset */
-	msleep(1);
+	udelay(1);
 	gpio_set_value(pdata->rstn, 0);
-	msleep(1);
+	udelay(1);
 	gpio_set_value(pdata->rstn, 1);
-	msleep(1);
+	usleep_range(120, 240);
 
 	rc = __at86rf230_detect_device(spi, &man_id, &part, &version);
 	if (rc < 0)
