@@ -1072,7 +1072,7 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 	unsigned long lpar_rc;
 
 restart_poll:
-	do {
+	while (frames_processed < budget) {
 		if (!ibmveth_rxq_pending_buffer(adapter))
 			break;
 
@@ -1121,7 +1121,7 @@ restart_poll:
 			netdev->stats.rx_bytes += length;
 			frames_processed++;
 		}
-	} while (frames_processed < budget);
+	}
 
 	ibmveth_replenish_task(adapter);
 
