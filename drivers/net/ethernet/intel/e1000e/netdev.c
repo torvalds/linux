@@ -1148,9 +1148,6 @@ static void e1000e_tx_hwtstamp_work(struct work_struct *work)
 						     tx_hwtstamp_work);
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (!adapter->tx_hwtstamp_skb)
-		return;
-
 	if (er32(TSYNCTXCTL) & E1000_TSYNCTXCTL_VALID) {
 		struct skb_shared_hwtstamps shhwtstamps;
 		u64 txstmp;
