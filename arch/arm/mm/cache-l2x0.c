@@ -50,6 +50,9 @@ struct l2x0_regs l2x0_saved_regs;
 
 static bool of_init = false;
 
+/*
+ * Common code for all cache controllers.
+ */
 static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
 {
 	/* wait for cache operation by line or way to complete */
@@ -65,6 +68,18 @@ static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
 static inline void l2c_set_debug(void __iomem *base, unsigned long val)
 {
 	outer_cache.set_debug(val);
+}
+
+static inline void l2c_unlock(void __iomem *base, unsigned num)
+{
+	unsigned i;
+
+	for (i = 0; i < num; i++) {
+		writel_relaxed(0, base + L2X0_LOCKDOWN_WAY_D_BASE +
+			       i * L2X0_LOCKDOWN_STRIDE);
+		writel_relaxed(0, base + L2X0_LOCKDOWN_WAY_I_BASE +
+			       i * L2X0_LOCKDOWN_STRIDE);
+	}
 }
 
 #ifdef CONFIG_CACHE_PL310
@@ -308,7 +323,6 @@ static void l2x0_disable(void)
 static void l2x0_unlock(u32 cache_id)
 {
 	int lockregs;
-	int i;
 
 	switch (cache_id & L2X0_CACHE_ID_PART_MASK) {
 	case L2X0_CACHE_ID_PART_L310:
@@ -323,12 +337,7 @@ static void l2x0_unlock(u32 cache_id)
 		break;
 	}
 
-	for (i = 0; i < lockregs; i++) {
-		writel_relaxed(0x0, l2x0_base + L2X0_LOCKDOWN_WAY_D_BASE +
-			       i * L2X0_LOCKDOWN_STRIDE);
-		writel_relaxed(0x0, l2x0_base + L2X0_LOCKDOWN_WAY_I_BASE +
-			       i * L2X0_LOCKDOWN_STRIDE);
-	}
+	l2c_unlock(l2x0_base, lockregs);
 }
 
 void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
