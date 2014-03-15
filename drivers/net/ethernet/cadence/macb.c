@@ -1045,7 +1045,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	mapping = dma_map_single(&bp->pdev->dev, skb->data,
 				 len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&bp->pdev->dev, mapping)) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		goto unlock;
 	}
 
