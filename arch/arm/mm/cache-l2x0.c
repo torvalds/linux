@@ -522,6 +522,19 @@ static void l2c310_set_debug(unsigned long val)
 	writel_relaxed(val, l2x0_base + L2X0_DEBUG_CTRL);
 }
 
+static void l2c310_flush_all_erratum(void)
+{
+	void __iomem *base = l2x0_base;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&l2x0_lock, flags);
+	l2c_set_debug(base, 0x03);
+	__l2c_op_way(base + L2X0_CLEAN_INV_WAY);
+	l2c_set_debug(base, 0x00);
+	__l2c210_cache_sync(base);
+	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
+}
+
 static void __init l2c310_save(void __iomem *base)
 {
 	unsigned revision;
@@ -589,6 +602,13 @@ static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 
 	if (revision <= L310_CACHE_ID_RTL_R3P0)
 		fns->set_debug = l2c310_set_debug;
+
+	if (IS_ENABLED(CONFIG_PL310_ERRATA_727915) &&
+	    revision >= L310_CACHE_ID_RTL_R2P0 &&
+	    revision < L310_CACHE_ID_RTL_R3P1) {
+		fns->flush_all = l2c310_flush_all_erratum;
+		errata[n++] = "727915";
+	}
 
 	if (IS_ENABLED(CONFIG_PL310_ERRATA_753970) &&
 	    revision == L310_CACHE_ID_RTL_R3P0) {
