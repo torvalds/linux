@@ -182,6 +182,15 @@ config AUDIT_GENERIC
 	depends on AUDIT && !AUDIT_ARCH
 	default y
 
+config AUDIT_ARCH_COMPAT_GENERIC
+	bool
+	default n
+
+config AUDIT_COMPAT_GENERIC
+	bool
+	depends on AUDIT_GENERIC && AUDIT_ARCH_COMPAT_GENERIC && COMPAT
+	default y
+
 config RANDOM32_SELFTEST
 	bool "PRNG perform self test on init"
 	default n
