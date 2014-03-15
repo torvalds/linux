@@ -1119,13 +1119,13 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	/* Make sure not to corrupt PMIMR state used by ringbuffer code */
-	snb_enable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
+	snb_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
-	WARN_ON(pm_iir & ~GEN6_PM_RPS_EVENTS);
+	WARN_ON(pm_iir & ~dev_priv->pm_rps_events);
 
-	if ((pm_iir & GEN6_PM_RPS_EVENTS) == 0)
+	if ((pm_iir & dev_priv->pm_rps_events) == 0)
 		return;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
@@ -1543,10 +1543,10 @@ static void i9xx_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe)
  * the work queue. */
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
-	if (pm_iir & GEN6_PM_RPS_EVENTS) {
+	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
-		dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
-		snb_disable_pm_irq(dev_priv, pm_iir & GEN6_PM_RPS_EVENTS);
+		dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
+		snb_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
 		spin_unlock(&dev_priv->irq_lock);
 
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
@@ -2986,7 +2986,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 	POSTING_READ(GTIER);
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		pm_irqs |= GEN6_PM_RPS_EVENTS;
+		pm_irqs |= dev_priv->pm_rps_events;
 
 		if (HAS_VEBOX(dev))
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
@@ -4033,6 +4033,9 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->gpu_error.work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
+
+	/* Let's track the enabled rps events */
+	dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 
 	setup_timer(&dev_priv->gpu_error.hangcheck_timer,
 		    i915_hangcheck_elapsed,

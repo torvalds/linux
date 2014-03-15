@@ -3160,7 +3160,8 @@ static void gen6_disable_rps_interrupts(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
-	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) & ~GEN6_PM_RPS_EVENTS);
+	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) &
+				~dev_priv->pm_rps_events);
 	/* Complete PM interrupt masking here doesn't race with the rps work
 	 * item again unmasking PM interrupts because that is using a different
 	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
@@ -3170,7 +3171,7 @@ static void gen6_disable_rps_interrupts(struct drm_device *dev)
 	dev_priv->rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
+	I915_WRITE(GEN6_PMIIR, dev_priv->pm_rps_events);
 }
 
 static void gen6_disable_rps(struct drm_device *dev)
@@ -3232,12 +3233,12 @@ static void gen6_enable_rps_interrupts(struct drm_device *dev)
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
-	snb_enable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
-	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
+	snb_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	I915_WRITE(GEN6_PMIIR, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* only unmask PM interrupts we need. Mask all others. */
-	enabled_intrs = GEN6_PM_RPS_EVENTS;
+	enabled_intrs = dev_priv->pm_rps_events;
 
 	/* IVB and SNB hard hangs on looping batchbuffer
 	 * if GEN6_PM_UP_EI_EXPIRED is masked.
