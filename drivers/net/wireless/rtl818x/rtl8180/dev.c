@@ -1041,8 +1041,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 
 static void rtl8180_eeprom_register_read(struct eeprom_93cx6 *eeprom)
 {
-	struct ieee80211_hw *dev = eeprom->data;
-	struct rtl8180_priv *priv = dev->priv;
+	struct rtl8180_priv *priv = eeprom->data;
 	u8 reg = rtl818x_ioread8(priv, &priv->map->EEPROM_CMD);
 
 	eeprom->reg_data_in = reg & RTL818X_EEPROM_CMD_WRITE;
@@ -1053,8 +1052,7 @@ static void rtl8180_eeprom_register_read(struct eeprom_93cx6 *eeprom)
 
 static void rtl8180_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 {
-	struct ieee80211_hw *dev = eeprom->data;
-	struct rtl8180_priv *priv = dev->priv;
+	struct rtl8180_priv *priv = eeprom->data;
 	u8 reg = 2 << 6;
 
 	if (eeprom->reg_data_in)
@@ -1071,6 +1069,67 @@ static void rtl8180_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 	udelay(10);
 }
 
+static void rtl8180_eeprom_read(struct rtl8180_priv *priv)
+{
+	struct eeprom_93cx6 eeprom;
+	int eeprom_cck_table_adr;
+	u16 eeprom_val;
+	int i;
+
+	eeprom.data = priv;
+	eeprom.register_read = rtl8180_eeprom_register_read;
+	eeprom.register_write = rtl8180_eeprom_register_write;
+	if (rtl818x_ioread32(priv, &priv->map->RX_CONF) & (1 << 6))
+		eeprom.width = PCI_EEPROM_WIDTH_93C66;
+	else
+		eeprom.width = PCI_EEPROM_WIDTH_93C46;
+
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
+			RTL818X_EEPROM_CMD_PROGRAM);
+	rtl818x_ioread8(priv, &priv->map->EEPROM_CMD);
+	udelay(10);
+
+	eeprom_93cx6_read(&eeprom, 0x06, &eeprom_val);
+	eeprom_val &= 0xFF;
+	priv->rf_type = eeprom_val;
+
+	eeprom_93cx6_read(&eeprom, 0x17, &eeprom_val);
+	priv->csthreshold = eeprom_val >> 8;
+
+	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)priv->mac_addr, 3);
+
+	eeprom_cck_table_adr = 0x10;
+
+	/* CCK TX power */
+	for (i = 0; i < 14; i += 2) {
+		u16 txpwr;
+		eeprom_93cx6_read(&eeprom, eeprom_cck_table_adr + (i >> 1),
+				&txpwr);
+		priv->channels[i].hw_value = txpwr & 0xFF;
+		priv->channels[i + 1].hw_value = txpwr >> 8;
+	}
+
+	/* OFDM TX power */
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
+		for (i = 0; i < 14; i += 2) {
+			u16 txpwr;
+			eeprom_93cx6_read(&eeprom, 0x20 + (i >> 1), &txpwr);
+			priv->channels[i].hw_value |= (txpwr & 0xFF) << 8;
+			priv->channels[i + 1].hw_value |= txpwr & 0xFF00;
+		}
+	}
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180) {
+		__le32 anaparam;
+		eeprom_93cx6_multiread(&eeprom, 0xD, (__le16 *)&anaparam, 2);
+		priv->anaparam = le32_to_cpu(anaparam);
+		eeprom_93cx6_read(&eeprom, 0x19, &priv->rfparam);
+	}
+
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
+			RTL818X_EEPROM_CMD_NORMAL);
+}
+
 static int rtl8180_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
@@ -1078,12 +1137,9 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	struct rtl8180_priv *priv;
 	unsigned long mem_addr, mem_len;
 	unsigned int io_addr, io_len;
-	int err, i;
-	struct eeprom_93cx6 eeprom;
+	int err;
 	const char *chip_name, *rf_name = NULL;
 	u32 reg;
-	u16 eeprom_val;
-	u8 mac_addr[ETH_ALEN];
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1201,21 +1257,9 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		pci_try_set_mwi(pdev);
 	}
 
-	eeprom.data = dev;
-	eeprom.register_read = rtl8180_eeprom_register_read;
-	eeprom.register_write = rtl8180_eeprom_register_write;
-	if (rtl818x_ioread32(priv, &priv->map->RX_CONF) & (1 << 6))
-		eeprom.width = PCI_EEPROM_WIDTH_93C66;
-	else
-		eeprom.width = PCI_EEPROM_WIDTH_93C46;
+	rtl8180_eeprom_read(priv);
 
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_PROGRAM);
-	rtl818x_ioread8(priv, &priv->map->EEPROM_CMD);
-	udelay(10);
-
-	eeprom_93cx6_read(&eeprom, 0x06, &eeprom_val);
-	eeprom_val &= 0xFF;
-	switch (eeprom_val) {
+	switch (priv->rf_type) {
 	case 1:	rf_name = "Intersil";
 		break;
 	case 2:	rf_name = "RFMD";
@@ -1233,7 +1277,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		break;
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown RF! (0x%x)\n",
-		       pci_name(pdev), eeprom_val);
+		       pci_name(pdev), priv->rf_type);
 		goto err_iounmap;
 	}
 
@@ -1243,42 +1287,12 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	eeprom_93cx6_read(&eeprom, 0x17, &eeprom_val);
-	priv->csthreshold = eeprom_val >> 8;
-	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8185) {
-		__le32 anaparam;
-		eeprom_93cx6_multiread(&eeprom, 0xD, (__le16 *)&anaparam, 2);
-		priv->anaparam = le32_to_cpu(anaparam);
-		eeprom_93cx6_read(&eeprom, 0x19, &priv->rfparam);
-	}
-
-	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)mac_addr, 3);
-	if (!is_valid_ether_addr(mac_addr)) {
+	if (!is_valid_ether_addr(priv->mac_addr)) {
 		printk(KERN_WARNING "%s (rtl8180): Invalid hwaddr! Using"
 		       " randomly generated MAC addr\n", pci_name(pdev));
-		eth_random_addr(mac_addr);
+		eth_random_addr(priv->mac_addr);
 	}
-	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
-
-	/* CCK TX power */
-	for (i = 0; i < 14; i += 2) {
-		u16 txpwr;
-		eeprom_93cx6_read(&eeprom, 0x10 + (i >> 1), &txpwr);
-		priv->channels[i].hw_value = txpwr & 0xFF;
-		priv->channels[i + 1].hw_value = txpwr >> 8;
-	}
-
-	/* OFDM TX power */
-	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
-		for (i = 0; i < 14; i += 2) {
-			u16 txpwr;
-			eeprom_93cx6_read(&eeprom, 0x20 + (i >> 1), &txpwr);
-			priv->channels[i].hw_value |= (txpwr & 0xFF) << 8;
-			priv->channels[i + 1].hw_value |= txpwr & 0xFF00;
-		}
-	}
-
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	SET_IEEE80211_PERM_ADDR(dev, priv->mac_addr);
 
 	spin_lock_init(&priv->lock);
 
@@ -1290,7 +1304,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	}
 
 	wiphy_info(dev->wiphy, "hwaddr %pm, %s + %s\n",
-		   mac_addr, chip_name, priv->rf->name);
+		   priv->mac_addr, chip_name, priv->rf->name);
 
 	return 0;
 

@@ -91,7 +91,8 @@ struct rtl8180_priv {
 	u32 anaparam;
 	u16 rfparam;
 	u8 csthreshold;
-
+	u8 mac_addr[ETH_ALEN];
+	u8 rf_type;
 	/* sequence # */
 	u16 seqno;
 };
