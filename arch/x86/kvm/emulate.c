@@ -3669,7 +3669,7 @@ static const struct gprefix pfx_vmovntpx = {
 };
 
 static const struct gprefix pfx_0f_28_0f_29 = {
-	I(Aligned, em_mov), N, N, N,
+	I(Aligned, em_mov), I(Aligned, em_mov), N, N,
 };
 
 static const struct escape escape_d9 = { {
