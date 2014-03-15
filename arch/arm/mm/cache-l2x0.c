@@ -493,6 +493,18 @@ static const struct l2c_init_data l2c210_data __initconst = {
 /*
  * L2C-310 specific code.
  *
+ * Very similar to L2C-210, the PA, set/way and sync operations are atomic,
+ * and the way operations are all background tasks.  However, issuing an
+ * operation while a background operation is in progress results in a
+ * SLVERR response.  We can reuse:
+ *
+ *  __l2c210_cache_sync (using sync_reg_offset)
+ *  l2c210_sync
+ *  l2c210_inv_range (if 588369 is not applicable)
+ *  l2c210_clean_range
+ *  l2c210_flush_range (if 588369 is not applicable)
+ *  l2c210_flush_all (if 727915 is not applicable)
+ *
  * Errata:
  * 588369: PL310 R0P0->R1P0, fixed R2P0.
  *	Affects: all clean+invalidate operations
@@ -666,7 +678,7 @@ static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 	if (IS_ENABLED(CONFIG_PL310_ERRATA_588369) &&
 	    revision < L310_CACHE_ID_RTL_R2P0 &&
 	    /* For bcm compatibility */
-	    fns->inv_range == l2x0_inv_range) {
+	    fns->inv_range == l2c210_inv_range) {
 		fns->inv_range = l2c310_inv_range_erratum;
 		fns->flush_range = l2c310_flush_range_erratum;
 		errata[n++] = "588369";
@@ -704,12 +716,13 @@ static const struct l2c_init_data l2c310_init_fns __initconst = {
 	.fixup = l2c310_fixup,
 	.save = l2c310_save,
 	.outer_cache = {
-		.inv_range = l2x0_inv_range,
-		.clean_range = l2x0_clean_range,
-		.flush_range = l2x0_flush_range,
-		.flush_all = l2x0_flush_all,
-		.disable = l2x0_disable,
-		.sync = l2x0_cache_sync,
+		.inv_range = l2c210_inv_range,
+		.clean_range = l2c210_clean_range,
+		.flush_range = l2c210_flush_range,
+		.flush_all = l2c210_flush_all,
+		.disable = l2c_disable,
+		.sync = l2c210_sync,
+		.set_debug = l2c310_set_debug,
 		.resume = l2c310_resume,
 	},
 };
@@ -896,8 +909,8 @@ static const struct l2c_init_data of_l2x0_data __initconst = {
 	},
 };
 
-static void __init pl310_of_parse(const struct device_node *np,
-				  u32 *aux_val, u32 *aux_mask)
+static void __init l2c310_of_parse(const struct device_node *np,
+	u32 *aux_val, u32 *aux_mask)
 {
 	u32 data[3] = { 0, 0, 0 };
 	u32 tag[3] = { 0, 0, 0 };
@@ -930,19 +943,20 @@ static void __init pl310_of_parse(const struct device_node *np,
 	}
 }
 
-static const struct l2c_init_data of_pl310_data __initconst = {
+static const struct l2c_init_data of_l2c310_data __initconst = {
 	.num_lock = 8,
-	.of_parse = pl310_of_parse,
+	.of_parse = l2c310_of_parse,
 	.enable = l2c_enable,
 	.fixup = l2c310_fixup,
 	.save  = l2c310_save,
 	.outer_cache = {
-		.inv_range   = l2x0_inv_range,
-		.clean_range = l2x0_clean_range,
-		.flush_range = l2x0_flush_range,
-		.flush_all   = l2x0_flush_all,
-		.disable     = l2x0_disable,
-		.sync        = l2x0_cache_sync,
+		.inv_range   = l2c210_inv_range,
+		.clean_range = l2c210_clean_range,
+		.flush_range = l2c210_flush_range,
+		.flush_all   = l2c210_flush_all,
+		.disable     = l2c_disable,
+		.sync        = l2c210_sync,
+		.set_debug   = l2c310_set_debug,
 		.resume      = l2c310_resume,
 	},
 };
@@ -1278,7 +1292,7 @@ static void bcm_flush_range(unsigned long start, unsigned long end)
 
 static const struct l2c_init_data of_bcm_l2x0_data __initconst = {
 	.num_lock = 8,
-	.of_parse = pl310_of_parse,
+	.of_parse = l2c310_of_parse,
 	.enable = l2c_enable,
 	.fixup = l2c310_fixup,
 	.save  = l2c310_save,
@@ -1286,9 +1300,9 @@ static const struct l2c_init_data of_bcm_l2x0_data __initconst = {
 		.inv_range   = bcm_inv_range,
 		.clean_range = bcm_clean_range,
 		.flush_range = bcm_flush_range,
-		.flush_all   = l2x0_flush_all,
-		.disable     = l2x0_disable,
-		.sync        = l2x0_cache_sync,
+		.flush_all   = l2c210_flush_all,
+		.disable     = l2c_disable,
+		.sync        = l2c210_sync,
 		.resume      = l2c310_resume,
 	},
 };
@@ -1329,7 +1343,7 @@ static const struct l2c_init_data of_tauros3_data __initconst = {
 static const struct of_device_id l2x0_ids[] __initconst = {
 	L2C_ID("arm,l210-cache", of_l2c210_data),
 	L2C_ID("arm,l220-cache", of_l2x0_data),
-	L2C_ID("arm,pl310-cache", of_pl310_data),
+	L2C_ID("arm,pl310-cache", of_l2c310_data),
 	L2C_ID("brcm,bcm11351-a2-pl310-cache", of_bcm_l2x0_data),
 	L2C_ID("marvell,aurora-outer-cache", of_aurora_with_outer_data),
 	L2C_ID("marvell,aurora-system-cache", of_aurora_no_outer_data),
