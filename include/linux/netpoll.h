@@ -65,8 +65,6 @@ void netpoll_print_options(struct netpoll *np);
 int netpoll_parse_options(struct netpoll *np, char *opt);
 int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp);
 int netpoll_setup(struct netpoll *np);
-int netpoll_trap(void);
-void netpoll_set_trap(int trap);
 void __netpoll_cleanup(struct netpoll *np);
 void __netpoll_free_async(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
@@ -82,11 +80,20 @@ static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 }
 
 #ifdef CONFIG_NETPOLL_TRAP
+int netpoll_trap(void);
+void netpoll_set_trap(int trap);
 static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
 {
 	return !list_empty(&npinfo->rx_np);
 }
 #else
+static inline int netpoll_trap(void)
+{
+	return 0;
+}
+static inline void netpoll_set_trap(int trap)
+{
+}
 static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
 {
 	return false;

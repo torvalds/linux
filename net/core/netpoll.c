@@ -46,7 +46,9 @@
 
 static struct sk_buff_head skb_pool;
 
+#ifdef CONFIG_NETPOLL_TRAP
 static atomic_t trapped;
+#endif
 
 DEFINE_STATIC_SRCU(netpoll_srcu);
 
@@ -207,7 +209,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	}
 
 	if (rx_processing)
-		atomic_inc(&trapped);
+		netpoll_set_trap(1);
 
 	ops = dev->netdev_ops;
 	if (!ops->ndo_poll_controller) {
@@ -221,7 +223,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	poll_napi(dev, budget);
 
 	if (rx_processing)
-		atomic_dec(&trapped);
+		netpoll_set_trap(0);
 
 	up(&ni->dev_lock);
 
@@ -776,10 +778,10 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 		goto out;
 
 	/* check if netpoll clients need ARP */
-	if (skb->protocol == htons(ETH_P_ARP) && atomic_read(&trapped)) {
+	if (skb->protocol == htons(ETH_P_ARP) && netpoll_trap()) {
 		skb_queue_tail(&npinfo->neigh_tx, skb);
 		return 1;
-	} else if (pkt_is_ns(skb) && atomic_read(&trapped)) {
+	} else if (pkt_is_ns(skb) && netpoll_trap()) {
 		skb_queue_tail(&npinfo->neigh_tx, skb);
 		return 1;
 	}
@@ -896,7 +898,7 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 	return 1;
 
 out:
-	if (atomic_read(&trapped)) {
+	if (netpoll_trap()) {
 		kfree_skb(skb);
 		return 1;
 	}
@@ -1302,6 +1304,7 @@ out:
 }
 EXPORT_SYMBOL(netpoll_cleanup);
 
+#ifdef CONFIG_NETPOLL_TRAP
 int netpoll_trap(void)
 {
 	return atomic_read(&trapped);
@@ -1316,3 +1319,4 @@ void netpoll_set_trap(int trap)
 		atomic_dec(&trapped);
 }
 EXPORT_SYMBOL(netpoll_set_trap);
+#endif /* CONFIG_NETPOLL_TRAP */
