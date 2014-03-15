@@ -27,7 +27,9 @@ struct read_info_sccb {
 	u8	loadparm[8];		/* 24-31 */
 	u8	_reserved1[48 - 32];	/* 32-47 */
 	u64	facilities;		/* 48-55 */
-	u8	_reserved2[84 - 56];	/* 56-83 */
+	u8	_reserved2a[76 - 56];	/* 56-75 */
+	u32	ibc;			/* 76-79 */
+	u8	_reserved2b[84 - 80];	/* 80-83 */
 	u8	fac84;			/* 84 */
 	u8	fac85;			/* 85 */
 	u8	_reserved3[91 - 86];	/* 86-90 */
@@ -47,6 +49,7 @@ static unsigned long sclp_hsa_size;
 static unsigned int sclp_max_cpu;
 static struct sclp_ipl_info sclp_ipl_info;
 static unsigned char sclp_siif;
+static u32 sclp_ibc;
 
 u64 sclp_facilities;
 u8 sclp_fac84;
@@ -111,6 +114,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	sclp_rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp_rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp_rzm <<= 20;
+	sclp_ibc = sccb->ibc;
 
 	if (!sccb->hcpua) {
 		if (MACHINE_IS_VM)
@@ -167,6 +171,12 @@ int sclp_has_siif(void)
 	return sclp_siif;
 }
 EXPORT_SYMBOL(sclp_has_siif);
+
+unsigned int sclp_get_ibc(void)
+{
+	return sclp_ibc;
+}
+EXPORT_SYMBOL(sclp_get_ibc);
 
 /*
  * This function will be called after sclp_facilities_detect(), which gets

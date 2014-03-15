@@ -66,5 +66,6 @@ int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode);
 unsigned long sclp_get_hsa_size(void);
 void sclp_early_detect(void);
 int sclp_has_siif(void);
+unsigned int sclp_get_ibc(void);
 
 #endif /* _ASM_S390_SCLP_H */
