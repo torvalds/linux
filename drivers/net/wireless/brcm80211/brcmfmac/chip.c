@@ -504,6 +504,7 @@ static void brcmf_chip_get_raminfo(struct brcmf_chip_priv *ci)
 		ci->pub.ramsize = 0x3c000;
 		break;
 	case BCM4339_CHIP_ID:
+	case BCM4354_CHIP_ID:
 		ci->pub.ramsize = 0xc0000;
 		ci->pub.rambase = 0x180000;
 		break;
@@ -1006,6 +1007,10 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 	chip = container_of(pub, struct brcmf_chip_priv, pub);
 
 	switch (pub->chip) {
+	case BCM4354_CHIP_ID:
+		/* explicitly check SR engine enable bit */
+		pmu_cc3_mask = BIT(2);
+		/* fall-through */
 	case BCM43241_CHIP_ID:
 	case BCM4335_CHIP_ID:
 	case BCM4339_CHIP_ID:
