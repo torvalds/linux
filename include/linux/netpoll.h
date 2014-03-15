@@ -82,14 +82,24 @@ static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	local_irq_restore(flags);
 }
 
-
+#ifdef CONFIG_NETPOLL_TRAP
+static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
+{
+	return !list_empty(&npinfo->rx_np);
+}
+#else
+static inline bool netpoll_rx_processing(struct netpoll_info *npinfo)
+{
+	return false;
+}
+#endif
 
 #ifdef CONFIG_NETPOLL
 static inline bool netpoll_rx_on(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
-	return npinfo && (!list_empty(&npinfo->rx_np) || npinfo->rx_flags);
+	return npinfo && (netpoll_rx_processing(npinfo) || npinfo->rx_flags);
 }
 
 static inline bool netpoll_rx(struct sk_buff *skb)
@@ -105,8 +115,8 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 
 	npinfo = rcu_dereference_bh(skb->dev->npinfo);
 	spin_lock(&npinfo->rx_lock);
-	/* check rx_flags again with the lock held */
-	if (npinfo->rx_flags && __netpoll_rx(skb, npinfo))
+	/* check rx_processing again with the lock held */
+	if (netpoll_rx_processing(npinfo) && __netpoll_rx(skb, npinfo))
 		ret = true;
 	spin_unlock(&npinfo->rx_lock);
 
