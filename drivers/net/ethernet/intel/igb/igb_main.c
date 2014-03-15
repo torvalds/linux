@@ -4980,8 +4980,6 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
-	skb_tx_timestamp(skb);
-
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 
@@ -4995,6 +4993,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				schedule_work(&adapter->ptp_tx_work);
 		}
 	}
+
+	skb_tx_timestamp(skb);
 
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= IGB_TX_FLAGS_VLAN;
