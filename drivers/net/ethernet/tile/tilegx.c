@@ -659,6 +659,9 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 	struct info_mpipe *info_mpipe =
 		container_of(napi, struct info_mpipe, napi);
 
+	if (budget <= 0)
+		goto done;
+
 	instance = info_mpipe->instance;
 	while ((n = gxio_mpipe_iqueue_try_peek(
 			&info_mpipe->iqueue,
