@@ -1955,6 +1955,9 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 	int tx_descs = 0;
 	int spent = 0;
 
+	if (quota <= 0)
+		return spent;
+
 	read_ptr = channel->eventq_read_ptr;
 
 	for (;;) {

@@ -1248,6 +1248,9 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 	int tx_packets = 0;
 	int spent = 0;
 
+	if (budget <= 0)
+		return spent;
+
 	read_ptr = channel->eventq_read_ptr;
 
 	for (;;) {
