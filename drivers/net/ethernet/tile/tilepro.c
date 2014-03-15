@@ -831,6 +831,9 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 
 	unsigned int work = 0;
 
+	if (budget <= 0)
+		goto done;
+
 	while (priv->active) {
 		int index = qup->__packet_receive_read;
 		if (index == qsp->__packet_receive_queue.__packet_write)
