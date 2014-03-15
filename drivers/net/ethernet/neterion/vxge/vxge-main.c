@@ -368,6 +368,9 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d",
 		ring->ndev->name, __func__, __LINE__);
 
+	if (ring->budget <= 0)
+		goto out;
+
 	do {
 		prefetch((char *)dtr + L1_CACHE_BYTES);
 		rx_priv = vxge_hw_ring_rxd_private_get(dtr);
@@ -525,6 +528,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 	if (first_dtr)
 		vxge_hw_ring_rxd_post_post_wmb(ringh, first_dtr);
 
+out:
 	vxge_debug_entryexit(VXGE_TRACE,
 				"%s:%d  Exiting...",
 				__func__, __LINE__);
