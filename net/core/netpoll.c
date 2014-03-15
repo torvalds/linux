@@ -165,10 +165,9 @@ static int poll_one_napi(struct napi_struct *napi, int budget)
 	return budget - work;
 }
 
-static void poll_napi(struct net_device *dev)
+static void poll_napi(struct net_device *dev, int budget)
 {
 	struct napi_struct *napi;
-	int budget = 16;
 
 	list_for_each_entry(napi, &dev->napi_list, dev_list) {
 		if (napi->poll_owner != smp_processor_id() &&
@@ -196,6 +195,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 {
 	const struct net_device_ops *ops;
 	struct netpoll_info *ni = rcu_dereference_bh(dev->npinfo);
+	int budget = 16;
 
 	/* Don't do any rx activity if the dev_lock mutex is held
 	 * the dev_open/close paths use this to block netpoll activity
@@ -221,7 +221,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	/* Process pending work on NIC */
 	ops->ndo_poll_controller(dev);
 
-	poll_napi(dev);
+	poll_napi(dev, budget);
 
 	atomic_dec(&trapped);
 	ni->rx_flags &= ~NETPOLL_RX_DROP;
