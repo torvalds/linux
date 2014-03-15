@@ -357,6 +357,13 @@ static void __init __l2c_init(const struct l2c_init_data *data,
 	int way_size_shift = L2X0_WAY_SIZE_SHIFT;
 	const char *type;
 
+	/*
+	 * It is strange to save the register state before initialisation,
+	 * but hey, this is what the DT implementations decided to do.
+	 */
+	if (data->save)
+		data->save(l2x0_base);
+
 	aux = readl_relaxed(l2x0_base + L2X0_AUX_CTRL);
 
 	aux &= aux_mask;
@@ -1022,9 +1029,6 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 		if (data == &of_aurora_no_outer_data)
 			aurora_broadcast_l2_commands();
 	}
-
-	if (data->save)
-		data->save(l2x0_base);
 
 	if (cache_id_part_number_from_dt)
 		cache_id = cache_id_part_number_from_dt;
