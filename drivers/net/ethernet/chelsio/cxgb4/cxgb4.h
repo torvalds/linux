@@ -500,6 +500,7 @@ struct sge_txq {
 	spinlock_t db_lock;
 	int db_disabled;
 	unsigned short db_pidx;
+	unsigned short db_pidx_inc;
 	u64 udb;
 };
 

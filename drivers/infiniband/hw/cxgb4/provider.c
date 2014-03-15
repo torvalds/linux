@@ -106,15 +106,54 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 {
 	struct c4iw_ucontext *context;
 	struct c4iw_dev *rhp = to_c4iw_dev(ibdev);
+	static int warned;
+	struct c4iw_alloc_ucontext_resp uresp;
+	int ret = 0;
+	struct c4iw_mm_entry *mm = NULL;
 
 	PDBG("%s ibdev %p\n", __func__, ibdev);
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
+	if (!context) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	c4iw_init_dev_ucontext(&rhp->rdev, &context->uctx);
 	INIT_LIST_HEAD(&context->mmaps);
 	spin_lock_init(&context->mmap_lock);
+
+	if (udata->outlen < sizeof(uresp)) {
+		if (!warned++)
+			pr_err(MOD "Warning - downlevel libcxgb4 (non-fatal), device status page disabled.");
+		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
+	} else {
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
+		if (!mm)
+			goto err_free;
+
+		uresp.status_page_size = PAGE_SIZE;
+
+		spin_lock(&context->mmap_lock);
+		uresp.status_page_key = context->key;
+		context->key += PAGE_SIZE;
+		spin_unlock(&context->mmap_lock);
+
+		ret = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		if (ret)
+			goto err_mm;
+
+		mm->key = uresp.status_page_key;
+		mm->addr = virt_to_phys(rhp->rdev.status_page);
+		mm->len = PAGE_SIZE;
+		insert_mmap(context, mm);
+	}
 	return &context->ibucontext;
+err_mm:
+	kfree(mm);
+err_free:
+	kfree(context);
+err:
+	return ERR_PTR(ret);
 }
 
 static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
