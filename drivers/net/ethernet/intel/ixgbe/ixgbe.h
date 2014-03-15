@@ -812,6 +812,7 @@ enum ixgbe_state_t {
 	__IXGBE_SERVICE_SCHED,
 	__IXGBE_IN_SFP_INIT,
 	__IXGBE_PTP_RUNNING,
+	__IXGBE_PTP_TX_IN_PROGRESS,
 };
 
 struct ixgbe_cb {
