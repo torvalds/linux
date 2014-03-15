@@ -1302,6 +1302,9 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	u8 rx_ptype;
 	u64 qword;
 
+	if (budget <= 0)
+		return 0;
+
 	rx_desc = I40E_RX_DESC(rx_ring, i);
 	qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
 	rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
