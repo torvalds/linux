@@ -352,30 +352,21 @@ static void l2x0_disable(void)
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
-static void l2x0_unlock(u32 cache_id)
-{
-	int lockregs;
-
-	switch (cache_id & L2X0_CACHE_ID_PART_MASK) {
-	case L2X0_CACHE_ID_PART_L310:
-		lockregs = 8;
-		break;
-	default:
-		/* L210 and unknown types */
-		lockregs = 1;
-		break;
-	}
-
-	l2c_unlock(l2x0_base, lockregs);
-}
-
 static void l2x0_enable(void __iomem *base, u32 aux, unsigned num_lock)
 {
+	unsigned id;
+
+	id = readl_relaxed(base + L2X0_CACHE_ID) & L2X0_CACHE_ID_PART_MASK;
+	if (id == L2X0_CACHE_ID_PART_L310)
+		num_lock = 8;
+	else
+		num_lock = 1;
+
 	/* l2x0 controller is disabled */
 	writel_relaxed(aux, base + L2X0_AUX_CTRL);
 
 	/* Make sure that I&D is not locked down when starting */
-	l2x0_unlock(readl_relaxed(base + L2X0_CACHE_ID));
+	l2c_unlock(base, num_lock);
 
 	l2x0_inv_all();
 
