@@ -7042,8 +7042,6 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= IXGBE_TX_FLAGS_SW_VLAN;
 	}
 
-	skb_tx_timestamp(skb);
-
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		tx_flags |= IXGBE_TX_FLAGS_TSTAMP;
@@ -7053,6 +7051,8 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		adapter->ptp_tx_start = jiffies;
 		schedule_work(&adapter->ptp_tx_work);
 	}
+
+	skb_tx_timestamp(skb);
 
 #ifdef CONFIG_PCI_IOV
 	/*
