@@ -1985,7 +1985,7 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
  * @netdev: network interface to be adjusted
  * @vid: vlan id to be removed
  *
- * net_device_ops implementation for adding vlan ids
+ * net_device_ops implementation for removing vlan ids
  **/
 static int i40e_vlan_rx_kill_vid(struct net_device *netdev,
 				 __always_unused __be16 proto, u16 vid)
@@ -2436,6 +2436,9 @@ static void i40e_fdir_filter_restore(struct i40e_vsi *vsi)
 	struct i40e_pf *pf = vsi->back;
 	struct hlist_node *node;
 
+	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		return;
+
 	hlist_for_each_entry_safe(filter, node,
 				  &pf->fdir_filter_list, fdir_node) {
 		i40e_add_del_fdir(vsi, filter, true);
@@ -2453,8 +2456,6 @@ static int i40e_vsi_configure(struct i40e_vsi *vsi)
 	i40e_set_vsi_rx_mode(vsi);
 	i40e_restore_vlan(vsi);
 	i40e_vsi_config_dcb_rings(vsi);
-	if (vsi->type == I40E_VSI_FDIR)
-		i40e_fdir_filter_restore(vsi);
 	err = i40e_vsi_configure_tx(vsi);
 	if (!err)
 		err = i40e_vsi_configure_rx(vsi);
@@ -2582,7 +2583,7 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 	/* FIRSTQ_INDX = 0, FIRSTQ_TYPE = 0 (rx) */
 	wr32(hw, I40E_PFINT_LNKLST0, 0);
 
-	/* Associate the queue pair to the vector and enable the q int */
+	/* Associate the queue pair to the vector and enable the queue int */
 	val = I40E_QINT_RQCTL_CAUSE_ENA_MASK		      |
 	      (I40E_RX_ITR << I40E_QINT_RQCTL_ITR_INDX_SHIFT) |
 	      (I40E_QUEUE_TYPE_TX << I40E_QINT_TQCTL_NEXTQ_TYPE_SHIFT);
@@ -2891,8 +2892,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 			 icr0_remaining);
 		if ((icr0_remaining & I40E_PFINT_ICR0_PE_CRITERR_MASK) ||
 		    (icr0_remaining & I40E_PFINT_ICR0_PCI_EXCEPTION_MASK) ||
-		    (icr0_remaining & I40E_PFINT_ICR0_ECC_ERR_MASK) ||
-		    (icr0_remaining & I40E_PFINT_ICR0_MAL_DETECT_MASK)) {
+		    (icr0_remaining & I40E_PFINT_ICR0_ECC_ERR_MASK)) {
 			dev_info(&pf->pdev->dev, "device will be reset\n");
 			set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
 			i40e_service_event_schedule(pf);
@@ -3755,8 +3755,8 @@ static int i40e_vsi_configure_bw_alloc(struct i40e_vsi *vsi, u8 enabled_tc,
 					  NULL);
 	if (aq_ret) {
 		dev_info(&vsi->back->pdev->dev,
-			 "%s: AQ command Config VSI BW allocation per TC failed = %d\n",
-			 __func__, vsi->back->hw.aq.asq_last_status);
+			 "AQ command Config VSI BW allocation per TC failed = %d\n",
+			 vsi->back->hw.aq.asq_last_status);
 		return -EINVAL;
 	}
 
@@ -4085,6 +4085,10 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 	} else if (vsi->netdev) {
 		netdev_info(vsi->netdev, "NIC Link is Down\n");
 	}
+
+	/* replay FDIR SB filters */
+	if (vsi->type == I40E_VSI_FDIR)
+		i40e_fdir_filter_restore(vsi);
 	i40e_service_event_schedule(pf);
 
 	return 0;
@@ -4364,7 +4368,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		 * for the warning interrupt will deal with the shutdown
 		 * and recovery of the switch setup.
 		 */
-		dev_info(&pf->pdev->dev, "GlobalR requested\n");
+		dev_dbg(&pf->pdev->dev, "GlobalR requested\n");
 		val = rd32(&pf->hw, I40E_GLGEN_RTRIG);
 		val |= I40E_GLGEN_RTRIG_GLOBR_MASK;
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
@@ -4375,7 +4379,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		 *
 		 * Same as Global Reset, except does *not* include the MAC/PHY
 		 */
-		dev_info(&pf->pdev->dev, "CoreR requested\n");
+		dev_dbg(&pf->pdev->dev, "CoreR requested\n");
 		val = rd32(&pf->hw, I40E_GLGEN_RTRIG);
 		val |= I40E_GLGEN_RTRIG_CORER_MASK;
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
@@ -4409,7 +4413,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		 * the switch, since we need to do all the recovery as
 		 * for the Core Reset.
 		 */
-		dev_info(&pf->pdev->dev, "PFR requested\n");
+		dev_dbg(&pf->pdev->dev, "PFR requested\n");
 		i40e_handle_reset_warning(pf);
 
 	} else if (reset_flags & (1 << __I40E_REINIT_REQUESTED)) {
@@ -4458,18 +4462,18 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 			   &old_cfg->etscfg.prioritytable,
 			   sizeof(new_cfg->etscfg.prioritytable))) {
 			need_reconfig = true;
-			dev_info(&pf->pdev->dev, "ETS UP2TC changed.\n");
+			dev_dbg(&pf->pdev->dev, "ETS UP2TC changed.\n");
 		}
 
 		if (memcmp(&new_cfg->etscfg.tcbwtable,
 			   &old_cfg->etscfg.tcbwtable,
 			   sizeof(new_cfg->etscfg.tcbwtable)))
-			dev_info(&pf->pdev->dev, "ETS TC BW Table changed.\n");
+			dev_dbg(&pf->pdev->dev, "ETS TC BW Table changed.\n");
 
 		if (memcmp(&new_cfg->etscfg.tsatable,
 			   &old_cfg->etscfg.tsatable,
 			   sizeof(new_cfg->etscfg.tsatable)))
-			dev_info(&pf->pdev->dev, "ETS TSA Table changed.\n");
+			dev_dbg(&pf->pdev->dev, "ETS TSA Table changed.\n");
 	}
 
 	/* Check if PFC configuration has changed */
@@ -4477,7 +4481,7 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 		   &old_cfg->pfc,
 		   sizeof(new_cfg->pfc))) {
 		need_reconfig = true;
-		dev_info(&pf->pdev->dev, "PFC config change detected.\n");
+		dev_dbg(&pf->pdev->dev, "PFC config change detected.\n");
 	}
 
 	/* Check if APP Table has changed */
@@ -4485,7 +4489,7 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 		   &old_cfg->app,
 		   sizeof(new_cfg->app))) {
 		need_reconfig = true;
-		dev_info(&pf->pdev->dev, "APP Table change detected.\n");
+		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
 	}
 
 	return need_reconfig;
@@ -4535,7 +4539,7 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	/* No change detected in DCBX configs */
 	if (!memcmp(&tmp_dcbx_cfg, dcbx_cfg, sizeof(tmp_dcbx_cfg))) {
-		dev_info(&pf->pdev->dev, "No change detected in DCBX configuration.\n");
+		dev_dbg(&pf->pdev->dev, "No change detected in DCBX configuration.\n");
 		goto exit;
 	}
 
@@ -4593,8 +4597,8 @@ static void i40e_handle_lan_overflow_event(struct i40e_pf *pf,
 	struct i40e_vf *vf;
 	u16 vf_id;
 
-	dev_info(&pf->pdev->dev, "%s: Rx Queue Number = %d QTX_CTL=0x%08x\n",
-		 __func__, queue, qtx_ctl);
+	dev_dbg(&pf->pdev->dev, "overflow Rx Queue Number = %d QTX_CTL=0x%08x\n",
+		queue, qtx_ctl);
 
 	/* Queue belongs to VF, find the VF and issue VF reset */
 	if (((qtx_ctl & I40E_QTX_CTL_PFVF_Q_MASK)
@@ -4624,6 +4628,54 @@ static void i40e_service_event_complete(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_get_current_fd_count - Get the count of FD filters programmed in the HW
+ * @pf: board private structure
+ **/
+int i40e_get_current_fd_count(struct i40e_pf *pf)
+{
+	int val, fcnt_prog;
+	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
+	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK) +
+		    ((val & I40E_PFQF_FDSTAT_BEST_CNT_MASK) >>
+		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
+	return fcnt_prog;
+}
+
+/**
+ * i40e_fdir_check_and_reenable - Function to reenabe FD ATR or SB if disabled
+ * @pf: board private structure
+ **/
+void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
+{
+	u32 fcnt_prog, fcnt_avail;
+
+	/* Check if, FD SB or ATR was auto disabled and if there is enough room
+	 * to re-enable
+	 */
+	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		return;
+	fcnt_prog = i40e_get_current_fd_count(pf);
+	fcnt_avail = pf->hw.fdir_shared_filter_count +
+					       pf->fdir_pf_filter_count;
+	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) {
+		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
+		}
+	}
+	/* Wait for some more space to be available to turn on ATR */
+	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM * 2)) {
+		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED)) {
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table now\n");
+		}
+	}
+}
+
+/**
  * i40e_fdir_reinit_subtask - Worker thread to reinit FDIR filter table
  * @pf: board private structure
  **/
@@ -4632,11 +4684,14 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_FDIR_REQUIRES_REINIT))
 		return;
 
-	pf->flags &= ~I40E_FLAG_FDIR_REQUIRES_REINIT;
-
 	/* if interface is down do nothing */
 	if (test_bit(__I40E_DOWN, &pf->state))
 		return;
+	i40e_fdir_check_and_reenable(pf);
+
+	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		pf->flags &= ~I40E_FLAG_FDIR_REQUIRES_REINIT;
 }
 
 /**
@@ -4946,7 +5001,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 					event.msg_size);
 			break;
 		case i40e_aqc_opc_lldp_update_mib:
-			dev_info(&pf->pdev->dev, "ARQ: Update LLDP MIB event received\n");
+			dev_dbg(&pf->pdev->dev, "ARQ: Update LLDP MIB event received\n");
 #ifdef CONFIG_I40E_DCB
 			rtnl_lock();
 			ret = i40e_handle_lldp_event(pf, &event);
@@ -4954,7 +5009,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 #endif /* CONFIG_I40E_DCB */
 			break;
 		case i40e_aqc_opc_event_lan_overflow:
-			dev_info(&pf->pdev->dev, "ARQ LAN queue overflow event received\n");
+			dev_dbg(&pf->pdev->dev, "ARQ LAN queue overflow event received\n");
 			i40e_handle_lan_overflow_event(pf, &event);
 			break;
 		case i40e_aqc_opc_send_msg_to_peer:
@@ -5231,7 +5286,7 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 	if (test_and_set_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state))
 		return 0;
 
-	dev_info(&pf->pdev->dev, "Tearing down internal switch for reset\n");
+	dev_dbg(&pf->pdev->dev, "Tearing down internal switch for reset\n");
 
 	if (i40e_check_asq_alive(hw))
 		i40e_vc_notify_reset(pf);
@@ -5278,7 +5333,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 
 	if (test_bit(__I40E_DOWN, &pf->state))
 		goto end_core_reset;
-	dev_info(&pf->pdev->dev, "Rebuilding internal switch\n");
+	dev_dbg(&pf->pdev->dev, "Rebuilding internal switch\n");
 
 	/* rebuild the basics for the AdminQ, HMC, and initial HW switch */
 	ret = i40e_init_adminq(&pf->hw);
@@ -5328,7 +5383,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	 * try to recover minimal use by getting the basic PF VSI working.
 	 */
 	if (pf->vsi[pf->lan_vsi]->uplink_seid != pf->mac_seid) {
-		dev_info(&pf->pdev->dev, "attempting to rebuild switch\n");
+		dev_dbg(&pf->pdev->dev, "attempting to rebuild switch\n");
 		/* find the one VEB connected to the MAC, and find orphans */
 		for (v = 0; v < I40E_MAX_VEB; v++) {
 			if (!pf->veb[v])
@@ -5393,7 +5448,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	dv.subbuild_version = 0;
 	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
 
-	dev_info(&pf->pdev->dev, "PF reset done\n");
+	dev_info(&pf->pdev->dev, "reset complete\n");
 
 end_core_reset:
 	clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
@@ -5442,7 +5497,7 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK)
 				>> I40E_GL_MDET_TX_QUEUE_SHIFT;
 		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection TX event 0x%02x on q %d of function 0x%02x\n",
+			 "Malicious Driver Detection event 0x%02x on TX queue %d of function 0x%02x\n",
 			 event, queue, func);
 		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
 		mdd_detected = true;
@@ -5456,7 +5511,7 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK)
 				>> I40E_GL_MDET_RX_QUEUE_SHIFT;
 		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection RX event 0x%02x on q %d of function 0x%02x\n",
+			 "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
 			 event, queue, func);
 		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
 		mdd_detected = true;
@@ -6293,12 +6348,8 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
 		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 		pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
-		dev_info(&pf->pdev->dev,
-			"Flow Director ATR mode Enabled\n");
 		if (!(pf->flags & I40E_FLAG_MFP_ENABLED)) {
 			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
-			dev_info(&pf->pdev->dev,
-				 "Flow Director Side Band mode Enabled\n");
 		} else {
 			dev_info(&pf->pdev->dev,
 				 "Flow Director Side Band mode Disabled in MFP mode\n");
@@ -6322,9 +6373,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		pf->num_req_vfs = min_t(int,
 					pf->hw.func_caps.num_vfs,
 					I40E_MAX_VF_COUNT);
-		dev_info(&pf->pdev->dev,
-			 "Number of VFs being requested for PF[%d] = %d\n",
-			 pf->hw.pf_id, pf->num_req_vfs);
 	}
 #endif /* CONFIG_PCI_IOV */
 	pf->eeprom_version = 0xDEAD;
@@ -6806,8 +6854,6 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 			if (vsi->netdev) {
 				/* results in a call to i40e_close() */
 				unregister_netdev(vsi->netdev);
-				free_netdev(vsi->netdev);
-				vsi->netdev = NULL;
 			}
 		} else {
 			if (!test_and_set_bit(__I40E_DOWN, &vsi->state))
@@ -6826,6 +6872,10 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 
 	i40e_vsi_delete(vsi);
 	i40e_vsi_free_q_vectors(vsi);
+	if (vsi->netdev) {
+		free_netdev(vsi->netdev);
+		vsi->netdev = NULL;
+	}
 	i40e_vsi_clear_rings(vsi);
 	i40e_vsi_clear(vsi);
 
@@ -6880,8 +6930,7 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 	}
 
 	if (vsi->base_vector) {
-		dev_info(&pf->pdev->dev,
-			 "VSI %d has non-zero base vector %d\n",
+		dev_info(&pf->pdev->dev, "VSI %d has non-zero base vector %d\n",
 			 vsi->seid, vsi->base_vector);
 		return -EEXIST;
 	}
@@ -6900,7 +6949,7 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 						 vsi->num_q_vectors, vsi->idx);
 	if (vsi->base_vector < 0) {
 		dev_info(&pf->pdev->dev,
-			 "failed to get q tracking for VSI %d, err=%d\n",
+			 "failed to get queue tracking for VSI %d, err=%d\n",
 			 vsi->seid, vsi->base_vector);
 		i40e_vsi_free_q_vectors(vsi);
 		ret = -ENOENT;
@@ -7857,6 +7906,44 @@ static int i40e_setup_pf_filter_control(struct i40e_pf *pf)
 	return 0;
 }
 
+#define INFO_STRING_LEN 255
+static void i40e_print_features(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	char *buf, *string;
+
+	string = kzalloc(INFO_STRING_LEN, GFP_KERNEL);
+	if (!string) {
+		dev_err(&pf->pdev->dev, "Features string allocation failed\n");
+		return;
+	}
+
+	buf = string;
+
+	buf += sprintf(string, "Features: PF-id[%d] ", hw->pf_id);
+#ifdef CONFIG_PCI_IOV
+	buf += sprintf(buf, "VFs: %d ", pf->num_req_vfs);
+#endif
+	buf += sprintf(buf, "VSIs: %d QP: %d ", pf->hw.func_caps.num_vsis,
+		       pf->vsi[pf->lan_vsi]->num_queue_pairs);
+
+	if (pf->flags & I40E_FLAG_RSS_ENABLED)
+		buf += sprintf(buf, "RSS ");
+	buf += sprintf(buf, "FDir ");
+	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED)
+		buf += sprintf(buf, "ATR ");
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
+		buf += sprintf(buf, "NTUPLE ");
+	if (pf->flags & I40E_FLAG_DCB_ENABLED)
+		buf += sprintf(buf, "DCB ");
+	if (pf->flags & I40E_FLAG_PTP)
+		buf += sprintf(buf, "PTP ");
+
+	BUG_ON(buf > (string + INFO_STRING_LEN));
+	dev_info(&pf->pdev->dev, "%s\n", string);
+	kfree(string);
+}
+
 /**
  * i40e_probe - Device initialization routine
  * @pdev: PCI device information struct
@@ -7883,16 +7970,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	/* set up for high or low dma */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		/* coherent mask for the same size will always succeed if
-		 * dma_set_mask does
-		 */
-		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-	} else {
-		dev_err(&pdev->dev, "DMA configuration failed: %d\n", err);
-		err = -EIO;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err)
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err) {
+		dev_err(&pdev->dev,
+			"DMA configuration failed: 0x%x\n", err);
 		goto err_dma;
 	}
 
@@ -8130,7 +8213,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i40e_set_pci_config_data(hw, link_status);
 
-	dev_info(&pdev->dev, "PCI Express: %s %s\n",
+	dev_info(&pdev->dev, "PCI-Express: %s %s\n",
 		(hw->bus.speed == i40e_bus_speed_8000 ? "Speed 8.0GT/s" :
 		 hw->bus.speed == i40e_bus_speed_5000 ? "Speed 5.0GT/s" :
 		 hw->bus.speed == i40e_bus_speed_2500 ? "Speed 2.5GT/s" :
@@ -8146,6 +8229,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_warn(&pdev->dev, "PCI-Express bandwidth available for this device may be insufficient for optimal performance.\n");
 		dev_warn(&pdev->dev, "Please move the device to a different PCI-e link with more lanes and/or higher transfer rate.\n");
 	}
+
+	/* print a string summarizing features */
+	i40e_print_features(pf);
 
 	return 0;
 

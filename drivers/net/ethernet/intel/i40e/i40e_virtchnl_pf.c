@@ -69,7 +69,7 @@ static inline bool i40e_vc_isvalid_vector_id(struct i40e_vf *vf, u8 vector_id)
 {
 	struct i40e_pf *pf = vf->pf;
 
-	return vector_id <= pf->hw.func_caps.num_msix_vectors_vf;
+	return vector_id < pf->hw.func_caps.num_msix_vectors_vf;
 }
 
 /***********************vf resource mgmt routines*****************/
@@ -126,8 +126,8 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_idx,
 		reg_idx = I40E_VPINT_LNKLST0(vf->vf_id);
 	else
 		reg_idx = I40E_VPINT_LNKLSTN(
-					   (pf->hw.func_caps.num_msix_vectors_vf
-					      * vf->vf_id) + (vector_id - 1));
+		     ((pf->hw.func_caps.num_msix_vectors_vf - 1) * vf->vf_id) +
+		     (vector_id - 1));
 
 	if (vecmap->rxq_map == 0 && vecmap->txq_map == 0) {
 		/* Special case - No queues mapped on this vector */
@@ -506,7 +506,8 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 		vf->lan_vsi_index = 0;
 		vf->lan_vsi_id = 0;
 	}
-	msix_vf = pf->hw.func_caps.num_msix_vectors_vf + 1;
+	msix_vf = pf->hw.func_caps.num_msix_vectors_vf;
+
 	/* disable interrupts so the VF starts in a known state */
 	for (i = 0; i < msix_vf; i++) {
 		/* format is same for both registers */
