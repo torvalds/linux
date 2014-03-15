@@ -1557,8 +1557,7 @@ ignore_link:
 		/* Unused write back interrupt */
 		if (intr_status & EESR_TABT) {	/* Transmit Abort int */
 			ndev->stats.tx_aborted_errors++;
-			if (netif_msg_tx_err(mdp))
-				netdev_err(ndev, "Transmit Abort\n");
+			netif_err(mdp, tx_err, ndev, "Transmit Abort\n");
 		}
 	}
 
@@ -1567,45 +1566,38 @@ ignore_link:
 		if (intr_status & EESR_RFRMER) {
 			/* Receive Frame Overflow int */
 			ndev->stats.rx_frame_errors++;
-			if (netif_msg_rx_err(mdp))
-				netdev_err(ndev, "Receive Abort\n");
+			netif_err(mdp, rx_err, ndev, "Receive Abort\n");
 		}
 	}
 
 	if (intr_status & EESR_TDE) {
 		/* Transmit Descriptor Empty int */
 		ndev->stats.tx_fifo_errors++;
-		if (netif_msg_tx_err(mdp))
-			netdev_err(ndev, "Transmit Descriptor Empty\n");
+		netif_err(mdp, tx_err, ndev, "Transmit Descriptor Empty\n");
 	}
 
 	if (intr_status & EESR_TFE) {
 		/* FIFO under flow */
 		ndev->stats.tx_fifo_errors++;
-		if (netif_msg_tx_err(mdp))
-			netdev_err(ndev, "Transmit FIFO Under flow\n");
+		netif_err(mdp, tx_err, ndev, "Transmit FIFO Under flow\n");
 	}
 
 	if (intr_status & EESR_RDE) {
 		/* Receive Descriptor Empty int */
 		ndev->stats.rx_over_errors++;
-
-		if (netif_msg_rx_err(mdp))
-			netdev_err(ndev, "Receive Descriptor Empty\n");
+		netif_err(mdp, rx_err, ndev, "Receive Descriptor Empty\n");
 	}
 
 	if (intr_status & EESR_RFE) {
 		/* Receive FIFO Overflow int */
 		ndev->stats.rx_fifo_errors++;
-		if (netif_msg_rx_err(mdp))
-			netdev_err(ndev, "Receive FIFO Overflow\n");
+		netif_err(mdp, rx_err, ndev, "Receive FIFO Overflow\n");
 	}
 
 	if (!mdp->cd->no_ade && (intr_status & EESR_ADE)) {
 		/* Address Error */
 		ndev->stats.tx_fifo_errors++;
-		if (netif_msg_tx_err(mdp))
-			netdev_err(ndev, "Address Error\n");
+		netif_err(mdp, tx_err, ndev, "Address Error\n");
 	}
 
 	mask = EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | EESR_TFE;
@@ -2064,11 +2056,9 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 
-	if (netif_msg_timer(mdp)) {
-		netdev_err(ndev,
-			   "transmit timed out, status %8.8x, resetting...\n",
-			   (int)sh_eth_read(ndev, EESR));
-	}
+	netif_err(mdp, timer, ndev,
+		  "transmit timed out, status %8.8x, resetting...\n",
+		  (int)sh_eth_read(ndev, EESR));
 
 	/* tx_errors count up */
 	ndev->stats.tx_errors++;
@@ -2103,8 +2093,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	spin_lock_irqsave(&mdp->lock, flags);
 	if ((mdp->cur_tx - mdp->dirty_tx) >= (mdp->num_tx_ring - 4)) {
 		if (!sh_eth_txfree(ndev)) {
-			if (netif_msg_tx_queued(mdp))
-				netdev_warn(ndev, "TxFD exhausted.\n");
+			netif_warn(mdp, tx_queued, ndev, "TxFD exhausted.\n");
 			netif_stop_queue(ndev);
 			spin_unlock_irqrestore(&mdp->lock, flags);
 			return NETDEV_TX_BUSY;
