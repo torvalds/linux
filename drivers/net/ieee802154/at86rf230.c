@@ -574,7 +574,7 @@ at86rf230_start(struct ieee802154_dev *dev)
 	if (rc)
 		return rc;
 
-	rc = at86rf230_state(dev, STATE_FORCE_TX_ON);
+	rc = at86rf230_state(dev, STATE_TX_ON);
 	if (rc)
 		return rc;
 
