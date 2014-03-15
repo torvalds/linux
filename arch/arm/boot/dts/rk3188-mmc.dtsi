@@ -35,16 +35,16 @@
 		supports-emmc;
                 bootpart-no-access;
   	  	fifo-depth = <0x80>;
-
-                 
-		mmc,caps = <(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED)>;
-		mmc,ocr =  <(MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
-				     MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
-				     MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36)>;
-		mmc,use_dma = <MMC_USE_DMA 2>;
-		mmc,dma_ch = <EMMC_DMA_CHN>;
-		mmc,int = <CONTROLLER_INT_DETECT>;
-	        mmc,emmc_is_selected = <1>;
+		bus-width = <4>;
+     
+		//mmc,caps = <(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED)>;
+	//	mmc,ocr =  <(MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
+	//			     MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
+	//			     MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36)>;
+	//	mmc,use_dma = <MMC_USE_DMA 2>;
+	//	mmc,dma_ch = <EMMC_DMA_CHN>;
+	//	mmc,int = <CONTROLLER_INT_DETECT>;
+	//        mmc,emmc_is_selected = <1>;
 	        status = "okay";
     };
 	
@@ -68,16 +68,9 @@
 	    card-detect-delay = <200>;
 	    pwr-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>; /*pwr_en = GPIO3_A1*/
 	    fifo-depth = <0x100>;
+		bus-width = <4>;
 	    
-            mmc,caps = <(MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED)>;
-	    mmc,ocr =  <(MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
-			         MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
-			 	 	 MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36)>;
-	    mmc,use_dma = <MMC_USE_DMA 0>; 
-	    mmc,dma_ch = <SDMMC_DMA_CHN>;
-		mmc,int = <CONTROLLER_INT_DETECT>; 	
-	  //mmc,int = <GPIO_INT_DETECT>;
-	    mmc,emmc_is_selected = <0>;
+	    
 	    status = "okay";
 	};
 
@@ -99,6 +92,7 @@
 	    supports-highspeed;
             supports-sdio;
 	    fifo-depth = <0x100>;
+	    bus-width = <4>;
 	    
             mmc,caps = <(MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED)>;
 	    mmc,ocr =  <(MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
@@ -110,7 +104,7 @@
 	  ////mmc,int = <GPIO_INT_DETECT>;
 	    ////OOB pin?
 	    //mmc,emmc_is_selected = <0>;
-	    status = "okay";
+	    status = "disabled";
 	};
 
     																																												

@@ -290,6 +290,8 @@ struct mmc_host {
 #define RESTRICT_CARD_TYPE_SD	(1 << 0)	/*noted by XBW, Rockchip Co.Ld*/
 #define RESTRICT_CARD_TYPE_SDIO	(1 << 1)	
 #define RESTRICT_CARD_TYPE_EMMC	(1 << 2)	
+    unsigned int    hold_reg_flag;//to fix the hold_reg value
+
 
 #ifdef CONFIG_MMC_CLKGATE
 	int			clk_requests;	/* internal reference counter */

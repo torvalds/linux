@@ -173,6 +173,7 @@ struct dw_mci {
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 	struct mmc_host		*mmc;
 	struct mmc_command	*pre_cmd;
+	unsigned int    hold_reg_flag;//to fix the hold_reg value
 
 	/* FIFO push and pull */
 	int			fifo_depth;

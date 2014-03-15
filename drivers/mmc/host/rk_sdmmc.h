@@ -304,6 +304,7 @@ struct dw_mci_tuning_data {
 /**
  * dw_mci driver data - dw-mshc implementation specific driver data.
  * @caps: mmc subsystem specified capabilities of the controller(s).
+ * @hold_reg_flag: Fixed the value of HOLG_REG
  * @init: early implementation specific initialization.
  * @setup_clock: implementation specific clock configuration.
  * @prepare_command: handle CMD register extensions.
@@ -316,6 +317,7 @@ struct dw_mci_tuning_data {
  */
 struct dw_mci_drv_data {
 	unsigned long	*caps;
+	unsigned int    *hold_reg_flag;
 	int		(*init)(struct dw_mci *host);
 	int		(*setup_clock)(struct dw_mci *host);
 	void		(*prepare_command)(struct dw_mci *host, u32 *cmdr);

@@ -50,7 +50,7 @@ extern char dbg_flag[];
 #define MMC_DBG_ERR_FUNC(mmc_host,fmt, arg...) \
     do{ \
         if(mmc_debug_level >= MMC_DBG_ERROR) { \
-            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+            if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "ERROR " fmt "\n", ##arg);\
             } \
         } \
@@ -58,7 +58,7 @@ extern char dbg_flag[];
 #define MMC_DBG_WARN_FUNC(mmc_host,fmt, arg...) \
     do { \
         if(mmc_debug_level >= MMC_DBG_WARN) { \
-            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+            if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "WARN " fmt "\n", ##arg);\
             } \
         } \
@@ -66,7 +66,7 @@ extern char dbg_flag[];
 #define MMC_DBG_INFO_FUNC(mmc_host,fmt, arg...) \
     do { \
         if(mmc_debug_level >= MMC_DBG_INFO) { \
-            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+            if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "INFO " fmt "\n", ##arg);\
             } \
         } \
@@ -74,7 +74,7 @@ extern char dbg_flag[];
 #define MMC_DBG_CMD_FUNC(mmc_host,fmt, arg...) \
    do { \
         if(mmc_debug_level >= MMC_DBG_CMD) { \
-            if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
+            if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "CMD " fmt "\n", ##arg);\
             } \
         } \
@@ -83,7 +83,7 @@ extern char dbg_flag[];
 #define MMC_DBG_BOOT_FUNC(mmc_host,fmt, arg...) {printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);}
 #define MMC_DBG_ERR_FUNC(mmc_host,fmt, arg...)
 #define MMC_DBG_WARN_FUNC(mmc_host,fmt, arg...)
-#define MMC_DBG_INFO_FUNC
+#define MMC_DBG_INFO_FUNC(mmc_host,fmt, arg...)
 #define MMC_DBG_CMD_FUNC(mmc_host,fmt, arg...)
 #endif
 

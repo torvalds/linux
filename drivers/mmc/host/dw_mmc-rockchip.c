@@ -44,6 +44,7 @@
 
 /* Variations in Rockchip specific dw-mshc controller */
 enum dw_mci_rockchip_type {
+	DW_MCI_TYPE_RK3188,
 	DW_MCI_TYPE_RK3288,
 };
 
@@ -60,6 +61,9 @@ static struct dw_mci_rockchip_compatible {
 	enum dw_mci_rockchip_type		ctrl_type;
 } rockchip_compat[] = {
 	{
+		.compatible	= "rockchip,rk3188-sdmmc",
+		.ctrl_type	= DW_MCI_TYPE_RK3188,
+	},{
 		.compatible	= "rockchip,rk3288-sdmmc",
 		.ctrl_type	= DW_MCI_TYPE_RK3288,
 	},
@@ -156,14 +160,17 @@ static int dw_mci_rockchip_parse_dt(struct dw_mci *host)
 /* Common capabilities of RK32XX SoC */
 static unsigned long rockchip_dwmmc_caps[4] = {
 	/*MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR | //Temporarily comment out!!!!!!, deleted by xbw, at 2014-03-12*/
-		MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
+		MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23|MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 };
 
+unsigned int  rockchip_dwmmc_hold_reg[4] = {1,0,0,0};
+
 static const struct dw_mci_drv_data rockchip_drv_data = {
 	.caps			= rockchip_dwmmc_caps,
+	.hold_reg_flag  = rockchip_dwmmc_hold_reg,
 	.init			= dw_mci_rockchip_priv_init,
 	.setup_clock		= dw_mci_rockchip_setup_clock,
 	.prepare_command	= dw_mci_rockchip_prepare_command,

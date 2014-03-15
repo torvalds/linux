@@ -346,7 +346,10 @@ static void dw_mci_start_command(struct dw_mci *host,
     MMC_DBG_INFO_FUNC(host->mmc,"%d..%s start cmd=%d, arg=0x%x[%s]",__LINE__, __FUNCTION__,cmd->opcode, cmd->arg,mmc_hostname(host->mmc));
     //dw_mci_regs_printk(host);
 
-	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START|SDMMC_CMD_USE_HOLD_REG); //always use SDMMC_CMD_USE_HOLD_REG 
+    if(host->mmc->hold_reg_flag)
+        cmd_flags |= SDMMC_CMD_USE_HOLD_REG;//fix the value to 1 in some Soc,for example RK3188.
+        
+	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
 }
 
 static void send_stop_cmd(struct dw_mci *host, struct mmc_data *data)
@@ -2246,7 +2249,7 @@ static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
 /* find out bus-width for a given slot */
 static u32 dw_mci_of_get_bus_wd(struct device *dev, u8 slot)
 {
-	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
+	struct device_node *np = dev->of_node;//dw_mci_of_find_slot_node(dev, slot);
 	u32 bus_wd = 1;
 
 	if (!np)
@@ -2427,6 +2430,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	}
 	if (drv_data && drv_data->caps)
 		mmc->caps |= drv_data->caps[ctrl_id];
+	if (drv_data && drv_data->hold_reg_flag)
+		mmc->hold_reg_flag |= drv_data->hold_reg_flag[ctrl_id];		
 
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
