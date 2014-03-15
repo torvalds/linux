@@ -132,18 +132,16 @@ static void cvm_oct_adjust_link(struct net_device *dev)
 			netif_carrier_on(dev);
 			if (priv->queue != -1)
 				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, queue %2d\n",
-						   dev->name, priv->phydev->speed,
-						   priv->phydev->duplex ?
-						   "Full" : "Half",
-						   priv->port, priv->queue);
+					"port %2d, queue %2d\n", dev->name,
+					priv->phydev->speed,
+					priv->phydev->duplex ? "Full" : "Half",
+					priv->port, priv->queue);
 			else
 				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, POW\n",
-						   dev->name, priv->phydev->speed,
-						   priv->phydev->duplex ?
-						   "Full" : "Half",
-						   priv->port);
+					"port %2d, POW\n", dev->name,
+					priv->phydev->speed,
+					priv->phydev->duplex ? "Full" : "Half",
+					priv->port);
 		} else {
 			netif_carrier_off(dev);
 			printk_ratelimited("%s: Link down\n", dev->name);
