@@ -39,11 +39,25 @@
 static struct drm_driver driver;
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
+/*
+ * The table below contains a mapping of the PCI vendor ID and the PCI Device ID
+ * to the different groups of PowerVR 5-series chip designs
+ *
+ * 0x8086 = Intel Corporation
+ *
+ * PowerVR SGX535    - Poulsbo    - Intel GMA 500, Intel Atom Z5xx
+ * PowerVR SGX535    - Moorestown - Intel GMA 600
+ * PowerVR SGX535    - Oaktrail   - Intel GMA 600, Intel Atom Z6xx, E6xx
+ * PowerVR SGX540    - Medfield   - Intel Atom Z2460
+ * PowerVR SGX544MP2 - Medfield   -
+ * PowerVR SGX545    - Cedartrail - Intel GMA 3600, Intel Atom D2500, N2600
+ * PowerVR SGX545    - Cedartrail - Intel GMA 3650, Intel Atom D2550, D2700,
+ *                                  N2800
+ */
 static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	{ 0x8086, 0x8108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
 	{ 0x8086, 0x8109, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
 #if defined(CONFIG_DRM_GMA600)
-	/* Atom E620 */
 	{ 0x8086, 0x4100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4101, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
@@ -151,8 +165,7 @@ static int psb_driver_unload(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	/* Kill vblank etc here */
-
+	/* TODO: Kill vblank etc here */
 
 	if (dev_priv) {
 		if (dev_priv->backlight_device)
@@ -222,6 +235,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	struct gma_encoder *gma_encoder;
 	struct psb_gtt *pg;
 
+	/* allocating and initializing driver private data */
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
@@ -321,6 +335,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 
 	acpi_video_register();
 
+	/* Setup vertical blanking handling */
 	ret = drm_vblank_init(dev, dev_priv->num_pipe);
 	if (ret)
 		goto out_err;
@@ -366,11 +381,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 	psb_intel_opregion_enable_asle(dev);
 #if 0
-	/*enable runtime pm at last*/
+	/* Enable runtime pm at last */
 	pm_runtime_enable(&dev->pdev->dev);
 	pm_runtime_set_active(&dev->pdev->dev);
 #endif
-	/*Intel drm driver load is done, continue doing pvr load*/
+	/* Intel drm driver load is done, continue doing pvr load */
 	return 0;
 out_err:
 	psb_driver_unload(dev);

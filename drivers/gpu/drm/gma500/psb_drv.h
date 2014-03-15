@@ -61,10 +61,7 @@ enum {
 #define IS_MFLD(dev) (((dev)->pdev->device & 0xfff8) == 0x0130)
 #define IS_CDV(dev) (((dev)->pdev->device & 0xfff0) == 0x0be0)
 
-
-/*
- *	Hardware offsets
- */
+/* Hardware offsets */
 #define PSB_VDC_OFFSET		 0x00000000
 #define PSB_VDC_SIZE		 0x000080000
 #define MRST_MMIO_SIZE		 0x0000C0000
@@ -72,16 +69,14 @@ enum {
 #define PSB_SGX_SIZE		 0x8000
 #define PSB_SGX_OFFSET		 0x00040000
 #define MRST_SGX_OFFSET		 0x00080000
-/*
- *	PCI resource identifiers
- */
+
+/* PCI resource identifiers */
 #define PSB_MMIO_RESOURCE	 0
 #define PSB_AUX_RESOURCE	 0
 #define PSB_GATT_RESOURCE	 2
 #define PSB_GTT_RESOURCE	 3
-/*
- *	PCI configuration
- */
+
+/* PCI configuration */
 #define PSB_GMCH_CTRL		 0x52
 #define PSB_BSM			 0x5C
 #define _PSB_GMCH_ENABLED	 0x4
@@ -89,37 +84,29 @@ enum {
 #define _PSB_PGETBL_ENABLED	 0x00000001
 #define PSB_SGX_2D_SLAVE_PORT	 0x4000
 
-/* To get rid of */
+/* TODO: To get rid of */
 #define PSB_TT_PRIV0_LIMIT	 (256*1024*1024)
 #define PSB_TT_PRIV0_PLIMIT	 (PSB_TT_PRIV0_LIMIT >> PAGE_SHIFT)
 
-/*
- *	SGX side MMU definitions (these can probably go)
- */
+/* SGX side MMU definitions (these can probably go) */
 
-/*
- *	Flags for external memory type field.
- */
+/* Flags for external memory type field */
 #define PSB_MMU_CACHED_MEMORY	  0x0001	/* Bind to MMU only */
 #define PSB_MMU_RO_MEMORY	  0x0002	/* MMU RO memory */
 #define PSB_MMU_WO_MEMORY	  0x0004	/* MMU WO memory */
-/*
- *	PTE's and PDE's
- */
+
+/* PTE's and PDE's */
 #define PSB_PDE_MASK		  0x003FFFFF
 #define PSB_PDE_SHIFT		  22
 #define PSB_PTE_SHIFT		  12
-/*
- *	Cache control
- */
+
+/* Cache control */
 #define PSB_PTE_VALID		  0x0001	/* PTE / PDE valid */
 #define PSB_PTE_WO		  0x0002	/* Write only */
 #define PSB_PTE_RO		  0x0004	/* Read only */
 #define PSB_PTE_CACHED		  0x0008	/* CPU cache coherent */
 
-/*
- *	VDC registers and bits
- */
+/* VDC registers and bits */
 #define PSB_MSVDX_CLOCKGATING	  0x2064
 #define PSB_TOPAZ_CLOCKGATING	  0x2068
 #define PSB_HWSTAM		  0x2098
@@ -285,10 +272,7 @@ struct intel_gmbus {
 	u32 reg0;
 };
 
-/*
- *	Register offset maps
- */
-
+/* Register offset maps */
 struct psb_offset {
 	u32	fp0;
 	u32	fp1;
@@ -322,9 +306,7 @@ struct psb_offset {
  *	update the register cache instead.
  */
 
-/*
- *	Common status for pipes.
- */
+/* Common status for pipes */
 struct psb_pipe {
 	u32	fp0;
 	u32	fp1;
@@ -484,35 +466,24 @@ struct drm_psb_private {
 	struct psb_mmu_driver *mmu;
 	struct psb_mmu_pd *pf_pd;
 
-	/*
-	 * Register base
-	 */
-
+	/* Register base */
 	uint8_t __iomem *sgx_reg;
 	uint8_t __iomem *vdc_reg;
 	uint8_t __iomem *aux_reg; /* Auxillary vdc pipe regs */
 	uint32_t gatt_free_offset;
 
-	/*
-	 * Fencing / irq.
-	 */
-
+	/* Fencing / irq */
 	uint32_t vdc_irq_mask;
 	uint32_t pipestat[PSB_NUM_PIPE];
 
 	spinlock_t irqmask_lock;
 
-	/*
-	 * Power
-	 */
-
+	/* Power */
 	bool suspended;
 	bool display_power;
 	int display_count;
 
-	/*
-	 * Modesetting
-	 */
+	/* Modesetting */
 	struct psb_intel_mode_device mode_dev;
 	bool modeset;	/* true if we have done the mode_device setup */
 
@@ -520,15 +491,10 @@ struct drm_psb_private {
 	struct drm_crtc *pipe_to_crtc_mapping[PSB_NUM_PIPE];
 	uint32_t num_pipe;
 
-	/*
-	 * OSPM info (Power management base) (can go ?)
-	 */
+	/* OSPM info (Power management base) (TODO: can go ?) */
 	uint32_t ospm_base;
 
-	/*
-	 * Sizes info
-	 */
-
+	/* Sizes info */
 	u32 fuse_reg_value;
 	u32 video_device_fuse;
 
@@ -548,9 +514,7 @@ struct drm_psb_private {
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
 
-	/*
-	 * LVDS info
-	 */
+	/* LVDS info */
 	int backlight_duty_cycle;	/* restore backlight to this value */
 	bool panel_wants_dither;
 	struct drm_display_mode *panel_fixed_mode;
@@ -584,34 +548,23 @@ struct drm_psb_private {
 	/* Oaktrail HDMI state */
 	struct oaktrail_hdmi_dev *hdmi_priv;
 	
-	/*
-	 * Register state
-	 */
-
+	/* Register state */
 	struct psb_save_area regs;
 
 	/* MSI reg save */
 	uint32_t msi_addr;
 	uint32_t msi_data;
 
-	/*
-	 * Hotplug handling
-	 */
-
+	/* Hotplug handling */
 	struct work_struct hotplug_work;
 
-	/*
-	 * LID-Switch
-	 */
+	/* LID-Switch */
 	spinlock_t lid_lock;
 	struct timer_list lid_timer;
 	struct psb_intel_opregion opregion;
 	u32 lid_last_state;
 
-	/*
-	 * Watchdog
-	 */
-
+	/* Watchdog */
 	uint32_t apm_reg;
 	uint16_t apm_base;
 
@@ -631,9 +584,7 @@ struct drm_psb_private {
 	/* 2D acceleration */
 	spinlock_t lock_2d;
 
-	/*
-	 * Panel brightness
-	 */
+	/* Panel brightness */
 	int brightness;
 	int brightness_adjusted;
 
@@ -666,10 +617,7 @@ struct drm_psb_private {
 };
 
 
-/*
- *	Operations for each board type
- */
- 
+/* Operations for each board type */
 struct psb_ops {
 	const char *name;
 	unsigned int accel_2d:1;
@@ -723,10 +671,7 @@ static inline struct drm_psb_private *psb_priv(struct drm_device *dev)
 	return (struct drm_psb_private *) dev->dev_private;
 }
 
-/*
- *psb_irq.c
- */
-
+/* psb_irq.c */
 extern irqreturn_t psb_irq_handler(int irq, void *arg);
 extern int psb_irq_enable_dpst(struct drm_device *dev);
 extern int psb_irq_disable_dpst(struct drm_device *dev);
@@ -749,24 +694,17 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
 
 extern u32 psb_get_vblank_counter(struct drm_device *dev, int crtc);
 
-/*
- * framebuffer.c
- */
+/* framebuffer.c */
 extern int psbfb_probed(struct drm_device *dev);
 extern int psbfb_remove(struct drm_device *dev,
 			struct drm_framebuffer *fb);
-/*
- * accel_2d.c
- */
+/* accel_2d.c */
 extern void psbfb_copyarea(struct fb_info *info,
 					const struct fb_copyarea *region);
 extern int psbfb_sync(struct fb_info *info);
 extern void psb_spank(struct drm_psb_private *dev_priv);
 
-/*
- * psb_reset.c
- */
-
+/* psb_reset.c */
 extern void psb_lid_timer_init(struct drm_psb_private *dev_priv);
 extern void psb_lid_timer_takedown(struct drm_psb_private *dev_priv);
 extern void psb_print_pagefault(struct drm_psb_private *dev_priv);
@@ -825,9 +763,7 @@ extern const struct psb_ops mdfld_chip_ops;
 /* cdv_device.c */
 extern const struct psb_ops cdv_chip_ops;
 
-/*
- * Debug print bits setting
- */
+/* Debug print bits setting */
 #define PSB_D_GENERAL (1 << 0)
 #define PSB_D_INIT    (1 << 1)
 #define PSB_D_IRQ     (1 << 2)
@@ -843,10 +779,7 @@ extern const struct psb_ops cdv_chip_ops;
 
 extern int drm_idle_check_interval;
 
-/*
- *	Utilities
- */
-
+/* Utilities */
 static inline u32 MRST_MSG_READ32(uint port, uint offset)
 {
 	int mcr = (0xD0<<24) | (port << 16) | (offset << 8);
