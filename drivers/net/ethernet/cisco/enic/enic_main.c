@@ -1086,14 +1086,15 @@ static int enic_poll(struct napi_struct *napi, int budget)
 	unsigned int intr = enic_legacy_io_intr();
 	unsigned int rq_work_to_do = budget;
 	unsigned int wq_work_to_do = -1; /* no limit */
-	unsigned int  work_done, rq_work_done, wq_work_done;
+	unsigned int  work_done, rq_work_done = 0, wq_work_done;
 	int err;
 
 	/* Service RQ (first) and WQ
 	 */
 
-	rq_work_done = vnic_cq_service(&enic->cq[cq_rq],
-		rq_work_to_do, enic_rq_service, NULL);
+	if (budget > 0)
+		rq_work_done = vnic_cq_service(&enic->cq[cq_rq],
+			rq_work_to_do, enic_rq_service, NULL);
 
 	wq_work_done = vnic_cq_service(&enic->cq[cq_wq],
 		wq_work_to_do, enic_wq_service, NULL);
@@ -1141,14 +1142,15 @@ static int enic_poll_msix(struct napi_struct *napi, int budget)
 	unsigned int cq = enic_cq_rq(enic, rq);
 	unsigned int intr = enic_msix_rq_intr(enic, rq);
 	unsigned int work_to_do = budget;
-	unsigned int work_done;
+	unsigned int work_done = 0;
 	int err;
 
 	/* Service RQ
 	 */
 
-	work_done = vnic_cq_service(&enic->cq[cq],
-		work_to_do, enic_rq_service, NULL);
+	if (budget > 0)
+		work_done = vnic_cq_service(&enic->cq[cq],
+			work_to_do, enic_rq_service, NULL);
 
 	/* Return intr event credits for this polling
 	 * cycle.  An intr event is the completion of a

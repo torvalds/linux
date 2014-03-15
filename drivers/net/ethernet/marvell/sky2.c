@@ -2735,6 +2735,9 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 	unsigned int total_bytes[2] = { 0 };
 	unsigned int total_packets[2] = { 0 };
 
+	if (to_do <= 0)
+		return work_done;
+
 	rmb();
 	do {
 		struct sky2_port *sky2;

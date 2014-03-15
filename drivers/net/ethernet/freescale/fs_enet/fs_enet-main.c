@@ -91,6 +91,9 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 	u16 pkt_len, sc;
 	int curidx;
 
+	if (budget <= 0)
+		return received;
+
 	/*
 	 * First, grab all of the stats for the incoming packet.
 	 * These get messed up if we get called due to a busy condition.
