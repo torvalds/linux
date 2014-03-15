@@ -113,12 +113,9 @@ static int psb_do_init(struct drm_device *dev)
 
 	uint32_t stolen_gtt;
 
-	int ret = -ENOMEM;
-
 	if (pg->mmu_gatt_start & 0x0FFFFFFF) {
 		dev_err(dev->dev, "Gatt must be 256M aligned. This is a bug.\n");
-		ret = -EINVAL;
-		goto out_err;
+		return -EINVAL;
 	}
 
 
@@ -149,8 +146,6 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_RSGX32(PSB_CR_BIF_TWOD_REQ_BASE); /* Post */
 
 	return 0;
-out_err:
-	return ret;
 }
 
 static int psb_driver_unload(struct drm_device *dev)
