@@ -314,6 +314,7 @@ void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 	skb_tstamp_tx(pf->ptp_tx_skb, &shhwtstamps);
 	dev_kfree_skb_any(pf->ptp_tx_skb);
 	pf->ptp_tx_skb = NULL;
+	clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, &pf->state);
 }
 
 /**
@@ -677,6 +678,7 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 	if (pf->ptp_tx_skb) {
 		dev_kfree_skb_any(pf->ptp_tx_skb);
 		pf->ptp_tx_skb = NULL;
+		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, &pf->state);
 	}
 
 	if (pf->ptp_clock) {
