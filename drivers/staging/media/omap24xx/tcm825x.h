@@ -178,7 +178,7 @@ struct tcm825x_platform_data {
 	/* Set power state, zero is off, non-zero is on. */
 	int (*power_set)(int power);
 	/* Default registers written after power-on or reset. */
-	const struct tcm825x_reg *(*default_regs)(void);
+	const struct tcm825x_reg * (*default_regs)(void);
 	int (*needs_reset)(struct v4l2_int_device *s, void *buf,
 			   struct v4l2_pix_format *fmt);
 	int (*ifparm)(struct v4l2_ifparm *p);
