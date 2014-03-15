@@ -37,9 +37,11 @@ enum MMC_DBG_MASK{
 extern u32 mmc_debug_level;
 extern char dbg_flag[];
 
+#define MMC_DBG_FUNC_CONFIG 1
+#if MMC_DBG_FUNC_CONFIG
 #define MMC_DBG_BOOT_FUNC(mmc_host,fmt, arg...) \
     do { \
-        if(mmc_debug_level >= MMC_DBG_NONE) { \
+        if(mmc_debug_level >= MMC_DBG_BOOT) { \
             if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);\
             } \
@@ -47,7 +49,7 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_ERR_FUNC(mmc_host,fmt, arg...) \
     do{ \
-        if(mmc_debug_level >= MMC_DBG_NONE) { \
+        if(mmc_debug_level >= MMC_DBG_ERROR) { \
             if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "ERROR " fmt "\n", ##arg);\
             } \
@@ -55,7 +57,7 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_WARN_FUNC(mmc_host,fmt, arg...) \
     do { \
-        if(mmc_debug_level >= MMC_DBG_NONE) { \
+        if(mmc_debug_level >= MMC_DBG_WARN) { \
             if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "WARN " fmt "\n", ##arg);\
             } \
@@ -63,7 +65,7 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_INFO_FUNC(mmc_host,fmt, arg...) \
     do { \
-        if(mmc_debug_level >= MMC_DBG_NONE) { \
+        if(mmc_debug_level >= MMC_DBG_INFO) { \
             if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "INFO " fmt "\n", ##arg);\
             } \
@@ -71,12 +73,19 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_CMD_FUNC(mmc_host,fmt, arg...) \
    do { \
-        if(mmc_debug_level >= MMC_DBG_NONE) { \
+        if(mmc_debug_level >= MMC_DBG_CMD) { \
             if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "CMD " fmt "\n", ##arg);\
             } \
         } \
     }while(0)
+#else
+#define MMC_DBG_BOOT_FUNC(mmc_host,fmt, arg...) {printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);}
+#define MMC_DBG_ERR_FUNC(mmc_host,fmt, arg...)
+#define MMC_DBG_WARN_FUNC(mmc_host,fmt, arg...)
+#define MMC_DBG_INFO_FUNC
+#define MMC_DBG_CMD_FUNC(mmc_host,fmt, arg...)
+#endif
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
     #define mmc_debug(level, fmt, arg...) \
