@@ -35,6 +35,17 @@
 #include "oaktrail.h"
 #include "mmu.h"
 
+#define DRIVER_AUTHOR "Alan Cox <alan@linux.intel.com> and others"
+#define DRIVER_LICENSE "GPL"
+
+#define DRIVER_NAME "gma500"
+#define DRIVER_DESC "DRM driver for the Intel GMA500, GMA600, GMA3600, GMA3650"
+#define DRIVER_DATE "20140314"
+
+#define DRIVER_MAJOR 1
+#define DRIVER_MINOR 0
+#define DRIVER_PATCHLEVEL 0
+
 /* Append new drm mode definition here, align with libdrm definition */
 #define DRM_MODE_SCALE_NO_SCALE   	2
 
@@ -50,17 +61,6 @@ enum {
 #define IS_MFLD(dev) (((dev)->pdev->device & 0xfff8) == 0x0130)
 #define IS_CDV(dev) (((dev)->pdev->device & 0xfff0) == 0x0be0)
 
-/*
- * Driver definitions
- */
-
-#define DRIVER_NAME "gma500"
-#define DRIVER_DESC "DRM driver for the Intel GMA500"
-
-#define PSB_DRM_DRIVER_DATE "2011-06-06"
-#define PSB_DRM_DRIVER_MAJOR 1
-#define PSB_DRM_DRIVER_MINOR 0
-#define PSB_DRM_DRIVER_PATCHLEVEL 0
 
 /*
  *	Hardware offsets
