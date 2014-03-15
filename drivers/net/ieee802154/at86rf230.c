@@ -31,6 +31,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/at86rf230.h>
 #include <linux/skbuff.h>
+#include <linux/of_gpio.h>
 
 #include <net/mac802154.h>
 #include <net/wpan-phy.h>
@@ -1035,6 +1036,40 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	return 0;
 }
 
+static struct at86rf230_platform_data *
+at86rf230_get_pdata(struct spi_device *spi)
+{
+	struct at86rf230_platform_data *pdata;
+	const char *irq_type;
+
+	if (!IS_ENABLED(CONFIG_OF) || !spi->dev.of_node)
+		return spi->dev.platform_data;
+
+	pdata = devm_kzalloc(&spi->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		goto done;
+
+	pdata->rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
+	pdata->slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
+
+	pdata->irq_type = IRQF_TRIGGER_RISING;
+	of_property_read_string(spi->dev.of_node, "irq-type", &irq_type);
+	if (!strcmp(irq_type, "level-high"))
+		pdata->irq_type = IRQF_TRIGGER_HIGH;
+	else if (!strcmp(irq_type, "level-low"))
+		pdata->irq_type = IRQF_TRIGGER_LOW;
+	else if (!strcmp(irq_type, "edge-rising"))
+		pdata->irq_type = IRQF_TRIGGER_RISING;
+	else if (!strcmp(irq_type, "edge-falling"))
+		pdata->irq_type = IRQF_TRIGGER_FALLING;
+	else
+		dev_warn(&spi->dev, "wrong irq-type specified using edge-rising\n");
+
+	spi->dev.platform_data = pdata;
+done:
+	return pdata;
+}
+
 static int at86rf230_probe(struct spi_device *spi)
 {
 	struct at86rf230_platform_data *pdata;
@@ -1053,7 +1088,7 @@ static int at86rf230_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	pdata = spi->dev.platform_data;
+	pdata = at86rf230_get_pdata(spi);
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform_data\n");
 		return -EINVAL;
@@ -1231,8 +1266,19 @@ static int at86rf230_remove(struct spi_device *spi)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OF)
+static struct of_device_id at86rf230_of_match[] = {
+	{ .compatible = "atmel,at86rf230", },
+	{ .compatible = "atmel,at86rf231", },
+	{ .compatible = "atmel,at86rf233", },
+	{ .compatible = "atmel,at86rf212", },
+	{ },
+};
+#endif
+
 static struct spi_driver at86rf230_driver = {
 	.driver = {
+		.of_match_table = of_match_ptr(at86rf230_of_match),
 		.name	= "at86rf230",
 		.owner	= THIS_MODULE,
 	},
