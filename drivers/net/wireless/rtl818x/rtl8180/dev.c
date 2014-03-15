@@ -371,6 +371,36 @@ void rtl8180_set_anaparam(struct rtl8180_priv *priv, u32 anaparam)
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 }
 
+static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
+			    u32 rates_mask)
+{
+	struct rtl8180_priv *priv = dev->priv;
+
+	u8 max, min;
+	u16 reg;
+
+	max = fls(rates_mask) - 1;
+	min = ffs(rates_mask) - 1;
+
+	switch (priv->chip_family) {
+
+	case RTL818X_CHIP_FAMILY_RTL8180:
+		/* in 8180 this is NOT a BITMAP */
+		reg = rtl818x_ioread16(priv, &priv->map->BRSR);
+		reg &= ~3;
+		reg |= max;
+		rtl818x_iowrite16(priv, &priv->map->BRSR, reg);
+
+		break;
+
+	case RTL818X_CHIP_FAMILY_RTL8185:
+		/* in 8185 this is a BITMAP */
+		rtl818x_iowrite16(priv, &priv->map->BRSR, rates_mask);
+		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (max << 4) | min);
+		break;
+	}
+}
+
 static int rtl8180_init_hw(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -441,9 +471,6 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		rtl818x_iowrite8(priv, &priv->map->WPA_CONF, 0);
 		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0x81);
-		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (8 << 4) | 0);
-
-		rtl818x_iowrite16(priv, &priv->map->BRSR, 0x01F3);
 
 		/* TODO: set ClkRun enable? necessary? */
 		reg = rtl818x_ioread8(priv, &priv->map->GP_ENABLE);
@@ -453,7 +480,6 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | (1 << 2));
 		rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 	} else {
-		rtl818x_iowrite16(priv, &priv->map->BRSR, 0x1);
 		rtl818x_iowrite8(priv, &priv->map->SECURITY, 0);
 
 		rtl818x_iowrite8(priv, &priv->map->PHY_DELAY, 0x6);
@@ -461,8 +487,18 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 	}
 
 	priv->rf->init(dev);
-	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185)
-		rtl818x_iowrite16(priv, &priv->map->BRSR, 0x01F3);
+
+	/* default basic rates are 1,2 Mbps for rtl8180. 1,2,6,9,12,18,24 Mbps
+	 * otherwise. bitmask 0x3 and 0x01f3 respectively.
+	 * NOTE: currenty rtl8225 RF code changes basic rates, so we need to do
+	 * this after rf init.
+	 * TODO: try to find out whether RF code really needs to do this..
+	 */
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
+		rtl8180_conf_basic_rates(dev, 0x3);
+	else
+		rtl8180_conf_basic_rates(dev, 0x1f3);
+
 	return 0;
 }
 
@@ -856,6 +892,9 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 			reg = RTL818X_MSR_NO_LINK;
 		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
 	}
+
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		rtl8180_conf_basic_rates(dev, info->basic_rates);
 
 	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)
 		priv->rf->conf_erp(dev, info);
