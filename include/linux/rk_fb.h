@@ -77,6 +77,7 @@
 #define RK_LF_STATUS_NC                  0xfe
 #define RK_LF_MAX_TIMEOUT 			 (1600000UL << 6)	//>0.64s
 
+/*#define USE_ION_MMU 1*/
 #if defined(CONFIG_ION_ROCKCHIP)
 extern struct ion_client *rockchip_ion_client_create(const char * name);
 #endif
@@ -365,6 +366,7 @@ struct rk_lcdc_drv_ops {
 	int (*set_dsp_hue) (struct rk_lcdc_driver *dev_drv,int hue);
 	int (*set_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,int bri,int con,int sat);
 	int (*dump_reg) (struct rk_lcdc_driver * dev_drv);
+	int (*mmu_en) (struct rk_lcdc_driver * dev_drv,bool en);
 };
 
 struct rk_fb_area_par {
@@ -419,7 +421,14 @@ struct rk_fb_reg_area_data {
 	u16 yvir;
 	unsigned long smem_start;
 	unsigned long cbr_start;	/*Cbr memory start address*/
-	u32 line_length;
+	u32 line_length;	
+	struct ion_handle *ion_handle;
+#ifdef 	USE_ION_MMU
+	struct dma_buf *dma_buf;
+	struct dma_buf_attachment *attachment;
+	struct sg_table *sg_table;
+	dma_addr_t dma_addr;
+#endif	
 };
 
 struct rk_fb_reg_win_data {
@@ -467,6 +476,8 @@ struct rk_lcdc_driver {
 	char fb1_win_id;
 	char fb2_win_id;
 	char fb3_win_id;
+	char mmu_dts_name[40];
+	struct rk_fb_reg_area_data reg_area_data;
 	struct mutex fb_win_id_mutex;
 
 	struct completion frame_done;	//sync for pan_display,whe we set a new frame address to lcdc register,we must make sure the frame begain to display
