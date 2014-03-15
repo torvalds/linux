@@ -68,7 +68,7 @@ static const struct of_device_id bcm590xx_of_match[] = {
 	{ .compatible = "brcm,bcm59056" },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, bcm590xx_of_match);
+MODULE_DEVICE_TABLE(of, bcm590xx_of_match);
 
 static const struct i2c_device_id bcm590xx_i2c_id[] = {
 	{ "bcm59056" },
