@@ -785,24 +785,27 @@ static int hci_h4p_bt_wakeup_test(struct hci_h4p_info *info)
 	gpio_set_value(info->bt_wakeup_gpio, 0);
 	err = hci_h4p_wait_for_cts(info, 0, 100);
 	if (err) {
-		dev_warn(info->dev, "bt_wakeup_test: fail: "
-			 "CTS low timed out: %d\n", err);
+		dev_warn(info->dev,
+				"bt_wakeup_test: fail: CTS low timed out: %d\n",
+				err);
 		goto out;
 	}
 
 	gpio_set_value(info->bt_wakeup_gpio, 1);
 	err = hci_h4p_wait_for_cts(info, 1, 100);
 	if (err) {
-		dev_warn(info->dev, "bt_wakeup_test: fail: "
-			 "CTS high timed out: %d\n", err);
+		dev_warn(info->dev,
+				"bt_wakeup_test: fail: CTS high timed out: %d\n",
+				err);
 		goto out;
 	}
 
 	gpio_set_value(info->bt_wakeup_gpio, 0);
 	err = hci_h4p_wait_for_cts(info, 0, 100);
 	if (err) {
-		dev_warn(info->dev, "bt_wakeup_test: fail: "
-			 "CTS re-low timed out: %d\n", err);
+		dev_warn(info->dev,
+				"bt_wakeup_test: fail: CTS re-low timed out: %d\n",
+				err);
 		goto out;
 	}
 
