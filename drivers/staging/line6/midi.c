@@ -64,7 +64,8 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 	}
 
 	for (;;) {
-		done = line6_midibuf_read(mb, chunk, LINE6_FALLBACK_MAXPACKETSIZE);
+		done = line6_midibuf_read(mb, chunk,
+					  LINE6_FALLBACK_MAXPACKETSIZE);
 
 		if (done == 0)
 			break;
