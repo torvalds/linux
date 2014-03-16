@@ -1845,8 +1845,7 @@ struct rtl_global_var global_var = {};
 int rtl_core_module_init(void)
 {
 	if (rtl_rate_control_register())
-		printk(KERN_DEBUG "rtl: Unable to register rtl_rc,"
-			  "use default RC !!\n");
+		printk(KERN_DEBUG "rtl: Unable to register rtl_rc, use default RC !!\n");
 
 	/* add proc for debug */
 	rtl_proc_add_topdir();
