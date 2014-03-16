@@ -327,7 +327,7 @@ static void ieee80211_send_beacon(struct ieee80211_device *ieee)
 	}
 
 	ieee->beacon_timer.expires = jiffies +
-		(MSECS( ieee->current_network.beacon_interval -5));
+		(MSECS(ieee->current_network.beacon_interval - 5));
 
 	if (ieee->beacon_txing)
 		add_timer(&ieee->beacon_timer);
@@ -491,7 +491,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 				goto out; /* no good chans */
 	} while (!channel_map[ieee->current_network.channel]);
 
-	if (ieee->scanning == 0 ) {
+	if (ieee->scanning == 0) {
 		printk("error out, scanning = 0\n");
 		goto out;
 	}
@@ -580,6 +580,7 @@ void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 		if (IS_COUNTRY_IE_VALID(ieee))
 			RESET_CIE_WATCHDOG(ieee);
 	}
+
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
 		if (ieee->scanning == 0) {
 			ieee->scanning = 1;
@@ -795,7 +796,7 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 		crypt = ieee->crypt[ieee->tx_keyidx];
 	else crypt = NULL;
 
-	encrypt = ( crypt && crypt->ops);
+	encrypt = (crypt && crypt->ops);
 
 	if (encrypt)
 		assoc->capability |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
@@ -948,7 +949,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	memcpy(ieee->ap_mac_addr, beacon->bssid, ETH_ALEN); /* for HW security */
 
 	hdr->capability = cpu_to_le16(WLAN_CAPABILITY_BSS);
-	if (beacon->capability & WLAN_CAPABILITY_PRIVACY )
+	if (beacon->capability & WLAN_CAPABILITY_PRIVACY)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
 	if (beacon->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
@@ -1069,7 +1070,7 @@ static void ieee80211_rtl_auth_challenge(struct ieee80211_device *ieee, u8 *chal
 
 		IEEE80211_DEBUG_MGMT("Sending authentication challenge response\n");
 
-		ieee80211_encrypt_fragment(ieee, skb, sizeof(struct ieee80211_hdr_3addr  ));
+		ieee80211_encrypt_fragment(ieee, skb, sizeof(struct ieee80211_hdr_3addr));
 
 		softmac_mgmt_xmit(skb, ieee);
 		if (!timer_pending(&ieee->associate_timer)) {
@@ -1436,7 +1437,7 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 	if (!time_after(jiffies, ieee->last_rx_ps_time + MSECS(timeout)))
 		return 0;
 
-	if ((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE ) &&
+	if ((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE) &&
 		(ieee->mgmt_queue_tail != ieee->mgmt_queue_head))
 		return 0;
 
