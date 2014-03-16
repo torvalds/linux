@@ -683,9 +683,9 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 
 	beacon_buf = (struct ieee80211_probe_response*) skb_put(skb, beacon_size);
 
-	memcpy (beacon_buf->header.addr1, dest,ETH_ALEN);
-	memcpy (beacon_buf->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy (beacon_buf->header.addr3, ieee->current_network.bssid, ETH_ALEN);
+	memcpy(beacon_buf->header.addr1, dest,ETH_ALEN);
+	memcpy(beacon_buf->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
+	memcpy(beacon_buf->header.addr3, ieee->current_network.bssid, ETH_ALEN);
 
 	beacon_buf->header.duration_id = 0; /* FIXME */
 	beacon_buf->beacon_interval =
@@ -1308,14 +1308,14 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb,
 	struct ieee80211_hdr_3addr   *header =
 		(struct ieee80211_hdr_3addr   *) skb->data;
 
-	if (skb->len < sizeof (struct ieee80211_hdr_3addr  ))
+	if (skb->len < sizeof(struct ieee80211_hdr_3addr))
 		return -1; /* corrupted */
 
 	memcpy(src,header->addr2, ETH_ALEN);
 
 	skbend = (u8*)skb->data + skb->len;
 
-	tag = skb->data + sizeof (struct ieee80211_hdr_3addr  );
+	tag = skb->data + sizeof(struct ieee80211_hdr_3addr);
 
 	while (tag+1 < skbend) {
 		if (*tag == 0) {
