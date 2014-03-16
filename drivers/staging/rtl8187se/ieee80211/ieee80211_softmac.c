@@ -1343,7 +1343,7 @@ static int assoc_rq_parse(struct sk_buff *skb, u8 *dest)
 	if (skb->len < (sizeof(struct ieee80211_assoc_request_frame) -
 		sizeof(struct ieee80211_info_element))) {
 
-		IEEE80211_DEBUG_MGMT("invalid len in auth request:%d \n", skb->len);
+		IEEE80211_DEBUG_MGMT("invalid len in auth request:%d\n", skb->len);
 		return -1;
 	}
 
@@ -1391,7 +1391,7 @@ inline void ieee80211_rx_auth_rq(struct ieee80211_device *ieee,
 		ieee80211_resp_to_auth(ieee, status, dest);
 }
 
- inline void
+inline void
 ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 
@@ -1603,7 +1603,7 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 						goto associate_complete;
 
 					assoc_resp = (struct ieee80211_assoc_response_frame*)skb->data;
-					info_element = 	&assoc_resp->info_element;
+					info_element = &assoc_resp->info_element;
 					left = skb->len - ((void*)info_element - (void*)assoc_resp);
 
 					while (left >= sizeof(struct ieee80211_info_element_hdr)) {
