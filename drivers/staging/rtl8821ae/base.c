@@ -1363,7 +1363,7 @@ void rtl_easy_concurrent_retrytimer_callback(unsigned long data)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_priv *buddy_priv = rtlpriv->buddy_priv;
 
-	if(buddy_priv == NULL)
+	if (buddy_priv == NULL)
 		return;
 
 	rtlpriv->cfg->ops->dualmac_easy_concurrent(hw);
