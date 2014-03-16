@@ -205,25 +205,19 @@ const struct twl4030_madc_conversion_method twl4030_conversion_methods[] = {
  */
 static int twl4030_madc_channel_raw_read(struct twl4030_madc_data *madc, u8 reg)
 {
-	u8 msb, lsb;
+	u16 val;
 	int ret;
 	/*
 	 * For each ADC channel, we have MSB and LSB register pair. MSB address
 	 * is always LSB address+1. reg parameter is the address of LSB register
 	 */
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MADC, &msb, reg + 1);
+	ret = twl_i2c_read_u16(TWL4030_MODULE_MADC, &val, reg);
 	if (ret) {
-		dev_err(madc->dev, "unable to read MSB register 0x%X\n",
-			reg + 1);
-		return ret;
-	}
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MADC, &lsb, reg);
-	if (ret) {
-		dev_err(madc->dev, "unable to read LSB register 0x%X\n", reg);
+		dev_err(madc->dev, "unable to read register 0x%X\n", reg);
 		return ret;
 	}
 
-	return (int)(((msb << 8) | lsb) >> 6);
+	return (int)(val >> 6);
 }
 
 /*
@@ -572,7 +566,6 @@ static int twl4030_madc_wait_conversion_ready(struct twl4030_madc_data *madc,
 int twl4030_madc_conversion(struct twl4030_madc_request *req)
 {
 	const struct twl4030_madc_conversion_method *method;
-	u8 ch_msb, ch_lsb;
 	int ret;
 
 	if (!req || !twl4030_madc)
@@ -588,37 +581,21 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 		ret = -EBUSY;
 		goto out;
 	}
-	ch_msb = (req->channels >> 8) & 0xff;
-	ch_lsb = req->channels & 0xff;
 	method = &twl4030_conversion_methods[req->method];
 	/* Select channels to be converted */
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MADC, ch_msb, method->sel + 1);
+	ret = twl_i2c_write_u16(TWL4030_MODULE_MADC, req->channels, method->sel);
 	if (ret) {
 		dev_err(twl4030_madc->dev,
-			"unable to write sel register 0x%X\n", method->sel + 1);
-		goto out;
-	}
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MADC, ch_lsb, method->sel);
-	if (ret) {
-		dev_err(twl4030_madc->dev,
-			"unable to write sel register 0x%X\n", method->sel + 1);
+			"unable to write sel register 0x%X\n", method->sel);
 		goto out;
 	}
 	/* Select averaging for all channels if do_avg is set */
 	if (req->do_avg) {
-		ret = twl_i2c_write_u8(TWL4030_MODULE_MADC,
-				       ch_msb, method->avg + 1);
+		ret = twl_i2c_write_u16(TWL4030_MODULE_MADC, req->channels,
+				       method->avg);
 		if (ret) {
 			dev_err(twl4030_madc->dev,
 				"unable to write avg register 0x%X\n",
-				method->avg + 1);
-			goto out;
-		}
-		ret = twl_i2c_write_u8(TWL4030_MODULE_MADC,
-				       ch_lsb, method->avg);
-		if (ret) {
-			dev_err(twl4030_madc->dev,
-				"unable to write avg reg 0x%X\n",
 				method->avg);
 			goto out;
 		}
