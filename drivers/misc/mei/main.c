@@ -125,17 +125,11 @@ static int mei_release(struct inode *inode, struct file *file)
 	}
 	if (cl->state == MEI_FILE_CONNECTED) {
 		cl->state = MEI_FILE_DISCONNECTING;
-		dev_dbg(&dev->pdev->dev,
-			"disconnecting client host client = %d, "
-		    "ME client = %d\n",
-		    cl->host_client_id,
-		    cl->me_client_id);
+		cl_dbg(dev, cl, "disconnecting\n");
 		rets = mei_cl_disconnect(cl);
 	}
 	mei_cl_flush_queues(cl);
-	dev_dbg(&dev->pdev->dev, "remove client host client = %d, ME client = %d\n",
-	    cl->host_client_id,
-	    cl->me_client_id);
+	cl_dbg(dev, cl, "removing\n");
 
 	mei_cl_unlink(cl);
 

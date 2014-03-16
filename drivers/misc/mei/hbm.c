@@ -329,8 +329,7 @@ int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
 	mei_hbm_hdr(mei_hdr, len);
 	mei_hbm_cl_hdr(cl, MEI_FLOW_CONTROL_CMD, dev->wr_msg.data, len);
 
-	dev_dbg(&dev->pdev->dev, "sending flow control host client = %d, ME client = %d\n",
-		cl->host_client_id, cl->me_client_id);
+	cl_dbg(dev, cl, "sending flow control\n");
 
 	return mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 }
