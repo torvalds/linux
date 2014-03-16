@@ -480,6 +480,11 @@ static const struct l2c_init_data l2c220_data = {
  *	hit the line between the clean operation and invalidate operation,
  *	resulting in the store being lost.
  *
+ * 752271: PL310 R3P0->R3P1-50REL0, fixed R3P2.
+ *	Affects: 8x64-bit (double fill) line fetches
+ *	double fill line fetches can fail to cause dirty data to be evicted
+ *	from the cache before the new data overwrites the second line.
+ *
  * 753970: PL310 R3P0, fixed R3P1.
  *	Affects: sync
  *	prevents merging writes after the sync operation, until another L2C
@@ -628,7 +633,7 @@ static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 	struct outer_cache_fns *fns)
 {
 	unsigned revision = cache_id & L2X0_CACHE_ID_RTL_MASK;
-	const char *errata[4];
+	const char *errata[8];
 	unsigned n = 0;
 
 	/* For compatibility */
@@ -649,6 +654,17 @@ static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 	    revision < L310_CACHE_ID_RTL_R3P1) {
 		fns->flush_all = l2c310_flush_all_erratum;
 		errata[n++] = "727915";
+	}
+
+	if (revision >= L310_CACHE_ID_RTL_R3P0 &&
+	    revision < L310_CACHE_ID_RTL_R3P2) {
+		u32 val = readl_relaxed(base + L2X0_PREFETCH_CTRL);
+		/* I don't think bit23 is required here... but iMX6 does so */
+		if (val & (BIT(30) | BIT(23))) {
+			val &= ~(BIT(30) | BIT(23));
+			l2c_write_sec(val, base, L2X0_PREFETCH_CTRL);
+			errata[n++] = "752271";
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_PL310_ERRATA_753970) &&
