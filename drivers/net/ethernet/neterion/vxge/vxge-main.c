@@ -824,7 +824,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb->len <= 0)) {
 		vxge_debug_tx(VXGE_ERR,
 			"%s: Buffer has no data..", dev->name);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -833,7 +833,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!is_vxge_card_up(vdev))) {
 		vxge_debug_tx(VXGE_ERR,
 			"%s: vdev not initialized", dev->name);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -843,7 +843,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 			vxge_debug_tx(VXGE_ERR,
 				"%s: Failed to store the mac address",
 				dev->name);
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
 	}
@@ -990,7 +990,7 @@ _exit1:
 	vxge_hw_fifo_txdl_free(fifo_hw, dtr);
 _exit0:
 	netif_tx_stop_queue(fifo->txq);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
