@@ -269,11 +269,11 @@ ieee80211_disassociate_skb(struct ieee80211_network *beacon,
 
 void SendDisassociation(struct ieee80211_device *ieee, u8 *asSta, u8 asRsn)
 {
-        struct ieee80211_network *beacon = &ieee->current_network;
-        struct sk_buff *skb;
-        skb = ieee80211_disassociate_skb(beacon, ieee, asRsn);
+	struct ieee80211_network *beacon = &ieee->current_network;
+	struct sk_buff *skb;
+	skb = ieee80211_disassociate_skb(beacon, ieee, asRsn);
 	if (skb)
-                softmac_mgmt_xmit(skb, ieee);
+		softmac_mgmt_xmit(skb, ieee);
 }
 
 inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
@@ -425,10 +425,10 @@ out:
 void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 {
 	int ch;
-        unsigned int watch_dog = 0;
+	unsigned int watch_dog = 0;
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
-        down(&ieee->scan_sem);
+	down(&ieee->scan_sem);
 	ch = ieee->current_network.channel;
 
 	while (1) {
@@ -467,7 +467,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 
 			ieee->current_network.channel = (ieee->current_network.channel + 1)%MAX_CHANNEL_NUMBER;
 		} while (!channel_map[ieee->current_network.channel]);
-        }
+	}
 out:
 	ieee->actscanning = false;
 	up(&ieee->scan_sem);
@@ -532,7 +532,7 @@ static void ieee80211_beacons_stop(struct ieee80211_device *ieee)
 	spin_lock_irqsave(&ieee->beacon_lock, flags);
 
 	ieee->beacon_txing = 0;
- 	del_timer_sync(&ieee->beacon_timer);
+	del_timer_sync(&ieee->beacon_timer);
 
 	spin_unlock_irqrestore(&ieee->beacon_lock, flags);
 }
@@ -982,8 +982,8 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	  ieee80211_WMM_Info(ieee, &tag);
 
 	tag = skb_put(skb, turbo_info_len);
-        if (turbo_info_len)
-                ieee80211_TURBO_Info(ieee, &tag);
+	if (turbo_info_len)
+		ieee80211_TURBO_Info(ieee, &tag);
 
 	return skb;
 }
@@ -1416,15 +1416,15 @@ void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee, short pwr)
 static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 			     u32 *time_l)
 {
-        int timeout = 0;
+	int timeout = 0;
 
 	u8 dtim;
 	dtim = ieee->current_network.dtim_data;
 
 	if (!(dtim & IEEE80211_DTIM_VALID))
 		return 0;
-        else
-                timeout = ieee->current_network.beacon_interval;
+	else
+		timeout = ieee->current_network.beacon_interval;
 
 	ieee->current_network.dtim_data = IEEE80211_DTIM_INVALID;
 
@@ -1613,30 +1613,30 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 						}
 						switch (info_element->id) {
 						  case MFIE_TYPE_GENERIC:
-						         IEEE80211_DEBUG_SCAN("MFIE_TYPE_GENERIC: %d bytes\n", info_element->len);
+							IEEE80211_DEBUG_SCAN("MFIE_TYPE_GENERIC: %d bytes\n", info_element->len);
 							if (info_element->len >= 8  &&
 							    info_element->data[0] == 0x00 &&
 							    info_element->data[1] == 0x50 &&
 							    info_element->data[2] == 0xf2 &&
 							    info_element->data[3] == 0x02 &&
 							    info_element->data[4] == 0x01) {
-							    /* Not care about version at present.
-							     * WMM Parameter Element.
-							     */
-							    memcpy(ieee->current_network.wmm_param, (u8*)(info_element->data\
-										    + 8), (info_element->len - 8));
-
-					 	            if (((ieee->current_network.wmm_info^info_element->data[6])& \
-										    0x0f)||(!ieee->init_wmmparam_flag)) {
-								/* refresh parameter element for current network
-								 * update the register parameter for hardware.
+								/* Not care about version at present.
+								 * WMM Parameter Element.
 								 */
-							      ieee->init_wmmparam_flag = 1;
-							      queue_work(ieee->wq, &ieee->wmm_param_update_wq);
+								memcpy(ieee->current_network.wmm_param, (u8*)(info_element->data\
+									+ 8), (info_element->len - 8));
 
-						            }
-						            /* update info_element for current network */
-						            ieee->current_network.wmm_info  = info_element->data[6];
+								if (((ieee->current_network.wmm_info^info_element->data[6])& \
+										    0x0f)||(!ieee->init_wmmparam_flag)) {
+									/* refresh parameter element for current network
+									 * update the register parameter for hardware.
+									 */
+									ieee->init_wmmparam_flag = 1;
+									queue_work(ieee->wq, &ieee->wmm_param_update_wq);
+
+								}
+								/* update info_element for current network */
+								ieee->current_network.wmm_info  = info_element->data[6];
 							}
 							break;
 						  default:
@@ -2185,7 +2185,7 @@ void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee)
 void ieee80211_start_protocol(struct ieee80211_device *ieee)
 {
 	short ch = 0;
- 	int i = 0;
+	int i = 0;
 
 	if (ieee->proto_started)
 		return;
@@ -2453,7 +2453,7 @@ static int ieee80211_wpa_set_param(struct ieee80211_device *ieee, u8 name,
 			.flags = SEC_ENABLED,
 			.enabled = value,
 		};
- 		ieee->drop_unencrypted = value;
+		ieee->drop_unencrypted = value;
 		/* We only change SEC_LEVEL for open mode. Others
 		 * are set by ipw_wpa_set_encryption.
 		 */
