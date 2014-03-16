@@ -468,7 +468,11 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 	if (!(nic_type & NIC_TYPE_F_DHCP))
 		nic_type &= NIC_TYPE_MASK;
 
-	sscanf(dev->name, "lte%d", &idx);
+	ret = sscanf(dev->name, "lte%d", &idx);
+	if (ret != 1) {
+		dev_kfree_skb(skb);
+		return -EINVAL;
+	}
 
 	ret = nic->phy_dev->send_sdu_func(nic->phy_dev->priv_dev,
 					  data_buf, data_len,
@@ -509,8 +513,11 @@ static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 	struct nic *nic = netdev_priv(dev);
 	struct hci_packet *hci = (struct hci_packet *)buf;
 	int idx;
+	int ret;
 
-	sscanf(dev->name, "lte%d", &idx);
+	ret = sscanf(dev->name, "lte%d", &idx);
+	if (ret != 1)
+		return -EINVAL;
 
 	return netlink_send(lte_event.sock, idx, 0, buf,
 			    gdm_dev16_to_cpu(
