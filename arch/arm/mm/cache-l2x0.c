@@ -576,13 +576,13 @@ static void __init l2c310_save(void __iomem *base)
 	unsigned revision;
 
 	l2x0_saved_regs.tag_latency = readl_relaxed(base +
-		L2X0_TAG_LATENCY_CTRL);
+		L310_TAG_LATENCY_CTRL);
 	l2x0_saved_regs.data_latency = readl_relaxed(base +
-		L2X0_DATA_LATENCY_CTRL);
+		L310_DATA_LATENCY_CTRL);
 	l2x0_saved_regs.filter_end = readl_relaxed(base +
-		L2X0_ADDR_FILTER_END);
+		L310_ADDR_FILTER_END);
 	l2x0_saved_regs.filter_start = readl_relaxed(base +
-		L2X0_ADDR_FILTER_START);
+		L310_ADDR_FILTER_START);
 
 	revision = readl_relaxed(base + L2X0_CACHE_ID) &
 			L2X0_CACHE_ID_RTL_MASK;
@@ -590,12 +590,12 @@ static void __init l2c310_save(void __iomem *base)
 	/* From r2p0, there is Prefetch offset/control register */
 	if (revision >= L310_CACHE_ID_RTL_R2P0)
 		l2x0_saved_regs.prefetch_ctrl = readl_relaxed(base +
-							L2X0_PREFETCH_CTRL);
+							L310_PREFETCH_CTRL);
 
 	/* From r3p0, there is Power control register */
 	if (revision >= L310_CACHE_ID_RTL_R3P0)
 		l2x0_saved_regs.pwr_ctrl = readl_relaxed(base +
-							L2X0_POWER_CTRL);
+							L310_POWER_CTRL);
 }
 
 static void l2c310_resume(void)
@@ -607,23 +607,23 @@ static void l2c310_resume(void)
 
 		/* restore pl310 setup */
 		writel_relaxed(l2x0_saved_regs.tag_latency,
-			       base + L2X0_TAG_LATENCY_CTRL);
+			       base + L310_TAG_LATENCY_CTRL);
 		writel_relaxed(l2x0_saved_regs.data_latency,
-			       base + L2X0_DATA_LATENCY_CTRL);
+			       base + L310_DATA_LATENCY_CTRL);
 		writel_relaxed(l2x0_saved_regs.filter_end,
-			       base + L2X0_ADDR_FILTER_END);
+			       base + L310_ADDR_FILTER_END);
 		writel_relaxed(l2x0_saved_regs.filter_start,
-			       base + L2X0_ADDR_FILTER_START);
+			       base + L310_ADDR_FILTER_START);
 
 		revision = readl_relaxed(base + L2X0_CACHE_ID) &
 				L2X0_CACHE_ID_RTL_MASK;
 
 		if (revision >= L310_CACHE_ID_RTL_R2P0)
 			l2c_write_sec(l2x0_saved_regs.prefetch_ctrl, base,
-				      L2X0_PREFETCH_CTRL);
+				      L310_PREFETCH_CTRL);
 		if (revision >= L310_CACHE_ID_RTL_R3P0)
 			l2c_write_sec(l2x0_saved_regs.pwr_ctrl, base,
-				      L2X0_POWER_CTRL);
+				      L310_POWER_CTRL);
 
 		l2c_enable(base, l2x0_saved_regs.aux_ctrl, 8);
 	}
@@ -658,11 +658,11 @@ static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 
 	if (revision >= L310_CACHE_ID_RTL_R3P0 &&
 	    revision < L310_CACHE_ID_RTL_R3P2) {
-		u32 val = readl_relaxed(base + L2X0_PREFETCH_CTRL);
+		u32 val = readl_relaxed(base + L310_PREFETCH_CTRL);
 		/* I don't think bit23 is required here... but iMX6 does so */
 		if (val & (BIT(30) | BIT(23))) {
 			val &= ~(BIT(30) | BIT(23));
-			l2c_write_sec(val, base, L2X0_PREFETCH_CTRL);
+			l2c_write_sec(val, base, L310_PREFETCH_CTRL);
 			errata[n++] = "752271";
 		}
 	}
@@ -759,7 +759,8 @@ static void __init __l2c_init(const struct l2c_init_data *data,
 	 *
 	 * L2 cache size = number of ways * way size.
 	 */
-	way_size_bits = (aux & L2X0_AUX_CTRL_WAY_SIZE_MASK) >> 17;
+	way_size_bits = (aux & L2C_AUX_CTRL_WAY_SIZE_MASK) >>
+			L2C_AUX_CTRL_WAY_SIZE_SHIFT;
 	l2x0_size = ways * (data->way_size_0 << way_size_bits);
 
 	fns = data->outer_cache;
@@ -902,27 +903,27 @@ static void __init l2c310_of_parse(const struct device_node *np,
 	of_property_read_u32_array(np, "arm,tag-latency", tag, ARRAY_SIZE(tag));
 	if (tag[0] && tag[1] && tag[2])
 		writel_relaxed(
-			((tag[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
-			((tag[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
-			((tag[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT),
-			l2x0_base + L2X0_TAG_LATENCY_CTRL);
+			L310_LATENCY_CTRL_RD(tag[0] - 1) |
+			L310_LATENCY_CTRL_WR(tag[1] - 1) |
+			L310_LATENCY_CTRL_SETUP(tag[2] - 1),
+			l2x0_base + L310_TAG_LATENCY_CTRL);
 
 	of_property_read_u32_array(np, "arm,data-latency",
 				   data, ARRAY_SIZE(data));
 	if (data[0] && data[1] && data[2])
 		writel_relaxed(
-			((data[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
-			((data[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
-			((data[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT),
-			l2x0_base + L2X0_DATA_LATENCY_CTRL);
+			L310_LATENCY_CTRL_RD(data[0] - 1) |
+			L310_LATENCY_CTRL_WR(data[1] - 1) |
+			L310_LATENCY_CTRL_SETUP(data[2] - 1),
+			l2x0_base + L310_DATA_LATENCY_CTRL);
 
 	of_property_read_u32_array(np, "arm,filter-ranges",
 				   filter, ARRAY_SIZE(filter));
 	if (filter[1]) {
 		writel_relaxed(ALIGN(filter[0] + filter[1], SZ_1M),
-			       l2x0_base + L2X0_ADDR_FILTER_END);
-		writel_relaxed((filter[0] & ~(SZ_1M - 1)) | L2X0_ADDR_FILTER_EN,
-			       l2x0_base + L2X0_ADDR_FILTER_START);
+			       l2x0_base + L310_ADDR_FILTER_END);
+		writel_relaxed((filter[0] & ~(SZ_1M - 1)) | L310_ADDR_FILTER_EN,
+			       l2x0_base + L310_ADDR_FILTER_START);
 	}
 }
 
@@ -1298,7 +1299,7 @@ static void __init tauros3_save(void __iomem *base)
 	l2x0_saved_regs.aux2_ctrl =
 		readl_relaxed(base + TAUROS3_AUX2_CTRL);
 	l2x0_saved_regs.prefetch_ctrl =
-		readl_relaxed(base + L2X0_PREFETCH_CTRL);
+		readl_relaxed(base + L310_PREFETCH_CTRL);
 }
 
 static void tauros3_resume(void)
@@ -1309,7 +1310,7 @@ static void tauros3_resume(void)
 		writel_relaxed(l2x0_saved_regs.aux2_ctrl,
 			       base + TAUROS3_AUX2_CTRL);
 		writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
-			       base + L2X0_PREFETCH_CTRL);
+			       base + L310_PREFETCH_CTRL);
 
 		l2c_enable(base, l2x0_saved_regs.aux_ctrl, 8);
 	}

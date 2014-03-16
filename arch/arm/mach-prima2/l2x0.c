@@ -17,13 +17,12 @@ struct l2x0_aux {
 };
 
 static const struct l2x0_aux prima2_l2x0_aux __initconst = {
-	.val = 2 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT,
+	.val = L2C_AUX_CTRL_WAY_SIZE(2),
 	.mask =	0,
 };
 
 static const struct l2x0_aux marco_l2x0_aux __initconst = {
-	.val = (2 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT) |
-		(1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT),
+	.val = L2C_AUX_CTRL_WAY_SIZE(2) | L310_AUX_CTRL_ASSOCIATIVITY_16,
 	.mask = L2X0_AUX_CTRL_MASK,
 };
 

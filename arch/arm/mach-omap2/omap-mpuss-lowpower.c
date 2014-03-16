@@ -194,7 +194,7 @@ static void save_l2x0_context(void)
 	if (l2x0_base) {
 		val = __raw_readl(l2x0_base + L2X0_AUX_CTRL);
 		__raw_writel(val, sar_base + L2X0_AUXCTRL_OFFSET);
-		val = __raw_readl(l2x0_base + L2X0_PREFETCH_CTRL);
+		val = __raw_readl(l2x0_base + L310_PREFETCH_CTRL);
 		__raw_writel(val, sar_base + L2X0_PREFETCH_CTRL_OFFSET);
 	}
 }

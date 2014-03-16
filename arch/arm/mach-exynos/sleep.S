@@ -65,13 +65,13 @@ ENTRY(exynos_cpu_resume)
 	ldr	r2, [r0, #L2X0_R_AUX_CTRL]
 	str	r2, [r1, #L2X0_AUX_CTRL]
 	ldr	r2, [r0, #L2X0_R_TAG_LATENCY]
-	str	r2, [r1, #L2X0_TAG_LATENCY_CTRL]
+	str	r2, [r1, #L310_TAG_LATENCY_CTRL]
 	ldr	r2, [r0, #L2X0_R_DATA_LATENCY]
-	str	r2, [r1, #L2X0_DATA_LATENCY_CTRL]
+	str	r2, [r1, #L310_DATA_LATENCY_CTRL]
 	ldr	r2, [r0, #L2X0_R_PREFETCH_CTRL]
-	str	r2, [r1, #L2X0_PREFETCH_CTRL]
+	str	r2, [r1, #L310_PREFETCH_CTRL]
 	ldr	r2, [r0, #L2X0_R_PWR_CTRL]
-	str	r2, [r1, #L2X0_POWER_CTRL]
+	str	r2, [r1, #L310_POWER_CTRL]
 	mov	r2, #1
 	str	r2, [r1, #L2X0_CTRL]
 skip_l2_resume:

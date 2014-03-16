@@ -134,13 +134,13 @@
 	tst	\tmp3, #L2X0_CTRL_EN
 	bne	exit_l2_resume
 	ldr	\tmp3, [\tmp1, #L2X0_R_TAG_LATENCY]
-	str	\tmp3, [\tmp2, #L2X0_TAG_LATENCY_CTRL]
+	str	\tmp3, [\tmp2, #L310_TAG_LATENCY_CTRL]
 	ldr	\tmp3, [\tmp1, #L2X0_R_DATA_LATENCY]
-	str	\tmp3, [\tmp2, #L2X0_DATA_LATENCY_CTRL]
+	str	\tmp3, [\tmp2, #L310_DATA_LATENCY_CTRL]
 	ldr	\tmp3, [\tmp1, #L2X0_R_PREFETCH_CTRL]
-	str	\tmp3, [\tmp2, #L2X0_PREFETCH_CTRL]
+	str	\tmp3, [\tmp2, #L310_PREFETCH_CTRL]
 	ldr	\tmp3, [\tmp1, #L2X0_R_PWR_CTRL]
-	str	\tmp3, [\tmp2, #L2X0_POWER_CTRL]
+	str	\tmp3, [\tmp2, #L310_POWER_CTRL]
 	ldr	\tmp3, [\tmp1, #L2X0_R_AUX_CTRL]
 	str	\tmp3, [\tmp2, #L2X0_AUX_CTRL]
 	mov	\tmp3, #L2X0_CTRL_EN
