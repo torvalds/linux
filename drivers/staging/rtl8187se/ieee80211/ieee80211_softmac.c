@@ -375,14 +375,13 @@ static void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 	down(&ieee->scan_sem);
 
-	while(1)
-	{
-		do{
+	while(1) {
+		do {
 			ch++;
 			if (ch > MAX_CHANNEL_NUMBER)
 				goto out; /* scan completed */
 
-		}while(!channel_map[ch]);
+		} while(!channel_map[ch]);
 		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
@@ -433,8 +432,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
         down(&ieee->scan_sem);
 	ch = ieee->current_network.channel;
 
-     	while(1)
-        {
+	while(1) {
 		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
@@ -465,12 +463,12 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 
 		msleep_interruptible_rtl(IEEE80211_SOFTMAC_SCAN_TIME);
 
-		do{
+		do {
 			if (watch_dog++ >= MAX_CHANNEL_NUMBER)
 				goto out; /* scan completed */
 
 			ieee->current_network.channel = (ieee->current_network.channel + 1)%MAX_CHANNEL_NUMBER;
-		}while(!channel_map[ieee->current_network.channel]);
+		} while(!channel_map[ieee->current_network.channel]);
         }
 out:
 	ieee->actscanning = false;
@@ -488,12 +486,12 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 	down(&ieee->scan_sem);
 
-	do{
+	do {
 		ieee->current_network.channel =
 			(ieee->current_network.channel + 1) % MAX_CHANNEL_NUMBER;
 		if (watchdog++ > MAX_CHANNEL_NUMBER)
 				goto out; /* no good chans */
- 	}while(!channel_map[ieee->current_network.channel]);
+	} while(!channel_map[ieee->current_network.channel]);
 
 	if (ieee->scanning == 0 ) {
 		printk("error out, scanning = 0\n");
@@ -1323,7 +1321,7 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	tag = skb->data + sizeof (struct ieee80211_hdr_3addr  );
 
-	while (tag+1 < skbend){
+	while (tag+1 < skbend) {
 		if (*tag == 0) {
 			ssid = tag+2;
 			ssidlen = *(tag+1);
@@ -1834,7 +1832,7 @@ void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 	ieee->queue_stop = 0;
 
 	if (ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE) {
-		while (!ieee->queue_stop && (skb = dequeue_mgmt(ieee))){
+		while (!ieee->queue_stop && (skb = dequeue_mgmt(ieee))) {
 			header = (struct ieee80211_hdr_3addr  *) skb->data;
 
 			header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
@@ -2201,12 +2199,12 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 	ieee->proto_started = 1;
 
 	if (ieee->current_network.channel == 0) {
-		do{
+		do {
 			ch++;
 			if (ch > MAX_CHANNEL_NUMBER)
 				return; /* no channel found */
 
-		}while(!GET_DOT11D_INFO(ieee)->channel_map[ch]);
+		} while(!GET_DOT11D_INFO(ieee)->channel_map[ch]);
 
 		ieee->current_network.channel = ch;
 	}
