@@ -289,16 +289,16 @@ out:
 	return best;
 }
 
-static long dclk_lcdc_round_rate(struct clk_hw *hw, unsigned long rate,
+static long clk_mux_with_evendiv_round_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long *prate)
 {
 	return clk_div_round_rate_even(hw, rate, prate);
 }
 
-const struct clk_ops clkops_rate_dclk_lcdc = {
+const struct clk_ops clkops_rate_mux_with_evendiv = {
 	.recalc_rate	= clk_divider_recalc_rate,
 	.set_rate	= clk_divider_set_rate,
-	.round_rate	= dclk_lcdc_round_rate,
+	.round_rate	= clk_mux_with_evendiv_round_rate,
 	.determine_rate = clk_mux_with_evendiv_determine_rate,
 };
 
@@ -401,6 +401,7 @@ const struct clk_ops clkops_rate_core = {
 	.determine_rate = clk_core_determine_rate,
 };
 
+/* Clk_ops for the child clk of clk_core, for example core_periph in rk3188 */
 const struct clk_ops clkops_rate_core_peri = {
 	.recalc_rate	= clk_divider_recalc_rate,
 	.round_rate	= clk_divider_round_rate,
@@ -478,11 +479,11 @@ const struct clk_ops clkops_rate_ddr = {
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
 	{.index = CLKOPS_RATE_EVENDIV,		.clk_ops = &clkops_rate_evendiv},
-	{.index = CLKOPS_RATE_DCLK_LCDC,	.clk_ops = &clkops_rate_dclk_lcdc},
+	{.index = CLKOPS_RATE_MUX_EVENDIV,	.clk_ops = &clkops_rate_mux_with_evendiv},
 	{.index = CLKOPS_RATE_I2S_FRAC,		.clk_ops = &clkops_rate_i2s_frac},
 	{.index = CLKOPS_RATE_FRAC,		.clk_ops = &clkops_rate_frac},
 	{.index = CLKOPS_RATE_CORE,		.clk_ops = &clkops_rate_core},
-	{.index = CLKOPS_RATE_CORE_PERI,	.clk_ops = &clkops_rate_core_peri},
+	{.index = CLKOPS_RATE_CORE_CHILD,	.clk_ops = &clkops_rate_core_peri},
 	{.index = CLKOPS_RATE_DDR,		.clk_ops = &clkops_rate_ddr},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},

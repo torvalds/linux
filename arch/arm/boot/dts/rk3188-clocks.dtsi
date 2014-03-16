@@ -181,7 +181,7 @@
 						clocks = <&clk_core>;
 						clock-output-names = "clk_core_peri";
 						rockchip,div-type = <CLK_DIVIDER_USER_DEFINE>;
-						rockchip,clkops-idx = <CLKOPS_RATE_CORE_PERI>;
+						rockchip,clkops-idx = <CLKOPS_RATE_CORE_CHILD>;
 						#clock-cells = <0>;
 						rockchip,div-relations = <0x0 2
 								 0x1 4
@@ -230,7 +230,7 @@
 						clock-output-names = "aclk_core";
 						#clock-cells = <0>;
 						rockchip,div-type = <CLK_DIVIDER_USER_DEFINE>;
-						rockchip,clkops-idx = <CLKOPS_RATE_CORE_PERI>;
+						rockchip,clkops-idx = <CLKOPS_RATE_CORE_CHILD>;
 						rockchip,div-relations = <0x0 1
 								 0x1 2
 								 0x2 3
@@ -918,7 +918,7 @@
 						clock-output-names = "dclk_lcdc0";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_DCLK_LCDC>;
+							<CLKOPS_RATE_MUX_EVENDIV>;
 						#clock-cells = <0>;
 					};
 				};
@@ -947,7 +947,7 @@
 						clock-output-names = "dclk_lcdc1";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_DCLK_LCDC>;
+							<CLKOPS_RATE_MUX_EVENDIV>;
 						#clock-cells = <0>;
 					};
 				};
