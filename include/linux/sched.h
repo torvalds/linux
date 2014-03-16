@@ -1561,7 +1561,7 @@ static inline pid_t task_tgid_vnr(struct task_struct *tsk)
 }
 
 
-static int pid_alive(const struct task_struct *p);
+static inline int pid_alive(const struct task_struct *p);
 static inline pid_t task_ppid_nr_ns(const struct task_struct *tsk, struct pid_namespace *ns)
 {
 	pid_t pid = 0;
