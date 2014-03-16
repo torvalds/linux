@@ -338,7 +338,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Protocol checksum off-load for TCP and UDP. */
 	if (fec_enet_clear_csum(skb, ndev)) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
