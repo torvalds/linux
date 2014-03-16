@@ -313,7 +313,7 @@ int PIPEnsInterruptRead(struct vnt_private *priv)
 
 	usb_fill_int_urb(priv->pInterruptURB,
 		priv->usb,
-		usb_rcvbulkpipe(priv->usb, 1),
+		usb_rcvintpipe(priv->usb, 1),
 		priv->int_buf.data_buf,
 		MAX_INTERRUPT_SIZE,
 		s_nsInterruptUsbIoCompleteRead,
