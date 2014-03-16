@@ -1824,7 +1824,7 @@ busy:
 
 	/* Handle completions. */
 	for (i = 0; i < nolds; i++)
-		kfree_skb(olds[i]);
+		dev_consume_skb_any(olds[i]);
 
 	/* Update stats. */
 	u64_stats_update_begin(&stats->syncp);
@@ -2008,7 +2008,7 @@ busy:
 
 	/* Handle completions. */
 	for (i = 0; i < nolds; i++)
-		kfree_skb(olds[i]);
+		dev_consume_skb_any(olds[i]);
 
 	/* HACK: Track "expanded" size for short packets (e.g. 42 < 60). */
 	u64_stats_update_begin(&stats->syncp);
