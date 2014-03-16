@@ -25,7 +25,8 @@
 
 #include "hci_h4p.h"
 
-static int hci_h4p_bcm_set_bdaddr(struct hci_h4p_info *info, struct sk_buff *skb)
+static int hci_h4p_bcm_set_bdaddr(struct hci_h4p_info *info,
+				struct sk_buff *skb)
 {
 	int i;
 	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
