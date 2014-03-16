@@ -249,11 +249,11 @@ static struct vcontrol {
 };
 
 
-static const struct tcm825x_reg *tcm825x_siz_reg[NUM_IMAGE_SIZES] =
-{ &subqcif, &qqvga, &qcif, &qvga, &cif, &vga };
+static const struct tcm825x_reg *tcm825x_siz_reg[NUM_IMAGE_SIZES] = {
+	&subqcif, &qqvga, &qcif, &qvga, &cif, &vga };
 
-static const struct tcm825x_reg *tcm825x_fmt_reg[NUM_PIXEL_FORMATS] =
-{ &yuv422, &rgb565 };
+static const struct tcm825x_reg *tcm825x_fmt_reg[NUM_PIXEL_FORMATS] = {
+	&yuv422, &rgb565 };
 
 /*
  * Read a value from a register in an TCM825X sensor device.  The value is
