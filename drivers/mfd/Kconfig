@@ -935,16 +935,6 @@ config TWL4030_CORE
 	  high speed USB OTG transceiver, an audio codec (on most
 	  versions) and many other features.
 
-config TWL4030_MADC
-	tristate "TI TWL4030 MADC"
-	depends on TWL4030_CORE
-	help
-	This driver provides support for triton TWL4030-MADC. The
-	driver supports both RT and SW conversion methods.
-
-	This driver can be built as a module. If so it will be
-	named twl4030-madc
-
 config TWL4030_POWER
 	bool "TI TWL4030 power resources"
 	depends on TWL4030_CORE && ARM
