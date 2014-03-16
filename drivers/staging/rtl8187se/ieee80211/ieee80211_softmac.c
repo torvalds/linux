@@ -616,13 +616,15 @@ ieee80211_authentication_req(struct ieee80211_network *beacon,
 
 	skb = dev_alloc_skb(sizeof(struct ieee80211_authentication) + challengelen);
 
-	if (!skb) return NULL;
+	if (!skb)
+		return NULL;
 
 	auth = (struct ieee80211_authentication *)
 		skb_put(skb, sizeof(struct ieee80211_authentication));
 
 	auth->header.frame_ctl = IEEE80211_STYPE_AUTH;
-	if (challengelen) auth->header.frame_ctl |= IEEE80211_FCTL_WEP;
+	if (challengelen)
+		auth->header.frame_ctl |= IEEE80211_FCTL_WEP;
 
 	auth->header.duration_id = 0x013a; /* FIXME */
 
@@ -656,7 +658,8 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	int rate_len = ieee->current_network.rates_len+2;
 	int rate_ex_len = ieee->current_network.rates_ex_len;
 	int wpa_ie_len = ieee->wpa_ie_len;
-	if (rate_ex_len > 0) rate_ex_len += 2;
+	if (rate_ex_len > 0)
+		rate_ex_len += 2;
 
 	if (ieee->current_network.capability & WLAN_CAPABILITY_IBSS)
 		atim_len = 4;
@@ -794,7 +797,8 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 
 	if (ieee->host_encrypt)
 		crypt = ieee->crypt[ieee->tx_keyidx];
-	else crypt = NULL;
+	else
+		crypt = NULL;
 
 	encrypt = (crypt && crypt->ops);
 
@@ -803,8 +807,10 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 
 	assoc->status = 0;
 	assoc->aid = cpu_to_le16(ieee->assoc_id);
-	if (ieee->assoc_id == 0x2007) ieee->assoc_id = 0;
-	else ieee->assoc_id++;
+	if (ieee->assoc_id == 0x2007)
+		ieee->assoc_id = 0;
+	else
+		ieee->assoc_id++;
 
 	tag = (u8*) skb_put(skb, rate_len);
 
@@ -1329,9 +1335,12 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb,
 		tag++; /* point to the next tag */
 	}
 
-	if (ssidlen == 0) return 1;
+	if (ssidlen == 0)
+		return 1;
 
-	if (!ssid) return 1; /* ssid not found in tagged param */
+	if (!ssid)
+		 return 1; /* ssid not found in tagged param */
+
 	return (!strncmp(ssid, ieee->current_network.ssid, ssidlen));
 
 }
@@ -1822,7 +1831,8 @@ void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 	struct ieee80211_hdr_3addr  *header;
 
 	spin_lock_irqsave(&ieee->lock, flags);
-	if (!ieee->queue_stop) goto exit;
+	if (!ieee->queue_stop)
+		goto exit;
 
 	ieee->queue_stop = 0;
 
