@@ -567,7 +567,7 @@ efi_thunk_query_variable_info(u32 attr, u64 *storage_space,
 	phys_remaining = virt_to_phys(remaining_space);
 	phys_max = virt_to_phys(max_variable_size);
 
-	status = efi_thunk(query_variable_info, phys_storage,
+	status = efi_thunk(query_variable_info, attr, phys_storage,
 			   phys_remaining, phys_max);
 
 	return status;
