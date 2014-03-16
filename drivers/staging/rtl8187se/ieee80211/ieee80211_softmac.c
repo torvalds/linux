@@ -656,7 +656,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	int rate_len = ieee->current_network.rates_len+2;
 	int rate_ex_len = ieee->current_network.rates_ex_len;
 	int wpa_ie_len = ieee->wpa_ie_len;
-	if (rate_ex_len > 0) rate_ex_len+=2;
+	if (rate_ex_len > 0) rate_ex_len += 2;
 
 	if (ieee->current_network.capability & WLAN_CAPABILITY_IBSS)
 		atim_len = 4;
@@ -718,9 +718,9 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	tag += ssid_len;
 
 	*(tag++) = MFIE_TYPE_RATES;
-	*(tag++) = rate_len-2;
+	*(tag++) = rate_len - 2;
 	memcpy(tag, ieee->current_network.rates, rate_len-2);
-	tag+=rate_len-2;
+	tag += rate_len - 2;
 
 	*(tag++) = MFIE_TYPE_DS_SET;
 	*(tag++) = 1;
@@ -730,7 +730,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 		*(tag++) = MFIE_TYPE_IBSS_SET;
 		*(tag++) = 2;
 		*((u16*)(tag)) = cpu_to_le16(ieee->current_network.atim_window);
-		tag+=2;
+		tag += 2;
 	}
 
 	if (erp_len) {
@@ -743,7 +743,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 		*(tag++) = MFIE_TYPE_RATES_EX;
 		*(tag++) = rate_ex_len-2;
 		memcpy(tag, ieee->current_network.rates_ex, rate_ex_len-2);
-		tag+=rate_ex_len-2;
+		tag += rate_ex_len - 2;
 	}
 
 	if (wpa_ie_len)	{
@@ -1179,13 +1179,13 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee,
 		 */
 		apset = ieee->wap_set;
 		ssidset = ieee->ssid_set;
-		ssidbroad =  !(net->ssid_len == 0 || net->ssid[0]== '\0');
-		apmatch = (memcmp(ieee->current_network.bssid, net->bssid, ETH_ALEN)==0);
+		ssidbroad =  !(net->ssid_len == 0 || net->ssid[0] == '\0');
+		apmatch = (memcmp(ieee->current_network.bssid, net->bssid, ETH_ALEN) == 0);
 
 		if (ieee->current_network.ssid_len != net->ssid_len)
 			ssidmatch = 0;
 		else
-			ssidmatch = (0==strncmp(ieee->current_network.ssid, net->ssid, net->ssid_len));
+			ssidmatch = (0 == strncmp(ieee->current_network.ssid, net->ssid, net->ssid_len));
 
 		/* if the user set the AP check if match.
 		 * if the network does not broadcast essid we check the user
