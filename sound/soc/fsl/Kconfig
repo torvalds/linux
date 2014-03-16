@@ -1,3 +1,5 @@
+menu "SoC Audio for Freescale CPUs"
+
 config SND_SOC_FSL_SAI
 	tristate
 	select REGMAP_MMIO
@@ -18,12 +20,26 @@ config SND_SOC_FSL_ESAI
 config SND_SOC_FSL_UTILS
 	tristate
 
-menuconfig SND_POWERPC_SOC
+config SND_SOC_IMX_PCM_DMA
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+config SND_SOC_IMX_AUDMUX
+	tristate
+
+config SND_POWERPC_SOC
 	tristate "SoC Audio for Freescale PowerPC CPUs"
 	depends on FSL_SOC || PPC_MPC52xx
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the PowerPC CPUs.
+
+config SND_IMX_SOC
+	tristate "SoC Audio for Freescale i.MX CPUs"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the i.MX CPUs.
 
 if SND_POWERPC_SOC
 
@@ -32,6 +48,8 @@ config SND_MPC52xx_DMA
 
 config SND_SOC_POWERPC_DMA
 	tristate
+
+comment "SoC Audio support for Freescale PPC boards:"
 
 config SND_SOC_MPC8610_HPCD
 	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
@@ -110,13 +128,6 @@ config SND_MPC52xx_SOC_EFIKA
 
 endif # SND_POWERPC_SOC
 
-menuconfig SND_IMX_SOC
-	tristate "SoC Audio for Freescale i.MX CPUs"
-	depends on ARCH_MXC || COMPILE_TEST
-	help
-	  Say Y or M if you want to add support for codecs attached to
-	  the i.MX CPUs.
-
 if SND_IMX_SOC
 
 config SND_SOC_IMX_SSI
@@ -127,12 +138,7 @@ config SND_SOC_IMX_PCM_FIQ
 	tristate
 	select FIQ
 
-config SND_SOC_IMX_PCM_DMA
-	tristate
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-
-config SND_SOC_IMX_AUDMUX
-	tristate
+comment "SoC Audio support for Freescale i.MX boards:"
 
 config SND_MXC_SOC_WM1133_EV1
 	tristate "Audio on the i.MX31ADS with WM1133-EV1 fitted"
@@ -225,3 +231,5 @@ config SND_SOC_IMX_MC13783
 	select SND_SOC_IMX_PCM_DMA
 
 endif # SND_IMX_SOC
+
+endmenu
