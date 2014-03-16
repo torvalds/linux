@@ -611,6 +611,7 @@ struct iwl_mvm {
 	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
 	u32 last_ant_isol;
 	u8 last_corun_lut;
+	u8 bt_tx_prio;
 
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;

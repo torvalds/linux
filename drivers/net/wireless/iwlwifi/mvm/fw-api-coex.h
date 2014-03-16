@@ -78,6 +78,7 @@
  * @BT_COEX_NW:
  * @BT_COEX_SYNC2SCO:
  * @BT_COEX_CORUNNING:
+ * @BT_COEX_MPLUT:
  *
  * The COEX_MODE must be set for each command. Even if it is not changed.
  */
@@ -90,6 +91,7 @@ enum iwl_bt_coex_flags {
 	BT_COEX_NW			= 0x3 << BT_COEX_MODE_POS,
 	BT_COEX_SYNC2SCO		= BIT(7),
 	BT_COEX_CORUNNING		= BIT(8),
+	BT_COEX_MPLUT			= BIT(9),
 };
 
 /*

@@ -616,6 +616,11 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_CORUNNING);
 	}
 
+	if (IWL_MVM_BT_COEX_MPLUT) {
+		bt_cmd->flags |= cpu_to_le32(BT_COEX_MPLUT);
+		bt_cmd->valid_bit_msk = cpu_to_le32(BT_VALID_MULTI_PRIO_LUT);
+	}
+
 	if (mvm->cfg->bt_shared_single_ant)
 		memcpy(&bt_cmd->decision_lut, iwl_single_shared_ant,
 		       sizeof(iwl_single_shared_ant));
@@ -1214,6 +1219,9 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 
 	if (info->band != IEEE80211_BAND_2GHZ)
 		return 0;
+
+	if (unlikely(mvm->bt_tx_prio))
+		return mvm->bt_tx_prio - 1;
 
 	/* High prio packet (wrt. BT coex) if it is EAPOL, MCAST or MGMT */
 	if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO ||
