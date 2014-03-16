@@ -247,8 +247,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length)) {
 		dev_dbg(&dev->pdev->dev, "failed to copy data to userland\n");
 		rets = -EFAULT;
-	}
-	else {
+	} else {
 		rets = length;
 		if ((*offset + length) < cb->buf_idx) {
 			*offset += length;
