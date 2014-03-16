@@ -145,7 +145,7 @@ static struct sk_buff *dequeue_mgmt(struct ieee80211_device *ieee)
 {
 	struct sk_buff *ret;
 
-	if(ieee->mgmt_queue_tail == ieee->mgmt_queue_head)
+	if (ieee->mgmt_queue_tail == ieee->mgmt_queue_head)
 		return NULL;
 
 	ret = ieee->mgmt_queue_ring[ieee->mgmt_queue_tail];
@@ -329,7 +329,7 @@ static void ieee80211_send_beacon(struct ieee80211_device *ieee)
 	ieee->beacon_timer.expires = jiffies +
 		(MSECS( ieee->current_network.beacon_interval -5));
 
-	if(ieee->beacon_txing)
+	if (ieee->beacon_txing)
 		add_timer(&ieee->beacon_timer);
 }
 
@@ -471,7 +471,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 out:
 	ieee->actscanning = false;
 	up(&ieee->scan_sem);
-	if(IS_DOT11D_ENABLE(ieee))
+	if (IS_DOT11D_ENABLE(ieee))
 		DOT11D_ScanComplete(ieee);
 }
 
@@ -496,7 +496,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 		goto out;
 	}
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
-	if(channel_map[ieee->current_network.channel] == 1)
+	if (channel_map[ieee->current_network.channel] == 1)
 		ieee80211_send_probe_requests(ieee);
 
 	queue_delayed_work(ieee->wq, &ieee->softmac_scan_wq, IEEE80211_SOFTMAC_SCAN_TIME);
@@ -508,7 +508,7 @@ out:
 	ieee->scanning = 0;
 	up(&ieee->scan_sem);
 
-	if(IS_DOT11D_ENABLE(ieee))
+	if (IS_DOT11D_ENABLE(ieee))
 		DOT11D_ScanComplete(ieee);
 	return;
 }
@@ -539,7 +539,7 @@ static void ieee80211_beacons_stop(struct ieee80211_device *ieee)
 
 void ieee80211_stop_send_beacons(struct ieee80211_device *ieee)
 {
-	if(ieee->stop_send_beacons)
+	if (ieee->stop_send_beacons)
 		ieee->stop_send_beacons(ieee->dev);
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		ieee80211_beacons_stop(ieee);
@@ -547,9 +547,9 @@ void ieee80211_stop_send_beacons(struct ieee80211_device *ieee)
 
 void ieee80211_start_send_beacons(struct ieee80211_device *ieee)
 {
-	if(ieee->start_send_beacons)
+	if (ieee->start_send_beacons)
 		ieee->start_send_beacons(ieee->dev);
-	if(ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
+	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		ieee80211_beacons_start(ieee);
 }
 
@@ -655,14 +655,14 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	int rate_len = ieee->current_network.rates_len+2;
 	int rate_ex_len = ieee->current_network.rates_ex_len;
 	int wpa_ie_len = ieee->wpa_ie_len;
-	if(rate_ex_len > 0) rate_ex_len+=2;
+	if (rate_ex_len > 0) rate_ex_len+=2;
 
-	if(ieee->current_network.capability & WLAN_CAPABILITY_IBSS)
+	if (ieee->current_network.capability & WLAN_CAPABILITY_IBSS)
 		atim_len = 4;
 	else
 		atim_len = 0;
 
-	if(ieee80211_is_54g(&ieee->current_network))
+	if (ieee80211_is_54g(&ieee->current_network))
 		erp_len = 3;
 	else
 		erp_len = 0;
@@ -693,7 +693,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	beacon_buf->capability =
 		cpu_to_le16(ieee->current_network.capability & WLAN_CAPABILITY_IBSS);
 
-	if(ieee->short_slot && (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_SLOT))
+	if (ieee->short_slot && (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_SLOT))
 		beacon_buf->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
 
 	crypt = ieee->crypt[ieee->tx_keyidx];
@@ -788,7 +788,7 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 	assoc->capability = cpu_to_le16(ieee->iw_mode == IW_MODE_MASTER ?
 		WLAN_CAPABILITY_BSS : WLAN_CAPABILITY_IBSS);
 
-	if(ieee->short_slot)
+	if (ieee->short_slot)
 		assoc->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
 
 	if (ieee->host_encrypt)
@@ -917,7 +917,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	 * [1] pair wise type
 	 * [2] authen type
 	 */
-	if(ieee->wpax_type_set) {
+	if (ieee->wpax_type_set) {
 		if (IEEE_PROTO_WPA == encry_proto) {
 			rsn_len = 0;
 		} else if (IEEE_PROTO_RSN == encry_proto) {
@@ -953,7 +953,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	if (beacon->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 
-	if(ieee->short_slot)
+	if (ieee->short_slot)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
 
 	hdr->listen_interval = 0xa; /* FIXME */
@@ -1107,7 +1107,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, associate_complete_wq);
 
 	printk(KERN_INFO "Associated successfully\n");
-	if(ieee80211_is_54g(&ieee->current_network) &&
+	if (ieee80211_is_54g(&ieee->current_network) &&
 		(ieee->modulation & IEEE80211_OFDM_MODULATION)) {
 		ieee->rate = 540;
 		printk(KERN_INFO"Using G rates\n");
@@ -1181,7 +1181,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee,
 		ssidbroad =  !(net->ssid_len == 0 || net->ssid[0]== '\0');
 		apmatch = (memcmp(ieee->current_network.bssid, net->bssid, ETH_ALEN)==0);
 
-		if(ieee->current_network.ssid_len != net->ssid_len)
+		if (ieee->current_network.ssid_len != net->ssid_len)
 			ssidmatch = 0;
 		else
 			ssidmatch = (0==strncmp(ieee->current_network.ssid, net->ssid, net->ssid_len));
@@ -1222,7 +1222,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee,
 				ieee->beinretry = false;
 				queue_work(ieee->wq, &ieee->associate_procedure_wq);
 			} else {
-				if(ieee80211_is_54g(&ieee->current_network) &&
+				if (ieee80211_is_54g(&ieee->current_network) &&
 						(ieee->modulation & IEEE80211_OFDM_MODULATION)) {
 					ieee->rate = 540;
 					printk(KERN_INFO"Using G rates\n");
@@ -1420,23 +1420,23 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 	u8 dtim;
 	dtim = ieee->current_network.dtim_data;
 
-	if(!(dtim & IEEE80211_DTIM_VALID))
+	if (!(dtim & IEEE80211_DTIM_VALID))
 		return 0;
         else
                 timeout = ieee->current_network.beacon_interval;
 
 	ieee->current_network.dtim_data = IEEE80211_DTIM_INVALID;
 
-	if(dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST)& ieee->ps))
+	if (dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST)& ieee->ps))
 		return 2;
 
-	if(!time_after(jiffies, ieee->dev->trans_start + MSECS(timeout)))
+	if (!time_after(jiffies, ieee->dev->trans_start + MSECS(timeout)))
 		return 0;
 
-	if(!time_after(jiffies, ieee->last_rx_ps_time + MSECS(timeout)))
+	if (!time_after(jiffies, ieee->last_rx_ps_time + MSECS(timeout)))
 		return 0;
 
-	if((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE ) &&
+	if ((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE ) &&
 		(ieee->mgmt_queue_tail != ieee->mgmt_queue_head))
 		return 0;
 
@@ -1447,7 +1447,7 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 
 	if (time_h) {
 		*time_h = ieee->current_network.last_dtim_sta_time[1];
-		if(time_l && *time_l < ieee->current_network.last_dtim_sta_time[0])
+		if (time_l && *time_l < ieee->current_network.last_dtim_sta_time[0])
 			*time_h += 1;
 	}
 
@@ -1464,7 +1464,7 @@ static inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if((ieee->ps == IEEE80211_PS_DISABLED ||
+	if ((ieee->ps == IEEE80211_PS_DISABLED ||
 		ieee->iw_mode != IW_MODE_INFRA ||
 		ieee->state != IEEE80211_LINKED)) {
 
@@ -1478,11 +1478,11 @@ static inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 
 	sleep = ieee80211_sta_ps_sleep(ieee,&th, &tl);
 	/* 2 wake, 1 sleep, 0 do nothing */
-	if(sleep == 0)
+	if (sleep == 0)
 		goto out;
 
 	if (sleep == 1) {
-		if(ieee->sta_sleep == 1)
+		if (ieee->sta_sleep == 1)
 			ieee->enter_sleep_state(ieee->dev,th,tl);
 
 		else if (ieee->sta_sleep == 0) {
@@ -1514,14 +1514,14 @@ out:
 void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 {
 	if (ieee->sta_sleep == 0) {
-		if(nl) {
+		if (nl) {
 			ieee->ps_request_tx_ack(ieee->dev);
 			ieee80211_sta_ps_send_null_frame(ieee, 0);
 		}
 		return;
 	}
 
-	if(ieee->sta_sleep == 1)
+	if (ieee->sta_sleep == 1)
 		ieee->sta_wake_up(ieee->dev);
 
 	ieee->sta_sleep = 0;
@@ -1569,10 +1569,10 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 	struct ieee80211_assoc_response_frame *assoc_resp;
 	struct ieee80211_info_element *info_element;
 
-	if(!ieee->proto_started)
+	if (!ieee->proto_started)
 		return 0;
 
-	if(ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
+	if (ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
 		ieee->iw_mode == IW_MODE_INFRA &&
 		ieee->state == IEEE80211_LINKED))
 
@@ -1895,7 +1895,7 @@ void ieee80211_start_master_bss(struct ieee80211_device *ieee)
 
 static void ieee80211_start_monitor_mode(struct ieee80211_device *ieee)
 {
-	if(ieee->raw_tx) {
+	if (ieee->raw_tx) {
 
 		if (ieee->data_hard_resume)
 			ieee->data_hard_resume(ieee->dev);
@@ -1928,7 +1928,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	/* check if we have this cell in our network list */
 	ieee80211_softmac_check_all_nets(ieee);
 
-	if(ieee->state == IEEE80211_NOLINK)
+	if (ieee->state == IEEE80211_NOLINK)
 		ieee->current_network.channel = 10;
 	/* if not then the state is not linked. Maybe the user switched to
 	 * ad-hoc mode just after being in monitor mode, or just after
@@ -1950,7 +1950,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	/* the network definitively is not here.. create a new cell */
 	if (ieee->state == IEEE80211_NOLINK) {
 		printk("creating new IBSS cell\n");
-		if(!ieee->wap_set)
+		if (!ieee->wap_set)
 			ieee80211_randomize_cell(ieee);
 
 		if (ieee->modulation & IEEE80211_CCK_MODULATION) {
@@ -1987,7 +1987,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 
 		ieee->current_network.atim_window = 0;
 		ieee->current_network.capability = WLAN_CAPABILITY_IBSS;
-		if(ieee->short_slot)
+		if (ieee->short_slot)
 			ieee->current_network.capability |= WLAN_CAPABILITY_SHORT_SLOT;
 	}
 
@@ -2058,7 +2058,7 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	if (ieee->data_hard_stop)
 			ieee->data_hard_stop(ieee->dev);
 
-	if(IS_DOT11D_ENABLE(ieee))
+	if (IS_DOT11D_ENABLE(ieee))
 		Dot11d_Reset(ieee);
 
 	ieee->link_change(ieee->dev);
@@ -2073,9 +2073,9 @@ static void ieee80211_associate_retry_wq(struct work_struct *work)
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, associate_retry_wq);
 	unsigned long flags;
 	down(&ieee->wx_sem);
-	if(!ieee->proto_started)
+	if (!ieee->proto_started)
 		goto exit;
-	if(ieee->state != IEEE80211_ASSOCIATING_RETRY)
+	if (ieee->state != IEEE80211_ASSOCIATING_RETRY)
 		goto exit;
 	/* until we do not set the state to IEEE80211_NOLINK
 	* there are no possibility to have someone else trying
@@ -2132,7 +2132,7 @@ struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee)
 	struct ieee80211_probe_response *b;
 
 	skb = ieee80211_get_beacon_(ieee);
-	if(!skb)
+	if (!skb)
 		return NULL;
 
 	b = (struct ieee80211_probe_response *) skb->data;
