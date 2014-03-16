@@ -32,8 +32,11 @@ struct outer_cache_fns {
 #ifdef CONFIG_OUTER_CACHE_SYNC
 	void (*sync)(void);
 #endif
-	void (*set_debug)(unsigned long);
 	void (*resume)(void);
+
+	/* This is an ARM L2C thing */
+	void (*set_debug)(unsigned long);
+	void (*write_sec)(unsigned long, unsigned);
 };
 
 extern struct outer_cache_fns outer_cache;
