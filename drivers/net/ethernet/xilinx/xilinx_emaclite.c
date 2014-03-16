@@ -1037,7 +1037,7 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 	skb_tx_timestamp(new_skb);
 
 	dev->stats.tx_bytes += len;
-	dev_kfree_skb(new_skb);
+	dev_consume_skb_any(new_skb);
 
 	return 0;
 }
