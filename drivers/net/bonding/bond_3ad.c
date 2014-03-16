@@ -1284,11 +1284,11 @@ static void ad_port_selection_logic(struct port *port)
 			/* meaning: the port was related to an aggregator
 			 * but was not on the aggregator port list
 			 */
-			pr_warn("%s: Warning: Port %d (on %s) was related to aggregator %d but was not on its port list\n",
-				port->slave->bond->dev->name,
-				port->actor_port_number,
-				port->slave->dev->name,
-				port->aggregator->aggregator_identifier);
+			pr_warn_ratelimited("%s: Warning: Port %d (on %s) was related to aggregator %d but was not on its port list\n",
+					    port->slave->bond->dev->name,
+					    port->actor_port_number,
+					    port->slave->dev->name,
+					    port->aggregator->aggregator_identifier);
 		}
 	}
 	/* search on all aggregators for a suitable aggregator for this port */
@@ -1445,9 +1445,9 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 		break;
 
 	default:
-		pr_warn("%s: Impossible agg select mode %d\n",
-			curr->slave->bond->dev->name,
-			__get_agg_selection_mode(curr->lag_ports));
+		pr_warn_ratelimited("%s: Impossible agg select mode %d\n",
+				    curr->slave->bond->dev->name,
+				    __get_agg_selection_mode(curr->lag_ports));
 		break;
 	}
 
@@ -1560,9 +1560,9 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 
 		/* check if any partner replys */
 		if (best->is_individual) {
-			pr_warn("%s: Warning: No 802.3ad response from the link partner for any adapters in the bond\n",
-				best->slave ?
-				best->slave->bond->dev->name : "NULL");
+			pr_warn_ratelimited("%s: Warning: No 802.3ad response from the link partner for any adapters in the bond\n",
+					    best->slave ?
+					    best->slave->bond->dev->name : "NULL");
 		}
 
 		best->is_active = 1;
@@ -2081,8 +2081,8 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 		/* select the active aggregator for the bond */
 		if (port) {
 			if (!port->slave) {
-				pr_warn("%s: Warning: bond's first port is uninitialized\n",
-					bond->dev->name);
+				pr_warn_ratelimited("%s: Warning: bond's first port is uninitialized\n",
+						    bond->dev->name);
 				goto re_arm;
 			}
 
@@ -2096,8 +2096,8 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		port = &(SLAVE_AD_INFO(slave).port);
 		if (!port->slave) {
-			pr_warn("%s: Warning: Found an uninitialized port\n",
-				bond->dev->name);
+			pr_warn_ratelimited("%s: Warning: Found an uninitialized port\n",
+					    bond->dev->name);
 			goto re_arm;
 		}
 
@@ -2158,8 +2158,8 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
 		port = &(SLAVE_AD_INFO(slave).port);
 
 		if (!port->slave) {
-			pr_warn("%s: Warning: port of slave %s is uninitialized\n",
-				slave->dev->name, slave->bond->dev->name);
+			pr_warn_ratelimited("%s: Warning: port of slave %s is uninitialized\n",
+					    slave->dev->name, slave->bond->dev->name);
 			return ret;
 		}
 
