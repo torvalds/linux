@@ -374,13 +374,13 @@ static void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 	down(&ieee->scan_sem);
 
-	while(1) {
+	while (1) {
 		do {
 			ch++;
 			if (ch > MAX_CHANNEL_NUMBER)
 				goto out; /* scan completed */
 
-		} while(!channel_map[ch]);
+		} while (!channel_map[ch]);
 		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
@@ -431,7 +431,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
         down(&ieee->scan_sem);
 	ch = ieee->current_network.channel;
 
-	while(1) {
+	while (1) {
 		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
@@ -466,7 +466,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 				goto out; /* scan completed */
 
 			ieee->current_network.channel = (ieee->current_network.channel + 1)%MAX_CHANNEL_NUMBER;
-		} while(!channel_map[ieee->current_network.channel]);
+		} while (!channel_map[ieee->current_network.channel]);
         }
 out:
 	ieee->actscanning = false;
@@ -489,7 +489,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 			(ieee->current_network.channel + 1) % MAX_CHANNEL_NUMBER;
 		if (watchdog++ > MAX_CHANNEL_NUMBER)
 				goto out; /* no good chans */
-	} while(!channel_map[ieee->current_network.channel]);
+	} while (!channel_map[ieee->current_network.channel]);
 
 	if (ieee->scanning == 0 ) {
 		printk("error out, scanning = 0\n");
@@ -1758,7 +1758,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb,
 	/* called with 2nd parm 0, no tx mgmt lock required */
 	ieee80211_sta_wakeup(ieee,0);
 
-	for(i = 0; i < txb->nr_frags; i++) {
+	for (i = 0; i < txb->nr_frags; i++) {
 		if (ieee->queue_stop) {
 			ieee->tx_pending.txb = txb;
 			ieee->tx_pending.frag = i;
@@ -1783,7 +1783,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb,
 static void ieee80211_resume_tx(struct ieee80211_device *ieee)
 {
 	int i;
-	for(i = ieee->tx_pending.frag; i < ieee->tx_pending.txb->nr_frags; i++) {
+	for (i = ieee->tx_pending.frag; i < ieee->tx_pending.txb->nr_frags; i++) {
 
 		if (ieee->queue_stop) {
 			ieee->tx_pending.frag = i;
@@ -2197,7 +2197,7 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 			if (ch > MAX_CHANNEL_NUMBER)
 				return; /* no channel found */
 
-		} while(!GET_DOT11D_INFO(ieee)->channel_map[ch]);
+		} while (!GET_DOT11D_INFO(ieee)->channel_map[ch]);
 
 		ieee->current_network.channel = ch;
 	}
@@ -2206,10 +2206,10 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 		ieee->current_network.beacon_interval = 100;
 	ieee->set_chan(ieee->dev,ieee->current_network.channel);
 
-       	for(i = 0; i < 17; i++) {
-	  ieee->last_rxseq_num[i] = -1;
-	  ieee->last_rxfrag_num[i] = -1;
-	  ieee->last_packet_time[i] = 0;
+	for (i = 0; i < 17; i++) {
+		ieee->last_rxseq_num[i] = -1;
+		ieee->last_rxfrag_num[i] = -1;
+		ieee->last_packet_time[i] = 0;
 	}
 
 	ieee->init_wmmparam_flag = 0; /* reinitialize AC_xx_PARAM registers. */
