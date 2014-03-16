@@ -1224,18 +1224,22 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee,
 		else
 			ssidmatch = (0==strncmp(ieee->current_network.ssid, net->ssid, net->ssid_len));
 
-		if (	/* if the user set the AP check if match.
-			 * if the network does not broadcast essid we check the user supplied ANY essid
-			 * if the network does broadcast and the user does not set essid it is OK
-			 * if the network does broadcast and the user did set essid chech if essid match
-			 */
-				( apset && apmatch &&
-				  ((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset)) ) ||
-				/* if the ap is not set, check that the user set the bssid
-				 * and the network does broadcast and that those two bssid matches
-				 */
-				(!apset && ssidset && ssidbroad && ssidmatch)
-		   ){
+		/* if the user set the AP check if match.
+		 * if the network does not broadcast essid we check the user
+		 * supplied ANY essid
+		 * if the network does broadcast and the user does not set essid
+		 * it is OK
+		 * if the network does broadcast and the user did set essid
+		 * chech if essid match
+		 * (apset && apmatch && ((ssidset && ssidbroad && ssidmatch) ||
+		 *  (ssidbroad && !ssidset) || (!ssidbroad && ssidset))) ||
+		 * if the ap is not set, check that the user set the bssid and
+		 * the network does broadcast and that those two bssid matches
+		 * (!apset && ssidset && ssidbroad && ssidmatch)
+		 */
+		if ((apset && apmatch && ((ssidset && ssidbroad && ssidmatch) ||
+		     (ssidbroad && !ssidset) || (!ssidbroad && ssidset))) ||
+		    (!apset && ssidset && ssidbroad && ssidmatch)) {
 			/* if the essid is hidden replace it with the
 			 * essid provided by the user.
 			 */
@@ -1685,7 +1689,8 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 						info_element = (struct ieee80211_info_element *)
 							&info_element->data[info_element->len];
 					}
-					if(!ieee->init_wmmparam_flag) /* legacy AP, reset the AC_xx_param register */
+					/* legacy AP, reset the AC_xx_param register */
+					if(!ieee->init_wmmparam_flag)
 					{
 						queue_work(ieee->wq,&ieee->wmm_param_update_wq);
 						ieee->init_wmmparam_flag = 1; /* indicate AC_xx_param upated since last associate */
