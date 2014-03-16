@@ -332,8 +332,8 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	/* swlps or hwlps has been set in diff chip in init_sw_vars */
 	if (rtlpriv->psc.b_swctrl_lps)
 		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-	    		IEEE80211_HW_PS_NULLFUNC_STACK |
-	    		/* IEEE80211_HW_SUPPORTS_DYNAMIC_PS | */
+			IEEE80211_HW_PS_NULLFUNC_STACK |
+			/* IEEE80211_HW_SUPPORTS_DYNAMIC_PS | */
 			0;
 /*<delete in kernel start>*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
@@ -863,7 +863,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 				 ("%s ACT_ADDBAREQ From :%pM\n",
 				  is_tx ? "Tx" : "Rx", hdr->addr2));
 			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, ("req \n"),
-		      	skb->data, skb->len);
+			skb->data, skb->len);
 			if (!is_tx) {
 				struct ieee80211_sta *sta = NULL;
 				struct rtl_sta_info *sta_entry = NULL;
@@ -1861,7 +1861,7 @@ int rtl_core_module_init(void)
 void rtl_core_module_exit(void)
 {
 	/*RC*/
-   	rtl_rate_control_unregister();
+	rtl_rate_control_unregister();
 
 	/* add proc for debug */
 	rtl_proc_remove_topdir();
