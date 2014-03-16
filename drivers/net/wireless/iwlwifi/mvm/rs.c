@@ -211,9 +211,9 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		.next_columns = {
 			RS_COLUMN_LEGACY_ANT_B,
 			RS_COLUMN_SISO_ANT_A,
+			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
+			RS_COLUMN_MIMO2_SGI,
 		},
 	},
 	[RS_COLUMN_LEGACY_ANT_B] = {
@@ -221,10 +221,10 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		.ant = ANT_B,
 		.next_columns = {
 			RS_COLUMN_LEGACY_ANT_A,
+			RS_COLUMN_SISO_ANT_A,
 			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
+			RS_COLUMN_MIMO2_SGI,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A] = {
@@ -234,8 +234,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
 			RS_COLUMN_SISO_ANT_A_SGI,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
+			RS_COLUMN_SISO_ANT_B_SGI,
+			RS_COLUMN_MIMO2_SGI,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -248,8 +248,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_A,
 			RS_COLUMN_MIMO2,
 			RS_COLUMN_SISO_ANT_B_SGI,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
+			RS_COLUMN_SISO_ANT_A_SGI,
+			RS_COLUMN_MIMO2_SGI,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -263,8 +263,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_B_SGI,
 			RS_COLUMN_MIMO2_SGI,
 			RS_COLUMN_SISO_ANT_A,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
+			RS_COLUMN_SISO_ANT_B,
+			RS_COLUMN_MIMO2,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -279,8 +279,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_A_SGI,
 			RS_COLUMN_MIMO2_SGI,
 			RS_COLUMN_SISO_ANT_B,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
+			RS_COLUMN_SISO_ANT_A,
+			RS_COLUMN_MIMO2,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -292,10 +292,10 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		.ant = ANT_AB,
 		.next_columns = {
 			RS_COLUMN_SISO_ANT_A,
+			RS_COLUMN_SISO_ANT_B,
+			RS_COLUMN_SISO_ANT_A_SGI,
+			RS_COLUMN_SISO_ANT_B_SGI,
 			RS_COLUMN_MIMO2_SGI,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
 		},
 		.checks = {
 			rs_mimo_allow,
@@ -307,10 +307,10 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		.sgi = true,
 		.next_columns = {
 			RS_COLUMN_SISO_ANT_A_SGI,
+			RS_COLUMN_SISO_ANT_B_SGI,
+			RS_COLUMN_SISO_ANT_A,
+			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
-			RS_COLUMN_INVALID,
 		},
 		.checks = {
 			rs_mimo_allow,
