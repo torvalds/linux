@@ -2059,7 +2059,7 @@ jme_expand_header(struct jme_adapter *jme, struct sk_buff *skb)
 	if (unlikely(skb_shinfo(skb)->gso_size &&
 			skb_header_cloned(skb) &&
 			pskb_expand_head(skb, 0, 0, GFP_ATOMIC))) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return -1;
 	}
 
