@@ -57,6 +57,16 @@ static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
 		cpu_relax();
 }
 
+/*
+ * This should only be called when we have a requirement that the
+ * register be written due to a work-around, as platforms running
+ * in non-secure mode may not be able to access this register.
+ */
+static inline void l2c_set_debug(void __iomem *base, unsigned long val)
+{
+	outer_cache.set_debug(val);
+}
+
 #ifdef CONFIG_CACHE_PL310
 static inline void cache_wait(void __iomem *reg, unsigned long mask)
 {
@@ -92,7 +102,7 @@ static inline void l2x0_inv_line(unsigned long addr)
 static inline void debug_writel(unsigned long val)
 {
 	if (outer_cache.set_debug)
-		outer_cache.set_debug(val);
+		l2c_set_debug(l2x0_base, val);
 }
 
 static void pl310_set_debug(unsigned long val)
