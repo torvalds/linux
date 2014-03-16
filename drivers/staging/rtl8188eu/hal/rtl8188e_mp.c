@@ -115,14 +115,12 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 
 
 		/* Write 0xa24 ~ 0xa27 */
-		TempVal2 = 0;
 		TempVal2 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][2] +
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][3]<<8) +
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][4]<<16)+
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][5]<<24);
 
 		/* Write 0xa28  0xa29 */
-		TempVal3 = 0;
 		TempVal3 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][6] +
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][7]<<8);
 	} else {
@@ -139,14 +137,12 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 				(CCKSwingTable_Ch14[CCKSwingIndex][1]<<8);
 
 		/* Write 0xa24 ~ 0xa27 */
-		TempVal2 = 0;
 		TempVal2 = CCKSwingTable_Ch14[CCKSwingIndex][2] +
 				(CCKSwingTable_Ch14[CCKSwingIndex][3]<<8) +
 				(CCKSwingTable_Ch14[CCKSwingIndex][4]<<16)+
 				(CCKSwingTable_Ch14[CCKSwingIndex][5]<<24);
 
 		/* Write 0xa28  0xa29 */
-		TempVal3 = 0;
 		TempVal3 = CCKSwingTable_Ch14[CCKSwingIndex][6] +
 				(CCKSwingTable_Ch14[CCKSwingIndex][7]<<8);
 	}
