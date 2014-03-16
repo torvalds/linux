@@ -1428,7 +1428,7 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 
 	ieee->current_network.dtim_data = IEEE80211_DTIM_INVALID;
 
-	if (dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST)& ieee->ps))
+	if (dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST) & ieee->ps))
 		return 2;
 
 	if (!time_after(jiffies, ieee->dev->trans_start + MSECS(timeout)))
@@ -1627,13 +1627,12 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 									+ 8), (info_element->len - 8));
 
 								if (((ieee->current_network.wmm_info^info_element->data[6])& \
-										    0x0f)||(!ieee->init_wmmparam_flag)) {
+										    0x0f) || (!ieee->init_wmmparam_flag)) {
 									/* refresh parameter element for current network
 									 * update the register parameter for hardware.
 									 */
 									ieee->init_wmmparam_flag = 1;
 									queue_work(ieee->wq, &ieee->wmm_param_update_wq);
-
 								}
 								/* update info_element for current network */
 								ieee->current_network.wmm_info  = info_element->data[6];
@@ -2163,7 +2162,7 @@ void ieee80211_stop_protocol(struct ieee80211_device *ieee)
 	ieee->proto_started = 0;
 
 	ieee80211_stop_send_beacons(ieee);
-	if ((ieee->iw_mode == IW_MODE_INFRA)&&(ieee->state == IEEE80211_LINKED))
+	if ((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_LINKED))
 		SendDisassociation(ieee, NULL, WLAN_REASON_DISASSOC_STA_HAS_LEFT);
 
 	del_timer_sync(&ieee->associate_timer);
