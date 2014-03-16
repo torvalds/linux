@@ -1055,9 +1055,11 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 	/* We don't want to restart sched scan anymore. */
 	local->sched_scan_req = NULL;
 
-	if (rcu_access_pointer(local->sched_scan_sdata))
+	if (rcu_access_pointer(local->sched_scan_sdata)) {
 		ret = drv_sched_scan_stop(local, sdata);
-
+		if (!ret)
+			rcu_assign_pointer(local->sched_scan_sdata, NULL);
+	}
 out:
 	mutex_unlock(&local->mtx);
 
