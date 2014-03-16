@@ -441,8 +441,8 @@ u32 phy_get_tx_bb_swing_8812A(
 	struct rtl_dm *rtldm = rtl_dm(rtlpriv);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 
-	char bb_swing_2g = (char) (-1 * 0xFF);
-	char bb_swing_5g = (char) (-1 * 0xFF);
+	char bb_swing_2g = (char) ((-1 * 0xFF) & 0xFF);
+	char bb_swing_5g = (char) ((-1 * 0xFF) & 0xFF);
 	u32  out = 0x200;
 	const char auto_temp = -1;
 
