@@ -272,9 +272,8 @@ void SendDisassociation(struct ieee80211_device *ieee, u8 *asSta, u8 asRsn)
         struct ieee80211_network *beacon = &ieee->current_network;
         struct sk_buff *skb;
         skb = ieee80211_disassociate_skb(beacon,ieee,asRsn);
-	if (skb) {
+	if (skb)
                 softmac_mgmt_xmit(skb, ieee);
-	}
 }
 
 inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
@@ -401,13 +400,13 @@ static void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		 * if the state become LINKED because of the #1 situation
 		 */
 
-		if (ieee->state == IEEE80211_LINKED) {
+		if (ieee->state == IEEE80211_LINKED)
 			goto out;
-		}
+
 		ieee->set_chan(ieee->dev, ch);
-		if( channel_map[ch] == 1) {
+		if (channel_map[ch] == 1)
 			ieee80211_send_probe_requests(ieee);
-		}
+
 		/* this prevent excessive time wait when we
 		 * need to wait for a syncro scan to end..
 		 */
@@ -451,15 +450,14 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 		 * So the only situation in witch are interested is to check
 		 * if the state become LINKED because of the #1 situation
 		 */
-		if (ieee->state == IEEE80211_LINKED) {
+		if (ieee->state == IEEE80211_LINKED)
 			goto out;
-		}
-		if (channel_map[ieee->current_network.channel] > 0) {
+
+		if (channel_map[ieee->current_network.channel] > 0)
 			ieee->set_chan(ieee->dev, ieee->current_network.channel);
-		}
-		if (channel_map[ieee->current_network.channel] == 1) {
+
+		if (channel_map[ieee->current_network.channel] == 1)
 			ieee80211_send_probe_requests(ieee);
-                }
 
 		msleep_interruptible_rtl(IEEE80211_SOFTMAC_SCAN_TIME);
 
@@ -579,9 +577,8 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 {
 	if (IS_DOT11D_ENABLE(ieee)) {
-		if (IS_COUNTRY_IE_VALID(ieee)) {
+		if (IS_COUNTRY_IE_VALID(ieee))
 			RESET_CIE_WATCHDOG(ieee);
-		}
 	}
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
 		if (ieee->scanning == 0) {
@@ -598,9 +595,8 @@ void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 {
 	if (IS_DOT11D_ENABLE(ieee)) {
-		if (IS_COUNTRY_IE_VALID(ieee)) {
+		if (IS_COUNTRY_IE_VALID(ieee))
 			RESET_CIE_WATCHDOG(ieee);
-		}
 	}
 	ieee->sync_scan_hurryup = 0;
 
@@ -981,13 +977,13 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	memcpy(tag,ieee->wpa_ie,ieee->wpa_ie_len);
 
 	tag = skb_put(skb,wmm_info_len);
-	if(wmm_info_len) {
+	if (wmm_info_len)
 	  ieee80211_WMM_Info(ieee, &tag);
-	}
+
 	tag = skb_put(skb,turbo_info_len);
-        if(turbo_info_len) {
+        if (turbo_info_len)
                 ieee80211_TURBO_Info(ieee, &tag);
-        }
+
 	return skb;
 }
 
@@ -1390,9 +1386,8 @@ inline void ieee80211_rx_auth_rq(struct ieee80211_device *ieee,
 	ieee->softmac_stats.rx_auth_rq++;
 
 	status = auth_rq_parse(skb, dest);
-	if (status != -1) {
+	if (status != -1)
 		ieee80211_resp_to_auth(ieee, status, dest);
-	}
 }
 
  inline void
@@ -1402,9 +1397,9 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	u8 dest[ETH_ALEN];
 
 	ieee->softmac_stats.rx_ass_rq++;
-	if (assoc_rq_parse(skb,dest) != -1) {
+	if (assoc_rq_parse(skb,dest) != -1)
 		ieee80211_resp_to_assoc_rq(ieee, dest);
-	}
+
 
 	printk(KERN_INFO"New client associated: %pM\n", dest);
 }
@@ -1603,9 +1598,9 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 					ieee->assoc_id = aid;
 					ieee->softmac_stats.rx_ass_ok++;
 					/* card type is 8187 */
-					if (1 == rx_stats->nic_type) {
+					if (1 == rx_stats->nic_type)
 						goto associate_complete;
-					}
+
 					assoc_resp = (struct ieee80211_assoc_response_frame*)skb->data;
 					info_element = 	&assoc_resp->info_element;
 					left = skb->len - ((void*)info_element - (void*)assoc_resp);
@@ -2027,9 +2022,8 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 	 * including a Country IE.
 	 */
 	if (IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee)) {
-		if(!ieee->bGlobalDomain) {
+		if (!ieee->bGlobalDomain)
 			return;
-		}
 	}
 	/* check if we have already found the net we are interested in (if any).
 	 * if not (we are disassociated and we are not
@@ -2107,9 +2101,8 @@ static void ieee80211_associate_retry_wq(struct work_struct *work)
 		ieee->actscanning = true;
 		ieee80211_rtl_start_scan(ieee);
 	}
-	if (ieee->state == IEEE80211_NOLINK) {
+	if (ieee->state == IEEE80211_NOLINK)
 		notify_wx_assoc_event(ieee);
-	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
 exit:
@@ -2169,9 +2162,9 @@ void ieee80211_stop_protocol(struct ieee80211_device *ieee)
 	ieee->proto_started = 0;
 
 	ieee80211_stop_send_beacons(ieee);
-	if((ieee->iw_mode == IW_MODE_INFRA)&&(ieee->state == IEEE80211_LINKED)) {
+	if ((ieee->iw_mode == IW_MODE_INFRA)&&(ieee->state == IEEE80211_LINKED))
 		SendDisassociation(ieee,NULL,WLAN_REASON_DISASSOC_STA_HAS_LEFT);
-	}
+
 	del_timer_sync(&ieee->associate_timer);
 	cancel_delayed_work(&ieee->associate_retry_wq);
 	cancel_delayed_work(&ieee->start_ibss_wq);
@@ -2261,9 +2254,8 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 
 	ieee->state = IEEE80211_NOLINK;
 	ieee->sync_scan_hurryup = 0;
-	for(i = 0; i < 5; i++) {
-	  ieee->seq_ctrl[i] = 0;
-	}
+	for (i = 0; i < 5; i++)
+		ieee->seq_ctrl[i] = 0;
 
 	ieee->assoc_id = 0;
 	ieee->queue_stop = 0;
