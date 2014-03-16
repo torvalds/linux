@@ -1,16 +1,28 @@
 menu "SoC Audio for Freescale CPUs"
 
+comment "Common SoC Audio options for Freescale CPUs:"
+
 config SND_SOC_FSL_SAI
 	tristate
 	select REGMAP_MMIO
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_SOC_FSL_SSI
-	tristate
+	tristate "Synchronous Serial Interface module support"
+	help
+	  Say Y if you want to add Synchronous Serial Interface (SSI)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
 
 config SND_SOC_FSL_SPDIF
-	tristate
+	tristate "Sony/Philips Digital Interface module support"
 	select REGMAP_MMIO
+	help
+	  Say Y if you want to add Sony/Philips Digital Interface (SPDIF)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
 
 config SND_SOC_FSL_ESAI
 	tristate
@@ -25,7 +37,12 @@ config SND_SOC_IMX_PCM_DMA
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_SOC_IMX_AUDMUX
-	tristate
+	tristate "Digital Audio Mux module support"
+	help
+	  Say Y if you want to add Digital Audio Mux (AUDMUX) support
+	  for the ARM i.MX CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
 
 config SND_POWERPC_SOC
 	tristate "SoC Audio for Freescale PowerPC CPUs"
