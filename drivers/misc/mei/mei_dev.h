@@ -237,20 +237,20 @@ struct mei_cl {
  */
 struct mei_hw_ops {
 
-	bool (*host_is_ready) (struct mei_device *dev);
+	bool (*host_is_ready)(struct mei_device *dev);
 
-	bool (*hw_is_ready) (struct mei_device *dev);
-	int (*hw_reset) (struct mei_device *dev, bool enable);
-	int  (*hw_start) (struct mei_device *dev);
-	void (*hw_config) (struct mei_device *dev);
+	bool (*hw_is_ready)(struct mei_device *dev);
+	int (*hw_reset)(struct mei_device *dev, bool enable);
+	int (*hw_start)(struct mei_device *dev);
+	void (*hw_config)(struct mei_device *dev);
 
-	void (*intr_clear) (struct mei_device *dev);
-	void (*intr_enable) (struct mei_device *dev);
-	void (*intr_disable) (struct mei_device *dev);
+	void (*intr_clear)(struct mei_device *dev);
+	void (*intr_enable)(struct mei_device *dev);
+	void (*intr_disable)(struct mei_device *dev);
 
-	int (*hbuf_free_slots) (struct mei_device *dev);
-	bool (*hbuf_is_ready) (struct mei_device *dev);
-	size_t (*hbuf_max_len) (const struct mei_device *dev);
+	int (*hbuf_free_slots)(struct mei_device *dev);
+	bool (*hbuf_is_ready)(struct mei_device *dev);
+	size_t (*hbuf_max_len)(const struct mei_device *dev);
 
 	int (*write)(struct mei_device *dev,
 		     struct mei_msg_hdr *hdr,
@@ -259,7 +259,7 @@ struct mei_hw_ops {
 	int (*rdbuf_full_slots)(struct mei_device *dev);
 
 	u32 (*read_hdr)(const struct mei_device *dev);
-	int (*read) (struct mei_device *dev,
+	int (*read)(struct mei_device *dev,
 		     unsigned char *buf, unsigned long len);
 };
 
