@@ -3184,11 +3184,11 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	struct fs_path *path_after = NULL;
 	int len1, len2;
 
-	if (parent_ref->dir <= sctx->cur_ino)
-		return 0;
-
 	if (is_waiting_for_move(sctx, ino))
 		return 1;
+
+	if (parent_ref->dir <= sctx->cur_ino)
+		return 0;
 
 	ret = get_inode_info(sctx->parent_root, ino, NULL, &old_gen,
 			     NULL, NULL, NULL, NULL);
