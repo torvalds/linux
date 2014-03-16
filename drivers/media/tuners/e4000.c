@@ -269,6 +269,7 @@ static int e4000_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_VIDEO_V4L2)
 static int e4000_set_lna_gain(struct dvb_frontend *fe)
 {
 	struct e4000 *s = fe->tuner_priv;
@@ -456,6 +457,7 @@ static const struct v4l2_ctrl_ops e4000_ctrl_ops = {
 	.g_volatile_ctrl = e4000_g_volatile_ctrl,
 	.s_ctrl = e4000_s_ctrl,
 };
+#endif
 
 static const struct dvb_tuner_ops e4000_tuner_ops = {
 	.info = {
@@ -522,6 +524,7 @@ static int e4000_probe(struct i2c_client *client,
 	if (ret)
 		goto err;
 
+#if IS_ENABLED(CONFIG_VIDEO_V4L2)
 	/* Register controls */
 	v4l2_ctrl_handler_init(&s->hdl, 9);
 	s->bandwidth_auto = v4l2_ctrl_new_std(&s->hdl, &e4000_ctrl_ops,
@@ -554,6 +557,7 @@ static int e4000_probe(struct i2c_client *client,
 	}
 
 	s->sd.ctrl_handler = &s->hdl;
+#endif
 
 	dev_info(&s->client->dev,
 			"%s: Elonics E4000 successfully identified\n",
@@ -584,7 +588,9 @@ static int e4000_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "%s:\n", __func__);
 
+#if IS_ENABLED(CONFIG_VIDEO_V4L2)
 	v4l2_ctrl_handler_free(&s->hdl);
+#endif
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;
 	kfree(s);
