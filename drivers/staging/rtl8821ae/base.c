@@ -862,7 +862,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 			RT_TRACE((COMP_SEND | COMP_RECV), DBG_DMESG,
 				 ("%s ACT_ADDBAREQ From :%pM\n",
 				  is_tx ? "Tx" : "Rx", hdr->addr2));
-			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, ("req \n"),
+			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, ("req\n"),
 			skb->data, skb->len);
 			if (!is_tx) {
 				struct ieee80211_sta *sta = NULL;
