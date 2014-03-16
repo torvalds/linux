@@ -860,7 +860,7 @@ spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
 		if (skb) {
 			pci_unmap_single(card->pdev, buf_addr, skb->len,
 					PCI_DMA_TODEVICE);
-			dev_kfree_skb(skb);
+			dev_consume_skb_any(skb);
 		}
 	}
 	return 0;
