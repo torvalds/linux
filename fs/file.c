@@ -713,27 +713,16 @@ unsigned long __fdget_raw(unsigned int fd)
 
 unsigned long __fdget_pos(unsigned int fd)
 {
-	struct files_struct *files = current->files;
-	struct file *file;
-	unsigned long v;
+	unsigned long v = __fdget(fd);
+	struct file *file = (struct file *)(v & ~3);
 
-	if (atomic_read(&files->count) == 1) {
-		file = __fcheck_files(files, fd);
-		v = 0;
-	} else {
-		file = __fget(fd, 0);
-		v = FDPUT_FPUT;
-	}
-	if (!file)
-		return 0;
-
-	if (file->f_mode & FMODE_ATOMIC_POS) {
+	if (file && (file->f_mode & FMODE_ATOMIC_POS)) {
 		if (file_count(file) > 1) {
 			v |= FDPUT_POS_UNLOCK;
 			mutex_lock(&file->f_pos_lock);
 		}
 	}
-	return v | (unsigned long)file;
+	return v;
 }
 
 /*
