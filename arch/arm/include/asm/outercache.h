@@ -35,7 +35,6 @@ struct outer_cache_fns {
 	void (*resume)(void);
 
 	/* This is an ARM L2C thing */
-	void (*set_debug)(unsigned long);
 	void (*write_sec)(unsigned long, unsigned);
 };
 
