@@ -103,11 +103,11 @@ extern int  unregister_hdlc_device_v7(hdlc_device *);
 
 int         error_flag;         /* module load error reporting */
 int         cxt1e1_log_level = LOG_ERROR;
-int         log_level_default = LOG_ERROR;
+static int  log_level_default = LOG_ERROR;
 module_param(cxt1e1_log_level, int, 0444);
 
 int         cxt1e1_max_mru = MUSYCC_MRU;
-int         max_mru_default = MUSYCC_MRU;
+static int  max_mru_default = MUSYCC_MRU;
 module_param(cxt1e1_max_mru, int, 0444);
 
 int         cxt1e1_max_mtu = MUSYCC_MTU;
@@ -248,7 +248,7 @@ c4_wq_port_cleanup(mpi_t *pi)
 
 /***************************************************************************/
 
-irqreturn_t
+static irqreturn_t
 c4_linux_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *ndev = dev_instance;
@@ -258,7 +258,7 @@ c4_linux_interrupt(int irq, void *dev_instance)
 
 
 #ifdef CONFIG_SBE_PMCC4_NCOMM
-irqreturn_t
+static irqreturn_t
 c4_ebus_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *ndev = dev_instance;
