@@ -155,7 +155,7 @@ static	void	dm_ctstoself(struct net_device *dev);
 //		This function is only invoked at driver intialization once.
 //
 //
-extern	void
+void
 init_hal_dm(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -176,7 +176,7 @@ init_hal_dm(struct net_device *dev)
 
 }	// InitHalDm
 
-extern void deinit_hal_dm(struct net_device *dev)
+void deinit_hal_dm(struct net_device *dev)
 {
 
 	dm_deInit_fsync(dev);
@@ -242,7 +242,7 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 
 
 
-extern  void    hal_dm_watchdog(struct net_device *dev)
+void    hal_dm_watchdog(struct net_device *dev)
 {
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -275,7 +275,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
   *	01/16/2008	MHC		RF_Type is assigned in ReadAdapterInfo(). We must call
   *						the function after making sure RF_Type.
   */
-extern void init_rate_adaptive(struct net_device *dev)
+void init_rate_adaptive(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -875,7 +875,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 	priv->txpower_count = 0;
 }
 
-extern	void	dm_txpower_trackingcallback(struct work_struct *work)
+void	dm_txpower_trackingcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,txpower_tracking_wq);
@@ -1606,7 +1606,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 
 
 
-extern void dm_cck_txpower_adjust(
+void dm_cck_txpower_adjust(
 	struct net_device *dev,
 	bool  binch14
 )
@@ -1773,7 +1773,7 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
  *	05/29/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
+void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 								u32		dm_type,
 								u32		dm_value)
 {
@@ -1842,7 +1842,7 @@ extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 		dm_digtable.rx_gain_range_max = (u8)dm_value;
 	}
 }	/* DM_ChangeDynamicInitGainThresh */
-extern	void
+void
 dm_change_fsync_setting(
 	struct net_device *dev,
 	s32		DM_Type,
@@ -1859,7 +1859,7 @@ dm_change_fsync_setting(
 	}
 }
 
-extern void
+void
 dm_change_rxpath_selection_setting(
 	struct net_device *dev,
 	s32		DM_Type,
@@ -2540,7 +2540,7 @@ static	void dm_cs_ratio(
 	}
 }
 
-extern void dm_init_edca_turbo(struct net_device *dev)
+void dm_init_edca_turbo(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -2660,7 +2660,7 @@ dm_CheckEdcaTurbo_EXIT:
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }	// dm_CheckEdcaTurbo
 
-extern void DM_CTSToSelfSetting(struct net_device *dev,u32 DM_Type, u32 DM_Value)
+void DM_CTSToSelfSetting(struct net_device *dev, u32 DM_Type, u32 DM_Value)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 
@@ -2779,7 +2779,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
  *	01/30/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
+void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
@@ -3139,7 +3139,7 @@ static void dm_deInit_fsync(struct net_device *dev)
 	del_timer_sync(&priv->fsync_timer);
 }
 
-extern void dm_fsync_timer_callback(unsigned long data)
+void dm_fsync_timer_callback(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)data);
@@ -3478,7 +3478,7 @@ void dm_check_fsync(struct net_device *dev)
  *	05/29/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-extern void dm_shadow_init(struct net_device *dev)
+void dm_shadow_init(struct net_device *dev)
 {
 	u8	page;
 	u16	offset;
