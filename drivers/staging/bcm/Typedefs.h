@@ -25,16 +25,16 @@ typedef unsigned int B_UINT32;
 typedef unsigned long ULONG;
 typedef unsigned long DWORD;
 
-typedef char* PCHAR;
-typedef short* PSHORT;
-typedef int* PINT;
-typedef long* PLONG;
-typedef void* PVOID;
+typedef char *PCHAR;
+typedef short *PSHORT;
+typedef int *PINT;
+typedef long *PLONG;
+typedef void *PVOID;
 
-typedef unsigned char* PUCHAR;
-typedef unsigned short* PUSHORT;
-typedef unsigned int* PUINT;
-typedef unsigned long* PULONG;
+typedef unsigned char *PUCHAR;
+typedef unsigned short *PUSHORT;
+typedef unsigned int *PUINT;
+typedef unsigned long *PULONG;
 typedef unsigned long long ULONG64;
 typedef unsigned long long LARGE_INTEGER;
 typedef unsigned int UINT32;
