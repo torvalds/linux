@@ -1032,7 +1032,7 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	if (!skb) {
 		ieee80211_associate_abort(ieee);
 	} else {
-		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING ;
+		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING;
 		IEEE80211_DEBUG_MGMT("Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
 		/* BUGON when you try to add_timer twice, using mod_timer may
@@ -1823,7 +1823,7 @@ void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 	struct ieee80211_hdr_3addr  *header;
 
 	spin_lock_irqsave(&ieee->lock,flags);
-	if (! ieee->queue_stop) goto exit;
+	if (!ieee->queue_stop) goto exit;
 
 	ieee->queue_stop = 0;
 
@@ -1849,7 +1849,7 @@ void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 		ieee->softmac_stats.swtxawake++;
 		netif_wake_queue(ieee->dev);
 	}
-exit :
+exit:
 	spin_unlock_irqrestore(&ieee->lock,flags);
 }
 
