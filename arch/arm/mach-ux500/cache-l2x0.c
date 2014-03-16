@@ -35,6 +35,14 @@ static int __init ux500_l2x0_unlock(void)
 	return 0;
 }
 
+static void ux500_l2c310_write_sec(unsigned long val, unsigned reg)
+{
+	/*
+	 * We can't write to secure registers as we are in non-secure
+	 * mode, until we have some SMI service available.
+	 */
+}
+
 static int __init ux500_l2x0_init(void)
 {
 	u32 aux_val = 0x3e000000;
@@ -56,20 +64,13 @@ static int __init ux500_l2x0_init(void)
 		/* 64KB way size */
 		aux_val |= L2C_AUX_CTRL_WAY_SIZE(3);
 
+	outer_cache.write_sec = ux500_l2c310_write_sec;
+
 	/* 64KB way size, 8 way associativity, force WA */
 	if (of_have_populated_dt())
 		l2x0_of_init(aux_val, 0xc0000fff);
 	else
 		l2x0_init(l2x0_base, aux_val, 0xc0000fff);
-
-	/*
-	 * We can't disable l2 as we are in non secure mode, currently
-	 * this seems be called only during kexec path. So let's
-	 * override outer.disable with nasty assignment until we have
-	 * some SMI service available.
-	 */
-	outer_cache.disable = NULL;
-	outer_cache.set_debug = NULL;
 
 	return 0;
 }
