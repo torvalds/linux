@@ -658,7 +658,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
  drop:
 	dev->stats.tx_dropped++;
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
