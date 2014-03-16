@@ -53,8 +53,7 @@ static unsigned int ieee80211_MFIE_rate_len(struct ieee80211_device *ieee)
 }
 
 /* place the MFIE rate, tag to the memory (double) poised.
- * Then it updates the pointer so that
- * it points after the new MFIE tag added.
+ * Then it updates the pointer so that it points after the new MFIE tag added.
  */
 static void ieee80211_MFIE_Brate(struct ieee80211_device *ieee, u8 **tag_p)
 {
@@ -98,12 +97,12 @@ static void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
-	*tag++ = MFIE_TYPE_GENERIC; //0
+	*tag++ = MFIE_TYPE_GENERIC; /* 0 */
 	*tag++ = 7;
 	*tag++ = 0x00;
 	*tag++ = 0x50;
 	*tag++ = 0xf2;
-	*tag++ = 0x02;//5
+	*tag++ = 0x02; /* 5 */
 	*tag++ = 0x00;
 	*tag++ = 0x01;
 #ifdef SUPPORT_USPD
@@ -296,7 +295,7 @@ inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
 
 	req = (struct ieee80211_probe_request *) skb_put(skb,sizeof(struct ieee80211_probe_request));
 	req->header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	req->header.duration_id = 0; //FIXME: is this OK ?
+	req->header.duration_id = 0; /* FIXME: is this OK ? */
 
 	memset(req->header.addr1, 0xff, ETH_ALEN);
 	memcpy(req->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -456,24 +455,24 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 
      	while(1)
         {
-                /* this function can be called in two situations
-                 * 1- We have switched to ad-hoc mode and we are
-                 *    performing a complete syncro scan before conclude
-                 *    there are no interesting cell and to create a
-                 *    new one. In this case the link state is
-                 *    IEEE80211_NOLINK until we found an interesting cell.
-                 *    If so the ieee8021_new_net, called by the RX path
-                 *    will set the state to IEEE80211_LINKED, so we stop
-                 *    scanning
-                 * 2- We are linked and the root uses run iwlist scan.
-                 *    So we switch to IEEE80211_LINKED_SCANNING to remember
-                 *    that we are still logically linked (not interested in
-                 *    new network events, despite for updating the net list,
-                 *    but we are temporarily 'unlinked' as the driver shall
-                 *    not filter RX frames and the channel is changing.
-                 * So the only situation in witch are interested is to check
-                 * if the state become LINKED because of the #1 situation
-                 */
+		/* this function can be called in two situations
+		 * 1- We have switched to ad-hoc mode and we are
+		 *    performing a complete syncro scan before conclude
+		 *    there are no interesting cell and to create a
+		 *    new one. In this case the link state is
+		 *    IEEE80211_NOLINK until we found an interesting cell.
+		 *    If so the ieee8021_new_net, called by the RX path
+		 *    will set the state to IEEE80211_LINKED, so we stop
+		 *    scanning
+		 * 2- We are linked and the root uses run iwlist scan.
+		 *    So we switch to IEEE80211_LINKED_SCANNING to remember
+		 *    that we are still logically linked (not interested in
+		 *    new network events, despite for updating the net list,
+		 *    but we are temporarily 'unlinked' as the driver shall
+		 *    not filter RX frames and the channel is changing.
+		 * So the only situation in witch are interested is to check
+		 * if the state become LINKED because of the #1 situation
+		 */
 		if (ieee->state == IEEE80211_LINKED)
 		{
 			goto out;
@@ -659,7 +658,7 @@ ieee80211_authentication_req(struct ieee80211_network *beacon,
 	auth->header.frame_ctl = IEEE80211_STYPE_AUTH;
 	if (challengelen) auth->header.frame_ctl |= IEEE80211_FCTL_WEP;
 
-	auth->header.duration_id = 0x013a; //FIXME
+	auth->header.duration_id = 0x013a; /* FIXME */
 
 	memcpy(auth->header.addr1, beacon->bssid, ETH_ALEN);
 	memcpy(auth->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -705,7 +704,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 
 	beacon_size = sizeof(struct ieee80211_probe_response)+
 		ssid_len
-		+3 //channel
+		+3 /* channel */
 		+rate_len
 		+rate_ex_len
 		+atim_len
@@ -723,7 +722,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	memcpy (beacon_buf->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy (beacon_buf->header.addr3, ieee->current_network.bssid, ETH_ALEN);
 
-	beacon_buf->header.duration_id = 0; //FIXME
+	beacon_buf->header.duration_id = 0; /* FIXME */
 	beacon_buf->beacon_interval =
 		cpu_to_le16(ieee->current_network.beacon_interval);
 	beacon_buf->capability =
@@ -784,7 +783,11 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	if (wpa_ie_len)
 	{
 		if (ieee->iw_mode == IW_MODE_ADHOC)
-		{//as Windows will set pairwise key same as the group key which is not allowed in Linux, so set this for IOT issue.
+		{
+			/* as Windows will set pairwise key same as the group
+			 * key which is not allowed in Linux, so set this for
+			 * IOT issue.
+			 */
 			memcpy(&ieee->wpa_ie[14], &ieee->wpa_ie[8], 4);
 		}
 
@@ -936,7 +939,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	u8 *tag;
 	unsigned int wpa_len = beacon->wpa_ie_len;
 #if 1
-	// for testing purpose
+	/* for testing purpose */
 	unsigned int rsn_len = beacon->rsn_ie_len;
 #endif
 	unsigned int rate_len = ieee80211_MFIE_rate_len(ieee);
@@ -947,9 +950,10 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 
 	int len = 0;
 
-	//[0] Notify type of encryption: WPA/WPA2
-	//[1] pair wise type
-	//[2] authen type
+	/* [0] Notify type of encryption: WPA/WPA2
+	 * [1] pair wise type
+	 * [2] authen type
+	 */
 	if(ieee->wpax_type_set) {
 		if (IEEE_PROTO_WPA == encry_proto) {
 			rsn_len = 0;
@@ -958,8 +962,8 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		}
 	}
 	len = sizeof(struct ieee80211_assoc_request_frame)+
-		+ beacon->ssid_len//essid tagged val
-		+ rate_len//rates tagged val
+		+ beacon->ssid_len /* essid tagged val */
+		+ rate_len /* rates tagged val */
 		+ wpa_len
 		+ rsn_len
 		+ wmm_info_len
@@ -974,11 +978,11 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		skb_put(skb, sizeof(struct ieee80211_assoc_request_frame));
 
 	hdr->header.frame_control = IEEE80211_STYPE_ASSOC_REQ;
-	hdr->header.duration_id= 37; //FIXME
+	hdr->header.duration_id= 37; /* FIXME */
 	memcpy(hdr->header.addr1, beacon->bssid, ETH_ALEN);
 	memcpy(hdr->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(hdr->header.addr3, beacon->bssid, ETH_ALEN);
-	memcpy(ieee->ap_mac_addr, beacon->bssid, ETH_ALEN);//for HW security
+	memcpy(ieee->ap_mac_addr, beacon->bssid, ETH_ALEN); /* for HW security */
 
 	hdr->capability = cpu_to_le16(WLAN_CAPABILITY_BSS);
 	if (beacon->capability & WLAN_CAPABILITY_PRIVACY )
@@ -989,7 +993,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	if(ieee->short_slot)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
 
-	hdr->listen_interval = 0xa; //FIXME
+	hdr->listen_interval = 0xa; /* FIXME */
 
 	hdr->info_element.id = MFIE_TYPE_SSID;
 
@@ -1002,8 +1006,9 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	ieee80211_MFIE_Brate(ieee, &tag);
 	ieee80211_MFIE_Grate(ieee, &tag);
 
-	//add rsn==0 condition for ap's mix security mode(wpa+wpa2)
-	//choose AES encryption as default algorithm while using mixed mode
+	/* add rsn==0 condition for ap's mix security mode(wpa+wpa2)
+	 * choose AES encryption as default algorithm while using mixed mode.
+	 */
 
 	tag = skb_put(skb,ieee->wpa_ie_len);
 	memcpy(tag,ieee->wpa_ie,ieee->wpa_ie_len);
@@ -1067,13 +1072,17 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING ;
 		IEEE80211_DEBUG_MGMT("Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
-		//BUGON when you try to add_timer twice, using mod_timer may be better
+		/* BUGON when you try to add_timer twice, using mod_timer may
+		 * be better.
+		 */
 		if(!timer_pending(&ieee->associate_timer)){
 			ieee->associate_timer.expires = jiffies + (HZ / 2);
 			add_timer(&ieee->associate_timer);
 		}
-		//If call dev_kfree_skb_any,a warning will ocur....
-		//KERNEL: assertion (!atomic_read(&skb->users)) failed at net/core/dev.c (1708)
+		/* If call dev_kfree_skb_any,a warning will ocur....
+		 * KERNEL: assertion (!atomic_read(&skb->users)) failed at
+		 * net/core/dev.c (1708)
+		 */
 	}
 }
 
@@ -1494,7 +1503,7 @@ static inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 		ieee->iw_mode != IW_MODE_INFRA ||
 		ieee->state != IEEE80211_LINKED)){
 
-		//#warning CHECK_LOCK_HERE
+		/* #warning CHECK_LOCK_HERE */
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 
 		ieee80211_sta_wakeup(ieee, 1);
@@ -1526,7 +1535,7 @@ static inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 			spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
 		}
 	}else if(sleep == 2){
-//#warning CHECK_LOCK_HERE
+		/* #warning CHECK_LOCK_HERE */
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 
 		ieee80211_sta_wakeup(ieee,1);
@@ -1624,8 +1633,8 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 					ieee->state=IEEE80211_LINKED;
 					ieee->assoc_id = aid;
 					ieee->softmac_stats.rx_ass_ok++;
-
-					if(1 == rx_stats->nic_type) //card type is 8187
+					/* card type is 8187 */
+					if(1 == rx_stats->nic_type)
 					{
 						goto associate_complete;
 					}
@@ -1647,25 +1656,27 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 							    info_element->data[2] == 0xf2 &&
 							    info_element->data[3] == 0x02 &&
 							    info_element->data[4] == 0x01) {
-							    // Not care about version at present.
-							    //WMM Parameter Element
+							    /* Not care about version at present.
+							     * WMM Parameter Element.
+							     */
 							    memcpy(ieee->current_network.wmm_param,(u8*)(info_element->data\
 										    + 8),(info_element->len - 8));
 
 					 	            if (((ieee->current_network.wmm_info^info_element->data[6])& \
 										    0x0f)||(!ieee->init_wmmparam_flag)) {
-						   	      // refresh parameter element for current network
-							      // update the register parameter for hardware
+								/* refresh parameter element for current network
+								 * update the register parameter for hardware.
+								 */
 							      ieee->init_wmmparam_flag = 1;
 							      queue_work(ieee->wq, &ieee->wmm_param_update_wq);
 
 						            }
-						            //update info_element for current network
+						            /* update info_element for current network */
 						            ieee->current_network.wmm_info  = info_element->data[6];
 							}
 							break;
 						  default:
-							//nothing to do at present!!!
+							/* nothing to do at present!!! */
 							break;
 						}
 
@@ -1674,10 +1685,10 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 						info_element = (struct ieee80211_info_element *)
 							&info_element->data[info_element->len];
 					}
-					if(!ieee->init_wmmparam_flag) //legacy AP, reset the AC_xx_param register
+					if(!ieee->init_wmmparam_flag) /* legacy AP, reset the AC_xx_param register */
 					{
 						queue_work(ieee->wq,&ieee->wmm_param_update_wq);
-						ieee->init_wmmparam_flag = 1;//indicate AC_xx_param upated since last associate
+						ieee->init_wmmparam_flag = 1; /* indicate AC_xx_param upated since last associate */
 					}
 associate_complete:
 					ieee80211_associate_complete(ieee);
@@ -1735,8 +1746,8 @@ associate_complete:
 		case IEEE80211_STYPE_DISASSOC:
 		case IEEE80211_STYPE_DEAUTH:
 			/* FIXME for now repeat all the association procedure
-			* both for disassociation and deauthentication
-			*/
+			 * both for disassociation and deauthentication
+			 */
 			if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 				(ieee->state == IEEE80211_LINKED) &&
 				(ieee->iw_mode == IW_MODE_INFRA) &&
@@ -2008,7 +2019,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 			ieee->rate = 110;
 		}
 
-		// By default, WMM function will be disabled in IBSS mode
+		/* By default, WMM function will be disabled in IBSS mode */
 		ieee->current_network.QoS_Enable = 0;
 
 		ieee->current_network.atim_window = 0;
@@ -2043,10 +2054,10 @@ inline void ieee80211_start_ibss(struct ieee80211_device *ieee)
 void ieee80211_start_bss(struct ieee80211_device *ieee)
 {
 	unsigned long flags;
-	//
-	// Ref: 802.11d 11.1.3.3
-	// STA shall not start a BSS unless properly formed Beacon frame including a Country IE.
-	//
+	/* Ref: 802.11d 11.1.3.3
+	 * STA shall not start a BSS unless properly formed Beacon frame
+	 * including a Country IE.
+	 */
 	if(IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee))
 	{
 		if(! ieee->bGlobalDomain)
@@ -2054,8 +2065,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 			return;
 		}
 	}
-	/* check if we have already found the net we
-	 * are interested in (if any).
+	/* check if we have already found the net we are interested in (if any).
 	 * if not (we are disassociated and we are not
 	 * in associating / authenticating phase) start the background scanning.
 	 */
@@ -2244,7 +2254,7 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 	  ieee->last_packet_time[i] = 0;
 	}
 
-	ieee->init_wmmparam_flag = 0;//reinitialize AC_xx_PARAM registers.
+	ieee->init_wmmparam_flag = 0; /* reinitialize AC_xx_PARAM registers. */
 
 	/* if the user set the MAC of the ad-hoc cell and then
 	 * switch to managed mode, shall we  make sure that association
@@ -2254,7 +2264,7 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 	switch (ieee->iw_mode) {
 		case IW_MODE_AUTO:
 			ieee->iw_mode = IW_MODE_INFRA;
-			//not set break here intentionly
+			/* not set break here intentionly */
 		case IW_MODE_INFRA:
 			ieee80211_start_bss(ieee);
 			break;
@@ -2293,7 +2303,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	ieee->assoc_id = 0;
 	ieee->queue_stop = 0;
 	ieee->scanning = 0;
-	ieee->softmac_features = 0; //so IEEE2100-like driver are happy
+	ieee->softmac_features = 0; /* so IEEE2100-like driver are happy */
 	ieee->wap_set = 0;
 	ieee->ssid_set = 0;
 	ieee->proto_started = 0;
@@ -2351,7 +2361,7 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	del_timer_sync(&ieee->associate_timer);
 	cancel_delayed_work(&ieee->associate_retry_wq);
 
-	//add for RF power on power of
+	/* add for RF power on power of */
 	cancel_delayed_work(&ieee->GPIOChangeRFWorkItem);
 
 	destroy_workqueue(ieee->wq);
@@ -2359,10 +2369,7 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	up(&ieee->wx_sem);
 }
 
-/********************************************************
- * Start of WPA code.                                   *
- * this is stolen from the ipw2200 driver               *
- ********************************************************/
+/* Start of WPA code. This is stolen from the ipw2200 driver  */
 static int ieee80211_wpa_enable(struct ieee80211_device *ieee, int value)
 {
 	/* This is called when wpa_supplicant loads and closes the driver
@@ -2388,7 +2395,7 @@ static int ieee80211_wpa_mlme(struct ieee80211_device *ieee, int command,
 
 	switch (command) {
 	case IEEE_MLME_STA_DEAUTH:
-		// silently ignore
+		/* silently ignore */
 		break;
 
 	case IEEE_MLME_STA_DISASSOC:
@@ -2563,7 +2570,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 	if (strcmp(param->u.crypt.alg, "none") == 0) {
 		if (crypt) {
 			sec.enabled = 0;
-			// FIXME FIXME
+			/* FIXME FIXME */
 			sec.level = SEC_LEVEL_0;
 			sec.flags |= SEC_ENABLED | SEC_LEVEL;
 			ieee80211_crypt_delayed_deinit(ieee, crypt);
@@ -2571,7 +2578,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		goto done;
 	}
 	sec.enabled = 1;
-// FIXME FIXME
+	/* FIXME FIXME */
 	sec.flags |= SEC_ENABLED;
 
 	/* IPW HW cannot build TKIP MIC, host decryption still needed. */
