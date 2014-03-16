@@ -105,4 +105,9 @@
 #define MT7620_GPIO_MODE_EPHY		BIT(15)
 #define MT7620_GPIO_MODE_WDT		BIT(22)
 
+static inline int mt7620_get_eco(void)
+{
+	return rt_sysc_r32(SYSC_REG_CHIP_REV) & CHIP_REV_ECO_MASK;
+}
+
 #endif
