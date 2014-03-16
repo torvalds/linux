@@ -135,7 +135,7 @@ static void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
 static void enqueue_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 	int nh;
-	nh = (ieee->mgmt_queue_head +1) % MGMT_QUEUE_NUM;
+	nh = (ieee->mgmt_queue_head + 1) % MGMT_QUEUE_NUM;
 
 	ieee->mgmt_queue_head = nh;
 	ieee->mgmt_queue_ring[nh] = skb;
@@ -151,7 +151,7 @@ static struct sk_buff *dequeue_mgmt(struct ieee80211_device *ieee)
 	ret = ieee->mgmt_queue_ring[ieee->mgmt_queue_tail];
 
 	ieee->mgmt_queue_tail =
-		(ieee->mgmt_queue_tail+1) % MGMT_QUEUE_NUM;
+		(ieee->mgmt_queue_tail + 1) % MGMT_QUEUE_NUM;
 
 	return ret;
 }
@@ -168,7 +168,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb,
 {
 	unsigned long flags;
 	short single = ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE;
-	struct ieee80211_hdr_3addr  *header=
+	struct ieee80211_hdr_3addr  *header =
 		(struct ieee80211_hdr_3addr  *) skb->data;
 
 	spin_lock_irqsave(&ieee->lock, flags);
@@ -300,7 +300,7 @@ inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
 	memcpy(req->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memset(req->header.addr3, 0xff, ETH_ALEN);
 
-	tag = (u8 *) skb_put(skb,len+2+rate_len);
+	tag = (u8 *) skb_put(skb, len + 2 + rate_len);
 
 	*tag++ = MFIE_TYPE_SSID;
 	*tag++ = len;
@@ -803,7 +803,7 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 
 	assoc->status = 0;
 	assoc->aid = cpu_to_le16(ieee->assoc_id);
-	if (ieee->assoc_id == 0x2007) ieee->assoc_id=0;
+	if (ieee->assoc_id == 0x2007) ieee->assoc_id = 0;
 	else ieee->assoc_id++;
 
 	tag = (u8*) skb_put(skb, rate_len);
@@ -942,7 +942,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		skb_put(skb, sizeof(struct ieee80211_assoc_request_frame));
 
 	hdr->header.frame_control = IEEE80211_STYPE_ASSOC_REQ;
-	hdr->header.duration_id= 37; /* FIXME */
+	hdr->header.duration_id = 37; /* FIXME */
 	memcpy(hdr->header.addr1, beacon->bssid, ETH_ALEN);
 	memcpy(hdr->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(hdr->header.addr3, beacon->bssid, ETH_ALEN);
@@ -1028,7 +1028,7 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 
 	IEEE80211_DEBUG_MGMT("Stopping scan\n");
 	ieee->softmac_stats.tx_auth_rq++;
-	skb=ieee80211_authentication_req(beacon, ieee, 0);
+	skb = ieee80211_authentication_req(beacon, ieee, 0);
 	if (!skb) {
 		ieee80211_associate_abort(ieee);
 	} else {
@@ -1091,7 +1091,7 @@ static void ieee80211_associate_step2(struct ieee80211_device *ieee)
 
 	IEEE80211_DEBUG_MGMT("Sending association request\n");
 	ieee->softmac_stats.tx_ass_rq++;
-	skb=ieee80211_association_req(beacon, ieee);
+	skb = ieee80211_association_req(beacon, ieee);
 	if (!skb)
 		ieee80211_associate_abort(ieee);
 	else {
@@ -1267,7 +1267,7 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 	}
 	*challenge = NULL;
 	a = (struct ieee80211_authentication*) skb->data;
-	if (skb->len > (sizeof(struct ieee80211_authentication) +3)) {
+	if (skb->len > (sizeof(struct ieee80211_authentication) + 3)) {
 		t = skb->data + sizeof(struct ieee80211_authentication);
 
 		if (*(t++) == MFIE_TYPE_CHALLENGE) {
@@ -1303,7 +1303,7 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb,
 {
 	u8 *tag;
 	u8 *skbend;
-	u8 *ssid=NULL;
+	u8 *ssid = NULL;
 	u8 ssidlen = 0;
 
 	struct ieee80211_hdr_3addr   *header =
@@ -1564,9 +1564,9 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 {
 	struct ieee80211_hdr_3addr *header = (struct ieee80211_hdr_3addr *) skb->data;
 	u16 errcode;
-	u8* challenge=NULL;
-	int chlen=0;
-	int aid=0;
+	u8* challenge = NULL;
+	int chlen = 0;
+	int aid = 0;
 	struct ieee80211_assoc_response_frame *assoc_resp;
 	struct ieee80211_info_element *info_element;
 
@@ -1595,7 +1595,7 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 				if (0 == errcode) {
 					u16 left;
 
-					ieee->state=IEEE80211_LINKED;
+					ieee->state = IEEE80211_LINKED;
 					ieee->assoc_id = aid;
 					ieee->softmac_stats.rx_ass_ok++;
 					/* card type is 8187 */
@@ -2425,7 +2425,7 @@ static int ieee80211_wpa_set_auth_algs(struct ieee80211_device *ieee, int value)
 static int ieee80211_wpa_set_param(struct ieee80211_device *ieee, u8 name,
 				   u32 value)
 {
-	int ret=0;
+	int ret = 0;
 	unsigned long flags;
 
 	switch (name) {
@@ -2434,7 +2434,7 @@ static int ieee80211_wpa_set_param(struct ieee80211_device *ieee, u8 name,
 		break;
 
 	case IEEE_PARAM_TKIP_COUNTERMEASURES:
-		ieee->tkip_countermeasures=value;
+		ieee->tkip_countermeasures = value;
 		break;
 
 	case IEEE_PARAM_DROP_UNENCRYPTED: {
@@ -2470,13 +2470,13 @@ static int ieee80211_wpa_set_param(struct ieee80211_device *ieee, u8 name,
 	}
 
 	case IEEE_PARAM_PRIVACY_INVOKED:
-		ieee->privacy_invoked=value;
+		ieee->privacy_invoked = value;
 		break;
 	case IEEE_PARAM_AUTH_ALGS:
 		ret = ieee80211_wpa_set_auth_algs(ieee, value);
 		break;
 	case IEEE_PARAM_IEEE_802_1X:
-		ieee->ieee802_1x=value;
+		ieee->ieee802_1x = value;
 		break;
 	case IEEE_PARAM_WPAX_SELECT:
 		spin_lock_irqsave(&ieee->wpax_suitlist_lock,flags);
@@ -2644,7 +2644,7 @@ int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee,
 				   struct iw_point *p)
 {
 	struct ieee_param *param;
-	int ret=0;
+	int ret = 0;
 
 	down(&ieee->wx_sem);
 
