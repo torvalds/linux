@@ -879,23 +879,18 @@ c4_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	ret = 0;
 	switch (iocmd) {
 	case SBE_IOC_PORT_GET:
-		//pr_info(">> SBE_IOC_PORT_GET Ioctl...\n");
 		ret = do_get_port(ndev, data);
 		break;
 	case SBE_IOC_PORT_SET:
-		//pr_info(">> SBE_IOC_PORT_SET Ioctl...\n");
 		ret = do_set_port(ndev, data);
 		break;
 	case SBE_IOC_CHAN_GET:
-		//pr_info(">> SBE_IOC_CHAN_GET Ioctl...\n");
 		ret = do_get_chan(ndev, data);
 		break;
 	case SBE_IOC_CHAN_SET:
-		//pr_info(">> SBE_IOC_CHAN_SET Ioctl...\n");
 		ret = do_set_chan(ndev, data);
 		break;
 	case C4_DEL_CHAN:
-		//pr_info(">> C4_DEL_CHAN Ioctl...\n");
 		ret = do_del_chan(ndev, data);
 		break;
 	case SBE_IOC_CHAN_NEW:
@@ -933,7 +928,6 @@ c4_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 				return -EFAULT;
 		break;
 	default:
-		//pr_info(">> c4_ioctl: EINVAL - unknown iocmd <%x>\n", iocmd);
 		ret = -EINVAL;
 		break;
 	}
