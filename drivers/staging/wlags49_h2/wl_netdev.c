@@ -530,7 +530,7 @@ out_act_int_on_unlock:
 /*============================================================================*/
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-void wl_poll(struct net_device *dev)
+static void wl_poll(struct net_device *dev)
 {
     struct wl_private *lp = wl_priv(dev);
     unsigned long flags;
