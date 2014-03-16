@@ -809,7 +809,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		tcb_desc->b_packet_bw = false;
 	}
 }
-//EXPORT_SYMBOL(rtl_get_tcb_desc);
+/* EXPORT_SYMBOL(rtl_get_tcb_desc); */
 
 bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -1499,7 +1499,7 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 err_free:
 	return 0;
 }
-//EXPORT_SYMBOL(rtl_send_smps_action);
+/* EXPORT_SYMBOL(rtl_send_smps_action); */
 
 /* because mac80211 have issues when can receive del ba
  * so here we just make a fake del_ba if we receive a ba_req
