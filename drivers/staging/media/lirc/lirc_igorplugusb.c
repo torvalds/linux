@@ -62,7 +62,7 @@
 
 /* debugging support */
 #ifdef CONFIG_USB_DEBUG
-static bool debug = 1;
+static bool debug = true;
 #else
 static bool debug;
 #endif
