@@ -651,7 +651,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	struct sk_buff *skb;
 	int encrypt;
 	int atim_len, erp_len;
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 
 	char *ssid = ieee->current_network.ssid;
 	int ssid_len = ieee->current_network.ssid_len;
@@ -685,7 +685,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	if (!skb)
 		return NULL;
 
-	beacon_buf = (struct ieee80211_probe_response*) skb_put(skb, beacon_size);
+	beacon_buf = (struct ieee80211_probe_response *) skb_put(skb, beacon_size);
 
 	memcpy(beacon_buf->header.addr1, dest, ETH_ALEN);
 	memcpy(beacon_buf->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -714,7 +714,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	beacon_buf->info_element.id = MFIE_TYPE_SSID;
 	beacon_buf->info_element.len = ssid_len;
 
-	tag = (u8*) beacon_buf->info_element.data;
+	tag = (u8 *) beacon_buf->info_element.data;
 
 	memcpy(tag, ssid, ssid_len);
 
@@ -732,7 +732,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee,
 	if (atim_len) {
 		*(tag++) = MFIE_TYPE_IBSS_SET;
 		*(tag++) = 2;
-		*((u16*)(tag)) = cpu_to_le16(ieee->current_network.atim_window);
+		*((u16 *)(tag)) = cpu_to_le16(ieee->current_network.atim_window);
 		tag += 2;
 	}
 
@@ -768,9 +768,9 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 					    u8 *dest)
 {
 	struct sk_buff *skb;
-	u8* tag;
+	u8 *tag;
 
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 	struct ieee80211_assoc_response_frame *assoc;
 	short encrypt;
 
@@ -812,7 +812,7 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 	else
 		ieee->assoc_id++;
 
-	tag = (u8*) skb_put(skb, rate_len);
+	tag = (u8 *) skb_put(skb, rate_len);
 
 	ieee80211_MFIE_Brate(ieee, &tag);
 	ieee80211_MFIE_Grate(ieee, &tag);
@@ -849,14 +849,14 @@ static struct sk_buff *ieee80211_auth_resp(struct ieee80211_device *ieee,
 static struct sk_buff *ieee80211_null_func(struct ieee80211_device *ieee, short pwr)
 {
 	struct sk_buff *skb;
-	struct ieee80211_hdr_3addr* hdr;
+	struct ieee80211_hdr_3addr *hdr;
 
 	skb = dev_alloc_skb(sizeof(struct ieee80211_hdr_3addr));
 
 	if (!skb)
 		return NULL;
 
-	hdr = (struct ieee80211_hdr_3addr*)skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
+	hdr = (struct ieee80211_hdr_3addr *)skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
 
 	memcpy(hdr->addr1, ieee->current_network.bssid, ETH_ALEN);
 	memcpy(hdr->addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -1090,7 +1090,7 @@ static void ieee80211_rtl_auth_challenge(struct ieee80211_device *ieee, u8 *chal
 
 static void ieee80211_associate_step2(struct ieee80211_device *ieee)
 {
-	struct sk_buff* skb;
+	struct sk_buff *skb;
 	struct ieee80211_network *beacon = &ieee->current_network;
 
 	del_timer_sync(&ieee->associate_timer);
@@ -1272,7 +1272,7 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 		return 0xcafe;
 	}
 	*challenge = NULL;
-	a = (struct ieee80211_authentication*) skb->data;
+	a = (struct ieee80211_authentication *) skb->data;
 	if (skb->len > (sizeof(struct ieee80211_authentication) + 3)) {
 		t = skb->data + sizeof(struct ieee80211_authentication);
 
@@ -1294,7 +1294,7 @@ static int auth_rq_parse(struct sk_buff *skb, u8 *dest)
 		IEEE80211_DEBUG_MGMT("invalid len in auth request: %d\n", skb->len);
 		return -1;
 	}
-	a = (struct ieee80211_authentication*) skb->data;
+	a = (struct ieee80211_authentication *) skb->data;
 
 	memcpy(dest, a->header.addr2, ETH_ALEN);
 
@@ -1320,7 +1320,7 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	memcpy(src, header->addr2, ETH_ALEN);
 
-	skbend = (u8*)skb->data + skb->len;
+	skbend = (u8 *)skb->data + skb->len;
 
 	tag = skb->data + sizeof(struct ieee80211_hdr_3addr);
 
@@ -1356,7 +1356,7 @@ static int assoc_rq_parse(struct sk_buff *skb, u8 *dest)
 		return -1;
 	}
 
-	a = (struct ieee80211_assoc_request_frame*) skb->data;
+	a = (struct ieee80211_assoc_request_frame *) skb->data;
 
 	memcpy(dest, a->header.addr2, ETH_ALEN);
 
@@ -1371,7 +1371,7 @@ static inline u16 assoc_parse(struct sk_buff *skb, int *aid)
 		return 0xcafe;
 	}
 
-	a = (struct ieee80211_assoc_response_frame*) skb->data;
+	a = (struct ieee80211_assoc_response_frame *) skb->data;
 	*aid = le16_to_cpu(a->aid) & 0x3fff;
 	return le16_to_cpu(a->status);
 }
@@ -1573,7 +1573,7 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 {
 	struct ieee80211_hdr_3addr *header = (struct ieee80211_hdr_3addr *) skb->data;
 	u16 errcode;
-	u8* challenge = NULL;
+	u8 *challenge = NULL;
 	int chlen = 0;
 	int aid = 0;
 	struct ieee80211_assoc_response_frame *assoc_resp;
@@ -1611,9 +1611,9 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 					if (1 == rx_stats->nic_type)
 						goto associate_complete;
 
-					assoc_resp = (struct ieee80211_assoc_response_frame*)skb->data;
+					assoc_resp = (struct ieee80211_assoc_response_frame *)skb->data;
 					info_element = &assoc_resp->info_element;
-					left = skb->len - ((void*)info_element - (void*)assoc_resp);
+					left = skb->len - ((void *)info_element - (void *)assoc_resp);
 
 					while (left >= sizeof(struct ieee80211_info_element_hdr)) {
 						if (sizeof(struct ieee80211_info_element_hdr) + info_element->len > left) {
@@ -1632,7 +1632,7 @@ inline int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee,
 								/* Not care about version at present.
 								 * WMM Parameter Element.
 								 */
-								memcpy(ieee->current_network.wmm_param, (u8*)(info_element->data\
+								memcpy(ieee->current_network.wmm_param, (u8 *)(info_element->data\
 									+ 8), (info_element->len - 8));
 
 								if (((ieee->current_network.wmm_info^info_element->data[6])& \
@@ -2302,12 +2302,12 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 
 	ieee->wq = create_workqueue(DRV_NAME);
 
-	INIT_DELAYED_WORK(&ieee->start_ibss_wq, (void*) ieee80211_start_ibss_wq);
-	INIT_WORK(&ieee->associate_complete_wq, (void*) ieee80211_associate_complete_wq);
-	INIT_WORK(&ieee->associate_procedure_wq, (void*) ieee80211_associate_procedure_wq);
-	INIT_DELAYED_WORK(&ieee->softmac_scan_wq, (void*) ieee80211_softmac_scan_wq);
-	INIT_DELAYED_WORK(&ieee->associate_retry_wq, (void*) ieee80211_associate_retry_wq);
-	INIT_WORK(&ieee->wx_sync_scan_wq, (void*) ieee80211_wx_sync_scan_wq);
+	INIT_DELAYED_WORK(&ieee->start_ibss_wq, (void *) ieee80211_start_ibss_wq);
+	INIT_WORK(&ieee->associate_complete_wq, (void *) ieee80211_associate_complete_wq);
+	INIT_WORK(&ieee->associate_procedure_wq, (void *) ieee80211_associate_procedure_wq);
+	INIT_DELAYED_WORK(&ieee->softmac_scan_wq, (void *) ieee80211_softmac_scan_wq);
+	INIT_DELAYED_WORK(&ieee->associate_retry_wq, (void *) ieee80211_associate_retry_wq);
+	INIT_WORK(&ieee->wx_sync_scan_wq, (void *) ieee80211_wx_sync_scan_wq);
 
 	sema_init(&ieee->wx_sem, 1);
 	sema_init(&ieee->scan_sem, 1);
