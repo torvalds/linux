@@ -2231,7 +2231,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (pci_dma_mapping_error(np->pci_dev,
 					  np->put_tx_ctx->dma)) {
 			/* on DMA mapping error - drop the packet */
-			kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
 			np->stat_tx_dropped++;
 			u64_stats_update_end(&np->swstats_tx_syncp);
@@ -2277,7 +2277,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
 						tmp_tx_ctx = np->first_tx_ctx;
 				} while (tmp_tx_ctx != np->put_tx_ctx);
-				kfree_skb(skb);
+				dev_kfree_skb_any(skb);
 				np->put_tx_ctx = start_tx_ctx;
 				u64_stats_update_begin(&np->swstats_tx_syncp);
 				np->stat_tx_dropped++;
@@ -2380,7 +2380,7 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 		if (pci_dma_mapping_error(np->pci_dev,
 					  np->put_tx_ctx->dma)) {
 			/* on DMA mapping error - drop the packet */
-			kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
 			np->stat_tx_dropped++;
 			u64_stats_update_end(&np->swstats_tx_syncp);
@@ -2427,7 +2427,7 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
 						tmp_tx_ctx = np->first_tx_ctx;
 				} while (tmp_tx_ctx != np->put_tx_ctx);
-				kfree_skb(skb);
+				dev_kfree_skb_any(skb);
 				np->put_tx_ctx = start_tx_ctx;
 				u64_stats_update_begin(&np->swstats_tx_syncp);
 				np->stat_tx_dropped++;
