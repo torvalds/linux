@@ -34,7 +34,7 @@
 #include "mei_dev.h"
 #include "hw-txe.h"
 
-static DEFINE_PCI_DEVICE_TABLE(mei_txe_pci_tbl) = {
+static const struct pci_device_id mei_txe_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0F18)}, /* Baytrail */
 	{0, }
 };
