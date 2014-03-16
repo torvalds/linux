@@ -702,14 +702,14 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc;
 	struct twl4030_madc_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	int ret;
+	int irq, ret;
 	u8 regval;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "platform_data not available\n");
 		return -EINVAL;
 	}
-	madc = kzalloc(sizeof(*madc), GFP_KERNEL);
+	madc = devm_kzalloc(&pdev->dev, sizeof(*madc), GFP_KERNEL);
 	if (!madc)
 		return -ENOMEM;
 
@@ -726,7 +726,7 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	    TWL4030_MADC_ISR1 : TWL4030_MADC_ISR2;
 	ret = twl4030_madc_set_power(madc, 1);
 	if (ret < 0)
-		goto err_power;
+		return ret;
 	ret = twl4030_madc_set_current_generator(madc, 0, 1);
 	if (ret < 0)
 		goto err_current_generator;
@@ -770,7 +770,9 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, madc);
 	mutex_init(&madc->lock);
-	ret = request_threaded_irq(platform_get_irq(pdev, 0), NULL,
+
+	irq = platform_get_irq(pdev, 0);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				   twl4030_madc_threaded_irq_handler,
 				   IRQF_TRIGGER_RISING, "twl4030_madc", madc);
 	if (ret) {
@@ -783,9 +785,6 @@ err_i2c:
 	twl4030_madc_set_current_generator(madc, 0, 0);
 err_current_generator:
 	twl4030_madc_set_power(madc, 0);
-err_power:
-	kfree(madc);
-
 	return ret;
 }
 
@@ -793,10 +792,8 @@ static int twl4030_madc_remove(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc = platform_get_drvdata(pdev);
 
-	free_irq(platform_get_irq(pdev, 0), madc);
 	twl4030_madc_set_current_generator(madc, 0, 0);
 	twl4030_madc_set_power(madc, 0);
-	kfree(madc);
 
 	return 0;
 }
