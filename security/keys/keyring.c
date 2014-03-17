@@ -1000,7 +1000,11 @@ static int keyring_detect_cycle_iterator(const void *object,
 
 	kenter("{%d}", key->serial);
 
-	BUG_ON(key != ctx->match_data);
+	/* We might get a keyring with matching index-key that is nonetheless a
+	 * different keyring. */
+	if (key != ctx->match_data)
+		return 0;
+
 	ctx->result = ERR_PTR(-EDEADLK);
 	return 1;
 }
