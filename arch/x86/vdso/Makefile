@@ -21,7 +21,8 @@ vobjs-$(VDSOX32-y) += $(vobjx32s-compat)
 vobj64s := $(filter-out $(vobjx32s-compat),$(vobjs-y))
 
 # files to link into kernel
-obj-$(VDSO64-y)			+= vma.o vdso.o
+obj-y				+= vma.o
+obj-$(VDSO64-y)			+= vdso.o
 obj-$(VDSOX32-y)		+= vdsox32.o
 obj-$(VDSO32-y)			+= vdso32.o vdso32-setup.o
 

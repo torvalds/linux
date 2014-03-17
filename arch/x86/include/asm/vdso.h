@@ -28,4 +28,6 @@ extern const char vdso32_int80_start, vdso32_int80_end;
 extern const char vdso32_syscall_start, vdso32_syscall_end;
 extern const char vdso32_sysenter_start, vdso32_sysenter_end;
 
+void __init patch_vdso32(void *vdso, size_t len);
+
 #endif /* _ASM_X86_VDSO_H */
