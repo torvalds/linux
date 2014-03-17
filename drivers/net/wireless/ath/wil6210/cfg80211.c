@@ -179,7 +179,7 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 
 	int cid = wil_find_cid(wil, mac);
 
-	wil_info(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
+	wil_dbg_misc(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
 	if (cid < 0)
 		return cid;
 
@@ -218,7 +218,7 @@ static int wil_cfg80211_dump_station(struct wiphy *wiphy,
 		return -ENOENT;
 
 	memcpy(mac, wil->sta[cid].addr, ETH_ALEN);
-	wil_info(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
+	wil_dbg_misc(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
 
 	rc = wil_cid_fill_sinfo(wil, cid, sinfo);
 
