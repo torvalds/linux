@@ -130,7 +130,6 @@ void qib_set_ctxtcnt(struct qib_devdata *dd)
 int qib_create_ctxts(struct qib_devdata *dd)
 {
 	unsigned i;
-	int ret;
 	int local_node_id = pcibus_to_node(dd->pcidev->bus);
 
 	if (local_node_id < 0)
@@ -145,8 +144,7 @@ int qib_create_ctxts(struct qib_devdata *dd)
 	if (!dd->rcd) {
 		qib_dev_err(dd,
 			"Unable to allocate ctxtdata array, failing\n");
-		ret = -ENOMEM;
-		goto done;
+		return -ENOMEM;
 	}
 
 	/* create (one or more) kctxt */
@@ -163,15 +161,14 @@ int qib_create_ctxts(struct qib_devdata *dd)
 		if (!rcd) {
 			qib_dev_err(dd,
 				"Unable to allocate ctxtdata for Kernel ctxt, failing\n");
-			ret = -ENOMEM;
-			goto done;
+			kfree(dd->rcd);
+			dd->rcd = NULL;
+			return -ENOMEM;
 		}
 		rcd->pkeys[0] = QIB_DEFAULT_P_KEY;
 		rcd->seq_cnt = 1;
 	}
-	ret = 0;
-done:
-	return ret;
+	return 0;
 }
 
 /*
