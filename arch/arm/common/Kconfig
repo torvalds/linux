@@ -55,6 +55,7 @@ config FIQ_DEBUGGER_WAKEUP_IRQ_ALWAYS_ON
 config FIQ_DEBUGGER_CONSOLE
 	bool "Console on FIQ Serial Debugger port"
 	depends on FIQ_DEBUGGER
+	depends on TTY
 	default n
 	help
 	  Enables a console so that printk messages are displayed on
