@@ -920,6 +920,8 @@ static int fimd_probe(struct platform_device *pdev)
 	fimd_manager.ctx = ctx;
 	exynos_drm_manager_register(&fimd_manager);
 
+	exynos_dpi_probe(ctx->dev);
+
 	pm_runtime_enable(dev);
 
 	for (win = 0; win < WINDOWS_NR; win++)
@@ -931,6 +933,8 @@ static int fimd_probe(struct platform_device *pdev)
 static int fimd_remove(struct platform_device *pdev)
 {
 	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
+
+	exynos_dpi_remove(&pdev->dev);
 
 	exynos_drm_manager_unregister(&fimd_manager);
 

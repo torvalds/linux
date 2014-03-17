@@ -361,6 +361,14 @@ int exynos_platform_device_ipp_register(void);
  */
 void exynos_platform_device_ipp_unregister(void);
 
+#ifdef CONFIG_DRM_EXYNOS_DPI
+int exynos_dpi_probe(struct device *dev);
+int exynos_dpi_remove(struct device *dev);
+#else
+static inline int exynos_dpi_probe(struct device *dev) { return 0; }
+static inline int exynos_dpi_remove(struct device *dev) { return 0; }
+#endif
+
 extern struct platform_driver dp_driver;
 extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;
