@@ -39,6 +39,10 @@ static const struct platform_device_id ath9k_platform_id_table[] = {
 		.name = "qca955x_wmac",
 		.driver_data = AR9300_DEVID_QCA955X,
 	},
+	{
+		.name = "qca953x_wmac",
+		.driver_data = AR9300_DEVID_AR953X,
+	},
 	{},
 };
 
