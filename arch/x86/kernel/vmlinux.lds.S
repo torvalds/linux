@@ -147,7 +147,6 @@ SECTIONS
 		_edata = .;
 	} :data
 
-#ifdef CONFIG_X86_64
 
 	. = ALIGN(PAGE_SIZE);
 	__vvar_page = .;
@@ -168,8 +167,6 @@ SECTIONS
 	} :data
 
        . = ALIGN(__vvar_page + PAGE_SIZE, PAGE_SIZE);
-
-#endif /* CONFIG_X86_64 */
 
 	/* Init code and data - will be freed after init */
 	. = ALIGN(PAGE_SIZE);

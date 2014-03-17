@@ -16,9 +16,6 @@
  * you mess up, the linker will catch it.)
  */
 
-/* Base address of vvars.  This is not ABI. */
-#define VVAR_ADDRESS (-10*1024*1024 - 4096)
-
 #if defined(__VVAR_KERNEL_LDS)
 
 /* The kernel linker script defines its own magic to put vvars in the
@@ -28,6 +25,15 @@
 	EMIT_VVAR(name, offset)
 
 #else
+
+extern char __vvar_page;
+
+/* Base address of vvars.  This is not ABI. */
+#ifdef CONFIG_X86_64
+#define VVAR_ADDRESS (-10*1024*1024 - 4096)
+#else
+#define VVAR_ADDRESS (&__vvar_page)
+#endif
 
 #define DECLARE_VVAR(offset, type, name)				\
 	static type const * const vvaraddr_ ## name =			\
