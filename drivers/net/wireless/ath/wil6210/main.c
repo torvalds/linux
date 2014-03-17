@@ -59,6 +59,7 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	uint i;
 	struct wil_sta_info *sta = &wil->sta[cid];
 
+	sta->data_port_open = false;
 	if (sta->status != wil_sta_unused) {
 		wmi_disconnect_sta(wil, sta->addr, WLAN_REASON_DEAUTH_LEAVING);
 		sta->status = wil_sta_unused;

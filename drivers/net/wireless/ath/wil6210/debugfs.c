@@ -631,7 +631,8 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 			status = "connected";
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
+		seq_printf(s, "[%d] %pM %s%s\n", i, p->addr, status,
+			   (p->data_port_open ? " data_port_open" : ""));
 
 		if (p->status == wil_sta_connected) {
 			for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {

@@ -321,6 +321,7 @@ struct wil_sta_info {
 	u8 addr[ETH_ALEN];
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
+	bool data_port_open; /* can send any data, not only EAPOL */
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];

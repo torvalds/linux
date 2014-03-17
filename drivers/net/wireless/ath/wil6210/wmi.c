@@ -550,9 +550,16 @@ static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wmi_data_port_open_event *evt = d;
+	u8 cid = evt->cid;
 
-	wil_dbg_wmi(wil, "Link UP for CID %d\n", evt->cid);
+	wil_dbg_wmi(wil, "Link UP for CID %d\n", cid);
 
+	if (cid >= ARRAY_SIZE(wil->sta)) {
+		wil_err(wil, "Link UP for invalid CID %d\n", cid);
+		return;
+	}
+
+	wil->sta[cid].data_port_open = true;
 	netif_carrier_on(ndev);
 }
 
@@ -560,10 +567,17 @@ static void wmi_evt_linkdown(struct wil6210_priv *wil, int id, void *d, int len)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wmi_wbe_link_down_event *evt = d;
+	u8 cid = evt->cid;
 
 	wil_dbg_wmi(wil, "Link DOWN for CID %d, reason %d\n",
-		    evt->cid, le32_to_cpu(evt->reason));
+		    cid, le32_to_cpu(evt->reason));
 
+	if (cid >= ARRAY_SIZE(wil->sta)) {
+		wil_err(wil, "Link DOWN for invalid CID %d\n", cid);
+		return;
+	}
+
+	wil->sta[cid].data_port_open = false;
 	netif_carrier_off(ndev);
 }
 

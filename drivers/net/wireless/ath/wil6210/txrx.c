@@ -662,6 +662,10 @@ static struct vring *wil_find_tx_vring(struct wil6210_priv *wil,
 	if (cid < 0)
 		return NULL;
 
+	if (!wil->sta[cid].data_port_open &&
+	    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
+		return NULL;
+
 	/* TODO: fix for multiple TID */
 	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++) {
 		if (wil->vring2cid_tid[i][0] == cid) {
@@ -700,12 +704,19 @@ static struct vring *wil_tx_bcast(struct wil6210_priv *wil,
 	struct vring *v, *v2;
 	struct sk_buff *skb2;
 	int i;
+	u8 cid;
 
-	/* find 1-st vring */
+	/* find 1-st vring eligible for data */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		v = &wil->vring_tx[i];
-		if (v->va)
-			goto found;
+		if (!v->va)
+			continue;
+
+		cid = wil->vring2cid_tid[i][0];
+		if (!wil->sta[cid].data_port_open)
+			continue;
+
+		goto found;
 	}
 
 	wil_err(wil, "Tx while no vrings active?\n");
@@ -721,6 +732,10 @@ found:
 		v2 = &wil->vring_tx[i];
 		if (!v2->va)
 			continue;
+		cid = wil->vring2cid_tid[i][0];
+		if (!wil->sta[cid].data_port_open)
+			continue;
+
 		skb2 = skb_copy(skb, GFP_ATOMIC);
 		if (skb2) {
 			wil_dbg_txrx(wil, "BCAST DUP -> ring %d\n", i);
