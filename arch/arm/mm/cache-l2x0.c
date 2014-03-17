@@ -1364,6 +1364,10 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 
 	data = of_match_node(l2x0_ids, np)->data;
 
+	/* All L2 caches are unified, so this property should be specified */
+	if (!of_property_read_bool(np, "cache-unified"))
+		pr_err("L2C: device tree omits to specify unified cache\n");
+
 	/* L2 configuration can only be changed if the cache is disabled */
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN))
 		if (data->of_parse)
