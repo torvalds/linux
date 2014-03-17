@@ -1488,6 +1488,11 @@ static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
  */
 #define sock_owned_by_user(sk)	((sk)->sk_lock.owned)
 
+static inline void sock_release_ownership(struct sock *sk)
+{
+	sk->sk_lock.owned = 0;
+}
+
 /*
  * Macro so as to not evaluate some arguments when
  * lockdep is not enabled.
@@ -2186,7 +2191,6 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 {
 #define FLAGS_TS_OR_DROPS ((1UL << SOCK_RXQ_OVFL)			| \
 			   (1UL << SOCK_RCVTSTAMP)			| \
-			   (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE)	| \
 			   (1UL << SOCK_TIMESTAMPING_SOFTWARE)		| \
 			   (1UL << SOCK_TIMESTAMPING_RAW_HARDWARE)	| \
 			   (1UL << SOCK_TIMESTAMPING_SYS_HARDWARE))
