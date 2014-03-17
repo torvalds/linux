@@ -42,6 +42,9 @@
 		.type		= MT_DEVICE, \
 	}
 
+#define RK3288_SERVICE_DEVICE(name) \
+	RK_DEVICE(RK3288_SERVICE_##name##_VIRT, RK3288_SERVICE_##name##_PHYS, RK3288_SERVICE_##name##_SIZE)
+
 static struct map_desc rk3288_io_desc[] __initdata = {
 	RK3288_DEVICE(CRU),
 	RK3288_DEVICE(GRF),
@@ -49,6 +52,13 @@ static struct map_desc rk3288_io_desc[] __initdata = {
 	RK3288_DEVICE(PMU),
 	RK3288_DEVICE(ROM),
 	RK3288_DEVICE(EFUSE),
+	RK3288_SERVICE_DEVICE(CORE),
+	RK3288_SERVICE_DEVICE(DMAC),
+	RK3288_SERVICE_DEVICE(GPU),
+	RK3288_SERVICE_DEVICE(PERI),
+	RK3288_SERVICE_DEVICE(VIO),
+	RK3288_SERVICE_DEVICE(VIDEO),
+	RK3288_SERVICE_DEVICE(HEVC),
 	RK_DEVICE(RK_DDR_VIRT, RK3288_DDR_PCTL0_PHYS, RK3288_DDR_PCTL_SIZE),
 	RK_DEVICE(RK_DDR_VIRT + RK3288_DDR_PCTL_SIZE, RK3288_DDR_PUBL0_PHYS, RK3288_DDR_PUBL_SIZE),
 	RK_DEVICE(RK_DDR_VIRT + RK3288_DDR_PCTL_SIZE + RK3288_DDR_PUBL_SIZE, RK3288_DDR_PCTL1_PHYS, RK3288_DDR_PCTL_SIZE),
@@ -205,6 +215,24 @@ static noinline void rk3288_do_pmu_set_power_domain(enum pmu_power_domain domain
 		;
 }
 
+static u32 gpu_r_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 gpu_w_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio0_iep_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio0_vip_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio0_vop_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio1_isp_r_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio1_isp_w0_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio1_isp_w1_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio1_vop_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio2_rga_r_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vio2_rga_w_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 video_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 hevc_r_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 hevc_w_qos[CPU_AXI_QOS_NUM_REGS];
+
+#define SAVE_QOS(array, NAME) CPU_AXI_SAVE_QOS(array, RK3288_CPU_AXI_##NAME##_QOS_VIRT)
+#define RESTORE_QOS(array, NAME) CPU_AXI_RESTORE_QOS(array, RK3288_CPU_AXI_##NAME##_QOS_VIRT)
+
 static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
 	unsigned long flags;
@@ -215,7 +243,61 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 		return 0;
 	}
 
+	if (!on) {
+		/* if power down, idle request to NIU first */
+		if (pd == PD_VIO) {
+			SAVE_QOS(vio0_iep_qos, VIO0_IEP);
+			SAVE_QOS(vio0_vip_qos, VIO0_VIP);
+			SAVE_QOS(vio0_vop_qos, VIO0_VOP);
+			SAVE_QOS(vio1_isp_r_qos, VIO1_ISP_R);
+			SAVE_QOS(vio1_isp_w0_qos, VIO1_ISP_W0);
+			SAVE_QOS(vio1_isp_w1_qos, VIO1_ISP_W1);
+			SAVE_QOS(vio1_vop_qos, VIO1_VOP);
+			SAVE_QOS(vio2_rga_r_qos, VIO2_RGA_R);
+			SAVE_QOS(vio2_rga_w_qos, VIO2_RGA_W);
+			rk3288_pmu_set_idle_request(IDLE_REQ_VIO, true);
+		} else if (pd == PD_VIDEO) {
+			SAVE_QOS(video_qos, VIDEO);
+			rk3288_pmu_set_idle_request(IDLE_REQ_VIDEO, true);
+		} else if (pd == PD_GPU) {
+			SAVE_QOS(gpu_r_qos, GPU_R);
+			SAVE_QOS(gpu_w_qos, GPU_W);
+			rk3288_pmu_set_idle_request(IDLE_REQ_GPU, true);
+		} else if (pd == PD_HEVC) {
+			SAVE_QOS(hevc_r_qos, HEVC_R);
+			SAVE_QOS(hevc_w_qos, HEVC_W);
+			rk3288_pmu_set_idle_request(IDLE_REQ_HEVC, true);
+		}
+	}
+
 	rk3288_do_pmu_set_power_domain(pd, on);
+
+	if (on) {
+		/* if power up, idle request release to NIU */
+		if (pd == PD_VIO) {
+			rk3288_pmu_set_idle_request(IDLE_REQ_VIO, false);
+			RESTORE_QOS(vio0_iep_qos, VIO0_IEP);
+			RESTORE_QOS(vio0_vip_qos, VIO0_VIP);
+			RESTORE_QOS(vio0_vop_qos, VIO0_VOP);
+			RESTORE_QOS(vio1_isp_r_qos, VIO1_ISP_R);
+			RESTORE_QOS(vio1_isp_w0_qos, VIO1_ISP_W0);
+			RESTORE_QOS(vio1_isp_w1_qos, VIO1_ISP_W1);
+			RESTORE_QOS(vio1_vop_qos, VIO1_VOP);
+			RESTORE_QOS(vio2_rga_r_qos, VIO2_RGA_R);
+			RESTORE_QOS(vio2_rga_w_qos, VIO2_RGA_W);
+		} else if (pd == PD_VIDEO) {
+			rk3288_pmu_set_idle_request(IDLE_REQ_VIDEO, false);
+			RESTORE_QOS(video_qos, VIDEO);
+		} else if (pd == PD_GPU) {
+			rk3288_pmu_set_idle_request(IDLE_REQ_GPU, false);
+			RESTORE_QOS(gpu_r_qos, GPU_R);
+			RESTORE_QOS(gpu_w_qos, GPU_W);
+		} else if (pd == PD_HEVC) {
+			rk3288_pmu_set_idle_request(IDLE_REQ_HEVC, false);
+			RESTORE_QOS(hevc_r_qos, HEVC_R);
+			RESTORE_QOS(hevc_w_qos, HEVC_W);
+		}
+	}
 
 	spin_unlock_irqrestore(&pmu_pd_lock, flags);
 	return 0;

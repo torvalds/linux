@@ -213,8 +213,8 @@ static u32 rga_qos[CPU_AXI_QOS_NUM_REGS];
 static u32 gpu_qos[CPU_AXI_QOS_NUM_REGS];
 static u32 vpu_qos[CPU_AXI_QOS_NUM_REGS];
 
-#define SAVE_QOS(array, NAME) CPU_AXI_SAVE_QOS(array, RK3188_CPU_AXI_##NAME##_QOS_BASE)
-#define RESTORE_QOS(array, NAME) CPU_AXI_RESTORE_QOS(array, RK3188_CPU_AXI_##NAME##_QOS_BASE)
+#define SAVE_QOS(array, NAME) CPU_AXI_SAVE_QOS(array, RK3188_CPU_AXI_##NAME##_QOS_VIRT)
+#define RESTORE_QOS(array, NAME) CPU_AXI_RESTORE_QOS(array, RK3188_CPU_AXI_##NAME##_QOS_VIRT)
 
 static int rk3188_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
