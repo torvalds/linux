@@ -488,7 +488,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
  */
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 {
-	int rc;
+	gro_result_t rc;
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	unsigned int len = skb->len;
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
@@ -497,17 +497,17 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 
 	skb_orphan(skb);
 
-	rc = netif_receive_skb(skb);
+	rc = napi_gro_receive(&wil->napi_rx, skb);
 
-	if (likely(rc == NET_RX_SUCCESS)) {
+	if (unlikely(rc == GRO_DROP)) {
+		ndev->stats.rx_dropped++;
+		stats->rx_dropped++;
+		wil_dbg_txrx(wil, "Rx drop %d bytes\n", len);
+	} else {
 		ndev->stats.rx_packets++;
 		stats->rx_packets++;
 		ndev->stats.rx_bytes += len;
 		stats->rx_bytes += len;
-
-	} else {
-		ndev->stats.rx_dropped++;
-		stats->rx_dropped++;
 	}
 }
 
