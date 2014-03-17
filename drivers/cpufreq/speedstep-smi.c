@@ -280,7 +280,6 @@ static struct cpufreq_driver speedstep_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= speedstep_target,
 	.init		= speedstep_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.get		= speedstep_get,
 	.resume		= speedstep_resume,
 	.attr		= cpufreq_generic_attr,

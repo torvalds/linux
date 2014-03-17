@@ -913,7 +913,6 @@ static struct cpufreq_driver longhaul_driver = {
 	.target_index = longhaul_target,
 	.get	= longhaul_get,
 	.init	= longhaul_cpu_init,
-	.exit	= cpufreq_generic_exit,
 	.name	= "longhaul",
 	.attr	= cpufreq_generic_attr,
 };

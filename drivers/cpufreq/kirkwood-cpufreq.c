@@ -102,7 +102,6 @@ static struct cpufreq_driver kirkwood_cpufreq_driver = {
 	.verify	= cpufreq_generic_frequency_table_verify,
 	.target_index = kirkwood_cpufreq_target,
 	.init	= kirkwood_cpufreq_cpu_init,
-	.exit	= cpufreq_generic_exit,
 	.name	= "kirkwood-cpufreq",
 	.attr	= cpufreq_generic_attr,
 };
