@@ -66,62 +66,6 @@ int s3c_irqext_wake(struct irq_data *data, unsigned int state)
 	return 0;
 }
 
-/* helper functions to save and restore register state */
-
-/**
- * s3c_pm_do_save() - save a set of registers for restoration on resume.
- * @ptr: Pointer to an array of registers.
- * @count: Size of the ptr array.
- *
- * Run through the list of registers given, saving their contents in the
- * array for later restoration when we wakeup.
- */
-void s3c_pm_do_save(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		ptr->val = __raw_readl(ptr->reg);
-		S3C_PMDBG("saved %p value %08lx\n", ptr->reg, ptr->val);
-	}
-}
-
-/**
- * s3c_pm_do_restore() - restore register values from the save list.
- * @ptr: Pointer to an array of registers.
- * @count: Size of the ptr array.
- *
- * Restore the register values saved from s3c_pm_do_save().
- *
- * Note, we do not use S3C_PMDBG() in here, as the system may not have
- * restore the UARTs state yet
-*/
-
-void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		printk(KERN_DEBUG "restore %p (restore %08lx, was %08x)\n",
-		       ptr->reg, ptr->val, __raw_readl(ptr->reg));
-
-		__raw_writel(ptr->val, ptr->reg);
-	}
-}
-
-/**
- * s3c_pm_do_restore_core() - early restore register values from save list.
- *
- * This is similar to s3c_pm_do_restore() except we try and minimise the
- * side effects of the function in case registers that hardware might need
- * to work has been restored.
- *
- * WARNING: Do not put any debug in here that may effect memory or use
- * peripherals, as things may be changing!
-*/
-
-void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++)
-		__raw_writel(ptr->val, ptr->reg);
-}
-
 /* s3c2410_pm_show_resume_irqs
  *
  * print any IRQs asserted at resume time (ie, we woke from)
