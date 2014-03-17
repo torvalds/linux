@@ -379,7 +379,7 @@ const struct dev_pm_ops name = { \
  *
  * ON		No transition.
  *
- * FREEZE 	System is going to hibernate, call ->prepare() and ->freeze()
+ * FREEZE	System is going to hibernate, call ->prepare() and ->freeze()
  *		for all devices.
  *
  * SUSPEND	System is going to suspend, call ->prepare() and ->suspend()
@@ -423,7 +423,7 @@ const struct dev_pm_ops name = { \
 
 #define PM_EVENT_INVALID	(-1)
 #define PM_EVENT_ON		0x0000
-#define PM_EVENT_FREEZE 	0x0001
+#define PM_EVENT_FREEZE		0x0001
 #define PM_EVENT_SUSPEND	0x0002
 #define PM_EVENT_HIBERNATE	0x0004
 #define PM_EVENT_QUIESCE	0x0008
@@ -614,11 +614,11 @@ struct dev_pm_domain {
  * message is implicit:
  *
  * ON		Driver starts working again, responding to hardware events
- * 		and software requests.  The hardware may have gone through
- * 		a power-off reset, or it may have maintained state from the
- * 		previous suspend() which the driver will rely on while
- * 		resuming.  On most platforms, there are no restrictions on
- * 		availability of resources like clocks during resume().
+ *		and software requests.  The hardware may have gone through
+ *		a power-off reset, or it may have maintained state from the
+ *		previous suspend() which the driver will rely on while
+ *		resuming.  On most platforms, there are no restrictions on
+ *		availability of resources like clocks during resume().
  *
  * Other transitions are triggered by messages sent using suspend().  All
  * these transitions quiesce the driver, so that I/O queues are inactive.
@@ -628,21 +628,21 @@ struct dev_pm_domain {
  * differ according to the message:
  *
  * SUSPEND	Quiesce, enter a low power device state appropriate for
- * 		the upcoming system state (such as PCI_D3hot), and enable
- * 		wakeup events as appropriate.
+ *		the upcoming system state (such as PCI_D3hot), and enable
+ *		wakeup events as appropriate.
  *
  * HIBERNATE	Enter a low power device state appropriate for the hibernation
- * 		state (eg. ACPI S4) and enable wakeup events as appropriate.
+ *		state (eg. ACPI S4) and enable wakeup events as appropriate.
  *
  * FREEZE	Quiesce operations so that a consistent image can be saved;
- * 		but do NOT otherwise enter a low power device state, and do
- * 		NOT emit system wakeup events.
+ *		but do NOT otherwise enter a low power device state, and do
+ *		NOT emit system wakeup events.
  *
  * PRETHAW	Quiesce as if for FREEZE; additionally, prepare for restoring
- * 		the system from a snapshot taken after an earlier FREEZE.
- * 		Some drivers will need to reset their hardware state instead
- * 		of preserving it, to ensure that it's never mistaken for the
- * 		state which that earlier snapshot had set up.
+ *		the system from a snapshot taken after an earlier FREEZE.
+ *		Some drivers will need to reset their hardware state instead
+ *		of preserving it, to ensure that it's never mistaken for the
+ *		state which that earlier snapshot had set up.
  *
  * A minimally power-aware driver treats all messages as SUSPEND, fully
  * reinitializes its device during resume() -- whether or not it was reset
