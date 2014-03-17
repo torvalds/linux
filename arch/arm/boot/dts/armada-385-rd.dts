@@ -1,9 +1,10 @@
 /*
- * Device Tree file for Marvell Armada 385 evaluation board
- * (DB-88F6820)
+ * Device Tree file for Marvell Armada 385 Reference Design board
+ * (RD-88F6820-AP)
  *
  *  Copyright (C) 2014 Marvell
  *
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -15,8 +16,8 @@
 #include "armada-385.dtsi"
 
 / {
-	model = "Marvell Armada 385 Development Board";
-	compatible = "marvell,a385-db", "marvell,armada385", "marvell,armada38x";
+	model = "Marvell Armada 385 Reference Design";
+	compatible = "marvell,a385-rd", "marvell,armada385", "marvell,armada38x";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";
@@ -38,18 +39,13 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "w25q32";
+					compatible = "st,m25p128";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <108000000>;
 				};
 			};
 
 			i2c@11000 {
-				status = "okay";
-				clock-frequency = <100000>;
-			};
-
-			i2c@11100 {
 				status = "okay";
 				clock-frequency = <100000>;
 			};
@@ -61,15 +57,16 @@
 
 			ethernet@30000 {
 				status = "okay";
-				phy = <&phy1>;
+				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 
 			ethernet@70000 {
 				status = "okay";
-				phy = <&phy0>;
+				phy = <&phy1>;
 				phy-mode = "rgmii-id";
 			};
+
 
 			mdio {
 				phy0: ethernet-phy@0 {
@@ -85,15 +82,11 @@
 		pcie-controller {
 			status = "okay";
 			/*
-			 * The two PCIe units are accessible through
-			 * standard PCIe slots on the board.
+			 * One PCIe units is accessible through
+			 * standard PCIe slot on the board.
 			 */
 			pcie@1,0 {
 				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
 				status = "okay";
 			};
 		};

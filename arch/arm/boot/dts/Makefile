@@ -55,11 +55,6 @@ dtb-$(CONFIG_ARCH_BERLIN) += \
 	berlin2cd-google-chromecast.dtb
 dtb-$(CONFIG_ARCH_DAVINCI) += da850-enbw-cmc.dtb \
 	da850-evm.dtb
-dtb-$(CONFIG_MACH_DOVE) += dove-cm-a510.dtb \
-	dove-cubox.dtb \
-	dove-d2plug.dtb \
-	dove-d3plug.dtb \
-	dove-dove-db.dtb
 dtb-$(CONFIG_ARCH_EFM32) += efm32gg-dk3750.dtb
 dtb-$(CONFIG_ARCH_EXYNOS) += exynos4210-origen.dtb \
 	exynos4210-smdkv310.dtb \
@@ -378,7 +373,8 @@ dtb-$(CONFIG_MACH_ARMADA_370) += \
 dtb-$(CONFIG_MACH_ARMADA_375) += \
 	armada-375-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_38X) += \
-	armada-385-db.dtb
+	armada-385-db.dtb \
+	armada-385-rd.dtb
 dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
 	armada-xp-db.dtb \
@@ -386,6 +382,11 @@ dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-netgear-rn2120.dtb \
 	armada-xp-matrix.dtb \
 	armada-xp-openblocks-ax3-4.dtb
+dtb-$(CONFIG_MACH_DOVE) += dove-cm-a510.dtb \
+	dove-cubox.dtb \
+	dove-d2plug.dtb \
+	dove-d3plug.dtb \
+	dove-dove-db.dtb
 
 targets += dtbs
 targets += $(dtb-y)

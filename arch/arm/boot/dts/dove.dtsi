@@ -186,6 +186,11 @@
 				reg = <0x20000 0x80>, <0x800100 0x8>;
 			};
 
+			sysc: system-ctrl@20000 {
+				compatible = "marvell,orion-system-controller";
+				reg = <0x20000 0x110>;
+			};
+
 			bridge_intc: bridge-interrupt-ctrl@20110 {
 				compatible = "marvell,orion-bridge-intc";
 				interrupt-controller;
@@ -390,8 +395,7 @@
 			pinctrl: pin-ctrl@d0200 {
 				compatible = "marvell,dove-pinctrl";
 				reg = <0xd0200 0x14>,
-				      <0xd0440 0x04>,
-				      <0xd802c 0x08>;
+				      <0xd0440 0x04>;
 				clocks = <&gate_clk 22>;
 
 				pmx_gpio_0: pmx-gpio-0 {
