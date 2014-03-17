@@ -1022,7 +1022,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* The chip-specific entries in the device structure. */
 	dev->netdev_ops = &rhine_netdev_ops;
-	dev->ethtool_ops = &netdev_ethtool_ops,
+	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	netif_napi_add(dev, &rp->napi, rhine_napipoll, 64);
