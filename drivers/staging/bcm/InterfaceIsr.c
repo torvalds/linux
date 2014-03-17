@@ -136,28 +136,30 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 int CreateInterruptUrb(struct bcm_interface_adapter *psIntfAdapter)
 {
 	psIntfAdapter->psInterruptUrb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!psIntfAdapter->psInterruptUrb)
-	{
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Cannot allocate interrupt urb");
+	if (!psIntfAdapter->psInterruptUrb) {
+		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS,
+				INTF_INIT, DBG_LVL_ALL,
+				"Cannot allocate interrupt urb");
 		return -ENOMEM;
 	}
 	psIntfAdapter->psInterruptUrb->transfer_buffer =
-								psIntfAdapter->ulInterruptData;
+		psIntfAdapter->ulInterruptData;
 	psIntfAdapter->psInterruptUrb->transfer_buffer_length =
-							sizeof(psIntfAdapter->ulInterruptData);
+		sizeof(psIntfAdapter->ulInterruptData);
 
 	psIntfAdapter->sIntrIn.int_in_pipe = usb_rcvintpipe(psIntfAdapter->udev,
-						psIntfAdapter->sIntrIn.int_in_endpointAddr);
+			psIntfAdapter->sIntrIn.int_in_endpointAddr);
 
 	usb_fill_int_urb(psIntfAdapter->psInterruptUrb, psIntfAdapter->udev,
-					psIntfAdapter->sIntrIn.int_in_pipe,
-					psIntfAdapter->psInterruptUrb->transfer_buffer,
-					psIntfAdapter->psInterruptUrb->transfer_buffer_length,
-					read_int_callback, psIntfAdapter,
-					psIntfAdapter->sIntrIn.int_in_interval);
+			psIntfAdapter->sIntrIn.int_in_pipe,
+			psIntfAdapter->psInterruptUrb->transfer_buffer,
+			psIntfAdapter->psInterruptUrb->transfer_buffer_length,
+			read_int_callback, psIntfAdapter,
+			psIntfAdapter->sIntrIn.int_in_interval);
 
-	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Interrupt Interval: %d\n",
-				psIntfAdapter->sIntrIn.int_in_interval);
+	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, INTF_INIT,
+			DBG_LVL_ALL, "Interrupt Interval: %d\n",
+			psIntfAdapter->sIntrIn.int_in_interval);
 	return 0;
 }
 
@@ -166,19 +168,20 @@ INT StartInterruptUrb(struct bcm_interface_adapter *psIntfAdapter)
 {
 	INT status = 0;
 
-	if( false == psIntfAdapter->psAdapter->device_removed &&
-		false == psIntfAdapter->psAdapter->bEndPointHalted &&
-		false == psIntfAdapter->bSuspended &&
-		false == psIntfAdapter->bPreparingForBusSuspend &&
-		false == psIntfAdapter->psAdapter->StopAllXaction)
-	{
-		status = usb_submit_urb(psIntfAdapter->psInterruptUrb, GFP_ATOMIC);
-		if (status)
-		{
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Cannot send int urb %d\n", status);
-			if(status == -EPIPE)
-			{
-				psIntfAdapter->psAdapter->bEndPointHalted = TRUE ;
+	if (false == psIntfAdapter->psAdapter->device_removed &&
+	    false == psIntfAdapter->psAdapter->bEndPointHalted &&
+	    false == psIntfAdapter->bSuspended &&
+	    false == psIntfAdapter->bPreparingForBusSuspend &&
+	    false == psIntfAdapter->psAdapter->StopAllXaction) {
+		status =
+		    usb_submit_urb(psIntfAdapter->psInterruptUrb, GFP_ATOMIC);
+		if (status) {
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+					DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,
+					"Cannot send inturb %d\n", status);
+			if (status == -EPIPE) {
+				psIntfAdapter->psAdapter->bEndPointHalted =
+					TRUE;
 				wake_up(&psIntfAdapter->psAdapter->tx_packet_wait_queue);
 			}
 		}
