@@ -90,8 +90,6 @@ static void __init rk3288_boot_mode_init(void)
 	rockchip_boot_mode_init(flag, mode);
 }
 
-extern void secondary_startup(void);
-
 static void usb_uart_init(void)
 {
     u32 soc_status2;
@@ -107,6 +105,8 @@ static void usb_uart_init(void)
 #endif // end of CONFIG_RK_USB_UART
 }
 
+extern void secondary_startup(void);
+
 static void __init rk3288_dt_map_io(void)
 {
 	iotable_init(rk3288_io_desc, ARRAY_SIZE(rk3288_io_desc));
@@ -117,9 +117,11 @@ static void __init rk3288_dt_map_io(void)
 	/* rkpwm is used instead of old pwm */
 	//writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
 
+#ifdef CONFIG_SMP
 	/* enable fast boot */
 	writel_relaxed(0x01000100, RK_SGRF_VIRT + RK3288_SGRF_SOC_CON0);
 	writel_relaxed(virt_to_phys(secondary_startup), RK_SGRF_VIRT + RK3288_SGRF_FAST_BOOT_ADDR);
+#endif
 
 	rk3288_boot_mode_init();
 }
@@ -343,7 +345,9 @@ DT_MACHINE_START(RK3288_DT, "RK30board")
 	.map_io		= rk3288_dt_map_io,
 	.init_time	= rk3288_dt_init_timer,
 	.dt_compat	= rk3288_dt_compat,
+#ifdef CONFIG_PM
 	.init_late	= rockchip_suspend_init,
+#endif
 	.reserve	= rk3288_reserve,
 	.restart	= rk3288_restart,
 MACHINE_END

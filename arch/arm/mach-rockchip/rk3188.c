@@ -315,7 +315,9 @@ DT_MACHINE_START(RK3188_DT, "RK30board")
 	.map_io		= rk3188_dt_map_io,
 	.init_time	= rk3188_dt_init_timer,
 	.dt_compat	= rk3188_dt_compat,
+#ifdef CONFIG_PM
 	.init_late	= rockchip_suspend_init,
+#endif
 	.reserve	= rk3188_reserve,
 	.restart	= rk3188_restart,
 MACHINE_END
@@ -370,6 +372,7 @@ static int __init rk3188_ddr_init(void)
 }
 arch_initcall_sync(rk3188_ddr_init);
 
+#ifdef CONFIG_PM
 #include "pm-rk3188.c"
-
+#endif
 

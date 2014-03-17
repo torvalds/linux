@@ -270,7 +270,9 @@ extern int __init rockchip_ion_find_reserve_mem(unsigned long node,
 				const char *uname, int depth, void *data);
 void __init rockchip_ion_reserve(void)
 {
+#ifdef CONFIG_ION_ROCKCHIP
 	printk("%s\n", __func__);
 	of_scan_flat_dt(rockchip_ion_find_reserve_mem, NULL);
+#endif
 }
 
