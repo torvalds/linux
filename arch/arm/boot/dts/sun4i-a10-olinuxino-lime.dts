@@ -1,6 +1,5 @@
 /*
- * Copyright 2014 Zoltan HERPAI
- * Zoltan HERPAI <wigyori@uid0.hu>
+ * Copyright 2014 - Hans de Goede <hdegoede@redhat.com>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -15,8 +14,8 @@
 /include/ "sunxi-common-regulators.dtsi"
 
 / {
-	model = "LinkSprite pcDuino";
-	compatible = "linksprite,a10-pcduino", "allwinner,sun4i-a10";
+	model = "Olimex A10-OLinuXino-LIME";
+	compatible = "olimex,a10-olinuxino-lime", "allwinner,sun4i-a10";
 
 	soc@01c00000 {
 		emac: ethernet@01c0b000 {
@@ -48,6 +47,11 @@
 			status = "okay";
 		};
 
+		ahci: sata@01c18000 {
+			target-supply = <&reg_ahci_5v>;
+			status = "okay";
+		};
+
 		ehci1: usb@01c1c000 {
 			status = "okay";
 		};
@@ -56,17 +60,45 @@
 			status = "okay";
 		};
 
+		pinctrl@01c20800 {
+			ahci_pwr_pin_olinuxinolime: ahci_pwr_pin@1 {
+				allwinner,pins = "PC3";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			led_pins_olinuxinolime: led_pins@0 {
+				allwinner,pins = "PH2";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <1>;
+				allwinner,pull = <0>;
+			};
+		};
+
 		uart0: serial@01c28000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
 		};
+	};
 
-		i2c0: i2c@01c2ac00 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins_a>;
-			status = "okay";
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_olinuxinolime>;
+
+		green {
+			label = "a10-olinuxino-lime:green:usr";
+			gpios = <&pio 7 2 0>;
+			default-state = "on";
 		};
+	};
+
+	reg_ahci_5v: ahci-5v {
+		pinctrl-0 = <&ahci_pwr_pin_olinuxinolime>;
+		gpio = <&pio 2 3 0>;
+		status = "okay";
 	};
 
 	reg_usb1_vbus: usb1-vbus {
