@@ -313,13 +313,7 @@
 			rockchip,delay = <10>;
 		};
 
-                     /*   bl_en:bl_en {
-                                rockchip,power_type = <GPIO>;
-                                gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
-                                rockchip,delay = <10>;
-                        };
-
-                        bl_ctr:bl_ctr {
+                     /*lcd_cs:lcd_cs {
                                 rockchip,power_type = <GPIO>;
                                 gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
                                 rockchip,delay = <10>;
