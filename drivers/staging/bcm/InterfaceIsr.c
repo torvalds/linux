@@ -12,14 +12,13 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 		pr_info(PFX "%s: interrupt status %d\n",
 				Adapter->dev->name, status);
 
-	if (Adapter->device_removed == TRUE) {
+	if (Adapter->device_removed) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, INTF_INIT,
 				DBG_LVL_ALL, "Device has Got Removed.");
 		return;
 	}
 
-	if (((Adapter->bPreparingForLowPowerMode == TRUE) &&
-				(Adapter->bDoSuspend == TRUE)) ||
+	if ((Adapter->bPreparingForLowPowerMode && Adapter->bDoSuspend) ||
 			psIntfAdapter->bSuspended ||
 			psIntfAdapter->bPreparingForBusSuspend) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, INTF_INIT,
@@ -65,7 +64,7 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 				psIntfAdapter->psAdapter->downloadDDR += 1;
 				wake_up(&Adapter->tx_packet_wait_queue);
 			}
-			if (false == Adapter->waiting_to_fw_download_done) {
+			if (!Adapter->waiting_to_fw_download_done) {
 				Adapter->waiting_to_fw_download_done = TRUE;
 				wake_up(&Adapter->ioctl_fw_dnld_wait_queue);
 			}
@@ -168,13 +167,13 @@ INT StartInterruptUrb(struct bcm_interface_adapter *psIntfAdapter)
 {
 	INT status = 0;
 
-	if (false == psIntfAdapter->psAdapter->device_removed &&
-	    false == psIntfAdapter->psAdapter->bEndPointHalted &&
-	    false == psIntfAdapter->bSuspended &&
-	    false == psIntfAdapter->bPreparingForBusSuspend &&
-	    false == psIntfAdapter->psAdapter->StopAllXaction) {
+	if (!(psIntfAdapter->psAdapter->device_removed ||
+				psIntfAdapter->psAdapter->bEndPointHalted ||
+				psIntfAdapter->bSuspended ||
+				psIntfAdapter->bPreparingForBusSuspend ||
+				psIntfAdapter->psAdapter->StopAllXaction)) {
 		status =
-		    usb_submit_urb(psIntfAdapter->psInterruptUrb, GFP_ATOMIC);
+			usb_submit_urb(psIntfAdapter->psInterruptUrb, GFP_ATOMIC);
 		if (status) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
 					DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,
