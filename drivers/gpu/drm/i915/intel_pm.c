@@ -2085,7 +2085,7 @@ static void intel_print_wm_latency(struct drm_device *dev,
 	}
 }
 
-static void intel_setup_wm_latency(struct drm_device *dev)
+static void ilk_setup_wm_latency(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -5985,7 +5985,7 @@ void intel_init_pm(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
-		intel_setup_wm_latency(dev);
+		ilk_setup_wm_latency(dev);
 
 		if ((IS_GEN5(dev) && dev_priv->wm.pri_latency[1] &&
 		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
