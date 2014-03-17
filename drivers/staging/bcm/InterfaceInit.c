@@ -282,7 +282,7 @@ static void usbbcm_disconnect(struct usb_interface *intf)
 	if (psAdapter->bDoSuspend)
 		intf->needs_remote_wakeup = 0;
 
-	psAdapter->device_removed = TRUE ;
+	psAdapter->device_removed = TRUE;
 	usb_set_intfdata(intf, NULL);
 	InterfaceAdapterFree(psIntfAdapter);
 	usb_put_dev(udev);
@@ -378,7 +378,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 	size_t buffer_size;
 	unsigned long value;
 	int retval = 0;
-	int usedIntOutForBulkTransfer = 0 ;
+	int usedIntOutForBulkTransfer = 0;
 	bool bBcm16 = false;
 	UINT uiData = 0;
 	int bytes;
@@ -434,7 +434,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 					"BCM16 is applicable on this dongle\n");
 			if (retval ||
 					(psIntfAdapter->bHighSpeedDevice == false)) {
-				usedIntOutForBulkTransfer = EP2 ;
+				usedIntOutForBulkTransfer = EP2;
 				endpoint = &iface_desc->endpoint[EP2].desc;
 				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
 						DBG_TYPE_INITEXIT, DRV_ENTRY,
@@ -471,7 +471,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 								DRV_ENTRY,
 								DBG_LVL_ALL,
 								"reset failed.  Re-enumerating the device.\n");
-						return retval ;
+						return retval;
 					}
 
 				}
@@ -488,7 +488,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 							0x136, 4, TRUE);
 				}
 			} else {
-				usedIntOutForBulkTransfer = EP4 ;
+				usedIntOutForBulkTransfer = EP4;
 				endpoint = &iface_desc->endpoint[EP4].desc;
 				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
 						DBG_TYPE_INITEXIT, DRV_ENTRY,
@@ -631,7 +631,7 @@ static int InterfaceSuspend(struct usb_interface *intf, pm_message_t message)
 		psIntfAdapter->bPreparingForBusSuspend = false;
 
 		if (psIntfAdapter->psAdapter->LinkStatus == LINKUP_DONE) {
-			psIntfAdapter->psAdapter->IdleMode = TRUE ;
+			psIntfAdapter->psAdapter->IdleMode = TRUE;
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
 					DBG_TYPE_INITEXIT, DRV_ENTRY,
 					DBG_LVL_ALL,
