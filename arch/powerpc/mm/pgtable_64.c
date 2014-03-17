@@ -510,7 +510,8 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 }
 
 unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
-				  pmd_t *pmdp, unsigned long clr)
+				  pmd_t *pmdp, unsigned long clr,
+				  unsigned long set)
 {
 
 	unsigned long old, tmp;
@@ -526,14 +527,15 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
 		andi.	%1,%0,%6\n\
 		bne-	1b \n\
 		andc	%1,%0,%4 \n\
+		or	%1,%1,%7\n\
 		stdcx.	%1,0,%3 \n\
 		bne-	1b"
 	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
-	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY)
+	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY), "r" (set)
 	: "cc" );
 #else
 	old = pmd_val(*pmdp);
-	*pmdp = __pmd(old & ~clr);
+	*pmdp = __pmd((old & ~clr) | set);
 #endif
 	if (old & _PAGE_HASHPTE)
 		hpte_do_hugepage_flush(mm, addr, pmdp);
@@ -708,7 +710,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 		     pmd_t *pmdp)
 {
-	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT);
+	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
 }
 
 /*
@@ -835,7 +837,7 @@ pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 	unsigned long old;
 	pgtable_t *pgtable_slot;
 
-	old = pmd_hugepage_update(mm, addr, pmdp, ~0UL);
+	old = pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
 	old_pmd = __pmd(old);
 	/*
 	 * We have pmd == none and we are holding page_table_lock.
