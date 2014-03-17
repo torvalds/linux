@@ -22,6 +22,7 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
+#include <asm/mach/map.h>
 #include <asm/suspend.h>
 
 #include <plat/cpu.h>
@@ -74,9 +75,19 @@ static inline void s3c_pm_debug_init(void)
 
 static struct pm_uart_save uart_save;
 
+static inline void __iomem *s3c_pm_uart_base(void)
+{
+	unsigned long paddr;
+	unsigned long vaddr;
+
+	debug_ll_addr(&paddr, &vaddr);
+
+	return (void __iomem *)vaddr;
+}
+
 static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 {
-	void __iomem *regs = S3C_VA_UARTx(uart);
+	void __iomem *regs = s3c_pm_uart_base();
 
 	save->ulcon = __raw_readl(regs + S3C2410_ULCON);
 	save->ucon = __raw_readl(regs + S3C2410_UCON);
@@ -98,7 +109,7 @@ static void s3c_pm_save_uarts(void)
 
 static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 {
-	void __iomem *regs = S3C_VA_UARTx(uart);
+	void __iomem *regs = s3c_pm_uart_base();
 
 	s3c_pm_arch_update_uart(regs, save);
 
