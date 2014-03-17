@@ -68,9 +68,7 @@ static void __init highbank_init_irq(void)
 		highbank_scu_map_io();
 
 	/* Enable PL310 L2 Cache controller */
-	if (IS_ENABLED(CONFIG_CACHE_L2X0) &&
-	    of_find_compatible_node(NULL, NULL, "arm,pl310-cache")) {
-		highbank_smc1(0x102, 0x1);
+	if (IS_ENABLED(CONFIG_CACHE_L2X0)) {
 		outer_cache.write_sec = highbank_l2c310_write_sec;
 		l2x0_of_init(0, ~0);
 	}
