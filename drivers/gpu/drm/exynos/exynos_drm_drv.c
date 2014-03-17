@@ -71,9 +71,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 
-	/* init kms poll for handling hpd */
-	drm_kms_helper_poll_init(dev);
-
 	exynos_drm_mode_config_init(dev);
 
 	ret = exynos_drm_initialize_managers(dev);
@@ -92,6 +89,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	ret = exynos_drm_initialize_displays(dev);
 	if (ret)
 		goto err_manager_cleanup;
+
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(dev);
 
 	ret = drm_vblank_init(dev, MAX_CRTC);
 	if (ret)
