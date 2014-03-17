@@ -1,8 +1,9 @@
 /*
  * Lager board support
  *
- * Copyright (C) 2013  Renesas Solutions Corp.
+ * Copyright (C) 2013-2014  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
+ * Copyright (C) 2014  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +27,10 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/gpio-rcar.h>
@@ -66,6 +69,19 @@
  * this command is required when playback.
  *
  * # amixer set "LINEOUT Mixer DACL" on
+ */
+
+/*
+ * SDHI0 (CN8)
+ *
+ * JP3:  pin1
+ * SW20: pin1
+
+ * GP5_24:	1:  VDD  3.3V (defult)
+ *		0:  VDD  0.0V
+ * GP5_29:	1:  VccQ 3.3V (defult)
+ *		0:  VccQ 1.8V
+ *
  */
 
 /* DU */
@@ -258,6 +274,17 @@ static const struct sh_eth_plat_data ether_pdata __initconst = {
 static const struct resource ether_resources[] __initconst = {
 	DEFINE_RES_MEM(0xee700000, 0x400),
 	DEFINE_RES_IRQ(gic_spi(162)),
+};
+
+static const struct platform_device_info ether_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "r8a7790-ether",
+	.id		= -1,
+	.res		= ether_resources,
+	.num_res	= ARRAY_SIZE(ether_resources),
+	.data		= &ether_pdata,
+	.size_data	= sizeof(ether_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
 };
 
 /* SPI Flash memory (Spansion S25FL512SAGMFIG11 64Mb) */
@@ -595,6 +622,76 @@ static void __init lager_add_rsnd_device(void)
 	platform_device_register_full(&cardinfo);
 }
 
+/* SDHI0 */
+static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+			  MMC_CAP_POWER_OFF_CARD,
+	.tmio_caps2	= MMC_CAP2_NO_MULTI_READ,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
+			  TMIO_MMC_WRPROTECT_DISABLE,
+};
+
+static struct resource sdhi0_resources[] __initdata = {
+	DEFINE_RES_MEM(0xee100000, 0x200),
+	DEFINE_RES_IRQ(gic_spi(165)),
+};
+
+/* SDHI2 */
+static struct sh_mobile_sdhi_info sdhi2_info __initdata = {
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+			  MMC_CAP_POWER_OFF_CARD,
+	.tmio_caps2	= MMC_CAP2_NO_MULTI_READ,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
+			  TMIO_MMC_WRPROTECT_DISABLE,
+};
+
+static struct resource sdhi2_resources[] __initdata = {
+	DEFINE_RES_MEM(0xee140000, 0x100),
+	DEFINE_RES_IRQ(gic_spi(167)),
+};
+
+/* Internal PCI1 */
+static const struct resource pci1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee0b0000, 0x10000),	/* CFG */
+	DEFINE_RES_MEM(0xee0a0000, 0x10000),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(112)),
+};
+
+static const struct platform_device_info pci1_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "pci-rcar-gen2",
+	.id		= 1,
+	.res		= pci1_resources,
+	.num_res	= ARRAY_SIZE(pci1_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static void __init lager_add_usb1_device(void)
+{
+	platform_device_register_full(&pci1_info);
+}
+
+/* Internal PCI2 */
+static const struct resource pci2_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee0d0000, 0x10000),	/* CFG */
+	DEFINE_RES_MEM(0xee0c0000, 0x10000),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(113)),
+};
+
+static const struct platform_device_info pci2_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "pci-rcar-gen2",
+	.id		= 2,
+	.res		= pci2_resources,
+	.num_res	= ARRAY_SIZE(pci2_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static void __init lager_add_usb2_device(void)
+{
+	platform_device_register_full(&pci2_info);
+}
+
 static const struct pinctrl_map lager_pinctrl_map[] = {
 	/* DU (CN10: ARGB0, CN13: LVDS) */
 	PIN_MAP_MUX_GROUP_DEFAULT("rcar-du-r8a7790", "pfc-r8a7790",
@@ -606,12 +703,31 @@ static const struct pinctrl_map lager_pinctrl_map[] = {
 	/* I2C2 */
 	PIN_MAP_MUX_GROUP_DEFAULT("i2c-rcar.2", "pfc-r8a7790",
 				  "i2c2", "i2c2"),
+	/* QSPI */
+	PIN_MAP_MUX_GROUP_DEFAULT("qspi.0", "pfc-r8a7790",
+				  "qspi_ctrl", "qspi"),
+	PIN_MAP_MUX_GROUP_DEFAULT("qspi.0", "pfc-r8a7790",
+				  "qspi_data4", "qspi"),
 	/* SCIF0 (CN19: DEBUG SERIAL0) */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.6", "pfc-r8a7790",
 				  "scif0_data", "scif0"),
 	/* SCIF1 (CN20: DEBUG SERIAL1) */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.7", "pfc-r8a7790",
 				  "scif1_data", "scif1"),
+	/* SDHI0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7790",
+				  "sdhi0_data4", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7790",
+				  "sdhi0_ctrl", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7790",
+				  "sdhi0_cd", "sdhi0"),
+	/* SDHI2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-r8a7790",
+				  "sdhi2_data4", "sdhi2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-r8a7790",
+				  "sdhi2_ctrl", "sdhi2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-r8a7790",
+				  "sdhi2_cd", "sdhi2"),
 	/* SSI (CN17: sound) */
 	PIN_MAP_MUX_GROUP_DEFAULT("rcar_sound", "pfc-r8a7790",
 				  "ssi0129_ctrl", "ssi"),
@@ -654,6 +770,12 @@ static const struct pinctrl_map lager_pinctrl_map[] = {
 	/* USB0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs", "pfc-r8a7790",
 				  "usb0_ovc_vbus", "usb0"),
+	/* USB1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("pci-rcar-gen2.1", "pfc-r8a7790",
+				  "usb1", "usb1"),
+	/* USB2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("pci-rcar-gen2.2", "pfc-r8a7790",
+				  "usb2", "usb2"),
 };
 
 static void __init lager_add_standard_devices(void)
@@ -681,10 +803,7 @@ static void __init lager_add_standard_devices(void)
 					  mmcif1_resources, ARRAY_SIZE(mmcif1_resources),
 					  &mmcif1_pdata, sizeof(mmcif1_pdata));
 
-	platform_device_register_resndata(&platform_bus, "r8a7790-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  &ether_pdata, sizeof(ether_pdata));
+	platform_device_register_full(&ether_info);
 
 	lager_add_du_device();
 
@@ -714,8 +833,17 @@ static void __init lager_add_standard_devices(void)
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
 	lager_register_usbhs();
+	lager_add_usb1_device();
+	lager_add_usb2_device();
 
 	lager_add_rsnd_device();
+
+	platform_device_register_resndata(&platform_bus, "sh_mobile_sdhi", 0,
+					  sdhi0_resources, ARRAY_SIZE(sdhi0_resources),
+					  &sdhi0_info, sizeof(struct sh_mobile_sdhi_info));
+	platform_device_register_resndata(&platform_bus, "sh_mobile_sdhi", 2,
+					  sdhi2_resources, ARRAY_SIZE(sdhi2_resources),
+					  &sdhi2_info, sizeof(struct sh_mobile_sdhi_info));
 }
 
 /*

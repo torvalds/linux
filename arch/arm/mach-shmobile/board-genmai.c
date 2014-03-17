@@ -1,8 +1,9 @@
 /*
  * Genmai board support
  *
- * Copyright (C) 2013  Renesas Solutions Corp.
+ * Copyright (C) 2013-2014  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
+ * Copyright (C) 2014  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +42,17 @@ static const struct resource ether_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe8203000, 0x800),
 	DEFINE_RES_MEM(0xe8204800, 0x200),
 	DEFINE_RES_IRQ(gic_iid(359)),
+};
+
+static const struct platform_device_info ether_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "r7s72100-ether",
+	.id		= -1,
+	.res		= ether_resources,
+	.num_res	= ARRAY_SIZE(ether_resources),
+	.data		= &ether_pdata,
+	.size_data	= sizeof(ether_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
 };
 
 /* RSPI */
@@ -82,10 +94,7 @@ static void __init genmai_add_standard_devices(void)
 	r7s72100_clock_init();
 	r7s72100_add_dt_devices();
 
-	platform_device_register_resndata(&platform_bus, "r7s72100-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  &ether_pdata, sizeof(ether_pdata));
+	platform_device_register_full(&ether_info);
 
 	r7s72100_register_rspi(0);
 	r7s72100_register_rspi(1);
