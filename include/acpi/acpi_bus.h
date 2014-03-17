@@ -143,7 +143,9 @@ struct acpi_scan_handler {
 
 struct acpi_hotplug_context {
 	struct acpi_device *self;
-	int (*event)(struct acpi_device *, u32);
+	int (*notify)(struct acpi_device *, u32);
+	void (*uevent)(struct acpi_device *, u32);
+	void (*fixup)(struct acpi_device *);
 };
 
 /*
@@ -201,7 +203,8 @@ struct acpi_device_flags {
 	u32 visited:1;
 	u32 no_hotplug:1;
 	u32 hotplug_notify:1;
-	u32 reserved:23;
+	u32 is_dock_station:1;
+	u32 reserved:22;
 };
 
 /* File System */
@@ -365,12 +368,21 @@ static inline void acpi_set_device_status(struct acpi_device *adev, u32 sta)
 
 static inline void acpi_set_hp_context(struct acpi_device *adev,
 				       struct acpi_hotplug_context *hp,
-				       int (*event)(struct acpi_device *, u32))
+				       int (*notify)(struct acpi_device *, u32),
+				       void (*uevent)(struct acpi_device *, u32),
+				       void (*fixup)(struct acpi_device *))
 {
 	hp->self = adev;
-	hp->event = event;
+	hp->notify = notify;
+	hp->uevent = uevent;
+	hp->fixup = fixup;
 	adev->hp = hp;
 }
+
+void acpi_initialize_hp_context(struct acpi_device *adev,
+				struct acpi_hotplug_context *hp,
+				int (*notify)(struct acpi_device *, u32),
+				void (*uevent)(struct acpi_device *, u32));
 
 /* acpi_device.dev.bus == &acpi_bus_type */
 extern struct bus_type acpi_bus_type;
@@ -442,10 +454,6 @@ static inline bool acpi_device_enumerated(struct acpi_device *adev)
 {
 	return adev && adev->flags.initialized && adev->flags.visited;
 }
-
-typedef void (*acpi_hp_callback)(void *data, u32 src);
-
-acpi_status acpi_hotplug_execute(acpi_hp_callback func, void *data, u32 src);
 
 /**
  * module_acpi_driver(acpi_driver) - Helper macro for registering an ACPI driver

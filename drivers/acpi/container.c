@@ -68,6 +68,9 @@ static int container_device_attach(struct acpi_device *adev,
 	struct device *dev;
 	int ret;
 
+	if (adev->flags.is_dock_station)
+		return 0;
+
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
 		return -ENOMEM;
