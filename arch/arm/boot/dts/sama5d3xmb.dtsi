@@ -32,6 +32,10 @@
 				};
 			};
 
+			ssc0: ssc@f0008000 {
+				atmel,clk-from-rk-pin;
+			};
+
 			/*
 			 * i2c0 conflicts with ISI:
 			 * disable it to allow the use of ISI
