@@ -176,9 +176,6 @@ struct mmci_host {
 	struct mmc_data		*data;
 	struct mmc_host		*mmc;
 	struct clk		*clk;
-	int			gpio_cd;
-	int			gpio_wp;
-	int			gpio_cd_irq;
 	bool			singleirq;
 
 	spinlock_t		lock;
