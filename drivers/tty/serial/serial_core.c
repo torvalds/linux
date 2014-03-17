@@ -1319,9 +1319,9 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	uport = state->uart_port;
 	port = &state->port;
 
-	pr_debug("uart_close(%d) called\n", uport->line);
+	pr_debug("uart_close(%d) called\n", uport ? uport->line : -1);
 
-	if (tty_port_close_start(port, tty, filp) == 0)
+	if (!port->count || tty_port_close_start(port, tty, filp) == 0)
 		return;
 
 	/*
