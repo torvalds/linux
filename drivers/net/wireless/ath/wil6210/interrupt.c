@@ -328,6 +328,7 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 	if (isr & ISR_MISC_FW_ERROR) {
 		wil_notify_fw_error(wil);
 		isr &= ~ISR_MISC_FW_ERROR;
+		wil_fw_error_recovery(wil);
 	}
 
 	if (isr & ISR_MISC_MBOX_EVT) {

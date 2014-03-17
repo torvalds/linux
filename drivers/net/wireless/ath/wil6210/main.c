@@ -21,6 +21,10 @@
 #include "wil6210.h"
 #include "txrx.h"
 
+static bool no_fw_recovery;
+module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(no_fw_recovery, " disable FW error recovery");
+
 /*
  * Due to a hardware issue,
  * one has to read/write to/from NIC in 32-bit chunks;
@@ -144,6 +148,36 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
+static void wil_fw_error_worker(struct work_struct *work)
+{
+	struct wil6210_priv *wil = container_of(work,
+			struct wil6210_priv, fw_error_worker);
+	struct wireless_dev *wdev = wil->wdev;
+
+	wil_dbg_misc(wil, "fw error worker\n");
+
+	if (no_fw_recovery)
+		return;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_MONITOR:
+		wil_info(wil, "fw error recovery started...\n");
+		wil_reset(wil);
+
+		/* need to re-allocate Rx ring after reset */
+		wil_rx_init(wil);
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		/* recovery in these modes is done by upper layers */
+		break;
+	default:
+		break;
+	}
+}
+
 static int wil_find_free_vring(struct wil6210_priv *wil)
 {
 	int i;
@@ -196,6 +230,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	INIT_WORK(&wil->connect_worker, wil_connect_worker);
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
+	INIT_WORK(&wil->fw_error_worker, wil_fw_error_worker);
 
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
 	spin_lock_init(&wil->wmi_ev_lock);
@@ -222,6 +257,7 @@ void wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 void wil_priv_deinit(struct wil6210_priv *wil)
 {
 	cancel_work_sync(&wil->disconnect_worker);
+	cancel_work_sync(&wil->fw_error_worker);
 	wil6210_disconnect(wil, NULL);
 	wmi_event_flush(wil);
 	destroy_workqueue(wil->wmi_wq_conn);
@@ -335,6 +371,13 @@ int wil_reset(struct wil6210_priv *wil)
 		napi_synchronize(&wil->napi_tx);
 	}
 
+	if (wil->scan_request) {
+		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
+			     wil->scan_request);
+		cfg80211_scan_done(wil->scan_request, true);
+		wil->scan_request = NULL;
+	}
+
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL);
 
@@ -363,6 +406,11 @@ int wil_reset(struct wil6210_priv *wil)
 	return rc;
 }
 
+void wil_fw_error_recovery(struct wil6210_priv *wil)
+{
+	wil_dbg_misc(wil, "starting fw error recovery\n");
+	schedule_work(&wil->fw_error_worker);
+}
 
 void wil_link_on(struct wil6210_priv *wil)
 {

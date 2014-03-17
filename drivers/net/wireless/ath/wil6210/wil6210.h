@@ -370,6 +370,7 @@ struct wil6210_priv {
 	struct workqueue_struct *wmi_wq_conn; /* for connect worker */
 	struct work_struct connect_worker;
 	struct work_struct disconnect_worker;
+	struct work_struct fw_error_worker;	/* for FW error recovery */
 	struct timer_list connect_timer;
 	int pending_connect_cid;
 	struct list_head pending_wmi_ev;
@@ -447,6 +448,7 @@ void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil);
+void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_link_on(struct wil6210_priv *wil);
 void wil_link_off(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);

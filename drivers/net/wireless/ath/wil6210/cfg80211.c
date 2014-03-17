@@ -265,6 +265,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		u16 chnl[4];
 	} __packed cmd;
 	uint i, n;
+	int rc;
 
 	if (wil->scan_request) {
 		wil_err(wil, "Already scanning\n");
@@ -305,8 +306,13 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 			     request->channels[i]->center_freq);
 	}
 
-	return wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
+	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
 			cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
+
+	if (rc)
+		wil->scan_request = NULL;
+
+	return rc;
 }
 
 static int wil_cfg80211_connect(struct wiphy *wiphy,
