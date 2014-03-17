@@ -197,7 +197,7 @@ disable_resources:
 }
 
 #ifdef CONFIG_PM_SLEEP
-int ahci_sunxi_resume(struct device *dev)
+static int ahci_sunxi_resume(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
