@@ -74,26 +74,18 @@ struct RGF_ICR {
 } __packed;
 
 /* registers - FW addresses */
-#define RGF_FW_REV_ID			(0x880a8c) /* chip revision */
 #define RGF_USER_SERIAL_BAUD_RATE	(0x880050)
-#define RGF_LOS_COUNTER_CTL		(0x882dc4)
-#define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
-#define RGF_USER_USER_ICR		(0x880b4c) /* struct RGF_ICR */
-	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
-#define RGF_USER_CLKS_CTL_SW_RST_MASK_0	(0x880b14)
-#define RGF_USER_MAC_CPU_0		(0x8801fc)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
+#define RGF_USER_MAC_CPU_0		(0x8801fc)
+#define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
+#define RGF_USER_FW_REV_ID		(0x880a8c) /* chip revision */
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_0	(0x880b04)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_1	(0x880b08)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_2	(0x880b0c)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_3	(0x880b10)
-
-#define RGF_DMA_PSEUDO_CAUSE		(0x881c68)
-#define RGF_DMA_PSEUDO_CAUSE_MASK_SW	(0x881c6c)
-#define RGF_DMA_PSEUDO_CAUSE_MASK_FW	(0x881c70)
-	#define BIT_DMA_PSEUDO_CAUSE_RX		BIT(0)
-	#define BIT_DMA_PSEUDO_CAUSE_TX		BIT(1)
-	#define BIT_DMA_PSEUDO_CAUSE_MISC	BIT(2)
+#define RGF_USER_CLKS_CTL_SW_RST_MASK_0	(0x880b14)
+#define RGF_USER_USER_ICR		(0x880b4c) /* struct RGF_ICR */
+	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
@@ -108,12 +100,21 @@ struct RGF_ICR {
 /* Interrupt moderation control */
 #define RGF_DMA_ITR_CNT_TRSH		(0x881c5c)
 #define RGF_DMA_ITR_CNT_DATA		(0x881c60)
-#define RGF_DMA_ITR_CNT_CRL		(0x881C64)
+#define RGF_DMA_ITR_CNT_CRL		(0x881c64)
 	#define BIT_DMA_ITR_CNT_CRL_EN		BIT(0)
 	#define BIT_DMA_ITR_CNT_CRL_EXT_TICK	BIT(1)
 	#define BIT_DMA_ITR_CNT_CRL_FOREVER	BIT(2)
 	#define BIT_DMA_ITR_CNT_CRL_CLR		BIT(3)
 	#define BIT_DMA_ITR_CNT_CRL_REACH_TRSH	BIT(4)
+
+#define RGF_DMA_PSEUDO_CAUSE		(0x881c68)
+#define RGF_DMA_PSEUDO_CAUSE_MASK_SW	(0x881c6c)
+#define RGF_DMA_PSEUDO_CAUSE_MASK_FW	(0x881c70)
+	#define BIT_DMA_PSEUDO_CAUSE_RX		BIT(0)
+	#define BIT_DMA_PSEUDO_CAUSE_TX		BIT(1)
+	#define BIT_DMA_PSEUDO_CAUSE_MISC	BIT(2)
+
+#define RGF_PCIE_LOS_COUNTER_CTL	(0x882dc4)
 
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)

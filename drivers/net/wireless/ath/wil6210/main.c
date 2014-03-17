@@ -244,7 +244,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 #define S(a, v) iowrite32(ioread32(wil->csr + HOSTADDR(a)) | v, \
 		wil->csr + HOSTADDR(a))
 
-	wil->hw_version = R(RGF_FW_REV_ID);
+	wil->hw_version = R(RGF_USER_FW_REV_ID);
 	rev_id = wil->hw_version & 0xff;
 	/* hpal_perst_from_pad_src_n_mask */
 	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(6));
@@ -268,7 +268,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	if (rev_id == 1) {
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00000080);
 	} else {
-		W(RGF_LOS_COUNTER_CTL, BIT(6) | BIT(8));
+		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(6) | BIT(8));
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 	}
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
@@ -284,7 +284,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	} while (baud_rate != 0x15e);
 
 	if (rev_id == 2)
-		W(RGF_LOS_COUNTER_CTL, BIT(8));
+		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
 
