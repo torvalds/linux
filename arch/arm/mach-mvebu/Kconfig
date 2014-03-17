@@ -1,5 +1,5 @@
 config ARCH_MVEBU
-	bool "Marvell SOCs with Device Tree support" if ARCH_MULTI_V7
+	bool "Marvell Engineering Business Unit (MVEBU) SoCs" if (ARCH_MULTI_V7 || ARCH_MULTI_V5)
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
@@ -14,7 +14,7 @@ config ARCH_MVEBU
 
 if ARCH_MVEBU
 
-menu "Marvell SOC with device tree"
+menu "Marvell EBU SoC variants"
 
 config MACH_MVEBU_V7
 	bool
@@ -22,7 +22,7 @@ config MACH_MVEBU_V7
 	select CACHE_L2X0
 
 config MACH_ARMADA_370
-	bool "Marvell Armada 370 boards"
+	bool "Marvell Armada 370 boards" if ARCH_MULTI_V7
 	select ARMADA_370_CLK
 	select CPU_PJ4B
 	select MACH_MVEBU_V7
@@ -32,7 +32,7 @@ config MACH_ARMADA_370
 	  on the Marvell Armada 370 SoC with device tree.
 
 config MACH_ARMADA_375
-	bool "Marvell Armada 375 boards"
+	bool "Marvell Armada 375 boards" if ARCH_MULTI_V7
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_753970
 	select ARM_GIC
@@ -46,7 +46,7 @@ config MACH_ARMADA_375
 	  on the Marvell Armada 375 SoC with device tree.
 
 config MACH_ARMADA_38X
-	bool "Marvell Armada 380/385 boards"
+	bool "Marvell Armada 380/385 boards" if ARCH_MULTI_V7
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_753970
 	select ARM_GIC
@@ -60,7 +60,7 @@ config MACH_ARMADA_38X
 	  on the Marvell Armada 380/385 SoC with device tree.
 
 config MACH_ARMADA_XP
-	bool "Marvell Armada XP boards"
+	bool "Marvell Armada XP boards" if ARCH_MULTI_V7
 	select ARMADA_XP_CLK
 	select CPU_PJ4B
 	select MACH_MVEBU_V7
@@ -68,6 +68,30 @@ config MACH_ARMADA_XP
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada XP SoC with device tree.
+
+config MACH_KIRKWOOD
+	bool "Marvell Kirkwood boards" if ARCH_MULTI_V5
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select CPU_FEROCEON
+	select KIRKWOOD_CLK
+	select OF_IRQ
+	select ORION_IRQCHIP
+	select ORION_TIMER
+	select PCI
+	select PCI_QUIRKS
+	select PINCTRL_KIRKWOOD
+	select USE_OF
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Kirkwood device tree.
+
+config MACH_T5325
+	bool "HP T5325 thin client"
+	depends on MACH_KIRKWOOD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  HP T5325 Thin client
 
 endmenu
 
