@@ -110,7 +110,7 @@ static const struct clk_name clk_names[] __initconst = {
 /*
  * This is a really crude hack to work around core platform clock issues
  */
-static const struct clk_name clk_enables[] = {
+static const struct clk_name clk_enables[] __initconst = {
 	{ "ether", NULL, "ee700000.ethernet" },
 	{ "i2c2", NULL, "e6530000.i2c" },
 	{ "msiof0", NULL, "e6e20000.spi" },
