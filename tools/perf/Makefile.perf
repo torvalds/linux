@@ -417,6 +417,7 @@ LIB_OBJS += $(OUTPUT)tests/dwarf-unwind.o
 endif
 endif
 LIB_OBJS += $(OUTPUT)tests/mmap-thread-lookup.o
+LIB_OBJS += $(OUTPUT)tests/thread-mg-share.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 BUILTIN_OBJS += $(OUTPUT)builtin-bench.o

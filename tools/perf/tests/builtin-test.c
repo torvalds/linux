@@ -132,6 +132,10 @@ static struct test {
 		.func = test__mmap_thread_lookup,
 	},
 	{
+		.desc = "Test thread mg sharing",
+		.func = test__thread_mg_share,
+	},
+	{
 		.func = NULL,
 	},
 };
