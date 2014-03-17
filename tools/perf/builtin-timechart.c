@@ -494,7 +494,7 @@ static const char *cat_backtrace(union perf_event *event,
 			continue;
 		}
 
-		tal.filtered = false;
+		tal.filtered = 0;
 		thread__find_addr_location(al.thread, machine, cpumode,
 					   MAP__FUNCTION, ip, &tal);
 

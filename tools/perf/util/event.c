@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include "event.h"
 #include "debug.h"
+#include "hist.h"
 #include "machine.h"
 #include "sort.h"
 #include "string.h"
@@ -705,7 +706,7 @@ void thread__find_addr_map(struct thread *thread,
 	al->thread = thread;
 	al->addr = addr;
 	al->cpumode = cpumode;
-	al->filtered = false;
+	al->filtered = 0;
 
 	if (machine == NULL) {
 		al->map = NULL;
@@ -731,11 +732,11 @@ void thread__find_addr_map(struct thread *thread,
 		if ((cpumode == PERF_RECORD_MISC_GUEST_USER ||
 			cpumode == PERF_RECORD_MISC_GUEST_KERNEL) &&
 			!perf_guest)
-			al->filtered = true;
+			al->filtered |= (1 << HIST_FILTER__GUEST);
 		if ((cpumode == PERF_RECORD_MISC_USER ||
 			cpumode == PERF_RECORD_MISC_KERNEL) &&
 			!perf_host)
-			al->filtered = true;
+			al->filtered |= (1 << HIST_FILTER__HOST);
 
 		return;
 	}
@@ -792,8 +793,10 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	if (thread == NULL)
 		return -1;
 
-	if (thread__is_filtered(thread))
+	if (thread__is_filtered(thread)) {
+		al->filtered |= (1 << HIST_FILTER__THREAD);
 		goto out_filtered;
+	}
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 	/*
@@ -823,8 +826,10 @@ int perf_event__preprocess_sample(const union perf_event *event,
 						  dso->short_name) ||
 			       (dso->short_name != dso->long_name &&
 				strlist__has_entry(symbol_conf.dso_list,
-						   dso->long_name)))))
+						   dso->long_name))))) {
+			al->filtered |= (1 << HIST_FILTER__DSO);
 			goto out_filtered;
+		}
 
 		al->sym = map__find_symbol(al->map, al->addr,
 					   machine->symbol_filter);
@@ -832,12 +837,13 @@ int perf_event__preprocess_sample(const union perf_event *event,
 
 	if (symbol_conf.sym_list &&
 		(!al->sym || !strlist__has_entry(symbol_conf.sym_list,
-						al->sym->name)))
+						al->sym->name))) {
+		al->filtered |= (1 << HIST_FILTER__SYMBOL);
 		goto out_filtered;
+	}
 
 	return 0;
 
 out_filtered:
-	al->filtered = true;
 	return 0;
 }
