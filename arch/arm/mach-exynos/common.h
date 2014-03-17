@@ -27,6 +27,12 @@ void exynos_init_late(void);
 
 void exynos_firmware_init(void);
 
+#ifdef CONFIG_PM_SLEEP
+extern void __init exynos_pm_init(void);
+#else
+static inline void exynos_pm_init(void) {}
+#endif
+
 extern struct smp_operations exynos_smp_ops;
 
 extern void exynos_cpu_die(unsigned int cpu);

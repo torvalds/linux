@@ -92,39 +92,6 @@ static void exynos_pm_prepare(void)
 	__raw_writel(virt_to_phys(s3c_cpu_resume), S5P_INFORM0);
 }
 
-static int exynos_pm_add(struct device *dev, struct subsys_interface *sif)
-{
-	pm_cpu_prep = exynos_pm_prepare;
-	pm_cpu_sleep = exynos_cpu_suspend;
-
-	return 0;
-}
-
-static struct subsys_interface exynos_pm_interface = {
-	.name		= "exynos_pm",
-	.subsys		= &exynos_subsys,
-	.add_dev	= exynos_pm_add,
-};
-
-static __init int exynos_pm_drvinit(void)
-{
-	unsigned int tmp;
-
-	if (soc_is_exynos5440())
-		return 0;
-
-	s3c_pm_init();
-
-	/* All wakeup disable */
-
-	tmp = __raw_readl(S5P_WAKEUP_MASK);
-	tmp |= ((0xFF << 8) | (0x1F << 1));
-	__raw_writel(tmp, S5P_WAKEUP_MASK);
-
-	return subsys_interface_register(&exynos_pm_interface);
-}
-arch_initcall(exynos_pm_drvinit);
-
 static int exynos_pm_suspend(void)
 {
 	unsigned long tmp;
@@ -220,12 +187,19 @@ static struct syscore_ops exynos_pm_syscore_ops = {
 	.resume		= exynos_pm_resume,
 };
 
-static __init int exynos_pm_syscore_init(void)
+void __init exynos_pm_init(void)
 {
-	if (soc_is_exynos5440())
-		return 0;
+	u32 tmp;
+
+	pm_cpu_prep = exynos_pm_prepare;
+	pm_cpu_sleep = exynos_cpu_suspend;
+
+	s3c_pm_init();
+
+	/* All wakeup disable */
+	tmp = __raw_readl(S5P_WAKEUP_MASK);
+	tmp |= ((0xFF << 8) | (0x1F << 1));
+	__raw_writel(tmp, S5P_WAKEUP_MASK);
 
 	register_syscore_ops(&exynos_pm_syscore_ops);
-	return 0;
 }
-arch_initcall(exynos_pm_syscore_init);

@@ -315,6 +315,7 @@ void __init exynos_init_late(void)
 		return;
 
 	pm_genpd_poweroff_unused();
+	exynos_pm_init();
 }
 
 static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
