@@ -264,9 +264,9 @@ typedef struct pm_message {
  *	registers, so that it is fully operational.
  *
  * @runtime_idle: Device appears to be inactive and it might be put into a
- *	low-power state if all of the necessary conditions are satisfied.  Check
- *	these conditions and handle the device as appropriate, possibly queueing
- *	a suspend request for it.  The return value is ignored by the PM core.
+ *	low-power state if all of the necessary conditions are satisfied.
+ *	Check these conditions, and return 0 if it's appropriate to let the PM
+ *	core queue a suspend request for the device.
  *
  * Refer to Documentation/power/runtime_pm.txt for more information about the
  * role of the above callbacks in device runtime power management.
