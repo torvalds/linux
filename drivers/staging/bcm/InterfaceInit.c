@@ -74,6 +74,7 @@ static void ConfigureEndPointTypesThroughEEPROM(struct bcm_mini_adapter *Adapter
 {
 	u32 ulReg;
 	int bytes;
+	struct bcm_interface_adapter *interfaceAdapter;
 
 	/* Program EP2 MAX_PKT_SIZE */
 	ulReg = ntohl(EP2_MPS_REG);
@@ -83,7 +84,9 @@ static void ConfigureEndPointTypesThroughEEPROM(struct bcm_mini_adapter *Adapter
 
 	ulReg = ntohl(EP2_CFG_REG);
 	BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&ulReg, 0x132, 4, TRUE);
-	if (((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter))->bHighSpeedDevice == TRUE) {
+	interfaceAdapter =
+		(struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter);
+	if (interfaceAdapter->bHighSpeedDevice) {
 		ulReg = ntohl(EP2_CFG_INT);
 		BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&ulReg, 0x136, 4, TRUE);
 	} else {
@@ -341,7 +344,7 @@ static int device_run(struct bcm_interface_adapter *psIntfAdapter)
 		pr_err(DRV_NAME "InitCardAndDownloadFirmware failed.\n");
 		return status;
 	}
-	if (TRUE == psIntfAdapter->psAdapter->fw_download_done) {
+	if (psIntfAdapter->psAdapter->fw_download_done) {
 		if (StartInterruptUrb(psIntfAdapter)) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
 					DBG_TYPE_INITEXIT, DRV_ENTRY,
@@ -432,8 +435,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 					DBG_TYPE_INITEXIT, DRV_ENTRY,
 					DBG_LVL_ALL,
 					"BCM16 is applicable on this dongle\n");
-			if (retval ||
-					(psIntfAdapter->bHighSpeedDevice == false)) {
+			if (retval || !psIntfAdapter->bHighSpeedDevice) {
 				usedIntOutForBulkTransfer = EP2;
 				endpoint = &iface_desc->endpoint[EP2].desc;
 				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
@@ -447,8 +449,10 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				 * If Mode is FS then EP2 should be bulk end
 				 * point
 				 */
-				if (((psIntfAdapter->bHighSpeedDevice == TRUE) && (usb_endpoint_is_int_out(endpoint) == false)) ||
-						((psIntfAdapter->bHighSpeedDevice == false) && (usb_endpoint_is_bulk_out(endpoint) == false))) {
+				if ((psIntfAdapter->bHighSpeedDevice &&
+							!usb_endpoint_is_int_out(endpoint)) ||
+						(!psIntfAdapter->bHighSpeedDevice &&
+						 !usb_endpoint_is_bulk_out(endpoint))) {
 					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
 							DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
@@ -475,7 +479,8 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 					}
 
 				}
-				if ((psIntfAdapter->bHighSpeedDevice == false) && usb_endpoint_is_bulk_out(endpoint)) {
+				if (!psIntfAdapter->bHighSpeedDevice &&
+				    usb_endpoint_is_bulk_out(endpoint)) {
 					/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
 					UINT _uiData = ntohl(EP2_CFG_INT);
 					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
@@ -494,7 +499,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 						DBG_TYPE_INITEXIT, DRV_ENTRY,
 						DBG_LVL_ALL,
 						"Choosing AltSetting as a default setting.\n");
-				if (usb_endpoint_is_int_out(endpoint) == false) {
+				if (!usb_endpoint_is_int_out(endpoint)) {
 					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
 							DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
@@ -627,7 +632,7 @@ static int InterfaceSuspend(struct usb_interface *intf, pm_message_t message)
 
 	psIntfAdapter->bSuspended = TRUE;
 
-	if (TRUE == psIntfAdapter->bPreparingForBusSuspend) {
+	if (psIntfAdapter->bPreparingForBusSuspend) {
 		psIntfAdapter->bPreparingForBusSuspend = false;
 
 		if (psIntfAdapter->psAdapter->LinkStatus == LINKUP_DONE) {
