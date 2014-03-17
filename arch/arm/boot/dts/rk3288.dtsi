@@ -570,6 +570,19 @@
 		/*	<&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;*//*OTG_VBUS_DRV*/
 		/*clocks = <&clk_gates4 5>;*/
 		/*clock-names = "hclk_usb_peri";*/
+
+		usb_bc{
+			compatible = "rockchip,ctrl";
+				        /* offset bit mask */
+			rk_usb,bvalid     = <0x288 14 1>;
+			rk_usb,dcdenb     = <0x328 14 1>;
+			rk_usb,vdatsrcenb = <0x328  7 1>;
+			rk_usb,vdatdetenb = <0x328  6 1>;
+			rk_usb,chrgsel    = <0x328  5 1>;
+			rk_usb,chgdet     = <0x2cc 23 1>;
+			rk_usb,fsvminus   = <0x2cc 25 1>;
+			rk_usb,fsvplus    = <0x2cc 24 1>;
+		};
 	};
 
 	usb1: usb@ff580000 {
