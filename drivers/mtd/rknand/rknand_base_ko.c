@@ -627,16 +627,16 @@ exit_free:
 static int rknand_suspend(struct platform_device *pdev, pm_message_t state)
 {
     gpNandInfo->rknand.rknand_schedule_enable = 0;
-    if(gpNandInfo->rknand_suspend)
-        gpNandInfo->rknand_suspend();  
+   // if(gpNandInfo->rknand_suspend)
+     //   gpNandInfo->rknand_suspend();  
 	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rknand_suspend: \n");
 	return 0;
 }
 
 static int rknand_resume(struct platform_device *pdev)
 {
-    if(gpNandInfo->rknand_resume)
-       gpNandInfo->rknand_resume();  
+    //if(gpNandInfo->rknand_resume)
+      // gpNandInfo->rknand_resume();  
     gpNandInfo->rknand.rknand_schedule_enable = 1;
 	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rknand_resume: \n");
 	return 0;

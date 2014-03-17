@@ -342,7 +342,7 @@ void plls_suspend(void)
     cru_writel(RK3188_PLL_MODE_SLOW(RK3188_CPLL_ID), RK3188_CRU_MODE_CON);
 
     cpll_con3 = cru_readl(RK3188_PLL_CONS(RK3188_CPLL_ID, 3));
-   power_off_pll(RK3188_CPLL_ID);
+   //power_off_pll(RK3188_CPLL_ID);
        
 
        //apll
@@ -364,7 +364,7 @@ void plls_suspend(void)
               | RK3188_ACLK_PCLK_W_MSK | RK3188_ACLK_PCLK_11
               | RK3188_AHB2APB_W_MSK | RK3188_AHB2APB_11
               , RK3188_CRU_CLKSELS_CON(1));
-       power_off_pll(RK3188_APLL_ID);
+       //power_off_pll(RK3188_APLL_ID);
     cru_writel(RK3188_PLL_MODE_SLOW(RK3188_GPLL_ID), RK3188_CRU_MODE_CON);
 
        
@@ -374,7 +374,7 @@ void plls_suspend(void)
     | RK3188_CRU_W_MSK_SETBITS(0, RK3188_PERI_PCLK_DIV_OFF, RK3188_PERI_PCLK_DIV_MASK)
     , RK3188_CRU_CLKSELS_CON(10));
     
-  power_off_pll(RK3188_GPLL_ID);
+  //power_off_pll(RK3188_GPLL_ID);
 
 }
 
@@ -384,7 +384,7 @@ void plls_resume(void)
        
         cru_writel(0xffff0000 | clk_sel10, RK3188_CRU_CLKSELS_CON(10));
     
-       power_on_pll(RK3188_GPLL_ID);
+      // power_on_pll(RK3188_GPLL_ID);
         cru_writel((RK3188_PLL_MODE_MSK(RK3188_GPLL_ID) << 16) 
                         | (RK3188_PLL_MODE_MSK(RK3188_GPLL_ID) & cru_mode_con)
                         ,  RK3188_CRU_MODE_CON);
@@ -401,7 +401,7 @@ void plls_resume(void)
                         | clk_sel0
                         , RK3188_CRU_CLKSELS_CON(0));
         
-        power_on_pll(RK3188_APLL_ID);
+     //   power_on_pll(RK3188_APLL_ID);
         cru_writel((RK3188_PLL_MODE_MSK(RK3188_APLL_ID) << 16)
                         | (RK3188_PLL_MODE_MSK(RK3188_APLL_ID) & cru_mode_con)
                         , RK3188_CRU_MODE_CON);
@@ -411,7 +411,7 @@ void plls_resume(void)
         if (((cpll_con3 & RK3188_PLL_PWR_DN_MSK) == RK3188_PLL_PWR_ON) 
             &&((RK3188_PLL_MODE_NORM(RK3188_CPLL_ID) & RK3188_PLL_MODE_MSK(RK3188_CPLL_ID)) 
             == (cru_mode_con & RK3188_PLL_MODE_MSK(RK3188_CPLL_ID)))) {
-            power_on_pll(RK3188_CPLL_ID);
+       //     power_on_pll(RK3188_CPLL_ID);
         }
         cru_writel((RK3188_PLL_MODE_MSK(RK3188_CPLL_ID) << 16) 
                         | (RK3188_PLL_MODE_MSK(RK3188_CPLL_ID) & cru_mode_con)

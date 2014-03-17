@@ -50,7 +50,7 @@ config DVFS
 
 config DDR_FREQ
 	bool "Enable DDR frequency scaling"
-	default y
+	default n
 	select DVFS
 
 config RK_VPU
