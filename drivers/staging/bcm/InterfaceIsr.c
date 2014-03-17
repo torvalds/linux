@@ -4,28 +4,30 @@
 static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
 	int		status = urb->status;
-	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)urb->context;
-	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter ;
+	struct bcm_interface_adapter *psIntfAdapter =
+		(struct bcm_interface_adapter *)urb->context;
+	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter;
 
 	if (netif_msg_intr(Adapter))
 		pr_info(PFX "%s: interrupt status %d\n",
-			Adapter->dev->name, status);
+				Adapter->dev->name, status);
 
-	if(Adapter->device_removed == TRUE)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Device has Got Removed.");
-		return ;
+	if (Adapter->device_removed == TRUE) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, INTF_INIT,
+				DBG_LVL_ALL, "Device has Got Removed.");
+		return;
 	}
 
-	if(((Adapter->bPreparingForLowPowerMode == TRUE) && (Adapter->bDoSuspend == TRUE)) ||
-		psIntfAdapter->bSuspended ||
-		psIntfAdapter->bPreparingForBusSuspend)
-	{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Interrupt call back is called while suspending the device");
-			return ;
+	if (((Adapter->bPreparingForLowPowerMode == TRUE) &&
+				(Adapter->bDoSuspend == TRUE)) ||
+			psIntfAdapter->bSuspended ||
+			psIntfAdapter->bPreparingForBusSuspend) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, INTF_INIT,
+				DBG_LVL_ALL,
+				"Interrupt call back is called while suspending the device");
+		return;
 	}
 
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "interrupt urb status %d", status);
 	switch (status) {
 	    /* success */
 	    case STATUS_SUCCESS:
