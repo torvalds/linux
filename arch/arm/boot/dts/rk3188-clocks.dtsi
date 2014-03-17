@@ -156,21 +156,23 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					aclk_cpu: aclk_cpu_div {
+					aclk_cpu_div: aclk_cpu_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
-						clocks = <&aclk_cpu_mux>;
+						clocks = <&aclk_cpu>;
 						clock-output-names = "aclk_cpu";
 						#clock-cells = <0>;
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
-						#clock-init-cells = <1>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
-					aclk_cpu_mux: aclk_cpu_mux {
+					aclk_cpu: aclk_cpu_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <5 1>;
-						clocks = <&clk_apll>, <&clk_gpll>;/*FIXME*/
-						clock-output-names = "aclk_cpu_mux";
+						clocks = <&clk_apll>, <&clk_gpll>;
+						clock-output-names = "aclk_cpu";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -398,14 +400,17 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					aclk_peri: aclk_peri_div {
+					aclk_peri_div: aclk_peri_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
-						clocks = <&aclk_peri_mux>;
+						clocks = <&aclk_peri>;
 						clock-output-names = "aclk_peri";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					/* reg[7:5]: reserved */
@@ -434,11 +439,11 @@
 
 					/* reg[14]: reserved */
 
-					aclk_peri_mux: aclk_peri_mux {
+					aclk_peri: aclk_peri_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <15 1>;
 						clocks = <&clk_cpll>, <&clk_gpll>;
-						clock-output-names = "aclk_peri_mux";
+						clock-output-names = "aclk_peri";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -1221,7 +1226,7 @@
 				clk_gates2: gate-clk@00d8 {
 					compatible = "rockchip,rk3188-gate-clk";
 					reg = <0x00d8 0x4>;
-					clocks = <&aclk_peri_mux>,	<&aclk_peri>,
+					clocks = <&aclk_peri>,	<&aclk_peri>,
 						 <&hclk_peri>,		<&pclk_peri>,
 
 						 <&hclk_peri>,		<&clk_mac_pll_mux>,
@@ -1234,7 +1239,7 @@
 						 <&clk_emmc>,		<&dummy>;
 
 					clock-output-names =
-						"aclk_peri_mux",	"aclk_peri",
+						"aclk_peri",		"g_aclk_peri",
 						"hclk_peri",		"pclk_peri",
 
 						"g_smc_src",		"clk_mac_pll",

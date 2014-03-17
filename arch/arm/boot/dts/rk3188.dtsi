@@ -475,8 +475,8 @@
 	clocks-init{
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-parent =
-			<&clk_core &clk_apll>,	<&aclk_cpu_mux &clk_gpll>,/*FIXME*/
-			<&aclk_peri_mux &clk_gpll>,	<&clk_i2s_pll_mux &clk_cpll>,
+			<&clk_core &clk_apll>,	<&aclk_cpu &clk_gpll>,
+			<&aclk_peri &clk_gpll>,	<&clk_i2s_pll_mux &clk_cpll>,
 			<&clk_uart_pll_mux &clk_gpll>;
 		rockchip,clocks-init-rate =
 			<&clk_core 792000000>,	<&clk_gpll 768000000>,
