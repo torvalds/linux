@@ -209,13 +209,19 @@ struct pending_wmi_event {
 	} __packed event;
 };
 
+enum { /* for wil_ctx.mapped_as */
+	wil_mapped_as_none = 0,
+	wil_mapped_as_single = 1,
+	wil_mapped_as_page = 2,
+};
+
 /**
  * struct wil_ctx - software context for Vring descriptor
  */
 struct wil_ctx {
 	struct sk_buff *skb;
 	u8 nr_frags;
-	u8 mapped_as_page:1;
+	u8 mapped_as;
 };
 
 union vring_desc;

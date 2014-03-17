@@ -104,6 +104,23 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	return 0;
 }
 
+static void wil_txdesc_unmap(struct device *dev, struct vring_tx_desc *d,
+			     struct wil_ctx *ctx)
+{
+	dma_addr_t pa = wil_desc_addr(&d->dma.addr);
+	u16 dmalen = le16_to_cpu(d->dma.length);
+	switch (ctx->mapped_as) {
+	case wil_mapped_as_single:
+		dma_unmap_single(dev, pa, dmalen, DMA_TO_DEVICE);
+		break;
+	case wil_mapped_as_page:
+		dma_unmap_page(dev, pa, dmalen, DMA_TO_DEVICE);
+		break;
+	default:
+		break;
+	}
+}
+
 static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 			   int tx)
 {
@@ -122,15 +139,7 @@ static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 
 			ctx = &vring->ctx[vring->swtail];
 			*d = *_d;
-			pa = wil_desc_addr(&d->dma.addr);
-			dmalen = le16_to_cpu(d->dma.length);
-			if (vring->ctx[vring->swtail].mapped_as_page) {
-				dma_unmap_page(dev, pa, dmalen,
-					       DMA_TO_DEVICE);
-			} else {
-				dma_unmap_single(dev, pa, dmalen,
-						 DMA_TO_DEVICE);
-			}
+			wil_txdesc_unmap(dev, d, ctx);
 			if (ctx->skb)
 				dev_kfree_skb_any(ctx->skb);
 			vring->swtail = wil_vring_next_tail(vring);
@@ -845,8 +854,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
 
-	if (avail < vring->size/8)
-		netif_tx_stop_all_queues(wil_to_ndev(wil));
 	if (avail < 1 + nr_frags) {
 		wil_err(wil, "Tx ring full. No space for %d fragments\n",
 			1 + nr_frags);
@@ -864,6 +871,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	if (unlikely(dma_mapping_error(dev, pa)))
 		return -EINVAL;
+	vring->ctx[i].mapped_as = wil_mapped_as_single;
 	/* 1-st segment */
 	wil_tx_desc_map(d, pa, skb_headlen(skb), vring_index);
 	/* Process TCP/UDP checksum offloading */
@@ -889,13 +897,13 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 				DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev, pa)))
 			goto dma_error;
+		vring->ctx[i].mapped_as = wil_mapped_as_page;
 		wil_tx_desc_map(d, pa, len, vring_index);
 		/* no need to check return code -
 		 * if it succeeded for 1-st descriptor,
 		 * it will succeed here too
 		 */
 		wil_tx_desc_offload_cksum_set(wil, d, skb);
-		vring->ctx[i].mapped_as_page = 1;
 		*_d = *d;
 	}
 	/* for the last seg only */
@@ -924,7 +932,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	/* unmap what we have mapped */
 	nr_frags = f + 1; /* frags mapped + one for skb head */
 	for (f = 0; f < nr_frags; f++) {
-		u16 dmalen;
 		struct wil_ctx *ctx;
 
 		i = (swhead + f) % vring->size;
@@ -932,12 +939,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		_d = &(vring->va[i].tx);
 		*d = *_d;
 		_d->dma.status = TX_DMA_STATUS_DU;
-		pa = wil_desc_addr(&d->dma.addr);
-		dmalen = le16_to_cpu(d->dma.length);
-		if (ctx->mapped_as_page)
-			dma_unmap_page(dev, pa, dmalen, DMA_TO_DEVICE);
-		else
-			dma_unmap_single(dev, pa, dmalen, DMA_TO_DEVICE);
+		wil_txdesc_unmap(dev, d, ctx);
 
 		if (ctx->skb)
 			dev_kfree_skb_any(ctx->skb);
@@ -982,6 +984,10 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 	/* set up vring entry */
 	rc = wil_tx_vring(wil, vring, skb);
+
+	/* do we still have enough room in the vring? */
+	if (wil_vring_avail_tx(vring) < vring->size/8)
+		netif_tx_stop_all_queues(wil_to_ndev(wil));
 
 	switch (rc) {
 	case 0:
@@ -1041,7 +1047,6 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		new_swtail = (lf + 1) % vring->size;
 		while (vring->swtail != new_swtail) {
 			struct vring_tx_desc dd, *d = &dd;
-			dma_addr_t pa;
 			u16 dmalen;
 			struct wil_ctx *ctx = &vring->ctx[vring->swtail];
 			struct sk_buff *skb = ctx->skb;
@@ -1059,12 +1064,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 			wil_hex_dump_txrx("TxC ", DUMP_PREFIX_NONE, 32, 4,
 					  (const void *)d, sizeof(*d), false);
 
-			pa = wil_desc_addr(&d->dma.addr);
-			if (ctx->mapped_as_page)
-				dma_unmap_page(dev, pa, dmalen, DMA_TO_DEVICE);
-			else
-				dma_unmap_single(dev, pa, dmalen,
-						 DMA_TO_DEVICE);
+			wil_txdesc_unmap(dev, d, ctx);
 
 			if (skb) {
 				if (d->dma.error == 0) {
