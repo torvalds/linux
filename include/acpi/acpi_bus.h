@@ -137,6 +137,16 @@ struct acpi_scan_handler {
 };
 
 /*
+ * ACPI Hotplug Context
+ * --------------------
+ */
+
+struct acpi_hotplug_context {
+	struct acpi_device *self;
+	int (*event)(struct acpi_device *, u32);
+};
+
+/*
  * ACPI Driver
  * -----------
  */
@@ -190,7 +200,8 @@ struct acpi_device_flags {
 	u32 initialized:1;
 	u32 visited:1;
 	u32 no_hotplug:1;
-	u32 reserved:24;
+	u32 hotplug_notify:1;
+	u32 reserved:23;
 };
 
 /* File System */
@@ -329,6 +340,7 @@ struct acpi_device {
 	struct acpi_device_perf performance;
 	struct acpi_device_dir dir;
 	struct acpi_scan_handler *handler;
+	struct acpi_hotplug_context *hp;
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
@@ -349,6 +361,15 @@ static inline void *acpi_driver_data(struct acpi_device *d)
 static inline void acpi_set_device_status(struct acpi_device *adev, u32 sta)
 {
 	*((u32 *)&adev->status) = sta;
+}
+
+static inline void acpi_set_hp_context(struct acpi_device *adev,
+				       struct acpi_hotplug_context *hp,
+				       int (*event)(struct acpi_device *, u32))
+{
+	hp->self = adev;
+	hp->event = event;
+	adev->hp = hp;
 }
 
 /* acpi_device.dev.bus == &acpi_bus_type */
@@ -381,6 +402,8 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  */
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
+struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle);
+void acpi_bus_put_acpi_device(struct acpi_device *adev);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
@@ -402,6 +425,8 @@ static inline bool acpi_bus_can_wakeup(acpi_handle handle) { return false; }
 
 void acpi_scan_lock_acquire(void);
 void acpi_scan_lock_release(void);
+void acpi_lock_hp_context(void);
+void acpi_unlock_hp_context(void);
 int acpi_scan_add_handler(struct acpi_scan_handler *handler);
 int acpi_bus_register_driver(struct acpi_driver *driver);
 void acpi_bus_unregister_driver(struct acpi_driver *driver);
