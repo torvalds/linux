@@ -49,8 +49,6 @@ config CPU_EXYNOS4210
 	select ARCH_HAS_BANDGAP
 	select ARM_CPU_SUSPEND if PM_SLEEP
 	select PINCTRL_EXYNOS
-	select S5P_PM if PM_SLEEP
-	select S5P_SLEEP if PM_SLEEP
 	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS4210 CPU support
@@ -61,8 +59,6 @@ config SOC_EXYNOS4212
 	depends on ARCH_EXYNOS4
 	select ARCH_HAS_BANDGAP
 	select PINCTRL_EXYNOS
-	select S5P_PM if PM_SLEEP
-	select S5P_SLEEP if PM_SLEEP
 	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS4212 SoC support
@@ -84,8 +80,6 @@ config SOC_EXYNOS5250
 	select ARCH_HAS_BANDGAP
 	select PINCTRL_EXYNOS
 	select PM_GENERIC_DOMAINS if PM_RUNTIME
-	select S5P_PM if PM_SLEEP
-	select S5P_SLEEP if PM_SLEEP
 	select S5P_DEV_MFC
 	select SAMSUNG_DMADEV
 	help
@@ -96,8 +90,6 @@ config SOC_EXYNOS5420
 	default y
 	depends on ARCH_EXYNOS5
 	select PM_GENERIC_DOMAINS if PM_RUNTIME
-	select S5P_PM if PM_SLEEP
-	select S5P_SLEEP if PM_SLEEP
 	help
 	  Enable EXYNOS5420 SoC support
 

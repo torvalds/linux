@@ -23,14 +23,14 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/smp_scu.h>
+#include <asm/suspend.h>
 
 #include <plat/cpu.h>
-#include <plat/pm.h>
+#include <plat/pm-common.h>
 #include <plat/pll.h>
 #include <plat/regs-srom.h>
 
 #include <mach/map.h>
-#include <mach/pm-core.h>
 
 #include "common.h"
 #include "regs-pmu.h"
@@ -48,6 +48,7 @@ static struct sleep_save exynos_core_save[] = {
 	SAVE_ITEM(S5P_SROM_BC3),
 };
 
+static u32 exynos_irqwake_intmask = 0xffffffff;
 
 /* For Cortex-A9 Diagnostic and Power control register */
 static unsigned int save_arm_register[2];
@@ -72,6 +73,10 @@ static void exynos_pm_prepare(void)
 {
 	unsigned int tmp;
 
+	/* Set wake-up mask registers */
+	__raw_writel(exynos_get_eint_wake_mask(), S5P_EINT_WAKEUP_MASK);
+	__raw_writel(exynos_irqwake_intmask & ~(1 << 31), S5P_WAKEUP_MASK);
+
 	s3c_pm_do_save(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
 	if (soc_is_exynos5250()) {
@@ -89,7 +94,7 @@ static void exynos_pm_prepare(void)
 
 	/* ensure at least INFORM0 has the resume address */
 
-	__raw_writel(virt_to_phys(s3c_cpu_resume), S5P_INFORM0);
+	__raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
 }
 
 static int exynos_pm_suspend(void)
@@ -187,14 +192,71 @@ static struct syscore_ops exynos_pm_syscore_ops = {
 	.resume		= exynos_pm_resume,
 };
 
+/*
+ * Suspend Ops
+ */
+
+static int exynos_suspend_enter(suspend_state_t state)
+{
+	int ret;
+
+	s3c_pm_debug_init();
+
+	S3C_PMDBG("%s: suspending the system...\n", __func__);
+
+	S3C_PMDBG("%s: wakeup masks: %08x,%08x\n", __func__,
+			exynos_irqwake_intmask, exynos_get_eint_wake_mask());
+
+	if (exynos_irqwake_intmask == -1U
+	    && exynos_get_eint_wake_mask() == -1U) {
+		pr_err("%s: No wake-up sources!\n", __func__);
+		pr_err("%s: Aborting sleep\n", __func__);
+		return -EINVAL;
+	}
+
+	s3c_pm_save_uarts();
+	exynos_pm_prepare();
+	flush_cache_all();
+	s3c_pm_check_store();
+
+	ret = cpu_suspend(0, exynos_cpu_suspend);
+	if (ret)
+		return ret;
+
+	s3c_pm_restore_uarts();
+
+	S3C_PMDBG("%s: wakeup stat: %08x\n", __func__,
+			__raw_readl(S5P_WAKEUP_STAT));
+
+	s3c_pm_check_restore();
+
+	S3C_PMDBG("%s: resuming the system...\n", __func__);
+
+	return 0;
+}
+
+static int exynos_suspend_prepare(void)
+{
+	s3c_pm_check_prepare();
+
+	return 0;
+}
+
+static void exynos_suspend_finish(void)
+{
+	s3c_pm_check_cleanup();
+}
+
+static const struct platform_suspend_ops exynos_suspend_ops = {
+	.enter		= exynos_suspend_enter,
+	.prepare	= exynos_suspend_prepare,
+	.finish		= exynos_suspend_finish,
+	.valid		= suspend_valid_only_mem,
+};
+
 void __init exynos_pm_init(void)
 {
 	u32 tmp;
-
-	pm_cpu_prep = exynos_pm_prepare;
-	pm_cpu_sleep = exynos_cpu_suspend;
-
-	s3c_pm_init();
 
 	/* All wakeup disable */
 	tmp = __raw_readl(S5P_WAKEUP_MASK);
@@ -202,4 +264,5 @@ void __init exynos_pm_init(void)
 	__raw_writel(tmp, S5P_WAKEUP_MASK);
 
 	register_syscore_ops(&exynos_pm_syscore_ops);
+	suspend_set_ops(&exynos_suspend_ops);
 }
