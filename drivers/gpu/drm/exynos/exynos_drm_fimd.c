@@ -221,7 +221,7 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 	struct drm_display_mode *mode = &ctx->mode;
 	struct fimd_driver_data *driver_data;
 	u32 val, clkdiv, vidcon1;
-	int hblank, vblank, vsync_len, vbpd, vfpd, hsync_len, hbpd, hfpd;
+	int vsync_len, vbpd, vfpd, hsync_len, hbpd, hfpd;
 
 	driver_data = ctx->driver_data;
 	if (ctx->suspended)
@@ -240,10 +240,9 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 	writel(vidcon1, ctx->regs + driver_data->timing_base + VIDCON1);
 
 	/* setup vertical timing values. */
-	vblank = mode->crtc_vblank_end - mode->crtc_vblank_start;
 	vsync_len = mode->crtc_vsync_end - mode->crtc_vsync_start;
-	vbpd = (vblank - vsync_len) / 2;
-	vfpd = vblank - vsync_len - vbpd;
+	vbpd = mode->crtc_vtotal - mode->crtc_vsync_end;
+	vfpd = mode->crtc_vsync_start - mode->crtc_vdisplay;
 
 	val = VIDTCON0_VBPD(vbpd - 1) |
 		VIDTCON0_VFPD(vfpd - 1) |
@@ -251,10 +250,9 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 	writel(val, ctx->regs + driver_data->timing_base + VIDTCON0);
 
 	/* setup horizontal timing values.  */
-	hblank = mode->crtc_hblank_end - mode->crtc_hblank_start;
 	hsync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
-	hbpd = (hblank - hsync_len) / 2;
-	hfpd = hblank - hsync_len - hbpd;
+	hbpd = mode->crtc_htotal - mode->crtc_hsync_end;
+	hfpd = mode->crtc_hsync_start - mode->crtc_hdisplay;
 
 	val = VIDTCON1_HBPD(hbpd - 1) |
 		VIDTCON1_HFPD(hfpd - 1) |
