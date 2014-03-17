@@ -94,8 +94,8 @@ static void sun6i_restart(enum reboot_mode mode, const char *cmd)
 }
 
 static struct of_device_id sunxi_restart_ids[] = {
-	{ .compatible = "allwinner,sun4i-wdt" },
-	{ .compatible = "allwinner,sun6i-wdt" },
+	{ .compatible = "allwinner,sun4i-a10-wdt" },
+	{ .compatible = "allwinner,sun6i-a31-wdt" },
 	{ /*sentinel*/ }
 };
 
