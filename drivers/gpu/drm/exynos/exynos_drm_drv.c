@@ -172,20 +172,24 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 
 	ret = exynos_drm_subdrv_open(dev, file);
 	if (ret)
-		goto out;
+		goto err_file_priv_free;
 
 	anon_filp = anon_inode_getfile("exynos_gem", &exynos_drm_gem_fops,
 					NULL, 0);
 	if (IS_ERR(anon_filp)) {
 		ret = PTR_ERR(anon_filp);
-		goto out;
+		goto err_subdrv_close;
 	}
 
 	anon_filp->f_mode = FMODE_READ | FMODE_WRITE;
 	file_priv->anon_filp = anon_filp;
 
 	return ret;
-out:
+
+err_subdrv_close:
+	exynos_drm_subdrv_close(dev, file);
+
+err_file_priv_free:
 	kfree(file_priv);
 	file->driver_priv = NULL;
 	return ret;
