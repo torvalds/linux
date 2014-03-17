@@ -89,56 +89,70 @@
 		rockchip,aux-ctrl = <0x72000001 (~0x72000001)>;
 	};
 
-	cpu_axi_bus: cpu_axi_bus@10128000 {
+	cpu_axi_bus: cpu_axi_bus {
 		compatible = "rockchip,cpu_axi_bus";
-		reg = <0x10128000 0x8000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
 		qos {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			dmac {
-				rockchip,offset = <0x1000>;
+				reg = <0x10129000 0x20>;
 				rockchip,priority = <0 0>;
 			};
 			cpu0 {
-				rockchip,offset = <0x2000>;
+				reg = <0x1012a000 0x20>;
 				rockchip,priority = <0 0>;
 			};
-			cpu1r {
-				rockchip,offset = <0x2080>;
+			cpu1_r {
+				reg = <0x1012a080 0x20>;
 				rockchip,priority = <0 0>;
 			};
-			cpu1w {
-				rockchip,offset = <0x2100>;
+			cpu1_w {
+				reg = <0x1012a100 0x20>;
 				rockchip,priority = <0 0>;
 			};
 			peri {
-				rockchip,offset = <0x4000>;
+				reg = <0x1012c000 0x20>;
 				rockchip,priority = <2 2>;
 			};
 			gpu {
-				rockchip,offset = <0x5000>;
+				reg = <0x1012d000 0x20>;
 				rockchip,priority = <2 1>;
 			};
 			vpu {
-				rockchip,offset = <0x6000>;
+				reg = <0x1012e000 0x20>;
 			};
 			vop0 {
-				rockchip,offset = <0x7000>;
+				reg = <0x1012f000 0x20>;
 				rockchip,priority = <3 3>;
 			};
 			cif0 {
-				rockchip,offset = <0x7080>;
+				reg = <0x1012f080 0x20>;
 			};
 			ipp {
-				rockchip,offset = <0x7100>;
+				reg = <0x1012f100 0x20>;
 			};
 			vop1 {
-				rockchip,offset = <0x7180>;
+				reg = <0x1012f180 0x20>;
 				rockchip,priority = <3 3>;
 			};
 			cif1 {
-				rockchip,offset = <0x7200>;
+				reg = <0x1012f200 0x20>;
 			};
 			rga {
-				rockchip,offset = <0x7280>;
+				reg = <0x1012f280 0x20>;
+			};
+		};
+		msch {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			msch {
+				reg = <0x10128000 0x18>;
+				rockchip,read-latency = <0x3f>;
 			};
 		};
 	};

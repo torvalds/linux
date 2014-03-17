@@ -4,11 +4,11 @@
 #include "lcd-b101ew05.dtsi"
 
 / {
+	fiq-debugger {
+		status = "okay";
+	};
 
-fiq-debugger {
-        status = "okay";
-     };
-backlight {
+	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000>;
 		brightness-levels = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255>;
@@ -16,30 +16,29 @@ backlight {
 		enable-gpios = <&gpio7 GPIO_A2 GPIO_ACTIVE_HIGH>;
 	};
 
-pwm_regulator {
-       compatible = "rockchip_pwm_regulator";
-	pwms = <&pwm1 0 25000>;
-	rockchip,pwm_id= <1>;
-       rockchip,pwm_voltage_map= <925000 950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000>;
-	rockchip,pwm_voltage= <1000000>;
-	rockchip,pwm_min_voltage= <925000>;
-	rockchip,pwm_max_voltage= <1400000>;
-	rockchip,pwm_suspend_voltage= <950000>;
-	rockchip,pwm_coefficient= <475>;
-	regulators {
-		#address-cells = <1>;
-		#size-cells = <0>;			
-		 pwm_reg0: regulator@0{
-			regulator-compatible = "pwm_dcdc1";
-			regulator-name= "vdd_logic";
-			regulator-min-microvolt = <925000>;
-			regulator-max-microvolt = <1400000>;	
-			regulator-always-on;
-			regulator-boot-on;
+	pwm_regulator {
+		compatible = "rockchip_pwm_regulator";
+		pwms = <&pwm1 0 25000>;
+		rockchip,pwm_id= <1>;
+		rockchip,pwm_voltage_map= <925000 950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000>;
+		rockchip,pwm_voltage= <1000000>;
+		rockchip,pwm_min_voltage= <925000>;
+		rockchip,pwm_max_voltage= <1400000>;
+		rockchip,pwm_suspend_voltage= <950000>;
+		rockchip,pwm_coefficient= <475>;
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pwm_reg0: regulator@0 {
+				regulator-compatible = "pwm_dcdc1";
+				regulator-name= "vdd_logic";
+				regulator-min-microvolt = <925000>;
+				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
 		};
-	    };
 	};
-
 
 	codec_hdmi_i2s: codec-hdmi-i2s {
 		compatible = "hdmi-i2s";
@@ -48,7 +47,7 @@ pwm_regulator {
 	codec_hdmi_spdif: codec-hdmi-spdif {
 		compatible = "hdmi-spdif";
 	};
-}
+};
 
 &i2c0 {
 	status = "okay";
@@ -60,8 +59,8 @@ pwm_regulator {
 	bq24296: bq24296@6b {
 		compatible = "ti,bq24296";
 		reg = <0x6b>;
-		gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>; 
-	  	bq24296,chg_current = <1000 500 2000>;
+		gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>;
+		bq24296,chg_current = <1000 500 2000>;
 		status = "disable";
 	};
 	bq27320: bq27320@55 {
@@ -83,7 +82,7 @@ pwm_regulator {
 		compatible = "gs_mma8452";
 		reg = <0x1d>;
 		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_EDGE_FALLING>;		
+		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_EDGE_FALLING>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <1>;
@@ -92,7 +91,7 @@ pwm_regulator {
 		compatible = "gs_lis3dh";
 		reg = <0x19>;
 		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio0 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;		
+		irq-gpio = <&gpio0 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <1>;
@@ -101,7 +100,7 @@ pwm_regulator {
 		compatible = "ak8963";
 		reg = <0x0d>;
 		type = <SENSOR_TYPE_COMPASS>;
-		irq-gpio = <&gpio8 GPIO_A2 IRQ_TYPE_EDGE_RISING>;		
+		irq-gpio = <&gpio8 GPIO_A2 IRQ_TYPE_EDGE_RISING>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <1>;
@@ -111,7 +110,7 @@ pwm_regulator {
 		compatible = "l3g20d_gyro";
 		reg = <0x6b>;
 		type = <SENSOR_TYPE_GYROSCOPE>;
-		irq-gpio = <&gpio8 GPIO_A3 IRQ_TYPE_LEVEL_LOW>;		
+		irq-gpio = <&gpio8 GPIO_A3 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <1>;
@@ -120,7 +119,7 @@ pwm_regulator {
 };
 
 &i2c2 {
-	status = "okay";	
+	status = "okay";
 };
 
 &i2c3 {
@@ -249,7 +248,6 @@ pwm_regulator {
 	status = "okay";
 };
 
-
 /include/ "rk808.dtsi"
 &rk808 {
 	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>;
@@ -257,7 +255,7 @@ pwm_regulator {
 	regulators {
 		
 		rk808_dcdc1_reg: regulator@0{
-			regulator-name= "vdd_arm";	
+			regulator-name= "vdd_arm";
 			regulator-always-on;
 			regulator-boot-on;
 		};
@@ -265,7 +263,7 @@ pwm_regulator {
 		rk808_dcdc2_reg: regulator@1 {
 			regulator-name= "vdd_gpu";
 			regulator-always-on;
-			regulator-boot-on;		
+			regulator-boot-on;
 		};
 
 		rk808_dcdc3_reg: regulator@2 {

@@ -20,6 +20,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
+#include <asm/cputype.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/rockchip/common.h>
 #include "cpu_axi.h"
@@ -29,46 +30,87 @@
 
 static int __init rockchip_cpu_axi_init(void)
 {
-	struct device_node *np, *cp;
-	void __iomem *base, *cbase;
+	struct device_node *np, *gp, *cp;
+	void __iomem *base;
 
 	np = of_find_compatible_node(NULL, NULL, "rockchip,cpu_axi_bus");
 	if (!np)
 		return -ENODEV;
 
-	base = of_iomap(np, 0);
-
-	np = of_get_child_by_name(np, "qos");
-	if (np) {
-		for_each_child_of_node(np, cp) {
-			u32 offset, priority[2], mode, bandwidth, saturation;
-			if (of_property_read_u32(cp, "rockchip,offset", &offset))
-				continue;
-			pr_debug("qos: %s offset %x\n", cp->name, offset);
-			cbase = base + offset;
+	gp = of_get_child_by_name(np, "qos");
+	if (gp) {
+		for_each_child_of_node(gp, cp) {
+			u32 priority[2], mode, bandwidth, saturation;
+			base = NULL;
+#ifdef DEBUG
+			{
+				struct resource r;
+				of_address_to_resource(cp, 0, &r);
+				pr_debug("qos: %s [%x ~ %x]\n", cp->name, r.start, r.end);
+			}
+#endif
 			if (!of_property_read_u32_array(cp, "rockchip,priority", priority, ARRAY_SIZE(priority))) {
-				CPU_AXI_SET_QOS_PRIORITY(priority[0], priority[1], cbase);
+				if (!base)
+					base = of_iomap(cp, 0);
+				if (!base)
+					continue;
+				CPU_AXI_SET_QOS_PRIORITY(priority[0], priority[1], base);
 				pr_debug("qos: %s priority %x %x\n", cp->name, priority[0], priority[1]);
 			}
 			if (!of_property_read_u32(cp, "rockchip,mode", &mode)) {
-				CPU_AXI_SET_QOS_MODE(mode, cbase);
+				if (!base)
+					base = of_iomap(cp, 0);
+				if (!base)
+					continue;
+				CPU_AXI_SET_QOS_MODE(mode, base);
 				pr_debug("qos: %s mode %x\n", cp->name, mode);
 			}
 			if (!of_property_read_u32(cp, "rockchip,bandwidth", &bandwidth)) {
-				CPU_AXI_SET_QOS_BANDWIDTH(bandwidth, cbase);
+				if (!base)
+					base = of_iomap(cp, 0);
+				if (!base)
+					continue;
+				CPU_AXI_SET_QOS_BANDWIDTH(bandwidth, base);
 				pr_debug("qos: %s bandwidth %x\n", cp->name, bandwidth);
 			}
 			if (!of_property_read_u32(cp, "rockchip,saturation", &saturation)) {
-				CPU_AXI_SET_QOS_SATURATION(saturation, cbase);
+				if (!base)
+					base = of_iomap(cp, 0);
+				if (!base)
+					continue;
+				CPU_AXI_SET_QOS_SATURATION(saturation, base);
 				pr_debug("qos: %s saturation %x\n", cp->name, saturation);
 			}
+			if (base)
+				iounmap(base);
 		}
 	};
 
-	writel_relaxed(0x3f, base + 0x0014);	// memory scheduler read latency
+	gp = of_get_child_by_name(np, "msch");
+	if (gp) {
+		for_each_child_of_node(gp, cp) {
+			u32 val;
+			base = NULL;
+#ifdef DEBUG
+			{
+				struct resource r;
+				of_address_to_resource(cp, 0, &r);
+				pr_debug("msch: %s [%x ~ %x]\n", cp->name, r.start, r.end);
+			}
+#endif
+			if (!of_property_read_u32(cp, "rockchip,read-latency", &val)) {
+				if (!base)
+					base = of_iomap(cp, 0);
+				if (!base)
+					continue;
+				writel_relaxed(val, base + 0x0014);	// memory scheduler read latency
+				pr_debug("msch: %s read latency %x\n", cp->name, val);
+			}
+			if (base)
+				iounmap(base);
+		}
+	}
 	dsb();
-
-	iounmap(base);
 
 	return 0;
 }
@@ -79,6 +121,9 @@ static int __init rockchip_pl330_l2_cache_init(void)
 	struct device_node *np;
 	void __iomem *base;
 	u32 aux[2] = { 0, ~0 }, prefetch, power;
+
+	if (read_cpuid_part_number() != ARM_CPU_PART_CORTEX_A9)
+		return -ENODEV;
 
 	np = of_find_compatible_node(NULL, NULL, "rockchip,pl310-cache");
 	if (!np)
