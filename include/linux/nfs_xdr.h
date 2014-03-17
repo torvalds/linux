@@ -1397,6 +1397,7 @@ struct nfs_renamedata {
 	struct inode		*new_dir;
 	struct dentry		*new_dentry;
 	struct nfs_fattr	new_fattr;
+	void (*complete)(struct rpc_task *, struct nfs_renamedata *);
 };
 
 struct nfs_access_entry;
