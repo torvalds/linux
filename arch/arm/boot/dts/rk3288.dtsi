@@ -503,4 +503,65 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&mac_clk &mac_txpins &mac_rxpins &mac_mdpins>;
 	};
+    gpu{
+        compatible = "arm,malit764", 
+                     "arm,malit76x", 
+                     "arm,malit7xx", 
+                     "arm,mali-midgard"; 
+        reg = <0xffa40000 0x1000>;
+        interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>, 
+                     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>, 
+                     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "JOB", 
+                          "MMU", 
+                          "GPU";
+    };
+
+    iep_mmu{
+        dbgname = "iep";
+        compatible = "iommu,iep_mmu";
+        reg = <0xffa40000 0x10000>;
+        interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "iep_mmu";
+    };
+
+    vip_mmu{
+        dbgname = "vip";
+        compatible = "iommu,vip_mmu";
+        reg = <0xffa40000 0x10000>;
+        interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "vip_mmu";
+    };
+
+    isp0_mmu{
+        dbgname = "isp0";
+        compatible = "iommu,isp0_mmu";
+        reg = <0xffa40000 0x10000>;
+        interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "isp0_mmu";
+    };
+
+    isp1_mmu{
+        dbgname = "isp1";
+        compatible = "iommu,isp1_mmu";
+        reg = <0xffa40000 0x10000>;
+        interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "isp1_mmu";
+    };
+
+    vopb_mmu{
+        dbgname = "vopb";
+        compatible = "iommu,vopb_mmu";
+        reg = <0xffa40000 0x10000>;
+        interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "vopb_mmu";
+    };
+
+    vopl_mmu{
+        dbgname = "vopl";
+        compatible = "iommu,vopl_mmu";
+        reg = <0xffa40000 0x10000>;
+        interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "vopl_mmu";
+    };
 };
