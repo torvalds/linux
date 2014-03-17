@@ -109,24 +109,15 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
 
-	/*
-	 * create and configure fb helper and also exynos specific
-	 * fbdev object.
-	 */
-	ret = exynos_drm_fbdev_init(dev);
-	if (ret) {
-		DRM_ERROR("failed to initialize drm fbdev\n");
-		goto err_drm_device;
-	}
-
 	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
 	platform_set_drvdata(dev->platformdev, dev);
 
+	/* force connectors detection */
+	drm_helper_hpd_irq_event(dev);
+
 	return 0;
 
-err_drm_device:
-	exynos_drm_device_unregister(dev);
 err_vblank:
 	drm_vblank_cleanup(dev);
 err_display_cleanup:
@@ -574,6 +565,7 @@ out_hdmi:
 	platform_driver_unregister(&fimd_driver);
 out_fimd:
 #endif
+
 #ifdef CONFIG_DRM_EXYNOS_DP
 	platform_driver_unregister(&dp_driver);
 out_dp:

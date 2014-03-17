@@ -20,6 +20,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_fbdev.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_iommu.h"
 #include "exynos_drm_crtc.h"
@@ -300,6 +301,8 @@ static void exynos_drm_output_poll_changed(struct drm_device *dev)
 
 	if (fb_helper)
 		drm_fb_helper_hotplug_event(fb_helper);
+	else
+		exynos_drm_fbdev_init(dev);
 }
 
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
