@@ -1480,7 +1480,7 @@ static int have_cmd(int argc, const char **argv)
 
 	memcpy(__argv, argv, sizeof(const char *) * argc);
 	argc = parse_options(argc, (const char **)__argv, record_options,
-			     NULL, PARSE_OPT_STOP_AT_NON_OPTION);
+						 NULL, PARSE_OPT_STOP_AT_NON_OPTION);
 	free(__argv);
 
 	system_wide = (argc == 0);
@@ -1518,11 +1518,11 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show symbol address, etc)"),
+			"be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('L', "Latency", &latency_format,
 		    "show latency attributes (irqs/preemption disabled, etc)"),
 	OPT_CALLBACK_NOOPT('l', "list", NULL, NULL, "list available scripts",
-			   list_available_scripts),
+			list_available_scripts),
 	OPT_CALLBACK_FINAL_OPTION('s', "script", NULL, "name",
 			"script file name (lang:script name, script name, or *)",
 			parse_scriptname),
@@ -1542,10 +1542,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields prepend with 'type:'. "
-		     "Valid types: hw,sw,trace,raw. "
-		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff", parse_output_fields),
+		    "comma separated output fields prepend with 'type:'. "
+		    "Valid types: hw,sw,trace,raw. "
+		    "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
+		    "addr,symoff", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
@@ -1578,7 +1578,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	setup_scripting();
 
 	argc = parse_options(argc, argv, options, script_usage,
-                 PARSE_OPT_KEEP_UNKNOWN);
+						 PARSE_OPT_KEEP_UNKNOWN);
 
 	file.path = input_name;
 
