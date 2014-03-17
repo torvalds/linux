@@ -27,28 +27,28 @@
 #include <linux/regulator/consumer.h>
 #include "ahci.h"
 
-#define AHCI_BISTAFR 0x00a0
-#define AHCI_BISTCR 0x00a4
-#define AHCI_BISTFCTR 0x00a8
-#define AHCI_BISTSR 0x00ac
-#define AHCI_BISTDECR 0x00b0
-#define AHCI_DIAGNR0 0x00b4
-#define AHCI_DIAGNR1 0x00b8
-#define AHCI_OOBR 0x00bc
-#define AHCI_PHYCS0R 0x00c0
-#define AHCI_PHYCS1R 0x00c4
-#define AHCI_PHYCS2R 0x00c8
-#define AHCI_TIMER1MS 0x00e0
-#define AHCI_GPARAM1R 0x00e8
-#define AHCI_GPARAM2R 0x00ec
-#define AHCI_PPARAMR 0x00f0
-#define AHCI_TESTR 0x00f4
-#define AHCI_VERSIONR 0x00f8
-#define AHCI_IDR 0x00fc
-#define AHCI_RWCR 0x00fc
-#define AHCI_P0DMACR 0x0170
-#define AHCI_P0PHYCR 0x0178
-#define AHCI_P0PHYSR 0x017c
+#define AHCI_BISTAFR	0x00a0
+#define AHCI_BISTCR	0x00a4
+#define AHCI_BISTFCTR	0x00a8
+#define AHCI_BISTSR	0x00ac
+#define AHCI_BISTDECR	0x00b0
+#define AHCI_DIAGNR0	0x00b4
+#define AHCI_DIAGNR1	0x00b8
+#define AHCI_OOBR	0x00bc
+#define AHCI_PHYCS0R	0x00c0
+#define AHCI_PHYCS1R	0x00c4
+#define AHCI_PHYCS2R	0x00c8
+#define AHCI_TIMER1MS	0x00e0
+#define AHCI_GPARAM1R	0x00e8
+#define AHCI_GPARAM2R	0x00ec
+#define AHCI_PPARAMR	0x00f0
+#define AHCI_TESTR	0x00f4
+#define AHCI_VERSIONR	0x00f8
+#define AHCI_IDR	0x00fc
+#define AHCI_RWCR	0x00fc
+#define AHCI_P0DMACR	0x0170
+#define AHCI_P0PHYCR	0x0178
+#define AHCI_P0PHYSR	0x017c
 
 static void sunxi_clrbits(void __iomem *reg, u32 clr_val)
 {
