@@ -31,6 +31,7 @@
 #include <linux/gpio.h>
 #include <linux/cpu.h>
 #include <linux/sched_clock.h>
+#include <linux/pci.h>
 
 #include <mach/udc.h>
 #include <mach/hardware.h>
@@ -577,6 +578,17 @@ void ixp4xx_restart(enum reboot_mode mode, const char *cmd)
 		*IXP4XX_OSWE = IXP4XX_WDT_RESET_ENABLE | IXP4XX_WDT_COUNT_ENABLE;
 	}
 }
+
+int dma_set_coherent_mask(struct device *dev, u64 mask)
+{
+	if (dev_is_pci(dev) && mask >= SZ_64M)
+		return -EIO;
+
+	dev->coherent_dma_mask = mask;
+
+	return 0;
+}
+EXPORT_SYMBOL(dma_set_coherent_mask);
 
 #ifdef CONFIG_IXP4XX_INDIRECT_PCI
 /*
