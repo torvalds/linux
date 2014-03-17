@@ -329,11 +329,16 @@ int wil_reset(struct wil6210_priv *wil)
 {
 	int rc;
 
+	wil->status = 0; /* prevent NAPI from being scheduled */
+	if (test_bit(wil_status_napi_en, &wil->status)) {
+		napi_synchronize(&wil->napi_rx);
+		napi_synchronize(&wil->napi_tx);
+	}
+
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL);
 
 	wil6210_disable_irq(wil);
-	wil->status = 0;
 
 	wmi_event_flush(wil);
 
@@ -426,6 +431,7 @@ static int __wil_up(struct wil6210_priv *wil)
 
 	napi_enable(&wil->napi_rx);
 	napi_enable(&wil->napi_tx);
+	set_bit(wil_status_napi_en, &wil->status);
 
 	return 0;
 }
@@ -443,6 +449,7 @@ int wil_up(struct wil6210_priv *wil)
 
 static int __wil_down(struct wil6210_priv *wil)
 {
+	clear_bit(wil_status_napi_en, &wil->status);
 	napi_disable(&wil->napi_rx);
 	napi_disable(&wil->napi_tx);
 

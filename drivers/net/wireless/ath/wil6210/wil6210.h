@@ -249,6 +249,7 @@ enum { /* for wil6210_priv.status */
 	wil_status_dontscan,
 	wil_status_reset_done,
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
+	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 };
 
 struct pci_dev;

@@ -195,8 +195,12 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	if (isr & BIT_DMA_EP_RX_ICR_RX_DONE) {
 		wil_dbg_irq(wil, "RX done\n");
 		isr &= ~BIT_DMA_EP_RX_ICR_RX_DONE;
-		wil_dbg_txrx(wil, "NAPI schedule\n");
-		napi_schedule(&wil->napi_rx);
+		if (test_bit(wil_status_reset_done, &wil->status)) {
+			wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
+			napi_schedule(&wil->napi_rx);
+		} else {
+			wil_err(wil, "Got Rx interrupt while in reset\n");
+		}
 	}
 
 	if (isr)
@@ -226,10 +230,15 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 
 	if (isr & BIT_DMA_EP_TX_ICR_TX_DONE) {
 		wil_dbg_irq(wil, "TX done\n");
-		napi_schedule(&wil->napi_tx);
 		isr &= ~BIT_DMA_EP_TX_ICR_TX_DONE;
 		/* clear also all VRING interrupts */
 		isr &= ~(BIT(25) - 1UL);
+		if (test_bit(wil_status_reset_done, &wil->status)) {
+			wil_dbg_txrx(wil, "NAPI(Tx) schedule\n");
+			napi_schedule(&wil->napi_tx);
+		} else {
+			wil_err(wil, "Got Tx interrupt while in reset\n");
+		}
 	}
 
 	if (isr)
