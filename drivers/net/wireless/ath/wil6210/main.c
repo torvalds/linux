@@ -289,19 +289,23 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(6));
 	/* car_perst_rst_src_n_mask */
 	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(7));
+	wmb(); /* order is important here */
 
 	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	W(RGF_USER_USER_CPU_0, BIT(1)); /* user_cpu_man_rst */
+	wmb(); /* order is important here */
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000170);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FC00);
+	wmb(); /* order is important here */
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+	wmb(); /* order is important here */
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
 	if (rev_id == 1) {
@@ -311,6 +315,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 	}
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+	wmb(); /* order is important here */
 
 	/* wait until device ready */
 	do {
@@ -327,6 +332,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
+	wmb(); /* order is important here */
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
 
