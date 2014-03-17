@@ -113,8 +113,6 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 						GFP_KERNEL);
 		}
 		clear_bit(wil_status_fwconnecting, &wil->status);
-		wil_dbg_misc(wil, "clear_bit(wil_status_dontscan)\n");
-		clear_bit(wil_status_dontscan, &wil->status);
 		break;
 	default:
 		/* AP-like interface and monitor:

@@ -282,7 +282,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	/* FW don't support scan after connection attempt */
 	if (test_bit(wil_status_dontscan, &wil->status)) {
-		wil_err(wil, "Scan after connect attempt not supported\n");
+		wil_err(wil, "Can't scan now\n");
 		return -EBUSY;
 	}
 
@@ -402,10 +402,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 
 	memcpy(conn.bssid, bss->bssid, ETH_ALEN);
 	memcpy(conn.dst_mac, bss->bssid, ETH_ALEN);
-	/*
-	 * FW don't support scan after connection attempt
-	 */
-	set_bit(wil_status_dontscan, &wil->status);
+
 	set_bit(wil_status_fwconnecting, &wil->status);
 
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
@@ -414,7 +411,6 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
 	} else {
-		clear_bit(wil_status_dontscan, &wil->status);
 		clear_bit(wil_status_fwconnecting, &wil->status);
 	}
 
