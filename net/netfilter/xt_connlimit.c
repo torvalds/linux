@@ -377,7 +377,7 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(info->data->locks); ++i)
+	for (i = 0; i < CONNLIMIT_LOCK_SLOTS; ++i)
 		spin_lock_init(&info->data->locks[i]);
 
 	for (i = 0; i < ARRAY_SIZE(info->data->climit_root4); ++i)
