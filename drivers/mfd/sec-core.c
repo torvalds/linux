@@ -60,6 +60,7 @@ static const struct mfd_cell s5m8767_devs[] = {
 		.name = "s5m-rtc",
 	}, {
 		.name = "s5m8767-clk",
+		.of_compatible = "samsung,s5m8767-clk",
 	}
 };
 
@@ -68,6 +69,7 @@ static const struct mfd_cell s2mps11_devs[] = {
 		.name = "s2mps11-pmic",
 	}, {
 		.name = "s2mps11-clk",
+		.of_compatible = "samsung,s2mps11-clk",
 	}
 };
 
@@ -78,6 +80,7 @@ static const struct mfd_cell s2mps14_devs[] = {
 		.name = "s2mps14-rtc",
 	}, {
 		.name = "s2mps14-clk",
+		.of_compatible = "samsung,s2mps14-clk",
 	}
 };
 
