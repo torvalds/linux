@@ -17,46 +17,6 @@
 		status = "okay";
 	};
 
-	
-	sdmmc2: emmc@1021C000 {
-    		compatible = "rockchip,rk_mmc";
-  	  	clock-frequency = <50000000>;
-        	clock-freq-min-max = <400000 50000000>;
-
-        	supports-highspeed;
-		supports-emmc;
-        	bootpart-no-access;
-        
-    		status = "okay";
-    	};
-    
-	sdmmc0: sdmmc@10214000 {
-	    	compatible = "rockchip,rk_mmc";
-		clock-frequency = <50000000>;
-		clock-freq-min-max = <400000 50000000>;	            
-	    
-		supports-highspeed;
-	    	supports-sd;
-	    	broken-cd;
-	    	card-detect-delay = <200>;
-
-	    	pwr-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>; /*pwr_en = GPIO3_A1*/
-	    
-	    	status = "okay";
-	};
-	
-	
-	sdmmc1: sdio@10218000 {
-	    	compatible = "rockchip,rk_mmc";
-		clock-frequency = <50000000>;
-        	clock-freq-min-max = <200000 50000000>;
-		
-  		supports-highspeed;		
-		supports-sdio;
-
-		status = "diabled";
-	};
-
 
 	wireless-wlan {
 		compatible = "wlan-platdata";
@@ -189,6 +149,43 @@
 		power-gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_HIGH>;
 	};
 };
+
+
+&emmc {
+	clock-frequency = <50000000>;
+        clock-freq-min-max = <400000 50000000>;
+
+        supports-highspeed;
+	supports-emmc;
+        bootpart-no-access;
+        
+    	status = "okay";
+};
+    
+&sdmmc {
+	clock-frequency = <50000000>;
+	lock-freq-min-max = <400000 50000000>;	            
+	    
+	supports-highspeed;
+	supports-sd;
+	broken-cd;
+	card-detect-delay = <200>;
+
+	pwr-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>; /*pwr_en = GPIO3_A1*/
+
+	status = "okay";
+};
+		
+&sdio {
+	clock-frequency = <50000000>;
+        clock-freq-min-max = <200000 50000000>;
+		
+  	supports-highspeed;		
+	supports-sdio;
+
+	status = "diabled";
+};
+
 
 &uart0 {
 	status = "okay";
