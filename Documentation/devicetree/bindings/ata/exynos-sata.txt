@@ -4,14 +4,21 @@ SATA nodes are defined to describe on-chip Serial ATA controllers.
 Each SATA controller should have its own node.
 
 Required properties:
-- compatible        : compatible list, contains "samsung,exynos5-sata"
-- interrupts        : <interrupt mapping for SATA IRQ>
-- reg               : <registers mapping>
-- samsung,sata-freq : <frequency in MHz>
+- compatible		: compatible list, contains "samsung,exynos5-sata"
+- interrupts		: <interrupt mapping for SATA IRQ>
+- reg			: <registers mapping>
+- samsung,sata-freq	: <frequency in MHz>
+- phys			: as mentioned in phy-bindings.txt
+- phy-names		: as mentioned in phy-bindings.txt
 
 Example:
-        sata@ffe08000 {
-                compatible = "samsung,exynos5-sata";
-                reg = <0xffe08000 0x1000>;
-                interrupts = <115>;
-        };
+	sata@122f0000 {
+		compatible = "snps,dwc-ahci";
+		samsung,sata-freq = <66>;
+		reg = <0x122f0000 0x1ff>;
+		interrupts = <0 115 0>;
+		clocks = <&clock 277>, <&clock 143>;
+		clock-names = "sata", "sclk_sata";
+		phys = <&sata_phy>;
+		phy-names = "sata-phy";
+	};
