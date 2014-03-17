@@ -214,6 +214,7 @@ struct pending_wmi_event {
  */
 struct wil_ctx {
 	struct sk_buff *skb;
+	u8 nr_frags;
 	u8 mapped_as_page:1;
 };
 
