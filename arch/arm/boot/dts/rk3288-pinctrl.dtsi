@@ -17,9 +17,9 @@
 		gpio0: gpio0@ff750000 {
 			compatible = "rockchip,rk3288-gpio-bank0";
 			reg =	<0xff750000 0x100>,
-					<0xff730080 0x10>,
+				<0xff730080 0x10>,
 		      		<0xff730060 0x0c>,
-					<0xff73006c 0x0c>;
+				<0xff73006c 0x0c>;
 			reg-names = "base", "mux_bank0", "pull_bank0", "drv_bank0";
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			//clocks = <&clk_gates8 9>;
@@ -771,49 +771,6 @@
 			};
 
 		};
-
-		vol_domain {
-			ap0_vcc:ap0-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_AP0_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
-			};
-			
-			ap1_vcc:ap1-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_AP1_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
-			};
-			
-			cif_vcc:cif-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_CIF_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
-			};
-
-			flash_vcc:flash-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_FLASH_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
-			};
-			
-			vccio0_vcc:vccio0-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO0_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>; 
-			};
-
-			vccio1_vcc:vccio1-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO1_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>; 
-			};
-
-			lcdc0_vcc:lcdc0-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC0_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
-			};
-
-			lcdc1_vcc:lcdc1-vcc {
-				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC1_VCC>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
-			};
-
-		};
 		
 		gmac {
 			mac_clk: mac-clk {
@@ -850,5 +807,177 @@
 		};
 
 		//to add
+
+
+
+
+
+
+		
+
+		vol_domain{
+			//default 3.3V
+			lcdc_vcc:lcdc-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_LCDC_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+			
+			dvp_vcc:dvp-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_DVP_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+			
+			flash0_vcc:flash0-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_FLASH0_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+			flash1_vcc:flash1-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_FLASH1_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+			
+			wifi_vcc:wifi-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_WIFI_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>; 
+			};
+
+			bb_vcc:bb-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_BB_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>; 
+			};
+
+			audio_vcc:audio-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_AUDIO_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+			sdcard_vcc:sdcard-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_SDCARD_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+			gpio30_vcc:gpio30-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_GPIO30_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+			gpio1830_vcc:gpio1830-vcc {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_GPIO1830_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+
+			//1.8V
+			
+			lcdc_vcc_18:lcdc-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_LCDC_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+			
+			dvp_vcc_18:dvp-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_DVP_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+			
+			flash0_vcc_18:flash0-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_FLASH0_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+			flash1_vcc_18:flash1-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_FLASH1_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+			
+			wifi_vcc_18:wifi-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_WIFI_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>; 
+			};
+
+			bb_vcc_18:bb-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_BB_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>; 
+			};
+
+			audio_vcc_18:audio-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_AUDIO_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+			sdcard_vcc_18:sdcard-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_SDCARD_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+			gpio30_vcc_18:gpio30-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_GPIO30_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+			gpio1830_vcc_18:gpio1830-vcc-18 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_GPIO1830_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+	
+
+		
+			//3.3V
+			lcdc_vcc_33:lcdc-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_LCDC_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+			
+			dvp_vcc_33:dvp-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_DVP_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+			
+			flash0_vcc_33:flash0-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_FLASH0_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+			flash1_vcc_33:flash1-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_FLASH1_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+			
+			wifi_vcc_33:wifi-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_WIFI_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>; 
+			};
+
+			bb_vcc_33:bb-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_BB_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>; 
+			};
+
+			audio_vcc_33:audio-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_AUDIO_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+			sdcard_vcc_33:sdcard-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_SDCARD_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+			gpio30_vcc_33:gpio30-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_GPIO30_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+			gpio1830_vcc_33:gpio1830-vcc-33 {
+				rockchip,pins = <RK32_VIRTUAL_PIN_FOR_GPIO1830_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+
+		};
+
+		
+
 	};
 };
