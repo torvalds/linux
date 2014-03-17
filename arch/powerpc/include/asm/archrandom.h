@@ -27,6 +27,15 @@ static inline int arch_get_random_int(unsigned int *v)
 
 int powernv_get_random_long(unsigned long *v);
 
+static inline int arch_get_random_seed_long(unsigned long *v)
+{
+	return 0;
+}
+static inline int arch_get_random_seed_int(unsigned int *v)
+{
+	return 0;
+}
+
 #endif /* CONFIG_ARCH_RANDOM */
 
 #endif /* _ASM_POWERPC_ARCHRANDOM_H */
