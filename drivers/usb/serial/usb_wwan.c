@@ -325,7 +325,7 @@ static void usb_wwan_outdat_callback(struct urb *urb)
 
 	for (i = 0; i < N_OUT_URB; ++i) {
 		if (portdata->out_urbs[i] == urb) {
-			smp_mb__before_clear_bit();
+			smp_mb__before_atomic();
 			clear_bit(i, &portdata->out_busy);
 			break;
 		}

@@ -789,9 +789,9 @@ static void nfs4_wait_ds_connect(struct nfs4_pnfs_ds *ds)
 
 static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(NFS4DS_CONNECTING, &ds->ds_state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&ds->ds_state, NFS4DS_CONNECTING);
 }
 

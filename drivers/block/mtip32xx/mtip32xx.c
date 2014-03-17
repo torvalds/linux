@@ -224,9 +224,9 @@ static int get_slot(struct mtip_port *port)
  */
 static inline void release_slot(struct mtip_port *port, int tag)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(tag, port->allocated);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 /*

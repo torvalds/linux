@@ -828,7 +828,7 @@ static inline bool cached_dev_get(struct cached_dev *dc)
 		return false;
 
 	/* Paired with the mb in cached_dev_attach */
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	return true;
 }
 

@@ -267,7 +267,7 @@ static inline void futex_get_mm(union futex_key *key)
 	 * get_futex_key() implies a full barrier. This is relied upon
 	 * as full barrier (B), see the ordering comment above.
 	 */
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 }
 
 /*
@@ -280,7 +280,7 @@ static inline void hb_waiters_inc(struct futex_hash_bucket *hb)
 	/*
 	 * Full barrier (A), see the ordering comment above.
 	 */
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 #endif
 }
 

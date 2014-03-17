@@ -1204,7 +1204,7 @@ static inline bool __ip_vs_conn_get(struct ip_vs_conn *cp)
 /* put back the conn without restarting its timer */
 static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
 {
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&cp->refcnt);
 }
 void ip_vs_conn_put(struct ip_vs_conn *cp);
@@ -1408,7 +1408,7 @@ static inline void ip_vs_dest_hold(struct ip_vs_dest *dest)
 
 static inline void ip_vs_dest_put(struct ip_vs_dest *dest)
 {
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&dest->refcnt);
 }
 

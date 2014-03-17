@@ -394,7 +394,7 @@ EXPORT_SYMBOL(__wake_up_bit);
  *
  * In order for this to function properly, as it uses waitqueue_active()
  * internally, some kind of memory barrier must be done prior to calling
- * this. Typically, this will be smp_mb__after_clear_bit(), but in some
+ * this. Typically, this will be smp_mb__after_atomic(), but in some
  * cases where bitflags are manipulated non-atomically under a lock, one
  * may need to use a less regular barrier, such fs/inode.c's smp_mb(),
  * because spin_unlock() does not guarantee a memory barrier.

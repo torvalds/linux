@@ -1851,7 +1851,7 @@ static int usbg_port_link(struct se_portal_group *se_tpg, struct se_lun *lun)
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 
 	atomic_inc(&tpg->tpg_port_count);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	return 0;
 }
 
@@ -1861,7 +1861,7 @@ static void usbg_port_unlink(struct se_portal_group *se_tpg,
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 
 	atomic_dec(&tpg->tpg_port_count);
-	smp_mb__after_atomic_dec();
+	smp_mb__after_atomic();
 }
 
 static int usbg_check_stop_free(struct se_cmd *se_cmd)

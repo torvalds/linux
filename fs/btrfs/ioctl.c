@@ -642,7 +642,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 		return -EINVAL;
 
 	atomic_inc(&root->will_be_snapshoted);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	btrfs_wait_nocow_write(root);
 
 	ret = btrfs_start_delalloc_inodes(root, 0);

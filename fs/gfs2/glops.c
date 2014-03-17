@@ -221,7 +221,7 @@ static void inode_go_sync(struct gfs2_glock *gl)
 	 * Writeback of the data mapping may cause the dirty flag to be set
 	 * so we have to clear it again here.
 	 */
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(GLF_DIRTY, &gl->gl_flags);
 }
 

@@ -1930,10 +1930,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			/* It is possible TX completion already happened
 			 * before we set TSQ_THROTTLED, so we must
 			 * test again the condition.
-			 * We abuse smp_mb__after_clear_bit() because
-			 * there is no smp_mb__after_set_bit() yet
 			 */
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 			if (atomic_read(&sk->sk_wmem_alloc) > limit)
 				break;
 		}
