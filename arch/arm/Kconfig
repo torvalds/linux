@@ -421,9 +421,6 @@ config ARCH_EFM32
 	depends on !MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_NVIC
-	# CLKSRC_MMIO is wrong here, but needed until a proper fix is merged,
-	# i.e. CLKSRC_EFM32 selecting CLKSRC_MMIO
-	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select COMMON_CLK
 	select CPU_V7M

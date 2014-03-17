@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/time.h>
-#include <linux/timex.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
@@ -44,6 +43,17 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+
+#define IXP4XX_TIMER_FREQ 66666000
+
+/*
+ * The timer register doesn't allow to specify the two least significant bits of
+ * the timeout value and assumes them being zero. So make sure IXP4XX_LATCH is
+ * the best value with the two least significant bits unset.
+ */
+#define IXP4XX_LATCH DIV_ROUND_CLOSEST(IXP4XX_TIMER_FREQ, \
+				       (IXP4XX_OST_RELOAD_MASK + 1) * HZ) * \
+			(IXP4XX_OST_RELOAD_MASK + 1)
 
 static void __init ixp4xx_clocksource_init(void);
 static void __init ixp4xx_clockevent_init(void);
@@ -520,7 +530,7 @@ static void ixp4xx_set_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		osrt = LATCH & ~IXP4XX_OST_RELOAD_MASK;
+		osrt = IXP4XX_LATCH & ~IXP4XX_OST_RELOAD_MASK;
  		opts = IXP4XX_OST_ENABLE;
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:

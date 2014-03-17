@@ -19,6 +19,7 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 #include <mach/at91sam9263.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "at91_rstc.h"
