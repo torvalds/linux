@@ -9,6 +9,7 @@ config ARCH_SHMOBILE_MULTI
 	select HAVE_ARM_TWD if SMP
 	select ARM_GIC
 	select MIGHT_HAVE_PCI
+	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 	select NO_IOPORT
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
@@ -118,6 +119,7 @@ config ARCH_R8A7790
 	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
 	select RENESAS_IRQC
+	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
@@ -127,6 +129,7 @@ config ARCH_R8A7791
 	select MIGHT_HAVE_PCI
 	select SH_CLK_CPG
 	select RENESAS_IRQC
+	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"

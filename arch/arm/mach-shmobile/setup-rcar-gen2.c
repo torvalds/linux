@@ -28,7 +28,7 @@
 
 #define MODEMR 0xe6160060
 
-u32 __init rcar_gen2_read_mode_pins(void)
+u32 rcar_gen2_read_mode_pins(void)
 {
 	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
 	u32 mode;
