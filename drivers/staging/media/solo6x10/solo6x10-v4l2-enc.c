@@ -472,8 +472,7 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 	if (vb2_plane_size(vb, 0) < vop_jpeg_size(vh) + solo_enc->jpeg_len)
 		return -EIO;
 
-	frame_size = (vop_jpeg_size(vh) + solo_enc->jpeg_len + (DMA_ALIGN - 1))
-		& ~(DMA_ALIGN - 1);
+	frame_size = ALIGN(vop_jpeg_size(vh) + solo_enc->jpeg_len, DMA_ALIGN);
 	vb2_set_plane_payload(vb, 0, vop_jpeg_size(vh) + solo_enc->jpeg_len);
 
 	/* may discard all previous data in vbuf->sgl */
@@ -521,8 +520,7 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 	/* Now get the actual mpeg payload */
 	frame_off = (vop_mpeg_offset(vh) - SOLO_MP4E_EXT_ADDR(solo_dev) +
 		sizeof(*vh)) % SOLO_MP4E_EXT_SIZE(solo_dev);
-	frame_size = (vop_mpeg_size(vh) + skip + (DMA_ALIGN - 1))
-		& ~(DMA_ALIGN - 1);
+	frame_size = ALIGN(vop_mpeg_size(vh) + skip, DMA_ALIGN);
 
 	/* may discard all previous data in vbuf->sgl */
 	dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
