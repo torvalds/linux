@@ -1079,22 +1079,24 @@ static void rkclk_cache_parents(struct rkclk *rkclk)
 	}
 }
 
-#ifdef RKCLK_DEBUG
 void rk_dump_cru(void)
 {
 	u32 i;
 
 	printk("\n");
 	printk("dump cru regs:");
-	for (i = 0; i * 4 <= 0xf4; i++) {
+	for (i = 0; i * 4 <= 0x01b0; i++) {
 		if (i % 4 == 0)
-			printk("\n%s: \t[0x%08x]: ",
-					__func__, 0x20000000 + i * 4);
+			printk("\n%s: \t[0x%08x]: ", __func__,
+				(unsigned int)RK_CRU_VIRT + i * 4);
 		printk("%08x ", readl(RK_CRU_VIRT + i * 4));
 	}
 	printk("\n\n");
 }
+EXPORT_SYMBOL_GPL(rk_dump_cru);
 
+
+#ifdef RKCLK_DEBUG
 void rkclk_dump_info(struct rkclk *rkclk)
 {
 	struct clk_mux		*mux = NULL;
@@ -1185,10 +1187,8 @@ void rkclk_dump_info(struct rkclk *rkclk)
 	}
 }
 #else
-void rk_dump_cru(void) {}
 void rkclk_dump_info(struct rkclk *rkclk) {}
 #endif
-EXPORT_SYMBOL_GPL(rk_dump_cru);
 
 
 #ifdef RKCLK_TEST
