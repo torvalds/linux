@@ -13,10 +13,6 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
-		emmc = &emmc;
-		sdmmc= &sdmmc;
-		sdio = &sdio;
-		sdio1= &sdio1
 		serial2 = &uart_dbg;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
