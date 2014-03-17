@@ -1524,8 +1524,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_NOOPT('l', "list", NULL, NULL, "list available scripts",
 			   list_available_scripts),
 	OPT_CALLBACK_FINAL_OPTION('s', "script", NULL, "name",
-			"script file name (lang:script name, script name, or *)",
-			parse_scriptname),
+		                  "script file name (lang:script name, script name, or *)",
+		                  parse_scriptname),
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-script.xx script in specified language"),
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
@@ -1578,7 +1578,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	setup_scripting();
 
 	argc = parse_options(argc, argv, options, script_usage,
-                 PARSE_OPT_KEEP_UNKNOWN);
+			     PARSE_OPT_KEEP_UNKNOWN);
 
 	file.path = input_name;
 
