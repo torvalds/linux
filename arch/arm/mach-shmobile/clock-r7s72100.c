@@ -70,7 +70,7 @@ static struct clk pll_clk = {
 
 static unsigned long bus_recalc(struct clk *clk)
 {
-	return clk->parent->rate * 2 / 3;
+	return clk->parent->rate / 3;
 }
 
 static struct sh_clk_ops bus_clk_ops = {
