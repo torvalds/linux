@@ -1883,6 +1883,8 @@ retry:
 			 * and pretend the write failed... */
 			ext3_truncate_failed_direct_write(inode);
 			ret = PTR_ERR(handle);
+			if (inode->i_nlink)
+				ext3_orphan_del(NULL, inode);
 			goto out;
 		}
 		if (inode->i_nlink)
