@@ -20,6 +20,9 @@
 
 extern unsigned long samsung_cpu_id;
 
+#define S3C2410_CPU_ID		0x32410000
+#define S3C2410_CPU_MASK	0xFFFFFFFF
+
 #define S3C24XX_CPU_ID		0x32400000
 #define S3C24XX_CPU_MASK	0xFFF00000
 
@@ -56,6 +59,7 @@ static inline int is_samsung_##name(void)	\
 	return ((samsung_cpu_id & mask) == (id & mask));	\
 }
 
+IS_SAMSUNG_CPU(s3c2410, S3C2410_CPU_ID, S3C2410_CPU_MASK)
 IS_SAMSUNG_CPU(s3c24xx, S3C24XX_CPU_ID, S3C24XX_CPU_MASK)
 IS_SAMSUNG_CPU(s3c2412, S3C2412_CPU_ID, S3C2412_CPU_MASK)
 IS_SAMSUNG_CPU(s3c6400, S3C6400_CPU_ID, S3C64XX_CPU_MASK)
@@ -76,8 +80,10 @@ IS_SAMSUNG_CPU(exynos5440, EXYNOS5440_SOC_ID, EXYNOS5_SOC_MASK)
     defined(CONFIG_CPU_S3C2442) || defined(CONFIG_CPU_S3C244X) || \
     defined(CONFIG_CPU_S3C2443)
 # define soc_is_s3c24xx()	is_samsung_s3c24xx()
+# define soc_is_s3c2410()	is_samsung_s3c2410()
 #else
 # define soc_is_s3c24xx()	0
+# define soc_is_s3c2410()	0
 #endif
 
 #if defined(CONFIG_CPU_S3C2412)
