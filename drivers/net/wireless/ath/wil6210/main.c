@@ -269,7 +269,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 static void wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
-	u32 baud_rate;
+	u32 hw_state;
 	u32 rev_id;
 
 	wil_dbg_misc(wil, "Resetting...\n");
@@ -312,15 +312,16 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	}
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
-	/* wait until device ready. Use baud rate */
+	/* wait until device ready */
 	do {
 		msleep(1);
-		baud_rate = R(RGF_USER_SERIAL_BAUD_RATE);
+		hw_state = R(RGF_USER_HW_MACHINE_STATE);
 		if (delay++ > 100) {
-			wil_err(wil, "Reset not completed\n");
+			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
+				hw_state);
 			return;
 		}
-	} while (baud_rate != 0x15e);
+	} while (hw_state != HW_MACHINE_BOOT_DONE);
 
 	if (rev_id == 2)
 		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
