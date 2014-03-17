@@ -51,9 +51,14 @@ static struct addr_range text_ranges[] = {
 #define text_range_text     (&text_ranges[0])
 #define text_range_inittext (&text_ranges[1])
 
+static struct addr_range percpu_range = {
+	"__per_cpu_start", "__per_cpu_end", -1ULL, 0
+};
+
 static struct sym_entry *table;
 static unsigned int table_size, table_cnt;
 static int all_symbols = 0;
+static int absolute_percpu = 0;
 static char symbol_prefix_char = '\0';
 static unsigned long long kernel_start_addr = 0;
 
@@ -165,6 +170,9 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	}
 	strcpy((char *)s->sym + 1, str);
 	s->sym[0] = stype;
+
+	/* Record if we've found __per_cpu_start/end. */
+	check_symbol_range(sym, s->addr, &percpu_range, 1);
 
 	return 0;
 }
@@ -657,6 +665,15 @@ static void sort_symbols(void)
 	qsort(table, table_cnt, sizeof(struct sym_entry), compare_symbols);
 }
 
+static void make_percpus_absolute(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < table_cnt; i++)
+		if (symbol_in_range(&table[i], &percpu_range, 1))
+			table[i].sym[0] = 'A';
+}
+
 int main(int argc, char **argv)
 {
 	if (argc >= 2) {
@@ -664,6 +681,8 @@ int main(int argc, char **argv)
 		for (i = 1; i < argc; i++) {
 			if(strcmp(argv[i], "--all-symbols") == 0)
 				all_symbols = 1;
+			else if (strcmp(argv[i], "--absolute-percpu") == 0)
+				absolute_percpu = 1;
 			else if (strncmp(argv[i], "--symbol-prefix=", 16) == 0) {
 				char *p = &argv[i][16];
 				/* skip quote */
@@ -680,6 +699,8 @@ int main(int argc, char **argv)
 		usage();
 
 	read_map(stdin);
+	if (absolute_percpu)
+		make_percpus_absolute();
 	sort_symbols();
 	optimize_token_table();
 	write_src();
