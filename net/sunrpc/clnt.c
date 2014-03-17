@@ -1728,9 +1728,7 @@ call_bind_status(struct rpc_task *task)
 	case -EPROTONOSUPPORT:
 		dprintk("RPC: %5u remote rpcbind version unavailable, retrying\n",
 				task->tk_pid);
-		task->tk_status = 0;
-		task->tk_action = call_bind;
-		return;
+		goto retry_timeout;
 	case -ECONNREFUSED:		/* connection problems */
 	case -ECONNRESET:
 	case -ECONNABORTED:
@@ -1756,6 +1754,7 @@ call_bind_status(struct rpc_task *task)
 	return;
 
 retry_timeout:
+	task->tk_status = 0;
 	task->tk_action = call_timeout;
 }
 
@@ -1798,10 +1797,6 @@ call_connect_status(struct rpc_task *task)
 	trace_rpc_connect_status(task, status);
 	task->tk_status = 0;
 	switch (status) {
-		/* if soft mounted, test if we've timed out */
-	case -ETIMEDOUT:
-		task->tk_action = call_timeout;
-		return;
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ECONNABORTED:
@@ -1812,7 +1807,9 @@ call_connect_status(struct rpc_task *task)
 		if (RPC_IS_SOFTCONN(task))
 			break;
 	case -EAGAIN:
-		task->tk_action = call_bind;
+		/* Check for timeouts before looping back to call_bind */
+	case -ETIMEDOUT:
+		task->tk_action = call_timeout;
 		return;
 	case 0:
 		clnt->cl_stats->netreconn++;
