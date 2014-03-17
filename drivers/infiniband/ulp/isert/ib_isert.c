@@ -2610,6 +2610,7 @@ isert_reg_sig_mr(struct isert_conn *isert_conn, struct se_cmd *se_cmd,
 	if (!(fr_desc->ind & ISERT_SIG_KEY_VALID)) {
 		memset(&inv_wr, 0, sizeof(inv_wr));
 		inv_wr.opcode = IB_WR_LOCAL_INV;
+		inv_wr.wr_id = ISER_FASTREG_LI_WRID;
 		inv_wr.ex.invalidate_rkey = pi_ctx->sig_mr->rkey;
 		wr = &inv_wr;
 		/* Bump the key */
@@ -2619,6 +2620,7 @@ isert_reg_sig_mr(struct isert_conn *isert_conn, struct se_cmd *se_cmd,
 
 	memset(&sig_wr, 0, sizeof(sig_wr));
 	sig_wr.opcode = IB_WR_REG_SIG_MR;
+	sig_wr.wr_id = ISER_FASTREG_LI_WRID;
 	sig_wr.sg_list = data_sge;
 	sig_wr.num_sge = 1;
 	sig_wr.wr.sig_handover.access_flags = IB_ACCESS_LOCAL_WRITE;
