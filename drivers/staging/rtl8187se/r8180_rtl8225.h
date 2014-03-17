@@ -1,14 +1,13 @@
 /*
-	This is part of the rtl8180-sa2400 driver
-	released under the GPL (See file COPYING for details).
-	Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
-
-	This files contains programming code for the rtl8225
-	radio frontend.
-
-	*Many* thanks to Realtek Corp. for their great support!
-
-*/
+ * This is part of the rtl8180-sa2400 driver released under the GPL (See file
+ * COPYING for details).
+ *
+ * Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
+ *
+ * This files contains programming code for the rtl8225 radio frontend.
+ *
+ * *Many* thanks to Realtek Corp. for their great support!
+ */
 
 #include "r8180.h"
 
