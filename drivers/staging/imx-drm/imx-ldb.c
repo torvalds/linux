@@ -159,7 +159,9 @@ static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 	/* set display clock mux to LDB input clock */
 	ret = clk_set_parent(ldb->clk_sel[mux], ldb->clk[chno]);
 	if (ret)
-		dev_err(ldb->dev, "unable to set di%d parent clock to ldb_di%d\n", mux, chno);
+		dev_err(ldb->dev,
+			"unable to set di%d parent clock to ldb_di%d\n", mux,
+			chno);
 }
 
 static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
@@ -179,7 +181,8 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 		imx_ldb_set_clock(ldb, mux, 1, serial_clk, di_clk);
 	} else {
 		serial_clk = 7000UL * mode->clock;
-		imx_ldb_set_clock(ldb, mux, imx_ldb_ch->chno, serial_clk, di_clk);
+		imx_ldb_set_clock(ldb, mux, imx_ldb_ch->chno, serial_clk,
+				di_clk);
 	}
 
 	switch (imx_ldb_ch->chno) {
@@ -529,9 +532,11 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		case LVDS_BIT_MAP_SPWG:
 			if (datawidth == 24) {
 				if (i == 0 || dual)
-					imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24;
+					imx_ldb->ldb_ctrl |=
+						LDB_DATA_WIDTH_CH0_24;
 				if (i == 1 || dual)
-					imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24;
+					imx_ldb->ldb_ctrl |=
+						LDB_DATA_WIDTH_CH1_24;
 			}
 			break;
 		case LVDS_BIT_MAP_JEIDA:
@@ -540,9 +545,11 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 				return -EINVAL;
 			}
 			if (i == 0 || dual)
-				imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24 | LDB_BIT_MAP_CH0_JEIDA;
+				imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24 |
+					LDB_BIT_MAP_CH0_JEIDA;
 			if (i == 1 || dual)
-				imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24 | LDB_BIT_MAP_CH1_JEIDA;
+				imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24 |
+					LDB_BIT_MAP_CH1_JEIDA;
 			break;
 		default:
 			dev_err(dev, "data mapping not specified or invalid\n");
