@@ -241,8 +241,9 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	/* register write */
 #define W(a, v) iowrite32(v, wil->csr + HOSTADDR(a))
 	/* register set = read, OR, write */
-#define S(a, v) iowrite32(ioread32(wil->csr + HOSTADDR(a)) | v, \
-		wil->csr + HOSTADDR(a))
+#define S(a, v) W(a, R(a) | v)
+	/* register clear = read, AND with inverted, write */
+#define C(a, v) W(a, R(a) & ~v)
 
 	wil->hw_version = R(RGF_USER_FW_REV_ID);
 	rev_id = wil->hw_version & 0xff;
@@ -286,11 +287,14 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	if (rev_id == 2)
 		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
 
+	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
+
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
 
 #undef R
 #undef W
 #undef S
+#undef C
 }
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
