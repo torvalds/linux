@@ -347,6 +347,9 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
+	if (count != sizeof(*new_var))
+		return -EINVAL;
+
 	attributes = new_var->Attributes;
 	size = new_var->DataSize;
 	data = new_var->Data;
@@ -394,6 +397,9 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
+
+	if (count != sizeof(*del_var))
+		return -EINVAL;
 
 	name = del_var->VariableName;
 	vendor = del_var->VendorGuid;
