@@ -159,6 +159,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 	if (no_fw_recovery)
 		return;
 
+	mutex_lock(&wil->mutex);
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -176,6 +177,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 	default:
 		break;
 	}
+	mutex_unlock(&wil->mutex);
 }
 
 static int wil_find_free_vring(struct wil6210_priv *wil)

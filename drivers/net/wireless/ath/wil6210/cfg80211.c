@@ -609,18 +609,20 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (wil_fix_bcon(wil, bcon))
 		wil_dbg_misc(wil, "Fixed bcon\n");
 
+	mutex_lock(&wil->mutex);
+
 	rc = wil_reset(wil);
 	if (rc)
-		return rc;
+		goto out;
 
 	/* Rx VRING. */
 	rc = wil_rx_init(wil);
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
 	if (rc)
-		return rc;
+		goto out;
 
 	/* MAC address - pre-requisite for other commands */
 	wmi_set_mac_address(wil, ndev->dev_addr);
@@ -644,11 +646,13 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
 			   channel->hw_value);
 	if (rc)
-		return rc;
+		goto out;
 
 
 	netif_carrier_on(ndev);
 
+out:
+	mutex_unlock(&wil->mutex);
 	return rc;
 }
 
@@ -658,8 +662,11 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	int rc = 0;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 
+	mutex_lock(&wil->mutex);
+
 	rc = wmi_pcp_stop(wil);
 
+	mutex_unlock(&wil->mutex);
 	return rc;
 }
 
