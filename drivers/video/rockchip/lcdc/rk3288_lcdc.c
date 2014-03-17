@@ -311,7 +311,7 @@ static int rk3288_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 		post_dsp_hact_end = post_dsp_hact_st + screen->post_xsize;
 	}else{
 		post_dsp_hact_end = h_total - screen->mode.right_margin -
-					- screen->post_dsp_stx;
+					screen->post_dsp_stx;
 		post_dsp_hact_st = post_dsp_hact_end - screen->post_xsize;
 	}	
 	if((screen->post_xsize < x_res)&&(screen->post_xsize != 0)){
@@ -772,7 +772,7 @@ static int rk3288_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 		rk3288_win_full_reg_update(dev_drv,1);
 		rk3288_win_lite_reg_update(dev_drv,2);
 		rk3288_win_lite_reg_update(dev_drv,3);
-		rk3288_lcdc_post_cfg(dev_drv);
+		/*rk3288_lcdc_post_cfg(dev_drv);*/
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);

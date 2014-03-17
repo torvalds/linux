@@ -246,17 +246,17 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 	of_property_read_u32(root, "rockchip,mirror", &mirror);
 
 	if (mirror == NO_MIRROR) {
-		dev_drv->cur_screen->x_mirror = 0;
-		dev_drv->cur_screen->y_mirror = 0;
+		dev_drv->screen0->x_mirror = 0;
+		dev_drv->screen0->y_mirror = 0;
 	} else if (mirror == X_MIRROR) {
-		dev_drv->cur_screen->x_mirror = 1;
-		dev_drv->cur_screen->y_mirror = 0;
+		dev_drv->screen0->x_mirror = 1;
+		dev_drv->screen0->y_mirror = 0;
 	} else if (mirror == Y_MIRROR) {
-		dev_drv->cur_screen->x_mirror = 0;
-		dev_drv->cur_screen->y_mirror = 1;
+		dev_drv->screen0->x_mirror = 0;
+		dev_drv->screen0->y_mirror = 1;
 	} else if(mirror == X_Y_MIRROR) {
-		dev_drv->cur_screen->x_mirror = 1;
-		dev_drv->cur_screen->y_mirror = 1;
+		dev_drv->screen0->x_mirror = 1;
+		dev_drv->screen0->y_mirror = 1;
 	}
 
 	of_property_read_u32(root, "rockchip,debug", &debug);
@@ -1134,10 +1134,10 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	}
 #endif	
 	dev_drv->atv_layer_cnt = regs->win_num;
-	dev_drv->cur_screen->post_xsize = regs->post_cfg.xsize;
-	dev_drv->cur_screen->post_ysize = regs->post_cfg.ysize;
-	dev_drv->cur_screen->post_dsp_stx = regs->post_cfg.xpos;
-	dev_drv->cur_screen->post_dsp_sty = regs->post_cfg.ypos;
+	/*dev_drv->screen0->post_xsize = regs->post_cfg.xsize;
+	dev_drv->screen0->post_ysize = regs->post_cfg.ysize;
+	dev_drv->screen0->post_dsp_stx = regs->post_cfg.xpos;
+	dev_drv->screen0->post_dsp_sty = regs->post_cfg.ypos;*/
 	dev_drv->ops->set_par(dev_drv,0);
 
 	ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
@@ -1419,10 +1419,10 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		return ret;
 	}
 	
-	regs->post_cfg.xpos = win_data->post_cfg.xpos;
+	/*regs->post_cfg.xpos = win_data->post_cfg.xpos;
 	regs->post_cfg.ypos = win_data->post_cfg.ypos;
 	regs->post_cfg.xsize = win_data->post_cfg.xsize;
-	regs->post_cfg.ysize = win_data->post_cfg.xsize;
+	regs->post_cfg.ysize = win_data->post_cfg.xsize;*/
 	for (i=0; i<dev_drv->lcdc_win_num; i++) {
 		if(win_data->win_par[i].win_id < dev_drv->lcdc_win_num){
 			rk_fb_set_win_buffer(info,&win_data->win_par[i],&regs->reg_win_data[j]);
