@@ -1641,7 +1641,7 @@ static void btree_gc_start(struct cache_set *c)
 	mutex_unlock(&c->bucket_lock);
 }
 
-size_t bch_btree_gc_finish(struct cache_set *c)
+static size_t bch_btree_gc_finish(struct cache_set *c)
 {
 	size_t available = 0;
 	struct bucket *b;
@@ -1703,9 +1703,6 @@ size_t bch_btree_gc_finish(struct cache_set *c)
 
 			if (!GC_MARK(b) || GC_MARK(b) == GC_MARK_RECLAIMABLE)
 				available++;
-
-			if (!GC_MARK(b))
-				bch_bucket_add_unused(ca, b);
 		}
 	}
 
@@ -1834,6 +1831,42 @@ int bch_btree_check(struct cache_set *c)
 	bch_btree_op_init(&op, SHRT_MAX);
 
 	return btree_root(check_recurse, c, &op);
+}
+
+void bch_initial_gc_finish(struct cache_set *c)
+{
+	struct cache *ca;
+	struct bucket *b;
+	unsigned i;
+
+	bch_btree_gc_finish(c);
+
+	mutex_lock(&c->bucket_lock);
+
+	/*
+	 * We need to put some unused buckets directly on the prio freelist in
+	 * order to get the allocator thread started - it needs freed buckets in
+	 * order to rewrite the prios and gens, and it needs to rewrite prios
+	 * and gens in order to free buckets.
+	 *
+	 * This is only safe for buckets that have no live data in them, which
+	 * there should always be some of.
+	 */
+	for_each_cache(ca, c, i) {
+		for_each_bucket(b, ca) {
+			if (fifo_full(&ca->free[RESERVE_PRIO]))
+				break;
+
+			if (bch_can_invalidate_bucket(ca, b) &&
+			    !GC_MARK(b)) {
+				__bch_invalidate_one_bucket(ca, b);
+				fifo_push(&ca->free[RESERVE_PRIO],
+					  b - ca->buckets);
+			}
+		}
+	}
+
+	mutex_unlock(&c->bucket_lock);
 }
 
 /* Btree insertion */

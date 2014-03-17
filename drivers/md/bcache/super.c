@@ -541,9 +541,6 @@ static void prio_io(struct cache *ca, uint64_t bucket, unsigned long rw)
 	closure_sync(cl);
 }
 
-#define buckets_free(c)	"free %zu, free_inc %zu, unused %zu",		\
-	fifo_used(&c->free), fifo_used(&c->free_inc), fifo_used(&c->unused)
-
 void bch_prio_write(struct cache *ca)
 {
 	int i;
@@ -553,10 +550,6 @@ void bch_prio_write(struct cache *ca)
 	closure_init_stack(&cl);
 
 	lockdep_assert_held(&ca->set->bucket_lock);
-
-	for (b = ca->buckets;
-	     b < ca->buckets + ca->sb.nbuckets; b++)
-		b->disk_gen = b->gen;
 
 	ca->disk_buckets->seq++;
 
@@ -601,14 +594,17 @@ void bch_prio_write(struct cache *ca)
 
 	mutex_lock(&ca->set->bucket_lock);
 
-	ca->need_save_prio = 0;
-
 	/*
 	 * Don't want the old priorities to get garbage collected until after we
 	 * finish writing the new ones, and they're journalled
 	 */
-	for (i = 0; i < prio_buckets(ca); i++)
+	for (i = 0; i < prio_buckets(ca); i++) {
+		if (ca->prio_last_buckets[i])
+			__bch_bucket_free(ca,
+				&ca->buckets[ca->prio_last_buckets[i]]);
+
 		ca->prio_last_buckets[i] = ca->prio_buckets[i];
+	}
 }
 
 static void prio_read(struct cache *ca, uint64_t bucket)
@@ -639,7 +635,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 		}
 
 		b->prio = le16_to_cpu(d->prio);
-		b->gen = b->disk_gen = b->last_gc = b->gc_gen = d->gen;
+		b->gen = b->last_gc = b->gc_gen = d->gen;
 	}
 }
 
@@ -1606,7 +1602,7 @@ static void run_cache_set(struct cache_set *c)
 			goto err;
 
 		bch_journal_mark(c, &journal);
-		bch_btree_gc_finish(c);
+		bch_initial_gc_finish(c);
 		pr_debug("btree_check() done");
 
 		/*
@@ -1648,7 +1644,7 @@ static void run_cache_set(struct cache_set *c)
 				ca->sb.d[j] = ca->sb.first_bucket + j;
 		}
 
-		bch_btree_gc_finish(c);
+		bch_initial_gc_finish(c);
 
 		err = "error starting allocator thread";
 		for_each_cache(ca, c, i)
@@ -1794,7 +1790,6 @@ void bch_cache_release(struct kobject *kobj)
 	vfree(ca->buckets);
 
 	free_heap(&ca->heap);
-	free_fifo(&ca->unused);
 	free_fifo(&ca->free_inc);
 
 	for (i = 0; i < RESERVE_NR; i++)
@@ -1831,7 +1826,6 @@ static int cache_alloc(struct cache_sb *sb, struct cache *ca)
 	    !init_fifo(&ca->free[RESERVE_MOVINGGC], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free_inc,	free << 2, GFP_KERNEL) ||
-	    !init_fifo(&ca->unused,	free << 2, GFP_KERNEL) ||
 	    !init_heap(&ca->heap,	free << 3, GFP_KERNEL) ||
 	    !(ca->buckets	= vzalloc(sizeof(struct bucket) *
 					  ca->sb.nbuckets)) ||

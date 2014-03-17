@@ -195,7 +195,6 @@ struct bucket {
 	atomic_t	pin;
 	uint16_t	prio;
 	uint8_t		gen;
-	uint8_t		disk_gen;
 	uint8_t		last_gc; /* Most out of date gen in the btree */
 	uint8_t		gc_gen;
 	uint16_t	gc_mark; /* Bitfield used by GC. See below for field */
@@ -426,14 +425,9 @@ struct cache {
 	 * their new gen to disk. After prio_write() finishes writing the new
 	 * gens/prios, they'll be moved to the free list (and possibly discarded
 	 * in the process)
-	 *
-	 * unused: GC found nothing pointing into these buckets (possibly
-	 * because all the data they contained was overwritten), so we only
-	 * need to discard them before they can be moved to the free list.
 	 */
 	DECLARE_FIFO(long, free)[RESERVE_NR];
 	DECLARE_FIFO(long, free_inc);
-	DECLARE_FIFO(long, unused);
 
 	size_t			fifo_last_bucket;
 
@@ -441,12 +435,6 @@ struct cache {
 	struct bucket		*buckets;
 
 	DECLARE_HEAP(struct bucket *, heap);
-
-	/*
-	 * max(gen - disk_gen) for all buckets. When it gets too big we have to
-	 * call prio_write() to keep gens from wrapping.
-	 */
-	uint8_t			need_save_prio;
 
 	/*
 	 * If nonzero, we know we aren't going to find any buckets to invalidate
@@ -848,9 +836,6 @@ static inline bool cached_dev_get(struct cached_dev *dc)
 /*
  * bucket_gc_gen() returns the difference between the bucket's current gen and
  * the oldest gen of any pointer into that bucket in the btree (last_gc).
- *
- * bucket_disk_gen() returns the difference between the current gen and the gen
- * on disk; they're both used to make sure gens don't wrap around.
  */
 
 static inline uint8_t bucket_gc_gen(struct bucket *b)
@@ -858,13 +843,7 @@ static inline uint8_t bucket_gc_gen(struct bucket *b)
 	return b->gen - b->last_gc;
 }
 
-static inline uint8_t bucket_disk_gen(struct bucket *b)
-{
-	return b->gen - b->disk_gen;
-}
-
 #define BUCKET_GC_GEN_MAX	96U
-#define BUCKET_DISK_GEN_MAX	64U
 
 #define kobj_attribute_write(n, fn)					\
 	static struct kobj_attribute ksysfs_##n = __ATTR(n, S_IWUSR, NULL, fn)
@@ -897,11 +876,14 @@ void bch_submit_bbio(struct bio *, struct cache_set *, struct bkey *, unsigned);
 
 uint8_t bch_inc_gen(struct cache *, struct bucket *);
 void bch_rescale_priorities(struct cache_set *, int);
-bool bch_bucket_add_unused(struct cache *, struct bucket *);
 
-long bch_bucket_alloc(struct cache *, unsigned, bool);
+bool bch_can_invalidate_bucket(struct cache *, struct bucket *);
+void __bch_invalidate_one_bucket(struct cache *, struct bucket *);
+
+void __bch_bucket_free(struct cache *, struct bucket *);
 void bch_bucket_free(struct cache_set *, struct bkey *);
 
+long bch_bucket_alloc(struct cache *, unsigned, bool);
 int __bch_bucket_alloc_set(struct cache_set *, unsigned,
 			   struct bkey *, int, bool);
 int bch_bucket_alloc_set(struct cache_set *, unsigned,
