@@ -1259,7 +1259,6 @@ static void rtl8180_rx(struct net_device *dev)
 
 		if (*(priv->rxringtail) & (1<<27)) {
 			priv->stats.rxdmafail++;
-			/* DMESG("EE: RX DMA FAILED at buffer pointed by descriptor %x",(u32)priv->rxringtail); */
 			goto drop;
 		}
 
@@ -1389,14 +1388,12 @@ static void rtl8180_rx(struct net_device *dev)
 			quality = 127 - quality;
 		priv->SignalQuality = quality;
 
-		/*priv->wstats.qual.level = priv->SignalStrength; */
 		stats.signal = (u8) quality;
 
 		stats.signalstrength = RXAGC;
 		if (stats.signalstrength > 100)
 			stats.signalstrength = 100;
 		stats.signalstrength = (stats.signalstrength * 70) / 100 + 30;
-		/* printk("==========================>rx : RXAGC is %d,signalstrength is %d\n",RXAGC,stats.signalstrength); */
 		stats.rssi = priv->wstats.qual.qual = priv->SignalQuality;
 		stats.noise = priv->wstats.qual.noise =
 			100 - priv->wstats.qual.qual;
@@ -1763,7 +1760,7 @@ short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 	} else { /* Unicast packet */
 		u16 AckTime;
 
-		/* YJ,add,080828,for Keep alive */
+		/* for Keep alive */
 		priv->NumTxUnicast++;
 
 		/* Figure out ACK rate according to BSS basic rate
@@ -1774,7 +1771,6 @@ short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 
 		if (((len + sCrcLng) > priv->rts) && priv->rts) { /* RTS/CTS. */
 			u16 RtsTime, CtsTime;
-			/* u16 CtsRate; */
 			bRTSEnable = 1;
 			bCTSEnable = 0;
 
@@ -1875,15 +1871,6 @@ short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 		*(tail+3) = *(tail+3) & ~0xfff;
 		*(tail+3) = *(tail+3) | i; /* buffer length */
 
-		/* Use short preamble or not - if true, enable short preamble */
-		/*
-		if (priv->ieee80211->current_network.capability &
-			WLAN_CAPABILITY_SHORT_PREAMBLE &&
-			priv->plcp_preamble_mode == 1 && rate != 0) {
-			*tail |= (1 << 16);
-		}
-		*/
-
 		if (bCTSEnable)
 			*tail |= (1<<18);
 
@@ -1896,9 +1883,7 @@ short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 			*(tail+1) |= (RtsDur&0xffff); /* RTS Duration */
 		}
 		*(tail+3) |= ((TxDescDuration&0xffff)<<16); /* DURATION */
-		/* *(tail+3) |= (0xe6<<16); */
 
-		/* (priv->retry_data<<8); */
 		*(tail + 5) |= (11 << 8); /* retry lim; */
 
 		*tail = *tail | ((rate&0xf) << 24);
@@ -2174,8 +2159,6 @@ static void rtl8180_wmm_param_update(struct work_struct *work)
 	}
 
 	for (eACI = 0; eACI < AC_MAX; eACI++) {
-		/* AcParam.longData = 0; */
-
 		rtl8180_wmm_single_param_update(dev, mode,
 			((PAC_PARAM)ac_param)->f.AciAifsn.f.ACI,
 			(PAC_PARAM)ac_param);
@@ -2185,7 +2168,6 @@ static void rtl8180_wmm_param_update(struct work_struct *work)
 }
 
 void rtl8180_restart_wq(struct work_struct *work);
-/* void rtl8180_rq_tx_ack(struct work_struct *work); */
 void rtl8180_watch_dog_wq(struct work_struct *work);
 void rtl8180_hw_wakeup_wq(struct work_struct *work);
 void rtl8180_hw_sleep_wq(struct work_struct *work);
@@ -2260,10 +2242,10 @@ static struct rtl8187se_channel_list channel_plan_list[] = {
 	/* For 11a , TELEC */
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 34, 38, 42, 46}, 17},
 
-	/* For Global Domain. 1-11 active, 12-14 passive. //+YJ, 080626 */
+	/* For Global Domain. 1-11 active, 12-14 passive. */
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, 14},
 
-	/* world wide 13: ch1~ch11 active, ch12~13 passive //lzm add 080826 */
+	/* world wide 13: ch1~ch11 active, ch12~13 passive */
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13}
 };
 
@@ -2272,7 +2254,6 @@ static void rtl8180_set_channel_map(u8 channel_plan,
 {
 	int i;
 
-	/* lzm add 080826 */
 	ieee->MinPassiveChnlNum = MAX_CHANNEL_NUMBER+1;
 	ieee->IbssStartChnl = 0;
 
@@ -2307,7 +2288,7 @@ static void rtl8180_set_channel_map(u8 channel_plan,
 			ieee->bGlobalDomain = true;
 			break;
 		}
-	case COUNTRY_CODE_WORLD_WIDE_13_INDEX:/* lzm add 080826 */
+	case COUNTRY_CODE_WORLD_WIDE_13_INDEX:
 		{
 			ieee->MinPassiveChnlNum = 12;
 			ieee->IbssStartChnl = 10;
@@ -2327,7 +2308,6 @@ static void rtl8180_set_channel_map(u8 channel_plan,
 
 void GPIOChangeRFWorkItemCallBack(struct work_struct *work);
 
-/* YJ,add,080828 */
 static void rtl8180_statistics_init(struct stats *pstats)
 {
 	memset(pstats, 0, sizeof(struct stats));
@@ -2339,7 +2319,6 @@ static void rtl8180_link_detect_init(struct link_detect_t *plink_detect)
 	plink_detect->slot_num = DEFAULT_SLOT_NUM;
 }
 
-/* YJ,add,080828,end */
 static void rtl8187se_eeprom_register_read(struct eeprom_93cx6 *eeprom)
 {
 	struct net_device *dev = eeprom->data;
@@ -2442,7 +2421,7 @@ static short rtl8180_init(struct net_device *dev)
 	priv->eRFPowerState = RF_OFF;
 	priv->RfOffReason = 0;
 	priv->led_strategy = SW_LED_MODE0;
-	priv->TxPollingTimes = 0; /* lzm add 080826 */
+	priv->TxPollingTimes = 0;
 	priv->bLeisurePs = true;
 	priv->dot11PowerSaveMode = ACTIVE;
 	priv->AdMinCheckPeriod = 5;
@@ -2751,8 +2730,6 @@ void rtl8180_set_hw_wep(struct net_device *dev)
 
 void rtl8185_rf_pins_enable(struct net_device *dev)
 {
-	/* u16 tmp; */
-	/* tmp = read_nic_word(dev, RFPinsEnable); */
 	write_nic_word(dev, RFPinsEnable, 0x1fff); /* | tmp); */
 }
 
@@ -2806,14 +2783,6 @@ static void rtl8185_write_phy(struct net_device *dev, u8 adr, u32 data)
 	write_nic_byte(dev, 0x7e, ((phyw & 0x00ff0000) >> 16));
 	write_nic_byte(dev, 0x7d, ((phyw & 0x0000ff00) >> 8));
 	write_nic_byte(dev, 0x7c, ((phyw & 0x000000ff)));
-
-	/* this is ok to fail when we write AGC table. check for AGC table
-	 * might be done by masking with 0x7f instead of 0xff
-	 */
-	/*
-	if (phyr != (data&0xff))
-		DMESGW("Phy write timeout %x %x %x", phyr, data, adr);
-	*/
 }
 
 inline void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data)
@@ -2970,7 +2939,6 @@ void rtl8180_watch_dog(struct net_device *dev)
 		    (priv->eRFPowerState == RF_ON))
 			IPSEnter(dev);
 	}
-	/* YJ,add,080828,for link state check */
 	if ((priv->ieee80211->state == IEEE80211_LINKED) &&
 		(priv->ieee80211->iw_mode == IW_MODE_INFRA)) {
 		SlotIndex = (priv->link_detect.slot_index++) %
@@ -2990,10 +2958,8 @@ void rtl8180_watch_dog(struct net_device *dev)
 		}
 	}
 
-	/* YJ,add,080828,for KeepAlive */
 	MgntLinkKeepAlive(priv);
 
-	/* YJ,add,080828,for LPS */
 	LeisurePSLeave(priv);
 
 	if (priv->ieee80211->state == IEEE80211_LINKED) {
@@ -3445,7 +3411,7 @@ static void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 	int j, i;
 	int hd;
 	if (error)
-		priv->stats.txretry++; /* tony 20060601 */
+		priv->stats.txretry++;
 	spin_lock_irqsave(&priv->tx_lock, flag);
 	switch (pri) {
 	case MANAGE_PRIORITY:
@@ -3598,7 +3564,7 @@ static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
 
 	/* ISR: 4bytes */
-	inta = read_nic_dword(dev, ISR); /* & priv->IntrMask; */
+	inta = read_nic_dword(dev, ISR);
 	write_nic_dword(dev, ISR, inta); /* reset int situation */
 
 	priv->stats.shints++;
@@ -3644,7 +3610,7 @@ static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 	}
 
 	if (inta & ISR_THPDOK) { /* High priority tx ok */
-		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++;
 		priv->stats.txhpokint++;
 		rtl8180_tx_isr(dev, HI_PRIORITY, 0);
 	}
@@ -3707,14 +3673,14 @@ static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 		priv->stats.txoverflow++;
 
 	if (inta & ISR_TNPDOK) { /* Normal priority tx ok */
-		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++;
 		priv->stats.txnpokint++;
 		rtl8180_tx_isr(dev, NORM_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, NORM_PRIORITY);
 	}
 
 	if (inta & ISR_TLPDOK) { /* Low priority tx ok */
-		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++;
 		priv->stats.txlpokint++;
 		rtl8180_tx_isr(dev, LOW_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, LOW_PRIORITY);
@@ -3722,14 +3688,14 @@ static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 
 	if (inta & ISR_TBKDOK) { /* corresponding to BK_PRIORITY */
 		priv->stats.txbkpokint++;
-		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++;
 		rtl8180_tx_isr(dev, BK_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, BE_PRIORITY);
 	}
 
 	if (inta & ISR_TBEDOK) { /* corresponding to BE_PRIORITY */
 		priv->stats.txbeperr++;
-		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++;
 		rtl8180_tx_isr(dev, BE_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, BE_PRIORITY);
 	}
@@ -3768,7 +3734,7 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 	btPSR = read_nic_byte(dev, PSR);
 	write_nic_byte(dev, PSR, (btPSR & ~BIT3));
 
-	/* It need to delay 4us suggested by Jong, 2008-01-16 */
+	/* It need to delay 4us suggested */
 	udelay(4);
 
 	/* HW radio On/Off according to the value of FF51[4](config0) */
