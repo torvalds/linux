@@ -1126,7 +1126,8 @@ static int btree_check_reserve(struct btree *b, struct btree_op *op)
 
 /* Garbage collection */
 
-uint8_t __bch_btree_mark_key(struct cache_set *c, int level, struct bkey *k)
+static uint8_t __bch_btree_mark_key(struct cache_set *c, int level,
+				    struct bkey *k)
 {
 	uint8_t stale = 0;
 	unsigned i;
@@ -1176,6 +1177,26 @@ uint8_t __bch_btree_mark_key(struct cache_set *c, int level, struct bkey *k)
 }
 
 #define btree_mark_key(b, k)	__bch_btree_mark_key(b->c, b->level, k)
+
+void bch_initial_mark_key(struct cache_set *c, int level, struct bkey *k)
+{
+	unsigned i;
+
+	for (i = 0; i < KEY_PTRS(k); i++)
+		if (ptr_available(c, k, i) &&
+		    !ptr_stale(c, k, i)) {
+			struct bucket *b = PTR_BUCKET(c, k, i);
+
+			b->gen = PTR_GEN(k, i);
+
+			if (level && bkey_cmp(k, &ZERO_KEY))
+				b->prio = BTREE_PRIO;
+			else if (!level && b->prio == BTREE_PRIO)
+				b->prio = INITIAL_PRIO;
+		}
+
+	__bch_btree_mark_key(c, level, k);
+}
 
 static bool btree_gc_mark_node(struct btree *b, struct gc_stat *gc)
 {
@@ -1511,6 +1532,8 @@ static int bch_btree_gc_root(struct btree *b, struct btree_op *op,
 		}
 	}
 
+	__bch_btree_mark_key(b->c, b->level + 1, &b->key);
+
 	if (b->level) {
 		ret = btree_gc_recurse(b, op, writes, gc);
 		if (ret)
@@ -1560,11 +1583,6 @@ size_t bch_btree_gc_finish(struct cache_set *c)
 	set_gc_sectors(c);
 	c->gc_mark_valid = 1;
 	c->need_gc	= 0;
-
-	if (c->root)
-		for (i = 0; i < KEY_PTRS(&c->root->key); i++)
-			SET_GC_MARK(PTR_BUCKET(c, &c->root->key, i),
-				    GC_MARK_METADATA);
 
 	for (i = 0; i < KEY_PTRS(&c->uuid_bucket); i++)
 		SET_GC_MARK(PTR_BUCKET(c, &c->uuid_bucket, i),
@@ -1705,36 +1723,16 @@ int bch_gc_thread_start(struct cache_set *c)
 
 /* Initial partial gc */
 
-static int bch_btree_check_recurse(struct btree *b, struct btree_op *op,
-				   unsigned long **seen)
+static int bch_btree_check_recurse(struct btree *b, struct btree_op *op)
 {
 	int ret = 0;
-	unsigned i;
 	struct bkey *k, *p = NULL;
-	struct bucket *g;
 	struct btree_iter iter;
 
-	for_each_key_filter(&b->keys, k, &iter, bch_ptr_invalid) {
-		for (i = 0; i < KEY_PTRS(k); i++) {
-			if (!ptr_available(b->c, k, i))
-				continue;
+	for_each_key_filter(&b->keys, k, &iter, bch_ptr_invalid)
+		bch_initial_mark_key(b->c, b->level, k);
 
-			g = PTR_BUCKET(b->c, k, i);
-
-			if (!__test_and_set_bit(PTR_BUCKET_NR(b->c, k, i),
-						seen[PTR_DEV(k, i)]) ||
-			    !ptr_stale(b->c, k, i)) {
-				g->gen = PTR_GEN(k, i);
-
-				if (b->level && bkey_cmp(k, &ZERO_KEY))
-					g->prio = BTREE_PRIO;
-				else if (!b->level && g->prio == BTREE_PRIO)
-					g->prio = INITIAL_PRIO;
-			}
-		}
-
-		btree_mark_key(b, k);
-	}
+	bch_initial_mark_key(b->c, b->level + 1, &b->key);
 
 	if (b->level) {
 		bch_btree_iter_init(&b->keys, &iter, NULL);
@@ -1746,40 +1744,22 @@ static int bch_btree_check_recurse(struct btree *b, struct btree_op *op,
 				btree_node_prefetch(b->c, k, b->level - 1);
 
 			if (p)
-				ret = btree(check_recurse, p, b, op, seen);
+				ret = btree(check_recurse, p, b, op);
 
 			p = k;
 		} while (p && !ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 int bch_btree_check(struct cache_set *c)
 {
-	int ret = -ENOMEM;
-	unsigned i;
-	unsigned long *seen[MAX_CACHES_PER_SET];
 	struct btree_op op;
 
-	memset(seen, 0, sizeof(seen));
 	bch_btree_op_init(&op, SHRT_MAX);
 
-	for (i = 0; c->cache[i]; i++) {
-		size_t n = DIV_ROUND_UP(c->cache[i]->sb.nbuckets, 8);
-		seen[i] = kmalloc(n, GFP_KERNEL);
-		if (!seen[i])
-			goto err;
-
-		/* Disables the seen array until prio_read() uses it too */
-		memset(seen[i], 0xFF, n);
-	}
-
-	ret = btree_root(check_recurse, c, &op, seen);
-err:
-	for (i = 0; i < MAX_CACHES_PER_SET; i++)
-		kfree(seen[i]);
-	return ret;
+	return btree_root(check_recurse, c, &op);
 }
 
 /* Btree insertion */
