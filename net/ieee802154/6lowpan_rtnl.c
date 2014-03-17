@@ -447,9 +447,12 @@ static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct sk_buff *local_skb;
 	struct ieee802154_hdr hdr;
 	int ret;
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		goto drop;
 
 	if (!netif_running(dev))
 		goto drop_skb;
@@ -460,42 +463,36 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
 		goto drop_skb;
 
-	local_skb = skb_clone(skb, GFP_ATOMIC);
-	if (!local_skb)
-		goto drop_skb;
-
-	kfree_skb(skb);
-
 	/* check that it's our buffer */
 	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
-		local_skb->protocol = htons(ETH_P_IPV6);
-		local_skb->pkt_type = PACKET_HOST;
+		skb->protocol = htons(ETH_P_IPV6);
+		skb->pkt_type = PACKET_HOST;
 
 		/* Pull off the 1-byte of 6lowpan header. */
-		skb_pull(local_skb, 1);
+		skb_pull(skb, 1);
 
-		ret = lowpan_give_skb_to_devices(local_skb, NULL);
+		ret = lowpan_give_skb_to_devices(skb, NULL);
 		if (ret == NET_RX_DROP)
 			goto drop;
 	} else {
 		switch (skb->data[0] & 0xe0) {
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
-			ret = process_data(local_skb, &hdr);
+			ret = process_data(skb, &hdr);
 			if (ret == NET_RX_DROP)
 				goto drop;
 			break;
 		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
-			ret = lowpan_frag_rcv(local_skb, LOWPAN_DISPATCH_FRAG1);
+			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAG1);
 			if (ret == 1) {
-				ret = process_data(local_skb, &hdr);
+				ret = process_data(skb, &hdr);
 				if (ret == NET_RX_DROP)
 					goto drop;
 			}
 			break;
 		case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
-			ret = lowpan_frag_rcv(local_skb, LOWPAN_DISPATCH_FRAGN);
+			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAGN);
 			if (ret == 1) {
-				ret = process_data(local_skb, &hdr);
+				ret = process_data(skb, &hdr);
 				if (ret == NET_RX_DROP)
 					goto drop;
 			}
