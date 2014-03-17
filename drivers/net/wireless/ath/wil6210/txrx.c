@@ -557,6 +557,11 @@ int wil_rx_init(struct wil6210_priv *wil)
 	struct vring *vring = &wil->vring_rx;
 	int rc;
 
+	if (vring->va) {
+		wil_err(wil, "Rx ring already allocated\n");
+		return -EINVAL;
+	}
+
 	vring->size = WIL6210_RX_RING_SIZE;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)

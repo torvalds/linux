@@ -343,6 +343,8 @@ int wil_reset(struct wil6210_priv *wil)
 	/* TODO: put MAC in reset */
 	wil_target_reset(wil);
 
+	wil_rx_fini(wil);
+
 	/* init after reset */
 	wil->pending_connect_cid = -1;
 	reinit_completion(&wil->wmi_ready);
