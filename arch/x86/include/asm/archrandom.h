@@ -114,6 +114,9 @@ GET_SEED(arch_get_random_seed_int, unsigned int, RDSEED_INT, ASM_NOP4);
 
 #endif /* CONFIG_X86_64 */
 
+#define arch_has_random()	static_cpu_has(X86_FEATURE_RDRAND)
+#define arch_has_random_seed()	static_cpu_has(X86_FEATURE_RDSEED)
+
 #else
 
 static inline int rdrand_long(unsigned long *v)

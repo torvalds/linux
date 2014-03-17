@@ -1307,6 +1307,9 @@ static int arch_random_refill(void)
 	unsigned int i;
 	unsigned long buf[nlongs];
 
+	if (!arch_has_random_seed())
+		return 0;
+
 	for (i = 0; i < nlongs; i++) {
 		if (arch_get_random_seed_long(&buf[n]))
 			n++;
