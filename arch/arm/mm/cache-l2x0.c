@@ -92,9 +92,9 @@ static void l2c_enable(void __iomem *base, u32 aux, unsigned num_lock)
 {
 	unsigned long flags;
 
-	l2c_unlock(base, num_lock);
-
 	writel_relaxed(aux, base + L2X0_AUX_CTRL);
+
+	l2c_unlock(base, num_lock);
 
 	local_irq_save(flags);
 	__l2c_op_way(base + L2X0_INV_WAY);
@@ -368,11 +368,11 @@ static void l2x0_unlock(u32 cache_id)
 
 static void l2x0_enable(void __iomem *base, u32 aux, unsigned num_lock)
 {
-	/* Make sure that I&D is not locked down when starting */
-	l2x0_unlock(readl_relaxed(base + L2X0_CACHE_ID));
-
 	/* l2x0 controller is disabled */
 	writel_relaxed(aux, base + L2X0_AUX_CTRL);
+
+	/* Make sure that I&D is not locked down when starting */
+	l2x0_unlock(readl_relaxed(base + L2X0_CACHE_ID));
 
 	l2x0_inv_all();
 
