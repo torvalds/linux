@@ -231,7 +231,7 @@ efivar_store_raw(struct efivar_entry *entry, const char *buf, size_t count)
 	}
 
 	if ((attributes & ~EFI_VARIABLE_MASK) != 0 ||
-	    efivar_validate(new_var, data, size) == false) {
+	    efivar_validate(name, data, size) == false) {
 		printk(KERN_ERR "efivars: Malformed variable content\n");
 		return -EINVAL;
 	}
@@ -339,6 +339,7 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 {
 	struct efi_variable *new_var = (struct efi_variable *)buf;
 	struct efivar_entry *new_entry;
+	efi_char16_t *name;
 	unsigned long size;
 	u32 attributes;
 	u8 *data;
@@ -351,11 +352,12 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 
 	attributes = new_var->Attributes;
+	name = new_var->VariableName;
 	size = new_var->DataSize;
 	data = new_var->Data;
 
 	if ((attributes & ~EFI_VARIABLE_MASK) != 0 ||
-	    efivar_validate(new_var, data, size) == false) {
+	    efivar_validate(name, data, size) == false) {
 		printk(KERN_ERR "efivars: Malformed variable content\n");
 		return -EINVAL;
 	}
