@@ -242,7 +242,7 @@ static inline bool IS_DNODE(struct page *node_page)
 {
 	unsigned int ofs = ofs_of_node(node_page);
 
-	if (ofs == XATTR_NODE_OFFSET)
+	if (f2fs_has_xattr_block(ofs))
 		return false;
 
 	if (ofs == 3 || ofs == 4 + NIDS_PER_BLOCK ||

@@ -836,7 +836,7 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	SetPageUptodate(page);
 	set_page_dirty(page);
 
-	if (ofs == XATTR_NODE_OFFSET)
+	if (f2fs_has_xattr_block(ofs))
 		F2FS_I(dn->inode)->i_xattr_nid = dn->nid;
 
 	dn->node_page = page;
@@ -1533,7 +1533,7 @@ bool recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
 
 	recover_inline_xattr(inode, page);
 
-	if (ofs_of_node(page) != XATTR_NODE_OFFSET)
+	if (!f2fs_has_xattr_block(ofs_of_node(page)))
 		return false;
 
 	/* 1: invalidate the previous xattr nid */
