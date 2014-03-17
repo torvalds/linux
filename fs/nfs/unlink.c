@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/namei.h>
+#include <linux/fsnotify.h>
 
 #include "internal.h"
 #include "nfs4_fs.h"
@@ -465,8 +466,18 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 static void
 nfs_complete_sillyrename(struct rpc_task *task, struct nfs_renamedata *data)
 {
-	if (task->tk_status != 0)
-		nfs_cancel_async_unlink(data->old_dentry);
+	struct dentry *dentry = data->old_dentry;
+
+	if (task->tk_status != 0) {
+		nfs_cancel_async_unlink(dentry);
+		return;
+	}
+
+	/*
+	 * vfs_unlink and the like do not issue this when a file is
+	 * sillyrenamed, so do it here.
+	 */
+	fsnotify_nameremove(dentry, 0);
 }
 
 #define SILLYNAME_PREFIX ".nfs"
