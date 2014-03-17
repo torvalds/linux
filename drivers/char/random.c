@@ -844,6 +844,8 @@ void add_interrupt_randomness(int irq, int irq_flags)
 	cycles_t		cycles = random_get_entropy();
 	__u32			input[4], c_high, j_high;
 	__u64			ip;
+	unsigned long		seed;
+	int			credit;
 
 	c_high = (sizeof(cycles) > 4) ? cycles >> 32 : 0;
 	j_high = (sizeof(now) > 4) ? now >> 32 : 0;
@@ -862,20 +864,33 @@ void add_interrupt_randomness(int irq, int irq_flags)
 
 	r = nonblocking_pool.initialized ? &input_pool : &nonblocking_pool;
 	__mix_pool_bytes(r, &fast_pool->pool, sizeof(fast_pool->pool), NULL);
+
 	/*
 	 * If we don't have a valid cycle counter, and we see
 	 * back-to-back timer interrupts, then skip giving credit for
-	 * any entropy.
+	 * any entropy, otherwise credit 1 bit.
 	 */
+	credit = 1;
 	if (cycles == 0) {
 		if (irq_flags & __IRQF_TIMER) {
 			if (fast_pool->last_timer_intr)
-				return;
+				credit = 0;
 			fast_pool->last_timer_intr = 1;
 		} else
 			fast_pool->last_timer_intr = 0;
 	}
-	credit_entropy_bits(r, 1);
+
+	/*
+	 * If we have architectural seed generator, produce a seed and
+	 * add it to the pool.  For the sake of paranoia count it as
+	 * 50% entropic.
+	 */
+	if (arch_get_random_seed_long(&seed)) {
+		__mix_pool_bytes(r, &seed, sizeof(seed), NULL);
+		credit += sizeof(seed) * 4;
+	}
+
+	credit_entropy_bits(r, credit);
 }
 
 #ifdef CONFIG_BLOCK
@@ -1235,7 +1250,8 @@ static void init_std_data(struct entropy_store *r)
 	r->last_pulled = jiffies;
 	mix_pool_bytes(r, &now, sizeof(now), NULL);
 	for (i = r->poolinfo->poolbytes; i > 0; i -= sizeof(rv)) {
-		if (!arch_get_random_long(&rv))
+		if (!arch_get_random_seed_long(&rv) &&
+		    !arch_get_random_long(&rv))
 			rv = random_get_entropy();
 		mix_pool_bytes(r, &rv, sizeof(rv), NULL);
 	}
