@@ -1674,7 +1674,7 @@ int nf_conntrack_init_start(void)
 	int max_factor = 8;
 	int i, ret, cpu;
 
-	for (i = 0; i < ARRAY_SIZE(nf_conntrack_locks); i++)
+	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_conntrack_locks[i]);
 
 	/* Idea from tcp.c: use 1/16384 of memory.  On i386: 32MB
