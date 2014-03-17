@@ -265,6 +265,7 @@ static dma_addr_t dma_map_xdr(struct svcxprt_rdma *xprt,
 		xdr_off -= xdr->head[0].iov_len;
 		if (xdr_off < xdr->page_len) {
 			/* This offset is in the page list */
+			xdr_off += xdr->page_base;
 			page = xdr->pages[xdr_off >> PAGE_SHIFT];
 			xdr_off &= ~PAGE_MASK;
 		} else {
