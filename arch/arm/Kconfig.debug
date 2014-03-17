@@ -113,7 +113,7 @@ choice
 
 	config DEBUG_BCM_KONA_UART
 		bool "Kernel low-level debugging messages via BCM KONA UART"
-		depends on ARCH_BCM
+		depends on ARCH_BCM_MOBILE
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
