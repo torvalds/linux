@@ -1007,7 +1007,7 @@ static int  device_open(struct net_device *dev)
 
 	schedule_delayed_work(&pDevice->second_callback_work, HZ);
 
-	pDevice->int_interval = 100;  /* max 100 microframes */
+	pDevice->int_interval = 1;  /* bInterval is set to 1 */
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
     pDevice->bIsRxWorkItemQueued = true;
