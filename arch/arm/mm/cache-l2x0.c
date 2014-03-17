@@ -92,7 +92,9 @@ static void l2c_enable(void __iomem *base, u32 aux, unsigned num_lock)
 {
 	unsigned long flags;
 
-	writel_relaxed(aux, base + L2X0_AUX_CTRL);
+	/* Only write the aux register if it needs changing */
+	if (readl_relaxed(base + L2X0_AUX_CTRL) != aux)
+		writel_relaxed(aux, base + L2X0_AUX_CTRL);
 
 	l2c_unlock(base, num_lock);
 
