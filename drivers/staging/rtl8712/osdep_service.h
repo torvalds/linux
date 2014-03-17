@@ -147,7 +147,8 @@ static inline u32 _queue_empty(struct  __queue *pqueue)
 	return is_list_empty(&(pqueue->queue));
 }
 
-static inline u32 end_of_queue_search(struct list_head *head, struct list_head *plist)
+static inline u32 end_of_queue_search(struct list_head *head,
+		struct list_head *plist)
 {
 	if (head == plist)
 		return true;
