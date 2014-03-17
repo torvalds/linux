@@ -29,7 +29,6 @@ static void *pGRF_BASE = NULL;
 inline static void *get_grf_base(struct device_node *np)
 {
     void *grf_base = of_iomap(of_get_parent(np), 0);
-
     if(of_machine_is_compatible("rockchip,rk3188"))
         return (grf_base - 0xac);
     else if(of_machine_is_compatible("rockchip,rk3288"))
@@ -71,7 +70,12 @@ inline static void uoc_init_rk(struct device_node *np)
 {
     pBC_UOC_FIELDS = (uoc_field_t *)kzalloc(RK_BC_MAX * sizeof(uoc_field_t), GFP_ATOMIC);
 
-    uoc_init_field(np, "rk_usb,bvalid", &pBC_UOC_FIELDS[RK_BC_BVALID]);
+    uoc_init_field(np, "rk_usb,bvalid",   &pBC_UOC_FIELDS[RK_BC_BVALID]);
+    uoc_init_field(np, "rk_usb,line",     &pBC_UOC_FIELDS[RK_BC_LINESTATE]);
+    uoc_init_field(np, "rk_usb,softctrl", &pBC_UOC_FIELDS[RK_BC_SOFTCTRL]);
+    uoc_init_field(np, "rk_usb,opmode",   &pBC_UOC_FIELDS[RK_BC_OPMODE]);
+    uoc_init_field(np, "rk_usb,xcvrsel",  &pBC_UOC_FIELDS[RK_BC_XCVRSELECT]);
+    uoc_init_field(np, "rk_usb,termsel",  &pBC_UOC_FIELDS[RK_BC_TERMSELECT]);
 }
 
 inline static void uoc_init_inno(struct device_node *np)
@@ -85,11 +89,35 @@ int usb_battery_charger_detect_rk(bool wait)
 {
 
     int port_type = USB_BC_TYPE_DISCNT;
-
+    
     if(BC_GET(RK_BC_BVALID))
-        port_type = USB_BC_TYPE_SDP;
-
-    printk("%s rk3188 kernel-3.10 not suppert this function\n",__func__);
+    {   
+        mdelay(10);
+        BC_SET(RK_BC_SOFTCTRL, 1);
+        BC_SET(RK_BC_OPMODE, 0);
+        BC_SET(RK_BC_XCVRSELECT, 1);
+        BC_SET(RK_BC_TERMSELECT, 1);
+        
+        mdelay(1);
+        switch (BC_GET(RK_BC_LINESTATE))
+        {
+            case 1:
+                port_type = USB_BC_TYPE_SDP;
+                break;
+                
+            case 3:
+                port_type = USB_BC_TYPE_DCP;
+                break;
+                
+            default:
+                port_type = USB_BC_TYPE_SDP;
+                printk("%s linestate = %d bad status\n", __func__, BC_GET(RK_BC_LINESTATE));
+        }
+        
+    }
+    BC_SET(RK_BC_SOFTCTRL, 0);    
+    
+    printk("%s , battery_charger_detect %d\n", __func__, port_type);
     return port_type;
 }
 

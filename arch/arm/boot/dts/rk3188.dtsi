@@ -727,7 +727,12 @@
 
 		usb_bc{
 			compatible = "rockchip,ctrl";
-			rk_usb,bvalid     = <0xac  10 1>;
+			rk_usb,bvalid   = <0xac 10 1>;
+			rk_usb,line	= <0xac 11 2>;
+			rk_usb,softctrl = <0x114 2 1>;
+			rk_usb,opmode   = <0x118 1 2>;
+			rk_usb,xcvrsel  = <0x118 3 2>;
+			rk_usb,termsel  = <0x118 5 1>; 
 		};
 	};
 	

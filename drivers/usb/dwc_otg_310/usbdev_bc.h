@@ -20,6 +20,11 @@ enum {
 
 enum {
     RK_BC_BVALID = 0,
+    RK_BC_LINESTATE,
+    RK_BC_SOFTCTRL,
+    RK_BC_OPMODE,
+    RK_BC_XCVRSELECT,
+    RK_BC_TERMSELECT,
     RK_BC_MAX,
 };
 
