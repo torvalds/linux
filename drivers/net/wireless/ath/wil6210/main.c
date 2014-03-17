@@ -230,7 +230,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 
 static void wil_target_reset(struct wil6210_priv *wil)
 {
-	int delay = 100;
+	int delay = 0;
 	u32 baud_rate;
 	u32 rev_id;
 
@@ -277,7 +277,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	do {
 		msleep(1);
 		baud_rate = R(RGF_USER_SERIAL_BAUD_RATE);
-		if (delay-- < 0) {
+		if (delay++ > 100) {
 			wil_err(wil, "Reset not completed\n");
 			return;
 		}
@@ -286,7 +286,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	if (rev_id == 2)
 		W(RGF_LOS_COUNTER_CTL, BIT(8));
 
-	wil_dbg_misc(wil, "Reset completed\n");
+	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
 
 #undef R
 #undef W
