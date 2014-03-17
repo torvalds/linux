@@ -74,6 +74,8 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	if (rc)
 		goto release_irq;
 
+	wil_info(wil, "HW version: 0x%08x\n", wil->hw_version);
+
 	return 0;
 
  release_irq:

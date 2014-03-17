@@ -230,14 +230,22 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 
 static void wil_target_reset(struct wil6210_priv *wil)
 {
+	int delay = 100;
+	u32 baud_rate;
+	u32 rev_id;
+
 	wil_dbg_misc(wil, "Resetting...\n");
 
+	/* register read */
+#define R(a) ioread32(wil->csr + HOSTADDR(a))
 	/* register write */
 #define W(a, v) iowrite32(v, wil->csr + HOSTADDR(a))
 	/* register set = read, OR, write */
 #define S(a, v) iowrite32(ioread32(wil->csr + HOSTADDR(a)) | v, \
 		wil->csr + HOSTADDR(a))
 
+	wil->hw_version = R(RGF_FW_REV_ID);
+	rev_id = wil->hw_version & 0xff;
 	/* hpal_perst_from_pad_src_n_mask */
 	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(6));
 	/* car_perst_rst_src_n_mask */
@@ -257,11 +265,30 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00000080);
+	if (rev_id == 1) {
+		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00000080);
+	} else {
+		W(RGF_LOS_COUNTER_CTL, BIT(6) | BIT(8));
+		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
+	}
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+
+	/* wait until device ready. Use baud rate */
+	do {
+		msleep(1);
+		baud_rate = R(RGF_USER_SERIAL_BAUD_RATE);
+		if (delay-- < 0) {
+			wil_err(wil, "Reset not completed\n");
+			return;
+		}
+	} while (baud_rate != 0x15e);
+
+	if (rev_id == 2)
+		W(RGF_LOS_COUNTER_CTL, BIT(8));
 
 	wil_dbg_misc(wil, "Reset completed\n");
 
+#undef R
 #undef W
 #undef S
 }

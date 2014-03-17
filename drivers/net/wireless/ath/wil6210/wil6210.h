@@ -74,6 +74,9 @@ struct RGF_ICR {
 } __packed;
 
 /* registers - FW addresses */
+#define RGF_FW_REV_ID			(0x880a8c) /* chip revision */
+#define RGF_USER_SERIAL_BAUD_RATE	(0x880050)
+#define RGF_LOS_COUNTER_CTL		(0x882dc4)
 #define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
 #define RGF_USER_USER_ICR		(0x880b4c) /* struct RGF_ICR */
 	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
@@ -342,6 +345,7 @@ struct wil6210_priv {
 	void __iomem *csr;
 	ulong status;
 	u32 fw_version;
+	u32 hw_version;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	/* profile */
 	u32 monitor_flags;
