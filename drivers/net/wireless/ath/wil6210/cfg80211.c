@@ -327,6 +327,10 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	int ch;
 	int rc = 0;
 
+	if (test_bit(wil_status_fwconnecting, &wil->status) ||
+	    test_bit(wil_status_fwconnected, &wil->status))
+		return -EALREADY;
+
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
 			       WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
