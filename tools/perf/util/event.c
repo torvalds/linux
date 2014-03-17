@@ -793,11 +793,6 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	if (thread == NULL)
 		return -1;
 
-	if (thread__is_filtered(thread)) {
-		al->filtered |= (1 << HIST_FILTER__THREAD);
-		goto out_filtered;
-	}
-
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 	/*
 	 * Have we already created the kernel maps for this machine?
@@ -815,6 +810,10 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
+
+	if (thread__is_filtered(thread))
+		al->filtered |= (1 << HIST_FILTER__THREAD);
+
 	al->sym = NULL;
 	al->cpu = sample->cpu;
 
@@ -828,7 +827,6 @@ int perf_event__preprocess_sample(const union perf_event *event,
 				strlist__has_entry(symbol_conf.dso_list,
 						   dso->long_name))))) {
 			al->filtered |= (1 << HIST_FILTER__DSO);
-			goto out_filtered;
 		}
 
 		al->sym = map__find_symbol(al->map, al->addr,
@@ -839,11 +837,7 @@ int perf_event__preprocess_sample(const union perf_event *event,
 		(!al->sym || !strlist__has_entry(symbol_conf.sym_list,
 						al->sym->name))) {
 		al->filtered |= (1 << HIST_FILTER__SYMBOL);
-		goto out_filtered;
 	}
 
-	return 0;
-
-out_filtered:
 	return 0;
 }
