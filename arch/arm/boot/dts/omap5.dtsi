@@ -302,6 +302,8 @@
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			ti,hwmods = "gpmc";
+			clocks = <&l3_iclk_div>;
+			clock-names = "fck";
 		};
 
 		i2c1: i2c@48070000 {

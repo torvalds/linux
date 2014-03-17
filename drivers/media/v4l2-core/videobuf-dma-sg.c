@@ -338,14 +338,11 @@ EXPORT_SYMBOL_GPL(videobuf_dma_free);
 static void videobuf_vm_open(struct vm_area_struct *vma)
 {
 	struct videobuf_mapping *map = vma->vm_private_data;
-	struct videobuf_queue *q = map->q;
 
 	dprintk(2, "vm_open %p [count=%d,vma=%08lx-%08lx]\n", map,
 		map->count, vma->vm_start, vma->vm_end);
 
-	videobuf_queue_lock(q);
 	map->count++;
-	videobuf_queue_unlock(q);
 }
 
 static void videobuf_vm_close(struct vm_area_struct *vma)
@@ -358,9 +355,10 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	dprintk(2, "vm_close %p [count=%d,vma=%08lx-%08lx]\n", map,
 		map->count, vma->vm_start, vma->vm_end);
 
-	videobuf_queue_lock(q);
-	if (!--map->count) {
+	map->count--;
+	if (0 == map->count) {
 		dprintk(1, "munmap %p q=%p\n", map, q);
+		videobuf_queue_lock(q);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -376,9 +374,9 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 			q->bufs[i]->baddr = 0;
 			q->ops->buf_release(q, q->bufs[i]);
 		}
+		videobuf_queue_unlock(q);
 		kfree(map);
 	}
-	videobuf_queue_unlock(q);
 	return;
 }
 

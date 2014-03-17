@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include "irqs.h" /* PXA_GPIO_TO_IRQ */
 
 /* BTRESET - Reset line to Bluetooth module, active low signal. */
 #define GPIO_GUMSTIX_BTRESET          7

@@ -4,6 +4,8 @@ apm-acpi.txt
 	- basic info about the APM and ACPI support.
 basic-pm-debugging.txt
 	- Debugging suspend and resume
+charger-manager.txt
+	- Battery charger management.
 devices.txt
 	- How drivers interact with system-wide power management
 drivers-testing.txt
@@ -22,6 +24,8 @@ pm_qos_interface.txt
 	- info on Linux PM Quality of Service interface
 power_supply_class.txt
 	- Tells userspace about battery, UPS, AC or DC power supply properties
+runtime_pm.txt
+	- Power management framework for I/O devices.
 s2ram.txt
 	- How to get suspend to ram working (and debug it when it isn't)
 states.txt
@@ -38,7 +42,5 @@ tricks.txt
 	- How to trick software suspend (to disk) into working when it isn't
 userland-swsusp.txt
 	- Experimental implementation of software suspend in userspace
-video_extension.txt
-	- ACPI video extensions
 video.txt
 	- Video issues during resume from suspend

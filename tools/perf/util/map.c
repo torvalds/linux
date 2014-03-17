@@ -39,6 +39,7 @@ void map__init(struct map *map, enum map_type type,
 	map->start    = start;
 	map->end      = end;
 	map->pgoff    = pgoff;
+	map->reloc    = 0;
 	map->dso      = dso;
 	map->map_ip   = map__map_ip;
 	map->unmap_ip = map__unmap_ip;
@@ -288,7 +289,7 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	if (map->dso->rel)
 		return rip - map->pgoff;
 
-	return map->unmap_ip(map, rip);
+	return map->unmap_ip(map, rip) - map->reloc;
 }
 
 /**
@@ -311,7 +312,7 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	if (map->dso->rel)
 		return map->unmap_ip(map, ip + map->pgoff);
 
-	return ip;
+	return ip + map->reloc;
 }
 
 void map_groups__init(struct map_groups *mg)
