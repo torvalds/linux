@@ -20,7 +20,7 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/regulator/rk29-pwm-regulator.h>
+#include <linux/regulator/rockchip-pwm-regulator.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/module.h>

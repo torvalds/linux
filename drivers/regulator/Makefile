@@ -52,7 +52,7 @@ obj-$(CONFIG_REGULATOR_RC5T583)  += rc5t583-regulator.o
 obj-$(CONFIG_REGULATOR_S2MPS11) += s2mps11.o
 obj-$(CONFIG_REGULATOR_S5M8767) += s5m8767.o
 
-obj-$(CONFIG_ROCKCHIP_PWM_REGULATOR) += rk30-pwm-regulator.o
+obj-$(CONFIG_ROCKCHIP_PWM_REGULATOR) += rockchip-pwm-regulator.o
 
 obj-$(CONFIG_REGULATOR_TPS6105X) += tps6105x-regulator.o
 obj-$(CONFIG_REGULATOR_TPS62360) += tps62360-regulator.o
