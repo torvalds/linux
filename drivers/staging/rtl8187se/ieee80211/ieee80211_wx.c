@@ -66,7 +66,7 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.data.length = sizeof("<hidden>");
 		start = iwe_stream_add_point(info, start, stop, &iwe, "<hidden>");
 	} else {
-		iwe.u.data.length = min(network->ssid_len, (u8)32);
+		iwe.u.data.length = min_t(u8, network->ssid_len, 32);
 		start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
 	}
 	/* Add the protocol name */
