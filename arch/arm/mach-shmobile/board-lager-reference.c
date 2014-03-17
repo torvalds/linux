@@ -108,9 +108,20 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "lvds1", "lvds.1", "rcar-du-r8a7790" },
 };
 
+/*
+ * This is a really crude hack to work around core platform clock issues
+ */
+static const struct clk_name clk_enables[] __initconst = {
+	{ "ether", NULL, "ee700000.ethernet" },
+	{ "msiof1", NULL, "e6e10000.spi" },
+	{ "qspi_mod", NULL, "e6b10000.spi" },
+	{ "thermal", NULL, "e61f0000.thermal" },
+};
+
 static void __init lager_add_standard_devices(void)
 {
 	shmobile_clk_workaround(clk_names, ARRAY_SIZE(clk_names), false);
+	shmobile_clk_workaround(clk_enables, ARRAY_SIZE(clk_enables), true);
 	r8a7790_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
