@@ -138,8 +138,8 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	/* Add quality statistics */
 	/* TODO: Fix these values... */
 	if (network->stats.signal == 0 || network->stats.rssi == 0)
-		printk("========>signal:%d, rssi:%d\n", network->stats.signal,
-		       network->stats.rssi);
+		netdev_info(ieee->dev, "========>signal:%d, rssi:%d\n",
+			    network->stats.signal, network->stats.rssi);
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.qual = network->stats.signalstrength;
 	iwe.u.qual.level = network->stats.signal;
@@ -541,7 +541,8 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	if (ops == NULL) {
 		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
-		printk("========>unknown crypto alg %d\n", ext->alg);
+		netdev_err(ieee->dev, "========>unknown crypto alg %d\n",
+			   ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -572,7 +573,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
 		IEEE80211_DEBUG_WX("%s: key setting failed\n", dev->name);
-		printk("key setting failed\n");
+		netdev_err(ieee->dev, "key setting failed\n");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -684,13 +685,13 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 	u8 *buf = NULL;
 
 	if (len > MAX_WPA_IE_LEN || (len && ie == NULL)) {
-		printk("return error out, len:%zu\n", len);
+		netdev_err(ieee->dev, "return error out, len:%zu\n", len);
 	return -EINVAL;
 	}
 
 	if (len) {
 		if (len != ie[1]+2) {
-			printk("len:%zu, ie:%d\n", len, ie[1]);
+			netdev_err(ieee->dev, "len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
 		buf = kmemdup(ie, len, GFP_KERNEL);
