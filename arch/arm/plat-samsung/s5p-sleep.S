@@ -59,13 +59,15 @@ ENTRY(s3c_cpu_resume)
 	and	r0, r0, r1
 	ldr	r1, =CPU_CORTEX_A9
 	cmp	r0, r1
-	bne	resume_l2on
+	bne	skip_l2_resume
 	adr	r0, l2x0_regs_phys
 	ldr	r0, [r0]
+	cmp	r0, #0
+	beq	skip_l2_resume
 	ldr	r1, [r0, #L2X0_R_PHY_BASE]
 	ldr	r2, [r1, #L2X0_CTRL]
 	tst	r2, #0x1
-	bne	resume_l2on
+	bne	skip_l2_resume
 	ldr	r2, [r0, #L2X0_R_AUX_CTRL]
 	str	r2, [r1, #L2X0_AUX_CTRL]
 	ldr	r2, [r0, #L2X0_R_TAG_LATENCY]
@@ -78,7 +80,7 @@ ENTRY(s3c_cpu_resume)
 	str	r2, [r1, #L2X0_POWER_CTRL]
 	mov	r2, #1
 	str	r2, [r1, #L2X0_CTRL]
-resume_l2on:
+skip_l2_resume:
 #endif
 	b	cpu_resume
 ENDPROC(s3c_cpu_resume)
