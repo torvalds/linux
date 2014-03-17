@@ -563,7 +563,7 @@
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "otg_id", "bvalid",
+		interrupt-names = "otg_id", "otg_bvalid",
 				  "otg_linestate", "host0_linestate",
 				  "host1_linestate";
 		/*gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,*//*HOST_VBUS_DRV*/
