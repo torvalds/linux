@@ -149,7 +149,7 @@ MYPROCTYPE *visor_proc_CreateType(struct proc_dir_entry *procDirRoot,
 	type->nNames = 0;
 	type->show_property = show_property;
 	type->procDirRoot = procDirRoot;
-	if (type->propertyNames != 0)
+	if (type->propertyNames != NULL)
 		while (type->propertyNames[type->nProperties] != NULL)
 			type->nProperties++;
 	while (type->name[type->nNames] != NULL)

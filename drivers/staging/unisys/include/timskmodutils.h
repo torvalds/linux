@@ -24,28 +24,6 @@ void *kmalloc_kernel(size_t siz);
 void  myprintk(const char *myDrvName, const char *devname,
 		const char *template, ...);
 
-/** Print the hexadecimal contents of a data buffer to a supplied print buffer.
- *  @param dest               the print buffer where text characters will be
- *                            written
- *  @param destSize           the maximum number of bytes that can be written
- *                            to #dest
- *  @param src                the buffer that contains the data that is to be
- *                            hex-dumped
- *  @param srcLen             the number of bytes at #src to be hex-dumped
- *  @param bytesToDumpPerLine output will be formatted such that at most this
- *                            many of the input data bytes will be represented
- *                            on each line of output
- *  @return                   the number of text characters written to #dest
- *                            (not including the trailing '\0' byte)
- *  @ingroup internal
- */
-int   visor_hexDumpToBuffer(char *dest,
-			    int destSize,
-			    char *prefix,
-			    char *src,
-			    int srcLen,
-			    int bytesToDumpPerLine);
-
 /*--------------------------------*
  *---  GENERAL MESSAGEQ STUFF  ---*
  *--------------------------------*/

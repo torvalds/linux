@@ -603,9 +603,9 @@ void
 visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 			  int off, int len, struct seq_file *seq)
 {
-	char *buf = NULL, *fmtbuf = NULL;
+	char *buf, *tbuf, *fmtbuf;
 	int fmtbufsize = 0;
-	int i = 0;
+	int i;
 	int errcode = 0;
 
 	fmtbufsize = 100 * COVQ(len, 16);
@@ -621,9 +621,14 @@ visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 		goto Away;
 	}
 	seq_printf(seq, "channel %s:\n", s);
-	visor_hexDumpToBuffer(fmtbuf, fmtbufsize, "  ", buf, len, 16);
-	for (i = 0; fmtbuf[i] != '\0'; i++)
-		seq_printf(seq, "%c", fmtbuf[i]);
+	tbuf = buf;
+	while (len > 0) {
+		i = (len < 16) ? len : 16;
+		hex_dump_to_buffer(tbuf, i, 16, 1, fmtbuf, fmtbufsize, TRUE);
+		seq_printf(seq, "%s\n", fmtbuf);
+		tbuf += 16;
+		len -= 16;
+	}
 
 Away:
 	if (buf != NULL) {
