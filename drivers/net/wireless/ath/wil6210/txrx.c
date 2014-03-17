@@ -956,11 +956,15 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	struct ethhdr *eth = (void *)skb->data;
 	struct vring *vring;
+	static bool pr_once_fw;
 	int rc;
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
 	if (!test_bit(wil_status_fwready, &wil->status)) {
-		wil_err(wil, "FW not ready\n");
+		if (!pr_once_fw) {
+			wil_err(wil, "FW not ready\n");
+			pr_once_fw = true;
+		}
 		goto drop;
 	}
 	if (!test_bit(wil_status_fwconnected, &wil->status)) {
@@ -971,6 +975,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		wil_err(wil, "Xmit in monitor mode not supported\n");
 		goto drop;
 	}
+	pr_once_fw = false;
 
 	/* find vring */
 	if (is_unicast_ether_addr(eth->h_dest)) {
