@@ -1020,7 +1020,8 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		aic31xx_power_off(codec);
+		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY)
+			aic31xx_power_off(codec);
 		break;
 	}
 	codec->dapm.bias_level = level;
