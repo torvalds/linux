@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <asm/cpufeature.h>
 #include <asm/msr.h>
@@ -69,7 +70,8 @@ __setup_param("vdso=", vdso32_setup, vdso_setup, 0);
 EXPORT_SYMBOL_GPL(vdso_enabled);
 #endif
 
-static struct page *vdso32_pages[1];
+static struct page **vdso32_pages;
+static unsigned int vdso32_size;
 
 #ifdef CONFIG_X86_64
 
@@ -115,11 +117,10 @@ void enable_sep_cpu(void)
 
 int __init sysenter_setup(void)
 {
-	void *vdso_page = (void *)get_zeroed_page(GFP_ATOMIC);
+	void *vdso_pages;
 	const void *vdso;
 	size_t vdso_len;
-
-	vdso32_pages[0] = virt_to_page(vdso_page);
+	unsigned int i;
 
 	if (vdso32_syscall()) {
 		vdso = &vdso32_syscall_start;
@@ -132,8 +133,15 @@ int __init sysenter_setup(void)
 		vdso_len = &vdso32_int80_end - &vdso32_int80_start;
 	}
 
-	memcpy(vdso_page, vdso, vdso_len);
-	patch_vdso32(vdso_page, vdso_len);
+	vdso32_size = (vdso_len + PAGE_SIZE - 1) / PAGE_SIZE;
+	vdso32_pages = kmalloc(sizeof(*vdso32_pages) * vdso32_size, GFP_ATOMIC);
+	vdso_pages = kmalloc(VDSO_OFFSET(vdso32_size), GFP_ATOMIC);
+
+	for(i = 0; i != vdso32_size; ++i)
+		vdso32_pages[i] = virt_to_page(vdso_pages + VDSO_OFFSET(i));
+
+	memcpy(vdso_pages, vdso, vdso_len);
+	patch_vdso32(vdso_pages, vdso_len);
 
 	return 0;
 }
@@ -169,7 +177,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 */
 	ret = install_special_mapping(mm,
 			addr,
-			VDSO_OFFSET(VDSO_PAGES - VDSO_PREV_PAGES),
+			VDSO_OFFSET(vdso32_size),
 			VM_READ|VM_EXEC|
 			VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 			vdso32_pages);
