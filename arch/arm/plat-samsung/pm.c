@@ -24,6 +24,8 @@
 #include <asm/cacheflush.h>
 #include <asm/suspend.h>
 
+#include <plat/cpu.h>
+
 #ifdef CONFIG_SAMSUNG_ATAGS
 #include <mach/hardware.h>
 #include <mach/map.h>
@@ -70,17 +72,6 @@ static inline void s3c_pm_debug_init(void)
 	s3c_pm_debug_init_uart();
 }
 
-#else
-#define s3c_pm_debug_init() do { } while(0)
-
-#endif /* CONFIG_SAMSUNG_PM_DEBUG */
-
-/* Save the UART configurations if we are configured for debug. */
-
-unsigned char pm_uart_udivslot;
-
-#ifdef CONFIG_SAMSUNG_PM_DEBUG
-
 static struct pm_uart_save uart_save;
 
 static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
@@ -93,7 +84,7 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 	save->umcon = __raw_readl(regs + S3C2410_UMCON);
 	save->ubrdiv = __raw_readl(regs + S3C2410_UBRDIV);
 
-	if (pm_uart_udivslot)
+	if (!soc_is_s3c2410())
 		save->udivslot = __raw_readl(regs + S3C2443_DIVSLOT);
 
 	S3C_PMDBG("UART[%d]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
@@ -117,7 +108,7 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 	__raw_writel(save->umcon, regs + S3C2410_UMCON);
 	__raw_writel(save->ubrdiv, regs + S3C2410_UBRDIV);
 
-	if (pm_uart_udivslot)
+	if (!soc_is_s3c2410())
 		__raw_writel(save->udivslot, regs + S3C2443_DIVSLOT);
 }
 
@@ -126,6 +117,8 @@ static void s3c_pm_restore_uarts(void)
 	s3c_pm_restore_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 #else
+#define s3c_pm_debug_init() do { } while (0)
+
 static void s3c_pm_save_uarts(void) { }
 static void s3c_pm_restore_uarts(void) { }
 #endif

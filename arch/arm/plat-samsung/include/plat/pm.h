@@ -54,8 +54,6 @@ extern int (*pm_cpu_sleep)(unsigned long);
 
 extern unsigned long s3c_pm_flags;
 
-extern unsigned char pm_uart_udivslot;  /* true to save UART UDIVSLOT */
-
 /* from sleep.S */
 
 extern int s3c2410_cpu_suspend(unsigned long);
