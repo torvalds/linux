@@ -299,7 +299,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
  * @raw_packet: the pre-allocated packet buffer for FDir
  * @add: true adds a filter, false removes it
  *
- * Returns 0 if the filters were successfully added or removed
+ * Always returns -EOPNOTSUPP
  **/
 static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
 				    struct i40e_fdir_filter *fd_data,
