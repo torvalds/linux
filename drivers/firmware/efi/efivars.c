@@ -189,6 +189,35 @@ efivar_data_read(struct efivar_entry *entry, char *buf)
 	memcpy(buf, var->Data, var->DataSize);
 	return var->DataSize;
 }
+
+static inline int
+sanity_check(struct efi_variable *var, efi_char16_t *name, efi_guid_t vendor,
+	     unsigned long size, u32 attributes, u8 *data)
+{
+	/*
+	 * If only updating the variable data, then the name
+	 * and guid should remain the same
+	 */
+	if (memcmp(name, var->VariableName, sizeof(var->VariableName)) ||
+		efi_guidcmp(vendor, var->VendorGuid)) {
+		printk(KERN_ERR "efivars: Cannot edit the wrong variable!\n");
+		return -EINVAL;
+	}
+
+	if ((size <= 0) || (attributes == 0)){
+		printk(KERN_ERR "efivars: DataSize & Attributes must be valid!\n");
+		return -EINVAL;
+	}
+
+	if ((attributes & ~EFI_VARIABLE_MASK) != 0 ||
+	    efivar_validate(name, data, size) == false) {
+		printk(KERN_ERR "efivars: Malformed variable content\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * We allow each variable to be edited via rewriting the
  * entire efi variable structure.
@@ -215,26 +244,9 @@ efivar_store_raw(struct efivar_entry *entry, const char *buf, size_t count)
 	size = new_var->DataSize;
 	data = new_var->Data;
 
-	/*
-	 * If only updating the variable data, then the name
-	 * and guid should remain the same
-	 */
-	if (memcmp(name, var->VariableName, sizeof(var->VariableName)) ||
-		efi_guidcmp(vendor, var->VendorGuid)) {
-		printk(KERN_ERR "efivars: Cannot edit the wrong variable!\n");
-		return -EINVAL;
-	}
-
-	if ((size <= 0) || (attributes == 0)){
-		printk(KERN_ERR "efivars: DataSize & Attributes must be valid!\n");
-		return -EINVAL;
-	}
-
-	if ((attributes & ~EFI_VARIABLE_MASK) != 0 ||
-	    efivar_validate(name, data, size) == false) {
-		printk(KERN_ERR "efivars: Malformed variable content\n");
-		return -EINVAL;
-	}
+	err = sanity_check(var, name, vendor, size, attributes, data);
+	if (err)
+		return err;
 
 	memcpy(&entry->var, new_var, count);
 
