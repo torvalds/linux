@@ -12,7 +12,7 @@ config ACPI_APEI
 
 config ACPI_APEI_GHES
 	bool "APEI Generic Hardware Error Source"
-	depends on ACPI_APEI && X86
+	depends on ACPI_APEI
 	select ACPI_HED
 	select IRQ_WORK
 	select GENERIC_ALLOCATOR
