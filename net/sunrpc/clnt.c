@@ -1728,9 +1728,7 @@ call_bind_status(struct rpc_task *task)
 	case -EPROTONOSUPPORT:
 		dprintk("RPC: %5u remote rpcbind version unavailable, retrying\n",
 				task->tk_pid);
-		task->tk_status = 0;
-		task->tk_action = call_bind;
-		return;
+		goto retry_timeout;
 	case -ECONNREFUSED:		/* connection problems */
 	case -ECONNRESET:
 	case -ECONNABORTED:
@@ -1756,6 +1754,7 @@ call_bind_status(struct rpc_task *task)
 	return;
 
 retry_timeout:
+	task->tk_status = 0;
 	task->tk_action = call_timeout;
 }
 
