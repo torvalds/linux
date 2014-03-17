@@ -1166,7 +1166,7 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	if (INTEL_INFO(dev)->gen >= 4) {
 		reg = DSPCNTR(pipe);
 		val = I915_READ(reg);
-		WARN((val & DISPLAY_PLANE_ENABLE),
+		WARN(val & DISPLAY_PLANE_ENABLE,
 		     "plane %c assertion failure, should be disabled but not\n",
 		     plane_name(pipe));
 		return;
@@ -1195,20 +1195,20 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 		for_each_sprite(pipe, sprite) {
 			reg = SPCNTR(pipe, sprite);
 			val = I915_READ(reg);
-			WARN((val & SP_ENABLE),
+			WARN(val & SP_ENABLE,
 			     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 			     sprite_name(pipe, sprite), pipe_name(pipe));
 		}
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		reg = SPRCTL(pipe);
 		val = I915_READ(reg);
-		WARN((val & SPRITE_ENABLE),
+		WARN(val & SPRITE_ENABLE,
 		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 		     plane_name(pipe), pipe_name(pipe));
 	} else if (INTEL_INFO(dev)->gen >= 5) {
 		reg = DVSCNTR(pipe);
 		val = I915_READ(reg);
-		WARN((val & DVS_ENABLE),
+		WARN(val & DVS_ENABLE,
 		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 		     plane_name(pipe), pipe_name(pipe));
 	}
