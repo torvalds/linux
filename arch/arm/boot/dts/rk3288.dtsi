@@ -208,6 +208,24 @@
 		status = "disabled";
 	};
 
+	clocks-init{
+		compatible = "rockchip,clocks-init";
+		rockchip,clocks-init-parent =
+			<&clk_core &clk_apll>,	<&aclk_bus_src &clk_gpll>,
+			<&aclk_peri &clk_gpll>,	<&clk_uart_pll_mux &clk_gpll>,
+			<&clk_i2s_pll &clk_cpll>;
+		rockchip,clocks-init-rate =
+			<&clk_core 792000000>,	<&clk_gpll 594000000>,
+			<&clk_cpll 393216000>,	<&clk_npll 500000000>,
+			<&aclk_bus_src 300000000>,	<&aclk_bus 300000000>,
+			<&hclk_bus 150000000>,	<&pclk_bus 75000000>,
+			<&clk_crypto 150000000>,	<&aclk_peri 300000000>,
+			<&hclk_peri 150000000>,	<&pclk_peri 75000000>,	
+			<&clk_gpu 200000000>,	<&aclk_vio0 300000000>,
+			<&aclk_vio1 300000000>,	<&hclk_vio 75000000>,
+			<&pclk_pd_alive 100000000>,	<&pclk_pd_pmu 100000000>;
+	};
+
 	i2c0: i2c@ff650000 {
 		compatible = "rockchip,rk30-i2c";
 		reg = <0xff650000 0x1000>;
