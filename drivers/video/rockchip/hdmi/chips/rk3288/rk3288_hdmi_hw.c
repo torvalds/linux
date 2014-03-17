@@ -360,6 +360,44 @@ int rk3288_hdmi_video_sampler(struct hdmi *hdmi_drv, struct hdmi_video_para *vpa
 	return 0;
 }
 
+static int rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_addr, int *val)
+{
+	int trytime = 2, i = 0, op_status = 0;
+
+	mutex_lock(&hdmi_dev->int_mutex);
+	hdmi_dev->phy_i2cm_int = 0;
+	mutex_unlock(&hdmi_dev->int_mutex);
+
+	while(trytime--) {
+		hdmi_writel(hdmi_dev, PHY_I2CM_ADDRESS, reg_addr);
+		hdmi_writel(hdmi_dev, PHY_I2CM_OPERATION, m_PHY_I2CM_READ);
+
+		i = 100;
+		while(i--) {
+			mutex_lock(&hdmi_dev->int_mutex);
+			//op_status = hdmi_readl(hdmi_dev, PHY_I2CM_INT);
+			op_status = hdmi_dev->phy_i2cm_int;
+			hdmi_dev->phy_i2cm_int = 0;
+			mutex_unlock(&hdmi_dev->int_mutex);
+			if(op_status & (m_I2CMPHY_DONE | m_I2CMPHY_ERR)) {
+				break;
+			}
+			msleep(10);
+		}
+
+		if(op_status & m_I2CMPHY_DONE) {
+			*val = (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_1) >> 8) & 0xff;
+			*val += (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_0) & 0xff);
+			return 0;
+		}
+		else {
+			hdmi_err(hdmi_dev->dev, "[%s] operation error,trytime=%d\n", __FUNCTION__,trytime);
+		}
+		msleep(100);
+	}
+
+	return -1;
+}
 
 static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_addr, int val)
 {
@@ -400,38 +438,70 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 	return -1;
 }
 
-static void rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
+static int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 {
-	int stat = 0;
-	char color_depth = COLOR_DEPTH_24BIT_DEFAULT;
+	int stat = 0, i = 0;
+	//char color_depth = COLOR_DEPTH_24BIT;//COLOR_DEPTH_24BIT_DEFAULT;
 	char pix_repet = NO_PIXEL_REPET;
 	const struct phy_mpll_config_tab *phy_mpll = NULL;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-	hdmi_writel(hdmi_dev, PHY_CONF0, 0x32);
+	//get phy_type,if PHY_GEN2==1 config phy register
+	//phy_type = hdmi_readl(hdmi_dev, CONFIG2_ID);
+	//if(phy_type != HDMI_3D_TX_WITH_HEAC_PHY && phy_type != HDMI_3D_TX_PHY) {
+	//	printk("%s: PHY_GEN2 = 0,No need to config phy", __FUNCTION__);
+	//	return;
+	//}
+
+	//hdmi_writel(hdmi_dev, PHY_CONF0, 0x32);
+	hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_PDDQ_SIG | m_TXPWRON_SIG, v_PDDQ_SIG(1) | v_TXPWRON_SIG(0));
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(1));
 	//the resolution that we used is no pixel repet,refer to the CEA-861 specification.
-	hdmi_writel(hdmi_dev, VP_PR_CD, v_COLOR_DEPTH(color_depth) | v_DESIRED_PR_FACTOR(pix_repet));
-	msleep(5);
+	//hdmi_writel(hdmi_dev, VP_PR_CD, v_COLOR_DEPTH(color_depth) | v_DESIRED_PR_FACTOR(pix_repet));
+	//msleep(5);
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(0));
 
 	//Set slave address as PHY GEN2 address
-	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_GEN2_ADDR);
+	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_I2C_SLAVE_ADDR);
+
+	rk3288_hdmi_write_phy(hdmi_dev, 0x13, 0x0000); /* PLLPHBYCTRL */
+	rk3288_hdmi_write_phy(hdmi_dev, 0x17, 0x0006);
+	/* RESISTANCE TERM 133Ohm Cfg  */
+	rk3288_hdmi_write_phy(hdmi_dev, 0x19, 0x0005); /* TXTERM */	//TODO Daisen wait to modify
+	/* REMOVE CLK TERM */
+	rk3288_hdmi_write_phy(hdmi_dev, 0x05, 0x8000); /* CKCALCTRL */
 
 	//config the required PHY I2C register
-	phy_mpll = get_phy_mpll_tab(hdmi_drv->tmdsclk, pix_repet, color_depth);
-	rk3288_hdmi_write_phy(hdmi_dev, PHYTX_OPMODE_PLLCFG, v_PREP_DIV(phy_mpll->prep_div) | v_TMDS_CNTRL(phy_mpll->tmdsmhl_cntrl) | v_OPMODE(phy_mpll->opmode) |
-		v_FBDIV2_CNTRL(phy_mpll->fbdiv2_cntrl) | v_FBDIV1_CNTRL(phy_mpll->fbdiv1_cntrl) | v_REF_CNTRL(phy_mpll->ref_cntrl) | v_MPLL_N_CNTRL(phy_mpll->n_cntrl));
-	rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLCURRCTRL, v_MPLL_PROP_CNTRL(phy_mpll->prop_cntrl) | v_MPLL_INT_CNTRL(phy_mpll->int_cntrl));
-	rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLGMPCTRL, v_MPLL_GMP_CNTRL(phy_mpll->gmp_cntrl));
+	phy_mpll = get_phy_mpll_tab(hdmi_drv->tmdsclk, pix_repet, 8);
+	if(phy_mpll) {
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_OPMODE_PLLCFG, v_PREP_DIV(phy_mpll->prep_div) | v_TMDS_CNTRL(phy_mpll->tmdsmhl_cntrl) | v_OPMODE(phy_mpll->opmode) |
+			v_FBDIV2_CNTRL(phy_mpll->fbdiv2_cntrl) | v_FBDIV1_CNTRL(phy_mpll->fbdiv1_cntrl) | v_REF_CNTRL(phy_mpll->ref_cntrl) | v_MPLL_N_CNTRL(phy_mpll->n_cntrl));
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLCURRCTRL, v_MPLL_PROP_CNTRL(phy_mpll->prop_cntrl) | v_MPLL_INT_CNTRL(phy_mpll->int_cntrl));
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLGMPCTRL, v_MPLL_GMP_CNTRL(phy_mpll->gmp_cntrl));
+	}
 
 	//power on PHY
-	hdmi_writel(hdmi_dev, PHY_CONF0, 0x2a);
+	//hdmi_writel(hdmi_dev, PHY_CONF0, 0x2a);
+	hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_PDDQ_SIG | m_TXPWRON_SIG | m_ENHPD_RXSENSE_SIG,
+		v_PDDQ_SIG(0) | v_TXPWRON_SIG(1) | v_ENHPD_RXSENSE_SIG(1));
 
 	//check if the PHY PLL is locked
-	stat = hdmi_readl(hdmi_dev, PHY_STAT0);
-	if(stat & m_PHY_LOCK)
-		hdmi_writel(hdmi_dev, PHY_STAT0, v_PHY_LOCK(1));
+	#define PHY_TIMEOUT	10000
+	while(i++ < PHY_TIMEOUT) {
+		if ((i % 100) == 0) {
+			stat = hdmi_readl(hdmi_dev, PHY_STAT0);
+			if(stat & m_PHY_LOCK) {
+				//hdmi_writel(hdmi_dev, PHY_STAT0, v_PHY_LOCK(1));
+				break;
+			}
+		}
+	}
+	if((stat & m_PHY_LOCK) == 0) {
+		hdmi_err(hdmi_dev->dev, "PHY PLL not locked\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 static void rk3288_hdmi_config_avi(struct hdmi *hdmi_drv, unsigned char vic, unsigned char output_color)
@@ -638,7 +708,7 @@ static void rk3288_hdmi_config_aai(struct hdmi *hdmi_drv, struct hdmi_audio *aud
 
 int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 {
-	int word_length = 0, channel = 0, N = 0, mclk_fs, value;
+	int word_length = 0, channel = 0, N = 0, mclk_fs;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	if(audio->channel < 3)
@@ -736,8 +806,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 	}
 
 	/* more than 2 channels => layout 1 else layout 0 */
-	value = (audio->channel > 2) ? 1 : 0;	//TODO Daisen wait to modify
-	hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(1));
+	//value = (audio->channel > 2) ? 1 : 0;	//TODO Daisen wait to modify
+	//hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(value));
 
 	if(hdmi_drv->audio.type == INPUT_SPDIF) {
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0, m_I2S_SEL, v_I2S_SEL(AUDIO_SPDIF_GPA));
@@ -778,6 +848,8 @@ void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 	else {
 		if(hdmi_drv->pwr_mode == LOWER_PWR)
 			rk3288_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
+		/* disable blue screen transmission after turning on all necessary blocks*/
+		rk3288_hdmi_video_forceOutput(hdmi_drv, 0);
 		rk3288_hdmi_av_mute(hdmi_drv, 0);
 	}
 }

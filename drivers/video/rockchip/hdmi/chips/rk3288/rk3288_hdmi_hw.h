@@ -635,7 +635,7 @@ enum {
 #define m_TXPWRON_SIG		(1 << 3)		//depend on PHY_GEN2=1 or PHY_EXTERNAL=1
 #define v_TXPWRON_SIG(n)	(((n)&0x01) << 3)
 #define m_ENHPD_RXSENSE_SIG	(1 << 2)		//depend on PHY_GEN2=1 or PHY_EXTERNAL=1
-#define v_ENHPD_RXSENSE_SIG	(((n)&0x01) << 2)
+#define v_ENHPD_RXSENSE_SIG(n)	(((n)&0x01) << 2)
 #define m_SEL_DATAEN_POL	(1 << 1)
 #define v_SEL_DATAEN_POL(n)	(((n)&0x01) << 1)
 #define m_SEL_INTERFACE		(1 << 0)
@@ -678,6 +678,7 @@ enum {
 #define	PHY_I2CM_SLAVE			0x3020
 #define PHY_GEN2_ADDR		0x69
 #define PHY_HEAC_ADDR		0x49
+#define PHY_I2C_SLAVE_ADDR	0x54
 
 #define	PHY_I2CM_ADDRESS		0x3021
 #define	PHY_I2CM_DATAO_1		0x3022

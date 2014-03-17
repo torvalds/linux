@@ -144,8 +144,11 @@ struct hdmi* rk3288_hdmi_register_hdcp_callbacks(
 static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 {
 	int ret = 0;
+	struct rk_screen screen;
 	//struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk_hdmi_device, driver);
 
+	rk_fb_get_prmry_screen(&screen);
+	hdmi_dev->lcdc_id = (screen.lcdc_id == 1) ? 0 : 1;	//hdmi is extend as default,TODO modify if hdmi is primary
         grf_writel(HDMI_SEL_LCDC(hdmi_dev->lcdc_id), RK3288_GRF_SOC_CON6);	//lcdc source select
 	if(hdmi_dev->lcdc_id == 0)
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc0");
@@ -177,8 +180,8 @@ static int rk3288_hdmi_parse_dt(struct rk3288_hdmi_device *hdmi_dev)
 	int val = 0;
 	struct device_node *np = hdmi_dev->dev->of_node;
 
-	if(!of_property_read_u32(np, "rockchips,hdmi_lcdc_source", &val))
-		hdmi_dev->lcdc_id = val;
+	//if(!of_property_read_u32(np, "rockchips,hdmi_lcdc_source", &val))
+	//	hdmi_dev->lcdc_id = val;
 
 	if(!of_property_read_u32(np, "rockchips,hdmi_audio_source", &val))
 		hdmi_dev->driver.audio.type = val;
