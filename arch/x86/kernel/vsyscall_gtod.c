@@ -4,6 +4,7 @@
  *
  *  Modified for x86 32 bit architecture by
  *  Stefani Seibold <stefani@seibold.net>
+ *  sponsored by Rohde & Schwarz GmbH & Co. KG Munich/Germany
  *
  *  Thanks to hpa@transmeta.com for some useful hint.
  *  Special thanks to Ingo Molnar for his early experience with
@@ -13,26 +14,28 @@
 
 #include <linux/timekeeper_internal.h>
 #include <asm/vgtod.h>
+#include <asm/vvar.h>
 
 DEFINE_VVAR(struct vsyscall_gtod_data, vsyscall_gtod_data);
 
 void update_vsyscall_tz(void)
 {
-	vsyscall_gtod_data.sys_tz = sys_tz;
+	vsyscall_gtod_data.tz_minuteswest = sys_tz.tz_minuteswest;
+	vsyscall_gtod_data.tz_dsttime = sys_tz.tz_dsttime;
 }
 
 void update_vsyscall(struct timekeeper *tk)
 {
 	struct vsyscall_gtod_data *vdata = &vsyscall_gtod_data;
 
-	write_seqcount_begin(&vdata->seq);
+	gtod_write_begin(vdata);
 
 	/* copy vsyscall data */
-	vdata->clock.vclock_mode	= tk->clock->archdata.vclock_mode;
-	vdata->clock.cycle_last		= tk->clock->cycle_last;
-	vdata->clock.mask		= tk->clock->mask;
-	vdata->clock.mult		= tk->mult;
-	vdata->clock.shift		= tk->shift;
+	vdata->vclock_mode	= tk->clock->archdata.vclock_mode;
+	vdata->cycle_last	= tk->clock->cycle_last;
+	vdata->mask		= tk->clock->mask;
+	vdata->mult		= tk->mult;
+	vdata->shift		= tk->shift;
 
 	vdata->wall_time_sec		= tk->xtime_sec;
 	vdata->wall_time_snsec		= tk->xtime_nsec;
@@ -49,11 +52,18 @@ void update_vsyscall(struct timekeeper *tk)
 		vdata->monotonic_time_sec++;
 	}
 
-	vdata->wall_time_coarse.tv_sec	= tk->xtime_sec;
-	vdata->wall_time_coarse.tv_nsec	= (long)(tk->xtime_nsec >> tk->shift);
+	vdata->wall_time_coarse_sec	= tk->xtime_sec;
+	vdata->wall_time_coarse_nsec	= (long)(tk->xtime_nsec >> tk->shift);
 
-	vdata->monotonic_time_coarse	= timespec_add(vdata->wall_time_coarse,
-							tk->wall_to_monotonic);
+	vdata->monotonic_time_coarse_sec =
+		vdata->wall_time_coarse_sec + tk->wall_to_monotonic.tv_sec;
+	vdata->monotonic_time_coarse_nsec =
+		vdata->wall_time_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
 
-	write_seqcount_end(&vdata->seq);
+	while (vdata->monotonic_time_coarse_nsec >= NSEC_PER_SEC) {
+		vdata->monotonic_time_coarse_nsec -= NSEC_PER_SEC;
+		vdata->monotonic_time_coarse_sec++;
+	}
+
+	gtod_write_end(vdata);
 }

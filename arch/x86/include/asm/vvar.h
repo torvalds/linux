@@ -16,6 +16,9 @@
  * you mess up, the linker will catch it.)
  */
 
+#ifndef _ASM_X86_VVAR_H
+#define _ASM_X86_VVAR_H
+
 #if defined(__VVAR_KERNEL_LDS)
 
 /* The kernel linker script defines its own magic to put vvars in the
@@ -64,3 +67,5 @@ DECLARE_VVAR(16, int, vgetcpu_mode)
 DECLARE_VVAR(128, struct vsyscall_gtod_data, vsyscall_gtod_data)
 
 #undef DECLARE_VVAR
+
+#endif
