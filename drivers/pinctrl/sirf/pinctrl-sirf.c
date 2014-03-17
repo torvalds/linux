@@ -598,7 +598,7 @@ static unsigned int sirfsoc_gpio_irq_startup(struct irq_data *d)
 {
 	struct sirfsoc_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&bank->chip.gc, d->hwirq))
+	if (gpio_lock_as_irq(&bank->chip.gc, d->hwirq % SIRFSOC_GPIO_BANK_SIZE))
 		dev_err(bank->chip.gc.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
@@ -611,7 +611,7 @@ static void sirfsoc_gpio_irq_shutdown(struct irq_data *d)
 	struct sirfsoc_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 
 	sirfsoc_gpio_irq_mask(d);
-	gpio_unlock_as_irq(&bank->chip.gc, d->hwirq);
+	gpio_unlock_as_irq(&bank->chip.gc, d->hwirq % SIRFSOC_GPIO_BANK_SIZE);
 }
 
 static struct irq_chip sirfsoc_irq_chip = {

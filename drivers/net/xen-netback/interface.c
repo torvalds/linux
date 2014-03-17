@@ -132,8 +132,7 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* If the skb is GSO then we'll also need an extra slot for the
 	 * metadata.
 	 */
-	if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4 ||
-	    skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
+	if (skb_is_gso(skb))
 		min_slots_needed++;
 
 	/* If the skb can't possibly fit in the remaining slots

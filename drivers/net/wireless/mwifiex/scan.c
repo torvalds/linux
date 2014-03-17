@@ -2101,12 +2101,12 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 			 curr_bss->ht_info_offset);
 
 	if (curr_bss->bcn_vht_cap)
-		curr_bss->bcn_ht_cap = (void *)(curr_bss->beacon_buf +
-						curr_bss->vht_cap_offset);
+		curr_bss->bcn_vht_cap = (void *)(curr_bss->beacon_buf +
+						 curr_bss->vht_cap_offset);
 
 	if (curr_bss->bcn_vht_oper)
-		curr_bss->bcn_ht_oper = (void *)(curr_bss->beacon_buf +
-						 curr_bss->vht_info_offset);
+		curr_bss->bcn_vht_oper = (void *)(curr_bss->beacon_buf +
+						  curr_bss->vht_info_offset);
 
 	if (curr_bss->bcn_bss_co_2040)
 		curr_bss->bcn_bss_co_2040 =
