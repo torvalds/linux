@@ -618,6 +618,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		struct wmi_vring_cfg_done_event cmd;
 	} __packed reply;
 	struct vring *vring = &wil->vring_tx[id];
+	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
 
 	if (vring->va) {
 		wil_err(wil, "Tx ring [%d] already allocated\n", id);
@@ -625,6 +626,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		goto out;
 	}
 
+	memset(txdata, 0, sizeof(*txdata));
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -648,6 +650,8 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	}
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
+	txdata->enabled = 1;
+
 	return 0;
  out_free:
 	wil_vring_free(wil, vring, 1);
@@ -660,8 +664,15 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 {
 	struct vring *vring = &wil->vring_tx[id];
 
+	WARN_ON(!mutex_is_locked(&wil->mutex));
+
 	if (!vring->va)
 		return;
+
+	/* make sure NAPI won't touch this vring */
+	wil->vring_tx_data[id].enabled = 0;
+	if (test_bit(wil_status_napi_en, &wil->status))
+		napi_synchronize(&wil->napi_tx);
 
 	wil_vring_free(wil, vring, 1);
 }
@@ -1028,6 +1039,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct device *dev = wil_to_dev(wil);
 	struct vring *vring = &wil->vring_tx[ringid];
+	struct vring_tx_data *txdata = &wil->vring_tx_data[ringid];
 	int done = 0;
 	int cid = wil->vring2cid_tid[ringid][0];
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
@@ -1035,6 +1047,11 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 
 	if (!vring->va) {
 		wil_err(wil, "Tx irq[%d]: vring not initialized\n", ringid);
+		return 0;
+	}
+
+	if (!txdata->enabled) {
+		wil_info(wil, "Tx irq[%d]: vring disabled\n", ringid);
 		return 0;
 	}
 

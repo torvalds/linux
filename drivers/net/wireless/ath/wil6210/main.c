@@ -133,7 +133,9 @@ static void wil_disconnect_worker(struct work_struct *work)
 	struct wil6210_priv *wil = container_of(work,
 			struct wil6210_priv, disconnect_worker);
 
+	mutex_lock(&wil->mutex);
 	_wil6210_disconnect(wil, NULL);
+	mutex_unlock(&wil->mutex);
 }
 
 static void wil_connect_timer_fn(ulong x)
@@ -260,7 +262,9 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 {
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
+	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, NULL);
+	mutex_unlock(&wil->mutex);
 	wmi_event_flush(wil);
 	destroy_workqueue(wil->wmi_wq_conn);
 	destroy_workqueue(wil->wmi_wq);
@@ -374,10 +378,14 @@ int wil_reset(struct wil6210_priv *wil)
 {
 	int rc;
 
+	WARN_ON(!mutex_is_locked(&wil->mutex));
+
+	cancel_work_sync(&wil->disconnect_worker);
+	wil6210_disconnect(wil, NULL);
+
 	wil->status = 0; /* prevent NAPI from being scheduled */
 	if (test_bit(wil_status_napi_en, &wil->status)) {
 		napi_synchronize(&wil->napi_rx);
-		napi_synchronize(&wil->napi_tx);
 	}
 
 	if (wil->scan_request) {
@@ -386,9 +394,6 @@ int wil_reset(struct wil6210_priv *wil)
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;
 	}
-
-	cancel_work_sync(&wil->disconnect_worker);
-	wil6210_disconnect(wil, NULL);
 
 	wil6210_disable_irq(wil);
 
@@ -446,6 +451,8 @@ static int __wil_up(struct wil6210_priv *wil)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 	int rc;
+
+	WARN_ON(!mutex_is_locked(&wil->mutex));
 
 	rc = wil_reset(wil);
 	if (rc)
@@ -506,6 +513,8 @@ int wil_up(struct wil6210_priv *wil)
 
 static int __wil_down(struct wil6210_priv *wil)
 {
+	WARN_ON(!mutex_is_locked(&wil->mutex));
+
 	clear_bit(wil_status_napi_en, &wil->status);
 	napi_disable(&wil->napi_rx);
 	napi_disable(&wil->napi_tx);

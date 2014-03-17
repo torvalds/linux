@@ -70,7 +70,9 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 		goto stop_master;
 
 	/* need reset here to obtain MAC */
+	mutex_lock(&wil->mutex);
 	rc = wil_reset(wil);
+	mutex_unlock(&wil->mutex);
 	if (rc)
 		goto release_irq;
 

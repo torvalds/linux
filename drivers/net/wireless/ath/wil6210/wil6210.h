@@ -243,6 +243,14 @@ struct vring {
 	struct wil_ctx *ctx; /* ctx[size] - software context */
 };
 
+/**
+ * Additional data for Tx Vring
+ */
+struct vring_tx_data {
+	int enabled;
+
+};
+
 enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0,
 	wil_status_fwconnecting,
@@ -386,6 +394,7 @@ struct wil6210_priv {
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
+	struct vring_tx_data vring_tx_data[WIL6210_MAX_TX_RINGS];
 	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
 	struct wil_sta_info sta[WIL6210_MAX_CID];
 	/* scan */

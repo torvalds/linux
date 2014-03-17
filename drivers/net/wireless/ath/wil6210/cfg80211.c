@@ -674,7 +674,11 @@ static int wil_cfg80211_del_station(struct wiphy *wiphy,
 				    struct net_device *dev, u8 *mac)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, mac);
+	mutex_unlock(&wil->mutex);
+
 	return 0;
 }
 

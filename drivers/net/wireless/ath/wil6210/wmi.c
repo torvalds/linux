@@ -462,7 +462,9 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 
 	wil->sinfo_gen++;
 
+	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, evt->bssid);
+	mutex_unlock(&wil->mutex);
 }
 
 static void wmi_evt_notify(struct wil6210_priv *wil, int id, void *d, int len)
