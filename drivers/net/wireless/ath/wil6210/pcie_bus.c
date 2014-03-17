@@ -153,6 +153,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, wil);
 	wil->pdev = pdev;
 
+	wil6210_clear_irq(wil);
 	/* FW should raise IRQ when ready */
 	rc = wil_if_pcie_enable(wil);
 	if (rc) {

@@ -493,6 +493,23 @@ free0:
 
 	return rc;
 }
+/* can't use wil_ioread32_and_clear because ICC value is not ser yet */
+static inline void wil_clear32(void __iomem *addr)
+{
+	u32 x = ioread32(addr);
+
+	iowrite32(x, addr);
+}
+
+void wil6210_clear_irq(struct wil6210_priv *wil)
+{
+	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_RX_ICR) +
+		    offsetof(struct RGF_ICR, ICR));
+	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_TX_ICR) +
+		    offsetof(struct RGF_ICR, ICR));
+	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_MISC_ICR) +
+		    offsetof(struct RGF_ICR, ICR));
+}
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq)
 {
