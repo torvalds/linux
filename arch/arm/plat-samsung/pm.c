@@ -85,9 +85,10 @@ static inline void __iomem *s3c_pm_uart_base(void)
 	return (void __iomem *)vaddr;
 }
 
-static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
+static void s3c_pm_save_uarts(void)
 {
 	void __iomem *regs = s3c_pm_uart_base();
+	struct pm_uart_save *save = &uart_save;
 
 	save->ulcon = __raw_readl(regs + S3C2410_ULCON);
 	save->ucon = __raw_readl(regs + S3C2410_UCON);
@@ -98,18 +99,14 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 	if (!soc_is_s3c2410())
 		save->udivslot = __raw_readl(regs + S3C2443_DIVSLOT);
 
-	S3C_PMDBG("UART[%d]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
-		  uart, save->ulcon, save->ucon, save->ufcon, save->ubrdiv);
+	S3C_PMDBG("UART[%p]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
+		  regs, save->ulcon, save->ucon, save->ufcon, save->ubrdiv);
 }
 
-static void s3c_pm_save_uarts(void)
-{
-	s3c_pm_save_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
-}
-
-static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
+static void s3c_pm_restore_uarts(void)
 {
 	void __iomem *regs = s3c_pm_uart_base();
+	struct pm_uart_save *save = &uart_save;
 
 	s3c_pm_arch_update_uart(regs, save);
 
@@ -121,11 +118,6 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 
 	if (!soc_is_s3c2410())
 		__raw_writel(save->udivslot, regs + S3C2443_DIVSLOT);
-}
-
-static void s3c_pm_restore_uarts(void)
-{
-	s3c_pm_restore_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 #else
 #define s3c_pm_debug_init() do { } while (0)
