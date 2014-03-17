@@ -16,7 +16,32 @@ backlight {
 		enable-gpios = <&gpio7 GPIO_A2 GPIO_ACTIVE_HIGH>;
 	};
 
-codec_hdmi_i2s: codec-hdmi-i2s {
+pwm_regulator {
+       compatible = "rockchip_pwm_regulator";
+	pwms = <&pwm1 0 25000>;
+	rockchip,pwm_id= <1>;
+       rockchip,pwm_voltage_map= <925000 950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000>;
+	rockchip,pwm_voltage= <1000000>;
+	rockchip,pwm_min_voltage= <925000>;
+	rockchip,pwm_max_voltage= <1400000>;
+	rockchip,pwm_suspend_voltage= <950000>;
+	rockchip,pwm_coefficient= <475>;
+	regulators {
+		#address-cells = <1>;
+		#size-cells = <0>;			
+		 pwm_reg0: regulator@0{
+			regulator-compatible = "pwm_dcdc1";
+			regulator-name= "vdd_logic";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1400000>;	
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	    };
+	};
+
+
+	codec_hdmi_i2s: codec-hdmi-i2s {
 		compatible = "hdmi-i2s";
 	};
 
@@ -35,14 +60,14 @@ codec_hdmi_i2s: codec-hdmi-i2s {
 	bq24296: bq24296@6b {
 		compatible = "ti,bq24296";
 		reg = <0x6b>;
-/*	gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>; */
-	  bq24296,chg_current = <1000 500 2000>;
+		gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>; 
+	  	bq24296,chg_current = <1000 500 2000>;
 		status = "disable";
 	};
 	bq27320: bq27320@55 {
 		compatible = "ti,bq27320";
 		reg = <0x55>;
-/*  gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>; */
+	/*   gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>; */
 		status = "disable";
 	};
 };
@@ -220,10 +245,14 @@ codec_hdmi_i2s: codec-hdmi-i2s {
 	};
 };
 
+&pwm1 {
+	status = "okay";
+};
+
 
 /include/ "rk808.dtsi"
 &rk808 {
-	gpios =<&gpio0 GPIO_B3 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A1 GPIO_ACTIVE_LOW>;
+	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>;
 
 	regulators {
 		
@@ -234,7 +263,7 @@ codec_hdmi_i2s: codec-hdmi-i2s {
 		};
 
 		rk808_dcdc2_reg: regulator@1 {
-			regulator-name= "vdd_logic";
+			regulator-name= "vdd_gpu";
 			regulator-always-on;
 			regulator-boot-on;		
 		};
@@ -289,16 +318,16 @@ codec_hdmi_i2s: codec-hdmi-i2s {
 
 		rk808_ldo5_reg: regulator@8 {
 			regulator-name= "rk_ldo5";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
 		};
 
 		rk808_ldo6_reg: regulator@9 {
 			regulator-name= "rk_ldo6";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
 			regulator-always-on;
 			regulator-boot-on;
 		};
@@ -313,8 +342,8 @@ codec_hdmi_i2s: codec-hdmi-i2s {
 
 		rk808_ldo8_reg: regulator@11 {
 			regulator-name= "rk_ldo8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
 		};
