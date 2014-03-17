@@ -378,6 +378,10 @@
 		status = "okay";
 		dr_mode = "host";
 	};
+
+	dma-controller@07402000  {
+		status = "okay";
+	};
 };
 
 &epwmss2 {

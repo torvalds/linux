@@ -520,6 +520,21 @@
 			dma-names = "tx", "rx";
 		};
 
+		mmu_dsp: mmu@4a066000 {
+			compatible = "ti,omap4-iommu";
+			reg = <0x4a066000 0x100>;
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu_dsp";
+		};
+
+		mmu_ipu: mmu@55082000 {
+			compatible = "ti,omap4-iommu";
+			reg = <0x55082000 0x100>;
+			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu_ipu";
+			ti,iommu-bus-err-back;
+		};
+
 		keypad: keypad@4ae1c000 {
 			compatible = "ti,omap4-keypad";
 			reg = <0x4ae1c000 0x400>;
