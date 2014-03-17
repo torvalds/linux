@@ -335,13 +335,8 @@ static void torture_shuffle_tasks(void)
 	shuffle_idle_cpu = cpumask_next(shuffle_idle_cpu, shuffle_tmp_mask);
 	if (shuffle_idle_cpu >= nr_cpu_ids)
 		shuffle_idle_cpu = -1;
-	if (shuffle_idle_cpu != -1) {
+	else
 		cpumask_clear_cpu(shuffle_idle_cpu, shuffle_tmp_mask);
-		if (cpumask_empty(shuffle_tmp_mask)) {
-			put_online_cpus();
-			return;
-		}
-	}
 
 	mutex_lock(&shuffle_task_mutex);
 	list_for_each_entry(stp, &shuffle_task_list, st_l)
