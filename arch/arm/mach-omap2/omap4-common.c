@@ -213,20 +213,18 @@ static int __init omap_l2_cache_init(void)
 		return -ENOMEM;
 
 	/* 16-way associativity, parity disabled, way size - 64KB (es2.0 +) */
-	aux_ctrl = L310_AUX_CTRL_ASSOCIATIVITY_16 |
-		   L310_AUX_CTRL_CACHE_REPLACE_RR |
+	aux_ctrl = L310_AUX_CTRL_CACHE_REPLACE_RR |
 		   L310_AUX_CTRL_NS_LOCKDOWN |
 		   L310_AUX_CTRL_NS_INT_CTRL |
-		   L2C_AUX_CTRL_WAY_SIZE(3) |
 		   L2C_AUX_CTRL_SHARED_OVERRIDE |
 		   L310_AUX_CTRL_DATA_PREFETCH |
 		   L310_AUX_CTRL_INSTR_PREFETCH;
 
 	outer_cache.write_sec = omap4_l2c310_write_sec;
 	if (of_have_populated_dt())
-		l2x0_of_init(aux_ctrl, L2X0_AUX_CTRL_MASK);
+		l2x0_of_init(aux_ctrl, 0xc19fffff);
 	else
-		l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
+		l2x0_init(l2cache_base, aux_ctrl, 0xc19fffff);
 
 	return 0;
 }
