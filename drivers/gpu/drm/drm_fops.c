@@ -39,12 +39,12 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-/* from BKL pushdown: note that nothing else serializes idr_find() */
+/* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
 EXPORT_SYMBOL(drm_global_mutex);
 
 static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_device * dev);
+			   struct drm_minor *minor);
 
 static int drm_setup(struct drm_device * dev)
 {
@@ -79,24 +79,18 @@ static int drm_setup(struct drm_device * dev)
  */
 int drm_open(struct inode *inode, struct file *filp)
 {
-	struct drm_device *dev = NULL;
-	int minor_id = iminor(inode);
+	struct drm_device *dev;
 	struct drm_minor *minor;
-	int retcode = 0;
+	int retcode;
 	int need_setup = 0;
 	struct address_space *old_mapping;
 	struct address_space *old_imapping;
 
-	minor = idr_find(&drm_minors_idr, minor_id);
-	if (!minor)
-		return -ENODEV;
+	minor = drm_minor_acquire(iminor(inode));
+	if (IS_ERR(minor))
+		return PTR_ERR(minor);
 
-	if (!(dev = minor->dev))
-		return -ENODEV;
-
-	if (drm_device_is_unplugged(dev))
-		return -ENODEV;
-
+	dev = minor->dev;
 	if (!dev->open_count++)
 		need_setup = 1;
 	mutex_lock(&dev->struct_mutex);
@@ -110,7 +104,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	filp->f_mapping = dev->dev_mapping;
 	mutex_unlock(&dev->struct_mutex);
 
-	retcode = drm_open_helper(inode, filp, dev);
+	retcode = drm_open_helper(inode, filp, minor);
 	if (retcode)
 		goto err_undo;
 	if (need_setup) {
@@ -128,6 +122,7 @@ err_undo:
 	dev->dev_mapping = old_mapping;
 	mutex_unlock(&dev->struct_mutex);
 	dev->open_count--;
+	drm_minor_release(minor);
 	return retcode;
 }
 EXPORT_SYMBOL(drm_open);
@@ -143,33 +138,30 @@ EXPORT_SYMBOL(drm_open);
  */
 int drm_stub_open(struct inode *inode, struct file *filp)
 {
-	struct drm_device *dev = NULL;
+	struct drm_device *dev;
 	struct drm_minor *minor;
-	int minor_id = iminor(inode);
 	int err = -ENODEV;
 	const struct file_operations *new_fops;
 
 	DRM_DEBUG("\n");
 
 	mutex_lock(&drm_global_mutex);
-	minor = idr_find(&drm_minors_idr, minor_id);
-	if (!minor)
-		goto out;
+	minor = drm_minor_acquire(iminor(inode));
+	if (IS_ERR(minor))
+		goto out_unlock;
 
-	if (!(dev = minor->dev))
-		goto out;
-
-	if (drm_device_is_unplugged(dev))
-		goto out;
-
+	dev = minor->dev;
 	new_fops = fops_get(dev->driver->fops);
 	if (!new_fops)
-		goto out;
+		goto out_release;
 
 	replace_fops(filp, new_fops);
 	if (filp->f_op->open)
 		err = filp->f_op->open(inode, filp);
-out:
+
+out_release:
+	drm_minor_release(minor);
+out_unlock:
 	mutex_unlock(&drm_global_mutex);
 	return err;
 }
@@ -196,16 +188,16 @@ static int drm_cpu_valid(void)
  *
  * \param inode device inode.
  * \param filp file pointer.
- * \param dev device.
+ * \param minor acquired minor-object.
  * \return zero on success or a negative number on failure.
  *
  * Creates and initializes a drm_file structure for the file private data in \p
  * filp and add it into the double linked list in \p dev.
  */
 static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_device * dev)
+			   struct drm_minor *minor)
 {
-	int minor_id = iminor(inode);
+	struct drm_device *dev = minor->dev;
 	struct drm_file *priv;
 	int ret;
 
@@ -216,7 +208,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON && dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return -EINVAL;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor_id);
+	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor->index);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -226,11 +218,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	priv->filp = filp;
 	priv->uid = current_euid();
 	priv->pid = get_pid(task_pid(current));
-	priv->minor = idr_find(&drm_minors_idr, minor_id);
-	if (!priv->minor) {
-		ret = -ENODEV;
-		goto out_put_pid;
-	}
+	priv->minor = minor;
 
 	/* for compatibility root is always authenticated */
 	priv->always_authenticated = capable(CAP_SYS_ADMIN);
@@ -336,7 +324,6 @@ out_prime_destroy:
 		drm_prime_destroy_file_private(&priv->prime);
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, priv);
-out_put_pid:
 	put_pid(priv->pid);
 	kfree(priv);
 	filp->private_data = NULL;
@@ -458,7 +445,8 @@ int drm_lastclose(struct drm_device * dev)
 int drm_release(struct inode *inode, struct file *filp)
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_minor *minor = file_priv->minor;
+	struct drm_device *dev = minor->dev;
 	int retcode = 0;
 
 	mutex_lock(&drm_global_mutex);
@@ -474,7 +462,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
 		  task_pid_nr(current),
-		  (long)old_encode_dev(file_priv->minor->device),
+		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
 	/* Release any auth tokens that might point to this file_priv,
@@ -579,6 +567,8 @@ int drm_release(struct inode *inode, struct file *filp)
 			drm_put_dev(dev);
 	}
 	mutex_unlock(&drm_global_mutex);
+
+	drm_minor_release(minor);
 
 	return retcode;
 }
