@@ -4,6 +4,9 @@
  *
  * Fast user context implementation of clock_gettime, gettimeofday, and time.
  *
+ * 32 Bit compat layer by Stefani Seibold <stefani@seibold.net>
+ *  sponsored by Rohde & Schwarz GmbH & Co. KG Munich/Germany
+ *
  * The code should have no internal unresolved relocations.
  * Check with readelf after changing.
  */
@@ -12,19 +15,23 @@
 #define DISABLE_BRANCH_PROFILING
 
 #include <linux/kernel.h>
-#include <linux/posix-timers.h>
-#include <linux/time.h>
+#include <uapi/linux/time.h>
 #include <linux/string.h>
 #include <asm/vsyscall.h>
 #include <asm/fixmap.h>
 #include <asm/vgtod.h>
-#include <asm/timex.h>
 #include <asm/hpet.h>
 #include <asm/unistd.h>
 #include <asm/io.h>
 #include <asm/pvclock.h>
 
 #define gtod (&VVAR(vsyscall_gtod_data))
+
+extern int __vdso_clock_gettime(clockid_t clock, struct timespec *ts);
+extern int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz);
+extern time_t __vdso_time(time_t *t);
+
+#ifndef BUILD_VDSO32
 
 static notrace cycle_t vread_hpet(void)
 {
@@ -118,6 +125,59 @@ static notrace cycle_t vread_pvclock(int *mode)
 }
 #endif
 
+#else
+
+extern u8 hpet_page
+	__attribute__((visibility("hidden")));
+
+#ifdef CONFIG_HPET_TIMER
+static notrace cycle_t vread_hpet(void)
+{
+	return readl((const void __iomem *)(&hpet_page + HPET_COUNTER));
+}
+#endif
+
+notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
+{
+	long ret;
+
+	asm(
+		"mov %%ebx, %%edx \n"
+		"mov %2, %%ebx \n"
+		"call VDSO32_vsyscall \n"
+		"mov %%edx, %%ebx \n"
+		: "=a" (ret)
+		: "0" (__NR_clock_gettime), "g" (clock), "c" (ts)
+		: "memory", "edx");
+	return ret;
+}
+
+notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
+{
+	long ret;
+
+	asm(
+		"mov %%ebx, %%edx \n"
+		"mov %2, %%ebx \n"
+		"call VDSO32_vsyscall \n"
+		"mov %%edx, %%ebx \n"
+		: "=a" (ret)
+		: "0" (__NR_gettimeofday), "g" (tv), "c" (tz)
+		: "memory", "edx");
+	return ret;
+}
+
+#ifdef CONFIG_PARAVIRT_CLOCK
+
+static notrace cycle_t vread_pvclock(int *mode)
+{
+	*mode = VCLOCK_NONE;
+	return 0;
+}
+#endif
+
+#endif
+
 notrace static cycle_t vread_tsc(void)
 {
 	cycle_t ret;
@@ -131,7 +191,7 @@ notrace static cycle_t vread_tsc(void)
 	 * but no one has ever seen it happen.
 	 */
 	rdtsc_barrier();
-	ret = (cycle_t)vget_cycles();
+	ret = (cycle_t)__native_read_tsc();
 
 	last = gtod->clock.cycle_last;
 
@@ -152,12 +212,14 @@ notrace static cycle_t vread_tsc(void)
 
 notrace static inline u64 vgetsns(int *mode)
 {
-	long v;
+	u64 v;
 	cycles_t cycles;
 	if (gtod->clock.vclock_mode == VCLOCK_TSC)
 		cycles = vread_tsc();
+#ifdef CONFIG_HPET_TIMER
 	else if (gtod->clock.vclock_mode == VCLOCK_HPET)
 		cycles = vread_hpet();
+#endif
 #ifdef CONFIG_PARAVIRT_CLOCK
 	else if (gtod->clock.vclock_mode == VCLOCK_PVCLOCK)
 		cycles = vread_pvclock(mode);
@@ -189,7 +251,7 @@ notrace static int __always_inline do_realtime(struct timespec *ts)
 	return mode;
 }
 
-notrace static int do_monotonic(struct timespec *ts)
+notrace static int __always_inline do_monotonic(struct timespec *ts)
 {
 	unsigned long seq;
 	u64 ns;
@@ -284,7 +346,7 @@ int gettimeofday(struct timeval *, struct timezone *)
  */
 notrace time_t __vdso_time(time_t *t)
 {
-	/* This is atomic on x86_64 so we don't need any locks. */
+	/* This is atomic on x86 so we don't need any locks. */
 	time_t result = ACCESS_ONCE(gtod->wall_time_sec);
 
 	if (t)

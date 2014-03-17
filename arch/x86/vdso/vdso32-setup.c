@@ -25,6 +25,9 @@
 #include <asm/tlbflush.h>
 #include <asm/vdso.h>
 #include <asm/proto.h>
+#include <asm/fixmap.h>
+#include <asm/hpet.h>
+#include <asm/vvar.h>
 
 #ifdef CONFIG_COMPAT_VDSO
 #define VDSO_DEFAULT	0
@@ -141,6 +144,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	struct mm_struct *mm = current->mm;
 	unsigned long addr;
 	int ret = 0;
+	struct vm_area_struct *vma;
 
 #ifdef CONFIG_X86_X32_ABI
 	if (test_thread_flag(TIF_X32))
@@ -163,13 +167,48 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
 	 */
-	ret = install_special_mapping(mm, addr, PAGE_SIZE,
-				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				      vdso32_pages);
+	ret = install_special_mapping(mm,
+			addr,
+			VDSO_OFFSET(VDSO_PAGES - VDSO_PREV_PAGES),
+			VM_READ|VM_EXEC|
+			VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+			vdso32_pages);
 
 	if (ret)
 		goto up_fail;
+
+	vma = _install_special_mapping(mm,
+			addr -  VDSO_OFFSET(VDSO_PREV_PAGES),
+			VDSO_OFFSET(VDSO_PREV_PAGES),
+			VM_READ,
+			NULL);
+
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto up_fail;
+	}
+
+	ret = remap_pfn_range(vma,
+		addr - VDSO_OFFSET(VDSO_VVAR_PAGE),
+		__pa_symbol(&__vvar_page) >> PAGE_SHIFT,
+		PAGE_SIZE,
+		PAGE_READONLY);
+
+	if (ret)
+		goto up_fail;
+
+#ifdef CONFIG_HPET_TIMER
+	if (hpet_address) {
+		ret = io_remap_pfn_range(vma,
+			addr - VDSO_OFFSET(VDSO_HPET_PAGE),
+			hpet_address >> PAGE_SHIFT,
+			PAGE_SIZE,
+			pgprot_noncached(PAGE_READONLY));
+
+		if (ret)
+			goto up_fail;
+	}
+#endif
 
 	current_thread_info()->sysenter_return =
 		VDSO32_SYMBOL(addr, SYSENTER_RETURN);
