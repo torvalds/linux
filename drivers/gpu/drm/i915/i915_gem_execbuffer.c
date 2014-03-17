@@ -955,6 +955,9 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 			if (i915_gem_obj_ggtt_bound(obj) &&
 			    i915_gem_obj_to_ggtt(obj)->pin_count)
 				intel_mark_fb_busy(obj, ring);
+
+			/* update for the implicit flush after a batch */
+			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);

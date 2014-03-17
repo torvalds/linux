@@ -43,6 +43,9 @@ static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *o
 static __must_check int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 			       bool readonly);
+static void
+i915_gem_object_retire(struct drm_i915_gem_object *obj);
+
 static int i915_gem_phys_pwrite(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
@@ -352,6 +355,8 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 		ret = i915_gem_object_wait_rendering(obj, true);
 		if (ret)
 			return ret;
+
+		i915_gem_object_retire(obj);
 	}
 
 	ret = i915_gem_object_get_pages(obj);
@@ -767,6 +772,8 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		ret = i915_gem_object_wait_rendering(obj, false);
 		if (ret)
 			return ret;
+
+		i915_gem_object_retire(obj);
 	}
 	/* Same trick applies to invalidate partially written cachelines read
 	 * before writing. */
@@ -1154,7 +1161,8 @@ static int
 i915_gem_object_wait_rendering__tail(struct drm_i915_gem_object *obj,
 				     struct intel_ring_buffer *ring)
 {
-	i915_gem_retire_requests_ring(ring);
+	if (!obj->active)
+		return 0;
 
 	/* Manually manage the write flush as we may have not yet
 	 * retired the buffer.
@@ -1164,7 +1172,6 @@ i915_gem_object_wait_rendering__tail(struct drm_i915_gem_object *obj,
 	 * we know we have passed the last write.
 	 */
 	obj->last_write_seqno = 0;
-	obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 
 	return 0;
 }
@@ -1785,58 +1792,58 @@ static unsigned long
 __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		  bool purgeable_only)
 {
-	struct list_head still_bound_list;
-	struct drm_i915_gem_object *obj, *next;
+	struct list_head still_in_list;
+	struct drm_i915_gem_object *obj;
 	unsigned long count = 0;
 
-	list_for_each_entry_safe(obj, next,
-				 &dev_priv->mm.unbound_list,
-				 global_list) {
-		if ((i915_gem_object_is_purgeable(obj) || !purgeable_only) &&
-		    i915_gem_object_put_pages(obj) == 0) {
-			count += obj->base.size >> PAGE_SHIFT;
-			if (count >= target)
-				return count;
-		}
-	}
-
 	/*
-	 * As we may completely rewrite the bound list whilst unbinding
+	 * As we may completely rewrite the (un)bound list whilst unbinding
 	 * (due to retiring requests) we have to strictly process only
 	 * one element of the list at the time, and recheck the list
 	 * on every iteration.
+	 *
+	 * In particular, we must hold a reference whilst removing the
+	 * object as we may end up waiting for and/or retiring the objects.
+	 * This might release the final reference (held by the active list)
+	 * and result in the object being freed from under us. This is
+	 * similar to the precautions the eviction code must take whilst
+	 * removing objects.
+	 *
+	 * Also note that although these lists do not hold a reference to
+	 * the object we can safely grab one here: The final object
+	 * unreferencing and the bound_list are both protected by the
+	 * dev->struct_mutex and so we won't ever be able to observe an
+	 * object on the bound_list with a reference count equals 0.
 	 */
-	INIT_LIST_HEAD(&still_bound_list);
+	INIT_LIST_HEAD(&still_in_list);
+	while (count < target && !list_empty(&dev_priv->mm.unbound_list)) {
+		obj = list_first_entry(&dev_priv->mm.unbound_list,
+				       typeof(*obj), global_list);
+		list_move_tail(&obj->global_list, &still_in_list);
+
+		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
+			continue;
+
+		drm_gem_object_reference(&obj->base);
+
+		if (i915_gem_object_put_pages(obj) == 0)
+			count += obj->base.size >> PAGE_SHIFT;
+
+		drm_gem_object_unreference(&obj->base);
+	}
+	list_splice(&still_in_list, &dev_priv->mm.unbound_list);
+
+	INIT_LIST_HEAD(&still_in_list);
 	while (count < target && !list_empty(&dev_priv->mm.bound_list)) {
 		struct i915_vma *vma, *v;
 
 		obj = list_first_entry(&dev_priv->mm.bound_list,
 				       typeof(*obj), global_list);
-		list_move_tail(&obj->global_list, &still_bound_list);
+		list_move_tail(&obj->global_list, &still_in_list);
 
 		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
 			continue;
 
-		/*
-		 * Hold a reference whilst we unbind this object, as we may
-		 * end up waiting for and retiring requests. This might
-		 * release the final reference (held by the active list)
-		 * and result in the object being freed from under us.
-		 * in this object being freed.
-		 *
-		 * Note 1: Shrinking the bound list is special since only active
-		 * (and hence bound objects) can contain such limbo objects, so
-		 * we don't need special tricks for shrinking the unbound list.
-		 * The only other place where we have to be careful with active
-		 * objects suddenly disappearing due to retiring requests is the
-		 * eviction code.
-		 *
-		 * Note 2: Even though the bound list doesn't hold a reference
-		 * to the object we can safely grab one here: The final object
-		 * unreferencing and the bound_list are both protected by the
-		 * dev->struct_mutex and so we won't ever be able to observe an
-		 * object on the bound_list with a reference count equals 0.
-		 */
 		drm_gem_object_reference(&obj->base);
 
 		list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
@@ -1848,7 +1855,7 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 
 		drm_gem_object_unreference(&obj->base);
 	}
-	list_splice(&still_bound_list, &dev_priv->mm.bound_list);
+	list_splice(&still_in_list, &dev_priv->mm.bound_list);
 
 	return count;
 }
@@ -1862,17 +1869,8 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 static unsigned long
 i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_gem_object *obj, *next;
-	long freed = 0;
-
 	i915_gem_evict_everything(dev_priv->dev);
-
-	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list,
-				 global_list) {
-		if (i915_gem_object_put_pages(obj) == 0)
-			freed += obj->base.size >> PAGE_SHIFT;
-	}
-	return freed;
+	return __i915_gem_shrink(dev_priv, LONG_MAX, false);
 }
 
 static int
@@ -2087,6 +2085,19 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	drm_gem_object_unreference(&obj->base);
 
 	WARN_ON(i915_verify_lists(dev));
+}
+
+static void
+i915_gem_object_retire(struct drm_i915_gem_object *obj)
+{
+	struct intel_ring_buffer *ring = obj->ring;
+
+	if (ring == NULL)
+		return;
+
+	if (i915_seqno_passed(ring->get_seqno(ring, true),
+			      obj->last_read_seqno))
+		i915_gem_object_move_to_inactive(obj);
 }
 
 static int
@@ -3429,6 +3440,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
+	i915_gem_object_retire(obj);
 	i915_gem_object_flush_cpu_write_domain(obj, false);
 
 	/* Serialise direct access to this object with the barriers for
@@ -3527,6 +3539,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		 * in obj->write_domain and have been skipping the clflushes.
 		 * Just set it to the CPU cache for now.
 		 */
+		i915_gem_object_retire(obj);
 		WARN_ON(obj->base.write_domain & ~I915_GEM_DOMAIN_CPU);
 
 		old_read_domains = obj->base.read_domains;
@@ -3749,6 +3762,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
+	i915_gem_object_retire(obj);
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	old_write_domain = obj->base.write_domain;
