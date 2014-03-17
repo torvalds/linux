@@ -106,7 +106,7 @@ enum {
 /* device support hardware monitoring */
 #define LINE6_BIT_HWMON (1 << 2)
 
-#define LINE6_BIT_CONTROL_PCM_HWMON	(LINE6_BIT_CONTROL |	\
+#define LINE6_BIT_CTRL_PCM_HW	(LINE6_BIT_CONTROL |	\
 					 LINE6_BIT_PCM |	\
 					 LINE6_BIT_HWMON)
 
