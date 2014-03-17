@@ -125,6 +125,31 @@ struct RGF_ICR {
 
 /* Hardware definitions end */
 
+/**
+ * mk_cidxtid - construct @cidxtid field
+ * @cid: CID value
+ * @tid: TID value
+ *
+ * @cidxtid field encoded as bits 0..3 - CID; 4..7 - TID
+ */
+static inline u8 mk_cidxtid(u8 cid, u8 tid)
+{
+	return ((tid & 0xf) << 4) | (cid & 0xf);
+}
+
+/**
+ * parse_cidxtid - parse @cidxtid field
+ * @cid: store CID value here
+ * @tid: store TID value here
+ *
+ * @cidxtid field encoded as bits 0..3 - CID; 4..7 - TID
+ */
+static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
+{
+	*cid = cidxtid & 0xf;
+	*tid = (cidxtid >> 4) & 0xf;
+}
+
 struct wil6210_mbox_ring {
 	u32 base;
 	u16 entry_size; /* max. size of mbox entry, incl. all headers */
