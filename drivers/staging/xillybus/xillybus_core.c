@@ -2318,8 +2318,12 @@ static int __init xillybus_init(void)
 	}
 
 	xillybus_wq = alloc_workqueue(xillyname, 0, 0);
+	if (!xillybus_wq) {
+		class_destroy(xillybus_class);
+		rc = -ENOMEM;
+	}
 
-	return 0; /* Success */
+	return rc;
 }
 
 static void __exit xillybus_exit(void)
