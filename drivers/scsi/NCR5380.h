@@ -288,9 +288,9 @@ struct NCR5380_hostdata {
 
 #ifdef __KERNEL__
 
-#define dprintk(a,b)			do {} while(0)
-#define NCR5380_dprint(a,b)		do {} while(0)
-#define NCR5380_dprint_phase(a,b)	do {} while(0)
+#define dprintk(flg, fmt, args...)     do {} while (0)
+#define NCR5380_dprint(flg, arg)       do {} while (0)
+#define NCR5380_dprint_phase(flg, arg) do {} while (0)
 
 #if defined(AUTOPROBE_IRQ)
 static int NCR5380_probe_irq(struct Scsi_Host *instance, int possible);
