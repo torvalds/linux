@@ -187,7 +187,7 @@ static int f2fs_write_meta_pages(struct address_space *mapping,
 				struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
-	int nrpages = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+	int nrpages = nr_pages_to_skip(sbi, META);
 	long written;
 
 	if (wbc->for_kupdate)
@@ -682,7 +682,7 @@ retry:
 	inode = igrab(entry->inode);
 	spin_unlock(&sbi->dir_inode_lock);
 	if (inode) {
-		filemap_flush(inode->i_mapping);
+		filemap_fdatawrite(inode->i_mapping);
 		iput(inode);
 	} else {
 		/*

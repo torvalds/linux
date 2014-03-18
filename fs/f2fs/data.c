@@ -868,6 +868,10 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	if (!mapping->a_ops->writepage)
 		return 0;
 
+	if (S_ISDIR(inode->i_mode) && wbc->sync_mode == WB_SYNC_NONE &&
+			get_dirty_dents(inode) < nr_pages_to_skip(sbi, DATA))
+		return 0;
+
 	if (wbc->nr_to_write < MAX_DESIRED_PAGES_WP) {
 		desired_nrtw = MAX_DESIRED_PAGES_WP;
 		excess_nrtw = desired_nrtw - wbc->nr_to_write;
