@@ -53,9 +53,9 @@ struct vnt_mic_hdr {
 
 /* RsvTime buffer header */
 struct vnt_rrv_time_rts {
-	u16 wRTSTxRrvTime_ba;
-	u16 wRTSTxRrvTime_aa;
-	u16 wRTSTxRrvTime_bb;
+	__le16 rts_rrv_time_ba;
+	__le16 rts_rrv_time_aa;
+	__le16 rts_rrv_time_bb;
 	u16 wReserved;
 	u16 wTxRrvTime_b;
 	u16 wTxRrvTime_a;
@@ -69,7 +69,7 @@ struct vnt_rrv_time_cts {
 } __packed;
 
 struct vnt_rrv_time_ab {
-	u16 wRTSTxRrvTime;
+	__le16 rts_rrv_time;
 	u16 wTxRrvTime;
 } __packed;
 
