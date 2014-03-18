@@ -2787,12 +2787,168 @@ static void alc269_shutup(struct hda_codec *codec)
 	snd_hda_shutup_pins(codec);
 }
 
+static void alc282_init(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
+	bool hp_pin_sense;
+	int coef78;
+
+	if (!hp_pin)
+		return;
+	hp_pin_sense = snd_hda_jack_detect(codec, hp_pin);
+	coef78 = alc_read_coef_idx(codec, 0x78);
+
+	/* Index 0x78 Direct Drive HP AMP LPM Control 1 */
+	/* Headphone capless set to high power mode */
+	alc_write_coef_idx(codec, 0x78, 0x9004);
+
+	if (hp_pin_sense)
+		msleep(2);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+
+	if (hp_pin_sense)
+		msleep(85);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+
+	if (hp_pin_sense)
+		msleep(100);
+
+	/* Headphone capless set to normal mode */
+	alc_write_coef_idx(codec, 0x78, coef78);
+}
+
+static void alc282_shutup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
+	bool hp_pin_sense;
+	int coef78;
+
+	if (!hp_pin) {
+		alc269_shutup(codec);
+		return;
+	}
+
+	hp_pin_sense = snd_hda_jack_detect(codec, hp_pin);
+	coef78 = alc_read_coef_idx(codec, 0x78);
+	alc_write_coef_idx(codec, 0x78, 0x9004);
+
+	if (hp_pin_sense)
+		msleep(2);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+
+	if (hp_pin_sense)
+		msleep(85);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
+
+	if (hp_pin_sense)
+		msleep(100);
+
+	alc_auto_setup_eapd(codec, false);
+	snd_hda_shutup_pins(codec);
+	alc_write_coef_idx(codec, 0x78, coef78);
+}
+
+static void alc283_restore_default_value(struct hda_codec *codec)
+{
+	int val;
+
+	/* Power Down Control */
+	alc_write_coef_idx(codec, 0x03, 0x0002);
+	/* FIFO and filter clock */
+	alc_write_coef_idx(codec, 0x05, 0x0700);
+	/* DMIC control */
+	alc_write_coef_idx(codec, 0x07, 0x0200);
+	/* Analog clock */
+	val = alc_read_coef_idx(codec, 0x06);
+	alc_write_coef_idx(codec, 0x06, (val & ~0x00f0) | 0x0);
+	/* JD */
+	val = alc_read_coef_idx(codec, 0x08);
+	alc_write_coef_idx(codec, 0x08, (val & ~0xfffc) | 0x0c2c);
+	/* JD offset1 */
+	alc_write_coef_idx(codec, 0x0a, 0xcccc);
+	/* JD offset2 */
+	alc_write_coef_idx(codec, 0x0b, 0xcccc);
+	/* LDO1/2/3, DAC/ADC */
+	alc_write_coef_idx(codec, 0x0e, 0x6fc0);
+	/* JD */
+	val = alc_read_coef_idx(codec, 0x0f);
+	alc_write_coef_idx(codec, 0x0f, (val & ~0xf800) | 0x1000);
+	/* Capless */
+	val = alc_read_coef_idx(codec, 0x10);
+	alc_write_coef_idx(codec, 0x10, (val & ~0xfc00) | 0x0c00);
+	/* Class D test 4 */
+	alc_write_coef_idx(codec, 0x3a, 0x0);
+	/* IO power down directly */
+	val = alc_read_coef_idx(codec, 0x0c);
+	alc_write_coef_idx(codec, 0x0c, (val & ~0xfe00) | 0x0);
+	/* ANC */
+	alc_write_coef_idx(codec, 0x22, 0xa0c0);
+	/* AGC MUX */
+	val = alc_read_coefex_idx(codec, 0x53, 0x01);
+	alc_write_coefex_idx(codec, 0x53, 0x01, (val & ~0x000f) | 0x0008);
+	/* DAC simple content protection */
+	val = alc_read_coef_idx(codec, 0x1d);
+	alc_write_coef_idx(codec, 0x1d, (val & ~0x00e0) | 0x0);
+	/* ADC simple content protection */
+	val = alc_read_coef_idx(codec, 0x1f);
+	alc_write_coef_idx(codec, 0x1f, (val & ~0x00e0) | 0x0);
+	/* DAC ADC Zero Detection */
+	alc_write_coef_idx(codec, 0x21, 0x8804);
+	/* PLL */
+	alc_write_coef_idx(codec, 0x2e, 0x2902);
+	/* capless control 2 */
+	alc_write_coef_idx(codec, 0x33, 0xa080);
+	/* capless control 3 */
+	alc_write_coef_idx(codec, 0x34, 0x3400);
+	/* capless control 4 */
+	alc_write_coef_idx(codec, 0x35, 0x2f3e);
+	/* capless control 5 */
+	alc_write_coef_idx(codec, 0x36, 0x0);
+	/* class D test 2 */
+	val = alc_read_coef_idx(codec, 0x38);
+	alc_write_coef_idx(codec, 0x38, (val & ~0x0fff) | 0x0900);
+	/* class D test 3 */
+	alc_write_coef_idx(codec, 0x39, 0x110a);
+	/* class D test 5 */
+	val = alc_read_coef_idx(codec, 0x3b);
+	alc_write_coef_idx(codec, 0x3b, (val & ~0x00f8) | 0x00d8);
+	/* class D test 6 */
+	alc_write_coef_idx(codec, 0x3c, 0x0014);
+	/* classD OCP */
+	alc_write_coef_idx(codec, 0x3d, 0xc2ba);
+	/* classD pure DC test */
+	val = alc_read_coef_idx(codec, 0x42);
+	alc_write_coef_idx(codec, 0x42, (val & ~0x0f80) | 0x0);
+	/* test mode */
+	alc_write_coef_idx(codec, 0x49, 0x0);
+	/* Class D DC enable */
+	val = alc_read_coef_idx(codec, 0x40);
+	alc_write_coef_idx(codec, 0x40, (val & ~0xf800) | 0x9800);
+	/* DC offset */
+	val = alc_read_coef_idx(codec, 0x42);
+	alc_write_coef_idx(codec, 0x42, (val & ~0xf000) | 0x2000);
+	/* Class D amp control */
+	alc_write_coef_idx(codec, 0x37, 0xfc06);
+}
+
 static void alc283_init(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
 	bool hp_pin_sense;
 	int val;
+
+	alc283_restore_default_value(codec);
 
 	if (!hp_pin)
 		return;
@@ -3635,6 +3791,19 @@ static void alc_fixup_auto_mute_via_amp(struct hda_codec *codec,
 	}
 }
 
+static void alc_no_shutup(struct hda_codec *codec)
+{
+}
+
+static void alc_fixup_no_shutup(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		struct alc_spec *spec = codec->spec;
+		spec->shutup = alc_no_shutup;
+	}
+}
+
 static void alc_fixup_headset_mode_alc668(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
@@ -3863,6 +4032,7 @@ enum {
 	ALC269_FIXUP_HP_GPIO_LED,
 	ALC269_FIXUP_INV_DMIC,
 	ALC269_FIXUP_LENOVO_DOCK,
+	ALC269_FIXUP_NO_SHUTUP,
 	ALC286_FIXUP_SONY_MIC_NO_PRESENCE,
 	ALC269_FIXUP_PINCFG_NO_HP_TO_LINEOUT,
 	ALC269_FIXUP_DELL1_MIC_NO_PRESENCE,
@@ -4040,6 +4210,10 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC269_FIXUP_INV_DMIC] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_inv_dmic_0x12,
+	},
+	[ALC269_FIXUP_NO_SHUTUP] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_no_shutup,
 	},
 	[ALC269_FIXUP_LENOVO_DOCK] = {
 		.type = HDA_FIXUP_PINS,
@@ -4441,6 +4615,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x2212, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
 	SND_PCI_QUIRK(0x17aa, 0x2214, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
 	SND_PCI_QUIRK(0x17aa, 0x2215, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
+	SND_PCI_QUIRK(0x17aa, 0x3978, "IdeaPad Y410P", ALC269_FIXUP_NO_SHUTUP),
 	SND_PCI_QUIRK(0x17aa, 0x5013, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
 	SND_PCI_QUIRK(0x17aa, 0x501a, "Thinkpad", ALC283_FIXUP_INT_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x5026, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
@@ -4621,6 +4796,8 @@ static int patch_alc269(struct hda_codec *codec)
 		break;
 	case 0x10ec0282:
 		spec->codec_variant = ALC269_TYPE_ALC282;
+		spec->shutup = alc282_shutup;
+		spec->init_hook = alc282_init;
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
