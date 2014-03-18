@@ -75,9 +75,6 @@
 #define NCR5380_show_info macscsi_show_info
 #define NCR5380_write_info macscsi_write_info
 
-#define BOARD_NORMAL	0
-#define BOARD_NCR53C400	1
-
 #endif /* ndef HOSTS_C */
 #endif /* ndef ASM */
 #endif /* MAC_NCR5380_H */
