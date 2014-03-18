@@ -29,8 +29,8 @@
  * 1+ (800) 334-5454
  */
 
-#ifndef SUN3_NCR5380_H
-#define SUN3_NCR5380_H
+#ifndef SUN3_SCSI_H
+#define SUN3_SCSI_H
 
 #define SUN3SCSI_PUBLIC_RELEASE 1
 
@@ -182,7 +182,5 @@ struct sun3_udc_regs {
 
 #define VME_DATA24 0x3d00
 
-#include "NCR5380.h"
-
-#endif /* SUN3_NCR5380_H */
+#endif /* SUN3_SCSI_H */
 
