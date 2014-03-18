@@ -33,8 +33,6 @@ struct netns_xfrm {
 	struct hlist_head	state_gc_list;
 	struct work_struct	state_gc_work;
 
-	wait_queue_head_t	km_waitq;
-
 	struct list_head	policy_all;
 	struct hlist_head	*policy_byidx;
 	unsigned int		policy_idx_hmask;
@@ -59,6 +57,10 @@ struct netns_xfrm {
 #if IS_ENABLED(CONFIG_IPV6)
 	struct dst_ops		xfrm6_dst_ops;
 #endif
+	spinlock_t xfrm_state_lock;
+	spinlock_t xfrm_policy_sk_bundle_lock;
+	rwlock_t xfrm_policy_lock;
+	struct mutex xfrm_cfg_mutex;
 };
 
 #endif

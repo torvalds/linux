@@ -37,6 +37,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 #include <linux/atomic.h>
 #include <asm/irq.h>
 

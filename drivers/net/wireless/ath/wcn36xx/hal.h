@@ -2644,7 +2644,7 @@ struct wcn36xx_hal_trigger_ba_rsp_candidate {
 	struct add_ba_info ba_info[STACFG_MAX_TC];
 } __packed;
 
-struct wcn36xx_hal_trigget_ba_req_candidate {
+struct wcn36xx_hal_trigger_ba_req_candidate {
 	u8 sta_index;
 	u8 tid_bitmap;
 } __packed;

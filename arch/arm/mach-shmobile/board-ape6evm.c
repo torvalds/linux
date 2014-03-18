@@ -168,7 +168,7 @@ static const struct sh_mmcif_plat_data mmcif0_pdata __initconst = {
 };
 
 static const struct resource mmcif0_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xee200000, 0x100, "MMCIF0"),
+	DEFINE_RES_MEM(0xee200000, 0x100),
 	DEFINE_RES_IRQ(gic_spi(169)),
 };
 
@@ -179,7 +179,7 @@ static const struct sh_mobile_sdhi_info sdhi0_pdata __initconst = {
 };
 
 static const struct resource sdhi0_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xee100000, 0x100, "SDHI0"),
+	DEFINE_RES_MEM(0xee100000, 0x100),
 	DEFINE_RES_IRQ(gic_spi(165)),
 };
 
@@ -191,7 +191,7 @@ static const struct sh_mobile_sdhi_info sdhi1_pdata __initconst = {
 };
 
 static const struct resource sdhi1_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xee120000, 0x100, "SDHI1"),
+	DEFINE_RES_MEM(0xee120000, 0x100),
 	DEFINE_RES_IRQ(gic_spi(166)),
 };
 

@@ -734,9 +734,12 @@ static void mxs_auart_reset(struct uart_port *u)
 
 static int mxs_auart_startup(struct uart_port *u)
 {
+	int ret;
 	struct mxs_auart_port *s = to_auart_port(u);
 
-	clk_prepare_enable(s->clk);
+	ret = clk_prepare_enable(s->clk);
+	if (ret)
+		return ret;
 
 	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_CLR);
 
@@ -957,7 +960,9 @@ auart_console_setup(struct console *co, char *options)
 	if (!s)
 		return -ENODEV;
 
-	clk_prepare_enable(s->clk);
+	ret = clk_prepare_enable(s->clk);
+	if (ret)
+		return ret;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);

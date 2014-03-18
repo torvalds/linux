@@ -769,14 +769,14 @@
 		#size-cells = <1>;
 		ranges;
 
-		vica: intc@0x10140000 {
+		vica: intc@10140000 {
 			compatible = "arm,versatile-vic";
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x10140000 0x20>;
 		};
 
-		vicb: intc@0x10140020 {
+		vicb: intc@10140020 {
 			compatible = "arm,versatile-vic";
 			interrupt-controller;
 			#interrupt-cells = <1>;

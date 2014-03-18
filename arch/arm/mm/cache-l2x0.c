@@ -25,6 +25,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
+#include "cache-tauros3.h"
 #include "cache-aurora-l2.h"
 
 #define CACHE_LINE_SIZE		32
@@ -767,6 +768,14 @@ static void aurora_save(void)
 	l2x0_saved_regs.aux_ctrl = readl_relaxed(l2x0_base + L2X0_AUX_CTRL);
 }
 
+static void __init tauros3_save(void)
+{
+	l2x0_saved_regs.aux2_ctrl =
+		readl_relaxed(l2x0_base + TAUROS3_AUX2_CTRL);
+	l2x0_saved_regs.prefetch_ctrl =
+		readl_relaxed(l2x0_base + L2X0_PREFETCH_CTRL);
+}
+
 static void l2x0_resume(void)
 {
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
@@ -819,6 +828,18 @@ static void aurora_resume(void)
 				l2x0_base + L2X0_AUX_CTRL);
 		writel_relaxed(l2x0_saved_regs.ctrl, l2x0_base + L2X0_CTRL);
 	}
+}
+
+static void tauros3_resume(void)
+{
+	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
+		writel_relaxed(l2x0_saved_regs.aux2_ctrl,
+			       l2x0_base + TAUROS3_AUX2_CTRL);
+		writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
+			       l2x0_base + L2X0_PREFETCH_CTRL);
+	}
+
+	l2x0_resume();
 }
 
 static void __init aurora_broadcast_l2_commands(void)
@@ -906,6 +927,15 @@ static const struct l2x0_of_data aurora_no_outer_data = {
 	},
 };
 
+static const struct l2x0_of_data tauros3_data = {
+	.setup = NULL,
+	.save  = tauros3_save,
+	/* Tauros3 broadcasts L1 cache operations to L2 */
+	.outer_cache = {
+		.resume      = tauros3_resume,
+	},
+};
+
 static const struct l2x0_of_data bcm_l2x0_data = {
 	.setup = pl310_of_setup,
 	.save  = pl310_save,
@@ -922,17 +952,19 @@ static const struct l2x0_of_data bcm_l2x0_data = {
 };
 
 static const struct of_device_id l2x0_ids[] __initconst = {
-	{ .compatible = "arm,pl310-cache", .data = (void *)&pl310_data },
-	{ .compatible = "arm,l220-cache", .data = (void *)&l2x0_data },
 	{ .compatible = "arm,l210-cache", .data = (void *)&l2x0_data },
-	{ .compatible = "marvell,aurora-system-cache",
-	  .data = (void *)&aurora_no_outer_data},
-	{ .compatible = "marvell,aurora-outer-cache",
-	  .data = (void *)&aurora_with_outer_data},
-	{ .compatible = "brcm,bcm11351-a2-pl310-cache",
-	  .data = (void *)&bcm_l2x0_data},
+	{ .compatible = "arm,l220-cache", .data = (void *)&l2x0_data },
+	{ .compatible = "arm,pl310-cache", .data = (void *)&pl310_data },
 	{ .compatible = "bcm,bcm11351-a2-pl310-cache", /* deprecated name */
 	  .data = (void *)&bcm_l2x0_data},
+	{ .compatible = "brcm,bcm11351-a2-pl310-cache",
+	  .data = (void *)&bcm_l2x0_data},
+	{ .compatible = "marvell,aurora-outer-cache",
+	  .data = (void *)&aurora_with_outer_data},
+	{ .compatible = "marvell,aurora-system-cache",
+	  .data = (void *)&aurora_no_outer_data},
+	{ .compatible = "marvell,tauros3-cache",
+	  .data = (void *)&tauros3_data },
 	{}
 };
 

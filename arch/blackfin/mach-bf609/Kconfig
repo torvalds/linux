@@ -17,6 +17,12 @@ config SEC_IRQ_PRIORITY_LEVELS
 	  Divide the total number of interrupt priority levels into sub-levels.
 	  There is 2 ^ (SEC_IRQ_PRIORITY_LEVELS + 1) different levels.
 
+config L1_PARITY_CHECK
+	bool "Enable L1 parity check"
+	default n
+	help
+	  Enable the L1 parity check in L1 sram. A fault event is raised
+	  when L1 parity error is found.
 
 comment "System Cross Bar Priority Assignment"
 

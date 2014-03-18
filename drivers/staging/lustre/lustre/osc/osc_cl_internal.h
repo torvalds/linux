@@ -299,7 +299,7 @@ struct osc_lock {
 				 ols_flush:1,
 	/**
 	 * if set, the osc_lock is a glimpse lock. For glimpse locks, we treat
-	 * the EVAVAIL error as torerable, this will make upper logic happy
+	 * the EVAVAIL error as tolerable, this will make upper logic happy
 	 * to wait all glimpse locks to each OSTs to be completed.
 	 * Glimpse lock converts to normal lock if the server lock is
 	 * granted.

@@ -1624,7 +1624,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	}
 
 	if (pixel_limit) {
-		pr_warn("DL chip limit of %d overriden"
+		pr_warn("DL chip limit of %d overridden"
 			" by module param to %d\n",
 			dev->sku_pixel_limit, pixel_limit);
 		dev->sku_pixel_limit = pixel_limit;

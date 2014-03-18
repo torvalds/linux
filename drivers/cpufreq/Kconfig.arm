@@ -4,7 +4,8 @@
 
 config ARM_BIG_LITTLE_CPUFREQ
 	tristate "Generic ARM big LITTLE CPUfreq driver"
-	depends on ARM_CPU_TOPOLOGY && PM_OPP && HAVE_CLK
+	depends on ARM && BIG_LITTLE && ARM_CPU_TOPOLOGY && HAVE_CLK
+	select PM_OPP
 	help
 	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
 
@@ -54,13 +55,29 @@ config ARM_EXYNOS5250_CPUFREQ
 config ARM_EXYNOS5440_CPUFREQ
 	bool "SAMSUNG EXYNOS5440"
 	depends on SOC_EXYNOS5440
-	depends on HAVE_CLK && PM_OPP && OF
+	depends on HAVE_CLK && OF
+	select PM_OPP
 	default y
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5440
 	  SoC. The nature of exynos5440 clock controller is
 	  different than previous exynos controllers so not using
 	  the common exynos framework.
+
+	  If in doubt, say N.
+
+config ARM_EXYNOS_CPU_FREQ_BOOST_SW
+	bool "EXYNOS Frequency Overclocking - Software"
+	depends on ARM_EXYNOS_CPUFREQ
+	select CPU_FREQ_BOOST_SW
+	select EXYNOS_THERMAL
+	help
+	  This driver supports software managed overclocking (BOOST).
+	  It allows usage of special frequencies for Samsung Exynos
+	  processors if thermal conditions are appropriate.
+
+	  It reguires, for safe operation, thermal framework with properly
+	  defined trip points.
 
 	  If in doubt, say N.
 
@@ -79,11 +96,11 @@ config ARM_HIGHBANK_CPUFREQ
 	  If in doubt, say N.
 
 config ARM_IMX6Q_CPUFREQ
-	tristate "Freescale i.MX6Q cpufreq support"
-	depends on SOC_IMX6Q
+	tristate "Freescale i.MX6 cpufreq support"
+	depends on ARCH_MXC
 	depends on REGULATOR_ANATOP
 	help
-	  This adds cpufreq driver support for Freescale i.MX6Q SOC.
+	  This adds cpufreq driver support for Freescale i.MX6 series SoCs.
 
 	  If in doubt, say N.
 

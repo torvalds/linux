@@ -24,24 +24,24 @@
 
 		blue-power {
 			label = "dns320:blue:power";
-			gpios = <&gpio0 26 1>; /* GPIO 26 Active Low */
-			linux,default-trigger = "default-on";
+			gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 		blue-usb {
 			label = "dns320:blue:usb";
-			gpios = <&gpio1 11 1>; /* GPIO 43 Active Low */
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
 		orange-l_hdd {
 			label = "dns320:orange:l_hdd";
-			gpios = <&gpio0 28 1>; /* GPIO 28 Active Low */
+			gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;
 		};
 		orange-r_hdd {
 			label = "dns320:orange:r_hdd";
-			gpios = <&gpio0 27 1>; /* GPIO 27 Active Low */
+			gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
 		};
 		orange-usb {
 			label = "dns320:orange:usb";
-			gpios = <&gpio1 3 1>; /* GPIO 35 Active Low */
+			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>; /* GPIO 35 */
 		};
 	};
 

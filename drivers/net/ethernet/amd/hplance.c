@@ -127,41 +127,41 @@ static void hplance_remove_one(struct dio_dev *d)
 /* Initialise a single lance board at the given DIO device */
 static void hplance_init(struct net_device *dev, struct dio_dev *d)
 {
-        unsigned long va = (d->resource.start + DIO_VIRADDRBASE);
-        struct hplance_private *lp;
-        int i;
+	unsigned long va = (d->resource.start + DIO_VIRADDRBASE);
+	struct hplance_private *lp;
+	int i;
 
-        /* reset the board */
-        out_8(va+DIO_IDOFF, 0xff);
-        udelay(100);                              /* ariba! ariba! udelay! udelay! */
+	/* reset the board */
+	out_8(va + DIO_IDOFF, 0xff);
+	udelay(100);                              /* ariba! ariba! udelay! udelay! */
 
-        /* Fill the dev fields */
-        dev->base_addr = va;
-        dev->netdev_ops = &hplance_netdev_ops;
-        dev->dma = 0;
+	/* Fill the dev fields */
+	dev->base_addr = va;
+	dev->netdev_ops = &hplance_netdev_ops;
+	dev->dma = 0;
 
-        for (i=0; i<6; i++) {
-                /* The NVRAM holds our ethernet address, one nibble per byte,
-                 * at bytes NVRAMOFF+1,3,5,7,9...
-                 */
-                dev->dev_addr[i] = ((in_8(va + HPLANCE_NVRAMOFF + i*4 + 1) & 0xF) << 4)
-                        | (in_8(va + HPLANCE_NVRAMOFF + i*4 + 3) & 0xF);
-        }
+	for (i = 0; i < 6; i++) {
+		/* The NVRAM holds our ethernet address, one nibble per byte,
+		 * at bytes NVRAMOFF+1,3,5,7,9...
+		 */
+		dev->dev_addr[i] = ((in_8(va + HPLANCE_NVRAMOFF + i*4 + 1) & 0xF) << 4)
+			| (in_8(va + HPLANCE_NVRAMOFF + i*4 + 3) & 0xF);
+	}
 
-        lp = netdev_priv(dev);
-        lp->lance.name = (char*)d->name;                /* discards const, shut up gcc */
-        lp->lance.base = va;
-        lp->lance.init_block = (struct lance_init_block *)(va + HPLANCE_MEMOFF); /* CPU addr */
-        lp->lance.lance_init_block = NULL;              /* LANCE addr of same RAM */
-        lp->lance.busmaster_regval = LE_C3_BSWP;        /* we're bigendian */
-        lp->lance.irq = d->ipl;
-        lp->lance.writerap = hplance_writerap;
-        lp->lance.writerdp = hplance_writerdp;
-        lp->lance.readrdp = hplance_readrdp;
-        lp->lance.lance_log_rx_bufs = LANCE_LOG_RX_BUFFERS;
-        lp->lance.lance_log_tx_bufs = LANCE_LOG_TX_BUFFERS;
-        lp->lance.rx_ring_mod_mask = RX_RING_MOD_MASK;
-        lp->lance.tx_ring_mod_mask = TX_RING_MOD_MASK;
+	lp = netdev_priv(dev);
+	lp->lance.name = d->name;
+	lp->lance.base = va;
+	lp->lance.init_block = (struct lance_init_block *)(va + HPLANCE_MEMOFF); /* CPU addr */
+	lp->lance.lance_init_block = NULL;              /* LANCE addr of same RAM */
+	lp->lance.busmaster_regval = LE_C3_BSWP;        /* we're bigendian */
+	lp->lance.irq = d->ipl;
+	lp->lance.writerap = hplance_writerap;
+	lp->lance.writerdp = hplance_writerdp;
+	lp->lance.readrdp = hplance_readrdp;
+	lp->lance.lance_log_rx_bufs = LANCE_LOG_RX_BUFFERS;
+	lp->lance.lance_log_tx_bufs = LANCE_LOG_TX_BUFFERS;
+	lp->lance.rx_ring_mod_mask = RX_RING_MOD_MASK;
+	lp->lance.tx_ring_mod_mask = TX_RING_MOD_MASK;
 }
 
 /* This is disgusting. We have to check the DIO status register for ack every
@@ -195,25 +195,25 @@ static unsigned short hplance_readrdp(void *priv)
 
 static int hplance_open(struct net_device *dev)
 {
-        int status;
-        struct lance_private *lp = netdev_priv(dev);
+	int status;
+	struct lance_private *lp = netdev_priv(dev);
 
-        status = lance_open(dev);                 /* call generic lance open code */
-        if (status)
-                return status;
-        /* enable interrupts at board level. */
-        out_8(lp->base + HPLANCE_STATUS, LE_IE);
+	status = lance_open(dev);                 /* call generic lance open code */
+	if (status)
+		return status;
+	/* enable interrupts at board level. */
+	out_8(lp->base + HPLANCE_STATUS, LE_IE);
 
-        return 0;
+	return 0;
 }
 
 static int hplance_close(struct net_device *dev)
 {
-        struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = netdev_priv(dev);
 
-        out_8(lp->base + HPLANCE_STATUS, 0);	/* disable interrupts at boardlevel */
-        lance_close(dev);
-        return 0;
+	out_8(lp->base + HPLANCE_STATUS, 0);	/* disable interrupts at boardlevel */
+	lance_close(dev);
+	return 0;
 }
 
 static int __init hplance_init_module(void)
@@ -223,7 +223,7 @@ static int __init hplance_init_module(void)
 
 static void __exit hplance_cleanup_module(void)
 {
-        dio_unregister_driver(&hplance_driver);
+	dio_unregister_driver(&hplance_driver);
 }
 
 module_init(hplance_init_module);

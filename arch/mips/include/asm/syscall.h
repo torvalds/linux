@@ -29,7 +29,7 @@ static inline long syscall_get_nr(struct task_struct *task,
 static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 	struct task_struct *task, struct pt_regs *regs, unsigned int n)
 {
-	unsigned long usp = regs->regs[29];
+	unsigned long usp __maybe_unused = regs->regs[29];
 
 	switch (n) {
 	case 0: case 1: case 2: case 3:

@@ -52,9 +52,6 @@ __be32		nfsd_setattr(struct svc_rqst *, struct svc_fh *,
 				struct iattr *, int, time_t);
 int nfsd_mountpoint(struct dentry *, struct svc_export *);
 #ifdef CONFIG_NFSD_V4
-__be32          nfsd4_set_nfs4_acl(struct svc_rqst *, struct svc_fh *,
-                    struct nfs4_acl *);
-int             nfsd4_get_nfs4_acl(struct svc_rqst *, struct dentry *, struct nfs4_acl **);
 __be32          nfsd4_set_nfs4_label(struct svc_rqst *, struct svc_fh *,
 		    struct xdr_netobj *);
 #endif /* CONFIG_NFSD_V4 */
@@ -89,8 +86,6 @@ __be32		nfsd_link(struct svc_rqst *, struct svc_fh *,
 __be32		nfsd_rename(struct svc_rqst *,
 				struct svc_fh *, char *, int,
 				struct svc_fh *, char *, int);
-__be32		nfsd_remove(struct svc_rqst *,
-				struct svc_fh *, char *, int);
 __be32		nfsd_unlink(struct svc_rqst *, struct svc_fh *, int type,
 				char *name, int len);
 __be32		nfsd_readdir(struct svc_rqst *, struct svc_fh *,
@@ -100,11 +95,6 @@ __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 
 __be32		nfsd_permission(struct svc_rqst *, struct svc_export *,
 				struct dentry *, int);
-
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-struct posix_acl *nfsd_get_posix_acl(struct svc_fh *, int);
-int nfsd_set_posix_acl(struct svc_fh *, int, struct posix_acl *);
-#endif
 
 static inline int fh_want_write(struct svc_fh *fh)
 {

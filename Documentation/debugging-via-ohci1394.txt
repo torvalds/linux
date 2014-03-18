@@ -22,10 +22,12 @@ locations such as buffers like the printk buffer or the process table.
 Retrieving a full system memory dump is also possible over the FireWire,
 using data transfer rates in the order of 10MB/s or more.
 
-Memory access is currently limited to the low 4G of physical address
-space which can be a problem on IA64 machines where memory is located
-mostly above that limit, but it is rarely a problem on more common
-hardware such as hardware based on x86, x86-64 and PowerPC.
+With most FireWire controllers, memory access is limited to the low 4 GB
+of physical address space.  This can be a problem on IA64 machines where
+memory is located mostly above that limit, but it is rarely a problem on
+more common hardware such as x86, x86-64 and PowerPC.  However, at least
+Agere/LSI FW643e and FW643e2 controllers are known to support access to
+physical addresses above 4 GB.
 
 Together with a early initialization of the OHCI-1394 controller for debugging,
 this facility proved most useful for examining long debugs logs in the printk
@@ -36,17 +38,11 @@ available (notebooks) or too slow for extensive debug information (like ACPI).
 Drivers
 -------
 
-The ohci1394 driver in drivers/ieee1394 initializes the OHCI-1394 controllers
-to a working state and enables physical DMA by default for all remote nodes.
-This can be turned off by ohci1394's module parameter phys_dma=0.
-
-The alternative firewire-ohci driver in drivers/firewire uses filtered physical
+The firewire-ohci driver in drivers/firewire uses filtered physical
 DMA by default, which is more secure but not suitable for remote debugging.
-Compile the driver with CONFIG_FIREWIRE_OHCI_REMOTE_DMA (Kernel hacking menu:
-Remote debugging over FireWire with firewire-ohci) to get unfiltered physical
-DMA.
+Pass the remote_dma=1 parameter to the driver to get unfiltered physical DMA.
 
-Because ohci1394 and firewire-ohci depend on the PCI enumeration to be
+Because the firewire-ohci driver depends on the PCI enumeration to be
 completed, an initialization routine which runs pretty early has been
 implemented for x86.  This routine runs long before console_init() can be
 called, i.e. before the printk buffer appears on the console.
@@ -64,7 +60,7 @@ be used to view the printk buffer of a remote machine, even with live update.
 
 Bernhard Kaindl enhanced firescope to support accessing 64-bit machines
 from 32-bit firescope and vice versa:
-- http://halobates.de/firewire/firescope-0.2.2.tar.bz2
+- http://v3.sk/~lkundrak/firescope/
 
 and he implemented fast system dump (alpha version - read README.txt):
 - http://halobates.de/firewire/firedump-0.1.tar.bz2
@@ -92,11 +88,11 @@ Step-by-step instructions for using firescope with early OHCI initialization:
 
 1) Verify that your hardware is supported:
 
-   Load the ohci1394 or the fw-ohci module and check your kernel logs.
+   Load the firewire-ohci module and check your kernel logs.
    You should see a line similar to
 
-   ohci1394: fw-host0: OHCI-1394 1.1 (PCI): IRQ=[18]  MMIO=[fe9ff800-fe9fffff]
-   ... Max Packet=[2048]  IR/IT contexts=[4/8]
+   firewire_ohci 0000:15:00.1: added OHCI v1.0 device as card 2, 4 IR + 4 IT
+   ... contexts, quirks 0x11
 
    when loading the driver. If you have no supported controller, many PCI,
    CardBus and even some Express cards which are fully compliant to OHCI-1394
@@ -104,6 +100,9 @@ Step-by-step instructions for using firescope with early OHCI initialization:
    systems, it most likely is. Only specialized shops have cards which are not
    compliant, they are based on TI PCILynx chips and require drivers for Win-
    dows operating systems.
+
+   The mentioned kernel log message contains ">4 GB phys DMA" in case of
+   OHCI-1394 controllers which support accesses above this limit.
 
 2) Establish a working FireWire cable connection:
 
@@ -113,20 +112,18 @@ Step-by-step instructions for using firescope with early OHCI initialization:
 
    If an driver is running on both machines you should see a line like
 
-   ieee1394: Node added: ID:BUS[0-01:1023]  GUID[0090270001b84bba]
+   firewire_core 0000:15:00.1: created device fw1: GUID 00061b0020105917, S400
 
    on both machines in the kernel log when the cable is plugged in
    and connects the two machines.
 
 3) Test physical DMA using firescope:
 
-   On the debug host,
-	- load the raw1394 module,
-	- make sure that /dev/raw1394 is accessible,
+   On the debug host, make sure that /dev/fw* is accessible,
    then start firescope:
 
 	$ firescope
-	Port 0 (ohci1394) opened, 2 nodes detected
+	Port 0 (/dev/fw1) opened, 2 nodes detected
 
 	FireScope
 	---------

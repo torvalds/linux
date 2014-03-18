@@ -50,6 +50,23 @@
 					};
 				};
 			};
+
+			pmc: pmc@fffffc00 {
+				periphck {
+					lcdc_clk: lcdc_clk {
+						#clock-cells = <0>;
+						reg = <36>;
+					};
+				};
+
+				systemck {
+					lcdck: lcdck {
+						#clock-cells = <0>;
+						reg = <3>;
+						clocks = <&mck>;
+					};
+				};
+			};
 		};
 	};
 };

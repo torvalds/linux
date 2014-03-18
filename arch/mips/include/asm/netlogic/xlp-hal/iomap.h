@@ -48,8 +48,10 @@
 #define XLP_IO_SIZE			(64 << 20)	/* ECFG space size */
 #define XLP_IO_PCI_HDRSZ		0x100
 #define XLP_IO_DEV(node, dev)		((dev) + (node) * 8)
-#define XLP_HDR_OFFSET(node, bus, dev, fn)	(((bus) << 20) | \
-				((XLP_IO_DEV(node, dev)) << 15) | ((fn) << 12))
+#define XLP_IO_PCI_OFFSET(b, d, f)	(((b) << 20) | ((d) << 15) | ((f) << 12))
+
+#define XLP_HDR_OFFSET(node, bus, dev, fn) \
+		XLP_IO_PCI_OFFSET(bus, XLP_IO_DEV(node, dev), fn)
 
 #define XLP_IO_BRIDGE_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 0)
 /* coherent inter chip */
@@ -109,6 +111,36 @@
 #define XLP_IO_MMC_OFFSET(node, slot)	\
 		((XLP_IO_SD_OFFSET(node))+(slot*0x100)+XLP_IO_PCI_HDRSZ)
 
+/* Things have changed drastically in XLP 9XX */
+#define XLP9XX_HDR_OFFSET(n, d, f)	\
+			XLP_IO_PCI_OFFSET(xlp9xx_get_socbus(n), d, f)
+
+#define XLP9XX_IO_BRIDGE_OFFSET(node)	XLP_IO_PCI_OFFSET(0, 0, node)
+#define XLP9XX_IO_PIC_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 2, 0)
+#define XLP9XX_IO_UART_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 2, 2)
+#define XLP9XX_IO_SYS_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 0)
+#define XLP9XX_IO_FUSE_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 1)
+#define XLP9XX_IO_JTAG_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 4)
+
+#define XLP9XX_IO_PCIE_OFFSET(node, i)	XLP9XX_HDR_OFFSET(node, 1, i)
+#define XLP9XX_IO_PCIE0_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 1, 0)
+#define XLP9XX_IO_PCIE2_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 1, 2)
+#define XLP9XX_IO_PCIE3_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 1, 3)
+
+/* XLP9xx USB block */
+#define XLP9XX_IO_USB_OFFSET(node, i)		XLP9XX_HDR_OFFSET(node, 4, i)
+#define XLP9XX_IO_USB_XHCI0_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 4, 1)
+#define XLP9XX_IO_USB_XHCI1_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 4, 2)
+
+/* XLP9XX on-chip SATA controller */
+#define XLP9XX_IO_SATA_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 3, 2)
+
+#define XLP9XX_IO_NOR_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 0)
+#define XLP9XX_IO_NAND_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 1)
+#define XLP9XX_IO_SPI_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 2)
+/* SD flash */
+#define XLP9XX_IO_MMCSD_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 3)
+
 /* PCI config header register id's */
 #define XLP_PCI_CFGREG0			0x00
 #define XLP_PCI_CFGREG1			0x01
@@ -156,11 +188,23 @@
 #define PCI_DEVICE_ID_NLM_MMC		0x1018
 #define PCI_DEVICE_ID_NLM_XHCI		0x101d
 
+#define PCI_DEVICE_ID_XLP9XX_SATA	0x901A
+#define PCI_DEVICE_ID_XLP9XX_XHCI	0x901D
+
 #ifndef __ASSEMBLY__
 
 #define nlm_read_pci_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_pci_reg(b, r, v)	nlm_write_reg(b, r, v)
 
+static inline int xlp9xx_get_socbus(int node)
+{
+	uint64_t socbridge;
+
+	if (node == 0)
+		return 1;
+	socbridge = nlm_pcicfg_base(XLP9XX_IO_BRIDGE_OFFSET(node));
+	return (nlm_read_pci_reg(socbridge, 0x6) >> 8) & 0xff;
+}
 #endif /* !__ASSEMBLY */
 
 #endif /* __NLM_HAL_IOMAP_H__ */

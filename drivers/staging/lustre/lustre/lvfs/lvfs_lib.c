@@ -43,7 +43,6 @@
 #include <lustre_lib.h>
 #include <lprocfs_status.h>
 
-#ifdef LPROCFS
 void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 {
 	struct lprocfs_counter		*percpu_cntr;
@@ -169,4 +168,3 @@ int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_stats_alloc_one);
-#endif  /* LPROCFS */

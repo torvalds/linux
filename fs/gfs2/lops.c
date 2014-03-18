@@ -83,6 +83,7 @@ static void maybe_release_space(struct gfs2_bufdata *bd)
 	       bd->bd_bh->b_data + bi->bi_offset, bi->bi_len);
 	clear_bit(GBF_FULL, &bi->bi_flags);
 	rgd->rd_free_clone = rgd->rd_free;
+	rgd->rd_extfail_pt = rgd->rd_free;
 }
 
 /**
@@ -272,7 +273,7 @@ static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno)
 		nrvecs = max(nrvecs/2, 1U);
 	}
 
-	bio->bi_sector = blkno * (sb->s_blocksize >> 9);
+	bio->bi_iter.bi_sector = blkno * (sb->s_blocksize >> 9);
 	bio->bi_bdev = sb->s_bdev;
 	bio->bi_end_io = gfs2_end_log_write;
 	bio->bi_private = sdp;
@@ -588,7 +589,11 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 static void gfs2_meta_sync(struct gfs2_glock *gl)
 {
 	struct address_space *mapping = gfs2_glock2aspace(gl);
+	struct gfs2_sbd *sdp = gl->gl_sbd;
 	int error;
+
+	if (mapping == NULL)
+		mapping = &sdp->sd_aspace;
 
 	filemap_fdatawrite(mapping);
 	error = filemap_fdatawait(mapping);

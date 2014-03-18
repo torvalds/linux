@@ -39,9 +39,6 @@ static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	if (kvm_psci_call(vcpu))
-		return 1;
-
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
@@ -90,7 +87,7 @@ static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 
 	if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers) ||
 	    !arm_exit_handlers[hsr_ec]) {
-		kvm_err("Unkown exception class: hsr: %#08x\n",
+		kvm_err("Unknown exception class: hsr: %#08x\n",
 			(unsigned int)kvm_vcpu_get_hsr(vcpu));
 		BUG();
 	}

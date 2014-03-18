@@ -110,7 +110,8 @@ MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registrations. "
 		"0 - no FDMI. Default is 1 - perform FDMI.");
 
-int ql2xmaxqdepth = MAX_Q_DEPTH;
+#define MAX_Q_DEPTH	32
+static int ql2xmaxqdepth = MAX_Q_DEPTH;
 module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to set for each LUN. "
@@ -728,10 +729,8 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	}
 
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
-	if (!sp) {
-		set_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags);
+	if (!sp)
 		goto qc24_host_busy;
-	}
 
 	sp->u.scmd.cmd = cmd;
 	sp->type = SRB_SCSI_CMD;
@@ -744,7 +743,6 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3013,
 		    "Start scsi failed rval=%d for cmd=%p.\n", rval, cmd);
-		set_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags);
 		goto qc24_host_busy_free_sp;
 	}
 
@@ -1472,81 +1470,6 @@ qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
 		tag_type = 0;
 
 	return tag_type;
-}
-
-static void
-qla2x00_host_ramp_down_queuedepth(scsi_qla_host_t *vha)
-{
-	scsi_qla_host_t *vp;
-	struct Scsi_Host *shost;
-	struct scsi_device *sdev;
-	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags;
-
-	ha->host_last_rampdown_time = jiffies;
-
-	if (ha->cfg_lun_q_depth <= vha->host->cmd_per_lun)
-		return;
-
-	if ((ha->cfg_lun_q_depth / 2) < vha->host->cmd_per_lun)
-		ha->cfg_lun_q_depth = vha->host->cmd_per_lun;
-	else
-		ha->cfg_lun_q_depth = ha->cfg_lun_q_depth / 2;
-
-	/*
-	 * Geometrically ramp down the queue depth for all devices on this
-	 * adapter
-	 */
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	list_for_each_entry(vp, &ha->vp_list, list) {
-		shost = vp->host;
-		shost_for_each_device(sdev, shost) {
-			if (sdev->queue_depth > shost->cmd_per_lun) {
-				if (sdev->queue_depth < ha->cfg_lun_q_depth)
-					continue;
-				ql_dbg(ql_dbg_io, vp, 0x3031,
-				    "%ld:%d:%d: Ramping down queue depth to %d",
-				    vp->host_no, sdev->id, sdev->lun,
-				    ha->cfg_lun_q_depth);
-				qla2x00_change_queue_depth(sdev,
-				    ha->cfg_lun_q_depth, SCSI_QDEPTH_DEFAULT);
-			}
-		}
-	}
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-	return;
-}
-
-static void
-qla2x00_host_ramp_up_queuedepth(scsi_qla_host_t *vha)
-{
-	scsi_qla_host_t *vp;
-	struct Scsi_Host *shost;
-	struct scsi_device *sdev;
-	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags;
-
-	ha->host_last_rampup_time = jiffies;
-	ha->cfg_lun_q_depth++;
-
-	/*
-	 * Linearly ramp up the queue depth for all devices on this
-	 * adapter
-	 */
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	list_for_each_entry(vp, &ha->vp_list, list) {
-		shost = vp->host;
-		shost_for_each_device(sdev, shost) {
-			if (sdev->queue_depth > ha->cfg_lun_q_depth)
-				continue;
-			qla2x00_change_queue_depth(sdev, ha->cfg_lun_q_depth,
-			    SCSI_QDEPTH_RAMP_UP);
-		}
-	}
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-	return;
 }
 
 /**
@@ -2424,7 +2347,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
-	ha->cfg_lun_q_depth = ql2xmaxqdepth;
 
 	/* Assign ISP specific operations. */
 	if (IS_QLA2100(ha)) {
@@ -2573,6 +2495,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->mr.fw_reset_timer_tick = QLAFX00_RESET_INTERVAL;
 		ha->mr.fw_critemp_timer_tick = QLAFX00_CRITEMP_INTERVAL;
 		ha->mr.fw_hbt_en = 1;
+		ha->mr.host_info_resend = false;
+		ha->mr.hinfo_resend_timer_tick = QLAFX00_HINFO_RESEND_INTERVAL;
 	}
 
 	ql_dbg_pci(ql_dbg_init, pdev, 0x001e,
@@ -2638,7 +2562,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host = base_vha->host;
 	base_vha->req = req;
 	if (IS_QLAFX00(ha))
-		host->can_queue = 1024;
+		host->can_queue = QLAFX00_MAX_CANQUEUE;
 	else
 		host->can_queue = req->length + 128;
 	if (IS_QLA2XXX_MIDTYPE(ha))
@@ -2816,6 +2740,8 @@ que_init:
 	 */
 	qla2xxx_wake_dpc(base_vha);
 
+	INIT_WORK(&ha->board_disable, qla2x00_disable_board_on_pci_error);
+
 	if (IS_QLA8031(ha) || IS_MCTP_CAPABLE(ha)) {
 		sprintf(wq_name, "qla2xxx_%lu_dpc_lp_wq", base_vha->host_no);
 		ha->dpc_lp_wq = create_singlethread_workqueue(wq_name);
@@ -2955,7 +2881,7 @@ probe_hw_failed:
 	}
 	if (IS_QLA8044(ha)) {
 		qla8044_idc_lock(ha);
-		qla8044_clear_drv_active(base_vha);
+		qla8044_clear_drv_active(ha);
 		qla8044_idc_unlock(ha);
 	}
 iospace_config_failed:
@@ -2977,22 +2903,6 @@ iospace_config_failed:
 probe_out:
 	pci_disable_device(pdev);
 	return ret;
-}
-
-static void
-qla2x00_stop_dpc_thread(scsi_qla_host_t *vha)
-{
-	struct qla_hw_data *ha = vha->hw;
-	struct task_struct *t = ha->dpc_thread;
-
-	if (ha->dpc_thread == NULL)
-		return;
-	/*
-	 * qla2xxx_wake_dpc checks for ->dpc_thread
-	 * so we need to zero it out.
-	 */
-	ha->dpc_thread = NULL;
-	kthread_stop(t);
 }
 
 static void
@@ -3038,28 +2948,13 @@ qla2x00_shutdown(struct pci_dev *pdev)
 	qla2x00_free_fw_dump(ha);
 }
 
+/* Deletes all the virtual ports for a given ha */
 static void
-qla2x00_remove_one(struct pci_dev *pdev)
+qla2x00_delete_all_vps(struct qla_hw_data *ha, scsi_qla_host_t *base_vha)
 {
-	scsi_qla_host_t *base_vha, *vha;
-	struct qla_hw_data  *ha;
+	struct Scsi_Host *scsi_host;
+	scsi_qla_host_t *vha;
 	unsigned long flags;
-
-	/*
-	 * If the PCI device is disabled that means that probe failed and any
-	 * resources should be have cleaned up on probe exit.
-	 */
-	if (!atomic_read(&pdev->enable_cnt))
-		return;
-
-	base_vha = pci_get_drvdata(pdev);
-	ha = base_vha->hw;
-
-	ha->flags.host_shutting_down = 1;
-
-	set_bit(UNLOADING, &base_vha->dpc_flags);
-	if (IS_QLAFX00(ha))
-		qlafx00_driver_shutdown(base_vha, 20);
 
 	mutex_lock(&ha->vport_lock);
 	while (ha->cur_vport_count) {
@@ -3068,7 +2963,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		BUG_ON(base_vha->list.next == &ha->vp_list);
 		/* This assumes first entry in ha->vp_list is always base vha */
 		vha = list_first_entry(&base_vha->list, scsi_qla_host_t, list);
-		scsi_host_get(vha->host);
+		scsi_host = scsi_host_get(vha->host);
 
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 		mutex_unlock(&ha->vport_lock);
@@ -3079,27 +2974,12 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		mutex_lock(&ha->vport_lock);
 	}
 	mutex_unlock(&ha->vport_lock);
+}
 
-	if (IS_QLA8031(ha)) {
-		ql_dbg(ql_dbg_p3p, base_vha, 0xb07e,
-		    "Clearing fcoe driver presence.\n");
-		if (qla83xx_clear_drv_presence(base_vha) != QLA_SUCCESS)
-			ql_dbg(ql_dbg_p3p, base_vha, 0xb079,
-			    "Error while clearing DRV-Presence.\n");
-	}
-
-	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
-
-	qla2x00_dfs_remove(base_vha);
-
-	qla84xx_put_chip(base_vha);
-
-	/* Disable timer */
-	if (base_vha->timer_active)
-		qla2x00_stop_timer(base_vha);
-
-	base_vha->flags.online = 0;
-
+/* Stops all deferred work threads */
+static void
+qla2x00_destroy_deferred_work(struct qla_hw_data *ha)
+{
 	/* Flush the work queue and remove it */
 	if (ha->wq) {
 		flush_workqueue(ha->wq);
@@ -3133,27 +3013,12 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		ha->dpc_thread = NULL;
 		kthread_stop(t);
 	}
-	qlt_remove_target(ha, base_vha);
+}
 
-	qla2x00_free_sysfs_attr(base_vha);
-
-	fc_remove_host(base_vha->host);
-
-	scsi_remove_host(base_vha->host);
-
-	qla2x00_free_device(base_vha);
-
-	scsi_host_put(base_vha->host);
-
-	if (IS_QLA8044(ha)) {
-		qla8044_idc_lock(ha);
-		qla8044_clear_drv_active(base_vha);
-		qla8044_idc_unlock(ha);
-	}
+static void
+qla2x00_unmap_iobases(struct qla_hw_data *ha)
+{
 	if (IS_QLA82XX(ha)) {
-		qla82xx_idc_lock(ha);
-		qla82xx_clear_drv_active(ha);
-		qla82xx_idc_unlock(ha);
 
 		iounmap((device_reg_t __iomem *)ha->nx_pcibase);
 		if (!ql2xdbwr)
@@ -3171,6 +3036,84 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		if (IS_QLA83XX(ha) && ha->msixbase)
 			iounmap(ha->msixbase);
 	}
+}
+
+static void
+qla2x00_clear_drv_active(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (IS_QLA8044(ha)) {
+		qla8044_idc_lock(ha);
+		qla8044_clear_drv_active(ha);
+		qla8044_idc_unlock(ha);
+	} else if (IS_QLA82XX(ha)) {
+		qla82xx_idc_lock(ha);
+		qla82xx_clear_drv_active(ha);
+		qla82xx_idc_unlock(ha);
+	}
+}
+
+static void
+qla2x00_remove_one(struct pci_dev *pdev)
+{
+	scsi_qla_host_t *base_vha;
+	struct qla_hw_data  *ha;
+
+	/*
+	 * If the PCI device is disabled that means that probe failed and any
+	 * resources should be have cleaned up on probe exit.
+	 */
+	if (!atomic_read(&pdev->enable_cnt))
+		return;
+
+	base_vha = pci_get_drvdata(pdev);
+	ha = base_vha->hw;
+
+	set_bit(UNLOADING, &base_vha->dpc_flags);
+
+	if (IS_QLAFX00(ha))
+		qlafx00_driver_shutdown(base_vha, 20);
+
+	qla2x00_delete_all_vps(ha, base_vha);
+
+	if (IS_QLA8031(ha)) {
+		ql_dbg(ql_dbg_p3p, base_vha, 0xb07e,
+		    "Clearing fcoe driver presence.\n");
+		if (qla83xx_clear_drv_presence(base_vha) != QLA_SUCCESS)
+			ql_dbg(ql_dbg_p3p, base_vha, 0xb079,
+			    "Error while clearing DRV-Presence.\n");
+	}
+
+	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
+
+	qla2x00_dfs_remove(base_vha);
+
+	qla84xx_put_chip(base_vha);
+
+	/* Disable timer */
+	if (base_vha->timer_active)
+		qla2x00_stop_timer(base_vha);
+
+	base_vha->flags.online = 0;
+
+	qla2x00_destroy_deferred_work(ha);
+
+	qlt_remove_target(ha, base_vha);
+
+	qla2x00_free_sysfs_attr(base_vha, true);
+
+	fc_remove_host(base_vha->host);
+
+	scsi_remove_host(base_vha->host);
+
+	qla2x00_free_device(base_vha);
+
+	scsi_host_put(base_vha->host);
+
+	qla2x00_clear_drv_active(base_vha);
+
+	qla2x00_unmap_iobases(ha);
 
 	pci_release_selected_regions(ha->pdev, ha->bars);
 	kfree(ha);
@@ -3192,9 +3135,8 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 	if (vha->timer_active)
 		qla2x00_stop_timer(vha);
 
-	qla2x00_stop_dpc_thread(vha);
-
 	qla25xx_delete_queues(vha);
+
 	if (ha->flags.fce_enabled)
 		qla2x00_disable_fce_trace(vha, NULL, NULL);
 
@@ -4731,6 +4673,66 @@ exit:
 	return rval;
 }
 
+void
+qla2x00_disable_board_on_pci_error(struct work_struct *work)
+{
+	struct qla_hw_data *ha = container_of(work, struct qla_hw_data,
+	    board_disable);
+	struct pci_dev *pdev = ha->pdev;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
+	ql_log(ql_log_warn, base_vha, 0x015b,
+	    "Disabling adapter.\n");
+
+	set_bit(UNLOADING, &base_vha->dpc_flags);
+
+	qla2x00_delete_all_vps(ha, base_vha);
+
+	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
+
+	qla2x00_dfs_remove(base_vha);
+
+	qla84xx_put_chip(base_vha);
+
+	if (base_vha->timer_active)
+		qla2x00_stop_timer(base_vha);
+
+	base_vha->flags.online = 0;
+
+	qla2x00_destroy_deferred_work(ha);
+
+	/*
+	 * Do not try to stop beacon blink as it will issue a mailbox
+	 * command.
+	 */
+	qla2x00_free_sysfs_attr(base_vha, false);
+
+	fc_remove_host(base_vha->host);
+
+	scsi_remove_host(base_vha->host);
+
+	base_vha->flags.init_done = 0;
+	qla25xx_delete_queues(base_vha);
+	qla2x00_free_irqs(base_vha);
+	qla2x00_free_fcports(base_vha);
+	qla2x00_mem_free(ha);
+	qla82xx_md_free(base_vha);
+	qla2x00_free_queues(ha);
+
+	scsi_host_put(base_vha->host);
+
+	qla2x00_unmap_iobases(ha);
+
+	pci_release_selected_regions(ha->pdev, ha->bars);
+	kfree(ha);
+	ha = NULL;
+
+	pci_disable_pcie_error_reporting(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+
+}
+
 /**************************************************************************
 * qla2x00_do_dpc
 *   This kernel thread is a task that is schedule by the interrupt handler
@@ -4863,6 +4865,14 @@ qla2x00_do_dpc(void *data)
 				ql_dbg(ql_dbg_dpc, base_vha, 0x401f,
 				    "ISPFx00 Target Scan End\n");
 			}
+			if (test_and_clear_bit(FX00_HOST_INFO_RESEND,
+				&base_vha->dpc_flags)) {
+				ql_dbg(ql_dbg_dpc, base_vha, 0x4023,
+				    "ISPFx00 Host Info resend scheduled\n");
+				qlafx00_fx_disc(base_vha,
+				    &base_vha->hw->mr.fcport,
+				    FXDISC_REG_HOST_INFO);
+			}
 		}
 
 		if (test_and_clear_bit(ISP_ABORT_NEEDED,
@@ -4990,17 +5000,6 @@ loop_resync_check:
 			qla2xxx_flash_npiv_conf(base_vha);
 		}
 
-		if (test_and_clear_bit(HOST_RAMP_DOWN_QUEUE_DEPTH,
-		    &base_vha->dpc_flags)) {
-			/* Prevents simultaneous ramp up and down */
-			clear_bit(HOST_RAMP_UP_QUEUE_DEPTH,
-			    &base_vha->dpc_flags);
-			qla2x00_host_ramp_down_queuedepth(base_vha);
-		}
-
-		if (test_and_clear_bit(HOST_RAMP_UP_QUEUE_DEPTH,
-		    &base_vha->dpc_flags))
-			qla2x00_host_ramp_up_queuedepth(base_vha);
 intr_on_check:
 		if (!ha->interrupts_on)
 			ha->isp_ops->enable_intrs(ha);
@@ -5095,9 +5094,20 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		return;
 	}
 
-	/* Hardware read to raise pending EEH errors during mailbox waits. */
-	if (!pci_channel_offline(ha->pdev))
+	/*
+	 * Hardware read to raise pending EEH errors during mailbox waits. If
+	 * the read returns -1 then disable the board.
+	 */
+	if (!pci_channel_offline(ha->pdev)) {
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
+		if (w == 0xffff)
+			/*
+			 * Schedule this on the default system workqueue so that
+			 * all the adapter workqueues and the DPC thread can be
+			 * shutdown cleanly.
+			 */
+			schedule_work(&ha->board_disable);
+	}
 
 	/* Make sure qla82xx_watchdog is run only for physical port */
 	if (!vha->vp_idx && IS_P3P_TYPE(ha)) {
@@ -5182,7 +5192,6 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		    "Loop down - seconds remaining %d.\n",
 		    atomic_read(&vha->loop_down_timer));
 	}
-
 	/* Check if beacon LED needs to be blinked for physical host only */
 	if (!vha->vp_idx && (ha->beacon_blink_led == 1)) {
 		/* There is no beacon_blink function for ISP82xx */
@@ -5206,9 +5215,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	    test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags) ||
 	    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags) ||
 	    test_bit(VP_DPC_NEEDED, &vha->dpc_flags) ||
-	    test_bit(RELOGIN_NEEDED, &vha->dpc_flags) ||
-	    test_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags) ||
-	    test_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags))) {
+	    test_bit(RELOGIN_NEEDED, &vha->dpc_flags))) {
 		ql_dbg(ql_dbg_timer, vha, 0x600b,
 		    "isp_abort_needed=%d loop_resync_needed=%d "
 		    "fcport_update_needed=%d start_dpc=%d "
@@ -5221,15 +5228,12 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		ql_dbg(ql_dbg_timer, vha, 0x600c,
 		    "beacon_blink_needed=%d isp_unrecoverable=%d "
 		    "fcoe_ctx_reset_needed=%d vp_dpc_needed=%d "
-		    "relogin_needed=%d, host_ramp_down_needed=%d "
-		    "host_ramp_up_needed=%d.\n",
+		    "relogin_needed=%d.\n",
 		    test_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags),
 		    test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags),
 		    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags),
 		    test_bit(VP_DPC_NEEDED, &vha->dpc_flags),
-		    test_bit(RELOGIN_NEEDED, &vha->dpc_flags),
-		    test_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags),
-		    test_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags));
+		    test_bit(RELOGIN_NEEDED, &vha->dpc_flags));
 		qla2xxx_wake_dpc(vha);
 	}
 

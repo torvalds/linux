@@ -483,7 +483,7 @@ int gss_do_check_seq(unsigned long *window, __u32 win_size, __u32 *max_seq,
 			memset(window, 0, win_size / 8);
 			*max_seq = seq_num;
 		} else {
-			while(*max_seq < seq_num) {
+			while (*max_seq < seq_num) {
 				(*max_seq)++;
 				__clear_bit((*max_seq) % win_size, window);
 			}
@@ -804,7 +804,8 @@ int gss_cli_ctx_verify(struct ptlrpc_cli_ctx *ctx,
 	case PTLRPC_GSS_PROC_DATA:
 		pack_bulk = ghdr->gh_flags & LUSTRE_GSS_PACK_BULK;
 
-		if (!req->rq_early && !equi(req->rq_pack_bulk == 1, pack_bulk)){
+		if (!req->rq_early &&
+		    !equi(req->rq_pack_bulk == 1, pack_bulk)) {
 			CERROR("%s bulk flag in reply\n",
 			       req->rq_pack_bulk ? "missing" : "unexpected");
 			return -EPROTO;
@@ -1009,7 +1010,8 @@ int gss_cli_ctx_unseal(struct ptlrpc_cli_ctx *ctx,
 	case PTLRPC_GSS_PROC_DATA:
 		pack_bulk = ghdr->gh_flags & LUSTRE_GSS_PACK_BULK;
 
-		if (!req->rq_early && !equi(req->rq_pack_bulk == 1, pack_bulk)){
+		if (!req->rq_early &&
+		    !equi(req->rq_pack_bulk == 1, pack_bulk)) {
 			CERROR("%s bulk flag in reply\n",
 			       req->rq_pack_bulk ? "missing" : "unexpected");
 			return -EPROTO;
@@ -1979,7 +1981,7 @@ int gss_svc_handle_init(struct ptlrpc_request *req,
 		return SECSVC_DROP;
 	}
 
-	if (reqbuf->lm_bufcount < 3 || reqbuf->lm_bufcount > 4){
+	if (reqbuf->lm_bufcount < 3 || reqbuf->lm_bufcount > 4) {
 		CERROR("Invalid bufcount %d\n", reqbuf->lm_bufcount);
 		return SECSVC_DROP;
 	}
@@ -2369,7 +2371,7 @@ int gss_svc_accept(struct ptlrpc_sec_policy *policy, struct ptlrpc_request *req)
 	if (swabbed)
 		gss_header_swabber(ghdr);
 
-	switch(ghdr->gh_proc) {
+	switch (ghdr->gh_proc) {
 	case PTLRPC_GSS_PROC_INIT:
 	case PTLRPC_GSS_PROC_CONTINUE_INIT:
 		rc = gss_svc_handle_init(req, gw);
@@ -2388,7 +2390,7 @@ int gss_svc_accept(struct ptlrpc_sec_policy *policy, struct ptlrpc_request *req)
 
 	switch (rc) {
 	case SECSVC_OK:
-		LASSERT (grctx->src_ctx);
+		LASSERT(grctx->src_ctx);
 
 		req->rq_auth_gss = 1;
 		req->rq_auth_remote = grctx->src_ctx->gsc_remote;

@@ -191,12 +191,12 @@
 							 AT91_PIOA 18 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA18 periph A */
 					};
 
-					pinctrl_uart0_rts: uart0_rts-0 {
+					pinctrl_uart0_cts: uart0_cts-0 {
 						atmel,pins =
 							<AT91_PIOA 20 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA20 periph A */
 					};
 
-					pinctrl_uart0_cts: uart0_cts-0 {
+					pinctrl_uart0_rts: uart0_rts-0 {
 						atmel,pins =
 							<AT91_PIOA 21 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA21 periph A */
 					};

@@ -52,6 +52,7 @@
 #include <plat/regs-serial.h>
 #include <mach/regs-lcd.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/devs.h>

@@ -15,7 +15,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>

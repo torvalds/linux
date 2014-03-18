@@ -3,7 +3,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "fs.h"
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include "tests.h"
 #include <linux/hw_breakpoint.h>
 
@@ -30,7 +30,7 @@ static int test__checkevent_tracepoint_multi(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong number of entries", evlist->nr_entries > 1);
 	TEST_ASSERT_VAL("wrong number of groups", 0 == evlist->nr_groups);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		TEST_ASSERT_VAL("wrong type",
 			PERF_TYPE_TRACEPOINT == evsel->attr.type);
 		TEST_ASSERT_VAL("wrong sample_type",
@@ -201,7 +201,7 @@ test__checkevent_tracepoint_multi_modifier(struct perf_evlist *evlist)
 
 	TEST_ASSERT_VAL("wrong number of entries", evlist->nr_entries > 1);
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		TEST_ASSERT_VAL("wrong exclude_user",
 				!evsel->attr.exclude_user);
 		TEST_ASSERT_VAL("wrong exclude_kernel",
@@ -1385,10 +1385,10 @@ static int test_event(struct evlist_test *e)
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d\n",
 			 e->name, ret);
-		return ret;
+	} else {
+		ret = e->check(evlist);
 	}
-
-	ret = e->check(evlist);
+	
 	perf_evlist__delete(evlist);
 
 	return ret;

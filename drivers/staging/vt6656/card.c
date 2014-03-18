@@ -66,7 +66,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 //const u16 cwRXBCNTSFOff[MAX_RATE] =
 //{17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};
 
-const u16 cwRXBCNTSFOff[MAX_RATE] =
+static const u16 cwRXBCNTSFOff[MAX_RATE] =
 {192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3};
 
 /*
@@ -75,52 +75,48 @@ const u16 cwRXBCNTSFOff[MAX_RATE] =
  * Parameters:
  *  In:
  *      pDevice             - The adapter to be set
- *      uConnectionChannel  - Channel to be set
+ *      connection_channel  - Channel to be set
  *  Out:
  *      none
  */
-void CARDbSetMediaChannel(struct vnt_private *pDevice, u32 uConnectionChannel)
+void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
 {
 
-    if (pDevice->byBBType == BB_TYPE_11A) { // 15 ~ 38
-        if ((uConnectionChannel < (CB_MAX_CHANNEL_24G+1)) || (uConnectionChannel > CB_MAX_CHANNEL))
-            uConnectionChannel = (CB_MAX_CHANNEL_24G+1);
-    } else {
-        if ((uConnectionChannel > CB_MAX_CHANNEL_24G) || (uConnectionChannel == 0)) // 1 ~ 14
-            uConnectionChannel = 1;
-    }
+	if (priv->byBBType == BB_TYPE_11A) {
+		if ((connection_channel < (CB_MAX_CHANNEL_24G + 1)) ||
+					(connection_channel > CB_MAX_CHANNEL))
+			connection_channel = (CB_MAX_CHANNEL_24G + 1);
+	} else {
+		if ((connection_channel > CB_MAX_CHANNEL_24G) ||
+						(connection_channel == 0))
+			connection_channel = 1;
+	}
 
-    // clear NAV
-    MACvRegBitsOn(pDevice, MAC_REG_MACCR, MACCR_CLRNAV);
+	/* clear NAV */
+	MACvRegBitsOn(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
-    // Set Channel[7] = 0 to tell H/W channel is changing now.
-    MACvRegBitsOff(pDevice, MAC_REG_CHANNEL, 0x80);
+	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	MACvRegBitsOff(priv, MAC_REG_CHANNEL, 0xb0);
 
-    //if (pMgmt->uCurrChannel == uConnectionChannel)
-    //    return bResult;
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SELECT_CHANNLE,
+					connection_channel, 0, 0, NULL);
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_SELECT_CHANNLE,
-                        (u16) uConnectionChannel,
-                        0,
-                        0,
-                        NULL
-                        );
+	if (priv->byBBType == BB_TYPE_11A) {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyOFDMAPwrTbl[connection_channel-15], RATE_54M);
+	} else if (priv->byBBType == BB_TYPE_11G) {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyOFDMPwrTbl[connection_channel-1], RATE_54M);
+	} else {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyCCKPwrTbl[connection_channel-1], RATE_1M);
+	}
 
-    //{{ RobertYu: 20041202
-    //// TX_PE will reserve 3 us for MAX2829 A mode only, it is for better TX throughput
-
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyOFDMAPwrTbl[uConnectionChannel-15], RATE_54M);
-    } else if (pDevice->byBBType == BB_TYPE_11G) {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyOFDMPwrTbl[uConnectionChannel-1], RATE_54M);
-    } else {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyCCKPwrTbl[uConnectionChannel-1], RATE_1M);
-    }
-    ControlvWriteByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_CHANNEL,(u8)(uConnectionChannel|0x80));
+	ControlvWriteByte(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
+		(u8)(connection_channel|0x80));
 }
 
 /*
@@ -205,7 +201,7 @@ static u16 swGetOFDMControlRate(struct vnt_private *pDevice, u16 wRateIdx)
  * Return Value: none
  *
  */
-void
+static void
 CARDvCalculateOFDMRParameter (
       u16 wRate,
       u8 byBBType,
@@ -724,28 +720,20 @@ bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
  */
 u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval)
 {
+	u32 uBeaconInterval;
 
-    unsigned int    uLowNextTBTT;
-    unsigned int    uHighRemain, uLowRemain;
-    unsigned int    uBeaconInterval;
+	uBeaconInterval = wBeaconInterval * 1024;
 
-    uBeaconInterval = wBeaconInterval * 1024;
-    // Next TBTT = ((local_current_TSF / beacon_interval) + 1 ) * beacon_interval
-	uLowNextTBTT = ((qwTSF & 0xffffffffU) >> 10) << 10;
-	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
-	uHighRemain = ((0x80000000 % uBeaconInterval) * 2 * (u32)(qwTSF >> 32))
-		% uBeaconInterval;
-	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
-	uLowRemain = uBeaconInterval - uLowRemain;
+	/* Next TBTT =
+	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	*/
+	if (uBeaconInterval) {
+		do_div(qwTSF, uBeaconInterval);
+		qwTSF += 1;
+		qwTSF *= uBeaconInterval;
+	}
 
-    // check if carry when add one beacon interval
-	if ((~uLowNextTBTT) < uLowRemain)
-		qwTSF = ((qwTSF >> 32) + 1) << 32;
-
-	qwTSF = (qwTSF & 0xffffffff00000000ULL) |
-		(u64)(uLowNextTBTT + uLowRemain);
-
-    return (qwTSF);
+	return qwTSF;
 }
 
 /*

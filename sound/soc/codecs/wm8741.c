@@ -500,7 +500,7 @@ static const struct regmap_config wm8741_regmap = {
 	.readable_reg = wm8741_readable,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8741_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -617,7 +617,7 @@ static int __init wm8741_modinit(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8741_i2c_driver);
 	if (ret != 0)
 		pr_err("Failed to register WM8741 I2C driver: %d\n", ret);
@@ -639,7 +639,7 @@ static void __exit wm8741_exit(void)
 #if defined(CONFIG_SPI_MASTER)
 	spi_unregister_driver(&wm8741_spi_driver);
 #endif
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8741_i2c_driver);
 #endif
 }

@@ -692,7 +692,9 @@ drm_gem_object_release(struct drm_gem_object *obj)
 	WARN_ON(obj->dma_buf);
 
 	if (obj->filp)
-	    fput(obj->filp);
+		fput(obj->filp);
+
+	drm_gem_free_mmap_offset(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 
@@ -782,7 +784,7 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = dev->driver->gem_vm_ops;
 	vma->vm_private_data = obj;
-	vma->vm_page_prot =  pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 
 	/* Take a ref for this mapping of the object, so that the fault
 	 * handler can dereference the mmap offset's pointer to the object.
@@ -818,7 +820,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_gem_object *obj;
 	struct drm_vma_offset_node *node;
-	int ret = 0;
+	int ret;
 
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;

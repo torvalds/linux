@@ -69,44 +69,9 @@
 #define BRIDGE_FLASH_LIMIT3		0x13
 
 #define BRIDGE_DRAM_BAR(i)		(0x14 + (i))
-#define BRIDGE_DRAM_BAR0		0x14
-#define BRIDGE_DRAM_BAR1		0x15
-#define BRIDGE_DRAM_BAR2		0x16
-#define BRIDGE_DRAM_BAR3		0x17
-#define BRIDGE_DRAM_BAR4		0x18
-#define BRIDGE_DRAM_BAR5		0x19
-#define BRIDGE_DRAM_BAR6		0x1a
-#define BRIDGE_DRAM_BAR7		0x1b
-
 #define BRIDGE_DRAM_LIMIT(i)		(0x1c + (i))
-#define BRIDGE_DRAM_LIMIT0		0x1c
-#define BRIDGE_DRAM_LIMIT1		0x1d
-#define BRIDGE_DRAM_LIMIT2		0x1e
-#define BRIDGE_DRAM_LIMIT3		0x1f
-#define BRIDGE_DRAM_LIMIT4		0x20
-#define BRIDGE_DRAM_LIMIT5		0x21
-#define BRIDGE_DRAM_LIMIT6		0x22
-#define BRIDGE_DRAM_LIMIT7		0x23
-
 #define BRIDGE_DRAM_NODE_TRANSLN(i)	(0x24 + (i))
-#define BRIDGE_DRAM_NODE_TRANSLN0	0x24
-#define BRIDGE_DRAM_NODE_TRANSLN1	0x25
-#define BRIDGE_DRAM_NODE_TRANSLN2	0x26
-#define BRIDGE_DRAM_NODE_TRANSLN3	0x27
-#define BRIDGE_DRAM_NODE_TRANSLN4	0x28
-#define BRIDGE_DRAM_NODE_TRANSLN5	0x29
-#define BRIDGE_DRAM_NODE_TRANSLN6	0x2a
-#define BRIDGE_DRAM_NODE_TRANSLN7	0x2b
-
 #define BRIDGE_DRAM_CHNL_TRANSLN(i)	(0x2c + (i))
-#define BRIDGE_DRAM_CHNL_TRANSLN0	0x2c
-#define BRIDGE_DRAM_CHNL_TRANSLN1	0x2d
-#define BRIDGE_DRAM_CHNL_TRANSLN2	0x2e
-#define BRIDGE_DRAM_CHNL_TRANSLN3	0x2f
-#define BRIDGE_DRAM_CHNL_TRANSLN4	0x30
-#define BRIDGE_DRAM_CHNL_TRANSLN5	0x31
-#define BRIDGE_DRAM_CHNL_TRANSLN6	0x32
-#define BRIDGE_DRAM_CHNL_TRANSLN7	0x33
 
 #define BRIDGE_PCIEMEM_BASE0		0x34
 #define BRIDGE_PCIEMEM_BASE1		0x35
@@ -178,12 +143,42 @@
 #define BRIDGE_GIO_WEIGHT		0x2cb
 #define BRIDGE_FLASH_WEIGHT		0x2cc
 
+/* FIXME verify */
+#define BRIDGE_9XX_FLASH_BAR(i)		(0x11 + (i))
+#define BRIDGE_9XX_FLASH_BAR_LIMIT(i)	(0x15 + (i))
+
+#define BRIDGE_9XX_DRAM_BAR(i)		(0x19 + (i))
+#define BRIDGE_9XX_DRAM_LIMIT(i)	(0x29 + (i))
+#define BRIDGE_9XX_DRAM_NODE_TRANSLN(i)	(0x39 + (i))
+#define BRIDGE_9XX_DRAM_CHNL_TRANSLN(i)	(0x49 + (i))
+
+#define BRIDGE_9XX_ADDRESS_ERROR0	0x9d
+#define BRIDGE_9XX_ADDRESS_ERROR1	0x9e
+#define BRIDGE_9XX_ADDRESS_ERROR2	0x9f
+
+#define BRIDGE_9XX_PCIEMEM_BASE0	0x59
+#define BRIDGE_9XX_PCIEMEM_BASE1	0x5a
+#define BRIDGE_9XX_PCIEMEM_BASE2	0x5b
+#define BRIDGE_9XX_PCIEMEM_BASE3	0x5c
+#define BRIDGE_9XX_PCIEMEM_LIMIT0	0x5d
+#define BRIDGE_9XX_PCIEMEM_LIMIT1	0x5e
+#define BRIDGE_9XX_PCIEMEM_LIMIT2	0x5f
+#define BRIDGE_9XX_PCIEMEM_LIMIT3	0x60
+#define BRIDGE_9XX_PCIEIO_BASE0		0x61
+#define BRIDGE_9XX_PCIEIO_BASE1		0x62
+#define BRIDGE_9XX_PCIEIO_BASE2		0x63
+#define BRIDGE_9XX_PCIEIO_BASE3		0x64
+#define BRIDGE_9XX_PCIEIO_LIMIT0	0x65
+#define BRIDGE_9XX_PCIEIO_LIMIT1	0x66
+#define BRIDGE_9XX_PCIEIO_LIMIT2	0x67
+#define BRIDGE_9XX_PCIEIO_LIMIT3	0x68
+
 #ifndef __ASSEMBLY__
 
 #define nlm_read_bridge_reg(b, r)	nlm_read_reg(b, r)
 #define nlm_write_bridge_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_bridge_pcibase(node)	\
-			nlm_pcicfg_base(XLP_IO_BRIDGE_OFFSET(node))
+#define nlm_get_bridge_pcibase(node)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+		XLP9XX_IO_BRIDGE_OFFSET(node) : XLP_IO_BRIDGE_OFFSET(node))
 #define nlm_get_bridge_regbase(node)	\
 			(nlm_get_bridge_pcibase(node) + XLP_IO_PCI_HDRSZ)
 

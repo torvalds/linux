@@ -601,8 +601,8 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		if (patch)
 			for (i = 0; i < patch_size; i++)
-				regmap_write(regmap, patch[i].reg,
-					     patch[i].def);
+				regmap_write_async(regmap, patch[i].reg,
+						   patch[i].def);
 		break;
 
 	default:

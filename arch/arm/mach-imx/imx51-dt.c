@@ -29,7 +29,7 @@ static void __init imx51_dt_init(void)
 	platform_device_register_full(&devinfo);
 }
 
-static const char *imx51_dt_board_compat[] __initdata = {
+static const char *imx51_dt_board_compat[] __initconst = {
 	"fsl,imx51",
 	NULL
 };

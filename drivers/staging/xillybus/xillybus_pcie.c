@@ -30,7 +30,7 @@ MODULE_LICENSE("GPL v2");
 
 static const char xillyname[] = "xillybus_pcie";
 
-static DEFINE_PCI_DEVICE_TABLE(xillyids) = {
+static const struct pci_device_id xillyids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_XILLYBUS)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ALTERA, PCI_DEVICE_ID_XILLYBUS)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ACTEL, PCI_DEVICE_ID_XILLYBUS)},
@@ -168,9 +168,9 @@ static int xilly_probe(struct pci_dev *pdev,
 	}
 
 	endpoint->registers = pci_iomap(pdev, 0, 128);
-
 	if (!endpoint->registers) {
 		dev_err(endpoint->dev, "Failed to map BAR 0. Aborting.\n");
+		rc = -EIO;
 		goto failed_iomap0;
 	}
 

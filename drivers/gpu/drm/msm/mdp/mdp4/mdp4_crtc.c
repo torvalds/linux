@@ -39,6 +39,7 @@ struct mdp4_crtc {
 		spinlock_t lock;
 		bool stale;
 		uint32_t width, height;
+		uint32_t x, y;
 
 		/* next cursor to scan-out: */
 		uint32_t next_iova;
@@ -57,8 +58,15 @@ struct mdp4_crtc {
 #define PENDING_FLIP   0x2
 	atomic_t pending;
 
-	/* the fb that we currently hold a scanout ref to: */
+	/* the fb that we logically (from PoV of KMS API) hold a ref
+	 * to.  Which we may not yet be scanning out (we may still
+	 * be scanning out previous in case of page_flip while waiting
+	 * for gpu rendering to complete:
+	 */
 	struct drm_framebuffer *fb;
+
+	/* the fb that we currently hold a scanout ref to: */
+	struct drm_framebuffer *scanout_fb;
 
 	/* for unref'ing framebuffers after scanout completes: */
 	struct drm_flip_work unref_fb_work;
@@ -77,24 +85,73 @@ static struct mdp4_kms *get_kms(struct drm_crtc *crtc)
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-static void update_fb(struct drm_crtc *crtc, bool async,
-		struct drm_framebuffer *new_fb)
+static void request_pending(struct drm_crtc *crtc, uint32_t pending)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+
+	atomic_or(pending, &mdp4_crtc->pending);
+	mdp_irq_register(&get_kms(crtc)->base, &mdp4_crtc->vblank);
+}
+
+static void crtc_flush(struct drm_crtc *crtc)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+	uint32_t i, flush = 0;
+
+	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
+		struct drm_plane *plane = mdp4_crtc->planes[i];
+		if (plane) {
+			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+			flush |= pipe2flush(pipe_id);
+		}
+	}
+	flush |= ovlp2flush(mdp4_crtc->ovlp);
+
+	DBG("%s: flush=%08x", mdp4_crtc->name, flush);
+
+	mdp4_write(mdp4_kms, REG_MDP4_OVERLAY_FLUSH, flush);
+}
+
+static void update_fb(struct drm_crtc *crtc, struct drm_framebuffer *new_fb)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_framebuffer *old_fb = mdp4_crtc->fb;
-
-	if (old_fb)
-		drm_flip_work_queue(&mdp4_crtc->unref_fb_work, old_fb);
 
 	/* grab reference to incoming scanout fb: */
 	drm_framebuffer_reference(new_fb);
 	mdp4_crtc->base.fb = new_fb;
 	mdp4_crtc->fb = new_fb;
 
-	if (!async) {
-		/* enable vblank to pick up the old_fb */
-		mdp_irq_register(&get_kms(crtc)->base, &mdp4_crtc->vblank);
-	}
+	if (old_fb)
+		drm_flip_work_queue(&mdp4_crtc->unref_fb_work, old_fb);
+}
+
+/* unlike update_fb(), take a ref to the new scanout fb *before* updating
+ * plane, then call this.  Needed to ensure we don't unref the buffer that
+ * is actually still being scanned out.
+ *
+ * Note that this whole thing goes away with atomic.. since we can defer
+ * calling into driver until rendering is done.
+ */
+static void update_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+
+	/* flush updates, to make sure hw is updated to new scanout fb,
+	 * so that we can safely queue unref to current fb (ie. next
+	 * vblank we know hw is done w/ previous scanout_fb).
+	 */
+	crtc_flush(crtc);
+
+	if (mdp4_crtc->scanout_fb)
+		drm_flip_work_queue(&mdp4_crtc->unref_fb_work,
+				mdp4_crtc->scanout_fb);
+
+	mdp4_crtc->scanout_fb = fb;
+
+	/* enable vblank to complete flip: */
+	request_pending(crtc, PENDING_FLIP);
 }
 
 /* if file!=NULL, this is preclose potential cancel-flip path */
@@ -120,34 +177,6 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-static void crtc_flush(struct drm_crtc *crtc)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	uint32_t i, flush = 0;
-
-	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
-		struct drm_plane *plane = mdp4_crtc->planes[i];
-		if (plane) {
-			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
-			flush |= pipe2flush(pipe_id);
-		}
-	}
-	flush |= ovlp2flush(mdp4_crtc->ovlp);
-
-	DBG("%s: flush=%08x", mdp4_crtc->name, flush);
-
-	mdp4_write(mdp4_kms, REG_MDP4_OVERLAY_FLUSH, flush);
-}
-
-static void request_pending(struct drm_crtc *crtc, uint32_t pending)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-
-	atomic_or(pending, &mdp4_crtc->pending);
-	mdp_irq_register(&get_kms(crtc)->base, &mdp4_crtc->vblank);
-}
-
 static void pageflip_cb(struct msm_fence_cb *cb)
 {
 	struct mdp4_crtc *mdp4_crtc =
@@ -158,11 +187,9 @@ static void pageflip_cb(struct msm_fence_cb *cb)
 	if (!fb)
 		return;
 
+	drm_framebuffer_reference(fb);
 	mdp4_plane_set_scanout(mdp4_crtc->plane, fb);
-	crtc_flush(crtc);
-
-	/* enable vblank to complete flip: */
-	request_pending(crtc, PENDING_FLIP);
+	update_scanout(crtc, fb);
 }
 
 static void unref_fb_worker(struct drm_flip_work *work, void *val)
@@ -320,6 +347,20 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
+	/* grab extra ref for update_scanout() */
+	drm_framebuffer_reference(crtc->fb);
+
+	ret = mdp4_plane_mode_set(mdp4_crtc->plane, crtc, crtc->fb,
+			0, 0, mode->hdisplay, mode->vdisplay,
+			x << 16, y << 16,
+			mode->hdisplay << 16, mode->vdisplay << 16);
+	if (ret) {
+		drm_framebuffer_unreference(crtc->fb);
+		dev_err(crtc->dev->dev, "%s: failed to set mode on plane: %d\n",
+				mdp4_crtc->name, ret);
+		return ret;
+	}
+
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_SIZE(dma),
 			MDP4_DMA_SRC_SIZE_WIDTH(mode->hdisplay) |
 			MDP4_DMA_SRC_SIZE_HEIGHT(mode->vdisplay));
@@ -341,23 +382,14 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_CFG(ovlp), 1);
 
-	update_fb(crtc, false, crtc->fb);
-
-	ret = mdp4_plane_mode_set(mdp4_crtc->plane, crtc, crtc->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16);
-	if (ret) {
-		dev_err(crtc->dev->dev, "%s: failed to set mode on plane: %d\n",
-				mdp4_crtc->name, ret);
-		return ret;
-	}
-
 	if (dma == DMA_E) {
 		mdp4_write(mdp4_kms, REG_MDP4_DMA_E_QUANT(0), 0x00ff0000);
 		mdp4_write(mdp4_kms, REG_MDP4_DMA_E_QUANT(1), 0x00ff0000);
 		mdp4_write(mdp4_kms, REG_MDP4_DMA_E_QUANT(2), 0x00ff0000);
 	}
+
+	update_fb(crtc, crtc->fb);
+	update_scanout(crtc, crtc->fb);
 
 	return 0;
 }
@@ -385,13 +417,24 @@ static int mdp4_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_plane *plane = mdp4_crtc->plane;
 	struct drm_display_mode *mode = &crtc->mode;
+	int ret;
 
-	update_fb(crtc, false, crtc->fb);
+	/* grab extra ref for update_scanout() */
+	drm_framebuffer_reference(crtc->fb);
 
-	return mdp4_plane_mode_set(plane, crtc, crtc->fb,
+	ret = mdp4_plane_mode_set(plane, crtc, crtc->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
+	if (ret) {
+		drm_framebuffer_unreference(crtc->fb);
+		return ret;
+	}
+
+	update_fb(crtc, crtc->fb);
+	update_scanout(crtc, crtc->fb);
+
+	return 0;
 }
 
 static void mdp4_crtc_load_lut(struct drm_crtc *crtc)
@@ -419,7 +462,7 @@ static int mdp4_crtc_page_flip(struct drm_crtc *crtc,
 	mdp4_crtc->event = event;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	update_fb(crtc, true, new_fb);
+	update_fb(crtc, new_fb);
 
 	return msm_gem_queue_inactive_cb(obj, &mdp4_crtc->pageflip_cb);
 }
@@ -442,12 +485,12 @@ static int mdp4_crtc_set_property(struct drm_crtc *crtc,
 static void update_cursor(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct mdp4_kms *mdp4_kms = get_kms(crtc);
 	enum mdp4_dma dma = mdp4_crtc->dma;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mdp4_crtc->cursor.lock, flags);
 	if (mdp4_crtc->cursor.stale) {
-		struct mdp4_kms *mdp4_kms = get_kms(crtc);
 		struct drm_gem_object *next_bo = mdp4_crtc->cursor.next_bo;
 		struct drm_gem_object *prev_bo = mdp4_crtc->cursor.scanout_bo;
 		uint32_t iova = mdp4_crtc->cursor.next_iova;
@@ -479,6 +522,11 @@ static void update_cursor(struct drm_crtc *crtc)
 		mdp4_crtc->cursor.scanout_bo = next_bo;
 		mdp4_crtc->cursor.stale = false;
 	}
+
+	mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_POS(dma),
+			MDP4_DMA_CURSOR_POS_X(mdp4_crtc->cursor.x) |
+			MDP4_DMA_CURSOR_POS_Y(mdp4_crtc->cursor.y));
+
 	spin_unlock_irqrestore(&mdp4_crtc->cursor.lock, flags);
 }
 
@@ -530,6 +578,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 		drm_gem_object_unreference_unlocked(old_bo);
 	}
 
+	crtc_flush(crtc);
 	request_pending(crtc, PENDING_CURSOR);
 
 	return 0;
@@ -542,12 +591,15 @@ fail:
 static int mdp4_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	enum mdp4_dma dma = mdp4_crtc->dma;
+	unsigned long flags;
 
-	mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_POS(dma),
-			MDP4_DMA_CURSOR_POS_X(x) |
-			MDP4_DMA_CURSOR_POS_Y(y));
+	spin_lock_irqsave(&mdp4_crtc->cursor.lock, flags);
+	mdp4_crtc->cursor.x = x;
+	mdp4_crtc->cursor.y = y;
+	spin_unlock_irqrestore(&mdp4_crtc->cursor.lock, flags);
+
+	crtc_flush(crtc);
+	request_pending(crtc, PENDING_CURSOR);
 
 	return 0;
 }
@@ -713,6 +765,7 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	crtc = &mdp4_crtc->base;
 
 	mdp4_crtc->plane = plane;
+	mdp4_crtc->id = id;
 
 	mdp4_crtc->ovlp = ovlp_id;
 	mdp4_crtc->dma = dma_id;

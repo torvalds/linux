@@ -987,11 +987,11 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 		/* init DCP */
 		if (usbhsg_is_dcp(uep)) {
 			gpriv->gadget.ep0 = &uep->ep;
-			uep->ep.maxpacket = 64;
+			usb_ep_set_maxpacket_limit(&uep->ep, 64);
 		}
 		/* init normal pipe */
 		else {
-			uep->ep.maxpacket = 512;
+			usb_ep_set_maxpacket_limit(&uep->ep, 512);
 			list_add_tail(&uep->ep.ep_list, &gpriv->gadget.ep_list);
 		}
 	}

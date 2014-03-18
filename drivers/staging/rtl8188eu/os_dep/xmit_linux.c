@@ -156,7 +156,6 @@ void rtw_os_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
 
 void rtw_os_xmit_schedule(struct adapter *padapter)
 {
-	unsigned long  irql;
 	struct xmit_priv *pxmitpriv;
 
 	if (!padapter)
@@ -164,12 +163,12 @@ void rtw_os_xmit_schedule(struct adapter *padapter)
 
 	pxmitpriv = &padapter->xmitpriv;
 
-	_enter_critical_bh(&pxmitpriv->lock, &irql);
+	spin_lock_bh(&pxmitpriv->lock);
 
 	if (rtw_txframes_pending(padapter))
 		tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 
-	_exit_critical_bh(&pxmitpriv->lock, &irql);
+	spin_unlock_bh(&pxmitpriv->lock);
 }
 
 static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pkt)
@@ -194,13 +193,12 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 {
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	unsigned long	irql;
 	struct list_head *phead, *plist;
 	struct sk_buff *newskb;
 	struct sta_info *psta = NULL;
 	s32	res;
 
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irql);
+	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
 
@@ -230,12 +228,12 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 			DBG_88E("%s-%d: skb_copy() failed!\n", __func__, __LINE__);
 			pxmitpriv->tx_drop++;
 
-			_exit_critical_bh(&pstapriv->asoc_list_lock, &irql);
+			spin_unlock_bh(&pstapriv->asoc_list_lock);
 			return false;	/*  Caller shall tx this multicast frame via normal way. */
 		}
 	}
 
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irql);
+	spin_unlock_bh(&pstapriv->asoc_list_lock);
 	dev_kfree_skb_any(skb);
 	return true;
 }

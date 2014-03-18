@@ -26,32 +26,18 @@ static int dbx500_cpufreq_target(struct cpufreq_policy *policy,
 	return clk_set_rate(armss_clk, freq_table[index].frequency * 1000);
 }
 
-static unsigned int dbx500_cpufreq_getspeed(unsigned int cpu)
-{
-	int i = 0;
-	unsigned long freq = clk_get_rate(armss_clk) / 1000;
-
-	/* The value is rounded to closest frequency in the defined table. */
-	while (freq_table[i + 1].frequency != CPUFREQ_TABLE_END) {
-		if (freq < freq_table[i].frequency +
-		   (freq_table[i + 1].frequency - freq_table[i].frequency) / 2)
-			return freq_table[i].frequency;
-		i++;
-	}
-
-	return freq_table[i].frequency;
-}
-
 static int dbx500_cpufreq_init(struct cpufreq_policy *policy)
 {
+	policy->clk = armss_clk;
 	return cpufreq_generic_init(policy, freq_table, 20 * 1000);
 }
 
 static struct cpufreq_driver dbx500_cpufreq_driver = {
-	.flags  = CPUFREQ_STICKY | CPUFREQ_CONST_LOOPS,
+	.flags  = CPUFREQ_STICKY | CPUFREQ_CONST_LOOPS |
+			CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify = cpufreq_generic_frequency_table_verify,
 	.target_index = dbx500_cpufreq_target,
-	.get    = dbx500_cpufreq_getspeed,
+	.get    = cpufreq_generic_get,
 	.init   = dbx500_cpufreq_init,
 	.name   = "DBX500",
 	.attr   = cpufreq_generic_attr,

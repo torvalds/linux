@@ -35,6 +35,34 @@ extern void edac_atomic_assert_error(void);
 extern struct bus_type *edac_get_sysfs_subsys(void);
 extern void edac_put_sysfs_subsys(void);
 
+enum {
+	EDAC_REPORTING_ENABLED,
+	EDAC_REPORTING_DISABLED,
+	EDAC_REPORTING_FORCE
+};
+
+extern int edac_report_status;
+#ifdef CONFIG_EDAC
+static inline int get_edac_report_status(void)
+{
+	return edac_report_status;
+}
+
+static inline void set_edac_report_status(int new)
+{
+	edac_report_status = new;
+}
+#else
+static inline int get_edac_report_status(void)
+{
+	return EDAC_REPORTING_DISABLED;
+}
+
+static inline void set_edac_report_status(int new)
+{
+}
+#endif
+
 static inline void opstate_init(void)
 {
 	switch (edac_op_state) {

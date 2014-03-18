@@ -674,6 +674,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_ARM_EL1_32BIT 93
 #define KVM_CAP_SPAPR_MULTITCE 94
 #define KVM_CAP_EXT_EMUL_CPUID 95
+#define KVM_CAP_HYPERV_TIME 96
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -853,6 +854,7 @@ struct kvm_device_attr {
 #define  KVM_DEV_VFIO_GROUP			1
 #define   KVM_DEV_VFIO_GROUP_ADD			1
 #define   KVM_DEV_VFIO_GROUP_DEL			2
+#define KVM_DEV_TYPE_ARM_VGIC_V2	5
 
 /*
  * ioctls for VM fds

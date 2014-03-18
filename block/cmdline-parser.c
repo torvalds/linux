@@ -4,8 +4,7 @@
  * Written by Cai Zhiyong <caizhiyong@huawei.com>
  *
  */
-#include <linux/buffer_head.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/cmdline-parser.h>
 
 static int parse_subpart(struct cmdline_subpart **subpart, char *partdef)
@@ -159,6 +158,7 @@ void cmdline_parts_free(struct cmdline_parts **parts)
 		*parts = next_parts;
 	}
 }
+EXPORT_SYMBOL(cmdline_parts_free);
 
 int cmdline_parts_parse(struct cmdline_parts **parts, const char *cmdline)
 {
@@ -206,6 +206,7 @@ fail:
 	cmdline_parts_free(parts);
 	goto done;
 }
+EXPORT_SYMBOL(cmdline_parts_parse);
 
 struct cmdline_parts *cmdline_parts_find(struct cmdline_parts *parts,
 					 const char *bdev)
@@ -214,17 +215,17 @@ struct cmdline_parts *cmdline_parts_find(struct cmdline_parts *parts,
 		parts = parts->next_parts;
 	return parts;
 }
+EXPORT_SYMBOL(cmdline_parts_find);
 
 /*
  *  add_part()
  *    0 success.
  *    1 can not add so many partitions.
  */
-void cmdline_parts_set(struct cmdline_parts *parts, sector_t disk_size,
-		       int slot,
-		       int (*add_part)(int, struct cmdline_subpart *, void *),
-		       void *param)
-
+int cmdline_parts_set(struct cmdline_parts *parts, sector_t disk_size,
+		      int slot,
+		      int (*add_part)(int, struct cmdline_subpart *, void *),
+		      void *param)
 {
 	sector_t from = 0;
 	struct cmdline_subpart *subpart;
@@ -247,4 +248,7 @@ void cmdline_parts_set(struct cmdline_parts *parts, sector_t disk_size,
 		if (add_part(slot, subpart, param))
 			break;
 	}
+
+	return slot;
 }
+EXPORT_SYMBOL(cmdline_parts_set);

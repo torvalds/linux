@@ -21,7 +21,6 @@ obj-$(CONFIG_HCALL_STATS)	+= hvCall_inst.o
 obj-$(CONFIG_CMM)		+= cmm.o
 obj-$(CONFIG_DTL)		+= dtl.o
 obj-$(CONFIG_IO_EVENT_IRQ)	+= io_event_irq.o
-obj-$(CONFIG_PSERIES_IDLE)	+= processor_idle.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 
 ifeq ($(CONFIG_PPC_PSERIES),y)

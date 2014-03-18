@@ -52,6 +52,9 @@ struct cpuinfo_mips {
 	unsigned int		cputype;
 	int			isa_level;
 	int			tlbsize;
+	int			tlbsizevtlb;
+	int			tlbsizeftlbsets;
+	int			tlbsizeftlbways;
 	struct cache_desc	icache; /* Primary I-cache */
 	struct cache_desc	dcache; /* Primary D or combined I/D cache */
 	struct cache_desc	scache; /* Secondary cache */

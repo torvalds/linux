@@ -307,7 +307,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 	const mdsno_t mdt = range->lsr_index;
 
 	/* this is overlap case, these case are checking overlapping with
-	 * prev range only. fixup will handle overlaping with next range. */
+	 * prev range only. fixup will handle overlapping with next range. */
 
 	if (f_curr->fce_range.lsr_index == mdt) {
 		f_curr->fce_range.lsr_start = min(f_curr->fce_range.lsr_start,

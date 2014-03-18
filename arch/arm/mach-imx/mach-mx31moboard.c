@@ -236,32 +236,26 @@ static struct mc13xxx_led_platform_data moboard_led[] = {
 	{
 		.id = MC13783_LED_R1,
 		.name = "coreboard-led-4:red",
-		.max_current = 2,
 	},
 	{
 		.id = MC13783_LED_G1,
 		.name = "coreboard-led-4:green",
-		.max_current = 2,
 	},
 	{
 		.id = MC13783_LED_B1,
 		.name = "coreboard-led-4:blue",
-		.max_current = 2,
 	},
 	{
 		.id = MC13783_LED_R2,
 		.name = "coreboard-led-5:red",
-		.max_current = 3,
 	},
 	{
 		.id = MC13783_LED_G2,
 		.name = "coreboard-led-5:green",
-		.max_current = 3,
 	},
 	{
 		.id = MC13783_LED_B2,
 		.name = "coreboard-led-5:blue",
-		.max_current = 3,
 	},
 };
 
@@ -271,8 +265,14 @@ static struct mc13xxx_leds_platform_data moboard_leds = {
 	.led_control[0]	= MC13783_LED_C0_ENABLE | MC13783_LED_C0_ABMODE(0),
 	.led_control[1]	= MC13783_LED_C1_SLEWLIM,
 	.led_control[2]	= MC13783_LED_C2_SLEWLIM,
-	.led_control[3]	= MC13783_LED_C3_PERIOD(0),
-	.led_control[4]	= MC13783_LED_C3_PERIOD(0),
+	.led_control[3]	= MC13783_LED_C3_PERIOD(0) |
+			  MC13783_LED_C3_CURRENT_R1(2) |
+			  MC13783_LED_C3_CURRENT_G1(2) |
+			  MC13783_LED_C3_CURRENT_B1(2),
+	.led_control[4]	= MC13783_LED_C4_PERIOD(0) |
+			  MC13783_LED_C4_CURRENT_R2(3) |
+			  MC13783_LED_C4_CURRENT_G2(3) |
+			  MC13783_LED_C4_CURRENT_B2(3),
 };
 
 static struct mc13xxx_buttons_platform_data moboard_buttons = {

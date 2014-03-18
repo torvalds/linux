@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Pavel Machek <pavel@ucw.cz>
- * Copyright 2013 Aaro Koskinen <aaro.koskinen@iki.fi>
+ * Copyright (C) 2013-2014 Aaro Koskinen <aaro.koskinen@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 (or later) as
@@ -13,7 +13,7 @@
 
 / {
 	model = "Nokia N900";
-	compatible = "nokia,omap3-n900", "ti,omap3";
+	compatible = "nokia,omap3-n900", "ti,omap3430", "ti,omap3";
 
 	cpus {
 		cpu@0 {

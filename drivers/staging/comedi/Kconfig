@@ -884,6 +884,12 @@ config COMEDI_GSC_HPDI
 	  To compile this driver as a module, choose M here: the module will be
 	  called gsc_hpdi.
 
+config COMEDI_MF6X4
+	tristate "Humusoft MF634 and MF624 DAQ Card support"
+	---help---
+	  This driver supports both Humusoft MF634 and MF624 Data acquisition
+	  cards. The legacy Humusoft MF614 card is not supported.
+
 config COMEDI_ICP_MULTI
 	tristate "Inova ICP_MULTI support"
 	---help---

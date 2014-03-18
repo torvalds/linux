@@ -3,17 +3,26 @@
 
 #include <traceevent/event-parse.h>
 #include "parse-events.h"
-#include "session.h"
 
 struct machine;
 struct perf_sample;
 union perf_event;
 struct perf_tool;
 struct thread;
+struct plugin_list;
+
+struct trace_event {
+	struct pevent		*pevent;
+	struct plugin_list	*plugin_list;
+};
+
+int trace_event__init(struct trace_event *t);
+void trace_event__cleanup(struct trace_event *t);
+struct event_format*
+trace_event__tp_format(const char *sys, const char *name);
 
 int bigendian(void);
 
-struct pevent *read_trace_init(int file_bigendian, int host_bigendian);
 void event_format__print(struct event_format *event,
 			 int cpu, void *data, int size);
 
@@ -27,7 +36,7 @@ raw_field_value(struct event_format *event, const char *name, void *data);
 void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
 void parse_ftrace_printk(struct pevent *pevent, char *file, unsigned int size);
 
-ssize_t trace_report(int fd, struct pevent **pevent, bool repipe);
+ssize_t trace_report(int fd, struct trace_event *tevent, bool repipe);
 
 struct event_format *trace_find_next_event(struct pevent *pevent,
 					   struct event_format *event);
@@ -59,7 +68,6 @@ struct scripting_ops {
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct machine *machine,
 			       struct thread *thread,
 				   struct addr_location *al);
 	int (*generate_script) (struct pevent *pevent, const char *outfile);

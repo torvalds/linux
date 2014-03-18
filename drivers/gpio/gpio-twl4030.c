@@ -396,7 +396,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= twl_direction_out,
 	.set			= twl_set,
 	.to_irq			= twl_to_irq,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 /*----------------------------------------------------------------------*/

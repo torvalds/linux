@@ -717,7 +717,7 @@ config TOUCHSCREEN_USB_COMPOSITE
 
 config TOUCHSCREEN_MC13783
 	tristate "Freescale MC13783 touchscreen input driver"
-	depends on MFD_MC13783
+	depends on MFD_MC13XXX
 	help
 	  Say Y here if you have an Freescale MC13783 PMIC on your
 	  board and want to use its touchscreen

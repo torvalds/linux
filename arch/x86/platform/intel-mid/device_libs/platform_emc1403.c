@@ -22,7 +22,9 @@ static void __init *emc1403_platform_data(void *info)
 	int intr = get_gpio_by_name("thermal_int");
 	int intr2nd = get_gpio_by_name("thermal_alert");
 
-	if (intr == -1 || intr2nd == -1)
+	if (intr < 0)
+		return NULL;
+	if (intr2nd < 0)
 		return NULL;
 
 	i2c_info->irq = intr + INTEL_MID_IRQ_OFFSET;

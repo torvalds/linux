@@ -36,6 +36,7 @@
 	__print_flags(v, "|", \
 			{ 1 << NFS_INO_ADVISE_RDPLUS, "ADVISE_RDPLUS" }, \
 			{ 1 << NFS_INO_STALE, "STALE" }, \
+			{ 1 << NFS_INO_INVALIDATING, "INVALIDATING" }, \
 			{ 1 << NFS_INO_FLUSHING, "FLUSHING" }, \
 			{ 1 << NFS_INO_FSCACHE, "FSCACHE" }, \
 			{ 1 << NFS_INO_COMMIT, "COMMIT" }, \

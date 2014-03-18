@@ -15,7 +15,7 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "phy-fsm-usb.h"
+#include <linux/usb/otg-fsm.h>
 #include <linux/usb/otg.h>
 #include <linux/ioctl.h>
 

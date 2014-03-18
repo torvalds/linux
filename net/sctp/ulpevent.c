@@ -22,9 +22,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -990,7 +989,7 @@ static void sctp_ulpevent_receive_data(struct sctp_ulpevent *event,
 	skb = sctp_event2skb(event);
 	/* Set the owner and charge rwnd for bytes received.  */
 	sctp_ulpevent_set_owner(event, asoc);
-	sctp_assoc_rwnd_decrease(asoc, skb_headlen(skb));
+	sctp_assoc_rwnd_update(asoc, false);
 
 	if (!skb->data_len)
 		return;
@@ -1012,6 +1011,7 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 {
 	struct sk_buff *skb, *frag;
 	unsigned int	len;
+	struct sctp_association *asoc;
 
 	/* Current stack structures assume that the rcv buffer is
 	 * per socket.   For UDP style sockets this is not true as
@@ -1036,8 +1036,11 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 	}
 
 done:
-	sctp_assoc_rwnd_increase(event->asoc, len);
+	asoc = event->asoc;
+	sctp_association_hold(asoc);
 	sctp_ulpevent_release_owner(event);
+	sctp_assoc_rwnd_update(asoc, true);
+	sctp_association_put(asoc);
 }
 
 static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event)

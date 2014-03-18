@@ -87,69 +87,54 @@ config SND_HDA_PATCH_LOADER
 	  This option turns on hwdep and reconfig features automatically.
 
 config SND_HDA_CODEC_REALTEK
-	bool "Build Realtek HD-audio codec support"
-	default y
+	tristate "Build Realtek HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include Realtek HD-audio codec support in
+	  Say Y or M here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-realtek.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_REALTEK=m
 
 config SND_HDA_CODEC_ANALOG
-	bool "Build Analog Device HD-audio codec support"
-	default y
+	tristate "Build Analog Device HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include Analog Device HD-audio codec support in
+	  Say Y or M here to include Analog Device HD-audio codec support in
 	  snd-hda-intel driver, such as AD1986A.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-analog.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_ANALOG=m
 
 config SND_HDA_CODEC_SIGMATEL
-	bool "Build IDT/Sigmatel HD-audio codec support"
-	default y
+	tristate "Build IDT/Sigmatel HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include IDT (Sigmatel) HD-audio codec support in
+	  Say Y or M here to include IDT (Sigmatel) HD-audio codec support in
 	  snd-hda-intel driver, such as STAC9200.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-idt.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_SIGMATEL=m
 
 config SND_HDA_CODEC_VIA
-	bool "Build VIA HD-audio codec support"
-	default y
+	tristate "Build VIA HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include VIA HD-audio codec support in
+	  Say Y or M here to include VIA HD-audio codec support in
 	  snd-hda-intel driver, such as VT1708.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-via.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_VIA=m
 
 config SND_HDA_CODEC_HDMI
-	bool "Build HDMI/DisplayPort HD-audio codec support"
-	default y
+	tristate "Build HDMI/DisplayPort HD-audio codec support"
 	help
-	  Say Y here to include HDMI and DisplayPort HD-audio codec
+	  Say Y or M here to include HDMI and DisplayPort HD-audio codec
 	  support in snd-hda-intel driver.  This includes all AMD/ATI,
 	  Intel and Nvidia HDMI/DisplayPort codecs.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-hdmi.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_HDMI=m
 
 config SND_HDA_I915
 	bool
@@ -157,55 +142,43 @@ config SND_HDA_I915
 	depends on DRM_I915
 
 config SND_HDA_CODEC_CIRRUS
-	bool "Build Cirrus Logic codec support"
-	default y
+	tristate "Build Cirrus Logic codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include Cirrus Logic codec support in
+	  Say Y or M here to include Cirrus Logic codec support in
 	  snd-hda-intel driver, such as CS4206.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-cirrus.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CIRRUS=m
 
 config SND_HDA_CODEC_CONEXANT
-	bool "Build Conexant HD-audio codec support"
-	default y
+	tristate "Build Conexant HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include Conexant HD-audio codec support in
+	  Say Y or M here to include Conexant HD-audio codec support in
 	  snd-hda-intel driver, such as CX20549.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-conexant.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CONEXANT=m
 
 config SND_HDA_CODEC_CA0110
-	bool "Build Creative CA0110-IBG codec support"
-	default y
+	tristate "Build Creative CA0110-IBG codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include Creative CA0110-IBG codec support in
+	  Say Y or M here to include Creative CA0110-IBG codec support in
 	  snd-hda-intel driver, found on some Creative X-Fi cards.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-ca0110.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CA0110=m
 
 config SND_HDA_CODEC_CA0132
-	bool "Build Creative CA0132 codec support"
-	default y
+	tristate "Build Creative CA0132 codec support"
 	help
-	  Say Y here to include Creative CA0132 codec support in
+	  Say Y or M here to include Creative CA0132 codec support in
 	  snd-hda-intel driver.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-ca0132.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CA0132=m
 
 config SND_HDA_CODEC_CA0132_DSP
 	bool "Support new DSP code for CA0132 codec"
@@ -220,36 +193,32 @@ config SND_HDA_CODEC_CA0132_DSP
 	  (ctefx.bin).
 
 config SND_HDA_CODEC_CMEDIA
-	bool "Build C-Media HD-audio codec support"
-	default y
+	tristate "Build C-Media HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y here to include C-Media HD-audio codec support in
+	  Say Y or M here to include C-Media HD-audio codec support in
 	  snd-hda-intel driver, such as CMI9880.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-cmedia.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CMEDIA=m
 
 config SND_HDA_CODEC_SI3054
-	bool "Build Silicon Labs 3054 HD-modem codec support"
-	default y
+	tristate "Build Silicon Labs 3054 HD-modem codec support"
 	help
-	  Say Y here to include Silicon Labs 3054 HD-modem codec
+	  Say Y or M here to include Silicon Labs 3054 HD-modem codec
 	  (and compatibles) support in snd-hda-intel driver.
 
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-si3054.
-	  This module is automatically loaded at probing.
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_SI3054=m
 
 config SND_HDA_GENERIC
-	bool "Enable generic HD-audio codec parser"
-	default y
+	tristate "Enable generic HD-audio codec parser"
 	help
-	  Say Y here to enable the generic HD-audio codec parser
+	  Say Y or M here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA_INTEL=y && SND_HDA_GENERIC=m
 
 config SND_HDA_POWER_SAVE_DEFAULT
 	int "Default time-out for HD-audio power-save mode"

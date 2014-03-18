@@ -24,7 +24,6 @@
 #include <linux/pnp.h>
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
-#include <acpi/acpi_bus.h>
 
 #include "../base.h"
 #include "pnpacpi.h"
@@ -242,6 +241,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	struct pnp_dev *dev;
 	char *pnpid;
 	struct acpi_hardware_id *id;
+	int error;
 
 	/* Skip devices that are already bound */
 	if (device->physical_node_count)
@@ -300,10 +300,16 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	/* clear out the damaged flags */
 	if (!dev->active)
 		pnp_init_resources(dev);
-	pnp_add_device(dev);
+
+	error = pnp_add_device(dev);
+	if (error) {
+		put_device(&dev->dev);
+		return error;
+	}
+
 	num++;
 
-	return AE_OK;
+	return 0;
 }
 
 static acpi_status __init pnpacpi_add_device_handler(acpi_handle handle,
@@ -329,20 +335,15 @@ static int __init acpi_pnp_match(struct device *dev, void *_pnp)
 	    && compare_pnp_id(pnp->id, acpi_device_hid(acpi));
 }
 
-static int __init acpi_pnp_find_device(struct device *dev, acpi_handle * handle)
+static struct acpi_device * __init acpi_pnp_find_companion(struct device *dev)
 {
-	struct device *adev;
-	struct acpi_device *acpi;
+	dev = bus_find_device(&acpi_bus_type, NULL, to_pnp_dev(dev),
+			      acpi_pnp_match);
+	if (!dev)
+		return NULL;
 
-	adev = bus_find_device(&acpi_bus_type, NULL,
-			       to_pnp_dev(dev), acpi_pnp_match);
-	if (!adev)
-		return -ENODEV;
-
-	acpi = to_acpi_device(adev);
-	*handle = acpi->handle;
-	put_device(adev);
-	return 0;
+	put_device(dev);
+	return to_acpi_device(dev);
 }
 
 /* complete initialization of a PNPACPI device includes having
@@ -356,7 +357,7 @@ static bool acpi_pnp_bus_match(struct device *dev)
 static struct acpi_bus_type __initdata acpi_pnp_bus = {
 	.name	     = "PNP",
 	.match	     = acpi_pnp_bus_match,
-	.find_device = acpi_pnp_find_device,
+	.find_companion = acpi_pnp_find_companion,
 };
 
 int pnpacpi_disabled __initdata;

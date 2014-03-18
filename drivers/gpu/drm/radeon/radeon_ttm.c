@@ -406,8 +406,14 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 	if (r) {
 memcpy:
 		r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		if (r) {
+			return r;
+		}
 	}
-	return r;
+
+	/* update statistics */
+	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &rdev->num_bytes_moved);
+	return 0;
 }
 
 static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)

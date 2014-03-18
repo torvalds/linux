@@ -47,7 +47,8 @@
  * >1 : specify number of partitions
  */
 static int	cpu_npartitions;
-CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
+module_param(cpu_npartitions, int, 0444);
+MODULE_PARM_DESC(cpu_npartitions, "# of CPU partitions");
 
 /**
  * modparam for setting CPU partitions patterns:
@@ -61,7 +62,8 @@ CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
  * NB: If user specified cpu_pattern, cpu_npartitions will be ignored
  */
 static char	*cpu_pattern = "";
-CFS_MODULE_PARM(cpu_pattern, "s", charp, 0444, "CPU partitions pattern");
+module_param(cpu_pattern, charp, 0444);
+MODULE_PARM_DESC(cpu_pattern, "CPU partitions pattern");
 
 struct cfs_cpt_data {
 	/* serialize hotplug etc */

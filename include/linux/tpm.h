@@ -29,6 +29,18 @@
  */
 #define	TPM_ANY_NUM 0xFFFF
 
+struct tpm_chip;
+
+struct tpm_class_ops {
+	const u8 req_complete_mask;
+	const u8 req_complete_val;
+	bool (*req_canceled)(struct tpm_chip *chip, u8 status);
+	int (*recv) (struct tpm_chip *chip, u8 *buf, size_t len);
+	int (*send) (struct tpm_chip *chip, u8 *buf, size_t len);
+	void (*cancel) (struct tpm_chip *chip);
+	u8 (*status) (struct tpm_chip *chip);
+};
+
 #if defined(CONFIG_TCG_TPM) || defined(CONFIG_TCG_TPM_MODULE)
 
 extern int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf);

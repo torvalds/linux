@@ -8,6 +8,7 @@
  * By Greg Banks <gnb@melbourne.sgi.com>
  * Copyright (c) 2008 Silicon Graphics Inc.  All Rights Reserved.
  * Copyright (C) 2011 Bart Van Assche.  All Rights Reserved.
+ * Copyright (C) 2013 Du, Changbin <changbin.du@gmail.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
@@ -24,6 +25,7 @@
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/parser.h>
 #include <linux/string_helpers.h>
 #include <linux/uaccess.h>
 #include <linux/dynamic_debug.h>
@@ -147,7 +149,8 @@ static int ddebug_change(const struct ddebug_query *query,
 	list_for_each_entry(dt, &ddebug_tables, link) {
 
 		/* match against the module name */
-		if (query->module && strcmp(query->module, dt->mod_name))
+		if (query->module &&
+		    !match_wildcard(query->module, dt->mod_name))
 			continue;
 
 		for (i = 0; i < dt->num_ddebugs; i++) {
@@ -155,14 +158,16 @@ static int ddebug_change(const struct ddebug_query *query,
 
 			/* match against the source filename */
 			if (query->filename &&
-			    strcmp(query->filename, dp->filename) &&
-			    strcmp(query->filename, kbasename(dp->filename)) &&
-			    strcmp(query->filename, trim_prefix(dp->filename)))
+			    !match_wildcard(query->filename, dp->filename) &&
+			    !match_wildcard(query->filename,
+					   kbasename(dp->filename)) &&
+			    !match_wildcard(query->filename,
+					   trim_prefix(dp->filename)))
 				continue;
 
 			/* match against the function */
 			if (query->function &&
-			    strcmp(query->function, dp->function))
+			    !match_wildcard(query->function, dp->function))
 				continue;
 
 			/* match against the format */
@@ -263,14 +268,12 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
  */
 static inline int parse_lineno(const char *str, unsigned int *val)
 {
-	char *end = NULL;
 	BUG_ON(str == NULL);
 	if (*str == '\0') {
 		*val = 0;
 		return 0;
 	}
-	*val = simple_strtoul(str, &end, 10);
-	if (end == NULL || end == str || *end != '\0') {
+	if (kstrtouint(str, 10, val) < 0) {
 		pr_err("bad line-number: %s\n", str);
 		return -EINVAL;
 	}
@@ -343,14 +346,14 @@ static int ddebug_parse_query(char *words[], int nwords,
 			}
 			if (last)
 				*last++ = '\0';
-			if (parse_lineno(first, &query->first_lineno) < 0) {
-				pr_err("line-number is <0\n");
+			if (parse_lineno(first, &query->first_lineno) < 0)
 				return -EINVAL;
-			}
 			if (last) {
 				/* range <first>-<last> */
-				if (parse_lineno(last, &query->last_lineno)
-				    < query->first_lineno) {
+				if (parse_lineno(last, &query->last_lineno) < 0)
+					return -EINVAL;
+
+				if (query->last_lineno < query->first_lineno) {
 					pr_err("last-line:%d < 1st-line:%d\n",
 						query->last_lineno,
 						query->first_lineno);

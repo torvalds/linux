@@ -25,4 +25,18 @@ config CHROMEOS_LAPTOP
 	  If you have a supported Chromebook, choose Y or M here.
 	  The module will be called chromeos_laptop.
 
+config CHROMEOS_PSTORE
+	tristate "Chrome OS pstore support"
+	---help---
+	  This module instantiates the persistent storage on x86 ChromeOS
+	  devices. It can be used to store away console logs and crash
+	  information across reboots.
+
+	  The range of memory used is 0xf00000-0x1000000, traditionally
+	  the memory used to back VGA controller memory.
+
+	  If you have a supported Chromebook, choose Y or M here.
+	  The module will be called chromeos_pstore.
+
+
 endif # CHROMEOS_PLATFORMS

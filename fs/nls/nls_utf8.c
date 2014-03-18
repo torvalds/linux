@@ -46,7 +46,6 @@ static struct nls_table table = {
 	.char2uni	= char2uni,
 	.charset2lower	= identity,	/* no conversion */
 	.charset2upper	= identity,
-	.owner		= THIS_MODULE,
 };
 
 static int __init init_nls_utf8(void)

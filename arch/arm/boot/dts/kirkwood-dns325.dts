@@ -24,24 +24,24 @@
 
 		white-power {
 			label = "dns325:white:power";
-			gpios = <&gpio0 26 1>; /* GPIO 26 Active Low */
-			linux,default-trigger = "default-on";
+			gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 		white-usb {
 			label = "dns325:white:usb";
-			gpios = <&gpio1 11 1>; /* GPIO 43 Active Low */
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>; /* GPIO 43 */
 		};
 		red-l_hdd {
 			label = "dns325:red:l_hdd";
-			gpios = <&gpio0 28 1>; /* GPIO 28 Active Low */
+			gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;
 		};
 		red-r_hdd {
 			label = "dns325:red:r_hdd";
-			gpios = <&gpio0 27 1>; /* GPIO 27 Active Low */
+			gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
 		};
 		red-usb {
 			label = "dns325:red:usb";
-			gpios = <&gpio0 29 1>; /* GPIO 29 Active Low */
+			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 		};
 	};
 

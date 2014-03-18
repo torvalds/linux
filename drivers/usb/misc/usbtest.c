@@ -10,6 +10,7 @@
 
 #include <linux/usb.h>
 
+#define SIMPLE_IO_TIMEOUT	10000	/* in milliseconds */
 
 /*-------------------------------------------------------------------------*/
 
@@ -366,6 +367,7 @@ static int simple_io(
 	int			max = urb->transfer_buffer_length;
 	struct completion	completion;
 	int			retval = 0;
+	unsigned long		expire;
 
 	urb->context = &completion;
 	while (retval == 0 && iterations-- > 0) {
@@ -378,9 +380,15 @@ static int simple_io(
 		if (retval != 0)
 			break;
 
-		/* NOTE:  no timeouts; can't be broken out of by interrupt */
-		wait_for_completion(&completion);
-		retval = urb->status;
+		expire = msecs_to_jiffies(SIMPLE_IO_TIMEOUT);
+		if (!wait_for_completion_timeout(&completion, expire)) {
+			usb_kill_urb(urb);
+			retval = (urb->status == -ENOENT ?
+				  -ETIMEDOUT : urb->status);
+		} else {
+			retval = urb->status;
+		}
+
 		urb->dev = udev;
 		if (retval == 0 && usb_pipein(urb->pipe))
 			retval = simple_check_buf(tdev, urb);
@@ -619,8 +627,8 @@ static int is_good_ext(struct usbtest_dev *tdev, u8 *buf)
 	}
 
 	attr = le32_to_cpu(ext->bmAttributes);
-	/* bits[1:4] is used and others are reserved */
-	if (attr & ~0x1e) {	/* reserved == 0 */
+	/* bits[1:15] is used and others are reserved */
+	if (attr & ~0xfffe) {	/* reserved == 0 */
 		ERROR(tdev, "reserved bits set\n");
 		return 0;
 	}
@@ -763,7 +771,7 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 	 * there's always [9.4.3] a bos device descriptor [9.6.2] in USB
 	 * 3.0 spec
 	 */
-	if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0300) {
+	if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0210) {
 		struct usb_bos_descriptor *bos = NULL;
 		struct usb_dev_cap_header *header = NULL;
 		unsigned total, num, length;
@@ -944,7 +952,7 @@ struct ctrl_ctx {
 	int			last;
 };
 
-#define NUM_SUBCASES	15		/* how many test subcases here? */
+#define NUM_SUBCASES	16		/* how many test subcases here? */
 
 struct subcase {
 	struct usb_ctrlrequest	setup;
@@ -1217,6 +1225,15 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 				break;
 			}
 			expected = -EREMOTEIO;
+			break;
+		case 15:
+			req.wValue = cpu_to_le16(USB_DT_BOS << 8);
+			if (udev->bos)
+				len = le16_to_cpu(udev->bos->desc->wTotalLength);
+			else
+				len = sizeof(struct usb_bos_descriptor);
+			if (le16_to_cpu(udev->descriptor.bcdUSB) < 0x0201)
+				expected = -EPIPE;
 			break;
 		default:
 			ERROR(dev, "bogus number of ctrl queue testcases!\n");
@@ -1537,8 +1554,17 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 		return retval;
 	}
 	retval = verify_halted(tdev, ep, urb);
-	if (retval < 0)
+	if (retval < 0) {
+		int ret;
+
+		/* clear halt anyways, else further tests will fail */
+		ret = usb_clear_halt(urb->dev, urb->pipe);
+		if (ret)
+			ERROR(tdev, "ep %02x couldn't clear halt, %d\n",
+			      ep, ret);
+
 		return retval;
+	}
 
 	/* clear halt (tests API + protocol), verify it worked */
 	retval = usb_clear_halt(urb->dev, urb->pipe);

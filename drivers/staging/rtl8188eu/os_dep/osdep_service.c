@@ -52,7 +52,7 @@ u32 rtw_atoi(u8 *s)
 	}
 	if (flag == 1)
 		num = num * -1;
-	 return num;
+	return num;
 }
 
 inline u8 *_rtw_vmalloc(u32 sz)
@@ -161,20 +161,6 @@ void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead)
 Caller must check if the list is empty before calling rtw_list_delete
 */
 
-void _rtw_init_sema(struct semaphore *sema, int init_val)
-{
-	sema_init(sema, init_val);
-}
-
-void _rtw_free_sema(struct semaphore *sema)
-{
-}
-
-void _rtw_up_sema(struct semaphore *sema)
-{
-	up(sema);
-}
-
 u32 _rtw_down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
@@ -183,29 +169,10 @@ u32 _rtw_down_sema(struct semaphore *sema)
 		return _SUCCESS;
 }
 
-void	_rtw_mutex_init(struct mutex *pmutex)
-{
-	mutex_init(pmutex);
-}
-
-void	_rtw_mutex_free(struct mutex *pmutex)
-{
-	mutex_destroy(pmutex);
-}
-
-void	_rtw_spinlock_init(spinlock_t *plock)
-{
-	spin_lock_init(plock);
-}
-
-void	_rtw_spinlock_free(spinlock_t *plock)
-{
-}
-
 void	_rtw_init_queue(struct __queue *pqueue)
 {
 	_rtw_init_listhead(&(pqueue->queue));
-	_rtw_spinlock_init(&(pqueue->lock));
+	spin_lock_init(&(pqueue->lock));
 }
 
 u32	  _rtw_queue_empty(struct __queue *pqueue)
@@ -221,11 +188,6 @@ u32 rtw_end_of_queue_search(struct list_head *head, struct list_head *plist)
 		return false;
 }
 
-u32	rtw_get_current_time(void)
-{
-	return jiffies;
-}
-
 inline u32 rtw_systime_to_ms(u32 systime)
 {
 	return systime * 1000 / HZ;
@@ -236,8 +198,7 @@ inline u32 rtw_ms_to_systime(u32 ms)
 	return ms * HZ / 1000;
 }
 
-/*  the input parameter start use the same unit as returned by
- *  rtw_get_current_time */
+/*  the input parameter start must be in jiffies */
 inline s32 rtw_get_passing_time_ms(u32 start)
 {
 	return rtw_systime_to_ms(jiffies-start);
@@ -260,101 +221,7 @@ void rtw_sleep_schedulable(int ms)
 		return;
 }
 
-void rtw_msleep_os(int ms)
-{
-	msleep((unsigned int)ms);
-}
-
-void rtw_usleep_os(int us)
-{
-	if (1 < (us/1000))
-		msleep(1);
-	else
-		msleep((us/1000) + 1);
-}
-
-void rtw_mdelay_os(int ms)
-{
-	mdelay((unsigned long)ms);
-}
-
-void rtw_udelay_os(int us)
-{
-	udelay((unsigned long)us);
-}
-
-void rtw_yield_os(void)
-{
-	yield();
-}
-
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
-
-inline void rtw_suspend_lock_init(void)
-{
-}
-
-inline void rtw_suspend_lock_uninit(void)
-{
-}
-
-inline void rtw_lock_suspend(void)
-{
-}
-
-inline void rtw_unlock_suspend(void)
-{
-}
-
-inline void ATOMIC_SET(ATOMIC_T *v, int i)
-{
-	atomic_set(v, i);
-}
-
-inline int ATOMIC_READ(ATOMIC_T *v)
-{
-	return atomic_read(v);
-}
-
-inline void ATOMIC_ADD(ATOMIC_T *v, int i)
-{
-	atomic_add(i, v);
-}
-
-inline void ATOMIC_SUB(ATOMIC_T *v, int i)
-{
-	atomic_sub(i, v);
-}
-
-inline void ATOMIC_INC(ATOMIC_T *v)
-{
-	atomic_inc(v);
-}
-
-inline void ATOMIC_DEC(ATOMIC_T *v)
-{
-	atomic_dec(v);
-}
-
-inline int ATOMIC_ADD_RETURN(ATOMIC_T *v, int i)
-{
-	return atomic_add_return(i, v);
-}
-
-inline int ATOMIC_SUB_RETURN(ATOMIC_T *v, int i)
-{
-	return atomic_sub_return(i, v);
-}
-
-inline int ATOMIC_INC_RETURN(ATOMIC_T *v)
-{
-	return atomic_inc_return(v);
-}
-
-inline int ATOMIC_DEC_RETURN(ATOMIC_T *v)
-{
-	return atomic_dec_return(v);
-}
 
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 						    void *old_priv)

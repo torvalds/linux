@@ -534,13 +534,10 @@ static int __init db1000_dev_init(void)
 		s0 = AU1100_GPIO1_INT;
 		s1 = AU1100_GPIO4_INT;
 
+		gpio_request(19, "sd0_cd");
+		gpio_request(20, "sd1_cd");
 		gpio_direction_input(19);	/* sd0 cd# */
 		gpio_direction_input(20);	/* sd1 cd# */
-		gpio_direction_input(21);	/* touch pendown# */
-		gpio_direction_input(207);	/* SPI MISO */
-		gpio_direction_output(208, 0);	/* SPI MOSI */
-		gpio_direction_output(209, 1);	/* SPI SCK */
-		gpio_direction_output(210, 1);	/* SPI CS# */
 
 		/* spi_gpio on SSI0 pins */
 		pfc = __raw_readl((void __iomem *)SYS_PINFUNC);

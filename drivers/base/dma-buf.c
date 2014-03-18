@@ -616,36 +616,35 @@ static int dma_buf_describe(struct seq_file *s)
 	if (ret)
 		return ret;
 
-	seq_printf(s, "\nDma-buf Objects:\n");
-	seq_printf(s, "\texp_name\tsize\tflags\tmode\tcount\n");
+	seq_puts(s, "\nDma-buf Objects:\n");
+	seq_puts(s, "size\tflags\tmode\tcount\texp_name\n");
 
 	list_for_each_entry(buf_obj, &db_list.head, list_node) {
 		ret = mutex_lock_interruptible(&buf_obj->lock);
 
 		if (ret) {
-			seq_printf(s,
-				  "\tERROR locking buffer object: skipping\n");
+			seq_puts(s,
+				 "\tERROR locking buffer object: skipping\n");
 			continue;
 		}
 
-		seq_printf(s, "\t");
-
-		seq_printf(s, "\t%s\t%08zu\t%08x\t%08x\t%08ld\n",
-				buf_obj->exp_name, buf_obj->size,
+		seq_printf(s, "%08zu\t%08x\t%08x\t%08ld\t%s\n",
+				buf_obj->size,
 				buf_obj->file->f_flags, buf_obj->file->f_mode,
-				(long)(buf_obj->file->f_count.counter));
+				(long)(buf_obj->file->f_count.counter),
+				buf_obj->exp_name);
 
-		seq_printf(s, "\t\tAttached Devices:\n");
+		seq_puts(s, "\tAttached Devices:\n");
 		attach_count = 0;
 
 		list_for_each_entry(attach_obj, &buf_obj->attachments, node) {
-			seq_printf(s, "\t\t");
+			seq_puts(s, "\t");
 
-			seq_printf(s, "%s\n", attach_obj->dev->init_name);
+			seq_printf(s, "%s\n", dev_name(attach_obj->dev));
 			attach_count++;
 		}
 
-		seq_printf(s, "\n\t\tTotal %d devices attached\n",
+		seq_printf(s, "Total %d devices attached\n\n",
 				attach_count);
 
 		count++;

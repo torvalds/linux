@@ -145,7 +145,7 @@
 			compatible = "ti,omap2-rng";
 			ti,hwmods = "rng";
 			reg = <0x480a0000 0x50>;
-			interrupts = <36>;
+			interrupts = <52>;
 		};
 
 		sham: sham@480a4000 {

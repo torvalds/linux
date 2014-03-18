@@ -75,6 +75,7 @@ extern void si_init_uvd_internal_cg(struct radeon_device *rdev);
 extern int cik_sdma_resume(struct radeon_device *rdev);
 extern void cik_sdma_enable(struct radeon_device *rdev, bool enable);
 extern void cik_sdma_fini(struct radeon_device *rdev);
+extern void vce_v2_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 static void cik_rlc_stop(struct radeon_device *rdev);
 static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
@@ -4030,8 +4031,6 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	WREG32(CP_RB0_BASE, rb_addr);
 	WREG32(CP_RB0_BASE_HI, upper_32_bits(rb_addr));
 
-	ring->rptr = RREG32(CP_RB0_RPTR);
-
 	/* start the ring */
 	cik_cp_gfx_start(rdev);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = true;
@@ -4586,8 +4585,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		rdev->ring[idx].wptr = 0;
 		mqd->queue_state.cp_hqd_pq_wptr = rdev->ring[idx].wptr;
 		WREG32(CP_HQD_PQ_WPTR, mqd->queue_state.cp_hqd_pq_wptr);
-		rdev->ring[idx].rptr = RREG32(CP_HQD_PQ_RPTR);
-		mqd->queue_state.cp_hqd_pq_rptr = rdev->ring[idx].rptr;
+		mqd->queue_state.cp_hqd_pq_rptr = RREG32(CP_HQD_PQ_RPTR);
 
 		/* set the vmid for the queue */
 		mqd->queue_state.cp_hqd_vmid = 0;
@@ -5117,11 +5115,9 @@ bool cik_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	if (!(reset_mask & (RADEON_RESET_GFX |
 			    RADEON_RESET_COMPUTE |
 			    RADEON_RESET_CP))) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
@@ -6140,6 +6136,10 @@ void cik_update_cg(struct radeon_device *rdev,
 	if (block & RADEON_CG_BLOCK_HDP) {
 		cik_enable_hdp_mgcg(rdev, enable);
 		cik_enable_hdp_ls(rdev, enable);
+	}
+
+	if (block & RADEON_CG_BLOCK_VCE) {
+		vce_v2_0_enable_mgcg(rdev, enable);
 	}
 }
 
@@ -7490,6 +7490,20 @@ restart_ih:
 			/* reset addr and status */
 			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
+		case 167: /* VCE */
+			DRM_DEBUG("IH: VCE int: 0x%08x\n", src_data);
+			switch (src_data) {
+			case 0:
+				radeon_fence_process(rdev, TN_RING_TYPE_VCE1_INDEX);
+				break;
+			case 1:
+				radeon_fence_process(rdev, TN_RING_TYPE_VCE2_INDEX);
+				break;
+			default:
+				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				break;
+			}
+			break;
 		case 176: /* GFX RB CP_INT */
 		case 177: /* GFX IB CP_INT */
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
@@ -7789,6 +7803,22 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
 
+	r = radeon_vce_resume(rdev);
+	if (!r) {
+		r = vce_v2_0_resume(rdev);
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE1_INDEX);
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE2_INDEX);
+	}
+	if (r) {
+		dev_err(rdev->dev, "VCE init error (%d).\n", r);
+		rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
+		rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
+	}
+
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
 		r = radeon_irq_kms_init(rdev);
@@ -7864,6 +7894,23 @@ static int cik_startup(struct radeon_device *rdev)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 	}
 
+	r = -ENOENT;
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+				     VCE_CMD_NO_OP);
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+				     VCE_CMD_NO_OP);
+
+	if (!r)
+		r = vce_v1_0_init(rdev);
+	else if (r != -ENOENT)
+		DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
+
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
@@ -7934,6 +7981,7 @@ int cik_suspend(struct radeon_device *rdev)
 	cik_sdma_enable(rdev, false);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
+	radeon_vce_suspend(rdev);
 	cik_fini_pg(rdev);
 	cik_fini_cg(rdev);
 	cik_irq_suspend(rdev);
@@ -8066,6 +8114,17 @@ int cik_init(struct radeon_device *rdev)
 		r600_ring_init(rdev, ring, 4096);
 	}
 
+	r = radeon_vce_init(rdev);
+	if (!r) {
+		ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+
+		ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -8127,6 +8186,7 @@ void cik_fini(struct radeon_device *rdev)
 	radeon_irq_kms_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
+	radeon_vce_fini(rdev);
 	cik_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
@@ -8863,6 +8923,41 @@ int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 	r = cik_set_uvd_clock(rdev, dclk, CG_DCLK_CNTL, CG_DCLK_STATUS);
 	return r;
+}
+
+int cik_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk)
+{
+	int r, i;
+	struct atom_clock_dividers dividers;
+	u32 tmp;
+
+	r = radeon_atom_get_clock_dividers(rdev, COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK,
+					   ecclk, false, &dividers);
+	if (r)
+		return r;
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(CG_ECLK_STATUS) & ECLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	tmp = RREG32_SMC(CG_ECLK_CNTL);
+	tmp &= ~(ECLK_DIR_CNTL_EN|ECLK_DIVIDER_MASK);
+	tmp |= dividers.post_divider;
+	WREG32_SMC(CG_ECLK_CNTL, tmp);
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(CG_ECLK_STATUS) & ECLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static void cik_pcie_gen3_enable(struct radeon_device *rdev)

@@ -608,14 +608,6 @@ int reiserfs_resize(struct super_block *, unsigned long);
 
 #define SB_DISK_JOURNAL_HEAD(s) (SB_JOURNAL(s)->j_header_bh->)
 
-/* A safe version of the "bdevname", which returns the "s_id" field of
- * a superblock or else "Null superblock" if the super block is NULL.
- */
-static inline char *reiserfs_bdevname(struct super_block *s)
-{
-	return (s == NULL) ? "Null superblock" : s->s_id;
-}
-
 #define reiserfs_is_journal_aborted(journal) (unlikely (__reiserfs_is_journal_aborted (journal)))
 static inline int __reiserfs_is_journal_aborted(struct reiserfs_journal
 						*journal)
@@ -1958,8 +1950,6 @@ struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 #define MAX_US_INT 0xffff
 
 // reiserfs version 2 has max offset 60 bits. Version 1 - 32 bit offset
-#define U32_MAX (~(__u32)0)
-
 static inline loff_t max_reiserfs_offset(struct inode *inode)
 {
 	if (get_inode_item_key_version(inode) == KEY_FORMAT_3_5)

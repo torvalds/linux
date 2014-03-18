@@ -1,0 +1,81 @@
+charger-manager bindings
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Required properties :
+ - compatible : "charger-manager"
+ - <>-supply : for regulator consumer
+ - cm-num-chargers : number of chargers
+ - cm-chargers : name of chargers
+ - cm-fuel-gauge : name of battery fuel gauge
+ - subnode <regulator> :
+	- cm-regulator-name : name of charger regulator
+	- subnode <cable> :
+		- cm-cable-name : name of charger cable
+		- cm-cable-extcon : name of extcon dev
+(optional)	- cm-cable-min : minimum current of cable
+(optional)	- cm-cable-max : maximum current of cable
+
+Optional properties :
+ - cm-name : charger manager's name (default : "battery")
+ - cm-poll-mode : polling mode (enum polling_modes)
+ - cm-poll-interval : polling interval
+ - cm-battery-stat : battery status (enum data_source)
+ - cm-fullbatt-* : data for full battery checking
+ - cm-thermal-zone : name of external thermometer's thermal zone
+ - cm-battery-* : threshold battery temperature for charging
+	-cold : critical cold temperature of battery for charging
+	-cold-in-minus : flag that cold temerature is in minus degree
+	-hot : critical hot temperature of battery for charging
+	-temp-diff : temperature difference to allow recharging
+ - cm-dis/charging-max = limits of charging duration
+
+Example :
+	charger-manager@0 {
+		compatible = "charger-manager";
+		chg-reg-supply = <&charger_regulator>;
+
+		cm-name = "battery";
+		/* Always polling ON : 30s */
+		cm-poll-mode = <1>;
+		cm-poll-interval = <30000>;
+
+		cm-fullbatt-vchkdrop-ms = <30000>;
+		cm-fullbatt-vchkdrop-volt = <150000>;
+		cm-fullbatt-soc = <100>;
+
+		cm-battery-stat = <3>;
+
+		cm-num-chargers = <3>;
+		cm-chargers = "charger0", "charger1", "charger2";
+
+		cm-fuel-gauge = "fuelgauge0";
+
+		cm-thermal-zone = "thermal_zone.1"
+		/* in deci centigrade */
+		cm-battery-cold = <50>;
+		cm-battery-cold-in-minus;
+		cm-battery-hot = <800>;
+		cm-battery-temp-diff = <100>;
+
+		/* Allow charging for 5hr */
+		cm-charging-max = <18000000>;
+		/* Allow discharging for 2hr */
+		cm-discharging-max = <7200000>;
+
+		regulator@0 {
+			cm-regulator-name = "chg-reg";
+			cable@0 {
+				cm-cable-name = "USB";
+				cm-cable-extcon = "extcon-dev.0";
+				cm-cable-min = <475000>;
+				cm-cable-max = <500000>;
+			};
+			cable@1 {
+				cm-cable-name = "TA";
+				cm-cable-extcon = "extcon-dev.0";
+				cm-cable-min = <650000>;
+				cm-cable-max = <675000>;
+			};
+		};
+
+	};

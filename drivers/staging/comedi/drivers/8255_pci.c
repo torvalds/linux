@@ -263,7 +263,7 @@ static int pci_8255_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &pci_8255_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
+static const struct pci_device_id pci_8255_pci_table[] = {
 	{ PCI_VDEVICE(ADLINK, 0x7224), BOARD_ADLINK_PCI7224 },
 	{ PCI_VDEVICE(ADLINK, 0x7248), BOARD_ADLINK_PCI7248 },
 	{ PCI_VDEVICE(ADLINK, 0x7296), BOARD_ADLINK_PCI7296 },

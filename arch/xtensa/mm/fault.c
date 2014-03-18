@@ -21,7 +21,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 
-unsigned long asid_cache = ASID_USER_FIRST;
+DEFINE_PER_CPU(unsigned long, asid_cache) = ASID_USER_FIRST;
 void bad_page_fault(struct pt_regs*, unsigned long, int);
 
 #undef DEBUG_PAGE_FAULT

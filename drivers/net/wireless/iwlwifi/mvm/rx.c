@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -248,6 +248,12 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 		if (!(rx_pkt_status & RX_MPDU_RES_STATUS_ICV_OK))
 			return -1;
 
+		stats->flag |= RX_FLAG_DECRYPTED;
+		return 0;
+
+	case RX_MPDU_RES_STATUS_SEC_EXT_ENC:
+		if (!(rx_pkt_status & RX_MPDU_RES_STATUS_MIC_OK))
+			return -1;
 		stats->flag |= RX_FLAG_DECRYPTED;
 		return 0;
 

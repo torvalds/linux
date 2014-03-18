@@ -1,5 +1,5 @@
 /*
- * kirkwood-sheevaplug-common.dts - Common parts for Sheevaplugs
+ * kirkwood-sheevaplug-common.dtsi - Common parts for Sheevaplugs
  *
  * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
  *
@@ -96,7 +96,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 };

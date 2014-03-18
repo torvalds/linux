@@ -9,7 +9,7 @@
  *
  * derived in part from smsc47m1.c:
  * Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
- * Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004 Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

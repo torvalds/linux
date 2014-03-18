@@ -36,7 +36,7 @@ static struct resource rtc_resources[] = {
 	}
 };
 
-static struct mfd_cell tps65910s[] = {
+static const struct mfd_cell tps65910s[] = {
 	{
 		.name = "tps65910-gpio",
 	},

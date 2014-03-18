@@ -154,8 +154,7 @@ static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
 		}
 		if (lookup_path(buf))
 			goto out;
-		free(buf);
-		buf = NULL;
+		zfree(&buf);
 	}
 
 	if (!strcmp(arch, "arm"))

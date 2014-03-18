@@ -78,6 +78,7 @@ extern asmlinkage void handle_cpu(void);
 extern asmlinkage void handle_ov(void);
 extern asmlinkage void handle_tr(void);
 extern asmlinkage void handle_fpe(void);
+extern asmlinkage void handle_ftlb(void);
 extern asmlinkage void handle_mdmx(void);
 extern asmlinkage void handle_watch(void);
 extern asmlinkage void handle_mt(void);
@@ -1080,7 +1081,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 	unsigned long old_epc, old31;
 	unsigned int opcode;
 	unsigned int cpid;
-	int status;
+	int status, err;
 	unsigned long __maybe_unused flags;
 
 	prev_state = exception_enter();
@@ -1153,19 +1154,19 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	case 1:
 		if (used_math())	/* Using the FPU again.	 */
-			own_fpu(1);
+			err = own_fpu(1);
 		else {			/* First time FPU user.	 */
-			init_fpu();
+			err = init_fpu();
 			set_used_math();
 		}
 
-		if (!raw_cpu_has_fpu) {
+		if (!raw_cpu_has_fpu || err) {
 			int sig;
 			void __user *fault_addr = NULL;
 			sig = fpu_emulator_cop1Handler(regs,
 						       &current->thread.fpu,
 						       0, &fault_addr);
-			if (!process_fpemu_return(sig, fault_addr))
+			if (!process_fpemu_return(sig, fault_addr) && !err)
 				mt_ase_fp_affinity();
 		}
 
@@ -1336,6 +1337,8 @@ static inline void parity_protection_init(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
 		{
 #define ERRCTL_PE	0x80000000
 #define ERRCTL_L2P	0x00800000
@@ -1425,14 +1428,27 @@ asmlinkage void cache_parity_error(void)
 	printk("Decoded c0_cacheerr: %s cache fault in %s reference.\n",
 	       reg_val & (1<<30) ? "secondary" : "primary",
 	       reg_val & (1<<31) ? "data" : "insn");
-	printk("Error bits: %s%s%s%s%s%s%s\n",
-	       reg_val & (1<<29) ? "ED " : "",
-	       reg_val & (1<<28) ? "ET " : "",
-	       reg_val & (1<<26) ? "EE " : "",
-	       reg_val & (1<<25) ? "EB " : "",
-	       reg_val & (1<<24) ? "EI " : "",
-	       reg_val & (1<<23) ? "E1 " : "",
-	       reg_val & (1<<22) ? "E0 " : "");
+	if (cpu_has_mips_r2 &&
+	    ((current_cpu_data.processor_id && 0xff0000) == PRID_COMP_MIPS)) {
+		pr_err("Error bits: %s%s%s%s%s%s%s%s\n",
+			reg_val & (1<<29) ? "ED " : "",
+			reg_val & (1<<28) ? "ET " : "",
+			reg_val & (1<<27) ? "ES " : "",
+			reg_val & (1<<26) ? "EE " : "",
+			reg_val & (1<<25) ? "EB " : "",
+			reg_val & (1<<24) ? "EI " : "",
+			reg_val & (1<<23) ? "E1 " : "",
+			reg_val & (1<<22) ? "E0 " : "");
+	} else {
+		pr_err("Error bits: %s%s%s%s%s%s%s\n",
+			reg_val & (1<<29) ? "ED " : "",
+			reg_val & (1<<28) ? "ET " : "",
+			reg_val & (1<<26) ? "EE " : "",
+			reg_val & (1<<25) ? "EB " : "",
+			reg_val & (1<<24) ? "EI " : "",
+			reg_val & (1<<23) ? "E1 " : "",
+			reg_val & (1<<22) ? "E0 " : "");
+	}
 	printk("IDX: 0x%08x\n", reg_val & ((1<<22)-1));
 
 #if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
@@ -1444,6 +1460,34 @@ asmlinkage void cache_parity_error(void)
 #endif
 
 	panic("Can't handle the cache error!");
+}
+
+asmlinkage void do_ftlb(void)
+{
+	const int field = 2 * sizeof(unsigned long);
+	unsigned int reg_val;
+
+	/* For the moment, report the problem and hang. */
+	if (cpu_has_mips_r2 &&
+	    ((current_cpu_data.processor_id && 0xff0000) == PRID_COMP_MIPS)) {
+		pr_err("FTLB error exception, cp0_ecc=0x%08x:\n",
+		       read_c0_ecc());
+		pr_err("cp0_errorepc == %0*lx\n", field, read_c0_errorepc());
+		reg_val = read_c0_cacheerr();
+		pr_err("c0_cacheerr == %08x\n", reg_val);
+
+		if ((reg_val & 0xc0000000) == 0xc0000000) {
+			pr_err("Decoded c0_cacheerr: FTLB parity error\n");
+		} else {
+			pr_err("Decoded c0_cacheerr: %s cache fault in %s reference.\n",
+			       reg_val & (1<<30) ? "secondary" : "primary",
+			       reg_val & (1<<31) ? "data" : "insn");
+		}
+	} else {
+		pr_err("FTLB error exception\n");
+	}
+	/* Just print the cacheerr bits for now */
+	cache_parity_error();
 }
 
 /*
@@ -1995,6 +2039,7 @@ void __init trap_init(void)
 	if (cpu_has_fpu && !cpu_has_nofpuex)
 		set_except_vector(15, handle_fpe);
 
+	set_except_vector(16, handle_ftlb);
 	set_except_vector(22, handle_mdmx);
 
 	if (cpu_has_mcheck)

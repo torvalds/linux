@@ -77,16 +77,16 @@ struct perf_session_env {
 	unsigned long long	total_mem;
 
 	int			nr_cmdline;
-	char			*cmdline;
 	int			nr_sibling_cores;
-	char			*sibling_cores;
 	int			nr_sibling_threads;
-	char			*sibling_threads;
 	int			nr_numa_nodes;
-	char			*numa_nodes;
 	int			nr_pmu_mappings;
-	char			*pmu_mappings;
 	int			nr_groups;
+	char			*cmdline;
+	char			*sibling_cores;
+	char			*sibling_threads;
+	char			*numa_nodes;
+	char			*pmu_mappings;
 };
 
 struct perf_header {

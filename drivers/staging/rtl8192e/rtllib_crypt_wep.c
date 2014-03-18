@@ -270,13 +270,13 @@ static struct lib80211_crypto_ops rtllib_crypt_wep = {
 };
 
 
-int __init rtllib_crypto_wep_init(void)
+static int __init rtllib_crypto_wep_init(void)
 {
 	return lib80211_register_crypto_ops(&rtllib_crypt_wep);
 }
 
 
-void __exit rtllib_crypto_wep_exit(void)
+static void __exit rtllib_crypto_wep_exit(void)
 {
 	lib80211_unregister_crypto_ops(&rtllib_crypt_wep);
 }

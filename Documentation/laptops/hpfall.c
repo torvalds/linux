@@ -29,7 +29,7 @@ int set_unload_heads_path(char *device)
 		return -EINVAL;
 	strncpy(devname, device + 5, sizeof(devname));
 
-	snprintf(unload_heads_path, sizeof(unload_heads_path),
+	snprintf(unload_heads_path, sizeof(unload_heads_path) - 1,
 				"/sys/block/%s/device/unload_heads", devname);
 	return 0;
 }

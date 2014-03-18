@@ -145,7 +145,6 @@ void fimc_is_fw_clear_irq2(struct fimc_is *is);
 int fimc_is_hw_get_params(struct fimc_is *is, unsigned int num);
 
 void fimc_is_hw_set_intgr0_gd0(struct fimc_is *is);
-int fimc_is_hw_wait_intsr0_intsd0(struct fimc_is *is);
 int fimc_is_hw_wait_intmsr0_intmsd0(struct fimc_is *is);
 void fimc_is_hw_set_sensor_num(struct fimc_is *is);
 void fimc_is_hw_stream_on(struct fimc_is *is);

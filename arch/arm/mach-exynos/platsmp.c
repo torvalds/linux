@@ -27,12 +27,11 @@
 #include <asm/firmware.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-clock.h>
-#include <mach/regs-pmu.h>
 
 #include <plat/cpu.h>
 
 #include "common.h"
+#include "regs-pmu.h"
 
 extern void exynos4_secondary_startup(void);
 
@@ -64,8 +63,7 @@ static void write_pen_release(int val)
 {
 	pen_release = val;
 	smp_wmb();
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+	sync_cache_w(&pen_release);
 }
 
 static void __iomem *scu_base_addr(void)

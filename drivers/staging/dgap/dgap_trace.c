@@ -17,15 +17,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE! 
+ *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *	This is shared code between Digi's CVS archive and the
  *	Linux Kernel sources.
  *	Changing the source just for reformatting needlessly breaks
  *	our CVS diff history.
  *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com. 
- *	Thank you. 
+ *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
+ *	Thank you.
  *
  */
 
@@ -37,6 +37,7 @@
 #include <linux/vmalloc.h>
 
 #include "dgap_driver.h"
+#include "dgap_trace.h"
 
 #define TRC_TO_CONSOLE 1
 
@@ -107,16 +108,16 @@ void dgap_tracef(const char *fmt, ...)
 			dgap_trcbufi = 0;
 			initd++;
 
-			printk("dgap: tracing enabled - " TRC_DTRC 
+			printk("dgap: tracing enabled - " TRC_DTRC
 				" 0x%lx 0x%x\n",
-				(unsigned long)dgap_trcbuf, 
+				(unsigned long)dgap_trcbuf,
 				dgap_trcbuf_size);
 		}
 
 #  if defined(TRC_ON_OVERFLOW_WRAP_AROUND)
 		/*
 		 * This is the less CPU-intensive way to do things.  We simply
-		 * wrap around before we fall off the end of the buffer.  A 
+		 * wrap around before we fall off the end of the buffer.  A
 		 * tilde (~) demarcates the current end of the trace.
 		 *
 		 * This method should be used if you are concerned about race
@@ -131,14 +132,14 @@ void dgap_tracef(const char *fmt, ...)
 			dgap_trcbufi = 0;
 		}
 
-		strcpy(&dgap_trcbuf[dgap_trcbufi], buf);	
+		strcpy(&dgap_trcbuf[dgap_trcbufi], buf);
 		dgap_trcbufi += lenbuf;
 		dgap_trcbuf[dgap_trcbufi] = '~';
 
 #  elif defined(TRC_ON_OVERFLOW_SHIFT_BUFFER)
 		/*
 		 * This is the more CPU-intensive way to do things.  If we
-		 * venture into the last 1/8 of the buffer, we shift the 
+		 * venture into the last 1/8 of the buffer, we shift the
 		 * last 7/8 of the buffer forward, wiping out the first 1/8.
 		 * Advantage: No wrap-around, only truncation from the
 		 * beginning.

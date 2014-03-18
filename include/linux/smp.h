@@ -11,12 +11,16 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
+#include <linux/llist.h>
 
 extern void cpu_idle(void);
 
 typedef void (*smp_call_func_t)(void *info);
 struct call_single_data {
-	struct list_head list;
+	union {
+		struct list_head list;
+		struct llist_node llist;
+	};
 	smp_call_func_t func;
 	void *info;
 	u16 flags;
@@ -183,6 +187,9 @@ static inline void kick_all_cpus_sync(void) {  }
  * boot command line:
  */
 extern void arch_disable_smp_support(void);
+
+extern void arch_enable_nonboot_cpus_begin(void);
+extern void arch_enable_nonboot_cpus_end(void);
 
 void smp_setup_processor_id(void);
 

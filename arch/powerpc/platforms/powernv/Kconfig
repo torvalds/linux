@@ -13,11 +13,6 @@ config PPC_POWERNV
 	select ARCH_RANDOM
 	default y
 
-config POWERNV_MSI
-	bool "Support PCI MSI on PowerNV platform"
-	depends on PCI_MSI
-	default y
-
 config PPC_POWERNV_RTAS
 	depends on PPC_POWERNV
 	bool "Support for RTAS based PowerNV platforms such as BML"

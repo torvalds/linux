@@ -453,22 +453,22 @@ static int adav80x_set_dac_clock(struct snd_soc_codec *codec,
 }
 
 static int adav80x_set_capture_pcm_format(struct snd_soc_codec *codec,
-		struct snd_soc_dai *dai, snd_pcm_format_t format)
+		struct snd_soc_dai *dai, struct snd_pcm_hw_params *params)
 {
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		val = ADAV80X_CAPTURE_WORD_LEN16;
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
+	case 18:
 		val = ADAV80X_CAPTRUE_WORD_LEN18;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val = ADAV80X_CAPTURE_WORD_LEN20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		val = ADAV80X_CAPTURE_WORD_LEN24;
 		break;
 	default:
@@ -482,7 +482,7 @@ static int adav80x_set_capture_pcm_format(struct snd_soc_codec *codec,
 }
 
 static int adav80x_set_playback_pcm_format(struct snd_soc_codec *codec,
-		struct snd_soc_dai *dai, snd_pcm_format_t format)
+		struct snd_soc_dai *dai, struct snd_pcm_hw_params *params)
 {
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
@@ -490,17 +490,17 @@ static int adav80x_set_playback_pcm_format(struct snd_soc_codec *codec,
 	if (adav80x->dai_fmt[dai->id] != SND_SOC_DAIFMT_RIGHT_J)
 		return 0;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		val = ADAV80X_PLAYBACK_MODE_RIGHT_J_16;
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
+	case 18:
 		val = ADAV80X_PLAYBACK_MODE_RIGHT_J_18;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val = ADAV80X_PLAYBACK_MODE_RIGHT_J_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		val = ADAV80X_PLAYBACK_MODE_RIGHT_J_24;
 		break;
 	default:
@@ -524,12 +524,10 @@ static int adav80x_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		adav80x_set_playback_pcm_format(codec, dai,
-			params_format(params));
+		adav80x_set_playback_pcm_format(codec, dai, params);
 		adav80x_set_dac_clock(codec, rate);
 	} else {
-		adav80x_set_capture_pcm_format(codec, dai,
-			params_format(params));
+		adav80x_set_capture_pcm_format(codec, dai, params);
 		adav80x_set_adc_clock(codec, rate);
 	}
 	adav80x->rate = rate;
@@ -939,7 +937,7 @@ static struct spi_driver adav80x_spi_driver = {
 };
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static const struct regmap_config adav80x_i2c_regmap_config = {
 	.val_bits = 8,
 	.pad_bits = 1,
@@ -985,7 +983,7 @@ static int __init adav80x_init(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&adav80x_i2c_driver);
 	if (ret)
 		return ret;
@@ -1001,7 +999,7 @@ module_init(adav80x_init);
 
 static void __exit adav80x_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&adav80x_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

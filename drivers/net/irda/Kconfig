@@ -62,8 +62,6 @@ config SIR_BFIN_PIO
 	bool "PIO mode"
 endchoice
 
-comment "Dongle support"
-
 config SH_SIR
 	tristate "SuperH SIR on UART"
 	depends on IRDA && SUPERH && \
@@ -73,6 +71,8 @@ config SH_SIR
 	help
 	  Say Y here if your want to enable SIR function on SuperH UART
 	  devices.
+
+comment "Dongle support"
 
 config DONGLE
 	bool "Serial dongle support"
@@ -209,13 +209,6 @@ config KINGSUN_DONGLE
 
 	  To compile it as a module, choose M here: the module will be called
 	  kingsun-sir.
-
-config EP7211_DONGLE
-	tristate "Cirrus Logic clps711x I/R support"
-	depends on IRTTY_SIR && ARCH_CLPS711X && IRDA
-	help
-	  Say Y here if you want to build support for the Cirrus logic
-	  EP7211 chipset's infrared module.
 
 config KSDAZZLE_DONGLE
 	tristate "KingSun Dazzle IrDA-USB dongle"

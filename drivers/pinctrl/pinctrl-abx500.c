@@ -24,7 +24,6 @@
 #include <linux/bitops.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ab8500-gpio.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinmux.h>
@@ -1218,21 +1217,15 @@ static const struct of_device_id abx500_gpio_match[] = {
 
 static int abx500_gpio_probe(struct platform_device *pdev)
 {
-	struct ab8500_platform_data *abx500_pdata =
-				dev_get_platdata(pdev->dev.parent);
-	struct abx500_gpio_platform_data *pdata = NULL;
 	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
 	struct abx500_pinctrl *pct;
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	unsigned int id = -1;
 	int ret, err;
 	int i;
 
-	if (abx500_pdata)
-		pdata = abx500_pdata->gpio;
-
-	if (!(pdata || np)) {
-		dev_err(&pdev->dev, "gpio dt and platform data missing\n");
+	if (!np) {
+		dev_err(&pdev->dev, "gpio dt node missing\n");
 		return -ENODEV;
 	}
 
@@ -1248,17 +1241,14 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->parent = dev_get_drvdata(pdev->dev.parent);
 	pct->chip = abx500gpio_chip;
 	pct->chip.dev = &pdev->dev;
-	pct->chip.base = (np) ? -1 : pdata->gpio_base;
+	pct->chip.base = -1; /* Dynamic allocation */
 
-	if (platid)
-		id = platid->driver_data;
-	else if (np) {
-		const struct of_device_id *match;
-
-		match = of_match_device(abx500_gpio_match, &pdev->dev);
-		if (match)
-			id = (unsigned long)match->data;
+	match = of_match_device(abx500_gpio_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "gpio dt not matching\n");
+		return -ENODEV;
 	}
+	id = (unsigned long)match->data;
 
 	/* Poke in other ASIC variants here */
 	switch (id) {
@@ -1349,14 +1339,6 @@ static int abx500_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id abx500_pinctrl_id[] = {
-	{ "pinctrl-ab8500", PINCTRL_AB8500 },
-	{ "pinctrl-ab8540", PINCTRL_AB8540 },
-	{ "pinctrl-ab9540", PINCTRL_AB9540 },
-	{ "pinctrl-ab8505", PINCTRL_AB8505 },
-	{ },
-};
-
 static struct platform_driver abx500_gpio_driver = {
 	.driver = {
 		.name = "abx500-gpio",
@@ -1365,7 +1347,6 @@ static struct platform_driver abx500_gpio_driver = {
 	},
 	.probe = abx500_gpio_probe,
 	.remove = abx500_gpio_remove,
-	.id_table = abx500_pinctrl_id,
 };
 
 static int __init abx500_gpio_init(void)

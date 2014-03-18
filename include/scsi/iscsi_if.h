@@ -70,6 +70,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_LOGOUT_FLASHNODE	= UEVENT_BASE + 29,
 	ISCSI_UEVENT_LOGOUT_FLASHNODE_SID	= UEVENT_BASE + 30,
 	ISCSI_UEVENT_SET_CHAP		= UEVENT_BASE + 31,
+	ISCSI_UEVENT_GET_HOST_STATS	= UEVENT_BASE + 32,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -242,6 +243,9 @@ struct iscsi_uevent {
 			uint32_t	host_no;
 			uint32_t	sid;
 		} logout_flashnode_sid;
+		struct msg_get_host_stats {
+			uint32_t host_no;
+		} get_host_stats;
 	} u;
 	union {
 		/* messages k -> u */
@@ -311,6 +315,7 @@ enum iscsi_param_type {
 	ISCSI_NET_PARAM,	/* iscsi_net_param */
 	ISCSI_FLASHNODE_PARAM,	/* iscsi_flashnode_param */
 	ISCSI_CHAP_PARAM,	/* iscsi_chap_param */
+	ISCSI_IFACE_PARAM,	/* iscsi_iface_param */
 };
 
 /* structure for minimalist usecase */
@@ -383,28 +388,106 @@ struct iscsi_path {
 #define ISCSI_VLAN_DISABLE	0x01
 #define ISCSI_VLAN_ENABLE	0x02
 
+/* iscsi generic enable/disabled setting for various features */
+#define ISCSI_NET_PARAM_DISABLE		0x01
+#define ISCSI_NET_PARAM_ENABLE		0x02
+
 /* iSCSI network params */
 enum iscsi_net_param {
 	ISCSI_NET_PARAM_IPV4_ADDR		= 1,
-	ISCSI_NET_PARAM_IPV4_SUBNET		= 2,
-	ISCSI_NET_PARAM_IPV4_GW			= 3,
-	ISCSI_NET_PARAM_IPV4_BOOTPROTO		= 4,
-	ISCSI_NET_PARAM_MAC			= 5,
-	ISCSI_NET_PARAM_IPV6_LINKLOCAL		= 6,
-	ISCSI_NET_PARAM_IPV6_ADDR		= 7,
-	ISCSI_NET_PARAM_IPV6_ROUTER		= 8,
-	ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG	= 9,
-	ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG	= 10,
-	ISCSI_NET_PARAM_IPV6_ROUTER_AUTOCFG	= 11,
-	ISCSI_NET_PARAM_IFACE_ENABLE		= 12,
-	ISCSI_NET_PARAM_VLAN_ID			= 13,
-	ISCSI_NET_PARAM_VLAN_PRIORITY		= 14,
-	ISCSI_NET_PARAM_VLAN_ENABLED		= 15,
-	ISCSI_NET_PARAM_VLAN_TAG		= 16,
-	ISCSI_NET_PARAM_IFACE_TYPE		= 17,
-	ISCSI_NET_PARAM_IFACE_NAME		= 18,
-	ISCSI_NET_PARAM_MTU			= 19,
-	ISCSI_NET_PARAM_PORT			= 20,
+	ISCSI_NET_PARAM_IPV4_SUBNET,
+	ISCSI_NET_PARAM_IPV4_GW,
+	ISCSI_NET_PARAM_IPV4_BOOTPROTO,
+	ISCSI_NET_PARAM_MAC,
+	ISCSI_NET_PARAM_IPV6_LINKLOCAL,
+	ISCSI_NET_PARAM_IPV6_ADDR,
+	ISCSI_NET_PARAM_IPV6_ROUTER,
+	ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG,
+	ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG,
+	ISCSI_NET_PARAM_IPV6_ROUTER_AUTOCFG,
+	ISCSI_NET_PARAM_IFACE_ENABLE,
+	ISCSI_NET_PARAM_VLAN_ID,
+	ISCSI_NET_PARAM_VLAN_PRIORITY,
+	ISCSI_NET_PARAM_VLAN_ENABLED,
+	ISCSI_NET_PARAM_VLAN_TAG,
+	ISCSI_NET_PARAM_IFACE_TYPE,
+	ISCSI_NET_PARAM_IFACE_NAME,
+	ISCSI_NET_PARAM_MTU,
+	ISCSI_NET_PARAM_PORT,
+	ISCSI_NET_PARAM_IPADDR_STATE,
+	ISCSI_NET_PARAM_IPV6_LINKLOCAL_STATE,
+	ISCSI_NET_PARAM_IPV6_ROUTER_STATE,
+	ISCSI_NET_PARAM_DELAYED_ACK_EN,
+	ISCSI_NET_PARAM_TCP_NAGLE_DISABLE,
+	ISCSI_NET_PARAM_TCP_WSF_DISABLE,
+	ISCSI_NET_PARAM_TCP_WSF,
+	ISCSI_NET_PARAM_TCP_TIMER_SCALE,
+	ISCSI_NET_PARAM_TCP_TIMESTAMP_EN,
+	ISCSI_NET_PARAM_CACHE_ID,
+	ISCSI_NET_PARAM_IPV4_DHCP_DNS_ADDR_EN,
+	ISCSI_NET_PARAM_IPV4_DHCP_SLP_DA_EN,
+	ISCSI_NET_PARAM_IPV4_TOS_EN,
+	ISCSI_NET_PARAM_IPV4_TOS,
+	ISCSI_NET_PARAM_IPV4_GRAT_ARP_EN,
+	ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID_EN,
+	ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID,
+	ISCSI_NET_PARAM_IPV4_DHCP_REQ_VENDOR_ID_EN,
+	ISCSI_NET_PARAM_IPV4_DHCP_USE_VENDOR_ID_EN,
+	ISCSI_NET_PARAM_IPV4_DHCP_VENDOR_ID,
+	ISCSI_NET_PARAM_IPV4_DHCP_LEARN_IQN_EN,
+	ISCSI_NET_PARAM_IPV4_FRAGMENT_DISABLE,
+	ISCSI_NET_PARAM_IPV4_IN_FORWARD_EN,
+	ISCSI_NET_PARAM_IPV4_TTL,
+	ISCSI_NET_PARAM_IPV6_GRAT_NEIGHBOR_ADV_EN,
+	ISCSI_NET_PARAM_IPV6_MLD_EN,
+	ISCSI_NET_PARAM_IPV6_FLOW_LABEL,
+	ISCSI_NET_PARAM_IPV6_TRAFFIC_CLASS,
+	ISCSI_NET_PARAM_IPV6_HOP_LIMIT,
+	ISCSI_NET_PARAM_IPV6_ND_REACHABLE_TMO,
+	ISCSI_NET_PARAM_IPV6_ND_REXMIT_TIME,
+	ISCSI_NET_PARAM_IPV6_ND_STALE_TMO,
+	ISCSI_NET_PARAM_IPV6_DUP_ADDR_DETECT_CNT,
+	ISCSI_NET_PARAM_IPV6_RTR_ADV_LINK_MTU,
+	ISCSI_NET_PARAM_REDIRECT_EN,
+};
+
+enum iscsi_ipaddress_state {
+	ISCSI_IPDDRESS_STATE_UNCONFIGURED,
+	ISCSI_IPDDRESS_STATE_ACQUIRING,
+	ISCSI_IPDDRESS_STATE_TENTATIVE,
+	ISCSI_IPDDRESS_STATE_VALID,
+	ISCSI_IPDDRESS_STATE_DISABLING,
+	ISCSI_IPDDRESS_STATE_INVALID,
+	ISCSI_IPDDRESS_STATE_DEPRECATED,
+};
+
+enum iscsi_router_state {
+	ISCSI_ROUTER_STATE_UNKNOWN,
+	ISCSI_ROUTER_STATE_ADVERTISED,
+	ISCSI_ROUTER_STATE_MANUAL,
+	ISCSI_ROUTER_STATE_STALE,
+};
+
+/* iSCSI specific settings params for iface */
+enum iscsi_iface_param {
+	ISCSI_IFACE_PARAM_DEF_TASKMGMT_TMO,
+	ISCSI_IFACE_PARAM_HDRDGST_EN,
+	ISCSI_IFACE_PARAM_DATADGST_EN,
+	ISCSI_IFACE_PARAM_IMM_DATA_EN,
+	ISCSI_IFACE_PARAM_INITIAL_R2T_EN,
+	ISCSI_IFACE_PARAM_DATASEQ_INORDER_EN,
+	ISCSI_IFACE_PARAM_PDU_INORDER_EN,
+	ISCSI_IFACE_PARAM_ERL,
+	ISCSI_IFACE_PARAM_MAX_RECV_DLENGTH,
+	ISCSI_IFACE_PARAM_FIRST_BURST,
+	ISCSI_IFACE_PARAM_MAX_R2T,
+	ISCSI_IFACE_PARAM_MAX_BURST,
+	ISCSI_IFACE_PARAM_CHAP_AUTH_EN,
+	ISCSI_IFACE_PARAM_BIDI_CHAP_EN,
+	ISCSI_IFACE_PARAM_DISCOVERY_AUTH_OPTIONAL,
+	ISCSI_IFACE_PARAM_DISCOVERY_LOGOUT_EN,
+	ISCSI_IFACE_PARAM_STRICT_LOGIN_COMP_EN,
+	ISCSI_IFACE_PARAM_INITIATOR_NAME,
 };
 
 enum iscsi_conn_state {
@@ -535,6 +618,7 @@ enum iscsi_param {
 
 	ISCSI_PARAM_DISCOVERY_PARENT_IDX,
 	ISCSI_PARAM_DISCOVERY_PARENT_TYPE,
+	ISCSI_PARAM_LOCAL_IPADDR,
 	/* must always be last */
 	ISCSI_PARAM_MAX,
 };
@@ -764,6 +848,114 @@ struct iscsi_chap_rec {
 	char username[ISCSI_CHAP_AUTH_NAME_MAX_LEN];
 	uint8_t password[ISCSI_CHAP_AUTH_SECRET_MAX_LEN];
 	uint8_t password_length;
+};
+
+#define ISCSI_HOST_STATS_CUSTOM_MAX             32
+#define ISCSI_HOST_STATS_CUSTOM_DESC_MAX        64
+struct iscsi_host_stats_custom {
+	char desc[ISCSI_HOST_STATS_CUSTOM_DESC_MAX];
+	uint64_t value;
+};
+
+/* struct iscsi_offload_host_stats: Host statistics,
+ * Include statistics for MAC, IP, TCP & iSCSI.
+ */
+struct iscsi_offload_host_stats {
+	/* MAC */
+	uint64_t mactx_frames;
+	uint64_t mactx_bytes;
+	uint64_t mactx_multicast_frames;
+	uint64_t mactx_broadcast_frames;
+	uint64_t mactx_pause_frames;
+	uint64_t mactx_control_frames;
+	uint64_t mactx_deferral;
+	uint64_t mactx_excess_deferral;
+	uint64_t mactx_late_collision;
+	uint64_t mactx_abort;
+	uint64_t mactx_single_collision;
+	uint64_t mactx_multiple_collision;
+	uint64_t mactx_collision;
+	uint64_t mactx_frames_dropped;
+	uint64_t mactx_jumbo_frames;
+	uint64_t macrx_frames;
+	uint64_t macrx_bytes;
+	uint64_t macrx_unknown_control_frames;
+	uint64_t macrx_pause_frames;
+	uint64_t macrx_control_frames;
+	uint64_t macrx_dribble;
+	uint64_t macrx_frame_length_error;
+	uint64_t macrx_jabber;
+	uint64_t macrx_carrier_sense_error;
+	uint64_t macrx_frame_discarded;
+	uint64_t macrx_frames_dropped;
+	uint64_t mac_crc_error;
+	uint64_t mac_encoding_error;
+	uint64_t macrx_length_error_large;
+	uint64_t macrx_length_error_small;
+	uint64_t macrx_multicast_frames;
+	uint64_t macrx_broadcast_frames;
+	/* IP */
+	uint64_t iptx_packets;
+	uint64_t iptx_bytes;
+	uint64_t iptx_fragments;
+	uint64_t iprx_packets;
+	uint64_t iprx_bytes;
+	uint64_t iprx_fragments;
+	uint64_t ip_datagram_reassembly;
+	uint64_t ip_invalid_address_error;
+	uint64_t ip_error_packets;
+	uint64_t ip_fragrx_overlap;
+	uint64_t ip_fragrx_outoforder;
+	uint64_t ip_datagram_reassembly_timeout;
+	uint64_t ipv6tx_packets;
+	uint64_t ipv6tx_bytes;
+	uint64_t ipv6tx_fragments;
+	uint64_t ipv6rx_packets;
+	uint64_t ipv6rx_bytes;
+	uint64_t ipv6rx_fragments;
+	uint64_t ipv6_datagram_reassembly;
+	uint64_t ipv6_invalid_address_error;
+	uint64_t ipv6_error_packets;
+	uint64_t ipv6_fragrx_overlap;
+	uint64_t ipv6_fragrx_outoforder;
+	uint64_t ipv6_datagram_reassembly_timeout;
+	/* TCP */
+	uint64_t tcptx_segments;
+	uint64_t tcptx_bytes;
+	uint64_t tcprx_segments;
+	uint64_t tcprx_byte;
+	uint64_t tcp_duplicate_ack_retx;
+	uint64_t tcp_retx_timer_expired;
+	uint64_t tcprx_duplicate_ack;
+	uint64_t tcprx_pure_ackr;
+	uint64_t tcptx_delayed_ack;
+	uint64_t tcptx_pure_ack;
+	uint64_t tcprx_segment_error;
+	uint64_t tcprx_segment_outoforder;
+	uint64_t tcprx_window_probe;
+	uint64_t tcprx_window_update;
+	uint64_t tcptx_window_probe_persist;
+	/* ECC */
+	uint64_t ecc_error_correction;
+	/* iSCSI */
+	uint64_t iscsi_pdu_tx;
+	uint64_t iscsi_data_bytes_tx;
+	uint64_t iscsi_pdu_rx;
+	uint64_t iscsi_data_bytes_rx;
+	uint64_t iscsi_io_completed;
+	uint64_t iscsi_unexpected_io_rx;
+	uint64_t iscsi_format_error;
+	uint64_t iscsi_hdr_digest_error;
+	uint64_t iscsi_data_digest_error;
+	uint64_t iscsi_sequence_error;
+	/*
+	 * iSCSI Custom Host Statistics support, i.e. Transport could
+	 * extend existing host statistics with its own specific statistics
+	 * up to ISCSI_HOST_STATS_CUSTOM_MAX
+	 */
+	uint32_t custom_length;
+	struct iscsi_host_stats_custom custom[0]
+		__aligned(sizeof(uint64_t));
 };
 
 #endif

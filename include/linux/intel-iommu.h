@@ -288,6 +288,7 @@ struct q_inval {
 
 struct ir_table {
 	struct irte *base;
+	unsigned long *bitmap;
 };
 #endif
 
@@ -347,8 +348,6 @@ static inline void __iommu_flush_cache(
 extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
 extern int dmar_find_matched_atsr_unit(struct pci_dev *dev);
 
-extern int alloc_iommu(struct dmar_drhd_unit *drhd);
-extern void free_iommu(struct intel_iommu *iommu);
 extern int dmar_enable_qi(struct intel_iommu *iommu);
 extern void dmar_disable_qi(struct intel_iommu *iommu);
 extern int dmar_reenable_qi(struct intel_iommu *iommu);

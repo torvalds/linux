@@ -16,7 +16,6 @@
 #define __ASM_MACH_AR71XX_REGS_H
 
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
 

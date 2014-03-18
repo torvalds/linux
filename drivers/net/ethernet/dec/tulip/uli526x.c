@@ -1192,9 +1192,6 @@ static int uli526x_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	ULI526X_DBUG(0, "uli526x_suspend", 0);
 
-	if (!netdev_priv(dev))
-		return 0;
-
 	pci_save_state(pdev);
 
 	if (!netif_running(dev))
@@ -1227,9 +1224,6 @@ static int uli526x_resume(struct pci_dev *pdev)
 	int err;
 
 	ULI526X_DBUG(0, "uli526x_resume", 0);
-
-	if (!netdev_priv(dev))
-		return 0;
 
 	pci_restore_state(pdev);
 

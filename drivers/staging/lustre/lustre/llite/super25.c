@@ -187,11 +187,15 @@ static int __init init_lustre_lite(void)
 	if (rc == 0)
 		rc = vvp_global_init();
 
+	if (rc == 0)
+		rc = ll_xattr_init();
+
 	return rc;
 }
 
 static void __exit exit_lustre_lite(void)
 {
+	ll_xattr_fini();
 	vvp_global_fini();
 	del_timer(&ll_capa_timer);
 	ll_capa_thread_stop();

@@ -2148,7 +2148,7 @@ __vxge_hw_ring_mempool_item_alloc(struct vxge_hw_mempool *mempoolh,
  * __vxge_hw_ring_replenish - Initial replenish of RxDs
  * This function replenishes the RxDs from reserve array to work array
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 vxge_hw_ring_replenish(struct __vxge_hw_ring *ring)
 {
 	void *rxd;

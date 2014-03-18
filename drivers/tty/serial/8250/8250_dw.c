@@ -14,7 +14,6 @@
  * raised, the LCR needs to be rewritten and the uart status register read.
  */
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/serial_8250.h>
@@ -274,7 +273,6 @@ static int dw8250_probe_of(struct uart_port *p,
 	return 0;
 }
 
-#ifdef CONFIG_ACPI
 static int dw8250_probe_acpi(struct uart_8250_port *up,
 			     struct dw8250_data *data)
 {
@@ -302,13 +300,6 @@ static int dw8250_probe_acpi(struct uart_8250_port *up,
 
 	return 0;
 }
-#else
-static inline int dw8250_probe_acpi(struct uart_8250_port *up,
-				    struct dw8250_data *data)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_ACPI */
 
 static int dw8250_probe(struct platform_device *pdev)
 {
@@ -400,7 +391,7 @@ static int dw8250_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int dw8250_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
@@ -418,7 +409,7 @@ static int dw8250_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_RUNTIME
 static int dw8250_runtime_suspend(struct device *dev)

@@ -1,0 +1,8 @@
+What:		/config/usb-gadget/gadget/functions/Loopback.name
+Date:		Nov 2013
+KernelVersion:	3.13
+Description:
+		The attributes:
+
+		qlen		- depth of loopback queue
+		bulk_buflen	- buffer length

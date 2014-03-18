@@ -267,8 +267,8 @@ static const struct regmap_range_cfg aic32x4_regmap_pages[] = {
 		.selector_mask  = 0xff,
 		.window_start = 0,
 		.window_len = 128,
-		.range_min = AIC32X4_PAGE1,
-		.range_max = AIC32X4_PAGE1 + 127,
+		.range_min = 0,
+		.range_max = AIC32X4_RMICPGAVOL,
 	},
 };
 
@@ -450,6 +450,17 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	}
 	snd_soc_write(codec, AIC32X4_IFACE1, data);
 
+	if (params_channels(params) == 1) {
+		data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2LCHN;
+	} else {
+		if (aic32x4->swapdacs)
+			data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2RCHN;
+		else
+			data = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
+	}
+	snd_soc_update_bits(codec, AIC32X4_DACSETUP, AIC32X4_DAC_CHAN_MASK,
+			data);
+
 	return 0;
 }
 
@@ -606,20 +617,15 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 	}
 	snd_soc_write(codec, AIC32X4_CMMODE, tmp_reg);
 
-	/* Do DACs need to be swapped? */
-	if (aic32x4->swapdacs) {
-		snd_soc_write(codec, AIC32X4_DACSETUP, AIC32X4_LDAC2RCHN | AIC32X4_RDAC2LCHN);
-	} else {
-		snd_soc_write(codec, AIC32X4_DACSETUP, AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN);
-	}
-
 	/* Mic PGA routing */
-	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_LMIC_IN2R_10K) {
+	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_LMIC_IN2R_10K)
 		snd_soc_write(codec, AIC32X4_LMICPGANIN, AIC32X4_LMICPGANIN_IN2R_10K);
-	}
-	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_RMIC_IN1L_10K) {
+	else
+		snd_soc_write(codec, AIC32X4_LMICPGANIN, AIC32X4_LMICPGANIN_CM1L_10K);
+	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_RMIC_IN1L_10K)
 		snd_soc_write(codec, AIC32X4_RMICPGANIN, AIC32X4_RMICPGANIN_IN1L_10K);
-	}
+	else
+		snd_soc_write(codec, AIC32X4_RMICPGANIN, AIC32X4_RMICPGANIN_CM1R_10K);
 
 	aic32x4_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 

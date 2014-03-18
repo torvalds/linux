@@ -812,7 +812,7 @@ static void st_tty_flush_buffer(struct tty_struct *tty)
 	kfree_skb(st_gdata->tx_skb);
 	st_gdata->tx_skb = NULL;
 
-	tty->ops->flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
 	return;
 }
 

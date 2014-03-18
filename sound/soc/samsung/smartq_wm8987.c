@@ -19,6 +19,7 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 
+#include <mach/gpio-samsung.h>
 #include <asm/mach-types.h>
 
 #include "i2s.h"

@@ -338,8 +338,7 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 	if (!data_buf)
 		return -1;
 
-	pg_tlv_hdr = (struct mwifiex_types_power_group *)
-		((u8 *) data_buf + sizeof(struct host_cmd_ds_txpwr_cfg));
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)((u8 *)data_buf);
 	pg = (struct mwifiex_power_group *)
 		((u8 *) pg_tlv_hdr + sizeof(struct mwifiex_types_power_group));
 	length = le16_to_cpu(pg_tlv_hdr->length);
@@ -383,19 +382,25 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 	struct mwifiex_types_power_group *pg_tlv_hdr;
 	struct mwifiex_power_group *pg;
 	u16 action = le16_to_cpu(txp_cfg->action);
+	u16 tlv_buf_left;
+
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)
+		((u8 *)txp_cfg +
+		 sizeof(struct host_cmd_ds_txpwr_cfg));
+
+	pg = (struct mwifiex_power_group *)
+		((u8 *)pg_tlv_hdr +
+		 sizeof(struct mwifiex_types_power_group));
+
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*txp_cfg);
+	if (tlv_buf_left <
+			le16_to_cpu(pg_tlv_hdr->length) + sizeof(*pg_tlv_hdr))
+		return 0;
 
 	switch (action) {
 	case HostCmd_ACT_GEN_GET:
-		pg_tlv_hdr = (struct mwifiex_types_power_group *)
-			((u8 *) txp_cfg +
-			 sizeof(struct host_cmd_ds_txpwr_cfg));
-
-		pg = (struct mwifiex_power_group *)
-			((u8 *) pg_tlv_hdr +
-			 sizeof(struct mwifiex_types_power_group));
-
 		if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
-			mwifiex_get_power_level(priv, txp_cfg);
+			mwifiex_get_power_level(priv, pg_tlv_hdr);
 
 		priv->tx_power_level = (u16) pg->power_min;
 		break;
@@ -403,14 +408,6 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 	case HostCmd_ACT_GEN_SET:
 		if (!le32_to_cpu(txp_cfg->mode))
 			break;
-
-		pg_tlv_hdr = (struct mwifiex_types_power_group *)
-			((u8 *) txp_cfg +
-			 sizeof(struct host_cmd_ds_txpwr_cfg));
-
-		pg = (struct mwifiex_power_group *)
-			((u8 *) pg_tlv_hdr +
-			 sizeof(struct mwifiex_types_power_group));
 
 		if (pg->power_max == pg->power_min)
 			priv->tx_power_level = (u16) pg->power_min;
@@ -785,8 +782,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 	}
 
 	/* If BSSID is diff, modify current BSS parameters */
-	if (memcmp(priv->curr_bss_params.bss_descriptor.mac_address,
-		   ibss_coal_resp->bssid, ETH_ALEN)) {
+	if (!ether_addr_equal(priv->curr_bss_params.bss_descriptor.mac_address, ibss_coal_resp->bssid)) {
 		/* BSSID */
 		memcpy(priv->curr_bss_params.bss_descriptor.mac_address,
 		       ibss_coal_resp->bssid, ETH_ALEN);

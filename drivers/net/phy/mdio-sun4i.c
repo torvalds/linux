@@ -13,7 +13,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -171,6 +170,9 @@ static int sun4i_mdio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sun4i_mdio_dt_ids[] = {
+	{ .compatible = "allwinner,sun4i-a10-mdio" },
+
+	/* Deprecated */
 	{ .compatible = "allwinner,sun4i-mdio" },
 	{ }
 };
