@@ -79,8 +79,8 @@ struct vnt_tx_datahead_g {
 	struct vnt_phy_field a;
 	__le16 duration_b;
 	__le16 duration_a;
-	u16 wTimeStampOff_b;
-	u16 wTimeStampOff_a;
+	__le16 time_stamp_off_b;
+	__le16 time_stamp_off_a;
 } __packed;
 
 struct vnt_tx_datahead_g_fb {
@@ -90,20 +90,20 @@ struct vnt_tx_datahead_g_fb {
 	__le16 duration_a;
 	__le16 duration_a_f0;
 	__le16 duration_a_f1;
-	u16 wTimeStampOff_b;
-	u16 wTimeStampOff_a;
+	__le16 time_stamp_off_b;
+	__le16 time_stamp_off_a;
 } __packed;
 
 struct vnt_tx_datahead_ab {
 	struct vnt_phy_field ab;
 	__le16 duration;
-	u16 wTimeStampOff;
+	__le16 time_stamp_off;
 } __packed;
 
 struct vnt_tx_datahead_a_fb {
 	struct vnt_phy_field a;
 	__le16 duration;
-	u16 wTimeStampOff;
+	__le16 time_stamp_off;
 	__le16 duration_f0;
 	__le16 duration_f1;
 } __packed;

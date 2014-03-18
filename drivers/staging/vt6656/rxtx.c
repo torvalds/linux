@@ -484,8 +484,8 @@ static u16 vnt_rxtx_datahead_g(struct vnt_private *priv, u8 pkt_type, u16 rate,
 	buf->duration_a = s_uGetDataDuration(priv, pkt_type, need_ack);
 	buf->duration_b = s_uGetDataDuration(priv, PK_TYPE_11B, need_ack);
 
-	buf->wTimeStampOff_a = vnt_time_stamp_off(priv, rate);
-	buf->wTimeStampOff_b = vnt_time_stamp_off(priv,
+	buf->time_stamp_off_a = vnt_time_stamp_off(priv, rate);
+	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
 					priv->byTopCCKBasicRate);
 
 	return buf->duration_a;
@@ -508,8 +508,8 @@ static u16 vnt_rxtx_datahead_g_fb(struct vnt_private *priv, u8 pkt_type,
 	buf->duration_a_f0 = s_uGetDataDuration(priv, pkt_type, need_ack);
 	buf->duration_a_f1 = s_uGetDataDuration(priv, pkt_type, need_ack);
 
-	buf->wTimeStampOff_a = vnt_time_stamp_off(priv, rate);
-	buf->wTimeStampOff_b = vnt_time_stamp_off(priv,
+	buf->time_stamp_off_a = vnt_time_stamp_off(priv, rate);
+	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
 						priv->byTopCCKBasicRate);
 
 	return buf->duration_a;
@@ -527,7 +527,7 @@ static u16 vnt_rxtx_datahead_a_fb(struct vnt_private *priv, u8 pkt_type,
 	buf->duration_f0 = s_uGetDataDuration(priv, pkt_type, need_ack);
 	buf->duration_f1 = s_uGetDataDuration(priv, pkt_type, need_ack);
 
-	buf->wTimeStampOff = vnt_time_stamp_off(priv, rate);
+	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
 
 	return buf->duration;
 }
@@ -541,14 +541,14 @@ static u16 vnt_rxtx_datahead_ab(struct vnt_private *priv, u8 pkt_type,
 	/* Get Duration and TimeStampOff */
 	buf->duration = s_uGetDataDuration(priv, pkt_type, need_ack);
 
-	buf->wTimeStampOff = vnt_time_stamp_off(priv, rate);
+	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
 
 	return buf->duration;
 }
 
 static int vnt_fill_ieee80211_rts(struct vnt_private *priv,
 	struct ieee80211_rts *rts, struct ethhdr *eth_hdr,
-		u16 duration)
+		__le16 duration)
 {
 	rts->duration = duration;
 	rts->frame_control = TYPE_CTL_RTS;
