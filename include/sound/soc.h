@@ -1242,6 +1242,20 @@ static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
 	return snd_kcontrol_chip(kcontrol);
 }
 
+/**
+ * snd_soc_kcontrol_platform() - Returns the platform that registerd the control
+ * @kcontrol: The control for which to get the platform
+ *
+ * Note: This function will only work correctly if the control has been
+ * registered with snd_soc_add_platform_controls() or via table based setup of
+ * a snd_soc_platform_driver. Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_kcontrol_platform(
+	struct snd_kcontrol *kcontrol)
+{
+	return snd_kcontrol_chip(kcontrol);
+}
+
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
 
