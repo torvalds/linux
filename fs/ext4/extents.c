@@ -4546,86 +4546,35 @@ retry:
 	ext4_std_error(inode->i_sb, err);
 }
 
-/*
- * preallocate space for a file. This implements ext4's fallocate file
- * operation, which gets called from sys_fallocate system call.
- * For block-mapped files, posix_fallocate should fall back to the method
- * of writing zeroes to the required new blocks (the same behavior which is
- * expected for file systems which do not support fallocate() system call).
- */
-long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
+static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
+				  ext4_lblk_t len, int flags, int mode)
 {
 	struct inode *inode = file_inode(file);
 	handle_t *handle;
-	loff_t new_size = 0;
-	unsigned int max_blocks;
 	int ret = 0;
 	int ret2 = 0;
 	int retries = 0;
-	int flags;
 	struct ext4_map_blocks map;
-	struct timespec tv;
-	unsigned int credits, blkbits = inode->i_blkbits;
+	unsigned int credits;
 
-	/* Return error if mode is not supported */
-	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
-		     FALLOC_FL_COLLAPSE_RANGE))
-		return -EOPNOTSUPP;
-
-	if (mode & FALLOC_FL_PUNCH_HOLE)
-		return ext4_punch_hole(inode, offset, len);
-
-	if (mode & FALLOC_FL_COLLAPSE_RANGE)
-		return ext4_collapse_range(inode, offset, len);
-
-	ret = ext4_convert_inline_data(inode);
-	if (ret)
-		return ret;
-
-	/*
-	 * currently supporting (pre)allocate mode for extent-based
-	 * files _only_
-	 */
-	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
-		return -EOPNOTSUPP;
-
-	trace_ext4_fallocate_enter(inode, offset, len, mode);
-	map.m_lblk = offset >> blkbits;
-	/*
-	 * We can't just convert len to max_blocks because
-	 * If blocksize = 4096 offset = 3072 and len = 2048
-	 */
-	max_blocks = (EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits)
-		- map.m_lblk;
-	/*
-	 * credits to insert 1 extent into extent tree
-	 */
-	credits = ext4_chunk_trans_blocks(inode, max_blocks);
-	mutex_lock(&inode->i_mutex);
-
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-	     offset + len > i_size_read(inode)) {
-		new_size = offset + len;
-		ret = inode_newsize_ok(inode, new_size);
-		if (ret)
-			goto out;
-	}
-
-	flags = EXT4_GET_BLOCKS_CREATE_UNINIT_EXT;
-	if (mode & FALLOC_FL_KEEP_SIZE)
-		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
+	map.m_lblk = offset;
 	/*
 	 * Don't normalize the request if it can fit in one extent so
 	 * that it doesn't get unnecessarily split into multiple
 	 * extents.
 	 */
-	if (len <= EXT_UNINIT_MAX_LEN << blkbits)
+	if (len <= EXT_UNINIT_MAX_LEN)
 		flags |= EXT4_GET_BLOCKS_NO_NORMALIZE;
 
+	/*
+	 * credits to insert 1 extent into extent tree
+	 */
+	credits = ext4_chunk_trans_blocks(inode, len);
+
 retry:
-	while (ret >= 0 && ret < max_blocks) {
+	while (ret >= 0 && ret < len) {
 		map.m_lblk = map.m_lblk + ret;
-		map.m_len = max_blocks = max_blocks - ret;
+		map.m_len = len = len - ret;
 		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS,
 					    credits);
 		if (IS_ERR(handle)) {
@@ -4652,20 +4601,91 @@ retry:
 		goto retry;
 	}
 
+	return ret > 0 ? ret2 : ret;
+}
+
+/*
+ * preallocate space for a file. This implements ext4's fallocate file
+ * operation, which gets called from sys_fallocate system call.
+ * For block-mapped files, posix_fallocate should fall back to the method
+ * of writing zeroes to the required new blocks (the same behavior which is
+ * expected for file systems which do not support fallocate() system call).
+ */
+long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
+{
+	struct inode *inode = file_inode(file);
+	handle_t *handle;
+	loff_t new_size = 0;
+	unsigned int max_blocks;
+	int ret = 0;
+	int flags;
+	ext4_lblk_t lblk;
+	struct timespec tv;
+	unsigned int blkbits = inode->i_blkbits;
+
+	/* Return error if mode is not supported */
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
+		     FALLOC_FL_COLLAPSE_RANGE))
+		return -EOPNOTSUPP;
+
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		return ext4_punch_hole(inode, offset, len);
+
+	if (mode & FALLOC_FL_COLLAPSE_RANGE)
+		return ext4_collapse_range(inode, offset, len);
+
+	ret = ext4_convert_inline_data(inode);
+	if (ret)
+		return ret;
+
+	/*
+	 * currently supporting (pre)allocate mode for extent-based
+	 * files _only_
+	 */
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
+		return -EOPNOTSUPP;
+
+	trace_ext4_fallocate_enter(inode, offset, len, mode);
+	lblk = offset >> blkbits;
+	/*
+	 * We can't just convert len to max_blocks because
+	 * If blocksize = 4096 offset = 3072 and len = 2048
+	 */
+	max_blocks = (EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits)
+		- lblk;
+
+	flags = EXT4_GET_BLOCKS_CREATE_UNINIT_EXT;
+	if (mode & FALLOC_FL_KEEP_SIZE)
+		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
+
+	mutex_lock(&inode->i_mutex);
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+	     offset + len > i_size_read(inode)) {
+		new_size = offset + len;
+		ret = inode_newsize_ok(inode, new_size);
+		if (ret)
+			goto out;
+	}
+
+	ret = ext4_alloc_file_blocks(file, lblk, max_blocks, flags, mode);
+	if (ret)
+		goto out;
+
 	handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
 	if (IS_ERR(handle))
 		goto out;
 
 	tv = inode->i_ctime = ext4_current_time(inode);
 
-	if (ret > 0 && new_size) {
+	if (!ret && new_size) {
 		if (new_size > i_size_read(inode)) {
 			i_size_write(inode, new_size);
 			inode->i_mtime = tv;
 		}
 		if (new_size > EXT4_I(inode)->i_disksize)
 			ext4_update_i_disksize(inode, new_size);
-	} else if (ret > 0 && !new_size) {
+	} else if (!ret && !new_size) {
 		/*
 		* Mark that we allocate beyond EOF so the subsequent truncate
 		* can proceed even if the new size is the same as i_size.
@@ -4680,9 +4700,8 @@ retry:
 	ext4_journal_stop(handle);
 out:
 	mutex_unlock(&inode->i_mutex);
-	trace_ext4_fallocate_exit(inode, offset, max_blocks,
-				ret > 0 ? ret2 : ret);
-	return ret > 0 ? ret2 : ret;
+	trace_ext4_fallocate_exit(inode, offset, max_blocks, ret);
+	return ret;
 }
 
 /*
