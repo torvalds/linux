@@ -329,7 +329,7 @@ static int xgene_ahci_hw_init(struct ahci_host_priv *hpriv)
 	writel(0xffffffff, hpriv->mmio + HOST_IRQ_STAT);
 	readl(hpriv->mmio + HOST_IRQ_STAT); /* Force a barrier */
 	writel(0, ctx->csr_core + INTSTATUSMASK);
-	readl(ctx->csr_core + INTSTATUSMASK); /* Force a barrier */
+	val = readl(ctx->csr_core + INTSTATUSMASK); /* Force a barrier */
 	dev_dbg(ctx->dev, "top level interrupt mask 0x%X value 0x%08X\n",
 		INTSTATUSMASK, val);
 
