@@ -1550,7 +1550,7 @@ musycc_chan_down(ci_t *dummy, int channum)
 
     ch = sd_find_chan(dummy, channum);
     if (!ch)
-	return EINVAL;
+	return -EINVAL;
     pi = ch->up;
     gchan = ch->gchan;
 

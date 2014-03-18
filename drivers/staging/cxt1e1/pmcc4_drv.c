@@ -757,7 +757,7 @@ c4_frame_rw (ci_t *ci, struct sbecom_port_param *pp)
     volatile u_int32_t data;
 
     if (pp->portnum >= ci->max_port)/* sanity check */
-        return ENXIO;
+        return -ENXIO;
 
     comet = ci->port[pp->portnum].cometbase;
     data = pci_read_32 ((u_int32_t *) comet + pp->port_mode) & 0xff;
@@ -846,7 +846,7 @@ c4_musycc_rw (ci_t *ci, struct c4_musycc_param *mcp)
      */
     portnum = (mcp->offset % 0x6000) / 0x800;
     if (portnum >= ci->max_port)
-        return ENXIO;
+        return -ENXIO;
     pi = &ci->port[portnum];
     if (mcp->offset >= 0x6000)
         offset += 0x6000;           /* put back in MsgCfgDesc address offset */
@@ -895,7 +895,7 @@ status_t
 c4_get_port (ci_t *ci, int portnum)
 {
     if (portnum >= ci->max_port)    /* sanity check */
-        return ENXIO;
+        return -ENXIO;
 
     SD_SEM_TAKE (&ci->sem_wdbusy, "_wd_");      /* only 1 thru here, per
                                                  * board */
@@ -916,7 +916,7 @@ c4_set_port (ci_t *ci, int portnum)
     int         i;
 
     if (portnum >= ci->max_port)    /* sanity check */
-        return ENXIO;
+        return -ENXIO;
 
     pi = &ci->port[portnum];
     pp = &ci->port[portnum].p;
@@ -928,7 +928,7 @@ c4_set_port (ci_t *ci, int portnum)
                 portnum, e1mode, pi->openchans);
     }
     if (pi->openchans)
-        return EBUSY;               /* group needs initialization only for
+        return -EBUSY;               /* group needs initialization only for
                                      * first channel of a group */
 
     {
@@ -1019,10 +1019,10 @@ c4_new_chan (ci_t *ci, int portnum, int channum, void *user)
     int         gchan;
 
     if (c4_find_chan (channum))     /* a new channel shouldn't already exist */
-        return EEXIST;
+        return -EEXIST;
 
     if (portnum >= ci->max_port)    /* sanity check */
-        return ENXIO;
+        return -ENXIO;
 
     pi = &(ci->port[portnum]);
     /* find any available channel within this port */
@@ -1033,7 +1033,7 @@ c4_new_chan (ci_t *ci, int portnum, int channum, void *user)
             break;
     }
     if (gchan == MUSYCC_NCHANS)     /* exhausted table, all were assigned */
-        return ENFILE;
+        return -ENFILE;
 
     ch->up = pi;
 
@@ -1084,6 +1084,7 @@ c4_del_chan (int channum)
 	ch = c4_find_chan(channum);
 	if (!ch)
 		return -ENOENT;
+
     if (ch->state == UP)
         musycc_chan_down ((ci_t *) 0, channum);
     ch->state = UNASSIGNED;
@@ -1121,12 +1122,12 @@ c4_set_chan (int channum, struct sbecom_chan_param *p)
     if (ch->p.card != p->card ||
         ch->p.port != p->port ||
         ch->p.channum != p->channum)
-        return EINVAL;
+        return -EINVAL;
 #endif
 
     if (!(ch->up->group_is_set))
     {
-        return EIO;                 /* out of order, SET_PORT command
+        return -EIO;                 /* out of order, SET_PORT command
                                      * required prior to first group's
                                      * SET_CHAN command */
     }
@@ -1169,6 +1170,7 @@ c4_get_chan (int channum, struct sbecom_chan_param *p)
 	ch = c4_find_chan(channum);
 	if (!ch)
 		return -ENOENT;
+
     *p = ch->p;
     return 0;
 }
@@ -1181,6 +1183,7 @@ c4_get_chan_stats (int channum, struct sbecom_chan_stats *p)
 	ch = c4_find_chan(channum);
 	if (!ch)
 		return -ENOENT;
+
     *p = ch->s;
     p->tx_pending = atomic_read (&ch->tx_pending);
     return 0;
@@ -1252,6 +1255,7 @@ c4_chan_up (ci_t *ci, int channum)
 	ch = c4_find_chan(channum);
 	if (!ch)
 		return -ENOENT;
+
     if (ch->state == UP)
     {
         if (cxt1e1_log_level >= LOG_MONITOR)
@@ -1274,7 +1278,7 @@ c4_chan_up (ci_t *ci, int channum)
                 pr_info("+ ask4 %x, currently %x\n",
                         ch->p.bitmask[i], pi->tsm[i]);
             }
-            return EINVAL;
+            return -EINVAL;
         }
         for (j = 0; j < 8; j++)
             if (ch->p.bitmask[i] & (1 << j))
@@ -1287,7 +1291,7 @@ c4_chan_up (ci_t *ci, int channum)
         /* if( cxt1e1_log_level >= LOG_WARN)  */
         pr_info("%s: c4_chan_up[%d] ENOBUFS (no TimeSlots assigned)\n",
                 ci->devname, channum);
-        return ENOBUFS;             /* this should not happen */
+        return -ENOBUFS;             /* this should not happen */
     }
     addr = c4_fifo_alloc (pi, gchan, &nbuf);
     ch->state = UP;
@@ -1465,7 +1469,7 @@ errfree:
     ch->mdr = NULL;
     ch->rxd_num = 0;
     ch->state = DOWN;
-    return ENOBUFS;
+    return -ENOBUFS;
 }
 
 /* stop the hardware from servicing & interrupting */
