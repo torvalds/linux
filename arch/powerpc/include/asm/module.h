@@ -35,6 +35,7 @@ struct mod_arch_specific {
 #ifdef __powerpc64__
 	unsigned int stubs_section;	/* Index of stubs section in module */
 	unsigned int toc_section;	/* What section is the TOC? */
+	bool toc_fixed;			/* Have we fixed up .TOC.? */
 #ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned long toc;
 	unsigned long tramp;

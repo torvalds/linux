@@ -196,6 +196,24 @@ static void dedotify(Elf64_Sym *syms, unsigned int numsyms, char *strtab)
 	}
 }
 
+static Elf64_Sym *find_dot_toc(Elf64_Shdr *sechdrs,
+			       const char *strtab,
+			       unsigned int symindex)
+{
+	unsigned int i, numsyms;
+	Elf64_Sym *syms;
+
+	syms = (Elf64_Sym *)sechdrs[symindex].sh_addr;
+	numsyms = sechdrs[symindex].sh_size / sizeof(Elf64_Sym);
+
+	for (i = 1; i < numsyms; i++) {
+		if (syms[i].st_shndx == SHN_UNDEF
+		    && strcmp(strtab + syms[i].st_name, ".TOC.") == 0)
+			return &syms[i];
+	}
+	return NULL;
+}
+
 int module_frob_arch_sections(Elf64_Ehdr *hdr,
 			      Elf64_Shdr *sechdrs,
 			      char *secstrings,
@@ -337,6 +355,17 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 
 	DEBUGP("Applying ADD relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
+
+	/* First time we're called, we can fix up .TOC. */
+	if (!me->arch.toc_fixed) {
+		sym = find_dot_toc(sechdrs, strtab, symindex);
+		/* It's theoretically possible that a module doesn't want a
+		 * .TOC. so don't fail it just for that. */
+		if (sym)
+			sym->st_value = my_r2(sechdrs, me);
+		me->arch.toc_fixed = true;
+	}
+
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rela); i++) {
 		/* This is where to make the change */
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
