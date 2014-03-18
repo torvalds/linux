@@ -928,7 +928,7 @@ repeat:
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */
-	if (use_browser == 1 && sort__has_sym) {
+	if (ui__has_annotation()) {
 		symbol_conf.priv_size = sizeof(struct annotation);
 		machines__set_symbol_filter(&session->machines,
 					    symbol__annotate_init);
