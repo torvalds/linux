@@ -711,7 +711,7 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 			return;
 	} else if (mac->opmode == NL80211_IFTYPE_STATION) {
 		if (!mac->bw_40 || !(sta->ht_cap.ht_supported))
-		return;
+			return;
 	}
 	if (tcb_desc->b_multicast || tcb_desc->b_broadcast)
 		return;
