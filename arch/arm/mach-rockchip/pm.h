@@ -78,7 +78,26 @@ struct rkpm_gpios_info_st{
 #define rkpm_chk_val_ctrbit(val,bit) ((val)&(bit))//check bit
 #define rkpm_chk_val_ctrbits(val,bits) ((val)&(bits))  //check bits
 
+/************************************reg ops*****************************************************/
+#define cru_readl(offset)	readl_relaxed(RK_CRU_VIRT + offset)
+#define cru_writel(v, offset)	do { writel_relaxed(v, RK_CRU_VIRT + offset); dsb(); } while (0)
+
+#define pmu_readl(offset)	readl_relaxed(RK_PMU_VIRT + offset)
+#define pmu_writel(v,offset)	do { writel_relaxed(v, RK_PMU_VIRT + offset); dsb(); } while (0)
+
+#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+
+#define reg_readl(base)	readl_relaxed(base)
+#define reg_writel(v, base)	do { writel_relaxed(v, base); dsb(); } while (0)
+
+
+#define PM_ERR(fmt, args...) printk(KERN_ERR fmt, ##args)
+#define PM_LOG(fmt, args...) printk(KERN_ERR fmt, ##args)
+#define PM_WARNING(fmt, args...) printk(KERN_WARNING fmt, ##args)
+
 /*********************************pm control******************************************/
+extern void  rkpm_ddr_reg_dump(u32 base_addr,u32 start_offset,u32 end_offset);
 extern void rkpm_set_pie_info(struct rkpm_sram_ops *pm_sram_ops,rkpm_sram_suspend_arg_cb pie_cb);
 extern void rkpm_set_ops_prepare_finish(rkpm_ops_void_callback prepare,rkpm_ops_void_callback finish);
 extern void rkpm_set_ops_pwr_dmns(rkpm_ops_void_callback pwr_dmns,rkpm_ops_void_callback re_pwr_dmns);
@@ -88,8 +107,6 @@ extern void rkpm_set_ops_gpios(rkpm_ops_void_callback gpios,rkpm_ops_void_callba
 extern void rkpm_set_ops_printch(rkpm_ops_printch_callback printch);
 extern void rkpm_set_ops_regs_pread(rkpm_ops_void_callback regs_pread);
 
-
-extern void rkpm_pie_init(void);
 extern void rkpm_set_sram_ops_volt(rkpm_ops_void_callback volts,rkpm_ops_void_callback re_volts);
 extern void rkpm_set_sram_ops_gtclks(rkpm_ops_void_callback gtclks,rkpm_ops_void_callback re_gtclks);
 extern void rkpm_set_sram_ops_sysclk(rkpm_ops_paramter_u32_cb sysclk,rkpm_ops_paramter_u32_cb re_sysclk);

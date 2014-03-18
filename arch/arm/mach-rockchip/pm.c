@@ -1,8 +1,30 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/suspend.h>
+#include <asm/io.h>
 #include "pm.h"
 
+/*************************dump reg********************************************/
+void  rkpm_ddr_reg_dump(u32 base_addr,u32 start_offset,u32 end_offset)
+{
+	u32 i;
+        rkpm_ddr_printch('\n');
+        rkpm_ddr_printhex(base_addr);
+        rkpm_ddr_printch(':');
+        rkpm_ddr_printch('\n');
+        
+	for(i=start_offset;i<=end_offset;)
+	{
+            rkpm_ddr_printhex(i);	 
+            rkpm_ddr_printch('-');
+            rkpm_ddr_printhex(readl_relaxed((void *)(base_addr + i)));	 
+            if(!(i%5)&&i!=0)
+            rkpm_ddr_printch('\n');
+            i+=4;
+	}
+    
+    rkpm_ddr_printch('\n');
+}
 
 static struct rkpm_ops pm_ops={NULL};
 

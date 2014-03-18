@@ -17,6 +17,28 @@
 
 #ifndef __DT_BINDINGS_ROCKCHIP_PM_H__
 #define __DT_BINDINGS_ROCKCHIP_PM_H__
+/******************************bits ops************************************/
+
+
+
+
+#define RKPM_BITS_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
+
+#define RKPM_BITS_CLR_VAL(val, bits_shift, msk) (val&~(msk<<bits_shift))
+
+#define RKPM_SETBITS(bits, bits_shift, msk)	(((bits)&(msk)) << (bits_shift))
+
+#define RKPM_W_MSK_SETBITS(bits, bits_shift, msk) \
+    (RKPM_BITS_W_MSK(bits_shift, msk) | RKPM_SETBITS(bits, bits_shift, msk))
+
+#define RKPM_VAL_SETBITS(val,bits, bits_shift, msk) \
+    (RKPM_BITS_CLR_VAL(val,bits_shift, msk) | RKPM_SETBITS(bits, bits_shift, msk))
+
+#define RKPM_GETBITS(val, bits_shift, msk)	(((val)>> (bits_shift))&(msk))
+
+
+
+
 
 /*********************CTRBIT DEFINE*****************************/
 #define RKPM_CTR_PWR_DMNS (0x1<<0)
@@ -56,32 +78,74 @@
 
 /*********************CTRBIT DEFINE END*****************************/
 
-#define RKPM_GPIOBITS_LEVEL_PULL (24)
-#define RKPM_GPIOBITS_MSK_LEVEL_PULL (0xf<<RKPM_GPIOBITS_LEVEL_PULL)
+//pin=0x0a21  gpio0a2,port=0,bank=a,b_gpio=2,fun=1
+#define RKPM_PINBITS_BGPIO(pins) RKPM_GETBITS(pins,4,0xf)
+#define RKPM_PINBITS_BANK(pins) RKPM_GETBITS(pins,8,0xf) // a,b,c,d
+#define RKPM_PINBITS_PORT(pins) RKPM_GETBITS(pins,0xc,0xf)
+#define RKPM_PINBITS_FUN(pins) RKPM_GETBITS(pins,0,0xf)
 
-#define RKPM_GPIOBITS_INOUT (20)
-#define RKPM_GPIOBITS_MSK_INOUT (0xf<<RKPM_GPIOBITS_INOUT)
+//#define RKPM_PINBITS(port,bank,bgpio,fun) 0
 
-#define RKPM_GPIOBITS_PINS (0)
-#define RKPM_GPIOBITS_MSK_PINS (0xffff<<RKPM_GPIOBITS_PINS)
+#if 1
+#define RKPM_PINBITS(port,bank,bgpio,fun) (0\
+                                                                            |RKPM_SETBITS(fun,0,0xf)\
+                                                                            |RKPM_SETBITS(bgpio,0x4,0xf)\
+                                                                            |RKPM_SETBITS(bank,0x8,0xf)\
+                                                                            |RKPM_SETBITS(port,0xc,0xf)\
+                                                                            )
+#endif
+#define RKPM_PINBITS_SET_FUN(pins,fun) RKPM_VAL_SETBITS(pins,fun,0,0xf)
 
+#define RKPM_PINGPIO_PIN (0)
+#define RKPM_PINGPIO_PIN_MSK (0xffff)
 
-#define RKPM_GPIOS_INPUT (0)
-#define RKPM_GPIOS_OUTPUT (1)
+#define RKPM_PINGPIO_PULL (24)
+#define RKPM_PINGPIO_PULL_MSK (0x3)
 
-#define RKPM_GPIOS_OUT_H (1)
-#define RKPM_GPIOS_OUT_L (0)
+#define RKPM_PINGPIO_INOUT (26)
+#define RKPM_PINGPIO_INOUT_MSK (0x3)
 
-#define RKPM_GPIOS_IN_PULLUP (0)
-#define RKPM_GPIOS_IN_PULLDN (0)
-#define RKPM_GPIOS_IN_PULLNULL (0)
+#define RKPM_PINGPIO_LEVEL (28)
+#define RKPM_PINGPIO_LEVEL_MSK (0x3)
 
+#define RKPM_GPIO_INPUT (0)
+#define RKPM_GPIO_OUTPUT (1)
 
-#define RKPM_GPIOS_SETTING(pins,in_out,level_pull) (\
-                                                                        ((pins)&RKPM_GPIOBITS_MSK_PINS)\
-                                                                         |(((in_out)<<RKPM_GPIOBITS_INOUT)&RKPM_GPIOBITS_MSK_INOUT)\
-                                                                         |(((level_pull)<<RKPM_GPIOBITS_LEVEL_PULL)&RKPM_GPIOBITS_MSK_LEVEL_PULL)\
+#define RKPM_GPIO_OUT_L (0)
+#define RKPM_GPIO_OUT_H (1)
+
+#define RKPM_GPIO_PULL_Z (0)
+#define RKPM_GPIO_PULL_UP (0x1)
+#define RKPM_GPIO_PULL_DN (0x2)
+#define RKPM_GPIO_PULL_RPTR (0x3)
+
+#define RKPM_PINGPIO_BITS(pin,pull,inout,_level) (0\
+                                                                         |RKPM_SETBITS(pin,RKPM_PINGPIO_PIN,RKPM_PINGPIO_PIN_MSK)\
+                                                                         |RKPM_SETBITS(inout,RKPM_PINGPIO_INOUT,RKPM_PINGPIO_INOUT_MSK)\
+                                                                         |RKPM_SETBITS(pull,RKPM_PINGPIO_PULL,RKPM_PINGPIO_PULL_MSK)\
+                                                                         |RKPM_SETBITS(_level,RKPM_PINGPIO_LEVEL,RKPM_PINGPIO_LEVEL_MSK)\
                                                                         )
+                                                             
+#define RKPM_PINGPIO_BITS_OUTPUT(pin,_level) (0\
+                                                                         |RKPM_SETBITS(pin,RKPM_PINGPIO_PIN,RKPM_PINGPIO_PIN_MSK)\
+                                                                         |RKPM_SETBITS(RKPM_GPIO_OUTPUT,RKPM_PINGPIO_INOUT,RKPM_PINGPIO_INOUT_MSK)\
+                                                                         |RKPM_SETBITS(_level,RKPM_PINGPIO_LEVEL,RKPM_PINGPIO_LEVEL_MSK)\
+                                                                        )
+                                                                        
+#define RKPM_PINGPIO_BITS_INTPUT(pin,pull) (0\
+                                                                             |RKPM_SETBITS(pin,RKPM_PINGPIO_PIN,RKPM_PINGPIO_PIN_MSK)\
+                                                                             |RKPM_SETBITS(RKPM_GPIO_INPUT,RKPM_PINGPIO_INOUT,RKPM_PINGPIO_INOUT_MSK)\
+                                                                             |RKPM_SETBITS(pull,RKPM_PINGPIO_PULL,RKPM_PINGPIO_PULL_MSK)\
+                                                                            )
+ #define RKPM_PINGPIO_BITS_FUN(pin,pull) (0\
+                                                                             |RKPM_SETBITS(pin,RKPM_PINGPIO_PIN,RKPM_PINGPIO_PIN_MSK)\
+                                                                             |RKPM_SETBITS(pull,RKPM_PINGPIO_PULL,RKPM_PINGPIO_PULL_MSK)\
+                                                                            )    
+
+#define RKPM_PINGPIO_BITS_PIN(bits)  RKPM_GETBITS(bits,RKPM_PINGPIO_PIN,RKPM_PINGPIO_PIN_MSK)
+#define RKPM_PINGPIO_BITS_LEVEL(bits) RKPM_GETBITS(bits,RKPM_PINGPIO_INOUT,RKPM_PINGPIO_INOUT_MSK)  
+#define RKPM_PINGPIO_BITS_PULL(bits) RKPM_GETBITS(bits,RKPM_PINGPIO_PULL,RKPM_PINGPIO_PULL_MSK)   
+#define RKPM_PINGPIO_BITS_INOUT(bits) RKPM_GETBITS(bits,RKPM_PINGPIO_LEVEL,RKPM_PINGPIO_LEVEL_MSK)   
 
 
 #endif

@@ -4,6 +4,30 @@
 #include "pm.h"
 //#include "sram.h"
 
+/*************************dump reg********************************************/
+
+static void __sramfunc rkpm_sram_reg_dump(u32 base_addr,u32 start_offset,u32 end_offset)
+{
+	u32 i;
+        rkpm_sram_printch('\n');
+        rkpm_sram_printhex(base_addr);
+        rkpm_sram_printch(':');
+        rkpm_sram_printch('\n');
+        
+	for(i=start_offset;i<=end_offset;)
+	{
+            rkpm_sram_printhex(i);	 
+            rkpm_sram_printch('-');
+            rkpm_sram_printhex(readl_relaxed((void *)(base_addr + i)));	 
+            if(!(i%5)&&i!=0)
+            rkpm_sram_printch('\n');
+            i+=4;
+	}
+    
+    rkpm_sram_printch('\n');
+
+}
+
 
 struct rkpm_sram_ops DEFINE_PIE_DATA(pm_sram_ops);
 //for sram
@@ -54,7 +78,7 @@ void  PIE_FUNC(rkpm_sram_printhex_pie)(unsigned int hex)
 /******************************************pm main function******************************************/
 #define RKPM_CTR_SYSCLK RKPM_OR_3BITS(SYSCLK_DIV,SYSCLK_32K,SYSCLK_OSC_DIS)
 
-void __sramfunc rkpm_sram_suspend(u32 ctrbits)
+static void __sramfunc rkpm_sram_suspend(u32 ctrbits)
 {
 
 	rkpm_sram_printch('5');
@@ -102,7 +126,7 @@ void PIE_FUNC(rkpm_sram_suspend_arg)(void *arg)
 
     
 }
-void rkpm_pie_init(void)
+static void rkpm_pie_init(void)
 {
     rkpm_set_pie_info(kern_to_pie(rockchip_pie_chunk, &DATA(pm_sram_ops))
                         ,fn_to_pie(rockchip_pie_chunk, &FUNC(rkpm_sram_suspend_arg)));
