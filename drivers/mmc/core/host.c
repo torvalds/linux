@@ -516,6 +516,7 @@ EXPORT_SYMBOL(mmc_alloc_host);
  *	prepared to start servicing requests before this function
  *	completes.
  */
+static struct mmc_host *primary_sdio_host;
 int mmc_add_host(struct mmc_host *host)
 {
 	int err;
@@ -538,10 +539,14 @@ int mmc_add_host(struct mmc_host *host)
 	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
 		register_pm_notifier(&host->pm_notify);
 
+    if(host->restrict_caps & RESTRICT_CARD_TYPE_SDIO) 
+        primary_sdio_host = host;
+        
 	return 0;
 }
 
 EXPORT_SYMBOL(mmc_add_host);
+
 
 /**
  *	mmc_remove_host - remove host hardware
@@ -588,3 +593,36 @@ void mmc_free_host(struct mmc_host *host)
 }
 
 EXPORT_SYMBOL(mmc_free_host);
+
+/**
+ *	mmc_host_rescan - triger software rescan flow
+ *	@host: mmc host
+ *
+ *	rescan slot attach in the assigned host.
+ *	If @host is NULL, default rescan primary_sdio_host
+ *  saved by mmc_add_host().
+ *  OR, rescan host from argument.
+ *
+ */
+int mmc_host_rescan(struct mmc_host *host)
+{
+    if(NULL != primary_sdio_host){
+        if(!host)
+            host = primary_sdio_host;
+        else 
+            printk("mmc_host_rescan pass in host from argument!\n");
+    }
+    else{
+        printk("%s: host isn't  initialization successfully.\n",
+                mmc_hostname(host));
+        return -ENOMEDIUM;
+    }
+
+    printk("%s:mmc host rescan start!\n", mmc_hostname(host));
+                              
+    mmc_detect_change(host, msecs_to_jiffies(10));
+
+    return 0;
+}
+EXPORT_SYSMBOL(mmc_host_rescan);
+
