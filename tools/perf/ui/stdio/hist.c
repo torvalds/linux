@@ -318,6 +318,9 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 		return 0;
 
 	perf_hpp__for_each_format(fmt) {
+		if (perf_hpp__should_skip(fmt))
+			continue;
+
 		/*
 		 * If there's no field_sep, we still need
 		 * to display initial '  '.
@@ -407,6 +410,9 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	fprintf(fp, "# ");
 
 	perf_hpp__for_each_format(fmt) {
+		if (perf_hpp__should_skip(fmt))
+			continue;
+
 		if (!first)
 			fprintf(fp, "%s", sep ?: "  ");
 		else
@@ -429,6 +435,9 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 
 	perf_hpp__for_each_format(fmt) {
 		unsigned int i;
+
+		if (perf_hpp__should_skip(fmt))
+			continue;
 
 		if (!first)
 			fprintf(fp, "%s", sep ?: "  ");

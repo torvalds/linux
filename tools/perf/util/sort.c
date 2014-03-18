@@ -1358,6 +1358,17 @@ static int __setup_sorting(void)
 	return ret;
 }
 
+bool perf_hpp__should_skip(struct perf_hpp_fmt *format)
+{
+	if (perf_hpp__is_sort_entry(format)) {
+		struct hpp_sort_entry *hse;
+
+		hse = container_of(format, struct hpp_sort_entry, hpp);
+		return hse->se->elide;
+	}
+	return false;
+}
+
 static void sort_entry__setup_elide(struct sort_entry *se,
 				    struct strlist *list,
 				    const char *list_name, FILE *fp)

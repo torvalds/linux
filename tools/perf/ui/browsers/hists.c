@@ -711,6 +711,9 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		ui_browser__gotorc(&browser->b, row, 0);
 
 		perf_hpp__for_each_format(fmt) {
+			if (perf_hpp__should_skip(fmt))
+				continue;
+
 			if (current_entry && browser->b.navkeypressed) {
 				ui_browser__set_color(&browser->b,
 						      HE_COLORSET_SELECTED);
@@ -1100,6 +1103,9 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 		printed += fprintf(fp, "%c ", folded_sign);
 
 	perf_hpp__for_each_format(fmt) {
+		if (perf_hpp__should_skip(fmt))
+			continue;
+
 		if (!first) {
 			ret = scnprintf(hpp.buf, hpp.size, "  ");
 			advance_hpp(&hpp, ret);
