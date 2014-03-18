@@ -819,7 +819,7 @@ static int receive_first_packet(struct drbd_connection *connection, struct socke
  * drbd_socket_okay() - Free the socket if its connection is not okay
  * @sock:	pointer to the pointer to the socket.
  */
-static int drbd_socket_okay(struct socket **sock)
+static bool drbd_socket_okay(struct socket **sock)
 {
 	int rr;
 	char tb[4];
@@ -837,6 +837,30 @@ static int drbd_socket_okay(struct socket **sock)
 		return false;
 	}
 }
+
+static bool connection_established(struct drbd_connection *connection,
+				   struct socket **sock1,
+				   struct socket **sock2)
+{
+	struct net_conf *nc;
+	int timeout;
+	bool ok;
+
+	if (!*sock1 || !*sock2)
+		return false;
+
+	rcu_read_lock();
+	nc = rcu_dereference(connection->net_conf);
+	timeout = (nc->sock_check_timeo ?: nc->ping_timeo) * HZ / 10;
+	rcu_read_unlock();
+	schedule_timeout_interruptible(timeout);
+
+	ok = drbd_socket_okay(sock1);
+	ok = drbd_socket_okay(sock2) && ok;
+
+	return ok;
+}
+
 /* Gets called if a connection is established, or if a new minor gets created
    in a connection */
 int drbd_connected(struct drbd_peer_device *peer_device)
@@ -878,8 +902,8 @@ static int conn_connect(struct drbd_connection *connection)
 	struct drbd_socket sock, msock;
 	struct drbd_peer_device *peer_device;
 	struct net_conf *nc;
-	int vnr, timeout, h, ok;
-	bool discard_my_data;
+	int vnr, timeout, h;
+	bool discard_my_data, ok;
 	enum drbd_state_rv rv;
 	struct accept_wait_data ad = {
 		.connection = connection,
@@ -923,17 +947,8 @@ static int conn_connect(struct drbd_connection *connection)
 			}
 		}
 
-		if (sock.socket && msock.socket) {
-			rcu_read_lock();
-			nc = rcu_dereference(connection->net_conf);
-			timeout = nc->ping_timeo * HZ / 10;
-			rcu_read_unlock();
-			schedule_timeout_interruptible(timeout);
-			ok = drbd_socket_okay(&sock.socket);
-			ok = drbd_socket_okay(&msock.socket) && ok;
-			if (ok)
-				break;
-		}
+		if (connection_established(connection, &sock.socket, &msock.socket))
+			break;
 
 retry:
 		s = drbd_wait_for_connect(connection, &ad);
@@ -979,8 +994,7 @@ randomize:
 				goto out_release_sockets;
 		}
 
-		ok = drbd_socket_okay(&sock.socket);
-		ok = drbd_socket_okay(&msock.socket) && ok;
+		ok = connection_established(connection, &sock.socket, &msock.socket);
 	} while (!ok);
 
 	if (ad.s_listen)
