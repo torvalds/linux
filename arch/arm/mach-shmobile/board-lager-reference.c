@@ -114,7 +114,10 @@ static const struct clk_name clk_names[] __initconst = {
 static const struct clk_name clk_enables[] __initconst = {
 	{ "ether", NULL, "ee700000.ethernet" },
 	{ "msiof1", NULL, "e6e10000.spi" },
+	{ "mmcif1", NULL, "ee220000.mmc" },
 	{ "qspi_mod", NULL, "e6b10000.spi" },
+	{ "sdhi0", NULL, "ee100000.sd" },
+	{ "sdhi2", NULL, "ee140000.sd" },
 	{ "thermal", NULL, "e61f0000.thermal" },
 };
 
