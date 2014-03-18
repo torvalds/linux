@@ -3139,28 +3139,34 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	struct xdr_stream *xdr = &resp->xdr;
 	u32 eof;
 	int v;
-	struct page *page;
 	int starting_len = xdr->buf->len - 8;
-	int space_left;
 	long len;
+	int thislen;
 	__be32 nfserr;
 	__be32 tmp;
 	__be32 *p;
+	u32 zzz = 0;
+	int pad;
 
 	len = maxcount;
 	v = 0;
-	while (len) {
-		int thislen;
 
-		page = *(resp->rqstp->rq_next_page);
-		if (!page) { /* ran out of pages */
-			maxcount -= len;
-			break;
-		}
+	thislen = (void *)xdr->end - (void *)xdr->p;
+	if (len < thislen)
+		thislen = len;
+	p = xdr_reserve_space(xdr, (thislen+3)&~3);
+	WARN_ON_ONCE(!p);
+	resp->rqstp->rq_vec[v].iov_base = p;
+	resp->rqstp->rq_vec[v].iov_len = thislen;
+	v++;
+	len -= thislen;
+
+	while (len) {
 		thislen = min_t(long, len, PAGE_SIZE);
-		resp->rqstp->rq_vec[v].iov_base = page_address(page);
+		p = xdr_reserve_space(xdr, (thislen+3)&~3);
+		WARN_ON_ONCE(!p);
+		resp->rqstp->rq_vec[v].iov_base = p;
 		resp->rqstp->rq_vec[v].iov_len = thislen;
-		resp->rqstp->rq_next_page++;
 		v++;
 		len -= thislen;
 	}
@@ -3170,6 +3176,7 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 			read->rd_vlen, &maxcount);
 	if (nfserr)
 		return nfserr;
+	xdr_truncate_encode(xdr, starting_len + 8 + ((maxcount+3)&~3));
 
 	eof = (read->rd_offset + maxcount >=
 	       read->rd_fhp->fh_dentry->d_inode->i_size);
@@ -3179,27 +3186,9 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	tmp = htonl(maxcount);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len + 4, &tmp, 4);
 
-	resp->xdr.buf->page_len = maxcount;
-	xdr->buf->len += maxcount;
-	xdr->page_ptr += v;
-	xdr->iov = xdr->buf->tail;
-
-	/* Use rest of head for padding and remaining ops: */
-	resp->xdr.buf->tail[0].iov_base = xdr->p;
-	resp->xdr.buf->tail[0].iov_len = 0;
-	if (maxcount&3) {
-		p = xdr_reserve_space(xdr, 4);
-		WRITE32(0);
-		resp->xdr.buf->tail[0].iov_base += maxcount&3;
-		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
-		xdr->buf->len -= (maxcount&3);
-	}
-
-	space_left = min_t(int, (void *)xdr->end - (void *)xdr->p,
-				xdr->buf->buflen - xdr->buf->len);
-	xdr->buf->buflen = xdr->buf->len + space_left;
-	xdr->end = (__be32 *)((void *)xdr->end + space_left);
-
+	pad = (maxcount&3) ? 4 - (maxcount&3) : 0;
+	write_bytes_to_xdr_buf(xdr->buf, starting_len + 8 + maxcount,
+								&zzz, pad);
 	return 0;
 
 }
@@ -3224,15 +3213,15 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
 		return nfserr_resource;
 	}
-
-	if (resp->xdr.buf->page_len) {
-		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
+	if (resp->xdr.buf->page_len && resp->rqstp->rq_splice_ok) {
+		WARN_ON_ONCE(1);
 		return nfserr_resource;
 	}
-
 	xdr_commit_encode(xdr);
 
 	maxcount = svc_max_payload(resp->rqstp);
+	if (maxcount > xdr->buf->buflen - xdr->buf->len)
+		maxcount = xdr->buf->buflen - xdr->buf->len;
 	if (maxcount > read->rd_length)
 		maxcount = read->rd_length;
 
