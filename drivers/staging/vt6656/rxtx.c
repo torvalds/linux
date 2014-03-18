@@ -132,7 +132,7 @@ static u16 s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 static u16 s_uGetDataDuration(struct vnt_private *pDevice,
 	u8 byPktType, int bNeedAck);
 
-static u16 s_uGetRTSCTSDuration(struct vnt_private *pDevice,
+static __le16 s_uGetRTSCTSDuration(struct vnt_private *pDevice,
 	u8 byDurType, u32 cbFrameLength, u8 byPktType, u16 wRate,
 	int bNeedAck, u8 byFBOption);
 
@@ -430,7 +430,7 @@ static u16 s_uGetDataDuration(struct vnt_private *pDevice,
 }
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
-static u16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
+static __le16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
 	u32 cbFrameLength, u8 byPktType, u16 wRate, int bNeedAck,
 	u8 byFBOption)
 {
