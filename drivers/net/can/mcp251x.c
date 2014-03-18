@@ -672,7 +672,7 @@ static int mcp251x_hw_probe(struct spi_device *spi)
 
 static int mcp251x_power_enable(struct regulator *reg, int enable)
 {
-	if (IS_ERR(reg))
+	if (IS_ERR_OR_NULL(reg))
 		return 0;
 
 	if (enable)
@@ -996,6 +996,7 @@ static const struct net_device_ops mcp251x_netdev_ops = {
 	.ndo_open = mcp251x_open,
 	.ndo_stop = mcp251x_stop,
 	.ndo_start_xmit = mcp251x_hard_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct of_device_id mcp251x_of_match[] = {
@@ -1217,7 +1218,7 @@ static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 		priv->after_suspend = AFTER_SUSPEND_DOWN;
 	}
 
-	if (!IS_ERR(priv->power)) {
+	if (!IS_ERR_OR_NULL(priv->power)) {
 		regulator_disable(priv->power);
 		priv->after_suspend |= AFTER_SUSPEND_POWER;
 	}

@@ -642,9 +642,10 @@ void free_sja1000dev(struct net_device *dev)
 EXPORT_SYMBOL_GPL(free_sja1000dev);
 
 static const struct net_device_ops sja1000_netdev_ops = {
-       .ndo_open               = sja1000_open,
-       .ndo_stop               = sja1000_close,
-       .ndo_start_xmit         = sja1000_start_xmit,
+	.ndo_open	= sja1000_open,
+	.ndo_stop	= sja1000_close,
+	.ndo_start_xmit	= sja1000_start_xmit,
+	.ndo_change_mtu	= can_change_mtu,
 };
 
 int register_sja1000dev(struct net_device *dev)
