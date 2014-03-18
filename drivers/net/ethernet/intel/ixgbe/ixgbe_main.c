@@ -301,7 +301,7 @@ static void ixgbe_remove_adapter(struct ixgbe_hw *hw)
 		ixgbe_service_event_schedule(adapter);
 }
 
-void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg)
+static void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg)
 {
 	u32 value;
 
@@ -318,6 +318,32 @@ void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg)
 	value = ixgbe_read_reg(hw, IXGBE_STATUS);
 	if (value == IXGBE_FAILED_READ_REG)
 		ixgbe_remove_adapter(hw);
+}
+
+/**
+ * ixgbe_read_reg - Read from device register
+ * @hw: hw specific details
+ * @reg: offset of register to read
+ *
+ * Returns : value read or IXGBE_FAILED_READ_REG if removed
+ *
+ * This function is used to read device registers. It checks for device
+ * removal by confirming any read that returns all ones by checking the
+ * status register value for all ones. This function avoids reading from
+ * the hardware if a removal was previously detected in which case it
+ * returns IXGBE_FAILED_READ_REG (all ones).
+ */
+u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
+{
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 value;
+
+	if (ixgbe_removed(reg_addr))
+		return IXGBE_FAILED_READ_REG;
+	value = readl(reg_addr + reg);
+	if (unlikely(value == IXGBE_FAILED_READ_REG))
+		ixgbe_check_remove(hw, reg);
+	return value;
 }
 
 static bool ixgbe_check_cfg_remove(struct ixgbe_hw *hw, struct pci_dev *pdev)
