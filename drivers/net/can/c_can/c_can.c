@@ -433,9 +433,6 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, int ctrl)
 
 	stats->rx_packets++;
 	stats->rx_bytes += frame->can_dlc;
-
-	can_led_event(dev, CAN_LED_EVENT_RX);
-
 	return 0;
 }
 
@@ -901,6 +898,10 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 		pkts += n;
 		quota -= n;
 	}
+
+	if (pkts)
+		can_led_event(dev, CAN_LED_EVENT_RX);
+
 	return pkts;
 }
 
