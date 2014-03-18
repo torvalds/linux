@@ -295,8 +295,13 @@ do {									\
 #define R_PPC64_TLSLD		108
 #define R_PPC64_TOCSAVE		109
 
+#define R_PPC64_REL16		249
+#define R_PPC64_REL16_LO	250
+#define R_PPC64_REL16_HI	251
+#define R_PPC64_REL16_HA	252
+
 /* Keep this the last entry.  */
-#define R_PPC64_NUM		110
+#define R_PPC64_NUM		253
 
 /* There's actually a third entry here, but it's unused */
 struct ppc64_opd_entry
