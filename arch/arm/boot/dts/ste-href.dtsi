@@ -118,6 +118,10 @@
 			bus-width = <4>;
 			mmc-cap-sd-highspeed;
 			mmc-cap-mmc-highspeed;
+			st,sig-dir-dat0;
+			st,sig-dir-dat2;
+			st,sig-dir-cmd;
+			st,sig-pin-fbclk;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
 			pinctrl-names = "default", "sleep";
