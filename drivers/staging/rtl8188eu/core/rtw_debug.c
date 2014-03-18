@@ -783,7 +783,7 @@ int proc_set_rx_stbc(struct file *file, const char __user *buffer,
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		if (pregpriv) {
 			pregpriv->rx_stbc = mode;
-			printk("rx_stbc=%d\n", mode);
+			netdev_info(dev, "rx_stbc=%d\n", mode);
 		}
 	}
 	return count;
