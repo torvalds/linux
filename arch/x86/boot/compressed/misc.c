@@ -10,6 +10,7 @@
  */
 
 #include "misc.h"
+#include "../string.h"
 
 /* WARNING!!
  * This code is compiled with -fPIC and it is relocated dynamically
@@ -110,7 +111,6 @@ static void error(char *m);
 struct boot_params *real_mode;		/* Pointer to real-mode data */
 
 void *memset(void *s, int c, size_t n);
-void *memcpy(void *dest, const void *src, size_t n);
 
 memptr free_mem_ptr;
 memptr free_mem_end_ptr;
@@ -225,35 +225,6 @@ void *memset(void *s, int c, size_t n)
 		ss[i] = c;
 	return s;
 }
-#ifdef CONFIG_X86_32
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	int d0, d1, d2;
-	asm volatile(
-		"rep ; movsl\n\t"
-		"movl %4,%%ecx\n\t"
-		"rep ; movsb\n\t"
-		: "=&c" (d0), "=&D" (d1), "=&S" (d2)
-		: "0" (n >> 2), "g" (n & 3), "1" (dest), "2" (src)
-		: "memory");
-
-	return dest;
-}
-#else
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	long d0, d1, d2;
-	asm volatile(
-		"rep ; movsq\n\t"
-		"movq %4,%%rcx\n\t"
-		"rep ; movsb\n\t"
-		: "=&c" (d0), "=&D" (d1), "=&S" (d2)
-		: "0" (n >> 3), "g" (n & 7), "1" (dest), "2" (src)
-		: "memory");
-
-	return dest;
-}
-#endif
 
 static void error(char *x)
 {
