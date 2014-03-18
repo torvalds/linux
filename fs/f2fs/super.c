@@ -258,9 +258,9 @@ static int parse_options(struct super_block *sb, char *options)
 
 			if (!name)
 				return -ENOMEM;
-			if (!strncmp(name, "on", 2))
+			if (strlen(name) == 2 && !strncmp(name, "on", 2))
 				set_opt(sbi, BG_GC);
-			else if (!strncmp(name, "off", 3))
+			else if (strlen(name) == 3 && !strncmp(name, "off", 3))
 				clear_opt(sbi, BG_GC);
 			else {
 				kfree(name);
