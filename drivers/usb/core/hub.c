@@ -3105,9 +3105,19 @@ static int finish_port_resume(struct usb_device *udev)
 	 * operation is carried out here, after the port has been
 	 * resumed.
 	 */
-	if (udev->reset_resume)
+	if (udev->reset_resume) {
+		/*
+		 * If the device morphs or switches modes when it is reset,
+		 * we don't want to perform a reset-resume.  We'll fail the
+		 * resume, which will cause a logical disconnect, and then
+		 * the device will be rediscovered.
+		 */
  retry_reset_resume:
-		status = usb_reset_and_verify_device(udev);
+		if (udev->quirks & USB_QUIRK_RESET)
+			status = -ENODEV;
+		else
+			status = usb_reset_and_verify_device(udev);
+	}
 
 	/* 10.5.4.5 says be sure devices in the tree are still there.
 	 * For now let's assume the device didn't go crazy on resume,
