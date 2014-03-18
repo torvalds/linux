@@ -15,37 +15,17 @@
 #include <linux/of_address.h>
 
 #include <linux/rockchip/cpu.h>
-//#include <linux/rockchip/cru.h>
+#include <linux/rockchip/cru.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
 #include "pm.h"
 
-
-
 #define CPU 3188
-#include "sram.h"
+//#include "sram.h"
 #include "pm-pie.c"
 
-
-#define PM_ERR(fmt, args...) printk(KERN_ERR fmt, ##args)
-#define PM_LOG(fmt, args...) printk(KERN_ERR fmt, ##args)
-#define PM_WARNING(fmt, args...) printk(KERN_WARNING fmt, ##args)
-
-#define cru_readl(offset)	readl_relaxed(RK_CRU_VIRT + offset)
-#define cru_writel(v, offset)	do { writel_relaxed(v, RK_CRU_VIRT + offset); dsb(); } while (0)
-
-#define pmu_readl(offset)	readl_relaxed(RK_PMU_VIRT + offset)
-#define pmu_writel(v,offset)	do { writel_relaxed(v, RK_PMU_VIRT + offset); dsb(); } while (0)
-
-#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
-#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
-
-#define reg_readl(base)	readl_relaxed(base)
-#define reg_writel(v, base)	do { writel_relaxed(v, base); dsb(); } while (0)
-
-
-#define RK3188_CLK_GATING_OPS(ID) cru_writel((0x1<<((ID%16)+16))|(0x1<<(ID%16)),RK3188_CLK_GATEID_TO_CON(ID))
-#define RK3188_CLK_UNGATING_OPS(ID) cru_writel(0x1<<((ID%16)+16),RK3188_CLK_GATEID_TO_CON(ID))
+#define RK3188_CLK_GATING_OPS(ID) cru_writel((0x1<<((ID%16)+16))|(0x1<<(ID%16)),RK3188_CRU_GATEID_CONS(ID))
+#define RK3188_CLK_UNGATING_OPS(ID) cru_writel(0x1<<((ID%16)+16),RK3188_CRU_GATEID_CONS(ID))
 
 /*************************cru define********************************************/
 /*******************CRU BITS*******************************/
@@ -149,7 +129,6 @@
 /*************************gate id**************************************/
 #define RK3188_CLK_GATEID(i)	(16 * (i))
 
-#define RK3188_CLK_GATEID_TO_CON(ID)	RK3188_CRU_CLKGATES_CON((ID)/16)
 
 enum cru_clk_gate {
 	/* SCU CLK GATE 0 CON */
@@ -181,8 +160,8 @@ static void  inline uart_printch(char byte)
         u32 u_clk_id=(RK3188_CLKGATE_UART0_SRC+CONFIG_RK_DEBUG_UART);
         u32 u_pclk_id=(RK3188_CLKGATE_PCLK_UART0+CONFIG_RK_DEBUG_UART);
         
-        reg_save[0]=cru_readl(RK3188_CLK_GATEID_TO_CON(u_clk_id));
-        reg_save[1]=cru_readl(RK3188_CLK_GATEID_TO_CON(u_pclk_id));
+        reg_save[0]=cru_readl(RK3188_CRU_GATEID_CONS(u_clk_id));
+        reg_save[1]=cru_readl(RK3188_CRU_GATEID_CONS(u_pclk_id));
         RK3188_CLK_UNGATING_OPS(u_clk_id);
         RK3188_CLK_UNGATING_OPS(u_pclk_id);
         
@@ -195,8 +174,8 @@ static void  inline uart_printch(char byte)
 	while (!(readl_relaxed(RK_DEBUG_UART_VIRT + 0x14) & 0x40))
 		barrier();
     
-         cru_writel(reg_save[0]|0x1<<((u_pclk_id%16)+16),RK3188_CLK_GATEID_TO_CON(u_clk_id));         
-         cru_writel(reg_save[1]|0x1<<((u_pclk_id%16)+16),RK3188_CLK_GATEID_TO_CON(u_pclk_id));
+         cru_writel(reg_save[0]|0x1<<((u_pclk_id%16)+16),RK3188_CRU_GATEID_CONS(u_clk_id));         
+         cru_writel(reg_save[1]|0x1<<((u_pclk_id%16)+16),RK3188_CRU_GATEID_CONS(u_pclk_id));
         
 	if (byte == '\n')
 		uart_printch('\r');
@@ -581,37 +560,35 @@ static  void interface_ctr_reg_pread(void)
 
 static u32 gpios_data[2];
 
-
-
-
-static int rk_pm_probe(struct platform_device *pdev)
+static void __init  rk3188_suspend_init(void)
 {
+
     struct device_node *parent;
     u32 pm_ctrbits;
 
-
-    parent=pdev->dev.of_node;
-
     PM_LOG("%s enter\n",__FUNCTION__);
+
+    parent = of_find_node_by_name(NULL, "rockchip_suspend");    
+
+    if (IS_ERR_OR_NULL(parent)) {
+		PM_ERR("%s dev node err\n", __func__);
+		return;
+	}
+
 
     if(of_property_read_u32_array(parent,"rockchip,ctrbits",&pm_ctrbits,1))
     {
             PM_ERR("%s:get pm ctr error\n",__FUNCTION__);
-            return -1;
+            return ;
     }
     PM_LOG("%s: pm_ctrbits =%x\n",__FUNCTION__,pm_ctrbits);
 
     if(of_property_read_u32_array(parent,"rockchip,pmic-gpios",gpios_data,ARRAY_SIZE(gpios_data)))
     {
             PM_ERR("%s:get pm ctr error\n",__FUNCTION__);
-            return -1;
+            return ;
     }
-
-    
     rkpm_set_ctrbits(pm_ctrbits);
-    
-    rkpm_pie_init();
-
     clks_gating_suspend_init();
     rkpm_set_ops_plls(plls_suspend,plls_resume);
     rkpm_set_ops_prepare_finish(rkpm_prepare,rkpm_finish);
@@ -623,30 +600,5 @@ static int rk_pm_probe(struct platform_device *pdev)
     rkpm_set_sram_ops_printch(fn_to_pie(rockchip_pie_chunk, &FUNC(sram_printch)));
     rkpm_set_ops_printch(ddr_printch); 	
     
-    return 0;
 }
 
-static int rk_pm_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static const struct of_device_id rk_pm_of_match[] = {
-	{.compatible = "rockchip,rkpm_suspend",},
-	{ },
-};
-
-static struct platform_driver rk_pm_platdrv = {
-	.driver = {
-		.name	= "rkpm_suspend",
-		.owner	= THIS_MODULE,
-		.of_match_table	= rk_pm_of_match,
-	},
-	.probe		=  rk_pm_probe,
-	.remove		=  rk_pm_remove,
-};
-module_platform_driver(rk_pm_platdrv);
-
-MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
-MODULE_DESCRIPTION("Generic rk pm plat drv");
-MODULE_LICENSE("GPL");

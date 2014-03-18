@@ -501,11 +501,10 @@
 			<&clk_gpu 200000000>, <&aclk_lcdc0 300000000>,
 			<&aclk_lcdc1 300000000>;
 	};
-	rkpm_suspend {
-		compatible = "rockchip,rkpm_suspend";
-
-		// define value is in dt-bindint/suspend/rockchip-pm.h
-		rockchip,ctrbits = <	
+	rockchip_suspend {     
+                //compatible = "rockchip,rkpm_suspend";
+                // define value is in dt-bindint/suspend/rockchip-pm.h
+                rockchip,ctrbits = <	
                 				(
                 				RKPM_CTR_PWR_DMNS
                 				|RKPM_CTR_GTCLKS
@@ -513,13 +512,13 @@
                 				|RKPM_CTR_SYSCLK_DIV
                 				|RKPM_CTR_NORIDLE_MD
                 				)
-                			>;
+                			>;              
               rockchip,pmic-gpios=<
-                                                RKPM_GPIOS_SETTING(GPIO0_A0,RKPM_GPIOS_OUTPUT,RKPM_GPIOS_OUT_H) 
-                                                RKPM_GPIOS_SETTING(GPIO0_A1,RKPM_GPIOS_OUTPUT,RKPM_GPIOS_OUT_H) 
+                                                RKPM_PINGPIO_BITS_OUTPUT(GPIO0_A0,RKPM_GPIO_OUT_L) 
+                                                RKPM_PINGPIO_BITS_INTPUT(GPIO0_A1,RKPM_GPIO_PULL_UP)                           
                                                 >;
-
-	};
+       
+        };
 	fb: fb{
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;

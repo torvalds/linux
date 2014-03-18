@@ -310,13 +310,14 @@ static void rk3188_restart(char mode, const char *cmd)
 	dsb();
 }
 
+static void __init rk3188_init_suspend(void);
 DT_MACHINE_START(RK3188_DT, "RK30board")
 	.smp		= smp_ops(rockchip_smp_ops),
 	.map_io		= rk3188_dt_map_io,
 	.init_time	= rk3188_dt_init_timer,
 	.dt_compat	= rk3188_dt_compat,
 #ifdef CONFIG_PM
-	.init_late	= rockchip_suspend_init,
+	.init_late	= rk3188_init_suspend,
 #endif
 	.reserve	= rk3188_reserve,
 	.restart	= rk3188_restart,
@@ -352,6 +353,15 @@ static int __init rk3188_pie_init(void)
 }
 arch_initcall(rk3188_pie_init);
 
+#ifdef CONFIG_PM
+#include "pm-rk3188.c"
+static void __init rk3188_init_suspend(void)
+{
+        rockchip_suspend_init();
+        rkpm_pie_init();
+        rk3188_suspend_init();
+}
+#endif
 #define CONFIG_ARCH_RK3188
 #define RK30_DDR_PCTL_BASE RK_DDR_VIRT
 #define RK30_DDR_PUBL_BASE (RK_DDR_VIRT + RK3188_DDR_PCTL_SIZE)
@@ -372,7 +382,4 @@ static int __init rk3188_ddr_init(void)
 }
 arch_initcall_sync(rk3188_ddr_init);
 
-#ifdef CONFIG_PM
-#include "pm-rk3188.c"
-#endif
 
