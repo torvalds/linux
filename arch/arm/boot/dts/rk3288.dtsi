@@ -398,14 +398,18 @@
 	};
 	
 	lvds: lvds@ff96c000 {
-                compatible = "rockchip, rk32-lvds";
-                reg = <0xff960000 0x20000>;
+		compatible = "rockchip, rk32-lvds";
+		reg = <0xff960000 0x20000>;
+		clocks = <&clk_gates16 7>;
+		clock-names = "pclk_lvds";
         };
 	
 	edp: edp@ff970000 {
-                compatible = "rockchip,rk32-edp";
-                reg = <0xff970000 0x4000>;
-                interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		compatible = "rockchip,rk32-edp";
+		reg = <0xff970000 0x4000>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_edp>, <&clk_edp_24m>, <&clk_gates16 8>;
+		clock-names = "clk_edp", "clk_edp_24m", "pclk_edp";
         };
 	
 	hdmi: hdmi@ff980000 {

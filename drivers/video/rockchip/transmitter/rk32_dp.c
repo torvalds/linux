@@ -38,13 +38,13 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 {
 	struct rk_screen *screen = &edp->screen;
 	u32 val = 0;
-#ifndef CONFIG_RK_FPGA
-	if (screen->lcdc_id == 0)  /*select lcdc*/
+	
+	if (screen->lcdc_id == 1)  /*select lcdc*/
 		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
 	else
 		val = EDP_SEL_VOP_LIT << 16;
 	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
-#endif
+
 	rk32_edp_reset(edp);
 	rk32_edp_init_refclk(edp);
 	rk32_edp_init_interrupt(edp);
@@ -1071,8 +1071,9 @@ static int rk32_edp_enable(void)
 		goto out;
 
 	edp->enabled = 1;
-	clk_prepare_enable(edp->clk_edp);
-	clk_prepare_enable(edp->clk_24m);
+	clk_enable(edp->pclk);
+	clk_enable(edp->clk_edp);
+	clk_enable(edp->clk_24m);
 edp_phy_init:
 
 	
@@ -1148,6 +1149,8 @@ static int  rk32_edp_disable(void )
 
 	clk_disable(edp->clk_24m);
 	clk_disable(edp->clk_edp);
+	clk_disable(edp->pclk);
+	
 	return 0;
 }
 
@@ -1199,6 +1202,23 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return PTR_ERR(edp->regs);
 	}
 
+	edp->clk_edp = devm_clk_get(&pdev->dev,"clk_edp");
+	if (IS_ERR(edp->clk_edp)) {
+		dev_err(&pdev->dev, "cannot get clk_edp\n");
+		return PTR_ERR(edp->clk_edp);
+	}
+
+	edp->clk_24m = devm_clk_get(&pdev->dev,"clk_edp_24m");
+	if (IS_ERR(edp->clk_24m)) {
+		dev_err(&pdev->dev, "cannot get clk_edp_24m\n");
+		return PTR_ERR(edp->clk_24m);
+	}
+
+	edp->pclk = devm_clk_get(&pdev->dev,"pclk_edp");
+	if (IS_ERR(edp->pclk)) {
+		dev_err(&pdev->dev, "cannot get pclk\n");
+		return PTR_ERR(edp->pclk);
+	}
 	
 	edp->irq = platform_get_irq(pdev, 0);
 	if (edp->irq < 0) {
@@ -1212,6 +1232,9 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return ret;
 	}
 	rk32_edp = edp;
+	clk_prepare(edp->pclk);
+	clk_prepare(edp->clk_edp);
+	clk_prepare(edp->clk_24m);
 	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
 	dev_info(&pdev->dev, "rk32 edp driver probe success\n");
 

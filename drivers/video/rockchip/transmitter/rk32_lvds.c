@@ -22,6 +22,7 @@ static int rk32_lvds_disable(void)
 	writel_relaxed(0x80008000, RK_GRF_VIRT + RK3288_GRF_SOC_CON7);
 	writel_relaxed(0x00, lvds->regs + LVDS_CFG_REG_21); /*disable tx*/
 	writel_relaxed(0xff, lvds->regs + LVDS_CFG_REG_c); /*disable pll*/
+	clk_disable_unprepare(lvds->clk);
 	return 0;
 }
 
@@ -32,7 +33,9 @@ static int rk32_lvds_en(void)
 	u32 h_bp = screen->mode.hsync_len + screen->mode.left_margin;
 	u32 val ;
 
-	if (screen->lcdc_id == 0)
+	clk_prepare_enable(lvds->clk);
+	
+	if (screen->lcdc_id == 1) /*lcdc1 = vop little,lcdc0 = vop big*/
 		val = LVDS_SEL_VOP_LIT | (LVDS_SEL_VOP_LIT << 16);
 	else
 		val = LVDS_SEL_VOP_LIT << 16;
@@ -118,7 +121,11 @@ static int rk32_lvds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap reg failed\n");
 		return PTR_ERR(lvds->regs);
 	}
-
+	lvds->clk = devm_clk_get(&pdev->dev,NULL);
+	if (IS_ERR(lvds->clk)) {
+		dev_err(&pdev->dev, "get clk failed\n");
+		return PTR_ERR(lvds->clk);
+	}
 	rk32_lvds = lvds;
 	rk_fb_trsm_ops_register(&trsm_lvds_ops,SCREEN_LVDS);
 	dev_info(&pdev->dev, "rk32 lvds driver probe success\n");
