@@ -12,6 +12,7 @@ SoC and board used. Currently known SoC compatibles are:
     "marvell,berlin2"      for Marvell Armada 1500 (BG2, 88DE3100),
     "marvell,berlin2cd"    for Marvell Armada 1500-mini (BG2CD, 88DE3005)
     "marvell,berlin2ct"    for Marvell Armada ? (BG2CT, 88DE????)
+    "marvell,berlin2q"     for Marvell Armada 1500-pro (BG2Q, 88DE3114)
     "marvell,berlin3"      for Marvell Armada ? (BG3, 88DE????)
 
 * Example:
