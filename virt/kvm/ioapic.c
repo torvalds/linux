@@ -288,6 +288,9 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	irqe.level = 1;
 	irqe.shorthand = 0;
 
+	if (irqe.trig_mode == IOAPIC_EDGE_TRIG)
+		ioapic->irr &= ~(1 << irq);
+
 	if (irq == RTC_GSI && line_status) {
 		BUG_ON(ioapic->rtc_status.pending_eoi != 0);
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
