@@ -681,8 +681,8 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
 	Scsi_Cmnd *ptr;
 	unsigned long flags;
 
-	NCR_PRINT(NDEBUG_ANY);
-	NCR_PRINT_PHASE(NDEBUG_ANY);
+	NCR5380_dprint(NDEBUG_ANY, instance);
+	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 
 	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
 
@@ -1196,7 +1196,7 @@ static irqreturn_t NCR5380_intr (int irq, void *dev_id)
     INT_PRINTK("scsi%d: BASR=%02x\n", HOSTNO, basr);
     /* dispatch to appropriate routine if found and done=0 */
     if (basr & BASR_IRQ) {
-	NCR_PRINT(NDEBUG_INTR);
+	NCR5380_dprint(NDEBUG_INTR, instance);
 	if ((NCR5380_read(STATUS_REG) & (SR_SEL|SR_IO)) == (SR_SEL|SR_IO)) {
 	    done = 0;
 //	    ENABLE_IRQ();
@@ -1338,7 +1338,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd,
     unsigned long flags;
 
     hostdata->restart_select = 0;
-    NCR_PRINT(NDEBUG_ARBITRATION);
+    NCR5380_dprint(NDEBUG_ARBITRATION, instance);
     ARB_PRINTK("scsi%d: starting arbitration, id = %d\n", HOSTNO,
 	       instance->this_id);
 
@@ -1559,7 +1559,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd,
 	    printk(KERN_ERR "scsi%d: weirdness\n", HOSTNO);
 	    if (hostdata->restart_select)
 		printk(KERN_NOTICE "\trestart select\n");
-	    NCR_PRINT(NDEBUG_ANY);
+	    NCR5380_dprint(NDEBUG_ANY, instance);
 	    NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 	    return -1;
 	}
@@ -1685,7 +1685,7 @@ static int NCR5380_transfer_pio( struct Scsi_Host *instance,
 	/* Check for phase mismatch */	
 	if ((tmp & PHASE_MASK) != p) {
 	    PIO_PRINTK("scsi%d: phase mismatch\n", HOSTNO);
-	    NCR_PRINT_PHASE(NDEBUG_PIO);
+	    NCR5380_dprint_phase(NDEBUG_PIO, instance);
 	    break;
 	}
 
@@ -1708,18 +1708,18 @@ static int NCR5380_transfer_pio( struct Scsi_Host *instance,
 	    if (!((p & SR_MSG) && c > 1)) {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | 
 		    ICR_ASSERT_DATA);
-		NCR_PRINT(NDEBUG_PIO);
+		NCR5380_dprint(NDEBUG_PIO, instance);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | 
 			ICR_ASSERT_DATA | ICR_ASSERT_ACK);
 	    } else {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE |
 		    ICR_ASSERT_DATA | ICR_ASSERT_ATN);
-		NCR_PRINT(NDEBUG_PIO);
+		NCR5380_dprint(NDEBUG_PIO, instance);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | 
 		    ICR_ASSERT_DATA | ICR_ASSERT_ATN | ICR_ASSERT_ACK);
 	    }
 	} else {
-	    NCR_PRINT(NDEBUG_PIO);
+	    NCR5380_dprint(NDEBUG_PIO, instance);
 	    NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ACK);
 	}
 
@@ -1931,7 +1931,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 	    phase = (tmp & PHASE_MASK); 
  	    if (phase != old_phase) {
 		old_phase = phase;
-		NCR_PRINT_PHASE(NDEBUG_INFORMATION);
+		NCR5380_dprint_phase(NDEBUG_INFORMATION, instance);
 	    }
 
 	    if(phase == PHASE_CMDOUT) {
@@ -2416,7 +2416,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		break;
 	    default:
 		printk("scsi%d: unknown phase\n", HOSTNO);
-		NCR_PRINT(NDEBUG_ANY);
+		NCR5380_dprint(NDEBUG_ANY, instance);
 	    } /* switch(phase) */
 	} /* if (tmp * SR_REQ) */ 
     } /* while (1) */
