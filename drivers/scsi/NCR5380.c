@@ -27,8 +27,6 @@
  */
 
 /*
- * $Log: NCR5380.c,v $
-
  * Revision 1.10 1998/9/2	Alan Cox
  *				(alan@lxorguk.ukuu.org.uk)
  * Fixed up the timer lockups reported so far. Things still suck. Looking 

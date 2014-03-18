@@ -45,10 +45,6 @@
  * USLEEP - enable support for devices that don't disconnect.  Untested.
  */
 
-/*
- * $Log: sun3_NCR5380.c,v $
- */
-
 #define AUTOSENSE
 
 #include <linux/types.h>

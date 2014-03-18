@@ -102,10 +102,6 @@
  * 15 9-11
  */
  
-/*
- * $Log: t128.c,v $
- */
-
 #include <linux/signal.h>
 #include <linux/io.h>
 #include <linux/blkdev.h>

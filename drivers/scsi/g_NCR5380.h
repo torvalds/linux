@@ -25,10 +25,6 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: generic_NCR5380.h,v $
- */
-
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 

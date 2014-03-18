@@ -21,10 +21,6 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: NCR5380.h,v $
- */
-
 #ifndef NCR5380_H
 #define NCR5380_H
 

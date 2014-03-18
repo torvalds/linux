@@ -29,10 +29,6 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: cumana_NCR5380.h,v $
- */
-
 #ifndef SUN3_NCR5380_H
 #define SUN3_NCR5380_H
 

@@ -22,10 +22,6 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: cumana_NCR5380.h,v $
- */
-
 #ifndef MAC_NCR5380_H
 #define MAC_NCR5380_H
 
