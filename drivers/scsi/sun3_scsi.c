@@ -78,8 +78,6 @@
 #include <scsi/scsi_host.h>
 #include "sun3_scsi.h"
 
-static void NCR5380_print(struct Scsi_Host *instance);
-
 /* #define OLDDMA */
 
 #define USE_WRAPPER
@@ -464,7 +462,7 @@ static unsigned long sun3scsi_dma_setup(void *data, unsigned long count, int wri
 		printk("scsi%d: fifo_mismatch %04x not %04x\n",
 		       default_instance->host_no, dregs->fifo_count,
 		       (unsigned int) count);
-		NCR5380_print(default_instance);
+		NCR5380_dprint(NDEBUG_DMA, default_instance);
 	}
 
 	/* setup udc */
