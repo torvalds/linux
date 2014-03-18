@@ -61,6 +61,9 @@ static int ckc_interrupts_enabled(struct kvm_vcpu *vcpu)
 	if (psw_extint_disabled(vcpu) ||
 	    !(vcpu->arch.sie_block->gcr[0] & 0x800ul))
 		return 0;
+	if (guestdbg_enabled(vcpu) && guestdbg_sstep_enabled(vcpu))
+		/* No timer interrupts when single stepping */
+		return 0;
 	return 1;
 }
 

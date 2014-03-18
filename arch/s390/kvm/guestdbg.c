@@ -155,6 +155,8 @@ void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu)
 	 */
 
 	if (guestdbg_sstep_enabled(vcpu)) {
+		/* disable timer (clock-comparator) interrupts */
+		vcpu->arch.sie_block->gcr[0] &= ~0x800ul;
 		vcpu->arch.sie_block->gcr[9] |= PER_EVENT_IFETCH;
 		vcpu->arch.sie_block->gcr[10] = 0;
 		vcpu->arch.sie_block->gcr[11] = PSW_ADDR_INSN;
