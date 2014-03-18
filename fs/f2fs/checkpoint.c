@@ -619,7 +619,7 @@ void remove_dirty_dir_inode(struct inode *inode)
 		return;
 
 	spin_lock(&sbi->dir_inode_lock);
-	if (atomic_read(&F2FS_I(inode)->dirty_dents)) {
+	if (get_dirty_dents(inode)) {
 		spin_unlock(&sbi->dir_inode_lock);
 		return;
 	}
