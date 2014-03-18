@@ -1228,6 +1228,20 @@ static inline bool snd_soc_codec_is_active(struct snd_soc_codec *codec)
 	return snd_soc_component_is_active(&codec->component);
 }
 
+/**
+ * snd_soc_kcontrol_codec() - Returns the CODEC that registered the control
+ * @kcontrol: The control for which to get the CODEC
+ *
+ * Note: This function will only work correctly if the control has been
+ * registered with snd_soc_add_codec_controls() or via table based setup of
+ * snd_soc_codec_driver. Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
+	struct snd_kcontrol *kcontrol)
+{
+	return snd_kcontrol_chip(kcontrol);
+}
+
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
 
