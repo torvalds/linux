@@ -253,7 +253,7 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 		struct page *page, struct inode *inode)
 {
 	lock_page(page);
-	wait_on_page_writeback(page);
+	f2fs_wait_on_page_writeback(page, DATA);
 	de->ino = cpu_to_le32(inode->i_ino);
 	set_de_type(de, inode);
 	kunmap(page);
@@ -352,14 +352,11 @@ static struct page *init_inode_metadata(struct inode *inode,
 		err = f2fs_init_security(inode, dir, name, page);
 		if (err)
 			goto put_error;
-
-		wait_on_page_writeback(page);
 	} else {
 		page = get_node_page(F2FS_SB(dir->i_sb), inode->i_ino);
 		if (IS_ERR(page))
 			return page;
 
-		wait_on_page_writeback(page);
 		set_cold_node(inode, page);
 	}
 
@@ -494,7 +491,7 @@ start:
 	++level;
 	goto start;
 add_dentry:
-	wait_on_page_writeback(dentry_page);
+	f2fs_wait_on_page_writeback(dentry_page, DATA);
 
 	page = init_inode_metadata(inode, dir, name);
 	if (IS_ERR(page)) {
@@ -543,7 +540,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	int i;
 
 	lock_page(page);
-	wait_on_page_writeback(page);
+	f2fs_wait_on_page_writeback(page, DATA);
 
 	dentry_blk = (struct f2fs_dentry_block *)kaddr;
 	bit_pos = dentry - (struct f2fs_dir_entry *)dentry_blk->dentry;

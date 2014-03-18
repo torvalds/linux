@@ -33,14 +33,12 @@ struct page *grab_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
 	struct address_space *mapping = META_MAPPING(sbi);
 	struct page *page = NULL;
 repeat:
-	page = grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
 	if (!page) {
 		cond_resched();
 		goto repeat;
 	}
 
-	/* We wait writeback only inside grab_meta_page() */
-	wait_on_page_writeback(page);
 	SetPageUptodate(page);
 	return page;
 }
@@ -168,7 +166,7 @@ static int f2fs_write_meta_page(struct page *page,
 	if (unlikely(is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ERROR_FLAG)))
 		goto no_write;
 
-	wait_on_page_writeback(page);
+	f2fs_wait_on_page_writeback(page, META);
 	write_meta_page(sbi, page);
 no_write:
 	dec_page_count(sbi, F2FS_DIRTY_META);

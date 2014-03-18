@@ -725,7 +725,7 @@ skip_partial:
 				f2fs_put_page(page, 1);
 				goto restart;
 			}
-			wait_on_page_writeback(page);
+			f2fs_wait_on_page_writeback(page, NODE);
 			ri->i_nid[offset[0] - NODE_DIR1_BLOCK] = 0;
 			set_page_dirty(page);
 			unlock_page(page);
@@ -814,7 +814,8 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return ERR_PTR(-EPERM);
 
-	page = grab_cache_page(NODE_MAPPING(sbi), dn->nid);
+	page = grab_cache_page_write_begin(NODE_MAPPING(sbi),
+					dn->nid, AOP_FLAG_NOFS);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -910,7 +911,8 @@ struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 	struct page *page;
 	int err;
 repeat:
-	page = grab_cache_page(NODE_MAPPING(sbi), nid);
+	page = grab_cache_page_write_begin(NODE_MAPPING(sbi),
+					nid, AOP_FLAG_NOFS);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -1130,7 +1132,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 				continue;
 
 			if (ino && ino_of_node(page) == ino) {
-				wait_on_page_writeback(page);
+				f2fs_wait_on_page_writeback(page, NODE);
 				if (TestClearPageError(page))
 					ret = -EIO;
 			}
@@ -1163,7 +1165,7 @@ static int f2fs_write_node_page(struct page *page,
 	if (unlikely(sbi->por_doing))
 		goto redirty_out;
 
-	wait_on_page_writeback(page);
+	f2fs_wait_on_page_writeback(page, NODE);
 
 	/* get old block addr of this node page */
 	nid = nid_of_node(page);
