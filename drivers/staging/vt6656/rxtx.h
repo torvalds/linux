@@ -167,8 +167,8 @@ struct vnt_cts_fb {
 	struct vnt_phy_field b;
 	__le16 duration_ba;
 	u16 wReserved;
-	u16 wCTSDuration_ba_f0;
-	u16 wCTSDuration_ba_f1;
+	__le16 cts_duration_ba_f0;
+	__le16 cts_duration_ba_f1;
 	struct ieee80211_cts data;
 	u16 reserved2;
 	struct vnt_tx_datahead_g_fb data_head;

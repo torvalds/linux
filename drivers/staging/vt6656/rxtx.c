@@ -732,11 +732,11 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 			cbFrameLength, byPktType,
 			wCurrentRate, bNeedAck, byFBOption);
 		/* Get CTSDuration_ba_f0 */
-		pBuf->wCTSDuration_ba_f0 = s_uGetRTSCTSDuration(pDevice,
+		pBuf->cts_duration_ba_f0 = s_uGetRTSCTSDuration(pDevice,
 			CTSDUR_BA_F0, cbFrameLength, byPktType,
 			pDevice->tx_rate_fb0, bNeedAck, byFBOption);
 		/* Get CTSDuration_ba_f1 */
-		pBuf->wCTSDuration_ba_f1 = s_uGetRTSCTSDuration(pDevice,
+		pBuf->cts_duration_ba_f1 = s_uGetRTSCTSDuration(pDevice,
 			CTSDUR_BA_F1, cbFrameLength, byPktType,
 			pDevice->tx_rate_fb1, bNeedAck, byFBOption);
 		/* Get CTS Frame body */
