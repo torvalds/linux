@@ -35,14 +35,14 @@
 
 #define AUTH_REQ_MASK   0x07
 
-static inline void swap128(u8 src[16], u8 dst[16])
+static inline void swap128(const u8 src[16], u8 dst[16])
 {
 	int i;
 	for (i = 0; i < 16; i++)
 		dst[15 - i] = src[i];
 }
 
-static inline void swap56(u8 src[7], u8 dst[7])
+static inline void swap56(const u8 src[7], u8 dst[7])
 {
 	int i;
 	for (i = 0; i < 7; i++)
