@@ -160,7 +160,7 @@ i40e_status i40evf_aq_queue_shutdown(struct i40e_hw *hw,
 }
 
 
-/* The i40e_ptype_lookup table is used to convert from the 8-bit ptype in the
+/* The i40evf_ptype_lookup table is used to convert from the 8-bit ptype in the
  * hardware to a bit-field that can be used by SW to more easily determine the
  * packet type.
  *
@@ -173,10 +173,10 @@ i40e_status i40evf_aq_queue_shutdown(struct i40e_hw *hw,
  *
  * Typical work flow:
  *
- * IF NOT i40e_ptype_lookup[ptype].known
+ * IF NOT i40evf_ptype_lookup[ptype].known
  * THEN
  *      Packet is unknown
- * ELSE IF i40e_ptype_lookup[ptype].outer_ip == I40E_RX_PTYPE_OUTER_IP
+ * ELSE IF i40evf_ptype_lookup[ptype].outer_ip == I40E_RX_PTYPE_OUTER_IP
  *      Use the rest of the fields to look at the tunnels, inner protocols, etc
  * ELSE
  *      Use the enum i40e_rx_l2_ptype to decode the packet type
@@ -205,7 +205,7 @@ i40e_status i40evf_aq_queue_shutdown(struct i40e_hw *hw,
 #define I40E_RX_PTYPE_INNER_PROT_TS	I40E_RX_PTYPE_INNER_PROT_TIMESYNC
 
 /* Lookup table mapping the HW PTYPE to the bit field for decoding */
-struct i40e_rx_ptype_decoded i40e_ptype_lookup[] = {
+struct i40e_rx_ptype_decoded i40evf_ptype_lookup[] = {
 	/* L2 Packet types */
 	I40E_PTT_UNUSED_ENTRY(0),
 	I40E_PTT(1,  L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
