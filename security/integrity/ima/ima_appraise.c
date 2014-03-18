@@ -341,7 +341,7 @@ static int ima_protect_xattr(struct dentry *dentry, const char *xattr_name,
 	return 0;
 }
 
-static void ima_reset_appraise_flags(struct inode *inode)
+static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 {
 	struct integrity_iint_cache *iint;
 
@@ -353,18 +353,22 @@ static void ima_reset_appraise_flags(struct inode *inode)
 		return;
 
 	iint->flags &= ~IMA_DONE_MASK;
+	if (digsig)
+		iint->flags |= IMA_DIGSIG;
 	return;
 }
 
 int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len)
 {
+	const struct evm_ima_xattr_data *xvalue = xattr_value;
 	int result;
 
 	result = ima_protect_xattr(dentry, xattr_name, xattr_value,
 				   xattr_value_len);
 	if (result == 1) {
-		ima_reset_appraise_flags(dentry->d_inode);
+		ima_reset_appraise_flags(dentry->d_inode,
+			 (xvalue->type == EVM_IMA_XATTR_DIGSIG) ? 1 : 0);
 		result = 0;
 	}
 	return result;
@@ -376,7 +380,7 @@ int ima_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 
 	result = ima_protect_xattr(dentry, xattr_name, NULL, 0);
 	if (result == 1) {
-		ima_reset_appraise_flags(dentry->d_inode);
+		ima_reset_appraise_flags(dentry->d_inode, 0);
 		result = 0;
 	}
 	return result;
