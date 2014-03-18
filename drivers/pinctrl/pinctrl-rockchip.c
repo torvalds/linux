@@ -1112,6 +1112,7 @@ static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 				? PIN_CONFIG_BIAS_PULL_PIN_DEFAULT
 				: PIN_CONFIG_BIAS_DISABLE;
 	case RK3188:
+	case RK3288:
 		data = readl_relaxed(reg) >> bit;
 		data &= (1 << RK3188_PULL_BITS_PER_PIN) - 1;
 
@@ -1165,6 +1166,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 		spin_unlock_irqrestore(&bank->slock, flags);
 		break;
 	case RK3188:
+	case RK3288:
 		spin_lock_irqsave(&bank->slock, flags);
 
 		/* enable the write to the equivalent lower bits */
@@ -1219,8 +1221,7 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	case RK3188:
 		return (pull != PIN_CONFIG_BIAS_PULL_PIN_DEFAULT);
 	case RK3288:
-		return (pull == PIN_CONFIG_BIAS_PULL_PIN_DEFAULT ||
-					pull == PIN_CONFIG_BIAS_DISABLE);
+		return (pull != PIN_CONFIG_BIAS_PULL_PIN_DEFAULT);
 	}
 
 	return false;

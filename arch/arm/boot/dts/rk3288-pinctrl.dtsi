@@ -159,7 +159,7 @@
 			bias-disable;
 		};
 
-		gpio1_uart0 {
+		gpio4_uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <UART0BT_SIN>,
 						<UART0BT_SOUT>;
@@ -184,9 +184,14 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+
+			uart0_rts_gpio: uart0-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART0BT_RTSN)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
 		};
 
-		gpio1_uart1 {
+		gpio5_uart1 {
 			uart1_xfer: uart1-xfer {
 				rockchip,pins = <UART1BB_SIN>,
 						<UART1BB_SOUT>;
@@ -211,9 +216,14 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+
+			uart1_rts_gpio: uart1-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART1BB_RTSN)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
 		};
 
-		gpio1_uart2 {
+		gpio7_uart2 {
 			uart2_xfer: uart2-xfer {
 				rockchip,pins = <UART2DBG_SIN>,
 						<UART2DBG_SOUT>;
@@ -225,7 +235,7 @@
 			/* no rts / cts for uart2 */
 		};
 
-		gpio1_uart3 {
+		gpio7_uart3 {
 			uart3_xfer: uart3-xfer {
 				rockchip,pins = <UART3GPS_SIN>,
 						<UART3GPS_SOUT>;
@@ -252,7 +262,34 @@
 			};
 		};
 
-		gpio1_i2c0 {
+		gpio5_uart4 {
+			uart4_xfer: uart4-xfer {
+				rockchip,pins = <UART4EXP_SIN>,
+						<UART4EXP_SOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart4_cts: uart4-cts {
+				rockchip,pins = <UART4EXP_CTSN>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart4_rts: uart4-rts {
+				rockchip,pins = <UART4EXP_RTSN>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+		};
+
+		gpio0_i2c0 {
 			i2c0_sda:i2c0-sda {
 				rockchip,pins = <I2C0PMU_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -275,7 +312,7 @@
 			};
 		};
 
-		gpio1_i2c1 {
+		gpio8_i2c1 {
 			i2c1_sda:i2c1-sda {
 				rockchip,pins = <I2C1SENSOR_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -298,7 +335,7 @@
 			};
 		};
 
-		gpio1_i2c2 {
+		gpio6_i2c2 {
 			i2c2_sda:i2c2-sda {
 				rockchip,pins = <I2C2AUDIO_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -321,7 +358,7 @@
 			};
 		};
 
-		gpio1_i2c3 {
+		gpio2_i2c3 {
 			i2c3_sda:i2c3-sda {
 				rockchip,pins = <I2C3CAM_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -344,7 +381,7 @@
 			};
 		};
 
-		gpio1_i2c4 {
+		gpio7_i2c4 {
 			i2c4_sda:i2c4-sda {
 				rockchip,pins = <I2C4TP_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -367,7 +404,7 @@
 			};
 		};
 
-		gpio1_i2c5 {
+		gpio7_i2c5 {
 			i2c5_sda:i2c5-sda {
 				rockchip,pins = <I2C5HDMI_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -390,7 +427,7 @@
 			};
 		};
 
-		gpio1_spi0 {
+		gpio5_spi0 {
 			spi0_txd:spi0-txd {
 				rockchip,pins = <SPI0_TXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -433,7 +470,7 @@
 
 		};
 
-		gpio1_spi1 {
+		gpio7_spi1 {
 			spi1_txd:spi1-txd {
 				rockchip,pins = <SPI1_TXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -468,7 +505,7 @@
 
 		};
 
-		gpio1_i2s {
+		gpio6_i2s {
 
 			i2s_mclk:i2s-mclk {
 				rockchip,pins = <I2S_CLK>;
@@ -590,7 +627,7 @@
 			
 		};
 
-		gpio1_spdif {
+		gpio6_spdif {
 			spdif_tx: spdif-tx {
 				rockchip,pins = <SPDIF_TX>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -601,7 +638,7 @@
 			};
 		};
 
-		gpio3_pwm {
+		gpio7_pwm {
 			pwm0_pin:pwm0 {
 				rockchip,pins = <PWM0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -695,7 +732,7 @@
 		};
 		
 
-		gpio3_sdmmc0 {
+		gpio6_sdmmc0 {
 			sdmmc0_clk: sdmmc0-clk {
 				rockchip,pins = <SDMMC0_CLKOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -741,7 +778,7 @@
 			};
 		};
 
-		gps {
+		gpio2_gps {
 			gps_mag:gps-mag {
 				rockchip,pins = <GPS_MAG>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -772,7 +809,7 @@
 
 		};
 		
-		gmac {
+		gpio4_gmac {
 			mac_clk: mac-clk {
 				rockchip,pins = <MAC_CLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
@@ -809,11 +846,6 @@
 		//to add
 
 
-
-
-
-
-		
 
 		vol_domain{
 			//default 3.3V
