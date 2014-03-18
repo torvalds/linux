@@ -17,6 +17,8 @@
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/sh_dma.h>
 #include <linux/workqueue.h>
 #include <sound/rcar_snd.h>
@@ -113,6 +115,7 @@ enum rsnd_reg {
 #define RSND_REG_SRCOUT_TIMSEL4		RSND_REG_SHARE18
 #define RSND_REG_AUDIO_CLK_SEL2		RSND_REG_SHARE19
 
+struct rsnd_of_data;
 struct rsnd_priv;
 struct rsnd_mod;
 struct rsnd_dai;
@@ -260,6 +263,7 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
  *	R-Car Gen1/Gen2
  */
 int rsnd_gen_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
@@ -273,6 +277,7 @@ void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod);
 int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate);
 int rsnd_adg_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
 				  struct rsnd_mod *mod,
@@ -290,6 +295,10 @@ int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
 /*
  *	R-Car sound priv
  */
+struct rsnd_of_data {
+	u32 flags;
+};
+
 struct rsnd_priv {
 
 	struct device *dev;
@@ -348,6 +357,7 @@ struct rsnd_priv {
  *	R-Car SRC
  */
 int rsnd_src_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
@@ -366,6 +376,7 @@ int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
  *	R-Car SSI
  */
 int rsnd_ssi_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,

@@ -100,6 +100,21 @@
 #define RSND_RATES SNDRV_PCM_RATE_8000_96000
 #define RSND_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
+static struct rsnd_of_data rsnd_of_data_gen1 = {
+	.flags = RSND_GEN1,
+};
+
+static struct rsnd_of_data rsnd_of_data_gen2 = {
+	.flags = RSND_GEN2,
+};
+
+static struct of_device_id rsnd_of_match[] = {
+	{ .compatible = "renesas,rcar_sound-gen1", .data = &rsnd_of_data_gen1 },
+	{ .compatible = "renesas,rcar_sound-gen2", .data = &rsnd_of_data_gen2 },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rsnd_of_match);
+
 /*
  *	rsnd_platform functions
  */
@@ -620,7 +635,92 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	return ret;
 }
 
+static void rsnd_of_parse_dai(struct platform_device *pdev,
+			      const struct rsnd_of_data *of_data,
+			      struct rsnd_priv *priv)
+{
+	struct device_node *dai_node,	*dai_np;
+	struct device_node *ssi_node,	*ssi_np;
+	struct device_node *src_node,	*src_np;
+	struct device_node *playback, *capture;
+	struct rsnd_dai_platform_info *dai_info;
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct device *dev = &pdev->dev;
+	int nr, i;
+	int dai_i, ssi_i, src_i;
+
+	if (!of_data)
+		return;
+
+	dai_node = of_get_child_by_name(dev->of_node, "rcar_sound,dai");
+	if (!dai_node)
+		return;
+
+	nr = of_get_child_count(dai_node);
+	if (!nr)
+		return;
+
+	dai_info = devm_kzalloc(dev,
+				sizeof(struct rsnd_dai_platform_info) * nr,
+				GFP_KERNEL);
+	if (!dai_info) {
+		dev_err(dev, "dai info allocation error\n");
+		return;
+	}
+
+	info->dai_info_nr	= nr;
+	info->dai_info		= dai_info;
+
+	ssi_node = of_get_child_by_name(dev->of_node, "rcar_sound,ssi");
+	src_node = of_get_child_by_name(dev->of_node, "rcar_sound,src");
+
+#define mod_parse(name)							\
+if (name##_node) {							\
+	struct rsnd_##name##_platform_info *name##_info;		\
+									\
+	name##_i = 0;							\
+	for_each_child_of_node(name##_node, name##_np) {		\
+		name##_info = info->name##_info + name##_i;		\
+									\
+		if (name##_np == playback)				\
+			dai_info->playback.name = name##_info;		\
+		if (name##_np == capture)				\
+			dai_info->capture.name = name##_info;		\
+									\
+		name##_i++;						\
+	}								\
+}
+
+	/*
+	 * parse all dai
+	 */
+	dai_i = 0;
+	for_each_child_of_node(dai_node, dai_np) {
+		dai_info = info->dai_info + dai_i;
+
+		for (i = 0;; i++) {
+
+			playback = of_parse_phandle(dai_np, "playback", i);
+			capture  = of_parse_phandle(dai_np, "capture", i);
+
+			if (!playback && !capture)
+				break;
+
+			mod_parse(ssi);
+			mod_parse(src);
+
+			if (playback)
+				of_node_put(playback);
+			if (capture)
+				of_node_put(capture);
+		}
+
+		dai_i++;
+	}
+}
+
 static int rsnd_dai_probe(struct platform_device *pdev,
+			  const struct rsnd_of_data *of_data,
 			  struct rsnd_priv *priv)
 {
 	struct snd_soc_dai_driver *drv;
@@ -628,13 +728,16 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	struct rsnd_dai *rdai;
 	struct rsnd_mod *pmod, *cmod;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int dai_nr = info->dai_info_nr;
+	int dai_nr;
 	int i;
+
+	rsnd_of_parse_dai(pdev, of_data, priv);
 
 	/*
 	 * dai_nr should be set via dai_info_nr,
 	 * but allow it to keeping compatible
 	 */
+	dai_nr = info->dai_info_nr;
 	if (!dai_nr) {
 		/* get max dai nr */
 		for (dai_nr = 0; dai_nr < 32; dai_nr++) {
@@ -802,7 +905,10 @@ static int rsnd_probe(struct platform_device *pdev)
 	struct rsnd_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct rsnd_dai *rdai;
+	const struct of_device_id *of_id = of_match_device(rsnd_of_match, dev);
+	const struct rsnd_of_data *of_data;
 	int (*probe_func[])(struct platform_device *pdev,
+			    const struct rsnd_of_data *of_data,
 			    struct rsnd_priv *priv) = {
 		rsnd_gen_probe,
 		rsnd_ssi_probe,
@@ -812,7 +918,16 @@ static int rsnd_probe(struct platform_device *pdev)
 	};
 	int ret, i;
 
-	info = pdev->dev.platform_data;
+	info = NULL;
+	of_data = NULL;
+	if (of_id) {
+		info = devm_kzalloc(&pdev->dev,
+				    sizeof(struct rcar_snd_info), GFP_KERNEL);
+		of_data = of_id->data;
+	} else {
+		info = pdev->dev.platform_data;
+	}
+
 	if (!info) {
 		dev_err(dev, "driver needs R-Car sound information\n");
 		return -ENODEV;
@@ -835,7 +950,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	 *	init each module
 	 */
 	for (i = 0; i < ARRAY_SIZE(probe_func); i++) {
-		ret = probe_func[i](pdev, priv);
+		ret = probe_func[i](pdev, of_data, priv);
 		if (ret)
 			return ret;
 	}
@@ -903,6 +1018,7 @@ static int rsnd_remove(struct platform_device *pdev)
 static struct platform_driver rsnd_driver = {
 	.driver	= {
 		.name	= "rcar_sound",
+		.of_match_table = rsnd_of_match,
 	},
 	.probe		= rsnd_probe,
 	.remove		= rsnd_remove,
