@@ -1577,7 +1577,8 @@ rcu_torture_init(void)
 		fqs_duration = 0;
 	if (fqs_duration) {
 		/* Create the fqs thread */
-		torture_create_kthread(rcu_torture_fqs, NULL, fqs_task);
+		firsterr = torture_create_kthread(rcu_torture_fqs, NULL,
+						  fqs_task);
 		if (firsterr)
 			goto unwind;
 	}
