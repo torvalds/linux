@@ -98,7 +98,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	}
 
 	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(bios);
+	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	if (strap >= cnt) {
 		nv_error(pfb, "invalid ramcfg strap\n");
 		return -EINVAL;

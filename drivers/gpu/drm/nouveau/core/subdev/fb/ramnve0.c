@@ -950,10 +950,11 @@ nve0_ram_calc_data(struct nouveau_fb *pfb, u32 freq,
 	}
 
 	/* locate specific data set for the attached memory */
+	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	ram->base.ramcfg.data = nvbios_rammapSp(bios, ram->base.rammap.data,
 						ram->base.rammap.version,
-						ram->base.rammap.size, cnt, len,
-						nvbios_ramcfg_index(bios),
+						ram->base.rammap.size,
+						cnt, len, strap,
 						&ram->base.ramcfg.version,
 						&ram->base.ramcfg.size,
 						&data->bios);
