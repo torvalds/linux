@@ -57,6 +57,7 @@ struct max8952_data {
 static int max8952_read_reg(struct max8952_data *max8952, u8 reg)
 {
 	int ret = i2c_smbus_read_byte_data(max8952->client, reg);
+
 	if (ret > 0)
 		ret &= 0xff;
 
