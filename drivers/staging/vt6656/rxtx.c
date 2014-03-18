@@ -118,7 +118,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
 static unsigned int s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
 	u32 cbFrameLength, u16 wRate, int bNeedAck);
 
-static u16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
+static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 	u8 rsv_type, u8 pkt_type, u32 frame_lenght, u16 current_rate);
 
 static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
@@ -367,7 +367,7 @@ static __le16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
 }
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
-static u16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
+static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 	u8 rsv_type, u8 pkt_type, u32 frame_lenght, u16 current_rate)
 {
 	u32 rrv_time, rts_time, cts_time, ack_time, data_time;
@@ -402,7 +402,7 @@ static u16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 
 		rrv_time = cts_time + ack_time + data_time + 2 * priv->uSIFS;
 
-		return rrv_time;
+		return cpu_to_le16((u16)rrv_time);
 	}
 
 	rrv_time = rts_time + cts_time + ack_time + data_time + 3 * priv->uSIFS;
