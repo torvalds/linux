@@ -2786,6 +2786,77 @@ static void alc269_shutup(struct hda_codec *codec)
 	snd_hda_shutup_pins(codec);
 }
 
+static void alc282_init(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
+	bool hp_pin_sense;
+	int coef78;
+
+	if (!hp_pin)
+		return;
+	hp_pin_sense = snd_hda_jack_detect(codec, hp_pin);
+	coef78 = alc_read_coef_idx(codec, 0x78);
+
+	/* Index 0x78 Direct Drive HP AMP LPM Control 1 */
+	/* Headphone capless set to high power mode */
+	alc_write_coef_idx(codec, 0x78, 0x9004);
+
+	if (hp_pin_sense)
+		msleep(2);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+
+	if (hp_pin_sense)
+		msleep(85);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+
+	if (hp_pin_sense)
+		msleep(100);
+
+	/* Headphone capless set to normal mode */
+	alc_write_coef_idx(codec, 0x78, coef78);
+}
+
+static void alc282_shutup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
+	bool hp_pin_sense;
+	int coef78;
+
+	if (!hp_pin) {
+		alc269_shutup(codec);
+		return;
+	}
+
+	hp_pin_sense = snd_hda_jack_detect(codec, hp_pin);
+	coef78 = alc_read_coef_idx(codec, 0x78);
+	alc_write_coef_idx(codec, 0x78, 0x9004);
+
+	if (hp_pin_sense)
+		msleep(2);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+
+	if (hp_pin_sense)
+		msleep(85);
+
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
+
+	if (hp_pin_sense)
+		msleep(100);
+
+	alc_auto_setup_eapd(codec, false);
+	snd_hda_shutup_pins(codec);
+	alc_write_coef_idx(codec, 0x78, coef78);
+}
+
 static void alc283_restore_default_value(struct hda_codec *codec)
 {
 	int val;
@@ -4687,6 +4758,8 @@ static int patch_alc269(struct hda_codec *codec)
 		break;
 	case 0x10ec0282:
 		spec->codec_variant = ALC269_TYPE_ALC282;
+		spec->shutup = alc282_shutup;
+		spec->init_hook = alc282_init;
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
