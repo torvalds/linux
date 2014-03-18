@@ -114,6 +114,14 @@
 				IF_COMM_CONTROL | IF_COMM_TXRQST | \
 				IF_COMM_DATAA | IF_COMM_DATAB)
 
+/* For the low buffers we clear the interrupt bit, but keep newdat */
+#define IF_COMM_RCV_LOW		(IF_COMM_MASK | IF_COMM_ARB | \
+				 IF_COMM_CONTROL | IF_COMM_CLR_INT_PND | \
+				 IF_COMM_DATAA | IF_COMM_DATAB)
+
+/* For the high buffers we clear the interrupt bit and newdat */
+#define IF_COMM_RCV_HIGH	(IF_COMM_RCV_LOW | IF_COMM_TXRQST)
+
 /* IFx arbitration */
 #define IF_ARB_MSGVAL		BIT(15)
 #define IF_ARB_MSGXTD		BIT(14)
@@ -371,18 +379,6 @@ static void c_can_write_msg_object(struct net_device *dev,
 	c_can_object_put(dev, iface, objno, IF_COMM_ALL);
 }
 
-static inline void c_can_mark_rx_msg_obj(struct net_device *dev,
-						int iface, int ctrl_mask,
-						int obj)
-{
-	struct c_can_priv *priv = netdev_priv(dev);
-
-	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface),
-			ctrl_mask & ~(IF_MCONT_MSGLST | IF_MCONT_INTPND));
-	c_can_object_put(dev, iface, obj, IF_COMM_CONTROL);
-
-}
-
 static inline void c_can_activate_all_lower_rx_msg_obj(struct net_device *dev,
 						int iface,
 						int ctrl_mask)
@@ -392,22 +388,9 @@ static inline void c_can_activate_all_lower_rx_msg_obj(struct net_device *dev,
 
 	for (i = C_CAN_MSG_OBJ_RX_FIRST; i <= C_CAN_MSG_RX_LOW_LAST; i++) {
 		priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface),
-				ctrl_mask & ~(IF_MCONT_MSGLST |
-					IF_MCONT_INTPND | IF_MCONT_NEWDAT));
+				ctrl_mask & ~IF_MCONT_NEWDAT);
 		c_can_object_put(dev, iface, i, IF_COMM_CONTROL);
 	}
-}
-
-static inline void c_can_activate_rx_msg_obj(struct net_device *dev,
-						int iface, int ctrl_mask,
-						int obj)
-{
-	struct c_can_priv *priv = netdev_priv(dev);
-
-	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface),
-			ctrl_mask & ~(IF_MCONT_MSGLST |
-				IF_MCONT_INTPND | IF_MCONT_NEWDAT));
-	c_can_object_put(dev, iface, obj, IF_COMM_CONTROL);
 }
 
 static int c_can_handle_lost_msg_obj(struct net_device *dev,
@@ -852,12 +835,15 @@ static u32 c_can_adjust_pending(u32 pend)
 static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 			      u32 pend, int quota)
 {
-	u32 pkts = 0, ctrl, obj;
+	u32 pkts = 0, ctrl, obj, mcmd;
 
 	while ((obj = ffs(pend)) && quota > 0) {
 		pend &= ~BIT(obj - 1);
 
-		c_can_object_get(dev, IF_RX, obj, IF_COMM_ALL &	~IF_COMM_TXRQST);
+		mcmd = obj < C_CAN_MSG_RX_LOW_LAST ?
+			IF_COMM_RCV_LOW : IF_COMM_RCV_HIGH;
+
+		c_can_object_get(dev, IF_RX, obj, mcmd);
 		ctrl = priv->read_reg(priv, C_CAN_IFACE(MSGCTRL_REG, IF_RX));
 
 		if (ctrl & IF_MCONT_MSGLST) {
@@ -879,12 +865,7 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 		/* read the data from the message object */
 		c_can_read_msg_object(dev, IF_RX, ctrl);
 
-		if (obj < C_CAN_MSG_RX_LOW_LAST)
-			c_can_mark_rx_msg_obj(dev, IF_RX, ctrl, obj);
-		else if (obj > C_CAN_MSG_RX_LOW_LAST)
-			/* activate this msg obj */
-			c_can_activate_rx_msg_obj(dev, IF_RX, ctrl, obj);
-		else if (obj == C_CAN_MSG_RX_LOW_LAST)
+		if (obj == C_CAN_MSG_RX_LOW_LAST)
 			/* activate all lower message objects */
 			c_can_activate_all_lower_rx_msg_obj(dev, IF_RX, ctrl);
 
