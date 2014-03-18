@@ -39,6 +39,10 @@
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 
+#if defined(CONFIG_ION_ROCKCHIP)
+#include <linux/rockchip_ion.h>
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #endif
@@ -50,7 +54,7 @@
 #include "vcodec_service.h"
 
 #define HEVC_TEST_ENABLE    0
-#define HEVC_SIM_ENABLE		0
+#define HEVC_SIM_ENABLE		1
 
 typedef enum {
 	VPU_DEC_ID_9190		= 0x6731,
@@ -261,6 +265,7 @@ typedef struct vpu_service_info {
     struct dentry   *debugfs_file_regs;
 
     u32 irq_status;
+	struct ion_client * ion_client;
 
     struct delayed_work simulate_work;
 } vpu_service_info;
@@ -499,6 +504,68 @@ static inline bool reg_check_interlace(vpu_reg *reg)
 	return (type > 0);
 }
 
+#if defined(CONFIG_VCODEC_MMU)
+static u8 table_vpu_dec[] = {
+	12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 40, 41
+};
+
+static u8 table_vpu_enc[] = {
+	5, 6, 7, 8, 9, 10, 11, 12, 13, 51
+};
+
+static u8 table_hevc_dec[1] = {
+
+};
+
+static int reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg)
+{
+	VPU_HW_ID hw_id;
+	int i;
+
+	hw_id = pservice->hw_info->hw_id;
+
+    if (hw_id == HEVC_ID) {
+
+    } else {
+        if (reg->type == VPU_DEC) {
+            for (i=0; i<sizeof(table_vpu_dec); i++) {
+				int usr_fd;
+				struct ion_handle *hdl;
+				ion_phys_addr_t phy_addr;
+				size_t len;
+				int offset;
+
+#if 0
+				if (copy_from_user(&usr_fd, &reg->reg[table_vpu_dec[i]], sizeof(usr_fd)))
+					return -EFAULT;
+#else
+				usr_fd = reg->reg[table_vpu_dec[i]] & 0xFF;
+				offset = reg->reg[table_vpu_dec[i]] >> 8;
+#endif
+                if (usr_fd != 0) {
+
+					hdl = ion_import_dma_buf(pservice->ion_client, usr_fd);
+                    if (IS_ERR(hdl)) {
+						pr_err("import dma-buf from fd %d failed\n", usr_fd);
+						return ERR_PTR(hdl);
+                    }
+
+					ion_phys(pservice->ion_client, hdl, &phy_addr, &len);
+
+					reg->reg[table_vpu_dec[i]] = phy_addr + offset;
+
+					ion_free(pservice->ion_client, hdl);
+                }
+            }
+        } else if (reg->type == VPU_ENC) {
+
+        }
+	}
+
+	return 0;
+}
+#endif
+
 static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session, void __user *src, unsigned long size)
 {
 	vpu_reg *reg = kmalloc(sizeof(vpu_reg)+pservice->reg_size, GFP_KERNEL);
@@ -524,6 +591,14 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 		kfree(reg);
 		return NULL;
 	}
+
+#if defined(CONFIG_VCODEC_MMU)
+    if (0 > reg_address_translate(pservice, reg)) {
+		pr_err("error: translate reg address failed\n");
+		kfree(reg);
+		return NULL;
+    }
+#endif
 
 	mutex_lock(&pservice->lock);
 	list_add_tail(&reg->status_link, &pservice->waiting);
@@ -972,7 +1047,7 @@ static int vpu_service_check_hw(vpu_service_info *p, unsigned long hw_addr)
 	volatile u32 *tmp = (volatile u32 *)ioremap_nocache(hw_addr, 0x4);
 	u32 enc_id = *tmp;
 
-#if 0
+#if HEVC_SIM_ENABLE
     /// temporary, hevc driver test.
     if (strncmp(dev_name(p->dev), "hevc_service", strlen("hevc_service")) == 0) {
         p->hw_info = &vpu_hw_set[2];
@@ -1090,6 +1165,9 @@ static void simulate_start(struct vpu_service_info *pservice)
 
 #if HEVC_TEST_ENABLE
 static int hevc_test_case0(vpu_service_info *pservice);
+#endif
+#if defined(CONFIG_VCODEC_MMU) & defined(CONFIG_ION_ROCKCHIP)
+extern struct ion_client *rockchip_ion_client_create(const char * name);
 #endif
 static int vcodec_probe(struct platform_device *pdev)
 {
@@ -1238,6 +1316,16 @@ static int vcodec_probe(struct platform_device *pdev)
     vpu_service_power_off(pservice);
     pr_info("init success\n");
 
+#if defined(CONFIG_VCODEC_MMU) & defined(CONFIG_ION_ROCKCHIP)
+	pservice->ion_client = rockchip_ion_client_create("vpu");
+	if (IS_ERR(pservice->ion_client)) {
+		dev_err(&pdev->dev, "failed to create ion client for vcodec");
+		return PTR_ERR(pservice->ion_client);
+	} else {
+		dev_info(&pdev->dev, "vcodec ion client create success!\n");
+	}
+#endif
+
 #if HEVC_SIM_ENABLE
     if (pservice->hw_info->hw_id == HEVC_ID) {
         simulate_init(pservice);
@@ -1317,7 +1405,7 @@ static int vcodec_remove(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id vcodec_service_dt_ids[] = {
-	//{.compatible = "vpu_service",},
+	{.compatible = "vpu_service",},
 	{.compatible = "rockchip,hevc_service",},
     {},
 };

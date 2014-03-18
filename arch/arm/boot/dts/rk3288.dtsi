@@ -607,8 +607,8 @@
 		reg = <0xff9a0000 0x800>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
-		/*clocks = <&clk_gates3 9>, <&clk_gates3 10>;
-		clock-names = "aclk_vcodec", "hclk_vcodec"; */
+		
+		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
 		status = "disabled";
 	};
@@ -618,8 +618,8 @@
 		reg = <0xff9c0000 0x800>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
-		/*clocks = <&clk_gates3 9>, <&clk_gates3 10>;
-		clock-names = "aclk_vcodec", "hclk_vcodec";*/
+
+                clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
 		name = "hevc_service";
 		status = "disabled";
 	};
@@ -628,8 +628,8 @@
 		compatible = "rockchip,iep";
 		reg = <0xff900000 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gate3 9>, <&clk_gate3 10>;
-		clock_names = "aclk_iep", "hclk_iep";*/
+		
+		clock_names = "aclk_iep", "hclk_iep";
 		status = "disabled";
 	};
 
