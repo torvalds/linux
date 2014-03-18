@@ -8,7 +8,11 @@ regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	default_sort_order[] = "comm,dso,symbol";
-const char	*sort_order = default_sort_order;
+const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,dso_to,symbol_to";
+const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked";
+const char	default_top_sort_order[] = "dso,symbol";
+const char	default_diff_sort_order[] = "dso,symbol";
+const char	*sort_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
 int		sort__need_collapse = 0;
@@ -1218,11 +1222,31 @@ int sort_dimension__add(const char *tok)
 	return -ESRCH;
 }
 
+static const char *get_default_sort_order(void)
+{
+	const char *default_sort_orders[] = {
+		default_sort_order,
+		default_branch_sort_order,
+		default_mem_sort_order,
+		default_top_sort_order,
+		default_diff_sort_order,
+	};
+
+	BUG_ON(sort__mode >= ARRAY_SIZE(default_sort_orders));
+
+	return default_sort_orders[sort__mode];
+}
+
 int setup_sorting(void)
 {
-	char *tmp, *tok, *str = strdup(sort_order);
+	char *tmp, *tok, *str;
+	const char *sort_keys = sort_order;
 	int ret = 0;
 
+	if (sort_keys == NULL)
+		sort_keys = get_default_sort_order();
+
+	str = strdup(sort_keys);
 	if (str == NULL) {
 		error("Not enough memory to setup sort keys");
 		return -ENOMEM;
