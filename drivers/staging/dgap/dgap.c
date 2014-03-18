@@ -210,9 +210,8 @@ static uint dgap_config_get_useintr(struct board_t *bd);
 static uint dgap_config_get_altpin(struct board_t *bd);
 
 static int dgap_ms_sleep(ulong ms);
-static void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios,
-				int len);
-static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);
+static void dgap_do_bios_load(struct board_t *brd, const uchar *ubios, int len);
+static void dgap_do_fep_load(struct board_t *brd, const uchar *ufep, int len);
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
 static void dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len);
 #endif
@@ -923,7 +922,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 				fw_info[card_type].bios_name);
 			return ret;
 		}
-		dgap_do_bios_load(brd, (char *)fw->data, fw->size);
+		dgap_do_bios_load(brd, fw->data, fw->size);
 		release_firmware(fw);
 
 		/* Wait for BIOS to test board... */
@@ -939,7 +938,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 				fw_info[card_type].fep_name);
 			return ret;
 		}
-		dgap_do_fep_load(brd, (char *)fw->data, fw->size);
+		dgap_do_fep_load(brd, fw->data, fw->size);
 		release_firmware(fw);
 
 		/* Wait for FEP to load on board... */
@@ -4335,7 +4334,7 @@ static int dgap_tty_register_ports(struct board_t *brd)
  * Copies the BIOS code from the user to the board,
  * and starts the BIOS running.
  */
-static void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len)
+static void dgap_do_bios_load(struct board_t *brd, const uchar *ubios, int len)
 {
 	uchar *addr;
 	uint offset;
@@ -4412,7 +4411,7 @@ static int dgap_do_wait_for_bios(struct board_t *brd)
  * Copies the FEP code from the user to the board,
  * and starts the FEP running.
  */
-static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len)
+static void dgap_do_fep_load(struct board_t *brd, const uchar *ufep, int len)
 {
 	uchar *addr;
 	uint offset;
