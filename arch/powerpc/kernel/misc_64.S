@@ -637,6 +637,15 @@ _GLOBAL(kexec_sequence)
 
 #ifdef CONFIG_MODULES
 #if defined(_CALL_ELF) && _CALL_ELF == 2
+
+#ifdef CONFIG_MODVERSIONS
+.weak __crc_TOC.
+.section "___kcrctab+TOC.","a"
+.globl __kcrctab_TOC.
+__kcrctab_TOC.:
+	.llong	__crc_TOC.
+#endif
+
 /*
  * Export a fake .TOC. since both modpost and depmod will complain otherwise.
  * Both modpost and depmod strip the leading . so we do the same here.
