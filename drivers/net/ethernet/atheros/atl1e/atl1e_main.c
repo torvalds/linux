@@ -2436,7 +2436,7 @@ err_reset:
 err_register:
 err_sw_init:
 err_eeprom:
-	iounmap(adapter->hw.hw_addr);
+	pci_iounmap(pdev, adapter->hw.hw_addr);
 err_init_netdev:
 err_ioremap:
 	free_netdev(netdev);
@@ -2474,7 +2474,7 @@ static void atl1e_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 	atl1e_free_ring_resources(adapter);
 	atl1e_force_ps(&adapter->hw);
-	iounmap(adapter->hw.hw_addr);
+	pci_iounmap(pdev, adapter->hw.hw_addr);
 	pci_release_regions(pdev);
 	free_netdev(netdev);
 	pci_disable_device(pdev);
