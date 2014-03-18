@@ -271,14 +271,12 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			break;
 		case USB_PORT_FEAT_POWER:
-			usbip_dbg_vhci_rh(" ClearPortFeature: "
-					  "USB_PORT_FEAT_POWER\n");
+			usbip_dbg_vhci_rh(" ClearPortFeature: USB_PORT_FEAT_POWER\n");
 			dum->port_status[rhport] = 0;
 			dum->resuming = 0;
 			break;
 		case USB_PORT_FEAT_C_RESET:
-			usbip_dbg_vhci_rh(" ClearPortFeature: "
-					  "USB_PORT_FEAT_C_RESET\n");
+			usbip_dbg_vhci_rh(" ClearPortFeature: USB_PORT_FEAT_C_RESET\n");
 			switch (dum->vdev[rhport].speed) {
 			case USB_SPEED_HIGH:
 				dum->port_status[rhport] |=
@@ -337,8 +335,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 			if (dum->vdev[rhport].ud.status ==
 			    VDEV_ST_NOTASSIGNED) {
-				usbip_dbg_vhci_rh(" enable rhport %d "
-						  "(status %u)\n",
+				usbip_dbg_vhci_rh(" enable rhport %d (status %u)\n",
 						  rhport,
 						  dum->vdev[rhport].ud.status);
 				dum->port_status[rhport] |=
@@ -358,12 +355,10 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	case SetPortFeature:
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			usbip_dbg_vhci_rh(" SetPortFeature: "
-					  "USB_PORT_FEAT_SUSPEND\n");
+			usbip_dbg_vhci_rh(" SetPortFeature: USB_PORT_FEAT_SUSPEND\n");
 			break;
 		case USB_PORT_FEAT_RESET:
-			usbip_dbg_vhci_rh(" SetPortFeature: "
-					  "USB_PORT_FEAT_RESET\n");
+			usbip_dbg_vhci_rh(" SetPortFeature: USB_PORT_FEAT_RESET\n");
 			/* if it's already running, disconnect first */
 			if (dum->port_status[rhport] & USB_PORT_STAT_ENABLE) {
 				dum->port_status[rhport] &=
@@ -535,9 +530,7 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 		case USB_REQ_GET_DESCRIPTOR:
 			if (ctrlreq->wValue == cpu_to_le16(USB_DT_DEVICE << 8))
-				usbip_dbg_vhci_hc("Not yet?: "
-						  "Get_Descriptor to device 0 "
-						  "(get max pipe size)\n");
+				usbip_dbg_vhci_hc("Not yet?:Get_Descriptor to device 0 (get max pipe size)\n");
 
 			if (vdev->udev)
 				usb_put_dev(vdev->udev);
@@ -546,8 +539,7 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 		default:
 			/* NOT REACHED */
-			dev_err(dev, "invalid request to devnum 0 bRequest %u, "
-				"wValue %u\n", ctrlreq->bRequest,
+			dev_err(dev, "invalid request to devnum 0 bRequest %u, wValue %u\n", ctrlreq->bRequest,
 				ctrlreq->wValue);
 			ret =  -EINVAL;
 			goto no_need_xmit;
@@ -1068,8 +1060,7 @@ static int vhci_hcd_suspend(struct platform_device *pdev, pm_message_t state)
 	spin_unlock(&the_controller->lock);
 
 	if (connected > 0) {
-		dev_info(&pdev->dev, "We have %d active connection%s. Do not "
-			 "suspend.\n", connected, (connected == 1 ? "" : "s"));
+		dev_info(&pdev->dev, "We have %d active connection%s. Do not suspend.\n", connected, (connected == 1 ? "" : "s"));
 		ret =  -EBUSY;
 	} else {
 		dev_info(&pdev->dev, "suspend vhci_hcd");
