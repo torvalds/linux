@@ -740,10 +740,11 @@ bool sched_can_stop_tick(void)
 
        rq = this_rq();
 
-       /* Make sure rq->nr_running update is visible after the IPI */
-       smp_rmb();
-
-       /* More than one running task need preemption */
+	/*
+	 * More than one running task need preemption.
+	 * nr_running update is assumed to be visible
+	 * after IPI is sent from wakers.
+	 */
        if (rq->nr_running > 1)
                return false;
 
