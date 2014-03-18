@@ -212,6 +212,18 @@ out:
 	return ret;
 }
 
+static void kvm_ioapic_inject_all(struct kvm_ioapic *ioapic, unsigned long irr)
+{
+	u32 idx;
+
+	rtc_irq_eoi_tracking_reset(ioapic);
+	for_each_set_bit(idx, &irr, IOAPIC_NUM_PINS)
+		ioapic_set_irq(ioapic, idx, 1, true);
+
+	kvm_rtc_eoi_tracking_restore_all(ioapic);
+}
+
+
 static void update_handled_vectors(struct kvm_ioapic *ioapic)
 {
 	DECLARE_BITMAP(handled_vectors, 256);
@@ -612,9 +624,10 @@ int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state)
 
 	spin_lock(&ioapic->lock);
 	memcpy(ioapic, state, sizeof(struct kvm_ioapic_state));
+	ioapic->irr = 0;
 	update_handled_vectors(ioapic);
 	kvm_vcpu_request_scan_ioapic(kvm);
-	kvm_rtc_eoi_tracking_restore_all(ioapic);
+	kvm_ioapic_inject_all(ioapic, state->irr);
 	spin_unlock(&ioapic->lock);
 	return 0;
 }
