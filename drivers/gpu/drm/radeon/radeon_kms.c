@@ -574,12 +574,17 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		}
 
 		r = radeon_vm_init(rdev, &fpriv->vm);
-		if (r)
+		if (r) {
+			kfree(fpriv);
 			return r;
+		}
 
 		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
-		if (r)
+		if (r) {
+			radeon_vm_fini(rdev, &fpriv->vm);
+			kfree(fpriv);
 			return r;
+		}
 
 		/* map the ib pool buffer read only into
 		 * virtual address space */
