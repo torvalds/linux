@@ -18,7 +18,7 @@ underlying hardware counters.
 Performance counters are accessed via special file descriptors.
 There's one file descriptor per virtual counter used.
 
-The special file descriptor is opened via the perf_event_open()
+The special file descriptor is opened via the sys_perf_event_open()
 system call:
 
    int sys_perf_event_open(struct perf_event_attr *hw_event_uptr,
@@ -82,7 +82,7 @@ machine-specific.
 If 'raw_type' is 0, then the 'type' field says what kind of counter
 this is, with the following encoding:
 
-enum perf_event_types {
+enum perf_type_id {
 	PERF_TYPE_HARDWARE		= 0,
 	PERF_TYPE_SOFTWARE		= 1,
 	PERF_TYPE_TRACEPOINT		= 2,
@@ -95,7 +95,7 @@ specified by 'event_id':
  * Generalized performance counter event types, used by the hw_event.event_id
  * parameter of the sys_perf_event_open() syscall:
  */
-enum hw_event_ids {
+enum perf_hw_id {
 	/*
 	 * Common hardware events, generalized by the kernel:
 	 */
@@ -129,7 +129,7 @@ software events, selected by 'event_id':
  * physical and sw events of the kernel (and allow the profiling of them as
  * well):
  */
-enum sw_event_ids {
+enum perf_sw_ids {
 	PERF_COUNT_SW_CPU_CLOCK		= 0,
 	PERF_COUNT_SW_TASK_CLOCK	= 1,
 	PERF_COUNT_SW_PAGE_FAULTS	= 2,
@@ -230,7 +230,7 @@ these events are recorded in the ring-buffer (see below).
 The 'comm' bit allows tracking of process comm data on process creation.
 This too is recorded in the ring-buffer (see below).
 
-The 'pid' parameter to the perf_event_open() system call allows the
+The 'pid' parameter to the sys_perf_event_open() system call allows the
 counter to be specific to a task:
 
  pid == 0: if the pid parameter is zero, the counter is attached to the
@@ -260,7 +260,7 @@ The 'flags' parameter is currently unused and must be zero.
 
 The 'group_fd' parameter allows counter "groups" to be set up.  A
 counter group has one counter which is the group "leader".  The leader
-is created first, with group_fd = -1 in the perf_event_open call
+is created first, with group_fd = -1 in the sys_perf_event_open call
 that creates it.  The rest of the group members are created
 subsequently, with group_fd giving the fd of the group leader.
 (A single counter on its own is created with group_fd = -1 and is
