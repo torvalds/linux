@@ -6578,10 +6578,9 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	np = netdev_priv(netdev);
 	np->vsi = vsi;
 
-	netdev->hw_enc_features = NETIF_F_IP_CSUM	 |
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM	 |
 				  NETIF_F_GSO_UDP_TUNNEL |
-				  NETIF_F_TSO		 |
-				  NETIF_F_SG;
+				  NETIF_F_TSO;
 
 	netdev->features = NETIF_F_SG		       |
 			   NETIF_F_IP_CSUM	       |
