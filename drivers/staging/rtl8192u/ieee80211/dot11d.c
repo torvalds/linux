@@ -66,8 +66,7 @@ Dot11d_UpdateCountryIe(
 	MaxChnlNum = 0;
 	NumTriples = (CoutryIeLen - 3) / 3; /* skip 3-byte country string. */
 	pTriple = (PCHNL_TXPOWER_TRIPLE)(pCoutryIe + 3);
-	for(i = 0; i < NumTriples; i++)
-	{
+	for (i = 0; i < NumTriples; i++) {
 		if (MaxChnlNum >= pTriple->FirstChnl) {
 			/* It is not in a monotonically increasing order, so
 			 * stop processing.
@@ -83,8 +82,7 @@ Dot11d_UpdateCountryIe(
 			return;
 		}
 
-		for(j = 0 ; j < pTriple->NumChnls; j++)
-		{
+		for (j = 0; j < pTriple->NumChnls; j++) {
 			pDot11dInfo->channel_map[pTriple->FirstChnl + j] = 1;
 			pDot11dInfo->MaxTxPwrDbmList[pTriple->FirstChnl + j] = pTriple->MaxTxPowerInDbm;
 			MaxChnlNum = pTriple->FirstChnl + j;
@@ -115,13 +113,11 @@ DOT11D_GetMaxTxPwrInDbm(
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 MaxTxPwrInDbm = 255;
 
-	if(MAX_CHANNEL_NUMBER < Channel)
-	{
+	if (MAX_CHANNEL_NUMBER < Channel) {
 		printk("DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
 		return MaxTxPwrInDbm;
 	}
-	if(pDot11dInfo->channel_map[Channel])
-	{
+	if (pDot11dInfo->channel_map[Channel]) {
 		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
 	}
 
@@ -136,8 +132,7 @@ DOT11D_ScanComplete(
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 
-	switch (pDot11dInfo->State)
-	{
+	switch (pDot11dInfo->State) {
 	case DOT11D_STATE_LEARNED:
 		pDot11dInfo->State = DOT11D_STATE_DONE;
 		break;
@@ -160,8 +155,7 @@ int IsLegalChannel(
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 
-	if(MAX_CHANNEL_NUMBER < channel)
-	{
+	if (MAX_CHANNEL_NUMBER < channel) {
 		printk("IsLegalChannel(): Invalid Channel\n");
 		return 0;
 	}
@@ -179,17 +173,14 @@ int ToLegalChannel(
 	u8 default_chn = 0;
 	u32 i = 0;
 
-	for (i=1; i<= MAX_CHANNEL_NUMBER; i++)
-	{
-		if(pDot11dInfo->channel_map[i] > 0)
-		{
+	for (i = 1; i <= MAX_CHANNEL_NUMBER; i++) {
+		if (pDot11dInfo->channel_map[i] > 0) {
 			default_chn = i;
 			break;
 		}
 	}
 
-	if(MAX_CHANNEL_NUMBER < channel)
-	{
+	if (MAX_CHANNEL_NUMBER < channel) {
 		printk("IsLegalChannel(): Invalid Channel\n");
 		return default_chn;
 	}
