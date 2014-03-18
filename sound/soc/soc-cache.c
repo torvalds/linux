@@ -162,8 +162,6 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 						  i, codec_drv->reg_word_size) == val)
 				continue;
 
-		WARN_ON(!snd_soc_codec_writable_register(codec, i));
-
 		ret = snd_soc_write(codec, i, val);
 		if (ret)
 			return ret;

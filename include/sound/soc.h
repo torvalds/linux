@@ -393,12 +393,6 @@ int devm_snd_soc_register_component(struct device *dev,
 			 const struct snd_soc_component_driver *cmpnt_drv,
 			 struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_component(struct device *dev);
-int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
-				    unsigned int reg);
-int snd_soc_codec_readable_register(struct snd_soc_codec *codec,
-				    unsigned int reg);
-int snd_soc_codec_writable_register(struct snd_soc_codec *codec,
-				    unsigned int reg);
 int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       struct regmap *regmap);
 int snd_soc_cache_sync(struct snd_soc_codec *codec);
@@ -692,9 +686,6 @@ struct snd_soc_codec {
 	struct list_head list;
 	struct list_head card_list;
 	int num_dai;
-	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
-	int (*readable_register)(struct snd_soc_codec *, unsigned int);
-	int (*writable_register)(struct snd_soc_codec *, unsigned int);
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
@@ -756,11 +747,6 @@ struct snd_soc_codec_driver {
 	/* codec IO */
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
-	int (*display_register)(struct snd_soc_codec *, char *,
-				size_t, unsigned int);
-	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
-	int (*readable_register)(struct snd_soc_codec *, unsigned int);
-	int (*writable_register)(struct snd_soc_codec *, unsigned int);
 	unsigned int reg_cache_size;
 	short reg_cache_step;
 	short reg_word_size;
