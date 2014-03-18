@@ -760,12 +760,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	debug_activate(timer, expires);
 
-	cpu = smp_processor_id();
-
-#if defined(CONFIG_NO_HZ_COMMON) && defined(CONFIG_SMP)
-	if (!pinned && get_sysctl_timer_migration() && idle_cpu(cpu))
-		cpu = get_nohz_timer_target();
-#endif
+	cpu = get_nohz_timer_target(pinned);
 	new_base = per_cpu(tvec_bases, cpu);
 
 	if (base != new_base) {
