@@ -721,6 +721,7 @@ int perf_assign_events(struct perf_event **events, int n,
 
 	return sched.state.unassigned;
 }
+EXPORT_SYMBOL_GPL(perf_assign_events);
 
 int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 {
