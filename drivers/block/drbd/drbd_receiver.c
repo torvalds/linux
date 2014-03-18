@@ -2555,6 +2555,8 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 			peer_req->w.cb = w_e_end_csum_rs_req;
 			/* used in the sector offset progress display */
 			device->bm_resync_fo = BM_SECT_TO_BIT(sector);
+			/* remember to report stats in drbd_resync_finished */
+			device->use_csums = true;
 		} else if (pi->cmd == P_OV_REPLY) {
 			/* track progress, we may need to throttle */
 			atomic_add(size >> 9, &device->rs_sect_in);

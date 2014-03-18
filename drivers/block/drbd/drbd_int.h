@@ -738,6 +738,8 @@ struct drbd_device {
 	struct rb_root read_requests;
 	struct rb_root write_requests;
 
+	/* use checksums for *this* resync */
+	bool use_csums;
 	/* blocks to resync in this run [unit BM_BLOCK_SIZE] */
 	unsigned long rs_total;
 	/* number of resync blocks that failed in this run */

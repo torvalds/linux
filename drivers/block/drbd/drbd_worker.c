@@ -698,8 +698,8 @@ next_sector:
 		/* adjust very last sectors, in case we are oddly sized */
 		if (sector + (size>>9) > capacity)
 			size = (capacity-sector)<<9;
-		if (connection->agreed_pro_version >= 89 &&
-		    connection->csums_tfm) {
+
+		if (device->use_csums) {
 			switch (read_for_csum(peer_device, sector, size)) {
 			case -EIO: /* Disk failure */
 				put_ldev(device);
@@ -913,7 +913,7 @@ int drbd_resync_finished(struct drbd_device *device)
 		if (os.conn == C_SYNC_TARGET || os.conn == C_PAUSED_SYNC_T)
 			khelper_cmd = "after-resync-target";
 
-		if (first_peer_device(device)->connection->csums_tfm && device->rs_total) {
+		if (device->use_csums && device->rs_total) {
 			const unsigned long s = device->rs_same_csum;
 			const unsigned long t = device->rs_total;
 			const int ratio =
@@ -1622,6 +1622,18 @@ static void do_start_resync(struct drbd_device *device)
 	clear_bit(AHEAD_TO_SYNC_SOURCE, &device->flags);
 }
 
+static bool use_checksum_based_resync(struct drbd_connection *connection, struct drbd_device *device)
+{
+	bool csums_after_crash_only;
+	rcu_read_lock();
+	csums_after_crash_only = rcu_dereference(connection->net_conf)->csums_after_crash_only;
+	rcu_read_unlock();
+	return connection->agreed_pro_version >= 89 &&		/* supported? */
+		connection->csums_tfm &&			/* configured? */
+		(csums_after_crash_only == 0			/* use for each resync? */
+		 || test_bit(CRASHED_PRIMARY, &device->flags));	/* or only after Primary crash? */
+}
+
 /**
  * drbd_start_resync() - Start the resync process
  * @device:	DRBD device.
@@ -1756,8 +1768,12 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		     drbd_conn_str(ns.conn),
 		     (unsigned long) device->rs_total << (BM_BLOCK_SHIFT-10),
 		     (unsigned long) device->rs_total);
-		if (side == C_SYNC_TARGET)
+		if (side == C_SYNC_TARGET) {
 			device->bm_resync_fo = 0;
+			device->use_csums = use_checksum_based_resync(connection, device);
+		} else {
+			device->use_csums = 0;
+		}
 
 		/* Since protocol 96, we must serialize drbd_gen_and_send_sync_uuid
 		 * with w_send_oos, or the sync target will get confused as to
