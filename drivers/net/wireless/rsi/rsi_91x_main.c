@@ -32,6 +32,29 @@ u32 rsi_zone_enabled = /* INFO_ZONE |
 EXPORT_SYMBOL_GPL(rsi_zone_enabled);
 
 /**
+ * rsi_dbg() - This function outputs informational messages.
+ * @zone: Zone of interest for output message.
+ * @fmt: printf-style format for output message.
+ *
+ * Return: none
+ */
+void rsi_dbg(u32 zone, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (zone & rsi_zone_enabled)
+		pr_info("%pV", &vaf);
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(rsi_dbg);
+
+/**
  * rsi_prepare_skb() - This function prepares the skb.
  * @common: Pointer to the driver private structure.
  * @buffer: Pointer to the packet data.

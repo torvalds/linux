@@ -40,21 +40,7 @@
 #define FSM_MAC_INIT_DONE               6
 
 extern u32 rsi_zone_enabled;
-
-static inline void rsi_dbg(u32 zone, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	if (zone & rsi_zone_enabled)
-		pr_info("%pV", &vaf);
-	va_end(args);
-}
+extern void rsi_dbg(u32 zone, const char *fmt, ...);
 
 #define RSI_MAX_VIFS                    1
 #define NUM_EDCA_QUEUES                 4
