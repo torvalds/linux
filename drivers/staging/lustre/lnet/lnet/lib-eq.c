@@ -341,7 +341,7 @@ lnet_eq_wait_locked(int *timeout_ms)
 	lnet_eq_wait_unlock();
 
 	if (tms < 0) {
-		waitq_wait(&wl, TASK_INTERRUPTIBLE);
+		schedule();
 
 	} else {
 		struct timeval tv;

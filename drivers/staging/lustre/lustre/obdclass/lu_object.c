@@ -712,7 +712,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 		 * lu_object_find_try() already added waiter into the
 		 * wait queue.
 		 */
-		waitq_wait(&wait, TASK_UNINTERRUPTIBLE);
+		schedule();
 		bkt = lu_site_bkt_from_fid(dev->ld_site, (void *)f);
 		remove_wait_queue(&bkt->lsb_marche_funebre, &wait);
 	}

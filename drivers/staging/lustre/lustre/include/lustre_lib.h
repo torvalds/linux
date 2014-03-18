@@ -558,7 +558,7 @@ do {									   \
 			break;						 \
 									       \
 		if (__timeout == 0) {					  \
-			waitq_wait(&__wait, __wstate);		     \
+			schedule();						\
 		} else {						       \
 			cfs_duration_t interval = info->lwi_interval?	  \
 					     min_t(cfs_duration_t,	     \

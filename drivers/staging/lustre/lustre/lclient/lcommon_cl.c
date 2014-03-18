@@ -1203,7 +1203,7 @@ static void cl_object_put_last(struct lu_env *env, struct cl_object *obj)
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			if (atomic_read(&header->loh_ref) == 1)
 				break;
-			waitq_wait(&waiter, TASK_UNINTERRUPTIBLE);
+			schedule();
 		}
 
 		set_current_state(TASK_RUNNING);

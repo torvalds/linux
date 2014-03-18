@@ -379,7 +379,7 @@ void libcfs_debug_dumplog(void)
 		printk(KERN_ERR "LustreError: cannot start log dump thread:"
 		       " %ld\n", PTR_ERR(dumper));
 	else
-		waitq_wait(&wait, TASK_INTERRUPTIBLE);
+		schedule();
 
 	/* be sure to teardown if cfs_create_thread() failed */
 	remove_wait_queue(&debug_ctlwq, &wait);

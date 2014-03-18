@@ -320,7 +320,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 			spin_lock(&r0->lo_sub_lock);
 			if (r0->lo_sub[idx] == los) {
 				spin_unlock(&r0->lo_sub_lock);
-				waitq_wait(waiter, TASK_UNINTERRUPTIBLE);
+				schedule();
 			} else {
 				spin_unlock(&r0->lo_sub_lock);
 				set_current_state(TASK_RUNNING);

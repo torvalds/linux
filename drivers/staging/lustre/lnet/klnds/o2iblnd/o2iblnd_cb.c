@@ -3423,7 +3423,7 @@ kiblnd_scheduler(void *arg)
 		add_wait_queue_exclusive(&sched->ibs_waitq, &wait);
 		spin_unlock_irqrestore(&sched->ibs_lock, flags);
 
-		waitq_wait(&wait, TASK_INTERRUPTIBLE);
+		schedule();
 		busy_loops = 0;
 
 		remove_wait_queue(&sched->ibs_waitq, &wait);

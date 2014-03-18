@@ -70,13 +70,6 @@ add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive_head);
 
-void
-waitq_wait(wait_queue_t *link, long state)
-{
-	schedule();
-}
-EXPORT_SYMBOL(waitq_wait);
-
 int64_t
 waitq_timedwait(wait_queue_t *link, long state, int64_t timeout)
 {

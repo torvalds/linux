@@ -225,7 +225,7 @@ static int seq_fid_alloc_prep(struct lu_client_seq *seq,
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		mutex_unlock(&seq->lcs_mutex);
 
-		waitq_wait(link, TASK_UNINTERRUPTIBLE);
+		schedule();
 
 		mutex_lock(&seq->lcs_mutex);
 		remove_wait_queue(&seq->lcs_waitq, link);
@@ -378,7 +378,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		mutex_unlock(&seq->lcs_mutex);
 
-		waitq_wait(&link, TASK_UNINTERRUPTIBLE);
+		schedule();
 
 		mutex_lock(&seq->lcs_mutex);
 		remove_wait_queue(&seq->lcs_waitq, &link);
