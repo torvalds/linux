@@ -56,6 +56,14 @@ static int psw_interrupts_disabled(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static int ckc_interrupts_enabled(struct kvm_vcpu *vcpu)
+{
+	if (psw_extint_disabled(vcpu) ||
+	    !(vcpu->arch.sie_block->gcr[0] & 0x800ul))
+		return 0;
+	return 1;
+}
+
 static u64 int_word_to_isc_bits(u32 int_word)
 {
 	u8 isc = (int_word & 0x38000000) >> 27;
@@ -466,14 +474,10 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 	}
 }
 
-static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
+static void deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 {
 	int rc;
 
-	if (psw_extint_disabled(vcpu))
-		return 0;
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x800ul))
-		return 0;
 	rc  = put_guest_lc(vcpu, 0x1004, (u16 __user *)__LC_EXT_INT_CODE);
 	rc |= write_guest_lc(vcpu, __LC_EXT_OLD_PSW,
 			     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
@@ -485,7 +489,6 @@ static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 			"delivery, killing userspace\n");
 		do_exit(SIGKILL);
 	}
-	return 1;
 }
 
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
@@ -515,19 +518,20 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 		spin_unlock(&fi->lock);
 	}
 
-	if ((!rc) && (vcpu->arch.sie_block->ckc <
-		get_tod_clock_fast() + vcpu->arch.sie_block->epoch)) {
-		if ((!psw_extint_disabled(vcpu)) &&
-			(vcpu->arch.sie_block->gcr[0] & 0x800ul))
-			rc = 1;
-	}
+	if (!rc && kvm_cpu_has_pending_timer(vcpu))
+		rc = 1;
 
 	return rc;
 }
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return 0;
+	if (!(vcpu->arch.sie_block->ckc <
+	      get_tod_clock_fast() + vcpu->arch.sie_block->epoch))
+		return 0;
+	if (!ckc_interrupts_enabled(vcpu))
+		return 0;
+	return 1;
 }
 
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
@@ -550,8 +554,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP; /* disabled wait */
 	}
 
-	if (psw_extint_disabled(vcpu) ||
-	    (!(vcpu->arch.sie_block->gcr[0] & 0x800ul))) {
+	if (!ckc_interrupts_enabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "enabled wait w/o timer");
 		goto no_timer;
 	}
@@ -663,9 +666,8 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 		} while (deliver);
 	}
 
-	if ((vcpu->arch.sie_block->ckc <
-		get_tod_clock_fast() + vcpu->arch.sie_block->epoch))
-		__try_deliver_ckc_interrupt(vcpu);
+	if (kvm_cpu_has_pending_timer(vcpu))
+		deliver_ckc_interrupt(vcpu);
 
 	if (atomic_read(&fi->active)) {
 		do {
