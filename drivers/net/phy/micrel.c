@@ -167,7 +167,7 @@ static int kszphy_setup_led(struct phy_device *phydev,
 	if (temp < 0)
 		return temp;
 
-	temp &= 3 << shift;
+	temp &= ~(3 << shift);
 	temp |= val << shift;
 	rc = phy_write(phydev, reg, temp);
 
