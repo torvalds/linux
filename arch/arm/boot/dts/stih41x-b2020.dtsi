@@ -19,6 +19,7 @@
 
 	aliases {
 		ttyAS0 = &sbc_serial1;
+		ethernet1 = &ethernet1;
 	};
 	soc {
 		sbc_serial1: serial@fe531000 {
@@ -59,6 +60,18 @@
 
 		i2c@fe541000 {
 			status = "okay";
+		};
+
+		ethernet1: dwmac@fef08000 {
+			status			= "okay";
+			phy-mode		= "rgmii-id";
+			max-speed		= <1000>;
+			st,tx-retime-src	= "clk_125";
+			snps,reset-gpio 	= <&PIO3 0>;
+			snps,reset-active-low;
+			snps,reset-delays-us 	= <0 10000 10000>;
+
+			pinctrl-0	= <&pinctrl_rgmii1>;
 		};
 	};
 };
