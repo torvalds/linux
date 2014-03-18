@@ -287,7 +287,7 @@
 			<&clk_i2s_pll &clk_cpll>;
 		rockchip,clocks-init-rate =
 			<&clk_core 792000000>,	<&clk_gpll 594000000>,
-			<&clk_cpll 393216000>,	<&clk_npll 500000000>,
+			<&clk_cpll 384000000>,	<&clk_npll 500000000>,
 			<&aclk_bus_src 300000000>,	<&aclk_bus 300000000>,
 			<&hclk_bus 150000000>,	<&pclk_bus 75000000>,
 			<&clk_crypto 150000000>,	<&aclk_peri 300000000>,
