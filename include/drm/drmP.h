@@ -1091,11 +1091,11 @@ struct drm_device {
 	struct device *dev;		/**< Device structure of bus-device */
 	struct drm_driver *driver;	/**< DRM driver managing the device */
 	void *dev_private;		/**< DRM driver private data */
-	struct address_space *dev_mapping;	/**< Private addr-space just for the device */
 	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
 	atomic_t unplugged;			/**< Flag whether dev is dead */
+	struct inode *anon_inode;		/**< inode for private address-space */
 	/*@} */
 
 	/** \name Locks */
