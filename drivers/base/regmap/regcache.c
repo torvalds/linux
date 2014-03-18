@@ -253,7 +253,8 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 		unsigned int val;
 		int ret;
 
-		if (regmap_volatile(map, reg))
+		if (regmap_volatile(map, reg) ||
+		    !regmap_writeable(map, reg))
 			continue;
 
 		ret = regcache_read(map, reg, &val);
