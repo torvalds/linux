@@ -4347,8 +4347,7 @@ enum latency_range {
  *  were determined based on theoretical maximum wire speed and testing
  *  data, in order to minimize response time while increasing bulk
  *  throughput.
- *  This functionality is controlled by the InterruptThrottleRate module
- *  parameter (see igb_param.c)
+ *  This functionality is controlled by ethtool's coalescing settings.
  *  NOTE:  This function is called only when operating in a multiqueue
  *         receive environment.
  **/
@@ -4422,8 +4421,7 @@ clear_counts:
  *  based on theoretical maximum wire speed and thresholds were set based
  *  on testing data as well as attempting to minimize response time
  *  while increasing bulk throughput.
- *  this functionality is controlled by the InterruptThrottleRate module
- *  parameter (see igb_param.c)
+ *  This functionality is controlled by ethtool's coalescing settings.
  *  NOTE:  These calculations are only valid when operating in a single-
  *         queue environment.
  **/
