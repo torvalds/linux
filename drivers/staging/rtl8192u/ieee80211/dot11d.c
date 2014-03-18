@@ -16,6 +16,7 @@ void Dot11d_Init(struct ieee80211_device *ieee)
 
 	printk("Dot11d_Init()\n");
 }
+EXPORT_SYMBOL(Dot11d_Init);
 
 /* Reset to the state as we are just entering a regulatory domain. */
 void Dot11d_Reset(struct ieee80211_device *ieee)
@@ -36,6 +37,7 @@ void Dot11d_Reset(struct ieee80211_device *ieee)
 	pDot11dInfo->CountryIeLen = 0;
 	RESET_CIE_WATCHDOG(ieee);
 }
+EXPORT_SYMBOL(Dot11d_Reset);
 
 /*
  * Update country IE from Beacon or Probe Resopnse and configure PHY for
@@ -94,7 +96,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe, CoutryIeLen);
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
-
+EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
 
 u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 {
@@ -110,7 +112,7 @@ u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 
 	return MaxTxPwrInDbm;
 }
-
+EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
 
 void DOT11D_ScanComplete(struct ieee80211_device *dev)
 {
@@ -131,6 +133,7 @@ void DOT11D_ScanComplete(struct ieee80211_device *dev)
 		break;
 	}
 }
+EXPORT_SYMBOL(DOT11D_ScanComplete);
 
 int IsLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
@@ -144,6 +147,7 @@ int IsLegalChannel(struct ieee80211_device *dev, u8 channel)
 		return 1;
 	return 0;
 }
+EXPORT_SYMBOL(IsLegalChannel);
 
 int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
@@ -168,10 +172,4 @@ int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 
 	return default_chn;
 }
-EXPORT_SYMBOL(Dot11d_Init);
-EXPORT_SYMBOL(Dot11d_Reset);
-EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
-EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
-EXPORT_SYMBOL(DOT11D_ScanComplete);
-EXPORT_SYMBOL(IsLegalChannel);
 EXPORT_SYMBOL(ToLegalChannel);
