@@ -167,8 +167,10 @@ static const struct file_operations hdmi_reg_fops = {
 static int rk_hdmi_drv_init(struct hdmi *hdmi_drv)
 {
 	int ret = 0;
+	struct rk_screen screen;
 
-	if(HDMI_SOURCE_DEFAULT == HDMI_SOURCE_LCDC0)
+	rk_fb_get_prmry_screen(&screen);
+	if(screen.lcdc_id == 1)
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc0");
 	else
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc1");

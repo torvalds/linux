@@ -127,7 +127,7 @@ int hdmi_set_info(struct rk_screen *screen, unsigned int vic)
 	else
 		screen->pin_vsync = 0;
 #endif
-	screen->pin_den = 1;	//TODO modify by Daisen
+	screen->pin_den = 0;
 	screen->pin_dclk = DCLK_POL;
 
 	/* Swap rule */

@@ -462,7 +462,7 @@ static int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(0));
 
 	//Set slave address as PHY GEN2 address
-	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_I2C_SLAVE_ADDR);
+	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_I2C_SLAVE_ADDR);	//TODO Daisen wait to modify
 
 	rk3288_hdmi_write_phy(hdmi_dev, 0x13, 0x0000); /* PLLPHBYCTRL */
 	rk3288_hdmi_write_phy(hdmi_dev, 0x17, 0x0006);

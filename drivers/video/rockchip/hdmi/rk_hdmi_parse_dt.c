@@ -11,7 +11,7 @@
 int rk_hdmi_pwr_ctr_parse_dt(struct hdmi *dev_drv)
 {
 	struct device_node *root  = of_find_node_by_name(dev_drv->dev->of_node,
-				"power_ctr");
+				"power_ctr_hdmi");
 	struct device_node *child;
 	struct rk_disp_pwr_ctr_list *pwr_ctr;
 	struct list_head *pos;
