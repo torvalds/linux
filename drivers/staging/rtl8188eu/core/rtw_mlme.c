@@ -1544,14 +1544,12 @@ void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
 		/*  expire NAT2.5 entry */
 		nat25_db_expire(adapter);
 
-		if (adapter->pppoe_connection_in_progress > 0) {
+		if (adapter->pppoe_connection_in_progress > 0)
 			adapter->pppoe_connection_in_progress--;
-		}
 
 		/*  due to rtw_dynamic_check_timer_handlder() is called every 2 seconds */
-		if (adapter->pppoe_connection_in_progress > 0) {
+		if (adapter->pppoe_connection_in_progress > 0)
 			adapter->pppoe_connection_in_progress--;
-		}
 	}
 
 	rcu_read_unlock();
@@ -1849,11 +1847,9 @@ static int SecIsInPMKIDList(struct adapter *Adapter, u8 *bssid)
 
 	} while (i < NUM_PMKID_CACHE);
 
-	if (i == NUM_PMKID_CACHE) {
+	if (i == NUM_PMKID_CACHE)
 		i = -1;/*  Could not find. */
-	} else {
-		/*  There is one Pre-Authentication Key for the specific BSSID. */
-	}
+
 	return i;
 }
 
