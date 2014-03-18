@@ -118,6 +118,8 @@ init_conn(struct nvbios_init *init)
 static inline u32
 init_nvreg(struct nvbios_init *init, u32 reg)
 {
+	struct nouveau_devinit *devinit = nouveau_devinit(init->bios);
+
 	/* C51 (at least) sometimes has the lower bits set which the VBIOS
 	 * interprets to mean that access needs to go through certain IO
 	 * ports instead.  The NVIDIA binary driver has been seen to access
@@ -147,6 +149,9 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 
 	if (reg & ~0x00fffffc)
 		warn("unknown bits in register 0x%08x\n", reg);
+
+	if (devinit->mmio)
+		reg = devinit->mmio(devinit, reg);
 	return reg;
 }
 
@@ -154,7 +159,7 @@ static u32
 init_rd32(struct nvbios_init *init, u32 reg)
 {
 	reg = init_nvreg(init, reg);
-	if (init_exec(init))
+	if (reg != ~0 && init_exec(init))
 		return nv_rd32(init->subdev, reg);
 	return 0x00000000;
 }
@@ -163,7 +168,7 @@ static void
 init_wr32(struct nvbios_init *init, u32 reg, u32 val)
 {
 	reg = init_nvreg(init, reg);
-	if (init_exec(init))
+	if (reg != ~0 && init_exec(init))
 		nv_wr32(init->subdev, reg, val);
 }
 
@@ -171,7 +176,7 @@ static u32
 init_mask(struct nvbios_init *init, u32 reg, u32 mask, u32 val)
 {
 	reg = init_nvreg(init, reg);
-	if (init_exec(init)) {
+	if (reg != ~0 && init_exec(init)) {
 		u32 tmp = nv_rd32(init->subdev, reg);
 		nv_wr32(init->subdev, reg, (tmp & ~mask) | val);
 		return tmp;
