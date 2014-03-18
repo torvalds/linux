@@ -28,12 +28,11 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
 	/* Set new channel map */
-	for (i=1; i<=11; i++) {
+	for (i = 1; i <= 11; i++)
 		(pDot11dInfo->channel_map)[i] = 1;
-	}
-	for (i=12; i<=14; i++) {
+
+	for (i = 12; i <= 14; i++)
 		(pDot11dInfo->channel_map)[i] = 2;
-	}
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;
 	pDot11dInfo->CountryIeLen = 0;
@@ -117,9 +116,8 @@ DOT11D_GetMaxTxPwrInDbm(
 		printk("DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
 		return MaxTxPwrInDbm;
 	}
-	if (pDot11dInfo->channel_map[Channel]) {
+	if (pDot11dInfo->channel_map[Channel])
 		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
-	}
 
 	return MaxTxPwrInDbm;
 }
