@@ -30,6 +30,8 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+static void gen8_setup_private_ppat(struct drm_i915_private *dev_priv);
+
 bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 {
 	if (i915.enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
@@ -1370,8 +1372,10 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	}
 
 
-	if (INTEL_INFO(dev)->gen >= 8)
+	if (INTEL_INFO(dev)->gen >= 8) {
+		gen8_setup_private_ppat(dev_priv);
 		return;
+	}
 
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
 		/* TODO: Perhaps it shouldn't be gen6 specific */
