@@ -1736,7 +1736,7 @@ isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct isert_conn *isert_conn = isert_cmd->conn;
 	struct isert_device *device = isert_conn->conn_device;
-	int ret;
+	int ret = 0;
 
 	if (wr->fr_desc && wr->fr_desc->ind & ISERT_PROTECTED) {
 		ret = isert_check_pi_status(se_cmd,
@@ -1755,7 +1755,11 @@ isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 	cmd->i_state = ISTATE_RECEIVED_LAST_DATAOUT;
 	spin_unlock_bh(&cmd->istate_lock);
 
-	target_execute_cmd(se_cmd);
+	if (ret)
+		transport_send_check_condition_and_sense(se_cmd,
+							 se_cmd->pi_err, 0);
+	else
+		target_execute_cmd(se_cmd);
 }
 
 static void
