@@ -55,15 +55,15 @@ static void usb20otg_clock_init(void* pdata)
 	struct dwc_otg_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
-	ahbclk = devm_clk_get(usbpdata->dev, "hclk_otg0");
+	ahbclk = devm_clk_get(usbpdata->dev, "hclk_usb0");
 	if (IS_ERR(ahbclk)) {
-		dev_err(usbpdata->dev, "Failed to get hclk_otg0\n");
+		dev_err(usbpdata->dev, "Failed to get hclk_usb0\n");
 		return;
 	}
 
-	phyclk = devm_clk_get(usbpdata->dev, "otgphy0");
+	phyclk = devm_clk_get(usbpdata->dev, "clk_usbphy0");
 	if (IS_ERR(phyclk)) {
-		dev_err(usbpdata->dev, "Failed to get otgphy0\n");
+		dev_err(usbpdata->dev, "Failed to get clk_usbphy0\n");
 		return;
 	}
 
@@ -194,15 +194,15 @@ static void usb20host_clock_init(void* pdata)
 	struct dwc_otg_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
-	ahbclk = devm_clk_get(usbpdata->dev, "hclk_otg1");
+	ahbclk = devm_clk_get(usbpdata->dev, "hclk_usb1");
 	if (IS_ERR(ahbclk)) {
-		dev_err(usbpdata->dev, "Failed to get hclk_otg1\n");
+		dev_err(usbpdata->dev, "Failed to get hclk_usb1\n");
 		return;
 	}
 
-	phyclk = devm_clk_get(usbpdata->dev, "otgphy1");
+	phyclk = devm_clk_get(usbpdata->dev, "clk_usbphy1");
 	if (IS_ERR(phyclk)) {
-		dev_err(usbpdata->dev, "Failed to get otgphy1\n");
+		dev_err(usbpdata->dev, "Failed to get clk_usbphy1\n");
 		return;
 	}
 
@@ -303,23 +303,23 @@ static void rk_hsic_clock_init(void* pdata)
 	 */
 	/*
 	struct rkehci_platform_data *usbpdata=pdata;
-	struct clk *ahbclk, *phyclk480m_hsic, *phyclk12m_hsic, *phyclk_otgphy1;
+	struct clk *ahbclk, *phyclk480m_hsic, *phyclk12m_hsic, *phyclk_usbphy1;
 
-	phyclk480m_hsic = devm_clk_get(usbpdata->dev, "hsicphy480m");
+	phyclk480m_hsic = devm_clk_get(usbpdata->dev, "hsicphy_480m");
 	if (IS_ERR(phyclk480m_hsic)) {
-		dev_err(usbpdata->dev, "Failed to get hsicphy480m\n");
+		dev_err(usbpdata->dev, "Failed to get hsicphy_480m\n");
 		return;
 	}
 
-	phyclk12m_hsic = devm_clk_get(usbpdata->dev, "hsicphy12m");
+	phyclk12m_hsic = devm_clk_get(usbpdata->dev, "hsicphy_12m");
 	if (IS_ERR(phyclk12m_hsic)) {
-		dev_err(usbpdata->dev, "Failed to get hsicphy12m\n");
+		dev_err(usbpdata->dev, "Failed to get hsicphy_12m\n");
 		return;
 	}
 
-	phyclk_otgphy1 = devm_clk_get(usbpdata->dev, "hsic_otgphy1");
-	if (IS_ERR(phyclk_otgphy1)) {
-		dev_err(usbpdata->dev, "Failed to get hsic_otgphy1\n");
+	phyclk_usbphy1 = devm_clk_get(usbpdata->dev, "hsic_usbphy1");
+	if (IS_ERR(phyclk_usbphy1)) {
+		dev_err(usbpdata->dev, "Failed to get hsic_usbphy1\n");
 		return;
 	}
 
@@ -329,7 +329,7 @@ static void rk_hsic_clock_init(void* pdata)
 		return;
 	}
 
-	clk_set_parent(phyclk480m_hsic, phyclk_otgphy1);
+	clk_set_parent(phyclk480m_hsic, phyclk_usbphy1);
 	
 	usbpdata->hclk_hsic = ahbclk;
 	usbpdata->hsic_phy_480m = phyclk480m_hsic;

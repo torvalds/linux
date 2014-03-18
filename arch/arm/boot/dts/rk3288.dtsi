@@ -645,19 +645,19 @@
 		      <0xff770348 0x10>, <0xff770358 0x08>,
 		      <0xff770360 0x08>;
 		reg-names = "GRF_SOC_STATUS1" ,"GRF_SOC_STATUS2",
-			    "GRF_SOC_STATUS19", "GRF_SOC_STATUS21",
-			    "GRF_UOC0_BASE", "GRF_UOC1_BASE",
-			    "GRF_UOC2_BASE", "GRF_UOC3_BASE",
-			    "GRF_UOC4_BASE";
+                    "GRF_SOC_STATUS19", "GRF_SOC_STATUS21",
+                    "GRF_UOC0_BASE", "GRF_UOC1_BASE",
+                    "GRF_UOC2_BASE", "GRF_UOC3_BASE",
+                    "GRF_UOC4_BASE";
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+                     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "otg_id", "otg_bvalid",
-				  "otg_linestate", "host0_linestate",
-				  "host1_linestate";
+                          "otg_linestate", "host0_linestate",
+                          "host1_linestate";
 		/*gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,*//*HOST_VBUS_DRV*/
-		/*	<&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;*//*OTG_VBUS_DRV*/
-		/*clocks = <&clk_gates4 5>;*/
+		/*        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;*//*OTG_VBUS_DRV*/
+		/*clocks = <&clk_gates7 9>;*/
 		/*clock-names = "hclk_usb_peri";*/
 
 		usb_bc{
@@ -674,46 +674,48 @@
 		};
 	};
 
-	usb1: usb@ff580000 {
+	usb0: usb@ff580000 {
 		compatible = "rockchip,rk3288_usb20_otg";
 		reg = <0xff580000 0x40000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_otgphy0_480m>, <&clk_gates5 13>;*/
-		/*clock-names = "otgphy0", "hclk_otg0";*/
+		/*clocks = <&clk_gates13 4>, <&clk_gates7 4>;*/
+		/*clock-names = "clk_usbphy0", "hclk_usb0";*/
 	};
 
-	usb2: usb@ff540000 {
+	usb1: usb@ff540000 {
 		compatible = "rockchip,rk3288_usb20_host";
 		reg = <0xff540000 0x40000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_otgphy1_480m>, <&clk_gates7 3>;*/
-		/*clock-names = "otgphy1", "hclk_otg1";*/
+		/*clocks = <&clk_gates13 5>, <&clk_gates7 6>;*/
+		/*clock-names = "clk_usbphy1", "hclk_usb1";*/
 	};
 
-	usb3: usb@ff520000 {
+	usb2: usb@ff520000 {
 		compatible = "rockchip,rk3288_rk_ohci_host";
 		reg = <0xff520000 0x20000>;
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = ;*/
-		/*clock-names = ;*/
+		/*clocks = <&clk_gates13 6>, <&clk_gates7 7>;*/
+		/*clock-names = "clk_usbphy2", "hclk_usb2";*/
 	};
 
-	usb4: usb@ff500000 {
+	usb3: usb@ff500000 {
 		compatible = "rockchip,rk3288_rk_ehci_host";
 		reg = <0xff500000 0x20000>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = ;*/
-		/*clock-names = ;*/
+		/*clocks = <&clk_gates13 6>, <&clk_gates7 7>;*/
+		/*clock-names = "clk_usbphy3", "hclk_usb3";*/
 	};
 
-	usb5: hsic@ff5c0000 {
+	hsic: hsic@ff5c0000 {
 		compatible = "rockchip,rk3288_rk_hsic_host";
 		reg = <0xff5c0000 0x40000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_hsicphy480m>, <&clk_gates7 4>,*/
-		/*	 <&clk_hsicphy12m>, <&clk_otgphy1_480m>;*/
-		/*clock-names = "hsicphy480m", "hclk_hsic",*/
-		/*	      "hsicphy12m", "hsic_otgphy1";*/
+		/*clocks = <&hsicphy_480m>, <&clk_gates7 8>,*/
+		/*         <&hsicphy_12m>, <&clk_otgphy1_480m>,*/
+		/*         <&clk_otgphy2_480m>;*/
+		/*clock-names = "hsicphy_480m", "hclk_hsic",*/
+		/*              "hsicphy_12m", "hsic_usbphy1",*/
+		/*              "hsic_usbphy2";*/
 	};
 	
 	gmac: eth@ff290000 {
