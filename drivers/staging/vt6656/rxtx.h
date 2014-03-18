@@ -77,8 +77,8 @@ struct vnt_rrv_time_ab {
 struct vnt_tx_datahead_g {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	u16 wDuration_b;
-	u16 wDuration_a;
+	__le16 duration_b;
+	__le16 duration_a;
 	u16 wTimeStampOff_b;
 	u16 wTimeStampOff_a;
 } __packed;
@@ -86,35 +86,35 @@ struct vnt_tx_datahead_g {
 struct vnt_tx_datahead_g_fb {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	u16 wDuration_b;
-	u16 wDuration_a;
-	u16 wDuration_a_f0;
-	u16 wDuration_a_f1;
+	__le16 duration_b;
+	__le16 duration_a;
+	__le16 duration_a_f0;
+	__le16 duration_a_f1;
 	u16 wTimeStampOff_b;
 	u16 wTimeStampOff_a;
 } __packed;
 
 struct vnt_tx_datahead_ab {
 	struct vnt_phy_field ab;
-	u16 wDuration;
+	__le16 duration;
 	u16 wTimeStampOff;
 } __packed;
 
 struct vnt_tx_datahead_a_fb {
 	struct vnt_phy_field a;
-	u16 wDuration;
+	__le16 duration;
 	u16 wTimeStampOff;
-	u16 wDuration_f0;
-	u16 wDuration_f1;
+	__le16 duration_f0;
+	__le16 duration_f1;
 } __packed;
 
 /* RTS buffer header */
 struct vnt_rts_g {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	u16 wDuration_ba;
-	u16 wDuration_aa;
-	u16 wDuration_bb;
+	__le16 duration_ba;
+	__le16 duration_aa;
+	__le16 duration_bb;
 	u16 wReserved;
 	struct ieee80211_rts data;
 	struct vnt_tx_datahead_g data_head;
@@ -123,9 +123,9 @@ struct vnt_rts_g {
 struct vnt_rts_g_fb {
 	struct vnt_phy_field b;
 	struct vnt_phy_field a;
-	u16 wDuration_ba;
-	u16 wDuration_aa;
-	u16 wDuration_bb;
+	__le16 duration_ba;
+	__le16 duration_aa;
+	__le16 duration_bb;
 	u16 wReserved;
 	u16 wRTSDuration_ba_f0;
 	u16 wRTSDuration_aa_f0;
@@ -137,7 +137,7 @@ struct vnt_rts_g_fb {
 
 struct vnt_rts_ab {
 	struct vnt_phy_field ab;
-	u16 wDuration;
+	__le16 duration;
 	u16 wReserved;
 	struct ieee80211_rts data;
 	struct vnt_tx_datahead_ab data_head;
@@ -145,7 +145,7 @@ struct vnt_rts_ab {
 
 struct vnt_rts_a_fb {
 	struct vnt_phy_field a;
-	u16 wDuration;
+	__le16 duration;
 	u16 wReserved;
 	u16 wRTSDuration_f0;
 	u16 wRTSDuration_f1;
@@ -156,7 +156,7 @@ struct vnt_rts_a_fb {
 /* CTS buffer header */
 struct vnt_cts {
 	struct vnt_phy_field b;
-	u16 wDuration_ba;
+	__le16 duration_ba;
 	u16 wReserved;
 	struct ieee80211_cts data;
 	u16 reserved2;
@@ -165,7 +165,7 @@ struct vnt_cts {
 
 struct vnt_cts_fb {
 	struct vnt_phy_field b;
-	u16 wDuration_ba;
+	__le16 duration_ba;
 	u16 wReserved;
 	u16 wCTSDuration_ba_f0;
 	u16 wCTSDuration_ba_f1;
