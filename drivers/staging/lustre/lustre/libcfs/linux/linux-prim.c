@@ -70,15 +70,6 @@ add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive_head);
 
-/* deschedule for a bit... */
-void
-cfs_pause(cfs_duration_t ticks)
-{
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(ticks);
-}
-EXPORT_SYMBOL(cfs_pause);
-
 void cfs_init_timer(struct timer_list *t)
 {
 	init_timer(t);

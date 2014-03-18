@@ -334,7 +334,8 @@ cfs_wi_sched_destroy(struct cfs_wi_sched *sched)
 		       sched->ws_nthreads, sched->ws_name);
 
 		spin_unlock(&cfs_wi_data.wi_glock);
-		cfs_pause(cfs_time_seconds(1) / 20);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1) / 20);
 		spin_lock(&cfs_wi_data.wi_glock);
 	}
 
@@ -459,7 +460,8 @@ cfs_wi_shutdown (void)
 
 		while (sched->ws_nthreads != 0) {
 			spin_unlock(&cfs_wi_data.wi_glock);
-			cfs_pause(cfs_time_seconds(1) / 20);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1) / 20);
 			spin_lock(&cfs_wi_data.wi_glock);
 		}
 		spin_unlock(&cfs_wi_data.wi_glock);

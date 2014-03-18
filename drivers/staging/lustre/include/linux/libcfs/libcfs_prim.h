@@ -41,11 +41,6 @@
 #define __LIBCFS_PRIM_H__
 
 /*
- * Schedule
- */
-void cfs_pause(cfs_duration_t ticks);
-
-/*
  * Timer
  */
 typedef  void (cfs_timer_func_t)(ulong_ptr_t);

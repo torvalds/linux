@@ -994,7 +994,8 @@ lnet_shutdown_lndnis (void)
 				       "Waiting for zombie LNI %s\n",
 				       libcfs_nid2str(ni->ni_nid));
 			}
-			cfs_pause(cfs_time_seconds(1));
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1));
 			lnet_net_lock(LNET_LOCK_EX);
 			continue;
 		}

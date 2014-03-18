@@ -189,7 +189,8 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 	int      bufnob;
 
 	if (ksocknal_data.ksnd_stall_tx != 0) {
-		cfs_pause(cfs_time_seconds(ksocknal_data.ksnd_stall_tx));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(ksocknal_data.ksnd_stall_tx));
 	}
 
 	LASSERT (tx->tx_resid != 0);
@@ -345,7 +346,8 @@ ksocknal_receive (ksock_conn_t *conn)
 	int     rc;
 
 	if (ksocknal_data.ksnd_stall_rx != 0) {
-		cfs_pause(cfs_time_seconds (ksocknal_data.ksnd_stall_rx));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(ksocknal_data.ksnd_stall_rx));
 	}
 
 	rc = ksocknal_connsock_addref(conn);
