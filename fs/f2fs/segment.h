@@ -683,3 +683,27 @@ static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
 	else
 		return 0;
 }
+
+/*
+ * When writing pages, it'd better align nr_to_write for segment size.
+ */
+static inline long nr_pages_to_write(struct f2fs_sb_info *sbi, int type,
+					struct writeback_control *wbc)
+{
+	long nr_to_write, desired;
+
+	if (wbc->sync_mode != WB_SYNC_NONE)
+		return 0;
+
+	nr_to_write = wbc->nr_to_write;
+
+	if (type == DATA)
+		desired = 4096;
+	else if (type == NODE)
+		desired = 3 * max_hw_blocks(sbi);
+	else
+		desired = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+
+	wbc->nr_to_write = desired;
+	return desired - nr_to_write;
+}

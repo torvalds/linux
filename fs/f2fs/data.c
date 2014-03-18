@@ -844,8 +844,6 @@ redirty_out:
 	return AOP_WRITEPAGE_ACTIVATE;
 }
 
-#define MAX_DESIRED_PAGES_WP	4096
-
 static int __f2fs_writepage(struct page *page, struct writeback_control *wbc,
 			void *data)
 {
@@ -862,7 +860,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	bool locked = false;
 	int ret;
-	long excess_nrtw = 0, desired_nrtw;
+	long diff;
 
 	/* deal with chardevs and other special file */
 	if (!mapping->a_ops->writepage)
@@ -872,11 +870,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 			get_dirty_dents(inode) < nr_pages_to_skip(sbi, DATA))
 		goto skip_write;
 
-	if (wbc->nr_to_write < MAX_DESIRED_PAGES_WP) {
-		desired_nrtw = MAX_DESIRED_PAGES_WP;
-		excess_nrtw = desired_nrtw - wbc->nr_to_write;
-		wbc->nr_to_write = desired_nrtw;
-	}
+	diff = nr_pages_to_write(sbi, DATA, wbc);
 
 	if (!S_ISDIR(inode->i_mode)) {
 		mutex_lock(&sbi->writepages);
@@ -890,7 +884,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 
 	remove_dirty_dir_inode(inode);
 
-	wbc->nr_to_write -= excess_nrtw;
+	wbc->nr_to_write = max((long)0, wbc->nr_to_write - diff);
 	return ret;
 
 skip_write:
