@@ -3657,7 +3657,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 	struct drbd_device *device;
 	struct p_sizes *p = pi->data;
 	enum determine_dev_size dd = DS_UNCHANGED;
-	sector_t p_size, p_usize, my_usize;
+	sector_t p_size, p_usize, p_csize, my_usize;
 	int ldsc = 0; /* local disk size changed */
 	enum dds_flags ddsf;
 
@@ -3668,6 +3668,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 
 	p_size = be64_to_cpu(p->d_size);
 	p_usize = be64_to_cpu(p->u_size);
+	p_csize = be64_to_cpu(p->c_size);
 
 	/* just store the peer's disk size for now.
 	 * we still need to figure out whether we accept that. */
@@ -3742,9 +3743,21 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 			return -EIO;
 		drbd_md_sync(device);
 	} else {
-		/* I am diskless, need to accept the peer's size. */
+		/*
+		 * I am diskless, need to accept the peer's *current* size.
+		 * I must NOT accept the peers backing disk size,
+		 * it may have been larger than mine all along...
+		 *
+		 * At this point, the peer knows more about my disk, or at
+		 * least about what we last agreed upon, than myself.
+		 * So if his c_size is less than his d_size, the most likely
+		 * reason is that *my* d_size was smaller last time we checked.
+		 *
+		 * However, if he sends a zero current size,
+		 * take his (user-capped or) backing disk size anyways.
+		 */
 		drbd_reconsider_max_bio_size(device, NULL);
-		drbd_set_my_capacity(device, p_size);
+		drbd_set_my_capacity(device, p_csize ?: p_usize ?: p_size);
 	}
 
 	if (get_ldev(device)) {
