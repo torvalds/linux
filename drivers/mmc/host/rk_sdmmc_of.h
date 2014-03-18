@@ -12,7 +12,6 @@
 #ifndef __RK_SDMMC_OF_H
 #define __RK_SDMMC_OF_H
 
-#include <dt-bindings/mmc/rockchip-sdmmc.h>
 #include <linux/of_gpio.h>
 #include <linux/of_i2c.h>
 #include <linux/types.h>

@@ -34,7 +34,7 @@ void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *rk_mmc_pro
     of_property_read_u32(np, "mmc,int", &rk_mmc_property->mmc_int_type);
     of_property_read_u32(np, "mmc,emmc_is_selected", &rk_mmc_property->emmc_is_selected);
     of_property_read_u32_array(np, "mmc,use_dma", rk_mmc_property->mmc_dma_is_used,2);
-
+/*
     if((&rk_mmc_property->mmc_dma_is_used[0] == MMC_USE_DMA))
     {   
            if(rk_mmc_property->mmc_dma_is_used[1] == 0)
@@ -50,7 +50,7 @@ void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *rk_mmc_pro
     }else{
         mmc_debug(MMC_DBG_WARN,"Device Tree configure mmc drivers to use pio!\n");
     }
-  
+ */ 
     rockchip_mmc_of_dump(rk_mmc_property);
     return ;
 

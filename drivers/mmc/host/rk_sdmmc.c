@@ -2405,8 +2405,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
 	if (host->pdata->get_ocr)
 		mmc->ocr_avail = host->pdata->get_ocr(id);
-	else
-		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+	else{
+		//mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+		mmc->ocr_avail = MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|MMC_VDD_30_31
+                     | MMC_VDD_31_32|MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_34_35| MMC_VDD_35_36;
+        
+        mmc->ocr_avail |= MMC_VDD_26_27 |MMC_VDD_25_26 |MMC_VDD_24_25 |MMC_VDD_23_24
+                         |MMC_VDD_22_23 |MMC_VDD_21_22 |MMC_VDD_20_21 |MMC_VDD_165_195;
+	}
 
 	/*
 	 * Start with slot power disabled, it will be enabled when a card
@@ -2449,6 +2455,16 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	case 4:
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 	}
+	if (of_find_property(host->dev->of_node, "cap-power-off-card", NULL))
+		mmc->caps |= MMC_CAP_POWER_OFF_CARD;
+	if (of_find_property(host->dev->of_node, "cap-sdio-irq", NULL))
+		mmc->caps |= MMC_CAP_SDIO_IRQ;
+	if (of_find_property(host->dev->of_node, "full-pwr-cycle", NULL))
+		mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
+	if (of_find_property(host->dev->of_node, "keep-power-in-suspend", NULL))
+		mmc->pm_caps |= MMC_PM_KEEP_POWER;
+	if (of_find_property(host->dev->of_node, "enable-sdio-wakeup", NULL))
+		mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 
 	if (host->pdata->blk_settings) {
 		mmc->max_segs = host->pdata->blk_settings->max_segs;
