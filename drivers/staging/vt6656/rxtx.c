@@ -852,7 +852,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 				PK_TYPE_11B, cbFrameSize,
 					pDevice->byTopCCKBasicRate, bNeedACK);
 
-			pBuf->wCTSTxRrvTime_ba = s_uGetRTSCTSRsvTime(pDevice, 3,
+			pBuf->cts_rrv_time_ba = s_uGetRTSCTSRsvTime(pDevice, 3,
 					byPktType, cbFrameSize, wCurrentRate);
 
 			if (need_mic) {

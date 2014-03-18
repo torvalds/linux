@@ -62,7 +62,7 @@ struct vnt_rrv_time_rts {
 } __packed;
 
 struct vnt_rrv_time_cts {
-	u16 wCTSTxRrvTime_ba;
+	__le16 cts_rrv_time_ba;
 	u16 wReserved;
 	__le16 rrv_time_b;
 	__le16 rrv_time_a;
