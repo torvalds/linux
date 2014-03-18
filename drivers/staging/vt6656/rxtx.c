@@ -359,7 +359,7 @@ static u32 s_uGetTxRsvTime(struct vnt_private *priv, u8 pkt_type,
 	return data_time;
 }
 
-static u16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
+static __le16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
 	u32 frame_length, u16 rate, int need_ack)
 {
 	return cpu_to_le16((u16)s_uGetTxRsvTime(priv, pkt_type,
