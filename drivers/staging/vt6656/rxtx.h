@@ -127,10 +127,10 @@ struct vnt_rts_g_fb {
 	__le16 duration_aa;
 	__le16 duration_bb;
 	u16 wReserved;
-	u16 wRTSDuration_ba_f0;
-	u16 wRTSDuration_aa_f0;
-	u16 wRTSDuration_ba_f1;
-	u16 wRTSDuration_aa_f1;
+	__le16 rts_duration_ba_f0;
+	__le16 rts_duration_aa_f0;
+	__le16 rts_duration_ba_f1;
+	__le16 rts_duration_aa_f1;
 	struct ieee80211_rts data;
 	struct vnt_tx_datahead_g_fb data_head;
 } __packed;
@@ -147,8 +147,8 @@ struct vnt_rts_a_fb {
 	struct vnt_phy_field a;
 	__le16 duration;
 	u16 wReserved;
-	u16 wRTSDuration_f0;
-	u16 wRTSDuration_f1;
+	__le16 rts_duration_f0;
+	__le16 rts_duration_f1;
 	struct ieee80211_rts data;
 	struct vnt_tx_datahead_a_fb data_head;
 } __packed;

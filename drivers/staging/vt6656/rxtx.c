@@ -613,13 +613,13 @@ static u16 vnt_rxtx_rts_g_fb_head(struct vnt_private *priv,
 		pkt_type, current_rate, need_ack, fb_option);
 
 
-	buf->wRTSDuration_ba_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F0,
+	buf->rts_duration_ba_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F0,
 		frame_len, pkt_type, priv->tx_rate_fb0, need_ack, fb_option);
-	buf->wRTSDuration_aa_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
+	buf->rts_duration_aa_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
 		frame_len, pkt_type, priv->tx_rate_fb0, need_ack, fb_option);
-	buf->wRTSDuration_ba_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F1,
+	buf->rts_duration_ba_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F1,
 		frame_len, pkt_type, priv->tx_rate_fb1, need_ack, fb_option);
-	buf->wRTSDuration_aa_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
+	buf->rts_duration_aa_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
 		frame_len, pkt_type, priv->tx_rate_fb1, need_ack, fb_option);
 
 	vnt_fill_ieee80211_rts(priv, &buf->data, eth_hdr, buf->duration_aa);
@@ -660,10 +660,10 @@ static u16 vnt_rxtx_rts_a_fb_head(struct vnt_private *priv,
 	buf->duration = s_uGetRTSCTSDuration(priv, RTSDUR_AA, frame_len,
 		pkt_type, current_rate, need_ack, fb_option);
 
-	buf->wRTSDuration_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
+	buf->rts_duration_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
 		frame_len, pkt_type, priv->tx_rate_fb0, need_ack, fb_option);
 
-	buf->wRTSDuration_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
+	buf->rts_duration_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
 		frame_len, pkt_type, priv->tx_rate_fb1, need_ack, fb_option);
 
 	vnt_fill_ieee80211_rts(priv, &buf->data, eth_hdr, buf->duration);
