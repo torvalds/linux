@@ -1248,12 +1248,6 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 	return ret;
 }
 
-static int omap_iommu_domain_has_cap(struct iommu_domain *domain,
-				    unsigned long cap)
-{
-	return 0;
-}
-
 static int omap_iommu_add_device(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data;
@@ -1305,7 +1299,6 @@ static struct iommu_ops omap_iommu_ops = {
 	.map		= omap_iommu_map,
 	.unmap		= omap_iommu_unmap,
 	.iova_to_phys	= omap_iommu_iova_to_phys,
-	.domain_has_cap	= omap_iommu_domain_has_cap,
 	.add_device	= omap_iommu_add_device,
 	.remove_device	= omap_iommu_remove_device,
 	.pgsize_bitmap	= OMAP_IOMMU_PGSIZES,
