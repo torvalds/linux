@@ -411,7 +411,7 @@
 					clk_uart4_div: clk_uart4_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 7>;
-						clocks = <&clk_uart_pll_mux>;
+						clocks = <&uart_pll_mux>;
 						clock-output-names = "clk_uart4_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -491,11 +491,11 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					spdif_pll_div: spdif_pll_div {
+					spdif_div: spdif_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 7>;
 						clocks = <&clk_spdif_pll>;
-						clock-output-names = "spdif_pll_div";
+						clock-output-names = "spdif_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 					};
@@ -505,7 +505,7 @@
 					clk_spdif: spdif_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&spdif_pll_div>, <&spdif_frac>, <&xin12m>;
+						clocks = <&spdif_div>, <&spdif_frac>, <&xin12m>;
 						clock-output-names = "clk_spdif";
 						#clock-cells = <0>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
@@ -611,7 +611,7 @@
 
 					spdif_frac: spdif_frac {
 						compatible = "rockchip,rk3188-frac-con";
-						clocks = <&spdif_pll_div>;
+						clocks = <&spdif_div>;
 						clock-output-names = "spdif_frac";
 						/* numerator	denominator */
 						rockchip,bits = <0 32>;
@@ -709,11 +709,11 @@
 						#clock-cells = <0>;
 					};
 
-					clk_hsicphy_12m_div: clk_hsicphy_12m_div {
+					hsicphy_12m_div: hsicphy_12m_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 6>;
-						clocks = <&clk_hsicphy_480m>;
-						clock-output-names = "clk_hsicphy_12m_div";
+						clocks = <&hsicphy_480m>;
+						clock-output-names = "hsicphy_12m_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 					};
@@ -813,12 +813,13 @@
 						#clock-cells = <0>;
 					};
 
-					clk_uart_pll_mux: clk_uart_pll_mux {
+					uart_pll_mux: uart_pll_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <15 1>;
 						clocks = <&clk_cpll>, <&clk_gpll>;
-						clock-output-names = "clk_uart_pll_mux";
+						clock-output-names = "uart_pll_mux";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -831,7 +832,7 @@
 					clk_uart1_div: clk_uart1_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 7>;
-						clocks = <&clk_uart_pll_mux>;
+						clocks = <&uart_pll_mux>;
 						clock-output-names = "clk_uart1_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -862,7 +863,7 @@
 					clk_uart2_div: clk_uart2_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 7>;
-						clocks = <&clk_uart_pll_mux>;
+						clocks = <&uart_pll_mux>;
 						clock-output-names = "clk_uart2_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -893,7 +894,7 @@
 					clk_uart3_div: clk_uart3_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 7>;
-						clocks = <&clk_uart_pll_mux>;
+						clocks = <&uart_pll_mux>;
 						clock-output-names = "clk_uart3_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -1303,6 +1304,7 @@
 						clock-output-names = "hclk_vio";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[14:13]: reserved */
@@ -1322,19 +1324,19 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					clk_hsicphy_480m: clk_hsicphy_480m_mux {
+					hsicphy_480m: hsicphy_480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <0 2>;
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>;
-						clock-output-names = "clk_hsicphy_480m";
+						clock-output-names = "hsicphy_480m";
 						#clock-cells = <0>;
 					};
 
-					clk_hsicphy_12m: hsicphy_12m_mux {
+					hsicphy_12m: hsicphy_12m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <2 1>;
-						clocks = <&clk_gates13 9>, <&clk_hsicphy_12m_div>;
-						clock-output-names = "clk_hsicphy_12m";
+						clocks = <&clk_gates13 9>, <&hsicphy_12m_div>;
+						clock-output-names = "hsicphy_12m";
 						#clock-cells = <0>;
 					};
 
@@ -1450,6 +1452,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>;
 						clock-output-names = "aclk_vio0";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					aclk_vio1_div: aclk_vio1_div {
@@ -1471,6 +1474,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>;
 						clock-output-names = "aclk_vio1";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1579,6 +1583,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>, <&clk_npll>;
 						clock-output-names = "clk_gpu";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_sdio1_div: clk_sdio1_div {
@@ -1848,11 +1853,11 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					spdif_8ch_pll_div: spdif_8ch_pll_div {
+					spdif_8ch_div: spdif_8ch_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 7>;
 						clocks = <&clk_spdif_pll>;
-						clock-output-names = "spdif_8ch_pll_div";
+						clock-output-names = "spdif_8ch_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 					};
@@ -1862,7 +1867,7 @@
 					clk_spdif_8ch: spdif_8ch_clk_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&spdif_8ch_pll_div>, <&spdif_8ch_frac>, <&xin12m>;
+						clocks = <&spdif_8ch_div>, <&spdif_8ch_frac>, <&xin12m>;
 						clock-output-names = "clk_spdif_8ch";
 						#clock-cells = <0>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
@@ -1890,7 +1895,7 @@
 
 					spdif_8ch_frac: spdif_8ch_frac {
 						compatible = "rockchip,rk3188-frac-con";
-						clocks = <&spdif_8ch_pll_div>;
+						clocks = <&spdif_8ch_div>;
 						clock-output-names = "spdif_8ch_frac";
 						/* numerator	denominator */
 						rockchip,bits = <0 32>;
@@ -2063,7 +2068,7 @@
 						<&aclk_vio1>,		<&dclk_lcdc1>,
 
 						<&clk_rga>,			<&aclk_rga>,
-						<&clk_hsicphy_480m>,		<&clk_cif_pll>,
+						<&hsicphy_480m>,		<&clk_cif_pll>,
 
 						<&dummy>,		<&clk_vepu>,
 						<&dummy>,		<&clk_vdpu>,
@@ -2076,7 +2081,7 @@
 						"aclk_vio1",		"dclk_lcdc1",
 
 						"clk_rga",		"aclk_rga",
-						"clk_hsicphy_480m",		"clk_cif_pll",
+						"hsicphy_480m",		"clk_cif_pll",
 
 						/*Not use hclk_vpu_gate tmp, fixme*/
 						"reserved",		"clk_vepu",
@@ -2095,8 +2100,8 @@
 						<&clk_i2s0_out>,		<&clk_i2s_pll>,
 						<&i2s0_frac>,		<&clk_i2s0>,
 
-						<&spdif_pll_div>,		<&spdif_frac>,
-						<&clk_spdif>,		<&spdif_8ch_pll_div>,
+						<&spdif_div>,		<&spdif_frac>,
+						<&clk_spdif>,		<&spdif_8ch_div>,
 
 						<&spdif_8ch_frac>,		<&clk_spdif_8ch>,
 						<&clk_tsp>,		<&clk_tspout>,
@@ -2108,8 +2113,8 @@
 						"clk_i2s0_out",		"clk_i2s_pll",
 						"i2s0_frac",		"g_clk_i2s0",
 
-						"spdif_pll_div",		"spdif_frac",
-						"clk_spdif",		"spdif_8ch_pll_div",
+						"spdif_div",		"spdif_frac",
+						"clk_spdif",		"spdif_8ch_div",
 
 						"spdif_8ch_frac",		"clk_spdif_8ch",
 						"clk_tsp",		"clk_tspout",
@@ -2139,7 +2144,7 @@
 
 					clock-output-names =
 						"g_clk_mac_rx",		"g_clk_mac_tx",
-						"g_clk_mac_ref",	"g_clk_mac_refout",
+						"g_clk_mac_ref",	"g_mac_refout",
 
 						"clk_crypto",		"clk_nandc0",
 						"clk_nandc1",		"clk_gpu",
@@ -2148,7 +2153,7 @@
 						"g_clk_pvtm_gpu",		"g_hdmi_cec_clk",
 
 						"g_hdmi_hdcp_clk",		"g_ps2c_clk",
-						"usbphy_480m",		"g_clk_mipidsi_24m";
+						"usbphy_480m",		"g_mipidsi_24m";
 
 					#clock-cells = <1>;
 				};
@@ -2170,8 +2175,8 @@
 						<&pclk_peri>,		<&pclk_peri>;
 
 					clock-output-names =
-						"g_hclk_peri_matrix",		"g_pclk_peri_axi_matrix",
-						"g_aclk_peri_axi_matrix",		"g_aclk_dmac2",
+						"g_hp_matrix",		"g_pp_axi_matrix",
+						"g_ap_axi_matrix",		"g_aclk_dmac2",
 
 						"g_pclk_spi0",		"g_pclk_spi1",
 						"g_pclk_spi2",		"g_pclk_ps2c",
@@ -2209,9 +2214,9 @@
 						"g_hclk_host0",		"g_hclk_host1",
 
 						"g_hclk_hsic",		"g_hclk_usb_peri",
-						"g_hclk_peri_ahb_arbi",		"g_aclk_peri_niu",
+						"g_hp_ahb_arbi",		"g_aclk_peri_niu",
 
-						"g_hclk_emem_peri",		"g_hclk_mem_peri",
+						"g_h_emem_peri",		"g_hclk_mem_peri",
 						"g_hclk_nandc0",		"g_hclk_nandc1";
 
 					#clock-cells = <1>;
@@ -2240,8 +2245,8 @@
 						"g_hclk_sdio0",		"g_hclk_sdio1",
 						"g_hclk_emmc",		"g_hclk_hsadc",
 
-						"g_hclk_tsp",		"g_clk_hsadc_0_tsp",
-						"g_clk_hsadc_1_tsp",		"g_clk_27m_tsp",
+						"g_hclk_tsp",		"g_hsadc_0_tsp",
+						"g_hsadc_1_tsp",		"g_clk_27m_tsp",
 
 						"g_aclk_peri_mmu",		"reserved",
 						"reserved",		"reserved";
@@ -2305,10 +2310,10 @@
 						"g_clk_intmem1",		"g_clk_intmem2",
 
 						"g_hclk_i2s",		"g_hclk_rom",
-						"g_hclk_spdif",		"g_hclk_spdif_8ch",
+						"g_hclk_spdif",		"g_h_spdif_8ch",
 
 						"g_aclk_dmac1",		"g_aclk_strc_sys",
-						"g_pclk_ddrupctl0",		"g_pclk_publ0";
+						"g_p_ddrupctl0",		"g_pclk_publ0";
 
 					#clock-cells = <1>;
 				};
@@ -2330,14 +2335,14 @@
 						<&dummy>,		<&dummy>;
 
 					clock-output-names =
-						"g_pclk_ddrupctl1",		"g_pclk_publ1",
-						"g_pclk_efuse_1024",		"g_pclk_tzpc",
+						"g_p_ddrupctl1",		"g_pclk_publ1",
+						"g_p_efuse_1024",		"g_pclk_tzpc",
 
 						"reserved",		"reserved",		/*"g_nclk_ddrupctl0", "g_nclk_ddrupctl1"*/
 						"g_aclk_crypto",		"g_hclk_crypto",
 
 						"g_aclk_ccp",	"g_pclk_uart2",
-						"g_pclk_efuse_256", 	"g_pclk_rkpwm",
+						"g_p_efuse_256", 	"g_pclk_rkpwm",
 
 						"reserved",		"reserved",
 						"reserved",		"reserved";
@@ -2435,7 +2440,7 @@
 						"g_pclk_gpio8",		"reserved",
 						"reserved",		"g_pclk_grf",
 
-						"g_pclk_alive_niu",		"reserved",
+						"g_p_alive_niu",		"reserved",
 						"reserved",		"reserved";
 
 					#clock-cells = <1>;
@@ -2464,7 +2469,7 @@
 						"g_aclk_lcdc_iep",		"g_aclk_lcdc0",
 						"g_hclk_lcdc0",		"g_aclk_lcdc1",
 
-						"g_hclk_lcdc1",		"g_hclk_vio_ahb_arbi",
+						"g_hclk_lcdc1",		"g_h_vio_ahb",
 						"g_hclk_vio_niu",		"g_aclk_vio0_niu",
 
 						"g_aclk_vio1_niu",		"g_aclk_vio2_niu",
@@ -2493,10 +2498,10 @@
 						"g_pclkin_cif",		"g_hclk_isp",
 						"g_aclk_isp",		"g_pclkin_isp",
 
-						"g_pclk_mipi_dsi0",		"g_pclk_mipi_dsi1",
-						"g_pclk_mipi_csi",		"g_pclk_lvds_phy",
+						"g_p_mipi_dsi0",		"g_p_mipi_dsi1",
+						"g_p_mipi_csi",		"g_pclk_lvds_phy",
 
-						"g_pclk_edp_ctrl",		"g_pclk_hdmi_ctrl",
+						"g_pclk_edp_ctrl",		"g_p_hdmi_ctrl",
 						"g_hclk_vio2_h2p",		"g_pclk_vio2_h2p",
 
 						"reserved",		"reserved",

@@ -283,7 +283,7 @@
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-parent =
 			<&clk_core &clk_apll>,	<&aclk_bus_src &clk_gpll>,
-			<&aclk_peri &clk_gpll>,	<&clk_uart_pll_mux &clk_gpll>,
+			<&aclk_peri &clk_gpll>,	<&uart_pll_mux &clk_gpll>,
 			<&clk_i2s_pll &clk_cpll>;
 		rockchip,clocks-init-rate =
 			<&clk_core 792000000>,	<&clk_gpll 594000000>,
