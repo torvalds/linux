@@ -923,7 +923,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc) {
 		dev_err(&pdev->dev,
 			"32-bit PCI DMA addresses not supported by the card!?\n");
-		goto err_out;
+		goto err_out_pci_disable;
 	}
 
 	/* sanity check */
@@ -931,7 +931,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    (pci_resource_len(pdev, 1) < io_size)) {
 		rc = -EIO;
 		dev_err(&pdev->dev, "Insufficient PCI resources, aborting\n");
-		goto err_out;
+		goto err_out_pci_disable;
 	}
 
 	pioaddr = pci_resource_start(pdev, 0);
@@ -942,7 +942,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev = alloc_etherdev(sizeof(struct rhine_private));
 	if (!dev) {
 		rc = -ENOMEM;
-		goto err_out;
+		goto err_out_pci_disable;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -1084,6 +1084,8 @@ err_out_free_res:
 	pci_release_regions(pdev);
 err_out_free_netdev:
 	free_netdev(dev);
+err_out_pci_disable:
+	pci_disable_device(pdev);
 err_out:
 	return rc;
 }
