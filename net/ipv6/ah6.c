@@ -643,8 +643,8 @@ out:
 	return err;
 }
 
-static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-		    u8 type, u8 code, int offset, __be32 info)
+static int ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+		   u8 type, u8 code, int offset, __be32 info)
 {
 	struct net *net = dev_net(skb->dev);
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
@@ -653,17 +653,19 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	if (type != ICMPV6_PKT_TOOBIG &&
 	    type != NDISC_REDIRECT)
-		return;
+		return 0;
 
 	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET6);
 	if (!x)
-		return;
+		return 0;
 
 	if (type == NDISC_REDIRECT)
 		ip6_redirect(skb, net, skb->dev->ifindex, 0);
 	else
 		ip6_update_pmtu(skb, net, info, 0, 0);
 	xfrm_state_put(x);
+
+	return 0;
 }
 
 static int ah6_init_state(struct xfrm_state *x)
@@ -748,6 +750,11 @@ static void ah6_destroy(struct xfrm_state *x)
 	kfree(ahp);
 }
 
+static int ah6_rcv_cb(struct sk_buff *skb, int err)
+{
+	return 0;
+}
+
 static const struct xfrm_type ah6_type =
 {
 	.description	= "AH6",
@@ -761,10 +768,11 @@ static const struct xfrm_type ah6_type =
 	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
-static const struct inet6_protocol ah6_protocol = {
+static struct xfrm6_protocol ah6_protocol = {
 	.handler	=	xfrm6_rcv,
+	.cb_handler	=	ah6_rcv_cb,
 	.err_handler	=	ah6_err,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.priority	=	0,
 };
 
 static int __init ah6_init(void)
@@ -774,7 +782,7 @@ static int __init ah6_init(void)
 		return -EAGAIN;
 	}
 
-	if (inet6_add_protocol(&ah6_protocol, IPPROTO_AH) < 0) {
+	if (xfrm6_protocol_register(&ah6_protocol, IPPROTO_AH) < 0) {
 		pr_info("%s: can't add protocol\n", __func__);
 		xfrm_unregister_type(&ah6_type, AF_INET6);
 		return -EAGAIN;
@@ -785,7 +793,7 @@ static int __init ah6_init(void)
 
 static void __exit ah6_fini(void)
 {
-	if (inet6_del_protocol(&ah6_protocol, IPPROTO_AH) < 0)
+	if (xfrm6_protocol_deregister(&ah6_protocol, IPPROTO_AH) < 0)
 		pr_info("%s: can't remove protocol\n", __func__);
 
 	if (xfrm_unregister_type(&ah6_type, AF_INET6) < 0)

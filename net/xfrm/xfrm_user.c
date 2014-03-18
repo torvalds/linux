@@ -899,7 +899,7 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (!cb->args[0]) {
 		struct nlattr *attrs[XFRMA_MAX+1];
-		struct xfrm_filter *filter = NULL;
+		struct xfrm_address_filter *filter = NULL;
 		u8 proto = 0;
 		int err;
 
@@ -910,12 +910,12 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 		if (err < 0)
 			return err;
 
-		if (attrs[XFRMA_FILTER]) {
+		if (attrs[XFRMA_ADDRESS_FILTER]) {
 			filter = kmalloc(sizeof(*filter), GFP_KERNEL);
 			if (filter == NULL)
 				return -ENOMEM;
 
-			memcpy(filter, nla_data(attrs[XFRMA_FILTER]),
+			memcpy(filter, nla_data(attrs[XFRMA_ADDRESS_FILTER]),
 			       sizeof(*filter));
 		}
 
@@ -2329,7 +2329,7 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_REPLAY_ESN_VAL]	= { .len = sizeof(struct xfrm_replay_state_esn) },
 	[XFRMA_SA_EXTRA_FLAGS]	= { .type = NLA_U32 },
 	[XFRMA_PROTO]		= { .type = NLA_U8 },
-	[XFRMA_FILTER]		= { .len = sizeof(struct xfrm_filter) },
+	[XFRMA_ADDRESS_FILTER]	= { .len = sizeof(struct xfrm_address_filter) },
 };
 
 static const struct xfrm_link {

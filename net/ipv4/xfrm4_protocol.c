@@ -179,6 +179,12 @@ static const struct net_protocol ipcomp4_protocol = {
 	.netns_ok	=	1,
 };
 
+static struct xfrm_input_afinfo xfrm4_input_afinfo = {
+	.family		=	AF_INET,
+	.owner		=	THIS_MODULE,
+	.callback	=	xfrm4_rcv_cb,
+};
+
 static inline const struct net_protocol *netproto(unsigned char protocol)
 {
 	switch (protocol) {
@@ -199,7 +205,6 @@ int xfrm4_protocol_register(struct xfrm4_protocol *handler,
 	struct xfrm4_protocol __rcu **pprev;
 	struct xfrm4_protocol *t;
 	bool add_netproto = false;
-
 	int ret = -EEXIST;
 	int priority = handler->priority;
 
@@ -273,3 +278,9 @@ int xfrm4_protocol_deregister(struct xfrm4_protocol *handler,
 	return ret;
 }
 EXPORT_SYMBOL(xfrm4_protocol_deregister);
+
+void __init xfrm4_protocol_init(void)
+{
+	xfrm_input_register_afinfo(&xfrm4_input_afinfo);
+}
+EXPORT_SYMBOL(xfrm4_protocol_init);

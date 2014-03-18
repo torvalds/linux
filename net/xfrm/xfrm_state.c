@@ -1609,7 +1609,7 @@ unlock:
 EXPORT_SYMBOL(xfrm_alloc_spi);
 
 static bool __xfrm_state_filter_match(struct xfrm_state *x,
-				      struct xfrm_filter *filter)
+				      struct xfrm_address_filter *filter)
 {
 	if (filter) {
 		if ((filter->family == AF_INET ||
@@ -1668,7 +1668,7 @@ out:
 EXPORT_SYMBOL(xfrm_state_walk);
 
 void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto,
-			  struct xfrm_filter *filter)
+			  struct xfrm_address_filter *filter)
 {
 	INIT_LIST_HEAD(&walk->all);
 	walk->proto = proto;

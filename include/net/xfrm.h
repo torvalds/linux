@@ -121,7 +121,7 @@ struct xfrm_state_walk {
 	u8			dying;
 	u8			proto;
 	u32			seq;
-	struct xfrm_filter	*filter;
+	struct xfrm_address_filter *filter;
 };
 
 /* Full description of state of transformer. */
@@ -348,6 +348,16 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo);
 int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
 struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
 void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
+
+struct xfrm_input_afinfo {
+	unsigned int		family;
+	struct module		*owner;
+	int			(*callback)(struct sk_buff *skb, u8 protocol,
+					    int err);
+};
+
+int xfrm_input_register_afinfo(struct xfrm_input_afinfo *afinfo);
+int xfrm_input_unregister_afinfo(struct xfrm_input_afinfo *afinfo);
 
 void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
@@ -1364,18 +1374,22 @@ struct xfrm4_protocol {
 	int priority;
 };
 
+struct xfrm6_protocol {
+	int (*handler)(struct sk_buff *skb);
+	int (*cb_handler)(struct sk_buff *skb, int err);
+	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			   u8 type, u8 code, int offset, __be32 info);
+
+	struct xfrm6_protocol __rcu *next;
+	int priority;
+};
+
 /* XFRM tunnel handlers.  */
 struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, u32 info);
 
 	struct xfrm_tunnel __rcu *next;
-	int priority;
-};
-
-struct xfrm_tunnel_notifier {
-	int (*handler)(struct sk_buff *skb);
-	struct xfrm_tunnel_notifier __rcu *next;
 	int priority;
 };
 
@@ -1392,11 +1406,14 @@ void xfrm4_init(void);
 int xfrm_state_init(struct net *net);
 void xfrm_state_fini(struct net *net);
 void xfrm4_state_init(void);
+void xfrm4_protocol_init(void);
 #ifdef CONFIG_XFRM
 int xfrm6_init(void);
 void xfrm6_fini(void);
 int xfrm6_state_init(void);
 void xfrm6_state_fini(void);
+int xfrm6_protocol_init(void);
+void xfrm6_protocol_fini(void);
 #else
 static inline int xfrm6_init(void)
 {
@@ -1423,7 +1440,7 @@ static inline void xfrm_sysctl_fini(struct net *net)
 #endif
 
 void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto,
-			  struct xfrm_filter *filter);
+			  struct xfrm_address_filter *filter);
 int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 		    int (*func)(struct xfrm_state *, int, void*), void *);
 void xfrm_state_walk_done(struct xfrm_state_walk *walk, struct net *net);
@@ -1531,8 +1548,6 @@ int xfrm4_protocol_deregister(struct xfrm4_protocol *handler, unsigned char prot
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 void xfrm4_local_error(struct sk_buff *skb, u32 mtu);
-int xfrm6_mode_tunnel_input_register(struct xfrm_tunnel_notifier *handler);
-int xfrm6_mode_tunnel_input_deregister(struct xfrm_tunnel_notifier *handler);
 int xfrm6_extract_header(struct sk_buff *skb);
 int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
@@ -1541,6 +1556,9 @@ int xfrm6_rcv(struct sk_buff *skb);
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto);
 void xfrm6_local_error(struct sk_buff *skb, u32 mtu);
+int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
+int xfrm6_protocol_register(struct xfrm6_protocol *handler, unsigned char protocol);
+int xfrm6_protocol_deregister(struct xfrm6_protocol *handler, unsigned char protocol);
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
 int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
 __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
@@ -1782,18 +1800,6 @@ static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 	if (m->m | m->v)
 		ret = nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
 	return ret;
-}
-
-static inline int xfrm_rcv_cb(struct sk_buff *skb, unsigned int family,
-			      u8 protocol, int err)
-{
-	switch(family) {
-#ifdef CONFIG_INET
-	case AF_INET:
-		return xfrm4_rcv_cb(skb, protocol, err);
-#endif
-	}
-	return 0;
 }
 
 static inline int xfrm_tunnel_check(struct sk_buff *skb, struct xfrm_state *x,

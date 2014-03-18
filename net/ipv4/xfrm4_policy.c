@@ -325,6 +325,7 @@ void __init xfrm4_init(void)
 
 	xfrm4_state_init();
 	xfrm4_policy_init();
+	xfrm4_protocol_init();
 #ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&xfrm4_net_ops);
 #endif
