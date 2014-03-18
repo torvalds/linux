@@ -56,6 +56,7 @@ struct netns_ipv4 {
 
 	unsigned int sysctl_ping_group_range[2];
 	long sysctl_tcp_mem[3];
+	int sysctl_fwmark_reflect;
 
 	atomic_t rt_genid;
 	atomic_t dev_addr_genid;
