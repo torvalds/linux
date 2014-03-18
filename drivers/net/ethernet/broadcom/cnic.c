@@ -342,7 +342,7 @@ static int cnic_send_nlmsg(struct cnic_local *cp, u32 type,
 	while (retry < 3) {
 		rc = 0;
 		rcu_read_lock();
-		ulp_ops = rcu_dereference(cnic_ulp_tbl[CNIC_ULP_ISCSI]);
+		ulp_ops = rcu_dereference(cp->ulp_ops[CNIC_ULP_ISCSI]);
 		if (ulp_ops)
 			rc = ulp_ops->iscsi_nl_send_msg(
 				cp->ulp_handle[CNIC_ULP_ISCSI],
@@ -3244,7 +3244,8 @@ static int cnic_copy_ulp_stats(struct cnic_dev *dev, int ulp_type)
 	int rc;
 
 	mutex_lock(&cnic_lock);
-	ulp_ops = cnic_ulp_tbl_prot(ulp_type);
+	ulp_ops = rcu_dereference_protected(cp->ulp_ops[ulp_type],
+					    lockdep_is_held(&cnic_lock));
 	if (ulp_ops && ulp_ops->cnic_get_stats)
 		rc = ulp_ops->cnic_get_stats(cp->ulp_handle[ulp_type]);
 	else
