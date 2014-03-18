@@ -246,33 +246,29 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	int ret;
 	u8 ack;
 
-	/* Set up the command byte */
-	if (mode & MODE_I2C_READ)
-		msg[2] = DP_AUX_I2C_READ << 4;
-	else
-		msg[2] = DP_AUX_I2C_WRITE << 4;
-
-	if (!(mode & MODE_I2C_STOP))
-		msg[2] |= DP_AUX_I2C_MOT << 4;
-
+	/* Set up the address */
 	msg[0] = address;
 	msg[1] = address >> 8;
 
-	switch (mode) {
-	case MODE_I2C_WRITE:
+	/* Set up the command byte */
+	if (mode & MODE_I2C_READ) {
+		msg[2] = DP_AUX_I2C_READ << 4;
+		msg_bytes = 4;
+		msg[3] = msg_bytes << 4;
+	} else {
+		msg[2] = DP_AUX_I2C_WRITE << 4;
 		msg_bytes = 5;
 		msg[3] = msg_bytes << 4;
 		msg[4] = write_byte;
-		break;
-	case MODE_I2C_READ:
-		msg_bytes = 4;
-		msg[3] = msg_bytes << 4;
-		break;
-	default:
-		msg_bytes = 4;
-		msg[3] = 3 << 4;
-		break;
 	}
+
+	/* special handling for start/stop */
+	if (mode & (MODE_I2C_START | MODE_I2C_STOP))
+		msg[3] = 3 << 4;
+
+	/* Set MOT bit for all but stop */
+	if ((mode & MODE_I2C_STOP) == 0)
+		msg[2] |= DP_AUX_I2C_MOT << 4;
 
 	for (retry = 0; retry < 7; retry++) {
 		ret = radeon_process_aux_ch(auxch,
