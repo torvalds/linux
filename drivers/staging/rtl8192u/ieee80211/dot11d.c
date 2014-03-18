@@ -2,8 +2,7 @@
 
 #include "dot11d.h"
 
-void
-Dot11d_Init(struct ieee80211_device *ieee)
+void Dot11d_Init(struct ieee80211_device *ieee)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
 
@@ -19,8 +18,7 @@ Dot11d_Init(struct ieee80211_device *ieee)
 }
 
 /* Reset to the state as we are just entering a regulatory domain. */
-void
-Dot11d_Reset(struct ieee80211_device *ieee)
+void Dot11d_Reset(struct ieee80211_device *ieee)
 {
 	u32 i;
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
@@ -48,13 +46,8 @@ Dot11d_Reset(struct ieee80211_device *ieee)
  * 1. IS_DOT11D_ENABLE() is TRUE.
  * 2. Input IE is an valid one.
  */
-void
-Dot11d_UpdateCountryIe(
-	struct ieee80211_device *dev,
-	u8 *pTaddr,
-	u16	CoutryIeLen,
-	u8 *pCoutryIe
-	)
+void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
+			    u16 CoutryIeLen, u8 *pCoutryIe)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 i, j, NumTriples, MaxChnlNum;
@@ -103,11 +96,7 @@ Dot11d_UpdateCountryIe(
 }
 
 
-u8
-DOT11D_GetMaxTxPwrInDbm(
-	struct ieee80211_device *dev,
-	u8 Channel
-	)
+u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 MaxTxPwrInDbm = 255;
@@ -123,10 +112,7 @@ DOT11D_GetMaxTxPwrInDbm(
 }
 
 
-void
-DOT11D_ScanComplete(
-	struct ieee80211_device *dev
-	)
+void DOT11D_ScanComplete(struct ieee80211_device *dev)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 
@@ -146,10 +132,7 @@ DOT11D_ScanComplete(
 	}
 }
 
-int IsLegalChannel(
-	struct ieee80211_device *dev,
-	u8 channel
-)
+int IsLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 
@@ -162,10 +145,7 @@ int IsLegalChannel(
 	return 0;
 }
 
-int ToLegalChannel(
-	struct ieee80211_device *dev,
-	u8 channel
-)
+int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 default_chn = 0;
