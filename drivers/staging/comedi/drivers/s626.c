@@ -106,16 +106,16 @@ struct s626_private {
 struct s626_enc_info {
 	/* Pointers to functions that differ for A and B counters: */
 	/* Return clock enable. */
-	uint16_t(*get_enable)(struct comedi_device *dev,
+	uint16_t (*get_enable)(struct comedi_device *dev,
 			      const struct s626_enc_info *k);
 	/* Return interrupt source. */
-	uint16_t(*get_int_src)(struct comedi_device *dev,
+	uint16_t (*get_int_src)(struct comedi_device *dev,
 			       const struct s626_enc_info *k);
 	/* Return preload trigger source. */
-	uint16_t(*get_load_trig)(struct comedi_device *dev,
+	uint16_t (*get_load_trig)(struct comedi_device *dev,
 				 const struct s626_enc_info *k);
 	/* Return standardized operating mode. */
-	uint16_t(*get_mode)(struct comedi_device *dev,
+	uint16_t (*get_mode)(struct comedi_device *dev,
 			    const struct s626_enc_info *k);
 	/* Generate soft index strobe. */
 	void (*pulse_index)(struct comedi_device *dev,
