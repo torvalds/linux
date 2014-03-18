@@ -634,3 +634,22 @@ _GLOBAL(kexec_sequence)
 	li	r5,0
 	blr	/* image->start(physid, image->start, 0); */
 #endif /* CONFIG_KEXEC */
+
+#ifdef CONFIG_MODULES
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+/*
+ * Export a fake .TOC. since both modpost and depmod will complain otherwise.
+ * Both modpost and depmod strip the leading . so we do the same here.
+ */
+.section "__ksymtab_strings","a"
+__kstrtab_TOC.:
+	.asciz "TOC."
+
+.section "___ksymtab+TOC.","a"
+/* This symbol name is important: it's used by modpost to find exported syms */
+.globl __ksymtab_TOC.
+__ksymtab_TOC.:
+	.llong 0 /* .value */
+	.llong __kstrtab_TOC.
+#endif /* ELFv2 */
+#endif /* MODULES */
