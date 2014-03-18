@@ -1017,6 +1017,7 @@ int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__hrtimer_start_range_ns);
 
 /**
  * hrtimer_start_range_ns - (re)start an hrtimer on the current CPU
