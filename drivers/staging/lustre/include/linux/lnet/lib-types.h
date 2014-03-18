@@ -321,8 +321,8 @@ typedef struct lnet_lnd
 	/* fields initialised by the LND */
 	unsigned int	  lnd_type;
 
-	int  (*lnd_startup) (struct lnet_ni *ni);
-	void (*lnd_shutdown) (struct lnet_ni *ni);
+	int  (*lnd_startup)(struct lnet_ni *ni);
+	void (*lnd_shutdown)(struct lnet_ni *ni);
 	int  (*lnd_ctl)(struct lnet_ni *ni, unsigned int cmd, void *arg);
 
 	/* In data movement APIs below, payload buffers are described as a set
