@@ -1359,15 +1359,30 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 {
 	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
 			mtd);
+	struct nand_ecc_ctrl *ecc = &info->nand.ecc;
 	int eccsteps = info->nand.ecc.steps;
 	int i , j, stat = 0;
-	int eccsize, eccflag, ecc_vector_size;
+	int eccflag, actual_eccbytes;
 	struct elm_errorvec err_vec[ERROR_VECTOR_MAX];
 	u_char *ecc_vec = calc_ecc;
 	u_char *spare_ecc = read_ecc;
 	u_char *erased_ecc_vec;
 	enum bch_ecc type;
 	bool is_error_reported = false;
+
+	switch (info->ecc_opt) {
+	case OMAP_ECC_BCH4_CODE_HW:
+		/* omit  7th ECC byte reserved for ROM code compatibility */
+		actual_eccbytes = ecc->bytes - 1;
+		break;
+	case OMAP_ECC_BCH8_CODE_HW:
+		/* omit 14th ECC byte reserved for ROM code compatibility */
+		actual_eccbytes = ecc->bytes - 1;
+		break;
+	default:
+		pr_err("invalid driver configuration\n");
+		return -EINVAL;
+	}
 
 	/* Initialize elm error vector to zero */
 	memset(err_vec, 0, sizeof(err_vec));
@@ -1380,14 +1395,6 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 		erased_ecc_vec = bch4_vector;
 	}
 
-	ecc_vector_size = info->nand.ecc.bytes;
-
-	/*
-	 * Remove extra byte padding for BCH8 RBL
-	 * compatibility and erased page handling
-	 */
-	eccsize = ecc_vector_size - 1;
-
 	for (i = 0; i < eccsteps ; i++) {
 		eccflag = 0;	/* initialize eccflag */
 
@@ -1395,8 +1402,7 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 		 * Check any error reported,
 		 * In case of error, non zero ecc reported.
 		 */
-
-		for (j = 0; (j < eccsize); j++) {
+		for (j = 0; j < actual_eccbytes; j++) {
 			if (calc_ecc[j] != 0) {
 				eccflag = 1; /* non zero ecc, error present */
 				break;
@@ -1421,7 +1427,7 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 			 * zeros are more than threshold erased page, either
 			 * case page reported as uncorrectable.
 			 */
-			if (hweight8(~read_ecc[eccsize]) >= threshold) {
+			if (hweight8(~read_ecc[actual_eccbytes]) >= threshold) {
 				/*
 				 * Update elm error vector as
 				 * data area is programmed
@@ -1433,7 +1439,8 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 				int bitflip_count;
 				u_char *buf = &data[info->nand.ecc.size * i];
 
-				if (memcmp(calc_ecc, erased_ecc_vec, eccsize)) {
+				if (memcmp(calc_ecc, erased_ecc_vec,
+							 actual_eccbytes)) {
 					bitflip_count = erased_sector_bitflips(
 							buf, read_ecc, info);
 
@@ -1446,8 +1453,8 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 		}
 
 		/* Update the ecc vector */
-		calc_ecc += ecc_vector_size;
-		read_ecc += ecc_vector_size;
+		calc_ecc += ecc->bytes;
+		read_ecc += ecc->bytes;
 	}
 
 	/* Check if any error reported */
@@ -1496,7 +1503,7 @@ static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
 
 		/* Update page data with sector size */
 		data += info->nand.ecc.size;
-		spare_ecc += ecc_vector_size;
+		spare_ecc += ecc->bytes;
 	}
 
 	for (i = 0; i < eccsteps; i++)
