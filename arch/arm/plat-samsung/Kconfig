@@ -444,7 +444,8 @@ config S3C_PM_DEBUG_LED_SMDK
 
 config SAMSUNG_PM_CHECK
 	bool "S3C2410 PM Suspend Memory CRC"
-	depends on PM && CRC32
+	depends on PM
+	select CRC32
 	help
 	  Enable the PM code's memory area checksum over sleep. This option
 	  will generate CRCs of all blocks of memory, and store them before
