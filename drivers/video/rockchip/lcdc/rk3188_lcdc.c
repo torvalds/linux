@@ -1114,9 +1114,6 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 static int rk3188_lcdc_blank(struct rk_lcdc_driver *dev_drv,
 			     int win_id, int blank_mode)
 {
-	struct lcdc_device *lcdc_dev =
-	    container_of(dev_drv, struct lcdc_device, driver);
-
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		rk3188_lcdc_early_resume(dev_drv);
@@ -1485,7 +1482,10 @@ static int rk3188_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv, 
 					struct lcdc_device, driver);
-	lcdc_cfg_done(lcdc_dev);
+	spin_lock(&lcdc_dev->reg_lock);
+	if (lcdc_dev->clk_on)
+		lcdc_cfg_done(lcdc_dev);
+	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
 }
 
