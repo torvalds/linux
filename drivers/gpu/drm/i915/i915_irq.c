@@ -2519,6 +2519,39 @@ ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
 }
 
 static struct intel_ring_buffer *
+semaphore_wait_to_signaller_ring(struct intel_ring_buffer *ring, u32 ipehr)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct intel_ring_buffer *signaller;
+	int i;
+
+	if (INTEL_INFO(dev_priv->dev)->gen >= 8) {
+		/*
+		 * FIXME: gen8 semaphore support - currently we don't emit
+		 * semaphores on bdw anyway, but this needs to be addressed when
+		 * we merge that code.
+		 */
+		return NULL;
+	} else {
+		u32 sync_bits = ipehr & MI_SEMAPHORE_SYNC_MASK;
+
+		for_each_ring(signaller, dev_priv, i) {
+			if(ring == signaller)
+				continue;
+
+			if (sync_bits ==
+			    signaller->semaphore_register[ring->id])
+				return signaller;
+		}
+	}
+
+	DRM_ERROR("No signaller ring found for ring %i, ipehr 0x%08x\n",
+		  ring->id, ipehr);
+
+	return NULL;
+}
+
+static struct intel_ring_buffer *
 semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
@@ -2558,7 +2591,7 @@ semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
 		return NULL;
 
 	*seqno = ioread32(ring->virtual_start + head + 4) + 1;
-	return &dev_priv->ring[(ring->id + (((ipehr >> 17) & 1) + 1)) % 3];
+	return semaphore_wait_to_signaller_ring(ring, ipehr);
 }
 
 static int semaphore_passed(struct intel_ring_buffer *ring)
