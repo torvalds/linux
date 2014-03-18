@@ -757,7 +757,8 @@ static void cap_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static int cap_xfrm_policy_alloc_security(struct xfrm_sec_ctx **ctxp,
-					  struct xfrm_user_sec_ctx *sec_ctx)
+					  struct xfrm_user_sec_ctx *sec_ctx,
+					  gfp_t gfp)
 {
 	return 0;
 }
