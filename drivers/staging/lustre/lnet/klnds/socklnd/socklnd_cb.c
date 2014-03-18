@@ -2229,7 +2229,7 @@ ksocknal_connd (void *arg)
 		spin_unlock_bh(connd_lock);
 
 		nloops = 0;
-		waitq_timedwait(&wait, TASK_INTERRUPTIBLE, timeout);
+		schedule_timeout(timeout);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&ksocknal_data.ksnd_connd_waitq, &wait);
@@ -2639,8 +2639,7 @@ ksocknal_reaper (void *arg)
 		if (!ksocknal_data.ksnd_shuttingdown &&
 		    list_empty (&ksocknal_data.ksnd_deathrow_conns) &&
 		    list_empty (&ksocknal_data.ksnd_zombie_conns))
-			waitq_timedwait (&wait, TASK_INTERRUPTIBLE,
-					     timeout);
+			schedule_timeout(timeout);
 
 		set_current_state (TASK_RUNNING);
 		remove_wait_queue (&ksocknal_data.ksnd_reaper_waitq, &wait);

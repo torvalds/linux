@@ -564,9 +564,7 @@ do {									   \
 					     min_t(cfs_duration_t,	     \
 						 info->lwi_interval,__timeout):\
 					     __timeout;			\
-			cfs_duration_t remaining = waitq_timedwait(&__wait,\
-						   __wstate,		   \
-						   interval);		  \
+			cfs_duration_t remaining = schedule_timeout(interval);\
 			__timeout = cfs_time_sub(__timeout,		    \
 					    cfs_time_sub(interval, remaining));\
 			if (__timeout == 0) {				  \

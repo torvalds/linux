@@ -223,8 +223,7 @@ find_again:
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock(&cache->uc_lock);
 
-		left = waitq_timedwait(&wait, TASK_INTERRUPTIBLE,
-					   expiry);
+		left = schedule_timeout(expiry);
 
 		spin_lock(&cache->uc_lock);
 		remove_wait_queue(&entry->ue_waitq, &wait);
