@@ -327,7 +327,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
     }
 }
 
-static u16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
+static __le16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
 {
 	return cpu_to_le16(wTimeStampOff[priv->byPreambleType % 2]
 							[rate % MAX_RATE]);
