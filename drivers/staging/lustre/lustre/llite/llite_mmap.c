@@ -370,7 +370,7 @@ restart:
 			goto restart;
 		}
 
-		result |= VM_FAULT_LOCKED;
+		result = VM_FAULT_LOCKED;
 	}
 	cfs_restore_sigs(set);
 	return result;
