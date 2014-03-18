@@ -4546,36 +4546,6 @@ retry:
 	ext4_std_error(inode->i_sb, err);
 }
 
-static void ext4_falloc_update_inode(struct inode *inode,
-				int mode, loff_t new_size, int update_ctime)
-{
-	struct timespec now;
-
-	if (update_ctime) {
-		now = current_fs_time(inode->i_sb);
-		if (!timespec_equal(&inode->i_ctime, &now))
-			inode->i_ctime = now;
-	}
-	/*
-	 * Update only when preallocation was requested beyond
-	 * the file size.
-	 */
-	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
-		if (new_size > i_size_read(inode))
-			i_size_write(inode, new_size);
-		if (new_size > EXT4_I(inode)->i_disksize)
-			ext4_update_i_disksize(inode, new_size);
-	} else {
-		/*
-		 * Mark that we allocate beyond EOF so the subsequent truncate
-		 * can proceed even if the new size is the same as i_size.
-		 */
-		if (new_size > i_size_read(inode))
-			ext4_set_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
-	}
-
-}
-
 /*
  * preallocate space for a file. This implements ext4's fallocate file
  * operation, which gets called from sys_fallocate system call.
@@ -4587,13 +4557,14 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
 	struct inode *inode = file_inode(file);
 	handle_t *handle;
-	loff_t new_size;
+	loff_t new_size = 0;
 	unsigned int max_blocks;
 	int ret = 0;
 	int ret2 = 0;
 	int retries = 0;
 	int flags;
 	struct ext4_map_blocks map;
+	struct timespec tv;
 	unsigned int credits, blkbits = inode->i_blkbits;
 
 	/* Return error if mode is not supported */
@@ -4631,12 +4602,15 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	 */
 	credits = ext4_chunk_trans_blocks(inode, max_blocks);
 	mutex_lock(&inode->i_mutex);
-	ret = inode_newsize_ok(inode, (len + offset));
-	if (ret) {
-		mutex_unlock(&inode->i_mutex);
-		trace_ext4_fallocate_exit(inode, offset, max_blocks, ret);
-		return ret;
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+	     offset + len > i_size_read(inode)) {
+		new_size = offset + len;
+		ret = inode_newsize_ok(inode, new_size);
+		if (ret)
+			goto out;
 	}
+
 	flags = EXT4_GET_BLOCKS_CREATE_UNINIT_EXT;
 	if (mode & FALLOC_FL_KEEP_SIZE)
 		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
@@ -4660,28 +4634,14 @@ retry:
 		}
 		ret = ext4_map_blocks(handle, inode, &map, flags);
 		if (ret <= 0) {
-#ifdef EXT4FS_DEBUG
-			ext4_warning(inode->i_sb,
-				     "inode #%lu: block %u: len %u: "
-				     "ext4_ext_map_blocks returned %d",
-				     inode->i_ino, map.m_lblk,
-				     map.m_len, ret);
-#endif
+			ext4_debug("inode #%lu: block %u: len %u: "
+				   "ext4_ext_map_blocks returned %d",
+				   inode->i_ino, map.m_lblk,
+				   map.m_len, ret);
 			ext4_mark_inode_dirty(handle, inode);
 			ret2 = ext4_journal_stop(handle);
 			break;
 		}
-		if ((map.m_lblk + ret) >= (EXT4_BLOCK_ALIGN(offset + len,
-						blkbits) >> blkbits))
-			new_size = offset + len;
-		else
-			new_size = ((loff_t) map.m_lblk + ret) << blkbits;
-
-		ext4_falloc_update_inode(inode, mode, new_size,
-					 (map.m_flags & EXT4_MAP_NEW));
-		ext4_mark_inode_dirty(handle, inode);
-		if ((file->f_flags & O_SYNC) && ret >= max_blocks)
-			ext4_handle_sync(handle);
 		ret2 = ext4_journal_stop(handle);
 		if (ret2)
 			break;
@@ -4691,6 +4651,34 @@ retry:
 		ret = 0;
 		goto retry;
 	}
+
+	handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+	if (IS_ERR(handle))
+		goto out;
+
+	tv = inode->i_ctime = ext4_current_time(inode);
+
+	if (ret > 0 && new_size) {
+		if (new_size > i_size_read(inode)) {
+			i_size_write(inode, new_size);
+			inode->i_mtime = tv;
+		}
+		if (new_size > EXT4_I(inode)->i_disksize)
+			ext4_update_i_disksize(inode, new_size);
+	} else if (ret > 0 && !new_size) {
+		/*
+		* Mark that we allocate beyond EOF so the subsequent truncate
+		* can proceed even if the new size is the same as i_size.
+		*/
+		if ((offset + len) > i_size_read(inode))
+			ext4_set_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
+	}
+	ext4_mark_inode_dirty(handle, inode);
+	if (file->f_flags & O_SYNC)
+		ext4_handle_sync(handle);
+
+	ext4_journal_stop(handle);
+out:
 	mutex_unlock(&inode->i_mutex);
 	trace_ext4_fallocate_exit(inode, offset, max_blocks,
 				ret > 0 ? ret2 : ret);
