@@ -167,14 +167,18 @@ fi
 qemu_pid=$!
 commandcompleted=0
 echo Monitoring qemu job at pid $qemu_pid
-for ((i=0;i<$seconds;i++))
+while :
 do
+	kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 	if kill -0 $qemu_pid > /dev/null 2>&1
 	then
+		if test $kruntime -ge $seconds
+		then
+			break;
+		fi
 		sleep 1
 	else
 		commandcompleted=1
-		kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 		if test $kruntime -lt $seconds
 		then
 			echo Completed in $kruntime vs. $seconds >> $resdir/Warnings 2>&1
@@ -194,20 +198,22 @@ done
 if test $commandcompleted -eq 0
 then
 	echo Grace period for qemu job at pid $qemu_pid
-	for ((i=0;i<=$grace;i++))
+	while :
 	do
+		kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 		if kill -0 $qemu_pid > /dev/null 2>&1
 		then
-			sleep 1
+			:
 		else
 			break
 		fi
-		if test $i -eq $grace
+		if test $kruntime -ge $((seconds + grace))
 		then
-			kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }'`
 			echo "!!! Hang at $kruntime vs. $seconds seconds" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
+			break
 		fi
+		sleep 1
 	done
 fi
 
