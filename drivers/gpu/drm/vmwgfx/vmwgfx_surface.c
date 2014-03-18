@@ -876,6 +876,64 @@ out_unlock:
 	return ret;
 }
 
+
+static int
+vmw_surface_handle_reference(struct vmw_private *dev_priv,
+			     struct drm_file *file_priv,
+			     uint32_t u_handle,
+			     enum drm_vmw_handle_type handle_type,
+			     struct ttm_base_object **base_p)
+{
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	uint32_t handle;
+	struct ttm_base_object *base;
+	int ret;
+
+	if (handle_type == DRM_VMW_HANDLE_PRIME) {
+		ret = ttm_prime_fd_to_handle(tfile, u_handle, &handle);
+		if (unlikely(ret != 0))
+			return ret;
+	} else {
+		if (unlikely(drm_is_render_client(file_priv))) {
+			DRM_ERROR("Render client refused legacy "
+				  "surface reference.\n");
+			return -EACCES;
+		}
+		handle = u_handle;
+	}
+
+	ret = -EINVAL;
+	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, handle);
+	if (unlikely(base == NULL)) {
+		DRM_ERROR("Could not find surface to reference.\n");
+		goto out_no_lookup;
+	}
+
+	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE)) {
+		DRM_ERROR("Referenced object is not a surface.\n");
+		goto out_bad_resource;
+	}
+
+	if (handle_type != DRM_VMW_HANDLE_PRIME) {
+		ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL);
+		if (unlikely(ret != 0)) {
+			DRM_ERROR("Could not add a reference to a surface.\n");
+			goto out_bad_resource;
+		}
+	}
+
+	*base_p = base;
+	return 0;
+
+out_bad_resource:
+	ttm_base_object_unref(&base);
+out_no_lookup:
+	if (handle_type == DRM_VMW_HANDLE_PRIME)
+		(void) ttm_ref_object_base_unref(tfile, handle, TTM_REF_USAGE);
+
+	return ret;
+}
+
 /**
  * vmw_user_surface_define_ioctl - Ioctl function implementing
  *                                  the user surface reference functionality.
@@ -897,26 +955,15 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	struct vmw_user_surface *user_srf;
 	struct drm_vmw_size __user *user_sizes;
 	struct ttm_base_object *base;
-	int ret = -EINVAL;
+	int ret;
 
-	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, req->sid);
-	if (unlikely(base == NULL)) {
-		DRM_ERROR("Could not find surface to reference.\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE))
-		goto out_bad_resource;
+	ret = vmw_surface_handle_reference(dev_priv, file_priv, req->sid,
+					   req->handle_type, &base);
+	if (unlikely(ret != 0))
+		return ret;
 
 	user_srf = container_of(base, struct vmw_user_surface, prime.base);
 	srf = &user_srf->srf;
-
-	ret = ttm_ref_object_add(tfile, &user_srf->prime.base,
-				 TTM_REF_USAGE, NULL);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not add a reference to a surface.\n");
-		goto out_no_reference;
-	}
 
 	rep->flags = srf->flags;
 	rep->format = srf->format;
@@ -930,10 +977,10 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("copy_to_user failed %p %u\n",
 			  user_sizes, srf->num_sizes);
+		ttm_ref_object_base_unref(tfile, base->hash.key, TTM_REF_USAGE);
 		ret = -EFAULT;
 	}
-out_bad_resource:
-out_no_reference:
+
 	ttm_base_object_unref(&base);
 
 	return ret;
@@ -1313,26 +1360,15 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 	uint32_t backup_handle;
 	int ret = -EINVAL;
 
-	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, req->sid);
-	if (unlikely(base == NULL)) {
-		DRM_ERROR("Could not find surface to reference.\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE))
-		goto out_bad_resource;
+	ret = vmw_surface_handle_reference(dev_priv, file_priv, req->sid,
+					   req->handle_type, &base);
+	if (unlikely(ret != 0))
+		return ret;
 
 	user_srf = container_of(base, struct vmw_user_surface, prime.base);
 	srf = &user_srf->srf;
 	if (srf->res.backup == NULL) {
 		DRM_ERROR("Shared GB surface is missing a backup buffer.\n");
-		goto out_bad_resource;
-	}
-
-	ret = ttm_ref_object_add(tfile, &user_srf->prime.base,
-				 TTM_REF_USAGE, NULL);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not add a reference to a GB surface.\n");
 		goto out_bad_resource;
 	}
 
@@ -1344,8 +1380,7 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not add a reference to a GB surface "
 			  "backup buffer.\n");
-		(void) ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-						 req->sid,
+		(void) ttm_ref_object_base_unref(tfile, base->hash.key,
 						 TTM_REF_USAGE);
 		goto out_bad_resource;
 	}
