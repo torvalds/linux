@@ -347,7 +347,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(sec_pmic->regmap_rtc);
 		dev_err(&i2c->dev, "Failed to allocate RTC register map: %d\n",
 			ret);
-		return ret;
+		goto err_regmap_rtc;
 	}
 
 	if (pdata && pdata->cfg_pmic_irq)
@@ -388,14 +388,15 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	}
 
 	if (ret)
-		goto err;
+		goto err_mfd;
 
 	device_init_wakeup(sec_pmic->dev, sec_pmic->wakeup);
 
 	return ret;
 
-err:
+err_mfd:
 	sec_irq_exit(sec_pmic);
+err_regmap_rtc:
 	i2c_unregister_device(sec_pmic->rtc);
 	return ret;
 }
