@@ -488,7 +488,7 @@ static u16 vnt_rxtx_datahead_g(struct vnt_private *priv, u8 pkt_type, u16 rate,
 	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
 					priv->byTopCCKBasicRate);
 
-	return buf->duration_a;
+	return le16_to_cpu(buf->duration_a);
 }
 
 static u16 vnt_rxtx_datahead_g_fb(struct vnt_private *priv, u8 pkt_type,
@@ -512,7 +512,7 @@ static u16 vnt_rxtx_datahead_g_fb(struct vnt_private *priv, u8 pkt_type,
 	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
 						priv->byTopCCKBasicRate);
 
-	return buf->duration_a;
+	return le16_to_cpu(buf->duration_a);
 }
 
 static u16 vnt_rxtx_datahead_a_fb(struct vnt_private *priv, u8 pkt_type,
@@ -529,7 +529,7 @@ static u16 vnt_rxtx_datahead_a_fb(struct vnt_private *priv, u8 pkt_type,
 
 	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
 
-	return buf->duration;
+	return le16_to_cpu(buf->duration);
 }
 
 static u16 vnt_rxtx_datahead_ab(struct vnt_private *priv, u8 pkt_type,
@@ -543,7 +543,7 @@ static u16 vnt_rxtx_datahead_ab(struct vnt_private *priv, u8 pkt_type,
 
 	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
 
-	return buf->duration;
+	return le16_to_cpu(buf->duration);
 }
 
 static int vnt_fill_ieee80211_rts(struct vnt_private *priv,
