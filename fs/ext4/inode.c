@@ -503,6 +503,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 {
 	struct extent_status es;
 	int retval;
+	int ret = 0;
 #ifdef ES_AGGRESSIVE_TEST
 	struct ext4_map_blocks orig_map;
 
@@ -558,7 +559,6 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 					     EXT4_GET_BLOCKS_KEEP_SIZE);
 	}
 	if (retval > 0) {
-		int ret;
 		unsigned int status;
 
 		if (unlikely(retval != map->m_len)) {
@@ -585,7 +585,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 
 found:
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode, map);
+		ret = check_block_validity(inode, map);
 		if (ret != 0)
 			return ret;
 	}
@@ -602,7 +602,13 @@ found:
 	 * with buffer head unmapped.
 	 */
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED)
-		return retval;
+		/*
+		 * If we need to convert extent to unwritten
+		 * we continue and do the actual work in
+		 * ext4_ext_map_blocks()
+		 */
+		if (!(flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN))
+			return retval;
 
 	/*
 	 * Here we clear m_flags because after allocating an new extent,
@@ -658,7 +664,6 @@ found:
 		ext4_clear_inode_state(inode, EXT4_STATE_DELALLOC_RESERVED);
 
 	if (retval > 0) {
-		int ret;
 		unsigned int status;
 
 		if (unlikely(retval != map->m_len)) {
@@ -693,7 +698,7 @@ found:
 has_zeroout:
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode, map);
+		ret = check_block_validity(inode, map);
 		if (ret != 0)
 			return ret;
 	}
@@ -3507,7 +3512,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	trace_ext4_punch_hole(inode, offset, length);
+	trace_ext4_punch_hole(inode, offset, length, 0);
 
 	/*
 	 * Write out all dirty pages to avoid race conditions

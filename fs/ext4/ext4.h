@@ -568,6 +568,8 @@ enum {
 #define EXT4_GET_BLOCKS_NO_LOCK			0x0100
 	/* Do not put hole in extent cache */
 #define EXT4_GET_BLOCKS_NO_PUT_HOLE		0x0200
+	/* Convert written extents to unwritten */
+#define EXT4_GET_BLOCKS_CONVERT_UNWRITTEN	0x0400
 
 /*
  * The bit position of these flags must not overlap with any of the
