@@ -1467,6 +1467,8 @@ int rk3188_lcdc_poll_vblank(struct rk_lcdc_driver *dev_drv)
 
 	return ret;
 }
+
+
 static int rk3188_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,unsigned int *dsp_addr)
 {
 	struct lcdc_device *lcdc_dev =
@@ -1476,6 +1478,14 @@ static int rk3188_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,unsigned int 
 		dsp_addr[0] = lcdc_readl(lcdc_dev, WIN0_YRGB_MST0);
 		dsp_addr[1] = lcdc_readl(lcdc_dev, WIN1_MST);
 	}
+	return 0;
+}
+
+static int rk3188_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv, 
+					struct lcdc_device, driver);
+	lcdc_cfg_done(lcdc_dev);
 	return 0;
 }
 
@@ -1515,6 +1525,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dpi_win_sel = rk3188_lcdc_dpi_win_sel,
 	.dpi_status = rk3188_lcdc_dpi_status,
 	.get_dsp_addr = rk3188_lcdc_get_dsp_addr,
+	.cfg_done	= rk3188_lcdc_cfg_done,
 };
 
 static irqreturn_t rk3188_lcdc_isr(int irq, void *dev_id)

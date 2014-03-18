@@ -2964,7 +2964,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.set_dsp_bcsh_bcs 	= rk3288_lcdc_set_bcsh_bcs,
 	.dump_reg 		= rk3288_lcdc_reg_dump,
 	.mmu_en	  		= rk3288_lcdc_mmu_en,
-	.config_done		= rk3288_lcdc_config_done,
+	.cfg_done		= rk3288_lcdc_config_done,
 };
 static int rk3288_lcdc_parse_irq(struct lcdc_device *lcdc_dev,unsigned int reg_val)
 {

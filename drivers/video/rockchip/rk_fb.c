@@ -773,7 +773,7 @@ static int rk_fb_rotate(struct fb_info *dst_info,
 	#endif
 		return 0;
 }
-static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 	struct rk_lcdc_driver *dev_drv  = (struct rk_lcdc_driver *)info->par;
@@ -920,7 +920,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (video_data_to_mirroring)
 		video_data_to_mirroring(info, NULL);
 	#endif
-	dev_drv->ops->config_done(dev_drv);
+	dev_drv->ops->cfg_done(dev_drv);
 	return 0;
 }
 
@@ -1129,7 +1129,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		dev_drv->ops->pan_display(dev_drv,i);
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
-	dev_drv->ops->config_done(dev_drv);
+	dev_drv->ops->cfg_done(dev_drv);
 
 #if 0
 	for(i=0;i<2;i++){
@@ -1727,7 +1727,6 @@ static ssize_t rk_fb_read(struct fb_info *info, char __user *buf,
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	struct rk_lcdc_win *win = NULL;
 	int win_id = 0;
-	int list_empty=0;
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
@@ -2093,7 +2092,7 @@ static struct fb_ops fb_ops = {
 	.fb_set_par     = rk_fb_set_par,
 	.fb_blank       = rk_fb_blank,
 	.fb_ioctl       = rk_fb_ioctl,
-	.fb_pan_display = rk_pan_display,
+	.fb_pan_display = rk_fb_pan_display,
 	.fb_read        = rk_fb_read,
 	.fb_write       = rk_fb_write,
 	.fb_setcolreg   = fb_setcolreg,
@@ -2183,7 +2182,7 @@ EXPORT_SYMBOL(rk_get_fb);
 void rk_direct_fb_show(struct fb_info *fbi)
 {
 	rk_fb_set_par(fbi);
-	rk_pan_display(&fbi->var, fbi);
+	rk_fb_pan_display(&fbi->var, fbi);
 }
 EXPORT_SYMBOL(rk_direct_fb_show);
 
