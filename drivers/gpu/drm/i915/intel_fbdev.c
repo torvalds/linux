@@ -289,7 +289,27 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	struct drm_device *dev = fb_helper->dev;
 	int i, j;
 	bool *save_enabled;
-	bool any_enabled = false;
+	bool fallback = true;
+	int num_connectors_enabled = 0;
+	int num_connectors_detected = 0;
+
+	/*
+	 * If the user specified any force options, just bail here
+	 * and use that config.
+	 */
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		struct drm_fb_helper_connector *fb_conn;
+		struct drm_connector *connector;
+
+		fb_conn = fb_helper->connector_info[i];
+		connector = fb_conn->connector;
+
+		if (!enabled[i])
+			continue;
+
+		if (connector->force != DRM_FORCE_UNSPECIFIED)
+			return false;
+	}
 
 	save_enabled = kcalloc(dev->mode_config.num_connector, sizeof(bool),
 			       GFP_KERNEL);
@@ -306,6 +326,10 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 
 		fb_conn = fb_helper->connector_info[i];
 		connector = fb_conn->connector;
+
+		if (connector->status == connector_status_connected)
+			num_connectors_detected++;
+
 		if (!enabled[i]) {
 			DRM_DEBUG_KMS("connector %d not enabled, skipping\n",
 				      connector->base.id);
@@ -320,6 +344,8 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			continue;
 		}
 
+		num_connectors_enabled++;
+
 		new_crtc = intel_fb_helper_crtc(fb_helper, encoder->crtc);
 
 		/*
@@ -329,7 +355,8 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		 */
 		for (j = 0; j < fb_helper->connector_count; j++) {
 			if (crtcs[j] == new_crtc) {
-				any_enabled = false;
+				DRM_DEBUG_KMS("fallback: cloned configuration\n");
+				fallback = true;
 				goto out;
 			}
 		}
@@ -372,11 +399,25 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			      encoder->crtc->base.id,
 			      modes[i]->name);
 
-		any_enabled = true;
+		fallback = false;
+	}
+
+	/*
+	 * If the BIOS didn't enable everything it could, fall back to have the
+	 * same user experiencing of lighting up as much as possible like the
+	 * fbdev helper library.
+	 */
+	if (num_connectors_enabled != num_connectors_detected &&
+	    num_connectors_enabled < INTEL_INFO(dev)->num_pipes) {
+		DRM_DEBUG_KMS("fallback: Not all outputs enabled\n");
+		DRM_DEBUG_KMS("Enabled: %i, detected: %i\n", num_connectors_enabled,
+			      num_connectors_detected);
+		fallback = true;
 	}
 
 out:
-	if (!any_enabled) {
+	if (fallback) {
+		DRM_DEBUG_KMS("Not using firmware configuration\n");
 		memcpy(enabled, save_enabled, dev->mode_config.num_connector);
 		kfree(save_enabled);
 		return false;

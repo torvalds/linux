@@ -61,6 +61,7 @@ static unsigned long i915_gem_inactive_scan(struct shrinker *shrinker,
 static unsigned long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
 static unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+static void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
 
 static bool cpu_cache_is_coherent(struct drm_device *dev,
 				  enum i915_cache_level level)
@@ -326,6 +327,42 @@ __copy_from_user_swizzled(char *gpu_vaddr, int gpu_offset,
 	return 0;
 }
 
+/*
+ * Pins the specified object's pages and synchronizes the object with
+ * GPU accesses. Sets needs_clflush to non-zero if the caller should
+ * flush the object from the CPU cache.
+ */
+int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
+				    int *needs_clflush)
+{
+	int ret;
+
+	*needs_clflush = 0;
+
+	if (!obj->base.filp)
+		return -EINVAL;
+
+	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)) {
+		/* If we're not in the cpu read domain, set ourself into the gtt
+		 * read domain and manually flush cachelines (if required). This
+		 * optimizes for the case when the gpu will dirty the data
+		 * anyway again before the next pread happens. */
+		*needs_clflush = !cpu_cache_is_coherent(obj->base.dev,
+							obj->cache_level);
+		ret = i915_gem_object_wait_rendering(obj, true);
+		if (ret)
+			return ret;
+	}
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
+	i915_gem_object_pin_pages(obj);
+
+	return ret;
+}
+
 /* Per-page copy function for the shmem pread fastpath.
  * Flushes invalid cachelines before reading the target if
  * needs_clflush is set. */
@@ -423,22 +460,9 @@ i915_gem_shmem_pread(struct drm_device *dev,
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
-	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)) {
-		/* If we're not in the cpu read domain, set ourself into the gtt
-		 * read domain and manually flush cachelines (if required). This
-		 * optimizes for the case when the gpu will dirty the data
-		 * anyway again before the next pread happens. */
-		needs_clflush = !cpu_cache_is_coherent(dev, obj->cache_level);
-		ret = i915_gem_object_wait_rendering(obj, true);
-		if (ret)
-			return ret;
-	}
-
-	ret = i915_gem_object_get_pages(obj);
+	ret = i915_gem_obj_prepare_shmem_read(obj, &needs_clflush);
 	if (ret)
 		return ret;
-
-	i915_gem_object_pin_pages(obj);
 
 	offset = args->offset;
 
@@ -2148,7 +2172,6 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
 	u32 request_ring_position, request_start;
-	int was_empty;
 	int ret;
 
 	request_start = intel_ring_get_tail(ring);
@@ -2199,7 +2222,6 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 		i915_gem_context_reference(request->ctx);
 
 	request->emitted_jiffies = jiffies;
-	was_empty = list_empty(&ring->request_list);
 	list_add_tail(&request->list, &ring->request_list);
 	request->file_priv = NULL;
 
@@ -2220,13 +2242,11 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	if (!dev_priv->ums.mm_suspended) {
 		i915_queue_hangcheck(ring->dev);
 
-		if (was_empty) {
-			cancel_delayed_work_sync(&dev_priv->mm.idle_work);
-			queue_delayed_work(dev_priv->wq,
-					   &dev_priv->mm.retire_work,
-					   round_jiffies_up_relative(HZ));
-			intel_mark_busy(dev_priv->dev);
-		}
+		cancel_delayed_work_sync(&dev_priv->mm.idle_work);
+		queue_delayed_work(dev_priv->wq,
+				   &dev_priv->mm.retire_work,
+				   round_jiffies_up_relative(HZ));
+		intel_mark_busy(dev_priv->dev);
 	}
 
 	if (out_seqno)
@@ -2259,14 +2279,13 @@ static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
 		return true;
 
 	if (elapsed <= DRM_I915_CTX_BAN_PERIOD) {
-		if (dev_priv->gpu_error.stop_rings == 0 &&
-		    i915_gem_context_is_default(ctx)) {
-			DRM_ERROR("gpu hanging too fast, banning!\n");
-		} else {
+		if (!i915_gem_context_is_default(ctx)) {
 			DRM_DEBUG("context hanging too fast, banning!\n");
+			return true;
+		} else if (dev_priv->gpu_error.stop_rings == 0) {
+			DRM_ERROR("gpu hanging too fast, banning!\n");
+			return true;
 		}
-
-		return true;
 	}
 
 	return false;
@@ -2303,11 +2322,13 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 	kfree(request);
 }
 
-static struct drm_i915_gem_request *
-i915_gem_find_first_non_complete(struct intel_ring_buffer *ring)
+struct drm_i915_gem_request *
+i915_gem_find_active_request(struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_request *request;
-	const u32 completed_seqno = ring->get_seqno(ring, false);
+	u32 completed_seqno;
+
+	completed_seqno = ring->get_seqno(ring, false);
 
 	list_for_each_entry(request, &ring->request_list, list) {
 		if (i915_seqno_passed(completed_seqno, request->seqno))
@@ -2325,7 +2346,7 @@ static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
 	struct drm_i915_gem_request *request;
 	bool ring_hung;
 
-	request = i915_gem_find_first_non_complete(ring);
+	request = i915_gem_find_active_request(ring);
 
 	if (request == NULL)
 		return;
@@ -2417,7 +2438,7 @@ void i915_gem_reset(struct drm_device *dev)
 /**
  * This function clears the request list as sequence numbers are passed.
  */
-void
+static void
 i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 {
 	uint32_t seqno;
@@ -2744,7 +2765,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	i915_gem_gtt_finish_object(obj);
 
-	list_del(&vma->mm_list);
+	list_del_init(&vma->mm_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	if (i915_is_ggtt(vma->vm))
 		obj->map_and_fenceable = true;
@@ -4860,6 +4881,7 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 
 	file->driver_priv = file_priv;
 	file_priv->dev_priv = dev->dev_private;
+	file_priv->file = file;
 
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);

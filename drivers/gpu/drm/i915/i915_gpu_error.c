@@ -304,22 +304,54 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
 	va_end(args);
 }
 
+static void print_error_obj(struct drm_i915_error_state_buf *m,
+			    struct drm_i915_error_object *obj)
+{
+	int page, offset, elt;
+
+	for (page = offset = 0; page < obj->page_count; page++) {
+		for (elt = 0; elt < PAGE_SIZE/4; elt++) {
+			err_printf(m, "%08x :  %08x\n", offset,
+				   obj->pages[page][elt]);
+			offset += 4;
+		}
+	}
+}
+
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
 	struct drm_device *dev = error_priv->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
-	int i, j, page, offset, elt;
+	int i, j, offset, elt;
+	int max_hangcheck_score;
 
 	if (!error) {
 		err_printf(m, "no error state collected\n");
 		goto out;
 	}
 
+	err_printf(m, "%s\n", error->error_msg);
 	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
+	max_hangcheck_score = 0;
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		if (error->ring[i].hangcheck_score > max_hangcheck_score)
+			max_hangcheck_score = error->ring[i].hangcheck_score;
+	}
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		if (error->ring[i].hangcheck_score == max_hangcheck_score &&
+		    error->ring[i].pid != -1) {
+			err_printf(m, "Active process (on ring %s): %s [%d]\n",
+				   ring_str(i),
+				   error->ring[i].comm,
+				   error->ring[i].pid);
+		}
+	}
+	err_printf(m, "Reset count: %u\n", error->reset_count);
+	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
@@ -362,18 +394,23 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		struct drm_i915_error_object *obj;
 
-		if ((obj = error->ring[i].batchbuffer)) {
-			err_printf(m, "%s --- gtt_offset = 0x%08x\n",
-				   dev_priv->ring[i].name,
+		obj = error->ring[i].batchbuffer;
+		if (obj) {
+			err_puts(m, dev_priv->ring[i].name);
+			if (error->ring[i].pid != -1)
+				err_printf(m, " (submitted by %s [%d])",
+					   error->ring[i].comm,
+					   error->ring[i].pid);
+			err_printf(m, " --- gtt_offset = 0x%08x\n",
 				   obj->gtt_offset);
-			offset = 0;
-			for (page = 0; page < obj->page_count; page++) {
-				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-					err_printf(m, "%08x :  %08x\n", offset,
-						   obj->pages[page][elt]);
-					offset += 4;
-				}
-			}
+			print_error_obj(m, obj);
+		}
+
+		obj = error->ring[i].wa_batchbuffer;
+		if (obj) {
+			err_printf(m, "%s (w/a) --- gtt_offset = 0x%08x\n",
+				   dev_priv->ring[i].name, obj->gtt_offset);
+			print_error_obj(m, obj);
 		}
 
 		if (error->ring[i].num_requests) {
@@ -392,15 +429,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
-			offset = 0;
-			for (page = 0; page < obj->page_count; page++) {
-				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-					err_printf(m, "%08x :  %08x\n",
-						   offset,
-						   obj->pages[page][elt]);
-					offset += 4;
-				}
-			}
+			print_error_obj(m, obj);
 		}
 
 		if ((obj = error->ring[i].hws_page)) {
@@ -666,7 +695,8 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
  * It's only a small step better than a random number in its current form.
  */
 static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
-					 struct drm_i915_error_state *error)
+					 struct drm_i915_error_state *error,
+					 int *ring_id)
 {
 	uint32_t error_code = 0;
 	int i;
@@ -676,9 +706,14 @@ static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
 	 * synchronization commands which almost always appear in the case
 	 * strictly a client bug. Use instdone to differentiate those some.
 	 */
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		if (error->ring[i].hangcheck_action == HANGCHECK_HUNG)
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		if (error->ring[i].hangcheck_action == HANGCHECK_HUNG) {
+			if (ring_id)
+				*ring_id = i;
+
 			return error->ring[i].ipehr ^ error->ring[i].instdone;
+		}
+	}
 
 	return error_code;
 }
@@ -714,87 +749,6 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	default:
 		BUG();
 	}
-}
-
-/* This assumes all batchbuffers are executed from the PPGTT. It might have to
- * change in the future. */
-static bool is_active_vm(struct i915_address_space *vm,
-			 struct intel_ring_buffer *ring)
-{
-	struct drm_device *dev = vm->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_hw_ppgtt *ppgtt;
-
-	if (INTEL_INFO(dev)->gen < 7)
-		return i915_is_ggtt(vm);
-
-	/* FIXME: This ignores that the global gtt vm is also on this list. */
-	ppgtt = container_of(vm, struct i915_hw_ppgtt, base);
-
-	if (INTEL_INFO(dev)->gen >= 8) {
-		u64 pdp0 = (u64)I915_READ(GEN8_RING_PDP_UDW(ring, 0)) << 32;
-		pdp0 |=  I915_READ(GEN8_RING_PDP_LDW(ring, 0));
-		return pdp0 == ppgtt->pd_dma_addr[0];
-	} else {
-		u32 pp_db;
-		pp_db = I915_READ(RING_PP_DIR_BASE(ring));
-		return (pp_db >> 10) == ppgtt->pd_offset;
-	}
-}
-
-static struct drm_i915_error_object *
-i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
-			     struct intel_ring_buffer *ring)
-{
-	struct i915_address_space *vm;
-	struct i915_vma *vma;
-	struct drm_i915_gem_object *obj;
-	bool found_active = false;
-	u32 seqno;
-
-	if (!ring->get_seqno)
-		return NULL;
-
-	if (HAS_BROKEN_CS_TLB(dev_priv->dev)) {
-		u32 acthd = I915_READ(ACTHD);
-
-		if (WARN_ON(ring->id != RCS))
-			return NULL;
-
-		obj = ring->scratch.obj;
-		if (obj != NULL &&
-		    acthd >= i915_gem_obj_ggtt_offset(obj) &&
-		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
-			return i915_error_ggtt_object_create(dev_priv, obj);
-	}
-
-	seqno = ring->get_seqno(ring, false);
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-		if (!is_active_vm(vm, ring))
-			continue;
-
-		found_active = true;
-
-		list_for_each_entry(vma, &vm->active_list, mm_list) {
-			obj = vma->obj;
-			if (obj->ring != ring)
-				continue;
-
-			if (i915_seqno_passed(seqno, obj->last_read_seqno))
-				continue;
-
-			if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
-				continue;
-
-			/* We need to copy these to an anonymous buffer as the simplest
-			 * method to avoid being overwritten by userspace.
-			 */
-			return i915_error_object_create(dev_priv, obj, vm);
-		}
-	}
-
-	WARN_ON(!found_active);
-	return NULL;
 }
 
 static void i915_record_ring_state(struct drm_device *dev,
@@ -945,8 +899,39 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		i915_record_ring_state(dev, ring, &error->ring[i]);
 
-		error->ring[i].batchbuffer =
-			i915_error_first_batchbuffer(dev_priv, ring);
+		error->ring[i].pid = -1;
+		request = i915_gem_find_active_request(ring);
+		if (request) {
+			/* We need to copy these to an anonymous buffer
+			 * as the simplest method to avoid being overwritten
+			 * by userspace.
+			 */
+			error->ring[i].batchbuffer =
+				i915_error_object_create(dev_priv,
+							 request->batch_obj,
+							 request->ctx ?
+							 request->ctx->vm :
+							 &dev_priv->gtt.base);
+
+			if (HAS_BROKEN_CS_TLB(dev_priv->dev) &&
+			    ring->scratch.obj)
+				error->ring[i].wa_batchbuffer =
+					i915_error_ggtt_object_create(dev_priv,
+							     ring->scratch.obj);
+
+			if (request->file_priv) {
+				struct task_struct *task;
+
+				rcu_read_lock();
+				task = pid_task(request->file_priv->file->pid,
+						PIDTYPE_PID);
+				if (task) {
+					strcpy(error->ring[i].comm, task->comm);
+					error->ring[i].pid = task->pid;
+				}
+				rcu_read_unlock();
+			}
+		}
 
 		error->ring[i].ringbuffer =
 			i915_error_ggtt_object_create(dev_priv, ring->obj);
@@ -1113,6 +1098,40 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	i915_get_extra_instdone(dev, error->extra_instdone);
 }
 
+static void i915_error_capture_msg(struct drm_device *dev,
+				   struct drm_i915_error_state *error,
+				   bool wedged,
+				   const char *error_msg)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 ecode;
+	int ring_id = -1, len;
+
+	ecode = i915_error_generate_code(dev_priv, error, &ring_id);
+
+	len = scnprintf(error->error_msg, sizeof(error->error_msg),
+			"GPU HANG: ecode %d:0x%08x", ring_id, ecode);
+
+	if (ring_id != -1 && error->ring[ring_id].pid != -1)
+		len += scnprintf(error->error_msg + len,
+				 sizeof(error->error_msg) - len,
+				 ", in %s [%d]",
+				 error->ring[ring_id].comm,
+				 error->ring[ring_id].pid);
+
+	scnprintf(error->error_msg + len, sizeof(error->error_msg) - len,
+		  ", reason: %s, action: %s",
+		  error_msg,
+		  wedged ? "reset" : "continue");
+}
+
+static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
+				   struct drm_i915_error_state *error)
+{
+	error->reset_count = i915_reset_count(&dev_priv->gpu_error);
+	error->suspend_count = dev_priv->suspend_count;
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -1122,19 +1141,13 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
  * out a structure which becomes available in debugfs for user level tools
  * to pick up.
  */
-void i915_capture_error_state(struct drm_device *dev)
+void i915_capture_error_state(struct drm_device *dev, bool wedged,
+			      const char *error_msg)
 {
 	static bool warned;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
-	uint32_t ecode;
-
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
-	error = dev_priv->gpu_error.first_error;
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
-	if (error)
-		return;
 
 	/* Account for pipe specific data like PIPE*STAT */
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
@@ -1143,29 +1156,21 @@ void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
-	DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
-		 dev->primary->index);
 	kref_init(&error->ref);
 
+	i915_capture_gen_state(dev_priv, error);
 	i915_capture_reg_state(dev_priv, error);
 	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
-	ecode = i915_error_generate_code(dev_priv, error);
-
-	if (!warned) {
-		DRM_INFO("GPU HANG [%x]\n", ecode);
-		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
-		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
-		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
-		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
-		warned = true;
-	}
 
 	do_gettimeofday(&error->time);
 
 	error->overlay = intel_overlay_capture_error_state(dev);
 	error->display = intel_display_capture_error_state(dev);
+
+	i915_error_capture_msg(dev, error, wedged, error_msg);
+	DRM_INFO("%s\n", error->error_msg);
 
 	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
 	if (dev_priv->gpu_error.first_error == NULL) {
@@ -1174,8 +1179,19 @@ void i915_capture_error_state(struct drm_device *dev)
 	}
 	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
-	if (error)
+	if (error) {
 		i915_error_state_free(&error->ref);
+		return;
+	}
+
+	if (!warned) {
+		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
+		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
+		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
+		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
+		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n", dev->primary->index);
+		warned = true;
+	}
 }
 
 void i915_error_state_get(struct drm_device *dev,

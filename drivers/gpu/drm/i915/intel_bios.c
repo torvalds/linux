@@ -599,14 +599,14 @@ parse_mipi(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 {
 	struct bdb_mipi *mipi;
 
-	mipi = find_section(bdb, BDB_MIPI);
+	mipi = find_section(bdb, BDB_MIPI_CONFIG);
 	if (!mipi) {
 		DRM_DEBUG_KMS("No MIPI BDB found");
 		return;
 	}
 
 	/* XXX: add more info */
-	dev_priv->vbt.dsi.panel_id = mipi->panel_id;
+	dev_priv->vbt.dsi.panel_id = MIPI_DSI_GENERIC_PANEL_ID;
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,

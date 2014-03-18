@@ -916,8 +916,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
 						   bpp);
 
-		for (clock = 0; clock <= max_clock; clock++) {
-			for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
+		for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
+			for (clock = 0; clock <= max_clock; clock++) {
 				link_clock = drm_dp_bw_code_to_link_rate(bws[clock]);
 				link_avail = intel_dp_max_data_rate(link_clock,
 								    lane_count);
@@ -1333,7 +1333,8 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
 	 * panels get very unhappy and cease to work. */
-	pp &= ~(POWER_TARGET_ON | PANEL_POWER_RESET | EDP_BLC_ENABLE);
+	pp &= ~(POWER_TARGET_ON | PANEL_POWER_RESET | EDP_FORCE_VDD |
+		EDP_BLC_ENABLE);
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 
@@ -1485,7 +1486,14 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 tmp = I915_READ(intel_dp->output_reg);
+	enum intel_display_power_domain power_domain;
+	u32 tmp;
+
+	power_domain = intel_display_port_power_domain(encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
+
+	tmp = I915_READ(intel_dp->output_reg);
 
 	if (!(tmp & DP_PORT_EN))
 		return false;
@@ -1868,9 +1876,11 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
+	edp_panel_vdd_on(intel_dp);
 	intel_edp_backlight_off(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	intel_edp_panel_off(intel_dp);
+	edp_panel_vdd_off(intel_dp, true);
 
 	/* cpu edp my only be disable _after_ the cpu pipe/plane is disabled. */
 	if (!(port == PORT_A || IS_VALLEYVIEW(dev)))
@@ -3224,9 +3234,13 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum drm_connector_status status;
+	enum intel_display_power_domain power_domain;
 	struct edid *edid = NULL;
 
 	intel_runtime_pm_get(dev_priv);
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector));
@@ -3258,21 +3272,32 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	status = connector_status_connected;
 
 out:
+	intel_display_power_put(dev_priv, power_domain);
+
 	intel_runtime_pm_put(dev_priv);
+
 	return status;
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	int ret;
 
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
+
 	ret = intel_dp_get_edid_modes(connector, &intel_dp->adapter);
+	intel_display_power_put(dev_priv, power_domain);
 	if (ret)
 		return ret;
 
@@ -3293,14 +3318,24 @@ static bool
 intel_dp_detect_audio(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	struct edid *edid;
 	bool has_audio = false;
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	edid = intel_dp_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
 		kfree(edid);
 	}
+
+	intel_display_power_put(dev_priv, power_domain);
 
 	return has_audio;
 }

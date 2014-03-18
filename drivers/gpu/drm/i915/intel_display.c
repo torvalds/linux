@@ -1122,7 +1122,7 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 		state = true;
 
-	if (!intel_display_power_enabled(dev_priv->dev,
+	if (!intel_display_power_enabled(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder))) {
 		cur_state = false;
 	} else {
@@ -1188,16 +1188,16 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int reg, i;
+	int reg, sprite;
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev)) {
-		for (i = 0; i < INTEL_INFO(dev)->num_sprites; i++) {
-			reg = SPCNTR(pipe, i);
+		for_each_sprite(pipe, sprite) {
+			reg = SPCNTR(pipe, sprite);
 			val = I915_READ(reg);
 			WARN((val & SP_ENABLE),
 			     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
-			     sprite_name(pipe, i), pipe_name(pipe));
+			     sprite_name(pipe, sprite), pipe_name(pipe));
 		}
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		reg = SPRCTL(pipe);
@@ -2321,6 +2321,25 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	return ret;
 }
 
+static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned long flags;
+	bool pending;
+
+	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
+	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
+		return false;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	pending = to_intel_crtc(crtc)->unpin_work != NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return pending;
+}
+
 static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *fb)
@@ -2330,6 +2349,11 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_framebuffer *old_fb;
 	int ret;
+
+	if (intel_crtc_has_pending_flip(crtc)) {
+		DRM_ERROR("pipe is still busy with an old pageflip\n");
+		return -EBUSY;
+	}
 
 	/* no fb bound */
 	if (!fb) {
@@ -2954,25 +2978,6 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 
 	POSTING_READ(reg);
 	udelay(100);
-}
-
-static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long flags;
-	bool pending;
-
-	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
-	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
-		return false;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	pending = to_intel_crtc(crtc)->unpin_work != NULL;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	return pending;
 }
 
 bool intel_has_pending_fb_unpin(struct drm_device *dev)
@@ -3953,6 +3958,117 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
+#define for_each_power_domain(domain, mask)				\
+	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
+		if ((1 << (domain)) & (mask))
+
+enum intel_display_power_domain
+intel_display_port_power_domain(struct intel_encoder *intel_encoder)
+{
+	struct drm_device *dev = intel_encoder->base.dev;
+	struct intel_digital_port *intel_dig_port;
+
+	switch (intel_encoder->type) {
+	case INTEL_OUTPUT_UNKNOWN:
+		/* Only DDI platforms should ever use this output type */
+		WARN_ON_ONCE(!HAS_DDI(dev));
+	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_HDMI:
+	case INTEL_OUTPUT_EDP:
+		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
+		switch (intel_dig_port->port) {
+		case PORT_A:
+			return POWER_DOMAIN_PORT_DDI_A_4_LANES;
+		case PORT_B:
+			return POWER_DOMAIN_PORT_DDI_B_4_LANES;
+		case PORT_C:
+			return POWER_DOMAIN_PORT_DDI_C_4_LANES;
+		case PORT_D:
+			return POWER_DOMAIN_PORT_DDI_D_4_LANES;
+		default:
+			WARN_ON_ONCE(1);
+			return POWER_DOMAIN_PORT_OTHER;
+		}
+	case INTEL_OUTPUT_ANALOG:
+		return POWER_DOMAIN_PORT_CRT;
+	case INTEL_OUTPUT_DSI:
+		return POWER_DOMAIN_PORT_DSI;
+	default:
+		return POWER_DOMAIN_PORT_OTHER;
+	}
+}
+
+static unsigned long get_crtc_power_domains(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_encoder *intel_encoder;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	bool pfit_enabled = intel_crtc->config.pch_pfit.enabled;
+	unsigned long mask;
+	enum transcoder transcoder;
+
+	transcoder = intel_pipe_to_cpu_transcoder(dev->dev_private, pipe);
+
+	mask = BIT(POWER_DOMAIN_PIPE(pipe));
+	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
+	if (pfit_enabled)
+		mask |= BIT(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
+
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
+		mask |= BIT(intel_display_port_power_domain(intel_encoder));
+
+	return mask;
+}
+
+void intel_display_set_init_power(struct drm_i915_private *dev_priv,
+				  bool enable)
+{
+	if (dev_priv->power_domains.init_power_on == enable)
+		return;
+
+	if (enable)
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+	else
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	dev_priv->power_domains.init_power_on = enable;
+}
+
+static void modeset_update_crtc_power_domains(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long pipe_domains[I915_MAX_PIPES] = { 0, };
+	struct intel_crtc *crtc;
+
+	/*
+	 * First get all needed power domains, then put all unneeded, to avoid
+	 * any unnecessary toggling of the power wells.
+	 */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		enum intel_display_power_domain domain;
+
+		if (!crtc->base.enabled)
+			continue;
+
+		pipe_domains[crtc->pipe] = get_crtc_power_domains(&crtc->base);
+
+		for_each_power_domain(domain, pipe_domains[crtc->pipe])
+			intel_display_power_get(dev_priv, domain);
+	}
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		enum intel_display_power_domain domain;
+
+		for_each_power_domain(domain, crtc->enabled_power_domains)
+			intel_display_power_put(dev_priv, domain);
+
+		crtc->enabled_power_domains = pipe_domains[crtc->pipe];
+	}
+
+	intel_display_set_init_power(dev_priv, false);
+}
+
 int valleyview_get_vco(struct drm_i915_private *dev_priv)
 {
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
@@ -4113,6 +4229,7 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 
 	if (req_cdclk != cur_cdclk)
 		valleyview_set_cdclk(dev, req_cdclk);
+	modeset_update_crtc_power_domains(dev);
 }
 
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
@@ -5495,6 +5612,10 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
+	if (!intel_display_power_enabled(dev_priv,
+					 POWER_DOMAIN_PIPE(crtc->pipe)))
+		return false;
+
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
@@ -6156,7 +6277,7 @@ int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
 	 * is 2.5%; use 5% for safety's sake.
 	 */
 	u32 bps = target_clock * bpp * 21 / 20;
-	return bps / (link_bw * 8) + 1;
+	return DIV_ROUND_UP(bps, link_bw * 8);
 }
 
 static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
@@ -6812,105 +6933,9 @@ done:
 	mutex_unlock(&dev_priv->pc8.lock);
 }
 
-static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	mutex_lock(&dev_priv->pc8.lock);
-	if (!dev_priv->pc8.gpu_idle) {
-		dev_priv->pc8.gpu_idle = true;
-		__hsw_enable_package_c8(dev_priv);
-	}
-	mutex_unlock(&dev_priv->pc8.lock);
-}
-
-static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	mutex_lock(&dev_priv->pc8.lock);
-	if (dev_priv->pc8.gpu_idle) {
-		dev_priv->pc8.gpu_idle = false;
-		__hsw_disable_package_c8(dev_priv);
-	}
-	mutex_unlock(&dev_priv->pc8.lock);
-}
-
-#define for_each_power_domain(domain, mask)				\
-	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
-		if ((1 << (domain)) & (mask))
-
-static unsigned long get_pipe_power_domains(struct drm_device *dev,
-					    enum pipe pipe, bool pfit_enabled)
-{
-	unsigned long mask;
-	enum transcoder transcoder;
-
-	transcoder = intel_pipe_to_cpu_transcoder(dev->dev_private, pipe);
-
-	mask = BIT(POWER_DOMAIN_PIPE(pipe));
-	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
-	if (pfit_enabled)
-		mask |= BIT(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
-
-	return mask;
-}
-
-void intel_display_set_init_power(struct drm_device *dev, bool enable)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->power_domains.init_power_on == enable)
-		return;
-
-	if (enable)
-		intel_display_power_get(dev, POWER_DOMAIN_INIT);
-	else
-		intel_display_power_put(dev, POWER_DOMAIN_INIT);
-
-	dev_priv->power_domains.init_power_on = enable;
-}
-
-static void modeset_update_power_wells(struct drm_device *dev)
-{
-	unsigned long pipe_domains[I915_MAX_PIPES] = { 0, };
-	struct intel_crtc *crtc;
-
-	/*
-	 * First get all needed power domains, then put all unneeded, to avoid
-	 * any unnecessary toggling of the power wells.
-	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
-		enum intel_display_power_domain domain;
-
-		if (!crtc->base.enabled)
-			continue;
-
-		pipe_domains[crtc->pipe] = get_pipe_power_domains(dev,
-						crtc->pipe,
-						crtc->config.pch_pfit.enabled);
-
-		for_each_power_domain(domain, pipe_domains[crtc->pipe])
-			intel_display_power_get(dev, domain);
-	}
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
-		enum intel_display_power_domain domain;
-
-		for_each_power_domain(domain, crtc->enabled_power_domains)
-			intel_display_power_put(dev, domain);
-
-		crtc->enabled_power_domains = pipe_domains[crtc->pipe];
-	}
-
-	intel_display_set_init_power(dev, false);
-}
-
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
-	modeset_update_power_wells(dev);
+	modeset_update_crtc_power_domains(dev);
 	hsw_update_package_c8(dev);
 }
 
@@ -6961,6 +6986,10 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	enum intel_display_power_domain pfit_domain;
 	uint32_t tmp;
 
+	if (!intel_display_power_enabled(dev_priv,
+					 POWER_DOMAIN_PIPE(crtc->pipe)))
+		return false;
+
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
@@ -6986,7 +7015,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 			pipe_config->cpu_transcoder = TRANSCODER_EDP;
 	}
 
-	if (!intel_display_power_enabled(dev,
+	if (!intel_display_power_enabled(dev_priv,
 			POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder)))
 		return false;
 
@@ -7014,7 +7043,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_timings(crtc, pipe_config);
 
 	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
-	if (intel_display_power_enabled(dev, pfit_domain))
+	if (intel_display_power_enabled(dev_priv, pfit_domain))
 		ironlake_get_pfit_config(crtc, pipe_config);
 
 	if (IS_HASWELL(dev))
@@ -7549,7 +7578,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		return -ENOENT;
 
 	if (obj->base.size < width * height * 4) {
-		DRM_ERROR("buffer is to small\n");
+		DRM_DEBUG_KMS("buffer is to small\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -7560,7 +7589,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		unsigned alignment;
 
 		if (obj->tiling_mode) {
-			DRM_ERROR("cursor cannot be tiled\n");
+			DRM_DEBUG_KMS("cursor cannot be tiled\n");
 			ret = -EINVAL;
 			goto fail_locked;
 		}
@@ -7576,13 +7605,13 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 		ret = i915_gem_object_pin_to_display_plane(obj, alignment, NULL);
 		if (ret) {
-			DRM_ERROR("failed to move cursor bo into the GTT\n");
+			DRM_DEBUG_KMS("failed to move cursor bo into the GTT\n");
 			goto fail_locked;
 		}
 
 		ret = i915_gem_object_put_fence(obj);
 		if (ret) {
-			DRM_ERROR("failed to release fence for cursor");
+			DRM_DEBUG_KMS("failed to release fence for cursor");
 			goto fail_unpin;
 		}
 
@@ -7593,7 +7622,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1,
 						  align);
 		if (ret) {
-			DRM_ERROR("failed to attach phys object\n");
+			DRM_DEBUG_KMS("failed to attach phys object\n");
 			goto fail_locked;
 		}
 		addr = obj->phys_obj->handle->busaddr;
@@ -7692,7 +7721,7 @@ err:
 	return ERR_PTR(ret);
 }
 
-struct drm_framebuffer *
+static struct drm_framebuffer *
 intel_framebuffer_create(struct drm_device *dev,
 			 struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct drm_i915_gem_object *obj)
@@ -8192,8 +8221,12 @@ void intel_mark_busy(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	hsw_package_c8_gpu_busy(dev_priv);
+	if (dev_priv->mm.busy)
+		return;
+
+	hsw_disable_package_c8(dev_priv);
 	i915_update_gfx_val(dev_priv);
+	dev_priv->mm.busy = true;
 }
 
 void intel_mark_idle(struct drm_device *dev)
@@ -8201,10 +8234,13 @@ void intel_mark_idle(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 
-	hsw_package_c8_gpu_idle(dev_priv);
+	if (!dev_priv->mm.busy)
+		return;
+
+	dev_priv->mm.busy = false;
 
 	if (!i915.powersave)
-		return;
+		goto out;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (!crtc->fb)
@@ -8215,6 +8251,9 @@ void intel_mark_idle(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_rps_idle(dev->dev_private);
+
+out:
+	hsw_enable_package_c8(dev_priv);
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
@@ -8678,6 +8717,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	     fb->pitches[0] != crtc->fb->pitches[0]))
 		return -EINVAL;
 
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		goto out_hang;
+
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL)
 		return -ENOMEM;
@@ -8752,6 +8794,13 @@ cleanup:
 free_work:
 	kfree(work);
 
+	if (ret == -EIO) {
+out_hang:
+		intel_crtc_wait_for_pending_flips(crtc);
+		ret = intel_pipe_set_base(crtc, crtc->x, crtc->y, fb);
+		if (ret == 0 && event)
+			drm_send_vblank_event(dev, intel_crtc->pipe, event);
+	}
 	return ret;
 }
 
@@ -10555,10 +10604,10 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 	.create_handle = intel_user_framebuffer_create_handle,
 };
 
-int intel_framebuffer_init(struct drm_device *dev,
-			   struct intel_framebuffer *intel_fb,
-			   struct drm_mode_fb_cmd2 *mode_cmd,
-			   struct drm_i915_gem_object *obj)
+static int intel_framebuffer_init(struct drm_device *dev,
+				  struct intel_framebuffer *intel_fb,
+				  struct drm_mode_fb_cmd2 *mode_cmd,
+				  struct drm_i915_gem_object *obj)
 {
 	int aligned_height;
 	int pitch_limit;
@@ -10996,7 +11045,8 @@ void intel_modeset_suspend_hw(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i, j, ret;
+	int sprite, ret;
+	enum pipe pipe;
 
 	drm_mode_config_init(dev);
 
@@ -11033,13 +11083,13 @@ void intel_modeset_init(struct drm_device *dev)
 		      INTEL_INFO(dev)->num_pipes,
 		      INTEL_INFO(dev)->num_pipes > 1 ? "s" : "");
 
-	for_each_pipe(i) {
-		intel_crtc_init(dev, i);
-		for (j = 0; j < INTEL_INFO(dev)->num_sprites; j++) {
-			ret = intel_plane_init(dev, i, j);
+	for_each_pipe(pipe) {
+		intel_crtc_init(dev, pipe);
+		for_each_sprite(pipe, sprite) {
+			ret = intel_plane_init(dev, pipe, sprite);
 			if (ret)
 				DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",
-					      pipe_name(i), sprite_name(i, j), ret);
+					      pipe_name(pipe), sprite_name(pipe, sprite), ret);
 		}
 	}
 
@@ -11056,7 +11106,9 @@ void intel_modeset_init(struct drm_device *dev)
 	/* Just in case the BIOS is doing something questionable. */
 	intel_disable_fbc(dev);
 
+	mutex_lock(&dev->mode_config.mutex);
 	intel_modeset_setup_hw_state(dev, false);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void
@@ -11239,10 +11291,20 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	 * the crtc fixup. */
 }
 
-void i915_redisable_vga(struct drm_device *dev)
+void i915_redisable_vga_power_on(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 vga_reg = i915_vgacntrl_reg(dev);
+
+	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
+		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
+		i915_disable_vga(dev);
+	}
+}
+
+void i915_redisable_vga(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* This function can be called both from intel_modeset_setup_hw_state or
 	 * at a very early point in our resume sequence, where the power well
@@ -11251,14 +11313,10 @@ void i915_redisable_vga(struct drm_device *dev)
 	 * level, just check if the power well is enabled instead of trying to
 	 * follow the "don't touch the power well if we don't need it" policy
 	 * the rest of the driver uses. */
-	if ((IS_HASWELL(dev) || IS_BROADWELL(dev)) &&
-	    (I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_STATE_ENABLED) == 0)
+	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_VGA))
 		return;
 
-	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
-		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
-		i915_disable_vga(dev);
-	}
+	i915_redisable_vga_power_on(dev);
 }
 
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
@@ -11602,7 +11660,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 	for_each_pipe(i) {
 		error->pipe[i].power_domain_on =
-			intel_display_power_enabled_sw(dev, POWER_DOMAIN_PIPE(i));
+			intel_display_power_enabled_sw(dev_priv,
+						       POWER_DOMAIN_PIPE(i));
 		if (!error->pipe[i].power_domain_on)
 			continue;
 
@@ -11640,7 +11699,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 		enum transcoder cpu_transcoder = transcoders[i];
 
 		error->transcoder[i].power_domain_on =
-			intel_display_power_enabled_sw(dev,
+			intel_display_power_enabled_sw(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder));
 		if (!error->transcoder[i].power_domain_on)
 			continue;

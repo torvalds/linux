@@ -387,16 +387,15 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
  *
  * Returns the previous state of underrun reporting.
  */
-bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
-					   enum pipe pipe, bool enable)
+bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+					     enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long flags;
 	bool ret;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	assert_spin_locked(&dev_priv->irq_lock);
 
 	ret = !intel_crtc->cpu_fifo_underrun_disabled;
 
@@ -415,7 +414,20 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 		broadwell_set_fifo_underrun_reporting(dev, pipe, enable);
 
 done:
+	return ret;
+}
+
+bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+					   enum pipe pipe, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	ret = __intel_set_cpu_fifo_underrun_reporting(dev, pipe, enable);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+
 	return ret;
 }
 
@@ -482,7 +494,7 @@ done:
 }
 
 
-void
+static void
 __i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		       u32 enable_mask, u32 status_mask)
 {
@@ -506,7 +518,7 @@ __i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 	POSTING_READ(reg);
 }
 
-void
+static void
 __i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		        u32 enable_mask, u32 status_mask)
 {
@@ -1296,8 +1308,8 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
 		      GT_RENDER_CS_MASTER_ERROR_INTERRUPT)) {
-		DRM_ERROR("GT error interrupt 0x%08x\n", gt_iir);
-		i915_handle_error(dev, false);
+		i915_handle_error(dev, false, "GT error interrupt 0x%08x",
+				  gt_iir);
 	}
 
 	if (gt_iir & GT_PARITY_ERROR(dev))
@@ -1544,8 +1556,9 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 			notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
 
 		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
-			DRM_ERROR("VEBOX CS error interrupt 0x%08x\n", pm_iir);
-			i915_handle_error(dev_priv->dev, false);
+			i915_handle_error(dev_priv->dev, false,
+					  "VEBOX CS error interrupt 0x%08x",
+					  pm_iir);
 		}
 	}
 }
@@ -1865,7 +1878,7 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe i;
+	enum pipe pipe;
 
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev);
@@ -1876,14 +1889,14 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	if (de_iir & DE_GSE_IVB)
 		intel_opregion_asle_intr(dev);
 
-	for_each_pipe(i) {
-		if (de_iir & (DE_PIPE_VBLANK_IVB(i)))
-			drm_handle_vblank(dev, i);
+	for_each_pipe(pipe) {
+		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
+			drm_handle_vblank(dev, pipe);
 
 		/* plane/pipes map 1:1 on ilk+ */
-		if (de_iir & DE_PLANE_FLIP_DONE_IVB(i)) {
-			intel_prepare_page_flip(dev, i);
-			intel_finish_page_flip_plane(dev, i);
+		if (de_iir & DE_PLANE_FLIP_DONE_IVB(pipe)) {
+			intel_prepare_page_flip(dev, pipe);
+			intel_finish_page_flip_plane(dev, pipe);
 		}
 	}
 
@@ -2277,11 +2290,18 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
  */
-void i915_handle_error(struct drm_device *dev, bool wedged)
+void i915_handle_error(struct drm_device *dev, bool wedged,
+		       const char *fmt, ...)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	va_list args;
+	char error_msg[80];
 
-	i915_capture_error_state(dev);
+	va_start(args, fmt);
+	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
+	va_end(args);
+
+	i915_capture_error_state(dev, wedged, error_msg);
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
@@ -2584,9 +2604,9 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 	 */
 	tmp = I915_READ_CTL(ring);
 	if (tmp & RING_WAIT) {
-		DRM_ERROR("Kicking stuck wait on %s\n",
-			  ring->name);
-		i915_handle_error(dev, false);
+		i915_handle_error(dev, false,
+				  "Kicking stuck wait on %s",
+				  ring->name);
 		I915_WRITE_CTL(ring, tmp);
 		return HANGCHECK_KICK;
 	}
@@ -2596,9 +2616,9 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 		default:
 			return HANGCHECK_HUNG;
 		case 1:
-			DRM_ERROR("Kicking stuck semaphore on %s\n",
-				  ring->name);
-			i915_handle_error(dev, false);
+			i915_handle_error(dev, false,
+					  "Kicking stuck semaphore on %s",
+					  ring->name);
 			I915_WRITE_CTL(ring, tmp);
 			return HANGCHECK_KICK;
 		case 0:
@@ -2720,7 +2740,7 @@ static void i915_hangcheck_elapsed(unsigned long data)
 	}
 
 	if (rings_hung)
-		return i915_handle_error(dev, true);
+		return i915_handle_error(dev, true, "Ring hung");
 
 	if (busy_count)
 		/* Reset timer case chip hangs without another request
@@ -3016,44 +3036,113 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
+static void valleyview_display_irqs_install(struct drm_i915_private *dev_priv)
+{
+	u32 pipestat_mask;
+	u32 iir_mask;
+
+	pipestat_mask = PIPESTAT_INT_STATUS_MASK |
+			PIPE_FIFO_UNDERRUN_STATUS;
+
+	I915_WRITE(PIPESTAT(PIPE_A), pipestat_mask);
+	I915_WRITE(PIPESTAT(PIPE_B), pipestat_mask);
+	POSTING_READ(PIPESTAT(PIPE_A));
+
+	pipestat_mask = PLANE_FLIP_DONE_INT_STATUS_VLV |
+			PIPE_CRC_DONE_INTERRUPT_STATUS;
+
+	i915_enable_pipestat(dev_priv, PIPE_A, pipestat_mask |
+					       PIPE_GMBUS_INTERRUPT_STATUS);
+	i915_enable_pipestat(dev_priv, PIPE_B, pipestat_mask);
+
+	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
+		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
+	dev_priv->irq_mask &= ~iir_mask;
+
+	I915_WRITE(VLV_IIR, iir_mask);
+	I915_WRITE(VLV_IIR, iir_mask);
+	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
+	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
+	POSTING_READ(VLV_IER);
+}
+
+static void valleyview_display_irqs_uninstall(struct drm_i915_private *dev_priv)
+{
+	u32 pipestat_mask;
+	u32 iir_mask;
+
+	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
+		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
+
+	dev_priv->irq_mask |= iir_mask;
+	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
+	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
+	I915_WRITE(VLV_IIR, iir_mask);
+	I915_WRITE(VLV_IIR, iir_mask);
+	POSTING_READ(VLV_IIR);
+
+	pipestat_mask = PLANE_FLIP_DONE_INT_STATUS_VLV |
+			PIPE_CRC_DONE_INTERRUPT_STATUS;
+
+	i915_disable_pipestat(dev_priv, PIPE_A, pipestat_mask |
+					        PIPE_GMBUS_INTERRUPT_STATUS);
+	i915_disable_pipestat(dev_priv, PIPE_B, pipestat_mask);
+
+	pipestat_mask = PIPESTAT_INT_STATUS_MASK |
+			PIPE_FIFO_UNDERRUN_STATUS;
+	I915_WRITE(PIPESTAT(PIPE_A), pipestat_mask);
+	I915_WRITE(PIPESTAT(PIPE_B), pipestat_mask);
+	POSTING_READ(PIPESTAT(PIPE_A));
+}
+
+void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
+{
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->display_irqs_enabled)
+		return;
+
+	dev_priv->display_irqs_enabled = true;
+
+	if (dev_priv->dev->irq_enabled)
+		valleyview_display_irqs_install(dev_priv);
+}
+
+void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
+{
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (!dev_priv->display_irqs_enabled)
+		return;
+
+	dev_priv->display_irqs_enabled = false;
+
+	if (dev_priv->dev->irq_enabled)
+		valleyview_display_irqs_uninstall(dev_priv);
+}
+
 static int valleyview_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 enable_mask;
-	u32 pipestat_enable = PLANE_FLIP_DONE_INT_STATUS_VLV |
-		PIPE_CRC_DONE_INTERRUPT_STATUS;
 	unsigned long irqflags;
 
-	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
-	enable_mask |= I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-
-	/*
-	 *Leave vblank interrupts masked initially.  enable/disable will
-	 * toggle them based on usage.
-	 */
-	dev_priv->irq_mask = (~enable_mask) |
-		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
-		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+	dev_priv->irq_mask = ~0;
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
 
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	I915_WRITE(VLV_IER, enable_mask);
+	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
 	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(PIPESTAT(0), 0xffff);
-	I915_WRITE(PIPESTAT(1), 0xffff);
 	POSTING_READ(VLV_IER);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, PIPE_A, pipestat_enable);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
-	i915_enable_pipestat(dev_priv, PIPE_B, pipestat_enable);
+	if (dev_priv->display_irqs_enabled)
+		valleyview_display_irqs_install(dev_priv);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	I915_WRITE(VLV_IIR, 0xffffffff);
@@ -3184,6 +3273,7 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 static void valleyview_irq_uninstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
 	int pipe;
 
 	if (!dev_priv)
@@ -3197,8 +3287,14 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(HWSTAM, 0xffffffff);
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-	for_each_pipe(pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	if (dev_priv->display_irqs_enabled)
+		valleyview_display_irqs_uninstall(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	dev_priv->irq_mask = 0;
+
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IMR, 0xffffffff);
 	I915_WRITE(VLV_IER, 0x0);
@@ -3337,7 +3433,9 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		 */
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false);
+			i915_handle_error(dev, false,
+					  "Command parser error, iir 0x%08x",
+					  iir);
 
 		for_each_pipe(pipe) {
 			int reg = PIPESTAT(pipe);
@@ -3519,7 +3617,9 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		 */
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false);
+			i915_handle_error(dev, false,
+					  "Command parser error, iir 0x%08x",
+					  iir);
 
 		for_each_pipe(pipe) {
 			int reg = PIPESTAT(pipe);
@@ -3756,7 +3856,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		 */
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false);
+			i915_handle_error(dev, false,
+					  "Command parser error, iir 0x%08x",
+					  iir);
 
 		for_each_pipe(pipe) {
 			int reg = PIPESTAT(pipe);

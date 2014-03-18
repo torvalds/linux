@@ -1321,11 +1321,11 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_switcheroo;
 
+	intel_power_domains_init_hw(dev_priv);
+
 	ret = drm_irq_install(dev);
 	if (ret)
 		goto cleanup_gem_stolen;
-
-	intel_power_domains_init_hw(dev);
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
@@ -1343,7 +1343,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = true;
 	if (INTEL_INFO(dev)->num_pipes == 0) {
-		intel_display_power_put(dev, POWER_DOMAIN_VGA);
+		intel_display_power_put(dev_priv, POWER_DOMAIN_VGA);
 		return 0;
 	}
 
@@ -1381,7 +1381,7 @@ cleanup_gem:
 	WARN_ON(dev_priv->mm.aliasing_ppgtt);
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
 cleanup_power:
-	intel_display_power_put(dev, POWER_DOMAIN_VGA);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_VGA);
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
 	i915_gem_cleanup_stolen(dev);
@@ -1480,12 +1480,16 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_device_info *info;
+	enum pipe pipe;
 
 	info = (struct intel_device_info *)&dev_priv->info;
 
-	info->num_sprites = 1;
 	if (IS_VALLEYVIEW(dev))
-		info->num_sprites = 2;
+		for_each_pipe(pipe)
+			info->num_sprites[pipe] = 2;
+	else
+		for_each_pipe(pipe)
+			info->num_sprites[pipe] = 1;
 
 	if (i915.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");
@@ -1702,7 +1706,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_gem_unload;
 	}
 
-	intel_power_domains_init(dev);
+	intel_power_domains_init(dev_priv);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev);
@@ -1731,7 +1735,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_power_well:
-	intel_power_domains_remove(dev);
+	intel_power_domains_remove(dev_priv);
 	drm_vblank_cleanup(dev);
 out_gem_unload:
 	if (dev_priv->mm.inactive_shrinker.scan_objects)
@@ -1781,8 +1785,8 @@ int i915_driver_unload(struct drm_device *dev)
 	/* The i915.ko module is still not prepared to be loaded when
 	 * the power well is not enabled, so just enable it in case
 	 * we're going to unload/reload. */
-	intel_display_set_init_power(dev, true);
-	intel_power_domains_remove(dev);
+	intel_display_set_init_power(dev_priv, true);
+	intel_power_domains_remove(dev_priv);
 
 	i915_teardown_sysfs(dev);
 

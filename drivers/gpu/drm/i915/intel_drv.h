@@ -609,6 +609,8 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 /* i915_irq.c */
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 					   enum pipe pipe, bool enable);
+bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+					     enum pipe pipe, bool enable);
 bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 					   enum transcoder pch_transcoder,
 					   bool enable);
@@ -732,7 +734,9 @@ ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
 bool intel_crtc_active(struct drm_crtc *crtc);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
-void intel_display_set_init_power(struct drm_device *dev, bool enable);
+void intel_display_set_init_power(struct drm_i915_private *dev, bool enable);
+enum intel_display_power_domain
+intel_display_port_power_domain(struct intel_encoder *intel_encoder);
 int valleyview_get_vco(struct drm_i915_private *dev_priv);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_config *pipe_config);
@@ -871,18 +875,17 @@ bool intel_fbc_enabled(struct drm_device *dev);
 void intel_update_fbc(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_teardown(void);
-int intel_power_domains_init(struct drm_device *dev);
-void intel_power_domains_remove(struct drm_device *dev);
-bool intel_display_power_enabled(struct drm_device *dev,
+int intel_power_domains_init(struct drm_i915_private *);
+void intel_power_domains_remove(struct drm_i915_private *);
+bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
 				 enum intel_display_power_domain domain);
-bool intel_display_power_enabled_sw(struct drm_device *dev,
+bool intel_display_power_enabled_sw(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
-void intel_display_power_get(struct drm_device *dev,
+void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
-void intel_display_power_put(struct drm_device *dev,
+void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
-void intel_power_domains_init_hw(struct drm_device *dev);
-void intel_set_power_well(struct drm_device *dev, bool enable);
+void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
 void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
 void ironlake_teardown_rc6(struct drm_device *dev);

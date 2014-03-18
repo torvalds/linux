@@ -571,7 +571,7 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
 	 * programmed to '1' on all products.
 	 *
-	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
+	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv,bdw
 	 */
 	if (INTEL_INFO(dev)->gen >= 6)
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
@@ -1387,6 +1387,8 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	ring->effective_size = ring->size;
 	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
+
+	i915_cmd_parser_init_ring(ring);
 
 	return 0;
 

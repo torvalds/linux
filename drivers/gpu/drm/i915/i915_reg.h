@@ -175,6 +175,18 @@
 #define VGA_CR_DATA_CGA 0x3d5
 
 /*
+ * Instruction field definitions used by the command parser
+ */
+#define INSTR_CLIENT_SHIFT      29
+#define INSTR_CLIENT_MASK       0xE0000000
+#define   INSTR_MI_CLIENT       0x0
+#define   INSTR_BC_CLIENT       0x2
+#define   INSTR_RC_CLIENT       0x3
+#define INSTR_SUBCLIENT_SHIFT   27
+#define INSTR_SUBCLIENT_MASK    0x18000000
+#define   INSTR_MEDIA_SUBCLIENT 0x2
+
+/*
  * Memory interface instructions used by the kernel
  */
 #define MI_INSTR(opcode, flags) (((opcode) << 23) | (flags))
@@ -377,14 +389,30 @@
 #define   DSPFREQSTAT_MASK			(0x3 << DSPFREQSTAT_SHIFT)
 #define   DSPFREQGUAR_SHIFT			14
 #define   DSPFREQGUAR_MASK			(0x3 << DSPFREQGUAR_SHIFT)
+
+/* See the PUNIT HAS v0.8 for the below bits */
+enum punit_power_well {
+	PUNIT_POWER_WELL_RENDER			= 0,
+	PUNIT_POWER_WELL_MEDIA			= 1,
+	PUNIT_POWER_WELL_DISP2D			= 3,
+	PUNIT_POWER_WELL_DPIO_CMN_BC		= 5,
+	PUNIT_POWER_WELL_DPIO_TX_B_LANES_01	= 6,
+	PUNIT_POWER_WELL_DPIO_TX_B_LANES_23	= 7,
+	PUNIT_POWER_WELL_DPIO_TX_C_LANES_01	= 8,
+	PUNIT_POWER_WELL_DPIO_TX_C_LANES_23	= 9,
+	PUNIT_POWER_WELL_DPIO_RX0		= 10,
+	PUNIT_POWER_WELL_DPIO_RX1		= 11,
+
+	PUNIT_POWER_WELL_NUM,
+};
+
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
-#define	  PUNIT_CLK_GATE			1
-#define	  PUNIT_PWR_RESET			2
-#define	  PUNIT_PWR_GATE			3
-#define	  RENDER_PWRGT				(PUNIT_PWR_GATE << 0)
-#define	  MEDIA_PWRGT				(PUNIT_PWR_GATE << 2)
-#define	  DISP2D_PWRGT				(PUNIT_PWR_GATE << 6)
+#define   PUNIT_PWRGT_MASK(power_well)		(3 << ((power_well) * 2))
+#define   PUNIT_PWRGT_PWR_ON(power_well)	(0 << ((power_well) * 2))
+#define   PUNIT_PWRGT_CLK_GATE(power_well)	(1 << ((power_well) * 2))
+#define   PUNIT_PWRGT_RESET(power_well)		(2 << ((power_well) * 2))
+#define   PUNIT_PWRGT_PWR_GATE(power_well)	(3 << ((power_well) * 2))
 
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
@@ -798,7 +826,12 @@
 # define ASYNC_FLIP_PERF_DISABLE			(1 << 14)
 
 #define GEN6_GT_MODE	0x20d0
-#define   GEN6_GT_MODE_HI				(1 << 9)
+#define GEN7_GT_MODE	0x7008
+#define   GEN6_WIZ_HASHING(hi, lo)			(((hi) << 9) | ((lo) << 7))
+#define   GEN6_WIZ_HASHING_8x8				GEN6_WIZ_HASHING(0, 0)
+#define   GEN6_WIZ_HASHING_8x4				GEN6_WIZ_HASHING(0, 1)
+#define   GEN6_WIZ_HASHING_16x4				GEN6_WIZ_HASHING(1, 0)
+#define   GEN6_WIZ_HASHING_MASK				(GEN6_WIZ_HASHING(1, 1) << 16)
 #define   GEN6_TD_FOUR_ROW_DISPATCH_DISABLE		(1 << 5)
 
 #define GFX_MODE	0x02520
@@ -943,6 +976,9 @@
 #define GEN6_BLITTER_ECOSKPD	0x221d0
 #define   GEN6_BLITTER_LOCK_SHIFT			16
 #define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
+
+#define GEN6_RC_SLEEP_PSMI_CONTROL	0x2050
+#define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
 #define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)
@@ -1120,13 +1156,6 @@
 #define MSG_FBC_REND_STATE	0x50380
 #define   FBC_REND_NUKE		(1<<2)
 #define   FBC_REND_CACHE_CLEAN	(1<<1)
-
-#define _HSW_PIPE_SLICE_CHICKEN_1_A	0x420B0
-#define _HSW_PIPE_SLICE_CHICKEN_1_B	0x420B4
-#define   HSW_BYPASS_FBC_QUEUE		(1<<22)
-#define HSW_PIPE_SLICE_CHICKEN_1(pipe) _PIPE(pipe, + \
-					     _HSW_PIPE_SLICE_CHICKEN_1_A, + \
-					     _HSW_PIPE_SLICE_CHICKEN_1_B)
 
 /*
  * GPIO regs
@@ -4140,7 +4169,8 @@
 
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
-#define  DPRS_MASK_VBLANK_SRD	(1 << 0)
+#define  HSW_FBCQ_DIS			(1 << 22)
+#define  BDW_DPRS_MASK_VBLANK_SRD	(1 << 0)
 #define CHICKEN_PIPESL_1(pipe) _PIPE(pipe, _CHICKEN_PIPESL_1_A, _CHICKEN_PIPESL_1_B)
 
 #define DISP_ARB_CTL	0x45000
@@ -4164,7 +4194,7 @@
 #define  VLV_B0_WA_L3SQCREG1_VALUE		0x00D30000
 
 #define GEN7_L3CNTLREG1				0xB01C
-#define  GEN7_WA_FOR_GEN7_L3_CONTROL			0x3C4FFF8C
+#define  GEN7_WA_FOR_GEN7_L3_CONTROL			0x3C47FF8C
 #define  GEN7_L3AGDIS				(1<<19)
 
 #define GEN7_L3_CHICKEN_MODE_REGISTER		0xB030
@@ -4898,6 +4928,9 @@
 #define GEN7_UCGCTL4				0x940c
 #define  GEN7_L3BANK2X_CLOCK_GATE_DISABLE	(1<<25)
 
+#define GEN8_UCGCTL6				0x9430
+#define   GEN8_SDEUNIT_CLOCK_GATE_DISABLE	(1<<14)
+
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
 #define   GEN6_FREQUENCY(x)			((x)<<25)
@@ -5042,6 +5075,10 @@
 #define   GEN7_MAX_PS_THREAD_DEP		(8<<12)
 #define   GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE	(1<<10)
 #define   GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE	(1<<3)
+
+#define GEN8_ROW_CHICKEN		0xe4f0
+#define   PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE	(1<<8)
+#define   STALL_DOP_GATING_DISABLE		(1<<5)
 
 #define GEN7_ROW_CHICKEN2		0xe4f4
 #define GEN7_ROW_CHICKEN2_GT2		0xf4f4

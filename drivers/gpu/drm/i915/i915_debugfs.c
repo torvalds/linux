@@ -602,7 +602,6 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	intel_runtime_pm_get(dev_priv);
 
 	if (INTEL_INFO(dev)->gen >= 8) {
-		int i;
 		seq_printf(m, "Master Interrupt Control:\t%08x\n",
 			   I915_READ(GEN8_MASTER_IRQ));
 
@@ -615,16 +614,16 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 				   i, I915_READ(GEN8_GT_IER(i)));
 		}
 
-		for_each_pipe(i) {
+		for_each_pipe(pipe) {
 			seq_printf(m, "Pipe %c IMR:\t%08x\n",
-				   pipe_name(i),
-				   I915_READ(GEN8_DE_PIPE_IMR(i)));
+				   pipe_name(pipe),
+				   I915_READ(GEN8_DE_PIPE_IMR(pipe)));
 			seq_printf(m, "Pipe %c IIR:\t%08x\n",
-				   pipe_name(i),
-				   I915_READ(GEN8_DE_PIPE_IIR(i)));
+				   pipe_name(pipe),
+				   I915_READ(GEN8_DE_PIPE_IIR(pipe)));
 			seq_printf(m, "Pipe %c IER:\t%08x\n",
-				   pipe_name(i),
-				   I915_READ(GEN8_DE_PIPE_IER(i)));
+				   pipe_name(pipe),
+				   I915_READ(GEN8_DE_PIPE_IER(pipe)));
 		}
 
 		seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
@@ -1348,6 +1347,8 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	if (intel_fbc_enabled(dev)) {
 		seq_puts(m, "FBC enabled\n");
 	} else {
@@ -1391,6 +1392,9 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		}
 		seq_putc(m, '\n');
 	}
+
+	intel_runtime_pm_put(dev_priv);
+
 	return 0;
 }
 
@@ -1405,10 +1409,14 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	if (IS_BROADWELL(dev) || I915_READ(IPS_CTL) & IPS_ENABLE)
 		seq_puts(m, "enabled\n");
 	else
 		seq_puts(m, "disabled\n");
+
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
@@ -1420,6 +1428,8 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool sr_enabled = false;
 
+	intel_runtime_pm_get(dev_priv);
+
 	if (HAS_PCH_SPLIT(dev))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
 	else if (IS_CRESTLINE(dev) || IS_I945G(dev) || IS_I945GM(dev))
@@ -1428,6 +1438,8 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 		sr_enabled = I915_READ(INSTPM) & INSTPM_SELF_EN;
 	else if (IS_PINEVIEW(dev))
 		sr_enabled = I915_READ(DSPFW3) & PINEVIEW_SELF_REFRESH_EN;
+
+	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "self-refresh: %s\n",
 		   sr_enabled ? "enabled" : "disabled");
@@ -1468,7 +1480,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	int ret = 0;
 	int gpu_freq, ia_freq;
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
@@ -1476,12 +1488,13 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 		return 0;
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
+		goto out;
 
 	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
@@ -1498,10 +1511,11 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 			   ((ia_freq >> 8) & 0xff) * 100);
 	}
 
-	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
-	return 0;
+out:
+	intel_runtime_pm_put(dev_priv);
+	return ret;
 }
 
 static int i915_gfxec(struct seq_file *m, void *unused)
@@ -1757,7 +1771,7 @@ static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 		return;
 
 	seq_printf(m, "Page directories: %d\n", ppgtt->num_pd_pages);
-	seq_printf(m, "Page tables: %d\n", ppgtt->num_pt_pages);
+	seq_printf(m, "Page tables: %d\n", ppgtt->num_pd_entries);
 	for_each_ring(ring, dev_priv, unused) {
 		seq_printf(m, "%s\n", ring->name);
 		for (i = 0; i < 4; i++) {
@@ -1972,11 +1986,15 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
+	intel_runtime_pm_get(dev_priv);
+
 	rdmsrl(MSR_RAPL_POWER_UNIT, power);
 	power = (power & 0x1f00) >> 8;
 	units = 1000000 / (1 << power); /* convert to uJ */
 	power = I915_READ(MCH_SECP_NRG_STTS);
 	power *= units;
+
+	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "%llu", (long long unsigned)power);
 
@@ -1997,7 +2015,7 @@ static int i915_pc8_status(struct seq_file *m, void *unused)
 	mutex_lock(&dev_priv->pc8.lock);
 	seq_printf(m, "Requirements met: %s\n",
 		   yesno(dev_priv->pc8.requirements_met));
-	seq_printf(m, "GPU idle: %s\n", yesno(dev_priv->pc8.gpu_idle));
+	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
 	seq_printf(m, "Disable count: %d\n", dev_priv->pc8.disable_count);
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(dev_priv->pc8.irqs_disabled));
@@ -2030,6 +2048,28 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "TRANSCODER_C";
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return "TRANSCODER_EDP";
+	case POWER_DOMAIN_PORT_DDI_A_2_LANES:
+		return "PORT_DDI_A_2_LANES";
+	case POWER_DOMAIN_PORT_DDI_A_4_LANES:
+		return "PORT_DDI_A_4_LANES";
+	case POWER_DOMAIN_PORT_DDI_B_2_LANES:
+		return "PORT_DDI_B_2_LANES";
+	case POWER_DOMAIN_PORT_DDI_B_4_LANES:
+		return "PORT_DDI_B_4_LANES";
+	case POWER_DOMAIN_PORT_DDI_C_2_LANES:
+		return "PORT_DDI_C_2_LANES";
+	case POWER_DOMAIN_PORT_DDI_C_4_LANES:
+		return "PORT_DDI_C_4_LANES";
+	case POWER_DOMAIN_PORT_DDI_D_2_LANES:
+		return "PORT_DDI_D_2_LANES";
+	case POWER_DOMAIN_PORT_DDI_D_4_LANES:
+		return "PORT_DDI_D_4_LANES";
+	case POWER_DOMAIN_PORT_DSI:
+		return "PORT_DSI";
+	case POWER_DOMAIN_PORT_CRT:
+		return "PORT_CRT";
+	case POWER_DOMAIN_PORT_OTHER:
+		return "PORT_OTHER";
 	case POWER_DOMAIN_VGA:
 		return "VGA";
 	case POWER_DOMAIN_AUDIO:
@@ -2180,6 +2220,7 @@ static void intel_connector_info(struct seq_file *m,
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct drm_display_mode *mode;
 
 	seq_printf(m, "connector %d: type %s, status: %s\n",
 		   connector->base.id, drm_get_connector_name(connector),
@@ -2202,6 +2243,9 @@ static void intel_connector_info(struct seq_file *m,
 	else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
 		intel_lvds_info(m, intel_connector);
 
+	seq_printf(m, "\tmodes:\n");
+	list_for_each_entry(mode, &connector->modes, head)
+		intel_seq_print_mode(m, 2, mode);
 }
 
 static int i915_display_info(struct seq_file *m, void *unused)
@@ -3167,9 +3211,8 @@ i915_wedged_set(void *data, u64 val)
 {
 	struct drm_device *dev = data;
 
-	DRM_INFO("Manually setting wedged to %llu\n", val);
-	i915_handle_error(dev, val);
-
+	i915_handle_error(dev, val,
+			  "Manually setting wedged to %llu", val);
 	return 0;
 }
 

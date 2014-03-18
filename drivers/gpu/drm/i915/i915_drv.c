@@ -265,6 +265,7 @@ static const struct intel_device_info intel_broadwell_d_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 };
 
@@ -274,6 +275,7 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 };
 
@@ -401,14 +403,12 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6)
 		return false;
 
-	/* Until we get further testing... */
-	if (IS_GEN8(dev)) {
-		WARN_ON(!i915.preliminary_hw_support);
-		return false;
-	}
-
 	if (i915.semaphores >= 0)
 		return i915.semaphores;
+
+	/* Until we get further testing... */
+	if (IS_GEN8(dev))
+		return false;
 
 #ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
@@ -434,7 +434,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	hsw_disable_package_c8(dev_priv);
-	intel_display_set_init_power(dev, true);
+	intel_display_set_init_power(dev_priv, true);
 
 	drm_kms_helper_poll_disable(dev);
 
@@ -476,6 +476,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 	console_lock();
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED);
 	console_unlock();
+
+	dev_priv->suspend_count++;
 
 	return 0;
 }
@@ -556,7 +558,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	intel_power_domains_init_hw(dev);
+	intel_power_domains_init_hw(dev_priv);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
@@ -847,6 +849,7 @@ static int i915_runtime_suspend(struct device *device)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WARN_ON(!HAS_RUNTIME_PM(dev));
+	assert_force_wake_inactive(dev_priv);
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
