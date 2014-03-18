@@ -2,18 +2,11 @@ config ARCH_MXC
 	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_CPU_SUSPEND if PM
-	select ARM_PATCH_PHYS_VIRT
 	select CLKSRC_MMIO
-	select COMMON_CLK
 	select GENERIC_ALLOCATOR
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
-	select MIGHT_HAVE_CACHE_L2X0 if ARCH_MULTI_V6_V7
-	select MULTI_IRQ_HANDLER
 	select PINCTRL
 	select SOC_BUS
-	select SPARSE_IRQ
-	select USE_OF
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -121,7 +114,6 @@ config SOC_IMX31
 config SOC_IMX35
 	bool
 	select ARCH_MXC_IOMUX_V3
-	select CPU_V6K
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
@@ -132,7 +124,6 @@ config SOC_IMX5
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARCH_MXC_IOMUX_V3
-	select CPU_V7
 	select MXC_TZIC
 
 config	SOC_IMX51
@@ -792,14 +783,12 @@ config SOC_IMX6Q
 	select ARM_ERRATA_764369 if SMP
 	select ARM_ERRATA_775420
 	select ARM_GIC
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
-	select HAVE_SMP
 	select MFD_SYSCON
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
@@ -817,7 +806,6 @@ config SOC_IMX6SL
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_GIC
-	select CPU_V7
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
@@ -833,9 +821,7 @@ config SOC_IMX6SL
 
 config SOC_VF610
 	bool "Vybrid Family VF610 support"
-	select CPU_V7
 	select ARM_GIC
-	select CLKSRC_OF
 	select PINCTRL_VF610
 	select VF_PIT_TIMER
 	select PL310_ERRATA_588369 if CACHE_PL310
