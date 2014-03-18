@@ -41,13 +41,12 @@ MEMREGION *
 visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 {
 	MEMREGION *rc = NULL;
-	MEMREGION *memregion = kmalloc(sizeof(MEMREGION),
-				       GFP_KERNEL|__GFP_NORETRY);
+	MEMREGION *memregion = kzalloc(sizeof(MEMREGION),
+				       GFP_KERNEL | __GFP_NORETRY);
 	if (memregion == NULL) {
 		ERRDRV("visor_memregion_create allocation failed");
 		return NULL;
 	}
-	memset(memregion, 0, sizeof(MEMREGION));
 	memregion->physaddr = physaddr;
 	memregion->nbytes = nbytes;
 	memregion->overlapped = FALSE;

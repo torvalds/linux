@@ -189,13 +189,6 @@ struct chaninfo {
 	schedule_timeout((x)*HZ); \
 }
 
-#define ALLOC_CMDRSP(cmdrsp) { \
-	cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC); \
-	if (cmdrsp != NULL) { \
-		memset(cmdrsp, 0, SIZEOF_CMDRSP); \
-	} \
-}
-
 /* This is a hack until we fix IOVM to initialize the channel header
  * correctly at DEVICE_CREATE time, INSTEAD OF waiting until
  * DEVICE_CONFIGURE time.

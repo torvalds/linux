@@ -56,13 +56,12 @@ PERIODIC_WORK *visor_periodic_work_create(ulong jiffy_interval,
 					  void *workfuncarg,
 					  const char *devnam)
 {
-	PERIODIC_WORK *periodic_work = kmalloc(sizeof(PERIODIC_WORK),
-					       GFP_KERNEL|__GFP_NORETRY);
+	PERIODIC_WORK *periodic_work = kzalloc(sizeof(PERIODIC_WORK),
+					       GFP_KERNEL | __GFP_NORETRY);
 	if (periodic_work == NULL) {
 		ERRDRV("periodic_work allocation failed ");
 		return NULL;
 	}
-	memset(periodic_work, '\0', sizeof(PERIODIC_WORK));
 	rwlock_init(&periodic_work->lock);
 	periodic_work->jiffy_interval = jiffy_interval;
 	periodic_work->workqueue = workqueue;

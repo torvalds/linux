@@ -254,13 +254,12 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 {
 	int ret;
 	struct device *vbus;
-	vbus = kmalloc(sizeof(struct device), GFP_ATOMIC);
+	vbus = kzalloc(sizeof(struct device), GFP_ATOMIC);
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (!vbus)
 		return 0;
 
-	memset(vbus, 0, sizeof(struct device));
 	dev_set_name(vbus, "vbus%d", addparams->busNo);
 	vbus->release = virtpci_bus_release;
 	vbus->parent = &virtpci_rootbus_device;	/* root bus is parent */

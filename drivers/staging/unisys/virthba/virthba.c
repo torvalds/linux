@@ -402,9 +402,8 @@ process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
 	struct diskaddremove *dar;
 	unsigned long flags;
 
-	dar = kmalloc(sizeof(struct diskaddremove), GFP_ATOMIC);
+	dar = kzalloc(sizeof(struct diskaddremove), GFP_ATOMIC);
 	if (dar) {
-		memset(dar, 0, sizeof(struct diskaddremove));
 		dar->add = cmdrsp->disknotify.add;
 		dar->shost = shost;
 		dar->channel = cmdrsp->disknotify.channel;
@@ -697,7 +696,7 @@ forward_vdiskmgmt_command(VDISK_MGMT_TYPES vdiskcmdtype,
 		return FAILED;
 	}
 
-	ALLOC_CMDRSP(cmdrsp);
+	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (cmdrsp == NULL) {
 		LOGERR("kmalloc of cmdrsp failed.\n");
 		return FAILED;	/* reject */
@@ -759,7 +758,7 @@ forward_taskmgmt_command(TASK_MGMT_TYPES tasktype, struct scsi_device *scsidev)
 		return FAILED;
 	}
 
-	ALLOC_CMDRSP(cmdrsp);
+	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (cmdrsp == NULL) {
 		LOGERR("kmalloc of cmdrsp failed.\n");
 		return FAILED;	/* reject */
@@ -930,7 +929,7 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
-	ALLOC_CMDRSP(cmdrsp);
+	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (cmdrsp == NULL) {
 		LOGERR("kmalloc of cmdrsp failed.\n");
 		return 1;	/* reject the command */
