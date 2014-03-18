@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -288,6 +289,34 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 
 	return 0;
 }
+
+/*
+ * mei_hbm_pg - sends pg command
+ *
+ * @dev: the device structure
+ * @pg_cmd: the pg command code
+ *
+ * This function returns -EIO on write failure
+ */
+int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd)
+{
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
+	struct hbm_power_gate *req;
+	const size_t len = sizeof(struct hbm_power_gate);
+	int ret;
+
+	mei_hbm_hdr(mei_hdr, len);
+
+	req = (struct hbm_power_gate *)dev->wr_msg.data;
+	memset(req, 0, len);
+	req->hbm_cmd = pg_cmd;
+
+	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
+	if (ret)
+		dev_err(&dev->pdev->dev, "power gate command write failed.\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mei_hbm_pg);
 
 /**
  * mei_hbm_stop_req - send stop request message
@@ -699,6 +728,18 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		flow_control = (struct hbm_flow_control *) mei_msg;
 		mei_hbm_cl_flow_control_res(dev, flow_control);
+		break;
+
+	case MEI_PG_ISOLATION_ENTRY_RES_CMD:
+		dev_dbg(&dev->pdev->dev, "power gate isolation entry response received\n");
+		if (waitqueue_active(&dev->wait_pg))
+			wake_up(&dev->wait_pg);
+		break;
+
+	case MEI_PG_ISOLATION_EXIT_REQ_CMD:
+		dev_dbg(&dev->pdev->dev, "power gate isolation exit request received\n");
+		if (waitqueue_active(&dev->wait_pg))
+			wake_up(&dev->wait_pg);
 		break;
 
 	case HOST_CLIENT_PROPERTIES_RES_CMD:

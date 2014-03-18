@@ -69,6 +69,11 @@
 
 #define MEI_FLOW_CONTROL_CMD                0x08
 
+#define MEI_PG_ISOLATION_ENTRY_REQ_CMD      0x0a
+#define MEI_PG_ISOLATION_ENTRY_RES_CMD      0x8a
+#define MEI_PG_ISOLATION_EXIT_REQ_CMD       0x0b
+#define MEI_PG_ISOLATION_EXIT_RES_CMD       0x8b
+
 /*
  * MEI Stop Reason
  * used by hbm_host_stop_request.reason
@@ -205,6 +210,17 @@ struct hbm_props_response {
 	u8 status;
 	u8 reserved[1];
 	struct mei_client_properties client_properties;
+} __packed;
+
+/**
+ * struct hbm_power_gate - power gate request/response
+ *
+ * @hbm_cmd - bus message command header
+ * @reserved[3]
+ */
+struct hbm_power_gate {
+	u8 hbm_cmd;
+	u8 reserved[3];
 } __packed;
 
 /**

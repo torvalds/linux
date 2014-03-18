@@ -371,6 +371,7 @@ struct mei_device {
 	 * waiting queue for receive message from FW
 	 */
 	wait_queue_head_t wait_hw_ready;
+	wait_queue_head_t wait_pg;
 	wait_queue_head_t wait_recvd_msg;
 	wait_queue_head_t wait_stop_wd;
 
