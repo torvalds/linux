@@ -72,7 +72,8 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 		 * If the 10Mbps preamble workaround is supported and we're
 		 * at 10Mbps we may need to do some special checking.
 		 */
-		if (USE_10MBPS_PREAMBLE_WORKAROUND && (link_info.s.speed == 10)) {
+		if (USE_10MBPS_PREAMBLE_WORKAROUND &&
+				(link_info.s.speed == 10)) {
 
 			/*
 			 * Read the GMXX_RXX_INT_REG[PCTERR] bit and
@@ -231,8 +232,10 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 						   (interface, index)];
 				struct octeon_ethernet *priv = netdev_priv(dev);
 
-				if (dev && !atomic_read(&cvm_oct_poll_queue_stopping))
-					queue_work(cvm_oct_poll_queue, &priv->port_work);
+				if (dev &&
+				!atomic_read(&cvm_oct_poll_queue_stopping))
+					queue_work(cvm_oct_poll_queue,
+						&priv->port_work);
 
 				gmx_rx_int_reg.u64 = 0;
 				gmx_rx_int_reg.s.phy_dupx = 1;
@@ -273,8 +276,10 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 						   (interface, index)];
 				struct octeon_ethernet *priv = netdev_priv(dev);
 
-				if (dev && !atomic_read(&cvm_oct_poll_queue_stopping))
-					queue_work(cvm_oct_poll_queue, &priv->port_work);
+				if (dev &&
+				!atomic_read(&cvm_oct_poll_queue_stopping))
+					queue_work(cvm_oct_poll_queue,
+						&priv->port_work);
 
 				gmx_rx_int_reg.u64 = 0;
 				gmx_rx_int_reg.s.phy_dupx = 1;
@@ -326,7 +331,8 @@ int cvm_oct_rgmii_stop(struct net_device *dev)
 
 static void cvm_oct_rgmii_immediate_poll(struct work_struct *work)
 {
-	struct octeon_ethernet *priv = container_of(work, struct octeon_ethernet, port_work);
+	struct octeon_ethernet *priv =
+		container_of(work, struct octeon_ethernet, port_work);
 	cvm_oct_rgmii_poll(cvm_oct_device[priv->port]);
 }
 
