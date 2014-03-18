@@ -3069,41 +3069,84 @@ nfsd4_encode_open_downgrade(struct nfsd4_compoundres *resp, __be32 nfserr, struc
 	return nfserr;
 }
 
-static __be32
-nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
-		  struct nfsd4_read *read)
+static __be32 nfsd4_encode_splice_read(
+				struct nfsd4_compoundres *resp,
+				struct nfsd4_read *read,
+				struct file *file, unsigned long maxcount)
 {
+	struct xdr_stream *xdr = &resp->xdr;
+	u32 eof;
+	int starting_len = xdr->buf->len - 8;
+	int space_left;
+	__be32 nfserr;
+	__be32 tmp;
+	__be32 *p;
+
+	/*
+	 * Don't inline pages unless we know there's room for eof,
+	 * count, and possible padding:
+	 */
+	if (xdr->end - xdr->p < 3)
+		return nfserr_resource;
+
+	nfserr = nfsd_splice_read(read->rd_rqstp, file,
+				  read->rd_offset, &maxcount);
+	if (nfserr) {
+		/*
+		 * nfsd_splice_actor may have already messed with the
+		 * page length; reset it so as not to confuse
+		 * xdr_truncate_encode:
+		 */
+		xdr->buf->page_len = 0;
+		return nfserr;
+	}
+
+	eof = (read->rd_offset + maxcount >=
+	       read->rd_fhp->fh_dentry->d_inode->i_size);
+
+	tmp = htonl(eof);
+	write_bytes_to_xdr_buf(xdr->buf, starting_len    , &tmp, 4);
+	tmp = htonl(maxcount);
+	write_bytes_to_xdr_buf(xdr->buf, starting_len + 4, &tmp, 4);
+
+	resp->xdr.buf->page_len = maxcount;
+	xdr->buf->len += maxcount;
+	xdr->page_ptr += (maxcount + PAGE_SIZE - 1) / PAGE_SIZE;
+	xdr->iov = xdr->buf->tail;
+
+	/* Use rest of head for padding and remaining ops: */
+	resp->xdr.buf->tail[0].iov_base = xdr->p;
+	resp->xdr.buf->tail[0].iov_len = 0;
+	if (maxcount&3) {
+		p = xdr_reserve_space(xdr, 4);
+		WRITE32(0);
+		resp->xdr.buf->tail[0].iov_base += maxcount&3;
+		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
+		xdr->buf->len -= (maxcount&3);
+	}
+
+	space_left = min_t(int, (void *)xdr->end - (void *)xdr->p,
+				xdr->buf->buflen - xdr->buf->len);
+	xdr->buf->buflen = xdr->buf->len + space_left;
+	xdr->end = (__be32 *)((void *)xdr->end + space_left);
+
+	return 0;
+}
+
+static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
+				 struct nfsd4_read *read,
+				 struct file *file, unsigned long maxcount)
+{
+	struct xdr_stream *xdr = &resp->xdr;
 	u32 eof;
 	int v;
 	struct page *page;
-	unsigned long maxcount; 
-	struct xdr_stream *xdr = &resp->xdr;
-	int starting_len = xdr->buf->len;
+	int starting_len = xdr->buf->len - 8;
 	int space_left;
 	long len;
+	__be32 nfserr;
+	__be32 tmp;
 	__be32 *p;
-
-	if (nfserr)
-		return nfserr;
-
-	p = xdr_reserve_space(xdr, 8); /* eof flag and byte count */
-	if (!p) {
-		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
-		return nfserr_resource;
-	}
-
-	/* Make sure there will be room for padding if needed: */
-	if (xdr->end - xdr->p < 1)
-		return nfserr_resource;
-
-	if (resp->xdr.buf->page_len) {
-		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
-		return nfserr_resource;
-	}
-
-	maxcount = svc_max_payload(resp->rqstp);
-	if (maxcount > read->rd_length)
-		maxcount = read->rd_length;
 
 	len = maxcount;
 	v = 0;
@@ -3124,34 +3167,26 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	}
 	read->rd_vlen = v;
 
-	nfserr = nfsd_read_file(read->rd_rqstp, read->rd_fhp, read->rd_filp,
-			read->rd_offset, resp->rqstp->rq_vec, read->rd_vlen,
-			&maxcount);
-
-	if (nfserr) {
-		/*
-		 * nfsd_splice_actor may have already messed with the
-		 * page length; reset it so as not to confuse
-		 * xdr_truncate_encode:
-		 */
-		xdr->buf->page_len = 0;
-		xdr_truncate_encode(xdr, starting_len);
+	nfserr = nfsd_readv(file, read->rd_offset, resp->rqstp->rq_vec,
+			read->rd_vlen, &maxcount);
+	if (nfserr)
 		return nfserr;
-	}
+
 	eof = (read->rd_offset + maxcount >=
 	       read->rd_fhp->fh_dentry->d_inode->i_size);
 
-	WRITE32(eof);
-	WRITE32(maxcount);
-	WARN_ON_ONCE(resp->xdr.buf->head[0].iov_len != (char *)p
-				- (char *)resp->xdr.buf->head[0].iov_base);
+	tmp = htonl(eof);
+	write_bytes_to_xdr_buf(xdr->buf, starting_len    , &tmp, 4);
+	tmp = htonl(maxcount);
+	write_bytes_to_xdr_buf(xdr->buf, starting_len + 4, &tmp, 4);
+
 	resp->xdr.buf->page_len = maxcount;
 	xdr->buf->len += maxcount;
 	xdr->page_ptr += v;
 	xdr->iov = xdr->buf->tail;
 
 	/* Use rest of head for padding and remaining ops: */
-	resp->xdr.buf->tail[0].iov_base = p;
+	resp->xdr.buf->tail[0].iov_base = xdr->p;
 	resp->xdr.buf->tail[0].iov_len = 0;
 	if (maxcount&3) {
 		p = xdr_reserve_space(xdr, 4);
@@ -3167,6 +3202,60 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	xdr->end = (__be32 *)((void *)xdr->end + space_left);
 
 	return 0;
+
+}
+
+static __be32
+nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
+		  struct nfsd4_read *read)
+{
+	unsigned long maxcount;
+	struct xdr_stream *xdr = &resp->xdr;
+	struct file *file = read->rd_filp;
+	int starting_len = xdr->buf->len;
+	struct raparms *ra;
+	__be32 *p;
+	__be32 err;
+
+	if (nfserr)
+		return nfserr;
+
+	p = xdr_reserve_space(xdr, 8); /* eof flag and byte count */
+	if (!p) {
+		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
+		return nfserr_resource;
+	}
+
+	if (resp->xdr.buf->page_len) {
+		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
+		return nfserr_resource;
+	}
+
+	xdr_commit_encode(xdr);
+
+	maxcount = svc_max_payload(resp->rqstp);
+	if (maxcount > read->rd_length)
+		maxcount = read->rd_length;
+
+	if (!read->rd_filp) {
+		err = nfsd_get_tmp_read_open(resp->rqstp, read->rd_fhp,
+						&file, &ra);
+		if (err)
+			goto err_truncate;
+	}
+
+	if (file->f_op->splice_read && resp->rqstp->rq_splice_ok)
+		err = nfsd4_encode_splice_read(resp, read, file, maxcount);
+	else
+		err = nfsd4_encode_readv(resp, read, file, maxcount);
+
+	if (!read->rd_filp)
+		nfsd_put_tmp_read_open(file, ra);
+
+err_truncate:
+	if (err)
+		xdr_truncate_encode(xdr, starting_len);
+	return err;
 }
 
 static __be32

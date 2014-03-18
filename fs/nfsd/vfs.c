@@ -820,41 +820,54 @@ static int nfsd_direct_splice_actor(struct pipe_inode_info *pipe,
 	return __splice_from_pipe(pipe, sd, nfsd_splice_actor);
 }
 
-static __be32
-nfsd_vfs_read(struct svc_rqst *rqstp, struct file *file,
-              loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
+__be32 nfsd_finish_read(struct file *file, unsigned long *count, int host_err)
 {
-	mm_segment_t	oldfs;
-	__be32		err;
-	int		host_err;
-
-	err = nfserr_perm;
-
-	if (file->f_op->splice_read && rqstp->rq_splice_ok) {
-		struct splice_desc sd = {
-			.len		= 0,
-			.total_len	= *count,
-			.pos		= offset,
-			.u.data		= rqstp,
-		};
-
-		rqstp->rq_next_page = rqstp->rq_respages + 1;
-		host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
-	} else {
-		oldfs = get_fs();
-		set_fs(KERNEL_DS);
-		host_err = vfs_readv(file, (struct iovec __user *)vec, vlen, &offset);
-		set_fs(oldfs);
-	}
-
 	if (host_err >= 0) {
 		nfsdstats.io_read += host_err;
 		*count = host_err;
-		err = 0;
 		fsnotify_access(file);
+		return 0;
 	} else 
-		err = nfserrno(host_err);
-	return err;
+		return nfserrno(host_err);
+}
+
+int nfsd_splice_read(struct svc_rqst *rqstp,
+		     struct file *file, loff_t offset, unsigned long *count)
+{
+	struct splice_desc sd = {
+		.len		= 0,
+		.total_len	= *count,
+		.pos		= offset,
+		.u.data		= rqstp,
+	};
+	int host_err;
+
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
+	host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
+	return nfsd_finish_read(file, count, host_err);
+}
+
+int nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
+		unsigned long *count)
+{
+	mm_segment_t oldfs;
+	int host_err;
+
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	host_err = vfs_readv(file, (struct iovec __user *)vec, vlen, &offset);
+	set_fs(oldfs);
+	return nfsd_finish_read(file, count, host_err);
+}
+
+static __be32
+nfsd_vfs_read(struct svc_rqst *rqstp, struct file *file,
+	      loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
+{
+	if (file->f_op->splice_read && rqstp->rq_splice_ok)
+		return nfsd_splice_read(rqstp, file, offset, count);
+	else
+		return nfsd_readv(file, offset, vec, vlen, count);
 }
 
 /*
@@ -956,33 +969,28 @@ out_nfserr:
 	return err;
 }
 
-/*
- * Read data from a file. count must contain the requested read count
- * on entry. On return, *count contains the number of bytes actually read.
- * N.B. After this call fhp needs an fh_put
- */
-__be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
-	loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
+__be32 nfsd_get_tmp_read_open(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		struct file **file, struct raparms **ra)
 {
-	struct file *file;
 	struct inode *inode;
-	struct raparms	*ra;
 	__be32 err;
 
-	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
+	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, file);
 	if (err)
 		return err;
 
-	inode = file_inode(file);
+	inode = file_inode(*file);
 
 	/* Get readahead parameters */
-	ra = nfsd_get_raparms(inode->i_sb->s_dev, inode->i_ino);
+	*ra = nfsd_get_raparms(inode->i_sb->s_dev, inode->i_ino);
 
-	if (ra && ra->p_set)
-		file->f_ra = ra->p_ra;
+	if (*ra && (*ra)->p_set)
+		(*file)->f_ra = (*ra)->p_ra;
+	return nfs_ok;
+}
 
-	err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
-
+void nfsd_put_tmp_read_open(struct file *file, struct raparms *ra)
+{
 	/* Write back readahead params */
 	if (ra) {
 		struct raparm_hbucket *rab = &raparm_hash[ra->p_hindex];
@@ -992,8 +1000,29 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		ra->p_count--;
 		spin_unlock(&rab->pb_lock);
 	}
-
 	nfsd_close(file);
+}
+
+/*
+ * Read data from a file. count must contain the requested read count
+ * on entry. On return, *count contains the number of bytes actually read.
+ * N.B. After this call fhp needs an fh_put
+ */
+__be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
+	loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
+{
+	struct file *file;
+	struct raparms	*ra;
+	__be32 err;
+
+	err = nfsd_get_tmp_read_open(rqstp, fhp, &file, &ra);
+	if (err)
+		return err;
+
+	err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
+
+	nfsd_put_tmp_read_open(file, ra);
+
 	return err;
 }
 
