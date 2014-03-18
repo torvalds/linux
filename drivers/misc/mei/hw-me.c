@@ -109,9 +109,12 @@ static inline void mei_hcsr_set(struct mei_me_hw *hw, u32 hcsr)
  */
 static void mei_me_hw_config(struct mei_device *dev)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(to_me_hw(dev));
 	/* Doesn't change in runtime */
 	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
+
+	hw->pg_state = MEI_PG_OFF;
 }
 
 /**
@@ -123,7 +126,8 @@ static void mei_me_hw_config(struct mei_device *dev)
  */
 static inline enum mei_pg_state mei_me_pg_state(struct mei_device *dev)
 {
-	return MEI_PG_OFF;
+	struct mei_me_hw *hw = to_me_hw(dev);
+	return hw->pg_state;
 }
 
 /**
@@ -473,6 +477,80 @@ static void mei_me_pg_exit(struct mei_device *dev)
 }
 
 /**
+ * mei_me_pg_set_sync - perform pg entry procedure
+ *
+ * @dev: the device structure
+ *
+ * returns 0 on success an error code otherwise
+ */
+int mei_me_pg_set_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
+	int ret;
+
+	dev->pg_event = MEI_PG_EVENT_WAIT;
+
+	ret = mei_hbm_pg(dev, MEI_PG_ISOLATION_ENTRY_REQ_CMD);
+	if (ret)
+		return ret;
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_RECEIVED, timeout);
+	mutex_lock(&dev->device_lock);
+
+	if (dev->pg_event == MEI_PG_EVENT_RECEIVED) {
+		mei_me_pg_enter(dev);
+		ret = 0;
+	} else {
+		ret = -ETIME;
+	}
+
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+	hw->pg_state = MEI_PG_ON;
+
+	return ret;
+}
+
+/**
+ * mei_me_pg_unset_sync - perform pg exit procedure
+ *
+ * @dev: the device structure
+ *
+ * returns 0 on success an error code otherwise
+ */
+int mei_me_pg_unset_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
+	int ret;
+
+	if (dev->pg_event == MEI_PG_EVENT_RECEIVED)
+		goto reply;
+
+	dev->pg_event = MEI_PG_EVENT_WAIT;
+
+	mei_me_pg_exit(dev);
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_RECEIVED, timeout);
+	mutex_lock(&dev->device_lock);
+
+reply:
+	if (dev->pg_event == MEI_PG_EVENT_RECEIVED)
+		ret = mei_hbm_pg(dev, MEI_PG_ISOLATION_EXIT_RES_CMD);
+	else
+		ret = -ETIME;
+
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+	hw->pg_state = MEI_PG_OFF;
+
+	return ret;
+}
+
+/**
  * mei_me_pg_is_enabled - detect if PG is supported by HW
  *
  * @dev: the device structure
@@ -601,9 +679,15 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 
 	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 
-	rets = mei_irq_write_handler(dev, &complete_list);
-
-	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
+	/*
+	 * During PG handshake only allowed write is the replay to the
+	 * PG exit message, so block calling write function
+	 * if the pg state is not idle
+	 */
+	if (dev->pg_event == MEI_PG_EVENT_IDLE) {
+		rets = mei_irq_write_handler(dev, &complete_list);
+		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
+	}
 
 	mei_irq_compl_handler(dev, &complete_list);
 

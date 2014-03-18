@@ -732,12 +732,14 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 	case MEI_PG_ISOLATION_ENTRY_RES_CMD:
 		dev_dbg(&dev->pdev->dev, "power gate isolation entry response received\n");
+		dev->pg_event = MEI_PG_EVENT_RECEIVED;
 		if (waitqueue_active(&dev->wait_pg))
 			wake_up(&dev->wait_pg);
 		break;
 
 	case MEI_PG_ISOLATION_EXIT_REQ_CMD:
 		dev_dbg(&dev->pdev->dev, "power gate isolation exit request received\n");
+		dev->pg_event = MEI_PG_EVENT_RECEIVED;
 		if (waitqueue_active(&dev->wait_pg))
 			wake_up(&dev->wait_pg);
 		break;

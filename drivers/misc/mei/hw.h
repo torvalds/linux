@@ -31,6 +31,7 @@
 #define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
 #define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
+#define MEI_PGI_TIMEOUT            1  /* PG Isolation time response 1 sec */
 #define MEI_HBM_TIMEOUT            1   /* 1 second */
 
 /*

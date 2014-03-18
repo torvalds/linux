@@ -31,11 +31,15 @@ struct mei_me_hw {
 	 */
 	u32 host_hw_state;
 	u32 me_hw_state;
+	enum mei_pg_state pg_state;
 };
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)
 
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev);
+
+int mei_me_pg_set_sync(struct mei_device *dev);
+int mei_me_pg_unset_sync(struct mei_device *dev);
 
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id);
 irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id);
