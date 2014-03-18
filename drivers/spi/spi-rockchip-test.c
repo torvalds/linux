@@ -46,11 +46,11 @@ static struct spi_test_data *g_spi_test_data[MAX_SPI_BUS_NUM];
 static struct dw_spi_chip spi_test_chip[] = {
 {
 	//.poll_mode = 1,
-	.enable_dma = 1,
+	//.enable_dma = 1,
 },
 {
 	//.poll_mode = 1,
-	.enable_dma = 1,
+	//.enable_dma = 1,
 },
 
 };

@@ -21,8 +21,8 @@
 		      		<0xff730060 0x0c>,
 				<0xff73006c 0x0c>;
 			reg-names = "base", "mux_bank0", "pull_bank0", "drv_bank0";
-			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 9>;
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates17 4>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -34,8 +34,8 @@
 		gpio1: gpio1@ff780000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff780000 0x100>;
-			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 10>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 1>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -47,8 +47,8 @@
 		gpio2: gpio2@ff790000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff790000 0x100>;
-			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 11>;
+			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 2>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -60,8 +60,8 @@
 		gpio3: gpio3@ff7a0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff7a0000 0x100>;
-			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 12>;
+			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 3>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -73,8 +73,8 @@
 		gpio4: gpio4@ff7b0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff7b0000 0x100>;
-			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 12>;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 4>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -86,8 +86,8 @@
 		gpio5: gpio5@ff7c0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff7c0000 0x100>;
-			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 12>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 5>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -99,8 +99,8 @@
 		gpio6: gpio6@ff7d0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff7d0000 0x100>;
-			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 12>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 6>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -112,8 +112,8 @@
 		gpio7: gpio7@ff7e0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff7e0000 0x100>;
-			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 12>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 7>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -125,8 +125,8 @@
 		gpio8: gpio8@ff7f0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff7f0000 0x100>;
-			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&clk_gates8 12>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 8>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -138,7 +138,8 @@
 		gpio15: gpio15@ff7f2000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff7f2000 0x100>;
-			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates14 8>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -497,6 +498,49 @@
 
 			spi1_cs0:spi1-cs0 {
 				rockchip,pins = <SPI1_CS0>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+		};
+
+		gpio8_spi2 {
+			spi2_txd:spi2-txd {
+				rockchip,pins = <SPI2_TXD>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi2_rxd:spi2-rxd {
+				rockchip,pins = <SPI2_RXD>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi2_clk:spi2-clk {
+				rockchip,pins = <SPI2_CLK>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi2_cs0:spi2-cs0 {
+				rockchip,pins = <SPI2_CS0>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi2_cs1:spi2-cs1 {
+				rockchip,pins = <SPI2_CS1>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;

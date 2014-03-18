@@ -84,6 +84,19 @@
 
 	status = "diabled";
 };
+
+&spi0 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+};
+
+&spi2 {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 	rk808: rk808@1b {
