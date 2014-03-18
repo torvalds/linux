@@ -57,20 +57,20 @@ struct vnt_rrv_time_rts {
 	__le16 rts_rrv_time_aa;
 	__le16 rts_rrv_time_bb;
 	u16 wReserved;
-	u16 wTxRrvTime_b;
-	u16 wTxRrvTime_a;
+	__le16 rrv_time_b;
+	__le16 rrv_time_a;
 } __packed;
 
 struct vnt_rrv_time_cts {
 	u16 wCTSTxRrvTime_ba;
 	u16 wReserved;
-	u16 wTxRrvTime_b;
-	u16 wTxRrvTime_a;
+	__le16 rrv_time_b;
+	__le16 rrv_time_a;
 } __packed;
 
 struct vnt_rrv_time_ab {
 	__le16 rts_rrv_time;
-	u16 wTxRrvTime;
+	__le16 rrv_time;
 } __packed;
 
 /* TX data header */

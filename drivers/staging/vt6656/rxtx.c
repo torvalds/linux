@@ -823,9 +823,9 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 			pBuf->rts_rrv_time_bb = s_uGetRTSCTSRsvTime(pDevice, 0,
 				byPktType, cbFrameSize, wCurrentRate);
 
-			pBuf->wTxRrvTime_a = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time_a = vnt_rxtx_rsvtime_le16(pDevice,
 				byPktType, cbFrameSize, wCurrentRate, bNeedACK);
-			pBuf->wTxRrvTime_b = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time_b = vnt_rxtx_rsvtime_le16(pDevice,
 					PK_TYPE_11B, cbFrameSize,
 					pDevice->byTopCCKBasicRate, bNeedACK);
 
@@ -846,9 +846,9 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 			struct vnt_rrv_time_cts *pBuf = &tx_buffer->
 							tx_head.tx_cts.cts;
 
-			pBuf->wTxRrvTime_a = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time_a = vnt_rxtx_rsvtime_le16(pDevice,
 				byPktType, cbFrameSize, wCurrentRate, bNeedACK);
-			pBuf->wTxRrvTime_b = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time_b = vnt_rxtx_rsvtime_le16(pDevice,
 				PK_TYPE_11B, cbFrameSize,
 					pDevice->byTopCCKBasicRate, bNeedACK);
 
@@ -883,7 +883,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 			pBuf->rts_rrv_time = s_uGetRTSCTSRsvTime(pDevice, 2,
 				byPktType, cbFrameSize, wCurrentRate);
 
-			pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice,
 				byPktType, cbFrameSize, wCurrentRate, bNeedACK);
 
 			/* Fill RTS */
@@ -894,7 +894,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 			struct vnt_rrv_time_ab *pBuf = &tx_buffer->
 							tx_head.tx_ab.ab;
 
-			pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice,
 				PK_TYPE_11A, cbFrameSize,
 					wCurrentRate, bNeedACK);
 
@@ -917,7 +917,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 			pBuf->rts_rrv_time = s_uGetRTSCTSRsvTime(pDevice, 0,
 				byPktType, cbFrameSize, wCurrentRate);
 
-			pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice,
 				PK_TYPE_11B, cbFrameSize, wCurrentRate,
 								bNeedACK);
 
@@ -929,7 +929,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 			struct vnt_rrv_time_ab *pBuf = &tx_buffer->
 							tx_head.tx_ab.ab;
 
-			pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice,
+			pBuf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice,
 				PK_TYPE_11B, cbFrameSize,
 					wCurrentRate, bNeedACK);
 
