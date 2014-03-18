@@ -680,6 +680,8 @@ static inline int mei_count_full_read_slots(struct mei_device *dev)
 
 bool mei_hbuf_acquire(struct mei_device *dev);
 
+bool mei_write_is_idle(struct mei_device *dev);
+
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 int mei_dbgfs_register(struct mei_device *dev, const char *name);
 void mei_dbgfs_deregister(struct mei_device *dev);
