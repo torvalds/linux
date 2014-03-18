@@ -85,11 +85,12 @@ struct max8660 {
 
 static int max8660_write(struct max8660 *max8660, u8 reg, u8 mask, u8 val)
 {
-	static const u8 max8660_addresses[MAX8660_N_REGS] =
-	  { 0x10, 0x12, 0x20, 0x23, 0x24, 0x29, 0x2a, 0x32, 0x33, 0x39, 0x80 };
+	static const u8 max8660_addresses[MAX8660_N_REGS] = {
+	  0x10, 0x12, 0x20, 0x23, 0x24, 0x29, 0x2a, 0x32, 0x33, 0x39, 0x80 };
 
 	int ret;
 	u8 reg_val = (max8660->shadow_regs[reg] & mask) | val;
+
 	dev_vdbg(&max8660->client->dev, "Writing reg %02x with %02x\n",
 			max8660_addresses[reg], reg_val);
 
@@ -111,6 +112,7 @@ static int max8660_dcdc_is_enabled(struct regulator_dev *rdev)
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 val = max8660->shadow_regs[MAX8660_OVER1];
 	u8 mask = (rdev_get_id(rdev) == MAX8660_V3) ? 1 : 4;
+
 	return !!(val & mask);
 }
 
@@ -118,6 +120,7 @@ static int max8660_dcdc_enable(struct regulator_dev *rdev)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 bit = (rdev_get_id(rdev) == MAX8660_V3) ? 1 : 4;
+
 	return max8660_write(max8660, MAX8660_OVER1, 0xff, bit);
 }
 
@@ -125,15 +128,16 @@ static int max8660_dcdc_disable(struct regulator_dev *rdev)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 mask = (rdev_get_id(rdev) == MAX8660_V3) ? ~1 : ~4;
+
 	return max8660_write(max8660, MAX8660_OVER1, mask, 0);
 }
 
 static int max8660_dcdc_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
-
 	u8 reg = (rdev_get_id(rdev) == MAX8660_V3) ? MAX8660_ADTV2 : MAX8660_SDTV2;
 	u8 selector = max8660->shadow_regs[reg];
+
 	return selector;
 }
 
@@ -206,6 +210,7 @@ static int max8660_ldo67_is_enabled(struct regulator_dev *rdev)
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 val = max8660->shadow_regs[MAX8660_OVER2];
 	u8 mask = (rdev_get_id(rdev) == MAX8660_V6) ? 2 : 4;
+
 	return !!(val & mask);
 }
 
@@ -213,6 +218,7 @@ static int max8660_ldo67_enable(struct regulator_dev *rdev)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 bit = (rdev_get_id(rdev) == MAX8660_V6) ? 2 : 4;
+
 	return max8660_write(max8660, MAX8660_OVER2, 0xff, bit);
 }
 
@@ -220,15 +226,16 @@ static int max8660_ldo67_disable(struct regulator_dev *rdev)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 mask = (rdev_get_id(rdev) == MAX8660_V6) ? ~2 : ~4;
+
 	return max8660_write(max8660, MAX8660_OVER2, mask, 0);
 }
 
 static int max8660_ldo67_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
-
 	u8 shift = (rdev_get_id(rdev) == MAX8660_V6) ? 0 : 4;
 	u8 selector = (max8660->shadow_regs[MAX8660_L12VCR] >> shift) & 0xf;
+
 	return selector;
 }
 
