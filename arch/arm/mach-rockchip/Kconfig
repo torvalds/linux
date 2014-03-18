@@ -39,6 +39,12 @@ config RK_CONSOLE_THREAD
 	help
 	  Normal kernel printk will write out to UART by "kconsole" kthread
 
+config BLOCK_RKNAND
+	tristate "RK NAND Device Support"
+	default n
+	help
+	  RK NAND Device Support.
+
 config RK_FPGA
 	bool "FPGA Board"
 
