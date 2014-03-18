@@ -46,13 +46,6 @@
 #include <asm/kgdb.h>
 #endif
 
-void
-init_waitqueue_entry_current(wait_queue_t *link)
-{
-	init_waitqueue_entry(link, current);
-}
-EXPORT_SYMBOL(init_waitqueue_entry_current);
-
 /**
  * wait_queue_t of Linux (version < 2.6.34) is a FIFO list for exclusively
  * waiting threads, which is not always desirable because all threads will

@@ -218,7 +218,7 @@ find_again:
 			      MAX_SCHEDULE_TIMEOUT;
 		long left;
 
-		init_waitqueue_entry_current(&wait);
+		init_waitqueue_entry(&wait, current);
 		add_wait_queue(&entry->ue_waitq, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock(&cache->uc_lock);

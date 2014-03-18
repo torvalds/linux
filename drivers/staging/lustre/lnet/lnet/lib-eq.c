@@ -334,7 +334,7 @@ lnet_eq_wait_locked(int *timeout_ms)
 	if (tms == 0)
 		return -1; /* don't want to wait and no new event */
 
-	init_waitqueue_entry_current(&wl);
+	init_waitqueue_entry(&wl, current);
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&the_lnet.ln_eq_waitq, &wl);
 

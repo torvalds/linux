@@ -571,7 +571,7 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	 * drained), and moreover, lookup has to wait until object is freed.
 	 */
 
-	init_waitqueue_entry_current(waiter);
+	init_waitqueue_entry(waiter, current);
 	add_wait_queue(&bkt->lsb_marche_funebre, waiter);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_DEATH_RACE);

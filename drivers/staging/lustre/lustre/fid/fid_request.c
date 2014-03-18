@@ -256,7 +256,7 @@ int seq_client_get_seq(const struct lu_env *env,
 
 	LASSERT(seqnr != NULL);
 	mutex_lock(&seq->lcs_mutex);
-	init_waitqueue_entry_current(&link);
+	init_waitqueue_entry(&link, current);
 
 	while (1) {
 		rc = seq_fid_alloc_prep(seq, &link);
@@ -306,7 +306,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	LASSERT(seq != NULL);
 	LASSERT(fid != NULL);
 
-	init_waitqueue_entry_current(&link);
+	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_SEQ_EXHAUST))
@@ -370,7 +370,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 	wait_queue_t link;
 
 	LASSERT(seq != NULL);
-	init_waitqueue_entry_current(&link);
+	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
 
 	while (seq->lcs_update) {

@@ -1196,7 +1196,7 @@ static void cl_object_put_last(struct lu_env *env, struct cl_object *obj)
 
 		bkt = lu_site_bkt_from_fid(site, &header->loh_fid);
 
-		init_waitqueue_entry_current(&waiter);
+		init_waitqueue_entry(&waiter, current);
 		add_wait_queue(&bkt->lsb_marche_funebre, &waiter);
 
 		while (1) {

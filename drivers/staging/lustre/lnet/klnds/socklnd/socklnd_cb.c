@@ -2140,7 +2140,7 @@ ksocknal_connd (void *arg)
 
 	cfs_block_allsigs ();
 
-	init_waitqueue_entry_current (&wait);
+	init_waitqueue_entry(&wait, current);
 
 	spin_lock_bh(connd_lock);
 
@@ -2532,7 +2532,7 @@ ksocknal_reaper (void *arg)
 	cfs_block_allsigs ();
 
 	INIT_LIST_HEAD(&enomem_conns);
-	init_waitqueue_entry_current (&wait);
+	init_waitqueue_entry(&wait, current);
 
 	spin_lock_bh(&ksocknal_data.ksnd_reaper_lock);
 

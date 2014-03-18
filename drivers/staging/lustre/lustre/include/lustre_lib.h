@@ -536,7 +536,7 @@ do {									   \
 	if (condition)							 \
 		break;							 \
 									       \
-	init_waitqueue_entry_current(&__wait);					    \
+	init_waitqueue_entry(&__wait, current);					    \
 	l_add_wait(&wq, &__wait);					      \
 									       \
 	/* Block all signals (just the non-fatal ones if no timeout). */       \
