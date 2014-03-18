@@ -234,8 +234,8 @@ struct vnt_tx_short_buf_head {
 	u16 fifo_ctl;
 	u16 time_stamp;
 	struct vnt_phy_field ab;
-	u16 duration;
-	u16 time_stamp_off;
+	__le16 duration;
+	__le16 time_stamp_off;
 } __packed;
 
 struct vnt_beacon_buffer {
