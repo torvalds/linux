@@ -883,7 +883,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 {
 	u32 i, psd_pts = 0, psd_start = 0, psd_stop = 0;
 	u32 psd_data = 0;
-
+	int ret;
 
 	if (!netif_running(pAdapter->pnetdev)) {
 		RT_TRACE(_module_mp_, _drv_warning_, ("mp_query_psd: Fail! interface not opened!\n"));
@@ -900,7 +900,10 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 		psd_start = 64;
 		psd_stop = 128;
 	} else {
-		sscanf(data, "pts =%d, start =%d, stop =%d", &psd_pts, &psd_start, &psd_stop);
+		ret = sscanf(data, "pts =%d, start =%d, stop =%d",
+				&psd_pts, &psd_start, &psd_stop);
+		if (ret != 3)
+			return 0;
 	}
 
 	_rtw_memset(data, '\0', sizeof(*data));
