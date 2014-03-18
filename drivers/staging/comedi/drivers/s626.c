@@ -225,7 +225,8 @@ static void s626_debi_transfer(struct comedi_device *dev)
 		udelay(1);
 	}
 	if (i == timeout)
-		comedi_error(dev, "Timeout while uploading to DEBI control register.");
+		comedi_error(dev,
+			"Timeout while uploading to DEBI control register.");
 
 	/* Wait until DEBI transfer is done */
 	for (i = 0; i < timeout; i++) {
@@ -532,7 +533,8 @@ static int s626_send_dac(struct comedi_device *dev, uint32_t val)
 		ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
 				     s626_send_dac_wait_fb_buffer2_msb_00);
 		if (ret) {
-			comedi_error(dev, "TSL timeout waiting for slot 0 to execute.");
+			comedi_error(dev,
+				"TSL timeout waiting for slot 0 to execute.");
 			return ret;
 		}
 	}
