@@ -460,6 +460,41 @@ static void mei_me_pg_exit(struct mei_device *dev)
 }
 
 /**
+ * mei_me_pg_is_enabled - detect if PG is supported by HW
+ *
+ * @dev: the device structure
+ *
+ * returns: true is pg supported, false otherwise
+ */
+static bool mei_me_pg_is_enabled(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 reg = mei_me_reg_read(hw, ME_CSR_HA);
+
+	if ((reg & ME_PGIC_HRA) == 0)
+		goto notsupported;
+
+	if (dev->version.major_version < HBM_MAJOR_VERSION_PGI)
+		goto notsupported;
+
+	if (dev->version.major_version == HBM_MAJOR_VERSION_PGI &&
+	    dev->version.minor_version < HBM_MINOR_VERSION_PGI)
+		goto notsupported;
+
+	return true;
+
+notsupported:
+	dev_dbg(&dev->pdev->dev, "pg: not supported: HGP = %d hbm version %d.%d ?= %d.%d\n",
+		!!(reg & ME_PGIC_HRA),
+		dev->version.major_version,
+		dev->version.minor_version,
+		HBM_MAJOR_VERSION_PGI,
+		HBM_MINOR_VERSION_PGI);
+
+	return false;
+}
+
+/**
  * mei_me_irq_quick_handler - The ISR of the MEI device
  *
  * @irq: The irq number
@@ -572,6 +607,8 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.hw_reset = mei_me_hw_reset,
 	.hw_config = mei_me_hw_config,
 	.hw_start = mei_me_hw_start,
+
+	.pg_is_enabled = mei_me_pg_is_enabled,
 
 	.intr_clear = mei_me_intr_clear,
 	.intr_enable = mei_me_intr_enable,

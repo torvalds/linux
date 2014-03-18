@@ -280,6 +280,18 @@ int mei_txe_aliveness_set_sync(struct mei_device *dev, u32 req)
 }
 
 /**
+ * mei_txe_pg_is_enabled - detect if PG is supported by HW
+ *
+ * @dev: the device structure
+ *
+ * returns: true is pg supported, false otherwise
+ */
+static bool mei_txe_pg_is_enabled(struct mei_device *dev)
+{
+	return true;
+}
+
+/**
  * mei_txe_input_ready_interrupt_enable - sets the Input Ready Interrupt
  *
  * @dev: the device structure
@@ -1016,6 +1028,8 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 	.hw_reset = mei_txe_hw_reset,
 	.hw_config = mei_txe_hw_config,
 	.hw_start = mei_txe_hw_start,
+
+	.pg_is_enabled = mei_txe_pg_is_enabled,
 
 	.intr_clear = mei_txe_intr_clear,
 	.intr_enable = mei_txe_intr_enable,

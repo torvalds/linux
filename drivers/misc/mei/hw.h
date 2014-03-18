@@ -39,6 +39,12 @@
 #define HBM_MINOR_VERSION                   0
 #define HBM_MAJOR_VERSION                   1
 
+/*
+ * MEI version with PGI support
+ */
+#define HBM_MINOR_VERSION_PGI               1
+#define HBM_MAJOR_VERSION_PGI               1
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */

@@ -220,6 +220,8 @@ struct mei_cl {
  * @hw_start         - start hw after reset
  * @hw_config        - configure hw
 
+ * @pg_is_enabled    - is power gating enabled
+
  * @intr_clear       - clear pending interrupts
  * @intr_enable      - enable interrupts
  * @intr_disable     - disable interrupts
@@ -243,6 +245,8 @@ struct mei_hw_ops {
 	int (*hw_reset)(struct mei_device *dev, bool enable);
 	int (*hw_start)(struct mei_device *dev);
 	void (*hw_config)(struct mei_device *dev);
+
+	bool (*pg_is_enabled)(struct mei_device *dev);
 
 	void (*intr_clear)(struct mei_device *dev);
 	void (*intr_enable)(struct mei_device *dev);
@@ -558,6 +562,12 @@ static inline void mei_hw_config(struct mei_device *dev)
 {
 	dev->ops->hw_config(dev);
 }
+
+static inline bool mei_pg_is_enabled(struct mei_device *dev)
+{
+	return dev->ops->pg_is_enabled(dev);
+}
+
 static inline int mei_hw_reset(struct mei_device *dev, bool enable)
 {
 	return dev->ops->hw_reset(dev, enable);
