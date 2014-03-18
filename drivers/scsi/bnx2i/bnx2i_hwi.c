@@ -61,7 +61,7 @@ static void bnx2i_adjust_qp_size(struct bnx2i_hba *hba)
 	 * yield integral num of page buffers
 	 */
 	/* adjust SQ */
-	num_elements_per_pg = PAGE_SIZE / BNX2I_SQ_WQE_SIZE;
+	num_elements_per_pg = CNIC_PAGE_SIZE / BNX2I_SQ_WQE_SIZE;
 	if (hba->max_sqes < num_elements_per_pg)
 		hba->max_sqes = num_elements_per_pg;
 	else if (hba->max_sqes % num_elements_per_pg)
@@ -69,7 +69,7 @@ static void bnx2i_adjust_qp_size(struct bnx2i_hba *hba)
 				 ~(num_elements_per_pg - 1);
 
 	/* adjust CQ */
-	num_elements_per_pg = PAGE_SIZE / BNX2I_CQE_SIZE;
+	num_elements_per_pg = CNIC_PAGE_SIZE / BNX2I_CQE_SIZE;
 	if (hba->max_cqes < num_elements_per_pg)
 		hba->max_cqes = num_elements_per_pg;
 	else if (hba->max_cqes % num_elements_per_pg)
@@ -77,7 +77,7 @@ static void bnx2i_adjust_qp_size(struct bnx2i_hba *hba)
 				 ~(num_elements_per_pg - 1);
 
 	/* adjust RQ */
-	num_elements_per_pg = PAGE_SIZE / BNX2I_RQ_WQE_SIZE;
+	num_elements_per_pg = CNIC_PAGE_SIZE / BNX2I_RQ_WQE_SIZE;
 	if (hba->max_rqes < num_elements_per_pg)
 		hba->max_rqes = num_elements_per_pg;
 	else if (hba->max_rqes % num_elements_per_pg)
@@ -959,7 +959,7 @@ static void setup_qp_page_tables(struct bnx2i_endpoint *ep)
 
 	/* SQ page table */
 	memset(ep->qp.sq_pgtbl_virt, 0, ep->qp.sq_pgtbl_size);
-	num_pages = ep->qp.sq_mem_size / PAGE_SIZE;
+	num_pages = ep->qp.sq_mem_size / CNIC_PAGE_SIZE;
 	page = ep->qp.sq_phys;
 
 	if (cnic_dev_10g)
@@ -973,7 +973,7 @@ static void setup_qp_page_tables(struct bnx2i_endpoint *ep)
 			ptbl++;
 			*ptbl = (u32) ((u64) page >> 32);
 			ptbl++;
-			page += PAGE_SIZE;
+			page += CNIC_PAGE_SIZE;
 		} else {
 			/* PTE is written in big endian format for
 			 * 5706/5708/5709 devices */
@@ -981,13 +981,13 @@ static void setup_qp_page_tables(struct bnx2i_endpoint *ep)
 			ptbl++;
 			*ptbl = (u32) page;
 			ptbl++;
-			page += PAGE_SIZE;
+			page += CNIC_PAGE_SIZE;
 		}
 	}
 
 	/* RQ page table */
 	memset(ep->qp.rq_pgtbl_virt, 0, ep->qp.rq_pgtbl_size);
-	num_pages = ep->qp.rq_mem_size / PAGE_SIZE;
+	num_pages = ep->qp.rq_mem_size / CNIC_PAGE_SIZE;
 	page = ep->qp.rq_phys;
 
 	if (cnic_dev_10g)
@@ -1001,7 +1001,7 @@ static void setup_qp_page_tables(struct bnx2i_endpoint *ep)
 			ptbl++;
 			*ptbl = (u32) ((u64) page >> 32);
 			ptbl++;
-			page += PAGE_SIZE;
+			page += CNIC_PAGE_SIZE;
 		} else {
 			/* PTE is written in big endian format for
 			 * 5706/5708/5709 devices */
@@ -1009,13 +1009,13 @@ static void setup_qp_page_tables(struct bnx2i_endpoint *ep)
 			ptbl++;
 			*ptbl = (u32) page;
 			ptbl++;
-			page += PAGE_SIZE;
+			page += CNIC_PAGE_SIZE;
 		}
 	}
 
 	/* CQ page table */
 	memset(ep->qp.cq_pgtbl_virt, 0, ep->qp.cq_pgtbl_size);
-	num_pages = ep->qp.cq_mem_size / PAGE_SIZE;
+	num_pages = ep->qp.cq_mem_size / CNIC_PAGE_SIZE;
 	page = ep->qp.cq_phys;
 
 	if (cnic_dev_10g)
@@ -1029,7 +1029,7 @@ static void setup_qp_page_tables(struct bnx2i_endpoint *ep)
 			ptbl++;
 			*ptbl = (u32) ((u64) page >> 32);
 			ptbl++;
-			page += PAGE_SIZE;
+			page += CNIC_PAGE_SIZE;
 		} else {
 			/* PTE is written in big endian format for
 			 * 5706/5708/5709 devices */
@@ -1037,7 +1037,7 @@ static void setup_qp_page_tables(struct bnx2i_endpoint *ep)
 			ptbl++;
 			*ptbl = (u32) page;
 			ptbl++;
-			page += PAGE_SIZE;
+			page += CNIC_PAGE_SIZE;
 		}
 	}
 }
@@ -1064,11 +1064,11 @@ int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 	/* Allocate page table memory for SQ which is page aligned */
 	ep->qp.sq_mem_size = hba->max_sqes * BNX2I_SQ_WQE_SIZE;
 	ep->qp.sq_mem_size =
-		(ep->qp.sq_mem_size + (PAGE_SIZE - 1)) & PAGE_MASK;
+		(ep->qp.sq_mem_size + (CNIC_PAGE_SIZE - 1)) & CNIC_PAGE_MASK;
 	ep->qp.sq_pgtbl_size =
-		(ep->qp.sq_mem_size / PAGE_SIZE) * sizeof(void *);
+		(ep->qp.sq_mem_size / CNIC_PAGE_SIZE) * sizeof(void *);
 	ep->qp.sq_pgtbl_size =
-		(ep->qp.sq_pgtbl_size + (PAGE_SIZE - 1)) & PAGE_MASK;
+		(ep->qp.sq_pgtbl_size + (CNIC_PAGE_SIZE - 1)) & CNIC_PAGE_MASK;
 
 	ep->qp.sq_pgtbl_virt =
 		dma_alloc_coherent(&hba->pcidev->dev, ep->qp.sq_pgtbl_size,
@@ -1101,11 +1101,11 @@ int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 	/* Allocate page table memory for CQ which is page aligned */
 	ep->qp.cq_mem_size = hba->max_cqes * BNX2I_CQE_SIZE;
 	ep->qp.cq_mem_size =
-		(ep->qp.cq_mem_size + (PAGE_SIZE - 1)) & PAGE_MASK;
+		(ep->qp.cq_mem_size + (CNIC_PAGE_SIZE - 1)) & CNIC_PAGE_MASK;
 	ep->qp.cq_pgtbl_size =
-		(ep->qp.cq_mem_size / PAGE_SIZE) * sizeof(void *);
+		(ep->qp.cq_mem_size / CNIC_PAGE_SIZE) * sizeof(void *);
 	ep->qp.cq_pgtbl_size =
-		(ep->qp.cq_pgtbl_size + (PAGE_SIZE - 1)) & PAGE_MASK;
+		(ep->qp.cq_pgtbl_size + (CNIC_PAGE_SIZE - 1)) & CNIC_PAGE_MASK;
 
 	ep->qp.cq_pgtbl_virt =
 		dma_alloc_coherent(&hba->pcidev->dev, ep->qp.cq_pgtbl_size,
@@ -1144,11 +1144,11 @@ int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 	/* Allocate page table memory for RQ which is page aligned */
 	ep->qp.rq_mem_size = hba->max_rqes * BNX2I_RQ_WQE_SIZE;
 	ep->qp.rq_mem_size =
-		(ep->qp.rq_mem_size + (PAGE_SIZE - 1)) & PAGE_MASK;
+		(ep->qp.rq_mem_size + (CNIC_PAGE_SIZE - 1)) & CNIC_PAGE_MASK;
 	ep->qp.rq_pgtbl_size =
-		(ep->qp.rq_mem_size / PAGE_SIZE) * sizeof(void *);
+		(ep->qp.rq_mem_size / CNIC_PAGE_SIZE) * sizeof(void *);
 	ep->qp.rq_pgtbl_size =
-		(ep->qp.rq_pgtbl_size + (PAGE_SIZE - 1)) & PAGE_MASK;
+		(ep->qp.rq_pgtbl_size + (CNIC_PAGE_SIZE - 1)) & CNIC_PAGE_MASK;
 
 	ep->qp.rq_pgtbl_virt =
 		dma_alloc_coherent(&hba->pcidev->dev, ep->qp.rq_pgtbl_size,
@@ -1270,7 +1270,7 @@ int bnx2i_send_fw_iscsi_init_msg(struct bnx2i_hba *hba)
 	bnx2i_adjust_qp_size(hba);
 
 	iscsi_init.flags =
-		ISCSI_PAGE_SIZE_4K << ISCSI_KWQE_INIT1_PAGE_SIZE_SHIFT;
+		(CNIC_PAGE_BITS - 8) << ISCSI_KWQE_INIT1_PAGE_SIZE_SHIFT;
 	if (en_tcp_dack)
 		iscsi_init.flags |= ISCSI_KWQE_INIT1_DELAYED_ACK_ENABLE;
 	iscsi_init.reserved0 = 0;
@@ -1288,15 +1288,15 @@ int bnx2i_send_fw_iscsi_init_msg(struct bnx2i_hba *hba)
 			((hba->num_ccell & 0xFFFF) | (hba->max_sqes << 16));
 	iscsi_init.num_ccells_per_conn = hba->num_ccell;
 	iscsi_init.num_tasks_per_conn = hba->max_sqes;
-	iscsi_init.sq_wqes_per_page = PAGE_SIZE / BNX2I_SQ_WQE_SIZE;
+	iscsi_init.sq_wqes_per_page = CNIC_PAGE_SIZE / BNX2I_SQ_WQE_SIZE;
 	iscsi_init.sq_num_wqes = hba->max_sqes;
 	iscsi_init.cq_log_wqes_per_page =
-		(u8) bnx2i_power_of2(PAGE_SIZE / BNX2I_CQE_SIZE);
+		(u8) bnx2i_power_of2(CNIC_PAGE_SIZE / BNX2I_CQE_SIZE);
 	iscsi_init.cq_num_wqes = hba->max_cqes;
 	iscsi_init.cq_num_pages = (hba->max_cqes * BNX2I_CQE_SIZE +
-				   (PAGE_SIZE - 1)) / PAGE_SIZE;
+				   (CNIC_PAGE_SIZE - 1)) / CNIC_PAGE_SIZE;
 	iscsi_init.sq_num_pages = (hba->max_sqes * BNX2I_SQ_WQE_SIZE +
-				   (PAGE_SIZE - 1)) / PAGE_SIZE;
+				   (CNIC_PAGE_SIZE - 1)) / CNIC_PAGE_SIZE;
 	iscsi_init.rq_buffer_size = BNX2I_RQ_WQE_SIZE;
 	iscsi_init.rq_num_wqes = hba->max_rqes;
 
