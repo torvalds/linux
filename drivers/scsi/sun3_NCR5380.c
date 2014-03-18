@@ -484,7 +484,7 @@ static __inline__ void initialize_SCp(struct scsi_cmnd *cmd)
 
 #include <linux/delay.h>
 
-#if 1
+#if NDEBUG
 static struct {
     unsigned char mask;
     const char * name;} 
@@ -571,12 +571,6 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 	printk(KERN_DEBUG "scsi%d: phase %s\n", HOSTNO, phases[i].name);
     }
 }
-
-#else /* !NDEBUG */
-
-/* dummies... */
-__inline__ void NCR5380_print(struct Scsi_Host *instance) { };
-__inline__ void NCR5380_print_phase(struct Scsi_Host *instance) { };
 
 #endif
 

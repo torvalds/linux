@@ -87,13 +87,6 @@
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_transport_spi.h>
 
-#ifndef NDEBUG
-#define NDEBUG 0
-#endif
-#ifndef NDEBUG_ABORT
-#define NDEBUG_ABORT 0
-#endif
-
 #if (NDEBUG & NDEBUG_LISTS)
 #define LIST(x,y) {printk("LINE:%d   Adding %p to %p\n", __LINE__, (void*)(x), (void*)(y)); if ((x)==(y)) udelay(5); }
 #define REMOVE(w,x,y,z) {printk("LINE:%d   Removing: %p->%p  %p->%p \n", __LINE__, (void*)(w), (void*)(x), (void*)(y), (void*)(z)); if ((x)==(y)) udelay(5); }
