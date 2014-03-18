@@ -51,8 +51,6 @@
 
 #include <scsi/scsicam.h>
 
-#ifndef HOSTS_C
-
 #define NCR5380_implementation_fields \
     int port, ctrl
 
@@ -75,7 +73,6 @@
 #define NCR5380_show_info macscsi_show_info
 #define NCR5380_write_info macscsi_write_info
 
-#endif /* ndef HOSTS_C */
 #endif /* ndef ASM */
 #endif /* MAC_NCR5380_H */
 

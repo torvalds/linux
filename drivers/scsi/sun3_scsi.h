@@ -82,8 +82,6 @@ static int sun3scsi_release (struct Scsi_Host *);
 #define SUN3_SCSI_NAME "Sun3 NCR5380 SCSI"
 #endif
 
-#ifndef HOSTS_C
-
 #define NCR5380_implementation_fields \
     int port, ctrl
 
@@ -371,6 +369,5 @@ struct sun3_udc_regs {
 
 
 
-#endif /* ndef HOSTS_C */
 #endif /* SUN3_NCR5380_H */
 

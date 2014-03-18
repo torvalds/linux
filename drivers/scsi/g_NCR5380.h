@@ -58,8 +58,6 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define CAN_QUEUE 16
 #endif
 
-#ifndef HOSTS_C
-
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
 
@@ -131,7 +129,6 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define BOARD_NCR53C400A 2
 #define BOARD_DTC3181E	3
 
-#endif /* else def HOSTS_C */
 #endif /* ndef ASM */
 #endif /* GENERIC_NCR5380_H */
 
