@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/mei.h>
+#include <linux/pm_runtime.h>
 
 #include "mei_dev.h"
 #include "hbm.h"
@@ -742,6 +743,13 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dev->pg_event = MEI_PG_EVENT_RECEIVED;
 		if (waitqueue_active(&dev->wait_pg))
 			wake_up(&dev->wait_pg);
+		else
+			/*
+			* If the driver is not waiting on this then
+			* this is HW initiated exit from PG.
+			* Start runtime pm resume sequence to exit from PG.
+			*/
+			pm_request_resume(&dev->pdev->dev);
 		break;
 
 	case HOST_CLIENT_PROPERTIES_RES_CMD:

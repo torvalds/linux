@@ -24,6 +24,8 @@
 #include "mei_dev.h"
 #include "client.h"
 
+#define MEI_ME_RPM_TIMEOUT    500 /* ms */
+
 struct mei_me_hw {
 	void __iomem *mem_addr;
 	/*

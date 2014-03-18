@@ -33,6 +33,8 @@
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 
+#include <linux/pm_runtime.h>
+
 #include <linux/mei.h>
 
 #include "mei_dev.h"
@@ -212,6 +214,9 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto release_irq;
 	}
 
+	pm_runtime_set_autosuspend_delay(&pdev->dev, MEI_ME_RPM_TIMEOUT);
+	pm_runtime_use_autosuspend(&pdev->dev);
+
 	err = mei_register(dev);
 	if (err)
 		goto release_irq;
@@ -219,6 +224,9 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	schedule_delayed_work(&dev->timer_work, HZ);
+
+	if (mei_pg_is_enabled(dev))
+		pm_runtime_put_noidle(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "initialization successful.\n");
 
@@ -258,6 +266,9 @@ static void mei_me_remove(struct pci_dev *pdev)
 	dev = pci_get_drvdata(pdev);
 	if (!dev)
 		return;
+
+	if (mei_pg_is_enabled(dev))
+		pm_runtime_get_noresume(&pdev->dev);
 
 	hw = to_me_hw(dev);
 
@@ -343,12 +354,89 @@ static int mei_me_pci_resume(struct device *device)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(mei_me_pm_ops, mei_me_pci_suspend, mei_me_pci_resume);
+#ifdef CONFIG_PM_RUNTIME
+static int mei_me_pm_runtime_idle(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct mei_device *dev;
+
+	dev_dbg(&pdev->dev, "rpm: me: runtime_idle\n");
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return -ENODEV;
+	if (mei_write_is_idle(dev))
+		pm_schedule_suspend(device, MEI_ME_RPM_TIMEOUT * 2);
+
+	return -EBUSY;
+}
+
+static int mei_me_pm_runtime_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct mei_device *dev;
+	int ret;
+
+	dev_dbg(&pdev->dev, "rpm: me: runtime suspend\n");
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	if (mei_write_is_idle(dev))
+		ret = mei_me_pg_set_sync(dev);
+	else
+		ret = -EAGAIN;
+
+	mutex_unlock(&dev->device_lock);
+
+	dev_dbg(&pdev->dev, "rpm: me: runtime suspend ret=%d\n", ret);
+
+	return ret;
+}
+
+static int mei_me_pm_runtime_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct mei_device *dev;
+	int ret;
+
+	dev_dbg(&pdev->dev, "rpm: me: runtime resume\n");
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	ret = mei_me_pg_unset_sync(dev);
+
+	mutex_unlock(&dev->device_lock);
+
+	dev_dbg(&pdev->dev, "rpm: me: runtime resume ret = %d\n", ret);
+
+	return ret;
+}
+#endif /* CONFIG_PM_RUNTIME */
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops mei_me_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mei_me_pci_suspend,
+				mei_me_pci_resume)
+	SET_RUNTIME_PM_OPS(
+		mei_me_pm_runtime_suspend,
+		mei_me_pm_runtime_resume,
+		mei_me_pm_runtime_idle)
+};
+
 #define MEI_ME_PM_OPS	(&mei_me_pm_ops)
 #else
 #define MEI_ME_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
 /*
  *  PCI driver structure
  */
