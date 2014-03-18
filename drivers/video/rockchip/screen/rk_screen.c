@@ -2,6 +2,7 @@
 #include <linux/rk_fb.h>
 #include <linux/device.h>
 #include "lcd.h"
+#include "../hdmi/rk_hdmi.h"
 
 static struct rk_screen *rk_screen;
 int  rk_fb_get_prmry_screen(struct rk_screen *screen)
@@ -10,6 +11,12 @@ int  rk_fb_get_prmry_screen(struct rk_screen *screen)
 	return 0;
 }
 
+int rk_fb_set_prmry_screen(struct rk_screen *screen)
+{
+	rk_screen->lcdc_id = screen->lcdc_id;
+	rk_screen->screen_id = screen->screen_id;
+	return 0;
+}
 
 size_t get_fb_size(void)
 {

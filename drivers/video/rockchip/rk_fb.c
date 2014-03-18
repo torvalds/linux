@@ -1110,6 +1110,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	struct rk_lcdc_win *win;
 	ktime_t timestamp = dev_drv->vsync_info.timestamp;
 	//struct rk_fb_reg_win_data old_reg_win_data[RK30_MAX_LAYER_SUPPORT];
+	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
+	struct rk_lcdc_driver *ext_dev_drv;
+	struct rk_lcdc_win *ext_win;
 
 	dev_drv->atv_layer_cnt = regs->win_num;
 	for(i=0;i<dev_drv->lcdc_win_num;i++){ 
@@ -1129,6 +1132,53 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		dev_drv->ops->pan_display(dev_drv,i);
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
+
+	if(rk_fb->disp_mode == DUAL && hdmi_switch_complete) {
+		for (i = 0; i < rk_fb->num_lcdc; i++) {
+			if(rk_fb->lcdc_dev_drv[i]->prop == EXTEND) {
+				ext_dev_drv = rk_fb->lcdc_dev_drv[i];
+				break;
+			}
+		}
+		if (i == rk_fb->num_lcdc) {
+			printk(KERN_ERR "hdmi lcdc driver not found!\n");
+			goto ext_win_exit;
+		}
+
+		//hdmi just need set win0 only(win0 have only one area),other win is disable
+		ext_win = ext_dev_drv->win[0];
+		for(j = 0;j < regs->win_num; j++) {
+			if(0 == regs->reg_win_data[j].win_id)
+				break;
+		}
+		if(j < regs->win_num){
+			rk_fb_update_driver(ext_win, &regs->reg_win_data[j]);
+			ext_win->area[0].xpos = (ext_dev_drv->cur_screen->mode.xres - ext_dev_drv->cur_screen->xsize)>>1;
+			ext_win->area[0].ypos = (ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize)>>1;
+			ext_win->area[0].xsize = ext_dev_drv->cur_screen->xsize;
+			ext_win->area[0].ysize = ext_dev_drv->cur_screen->ysize;
+			ext_win->state = 1;
+		}
+		else {
+			ext_win->state = 0;
+		}
+
+		if (ext_win->area[0].xact < ext_win->area[0].yact) {
+			ext_win->area[0].xact = win->area[0].yact;
+			ext_win->area[0].yact = win->area[0].xact;
+			ext_win->area[0].xvir = win->area[0].yact;
+		}
+
+		//disable the other win,except win0
+		for(i = 1; i < ext_dev_drv->lcdc_win_num; i ++) {
+			ext_win = ext_dev_drv->win[i];
+			ext_win->state = 0;
+		}
+		ext_dev_drv->ops->set_par(ext_dev_drv, 0);
+		ext_dev_drv->ops->pan_display(ext_dev_drv, 0);
+		ext_dev_drv->ops->cfg_done(ext_dev_drv);
+	}
+ext_win_exit:
 	dev_drv->ops->cfg_done(dev_drv);
 
 #if 0
@@ -2394,7 +2444,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	struct rk_lcdc_driver *dev_drv = NULL;
 	u16 screen_x, screen_y;
 	u16 xpos, ypos;
-	u16 xsize, ysize;
+	//u16 xsize, ysize;
 	char name[6];
 	int i = 0;
 	sprintf(name, "lcdc%d", lcdc_id);
@@ -2435,12 +2485,12 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	{
 		xpos = (screen_x-screen_x*scale_x/100)>>1;
 		ypos = (screen_y-screen_y*scale_y/100)>>1;
-		xsize = screen_x*scale_x/100;
-		ysize = screen_y*scale_y/100;
+		dev_drv->cur_screen->xsize = screen_x*scale_x/100;
+		dev_drv->cur_screen->ysize = screen_y*scale_y/100;
 		var->nonstd &= 0xff;
 		var->nonstd |= (xpos<<8) + (ypos<<20);
 		var->grayscale &= 0xff;
-		var->grayscale |= (xsize<<8) + (ysize<<20);
+		var->grayscale |= (dev_drv->cur_screen->xsize<<8) + (dev_drv->cur_screen->ysize<<20);
 	}
 
 	info->fbops->fb_set_par(info);
@@ -2602,6 +2652,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	
 	screen->screen_id = 0;
 	screen->lcdc_id = dev_drv->id;
+	rk_fb_set_prmry_screen(screen);
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
 	/* devie use one lcdc + rk61x scaler for dual display*/
