@@ -603,6 +603,26 @@ bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector)
 	return true;
 }
 
+void radeon_dp_set_rx_power_state(struct drm_connector *connector,
+				  u8 power_state)
+{
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	struct radeon_connector_atom_dig *dig_connector;
+
+	if (!radeon_connector->con_priv)
+		return;
+
+	dig_connector = radeon_connector->con_priv;
+
+	/* power up/down the sink */
+	if (dig_connector->dpcd[0] >= 0x11) {
+		radeon_write_dpcd_reg(radeon_connector,
+				   DP_SET_POWER, power_state);
+		usleep_range(1000, 2000);
+	}
+}
+
+
 struct radeon_dp_link_train_info {
 	struct radeon_device *rdev;
 	struct drm_encoder *encoder;
@@ -673,11 +693,7 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 	u8 tmp;
 
 	/* power up the sink */
-	if (dp_info->dpcd[0] >= 0x11) {
-		radeon_write_dpcd_reg(dp_info->radeon_connector,
-				      DP_SET_POWER, DP_SET_POWER_D0);
-		usleep_range(1000, 2000);
-	}
+	radeon_dp_set_rx_power_state(dp_info->connector, DP_SET_POWER_D0);
 
 	/* possibly enable downspread on the sink */
 	if (dp_info->dpcd[3] & 0x1)
