@@ -14,7 +14,7 @@ void Dot11d_Init(struct ieee80211_device *ieee)
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
 	RESET_CIE_WATCHDOG(ieee);
 
-	printk("Dot11d_Init()\n");
+	netdev_info(ieee->dev, "Dot11d_Init()\n");
 }
 EXPORT_SYMBOL(Dot11d_Init);
 
@@ -65,14 +65,14 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 			/* It is not in a monotonically increasing order, so
 			 * stop processing.
 			 */
-			printk("Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
+			netdev_err(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
 			return;
 		}
 		if (MAX_CHANNEL_NUMBER < (pTriple->FirstChnl + pTriple->NumChnls)) {
 			/* It is not a valid set of channel id, so stop
 			 * processing.
 			 */
-			printk("Dot11d_UpdateCountryIe(): Invalid country IE, skip it........2\n");
+			netdev_err(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........2\n");
 			return;
 		}
 
@@ -84,11 +84,11 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 
 		pTriple = (PCHNL_TXPOWER_TRIPLE)((u8 *)pTriple + 3);
 	}
-	printk("Channel List:");
+	netdev_info(dev->dev, "Channel List:");
 	for (i = 1; i <= MAX_CHANNEL_NUMBER; i++)
 		if (pDot11dInfo->channel_map[i] > 0)
-			printk(" %d", i);
-	printk("\n");
+			netdev_info(dev->dev, " %d", i);
+	netdev_info(dev->dev, "\n");
 
 	UPDATE_CIE_SRC(dev, pTaddr);
 
@@ -104,7 +104,7 @@ u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 	u8 MaxTxPwrInDbm = 255;
 
 	if (MAX_CHANNEL_NUMBER < Channel) {
-		printk("DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
+		netdev_err(dev->dev, "DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
 		return MaxTxPwrInDbm;
 	}
 	if (pDot11dInfo->channel_map[Channel])
@@ -140,7 +140,7 @@ int IsLegalChannel(struct ieee80211_device *dev, u8 channel)
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 
 	if (MAX_CHANNEL_NUMBER < channel) {
-		printk("IsLegalChannel(): Invalid Channel\n");
+		netdev_err(dev->dev, "IsLegalChannel(): Invalid Channel\n");
 		return 0;
 	}
 	if (pDot11dInfo->channel_map[channel] > 0)
@@ -163,7 +163,7 @@ int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 	}
 
 	if (MAX_CHANNEL_NUMBER < channel) {
-		printk("IsLegalChannel(): Invalid Channel\n");
+		netdev_err(dev->dev, "IsLegalChannel(): Invalid Channel\n");
 		return default_chn;
 	}
 
