@@ -622,8 +622,10 @@ retry:
 
 	if (flags & CEPH_CAP_FLAG_AUTH) {
 		if (ci->i_auth_cap == NULL ||
-		    ceph_seq_cmp(ci->i_auth_cap->mseq, mseq) < 0)
+		    ceph_seq_cmp(ci->i_auth_cap->mseq, mseq) < 0) {
 			ci->i_auth_cap = cap;
+			cap->mds_wanted = wanted;
+		}
 		ci->i_cap_exporting_issued = 0;
 	} else {
 		WARN_ON(ci->i_auth_cap == cap);
