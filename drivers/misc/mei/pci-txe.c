@@ -27,6 +27,7 @@
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mei.h>
 
@@ -137,11 +138,16 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto release_irq;
 	}
 
+	pm_runtime_set_autosuspend_delay(&pdev->dev, MEI_TXI_RPM_TIMEOUT);
+	pm_runtime_use_autosuspend(&pdev->dev);
+
 	err = mei_register(dev);
 	if (err)
 		goto release_irq;
 
 	pci_set_drvdata(pdev, dev);
+
+	pm_runtime_put_noidle(&pdev->dev);
 
 	return 0;
 
@@ -186,6 +192,8 @@ static void mei_txe_remove(struct pci_dev *pdev)
 		dev_err(&pdev->dev, "mei: dev =NULL\n");
 		return;
 	}
+
+	pm_runtime_get_noresume(&pdev->dev);
 
 	hw = to_txe_hw(dev);
 
@@ -265,15 +273,100 @@ static int mei_txe_pci_resume(struct device *device)
 
 	return err;
 }
+#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(mei_txe_pm_ops,
-			 mei_txe_pci_suspend,
-			 mei_txe_pci_resume);
+#ifdef CONFIG_PM_RUNTIME
+static int mei_txe_pm_runtime_idle(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct mei_device *dev;
+
+	dev_dbg(&pdev->dev, "rpm: txe: runtime_idle\n");
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return -ENODEV;
+	if (mei_write_is_idle(dev))
+		pm_schedule_suspend(device, MEI_TXI_RPM_TIMEOUT * 2);
+
+	return -EBUSY;
+}
+static int mei_txe_pm_runtime_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct mei_device *dev;
+	int ret;
+
+	dev_dbg(&pdev->dev, "rpm: txe: runtime suspend\n");
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	if (mei_write_is_idle(dev))
+		ret = mei_txe_aliveness_set_sync(dev, 0);
+	else
+		ret = -EAGAIN;
+
+	/*
+	 * If everything is okay we're about to enter PCI low
+	 * power state (D3) therefor we need to disable the
+	 * interrupts towards host.
+	 * However if device is not wakeable we do not enter
+	 * D-low state and we need to keep the interrupt kicking
+	 */
+	 if (!ret && pci_dev_run_wake(pdev))
+		mei_disable_interrupts(dev);
+
+	dev_dbg(&pdev->dev, "rpm: txe: runtime suspend ret=%d\n", ret);
+
+	mutex_unlock(&dev->device_lock);
+	return ret;
+}
+
+static int mei_txe_pm_runtime_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct mei_device *dev;
+	int ret;
+
+	dev_dbg(&pdev->dev, "rpm: txe: runtime resume\n");
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	mei_enable_interrupts(dev);
+
+	ret = mei_txe_aliveness_set_sync(dev, 1);
+
+	mutex_unlock(&dev->device_lock);
+
+	dev_dbg(&pdev->dev, "rpm: txe: runtime resume ret = %d\n", ret);
+
+	return ret;
+}
+#endif /* CONFIG_PM_RUNTIME */
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops mei_txe_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mei_txe_pci_suspend,
+				mei_txe_pci_resume)
+	SET_RUNTIME_PM_OPS(
+		mei_txe_pm_runtime_suspend,
+		mei_txe_pm_runtime_resume,
+		mei_txe_pm_runtime_idle)
+};
 
 #define MEI_TXE_PM_OPS	(&mei_txe_pm_ops)
 #else
 #define MEI_TXE_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
+
 /*
  *  PCI driver structure
  */

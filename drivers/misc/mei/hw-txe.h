@@ -22,6 +22,8 @@
 #include "hw.h"
 #include "hw-txe-regs.h"
 
+#define MEI_TXI_RPM_TIMEOUT    500 /* ms */
+
 /* Flatten Hierarchy interrupt cause */
 #define TXE_INTR_READINESS_BIT  0 /* HISR_INT_0_STS */
 #define TXE_INTR_READINESS      HISR_INT_0_STS
