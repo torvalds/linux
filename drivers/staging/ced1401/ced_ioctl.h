@@ -26,14 +26,13 @@
 ** TypeDefs
 *****************************************************************************/
 
-typedef struct TransferDesc {
+struct transfer_area_desc {
 	long long lpvBuff;	/* address of transfer area (for 64 or 32 bit) */
 	unsigned int dwLength;	/* length of the area */
 	unsigned short wAreaNum;	/* number of transfer area to set up */
 	short eSize;		/* element size - is tohost flag for circular */
-} TRANSFERDESC;
+};
 
-typedef TRANSFERDESC *LPTRANSFERDESC;
 
 typedef struct TransferEvent {
 	unsigned int dwStart;		/* offset into the area */
@@ -92,7 +91,7 @@ typedef struct TCSBlock {
 #define IOCTL_CED_LINECOUNT		_IO(CED_MAGIC_IOC, 7)
 #define IOCTL_CED_GETSTRING(nMax)	_IOC(_IOC_READ, CED_MAGIC_IOC, 8, nMax)
 
-#define IOCTL_CED_SETTRANSFER		_IOW(CED_MAGIC_IOC, 11, TRANSFERDESC)
+#define IOCTL_CED_SETTRANSFER		_IOW(CED_MAGIC_IOC, 11, struct transfer_area_desc)
 #define IOCTL_CED_UNSETTRANSFER		_IO(CED_MAGIC_IOC, 12)
 #define IOCTL_CED_SETEVENT		_IOW(CED_MAGIC_IOC, 13, TRANSFEREVENT)
 #define IOCTL_CED_GETOUTBUFSPACE	_IO(CED_MAGIC_IOC, 14)
@@ -118,7 +117,7 @@ typedef struct TCSBlock {
 #define IOCTL_CED_DBGGETDATA		_IOR(CED_MAGIC_IOC, 39, TDBGBLOCK)
 #define IOCTL_CED_DBGSTOPLOOP		_IO(CED_MAGIC_IOC, 40)
 #define IOCTL_CED_FULLRESET		_IO(CED_MAGIC_IOC, 41)
-#define IOCTL_CED_SETCIRCULAR		_IOW(CED_MAGIC_IOC, 42, TRANSFERDESC)
+#define IOCTL_CED_SETCIRCULAR		_IOW(CED_MAGIC_IOC, 42, struct transfer_area_desc)
 #define IOCTL_CED_GETCIRCBLOCK		_IOWR(CED_MAGIC_IOC, 43, TCIRCBLOCK)
 #define IOCTL_CED_FREECIRCBLOCK		_IOWR(CED_MAGIC_IOC, 44, TCIRCBLOCK)
 #define IOCTL_CED_WAITEVENT		_IO(CED_MAGIC_IOC, 45)
@@ -190,7 +189,7 @@ inline int CED_GetDriverRevision(int fh)
 	return ioctl(fh, IOCTL_CED_GETDRIVERREVISION);
 }
 
-inline int CED_SetTransfer(int fh, TRANSFERDESC *pTD)
+inline int CED_SetTransfer(int fh, struct transfer_area_desc *pTD)
 {
 	return ioctl(fh, IOCTL_CED_SETTRANSFER, pTD);
 }
@@ -291,7 +290,7 @@ inline int CED_FullReset(int fh)
 	return ioctl(fh, IOCTL_CED_FULLRESET);
 }
 
-inline int CED_SetCircular(int fh, TRANSFERDESC *pTD)
+inline int CED_SetCircular(int fh, struct transfer_area_desc *pTD)
 {
 	return ioctl(fh, IOCTL_CED_SETCIRCULAR, pTD);
 }

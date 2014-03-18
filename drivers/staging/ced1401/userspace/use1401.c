@@ -2231,7 +2231,7 @@ U14API(short) U14UnSetTransfer(short hand, unsigned short wArea)
 U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
                                           unsigned int dwLength, short eSz)
 {
-    TRANSFERDESC td;
+    struct transfer_area_desc td;
     short sErr = CheckHandle(hand);
     if (sErr != U14ERR_NOERROR)
         return sErr;
@@ -2292,7 +2292,7 @@ U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
         td.eSize = 0;                // Dummy element size
 
         if (DeviceIoControl(aHand1401[hand],(unsigned int)U14_SETTRANSFER,
-                            &td,sizeof(TRANSFERDESC),
+                            &td,sizeof(struct transfer_area_desc),
                             &rWork,sizeof(PARAMBLK),&dwBytes,NULL))
         {
             if (dwBytes >= sizeof(PARAMBLK))    // maybe error from driver?
@@ -2496,14 +2496,14 @@ U14API(short) U14SetCircular(short hand, unsigned short wArea, BOOL bToHost,
     {
         PARAMBLK rWork;
         unsigned int dwBytes;
-        TRANSFERDESC txDesc;
+        struct transfer_area_desc txDesc;
         txDesc.wArea = wArea;             /* Pure NT - put data into struct */
         txDesc.lpvBuff = pvBuff;
         txDesc.dwLength = dwLength;
         txDesc.eSize = (short)bToHost;       /* Use this for direction flag */
    
         if (DeviceIoControl(aHand1401[hand],(unsigned int)U14_SETCIRCULAR,
-                           &txDesc, sizeof(TRANSFERDESC),
+                           &txDesc, sizeof(struct transfer_area_desc),
                            &rWork, sizeof(PARAMBLK),&dwBytes,NULL))
         {
            if (dwBytes >= sizeof(PARAMBLK))          /* error from driver? */
@@ -2528,7 +2528,7 @@ U14API(short) U14SetCircular(short hand, unsigned short wArea, BOOL bToHost,
 #ifdef LINUX
     else
     {
-        TRANSFERDESC td;
+        struct transfer_area_desc td;
         td.lpvBuff = (long long)((unsigned long)pvBuff);
         td.wAreaNum = wArea;
         td.dwLength = dwLength;

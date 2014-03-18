@@ -736,10 +736,10 @@ error:
 ** unset it. Unsetting will fail if the area is booked, and a transfer to that
 ** area is in progress. Otherwise, we will release the area and re-assign it.
 ****************************************************************************/
-int SetTransfer(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD)
+int SetTransfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
 {
 	int iReturn;
-	TRANSFERDESC td;
+	struct transfer_area_desc td;
 
 	if (copy_from_user(&td, pTD, sizeof(td)))
 		return -EFAULT;
@@ -1318,11 +1318,11 @@ int DbgStopLoop(DEVICE_EXTENSION *pdx)
 ** booked and a transfer to that area is in progress. Otherwise, we will
 ** release the area and re-assign it.
 ****************************************************************************/
-int SetCircular(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD)
+int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
 {
 	int iReturn;
 	bool bToHost;
-	TRANSFERDESC td;
+	struct transfer_area_desc td;
 
 	if (copy_from_user(&td, pTD, sizeof(td)))
 		return -EFAULT;
