@@ -3179,7 +3179,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	int ret;
 	u64 ino = parent_ref->dir;
 	u64 parent_ino_before, parent_ino_after;
-	u64 new_gen, old_gen;
+	u64 old_gen;
 	struct fs_path *path_before = NULL;
 	struct fs_path *path_after = NULL;
 	int len1, len2;
@@ -3197,12 +3197,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	else if (ret < 0)
 		return ret;
 
-	ret = get_inode_info(sctx->send_root, ino, NULL, &new_gen,
-			     NULL, NULL, NULL, NULL);
-	if (ret < 0)
-		return ret;
-
-	if (new_gen != old_gen)
+	if (parent_ref->dir_gen != old_gen)
 		return 0;
 
 	path_before = fs_path_alloc();
