@@ -79,7 +79,7 @@ nv50_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 	if (nv50_gpio_location(line, &reg, &shift))
 		return -EINVAL;
 
-	nv_mask(gpio, reg, 7 << shift, (((dir ^ 1) << 1) | out) << shift);
+	nv_mask(gpio, reg, 3 << shift, (((dir ^ 1) << 1) | out) << shift);
 	return 0;
 }
 
