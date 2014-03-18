@@ -4,7 +4,8 @@ The ARM PrimeCell MMCI PL180 and PL181 provides an interface for
 reading and writing to MultiMedia and SD cards alike.
 
 This file documents differences between the core properties described
-by mmc.txt and the properties used by the mmci driver.
+by mmc.txt and the properties used by the mmci driver. Using "st" as
+the prefix for a property, indicates support by the ST Micro variant.
 
 Required properties:
 - compatible             : contains "arm,pl18x", "arm,primecell".
@@ -18,6 +19,11 @@ Optional properties:
 - mmc-cap-sd-highspeed   : indicates whether SD is high speed capable.
 - vqmmc-supply           : phandle to the regulator device tree node, mentioned
                            as the VCCQ/VDD_IO supply in the eMMC/SD specs.
+- st,sig-dir-dat0        : bus signal direction pin used for DAT[0].
+- st,sig-dir-dat2        : bus signal direction pin used for DAT[2].
+- st,sig-dir-dat31       : bus signal direction pin used for DAT[3] and DAT[1].
+- st,sig-dir-dat74       : bus signal direction pin used for DAT[4] to DAT[7].
+- st,sig-dir-cmd         : cmd signal direction pin used for CMD.
 
 Example:
 
@@ -38,6 +44,9 @@ sdi0_per1@80126000 {
 	mmc-cap-sd-highspeed;
 	mmc-cap-mmc-highspeed;
 	cd-gpios  = <&gpio2 31 0x4>; // 95
+	st,sig-dir-dat0;
+	st,sig-dir-dat2;
+	st,sig-dir-cmd;
 
 	vmmc-supply = <&ab8500_ldo_aux3_reg>;
 	vqmmc-supply = <&vmmci>;

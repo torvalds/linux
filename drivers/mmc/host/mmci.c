@@ -1392,6 +1392,17 @@ static void mmci_dt_populate_generic_pdata(struct device_node *np,
 {
 	int bus_width = 0;
 
+	if (of_get_property(np, "st,sig-dir-dat0", NULL))
+		pdata->sigdir |= MCI_ST_DATA0DIREN;
+	if (of_get_property(np, "st,sig-dir-dat2", NULL))
+		pdata->sigdir |= MCI_ST_DATA2DIREN;
+	if (of_get_property(np, "st,sig-dir-dat31", NULL))
+		pdata->sigdir |= MCI_ST_DATA31DIREN;
+	if (of_get_property(np, "st,sig-dir-dat74", NULL))
+		pdata->sigdir |= MCI_ST_DATA74DIREN;
+	if (of_get_property(np, "st,sig-dir-cmd", NULL))
+		pdata->sigdir |= MCI_ST_CMDDIREN;
+
 	pdata->gpio_wp = of_get_named_gpio(np, "wp-gpios", 0);
 	pdata->gpio_cd = of_get_named_gpio(np, "cd-gpios", 0);
 
