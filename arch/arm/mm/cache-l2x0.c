@@ -16,14 +16,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+#include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/hardware/cache-l2x0.h>
 #include "cache-tauros3.h"
@@ -639,7 +642,24 @@ static void l2c310_resume(void)
 				      L310_POWER_CTRL);
 
 		l2c_enable(base, l2x0_saved_regs.aux_ctrl, 8);
+
+		/* Re-enable full-line-of-zeros for Cortex-A9 */
+		if (l2x0_saved_regs.aux_ctrl & L310_AUX_CTRL_FULL_LINE_ZERO)
+			set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
 	}
+}
+
+static int l2c310_cpu_enable_flz(struct notifier_block *nb, unsigned long act, void *data)
+{
+	switch (act & ~CPU_TASKS_FROZEN) {
+	case CPU_STARTING:
+		set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
+		break;
+	case CPU_DYING:
+		set_auxcr(get_auxcr() & ~(BIT(3) | BIT(2) | BIT(1)));
+		break;
+	}
+	return NOTIFY_OK;
 }
 
 static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
@@ -655,6 +675,36 @@ static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
 			pr_warn("L2C-310 early BRESP only supported with Cortex-A9\n");
 			aux &= ~L310_AUX_CTRL_EARLY_BRESP;
 		}
+	}
+
+	if (cortex_a9) {
+		u32 aux_cur = readl_relaxed(base + L2X0_AUX_CTRL);
+		u32 acr = get_auxcr();
+
+		pr_debug("Cortex-A9 ACR=0x%08x\n", acr);
+
+		if (acr & BIT(3) && !(aux_cur & L310_AUX_CTRL_FULL_LINE_ZERO))
+			pr_err("L2C-310: full line of zeros enabled in Cortex-A9 but not L2C-310 - invalid\n");
+
+		if (aux & L310_AUX_CTRL_FULL_LINE_ZERO && !(acr & BIT(3)))
+			pr_err("L2C-310: enabling full line of zeros but not enabled in Cortex-A9\n");
+
+		if (!(aux & L310_AUX_CTRL_FULL_LINE_ZERO) && !outer_cache.write_sec) {
+			aux |= L310_AUX_CTRL_FULL_LINE_ZERO;
+			pr_info("L2C-310 full line of zeros enabled for Cortex-A9\n");
+		}
+	} else if (aux & (L310_AUX_CTRL_FULL_LINE_ZERO | L310_AUX_CTRL_EARLY_BRESP)) {
+		pr_err("L2C-310: disabling Cortex-A9 specific feature bits\n");
+		aux &= ~(L310_AUX_CTRL_FULL_LINE_ZERO | L310_AUX_CTRL_EARLY_BRESP);
+	}
+
+	if (aux & (L310_AUX_CTRL_DATA_PREFETCH | L310_AUX_CTRL_INSTR_PREFETCH)) {
+		u32 prefetch = readl_relaxed(base + L310_PREFETCH_CTRL);
+
+		pr_info("L2C-310 %s%s prefetch enabled, offset %u lines\n",
+			aux & L310_AUX_CTRL_INSTR_PREFETCH ? "I" : "",
+			aux & L310_AUX_CTRL_DATA_PREFETCH ? "D" : "",
+			1 + (prefetch & L310_PREFETCH_CTRL_OFFSET_MASK));
 	}
 
 	/* r3p0 or later has power control register */
@@ -677,6 +727,11 @@ static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
 	aux |= L310_AUX_CTRL_NS_LOCKDOWN;
 
 	l2c_enable(base, aux, num_lock);
+
+	if (aux & L310_AUX_CTRL_FULL_LINE_ZERO) {
+		set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
+		cpu_notifier(l2c310_cpu_enable_flz, 0);
+	}
 }
 
 static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
@@ -732,6 +787,18 @@ static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 	}
 }
 
+static void l2c310_disable(void)
+{
+	/*
+	 * If full-line-of-zeros is enabled, we must first disable it in the
+	 * Cortex-A9 auxiliary control register before disabling the L2 cache.
+	 */
+	if (l2x0_saved_regs.aux_ctrl & L310_AUX_CTRL_FULL_LINE_ZERO)
+		set_auxcr(get_auxcr() & ~(BIT(3) | BIT(2) | BIT(1)));
+
+	l2c_disable();
+}
+
 static const struct l2c_init_data l2c310_init_fns __initconst = {
 	.type = "L2C-310",
 	.way_size_0 = SZ_8K,
@@ -744,7 +811,7 @@ static const struct l2c_init_data l2c310_init_fns __initconst = {
 		.clean_range = l2c210_clean_range,
 		.flush_range = l2c210_flush_range,
 		.flush_all = l2c210_flush_all,
-		.disable = l2c_disable,
+		.disable = l2c310_disable,
 		.sync = l2c210_sync,
 		.resume = l2c310_resume,
 	},
@@ -995,7 +1062,7 @@ static const struct l2c_init_data of_l2c310_data __initconst = {
 		.clean_range = l2c210_clean_range,
 		.flush_range = l2c210_flush_range,
 		.flush_all   = l2c210_flush_all,
-		.disable     = l2c_disable,
+		.disable     = l2c310_disable,
 		.sync        = l2c210_sync,
 		.resume      = l2c310_resume,
 	},
@@ -1342,7 +1409,7 @@ static const struct l2c_init_data of_bcm_l2x0_data __initconst = {
 		.clean_range = bcm_clean_range,
 		.flush_range = bcm_flush_range,
 		.flush_all   = l2c210_flush_all,
-		.disable     = l2c_disable,
+		.disable     = l2c310_disable,
 		.sync        = l2c210_sync,
 		.resume      = l2c310_resume,
 	},
