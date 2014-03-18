@@ -1376,7 +1376,7 @@ struct rk3288_hdmi_device {
 	int 			phy_i2cm_int;
 	struct mutex 		int_mutex;
 	struct device 		*dev;
-	struct clk		*hclk;				//HDMI AHP clk
+	struct clk		*pclk;				//HDMI AHP clk
 	struct hdmi 		driver;
         struct dentry           *debugfs_dir;
 };

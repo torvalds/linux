@@ -214,14 +214,14 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 	rk3288_hdmi_parse_dt(hdmi_dev);
 	//TODO Daisen wait to add cec iomux
 
-	/*enable hclk*/
-	hdmi_dev->hclk = devm_clk_get(hdmi_dev->dev,"hclk_hdmi");	//TODO Daisen wait to modify
-	if(IS_ERR(hdmi_dev->hclk)) {
-		dev_err(hdmi_dev->dev, "Unable to get hdmi hclk\n");
+	/*enable pclk*/
+	hdmi_dev->pclk = devm_clk_get(hdmi_dev->dev, "pclk_hdmi");
+	if(IS_ERR(hdmi_dev->pclk)) {
+		dev_err(hdmi_dev->dev, "Unable to get hdmi pclk\n");
 		ret = -ENXIO;
 		goto err0;
 	}
-	clk_prepare_enable(hdmi_dev->hclk);
+	clk_prepare_enable(hdmi_dev->pclk);
 
 	/*request and remap iomem*/
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -291,7 +291,7 @@ err2:
 	//iounmap((void*)hdmi_dev->regbase);
 err1:
 	//release_mem_region(res->start,hdmi_dev->regsize_phy);
-	clk_disable_unprepare(hdmi_dev->hclk);
+	clk_disable_unprepare(hdmi_dev->pclk);
 err0:
 	dev_info(hdmi_dev->dev, "rk3288 hdmi probe error.\n");
 	kfree(hdmi_dev);
@@ -322,7 +322,7 @@ static int rk3288_hdmi_remove(struct platform_device *pdev)
 
 		//iounmap((void*)hdmi_drv->regbase);
 		//release_mem_region(hdmi_drv->regbase_phy, hdmi_drv->regsize_phy);
-		clk_disable_unprepare(hdmi_dev->hclk);
+		clk_disable_unprepare(hdmi_dev->pclk);
 		fb_destroy_modelist(&hdmi_drv->edid.modelist);
 		if(hdmi_drv->edid.audio)
 			kfree(hdmi_drv->edid.audio);
