@@ -98,8 +98,14 @@
  */
 #define STATIC		static
 
-#undef memset
 #undef memcpy
+
+/*
+ * Use a normal definition of memset() from string.c. There are already
+ * included header files which expect a definition of memset() and by
+ * the time we define memset macro, it is too late.
+ */
+#undef memset
 #define memzero(s, n)	memset((s), 0, (n))
 
 
@@ -109,8 +115,6 @@ static void error(char *m);
  * This is set up by the setup-routine at boot-time
  */
 struct boot_params *real_mode;		/* Pointer to real-mode data */
-
-void *memset(void *s, int c, size_t n);
 
 memptr free_mem_ptr;
 memptr free_mem_end_ptr;
@@ -214,16 +218,6 @@ void __putstr(const char *s)
 	outb(0xff & (pos >> 9), vidport+1);
 	outb(15, vidport);
 	outb(0xff & (pos >> 1), vidport+1);
-}
-
-void *memset(void *s, int c, size_t n)
-{
-	int i;
-	char *ss = s;
-
-	for (i = 0; i < n; i++)
-		ss[i] = c;
-	return s;
 }
 
 static void error(char *x)
