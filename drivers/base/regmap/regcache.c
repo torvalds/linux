@@ -249,7 +249,7 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 {
 	unsigned int reg;
 
-	for (reg = min; reg <= max; reg++) {
+	for (reg = min; reg <= max; reg += map->reg_stride) {
 		unsigned int val;
 		int ret;
 
