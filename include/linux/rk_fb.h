@@ -374,6 +374,7 @@ struct rk_lcdc_drv_ops {
 	int (*set_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,int bri,int con,int sat);
 	int (*dump_reg) (struct rk_lcdc_driver * dev_drv);
 	int (*mmu_en) (struct rk_lcdc_driver * dev_drv,bool en);
+	int (*config_done) (struct rk_lcdc_driver * dev_drv);
 };
 
 struct rk_fb_area_par {

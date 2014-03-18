@@ -920,6 +920,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (video_data_to_mirroring)
 		video_data_to_mirroring(info, NULL);
 	#endif
+	dev_drv->ops->config_done(dev_drv);
 	return 0;
 }
 
@@ -1110,6 +1111,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	ktime_t timestamp = dev_drv->vsync_info.timestamp;
 	//struct rk_fb_reg_win_data old_reg_win_data[RK30_MAX_LAYER_SUPPORT];
 
+	dev_drv->atv_layer_cnt = regs->win_num;
 	for(i=0;i<dev_drv->lcdc_win_num;i++){ 
 		//old_reg_win_data[i]= regs->reg_win_data[i];
 		win = dev_drv->win[i];
@@ -1123,7 +1125,12 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		}else{
 			win->state = 0;
 		}
+		dev_drv->ops->set_par(dev_drv,i);
+		dev_drv->ops->pan_display(dev_drv,i);
 	}
+	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
+	dev_drv->ops->config_done(dev_drv);
+
 #if 0
 	for(i=0;i<2;i++){
 		printk("win[%d]:drv_win_state=%d\n",i,dev_drv->win[i]->state);
@@ -1133,12 +1140,13 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		}
 	}
 #endif	
-	dev_drv->atv_layer_cnt = regs->win_num;
 	/*dev_drv->screen0->post_xsize = regs->post_cfg.xsize;
 	dev_drv->screen0->post_ysize = regs->post_cfg.ysize;
 	dev_drv->screen0->post_dsp_stx = regs->post_cfg.xpos;
 	dev_drv->screen0->post_dsp_sty = regs->post_cfg.ypos;*/
-	dev_drv->ops->set_par(dev_drv,0);
+
+	/*dev_drv->atv_layer_cnt = regs->win_num;
+	dev_drv->ops->set_par(dev_drv,0);*/
 
 	ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
 			!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));
@@ -2782,18 +2790,14 @@ if (dev_drv->prop == PRMRY) {
 	if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {
 		fb_set_cmap(&main_fbi->cmap, main_fbi);
 		fb_show_bmp_logo(main_fbi, FB_ROTATE_UR);
-		main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
 	}
 #else
 	if (fb_prepare_logo(main_fbi, FB_ROTATE_UR)) {
 		fb_set_cmap(&main_fbi->cmap, main_fbi);
 		fb_show_logo(main_fbi, FB_ROTATE_UR);
-		main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
 	}
 #endif
-	//main_fbi->fbops->fb_ioctl(main_fbi, RK_FBIOSET_CONFIG_DONE, 0);
-	main_fbi->fbops->fb_set_par(main_fbi);
-
+	main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
 }
 #endif
 	return 0;
