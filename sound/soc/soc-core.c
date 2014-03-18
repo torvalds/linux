@@ -3879,6 +3879,7 @@ int snd_soc_register_component(struct device *dev,
 	}
 
 	cmpnt->ignore_pmdown_time = true;
+	cmpnt->registered_as_component = true;
 
 	return __snd_soc_register_component(dev, cmpnt, cmpnt_drv, NULL,
 					    dai_drv, num_dai, true);
@@ -3894,7 +3895,7 @@ void snd_soc_unregister_component(struct device *dev)
 	struct snd_soc_component *cmpnt;
 
 	list_for_each_entry(cmpnt, &component_list, list) {
-		if (dev == cmpnt->dev)
+		if (dev == cmpnt->dev && cmpnt->registered_as_component)
 			goto found;
 	}
 	return;

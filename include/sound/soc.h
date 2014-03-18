@@ -662,6 +662,7 @@ struct snd_soc_component {
 	unsigned int active;
 
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
+	unsigned int registered_as_component:1;
 
 	struct list_head list;
 
