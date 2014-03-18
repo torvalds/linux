@@ -128,7 +128,7 @@ int test__dwarf_unwind(void)
 	if (verbose > 1)
 		machine__fprintf(machine, stderr);
 
-	thread = machine__find_thread(machine, getpid());
+	thread = machine__find_thread(machine, getpid(), getpid());
 	if (!thread) {
 		pr_err("Could not get thread\n");
 		goto out;

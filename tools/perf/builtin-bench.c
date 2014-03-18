@@ -12,6 +12,7 @@
  *  sched ... scheduler and IPC performance
  *  mem   ... memory access performance
  *  numa  ... NUMA scheduling and MM performance
+ *  futex ... Futex performance
  */
 #include "perf.h"
 #include "util/util.h"
@@ -54,6 +55,14 @@ static struct bench mem_benchmarks[] = {
 	{ NULL,		NULL,						NULL			}
 };
 
+static struct bench futex_benchmarks[] = {
+	{ "hash",	"Benchmark for futex hash table",               bench_futex_hash	},
+	{ "wake",	"Benchmark for futex wake calls",               bench_futex_wake	},
+	{ "requeue",	"Benchmark for futex requeue calls",            bench_futex_requeue	},
+	{ "all",	"Test all futex benchmarks",			NULL			},
+	{ NULL,		NULL,						NULL			}
+};
+
 struct collection {
 	const char	*name;
 	const char	*summary;
@@ -61,11 +70,12 @@ struct collection {
 };
 
 static struct collection collections[] = {
-	{ "sched",	"Scheduler and IPC benchmarks",		sched_benchmarks	},
+	{ "sched",	"Scheduler and IPC benchmarks",			sched_benchmarks	},
 	{ "mem",	"Memory access benchmarks",			mem_benchmarks		},
 #ifdef HAVE_LIBNUMA_SUPPORT
 	{ "numa",	"NUMA scheduling and MM benchmarks",		numa_benchmarks		},
 #endif
+	{"futex",       "Futex stressing benchmarks",                   futex_benchmarks        },
 	{ "all",	"All benchmarks",				NULL			},
 	{ NULL,		NULL,						NULL			}
 };

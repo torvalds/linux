@@ -132,8 +132,10 @@ struct perf_hpp {
 };
 
 struct perf_hpp_fmt {
-	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp);
-	int (*width)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp);
+	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		      struct perf_evsel *evsel);
+	int (*width)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		     struct perf_evsel *evsel);
 	int (*color)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct hist_entry *he);
 	int (*entry)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -165,6 +167,20 @@ enum {
 void perf_hpp__init(void);
 void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_enable(unsigned col);
+
+typedef u64 (*hpp_field_fn)(struct hist_entry *he);
+typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);
+typedef int (*hpp_snprint_fn)(struct perf_hpp *hpp, const char *fmt, ...);
+
+int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
+	       hpp_field_fn get_field, hpp_callback_fn callback,
+	       const char *fmt, hpp_snprint_fn print_fn, bool fmt_percent);
+
+static inline void advance_hpp(struct perf_hpp *hpp, int inc)
+{
+	hpp->buf  += inc;
+	hpp->size -= inc;
+}
 
 static inline size_t perf_hpp__use_color(void)
 {
