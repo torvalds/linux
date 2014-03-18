@@ -785,6 +785,21 @@
         compatible = "iommu,vopl_mmu";
         reg = <0xffa40000 0x10000>;
         interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-        interrupt-names = "vopl_mmu";
-    };
+        interrupt-names = "vopl_mmu";};
+    rockchip_suspend {     
+                    rockchip,ctrbits = <    
+                                    (0
+                                   // RKPM_CTR_PWR_DMNS
+                                    //|RKPM_CTR_GTCLKS
+                                    //|RKPM_CTR_PLLS
+                                    //|RKPM_CTR_SYSCLK_DIV
+                                    |RKPM_CTR_NORIDLE_MD
+                                    )
+                                >;              
+                  rockchip,pmic-gpios=<
+                                                    RKPM_PINGPIO_BITS_OUTPUT(GPIO0_A0,RKPM_GPIO_OUT_L) 
+                                                    RKPM_PINGPIO_BITS_INTPUT(GPIO0_A1,RKPM_GPIO_PULL_UP)                           
+                                                    >;           
+            };
+
 };

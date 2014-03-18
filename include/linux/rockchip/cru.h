@@ -5,8 +5,11 @@
 
 
 /*******************CRU BITS*******************************/
+
 #define CRU_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
+
 #define CRU_SET_BITS(val, bits_shift, msk)	(((val)&(msk)) << (bits_shift))
+
 #define CRU_W_MSK_SETBITS(val, bits_shift,msk) \
 	(CRU_W_MSK(bits_shift, msk) | CRU_SET_BITS(val, bits_shift, msk))
 
@@ -39,8 +42,11 @@
 #define RK3188_PLL_MODE_NORM(id)	((0x1<<((id)*4))|(0x3<<(16+(id)*4)))
 #define RK3188_PLL_MODE_DEEP(id)	((0x2<<((id)*4))|(0x3<<(16+(id)*4)))
 
+/******************CRU GATINGS**********************************/
+#define RK3188_CRU_GATEID_CONS(ID) (RK3188_CRU_CLKGATE_CON+(ID/16)*4)
 
-/*******************RK3288********************************/
+/*************************RK3288********************************/
+
 /*******************CRU OFFSET*********************/
 #define RK3288_CRU_MODE_CON		0x50
 #define RK3288_CRU_CLKSEL_CON		0x60
@@ -49,6 +55,28 @@
 #define RK3288_PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
 #define RK3288_CRU_CLKSELS_CON(i)	(RK3288_CRU_CLKSEL_CON + ((i) * 4))
 #define RK3288_CRU_CLKGATES_CON(i)	(RK3288_CRU_CLKGATE_CON + ((i) * 4))
+
+/******************PLL MODE BITS*******************/
+// apll dpll,cpll,gpll,npll 0~4
+#define RK3288_PLLS_MODE_OFFSET(id) ((id)<=3 ? (id*4) : 14)
+#define RK3288_PLL_MODE_MSK(id)		(0x3 << RK3288_PLLS_MODE_OFFSET(id))
+#define RK3288_PLL_MODE_SLOW(id)	((0x0<<RK3288_PLLS_MODE_OFFSET(id))|(0x3<<(16+RK3288_PLLS_MODE_OFFSET(id))))
+#define RK3288_PLL_MODE_NORM(id)	((0x1<<RK3288_PLLS_MODE_OFFSET(id))|(0x3<<(16+RK3288_PLLS_MODE_OFFSET(id))))
+#define RK3288_PLL_MODE_DEEP(id)	((0x2<<RK3288_PLLS_MODE_OFFSET(id))|(0x3<<(16+RK3288_PLLS_MODE_OFFSET(id))))
+
+/*******************CRU GATING*********************/
+#define RK3288_CRU_CLKGATES_CON_CNT (19)
+
+#define RK3288_CRU_CONS_GATEID(i)	(16 * (i))
+#define RK3288_CRU_GATEID_CONS(ID)	(RK3288_CRU_CLKGATE_CON+(ID/16)*4)
+
+enum rk3288_cru_clk_gate {
+	/* SCU CLK GATE 0 CON */
+        //gate0
+	RK3288_CLKGATE_UART0_SRC= (RK3288_CRU_CONS_GATEID(1)+8),
+        //gate6
+        RK3288_CLKGATE_PCLK_UART0= (RK3288_CRU_CONS_GATEID(6)+6),	
+};
 
 #define RK3288_CRU_GLB_SRST_FST_VALUE   0x1b0
 #define RK3288_CRU_GLB_SRST_SND_VALUE   0x1b4

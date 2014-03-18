@@ -73,6 +73,9 @@ static struct map_desc rk3288_io_desc[] __initdata = {
 	RK_DEVICE(RK_GPIO_VIRT(7), RK3288_GPIO7_PHYS, RK3288_GPIO_SIZE),
 	RK_DEVICE(RK_GPIO_VIRT(8), RK3288_GPIO8_PHYS, RK3288_GPIO_SIZE),
 	RK_DEVICE(RK_DEBUG_UART_VIRT, RK3288_UART_DBG_PHYS, RK3288_UART_SIZE),
+        RK_DEVICE(RK_GIC_VIRT, RK3288_GIC_DIST_PHYS, RK3288_GIC_DIST_SIZE),      
+        RK_DEVICE(RK_GIC_VIRT+RK3288_GIC_DIST_SIZE, RK3288_GIC_DIST_PHYS+RK3288_GIC_DIST_SIZE, RK3288_GIC_CPU_SIZE),
+
 };
 
 static void __init rk3288_boot_mode_init(void)
@@ -339,6 +342,7 @@ static void rk3288_restart(char mode, const char *cmd)
 	writel_relaxed(0xeca8, RK_CRU_VIRT + RK3288_CRU_GLB_SRST_SND_VALUE);
 	dsb();
 }
+static void __init rk3288_init_suspend(void);
 
 DT_MACHINE_START(RK3288_DT, "RK30board")
 	.smp		= smp_ops(rockchip_smp_ops),
@@ -346,7 +350,7 @@ DT_MACHINE_START(RK3288_DT, "RK30board")
 	.init_time	= rk3288_dt_init_timer,
 	.dt_compat	= rk3288_dt_compat,
 #ifdef CONFIG_PM
-	.init_late	= rockchip_suspend_init,
+	.init_late	= rk3288_init_suspend,
 #endif
 	.reserve	= rk3288_reserve,
 	.restart	= rk3288_restart,
@@ -381,3 +385,12 @@ static int __init rk3288_pie_init(void)
 	return 0;
 }
 arch_initcall(rk3288_pie_init);
+#ifdef CONFIG_PM
+#include "pm-rk3288.c"
+static void __init rk3288_init_suspend(void)
+{
+        rockchip_suspend_init();       
+        rkpm_pie_init();
+        rk3288_suspend_init();
+}
+#endif
