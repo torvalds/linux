@@ -48,8 +48,6 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 	pDot11dInfo->State = DOT11D_STATE_NONE;
 	pDot11dInfo->CountryIeLen = 0;
 	RESET_CIE_WATCHDOG(ieee);
-
-	//printk("Dot11d_Reset()\n");
 }
 
 //
@@ -103,7 +101,6 @@ Dot11d_UpdateCountryIe(
 
 		pTriple = (PCHNL_TXPOWER_TRIPLE)((u8 *)pTriple + 3);
 	}
-	//printk("Dot11d_UpdateCountryIe(): Channel List:\n");
 	printk("Channel List:");
 	for(i=1; i<= MAX_CHANNEL_NUMBER; i++)
 		if(pDot11dInfo->channel_map[i] > 0)
