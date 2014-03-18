@@ -308,19 +308,22 @@ static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 	return NULL;
 }
 
+static void bch_subtract_dirty(struct bkey *k,
+			   struct cache_set *c,
+			   uint64_t offset,
+			   int sectors)
+{
+	if (KEY_DIRTY(k))
+		bcache_dev_sectors_dirty_add(c, KEY_INODE(k),
+					     offset, -sectors);
+}
+
 static bool bch_extent_insert_fixup(struct btree_keys *b,
 				    struct bkey *insert,
 				    struct btree_iter *iter,
 				    struct bkey *replace_key)
 {
 	struct cache_set *c = container_of(b, struct btree, keys)->c;
-
-	void subtract_dirty(struct bkey *k, uint64_t offset, int sectors)
-	{
-		if (KEY_DIRTY(k))
-			bcache_dev_sectors_dirty_add(c, KEY_INODE(k),
-						     offset, -sectors);
-	}
 
 	uint64_t old_offset;
 	unsigned old_size, sectors_found = 0;
@@ -398,7 +401,8 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 
 			struct bkey *top;
 
-			subtract_dirty(k, KEY_START(insert), KEY_SIZE(insert));
+			bch_subtract_dirty(k, c, KEY_START(insert),
+				       KEY_SIZE(insert));
 
 			if (bkey_written(b, k)) {
 				/*
@@ -448,7 +452,7 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 			}
 		}
 
-		subtract_dirty(k, old_offset, old_size - KEY_SIZE(k));
+		bch_subtract_dirty(k, c, old_offset, old_size - KEY_SIZE(k));
 	}
 
 check_failed:

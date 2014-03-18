@@ -405,7 +405,7 @@ struct bset_stats_op {
 	struct bset_stats stats;
 };
 
-static int btree_bset_stats(struct btree_op *b_op, struct btree *b)
+static int bch_btree_bset_stats(struct btree_op *b_op, struct btree *b)
 {
 	struct bset_stats_op *op = container_of(b_op, struct bset_stats_op, op);
 
@@ -423,7 +423,7 @@ static int bch_bset_print_stats(struct cache_set *c, char *buf)
 	memset(&op, 0, sizeof(op));
 	bch_btree_op_init(&op.op, -1);
 
-	ret = bch_btree_map_nodes(&op.op, c, &ZERO_KEY, btree_bset_stats);
+	ret = bch_btree_map_nodes(&op.op, c, &ZERO_KEY, bch_btree_bset_stats);
 	if (ret < 0)
 		return ret;
 
@@ -441,81 +441,81 @@ static int bch_bset_print_stats(struct cache_set *c, char *buf)
 			op.stats.floats, op.stats.failed);
 }
 
+static unsigned bch_root_usage(struct cache_set *c)
+{
+	unsigned bytes = 0;
+	struct bkey *k;
+	struct btree *b;
+	struct btree_iter iter;
+
+	goto lock_root;
+
+	do {
+		rw_unlock(false, b);
+lock_root:
+		b = c->root;
+		rw_lock(false, b, b->level);
+	} while (b != c->root);
+
+	for_each_key_filter(&b->keys, k, &iter, bch_ptr_bad)
+		bytes += bkey_bytes(k);
+
+	rw_unlock(false, b);
+
+	return (bytes * 100) / btree_bytes(c);
+}
+
+static size_t bch_cache_size(struct cache_set *c)
+{
+	size_t ret = 0;
+	struct btree *b;
+
+	mutex_lock(&c->bucket_lock);
+	list_for_each_entry(b, &c->btree_cache, list)
+		ret += 1 << (b->keys.page_order + PAGE_SHIFT);
+
+	mutex_unlock(&c->bucket_lock);
+	return ret;
+}
+
+static unsigned bch_cache_max_chain(struct cache_set *c)
+{
+	unsigned ret = 0;
+	struct hlist_head *h;
+
+	mutex_lock(&c->bucket_lock);
+
+	for (h = c->bucket_hash;
+	     h < c->bucket_hash + (1 << BUCKET_HASH_BITS);
+	     h++) {
+		unsigned i = 0;
+		struct hlist_node *p;
+
+		hlist_for_each(p, h)
+			i++;
+
+		ret = max(ret, i);
+	}
+
+	mutex_unlock(&c->bucket_lock);
+	return ret;
+}
+
+static unsigned bch_btree_used(struct cache_set *c)
+{
+	return div64_u64(c->gc_stats.key_bytes * 100,
+			 (c->gc_stats.nodes ?: 1) * btree_bytes(c));
+}
+
+static unsigned bch_average_key_size(struct cache_set *c)
+{
+	return c->gc_stats.nkeys
+		? div64_u64(c->gc_stats.data, c->gc_stats.nkeys)
+		: 0;
+}
+
 SHOW(__bch_cache_set)
 {
-	unsigned root_usage(struct cache_set *c)
-	{
-		unsigned bytes = 0;
-		struct bkey *k;
-		struct btree *b;
-		struct btree_iter iter;
-
-		goto lock_root;
-
-		do {
-			rw_unlock(false, b);
-lock_root:
-			b = c->root;
-			rw_lock(false, b, b->level);
-		} while (b != c->root);
-
-		for_each_key_filter(&b->keys, k, &iter, bch_ptr_bad)
-			bytes += bkey_bytes(k);
-
-		rw_unlock(false, b);
-
-		return (bytes * 100) / btree_bytes(c);
-	}
-
-	size_t cache_size(struct cache_set *c)
-	{
-		size_t ret = 0;
-		struct btree *b;
-
-		mutex_lock(&c->bucket_lock);
-		list_for_each_entry(b, &c->btree_cache, list)
-			ret += 1 << (b->keys.page_order + PAGE_SHIFT);
-
-		mutex_unlock(&c->bucket_lock);
-		return ret;
-	}
-
-	unsigned cache_max_chain(struct cache_set *c)
-	{
-		unsigned ret = 0;
-		struct hlist_head *h;
-
-		mutex_lock(&c->bucket_lock);
-
-		for (h = c->bucket_hash;
-		     h < c->bucket_hash + (1 << BUCKET_HASH_BITS);
-		     h++) {
-			unsigned i = 0;
-			struct hlist_node *p;
-
-			hlist_for_each(p, h)
-				i++;
-
-			ret = max(ret, i);
-		}
-
-		mutex_unlock(&c->bucket_lock);
-		return ret;
-	}
-
-	unsigned btree_used(struct cache_set *c)
-	{
-		return div64_u64(c->gc_stats.key_bytes * 100,
-				 (c->gc_stats.nodes ?: 1) * btree_bytes(c));
-	}
-
-	unsigned average_key_size(struct cache_set *c)
-	{
-		return c->gc_stats.nkeys
-			? div64_u64(c->gc_stats.data, c->gc_stats.nkeys)
-			: 0;
-	}
-
 	struct cache_set *c = container_of(kobj, struct cache_set, kobj);
 
 	sysfs_print(synchronous,		CACHE_SYNC(&c->sb));
@@ -523,10 +523,10 @@ lock_root:
 	sysfs_hprint(bucket_size,		bucket_bytes(c));
 	sysfs_hprint(block_size,		block_bytes(c));
 	sysfs_print(tree_depth,			c->root->level);
-	sysfs_print(root_usage_percent,		root_usage(c));
+	sysfs_print(root_usage_percent,		bch_root_usage(c));
 
-	sysfs_hprint(btree_cache_size,		cache_size(c));
-	sysfs_print(btree_cache_max_chain,	cache_max_chain(c));
+	sysfs_hprint(btree_cache_size,		bch_cache_size(c));
+	sysfs_print(btree_cache_max_chain,	bch_cache_max_chain(c));
 	sysfs_print(cache_available_percent,	100 - c->gc_stats.in_use);
 
 	sysfs_print_time_stats(&c->btree_gc_time,	btree_gc, sec, ms);
@@ -534,9 +534,9 @@ lock_root:
 	sysfs_print_time_stats(&c->sort.time,		btree_sort, ms, us);
 	sysfs_print_time_stats(&c->btree_read_time,	btree_read, ms, us);
 
-	sysfs_print(btree_used_percent,	btree_used(c));
+	sysfs_print(btree_used_percent,	bch_btree_used(c));
 	sysfs_print(btree_nodes,	c->gc_stats.nodes);
-	sysfs_hprint(average_key_size,	average_key_size(c));
+	sysfs_hprint(average_key_size,	bch_average_key_size(c));
 
 	sysfs_print(cache_read_races,
 		    atomic_long_read(&c->cache_read_races));
