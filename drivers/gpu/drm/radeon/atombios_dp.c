@@ -236,7 +236,7 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			 u8 write_byte, u8 *read_byte)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	struct radeon_i2c_chan *auxch = (struct radeon_i2c_chan *)adapter;
+	struct radeon_i2c_chan *auxch = i2c_get_adapdata(adapter);
 	u16 address = algo_data->address;
 	u8 msg[5];
 	u8 reply[2];
