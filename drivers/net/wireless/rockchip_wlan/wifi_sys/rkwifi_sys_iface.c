@@ -146,8 +146,13 @@ static ssize_t wifi_power_write(struct class *cls, struct class_attribute *attr,
 return _count;
 }
 
+#ifdef CONFIG_WIFI_NONE
+int rockchip_wifi_init_module(void) {return 0;}
+void rockchip_wifi_exit_module(void) {return;}
+#else
 extern int rockchip_wifi_init_module(void);
 extern void rockchip_wifi_exit_module(void);
+#endif
 static struct semaphore driver_sem;
 static int wifi_driver_insmod = 0;
 
