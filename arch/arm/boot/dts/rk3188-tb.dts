@@ -630,3 +630,27 @@
 	};
 };
 
+&ap0_vcc_domain{
+	regulator-name= "vccio_wl";	
+};
+&ap1_vcc_domain{
+	regulator-name= "vccio";	
+};
+&cif_vcc_domain{
+	regulator-name= "vcc18_cif";	
+};
+&flash_vcc_domain{
+	regulator-name= "vcc_flash";	
+};
+&vccio0_vcc_domain{
+	regulator-name= "vccio";	
+};
+&vccio1_vcc_domain{
+	regulator-name= "vccio";	
+};
+&lcdc0_vcc_domain{
+	regulator-name= "vcc_lcd";	
+};
+&lcdc1_vcc_domain{
+	regulator-name= "vccio";	
+};

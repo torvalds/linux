@@ -30,7 +30,11 @@ int io_domain_regulator_set_voltage(struct regulator *regulator, int min_uV, int
 			printk("IO_DOMAIN:ERROR:The io vol domin is not exit. %s\n",__func__);
 	}
 
-	if (min_uV  >= old_voltage){
+	if (min_uV  == old_voltage){
+		IO_DOMAIN_DBG("IO_DOMAIN:the vol is not modify,not need to set io vol domain. %s \n",__func__);
+		return 0;
+	}
+	else if (min_uV  > old_voltage){
 		if( min_uV > IO_VOL_DOMAIN_3V3){
 			pinctrl_select_state(g_uap->pctl, g_uap->pins_3v3);
 			IO_DOMAIN_DBG("IO_DOMAIN:set io domain 3.3v. %s \n",__func__);
@@ -52,7 +56,6 @@ int io_domain_regulator_set_voltage(struct regulator *regulator, int min_uV, int
 			IO_DOMAIN_DBG("IO_DOMAIN:set io domain 1.8v. %s \n",__func__);
 		}
 	}
-
 	return ret;
 
 }
@@ -76,8 +79,7 @@ static int rk_io_vol_domain_resume(struct platform_device *pdev)
 static int rk_io_vol_domain_probe(struct platform_device *pdev)
 {
 	struct io_domain_port *uap;
-	struct vd_node *vd;
-	struct device_node *io_domain_node,*pd_dev_node ;
+	struct device_node *io_domain_node ;
 	struct regulator *vol_regulator;
 	struct io_domain_device *io_vol_dev = NULL;
 	int vol=0,ret =0;
@@ -89,7 +91,7 @@ static int rk_io_vol_domain_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, io_vol_dev);
 	io_vol_dev->dev = &pdev->dev;
-	
+
 	uap = devm_kzalloc(&pdev->dev, sizeof(struct io_domain_port),
 			   GFP_KERNEL);
 	if (uap == NULL) {
@@ -101,49 +103,40 @@ static int rk_io_vol_domain_probe(struct platform_device *pdev)
 	uap->pins_1v8 = pinctrl_lookup_state(uap->pctl, "1.8V");
 	uap->pins_3v3 = pinctrl_lookup_state(uap->pctl,"3.3V");
 	g_uap = uap;
-	
+
 	io_domain_node = of_node_get(pdev->dev.of_node);
 	if (!io_domain_node) {
 		printk("could not find rk_io_vol_domain-node\n");
-		return -ENOMEM ;
+		return -ENODEV ;
 	}
-	
-	for_each_available_child_of_node(io_domain_node,pd_dev_node) {
-		vd = kzalloc(sizeof(struct vd_node), GFP_KERNEL);
-		if (!vd)
-			return -ENOMEM;
 
-		vd->name = pd_dev_node->name;
-		pd_dev_node->name = of_get_property(pd_dev_node, "regulator-name", NULL);
-		if (pd_dev_node->name== NULL) {
-			printk("%s vd(%s) pd_dev_node->name(%s) get regulator_name err, ret:%d\n", 
-				__func__,vd->name , pd_dev_node->name,ret);
-			kfree(vd);
-			continue;
-		}
-		vol_regulator = regulator_get(NULL,pd_dev_node->name);
-		if (IS_ERR(vol_regulator)){
-			pinctrl_select_state(uap->pctl, uap->pins_default);
-			IO_DOMAIN_DBG("IO_DOMAIN:ERROR:The io vol domin is not exit,set it by defult. %s %s\n",__func__,pd_dev_node->name);
-			continue;
-		}
-		else{
+	io_domain_node->name = of_get_property(io_domain_node, "regulator-name", NULL);
+
+	if (io_domain_node->name== NULL) {
+		printk("%s io_domain_node->name(%s) get regulator_name err, ret:%d\n", __func__, io_domain_node->name,ret);
+		return -ENODEV ;
+	}
+	vol_regulator = regulator_get(NULL,io_domain_node->name);
+	if (IS_ERR(vol_regulator)){
+		pinctrl_select_state(uap->pctl, uap->pins_default);
+		IO_DOMAIN_DBG("IO_DOMAIN:ERROR:The io vol domin regulator name is not exit,set it by defult. %s %s\n",__func__,io_domain_node->name);
+		return 0 ;
+	}
+	else{
 		vol = regulator_get_voltage(vol_regulator);
 		if (vol > IO_VOL_DOMAIN_3V3){
 			pinctrl_select_state(uap->pctl, uap->pins_3v3);
-			IO_DOMAIN_DBG("IO_DOMAIN:set io domain 3.3v. %s %s = %d\n",__func__,pd_dev_node->name,vol);
+			IO_DOMAIN_DBG("IO_DOMAIN:set io domain 3.3v. %s %s = %d\n",__func__,io_domain_node->name,vol);
 			}
 		else if (vol > IO_VOL_DOMAIN_1V8){
 			pinctrl_select_state(uap->pctl, uap->pins_1v8);
-			IO_DOMAIN_DBG("IO_DOMAIN:set io domain 1.8v. %s %s = %d\n",__func__,pd_dev_node->name,vol);
+			IO_DOMAIN_DBG("IO_DOMAIN:set io domain 1.8v. %s %s = %d\n",__func__,io_domain_node->name,vol);
 			}
 		else{
 			pinctrl_select_state(uap->pctl, uap->pins_default);
-			IO_DOMAIN_DBG("IO_DOMAIN:ERROR:The io vol domin is not exit,set it by defult. %s %s\n",__func__,pd_dev_node->name);
+			IO_DOMAIN_DBG("IO_DOMAIN:ERROR:The io vol domin is not exit,set it by defult. %s %s\n",__func__,io_domain_node->name);
 			}
-		}
 	}
-
 	return 0;
 }
 
