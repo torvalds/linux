@@ -50,7 +50,7 @@
 #else
 #define ioapic_debug(fmt, arg...)
 #endif
-static int ioapic_deliver(struct kvm_ioapic *vioapic, int irq,
+static int ioapic_service(struct kvm_ioapic *vioapic, int irq,
 		bool line_status);
 
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
@@ -163,23 +163,6 @@ static bool rtc_irq_check_coalesced(struct kvm_ioapic *ioapic)
 	return false;
 }
 
-static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx,
-		bool line_status)
-{
-	union kvm_ioapic_redirect_entry *pent;
-	int injected = -1;
-
-	pent = &ioapic->redirtbl[idx];
-
-	if (!pent->fields.mask) {
-		injected = ioapic_deliver(ioapic, idx, line_status);
-		if (injected && pent->fields.trig_mode == IOAPIC_LEVEL_TRIG)
-			pent->fields.remote_irr = 1;
-	}
-
-	return injected;
-}
-
 static void update_handled_vectors(struct kvm_ioapic *ioapic)
 {
 	DECLARE_BITMAP(handled_vectors, 256);
@@ -282,11 +265,14 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	}
 }
 
-static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq, bool line_status)
+static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 {
 	union kvm_ioapic_redirect_entry *entry = &ioapic->redirtbl[irq];
 	struct kvm_lapic_irq irqe;
 	int ret;
+
+	if (entry->fields.mask)
+		return -1;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
@@ -309,6 +295,9 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq, bool line_status)
 		ioapic->rtc_status.pending_eoi = ret;
 	} else
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe, NULL);
+
+	if (ret && irqe.trig_mode == IOAPIC_LEVEL_TRIG)
+		entry->fields.remote_irr = 1;
 
 	return ret;
 }
@@ -393,7 +382,7 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 
 		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
 		ent->fields.remote_irr = 0;
-		if (!ent->fields.mask && (ioapic->irr & (1 << i)))
+		if (ioapic->irr & (1 << i))
 			ioapic_service(ioapic, i, false);
 	}
 }
