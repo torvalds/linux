@@ -1495,14 +1495,13 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	sema_init(&c->sb_write_mutex, 1);
 	mutex_init(&c->bucket_lock);
-	init_waitqueue_head(&c->try_wait);
+	init_waitqueue_head(&c->btree_cache_wait);
 	init_waitqueue_head(&c->bucket_wait);
 	sema_init(&c->uuid_write_mutex, 1);
 
 	spin_lock_init(&c->btree_gc_time.lock);
 	spin_lock_init(&c->btree_split_time.lock);
 	spin_lock_init(&c->btree_read_time.lock);
-	spin_lock_init(&c->try_harder_time.lock);
 
 	bch_moving_init_cache_set(c);
 
@@ -1591,7 +1590,7 @@ static void run_cache_set(struct cache_set *c)
 			goto err;
 
 		err = "error reading btree root";
-		c->root = bch_btree_node_get(c, k, j->btree_level, true);
+		c->root = bch_btree_node_get(c, NULL, k, j->btree_level, true);
 		if (IS_ERR_OR_NULL(c->root))
 			goto err;
 
@@ -1666,7 +1665,7 @@ static void run_cache_set(struct cache_set *c)
 			goto err;
 
 		err = "cannot allocate new btree root";
-		c->root = bch_btree_node_alloc(c, 0, true);
+		c->root = bch_btree_node_alloc(c, NULL, 0);
 		if (IS_ERR_OR_NULL(c->root))
 			goto err;
 
@@ -1847,13 +1846,7 @@ static int cache_alloc(struct cache_sb *sb, struct cache *ca)
 	for_each_bucket(b, ca)
 		atomic_set(&b->pin, 0);
 
-	if (bch_cache_allocator_init(ca))
-		goto err;
-
 	return 0;
-err:
-	kobject_put(&ca->kobj);
-	return -ENOMEM;
 }
 
 static void register_cache(struct cache_sb *sb, struct page *sb_page,

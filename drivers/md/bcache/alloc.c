@@ -375,6 +375,7 @@ static int bch_allocator_thread(void *arg)
 			}
 
 			allocator_wait(ca, bch_allocator_push(ca, bucket));
+			wake_up(&ca->set->btree_cache_wait);
 			wake_up(&ca->set->bucket_wait);
 		}
 
@@ -715,27 +716,5 @@ int bch_cache_allocator_start(struct cache *ca)
 		return PTR_ERR(k);
 
 	ca->alloc_thread = k;
-	return 0;
-}
-
-int bch_cache_allocator_init(struct cache *ca)
-{
-	/*
-	 * Reserve:
-	 * Prio/gen writes first
-	 * Then 8 for btree allocations
-	 * Then half for the moving garbage collector
-	 */
-#if 0
-	ca->watermark[WATERMARK_PRIO] = 0;
-
-	ca->watermark[WATERMARK_METADATA] = prio_buckets(ca);
-
-	ca->watermark[WATERMARK_MOVINGGC] = 8 +
-		ca->watermark[WATERMARK_METADATA];
-
-	ca->watermark[WATERMARK_NONE] = ca->free.size / 2 +
-		ca->watermark[WATERMARK_MOVINGGC];
-#endif
 	return 0;
 }

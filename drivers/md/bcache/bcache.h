@@ -562,19 +562,16 @@ struct cache_set {
 	struct list_head	btree_cache_freed;
 
 	/* Number of elements in btree_cache + btree_cache_freeable lists */
-	unsigned		bucket_cache_used;
+	unsigned		btree_cache_used;
 
 	/*
 	 * If we need to allocate memory for a new btree node and that
 	 * allocation fails, we can cannibalize another node in the btree cache
-	 * to satisfy the allocation. However, only one thread can be doing this
-	 * at a time, for obvious reasons - try_harder and try_wait are
-	 * basically a lock for this that we can wait on asynchronously. The
-	 * btree_root() macro releases the lock when it returns.
+	 * to satisfy the allocation - lock to guarantee only one thread does
+	 * this at a time:
 	 */
-	struct task_struct	*try_harder;
-	wait_queue_head_t	try_wait;
-	uint64_t		try_harder_start;
+	wait_queue_head_t	btree_cache_wait;
+	struct task_struct	*btree_cache_alloc_lock;
 
 	/*
 	 * When we free a btree node, we increment the gen of the bucket the
@@ -669,7 +666,6 @@ struct cache_set {
 	struct time_stats	btree_gc_time;
 	struct time_stats	btree_split_time;
 	struct time_stats	btree_read_time;
-	struct time_stats	try_harder_time;
 
 	atomic_long_t		cache_read_races;
 	atomic_long_t		writeback_keys_done;
@@ -956,7 +952,6 @@ int bch_open_buckets_alloc(struct cache_set *);
 void bch_open_buckets_free(struct cache_set *);
 
 int bch_cache_allocator_start(struct cache *ca);
-int bch_cache_allocator_init(struct cache *ca);
 
 void bch_debug_exit(void);
 int bch_debug_init(struct kobject *);

@@ -54,7 +54,6 @@ sysfs_time_stats_attribute(btree_gc,	sec, ms);
 sysfs_time_stats_attribute(btree_split, sec, us);
 sysfs_time_stats_attribute(btree_sort,	ms,  us);
 sysfs_time_stats_attribute(btree_read,	ms,  us);
-sysfs_time_stats_attribute(try_harder,	ms,  us);
 
 read_attribute(btree_nodes);
 read_attribute(btree_used_percent);
@@ -534,7 +533,6 @@ lock_root:
 	sysfs_print_time_stats(&c->btree_split_time,	btree_split, sec, us);
 	sysfs_print_time_stats(&c->sort.time,		btree_sort, ms, us);
 	sysfs_print_time_stats(&c->btree_read_time,	btree_read, ms, us);
-	sysfs_print_time_stats(&c->try_harder_time,	try_harder, ms, us);
 
 	sysfs_print(btree_used_percent,	btree_used(c));
 	sysfs_print(btree_nodes,	c->gc_stats.nodes);
@@ -709,7 +707,6 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	sysfs_time_stats_attribute_list(btree_split, sec, us)
 	sysfs_time_stats_attribute_list(btree_sort, ms, us)
 	sysfs_time_stats_attribute_list(btree_read, ms, us)
-	sysfs_time_stats_attribute_list(try_harder, ms, us)
 
 	&sysfs_btree_nodes,
 	&sysfs_btree_used_percent,

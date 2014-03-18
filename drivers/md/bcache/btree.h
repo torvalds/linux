@@ -242,8 +242,9 @@ void __bch_btree_node_write(struct btree *, struct closure *);
 void bch_btree_node_write(struct btree *, struct closure *);
 
 void bch_btree_set_root(struct btree *);
-struct btree *bch_btree_node_alloc(struct cache_set *, int, bool);
-struct btree *bch_btree_node_get(struct cache_set *, struct bkey *, int, bool);
+struct btree *bch_btree_node_alloc(struct cache_set *, struct btree_op *, int);
+struct btree *bch_btree_node_get(struct cache_set *, struct btree_op *,
+				 struct bkey *, int, bool);
 
 int bch_btree_insert_check_key(struct btree *, struct btree_op *,
 			       struct bkey *);
