@@ -61,6 +61,7 @@
  *
  *****************************************************************************/
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 #include <net/mac80211.h>
 
 #include "iwl-notif-wait.h"
@@ -78,6 +79,7 @@
 #include "iwl-prph.h"
 #include "rs.h"
 #include "fw-api-scan.h"
+#include "fw-error-dump.h"
 #include "time-event.h"
 
 /*
@@ -534,6 +536,8 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	ieee80211_unregister_hw(mvm->hw);
 
 	kfree(mvm->scan_cmd);
+	vfree(mvm->fw_error_dump);
+	kfree(mvm->fw_error_sram);
 	kfree(mvm->mcast_filter_cmd);
 	mvm->mcast_filter_cmd = NULL;
 
@@ -804,13 +808,52 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 	}
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
+{
+	struct iwl_fw_error_dump_file *dump_file;
+	struct iwl_fw_error_dump_data *dump_data;
+	u32 file_len;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (mvm->fw_error_dump)
+		return;
+
+	file_len = mvm->fw_error_sram_len +
+		   sizeof(*dump_file) +
+		   sizeof(*dump_data);
+
+	dump_file = vmalloc(file_len);
+	if (!dump_file)
+		return;
+
+	mvm->fw_error_dump = dump_file;
+
+	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
+	dump_file->file_len = cpu_to_le32(file_len);
+	dump_data = (void *)dump_file->data;
+	dump_data->type = IWL_FW_ERROR_DUMP_SRAM;
+	dump_data->len = cpu_to_le32(mvm->fw_error_sram_len);
+
+	/*
+	 * No need for lock since at the stage the FW isn't loaded. So it
+	 * can't assert - we are the only one who can possibly be accessing
+	 * mvm->fw_error_sram right now.
+	 */
+	memcpy(dump_data->data, mvm->fw_error_sram, mvm->fw_error_sram_len);
+}
+#endif
+
 static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	iwl_mvm_dump_nic_error_log(mvm);
-	if (!mvm->restart_fw)
-		iwl_mvm_dump_sram(mvm);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_mvm_fw_error_sram_dump(mvm);
+#endif
 
 	iwl_mvm_nic_restart(mvm);
 }

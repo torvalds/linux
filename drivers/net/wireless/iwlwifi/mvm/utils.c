@@ -516,33 +516,26 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		iwl_mvm_dump_umac_error_log(mvm);
 }
 
-void iwl_mvm_dump_sram(struct iwl_mvm *mvm)
+void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm)
 {
 	const struct fw_img *img;
-	int ofs, len = 0;
-	int i;
-	__le32 *buf;
+	u32 ofs, sram_len;
+	void *sram;
 
-	if (!mvm->ucode_loaded)
+	if (!mvm->ucode_loaded || mvm->fw_error_sram)
 		return;
 
 	img = &mvm->fw->img[mvm->cur_ucode];
 	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 
-	buf = kzalloc(len, GFP_ATOMIC);
-	if (!buf)
+	sram = kzalloc(sram_len, GFP_ATOMIC);
+	if (!sram)
 		return;
 
-	iwl_trans_read_mem_bytes(mvm->trans, ofs, buf, len);
-	len = len >> 2;
-	for (i = 0; i < len; i++) {
-		IWL_ERR(mvm, "0x%08X\n", le32_to_cpu(buf[i]));
-		/* Add a small delay to let syslog catch up */
-		udelay(10);
-	}
-
-	kfree(buf);
+	iwl_trans_read_mem_bytes(mvm->trans, ofs, sram, sram_len);
+	mvm->fw_error_sram = sram;
+	mvm->fw_error_sram_len = sram_len;
 }
 
 /**

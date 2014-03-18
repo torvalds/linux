@@ -607,6 +607,15 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	static char *env[] = { "DRIVER=iwlwifi", "EVENT=error_dump", NULL };
+
+	iwl_mvm_fw_error_dump(mvm);
+
+	/* notify the userspace about the error we had */
+	kobject_uevent_env(&mvm->hw->wiphy->dev.kobj, KOBJ_CHANGE, env);
+#endif
+
 	iwl_trans_stop_device(mvm->trans);
 
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
