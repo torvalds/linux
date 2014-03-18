@@ -5,6 +5,7 @@
 
 struct nv50_devinit_priv {
 	struct nouveau_devinit base;
+	u32 r001540;
 };
 
 int  nv50_devinit_ctor(struct nouveau_object *, struct nouveau_object *,
