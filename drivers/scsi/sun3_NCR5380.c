@@ -1049,7 +1049,7 @@ static void NCR5380_main (struct work_struct *bl)
 		     */
 		    MAIN_PRINTK("scsi%d: main(): command for target %d "
 				"lun %d removed from issue_queue\n",
-				HOSTNO, tmp->target, tmp->lun);
+				HOSTNO, tmp->device->id, tmp->device->lun);
 		    /* 
 		     * REQUEST SENSE commands are issued without tagged
 		     * queueing, even on SCSI-II devices because the 
@@ -2587,7 +2587,7 @@ static void NCR5380_reselect (struct Scsi_Host *instance)
     
     hostdata->connected = tmp;
     RSL_PRINTK("scsi%d: nexus established, target = %d, lun = %d, tag = %d\n",
-	       HOSTNO, tmp->target, tmp->lun, tmp->tag);
+	       HOSTNO, tmp->device->id, tmp->device->lun, tmp->tag);
 }
 
 
