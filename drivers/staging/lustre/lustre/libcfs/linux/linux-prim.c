@@ -70,14 +70,6 @@ add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive_head);
 
-void
-schedule_timeout_and_set_state(long state, int64_t timeout)
-{
-	set_current_state(state);
-	schedule_timeout(timeout);
-}
-EXPORT_SYMBOL(schedule_timeout_and_set_state);
-
 /* deschedule for a bit... */
 void
 cfs_pause(cfs_duration_t ticks)
