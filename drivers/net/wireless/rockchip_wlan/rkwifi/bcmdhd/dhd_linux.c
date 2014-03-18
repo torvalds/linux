@@ -4879,6 +4879,7 @@ dhd_module_cleanup(void)
 extern bool g_wifi_poweron;
 #endif /* CONFIG_WIFI_CONTROL_FUNC */
 
+
 static int 
 dhd_module_init(void)
 {
@@ -5020,7 +5021,7 @@ fail_0:
 extern char WIFI_MODULE_NAME[];
 extern char RKWIFI_DRV_VERSION[];
 
-static int __init rockchip_wifi_init_module(void)
+int rockchip_wifi_init_module(void)
 {
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
@@ -5030,7 +5031,7 @@ static int __init rockchip_wifi_init_module(void)
     return dhd_module_init();
 }
 
-static void __exit rockchip_wifi_exit_module(void)
+void rockchip_wifi_exit_module(void)
 {
     printk("=======================================================\n");
     printk("== Dis-launching Wi-Fi driver! (Powered by Rockchip) ==\n");
@@ -5038,8 +5039,10 @@ static void __exit rockchip_wifi_exit_module(void)
     dhd_module_cleanup();
 }
 
-late_initcall(rockchip_wifi_init_module);
-module_exit(rockchip_wifi_exit_module);
+EXPORT_SYMBOL(rockchip_wifi_init_module);
+EXPORT_SYMBOL(rockchip_wifi_exit_module);
+//late_initcall(rockchip_wifi_init_module);
+//module_exit(rockchip_wifi_exit_module);
 /*
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 #ifdef USE_LATE_INITCALL_SYNC

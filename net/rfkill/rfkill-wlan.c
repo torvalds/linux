@@ -265,6 +265,18 @@ EXPORT_SYMBOL(rockchip_wifi_power);
 
 /**************************************************************************
  *
+ * Wifi Sdio Detect Func
+ *
+ *************************************************************************/
+extern int mmc_host_rescan(struct mmc_host *host);
+int rockchip_wifi_set_carddetect(void)
+{
+    return mmc_host_rescan(NULL);//NULL => SDIO host
+}
+EXPORT_SYMBOL(rockchip_wifi_set_carddetect);
+
+/**************************************************************************
+ *
  * Wifi Reset Func
  *
  *************************************************************************/
@@ -502,7 +514,7 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
     // Turn off wifi power as default
     if (gpio_is_valid(pdata->power_n.io))
     {
-        gpio_direction_output(pdata->power_n.io, pdata->power_n.enable);
+        gpio_direction_output(pdata->power_n.io, !pdata->power_n.enable);
     }
 
 #if BCM_STATIC_MEMORY_SUPPORT

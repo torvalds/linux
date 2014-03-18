@@ -183,7 +183,7 @@
   	supports-highspeed;		
 	supports-sdio;
 
-	status = "diabled";
+	status = "okay";
 };
 
 

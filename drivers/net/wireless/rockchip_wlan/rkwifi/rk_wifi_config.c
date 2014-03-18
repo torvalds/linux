@@ -11,18 +11,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-/* Set INIT_COUNTRY_CODE 
- * "US" ---> 11 channels, this is default setting. 
- * "EU" ---> 13 channels
- * "JP" ---> 14 channels
- */
-
-int rkwifi_set_country_code(char *code)
-{
-	sprintf(code, "%s", "EU");
-	return 0;
-}
-
 /* 
  * Set Firmware Path
  */
@@ -107,12 +95,4 @@ int rkwifi_set_firmware(char *fw, char *nvram)
 	return 0;
 }
 
-extern int wifi_pcba_test;
-int rkwifi_pcba_status(void) 
-{
-    return wifi_pcba_test;
-}
-
-EXPORT_SYMBOL(rkwifi_set_country_code);
 EXPORT_SYMBOL(rkwifi_set_firmware);
-EXPORT_SYMBOL(rkwifi_pcba_status);

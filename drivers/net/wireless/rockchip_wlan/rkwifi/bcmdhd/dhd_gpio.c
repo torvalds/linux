@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/rfkill-wlan.h>
 
 #ifdef CUSTOMER_HW
 #ifdef CUSTOMER_OOB
@@ -43,14 +44,13 @@ int bcm_wlan_get_oob_irq(void)
 }
 #endif
 
-extern int rockchip_wifi_power(int on);
-
 void bcm_wlan_power_on(int flag)
 {
 	if (flag == 1) {
 		printk("======== PULL WL_REG_ON HIGH! ========\n");
 		rockchip_wifi_power(1);
         msleep(100);
+        rockchip_wifi_set_carddetect();
 	} else {
 		printk("======== PULL WL_REG_ON HIGH! (flag = %d) ========\n", flag);
 		rockchip_wifi_power(1);
