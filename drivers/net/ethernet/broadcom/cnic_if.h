@@ -24,6 +24,16 @@
 #define MAX_CNIC_ULP_TYPE_EXT	3
 #define MAX_CNIC_ULP_TYPE	4
 
+/* Use CPU native page size up to 16K for cnic ring sizes.  */
+#if (PAGE_SHIFT > 14)
+#define CNIC_PAGE_BITS	14
+#else
+#define CNIC_PAGE_BITS	PAGE_SHIFT
+#endif
+#define CNIC_PAGE_SIZE	(1 << (CNIC_PAGE_BITS))
+#define CNIC_PAGE_ALIGN(addr) ALIGN(addr, CNIC_PAGE_SIZE)
+#define CNIC_PAGE_MASK	(~((CNIC_PAGE_SIZE) - 1))
+
 struct kwqe {
 	u32 kwqe_op_flag;
 
