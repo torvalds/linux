@@ -1142,9 +1142,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 
 	ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
 			!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));
-
+#ifdef H_USE_FENCE
 	sw_sync_timeline_inc(dev_drv->timeline, 1);
-
+#endif
 	for(i=0;i<regs->win_num;i++){
 		rk_fb_free_dma_buf(dev_drv->dev,&regs->reg_win_data[i]);
 	}
@@ -1720,9 +1720,6 @@ static ssize_t rk_fb_read(struct fb_info *info, char __user *buf,
 	struct rk_lcdc_win *win = NULL;
 	int win_id = 0;
 	int list_empty=0;
-
-	list_empty = rk_fb_get_list_stat(dev_drv);
-	printk("list_empty=%d\n",list_empty);
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
