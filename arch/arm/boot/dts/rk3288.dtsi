@@ -494,22 +494,38 @@
 	};
 
 	pwm0: pwm@ff680000 {
+		compatible = "rockchip,rk-pwm";
 		reg = <0xff680000 0x10>;
-		status = "disabled";
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm0_pin>;
+		status = "okay";
 	};
 
 	pwm1: pwm@ff680010 {
+		compatible = "rockchip,rk-pwm";
 		reg = <0xff680010 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm1_pin>;
 		status = "disabled";
 	};
 
 	pwm2: pwm@ff680020 {
+		compatible = "rockchip,rk-pwm";
 		reg = <0xff680020 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm2_pin>;
 		status = "disabled";
 	};
 
 	pwm3: pwm@ff680030 {
+		compatible = "rockchip,rk-pwm";
 		reg = <0xff680030 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm3_pin>;
 		status = "disabled";
 	};
 

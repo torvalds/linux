@@ -102,6 +102,29 @@ module_param_named(dbg_level, pwm_dbg_level, int, 0644);
 
 #define PWM_ENABLE      (1 << 3)
 #define PWM_TIMER_EN    (1 << 0)
+
+#define RK_PWM_DISABLE                     (0 << 0) 
+#define RK_PWM_ENABLE                            (1 << 0)
+
+#define PWM_SHOT                                (0 << 1)
+#define PWM_CONTINUMOUS                 (1 << 1)
+#define RK_PWM_CAPTURE                     (1 << 2)
+
+#define PWM_DUTY_POSTIVE                (1 << 3)
+#define PWM_DUTY_NEGATIVE               (0 << 3)
+
+#define PWM_INACTIVE_POSTIVE            (1 << 4)
+#define PWM_INACTIVE_NEGATIVE           (0 << 4)
+
+#define PWM_OUTPUT_LEFT                 (0 << 5)
+#define PWM_OUTPUT_ENTER                        (1 << 5)
+
+#define PWM_LP_ENABLE                   (1<<8)
+#define PWM_LP_DISABLE                  (0<<8)
+
+#define DW_PWM_PRESCALE		9
+#define RK_PWM_PRESCALE		16
+
 #define PWM_TimeEN      PWM_TIMER_EN
 #define PWMCR_MIN_PRESCALE	0x00
 
@@ -113,6 +136,9 @@ module_param_named(dbg_level, pwm_dbg_level, int, 0644);
 
 #define PWMPCR_MIN_PERIOD		0x0001
 #define PWMPCR_MAX_PERIOD		0xFFFF
+
+#define DW_PWM					0x00
+#define RK_PWM					0x01
 
 /**
  * struct rk_pwm_chip - struct representing pwm chip
@@ -133,6 +159,7 @@ struct rk_pwm_chip {
 	void __iomem *base;
 	struct clk *clk;
 	struct pwm_chip chip;
+	unsigned int pwm_id;
 };
 
 #define PWM_CLK 1
@@ -241,10 +268,15 @@ static int  rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
        spinlock_t *lock;
 
        lock = &pwm_lock[pwm->hwpwm];
-
-        off =  PWM_RESET;
-        on =  PWM_ENABLE | PWM_TIMER_EN;
-
+	if(pc->pwm_id == DW_PWM){
+		off =  PWM_RESET;
+		on =  PWM_ENABLE | PWM_TIMER_EN;
+	}
+	if(pc->pwm_id == RK_PWM){
+		on   =  RK_PWM_ENABLE ;
+		conf = PWM_OUTPUT_LEFT|PWM_LP_DISABLE|
+		                    PWM_CONTINUMOUS|PWM_DUTY_POSTIVE|PWM_INACTIVE_NEGATIVE;
+	}
 	//dump_pwm_register(pc);
 
 	/*
@@ -290,24 +322,39 @@ static int  rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * NOTE: the clock to PWM has to be enabled first before writing to the
 	 * registers.
 	 */
-	 conf |= (prescale << 9);
+
 #if PWM_CLK
 	ret = clk_enable(pc->clk);
 	if (ret)
 		return ret;
 #endif
         spin_lock_irqsave(lock, flags);
+	if(pc->pwm_id == DW_PWM){
 
-        barrier();
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
+		conf |= (prescale << DW_PWM_PRESCALE);
+		barrier();
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
 
-        dsb();
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_HRC,dc);//0x1900);// dc);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_LRC, pv);//0x5dc0);//pv);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
-        dsb();
-	 rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
-        dsb();
+		dsb();
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_HRC,dc);//0x1900);// dc);
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_LRC, pv);//0x5dc0);//pv);
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
+		dsb();
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
+	}
+	if(pc->pwm_id == RK_PWM){
+		conf |= (prescale << RK_PWM_PRESCALE);
+		
+		barrier();
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
+		
+		dsb();
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,dc);//0x1900);// dc);
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD,pv);//0x5dc0);//pv);
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
+		dsb();
+		rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
+	}
         spin_unlock_irqrestore(lock, flags);	
 
 #if PWM_CLK
@@ -329,7 +376,13 @@ static int rk_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		return rc;
 #endif
 	val = rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CTRL);
-	val |= PWM_ENABLE;
+	if(pc->pwm_id == DW_PWM){
+		val |= PWM_ENABLE;
+	}
+	if(pc->pwm_id == RK_PWM){
+		val |= RK_PWM_ENABLE;
+	}
+	
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL, val);
 
 	return 0;
@@ -341,7 +394,13 @@ static void rk_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	u32 val;
 
 	val = rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CTRL);
-	val &= ~PWM_ENABLE;
+	if(pc->pwm_id == DW_PWM){
+		val &= ~PWM_ENABLE;
+	}
+	if(pc->pwm_id == RK_PWM){
+		val &= ~RK_PWM_ENABLE;
+	}
+
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL, val);
 #if PWM_CLK
 	clk_disable(pc->clk);
@@ -380,6 +439,11 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(pc->base);
 
 #if PWM_CLK
+	if (of_device_is_compatible(np, "rockchip,pwm")){
+		pc->pwm_id = DW_PWM;
+	}else if (of_device_is_compatible(np, "rockchip,rk-pwm")){
+		pc->pwm_id = RK_PWM;
+	}
 	//pc->clk = devm_clk_get(&pdev->dev, NULL);
 	pc->clk = clk_get(NULL,"g_p_pwm23");
 
@@ -402,12 +466,12 @@ static int rk_pwm_probe(struct platform_device *pdev)
 #endif
 
 #if PWM_CLK
-	if (of_device_is_compatible(np, "rockchip,pwm")) {
-		ret = clk_enable(pc->clk);
-		if (ret) {
-			clk_unprepare(pc->clk);
-			return ret;
-		}
+//	if (of_device_is_compatible(np, "rockchip,pwm")) {
+	ret = clk_enable(pc->clk);
+	if (ret) {
+		clk_unprepare(pc->clk);
+		return ret;
+	}
 		/*
 		 * Following enables PWM chip, channels would still be
 		 * enabled individually through their control register
@@ -415,7 +479,6 @@ static int rk_pwm_probe(struct platform_device *pdev)
 #if PWM_CLK
 //		clk_disable(pc->clk);
 #endif
-	}
 #endif
 	DBG("npwm = %d, of_pwm_ncells =%d \n", pc->chip.npwm,pc->chip.of_pwm_n_cells);
 	ret = pwmchip_add(&pc->chip);
@@ -436,6 +499,7 @@ static int rk_pwm_remove(struct platform_device *pdev)
 
 static const struct of_device_id rk_pwm_of_match[] = {
 	{ .compatible = "rockchip,pwm" },
+	{ .compatible =  "rockchip,rk-pwm"},
 	{ }
 };
 
