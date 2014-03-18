@@ -870,7 +870,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 
 	if (S_ISDIR(inode->i_mode) && wbc->sync_mode == WB_SYNC_NONE &&
 			get_dirty_dents(inode) < nr_pages_to_skip(sbi, DATA))
-		return 0;
+		goto skip_write;
 
 	if (wbc->nr_to_write < MAX_DESIRED_PAGES_WP) {
 		desired_nrtw = MAX_DESIRED_PAGES_WP;
@@ -892,6 +892,10 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 
 	wbc->nr_to_write -= excess_nrtw;
 	return ret;
+
+skip_write:
+	wbc->pages_skipped += get_dirty_dents(inode);
+	return 0;
 }
 
 static int f2fs_write_begin(struct file *file, struct address_space *mapping,

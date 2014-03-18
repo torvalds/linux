@@ -190,18 +190,19 @@ static int f2fs_write_meta_pages(struct address_space *mapping,
 	int nrpages = nr_pages_to_skip(sbi, META);
 	long written;
 
-	if (wbc->for_kupdate)
-		return 0;
-
 	/* collect a number of dirty meta pages and write together */
-	if (get_pages(sbi, F2FS_DIRTY_META) < nrpages)
-		return 0;
+	if (wbc->for_kupdate || get_pages(sbi, F2FS_DIRTY_META) < nrpages)
+		goto skip_write;
 
 	/* if mounting is failed, skip writing node pages */
 	mutex_lock(&sbi->cp_mutex);
 	written = sync_meta_pages(sbi, META, nrpages);
 	mutex_unlock(&sbi->cp_mutex);
 	wbc->nr_to_write -= written;
+	return 0;
+
+skip_write:
+	wbc->pages_skipped += get_pages(sbi, F2FS_DIRTY_META);
 	return 0;
 }
 

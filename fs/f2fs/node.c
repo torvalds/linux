@@ -1209,7 +1209,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 
 	/* collect a number of dirty node pages and write together */
 	if (get_pages(sbi, F2FS_DIRTY_NODES) < nr_pages_to_skip(sbi, NODE))
-		return 0;
+		goto skip_write;
 
 	/* if mounting is failed, skip writing node pages */
 	wbc->nr_to_write = 3 * max_hw_blocks(sbi);
@@ -1217,6 +1217,10 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	sync_node_pages(sbi, 0, wbc);
 	wbc->nr_to_write = nr_to_write - (3 * max_hw_blocks(sbi) -
 						wbc->nr_to_write);
+	return 0;
+
+skip_write:
+	wbc->pages_skipped += get_pages(sbi, F2FS_DIRTY_NODES);
 	return 0;
 }
 
