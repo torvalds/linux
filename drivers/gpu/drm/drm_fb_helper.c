@@ -1141,8 +1141,8 @@ struct drm_display_mode *drm_has_preferred_mode(struct drm_fb_helper_connector *
 	struct drm_display_mode *mode;
 
 	list_for_each_entry(mode, &fb_connector->connector->modes, head) {
-		if (drm_mode_width(mode) > width ||
-		    drm_mode_height(mode) > height)
+		if (mode->hdisplay > width ||
+		    mode->vdisplay > height)
 			continue;
 		if (mode->type & DRM_MODE_TYPE_PREFERRED)
 			return mode;

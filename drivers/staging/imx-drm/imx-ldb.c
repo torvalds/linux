@@ -595,8 +595,6 @@ static int imx_ldb_remove(struct platform_device *pdev)
 		struct drm_connector *connector = &channel->connector;
 		struct drm_encoder *encoder = &channel->encoder;
 
-		drm_mode_connector_detach_encoder(connector, encoder);
-
 		imx_drm_remove_connector(channel->imx_drm_connector);
 		imx_drm_remove_encoder(channel->imx_drm_encoder);
 	}

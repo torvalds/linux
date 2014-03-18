@@ -105,9 +105,6 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
  * @maxX: max width for modes
  * @maxY: max height for modes
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Based on the helper callbacks implemented by @connector try to detect all
  * valid modes.  Modes will first be added to the connector's probed_modes list,
  * then culled (based on validity and the @maxX, @maxY parameters) and put into
@@ -117,8 +114,8 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
  * @connector vfunc for drivers that use the crtc helpers for output mode
  * filtering and detection.
  *
- * RETURNS:
- * Number of modes found on @connector.
+ * Returns:
+ * The number of modes found on @connector.
  */
 int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 					    uint32_t maxX, uint32_t maxY)
@@ -130,6 +127,8 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	int count = 0;
 	int mode_flags = 0;
 	bool verbose_prune = true;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			drm_get_connector_name(connector));
@@ -176,8 +175,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	drm_mode_connector_list_update(connector);
 
 	if (maxX && maxY)
-		drm_mode_validate_size(dev, &connector->modes, maxX,
-				       maxY, 0);
+		drm_mode_validate_size(dev, &connector->modes, maxX, maxY);
 
 	if (connector->interlace_allowed)
 		mode_flags |= DRM_MODE_FLAG_INTERLACE;
@@ -219,18 +217,19 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  * drm_helper_encoder_in_use - check if a given encoder is in use
  * @encoder: encoder to check
  *
- * LOCKING:
- * Caller must hold mode config lock.
+ * Checks whether @encoder is with the current mode setting output configuration
+ * in use by any connector. This doesn't mean that it is actually enabled since
+ * the DPMS state is tracked separately.
  *
- * Walk @encoders's DRM device's mode_config and see if it's in use.
- *
- * RETURNS:
- * True if @encoder is part of the mode_config, false otherwise.
+ * Returns:
+ * True if @encoder is used, false otherwise.
  */
 bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		if (connector->encoder == encoder)
 			return true;
@@ -242,19 +241,19 @@ EXPORT_SYMBOL(drm_helper_encoder_in_use);
  * drm_helper_crtc_in_use - check if a given CRTC is in a mode_config
  * @crtc: CRTC to check
  *
- * LOCKING:
- * Caller must hold mode config lock.
+ * Checks whether @crtc is with the current mode setting output configuration
+ * in use by any connector. This doesn't mean that it is actually enabled since
+ * the DPMS state is tracked separately.
  *
- * Walk @crtc's DRM device's mode_config and see if it's in use.
- *
- * RETURNS:
- * True if @crtc is part of the mode_config, false otherwise.
+ * Returns:
+ * True if @crtc is used, false otherwise.
  */
 bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder;
 	struct drm_device *dev = crtc->dev;
-	/* FIXME: Locking around list access? */
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
 		if (encoder->crtc == crtc && drm_helper_encoder_in_use(encoder))
 			return true;
@@ -283,17 +282,19 @@ drm_encoder_disable(struct drm_encoder *encoder)
  * drm_helper_disable_unused_functions - disable unused objects
  * @dev: DRM device
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
- * If an connector or CRTC isn't part of @dev's mode_config, it can be disabled
- * by calling its dpms function, which should power it off.
+ * This function walks through the entire mode setting configuration of @dev. It
+ * will remove any crtc links of unused encoders and encoder links of
+ * disconnected connectors. Then it will disable all unused encoders and crtcs
+ * either by calling their disable callback if available or by calling their
+ * dpms callback with DRM_MODE_DPMS_OFF.
  */
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
+
+	drm_warn_on_modeset_not_all_locked(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)
@@ -355,9 +356,6 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
  * @y: vertical offset into the surface
  * @old_fb: old framebuffer, for cleanup
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Try to set @mode on @crtc.  Give @crtc and its associated connectors a chance
  * to fixup or reject the mode prior to trying to set it. This is an internal
  * helper that drivers could e.g. use to update properties that require the
@@ -367,8 +365,8 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
  * drm_crtc_helper_set_config() helper function to drive the mode setting
  * sequence.
  *
- * RETURNS:
- * True if the mode was set successfully, or false otherwise.
+ * Returns:
+ * True if the mode was set successfully, false otherwise.
  */
 bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
@@ -383,6 +381,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	bool saved_enabled;
 	struct drm_encoder *encoder;
 	bool ret = true;
+
+	drm_warn_on_modeset_not_all_locked(dev);
 
 	saved_enabled = crtc->enabled;
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
@@ -560,17 +560,14 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  * drm_crtc_helper_set_config - set a new config from userspace
  * @set: mode set configuration
  *
- * LOCKING:
- * Caller must hold mode config lock.
- *
  * Setup a new configuration, provided by the upper layers (either an ioctl call
  * from userspace or internally e.g. from the fbdev suppport code) in @set, and
  * enable it. This is the main helper functions for drivers that implement
  * kernel mode setting with the crtc helper functions and the assorted
  * ->prepare(), ->modeset() and ->commit() helper callbacks.
  *
- * RETURNS:
- * Returns 0 on success, -ERRNO on failure.
+ * Returns:
+ * Returns 0 on success, negative errno numbers on failure.
  */
 int drm_crtc_helper_set_config(struct drm_mode_set *set)
 {
@@ -611,6 +608,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	}
 
 	dev = set->crtc->dev;
+
+	drm_warn_on_modeset_not_all_locked(dev);
 
 	/*
 	 * Allocate space for the backup of all (non-pointer) encoder and
@@ -924,8 +923,16 @@ void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 }
 EXPORT_SYMBOL(drm_helper_connector_dpms);
 
-int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
-				   struct drm_mode_fb_cmd2 *mode_cmd)
+/**
+ * drm_helper_mode_fill_fb_struct - fill out framebuffer metadata
+ * @fb: drm_framebuffer object to fill out
+ * @mode_cmd: metadata from the userspace fb creation request
+ *
+ * This helper can be used in a drivers fb_create callback to pre-fill the fb's
+ * metadata fields.
+ */
+void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
+				    struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	int i;
 
@@ -938,17 +945,36 @@ int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
 				    &fb->bits_per_pixel);
 	fb->pixel_format = mode_cmd->pixel_format;
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
 
-int drm_helper_resume_force_mode(struct drm_device *dev)
+/**
+ * drm_helper_resume_force_mode - force-restore mode setting configuration
+ * @dev: drm_device which should be restored
+ *
+ * Drivers which use the mode setting helpers can use this function to
+ * force-restore the mode setting configuration e.g. on resume or when something
+ * else might have trampled over the hw state (like some overzealous old BIOSen
+ * tended to do).
+ *
+ * This helper doesn't provide a error return value since restoring the old
+ * config should never fail due to resource allocation issues since the driver
+ * has successfully set the restored configuration already. Hence this should
+ * boil down to the equivalent of a few dpms on calls, which also don't provide
+ * an error code.
+ *
+ * Drivers where simply restoring an old configuration again might fail (e.g.
+ * due to slight differences in allocating shared resources when the
+ * configuration is restored in a different order than when userspace set it up)
+ * need to use their own restore logic.
+ */
+void drm_helper_resume_force_mode(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
 	struct drm_crtc_helper_funcs *crtc_funcs;
-	int ret, encoder_dpms;
+	int encoder_dpms;
+	bool ret;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 
@@ -958,6 +984,7 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 		ret = drm_crtc_helper_set_mode(crtc, &crtc->mode,
 					       crtc->x, crtc->y, crtc->fb);
 
+		/* Restoring the old config should never fail! */
 		if (ret == false)
 			DRM_ERROR("failed to set mode on crtc %p\n", crtc);
 
@@ -980,12 +1007,28 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 						     drm_helper_choose_crtc_dpms(crtc));
 		}
 	}
+
 	/* disable the unused connectors while restoring the modesetting */
 	drm_helper_disable_unused_functions(dev);
-	return 0;
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
 
+/**
+ * drm_kms_helper_hotplug_event - fire off KMS hotplug events
+ * @dev: drm_device whose connector state changed
+ *
+ * This function fires off the uevent for userspace and also calls the
+ * output_poll_changed function, which is most commonly used to inform the fbdev
+ * emulation code and allow it to update the fbcon output configuration.
+ *
+ * Drivers should call this from their hotplug handling code when a change is
+ * detected. Note that this function does not do any output detection of its
+ * own, like drm_helper_hpd_irq_event() does - this is assumed to be done by the
+ * driver already.
+ *
+ * This function must be called from process context with no mode
+ * setting locks held.
+ */
 void drm_kms_helper_hotplug_event(struct drm_device *dev)
 {
 	/* send a uevent + call fbdev */
@@ -1054,6 +1097,16 @@ static void output_poll_execute(struct work_struct *work)
 		schedule_delayed_work(delayed_work, DRM_OUTPUT_POLL_PERIOD);
 }
 
+/**
+ * drm_kms_helper_poll_disable - disable output polling
+ * @dev: drm_device
+ *
+ * This function disables the output polling work.
+ *
+ * Drivers can call this helper from their device suspend implementation. It is
+ * not an error to call this even when output polling isn't enabled or arlready
+ * disabled.
+ */
 void drm_kms_helper_poll_disable(struct drm_device *dev)
 {
 	if (!dev->mode_config.poll_enabled)
@@ -1062,6 +1115,16 @@ void drm_kms_helper_poll_disable(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_disable);
 
+/**
+ * drm_kms_helper_poll_enable - re-enable output polling.
+ * @dev: drm_device
+ *
+ * This function re-enables the output polling work.
+ *
+ * Drivers can call this helper from their device resume implementation. It is
+ * an error to call this when the output polling support has not yet been set
+ * up.
+ */
 void drm_kms_helper_poll_enable(struct drm_device *dev)
 {
 	bool poll = false;
@@ -1081,6 +1144,25 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
+/**
+ * drm_kms_helper_poll_init - initialize and enable output polling
+ * @dev: drm_device
+ *
+ * This function intializes and then also enables output polling support for
+ * @dev. Drivers which do not have reliable hotplug support in hardware can use
+ * this helper infrastructure to regularly poll such connectors for changes in
+ * their connection state.
+ *
+ * Drivers can control which connectors are polled by setting the
+ * DRM_CONNECTOR_POLL_CONNECT and DRM_CONNECTOR_POLL_DISCONNECT flags. On
+ * connectors where probing live outputs can result in visual distortion drivers
+ * should not set the DRM_CONNECTOR_POLL_DISCONNECT flag to avoid this.
+ * Connectors which have no flag or only DRM_CONNECTOR_POLL_HPD set are
+ * completely ignored by the polling logic.
+ *
+ * Note that a connector can be both polled and probed from the hotplug handler,
+ * in case the hotplug interrupt is known to be unreliable.
+ */
 void drm_kms_helper_poll_init(struct drm_device *dev)
 {
 	INIT_DELAYED_WORK(&dev->mode_config.output_poll_work, output_poll_execute);
@@ -1090,12 +1172,39 @@ void drm_kms_helper_poll_init(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_init);
 
+/**
+ * drm_kms_helper_poll_fini - disable output polling and clean it up
+ * @dev: drm_device
+ */
 void drm_kms_helper_poll_fini(struct drm_device *dev)
 {
 	drm_kms_helper_poll_disable(dev);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 
+/**
+ * drm_helper_hpd_irq_event - hotplug processing
+ * @dev: drm_device
+ *
+ * Drivers can use this helper function to run a detect cycle on all connectors
+ * which have the DRM_CONNECTOR_POLL_HPD flag set in their &polled member. All
+ * other connectors are ignored, which is useful to avoid reprobing fixed
+ * panels.
+ *
+ * This helper function is useful for drivers which can't or don't track hotplug
+ * interrupts for each connector.
+ *
+ * Drivers which support hotplug interrupts for each connector individually and
+ * which have a more fine-grained detect logic should bypass this code and
+ * directly call drm_kms_helper_hotplug_event() in case the connector state
+ * changed.
+ *
+ * This function must be called from process context with no mode
+ * setting locks held.
+ *
+ * Note that a connector can be both polled and probed from the hotplug handler,
+ * in case the hotplug interrupt is known to be unreliable.
+ */
 bool drm_helper_hpd_irq_event(struct drm_device *dev)
 {
 	struct drm_connector *connector;
