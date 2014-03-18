@@ -59,6 +59,7 @@ static struct kset *ext4_kset;
 static struct ext4_lazy_init *ext4_li_info;
 static struct mutex ext4_li_mtx;
 static struct ext4_features *ext4_feat;
+static int ext4_mballoc_ready;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
@@ -844,6 +845,10 @@ static void ext4_put_super(struct super_block *sb)
 		sync_blockdev(sbi->journal_bdev);
 		invalidate_bdev(sbi->journal_bdev);
 		ext4_blkdev_remove(sbi);
+	}
+	if (sbi->s_mb_cache) {
+		ext4_xattr_destroy_cache(sbi->s_mb_cache);
+		sbi->s_mb_cache = NULL;
 	}
 	if (sbi->s_mmp_tsk)
 		kthread_stop(sbi->s_mmp_tsk);
@@ -4010,6 +4015,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	percpu_counter_set(&sbi->s_dirtyclusters_counter, 0);
 
 no_journal:
+	if (ext4_mballoc_ready) {
+		sbi->s_mb_cache = ext4_xattr_create_cache(sb->s_id);
+		if (!sbi->s_mb_cache) {
+			ext4_msg(sb, KERN_ERR, "Failed to create an mb_cache");
+			goto failed_mount_wq;
+		}
+	}
+
 	/*
 	 * Get the # of file system overhead blocks from the
 	 * superblock if present.
@@ -5519,11 +5532,9 @@ static int __init ext4_init_fs(void)
 
 	err = ext4_init_mballoc();
 	if (err)
-		goto out3;
-
-	err = ext4_init_xattr();
-	if (err)
 		goto out2;
+	else
+		ext4_mballoc_ready = 1;
 	err = init_inodecache();
 	if (err)
 		goto out1;
@@ -5539,10 +5550,9 @@ out:
 	unregister_as_ext3();
 	destroy_inodecache();
 out1:
-	ext4_exit_xattr();
-out2:
+	ext4_mballoc_ready = 0;
 	ext4_exit_mballoc();
-out3:
+out2:
 	ext4_exit_feat_adverts();
 out4:
 	if (ext4_proc_root)
@@ -5565,7 +5575,6 @@ static void __exit ext4_exit_fs(void)
 	unregister_as_ext3();
 	unregister_filesystem(&ext4_fs_type);
 	destroy_inodecache();
-	ext4_exit_xattr();
 	ext4_exit_mballoc();
 	ext4_exit_feat_adverts();
 	remove_proc_entry("fs/ext4", NULL);

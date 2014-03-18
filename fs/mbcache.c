@@ -99,6 +99,7 @@
 
 static DECLARE_WAIT_QUEUE_HEAD(mb_cache_queue);
 static struct blockgroup_lock *mb_cache_bg_lock;
+static struct kmem_cache *mb_cache_kmem_cache;
 
 MODULE_AUTHOR("Andreas Gruenbacher <a.gruenbacher@computer.org>");
 MODULE_DESCRIPTION("Meta block cache (for extended attributes)");
@@ -351,11 +352,14 @@ mb_cache_create(const char *name, int bucket_bits)
 		goto fail;
 	for (n=0; n<bucket_count; n++)
 		INIT_HLIST_BL_HEAD(&cache->c_index_hash[n]);
-	cache->c_entry_cache = kmem_cache_create(name,
-		sizeof(struct mb_cache_entry), 0,
-		SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL);
-	if (!cache->c_entry_cache)
-		goto fail2;
+	if (!mb_cache_kmem_cache) {
+		mb_cache_kmem_cache = kmem_cache_create(name,
+			sizeof(struct mb_cache_entry), 0,
+			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL);
+		if (!mb_cache_kmem_cache)
+			goto fail2;
+	}
+	cache->c_entry_cache = mb_cache_kmem_cache;
 
 	/*
 	 * Set an upper limit on the number of cache entries so that the hash
@@ -476,6 +480,10 @@ mb_cache_destroy(struct mb_cache *cache)
 			  atomic_read(&cache->c_entry_count));
 	}
 
+	if (list_empty(&mb_cache_list)) {
+		kmem_cache_destroy(mb_cache_kmem_cache);
+		mb_cache_kmem_cache = NULL;
+	}
 	kfree(cache->c_index_hash);
 	kfree(cache->c_block_hash);
 	kfree(cache);
