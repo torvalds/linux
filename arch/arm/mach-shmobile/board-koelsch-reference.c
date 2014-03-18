@@ -115,6 +115,9 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "i2c2", NULL, "e6530000.i2c" },
 	{ "msiof0", NULL, "e6e20000.spi" },
 	{ "qspi_mod", NULL, "e6b10000.spi" },
+	{ "sdhi0", NULL, "ee100000.sd" },
+	{ "sdhi1", NULL, "ee140000.sd" },
+	{ "sdhi2", NULL, "ee160000.sd" },
 	{ "thermal", NULL, "e61f0000.thermal" },
 };
 
