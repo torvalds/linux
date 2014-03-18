@@ -41,6 +41,13 @@ static const struct pci_device_id mei_txe_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, mei_txe_pci_tbl);
 
+#ifdef CONFIG_PM_RUNTIME
+static inline void mei_txe_set_pm_domain(struct mei_device *dev);
+static inline void mei_txe_unset_pm_domain(struct mei_device *dev);
+#else
+static inline void mei_txe_set_pm_domain(struct mei_device *dev) {}
+static inline void mei_txe_unset_pm_domain(struct mei_device *dev) {}
+#endif /* CONFIG_PM_RUNTIME */
 
 static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
 {
@@ -147,6 +154,14 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
+	/*
+	* For not wake-able HW runtime pm framework
+	* can't be used on pci device level.
+	* Use domain runtime pm callbacks instead.
+	*/
+	if (!pci_dev_run_wake(pdev))
+		mei_txe_set_pm_domain(dev);
+
 	pm_runtime_put_noidle(&pdev->dev);
 
 	return 0;
@@ -198,6 +213,9 @@ static void mei_txe_remove(struct pci_dev *pdev)
 	hw = to_txe_hw(dev);
 
 	mei_stop(dev);
+
+	if (!pci_dev_run_wake(pdev))
+		mei_txe_unset_pm_domain(dev);
 
 	/* disable interrupts */
 	mei_disable_interrupts(dev);
@@ -349,6 +367,37 @@ static int mei_txe_pm_runtime_resume(struct device *device)
 	dev_dbg(&pdev->dev, "rpm: txe: runtime resume ret = %d\n", ret);
 
 	return ret;
+}
+
+/**
+ * mei_txe_set_pm_domain - fill and set pm domian stucture for device
+ *
+ * @dev: mei_device
+ */
+static inline void mei_txe_set_pm_domain(struct mei_device *dev)
+{
+	struct pci_dev *pdev  = dev->pdev;
+
+	if (pdev->dev.bus && pdev->dev.bus->pm) {
+		dev->pg_domain.ops = *pdev->dev.bus->pm;
+
+		dev->pg_domain.ops.runtime_suspend = mei_txe_pm_runtime_suspend;
+		dev->pg_domain.ops.runtime_resume = mei_txe_pm_runtime_resume;
+		dev->pg_domain.ops.runtime_idle = mei_txe_pm_runtime_idle;
+
+		pdev->dev.pm_domain = &dev->pg_domain;
+	}
+}
+
+/**
+ * mei_txe_unset_pm_domain - clean pm domian stucture for device
+ *
+ * @dev: mei_device
+ */
+static inline void mei_txe_unset_pm_domain(struct mei_device *dev)
+{
+	/* stop using pm callbacks if any */
+	dev->pdev->dev.pm_domain = NULL;
 }
 #endif /* CONFIG_PM_RUNTIME */
 
