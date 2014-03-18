@@ -162,8 +162,6 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 
 		avail = *r;
 		pci_clip_resource_to_region(bus, &avail, region);
-		if (!resource_size(&avail))
-			continue;
 
 		/*
 		 * "min" is typically PCIBIOS_MIN_IO or PCIBIOS_MIN_MEM to

@@ -171,6 +171,8 @@ void radeon_uvd_fini(struct radeon_device *rdev)
 
 	radeon_bo_unref(&rdev->uvd.vcpu_bo);
 
+	radeon_ring_fini(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX]);
+
 	release_firmware(rdev->uvd_fw);
 }
 

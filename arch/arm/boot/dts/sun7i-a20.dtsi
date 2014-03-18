@@ -454,7 +454,7 @@
 		rtc: rtc@01c20d00 {
 			compatible = "allwinner,sun7i-a20-rtc";
 			reg = <0x01c20d00 0x20>;
-			interrupts = <0 24 1>;
+			interrupts = <0 24 4>;
 		};
 
 		sid: eeprom@01c23800 {
@@ -463,7 +463,7 @@
 		};
 
 		rtp: rtp@01c25000 {
-			compatible = "allwinner,sun4i-ts";
+			compatible = "allwinner,sun4i-a10-ts";
 			reg = <0x01c25000 0x100>;
 			interrupts = <0 29 4>;
 		};
@@ -596,10 +596,10 @@
 		hstimer@01c60000 {
 			compatible = "allwinner,sun7i-a20-hstimer";
 			reg = <0x01c60000 0x1000>;
-			interrupts = <0 81 1>,
-				     <0 82 1>,
-				     <0 83 1>,
-				     <0 84 1>;
+			interrupts = <0 81 4>,
+				     <0 82 4>,
+				     <0 83 4>,
+				     <0 84 4>;
 			clocks = <&ahb_gates 28>;
 		};
 

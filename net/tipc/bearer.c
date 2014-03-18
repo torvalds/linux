@@ -610,8 +610,13 @@ static struct notifier_block notifier = {
 
 int tipc_bearer_setup(void)
 {
+	int err;
+
+	err = register_netdevice_notifier(&notifier);
+	if (err)
+		return err;
 	dev_add_pack(&tipc_packet_type);
-	return register_netdevice_notifier(&notifier);
+	return 0;
 }
 
 void tipc_bearer_cleanup(void)
