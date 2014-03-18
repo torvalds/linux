@@ -791,7 +791,17 @@ static int receive_first_packet(struct drbd_connection *connection, struct socke
 {
 	unsigned int header_size = drbd_header_size(connection);
 	struct packet_info pi;
+	struct net_conf *nc;
 	int err;
+
+	rcu_read_lock();
+	nc = rcu_dereference(connection->net_conf);
+	if (!nc) {
+		rcu_read_unlock();
+		return -EIO;
+	}
+	sock->sk->sk_rcvtimeo = nc->ping_timeo * 4 * HZ / 10;
+	rcu_read_unlock();
 
 	err = drbd_recv_short(sock, connection->data.rbuf, header_size, 0);
 	if (err != header_size) {
