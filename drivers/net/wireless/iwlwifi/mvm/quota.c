@@ -262,7 +262,6 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 			 * binding.
 			 */
 			cmd.quotas[idx].quota = cpu_to_le32(QUOTA_LOWLAT_MIN);
-
 		else
 			cmd.quotas[idx].quota =
 				cpu_to_le32(quota * data.n_interfaces[i]);
