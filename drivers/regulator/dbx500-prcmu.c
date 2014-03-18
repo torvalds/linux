@@ -78,6 +78,7 @@ static struct ux500_regulator_debug {
 void ux500_regulator_suspend_debug(void)
 {
 	int i;
+
 	for (i = 0; i < rdebug.num_regulators; i++)
 		rdebug.state_before_suspend[i] =
 			rdebug.regulator_array[i].is_enabled;
@@ -86,6 +87,7 @@ void ux500_regulator_suspend_debug(void)
 void ux500_regulator_resume_debug(void)
 {
 	int i;
+
 	for (i = 0; i < rdebug.num_regulators; i++)
 		rdebug.state_after_suspend[i] =
 			rdebug.regulator_array[i].is_enabled;
