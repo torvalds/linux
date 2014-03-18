@@ -124,12 +124,12 @@ static void ixgbevf_check_remove(struct ixgbe_hw *hw, u32 reg)
 		ixgbevf_remove_adapter(hw);
 		return;
 	}
-	value = ixgbe_read_reg(hw, IXGBE_VFSTATUS);
+	value = ixgbevf_read_reg(hw, IXGBE_VFSTATUS);
 	if (value == IXGBE_FAILED_READ_REG)
 		ixgbevf_remove_adapter(hw);
 }
 
-u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
+u32 ixgbevf_read_reg(struct ixgbe_hw *hw, u32 reg)
 {
 	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
 	u32 value;
