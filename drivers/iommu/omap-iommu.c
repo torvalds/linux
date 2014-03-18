@@ -34,6 +34,9 @@
 #include "omap-iopgtable.h"
 #include "omap-iommu.h"
 
+#define to_iommu(dev)							\
+	((struct omap_iommu *)platform_get_drvdata(to_platform_device(dev)))
+
 #define for_each_iotlb_cr(obj, n, __i, cr)				\
 	for (__i = 0;							\
 	     (__i < (n)) && (cr = __iotlb_read_cr((obj), __i), true);	\
