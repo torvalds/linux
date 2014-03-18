@@ -228,11 +228,6 @@ void copy_to_fs(addr_t dst, void *src, size_t len);
 void *copy_from_fs(void *dst, addr_t src, size_t len);
 void copy_to_gs(addr_t dst, void *src, size_t len);
 void *copy_from_gs(void *dst, addr_t src, size_t len);
-void *memcpy(void *dst, void *src, size_t len);
-void *memset(void *dst, int c, size_t len);
-
-#define memcpy(d,s,l) __builtin_memcpy(d,s,l)
-#define memset(d,c,l) __builtin_memset(d,c,l)
 
 /* a20.c */
 int enable_a20(void);
