@@ -779,10 +779,10 @@ int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea)
 ** pretend that whatever the user asked for was achieved, so we return 1 if
 ** try to create one, and 0 if they ask to remove (assuming all else was OK).
 ****************************************************************************/
-int SetEvent(DEVICE_EXTENSION *pdx, TRANSFEREVENT __user *pTE)
+int SetEvent(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE)
 {
 	int iReturn = U14ERR_NOERROR;
-	TRANSFEREVENT te;
+	struct transfer_event te;
 
 	/*  get a local copy of the data */
 	if (copy_from_user(&te, pTE, sizeof(te)))

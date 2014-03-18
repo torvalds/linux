@@ -220,7 +220,7 @@ extern int GetChar(DEVICE_EXTENSION *pdx);
 extern int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n);
 extern int SetTransfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);
 extern int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea);
-extern int SetEvent(DEVICE_EXTENSION *pdx, TRANSFEREVENT __user *pTE);
+extern int SetEvent(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE);
 extern int Stat1401(DEVICE_EXTENSION *pdx);
 extern int LineCount(DEVICE_EXTENSION *pdx);
 extern int GetOutBufSpace(DEVICE_EXTENSION *pdx);

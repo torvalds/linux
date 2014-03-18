@@ -34,13 +34,13 @@ struct transfer_area_desc {
 };
 
 
-typedef struct TransferEvent {
+struct transfer_event {
 	unsigned int dwStart;		/* offset into the area */
 	unsigned int dwLength;		/* length of the region */
 	unsigned short wAreaNum;	/* the area number */
 	unsigned short wFlags;		/* bit 0 set for toHost */
 	int iSetEvent;			/* could be dummy in LINUX */
-} TRANSFEREVENT;
+};
 
 #define MAX_TRANSFER_SIZE	0x4000		/* Maximum data bytes per IRP */
 #define MAX_AREA_LENGTH		0x100000	/* Maximum size of transfer area */
@@ -93,7 +93,7 @@ typedef struct TCSBlock {
 
 #define IOCTL_CED_SETTRANSFER		_IOW(CED_MAGIC_IOC, 11, struct transfer_area_desc)
 #define IOCTL_CED_UNSETTRANSFER		_IO(CED_MAGIC_IOC, 12)
-#define IOCTL_CED_SETEVENT		_IOW(CED_MAGIC_IOC, 13, TRANSFEREVENT)
+#define IOCTL_CED_SETEVENT		_IOW(CED_MAGIC_IOC, 13, struct transfer_event)
 #define IOCTL_CED_GETOUTBUFSPACE	_IO(CED_MAGIC_IOC, 14)
 #define IOCTL_CED_GETBASEADDRESS	_IO(CED_MAGIC_IOC, 15)
 #define IOCTL_CED_GETDRIVERREVISION	_IO(CED_MAGIC_IOC, 16)
@@ -199,7 +199,7 @@ inline int CED_UnsetTransfer(int fh, int nArea)
 	return ioctl(fh, IOCTL_CED_UNSETTRANSFER, nArea);
 }
 
-inline int CED_SetEvent(int fh, TRANSFEREVENT *pTE)
+inline int CED_SetEvent(int fh, struct transfer_event *pTE)
 {
 	return ioctl(fh, IOCTL_CED_SETEVENT, pTE);
 }
