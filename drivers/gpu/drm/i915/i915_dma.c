@@ -1608,8 +1608,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_bridge;
 	}
 
-	intel_uncore_early_sanitize(dev);
-
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev);
 

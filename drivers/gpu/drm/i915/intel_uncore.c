@@ -727,6 +727,8 @@ void intel_uncore_init(struct drm_device *dev)
 	setup_timer(&dev_priv->uncore.force_wake_timer,
 		    gen6_force_wake_timer, (unsigned long)dev_priv);
 
+	intel_uncore_early_sanitize(dev);
+
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
 		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
