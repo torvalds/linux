@@ -35,12 +35,11 @@
 /**
  * struct mei_txe_hw - txe hardware specifics
  *
- * @mem_addr:        SeC and BRIDGE bars
- * @aliveness:       aliveness (power gating) state of the hardware
- * @readiness:       readiness state of the hardware
- * @wait_aliveness:  aliveness wait queue
- * @recvd_aliveness: aliveness interrupt was recived
- * @intr_cause:      translated interrupt cause
+ * @mem_addr:            SeC and BRIDGE bars
+ * @aliveness:           aliveness (power gating) state of the hardware
+ * @readiness:           readiness state of the hardware
+ * @wait_aliveness_resp: aliveness wait queue
+ * @intr_cause:          translated interrupt cause
  */
 struct mei_txe_hw {
 	void __iomem *mem_addr[NUM_OF_MEM_BARS];
@@ -48,8 +47,7 @@ struct mei_txe_hw {
 	u32 readiness;
 	u32 slots;
 
-	wait_queue_head_t wait_aliveness;
-	bool recvd_aliveness;
+	wait_queue_head_t wait_aliveness_resp;
 
 	unsigned long intr_cause;
 };

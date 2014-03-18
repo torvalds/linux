@@ -220,6 +220,7 @@ struct mei_cl {
  * @hw_start         - start hw after reset
  * @hw_config        - configure hw
 
+ * @pg_state         - power gating state of the device
  * @pg_is_enabled    - is power gating enabled
 
  * @intr_clear       - clear pending interrupts
@@ -246,6 +247,7 @@ struct mei_hw_ops {
 	int (*hw_start)(struct mei_device *dev);
 	void (*hw_config)(struct mei_device *dev);
 
+	enum mei_pg_state (*pg_state)(struct mei_device *dev);
 	bool (*pg_is_enabled)(struct mei_device *dev);
 
 	void (*intr_clear)(struct mei_device *dev);
@@ -335,11 +337,37 @@ struct mei_cl_device {
 	void *priv_data;
 };
 
+
+ /**
+ * enum mei_pg_event - power gating transition events
+ *
+ * @MEI_PG_EVENT_IDLE: the driver is not in power gating transition
+ * @MEI_PG_EVENT_WAIT: the driver is waiting for a pg event to complete
+ * @MEI_PG_EVENT_RECEIVED: the driver received pg event
+ */
+enum mei_pg_event {
+	MEI_PG_EVENT_IDLE,
+	MEI_PG_EVENT_WAIT,
+	MEI_PG_EVENT_RECEIVED,
+};
+
+/**
+ * enum mei_pg_state - device internal power gating state
+ *
+ * @MEI_PG_OFF: device is not power gated - it is active
+ * @MEI_PG_ON:  device is power gated - it is in lower power state
+ */
+enum mei_pg_state {
+	MEI_PG_OFF = 0,
+	MEI_PG_ON =  1,
+};
+
 /**
  * struct mei_device -  MEI private device struct
 
  * @reset_count - limits the number of consecutive resets
  * @hbm_state - state of host bus message protocol
+ * @pg_event - power gating event
  * @mem_addr - mem mapped base register address
 
  * @hbuf_depth - depth of hardware host/write buffer is slots
@@ -386,6 +414,11 @@ struct mei_device {
 	enum mei_dev_state dev_state;
 	enum mei_hbm_state hbm_state;
 	u16 init_clients_timer;
+
+	/*
+	 * Power Gating support
+	 */
+	enum mei_pg_event pg_event;
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */
 	u32 rd_msg_hdr;
@@ -561,6 +594,11 @@ void mei_watchdog_unregister(struct mei_device *dev);
 static inline void mei_hw_config(struct mei_device *dev)
 {
 	dev->ops->hw_config(dev);
+}
+
+static inline enum mei_pg_state mei_pg_state(struct mei_device *dev)
+{
+	return dev->ops->pg_state(dev);
 }
 
 static inline bool mei_pg_is_enabled(struct mei_device *dev)

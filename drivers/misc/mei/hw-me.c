@@ -113,6 +113,19 @@ static void mei_me_hw_config(struct mei_device *dev)
 	/* Doesn't change in runtime */
 	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
 }
+
+/**
+ * mei_me_pg_state  - translate internal pg state
+ *   to the mei power gating state
+ *
+ * @hw -  me hardware
+ * returns: MEI_PG_OFF if aliveness is on and MEI_PG_ON otherwise
+ */
+static inline enum mei_pg_state mei_me_pg_state(struct mei_device *dev)
+{
+	return MEI_PG_OFF;
+}
+
 /**
  * mei_clear_interrupts - clear and stop interrupts
  *
@@ -600,6 +613,8 @@ end:
 	return IRQ_HANDLED;
 }
 static const struct mei_hw_ops mei_me_hw_ops = {
+
+	.pg_state  = mei_me_pg_state,
 
 	.host_is_ready = mei_me_host_is_ready,
 

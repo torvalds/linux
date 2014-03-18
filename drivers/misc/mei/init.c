@@ -341,6 +341,8 @@ void mei_device_init(struct mei_device *dev)
 	 * 0: Reserved for MEI Bus Message communications
 	 */
 	bitmap_set(dev->host_clients_map, 0, 1);
+
+	dev->pg_event = MEI_PG_EVENT_IDLE;
 }
 EXPORT_SYMBOL_GPL(mei_device_init);
 
