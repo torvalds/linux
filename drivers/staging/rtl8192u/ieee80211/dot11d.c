@@ -90,15 +90,15 @@ Dot11d_UpdateCountryIe(
 		pTriple = (PCHNL_TXPOWER_TRIPLE)((u8 *)pTriple + 3);
 	}
 	printk("Channel List:");
-	for(i=1; i<= MAX_CHANNEL_NUMBER; i++)
-		if(pDot11dInfo->channel_map[i] > 0)
+	for (i = 1; i <= MAX_CHANNEL_NUMBER; i++)
+		if (pDot11dInfo->channel_map[i] > 0)
 			printk(" %d", i);
 	printk("\n");
 
 	UPDATE_CIE_SRC(dev, pTaddr);
 
 	pDot11dInfo->CountryIeLen = CoutryIeLen;
-	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe,CoutryIeLen);
+	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe, CoutryIeLen);
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
 
@@ -157,7 +157,7 @@ int IsLegalChannel(
 		printk("IsLegalChannel(): Invalid Channel\n");
 		return 0;
 	}
-	if(pDot11dInfo->channel_map[channel] > 0)
+	if (pDot11dInfo->channel_map[channel] > 0)
 		return 1;
 	return 0;
 }
@@ -183,7 +183,7 @@ int ToLegalChannel(
 		return default_chn;
 	}
 
-	if(pDot11dInfo->channel_map[channel] > 0)
+	if (pDot11dInfo->channel_map[channel] > 0)
 		return channel;
 
 	return default_chn;
