@@ -3676,7 +3676,7 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	err = slic_card_locate(adapter);
 	if (err) {
 		dev_err(&pcidev->dev, "cannot locate card\n");
-		goto err_out_free_mmio_region;
+		goto err_out_unmap;
 	}
 
 	card = adapter->card;
@@ -3716,8 +3716,6 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 
 err_out_unmap:
 	iounmap(memmapped_ioaddr);
-err_out_free_mmio_region:
-	release_mem_region(mmio_start, mmio_len);
 err_out_free_netdev:
 	free_netdev(netdev);
 err_out_exit_slic_probe:
