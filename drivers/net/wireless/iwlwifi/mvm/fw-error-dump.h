@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,29 +58,49 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  *****************************************************************************/
-#ifndef __MVM_CONSTANTS_H
-#define __MVM_CONSTANTS_H
 
-#define IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
-#define IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
-#define IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT	(10 * USEC_PER_MSEC)
-#define IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT	(10 * USEC_PER_MSEC)
-#define IWL_MVM_UAPSD_RX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
-#define IWL_MVM_UAPSD_TX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
-#define IWL_MVM_PS_HEAVY_TX_THLD_PACKETS	20
-#define IWL_MVM_PS_HEAVY_RX_THLD_PACKETS	8
-#define IWL_MVM_PS_SNOOZE_HEAVY_TX_THLD_PACKETS	30
-#define IWL_MVM_PS_SNOOZE_HEAVY_RX_THLD_PACKETS	20
-#define IWL_MVM_PS_HEAVY_TX_THLD_PERCENT	50
-#define IWL_MVM_PS_HEAVY_RX_THLD_PERCENT	50
-#define IWL_MVM_PS_SNOOZE_INTERVAL		25
-#define IWL_MVM_PS_SNOOZE_WINDOW		50
-#define IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW		25
-#define IWL_MVM_LOWLAT_QUOTA_MIN_PERCENT	64
-#define IWL_MVM_BT_COEX_SYNC2SCO		1
-#define IWL_MVM_BT_COEX_CORUNNING		1
-#define IWL_MVM_BT_COEX_MPLUT			1
+#ifndef __fw_error_dump_h__
+#define __fw_error_dump_h__
 
-#endif /* __MVM_CONSTANTS_H */
+#include <linux/types.h>
+
+#define IWL_FW_ERROR_DUMP_BARKER	0x14789632
+
+/**
+ * enum iwl_fw_error_dump_type - types of data in the dump file
+ * @IWL_FW_ERROR_DUMP_SRAM:
+ * @IWL_FW_ERROR_DUMP_REG:
+ */
+enum iwl_fw_error_dump_type {
+	IWL_FW_ERROR_DUMP_SRAM = 0,
+	IWL_FW_ERROR_DUMP_REG = 1,
+
+	IWL_FW_ERROR_DUMP_MAX,
+};
+
+/**
+ * struct iwl_fw_error_dump_data - data for one type
+ * @type: %enum iwl_fw_error_dump_type
+ * @len: the length starting from %data - must be a multiplier of 4.
+ * @data: the data itself padded to be a multiplier of 4.
+ */
+struct iwl_fw_error_dump_data {
+	__le32 type;
+	__le32 len;
+	__u8 data[];
+} __packed __aligned(4);
+
+/**
+ * struct iwl_fw_error_dump_file - the layout of the header of the file
+ * @barker: must be %IWL_FW_ERROR_DUMP_BARKER
+ * @file_len: the length of all the file starting from %barker
+ * @data: array of %struct iwl_fw_error_dump_data
+ */
+struct iwl_fw_error_dump_file {
+	__le32 barker;
+	__le32 file_len;
+	u8 data[0];
+} __packed __aligned(4);
+
+#endif /* __fw_error_dump_h__ */

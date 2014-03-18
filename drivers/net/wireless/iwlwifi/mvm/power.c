@@ -511,6 +511,7 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 struct iwl_power_constraint {
 	struct ieee80211_vif *bf_vif;
 	struct ieee80211_vif *bss_vif;
+	struct ieee80211_vif *p2p_vif;
 	u16 bss_phyctx_id;
 	u16 p2p_phyctx_id;
 	bool pm_disabled;
@@ -545,6 +546,10 @@ static void iwl_mvm_power_iterator(void *_data, u8 *mac,
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (mvmvif->phy_ctxt)
 			power_iterator->p2p_phyctx_id = mvmvif->phy_ctxt->id;
+
+		/* we should have only one P2P vif */
+		WARN_ON(power_iterator->p2p_vif);
+		power_iterator->p2p_vif = vif;
 
 		IWL_DEBUG_POWER(mvm, "p2p: p2p_id=%d, bss_id=%d\n",
 				power_iterator->p2p_phyctx_id,
@@ -633,12 +638,14 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			return ret;
 	}
 
-	ret = iwl_mvm_power_send_cmd(mvm, vif);
-	if (ret)
-		return ret;
-
-	if (constraint.bss_vif && vif != constraint.bss_vif) {
+	if (constraint.bss_vif) {
 		ret = iwl_mvm_power_send_cmd(mvm, constraint.bss_vif);
+		if (ret)
+			return ret;
+	}
+
+	if (constraint.p2p_vif) {
+		ret = iwl_mvm_power_send_cmd(mvm, constraint.p2p_vif);
 		if (ret)
 			return ret;
 	}
