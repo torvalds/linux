@@ -2590,6 +2590,9 @@ drm_display_mode_from_vic_index(struct drm_connector *connector,
 		return NULL;
 
 	newmode = drm_mode_duplicate(dev, &edid_cea_modes[cea_mode]);
+	if (!newmode)
+		return NULL;
+
 	newmode->vrefresh = 0;
 
 	return newmode;
@@ -3611,6 +3614,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 
 	frame->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
 	frame->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
+	frame->scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
 
 	return 0;
 }
