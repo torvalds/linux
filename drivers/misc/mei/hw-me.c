@@ -431,6 +431,35 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 }
 
 /**
+ * mei_me_pg_enter - write pg enter register to mei device.
+ *
+ * @dev: the device structure
+ */
+static void mei_me_pg_enter(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 reg = mei_me_reg_read(hw, H_HPG_CSR);
+	reg |= H_HPG_CSR_PGI;
+	mei_me_reg_write(hw, H_HPG_CSR, reg);
+}
+
+/**
+ * mei_me_pg_enter - write pg enter register to mei device.
+ *
+ * @dev: the device structure
+ */
+static void mei_me_pg_exit(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 reg = mei_me_reg_read(hw, H_HPG_CSR);
+
+	WARN(!(reg & H_HPG_CSR_PGI), "PGI is not set\n");
+
+	reg |= H_HPG_CSR_PGIHEXR;
+	mei_me_reg_write(hw, H_HPG_CSR, reg);
+}
+
+/**
  * mei_me_irq_quick_handler - The ISR of the MEI device
  *
  * @irq: The irq number
