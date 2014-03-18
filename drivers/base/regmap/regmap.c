@@ -1520,12 +1520,12 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
-	map->lock(map->lock_arg);
 	/*
 	 * Some devices don't support bulk write, for
 	 * them we have a series of single write operations.
 	 */
 	if (!map->bus || map->use_single_rw) {
+		map->lock(map->lock_arg);
 		for (i = 0; i < val_count; i++) {
 			unsigned int ival;
 
@@ -1554,24 +1554,25 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			if (ret != 0)
 				goto out;
 		}
+out:
+		map->unlock(map->lock_arg);
 	} else {
 		void *wval;
 
 		wval = kmemdup(val, val_count * val_bytes, GFP_KERNEL);
 		if (!wval) {
-			ret = -ENOMEM;
 			dev_err(map->dev, "Error in memory allocation\n");
-			goto out;
+			return -ENOMEM;
 		}
 		for (i = 0; i < val_count * val_bytes; i += val_bytes)
 			map->format.parse_inplace(wval + i);
 
+		map->lock(map->lock_arg);
 		ret = _regmap_raw_write(map, reg, wval, val_bytes * val_count);
+		map->unlock(map->lock_arg);
 
 		kfree(wval);
 	}
-out:
-	map->unlock(map->lock_arg);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_bulk_write);
