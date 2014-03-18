@@ -489,8 +489,10 @@ static irqreturn_t id_irq_handler(int irq, void *dev_id)
 #endif
         control_usb->grf_uoc0_base->CON4 = ((1<<7)|(1<<23));//clear id fall irq pandding
     }
-    
-    schedule_delayed_work(&control_usb->usb_wakelock, HZ/10);
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+	wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
+	schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
+#endif
     return IRQ_HANDLED;
 }
 
@@ -512,8 +514,10 @@ static irqreturn_t line_irq_handler(int irq, void *dev_id)
     if(control_usb->grf_uoc2_base->CON0 & 1<<15){
         control_usb->grf_uoc2_base->CON0 = (1<<15 | 1<<31);
     }   
-    /* wake up system*/
-    //schedule_delayed_work(&usb_det_wakeup_work, HZ/10);
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+	wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
+	schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
+#endif
     return IRQ_HANDLED;
 }
 
@@ -760,10 +764,11 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		goto err2;
 	}
 */
+/* disable for debug
 	ret = otg_irq_detect_init(pdev);
 	if (ret < 0)
 		goto err2;
-
+*/
 	return 0;
 
 err2:
