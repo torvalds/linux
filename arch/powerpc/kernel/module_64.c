@@ -172,6 +172,7 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 	return relocs * sizeof(struct ppc64_stub_entry);
 }
 
+/* Still needed for ELFv2, for .TOC. */
 static void dedotify_versions(struct modversion_info *vers,
 			      unsigned long size)
 {
@@ -182,7 +183,7 @@ static void dedotify_versions(struct modversion_info *vers,
 			memmove(vers->name, vers->name+1, strlen(vers->name));
 }
 
-/* Undefined symbols which refer to .funcname, hack to funcname */
+/* Undefined symbols which refer to .funcname, hack to funcname (or .TOC.) */
 static void dedotify(Elf64_Sym *syms, unsigned int numsyms, char *strtab)
 {
 	unsigned int i;
