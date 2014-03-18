@@ -1006,8 +1006,6 @@ static void btree_node_prefetch(struct cache_set *c, struct bkey *k, int level)
 
 static void btree_node_free(struct btree *b)
 {
-	unsigned i;
-
 	trace_bcache_btree_node_free(b);
 
 	BUG_ON(b == b->c->root);
@@ -1019,14 +1017,6 @@ static void btree_node_free(struct btree *b)
 	cancel_delayed_work(&b->work);
 
 	mutex_lock(&b->c->bucket_lock);
-
-	for (i = 0; i < KEY_PTRS(&b->key); i++) {
-		BUG_ON(atomic_read(&PTR_BUCKET(b->c, &b->key, i)->pin));
-
-		bch_inc_gen(PTR_CACHE(b->c, &b->key, i),
-			    PTR_BUCKET(b->c, &b->key, i));
-	}
-
 	bch_bucket_free(b->c, &b->key);
 	mca_bucket_free(b);
 	mutex_unlock(&b->c->bucket_lock);
@@ -1086,16 +1076,19 @@ static void make_btree_freeing_key(struct btree *b, struct bkey *k)
 {
 	unsigned i;
 
+	mutex_lock(&b->c->bucket_lock);
+
+	atomic_inc(&b->c->prio_blocked);
+
 	bkey_copy(k, &b->key);
 	bkey_copy_key(k, &ZERO_KEY);
 
-	for (i = 0; i < KEY_PTRS(k); i++) {
-		uint8_t g = PTR_BUCKET(b->c, k, i)->gen + 1;
+	for (i = 0; i < KEY_PTRS(k); i++)
+		SET_PTR_GEN(k, i,
+			    bch_inc_gen(PTR_CACHE(b->c, &b->key, i),
+					PTR_BUCKET(b->c, &b->key, i)));
 
-		SET_PTR_GEN(k, i, g);
-	}
-
-	atomic_inc(&b->c->prio_blocked);
+	mutex_unlock(&b->c->bucket_lock);
 }
 
 static int btree_check_reserve(struct btree *b, struct btree_op *op)
@@ -1342,6 +1335,13 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 		bch_keylist_add(keylist, &new_nodes[i]->key);
 	}
 
+	closure_sync(&cl);
+
+	/* We emptied out this node */
+	BUG_ON(btree_bset_first(new_nodes[0])->keys);
+	btree_node_free(new_nodes[0]);
+	rw_unlock(true, new_nodes[0]);
+
 	for (i = 0; i < nodes; i++) {
 		if (__bch_keylist_realloc(keylist, bkey_u64s(&r[i].b->key)))
 			goto out_nocoalesce;
@@ -1350,12 +1350,8 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 		bch_keylist_push(keylist);
 	}
 
-	/* We emptied out this node */
-	BUG_ON(btree_bset_first(new_nodes[0])->keys);
-	btree_node_free(new_nodes[0]);
-	rw_unlock(true, new_nodes[0]);
-
-	closure_sync(&cl);
+	bch_btree_insert_node(b, op, keylist, NULL, NULL);
+	BUG_ON(!bch_keylist_empty(keylist));
 
 	for (i = 0; i < nodes; i++) {
 		btree_node_free(r[i].b);
@@ -1363,9 +1359,6 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 
 		r[i].b = new_nodes[i];
 	}
-
-	bch_btree_insert_node(b, op, keylist, NULL, NULL);
-	BUG_ON(!bch_keylist_empty(keylist));
 
 	memmove(r, r + 1, sizeof(r[0]) * (nodes - 1));
 	r[nodes - 1].b = ERR_PTR(-EINTR);
@@ -1456,12 +1449,11 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 							       keys.top);
 					bch_keylist_push(&keys);
 
-					btree_node_free(last->b);
-
 					bch_btree_insert_node(b, op, &keys,
 							      NULL, NULL);
 					BUG_ON(!bch_keylist_empty(&keys));
 
+					btree_node_free(last->b);
 					rw_unlock(true, last->b);
 					last->b = n;
 
@@ -1924,26 +1916,21 @@ static int btree_split(struct btree *b, struct btree_op *op,
 		closure_sync(&cl);
 		bch_btree_set_root(n3);
 		rw_unlock(true, n3);
-
-		btree_node_free(b);
 	} else if (!b->parent) {
 		/* Root filled up but didn't need to be split */
 		closure_sync(&cl);
 		bch_btree_set_root(n1);
-
-		btree_node_free(b);
 	} else {
 		/* Split a non root node */
 		closure_sync(&cl);
 		make_btree_freeing_key(b, parent_keys.top);
 		bch_keylist_push(&parent_keys);
 
-		btree_node_free(b);
-
 		bch_btree_insert_node(b->parent, op, &parent_keys, NULL, NULL);
 		BUG_ON(!bch_keylist_empty(&parent_keys));
 	}
 
+	btree_node_free(b);
 	rw_unlock(true, n1);
 
 	bch_time_stats_update(&b->c->btree_split_time, start_time);
