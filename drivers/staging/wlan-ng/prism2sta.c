@@ -1924,7 +1924,7 @@ static wlandevice_t *create_wlan(void)
 	hw = kzalloc(sizeof(hfa384x_t), GFP_KERNEL);
 
 	if (!wlandev || !hw) {
-		netdev_err(wlandev->netdev, "%s: Memory allocation failure.\n", dev_info);
+		pr_err("%s: Memory allocation failure.\n", dev_info);
 		kfree(wlandev);
 		kfree(hw);
 		return NULL;
