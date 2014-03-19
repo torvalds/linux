@@ -1471,7 +1471,7 @@ static void mlx4_parav_master_pf_caps(struct mlx4_dev *dev)
 	for (i = 1; i <= dev->caps.num_ports; i++) {
 		if (dev->caps.port_type[i] == MLX4_PORT_TYPE_ETH)
 			dev->caps.gid_table_len[i] =
-				mlx4_get_slave_num_gids(dev, 0);
+				mlx4_get_slave_num_gids(dev, 0, i);
 		else
 			dev->caps.gid_table_len[i] = 1;
 		dev->caps.pkey_table_len[i] =
@@ -1498,7 +1498,7 @@ static void choose_steering_mode(struct mlx4_dev *dev,
 	if (mlx4_log_num_mgm_entry_size == -1 &&
 	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN &&
 	    (!mlx4_is_mfunc(dev) ||
-	     (dev_cap->fs_max_num_qp_per_entry >= (num_vfs + 1))) &&
+	     (dev_cap->fs_max_num_qp_per_entry >= (dev->num_vfs + 1))) &&
 	    choose_log_fs_mgm_entry_size(dev_cap->fs_max_num_qp_per_entry) >=
 		MLX4_MIN_MGM_LOG_ENTRY_SIZE) {
 		dev->oper_log_mgm_entry_size =

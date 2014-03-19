@@ -1231,4 +1231,5 @@ struct mlx4_slaves_pport mlx4_phys_to_slaves_pport_actv(
 /* Returns the slave's virtual port that represents the physical port. */
 int mlx4_phys_to_slave_port(struct mlx4_dev *dev, int slave, int port);
 
+int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave, int port);
 #endif /* MLX4_DEVICE_H */

@@ -2323,17 +2323,24 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 	struct mlx4_dev *dev = ibdev->dev;
 	int i;
 	unsigned long flags;
+	struct mlx4_active_ports actv_ports;
+	unsigned int ports;
+	unsigned int first_port;
 
 	if (!mlx4_is_master(dev))
 		return;
 
-	dm = kcalloc(dev->caps.num_ports, sizeof *dm, GFP_ATOMIC);
+	actv_ports = mlx4_get_active_ports(dev, slave);
+	ports = bitmap_weight(actv_ports.ports, dev->caps.num_ports);
+	first_port = find_first_bit(actv_ports.ports, dev->caps.num_ports);
+
+	dm = kcalloc(ports, sizeof(*dm), GFP_ATOMIC);
 	if (!dm) {
 		pr_err("failed to allocate memory for tunneling qp update\n");
 		goto out;
 	}
 
-	for (i = 0; i < dev->caps.num_ports; i++) {
+	for (i = 0; i < ports; i++) {
 		dm[i] = kmalloc(sizeof (struct mlx4_ib_demux_work), GFP_ATOMIC);
 		if (!dm[i]) {
 			pr_err("failed to allocate memory for tunneling qp update work struct\n");
@@ -2345,9 +2352,9 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 		}
 	}
 	/* initialize or tear down tunnel QPs for the slave */
-	for (i = 0; i < dev->caps.num_ports; i++) {
+	for (i = 0; i < ports; i++) {
 		INIT_WORK(&dm[i]->work, mlx4_ib_tunnels_update_work);
-		dm[i]->port = i + 1;
+		dm[i]->port = first_port + i + 1;
 		dm[i]->slave = slave;
 		dm[i]->do_init = do_init;
 		dm[i]->dev = ibdev;
