@@ -204,7 +204,7 @@ static void dgap_remove_tty_sysfs(struct device *c);
  */
 static int dgap_parsefile(char **in, int Remove);
 static struct cnode *dgap_find_config(int type, int bus, int slot);
-static uint dgap_config_get_number_of_ports(struct board_t *bd);
+static uint dgap_config_get_num_prts(struct board_t *bd);
 static char *dgap_create_config_string(struct board_t *bd, char *string);
 static uint dgap_config_get_useintr(struct board_t *bd);
 static uint dgap_config_get_altpin(struct board_t *bd);
@@ -1344,7 +1344,7 @@ static int dgap_tty_init(struct board_t *brd)
 	vaddr = brd->re_map_membase;
 	true_count = readw((vaddr + NCHAN));
 
-	brd->nasync = dgap_config_get_number_of_ports(brd);
+	brd->nasync = dgap_config_get_num_prts(brd);
 
 	if (!brd->nasync)
 		brd->nasync = brd->maxports;
@@ -6445,10 +6445,13 @@ static ssize_t dgap_tty_name_show(struct device *d,
 			} else
 				ptr1 = cptr->u.ttyname;
 
-			for (i = 0; i < dgap_config_get_number_of_ports(bd); i++) {
-				if (cn == i)
-					return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
-						(un->un_type == DGAP_PRINT) ? "pr" : "tty",
+			for (i = 0; i < dgap_config_get_num_prts(bd); i++) {
+				if (cn != i)
+					continue;
+
+				return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
+						(un->un_type == DGAP_PRINT) ?
+						 "pr" : "tty",
 						ptr1, i + starto);
 			}
 		}
@@ -6456,12 +6459,15 @@ static ssize_t dgap_tty_name_show(struct device *d,
 		if (cptr->type == CNODE) {
 
 			for (i = 0; i < cptr->u.conc.nport; i++) {
-				if (cn == (i + ncount))
+				if (cn != (i + ncount))
+					continue;
 
-					return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
-						(un->un_type == DGAP_PRINT) ? "pr" : "tty",
+				return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
+						(un->un_type == DGAP_PRINT) ?
+						 "pr" : "tty",
 						cptr->u.conc.id,
-						i + (cptr->u.conc.v_start ? cptr->u.conc.start : 1));
+						i + (cptr->u.conc.v_start ?
+						     cptr->u.conc.start : 1));
 			}
 
 			ncount += cptr->u.conc.nport;
@@ -6470,11 +6476,15 @@ static ssize_t dgap_tty_name_show(struct device *d,
 		if (cptr->type == MNODE) {
 
 			for (i = 0; i < cptr->u.module.nport; i++) {
-				if (cn == (i + ncount))
-					return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
-						(un->un_type == DGAP_PRINT) ? "pr" : "tty",
+				if (cn != (i + ncount))
+					continue;
+
+				return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
+						(un->un_type == DGAP_PRINT) ?
+						 "pr" : "tty",
 						cptr->u.module.id,
-						i + (cptr->u.module.v_start ? cptr->u.module.start : 1));
+						i + (cptr->u.module.v_start ?
+						     cptr->u.module.start : 1));
 			}
 
 			ncount += cptr->u.module.nport;
@@ -7597,7 +7607,7 @@ static struct cnode *dgap_find_config(int type, int bus, int slot)
  * all ports user specified should be on the board.
  * (This does NOT mean they are all actually present right now tho)
  */
-static uint dgap_config_get_number_of_ports(struct board_t *bd)
+static uint dgap_config_get_num_prts(struct board_t *bd)
 {
 	int count = 0;
 	struct cnode *p = NULL;
