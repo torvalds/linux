@@ -847,7 +847,8 @@ static int mxs_lradc_read_single(struct iio_dev *iio_dev, int chan, int *val)
 	mxs_lradc_reg_clear(lradc, 0xff, LRADC_CTRL0);
 
 	/* Clean the slot's previous content, then set new one. */
-	mxs_lradc_reg_clear(lradc, LRADC_CTRL4_LRADCSELECT_MASK(0), LRADC_CTRL4);
+	mxs_lradc_reg_clear(lradc, LRADC_CTRL4_LRADCSELECT_MASK(0),
+			LRADC_CTRL4);
 	mxs_lradc_reg_set(lradc, chan, LRADC_CTRL4);
 
 	mxs_lradc_reg_wrt(lradc, 0, LRADC_CH(0));
@@ -1169,7 +1170,8 @@ static irqreturn_t mxs_lradc_handle_irq(int irq, void *data)
 	else if (reg & LRADC_CTRL1_LRADC_IRQ(0))
 		complete(&lradc->completion);
 
-	mxs_lradc_reg_clear(lradc, reg & mxs_lradc_irq_mask(lradc), LRADC_CTRL1);
+	mxs_lradc_reg_clear(lradc, reg & mxs_lradc_irq_mask(lradc),
+			LRADC_CTRL1);
 
 	return IRQ_HANDLED;
 }
@@ -1260,7 +1262,8 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 	uint32_t ctrl1_irq = 0;
 	const uint32_t chan_value = LRADC_CH_ACCUMULATE |
 		((LRADC_DELAY_TIMER_LOOP - 1) << LRADC_CH_NUM_SAMPLES_OFFSET);
-	const int len = bitmap_weight(iio->active_scan_mask, LRADC_MAX_TOTAL_CHANS);
+	const int len = bitmap_weight(iio->active_scan_mask,
+			LRADC_MAX_TOTAL_CHANS);
 
 	if (!len)
 		return -EINVAL;
