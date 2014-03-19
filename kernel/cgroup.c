@@ -3868,6 +3868,15 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		return -EBUSY;
 
 	/*
+	 * Mark @cgrp dead.  This prevents further task migration and child
+	 * creation by disabling cgroup_lock_live_group().  Note that
+	 * CGRP_DEAD assertion is depended upon by css_next_child() to
+	 * resume iteration after dropping RCU read lock.  See
+	 * css_next_child() for details.
+	 */
+	set_bit(CGRP_DEAD, &cgrp->flags);
+
+	/*
 	 * Initiate massacre of all css's.  cgroup_destroy_css_killed()
 	 * will be invoked to perform the rest of destruction once the
 	 * percpu refs of all css's are confirmed to be killed.  This
@@ -3877,15 +3886,6 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	for_each_css(css, ssid, cgrp)
 		kill_css(css);
 	mutex_lock(&cgroup_mutex);
-
-	/*
-	 * Mark @cgrp dead.  This prevents further task migration and child
-	 * creation by disabling cgroup_lock_live_group().  Note that
-	 * CGRP_DEAD assertion is depended upon by css_next_child() to
-	 * resume iteration after dropping RCU read lock.  See
-	 * css_next_child() for details.
-	 */
-	set_bit(CGRP_DEAD, &cgrp->flags);
 
 	/* CGRP_DEAD is set, remove from ->release_list for the last time */
 	raw_spin_lock(&release_list_lock);
