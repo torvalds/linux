@@ -70,7 +70,7 @@ static void __init zynq_init_machine(void)
 	/*
 	 * 64KB way size, 8-way associativity, parity disabled
 	 */
-	l2x0_of_init(0x02060000, 0xF0F0FFFF);
+	l2x0_of_init(0x02000000, 0xf0ffffff);
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
