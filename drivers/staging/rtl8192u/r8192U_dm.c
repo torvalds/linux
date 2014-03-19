@@ -50,34 +50,7 @@ DRxPathSel	DM_RxPathSelTable;
 
 
 /*--------------------Define export function prototype-----------------------*/
-extern	void	init_hal_dm(struct net_device *dev);
-extern	void deinit_hal_dm(struct net_device *dev);
-
-extern void hal_dm_watchdog(struct net_device *dev);
-
-
-extern	void	init_rate_adaptive(struct net_device *dev);
-extern	void	dm_txpower_trackingcallback(struct work_struct *work);
-
-extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
-extern	void	dm_restore_dynamic_mechanism_state(struct net_device *dev);
-extern	void	dm_backup_dynamic_mechanism_state(struct net_device *dev);
-extern	void	dm_change_dynamic_initgain_thresh(struct net_device *dev,
-								u32		dm_type,
-								u32		dm_value);
-extern	void	DM_ChangeFsyncSetting(struct net_device *dev,
-												s32		DM_Type,
-												s32		DM_Value);
-extern	void dm_force_tx_fw_info(struct net_device *dev,
-										u32		force_type,
-										u32		force_value);
-extern	void	dm_init_edca_turbo(struct net_device *dev);
-extern	void	dm_rf_operation_test_callback(unsigned long data);
-extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-extern	void dm_fsync_timer_callback(unsigned long data);
 extern	void dm_check_fsync(struct net_device *dev);
-extern	void	dm_shadow_init(struct net_device *dev);
-
 
 /*--------------------Define export function prototype-----------------------*/
 
@@ -155,8 +128,7 @@ static	void	dm_ctstoself(struct net_device *dev);
 //		This function is only invoked at driver intialization once.
 //
 //
-void
-init_hal_dm(struct net_device *dev)
+void init_hal_dm(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -242,7 +214,7 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 
 
 
-void    hal_dm_watchdog(struct net_device *dev)
+void hal_dm_watchdog(struct net_device *dev)
 {
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -875,7 +847,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 	priv->txpower_count = 0;
 }
 
-void	dm_txpower_trackingcallback(struct work_struct *work)
+void dm_txpower_trackingcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,txpower_tracking_wq);
@@ -1606,10 +1578,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 
 
 
-void dm_cck_txpower_adjust(
-	struct net_device *dev,
-	bool  binch14
-)
+void dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 {	// dm_CCKTxPowerAdjust
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1642,7 +1611,7 @@ static void dm_txpower_reset_recovery(
 
 }	// dm_TXPowerResetRecovery
 
-extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
+void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32	reg_ratr = priv->rate_adaptive.last_ratr;
@@ -1718,7 +1687,7 @@ static void dm_bb_initialgain_restore(struct net_device *dev)
 }	// dm_BBInitialGainRestore
 
 
-extern void dm_backup_dynamic_mechanism_state(struct net_device *dev)
+void dm_backup_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -1773,9 +1742,9 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
  *	05/29/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-void dm_change_dynamic_initgain_thresh(struct net_device *dev,
-								u32		dm_type,
-								u32		dm_value)
+
+void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type,
+				       u32 dm_value)
 {
 	if (dm_type == DIG_TYPE_THRESH_HIGH)
 	{
@@ -2743,7 +2712,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
  *	01/30/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
+void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
