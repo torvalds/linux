@@ -31,6 +31,7 @@
 #include <linux/extcon.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/of.h>
 
 /*
  * extcon_cable_name suggests the standard cable names for commonly used
@@ -817,6 +818,47 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 	put_device(&edev->dev);
 }
 EXPORT_SYMBOL_GPL(extcon_dev_unregister);
+
+#ifdef CONFIG_OF
+/*
+ * extcon_get_edev_by_phandle - Get the extcon device from devicetree
+ * @dev - instance to the given device
+ * @index - index into list of extcon_dev
+ *
+ * return the instance of extcon device
+ */
+struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
+{
+	struct device_node *node;
+	struct extcon_dev *edev;
+
+	if (!dev->of_node) {
+		dev_err(dev, "device does not have a device node entry\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	node = of_parse_phandle(dev->of_node, "extcon", index);
+	if (!node) {
+		dev_err(dev, "failed to get phandle in %s node\n",
+			dev->of_node->full_name);
+		return ERR_PTR(-ENODEV);
+	}
+
+	edev = extcon_get_extcon_dev(node->name);
+	if (!edev) {
+		dev_err(dev, "unable to get extcon device : %s\n", node->name);
+		return ERR_PTR(-ENODEV);
+	}
+
+	return edev;
+}
+#else
+struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
+{
+	return ERR_PTR(-ENOSYS);
+}
+#endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(extcon_get_edev_by_phandle);
 
 static int __init extcon_class_init(void)
 {
