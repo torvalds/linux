@@ -54,7 +54,6 @@ obj-$(CONFIG_COMEDI_PCMDA12)		+= pcmda12.o
 obj-$(CONFIG_COMEDI_PCMMIO)		+= pcmmio.o
 obj-$(CONFIG_COMEDI_PCMUIO)		+= pcmuio.o
 obj-$(CONFIG_COMEDI_MULTIQ3)		+= multiq3.o
-obj-$(CONFIG_COMEDI_POC)		+= poc.o
 obj-$(CONFIG_COMEDI_S526)		+= s526.o
 
 # Comedi PCI drivers

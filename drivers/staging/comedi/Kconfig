@@ -570,15 +570,6 @@ config COMEDI_MULTIQ3
 	  To compile this driver as a module, choose M here: the module will be
 	  called multiq3.
 
-config COMEDI_POC
-	tristate "Generic driver for very simple devices"
-	---help---
-	  Enable generic support for very simple / POC (Piece of Crap) boards,
-	  Keithley Metrabyte DAC-02 (dac02).
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called poc.
-
 config COMEDI_S526
 	tristate "Sensoray s526 support"
 	---help---
