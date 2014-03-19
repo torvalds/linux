@@ -491,10 +491,11 @@ static struct blk_mq_ops virtio_mq_ops = {
 static struct blk_mq_reg virtio_mq_reg = {
 	.ops		= &virtio_mq_ops,
 	.nr_hw_queues	= 1,
-	.queue_depth	= 64,
+	.queue_depth	= 0, /* Set in virtblk_probe */
 	.numa_node	= NUMA_NO_NODE,
 	.flags		= BLK_MQ_F_SHOULD_MERGE,
 };
+module_param_named(queue_depth, virtio_mq_reg.queue_depth, uint, 0444);
 
 static void virtblk_init_vbr(void *data, struct blk_mq_hw_ctx *hctx,
 			     struct request *rq, unsigned int nr)
@@ -558,6 +559,13 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_free_vq;
 	}
 
+	/* Default queue sizing is to fill the ring. */
+	if (!virtio_mq_reg.queue_depth) {
+		virtio_mq_reg.queue_depth = vblk->vq->num_free;
+		/* ... but without indirect descs, we use 2 descs per req */
+		if (!virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC))
+			virtio_mq_reg.queue_depth /= 2;
+	}
 	virtio_mq_reg.cmd_size =
 		sizeof(struct virtblk_req) +
 		sizeof(struct scatterlist) * sg_elems;
