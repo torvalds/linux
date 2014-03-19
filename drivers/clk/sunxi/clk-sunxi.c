@@ -299,7 +299,7 @@ static void sun4i_get_apb1_factors(u32 *freq, u32 parent_rate,
 	if (parent_rate < *freq)
 		*freq = parent_rate;
 
-	parent_rate = (parent_rate + (*freq - 1)) / *freq;
+	parent_rate = DIV_ROUND_UP(parent_rate, *freq);
 
 	/* Invalid rate! */
 	if (parent_rate > 32)
@@ -344,7 +344,7 @@ static void sun4i_get_mod0_factors(u32 *freq, u32 parent_rate,
 	if (*freq > parent_rate)
 		*freq = parent_rate;
 
-	div = parent_rate / *freq;
+	div = DIV_ROUND_UP(parent_rate, *freq);
 
 	if (div < 16)
 		calcp = 0;
@@ -385,7 +385,7 @@ static void sun7i_a20_get_out_factors(u32 *freq, u32 parent_rate,
 	if (*freq > parent_rate)
 		*freq = parent_rate;
 
-	div = parent_rate / *freq;
+	div = DIV_ROUND_UP(parent_rate, *freq);
 
 	if (div < 32)
 		calcp = 0;
