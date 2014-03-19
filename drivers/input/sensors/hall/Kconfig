@@ -1,0 +1,15 @@
+#
+# hall  sensor drivers configuration
+#
+
+menuconfig HALL_DEVICE
+	bool "hall sensor device support"
+	default n	
+
+if HALL_DEVICE
+config HS_OCH165T
+  bool "hall sensor och165t"
+	default n
+	
+endif
+
