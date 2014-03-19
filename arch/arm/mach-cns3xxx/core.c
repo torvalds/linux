@@ -290,7 +290,7 @@ void __init cns3xxx_l2x0_init(void)
 	writel(val, base + L310_DATA_LATENCY_CTRL);
 
 	/* 32 KiB, 8-way, parity disable */
-	l2x0_init(base, 0x00540000, 0xfe000fff);
+	l2x0_init(base, 0x00500000, 0xfe0f0fff);
 }
 
 #endif /* CONFIG_CACHE_L2X0 */
