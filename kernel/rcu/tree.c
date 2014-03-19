@@ -271,6 +271,15 @@ long rcu_batches_completed_bh(void)
 EXPORT_SYMBOL_GPL(rcu_batches_completed_bh);
 
 /*
+ * Force a quiescent state.
+ */
+void rcu_force_quiescent_state(void)
+{
+	force_quiescent_state(rcu_state);
+}
+EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
+
+/*
  * Force a quiescent state for RCU BH.
  */
 void rcu_bh_force_quiescent_state(void)
