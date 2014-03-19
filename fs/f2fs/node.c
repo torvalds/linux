@@ -208,7 +208,7 @@ int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 
-	if (nm_i->nat_cnt <= NM_WOUT_THRESHOLD)
+	if (nm_i->nat_cnt <= NM_WOUT_THRESHOLD || nr_shrink <= 0)
 		return 0;
 
 	write_lock(&nm_i->nat_tree_lock);
