@@ -169,9 +169,11 @@ Files in /sys/fs/f2fs/<devname>
 
  reclaim_segments             This parameter controls the number of prefree
                               segments to be reclaimed. If the number of prefree
-			      segments is larger than this number, f2fs tries to
-			      conduct checkpoint to reclaim the prefree segments
-			      to free segments. By default, 100 segments, 200MB.
+			      segments is larger than the number of segments
+			      in the proportion to the percentage over total
+			      volume size, f2fs tries to conduct checkpoint to
+			      reclaim the prefree segments to free segments.
+			      By default, 5% over total # of segments.
 
  max_small_discards	      This parameter controls the number of discard
 			      commands that consist small blocks less than 2MB.
