@@ -709,6 +709,11 @@ int crush_do_rule(const struct crush_map *map,
 				choose_local_fallback_retries = curstep->arg1;
 			break;
 
+		case CRUSH_RULE_SET_CHOOSELEAF_VARY_R:
+			if (curstep->arg1 >= 0)
+				vary_r = curstep->arg1;
+			break;
+
 		case CRUSH_RULE_CHOOSELEAF_FIRSTN:
 		case CRUSH_RULE_CHOOSE_FIRSTN:
 			firstn = 1;
