@@ -166,6 +166,12 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 			mwifiex_11n_ba_stream_timeout(priv, ba_timeout);
 		}
 		break;
+	case EVENT_EXT_SCAN_REPORT:
+		dev_dbg(adapter->dev, "event: EXT_SCAN Report\n");
+		if (adapter->ext_scan)
+			return mwifiex_handle_event_ext_scan_report(priv,
+						adapter->event_skb->data);
+		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);
