@@ -3347,13 +3347,13 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 		pi = (struct port_info *)netdev_priv(pdev);
 		tx_chan = cxgb4_port_chan(pdev);
 	}
+	neigh_release(neigh);
 	if (!e) {
 		pr_err("%s - failed to allocate l2t entry!\n",
 		       __func__);
 		goto free_dst;
 	}
 
-	neigh_release(neigh);
 	step = dev->rdev.lldi.nrxq / dev->rdev.lldi.nchan;
 	rss_qid = dev->rdev.lldi.rxq_ids[pi->port_id * step];
 	window = (__force u16) htons((__force u16)tcph->window);
