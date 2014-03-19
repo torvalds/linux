@@ -3374,7 +3374,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 	case DSD2:
 		if (ReadDSDSignature(Adapter, eFlash2xSectVal) == DSD_IMAGE_MAGIC_NUMBER) {
 			HighestPriDSD = getHighestPriDSD(Adapter);
-			if ((HighestPriDSD == eFlash2xSectVal)) {
+			if (HighestPriDSD == eFlash2xSectVal) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "Given DSD<%x> already has highest priority", eFlash2xSectVal);
 				Status = STATUS_SUCCESS;
 				break;
@@ -3402,7 +3402,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 
 				HighestPriDSD = getHighestPriDSD(Adapter);
 
-				if ((HighestPriDSD == eFlash2xSectVal)) {
+				if (HighestPriDSD == eFlash2xSectVal) {
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "Made the DSD: %x highest by reducing priority of other\n", eFlash2xSectVal);
 					Status = STATUS_SUCCESS;
 					break;
@@ -3421,7 +3421,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 				}
 
 				HighestPriDSD = getHighestPriDSD(Adapter);
-				if ((HighestPriDSD == eFlash2xSectVal)) {
+				if (HighestPriDSD == eFlash2xSectVal) {
 					Status = STATUS_SUCCESS;
 					break;
 				}
