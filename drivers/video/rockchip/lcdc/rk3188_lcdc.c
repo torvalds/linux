@@ -838,7 +838,8 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 		lcdc_writel(lcdc_dev, WIN0_DSP_INFO,v_DSP_WIDTH(win->area[0].xsize) |
 						v_DSP_HEIGHT(win->area[0].ysize));
 		lcdc_msk_reg(lcdc_dev, WIN_VIR, m_WIN0_VIR, v_WIN0_VIR_VAL(win->area[0].y_vir_stride));
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN0_RB_SWAP, v_WIN0_RB_SWAP(win->swap_rb));
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN0_EN | m_WIN0_RB_SWAP,
+				v_WIN0_EN(win->state) | v_WIN0_RB_SWAP(win->swap_rb));
 		lcdc_msk_reg(lcdc_dev, WIN0_COLOR_KEY, m_COLOR_KEY_EN, v_COLOR_KEY_EN(0));
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -895,9 +896,10 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 	win->fmt_cfg = fmt_cfg;
 	if (likely(lcdc_dev->clk_on)) {
 		lcdc_writel(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(win->area[0].xsize) |
-							v_DSP_HEIGHT(win->area[1].ysize));
+							v_DSP_HEIGHT(win->area[0].ysize));
 		lcdc_writel(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL,m_WIN1_RB_SWAP, v_WIN1_RB_SWAP(win->swap_rb));
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN1_EN | m_WIN1_RB_SWAP,
+				v_WIN1_EN(win->state) | v_WIN1_RB_SWAP(win->swap_rb));
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL,m_WIN1_FORMAT, v_WIN1_FORMAT(fmt_cfg));
 		lcdc_msk_reg(lcdc_dev, WIN_VIR, m_WIN1_VIR, ((win->area[0].y_vir_stride)&0x1fff)<<16);	
 	}
@@ -929,6 +931,9 @@ static int rk3188_lcdc_set_par(struct rk_lcdc_driver *dev_drv,int win_id)
 		return -EINVAL;
 	}
 	
+	if (lcdc_dev->clk_on) {
+		rk3188_lcdc_alpha_cfg(lcdc_dev);
+	}
 
 	return 0;
 }

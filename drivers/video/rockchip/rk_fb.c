@@ -2645,7 +2645,6 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	
 	screen->screen_id = 0;
 	screen->lcdc_id = dev_drv->id;
-	rk_fb_set_prmry_screen(screen);
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
 	/* devie use one lcdc + rk61x scaler for dual display*/
@@ -2669,8 +2668,10 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->ops->fb_win_remap(dev_drv, FB_DEFAULT_ORDER);
 	dev_drv->first_frame = 1;
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
-	if (dev_drv->prop == PRMRY)
+	if (dev_drv->prop == PRMRY) {
+		rk_fb_set_prmry_screen(screen);
 		rk_fb_get_prmry_screen(screen);
+	}
 	dev_drv->trsm_ops = rk_fb_trsm_ops_get(screen->type);
 
 	return 0;
