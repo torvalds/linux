@@ -624,8 +624,8 @@ static long compass_dev_ioctl(struct file *file,
 	
 	case ECS_IOCTL_GET_PLATFORM_DATA:			
 		DBG("%s:ECS_IOCTL_GET_PLATFORM_DATA start\n",__func__);
-		memcpy(compass.m_layout, sensor->pdata->m_layout, sizeof(sensor->pdata->m_layout));
-		memcpy(compass.project_name, sensor->pdata->project_name, sizeof(sensor->pdata->project_name));
+	//	memcpy(compass.m_layout, sensor->pdata->m_layout, sizeof(sensor->pdata->m_layout));
+	//	memcpy(compass.project_name, sensor->pdata->project_name, sizeof(sensor->pdata->project_name));
 		ret = copy_to_user(argp, &compass, sizeof(compass));
 		if(ret < 0)
 		{
