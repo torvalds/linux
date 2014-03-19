@@ -24,7 +24,7 @@
 
 #ifdef CONFIG_CGROUPS
 
-struct cgroupfs_root;
+struct cgroup_root;
 struct cgroup_subsys;
 struct inode;
 struct cgroup;
@@ -179,7 +179,7 @@ struct cgroup {
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state __rcu *subsys[CGROUP_SUBSYS_COUNT];
 
-	struct cgroupfs_root *root;
+	struct cgroup_root *root;
 
 	/*
 	 * List of cgrp_cset_links pointing at css_sets with tasks in this
@@ -211,7 +211,7 @@ struct cgroup {
 
 #define MAX_CGROUP_ROOT_NAMELEN 64
 
-/* cgroupfs_root->flags */
+/* cgroup_root->flags */
 enum {
 	/*
 	 * Unfortunately, cgroup core and various controllers are riddled
@@ -272,18 +272,18 @@ enum {
 };
 
 /*
- * A cgroupfs_root represents the root of a cgroup hierarchy, and may be
+ * A cgroup_root represents the root of a cgroup hierarchy, and may be
  * associated with a kernfs_root to form an active hierarchy.  This is
  * internal to cgroup core.  Don't access directly from controllers.
  */
-struct cgroupfs_root {
+struct cgroup_root {
 	struct kernfs_root *kf_root;
 
 	/* Unique id for this hierarchy. */
 	int hierarchy_id;
 
 	/* The root cgroup.  Root is destroyed on its release. */
-	struct cgroup top_cgroup;
+	struct cgroup cgrp;
 
 	/* Number of cgroups in the hierarchy, used only for /proc/cgroups */
 	atomic_t nr_cgrps;
@@ -598,7 +598,7 @@ struct cgroup_subsys {
 	const char *name;
 
 	/* link to parent, protected by cgroup_lock() */
-	struct cgroupfs_root *root;
+	struct cgroup_root *root;
 
 	/*
 	 * List of cftypes.  Each entry is the first entry of an array
