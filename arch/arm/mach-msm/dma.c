@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
+#include <linux/module.h>
 #include <mach/dma.h>
 #include <mach/msm_iomap.h>
 
