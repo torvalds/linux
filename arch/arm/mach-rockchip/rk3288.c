@@ -118,7 +118,7 @@ static void __init rk3288_dt_map_io(void)
 	rockchip_soc_id = ROCKCHIP_SOC_RK3288;
 
 	/* rkpwm is used instead of old pwm */
-	//writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
+	writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
 
 #ifdef CONFIG_SMP
 	/* enable fast boot */
