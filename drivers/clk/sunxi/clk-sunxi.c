@@ -330,7 +330,7 @@ static void sun4i_get_apb1_factors(u32 *freq, u32 parent_rate,
 
 /**
  * sun4i_get_mod0_factors() - calculates m, n factors for MOD0-style clocks
- * MMC rate is calculated as follows
+ * MOD0 rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
  */
 
