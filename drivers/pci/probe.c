@@ -252,6 +252,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			/* Address above 32-bit boundary; disable the BAR */
 			pci_write_config_dword(dev, pos, 0);
 			pci_write_config_dword(dev, pos + 4, 0);
+			res->flags |= IORESOURCE_UNSET;
 			region.start = 0;
 			region.end = sz64;
 			bar_disabled = true;
@@ -1107,10 +1108,10 @@ int pci_setup_device(struct pci_dev *dev)
 		pci_read_config_word(dev, PCI_SUBSYSTEM_ID, &dev->subsystem_device);
 
 		/*
-		 *	Do the ugly legacy mode stuff here rather than broken chip
-		 *	quirk code. Legacy mode ATA controllers have fixed
-		 *	addresses. These are not always echoed in BAR0-3, and
-		 *	BAR0-3 in a few cases contain junk!
+		 * Do the ugly legacy mode stuff here rather than broken chip
+		 * quirk code. Legacy mode ATA controllers have fixed
+		 * addresses. These are not always echoed in BAR0-3, and
+		 * BAR0-3 in a few cases contain junk!
 		 */
 		if (class == PCI_CLASS_STORAGE_IDE) {
 			u8 progif;
@@ -1121,11 +1122,15 @@ int pci_setup_device(struct pci_dev *dev)
 				res = &dev->resource[0];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
+				dev_info(&dev->dev, "legacy IDE quirk: reg 0x10: %pR\n",
+					 res);
 				region.start = 0x3F6;
 				region.end = 0x3F6;
 				res = &dev->resource[1];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
+				dev_info(&dev->dev, "legacy IDE quirk: reg 0x14: %pR\n",
+					 res);
 			}
 			if ((progif & 4) == 0) {
 				region.start = 0x170;
@@ -1133,11 +1138,15 @@ int pci_setup_device(struct pci_dev *dev)
 				res = &dev->resource[2];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
+				dev_info(&dev->dev, "legacy IDE quirk: reg 0x18: %pR\n",
+					 res);
 				region.start = 0x376;
 				region.end = 0x376;
 				res = &dev->resource[3];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
+				dev_info(&dev->dev, "legacy IDE quirk: reg 0x1c: %pR\n",
+					 res);
 			}
 		}
 		break;
