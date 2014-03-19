@@ -407,13 +407,14 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 			method = REQ_PASSKEY;
 	}
 
-	/* Generate random passkey. Not valid until confirmed. */
+	/* Generate random passkey. */
 	if (method == CFM_PASSKEY) {
 		memset(smp->tk, 0, sizeof(smp->tk));
 		get_random_bytes(&passkey, sizeof(passkey));
 		passkey %= 1000000;
 		put_unaligned_le32(passkey, smp->tk);
 		BT_DBG("PassKey: %d", passkey);
+		set_bit(SMP_FLAG_TK_VALID, &smp->smp_flags);
 	}
 
 	hci_dev_lock(hcon->hdev);
@@ -422,7 +423,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 		ret = mgmt_user_passkey_request(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type);
 	else
-		ret = mgmt_user_confirm_request(hcon->hdev, &hcon->dst,
+		ret = mgmt_user_passkey_notify(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type,
 						cpu_to_le32(passkey), 0);
 
