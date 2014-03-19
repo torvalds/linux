@@ -1133,7 +1133,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
 
-	if(rk_fb->disp_mode == DUAL && hdmi_switch_complete) {
+	if (rk_fb->disp_mode == DUAL && hdmi_switch_complete) {
 		for (i = 0; i < rk_fb->num_lcdc; i++) {
 			if(rk_fb->lcdc_dev_drv[i]->prop == EXTEND) {
 				ext_dev_drv = rk_fb->lcdc_dev_drv[i];
@@ -1147,11 +1147,11 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 
 		//hdmi just need set win0 only(win0 have only one area),other win is disable
 		ext_win = ext_dev_drv->win[0];
-		for(j = 0;j < regs->win_num; j++) {
+		for (j = 0;j < regs->win_num; j++) {
 			if(0 == regs->reg_win_data[j].win_id)
 				break;
 		}
-		if(j < regs->win_num){
+		if (j < regs->win_num){
 			rk_fb_update_driver(ext_win, &regs->reg_win_data[j]);
 			ext_win->area[0].xpos = (ext_dev_drv->cur_screen->mode.xres - ext_dev_drv->cur_screen->xsize)>>1;
 			ext_win->area[0].ypos = (ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize)>>1;
@@ -1170,7 +1170,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		}
 
 		//disable the other win,except win0
-		for(i = 1; i < ext_dev_drv->lcdc_win_num; i ++) {
+		for (i = 1; i < ext_dev_drv->lcdc_win_num; i ++) {
 			ext_win = ext_dev_drv->win[i];
 			ext_win->state = 0;
 		}
@@ -1688,15 +1688,6 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 			break;
 		}	
 		memset(&win_data, 0, sizeof(struct rk_fb_win_cfg_data));
-
-		if (rk_fb->disp_mode == DUAL) {
-			if (extend_win->state && (hdmi_switch_complete)) {
-				if (rk_fb->num_fb >= 2) {
-					if (extend_dev_drv->ops->lcdc_reg_update)
-						extend_dev_drv->ops->lcdc_reg_update(extend_dev_drv);
-				}
-			}
-		}
 		break;
 	default:
 		dev_drv->ops->ioctl(dev_drv, cmd, arg, win_id);
@@ -2408,7 +2399,7 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 	} else {
 		info->fbops->fb_pan_display(hdmi_var, info);
 	}
-	info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0);
+	//info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0);
 	if (dev_drv->screen1) {
 		if (dev_drv->screen0->sscreen_set) {
 			dev_drv->ops->blank(dev_drv, 0, FB_BLANK_NORMAL);
@@ -2494,7 +2485,8 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	}
 
 	info->fbops->fb_set_par(info);
-	info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0);
+	//info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0);
+	dev_drv->ops->cfg_done(dev_drv);
 	return 0;
 
 
