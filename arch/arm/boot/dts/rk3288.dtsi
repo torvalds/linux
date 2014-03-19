@@ -202,6 +202,7 @@
 
 		/*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_3 --clk_emmc_src_gate_en*/
  		//clocks = <&clk_gates8 0>, <&clk_gates8 0>;
+         	clock-names = "emmc_clk", "arbi_emmc_clk";  
 		num-slots = <1>;	  	
   	  	fifo-depth = <0x80>;
 		bus-width = <4>;
@@ -220,6 +221,7 @@
 
                 /*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_0 --clk_mmc0_src_gate_en*/
 	    	//clocks = <&clk_gates8 0>, <&clk_gates13 0>;
+                clock-names = "sdmmc_clk", "arbi_sdmmc_clk";
    	    	num-slots = <1>;    
 	    	fifo-depth = <0x100>;
 	    	bus-width = <4>;
@@ -237,6 +239,7 @@
 
 		/*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_1 --clk_sdio0_src_gate_en*/
             	//clocks = <&clk_gates8 0>, <&clk_gates13 1>;        
+		clock-names = "sdio_clk", "arbi_sdio_clk";
             	num-slots = <1>;
 
 	    	fifo-depth = <0x100>;
@@ -254,6 +257,7 @@
 
                 /*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_2 --clk_sdio1_src_gate_en*/
                 //clocks = <&clk_gates8 0>, <&clk_gates13 2>;
+                clock-names = "sdio1_clk", "arbi_sdio1_clk";
                 num-slots = <1>;
 
                 fifo-depth = <0x100>;
