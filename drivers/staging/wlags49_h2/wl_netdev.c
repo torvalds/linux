@@ -225,17 +225,15 @@ struct net_device_stats *wl_stats(struct net_device *dev)
 #ifdef USE_WDS
 
 	for (count = 0; count < NUM_WDS_PORTS; count++) {
-		if (dev == lp->wds_port[count].dev) {
+		if (dev == lp->wds_port[count].dev)
 			pStats = &(lp->wds_port[count].stats);
-		}
 	}
 
 #endif /* USE_WDS */
 
 	/* If pStats is still NULL, then the device is not a WDS port */
-	if (pStats == NULL) {
+	if (pStats == NULL)
 		pStats = &(lp->stats);
-	}
 
 	wl_unlock(lp, &flags);
 
@@ -578,9 +576,8 @@ void wl_tx_timeout(struct net_device *dev)
 #endif /* USE_WDS */
 
 	/* If pStats is still NULL, then the device is not a WDS port */
-	if (pStats == NULL) {
+	if (pStats == NULL)
 		pStats = &(lp->stats);
-	}
 
 	/* Accumulate the timeout error */
 	pStats->tx_errors++;
@@ -663,9 +660,8 @@ int wl_send(struct wl_private *lp)
 		}
 	}
 
-	if (lp->txF.skb == NULL) {
+	if (lp->txF.skb == NULL)
 		return FALSE;
-	}
 
 	/* If the device has resources (FIDs) available, then Tx the packet */
 	/* Format the TxRequest and send it to the adapter */
@@ -926,9 +922,8 @@ int wl_rx(struct net_device *dev)
 					DBG_ERROR(DbgInfo,
 						  "Rx request to card FAILED\n");
 
-					if (port == 0) {
+					if (port == 0)
 						lp->stats.rx_dropped++;
-					}
 #ifdef USE_WDS
 					else {
 						lp->wds_port[port -
@@ -942,9 +937,8 @@ int wl_rx(struct net_device *dev)
 			} else {
 				DBG_ERROR(DbgInfo, "Could not alloc skb\n");
 
-				if (port == 0) {
+				if (port == 0)
 					lp->stats.rx_dropped++;
-				}
 #ifdef USE_WDS
 				else {
 					lp->wds_port[port -
@@ -1657,9 +1651,8 @@ void wl_wds_netif_carrier_on(struct wl_private *lp)
 
 	if (lp != NULL) {
 		for (count = 0; count < NUM_WDS_PORTS; count++) {
-			if (lp->wds_port[count].is_registered) {
+			if (lp->wds_port[count].is_registered)
 				netif_carrier_on(lp->wds_port[count].dev);
-			}
 		}
 	}
 }				/* wl_wds_netif_carrier_on */
@@ -1936,9 +1929,8 @@ int wl_rx_dma(struct net_device *dev)
 					DBG_ERROR(DbgInfo,
 						  "Could not alloc skb\n");
 
-					if (port == 0) {
+					if (port == 0)
 						lp->stats.rx_dropped++;
-					}
 #ifdef USE_WDS
 					else {
 						lp->wds_port[port -
