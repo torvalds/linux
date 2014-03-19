@@ -508,39 +508,23 @@ struct cgroup_subsys_state *seq_css(struct seq_file *seq);
 
 static inline int cgroup_name(struct cgroup *cgrp, char *buf, size_t buflen)
 {
-	/* dummy_top doesn't have a kn associated */
-	if (cgrp->kn)
-		return kernfs_name(cgrp->kn, buf, buflen);
-	else
-		return strlcpy(buf, "/", buflen);
+	return kernfs_name(cgrp->kn, buf, buflen);
 }
 
 static inline char * __must_check cgroup_path(struct cgroup *cgrp, char *buf,
 					      size_t buflen)
 {
-	/* dummy_top doesn't have a kn associated */
-	if (cgrp->kn)
-		return kernfs_path(cgrp->kn, buf, buflen);
-	strlcpy(buf, "/", buflen);
-	return (buflen <= 2) ? NULL : buf;
+	return kernfs_path(cgrp->kn, buf, buflen);
 }
 
 static inline void pr_cont_cgroup_name(struct cgroup *cgrp)
 {
-	/* dummy_top doesn't have a kn associated */
-	if (cgrp->kn)
-		pr_cont_kernfs_name(cgrp->kn);
-	else
-		pr_cont("/");
+	pr_cont_kernfs_name(cgrp->kn);
 }
 
 static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
 {
-	/* dummy_top doesn't have a kn associated */
-	if (cgrp->kn)
-		pr_cont_kernfs_path(cgrp->kn);
-	else
-		pr_cont("/");
+	pr_cont_kernfs_path(cgrp->kn);
 }
 
 char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
