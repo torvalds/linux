@@ -15,8 +15,6 @@ Required properties:
 Optional properties:
 - arm,primecell-periphid : contains the PrimeCell Peripheral ID, it overrides
                            the ID provided by the HW
-- mmc-cap-mmc-highspeed  : indicates whether MMC is high speed capable.
-- mmc-cap-sd-highspeed   : indicates whether SD is high speed capable.
 - vqmmc-supply           : phandle to the regulator device tree node, mentioned
                            as the VCCQ/VDD_IO supply in the eMMC/SD specs.
 - st,sig-dir-dat0        : bus signal direction pin used for DAT[0].
@@ -25,6 +23,10 @@ Optional properties:
 - st,sig-dir-dat74       : bus signal direction pin used for DAT[4] to DAT[7].
 - st,sig-dir-cmd         : cmd signal direction pin used for CMD.
 - st,sig-pin-fbclk       : feedback clock signal pin used.
+
+Deprecated properties:
+- mmc-cap-mmc-highspeed  : indicates whether MMC is high speed capable.
+- mmc-cap-sd-highspeed   : indicates whether SD is high speed capable.
 
 Example:
 
@@ -42,8 +44,8 @@ sdi0_per1@80126000 {
 
 	max-frequency = <100000000>;
 	bus-width = <4>;
-	mmc-cap-sd-highspeed;
-	mmc-cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cap-mmc-highspeed;
 	cd-gpios  = <&gpio2 31 0x4>; // 95
 	st,sig-dir-dat0;
 	st,sig-dir-dat2;
