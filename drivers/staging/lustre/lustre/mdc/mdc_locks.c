@@ -121,7 +121,7 @@ int mdc_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 	struct ldlm_lock *lock;
 	struct inode *new_inode = data;
 
-	if(bits)
+	if (bits)
 		*bits = 0;
 
 	if (!*lockh)
@@ -196,7 +196,7 @@ int mdc_null_inode(struct obd_export *exp,
 	fid_build_reg_res_name(fid, &res_id);
 
 	res = ldlm_resource_get(ns, NULL, &res_id, 0, 0);
-	if(res == NULL)
+	if (res == NULL)
 		return 0;
 
 	lock_res(res);
