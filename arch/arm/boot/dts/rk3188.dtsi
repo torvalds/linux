@@ -641,8 +641,8 @@
 
         };
 	dvfs {
-		vd_cpu:
-		vd_cpu {
+		vd_arm:
+		vd_arm {
 			regulator_name="vdd_arm";
 			suspend_volt=<1000>; //mV
 			pd_a9 {
@@ -658,12 +658,13 @@
 						1416000 1300000
 						1608000 1350000
 						>;
+					status = "okay";
 				};
 			};
 		};
 
-		vd_core:
-		vd_core {
+		vd_logic:
+		vd_logic {
 			regulator_name="vdd_logic";
 			suspend_volt=<1000>; //mV
 
@@ -676,6 +677,7 @@
 						300000 1200000
 						400000 1200000
 						>;
+					status = "okay";
 				};
 			};
 
@@ -688,6 +690,7 @@
 						300000 1200000
 						400000 1200000
 						>;
+					status = "disable";
 				};
 			};
 		};

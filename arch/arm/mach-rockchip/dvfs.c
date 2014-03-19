@@ -1021,6 +1021,9 @@ int of_dvfs_init(void)
 			DVFS_DBG("%s:pd(%s) register ok, parent vd:%s\n", 
 				__func__, pd->name, vd->name);			
 			for_each_available_child_of_node(pd_dev_node, clk_dev_node) {
+				if (!of_device_is_available(clk_dev_node))
+					continue;
+				
 				dvfs_node = kzalloc(sizeof(struct dvfs_node), GFP_KERNEL);
 				if (!dvfs_node)
 					return -ENOMEM;

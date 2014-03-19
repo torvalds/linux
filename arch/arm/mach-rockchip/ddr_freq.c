@@ -349,11 +349,13 @@ static int ddrfreq_init(void)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	int ret;
-	
+
 	ddr.clk_dvfs_node = clk_get_dvfs_node("clk_ddr");
 	if (!ddr.clk_dvfs_node){
 		return -EINVAL;
 	}
+	
+	clk_enable_dvfs(ddr.clk_dvfs_node);
 	
 	init_waitqueue_head(&ddr.wait);
 	ddr.mode = "normal";
