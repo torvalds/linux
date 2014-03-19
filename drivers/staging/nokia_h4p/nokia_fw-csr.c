@@ -74,8 +74,7 @@ int hci_h4p_bc4_send_fw(struct hci_h4p_info *info,
 		}
 
 		if (not_valid) {
-			dev_info(info->dev, "Valid bluetooth address not found,"
-					" setting some random\n");
+			dev_info(info->dev, "Valid bluetooth address not found, setting some random\n");
 			/* When address is not valid, use some random */
 			memcpy(info->bd_addr, nokia_oui, 3);
 			get_random_bytes(info->bd_addr + 3, 3);
