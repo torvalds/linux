@@ -18,11 +18,6 @@ int rk_fb_set_prmry_screen(struct rk_screen *screen)
 	return 0;
 }
 
-size_t get_fb_size(void)
-{
-	
-}
-
 static int rk_screen_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
