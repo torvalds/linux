@@ -1013,12 +1013,13 @@ struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 	return NULL;
 }
 
+/* We assume to be passed big endian arguments */
 asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 {
 	struct rtas_args args;
 	unsigned long flags;
 	char *buff_copy, *errbuf = NULL;
-	int nargs;
+	int nargs, nret, token;
 	int rc;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -1027,10 +1028,13 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	if (copy_from_user(&args, uargs, 3 * sizeof(u32)) != 0)
 		return -EFAULT;
 
-	nargs = args.nargs;
+	nargs = be32_to_cpu(args.nargs);
+	nret  = be32_to_cpu(args.nret);
+	token = be32_to_cpu(args.token);
+
 	if (nargs > ARRAY_SIZE(args.args)
-	    || args.nret > ARRAY_SIZE(args.args)
-	    || nargs + args.nret > ARRAY_SIZE(args.args))
+	    || nret > ARRAY_SIZE(args.args)
+	    || nargs + nret > ARRAY_SIZE(args.args))
 		return -EINVAL;
 
 	/* Copy in args. */
@@ -1038,14 +1042,14 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 			   nargs * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
 
-	if (args.token == RTAS_UNKNOWN_SERVICE)
+	if (token == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
 	args.rets = &args.args[nargs];
-	memset(args.rets, 0, args.nret * sizeof(rtas_arg_t));
+	memset(args.rets, 0, nret * sizeof(rtas_arg_t));
 
 	/* Need to handle ibm,suspend_me call specially */
-	if (args.token == ibm_suspend_me_token) {
+	if (token == ibm_suspend_me_token) {
 		rc = rtas_ibm_suspend_me(&args);
 		if (rc)
 			return rc;
@@ -1062,7 +1066,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */
-	if (args.rets[0] == -1)
+	if (be32_to_cpu(args.rets[0]) == -1)
 		errbuf = __fetch_rtas_last_error(buff_copy);
 
 	unlock_rtas(flags);
@@ -1077,7 +1081,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	/* Copy out args. */
 	if (copy_to_user(uargs->args + nargs,
 			 args.args + nargs,
-			 args.nret * sizeof(rtas_arg_t)) != 0)
+			 nret * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
 
 	return 0;
