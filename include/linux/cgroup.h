@@ -384,6 +384,7 @@ enum {
 	CFTYPE_NOT_ON_ROOT	= (1 << 1),	/* don't create on root cgrp */
 	CFTYPE_INSANE		= (1 << 2),	/* don't create if sane_behavior */
 	CFTYPE_NO_PREFIX	= (1 << 3),	/* (DON'T USE FOR NEW FILES) no subsys prefix */
+	CFTYPE_ONLY_ON_DFL	= (1 << 4),	/* only on default hierarchy */
 };
 
 #define MAX_CFTYPE_NAME		64
