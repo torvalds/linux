@@ -465,6 +465,112 @@ struct octeon_hcd {
 #define USB_FIFO_ADDRESS(channel, usb_index) (CVMX_USBCX_GOTGCTL(usb_index) + ((channel)+1)*0x1000)
 
 /**
+ * struct octeon_temp_buffer - a bounce buffer for USB transfers
+ * @temp_buffer: the newly allocated temporary buffer (including meta-data)
+ * @orig_buffer: the original buffer passed by the USB stack
+ * @data:	 the newly allocated temporary buffer (excluding meta-data)
+ *
+ * Both the DMA engine and FIFO mode will always transfer full 32-bit words. If
+ * the buffer is too short, we need to allocate a temporary one, and this struct
+ * represents it.
+ */
+struct octeon_temp_buffer {
+	void *temp_buffer;
+	void *orig_buffer;
+	u8 data[0];
+};
+
+/**
+ * octeon_alloc_temp_buffer - allocate a temporary buffer for USB transfer
+ *                            (if needed)
+ * @urb:	URB.
+ * @mem_flags:	Memory allocation flags.
+ *
+ * This function allocates a temporary bounce buffer whenever it's needed
+ * due to HW limitations.
+ */
+static int octeon_alloc_temp_buffer(struct urb *urb, gfp_t mem_flags)
+{
+	struct octeon_temp_buffer *temp;
+
+	if (urb->num_sgs || urb->sg ||
+	    (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP) ||
+	    !(urb->transfer_buffer_length % sizeof(u32)))
+		return 0;
+
+	temp = kmalloc(ALIGN(urb->transfer_buffer_length, sizeof(u32)) +
+		       sizeof(*temp), mem_flags);
+	if (!temp)
+		return -ENOMEM;
+
+	temp->temp_buffer = temp;
+	temp->orig_buffer = urb->transfer_buffer;
+	if (usb_urb_dir_out(urb))
+		memcpy(temp->data, urb->transfer_buffer,
+		       urb->transfer_buffer_length);
+	urb->transfer_buffer = temp->data;
+	urb->transfer_flags |= URB_ALIGNED_TEMP_BUFFER;
+
+	return 0;
+}
+
+/**
+ * octeon_free_temp_buffer - free a temporary buffer used by USB transfers.
+ * @urb: URB.
+ *
+ * Frees a buffer allocated by octeon_alloc_temp_buffer().
+ */
+static void octeon_free_temp_buffer(struct urb *urb)
+{
+	struct octeon_temp_buffer *temp;
+
+	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
+		return;
+
+	temp = container_of(urb->transfer_buffer, struct octeon_temp_buffer,
+			    data);
+	if (usb_urb_dir_in(urb))
+		memcpy(temp->orig_buffer, urb->transfer_buffer,
+		       urb->actual_length);
+	urb->transfer_buffer = temp->orig_buffer;
+	urb->transfer_flags &= ~URB_ALIGNED_TEMP_BUFFER;
+	kfree(temp->temp_buffer);
+}
+
+/**
+ * octeon_map_urb_for_dma - Octeon-specific map_urb_for_dma().
+ * @hcd:	USB HCD structure.
+ * @urb:	URB.
+ * @mem_flags:	Memory allocation flags.
+ */
+static int octeon_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
+				  gfp_t mem_flags)
+{
+	int ret;
+
+	ret = octeon_alloc_temp_buffer(urb, mem_flags);
+	if (ret)
+		return ret;
+
+	ret = usb_hcd_map_urb_for_dma(hcd, urb, mem_flags);
+	if (ret)
+		octeon_free_temp_buffer(urb);
+
+	return ret;
+}
+
+/**
+ * octeon_unmap_urb_for_dma - Octeon-specific unmap_urb_for_dma()
+ * @hcd:	USB HCD structure.
+ * @urb:	URB.
+ */
+static void octeon_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
+{
+	usb_hcd_unmap_urb_for_dma(hcd, urb);
+	octeon_free_temp_buffer(urb);
+}
+
+/**
  * Read a USB 32bit CSR. It performs the necessary address swizzle
  * for 32bit CSRs and logs the value in a readable format if
  * debugging is on.
@@ -3601,6 +3707,8 @@ static const struct hc_driver octeon_hc_driver = {
 	.get_frame_number	= octeon_usb_get_frame_number,
 	.hub_status_data	= octeon_usb_hub_status_data,
 	.hub_control		= octeon_usb_hub_control,
+	.map_urb_for_dma	= octeon_map_urb_for_dma,
+	.unmap_urb_for_dma	= octeon_unmap_urb_for_dma,
 };
 
 static int octeon_usb_probe(struct platform_device *pdev)
