@@ -1474,8 +1474,11 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		case 0:
 			entry->dpconf.link_bw = 162000;
 			break;
-		default:
+		case 1:
 			entry->dpconf.link_bw = 270000;
+			break;
+		default:
+			entry->dpconf.link_bw = 540000;
 			break;
 		}
 		switch ((conf & 0x0f000000) >> 24) {
