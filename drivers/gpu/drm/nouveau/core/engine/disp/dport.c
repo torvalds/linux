@@ -312,6 +312,14 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 		ERR("failed to read DPCD\n");
 	}
 
+	/* bring capabilities within encoder limits */
+	if ((dp->dpcd[2] & 0x1f) > dp->outp->dpconf.link_nr) {
+		dp->dpcd[2] &= ~0x1f;
+		dp->dpcd[2] |= dp->outp->dpconf.link_nr;
+	}
+	if (dp->dpcd[1] > dp->outp->dpconf.link_bw)
+		dp->dpcd[1] = dp->outp->dpconf.link_bw;
+
 	/* adjust required bandwidth for 8B/10B coding overhead */
 	datarate = (datarate / 8) * 10;
 
