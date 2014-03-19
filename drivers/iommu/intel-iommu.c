@@ -1624,7 +1624,11 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 	else
 		domain->iommu_snooping = 0;
 
-	domain->iommu_superpage = fls(cap_super_page_val(iommu->cap));
+	if (intel_iommu_superpage)
+		domain->iommu_superpage = fls(cap_super_page_val(iommu->cap));
+	else
+		domain->iommu_superpage = 0;
+
 	domain->nid = iommu->node;
 
 	/* always allocate the top pgd */
