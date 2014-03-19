@@ -761,7 +761,8 @@ static int rk3288_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	
-	if (dev_drv->wait_fs) {
+	/*if (dev_drv->wait_fs) {*/
+	if (0){
 		spin_lock_irqsave(&dev_drv->cpl_lock, flags);
 		init_completion(&dev_drv->frame_done);
 		spin_unlock_irqrestore(&dev_drv->cpl_lock, flags);
@@ -2708,10 +2709,45 @@ static int rk3288_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-
+	int i;
+	unsigned int mask, val;
+	struct rk_lcdc_win *win = NULL;
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
 			     v_STANDBY_EN(lcdc_dev->standby));
+	for (i=0;i<4;i++) {
+		win = dev_drv->win[i];
+		if (win->state == 0) {
+			switch (win->id) {
+			case 0:
+				mask =  m_WIN0_EN;
+				val  =  v_WIN0_EN(0);
+				lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask,val);	
+				break;
+			case 1:
+				mask =  m_WIN1_EN;
+				val  =  v_WIN1_EN(0);
+				lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask,val);		
+				break;
+			case 2:
+				mask =  m_WIN2_EN | m_WIN2_MST0_EN | m_WIN2_MST1_EN |
+					m_WIN2_MST2_EN | m_WIN2_MST3_EN;
+				val  =  v_WIN2_EN(0) | v_WIN2_MST0_EN(0) | v_WIN2_MST1_EN(0) |
+					v_WIN2_MST2_EN(0) | v_WIN2_MST3_EN(0);
+				lcdc_msk_reg(lcdc_dev, WIN2_CTRL0, mask,val);			
+				break;
+			case 3:
+				mask =  m_WIN3_EN | m_WIN3_MST0_EN | m_WIN3_MST1_EN |
+					m_WIN3_MST2_EN | m_WIN3_MST3_EN;
+				val  =  v_WIN3_EN(0) | v_WIN3_MST0_EN(0) |  v_WIN3_MST1_EN(0) |
+					v_WIN3_MST2_EN(0) | v_WIN3_MST3_EN(0);
+				lcdc_msk_reg(lcdc_dev, WIN3_CTRL0, mask,val);
+				break;
+			default:
+				break;
+			}
+		}	
+	}
 	lcdc_cfg_done(lcdc_dev);
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
@@ -3014,7 +3050,8 @@ static irqreturn_t rk3288_lcdc_isr(int irq, void *dev_id)
 		timestamp = ktime_get();
 		lcdc_msk_reg(lcdc_dev, INTR_CTRL0, m_FS_INTR_CLR,
 			     v_FS_INTR_CLR(1));
-		if(lcdc_dev->driver.wait_fs){	
+		/*if(lcdc_dev->driver.wait_fs){	*/
+		if (0) {
 			spin_lock(&(lcdc_dev->driver.cpl_lock));
 			complete(&(lcdc_dev->driver.frame_done));
 			spin_unlock(&(lcdc_dev->driver.cpl_lock));

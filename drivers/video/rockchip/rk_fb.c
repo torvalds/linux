@@ -1114,7 +1114,6 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	struct rk_lcdc_driver *ext_dev_drv;
 	struct rk_lcdc_win *ext_win;
 
-	dev_drv->atv_layer_cnt = regs->win_num;
 	for(i=0;i<dev_drv->lcdc_win_num;i++){ 
 		//old_reg_win_data[i]= regs->reg_win_data[i];
 		win = dev_drv->win[i];
@@ -1125,11 +1124,11 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		if(j<regs->win_num){
 			rk_fb_update_driver(win,&regs->reg_win_data[j]);
 			win->state = 1;
+			dev_drv->ops->set_par(dev_drv,i);
+			dev_drv->ops->pan_display(dev_drv,i);		
 		}else{
 			win->state = 0;
 		}
-		dev_drv->ops->set_par(dev_drv,i);
-		dev_drv->ops->pan_display(dev_drv,i);
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
 
@@ -1200,12 +1199,15 @@ ext_win_exit:
 
 	ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
 			!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));
+	
 #ifdef H_USE_FENCE
 	sw_sync_timeline_inc(dev_drv->timeline, 1);
 #endif
 	for(i=0;i<regs->win_num;i++){
 		rk_fb_free_dma_buf(dev_drv->dev,&regs->reg_win_data[i]);
 	}
+	if (dev_drv->wait_fs == 1)
+		kfree(regs);	
 }
 
 static void rk_fb_update_regs_handler(struct kthread_work *work)
