@@ -1023,6 +1023,15 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			     HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES);
 	mpdu_ranges = htt_rx_ind_get_mpdu_ranges(rx);
 
+	/* Fill this once, while this is per-ppdu */
+	info.signal  = ATH10K_DEFAULT_NOISE_FLOOR;
+	info.signal += rx->ppdu.combined_rssi;
+
+	info.rate.info0 = rx->ppdu.info0;
+	info.rate.info1 = __le32_to_cpu(rx->ppdu.info1);
+	info.rate.info2 = __le32_to_cpu(rx->ppdu.info2);
+	info.tsf = __le32_to_cpu(rx->ppdu.tsf);
+
 	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt rx ind: ",
 			rx, sizeof(*rx) +
 			(sizeof(struct htt_rx_indication_mpdu_range) *
@@ -1066,14 +1075,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			if (info.mic_err)
 				ath10k_dbg(ATH10K_DBG_HTT,
 					   "htt rx has MIC err\n");
-
-			info.signal  = ATH10K_DEFAULT_NOISE_FLOOR;
-			info.signal += rx->ppdu.combined_rssi;
-
-			info.rate.info0 = rx->ppdu.info0;
-			info.rate.info1 = __le32_to_cpu(rx->ppdu.info1);
-			info.rate.info2 = __le32_to_cpu(rx->ppdu.info2);
-			info.tsf = __le32_to_cpu(rx->ppdu.tsf);
 
 			hdr = ath10k_htt_rx_skb_get_hdr(msdu_head);
 
