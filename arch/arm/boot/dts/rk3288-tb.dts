@@ -124,7 +124,7 @@
 	};
 
 	rockchip-rt3224 {
-		compatible = "rockchip-rt3224";
+		compatible = "rockchip-rt3261";
 		dais {
 			dai0 {
 				audio-codec = <&rt3261>;
