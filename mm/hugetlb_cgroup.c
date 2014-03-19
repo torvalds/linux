@@ -254,7 +254,7 @@ static u64 hugetlb_cgroup_read_u64(struct cgroup_subsys_state *css,
 }
 
 static int hugetlb_cgroup_write(struct cgroup_subsys_state *css,
-				struct cftype *cft, const char *buffer)
+				struct cftype *cft, char *buffer)
 {
 	int idx, name, ret;
 	unsigned long long val;

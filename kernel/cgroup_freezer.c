@@ -442,7 +442,7 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 }
 
 static int freezer_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			 const char *buffer)
+			 char *buffer)
 {
 	bool freeze;
 

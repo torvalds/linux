@@ -1408,13 +1408,13 @@ static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
 }
 
 static int tg_set_conf_u64(struct cgroup_subsys_state *css, struct cftype *cft,
-			   const char *buf)
+			   char *buf)
 {
 	return tg_set_conf(css, cft, buf, true);
 }
 
 static int tg_set_conf_uint(struct cgroup_subsys_state *css, struct cftype *cft,
-			    const char *buf)
+			    char *buf)
 {
 	return tg_set_conf(css, cft, buf, false);
 }

@@ -496,7 +496,7 @@ static inline bool has_children(struct dev_cgroup *devcgroup)
  * parent cgroup has the access you're asking for.
  */
 static int devcgroup_update_access(struct dev_cgroup *devcgroup,
-				   int filetype, const char *buffer)
+				   int filetype, char *buffer)
 {
 	const char *b;
 	char temp[12];		/* 11 + 1 characters needed for a u32 */
@@ -652,7 +652,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 }
 
 static int devcgroup_access_write(struct cgroup_subsys_state *css,
-				  struct cftype *cft, const char *buffer)
+				  struct cftype *cft, char *buffer)
 {
 	int retval;
 

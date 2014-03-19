@@ -5242,7 +5242,7 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
  * RES_LIMIT.
  */
 static int mem_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			    const char *buffer)
+			    char *buffer)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	enum res_type type;
@@ -6063,7 +6063,7 @@ static void memcg_event_ptable_queue_proc(struct file *file,
  * Interpretation of args is defined by control file implementation.
  */
 static int memcg_write_event_control(struct cgroup_subsys_state *css,
-				     struct cftype *cft, const char *buffer)
+				     struct cftype *cft, char *buffer)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_event *event;

@@ -2143,7 +2143,7 @@ static int cgroup_procs_write(struct cgroup_subsys_state *css,
 }
 
 static int cgroup_release_agent_write(struct cgroup_subsys_state *css,
-				      struct cftype *cft, const char *buffer)
+				      struct cftype *cft, char *buffer)
 {
 	struct cgroup_root *root = css->cgroup->root;
 

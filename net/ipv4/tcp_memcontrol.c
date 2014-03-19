@@ -103,7 +103,7 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 }
 
 static int tcp_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			    const char *buffer)
+			    char *buffer)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	unsigned long long val;

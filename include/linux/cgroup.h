@@ -454,7 +454,7 @@ struct cftype {
 	 * Returns 0 or -ve error code.
 	 */
 	int (*write_string)(struct cgroup_subsys_state *css, struct cftype *cft,
-			    const char *buffer);
+			    char *buffer);
 	/*
 	 * trigger() callback can be used to get some kick from the
 	 * userspace, when the actual string written is not important

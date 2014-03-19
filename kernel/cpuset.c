@@ -1610,7 +1610,7 @@ out_unlock:
  * Common handling for a write to a "cpus" or "mems" file.
  */
 static int cpuset_write_resmask(struct cgroup_subsys_state *css,
-				struct cftype *cft, const char *buf)
+				struct cftype *cft, char *buf)
 {
 	struct cpuset *cs = css_cs(css);
 	struct cpuset *trialcs;

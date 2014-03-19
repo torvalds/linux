@@ -1701,13 +1701,13 @@ static int __cfqg_set_weight_device(struct cgroup_subsys_state *css,
 }
 
 static int cfqg_set_weight_device(struct cgroup_subsys_state *css,
-				  struct cftype *cft, const char *buf)
+				  struct cftype *cft, char *buf)
 {
 	return __cfqg_set_weight_device(css, cft, buf, false);
 }
 
 static int cfqg_set_leaf_weight_device(struct cgroup_subsys_state *css,
-				       struct cftype *cft, const char *buf)
+				       struct cftype *cft, char *buf)
 {
 	return __cfqg_set_weight_device(css, cft, buf, true);
 }
