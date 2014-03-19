@@ -301,7 +301,9 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 struct file_stats {
 	struct drm_i915_file_private *file_priv;
 	int count;
-	size_t total, global, active, inactive, unbound;
+	size_t total, unbound;
+	size_t global, shared;
+	size_t active, inactive;
 };
 
 static int per_file_stats(int id, void *ptr, void *data)
@@ -312,6 +314,9 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 	stats->count++;
 	stats->total += obj->base.size;
+
+	if (obj->base.name || obj->base.dma_buf)
+		stats->shared += obj->base.size;
 
 	if (USES_FULL_PPGTT(obj->base.dev)) {
 		list_for_each_entry(vma, &obj->vma_list, vma_link) {
@@ -450,13 +455,14 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		 */
 		rcu_read_lock();
 		task = pid_task(file->pid, PIDTYPE_PID);
-		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu unbound)\n",
+		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n",
 			   task ? task->comm : "<unknown>",
 			   stats.count,
 			   stats.total,
 			   stats.active,
 			   stats.inactive,
 			   stats.global,
+			   stats.shared,
 			   stats.unbound);
 		rcu_read_unlock();
 	}
