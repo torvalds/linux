@@ -1872,15 +1872,15 @@ void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_enable_primary_plane - enable the primary plane on a given pipe
+ * intel_enable_primary_hw_plane - enable the primary plane on a given pipe
  * @dev_priv: i915 private structure
  * @plane: plane to enable
  * @pipe: pipe being fed
  *
  * Enable @plane on @pipe, making sure that @pipe is running first.
  */
-static void intel_enable_primary_plane(struct drm_i915_private *dev_priv,
-				       enum plane plane, enum pipe pipe)
+static void intel_enable_primary_hw_plane(struct drm_i915_private *dev_priv,
+					  enum plane plane, enum pipe pipe)
 {
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
@@ -1905,15 +1905,15 @@ static void intel_enable_primary_plane(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_disable_primary_plane - disable the primary plane
+ * intel_disable_primary_hw_plane - disable the primary hardware plane
  * @dev_priv: i915 private structure
  * @plane: plane to disable
  * @pipe: pipe consuming the data
  *
  * Disable @plane; should be an independent operation.
  */
-static void intel_disable_primary_plane(struct drm_i915_private *dev_priv,
-					enum plane plane, enum pipe pipe)
+static void intel_disable_primary_hw_plane(struct drm_i915_private *dev_priv,
+					   enum plane plane, enum pipe pipe)
 {
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
@@ -2152,8 +2152,9 @@ static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	}
 }
 
-static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			     int x, int y)
+static int i9xx_update_primary_plane(struct drm_crtc *crtc,
+				     struct drm_framebuffer *fb,
+				     int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2252,8 +2253,9 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 }
 
-static int ironlake_update_plane(struct drm_crtc *crtc,
-				 struct drm_framebuffer *fb, int x, int y)
+static int ironlake_update_primary_plane(struct drm_crtc *crtc,
+					 struct drm_framebuffer *fb,
+					 int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2357,7 +2359,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		dev_priv->display.disable_fbc(dev);
 	intel_increase_pllclock(crtc);
 
-	return dev_priv->display.update_plane(crtc, fb, x, y);
+	return dev_priv->display.update_primary_plane(crtc, fb, x, y);
 }
 
 void intel_display_handle_reset(struct drm_device *dev)
@@ -2397,8 +2399,10 @@ void intel_display_handle_reset(struct drm_device *dev)
 		 * a NULL crtc->fb.
 		 */
 		if (intel_crtc->active && crtc->fb)
-			dev_priv->display.update_plane(crtc, crtc->fb,
-						       crtc->x, crtc->y);
+			dev_priv->display.update_primary_plane(crtc,
+							       crtc->fb,
+							       crtc->x,
+							       crtc->y);
 		mutex_unlock(&crtc->mutex);
 	}
 }
@@ -2514,7 +2518,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		intel_crtc->config.pipe_src_h = adjusted_mode->crtc_vdisplay;
 	}
 
-	ret = dev_priv->display.update_plane(crtc, fb, x, y);
+	ret = dev_priv->display.update_primary_plane(crtc, fb, x, y);
 	if (ret) {
 		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(to_intel_framebuffer(fb)->obj);
@@ -3695,7 +3699,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
-	intel_enable_primary_plane(dev_priv, plane, pipe);
+	intel_enable_primary_hw_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
 
@@ -3737,7 +3741,7 @@ static void haswell_crtc_enable_planes(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 
-	intel_enable_primary_plane(dev_priv, plane, pipe);
+	intel_enable_primary_hw_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
 
@@ -3767,7 +3771,7 @@ static void haswell_crtc_disable_planes(struct drm_crtc *crtc)
 
 	intel_crtc_update_cursor(crtc, false);
 	intel_disable_planes(crtc);
-	intel_disable_primary_plane(dev_priv, plane, pipe);
+	intel_disable_primary_hw_plane(dev_priv, plane, pipe);
 }
 
 /*
@@ -3895,7 +3899,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_crtc_update_cursor(crtc, false);
 	intel_disable_planes(crtc);
-	intel_disable_primary_plane(dev_priv, plane, pipe);
+	intel_disable_primary_hw_plane(dev_priv, plane, pipe);
 
 	if (intel_crtc->config.has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
@@ -4378,7 +4382,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
-	intel_enable_primary_plane(dev_priv, plane, pipe);
+	intel_enable_primary_hw_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
 
@@ -4417,7 +4421,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
-	intel_enable_primary_plane(dev_priv, plane, pipe);
+	intel_enable_primary_hw_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	/* The fixup needs to happen before cursor is enabled */
 	if (IS_G4X(dev))
@@ -4473,7 +4477,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_crtc_dpms_overlay(intel_crtc, false);
 	intel_crtc_update_cursor(crtc, false);
 	intel_disable_planes(crtc);
-	intel_disable_primary_plane(dev_priv, plane, pipe);
+	intel_disable_primary_hw_plane(dev_priv, plane, pipe);
 
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
 	intel_disable_pipe(dev_priv, pipe);
@@ -11018,7 +11022,8 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
 		dev_priv->display.off = haswell_crtc_off;
-		dev_priv->display.update_plane = ironlake_update_plane;
+		dev_priv->display.update_primary_plane =
+			ironlake_update_primary_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
 		dev_priv->display.get_plane_config = ironlake_get_plane_config;
@@ -11026,7 +11031,8 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
 		dev_priv->display.off = ironlake_crtc_off;
-		dev_priv->display.update_plane = ironlake_update_plane;
+		dev_priv->display.update_primary_plane =
+			ironlake_update_primary_plane;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_plane_config = i9xx_get_plane_config;
@@ -11034,7 +11040,8 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 		dev_priv->display.off = i9xx_crtc_off;
-		dev_priv->display.update_plane = i9xx_update_plane;
+		dev_priv->display.update_primary_plane =
+			i9xx_update_primary_plane;
 	} else {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_plane_config = i9xx_get_plane_config;
@@ -11042,7 +11049,8 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 		dev_priv->display.off = i9xx_crtc_off;
-		dev_priv->display.update_plane = i9xx_update_plane;
+		dev_priv->display.update_primary_plane =
+			i9xx_update_primary_plane;
 	}
 
 	/* Returns the core display clock speed */
