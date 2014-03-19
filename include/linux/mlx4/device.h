@@ -1204,4 +1204,31 @@ int mlx4_FLOW_STEERING_IB_UC_QP_RANGE(struct mlx4_dev *dev, u32 min_range_qpn,
 
 cycle_t mlx4_read_clock(struct mlx4_dev *dev);
 
+struct mlx4_active_ports {
+	DECLARE_BITMAP(ports, MLX4_MAX_PORTS);
+};
+/* Returns a bitmap of the physical ports which are assigned to slave */
+struct mlx4_active_ports mlx4_get_active_ports(struct mlx4_dev *dev, int slave);
+
+/* Returns the physical port that represents the virtual port of the slave, */
+/* or a value < 0 in case of an error. If a slave has 2 ports, the identity */
+/* mapping is returned.							    */
+int mlx4_slave_convert_port(struct mlx4_dev *dev, int slave, int port);
+
+struct mlx4_slaves_pport {
+	DECLARE_BITMAP(slaves, MLX4_MFUNC_MAX);
+};
+/* Returns a bitmap of all slaves that are assigned to port. */
+struct mlx4_slaves_pport mlx4_phys_to_slaves_pport(struct mlx4_dev *dev,
+						   int port);
+
+/* Returns a bitmap of all slaves that are assigned exactly to all the */
+/* the ports that are set in crit_ports.			       */
+struct mlx4_slaves_pport mlx4_phys_to_slaves_pport_actv(
+		struct mlx4_dev *dev,
+		const struct mlx4_active_ports *crit_ports);
+
+/* Returns the slave's virtual port that represents the physical port. */
+int mlx4_phys_to_slave_port(struct mlx4_dev *dev, int slave, int port);
+
 #endif /* MLX4_DEVICE_H */
