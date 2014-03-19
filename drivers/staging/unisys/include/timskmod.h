@@ -148,13 +148,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 		       msg, status);				      \
 		RETINT(status);					      \
 	} while (0)
-#define FAIL_WPOSTCODE_1(msg, status, EVENT_PC) do {          \
-		ERRDRV("'%s'"					      \
-		       ": error (status=%d)\n",			      \
-		       msg, status);					\
-		POSTCODE_LINUX_2(EVENT_PC, DIAG_SEVERITY_ERR);		\
-		RETINT(status);						\
-	} while (0)
 /** Try to evaulate the provided expression, and do a RETINT(x) iff
  *  the expression evaluates to < 0.
  *  @param x the expression to try

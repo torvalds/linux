@@ -2695,9 +2695,11 @@ visorchipset_init(void)
 	controlvm_init();
 	MajorDev = MKDEV(visorchipset_major, 0);
 	rc = visorchipset_file_init(MajorDev, &ControlVm_channel);
-	if (rc < 0)
-		FAIL_WPOSTCODE_1("visorchipset_file_init(MajorDev, &ControlVm_channel)",
-				 rc, CHIPSET_INIT_FAILURE_PC);
+	if (rc < 0) {
+		ERRDRV("visorchipset_file_init(MajorDev, &ControlVm_channel): error (status=%d)\n", rc);
+		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
+		goto Away;
+	}
 
 	proc_Init();
 	memset(PartitionPropertyNames, 0, sizeof(PartitionPropertyNames));
@@ -2738,16 +2740,20 @@ visorchipset_init(void)
 	memset(&g_DelDumpMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	if (filexfer_constructor(sizeof(struct putfile_request)) < 0) {
-		FAIL_WPOSTCODE_1("filexfer_constructor failed", -1,
-				 CHIPSET_INIT_FAILURE_PC);
+		ERRDRV("filexfer_constructor failed: (status=-1)\n");
+		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
+		rc = -1;
+		goto Away;
 	}
 	Putfile_buffer_list_pool =
 	    kmem_cache_create(Putfile_buffer_list_pool_name,
 			      sizeof(struct putfile_buffer_entry),
 			      0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!Putfile_buffer_list_pool) {
-		FAIL_WPOSTCODE_1("failed to alloc Putfile_buffer_list_pool", -1,
-				 CHIPSET_INIT_FAILURE_PC);
+		ERRDRV("failed to alloc Putfile_buffer_list_pool: (status=-1)\n");
+		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
+		rc = -1;
+		goto Away;
 	}
 	if (visorchipset_disable_controlvm) {
 		LOGINF("visorchipset_init:controlvm disabled");
@@ -2762,24 +2768,34 @@ visorchipset_init(void)
 		Periodic_controlvm_workqueue =
 		    create_singlethread_workqueue("visorchipset_controlvm");
 
-		if (Periodic_controlvm_workqueue == NULL)
-			FAIL_WPOSTCODE_1("cannot create controlvm workqueue",
-					 -ENOMEM, CREATE_WORKQUEUE_FAILED_PC);
+		if (Periodic_controlvm_workqueue == NULL) {
+			ERRDRV("cannot create controlvm workqueue: (status=%d)\n",
+			       -ENOMEM);
+			POSTCODE_LINUX_2(CREATE_WORKQUEUE_FAILED_PC,
+					 DIAG_SEVERITY_ERR);
+			rc = -ENOMEM;
+			goto Away;
+		}
 		Most_recent_message_jiffies = jiffies;
 		Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 		rc = queue_delayed_work(Periodic_controlvm_workqueue,
 					&Periodic_controlvm_work, Poll_jiffies);
-		if (rc < 0)
-			FAIL_WPOSTCODE_1("queue_delayed_work(Periodic_controlvm_workqueue, &Periodic_controlvm_work, Poll_jiffies);",
-					 rc, QUEUE_DELAYED_WORK_PC);
+		if (rc < 0) {
+			ERRDRV("queue_delayed_work(Periodic_controlvm_workqueue, &Periodic_controlvm_work, Poll_jiffies): error (status=%d)\n", rc);
+			POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC,
+					 DIAG_SEVERITY_ERR);
+			goto Away;
+		}
 
 	}
 
 	Visorchipset_platform_device.dev.devt = MajorDev;
-	if (platform_device_register(&Visorchipset_platform_device) < 0)
-		FAIL_WPOSTCODE_1
-		    ("platform_device_register(visorchipset) failed", -1,
-		     DEVICE_REGISTER_FAILURE_PC);
+	if (platform_device_register(&Visorchipset_platform_device) < 0) {
+		ERRDRV("platform_device_register(visorchipset) failed: (status=-1)\n");
+		POSTCODE_LINUX_2(DEVICE_REGISTER_FAILURE_PC, DIAG_SEVERITY_ERR);
+		rc = -1;
+		goto Away;
+	}
 	LOGINF("visorchipset device created");
 	POSTCODE_LINUX_2(CHIPSET_INIT_SUCCESS_PC, POSTCODE_SEVERITY_INFO);
 	RETINT(0);
