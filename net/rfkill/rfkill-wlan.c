@@ -277,6 +277,35 @@ EXPORT_SYMBOL(rockchip_wifi_set_carddetect);
 
 /**************************************************************************
  *
+ * Wifi Get Interrupt irq Func
+ *
+ *************************************************************************/
+int rockchip_wifi_get_oob_irq(void)
+{
+    struct rfkill_wlan_data *mrfkill = g_rfkill;
+    struct rksdmmc_gpio *wifi_int_irq;
+
+    LOG("%s: Enter\n", __func__);
+
+    if (mrfkill == NULL) {
+        LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
+        return -1;
+    }
+    
+    wifi_int_irq = &mrfkill->pdata->wifi_int_b;
+    if (gpio_is_valid(wifi_int_irq->io)) {
+        return gpio_to_irq(wifi_int_irq->io);
+        //return wifi_int_irq->io;
+    } else {
+        LOG("%s: wifi OOB pin isn't defined.\n", __func__);
+    }
+    
+    return -1;
+}
+EXPORT_SYMBOL(rockchip_wifi_get_oob_irq);
+
+/**************************************************************************
+ *
  * Wifi Reset Func
  *
  *************************************************************************/

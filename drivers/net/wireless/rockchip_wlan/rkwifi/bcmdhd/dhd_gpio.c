@@ -37,10 +37,7 @@
 #ifdef CUSTOMER_OOB
 int bcm_wlan_get_oob_irq(void)
 {
-	int host_oob_irq = 0;
-
-
-	return host_oob_irq;
+    return rockchip_wifi_get_oob_irq();
 }
 #endif
 
