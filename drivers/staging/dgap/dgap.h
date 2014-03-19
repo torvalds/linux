@@ -194,13 +194,6 @@ typedef unsigned char		uchar;
 
 #define VPDSIZE (512)
 
-/*
- * Lock function/defines.
- * Makes spotting lock/unlock locations easier.
- */
-# define DGAP_LOCK(x,y)			spin_lock_irqsave(&(x), y)
-# define DGAP_UNLOCK(x,y)		spin_unlock_irqrestore(&(x), y)
-
 /************************************************************************
  *      FEP memory offsets
  ************************************************************************/

@@ -575,13 +575,13 @@ static int dgap_start(void)
 	}
 
 	/* Start the poller */
-	DGAP_LOCK(dgap_poll_lock, flags);
+	spin_lock_irqsave(&dgap_poll_lock, flags);
 	init_timer(&dgap_poll_timer);
 	dgap_poll_timer.function = dgap_poll_handler;
 	dgap_poll_timer.data = 0;
 	dgap_poll_time = jiffies + dgap_jiffies_from_ms(dgap_poll_tick);
 	dgap_poll_timer.expires = dgap_poll_time;
-	DGAP_UNLOCK(dgap_poll_lock, flags);
+	spin_unlock_irqrestore(&dgap_poll_lock, flags);
 
 	add_timer(&dgap_poll_timer);
 
@@ -642,9 +642,9 @@ static void dgap_cleanup_module(void)
 	int i;
 	ulong lock_flags;
 
-	DGAP_LOCK(dgap_poll_lock, lock_flags);
+	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
 	dgap_poll_stop = 1;
-	DGAP_UNLOCK(dgap_poll_lock, lock_flags);
+	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
 
 	/* Turn off poller right away. */
 	del_timer_sync(&dgap_poll_timer);
@@ -1134,7 +1134,7 @@ schedule_poller:
 	/*
 	 * Schedule ourself back at the nominal wakeup interval.
 	 */
-	DGAP_LOCK(dgap_poll_lock, lock_flags);
+	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
 	dgap_poll_time +=  dgap_jiffies_from_ms(dgap_poll_tick);
 
 	new_time = dgap_poll_time - jiffies;
@@ -1147,7 +1147,7 @@ schedule_poller:
 	dgap_poll_timer.function = dgap_poll_handler;
 	dgap_poll_timer.data = 0;
 	dgap_poll_timer.expires = dgap_poll_time;
-	DGAP_UNLOCK(dgap_poll_lock, lock_flags);
+	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
 
 	if (!dgap_poll_stop)
 		add_timer(&dgap_poll_timer);
@@ -1692,8 +1692,8 @@ static void dgap_input(struct channel_t *ch)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	/*
 	 *      Figure the number of characters in the buffer.
@@ -1711,8 +1711,8 @@ static void dgap_input(struct channel_t *ch)
 
 	if (data_len == 0) {
 		writeb(1, &(bs->idata));
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return;
 	}
 
@@ -1728,8 +1728,8 @@ static void dgap_input(struct channel_t *ch)
 
 		writew(head, &(bs->rx_tail));
 		writeb(1, &(bs->idata));
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return;
 	}
 
@@ -1738,8 +1738,8 @@ static void dgap_input(struct channel_t *ch)
 	 */
 	if (ch->ch_flags & CH_RXBLOCK) {
 		writeb(1, &(bs->idata));
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return;
 	}
 
@@ -1791,8 +1791,8 @@ static void dgap_input(struct channel_t *ch)
 
 	if (len <= 0) {
 		writeb(1, &(bs->idata));
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		if (ld)
 			tty_ldisc_deref(ld);
 		return;
@@ -1850,8 +1850,8 @@ static void dgap_input(struct channel_t *ch)
 		tty_insert_flip_string(tp->port, ch->ch_bd->flipbuf, len);
 	}
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	/* Tell the tty layer its okay to "eat" the data now */
 	tty_flip_buffer_push(tp->port);
@@ -2021,28 +2021,28 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	if (rc)
 		return rc;
 
-	DGAP_LOCK(brd->bd_lock, lock_flags);
+	spin_lock_irqsave(&brd->bd_lock, lock_flags);
 
 	/* The wait above should guarantee this cannot happen */
 	if (brd->state != BOARD_READY) {
-		DGAP_UNLOCK(brd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
 		return -ENXIO;
 	}
 
 	/* If opened device is greater than our number of ports, bail. */
 	if (MINOR(tty_devnum(tty)) > brd->nasync) {
-		DGAP_UNLOCK(brd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
 		return -ENXIO;
 	}
 
 	ch = brd->channels[minor];
 	if (!ch) {
-		DGAP_UNLOCK(brd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
 		return -ENXIO;
 	}
 
 	/* Grab channel lock */
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	/* Figure out our type */
 	if (major == brd->dgap_Serial_Major) {
@@ -2052,8 +2052,8 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 		un = &brd->channels[minor]->ch_pun;
 		un->un_type = DGAP_PRINT;
 	} else {
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(brd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
 		return -ENXIO;
 	}
 
@@ -2065,8 +2065,8 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	 */
 	bs = ch->ch_bs;
 	if (!bs) {
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(brd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
 		return -ENXIO;
 	}
 
@@ -2118,8 +2118,8 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	 * follow protocol for opening port
 	 */
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(brd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
 
 	rc = dgap_block_til_ready(tty, file, ch);
 
@@ -2127,11 +2127,11 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 		return -ENODEV;
 
 	/* No going back now, increment our unit and channel counters */
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 	ch->ch_open_count++;
 	un->un_open_count++;
 	un->un_flags |= (UN_ISOPEN);
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	return rc;
 }
@@ -2158,7 +2158,7 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return -ENXIO;
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 	ch->ch_wopen++;
 
@@ -2238,7 +2238,7 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 		 * eventually goes active.
 		 */
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 		/*
 		 * Wait for something in the flags to change
@@ -2257,12 +2257,12 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 		 * We got woken up for some reason.
 		 * Before looping around, grab our channel lock.
 		 */
-		DGAP_LOCK(ch->ch_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags);
 	}
 
 	ch->ch_wopen--;
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	if (retval)
 		return retval;
@@ -2331,7 +2331,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 
 	ts = &tty->termios;
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 	/*
 	 * Determine if this is the last close or not - and if we agree about
@@ -2354,7 +2354,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 	ch->ch_open_count--;
 
 	if (ch->ch_open_count && un->un_open_count) {
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 		return;
 	}
 
@@ -2373,7 +2373,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 
 		ch->ch_flags &= ~(CH_RXBLOCK);
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 		/* wait for output to drain */
 		/* This will also return if we take an interrupt */
@@ -2383,7 +2383,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 		dgap_tty_flush_buffer(tty);
 		tty_ldisc_flush(tty);
 
-		DGAP_LOCK(ch->ch_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 		tty->closing = 0;
 
@@ -2399,9 +2399,10 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 			 * have been dropped for modems to see it.
 			 */
 			if (ch->ch_close_delay) {
-				DGAP_UNLOCK(ch->ch_lock, lock_flags);
+				spin_unlock_irqrestore(&ch->ch_lock,
+						       lock_flags);
 				dgap_ms_sleep(ch->ch_close_delay);
-				DGAP_LOCK(ch->ch_lock, lock_flags);
+				spin_lock_irqsave(&ch->ch_lock, lock_flags);
 			}
 		}
 
@@ -2427,7 +2428,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 	wake_up_interruptible(&ch->ch_flags_wait);
 	wake_up_interruptible(&un->un_flags_wait);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 }
 
 /*
@@ -2469,8 +2470,8 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	if (!bs)
 		return 0;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	tmask = (ch->ch_tsize - 1);
 
@@ -2485,8 +2486,8 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	chead = readw(&(ch->ch_cm->cm_head));
 	ctail = readw(&(ch->ch_cm->cm_tail));
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	/*
 	 * The only way we know for sure if there is no pending
@@ -2517,10 +2518,11 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 			 * TBUSY has been cleared.
 			 */
 			if (tbusy != 0) {
-				DGAP_LOCK(ch->ch_lock, lock_flags);
+				spin_lock_irqsave(&ch->ch_lock, lock_flags);
 				un->un_flags |= UN_EMPTY;
 				writeb(1, &(bs->iempty));
-				DGAP_UNLOCK(ch->ch_lock, lock_flags);
+				spin_unlock_irqrestore(&ch->ch_lock,
+						       lock_flags);
 			}
 			chars = 1;
 		}
@@ -2564,10 +2566,10 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 			break;
 
 		/* Set flag waiting for drain */
-		DGAP_LOCK(ch->ch_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags);
 		un->un_flags |= UN_EMPTY;
 		writeb(1, &(bs->iempty));
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 		/* Go to sleep till we get woken up */
 		ret = wait_event_interruptible(un->un_flags_wait,
@@ -2577,9 +2579,9 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 			break;
 	}
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 	un->un_flags &= ~(UN_EMPTY);
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	return ret;
 }
@@ -2698,7 +2700,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	if (!bs)
 		return 0;
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 	tmask = ch->ch_tsize - 1;
 	head = readw(&(bs->tx_head)) & tmask;
@@ -2735,7 +2737,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	 * in every case?  Can we get smarter based on ret?
 	 */
 	dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	return ret;
 }
@@ -2799,7 +2801,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	 */
 	orig_count = count;
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 	/* Get our space available for the channel from the board */
 	tmask = ch->ch_tsize - 1;
@@ -2827,7 +2829,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	 */
 	if (count <= 0) {
 		dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 		return 0;
 	}
 
@@ -2859,7 +2861,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	 */
 	if (count <= 0) {
 		dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
-		DGAP_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 		return 0;
 	}
 
@@ -2935,7 +2937,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	return count;
 }
@@ -2962,13 +2964,13 @@ static int dgap_tty_tiocmget(struct tty_struct *tty)
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return result;
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 	mstat = readb(&(ch->ch_bs->m_stat));
 	/* Append any outbound signals that might be pending... */
 	mstat |= ch->ch_mostat;
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	result = 0;
 
@@ -3018,8 +3020,8 @@ static int dgap_tty_tiocmset(struct tty_struct *tty,
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return ret;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	if (set & TIOCM_RTS) {
 		ch->ch_mforce |= D_RTS(ch);
@@ -3043,8 +3045,8 @@ static int dgap_tty_tiocmset(struct tty_struct *tty,
 
 	dgap_param(tty);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	return 0;
 }
@@ -3090,15 +3092,15 @@ static int dgap_tty_send_break(struct tty_struct *tty, int msec)
 		break;
 	}
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 #if 0
 	dgap_cmdw(ch, SBREAK, (u16) SBREAK_TIME, 0);
 #endif
 	dgap_cmdw(ch, SBREAK, (u16) msec, 0);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	return 0;
 }
@@ -3141,8 +3143,8 @@ static void dgap_tty_send_xchar(struct tty_struct *tty, char c)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	/*
 	 * This is technically what we should do.
@@ -3162,8 +3164,8 @@ static void dgap_tty_send_xchar(struct tty_struct *tty, char c)
 	dgap_wmove(ch, &c, 1);
 #endif
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	return;
 }
@@ -3181,13 +3183,13 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return -ENXIO;
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 	mstat = readb(&(ch->ch_bs->m_stat));
 	/* Append any outbound signals that might be pending... */
 	mstat |= ch->ch_mostat;
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	result = 0;
 
@@ -3290,13 +3292,13 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command,
 		return -EINVAL;
 	}
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	dgap_param(tty);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	return 0;
 }
@@ -3333,9 +3335,9 @@ static int dgap_tty_digigeta(struct tty_struct *tty,
 
 	memset(&tmp, 0, sizeof(tmp));
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 	memcpy(&tmp, &ch->ch_digi, sizeof(tmp));
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -3379,8 +3381,8 @@ static int dgap_tty_digiseta(struct tty_struct *tty,
 	if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t)))
 		return -EFAULT;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	memcpy(&ch->ch_digi, &new_digi, sizeof(struct digi_t));
 
@@ -3407,8 +3409,8 @@ static int dgap_tty_digiseta(struct tty_struct *tty,
 
 	dgap_param(tty);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	return 0;
 }
@@ -3444,9 +3446,9 @@ static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo)
 
 	memset(&tmp, 0, sizeof(tmp));
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 	tmp = readw(&(ch->ch_bs->edelay));
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -3487,15 +3489,15 @@ static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
 	if (copy_from_user(&new_digi, new_info, sizeof(int)))
 		return -EFAULT;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	writew((u16) new_digi, &(ch->ch_bs->edelay));
 
 	dgap_param(tty);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	return 0;
 }
@@ -3529,9 +3531,9 @@ static int dgap_tty_digigetcustombaud(struct tty_struct *tty,
 
 	memset(&tmp, 0, sizeof(tmp));
 
-	DGAP_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 	tmp = dgap_get_custom_baud(ch);
-	DGAP_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -3575,15 +3577,15 @@ static int dgap_tty_digisetcustombaud(struct tty_struct *tty,
 
 	if (bd->bd_flags & BD_FEP5PLUS) {
 
-		DGAP_LOCK(bd->bd_lock, lock_flags);
-		DGAP_LOCK(ch->ch_lock, lock_flags2);
+		spin_lock_irqsave(&bd->bd_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 		ch->ch_custom_speed = new_rate;
 
 		dgap_param(tty);
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 	}
 
 	return 0;
@@ -3616,8 +3618,8 @@ static void dgap_tty_set_termios(struct tty_struct *tty,
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	ch->ch_c_cflag   = tty->termios.c_cflag;
 	ch->ch_c_iflag   = tty->termios.c_iflag;
@@ -3629,8 +3631,8 @@ static void dgap_tty_set_termios(struct tty_struct *tty,
 	dgap_carrier(ch);
 	dgap_param(tty);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 }
 
 static void dgap_tty_throttle(struct tty_struct *tty)
@@ -3656,16 +3658,16 @@ static void dgap_tty_throttle(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	ch->ch_flags |= (CH_RXBLOCK);
 #if 1
 	dgap_cmdw(ch, RPAUSE, 0, 0);
 #endif
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 }
 
@@ -3692,8 +3694,8 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	ch->ch_flags &= ~(CH_RXBLOCK);
 
@@ -3701,8 +3703,8 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 	dgap_cmdw(ch, RRESUME, 0, 0);
 #endif
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 }
 
 static void dgap_tty_start(struct tty_struct *tty)
@@ -3728,13 +3730,13 @@ static void dgap_tty_start(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	dgap_cmdw(ch, RESUMETX, 0, 0);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 }
 
@@ -3761,13 +3763,13 @@ static void dgap_tty_stop(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	dgap_cmdw(ch, PAUSETX, 0, 0);
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 }
 
@@ -3807,13 +3809,13 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	/* TODO: Do something here */
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 }
 
 /*
@@ -3845,8 +3847,8 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	ch->ch_flags &= ~CH_STOP;
 	head = readw(&(ch->ch_bs->tx_head));
@@ -3861,8 +3863,8 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 		wake_up_interruptible(&ch->ch_pun.un_flags_wait);
 	}
 
-	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 	if (waitqueue_active(&tty->write_wait))
 		wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
@@ -3906,12 +3908,12 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return -ENODEV;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
-	DGAP_LOCK(ch->ch_lock, lock_flags2);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	if (un->un_open_count <= 0) {
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return -EIO;
 	}
 
@@ -3929,8 +3931,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 * in the middle: 0.375 seconds.
 		 */
 		rc = tty_check_change(tty);
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		if (rc)
 			return rc;
 
@@ -3939,14 +3941,14 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if (rc)
 			return -EINTR;
 
-		DGAP_LOCK(bd->bd_lock, lock_flags);
-		DGAP_LOCK(ch->ch_lock, lock_flags2);
+		spin_lock_irqsave(&bd->bd_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 		if (((cmd == TCSBRK) && (!arg)) || (cmd == TCSBRKP))
 			dgap_cmdw(ch, SBREAK, (u16) SBREAK_TIME, 0);
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 		return 0;
 
@@ -3958,8 +3960,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 * in the middle: 0.375 seconds.
 		 */
 		rc = tty_check_change(tty);
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		if (rc)
 			return rc;
 
@@ -3967,13 +3969,13 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if (rc)
 			return -EINTR;
 
-		DGAP_LOCK(bd->bd_lock, lock_flags);
-		DGAP_LOCK(ch->ch_lock, lock_flags2);
+		spin_lock_irqsave(&bd->bd_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 		dgap_cmdw(ch, SBREAK, (u16) SBREAK_TIME, 0);
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 		return 0;
 
@@ -3985,8 +3987,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 * the break.
 		 */
 		rc = tty_check_change(tty);
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		if (rc)
 			return rc;
 
@@ -3994,13 +3996,13 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if (rc)
 			return -EINTR;
 
-		DGAP_LOCK(bd->bd_lock, lock_flags);
-		DGAP_LOCK(ch->ch_lock, lock_flags2);
+		spin_lock_irqsave(&bd->bd_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 		dgap_cmdw(ch, SBREAK, (u16) SBREAK_TIME, 0);
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 		return 0;
 
@@ -4011,47 +4013,47 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 * after the specified time value that was sent when turning on
 		 * the break.
 		 */
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return 0;
 
 	case TIOCGSOFTCAR:
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 		rc = put_user(C_CLOCAL(tty) ? 1 : 0,
 				(unsigned long __user *) arg);
 		return rc;
 
 	case TIOCSSOFTCAR:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 		rc = get_user(arg, (unsigned long __user *) arg);
 		if (rc)
 			return rc;
 
-		DGAP_LOCK(bd->bd_lock, lock_flags);
-		DGAP_LOCK(ch->ch_lock, lock_flags2);
+		spin_lock_irqsave(&bd->bd_lock, lock_flags);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 		tty->termios.c_cflag = ((tty->termios.c_cflag & ~CLOCAL) |
 						(arg ? CLOCAL : 0));
 		dgap_param(tty);
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 		return 0;
 
 	case TIOCMGET:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_get_modem_info(ch, uarg);
 
 	case TIOCMBIS:
 	case TIOCMBIC:
 	case TIOCMSET:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_set_modem_info(tty, cmd, uarg);
 
 		/*
@@ -4070,8 +4072,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 */
 		rc = tty_check_change(tty);
 		if (rc) {
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			return rc;
 		}
 
@@ -4085,8 +4087,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		if ((arg != TCOFLUSH) && (arg != TCIOFLUSH)) {
 			/* pretend we didn't recognize this IOCTL */
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 			return -ENOIOCTLCMD;
 		}
@@ -4107,8 +4109,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			wake_up_interruptible(&tty->write_wait);
 
 		/* Can't hold any locks when calling tty_wakeup! */
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		tty_wakeup(tty);
 
 		/* pretend we didn't recognize this IOCTL */
@@ -4133,8 +4135,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		}
 
 		/* now wait for all the output to drain */
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		rc = dgap_wait_for_drain(tty);
 		if (rc)
 			return -EINTR;
@@ -4144,8 +4146,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	case TCSETAW:
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		rc = dgap_wait_for_drain(tty);
 		if (rc)
 			return -EINTR;
@@ -4163,43 +4165,43 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 */
 		rc = tty_check_change(tty);
 		if (rc) {
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			return rc;
 		}
 
 		switch (arg) {
 
 		case TCOON:
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			dgap_tty_start(tty);
 			return 0;
 		case TCOOFF:
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			dgap_tty_stop(tty);
 			return 0;
 		case TCION:
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			/* Make the ld do it */
 			return -ENOIOCTLCMD;
 		case TCIOFF:
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			/* Make the ld do it */
 			return -ENOIOCTLCMD;
 		default:
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			return -EINVAL;
 		}
 
 	case DIGI_GETA:
 		/* get information for ditty */
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_tty_digigeta(tty, uarg);
 
 	case DIGI_SETAW:
@@ -4208,52 +4210,52 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		/* set information for ditty */
 		if (cmd == (DIGI_SETAW)) {
 
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			rc = dgap_wait_for_drain(tty);
 			if (rc)
 				return -EINTR;
-			DGAP_LOCK(bd->bd_lock, lock_flags);
-			DGAP_LOCK(ch->ch_lock, lock_flags2);
+			spin_lock_irqsave(&bd->bd_lock, lock_flags);
+			spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 		} else
 			tty_ldisc_flush(tty);
 		/* fall thru */
 
 	case DIGI_SETA:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_tty_digiseta(tty, uarg);
 
 	case DIGI_GEDELAY:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_tty_digigetedelay(tty, uarg);
 
 	case DIGI_SEDELAY:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_tty_digisetedelay(tty, uarg);
 
 	case DIGI_GETCUSTOMBAUD:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_tty_digigetcustombaud(tty, uarg);
 
 	case DIGI_SETCUSTOMBAUD:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return dgap_tty_digisetcustombaud(tty, uarg);
 
 	case DIGI_RESET_PORT:
 		dgap_firmware_reset_port(ch);
 		dgap_param(tty);
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return 0;
 
 	default:
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 		return -ENOIOCTLCMD;
 	}
@@ -4704,7 +4706,7 @@ static void dgap_poll_tasklet(unsigned long data)
 	if (bd->inhibit_poller)
 		return;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
 
 	vaddr = bd->re_map_membase;
 
@@ -4716,11 +4718,11 @@ static void dgap_poll_tasklet(unsigned long data)
 		struct ev_t *eaddr = NULL;
 
 		if (!bd->re_map_membase) {
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			return;
 		}
 		if (!bd->re_map_port) {
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			return;
 		}
 
@@ -4737,9 +4739,9 @@ static void dgap_poll_tasklet(unsigned long data)
 		 * If there is an event pending. Go service it.
 		 */
 		if (head != tail) {
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 			dgap_event(bd);
-			DGAP_LOCK(bd->bd_lock, lock_flags);
+			spin_lock_irqsave(&bd->bd_lock, lock_flags);
 		}
 
 out:
@@ -4749,11 +4751,11 @@ out:
 		if (bd && bd->intr_running)
 			readb(bd->re_map_port + 2);
 
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return;
 	}
 
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 }
 
 /*=======================================================================
@@ -5620,12 +5622,12 @@ static int dgap_event(struct board_t *bd)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return -ENXIO;
 
-	DGAP_LOCK(bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&bd->bd_lock, lock_flags);
 
 	vaddr = bd->re_map_membase;
 
 	if (!vaddr) {
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return -ENXIO;
 	}
 
@@ -5642,7 +5644,7 @@ static int dgap_event(struct board_t *bd)
 	if (head >= EVMAX - EVSTART || tail >= EVMAX - EVSTART ||
 	    (head | tail) & 03) {
 		/* Let go of board lock */
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 		return -ENXIO;
 	}
 
@@ -5680,12 +5682,12 @@ static int dgap_event(struct board_t *bd)
 		 * If we have made it here, the event was valid.
 		 * Lock down the channel.
 		 */
-		DGAP_LOCK(ch->ch_lock, lock_flags2);
+		spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 		bs = ch->ch_bs;
 
 		if (!bs) {
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 			goto next;
 		}
 
@@ -5699,13 +5701,13 @@ static int dgap_event(struct board_t *bd)
 			 * input could send some data to ld, which in turn
 			 * could do a callback to one of our other functions.
 			 */
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
+			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 			dgap_input(ch);
 
-			DGAP_LOCK(bd->bd_lock, lock_flags);
-			DGAP_LOCK(ch->ch_lock, lock_flags2);
+			spin_lock_irqsave(&bd->bd_lock, lock_flags);
+			spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 			if (ch->ch_flags & CH_RACTIVE)
 				ch->ch_flags |= CH_RENABLE;
@@ -5772,14 +5774,14 @@ static int dgap_event(struct board_t *bd)
 			}
 		}
 
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
+		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 
 next:
 		tail = (tail + 4) & (EVMAX - EVSTART - 4);
 	}
 
 	writew(tail, &(eaddr->ev_tail));
-	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
 	return 0;
 }
