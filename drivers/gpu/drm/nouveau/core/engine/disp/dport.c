@@ -273,7 +273,7 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 		.outp = outp,
 		.head = head,
 	}, *dp = &_dp;
-	const u32 bw_list[] = { 270000, 162000, 0 };
+	const u32 bw_list[] = { 540000, 270000, 162000, 0 };
 	const u32 *link_bw = bw_list;
 	u8  hdr, cnt, len;
 	u32 data;
