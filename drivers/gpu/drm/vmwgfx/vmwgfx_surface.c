@@ -36,11 +36,13 @@
  * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
  * @size:           TTM accounting size for the surface.
+ * @master:         master of the creating client. Used for security check.
  */
 struct vmw_user_surface {
 	struct ttm_prime_object prime;
 	struct vmw_surface srf;
 	uint32_t size;
+	struct drm_master *master;
 };
 
 /**
@@ -624,6 +626,8 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	struct vmw_private *dev_priv = srf->res.dev_priv;
 	uint32_t size = user_srf->size;
 
+	if (user_srf->master)
+		drm_master_put(&user_srf->master);
 	kfree(srf->offsets);
 	kfree(srf->sizes);
 	kfree(srf->snooper.image);
@@ -819,6 +823,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	user_srf->prime.base.shareable = false;
 	user_srf->prime.base.tfile = NULL;
+	if (drm_is_primary_client(file_priv))
+		user_srf->master = drm_master_get(file_priv->master);
 
 	/**
 	 * From this point, the generic resource management functions
@@ -885,6 +891,7 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 			     struct ttm_base_object **base_p)
 {
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_user_surface *user_srf;
 	uint32_t handle;
 	struct ttm_base_object *base;
 	int ret;
@@ -915,6 +922,21 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 	}
 
 	if (handle_type != DRM_VMW_HANDLE_PRIME) {
+		user_srf = container_of(base, struct vmw_user_surface,
+					prime.base);
+
+		/*
+		 * Make sure the surface creator has the same
+		 * authenticating master.
+		 */
+		if (drm_is_primary_client(file_priv) &&
+		    user_srf->master != file_priv->master) {
+			DRM_ERROR("Trying to reference surface outside of"
+				  " master domain.\n");
+			ret = -EACCES;
+			goto out_bad_resource;
+		}
+
 		ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL);
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Could not add a reference to a surface.\n");
@@ -1273,6 +1295,8 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	user_srf->prime.base.shareable = false;
 	user_srf->prime.base.tfile = NULL;
+	if (drm_is_primary_client(file_priv))
+		user_srf->master = drm_master_get(file_priv->master);
 
 	/**
 	 * From this point, the generic resource management functions
