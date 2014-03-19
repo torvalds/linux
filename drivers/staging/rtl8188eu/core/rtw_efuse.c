@@ -76,11 +76,10 @@ Efuse_Write1ByteToFakeContent(
 {
 	if (Offset >= EFUSE_MAX_HW_SIZE)
 		return false;
-	if (fakeEfuseBank == 0) {
+	if (fakeEfuseBank == 0)
 		fakeEfuseContent[Offset] = Value;
-	} else {
+	else
 		fakeBTEfuseContent[fakeEfuseBank-1][Offset] = Value;
-	}
 	return true;
 }
 
