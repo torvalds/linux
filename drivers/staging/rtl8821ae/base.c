@@ -666,26 +666,23 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 		if (mac->opmode == NL80211_IFTYPE_STATION ||
 			mac->opmode == NL80211_IFTYPE_MESH_POINT) {
 			tcb_desc->mac_id = 0;
-
-			if (mac->mode == WIRELESS_MODE_N_24G) {
+			if (mac->mode == WIRELESS_MODE_N_24G)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_NGB;
-			} else if (mac->mode == WIRELESS_MODE_N_5G) {
+			else if (mac->mode == WIRELESS_MODE_N_5G)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_NG;
-			} else if (mac->mode & WIRELESS_MODE_G) {
+			else if (mac->mode & WIRELESS_MODE_G)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_GB;
-			} else if (mac->mode & WIRELESS_MODE_B) {
+			else if (mac->mode & WIRELESS_MODE_B)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_B;
-			} else if (mac->mode & WIRELESS_MODE_A) {
+			else if (mac->mode & WIRELESS_MODE_A)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_G;
-			}
 		} else if (mac->opmode == NL80211_IFTYPE_AP ||
 			mac->opmode == NL80211_IFTYPE_ADHOC) {
 			if (NULL != sta) {
-				if (sta->aid > 0) {
+				if (sta->aid > 0)
 					tcb_desc->mac_id = sta->aid + 1;
-				} else {
+				else
 					tcb_desc->mac_id = 1;
-				}
 			} else {
 				tcb_desc->mac_id = 0;
 			}
@@ -1652,9 +1649,8 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 	if (ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
-	if (rtl_find_221_ie(hw, data, len)) {
+	if (rtl_find_221_ie(hw, data, len))
 		vendor = mac->vendor;
-	}
 
 	if ((memcmp(mac->bssid, ap5_1, 3) == 0) ||
 		(memcmp(mac->bssid, ap5_2, 3) == 0) ||
