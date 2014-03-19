@@ -28,8 +28,6 @@
 #define CURRENT_FILE_PC UISLIB_PC_uisqueue_c
 #define __MYFILE__ "uisqueue.c"
 
-#define RETINT(x)  do { rc = (x); goto Away; } while (0)
-
 #define CHECK_CACHE_ALIGN 0
 
 /*****************************************************/
@@ -91,13 +89,13 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 	locked = 1;
 
 	if (!ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(queueinfo->chan, channelId, NULL))
-		RETINT(0);
+		goto Away;
 
 	acquired = 1;
 
 	queueWasEmpty = visor_signalqueue_empty(queueinfo->chan, whichqueue);
 	if (!visor_signal_insert(queueinfo->chan, whichqueue, pSignal))
-		RETINT(0);
+		goto Away;
 	ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId, NULL);
 	acquired = 0;
 	spin_unlock_irqrestore(lock, flags);
@@ -105,8 +103,7 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 
 	queueinfo->packets_sent++;
 
-	RETINT(1);
-
+	rc = 1;
 Away:
 	if (acquired) {
 		ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId,

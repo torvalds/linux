@@ -122,10 +122,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 #define RETTRACE(x)
 #endif
 
-/** return from an int function, using a common exit point "Away"
- *  @param x the value to return
- */
-#define RETINT(x)  do { rc = (x); RETTRACE(x); goto Away; } while (0)
 /** Try to evaulate the provided expression, and do a RETINT(x) iff
  *  the expression evaluates to < 0.
  *  @param x the expression to try

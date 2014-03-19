@@ -250,7 +250,7 @@ visorchannel_clear(VISORCHANNEL *channel, ulong offset, U8 ch, ulong nbytes)
 
 	if (buf == NULL) {
 		ERRDRV("%s failed memory allocation", __func__);
-		RETINT(-1);
+		goto Away;
 	}
 	memset(buf, ch, bufsize);
 	while (nbytes > 0) {
@@ -260,12 +260,14 @@ visorchannel_clear(VISORCHANNEL *channel, ulong offset, U8 ch, ulong nbytes)
 			thisbytes = nbytes;
 		x = visor_memregion_write(channel->memregion, offset + written,
 					  buf, thisbytes);
-		if (x < 0)
-			RETINT(x);
+		if (x < 0) {
+			rc = x;
+			goto Away;
+		}
 		written += thisbytes;
 		nbytes -= thisbytes;
 	}
-	RETINT(0);
+	rc = 0;
 
 Away:
 	if (buf != NULL) {

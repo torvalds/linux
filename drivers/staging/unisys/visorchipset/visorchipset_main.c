@@ -631,7 +631,8 @@ chipset_init(CONTROLVM_MESSAGE *inmsg)
 	POSTCODE_LINUX_2(CHIPSET_INIT_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (chipset_inited) {
 		LOGERR("CONTROLVM_CHIPSET_INIT Failed: Already Done.");
-		RETINT(-CONTROLVM_RESP_ERROR_ALREADY_DONE);
+		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
+		goto Away;
 	}
 	chipset_inited = 1;
 	POSTCODE_LINUX_2(CHIPSET_INIT_EXIT_PC, POSTCODE_SEVERITY_INFO);
@@ -1079,7 +1080,8 @@ bus_create(CONTROLVM_MESSAGE *inmsg)
 		       busNo);
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_ALREADY_DONE);
+		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
+		goto Away;
 	}
 	pBusInfo = kzalloc(sizeof(VISORCHIPSET_BUS_INFO), GFP_KERNEL);
 	if (pBusInfo == NULL) {
@@ -1087,7 +1089,8 @@ bus_create(CONTROLVM_MESSAGE *inmsg)
 		       busNo);
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_KMALLOC_FAILED);
+		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+		goto Away;
 	}
 
 	INIT_LIST_HEAD(&pBusInfo->entry);
@@ -1127,12 +1130,14 @@ bus_destroy(CONTROLVM_MESSAGE *inmsg)
 	pBusInfo = findbus(&BusInfoList, busNo);
 	if (!pBusInfo) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: bus %lu invalid", busNo);
-		RETINT(-CONTROLVM_RESP_ERROR_BUS_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
+		goto Away;
 	}
 	if (pBusInfo->state.created == 0) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: bus %lu already destroyed",
 		     busNo);
-		RETINT(-CONTROLVM_RESP_ERROR_ALREADY_DONE);
+		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
+		goto Away;
 	}
 
 Away:
@@ -1158,14 +1163,16 @@ bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 		       busNo);
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_BUS_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
+		goto Away;
 	}
 	if (pBusInfo->state.created == 0) {
 		LOGERR("CONTROLVM_BUS_CONFIGURE Failed: Invalid bus %lu - not created yet",
 		     busNo);
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_BUS_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
+		goto Away;
 	}
 	/* TBD - add this check to other commands also... */
 	if (pBusInfo->pendingMsgHdr.Id != CONTROLVM_INVALID) {
@@ -1173,7 +1180,8 @@ bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 		     busNo, (uint) pBusInfo->pendingMsgHdr.Id);
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT);
+		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
+		goto Away;
 	}
 
 	pBusInfo->partitionHandle = cmd->configureBus.guestHandle;
@@ -1189,7 +1197,8 @@ bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 		     busNo);
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_KMALLOC_FAILED);
+		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+		goto Away;
 	}
 	POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, busNo, POSTCODE_SEVERITY_INFO);
 Away:
@@ -1213,7 +1222,8 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 		     busNo, devNo);
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_ALREADY_DONE);
+		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
+		goto Away;
 	}
 	pBusInfo = findbus(&BusInfoList, busNo);
 	if (!pBusInfo) {
@@ -1221,14 +1231,16 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 		     busNo);
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_BUS_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
+		goto Away;
 	}
 	if (pBusInfo->state.created == 0) {
 		LOGERR("CONTROLVM_DEVICE_CREATE Failed: Invalid bus %lu - not created yet",
 		     busNo);
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_BUS_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
+		goto Away;
 	}
 	pDevInfo = kzalloc(sizeof(VISORCHIPSET_DEVICE_INFO), GFP_KERNEL);
 	if (pDevInfo == NULL) {
@@ -1236,7 +1248,8 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 		     busNo, devNo);
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_KMALLOC_FAILED);
+		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+		goto Away;
 	}
 
 	INIT_LIST_HEAD(&pDevInfo->entry);
@@ -1287,14 +1300,15 @@ my_device_changestate(CONTROLVM_MESSAGE *inmsg)
 		     busNo, devNo);
 		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_DEVICE_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
+		goto Away;
 	}
 	if (pDevInfo->state.created == 0) {
 		LOGERR("CONTROLVM_DEVICE_CHANGESTATE Failed: busNo=%lu, devNo=%lu invalid (not created)",
 		     busNo, devNo);
 		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
-		RETINT(-CONTROLVM_RESP_ERROR_DEVICE_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 	}
 Away:
 	if ((rc >= CONTROLVM_RESP_SUCCESS) && pDevInfo)
@@ -1317,12 +1331,13 @@ my_device_destroy(CONTROLVM_MESSAGE *inmsg)
 	if (!pDevInfo) {
 		LOGERR("CONTROLVM_DEVICE_DESTROY Failed: busNo=%lu, devNo=%lu invalid",
 		     busNo, devNo);
-		RETINT(-CONTROLVM_RESP_ERROR_DEVICE_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
+		goto Away;
 	}
 	if (pDevInfo->state.created == 0) {
 		LOGERR("CONTROLVM_DEVICE_DESTROY Failed: busNo=%lu, devNo=%lu already destroyed",
 		     busNo, devNo);
-		RETINT(-CONTROLVM_RESP_ERROR_ALREADY_DONE);
+		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
 	}
 
 Away:
@@ -1349,19 +1364,22 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, U64 offset, U32 bytes,
 	if (info == NULL) {
 		LOGERR("HUH ? CONTROLVM_PAYLOAD_INIT Failed : Programmer check at %s:%d",
 		     __FILE__, __LINE__);
-		RETINT(-CONTROLVM_RESP_ERROR_PAYLOAD_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
+		goto Away;
 	}
 	memset(info, 0, sizeof(CONTROLVM_PAYLOAD_INFO));
 	if ((offset == 0) || (bytes == 0)) {
 		LOGERR("CONTROLVM_PAYLOAD_INIT Failed: RequestPayloadOffset=%llu RequestPayloadBytes=%llu!",
 		     (u64) offset, (u64) bytes);
-		RETINT(-CONTROLVM_RESP_ERROR_PAYLOAD_INVALID);
+		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
+		goto Away;
 	}
 	payload = ioremap_cache(phys_addr + offset, bytes);
 	if (payload == NULL) {
 		LOGERR("CONTROLVM_PAYLOAD_INIT Failed: ioremap_cache %llu for %llu bytes failed",
 		     (u64) offset, (u64) bytes);
-		RETINT(-CONTROLVM_RESP_ERROR_IOREMAP_FAILED);
+		rc = -CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
+		goto Away;
 	}
 
 	info->offset = offset;
@@ -2796,10 +2814,8 @@ visorchipset_init(void)
 	}
 	LOGINF("visorchipset device created");
 	POSTCODE_LINUX_2(CHIPSET_INIT_SUCCESS_PC, POSTCODE_SEVERITY_INFO);
-	RETINT(0);
-
+	rc = 0;
 Away:
-
 	if (rc) {
 		LOGERR("visorchipset_init failed");
 		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, rc,

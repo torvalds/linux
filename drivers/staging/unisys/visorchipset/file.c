@@ -71,7 +71,7 @@ visorchipset_file_init(dev_t majorDev, VISORCHANNEL **pControlVm_channel)
 		if (alloc_chrdev_region(&MajorDev, 0, 1, MYDRVNAME) < 0) {
 			ERRDRV("Unable to allocate+register char device %s",
 			       MYDRVNAME);
-			RETINT(-1);
+			goto Away;
 		}
 		Registered = TRUE;
 		INFODRV("New major number %d registered\n", MAJOR(MajorDev));
@@ -79,19 +79,18 @@ visorchipset_file_init(dev_t majorDev, VISORCHANNEL **pControlVm_channel)
 		/* static major device number registration required */
 		if (register_chrdev_region(MajorDev, 1, MYDRVNAME) < 0) {
 			ERRDRV("Unable to register char device %s", MYDRVNAME);
-			RETINT(-1);
+			goto Away;
 		}
 		Registered = TRUE;
 		INFODRV("Static major number %d registered\n", MAJOR(MajorDev));
 	}
 	if (cdev_add(&Cdev, MKDEV(MAJOR(MajorDev), 0), 1) < 0) {
-		ERRDRV("failed to create char device: (status=-1)\n");
-		rc = -1;
+		ERRDRV("failed to create char device: (status=%d)\n", rc);
 		goto Away;
 	}
 	INFODRV("Registered char device for %s (major=%d)",
 		MYDRVNAME, MAJOR(MajorDev));
-	RETINT(0);
+	rc = 0;
 Away:
 	return rc;
 }
@@ -119,9 +118,9 @@ visorchipset_open(struct inode *inode, struct file *file)
 
 	DEBUGDRV("%s", __func__);
 	if (minor_number != 0)
-		RETINT(-ENODEV);
+		goto Away;
 	file->private_data = NULL;
-	RETINT(0);
+	rc = 0;
 Away:
 	if (rc < 0)
 		ERRDRV("%s minor=%d failed", __func__, minor_number);
@@ -131,11 +130,8 @@ Away:
 static int
 visorchipset_release(struct inode *inode, struct file *file)
 {
-	int rc = -1;
 	DEBUGDRV("%s", __func__);
-	RETINT(0);
-Away:
-	return rc;
+	return 0;
 }
 
 static int
@@ -202,25 +198,28 @@ visorchipset_ioctl(struct inode *inode, struct file *file,
 		/* get the physical rtc offset */
 		vrtc_offset = Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET();
 		if (copy_to_user
-		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset)))
-			RETINT(-EFAULT);
+		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset))) {
+			rc = -EFAULT;
+			goto Away;
+		}
 		DBGINF("insde visorchipset_ioctl, cmd=%d, vrtc_offset=%lld",
 		       cmd, vrtc_offset);
 		break;
 	case VMCALL_UPDATE_PHYSICAL_TIME:
 		if (copy_from_user
-		    (&adjustment, (void __user *)arg, sizeof(adjustment)))
-			RETINT(-EFAULT);
+		    (&adjustment, (void __user *)arg, sizeof(adjustment))) {
+			rc = -EFAULT;
+			goto Away;
+		}
 		DBGINF("insde visorchipset_ioctl, cmd=%d, adjustment=%lld", cmd,
 		       adjustment);
 		rc = Issue_VMCALL_UPDATE_PHYSICAL_TIME(adjustment);
 		break;
 	default:
 		LOGERR("visorchipset_ioctl received invalid command");
-		RETINT(-EFAULT);
+		rc = -EFAULT;
 		break;
 	}
-	RETINT(rc);
 Away:
 	DBGINF("exiting %d!", rc);
 	return rc;

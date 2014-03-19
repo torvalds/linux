@@ -98,11 +98,10 @@ static int charqueue_dequeue_1(CHARQUEUE *charqueue)
 
 int charqueue_dequeue(CHARQUEUE *charqueue)
 {
-	int rc = -1;
+	int rc;
 
 	spin_lock(&charqueue->lock);
-	RETINT(charqueue_dequeue_1(charqueue));
-Away:
+	rc = charqueue_dequeue_1(charqueue);
 	spin_unlock(&charqueue->lock);
 	return rc;
 }
@@ -111,7 +110,7 @@ Away:
 
 int visor_charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n)
 {
-	int rc = -1, counter = 0, c;
+	int rc, counter = 0, c;
 
 	spin_lock(&charqueue->lock);
 	for (;;) {
@@ -125,9 +124,7 @@ int visor_charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n)
 		n--;
 		counter++;
 	}
-	RETINT(counter);
-
-Away:
+	rc = counter;
 	spin_unlock(&charqueue->lock);
 	return rc;
 }
