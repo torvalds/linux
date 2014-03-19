@@ -781,6 +781,17 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 {
 	BT_DBG("hcon %p", conn);
 
+	/* In Secure Connections Only mode, it is required that Secure
+	 * Connections is used and the link is encrypted with AES-CCM
+	 * using a P-256 authenticated combination key.
+	 */
+	if (test_bit(HCI_SC_ONLY, &conn->hdev->flags)) {
+		if (!hci_conn_sc_enabled(conn) ||
+		    !test_bit(HCI_CONN_AES_CCM, &conn->flags) ||
+		    conn->key_type != HCI_LK_AUTH_COMBINATION_P256)
+			return 0;
+	}
+
 	if (hci_conn_ssp_enabled(conn) && !(conn->link_mode & HCI_LM_ENCRYPT))
 		return 0;
 
