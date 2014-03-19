@@ -129,9 +129,9 @@ static int ux500_regulator_status_print(struct seq_file *s, void *p)
 	int i;
 
 	/* print dump header */
-	err = seq_printf(s, "ux500-regulator status:\n");
+	err = seq_puts(s, "ux500-regulator status:\n");
 	if (err < 0)
-		dev_err(dev, "seq_printf overflow\n");
+		dev_err(dev, "seq_puts overflow\n");
 
 	err = seq_printf(s, "%31s : %8s : %8s\n", "current",
 		"before", "after");
