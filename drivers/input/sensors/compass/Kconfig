@@ -3,7 +3,8 @@
 #
 
 menuconfig COMPASS_DEVICE
-	bool "Magnetometer sensors"
+	tristate "Magnetometer sensors"
+	default y
 	help
 	  Say Y here, and a list of Magnetometer sensors drivers will be displayed.
 	  Everything that didn't fit into the other categories is here. This option
@@ -16,6 +17,7 @@ if COMPASS_DEVICE
 config COMPASS_AK8975
   tristate "Asahi Kasei AK8975 3-Axis Magnetometer"
   depends on I2C
+  default y
   help
   Say yes here to build support for Asahi Kasei AK8975 3-Axis
   Magnetometer.
@@ -26,6 +28,7 @@ config COMPASS_AK8975
 config COMPASS_AK8963
   tristate "Asahi Kasei AK8963 3-Axis Magnetometer"
   depends on I2C
+  default y
   help
   Say yes here to build support for Asahi Kasei AK8963 3-Axis Magnetometer.
 

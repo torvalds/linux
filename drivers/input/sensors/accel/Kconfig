@@ -3,7 +3,8 @@
 #
 
 menuconfig GSENSOR_DEVICE
-	bool "g_sensor device support"
+	tristate "g_sensor device support"
+	default y
 	help
 	  Enable this to be able to choose the drivers for controlling the
 	  g_sensor on some platforms, for example on PDAs.
@@ -11,6 +12,7 @@ menuconfig GSENSOR_DEVICE
 if GSENSOR_DEVICE
 config GS_MMA8452
   bool "gsensor mma8451/mma8452/mma8453/mma8653"
+  default y
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
@@ -30,12 +32,14 @@ config GS_KXTJ9
 
 config GS_LIS3DH
   bool "gsensor lis3dh"
+  default y
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_MMA7660
   bool "gsensor mma7660"
+  default y	
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
@@ -54,6 +58,7 @@ config GS_DMT10
 
 config GS_LSM303D
 	bool "gsensor lsm303d"
+	default y
 	help
 	To have support for your sepcific gsensor you will have to
 	select het proper drivers which depend on this option.
