@@ -439,7 +439,7 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	/* Request clock */
 	pdata->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk))
-		netdev_warn(ndev, "couldn't get clock %li\n", PTR_ERR(pdata->clk));
+		netdev_dbg(ndev, "couldn't get clock %li\n", PTR_ERR(pdata->clk));
 
 	return ret;
 }
