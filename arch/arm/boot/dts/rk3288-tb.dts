@@ -108,8 +108,8 @@
 	broken-cd;
 	card-detect-delay = <200>;
 
-	pwr-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>; /*pwr_en = GPIO3_A1*/
-
+	
+        vmmc-supply = <&rk808_ldo5_reg>;
 	status = "okay";
 };
 		
