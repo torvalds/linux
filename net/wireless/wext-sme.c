@@ -21,7 +21,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 	const u8 *prev_bssid = NULL;
 	int err, i;
 
-	ASSERT_RDEV_LOCK(rdev);
+	ASSERT_RTNL();
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (!netif_running(wdev->netdev))
