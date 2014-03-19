@@ -698,12 +698,12 @@
 
 			cti0: cti0@ff118000 {
 				compatible = "arm,coresight-cti";
-				reg = <0xff118000 0x100>;
+				reg = <0xff118000 0x1000>;
 			};
 
 			cti1: cti1@ff119000 {
 				compatible = "arm,coresight-cti";
-				reg = <0xff119000 0x100>;
+				reg = <0xff119000 0x1000>;
 			};
 		};
 
