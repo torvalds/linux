@@ -265,6 +265,7 @@ struct iwl_mvm_vif_bf_data {
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
  *	should get quota etc.
+ * @pm_enabled - Indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
  * @low_latency: indicates that this interface is in low-latency mode
@@ -283,6 +284,7 @@ struct iwl_mvm_vif {
 
 	bool uploaded;
 	bool ap_ibss_active;
+	bool pm_enabled;
 	bool monitor_active;
 	bool low_latency;
 	struct iwl_mvm_vif_bf_data bf_data;
@@ -629,8 +631,6 @@ struct iwl_mvm {
 
 	/* Indicate if device power save is allowed */
 	bool ps_disabled;
-	/* Indicate if device power management is allowed */
-	bool pm_disabled;
 };
 
 /* Extract MVM priv from op_mode and _hw */
