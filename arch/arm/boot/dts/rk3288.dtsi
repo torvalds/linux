@@ -229,8 +229,8 @@
 		//pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_wp &sd0_pwr &sd0_bus1 &sd0_bus4>;
 
 		/*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_3 --clk_emmc_src_gate_en*/
- 		//clocks = <&clk_gates8 0>, <&clk_gates8 0>;
-         	clock-names = "emmc_clk", "arbi_emmc_clk";  
+		clocks = <&clk_emmc>, <&clk_gates8 6>;
+		clock-names = "clk_mmc", "hclk_mmc";
 		num-slots = <1>;	  	
   	  	fifo-depth = <0x80>;
 		bus-width = <4>;
@@ -248,8 +248,8 @@
 	    	//pinctrl-1 = <&sd0_cd_gpio>; //for int gpio?
 
                 /*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_0 --clk_mmc0_src_gate_en*/
-	    	//clocks = <&clk_gates8 0>, <&clk_gates13 0>;
-                clock-names = "sdmmc_clk", "arbi_sdmmc_clk";
+			clocks = <&clk_sdmmc>, <&clk_gates8 3>;
+			clock-names = "clk_mmc", "hclk_mmc";
    	    	num-slots = <1>;    
 	    	fifo-depth = <0x100>;
 	    	bus-width = <4>;
@@ -266,8 +266,8 @@
 	    	//pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_wp &sd1_bus1 &sd1_bus4>;
 
 		/*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_1 --clk_sdio0_src_gate_en*/
-            	//clocks = <&clk_gates8 0>, <&clk_gates13 1>;        
-		clock-names = "sdio_clk", "arbi_sdio_clk";
+		clocks = <&clk_sdio0>, <&clk_gates8 4>;      
+		clock-names = "clk_mmc", "hclk_mmc";
             	num-slots = <1>;
 
 	    	fifo-depth = <0x100>;
@@ -284,8 +284,8 @@
                 //pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_wp &sd1_bus1 &sd1_bus4>;
 
                 /*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_2 --clk_sdio1_src_gate_en*/
-                //clocks = <&clk_gates8 0>, <&clk_gates13 2>;
-                clock-names = "sdio1_clk", "arbi_sdio1_clk";
+                clocks = <&clk_sdio1>, <&clk_gates8 5>;
+                clock-names = "clk_mmc", "hclk_mmc";
                 num-slots = <1>;
 
                 fifo-depth = <0x100>;
@@ -351,8 +351,8 @@
 		reg = <0xff180000 0x100>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
-		//clocks = <&clk_uart0>, <&clk_gates8 0>;
-		//clock-names = "sclk_uart", "pclk_uart";
+		clocks = <&clk_uart0>, <&clk_gates6 8>;
+		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&pdma1 1>, <&pdma1 2>;
@@ -367,8 +367,8 @@
 		reg = <0xff190000 0x100>;
 		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
-		//clocks = <&clk_uart1>, <&clk_gates8 1>;
-		//clock-names = "sclk_uart", "pclk_uart";
+		clocks = <&clk_uart1>, <&clk_gates6 9>;
+		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&pdma1 3>, <&pdma1 4>;
@@ -383,6 +383,8 @@
 		reg = <0xff690000 0x100>;
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
+		clocks = <&clk_uart2>, <&clk_gates11 9>;
+		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&pdma0 4>, <&pdma0 5>;
@@ -397,8 +399,8 @@
 		reg = <0xff1b0000 0x100>;
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
-		//clocks = <&clk_uart2>, <&clk_gates8 2>;
-		//clock-names = "sclk_uart", "pclk_uart";
+		clocks = <&clk_uart3>, <&clk_gates6 11>;
+		clock-names = "sclk_uart", "pclk_uart";
 		current-speed = <115200>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
@@ -414,8 +416,8 @@
 		reg = <0xff1c0000 0x100>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <24000000>;
-		//clocks = <&clk_uart3>, <&clk_gates8 3>;
-		//clock-names = "sclk_uart", "pclk_uart";
+		clocks = <&clk_uart4>, <&clk_gates6 12>;
+		clock-names = "sclk_uart", "pclk_uart";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&pdma1 9>, <&pdma1 10>;
@@ -461,7 +463,7 @@
 		pinctrl-0 = <&i2c0_sda &i2c0_scl>;
 		pinctrl-1 = <&i2c0_gpio>;
 		gpios = <&gpio0 GPIO_B7 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>;
-		//clocks = <&clk_gates8 4>;
+		clocks = <&clk_gates10 2>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -476,7 +478,7 @@
 		pinctrl-0 = <&i2c1_sda &i2c1_scl>;
 		pinctrl-1 = <&i2c1_gpio>;
 		gpios = <&gpio8 GPIO_A4 GPIO_ACTIVE_LOW>, <&gpio8 GPIO_A5 GPIO_ACTIVE_LOW>;
-		//clocks = <&clk_gates8 5>;
+		clocks = <&clk_gates10 3>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -491,7 +493,7 @@
 		pinctrl-0 = <&i2c2_sda &i2c2_scl>;
 		pinctrl-1 = <&i2c2_gpio>;
 		gpios = <&gpio6 GPIO_B1 GPIO_ACTIVE_LOW>, <&gpio6 GPIO_B2 GPIO_ACTIVE_LOW>;
-		//clocks = <&clk_gates8 6>;
+		clocks = <&clk_gates6 13>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -506,7 +508,7 @@
 		pinctrl-0 = <&i2c3_sda &i2c3_scl>;
 		pinctrl-1 = <&i2c3_gpio>;
 		gpios = <&gpio2 GPIO_C1 GPIO_ACTIVE_LOW>, <&gpio2 GPIO_C0 GPIO_ACTIVE_LOW>;
-		//clocks = <&clk_gates8 7>;
+		clocks = <&clk_gates6 14>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -521,7 +523,7 @@
 		pinctrl-0 = <&i2c4_sda &i2c4_scl>;
 		pinctrl-1 = <&i2c4_gpio>;
 		gpios = <&gpio7 GPIO_C1 GPIO_ACTIVE_LOW>, <&gpio7 GPIO_C2 GPIO_ACTIVE_LOW>;
-		//clocks = <&clk_gates8 8>;
+		clocks = <&clk_gates6 15>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -536,7 +538,7 @@
 		pinctrl-0 = <&i2c5_sda &i2c5_scl>;
 		pinctrl-1 = <&i2c5_gpio>;
 		gpios = <&gpio7 GPIO_C3 GPIO_ACTIVE_LOW>, <&gpio7 GPIO_C4 GPIO_ACTIVE_LOW>;
-		//clocks = <&clk_gates8 8>;
+		clocks = <&clk_gates7 0>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -588,7 +590,7 @@
 		pinctrl-0 = <&lcdc0_lcdc>;
 		pinctrl-1 = <&lcdc0_gpio>;		
 		status = "disabled";
-		clocks = <&aclk_vio1>, <&dclk_lcdc1>, <&hclk_vio>;
+		clocks = <&clk_gates15 7>, <&dclk_lcdc1>, <&clk_gates15 8>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
 	};
 
@@ -602,7 +604,7 @@
 		//pinctrl-0 = <&lcdc0_lcdc>;
 		//pinctrl-1 = <&lcdc0_gpio>;
 		status = "disabled";
-		clocks = <&aclk_vio0>, <&dclk_lcdc0>, <&hclk_vio>;
+		clocks = <&clk_gates15 5>, <&dclk_lcdc0>, <&clk_gates15 6>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
 	};
 
@@ -614,6 +616,7 @@
 		io-channel-ranges;
 		rockchip,adc-vref = <1800>;
 		clock-frequency = <1000000>;
+		clocks = <&clk_saradc>, <&clk_gates7 1>;
 		clock-names = "saradc", "pclk_saradc";
 		status = "disabled";
 	};
@@ -645,8 +648,8 @@
 		compatible = "rockchip-spdif";
 		reg = <0xff8b0000 0x10000>;	//8channel
 		//reg = <ff880000 0x10000>;//2channel
-		clocks = <&clk_spdif>;
-		clock-names = "spdif_mclk";
+		clocks = <&clk_spdif>, <&clk_spdif_8ch>;
+		clock-names = "spdif_mclk","spdif_8ch_mclk";
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&pdma0 3>;
 		//dmas = <&pdma0 2>; //2channel
@@ -776,7 +779,7 @@
 		reg = <0xff9a0000 0x800>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
-		
+		clocks = <&clk_vepu>, <&hclk_vepu>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
 		status = "disabled";
@@ -787,8 +790,8 @@
 		reg = <0xff9c0000 0x800>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
-
-                clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
+		clocks = <&aclk_hevc>, <&hclk_hevc>, <&clk_hevc_core>, <&clk_hevc_cabac>;
+        clock-names = "aclk_hevc", "hclk_hevc", "clk_core", "clk_cabac";
 		name = "hevc_service";
 		status = "disabled";
 	};
@@ -797,7 +800,7 @@
 		compatible = "rockchip,iep";
 		reg = <0xff900000 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-		
+		clocks = <&clk_gates15 2>, <&clk_gates15 3>;
 		clock_names = "aclk_iep", "hclk_iep";
 		status = "disabled";
 	};
