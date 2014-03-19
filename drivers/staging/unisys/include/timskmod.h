@@ -155,44 +155,10 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 		POSTCODE_LINUX_2(EVENT_PC, DIAG_SEVERITY_ERR);		\
 		RETINT(status);						\
 	} while (0)
-#define FAIL_WPOSTCODE_2(msg, status, EVENT_PC, pcval32bit) do {          \
-		ERRDRV("'%s'"						\
-		       ": error (status=%d)\n",				\
-		       msg, status);					\
-		POSTCODE_LINUX_3(EVENT_PC, pcval32bit, DIAG_SEVERITY_ERR); \
-		RETINT(status);						\
-	} while (0)
-#define FAIL_WPOSTCODE_3(msg, status, EVENT_PC, pcval16bit1, pcval16bit2) \
-	do {								\
-		ERRDRV("'%s'"						\
-		       ": error (status=%d)\n",				\
-		       msg, status);					\
-		POSTCODE_LINUX_4(EVENT_PC, pcval16bit1, pcval16bit2,	\
-				 DIAG_SEVERITY_ERR);			\
-		RETINT(status);						\
-	} while (0)
 /** Try to evaulate the provided expression, and do a RETINT(x) iff
  *  the expression evaluates to < 0.
  *  @param x the expression to try
  */
-#define TRY(x) do { int status = (x);                          \
-		if (status < 0)				       \
-			FAIL(__stringify(x), status);	       \
-	} while (0)
-
-#define TRY_WPOSTCODE_1(x, EVENT_PC) do { \
-		int status = (x);	  \
-		if (status < 0)						\
-			FAIL_WPOSTCODE_1(__stringify(x), status, EVENT_PC); \
-	} while (0)
-
-#define TRY_WPOSTCODE_2(x, EVENT_PC, pcval32bit) do { \
-		int status = (x);		      \
-		if (status < 0)						\
-			FAIL_WPOSTCODE_2(__stringify(x), status, EVENT_PC, \
-					 pcval32bit);			\
-	} while (0)
-
 #define ASSERT(cond)                                           \
 	do { if (!(cond))                                      \
 			HUHDRV("ASSERT failed - %s",	       \
@@ -237,19 +203,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 
 /* @} */
 
-/** Used to add a single line to the /proc filesystem buffer */
-#define ADDPROCLINE(buf, bufsize, line, linelen, totallen) \
-	{						   \
-		if ((totallen) + (linelen) >= bufsize)     \
-			RETINT(totallen);		   \
-		if (linelen > 0) {			   \
-			strcat(buf, line);		   \
-			totallen += linelen;		   \
-		}                                          \
-	}
-
-
-
 /** Verifies the consistency of your PRIVATEDEVICEDATA structure using
  *  conventional "signature" fields:
  *  <p>
@@ -271,42 +224,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 	((fd != NULL)                           &&     \
 	 ((fd)->sig1 == sizeof(PRIVATEFILEDATA)) &&    \
 	 ((fd)->sig2 == fd))
-
-/** Verifies the consistency of a PRIVATEDEVICEDATA structure and reacts
- *  if necessary
- */
-#define CHKDDX(dd, x) (					   \
-			if (!DDLOOKSVALID((dd))) {	   \
-				PRINTKDRV("bad device structure");	\
-				RETINT(x);				\
-			})
-
-/** Verifies the consistency of a PRIVATEDEVICEDATA structure and reacts
- *  if necessary
- */
-#define CHKDD(dd) (							\
-			if (!DDLOOKSVALID(dd)) {			\
-				PRINTKDRV("bad device structure");	\
-				RETVOID;				\
-			})
-
-/** Verifies the consistency of a PRIVATEFILEDATA structure and reacts
- *  if necessary
- */
-#define CHKFDX(fd, x) (					   \
-		if (!FDLOOKSVALID(fd)) {		   \
-			PRINTKDRV("bad file structure");   \
-			RETINT(x);			   \
-		})
-
-/** Verifies the consistency of a PRIVATEFILEDATA structure and reacts
- *  if necessary
- */
-#define CHKFD(fd) (					  \
-		if (!FDLOOKSVALID(fd)) {		  \
-			PRINTKDRV("bad file structure");  \
-			RETVOID;			  \
-		})
 
 /** Locks dd->lockDev if you havn't already locked it */
 #define LOCKDEV(dd)                                                    \

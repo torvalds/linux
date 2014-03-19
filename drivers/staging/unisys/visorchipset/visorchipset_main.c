@@ -2684,14 +2684,21 @@ visorchipset_init(void)
 	memset(&LiveDump_info, 0, sizeof(LiveDump_info));
 	atomic_set(&LiveDump_info.buffers_in_use, 0);
 
-	if (visorchipset_testvnic)
-		FAIL_WPOSTCODE_2("testvnic option no longer supported", x,
-				 CHIPSET_INIT_FAILURE_PC, x);
+	if (visorchipset_testvnic) {
+		ERRDRV("testvnic option no longer supported: (status = %d)\n",
+		       x);
+		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, x, DIAG_SEVERITY_ERR);
+		rc = x;
+		goto Away;
+	}
 
 	controlvm_init();
 	MajorDev = MKDEV(visorchipset_major, 0);
-	TRY_WPOSTCODE_1(visorchipset_file_init(MajorDev, &ControlVm_channel),
-			CHIPSET_INIT_FAILURE_PC);
+	rc = visorchipset_file_init(MajorDev, &ControlVm_channel);
+	if (rc < 0)
+		FAIL_WPOSTCODE_1("visorchipset_file_init(MajorDev, &ControlVm_channel)",
+				 rc, CHIPSET_INIT_FAILURE_PC);
+
 	proc_Init();
 	memset(PartitionPropertyNames, 0, sizeof(PartitionPropertyNames));
 	memset(ControlVmPropertyNames, 0, sizeof(ControlVmPropertyNames));
@@ -2760,10 +2767,12 @@ visorchipset_init(void)
 					 -ENOMEM, CREATE_WORKQUEUE_FAILED_PC);
 		Most_recent_message_jiffies = jiffies;
 		Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-		TRY_WPOSTCODE_1(queue_delayed_work
-				(Periodic_controlvm_workqueue,
-				 &Periodic_controlvm_work, Poll_jiffies),
-				QUEUE_DELAYED_WORK_PC);
+		rc = queue_delayed_work(Periodic_controlvm_workqueue,
+					&Periodic_controlvm_work, Poll_jiffies);
+		if (rc < 0)
+			FAIL_WPOSTCODE_1("queue_delayed_work(Periodic_controlvm_workqueue, &Periodic_controlvm_work, Poll_jiffies);",
+					 rc, QUEUE_DELAYED_WORK_PC);
+
 	}
 
 	Visorchipset_platform_device.dev.devt = MajorDev;
