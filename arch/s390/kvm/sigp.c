@@ -349,6 +349,72 @@ static int sigp_check_callable(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	return rc;
 }
 
+static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
+			   u16 cpu_addr, u32 parameter, u64 *status_reg)
+{
+	int rc;
+
+	switch (order_code) {
+	case SIGP_SENSE:
+		vcpu->stat.instruction_sigp_sense++;
+		rc = __sigp_sense(vcpu, cpu_addr, status_reg);
+		break;
+	case SIGP_EXTERNAL_CALL:
+		vcpu->stat.instruction_sigp_external_call++;
+		rc = __sigp_external_call(vcpu, cpu_addr);
+		break;
+	case SIGP_EMERGENCY_SIGNAL:
+		vcpu->stat.instruction_sigp_emergency++;
+		rc = __sigp_emergency(vcpu, cpu_addr);
+		break;
+	case SIGP_STOP:
+		vcpu->stat.instruction_sigp_stop++;
+		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STOP_ON_STOP);
+		break;
+	case SIGP_STOP_AND_STORE_STATUS:
+		vcpu->stat.instruction_sigp_stop++;
+		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP |
+						 ACTION_STOP_ON_STOP);
+		break;
+	case SIGP_STORE_STATUS_AT_ADDRESS:
+		rc = __sigp_store_status_at_addr(vcpu, cpu_addr, parameter,
+						 status_reg);
+		break;
+	case SIGP_SET_PREFIX:
+		vcpu->stat.instruction_sigp_prefix++;
+		rc = __sigp_set_prefix(vcpu, cpu_addr, parameter, status_reg);
+		break;
+	case SIGP_COND_EMERGENCY_SIGNAL:
+		rc = __sigp_conditional_emergency(vcpu, cpu_addr, parameter,
+						  status_reg);
+		break;
+	case SIGP_SENSE_RUNNING:
+		vcpu->stat.instruction_sigp_sense_running++;
+		rc = __sigp_sense_running(vcpu, cpu_addr, status_reg);
+		break;
+	case SIGP_START:
+		rc = sigp_check_callable(vcpu, cpu_addr);
+		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED)
+			rc = -EOPNOTSUPP;    /* Handle START in user space */
+		break;
+	case SIGP_RESTART:
+		vcpu->stat.instruction_sigp_restart++;
+		rc = sigp_check_callable(vcpu, cpu_addr);
+		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED) {
+			VCPU_EVENT(vcpu, 4,
+				   "sigp restart %x to handle userspace",
+				   cpu_addr);
+			/* user space must know about restart */
+			rc = -EOPNOTSUPP;
+		}
+		break;
+	default:
+		rc = -EOPNOTSUPP;
+	}
+
+	return rc;
+}
+
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 {
 	int r1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
@@ -371,68 +437,14 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_handle_sigp(vcpu, order_code, cpu_addr, parameter);
 	switch (order_code) {
-	case SIGP_SENSE:
-		vcpu->stat.instruction_sigp_sense++;
-		rc = __sigp_sense(vcpu, cpu_addr,
-				  &vcpu->run->s.regs.gprs[r1]);
-		break;
-	case SIGP_EXTERNAL_CALL:
-		vcpu->stat.instruction_sigp_external_call++;
-		rc = __sigp_external_call(vcpu, cpu_addr);
-		break;
-	case SIGP_EMERGENCY_SIGNAL:
-		vcpu->stat.instruction_sigp_emergency++;
-		rc = __sigp_emergency(vcpu, cpu_addr);
-		break;
-	case SIGP_STOP:
-		vcpu->stat.instruction_sigp_stop++;
-		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STOP_ON_STOP);
-		break;
-	case SIGP_STOP_AND_STORE_STATUS:
-		vcpu->stat.instruction_sigp_stop++;
-		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP |
-						 ACTION_STOP_ON_STOP);
-		break;
-	case SIGP_STORE_STATUS_AT_ADDRESS:
-		rc = __sigp_store_status_at_addr(vcpu, cpu_addr, parameter,
-						 &vcpu->run->s.regs.gprs[r1]);
-		break;
 	case SIGP_SET_ARCHITECTURE:
 		vcpu->stat.instruction_sigp_arch++;
 		rc = __sigp_set_arch(vcpu, parameter);
 		break;
-	case SIGP_SET_PREFIX:
-		vcpu->stat.instruction_sigp_prefix++;
-		rc = __sigp_set_prefix(vcpu, cpu_addr, parameter,
-				       &vcpu->run->s.regs.gprs[r1]);
-		break;
-	case SIGP_COND_EMERGENCY_SIGNAL:
-		rc = __sigp_conditional_emergency(vcpu, cpu_addr, parameter,
-						  &vcpu->run->s.regs.gprs[r1]);
-		break;
-	case SIGP_SENSE_RUNNING:
-		vcpu->stat.instruction_sigp_sense_running++;
-		rc = __sigp_sense_running(vcpu, cpu_addr,
-					  &vcpu->run->s.regs.gprs[r1]);
-		break;
-	case SIGP_START:
-		rc = sigp_check_callable(vcpu, cpu_addr);
-		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED)
-			rc = -EOPNOTSUPP;    /* Handle START in user space */
-		break;
-	case SIGP_RESTART:
-		vcpu->stat.instruction_sigp_restart++;
-		rc = sigp_check_callable(vcpu, cpu_addr);
-		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED) {
-			VCPU_EVENT(vcpu, 4,
-				   "sigp restart %x to handle userspace",
-				   cpu_addr);
-			/* user space must know about restart */
-			rc = -EOPNOTSUPP;
-		}
-		break;
 	default:
-		return -EOPNOTSUPP;
+		rc = handle_sigp_dst(vcpu, order_code, cpu_addr,
+				     parameter,
+				     &vcpu->run->s.regs.gprs[r1]);
 	}
 
 	if (rc < 0)
