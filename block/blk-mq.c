@@ -547,7 +547,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	LIST_HEAD(rq_list);
 	int bit, queued;
 
-	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->flags)))
+	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->state)))
 		return;
 
 	hctx->run++;
@@ -636,7 +636,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
-	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->flags)))
+	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->state)))
 		return;
 
 	if (!async)
@@ -656,7 +656,7 @@ void blk_mq_run_queues(struct request_queue *q, bool async)
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if ((!blk_mq_hctx_has_pending(hctx) &&
 		    list_empty_careful(&hctx->dispatch)) ||
-		    test_bit(BLK_MQ_S_STOPPED, &hctx->flags))
+		    test_bit(BLK_MQ_S_STOPPED, &hctx->state))
 			continue;
 
 		blk_mq_run_hw_queue(hctx, async);
