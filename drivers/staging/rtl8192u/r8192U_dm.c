@@ -2644,26 +2644,6 @@ dm_CheckEdcaTurbo_EXIT:
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }	// dm_CheckEdcaTurbo
 
-void DM_CTSToSelfSetting(struct net_device *dev, u32 DM_Type, u32 DM_Value)
-{
-	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
-
-	if (DM_Type == 0)	// CTS to self disable/enable
-	{
-		if(DM_Value > 1)
-			DM_Value = 1;
-		priv->ieee80211->bCTSToSelfEnable = (bool)DM_Value;
-		//DbgPrint("pMgntInfo->bCTSToSelfEnable = %d\n", pMgntInfo->bCTSToSelfEnable);
-	}
-	else if(DM_Type == 1) //CTS to self Th
-	{
-		if(DM_Value >= 50)
-			DM_Value = 50;
-		priv->ieee80211->CTSToSelfTH = (u8)DM_Value;
-		//DbgPrint("pMgntInfo->CTSToSelfTH = %d\n", pMgntInfo->CTSToSelfTH);
-	}
-}
-
 static void dm_init_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
