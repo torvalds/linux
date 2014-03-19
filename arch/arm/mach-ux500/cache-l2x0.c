@@ -57,9 +57,9 @@ static int __init ux500_l2x0_init(void)
 	outer_cache.write_sec = ux500_l2c310_write_sec;
 
 	if (of_have_populated_dt())
-		l2x0_of_init(0x3e000000, 0xc00f0fff);
+		l2x0_of_init(0, ~0);
 	else
-		l2x0_init(l2x0_base, 0x3e000000, 0xc00f0fff);
+		l2x0_init(l2x0_base, 0, ~0);
 
 	return 0;
 }
