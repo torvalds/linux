@@ -1533,6 +1533,9 @@ static int mmci_probe(struct amba_device *dev,
 		mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 	}
 
+	/* We support these capabilities. */
+	mmc->caps |= MMC_CAP_CMD23;
+
 	if (variant->busy_detect) {
 		mmci_ops.card_busy = mmci_card_busy;
 		mmci_write_datactrlreg(host, MCI_ST_DPSM_BUSYMODE);
