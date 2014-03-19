@@ -1,5 +1,4 @@
 /*
- * module/proc.c
  * /proc interface for comedi
  *
  * COMEDI - Linux Control and Measurement Device Interface
