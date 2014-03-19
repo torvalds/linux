@@ -28,7 +28,6 @@
 #define CURRENT_FILE_PC UISLIB_PC_uisqueue_c
 #define __MYFILE__ "uisqueue.c"
 
-#define RETVOID    do { goto Away; } while (0)
 #define RETINT(x)  do { rc = (x); goto Away; } while (0)
 
 #define CHECK_CACHE_ALIGN 0

@@ -213,7 +213,7 @@ parser_param_start(PARSER_CONTEXT *ctx, PARSER_WHICH_STRING which_string)
 	if (ctx == NULL) {
 		ERRDRV("%s (%s:%d) - no context",
 		       __func__, __FILE__, __LINE__);
-		RETVOID;
+		goto Away;
 	}
 	phdr = (ULTRA_CONTROLVM_PARAMETERS_HEADER *) (ctx->data);
 	switch (which_string) {
@@ -235,10 +235,8 @@ parser_param_start(PARSER_CONTEXT *ctx, PARSER_WHICH_STRING which_string)
 		break;
 	default:
 		ERRDRV("%s - bad which_string %d", __func__, which_string);
-		RETVOID;
 		break;
 	}
-	RETVOID;
 
 Away:
 	return;

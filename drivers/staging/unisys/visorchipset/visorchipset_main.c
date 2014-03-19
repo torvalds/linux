@@ -1927,12 +1927,12 @@ controlvm_periodic_work(struct work_struct *work)
 
 	/* make sure visorbus server is registered for controlvm callbacks */
 	if (visorchipset_serverregwait && !serverregistered)
-		RETVOID;
+		goto Away;
 	/* make sure visorclientbus server is regsitered for controlvm
 	 * callbacks
 	 */
 	if (visorchipset_clientregwait && !clientregistered)
-		RETVOID;
+		goto Away;
 
 	memset(&chanInfo, 0, sizeof(VISORCHIPSET_CHANNEL_INFO));
 	if (!ControlVm_channel) {
@@ -1963,7 +1963,7 @@ controlvm_periodic_work(struct work_struct *work)
 	if ((ControlVm_channel != NULL) || (Poll_Count >= 250))
 		;	/* keep going */
 	else
-		RETVOID;
+		goto Away;
 
 	/* Check events to determine if response to CHIPSET_READY
 	 * should be sent
@@ -2033,8 +2033,6 @@ controlvm_periodic_work(struct work_struct *work)
 	/* parahotplug_worker */
 	parahotplug_process_list();
 
-	RETVOID;
-
 Away:
 
 	if (time_after(jiffies,
@@ -2071,13 +2069,13 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* make sure visorbus server is registered for controlvm callbacks */
 	if (visorchipset_serverregwait && !serverregistered)
-		RETVOID;
+		goto Away;
 
 	/* make sure visorclientbus server is regsitered for controlvm
 	 * callbacks
 	 */
 	if (visorchipset_clientregwait && !clientregistered)
-		RETVOID;
+		goto Away;
 
 	POSTCODE_LINUX_2(CRASH_DEV_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 

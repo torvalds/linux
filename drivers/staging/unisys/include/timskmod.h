@@ -122,8 +122,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 #define RETTRACE(x)
 #endif
 
-/** return from a void function, using a common exit point "Away" */
-#define RETVOID    do { RETTRACE(0); goto Away; } while (0)
 /** return from an int function, using a common exit point "Away"
  *  @param x the value to return
  */
