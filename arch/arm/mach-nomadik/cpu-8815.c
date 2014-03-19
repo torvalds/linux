@@ -147,7 +147,7 @@ static void __init cpu8815_init_of(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	/* At full speed latency must be >=2, so 0x249 in low bits */
-	l2x0_of_init(0x00730249, 0xfe000fff);
+	l2x0_of_init(0x00700249, 0xfe0fefff);
 #endif
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
