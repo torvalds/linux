@@ -32,9 +32,6 @@
 #include "mfc.h"
 #include "regs-pmu.h"
 
-#define L2_AUX_VAL 0x3c470001
-#define L2_AUX_MASK 0xc200ffff
-
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S3C_VA_SYS,
@@ -323,7 +320,7 @@ static int __init exynos4_l2x0_cache_init(void)
 {
 	int ret;
 
-	ret = l2x0_of_init(L2_AUX_VAL, L2_AUX_MASK);
+	ret = l2x0_of_init(0x3c400001, 0xc20fffff);
 	if (ret)
 		return ret;
 
