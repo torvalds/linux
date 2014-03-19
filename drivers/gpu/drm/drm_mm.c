@@ -423,6 +423,8 @@ static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 
 	__drm_mm_for_each_hole(entry, mm, adj_start, adj_end,
 			       flags & DRM_MM_SEARCH_BELOW) {
+		unsigned long hole_size = adj_end - adj_start;
+
 		if (mm->color_adjust) {
 			mm->color_adjust(entry, color, &adj_start, &adj_end);
 			if (adj_end <= adj_start)
@@ -435,9 +437,9 @@ static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 		if (!(flags & DRM_MM_SEARCH_BEST))
 			return entry;
 
-		if (entry->size < best_size) {
+		if (hole_size < best_size) {
 			best = entry;
-			best_size = entry->size;
+			best_size = hole_size;
 		}
 	}
 
@@ -465,6 +467,8 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 
 	__drm_mm_for_each_hole(entry, mm, adj_start, adj_end,
 			       flags & DRM_MM_SEARCH_BELOW) {
+		unsigned long hole_size = adj_end - adj_start;
+
 		if (adj_start < start)
 			adj_start = start;
 		if (adj_end > end)
@@ -482,9 +486,9 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 		if (!(flags & DRM_MM_SEARCH_BEST))
 			return entry;
 
-		if (entry->size < best_size) {
+		if (hole_size < best_size) {
 			best = entry;
-			best_size = entry->size;
+			best_size = hole_size;
 		}
 	}
 
