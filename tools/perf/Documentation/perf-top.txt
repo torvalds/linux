@@ -87,7 +87,6 @@ Default is to monitor all CPUS.
 --realtime=<priority>::
 	Collect data with this RT SCHED_FIFO priority.
 
--s <symbol>::
 --sym-annotate=<symbol>::
         Annotate this symbol.
 
