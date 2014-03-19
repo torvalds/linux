@@ -538,8 +538,13 @@ int vmw_user_dmabuf_verify_access(struct ttm_buffer_object *bo,
 		return -EPERM;
 
 	vmw_user_bo = vmw_user_dma_buffer(bo);
-	return (vmw_user_bo->prime.base.tfile == tfile ||
-		vmw_user_bo->prime.base.shareable) ? 0 : -EPERM;
+
+	/* Check that the caller has opened the object. */
+	if (likely(ttm_ref_object_exists(tfile, &vmw_user_bo->prime.base)))
+		return 0;
+
+	DRM_ERROR("Could not grant buffer access.\n");
+	return -EPERM;
 }
 
 /**
