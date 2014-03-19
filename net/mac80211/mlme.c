@@ -4393,37 +4393,41 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 	bool tx = !req->local_state_change;
-	bool report_frame = false;
 
-	sdata_info(sdata,
-		   "deauthenticating from %pM by local choice (Reason: %u=%s)\n",
-		   req->bssid, req->reason_code, ieee80211_get_reason_code_string(req->reason_code));
+	if (ifmgd->auth_data &&
+	    ether_addr_equal(ifmgd->auth_data->bss->bssid, req->bssid)) {
+		sdata_info(sdata,
+			   "aborting authentication with %pM by local choice (Reason: %u=%s)\n",
+			   req->bssid, req->reason_code,
+			   ieee80211_get_reason_code_string(req->reason_code));
 
-	if (ifmgd->auth_data) {
 		drv_mgd_prepare_tx(sdata->local, sdata);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
 					       req->reason_code, tx,
 					       frame_buf);
 		ieee80211_destroy_auth_data(sdata, false);
+		cfg80211_tx_mlme_mgmt(sdata->dev, frame_buf,
+				      IEEE80211_DEAUTH_FRAME_LEN);
 
-		report_frame = true;
-		goto out;
+		return 0;
 	}
 
 	if (ifmgd->associated &&
 	    ether_addr_equal(ifmgd->associated->bssid, req->bssid)) {
+		sdata_info(sdata,
+			   "deauthenticating from %pM by local choice (Reason: %u=%s)\n",
+			   req->bssid, req->reason_code,
+			   ieee80211_get_reason_code_string(req->reason_code));
+
 		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 				       req->reason_code, tx, frame_buf);
-		report_frame = true;
-	}
-
- out:
-	if (report_frame)
 		cfg80211_tx_mlme_mgmt(sdata->dev, frame_buf,
 				      IEEE80211_DEAUTH_FRAME_LEN);
+		return 0;
+	}
 
-	return 0;
+	return -ENOTCONN;
 }
 
 int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
