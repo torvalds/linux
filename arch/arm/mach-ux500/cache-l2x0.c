@@ -45,8 +45,6 @@ static void ux500_l2c310_write_sec(unsigned long val, unsigned reg)
 
 static int __init ux500_l2x0_init(void)
 {
-	u32 aux_val = 0x3e000000;
-
 	if (cpu_is_u8500_family() || cpu_is_ux540_family())
 		l2x0_base = __io_address(U8500_L2CC_BASE);
 	else
@@ -56,21 +54,12 @@ static int __init ux500_l2x0_init(void)
 	/* Unlock before init */
 	ux500_l2x0_unlock();
 
-	/* DBx540's L2 has 128KB way size */
-	if (cpu_is_ux540_family())
-		/* 128KB way size */
-		aux_val |= L2C_AUX_CTRL_WAY_SIZE(4);
-	else
-		/* 64KB way size */
-		aux_val |= L2C_AUX_CTRL_WAY_SIZE(3);
-
 	outer_cache.write_sec = ux500_l2c310_write_sec;
 
-	/* 64KB way size, 8 way associativity, force WA */
 	if (of_have_populated_dt())
-		l2x0_of_init(aux_val, 0xc0000fff);
+		l2x0_of_init(0x3e000000, 0xc00f0fff);
 	else
-		l2x0_init(l2x0_base, aux_val, 0xc0000fff);
+		l2x0_init(l2x0_base, 0x3e000000, 0xc00f0fff);
 
 	return 0;
 }
