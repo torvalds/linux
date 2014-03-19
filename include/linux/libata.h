@@ -1145,9 +1145,6 @@ extern void ata_sas_port_resume(struct ata_port *ap);
 static inline void ata_sas_port_suspend(struct ata_port *ap)
 {
 }
-static inline void ata_sas_port_async_resume(struct ata_port *ap)
-{
-}
 static inline void ata_sas_port_resume(struct ata_port *ap)
 {
 }
