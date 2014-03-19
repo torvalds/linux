@@ -24,6 +24,7 @@
 #include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cputype.h>
 #include <asm/hardware/cache-l2x0.h>
 #include "cache-tauros3.h"
 #include "cache-aurora-l2.h"
@@ -638,6 +639,24 @@ static void l2c310_resume(void)
 	}
 }
 
+static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
+{
+	unsigned rev = readl_relaxed(base + L2X0_CACHE_ID) & L2X0_CACHE_ID_PART_MASK;
+	bool cortex_a9 = read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9;
+
+	if (rev >= L310_CACHE_ID_RTL_R2P0) {
+		if (cortex_a9) {
+			aux |= L310_AUX_CTRL_EARLY_BRESP;
+			pr_info("L2C-310 enabling early BRESP for Cortex-A9\n");
+		} else if (aux & L310_AUX_CTRL_EARLY_BRESP) {
+			pr_warn("L2C-310 early BRESP only supported with Cortex-A9\n");
+			aux &= ~L310_AUX_CTRL_EARLY_BRESP;
+		}
+	}
+
+	l2c_enable(base, aux, num_lock);
+}
+
 static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 	struct outer_cache_fns *fns)
 {
@@ -699,7 +718,7 @@ static const struct l2c_init_data l2c310_init_fns __initconst = {
 	.type = "L2C-310",
 	.way_size_0 = SZ_8K,
 	.num_lock = 8,
-	.enable = l2c_enable,
+	.enable = l2c310_enable,
 	.fixup = l2c310_fixup,
 	.save = l2c310_save,
 	.outer_cache = {
@@ -940,7 +959,7 @@ static const struct l2c_init_data of_l2c310_data __initconst = {
 	.way_size_0 = SZ_8K,
 	.num_lock = 8,
 	.of_parse = l2c310_of_parse,
-	.enable = l2c_enable,
+	.enable = l2c310_enable,
 	.fixup = l2c310_fixup,
 	.save  = l2c310_save,
 	.outer_cache = {
@@ -1289,7 +1308,7 @@ static const struct l2c_init_data of_bcm_l2x0_data __initconst = {
 	.way_size_0 = SZ_8K,
 	.num_lock = 8,
 	.of_parse = l2c310_of_parse,
-	.enable = l2c_enable,
+	.enable = l2c310_enable,
 	.save  = l2c310_save,
 	.outer_cache = {
 		.inv_range   = bcm_inv_range,
