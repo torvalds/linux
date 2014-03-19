@@ -1842,22 +1842,6 @@ void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 		dm_digtable.rx_gain_range_max = (u8)dm_value;
 	}
 }	/* DM_ChangeDynamicInitGainThresh */
-void
-dm_change_fsync_setting(
-	struct net_device *dev,
-	s32		DM_Type,
-	s32		DM_Value)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	if (DM_Type == 0)	// monitor 0xc38 register
-	{
-		if(DM_Value > 1)
-			DM_Value = 1;
-		priv->framesyncMonitor = (u8)DM_Value;
-		//DbgPrint("pHalData->framesyncMonitor = %d", pHalData->framesyncMonitor);
-	}
-}
 
 void
 dm_change_rxpath_selection_setting(
