@@ -291,10 +291,9 @@ ReqHandlerAdd(GUID switchTypeGuid,
 {
 	ReqHandlerInfo_t *rc = NULL;
 
-	rc = UISMALLOC(sizeof(*rc), GFP_ATOMIC);
+	rc = kzalloc(sizeof(*rc), GFP_ATOMIC);
 	if (!rc)
 		return NULL;
-	memset(rc, 0, sizeof(*rc));
 	rc->switchTypeGuid = switchTypeGuid;
 	rc->controlfunc = controlfunc;
 	rc->min_channel_bytes = min_channel_bytes;
@@ -342,7 +341,7 @@ ReqHandlerDel(GUID switchTypeGuid)
 		    (&entry->switchTypeGuid, &switchTypeGuid,
 		     sizeof(GUID)) == 0) {
 			list_del(lelt);
-			UISFREE(entry, sizeof(*entry));
+			kfree(entry);
 			rc++;
 		}
 	}

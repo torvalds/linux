@@ -333,12 +333,6 @@ static inline unsigned int Issue_VMCALL_FATAL_BYE_BYE(void)
 }
 
 #define UIS_DAEMONIZE(nam)
-void *uislib_malloc(size_t siz, gfp_t gfp, U8 contiguous, char *fn, int ln);
-#define UISMALLOC(siz, gfp) uislib_malloc(siz, gfp, 1, __FILE__, __LINE__)
-#define UISVMALLOC(siz) uislib_malloc(siz, 0, 0, __FILE__, __LINE__)
-void uislib_free(void *p, size_t siz, U8 contiguous, char *fn, int ln);
-#define UISFREE(p, siz) uislib_free(p, siz, 1, __FILE__, __LINE__)
-#define UISVFREE(p, siz) uislib_free(p, siz, 0, __FILE__, __LINE__)
 void *uislib_cache_alloc(struct kmem_cache *cur_pool, char *fn, int ln);
 #define UISCACHEALLOC(cur_pool) uislib_cache_alloc(cur_pool, __FILE__, __LINE__)
 void uislib_cache_free(struct kmem_cache *cur_pool, void *p, char *fn, int ln);
