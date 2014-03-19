@@ -6462,7 +6462,7 @@ static ssize_t dgap_tty_name_show(struct device *d,
 				if (cn != (i + ncount))
 					continue;
 
-				return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
+				return snprintf(buf, PAGE_SIZE, "%s%s%02ld\n",
 						(un->un_type == DGAP_PRINT) ?
 						 "pr" : "tty",
 						cptr->u.conc.id,
@@ -6479,7 +6479,7 @@ static ssize_t dgap_tty_name_show(struct device *d,
 				if (cn != (i + ncount))
 					continue;
 
-				return snprintf(buf, PAGE_SIZE, "%s%s%02d\n",
+				return snprintf(buf, PAGE_SIZE, "%s%s%02ld\n",
 						(un->un_type == DGAP_PRINT) ?
 						 "pr" : "tty",
 						cptr->u.module.id,
@@ -6542,7 +6542,7 @@ static int	dgap_parsefile(char **in, int Remove)
 {
 	struct cnode *p, *brd, *line, *conc;
 	int	rc;
-	char	*s = NULL, *s2 = NULL;
+	char	*s = NULL;
 	int	linecnt = 0;
 
 	p = &dgap_head;
@@ -6688,8 +6688,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				return -1;
 			}
 			p->u.board.portstr = dgap_savestring(s);
-			p->u.board.port = (short)simple_strtol(s, &s2, 0);
-			if ((short)strlen(s) > (short)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.board.port)) {
 				dgap_err("bad number for IO port");
 				return -1;
 			}
@@ -6707,8 +6706,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				return -1;
 			}
 			p->u.board.addrstr = dgap_savestring(s);
-			p->u.board.addr = simple_strtoul(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtoul(s, 0, &p->u.board.addr)) {
 				dgap_err("bad number for memory address");
 				return -1;
 			}
@@ -6726,8 +6724,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				return -1;
 			}
 			p->u.board.pcibusstr = dgap_savestring(s);
-			p->u.board.pcibus = simple_strtoul(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtoul(s, 0, &p->u.board.pcibus)) {
 				dgap_err("bad number for pci bus");
 				return -1;
 			}
@@ -6738,8 +6735,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				return -1;
 			}
 			p->u.board.pcislotstr = dgap_savestring(s);
-			p->u.board.pcislot = simple_strtoul(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtoul(s, 0, &p->u.board.pcislot)) {
 				dgap_err("bad number for pci slot");
 				return -1;
 			}
@@ -6780,8 +6776,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.board.nport = (char)simple_strtol(s, &s2, 0);
-				if ((int)strlen(s) > (int)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.board.nport)) {
 					dgap_err("bad number for number of ports");
 					return -1;
 				}
@@ -6792,8 +6787,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.conc.nport = (char)simple_strtol(s, &s2, 0);
-				if ((int)strlen(s) > (int)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.conc.nport)) {
 					dgap_err("bad number for number of ports");
 					return -1;
 				}
@@ -6804,8 +6798,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.module.nport = (char)simple_strtol(s, &s2, 0);
-				if ((int)strlen(s) > (int)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.module.nport)) {
 					dgap_err("bad number for number of ports");
 					return -1;
 				}
@@ -6844,8 +6837,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.board.start = simple_strtol(s, &s2, 0);
-				if ((int)strlen(s) > (int)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.board.start)) {
 					dgap_err("bad number for start of tty count");
 					return -1;
 				}
@@ -6856,8 +6848,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.conc.start = simple_strtol(s, &s2, 0);
-				if ((int)strlen(s) > (int)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.conc.start)) {
 					dgap_err("bad number for start of tty count");
 					return -1;
 				}
@@ -6868,8 +6859,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.module.start = simple_strtol(s, &s2, 0);
-				if ((int)strlen(s) > (int)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.module.start)) {
 					dgap_err("bad number for start of tty count");
 					return -1;
 				}
@@ -7051,8 +7041,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.line.speed = (char)simple_strtol(s, &s2, 0);
-				if ((short)strlen(s) > (short)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.line.speed)) {
 					dgap_err("bad number for line speed");
 					return -1;
 				}
@@ -7063,8 +7052,7 @@ static int	dgap_parsefile(char **in, int Remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.conc.speed = (char)simple_strtol(s, &s2, 0);
-				if ((short)strlen(s) > (short)(s2 - s)) {
+				if (kstrtol(s, 0, &p->u.conc.speed)) {
 					dgap_err("bad number for line speed");
 					return -1;
 				}
@@ -7121,8 +7109,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.majornumber = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.majornumber)) {
 				dgap_err("bad number for major number");
 				return -1;
 			}
@@ -7142,8 +7129,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.altpin = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.altpin)) {
 				dgap_err("bad number for altpin");
 				return -1;
 			}
@@ -7163,8 +7149,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.useintr = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.useintr)) {
 				dgap_err("bad number for useintr");
 				return -1;
 			}
@@ -7184,8 +7169,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.ttysize = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.ttysize)) {
 				dgap_err("bad number for ttysize");
 				return -1;
 			}
@@ -7205,8 +7189,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.chsize = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.chsize)) {
 				dgap_err("bad number for chsize");
 				return -1;
 			}
@@ -7226,8 +7209,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.bssize = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.bssize)) {
 				dgap_err("bad number for bssize");
 				return -1;
 			}
@@ -7247,8 +7229,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.unsize = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.unsize)) {
 				dgap_err("bad number for schedsize");
 				return -1;
 			}
@@ -7268,8 +7249,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.f2size = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.f2size)) {
 				dgap_err("bad number for f2200size");
 				return -1;
 			}
@@ -7289,8 +7269,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.vpixsize = simple_strtol(s, &s2, 0);
-			if ((int)strlen(s) > (int)(s2 - s)) {
+			if (kstrtol(s, 0, &p->u.vpixsize)) {
 				dgap_err("bad number for vpixsize");
 				return -1;
 			}

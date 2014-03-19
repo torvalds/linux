@@ -1226,7 +1226,7 @@ struct cnode {
 	union {
 		struct {
 			char  type;	/* Board Type 		*/
-			short port;	/* I/O Address		*/
+			long  port;	/* I/O Address		*/
 			char  *portstr; /* I/O Address in string */
 			long  addr;	/* Memory Address	*/
 			char  *addrstr; /* Memory Address in string */
@@ -1234,9 +1234,9 @@ struct cnode {
 			char  *pcibusstr; /* PCI BUS in string */
 			long  pcislot;	/* PCI SLOT		*/
 			char  *pcislotstr; /* PCI SLOT in string */
-			char  nport;	/* Number of Ports	*/
+			long  nport;	/* Number of Ports	*/
 			char  *id;	/* tty id		*/
-			int   start;	/* start of tty counting */
+			long  start;	/* start of tty counting */
 			char  *method;  /* Install method       */
 			char  v_type;
 			char  v_port;
@@ -1261,18 +1261,18 @@ struct cnode {
 		struct {
 			char  *cable;
 			char  v_cable;
-			char  speed;
+			long  speed;
 			char  v_speed;
 		} line;
 
 		struct {
 			char  type;
 			char  *connect;
-			char  speed;
-			char  nport;
+			long  speed;
+			long  nport;
 			char  *id;
 			char  *idstr;
-			int   start;
+			long  start;
 			char  v_type;
 			char  v_connect;
 			char  v_speed;
@@ -1283,10 +1283,10 @@ struct cnode {
 
 		struct {
 			char type;
-			char nport;
+			long nport;
 			char *id;
 			char *idstr;
-			int  start;
+			long start;
 			char v_type;
 			char v_nport;
 			char v_id;
@@ -1299,23 +1299,23 @@ struct cnode {
 
 		char *printname;
 
-		int  majornumber;
+		long majornumber;
 
-		int  altpin;
+		long altpin;
 
-		int  ttysize;
+		long ttysize;
 
-		int  chsize;
+		long chsize;
 
-		int  bssize;
+		long bssize;
 
-		int  unsize;
+		long unsize;
 
-		int  f2size;
+		long f2size;
 
-		int  vpixsize;
+		long vpixsize;
 
-		int  useintr;
+		long useintr;
 	} u;
 };
 
