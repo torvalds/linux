@@ -26,6 +26,22 @@
 static struct kmem_cache *nat_entry_slab;
 static struct kmem_cache *free_nid_slab;
 
+static inline bool available_free_memory(struct f2fs_nm_info *nm_i, int type)
+{
+	struct sysinfo val;
+	unsigned long mem_size = 0;
+
+	si_meminfo(&val);
+	if (type == FREE_NIDS)
+		mem_size = nm_i->fcnt * sizeof(struct free_nid);
+	else if (type == NAT_ENTRIES)
+		mem_size += nm_i->nat_cnt * sizeof(struct nat_entry);
+	mem_size >>= 12;
+
+	/* give 50:50 memory for free nids and nat caches respectively */
+	return (mem_size < ((val.totalram * nm_i->ram_thresh) >> 11));
+}
+
 static void clear_node_page_dirty(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
@@ -208,7 +224,7 @@ int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 
-	if (nm_i->nat_cnt <= NM_WOUT_THRESHOLD || nr_shrink <= 0)
+	if (available_free_memory(nm_i, NAT_ENTRIES) || nr_shrink <= 0)
 		return 0;
 
 	write_lock(&nm_i->nat_tree_lock);
@@ -1288,7 +1304,7 @@ static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid, bool build)
 	struct nat_entry *ne;
 	bool allocated = false;
 
-	if (nm_i->fcnt > 2 * MAX_FREE_NIDS)
+	if (!available_free_memory(nm_i, FREE_NIDS))
 		return -1;
 
 	/* 0 nid should not be used */
@@ -1473,7 +1489,7 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 	spin_lock(&nm_i->free_nid_list_lock);
 	i = __lookup_free_nid_list(nm_i, nid);
 	f2fs_bug_on(!i || i->state != NID_ALLOC);
-	if (nm_i->fcnt > 2 * MAX_FREE_NIDS) {
+	if (!available_free_memory(nm_i, FREE_NIDS)) {
 		__del_from_free_nid_list(nm_i, i);
 	} else {
 		i->state = NID_NEW;
@@ -1836,6 +1852,7 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	nm_i->max_nid = NAT_ENTRY_PER_BLOCK * nat_blocks - 3;
 	nm_i->fcnt = 0;
 	nm_i->nat_cnt = 0;
+	nm_i->ram_thresh = DEF_RAM_THRESHOLD;
 
 	INIT_RADIX_TREE(&nm_i->free_nid_root, GFP_ATOMIC);
 	INIT_LIST_HEAD(&nm_i->free_nid_list);

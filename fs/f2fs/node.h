@@ -17,14 +17,14 @@
 /* # of pages to perform readahead before building free nids */
 #define FREE_NID_PAGES 4
 
-/* maximum # of free node ids to produce during build_free_nids */
-#define MAX_FREE_NIDS (NAT_ENTRY_PER_BLOCK * FREE_NID_PAGES)
-
 /* maximum readahead size for node during getting data blocks */
 #define MAX_RA_NODE		128
 
 /* maximum cached nat entries to manage memory footprint */
 #define NM_WOUT_THRESHOLD	(64 * NAT_ENTRY_PER_BLOCK)
+
+/* control the memory footprint threshold (10MB per 1GB ram) */
+#define DEF_RAM_THRESHOLD	10
 
 /* vector size for gang look-up from nat cache that consists of radix tree */
 #define NATVEC_SIZE	64
@@ -76,6 +76,11 @@ static inline void node_info_from_raw_nat(struct node_info *ni,
 	ni->blk_addr = le32_to_cpu(raw_ne->block_addr);
 	ni->version = raw_ne->version;
 }
+
+enum nid_type {
+	FREE_NIDS,	/* indicates the free nid list */
+	NAT_ENTRIES	/* indicates the cached nat entry */
+};
 
 /*
  * For free nid mangement

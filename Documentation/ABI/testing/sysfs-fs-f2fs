@@ -55,3 +55,9 @@ Date:		January 2014
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:
 		 Controls the number of trials to find a victim segment.
+
+What:		/sys/fs/f2fs/<disk>/ram_thresh
+Date:		March 2014
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the memory footprint used by f2fs.
