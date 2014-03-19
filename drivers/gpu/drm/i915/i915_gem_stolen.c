@@ -214,6 +214,13 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int bios_reserved = 0;
 
+#ifdef CONFIG_INTEL_IOMMU
+	if (intel_iommu_gfx_mapped) {
+		DRM_INFO("DMAR active, disabling use of stolen memory\n");
+		return 0;
+	}
+#endif
+
 	if (dev_priv->gtt.stolen_size == 0)
 		return 0;
 
