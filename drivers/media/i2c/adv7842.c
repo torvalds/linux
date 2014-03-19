@@ -2000,6 +2000,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	if (irq_status[5] & 0x08) {
 		v4l2_dbg(1, debug, sd, "%s: irq %s mode\n", __func__,
 			 (io_read(sd, 0x65) & 0x08) ? "HDMI" : "DVI");
+		set_rgb_quantization_range(sd);
 		if (handled)
 			*handled = true;
 	}
