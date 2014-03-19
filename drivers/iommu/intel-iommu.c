@@ -784,7 +784,7 @@ out:
 }
 
 static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
-				      unsigned long pfn, int target_level)
+				      unsigned long pfn, int *target_level)
 {
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 	struct dma_pte *parent, *pte = NULL;
@@ -799,14 +799,14 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 
 	parent = domain->pgd;
 
-	while (level > 0) {
+	while (1) {
 		void *tmp_page;
 
 		offset = pfn_level_offset(pfn, level);
 		pte = &parent[offset];
-		if (!target_level && (dma_pte_superpage(pte) || !dma_pte_present(pte)))
+		if (!*target_level && (dma_pte_superpage(pte) || !dma_pte_present(pte)))
 			break;
-		if (level == target_level)
+		if (level == *target_level)
 			break;
 
 		if (!dma_pte_present(pte)) {
@@ -827,9 +827,15 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 				domain_flush_cache(domain, pte, sizeof(*pte));
 			}
 		}
+		if (level == 1)
+			break;
+
 		parent = phys_to_virt(dma_pte_addr(pte));
 		level--;
 	}
+
+	if (!*target_level)
+		*target_level = level;
 
 	return pte;
 }
@@ -868,7 +874,7 @@ static struct dma_pte *dma_pfn_level_pte(struct dmar_domain *domain,
 }
 
 /* clear last level pte, a tlb flush should be followed */
-static int dma_pte_clear_range(struct dmar_domain *domain,
+static void dma_pte_clear_range(struct dmar_domain *domain,
 				unsigned long start_pfn,
 				unsigned long last_pfn)
 {
@@ -898,8 +904,6 @@ static int dma_pte_clear_range(struct dmar_domain *domain,
 				   (void *)pte - (void *)first_pte);
 
 	} while (start_pfn && start_pfn <= last_pfn);
-
-	return min_t(int, (large_page - 1) * 9, MAX_AGAW_PFN_WIDTH);
 }
 
 static void dma_pte_free_level(struct dmar_domain *domain, int level,
@@ -1832,7 +1836,7 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		if (!pte) {
 			largepage_lvl = hardware_largepage_caps(domain, iov_pfn, phys_pfn, sg_res);
 
-			first_pte = pte = pfn_to_dma_pte(domain, iov_pfn, largepage_lvl);
+			first_pte = pte = pfn_to_dma_pte(domain, iov_pfn, &largepage_lvl);
 			if (!pte)
 				return -ENOMEM;
 			/* It is large page*/
@@ -4099,15 +4103,23 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 			     unsigned long iova, size_t size)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
-	int order;
+	int level = 0;
 
-	order = dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
+	/* Cope with horrid API which requires us to unmap more than the
+	   size argument if it happens to be a large-page mapping. */
+	if (!pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT, &level))
+		BUG();
+
+	if (size < VTD_PAGE_SIZE << level_to_offset_bits(level))
+		size = VTD_PAGE_SIZE << level_to_offset_bits(level);
+
+	dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
 			    (iova + size - 1) >> VTD_PAGE_SHIFT);
 
 	if (dmar_domain->max_addr == iova + size)
 		dmar_domain->max_addr = iova;
 
-	return PAGE_SIZE << order;
+	return size;
 }
 
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
@@ -4115,9 +4127,10 @@ static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 {
 	struct dmar_domain *dmar_domain = domain->priv;
 	struct dma_pte *pte;
+	int level = 0;
 	u64 phys = 0;
 
-	pte = pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT, 0);
+	pte = pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT, &level);
 	if (pte)
 		phys = dma_pte_addr(pte);
 
