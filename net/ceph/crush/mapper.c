@@ -684,12 +684,12 @@ int crush_do_rule(const struct crush_map *map,
 			break;
 
 		case CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES:
-			if (curstep->arg1 > 0)
+			if (curstep->arg1 >= 0)
 				choose_local_retries = curstep->arg1;
 			break;
 
 		case CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES:
-			if (curstep->arg1 > 0)
+			if (curstep->arg1 >= 0)
 				choose_local_fallback_retries = curstep->arg1;
 			break;
 
