@@ -193,13 +193,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 					 pcval32bit);			\
 	} while (0)
 
-#define TRY_WPOSTCODE_3(x, EVENT_PC, pcval16bit1, pcval16bit2) do { \
-		int status = (x);				    \
-		if (status < 0)						\
-			FAIL_WPOSTCODE_3(__stringify(x), status, EVENT_PC, \
-					 pcval16bit1, pcval16bit2);	\
-	} while (0)
-
 #define ASSERT(cond)                                           \
 	do { if (!(cond))                                      \
 			HUHDRV("ASSERT failed - %s",	       \
@@ -314,117 +307,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 			PRINTKDRV("bad file structure");  \
 			RETVOID;			  \
 		})
-
-/** Converts a device index #devix into #devData, after checking for validity.
- *  Can only be called from functions returning void.
- *  @param devix your device index within the #DevData array.
- *  @param devData the #PRIVATEDEVICEDATA pointer that will be set on return.
- *  @param where string identifying the calling function, to be printed in
- *         debug message
- *  @param dbg 1 iff debug messages are enabled
- */
-#define DEVFROMID(devix, devData, where, dbg)				\
-	{								\
-		if (devix >= MAXDEVICES) {				\
-			PRINTKDRV("bad devix passed to %s()", where);	\
-			RETVOID;					\
-		}							\
-		if (dbg)						\
-			DEBUGDEV(devix, "%s", where);			\
-		if (devix >= MAXDEVICES) {				\
-			DEBUGDEV(devix, "%s - bad devix %d",		\
-				 where, devix);				\
-			RETVOID;					\
-		}							\
-		devData = DevData[devix];				\
-		CHKDD(devData);						\
-	}
-
-/** Converts a device index #devix into #devData, after checking for validity.
- *  Can only be called from functions returning int.
- *  @param devix your device index within the #DevData array.
- *  @param devData the #PRIVATEDEVICEDATA pointer that will be set on return.
- *  @param errcode error code that your function will return on error.
- *  @param where string identifying the calling function, to be printed in
- *         debug message
- *  @param dbg 1 iff debug messages are enabled
- */
-#define DEVFROMIDX(devix, devData, errcode, where, dbg)			\
-	{								\
-		if (devix >= MAXDEVICES) {				\
-			PRINTKDRV("bad devix passed to %s()", where);	\
-			RETINT(errcode);				\
-		}							\
-		if (dbg)						\
-			DEBUGDEV(devix, "%s", where);			\
-		if (devix >= MAXDEVICES) {				\
-			DEBUGDEV(devix, "%s - bad devix %d",		\
-				 where, devix);				\
-			RETINT(-ENODEV);				\
-		}							\
-		devData = DevData[devix];				\
-		CHKDDX(devData, -EIO);					\
-	}
-
-/** Converts an inode pointer #inode into a #devix and #devData, after
- *  checking for validity.
- *  Can only be called from functions returning int.
- *  @param devix your device index within the #DevData array.
- *  @param devData the #PRIVATEDEVICEDATA pointer that will be set on return.
- *  @param inode input inode pointer
- *  @param errcode error code that your function will return on error.
- *  @param where string identifying the calling function, to be printed in
- *         debug message
- *  @param dbg 1 iff debug messages are enabled
- */
-#define DEVFROMINODE(devix, devData, inode, errcode, where, dbg)	\
-	{								\
-		if (inode == NULL) {					\
-			PRINTKDRV("bad inode passed to %s()", where);	\
-			RETINT(errcode);				\
-		}							\
-		devix = MINOR(inode->i_rdev);				\
-		if (dbg)						\
-			DEBUGDEV(devix, "%s", where);			\
-		if (devix >= MAXDEVICES) {				\
-			DEBUGDEV(devix, "%s - bad devix %d",		\
-				 where, devix);				\
-			RETINT(-ENODEV);				\
-		}							\
-		devData = DevData[devix];				\
-		CHKDDX(devData, -EIO);					\
-	}
-
-/** Converts a file pointer #file into a #devix and #devData, after checking
- *  for validity.
- *  Can only be called from functions returning int.
- *  @param devix your device index within the #DevData array.
- *  @param devData the #PRIVATEDEVICEDATA pointer that will be set on return.
- *  @param file input file pointer
- *  @param errcode error code that your function will return on error.
- *  @param where string identifying the calling function, to be printed in
- *         debug message
- *  @param dbg 1 iff debug messages are enabled
- */
-#define DEVFROMFILE(devix, devData, fileData, file, errcode, where, dbg) \
-		{							\
-		if (file == NULL) {					\
-			PRINTKDRV("bad file passed to %s()", where);	\
-			RETINT(errcode);				\
-		}							\
-		CHKFDX((PRIVATEFILEDATA *)(file->private_data), -EIO);	\
-		fileData = file->private_data;				\
-		devix = fileData->devix;				\
-		if (dbg)						\
-			DEBUGDEV(devix, "%s %p", where, file);		\
-		if (devix >= MAXDEVICES) {				\
-			DEBUGDEV(devix, "%s - bad devix %d",		\
-				 where, devix);				\
-			RETINT(-ENODEV);				\
-		}							\
-		devData = DevData[devix];				\
-		CHKDDX(devData, -EIO);					\
-	}
 
 /** Locks dd->lockDev if you havn't already locked it */
 #define LOCKDEV(dd)                                                    \
