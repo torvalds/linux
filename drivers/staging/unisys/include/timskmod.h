@@ -132,10 +132,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
  *  @param x the value to return
  */
 #define RETPTR(x)  do { rc = (x); RETTRACE(x); goto Away; } while (0)
-/** return from a BOOL function, using a common exit point "Away"
- *  @param x the value to return
- */
-#define RETBOOL(x) do { rc = (x); RETTRACE(x); goto Away; } while (0)
 /** Given a typedef/struct/union and a member field name,
  *  return the number of bytes occupied by that field.
  *  @param TYPE     the typedef name, or "struct xx" or "union xx"

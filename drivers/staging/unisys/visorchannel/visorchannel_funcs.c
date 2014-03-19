@@ -313,7 +313,7 @@ sig_read_header(VISORCHANNEL *channel, U32 queue,
 		       queue, (int)SIG_QUEUE_OFFSET(&channel->chan_hdr, queue));
 		FAIL("visor_memregion_read of signal queue failed", FALSE);
 	}
-	RETBOOL(TRUE);
+	rc = TRUE;
 Away:
 	return rc;
 }
@@ -337,7 +337,7 @@ sig_do_data(VISORCHANNEL *channel, U32 queue,
 			FAIL("visor_memregion_read of signal data failed",
 			     FALSE);
 	}
-	RETBOOL(TRUE);
+	rc = TRUE;
 Away:
 	return rc;
 }
@@ -387,10 +387,14 @@ visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg)
 	if (channel->needs_lock)
 		spin_lock(&channel->remove_lock);
 
-	if (!sig_read_header(channel, queue, &sig_hdr))
-		RETBOOL(FALSE);
-	if (sig_hdr.Head == sig_hdr.Tail)
-		RETBOOL(FALSE);	/* no signals to remove */
+	if (!sig_read_header(channel, queue, &sig_hdr)) {
+		rc = FALSE;
+		goto Away;
+	}
+	if (sig_hdr.Head == sig_hdr.Tail) {
+		rc = FALSE;	/* no signals to remove */
+		goto Away;
+	}
 	sig_hdr.Tail = (sig_hdr.Tail + 1) % sig_hdr.MaxSignalSlots;
 	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.Tail, msg))
 		FAIL("sig_read_data failed", FALSE);
@@ -405,9 +409,7 @@ visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg)
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsReceived))
 		FAIL("visor_memregion_write of NumSignalsReceived failed",
 		     FALSE);
-
-	RETBOOL(TRUE);
-
+	rc = TRUE;
 Away:
 	if (channel->needs_lock)
 		spin_unlock(&channel->remove_lock);
@@ -425,20 +427,19 @@ visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 	if (channel->needs_lock)
 		spin_lock(&channel->insert_lock);
 
-	if (!sig_read_header(channel, queue, &sig_hdr))
-		RETBOOL(FALSE);
+	if (!sig_read_header(channel, queue, &sig_hdr)) {
+		rc = FALSE;
+		goto Away;
+	}
 
 	sig_hdr.Head = ((sig_hdr.Head + 1) % sig_hdr.MaxSignalSlots);
 	if (sig_hdr.Head == sig_hdr.Tail) {
-#if 0
-		ERRDRV("visorchannel queue #%d overflow (max slots=%d)",
-		       queue, sig_hdr.MaxSignalSlots);
-#endif
 		sig_hdr.NumOverflows++;
 		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumOverflows))
 			FAIL("visor_memregion_write of NumOverflows failed",
 			     FALSE);
-		RETBOOL(FALSE);
+		rc = FALSE;
+		goto Away;
 	}
 
 	if (!sig_write_data(channel, queue, &sig_hdr, sig_hdr.Head, msg))
@@ -453,9 +454,7 @@ visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 		FAIL("visor_memregion_write of Head failed", FALSE);
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsSent))
 		FAIL("visor_memregion_write of NumSignalsSent failed", FALSE);
-
-	RETBOOL(TRUE);
-
+	rc = TRUE;
 Away:
 	if (channel->needs_lock)
 		spin_unlock(&channel->insert_lock);
