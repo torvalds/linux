@@ -172,9 +172,19 @@ struct eeh_ops {
 };
 
 extern struct eeh_ops *eeh_ops;
-extern int eeh_subsystem_enabled;
+extern bool eeh_subsystem_enabled;
 extern raw_spinlock_t confirm_error_lock;
 extern int eeh_probe_mode;
+
+static inline bool eeh_enabled(void)
+{
+	return eeh_subsystem_enabled;
+}
+
+static inline void eeh_set_enable(bool mode)
+{
+	eeh_subsystem_enabled = mode;
+}
 
 #define EEH_PROBE_MODE_DEV	(1<<0)	/* From PCI device	*/
 #define EEH_PROBE_MODE_DEVTREE	(1<<1)	/* From device tree	*/
@@ -246,7 +256,7 @@ void eeh_remove_device(struct pci_dev *);
  * If this macro yields TRUE, the caller relays to eeh_check_failure()
  * which does further tests out of line.
  */
-#define EEH_POSSIBLE_ERROR(val, type)	((val) == (type)~0 && eeh_subsystem_enabled)
+#define EEH_POSSIBLE_ERROR(val, type)	((val) == (type)~0 && eeh_enabled())
 
 /*
  * Reads from a device which has been isolated by EEH will return
@@ -256,6 +266,13 @@ void eeh_remove_device(struct pci_dev *);
 #define EEH_IO_ERROR_VALUE(size)	(~0U >> ((4 - (size)) * 8))
 
 #else /* !CONFIG_EEH */
+
+static inline bool eeh_enabled(void)
+{
+        return false;
+}
+
+static inline void eeh_set_enable(bool mode) { }
 
 static inline int eeh_init(void)
 {

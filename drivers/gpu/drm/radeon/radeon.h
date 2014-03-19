@@ -135,6 +135,9 @@ extern int radeon_hard_reset;
 /* R600+ */
 #define R600_RING_TYPE_UVD_INDEX	5
 
+/* number of hw syncs before falling back on blocking */
+#define RADEON_NUM_SYNCS			4
+
 /* hardcode those limit for now */
 #define RADEON_VA_IB_OFFSET			(1 << 20)
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
@@ -554,7 +557,6 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 /*
  * Semaphores.
  */
-/* everything here is constant */
 struct radeon_semaphore {
 	struct radeon_sa_bo		*sa_bo;
 	signed				waiters;
@@ -2745,6 +2747,12 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 void r600_audio_update_hdmi(struct work_struct *work);
 struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev);
 struct r600_audio_pin *dce6_audio_get_pin(struct radeon_device *rdev);
+void r600_audio_enable(struct radeon_device *rdev,
+		       struct r600_audio_pin *pin,
+		       bool enable);
+void dce6_audio_enable(struct radeon_device *rdev,
+		       struct r600_audio_pin *pin,
+		       bool enable);
 
 /*
  * R600 vram scratch functions

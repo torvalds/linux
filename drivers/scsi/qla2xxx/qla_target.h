@@ -1001,7 +1001,7 @@ extern void qlt_modify_vp_config(struct scsi_qla_host *,
 extern void qlt_probe_one_stage1(struct scsi_qla_host *, struct qla_hw_data *);
 extern int qlt_mem_alloc(struct qla_hw_data *);
 extern void qlt_mem_free(struct qla_hw_data *);
-extern void qlt_stop_phase1(struct qla_tgt *);
+extern int qlt_stop_phase1(struct qla_tgt *);
 extern void qlt_stop_phase2(struct qla_tgt *);
 extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);

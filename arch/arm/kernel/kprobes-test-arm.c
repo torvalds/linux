@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <asm/system_info.h>
 
 #include "kprobes-test.h"
 

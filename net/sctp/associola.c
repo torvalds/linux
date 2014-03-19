@@ -1367,44 +1367,35 @@ static inline bool sctp_peer_needs_update(struct sctp_association *asoc)
 	return false;
 }
 
-/* Increase asoc's rwnd by len and send any window update SACK if needed. */
-void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
+/* Update asoc's rwnd for the approximated state in the buffer,
+ * and check whether SACK needs to be sent.
+ */
+void sctp_assoc_rwnd_update(struct sctp_association *asoc, bool update_peer)
 {
+	int rx_count;
 	struct sctp_chunk *sack;
 	struct timer_list *timer;
 
-	if (asoc->rwnd_over) {
-		if (asoc->rwnd_over >= len) {
-			asoc->rwnd_over -= len;
-		} else {
-			asoc->rwnd += (len - asoc->rwnd_over);
-			asoc->rwnd_over = 0;
-		}
-	} else {
-		asoc->rwnd += len;
-	}
+	if (asoc->ep->rcvbuf_policy)
+		rx_count = atomic_read(&asoc->rmem_alloc);
+	else
+		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
 
-	/* If we had window pressure, start recovering it
-	 * once our rwnd had reached the accumulated pressure
-	 * threshold.  The idea is to recover slowly, but up
-	 * to the initial advertised window.
-	 */
-	if (asoc->rwnd_press && asoc->rwnd >= asoc->rwnd_press) {
-		int change = min(asoc->pathmtu, asoc->rwnd_press);
-		asoc->rwnd += change;
-		asoc->rwnd_press -= change;
-	}
+	if ((asoc->base.sk->sk_rcvbuf - rx_count) > 0)
+		asoc->rwnd = (asoc->base.sk->sk_rcvbuf - rx_count) >> 1;
+	else
+		asoc->rwnd = 0;
 
-	pr_debug("%s: asoc:%p rwnd increased by %d to (%u, %u) - %u\n",
-		 __func__, asoc, len, asoc->rwnd, asoc->rwnd_over,
-		 asoc->a_rwnd);
+	pr_debug("%s: asoc:%p rwnd=%u, rx_count=%d, sk_rcvbuf=%d\n",
+		 __func__, asoc, asoc->rwnd, rx_count,
+		 asoc->base.sk->sk_rcvbuf);
 
 	/* Send a window update SACK if the rwnd has increased by at least the
 	 * minimum of the association's PMTU and half of the receive buffer.
 	 * The algorithm used is similar to the one described in
 	 * Section 4.2.3.3 of RFC 1122.
 	 */
-	if (sctp_peer_needs_update(asoc)) {
+	if (update_peer && sctp_peer_needs_update(asoc)) {
 		asoc->a_rwnd = asoc->rwnd;
 
 		pr_debug("%s: sending window update SACK- asoc:%p rwnd:%u "
@@ -1426,45 +1417,6 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 	}
 }
 
-/* Decrease asoc's rwnd by len. */
-void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned int len)
-{
-	int rx_count;
-	int over = 0;
-
-	if (unlikely(!asoc->rwnd || asoc->rwnd_over))
-		pr_debug("%s: association:%p has asoc->rwnd:%u, "
-			 "asoc->rwnd_over:%u!\n", __func__, asoc,
-			 asoc->rwnd, asoc->rwnd_over);
-
-	if (asoc->ep->rcvbuf_policy)
-		rx_count = atomic_read(&asoc->rmem_alloc);
-	else
-		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
-
-	/* If we've reached or overflowed our receive buffer, announce
-	 * a 0 rwnd if rwnd would still be positive.  Store the
-	 * the potential pressure overflow so that the window can be restored
-	 * back to original value.
-	 */
-	if (rx_count >= asoc->base.sk->sk_rcvbuf)
-		over = 1;
-
-	if (asoc->rwnd >= len) {
-		asoc->rwnd -= len;
-		if (over) {
-			asoc->rwnd_press += asoc->rwnd;
-			asoc->rwnd = 0;
-		}
-	} else {
-		asoc->rwnd_over = len - asoc->rwnd;
-		asoc->rwnd = 0;
-	}
-
-	pr_debug("%s: asoc:%p rwnd decreased by %d to (%u, %u, %u)\n",
-		 __func__, asoc, len, asoc->rwnd, asoc->rwnd_over,
-		 asoc->rwnd_press);
-}
 
 /* Build the bind address list for the association based on info from the
  * local endpoint and the remote peer.
