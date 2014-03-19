@@ -1819,7 +1819,8 @@ int wl_rx_dma(struct net_device *dev)
 
 	DBG_PARAM(DbgInfo, "dev", "%s (0x%p)", dev->name, dev);
 
-	if (((lp = dev->priv) != NULL) && !(lp->flags & WVLAN2_UIL_BUSY)) {
+	lp = dev->priv;
+	if ((lp != NULL) && !(lp->flags & WVLAN2_UIL_BUSY)) {
 
 #ifdef USE_RTS
 		if (lp->useRTS == 1) {
