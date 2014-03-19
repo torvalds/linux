@@ -40,7 +40,7 @@
 #define FSM_MAC_INIT_DONE               6
 
 extern u32 rsi_zone_enabled;
-extern void rsi_dbg(u32 zone, const char *fmt, ...);
+extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 
 #define RSI_MAX_VIFS                    1
 #define NUM_EDCA_QUEUES                 4
