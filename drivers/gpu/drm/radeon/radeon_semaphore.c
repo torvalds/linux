@@ -42,7 +42,7 @@ int radeon_semaphore_create(struct radeon_device *rdev,
 		return -ENOMEM;
 	}
 	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &(*semaphore)->sa_bo,
-			     8 * RADEON_NUM_SYNCS, 8, true);
+			     8 * RADEON_NUM_SYNCS, 8);
 	if (r) {
 		kfree(*semaphore);
 		*semaphore = NULL;
@@ -147,7 +147,9 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 
 		if (++count > RADEON_NUM_SYNCS) {
 			/* not enough room, wait manually */
-			radeon_fence_wait_locked(fence);
+			r = radeon_fence_wait(fence, false);
+			if (r)
+				return r;
 			continue;
 		}
 
@@ -161,7 +163,9 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 		if (!radeon_semaphore_emit_signal(rdev, i, semaphore)) {
 			/* signaling wasn't successful wait manually */
 			radeon_ring_undo(&rdev->ring[i]);
-			radeon_fence_wait_locked(fence);
+			r = radeon_fence_wait(fence, false);
+			if (r)
+				return r;
 			continue;
 		}
 
@@ -169,7 +173,9 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 		if (!radeon_semaphore_emit_wait(rdev, ring, semaphore)) {
 			/* waiting wasn't successful wait manually */
 			radeon_ring_undo(&rdev->ring[i]);
-			radeon_fence_wait_locked(fence);
+			r = radeon_fence_wait(fence, false);
+			if (r)
+				return r;
 			continue;
 		}
 

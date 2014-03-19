@@ -709,8 +709,6 @@ static int imx_tve_remove(struct platform_device *pdev)
 	struct drm_connector *connector = &tve->connector;
 	struct drm_encoder *encoder = &tve->encoder;
 
-	drm_mode_connector_detach_encoder(connector, encoder);
-
 	imx_drm_remove_connector(tve->imx_drm_connector);
 	imx_drm_remove_encoder(tve->imx_drm_encoder);
 

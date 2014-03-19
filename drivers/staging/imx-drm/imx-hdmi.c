@@ -1883,7 +1883,6 @@ static int imx_hdmi_platform_remove(struct platform_device *pdev)
 	struct drm_connector *connector = &hdmi->connector;
 	struct drm_encoder *encoder = &hdmi->encoder;
 
-	drm_mode_connector_detach_encoder(connector, encoder);
 	imx_drm_remove_connector(hdmi->imx_drm_connector);
 	imx_drm_remove_encoder(hdmi->imx_drm_encoder);
 

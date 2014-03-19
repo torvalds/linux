@@ -410,7 +410,7 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  *
  * %GFP_NOWAIT - Allocation will not sleep.
  *
- * %GFP_THISNODE - Allocate node-local memory only.
+ * %__GFP_THISNODE - Allocate node-local memory only.
  *
  * %GFP_DMA - Allocation suitable for DMA.
  *   Should only be used for kmalloc() caches. Otherwise, use a

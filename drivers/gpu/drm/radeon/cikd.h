@@ -203,6 +203,12 @@
 #define		CTF_TEMP_MASK				0x0003fe00
 #define		CTF_TEMP_SHIFT				9
 
+#define CG_ECLK_CNTL                                    0xC05000AC
+#       define ECLK_DIVIDER_MASK                        0x7f
+#       define ECLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_ECLK_STATUS                                  0xC05000B0
+#       define ECLK_STATUS                              (1 << 0)
+
 #define	CG_SPLL_FUNC_CNTL				0xC0500140
 #define		SPLL_RESET				(1 << 0)
 #define		SPLL_PWRON				(1 << 1)
@@ -2009,5 +2015,48 @@
 
 /* UVD CTX indirect */
 #define	UVD_CGC_MEM_CTRL				0xC0
+
+/* VCE */
+
+#define VCE_VCPU_CACHE_OFFSET0		0x20024
+#define VCE_VCPU_CACHE_SIZE0		0x20028
+#define VCE_VCPU_CACHE_OFFSET1		0x2002c
+#define VCE_VCPU_CACHE_SIZE1		0x20030
+#define VCE_VCPU_CACHE_OFFSET2		0x20034
+#define VCE_VCPU_CACHE_SIZE2		0x20038
+#define VCE_RB_RPTR2			0x20178
+#define VCE_RB_WPTR2			0x2017c
+#define VCE_RB_RPTR			0x2018c
+#define VCE_RB_WPTR			0x20190
+#define VCE_CLOCK_GATING_A		0x202f8
+#	define CGC_CLK_GATE_DLY_TIMER_MASK	(0xf << 0)
+#	define CGC_CLK_GATE_DLY_TIMER(x)	((x) << 0)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER_MASK	(0xff << 4)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER(x)	((x) << 4)
+#	define CGC_UENC_WAIT_AWAKE	(1 << 18)
+#define VCE_CLOCK_GATING_B		0x202fc
+#define VCE_CGTT_CLK_OVERRIDE		0x207a0
+#define VCE_UENC_CLOCK_GATING		0x207bc
+#	define CLOCK_ON_DELAY_MASK	(0xf << 0)
+#	define CLOCK_ON_DELAY(x)	((x) << 0)
+#	define CLOCK_OFF_DELAY_MASK	(0xff << 4)
+#	define CLOCK_OFF_DELAY(x)	((x) << 4)
+#define VCE_UENC_REG_CLOCK_GATING	0x207c0
+#define VCE_SYS_INT_EN			0x21300
+#	define VCE_SYS_INT_TRAP_INTERRUPT_EN	(1 << 3)
+#define VCE_LMI_CTRL2			0x21474
+#define VCE_LMI_CTRL			0x21498
+#define VCE_LMI_VM_CTRL			0x214a0
+#define VCE_LMI_SWAP_CNTL		0x214b4
+#define VCE_LMI_SWAP_CNTL1		0x214b8
+#define VCE_LMI_CACHE_CTRL		0x214f4
+
+#define VCE_CMD_NO_OP		0x00000000
+#define VCE_CMD_END		0x00000001
+#define VCE_CMD_IB		0x00000002
+#define VCE_CMD_FENCE		0x00000003
+#define VCE_CMD_TRAP		0x00000004
+#define VCE_CMD_IB_AUTO		0x00000005
+#define VCE_CMD_SEMAPHORE	0x00000006
 
 #endif

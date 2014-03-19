@@ -376,7 +376,9 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 
 	ret = ttm_bo_device_init(&drm->ttm.bdev,
 				  drm->ttm.bo_global_ref.ref.object,
-				  &nouveau_bo_driver, DRM_FILE_PAGE_OFFSET,
+				  &nouveau_bo_driver,
+				  dev->anon_inode->i_mapping,
+				  DRM_FILE_PAGE_OFFSET,
 				  bits <= 32 ? true : false);
 	if (ret) {
 		NV_ERROR(drm, "error initialising bo driver, %d\n", ret);

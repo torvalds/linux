@@ -29,6 +29,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/security.h>
+#include <net/net_namespace.h>
+#include <net/sock.h>
 #include "audit.h"
 
 /*
@@ -1065,11 +1067,13 @@ int audit_rule_change(int type, __u32 portid, int seq, void *data,
 
 /**
  * audit_list_rules_send - list the audit rules
- * @portid: target portid for netlink audit messages
+ * @request_skb: skb of request we are replying to (used to target the reply)
  * @seq: netlink audit message sequence (serial) number
  */
-int audit_list_rules_send(__u32 portid, int seq)
+int audit_list_rules_send(struct sk_buff *request_skb, int seq)
 {
+	u32 portid = NETLINK_CB(request_skb).portid;
+	struct net *net = sock_net(NETLINK_CB(request_skb).sk);
 	struct task_struct *tsk;
 	struct audit_netlink_list *dest;
 	int err = 0;
@@ -1083,8 +1087,8 @@ int audit_list_rules_send(__u32 portid, int seq)
 	dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
 	if (!dest)
 		return -ENOMEM;
+	dest->net = get_net(net);
 	dest->portid = portid;
-	dest->pid = task_pid_vnr(current);
 	skb_queue_head_init(&dest->q);
 
 	mutex_lock(&audit_filter_mutex);
