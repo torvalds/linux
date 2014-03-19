@@ -29,13 +29,3 @@ config DWC_OTG
 	tristate
 	depends on DWC_OTG_310	
 	default y if USB11_HOST || USB20_HOST || USB20_OTG 
-
-config DWC_REMOTE_WAKEUP
-	bool "remote wakeup support in DWC_OTG controller"
-	depends on DWC_OTG_310
-	default y if USB20_HOST || USB20_OTG
-
-config RK_USB_DETECT_BY_OTG_BVALID
-	bool "Wakeup system by OTG BVALID interrupt when USB OTG conneted"
-	depends on USB_GADGET && ARCH_ROCKCHIP
-	default y if USB20_HOST || USB20_OTG

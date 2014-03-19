@@ -749,15 +749,15 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 		pcgcctl.b.stoppclk = 1;//stop phy clk
 		DWC_WRITE_REG32(core_if->pcgcctl, pcgcctl.d32);
 	}
-#ifndef CONFIG_DWC_REMOTE_WAKEUP
 	else{ //no device connect
-		if(pldata->phy_suspend) 
-		pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+		if(!pldata->get_status(USB_REMOTE_WAKEUP)){
+			if(pldata->phy_suspend)
+				pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+			if (pldata->clock_enable)
+					pldata->clock_enable(pldata, 0);
+		}
 	}
 
-	if (pldata->clock_enable)
-		pldata->clock_enable(pldata, 0);
- #endif
 	udelay(3);
 
 	return 0;
@@ -784,10 +784,10 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 		return 0;
 //#endif
 
-#ifndef CONFIG_DWC_REMOTE_WAKEUP
-	if (pldata->clock_enable) 
-		pldata->clock_enable( pldata, 1);
-#endif
+	if(!pldata->get_status(USB_REMOTE_WAKEUP)){
+		if (pldata->clock_enable)
+			pldata->clock_enable( pldata, 1);
+	}
 
 	hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0); 
 #ifdef CONFIG_PM_RUNTIME
@@ -843,12 +843,12 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	
 		mdelay(10);
 	}
-#ifndef CONFIG_DWC_REMOTE_WAKEUP
 	else{
-		if(pldata->phy_suspend) 
-		pldata->phy_suspend( pldata, USB_PHY_ENABLED);
+		if(!pldata->get_status(USB_REMOTE_WAKEUP)){
+			if(pldata->phy_suspend)
+				pldata->phy_suspend( pldata, USB_PHY_ENABLED);
+		}
 	}
-#endif
 	gintmsk.b.portintr = 1;
 	DWC_WRITE_REG32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
 

@@ -4,11 +4,6 @@
 #include "dwc_otg_regs.h"
 static struct dwc_otg_control_usb *control_usb;
 
-static int usb_get_chip_id(void)
-{
-	return control_usb->chip_id;
-}
-
 #ifdef CONFIG_USB20_OTG
 static void usb20otg_hw_init(void)
 {
@@ -103,6 +98,15 @@ static int usb20otg_get_status(int id)
 			// id in grf
 			ret = control_usb->grf_soc_status2_rk3288->otg_iddig;
 			break;
+		case USB_CHIP_ID:
+			ret = control_usb->chip_id;
+			break;
+		case USB_REMOTE_WAKEUP:
+			ret = control_usb->remote_wakeup;
+			break;
+		case USB_IRQ_WAKEUP:
+			ret = control_usb->usb_irq_wakeup;
+			break;
 		default:
 			break;
 	}
@@ -145,8 +149,6 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3288 = {
 	.clock_init = usb20otg_clock_init,
 	.clock_enable = usb20otg_clock_enable,
 	.get_status = usb20otg_get_status,
-	.get_chip_id = usb_get_chip_id,
-	
 	.power_enable = usb20otg_power_enable,
 #ifdef CONFIG_RK_USB_UART
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
@@ -243,6 +245,15 @@ static int usb20host_get_status(int id)
 			// id in grf
 			ret = control_usb->grf_soc_status2_rk3288->host1_iddig;
 			break;
+		case USB_CHIP_ID:
+			ret = control_usb->chip_id;
+			break;
+		case USB_REMOTE_WAKEUP:
+			ret = control_usb->remote_wakeup;
+			break;
+		case USB_IRQ_WAKEUP:
+			ret = control_usb->usb_irq_wakeup;
+			break;
 		default:
 			break;
 	}
@@ -271,7 +282,6 @@ struct dwc_otg_platform_data usb20host_pdata_rk3288 = {
 	.clock_init = usb20host_clock_init,
 	.clock_enable = usb20host_clock_enable,
 	.get_status = usb20host_get_status,
-	.get_chip_id = usb_get_chip_id,
 	.power_enable = usb20host_power_enable,
 };
 
@@ -371,7 +381,6 @@ struct rkehci_platform_data rkhsic_pdata_rk3288 = {
 	.clock_init = rk_hsic_clock_init,
 	.clock_enable = rk_hsic_clock_enable,
 	.soft_reset = rk_hsic_soft_reset,
-	.get_chip_id = usb_get_chip_id,
 };
 #endif
 
@@ -404,7 +413,6 @@ struct rkehci_platform_data rkehci_pdata_rk3288 = {
 	.clock_init = rk_ehci_clock_init,
 	.clock_enable = rk_ehci_clock_enable,
 	.soft_reset = rk_ehci_soft_reset,
-	.get_chip_id = usb_get_chip_id,
 };
 #endif
 
@@ -433,7 +441,6 @@ struct rkehci_platform_data rkohci_pdata_rk3288 = {
 	.clock_init = rk_ohci_clock_init,
 	.clock_enable = rk_ohci_clock_enable,
 	.soft_reset = rk_ohci_soft_reset,
-	.get_chip_id = usb_get_chip_id,
 };
 #endif
 
@@ -441,13 +448,11 @@ struct rkehci_platform_data rkohci_pdata_rk3288 = {
                         rk3288 usb detections 
 *********************************************************************/
 
-#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 #define WAKE_LOCK_TIMEOUT (HZ * 10)
 inline static void do_wakeup(struct work_struct *work)
 {
 //      rk28_send_wakeup_key();
 }
-#endif
 
 /********** handler for bvalid irq **********/
 static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
@@ -460,11 +465,10 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	dwc_otg_uart_mode(NULL, PHY_USB_MODE);
 #endif
 
-#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
-	wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
-	schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
-#endif
-
+	if(control_usb->usb_irq_wakeup){
+		wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
+		schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -489,10 +493,12 @@ static irqreturn_t id_irq_handler(int irq, void *dev_id)
 #endif
         control_usb->grf_uoc0_base->CON4 = ((1<<7)|(1<<23));//clear id fall irq pandding
     }
-#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
-	wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
-	schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
-#endif
+
+	if(control_usb->usb_irq_wakeup){
+		wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
+		schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
+	}
+
     return IRQ_HANDLED;
 }
 
@@ -513,11 +519,13 @@ static irqreturn_t line_irq_handler(int irq, void *dev_id)
     
     if(control_usb->grf_uoc2_base->CON0 & 1<<15){
         control_usb->grf_uoc2_base->CON0 = (1<<15 | 1<<31);
-    }   
-#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
-	wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
-	schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
-#endif
+    }
+
+	if(control_usb->usb_irq_wakeup){
+		wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
+		schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
+	}
+
     return IRQ_HANDLED;
 }
 
@@ -527,59 +535,84 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 	int ret = 0;
 	int irq = 0;
 
-#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
-	wake_lock_init(&control_usb->usb_wakelock, WAKE_LOCK_SUSPEND, "usb_detect");
-	INIT_DELAYED_WORK(&control_usb->usb_det_wakeup_work, do_wakeup);
-#endif
+	if(control_usb->usb_irq_wakeup){
+		wake_lock_init(&control_usb->usb_wakelock, WAKE_LOCK_SUSPEND, "usb_detect");
+		INIT_DELAYED_WORK(&control_usb->usb_det_wakeup_work, do_wakeup);
+	}
 
     /*register otg_bvalid irq*/
 	irq = platform_get_irq_byname(pdev, "otg_bvalid");
 	if (irq > 0) {
 		ret = request_irq(irq, bvalid_irq_handler, 0, "otg_bvalid", NULL);
-		if(ret < 0)
+		if(ret < 0){
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-        else
+			return ret;
+		}else{
 		    control_usb->grf_uoc0_base->CON4 = 0x000c000c;// enable bvalid irq 
+			if(control_usb->usb_irq_wakeup){
+					enable_irq_wake(irq);
+			}
+		}
 	}
 
     /*register otg_id irq*/
     irq = platform_get_irq_byname(pdev, "otg_id");
     if(irq > 0){
         ret = request_irq(irq, id_irq_handler, 0, "otg_id", NULL);
-        if(ret < 0)
+        if(ret < 0){
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-		else
+			return ret;
+		}else{
 		    control_usb->grf_uoc0_base->CON4 = 0x00f000f0;
+			if(control_usb->usb_irq_wakeup){
+					enable_irq_wake(irq);
+			}
+		}
     }
 
     /*register otg_linestate irq*/
     irq = platform_get_irq_byname(pdev, "otg_linestate");
     if(irq > 0){
         ret = request_irq(irq, line_irq_handler, 0, "otg_linestate", NULL);
-        if(ret < 0)
+        if(ret < 0){
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-		else
+			return ret;
+		}else{
 		    control_usb->grf_uoc0_base->CON0 = 0xc000c000;
+			if(control_usb->usb_irq_wakeup){
+					enable_irq_wake(irq);
+			}
+		}
     }
     
     /*register host0_linestate irq*/
     irq = platform_get_irq_byname(pdev, "host0_linestate");
     if(irq > 0){
         ret = request_irq(irq, line_irq_handler, 0, "host0_linestate", NULL);
-        if(ret < 0)
+        if(ret < 0){
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-		else
+			return ret;
+		}else{
 		    control_usb->grf_uoc1_base->CON0 = 0xc000c000;
+			if(control_usb->usb_irq_wakeup){
+					enable_irq_wake(irq);
+			}
+		}
     }
     
     /*register host1_linestate irq*/
     irq = platform_get_irq_byname(pdev, "host1_linestate");
     if(irq > 0){
         ret = request_irq(irq, line_irq_handler, 0, "host1_linestate", NULL);
-        if(ret < 0)
+        if(ret < 0){
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-		else
+			return ret;
+		}else{
 		    control_usb->grf_uoc2_base->CON0 = 0xc000c000;
+			if(control_usb->usb_irq_wakeup){
+					enable_irq_wake(irq);
+			}
+		}
     }
 	
 	return ret;
@@ -711,6 +744,11 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	}
 
 	control_usb->chip_id = RK3288_USB_CTLR;
+	control_usb->remote_wakeup = of_property_read_bool(np,
+		"rockchip,remote_wakeup");
+	control_usb->usb_irq_wakeup = of_property_read_bool(np,
+		"rockchip,usb_irq_wakeup");
+
 /*	disable for debug
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {

@@ -759,6 +759,8 @@
 		/*        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;*//*OTG_VBUS_DRV*/
 		/*clocks = <&clk_gates7 9>;*/
 		/*clock-names = "hclk_usb_peri";*/
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
 
 		usb_bc{
 			compatible = "rockchip,ctrl";

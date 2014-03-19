@@ -34,6 +34,9 @@
 #define USB_STATUS_DPDM	 	  (2)
 #define USB_STATUS_ID         (3)
 #define USB_STATUS_UARTMODE   (4)
+#define USB_CHIP_ID           (5)
+#define USB_REMOTE_WAKEUP     (6)
+#define USB_IRQ_WAKEUP        (7)
 
 /* rk3188 platform data */
 extern struct dwc_otg_platform_data usb20otg_pdata_rk3188;
@@ -62,7 +65,6 @@ struct dwc_otg_platform_data {
     void (*dwc_otg_uart_mode)(void* pdata, int enter_usb_uart_mode);
     void (*bc_detect_cb)(int bc_type);
     int (*get_status)(int id);
-    int (*get_chip_id)(void);
 };
 
 struct rkehci_platform_data{
@@ -76,7 +78,6 @@ struct rkehci_platform_data{
 	void (*clock_init)(void* pdata);
 	void (*clock_enable)(void *pdata, int enable);
 	void (*soft_reset)(void);
-	int (*get_chip_id)(void);
 	int clk_status;
 };
 
@@ -96,6 +97,8 @@ struct dwc_otg_control_usb {
 	struct clk* hclk_usb_peri;
 	struct delayed_work usb_det_wakeup_work;
 	struct wake_lock usb_wakelock;
+	int remote_wakeup;
+	int usb_irq_wakeup;
 	int chip_id;
 };
 
