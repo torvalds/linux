@@ -1041,8 +1041,7 @@ static int sci_notifier(struct notifier_block *self,
 
 	sci_port = container_of(self, struct sci_port, freq_transition);
 
-	if ((phase == CPUFREQ_POSTCHANGE) ||
-	    (phase == CPUFREQ_RESUMECHANGE)) {
+	if (phase == CPUFREQ_POSTCHANGE) {
 		struct uart_port *port = &sci_port->port;
 
 		spin_lock_irqsave(&port->lock, flags);
