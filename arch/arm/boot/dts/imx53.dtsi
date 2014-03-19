@@ -727,6 +727,7 @@
 				clocks = <&clks IMX5_CLK_VPU_GATE>,
 				         <&clks IMX5_CLK_VPU_GATE>;
 				clock-names = "per", "ahb";
+				resets = <&src 1>;
 				iram = <&ocram>;
 			};
 		};
