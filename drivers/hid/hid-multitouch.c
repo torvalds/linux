@@ -68,6 +68,9 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_HOVERING		(1 << 11)
 #define MT_QUIRK_CONTACT_CNT_ACCURATE	(1 << 12)
 
+#define MT_INPUTMODE_TOUCHSCREEN	0x02
+#define MT_INPUTMODE_TOUCHPAD		0x03
+
 struct mt_slot {
 	__s32 x, y, cx, cy, p, w, h;
 	__s32 contactid;	/* the device ContactID assigned to this slot */
@@ -105,6 +108,7 @@ struct mt_device {
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
 	__s16 maxcontact_report_id;	/* Maximum Contact Number HID feature,
 				   -1 if non-existent */
+	__u8 inputmode_value;  /* InputMode HID feature value */
 	__u8 num_received;	/* how many contacts we received */
 	__u8 num_expected;	/* expected last contact index */
 	__u8 maxcontacts;
@@ -363,8 +367,10 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	 * Model touchscreens providing buttons as touchpads.
 	 */
 	if (field->application == HID_DG_TOUCHPAD ||
-	    (usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON)
+	    (usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON) {
 		td->mt_flags |= INPUT_MT_POINTER;
+		td->inputmode_value = MT_INPUTMODE_TOUCHPAD;
+	}
 
 	if (usage->usage_index)
 		prev_usage = &field->usage[usage->usage_index - 1];
@@ -810,7 +816,7 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	re = &(hdev->report_enum[HID_FEATURE_REPORT]);
 	r = re->report_id_hash[td->inputmode];
 	if (r) {
-		r->field[0]->value[td->inputmode_index] = 0x02;
+		r->field[0]->value[td->inputmode_index] = td->inputmode_value;
 		hid_hw_request(hdev, r, HID_REQ_SET_REPORT);
 	}
 }
@@ -978,6 +984,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	td->mtclass = *mtclass;
 	td->inputmode = -1;
 	td->maxcontact_report_id = -1;
+	td->inputmode_value = MT_INPUTMODE_TOUCHSCREEN;
 	td->cc_index = -1;
 	td->mt_report_id = -1;
 	hid_set_drvdata(hdev, td);
