@@ -97,6 +97,8 @@
 #define MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD		256
 /* FW awake cookie after FW ready */
 #define FW_AWAKE_COOKIE						(0xAA55AA55)
+#define MWIFIEX_DEF_SLEEP_COOKIE			0xBEEFBEEF
+#define MWIFIEX_MAX_DELAY_COUNT				5
 
 struct mwifiex_pcie_card_reg {
 	u16 cmd_addr_lo;

@@ -327,6 +327,30 @@ static void mwifiex_pcie_dev_wakeup_delay(struct mwifiex_adapter *adapter)
 	return;
 }
 
+static void mwifiex_delay_for_sleep_cookie(struct mwifiex_adapter *adapter,
+					   u32 max_delay_loop_cnt)
+{
+	struct pcie_service_card *card = adapter->card;
+	u8 *buffer;
+	u32 sleep_cookie, count;
+
+	for (count = 0; count < max_delay_loop_cnt; count++) {
+		buffer = card->cmdrsp_buf->data - INTF_HEADER_LEN;
+		sleep_cookie = *(u32 *)buffer;
+
+		if (sleep_cookie == MWIFIEX_DEF_SLEEP_COOKIE) {
+			dev_dbg(adapter->dev,
+				"sleep cookie found at count %d\n", count);
+			break;
+		}
+		usleep_range(20, 30);
+	}
+
+	if (count >= max_delay_loop_cnt)
+		dev_dbg(adapter->dev,
+			"max count reached while accessing sleep cookie\n");
+}
+
 /* This function wakes up the card by reading fw_status register. */
 static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
@@ -1539,6 +1563,8 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 					 "Write register failed\n");
 				return -1;
 			}
+			mwifiex_delay_for_sleep_cookie(adapter,
+						       MWIFIEX_MAX_DELAY_COUNT);
 			while (reg->sleep_cookie && (count++ < 10) &&
 			       mwifiex_pcie_ok_to_access_hw(adapter))
 				usleep_range(50, 60);
