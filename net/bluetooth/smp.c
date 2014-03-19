@@ -761,10 +761,8 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	set_bit(SMP_FLAG_CFM_PENDING, &smp->smp_flags);
 
 	/* Can't compose response until we have been confirmed */
-	if (!test_bit(SMP_FLAG_TK_VALID, &smp->smp_flags))
-		return 0;
-
-	queue_work(hdev->workqueue, &smp->confirm);
+	if (test_bit(SMP_FLAG_TK_VALID, &smp->smp_flags))
+		queue_work(hdev->workqueue, &smp->confirm);
 
 	return 0;
 }
