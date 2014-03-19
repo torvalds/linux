@@ -107,9 +107,11 @@
  * macros
  ******************************************************************************/
 #define BLOCK_INPUT(buf, len) \
-    desc->buf_addr = buf; \
-    desc->BUF_SIZE = len; \
-    status = hcf_rcv_msg(&(lp->hcfCtx), desc, 0)
+	do { \
+		desc->buf_addr = buf; \
+		desc->BUF_SIZE = len; \
+		status = hcf_rcv_msg(&(lp->hcfCtx), desc, 0); \
+	} while (0)
 
 #define BLOCK_INPUT_DMA(buf, len) memcpy( buf, desc_next->buf_addr, pktlen )
 
