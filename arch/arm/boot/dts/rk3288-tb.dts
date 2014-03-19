@@ -41,6 +41,12 @@
         status = "okay";
     };
 
+    hallsensor {
+               compatible = "hall_och165t";
+               type = <SENSOR_TYPE_HALL>;
+               irq-gpio = <&gpio0 GPIO_A6 IRQ_TYPE_EDGE_BOTH>;
+     };
+
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000>;
@@ -196,6 +202,15 @@
 		poll_delay_ms = <30>;
 		layout = <1>;
 	};
+	sensor@10 {
+              compatible = "ls_cm3218";
+              reg = <0x10>;
+              type = <SENSOR_TYPE_LIGHT>;
+              irq-gpio = <&gpio8 GPIO_A3 IRQ_TYPE_EDGE_FALLING>;              
+              irq_enable = <1>;
+              poll_delay_ms = <30>;
+              layout = <1>;
+       };
 	
 };
 
