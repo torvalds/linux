@@ -571,13 +571,6 @@ static int gfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 	return err;
 }
 
-static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip,
-			      const struct qstr *qstr)
-{
-	return security_inode_init_security(&ip->i_inode, &dip->i_inode, qstr,
-					    &gfs2_initxattrs, NULL);
-}
-
 /**
  * gfs2_create_inode - Create a new inode
  * @dir: The parent directory
@@ -758,7 +751,8 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock3;
 
-	error = gfs2_security_init(dip, ip, name);
+	error = security_inode_init_security(&ip->i_inode, &dip->i_inode, name,
+					     &gfs2_initxattrs, NULL);
 	if (error)
 		goto fail_gunlock3;
 
