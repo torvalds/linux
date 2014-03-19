@@ -880,8 +880,6 @@ bool tcp_syn_flood_action(struct sock *sk,
 	bool want_cookie = false;
 	struct listen_sock *lopt;
 
-
-
 #ifdef CONFIG_SYN_COOKIES
 	if (sysctl_tcp_syncookies) {
 		msg = "Sending cookies";
