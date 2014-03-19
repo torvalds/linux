@@ -690,6 +690,62 @@
 		pinctrl-0 = <&pwm3_pin>;
 		status = "disabled";
 	};
+	dvfs {
+		vd_arm:
+		vd_arm {
+			regulator_name="vdd_arm";
+			suspend_volt=<1000>; //mV
+			pd_a12 {
+				clk_core_dvfs_table:
+				clk_core {
+					operating-points = <
+						/* KHz    uV */
+						312000 1100000
+						504000 1100000
+						816000 1100000
+						1008000 1100000
+						>;
+					status = "okay";
+				};
+			};
+		};
+
+		vd_logic:
+		vd_logic {
+			regulator_name="vdd_logic";
+			suspend_volt=<1000>; //mV
+			pd_ddr {
+				clk_ddr_dvfs_table:
+				clk_ddr {
+					operating-points = <
+						/* KHz    uV */
+						200000 1200000
+						300000 1200000
+						400000 1200000
+						>;
+					status = "disable";
+				};
+			};
+		};
+
+		vd_gpu:
+		vd_gpu {
+			regulator_name="vdd_gpu";
+			suspend_volt=<1000>; //mV
+			pd_gpu {
+				clk_gpu_dvfs_table:
+				clk_gpu {
+					operating-points = <
+						/* KHz    uV */
+						200000 1200000
+						300000 1200000
+						400000 1200000
+						>;
+					status = "okay";
+				};
+			};
+		};
+	};
 
 	ion {
 		compatible = "rockchip,ion";

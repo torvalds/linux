@@ -334,6 +334,43 @@
 	status = "okay";
 };
 
+
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		312000 1100000
+		504000 1100000
+		816000 1100000
+		1008000 1100000
+		>;
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1200000
+		300000 1200000
+		400000 1200000
+		>;
+};
+
+&clk_ddr_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1200000
+		300000 1200000
+		400000 1200000
+		>;
+
+	freq_table = <
+		/*status		freq(KHz)*/
+		SYS_STATUS_NORMAL	400000
+		SYS_STATUS_SUSPEND	200000
+		SYS_STATUS_VIDEO	300000
+		SYS_STATUS_DUALVIEW	500000
+		>;
+};
+
 /include/ "rk808.dtsi"
 &rk808 {
 	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>;
