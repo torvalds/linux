@@ -975,10 +975,6 @@ static int octeon_irq_ciu_xlat(struct irq_domain *d,
 	if (ciu > 1 || bit > 63)
 		return -EINVAL;
 
-	/* These are the GPIO lines */
-	if (ciu == 0 && bit >= 16 && bit < 32)
-		return -EINVAL;
-
 	*out_hwirq = (ciu << 6) | bit;
 	*out_type = 0;
 
@@ -1006,6 +1002,10 @@ static int octeon_irq_ciu_map(struct irq_domain *d,
 
 	if (!octeon_irq_virq_in_range(virq))
 		return -EINVAL;
+
+	/* Don't map irq if it is reserved for GPIO. */
+	if (line == 0 && bit >= 16 && bit <32)
+		return 0;
 
 	if (line > 1 || octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
@@ -1525,10 +1525,6 @@ static int octeon_irq_ciu2_xlat(struct irq_domain *d,
 	ciu = intspec[0];
 	bit = intspec[1];
 
-	/* Line 7  are the GPIO lines */
-	if (ciu > 6 || bit > 63)
-		return -EINVAL;
-
 	*out_hwirq = (ciu << 6) | bit;
 	*out_type = 0;
 
@@ -1570,8 +1566,14 @@ static int octeon_irq_ciu2_map(struct irq_domain *d,
 	if (!octeon_irq_virq_in_range(virq))
 		return -EINVAL;
 
-	/* Line 7  are the GPIO lines */
-	if (line > 6 || octeon_irq_ciu_to_irq[line][bit] != 0)
+	/*
+	 * Don't map irq if it is reserved for GPIO.
+	 * (Line 7 are the GPIO lines.)
+	 */
+	if (line == 7)
+		return 0;
+
+	if (line > 7 || octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
 
 	if (octeon_irq_ciu2_is_edge(line, bit))
