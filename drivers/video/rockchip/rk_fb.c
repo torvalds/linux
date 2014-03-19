@@ -2621,9 +2621,9 @@ static int init_lcdc_win(struct rk_lcdc_driver *dev_drv, struct rk_lcdc_win *def
 			return   -ENOMEM;
 		}
 
-		strcpy(win->name, def_win->name);
-		win->id = def_win->id;
-		win->support_3d = def_win->support_3d;
+		strcpy(win->name, def_win[i].name);
+		win->id = def_win[i].id;
+		win->support_3d = def_win[i].support_3d;
 		dev_drv->win[i] = win;
 	}
 
