@@ -145,6 +145,6 @@ void __init imx_init_l2cache(void)
 	of_node_put(np);
 
 out:
-	l2x0_of_init(0, ~0UL);
+	l2x0_of_init(0, ~0);
 }
 #endif

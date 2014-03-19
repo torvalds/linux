@@ -22,7 +22,7 @@ static void __init vf610_init_machine(void)
 
 static void __init vf610_init_irq(void)
 {
-	l2x0_of_init(0, ~0UL);
+	l2x0_of_init(0, ~0);
 	irqchip_init();
 }
 

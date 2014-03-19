@@ -60,7 +60,7 @@ static void __init mvebu_timer_and_clk_init(void)
 	coherency_init();
 	BUG_ON(mvebu_mbus_dt_init());
 #ifdef CONFIG_CACHE_L2X0
-	l2x0_of_init(0, ~0UL);
+	l2x0_of_init(0, ~0);
 #endif
 
 	if (of_machine_is_compatible("marvell,armada375"))

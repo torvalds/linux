@@ -69,7 +69,7 @@ static void __init highbank_init_irq(void)
 	if (IS_ENABLED(CONFIG_CACHE_L2X0) &&
 	    of_find_compatible_node(NULL, NULL, "arm,pl310-cache")) {
 		highbank_smc1(0x102, 0x1);
-		l2x0_of_init(0, ~0UL);
+		l2x0_of_init(0, ~0);
 		outer_cache.disable = highbank_l2x0_disable;
 	}
 }
