@@ -2742,14 +2742,16 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 		type = process_arg(event, farg, &token);
 		if (i < (func->nr_args - 1)) {
 			if (type != EVENT_DELIM || strcmp(token, ",") != 0) {
-				warning("Error: function '%s()' expects %d arguments but event %s only uses %d",
+				do_warning_event(event,
+					"Error: function '%s()' expects %d arguments but event %s only uses %d",
 					func->name, func->nr_args,
 					event->name, i + 1);
 				goto err;
 			}
 		} else {
 			if (type != EVENT_DELIM || strcmp(token, ")") != 0) {
-				warning("Error: function '%s()' only expects %d arguments but event %s has more",
+				do_warning_event(event,
+					"Error: function '%s()' only expects %d arguments but event %s has more",
 					func->name, func->nr_args, event->name);
 				goto err;
 			}
