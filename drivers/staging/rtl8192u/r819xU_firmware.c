@@ -105,46 +105,6 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 }
 
-bool
-fwSendNullPacket(
-	struct net_device *dev,
-	u32			Length
-)
-{
-	bool	rtStatus = true;
-	struct r8192_priv   *priv = ieee80211_priv(dev);
-	struct sk_buff	    *skb;
-	cb_desc		    *tcb_desc;
-	unsigned char	    *ptr_buf;
-	bool	bLastInitPacket = false;
-
-	//PlatformAcquireSpinLock(Adapter, RT_TX_SPINLOCK);
-
-	//Get TCB and local buffer from common pool. (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
-	skb  = dev_alloc_skb(Length+ 4);
-	memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	tcb_desc->queue_index = TXCMD_QUEUE;
-	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
-	tcb_desc->bLastIniPkt = bLastInitPacket;
-	ptr_buf = skb_put(skb, Length);
-	memset(ptr_buf,0,Length);
-	tcb_desc->txbuf_size= (u16)Length;
-
-	if (!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index)||
-			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index]))||\
-			(priv->ieee80211->queue_stop) ) {
-			RT_TRACE(COMP_FIRMWARE,"===================NULL packet==================================> tx full!\n");
-			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
-		} else {
-			priv->ieee80211->softmac_hard_start_xmit(skb,dev);
-		}
-
-	//PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
-	return rtStatus;
-}
-
-
 //-----------------------------------------------------------------------------
 // Procedure:    Check whether main code is download OK. If OK, turn on CPU
 //
