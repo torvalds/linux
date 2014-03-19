@@ -250,10 +250,10 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->ndirty_dent, si->ndirty_dirs);
 		seq_printf(s, "  - meta: %4d in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
-		seq_printf(s, "  - NATs: %5d > %lu\n",
-			   si->nats, NM_WOUT_THRESHOLD);
-		seq_printf(s, "  - SITs: %5d\n  - free_nids: %5d\n",
-			   si->sits, si->fnids);
+		seq_printf(s, "  - NATs: %9d\n  - SITs: %9d\n",
+			   si->nats, si->sits);
+		seq_printf(s, "  - free_nids: %9d\n",
+			   si->fnids);
 		seq_puts(s, "\nDistribution of User Blocks:");
 		seq_puts(s, " [ valid | invalid | free ]\n");
 		seq_puts(s, "  [");

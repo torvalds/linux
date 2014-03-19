@@ -20,9 +20,6 @@
 /* maximum readahead size for node during getting data blocks */
 #define MAX_RA_NODE		128
 
-/* maximum cached nat entries to manage memory footprint */
-#define NM_WOUT_THRESHOLD	(64 * NAT_ENTRY_PER_BLOCK)
-
 /* control the memory footprint threshold (10MB per 1GB ram) */
 #define DEF_RAM_THRESHOLD	10
 

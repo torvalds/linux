@@ -224,7 +224,7 @@ int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 
-	if (available_free_memory(nm_i, NAT_ENTRIES) || nr_shrink <= 0)
+	if (available_free_memory(nm_i, NAT_ENTRIES))
 		return 0;
 
 	write_lock(&nm_i->nat_tree_lock);
@@ -1830,9 +1830,6 @@ flush_now:
 	if (!flushed)
 		mutex_unlock(&curseg->curseg_mutex);
 	f2fs_put_page(page, 1);
-
-	/* 2) shrink nat caches if necessary */
-	try_to_free_nats(sbi, nm_i->nat_cnt - NM_WOUT_THRESHOLD);
 }
 
 static int init_node_manager(struct f2fs_sb_info *sbi)
