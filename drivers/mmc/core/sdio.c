@@ -1279,6 +1279,7 @@ int sdio_reset_comm(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	u32 ocr;
+	u32 rocr;
 	int err;
 
 	printk("%s():\n", __func__);
@@ -1292,13 +1293,13 @@ int sdio_reset_comm(struct mmc_card *card)
 	if (err)
 		goto err;
 
-	host->ocr = mmc_select_voltage(host, ocr);
-	if (!host->ocr) {
+	rocr = mmc_select_voltage(host, ocr);
+	if (!rocr) {
 		err = -EINVAL;
 		goto err;
 	}
 
-	err = mmc_sdio_init_card(host, host->ocr, card, 0);
+	err = mmc_sdio_init_card(host, rocr, card, 0);
 	if (err)
 		goto err;
 
