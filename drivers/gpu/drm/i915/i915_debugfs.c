@@ -299,27 +299,56 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 } while (0)
 
 struct file_stats {
+	struct drm_i915_file_private *file_priv;
 	int count;
-	size_t total, active, inactive, unbound;
+	size_t total, global, active, inactive, unbound;
 };
 
 static int per_file_stats(int id, void *ptr, void *data)
 {
 	struct drm_i915_gem_object *obj = ptr;
 	struct file_stats *stats = data;
+	struct i915_vma *vma;
 
 	stats->count++;
 	stats->total += obj->base.size;
 
-	if (i915_gem_obj_ggtt_bound(obj)) {
-		if (!list_empty(&obj->ring_list))
-			stats->active += obj->base.size;
-		else
-			stats->inactive += obj->base.size;
+	if (USES_FULL_PPGTT(obj->base.dev)) {
+		list_for_each_entry(vma, &obj->vma_list, vma_link) {
+			struct i915_hw_ppgtt *ppgtt;
+
+			if (!drm_mm_node_allocated(&vma->node))
+				continue;
+
+			if (i915_is_ggtt(vma->vm)) {
+				stats->global += obj->base.size;
+				continue;
+			}
+
+			ppgtt = container_of(vma->vm, struct i915_hw_ppgtt, base);
+			if (ppgtt->ctx && ppgtt->ctx->file_priv != stats->file_priv)
+				continue;
+
+			if (obj->ring) /* XXX per-vma statistic */
+				stats->active += obj->base.size;
+			else
+				stats->inactive += obj->base.size;
+
+			return 0;
+		}
 	} else {
-		if (!list_empty(&obj->global_list))
-			stats->unbound += obj->base.size;
+		if (i915_gem_obj_ggtt_bound(obj)) {
+			stats->global += obj->base.size;
+			if (obj->ring)
+				stats->active += obj->base.size;
+			else
+				stats->inactive += obj->base.size;
+			return 0;
+		}
 	}
+
+	if (!list_empty(&obj->global_list))
+		stats->unbound += obj->base.size;
 
 	return 0;
 }
@@ -411,6 +440,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		struct task_struct *task;
 
 		memset(&stats, 0, sizeof(stats));
+		stats.file_priv = file->driver_priv;
 		idr_for_each(&file->object_idr, per_file_stats, &stats);
 		/*
 		 * Although we have a valid reference on file->pid, that does
@@ -420,12 +450,13 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		 */
 		rcu_read_lock();
 		task = pid_task(file->pid, PIDTYPE_PID);
-		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu unbound)\n",
+		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu unbound)\n",
 			   task ? task->comm : "<unknown>",
 			   stats.count,
 			   stats.total,
 			   stats.active,
 			   stats.inactive,
+			   stats.global,
 			   stats.unbound);
 		rcu_read_unlock();
 	}

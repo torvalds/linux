@@ -215,6 +215,7 @@ create_vm_for_ctx(struct drm_device *dev, struct i915_hw_context *ctx)
 		return ERR_PTR(ret);
 	}
 
+	ppgtt->ctx = ctx;
 	return ppgtt;
 }
 
