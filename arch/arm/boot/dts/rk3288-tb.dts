@@ -86,6 +86,59 @@
 	codec_hdmi_spdif: codec-hdmi-spdif {
 		compatible = "hdmi-spdif";
 	};
+
+	rockchip-hdmi-i2s {
+		compatible = "rockchip-hdmi-i2s";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_i2s>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+	
+	rockchip-hdmi-spdif {
+		compatible = "rockchip-hdmi-spdif";
+	};
+
+	rockchip-rt5631 {
+		compatible = "rockchip-rt5631";
+		dais {
+			dai0 {
+				audio-codec = <&rt5631>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
+	rockchip-rt3224 {
+		compatible = "rockchip-rt3224";
+		dais {
+			dai0 {
+				audio-codec = <&rt3261>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
 };
 
 &emmc {
@@ -216,6 +269,29 @@
 
 &i2c2 {
 	status = "okay";
+	rt5631: rt5631@1a {
+		compatible = "rt5631";
+		reg = <0x1a>;
+	};
+	es8323: es8323@10 {
+		compatible = "es8323";
+		reg = <0x10>;
+	};
+	rt3261: rt3261@1c {
+		compatible = "rt3261";
+		reg = <0x1c>;
+		codec-en-gpio = <0>;//sdk default high level
+		spk-num= <2>;
+		modem-input-mode = <1>;
+		lout-to-modem_mode = <1>;
+		spk-amplify = <2>;
+		playback-if1-data_control = <0>;
+		playback-if2-data_control = <0>;
+	};
+	rt5616: rt5616@1b {
+		compatible = "rt5616";
+		reg = <0x1b>;
+	};
 };
 
 &i2c3 {

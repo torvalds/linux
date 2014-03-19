@@ -3582,7 +3582,7 @@ static int rt3261_parse_dt_property(struct device *dev,
 		return -ENODEV;
 
 	rt3261->codec_en_gpio = of_get_named_gpio_flags(node, "codec-en-gpio", 0, &flags);
-	if (rt3261->codec_en_gpio < 0) {
+	if (rt3261->codec_en_gpio <= 0) {
 		DBG("%s() Can not read property codec-en-gpio\n", __FUNCTION__);
 	} else {
 		ret = devm_gpio_request(dev, rt3261->codec_en_gpio, "codec_en_gpio");
