@@ -24,7 +24,7 @@ static void __init berlin_init_machine(void)
 	 * with DT probing for L2CCs, berlin_init_machine can be removed.
 	 * Note: 88DE3005 (Armada 1500-mini) uses pl310 l2cc
 	 */
-	l2x0_of_init(0x70c00000, 0xfeffffff);
+	l2x0_of_init(0x30c00000, 0xfeffffff);
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 

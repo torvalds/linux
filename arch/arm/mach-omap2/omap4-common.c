@@ -204,8 +204,7 @@ static int __init omap_l2_cache_init(void)
 		   L2C_AUX_CTRL_WAY_SIZE(3) |
 		   L2C_AUX_CTRL_SHARED_OVERRIDE |
 		   L310_AUX_CTRL_DATA_PREFETCH |
-		   L310_AUX_CTRL_INSTR_PREFETCH |
-		   L310_AUX_CTRL_EARLY_BRESP;
+		   L310_AUX_CTRL_INSTR_PREFETCH;
 
 	omap_smc1(0x109, aux_ctrl);
 

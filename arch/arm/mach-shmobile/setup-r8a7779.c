@@ -700,8 +700,8 @@ static struct platform_device *r8a7779_standard_devices[] __initdata = {
 void __init r8a7779_add_standard_devices(void)
 {
 #ifdef CONFIG_CACHE_L2X0
-	/* Early BRESP enable, Shared attribute override enable, 64K*16way */
-	l2x0_init(IOMEM(0xf0100000), 0x40470000, 0x82000fff);
+	/* Shared attribute override enable, 64K*16way */
+	l2x0_init(IOMEM(0xf0100000), 0x00470000, 0xc2000fff);
 #endif
 	r8a7779_pm_init();
 

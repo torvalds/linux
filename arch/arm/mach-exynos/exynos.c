@@ -32,8 +32,8 @@
 #include "mfc.h"
 #include "regs-pmu.h"
 
-#define L2_AUX_VAL 0x7C470001
-#define L2_AUX_MASK 0xC200ffff
+#define L2_AUX_VAL 0x3c470001
+#define L2_AUX_MASK 0xc200ffff
 
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{

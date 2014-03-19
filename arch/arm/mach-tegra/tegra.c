@@ -89,9 +89,9 @@ static void __init tegra_init_cache(void)
 
 	cache_type = readl(p + L2X0_CACHE_TYPE);
 	aux_ctrl = (cache_type & 0x700) << (17-8);
-	aux_ctrl |= 0x7C400001;
+	aux_ctrl |= 0x3c400001;
 
-	ret = l2x0_of_init(aux_ctrl, 0x8200c3fe);
+	ret = l2x0_of_init(aux_ctrl, 0xc200c3fe);
 	if (!ret)
 		l2x0_saved_regs_addr = virt_to_phys(&l2x0_saved_regs);
 #endif

@@ -298,10 +298,10 @@ void __init r8a7778_add_dt_devices(void)
 	void __iomem *base = ioremap_nocache(0xf0100000, 0x1000);
 	if (base) {
 		/*
-		 * Early BRESP enable, Shared attribute override enable, 64K*16way
+		 * Shared attribute override enable, 64K*16way
 		 * don't call iounmap(base)
 		 */
-		l2x0_init(base, 0x40470000, 0x82000fff);
+		l2x0_init(base, 0x00470000, 0xc2000fff);
 	}
 #endif
 
