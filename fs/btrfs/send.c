@@ -2916,7 +2916,10 @@ static void free_waiting_dir_move(struct send_ctx *sctx,
 	kfree(dm);
 }
 
-static int add_pending_dir_move(struct send_ctx *sctx, u64 parent_ino)
+static int add_pending_dir_move(struct send_ctx *sctx,
+				u64 ino,
+				u64 ino_gen,
+				u64 parent_ino)
 {
 	struct rb_node **p = &sctx->pending_dir_moves.rb_node;
 	struct rb_node *parent = NULL;
@@ -2929,8 +2932,8 @@ static int add_pending_dir_move(struct send_ctx *sctx, u64 parent_ino)
 	if (!pm)
 		return -ENOMEM;
 	pm->parent_ino = parent_ino;
-	pm->ino = sctx->cur_ino;
-	pm->gen = sctx->cur_inode_gen;
+	pm->ino = ino;
+	pm->gen = ino_gen;
 	INIT_LIST_HEAD(&pm->list);
 	INIT_LIST_HEAD(&pm->update_refs);
 	RB_CLEAR_NODE(&pm->node);
@@ -3183,6 +3186,8 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	struct fs_path *path_before = NULL;
 	struct fs_path *path_after = NULL;
 	int len1, len2;
+	int register_upper_dirs;
+	u64 gen;
 
 	if (is_waiting_for_move(sctx, ino))
 		return 1;
@@ -3220,7 +3225,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	}
 
 	ret = get_first_ref(sctx->send_root, ino, &parent_ino_after,
-			    NULL, path_after);
+			    &gen, path_after);
 	if (ret == -ENOENT) {
 		ret = 0;
 		goto out;
@@ -3236,6 +3241,60 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 		goto out;
 	}
 	ret = 0;
+
+	/*
+	 * Ok, our new most direct ancestor has a higher inode number but
+	 * wasn't moved/renamed. So maybe some of the new ancestors higher in
+	 * the hierarchy have an higher inode number too *and* were renamed
+	 * or moved - in this case we need to wait for the ancestor's rename
+	 * or move operation before we can do the move/rename for the current
+	 * inode.
+	 */
+	register_upper_dirs = 0;
+	ino = parent_ino_after;
+again:
+	while ((ret == 0 || register_upper_dirs) && ino > sctx->cur_ino) {
+		u64 parent_gen;
+
+		fs_path_reset(path_before);
+		fs_path_reset(path_after);
+
+		ret = get_first_ref(sctx->send_root, ino, &parent_ino_after,
+				    &parent_gen, path_after);
+		if (ret < 0)
+			goto out;
+		ret = get_first_ref(sctx->parent_root, ino, &parent_ino_before,
+				    NULL, path_before);
+		if (ret == -ENOENT) {
+			ret = 0;
+			break;
+		} else if (ret < 0) {
+			goto out;
+		}
+
+		len1 = fs_path_len(path_before);
+		len2 = fs_path_len(path_after);
+		if (parent_ino_before != parent_ino_after || len1 != len2 ||
+		    memcmp(path_before->start, path_after->start, len1)) {
+			ret = 1;
+			if (register_upper_dirs) {
+				break;
+			} else {
+				register_upper_dirs = 1;
+				ino = parent_ref->dir;
+				gen = parent_ref->dir_gen;
+				goto again;
+			}
+		} else if (register_upper_dirs) {
+			ret = add_pending_dir_move(sctx, ino, gen,
+						   parent_ino_after);
+			if (ret < 0 && ret != -EEXIST)
+				goto out;
+		}
+
+		ino = parent_ino_after;
+		gen = parent_gen;
+	}
 
 out:
 	fs_path_free(path_before);
@@ -3402,7 +3461,9 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 					goto out;
 				if (ret) {
 					ret = add_pending_dir_move(sctx,
-								   cur->dir);
+							   sctx->cur_ino,
+							   sctx->cur_inode_gen,
+							   cur->dir);
 					*pending_move = 1;
 				} else {
 					ret = send_rename(sctx, valid_path,
