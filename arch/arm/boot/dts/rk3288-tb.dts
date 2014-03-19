@@ -41,6 +41,12 @@
         status = "okay";
     };
 
+    hallsensor {
+               compatible = "hall_och165t";
+               type = <SENSOR_TYPE_HALL>;
+               irq-gpio = <&gpio0 GPIO_A6 IRQ_TYPE_EDGE_BOTH>;
+     };
+
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000>;
@@ -102,8 +108,8 @@
 	broken-cd;
 	card-detect-delay = <200>;
 
-	pwr-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>; /*pwr_en = GPIO3_A1*/
-
+	
+        vmmc-supply = <&rk808_ldo5_reg>;
 	status = "okay";
 };
 		
@@ -196,6 +202,15 @@
 		poll_delay_ms = <30>;
 		layout = <1>;
 	};
+	sensor@10 {
+              compatible = "ls_cm3218";
+              reg = <0x10>;
+              type = <SENSOR_TYPE_LIGHT>;
+              irq-gpio = <&gpio8 GPIO_A3 IRQ_TYPE_EDGE_FALLING>;              
+              irq_enable = <1>;
+              poll_delay_ms = <30>;
+              layout = <1>;
+       };
 	
 };
 

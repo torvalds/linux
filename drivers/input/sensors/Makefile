@@ -7,6 +7,7 @@ obj-$(CONFIG_LIGHT_DEVICE)				+= lsensor/
 obj-$(CONFIG_PROXIMITY_DEVICE)			+= psensor/
 obj-$(CONFIG_TEMPERATURE_DEVICE)		+= temperature/
 obj-$(CONFIG_PRESSURE_DEVICE)			+= pressure/
+obj-$(CONFIG_HALL_DEVICE)			+= hall/
 
 
 obj-$(CONFIG_SENSOR_DEVICE)				+= sensor-i2c.o

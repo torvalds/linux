@@ -2506,8 +2506,6 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 #ifdef	USE_ION_MMU
 	struct dma_buf *buf;
 #else
-	dma_addr_t fb_mem_phys;
-	void *fb_mem_virt;
 	size_t len;
 #endif	
 #endif
@@ -2528,12 +2526,12 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		}
 		win->area[0].ion_hdl = handle;
 		fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
-		#ifndef USE_ION_MMU
+#ifndef USE_ION_MMU
 			ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
 			fbi->fix.smem_start = phy_addr;
 			fbi->fix.smem_len = len;
-			printk(KERN_INFO "alloc_buffer:ion_phy_addr=0x%x\n",phy_addr);
-		#else
+			printk(KERN_INFO "alloc_buffer:ion_phy_addr=0x%lx\n",phy_addr);
+#else
 			buf = ion_share_dma_buf(rk_fb->ion_client, handle);
 			if (IS_ERR_OR_NULL(buf)) {
 				dev_err(fbi->device, "ion_share_dma_buf() failed\n");
@@ -2544,12 +2542,13 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 			fbi->fix.smem_len = buf->size;
 			printk(KERN_INFO "alloc_buffer:kernel_vir_addr=0x%x,mmu_vir_addr=0x%x,len=0x%x\n",
 							fbi->screen_base,fbi->fix.smem_start,fbi->fix.smem_len);
-		#endif
+#endif
 		
 #else
-
-		fb_mem_virt = dma_alloc_writecombine(fbi->dev, fb_mem_size, &fb_mem_phys,
-			GFP_KERNEL);
+		dma_addr_t fb_mem_phys;
+		void *fb_mem_virt;
+		fb_mem_virt = dma_alloc_writecombine(fbi->dev, fb_mem_size,
+					&fb_mem_phys,GFP_KERNEL);
 		if (!fb_mem_virt) {
 			pr_err("%s: Failed to allocate framebuffer\n", __func__);
 			return -ENOMEM;
@@ -2877,48 +2876,6 @@ int rk_fb_unregister(struct rk_lcdc_driver *dev_drv)
 }
 
 
-
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-struct suspend_info {
-	struct early_suspend early_suspend;
-	struct rk_fb *inf;
-};
-
-static void rkfb_early_suspend(struct early_suspend *h)
-{
-	struct suspend_info *info = container_of(h, struct suspend_info,
-						early_suspend);
-	struct rk_fb *inf = info->inf;
-	int i;
-	for (i = 0; i < inf->num_lcdc; i++) {
-		if (!inf->lcdc_dev_drv[i])
-			continue;
-		inf->lcdc_dev_drv[i]->suspend(inf->lcdc_dev_drv[i]);
-	}
-}
-static void rkfb_early_resume(struct early_suspend *h)
-{
-	struct suspend_info *info = container_of(h, struct suspend_info,
-						early_suspend);
-	struct rk_fb *inf = info->inf;
-	int i;
-	for (i = 0; i < inf->num_lcdc; i++) {
-		if (!inf->lcdc_dev_drv[i])
-			continue;
-		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);
-	}
-
-}
-
-
-
-static struct suspend_info suspend_info = {
-	.early_suspend.suspend = rkfb_early_suspend,
-	.early_suspend.resume = rkfb_early_resume,
-	.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
-};
-#endif
-
 static int rk_fb_probe(struct platform_device *pdev)
 {
 	struct rk_fb *rk_fb = NULL;
@@ -2955,10 +2912,6 @@ static int rk_fb_probe(struct platform_device *pdev)
 	}
 #endif
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-	suspend_info.inf = rk_fb;
-	register_early_suspend(&suspend_info.early_suspend);
-#endif
 	fb_pdev = pdev;
 	dev_info(&pdev->dev, "rockchip framebuffer driver probe\n");
 	return 0;
@@ -2982,9 +2935,6 @@ static void rk_fb_shutdown(struct platform_device *pdev)
 
 	}
 
-#if	defined(CONFIG_HAS_EARLYSUSPEND)
-	unregister_early_suspend(&suspend_info.early_suspend);
-#endif
 }
 
 
