@@ -2611,6 +2611,12 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 
 	disable_input(sd);
 
+	/*
+	 * Disable I2C access to internal EDID ram from HDMI DDC ports
+	 * Disable auto edid enable when leaving powerdown mode
+	 */
+	rep_write_and_or(sd, 0x77, 0xd3, 0x20);
+
 	/* power */
 	io_write(sd, 0x0c, 0x42);   /* Power up part and power down VDP */
 	io_write(sd, 0x15, 0x80);   /* Power up pads */
@@ -2690,9 +2696,6 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 	select_input(sd, pdata->vid_std_select);
 
 	enable_input(sd);
-
-	/* disable I2C access to internal EDID ram from HDMI DDC ports */
-	rep_write_and_or(sd, 0x77, 0xf3, 0x00);
 
 	if (pdata->hpa_auto) {
 		/* HPA auto, HPA 0.5s after Edid set and Cable detect */
