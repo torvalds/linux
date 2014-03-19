@@ -26,6 +26,7 @@
 
 static const struct nouveau_mc_intr
 nv98_mc_intr[] = {
+	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP first, so pageflip timestamps work */
 	{ 0x00000001, NVDEV_ENGINE_PPP },
 	{ 0x00000100, NVDEV_ENGINE_FIFO },
 	{ 0x00001000, NVDEV_ENGINE_GR },
@@ -37,7 +38,6 @@ nv98_mc_intr[] = {
 	{ 0x00100000, NVDEV_SUBDEV_TIMER },
 	{ 0x00200000, NVDEV_SUBDEV_GPIO },
 	{ 0x00400000, NVDEV_ENGINE_COPY0 },	/* NVA3-     */
-	{ 0x04000000, NVDEV_ENGINE_DISP },
 	{ 0x10000000, NVDEV_SUBDEV_BUS },
 	{ 0x80000000, NVDEV_ENGINE_SW },
 	{ 0x0042d101, NVDEV_SUBDEV_FB },
