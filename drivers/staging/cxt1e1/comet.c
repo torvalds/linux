@@ -456,7 +456,7 @@ static void
 WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 {
 	u_int32_t   ramaddr;
-	volatile u_int32_t value;
+	u_int32_t value;
 
 	for (ramaddr = 0; ramaddr < 256; ramaddr++) {
 		/*** the following lines are per Errata 7, 2.5 ***/
@@ -524,7 +524,7 @@ WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 static void
 SetPwrLevel(struct s_comet_reg *comet)
 {
-	volatile u_int32_t temp;
+	u_int32_t temp;
 
 /*
 **    Algorithm to Balance the Power Distribution of Ttip Tring
@@ -566,7 +566,7 @@ SetPwrLevel(struct s_comet_reg *comet)
 static void
 SetCometOps(struct s_comet_reg *comet)
 {
-	volatile u_int8_t rd_value;
+	u_int8_t rd_value;
 
 	if (comet == mConfig.C4Func1Base + (COMET0_OFFSET >> 2)) {
 		/* read the BRIF Configuration */
