@@ -1310,7 +1310,7 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 
 	while (nbytes < *nbytesp && req->num_pages < req->max_pages) {
 		unsigned npages;
-		size_t start, end, frag_size;
+		size_t start;
 		unsigned n = req->max_pages - req->num_pages;
 		ssize_t ret = iov_iter_get_pages(ii,
 					&req->pages[req->num_pages],
@@ -1344,19 +1344,7 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 
 static inline int fuse_iter_npages(const struct iov_iter *ii_p)
 {
-	struct iov_iter ii = *ii_p;
-	int npages = 0;
-
-	while (iov_iter_count(&ii) && npages < FUSE_MAX_PAGES_PER_REQ) {
-		unsigned long user_addr = fuse_get_user_addr(&ii);
-		unsigned offset = user_addr & ~PAGE_MASK;
-		size_t frag_size = iov_iter_single_seg_count(&ii);
-
-		npages += (frag_size + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		iov_iter_advance(&ii, frag_size);
-	}
-
-	return min(npages, FUSE_MAX_PAGES_PER_REQ);
+	return iov_iter_npages(ii_p, FUSE_MAX_PAGES_PER_REQ);
 }
 
 ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
