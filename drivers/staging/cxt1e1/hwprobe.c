@@ -31,7 +31,6 @@
 #include "sbeproc.h"
 #endif
 
-extern int  cxt1e1_log_level;
 extern int  error_flag;
 extern int  drvr_state;
 

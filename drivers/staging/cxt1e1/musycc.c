@@ -42,7 +42,6 @@ static unsigned int max_bh = 0;
 /* global driver variables */
 extern ci_t *c4_list;
 extern int  drvr_state;
-extern int  cxt1e1_log_level;
 
 extern int  cxt1e1_max_mru;
 extern int  cxt1e1_max_mtu;

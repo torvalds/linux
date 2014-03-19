@@ -48,7 +48,6 @@ static int  dummy = 0;
 
 #endif
 
-extern int  cxt1e1_log_level;
 extern int  drvr_state;
 
 

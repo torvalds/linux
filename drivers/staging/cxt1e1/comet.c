@@ -22,7 +22,6 @@
 #include "comet.h"
 #include "comet_tables.h"
 
-extern int  cxt1e1_log_level;
 
 #define COMET_NUM_SAMPLES   24  /* Number of entries in the waveform table */
 #define COMET_NUM_UNITS     5   /* Number of points per entry in table */
