@@ -219,9 +219,8 @@ u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit)
 {
 	int tmp, i;
 	u8 *p;
-	if (limit < 1) {
+	if (limit < 1)
 		return NULL;
-	}
 
 	p = pbuf;
 	i = 0;
