@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include "event.h"
 #include "debug.h"
+#include "hist.h"
 #include "machine.h"
 #include "sort.h"
 #include "string.h"
@@ -445,6 +446,9 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1;
 
+	if (machine__is_default_guest(machine))
+		return 0;
+
 	comm_event = malloc(sizeof(comm_event->comm) + machine->id_hdr_size);
 	if (comm_event == NULL)
 		goto out;
@@ -456,9 +460,6 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	fork_event = malloc(sizeof(fork_event->fork) + machine->id_hdr_size);
 	if (fork_event == NULL)
 		goto out_free_mmap;
-
-	if (machine__is_default_guest(machine))
-		return 0;
 
 	snprintf(proc_path, sizeof(proc_path), "%s/proc", machine->root_dir);
 	proc = opendir(proc_path);
@@ -705,7 +706,7 @@ void thread__find_addr_map(struct thread *thread,
 	al->thread = thread;
 	al->addr = addr;
 	al->cpumode = cpumode;
-	al->filtered = false;
+	al->filtered = 0;
 
 	if (machine == NULL) {
 		al->map = NULL;
@@ -731,11 +732,11 @@ void thread__find_addr_map(struct thread *thread,
 		if ((cpumode == PERF_RECORD_MISC_GUEST_USER ||
 			cpumode == PERF_RECORD_MISC_GUEST_KERNEL) &&
 			!perf_guest)
-			al->filtered = true;
+			al->filtered |= (1 << HIST_FILTER__GUEST);
 		if ((cpumode == PERF_RECORD_MISC_USER ||
 			cpumode == PERF_RECORD_MISC_KERNEL) &&
 			!perf_host)
-			al->filtered = true;
+			al->filtered |= (1 << HIST_FILTER__HOST);
 
 		return;
 	}
@@ -792,9 +793,6 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	if (thread == NULL)
 		return -1;
 
-	if (thread__is_filtered(thread))
-		goto out_filtered;
-
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 	/*
 	 * Have we already created the kernel maps for this machine?
@@ -812,6 +810,10 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
+
+	if (thread__is_filtered(thread))
+		al->filtered |= (1 << HIST_FILTER__THREAD);
+
 	al->sym = NULL;
 	al->cpu = sample->cpu;
 
@@ -823,8 +825,9 @@ int perf_event__preprocess_sample(const union perf_event *event,
 						  dso->short_name) ||
 			       (dso->short_name != dso->long_name &&
 				strlist__has_entry(symbol_conf.dso_list,
-						   dso->long_name)))))
-			goto out_filtered;
+						   dso->long_name))))) {
+			al->filtered |= (1 << HIST_FILTER__DSO);
+		}
 
 		al->sym = map__find_symbol(al->map, al->addr,
 					   machine->symbol_filter);
@@ -832,12 +835,9 @@ int perf_event__preprocess_sample(const union perf_event *event,
 
 	if (symbol_conf.sym_list &&
 		(!al->sym || !strlist__has_entry(symbol_conf.sym_list,
-						al->sym->name)))
-		goto out_filtered;
+						al->sym->name))) {
+		al->filtered |= (1 << HIST_FILTER__SYMBOL);
+	}
 
-	return 0;
-
-out_filtered:
-	al->filtered = true;
 	return 0;
 }
