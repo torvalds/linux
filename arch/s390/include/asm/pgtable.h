@@ -844,7 +844,6 @@ int gmap_ipte_notify(struct gmap *, unsigned long start, unsigned long len);
 void gmap_do_ipte_notify(struct mm_struct *, pte_t *);
 
 static inline pgste_t pgste_ipte_notify(struct mm_struct *mm,
-					unsigned long addr,
 					pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
@@ -1104,7 +1103,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 
 	if (mm_has_pgste(vma->vm_mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, addr, ptep, pgste);
+		pgste = pgste_ipte_notify(vma->vm_mm, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1150,7 +1149,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(mm, address, ptep, pgste);
+		pgste = pgste_ipte_notify(mm, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1174,7 +1173,7 @@ static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste_ipte_notify(mm, address, ptep, pgste);
+		pgste_ipte_notify(mm, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1211,7 +1210,7 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 
 	if (mm_has_pgste(vma->vm_mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, address, ptep, pgste);
+		pgste = pgste_ipte_notify(vma->vm_mm, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1245,7 +1244,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 
 	if (!full && mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(mm, address, ptep, pgste);
+		pgste = pgste_ipte_notify(mm, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1270,7 +1269,7 @@ static inline pte_t ptep_set_wrprotect(struct mm_struct *mm,
 	if (pte_write(pte)) {
 		if (mm_has_pgste(mm)) {
 			pgste = pgste_get_lock(ptep);
-			pgste = pgste_ipte_notify(mm, address, ptep, pgste);
+			pgste = pgste_ipte_notify(mm, ptep, pgste);
 		}
 
 		ptep_flush_lazy(mm, address, ptep);
@@ -1296,7 +1295,7 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 		return 0;
 	if (mm_has_pgste(vma->vm_mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, address, ptep, pgste);
+		pgste = pgste_ipte_notify(vma->vm_mm, ptep, pgste);
 	}
 
 	ptep_flush_direct(vma->vm_mm, address, ptep);
