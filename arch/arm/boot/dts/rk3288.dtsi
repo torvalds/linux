@@ -452,7 +452,12 @@
 			<&aclk_vio1 300000000>,	<&hclk_vio 75000000>,
 			<&pclk_pd_alive 100000000>,	<&pclk_pd_pmu 100000000>,
 			<&aclk_hevc 400000000>,	<&hclk_hevc 200000000>,
-			<&clk_hevc_cabac 300000000>, <&clk_hevc_core 300000000>;
+			<&clk_hevc_cabac 300000000>, <&clk_hevc_core 300000000>,
+			<&aclk_rga 300000000>, <&clk_rga 300000000>,
+			<&clk_vepu 300000000>, <&clk_vdpu 300000000>,
+			<&clk_edp 200000000>, <&clk_isp 200000000>,
+			<&clk_isp_jpe 400000000>, <&clk_tsp 80000000>,
+			<&clk_tspout 80000000>, <&clk_mac 50000000>;
 	};
 
 	i2c0: i2c@ff650000 {

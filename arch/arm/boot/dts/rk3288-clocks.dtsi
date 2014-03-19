@@ -545,6 +545,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>;
 						clock-output-names = "clk_isp";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_isp_jpe_div: clk_isp_jpe_div {
@@ -564,6 +565,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>;
 						clock-output-names = "clk_isp_jpe";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1014,6 +1016,7 @@
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MAC_REF>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[7:5]: reserved */
@@ -1295,6 +1298,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>;
 						clock-output-names = "clk_edp";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					hclk_vio: hclk_vio_div {
@@ -1403,6 +1407,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>;
 						clock-output-names = "aclk_rga";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_rga_div: clk_rga_div {
@@ -1424,6 +1429,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>;
 						clock-output-names = "clk_rga";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1503,6 +1509,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>;
 						clock-output-names = "clk_vepu";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_vdpu_div: clk_vdpu_div {
@@ -1524,6 +1531,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>;
 						clock-output-names = "clk_vdpu";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1631,6 +1639,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>;
 						clock-output-names = "clk_tsp";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_tspout_div: clk_tspout_div {
@@ -1652,6 +1661,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>, <&io_27m_in>;
 						clock-output-names = "clk_tspout";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1844,6 +1854,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>;
 						clock-output-names = "aclk_hevc";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1882,6 +1893,7 @@
 						clock-output-names = "hclk_hevc";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[15:14]: reserved */
@@ -1930,6 +1942,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>;
 						clock-output-names = "clk_hevc_cabac";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_hevc_core_div: clk_hevc_core_div {
@@ -1951,6 +1964,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>;
 						clock-output-names = "clk_hevc_core";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
