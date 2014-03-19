@@ -84,6 +84,7 @@ enum {
 enum {
 	MLX4_MAX_NUM_PF		= 16,
 	MLX4_MAX_NUM_VF		= 64,
+	MLX4_MAX_NUM_VF_P_PORT  = 64,
 	MLX4_MFUNC_MAX		= 80,
 	MLX4_MAX_EQ_NUM		= 1024,
 	MLX4_MFUNC_EQ_NUM	= 4,
@@ -664,6 +665,11 @@ struct mlx4_quotas {
 	int xrcd;
 };
 
+struct mlx4_vf_dev {
+	u8			min_port;
+	u8			n_ports;
+};
+
 struct mlx4_dev {
 	struct pci_dev	       *pdev;
 	unsigned long		flags;
@@ -679,6 +685,7 @@ struct mlx4_dev {
 	int			oper_log_mgm_entry_size;
 	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
+	struct mlx4_vf_dev     *dev_vfs;
 };
 
 struct mlx4_eqe {

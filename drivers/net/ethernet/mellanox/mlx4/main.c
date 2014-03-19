@@ -2193,6 +2193,10 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	struct mlx4_dev *dev;
 	int err;
 	int port;
+	int nvfs[MLX4_MAX_PORTS + 1], prb_vf[MLX4_MAX_PORTS + 1];
+	unsigned total_vfs = 0;
+	int sriov_initialized = 0;
+	unsigned int i;
 
 	pr_info(DRV_NAME ": Initializing %s\n", pci_name(pdev));
 
@@ -2207,17 +2211,39 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	 * per port, we must limit the number of VFs to 63 (since their are
 	 * 128 MACs)
 	 */
-	if (num_vfs >= MLX4_MAX_NUM_VF) {
+	for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]);
+	     total_vfs += nvfs[i], i++) {
+		nvfs[i] = i == MLX4_MAX_PORTS ? num_vfs : 0;
+		if (nvfs[i] < 0) {
+			dev_err(&pdev->dev, "num_vfs module parameter cannot be negative\n");
+			return -EINVAL;
+		}
+	}
+	for (i = 0; i < sizeof(prb_vf)/sizeof(prb_vf[0]); i++) {
+		prb_vf[i] = i == MLX4_MAX_PORTS ? probe_vf : 0;
+		if (prb_vf[i] < 0 || prb_vf[i] > nvfs[i]) {
+			dev_err(&pdev->dev, "probe_vf module parameter cannot be negative or greater than num_vfs\n");
+			return -EINVAL;
+		}
+	}
+	if (total_vfs >= MLX4_MAX_NUM_VF) {
 		dev_err(&pdev->dev,
 			"Requested more VF's (%d) than allowed (%d)\n",
-			num_vfs, MLX4_MAX_NUM_VF - 1);
+			total_vfs, MLX4_MAX_NUM_VF - 1);
 		return -EINVAL;
 	}
 
-	if (num_vfs < 0) {
-		pr_err("num_vfs module parameter cannot be negative\n");
-		return -EINVAL;
+	for (i = 0; i < MLX4_MAX_PORTS; i++) {
+		if (nvfs[i] + nvfs[2] >= MLX4_MAX_NUM_VF_P_PORT) {
+			dev_err(&pdev->dev,
+				"Requested more VF's (%d) for port (%d) than allowed (%d)\n",
+				nvfs[i] + nvfs[2], i + 1,
+				MLX4_MAX_NUM_VF_P_PORT - 1);
+			return -EINVAL;
+		}
 	}
+
+
 	/*
 	 * Check for BARs.
 	 */
@@ -2292,11 +2318,23 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	if (pci_dev_data & MLX4_PCI_DEV_IS_VF) {
 		/* When acting as pf, we normally skip vfs unless explicitly
 		 * requested to probe them. */
-		if (num_vfs && extended_func_num(pdev) > probe_vf) {
-			mlx4_warn(dev, "Skipping virtual function:%d\n",
-						extended_func_num(pdev));
-			err = -ENODEV;
-			goto err_free_dev;
+		if (total_vfs) {
+			unsigned vfs_offset = 0;
+			for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]) &&
+			     vfs_offset + nvfs[i] < extended_func_num(pdev);
+			     vfs_offset += nvfs[i], i++)
+				;
+			if (i == sizeof(nvfs)/sizeof(nvfs[0])) {
+				err = -ENODEV;
+				goto err_free_dev;
+			}
+			if ((extended_func_num(pdev) - vfs_offset)
+			    > prb_vf[i]) {
+				mlx4_warn(dev, "Skipping virtual function:%d\n",
+					  extended_func_num(pdev));
+				err = -ENODEV;
+				goto err_free_dev;
+			}
 		}
 		mlx4_warn(dev, "Detected virtual function - running in slave mode\n");
 		dev->flags |= MLX4_FLAG_SLAVE;
@@ -2316,22 +2354,30 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 			}
 		}
 
-		if (num_vfs) {
-			mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n", num_vfs);
-
-			atomic_inc(&pf_loading);
-			err = pci_enable_sriov(pdev, num_vfs);
-			atomic_dec(&pf_loading);
-
-			if (err) {
-				mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d).\n",
-					 err);
+		if (total_vfs) {
+			mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n",
+				  total_vfs);
+			dev->dev_vfs = kzalloc(
+					total_vfs * sizeof(*dev->dev_vfs),
+					GFP_KERNEL);
+			if (NULL == dev->dev_vfs) {
+				mlx4_err(dev, "Failed to allocate memory for VFs\n");
 				err = 0;
 			} else {
-				mlx4_warn(dev, "Running in master mode\n");
-				dev->flags |= MLX4_FLAG_SRIOV |
-					      MLX4_FLAG_MASTER;
-				dev->num_vfs = num_vfs;
+				atomic_inc(&pf_loading);
+				err = pci_enable_sriov(pdev, total_vfs);
+				atomic_dec(&pf_loading);
+				if (err) {
+					mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d).\n",
+						 err);
+					err = 0;
+				} else {
+					mlx4_warn(dev, "Running in master mode\n");
+					dev->flags |= MLX4_FLAG_SRIOV |
+						      MLX4_FLAG_MASTER;
+					dev->num_vfs = total_vfs;
+					sriov_initialized = 1;
+				}
 			}
 		}
 
@@ -2396,11 +2442,23 @@ slave_start:
 	/* In master functions, the communication channel must be initialized
 	 * after obtaining its address from fw */
 	if (mlx4_is_master(dev)) {
+		unsigned sum = 0;
 		err = mlx4_multi_func_init(dev);
 		if (err) {
 			mlx4_err(dev, "Failed to init master mfunc"
 				 "interface, aborting.\n");
 			goto err_close;
+		}
+		if (sriov_initialized) {
+			for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]); i++) {
+				unsigned j;
+				for (j = 0; j < nvfs[i]; ++sum, ++j) {
+					dev->dev_vfs[sum].min_port =
+						i < 2 ? i + 1 : 1;
+					dev->dev_vfs[sum].n_ports = i < 2 ? 1 :
+						dev->caps.num_ports;
+				}
+			}
 		}
 	}
 
@@ -2509,6 +2567,8 @@ err_rel_own:
 	if (!mlx4_is_slave(dev))
 		mlx4_free_ownership(dev);
 
+	kfree(priv->dev.dev_vfs);
+
 err_free_dev:
 	kfree(priv);
 
@@ -2595,6 +2655,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		kfree(dev->caps.qp0_proxy);
 		kfree(dev->caps.qp1_tunnel);
 		kfree(dev->caps.qp1_proxy);
+		kfree(dev->dev_vfs);
 
 		kfree(priv);
 		pci_release_regions(pdev);
