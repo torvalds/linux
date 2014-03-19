@@ -1546,7 +1546,7 @@ static int mlx4_ib_addr_event(int event, struct net_device *event_netdev,
 	iboe = &ibdev->iboe;
 	spin_lock(&iboe->lock);
 
-	for (port = 1; port <= MLX4_MAX_PORTS; ++port)
+	for (port = 1; port <= ibdev->dev->caps.num_ports; ++port)
 		if ((netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->masters[port - 1])) ||
 		     (!netif_is_bond_master(real_dev) &&
@@ -1569,14 +1569,14 @@ static u8 mlx4_ib_get_dev_port(struct net_device *dev,
 
 	iboe = &ibdev->iboe;
 
-	for (port = 1; port <= MLX4_MAX_PORTS; ++port)
+	for (port = 1; port <= ibdev->dev->caps.num_ports; ++port)
 		if ((netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->masters[port - 1])) ||
 		     (!netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->netdevs[port - 1])))
 			break;
 
-	if ((port == 0) || (port > MLX4_MAX_PORTS))
+	if ((port == 0) || (port > ibdev->dev->caps.num_ports))
 		return 0;
 	else
 		return port;
@@ -1626,7 +1626,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 	union ib_gid gid;
 
 
-	if ((port == 0) || (port > MLX4_MAX_PORTS))
+	if ((port == 0) || (port > ibdev->dev->caps.num_ports))
 		return;
 
 	/* IPv4 gids */
