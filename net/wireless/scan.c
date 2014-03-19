@@ -659,9 +659,6 @@ static bool cfg80211_combine_bsses(struct cfg80211_registered_device *dev,
 			continue;
 		if (ssidlen && ie[1] != ssidlen)
 			continue;
-		/* that would be odd ... */
-		if (bss->pub.beacon_ies)
-			continue;
 		if (WARN_ON_ONCE(bss->pub.hidden_beacon_bss))
 			continue;
 		if (WARN_ON_ONCE(!list_empty(&bss->hidden_list)))
