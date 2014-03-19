@@ -728,7 +728,6 @@
 				         <&clks IMX5_CLK_VPU_GATE>;
 				clock-names = "per", "ahb";
 				iram = <&ocram>;
-				status = "disabled";
 			};
 		};
 
