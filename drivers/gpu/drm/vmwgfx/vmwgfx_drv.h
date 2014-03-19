@@ -40,7 +40,7 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20121114"
+#define VMWGFX_DRIVER_DATE "20140228"
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 5
 #define VMWGFX_DRIVER_PATCHLEVEL 0
@@ -386,6 +386,7 @@ struct vmw_private {
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
 	uint32_t max_mob_pages;
+	uint32_t max_mob_size;
 	uint32_t memory_size;
 	bool has_gmr;
 	bool has_mob;

@@ -879,14 +879,15 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	dev->priv_flags |= IFF_MACVLAN;
 	err = netdev_upper_dev_link(lowerdev, dev);
 	if (err)
-		goto destroy_port;
-
+		goto unregister_netdev;
 
 	list_add_tail_rcu(&vlan->list, &port->vlans);
 	netif_stacked_transfer_operstate(lowerdev, dev);
 
 	return 0;
 
+unregister_netdev:
+	unregister_netdevice(dev);
 destroy_port:
 	port->count -= 1;
 	if (!port->count)

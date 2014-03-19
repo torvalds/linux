@@ -50,6 +50,11 @@ config NFT_CHAIN_NAT_IPV6
 	  packet transformations such as the source, destination address and
 	  source and destination ports.
 
+config NFT_REJECT_IPV6
+	depends on NF_TABLES_IPV6
+	default NFT_REJECT
+	tristate
+
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
 	depends on INET && IPV6

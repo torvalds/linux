@@ -13,6 +13,7 @@
 #include <linux/wait.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
+#include <linux/posix_acl.h>
 
 #include <linux/ceph/libceph.h>
 
@@ -743,7 +744,11 @@ extern const struct xattr_handler *ceph_xattr_handlers[];
 struct posix_acl *ceph_get_acl(struct inode *, int);
 int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 int ceph_init_acl(struct dentry *, struct inode *, struct inode *);
-void ceph_forget_all_cached_acls(struct inode *inode);
+
+static inline void ceph_forget_all_cached_acls(struct inode *inode)
+{
+       forget_all_cached_acls(inode);
+}
 
 #else
 

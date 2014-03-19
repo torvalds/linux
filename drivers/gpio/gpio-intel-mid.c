@@ -394,8 +394,8 @@ static const struct irq_domain_ops intel_gpio_irq_ops = {
 
 static int intel_gpio_runtime_idle(struct device *dev)
 {
-	pm_schedule_suspend(dev, 500);
-	return -EBUSY;
+	int err = pm_schedule_suspend(dev, 500);
+	return err ?: -EBUSY;
 }
 
 static const struct dev_pm_ops intel_gpio_pm_ops = {

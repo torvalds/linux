@@ -61,6 +61,8 @@ struct kuc_hdr {
 	__u16 kuc_msglen;     /* Including header */
 } __attribute__((aligned(sizeof(__u64))));
 
+#define KUC_CHANGELOG_MSG_MAXSIZE (sizeof(struct kuc_hdr)+CR_MAXSIZE)
+
 #define KUC_MAGIC  0x191C /*Lustre9etLinC */
 #define KUC_FL_BLOCK 0x01   /* Wait for send */
 
