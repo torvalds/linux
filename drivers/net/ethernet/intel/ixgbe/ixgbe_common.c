@@ -143,7 +143,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	case ixgbe_media_type_backplane:
 		/* some MAC's need RMW protection on AUTOC */
 		ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &reg_bp);
-		if (!ret_val)
+		if (ret_val)
 			goto out;
 
 		/* only backplane uses autoc so fall though */
@@ -2723,14 +2723,14 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 
 	if (!link_up) {
 		ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &autoc_reg);
-		if (!ret_val)
+		if (ret_val)
 			goto out;
 
 		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 
 		ret_val = hw->mac.ops.prot_autoc_write(hw, autoc_reg, locked);
-		if (!ret_val)
+		if (ret_val)
 			goto out;
 
 		IXGBE_WRITE_FLUSH(hw);
@@ -2760,14 +2760,14 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	bool locked = false;
 
 	ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &autoc_reg);
-	if (!ret_val)
+	if (ret_val)
 		goto out;
 
 	autoc_reg &= ~IXGBE_AUTOC_FLU;
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 
 	ret_val = hw->mac.ops.prot_autoc_write(hw, autoc_reg, locked);
-	if (!ret_val)
+	if (ret_val)
 		goto out;
 
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);

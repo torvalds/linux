@@ -210,7 +210,7 @@ static s32 prot_autoc_read_82599(struct ixgbe_hw *hw, bool *locked,
 	if (ixgbe_verify_lesm_fw_enabled_82599(hw)) {
 		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
 					IXGBE_GSSR_MAC_CSR_SM);
-		if (!ret_val)
+		if (ret_val)
 			return IXGBE_ERR_SWFW_SYNC;
 
 		*locked = true;
@@ -245,8 +245,10 @@ static s32 prot_autoc_write_82599(struct ixgbe_hw *hw, u32 autoc, bool locked)
 	if (!locked && ixgbe_verify_lesm_fw_enabled_82599(hw)) {
 		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
 					IXGBE_GSSR_MAC_CSR_SM);
-		if (!ret_val)
+		if (ret_val)
 			return IXGBE_ERR_SWFW_SYNC;
+
+		locked = true;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
@@ -1094,7 +1096,7 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 	if (autoc != start_autoc) {
 		/* Restart link */
 		status = hw->mac.ops.prot_autoc_write(hw, autoc, false);
-		if (!status)
+		if (status)
 			goto out;
 
 		/* Only poll for autoneg to complete if specified to do so */
@@ -1277,7 +1279,7 @@ mac_reset_top:
 			status = hw->mac.ops.prot_autoc_write(hw,
 							hw->mac.orig_autoc,
 							false);
-			if (!status)
+			if (status)
 				goto reset_hw_out;
 		}
 
