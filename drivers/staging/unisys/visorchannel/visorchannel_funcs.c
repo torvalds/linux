@@ -57,8 +57,11 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
 	void *rc = NULL;
 
 	p = kmalloc(sizeof(VISORCHANNEL), GFP_KERNEL|__GFP_NORETRY);
-	if (p == NULL)
-		FAIL("allocation failed", 0);
+	if (p == NULL) {
+		ERRDRV("allocation failed: (status=0)\n");
+		rc = NULL;
+		goto Away;
+	}
 	p->memregion = NULL;
 	p->needs_lock = needs_lock;
 	spin_lock_init(&p->insert_lock);
@@ -73,19 +76,28 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
 		    visor_memregion_create_overlapped(parent->memregion,
 						      off,
 						      sizeof(CHANNEL_HEADER));
-	if (p->memregion == NULL)
-		FAIL("visor_memregion_create failed", 0);
+	if (p->memregion == NULL) {
+		ERRDRV("visor_memregion_create failed failed: (status=0)\n");
+		rc = NULL;
+		goto Away;
+	}
 	if (visor_memregion_read(p->memregion, 0, &p->chan_hdr,
-				 sizeof(CHANNEL_HEADER)) < 0)
-		FAIL("visor_memregion_read failed", 0);
+				 sizeof(CHANNEL_HEADER)) < 0) {
+		ERRDRV("visor_memregion_read failed: (status=0)\n");
+		rc = NULL;
+		goto Away;
+	}
 	if (channelBytes == 0)
 		/* we had better be a CLIENT of this channel */
 		channelBytes = (ulong) p->chan_hdr.Size;
 	if (STRUCTSEQUAL(guid, Guid0))
 		/* we had better be a CLIENT of this channel */
 		guid = p->chan_hdr.Type;
-	if (visor_memregion_resize(p->memregion, channelBytes) < 0)
-		FAIL("visor_memregion_resize failed", 0);
+	if (visor_memregion_resize(p->memregion, channelBytes) < 0) {
+		ERRDRV("visor_memregion_resize failed: (status=0)\n");
+		rc = NULL;
+		goto Away;
+	}
 	p->size = channelBytes;
 	p->guid = guid;
 
@@ -300,8 +312,10 @@ sig_read_header(VISORCHANNEL *channel, U32 queue,
 {
 	BOOL rc = FALSE;
 
-	if (channel->chan_hdr.oChannelSpace < sizeof(CHANNEL_HEADER))
-		FAIL("oChannelSpace too small", FALSE);
+	if (channel->chan_hdr.oChannelSpace < sizeof(CHANNEL_HEADER)) {
+		ERRDRV("oChannelSpace too small: (status=%d)\n", rc);
+		goto Away;
+	}
 
 	/* Read the appropriate SIGNAL_QUEUE_HEADER into local memory. */
 
@@ -310,7 +324,8 @@ sig_read_header(VISORCHANNEL *channel, U32 queue,
 				 sig_hdr, sizeof(SIGNAL_QUEUE_HEADER)) < 0) {
 		ERRDRV("queue=%d SIG_QUEUE_OFFSET=%d",
 		       queue, (int)SIG_QUEUE_OFFSET(&channel->chan_hdr, queue));
-		FAIL("visor_memregion_read of signal queue failed", FALSE);
+		ERRDRV("visor_memregion_read of signal queue failed: (status=%d)\n", rc);
+		goto Away;
 	}
 	rc = TRUE;
 Away:
@@ -327,14 +342,16 @@ sig_do_data(VISORCHANNEL *channel, U32 queue,
 	if (is_write) {
 		if (visor_memregion_write(channel->memregion,
 					  signal_data_offset,
-					  data, sig_hdr->SignalSize) < 0)
-			FAIL("visor_memregion_write of signal data failed",
-			     FALSE);
+					  data, sig_hdr->SignalSize) < 0) {
+			ERRDRV("visor_memregion_write of signal data failed: (status=%d)\n", rc);
+			goto Away;
+		}
 	} else {
 		if (visor_memregion_read(channel->memregion, signal_data_offset,
-					 data, sig_hdr->SignalSize) < 0)
-			FAIL("visor_memregion_read of signal data failed",
-			     FALSE);
+					 data, sig_hdr->SignalSize) < 0) {
+			ERRDRV("visor_memregion_read of signal data failed: (status=%d)\n", rc);
+			goto Away;
+		}
 	}
 	rc = TRUE;
 Away:
@@ -395,19 +412,25 @@ visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg)
 		goto Away;
 	}
 	sig_hdr.Tail = (sig_hdr.Tail + 1) % sig_hdr.MaxSignalSlots;
-	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.Tail, msg))
-		FAIL("sig_read_data failed", FALSE);
+	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.Tail, msg)) {
+		ERRDRV("sig_read_data failed: (status=%d)\n", rc);
+		goto Away;
+	}
 	sig_hdr.NumSignalsReceived++;
 
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
 	MEMORYBARRIER;
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Tail))
-		FAIL("visor_memregion_write of Tail failed", FALSE);
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsReceived))
-		FAIL("visor_memregion_write of NumSignalsReceived failed",
-		     FALSE);
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Tail)) {
+		ERRDRV("visor_memregion_write of Tail failed: (status=%d)\n",
+		       rc);
+		goto Away;
+	}
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsReceived)) {
+		ERRDRV("visor_memregion_write of NumSignalsReceived failed: (status=%d)\n", rc);
+		goto Away;
+	}
 	rc = TRUE;
 Away:
 	if (channel->needs_lock)
@@ -434,25 +457,33 @@ visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 	sig_hdr.Head = ((sig_hdr.Head + 1) % sig_hdr.MaxSignalSlots);
 	if (sig_hdr.Head == sig_hdr.Tail) {
 		sig_hdr.NumOverflows++;
-		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumOverflows))
-			FAIL("visor_memregion_write of NumOverflows failed",
-			     FALSE);
+		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumOverflows)) {
+			ERRDRV("visor_memregion_write of NumOverflows failed: (status=%d)\n", rc);
+			goto Away;
+		}
 		rc = FALSE;
 		goto Away;
 	}
 
-	if (!sig_write_data(channel, queue, &sig_hdr, sig_hdr.Head, msg))
-		FAIL("sig_write_data failed", FALSE);
+	if (!sig_write_data(channel, queue, &sig_hdr, sig_hdr.Head, msg)) {
+		ERRDRV("sig_write_data failed: (status=%d)\n", rc);
+		goto Away;
+	}
 	sig_hdr.NumSignalsSent++;
 
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
 	MEMORYBARRIER;
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Head))
-		FAIL("visor_memregion_write of Head failed", FALSE);
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsSent))
-		FAIL("visor_memregion_write of NumSignalsSent failed", FALSE);
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Head)) {
+		ERRDRV("visor_memregion_write of Head failed: (status=%d)\n",
+		       rc);
+		goto Away;
+	}
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsSent)) {
+		ERRDRV("visor_memregion_write of NumSignalsSent failed: (status=%d)\n", rc);
+		goto Away;
+	}
 	rc = TRUE;
 Away:
 	if (channel->needs_lock)

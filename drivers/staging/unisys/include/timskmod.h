@@ -126,18 +126,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
  *  @param x the value to return
  */
 #define RETINT(x)  do { rc = (x); RETTRACE(x); goto Away; } while (0)
-/** Given a typedef/struct/union and a member field name,
- *  return the number of bytes occupied by that field.
- *  @param TYPE     the typedef name, or "struct xx" or "union xx"
- *  @param MEMBER   the name of the member field whose size is to be determined
- *  @return         the size of the field in bytes
- */
-#define FAIL(msg, status) do {          \
-		ERRDRV("'%s'"					      \
-		       ": error (status=%d)\n",			      \
-		       msg, status);				      \
-		RETINT(status);					      \
-	} while (0)
 /** Try to evaulate the provided expression, and do a RETINT(x) iff
  *  the expression evaluates to < 0.
  *  @param x the expression to try

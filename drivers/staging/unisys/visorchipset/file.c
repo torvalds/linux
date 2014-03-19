@@ -84,8 +84,11 @@ visorchipset_file_init(dev_t majorDev, VISORCHANNEL **pControlVm_channel)
 		Registered = TRUE;
 		INFODRV("Static major number %d registered\n", MAJOR(MajorDev));
 	}
-	if (cdev_add(&Cdev, MKDEV(MAJOR(MajorDev), 0), 1) < 0)
-		FAIL("failed to create char device", -1);
+	if (cdev_add(&Cdev, MKDEV(MAJOR(MajorDev), 0), 1) < 0) {
+		ERRDRV("failed to create char device: (status=-1)\n");
+		rc = -1;
+		goto Away;
+	}
 	INFODRV("Registered char device for %s (major=%d)",
 		MYDRVNAME, MAJOR(MajorDev));
 	RETINT(0);
