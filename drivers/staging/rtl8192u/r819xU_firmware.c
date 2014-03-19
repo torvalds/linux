@@ -17,7 +17,8 @@
 #include "r819xU_firmware_img.h"
 #include "r819xU_firmware.h"
 #include <linux/firmware.h>
-void firmware_init_param(struct net_device *dev)
+
+static void firmware_init_param(struct net_device *dev)
 {
 	struct r8192_priv	*priv = ieee80211_priv(dev);
 	rt_firmware		*pfirmware = priv->pFirmware;
@@ -29,7 +30,8 @@ void firmware_init_param(struct net_device *dev)
  * segment the img and use the ptr and length to remember info on each segment
  *
  */
-bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buffer_len)
+static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
+			     u32 buffer_len)
 {
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	bool		    rt_status = true;
@@ -156,7 +158,7 @@ fwSendNullPacket(
 //        NDIS_STATUS_FAILURE - the following initialization process should be terminated
 //        NDIS_STATUS_SUCCESS - if firmware initialization process success
 //-----------------------------------------------------------------------------
-bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
+static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
 	bool		rt_status = true;
 	int		check_putcodeOK_time = 200000, check_bootOk_time = 200000;
@@ -205,7 +207,7 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 	return rt_status;
 }
 
-bool CPUcheck_firmware_ready(struct net_device *dev)
+static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
 
 	bool		rt_status = true;
