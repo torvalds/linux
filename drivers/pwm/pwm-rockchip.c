@@ -445,7 +445,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		pc->pwm_id = RK_PWM;
 	}
 	//pc->clk = devm_clk_get(&pdev->dev, NULL);
-	pc->clk = clk_get(NULL,"g_p_pwm23");
+	pc->clk = devm_clk_get(&pdev->dev,"pclk_pwm");
 
 
 	if (IS_ERR(pc->clk))

@@ -608,6 +608,8 @@
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
                 pinctrl-0 = <&pwm0_pin>;
+		clocks = <&clk_gates7 10>;
+		clock-names = "pclk_pwm";
                 status = "disabled";
 
         };
@@ -618,6 +620,8 @@
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
                 pinctrl-0 = <&pwm1_pin>;
+		clocks = <&clk_gates7 10>;
+		clock-names = "pclk_pwm";
                 status = "disabled";
 
         };
@@ -626,6 +630,8 @@
                 reg = <0x20050020 0x10>; /*0x20030000*/
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
+		clock-names = "pclk_pwm";
+		clocks = <&clk_gates7 11>;
                 pinctrl-0 = <&pwm2_pin>;
                 status = "disabled";
 
@@ -637,6 +643,8 @@
                 #pwm-cells = <2>;
                 pinctrl-names = "default";
                 pinctrl-0 = <&pwm3_pin>;
+		clocks = <&clk_gates7 11>;
+		clock-names = "pclk_pwm";
                 status = "disabled";
 
         };
