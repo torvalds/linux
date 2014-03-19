@@ -468,7 +468,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 	}
 
 	wdev->conn->params.ssid = wdev->ssid;
-	wdev->conn->params.ssid_len = connect->ssid_len;
+	wdev->conn->params.ssid_len = wdev->ssid_len;
 
 	/* see if we have the bss already */
 	bss = cfg80211_get_conn_bss(wdev);
@@ -480,7 +480,6 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 
 	/* we're good if we have a matching bss struct */
 	if (bss) {
-		wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
 		err = cfg80211_conn_do_work(wdev);
 		cfg80211_put_bss(wdev->wiphy, bss);
 	} else {
