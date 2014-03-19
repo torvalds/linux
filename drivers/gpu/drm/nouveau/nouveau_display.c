@@ -105,7 +105,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 		if (retry) ndelay(crtc->linedur_ns);
 	} while (retry--);
 
-	*hpos = calc(args.hblanks, args.hblanke, args.htotal, args.hline);
+	*hpos = args.hline;
 	*vpos = calc(args.vblanks, args.vblanke, args.vtotal, args.vline);
 	if (stime) *stime = ns_to_ktime(args.time[0]);
 	if (etime) *etime = ns_to_ktime(args.time[1]);
