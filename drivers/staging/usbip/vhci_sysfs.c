@@ -47,8 +47,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	 * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
 	 * port number and its peer IP address.
 	 */
-	out += sprintf(out, "prt sta spd bus dev socket           "
-		       "local_busid\n");
+	out += sprintf(out,
+		       "prt sta spd bus dev socket           local_busid\n");
 
 	for (i = 0; i < VHCI_NPORTS; i++) {
 		struct vhci_device *vdev = port_to_vdev(i);
