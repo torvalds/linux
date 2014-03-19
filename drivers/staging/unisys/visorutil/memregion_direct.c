@@ -50,10 +50,11 @@ visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 	memregion->physaddr = physaddr;
 	memregion->nbytes = nbytes;
 	memregion->overlapped = FALSE;
-	if (!mapit(memregion))
-		RETPTR(NULL);
-	RETPTR(memregion);
-
+	if (!mapit(memregion)) {
+		rc = NULL;
+		goto Away;
+	}
+	rc = memregion;
 Away:
 	if (rc == NULL) {
 		if (memregion != NULL) {

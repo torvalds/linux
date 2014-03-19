@@ -63,7 +63,8 @@ parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
 		       MAX_CONTROLVM_PAYLOAD_BYTES);
 		if (tryAgain)
 			*tryAgain = TRUE;
-		RETPTR(NULL);
+		rc = NULL;
+		goto Away;
 	}
 	ctx = kzalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
 	if (ctx == NULL) {
@@ -71,7 +72,8 @@ parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
 		       __func__, __FILE__, __LINE__, allocbytes);
 		if (tryAgain)
 			*tryAgain = TRUE;
-		RETPTR(NULL);
+		rc = NULL;
+		goto Away;
 	}
 
 	ctx->allocbytes = allocbytes;
@@ -85,45 +87,53 @@ parser_init_guts(U64 addr, U32 bytes, BOOL isLocal,
 			ERRDRV("%s - bad local address (0x%-16.16Lx for %lu)",
 			       __func__,
 			       (unsigned long long) addr, (ulong) bytes);
-			RETPTR(NULL);
+			rc = NULL;
+			goto Away;
 		}
 		p = __va((ulong) (addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
 		rgn = visor_memregion_create(addr, bytes);
-		if (!rgn)
-			RETPTR(NULL);
-		if (visor_memregion_read(rgn, 0, ctx->data, bytes) < 0)
-			RETPTR(NULL);
+		if (!rgn) {
+			rc = NULL;
+			goto Away;
+		}
+		if (visor_memregion_read(rgn, 0, ctx->data, bytes) < 0) {
+			rc = NULL;
+			goto Away;
+		}
 	}
 	if (!hasStandardPayloadHeader) {
 		ctx->byte_stream = TRUE;
-		RETPTR(ctx);
+		rc = ctx;
+		goto Away;
 	}
 	phdr = (ULTRA_CONTROLVM_PARAMETERS_HEADER *) (ctx->data);
 	if (phdr->TotalLength != bytes) {
 		ERRDRV("%s - bad total length %lu (should be %lu)",
 		       __func__,
 		       (ulong) (phdr->TotalLength), (ulong) (bytes));
-		RETPTR(NULL);
+		rc = NULL;
+		goto Away;
 	}
 	if (phdr->TotalLength < phdr->HeaderLength) {
 		ERRDRV("%s - total length < header length (%lu < %lu)",
 		       __func__,
 		       (ulong) (phdr->TotalLength),
 		       (ulong) (phdr->HeaderLength));
-		RETPTR(NULL);
+		rc = NULL;
+		goto Away;
 	}
 	if (phdr->HeaderLength < sizeof(ULTRA_CONTROLVM_PARAMETERS_HEADER)) {
 		ERRDRV("%s - header is too small (%lu < %lu)",
 		       __func__,
 		       (ulong) (phdr->HeaderLength),
 		       (ulong) (sizeof(ULTRA_CONTROLVM_PARAMETERS_HEADER)));
-		RETPTR(NULL);
+		rc = NULL;
+		goto Away;
 	}
 
-	RETPTR(ctx);
-
+	rc = ctx;
 Away:
 	if (rgn) {
 		visor_memregion_destroy(rgn);

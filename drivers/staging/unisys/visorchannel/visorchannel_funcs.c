@@ -89,8 +89,7 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
 	p->size = channelBytes;
 	p->guid = guid;
 
-	RETPTR(p);
-
+	rc = p;
 Away:
 
 	if (rc == NULL) {

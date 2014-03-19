@@ -43,12 +43,14 @@ struct seq_file *visor_seq_file_new_buffer(void *buf, size_t buf_size)
 	struct seq_file *rc = NULL;
 	struct seq_file *m = kmalloc_kernel(sizeof(struct seq_file));
 
-	if (m == NULL)
-		RETPTR(NULL);
+	if (m == NULL) {
+		rc = NULL;
+		goto Away;
+	}
 	memset(m, 0, sizeof(struct seq_file));
 	m->buf = buf;
 	m->size = buf_size;
-	RETPTR(m);
+	rc = m;
 Away:
 	if (rc == NULL) {
 		visor_seq_file_done_buffer(m);

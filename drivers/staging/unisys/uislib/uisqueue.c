@@ -30,7 +30,6 @@
 
 #define RETVOID    do { goto Away; } while (0)
 #define RETINT(x)  do { rc = (x); goto Away; } while (0)
-#define RETPTR(x)  do { rc = (x); goto Away; } while (0)
 
 #define CHECK_CACHE_ALIGN 0
 

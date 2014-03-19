@@ -270,24 +270,27 @@ init_vbus_channel(U64 channelAddr, U32 channelBytes, int isServer)
 		LOGERR("CONTROLVM_BUS_CREATE error: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
 		     (unsigned long long) channelAddr,
 		     (unsigned long long) channelBytes);
-		RETPTR(NULL);
+		rc = NULL;
+		goto Away;
 	}
 	if (isServer) {
 		memset_io(pChan, 0, channelBytes);
 		if (!ULTRA_VBUS_CHANNEL_OK_SERVER(channelBytes, NULL)) {
 			ERRDRV("%s channel cannot be used", __func__);
 			uislib_iounmap(pChan);
-			RETPTR(NULL);
+			rc = NULL;
+			goto Away;
 		}
 		ULTRA_VBUS_init_channel(pChan, channelBytes);
 	} else {
 		if (!ULTRA_VBUS_CHANNEL_OK_CLIENT(pChan, NULL)) {
 			ERRDRV("%s channel cannot be used", __func__);
 			uislib_iounmap(pChan);
-			RETPTR(NULL);
+			rc = NULL;
+			goto Away;
 		}
 	}
-	RETPTR(pChan);
+	rc = pChan;
 Away:
 	return rc;
 }

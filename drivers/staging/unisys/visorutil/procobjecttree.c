@@ -162,12 +162,14 @@ MYPROCTYPE *visor_proc_CreateType(struct proc_dir_entry *procDirRoot,
 	parent = procDirRoot;
 	for (i = 0; i < type->nNames; i++) {
 		type->procDirs[i] = createProcDir(type->name[i], parent);
-		if (type->procDirs[i] == NULL)
-			RETPTR(NULL);
+		if (type->procDirs[i] == NULL) {
+			rc = NULL;
+			goto Away;
+		}
 		parent = type->procDirs[i];
 	}
 	type->procDir = type->procDirs[type->nNames-1];
-	RETPTR(type);
+	rc = type;
 Away:
 	if (rc == NULL) {
 		if (type != NULL) {
@@ -232,8 +234,10 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 		}
 		strcpy(obj->name, name);
 		obj->procDir = createProcDir(obj->name, type->procDir);
-		if (obj->procDir == NULL)
-			RETPTR(NULL);
+		if (obj->procDir == NULL) {
+			rc = NULL;
+			goto Away;
+		}
 	}
 	obj->procDirPropertyContexts =
 		kzalloc((type->nProperties + 1) * sizeof(PROCDIRENTRYCONTEXT),
@@ -256,11 +260,13 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 				createProcFile(type->propertyNames[i],
 					       obj->procDir, &proc_fops,
 					       &obj->procDirPropertyContexts[i]);
-			if (obj->procDirProperties[i] == NULL)
-				RETPTR(NULL);
+			if (obj->procDirProperties[i] == NULL) {
+				rc = NULL;
+				goto Away;
+			}
 		}
 	}
-	RETPTR(obj);
+	rc = obj;
 Away:
 	if (rc == NULL) {
 		if (obj != NULL) {
