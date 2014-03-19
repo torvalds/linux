@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/jhash.h>
 #include <linux/netlink.h>
+#include <linux/vmalloc.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
