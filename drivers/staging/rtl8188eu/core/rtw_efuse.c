@@ -445,7 +445,7 @@ u8 rtw_efuse_access(struct adapter *padapter, u8 write, u16 start_addr, u16 cnts
 {
 	int i = 0;
 	u16 real_content_len = 0, max_available_size = 0;
-	u8 res = _FAIL ;
+	u8 res = _FAIL;
 	u8 (*rw8)(struct adapter *, u16, u8*);
 
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_REAL_CONTENT_LEN, (void *)&real_content_len, false);
