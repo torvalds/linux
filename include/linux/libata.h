@@ -1148,6 +1148,9 @@ static inline void ata_sas_port_suspend(struct ata_port *ap)
 static inline void ata_sas_port_async_resume(struct ata_port *ap)
 {
 }
+static inline void ata_sas_port_resume(struct ata_port *ap)
+{
+}
 #endif
 extern int ata_ratelimit(void);
 extern void ata_msleep(struct ata_port *ap, unsigned int msecs);
