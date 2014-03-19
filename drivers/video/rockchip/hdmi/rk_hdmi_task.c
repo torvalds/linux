@@ -252,6 +252,7 @@ void hdmi_work(struct work_struct *work)
 				video.input_mode = VIDEO_INPUT_RGB_YCBCR_444;
 				video.input_color = VIDEO_INPUT_COLOR_RGB;//VIDEO_INPUT_COLOR_YCBCR
 				video.output_mode = hdmi->edid.sink_hdmi;
+				video.format_3d = 0; //TODO modify read from EDID
 				
 				if(hdmi->edid.ycbcr444)
 					video.output_color = VIDEO_OUTPUT_YCBCR444;

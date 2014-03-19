@@ -11,7 +11,7 @@
 static struct hdmi *m_hdmi_drv = NULL;
 
 static const struct fb_videomode hdmi_mode [] = {
-	//name			refresh		xres	yres	pixclock		h_bp	h_fp	v_bp	v_fp	h_pw	v_pw	polariry	PorI	flag(used for vic)
+	//name			refresh		xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw	polariry							PorI	flag(used for vic)
 //{	"640x480p@60Hz",		60,		640,	480,	25175000,	48,	16,	33,	10,	96,	2,	0,	0,	1	},
 //{	"720x480i@60Hz",		60,		720,	480,	27000000,	114,	38,	15,	4,	124,	3,	0,	1,	6	},
 //{	"720x576i@50Hz",		50,		720,	576,	27000000,	138,	24,	19,	2,	126,	3,	0,	1,	21	},
@@ -63,7 +63,13 @@ static const struct fb_videomode hdmi_mode [] = {
 {	"3840x2160p@24Hz",	24,		3840,	2160,	297000000,	296,	1276,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		93	},
 {	"3840x2160p@25Hz",	25,		3840,	2160,	297000000,	296,	1056,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		94	},
 {	"3840x2160p@30Hz", 	30,		3840,	2160,	297000000,	296,	176,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		95	},
+{	"3840x2160p@50Hz",	50,		3840,	2160,	594000000,	296,	1056,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		96	},
+{	"3840x2160p@60Hz",	60,		3840,	2160,	594000000,	296,	176,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		97	},
 {	"4096x2160p@24Hz",	24,		4096,	2160,	297000000,	296,	1020,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		98	},
+{	"4096x2160p@25Hz",	25,		4096,	2160,	297000000,	128,	968,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		99	},
+{	"4096x2160p@30Hz",	30,		4096,	2160,	297000000,	128,	88,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		100	},
+{	"4096x2160p@50Hz",	50,		4096,	2160,	594000000,	128,	968,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		101	},
+{	"4096x2160p@60Hz",	60,		4096,	2160,	594000000,	128,	88,	72,	8,	88,	10,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,			0,		102	},
 
 };
 

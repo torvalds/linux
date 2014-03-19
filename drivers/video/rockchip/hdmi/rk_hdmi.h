@@ -252,6 +252,7 @@ struct hdmi_video_para {
 	int input_color;	//input video color mode
 	int output_mode;	//output hdmi or dvi
 	int output_color;	//output video color mode
+	int format_3d;
 };
 
 struct hdmi {

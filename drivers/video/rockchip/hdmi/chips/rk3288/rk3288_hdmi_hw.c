@@ -206,7 +206,7 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 	int h_blank = 0, v_blank = 0;
 	int vsync_pol = hdmi_drv->lcdc->cur_screen->pin_vsync;
 	int hsync_pol = hdmi_drv->lcdc->cur_screen->pin_hsync;
-	int de_pol = hdmi_drv->lcdc->cur_screen->pin_den;
+	int de_pol = (hdmi_drv->lcdc->cur_screen->pin_den == 0) ? 1 : 0;
 	struct fb_videomode *mode = NULL;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
@@ -504,6 +504,50 @@ static int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 	return 0;
 }
 
+int rk3288_hdmi_config_vsi(struct hdmi *hdmi_drv, unsigned char vic_3d, unsigned char format, int auto_send)
+{
+        int i = 0;
+	unsigned char data[3] = {0};
+	int id = 0x000c03;
+	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
+
+        hdmi_dbg(hdmi_drv->dev, "[%s] vic %d format %d.\n", __FUNCTION__, vic, format);
+        hdmi_msk_reg(hdmi_dev, FC_DATAUTO0, m_VSD_AUTO, v_VSD_AUTO(0));
+	hdmi_writel(hdmi_dev, FC_VSDIEEEID0, id & 0xff);
+	hdmi_writel(hdmi_dev, FC_VSDIEEEID1, (id >> 8) & 0xff);
+	hdmi_writel(hdmi_dev, FC_VSDIEEEID2, (id >> 16) & 0xff);
+
+	data[0] = format << 5;	//PB4 --HDMI_Video_Format
+	switch(format)
+        {
+                case HDMI_VIDEO_FORMAT_4Kx2K:
+                        data[1] = vic_3d;	//PB5--HDMI_VIC
+                        data[2] = 0;
+                        break;
+                case HDMI_VIDEO_FORMAT_3D:
+			data[1] = vic_3d << 4;	//PB5--3D_Structure field
+			data[2] = 0;		//PB6--3D_Ext_Data field
+			break;
+		default:
+			data[1] = 0;
+			data[2] = 0;
+			break;
+        }
+
+	for (i = 0; i < 3; i++) {
+		hdmi_writel(hdmi_dev, FC_VSDPAYLOAD0 + i, data[i]);
+	}
+
+	if (auto_send) {
+		hdmi_msk_reg(hdmi_dev, FC_DATAUTO0, m_VSD_AUTO, v_VSD_AUTO(auto_send));
+	}
+	else {
+		hdmi_msk_reg(hdmi_dev, FC_DATMAN, m_VSD_MAN, v_VSD_MAN(1));
+	}
+
+	return 0;
+}
+
 static void rk3288_hdmi_config_avi(struct hdmi *hdmi_drv, unsigned char vic, unsigned char output_color)
 {
 	int clolorimetry, aspect_ratio, y1y0;
@@ -675,9 +719,15 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 	if (rk3288_hdmi_video_sampler(hdmi_drv, vpara) < 0)
 		return -1;
 
-	if(vpara->output_mode == OUTPUT_HDMI) {
+	if (vpara->output_mode == OUTPUT_HDMI) {
 		rk3288_hdmi_config_avi(hdmi_drv, vpara->vic, vpara->output_color);
 		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output HDMI.\n", __FUNCTION__);
+		if ( vpara->format_3d != 0)
+                        rk3288_hdmi_config_vsi(hdmi_drv, vpara->format_3d, HDMI_VIDEO_FORMAT_3D, 1);
+                else if (vpara->vic > 0 && vpara->vic < 5)
+                        rk3288_hdmi_config_vsi(hdmi_drv, vpara->vic, HDMI_VIDEO_FORMAT_4Kx2K, 1);
+                else
+                        rk3288_hdmi_config_vsi(hdmi_drv, vpara->vic, HDMI_VIDEO_FORMAT_NORMAL, 1);
 	}
 	else {
 		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output DVI.\n", __FUNCTION__);

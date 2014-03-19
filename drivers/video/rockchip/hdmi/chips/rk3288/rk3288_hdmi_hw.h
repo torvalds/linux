@@ -23,6 +23,12 @@ enum {
 	CSC_ITU709_TO_RGB,	//YCbCr input to RGB output according BT709
 };
 
+/*VIC VIDEO FORMAT*/
+enum {
+	HDMI_VIDEO_FORMAT_NORMAL = 0,
+	HDMI_VIDEO_FORMAT_4Kx2K,
+	HDMI_VIDEO_FORMAT_3D
+};
 
 #define HDMI_SCL_RATE		(100*1000)
 #define DDC_I2C_EDID_ADDR	0x50	// 0xA0/2 = 0x50
@@ -567,10 +573,34 @@ enum {
 #define	FC_ISCR1_0 			0x1092
 #define	FC_ISCR1_16			0x1093	//16~1
 #define	FC_ISCR2_15 			0x10a3	//15~0
+
 #define	FC_DATAUTO0 			0x10b3
+#define m_SPD_AUTO		(1 << 4)
+#define v_SPD_AUTO(n)		(((n)&0x01) << 4)
+#define m_VSD_AUTO		(1 << 3)
+#define v_VSD_AUTO(n)		(((n)&0x01) << 3)
+#define m_ISCR2_AUTO		(1 << 2)
+#define v_ISCR2_AUTO(n)		(((n)&0x01) << 2)
+#define m_ISCR1_AUTO		(1 << 1)
+#define v_ISCR1_AUTO(n)		(((n)&0x01) << 1)
+#define m_ACP_AUTO		(1 << 0)
+#define v_ACP_AUTO(n)		(((n)&0x01) << 0)
+
 #define	FC_DATAUTO1			0x10b4
 #define	FC_DATAUTO2			0x10b5
+
 #define	FC_DATMAN			0x10b6
+#define m_SPD_MAN		(1 << 4)
+#define v_SPD_MAN(n)		(((n)&0x01) << 4)
+#define m_VSD_MAN		(1 << 3)
+#define v_VSD_MAN(n)		(((n)&0x01) << 3)
+#define m_ISCR2_MAN		(1 << 2)
+#define v_ISCR2_MAN(n)		(((n)&0x01) << 2)
+#define m_ISCR1_MAN		(1 << 1)
+#define v_ISCR1_MAN(n)		(((n)&0x01) << 1)
+#define m_ACP_MAN		(1 << 0)
+#define v_ACP_MAN(n)		(((n)&0x01) << 0)
+
 #define	FC_DATAUTO3			0x10b7
 #define	FC_RDRB0			0x10b8
 #define	FC_RDRB1			0x10b9
