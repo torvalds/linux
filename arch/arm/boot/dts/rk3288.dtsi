@@ -627,7 +627,8 @@
 		compatible = "rockchip,rga";
 		reg = <0xff920000 0x1000>;
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
-		clock-names = "hclk_rga", "aclk_rga"; 
+		clocks = <&clk_gates15 1>, <&aclk_rga>, <&clk_rga>;
+		clock-names = "hclk_rga", "aclk_rga", "clk_rga";
 	};
 
 	i2s: rockchip-i2s@0xff890000 {
