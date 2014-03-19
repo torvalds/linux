@@ -60,6 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#include <linux/vmalloc.h>
+
 #include "mvm.h"
 #include "sta.h"
 #include "iwl-io.h"
