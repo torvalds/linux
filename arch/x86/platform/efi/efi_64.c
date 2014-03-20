@@ -233,3 +233,12 @@ void __init parse_efi_setup(u64 phys_addr, u32 data_len)
 {
 	efi_setup = phys_addr + sizeof(struct setup_data);
 }
+
+void __init efi_runtime_mkexec(void)
+{
+	if (!efi_enabled(EFI_OLD_MEMMAP))
+		return;
+
+	if (__supported_pte_mask & _PAGE_NX)
+		runtime_code_page_mkexec();
+}

@@ -296,6 +296,7 @@ static int mdp5_crtc_mode_set(struct drm_crtc *crtc,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
 	if (ret) {
+		drm_framebuffer_unreference(crtc->fb);
 		dev_err(crtc->dev->dev, "%s: failed to set mode on plane: %d\n",
 				mdp5_crtc->name, ret);
 		return ret;
@@ -343,11 +344,15 @@ static int mdp5_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
+	if (ret) {
+		drm_framebuffer_unreference(crtc->fb);
+		return ret;
+	}
 
 	update_fb(crtc, crtc->fb);
 	update_scanout(crtc, crtc->fb);
 
-	return ret;
+	return 0;
 }
 
 static void mdp5_crtc_load_lut(struct drm_crtc *crtc)

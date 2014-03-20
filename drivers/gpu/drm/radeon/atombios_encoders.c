@@ -464,11 +464,12 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 
 static u8 radeon_atom_get_bpc(struct drm_encoder *encoder)
 {
-	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	int bpc = 8;
 
-	if (connector)
-		bpc = radeon_get_monitor_bpc(connector);
+	if (encoder->crtc) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+		bpc = radeon_crtc->bpc;
+	}
 
 	switch (bpc) {
 	case 0:

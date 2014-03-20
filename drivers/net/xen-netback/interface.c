@@ -100,7 +100,6 @@ static irqreturn_t xenvif_rx_interrupt(int irq, void *dev_id)
 {
 	struct xenvif *vif = dev_id;
 
-	vif->rx_event = true;
 	xenvif_kick_thread(vif);
 
 	return IRQ_HANDLED;

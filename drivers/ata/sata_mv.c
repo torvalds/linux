@@ -4104,7 +4104,6 @@ static int mv_platform_probe(struct platform_device *pdev)
 	if (!hpriv->port_phys)
 		return -ENOMEM;
 	host->private_data = hpriv;
-	hpriv->n_ports = n_ports;
 	hpriv->board_idx = chip_soc;
 
 	host->iomap = NULL;
@@ -4126,16 +4125,23 @@ static int mv_platform_probe(struct platform_device *pdev)
 			clk_prepare_enable(hpriv->port_clks[port]);
 
 		sprintf(port_number, "port%d", port);
-		hpriv->port_phys[port] = devm_phy_get(&pdev->dev, port_number);
+		hpriv->port_phys[port] = devm_phy_optional_get(&pdev->dev,
+							       port_number);
 		if (IS_ERR(hpriv->port_phys[port])) {
 			rc = PTR_ERR(hpriv->port_phys[port]);
 			hpriv->port_phys[port] = NULL;
-			if ((rc != -EPROBE_DEFER) && (rc != -ENODEV))
-				dev_warn(&pdev->dev, "error getting phy");
+			if (rc != -EPROBE_DEFER)
+				dev_warn(&pdev->dev, "error getting phy %d", rc);
+
+			/* Cleanup only the initialized ports */
+			hpriv->n_ports = port;
 			goto err;
 		} else
 			phy_power_on(hpriv->port_phys[port]);
 	}
+
+	/* All the ports have been initialized */
+	hpriv->n_ports = n_ports;
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -4174,7 +4180,7 @@ err:
 		clk_disable_unprepare(hpriv->clk);
 		clk_put(hpriv->clk);
 	}
-	for (port = 0; port < n_ports; port++) {
+	for (port = 0; port < hpriv->n_ports; port++) {
 		if (!IS_ERR(hpriv->port_clks[port])) {
 			clk_disable_unprepare(hpriv->port_clks[port]);
 			clk_put(hpriv->port_clks[port]);

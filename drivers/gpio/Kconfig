@@ -403,6 +403,7 @@ config GPIO_GRGPIO
 
 config GPIO_TB10X
 	bool
+	select GENERIC_IRQ_CHIP
 	select OF_GPIO
 
 comment "I2C GPIO expanders:"

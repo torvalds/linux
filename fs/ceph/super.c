@@ -144,7 +144,11 @@ enum {
 	Opt_ino32,
 	Opt_noino32,
 	Opt_fscache,
-	Opt_nofscache
+	Opt_nofscache,
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	Opt_acl,
+#endif
+	Opt_noacl
 };
 
 static match_table_t fsopt_tokens = {
@@ -172,6 +176,10 @@ static match_table_t fsopt_tokens = {
 	{Opt_noino32, "noino32"},
 	{Opt_fscache, "fsc"},
 	{Opt_nofscache, "nofsc"},
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	{Opt_acl, "acl"},
+#endif
+	{Opt_noacl, "noacl"},
 	{-1, NULL}
 };
 
@@ -270,6 +278,14 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_nofscache:
 		fsopt->flags &= ~CEPH_MOUNT_OPT_FSCACHE;
+		break;
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	case Opt_acl:
+		fsopt->sb_flags |= MS_POSIXACL;
+		break;
+#endif
+	case Opt_noacl:
+		fsopt->sb_flags &= ~MS_POSIXACL;
 		break;
 	default:
 		BUG_ON(token);
@@ -437,6 +453,13 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",fsc");
 	else
 		seq_puts(m, ",nofsc");
+
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	if (fsopt->sb_flags & MS_POSIXACL)
+		seq_puts(m, ",acl");
+	else
+		seq_puts(m, ",noacl");
+#endif
 
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
@@ -819,9 +842,6 @@ static int ceph_set_super(struct super_block *s, void *data)
 
 	s->s_flags = fsc->mount_options->sb_flags;
 	s->s_maxbytes = 1ULL << 40;  /* temp value until we get mdsmap */
-#ifdef CONFIG_CEPH_FS_POSIX_ACL
-	s->s_flags |= MS_POSIXACL;
-#endif
 
 	s->s_xattr = ceph_xattr_handlers;
 	s->s_fs_info = fsc;
@@ -911,6 +931,10 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 	struct ceph_options *opt = NULL;
 
 	dout("ceph_mount\n");
+
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	flags |= MS_POSIXACL;
+#endif
 	err = parse_mount_options(&fsopt, &opt, flags, data, dev_name, &path);
 	if (err < 0) {
 		res = ERR_PTR(err);

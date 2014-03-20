@@ -1391,6 +1391,12 @@ static int link_recv_buf_validate(struct sk_buff *buf)
 	u32 hdr_size;
 	u32 min_hdr_size;
 
+	/* If this packet comes from the defer queue, the skb has already
+	 * been validated
+	 */
+	if (unlikely(TIPC_SKB_CB(buf)->deferred))
+		return 1;
+
 	if (unlikely(buf->len < MIN_H_SIZE))
 		return 0;
 
@@ -1703,6 +1709,7 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 				&l_ptr->newest_deferred_in, buf)) {
 		l_ptr->deferred_inqueue_sz++;
 		l_ptr->stats.deferred_recv++;
+		TIPC_SKB_CB(buf)->deferred = true;
 		if ((l_ptr->deferred_inqueue_sz % 16) == 1)
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);
 	} else

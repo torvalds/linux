@@ -48,6 +48,7 @@
 #include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
+#include <asm/unaligned.h>
 
 #include "comedi_fc.h"
 #include "../comedidev.h"
@@ -792,7 +793,8 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 		}
 
 		/* 32 bits big endian from the A/D converter */
-		val = be32_to_cpu(*((uint32_t *)((devpriv->insn_buf) + 1)));
+		val = be32_to_cpu(get_unaligned((uint32_t
+						 *)(devpriv->insn_buf + 1)));
 		val &= 0x00ffffff;	/* strip status byte */
 		val ^= 0x00800000;	/* convert to unsigned */
 
@@ -1357,7 +1359,7 @@ static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 		return ret;
 
 	/* 32 bits big endian from the A/D converter */
-	val = be32_to_cpu(*((uint32_t *)((devpriv->insn_buf)+1)));
+	val = be32_to_cpu(get_unaligned((uint32_t *)(devpriv->insn_buf + 1)));
 	val &= 0x00ffffff;	/* strip status byte */
 	val ^= 0x00800000;	/* convert to unsigned */
 

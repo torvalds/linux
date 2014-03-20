@@ -386,6 +386,7 @@ struct vmw_private {
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
 	uint32_t max_mob_pages;
+	uint32_t max_mob_size;
 	uint32_t memory_size;
 	bool has_gmr;
 	bool has_mob;

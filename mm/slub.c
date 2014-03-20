@@ -1004,21 +1004,19 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
 static void add_full(struct kmem_cache *s,
 	struct kmem_cache_node *n, struct page *page)
 {
-	lockdep_assert_held(&n->list_lock);
-
 	if (!(s->flags & SLAB_STORE_USER))
 		return;
 
+	lockdep_assert_held(&n->list_lock);
 	list_add(&page->lru, &n->full);
 }
 
 static void remove_full(struct kmem_cache *s, struct kmem_cache_node *n, struct page *page)
 {
-	lockdep_assert_held(&n->list_lock);
-
 	if (!(s->flags & SLAB_STORE_USER))
 		return;
 
+	lockdep_assert_held(&n->list_lock);
 	list_del(&page->lru);
 }
 
@@ -1520,11 +1518,9 @@ static void discard_slab(struct kmem_cache *s, struct page *page)
 /*
  * Management of partially allocated slabs.
  */
-static inline void add_partial(struct kmem_cache_node *n,
-				struct page *page, int tail)
+static inline void
+__add_partial(struct kmem_cache_node *n, struct page *page, int tail)
 {
-	lockdep_assert_held(&n->list_lock);
-
 	n->nr_partial++;
 	if (tail == DEACTIVATE_TO_TAIL)
 		list_add_tail(&page->lru, &n->partial);
@@ -1532,13 +1528,25 @@ static inline void add_partial(struct kmem_cache_node *n,
 		list_add(&page->lru, &n->partial);
 }
 
+static inline void add_partial(struct kmem_cache_node *n,
+				struct page *page, int tail)
+{
+	lockdep_assert_held(&n->list_lock);
+	__add_partial(n, page, tail);
+}
+
+static inline void
+__remove_partial(struct kmem_cache_node *n, struct page *page)
+{
+	list_del(&page->lru);
+	n->nr_partial--;
+}
+
 static inline void remove_partial(struct kmem_cache_node *n,
 					struct page *page)
 {
 	lockdep_assert_held(&n->list_lock);
-
-	list_del(&page->lru);
-	n->nr_partial--;
+	__remove_partial(n, page);
 }
 
 /*
@@ -2906,12 +2914,10 @@ static void early_kmem_cache_node_alloc(int node)
 	inc_slabs_node(kmem_cache_node, node, page->objects);
 
 	/*
-	 * the lock is for lockdep's sake, not for any actual
-	 * race protection
+	 * No locks need to be taken here as it has just been
+	 * initialized and there is no concurrent access.
 	 */
-	spin_lock(&n->list_lock);
-	add_partial(n, page, DEACTIVATE_TO_HEAD);
-	spin_unlock(&n->list_lock);
+	__add_partial(n, page, DEACTIVATE_TO_HEAD);
 }
 
 static void free_kmem_cache_nodes(struct kmem_cache *s)
@@ -3197,7 +3203,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 
 	list_for_each_entry_safe(page, h, &n->partial, lru) {
 		if (!page->inuse) {
-			remove_partial(n, page);
+			__remove_partial(n, page);
 			discard_slab(s, page);
 		} else {
 			list_slab_objects(s, page,

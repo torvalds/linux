@@ -188,6 +188,9 @@ static inline void kick_all_cpus_sync(void) {  }
  */
 extern void arch_disable_smp_support(void);
 
+extern void arch_enable_nonboot_cpus_begin(void);
+extern void arch_enable_nonboot_cpus_end(void);
+
 void smp_setup_processor_id(void);
 
 #endif /* __LINUX_SMP_H */

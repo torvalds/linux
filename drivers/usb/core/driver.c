@@ -63,8 +63,10 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	dynid->id.idProduct = idProduct;
 	dynid->id.match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 	if (fields > 2 && bInterfaceClass) {
-		if (bInterfaceClass > 255)
-			return -EINVAL;
+		if (bInterfaceClass > 255) {
+			retval = -EINVAL;
+			goto fail;
+		}
 
 		dynid->id.bInterfaceClass = (u8)bInterfaceClass;
 		dynid->id.match_flags |= USB_DEVICE_ID_MATCH_INT_CLASS;
@@ -73,17 +75,21 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	if (fields > 4) {
 		const struct usb_device_id *id = id_table;
 
-		if (!id)
-			return -ENODEV;
+		if (!id) {
+			retval = -ENODEV;
+			goto fail;
+		}
 
 		for (; id->match_flags; id++)
 			if (id->idVendor == refVendor && id->idProduct == refProduct)
 				break;
 
-		if (id->match_flags)
+		if (id->match_flags) {
 			dynid->id.driver_info = id->driver_info;
-		else
-			return -ENODEV;
+		} else {
+			retval = -ENODEV;
+			goto fail;
+		}
 	}
 
 	spin_lock(&dynids->lock);
@@ -95,6 +101,10 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	if (retval)
 		return retval;
 	return count;
+
+fail:
+	kfree(dynid);
+	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_store_new_id);
 

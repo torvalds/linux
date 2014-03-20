@@ -1446,12 +1446,12 @@ static void bnx2x_vf_igu_reset(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	if (vf->cfg_flags & VF_CFG_INT_SIMD)
 		val |= IGU_VF_CONF_SINGLE_ISR_EN;
 	val &= ~IGU_VF_CONF_PARENT_MASK;
-	val |= BP_FUNC(bp) << IGU_VF_CONF_PARENT_SHIFT;	/* parent PF */
+	val |= (BP_ABS_FUNC(bp) >> 1) << IGU_VF_CONF_PARENT_SHIFT;
 	REG_WR(bp, IGU_REG_VF_CONFIGURATION, val);
 
 	DP(BNX2X_MSG_IOV,
-	   "value in IGU_REG_VF_CONFIGURATION of vf %d after write %x\n",
-	   vf->abs_vfid, REG_RD(bp, IGU_REG_VF_CONFIGURATION));
+	   "value in IGU_REG_VF_CONFIGURATION of vf %d after write is 0x%08x\n",
+	   vf->abs_vfid, val);
 
 	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 

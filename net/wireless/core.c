@@ -203,8 +203,11 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 
 	rdev->opencount--;
 
-	WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
-		!rdev->scan_req->notified);
+	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
+		if (WARN_ON(!rdev->scan_req->notified))
+			rdev->scan_req->aborted = true;
+		___cfg80211_scan_done(rdev, false);
+	}
 }
 
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
@@ -439,9 +442,6 @@ int wiphy_register(struct wiphy *wiphy)
 	bool have_band = false;
 	int i;
 	u16 ifmodes = wiphy->interface_modes;
-
-	/* support for 5/10 MHz is broken due to nl80211 API mess - disable */
-	wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_5_10_MHZ;
 
 	/*
 	 * There are major locking problems in nl80211/mac80211 for CSA,
@@ -859,8 +859,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		break;
 	case NETDEV_DOWN:
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
-		WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
-			!rdev->scan_req->notified);
+		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
+			if (WARN_ON(!rdev->scan_req->notified))
+				rdev->scan_req->aborted = true;
+			___cfg80211_scan_done(rdev, false);
+		}
 
 		if (WARN_ON(rdev->sched_scan_req &&
 			    rdev->sched_scan_req->dev == wdev->netdev)) {

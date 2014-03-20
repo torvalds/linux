@@ -1332,6 +1332,16 @@ verbose_printk(KERN_DEBUG "btrfs: find_extent_clone: data_offset=%llu, "
 	}
 
 	if (cur_clone_root) {
+		if (compressed != BTRFS_COMPRESS_NONE) {
+			/*
+			 * Offsets given by iterate_extent_inodes() are relative
+			 * to the start of the extent, we need to add logical
+			 * offset from the file extent item.
+			 * (See why at backref.c:check_extent_in_eb())
+			 */
+			cur_clone_root->offset += btrfs_file_extent_offset(eb,
+									   fi);
+		}
 		*found = cur_clone_root;
 		ret = 0;
 	} else {

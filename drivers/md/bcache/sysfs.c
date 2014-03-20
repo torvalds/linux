@@ -416,7 +416,7 @@ static int btree_bset_stats(struct btree_op *b_op, struct btree *b)
 	return MAP_CONTINUE;
 }
 
-int bch_bset_print_stats(struct cache_set *c, char *buf)
+static int bch_bset_print_stats(struct cache_set *c, char *buf)
 {
 	struct bset_stats_op op;
 	int ret;

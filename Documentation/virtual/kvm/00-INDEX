@@ -20,5 +20,7 @@ ppc-pv.txt
 	- the paravirtualization interface on PowerPC.
 review-checklist.txt
 	- review checklist for KVM patches.
+s390-diag.txt
+	- Diagnose hypercall description (for IBM S/390)
 timekeeping.txt
 	- timekeeping virtualization for x86-based architectures.

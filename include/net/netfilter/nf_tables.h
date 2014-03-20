@@ -252,6 +252,7 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
  *	@owner: module reference
  *	@policy: netlink attribute policy
  *	@maxattr: highest netlink attribute number
+ *	@family: address family for AF-specific types
  */
 struct nft_expr_type {
 	const struct nft_expr_ops	*(*select_ops)(const struct nft_ctx *,
@@ -262,6 +263,7 @@ struct nft_expr_type {
 	struct module			*owner;
 	const struct nla_policy		*policy;
 	unsigned int			maxattr;
+	u8				family;
 };
 
 /**
@@ -320,7 +322,6 @@ static inline void *nft_expr_priv(const struct nft_expr *expr)
  *	struct nft_rule - nf_tables rule
  *
  *	@list: used internally
- *	@rcu_head: used internally for rcu
  *	@handle: rule handle
  *	@genmask: generation mask
  *	@dlen: length of expression data
@@ -328,7 +329,6 @@ static inline void *nft_expr_priv(const struct nft_expr *expr)
  */
 struct nft_rule {
 	struct list_head		list;
-	struct rcu_head			rcu_head;
 	u64				handle:46,
 					genmask:2,
 					dlen:16;
@@ -389,7 +389,6 @@ enum nft_chain_flags {
  *
  *	@rules: list of rules in the chain
  *	@list: used internally
- *	@rcu_head: used internally
  *	@net: net namespace that this chain belongs to
  *	@table: table that this chain belongs to
  *	@handle: chain handle
@@ -401,7 +400,6 @@ enum nft_chain_flags {
 struct nft_chain {
 	struct list_head		rules;
 	struct list_head		list;
-	struct rcu_head			rcu_head;
 	struct net			*net;
 	struct nft_table		*table;
 	u64				handle;
@@ -528,6 +526,9 @@ void nft_unregister_expr(struct nft_expr_type *);
 
 #define MODULE_ALIAS_NFT_CHAIN(family, name) \
 	MODULE_ALIAS("nft-chain-" __stringify(family) "-" name)
+
+#define MODULE_ALIAS_NFT_AF_EXPR(family, name) \
+	MODULE_ALIAS("nft-expr-" __stringify(family) "-" name)
 
 #define MODULE_ALIAS_NFT_EXPR(name) \
 	MODULE_ALIAS("nft-expr-" name)

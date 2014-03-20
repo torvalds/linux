@@ -235,9 +235,12 @@ static const struct can_bittiming_const flexcan_bittiming_const = {
 };
 
 /*
- * Abstract off the read/write for arm versus ppc.
+ * Abstract off the read/write for arm versus ppc. This
+ * assumes that PPC uses big-endian registers and everything
+ * else uses little-endian registers, independent of CPU
+ * endianess.
  */
-#if defined(__BIG_ENDIAN)
+#if defined(CONFIG_PPC)
 static inline u32 flexcan_read(void __iomem *addr)
 {
 	return in_be32(addr);

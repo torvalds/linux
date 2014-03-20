@@ -1169,8 +1169,23 @@ void msi_remove_pci_irq_vectors(struct pci_dev *dev);
 void pci_restore_msi_state(struct pci_dev *dev);
 int pci_msi_enabled(void);
 int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec);
+static inline int pci_enable_msi_exact(struct pci_dev *dev, int nvec)
+{
+	int rc = pci_enable_msi_range(dev, nvec, nvec);
+	if (rc < 0)
+		return rc;
+	return 0;
+}
 int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 			  int minvec, int maxvec);
+static inline int pci_enable_msix_exact(struct pci_dev *dev,
+					struct msix_entry *entries, int nvec)
+{
+	int rc = pci_enable_msix_range(dev, entries, nvec, nvec);
+	if (rc < 0)
+		return rc;
+	return 0;
+}
 #else
 static inline int pci_msi_vec_count(struct pci_dev *dev) { return -ENOSYS; }
 static inline int pci_enable_msi_block(struct pci_dev *dev, int nvec)
@@ -1189,8 +1204,13 @@ static inline int pci_msi_enabled(void) { return 0; }
 static inline int pci_enable_msi_range(struct pci_dev *dev, int minvec,
 				       int maxvec)
 { return -ENOSYS; }
+static inline int pci_enable_msi_exact(struct pci_dev *dev, int nvec)
+{ return -ENOSYS; }
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 		      struct msix_entry *entries, int minvec, int maxvec)
+{ return -ENOSYS; }
+static inline int pci_enable_msix_exact(struct pci_dev *dev,
+		      struct msix_entry *entries, int nvec)
 { return -ENOSYS; }
 #endif
 

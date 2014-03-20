@@ -70,7 +70,7 @@ static void cpudl_heapify(struct cpudl *cp, int idx)
 
 static void cpudl_change_key(struct cpudl *cp, int idx, u64 new_dl)
 {
-	WARN_ON(idx > num_present_cpus() || idx == IDX_INVALID);
+	WARN_ON(!cpu_present(idx) || idx == IDX_INVALID);
 
 	if (dl_time_before(new_dl, cp->elements[idx].dl)) {
 		cp->elements[idx].dl = new_dl;
@@ -117,7 +117,7 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 	}
 
 out:
-	WARN_ON(best_cpu > num_present_cpus() && best_cpu != -1);
+	WARN_ON(!cpu_present(best_cpu) && best_cpu != -1);
 
 	return best_cpu;
 }
@@ -137,7 +137,7 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 	int old_idx, new_cpu;
 	unsigned long flags;
 
-	WARN_ON(cpu > num_present_cpus());
+	WARN_ON(!cpu_present(cpu));
 
 	raw_spin_lock_irqsave(&cp->lock, flags);
 	old_idx = cp->cpu_to_idx[cpu];

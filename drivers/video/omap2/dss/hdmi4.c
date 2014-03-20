@@ -88,7 +88,10 @@ static int hdmi_init_regulator(void)
 	if (hdmi.vdda_hdmi_dac_reg != NULL)
 		return 0;
 
-	reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
+	if (hdmi.pdev->dev.of_node)
+		reg = devm_regulator_get(&hdmi.pdev->dev, "vdda");
+	else
+		reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
 
 	/* DT HACK: try VDAC to make omapdss work for o4 sdp/panda */
 	if (IS_ERR(reg))
@@ -680,6 +683,11 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 	.runtime_resume = hdmi_runtime_resume,
 };
 
+static const struct of_device_id hdmi_of_match[] = {
+	{ .compatible = "ti,omap4-hdmi", },
+	{},
+};
+
 static struct platform_driver omapdss_hdmihw_driver = {
 	.probe		= omapdss_hdmihw_probe,
 	.remove         = __exit_p(omapdss_hdmihw_remove),
@@ -687,6 +695,7 @@ static struct platform_driver omapdss_hdmihw_driver = {
 		.name   = "omapdss_hdmi",
 		.owner  = THIS_MODULE,
 		.pm	= &hdmi_pm_ops,
+		.of_match_table = hdmi_of_match,
 	},
 };
 

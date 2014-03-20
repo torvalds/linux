@@ -216,7 +216,7 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 	int retval = 0;
 
 	if (!select_phy)
-		return -ENODEV;
+		return 0;
 
 	usbcfg = readl(hsotg->regs + GUSBCFG);
 
