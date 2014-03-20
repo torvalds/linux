@@ -160,7 +160,7 @@ static int dw_mci_rockchip_parse_dt(struct dw_mci *host)
 /* Common capabilities of RK32XX SoC */
 static unsigned long rockchip_dwmmc_caps[4] = {
 	/*MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR | //Temporarily comment out!!!!!!, deleted by xbw, at 2014-03-12*/
-	MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23|MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50,
+	MMC_CAP_8_BIT_DATA|MMC_CAP_4_BIT_DATA|MMC_CAP_CMD23|MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50|MMC_CAP_UHS_SDR104|MMC_CAP_ERASE,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,

@@ -420,8 +420,8 @@ static void dw_mci_idmac_complete_dma(struct dw_mci *host)
 	struct mmc_data *data = host->data;
 
 	dev_vdbg(host->dev, "DMA complete\n");
-    MMC_DBG_CMD_FUNC(host->mmc," DMA complete cmd=%d(arg=0x%x), blocks=%d,blksz=%d[%s]", \
-        host->cmd->opcode,host->cmd->arg,data->blocks,data->blksz,mmc_hostname(host->mmc));
+ //   MMC_DBG_CMD_FUNC(host->mmc," DMA complete cmd=%d(arg=0x%x), blocks=%d,blksz=%d[%s]", \
+ //       host->mrq->cmd->opcode,host->mrq->cmd->arg,data->blocks,data->blksz,mmc_hostname(host->mmc));
 
 	host->dma_ops->cleanup(host);
 
@@ -1014,12 +1014,10 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_4:
 		slot->ctype = SDMMC_CTYPE_4BIT;
-		break;
-#if 0//test, use sd to emmc		
+		break;	
 	case MMC_BUS_WIDTH_8: 
 		slot->ctype = SDMMC_CTYPE_8BIT;
-		break;
-#endif		
+		break;	
 	default:
 		/* set default 1 bit mode */
 		slot->ctype = SDMMC_CTYPE_1BIT;
