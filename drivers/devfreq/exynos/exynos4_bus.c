@@ -1119,6 +1119,7 @@ static int exynos4_busfreq_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int exynos4_busfreq_resume(struct device *dev)
 {
 	struct busfreq_data *data = dev_get_drvdata(dev);
@@ -1126,10 +1127,9 @@ static int exynos4_busfreq_resume(struct device *dev)
 	busfreq_mon_reset(data);
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops exynos4_busfreq_pm = {
-	.resume	= exynos4_busfreq_resume,
-};
+static SIMPLE_DEV_PM_OPS(exynos4_busfreq_pm_ops, NULL, exynos4_busfreq_resume);
 
 static const struct platform_device_id exynos4_busfreq_id[] = {
 	{ "exynos4210-busfreq", TYPE_BUSF_EXYNOS4210 },
@@ -1145,7 +1145,7 @@ static struct platform_driver exynos4_busfreq_driver = {
 	.driver = {
 		.name	= "exynos4-busfreq",
 		.owner	= THIS_MODULE,
-		.pm	= &exynos4_busfreq_pm,
+		.pm	= &exynos4_busfreq_pm_ops,
 	},
 };
 
