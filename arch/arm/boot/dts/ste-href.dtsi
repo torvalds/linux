@@ -154,6 +154,7 @@
 			bus-width = <8>;
 			cap-mmc-highspeed;
 			non-removable;
+			vmmc-supply = <&db8500_vsmps2_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdi2_default_mode>;
 			pinctrl-1 = <&sdi2_sleep_mode>;
