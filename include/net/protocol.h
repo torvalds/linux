@@ -43,7 +43,12 @@ struct net_protocol {
 	int			(*handler)(struct sk_buff *skb);
 	void			(*err_handler)(struct sk_buff *skb, u32 info);
 	unsigned int		no_policy:1,
-				netns_ok:1;
+				netns_ok:1,
+				/* does the protocol do more stringent
+				 * icmp tag validation than simple
+				 * socket lookup?
+				 */
+				icmp_strict_tag_validation:1;
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -96,20 +101,23 @@ extern const struct net_offload __rcu *inet6_offloads[MAX_INET_PROTOS];
 extern const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS];
 #endif
 
-extern int	inet_add_protocol(const struct net_protocol *prot, unsigned char num);
-extern int	inet_del_protocol(const struct net_protocol *prot, unsigned char num);
-extern int	inet_add_offload(const struct net_offload *prot, unsigned char num);
-extern int	inet_del_offload(const struct net_offload *prot, unsigned char num);
-extern void	inet_register_protosw(struct inet_protosw *p);
-extern void	inet_unregister_protosw(struct inet_protosw *p);
+int inet_add_protocol(const struct net_protocol *prot, unsigned char num);
+int inet_del_protocol(const struct net_protocol *prot, unsigned char num);
+int inet_add_offload(const struct net_offload *prot, unsigned char num);
+int inet_del_offload(const struct net_offload *prot, unsigned char num);
+void inet_register_protosw(struct inet_protosw *p);
+void inet_unregister_protosw(struct inet_protosw *p);
+
+int  udp_add_offload(struct udp_offload *prot);
+void udp_del_offload(struct udp_offload *prot);
 
 #if IS_ENABLED(CONFIG_IPV6)
-extern int	inet6_add_protocol(const struct inet6_protocol *prot, unsigned char num);
-extern int	inet6_del_protocol(const struct inet6_protocol *prot, unsigned char num);
-extern int	inet6_register_protosw(struct inet_protosw *p);
-extern void	inet6_unregister_protosw(struct inet_protosw *p);
+int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char num);
+int inet6_del_protocol(const struct inet6_protocol *prot, unsigned char num);
+int inet6_register_protosw(struct inet_protosw *p);
+void inet6_unregister_protosw(struct inet_protosw *p);
 #endif
-extern int	inet6_add_offload(const struct net_offload *prot, unsigned char num);
-extern int	inet6_del_offload(const struct net_offload *prot, unsigned char num);
+int inet6_add_offload(const struct net_offload *prot, unsigned char num);
+int inet6_del_offload(const struct net_offload *prot, unsigned char num);
 
 #endif	/* _PROTOCOL_H */

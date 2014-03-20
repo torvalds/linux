@@ -145,6 +145,8 @@ char *ldlm_it2str(int it)
 		return "getxattr";
 	case IT_LAYOUT:
 		return "layout";
+	case IT_SETXATTR:
+		return "setxattr";
 	default:
 		CERROR("Unknown intent %d\n", it);
 		return "UNKNOWN";
@@ -529,7 +531,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 		lock_res_nested(oldres, LRT_NEW);
 	}
 	LASSERT(memcmp(new_resid, &oldres->lr_name,
-		       sizeof oldres->lr_name) != 0);
+		       sizeof(oldres->lr_name)) != 0);
 	lock->l_resource = newres;
 	unlock_res(oldres);
 	unlock_res_and_lock(lock);
@@ -799,7 +801,7 @@ void ldlm_lock_addref_internal(struct ldlm_lock *lock, __u32 mode)
  * Removes reader/writer reference for LDLM lock \a lock.
  * Assumes LDLM lock is already locked.
  * only called in ldlm_flock_destroy and for local locks.
- * Does NOT add lock to LRU if no r/w references left to accomodate flock locks
+ * Does NOT add lock to LRU if no r/w references left to accommodate flock locks
  * that cannot be placed in LRU.
  */
 void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
@@ -1129,6 +1131,11 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 		if (lock == old_lock)
 			break;
 
+		/* Check if this lock can be matched.
+		 * Used by LU-2919(exclusive open) for open lease lock */
+		if (ldlm_is_excl(lock))
+			continue;
+
 		/* llite sometimes wants to match locks that will be
 		 * canceled when their users drop, but we allow it to match
 		 * if it passes in CBPENDING and the lock still has users.
@@ -1247,7 +1254,7 @@ EXPORT_SYMBOL(ldlm_lock_allow_match);
  *     list will be considered
  * If 'flags' contains LDLM_FL_CBPENDING, then locks that have been marked
  *     to be canceled can still be matched as long as they still have reader
- *     or writer refernces
+ *     or writer referneces
  * If 'flags' contains LDLM_FL_TEST_LOCK, then don't actually reference a lock,
  *     just tell us if we would have matched.
  *
@@ -1891,7 +1898,7 @@ static int reprocess_one_queue(struct ldlm_resource *res, void *closure)
 	return LDLM_ITER_CONTINUE;
 }
 
-static int ldlm_reprocess_res(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+static int ldlm_reprocess_res(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			      struct hlist_node *hnode, void *arg)
 {
 	struct ldlm_resource *res = cfs_hash_object(hs, hnode);
@@ -2040,7 +2047,7 @@ struct export_cl_data {
  * Iterator function for ldlm_cancel_locks_for_export.
  * Cancels passed locks.
  */
-int ldlm_cancel_locks_for_export_cb(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+int ldlm_cancel_locks_for_export_cb(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 				    struct hlist_node *hnode, void *data)
 
 {
@@ -2090,8 +2097,8 @@ void ldlm_cancel_locks_for_export(struct obd_export *exp)
 /**
  * Downgrade an exclusive lock.
  *
- * A fast variant of ldlm_lock_convert for convertion of exclusive
- * locks. The convertion is always successful.
+ * A fast variant of ldlm_lock_convert for conversion of exclusive
+ * locks. The conversion is always successful.
  * Used by Commit on Sharing (COS) code.
  *
  * \param lock A lock to convert

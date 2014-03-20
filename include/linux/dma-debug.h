@@ -85,6 +85,8 @@ extern void debug_dma_sync_sg_for_device(struct device *dev,
 
 extern void debug_dma_dump_mappings(struct device *dev);
 
+extern void debug_dma_assert_idle(struct page *page);
+
 #else /* CONFIG_DMA_API_DEBUG */
 
 static inline void dma_debug_add_bus(struct bus_type *bus)
@@ -180,6 +182,10 @@ static inline void debug_dma_sync_sg_for_device(struct device *dev,
 }
 
 static inline void debug_dma_dump_mappings(struct device *dev)
+{
+}
+
+static inline void debug_dma_assert_idle(struct page *page)
 {
 }
 

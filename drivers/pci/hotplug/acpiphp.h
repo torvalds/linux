@@ -39,16 +39,6 @@
 #include <linux/mutex.h>
 #include <linux/pci_hotplug.h>
 
-#define dbg(format, arg...)					\
-	do {							\
-		if (acpiphp_debug)				\
-			printk(KERN_DEBUG "%s: " format,	\
-				MY_NAME , ## arg);		\
-	} while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
-
 struct acpiphp_context;
 struct acpiphp_bridge;
 struct acpiphp_slot;
@@ -87,6 +77,8 @@ struct acpiphp_bridge {
 
 	/* PCI-to-PCI bridge device */
 	struct pci_dev *pci_dev;
+
+	bool is_going_away;
 };
 
 
@@ -160,6 +152,7 @@ struct acpiphp_attention_info
 /* slot flags */
 
 #define SLOT_ENABLED		(0x00000001)
+#define SLOT_IS_GOING_AWAY	(0x00000002)
 
 /* function flags */
 
@@ -179,14 +172,13 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
 
 int acpiphp_enable_slot(struct acpiphp_slot *slot);
-int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot);
+int acpiphp_disable_slot(struct acpiphp_slot *slot);
 u8 acpiphp_get_power_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_attention_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_adapter_status(struct acpiphp_slot *slot);
 
 /* variables */
-extern bool acpiphp_debug;
 extern bool acpiphp_disabled;
 
 #endif /* _ACPIPHP_H */

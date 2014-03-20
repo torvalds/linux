@@ -28,7 +28,8 @@ int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 int perf_pmu__config_terms(struct list_head *formats,
 			   struct perf_event_attr *attr,
 			   struct list_head *head_terms);
-int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms);
+int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
+			  const char **unit, double *scale);
 struct list_head *perf_pmu__alias(struct perf_pmu *pmu,
 				  struct list_head *head_terms);
 int perf_pmu_wrap(void);
@@ -42,6 +43,7 @@ int perf_pmu__format_parse(char *dir, struct list_head *head);
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
 
 void print_pmu_events(const char *event_glob, bool name_only);
+bool pmu_have_event(const char *pname, const char *name);
 
 int perf_pmu__test(void);
 #endif /* __PMU_H */

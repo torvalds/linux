@@ -1,4 +1,3 @@
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
@@ -46,7 +45,7 @@ static struct platform_driver am335x_child_driver = {
 	.remove         = am335x_child_remove,
 	.driver         = {
 		.name   = "am335x-usb-childs",
-		.of_match_table	= of_match_ptr(am335x_child_of_match),
+		.of_match_table	= am335x_child_of_match,
 	},
 };
 

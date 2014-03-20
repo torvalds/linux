@@ -44,18 +44,6 @@
  */
 #define DEFAULT_MTU_SIZE 1500
 
-#define gdm_dev_endian(n) (\
-	n->phy_dev->get_endian(n->phy_dev->priv_dev))
-
-#define gdm_lte_hci_send(n, d, l) (\
-	n->phy_dev->send_hci_func(n->phy_dev->priv_dev, d, l, NULL, NULL))
-
-#define gdm_lte_sdu_send(n, d, l, c, b, i, t) (\
-	n->phy_dev->send_sdu_func(n->phy_dev->priv_dev, d, l, n->pdn_table.dft_eps_id, 0, c, b, i, t))
-
-#define gdm_lte_rcv_with_cb(n, c, b, e) (\
-	n->rcv_func(n->priv_dev, c, b, e))
-
 #define IP_VERSION_4	4
 #define IP_VERSION_6	6
 
@@ -110,7 +98,7 @@ static int gdm_lte_rx(struct sk_buff *skb, struct nic *nic, int nic_type)
 	return 0;
 }
 
-int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
+static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 {
 	struct nic *nic = netdev_priv(skb_in->dev);
 	struct sk_buff *skb_out;
@@ -186,7 +174,7 @@ int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 	return 0;
 }
 
-int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
+static int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 {
 	unsigned short *w = ptr;
 	int sum = 0;
@@ -226,7 +214,7 @@ int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 	return sum;
 }
 
-int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
+static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 {
 	struct nic *nic = netdev_priv(skb_in->dev);
 	struct sk_buff *skb_out;
@@ -458,13 +446,11 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 
 	sscanf(dev->name, "lte%d", &idx);
 
-	ret = gdm_lte_sdu_send(nic,
-			       data_buf,
-			       data_len,
-			       tx_complete,
-			       nic,
-			       idx,
-			       nic_type);
+	ret = nic->phy_dev->send_sdu_func(nic->phy_dev->priv_dev,
+					  data_buf, data_len,
+					  nic->pdn_table.dft_eps_id, 0,
+					  tx_complete, nic, idx,
+					  nic_type);
 
 	if (ret == TX_NO_BUFFER || ret == TX_NO_SPC) {
 		netif_stop_queue(dev);
@@ -503,14 +489,18 @@ static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 	sscanf(dev->name, "lte%d", &idx);
 
 	return netlink_send(lte_event.sock, idx, 0, buf,
-			    gdm_dev16_to_cpu(gdm_dev_endian(nic), hci->len) + HCI_HEADER_SIZE);
+			    gdm_dev16_to_cpu(
+				    nic->phy_dev->get_endian(
+					    nic->phy_dev->priv_dev), hci->len)
+			    + HCI_HEADER_SIZE);
 }
 
 static void gdm_lte_event_rcv(struct net_device *dev, u16 type, void *msg, int len)
 {
 	struct nic *nic = netdev_priv(dev);
 
-	gdm_lte_hci_send(nic, msg, len);
+	nic->phy_dev->send_hci_func(nic->phy_dev->priv_dev, msg, len, NULL,
+				    NULL);
 }
 
 int gdm_lte_event_init(void)
@@ -688,8 +678,14 @@ static void gdm_lte_pdn_table(struct net_device *dev, char *buf, int len)
 
 	if (pdn_table->activate) {
 		nic->pdn_table.activate = pdn_table->activate;
-		nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(gdm_dev_endian(nic), pdn_table->dft_eps_id);
-		nic->pdn_table.nic_type = gdm_dev32_to_cpu(gdm_dev_endian(nic), pdn_table->nic_type);
+		nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(
+						nic->phy_dev->get_endian(
+							nic->phy_dev->priv_dev),
+						pdn_table->dft_eps_id);
+		nic->pdn_table.nic_type = gdm_dev32_to_cpu(
+						nic->phy_dev->get_endian(
+							nic->phy_dev->priv_dev),
+						pdn_table->nic_type);
 
 		netdev_info(dev, "pdn activated, nic_type=0x%x\n",
 			    nic->pdn_table.nic_type);
@@ -762,7 +758,7 @@ void start_rx_proc(struct phy_dev *phy_dev)
 	int i;
 
 	for (i = 0; i < MAX_RX_SUBMIT_COUNT; i++)
-		gdm_lte_rcv_with_cb(phy_dev, rx_complete, phy_dev, USB_COMPLETE);
+		phy_dev->rcv_func(phy_dev->priv_dev, rx_complete, phy_dev, USB_COMPLETE);
 }
 
 static struct net_device_ops gdm_netdev_ops = {

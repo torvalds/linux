@@ -104,7 +104,10 @@ errout:
 static bool fib4_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg)
 {
 	struct fib_result *result = (struct fib_result *) arg->result;
-	struct net_device *dev = result->fi->fib_dev;
+	struct net_device *dev = NULL;
+
+	if (result->fi)
+		dev = result->fi->fib_dev;
 
 	/* do not accept result if the route does
 	 * not meet the required prefix length

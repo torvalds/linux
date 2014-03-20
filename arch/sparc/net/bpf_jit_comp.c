@@ -497,9 +497,20 @@ void bpf_jit_compile(struct sk_filter *fp)
 			case BPF_S_ALU_MUL_K:	/* A *= K */
 				emit_alu_K(MUL, K);
 				break;
-			case BPF_S_ALU_DIV_K:	/* A /= K */
-				emit_alu_K(MUL, K);
-				emit_read_y(r_A);
+			case BPF_S_ALU_DIV_K:	/* A /= K with K != 0*/
+				if (K == 1)
+					break;
+				emit_write_y(G0);
+#ifdef CONFIG_SPARC32
+				/* The Sparc v8 architecture requires
+				 * three instructions between a %y
+				 * register write and the first use.
+				 */
+				emit_nop();
+				emit_nop();
+				emit_nop();
+#endif
+				emit_alu_K(DIV, K);
 				break;
 			case BPF_S_ALU_DIV_X:	/* A /= X; */
 				emit_cmpi(r_X, 0);
@@ -808,4 +819,5 @@ void bpf_jit_free(struct sk_filter *fp)
 {
 	if (fp->bpf_func != sk_run_filter)
 		module_free(NULL, fp->bpf_func);
+	kfree(fp);
 }

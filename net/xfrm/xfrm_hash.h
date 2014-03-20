@@ -130,7 +130,7 @@ static inline unsigned int __addr_hash(const xfrm_address_t *daddr,
 	return h & hmask;
 }
 
-extern struct hlist_head *xfrm_hash_alloc(unsigned int sz);
-extern void xfrm_hash_free(struct hlist_head *n, unsigned int sz);
+struct hlist_head *xfrm_hash_alloc(unsigned int sz);
+void xfrm_hash_free(struct hlist_head *n, unsigned int sz);
 
 #endif /* _XFRM_HASH_H */

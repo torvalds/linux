@@ -289,7 +289,7 @@ static int fm2fb_probe(struct zorro_dev *z, const struct zorro_device_id *id)
 		zorro_release_device(z);
 		return -EINVAL;
 	}
-	printk("fb%d: %s frame buffer device\n", info->node, fb_fix.id);
+	fb_info(info, "%s frame buffer device\n", fb_fix.id);
 	return 0;
 }
 

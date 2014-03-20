@@ -2388,7 +2388,11 @@ struct cl_io {
 	 * Right now, only two opertaions need to verify layout: glimpse
 	 * and setattr.
 	 */
-			     ci_verify_layout:1;
+			     ci_verify_layout:1,
+	/**
+	 * file is released, restore has to to be triggered by vvp layer
+	 */
+			     ci_restore_needed:1;
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */
@@ -3096,13 +3100,13 @@ struct cl_io *cl_io_top(struct cl_io *io);
 void cl_io_print(const struct lu_env *env, void *cookie,
 		 lu_printer_t printer, const struct cl_io *io);
 
-#define CL_IO_SLICE_CLEAN(foo_io, base)				 \
-do {								    \
-	typeof(foo_io) __foo_io = (foo_io);			     \
+#define CL_IO_SLICE_CLEAN(foo_io, base)					\
+do {									\
+	typeof(foo_io) __foo_io = (foo_io);				\
 									\
-	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);	       \
-	memset(&__foo_io->base + 1, 0,				  \
-	       (sizeof *__foo_io) - sizeof __foo_io->base);	     \
+	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);		\
+	memset(&__foo_io->base + 1, 0,					\
+	       sizeof(*__foo_io) - sizeof(__foo_io->base));		\
 } while (0)
 
 /** @} cl_io */

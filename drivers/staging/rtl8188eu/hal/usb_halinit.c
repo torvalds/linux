@@ -464,7 +464,7 @@ static void _InitRetryFunction(struct adapter *Adapter)
 /*-----------------------------------------------------------------------------
  * Function:	usb_AggSettingTxUpdate()
  *
- * Overview:	Seperate TX/RX parameters update independent for TP detection and
+ * Overview:	Separate TX/RX parameters update independent for TP detection and
  *			dynamic TX/RX aggreagtion parameters update.
  *
  * Input:			struct adapter *
@@ -473,7 +473,7 @@ static void _InitRetryFunction(struct adapter *Adapter)
  *
  * Revised History:
  *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
+ *	12/10/2010	MHC		Separate to smaller function.
  *
  *---------------------------------------------------------------------------*/
 static void usb_AggSettingTxUpdate(struct adapter *Adapter)
@@ -496,7 +496,7 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 /*-----------------------------------------------------------------------------
  * Function:	usb_AggSettingRxUpdate()
  *
- * Overview:	Seperate TX/RX parameters update independent for TP detection and
+ * Overview:	Separate TX/RX parameters update independent for TP detection and
  *			dynamic TX/RX aggreagtion parameters update.
  *
  * Input:			struct adapter *
@@ -505,7 +505,7 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
  *
  * Revised History:
  *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
+ *	12/10/2010	MHC		Separate to smaller function.
  *
  *---------------------------------------------------------------------------*/
 static void
@@ -705,7 +705,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	struct hal_data_8188e		*haldata = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv		*pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
-	u32 init_start_time = rtw_get_current_time();
+	u32 init_start_time = jiffies;
 
 	#define HAL_INIT_PROFILE_TAG(stage) do {} while (0)
 
@@ -847,7 +847,7 @@ _func_enter_;
 
 	/*  */
 	/*  Init CR MACTXEN, MACRXEN after setting RxFF boundary REG_TRXFF_BNDY to patch */
-	/*  Hw bug which Hw initials RxFF boundry size to a value which is larger than the real Rx buffer size in 88E. */
+	/*  Hw bug which Hw initials RxFF boundary size to a value which is larger than the real Rx buffer size in 88E. */
 	/*  */
 	/*  Enable MACTXEN/MACRXEN block */
 	value16 = rtw_read16(Adapter, REG_CR);
@@ -1251,7 +1251,7 @@ static void _ReadRFType(struct adapter *Adapter)
 
 static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
-	u32 start = rtw_get_current_time();
+	u32 start = jiffies;
 
 	MSG_88E("====> %s\n", __func__);
 
@@ -1894,7 +1894,7 @@ _func_enter_;
 				/* RQPN Load 0 */
 				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
 				rtw_write32(Adapter, REG_RQPN, 0x80000000);
-				rtw_mdelay_os(10);
+				mdelay(10);
 			}
 		}
 		break;

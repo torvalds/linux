@@ -338,9 +338,9 @@ static int omap_twl4030_probe(struct platform_device *pdev)
 	}
 
 	snd_soc_card_set_drvdata(card, priv);
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+		dev_err(&pdev->dev, "devm_snd_soc_register_card() failed: %d\n",
 			ret);
 		return ret;
 	}
@@ -357,7 +357,6 @@ static int omap_twl4030_remove(struct platform_device *pdev)
 		snd_soc_jack_free_gpios(&priv->hs_jack,
 					ARRAY_SIZE(hs_jack_gpios),
 					hs_jack_gpios);
-	snd_soc_unregister_card(card);
 
 	return 0;
 }

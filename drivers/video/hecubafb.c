@@ -261,9 +261,8 @@ static int hecubafb_probe(struct platform_device *dev)
 		goto err_fbreg;
 	platform_set_drvdata(dev, info);
 
-	printk(KERN_INFO
-	       "fb%d: Hecuba frame buffer device, using %dK of video memory\n",
-	       info->node, videomemorysize >> 10);
+	fb_info(info, "Hecuba frame buffer device, using %dK of video memory\n",
+		videomemorysize >> 10);
 
 	/* this inits the dpy */
 	retval = par->board->init(par);
@@ -305,19 +304,7 @@ static struct platform_driver hecubafb_driver = {
 		.name	= "hecubafb",
 	},
 };
-
-static int __init hecubafb_init(void)
-{
-	return platform_driver_register(&hecubafb_driver);
-}
-
-static void __exit hecubafb_exit(void)
-{
-	platform_driver_unregister(&hecubafb_driver);
-}
-
-module_init(hecubafb_init);
-module_exit(hecubafb_exit);
+module_platform_driver(hecubafb_driver);
 
 MODULE_DESCRIPTION("fbdev driver for Hecuba/Apollo controller");
 MODULE_AUTHOR("Jaya Kumar");

@@ -86,7 +86,7 @@ static void lov_io_sub_inherit(struct cl_io *io, struct lov_io *lio,
 	struct lov_stripe_md *lsm    = lio->lis_object->lo_lsm;
 	struct cl_io	 *parent = lio->lis_cl.cis_io;
 
-	switch(io->ci_type) {
+	switch (io->ci_type) {
 	case CIT_SETATTR: {
 		io->u.ci_setattr.sa_attr = parent->u.ci_setattr.sa_attr;
 		io->u.ci_setattr.sa_valid = parent->u.ci_setattr.sa_valid;
@@ -282,7 +282,7 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 	 * when writing a page. -jay
 	 */
 	OBD_ALLOC_LARGE(lio->lis_subs,
-			lsm->lsm_stripe_count * sizeof lio->lis_subs[0]);
+			lsm->lsm_stripe_count * sizeof(lio->lis_subs[0]));
 	if (lio->lis_subs != NULL) {
 		lio->lis_nr_subios = lio->lis_stripe_count;
 		lio->lis_single_subio_index = -1;
@@ -356,7 +356,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		for (i = 0; i < lio->lis_nr_subios; i++)
 			lov_io_sub_fini(env, lio, &lio->lis_subs[i]);
 		OBD_FREE_LARGE(lio->lis_subs,
-			 lio->lis_nr_subios * sizeof lio->lis_subs[0]);
+			 lio->lis_nr_subios * sizeof(lio->lis_subs[0]));
 		lio->lis_nr_subios = 0;
 	}
 
@@ -947,14 +947,23 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 		LASSERTF(0, "invalid type %d\n", io->ci_type);
 	case CIT_MISC:
 	case CIT_FSYNC:
-		result = +1;
+		result = 1;
 		break;
 	case CIT_SETATTR:
+		/* the truncate to 0 is managed by MDT:
+		 * - in open, for open O_TRUNC
+		 * - in setattr, for truncate
+		 */
+		/* the truncate is for size > 0 so triggers a restore */
+		if (cl_io_is_trunc(io))
+			io->ci_restore_needed = 1;
+		result = -ENODATA;
+		break;
 	case CIT_READ:
 	case CIT_WRITE:
 	case CIT_FAULT:
-		/* TODO: need to restore the file. */
-		result = -EBADF;
+		io->ci_restore_needed = 1;
+		result = -ENODATA;
 		break;
 	}
 	if (result == 0) {

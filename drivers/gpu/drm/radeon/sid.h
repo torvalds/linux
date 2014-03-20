@@ -94,6 +94,8 @@
 #define	CG_SPLL_FUNC_CNTL_2				0x604
 #define		SCLK_MUX_SEL(x)				((x) << 0)
 #define		SCLK_MUX_SEL_MASK			(0x1ff << 0)
+#define		SPLL_CTLREQ_CHG				(1 << 23)
+#define		SCLK_MUX_UPDATE				(1 << 26)
 #define	CG_SPLL_FUNC_CNTL_3				0x608
 #define		SPLL_FB_DIV(x)				((x) << 0)
 #define		SPLL_FB_DIV_MASK			(0x3ffffff << 0)
@@ -101,7 +103,10 @@
 #define		SPLL_DITHEN				(1 << 28)
 #define	CG_SPLL_FUNC_CNTL_4				0x60c
 
+#define	SPLL_STATUS					0x614
+#define		SPLL_CHG_STATUS				(1 << 1)
 #define	SPLL_CNTL_MODE					0x618
+#define		SPLL_SW_DIR_CONTROL			(1 << 0)
 #	define SPLL_REFCLK_SEL(x)			((x) << 8)
 #	define SPLL_REFCLK_SEL_MASK			0xFF00
 
@@ -478,7 +483,7 @@
 #define		STATE3_MASK				(0x1f << 15)
 #define		STATE3_SHIFT				15
 
-#define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x2808
+#define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x28e8
 #define		TRAIN_DONE_D0      			(1 << 30)
 #define		TRAIN_DONE_D1      			(1 << 31)
 
@@ -559,6 +564,8 @@
 #       define MRDCK0_BYPASS                            (1 << 24)
 #       define MRDCK1_BYPASS                            (1 << 25)
 
+#define	MPLL_CNTL_MODE					0x2bb0
+#       define MPLL_MCLK_SEL                            (1 << 11)
 #define	MPLL_FUNC_CNTL					0x2bb4
 #define		BWCTRL(x)				((x) << 20)
 #define		BWCTRL_MASK				(0xff << 20)
@@ -683,6 +690,51 @@
  * bit5 = 176.4 kHz
  * bit6 = 192 kHz
  */
+
+#define AZ_F0_CODEC_PIN_CONTROL_RESPONSE_LIPSYNC         0x37
+#       define VIDEO_LIPSYNC(x)                           (((x) & 0xff) << 0)
+#       define AUDIO_LIPSYNC(x)                           (((x) & 0xff) << 8)
+/* VIDEO_LIPSYNC, AUDIO_LIPSYNC
+ * 0   = invalid
+ * x   = legal delay value
+ * 255 = sync not supported
+ */
+#define AZ_F0_CODEC_PIN_CONTROL_RESPONSE_HBR             0x38
+#       define HBR_CAPABLE                                (1 << 0) /* enabled by default */
+
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO0               0x3a
+#       define MANUFACTURER_ID(x)                        (((x) & 0xffff) << 0)
+#       define PRODUCT_ID(x)                             (((x) & 0xffff) << 16)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO1               0x3b
+#       define SINK_DESCRIPTION_LEN(x)                   (((x) & 0xff) << 0)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO2               0x3c
+#       define PORT_ID0(x)                               (((x) & 0xffffffff) << 0)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO3               0x3d
+#       define PORT_ID1(x)                               (((x) & 0xffffffff) << 0)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO4               0x3e
+#       define DESCRIPTION0(x)                           (((x) & 0xff) << 0)
+#       define DESCRIPTION1(x)                           (((x) & 0xff) << 8)
+#       define DESCRIPTION2(x)                           (((x) & 0xff) << 16)
+#       define DESCRIPTION3(x)                           (((x) & 0xff) << 24)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO5               0x3f
+#       define DESCRIPTION4(x)                           (((x) & 0xff) << 0)
+#       define DESCRIPTION5(x)                           (((x) & 0xff) << 8)
+#       define DESCRIPTION6(x)                           (((x) & 0xff) << 16)
+#       define DESCRIPTION7(x)                           (((x) & 0xff) << 24)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO6               0x40
+#       define DESCRIPTION8(x)                           (((x) & 0xff) << 0)
+#       define DESCRIPTION9(x)                           (((x) & 0xff) << 8)
+#       define DESCRIPTION10(x)                          (((x) & 0xff) << 16)
+#       define DESCRIPTION11(x)                          (((x) & 0xff) << 24)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO7               0x41
+#       define DESCRIPTION12(x)                          (((x) & 0xff) << 0)
+#       define DESCRIPTION13(x)                          (((x) & 0xff) << 8)
+#       define DESCRIPTION14(x)                          (((x) & 0xff) << 16)
+#       define DESCRIPTION15(x)                          (((x) & 0xff) << 24)
+#define AZ_F0_CODEC_PIN_CONTROL_SINK_INFO8               0x42
+#       define DESCRIPTION16(x)                          (((x) & 0xff) << 0)
+#       define DESCRIPTION17(x)                          (((x) & 0xff) << 8)
+
 #define AZ_F0_CODEC_PIN_CONTROL_HOTPLUG_CONTROL          0x54
 #       define AUDIO_ENABLED                             (1 << 31)
 
@@ -770,7 +822,7 @@
 #       define GRPH_PFLIP_INT_MASK                      (1 << 0)
 #       define GRPH_PFLIP_INT_TYPE                      (1 << 8)
 
-#define	DACA_AUTODETECT_INT_CONTROL			0x66c8
+#define	DAC_AUTODETECT_INT_CONTROL			0x67c8
 
 #define DC_HPD1_INT_STATUS                              0x601c
 #define DC_HPD2_INT_STATUS                              0x6028
@@ -1553,7 +1605,7 @@
  * 6. COMMAND [30:21] | BYTE_COUNT [20:0]
  */
 #              define PACKET3_CP_DMA_DST_SEL(x)    ((x) << 20)
-                /* 0 - SRC_ADDR
+                /* 0 - DST_ADDR
 		 * 1 - GDS
 		 */
 #              define PACKET3_CP_DMA_ENGINE(x)     ((x) << 27)
@@ -1568,7 +1620,7 @@
 #              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
-#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 23)
+#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
                 /* 0 - none
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32

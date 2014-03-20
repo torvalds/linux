@@ -114,43 +114,6 @@ static int adjd_s311_read_data(struct iio_dev *indio_dev, u8 reg, int *val)
 	return 0;
 }
 
-static ssize_t adjd_s311_read_int_time(struct iio_dev *indio_dev,
-	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
-{
-	struct adjd_s311_data *data = iio_priv(indio_dev);
-	s32 ret;
-
-	ret = i2c_smbus_read_word_data(data->client,
-		ADJD_S311_INT_REG(chan->address));
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%d\n", ret & ADJD_S311_INT_MASK);
-}
-
-static ssize_t adjd_s311_write_int_time(struct iio_dev *indio_dev,
-	 uintptr_t private, const struct iio_chan_spec *chan, const char *buf,
-	 size_t len)
-{
-	struct adjd_s311_data *data = iio_priv(indio_dev);
-	unsigned long int_time;
-	int ret;
-
-	ret = kstrtoul(buf, 10, &int_time);
-	if (ret)
-		return ret;
-
-	if (int_time > ADJD_S311_INT_MASK)
-		return -EINVAL;
-
-	ret = i2c_smbus_write_word_data(data->client,
-		ADJD_S311_INT_REG(chan->address), int_time);
-	if (ret < 0)
-		return ret;
-
-	return len;
-}
-
 static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -175,10 +138,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 		len += 2;
 	}
 
-	if (indio_dev->scan_timestamp)
-		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
-			= time_ns;
-	iio_push_to_buffers(indio_dev, (u8 *)data->buffer);
+	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer, time_ns);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -186,25 +146,21 @@ done:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_chan_spec_ext_info adjd_s311_ext_info[] = {
-	{
-		.name = "integration_time",
-		.read = adjd_s311_read_int_time,
-		.write = adjd_s311_write_int_time,
-	},
-	{ }
-};
-
 #define ADJD_S311_CHANNEL(_color, _scan_idx) { \
 	.type = IIO_INTENSITY, \
 	.modified = 1, \
 	.address = (IDX_##_color), \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
-		BIT(IIO_CHAN_INFO_HARDWAREGAIN), \
+		BIT(IIO_CHAN_INFO_HARDWAREGAIN) | \
+		BIT(IIO_CHAN_INFO_INT_TIME), \
 	.channel2 = (IIO_MOD_LIGHT_##_color), \
 	.scan_index = (_scan_idx), \
-	.scan_type = IIO_ST('u', 10, 16, 0), \
-	.ext_info = adjd_s311_ext_info, \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = 10, \
+		.storagebits = 16, \
+		.endianness = IIO_CPU, \
+	}, \
 }
 
 static const struct iio_chan_spec adjd_s311_channels[] = {
@@ -236,6 +192,18 @@ static int adjd_s311_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = ret & ADJD_S311_CAP_MASK;
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_INT_TIME:
+		ret = i2c_smbus_read_word_data(data->client,
+			ADJD_S311_INT_REG(chan->address));
+		if (ret < 0)
+			return ret;
+		*val = 0;
+		/*
+		 * not documented, based on measurement:
+		 * 4095 LSBs correspond to roughly 4 ms
+		 */
+		*val2 = ret & ADJD_S311_INT_MASK;
+		return IIO_VAL_INT_PLUS_MICRO;
 	}
 	return -EINVAL;
 }
@@ -245,16 +213,20 @@ static int adjd_s311_write_raw(struct iio_dev *indio_dev,
 			       int val, int val2, long mask)
 {
 	struct adjd_s311_data *data = iio_priv(indio_dev);
-	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_HARDWAREGAIN:
 		if (val < 0 || val > ADJD_S311_CAP_MASK)
 			return -EINVAL;
 
-		ret = i2c_smbus_write_byte_data(data->client,
+		return i2c_smbus_write_byte_data(data->client,
 			ADJD_S311_CAP_REG(chan->address), val);
-		return ret;
+	case IIO_CHAN_INFO_INT_TIME:
+		if (val != 0 || val2 < 0 || val2 > ADJD_S311_INT_MASK)
+			return -EINVAL;
+
+		return i2c_smbus_write_word_data(data->client,
+			ADJD_S311_INT_REG(chan->address), val2);
 	}
 	return -EINVAL;
 }

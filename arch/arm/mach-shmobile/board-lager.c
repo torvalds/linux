@@ -28,9 +28,12 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/gpio-rcar.h>
+#include <linux/platform_data/rcar-du.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/regulator/driver.h>
 #include <linux/regulator/fixed.h>
+#include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/sh_eth.h>
 #include <mach/common.h>
@@ -38,6 +41,67 @@
 #include <mach/r8a7790.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/mtd.h>
+#include <linux/spi/flash.h>
+#include <linux/spi/rspi.h>
+#include <linux/spi/spi.h>
+
+/* DU */
+static struct rcar_du_encoder_data lager_du_encoders[] = {
+	{
+		.type = RCAR_DU_ENCODER_VGA,
+		.output = RCAR_DU_OUTPUT_DPAD0,
+	}, {
+		.type = RCAR_DU_ENCODER_NONE,
+		.output = RCAR_DU_OUTPUT_LVDS1,
+		.connector.lvds.panel = {
+			.width_mm = 210,
+			.height_mm = 158,
+			.mode = {
+				.clock = 65000,
+				.hdisplay = 1024,
+				.hsync_start = 1048,
+				.hsync_end = 1184,
+				.htotal = 1344,
+				.vdisplay = 768,
+				.vsync_start = 771,
+				.vsync_end = 777,
+				.vtotal = 806,
+				.flags = 0,
+			},
+		},
+	},
+};
+
+static const struct rcar_du_platform_data lager_du_pdata __initconst = {
+	.encoders = lager_du_encoders,
+	.num_encoders = ARRAY_SIZE(lager_du_encoders),
+};
+
+static const struct resource du_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfeb00000, 0x70000),
+	DEFINE_RES_MEM_NAMED(0xfeb90000, 0x1c, "lvds.0"),
+	DEFINE_RES_MEM_NAMED(0xfeb94000, 0x1c, "lvds.1"),
+	DEFINE_RES_IRQ(gic_spi(256)),
+	DEFINE_RES_IRQ(gic_spi(268)),
+	DEFINE_RES_IRQ(gic_spi(269)),
+};
+
+static void __init lager_add_du_device(void)
+{
+	struct platform_device_info info = {
+		.name = "rcar-du-r8a7790",
+		.id = -1,
+		.res = du_resources,
+		.num_res = ARRAY_SIZE(du_resources),
+		.data = &lager_du_pdata,
+		.size_data = sizeof(lager_du_pdata),
+		.dma_mask = DMA_BIT_MASK(32),
+	};
+
+	platform_device_register_full(&info);
+}
 
 /* LEDS */
 static struct gpio_led lager_leds[] = {
@@ -56,14 +120,15 @@ static struct gpio_led lager_leds[] = {
 	},
 };
 
-static __initdata struct gpio_led_platform_data lager_leds_pdata = {
+static const struct gpio_led_platform_data lager_leds_pdata __initconst = {
 	.leds		= lager_leds,
 	.num_leds	= ARRAY_SIZE(lager_leds),
 };
 
 /* GPIO KEY */
 #define GPIO_KEY(c, g, d, ...) \
-	{ .code = c, .gpio = g, .desc = d, .active_low = 1 }
+	{ .code = c, .gpio = g, .desc = d, .active_low = 1, \
+	  .wakeup = 1, .debounce_interval = 20 }
 
 static struct gpio_keys_button gpio_buttons[] = {
 	GPIO_KEY(KEY_4,		RCAR_GP_PIN(1, 28),	"SW2-pin4"),
@@ -72,7 +137,7 @@ static struct gpio_keys_button gpio_buttons[] = {
 	GPIO_KEY(KEY_1,		RCAR_GP_PIN(1, 14),	"SW2-pin1"),
 };
 
-static __initdata struct gpio_keys_platform_data lager_keys_pdata = {
+static const struct gpio_keys_platform_data lager_keys_pdata __initconst = {
 	.buttons	= gpio_buttons,
 	.nbuttons	= ARRAY_SIZE(gpio_buttons),
 };
@@ -83,30 +148,157 @@ static struct regulator_consumer_supply fixed3v3_power_consumers[] =
 	REGULATOR_SUPPLY("vmmc", "sh_mmcif.1"),
 };
 
-/* MMCIF */
-static struct sh_mmcif_plat_data mmcif1_pdata __initdata = {
-	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+/*
+ * SDHI regulator macro
+ *
+ ** FIXME**
+ * Lager board vqmmc is provided via DA9063 PMIC chip,
+ * and we should use ${LINK}/drivers/mfd/da9063-* driver for it.
+ * but, it doesn't have regulator support at this point.
+ * It uses gpio-regulator for vqmmc as quick-hack.
+ */
+#define SDHI_REGULATOR(idx, vdd_pin, vccq_pin)				\
+static struct regulator_consumer_supply vcc_sdhi##idx##_consumer =	\
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi." #idx);		\
+									\
+static struct regulator_init_data vcc_sdhi##idx##_init_data = {		\
+	.constraints = {						\
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,		\
+	},								\
+	.consumer_supplies	= &vcc_sdhi##idx##_consumer,		\
+	.num_consumer_supplies	= 1,					\
+};									\
+									\
+static const struct fixed_voltage_config vcc_sdhi##idx##_info __initconst = {\
+	.supply_name	= "SDHI" #idx "Vcc",				\
+	.microvolts	= 3300000,					\
+	.gpio		= vdd_pin,					\
+	.enable_high	= 1,						\
+	.init_data	= &vcc_sdhi##idx##_init_data,			\
+};									\
+									\
+static struct regulator_consumer_supply vccq_sdhi##idx##_consumer =	\
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi." #idx);		\
+									\
+static struct regulator_init_data vccq_sdhi##idx##_init_data = {	\
+	.constraints = {						\
+		.input_uV	= 3300000,				\
+		.min_uV		= 1800000,				\
+		.max_uV		= 3300000,				\
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |		\
+				  REGULATOR_CHANGE_STATUS,		\
+	},								\
+	.consumer_supplies	= &vccq_sdhi##idx##_consumer,		\
+	.num_consumer_supplies	= 1,					\
+};									\
+									\
+static struct gpio vccq_sdhi##idx##_gpio =				\
+	{ vccq_pin, GPIOF_OUT_INIT_HIGH, "vccq-sdhi" #idx };		\
+									\
+static struct gpio_regulator_state vccq_sdhi##idx##_states[] = {	\
+	{ .value = 1800000, .gpios = 0 },				\
+	{ .value = 3300000, .gpios = 1 },				\
+};									\
+									\
+static const struct gpio_regulator_config vccq_sdhi##idx##_info __initconst = {\
+	.supply_name	= "vqmmc",					\
+	.gpios		= &vccq_sdhi##idx##_gpio,			\
+	.nr_gpios	= 1,						\
+	.states		= vccq_sdhi##idx##_states,			\
+	.nr_states	= ARRAY_SIZE(vccq_sdhi##idx##_states),		\
+	.type		= REGULATOR_VOLTAGE,				\
+	.init_data	= &vccq_sdhi##idx##_init_data,			\
 };
 
-static struct resource mmcif1_resources[] __initdata = {
-	DEFINE_RES_MEM_NAMED(0xee220000, 0x80, "MMCIF1"),
+SDHI_REGULATOR(0, RCAR_GP_PIN(5, 24), RCAR_GP_PIN(5, 29));
+SDHI_REGULATOR(2, RCAR_GP_PIN(5, 25), RCAR_GP_PIN(5, 30));
+
+/* MMCIF */
+static const struct sh_mmcif_plat_data mmcif1_pdata __initconst = {
+	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+	.clk_ctrl2_present = true,
+	.ccs_unsupported = true,
+};
+
+static const struct resource mmcif1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee220000, 0x80),
 	DEFINE_RES_IRQ(gic_spi(170)),
 };
 
 /* Ether */
-static struct sh_eth_plat_data ether_pdata __initdata = {
+static const struct sh_eth_plat_data ether_pdata __initconst = {
 	.phy			= 0x1,
 	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
 	.phy_interface		= PHY_INTERFACE_MODE_RMII,
 	.ether_link_active_low	= 1,
 };
 
-static struct resource ether_resources[] __initdata = {
+static const struct resource ether_resources[] __initconst = {
 	DEFINE_RES_MEM(0xee700000, 0x400),
 	DEFINE_RES_IRQ(gic_spi(162)),
 };
 
+/* SPI Flash memory (Spansion S25FL512SAGMFIG11 64Mb) */
+static struct mtd_partition spi_flash_part[] = {
+	/* Reserved for user loader program, read-only */
+	{
+		.name = "loader",
+		.offset = 0,
+		.size = SZ_256K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	/* Reserved for user program, read-only */
+	{
+		.name = "user",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_4M,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	/* All else is writable (e.g. JFFS2) */
+	{
+		.name = "flash",
+		.offset = MTDPART_OFS_APPEND,
+		.size = MTDPART_SIZ_FULL,
+		.mask_flags = 0,
+	},
+};
+
+static struct flash_platform_data spi_flash_data = {
+	.name           = "m25p80",
+	.parts          = spi_flash_part,
+	.nr_parts       = ARRAY_SIZE(spi_flash_part),
+	.type           = "s25fl512s",
+};
+
+static const struct rspi_plat_data qspi_pdata __initconst = {
+	.num_chipselect	= 1,
+};
+
+static const struct spi_board_info spi_info[] __initconst = {
+	{
+		.modalias               = "m25p80",
+		.platform_data          = &spi_flash_data,
+		.mode                   = SPI_MODE_0,
+		.max_speed_hz           = 30000000,
+		.bus_num                = 0,
+		.chip_select            = 0,
+	},
+};
+
+/* QSPI resource */
+static const struct resource qspi_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6b10000, 0x1000),
+	DEFINE_RES_IRQ(gic_spi(184)),
+};
+
 static const struct pinctrl_map lager_pinctrl_map[] = {
+	/* DU (CN10: ARGB0, CN13: LVDS) */
+	PIN_MAP_MUX_GROUP_DEFAULT("rcar-du-r8a7790", "pfc-r8a7790",
+				  "du_rgb666", "du"),
+	PIN_MAP_MUX_GROUP_DEFAULT("rcar-du-r8a7790", "pfc-r8a7790",
+				  "du_sync_1", "du"),
+	PIN_MAP_MUX_GROUP_DEFAULT("rcar-du-r8a7790", "pfc-r8a7790",
+				  "du_clk_out_0", "du"),
 	/* SCIF0 (CN19: DEBUG SERIAL0) */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.6", "pfc-r8a7790",
 				  "scif0_data", "scif0"),
@@ -131,6 +323,9 @@ static const struct pinctrl_map lager_pinctrl_map[] = {
 
 static void __init lager_add_standard_devices(void)
 {
+	int fixed_regulator_idx = 0;
+	int gpio_regulator_idx = 0;
+
 	r8a7790_clock_init();
 
 	pinctrl_register_mappings(lager_pinctrl_map,
@@ -144,7 +339,8 @@ static void __init lager_add_standard_devices(void)
 	platform_device_register_data(&platform_bus, "gpio-keys", -1,
 				      &lager_keys_pdata,
 				      sizeof(lager_keys_pdata));
-	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
+	regulator_register_always_on(fixed_regulator_idx++,
+				     "fixed-3.3V", fixed3v3_power_consumers,
 				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
 	platform_device_register_resndata(&platform_bus, "sh_mmcif", 1,
 					  mmcif1_resources, ARRAY_SIZE(mmcif1_resources),
@@ -154,6 +350,24 @@ static void __init lager_add_standard_devices(void)
 					  ether_resources,
 					  ARRAY_SIZE(ether_resources),
 					  &ether_pdata, sizeof(ether_pdata));
+
+	lager_add_du_device();
+
+	platform_device_register_resndata(&platform_bus, "qspi", 0,
+					  qspi_resources,
+					  ARRAY_SIZE(qspi_resources),
+					  &qspi_pdata, sizeof(qspi_pdata));
+	spi_register_board_info(spi_info, ARRAY_SIZE(spi_info));
+
+	platform_device_register_data(&platform_bus, "reg-fixed-voltage", fixed_regulator_idx++,
+				      &vcc_sdhi0_info, sizeof(struct fixed_voltage_config));
+	platform_device_register_data(&platform_bus, "reg-fixed-voltage", fixed_regulator_idx++,
+				      &vcc_sdhi2_info, sizeof(struct fixed_voltage_config));
+
+	platform_device_register_data(&platform_bus, "gpio-regulator", gpio_regulator_idx++,
+				      &vccq_sdhi0_info, sizeof(struct gpio_regulator_config));
+	platform_device_register_data(&platform_bus, "gpio-regulator", gpio_regulator_idx++,
+				      &vccq_sdhi2_info, sizeof(struct gpio_regulator_config));
 }
 
 /*
@@ -177,17 +391,21 @@ static void __init lager_init(void)
 {
 	lager_add_standard_devices();
 
-	phy_register_fixup_for_id("r8a7790-ether-ff:01", lager_ksz8041_fixup);
+	if (IS_ENABLED(CONFIG_PHYLIB))
+		phy_register_fixup_for_id("r8a7790-ether-ff:01",
+					  lager_ksz8041_fixup);
 }
 
-static const char *lager_boards_compat_dt[] __initdata = {
+static const char * const lager_boards_compat_dt[] __initconst = {
 	"renesas,lager",
 	NULL,
 };
 
 DT_MACHINE_START(LAGER_DT, "lager")
-	.init_early	= r8a7790_init_delay,
-	.init_time	= r8a7790_timer_init,
+	.smp		= smp_ops(r8a7790_smp_ops),
+	.init_early	= r8a7790_init_early,
+	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= lager_init,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= lager_boards_compat_dt,
 MACHINE_END

@@ -204,7 +204,7 @@ free_and_return:
 	return ret;
 }
 
-struct p9_fcall *p9_fcall_alloc(int alloc_msize)
+static struct p9_fcall *p9_fcall_alloc(int alloc_msize)
 {
 	struct p9_fcall *fc;
 	fc = kmalloc(sizeof(struct p9_fcall) + alloc_msize, GFP_NOFS);
@@ -1010,9 +1010,6 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	err = parse_opts(options, clnt);
 	if (err < 0)
 		goto destroy_tagpool;
-
-	if (!clnt->trans_mod)
-		clnt->trans_mod = v9fs_get_trans_by_name("virtio");
 
 	if (!clnt->trans_mod)
 		clnt->trans_mod = v9fs_get_default_trans();

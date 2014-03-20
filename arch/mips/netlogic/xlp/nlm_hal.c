@@ -57,6 +57,10 @@ void nlm_node_init(int node)
 	nodep->sysbase = nlm_get_sys_regbase(node);
 	nodep->picbase = nlm_get_pic_regbase(node);
 	nodep->ebase = read_c0_ebase() & (~((1 << 12) - 1));
+	if (cpu_is_xlp9xx())
+		nodep->socbus = xlp9xx_get_socbus(node);
+	else
+		nodep->socbus = 0;
 	spin_lock_init(&nodep->piclock);
 }
 
@@ -64,6 +68,26 @@ int nlm_irq_to_irt(int irq)
 {
 	uint64_t pcibase;
 	int devoff, irt;
+
+	/* bypass for 9xx */
+	if (cpu_is_xlp9xx()) {
+		switch (irq) {
+		case PIC_9XX_XHCI_0_IRQ:
+			return 114;
+		case PIC_9XX_XHCI_1_IRQ:
+			return 115;
+		case PIC_UART_0_IRQ:
+			return 133;
+		case PIC_UART_1_IRQ:
+			return 134;
+		case PIC_PCIE_LINK_LEGACY_IRQ(0):
+		case PIC_PCIE_LINK_LEGACY_IRQ(1):
+		case PIC_PCIE_LINK_LEGACY_IRQ(2):
+		case PIC_PCIE_LINK_LEGACY_IRQ(3):
+			return 191 + irq - PIC_PCIE_LINK_LEGACY_IRQ_BASE;
+		}
+		return -1;
+	}
 
 	devoff = 0;
 	switch (irq) {
@@ -135,9 +159,17 @@ int nlm_irq_to_irt(int irq)
 		case PIC_I2C_3_IRQ:
 			irt = irt + 3; break;
 		}
-	} else if (irq >= PIC_PCIE_LINK_0_IRQ && irq <= PIC_PCIE_LINK_3_IRQ) {
+	} else if (irq >= PIC_PCIE_LINK_LEGACY_IRQ(0) &&
+			irq <= PIC_PCIE_LINK_LEGACY_IRQ(3)) {
 		/* HW bug, PCI IRT entries are bad on early silicon, fix */
-		irt = PIC_IRT_PCIE_LINK_INDEX(irq - PIC_PCIE_LINK_0_IRQ);
+		irt = PIC_IRT_PCIE_LINK_INDEX(irq -
+					PIC_PCIE_LINK_LEGACY_IRQ_BASE);
+	} else if (irq >= PIC_PCIE_LINK_MSI_IRQ(0) &&
+			irq <= PIC_PCIE_LINK_MSI_IRQ(3)) {
+		irt = -2;
+	} else if (irq >= PIC_PCIE_MSIX_IRQ(0) &&
+			irq <= PIC_PCIE_MSIX_IRQ(3)) {
+		irt = -2;
 	} else {
 		irt = -1;
 	}
@@ -151,7 +183,10 @@ unsigned int nlm_get_core_frequency(int node, int core)
 	uint64_t num, sysbase;
 
 	sysbase = nlm_get_node(node)->sysbase;
-	rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
+	if (cpu_is_xlp9xx())
+		rstval = nlm_read_sys_reg(sysbase, SYS_9XX_POWER_ON_RESET_CFG);
+	else
+		rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
 	if (cpu_is_xlpii()) {
 		num = 1000000ULL * (400 * 3 + 100 * (rstval >> 26));
 		denom = 3;
@@ -265,6 +300,10 @@ static unsigned int nlm_2xx_get_pic_frequency(int node)
 
 unsigned int nlm_get_pic_frequency(int node)
 {
+	/* TODO Has to calculate freq as like 2xx */
+	if (cpu_is_xlp9xx())
+		return 250000000;
+
 	if (cpu_is_xlpii())
 		return nlm_2xx_get_pic_frequency(node);
 	else
@@ -284,21 +323,33 @@ int xlp_get_dram_map(int n, uint64_t *dram_map)
 {
 	uint64_t bridgebase, base, lim;
 	uint32_t val;
+	unsigned int barreg, limreg, xlatreg;
 	int i, node, rv;
 
 	/* Look only at mapping on Node 0, we don't handle crazy configs */
 	bridgebase = nlm_get_bridge_regbase(0);
 	rv = 0;
 	for (i = 0; i < 8; i++) {
-		val = nlm_read_bridge_reg(bridgebase,
-					BRIDGE_DRAM_NODE_TRANSLN(i));
-		node = (val >> 1) & 0x3;
-		if (n >= 0 && n != node)
-			continue;
-		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_BAR(i));
+		if (cpu_is_xlp9xx()) {
+			barreg = BRIDGE_9XX_DRAM_BAR(i);
+			limreg = BRIDGE_9XX_DRAM_LIMIT(i);
+			xlatreg = BRIDGE_9XX_DRAM_NODE_TRANSLN(i);
+		} else {
+			barreg = BRIDGE_DRAM_BAR(i);
+			limreg = BRIDGE_DRAM_LIMIT(i);
+			xlatreg = BRIDGE_DRAM_NODE_TRANSLN(i);
+		}
+		if (n >= 0) {
+			/* node specified, get node mapping of BAR */
+			val = nlm_read_bridge_reg(bridgebase, xlatreg);
+			node = (val >> 1) & 0x3;
+			if (n != node)
+				continue;
+		}
+		val = nlm_read_bridge_reg(bridgebase, barreg);
 		val = (val >>  12) & 0xfffff;
 		base = (uint64_t) val << 20;
-		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_LIMIT(i));
+		val = nlm_read_bridge_reg(bridgebase, limreg);
 		val = (val >>  12) & 0xfffff;
 		if (val == 0)   /* BAR not used */
 			continue;

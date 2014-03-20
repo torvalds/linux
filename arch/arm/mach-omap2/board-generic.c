@@ -15,13 +15,10 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
-#include <linux/clk.h>
 
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include "common-board-devices.h"
-#include "dss-common.h"
 
 #if !(defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
 #define intc_of_init	NULL
@@ -36,40 +33,9 @@ static struct of_device_id omap_dt_match_table[] __initdata = {
 	{ }
 };
 
-/*
- * Create alias for USB host PHY clock.
- * Remove this when clock phandle can be provided via DT
- */
-static void __init legacy_init_ehci_clk(char *clkname)
-{
-	int ret;
-
-	ret = clk_add_alias("main_clk", NULL, clkname, NULL);
-	if (ret) {
-		pr_err("%s:Failed to add main_clk alias to %s :%d\n",
-						__func__, clkname, ret);
-	}
-}
-
 static void __init omap_generic_init(void)
 {
-	omap_sdrc_init(NULL, NULL);
-
-	of_platform_populate(NULL, omap_dt_match_table, NULL, NULL);
-
-	/*
-	 * HACK: call display setup code for selected boards to enable omapdss.
-	 * This will be removed when omapdss supports DT.
-	 */
-	if (of_machine_is_compatible("ti,omap4-panda")) {
-		omap4_panda_display_init_of();
-		legacy_init_ehci_clk("auxclk3_ck");
-
-	}
-	else if (of_machine_is_compatible("ti,omap4-sdp"))
-		omap_4430sdp_display_init_of();
-	else if (of_machine_is_compatible("ti,omap5-uevm"))
-		legacy_init_ehci_clk("auxclk1_ck");
+	pdata_quirks_init(omap_dt_match_table);
 }
 
 #ifdef CONFIG_SOC_OMAP2420
@@ -112,6 +78,7 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_OMAP3
 static const char *omap3_boards_compat[] __initdata = {
+	"ti,omap3430",
 	"ti,omap3",
 	NULL,
 };
@@ -126,6 +93,24 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 	.init_late	= omap3_init_late,
 	.init_time	= omap3_sync32k_timer_init,
 	.dt_compat	= omap3_boards_compat,
+	.restart	= omap3xxx_restart,
+MACHINE_END
+
+static const char *omap36xx_boards_compat[] __initdata = {
+	"ti,omap36xx",
+	NULL,
+};
+
+DT_MACHINE_START(OMAP36XX_DT, "Generic OMAP36xx (Flattened Device Tree)")
+	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3630_init_early,
+	.init_irq	= omap_intc_of_init,
+	.handle_irq	= omap3_intc_handle_irq,
+	.init_machine	= omap_generic_init,
+	.init_late	= omap3_init_late,
+	.init_time	= omap3_sync32k_timer_init,
+	.dt_compat	= omap36xx_boards_compat,
 	.restart	= omap3xxx_restart,
 MACHINE_END
 
@@ -147,6 +132,24 @@ DT_MACHINE_START(OMAP3_GP_DT, "Generic OMAP3-GP (Flattened Device Tree)")
 	.dt_compat	= omap3_gp_boards_compat,
 	.restart	= omap3xxx_restart,
 MACHINE_END
+
+static const char *am3517_boards_compat[] __initdata = {
+	"ti,am3517",
+	NULL,
+};
+
+DT_MACHINE_START(AM3517_DT, "Generic AM3517 (Flattened Device Tree)")
+	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= am35xx_init_early,
+	.init_irq	= omap_intc_of_init,
+	.handle_irq	= omap3_intc_handle_irq,
+	.init_machine	= omap_generic_init,
+	.init_late	= omap3_init_late,
+	.init_time	= omap3_gptimer_timer_init,
+	.dt_compat	= am3517_boards_compat,
+	.restart	= omap3xxx_restart,
+MACHINE_END
 #endif
 
 #ifdef CONFIG_SOC_AM33XX
@@ -162,6 +165,7 @@ DT_MACHINE_START(AM33XX_DT, "Generic AM33XX (Flattened Device Tree)")
 	.init_irq	= omap_intc_of_init,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_generic_init,
+	.init_late	= am33xx_init_late,
 	.init_time	= omap3_gptimer_timer_init,
 	.dt_compat	= am33xx_boards_compat,
 	.restart	= am33xx_restart,
@@ -170,6 +174,8 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_OMAP4
 static const char *omap4_boards_compat[] __initdata = {
+	"ti,omap4460",
+	"ti,omap4430",
 	"ti,omap4",
 	NULL,
 };
@@ -190,6 +196,8 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_OMAP5
 static const char *omap5_boards_compat[] __initdata = {
+	"ti,omap5432",
+	"ti,omap5430",
 	"ti,omap5",
 	NULL,
 };
@@ -201,6 +209,7 @@ DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
 	.init_early	= omap5_init_early,
 	.init_irq	= omap_gic_of_init,
 	.init_machine	= omap_generic_init,
+	.init_late	= omap5_init_late,
 	.init_time	= omap5_realtime_timer_init,
 	.dt_compat	= omap5_boards_compat,
 	.restart	= omap44xx_restart,
@@ -209,6 +218,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_AM43XX
 static const char *am43_boards_compat[] __initdata = {
+	"ti,am4372",
 	"ti,am43",
 	NULL,
 };
@@ -216,6 +226,7 @@ static const char *am43_boards_compat[] __initdata = {
 DT_MACHINE_START(AM43_DT, "Generic AM43 (Flattened Device Tree)")
 	.map_io		= am33xx_map_io,
 	.init_early	= am43xx_init_early,
+	.init_late	= am43xx_init_late,
 	.init_irq	= omap_gic_of_init,
 	.init_machine	= omap_generic_init,
 	.init_time	= omap3_sync32k_timer_init,
@@ -225,6 +236,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_DRA7XX
 static const char *dra7xx_boards_compat[] __initdata = {
+	"ti,dra7xx",
 	"ti,dra7",
 	NULL,
 };
@@ -234,6 +246,7 @@ DT_MACHINE_START(DRA7XX_DT, "Generic DRA7XX (Flattened Device Tree)")
 	.smp		= smp_ops(omap4_smp_ops),
 	.map_io		= omap5_map_io,
 	.init_early	= dra7xx_init_early,
+	.init_late	= dra7xx_init_late,
 	.init_irq	= omap_gic_of_init,
 	.init_machine	= omap_generic_init,
 	.init_time	= omap5_realtime_timer_init,

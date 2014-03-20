@@ -352,14 +352,8 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 /*
  * generic codec parser
  */
-#ifdef CONFIG_SND_HDA_GENERIC
 int snd_hda_parse_generic_codec(struct hda_codec *codec);
-#else
-static inline int snd_hda_parse_generic_codec(struct hda_codec *codec)
-{
-	return -ENODEV;
-}
-#endif
+int snd_hda_parse_hdmi_codec(struct hda_codec *codec);
 
 /*
  * generic proc interface
@@ -428,6 +422,7 @@ enum {
 	HDA_FIXUP_ACT_PROBE,
 	HDA_FIXUP_ACT_INIT,
 	HDA_FIXUP_ACT_BUILD,
+	HDA_FIXUP_ACT_FREE,
 };
 
 int snd_hda_add_verbs(struct hda_codec *codec, const struct hda_verb *list);
@@ -751,10 +746,6 @@ struct hdmi_eld {
 	int	eld_size;
 	char    eld_buffer[ELD_MAX_SIZE];
 	struct parsed_hdmi_eld info;
-	struct mutex lock;
-#ifdef CONFIG_PROC_FS
-	struct snd_info_entry *proc_entry;
-#endif
 };
 
 int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
@@ -766,21 +757,15 @@ void snd_hdmi_show_eld(struct parsed_hdmi_eld *e);
 void snd_hdmi_eld_update_pcm_info(struct parsed_hdmi_eld *e,
 			      struct hda_pcm_stream *hinfo);
 
+int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
+			 unsigned char *buf, int *eld_size,
+			 bool rev3_or_later);
+
 #ifdef CONFIG_PROC_FS
-int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld,
-			 int index);
-void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld);
-#else
-static inline int snd_hda_eld_proc_new(struct hda_codec *codec,
-				       struct hdmi_eld *eld,
-				       int index)
-{
-	return 0;
-}
-static inline void snd_hda_eld_proc_free(struct hda_codec *codec,
-					 struct hdmi_eld *eld)
-{
-}
+void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
+			     struct snd_info_buffer *buffer);
+void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
+			     struct snd_info_buffer *buffer);
 #endif
 
 #define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80

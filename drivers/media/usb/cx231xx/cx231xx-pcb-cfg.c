@@ -28,7 +28,7 @@ MODULE_PARM_DESC(pcb_debug, "enable pcb config debug messages [video]");
 
 /******************************************************************************/
 
-struct pcb_config cx231xx_Scenario[] = {
+static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_DIGITAL_ONLY,	/* index */
 	 USB_SELF_POWER,	/* power_type */
@@ -672,7 +672,7 @@ u32 initialize_cx231xx(struct cx231xx *dev)
 	pcb config it is related to */
 	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT, data, 4);
 
-	config_info = le32_to_cpu(*((u32 *) data));
+	config_info = le32_to_cpu(*((__le32 *)data));
 	usb_speed = (u8) (config_info & 0x1);
 
 	/* Verify this device belongs to Bus power or Self power device */

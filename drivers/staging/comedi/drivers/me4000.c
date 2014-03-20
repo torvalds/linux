@@ -328,13 +328,12 @@ static const struct me4000_board me4000_boards[] = {
 };
 
 static const struct comedi_lrange me4000_ai_range = {
-	4,
-	{
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(10),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(10),
-	 }
+	4, {
+		UNI_RANGE(2.5),
+		UNI_RANGE(10),
+		BIP_RANGE(2.5),
+		BIP_RANGE(10)
+	}
 };
 
 #define FIRMWARE_NOT_AVAILABLE 1
@@ -427,7 +426,7 @@ static int xilinx_download(struct comedi_device *dev)
 static void me4000_reset(struct comedi_device *dev)
 {
 	struct me4000_info *info = dev->private;
-	unsigned long val;
+	unsigned int val;
 	int chan;
 
 	/* Make a hardware reset */
@@ -480,9 +479,9 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
 
-	unsigned long entry = 0;
-	unsigned long tmp;
-	long lval;
+	unsigned int entry = 0;
+	unsigned int tmp;
+	unsigned int lval;
 
 	if (insn->n == 0) {
 		return 0;
@@ -586,7 +585,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 static int me4000_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	unsigned long tmp;
+	unsigned int tmp;
 
 	/* Stop any running conversion */
 	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
@@ -783,7 +782,7 @@ static int ai_prepare(struct comedi_device *dev,
 		      unsigned int scan_ticks, unsigned int chan_ticks)
 {
 
-	unsigned long tmp = 0;
+	unsigned int tmp = 0;
 
 	/* Write timer arguments */
 	ai_write_timer(dev, init_ticks, scan_ticks, chan_ticks);
@@ -1105,22 +1104,16 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 {
 	unsigned int tmp;
 	struct comedi_device *dev = dev_id;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int i;
 	int c = 0;
-	long lval;
+	unsigned int lval;
 
 	if (!dev->attached)
 		return IRQ_NONE;
 
 	/* Reset all events */
 	s->async->events = 0;
-
-	/* Check if irq number is right */
-	if (irq != dev->irq) {
-		dev_err(dev->class_dev, "Incorrect interrupt num: %d\n", irq);
-		return IRQ_HANDLED;
-	}
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
@@ -1252,7 +1245,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
-	unsigned long tmp;
+	unsigned int tmp;
 
 	if (insn->n == 0) {
 		return 0;
@@ -1313,29 +1306,12 @@ static int me4000_ao_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-/*=============================================================================
-  Digital I/O section
-  ===========================================================================*/
-
 static int me4000_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	/*
-	 * The insn data consists of a mask in data[0] and the new data
-	 * in data[1]. The mask defines which bits we are concerning about.
-	 * The new data must be anded with the mask.
-	 * Each channel corresponds to a bit.
-	 */
-	if (data[0]) {
-		/* Check if requested ports are configured for output */
-		if ((s->io_bits & data[0]) != data[0])
-			return -EIO;
-
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
-		/* Write out the new digital output lines */
+	if (comedi_dio_update_state(s, data)) {
 		outl((s->state >> 0) & 0xFF,
 			    dev->iobase + ME4000_DIO_PORT_0_REG);
 		outl((s->state >> 8) & 0xFF,
@@ -1346,8 +1322,6 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 			    dev->iobase + ME4000_DIO_PORT_3_REG);
 	}
 
-	/* On return, data[1] contains the value of
-	   the digital input and output lines. */
 	data[1] = ((inl(dev->iobase + ME4000_DIO_PORT_0_REG) & 0xFF) << 0) |
 		  ((inl(dev->iobase + ME4000_DIO_PORT_1_REG) & 0xFF) << 8) |
 		  ((inl(dev->iobase + ME4000_DIO_PORT_2_REG) & 0xFF) << 16) |
@@ -1524,6 +1498,13 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	me4000_reset(dev);
 
+	if (pcidev->irq > 0) {
+		result = request_irq(pcidev->irq, me4000_ai_isr, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (result == 0)
+			dev->irq = pcidev->irq;
+	}
+
 	result = comedi_alloc_subdevices(dev, 4);
 	if (result)
 		return result;
@@ -1544,22 +1525,12 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		s->range_table = &me4000_ai_range;
 		s->insn_read = me4000_ai_insn_read;
 
-		if (pcidev->irq > 0) {
-			if (request_irq(pcidev->irq, me4000_ai_isr,
-					IRQF_SHARED, dev->board_name, dev)) {
-				dev_warn(dev->class_dev,
-					"request_irq failed\n");
-			} else {
-				dev->read_subdev = s;
-				s->subdev_flags |= SDF_CMD_READ;
-				s->cancel = me4000_ai_cancel;
-				s->do_cmdtest = me4000_ai_do_cmd_test;
-				s->do_cmd = me4000_ai_do_cmd;
-
-				dev->irq = pcidev->irq;
-			}
-		} else {
-			dev_warn(dev->class_dev, "No interrupt available\n");
+		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
+			s->cancel = me4000_ai_cancel;
+			s->do_cmdtest = me4000_ai_do_cmd_test;
+			s->do_cmd = me4000_ai_do_cmd;
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -1654,7 +1625,7 @@ static int me4000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me4000_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
+static const struct pci_device_id me4000_pci_table[] = {
 	{ PCI_VDEVICE(MEILHAUS, 0x4650), BOARD_ME4650 },
 	{ PCI_VDEVICE(MEILHAUS, 0x4660), BOARD_ME4660 },
 	{ PCI_VDEVICE(MEILHAUS, 0x4661), BOARD_ME4660I },

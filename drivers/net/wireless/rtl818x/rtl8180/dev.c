@@ -15,7 +15,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -108,6 +107,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 	unsigned int count = 32;
 	u8 signal, agc, sq;
+	dma_addr_t mapping;
 
 	while (count--) {
 		struct rtl8180_rx_desc *entry = &priv->rx_ring[priv->rx_idx];
@@ -128,6 +128,17 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 
 			if (unlikely(!new_skb))
 				goto done;
+
+			mapping = pci_map_single(priv->pdev,
+					       skb_tail_pointer(new_skb),
+					       MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
+
+			if (pci_dma_mapping_error(priv->pdev, mapping)) {
+				kfree_skb(new_skb);
+				dev_err(&priv->pdev->dev, "RX DMA map error\n");
+
+				goto done;
+			}
 
 			pci_unmap_single(priv->pdev,
 					 *((dma_addr_t *)skb->cb),
@@ -159,9 +170,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 
 			skb = new_skb;
 			priv->rx_buf[priv->rx_idx] = skb;
-			*((dma_addr_t *) skb->cb) =
-				pci_map_single(priv->pdev, skb_tail_pointer(skb),
-					       MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
+			*((dma_addr_t *) skb->cb) = mapping;
 		}
 
 	done:
@@ -266,6 +275,13 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 
 	mapping = pci_map_single(priv->pdev, skb->data,
 				 skb->len, PCI_DMA_TODEVICE);
+
+	if (pci_dma_mapping_error(priv->pdev, mapping)) {
+		kfree_skb(skb);
+		dev_err(&priv->pdev->dev, "TX DMA mapping error\n");
+		return;
+
+	}
 
 	tx_flags = RTL818X_TX_DESC_FLAG_OWN | RTL818X_TX_DESC_FLAG_FS |
 		   RTL818X_TX_DESC_FLAG_LS |
@@ -1122,7 +1138,6 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	iounmap(priv->map);
 
  err_free_dev:
-	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(dev);
 
  err_free_reg:

@@ -57,7 +57,6 @@
  *  urb->dev->devnum, to make sure that we always have the right
  *  destination address.
  */
-#include <linux/init.h>
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
@@ -80,7 +79,7 @@ static int __rpipe_get_descr(struct wahc *wa,
 		USB_REQ_GET_DESCRIPTOR,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 		USB_DT_RPIPE<<8, index, descr, sizeof(*descr),
-		1000 /* FIXME: arbitrary */);
+		USB_CTRL_GET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "rpipe %u: get descriptor failed: %d\n",
 			index, (int)result);
@@ -118,7 +117,7 @@ static int __rpipe_set_descr(struct wahc *wa,
 		USB_REQ_SET_DESCRIPTOR,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 		USB_DT_RPIPE<<8, index, descr, sizeof(*descr),
-		HZ / 10);
+		USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
 		dev_err(dev, "rpipe %u: set descriptor failed: %d\n",
 			index, (int)result);
@@ -143,17 +142,18 @@ static void rpipe_init(struct wa_rpipe *rpipe)
 	kref_init(&rpipe->refcnt);
 	spin_lock_init(&rpipe->seg_lock);
 	INIT_LIST_HEAD(&rpipe->seg_list);
+	INIT_LIST_HEAD(&rpipe->list_node);
 }
 
 static unsigned rpipe_get_idx(struct wahc *wa, unsigned rpipe_idx)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wa->rpipe_bm_lock, flags);
+	spin_lock_irqsave(&wa->rpipe_lock, flags);
 	rpipe_idx = find_next_zero_bit(wa->rpipe_bm, wa->rpipes, rpipe_idx);
 	if (rpipe_idx < wa->rpipes)
 		set_bit(rpipe_idx, wa->rpipe_bm);
-	spin_unlock_irqrestore(&wa->rpipe_bm_lock, flags);
+	spin_unlock_irqrestore(&wa->rpipe_lock, flags);
 
 	return rpipe_idx;
 }
@@ -162,9 +162,9 @@ static void rpipe_put_idx(struct wahc *wa, unsigned rpipe_idx)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wa->rpipe_bm_lock, flags);
+	spin_lock_irqsave(&wa->rpipe_lock, flags);
 	clear_bit(rpipe_idx, wa->rpipe_bm);
-	spin_unlock_irqrestore(&wa->rpipe_bm_lock, flags);
+	spin_unlock_irqrestore(&wa->rpipe_lock, flags);
 }
 
 void rpipe_destroy(struct kref *_rpipe)
@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(rpipe_destroy);
 /*
  * Locate an idle rpipe, create an structure for it and return it
  *
- * @wa 	  is referenced and unlocked
+ * @wa	  is referenced and unlocked
  * @crs   enum rpipe_attr, required endpoint characteristics
  *
  * The rpipe can be used only sequentially (not in parallel).
@@ -236,7 +236,7 @@ static int __rpipe_reset(struct wahc *wa, unsigned index)
 		wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 		USB_REQ_RPIPE_RESET,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-		0, index, NULL, 0, 1000 /* FIXME: arbitrary */);
+		0, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0)
 		dev_err(dev, "rpipe %u: reset failed: %d\n",
 			index, result);
@@ -307,7 +307,7 @@ out:
 /*
  * Aim an rpipe to its device & endpoint destination
  *
- * Make sure we change the address to unauthenticathed if the device
+ * Make sure we change the address to unauthenticated if the device
  * is WUSB and it is not authenticated.
  */
 static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
@@ -328,12 +328,16 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	}
 	unauth = usb_dev->wusb && !usb_dev->authenticated ? 0x80 : 0;
 	__rpipe_reset(wa, le16_to_cpu(rpipe->descr.wRPipeIndex));
-	atomic_set(&rpipe->segs_available, le16_to_cpu(rpipe->descr.wRequests));
+	atomic_set(&rpipe->segs_available,
+		le16_to_cpu(rpipe->descr.wRequests));
 	/* FIXME: block allocation system; request with queuing and timeout */
 	/* FIXME: compute so seg_size > ep->maxpktsize */
 	rpipe->descr.wBlocks = cpu_to_le16(16);		/* given */
 	/* ep0 maxpktsize is 0x200 (WUSB1.0[4.8.1]) */
-	rpipe->descr.wMaxPacketSize = cpu_to_le16(ep->desc.wMaxPacketSize);
+	if (usb_endpoint_xfer_isoc(&ep->desc))
+		rpipe->descr.wMaxPacketSize = epcd->wOverTheAirPacketSize;
+	else
+		rpipe->descr.wMaxPacketSize = ep->desc.wMaxPacketSize;
 
 	rpipe->descr.hwa_bMaxBurst = max(min_t(unsigned int,
 				epcd->bMaxBurst, 16U), 1U);
@@ -361,8 +365,10 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 			epcd->bMaxSequence, 32U), 2U);
 	rpipe->descr.bMaxDataSequence = epcd_max_sequence - 1;
 	rpipe->descr.bInterval = ep->desc.bInterval;
-	/* FIXME: bOverTheAirInterval */
-	rpipe->descr.bOverTheAirInterval = 0;	/* 0 if not isoc */
+	if (usb_endpoint_xfer_isoc(&ep->desc))
+		rpipe->descr.bOverTheAirInterval = epcd->bOverTheAirInterval;
+	else
+		rpipe->descr.bOverTheAirInterval = 0;	/* 0 if not isoc */
 	/* FIXME: xmit power & preamble blah blah */
 	rpipe->descr.bmAttribute = (ep->desc.bmAttributes &
 					USB_ENDPOINT_XFERTYPE_MASK);
@@ -477,7 +483,7 @@ error:
  */
 int wa_rpipes_create(struct wahc *wa)
 {
-	wa->rpipes = wa->wa_descr->wNumRPipes;
+	wa->rpipes = le16_to_cpu(wa->wa_descr->wNumRPipes);
 	wa->rpipe_bm = kzalloc(BITS_TO_LONGS(wa->rpipes)*sizeof(unsigned long),
 			       GFP_KERNEL);
 	if (wa->rpipe_bm == NULL)
@@ -521,7 +527,7 @@ void rpipe_ep_disable(struct wahc *wa, struct usb_host_endpoint *ep)
 			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
 			USB_REQ_RPIPE_ABORT,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-			0, index, NULL, 0, 1000 /* FIXME: arbitrary */);
+			0, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 		rpipe_put(rpipe);
 	}
 	mutex_unlock(&wa->rpipe_mutex);
@@ -542,9 +548,8 @@ void rpipe_clear_feature_stalled(struct wahc *wa, struct usb_host_endpoint *ep)
 			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
 			USB_REQ_CLEAR_FEATURE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
-			RPIPE_STALL, index, NULL, 0, 1000);
+			RPIPE_STALL, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	}
 	mutex_unlock(&wa->rpipe_mutex);
 }
 EXPORT_SYMBOL_GPL(rpipe_clear_feature_stalled);
-

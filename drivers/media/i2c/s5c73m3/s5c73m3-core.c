@@ -1460,7 +1460,7 @@ static int s5c73m3_oif_registered(struct v4l2_subdev *sd)
 	mutex_unlock(&state->lock);
 
 	v4l2_dbg(1, s5c73m3_dbg, sd, "%s: Booting %s (%d)\n",
-		 __func__, ret ? "failed" : "succeded", ret);
+		 __func__, ret ? "failed" : "succeeded", ret);
 
 	return ret;
 }
@@ -1581,7 +1581,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	oif_sd = &state->oif_sd;
 
 	v4l2_subdev_init(sd, &s5c73m3_subdev_ops);
-	sd->owner = client->driver->driver.owner;
+	sd->owner = client->dev.driver->owner;
 	v4l2_set_subdevdata(sd, state);
 	strlcpy(sd->name, "S5C73M3", sizeof(sd->name));
 
@@ -1651,7 +1651,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto out_err;
 
-	v4l2_info(sd, "%s: completed succesfully\n", __func__);
+	v4l2_info(sd, "%s: completed successfully\n", __func__);
 	return 0;
 
 out_err:

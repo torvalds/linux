@@ -277,7 +277,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (list_empty(&common->dma_queue)) {
 		spin_unlock_irqrestore(&common->irqlock, flags);
 		vpif_dbg(1, debug, "buffer queue is empty\n");
-		return -EIO;
+		return -ENOBUFS;
 	}
 
 	/* Get the next frame from the buffer queue */
@@ -2154,7 +2154,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 			if (!vpif_obj.sd[i]) {
 				vpif_err("Error registering v4l2 subdevice\n");
-				err = -ENOMEM;
+				err = -ENODEV;
 				goto probe_subdev_out;
 			}
 			v4l2_info(&vpif_obj.v4l2_dev,

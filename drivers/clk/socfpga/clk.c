@@ -49,7 +49,7 @@
 #define SOCFPGA_L4_SP_CLK		"l4_sp_clk"
 #define SOCFPGA_NAND_CLK		"nand_clk"
 #define SOCFPGA_NAND_X_CLK		"nand_x_clk"
-#define SOCFPGA_MMC_CLK			"mmc_clk"
+#define SOCFPGA_MMC_CLK			"sdmmc_clk"
 #define SOCFPGA_DB_CLK			"gpio_db_clk"
 
 #define div_mask(width)	((1 << (width)) - 1)
@@ -121,9 +121,7 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 	int rc;
 	u32 fixed_div;
 
-	rc = of_property_read_u32(node, "reg", &reg);
-	if (WARN_ON(rc))
-		return NULL;
+	of_property_read_u32(node, "reg", &reg);
 
 	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
 	if (WARN_ON(!socfpga_clk))
@@ -292,7 +290,7 @@ static void __init socfpga_gate_clk_init(struct device_node *node,
 		socfpga_clk->shift = div_reg[1];
 		socfpga_clk->width = div_reg[2];
 	} else {
-		socfpga_clk->div_reg = 0;
+		socfpga_clk->div_reg = NULL;
 	}
 
 	of_property_read_string(node, "clock-output-names", &clk_name);

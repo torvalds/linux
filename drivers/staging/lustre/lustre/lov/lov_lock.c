@@ -71,7 +71,7 @@ static struct lov_sublock_env *lov_sublock_env_get(const struct lu_env *env,
 	/*
 	 * FIXME: We tend to use the subio's env & io to call the sublock
 	 * lock operations because osc lock sometimes stores some control
-	 * variables in thread's IO infomation(Now only lockless information).
+	 * variables in thread's IO information(Now only lockless information).
 	 * However, if the lock's host(object) is different from the object
 	 * for current IO, we have no way to get the subenv and subio because
 	 * they are not initialized at all. As a temp fix, in this case,
@@ -88,7 +88,7 @@ static struct lov_sublock_env *lov_sublock_env_get(const struct lu_env *env,
 			subenv->lse_io  = sub->sub_io;
 			subenv->lse_sub = sub;
 		} else {
-			subenv = (void*)sub;
+			subenv = (void *)sub;
 		}
 	}
 	return subenv;
@@ -167,7 +167,7 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 			lov_sublock_env_put(subenv);
 		} else {
 			/* error occurs. */
-			sublock = (void*)subenv;
+			sublock = (void *)subenv;
 		}
 
 		if (!IS_ERR(sublock))
@@ -313,7 +313,7 @@ static int lov_lock_sub_init(const struct lu_env *env,
 			nr++;
 	}
 	LASSERT(nr > 0);
-	OBD_ALLOC_LARGE(lck->lls_sub, nr * sizeof lck->lls_sub[0]);
+	OBD_ALLOC_LARGE(lck->lls_sub, nr * sizeof(lck->lls_sub[0]));
 	if (lck->lls_sub == NULL)
 		return -ENOMEM;
 
@@ -474,7 +474,7 @@ static void lov_lock_fini(const struct lu_env *env,
 			 */
 			LASSERT(lck->lls_sub[i].sub_lock == NULL);
 		OBD_FREE_LARGE(lck->lls_sub,
-			       lck->lls_nr * sizeof lck->lls_sub[0]);
+			       lck->lls_nr * sizeof(lck->lls_sub[0]));
 	}
 	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
 }
@@ -742,7 +742,7 @@ static void lov_lock_cancel(const struct lu_env *env,
 				continue;
 			}
 
-			switch(sublock->cll_state) {
+			switch (sublock->cll_state) {
 			case CLS_HELD:
 				rc = cl_unuse_try(subenv->lse_env, sublock);
 				lov_sublock_release(env, lck, i, 0, 0);

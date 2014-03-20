@@ -103,8 +103,8 @@ static int wm8997_sysclk_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		if (patch)
 			for (i = 0; i < patch_size; i++)
-				regmap_write(regmap, patch[i].reg,
-					     patch[i].def);
+				regmap_write_async(regmap, patch[i].reg,
+						   patch[i].def);
 		break;
 	default:
 		break;
@@ -170,13 +170,13 @@ ARIZONA_MIXER_CONTROLS("EQ2", ARIZONA_EQ2MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("EQ3", ARIZONA_EQ3MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("EQ4", ARIZONA_EQ4MIX_INPUT_1_SOURCE),
 
-SND_SOC_BYTES_MASK("EQ1 Coefficeints", ARIZONA_EQ1_1, 21,
+SND_SOC_BYTES_MASK("EQ1 Coefficients", ARIZONA_EQ1_1, 21,
 		   ARIZONA_EQ1_ENA_MASK),
-SND_SOC_BYTES_MASK("EQ2 Coefficeints", ARIZONA_EQ2_1, 21,
+SND_SOC_BYTES_MASK("EQ2 Coefficients", ARIZONA_EQ2_1, 21,
 		   ARIZONA_EQ2_ENA_MASK),
-SND_SOC_BYTES_MASK("EQ3 Coefficeints", ARIZONA_EQ3_1, 21,
+SND_SOC_BYTES_MASK("EQ3 Coefficients", ARIZONA_EQ3_1, 21,
 		   ARIZONA_EQ3_ENA_MASK),
-SND_SOC_BYTES_MASK("EQ4 Coefficeints", ARIZONA_EQ4_1, 21,
+SND_SOC_BYTES_MASK("EQ4 Coefficients", ARIZONA_EQ4_1, 21,
 		   ARIZONA_EQ4_ENA_MASK),
 
 SOC_SINGLE_TLV("EQ1 B1 Volume", ARIZONA_EQ1_1, ARIZONA_EQ1_B1_GAIN_SHIFT,
@@ -887,7 +887,7 @@ static const struct snd_soc_dapm_route wm8997_dapm_routes[] = {
 	ARIZONA_MIXER_ROUTES("Mic Mute Mixer", "Mic"),
 
 	ARIZONA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
-	ARIZONA_MUX_ROUTES("ISRC1INT2", "ISRC2INT2"),
+	ARIZONA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),
 
 	ARIZONA_MUX_ROUTES("ISRC1DEC1", "ISRC1DEC1"),
 	ARIZONA_MUX_ROUTES("ISRC1DEC2", "ISRC1DEC2"),

@@ -19,6 +19,7 @@
  ******************************************************************************/
 #define _HAL_INIT_C_
 
+#include <linux/firmware.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
 
@@ -59,7 +60,7 @@ static s32 iol_execute(struct adapter *padapter, u8 control)
 	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
 	rtw_write8(padapter, REG_HMEBOX_E0,  reg_0x88|control);
 
-	start = rtw_get_current_time();
+	start = jiffies;
 	while ((reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0)) & control &&
 	       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 		;
@@ -237,11 +238,11 @@ static void efuse_read_phymap_from_txpktbuf(
 		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr+i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
-		start = rtw_get_current_time();
+		start = jiffies;
 		while (!(reg_0x143 = rtw_read8(adapter, REG_TXPKTBUF_DBG)) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, rtw_read8(adapter, 0x106));
-			rtw_usleep_os(100);
+			msleep(1);
 		}
 
 		lo32 = rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L);
@@ -371,7 +372,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 	if (pbuf) {
 		for (addr = 0; addr < data_cnts; addr++) {
 			rtw_write32(Adapter, 0x140, addr);
-			rtw_usleep_os(2);
+			msleep(1);
 			loop = 0;
 			do {
 				rstatus = (reg_140 = rtw_read32(Adapter, REG_PKTBUF_DBG_CTRL)&BIT24);
@@ -382,7 +383,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 					fifo_data = rtw_read32(Adapter, REG_PKTBUF_DBG_DATA_H);
 					memcpy(pbuf+(addr*8+4), &fifo_data, 4);
 				}
-				rtw_usleep_os(2);
+				msleep(1);
 			} while (!rstatus && (loop++ < 10));
 		}
 		rtw_IOL_cmd_buf_dump(Adapter, data_len, pbuf);
@@ -573,7 +574,7 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 			DBG_88E("%s: Polling FW ready success!! REG_MCUFWDL:0x%08x\n", __func__, value32);
 			return _SUCCESS;
 		}
-		rtw_udelay_os(5);
+		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
 	DBG_88E("%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n", __func__, value32);
@@ -588,13 +589,15 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	u8 writeFW_retry = 0;
 	u32 fwdl_start_time;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(padapter);
-
-	u8 *FwImage;
-	u32			FwImageLen;
+	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
+	struct device *device = dvobj_to_dev(dvobj);
 	struct rt_firmware *pFirmware = NULL;
+	const struct firmware *fw;
 	struct rt_firmware_hdr *pFwHdr = NULL;
 	u8 *pFirmwareBuf;
-	u32			FirmwareLen;
+	u32 FirmwareLen;
+	char fw_name[] = "rtlwifi/rtl8188eufw.bin";
+	static int log_version;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
 	pFirmware = (struct rt_firmware *)rtw_zmalloc(sizeof(struct rt_firmware));
@@ -603,27 +606,32 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 		goto Exit;
 	}
 
-	FwImage = (u8 *)Rtl8188E_FwImageArray;
-	FwImageLen = Rtl8188E_FWImgArrayLength;
-
-	pFirmware->eFWSource = FW_SOURCE_HEADER_FILE;
-
-	switch (pFirmware->eFWSource) {
-	case FW_SOURCE_IMG_FILE:
-		break;
-	case FW_SOURCE_HEADER_FILE:
-		if (FwImageLen > FW_8188E_SIZE) {
-			rtStatus = _FAIL;
-			RT_TRACE(_module_hal_init_c_, _drv_err_, ("Firmware size exceed 0x%X. Check it.\n", FW_8188E_SIZE));
-			goto Exit;
-		}
-
-		pFirmware->szFwBuffer = FwImage;
-		pFirmware->ulFwLength = FwImageLen;
-		break;
+	if (request_firmware(&fw, fw_name, device)) {
+		rtStatus = _FAIL;
+		goto Exit;
 	}
+	if (!fw) {
+		pr_err("Firmware %s not available\n", fw_name);
+		rtStatus = _FAIL;
+		goto Exit;
+	}
+	if (fw->size > FW_8188E_SIZE) {
+		rtStatus = _FAIL;
+		RT_TRACE(_module_hal_init_c_, _drv_err_, ("Firmware size exceed 0x%X. Check it.\n", FW_8188E_SIZE));
+		goto Exit;
+	}
+
+	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
+	if (!pFirmware->szFwBuffer) {
+		rtStatus = _FAIL;
+		goto Exit;
+	}
+	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
+	pFirmware->ulFwLength = fw->size;
 	pFirmwareBuf = pFirmware->szFwBuffer;
 	FirmwareLen = pFirmware->ulFwLength;
+	release_firmware(fw);
+
 	DBG_88E_LEVEL(_drv_info_, "+%s: !bUsedWoWLANFw, FmrmwareLen:%d+\n", __func__, FirmwareLen);
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
@@ -633,8 +641,10 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	pHalData->FirmwareSubVersion = pFwHdr->Subversion;
 	pHalData->FirmwareSignature = le16_to_cpu(pFwHdr->Signature);
 
-	DBG_88E("%s: fw_ver =%d fw_subver =%d sig = 0x%x\n",
-		__func__, pHalData->FirmwareVersion, pHalData->FirmwareSubVersion, pHalData->FirmwareSignature);
+	if (!log_version++)
+		pr_info("%sFirmware Version %d, SubVersion %d, Signature 0x%x\n",
+			DRIVER_PREFIX, pHalData->FirmwareVersion,
+			pHalData->FirmwareSubVersion, pHalData->FirmwareSignature);
 
 	if (IS_FW_HEADER_EXIST(pFwHdr)) {
 		/*  Shift 32 bytes for FW header */
@@ -650,7 +660,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	}
 
 	_FWDownloadEnable(padapter, true);
-	fwdl_start_time = rtw_get_current_time();
+	fwdl_start_time = jiffies;
 	while (1) {
 		/* reset the FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
@@ -677,7 +687,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 		goto Exit;
 	}
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("Firmware is ready to run!\n"));
-
+	kfree(pFirmware->szFwBuffer);
 Exit:
 
 	kfree(pFirmware);
@@ -1479,7 +1489,6 @@ static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuse
 
 static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt, bool bPseudoTest)
 {
-	bool bRet = false;
 	u16	efuse_addr = *pAddr;
 	u8 badworden = 0;
 	u32	PgWriteSuccess = 0;
@@ -1497,7 +1506,6 @@ static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u
 		else
 			return true;
 	}
-	return bRet;
 }
 
 static bool
@@ -1653,7 +1661,7 @@ hal_EfusePgCheckAvailableAddr(
 {
 	u16	efuse_max_available_len = 0;
 
-	/* Change to check TYPE_EFUSE_MAP_LEN , beacuse 8188E raw 256, logic map over 256. */
+	/* Change to check TYPE_EFUSE_MAP_LEN , because 8188E raw 256, logic map over 256. */
 	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&efuse_max_available_len, false);
 
 	if (Efuse_GetCurrentSize(pAdapter, efuseType, bPseudoTest) >= efuse_max_available_len)
@@ -2100,7 +2108,7 @@ static u8 Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
 	if (chnl <= 14) {
 		bIn24G = true;
 
-		if (chnl < 3)			/*  Chanel 1-2 */
+		if (chnl < 3)			/*  Channel 1-2 */
 			*pGroup = 0;
 		else if (chnl < 6)		/*  Channel 3-5 */
 			*pGroup = 1;
@@ -2182,7 +2190,7 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 		pHalData->bTXPowerDataReadFromEEPORM = true;
 
 	for (rfPath = 0; rfPath < pHalData->NumTotalRFPath; rfPath++) {
-		for (ch = 0; ch <= CHANNEL_MAX_NUMBER; ch++) {
+		for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
 			bIn24G = Hal_GetChnlGroup88E(ch, &group);
 			if (bIn24G) {
 				pHalData->Index24G_CCK_Base[rfPath][ch] = pwrInfo24G.IndexCCK_Base[rfPath][group];
@@ -2296,7 +2304,7 @@ void Hal_ReadAntennaDiversity88E(struct adapter *pAdapter, u8 *PROMContent, bool
 		if (registry_par->antdiv_cfg == 2) { /*  2:By EFUSE */
 			pHalData->AntDivCfg = (PROMContent[EEPROM_RF_BOARD_OPTION_88E]&0x18)>>3;
 			if (PROMContent[EEPROM_RF_BOARD_OPTION_88E] == 0xFF)
-				pHalData->AntDivCfg = (EEPROM_DEFAULT_BOARD_OPTION&0x18)>>3;;
+				pHalData->AntDivCfg = (EEPROM_DEFAULT_BOARD_OPTION&0x18)>>3;
 		} else {
 			pHalData->AntDivCfg = registry_par->antdiv_cfg;  /*  0:OFF , 1:ON, 2:By EFUSE */
 		}

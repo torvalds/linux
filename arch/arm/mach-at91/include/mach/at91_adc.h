@@ -60,14 +60,48 @@
 #define AT91_ADC_IER		0x24		/* Interrupt Enable Register */
 #define AT91_ADC_IDR		0x28		/* Interrupt Disable Register */
 #define AT91_ADC_IMR		0x2C		/* Interrupt Mask Register */
+#define		AT91_ADC_IER_PEN	(1 << 29)
+#define		AT91_ADC_IER_NOPEN	(1 << 30)
+#define		AT91_ADC_IER_XRDY	(1 << 20)
+#define		AT91_ADC_IER_YRDY	(1 << 21)
+#define		AT91_ADC_IER_PRDY	(1 << 22)
+#define		AT91_ADC_ISR_PENS	(1 << 31)
 
 #define AT91_ADC_CHR(n)		(0x30 + ((n) * 4))	/* Channel Data Register N */
 #define		AT91_ADC_DATA		(0x3ff)
 
 #define AT91_ADC_CDR0_9X5	(0x50)			/* Channel Data Register 0 for 9X5 */
 
+#define AT91_ADC_ACR		0x94	/* Analog Control Register */
+#define		AT91_ADC_ACR_PENDETSENS	(0x3 << 0)	/* pull-up resistor */
+
+#define AT91_ADC_TSMR		0xB0
+#define		AT91_ADC_TSMR_TSMODE	(3 << 0)	/* Touch Screen Mode */
+#define			AT91_ADC_TSMR_TSMODE_NONE		(0 << 0)
+#define			AT91_ADC_TSMR_TSMODE_4WIRE_NO_PRESS	(1 << 0)
+#define			AT91_ADC_TSMR_TSMODE_4WIRE_PRESS	(2 << 0)
+#define			AT91_ADC_TSMR_TSMODE_5WIRE		(3 << 0)
+#define		AT91_ADC_TSMR_TSAV	(3 << 4)	/* Averages samples */
+#define			AT91_ADC_TSMR_TSAV_(x)		((x) << 4)
+#define		AT91_ADC_TSMR_SCTIM	(0x0f << 16)	/* Switch closure time */
+#define		AT91_ADC_TSMR_PENDBC	(0x0f << 28)	/* Pen Debounce time */
+#define			AT91_ADC_TSMR_PENDBC_(x)	((x) << 28)
+#define		AT91_ADC_TSMR_NOTSDMA	(1 << 22)	/* No Touchscreen DMA */
+#define		AT91_ADC_TSMR_PENDET_DIS	(0 << 24)	/* Pen contact detection disable */
+#define		AT91_ADC_TSMR_PENDET_ENA	(1 << 24)	/* Pen contact detection enable */
+
+#define AT91_ADC_TSXPOSR	0xB4
+#define AT91_ADC_TSYPOSR	0xB8
+#define AT91_ADC_TSPRESSR	0xBC
+
 #define AT91_ADC_TRGR_9260	AT91_ADC_MR
 #define AT91_ADC_TRGR_9G45	0x08
 #define AT91_ADC_TRGR_9X5	0xC0
+
+/* Trigger Register bit field */
+#define		AT91_ADC_TRGR_TRGPER	(0xffff << 16)
+#define			AT91_ADC_TRGR_TRGPER_(x)	((x) << 16)
+#define		AT91_ADC_TRGR_TRGMOD	(0x7 << 0)
+#define			AT91_ADC_TRGR_MOD_PERIOD_TRIG	(5 << 0)
 
 #endif

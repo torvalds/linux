@@ -36,7 +36,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-#include <linux/clk/tegra.h>
 
 #include "nvec.h"
 
@@ -83,7 +82,7 @@ enum nvec_sleep_subcmds {
 
 static struct nvec_chip *nvec_power_handle;
 
-static struct mfd_cell nvec_devices[] = {
+static const struct mfd_cell nvec_devices[] = {
 	{
 		.name = "nvec-kbd",
 		.id = 1,
@@ -681,7 +680,8 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 			dev_err(nvec->dev,
 				"RX buffer overflow on %p: "
 				"Trying to write byte %u of %u\n",
-				nvec->rx, nvec->rx->pos, NVEC_MSG_SIZE);
+				nvec->rx, nvec->rx ? nvec->rx->pos : 0,
+				NVEC_MSG_SIZE);
 		break;
 	default:
 		nvec->state = 0;
@@ -733,9 +733,9 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 
 	clk_prepare_enable(nvec->i2c_clk);
 
-	tegra_periph_reset_assert(nvec->i2c_clk);
+	reset_control_assert(nvec->rst);
 	udelay(2);
-	tegra_periph_reset_deassert(nvec->i2c_clk);
+	reset_control_deassert(nvec->rst);
 
 	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
 	    (0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
@@ -802,7 +802,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
-	if(!pdev->dev.of_node) {
+	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "must be instantiated using device tree\n");
 		return -ENODEV;
 	}
@@ -834,6 +834,12 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
 		return -ENODEV;
+	}
+
+	nvec->rst = devm_reset_control_get(&pdev->dev, "i2c");
+	if (IS_ERR(nvec->rst)) {
+		dev_err(nvec->dev, "failed to get controller reset\n");
+		return PTR_ERR(nvec->rst);
 	}
 
 	nvec->base = base;

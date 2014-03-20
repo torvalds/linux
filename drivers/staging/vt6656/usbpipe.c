@@ -118,6 +118,9 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	if (pDevice->Flags & fMP_CONTROL_READS)
 		return STATUS_FAILURE;
 
+	if (pDevice->pControlURB->hcpriv)
+		return STATUS_FAILURE;
+
 	MP_SET_FLAG(pDevice, fMP_CONTROL_WRITES);
 
 	pDevice->sUsbCtlRequest.bRequestType = 0x40;
@@ -175,6 +178,9 @@ int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	return STATUS_FAILURE;
 
 	if (pDevice->Flags & fMP_CONTROL_WRITES)
+		return STATUS_FAILURE;
+
+	if (pDevice->pControlURB->hcpriv)
 		return STATUS_FAILURE;
 
 	MP_SET_FLAG(pDevice, fMP_CONTROL_READS);
@@ -384,8 +390,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	    INTnsProcessData(pDevice);
     }
 
-    STAvUpdateUSBCounter(&pDevice->scStatistic.USB_InterruptStat, ntStatus);
-
     if (pDevice->fKillEventPollingThread != true) {
        usb_fill_bulk_urb(pDevice->pInterruptURB,
 		      pDevice->usb,
@@ -493,8 +497,6 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
     if (status) {
         pDevice->ulBulkInError++;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK In failed %d\n", status);
-
-           pDevice->scStatistic.RxFcsErrCnt ++;
 //todo...xxxxxx
 //        if (status == USBD_STATUS_CRC) {
 //            pDevice->ulBulkInContCRCError++;
@@ -508,11 +510,7 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 		bIndicateReceive = true;
         pDevice->ulBulkInContCRCError = 0;
         pDevice->ulBulkInBytesRead += bytesRead;
-
-           pDevice->scStatistic.RxOkCnt ++;
     }
-
-    STAvUpdateUSBCounter(&pDevice->scStatistic.USB_BulkInStat, status);
 
     if (bIndicateReceive) {
         spin_lock(&pDevice->lock);
@@ -649,15 +647,11 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
     //
 
     status = urb->status;
-    //we should have failed, succeeded, or cancelled, but NOT be pending
-    STAvUpdateUSBCounter(&pDevice->scStatistic.USB_BulkOutStat, status);
 
     if(status == STATUS_SUCCESS) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Write %d bytes\n",(int)ulBufLen);
         pDevice->ulBulkOutBytesWrite += ulBufLen;
         pDevice->ulBulkOutContCRCError = 0;
-	pDevice->nTxDataTimeCout = 0;
-
     } else {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK Out failed %d\n", status);
         pDevice->ulBulkOutError++;

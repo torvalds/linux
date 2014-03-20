@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_HARD_INTERFACE_H_
@@ -41,6 +39,8 @@ enum batadv_hard_if_cleanup {
 
 extern struct notifier_block batadv_hard_if_notifier;
 
+bool batadv_is_wifi_netdev(struct net_device *net_device);
+bool batadv_is_wifi_iface(int ifindex);
 struct batadv_hard_iface*
 batadv_hardif_get_by_netdev(const struct net_device *net_dev);
 int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
@@ -51,13 +51,29 @@ void batadv_hardif_remove_interfaces(void);
 int batadv_hardif_min_mtu(struct net_device *soft_iface);
 void batadv_update_min_mtu(struct net_device *soft_iface);
 void batadv_hardif_free_rcu(struct rcu_head *rcu);
-bool batadv_is_wifi_iface(int ifindex);
 
+/**
+ * batadv_hardif_free_ref - decrement the hard interface refcounter and
+ *  possibly free it
+ * @hard_iface: the hard interface to free
+ */
 static inline void
 batadv_hardif_free_ref(struct batadv_hard_iface *hard_iface)
 {
 	if (atomic_dec_and_test(&hard_iface->refcount))
 		call_rcu(&hard_iface->rcu, batadv_hardif_free_rcu);
+}
+
+/**
+ * batadv_hardif_free_ref_now - decrement the hard interface refcounter and
+ *  possibly free it (without rcu callback)
+ * @hard_iface: the hard interface to free
+ */
+static inline void
+batadv_hardif_free_ref_now(struct batadv_hard_iface *hard_iface)
+{
+	if (atomic_dec_and_test(&hard_iface->refcount))
+		batadv_hardif_free_rcu(&hard_iface->rcu);
 }
 
 static inline struct batadv_hard_iface *

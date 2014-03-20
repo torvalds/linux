@@ -123,7 +123,7 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 			       struct fb_info *info)
 {
 	struct s3c2410fb_info *fbi = info->par;
-	struct s3c2410fb_mach_info *mach_info = fbi->dev->platform_data;
+	struct s3c2410fb_mach_info *mach_info = dev_get_platdata(fbi->dev);
 	struct s3c2410fb_display *display = NULL;
 	struct s3c2410fb_display *default_display = mach_info->displays +
 						    mach_info->default_display;
@@ -686,7 +686,7 @@ static inline void modify_gpio(void __iomem *reg,
 static int s3c2410fb_init_registers(struct fb_info *info)
 {
 	struct s3c2410fb_info *fbi = info->par;
-	struct s3c2410fb_mach_info *mach_info = fbi->dev->platform_data;
+	struct s3c2410fb_mach_info *mach_info = dev_get_platdata(fbi->dev);
 	unsigned long flags;
 	void __iomem *regs = fbi->io;
 	void __iomem *tpal;
@@ -833,7 +833,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 	int size;
 	u32 lcdcon1;
 
-	mach_info = pdev->dev.platform_data;
+	mach_info = dev_get_platdata(&pdev->dev);
 	if (mach_info == NULL) {
 		dev_err(&pdev->dev,
 			"no platform data for lcd, cannot attach\n");

@@ -45,8 +45,6 @@
 #define AK4104_TX_TXE			(1 << 0)
 #define AK4104_TX_V			(1 << 1)
 
-#define DRV_NAME "ak4104-codec"
-
 struct ak4104_private {
 	struct regmap *regmap;
 };
@@ -291,12 +289,19 @@ static const struct of_device_id ak4104_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ak4104_of_match);
 
+static const struct spi_device_id ak4104_id_table[] = {
+	{ "ak4104", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, ak4104_id_table);
+
 static struct spi_driver ak4104_spi_driver = {
 	.driver  = {
-		.name   = DRV_NAME,
+		.name   = "ak4104",
 		.owner  = THIS_MODULE,
 		.of_match_table = ak4104_of_match,
 	},
+	.id_table = ak4104_id_table,
 	.probe  = ak4104_spi_probe,
 	.remove = ak4104_spi_remove,
 };

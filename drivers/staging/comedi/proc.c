@@ -41,16 +41,20 @@ static int comedi_read(struct seq_file *m, void *v)
 		     "driver_name, board_name, n_subdevices");
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device *dev = comedi_dev_from_minor(i);
+		struct comedi_device *dev = comedi_dev_get_from_minor(i);
+
 		if (!dev)
 			continue;
 
+		down_read(&dev->attach_lock);
 		if (dev->attached) {
 			devices_q = 1;
 			seq_printf(m, "%2d: %-20s %-20s %4d\n",
 				   i, dev->driver->driver_name,
 				   dev->board_name, dev->n_subdevices);
 		}
+		up_read(&dev->attach_lock);
+		comedi_dev_put(dev);
 	}
 	if (!devices_q)
 		seq_puts(m, "no devices\n");

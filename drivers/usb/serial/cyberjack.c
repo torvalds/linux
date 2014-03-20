@@ -30,7 +30,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -279,13 +278,13 @@ static void cyberjack_read_int_callback(struct urb *urb)
 
 		old_rdtodo = priv->rdtodo;
 
-		if (old_rdtodo + size < old_rdtodo) {
+		if (old_rdtodo > SHRT_MAX - size) {
 			dev_dbg(dev, "To many bulk_in urbs to do.\n");
 			spin_unlock(&priv->lock);
 			goto resubmit;
 		}
 
-		/* "+=" is probably more fault tollerant than "=" */
+		/* "+=" is probably more fault tolerant than "=" */
 		priv->rdtodo += size;
 
 		dev_dbg(dev, "%s - rdtodo: %d\n", __func__, priv->rdtodo);

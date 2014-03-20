@@ -66,6 +66,11 @@
 #define EFX_USE_QWORD_IO 1
 #endif
 
+/* PIO is a win only if write-combining is possible */
+#ifdef ARCH_HAS_IOREMAP_WC
+#define EFX_USE_PIO 1
+#endif
+
 #ifdef EFX_USE_QWORD_IO
 static inline void _efx_writeq(struct efx_nic *efx, __le64 value,
 				  unsigned int reg)

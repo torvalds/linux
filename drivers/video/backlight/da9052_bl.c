@@ -125,8 +125,9 @@ static int da9052_backlight_probe(struct platform_device *pdev)
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = DA9052_MAX_BRIGHTNESS;
 
-	bl = backlight_device_register(pdev->name, wleds->da9052->dev, wleds,
-				       &da9052_backlight_ops, &props);
+	bl = devm_backlight_device_register(&pdev->dev, pdev->name,
+					wleds->da9052->dev, wleds,
+					&da9052_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "Failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -147,7 +148,6 @@ static int da9052_backlight_remove(struct platform_device *pdev)
 	wleds->brightness = 0;
 	wleds->state = DA9052_WLEDS_OFF;
 	da9052_adjust_wled_brightness(wleds);
-	backlight_device_unregister(bl);
 
 	return 0;
 }

@@ -25,15 +25,11 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
-#include <linux/platform_data/clk-nomadik.h>
-#include <linux/clocksource.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/mtd/fsmc.h>
 #include <linux/gpio.h>
-#include <linux/amba/mmci.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -113,91 +109,6 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 	writel(1, srcbase + 0x18);
 }
 
-/* Initial value for SRC control register: all timers use MXTAL/8 source */
-#define SRC_CR_INIT_MASK	0x00007fff
-#define SRC_CR_INIT_VAL		0x2aaa8000
-
-static void __init cpu8815_timer_init_of(void)
-{
-	struct device_node *mtu;
-	void __iomem *base;
-	int irq;
-	u32 src_cr;
-
-	/* We need this to be up now */
-	nomadik_clk_init();
-
-	mtu = of_find_node_by_path("/mtu@101e2000");
-	if (!mtu)
-		return;
-	base = of_iomap(mtu, 0);
-	if (WARN_ON(!base))
-		return;
-	irq = irq_of_parse_and_map(mtu, 0);
-
-	pr_info("Remapped MTU @ %p, irq: %d\n", base, irq);
-
-	/* Configure timer sources in "system reset controller" ctrl reg */
-	src_cr = readl(base);
-	src_cr &= SRC_CR_INIT_MASK;
-	src_cr |= SRC_CR_INIT_VAL;
-	writel(src_cr, base);
-
-	clocksource_of_init();
-}
-
-static struct fsmc_nand_timings cpu8815_nand_timings = {
-	.thiz	= 0,
-	.thold	= 0x10,
-	.twait	= 0x0A,
-	.tset	= 0,
-};
-
-static struct fsmc_nand_platform_data cpu8815_nand_data = {
-	.nand_timings = &cpu8815_nand_timings,
-};
-
-/*
- * The SMSC911x IRQ is connected to a GPIO pin, but the driver expects
- * to simply request an IRQ passed as a resource. So the GPIO pin needs
- * to be requested by this hog and set as input.
- */
-static int __init cpu8815_eth_init(void)
-{
-	struct device_node *eth;
-	int gpio, irq, err;
-
-	eth = of_find_node_by_path("/usb-s8815/ethernet-gpio");
-	if (!eth) {
-		pr_info("could not find any ethernet GPIO\n");
-		return 0;
-	}
-	gpio = of_get_gpio(eth, 0);
-	err = gpio_request(gpio, "eth_irq");
-	if (err) {
-		pr_info("failed to request ethernet GPIO\n");
-		return -ENODEV;
-	}
-	err = gpio_direction_input(gpio);
-	if (err) {
-		pr_info("failed to set ethernet GPIO as input\n");
-		return -ENODEV;
-	}
-	irq = gpio_to_irq(gpio);
-	pr_info("enabled USB-S8815 ethernet GPIO %d, IRQ %d\n", gpio, irq);
-	return 0;
-}
-device_initcall(cpu8815_eth_init);
-
-/*
- * TODO:
- * cannot be set from device tree, convert to a proper DT
- * binding.
- */
-static struct mmci_platform_data mmcsd_plat_data = {
-	.ocr_mask = MMC_VDD_29_30,
-};
-
 /*
  * This GPIO pin turns on a line that is used to detect card insertion
  * on this board.
@@ -232,24 +143,13 @@ static int __init cpu8815_mmcsd_init(void)
 }
 device_initcall(cpu8815_mmcsd_init);
 
-
-/* These are mostly to get the right device names for the clock lookups */
-static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("stericsson,fsmc-nand", NOMADIK_FSMC_BASE,
-		NULL, &cpu8815_nand_data),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_SDI_BASE,
-		NULL, &mmcsd_plat_data),
-	{ /* sentinel */ },
-};
-
 static void __init cpu8815_init_of(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	/* At full speed latency must be >=2, so 0x249 in low bits */
 	l2x0_of_init(0x00730249, 0xfe000fff);
 #endif
-	of_platform_populate(NULL, of_default_bus_match_table,
-			cpu8815_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * cpu8815_board_compat[] = {
@@ -259,7 +159,6 @@ static const char * cpu8815_board_compat[] = {
 
 DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
 	.map_io		= cpu8815_map_io,
-	.init_time	= cpu8815_timer_init_of,
 	.init_machine	= cpu8815_init_of,
 	.restart	= cpu8815_restart,
 	.dt_compat      = cpu8815_board_compat,

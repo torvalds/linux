@@ -29,7 +29,6 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/timer.h>
-#include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/compat.h>
@@ -96,11 +95,9 @@ static const struct pci_device_id hpsa_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x3351},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x3352},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x3353},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x334D},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x3354},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x3355},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x3356},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1920},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1921},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1922},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1923},
@@ -144,7 +141,6 @@ static struct board_type products[] = {
 	{0x3351103C, "Smart Array P420", &SA5_access},
 	{0x3352103C, "Smart Array P421", &SA5_access},
 	{0x3353103C, "Smart Array P822", &SA5_access},
-	{0x334D103C, "Smart Array P822se", &SA5_access},
 	{0x3354103C, "Smart Array P420i", &SA5_access},
 	{0x3355103C, "Smart Array P220i", &SA5_access},
 	{0x3356103C, "Smart Array P721m", &SA5_access},
@@ -171,10 +167,6 @@ static struct board_type products[] = {
 };
 
 static int number_of_controllers;
-
-static struct list_head hpsa_ctlr_list = LIST_HEAD_INIT(hpsa_ctlr_list);
-static spinlock_t lockup_detector_lock;
-static struct task_struct *hpsa_lockup_detector;
 
 static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id);
 static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id);
@@ -562,6 +554,7 @@ static struct scsi_host_template hpsa_driver_template = {
 	.sdev_attrs = hpsa_sdev_attrs,
 	.shost_attrs = hpsa_shost_attrs,
 	.max_sectors = 8192,
+	.no_write_same = 1,
 };
 
 
@@ -1248,10 +1241,8 @@ static void complete_scsi_command(struct CommandList *cp)
 		}
 
 		if (ei->ScsiStatus == SAM_STAT_CHECK_CONDITION) {
-			if (check_for_unit_attention(h, cp)) {
-				cmd->result = DID_SOFT_ERROR << 16;
+			if (check_for_unit_attention(h, cp))
 				break;
-			}
 			if (sense_key == ILLEGAL_REQUEST) {
 				/*
 				 * SCSI REPORT_LUNS is commonly unsupported on
@@ -1289,7 +1280,7 @@ static void complete_scsi_command(struct CommandList *cp)
 					"has check condition: aborted command: "
 					"ASC: 0x%x, ASCQ: 0x%x\n",
 					cp, asc, ascq);
-				cmd->result = DID_SOFT_ERROR << 16;
+				cmd->result |= DID_SOFT_ERROR << 16;
 				break;
 			}
 			/* Must be some other type of check condition */
@@ -1783,6 +1774,7 @@ static unsigned char *ext_target_model[] = {
 	"MSA2312",
 	"MSA2324",
 	"P2000 G3 SAS",
+	"MSA 2040 SAS",
 	NULL,
 };
 
@@ -3171,7 +3163,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 				hpsa_pci_unmap(h->pdev, c, i,
 					PCI_DMA_BIDIRECTIONAL);
 				status = -ENOMEM;
-				goto cleanup1;
+				goto cleanup0;
 			}
 			c->SG[i].Addr.lower = temp64.val32.lower;
 			c->SG[i].Addr.upper = temp64.val32.upper;
@@ -3187,24 +3179,23 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	/* Copy the error information out */
 	memcpy(&ioc->error_info, c->err_info, sizeof(ioc->error_info));
 	if (copy_to_user(argp, ioc, sizeof(*ioc))) {
-		cmd_special_free(h, c);
 		status = -EFAULT;
-		goto cleanup1;
+		goto cleanup0;
 	}
 	if (ioc->Request.Type.Direction == XFER_READ && ioc->buf_size > 0) {
 		/* Copy the data out of the buffer we created */
 		BYTE __user *ptr = ioc->buf;
 		for (i = 0; i < sg_used; i++) {
 			if (copy_to_user(ptr, buff[i], buff_size[i])) {
-				cmd_special_free(h, c);
 				status = -EFAULT;
-				goto cleanup1;
+				goto cleanup0;
 			}
 			ptr += buff_size[i];
 		}
 	}
-	cmd_special_free(h, c);
 	status = 0;
+cleanup0:
+	cmd_special_free(h, c);
 cleanup1:
 	if (buff) {
 		for (i = 0; i < sg_used; i++)
@@ -3223,6 +3214,36 @@ static void check_ioctl_unit_attention(struct ctlr_info *h,
 			c->err_info->ScsiStatus != SAM_STAT_CHECK_CONDITION)
 		(void) check_for_unit_attention(h, c);
 }
+
+static int increment_passthru_count(struct ctlr_info *h)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&h->passthru_count_lock, flags);
+	if (h->passthru_count >= HPSA_MAX_CONCURRENT_PASSTHRUS) {
+		spin_unlock_irqrestore(&h->passthru_count_lock, flags);
+		return -1;
+	}
+	h->passthru_count++;
+	spin_unlock_irqrestore(&h->passthru_count_lock, flags);
+	return 0;
+}
+
+static void decrement_passthru_count(struct ctlr_info *h)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&h->passthru_count_lock, flags);
+	if (h->passthru_count <= 0) {
+		spin_unlock_irqrestore(&h->passthru_count_lock, flags);
+		/* not expecting to get here. */
+		dev_warn(&h->pdev->dev, "Bug detected, passthru_count seems to be incorrect.\n");
+		return;
+	}
+	h->passthru_count--;
+	spin_unlock_irqrestore(&h->passthru_count_lock, flags);
+}
+
 /*
  * ioctl
  */
@@ -3230,6 +3251,7 @@ static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg)
 {
 	struct ctlr_info *h;
 	void __user *argp = (void __user *)arg;
+	int rc;
 
 	h = sdev_to_hba(dev);
 
@@ -3244,9 +3266,17 @@ static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg)
 	case CCISS_GETDRIVVER:
 		return hpsa_getdrivver_ioctl(h, argp);
 	case CCISS_PASSTHRU:
-		return hpsa_passthru_ioctl(h, argp);
+		if (increment_passthru_count(h))
+			return -EAGAIN;
+		rc = hpsa_passthru_ioctl(h, argp);
+		decrement_passthru_count(h);
+		return rc;
 	case CCISS_BIG_PASSTHRU:
-		return hpsa_big_passthru_ioctl(h, argp);
+		if (increment_passthru_count(h))
+			return -EAGAIN;
+		rc = hpsa_big_passthru_ioctl(h, argp);
+		decrement_passthru_count(h);
+		return rc;
 	default:
 		return -ENOTTY;
 	}
@@ -3445,9 +3475,11 @@ static void start_io(struct ctlr_info *h)
 		c = list_entry(h->reqQ.next, struct CommandList, list);
 		/* can't do anything if fifo is full */
 		if ((h->access.fifo_full(h))) {
+			h->fifo_recently_full = 1;
 			dev_warn(&h->pdev->dev, "fifo full\n");
 			break;
 		}
+		h->fifo_recently_full = 0;
 
 		/* Get the first entry from the Request Q */
 		removeQ(c);
@@ -3501,15 +3533,41 @@ static inline int bad_tag(struct ctlr_info *h, u32 tag_index,
 static inline void finish_cmd(struct CommandList *c)
 {
 	unsigned long flags;
+	int io_may_be_stalled = 0;
+	struct ctlr_info *h = c->h;
 
-	spin_lock_irqsave(&c->h->lock, flags);
+	spin_lock_irqsave(&h->lock, flags);
 	removeQ(c);
-	spin_unlock_irqrestore(&c->h->lock, flags);
+
+	/*
+	 * Check for possibly stalled i/o.
+	 *
+	 * If a fifo_full condition is encountered, requests will back up
+	 * in h->reqQ.  This queue is only emptied out by start_io which is
+	 * only called when a new i/o request comes in.  If no i/o's are
+	 * forthcoming, the i/o's in h->reqQ can get stuck.  So we call
+	 * start_io from here if we detect such a danger.
+	 *
+	 * Normally, we shouldn't hit this case, but pounding on the
+	 * CCISS_PASSTHRU ioctl can provoke it.  Only call start_io if
+	 * commands_outstanding is low.  We want to avoid calling
+	 * start_io from in here as much as possible, and esp. don't
+	 * want to get in a cycle where we call start_io every time
+	 * through here.
+	 */
+	if (unlikely(h->fifo_recently_full) &&
+		h->commands_outstanding < 5)
+		io_may_be_stalled = 1;
+
+	spin_unlock_irqrestore(&h->lock, flags);
+
 	dial_up_lockup_detection_on_fw_flash_complete(c->h, c);
 	if (likely(c->cmd_type == CMD_SCSI))
 		complete_scsi_command(c);
 	else if (c->cmd_type == CMD_IOCTL_PEND)
 		complete(c->waiting);
+	if (unlikely(io_may_be_stalled))
+		start_io(h);
 }
 
 static inline u32 hpsa_tag_contains_index(u32 tag)
@@ -3785,6 +3843,13 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 		 */
 		dev_info(&pdev->dev, "using doorbell to reset controller\n");
 		writel(use_doorbell, vaddr + SA5_DOORBELL);
+
+		/* PMC hardware guys tell us we need a 5 second delay after
+		 * doorbell reset and before any attempt to talk to the board
+		 * at all to ensure that this actually works and doesn't fall
+		 * over in some weird corner cases.
+		 */
+		msleep(5000);
 	} else { /* Try to do it the PCI power state way */
 
 		/* Quoting from the Open CISS Specification: "The Power
@@ -3981,16 +4046,6 @@ static int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	   need a little pause here */
 	msleep(HPSA_POST_RESET_PAUSE_MSECS);
 
-	/* Wait for board to become not ready, then ready. */
-	dev_info(&pdev->dev, "Waiting for board to reset.\n");
-	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
-	if (rc) {
-		dev_warn(&pdev->dev,
-			"failed waiting for board to reset."
-			" Will try soft reset.\n");
-		rc = -ENOTSUPP; /* Not expected, but try soft reset later */
-		goto unmap_cfgtable;
-	}
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
 	if (rc) {
 		dev_warn(&pdev->dev,
@@ -4308,16 +4363,17 @@ static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)
 	return true;
 }
 
-/* Need to enable prefetch in the SCSI core for 6400 in x86 */
-static inline void hpsa_enable_scsi_prefetch(struct ctlr_info *h)
+static inline void hpsa_set_driver_support_bits(struct ctlr_info *h)
 {
-#ifdef CONFIG_X86
-	u32 prefetch;
+	u32 driver_support;
 
-	prefetch = readl(&(h->cfgtable->SCSI_Prefetch));
-	prefetch |= 0x100;
-	writel(prefetch, &(h->cfgtable->SCSI_Prefetch));
+#ifdef CONFIG_X86
+	/* Need to enable prefetch in the SCSI core for 6400 in x86 */
+	driver_support = readl(&(h->cfgtable->driver_support));
+	driver_support |= ENABLE_SCSI_PREFETCH;
 #endif
+	driver_support |= ENABLE_UNIT_ATTN;
+	writel(driver_support, &(h->cfgtable->driver_support));
 }
 
 /* Disable DMA prefetch for the P600.  Otherwise an ASIC bug may result
@@ -4427,7 +4483,7 @@ static int hpsa_pci_init(struct ctlr_info *h)
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
-	hpsa_enable_scsi_prefetch(h);
+	hpsa_set_driver_support_bits(h);
 	hpsa_p600_dma_prefetch_quirk(h);
 	err = hpsa_enter_simple_mode(h);
 	if (err)
@@ -4638,16 +4694,6 @@ static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
 	kfree(h);
 }
 
-static void remove_ctlr_from_lockup_detector_list(struct ctlr_info *h)
-{
-	assert_spin_locked(&lockup_detector_lock);
-	if (!hpsa_lockup_detector)
-		return;
-	if (h->lockup_detected)
-		return; /* already stopped the lockup detector */
-	list_del(&h->lockup_list);
-}
-
 /* Called when controller lockup detected. */
 static void fail_all_cmds_on_list(struct ctlr_info *h, struct list_head *list)
 {
@@ -4666,8 +4712,6 @@ static void controller_lockup_detected(struct ctlr_info *h)
 {
 	unsigned long flags;
 
-	assert_spin_locked(&lockup_detector_lock);
-	remove_ctlr_from_lockup_detector_list(h);
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
 	spin_lock_irqsave(&h->lock, flags);
 	h->lockup_detected = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
@@ -4687,7 +4731,6 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	u32 heartbeat;
 	unsigned long flags;
 
-	assert_spin_locked(&lockup_detector_lock);
 	now = get_jiffies_64();
 	/* If we've received an interrupt recently, we're ok. */
 	if (time_after64(h->last_intr_timestamp +
@@ -4717,68 +4760,22 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	h->last_heartbeat_timestamp = now;
 }
 
-static int detect_controller_lockup_thread(void *notused)
-{
-	struct ctlr_info *h;
-	unsigned long flags;
-
-	while (1) {
-		struct list_head *this, *tmp;
-
-		schedule_timeout_interruptible(HEARTBEAT_SAMPLE_INTERVAL);
-		if (kthread_should_stop())
-			break;
-		spin_lock_irqsave(&lockup_detector_lock, flags);
-		list_for_each_safe(this, tmp, &hpsa_ctlr_list) {
-			h = list_entry(this, struct ctlr_info, lockup_list);
-			detect_controller_lockup(h);
-		}
-		spin_unlock_irqrestore(&lockup_detector_lock, flags);
-	}
-	return 0;
-}
-
-static void add_ctlr_to_lockup_detector_list(struct ctlr_info *h)
+static void hpsa_monitor_ctlr_worker(struct work_struct *work)
 {
 	unsigned long flags;
-
-	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
-	spin_lock_irqsave(&lockup_detector_lock, flags);
-	list_add_tail(&h->lockup_list, &hpsa_ctlr_list);
-	spin_unlock_irqrestore(&lockup_detector_lock, flags);
-}
-
-static void start_controller_lockup_detector(struct ctlr_info *h)
-{
-	/* Start the lockup detector thread if not already started */
-	if (!hpsa_lockup_detector) {
-		spin_lock_init(&lockup_detector_lock);
-		hpsa_lockup_detector =
-			kthread_run(detect_controller_lockup_thread,
-						NULL, HPSA);
-	}
-	if (!hpsa_lockup_detector) {
-		dev_warn(&h->pdev->dev,
-			"Could not start lockup detector thread\n");
+	struct ctlr_info *h = container_of(to_delayed_work(work),
+					struct ctlr_info, monitor_ctlr_work);
+	detect_controller_lockup(h);
+	if (h->lockup_detected)
+		return;
+	spin_lock_irqsave(&h->lock, flags);
+	if (h->remove_in_progress) {
+		spin_unlock_irqrestore(&h->lock, flags);
 		return;
 	}
-	add_ctlr_to_lockup_detector_list(h);
-}
-
-static void stop_controller_lockup_detector(struct ctlr_info *h)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&lockup_detector_lock, flags);
-	remove_ctlr_from_lockup_detector_list(h);
-	/* If the list of ctlr's to monitor is empty, stop the thread */
-	if (list_empty(&hpsa_ctlr_list)) {
-		spin_unlock_irqrestore(&lockup_detector_lock, flags);
-		kthread_stop(hpsa_lockup_detector);
-		spin_lock_irqsave(&lockup_detector_lock, flags);
-		hpsa_lockup_detector = NULL;
-	}
-	spin_unlock_irqrestore(&lockup_detector_lock, flags);
+	schedule_delayed_work(&h->monitor_ctlr_work,
+				h->heartbeat_sample_interval);
+	spin_unlock_irqrestore(&h->lock, flags);
 }
 
 static int hpsa_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -4822,6 +4819,7 @@ reinit_after_soft_reset:
 	INIT_LIST_HEAD(&h->reqQ);
 	spin_lock_init(&h->lock);
 	spin_lock_init(&h->scan_lock);
+	spin_lock_init(&h->passthru_count_lock);
 	rc = hpsa_pci_init(h);
 	if (rc != 0)
 		goto clean1;
@@ -4925,8 +4923,13 @@ reinit_after_soft_reset:
 
 	hpsa_hba_inquiry(h);
 	hpsa_register_scsi(h);	/* hook ourselves into SCSI subsystem */
-	start_controller_lockup_detector(h);
-	return 1;
+
+	/* Monitor the controller for firmware lockups */
+	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
+	INIT_DELAYED_WORK(&h->monitor_ctlr_work, hpsa_monitor_ctlr_worker);
+	schedule_delayed_work(&h->monitor_ctlr_work,
+				h->heartbeat_sample_interval);
+	return 0;
 
 clean4:
 	hpsa_free_sg_chain_blocks(h);
@@ -4942,6 +4945,15 @@ static void hpsa_flush_cache(struct ctlr_info *h)
 {
 	char *flush_buf;
 	struct CommandList *c;
+	unsigned long flags;
+
+	/* Don't bother trying to flush the cache if locked up */
+	spin_lock_irqsave(&h->lock, flags);
+	if (unlikely(h->lockup_detected)) {
+		spin_unlock_irqrestore(&h->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
 
 	flush_buf = kzalloc(4, GFP_KERNEL);
 	if (!flush_buf)
@@ -4991,13 +5003,20 @@ static void hpsa_free_device_info(struct ctlr_info *h)
 static void hpsa_remove_one(struct pci_dev *pdev)
 {
 	struct ctlr_info *h;
+	unsigned long flags;
 
 	if (pci_get_drvdata(pdev) == NULL) {
 		dev_err(&pdev->dev, "unable to remove device\n");
 		return;
 	}
 	h = pci_get_drvdata(pdev);
-	stop_controller_lockup_detector(h);
+
+	/* Get rid of any controller monitoring work items */
+	spin_lock_irqsave(&h->lock, flags);
+	h->remove_in_progress = 1;
+	cancel_delayed_work(&h->monitor_ctlr_work);
+	spin_unlock_irqrestore(&h->lock, flags);
+
 	hpsa_unregister_scsi(h);	/* unhook from SCSI subsystem */
 	hpsa_shutdown(pdev);
 	iounmap(h->vaddr);
@@ -5018,7 +5037,6 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 	kfree(h->hba_inquiry_data);
 	pci_disable_device(pdev);
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 	kfree(h);
 }
 

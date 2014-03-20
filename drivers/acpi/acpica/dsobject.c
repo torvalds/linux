@@ -240,7 +240,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-      exit:
+exit:
 	*obj_desc_ptr = obj_desc;
 	return_ACPI_STATUS(status);
 }

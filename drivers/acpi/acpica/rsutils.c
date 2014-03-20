@@ -753,7 +753,7 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 	 * Convert the linked list into a byte stream
 	 */
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-	status = acpi_rs_create_aml_resources(in_buffer->pointer, &buffer);
+	status = acpi_rs_create_aml_resources(in_buffer, &buffer);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
@@ -784,7 +784,7 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 
 	acpi_ut_remove_reference(args[0]);
 
-      cleanup:
+cleanup:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

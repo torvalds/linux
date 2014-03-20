@@ -44,3 +44,5 @@ generic-y += ucontext.h
 generic-y += unaligned.h
 generic-y += user.h
 generic-y += xor.h
+generic-y += preempt.h
+generic-y += hash.h

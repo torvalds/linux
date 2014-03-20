@@ -86,7 +86,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		return ret;
 	}
 
-	if (param->u.wpa_key.key && param->u.wpa_key.key_len > sizeof(abyKey))
+	if (param->u.wpa_key.key_len > sizeof(abyKey))
 		return -EINVAL;
 
 	memcpy(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len);
@@ -227,7 +227,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 		} else {
 			// Key Table Full
-			if (!compare_ether_addr(&param->addr[0], pDevice->abyBSSID)) {
+			if (ether_addr_equal(param->addr, pDevice->abyBSSID)) {
 				//DBG_PRN_WLAN03(("return NDIS_STATUS_INVALID_DATA -Key Table Full.2\n"));
 				return -EINVAL;
 			} else {

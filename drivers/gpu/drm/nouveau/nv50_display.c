@@ -1035,6 +1035,7 @@ static bool
 nv50_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 		     struct drm_display_mode *adjusted_mode)
 {
+	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
 	return true;
 }
 
@@ -1265,7 +1266,7 @@ nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		    uint32_t start, uint32_t size)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	u32 end = max(start + size, (u32)256);
+	u32 end = min_t(u32, start + size, 256);
 	u32 i;
 
 	for (i = start; i < end; i++) {
@@ -2199,16 +2200,6 @@ nv50_display_destroy(struct drm_device *dev)
 int
 nv50_display_create(struct drm_device *dev)
 {
-	static const u16 oclass[] = {
-		NVF0_DISP_CLASS,
-		NVE0_DISP_CLASS,
-		NVD0_DISP_CLASS,
-		NVA3_DISP_CLASS,
-		NV94_DISP_CLASS,
-		NVA0_DISP_CLASS,
-		NV84_DISP_CLASS,
-		NV50_DISP_CLASS,
-	};
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
@@ -2225,6 +2216,7 @@ nv50_display_create(struct drm_device *dev)
 	nouveau_display(dev)->dtor = nv50_display_destroy;
 	nouveau_display(dev)->init = nv50_display_init;
 	nouveau_display(dev)->fini = nv50_display_fini;
+	disp->core = nouveau_display(dev)->core;
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
@@ -2238,17 +2230,6 @@ nv50_display_create(struct drm_device *dev)
 		}
 		if (ret)
 			nouveau_bo_ref(NULL, &disp->sync);
-	}
-
-	if (ret)
-		goto out;
-
-	/* attempt to allocate a supported evo display class */
-	ret = -ENODEV;
-	for (i = 0; ret && i < ARRAY_SIZE(oclass); i++) {
-		ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE,
-					 0xd1500000, oclass[i], NULL, 0,
-					 &disp->core);
 	}
 
 	if (ret)

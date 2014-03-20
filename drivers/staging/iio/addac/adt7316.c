@@ -412,13 +412,13 @@ static ssize_t adt7316_store_ad_channel(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 config2;
-	unsigned long data = 0;
+	u8 data;
 	int ret;
 
 	if (!(chip->config2 & ADT7316_AD_SINGLE_CH_MODE))
 		return -EPERM;
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtou8(buf, 10, &data);
 	if (ret)
 		return -EINVAL;
 
@@ -823,10 +823,10 @@ static ssize_t adt7316_store_DAC_2Vref_ch_mask(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 dac_config;
-	unsigned long data = 0;
+	u8 data;
 	int ret;
 
-	ret = strict_strtoul(buf, 16, &data);
+	ret = kstrtou8(buf, 16, &data);
 	if (ret || data > ADT7316_DA_2VREF_CH_MASK)
 		return -EINVAL;
 
@@ -878,13 +878,13 @@ static ssize_t adt7316_store_DAC_update_mode(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 dac_config;
-	unsigned long data;
+	u8 data;
 	int ret;
 
 	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA))
 		return -EPERM;
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtou8(buf, 10, &data);
 	if (ret || data > ADT7316_DA_EN_MODE_MASK)
 		return -EINVAL;
 
@@ -933,7 +933,7 @@ static ssize_t adt7316_store_update_DAC(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 ldac_config;
-	unsigned long data;
+	u8 data;
 	int ret;
 
 	if (chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA) {
@@ -941,7 +941,7 @@ static ssize_t adt7316_store_update_DAC(struct device *dev,
 			ADT7316_DA_EN_MODE_LDAC)
 			return -EPERM;
 
-		ret = strict_strtoul(buf, 16, &data);
+		ret = kstrtou8(buf, 16, &data);
 		if (ret || data > ADT7316_LDAC_EN_DA_MASK)
 			return -EINVAL;
 
@@ -1079,11 +1079,11 @@ static ssize_t adt7316_store_DAC_internal_Vref(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 ldac_config;
-	unsigned long data;
+	u8 data;
 	int ret;
 
 	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX) {
-		ret = strict_strtoul(buf, 16, &data);
+		ret = kstrtou8(buf, 16, &data);
 		if (ret || data > 3)
 			return -EINVAL;
 
@@ -1093,7 +1093,7 @@ static ssize_t adt7316_store_DAC_internal_Vref(struct device *dev,
 		else if (data & 0x2)
 			ldac_config |= ADT7516_DAC_CD_IN_VREF;
 	} else {
-		ret = strict_strtoul(buf, 16, &data);
+		ret = kstrtou8(buf, 16, &data);
 		if (ret)
 			return -EINVAL;
 
@@ -1281,11 +1281,11 @@ static ssize_t adt7316_show_temp_offset(struct adt7316_chip_info *chip,
 static ssize_t adt7316_store_temp_offset(struct adt7316_chip_info *chip,
 		int offset_addr, const char *buf, size_t len)
 {
-	long data;
+	int data;
 	u8 val;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &data);
+	ret = kstrtoint(buf, 10, &data);
 	if (ret || data > 127 || data < -128)
 		return -EINVAL;
 
@@ -1442,7 +1442,7 @@ static ssize_t adt7316_store_DAC(struct adt7316_chip_info *chip,
 		int channel, const char *buf, size_t len)
 {
 	u8 msb, lsb, offset;
-	unsigned long data;
+	u16 data;
 	int ret;
 
 	if (channel >= ADT7316_DA_MSB_DATA_REGS ||
@@ -1454,7 +1454,7 @@ static ssize_t adt7316_store_DAC(struct adt7316_chip_info *chip,
 
 	offset = chip->dac_bits - 8;
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtou16(buf, 10, &data);
 	if (ret || data >= (1 << chip->dac_bits))
 		return -EINVAL;
 
@@ -1830,11 +1830,11 @@ static ssize_t adt7316_set_int_mask(struct device *dev,
 {
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
-	unsigned long data;
+	u16 data;
 	int ret;
 	u8 mask;
 
-	ret = strict_strtoul(buf, 16, &data);
+	ret = kstrtou16(buf, 16, &data);
 	if (ret || data >= ADT7316_VDD_INT_MASK + 1)
 		return -EINVAL;
 
@@ -1901,7 +1901,7 @@ static inline ssize_t adt7316_set_ad_bound(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
-	long data;
+	int data;
 	u8 val;
 	int ret;
 
@@ -1909,7 +1909,7 @@ static inline ssize_t adt7316_set_ad_bound(struct device *dev,
 		this_attr->address > ADT7316_EX_TEMP_LOW)
 		return -EPERM;
 
-	ret = strict_strtol(buf, 10, &data);
+	ret = kstrtoint(buf, 10, &data);
 	if (ret)
 		return -EINVAL;
 
@@ -2106,11 +2106,9 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	unsigned short *adt7316_platform_data = dev->platform_data;
 	int ret = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*chip));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
+	if (!indio_dev)
+		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	dev_set_drvdata(dev, indio_dev);
@@ -2146,62 +2144,38 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		if (adt7316_platform_data[0])
 			chip->bus.irq_flags = adt7316_platform_data[0];
 
-		ret = request_threaded_irq(chip->bus.irq,
-					   NULL,
-					   &adt7316_event_handler,
-					   chip->bus.irq_flags | IRQF_ONESHOT,
-					   indio_dev->name,
-					   indio_dev);
+		ret = devm_request_threaded_irq(dev, chip->bus.irq,
+						NULL,
+						&adt7316_event_handler,
+						chip->bus.irq_flags |
+						IRQF_ONESHOT,
+						indio_dev->name,
+						indio_dev);
 		if (ret)
-			goto error_free_dev;
+			return ret;
 
 		if (chip->bus.irq_flags & IRQF_TRIGGER_HIGH)
 			chip->config1 |= ADT7316_INT_POLARITY;
 	}
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG1, chip->config1);
-	if (ret) {
-		ret = -EIO;
-		goto error_unreg_irq;
-	}
+	if (ret)
+		return -EIO;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, chip->config3);
-	if (ret) {
-		ret = -EIO;
-		goto error_unreg_irq;
-	}
-
-	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_unreg_irq;
+		return -EIO;
+
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret)
+		return ret;
 
 	dev_info(dev, "%s temperature sensor, ADC and DAC registered.\n",
 			indio_dev->name);
 
 	return 0;
-
-error_unreg_irq:
-	free_irq(chip->bus.irq, indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	return ret;
 }
 EXPORT_SYMBOL(adt7316_probe);
-
-int adt7316_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adt7316_chip_info *chip = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	if (chip->bus.irq)
-		free_irq(chip->bus.irq, indio_dev);
-	iio_device_free(indio_dev);
-
-	return 0;
-}
-EXPORT_SYMBOL(adt7316_remove);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADT7316/7/8 and ADT7516/7/9 digital"

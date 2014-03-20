@@ -402,7 +402,7 @@ static int __init wdt_init(void)
 
 	if (!found) {
 		pr_err("No W83697HF/HG could be found\n");
-		ret = -EIO;
+		ret = -ENODEV;
 		goto out;
 	}
 
@@ -458,4 +458,3 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marcus Junker <junker@anduras.de>, "
 		"Samuel Tardieu <sam@rfc1149.net>");
 MODULE_DESCRIPTION("w83697hf/hg WDT driver");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

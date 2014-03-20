@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -135,6 +136,69 @@ static struct nand_ecclayout oob_4096_ecc8 = {
 	.oobfree = { {2, 6}, {136, 82} },
 };
 
+/* 8192-byte page size with 4-bit ECC */
+static struct nand_ecclayout oob_8192_ecc4 = {
+	.eccbytes = 128,
+	.eccpos = {
+		8, 9, 10, 11, 12, 13, 14, 15,
+		16, 17, 18, 19, 20, 21, 22, 23,
+		24, 25, 26, 27, 28, 29, 30, 31,
+		32, 33, 34, 35, 36, 37, 38, 39,
+		40, 41, 42, 43, 44, 45, 46, 47,
+		48, 49, 50, 51, 52, 53, 54, 55,
+		56, 57, 58, 59, 60, 61, 62, 63,
+		64, 65, 66, 67, 68, 69, 70, 71,
+		72, 73, 74, 75, 76, 77, 78, 79,
+		80, 81, 82, 83, 84, 85, 86, 87,
+		88, 89, 90, 91, 92, 93, 94, 95,
+		96, 97, 98, 99, 100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127,
+		128, 129, 130, 131, 132, 133, 134, 135,
+	},
+	.oobfree = { {2, 6}, {136, 208} },
+};
+
+/* 8192-byte page size with 8-bit ECC -- requires 218-byte OOB */
+static struct nand_ecclayout oob_8192_ecc8 = {
+	.eccbytes = 256,
+	.eccpos = {
+		8, 9, 10, 11, 12, 13, 14, 15,
+		16, 17, 18, 19, 20, 21, 22, 23,
+		24, 25, 26, 27, 28, 29, 30, 31,
+		32, 33, 34, 35, 36, 37, 38, 39,
+		40, 41, 42, 43, 44, 45, 46, 47,
+		48, 49, 50, 51, 52, 53, 54, 55,
+		56, 57, 58, 59, 60, 61, 62, 63,
+		64, 65, 66, 67, 68, 69, 70, 71,
+		72, 73, 74, 75, 76, 77, 78, 79,
+		80, 81, 82, 83, 84, 85, 86, 87,
+		88, 89, 90, 91, 92, 93, 94, 95,
+		96, 97, 98, 99, 100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127,
+		128, 129, 130, 131, 132, 133, 134, 135,
+		136, 137, 138, 139, 140, 141, 142, 143,
+		144, 145, 146, 147, 148, 149, 150, 151,
+		152, 153, 154, 155, 156, 157, 158, 159,
+		160, 161, 162, 163, 164, 165, 166, 167,
+		168, 169, 170, 171, 172, 173, 174, 175,
+		176, 177, 178, 179, 180, 181, 182, 183,
+		184, 185, 186, 187, 188, 189, 190, 191,
+		192, 193, 194, 195, 196, 197, 198, 199,
+		200, 201, 202, 203, 204, 205, 206, 207,
+		208, 209, 210, 211, 212, 213, 214, 215,
+		216, 217, 218, 219, 220, 221, 222, 223,
+		224, 225, 226, 227, 228, 229, 230, 231,
+		232, 233, 234, 235, 236, 237, 238, 239,
+		240, 241, 242, 243, 244, 245, 246, 247,
+		248, 249, 250, 251, 252, 253, 254, 255,
+		256, 257, 258, 259, 260, 261, 262, 263,
+	},
+	.oobfree = { {2, 6}, {264, 80} },
+};
 
 /*
  * Generic flash bbt descriptors
@@ -441,20 +505,29 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		if (mtd->writesize > 512) {
 			nand_fcr0 =
 				(NAND_CMD_SEQIN << IFC_NAND_FCR0_CMD0_SHIFT) |
-				(NAND_CMD_PAGEPROG << IFC_NAND_FCR0_CMD1_SHIFT);
+				(NAND_CMD_STATUS << IFC_NAND_FCR0_CMD1_SHIFT) |
+				(NAND_CMD_PAGEPROG << IFC_NAND_FCR0_CMD2_SHIFT);
 
 			iowrite32be(
-				(IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
-				(IFC_FIR_OP_CA0 << IFC_NAND_FIR0_OP1_SHIFT) |
-				(IFC_FIR_OP_RA0 << IFC_NAND_FIR0_OP2_SHIFT) |
-				(IFC_FIR_OP_WBCD << IFC_NAND_FIR0_OP3_SHIFT) |
-				(IFC_FIR_OP_CW1 << IFC_NAND_FIR0_OP4_SHIFT),
-				&ifc->ifc_nand.nand_fir0);
+				 (IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
+				 (IFC_FIR_OP_CA0 << IFC_NAND_FIR0_OP1_SHIFT) |
+				 (IFC_FIR_OP_RA0 << IFC_NAND_FIR0_OP2_SHIFT) |
+				 (IFC_FIR_OP_WBCD  << IFC_NAND_FIR0_OP3_SHIFT) |
+				 (IFC_FIR_OP_CMD2 << IFC_NAND_FIR0_OP4_SHIFT),
+				 &ifc->ifc_nand.nand_fir0);
+			iowrite32be(
+				 (IFC_FIR_OP_CW1 << IFC_NAND_FIR1_OP5_SHIFT) |
+				 (IFC_FIR_OP_RDSTAT <<
+					IFC_NAND_FIR1_OP6_SHIFT) |
+				 (IFC_FIR_OP_NOP << IFC_NAND_FIR1_OP7_SHIFT),
+				 &ifc->ifc_nand.nand_fir1);
 		} else {
 			nand_fcr0 = ((NAND_CMD_PAGEPROG <<
 					IFC_NAND_FCR0_CMD1_SHIFT) |
 				    (NAND_CMD_SEQIN <<
-					IFC_NAND_FCR0_CMD2_SHIFT));
+					IFC_NAND_FCR0_CMD2_SHIFT) |
+				    (NAND_CMD_STATUS <<
+					IFC_NAND_FCR0_CMD3_SHIFT));
 
 			iowrite32be(
 				(IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
@@ -463,8 +536,13 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 				(IFC_FIR_OP_RA0 << IFC_NAND_FIR0_OP3_SHIFT) |
 				(IFC_FIR_OP_WBCD << IFC_NAND_FIR0_OP4_SHIFT),
 				&ifc->ifc_nand.nand_fir0);
-			iowrite32be(IFC_FIR_OP_CW1 << IFC_NAND_FIR1_OP5_SHIFT,
-				    &ifc->ifc_nand.nand_fir1);
+			iowrite32be(
+				 (IFC_FIR_OP_CMD1 << IFC_NAND_FIR1_OP5_SHIFT) |
+				 (IFC_FIR_OP_CW3 << IFC_NAND_FIR1_OP6_SHIFT) |
+				 (IFC_FIR_OP_RDSTAT <<
+					IFC_NAND_FIR1_OP7_SHIFT) |
+				 (IFC_FIR_OP_NOP << IFC_NAND_FIR1_OP8_SHIFT),
+				  &ifc->ifc_nand.nand_fir1);
 
 			if (column >= mtd->writesize)
 				nand_fcr0 |=
@@ -718,8 +796,6 @@ static int fsl_ifc_chip_init_tail(struct mtd_info *mtd)
 							chip->page_shift);
 	dev_dbg(priv->dev, "%s: nand->phys_erase_shift = %d\n", __func__,
 							chip->phys_erase_shift);
-	dev_dbg(priv->dev, "%s: nand->ecclayout = %p\n", __func__,
-							chip->ecclayout);
 	dev_dbg(priv->dev, "%s: nand->ecc.mode = %d\n", __func__,
 							chip->ecc.mode);
 	dev_dbg(priv->dev, "%s: nand->ecc.steps = %d\n", __func__,
@@ -872,10 +948,24 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 		} else {
 			layout = &oob_4096_ecc8;
 			chip->ecc.bytes = 16;
+			chip->ecc.strength = 8;
 		}
 
 		priv->bufnum_mask = 1;
 		break;
+
+	case CSOR_NAND_PGS_8K:
+		if ((csor & CSOR_NAND_ECC_MODE_MASK) ==
+		    CSOR_NAND_ECC_MODE_4) {
+			layout = &oob_8192_ecc4;
+		} else {
+			layout = &oob_8192_ecc8;
+			chip->ecc.bytes = 16;
+			chip->ecc.strength = 8;
+		}
+
+		priv->bufnum_mask = 0;
+	break;
 
 	default:
 		dev_err(priv->dev, "bad csor %#x: bad page size\n", csor);
@@ -907,7 +997,6 @@ static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 		iounmap(priv->vbase);
 
 	ifc_nand_ctrl->chips[priv->bank] = NULL;
-	dev_set_drvdata(priv->dev, NULL);
 
 	return 0;
 }
@@ -971,7 +1060,6 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	if (!fsl_ifc_ctrl_dev->nand) {
 		ifc_nand_ctrl = kzalloc(sizeof(*ifc_nand_ctrl), GFP_KERNEL);
 		if (!ifc_nand_ctrl) {
-			dev_err(&dev->dev, "failed to allocate memory\n");
 			mutex_unlock(&fsl_ifc_nand_mutex);
 			return -ENOMEM;
 		}
@@ -1012,7 +1100,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		    IFC_NAND_EVTER_INTR_FTOERIR_EN |
 		    IFC_NAND_EVTER_INTR_WPERIR_EN,
 		    &ifc->ifc_nand.nand_evter_intr_en);
-	priv->mtd.name = kasprintf(GFP_KERNEL, "%x.flash", (unsigned)res.start);
+	priv->mtd.name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
 	if (!priv->mtd.name) {
 		ret = -ENOMEM;
 		goto err;
@@ -1082,25 +1170,7 @@ static struct platform_driver fsl_ifc_nand_driver = {
 	.remove      = fsl_ifc_nand_remove,
 };
 
-static int __init fsl_ifc_nand_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&fsl_ifc_nand_driver);
-	if (ret)
-		printk(KERN_ERR "fsl-ifc: Failed to register platform"
-				"driver\n");
-
-	return ret;
-}
-
-static void __exit fsl_ifc_nand_exit(void)
-{
-	platform_driver_unregister(&fsl_ifc_nand_driver);
-}
-
-module_init(fsl_ifc_nand_init);
-module_exit(fsl_ifc_nand_exit);
+module_platform_driver(fsl_ifc_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale");

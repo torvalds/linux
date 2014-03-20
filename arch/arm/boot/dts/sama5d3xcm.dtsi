@@ -6,7 +6,6 @@
  *
  * Licensed under GPLv2 or later.
  */
-#include "sama5d3.dtsi"
 
 / {
 	compatible = "atmel,samad3xcm", "atmel,sama5d3", "atmel,sama5";
@@ -19,17 +18,6 @@
 		reg = <0x20000000 0x20000000>;
 	};
 
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <12000000>;
-		};
-	};
-
 	ahb {
 		apb {
 			spi0: spi@f0004000 {
@@ -38,6 +26,12 @@
 
 			macb0: ethernet@f0028000 {
 				phy-mode = "rgmii";
+			};
+
+			pmc: pmc@fffffc00 {
+				main: mainck {
+					clock-frequency = <12000000>;
+				};
 			};
 		};
 

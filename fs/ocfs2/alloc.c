@@ -1025,7 +1025,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 		for(i = count;  i < (num_got + count); i++) {
 			bhs[i] = sb_getblk(osb->sb, first_blkno);
 			if (bhs[i] == NULL) {
-				status = -EIO;
+				status = -ENOMEM;
 				mlog_errno(status);
 				goto bail;
 			}
@@ -4742,6 +4742,7 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 				enum ocfs2_alloc_restarted *reason_ret)
 {
 	int status = 0, err = 0;
+	int need_free = 0;
 	int free_extents;
 	enum ocfs2_alloc_restarted reason = RESTART_NONE;
 	u32 bit_off, num_bits;
@@ -4796,7 +4797,8 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		need_free = 1;
+		goto bail;
 	}
 
 	block = ocfs2_clusters_to_blocks(osb->sb, bit_off);
@@ -4807,7 +4809,8 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 				     num_bits, flags, meta_ac);
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		need_free = 1;
+		goto bail;
 	}
 
 	ocfs2_journal_dirty(handle, et->et_root_bh);
@@ -4819,6 +4822,19 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 		err = clusters_to_add;
 		status = -EAGAIN;
 		reason = RESTART_TRANS;
+	}
+
+bail:
+	if (need_free) {
+		if (data_ac->ac_which == OCFS2_AC_USE_LOCAL)
+			ocfs2_free_local_alloc_bits(osb, handle, data_ac,
+					bit_off, num_bits);
+		else
+			ocfs2_free_clusters(handle,
+					data_ac->ac_inode,
+					data_ac->ac_bh,
+					ocfs2_clusters_to_blocks(osb->sb, bit_off),
+					num_bits);
 	}
 
 leave:
@@ -6805,6 +6821,8 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 					 struct buffer_head *di_bh)
 {
 	int ret, i, has_data, num_pages = 0;
+	int need_free = 0;
+	u32 bit_off, num;
 	handle_t *handle;
 	u64 uninitialized_var(block);
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
@@ -6850,7 +6868,6 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 	}
 
 	if (has_data) {
-		u32 bit_off, num;
 		unsigned int page_end;
 		u64 phys;
 
@@ -6886,6 +6903,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		ret = ocfs2_grab_eof_pages(inode, 0, end, pages, &num_pages);
 		if (ret) {
 			mlog_errno(ret);
+			need_free = 1;
 			goto out_commit;
 		}
 
@@ -6896,6 +6914,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		ret = ocfs2_read_inline_data(inode, pages[0], di_bh);
 		if (ret) {
 			mlog_errno(ret);
+			need_free = 1;
 			goto out_commit;
 		}
 
@@ -6927,6 +6946,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		ret = ocfs2_insert_extent(handle, &et, 0, block, 1, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);
+			need_free = 1;
 			goto out_commit;
 		}
 
@@ -6937,6 +6957,18 @@ out_commit:
 	if (ret < 0 && did_quota)
 		dquot_free_space_nodirty(inode,
 					  ocfs2_clusters_to_bytes(osb->sb, 1));
+
+	if (need_free) {
+		if (data_ac->ac_which == OCFS2_AC_USE_LOCAL)
+			ocfs2_free_local_alloc_bits(osb, handle, data_ac,
+					bit_off, num);
+		else
+			ocfs2_free_clusters(handle,
+					data_ac->ac_inode,
+					data_ac->ac_bh,
+					ocfs2_clusters_to_blocks(osb->sb, bit_off),
+					num);
+	}
 
 	ocfs2_commit_trans(osb, handle);
 
@@ -7126,7 +7158,7 @@ int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 	if (end > i_size_read(inode))
 		end = i_size_read(inode);
 
-	BUG_ON(start >= end);
+	BUG_ON(start > end);
 
 	if (!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) ||
 	    !(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL) ||
@@ -7260,14 +7292,8 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	start = range->start >> osb->s_clustersize_bits;
 	len = range->len >> osb->s_clustersize_bits;
 	minlen = range->minlen >> osb->s_clustersize_bits;
-	trimmed = 0;
 
-	if (!len) {
-		range->len = 0;
-		return 0;
-	}
-
-	if (minlen >= osb->bitmap_cpg)
+	if (minlen >= osb->bitmap_cpg || range->len < sb->s_blocksize)
 		return -EINVAL;
 
 	main_bm_inode = ocfs2_get_system_file_inode(osb,
@@ -7293,6 +7319,7 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		goto out_unlock;
 	}
 
+	len = range->len >> osb->s_clustersize_bits;
 	if (start + len > le32_to_cpu(main_bm->i_clusters))
 		len = le32_to_cpu(main_bm->i_clusters) - start;
 
@@ -7307,6 +7334,7 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	last_group = ocfs2_which_cluster_group(main_bm_inode, start + len - 1);
 	last_bit = osb->bitmap_cpg;
 
+	trimmed = 0;
 	for (group = first_group; group <= last_group;) {
 		if (first_bit + len >= osb->bitmap_cpg)
 			last_bit = osb->bitmap_cpg;

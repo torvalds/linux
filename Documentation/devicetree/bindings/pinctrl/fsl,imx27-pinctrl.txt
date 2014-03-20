@@ -1,0 +1,121 @@
+* Freescale IMX27 IOMUX Controller
+
+Required properties:
+- compatible: "fsl,imx27-iomuxc"
+
+The iomuxc driver node should define subnodes containing of pinctrl configuration subnodes.
+
+Required properties for pin configuration node:
+- fsl,pins: three integers array, represents a group of pins mux and config
+  setting. The format is fsl,pins = <PIN MUX_ID CONFIG>.
+
+  PIN is an integer between 0 and 0xbf. imx27 has 6 ports with 32 configurable
+  configurable pins each. PIN is PORT * 32 + PORT_PIN, PORT_PIN is the pin
+  number on the specific port (between 0 and 31).
+
+  MUX_ID is
+    function + (direction << 2) + (gpio_oconf << 4) + (gpio_iconfa << 8) + (gpio_iconfb << 10)
+
+      function value is used to select the pin function.
+      Possible values:
+          0 - Primary function
+          1 - Alternate function
+          2 - GPIO
+      Registers: GIUS (GPIO In Use), GPR (General Purpose Register)
+
+      direction defines the data direction of the pin.
+      Possible values:
+          0 - Input
+          1 - Output
+      Register: DDIR
+
+      gpio_oconf configures the gpio submodule output signal. This does not
+      have any effect unless GPIO function is selected. A/B/C_IN are output
+      signals of function blocks A,B and C. Specific function blocks are
+      described in the reference manual.
+      Possible values:
+          0 - A_IN
+          1 - B_IN
+          2 - C_IN
+          3 - Data Register
+      Registers: OCR1, OCR2
+
+      gpio_iconfa/b configures the gpio submodule input to functionblocks A and
+      B. GPIO function should be selected if this is configured.
+      Possible values:
+          0 - GPIO_IN
+          1 - Interrupt Status Register
+          2 - Pulldown
+          3 - Pullup
+      Registers ICONFA1, ICONFA2, ICONFB1 and ICONFB2
+
+  CONFIG can be 0 or 1, meaning Pullup disable/enable.
+
+
+The iomux controller has gpio child nodes which are embedded in the iomux
+control registers. They have to be defined as child nodes of the iomux device
+node. If gpio subnodes are defined "#address-cells", "#size-cells" and "ranges"
+properties for the iomux device node are required.
+
+Example:
+
+iomuxc: iomuxc@10015000 {
+	compatible = "fsl,imx27-iomuxc";
+	reg = <0x10015000 0x600>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	gpio1: gpio@10015000 {
+		...
+	};
+
+	...
+
+	uart {
+		pinctrl_uart1: uart-1 {
+			fsl,pins = <
+				0x8c 0x004 0x0 /* UART1_TXD__UART1_TXD */
+				0x8d 0x000 0x0 /* UART1_RXD__UART1_RXD */
+				0x8e 0x004 0x0 /* UART1_CTS__UART1_CTS */
+				0x8f 0x000 0x0 /* UART1_RTS__UART1_RTS */
+			>;
+		};
+
+		...
+	};
+};
+
+
+For convenience there are macros defined in imx27-pinfunc.h which provide PIN
+and MUX_ID. They are structured as MX27_PAD_<Pad name>__<Signal name>. The names
+are defined in the i.MX27 reference manual.
+
+The above example using macros:
+
+iomuxc: iomuxc@10015000 {
+	compatible = "fsl,imx27-iomuxc";
+	reg = <0x10015000 0x600>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	gpio1: gpio@10015000 {
+		...
+	};
+
+	...
+
+	uart {
+		pinctrl_uart1: uart-1 {
+			fsl,pins = <
+				MX27_PAD_UART1_TXD__UART1_TXD 0x0
+				MX27_PAD_UART1_RXD__UART1_RXD 0x0
+				MX27_PAD_UART1_CTS__UART1_CTS 0x0
+				MX27_PAD_UART1_RTS__UART1_RTS 0x0
+			>;
+		};
+
+		...
+	};
+};

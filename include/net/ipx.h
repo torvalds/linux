@@ -123,23 +123,34 @@ extern struct list_head ipx_routes;
 extern rwlock_t ipx_routes_lock;
 
 extern struct list_head ipx_interfaces;
-extern struct ipx_interface *ipx_interfaces_head(void);
+struct ipx_interface *ipx_interfaces_head(void);
 extern spinlock_t ipx_interfaces_lock;
 
 extern struct ipx_interface *ipx_primary_net;
 
-extern int ipx_proc_init(void);
-extern void ipx_proc_exit(void);
+int ipx_proc_init(void);
+void ipx_proc_exit(void);
 
-extern const char *ipx_frame_name(__be16);
-extern const char *ipx_device_name(struct ipx_interface *intrfc);
+const char *ipx_frame_name(__be16);
+const char *ipx_device_name(struct ipx_interface *intrfc);
 
 static __inline__ void ipxitf_hold(struct ipx_interface *intrfc)
 {
 	atomic_inc(&intrfc->refcnt);
 }
 
-extern void ipxitf_down(struct ipx_interface *intrfc);
+void ipxitf_down(struct ipx_interface *intrfc);
+struct ipx_interface *ipxitf_find_using_net(__be32 net);
+int ipxitf_send(struct ipx_interface *intrfc, struct sk_buff *skb, char *node);
+__be16 ipx_cksum(struct ipxhdr *packet, int length);
+int ipxrtr_add_route(__be32 network, struct ipx_interface *intrfc,
+		     unsigned char *node);
+void ipxrtr_del_routes(struct ipx_interface *intrfc);
+int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
+			struct iovec *iov, size_t len, int noblock);
+int ipxrtr_route_skb(struct sk_buff *skb);
+struct ipx_route *ipxrtr_lookup(__be32 net);
+int ipxrtr_ioctl(unsigned int cmd, void __user *arg);
 
 static __inline__ void ipxitf_put(struct ipx_interface *intrfc)
 {

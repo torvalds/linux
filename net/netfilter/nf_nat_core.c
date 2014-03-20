@@ -315,7 +315,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * manips not an issue.
 	 */
 	if (maniptype == NF_NAT_MANIP_SRC &&
-	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM)) {
+	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
 		if (in_range(l3proto, l4proto, orig_tuple, range)) {
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
@@ -339,7 +339,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 */
 
 	/* Only bother mapping if it's not already in range and unique */
-	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM)) {
+	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (l4proto->in_range(tuple, maniptype,
 					      &range->min_proto,
@@ -431,6 +431,32 @@ nf_nat_setup_info(struct nf_conn *ct,
 	return NF_ACCEPT;
 }
 EXPORT_SYMBOL(nf_nat_setup_info);
+
+static unsigned int
+__nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
+{
+	/* Force range to this IP; let proto decide mapping for
+	 * per-proto parts (hence not IP_NAT_RANGE_PROTO_SPECIFIED).
+	 * Use reply in case it's already been mangled (eg local packet).
+	 */
+	union nf_inet_addr ip =
+		(manip == NF_NAT_MANIP_SRC ?
+		ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3 :
+		ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3);
+	struct nf_nat_range range = {
+		.flags		= NF_NAT_RANGE_MAP_IPS,
+		.min_addr	= ip,
+		.max_addr	= ip,
+	};
+	return nf_nat_setup_info(ct, &range, manip);
+}
+
+unsigned int
+nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
+{
+	return __nf_nat_alloc_null_binding(ct, HOOK2MANIP(hooknum));
+}
+EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
@@ -682,9 +708,9 @@ static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
 
 static int
 nfnetlink_parse_nat(const struct nlattr *nat,
-		    const struct nf_conn *ct, struct nf_nat_range *range)
+		    const struct nf_conn *ct, struct nf_nat_range *range,
+		    const struct nf_nat_l3proto *l3proto)
 {
-	const struct nf_nat_l3proto *l3proto;
 	struct nlattr *tb[CTA_NAT_MAX+1];
 	int err;
 
@@ -694,38 +720,46 @@ nfnetlink_parse_nat(const struct nlattr *nat,
 	if (err < 0)
 		return err;
 
-	rcu_read_lock();
-	l3proto = __nf_nat_l3proto_find(nf_ct_l3num(ct));
-	if (l3proto == NULL) {
-		err = -EAGAIN;
-		goto out;
-	}
 	err = l3proto->nlattr_to_range(tb, range);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (!tb[CTA_NAT_PROTO])
-		goto out;
+		return 0;
 
-	err = nfnetlink_parse_nat_proto(tb[CTA_NAT_PROTO], ct, range);
-out:
-	rcu_read_unlock();
-	return err;
+	return nfnetlink_parse_nat_proto(tb[CTA_NAT_PROTO], ct, range);
 }
 
+/* This function is called under rcu_read_lock() */
 static int
 nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
 			  const struct nlattr *attr)
 {
 	struct nf_nat_range range;
+	const struct nf_nat_l3proto *l3proto;
 	int err;
 
-	err = nfnetlink_parse_nat(attr, ct, &range);
+	/* Should not happen, restricted to creating new conntracks
+	 * via ctnetlink.
+	 */
+	if (WARN_ON_ONCE(nf_nat_initialized(ct, manip)))
+		return -EEXIST;
+
+	/* Make sure that L3 NAT is there by when we call nf_nat_setup_info to
+	 * attach the null binding, otherwise this may oops.
+	 */
+	l3proto = __nf_nat_l3proto_find(nf_ct_l3num(ct));
+	if (l3proto == NULL)
+		return -EAGAIN;
+
+	/* No NAT information has been passed, allocate the null-binding */
+	if (attr == NULL)
+		return __nf_nat_alloc_null_binding(ct, manip);
+
+	err = nfnetlink_parse_nat(attr, ct, &range, l3proto);
 	if (err < 0)
 		return err;
-	if (nf_nat_initialized(ct, manip))
-		return -EEXIST;
 
 	return nf_nat_setup_info(ct, &range, manip);
 }

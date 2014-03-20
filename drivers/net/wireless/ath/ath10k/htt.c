@@ -104,20 +104,15 @@ err_htc_attach:
 
 static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 {
-	ath10k_dbg(ATH10K_DBG_HTT,
-		   "htt target version %d.%d; host version %d.%d\n",
-		    htt->target_version_major,
-		    htt->target_version_minor,
-		    HTT_CURRENT_VERSION_MAJOR,
-		    HTT_CURRENT_VERSION_MINOR);
+	ath10k_dbg(ATH10K_DBG_BOOT, "htt target version %d.%d\n",
+		   htt->target_version_major, htt->target_version_minor);
 
-	if (htt->target_version_major != HTT_CURRENT_VERSION_MAJOR) {
-		ath10k_err("htt major versions are incompatible!\n");
+	if (htt->target_version_major != 2 &&
+	    htt->target_version_major != 3) {
+		ath10k_err("unsupported htt major version %d. supported versions are 2 and 3\n",
+			   htt->target_version_major);
 		return -ENOTSUPP;
 	}
-
-	if (htt->target_version_minor != HTT_CURRENT_VERSION_MINOR)
-		ath10k_warn("htt minor version differ but still compatible\n");
 
 	return 0;
 }

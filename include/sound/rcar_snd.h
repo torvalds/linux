@@ -18,7 +18,7 @@
 #define RSND_GEN1_ADG	1
 #define RSND_GEN1_SSI	2
 
-#define RSND_GEN2_SRU	0
+#define RSND_GEN2_SCU	0
 #define RSND_GEN2_ADG	1
 #define RSND_GEN2_SSIU	2
 #define RSND_GEN2_SSI	3
@@ -34,9 +34,7 @@
  * B : SSI direction
  */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
-#define RSND_SSI_CLK_FROM_ADG		(1 << 30) /* clock parent is master */
 #define RSND_SSI_SYNC			(1 << 29) /* SSI34_sync etc */
-#define RSND_SSI_DEPENDENT		(1 << 28) /* SSI needs SRU/SCU */
 
 #define RSND_SSI_PLAY			(1 << 24)
 
@@ -59,6 +57,7 @@ struct rsnd_ssi_platform_info {
 
 struct rsnd_scu_platform_info {
 	u32 flags;
+	u32 convert_rate; /* sampling rate convert */
 };
 
 /*
@@ -68,6 +67,7 @@ struct rsnd_scu_platform_info {
  *
  * A : generation
  */
+#define RSND_GEN_MASK	(0xF << 0)
 #define RSND_GEN1	(1 << 0) /* fixme */
 #define RSND_GEN2	(2 << 0) /* fixme */
 

@@ -14,7 +14,6 @@
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -36,7 +35,6 @@
 #include "powernv.h"
 #include "pci.h"
 
-static char *hub_diag = NULL;
 static int ioda_eeh_nb_init = 0;
 
 static int ioda_eeh_event(struct notifier_block *nb,
@@ -46,7 +44,8 @@ static int ioda_eeh_event(struct notifier_block *nb,
 
 	/* We simply send special EEH event */
 	if ((changed_evts & OPAL_EVENT_PCI_ERROR) &&
-	    (events & OPAL_EVENT_PCI_ERROR))
+	    (events & OPAL_EVENT_PCI_ERROR) &&
+	    eeh_enabled())
 		eeh_send_failure_event(NULL);
 
 	return 0;
@@ -59,27 +58,62 @@ static struct notifier_block ioda_eeh_nb = {
 };
 
 #ifdef CONFIG_DEBUG_FS
-static int ioda_eeh_dbgfs_set(void *data, u64 val)
+static int ioda_eeh_dbgfs_set(void *data, int offset, u64 val)
 {
 	struct pci_controller *hose = data;
 	struct pnv_phb *phb = hose->private_data;
 
-	out_be64(phb->regs + 0xD10, val);
+	out_be64(phb->regs + offset, val);
 	return 0;
 }
 
-static int ioda_eeh_dbgfs_get(void *data, u64 *val)
+static int ioda_eeh_dbgfs_get(void *data, int offset, u64 *val)
 {
 	struct pci_controller *hose = data;
 	struct pnv_phb *phb = hose->private_data;
 
-	*val = in_be64(phb->regs + 0xD10);
+	*val = in_be64(phb->regs + offset);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_dbgfs_ops, ioda_eeh_dbgfs_get,
-			ioda_eeh_dbgfs_set, "0x%llx\n");
+static int ioda_eeh_outb_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xD10, val);
+}
+
+static int ioda_eeh_outb_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xD10, val);
+}
+
+static int ioda_eeh_inbA_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xD90, val);
+}
+
+static int ioda_eeh_inbA_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xD90, val);
+}
+
+static int ioda_eeh_inbB_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xE10, val);
+}
+
+static int ioda_eeh_inbB_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xE10, val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_outb_dbgfs_ops, ioda_eeh_outb_dbgfs_get,
+			ioda_eeh_outb_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbA_dbgfs_ops, ioda_eeh_inbA_dbgfs_get,
+			ioda_eeh_inbA_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbB_dbgfs_ops, ioda_eeh_inbB_dbgfs_get,
+			ioda_eeh_inbB_dbgfs_set, "0x%llx\n");
 #endif /* CONFIG_DEBUG_FS */
+
 
 /**
  * ioda_eeh_post_init - Chip dependent post initialization
@@ -106,27 +140,21 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 		ioda_eeh_nb_init = 1;
 	}
 
-	/* FIXME: Enable it for PHB3 later */
-	if (phb->type == PNV_PHB_IODA1) {
-		if (!hub_diag) {
-			hub_diag = (char *)__get_free_page(GFP_KERNEL |
-							   __GFP_ZERO);
-			if (!hub_diag) {
-				pr_err("%s: Out of memory !\n",
-				       __func__);
-				return -ENOMEM;
-			}
-		}
-
 #ifdef CONFIG_DEBUG_FS
-		if (phb->dbgfs)
-			debugfs_create_file("err_injct", 0600,
-					    phb->dbgfs, hose,
-					    &ioda_eeh_dbgfs_ops);
+	if (phb->dbgfs) {
+		debugfs_create_file("err_injct_outbound", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_outb_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundA", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_inbA_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundB", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_inbB_dbgfs_ops);
+	}
 #endif
 
-		phb->eeh_state |= PNV_EEH_STATE_ENABLED;
-	}
+	phb->eeh_state |= PNV_EEH_STATE_ENABLED;
 
 	return 0;
 }
@@ -194,6 +222,22 @@ static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
 	return ret;
 }
 
+static void ioda_eeh_phb_diag(struct pci_controller *hose)
+{
+	struct pnv_phb *phb = hose->private_data;
+	long rc;
+
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+					 PNV_PCI_DIAG_BUF_SIZE);
+	if (rc != OPAL_SUCCESS) {
+		pr_warning("%s: Failed to get diag-data for PHB#%x (%ld)\n",
+			    __func__, hose->global_number, rc);
+		return;
+	}
+
+	pnv_pci_dump_phb_diag_data(hose, phb->diag.blob);
+}
+
 /**
  * ioda_eeh_get_state - Retrieve the state of PE
  * @pe: EEH PE
@@ -245,6 +289,9 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 			result |= EEH_STATE_DMA_ACTIVE;
 			result |= EEH_STATE_MMIO_ENABLED;
 			result |= EEH_STATE_DMA_ENABLED;
+		} else if (!(pe->state & EEH_PE_ISOLATED)) {
+			eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+			ioda_eeh_phb_diag(hose);
 		}
 
 		return result;
@@ -286,6 +333,15 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 		pr_warning("%s: Unexpected EEH status 0x%x "
 			   "on PHB#%x-PE#%x\n",
 			   __func__, fstate, hose->global_number, pe_no);
+	}
+
+	/* Dump PHB diag-data for frozen PE */
+	if (result != EEH_STATE_NOT_SUPPORT &&
+	    (result & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) !=
+	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE) &&
+	    !(pe->state & EEH_PE_ISOLATED)) {
+		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		ioda_eeh_phb_diag(hose);
 	}
 
 	return result;
@@ -463,8 +519,7 @@ static int ioda_eeh_bridge_reset(struct pci_controller *hose,
 static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 {
 	struct pci_controller *hose = pe->phb;
-	struct eeh_dev *edev;
-	struct pci_dev *dev;
+	struct pci_bus *bus;
 	int ret;
 
 	/*
@@ -493,73 +548,14 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 	if (pe->type & EEH_PE_PHB) {
 		ret = ioda_eeh_phb_reset(hose, option);
 	} else {
-		if (pe->type & EEH_PE_DEVICE) {
-			/*
-			 * If it's device PE, we didn't refer to the parent
-			 * PCI bus yet. So we have to figure it out indirectly.
-			 */
-			edev = list_first_entry(&pe->edevs,
-					struct eeh_dev, list);
-			dev = eeh_dev_to_pci_dev(edev);
-			dev = dev->bus->self;
-		} else {
-			/*
-			 * If it's bus PE, the parent PCI bus is already there
-			 * and just pick it up.
-			 */
-			dev = pe->bus->self;
-		}
-
-		/*
-		 * Do reset based on the fact that the direct upstream bridge
-		 * is root bridge (port) or not.
-		 */
-		if (dev->bus->number == 0)
+		bus = eeh_pe_bus_get(pe);
+		if (pci_is_root_bus(bus))
 			ret = ioda_eeh_root_reset(hose, option);
 		else
-			ret = ioda_eeh_bridge_reset(hose, dev, option);
+			ret = ioda_eeh_bridge_reset(hose, bus->self, option);
 	}
 
 	return ret;
-}
-
-/**
- * ioda_eeh_get_log - Retrieve error log
- * @pe: EEH PE
- * @severity: Severity level of the log
- * @drv_log: buffer to store the log
- * @len: space of the log buffer
- *
- * The function is used to retrieve error log from P7IOC.
- */
-static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
-			    char *drv_log, unsigned long len)
-{
-	s64 ret;
-	unsigned long flags;
-	struct pci_controller *hose = pe->phb;
-	struct pnv_phb *phb = hose->private_data;
-
-	spin_lock_irqsave(&phb->lock, flags);
-
-	ret = opal_pci_get_phb_diag_data2(phb->opal_id,
-			phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
-	if (ret) {
-		spin_unlock_irqrestore(&phb->lock, flags);
-		pr_warning("%s: Failed to get log for PHB#%x-PE#%x\n",
-			   __func__, hose->global_number, pe->addr);
-		return -EIO;
-	}
-
-	/*
-	 * FIXME: We probably need log the error in somewhere.
-	 * Lets make it up in future.
-	 */
-	/* pr_info("%s", phb->diag.blob); */
-
-	spin_unlock_irqrestore(&phb->lock, flags);
-
-	return 0;
 }
 
 /**
@@ -596,11 +592,10 @@ static void ioda_eeh_hub_diag_common(struct OpalIoP7IOCErrorData *data)
 static void ioda_eeh_hub_diag(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
-	struct OpalIoP7IOCErrorData *data;
+	struct OpalIoP7IOCErrorData *data = &phb->diag.hub_diag;
 	long rc;
 
-	data = (struct OpalIoP7IOCErrorData *)ioda_eeh_hub_diag;
-	rc = opal_pci_get_hub_diag_data(phb->hub_id, data, PAGE_SIZE);
+	rc = opal_pci_get_hub_diag_data(phb->hub_id, data, sizeof(*data));
 	if (rc != OPAL_SUCCESS) {
 		pr_warning("%s: Failed to get HUB#%llx diag-data (%ld)\n",
 			   __func__, phb->hub_id, rc);
@@ -644,96 +639,6 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 	}
 }
 
-static void ioda_eeh_p7ioc_phb_diag(struct pci_controller *hose,
-				    struct OpalIoPhbErrorCommon *common)
-{
-	struct OpalIoP7IOCPhbErrorData *data;
-	int i;
-
-	data = (struct OpalIoP7IOCPhbErrorData *)common;
-
-	pr_info("P7IOC PHB#%x Diag-data (Version: %d)\n\n",
-		hose->global_number, common->version);
-
-	pr_info("  brdgCtl:              %08x\n", data->brdgCtl);
-
-	pr_info("  portStatusReg:        %08x\n", data->portStatusReg);
-	pr_info("  rootCmplxStatus:      %08x\n", data->rootCmplxStatus);
-	pr_info("  busAgentStatus:       %08x\n", data->busAgentStatus);
-
-	pr_info("  deviceStatus:         %08x\n", data->deviceStatus);
-	pr_info("  slotStatus:           %08x\n", data->slotStatus);
-	pr_info("  linkStatus:           %08x\n", data->linkStatus);
-	pr_info("  devCmdStatus:         %08x\n", data->devCmdStatus);
-	pr_info("  devSecStatus:         %08x\n", data->devSecStatus);
-
-	pr_info("  rootErrorStatus:      %08x\n", data->rootErrorStatus);
-	pr_info("  uncorrErrorStatus:    %08x\n", data->uncorrErrorStatus);
-	pr_info("  corrErrorStatus:      %08x\n", data->corrErrorStatus);
-	pr_info("  tlpHdr1:              %08x\n", data->tlpHdr1);
-	pr_info("  tlpHdr2:              %08x\n", data->tlpHdr2);
-	pr_info("  tlpHdr3:              %08x\n", data->tlpHdr3);
-	pr_info("  tlpHdr4:              %08x\n", data->tlpHdr4);
-	pr_info("  sourceId:             %08x\n", data->sourceId);
-
-	pr_info("  errorClass:           %016llx\n", data->errorClass);
-	pr_info("  correlator:           %016llx\n", data->correlator);
-	pr_info("  p7iocPlssr:           %016llx\n", data->p7iocPlssr);
-	pr_info("  p7iocCsr:             %016llx\n", data->p7iocCsr);
-	pr_info("  lemFir:               %016llx\n", data->lemFir);
-	pr_info("  lemErrorMask:         %016llx\n", data->lemErrorMask);
-	pr_info("  lemWOF:               %016llx\n", data->lemWOF);
-	pr_info("  phbErrorStatus:       %016llx\n", data->phbErrorStatus);
-	pr_info("  phbFirstErrorStatus:  %016llx\n", data->phbFirstErrorStatus);
-	pr_info("  phbErrorLog0:         %016llx\n", data->phbErrorLog0);
-	pr_info("  phbErrorLog1:         %016llx\n", data->phbErrorLog1);
-	pr_info("  mmioErrorStatus:      %016llx\n", data->mmioErrorStatus);
-	pr_info("  mmioFirstErrorStatus: %016llx\n", data->mmioFirstErrorStatus);
-	pr_info("  mmioErrorLog0:        %016llx\n", data->mmioErrorLog0);
-	pr_info("  mmioErrorLog1:        %016llx\n", data->mmioErrorLog1);
-	pr_info("  dma0ErrorStatus:      %016llx\n", data->dma0ErrorStatus);
-	pr_info("  dma0FirstErrorStatus: %016llx\n", data->dma0FirstErrorStatus);
-	pr_info("  dma0ErrorLog0:        %016llx\n", data->dma0ErrorLog0);
-	pr_info("  dma0ErrorLog1:        %016llx\n", data->dma0ErrorLog1);
-	pr_info("  dma1ErrorStatus:      %016llx\n", data->dma1ErrorStatus);
-	pr_info("  dma1FirstErrorStatus: %016llx\n", data->dma1FirstErrorStatus);
-	pr_info("  dma1ErrorLog0:        %016llx\n", data->dma1ErrorLog0);
-	pr_info("  dma1ErrorLog1:        %016llx\n", data->dma1ErrorLog1);
-
-	for (i = 0; i < OPAL_P7IOC_NUM_PEST_REGS; i++) {
-		if ((data->pestA[i] >> 63) == 0 &&
-		    (data->pestB[i] >> 63) == 0)
-			continue;
-
-		pr_info("  PE[%3d] PESTA:        %016llx\n", i, data->pestA[i]);
-		pr_info("          PESTB:        %016llx\n", data->pestB[i]);
-	}
-}
-
-static void ioda_eeh_phb_diag(struct pci_controller *hose)
-{
-	struct pnv_phb *phb = hose->private_data;
-	struct OpalIoPhbErrorCommon *common;
-	long rc;
-
-	common = (struct OpalIoPhbErrorCommon *)phb->diag.blob;
-	rc = opal_pci_get_phb_diag_data2(phb->opal_id, common, PAGE_SIZE);
-	if (rc != OPAL_SUCCESS) {
-		pr_warning("%s: Failed to get diag-data for PHB#%x (%ld)\n",
-			    __func__, hose->global_number, rc);
-		return;
-	}
-
-	switch (common->ioType) {
-	case OPAL_PHB_ERROR_DATA_TYPE_P7IOC:
-		ioda_eeh_p7ioc_phb_diag(hose, common);
-		break;
-	default:
-		pr_warning("%s: Unrecognized I/O chip %d\n",
-			   __func__, common->ioType);
-	}
-}
-
 static int ioda_eeh_get_phb_pe(struct pci_controller *hose,
 			       struct eeh_pe **pe)
 {
@@ -765,11 +670,7 @@ static int ioda_eeh_get_pe(struct pci_controller *hose,
 	dev.phb = hose;
 	dev.pe_config_addr = pe_no;
 	dev_pe = eeh_pe_get(&dev);
-	if (!dev_pe) {
-		pr_warning("%s: Can't find PE for PHB#%x - PE#%x\n",
-			   __func__, hose->global_number, pe_no);
-		return -EEXIST;
-	}
+	if (!dev_pe) return -EEXIST;
 
 	*pe = dev_pe;
 	return 0;
@@ -787,12 +688,12 @@ static int ioda_eeh_get_pe(struct pci_controller *hose,
  */
 static int ioda_eeh_next_error(struct eeh_pe **pe)
 {
-	struct pci_controller *hose, *tmp;
+	struct pci_controller *hose;
 	struct pnv_phb *phb;
 	u64 frozen_pe_no;
 	u16 err_type, severity;
 	long rc;
-	int ret = 1;
+	int ret = EEH_NEXT_ERR_NONE;
 
 	/*
 	 * While running here, it's safe to purge the event queue.
@@ -802,7 +703,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 	eeh_remove_event(NULL);
 	opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
 
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_node) {
 		/*
 		 * If the subordinate PCI buses of the PHB has been
 		 * removed, we needn't take care of it any more.
@@ -841,19 +742,19 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		switch (err_type) {
 		case OPAL_EEH_IOC_ERROR:
 			if (severity == OPAL_EEH_SEV_IOC_DEAD) {
-				list_for_each_entry_safe(hose, tmp,
-						&hose_list, list_node) {
+				list_for_each_entry(hose, &hose_list,
+						    list_node) {
 					phb = hose->private_data;
 					phb->eeh_state |= PNV_EEH_STATE_REMOVED;
 				}
 
 				pr_err("EEH: dead IOC detected\n");
-				ret = 4;
-				goto out;
+				ret = EEH_NEXT_ERR_DEAD_IOC;
 			} else if (severity == OPAL_EEH_SEV_INF) {
 				pr_info("EEH: IOC informative error "
 					"detected\n");
 				ioda_eeh_hub_diag(hose);
+				ret = EEH_NEXT_ERR_NONE;
 			}
 
 			break;
@@ -865,37 +766,75 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 				pr_err("EEH: dead PHB#%x detected\n",
 					hose->global_number);
 				phb->eeh_state |= PNV_EEH_STATE_REMOVED;
-				ret = 3;
-				goto out;
+				ret = EEH_NEXT_ERR_DEAD_PHB;
 			} else if (severity == OPAL_EEH_SEV_PHB_FENCED) {
 				if (ioda_eeh_get_phb_pe(hose, pe))
 					break;
 
 				pr_err("EEH: fenced PHB#%x detected\n",
 					hose->global_number);
-				ret = 2;
-				goto out;
+				ret = EEH_NEXT_ERR_FENCED_PHB;
 			} else if (severity == OPAL_EEH_SEV_INF) {
 				pr_info("EEH: PHB#%x informative error "
 					"detected\n",
 					hose->global_number);
 				ioda_eeh_phb_diag(hose);
+				ret = EEH_NEXT_ERR_NONE;
 			}
 
 			break;
 		case OPAL_EEH_PE_ERROR:
-			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe))
-				break;
+			/*
+			 * If we can't find the corresponding PE, the
+			 * PEEV / PEST would be messy. So we force an
+			 * fenced PHB so that it can be recovered.
+			 */
+			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe)) {
+				if (!ioda_eeh_get_phb_pe(hose, pe)) {
+					pr_err("EEH: Escalated fenced PHB#%x "
+					       "detected for PE#%llx\n",
+						hose->global_number,
+						frozen_pe_no);
+					ret = EEH_NEXT_ERR_FENCED_PHB;
+				} else {
+					ret = EEH_NEXT_ERR_NONE;
+				}
+			} else {
+				pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
+					(*pe)->addr, (*pe)->phb->global_number);
+				ret = EEH_NEXT_ERR_FROZEN_PE;
+			}
 
-			pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
-				(*pe)->addr, (*pe)->phb->global_number);
-			ret = 1;
-			goto out;
+			break;
+		default:
+			pr_warn("%s: Unexpected error type %d\n",
+				__func__, err_type);
 		}
+
+		/*
+		 * EEH core will try recover from fenced PHB or
+		 * frozen PE. In the time for frozen PE, EEH core
+		 * enable IO path for that before collecting logs,
+		 * but it ruins the site. So we have to dump the
+		 * log in advance here.
+		 */
+		if ((ret == EEH_NEXT_ERR_FROZEN_PE  ||
+		    ret == EEH_NEXT_ERR_FENCED_PHB) &&
+		    !((*pe)->state & EEH_PE_ISOLATED)) {
+			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
+			ioda_eeh_phb_diag(hose);
+		}
+
+		/*
+		 * If we have no errors on the specific PHB or only
+		 * informative error there, we continue poking it.
+		 * Otherwise, we need actions to be taken by upper
+		 * layer.
+		 */
+		if (ret > EEH_NEXT_ERR_INF)
+			break;
 	}
 
-	ret = 0;
-out:
 	return ret;
 }
 
@@ -904,7 +843,6 @@ struct pnv_eeh_ops ioda_eeh_ops = {
 	.set_option		= ioda_eeh_set_option,
 	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
-	.get_log		= ioda_eeh_get_log,
 	.configure_bridge	= ioda_eeh_configure_bridge,
 	.next_error		= ioda_eeh_next_error
 };

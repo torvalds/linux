@@ -46,13 +46,16 @@
 /*
  * Driver identification, error and debugging statments
  *
- * In theory, you can change all occurances of "digi" in the next
+ * In theory, you can change all occurrences of "digi" in the next
  * three lines, and the driver printk's will all automagically change.
  *
  * APR((fmt, args, ...));	Always prints message
  * DPR((fmt, args, ...));	Only prints if DGAP_TRACER is defined at
  *				  compile time and dgap_debug!=0
  */
+#define	DG_NAME		"dgap-1.3-16"
+#define	DG_PART		"40002347_C"
+
 #define	PROCSTR		"dgap"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgap"		/* /dev entries		 */
 #define	DRVSTR		"dgap"			/* Driver name string 
@@ -575,7 +578,6 @@ struct channel_t {
  *************************************************************************/
 
 extern int		dgap_ms_sleep(ulong ms);
-extern void		*dgap_driver_kzmalloc(size_t size, int priority);
 extern char		*dgap_ioctl_name(int cmd);
 extern void		dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len);
 extern void		dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);

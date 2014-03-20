@@ -232,9 +232,15 @@ __do_get_tspec:
 	lwz	r6,(CFG_TB_ORIG_STAMP+4)(r9)
 
 	/* Get a stable TB value */
+#ifdef CONFIG_8xx
+2:	mftbu	r3
+	mftbl	r4
+	mftbu	r0
+#else
 2:	mfspr	r3, SPRN_TBRU
 	mfspr	r4, SPRN_TBRL
 	mfspr	r0, SPRN_TBRU
+#endif
 	cmplw	cr0,r3,r0
 	bne-	2b
 

@@ -624,7 +624,7 @@ static void cg6_init_fix(struct fb_info *info, int linebytes)
 	default:
 		cg6_cpu_name = "i386";
 		break;
-	};
+	}
 	if (((conf >> CG6_FHC_REV_SHIFT) & CG6_FHC_REV_MASK) >= 11) {
 		if (info->fix.smem_len <= 0x100000)
 			cg6_card_name = "TGX";
@@ -838,8 +838,6 @@ static int cg6_remove(struct platform_device *op)
 	cg6_unmap_regs(op, info, par);
 
 	framebuffer_release(info);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

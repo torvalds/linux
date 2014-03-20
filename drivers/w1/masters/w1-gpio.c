@@ -18,9 +18,30 @@
 #include <linux/of_gpio.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
+
+static u8 w1_gpio_set_pullup(void *data, int delay)
+{
+	struct w1_gpio_platform_data *pdata = data;
+
+	if (delay) {
+		pdata->pullup_duration = delay;
+	} else {
+		if (pdata->pullup_duration) {
+			gpio_direction_output(pdata->pin, 1);
+
+			msleep(pdata->pullup_duration);
+
+			gpio_direction_input(pdata->pin);
+		}
+		pdata->pullup_duration = 0;
+	}
+
+	return 0;
+}
 
 static void w1_gpio_write_bit_dir(void *data, u8 bit)
 {
@@ -56,8 +77,9 @@ MODULE_DEVICE_TABLE(of, w1_gpio_dt_ids);
 
 static int w1_gpio_probe_dt(struct platform_device *pdev)
 {
-	struct w1_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct w1_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
+	int gpio;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -66,7 +88,11 @@ static int w1_gpio_probe_dt(struct platform_device *pdev)
 	if (of_get_property(np, "linux,open-drain", NULL))
 		pdata->is_open_drain = 1;
 
-	pdata->pin = of_get_gpio(np, 0);
+	gpio = of_get_gpio(np, 0);
+	if (gpio < 0)
+		return gpio;
+	pdata->pin = gpio;
+
 	pdata->ext_pullup_enable_pin = of_get_gpio(np, 1);
 	pdev->dev.platform_data = pdata;
 
@@ -87,32 +113,34 @@ static int w1_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "No configuration data\n");
 		return -ENXIO;
 	}
 
-	master = kzalloc(sizeof(struct w1_bus_master), GFP_KERNEL);
+	master = devm_kzalloc(&pdev->dev, sizeof(struct w1_bus_master),
+			GFP_KERNEL);
 	if (!master) {
 		dev_err(&pdev->dev, "Out of memory\n");
 		return -ENOMEM;
 	}
 
-	err = gpio_request(pdata->pin, "w1");
+	err = devm_gpio_request(&pdev->dev, pdata->pin, "w1");
 	if (err) {
 		dev_err(&pdev->dev, "gpio_request (pin) failed\n");
-		goto free_master;
+		return err;
 	}
 
 	if (gpio_is_valid(pdata->ext_pullup_enable_pin)) {
-		err = gpio_request_one(pdata->ext_pullup_enable_pin,
-				       GPIOF_INIT_LOW, "w1 pullup");
+		err = devm_gpio_request_one(&pdev->dev,
+				pdata->ext_pullup_enable_pin, GPIOF_INIT_LOW,
+				"w1 pullup");
 		if (err < 0) {
 			dev_err(&pdev->dev, "gpio_request_one "
 					"(ext_pullup_enable_pin) failed\n");
-			goto free_gpio;
+			return err;
 		}
 	}
 
@@ -125,12 +153,13 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	} else {
 		gpio_direction_input(pdata->pin);
 		master->write_bit = w1_gpio_write_bit_dir;
+		master->set_pullup = w1_gpio_set_pullup;
 	}
 
 	err = w1_add_master_device(master);
 	if (err) {
 		dev_err(&pdev->dev, "w1_add_master device failed\n");
-		goto free_gpio_ext_pu;
+		return err;
 	}
 
 	if (pdata->enable_external_pullup)
@@ -142,22 +171,12 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	return 0;
-
- free_gpio_ext_pu:
-	if (gpio_is_valid(pdata->ext_pullup_enable_pin))
-		gpio_free(pdata->ext_pullup_enable_pin);
- free_gpio:
-	gpio_free(pdata->pin);
- free_master:
-	kfree(master);
-
-	return err;
 }
 
 static int w1_gpio_remove(struct platform_device *pdev)
 {
 	struct w1_bus_master *master = platform_get_drvdata(pdev);
-	struct w1_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct w1_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(0);
@@ -166,8 +185,6 @@ static int w1_gpio_remove(struct platform_device *pdev)
 		gpio_set_value(pdata->ext_pullup_enable_pin, 0);
 
 	w1_remove_master_device(master);
-	gpio_free(pdata->pin);
-	kfree(master);
 
 	return 0;
 }
@@ -176,7 +193,7 @@ static int w1_gpio_remove(struct platform_device *pdev)
 
 static int w1_gpio_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct w1_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct w1_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(0);
@@ -186,7 +203,7 @@ static int w1_gpio_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int w1_gpio_resume(struct platform_device *pdev)
 {
-	struct w1_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct w1_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(1);

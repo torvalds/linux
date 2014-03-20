@@ -20,8 +20,6 @@
 #include <scsi/scsi_device.h>
 #include "libata.h"
 
-#include <acpi/acpi_bus.h>
-
 unsigned int ata_acpi_gtf_filter = ATA_ACPI_FILTER_DEFAULT;
 module_param_named(acpi_gtf_filter, ata_acpi_gtf_filter, int, 0644);
 MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock, 0x4=DIPM, 0x8=FPDMA non-zero offset, 0x10=FPDMA DMA Setup FIS auto-activate)");
@@ -180,12 +178,12 @@ static const struct acpi_dock_ops ata_acpi_ap_dock_ops = {
 /* bind acpi handle to pata port */
 void ata_acpi_bind_port(struct ata_port *ap)
 {
-	acpi_handle host_handle = ACPI_HANDLE(ap->host->dev);
+	struct acpi_device *host_companion = ACPI_COMPANION(ap->host->dev);
 
-	if (libata_noacpi || ap->flags & ATA_FLAG_ACPI_SATA || !host_handle)
+	if (libata_noacpi || ap->flags & ATA_FLAG_ACPI_SATA || !host_companion)
 		return;
 
-	ACPI_HANDLE_SET(&ap->tdev, acpi_get_child(host_handle, ap->port_no));
+	acpi_preset_companion(&ap->tdev, host_companion, ap->port_no);
 
 	if (ata_acpi_gtm(ap, &ap->__acpi_init_gtm) == 0)
 		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
@@ -198,17 +196,17 @@ void ata_acpi_bind_port(struct ata_port *ap)
 void ata_acpi_bind_dev(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
-	acpi_handle port_handle = ACPI_HANDLE(&ap->tdev);
-	acpi_handle host_handle = ACPI_HANDLE(ap->host->dev);
-	acpi_handle parent_handle;
+	struct acpi_device *port_companion = ACPI_COMPANION(&ap->tdev);
+	struct acpi_device *host_companion = ACPI_COMPANION(ap->host->dev);
+	struct acpi_device *parent;
 	u64 adr;
 
 	/*
-	 * For both sata/pata devices, host handle is required.
-	 * For pata device, port handle is also required.
+	 * For both sata/pata devices, host companion device is required.
+	 * For pata device, port companion device is also required.
 	 */
-	if (libata_noacpi || !host_handle ||
-			(!(ap->flags & ATA_FLAG_ACPI_SATA) && !port_handle))
+	if (libata_noacpi || !host_companion ||
+			(!(ap->flags & ATA_FLAG_ACPI_SATA) && !port_companion))
 		return;
 
 	if (ap->flags & ATA_FLAG_ACPI_SATA) {
@@ -216,13 +214,13 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 			adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
 		else
 			adr = SATA_ADR(ap->port_no, dev->link->pmp);
-		parent_handle = host_handle;
+		parent = host_companion;
 	} else {
 		adr = dev->devno;
-		parent_handle = port_handle;
+		parent = port_companion;
 	}
 
-	ACPI_HANDLE_SET(&dev->tdev, acpi_get_child(parent_handle, adr));
+	acpi_preset_companion(&dev->tdev, parent, adr);
 
 	register_hotplug_dock_device(ata_dev_acpi_handle(dev),
 				     &ata_acpi_dev_dock_ops, dev, NULL, NULL);
@@ -1034,18 +1032,4 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 void ata_acpi_on_disable(struct ata_device *dev)
 {
 	ata_acpi_clear_gtf(dev);
-}
-
-void ata_scsi_acpi_bind(struct ata_device *dev)
-{
-	acpi_handle handle = ata_dev_acpi_handle(dev);
-	if (handle)
-		acpi_dev_pm_add_dependent(handle, &dev->sdev->sdev_gendev);
-}
-
-void ata_scsi_acpi_unbind(struct ata_device *dev)
-{
-	acpi_handle handle = ata_dev_acpi_handle(dev);
-	if (handle)
-		acpi_dev_pm_remove_dependent(handle, &dev->sdev->sdev_gendev);
 }

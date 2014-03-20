@@ -111,7 +111,7 @@ static bool _is_module_ready(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
 /* Public functions */
 
 /* Read a register in a CM instance */
-u32 omap4_cminst_read_inst_reg(u8 part, s16 inst, u16 idx)
+u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
@@ -120,7 +120,7 @@ u32 omap4_cminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 }
 
 /* Write into a register in a CM instance */
-void omap4_cminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
+void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
@@ -129,7 +129,7 @@ void omap4_cminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
 }
 
 /* Read-modify-write a register in CM1. Caller must lock */
-u32 omap4_cminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, s16 inst,
+u32 omap4_cminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, u16 inst,
 				   s16 idx)
 {
 	u32 v;
@@ -142,12 +142,12 @@ u32 omap4_cminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, s16 inst,
 	return v;
 }
 
-u32 omap4_cminst_set_inst_reg_bits(u32 bits, u8 part, s16 inst, s16 idx)
+u32 omap4_cminst_set_inst_reg_bits(u32 bits, u8 part, u16 inst, s16 idx)
 {
 	return omap4_cminst_rmw_inst_reg_bits(bits, bits, part, inst, idx);
 }
 
-u32 omap4_cminst_clear_inst_reg_bits(u32 bits, u8 part, s16 inst, s16 idx)
+u32 omap4_cminst_clear_inst_reg_bits(u32 bits, u8 part, u16 inst, s16 idx)
 {
 	return omap4_cminst_rmw_inst_reg_bits(bits, 0x0, part, inst, idx);
 }
@@ -177,7 +177,7 @@ u32 omap4_cminst_read_inst_reg_bits(u8 part, u16 inst, s16 idx, u32 mask)
  * @c must be the unshifted value for CLKTRCTRL - i.e., this function
  * will handle the shift itself.
  */
-static void _clktrctrl_write(u8 c, u8 part, s16 inst, u16 cdoffs)
+static void _clktrctrl_write(u8 c, u8 part, u16 inst, u16 cdoffs)
 {
 	u32 v;
 
@@ -196,7 +196,7 @@ static void _clktrctrl_write(u8 c, u8 part, s16 inst, u16 cdoffs)
  * Returns true if the clockdomain referred to by (@part, @inst, @cdoffs)
  * is in hardware-supervised idle mode, or 0 otherwise.
  */
-bool omap4_cminst_is_clkdm_in_hwsup(u8 part, s16 inst, u16 cdoffs)
+bool omap4_cminst_is_clkdm_in_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
 	u32 v;
 
@@ -216,7 +216,7 @@ bool omap4_cminst_is_clkdm_in_hwsup(u8 part, s16 inst, u16 cdoffs)
  * Put a clockdomain referred to by (@part, @inst, @cdoffs) into
  * hardware-supervised idle mode.  No return value.
  */
-void omap4_cminst_clkdm_enable_hwsup(u8 part, s16 inst, u16 cdoffs)
+void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, part, inst, cdoffs);
 }
@@ -231,7 +231,7 @@ void omap4_cminst_clkdm_enable_hwsup(u8 part, s16 inst, u16 cdoffs)
  * software-supervised idle mode, i.e., controlled manually by the
  * Linux OMAP clockdomain code.  No return value.
  */
-void omap4_cminst_clkdm_disable_hwsup(u8 part, s16 inst, u16 cdoffs)
+void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, part, inst, cdoffs);
 }
@@ -245,7 +245,7 @@ void omap4_cminst_clkdm_disable_hwsup(u8 part, s16 inst, u16 cdoffs)
  * Take a clockdomain referred to by (@part, @inst, @cdoffs) out of idle,
  * waking it up.  No return value.
  */
-void omap4_cminst_clkdm_force_wakeup(u8 part, s16 inst, u16 cdoffs)
+void omap4_cminst_clkdm_force_wakeup(u8 part, u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, part, inst, cdoffs);
 }
@@ -476,6 +476,15 @@ struct clkdm_ops omap4_clkdm_operations = {
 	.clkdm_del_sleepdep	= omap4_clkdm_del_wkup_sleep_dep,
 	.clkdm_read_sleepdep	= omap4_clkdm_read_wkup_sleep_dep,
 	.clkdm_clear_all_sleepdeps	= omap4_clkdm_clear_all_wkup_sleep_deps,
+	.clkdm_sleep		= omap4_clkdm_sleep,
+	.clkdm_wakeup		= omap4_clkdm_wakeup,
+	.clkdm_allow_idle	= omap4_clkdm_allow_idle,
+	.clkdm_deny_idle	= omap4_clkdm_deny_idle,
+	.clkdm_clk_enable	= omap4_clkdm_clk_enable,
+	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
+};
+
+struct clkdm_ops am43xx_clkdm_operations = {
 	.clkdm_sleep		= omap4_clkdm_sleep,
 	.clkdm_wakeup		= omap4_clkdm_wakeup,
 	.clkdm_allow_idle	= omap4_clkdm_allow_idle,

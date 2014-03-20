@@ -22,32 +22,12 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/mc.h>
+#include "nv04.h"
 
-struct nv44_mc_priv {
-	struct nouveau_mc base;
-};
-
-static int
-nv44_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nv44_mc_priv *priv;
-	int ret;
-
-	ret = nouveau_mc_create(parent, engine, oclass, nv04_mc_intr, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int
+int
 nv44_mc_init(struct nouveau_object *object)
 {
-	struct nv44_mc_priv *priv = (void *)object;
+	struct nv04_mc_priv *priv = (void *)object;
 	u32 tmp = nv_rd32(priv, 0x10020c);
 
 	nv_wr32(priv, 0x000200, 0xffffffff); /* everything enabled */
@@ -60,13 +40,15 @@ nv44_mc_init(struct nouveau_object *object)
 	return nouveau_mc_init(&priv->base);
 }
 
-struct nouveau_oclass
-nv44_mc_oclass = {
-	.handle = NV_SUBDEV(MC, 0x44),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv44_mc_ctor,
+struct nouveau_oclass *
+nv44_mc_oclass = &(struct nouveau_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0x44),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_mc_ctor,
 		.dtor = _nouveau_mc_dtor,
 		.init = nv44_mc_init,
 		.fini = _nouveau_mc_fini,
 	},
-};
+	.intr = nv04_mc_intr,
+	.msi_rearm = nv40_mc_msi_rearm,
+}.base;

@@ -67,8 +67,7 @@ static void __init board_init(void)
 
 static const char * const bcm11351_dt_compat[] = { "brcm,bcm11351", NULL, };
 
-DT_MACHINE_START(BCM11351_DT, "Broadcom Application Processor")
-	.init_time = clocksource_of_init,
+DT_MACHINE_START(BCM11351_DT, "BCM281xx Broadcom Application Processor")
 	.init_machine = board_init,
 	.restart = bcm_kona_restart,
 	.dt_compat = bcm11351_dt_compat,

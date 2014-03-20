@@ -115,7 +115,6 @@ int udl_dumb_create(struct drm_file *file_priv,
 int udl_gem_mmap(struct drm_file *file_priv, struct drm_device *dev,
 		 uint32_t handle, uint64_t *offset);
 
-int udl_gem_init_object(struct drm_gem_object *obj);
 void udl_gem_free_object(struct drm_gem_object *gem_obj);
 struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 					    size_t size);

@@ -42,6 +42,14 @@ extern void mcpm_entry_point(void);
 void mcpm_set_entry_vector(unsigned cpu, unsigned cluster, void *ptr);
 
 /*
+ * This sets an early poke i.e a value to be poked into some address
+ * from very early assembly code before the CPU is ungated.  The
+ * address must be physical, and if 0 then nothing will happen.
+ */
+void mcpm_set_early_poke(unsigned cpu, unsigned cluster,
+			 unsigned long poke_phys_addr, unsigned long poke_val);
+
+/*
  * CPU/cluster power operations API for higher subsystems to use.
  */
 
@@ -76,10 +84,43 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster);
  *
  * This must be called with interrupts disabled.
  *
- * This does not return.  Re-entry in the kernel is expected via
- * mcpm_entry_point.
+ * On success this does not return.  Re-entry in the kernel is expected
+ * via mcpm_entry_point.
+ *
+ * This will return if mcpm_platform_register() has not been called
+ * previously in which case the caller should take appropriate action.
+ *
+ * On success, the CPU is not guaranteed to be truly halted until
+ * mcpm_cpu_power_down_finish() subsequently returns non-zero for the
+ * specified cpu.  Until then, other CPUs should make sure they do not
+ * trash memory the target CPU might be executing/accessing.
  */
 void mcpm_cpu_power_down(void);
+
+/**
+ * mcpm_cpu_power_down_finish - wait for a specified CPU to halt, and
+ *	make sure it is powered off
+ *
+ * @cpu: CPU number within given cluster
+ * @cluster: cluster number for the CPU
+ *
+ * Call this function to ensure that a pending powerdown has taken
+ * effect and the CPU is safely parked before performing non-mcpm
+ * operations that may affect the CPU (such as kexec trashing the
+ * kernel text).
+ *
+ * It is *not* necessary to call this function if you only need to
+ * serialise a pending powerdown with mcpm_cpu_power_up() or a wakeup
+ * event.
+ *
+ * Do not call this function unless the specified CPU has already
+ * called mcpm_cpu_power_down() or has committed to doing so.
+ *
+ * @return:
+ *	- zero if the CPU is in a safely parked state
+ *	- nonzero otherwise (e.g., timeout)
+ */
+int mcpm_cpu_power_down_finish(unsigned int cpu, unsigned int cluster);
 
 /**
  * mcpm_cpu_suspend - bring the calling CPU in a suspended state
@@ -98,8 +139,11 @@ void mcpm_cpu_power_down(void);
  *
  * This must be called with interrupts disabled.
  *
- * This does not return.  Re-entry in the kernel is expected via
- * mcpm_entry_point.
+ * On success this does not return.  Re-entry in the kernel is expected
+ * via mcpm_entry_point.
+ *
+ * This will return if mcpm_platform_register() has not been called
+ * previously in which case the caller should take appropriate action.
  */
 void mcpm_cpu_suspend(u64 expected_residency);
 
@@ -120,6 +164,7 @@ int mcpm_cpu_powered_up(void);
 struct mcpm_platform_ops {
 	int (*power_up)(unsigned int cpu, unsigned int cluster);
 	void (*power_down)(void);
+	int (*power_down_finish)(unsigned int cpu, unsigned int cluster);
 	void (*suspend)(u64);
 	void (*powered_up)(void);
 };

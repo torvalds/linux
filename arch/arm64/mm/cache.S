@@ -146,7 +146,7 @@ ENDPROC(flush_icache_range)
 ENDPROC(__flush_cache_user_range)
 
 /*
- *	__flush_kern_dcache_page(kaddr)
+ *	__flush_dcache_area(kaddr, size)
  *
  *	Ensure that the data held in the page kaddr is written back to the
  *	page in question.

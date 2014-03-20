@@ -49,70 +49,6 @@ static struct rtnl_link_ops vti_link_ops __read_mostly;
 static int vti_net_id __read_mostly;
 static int vti_tunnel_init(struct net_device *dev);
 
-static int vti_err(struct sk_buff *skb, u32 info)
-{
-
-	/* All the routers (except for Linux) return only
-	 * 8 bytes of packet payload. It means, that precise relaying of
-	 * ICMP in the real Internet is absolutely infeasible.
-	 */
-	struct net *net = dev_net(skb->dev);
-	struct ip_tunnel_net *itn = net_generic(net, vti_net_id);
-	struct iphdr *iph = (struct iphdr *)skb->data;
-	const int type = icmp_hdr(skb)->type;
-	const int code = icmp_hdr(skb)->code;
-	struct ip_tunnel *t;
-	int err;
-
-	switch (type) {
-	default:
-	case ICMP_PARAMETERPROB:
-		return 0;
-
-	case ICMP_DEST_UNREACH:
-		switch (code) {
-		case ICMP_SR_FAILED:
-		case ICMP_PORT_UNREACH:
-			/* Impossible event. */
-			return 0;
-		default:
-			/* All others are translated to HOST_UNREACH. */
-			break;
-		}
-		break;
-	case ICMP_TIME_EXCEEDED:
-		if (code != ICMP_EXC_TTL)
-			return 0;
-		break;
-	}
-
-	err = -ENOENT;
-
-	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
-			     iph->daddr, iph->saddr, 0);
-	if (t == NULL)
-		goto out;
-
-	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 t->parms.link, 0, IPPROTO_IPIP, 0);
-		err = 0;
-		goto out;
-	}
-
-	err = 0;
-	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
-		goto out;
-
-	if (time_before(jiffies, t->err_time + IPTUNNEL_ERR_TIMEO))
-		t->err_count++;
-	else
-		t->err_count = 1;
-	t->err_time = jiffies;
-out:
-	return err;
-}
-
 /* We dont digest the packet therefore let the packet pass */
 static int vti_rcv(struct sk_buff *skb)
 {
@@ -124,9 +60,18 @@ static int vti_rcv(struct sk_buff *skb)
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 				  iph->saddr, iph->daddr, 0);
 	if (tunnel != NULL) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
+		u32 oldmark = skb->mark;
+		int ret;
 
-		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+
+		/* temporarily mark the skb with the tunnel o_key, to
+		 * only match policies with this mark.
+		 */
+		skb->mark = be32_to_cpu(tunnel->parms.o_key);
+		ret = xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb);
+		skb->mark = oldmark;
+		if (!ret)
 			return -1;
 
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
@@ -135,7 +80,6 @@ static int vti_rcv(struct sk_buff *skb)
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
-		skb->mark = 0;
 		secpath_reset(skb);
 		skb->dev = tunnel->dev;
 		return 1;
@@ -167,7 +111,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memset(&fl4, 0, sizeof(fl4));
 	flowi4_init_output(&fl4, tunnel->parms.link,
-			   be32_to_cpu(tunnel->parms.i_key), RT_TOS(tos),
+			   be32_to_cpu(tunnel->parms.o_key), RT_TOS(tos),
 			   RT_SCOPE_UNIVERSE,
 			   IPPROTO_IPIP, 0,
 			   dst, tiph->saddr, 0, 0);
@@ -182,6 +126,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!rt->dst.xfrm ||
 	    rt->dst.xfrm->props.mode != XFRM_MODE_TUNNEL) {
 		dev->stats.tx_carrier_errors++;
+		ip_rt_put(rt);
 		goto tx_error_icmp;
 	}
 	tdev = rt->dst.dev;
@@ -217,7 +162,7 @@ tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
 	dev->stats.tx_errors++;
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -296,9 +241,8 @@ static void __net_init vti_fb_tunnel_init(struct net_device *dev)
 	iph->ihl		= 5;
 }
 
-static struct xfrm_tunnel vti_handler __read_mostly = {
+static struct xfrm_tunnel_notifier vti_handler __read_mostly = {
 	.handler	=	vti_rcv,
-	.err_handler	=	vti_err,
 	.priority	=	1,
 };
 

@@ -141,18 +141,14 @@ struct pm800_regulators {
 
 /* Ranges are sorted in ascending order. */
 static const struct regulator_linear_range buck1_volt_range[] = {
-	{ .min_uV = 600000, .max_uV = 1587500, .min_sel = 0, .max_sel = 0x4f,
-	  .uV_step = 12500 },
-	{ .min_uV = 1600000, .max_uV = 1800000, .min_sel = 0x50,
-	  .max_sel = 0x54, .uV_step = 50000 },
+	REGULATOR_LINEAR_RANGE(600000, 0, 0x4f, 12500),
+	REGULATOR_LINEAR_RANGE(1600000, 0x50, 0x54, 50000),
 };
 
 /* BUCK 2~5 have same ranges. */
 static const struct regulator_linear_range buck2_5_volt_range[] = {
-	{ .min_uV = 600000, .max_uV = 1587500,	.min_sel = 0, .max_sel = 0x4f,
-	  .uV_step = 12500 },
-	{ .min_uV = 1600000, .max_uV = 3300000, .min_sel = 0x50,
-	  .max_sel = 0x72, .uV_step = 50000 },
+	REGULATOR_LINEAR_RANGE(600000, 0, 0x4f, 12500),
+	REGULATOR_LINEAR_RANGE(1600000, 0x50, 0x72, 50000),
 };
 
 static const unsigned int ldo1_volt_table[] = {

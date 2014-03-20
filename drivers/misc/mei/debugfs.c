@@ -43,7 +43,7 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 
 	mutex_lock(&dev->device_lock);
 
-	/*  if the driver is not enabled the list won't b consitent */
+	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
@@ -101,7 +101,7 @@ static const struct file_operations mei_dbgfs_fops_devstate = {
 
 /**
  * mei_dbgfs_deregister - Remove the debugfs files and directories
- * @mei - pointer to mei device private dat
+ * @mei - pointer to mei device private data
  */
 void mei_dbgfs_deregister(struct mei_device *dev)
 {

@@ -18,6 +18,7 @@
 
 #define NUM_DEFAULT_KEYS 4
 #define NUM_DEFAULT_MGMT_KEYS 2
+#define MAX_PN_LEN 16
 
 struct ieee80211_local;
 struct ieee80211_sub_if_data;
@@ -83,7 +84,7 @@ struct ieee80211_key {
 			 * Management frames.
 			 */
 			u8 rx_pn[IEEE80211_NUM_TIDS + 1][IEEE80211_CCMP_PN_LEN];
-			struct crypto_cipher *tfm;
+			struct crypto_aead *tfm;
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
 		} ccmp;
 		struct {
@@ -93,6 +94,10 @@ struct ieee80211_key {
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
 		} aes_cmac;
+		struct {
+			/* generic cipher scheme */
+			u8 rx_pn[IEEE80211_NUM_TIDS + 1][MAX_PN_LEN];
+		} gen;
 	} u;
 
 	/* number of times this key has been used */
@@ -113,9 +118,11 @@ struct ieee80211_key {
 	struct ieee80211_key_conf conf;
 };
 
-struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
-					  const u8 *key_data,
-					  size_t seq_len, const u8 *seq);
+struct ieee80211_key *
+ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
+		    const u8 *key_data,
+		    size_t seq_len, const u8 *seq,
+		    const struct ieee80211_cipher_scheme *cs);
 /*
  * Insert a key into data structures (sdata, sta if necessary)
  * to make it used, free old key. On failure, also free the new key.
@@ -129,7 +136,8 @@ void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx,
 			       bool uni, bool multi);
 void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
 				    int idx);
-void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata);
+void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata,
+			 bool force_synchronize);
 void ieee80211_free_sta_keys(struct ieee80211_local *local,
 			     struct sta_info *sta);
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata);

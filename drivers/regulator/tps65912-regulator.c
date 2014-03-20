@@ -119,12 +119,9 @@ struct tps65912_reg {
 };
 
 static const struct regulator_linear_range tps65912_ldo_ranges[] = {
-	{ .min_uV = 800000, .max_uV = 1600000, .min_sel =  0, .max_sel = 32,
-	  .uV_step = 25000 },
-	{ .min_uV = 1650000, .max_uV = 3000000, .min_sel = 33, .max_sel = 60,
-	  .uV_step = 50000 },
-	{ .min_uV = 3100000, .max_uV = 3300000, .min_sel = 61, .max_sel = 63,
-	  .uV_step = 100000 },
+	REGULATOR_LINEAR_RANGE(800000, 0, 32, 25000),
+	REGULATOR_LINEAR_RANGE(1650000, 33, 60, 50000),
+	REGULATOR_LINEAR_RANGE(3100000, 61, 63, 100000),
 };
 
 static int tps65912_get_range(struct tps65912_reg *pmic, int id)
@@ -461,7 +458,7 @@ static int tps65912_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps65912_reg *pmic;
 	struct tps65912_board *pmic_plat_data;
-	int i, err;
+	int i;
 
 	pmic_plat_data = dev_get_platdata(tps65912->dev);
 	if (!pmic_plat_data)
@@ -504,33 +501,18 @@ static int tps65912_probe(struct platform_device *pdev)
 		config.init_data = reg_data;
 		config.driver_data = pmic;
 
-		rdev = regulator_register(&pmic->desc[i], &config);
+		rdev = devm_regulator_register(&pdev->dev, &pmic->desc[i],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65912->dev,
 				"failed to register %s regulator\n",
 				pdev->name);
-			err = PTR_ERR(rdev);
-			goto err;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
 		pmic->rdev[i] = rdev;
 	}
-	return 0;
-
-err:
-	while (--i >= 0)
-		regulator_unregister(pmic->rdev[i]);
-	return err;
-}
-
-static int tps65912_remove(struct platform_device *pdev)
-{
-	struct tps65912_reg *tps65912_reg = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < TPS65912_NUM_REGULATOR; i++)
-		regulator_unregister(tps65912_reg->rdev[i]);
 	return 0;
 }
 
@@ -540,7 +522,6 @@ static struct platform_driver tps65912_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65912_probe,
-	.remove = tps65912_remove,
 };
 
 static int __init tps65912_init(void)

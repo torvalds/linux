@@ -115,7 +115,12 @@
 #define MSR_64BIT	MSR_SF
 
 /* Server variant */
-#define MSR_		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV)
+#define __MSR		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV)
+#ifdef __BIG_ENDIAN__
+#define MSR_		__MSR
+#else
+#define MSR_		(__MSR | MSR_LE)
+#endif
 #define MSR_KERNEL	(MSR_ | MSR_64BIT)
 #define MSR_USER32	(MSR_ | MSR_PR | MSR_EE)
 #define MSR_USER64	(MSR_USER32 | MSR_64BIT)
@@ -218,17 +223,26 @@
 #define   CTRL_TE	0x00c00000	/* thread enable */
 #define   CTRL_RUNLATCH	0x1
 #define SPRN_DAWR	0xB4
+#define SPRN_CIABR	0xBB
+#define   CIABR_PRIV		0x3
+#define   CIABR_PRIV_USER	1
+#define   CIABR_PRIV_SUPER	2
+#define   CIABR_PRIV_HYPER	3
 #define SPRN_DAWRX	0xBC
-#define   DAWRX_USER	(1UL << 0)
-#define   DAWRX_KERNEL	(1UL << 1)
-#define   DAWRX_HYP	(1UL << 2)
+#define   DAWRX_USER	__MASK(0)
+#define   DAWRX_KERNEL	__MASK(1)
+#define   DAWRX_HYP	__MASK(2)
+#define   DAWRX_WTI	__MASK(3)
+#define   DAWRX_WT	__MASK(4)
+#define   DAWRX_DR	__MASK(5)
+#define   DAWRX_DW	__MASK(6)
 #define SPRN_DABR	0x3F5	/* Data Address Breakpoint Register */
 #define SPRN_DABR2	0x13D	/* e300 */
 #define SPRN_DABRX	0x3F7	/* Data Address Breakpoint Register Extension */
-#define   DABRX_USER	(1UL << 0)
-#define   DABRX_KERNEL	(1UL << 1)
-#define   DABRX_HYP	(1UL << 2)
-#define   DABRX_BTI	(1UL << 3)
+#define   DABRX_USER	__MASK(0)
+#define   DABRX_KERNEL	__MASK(1)
+#define   DABRX_HYP	__MASK(2)
+#define   DABRX_BTI	__MASK(3)
 #define   DABRX_ALL     (DABRX_BTI | DABRX_HYP | DABRX_KERNEL | DABRX_USER)
 #define SPRN_DAR	0x013	/* Data Address Register */
 #define SPRN_DBCR	0x136	/* e300 Data Breakpoint Control Reg */
@@ -243,6 +257,7 @@
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define SPRN_TBWL	0x11C	/* Time Base Lower Register (super, R/W) */
 #define SPRN_TBWU	0x11D	/* Time Base Upper Register (super, R/W) */
+#define SPRN_TBU40	0x11E	/* Timebase upper 40 bits (hyper, R/W) */
 #define SPRN_SPURR	0x134	/* Scaled PURR */
 #define SPRN_HSPRG0	0x130	/* Hypervisor Scratch 0 */
 #define SPRN_HSPRG1	0x131	/* Hypervisor Scratch 1 */
@@ -254,6 +269,8 @@
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
 #define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+#define SPRN_IC		0x350	/* Virtual Instruction Count */
+#define SPRN_VTB	0x351	/* Virtual Time Base */
 /* HFSCR and FSCR bit numbers are the same */
 #define FSCR_TAR_LG	8	/* Enable Target Address Register */
 #define FSCR_EBB_LG	7	/* Enable Event Based Branching */
@@ -283,6 +300,7 @@
 #define   LPCR_ISL	(1ul << (63-2))
 #define   LPCR_VC_SH	(63-2)
 #define   LPCR_DPFD_SH	(63-11)
+#define   LPCR_DPFD	(7ul << LPCR_DPFD_SH)
 #define   LPCR_VRMASD	(0x1ful << (63-16))
 #define   LPCR_VRMA_L	(1ul << (63-12))
 #define   LPCR_VRMA_LP0	(1ul << (63-15))
@@ -291,14 +309,19 @@
 #define   LPCR_RMLS    0x1C000000      /* impl dependent rmo limit sel */
 #define	  LPCR_RMLS_SH	(63-37)
 #define   LPCR_ILE     0x02000000      /* !HV irqs set MSR:LE */
+#define   LPCR_AIL	0x01800000	/* Alternate interrupt location */
 #define   LPCR_AIL_0	0x00000000	/* MMU off exception offset 0x0 */
 #define   LPCR_AIL_3	0x01800000	/* MMU on exception offset 0xc00...4xxx */
-#define   LPCR_PECE	0x00007000	/* powersave exit cause enable */
+#define   LPCR_ONL	0x00040000	/* online - PURR/SPURR count */
+#define   LPCR_PECE	0x0001f000	/* powersave exit cause enable */
+#define     LPCR_PECEDP	0x00010000	/* directed priv dbells cause exit */
+#define     LPCR_PECEDH	0x00008000	/* directed hyp dbells cause exit */
 #define     LPCR_PECE0	0x00004000	/* ext. exceptions can cause exit */
 #define     LPCR_PECE1	0x00002000	/* decrementer can cause exit */
 #define     LPCR_PECE2	0x00001000	/* machine check etc can cause exit */
 #define   LPCR_MER	0x00000800	/* Mediated External Exception */
 #define   LPCR_MER_SH	11
+#define   LPCR_TC      0x00000200	/* Translation control */
 #define   LPCR_LPES    0x0000000c
 #define   LPCR_LPES0   0x00000008      /* LPAR Env selector 0 */
 #define   LPCR_LPES1   0x00000004      /* LPAR Env selector 1 */
@@ -311,6 +334,12 @@
 #define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
 #define	SPRN_HMER	0x150	/* Hardware m? error recovery */
 #define	SPRN_HMEER	0x151	/* Hardware m? enable error recovery */
+#define SPRN_PCR	0x152	/* Processor compatibility register */
+#define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
+#define   PCR_VSX_DIS	(1ul << (63-1))	/* VSX disable (bit NA since POWER8) */
+#define   PCR_TM_DIS	(1ul << (63-2))	/* Trans. memory disable (POWER8) */
+#define   PCR_ARCH_206	0x4		/* Architecture 2.06 */
+#define   PCR_ARCH_205	0x2		/* Architecture 2.05 */
 #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */
 #define SPRN_TLBINDEXR	0x154	/* P7 TLB control register */
 #define SPRN_TLBVPNR	0x155	/* P7 TLB control register */
@@ -356,6 +385,8 @@
 #define DER_EBRKE	0x00000002	/* External Breakpoint Interrupt */
 #define DER_DPIE	0x00000001	/* Dev. Port Nonmaskable Request */
 #define SPRN_DMISS	0x3D0		/* Data TLB Miss Register */
+#define SPRN_DHDES	0x0B1		/* Directed Hyp. Doorbell Exc. State */
+#define SPRN_DPDES	0x0B0		/* Directed Priv. Doorbell Exc. State */
 #define SPRN_EAR	0x11A		/* External Address Register */
 #define SPRN_HASH1	0x3D2		/* Primary Hash Address Register */
 #define SPRN_HASH2	0x3D3		/* Secondary Hash Address Resgister */
@@ -415,11 +446,13 @@
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define SPRN_IABR2	0x3FA		/* 83xx */
 #define SPRN_IBCR	0x135		/* 83xx Insn Breakpoint Control Reg */
+#define SPRN_IAMR	0x03D		/* Instr. Authority Mask Reg */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
 #define  HID4_LPES0	 (1ul << (63-0)) /* LPAR env. sel. bit 0 */
 #define	 HID4_RMLS2_SH	 (63 - 2)	/* Real mode limit bottom 2 bits */
 #define	 HID4_LPID5_SH	 (63 - 6)	/* partition ID bottom 4 bits */
 #define	 HID4_RMOR_SH	 (63 - 22)	/* real mode offset (16 bits) */
+#define  HID4_RMOR	 (0xFFFFul << HID4_RMOR_SH)
 #define  HID4_LPES1	 (1 << (63-57))	/* LPAR env. sel. bit 1 */
 #define  HID4_RMLS0_SH	 (63 - 58)	/* Real mode limit top bit */
 #define	 HID4_LPID1_SH	 0		/* partition ID top 2 bits */
@@ -528,6 +561,7 @@
 #define SPRN_PIR	0x3FF	/* Processor Identification Register */
 #endif
 #define SPRN_TIR	0x1BE	/* Thread Identification Register */
+#define SPRN_PSPB	0x09F	/* Problem State Priority Boost reg */
 #define SPRN_PTEHI	0x3D5	/* 981 7450 PTE HI word (S/W TLB load) */
 #define SPRN_PTELO	0x3D6	/* 982 7450 PTE LO word (S/W TLB load) */
 #define SPRN_PURR	0x135	/* Processor Utilization of Resources Reg */
@@ -669,6 +703,7 @@
 #define SPRN_EBBHR	804	/* Event based branch handler register */
 #define SPRN_EBBRR	805	/* Event based branch return register */
 #define SPRN_BESCR	806	/* Branch event status and control register */
+#define SPRN_WORT	895	/* Workload optimization register - thread */
 
 #define SPRN_PMC1	787
 #define SPRN_PMC2	788
@@ -685,6 +720,11 @@
 #define   SIER_SIHV		0x1000000	/* Sampled MSR_HV */
 #define   SIER_SIAR_VALID	0x0400000	/* SIAR contents valid */
 #define   SIER_SDAR_VALID	0x0200000	/* SDAR contents valid */
+#define SPRN_TACR	888
+#define SPRN_TCSCR	889
+#define SPRN_CSIGR	890
+#define SPRN_SPMC1	892
+#define SPRN_SPMC2	893
 
 /* When EBB is enabled, some of MMCR0/MMCR2/SIER are user accessible */
 #define MMCR0_USER_MASK	(MMCR0_FC | MMCR0_PMXE | MMCR0_PMAO)
@@ -1062,6 +1102,8 @@
 #define PVR_8560	0x80200000
 #define PVR_VER_E500V1	0x8020
 #define PVR_VER_E500V2	0x8021
+#define PVR_VER_E6500	0x8040
+
 /*
  * For the 8xx processors, all of them report the same PVR family for
  * the PowerPC core. The various versions of these processors must be
@@ -1101,6 +1143,13 @@
 #define PVR_POWER8	0x004D
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
+
+/* "Logical" PVR values defined in PAPR, representing architecture levels */
+#define PVR_ARCH_204	0x0f000001
+#define PVR_ARCH_205	0x0f000002
+#define PVR_ARCH_206	0x0f000003
+#define PVR_ARCH_206p	0x0f100003
+#define PVR_ARCH_207	0x0f000004
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__
@@ -1154,12 +1203,19 @@
 
 #else /* __powerpc64__ */
 
+#if defined(CONFIG_8xx)
+#define mftbl()		({unsigned long rval;	\
+			asm volatile("mftbl %0" : "=r" (rval)); rval;})
+#define mftbu()		({unsigned long rval;	\
+			asm volatile("mftbu %0" : "=r" (rval)); rval;})
+#else
 #define mftbl()		({unsigned long rval;	\
 			asm volatile("mfspr %0, %1" : "=r" (rval) : \
 				"i" (SPRN_TBRL)); rval;})
 #define mftbu()		({unsigned long rval;	\
 			asm volatile("mfspr %0, %1" : "=r" (rval) : \
 				"i" (SPRN_TBRU)); rval;})
+#endif
 #endif /* !__powerpc64__ */
 
 #define mttbl(v)	asm volatile("mttbl %0":: "r"(v))

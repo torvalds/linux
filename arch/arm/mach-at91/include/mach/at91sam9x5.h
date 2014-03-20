@@ -55,6 +55,11 @@
 #define AT91SAM9X5_BASE_USART2	0xf8024000
 
 /*
+ * System Peripherals
+ */
+#define AT91SAM9X5_BASE_RTC	0xfffffeb0
+
+/*
  * Internal Memory.
  */
 #define AT91SAM9X5_SRAM_BASE	0x00300000	/* Internal SRAM base address */

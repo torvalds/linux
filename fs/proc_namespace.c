@@ -20,15 +20,15 @@ static unsigned mounts_poll(struct file *file, poll_table *wait)
 	struct proc_mounts *p = proc_mounts(file->private_data);
 	struct mnt_namespace *ns = p->ns;
 	unsigned res = POLLIN | POLLRDNORM;
+	int event;
 
 	poll_wait(file, &p->ns->poll, wait);
 
-	br_read_lock(&vfsmount_lock);
-	if (p->m.poll_event != ns->event) {
-		p->m.poll_event = ns->event;
+	event = ACCESS_ONCE(ns->event);
+	if (p->m.poll_event != event) {
+		p->m.poll_event = event;
 		res |= POLLERR | POLLPRI;
 	}
-	br_read_unlock(&vfsmount_lock);
 
 	return res;
 }
@@ -234,17 +234,12 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 
 	rcu_read_lock();
 	nsp = task_nsproxy(task);
-	if (!nsp) {
+	if (!nsp || !nsp->mnt_ns) {
 		rcu_read_unlock();
 		put_task_struct(task);
 		goto err;
 	}
 	ns = nsp->mnt_ns;
-	if (!ns) {
-		rcu_read_unlock();
-		put_task_struct(task);
-		goto err;
-	}
 	get_mnt_ns(ns);
 	rcu_read_unlock();
 	task_lock(task);

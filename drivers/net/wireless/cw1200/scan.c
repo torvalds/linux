@@ -173,8 +173,9 @@ void cw1200_scan_work(struct work_struct *work)
 			cw1200_set_pm(priv, &priv->powersave_mode);
 
 		if (priv->scan.status < 0)
-			wiphy_dbg(priv->hw->wiphy, "[SCAN] Scan failed (%d).\n",
-				  priv->scan.status);
+			wiphy_warn(priv->hw->wiphy,
+				   "[SCAN] Scan failed (%d).\n",
+				   priv->scan.status);
 		else if (priv->scan.req)
 			wiphy_dbg(priv->hw->wiphy,
 				  "[SCAN] Scan completed.\n");
@@ -197,9 +198,9 @@ void cw1200_scan_work(struct work_struct *work)
 			if ((*it)->band != first->band)
 				break;
 			if (((*it)->flags ^ first->flags) &
-					IEEE80211_CHAN_PASSIVE_SCAN)
+					IEEE80211_CHAN_NO_IR)
 				break;
-			if (!(first->flags & IEEE80211_CHAN_PASSIVE_SCAN) &&
+			if (!(first->flags & IEEE80211_CHAN_NO_IR) &&
 			    (*it)->max_power != first->max_power)
 				break;
 		}
@@ -210,7 +211,7 @@ void cw1200_scan_work(struct work_struct *work)
 		else
 			scan.max_tx_rate = WSM_TRANSMIT_RATE_1;
 		scan.num_probes =
-			(first->flags & IEEE80211_CHAN_PASSIVE_SCAN) ? 0 : 2;
+			(first->flags & IEEE80211_CHAN_NO_IR) ? 0 : 2;
 		scan.num_ssids = priv->scan.n_ssids;
 		scan.ssids = &priv->scan.ssids[0];
 		scan.num_channels = it - priv->scan.curr;
@@ -233,7 +234,7 @@ void cw1200_scan_work(struct work_struct *work)
 		}
 		for (i = 0; i < scan.num_channels; ++i) {
 			scan.ch[i].number = priv->scan.curr[i]->hw_value;
-			if (priv->scan.curr[i]->flags & IEEE80211_CHAN_PASSIVE_SCAN) {
+			if (priv->scan.curr[i]->flags & IEEE80211_CHAN_NO_IR) {
 				scan.ch[i].min_chan_time = 50;
 				scan.ch[i].max_chan_time = 100;
 			} else {
@@ -241,7 +242,7 @@ void cw1200_scan_work(struct work_struct *work)
 				scan.ch[i].max_chan_time = 25;
 			}
 		}
-		if (!(first->flags & IEEE80211_CHAN_PASSIVE_SCAN) &&
+		if (!(first->flags & IEEE80211_CHAN_NO_IR) &&
 		    priv->scan.output_power != first->max_power) {
 			priv->scan.output_power = first->max_power;
 			wsm_set_output_power(priv,

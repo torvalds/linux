@@ -31,7 +31,6 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -62,7 +61,7 @@ static void check_hw_pbc(struct _adapter *padapter)
 	r8712_write8(padapter, GPIO_IO_SEL, tmp1byte);
 	tmp1byte = r8712_read8(padapter, GPIO_CTRL);
 	if (tmp1byte == 0xff)
-		return ;
+		return;
 	if (tmp1byte&HAL_8192S_HW_GPIO_WPS_BIT) {
 		/* Here we only set bPbcPressed to true
 		 * After trigger PBC, the variable will be set to false */
@@ -381,7 +380,7 @@ _next:
 			*pcmdbuf = cpu_to_le32((cmdsz & 0x0000ffff) |
 					       (pcmd->cmdcode << 16) |
 					       (pcmdpriv->cmd_seq << 24));
-			pcmdbuf += 2 ; /* 8 bytes alignment */
+			pcmdbuf += 2; /* 8 bytes alignment */
 			memcpy((u8 *)pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 			while (check_cmd_fifo(padapter, wr_sz) == _FAIL) {
 				if ((padapter->bDriverStopped == true) ||
@@ -471,11 +470,9 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
 	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
-	if (peventbuf) {
-		event_callback = wlanevents[evt_code].event_callback;
-		if (event_callback)
-			event_callback(padapter, (u8 *)peventbuf);
-	}
+	event_callback = wlanevents[evt_code].event_callback;
+	if (event_callback)
+		event_callback(padapter, (u8 *)peventbuf);
 	pevt_priv->evt_done_cnt++;
 _abort_event_:
 	return;

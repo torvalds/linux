@@ -167,13 +167,10 @@ static int pcl730_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	unsigned long reg = (unsigned long)s->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
+	unsigned int mask;
 
+	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
 		if (mask & 0x00ff)
 			outb(s->state & 0xff, dev->iobase + reg);
 		if ((mask & 0xff00) && (s->n_chan > 8))

@@ -36,6 +36,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __LINUX_USB_CDC_NCM_H
+#define __LINUX_USB_CDC_NCM_H
+
 #define CDC_NCM_COMM_ALTSETTING_NCM		0
 #define CDC_NCM_COMM_ALTSETTING_MBIM		1
 
@@ -85,22 +88,13 @@
 #define cdc_ncm_data_intf_is_mbim(x)  ((x)->desc.bInterfaceProtocol == USB_CDC_MBIM_PROTO_NTB)
 
 struct cdc_ncm_ctx {
-	struct usb_cdc_ncm_ntb_parameters ncm_parm;
 	struct hrtimer tx_timer;
 	struct tasklet_struct bh;
 
 	const struct usb_cdc_ncm_desc *func_desc;
-	const struct usb_cdc_mbim_desc   *mbim_desc;
-	const struct usb_cdc_header_desc *header_desc;
-	const struct usb_cdc_union_desc *union_desc;
+	const struct usb_cdc_mbim_desc *mbim_desc;
 	const struct usb_cdc_ether_desc *ether_desc;
 
-	struct net_device *netdev;
-	struct usb_device *udev;
-	struct usb_host_endpoint *in_ep;
-	struct usb_host_endpoint *out_ep;
-	struct usb_host_endpoint *status_ep;
-	struct usb_interface *intf;
 	struct usb_interface *control;
 	struct usb_interface *data;
 
@@ -113,8 +107,6 @@ struct cdc_ncm_ctx {
 
 	u32 tx_timer_pending;
 	u32 tx_curr_frame_num;
-	u32 rx_speed;
-	u32 tx_speed;
 	u32 rx_max;
 	u32 tx_max;
 	u32 max_datagram_size;
@@ -127,9 +119,14 @@ struct cdc_ncm_ctx {
 	u16 connected;
 };
 
-extern u8 cdc_ncm_select_altsetting(struct usbnet *dev, struct usb_interface *intf);
-extern int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting);
-extern void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf);
-extern struct sk_buff *cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign);
-extern int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in);
-extern int cdc_ncm_rx_verify_ndp16(struct sk_buff *skb_in, int ndpoffset);
+u8 cdc_ncm_select_altsetting(struct usbnet *dev, struct usb_interface *intf);
+int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting);
+void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf);
+struct sk_buff *cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign);
+int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in);
+int cdc_ncm_rx_verify_ndp16(struct sk_buff *skb_in, int ndpoffset);
+struct sk_buff *
+cdc_ncm_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags);
+int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in);
+
+#endif /* __LINUX_USB_CDC_NCM_H */

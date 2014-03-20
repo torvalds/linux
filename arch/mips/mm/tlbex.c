@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <linux/smp.h>
 #include <linux/string.h>
-#include <linux/init.h>
 #include <linux/cache.h>
 
 #include <asm/cacheflush.h>
@@ -340,10 +339,6 @@ static struct work_registers build_get_work_registers(u32 **p)
 {
 	struct work_registers r;
 
-	int smp_processor_id_reg;
-	int smp_processor_id_sel;
-	int smp_processor_id_shift;
-
 	if (scratch_reg >= 0) {
 		/* Save in CPU local C0_KScratch? */
 		UASM_i_MTC0(p, 1, c0_kscratch(), scratch_reg);
@@ -354,25 +349,9 @@ static struct work_registers build_get_work_registers(u32 **p)
 	}
 
 	if (num_possible_cpus() > 1) {
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-		smp_processor_id_shift = 51;
-		smp_processor_id_reg = 20; /* XContext */
-		smp_processor_id_sel = 0;
-#else
-# ifdef CONFIG_32BIT
-		smp_processor_id_shift = 25;
-		smp_processor_id_reg = 4; /* Context */
-		smp_processor_id_sel = 0;
-# endif
-# ifdef CONFIG_64BIT
-		smp_processor_id_shift = 26;
-		smp_processor_id_reg = 4; /* Context */
-		smp_processor_id_sel = 0;
-# endif
-#endif
 		/* Get smp_processor_id */
-		UASM_i_MFC0(p, K0, smp_processor_id_reg, smp_processor_id_sel);
-		UASM_i_SRL_SAFE(p, K0, K0, smp_processor_id_shift);
+		UASM_i_CPUID_MFC0(p, K0, SMP_CPUID_REG);
+		UASM_i_SRL_SAFE(p, K0, K0, SMP_CPUID_REGSHIFT);
 
 		/* handler_reg_save index in K0 */
 		UASM_i_SLL(p, K0, K0, ilog2(sizeof(struct tlb_reg_save)));
@@ -530,6 +509,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		switch (current_cpu_type()) {
 		case CPU_M14KC:
 		case CPU_74K:
+		case CPU_PROAPTIV:
 			break;
 
 		default:
@@ -819,11 +799,11 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 	}
 	/* No uasm_i_nop needed here, since the next insn doesn't touch TMP. */
 
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
 	if (pgd_reg != -1) {
 		/* pgd is in pgd_reg */
 		UASM_i_MFC0(p, ptr, c0_kscratch(), pgd_reg);
 	} else {
+#if defined(CONFIG_MIPS_PGD_C0_CONTEXT)
 		/*
 		 * &pgd << 11 stored in CONTEXT [23..63].
 		 */
@@ -835,30 +815,18 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 		/* 1 0	1 0 1  << 6  xkphys cached */
 		uasm_i_ori(p, ptr, ptr, 0x540);
 		uasm_i_drotr(p, ptr, ptr, 11);
-	}
 #elif defined(CONFIG_SMP)
-# ifdef	 CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC uses TCBind value as "CPU" index
-	 */
-	uasm_i_mfc0(p, ptr, C0_TCBIND);
-	uasm_i_dsrl_safe(p, ptr, ptr, 19);
-# else
-	/*
-	 * 64 bit SMP running in XKPHYS has smp_processor_id() << 3
-	 * stored in CONTEXT.
-	 */
-	uasm_i_dmfc0(p, ptr, C0_CONTEXT);
-	uasm_i_dsrl_safe(p, ptr, ptr, 23);
-# endif
-	UASM_i_LA_mostly(p, tmp, pgdc);
-	uasm_i_daddu(p, ptr, ptr, tmp);
-	uasm_i_dmfc0(p, tmp, C0_BADVADDR);
-	uasm_i_ld(p, ptr, uasm_rel_lo(pgdc), ptr);
+		UASM_i_CPUID_MFC0(p, ptr, SMP_CPUID_REG);
+		uasm_i_dsrl_safe(p, ptr, ptr, SMP_CPUID_PTRSHIFT);
+		UASM_i_LA_mostly(p, tmp, pgdc);
+		uasm_i_daddu(p, ptr, ptr, tmp);
+		uasm_i_dmfc0(p, tmp, C0_BADVADDR);
+		uasm_i_ld(p, ptr, uasm_rel_lo(pgdc), ptr);
 #else
-	UASM_i_LA_mostly(p, ptr, pgdc);
-	uasm_i_ld(p, ptr, uasm_rel_lo(pgdc), ptr);
+		UASM_i_LA_mostly(p, ptr, pgdc);
+		uasm_i_ld(p, ptr, uasm_rel_lo(pgdc), ptr);
 #endif
+	}
 
 	uasm_l_vmalloc_done(l, *p);
 
@@ -953,31 +921,25 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 static void __maybe_unused
 build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 {
-	long pgdc = (long)pgd_current;
+	if (pgd_reg != -1) {
+		/* pgd is in pgd_reg */
+		uasm_i_mfc0(p, ptr, c0_kscratch(), pgd_reg);
+		uasm_i_mfc0(p, tmp, C0_BADVADDR); /* get faulting address */
+	} else {
+		long pgdc = (long)pgd_current;
 
-	/* 32 bit SMP has smp_processor_id() stored in CONTEXT. */
+		/* 32 bit SMP has smp_processor_id() stored in CONTEXT. */
 #ifdef CONFIG_SMP
-#ifdef	CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC uses TCBind value as "CPU" index
-	 */
-	uasm_i_mfc0(p, ptr, C0_TCBIND);
-	UASM_i_LA_mostly(p, tmp, pgdc);
-	uasm_i_srl(p, ptr, ptr, 19);
+		uasm_i_mfc0(p, ptr, SMP_CPUID_REG);
+		UASM_i_LA_mostly(p, tmp, pgdc);
+		uasm_i_srl(p, ptr, ptr, SMP_CPUID_PTRSHIFT);
+		uasm_i_addu(p, ptr, tmp, ptr);
 #else
-	/*
-	 * smp_processor_id() << 2 is stored in CONTEXT.
-	 */
-	uasm_i_mfc0(p, ptr, C0_CONTEXT);
-	UASM_i_LA_mostly(p, tmp, pgdc);
-	uasm_i_srl(p, ptr, ptr, 23);
+		UASM_i_LA_mostly(p, ptr, pgdc);
 #endif
-	uasm_i_addu(p, ptr, tmp, ptr);
-#else
-	UASM_i_LA_mostly(p, ptr, pgdc);
-#endif
-	uasm_i_mfc0(p, tmp, C0_BADVADDR); /* get faulting address */
-	uasm_i_lw(p, ptr, uasm_rel_lo(pgdc), ptr);
+		uasm_i_mfc0(p, tmp, C0_BADVADDR); /* get faulting address */
+		uasm_i_lw(p, ptr, uasm_rel_lo(pgdc), ptr);
+	}
 	uasm_i_srl(p, tmp, tmp, PGDIR_SHIFT); /* get pgd only bits */
 	uasm_i_sll(p, tmp, tmp, PGD_T_LOG2);
 	uasm_i_addu(p, ptr, ptr, tmp); /* add in pgd offset */
@@ -1349,95 +1311,100 @@ static void build_r4000_tlb_refill_handler(void)
 	 * need three, with the second nop'ed and the third being
 	 * unused.
 	 */
-	/* Loongson2 ebase is different than r4k, we have more space */
-#if defined(CONFIG_32BIT) || defined(CONFIG_CPU_LOONGSON2)
-	if ((p - tlb_handler) > 64)
-		panic("TLB refill handler space exceeded");
-#else
-	if (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 1)
-	    || (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 3)
-		&& uasm_insn_has_bdelay(relocs,
-					tlb_handler + MIPS64_REFILL_INSNS - 3)))
-		panic("TLB refill handler space exceeded");
-#endif
-
-	/*
-	 * Now fold the handler in the TLB refill handler space.
-	 */
-#if defined(CONFIG_32BIT) || defined(CONFIG_CPU_LOONGSON2)
-	f = final_handler;
-	/* Simplest case, just copy the handler. */
-	uasm_copy_handler(relocs, labels, tlb_handler, p, f);
-	final_len = p - tlb_handler;
-#else /* CONFIG_64BIT */
-	f = final_handler + MIPS64_REFILL_INSNS;
-	if ((p - tlb_handler) <= MIPS64_REFILL_INSNS) {
-		/* Just copy the handler. */
-		uasm_copy_handler(relocs, labels, tlb_handler, p, f);
-		final_len = p - tlb_handler;
-	} else {
+	switch (boot_cpu_type()) {
+	default:
+		if (sizeof(long) == 4) {
+	case CPU_LOONGSON2:
+		/* Loongson2 ebase is different than r4k, we have more space */
+			if ((p - tlb_handler) > 64)
+				panic("TLB refill handler space exceeded");
+			/*
+			 * Now fold the handler in the TLB refill handler space.
+			 */
+			f = final_handler;
+			/* Simplest case, just copy the handler. */
+			uasm_copy_handler(relocs, labels, tlb_handler, p, f);
+			final_len = p - tlb_handler;
+			break;
+		} else {
+			if (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 1)
+			    || (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 3)
+				&& uasm_insn_has_bdelay(relocs,
+							tlb_handler + MIPS64_REFILL_INSNS - 3)))
+				panic("TLB refill handler space exceeded");
+			/*
+			 * Now fold the handler in the TLB refill handler space.
+			 */
+			f = final_handler + MIPS64_REFILL_INSNS;
+			if ((p - tlb_handler) <= MIPS64_REFILL_INSNS) {
+				/* Just copy the handler. */
+				uasm_copy_handler(relocs, labels, tlb_handler, p, f);
+				final_len = p - tlb_handler;
+			} else {
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
-		const enum label_id ls = label_tlb_huge_update;
+				const enum label_id ls = label_tlb_huge_update;
 #else
-		const enum label_id ls = label_vmalloc;
+				const enum label_id ls = label_vmalloc;
 #endif
-		u32 *split;
-		int ov = 0;
-		int i;
+				u32 *split;
+				int ov = 0;
+				int i;
 
-		for (i = 0; i < ARRAY_SIZE(labels) && labels[i].lab != ls; i++)
-			;
-		BUG_ON(i == ARRAY_SIZE(labels));
-		split = labels[i].addr;
+				for (i = 0; i < ARRAY_SIZE(labels) && labels[i].lab != ls; i++)
+					;
+				BUG_ON(i == ARRAY_SIZE(labels));
+				split = labels[i].addr;
 
-		/*
-		 * See if we have overflown one way or the other.
-		 */
-		if (split > tlb_handler + MIPS64_REFILL_INSNS ||
-		    split < p - MIPS64_REFILL_INSNS)
-			ov = 1;
+				/*
+				 * See if we have overflown one way or the other.
+				 */
+				if (split > tlb_handler + MIPS64_REFILL_INSNS ||
+				    split < p - MIPS64_REFILL_INSNS)
+					ov = 1;
 
-		if (ov) {
-			/*
-			 * Split two instructions before the end.  One
-			 * for the branch and one for the instruction
-			 * in the delay slot.
-			 */
-			split = tlb_handler + MIPS64_REFILL_INSNS - 2;
+				if (ov) {
+					/*
+					 * Split two instructions before the end.  One
+					 * for the branch and one for the instruction
+					 * in the delay slot.
+					 */
+					split = tlb_handler + MIPS64_REFILL_INSNS - 2;
 
-			/*
-			 * If the branch would fall in a delay slot,
-			 * we must back up an additional instruction
-			 * so that it is no longer in a delay slot.
-			 */
-			if (uasm_insn_has_bdelay(relocs, split - 1))
-				split--;
-		}
-		/* Copy first part of the handler. */
-		uasm_copy_handler(relocs, labels, tlb_handler, split, f);
-		f += split - tlb_handler;
+					/*
+					 * If the branch would fall in a delay slot,
+					 * we must back up an additional instruction
+					 * so that it is no longer in a delay slot.
+					 */
+					if (uasm_insn_has_bdelay(relocs, split - 1))
+						split--;
+				}
+				/* Copy first part of the handler. */
+				uasm_copy_handler(relocs, labels, tlb_handler, split, f);
+				f += split - tlb_handler;
 
-		if (ov) {
-			/* Insert branch. */
-			uasm_l_split(&l, final_handler);
-			uasm_il_b(&f, &r, label_split);
-			if (uasm_insn_has_bdelay(relocs, split))
-				uasm_i_nop(&f);
-			else {
-				uasm_copy_handler(relocs, labels,
-						  split, split + 1, f);
-				uasm_move_labels(labels, f, f + 1, -1);
-				f++;
-				split++;
+				if (ov) {
+					/* Insert branch. */
+					uasm_l_split(&l, final_handler);
+					uasm_il_b(&f, &r, label_split);
+					if (uasm_insn_has_bdelay(relocs, split))
+						uasm_i_nop(&f);
+					else {
+						uasm_copy_handler(relocs, labels,
+								  split, split + 1, f);
+						uasm_move_labels(labels, f, f + 1, -1);
+						f++;
+						split++;
+					}
+				}
+
+				/* Copy the rest of the handler. */
+				uasm_copy_handler(relocs, labels, split, p, final_handler);
+				final_len = (f - (final_handler + MIPS64_REFILL_INSNS)) +
+					    (p - split);
 			}
 		}
-
-		/* Copy the rest of the handler. */
-		uasm_copy_handler(relocs, labels, split, p, final_handler);
-		final_len = (f - (final_handler + MIPS64_REFILL_INSNS)) +
-			    (p - split);
+		break;
 	}
-#endif /* CONFIG_64BIT */
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB refill handler (%u instructions).\n",
@@ -1451,28 +1418,30 @@ static void build_r4000_tlb_refill_handler(void)
 extern u32 handle_tlbl[], handle_tlbl_end[];
 extern u32 handle_tlbs[], handle_tlbs_end[];
 extern u32 handle_tlbm[], handle_tlbm_end[];
-
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
 extern u32 tlbmiss_handler_setup_pgd[], tlbmiss_handler_setup_pgd_end[];
 
-static void build_r4000_setup_pgd(void)
+static void build_setup_pgd(void)
 {
 	const int a0 = 4;
-	const int a1 = 5;
+	const int __maybe_unused a1 = 5;
+	const int __maybe_unused a2 = 6;
 	u32 *p = tlbmiss_handler_setup_pgd;
 	const int tlbmiss_handler_setup_pgd_size =
 		tlbmiss_handler_setup_pgd_end - tlbmiss_handler_setup_pgd;
-	struct uasm_label *l = labels;
-	struct uasm_reloc *r = relocs;
+#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
+	long pgdc = (long)pgd_current;
+#endif
 
 	memset(tlbmiss_handler_setup_pgd, 0, tlbmiss_handler_setup_pgd_size *
 					sizeof(tlbmiss_handler_setup_pgd[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
-
 	pgd_reg = allocate_kscratch();
-
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
 	if (pgd_reg == -1) {
+		struct uasm_label *l = labels;
+		struct uasm_reloc *r = relocs;
+
 		/* PGD << 11 in c0_Context */
 		/*
 		 * If it is a ckseg0 address, convert to a physical
@@ -1494,6 +1463,26 @@ static void build_r4000_setup_pgd(void)
 		uasm_i_jr(&p, 31);
 		UASM_i_MTC0(&p, a0, c0_kscratch(), pgd_reg);
 	}
+#else
+#ifdef CONFIG_SMP
+	/* Save PGD to pgd_current[smp_processor_id()] */
+	UASM_i_CPUID_MFC0(&p, a1, SMP_CPUID_REG);
+	UASM_i_SRL_SAFE(&p, a1, a1, SMP_CPUID_PTRSHIFT);
+	UASM_i_LA_mostly(&p, a2, pgdc);
+	UASM_i_ADDU(&p, a2, a2, a1);
+	UASM_i_SW(&p, a0, uasm_rel_lo(pgdc), a2);
+#else
+	UASM_i_LA_mostly(&p, a2, pgdc);
+	UASM_i_SW(&p, a0, uasm_rel_lo(pgdc), a2);
+#endif /* SMP */
+	uasm_i_jr(&p, 31);
+
+	/* if pgd_reg is allocated, save PGD also to scratch register */
+	if (pgd_reg != -1)
+		UASM_i_MTC0(&p, a0, c0_kscratch(), pgd_reg);
+	else
+		uasm_i_nop(&p);
+#endif
 	if (p >= tlbmiss_handler_setup_pgd_end)
 		panic("tlbmiss_handler_setup_pgd space exceeded");
 
@@ -1504,7 +1493,6 @@ static void build_r4000_setup_pgd(void)
 	dump_handler("tlbmiss_handler", tlbmiss_handler_setup_pgd,
 					tlbmiss_handler_setup_pgd_size);
 }
-#endif
 
 static void
 iPTE_LW(u32 **p, unsigned int pte, unsigned int ptr)
@@ -2197,10 +2185,8 @@ static void flush_tlb_handlers(void)
 			   (unsigned long)handle_tlbs_end);
 	local_flush_icache_range((unsigned long)handle_tlbm,
 			   (unsigned long)handle_tlbm_end);
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
 	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd,
 			   (unsigned long)tlbmiss_handler_setup_pgd_end);
-#endif
 }
 
 void build_tlb_refill_handler(void)
@@ -2232,6 +2218,7 @@ void build_tlb_refill_handler(void)
 		if (!run_once) {
 			if (!cpu_has_local_ebase)
 				build_r3000_tlb_refill_handler();
+			build_setup_pgd();
 			build_r3000_tlb_load_handler();
 			build_r3000_tlb_store_handler();
 			build_r3000_tlb_modify_handler();
@@ -2255,9 +2242,7 @@ void build_tlb_refill_handler(void)
 	default:
 		if (!run_once) {
 			scratch_reg = allocate_kscratch();
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-			build_r4000_setup_pgd();
-#endif
+			build_setup_pgd();
 			build_r4000_tlb_load_handler();
 			build_r4000_tlb_store_handler();
 			build_r4000_tlb_modify_handler();

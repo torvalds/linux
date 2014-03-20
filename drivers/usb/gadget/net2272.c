@@ -266,7 +266,7 @@ static void net2272_ep_reset(struct net2272_ep *ep)
 	ep->desc = NULL;
 	INIT_LIST_HEAD(&ep->queue);
 
-	ep->ep.maxpacket = ~0;
+	usb_ep_set_maxpacket_limit(&ep->ep, ~0);
 	ep->ep.ops = &net2272_ep_ops;
 
 	/* disable irqs, endpoint */
@@ -1409,7 +1409,7 @@ net2272_usb_reinit(struct net2272 *dev)
 			ep->fifo_size = 64;
 		net2272_ep_reset(ep);
 	}
-	dev->ep[0].ep.maxpacket = 64;
+	usb_ep_set_maxpacket_limit(&dev->ep[0].ep, 64);
 
 	dev->gadget.ep0 = &dev->ep[0].ep;
 	dev->ep[0].stopped = 0;

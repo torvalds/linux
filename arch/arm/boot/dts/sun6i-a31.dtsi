@@ -175,7 +175,7 @@
 		apb2_gates: apb2_gates@01c2006c {
 			#clock-cells = <1>;
 			compatible = "allwinner,sun6i-a31-apb2-gates-clk";
-			reg = <0x01c2006c 0x8>;
+			reg = <0x01c2006c 0x4>;
 			clocks = <&apb2>;
 			clock-output-names = "apb2_i2c0", "apb2_i2c1",
 					"apb2_i2c2", "apb2_i2c3", "apb2_uart0",
@@ -193,7 +193,10 @@
 		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun6i-a31-pinctrl";
 			reg = <0x01c20800 0x400>;
-			interrupts = <0 11 1>, <0 15 1>, <0 16 1>, <0 17 1>;
+			interrupts = <0 11 4>,
+				     <0 15 4>,
+				     <0 16 4>,
+				     <0 17 4>;
 			clocks = <&apb1_gates 5>;
 			gpio-controller;
 			interrupt-controller;
@@ -209,14 +212,32 @@
 			};
 		};
 
+		ahb1_rst: reset@01c202c0 {
+			#reset-cells = <1>;
+			compatible = "allwinner,sun6i-a31-ahb1-reset";
+			reg = <0x01c202c0 0xc>;
+		};
+
+		apb1_rst: reset@01c202d0 {
+			#reset-cells = <1>;
+			compatible = "allwinner,sun6i-a31-clock-reset";
+			reg = <0x01c202d0 0x4>;
+		};
+
+		apb2_rst: reset@01c202d8 {
+			#reset-cells = <1>;
+			compatible = "allwinner,sun6i-a31-clock-reset";
+			reg = <0x01c202d8 0x4>;
+		};
+
 		timer@01c20c00 {
 			compatible = "allwinner,sun4i-timer";
 			reg = <0x01c20c00 0xa0>;
-			interrupts = <0 18 1>,
-				     <0 19 1>,
-				     <0 20 1>,
-				     <0 21 1>,
-				     <0 22 1>;
+			interrupts = <0 18 4>,
+				     <0 19 4>,
+				     <0 20 4>,
+				     <0 21 4>,
+				     <0 22 4>;
 			clocks = <&osc24M>;
 		};
 
@@ -228,60 +249,66 @@
 		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
-			interrupts = <0 0 1>;
+			interrupts = <0 0 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 16>;
+			resets = <&apb2_rst 16>;
 			status = "disabled";
 		};
 
 		uart1: serial@01c28400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
-			interrupts = <0 1 1>;
+			interrupts = <0 1 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 17>;
+			resets = <&apb2_rst 17>;
 			status = "disabled";
 		};
 
 		uart2: serial@01c28800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28800 0x400>;
-			interrupts = <0 2 1>;
+			interrupts = <0 2 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 18>;
+			resets = <&apb2_rst 18>;
 			status = "disabled";
 		};
 
 		uart3: serial@01c28c00 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28c00 0x400>;
-			interrupts = <0 3 1>;
+			interrupts = <0 3 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 19>;
+			resets = <&apb2_rst 19>;
 			status = "disabled";
 		};
 
 		uart4: serial@01c29000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29000 0x400>;
-			interrupts = <0 4 1>;
+			interrupts = <0 4 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 20>;
+			resets = <&apb2_rst 20>;
 			status = "disabled";
 		};
 
 		uart5: serial@01c29400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29400 0x400>;
-			interrupts = <0 5 1>;
+			interrupts = <0 5 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 21>;
+			resets = <&apb2_rst 21>;
 			status = "disabled";
 		};
 
@@ -294,6 +321,16 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupts = <1 9 0xf04>;
+		};
+
+		cpucfg@01f01c00 {
+			compatible = "allwinner,sun6i-a31-cpuconfig";
+			reg = <0x01f01c00 0x300>;
+		};
+
+		prcm@01f01c00 {
+			compatible = "allwinner,sun6i-a31-prcm";
+			reg = <0x01f01400 0x200>;
 		};
 	};
 };

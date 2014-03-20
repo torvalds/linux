@@ -153,7 +153,7 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 
 			data32 &= 0xffffff;
 
-			wm8994_bulk_write(codec->control_data,
+			wm8994_bulk_write(wm8994->wm8994,
 					  data32 & 0xffffff,
 					  block_len / 2,
 					  (void *)(data + 8));
@@ -348,7 +348,7 @@ static void wm8958_dsp_apply(struct snd_soc_codec *codec, int path, int start)
 		aif = 1;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid path %d\n", path);
 		return;
 	}
 

@@ -49,11 +49,19 @@ config TI_DAVINCI_CPDMA
 	  To compile this driver as a module, choose M here: the module
 	  will be called davinci_cpdma.  This is recommended.
 
+config TI_CPSW_PHY_SEL
+	boolean "TI CPSW Switch Phy sel Support"
+	depends on TI_CPSW
+	---help---
+	  This driver supports configuring of the phy mode connected to
+	  the CPSW.
+
 config TI_CPSW
 	tristate "TI CPSW Switch Support"
 	depends on ARM && (ARCH_DAVINCI || SOC_AM33XX)
 	select TI_DAVINCI_CPDMA
 	select TI_DAVINCI_MDIO
+	select TI_CPSW_PHY_SEL
 	---help---
 	  This driver supports TI's CPSW Ethernet Switch.
 

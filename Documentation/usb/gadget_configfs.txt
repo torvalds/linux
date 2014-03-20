@@ -26,7 +26,7 @@ Linux provides a number of functions for gadgets to use.
 Creating a gadget means deciding what configurations there will be
 and which functions each configuration will provide.
 
-Configfs (please see Documentation/filesystems/configfs/*) lends itslef nicely
+Configfs (please see Documentation/filesystems/configfs/*) lends itself nicely
 for the purpose of telling the kernel about the above mentioned decision.
 This document is about how to do it.
 
@@ -99,7 +99,7 @@ directories must be created:
 $ mkdir configs/<name>.<number>
 
 where <name> can be any string which is legal in a filesystem and the
-<numebr> is the configuration's number, e.g.:
+<number> is the configuration's number, e.g.:
 
 $ mkdir configs/c.1
 
@@ -327,7 +327,7 @@ from the buffer to the cs), but it is up to the implementer of the
 two functions to decide what they actually do.
 
 typedef struct configured_structure cs;
-typedef struc specific_attribute sa;
+typedef struct specific_attribute sa;
 
                                        sa
                        +----------------------------------+

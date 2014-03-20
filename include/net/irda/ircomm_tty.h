@@ -22,9 +22,7 @@
  *     GNU General Public License for more details.
  * 
  *     You should have received a copy of the GNU General Public License 
- *     along with this program; if not, write to the Free Software 
- *     Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
- *     MA 02111-1307 USA
+ *     along with this program; if not, see <http://www.gnu.org/licenses/>.
  *     
  ********************************************************************/
 
@@ -105,13 +103,13 @@ struct ircomm_tty_cb {
 void ircomm_tty_start(struct tty_struct *tty);
 void ircomm_tty_check_modem_status(struct ircomm_tty_cb *self);
 
-extern int ircomm_tty_tiocmget(struct tty_struct *tty);
-extern int ircomm_tty_tiocmset(struct tty_struct *tty,
-			       unsigned int set, unsigned int clear);
-extern int ircomm_tty_ioctl(struct tty_struct *tty, 
-			    unsigned int cmd, unsigned long arg);
-extern void ircomm_tty_set_termios(struct tty_struct *tty, 
-				   struct ktermios *old_termios);
+int ircomm_tty_tiocmget(struct tty_struct *tty);
+int ircomm_tty_tiocmset(struct tty_struct *tty, unsigned int set,
+			unsigned int clear);
+int ircomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+		     unsigned long arg);
+void ircomm_tty_set_termios(struct tty_struct *tty,
+			    struct ktermios *old_termios);
 
 #endif
 

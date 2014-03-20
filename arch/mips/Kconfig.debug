@@ -20,6 +20,14 @@ config EARLY_PRINTK
 	  doesn't cooperate with an X server. You should normally say N here,
 	  unless you want to debug such a crash.
 
+config EARLY_PRINTK_8250
+	bool "8250/16550 and compatible serial early printk driver"
+	depends on EARLY_PRINTK
+	default n
+	help
+	  If you say Y here, it will be possible to use a 8250/16550 serial
+	  port as the boot console.
+
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
 	default n

@@ -418,6 +418,38 @@ qla4xxx_get_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 	return QLA_SUCCESS;
 }
 
+uint8_t qla4xxx_set_ipaddr_state(uint8_t fw_ipaddr_state)
+{
+	uint8_t ipaddr_state;
+
+	switch (fw_ipaddr_state) {
+	case IP_ADDRSTATE_UNCONFIGURED:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_UNCONFIGURED;
+		break;
+	case IP_ADDRSTATE_INVALID:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_INVALID;
+		break;
+	case IP_ADDRSTATE_ACQUIRING:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_ACQUIRING;
+		break;
+	case IP_ADDRSTATE_TENTATIVE:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_TENTATIVE;
+		break;
+	case IP_ADDRSTATE_DEPRICATED:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_DEPRECATED;
+		break;
+	case IP_ADDRSTATE_PREFERRED:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_VALID;
+		break;
+	case IP_ADDRSTATE_DISABLING:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_DISABLING;
+		break;
+	default:
+		ipaddr_state = ISCSI_IPDDRESS_STATE_UNCONFIGURED;
+	}
+	return ipaddr_state;
+}
+
 static void
 qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 			struct addr_ctrl_blk *init_fw_cb)
@@ -425,7 +457,7 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 	ha->ip_config.tcp_options = le16_to_cpu(init_fw_cb->ipv4_tcp_opts);
 	ha->ip_config.ipv4_options = le16_to_cpu(init_fw_cb->ipv4_ip_opts);
 	ha->ip_config.ipv4_addr_state =
-				le16_to_cpu(init_fw_cb->ipv4_addr_state);
+			qla4xxx_set_ipaddr_state(init_fw_cb->ipv4_addr_state);
 	ha->ip_config.eth_mtu_size =
 				le16_to_cpu(init_fw_cb->eth_mtu_size);
 	ha->ip_config.ipv4_port = le16_to_cpu(init_fw_cb->ipv4_port);
@@ -434,6 +466,8 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 		ha->ip_config.ipv6_options = le16_to_cpu(init_fw_cb->ipv6_opts);
 		ha->ip_config.ipv6_addl_options =
 				le16_to_cpu(init_fw_cb->ipv6_addtl_opts);
+		ha->ip_config.ipv6_tcp_options =
+				le16_to_cpu(init_fw_cb->ipv6_tcp_opts);
 	}
 
 	/* Save IPv4 Address Info */
@@ -448,17 +482,65 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 		   sizeof(init_fw_cb->ipv4_gw_addr)));
 
 	ha->ip_config.ipv4_vlan_tag = be16_to_cpu(init_fw_cb->ipv4_vlan_tag);
+	ha->ip_config.control = init_fw_cb->control;
+	ha->ip_config.tcp_wsf = init_fw_cb->ipv4_tcp_wsf;
+	ha->ip_config.ipv4_tos = init_fw_cb->ipv4_tos;
+	ha->ip_config.ipv4_cache_id = init_fw_cb->ipv4_cacheid;
+	ha->ip_config.ipv4_alt_cid_len = init_fw_cb->ipv4_dhcp_alt_cid_len;
+	memcpy(ha->ip_config.ipv4_alt_cid, init_fw_cb->ipv4_dhcp_alt_cid,
+	       min(sizeof(ha->ip_config.ipv4_alt_cid),
+		   sizeof(init_fw_cb->ipv4_dhcp_alt_cid)));
+	ha->ip_config.ipv4_vid_len = init_fw_cb->ipv4_dhcp_vid_len;
+	memcpy(ha->ip_config.ipv4_vid, init_fw_cb->ipv4_dhcp_vid,
+	       min(sizeof(ha->ip_config.ipv4_vid),
+		   sizeof(init_fw_cb->ipv4_dhcp_vid)));
+	ha->ip_config.ipv4_ttl = init_fw_cb->ipv4_ttl;
+	ha->ip_config.def_timeout = le16_to_cpu(init_fw_cb->def_timeout);
+	ha->ip_config.abort_timer = init_fw_cb->abort_timer;
+	ha->ip_config.iscsi_options = le16_to_cpu(init_fw_cb->iscsi_opts);
+	ha->ip_config.iscsi_max_pdu_size =
+				le16_to_cpu(init_fw_cb->iscsi_max_pdu_size);
+	ha->ip_config.iscsi_first_burst_len =
+				le16_to_cpu(init_fw_cb->iscsi_fburst_len);
+	ha->ip_config.iscsi_max_outstnd_r2t =
+				le16_to_cpu(init_fw_cb->iscsi_max_outstnd_r2t);
+	ha->ip_config.iscsi_max_burst_len =
+				le16_to_cpu(init_fw_cb->iscsi_max_burst_len);
+	memcpy(ha->ip_config.iscsi_name, init_fw_cb->iscsi_name,
+	       min(sizeof(ha->ip_config.iscsi_name),
+		   sizeof(init_fw_cb->iscsi_name)));
 
 	if (is_ipv6_enabled(ha)) {
 		/* Save IPv6 Address */
 		ha->ip_config.ipv6_link_local_state =
-			le16_to_cpu(init_fw_cb->ipv6_lnk_lcl_addr_state);
+		  qla4xxx_set_ipaddr_state(init_fw_cb->ipv6_lnk_lcl_addr_state);
 		ha->ip_config.ipv6_addr0_state =
-				le16_to_cpu(init_fw_cb->ipv6_addr0_state);
+			qla4xxx_set_ipaddr_state(init_fw_cb->ipv6_addr0_state);
 		ha->ip_config.ipv6_addr1_state =
-				le16_to_cpu(init_fw_cb->ipv6_addr1_state);
-		ha->ip_config.ipv6_default_router_state =
-				le16_to_cpu(init_fw_cb->ipv6_dflt_rtr_state);
+			qla4xxx_set_ipaddr_state(init_fw_cb->ipv6_addr1_state);
+
+		switch (le16_to_cpu(init_fw_cb->ipv6_dflt_rtr_state)) {
+		case IPV6_RTRSTATE_UNKNOWN:
+			ha->ip_config.ipv6_default_router_state =
+						ISCSI_ROUTER_STATE_UNKNOWN;
+			break;
+		case IPV6_RTRSTATE_MANUAL:
+			ha->ip_config.ipv6_default_router_state =
+						ISCSI_ROUTER_STATE_MANUAL;
+			break;
+		case IPV6_RTRSTATE_ADVERTISED:
+			ha->ip_config.ipv6_default_router_state =
+						ISCSI_ROUTER_STATE_ADVERTISED;
+			break;
+		case IPV6_RTRSTATE_STALE:
+			ha->ip_config.ipv6_default_router_state =
+						ISCSI_ROUTER_STATE_STALE;
+			break;
+		default:
+			ha->ip_config.ipv6_default_router_state =
+						ISCSI_ROUTER_STATE_UNKNOWN;
+		}
+
 		ha->ip_config.ipv6_link_local_addr.in6_u.u6_addr8[0] = 0xFE;
 		ha->ip_config.ipv6_link_local_addr.in6_u.u6_addr8[1] = 0x80;
 
@@ -479,6 +561,23 @@ qla4xxx_update_local_ip(struct scsi_qla_host *ha,
 		ha->ip_config.ipv6_vlan_tag =
 				be16_to_cpu(init_fw_cb->ipv6_vlan_tag);
 		ha->ip_config.ipv6_port = le16_to_cpu(init_fw_cb->ipv6_port);
+		ha->ip_config.ipv6_cache_id = init_fw_cb->ipv6_cache_id;
+		ha->ip_config.ipv6_flow_lbl =
+				le16_to_cpu(init_fw_cb->ipv6_flow_lbl);
+		ha->ip_config.ipv6_traffic_class =
+				init_fw_cb->ipv6_traffic_class;
+		ha->ip_config.ipv6_hop_limit = init_fw_cb->ipv6_hop_limit;
+		ha->ip_config.ipv6_nd_reach_time =
+				le32_to_cpu(init_fw_cb->ipv6_nd_reach_time);
+		ha->ip_config.ipv6_nd_rexmit_timer =
+				le32_to_cpu(init_fw_cb->ipv6_nd_rexmit_timer);
+		ha->ip_config.ipv6_nd_stale_timeout =
+				le32_to_cpu(init_fw_cb->ipv6_nd_stale_timeout);
+		ha->ip_config.ipv6_dup_addr_detect_count =
+					init_fw_cb->ipv6_dup_addr_detect_count;
+		ha->ip_config.ipv6_gw_advrt_mtu =
+				le32_to_cpu(init_fw_cb->ipv6_gw_advrt_mtu);
+		ha->ip_config.ipv6_tcp_wsf = init_fw_cb->ipv6_tcp_wsf;
 	}
 }
 
@@ -1530,13 +1629,26 @@ exit_get_chap:
 	return ret;
 }
 
-static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
-			    char *password, uint16_t idx, int bidi)
+/**
+ * qla4xxx_set_chap - Make a chap entry at the given index
+ * @ha: pointer to adapter structure
+ * @username: CHAP username to set
+ * @password: CHAP password to set
+ * @idx: CHAP index at which to make the entry
+ * @bidi: type of chap entry (chap_in or chap_out)
+ *
+ * Create chap entry at the given index with the information provided.
+ *
+ * Note: Caller should acquire the chap lock before getting here.
+ **/
+int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
+		     uint16_t idx, int bidi)
 {
 	int ret = 0;
 	int rval = QLA_ERROR;
 	uint32_t offset = 0;
 	struct ql4_chap_table *chap_table;
+	uint32_t chap_size = 0;
 	dma_addr_t chap_dma;
 
 	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
@@ -1554,7 +1666,20 @@ static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
 	strncpy(chap_table->secret, password, MAX_CHAP_SECRET_LEN);
 	strncpy(chap_table->name, username, MAX_CHAP_NAME_LEN);
 	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
-	offset = FLASH_CHAP_OFFSET | (idx * sizeof(struct ql4_chap_table));
+
+	if (is_qla40XX(ha)) {
+		chap_size = MAX_CHAP_ENTRIES_40XX * sizeof(*chap_table);
+		offset = FLASH_CHAP_OFFSET;
+	} else { /* Single region contains CHAP info for both ports which is
+		  * divided into half for each port.
+		  */
+		chap_size = ha->hw.flt_chap_size / 2;
+		offset = FLASH_RAW_ACCESS_ADDR + (ha->hw.flt_region_chap << 2);
+		if (ha->port_num == 1)
+			offset += chap_size;
+	}
+
+	offset += (idx * sizeof(struct ql4_chap_table));
 	rval = qla4xxx_set_flash(ha, chap_dma, offset,
 				sizeof(struct ql4_chap_table),
 				FLASH_OPT_RMW_COMMIT);
@@ -1611,7 +1736,7 @@ int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 		goto exit_unlock_uni_chap;
 	}
 
-	if (!(chap_table->flags & BIT_6)) {
+	if (!(chap_table->flags & BIT_7)) {
 		ql4_printk(KERN_ERR, ha, "Unidirectional entry not set\n");
 		rval = QLA_ERROR;
 		goto exit_unlock_uni_chap;
@@ -2290,4 +2415,47 @@ exit_config_acb:
 			  "%s %s\n", __func__,
 			  rval == QLA_SUCCESS ? "SUCCEEDED" : "FAILED"));
 	return rval;
+}
+
+int qla4_83xx_get_port_config(struct scsi_qla_host *ha, uint32_t *config)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_GET_PORT_CONFIG;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, MBOX_REG_COUNT,
+					 mbox_cmd, mbox_sts);
+	if (status == QLA_SUCCESS)
+		*config = mbox_sts[1];
+	else
+		ql4_printk(KERN_ERR, ha, "%s: failed status %04X\n", __func__,
+			   mbox_sts[0]);
+
+	return status;
+}
+
+int qla4_83xx_set_port_config(struct scsi_qla_host *ha, uint32_t *config)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_SET_PORT_CONFIG;
+	mbox_cmd[1] = *config;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, MBOX_REG_COUNT,
+				mbox_cmd, mbox_sts);
+	if (status != QLA_SUCCESS)
+		ql4_printk(KERN_ERR, ha, "%s: failed status %04X\n", __func__,
+			   mbox_sts[0]);
+
+	return status;
 }

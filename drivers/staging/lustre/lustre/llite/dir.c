@@ -743,7 +743,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 
 	/* In the following we use the fact that LOV_USER_MAGIC_V1 and
 	 LOV_USER_MAGIC_V3 have the same initial fields so we do not
-	 need the make the distiction between the 2 versions */
+	 need to make the distinction between the 2 versions */
 	if (set_default && mgc->u.cli.cl_mgc_mgsexp) {
 		char *param = NULL;
 		char *buf;
@@ -1086,7 +1086,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 		break;
 	case Q_GETQUOTA:
 		if (((type == USRQUOTA &&
-		      uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
+		      !uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
 		    (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
@@ -1809,8 +1809,28 @@ out_rmdir:
 			return -EFAULT;
 		}
 
-		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), totalsize,
-				   hur, NULL);
+		if (hur->hur_request.hr_action == HUA_RELEASE) {
+			const struct lu_fid *fid;
+			struct inode *f;
+			int i;
+
+			for (i = 0; i < hur->hur_request.hr_itemcount; i++) {
+				fid = &hur->hur_user_item[i].hui_fid;
+				f = search_inode_for_lustre(inode->i_sb, fid);
+				if (IS_ERR(f)) {
+					rc = PTR_ERR(f);
+					break;
+				}
+
+				rc = ll_hsm_release(f);
+				iput(f);
+				if (rc != 0)
+					break;
+			}
+		} else {
+			rc = obd_iocontrol(cmd, ll_i2mdexp(inode), totalsize,
+					   hur, NULL);
+		}
 
 		OBD_FREE_LARGE(hur, totalsize);
 

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -155,14 +155,12 @@ void iwl_opmode_deregister(const char *name);
 
 /**
  * struct iwl_op_mode - operational mode
+ * @ops - pointer to its own ops
  *
  * This holds an implementation of the mac80211 / fw API.
- *
- * @ops - pointer to its own ops
  */
 struct iwl_op_mode {
 	const struct iwl_op_mode_ops *ops;
-	const struct iwl_trans *trans;
 
 	char op_mode_specific[0] __aligned(sizeof(void *));
 };

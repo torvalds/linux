@@ -6,7 +6,6 @@
 #include <linux/usb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/ctype.h>
@@ -218,7 +217,7 @@ EXPORT_SYMBOL_GPL(usb_interrupt_msg);
  *
  * Return:
  * If successful, 0. Otherwise a negative error number. The number of actual
- * bytes transferred will be stored in the @actual_length paramater.
+ * bytes transferred will be stored in the @actual_length parameter.
  *
  */
 int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
@@ -518,7 +517,7 @@ void usb_sg_wait(struct usb_sg_request *io)
 		io->urbs[i]->dev = io->dev;
 		retval = usb_submit_urb(io->urbs[i], GFP_ATOMIC);
 
-		/* after we submit, let completions or cancelations fire;
+		/* after we submit, let completions or cancellations fire;
 		 * we handshake using io->status.
 		 */
 		spin_unlock_irq(&io->lock);
@@ -1182,8 +1181,12 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			put_device(&dev->actconfig->interface[i]->dev);
 			dev->actconfig->interface[i] = NULL;
 		}
+
+		if (dev->usb2_hw_lpm_enabled == 1)
+			usb_set_usb2_hardware_lpm(dev, 0);
 		usb_unlocked_disable_lpm(dev);
 		usb_disable_ltm(dev);
+
 		dev->actconfig = NULL;
 		if (dev->state == USB_STATE_CONFIGURED)
 			usb_set_device_state(dev, USB_STATE_ADDRESS);

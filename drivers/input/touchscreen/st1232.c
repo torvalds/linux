@@ -24,6 +24,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
@@ -153,7 +154,7 @@ static int st1232_ts_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct st1232_ts_data *ts;
-	struct st1232_pdata *pdata = client->dev.platform_data;
+	struct st1232_pdata *pdata = dev_get_platdata(&client->dev);
 	struct input_dev *input_dev;
 	int error;
 

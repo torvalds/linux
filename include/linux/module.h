@@ -29,8 +29,7 @@
 
 #define MODULE_NAME_LEN MAX_PARAM_PREFIX_LEN
 
-struct modversion_info
-{
+struct modversion_info {
 	unsigned long crc;
 	char name[MODULE_NAME_LEN];
 };
@@ -84,12 +83,12 @@ void sort_main_extable(void);
 void trim_init_extable(struct module *m);
 
 #ifdef MODULE
-#define MODULE_GENERIC_TABLE(gtype,name)			\
+#define MODULE_GENERIC_TABLE(gtype, name)			\
 extern const struct gtype##_id __mod_##gtype##_table		\
   __attribute__ ((unused, alias(__stringify(name))))
 
 #else  /* !MODULE */
-#define MODULE_GENERIC_TABLE(gtype,name)
+#define MODULE_GENERIC_TABLE(gtype, name)
 #endif
 
 /* Generic info of form tag = "info" */
@@ -126,7 +125,7 @@ extern const struct gtype##_id __mod_##gtype##_table		\
  * is a GPL combined work.
  *
  * This exists for several reasons
- * 1.	So modinfo can show license info for users wanting to vet their setup 
+ * 1.	So modinfo can show license info for users wanting to vet their setup
  *	is free
  * 2.	So the community can ignore bug reports including proprietary modules
  * 3.	So vendors can do likewise based on their own policies
@@ -138,27 +137,29 @@ extern const struct gtype##_id __mod_##gtype##_table		\
  * authors use multiple MODULE_AUTHOR() statements/lines.
  */
 #define MODULE_AUTHOR(_author) MODULE_INFO(author, _author)
-  
+
 /* What your module does. */
 #define MODULE_DESCRIPTION(_description) MODULE_INFO(description, _description)
 
-#define MODULE_DEVICE_TABLE(type,name)		\
-  MODULE_GENERIC_TABLE(type##_device,name)
+#define MODULE_DEVICE_TABLE(type, name)		\
+  MODULE_GENERIC_TABLE(type##_device, name)
 
 /* Version of form [<epoch>:]<version>[-<extra-version>].
-   Or for CVS/RCS ID version, everything but the number is stripped.
-  <epoch>: A (small) unsigned integer which allows you to start versions
-           anew. If not mentioned, it's zero.  eg. "2:1.0" is after
-	   "1:2.0".
-  <version>: The <version> may contain only alphanumerics and the
-           character `.'.  Ordered by numeric sort for numeric parts,
-	   ascii sort for ascii parts (as per RPM or DEB algorithm).
-  <extraversion>: Like <version>, but inserted for local
-           customizations, eg "rh3" or "rusty1".
+ * Or for CVS/RCS ID version, everything but the number is stripped.
+ * <epoch>: A (small) unsigned integer which allows you to start versions
+ * anew. If not mentioned, it's zero.  eg. "2:1.0" is after
+ * "1:2.0".
 
-  Using this automatically adds a checksum of the .c files and the
-  local headers in "srcversion".
-*/
+ * <version>: The <version> may contain only alphanumerics and the
+ * character `.'.  Ordered by numeric sort for numeric parts,
+ * ascii sort for ascii parts (as per RPM or DEB algorithm).
+
+ * <extraversion>: Like <version>, but inserted for local
+ * customizations, eg "rh3" or "rusty1".
+
+ * Using this automatically adds a checksum of the .c files and the
+ * local headers in "srcversion".
+ */
 
 #if defined(MODULE) || !defined(CONFIG_SYSFS)
 #define MODULE_VERSION(_version) MODULE_INFO(version, _version)
@@ -226,8 +227,7 @@ struct module_ref {
 	unsigned long decs;
 } __attribute((aligned(2 * sizeof(unsigned long))));
 
-struct module
-{
+struct module {
 	enum module_state state;
 
 	/* Member of list of modules */
@@ -367,9 +367,6 @@ struct module
 	/* What modules do I depend on? */
 	struct list_head target_list;
 
-	/* Who is waiting for us to be unloaded */
-	struct task_struct *waiter;
-
 	/* Destruction function. */
 	void (*exit)(void);
 
@@ -454,7 +451,7 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 
 extern void __module_put_and_exit(struct module *mod, long code)
 	__attribute__((noreturn));
-#define module_put_and_exit(code) __module_put_and_exit(THIS_MODULE, code);
+#define module_put_and_exit(code) __module_put_and_exit(THIS_MODULE, code)
 
 #ifdef CONFIG_MODULE_UNLOAD
 unsigned long module_refcount(struct module *mod);
@@ -483,8 +480,8 @@ static inline void module_put(struct module *module)
 static inline void __module_get(struct module *module)
 {
 }
-#define symbol_put(x) do { } while(0)
-#define symbol_put_addr(p) do { } while(0)
+#define symbol_put(x) do { } while (0)
+#define symbol_put_addr(p) do { } while (0)
 
 #endif /* CONFIG_MODULE_UNLOAD */
 int ref_module(struct module *a, struct module *b);
@@ -510,8 +507,8 @@ int lookup_module_symbol_attrs(unsigned long addr, unsigned long *size, unsigned
 /* For extable.c to search modules' exception tables. */
 const struct exception_table_entry *search_module_extables(unsigned long addr);
 
-int register_module_notifier(struct notifier_block * nb);
-int unregister_module_notifier(struct notifier_block * nb);
+int register_module_notifier(struct notifier_block *nb);
+int unregister_module_notifier(struct notifier_block *nb);
 
 extern void print_modules(void);
 
@@ -551,8 +548,8 @@ static inline bool is_module_text_address(unsigned long addr)
 
 /* Get/put a kernel symbol (calls should be symmetric) */
 #define symbol_get(x) ({ extern typeof(x) x __attribute__((weak)); &(x); })
-#define symbol_put(x) do { } while(0)
-#define symbol_put_addr(x) do { } while(0)
+#define symbol_put(x) do { } while (0)
+#define symbol_put_addr(x) do { } while (0)
 
 static inline void __module_get(struct module *module)
 {
@@ -609,13 +606,13 @@ static inline int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 	return 0;
 }
 
-static inline int register_module_notifier(struct notifier_block * nb)
+static inline int register_module_notifier(struct notifier_block *nb)
 {
 	/* no events will happen anyway, so this can always succeed */
 	return 0;
 }
 
-static inline int unregister_module_notifier(struct notifier_block * nb)
+static inline int unregister_module_notifier(struct notifier_block *nb)
 {
 	return 0;
 }

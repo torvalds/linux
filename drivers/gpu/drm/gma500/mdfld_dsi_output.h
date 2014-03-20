@@ -39,7 +39,7 @@
 #include "psb_intel_reg.h"
 #include "mdfld_output.h"
 
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 
 #define FLD_MASK(start, end)	(((1 << ((start) - (end) + 1)) - 1) << (end))
 #define FLD_VAL(val, start, end) (((val) << (end)) & FLD_MASK(start, end))

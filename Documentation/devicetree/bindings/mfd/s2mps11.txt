@@ -1,10 +1,10 @@
 
 * Samsung S2MPS11 Voltage and Current Regulator
 
-The Samsung S2MP211 is a multi-function device which includes voltage and
+The Samsung S2MPS11 is a multi-function device which includes voltage and
 current regulators, RTC, charger controller and other sub-blocks. It is
-interfaced to the host controller using a I2C interface. Each sub-block is
-addressed by the host system using different I2C slave address.
+interfaced to the host controller using an I2C interface. Each sub-block is
+addressed by the host system using different I2C slave addresses.
 
 Required properties:
 - compatible: Should be "samsung,s2mps11-pmic".
@@ -43,7 +43,8 @@ sub-node should be of the format as listed below.
 
  BUCK[2/3/4/6] supports disabling ramp delay on hardware, so explictly
  regulator-ramp-delay = <0> can be used for them to disable ramp delay.
- In absence of regulator-ramp-delay property, default ramp delay will be used.
+ In the absence of the regulator-ramp-delay property, the default ramp
+ delay will be used.
 
 NOTE: Some BUCKs share the ramp rate setting i.e. same ramp value will be set
 for a particular group of BUCKs. So provide same regulator-ramp-delay<value>.
@@ -58,10 +59,10 @@ supports. Note: The 'n' in LDOn and BUCKn represents the LDO or BUCK number
 as per the datasheet of s2mps11.
 
 	- LDOn
-		  - valid values for n are 1 to 28
-		  - Example: LDO0, LD01, LDO28
+		  - valid values for n are 1 to 38
+		  - Example: LDO1, LD02, LDO28
 	- BUCKn
-		  - valid values for n are 1 to 9.
+		  - valid values for n are 1 to 10.
 		  - Example: BUCK1, BUCK2, BUCK9
 
 Example:

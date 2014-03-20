@@ -215,6 +215,7 @@ static struct platform_driver mioa701_wm9713_driver = {
 	.driver		= {
 		.name		= "mioa701-wm9713",
 		.owner		= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 };
 

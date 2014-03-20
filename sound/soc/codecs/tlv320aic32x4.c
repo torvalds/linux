@@ -60,9 +60,8 @@ struct aic32x4_rate_divs {
 };
 
 struct aic32x4_priv {
+	struct regmap *regmap;
 	u32 sysclk;
-	u8 page_no;
-	void *control_data;
 	u32 power_cfg;
 	u32 micpga_routing;
 	bool swapdacs;
@@ -262,67 +261,25 @@ static const struct snd_soc_dapm_route aic32x4_dapm_routes[] = {
 	{"Right ADC", NULL, "Right Input Mixer"},
 };
 
-static inline int aic32x4_change_page(struct snd_soc_codec *codec,
-					unsigned int new_page)
-{
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
-	u8 data[2];
-	int ret;
+static const struct regmap_range_cfg aic32x4_regmap_pages[] = {
+	{
+		.selector_reg = 0,
+		.selector_mask  = 0xff,
+		.window_start = 0,
+		.window_len = 128,
+		.range_min = 0,
+		.range_max = AIC32X4_RMICPGAVOL,
+	},
+};
 
-	data[0] = 0x00;
-	data[1] = new_page & 0xff;
+static const struct regmap_config aic32x4_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
 
-	ret = codec->hw_write(codec->control_data, data, 2);
-	if (ret == 2) {
-		aic32x4->page_no = new_page;
-		return 0;
-	} else {
-		return ret;
-	}
-}
-
-static int aic32x4_write(struct snd_soc_codec *codec, unsigned int reg,
-				unsigned int val)
-{
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
-	unsigned int page = reg / 128;
-	unsigned int fixed_reg = reg % 128;
-	u8 data[2];
-	int ret;
-
-	/* A write to AIC32X4_PSEL is really a non-explicit page change */
-	if (reg == AIC32X4_PSEL)
-		return aic32x4_change_page(codec, val);
-
-	if (aic32x4->page_no != page) {
-		ret = aic32x4_change_page(codec, page);
-		if (ret != 0)
-			return ret;
-	}
-
-	data[0] = fixed_reg & 0xff;
-	data[1] = val & 0xff;
-
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
-static unsigned int aic32x4_read(struct snd_soc_codec *codec, unsigned int reg)
-{
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
-	unsigned int page = reg / 128;
-	unsigned int fixed_reg = reg % 128;
-	int ret;
-
-	if (aic32x4->page_no != page) {
-		ret = aic32x4_change_page(codec, page);
-		if (ret != 0)
-			return ret;
-	}
-	return i2c_smbus_read_byte_data(codec->control_data, fixed_reg & 0xff);
-}
+	.max_register = AIC32X4_RMICPGAVOL,
+	.ranges = aic32x4_regmap_pages,
+	.num_ranges = ARRAY_SIZE(aic32x4_regmap_pages),
+};
 
 static inline int aic32x4_get_divs(int mclk, int rate)
 {
@@ -493,6 +450,17 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	}
 	snd_soc_write(codec, AIC32X4_IFACE1, data);
 
+	if (params_channels(params) == 1) {
+		data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2LCHN;
+	} else {
+		if (aic32x4->swapdacs)
+			data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2RCHN;
+		else
+			data = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
+	}
+	snd_soc_update_bits(codec, AIC32X4_DACSETUP, AIC32X4_DAC_CHAN_MASK,
+			data);
+
 	return 0;
 }
 
@@ -617,16 +585,10 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
 	u32 tmp_reg;
-	int ret;
 
-	codec->hw_write = (hw_write_t) i2c_master_send;
-	codec->control_data = aic32x4->control_data;
+	snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
 
 	if (aic32x4->rstn_gpio >= 0) {
-		ret = devm_gpio_request_one(codec->dev, aic32x4->rstn_gpio,
-				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
-		if (ret != 0)
-			return ret;
 		ndelay(10);
 		gpio_set_value(aic32x4->rstn_gpio, 1);
 	}
@@ -655,20 +617,15 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 	}
 	snd_soc_write(codec, AIC32X4_CMMODE, tmp_reg);
 
-	/* Do DACs need to be swapped? */
-	if (aic32x4->swapdacs) {
-		snd_soc_write(codec, AIC32X4_DACSETUP, AIC32X4_LDAC2RCHN | AIC32X4_RDAC2LCHN);
-	} else {
-		snd_soc_write(codec, AIC32X4_DACSETUP, AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN);
-	}
-
 	/* Mic PGA routing */
-	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_LMIC_IN2R_10K) {
+	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_LMIC_IN2R_10K)
 		snd_soc_write(codec, AIC32X4_LMICPGANIN, AIC32X4_LMICPGANIN_IN2R_10K);
-	}
-	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_RMIC_IN1L_10K) {
+	else
+		snd_soc_write(codec, AIC32X4_LMICPGANIN, AIC32X4_LMICPGANIN_CM1L_10K);
+	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_RMIC_IN1L_10K)
 		snd_soc_write(codec, AIC32X4_RMICPGANIN, AIC32X4_RMICPGANIN_IN1L_10K);
-	}
+	else
+		snd_soc_write(codec, AIC32X4_RMICPGANIN, AIC32X4_RMICPGANIN_CM1R_10K);
 
 	aic32x4_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -692,8 +649,6 @@ static int aic32x4_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
-	.read = aic32x4_read,
-	.write = aic32x4_write,
 	.probe = aic32x4_probe,
 	.remove = aic32x4_remove,
 	.suspend = aic32x4_suspend,
@@ -720,7 +675,10 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 	if (aic32x4 == NULL)
 		return -ENOMEM;
 
-	aic32x4->control_data = i2c;
+	aic32x4->regmap = devm_regmap_init_i2c(i2c, &aic32x4_regmap);
+	if (IS_ERR(aic32x4->regmap))
+		return PTR_ERR(aic32x4->regmap);
+
 	i2c_set_clientdata(i2c, aic32x4);
 
 	if (pdata) {
@@ -733,6 +691,13 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 		aic32x4->swapdacs = false;
 		aic32x4->micpga_routing = 0;
 		aic32x4->rstn_gpio = -1;
+	}
+
+	if (aic32x4->rstn_gpio >= 0) {
+		ret = devm_gpio_request_one(&i2c->dev, aic32x4->rstn_gpio,
+				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
+		if (ret != 0)
+			return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,

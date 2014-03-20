@@ -1096,7 +1096,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 
 	err = request_irq(dev->pci->irq, saa7134_alsa_irq,
-				IRQF_SHARED | IRQF_DISABLED, dev->name,
+				IRQF_SHARED, dev->name,
 				(void*) &dev->dmasound);
 
 	if (err < 0) {

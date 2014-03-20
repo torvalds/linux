@@ -22,9 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include "subdev/fb.h"
-#include "subdev/bios.h"
-#include "subdev/bios/bit.h"
+#include <subdev/bios.h>
+#include <subdev/bios/bit.h>
+
+#include "priv.h"
 
 int
 nouveau_fb_bios_memtype(struct nouveau_bios *bios)
@@ -106,9 +107,9 @@ _nouveau_fb_dtor(struct nouveau_object *object)
 
 int
 nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, struct nouveau_oclass *ramcls,
-		   int length, void **pobject)
+		   struct nouveau_oclass *oclass, int length, void **pobject)
 {
+	struct nouveau_fb_impl *impl = (void *)oclass;
 	static const char *name[] = {
 		[NV_MEM_TYPE_UNKNOWN] = "unknown",
 		[NV_MEM_TYPE_STOLEN ] = "stolen system memory",
@@ -132,8 +133,10 @@ nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	pfb->memtype_valid = impl->memtype;
+
 	ret = nouveau_object_ctor(nv_object(pfb), nv_object(pfb),
-				  ramcls, NULL, 0, &ram);
+				  impl->ram, NULL, 0, &ram);
 	if (ret) {
 		nv_fatal(pfb, "error detecting memory configuration!!\n");
 		return ret;

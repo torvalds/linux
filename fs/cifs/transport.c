@@ -58,7 +58,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 		return temp;
 	else {
 		memset(temp, 0, sizeof(struct mid_q_entry));
-		temp->mid = smb_buffer->Mid;	/* always LE */
+		temp->mid = get_mid(smb_buffer);
 		temp->pid = current->pid;
 		temp->command = cpu_to_le16(smb_buffer->Command);
 		cifs_dbg(FYI, "For smb_command %d\n", smb_buffer->Command);
@@ -270,6 +270,26 @@ cifs_rqst_page_to_kvec(struct smb_rqst *rqst, unsigned int idx,
 		iov->iov_len = rqst->rq_pagesz;
 }
 
+static unsigned long
+rqst_len(struct smb_rqst *rqst)
+{
+	unsigned int i;
+	struct kvec *iov = rqst->rq_iov;
+	unsigned long buflen = 0;
+
+	/* total up iov array first */
+	for (i = 0; i < rqst->rq_nvec; i++)
+		buflen += iov[i].iov_len;
+
+	/* add in the page array if there is one */
+	if (rqst->rq_npages) {
+		buflen += rqst->rq_pagesz * (rqst->rq_npages - 1);
+		buflen += rqst->rq_tailsz;
+	}
+
+	return buflen;
+}
+
 static int
 smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
@@ -277,6 +297,7 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	struct kvec *iov = rqst->rq_iov;
 	int n_vec = rqst->rq_nvec;
 	unsigned int smb_buf_length = get_rfc1002_length(iov[0].iov_base);
+	unsigned long send_length;
 	unsigned int i;
 	size_t total_len = 0, sent;
 	struct socket *ssocket = server->ssocket;
@@ -284,6 +305,14 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 
 	if (ssocket == NULL)
 		return -ENOTSOCK;
+
+	/* sanity check send length */
+	send_length = rqst_len(rqst);
+	if (send_length != smb_buf_length + 4) {
+		WARN(1, "Send length mismatch(send_length=%lu smb_buf_length=%u)\n",
+			send_length, smb_buf_length);
+		return -EIO;
+	}
 
 	cifs_dbg(FYI, "Sending smb: smb_len=%u\n", smb_buf_length);
 	dump_smb(iov[0].iov_base, iov[0].iov_len);
@@ -410,8 +439,13 @@ static int
 wait_for_free_request(struct TCP_Server_Info *server, const int timeout,
 		      const int optype)
 {
-	return wait_for_free_credits(server, timeout,
-				server->ops->get_credits_field(server, optype));
+	int *val;
+
+	val = server->ops->get_credits_field(server, optype);
+	/* Since an echo is already inflight, no need to wait to send another */
+	if (*val <= 0 && optype == CIFS_ECHO_OP)
+		return -EAGAIN;
+	return wait_for_free_credits(server, timeout, val);
 }
 
 static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
@@ -426,13 +460,20 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 		return -EAGAIN;
 	}
 
-	if (ses->status != CifsGood) {
-		/* check if SMB session is bad because we are setting it up */
+	if (ses->status == CifsNew) {
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
 			(in_buf->Command != SMB_COM_NEGOTIATE))
 			return -EAGAIN;
 		/* else ok - we are setting up session */
 	}
+
+	if (ses->status == CifsExiting) {
+		/* check if SMB session is bad because we are setting it up */
+		if (in_buf->Command != SMB_COM_LOGOFF_ANDX)
+			return -EAGAIN;
+		/* else ok - we are shutting down session */
+	}
+
 	*ppmidQ = AllocMidQEntry(in_buf, ses->server);
 	if (*ppmidQ == NULL)
 		return -ENOMEM;

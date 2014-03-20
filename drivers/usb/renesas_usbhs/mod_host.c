@@ -1469,6 +1469,7 @@ static int usbhsh_start(struct usbhs_priv *priv)
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret < 0)
 		return 0;
+	device_wakeup_enable(hcd->self.controller);
 
 	/*
 	 * pipe initialize and enable DCP

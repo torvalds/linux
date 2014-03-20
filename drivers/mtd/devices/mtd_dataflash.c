@@ -88,8 +88,6 @@ struct dataflash {
 	uint8_t			command[4];
 	char			name[24];
 
-	unsigned		partitioned:1;
-
 	unsigned short		page_offset;	/* offset in flash address */
 	unsigned int		page_size;	/* of bytes per page */
 
@@ -671,7 +669,6 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 	if (!err)
 		return 0;
 
-	spi_set_drvdata(spi, NULL);
 	kfree(priv);
 	return err;
 }
@@ -881,7 +878,7 @@ static int dataflash_probe(struct spi_device *spi)
 		break;
 	/* obsolete AT45DB1282 not (yet?) supported */
 	default:
-		pr_debug("%s: unsupported device (%x)\n", dev_name(&spi->dev),
+		dev_info(&spi->dev, "unsupported device (%x)\n",
 				status & 0x3c);
 		status = -ENODEV;
 	}
@@ -901,10 +898,8 @@ static int dataflash_remove(struct spi_device *spi)
 	pr_debug("%s: remove\n", dev_name(&spi->dev));
 
 	status = mtd_device_unregister(&flash->mtd);
-	if (status == 0) {
-		spi_set_drvdata(spi, NULL);
+	if (status == 0)
 		kfree(flash);
-	}
 	return status;
 }
 

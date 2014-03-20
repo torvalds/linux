@@ -70,7 +70,6 @@ AC_ARG_WITH([tcp-wrappers],
 		       [AC_MSG_RESULT([not found]); exit 1])
 	     else
 		     AC_MSG_RESULT([no]);
-		     LIBS="$saved_LIBS"
 	     fi],
 	    dnl [ACTION-IF-NOT-GIVEN]
 	    [AC_MSG_RESULT([(default)])

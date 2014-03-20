@@ -46,6 +46,6 @@ config FMC_CHARDEV
 	  This driver matches every mezzanine device and allows user
 	  space to read and write registers using a char device. It
 	  can be used to write user-space drivers, or just get
-	  aquainted with a mezzanine before writing its specific driver.
+	  acquainted with a mezzanine before writing its specific driver.
 
 endif # FMC

@@ -23,15 +23,19 @@
  * Amount of bytes we read when analyzing each block of flash memory.
  * Set it big enough to allow detecting partition and reading important data.
  */
-#define BCM47XXPART_BYTES_TO_READ	0x404
+#define BCM47XXPART_BYTES_TO_READ	0x4e8
 
 /* Magics */
 #define BOARD_DATA_MAGIC		0x5246504D	/* MPFR */
+#define BOARD_DATA_MAGIC2		0xBD0D0BBD
+#define CFE_MAGIC			0x43464531	/* 1EFC */
+#define FACTORY_MAGIC			0x59544346	/* FCTY */
 #define POT_MAGIC1			0x54544f50	/* POTT */
 #define POT_MAGIC2			0x504f		/* OP */
 #define ML_MAGIC1			0x39685a42
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
+#define SQSH_MAGIC			0x71736873	/* shsq */
 
 struct trx_header {
 	uint32_t magic;
@@ -71,7 +75,14 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
 			GFP_KERNEL);
+	if (!parts)
+		return -ENOMEM;
+
 	buf = kzalloc(BCM47XXPART_BYTES_TO_READ, GFP_KERNEL);
+	if (!buf) {
+		kfree(parts);
+		return -ENOMEM;
+	}
 
 	/* Parse block by block looking for magics */
 	for (offset = 0; offset <= master->size - blocksize;
@@ -93,8 +104,9 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 
-		/* CFE has small NVRAM at 0x400 */
-		if (buf[0x400 / 4] == NVRAM_HEADER) {
+		/* Magic or small NVRAM at 0x400 */
+		if ((buf[0x4e0 / 4] == CFE_MAGIC && buf[0x4e4 / 4] == CFE_MAGIC) ||
+		    (buf[0x400 / 4] == NVRAM_HEADER)) {
 			bcm47xxpart_add_part(&parts[curr_part++], "boot",
 					     offset, MTD_WRITEABLE);
 			continue;
@@ -106,6 +118,13 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		 */
 		if (buf[0x100 / 4] == BOARD_DATA_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
+					     offset, MTD_WRITEABLE);
+			continue;
+		}
+
+		/* Found on Huawei E970 */
+		if (buf[0x000 / 4] == FACTORY_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "factory",
 					     offset, MTD_WRITEABLE);
 			continue;
 		}
@@ -167,6 +186,28 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			offset = rounddown(offset + trx->length, blocksize);
 			continue;
 		}
+
+		/* Squashfs on devices not using TRX */
+		if (buf[0x000 / 4] == SQSH_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
+					     offset, 0);
+			continue;
+		}
+
+		/* Read middle of the block */
+		if (mtd_read(master, offset + 0x8000, 0x4,
+			     &bytes_read, (uint8_t *)buf) < 0) {
+			pr_err("mtd_read error while parsing (offset: 0x%X)!\n",
+			       offset);
+			continue;
+		}
+
+		/* Some devices (ex. WNDR3700v3) don't have a standard 'MPFR' */
+		if (buf[0x000 / 4] == BOARD_DATA_MAGIC2) {
+			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
+					     offset, MTD_WRITEABLE);
+			continue;
+		}
 	}
 
 	/* Look for NVRAM at the end of the last block. */
@@ -220,7 +261,8 @@ static struct mtd_part_parser bcm47xxpart_mtd_parser = {
 
 static int __init bcm47xxpart_init(void)
 {
-	return register_mtd_parser(&bcm47xxpart_mtd_parser);
+	register_mtd_parser(&bcm47xxpart_mtd_parser);
+	return 0;
 }
 
 static void __exit bcm47xxpart_exit(void)

@@ -9,6 +9,7 @@
 
 #include "../codecs/wm8994.h"
 #include <sound/pcm_params.h>
+#include <sound/soc.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -151,13 +152,11 @@ static struct snd_soc_card smdk = {
 	.num_links = ARRAY_SIZE(smdk_dai),
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id samsung_wm8994_of_match[] = {
 	{ .compatible = "samsung,smdk-wm8994", .data = &smdk_board_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
-#endif /* CONFIG_OF */
 
 static int smdk_audio_probe(struct platform_device *pdev)
 {
@@ -187,13 +186,13 @@ static int smdk_audio_probe(struct platform_device *pdev)
 		smdk_dai[0].platform_of_node = smdk_dai[0].cpu_of_node;
 	}
 
-	id = of_match_device(samsung_wm8994_of_match, &pdev->dev);
+	id = of_match_device(of_match_ptr(samsung_wm8994_of_match), &pdev->dev);
 	if (id)
 		*board = *((struct smdk_wm8994_data *)id->data);
 
 	platform_set_drvdata(pdev, board);
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed:%d\n", ret);
@@ -201,23 +200,14 @@ static int smdk_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int smdk_audio_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-
-	return 0;
-}
-
 static struct platform_driver smdk_audio_driver = {
 	.driver		= {
 		.name	= "smdk-audio-wm8894",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(samsung_wm8994_of_match),
+		.pm	= &snd_soc_pm_ops,
 	},
 	.probe		= smdk_audio_probe,
-	.remove		= smdk_audio_remove,
 };
 
 module_platform_driver(smdk_audio_driver);

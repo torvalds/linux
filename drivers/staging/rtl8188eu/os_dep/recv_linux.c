@@ -77,8 +77,7 @@ int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 int rtw_os_recvbuf_resource_free(struct adapter *padapter,
 				 struct recv_buf *precvbuf)
 {
-	if (precvbuf->purb)
-		usb_free_urb(precvbuf->purb);
+	usb_free_urb(precvbuf->purb);
 	return _SUCCESS;
 }
 
@@ -91,16 +90,16 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 	u32 cur_time = 0;
 
 	if (psecuritypriv->last_mic_err_time == 0) {
-		psecuritypriv->last_mic_err_time = rtw_get_current_time();
+		psecuritypriv->last_mic_err_time = jiffies;
 	} else {
-		cur_time = rtw_get_current_time();
+		cur_time = jiffies;
 
 		if (cur_time - psecuritypriv->last_mic_err_time < 60*HZ) {
 			psecuritypriv->btkip_countermeasure = true;
 			psecuritypriv->last_mic_err_time = 0;
 			psecuritypriv->btkip_countermeasure_time = cur_time;
 		} else {
-			psecuritypriv->last_mic_err_time = rtw_get_current_time();
+			psecuritypriv->last_mic_err_time = jiffies;
 		}
 	}
 
@@ -224,8 +223,7 @@ _func_exit_;
 _recv_indicatepkt_drop:
 
 	 /* enqueue back to free_recv_queue */
-	if (precv_frame)
-		rtw_free_recvframe(precv_frame, pfree_recv_queue);
+	rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
 _func_exit_;
 	 return _FAIL;

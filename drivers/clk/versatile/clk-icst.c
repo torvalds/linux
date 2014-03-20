@@ -107,7 +107,7 @@ static int icst_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	vco = icst_hz_to_vco(icst->params, rate);
 	icst->rate = icst_hz(icst->params, vco);
-	vco_set(icst->vcoreg, icst->lockreg, vco);
+	vco_set(icst->lockreg, icst->vcoreg, vco);
 	return 0;
 }
 
@@ -119,6 +119,7 @@ static const struct clk_ops icst_ops = {
 
 struct clk *icst_clk_register(struct device *dev,
 			const struct clk_icst_desc *desc,
+			const char *name,
 			void __iomem *base)
 {
 	struct clk *clk;
@@ -130,7 +131,7 @@ struct clk *icst_clk_register(struct device *dev,
 		pr_err("could not allocate ICST clock!\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	init.name = "icst";
+	init.name = name;
 	init.ops = &icst_ops;
 	init.flags = CLK_IS_ROOT;
 	init.parent_names = NULL;

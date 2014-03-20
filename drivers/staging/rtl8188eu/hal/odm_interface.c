@@ -57,42 +57,6 @@ void ODM_Write4Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 Data)
 	rtw_write32(Adapter, RegAddr, Data);
 }
 
-void ODM_SetMACReg(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 BitMask, u32 Data)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	PHY_SetBBReg(Adapter, RegAddr, BitMask, Data);
-}
-
-u32 ODM_GetMACReg(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 BitMask)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	return PHY_QueryBBReg(Adapter, RegAddr, BitMask);
-}
-
-void ODM_SetBBReg(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 BitMask, u32 Data)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	PHY_SetBBReg(Adapter, RegAddr, BitMask, Data);
-}
-
-u32 ODM_GetBBReg(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 BitMask)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	return PHY_QueryBBReg(Adapter, RegAddr, BitMask);
-}
-
-void ODM_SetRFReg(struct odm_dm_struct *pDM_Odm, enum ODM_RF_RADIO_PATH	eRFPath, u32 RegAddr, u32 BitMask, u32 Data)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	PHY_SetRFReg(Adapter, (enum rf_radio_path)eRFPath, RegAddr, BitMask, Data);
-}
-
-u32 ODM_GetRFReg(struct odm_dm_struct *pDM_Odm, enum ODM_RF_RADIO_PATH	eRFPath, u32 RegAddr, u32 BitMask)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	return PHY_QueryRFReg(Adapter, (enum rf_radio_path)eRFPath, RegAddr, BitMask);
-}
-
 /*  ODM Memory relative API. */
 void ODM_AllocateMemory(struct odm_dm_struct *pDM_Odm, void **pPtr, u32 length)
 {
@@ -108,68 +72,6 @@ void ODM_FreeMemory(struct odm_dm_struct *pDM_Odm, void *pPtr, u32 length)
 s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u32 length)
 {
 	return _rtw_memcmp(pBuf1, pBuf2, length);
-}
-
-/*  ODM MISC relative API. */
-void ODM_AcquireSpinLock(struct odm_dm_struct *pDM_Odm, enum RT_SPINLOCK_TYPE type)
-{
-}
-
-void ODM_ReleaseSpinLock(struct odm_dm_struct *pDM_Odm, enum RT_SPINLOCK_TYPE type)
-{
-}
-
-/*  Work item relative API. FOr MP driver only~! */
-void ODM_InitializeWorkItem(struct odm_dm_struct *pDM_Odm, void *pRtWorkItem,
-			    RT_WORKITEM_CALL_BACK RtWorkItemCallback,
-			    void *pContext, const char *szID)
-{
-}
-
-void ODM_StartWorkItem(void *pRtWorkItem)
-{
-}
-
-void ODM_StopWorkItem(void *pRtWorkItem)
-{
-}
-
-void ODM_FreeWorkItem(void *pRtWorkItem)
-{
-}
-
-void ODM_ScheduleWorkItem(void *pRtWorkItem)
-{
-}
-
-void ODM_IsWorkItemScheduled(void *pRtWorkItem)
-{
-}
-
-/*  ODM Timer relative API. */
-void ODM_StallExecution(u32 usDelay)
-{
-	rtw_udelay_os(usDelay);
-}
-
-void ODM_delay_ms(u32 ms)
-{
-	rtw_mdelay_os(ms);
-}
-
-void ODM_delay_us(u32 us)
-{
-	rtw_udelay_os(us);
-}
-
-void ODM_sleep_ms(u32 ms)
-{
-	rtw_msleep_os(ms);
-}
-
-void ODM_sleep_us(u32 us)
-{
-	rtw_usleep_os(us);
 }
 
 void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer, u32 msDelay)
@@ -188,10 +90,6 @@ void ODM_InitializeTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTime
 void ODM_CancelTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer)
 {
 	_cancel_timer_ex(pTimer);
-}
-
-void ODM_ReleaseTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer)
-{
 }
 
 /*  ODM FW relative API. */

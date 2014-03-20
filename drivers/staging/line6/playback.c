@@ -242,13 +242,14 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		if (line6pcm->flags & LINE6_BITS_PCM_IMPULSE) {
 			create_impulse_test_signal(line6pcm, urb_out,
 						   bytes_per_frame);
-			if (line6pcm->flags & LINE6_BIT_PCM_ALSA_CAPTURE_STREAM) {
+			if (line6pcm->flags &
+			    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM) {
 				line6_capture_copy(line6pcm,
 						   urb_out->transfer_buffer,
 						   urb_out->
 						   transfer_buffer_length);
 				line6_capture_check_period(line6pcm,
-							   urb_out->transfer_buffer_length);
+					urb_out->transfer_buffer_length);
 			}
 		} else {
 #endif

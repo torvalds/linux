@@ -909,9 +909,14 @@ bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx)
  */
 static bool nfs_write_pageuptodate(struct page *page, struct inode *inode)
 {
+	struct nfs_inode *nfsi = NFS_I(inode);
+
 	if (nfs_have_delegated_attributes(inode))
 		goto out;
-	if (NFS_I(inode)->cache_validity & (NFS_INO_INVALID_DATA|NFS_INO_REVAL_PAGECACHE))
+	if (nfsi->cache_validity & (NFS_INO_INVALID_DATA|NFS_INO_REVAL_PAGECACHE))
+		return false;
+	smp_rmb();
+	if (test_bit(NFS_INO_INVALIDATING, &nfsi->flags))
 		return false;
 out:
 	return PageUptodate(page) != 0;
@@ -922,19 +927,20 @@ out:
  * extend the write to cover the entire page in order to avoid fragmentation
  * inefficiencies.
  *
- * If the file is opened for synchronous writes or if we have a write delegation
- * from the server then we can just skip the rest of the checks.
+ * If the file is opened for synchronous writes then we can just skip the rest
+ * of the checks.
  */
 static int nfs_can_extend_write(struct file *file, struct page *page, struct inode *inode)
 {
 	if (file->f_flags & O_DSYNC)
 		return 0;
+	if (!nfs_write_pageuptodate(page, inode))
+		return 0;
 	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
 		return 1;
-	if (nfs_write_pageuptodate(page, inode) && (inode->i_flock == NULL ||
-			(inode->i_flock->fl_start == 0 &&
+	if (inode->i_flock == NULL || (inode->i_flock->fl_start == 0 &&
 			inode->i_flock->fl_end == OFFSET_MAX &&
-			inode->i_flock->fl_type != F_RDLCK)))
+			inode->i_flock->fl_type != F_RDLCK))
 		return 1;
 	return 0;
 }
@@ -954,10 +960,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 
 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
 
-	dprintk("NFS:       nfs_updatepage(%s/%s %d@%lld)\n",
-		file->f_path.dentry->d_parent->d_name.name,
-		file->f_path.dentry->d_name.name, count,
-		(long long)(page_file_offset(page) + offset));
+	dprintk("NFS:       nfs_updatepage(%pD2 %d@%lld)\n",
+		file, count, (long long)(page_file_offset(page) + offset));
 
 	if (nfs_can_extend_write(file, page, inode)) {
 		count = max(count + offset, nfs_page_length(page));
@@ -1015,10 +1019,10 @@ int nfs_initiate_write(struct rpc_clnt *clnt,
 	NFS_PROTO(inode)->write_setup(data, &msg);
 
 	dprintk("NFS: %5u initiated write call "
-		"(req %s/%lld, %u bytes @ offset %llu)\n",
+		"(req %s/%llu, %u bytes @ offset %llu)\n",
 		data->task.tk_pid,
 		inode->i_sb->s_id,
-		(long long)NFS_FILEID(inode),
+		(unsigned long long)NFS_FILEID(inode),
 		data->args.count,
 		(unsigned long long)data->args.offset);
 
@@ -1608,9 +1612,9 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 		nfs_list_remove_request(req);
 		nfs_clear_page_commit(req->wb_page);
 
-		dprintk("NFS:       commit (%s/%lld %d@%lld)",
+		dprintk("NFS:       commit (%s/%llu %d@%lld)",
 			req->wb_context->dentry->d_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
+			(unsigned long long)NFS_FILEID(req->wb_context->dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 		if (status < 0) {

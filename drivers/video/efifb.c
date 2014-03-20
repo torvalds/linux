@@ -108,8 +108,8 @@ static int efifb_setup(char *options)
 			if (!*this_opt) continue;
 
 			for (i = 0; i < M_UNKNOWN; i++) {
-				if (!strcmp(this_opt, efifb_dmi_list[i].optname) &&
-				    efifb_dmi_list[i].base != 0) {
+				if (efifb_dmi_list[i].base != 0 &&
+				    !strcmp(this_opt, efifb_dmi_list[i].optname)) {
 					screen_info.lfb_base = efifb_dmi_list[i].base;
 					screen_info.lfb_linelength = efifb_dmi_list[i].stride;
 					screen_info.lfb_width = efifb_dmi_list[i].width;
@@ -322,8 +322,7 @@ static int efifb_probe(struct platform_device *dev)
 		printk(KERN_ERR "efifb: cannot register framebuffer\n");
 		goto err_fb_dealoc;
 	}
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-		info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	return 0;
 
 err_fb_dealoc:

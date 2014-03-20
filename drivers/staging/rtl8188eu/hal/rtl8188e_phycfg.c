@@ -190,12 +190,12 @@ phy_RFSerialRead(
 	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | (NewOffset<<23) | bLSSIReadEdge;	/* T65 RF */
 
 	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong&(~bLSSIReadEdge));
-	rtw_udelay_os(10);/*  PlatformStallExecution(10); */
+	udelay(10);/*  PlatformStallExecution(10); */
 
 	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);
-	rtw_udelay_os(100);/* PlatformStallExecution(100); */
+	udelay(100);/* PlatformStallExecution(100); */
 
-	rtw_udelay_os(10);/* PlatformStallExecution(10); */
+	udelay(10);/* PlatformStallExecution(10); */
 
 	if (eRFPath == RF_PATH_A)
 		RfPiEnable = (u8)PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter1, BIT8);
@@ -559,7 +559,7 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
-	/*  We will seperate as 88C / 92C according to chip version */
+	/*  We will separate as 88C / 92C according to chip version */
 	/*  */
 	if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG))
 		rtStatus = _FAIL;
@@ -685,7 +685,7 @@ static	u8 phy_DbmToTxPwrIdx(struct adapter *Adapter, enum wireless_mode Wireless
 
 	/*  */
 	/*  Tested by MP, we found that CCK Index 0 equals to 8dbm, OFDM legacy equals to */
-	/*  3dbm, and OFDM HT equals to 0dbm repectively. */
+	/*  3dbm, and OFDM HT equals to 0dbm respectively. */
 	/*  Note: */
 	/*	The mapping may be different by different NICs. Do not use this formula for what needs accurate result. */
 	/*  By Bruce, 2008-01-29. */
@@ -1006,12 +1006,12 @@ _PHY_SetBWMode92C(
 	switch (pHalData->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:
 		regBwOpMode |= BW_OPMODE_20MHZ;
-		/*  2007/02/07 Mark by Emily becasue we have not verify whether this register works */
+		/*  2007/02/07 Mark by Emily because we have not verify whether this register works */
 		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		break;
 	case HT_CHANNEL_WIDTH_40:
 		regBwOpMode &= ~BW_OPMODE_20MHZ;
-		/*  2007/02/07 Mark by Emily becasue we have not verify whether this register works */
+		/*  2007/02/07 Mark by Emily because we have not verify whether this register works */
 		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		regRRSR_RSC = (regRRSR_RSC&0x90) | (pHalData->nCur40MhzPrimeSC<<5);
 		rtw_write8(Adapter, REG_RRSR+2, regRRSR_RSC);

@@ -51,91 +51,59 @@ static inline unsigned int rt6_flags2srcprefs(int flags)
 	return (flags >> 3) & 7;
 }
 
-extern void rt6_bind_peer(struct rt6_info *rt, int create);
 
-static inline struct inet_peer *__rt6_get_peer(struct rt6_info *rt, int create)
-{
-	if (rt6_has_peer(rt))
-		return rt6_peer_ptr(rt);
+void ip6_route_input(struct sk_buff *skb);
 
-	rt6_bind_peer(rt, create);
-	return (rt6_has_peer(rt) ? rt6_peer_ptr(rt) : NULL);
-}
+struct dst_entry *ip6_route_output(struct net *net, const struct sock *sk,
+				   struct flowi6 *fl6);
+struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
+				   int flags);
 
-static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)
-{
-	return __rt6_get_peer(rt, 0);
-}
+int ip6_route_init(void);
+void ip6_route_cleanup(void);
 
-static inline struct inet_peer *rt6_get_peer_create(struct rt6_info *rt)
-{
-	return __rt6_get_peer(rt, 1);
-}
+int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 
-extern void			ip6_route_input(struct sk_buff *skb);
+int ip6_route_add(struct fib6_config *cfg);
+int ip6_ins_rt(struct rt6_info *);
+int ip6_del_rt(struct rt6_info *);
 
-extern struct dst_entry *	ip6_route_output(struct net *net,
-						 const struct sock *sk,
-						 struct flowi6 *fl6);
-extern struct dst_entry *	ip6_route_lookup(struct net *net,
-						 struct flowi6 *fl6, int flags);
+int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
+			const struct in6_addr *daddr, unsigned int prefs,
+			struct in6_addr *saddr);
 
-extern int			ip6_route_init(void);
-extern void			ip6_route_cleanup(void);
+struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
+			    const struct in6_addr *saddr, int oif, int flags);
 
-extern int			ipv6_route_ioctl(struct net *net,
-						 unsigned int cmd,
-						 void __user *arg);
+struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
+int icmp6_dst_gc(void);
 
-extern int			ip6_route_add(struct fib6_config *cfg);
-extern int			ip6_ins_rt(struct rt6_info *);
-extern int			ip6_del_rt(struct rt6_info *);
+void fib6_force_start_gc(struct net *net);
 
-extern int			ip6_route_get_saddr(struct net *net,
-						    struct rt6_info *rt,
-						    const struct in6_addr *daddr,
-						    unsigned int prefs,
-						    struct in6_addr *saddr);
-
-extern struct rt6_info		*rt6_lookup(struct net *net,
-					    const struct in6_addr *daddr,
-					    const struct in6_addr *saddr,
-					    int oif, int flags);
-
-extern struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
-					 struct flowi6 *fl6);
-extern int icmp6_dst_gc(void);
-
-extern void fib6_force_start_gc(struct net *net);
-
-extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
-					   const struct in6_addr *addr,
-					   bool anycast);
+struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
+				    const struct in6_addr *addr, bool anycast);
 
 /*
  *	support functions for ND
  *
  */
-extern struct rt6_info *	rt6_get_dflt_router(const struct in6_addr *addr,
-						    struct net_device *dev);
-extern struct rt6_info *	rt6_add_dflt_router(const struct in6_addr *gwaddr,
-						    struct net_device *dev,
-						    unsigned int pref);
+struct rt6_info *rt6_get_dflt_router(const struct in6_addr *addr,
+				     struct net_device *dev);
+struct rt6_info *rt6_add_dflt_router(const struct in6_addr *gwaddr,
+				     struct net_device *dev, unsigned int pref);
 
-extern void			rt6_purge_dflt_routers(struct net *net);
+void rt6_purge_dflt_routers(struct net *net);
 
-extern int			rt6_route_rcv(struct net_device *dev,
-					      u8 *opt, int len,
-					      const struct in6_addr *gwaddr);
+int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
+		  const struct in6_addr *gwaddr);
 
-extern void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
-			    int oif, u32 mark);
-extern void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk,
-			       __be32 mtu);
-extern void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
-extern void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
-				   u32 mark);
-extern void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
+void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu, int oif,
+		     u32 mark);
+void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu);
+void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
+void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
+			    u32 mark);
+void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
 
 struct netlink_callback;
 
@@ -145,10 +113,10 @@ struct rt6_rtnl_dump_arg {
 	struct net *net;
 };
 
-extern int rt6_dump_route(struct rt6_info *rt, void *p_arg);
-extern void rt6_ifdown(struct net *net, struct net_device *dev);
-extern void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
-extern void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
+int rt6_dump_route(struct rt6_info *rt, void *p_arg);
+void rt6_ifdown(struct net *net, struct net_device *dev);
+void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
+void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 
 
 /*
@@ -184,21 +152,31 @@ static inline bool ipv6_unicast_destination(const struct sk_buff *skb)
 	return rt->rt6i_flags & RTF_LOCAL;
 }
 
+static inline bool ipv6_anycast_destination(const struct sk_buff *skb)
+{
+	struct rt6_info *rt = (struct rt6_info *) skb_dst(skb);
+
+	return rt->rt6i_flags & RTF_ANYCAST;
+}
+
 int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
 
 static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = skb->sk ? inet6_sk(skb->sk) : NULL;
 
-	return (np && np->pmtudisc == IPV6_PMTUDISC_PROBE) ?
+	return (np && np->pmtudisc >= IPV6_PMTUDISC_PROBE) ?
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
-static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt, struct in6_addr *dest)
+static inline bool ip6_sk_accept_pmtu(const struct sock *sk)
 {
-	if (rt->rt6i_flags & RTF_GATEWAY)
-		return &rt->rt6i_gateway;
-	return dest;
+	return inet6_sk(sk)->pmtudisc != IPV6_PMTUDISC_INTERFACE;
+}
+
+static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt)
+{
+	return &rt->rt6i_gateway;
 }
 
 #endif

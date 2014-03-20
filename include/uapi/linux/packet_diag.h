@@ -29,6 +29,7 @@ struct packet_diag_msg {
 };
 
 enum {
+	/* PACKET_DIAG_NONE, standard nl API requires this attribute!  */
 	PACKET_DIAG_INFO,
 	PACKET_DIAG_MCLIST,
 	PACKET_DIAG_RX_RING,

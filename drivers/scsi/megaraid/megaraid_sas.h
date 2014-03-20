@@ -1527,10 +1527,10 @@ struct megasas_instance {
 	u32 *reply_queue;
 	dma_addr_t reply_queue_h;
 
-	unsigned long base_addr;
 	struct megasas_register_set __iomem *reg_set;
 	u32 *reply_post_host_index_addr[MR_MAX_MSIX_REG_ARRAY];
 	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
+	struct megasas_pd_list          local_pd_list[MEGASAS_MAX_PD];
 	u8     ld_ids[MEGASAS_MAX_LD_IDS];
 	s8 init_id;
 

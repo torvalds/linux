@@ -14,10 +14,10 @@
 static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 {
 	struct bcm_tarang_data *pTarang = NULL;
-	BOOLEAN HighPriorityMessage = FALSE;
+	bool HighPriorityMessage = false;
 	struct sk_buff *newPacket = NULL;
 	CHAR cntrl_msg_mask_bit = 0;
-	BOOLEAN drop_pkt_flag = TRUE;
+	bool drop_pkt_flag = TRUE;
 	USHORT usStatus = *(PUSHORT)(skb->data);
 
 	if (netif_msg_pktdata(Adapter))
@@ -91,13 +91,13 @@ static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter, struct sk
 		 *	cntrl_msg_mask_bit);
 		 */
 		if (pTarang->RxCntrlMsgBitMask & (1 << cntrl_msg_mask_bit))
-			drop_pkt_flag = FALSE;
+			drop_pkt_flag = false;
 
 		if ((drop_pkt_flag == TRUE) ||
 				(pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN)
 				|| ((pTarang->AppCtrlQueueLen >
 					MAX_APP_QUEUE_LEN / 2) &&
-				    (HighPriorityMessage == FALSE))) {
+				    (HighPriorityMessage == false))) {
 			/*
 			 * Assumption:-
 			 * 1. every tarang manages it own dropped pkt
@@ -175,8 +175,8 @@ int control_packet_handler(struct bcm_mini_adapter *Adapter /* pointer to adapte
 			return 0;
 		}
 		if (TRUE == Adapter->bWakeUpDevice) {
-			Adapter->bWakeUpDevice = FALSE;
-			if ((FALSE == Adapter->bTriedToWakeUpFromlowPowerMode)
+			Adapter->bWakeUpDevice = false;
+			if ((false == Adapter->bTriedToWakeUpFromlowPowerMode)
 					&& ((TRUE == Adapter->IdleMode) ||
 					    (TRUE == Adapter->bShutStatus))) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,

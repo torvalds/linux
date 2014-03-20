@@ -13,14 +13,22 @@
 
 #include <linux/types.h>
 #include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
+#include <linux/kobject.h>
+#include <linux/delay.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
+#include <asm/mce.h>
 
 #include "powernv.h"
+
+/* /sys/firmware/opal */
+struct kobject *opal_kobj;
 
 struct opal {
 	u64 base;
@@ -33,6 +41,7 @@ extern u64 opal_mc_secondary_handler[];
 static unsigned int *opal_irqs;
 static unsigned int opal_irq_count;
 static ATOMIC_NOTIFIER_HEAD(opal_notifier_head);
+static struct atomic_notifier_head opal_msg_notifier_head[OPAL_MSG_TYPE_MAX];
 static DEFINE_SPINLOCK(opal_notifier_lock);
 static uint64_t last_notified_mask = 0x0ul;
 static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
@@ -77,23 +86,21 @@ int __init early_init_dt_scan_opal(unsigned long node,
 
 static int __init opal_register_exception_handlers(void)
 {
+#ifdef __BIG_ENDIAN__
 	u64 glue;
 
 	if (!(powerpc_firmware_features & FW_FEATURE_OPAL))
 		return -ENODEV;
 
-	/* Hookup some exception handlers. We use the fwnmi area at 0x7000
-	 * to provide the glue space to OPAL
+	/* Hookup some exception handlers except machine check. We use the
+	 * fwnmi area at 0x7000 to provide the glue space to OPAL
 	 */
 	glue = 0x7000;
-	opal_register_exception_handler(OPAL_MACHINE_CHECK_HANDLER,
-					__pa(opal_mc_secondary_handler[0]),
-					glue);
-	glue += 128;
 	opal_register_exception_handler(OPAL_HYPERVISOR_MAINTENANCE_HANDLER,
 					0, glue);
 	glue += 128;
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
+#endif
 
 	return 0;
 }
@@ -162,29 +169,119 @@ void opal_notifier_disable(void)
 	atomic_set(&opal_notifier_hold, 1);
 }
 
+/*
+ * Opal message notifier based on message type. Allow subscribers to get
+ * notified for specific messgae type.
+ */
+int opal_message_notifier_register(enum OpalMessageType msg_type,
+					struct notifier_block *nb)
+{
+	if (!nb) {
+		pr_warning("%s: Invalid argument (%p)\n",
+			   __func__, nb);
+		return -EINVAL;
+	}
+	if (msg_type > OPAL_MSG_TYPE_MAX) {
+		pr_warning("%s: Invalid message type argument (%d)\n",
+			   __func__, msg_type);
+		return -EINVAL;
+	}
+	return atomic_notifier_chain_register(
+				&opal_msg_notifier_head[msg_type], nb);
+}
+
+static void opal_message_do_notify(uint32_t msg_type, void *msg)
+{
+	/* notify subscribers */
+	atomic_notifier_call_chain(&opal_msg_notifier_head[msg_type],
+					msg_type, msg);
+}
+
+static void opal_handle_message(void)
+{
+	s64 ret;
+	/*
+	 * TODO: pre-allocate a message buffer depending on opal-msg-size
+	 * value in /proc/device-tree.
+	 */
+	static struct opal_msg msg;
+
+	ret = opal_get_msg(__pa(&msg), sizeof(msg));
+	/* No opal message pending. */
+	if (ret == OPAL_RESOURCE)
+		return;
+
+	/* check for errors. */
+	if (ret) {
+		pr_warning("%s: Failed to retrive opal message, err=%lld\n",
+				__func__, ret);
+		return;
+	}
+
+	/* Sanity check */
+	if (msg.msg_type > OPAL_MSG_TYPE_MAX) {
+		pr_warning("%s: Unknown message type: %u\n",
+				__func__, msg.msg_type);
+		return;
+	}
+	opal_message_do_notify(msg.msg_type, (void *)&msg);
+}
+
+static int opal_message_notify(struct notifier_block *nb,
+			  unsigned long events, void *change)
+{
+	if (events & OPAL_EVENT_MSG_PENDING)
+		opal_handle_message();
+	return 0;
+}
+
+static struct notifier_block opal_message_nb = {
+	.notifier_call	= opal_message_notify,
+	.next		= NULL,
+	.priority	= 0,
+};
+
+static int __init opal_message_init(void)
+{
+	int ret, i;
+
+	for (i = 0; i < OPAL_MSG_TYPE_MAX; i++)
+		ATOMIC_INIT_NOTIFIER_HEAD(&opal_msg_notifier_head[i]);
+
+	ret = opal_notifier_register(&opal_message_nb);
+	if (ret) {
+		pr_err("%s: Can't register OPAL event notifier (%d)\n",
+		       __func__, ret);
+		return ret;
+	}
+	return 0;
+}
+early_initcall(opal_message_init);
+
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
-	s64 len, rc;
-	u64 evt;
+	s64 rc;
+	__be64 evt, len;
 
 	if (!opal.entry)
 		return -ENODEV;
 	opal_poll_events(&evt);
-	if ((evt & OPAL_EVENT_CONSOLE_INPUT) == 0)
+	if ((be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_INPUT) == 0)
 		return 0;
-	len = count;
-	rc = opal_console_read(vtermno, &len, buf);
+	len = cpu_to_be64(count);
+	rc = opal_console_read(vtermno, &len, buf);	
 	if (rc == OPAL_SUCCESS)
-		return len;
+		return be64_to_cpu(len);
 	return 0;
 }
 
 int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 {
 	int written = 0;
+	__be64 olen;
 	s64 len, rc;
 	unsigned long flags;
-	u64 evt;
+	__be64 evt;
 
 	if (!opal.entry)
 		return -ENODEV;
@@ -199,13 +296,14 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	 */
 	spin_lock_irqsave(&opal_write_lock, flags);
 	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
-		rc = opal_console_write_buffer_space(vtermno, &len);
+		rc = opal_console_write_buffer_space(vtermno, &olen);
+		len = be64_to_cpu(olen);
 		if (rc || len < total_len) {
 			spin_unlock_irqrestore(&opal_write_lock, flags);
 			/* Closed -> drop characters */
 			if (rc)
 				return total_len;
-			opal_poll_events(&evt);
+			opal_poll_events(NULL);
 			return -EAGAIN;
 		}
 	}
@@ -216,8 +314,9 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	rc = OPAL_BUSY;
 	while(total_len > 0 && (rc == OPAL_BUSY ||
 				rc == OPAL_BUSY_EVENT || rc == OPAL_SUCCESS)) {
-		len = total_len;
-		rc = opal_console_write(vtermno, &len, data);
+		olen = cpu_to_be64(total_len);
+		rc = opal_console_write(vtermno, &olen, data);
+		len = be64_to_cpu(olen);
 
 		/* Closed or other error drop */
 		if (rc != OPAL_SUCCESS && rc != OPAL_BUSY &&
@@ -237,130 +336,74 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 		 */
 		do
 			opal_poll_events(&evt);
-		while(rc == OPAL_SUCCESS && (evt & OPAL_EVENT_CONSOLE_OUTPUT));
+		while(rc == OPAL_SUCCESS &&
+			(be64_to_cpu(evt) & OPAL_EVENT_CONSOLE_OUTPUT));
 	}
 	spin_unlock_irqrestore(&opal_write_lock, flags);
 	return written;
 }
 
+static int opal_recover_mce(struct pt_regs *regs,
+					struct machine_check_event *evt)
+{
+	int recovered = 0;
+	uint64_t ea = get_mce_fault_addr(evt);
+
+	if (!(regs->msr & MSR_RI)) {
+		/* If MSR_RI isn't set, we cannot recover */
+		recovered = 0;
+	} else if (evt->disposition == MCE_DISPOSITION_RECOVERED) {
+		/* Platform corrected itself */
+		recovered = 1;
+	} else if (ea && !is_kernel_addr(ea)) {
+		/*
+		 * Faulting address is not in kernel text. We should be fine.
+		 * We need to find which process uses this address.
+		 * For now, kill the task if we have received exception when
+		 * in userspace.
+		 *
+		 * TODO: Queue up this address for hwpoisioning later.
+		 */
+		if (user_mode(regs) && !is_global_init(current)) {
+			_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
+			recovered = 1;
+		} else
+			recovered = 0;
+	} else if (user_mode(regs) && !is_global_init(current) &&
+		evt->severity == MCE_SEV_ERROR_SYNC) {
+		/*
+		 * If we have received a synchronous error when in userspace
+		 * kill the task.
+		 */
+		_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
+		recovered = 1;
+	}
+	return recovered;
+}
+
 int opal_machine_check(struct pt_regs *regs)
 {
-	struct opal_machine_check_event *opal_evt = get_paca()->opal_mc_evt;
-	struct opal_machine_check_event evt;
-	const char *level, *sevstr, *subtype;
-	static const char *opal_mc_ue_types[] = {
-		"Indeterminate",
-		"Instruction fetch",
-		"Page table walk ifetch",
-		"Load/Store",
-		"Page table walk Load/Store",
-	};
-	static const char *opal_mc_slb_types[] = {
-		"Indeterminate",
-		"Parity",
-		"Multihit",
-	};
-	static const char *opal_mc_erat_types[] = {
-		"Indeterminate",
-		"Parity",
-		"Multihit",
-	};
-	static const char *opal_mc_tlb_types[] = {
-		"Indeterminate",
-		"Parity",
-		"Multihit",
-	};
+	struct machine_check_event evt;
 
-	/* Copy the event structure and release the original */
-	evt = *opal_evt;
-	opal_evt->in_use = 0;
+	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
+		return 0;
 
 	/* Print things out */
-	if (evt.version != OpalMCE_V1) {
+	if (evt.version != MCE_V1) {
 		pr_err("Machine Check Exception, Unknown event version %d !\n",
 		       evt.version);
 		return 0;
 	}
-	switch(evt.severity) {
-	case OpalMCE_SEV_NO_ERROR:
-		level = KERN_INFO;
-		sevstr = "Harmless";
-		break;
-	case OpalMCE_SEV_WARNING:
-		level = KERN_WARNING;
-		sevstr = "";
-		break;
-	case OpalMCE_SEV_ERROR_SYNC:
-		level = KERN_ERR;
-		sevstr = "Severe";
-		break;
-	case OpalMCE_SEV_FATAL:
-	default:
-		level = KERN_ERR;
-		sevstr = "Fatal";
-		break;
-	}
+	machine_check_print_event_info(&evt);
 
-	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
-	       evt.disposition == OpalMCE_DISPOSITION_RECOVERED ?
-	       "Recovered" : "[Not recovered");
-	printk("%s  Initiator: %s\n", level,
-	       evt.initiator == OpalMCE_INITIATOR_CPU ? "CPU" : "Unknown");
-	switch(evt.error_type) {
-	case OpalMCE_ERROR_TYPE_UE:
-		subtype = evt.u.ue_error.ue_error_type <
-			ARRAY_SIZE(opal_mc_ue_types) ?
-			opal_mc_ue_types[evt.u.ue_error.ue_error_type]
-			: "Unknown";
-		printk("%s  Error type: UE [%s]\n", level, subtype);
-		if (evt.u.ue_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.ue_error.effective_address);
-		if (evt.u.ue_error.physical_address_provided)
-			printk("%s      Physial address: %016llx\n",
-			       level, evt.u.ue_error.physical_address);
-		break;
-	case OpalMCE_ERROR_TYPE_SLB:
-		subtype = evt.u.slb_error.slb_error_type <
-			ARRAY_SIZE(opal_mc_slb_types) ?
-			opal_mc_slb_types[evt.u.slb_error.slb_error_type]
-			: "Unknown";
-		printk("%s  Error type: SLB [%s]\n", level, subtype);
-		if (evt.u.slb_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.slb_error.effective_address);
-		break;
-	case OpalMCE_ERROR_TYPE_ERAT:
-		subtype = evt.u.erat_error.erat_error_type <
-			ARRAY_SIZE(opal_mc_erat_types) ?
-			opal_mc_erat_types[evt.u.erat_error.erat_error_type]
-			: "Unknown";
-		printk("%s  Error type: ERAT [%s]\n", level, subtype);
-		if (evt.u.erat_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.erat_error.effective_address);
-		break;
-	case OpalMCE_ERROR_TYPE_TLB:
-		subtype = evt.u.tlb_error.tlb_error_type <
-			ARRAY_SIZE(opal_mc_tlb_types) ?
-			opal_mc_tlb_types[evt.u.tlb_error.tlb_error_type]
-			: "Unknown";
-		printk("%s  Error type: TLB [%s]\n", level, subtype);
-		if (evt.u.tlb_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.tlb_error.effective_address);
-		break;
-	default:
-	case OpalMCE_ERROR_TYPE_UNKNOWN:
-		printk("%s  Error type: Unknown\n", level);
-		break;
-	}
-	return evt.severity == OpalMCE_SEV_FATAL ? 0 : 1;
+	if (opal_recover_mce(regs, &evt))
+		return 1;
+	return 0;
 }
 
 static irqreturn_t opal_interrupt(int irq, void *data)
 {
-	uint64_t events;
+	__be64 events;
 
 	opal_handle_interrupt(virq_to_hw(irq), &events);
 
@@ -369,10 +412,21 @@ static irqreturn_t opal_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int opal_sysfs_init(void)
+{
+	opal_kobj = kobject_create_and_add("opal", firmware_kobj);
+	if (!opal_kobj) {
+		pr_warn("kobject_create_and_add opal failed\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
-	const u32 *irqs;
+	const __be32 *irqs;
 	int rc, i, irqlen;
 
 	opal_node = of_find_node_by_path("/ibm,opal");
@@ -414,6 +468,14 @@ static int __init opal_init(void)
 				   " (0x%x)\n", rc, irq, hwirq);
 		opal_irqs[i] = irq;
 	}
+
+	/* Create "opal" kobject under /sys/firmware */
+	rc = opal_sysfs_init();
+	if (rc == 0) {
+		/* Setup code update interface */
+		opal_flash_init();
+	}
+
 	return 0;
 }
 subsys_initcall(opal_init);
@@ -421,10 +483,25 @@ subsys_initcall(opal_init);
 void opal_shutdown(void)
 {
 	unsigned int i;
+	long rc = OPAL_BUSY;
 
+	/* First free interrupts, which will also mask them */
 	for (i = 0; i < opal_irq_count; i++) {
 		if (opal_irqs[i])
 			free_irq(opal_irqs[i], NULL);
 		opal_irqs[i] = 0;
+	}
+
+	/*
+	 * Then sync with OPAL which ensure anything that can
+	 * potentially write to our memory has completed such
+	 * as an ongoing dump retrieval
+	 */
+	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+		rc = opal_sync_host_reboot();
+		if (rc == OPAL_BUSY)
+			opal_poll_events(NULL);
+		else
+			mdelay(10);
 	}
 }

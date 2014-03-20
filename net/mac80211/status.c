@@ -11,6 +11,7 @@
 
 #include <linux/export.h>
 #include <linux/etherdevice.h>
+#include <linux/time.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 #include "ieee80211_i.h"
@@ -180,6 +181,9 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
+	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+		sta->last_rx = jiffies;
+
 	if (ieee80211_is_data_qos(mgmt->frame_control)) {
 		struct ieee80211_hdr *hdr = (void *) skb->data;
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
@@ -191,29 +195,36 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 	if (ieee80211_is_action(mgmt->frame_control) &&
 	    mgmt->u.action.category == WLAN_CATEGORY_HT &&
 	    mgmt->u.action.u.ht_smps.action == WLAN_HT_ACTION_SMPS &&
-	    sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    ieee80211_sdata_running(sdata)) {
-		/*
-		 * This update looks racy, but isn't -- if we come
-		 * here we've definitely got a station that we're
-		 * talking to, and on a managed interface that can
-		 * only be the AP. And the only other place updating
-		 * this variable in managed mode is before association.
-		 */
+		enum ieee80211_smps_mode smps_mode;
+
 		switch (mgmt->u.action.u.ht_smps.smps_control) {
 		case WLAN_HT_SMPS_CONTROL_DYNAMIC:
-			sdata->smps_mode = IEEE80211_SMPS_DYNAMIC;
+			smps_mode = IEEE80211_SMPS_DYNAMIC;
 			break;
 		case WLAN_HT_SMPS_CONTROL_STATIC:
-			sdata->smps_mode = IEEE80211_SMPS_STATIC;
+			smps_mode = IEEE80211_SMPS_STATIC;
 			break;
 		case WLAN_HT_SMPS_CONTROL_DISABLED:
 		default: /* shouldn't happen since we don't send that */
-			sdata->smps_mode = IEEE80211_SMPS_OFF;
+			smps_mode = IEEE80211_SMPS_OFF;
 			break;
 		}
 
-		ieee80211_queue_work(&local->hw, &sdata->recalc_smps);
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			/*
+			 * This update looks racy, but isn't -- if we come
+			 * here we've definitely got a station that we're
+			 * talking to, and on a managed interface that can
+			 * only be the AP. And the only other place updating
+			 * this variable in managed mode is before association.
+			 */
+			sdata->smps_mode = smps_mode;
+			ieee80211_queue_work(&local->hw, &sdata->recalc_smps);
+		} else if (sdata->vif.type == NL80211_IFTYPE_AP ||
+			   sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+			sta->known_smps_mode = smps_mode;
+		}
 	}
 }
 
@@ -453,6 +464,77 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 }
 
 /*
+ * Measure Tx frame completion and removal time for Tx latency statistics
+ * calculation. A single Tx frame latency should be measured from when it
+ * is entering the Kernel until we receive Tx complete confirmation indication
+ * and remove the skb.
+ */
+static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
+					    struct sk_buff *skb,
+					    struct sta_info *sta,
+					    struct ieee80211_hdr *hdr)
+{
+	ktime_t skb_dprt;
+	struct timespec dprt_time;
+	u32 msrmnt;
+	u16 tid;
+	u8 *qc;
+	int i, bin_range_count, bin_count;
+	u32 *bin_ranges;
+	__le16 fc;
+	struct ieee80211_tx_latency_stat *tx_lat;
+	struct ieee80211_tx_latency_bin_ranges *tx_latency;
+	ktime_t skb_arv = skb->tstamp;
+
+	tx_latency = rcu_dereference(local->tx_latency);
+
+	/* assert Tx latency stats are enabled & frame arrived when enabled */
+	if (!tx_latency || !ktime_to_ns(skb_arv))
+		return;
+
+	fc = hdr->frame_control;
+
+	if (!ieee80211_is_data(fc)) /* make sure it is a data frame */
+		return;
+
+	/* get frame tid */
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		qc = ieee80211_get_qos_ctl(hdr);
+		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+	} else {
+		tid = 0;
+	}
+
+	tx_lat = &sta->tx_lat[tid];
+
+	ktime_get_ts(&dprt_time); /* time stamp completion time */
+	skb_dprt = ktime_set(dprt_time.tv_sec, dprt_time.tv_nsec);
+	msrmnt = ktime_to_ms(ktime_sub(skb_dprt, skb_arv));
+
+	if (tx_lat->max < msrmnt) /* update stats */
+		tx_lat->max = msrmnt;
+	tx_lat->counter++;
+	tx_lat->sum += msrmnt;
+
+	if (!tx_lat->bins) /* bins not activated */
+		return;
+
+	/* count how many Tx frames transmitted with the appropriate latency */
+	bin_range_count = tx_latency->n_ranges;
+	bin_ranges = tx_latency->ranges;
+	bin_count = tx_lat->bin_count;
+
+	for (i = 0; i < bin_range_count; i++) {
+		if (msrmnt <= bin_ranges[i]) {
+			tx_lat->bins[i]++;
+			break;
+		}
+	}
+	if (i == bin_range_count) /* msrmnt is bigger than the biggest range */
+		tx_lat->bins[i]++;
+}
+
+/*
  * Use a static threshold for now, best value to be determined
  * by testing ...
  * Should it depend on:
@@ -610,6 +692,12 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 		if (acked)
 			sta->last_ack_signal = info->status.ack_signal;
+
+		/*
+		 * Measure frame removal for tx latency
+		 * statistics calculation
+		 */
+		ieee80211_tx_latency_end_msrmnt(local, skb, sta, hdr);
 	}
 
 	rcu_read_unlock();

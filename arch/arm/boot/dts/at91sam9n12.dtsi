@@ -33,6 +33,7 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		ssc0 = &ssc0;
+		pwm0 = &pwm0;
 	};
 	cpus {
 		#address-cells = <0>;
@@ -437,6 +438,9 @@
 				compatible = "atmel,at91sam9g45-ssc";
 				reg = <0xf0010000 0x4000>;
 				interrupts = <28 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma 0 AT91_DMA_CFG_PER_ID(21)>,
+				       <&dma 0 AT91_DMA_CFG_PER_ID(22)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
 				status = "disabled";
@@ -537,6 +541,19 @@
 			watchdog@fffffe40 {
 				compatible = "atmel,at91sam9260-wdt";
 				reg = <0xfffffe40 0x10>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				atmel,watchdog-type = "hardware";
+				atmel,reset-type = "all";
+				atmel,dbg-halt;
+				atmel,idle-halt;
+				status = "disabled";
+			};
+
+			pwm0: pwm@f8034000 {
+				compatible = "atmel,at91sam9rl-pwm";
+				reg = <0xf8034000 0x300>;
+				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 4>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 		};

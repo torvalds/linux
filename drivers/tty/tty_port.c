@@ -12,7 +12,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -140,6 +139,10 @@ EXPORT_SYMBOL(tty_port_destroy);
 static void tty_port_destructor(struct kref *kref)
 {
 	struct tty_port *port = container_of(kref, struct tty_port, kref);
+
+	/* check if last port ref was dropped before tty release */
+	if (WARN_ON(port->itty))
+		return;
 	if (port->xmit_buf)
 		free_page((unsigned long)port->xmit_buf);
 	tty_port_destroy(port);
@@ -480,8 +483,6 @@ int tty_port_close_start(struct tty_port *port,
 
 	if (port->count) {
 		spin_unlock_irqrestore(&port->lock, flags);
-		if (port->ops->drop)
-			port->ops->drop(port);
 		return 0;
 	}
 	set_bit(ASYNCB_CLOSING, &port->flags);
@@ -500,9 +501,7 @@ int tty_port_close_start(struct tty_port *port,
 	/* Flush the ldisc buffering */
 	tty_ldisc_flush(tty);
 
-	/* Don't call port->drop for the last reference. Callers will want
-	   to drop the last active reference in ->shutdown() or the tty
-	   shutdown path */
+	/* Report to caller this is the last port reference */
 	return 1;
 }
 EXPORT_SYMBOL(tty_port_close_start);

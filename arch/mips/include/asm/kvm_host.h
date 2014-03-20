@@ -27,13 +27,6 @@
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
-/* Don't support huge pages */
-#define KVM_HPAGE_GFN_SHIFT(x)	0
-
-/* We don't currently support large pages. */
-#define KVM_NR_PAGE_SIZES	1
-#define KVM_PAGES_PER_HPAGE(x)	1
-
 
 
 /* Special address that contains the comm page, used for reducing # of traps */
@@ -398,9 +391,6 @@ struct kvm_vcpu_arch {
 	uint32_t guest_kernel_asid[NR_CPUS];
 	struct mm_struct guest_kernel_mm, guest_user_mm;
 
-	struct kvm_mips_tlb shadow_tlb[NR_CPUS][KVM_MIPS_GUEST_TLB_SIZE];
-
-
 	struct hrtimer comparecount_timer;
 
 	int last_sched_cpu;
@@ -536,7 +526,6 @@ extern enum emulation_result kvm_mips_handle_tlbmod(unsigned long cause,
 
 extern void kvm_mips_dump_host_tlbs(void);
 extern void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu);
-extern void kvm_mips_dump_shadow_tlbs(struct kvm_vcpu *vcpu);
 extern void kvm_mips_flush_host_tlb(int skip_kseg0);
 extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi);
 extern int kvm_mips_host_tlb_inv_index(struct kvm_vcpu *vcpu, int index);
@@ -548,10 +537,7 @@ extern unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu
 						   unsigned long gva);
 extern void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
 				    struct kvm_vcpu *vcpu);
-extern void kvm_shadow_tlb_put(struct kvm_vcpu *vcpu);
-extern void kvm_shadow_tlb_load(struct kvm_vcpu *vcpu);
 extern void kvm_local_flush_tlb_all(void);
-extern void kvm_mips_init_shadow_tlb(struct kvm_vcpu *vcpu);
 extern void kvm_mips_alloc_new_mmu_context(struct kvm_vcpu *vcpu);
 extern void kvm_mips_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 extern void kvm_mips_vcpu_put(struct kvm_vcpu *vcpu);

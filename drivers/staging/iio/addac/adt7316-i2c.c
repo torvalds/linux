@@ -108,11 +108,6 @@ static int adt7316_i2c_probe(struct i2c_client *client,
 	return adt7316_probe(&client->dev, &bus, id->name);
 }
 
-static int adt7316_i2c_remove(struct i2c_client *client)
-{
-	return adt7316_remove(&client->dev);
-}
-
 static const struct i2c_device_id adt7316_i2c_id[] = {
 	{ "adt7316", 0 },
 	{ "adt7317", 0 },
@@ -132,12 +127,10 @@ static struct i2c_driver adt7316_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe = adt7316_i2c_probe,
-	.remove = adt7316_i2c_remove,
 	.id_table = adt7316_i2c_id,
 };
 module_i2c_driver(adt7316_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("I2C bus driver for Analog Devices ADT7316/7/9 and"
-			"ADT7516/7/8 digital temperature sensor, ADC and DAC");
+MODULE_DESCRIPTION("I2C bus driver for Analog Devices ADT7316/7/9 and ADT7516/7/8 digital temperature sensor, ADC and DAC");
 MODULE_LICENSE("GPL v2");

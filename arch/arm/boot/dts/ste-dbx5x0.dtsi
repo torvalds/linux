@@ -10,6 +10,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/mfd/dbx500-prcmu.h>
 #include "skeleton.dtsi"
 
 / {
@@ -42,16 +43,56 @@
 			interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+
+		clocks {
+			compatible = "stericsson,u8500-clks";
+
+			prcmu_clk: prcmu-clock {
+				#clock-cells = <1>;
+			};
+
+			prcc_pclk: prcc-periph-clock {
+				#clock-cells = <2>;
+			};
+
+			prcc_kclk: prcc-kernel-clock {
+				#clock-cells = <2>;
+			};
+
+			rtc_clk: rtc32k-clock {
+				#clock-cells = <0>;
+			};
+
+			smp_twd_clk: smp-twd-clock {
+				#clock-cells = <0>;
+			};
+		};
+
+		mtu@a03c6000 {
+			/* Nomadik System Timer */
+			compatible = "st,nomadik-mtu";
+			reg = <0xa03c6000 0x1000>;
+			interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&prcmu_clk PRCMU_TIMCLK>, <&prcc_pclk 6 6>;
+			clock-names = "timclk", "apb_pclk";
+		};
+
 		timer@a0410600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xa0410600 0x20>;
 			interrupts = <1 13 0x304>; /* IRQ level high per-CPU */
+
+			clocks = <&smp_twd_clk>;
 		};
 
 		rtc@80154000 {
 			compatible = "arm,rtc-pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
 			interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&rtc_clk>;
+			clock-names = "apb_pclk";
 		};
 
 		gpio0: gpio@8012e000 {
@@ -65,6 +106,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <0>;
+
+			clocks = <&prcc_pclk 1 9>;
 		};
 
 		gpio1: gpio@8012e080 {
@@ -78,6 +121,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <1>;
+
+			clocks = <&prcc_pclk 1 9>;
 		};
 
 		gpio2: gpio@8000e000 {
@@ -91,6 +136,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <2>;
+
+			clocks = <&prcc_pclk 3 8>;
 		};
 
 		gpio3: gpio@8000e080 {
@@ -104,6 +151,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <3>;
+
+			clocks = <&prcc_pclk 3 8>;
 		};
 
 		gpio4: gpio@8000e100 {
@@ -117,6 +166,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <4>;
+
+			clocks = <&prcc_pclk 3 8>;
 		};
 
 		gpio5: gpio@8000e180 {
@@ -130,6 +181,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <5>;
+
+			clocks = <&prcc_pclk 3 8>;
 		};
 
 		gpio6: gpio@8011e000 {
@@ -143,6 +196,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <6>;
+
+			clocks = <&prcc_pclk 2 11>;
 		};
 
 		gpio7: gpio@8011e080 {
@@ -156,6 +211,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <7>;
+
+			clocks = <&prcc_pclk 2 11>;
 		};
 
 		gpio8: gpio@a03fe000 {
@@ -169,6 +226,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <8>;
+
+			clocks = <&prcc_pclk 5 1>;
 		};
 
 		pinctrl {
@@ -177,8 +236,7 @@
 		};
 
 		usb_per5@a03e0000 {
-			compatible = "stericsson,db8500-musb",
-				"mentor,musb";
+			compatible = "stericsson,db8500-musb";
 			reg = <0xa03e0000 0x10000>;
 			interrupts = <0 23 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "mc";
@@ -210,6 +268,8 @@
 				    "iep_6_14", "oep_6_14",
 				    "iep_7_15", "oep_7_15",
 				    "iep_8",    "oep_8";
+
+			clocks = <&prcc_pclk 5 0>;
 		};
 
 		dma: dma-controller@801C0000 {
@@ -220,6 +280,8 @@
 
 			#dma-cells = <3>;
 			memcpy-channels = <56 57 58 59 60>;
+
+			clocks = <&prcmu_clk PRCMU_DMACLK>;
 		};
 
 		prcmu: prcmu@80157000 {
@@ -236,6 +298,13 @@
 			prcmu-timer-4@80157450 {
 				compatible = "stericsson,db8500-prcmu-timer-4";
 				reg = <0x80157450 0xC>;
+			};
+
+			cpufreq {
+				compatible = "stericsson,cpufreq-ux500";
+				clocks = <&prcmu_clk PRCMU_ARMSS>;
+				clock-names = "armss";
+				status = "disabled";
 			};
 
 			thermal@801573c0 {
@@ -559,65 +628,74 @@
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80004000 0x1000>;
 			interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
-			arm,primecell-periphid = <0x180024>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+			clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@80122000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80122000 0x1000>;
 			interrupts = <0 22 IRQ_TYPE_LEVEL_HIGH>;
-			arm,primecell-periphid = <0x180024>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 2>, <&prcc_pclk 1 2>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@80128000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80128000 0x1000>;
 			interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>;
-			arm,primecell-periphid = <0x180024>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 6>, <&prcc_pclk 1 6>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@80110000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80110000 0x1000>;
 			interrupts = <0 12 IRQ_TYPE_LEVEL_HIGH>;
-			arm,primecell-periphid = <0x180024>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 2 0>, <&prcc_pclk 2 0>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@8012a000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x8012a000 0x1000>;
 			interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
-			arm,primecell-periphid = <0x180024>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 10>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		ssp@80002000 {
@@ -626,7 +704,80 @@
 			interrupts = <0 14 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
+			clocks = <&prcc_kclk 3 1>, <&prcc_pclk 3 1>;
+			clock-names = "ssp0clk", "apb_pclk";
+			dmas = <&dma 8 0 0x2>, /* Logical - DevToMem */
+			       <&dma 8 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+		};
+
+		ssp@80003000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80003000 0x1000>;
+			interrupts = <0 52 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&prcc_kclk 3 2>, <&prcc_pclk 3 2>;
+			clock-names = "ssp1clk", "apb_pclk";
+			dmas = <&dma 9 0 0x2>, /* Logical - DevToMem */
+			       <&dma 9 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+		};
+
+		spi@8011a000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x8011a000 0x1000>;
+			interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 2 8>, <&prcc_pclk 2 8>;
+			clock-names = "spi0clk", "apb_pclk";
+			dmas = <&dma 0 0 0x2>, /* Logical - DevToMem */
+			       <&dma 0 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+		};
+
+		spi@80112000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80112000 0x1000>;
+			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 2 2>, <&prcc_pclk 2 2>;
+			clock-names = "spi1clk", "apb_pclk";
+			dmas = <&dma 35 0 0x2>, /* Logical - DevToMem */
+			       <&dma 35 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+		};
+
+		spi@80111000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80111000 0x1000>;
+			interrupts = <0 6 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 2 1>, <&prcc_pclk 2 1>;
+			clock-names = "spi2clk", "apb_pclk";
+			dmas = <&dma 33 0 0x2>, /* Logical - DevToMem */
+			       <&dma 33 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+		};
+
+		spi@80129000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80129000 0x1000>;
+			interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 1 7>, <&prcc_pclk 1 7>;
+			clock-names = "spi3clk", "apb_pclk";
+			dmas = <&dma 40 0 0x2>, /* Logical - DevToMem */
+			       <&dma 40 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
 		};
 
 		uart@80120000 {
@@ -637,6 +788,9 @@
 			dmas = <&dma 13 0 0x2>, /* Logical - DevToMem */
 			       <&dma 13 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 1 0>, <&prcc_pclk 1 0>;
+			clock-names = "uart", "apb_pclk";
 
 			status = "disabled";
 		};
@@ -650,6 +804,9 @@
 			       <&dma 12 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 1 1>, <&prcc_pclk 1 1>;
+			clock-names = "uart", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -661,6 +818,9 @@
 			dmas = <&dma 11 0 0x2>, /* Logical - DevToMem */
 			       <&dma 11 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 3 6>, <&prcc_pclk 3 6>;
+			clock-names = "uart", "apb_pclk";
 
 			status = "disabled";
 		};
@@ -674,6 +834,9 @@
 			       <&dma 29 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 1 5>, <&prcc_pclk 1 5>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -685,6 +848,9 @@
 			dmas = <&dma 32 0 0x2>, /* Logical - DevToMem */
 			       <&dma 32 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 2 4>, <&prcc_pclk 2 6>;
+			clock-names = "sdi", "apb_pclk";
 
 			status = "disabled";
 		};
@@ -698,6 +864,9 @@
 			       <&dma 28 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 3 4>, <&prcc_pclk 3 4>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -705,6 +874,10 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80119000 0x1000>;
 			interrupts = <0 59 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&prcc_kclk 2 5>, <&prcc_pclk 2 7>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -717,6 +890,9 @@
 			       <&dma 42 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 2 2>, <&prcc_pclk 2 4>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -724,6 +900,10 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80008000 0x1000>;
 			interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&prcc_kclk 3 7>, <&prcc_pclk 3 7>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -732,6 +912,14 @@
 			reg = <0x80123000 0x1000>;
 			interrupts = <0 31 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 31 0 0x12>, /* Logical - DevToMem - HighPrio */
+			       <&dma 31 0 0x10>; /* Logical - MemToDev - HighPrio */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 1 3>, <&prcc_pclk 1 3>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -740,6 +928,13 @@
 			reg = <0x80124000 0x1000>;
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 30 0 0x10>; /* Logical - MemToDev - HighPrio */
+			dma-names = "tx";
+
+			clocks = <&prcc_kclk 1 4>, <&prcc_pclk 1 4>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -749,6 +944,15 @@
 			reg = <0x80117000 0x1000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 14 0 0x12>, /* Logical  - DevToMem - HighPrio */
+			       <&dma 14 1 0x19>; /* Physical Chan 1 - MemToDev
+                                                    HighPrio - Fixed */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 2 3>, <&prcc_pclk 2 5>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -757,6 +961,13 @@
 			reg = <0x80125000 0x1000>;
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 30 0 0x12>; /* Logical - DevToMem - HighPrio */
+			dma-names = "rx";
+
+			clocks = <&prcc_kclk 1 10>, <&prcc_pclk 1 11>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -772,7 +983,7 @@
 		cpufreq-cooling {
 			compatible = "stericsson,db8500-cpufreq-cooling";
 			status = "disabled";
-		 };
+		};
 
 		vmmci: regulator-gpio {
 			compatible = "regulator-gpio";
@@ -791,12 +1002,30 @@
 			status = "disabled";
 		};
 
+		mcde@a0350000 {
+			compatible = "stericsson,mcde";
+			reg = <0xa0350000 0x1000>, /* MCDE */
+			      <0xa0351000 0x1000>, /* DSI link 1 */
+			      <0xa0352000 0x1000>, /* DSI link 2 */
+			      <0xa0353000 0x1000>; /* DSI link 3 */
+			interrupts = <0 48 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&prcmu_clk PRCMU_MCDECLK>, /* Main MCDE clock */
+				 <&prcmu_clk PRCMU_LCDCLK>, /* LCD clock */
+				 <&prcmu_clk PRCMU_PLLDSI>, /* HDMI clock */
+				 <&prcmu_clk PRCMU_DSI0CLK>, /* DSI 0 */
+				 <&prcmu_clk PRCMU_DSI1CLK>, /* DSI 1 */
+				 <&prcmu_clk PRCMU_DSI0ESCCLK>, /* TVout clock 0 */
+				 <&prcmu_clk PRCMU_DSI1ESCCLK>, /* TVout clock 1 */
+				 <&prcmu_clk PRCMU_DSI2ESCCLK>; /* TVout clock 2 */
+		};
+
 		cryp@a03cb000 {
 			compatible = "stericsson,ux500-cryp";
 			reg = <0xa03cb000 0x1000>;
 			interrupts = <0 15 IRQ_TYPE_LEVEL_HIGH>;
 
 			v-ape-supply = <&db8500_vape_reg>;
+			clocks = <&prcc_pclk 6 1>;
 		};
 
 		hash@a03c2000 {
@@ -804,6 +1033,7 @@
 			reg = <0xa03c2000 0x1000>;
 
 			v-ape-supply = <&db8500_vape_reg>;
+			clocks = <&prcc_pclk 6 2>;
 		};
 	};
 };

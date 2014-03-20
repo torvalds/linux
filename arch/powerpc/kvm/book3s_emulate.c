@@ -86,8 +86,8 @@ static bool spr_allowed(struct kvm_vcpu *vcpu, enum priv_level level)
 	return true;
 }
 
-int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                           unsigned int inst, int *advance)
+int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
+			      unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
 	int rt = get_rt(inst);
@@ -172,7 +172,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			vcpu->arch.mmu.tlbie(vcpu, addr, large);
 			break;
 		}
-#ifdef CONFIG_KVM_BOOK3S_64_PR
+#ifdef CONFIG_PPC_BOOK3S_64
 		case OP_31_XOP_FAKE_SC1:
 		{
 			/* SC 1 papr hypercalls */
@@ -267,12 +267,9 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 			r = kvmppc_st(vcpu, &addr, 32, zeros, true);
 			if ((r == -ENOENT) || (r == -EPERM)) {
-				struct kvmppc_book3s_shadow_vcpu *svcpu;
-
-				svcpu = svcpu_get(vcpu);
 				*advance = 0;
 				vcpu->arch.shared->dar = vaddr;
-				svcpu->fault_dar = vaddr;
+				vcpu->arch.fault_dar = vaddr;
 
 				dsisr = DSISR_ISSTORE;
 				if (r == -ENOENT)
@@ -281,8 +278,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 					dsisr |= DSISR_PROTFAULT;
 
 				vcpu->arch.shared->dsisr = dsisr;
-				svcpu->fault_dsisr = dsisr;
-				svcpu_put(svcpu);
+				vcpu->arch.fault_dsisr = dsisr;
 
 				kvmppc_book3s_queue_irqprio(vcpu,
 					BOOK3S_INTERRUPT_DATA_STORAGE);
@@ -349,7 +345,7 @@ static struct kvmppc_bat *kvmppc_find_bat(struct kvm_vcpu *vcpu, int sprn)
 	return bat;
 }
 
-int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
+int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 {
 	int emulated = EMULATE_DONE;
 
@@ -472,7 +468,7 @@ unprivileged:
 	return emulated;
 }
 
-int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
+int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 {
 	int emulated = EMULATE_DONE;
 

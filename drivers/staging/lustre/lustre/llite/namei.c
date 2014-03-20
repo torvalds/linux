@@ -83,7 +83,7 @@ int ll_unlock(__u32 mode, struct lustre_handle *lockh)
 }
 
 
-/* called from iget5_locked->find_inode() under inode_lock spinlock */
+/* called from iget5_locked->find_inode() under inode_hash_lock spinlock */
 static int ll_test_inode(struct inode *inode, void *opaque)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -223,6 +223,10 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			break;
 
 		LASSERT(lock->l_flags & LDLM_FL_CANCELING);
+
+		if (bits & MDS_INODELOCK_XATTR)
+			ll_xattr_cache_destroy(inode);
+
 		/* For OPEN locks we differentiate between lock modes
 		 * LCK_CR, LCK_CW, LCK_PR - bug 22891 */
 		if (bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_UPDATE |
@@ -233,12 +237,9 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			ll_have_md_lock(inode, &bits, mode);
 
 		fid = ll_inode2fid(inode);
-		if (lock->l_resource->lr_name.name[0] != fid_seq(fid) ||
-		    lock->l_resource->lr_name.name[1] != fid_oid(fid) ||
-		    lock->l_resource->lr_name.name[2] != fid_ver(fid)) {
+		if (!fid_res_name_eq(fid, &lock->l_resource->lr_name))
 			LDLM_ERROR(lock, "data mismatch with object "
 				   DFID" (%p)", PFID(fid), inode);
-		}
 
 		if (bits & MDS_INODELOCK_OPEN) {
 			int flags = 0;
@@ -526,8 +527,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	icbd.icbd_childp = &dentry;
 	icbd.icbd_parent = parent;
 
-	if (it->it_op & IT_CREAT ||
-	    (it->it_op & IT_OPEN && it->it_create_mode & O_CREAT))
+	if (it->it_op & IT_CREAT)
 		opc = LUSTRE_OPC_CREATE;
 	else
 		opc = LUSTRE_OPC_ANY;
@@ -626,7 +626,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 		return -ENOMEM;
 
 	it->it_op = IT_OPEN;
-	if (mode) {
+	if (open_flags & O_CREAT) {
 		it->it_op |= IT_CREAT;
 		lookup_flags |= LOOKUP_CREATE;
 	}

@@ -114,22 +114,22 @@ extern struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
 #define MAX_NF_CT_PROTO 256
 
-extern struct nf_conntrack_l4proto *
-__nf_ct_l4proto_find(u_int16_t l3proto, u_int8_t l4proto);
+struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u_int16_t l3proto,
+						  u_int8_t l4proto);
 
-extern struct nf_conntrack_l4proto *
-nf_ct_l4proto_find_get(u_int16_t l3proto, u_int8_t l4proto);
-extern void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p);
+struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u_int16_t l3proto,
+						    u_int8_t l4proto);
+void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p);
 
 /* Protocol pernet registration. */
-extern int nf_ct_l4proto_pernet_register(struct net *net,
-					 struct nf_conntrack_l4proto *proto);
-extern void nf_ct_l4proto_pernet_unregister(struct net *net,
-					    struct nf_conntrack_l4proto *proto);
+int nf_ct_l4proto_pernet_register(struct net *net,
+				  struct nf_conntrack_l4proto *proto);
+void nf_ct_l4proto_pernet_unregister(struct net *net,
+				     struct nf_conntrack_l4proto *proto);
 
 /* Protocol global registration. */
-extern int nf_ct_l4proto_register(struct nf_conntrack_l4proto *proto);
-extern void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *proto);
+int nf_ct_l4proto_register(struct nf_conntrack_l4proto *proto);
+void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *proto);
 
 static inline void nf_ct_kfree_compat_sysctl_table(struct nf_proto_net *pn)
 {
@@ -140,11 +140,11 @@ static inline void nf_ct_kfree_compat_sysctl_table(struct nf_proto_net *pn)
 }
 
 /* Generic netlink helpers */
-extern int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
-				      const struct nf_conntrack_tuple *tuple);
-extern int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
-				      struct nf_conntrack_tuple *t);
-extern int nf_ct_port_nlattr_tuple_size(void);
+int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
+			       const struct nf_conntrack_tuple *tuple);
+int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
+			       struct nf_conntrack_tuple *t);
+int nf_ct_port_nlattr_tuple_size(void);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 
 #ifdef CONFIG_SYSCTL

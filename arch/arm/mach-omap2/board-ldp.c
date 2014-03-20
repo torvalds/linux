@@ -36,7 +36,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include "board-zoom.h"
 #include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
@@ -243,11 +242,17 @@ static void __init ldp_display_init(void)
 
 static int ldp_twl_gpio_setup(struct device *dev, unsigned gpio, unsigned ngpio)
 {
+	int res;
+
 	/* LCD enable GPIO */
 	ldp_lcd_pdata.enable_gpio = gpio + 7;
 
 	/* Backlight enable GPIO */
 	ldp_lcd_pdata.backlight_gpio = gpio + 15;
+
+	res = platform_device_register(&ldp_lcd_device);
+	if (res)
+		pr_err("Unable to register LCD: %d\n", res);
 
 	return 0;
 }
@@ -347,7 +352,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 
 static struct platform_device *ldp_devices[] __initdata = {
 	&ldp_gpio_keys_device,
-	&ldp_lcd_device,
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -406,7 +410,7 @@ static void __init omap_ldp_init(void)
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	board_nand_init(ldp_nand_partitions, ARRAY_SIZE(ldp_nand_partitions),
-			ZOOM_NAND_CS, 0, nand_default_timings);
+			0, 0, nand_default_timings);
 
 	omap_hsmmc_init(mmc);
 	ldp_display_init();

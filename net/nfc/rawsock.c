@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
@@ -142,11 +140,11 @@ static void rawsock_data_exchange_complete(void *context, struct sk_buff *skb,
 
 	err = rawsock_add_header(skb);
 	if (err)
-		goto error;
+		goto error_skb;
 
 	err = sock_queue_rcv_skb(sk, skb);
 	if (err)
-		goto error;
+		goto error_skb;
 
 	spin_lock_bh(&sk->sk_write_queue.lock);
 	if (!skb_queue_empty(&sk->sk_write_queue))
@@ -157,6 +155,9 @@ static void rawsock_data_exchange_complete(void *context, struct sk_buff *skb,
 
 	sock_put(sk);
 	return;
+
+error_skb:
+	kfree_skb(skb);
 
 error:
 	rawsock_report_error(sk, err);
@@ -240,8 +241,6 @@ static int rawsock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	skb = skb_recv_datagram(sk, flags, noblock, &rc);
 	if (!skb)
 		return rc;
-
-	msg->msg_namelen = 0;
 
 	copied = skb->len;
 	if (len < copied) {

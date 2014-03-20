@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,11 +75,26 @@
  * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
  * @IWL_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
  * @IWL_UCODE_TLV_FLAGS_UAPSD: This uCode image supports uAPSD
+ * @IWL_UCODE_TLV_FLAGS_SHORT_BL: 16 entries of black list instead of 64 in scan
+ *	offload profile config command.
  * @IWL_UCODE_TLV_FLAGS_RX_ENERGY_API: supports rx signal strength api
  * @IWL_UCODE_TLV_FLAGS_TIME_EVENT_API_V2: using the new time event API.
  * @IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
  *	(rather than two) IPv6 addresses
  * @IWL_UCODE_TLV_FLAGS_BF_UPDATED: new beacon filtering API
+ * @IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID: not sending a probe with the SSID element
+ *	from the probe request template.
+ * @IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API: modified D3 API to allow keeping
+ *	connection when going back to D0
+ * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL: new NS offload (small version)
+ * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
+ * @IWL_UCODE_TLV_FLAGS_SCHED_SCAN: this uCode image supports scheduled scan.
+ * @IWL_UCODE_TLV_FLAGS_STA_KEY_CMD: new ADD_STA and ADD_STA_KEY command API
+ * @IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD: support device wide power command
+ *	containing CAM (Continuous Active Mode) indication.
+ * @IWL_UCODE_TLV_FLAGS_P2P_PS: P2P client power save is supported (only on a
+ *	single bound interface).
+ * @IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD: P2P client supports uAPSD power save
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN			= BIT(0),
@@ -87,11 +102,23 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_MFP			= BIT(2),
 	IWL_UCODE_TLV_FLAGS_P2P			= BIT(3),
 	IWL_UCODE_TLV_FLAGS_DW_BC_TABLE		= BIT(4),
-	IWL_UCODE_TLV_FLAGS_UAPSD		= BIT(6),
+	IWL_UCODE_TLV_FLAGS_NEWBT_COEX		= BIT(5),
+	IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT	= BIT(6),
+	IWL_UCODE_TLV_FLAGS_SHORT_BL		= BIT(7),
 	IWL_UCODE_TLV_FLAGS_RX_ENERGY_API	= BIT(8),
 	IWL_UCODE_TLV_FLAGS_TIME_EVENT_API_V2	= BIT(9),
 	IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= BIT(10),
 	IWL_UCODE_TLV_FLAGS_BF_UPDATED		= BIT(11),
+	IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID	= BIT(12),
+	IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API	= BIT(14),
+	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL	= BIT(15),
+	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE	= BIT(16),
+	IWL_UCODE_TLV_FLAGS_SCHED_SCAN		= BIT(17),
+	IWL_UCODE_TLV_FLAGS_STA_KEY_CMD		= BIT(19),
+	IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD	= BIT(20),
+	IWL_UCODE_TLV_FLAGS_P2P_PS		= BIT(21),
+	IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT	= BIT(24),
+	IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD	= BIT(26),
 };
 
 /* The default calibrate table size if not specified by firmware file */
@@ -133,7 +160,8 @@ enum iwl_ucode_sec {
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
-#define IWL_UCODE_SECTION_MAX 4
+#define IWL_UCODE_SECTION_MAX 6
+#define IWL_UCODE_FIRST_SECTION_OF_SECOND_CPU	(IWL_UCODE_SECTION_MAX/2)
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
@@ -150,6 +178,8 @@ struct fw_desc {
 
 struct fw_img {
 	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
+	bool is_secure;
+	bool is_dual_cpus;
 };
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */
@@ -184,6 +214,44 @@ enum iwl_fw_phy_cfg {
 	FW_PHY_CFG_RX_CHAIN = 0xf << FW_PHY_CFG_RX_CHAIN_POS,
 };
 
+#define IWL_UCODE_MAX_CS		1
+
+/**
+ * struct iwl_fw_cipher_scheme - a cipher scheme supported by FW.
+ * @cipher: a cipher suite selector
+ * @flags: cipher scheme flags (currently reserved for a future use)
+ * @hdr_len: a size of MPDU security header
+ * @pn_len: a size of PN
+ * @pn_off: an offset of pn from the beginning of the security header
+ * @key_idx_off: an offset of key index byte in the security header
+ * @key_idx_mask: a bit mask of key_idx bits
+ * @key_idx_shift: bit shift needed to get key_idx
+ * @mic_len: mic length in bytes
+ * @hw_cipher: a HW cipher index used in host commands
+ */
+struct iwl_fw_cipher_scheme {
+	__le32 cipher;
+	u8 flags;
+	u8 hdr_len;
+	u8 pn_len;
+	u8 pn_off;
+	u8 key_idx_off;
+	u8 key_idx_mask;
+	u8 key_idx_shift;
+	u8 mic_len;
+	u8 hw_cipher;
+} __packed;
+
+/**
+ * struct iwl_fw_cscheme_list - a cipher scheme list
+ * @size: a number of entries
+ * @cs: cipher scheme entries
+ */
+struct iwl_fw_cscheme_list {
+	u8 size;
+	struct iwl_fw_cipher_scheme cs[];
+} __packed;
+
 /**
  * struct iwl_fw - variables associated with the firmware
  *
@@ -199,6 +267,7 @@ enum iwl_fw_phy_cfg {
  * @inst_evtlog_size: event log size for runtime ucode.
  * @inst_errlog_ptr: error log offfset for runtime ucode.
  * @mvm_fw: indicates this is MVM firmware
+ * @cipher_scheme: optional external cipher scheme.
  */
 struct iwl_fw {
 	u32 ucode_ver;
@@ -218,6 +287,8 @@ struct iwl_fw {
 	u32 phy_config;
 
 	bool mvm_fw;
+
+	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 };
 
 static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)

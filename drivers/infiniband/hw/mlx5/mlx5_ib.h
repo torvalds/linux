@@ -195,6 +195,7 @@ struct mlx5_ib_cq_buf {
 	struct mlx5_buf		buf;
 	struct ib_umem		*umem;
 	int			cqe_size;
+	int			nent;
 };
 
 enum mlx5_ib_qp_flags {
@@ -220,7 +221,7 @@ struct mlx5_ib_cq {
 	/* protect resize cq
 	 */
 	struct mutex		resize_mutex;
-	struct mlx5_ib_cq_resize *resize_buf;
+	struct mlx5_ib_cq_buf  *resize_buf;
 	struct ib_umem	       *resize_umem;
 	int			cqe_size;
 };
@@ -262,6 +263,8 @@ struct mlx5_ib_mr {
 	int			npages;
 	struct completion	done;
 	enum ib_wc_status	status;
+	struct mlx5_ib_dev     *dev;
+	struct mlx5_create_mkey_mbox_out out;
 };
 
 struct mlx5_ib_fast_reg_page_list {
@@ -323,6 +326,7 @@ struct mlx5_cache_ent {
 	struct mlx5_ib_dev     *dev;
 	struct work_struct	work;
 	struct delayed_work	dwork;
+	int			pending;
 };
 
 struct mlx5_mr_cache {
@@ -358,6 +362,8 @@ struct mlx5_ib_dev {
 	spinlock_t			mr_lock;
 	struct mlx5_ib_resources	devr;
 	struct mlx5_mr_cache		cache;
+	struct timer_list		delay_timer;
+	int				fill_delay;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)

@@ -2,6 +2,10 @@ Kernel driver it87
 ==================
 
 Supported chips:
+  * IT8603E
+    Prefix: 'it8603'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
   * IT8705F
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -53,7 +57,7 @@ Supported chips:
 
 Authors:
     Christophe Gauthron
-    Jean Delvare <khali@linux-fr.org>
+    Jean Delvare <jdelvare@suse.de>
 
 
 Module Parameters
@@ -90,7 +94,7 @@ motherboard models.
 Description
 -----------
 
-This driver implements support for the IT8705F, IT8712F, IT8716F,
+This driver implements support for the IT8603E, IT8705F, IT8712F, IT8716F,
 IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E, IT8771E, IT8772E,
 IT8782F, IT8783E/F, and SiS950 chips.
 
@@ -129,6 +133,10 @@ to userspace applications.
 The IT8728F, IT8771E, and IT8772E are considered compatible with the IT8721F,
 until a datasheet becomes available (hopefully.)
 
+The IT8603E is a custom design, hardware monitoring part is similar to
+IT8728F. It only supports 16-bit fan mode, the full speed mode of the
+fan is not supported (value 0 of pwmX_enable).
+
 Temperatures are measured in degrees Celsius. An alarm is triggered once
 when the Overtemperature Shutdown limit is crossed.
 
@@ -145,13 +153,16 @@ alarm is triggered if the voltage has crossed a programmable minimum or
 maximum limit. Note that minimum in this case always means 'closest to
 zero'; this is important for negative voltage measurements. All voltage
 inputs can measure voltages between 0 and 4.08 volts, with a resolution of
-0.016 volt (except IT8721F/IT8758E and IT8728F: 0.012 volt.) The battery
-voltage in8 does not have limit registers.
+0.016 volt (except IT8603E, IT8721F/IT8758E and IT8728F: 0.012 volt.) The
+battery voltage in8 does not have limit registers.
 
-On the IT8721F/IT8758E, IT8782F, and IT8783E/F, some voltage inputs are
-internal and scaled inside the chip (in7 (optional for IT8782F and IT8783E/F),
-in8 and optionally in3). The driver handles this transparently so user-space
-doesn't have to care.
+On the IT8603E, IT8721F/IT8758E, IT8782F, and IT8783E/F, some voltage inputs
+are internal and scaled inside the chip:
+* in3 (optional)
+* in7 (optional for IT8782F and IT8783E/F)
+* in8 (always)
+* in9 (relevant for IT8603E only)
+The driver handles this transparently so user-space doesn't have to care.
 
 The VID lines (IT8712F/IT8716F/IT8718F/IT8720F) encode the core voltage value:
 the voltage level your processor should work with. This is hardcoded by

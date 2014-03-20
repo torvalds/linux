@@ -92,6 +92,7 @@ qxl_release_free(struct qxl_device *qdev,
 						- DRM_FILE_OFFSET);
 		qxl_fence_remove_release(&bo->fence, release->id);
 		qxl_bo_unref(&bo);
+		kfree(entry);
 	}
 	spin_lock(&qdev->release_idr_lock);
 	idr_remove(&qdev->release_idr, release->id);

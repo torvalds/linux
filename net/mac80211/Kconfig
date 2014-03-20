@@ -4,6 +4,7 @@ config MAC80211
 	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_AES
+	select CRYPTO_CCM
 	select CRC32
 	select AVERAGE
 	---help---
@@ -254,6 +255,17 @@ config MAC80211_MESH_SYNC_DEBUG
 	---help---
 	  Selecting this option causes mac80211 to print out very verbose mesh
 	  synchronization debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_MESH_CSA_DEBUG
+	bool "Verbose mesh channel switch debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  channel switch debugging messages (when mac80211 is taking part in a
 	  mesh network).
 
 	  Do not select this option.

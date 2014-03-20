@@ -223,6 +223,7 @@ static struct samsung_bl_gpio_info smdk6440_bl_gpio_info = {
 
 static struct platform_pwm_backlight_data smdk6440_bl_data = {
 	.pwm_id = 1,
+	.enable_gpio = -1,
 };
 
 static void __init smdk6440_map_io(void)

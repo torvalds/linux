@@ -778,11 +778,6 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 
 		/* ets may affect cmng configuration: reinit it in hw */
 		bnx2x_set_local_cmng(bp);
-
-		set_bit(BNX2X_SP_RTNL_TX_RESUME, &bp->sp_rtnl_state);
-
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
-
 		return;
 	case BNX2X_DCBX_STATE_TX_RELEASED:
 		DP(BNX2X_MSG_DCB, "BNX2X_DCBX_STATE_TX_RELEASED\n");

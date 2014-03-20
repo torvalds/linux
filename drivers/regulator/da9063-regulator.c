@@ -1,3 +1,4 @@
+
 /*
  * Regulator driver for DA9063 PMIC series
  *
@@ -60,7 +61,8 @@ struct da9063_regulator_info {
 	.desc.ops = &da9063_ldo_ops, \
 	.desc.min_uV = (min_mV) * 1000, \
 	.desc.uV_step = (step_mV) * 1000, \
-	.desc.n_voltages = (((max_mV) - (min_mV))/(step_mV) + 1), \
+	.desc.n_voltages = (((max_mV) - (min_mV))/(step_mV) + 1 \
+		+ (DA9063_V##regl_name##_BIAS)), \
 	.desc.enable_reg = DA9063_REG_##regl_name##_CONT, \
 	.desc.enable_mask = DA9063_LDO_EN, \
 	.desc.vsel_reg = DA9063_REG_V##regl_name##_A, \
@@ -717,7 +719,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 {
 	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
 	struct da9063_pdata *da9063_pdata = dev_get_platdata(da9063->dev);
-	struct of_regulator_match *da9063_reg_matches;
+	struct of_regulator_match *da9063_reg_matches = NULL;
 	struct da9063_regulators_pdata *regl_pdata;
 	const struct da9063_dev_model *model;
 	struct da9063_regulators *regulators;
@@ -847,13 +849,13 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		if (da9063_reg_matches)
 			config.of_node = da9063_reg_matches[id].of_node;
 		config.regmap = da9063->regmap;
-		regl->rdev = regulator_register(&regl->desc, &config);
+		regl->rdev = devm_regulator_register(&pdev->dev, &regl->desc,
+						     &config);
 		if (IS_ERR(regl->rdev)) {
 			dev_err(&pdev->dev,
 				"Failed to register %s regulator\n",
 				regl->desc.name);
-			ret = PTR_ERR(regl->rdev);
-			goto err;
+			return PTR_ERR(regl->rdev);
 		}
 		id++;
 		n++;
@@ -862,9 +864,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	/* LDOs overcurrent event support */
 	irq = platform_get_irq_byname(pdev, "LDO_LIM");
 	if (irq < 0) {
-		ret = irq;
 		dev_err(&pdev->dev, "Failed to get IRQ.\n");
-		goto err;
+		return irq;
 	}
 
 	regulators->irq_ldo_lim = regmap_irq_get_virq(da9063->regmap_irq, irq);
@@ -881,26 +882,14 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
-err:
-	/* Wind back regulators registeration */
-	while (--n >= 0)
-		regulator_unregister(regulators->regulator[n].rdev);
-
-	return ret;
 }
 
 static int da9063_regulator_remove(struct platform_device *pdev)
 {
 	struct da9063_regulators *regulators = platform_get_drvdata(pdev);
-	struct da9063_regulator *regl;
 
 	free_irq(regulators->irq_ldo_lim, regulators);
 	free_irq(regulators->irq_uvov, regulators);
-
-	for (regl = &regulators->regulator[regulators->n_regulators - 1];
-	     regl >= &regulators->regulator[0]; regl--)
-		regulator_unregister(regl->rdev);
 
 	return 0;
 }

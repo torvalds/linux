@@ -68,16 +68,15 @@ struct perf_evsel {
 	u32			ids;
 	struct hists		hists;
 	char			*name;
+	double			scale;
+	const char		*unit;
 	struct event_format	*tp_format;
 	union {
 		void		*priv;
 		off_t		id_offset;
 	};
 	struct cgroup_sel	*cgrp;
-	struct {
-		void		*func;
-		void		*data;
-	} handler;
+	void			*handler;
 	struct cpu_map		*cpus;
 	unsigned int		sample_size;
 	int			id_pos;
@@ -97,10 +96,21 @@ struct perf_evsel {
 struct cpu_map;
 struct thread_map;
 struct perf_evlist;
-struct perf_record_opts;
+struct record_opts;
 
-struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
-struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx);
+struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
+
+static inline struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
+{
+	return perf_evsel__new_idx(attr, 0);
+}
+
+struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx);
+
+static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name)
+{
+	return perf_evsel__newtp_idx(sys, name, 0);
+}
 
 struct event_format *event_format__new(const char *sys, const char *name);
 
@@ -110,7 +120,7 @@ void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct perf_record_opts *opts);
+			struct record_opts *opts);
 
 int __perf_evsel__sample_size(u64 sample_type);
 void perf_evsel__calc_id_pos(struct perf_evsel *evsel);
@@ -130,6 +140,7 @@ extern const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX];
 int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
 					    char *bf, size_t size);
 const char *perf_evsel__name(struct perf_evsel *evsel);
+
 const char *perf_evsel__group_name(struct perf_evsel *evsel);
 int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size);
 
@@ -196,6 +207,12 @@ static inline bool perf_evsel__match2(struct perf_evsel *e1,
 	return (e1->attr.type == e2->attr.type) &&
 	       (e1->attr.config == e2->attr.config);
 }
+
+#define perf_evsel__cmp(a, b)			\
+	((a) &&					\
+	 (b) &&					\
+	 (a)->attr.type == (b)->attr.type &&	\
+	 (a)->attr.config == (b)->attr.config)
 
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale);
@@ -265,6 +282,11 @@ static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 	return list_entry(evsel->node.next, struct perf_evsel, node);
 }
 
+static inline struct perf_evsel *perf_evsel__prev(struct perf_evsel *evsel)
+{
+	return list_entry(evsel->node.prev, struct perf_evsel, node);
+}
+
 /**
  * perf_evsel__is_group_leader - Return whether given evsel is a leader event
  *
@@ -304,8 +326,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize);
-int perf_evsel__open_strerror(struct perf_evsel *evsel,
-			      struct perf_target *target,
+int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			      int err, char *msg, size_t size);
 
 static inline int perf_evsel__group_idx(struct perf_evsel *evsel)

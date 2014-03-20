@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __NET_NFC_H
@@ -28,9 +26,14 @@
 #include <linux/device.h>
 #include <linux/skbuff.h>
 
-#define nfc_dev_info(dev, fmt, arg...) dev_info((dev), "NFC: " fmt "\n", ## arg)
-#define nfc_dev_err(dev, fmt, arg...) dev_err((dev), "NFC: " fmt "\n", ## arg)
-#define nfc_dev_dbg(dev, fmt, arg...) dev_dbg((dev), fmt "\n", ## arg)
+#define nfc_info(dev, fmt, ...) dev_info((dev), "NFC: " fmt, ##__VA_ARGS__)
+#define nfc_err(dev, fmt, ...) dev_err((dev), "NFC: " fmt, ##__VA_ARGS__)
+
+struct nfc_phy_ops {
+	int (*write)(void *dev_id, struct sk_buff *skb);
+	int (*enable)(void *dev_id);
+	void (*disable)(void *dev_id);
+};
 
 struct nfc_dev;
 
@@ -47,6 +50,8 @@ struct nfc_dev;
  */
 typedef void (*data_exchange_cb_t)(void *context, struct sk_buff *skb,
 								int err);
+
+typedef void (*se_io_cb_t)(void *context, u8 *apdu, size_t apdu_len, int err);
 
 struct nfc_target;
 
@@ -74,12 +79,23 @@ struct nfc_ops {
 	int (*discover_se)(struct nfc_dev *dev);
 	int (*enable_se)(struct nfc_dev *dev, u32 se_idx);
 	int (*disable_se)(struct nfc_dev *dev, u32 se_idx);
+	int (*se_io) (struct nfc_dev *dev, u32 se_idx,
+		      u8 *apdu, size_t apdu_length,
+		      se_io_cb_t cb, void *cb_context);
 };
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
 #define NFC_ATR_RES_GT_OFFSET 15
 
+/**
+ * struct nfc_target - NFC target descriptiom
+ *
+ * @sens_res: 2 bytes describing the target SENS_RES response, if the target
+ *	is a type A one. The %sens_res most significant byte must be byte 2
+ *	as described by the NFC Forum digital specification (i.e. the platform
+ *	configuration one) while %sens_res least significant byte is byte 1.
+ */
 struct nfc_target {
 	u32 idx;
 	u32 supported_protocols;
@@ -243,5 +259,6 @@ void nfc_driver_failure(struct nfc_dev *dev, int err);
 
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
+struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);
 
 #endif /* __NET_NFC_H */

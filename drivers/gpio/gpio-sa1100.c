@@ -10,7 +10,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/module.h>
-
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 

@@ -40,6 +40,20 @@
 #define VOLTAGE_VID_OFFSET_SCALE1    625
 #define VOLTAGE_VID_OFFSET_SCALE2    100
 
+static const struct ci_pt_defaults defaults_hawaii_xt =
+{
+	1, 0xF, 0xFD, 0x19, 5, 0x14, 0, 0xB0000,
+	{ 0x84,  0x0,   0x0,   0x7F,  0x0,   0x0,   0x5A,  0x60,  0x51,  0x8E,  0x79,  0x6B,  0x5F,  0x90,  0x79  },
+	{ 0x1EA, 0x1EA, 0x1EA, 0x224, 0x224, 0x224, 0x24F, 0x24F, 0x24F, 0x28E, 0x28E, 0x28E, 0x2BC, 0x2BC, 0x2BC }
+};
+
+static const struct ci_pt_defaults defaults_hawaii_pro =
+{
+	1, 0xF, 0xFD, 0x19, 5, 0x14, 0, 0x65062,
+	{ 0x93,  0x0,   0x0,   0x97,  0x0,   0x0,   0x6B,  0x60,  0x51,  0x95,  0x79,  0x6B,  0x5F,  0x90,  0x79  },
+	{ 0x1EA, 0x1EA, 0x1EA, 0x224, 0x224, 0x224, 0x24F, 0x24F, 0x24F, 0x28E, 0x28E, 0x28E, 0x2BC, 0x2BC, 0x2BC }
+};
+
 static const struct ci_pt_defaults defaults_bonaire_xt =
 {
 	1, 0xF, 0xFD, 0x19, 5, 45, 0, 0xB0000,
@@ -157,8 +171,7 @@ extern void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
 						     struct atom_voltage_table *voltage_table);
 extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
-extern void cik_update_cg(struct radeon_device *rdev,
-			  u32 block, bool enable);
+extern int ci_mc_load_microcode(struct radeon_device *rdev);
 
 static int ci_get_std_voltage_value_sidd(struct radeon_device *rdev,
 					 struct atom_voltage_table_entry *voltage_table,
@@ -187,21 +200,37 @@ static void ci_initialize_powertune_defaults(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 
 	switch (rdev->pdev->device) {
-        case 0x6650:
-        case 0x6658:
-        case 0x665C:
-        default:
+	case 0x6650:
+	case 0x6658:
+	case 0x665C:
+	default:
 		pi->powertune_defaults = &defaults_bonaire_xt;
 		break;
-        case 0x6651:
-        case 0x665D:
+	case 0x6651:
+	case 0x665D:
 		pi->powertune_defaults = &defaults_bonaire_pro;
 		break;
-        case 0x6640:
+	case 0x6640:
 		pi->powertune_defaults = &defaults_saturn_xt;
 		break;
-        case 0x6641:
+	case 0x6641:
 		pi->powertune_defaults = &defaults_saturn_pro;
+		break;
+	case 0x67B8:
+	case 0x67B0:
+	case 0x67A0:
+	case 0x67A1:
+	case 0x67A2:
+	case 0x67A8:
+	case 0x67A9:
+	case 0x67AA:
+	case 0x67B9:
+	case 0x67BE:
+		pi->powertune_defaults = &defaults_hawaii_xt;
+		break;
+	case 0x67BA:
+	case 0x67B1:
+		pi->powertune_defaults = &defaults_hawaii_pro;
 		break;
 	}
 
@@ -4473,8 +4502,8 @@ static void ci_get_memory_type(struct radeon_device *rdev)
 
 }
 
-void ci_update_current_ps(struct radeon_device *rdev,
-			  struct radeon_ps *rps)
+static void ci_update_current_ps(struct radeon_device *rdev,
+				 struct radeon_ps *rps)
 {
 	struct ci_ps *new_ps = ci_get_ps(rps);
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -4484,8 +4513,8 @@ void ci_update_current_ps(struct radeon_device *rdev,
 	pi->current_rps.ps_priv = &pi->current_ps;
 }
 
-void ci_update_requested_ps(struct radeon_device *rdev,
-			    struct radeon_ps *rps)
+static void ci_update_requested_ps(struct radeon_device *rdev,
+				   struct radeon_ps *rps)
 {
 	struct ci_ps *new_ps = ci_get_ps(rps);
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -4519,6 +4548,11 @@ void ci_dpm_post_set_power_state(struct radeon_device *rdev)
 
 void ci_dpm_setup_asic(struct radeon_device *rdev)
 {
+	int r;
+
+	r = ci_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	ci_read_clock_registers(rdev);
 	ci_get_memory_type(rdev);
 	ci_enable_acpi_power_management(rdev);
@@ -4530,13 +4564,6 @@ int ci_dpm_enable(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 	int ret;
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), false);
 
 	if (ci_is_smc_running(rdev))
 		return -EINVAL;
@@ -4635,6 +4662,18 @@ int ci_dpm_enable(struct radeon_device *rdev)
 		DRM_ERROR("ci_enable_power_containment failed\n");
 		return ret;
 	}
+
+	ci_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
+
+	ci_update_current_ps(rdev, boot_ps);
+
+	return 0;
+}
+
+int ci_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 #if 0
@@ -4655,18 +4694,7 @@ int ci_dpm_enable(struct radeon_device *rdev)
 #endif
 	}
 
-	ci_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
-
 	ci_dpm_powergate_uvd(rdev, true);
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), true);
-
-	ci_update_current_ps(rdev, boot_ps);
 
 	return 0;
 }
@@ -4675,12 +4703,6 @@ void ci_dpm_disable(struct radeon_device *rdev)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), false);
 
 	ci_dpm_powergate_uvd(rdev, false);
 
@@ -4711,13 +4733,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	struct radeon_ps *new_ps = &pi->requested_rps;
 	struct radeon_ps *old_ps = &pi->current_rps;
 	int ret;
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), false);
 
 	ci_find_dpm_states_clocks_in_dpm_table(rdev, new_ps);
 	if (pi->pcie_performance_request)
@@ -4773,13 +4788,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	}
 	if (pi->pcie_performance_request)
 		ci_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
-
-	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
-			     RADEON_CG_BLOCK_MC |
-			     RADEON_CG_BLOCK_SDMA |
-			     RADEON_CG_BLOCK_BIF |
-			     RADEON_CG_BLOCK_UVD |
-			     RADEON_CG_BLOCK_HDP), true);
 
 	return 0;
 }
@@ -4993,8 +5001,8 @@ static int ci_parse_power_table(struct radeon_device *rdev)
 	return 0;
 }
 
-int ci_get_vbios_boot_values(struct radeon_device *rdev,
-			     struct ci_vbios_boot_state *boot_state)
+static int ci_get_vbios_boot_values(struct radeon_device *rdev,
+				    struct ci_vbios_boot_state *boot_state)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, FirmwareInfo);
@@ -5142,9 +5150,15 @@ int ci_dpm_init(struct radeon_device *rdev)
 	rdev->pm.dpm.dyn_state.valid_mclk_values.count = 0;
 	rdev->pm.dpm.dyn_state.valid_mclk_values.values = NULL;
 
-	pi->thermal_temp_setting.temperature_low = 99500;
-	pi->thermal_temp_setting.temperature_high = 100000;
-	pi->thermal_temp_setting.temperature_shutdown = 104000;
+	if (rdev->family == CHIP_HAWAII) {
+		pi->thermal_temp_setting.temperature_low = 94500;
+		pi->thermal_temp_setting.temperature_high = 95000;
+		pi->thermal_temp_setting.temperature_shutdown = 104000;
+	} else {
+		pi->thermal_temp_setting.temperature_low = 99500;
+		pi->thermal_temp_setting.temperature_high = 100000;
+		pi->thermal_temp_setting.temperature_shutdown = 104000;
+	}
 
 	pi->uvd_enabled = false;
 

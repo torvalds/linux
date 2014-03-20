@@ -91,18 +91,6 @@ void qlcnic_free_mbx_args(struct qlcnic_cmd_args *cmd)
 	cmd->rsp.arg = NULL;
 }
 
-static int qlcnic_is_valid_nic_func(struct qlcnic_adapter *adapter, u8 pci_func)
-{
-	int i;
-
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
-		if (adapter->npars[i].pci_func == pci_func)
-			return i;
-	}
-
-	return -1;
-}
-
 static u32
 qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 {
@@ -270,7 +258,7 @@ int qlcnic_82xx_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	int err;
 
 	nrds_rings = adapter->max_rds_rings;
-	nsds_rings = adapter->max_sds_rings;
+	nsds_rings = adapter->drv_sds_rings;
 
 	rq_size = SIZEOF_HOSTRQ_RX(struct qlcnic_hostrq_rx_ctx, nrds_rings,
 				   nsds_rings);
@@ -475,7 +463,7 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 
 	if (qlcnic_check_multi_tx(adapter) &&
 	    !adapter->ahw->diag_test) {
-		temp_nsds_rings = adapter->max_sds_rings;
+		temp_nsds_rings = adapter->drv_sds_rings;
 		index = temp_nsds_rings + ring;
 		msix_id = ahw->intr_tbl[index].id;
 		prq->msi_index = cpu_to_le16(msix_id);
@@ -512,7 +500,7 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 		if (qlcnic_check_multi_tx(adapter) &&
 		    !adapter->ahw->diag_test &&
 		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
-			index = adapter->max_sds_rings + ring;
+			index = adapter->drv_sds_rings + ring;
 			intr_mask = ahw->intr_tbl[index].src;
 			tx_ring->crb_intr_mask = ahw->pci_base0 + intr_mask;
 		}
@@ -582,7 +570,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 
 	recv_ctx = adapter->recv_ctx;
 
-	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		tx_ring = &adapter->tx_ring[ring];
 		ptr = (__le32 *)dma_alloc_coherent(&pdev->dev, sizeof(u32),
 						   &tx_ring->hw_cons_phys_addr,
@@ -616,7 +604,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 
 	}
 
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 
 		addr = dma_alloc_coherent(&adapter->pdev->dev,
@@ -664,7 +652,7 @@ int qlcnic_fw_create_ctx(struct qlcnic_adapter *dev)
 	if (err)
 		goto err_out;
 
-	for (ring = 0; ring < dev->max_drv_tx_rings; ring++) {
+	for (ring = 0; ring < dev->drv_tx_rings; ring++) {
 		err = qlcnic_fw_cmd_create_tx_ctx(dev,
 						  &dev->tx_ring[ring],
 						  ring);
@@ -703,7 +691,7 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 
 	if (test_and_clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state)) {
 		qlcnic_fw_cmd_del_rx_ctx(adapter);
-		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++)
+		for (ring = 0; ring < adapter->drv_tx_rings; ring++)
 			qlcnic_fw_cmd_del_tx_ctx(adapter,
 						 &adapter->tx_ring[ring]);
 
@@ -733,7 +721,7 @@ void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter)
 
 	recv_ctx = adapter->recv_ctx;
 
-	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		tx_ring = &adapter->tx_ring[ring];
 		if (tx_ring->hw_consumer != NULL) {
 			dma_free_coherent(&adapter->pdev->dev, sizeof(u32),
@@ -764,7 +752,7 @@ void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter)
 		}
 	}
 
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 
 		if (sds_ring->desc_head != NULL) {
@@ -895,6 +883,8 @@ int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *adapter,
 		npar_info->max_rx_ques = le16_to_cpu(nic_info->max_rx_ques);
 		npar_info->capabilities = le32_to_cpu(nic_info->capabilities);
 		npar_info->max_mtu = le16_to_cpu(nic_info->max_mtu);
+		adapter->max_tx_rings = npar_info->max_tx_ques;
+		adapter->max_sds_rings = npar_info->max_rx_ques;
 	}
 
 	qlcnic_free_mbx_args(&cmd);
@@ -964,13 +954,15 @@ out_free_dma:
 int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 			     struct qlcnic_pci_info *pci_info)
 {
-	int err = 0, i;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	size_t npar_size = sizeof(struct qlcnic_pci_info_le);
+	size_t pci_size = npar_size * ahw->max_vnic_func;
+	u16 nic = 0, fcoe = 0, iscsi = 0;
+	struct qlcnic_pci_info_le *npar;
 	struct qlcnic_cmd_args cmd;
 	dma_addr_t pci_info_dma_t;
-	struct qlcnic_pci_info_le *npar;
 	void *pci_info_addr;
-	size_t npar_size = sizeof(struct qlcnic_pci_info_le);
-	size_t pci_size = npar_size * QLCNIC_MAX_PCI_FUNC;
+	int err = 0, i;
 
 	pci_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, pci_size,
 					    &pci_info_dma_t, GFP_KERNEL);
@@ -987,14 +979,16 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 	cmd.req.arg[3] = pci_size;
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
-	adapter->ahw->act_pci_func = 0;
+	ahw->total_nic_func = 0;
 	if (err == QLCNIC_RCODE_SUCCESS) {
-		for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++, npar++, pci_info++) {
+		for (i = 0; i < ahw->max_vnic_func; i++, npar++, pci_info++) {
 			pci_info->id = le16_to_cpu(npar->id);
 			pci_info->active = le16_to_cpu(npar->active);
+			if (!pci_info->active)
+				continue;
 			pci_info->type = le16_to_cpu(npar->type);
-			if (pci_info->type == QLCNIC_TYPE_NIC)
-				adapter->ahw->act_pci_func++;
+			err = qlcnic_get_pci_func_type(adapter, pci_info->type,
+						       &nic, &fcoe, &iscsi);
 			pci_info->default_port =
 				le16_to_cpu(npar->default_port);
 			pci_info->tx_min_bw =
@@ -1009,6 +1003,14 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 		err = -EIO;
 	}
 
+	ahw->total_nic_func = nic;
+	ahw->total_pci_func = nic + fcoe + iscsi;
+	if (ahw->total_nic_func == 0 || ahw->total_pci_func == 0) {
+		dev_err(&adapter->pdev->dev,
+			"%s: Invalid function count: total nic func[%x], total pci func[%x]\n",
+			__func__, ahw->total_nic_func, ahw->total_pci_func);
+		err = -EIO;
+	}
 	qlcnic_free_mbx_args(&cmd);
 out_free_dma:
 	dma_free_coherent(&adapter->pdev->dev, pci_size, pci_info_addr,
@@ -1201,7 +1203,7 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 	esw_stats->numbytes = QLCNIC_STATS_NOT_AVAIL;
 	esw_stats->context_id = eswitch;
 
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < adapter->ahw->total_nic_func; i++) {
 		if (adapter->npars[i].phy_port != eswitch)
 			continue;
 
@@ -1234,15 +1236,16 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, const u8 func_esw,
 		const u8 port, const u8 rx_tx)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_cmd_args cmd;
 	int err;
 	u32 arg1;
-	struct qlcnic_cmd_args cmd;
 
-	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
+	if (ahw->op_mode != QLCNIC_MGMT_FUNC)
 		return -EIO;
 
 	if (func_esw == QLCNIC_STATS_PORT) {
-		if (port >= QLCNIC_MAX_PCI_FUNC)
+		if (port >= ahw->max_vnic_func)
 			goto err_ret;
 	} else if (func_esw == QLCNIC_STATS_ESWITCH) {
 		if (port >= QLCNIC_NIU_MAX_XG_PORTS)

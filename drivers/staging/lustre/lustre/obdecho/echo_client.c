@@ -1089,7 +1089,7 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 		} else {
 			struct lustre_md *md;
 			md = &info->eti_md;
-			memset(md, 0, sizeof *md);
+			memset(md, 0, sizeof(*md));
 			md->lsm = lsm;
 			conf->eoc_cl.u.coc_md = md;
 		}
@@ -1106,7 +1106,7 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 	/* coverity[overrun-buffer-val] */
 	obj = cl_object_find(env, echo_dev2cl(d), fid, &conf->eoc_cl);
 	if (IS_ERR(obj))
-		GOTO(out, eco = (void*)obj);
+		GOTO(out, eco = (void *)obj);
 
 	eco = cl2echo_obj(obj);
 	if (eco->eo_deleted) {

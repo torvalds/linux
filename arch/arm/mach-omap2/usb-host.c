@@ -435,6 +435,7 @@ int usbhs_init_phys(struct usbhs_phy_data *phy, int num_phys)
 	struct platform_device *pdev;
 	char *phy_id;
 	struct platform_device_info pdevinfo;
+	struct usb_phy_gen_xceiv_platform_data nop_pdata;
 
 	for (i = 0; i < num_phys; i++) {
 
@@ -455,11 +456,18 @@ int usbhs_init_phys(struct usbhs_phy_data *phy, int num_phys)
 			return -ENOMEM;
 		}
 
+		/* set platform data */
+		memset(&nop_pdata, 0, sizeof(nop_pdata));
+		if (gpio_is_valid(phy->vcc_gpio))
+			nop_pdata.needs_vcc = true;
+		nop_pdata.gpio_reset = phy->reset_gpio;
+		nop_pdata.type = USB_PHY_TYPE_USB2;
+
 		/* create a NOP PHY device */
 		memset(&pdevinfo, 0, sizeof(pdevinfo));
 		pdevinfo.name = nop_name;
 		pdevinfo.id = phy->port;
-		pdevinfo.data = phy->platform_data;
+		pdevinfo.data = &nop_pdata;
 		pdevinfo.size_data =
 			sizeof(struct usb_phy_gen_xceiv_platform_data);
 		scnprintf(phy_id, MAX_STR, "usb_phy_gen_xceiv.%d",
@@ -473,14 +481,6 @@ int usbhs_init_phys(struct usbhs_phy_data *phy, int num_phys)
 		}
 
 		usb_bind_phy("ehci-omap.0", phy->port - 1, phy_id);
-
-		/* Do we need RESET regulator ? */
-		if (gpio_is_valid(phy->reset_gpio)) {
-			scnprintf(rail_name, MAX_STR,
-					"hsusb%d_reset", phy->port);
-			usbhs_add_regulator(rail_name, phy_id, "reset",
-						phy->reset_gpio, 1);
-		}
 
 		/* Do we need VCC regulator ? */
 		if (gpio_is_valid(phy->vcc_gpio)) {

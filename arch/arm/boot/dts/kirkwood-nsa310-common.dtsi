@@ -27,49 +27,6 @@
 			nr-ports = <2>;
 		};
 
-		nand@3000000 {
-			status = "okay";
-			chip-delay = <35>;
-
-			partition@0 {
-				label = "uboot";
-				reg = <0x0000000 0x0100000>;
-				read-only;
-			};
-			partition@100000 {
-				label = "uboot_env";
-				reg = <0x0100000 0x0080000>;
-			};
-			partition@180000 {
-				label = "key_store";
-				reg = <0x0180000 0x0080000>;
-			};
-			partition@200000 {
-				label = "info";
-				reg = <0x0200000 0x0080000>;
-			};
-			partition@280000 {
-				label = "etc";
-				reg = <0x0280000 0x0a00000>;
-			};
-			partition@c80000 {
-				label = "kernel_1";
-				reg = <0x0c80000 0x0a00000>;
-			};
-			partition@1680000 {
-				label = "rootfs1";
-				reg = <0x1680000 0x2fc0000>;
-			};
-			partition@4640000 {
-				label = "kernel_2";
-				reg = <0x4640000 0x0a00000>;
-			};
-			partition@5040000 {
-				label = "rootfs2";
-				reg = <0x5040000 0x2fc0000>;
-			};
-		};
-
 		pcie-controller {
 			status = "okay";
 
@@ -83,7 +40,7 @@
 		compatible = "gpio-poweroff";
 		pinctrl-0 = <&pmx_pwr_off>;
 		pinctrl-names = "default";
-		gpios = <&gpio1 16 0>;
+		gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
 	};
 
 	regulators {
@@ -101,7 +58,50 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
 			regulator-boot-on;
-			gpio = <&gpio0 21 0>;
+			gpio = <&gpio0 21 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+	chip-delay = <35>;
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0x0100000>;
+		read-only;
+	};
+	partition@100000 {
+		label = "uboot_env";
+		reg = <0x0100000 0x0080000>;
+	};
+	partition@180000 {
+		label = "key_store";
+		reg = <0x0180000 0x0080000>;
+	};
+	partition@200000 {
+		label = "info";
+		reg = <0x0200000 0x0080000>;
+	};
+	partition@280000 {
+		label = "etc";
+		reg = <0x0280000 0x0a00000>;
+	};
+	partition@c80000 {
+		label = "kernel_1";
+		reg = <0x0c80000 0x0a00000>;
+	};
+	partition@1680000 {
+		label = "rootfs1";
+		reg = <0x1680000 0x2fc0000>;
+	};
+	partition@4640000 {
+		label = "kernel_2";
+		reg = <0x4640000 0x0a00000>;
+	};
+	partition@5040000 {
+		label = "rootfs2";
+		reg = <0x5040000 0x2fc0000>;
 	};
 };

@@ -58,10 +58,6 @@
 
 #include "compat_linux.h"
 
-u32 psw32_user_bits = PSW32_MASK_DAT | PSW32_MASK_IO | PSW32_MASK_EXT |
-		      PSW32_DEFAULT_KEY | PSW32_MASK_BASE | PSW32_MASK_MCHECK |
-		      PSW32_MASK_PSTATE | PSW32_ASC_HOME;
- 
 /* For this source file, we want overflow handling. */
 
 #undef high2lowuid
@@ -290,8 +286,8 @@ asmlinkage long sys32_getegid16(void)
 }
 
 #ifdef CONFIG_SYSVIPC
-COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
-		unsigned long, third, compat_uptr_t, ptr)
+COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, compat_ulong_t, second,
+		compat_ulong_t, third, compat_uptr_t, ptr)
 {
 	if (call >> 16)		/* hack for backward compatibility */
 		return -EINVAL;

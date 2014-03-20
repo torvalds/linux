@@ -9,7 +9,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -1258,7 +1257,7 @@ mwl8k_capture_bssid(struct mwl8k_priv *priv, struct ieee80211_hdr *wh)
 {
 	return priv->capture_beacon &&
 		ieee80211_is_beacon(wh->frame_control) &&
-		ether_addr_equal(wh->addr3, priv->capture_bssid);
+		ether_addr_equal_64bits(wh->addr3, priv->capture_bssid);
 }
 
 static inline void mwl8k_save_beacon(struct ieee80211_hw *hw,
@@ -5893,8 +5892,6 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	hw->extra_tx_headroom -= priv->ap_fw ? REDUCED_TX_HEADROOM : 0;
 
-	hw->channel_change_time = 10;
-
 	hw->queues = MWL8K_TX_WMM_QUEUES;
 
 	/* Set rssi values to dBm */
@@ -6093,7 +6090,6 @@ err_iounmap:
 	if (priv->sram != NULL)
 		pci_iounmap(pdev, priv->sram);
 
-	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 
 err_free_reg:
@@ -6147,7 +6143,6 @@ static void mwl8k_remove(struct pci_dev *pdev)
 unmap:
 	pci_iounmap(pdev, priv->regs);
 	pci_iounmap(pdev, priv->sram);
-	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

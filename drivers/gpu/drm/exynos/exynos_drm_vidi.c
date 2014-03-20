@@ -101,7 +101,6 @@ static struct edid *vidi_get_edid(struct device *dev,
 {
 	struct vidi_context *ctx = get_vidi_context(dev);
 	struct edid *edid;
-	int edid_len;
 
 	/*
 	 * the edid data comes from user side and it would be set
@@ -112,8 +111,7 @@ static struct edid *vidi_get_edid(struct device *dev,
 		return ERR_PTR(-EFAULT);
 	}
 
-	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
-	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
+	edid = drm_edid_duplicate(ctx->raw_edid);
 	if (!edid) {
 		DRM_DEBUG_KMS("failed to allocate edid\n");
 		return ERR_PTR(-ENOMEM);
@@ -385,20 +383,20 @@ static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 {
 	/*
 	 * enable drm irq mode.
-	 * - with irq_enabled = 1, we can use the vblank feature.
+	 * - with irq_enabled = true, we can use the vblank feature.
 	 *
 	 * P.S. note that we wouldn't use drm irq handler but
 	 *	just specific driver own one instead because
 	 *	drm framework supports only one irq handler.
 	 */
-	drm_dev->irq_enabled = 1;
+	drm_dev->irq_enabled = true;
 
 	/*
-	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	drm_dev->vblank_disable_allowed = 1;
+	drm_dev->vblank_disable_allowed = true;
 
 	return 0;
 }
@@ -485,7 +483,6 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	struct exynos_drm_manager *manager;
 	struct exynos_drm_display_ops *display_ops;
 	struct drm_exynos_vidi_connection *vidi = data;
-	int edid_len;
 
 	if (!vidi) {
 		DRM_DEBUG_KMS("user data for vidi is null.\n");
@@ -524,8 +521,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 			DRM_DEBUG_KMS("edid data is invalid.\n");
 			return -EINVAL;
 		}
-		edid_len = (1 + raw_edid->extensions) * EDID_LENGTH;
-		ctx->raw_edid = kmemdup(raw_edid, edid_len, GFP_KERNEL);
+		ctx->raw_edid = drm_edid_duplicate(raw_edid);
 		if (!ctx->raw_edid) {
 			DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
 			return -ENOMEM;

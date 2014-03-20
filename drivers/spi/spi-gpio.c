@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 
@@ -114,17 +115,17 @@ spi_to_pdata(const struct spi_device *spi)
 
 static inline void setsck(const struct spi_device *spi, int is_on)
 {
-	gpio_set_value(SPI_SCK_GPIO, is_on);
+	gpio_set_value_cansleep(SPI_SCK_GPIO, is_on);
 }
 
 static inline void setmosi(const struct spi_device *spi, int is_on)
 {
-	gpio_set_value(SPI_MOSI_GPIO, is_on);
+	gpio_set_value_cansleep(SPI_MOSI_GPIO, is_on);
 }
 
 static inline int getmiso(const struct spi_device *spi)
 {
-	return !!gpio_get_value(SPI_MISO_GPIO);
+	return !!gpio_get_value_cansleep(SPI_MISO_GPIO);
 }
 
 #undef pdata
@@ -228,7 +229,7 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 
 	if (cs != SPI_GPIO_NO_CHIPSELECT) {
 		/* SPI is normally active-low */
-		gpio_set_value(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
+		gpio_set_value_cansleep(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
 	}
 }
 
@@ -467,7 +468,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	}
 #endif
 
-	spi_gpio->bitbang.master = spi_master_get(master);
+	spi_gpio->bitbang.master = master;
 	spi_gpio->bitbang.chipselect = spi_gpio_chipselect;
 
 	if ((master_flags & (SPI_MASTER_NO_TX | SPI_MASTER_NO_RX)) == 0) {
@@ -486,7 +487,6 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	status = spi_bitbang_start(&spi_gpio->bitbang);
 	if (status < 0) {
-		spi_master_put(spi_gpio->bitbang.master);
 gpio_free:
 		if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 			gpio_free(SPI_MISO_GPIO);
@@ -510,13 +510,13 @@ static int spi_gpio_remove(struct platform_device *pdev)
 
 	/* stop() unregisters child devices too */
 	status = spi_bitbang_stop(&spi_gpio->bitbang);
-	spi_master_put(spi_gpio->bitbang.master);
 
 	if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 		gpio_free(SPI_MISO_GPIO);
 	if (SPI_MOSI_GPIO != SPI_GPIO_NO_MOSI)
 		gpio_free(SPI_MOSI_GPIO);
 	gpio_free(SPI_SCK_GPIO);
+	spi_master_put(spi_gpio->bitbang.master);
 
 	return status;
 }

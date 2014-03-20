@@ -21,10 +21,13 @@ defined as gpio sub-nodes of the pinmux controller.
 Required properties for iomux controller:
   - compatible: one of "rockchip,rk2928-pinctrl", "rockchip,rk3066a-pinctrl"
 		       "rockchip,rk3066b-pinctrl", "rockchip,rk3188-pinctrl"
+  - reg: first element is the general register space of the iomux controller
+	 second element is the separate pull register space of the rk3188
 
 Required properties for gpio sub nodes:
-  - compatible: "rockchip,gpio-bank"
+  - compatible: "rockchip,gpio-bank", "rockchip,rk3188-gpio-bank0"
   - reg: register of the gpio bank (different than the iomux registerset)
+         second element: separate pull register for rk3188 bank0
   - interrupts: base interrupt of the gpio bank in the interrupt controller
   - clocks: clock that drives this bank
   - gpio-controller: identifies the node as a gpio controller and pin bank.
@@ -95,3 +98,44 @@ uart2: serial@20064000 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_xfer>;
 };
+
+Example for rk3188:
+
+	pinctrl@20008000 {
+		compatible = "rockchip,rk3188-pinctrl";
+		reg = <0x20008000 0xa0>,
+		      <0x20008164 0x1a0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio0: gpio0@0x2000a000 {
+			compatible = "rockchip,rk3188-gpio-bank0";
+			reg = <0x2000a000 0x100>,
+			      <0x20004064 0x8>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 9>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio1@0x2003c000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x2003c000 0x100>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 10>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		...
+
+	};

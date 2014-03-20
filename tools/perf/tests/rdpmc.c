@@ -9,8 +9,6 @@
 
 #if defined(__x86_64__) || defined(__i386__)
 
-#define barrier() asm volatile("" ::: "memory")
-
 static u64 rdpmc(unsigned int counter)
 {
 	unsigned int low, high;

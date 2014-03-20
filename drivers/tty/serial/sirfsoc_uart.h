@@ -368,15 +368,6 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFSOC_UART_NR				6
 #define SIRFSOC_PORT_TYPE			0xa5
 
-/* Baud Rate Calculation */
-#define SIRF_MIN_SAMPLE_DIV			0xf
-#define SIRF_MAX_SAMPLE_DIV			0x3f
-#define SIRF_IOCLK_DIV_MAX			0xffff
-#define SIRF_SAMPLE_DIV_SHIFT			16
-#define SIRF_IOCLK_DIV_MASK			0xffff
-#define SIRF_SAMPLE_DIV_MASK			0x3f0000
-#define SIRF_BAUD_RATE_SUPPORT_NR		18
-
 /* Uart Common Use Macro*/
 #define SIRFSOC_RX_DMA_BUF_SIZE	256
 #define BYTES_TO_ALIGN(dma_addr)	((unsigned long)(dma_addr) & 0x3)
@@ -452,9 +443,6 @@ struct sirfsoc_uart_port {
 	int				rx_completed;
 	int				rx_issued;
 };
-
-/* Hardware Flow Control */
-#define SIRFUART_AFC_CTRL_RX_THD	0x70
 
 /* Register Access Control */
 #define portaddr(port, reg)		((port)->membase + (reg))

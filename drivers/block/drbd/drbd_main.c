@@ -1537,15 +1537,17 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 
 static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
 {
-	struct bio_vec *bvec;
-	int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+
 	/* hint all but last page with MSG_MORE */
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment(bvec, bio, iter) {
 		int err;
 
-		err = _drbd_no_send_page(mdev, bvec->bv_page,
-					 bvec->bv_offset, bvec->bv_len,
-					 i == bio->bi_vcnt - 1 ? 0 : MSG_MORE);
+		err = _drbd_no_send_page(mdev, bvec.bv_page,
+					 bvec.bv_offset, bvec.bv_len,
+					 bio_iter_last(bvec, iter)
+					 ? 0 : MSG_MORE);
 		if (err)
 			return err;
 	}
@@ -1554,15 +1556,16 @@ static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
 
 static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 {
-	struct bio_vec *bvec;
-	int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+
 	/* hint all but last page with MSG_MORE */
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment(bvec, bio, iter) {
 		int err;
 
-		err = _drbd_send_page(mdev, bvec->bv_page,
-				      bvec->bv_offset, bvec->bv_len,
-				      i == bio->bi_vcnt - 1 ? 0 : MSG_MORE);
+		err = _drbd_send_page(mdev, bvec.bv_page,
+				      bvec.bv_offset, bvec.bv_len,
+				      bio_iter_last(bvec, iter) ? 0 : MSG_MORE);
 		if (err)
 			return err;
 	}
@@ -2750,13 +2753,6 @@ int __init drbd_init(void)
 		return err;
 	}
 
-	err = drbd_genl_register();
-	if (err) {
-		printk(KERN_ERR "drbd: unable to register generic netlink family\n");
-		goto fail;
-	}
-
-
 	register_reboot_notifier(&drbd_notifier);
 
 	/*
@@ -2766,6 +2762,15 @@ int __init drbd_init(void)
 
 	drbd_proc = NULL; /* play safe for drbd_cleanup */
 	idr_init(&minors);
+
+	rwlock_init(&global_state_lock);
+	INIT_LIST_HEAD(&drbd_tconns);
+
+	err = drbd_genl_register();
+	if (err) {
+		printk(KERN_ERR "drbd: unable to register generic netlink family\n");
+		goto fail;
+	}
 
 	err = drbd_create_mempools();
 	if (err)
@@ -2777,9 +2782,6 @@ int __init drbd_init(void)
 		printk(KERN_ERR "drbd: unable to register proc file\n");
 		goto fail;
 	}
-
-	rwlock_init(&global_state_lock);
-	INIT_LIST_HEAD(&drbd_tconns);
 
 	retry.wq = create_singlethread_workqueue("drbd-reissue");
 	if (!retry.wq) {

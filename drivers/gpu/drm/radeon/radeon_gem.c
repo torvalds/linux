@@ -29,13 +29,6 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 
-int radeon_gem_object_init(struct drm_gem_object *obj)
-{
-	BUG();
-
-	return 0;
-}
-
 void radeon_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct radeon_bo *robj = gem_to_radeon_bo(gobj);
@@ -93,7 +86,7 @@ retry:
 	return 0;
 }
 
-int radeon_gem_set_domain(struct drm_gem_object *gobj,
+static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			  uint32_t rdomain, uint32_t wdomain)
 {
 	struct radeon_bo *robj;

@@ -1768,7 +1768,10 @@ ksocknal_close_matching_conns (lnet_process_id_t id, __u32 ipaddr)
 	if (id.nid == LNET_NID_ANY || id.pid == LNET_PID_ANY || ipaddr == 0)
 		return (0);
 
-	return (count == 0 ? -ENOENT : 0);
+	if (count == 0)
+		return -ENOENT;
+	else
+		return 0;
 }
 
 void
@@ -2863,7 +2866,6 @@ void __exit
 ksocknal_module_fini (void)
 {
 	lnet_unregister_lnd(&the_ksocklnd);
-	ksocknal_tunables_fini();
 }
 
 int __init

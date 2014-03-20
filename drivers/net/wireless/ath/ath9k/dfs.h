@@ -17,7 +17,7 @@
 
 #ifndef ATH9K_DFS_H
 #define ATH9K_DFS_H
-#include "dfs_pattern_detector.h"
+#include "../dfs_pattern_detector.h"
 
 #if defined(CONFIG_ATH9K_DFS_CERTIFIED)
 /**

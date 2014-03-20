@@ -32,7 +32,7 @@
 #include <linux/errno.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
 #include <linux/delay.h>	/* For mdelay function */
-#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>	/* For struct miscdevice */
 #include <linux/watchdog.h>	/* For the watchdog specific items */
 #include <linux/notifier.h>	/* For notifier support */
 #include <linux/reboot.h>	/* For reboot_notifier stuff */
@@ -44,23 +44,6 @@
 #include <linux/hid.h>		/* For HID_REQ_SET_REPORT & HID_DT_REPORT */
 #include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
 
-#ifdef CONFIG_USB_DEBUG
-static int debug = 1;
-#else
-static int debug;
-#endif
-
-/* Use our own dbg macro */
-
-#undef dbg
-#ifndef DEBUG
-#define DEBUG
-#endif
-#define dbg(format, ...)				\
-do {							\
-	if (debug)					\
-		pr_debug(format "\n", ##__VA_ARGS__);	\
-} while (0)
 
 /* Module and Version Information */
 #define DRIVER_VERSION "1.02"
@@ -72,12 +55,6 @@ do {							\
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_ALIAS_MISCDEV(TEMP_MINOR);
-
-/* Module Parameters */
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 #define WATCHDOG_HEARTBEAT 0	/* default heartbeat =
 						delay-time from dip-switches */
@@ -195,6 +172,7 @@ static void usb_pcwd_intr_done(struct urb *urb)
 	struct usb_pcwd_private *usb_pcwd =
 				(struct usb_pcwd_private *)urb->context;
 	unsigned char *data = usb_pcwd->intr_buffer;
+	struct device *dev = &usb_pcwd->interface->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -204,17 +182,17 @@ static void usb_pcwd_intr_done(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__,
-								urb->status);
+		dev_dbg(dev, "%s - urb shutting down with status: %d",
+			__func__, urb->status);
 		return;
 	/* -EPIPE:  should clear the halt */
 	default:		/* error */
-		dbg("%s - nonzero urb status received: %d", __func__,
-								urb->status);
+		dev_dbg(dev, "%s - nonzero urb status received: %d",
+			__func__, urb->status);
 		goto resubmit;
 	}
 
-	dbg("received following data cmd=0x%02x msb=0x%02x lsb=0x%02x",
+	dev_dbg(dev, "received following data cmd=0x%02x msb=0x%02x lsb=0x%02x",
 		data[0], data[1], data[2]);
 
 	usb_pcwd->cmd_command  = data[0];
@@ -235,12 +213,16 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 		unsigned char cmd, unsigned char *msb, unsigned char *lsb)
 {
 	int got_response, count;
-	unsigned char buf[6];
+	unsigned char *buf;
 
 	/* We will not send any commands if the USB PCWD device does
 	 * not exist */
 	if ((!usb_pcwd) || (!usb_pcwd->exists))
 		return -1;
+
+	buf = kmalloc(6, GFP_KERNEL);
+	if (buf == NULL)
+		return 0;
 
 	/* The USB PC Watchdog uses a 6 byte report format.
 	 * The board currently uses only 3 of the six bytes of the report. */
@@ -249,17 +231,19 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 	buf[2] = *lsb;			/* Byte 2 = Data LSB */
 	buf[3] = buf[4] = buf[5] = 0;	/* All other bytes not used */
 
-	dbg("sending following data cmd=0x%02x msb=0x%02x lsb=0x%02x",
+	dev_dbg(&usb_pcwd->interface->dev,
+		"sending following data cmd=0x%02x msb=0x%02x lsb=0x%02x",
 		buf[0], buf[1], buf[2]);
 
 	atomic_set(&usb_pcwd->cmd_received, 0);
 
 	if (usb_control_msg(usb_pcwd->udev, usb_sndctrlpipe(usb_pcwd->udev, 0),
 			HID_REQ_SET_REPORT, HID_DT_REPORT,
-			0x0200, usb_pcwd->interface_number, buf, sizeof(buf),
-			USB_COMMAND_TIMEOUT) != sizeof(buf)) {
-		dbg("usb_pcwd_send_command: error in usb_control_msg for "
-				"cmd 0x%x 0x%x 0x%x\n", cmd, *msb, *lsb);
+			0x0200, usb_pcwd->interface_number, buf, 6,
+			USB_COMMAND_TIMEOUT) != 6) {
+		dev_dbg(&usb_pcwd->interface->dev,
+			"usb_pcwd_send_command: error in usb_control_msg for cmd 0x%x 0x%x 0x%x\n",
+			cmd, *msb, *lsb);
 	}
 	/* wait till the usb card processed the command,
 	 * with a max. timeout of USB_COMMAND_TIMEOUT */
@@ -276,6 +260,8 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 		*msb = usb_pcwd->cmd_data_msb;
 		*lsb = usb_pcwd->cmd_data_lsb;
 	}
+
+	kfree(buf);
 
 	return got_response;
 }

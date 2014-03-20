@@ -116,7 +116,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err);
 
 void tipc_acknowledge(u32 port_ref, u32 ack);
 
-int tipc_deleteport(u32 portref);
+int tipc_deleteport(struct tipc_port *p_ptr);
 
 int tipc_portimportance(u32 portref, unsigned int *importance);
 int tipc_set_portimportance(u32 portref, unsigned int importance);
@@ -127,9 +127,9 @@ int tipc_set_portunreliable(u32 portref, unsigned int isunreliable);
 int tipc_portunreturnable(u32 portref, unsigned int *isunreturnable);
 int tipc_set_portunreturnable(u32 portref, unsigned int isunreturnable);
 
-int tipc_publish(u32 portref, unsigned int scope,
+int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
 		 struct tipc_name_seq const *name_seq);
-int tipc_withdraw(u32 portref, unsigned int scope,
+int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 		  struct tipc_name_seq const *name_seq);
 
 int tipc_connect(u32 portref, struct tipc_portid const *port);
@@ -151,24 +151,20 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
  * TIPC messaging routines
  */
 int tipc_port_recv_msg(struct sk_buff *buf);
-int tipc_send(u32 portref, unsigned int num_sect, struct iovec const *msg_sect,
-	      unsigned int total_len);
+int tipc_send(u32 portref, struct iovec const *msg_sect, unsigned int len);
 
 int tipc_send2name(u32 portref, struct tipc_name const *name, u32 domain,
-		   unsigned int num_sect, struct iovec const *msg_sect,
-		   unsigned int total_len);
+		   struct iovec const *msg_sect, unsigned int len);
 
 int tipc_send2port(u32 portref, struct tipc_portid const *dest,
-		   unsigned int num_sect, struct iovec const *msg_sect,
-		   unsigned int total_len);
+		   struct iovec const *msg_sect, unsigned int len);
 
 int tipc_multicast(u32 portref, struct tipc_name_seq const *seq,
-		   unsigned int section_count, struct iovec const *msg,
-		   unsigned int total_len);
+		   struct iovec const *msg, unsigned int len);
 
 int tipc_port_reject_sections(struct tipc_port *p_ptr, struct tipc_msg *hdr,
-			      struct iovec const *msg_sect, u32 num_sect,
-			      unsigned int total_len, int err);
+			      struct iovec const *msg_sect, unsigned int len,
+			      int err);
 struct sk_buff *tipc_port_get_ports(void);
 void tipc_port_recv_proto_msg(struct sk_buff *buf);
 void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp);

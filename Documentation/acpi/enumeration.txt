@@ -293,32 +293,28 @@ the device to the driver. For example:
 
 These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
 specifies the path to the controller. In order to use these GPIOs in Linux
-we need to translate them to the Linux GPIO numbers.
+we need to translate them to the corresponding Linux GPIO descriptors.
 
-The driver can do this by including <linux/acpi_gpio.h> and then calling
-acpi_get_gpio(path, gpio). This will return the Linux GPIO number or
-negative errno if there was no translation found.
+There is a standard GPIO API for that and is documented in
+Documentation/gpio.txt.
 
-In a simple case of just getting the Linux GPIO number from device
-resources one can use acpi_get_gpio_by_index() helper function. It takes
-pointer to the device and index of the GpioIo/GpioInt descriptor in the
-device resources list. For example:
+In the above example we can get the corresponding two GPIO descriptors with
+a code like this:
 
-	int gpio_irq, gpio_power;
-	int ret;
+	#include <linux/gpio/consumer.h>
+	...
 
-	gpio_irq = acpi_get_gpio_by_index(dev, 1, NULL);
-	if (gpio_irq < 0)
+	struct gpio_desc *irq_desc, *power_desc;
+
+	irq_desc = gpiod_get_index(dev, NULL, 1);
+	if (IS_ERR(irq_desc))
 		/* handle error */
 
-	gpio_power = acpi_get_gpio_by_index(dev, 0, NULL);
-	if (gpio_power < 0)
+	power_desc = gpiod_get_index(dev, NULL, 0);
+	if (IS_ERR(power_desc))
 		/* handle error */
 
-	/* Now we can use the GPIO numbers */
+	/* Now we can use the GPIO descriptors */
 
-Other GpioIo parameters must be converted first by the driver to be
-suitable to the gpiolib before passing them.
-
-In case of GpioInt resource an additional call to gpio_to_irq() must be
-done before calling request_irq().
+There are also devm_* versions of these functions which release the
+descriptors once the device is released.

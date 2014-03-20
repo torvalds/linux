@@ -483,7 +483,7 @@ cdv_intel_dp_aux_native_write(struct gma_encoder *encoder,
 
 	if (send_bytes > 16)
 		return -1;
-	msg[0] = AUX_NATIVE_WRITE << 4;
+	msg[0] = DP_AUX_NATIVE_WRITE << 4;
 	msg[1] = address >> 8;
 	msg[2] = address & 0xff;
 	msg[3] = send_bytes - 1;
@@ -493,9 +493,10 @@ cdv_intel_dp_aux_native_write(struct gma_encoder *encoder,
 		ret = cdv_intel_dp_aux_ch(encoder, msg, msg_bytes, &ack, 1);
 		if (ret < 0)
 			return ret;
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+		ack >>= 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			break;
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
 			udelay(100);
 		else
 			return -EIO;
@@ -523,7 +524,7 @@ cdv_intel_dp_aux_native_read(struct gma_encoder *encoder,
 	uint8_t ack;
 	int ret;
 
-	msg[0] = AUX_NATIVE_READ << 4;
+	msg[0] = DP_AUX_NATIVE_READ << 4;
 	msg[1] = address >> 8;
 	msg[2] = address & 0xff;
 	msg[3] = recv_bytes - 1;
@@ -538,12 +539,12 @@ cdv_intel_dp_aux_native_read(struct gma_encoder *encoder,
 			return -EPROTO;
 		if (ret < 0)
 			return ret;
-		ack = reply[0];
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK) {
+		ack = reply[0] >> 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK) {
 			memcpy(recv, reply + 1, ret - 1);
 			return ret - 1;
 		}
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
 			udelay(100);
 		else
 			return -EIO;
@@ -569,12 +570,12 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
-		msg[0] = AUX_I2C_READ << 4;
+		msg[0] = DP_AUX_I2C_READ << 4;
 	else
-		msg[0] = AUX_I2C_WRITE << 4;
+		msg[0] = DP_AUX_I2C_WRITE << 4;
 
 	if (!(mode & MODE_I2C_STOP))
-		msg[0] |= AUX_I2C_MOT << 4;
+		msg[0] |= DP_AUX_I2C_MOT << 4;
 
 	msg[1] = address >> 8;
 	msg[2] = address;
@@ -606,16 +607,16 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return ret;
 		}
 
-		switch (reply[0] & AUX_NATIVE_REPLY_MASK) {
-		case AUX_NATIVE_REPLY_ACK:
+		switch ((reply[0] >> 4) & DP_AUX_NATIVE_REPLY_MASK) {
+		case DP_AUX_NATIVE_REPLY_ACK:
 			/* I2C-over-AUX Reply field is only valid
 			 * when paired with AUX ACK.
 			 */
 			break;
-		case AUX_NATIVE_REPLY_NACK:
+		case DP_AUX_NATIVE_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_ch native nack\n");
 			return -EREMOTEIO;
-		case AUX_NATIVE_REPLY_DEFER:
+		case DP_AUX_NATIVE_REPLY_DEFER:
 			udelay(100);
 			continue;
 		default:
@@ -624,16 +625,16 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return -EREMOTEIO;
 		}
 
-		switch (reply[0] & AUX_I2C_REPLY_MASK) {
-		case AUX_I2C_REPLY_ACK:
+		switch ((reply[0] >> 4) & DP_AUX_I2C_REPLY_MASK) {
+		case DP_AUX_I2C_REPLY_ACK:
 			if (mode == MODE_I2C_READ) {
 				*read_byte = reply[1];
 			}
 			return reply_bytes - 1;
-		case AUX_I2C_REPLY_NACK:
+		case DP_AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
 			return -EREMOTEIO;
-		case AUX_I2C_REPLY_DEFER:
+		case DP_AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
 			udelay(100);
 			break;
@@ -666,7 +667,7 @@ cdv_intel_dp_i2c_init(struct gma_connector *connector,
 	strncpy (intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
-	intel_dp->adapter.dev.parent = &connector->base.kdev;
+	intel_dp->adapter.dev.parent = connector->base.kdev;
 
 	if (is_edp(encoder))
 		cdv_intel_edp_panel_vdd_on(encoder);
@@ -677,7 +678,7 @@ cdv_intel_dp_i2c_init(struct gma_connector *connector,
 	return ret;
 }
 
-void cdv_intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+static void cdv_intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 	struct drm_display_mode *adjusted_mode)
 {
 	adjusted_mode->hdisplay = fixed_mode->hdisplay;

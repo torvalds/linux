@@ -29,7 +29,6 @@
 .globl ret_from_exception
 .globl ret_from_signal
 .globl sys_call_table
-.globl ret_from_interrupt
 .globl bad_interrupt
 .globl inthandler
 
@@ -132,26 +131,9 @@ inthandler:
 
 	movel	%sp,%sp@-
 	movel	%d0,%sp@- 		/*  put vector # on stack*/
-	jbsr	do_IRQ			/*  process the IRQ*/
-3:     	addql	#8,%sp			/*  pop parameters off stack*/
-	bra	ret_from_interrupt
-
-ret_from_interrupt:
-	jeq	1f
-2:
-	RESTORE_ALL
-1:
-	moveb	%sp@(PT_OFF_SR), %d0
-	and	#7, %d0
-	jhi	2b
-	/* check if we need to do software interrupts */
-
-	movel	irq_stat+CPUSTAT_SOFTIRQ_PENDING,%d0
-	jeq	ret_from_exception
-
-	pea	ret_from_exception
-	jra	do_softirq
-
+	jbsr	do_IRQ			/*  process the IRQ */
+	addql	#8,%sp			/*  pop parameters off stack*/
+	jra	ret_from_exception
 
 /*
  * Handler for uninitialized and spurious interrupts.

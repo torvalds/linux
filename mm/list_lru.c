@@ -81,8 +81,9 @@ restart:
 		 * decrement nr_to_walk first so that we don't livelock if we
 		 * get stuck on large numbesr of LRU_RETRY items
 		 */
-		if (--(*nr_to_walk) == 0)
+		if (!*nr_to_walk)
 			break;
+		--*nr_to_walk;
 
 		ret = isolate(item, &nlru->lock, cb_arg);
 		switch (ret) {

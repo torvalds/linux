@@ -14,7 +14,7 @@
 #define PCIE_PORT_DEVICE_MAXSERVICES   4
 /*
  * According to the PCI Express Base Specification 2.0, the indices of
- * the MSI-X table entires used by port services must not exceed 31
+ * the MSI-X table entries used by port services must not exceed 31
  */
 #define PCIE_PORT_MAX_MSIX_ENTRIES	32
 

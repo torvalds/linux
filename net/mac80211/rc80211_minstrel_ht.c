@@ -63,7 +63,7 @@
 
 #define CCK_DURATION(_bitrate, _short, _len)		\
 	(1000 * (10 /* SIFS */ +			\
-	 (_short ? 72 + 24 : 144 + 48 ) +		\
+	 (_short ? 72 + 24 : 144 + 48) +		\
 	 (8 * (_len + 4) * 10) / (_bitrate)))
 
 #define CCK_ACK_DURATION(_bitrate, _short)			\
@@ -135,7 +135,7 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi);
 static int
 minstrel_ht_get_group_idx(struct ieee80211_tx_rate *rate)
 {
-	return GROUP_IDX((rate->idx / MCS_GROUP_RATES) + 1,
+	return GROUP_IDX((rate->idx / 8) + 1,
 			 !!(rate->flags & IEEE80211_TX_RC_SHORT_GI),
 			 !!(rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH));
 }
@@ -148,7 +148,7 @@ minstrel_ht_get_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 	if (rate->flags & IEEE80211_TX_RC_MCS) {
 		group = minstrel_ht_get_group_idx(rate);
-		idx = rate->idx % MCS_GROUP_RATES;
+		idx = rate->idx % 8;
 	} else {
 		group = MINSTREL_CCK_GROUP;
 
@@ -226,7 +226,7 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
 	nsecs += minstrel_mcs_groups[group].duration[rate];
-	tp = 1000000 * ((mr->probability * 1000) / nsecs);
+	tp = 1000000 * ((prob * 1000) / nsecs);
 
 	mr->cur_tp = MINSTREL_TRUNC(tp);
 }
@@ -277,13 +277,15 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 			if (!(mg->supported & BIT(i)))
 				continue;
 
+			index = MCS_GROUP_RATES * group + i;
+
 			/* initialize rates selections starting indexes */
 			if (!mg_rates_valid) {
 				mg->max_tp_rate = mg->max_tp_rate2 =
 					mg->max_prob_rate = i;
 				if (!mi_rates_valid) {
 					mi->max_tp_rate = mi->max_tp_rate2 =
-						mi->max_prob_rate = i;
+						mi->max_prob_rate = index;
 					mi_rates_valid = true;
 				}
 				mg_rates_valid = true;
@@ -291,7 +293,6 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 			mr = &mg->rates[i];
 			mr->retry_updated = false;
-			index = MCS_GROUP_RATES * group + i;
 			minstrel_calc_rate_ewma(mr);
 			minstrel_ht_calc_tp(mi, group, i);
 
@@ -365,6 +366,14 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		}
 	}
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* use fixed index if set */
+	if (mp->fixed_rate_idx != -1) {
+		mi->max_tp_rate = mp->fixed_rate_idx;
+		mi->max_tp_rate2 = mp->fixed_rate_idx;
+		mi->max_prob_rate = mp->fixed_rate_idx;
+	}
+#endif
 
 	mi->stats_update = jiffies;
 }
@@ -628,8 +637,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		idx = mp->cck_rates[index % ARRAY_SIZE(mp->cck_rates)];
 		flags = 0;
 	} else {
-		idx = index % MCS_GROUP_RATES +
-		      (group->streams - 1) * MCS_GROUP_RATES;
+		idx = index % MCS_GROUP_RATES + (group->streams - 1) * 8;
 		flags = IEEE80211_TX_RC_MCS | group->flags;
 	}
 
@@ -693,12 +701,16 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (!mi->sample_tries)
 		return -1;
 
-	mg = &mi->groups[mi->sample_group];
-	sample_idx = sample_table[mg->column][mg->index];
-	mr = &mg->rates[sample_idx];
 	sample_group = mi->sample_group;
-	sample_idx += sample_group * MCS_GROUP_RATES;
+	mg = &mi->groups[sample_group];
+	sample_idx = sample_table[mg->column][mg->index];
 	minstrel_next_sample_idx(mi);
+
+	if (!(mg->supported & BIT(sample_idx)))
+		return -1;
+
+	mr = &mg->rates[sample_idx];
+	sample_idx += sample_group * MCS_GROUP_RATES;
 
 	/*
 	 * Sampling might add some overhead (RTS, no aggregation)
@@ -774,22 +786,17 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	info->flags |= mi->tx_flags;
 	minstrel_ht_check_cck_shortpreamble(mp, mi, txrc->short_preamble);
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (mp->fixed_rate_idx != -1)
+		return;
+#endif
+
 	/* Don't use EAPOL frames for sampling on non-mrr hw */
 	if (mp->hw->max_rates == 1 &&
 	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		sample_idx = -1;
 	else
 		sample_idx = minstrel_get_sample_rate(mp, mi);
-
-#ifdef CONFIG_MAC80211_DEBUGFS
-	/* use fixed index if set */
-	if (mp->fixed_rate_idx != -1) {
-		mi->max_tp_rate = mp->fixed_rate_idx;
-		mi->max_tp_rate2 = mp->fixed_rate_idx;
-		mi->max_prob_rate = mp->fixed_rate_idx;
-		sample_idx = -1;
-	}
-#endif
 
 	mi->total_packets++;
 
@@ -814,7 +821,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	}
 
 	rate->idx = sample_idx % MCS_GROUP_RATES +
-		    (sample_group->streams - 1) * MCS_GROUP_RATES;
+		    (sample_group->streams - 1) * 8;
 	rate->flags = IEEE80211_TX_RC_MCS | sample_group->flags;
 }
 
@@ -1049,10 +1056,9 @@ init_sample_table(void)
 
 	memset(sample_table, 0xff, sizeof(sample_table));
 	for (col = 0; col < SAMPLE_COLUMNS; col++) {
+		prandom_bytes(rnd, sizeof(rnd));
 		for (i = 0; i < MCS_GROUP_RATES; i++) {
-			get_random_bytes(rnd, sizeof(rnd));
 			new_idx = (i + rnd[i]) % MCS_GROUP_RATES;
-
 			while (sample_table[col][new_idx] != 0xff)
 				new_idx = (new_idx + 1) % MCS_GROUP_RATES;
 

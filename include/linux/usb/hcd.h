@@ -73,6 +73,7 @@ struct giveback_urb_bh {
 	spinlock_t lock;
 	struct list_head  head;
 	struct tasklet_struct bh;
+	struct usb_host_endpoint *completing_ep;
 };
 
 struct usb_hcd {
@@ -133,6 +134,7 @@ struct usb_hcd {
 	unsigned		rh_registered:1;/* is root hub registered? */
 	unsigned		rh_pollable:1;	/* may we poll the root hub? */
 	unsigned		msix_enabled:1;	/* driver has MSI-X enabled? */
+	unsigned		remove_phy:1;	/* auto-remove USB phy */
 
 	/* The next flag is a stopgap, to be removed when all the HCDs
 	 * support the new root-hub polling mechanism. */
@@ -140,6 +142,7 @@ struct usb_hcd {
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		authorized_default:1;
 	unsigned		has_tt:1;	/* Integrated TT in root hub */
+	unsigned		amd_resume_bug:1; /* AMD remote wakeup quirk */
 
 	unsigned int		irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
@@ -350,6 +353,8 @@ struct hc_driver {
 	void	(*reset_bandwidth)(struct usb_hcd *, struct usb_device *);
 		/* Returns the hardware-chosen device address */
 	int	(*address_device)(struct usb_hcd *, struct usb_device *udev);
+		/* prepares the hardware to send commands to the device */
+	int	(*enable_device)(struct usb_hcd *, struct usb_device *udev);
 		/* Notifies the HCD after a hub descriptor is fetched.
 		 * Will block.
 		 */
@@ -376,6 +381,12 @@ struct hc_driver {
 static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
 {
 	return hcd->driver->flags & HCD_BH;
+}
+
+static inline bool hcd_periodic_completion_in_progress(struct usb_hcd *hcd,
+		struct usb_host_endpoint *ep)
+{
+	return hcd->high_prio_bh.completing_ep == ep;
 }
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
@@ -427,6 +438,8 @@ extern int usb_hcd_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id);
 extern void usb_hcd_pci_remove(struct pci_dev *dev);
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);
+
+extern int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *dev);
 
 #ifdef CONFIG_PM
 extern const struct dev_pm_ops usb_hcd_pci_pm_ops;
@@ -496,6 +509,7 @@ struct usb_tt {
 	struct usb_device	*hub;	/* upstream highspeed hub */
 	int			multi;	/* true means one TT per port */
 	unsigned		think_time;	/* think time in ns */
+	void			*hcpriv;	/* HCD private data */
 
 	/* for control/bulk error recovery (CLEAR_TT_BUFFER) */
 	spinlock_t		lock;
@@ -554,9 +568,8 @@ extern void usb_ep0_reinit(struct usb_device *);
 		 * of (7/6 * 8 * bytecount) = 9.33 * bytecount */
 		/* bytecount = data payload byte count */
 
-#define NS_TO_US(ns)	((ns + 500L) / 1000L)
-			/* convert & round nanoseconds to microseconds */
-
+#define NS_TO_US(ns)	DIV_ROUND_UP(ns, 1000L)
+			/* convert nanoseconds to microseconds, rounding up */
 
 /*
  * Full/low speed bandwidth allocation constants/support.

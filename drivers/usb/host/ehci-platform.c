@@ -78,7 +78,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 	struct resource *res_mem;
 	struct usb_ehci_pdata *pdata;
 	int irq;
-	int err = -ENOMEM;
+	int err;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -89,10 +89,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 	 */
 	if (!dev_get_platdata(&dev->dev))
 		dev->dev.platform_data = &ehci_platform_defaults;
-	if (!dev->dev.dma_mask)
-		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
-	if (!dev->dev.coherent_dma_mask)
-		dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+
+	err = dma_coerce_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
+	if (err)
+		return err;
 
 	pdata = dev_get_platdata(&dev->dev);
 
@@ -132,6 +132,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 	if (err)
 		goto err_put_hcd;
 
+	device_wakeup_enable(hcd->self.controller);
 	platform_set_drvdata(dev, hcd);
 
 	return err;

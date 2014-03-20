@@ -38,13 +38,6 @@ struct sca_block {
 	struct sca_entry cpu[64];
 } __attribute__((packed));
 
-#define KVM_NR_PAGE_SIZES 2
-#define KVM_HPAGE_GFN_SHIFT(x) (((x) - 1) * 8)
-#define KVM_HPAGE_SHIFT(x) (PAGE_SHIFT + KVM_HPAGE_GFN_SHIFT(x))
-#define KVM_HPAGE_SIZE(x) (1UL << KVM_HPAGE_SHIFT(x))
-#define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
-#define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
-
 #define CPUSTAT_STOPPED    0x80000000
 #define CPUSTAT_WAIT       0x10000000
 #define CPUSTAT_ECALL_PEND 0x08000000
@@ -113,8 +106,21 @@ struct kvm_s390_sie_block {
 	__u64	gbea;			/* 0x0180 */
 	__u8	reserved188[24];	/* 0x0188 */
 	__u32	fac;			/* 0x01a0 */
-	__u8	reserved1a4[92];	/* 0x01a4 */
+	__u8	reserved1a4[68];	/* 0x01a4 */
+	__u64	itdba;			/* 0x01e8 */
+	__u8	reserved1f0[16];	/* 0x01f0 */
 } __attribute__((packed));
+
+struct kvm_s390_itdb {
+	__u8	data[256];
+} __packed;
+
+struct sie_page {
+	struct kvm_s390_sie_block sie_block;
+	__u8 reserved200[1024];		/* 0x0200 */
+	struct kvm_s390_itdb itdb;	/* 0x0600 */
+	__u8 reserved700[2304];		/* 0x0700 */
+} __packed;
 
 struct kvm_vcpu_stat {
 	u32 exit_userspace;
@@ -220,7 +226,6 @@ struct kvm_s390_interrupt_info {
 /* for local_interrupt.action_flags */
 #define ACTION_STORE_ON_STOP		(1<<0)
 #define ACTION_STOP_ON_STOP		(1<<1)
-#define ACTION_RELOADVCPU_ON_STOP	(1<<2)
 
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;

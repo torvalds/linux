@@ -52,6 +52,8 @@
 #define AR9300_PAPRD_SCALE_2		0x70000000
 #define AR9300_PAPRD_SCALE_2_S		28
 
+#define AR9300_EEP_ANTDIV_CONTROL_DEFAULT_VALUE 0xc9
+
 /* Delta from which to start power to pdadc table */
 /* This offset is used in both open loop and closed loop power control
  * schemes. In open loop power control, it is not really needed, but for
@@ -268,10 +270,20 @@ struct cal_ctl_data_5g {
 	u8 ctlEdges[AR9300_NUM_BAND_EDGES_5G];
 } __packed;
 
+#define MAX_BASE_EXTENSION_FUTURE 2
+
 struct ar9300_BaseExtension_1 {
 	u8 ant_div_control;
-	u8 future[3];
-	u8 tempslopextension[8];
+	u8 future[MAX_BASE_EXTENSION_FUTURE];
+	/*
+	 * misc_enable:
+	 *
+	 * BIT 0   - TX Gain Cap enable.
+	 * BIT 1   - Uncompressed Checksum enable.
+	 * BIT 2/3 - MinCCApwr enable 2g/5g.
+	 */
+	u8 misc_enable;
+	int8_t tempslopextension[8];
 	int8_t quick_drop_low;
 	int8_t quick_drop_high;
 } __packed;

@@ -44,17 +44,16 @@ The state of the outputs can be read.
 
 static int pci263_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-		/* Write out the new digital output lines */
-		outb(s->state & 0xFF, dev->iobase);
-		outb(s->state >> 8, dev->iobase + 1);
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase);
+		outb((s->state >> 8) & 0xff, dev->iobase + 1);
 	}
+
+	data[1] = s->state;
+
 	return insn->n;
 }
 
@@ -97,7 +96,7 @@ static struct comedi_driver amplc_pci263_driver = {
 	.detach		= comedi_pci_disable,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pci263_pci_table) = {
+static const struct pci_device_id pci263_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
 	{0}
 };

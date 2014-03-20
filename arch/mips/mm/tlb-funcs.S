@@ -16,12 +16,10 @@
 
 #define FASTPATH_SIZE	128
 
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
 LEAF(tlbmiss_handler_setup_pgd)
 	.space		16 * 4
 END(tlbmiss_handler_setup_pgd)
 EXPORT(tlbmiss_handler_setup_pgd_end)
-#endif
 
 LEAF(handle_tlbm)
 	.space		FASTPATH_SIZE * 4

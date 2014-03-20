@@ -390,9 +390,8 @@ static int vfb_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *info)
 {
 	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->yoffset < 0
-		    || var->yoffset >= info->var.yres_virtual
-		    || var->xoffset)
+		if (var->yoffset >= info->var.yres_virtual ||
+		    var->xoffset)
 			return -EINVAL;
 	} else {
 		if (var->xoffset + info->var.xres > info->var.xres_virtual ||
@@ -527,9 +526,8 @@ static int vfb_probe(struct platform_device *dev)
 		goto err2;
 	platform_set_drvdata(dev, info);
 
-	printk(KERN_INFO
-	       "fb%d: Virtual frame buffer device, using %ldK of video memory\n",
-	       info->node, videomemorysize >> 10);
+	fb_info(info, "Virtual frame buffer device, using %ldK of video memory\n",
+		videomemorysize >> 10);
 	return 0;
 err2:
 	fb_dealloc_cmap(&info->cmap);

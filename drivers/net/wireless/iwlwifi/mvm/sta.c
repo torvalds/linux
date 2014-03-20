@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,115 @@
 #include "sta.h"
 #include "rs.h"
 
+static void iwl_mvm_add_sta_cmd_v6_to_v5(struct iwl_mvm_add_sta_cmd_v6 *cmd_v6,
+					 struct iwl_mvm_add_sta_cmd_v5 *cmd_v5)
+{
+	memset(cmd_v5, 0, sizeof(*cmd_v5));
+
+	cmd_v5->add_modify = cmd_v6->add_modify;
+	cmd_v5->tid_disable_tx = cmd_v6->tid_disable_tx;
+	cmd_v5->mac_id_n_color = cmd_v6->mac_id_n_color;
+	memcpy(cmd_v5->addr, cmd_v6->addr, ETH_ALEN);
+	cmd_v5->sta_id = cmd_v6->sta_id;
+	cmd_v5->modify_mask = cmd_v6->modify_mask;
+	cmd_v5->station_flags = cmd_v6->station_flags;
+	cmd_v5->station_flags_msk = cmd_v6->station_flags_msk;
+	cmd_v5->add_immediate_ba_tid = cmd_v6->add_immediate_ba_tid;
+	cmd_v5->remove_immediate_ba_tid = cmd_v6->remove_immediate_ba_tid;
+	cmd_v5->add_immediate_ba_ssn = cmd_v6->add_immediate_ba_ssn;
+	cmd_v5->sleep_tx_count = cmd_v6->sleep_tx_count;
+	cmd_v5->sleep_state_flags = cmd_v6->sleep_state_flags;
+	cmd_v5->assoc_id = cmd_v6->assoc_id;
+	cmd_v5->beamform_flags = cmd_v6->beamform_flags;
+	cmd_v5->tfd_queue_msk = cmd_v6->tfd_queue_msk;
+}
+
+static void
+iwl_mvm_add_sta_key_to_add_sta_cmd_v5(struct iwl_mvm_add_sta_key_cmd *key_cmd,
+				      struct iwl_mvm_add_sta_cmd_v5 *sta_cmd,
+				      u32 mac_id_n_color)
+{
+	memset(sta_cmd, 0, sizeof(*sta_cmd));
+
+	sta_cmd->sta_id = key_cmd->sta_id;
+	sta_cmd->add_modify = STA_MODE_MODIFY;
+	sta_cmd->modify_mask = STA_MODIFY_KEY;
+	sta_cmd->mac_id_n_color = cpu_to_le32(mac_id_n_color);
+
+	sta_cmd->key.key_offset = key_cmd->key_offset;
+	sta_cmd->key.key_flags = key_cmd->key_flags;
+	memcpy(sta_cmd->key.key, key_cmd->key, sizeof(sta_cmd->key.key));
+	sta_cmd->key.tkip_rx_tsc_byte2 = key_cmd->tkip_rx_tsc_byte2;
+	memcpy(sta_cmd->key.tkip_rx_ttak, key_cmd->tkip_rx_ttak,
+	       sizeof(sta_cmd->key.tkip_rx_ttak));
+}
+
+static int iwl_mvm_send_add_sta_cmd_status(struct iwl_mvm *mvm,
+					   struct iwl_mvm_add_sta_cmd_v6 *cmd,
+					   int *status)
+{
+	struct iwl_mvm_add_sta_cmd_v5 cmd_v5;
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_STA_KEY_CMD)
+		return iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(*cmd),
+						   cmd, status);
+
+	iwl_mvm_add_sta_cmd_v6_to_v5(cmd, &cmd_v5);
+
+	return iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd_v5),
+					   &cmd_v5, status);
+}
+
+static int iwl_mvm_send_add_sta_cmd(struct iwl_mvm *mvm, u32 flags,
+				    struct iwl_mvm_add_sta_cmd_v6 *cmd)
+{
+	struct iwl_mvm_add_sta_cmd_v5 cmd_v5;
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_STA_KEY_CMD)
+		return iwl_mvm_send_cmd_pdu(mvm, ADD_STA, flags,
+					    sizeof(*cmd), cmd);
+
+	iwl_mvm_add_sta_cmd_v6_to_v5(cmd, &cmd_v5);
+
+	return iwl_mvm_send_cmd_pdu(mvm, ADD_STA, flags, sizeof(cmd_v5),
+				    &cmd_v5);
+}
+
+static int
+iwl_mvm_send_add_sta_key_cmd_status(struct iwl_mvm *mvm,
+				    struct iwl_mvm_add_sta_key_cmd *cmd,
+				    u32 mac_id_n_color,
+				    int *status)
+{
+	struct iwl_mvm_add_sta_cmd_v5 sta_cmd;
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_STA_KEY_CMD)
+		return iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY,
+						   sizeof(*cmd), cmd, status);
+
+	iwl_mvm_add_sta_key_to_add_sta_cmd_v5(cmd, &sta_cmd, mac_id_n_color);
+
+	return iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(sta_cmd),
+					   &sta_cmd, status);
+}
+
+static int iwl_mvm_send_add_sta_key_cmd(struct iwl_mvm *mvm,
+					u32 flags,
+					struct iwl_mvm_add_sta_key_cmd *cmd,
+					u32 mac_id_n_color)
+{
+	struct iwl_mvm_add_sta_cmd_v5 sta_cmd;
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_STA_KEY_CMD)
+		return iwl_mvm_send_cmd_pdu(mvm, ADD_STA_KEY, flags,
+					    sizeof(*cmd), cmd);
+
+	iwl_mvm_add_sta_key_to_add_sta_cmd_v5(cmd, &sta_cmd, mac_id_n_color);
+
+	return iwl_mvm_send_cmd_pdu(mvm, ADD_STA, flags, sizeof(sta_cmd),
+				    &sta_cmd);
+}
+
 static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm)
 {
 	int sta_id;
@@ -87,7 +196,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update)
 {
 	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
-	struct iwl_mvm_add_sta_cmd add_sta_cmd;
+	struct iwl_mvm_add_sta_cmd_v6 add_sta_cmd;
 	int ret;
 	u32 status;
 	u32 agg_size = 0, mpdu_dens = 0;
@@ -175,8 +284,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		cpu_to_le32(mpdu_dens << STA_FLG_AGG_MPDU_DENS_SHIFT);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(add_sta_cmd),
-					  &add_sta_cmd, &status);
+	ret = iwl_mvm_send_add_sta_cmd_status(mvm, &add_sta_cmd, &status);
 	if (ret)
 		return ret;
 
@@ -229,8 +337,12 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
 			mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
 
-	/* for HW restart - need to reset the seq_number etc... */
-	memset(mvm_sta->tid_data, 0, sizeof(mvm_sta->tid_data));
+	/* for HW restart - reset everything but the sequence number */
+	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+		u16 seq = mvm_sta->tid_data[i].seq_number;
+		memset(&mvm_sta->tid_data[i], 0, sizeof(mvm_sta->tid_data[i]));
+		mvm_sta->tid_data[i].seq_number = seq;
+	}
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
@@ -256,7 +368,7 @@ int iwl_mvm_update_sta(struct iwl_mvm *mvm,
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain)
 {
-	struct iwl_mvm_add_sta_cmd cmd = {};
+	struct iwl_mvm_add_sta_cmd_v6 cmd = {};
 	int ret;
 	u32 status;
 
@@ -269,8 +381,7 @@ int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	cmd.station_flags_msk = cpu_to_le32(STA_FLG_DRAIN_FLOW);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
-					  &cmd, &status);
+	ret = iwl_mvm_send_add_sta_cmd_status(mvm, &cmd, &status);
 	if (ret)
 		return ret;
 
@@ -341,8 +452,15 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 			rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 						  lockdep_is_held(&mvm->mutex));
 
-		/* This station is in use */
-		if (!IS_ERR(sta))
+		/*
+		 * This station is in use or RCU-removed; the latter happens in
+		 * managed mode, where mac80211 removes the station before we
+		 * can remove it from firmware (we can only do that after the
+		 * MAC is marked unassociated), and possibly while the deauth
+		 * frame to disconnect from the AP is still queued. Then, the
+		 * station pointer is -ENOENT when the last skb is reclaimed.
+		 */
+		if (!IS_ERR(sta) || PTR_ERR(sta) == -ENOENT)
 			continue;
 
 		if (PTR_ERR(sta) == -EINVAL) {
@@ -469,13 +587,13 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 				      const u8 *addr,
 				      u16 mac_id, u16 color)
 {
-	struct iwl_mvm_add_sta_cmd cmd;
+	struct iwl_mvm_add_sta_cmd_v6 cmd;
 	int ret;
 	u32 status;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	memset(&cmd, 0, sizeof(struct iwl_mvm_add_sta_cmd));
+	memset(&cmd, 0, sizeof(struct iwl_mvm_add_sta_cmd_v6));
 	cmd.sta_id = sta->sta_id;
 	cmd.mac_id_n_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mac_id,
 							     color));
@@ -485,8 +603,7 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 	if (addr)
 		memcpy(cmd.addr, addr, ETH_ALEN);
 
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
-					  &cmd, &status);
+	ret = iwl_mvm_send_add_sta_cmd_status(mvm, &cmd, &status);
 	if (ret)
 		return ret;
 
@@ -534,9 +651,13 @@ int iwl_mvm_send_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct iwl_mvm_int_sta *bsta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	static const u8 baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	const u8 *baddr = _baddr;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (vif->type == NL80211_IFTYPE_ADHOC)
+		baddr = vif->bss_conf.bssid;
 
 	if (WARN_ON_ONCE(bsta->sta_id == IWL_MVM_STATION_COUNT))
 		return -ENOSPC;
@@ -614,7 +735,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u16 ssn, bool start)
 {
 	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
-	struct iwl_mvm_add_sta_cmd cmd = {};
+	struct iwl_mvm_add_sta_cmd_v6 cmd = {};
 	int ret;
 	u32 status;
 
@@ -638,8 +759,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 				  STA_MODIFY_REMOVE_BA_TID;
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
-					  &cmd, &status);
+	ret = iwl_mvm_send_add_sta_cmd_status(mvm, &cmd, &status);
 	if (ret)
 		return ret;
 
@@ -674,7 +794,7 @@ static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			      int tid, u8 queue, bool start)
 {
 	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
-	struct iwl_mvm_add_sta_cmd cmd = {};
+	struct iwl_mvm_add_sta_cmd_v6 cmd = {};
 	int ret;
 	u32 status;
 
@@ -696,8 +816,7 @@ static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	cmd.tid_disable_tx = cpu_to_le16(mvm_sta->tid_disable_agg);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
-					  &cmd, &status);
+	ret = iwl_mvm_send_add_sta_cmd_status(mvm, &cmd, &status);
 	if (ret)
 		return ret;
 
@@ -728,7 +847,7 @@ static const u8 tid_to_ac[] = {
 int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data;
 	int txq_id;
 
@@ -743,13 +862,13 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	for (txq_id = IWL_MVM_FIRST_AGG_QUEUE;
-	     txq_id <= IWL_MVM_LAST_AGG_QUEUE; txq_id++)
+	for (txq_id = mvm->first_agg_queue;
+	     txq_id <= mvm->last_agg_queue; txq_id++)
 		if (mvm->queue_to_mac80211[txq_id] ==
 		    IWL_INVALID_MAC80211_QUEUE)
 			break;
 
-	if (txq_id > IWL_MVM_LAST_AGG_QUEUE) {
+	if (txq_id > mvm->last_agg_queue) {
 		IWL_ERR(mvm, "Failed to allocate agg queue\n");
 		return -EIO;
 	}
@@ -783,7 +902,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid, u8 buf_size)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	int queue, fifo, ret;
 	u16 ssn;
@@ -820,26 +939,13 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		     sta->addr, tid);
 
-	if (mvm->cfg->ht_params->use_rts_for_aggregation) {
-		/*
-		 * switch to RTS/CTS if it is the prefer protection
-		 * method for HT traffic
-		 * this function also sends the LQ command
-		 */
-		return iwl_mvm_tx_protection(mvm, mvmsta, true);
-		/*
-		 * TODO: remove the TLC_RTS flag when we tear down the last
-		 * AGG session (agg_tids_count in DVM)
-		 */
-	}
-
-	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, CMD_ASYNC, false);
+	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, false);
 }
 
 int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	u16 txq_id;
 	int err;
@@ -911,7 +1017,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	u16 txq_id;
 	enum iwl_mvm_agg_state old_state;
@@ -987,10 +1093,11 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 				u32 cmd_flags)
 {
 	__le16 key_flags;
-	struct iwl_mvm_add_sta_cmd cmd = {};
+	struct iwl_mvm_add_sta_key_cmd cmd = {};
 	int ret, status;
 	u16 keyidx;
 	int i;
+	u32 mac_id_n_color = mvm_sta->mac_id_n_color;
 
 	keyidx = (keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
 		 STA_KEY_FLG_KEYID_MSK;
@@ -1000,37 +1107,35 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_TKIP);
-		cmd.key.tkip_rx_tsc_byte2 = tkip_iv32;
+		cmd.tkip_rx_tsc_byte2 = tkip_iv32;
 		for (i = 0; i < 5; i++)
-			cmd.key.tkip_rx_ttak[i] = cpu_to_le16(tkip_p1k[i]);
-		memcpy(cmd.key.key, keyconf->key, keyconf->keylen);
+			cmd.tkip_rx_ttak[i] = cpu_to_le16(tkip_p1k[i]);
+		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_CCM);
-		memcpy(cmd.key.key, keyconf->key, keyconf->keylen);
+		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 		break;
 	default:
-		WARN_ON(1);
-		return -EINVAL;
+		key_flags |= cpu_to_le16(STA_KEY_FLG_EXT);
+		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 	}
 
 	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
 
-	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
-	cmd.key.key_offset = keyconf->hw_key_idx;
-	cmd.key.key_flags = key_flags;
-	cmd.add_modify = STA_MODE_MODIFY;
-	cmd.modify_mask = STA_MODIFY_KEY;
+	cmd.key_offset = keyconf->hw_key_idx;
+	cmd.key_flags = key_flags;
 	cmd.sta_id = sta_id;
 
 	status = ADD_STA_SUCCESS;
 	if (cmd_flags == CMD_SYNC)
-		ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
-						  &cmd, &status);
+		ret = iwl_mvm_send_add_sta_key_cmd_status(mvm, &cmd,
+							  mac_id_n_color,
+							  &status);
 	else
-		ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC,
-					   sizeof(cmd), &cmd);
+		ret = iwl_mvm_send_add_sta_key_cmd(mvm, CMD_ASYNC, &cmd,
+						   mac_id_n_color);
 
 	switch (status) {
 	case ADD_STA_SUCCESS:
@@ -1177,8 +1282,8 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 					   0, NULL, CMD_SYNC);
 		break;
 	default:
-		IWL_ERR(mvm, "Unknown cipher %x\n", keyconf->cipher);
-		ret = -EINVAL;
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
+					   sta_id, 0, NULL, CMD_SYNC);
 	}
 
 	if (ret)
@@ -1197,7 +1302,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 			   struct ieee80211_key_conf *keyconf)
 {
 	struct iwl_mvm_sta *mvm_sta;
-	struct iwl_mvm_add_sta_cmd cmd = {};
+	struct iwl_mvm_add_sta_key_cmd cmd = {};
 	__le16 key_flags;
 	int ret, status;
 	u8 sta_id;
@@ -1252,17 +1357,14 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
 
-	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
-	cmd.key.key_flags = key_flags;
-	cmd.key.key_offset = keyconf->hw_key_idx;
+	cmd.key_flags = key_flags;
+	cmd.key_offset = keyconf->hw_key_idx;
 	cmd.sta_id = sta_id;
 
-	cmd.modify_mask = STA_MODIFY_KEY;
-	cmd.add_modify = STA_MODE_MODIFY;
-
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA, sizeof(cmd),
-					  &cmd, &status);
+	ret = iwl_mvm_send_add_sta_key_cmd_status(mvm, &cmd,
+						  mvm_sta->mac_id_n_color,
+						  &status);
 
 	switch (status) {
 	case ADD_STA_SUCCESS:
@@ -1308,8 +1410,8 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 				struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
-	struct iwl_mvm_add_sta_cmd cmd = {
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_add_sta_cmd_v6 cmd = {
 		.add_modify = STA_MODE_MODIFY,
 		.sta_id = mvmsta->sta_id,
 		.station_flags_msk = cpu_to_le32(STA_FLG_PS),
@@ -1317,7 +1419,7 @@ void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 	};
 	int ret;
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_add_sta_cmd(mvm, CMD_ASYNC, &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }
@@ -1330,8 +1432,8 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 	u16 sleep_state_flags =
 		(reason == IEEE80211_FRAME_RELEASE_UAPSD) ?
 			STA_SLEEP_STATE_UAPSD : STA_SLEEP_STATE_PS_POLL;
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
-	struct iwl_mvm_add_sta_cmd cmd = {
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_add_sta_cmd_v6 cmd = {
 		.add_modify = STA_MODE_MODIFY,
 		.sta_id = mvmsta->sta_id,
 		.modify_mask = STA_MODIFY_SLEEPING_STA_TX_COUNT,
@@ -1346,7 +1448,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 	int ret;
 
 	/* TODO: somehow the fw doesn't seem to take PS_POLL into account */
-	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_add_sta_cmd(mvm, CMD_ASYNC, &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }

@@ -124,77 +124,187 @@ static void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PCI_MSI */
 
-static void pnv_pci_dump_p7ioc_diag_data(struct pnv_phb *phb)
+static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
+					 struct OpalIoPhbErrorCommon *common)
 {
-	struct OpalIoP7IOCPhbErrorData *data = &phb->diag.p7ioc;
+	struct OpalIoP7IOCPhbErrorData *data;
 	int i;
 
-	pr_info("PHB %d diagnostic data:\n", phb->hose->global_number);
+	data = (struct OpalIoP7IOCPhbErrorData *)common;
+	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n\n",
+		hose->global_number, common->version);
 
-	pr_info("  brdgCtl              = 0x%08x\n", data->brdgCtl);
-
-	pr_info("  portStatusReg        = 0x%08x\n", data->portStatusReg);
-	pr_info("  rootCmplxStatus      = 0x%08x\n", data->rootCmplxStatus);
-	pr_info("  busAgentStatus       = 0x%08x\n", data->busAgentStatus);
-
-	pr_info("  deviceStatus         = 0x%08x\n", data->deviceStatus);
-	pr_info("  slotStatus           = 0x%08x\n", data->slotStatus);
-	pr_info("  linkStatus           = 0x%08x\n", data->linkStatus);
-	pr_info("  devCmdStatus         = 0x%08x\n", data->devCmdStatus);
-	pr_info("  devSecStatus         = 0x%08x\n", data->devSecStatus);
-
-	pr_info("  rootErrorStatus      = 0x%08x\n", data->rootErrorStatus);
-	pr_info("  uncorrErrorStatus    = 0x%08x\n", data->uncorrErrorStatus);
-	pr_info("  corrErrorStatus      = 0x%08x\n", data->corrErrorStatus);
-	pr_info("  tlpHdr1              = 0x%08x\n", data->tlpHdr1);
-	pr_info("  tlpHdr2              = 0x%08x\n", data->tlpHdr2);
-	pr_info("  tlpHdr3              = 0x%08x\n", data->tlpHdr3);
-	pr_info("  tlpHdr4              = 0x%08x\n", data->tlpHdr4);
-	pr_info("  sourceId             = 0x%08x\n", data->sourceId);
-
-	pr_info("  errorClass           = 0x%016llx\n", data->errorClass);
-	pr_info("  correlator           = 0x%016llx\n", data->correlator);
-
-	pr_info("  p7iocPlssr           = 0x%016llx\n", data->p7iocPlssr);
-	pr_info("  p7iocCsr             = 0x%016llx\n", data->p7iocCsr);
-	pr_info("  lemFir               = 0x%016llx\n", data->lemFir);
-	pr_info("  lemErrorMask         = 0x%016llx\n", data->lemErrorMask);
-	pr_info("  lemWOF               = 0x%016llx\n", data->lemWOF);
-	pr_info("  phbErrorStatus       = 0x%016llx\n", data->phbErrorStatus);
-	pr_info("  phbFirstErrorStatus  = 0x%016llx\n", data->phbFirstErrorStatus);
-	pr_info("  phbErrorLog0         = 0x%016llx\n", data->phbErrorLog0);
-	pr_info("  phbErrorLog1         = 0x%016llx\n", data->phbErrorLog1);
-	pr_info("  mmioErrorStatus      = 0x%016llx\n", data->mmioErrorStatus);
-	pr_info("  mmioFirstErrorStatus = 0x%016llx\n", data->mmioFirstErrorStatus);
-	pr_info("  mmioErrorLog0        = 0x%016llx\n", data->mmioErrorLog0);
-	pr_info("  mmioErrorLog1        = 0x%016llx\n", data->mmioErrorLog1);
-	pr_info("  dma0ErrorStatus      = 0x%016llx\n", data->dma0ErrorStatus);
-	pr_info("  dma0FirstErrorStatus = 0x%016llx\n", data->dma0FirstErrorStatus);
-	pr_info("  dma0ErrorLog0        = 0x%016llx\n", data->dma0ErrorLog0);
-	pr_info("  dma0ErrorLog1        = 0x%016llx\n", data->dma0ErrorLog1);
-	pr_info("  dma1ErrorStatus      = 0x%016llx\n", data->dma1ErrorStatus);
-	pr_info("  dma1FirstErrorStatus = 0x%016llx\n", data->dma1FirstErrorStatus);
-	pr_info("  dma1ErrorLog0        = 0x%016llx\n", data->dma1ErrorLog0);
-	pr_info("  dma1ErrorLog1        = 0x%016llx\n", data->dma1ErrorLog1);
+	if (data->brdgCtl)
+		pr_info("  brdgCtl:     %08x\n",
+			data->brdgCtl);
+	if (data->portStatusReg || data->rootCmplxStatus ||
+	    data->busAgentStatus)
+		pr_info("  UtlSts:      %08x %08x %08x\n",
+			data->portStatusReg, data->rootCmplxStatus,
+			data->busAgentStatus);
+	if (data->deviceStatus || data->slotStatus   ||
+	    data->linkStatus   || data->devCmdStatus ||
+	    data->devSecStatus)
+		pr_info("  RootSts:     %08x %08x %08x %08x %08x\n",
+			data->deviceStatus, data->slotStatus,
+			data->linkStatus, data->devCmdStatus,
+			data->devSecStatus);
+	if (data->rootErrorStatus   || data->uncorrErrorStatus ||
+	    data->corrErrorStatus)
+		pr_info("  RootErrSts:  %08x %08x %08x\n",
+			data->rootErrorStatus, data->uncorrErrorStatus,
+			data->corrErrorStatus);
+	if (data->tlpHdr1 || data->tlpHdr2 ||
+	    data->tlpHdr3 || data->tlpHdr4)
+		pr_info("  RootErrLog:  %08x %08x %08x %08x\n",
+			data->tlpHdr1, data->tlpHdr2,
+			data->tlpHdr3, data->tlpHdr4);
+	if (data->sourceId || data->errorClass ||
+	    data->correlator)
+		pr_info("  RootErrLog1: %08x %016llx %016llx\n",
+			data->sourceId, data->errorClass,
+			data->correlator);
+	if (data->p7iocPlssr || data->p7iocCsr)
+		pr_info("  PhbSts:      %016llx %016llx\n",
+			data->p7iocPlssr, data->p7iocCsr);
+	if (data->lemFir || data->lemErrorMask ||
+	    data->lemWOF)
+		pr_info("  Lem:         %016llx %016llx %016llx\n",
+			data->lemFir, data->lemErrorMask,
+			data->lemWOF);
+	if (data->phbErrorStatus || data->phbFirstErrorStatus ||
+	    data->phbErrorLog0   || data->phbErrorLog1)
+		pr_info("  PhbErr:      %016llx %016llx %016llx %016llx\n",
+			data->phbErrorStatus, data->phbFirstErrorStatus,
+			data->phbErrorLog0, data->phbErrorLog1);
+	if (data->mmioErrorStatus || data->mmioFirstErrorStatus ||
+	    data->mmioErrorLog0   || data->mmioErrorLog1)
+		pr_info("  OutErr:      %016llx %016llx %016llx %016llx\n",
+			data->mmioErrorStatus, data->mmioFirstErrorStatus,
+			data->mmioErrorLog0, data->mmioErrorLog1);
+	if (data->dma0ErrorStatus || data->dma0FirstErrorStatus ||
+	    data->dma0ErrorLog0   || data->dma0ErrorLog1)
+		pr_info("  InAErr:      %016llx %016llx %016llx %016llx\n",
+			data->dma0ErrorStatus, data->dma0FirstErrorStatus,
+			data->dma0ErrorLog0, data->dma0ErrorLog1);
+	if (data->dma1ErrorStatus || data->dma1FirstErrorStatus ||
+	    data->dma1ErrorLog0   || data->dma1ErrorLog1)
+		pr_info("  InBErr:      %016llx %016llx %016llx %016llx\n",
+			data->dma1ErrorStatus, data->dma1FirstErrorStatus,
+			data->dma1ErrorLog0, data->dma1ErrorLog1);
 
 	for (i = 0; i < OPAL_P7IOC_NUM_PEST_REGS; i++) {
 		if ((data->pestA[i] >> 63) == 0 &&
 		    (data->pestB[i] >> 63) == 0)
 			continue;
-		pr_info("  PE[%3d] PESTA        = 0x%016llx\n", i, data->pestA[i]);
-		pr_info("          PESTB        = 0x%016llx\n", data->pestB[i]);
+
+		pr_info("  PE[%3d] A/B: %016llx %016llx\n",
+			i, data->pestA[i], data->pestB[i]);
 	}
 }
 
-static void pnv_pci_dump_phb_diag_data(struct pnv_phb *phb)
+static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
+					struct OpalIoPhbErrorCommon *common)
 {
-	switch(phb->model) {
-	case PNV_PHB_MODEL_P7IOC:
-		pnv_pci_dump_p7ioc_diag_data(phb);
+	struct OpalIoPhb3ErrorData *data;
+	int i;
+
+	data = (struct OpalIoPhb3ErrorData*)common;
+	pr_info("PHB3 PHB#%d Diag-data (Version: %d)\n\n",
+		hose->global_number, common->version);
+	if (data->brdgCtl)
+		pr_info("  brdgCtl:     %08x\n",
+			data->brdgCtl);
+	if (data->portStatusReg || data->rootCmplxStatus ||
+	    data->busAgentStatus)
+		pr_info("  UtlSts:      %08x %08x %08x\n",
+			data->portStatusReg, data->rootCmplxStatus,
+			data->busAgentStatus);
+	if (data->deviceStatus || data->slotStatus   ||
+	    data->linkStatus   || data->devCmdStatus ||
+	    data->devSecStatus)
+		pr_info("  RootSts:     %08x %08x %08x %08x %08x\n",
+			data->deviceStatus, data->slotStatus,
+			data->linkStatus, data->devCmdStatus,
+			data->devSecStatus);
+	if (data->rootErrorStatus || data->uncorrErrorStatus ||
+	    data->corrErrorStatus)
+		pr_info("  RootErrSts:  %08x %08x %08x\n",
+			data->rootErrorStatus, data->uncorrErrorStatus,
+			data->corrErrorStatus);
+	if (data->tlpHdr1 || data->tlpHdr2 ||
+	    data->tlpHdr3 || data->tlpHdr4)
+		pr_info("  RootErrLog:  %08x %08x %08x %08x\n",
+			data->tlpHdr1, data->tlpHdr2,
+			data->tlpHdr3, data->tlpHdr4);
+	if (data->sourceId || data->errorClass ||
+	    data->correlator)
+		pr_info("  RootErrLog1: %08x %016llx %016llx\n",
+			data->sourceId, data->errorClass,
+			data->correlator);
+	if (data->nFir || data->nFirMask ||
+	    data->nFirWOF)
+		pr_info("  nFir:        %016llx %016llx %016llx\n",
+			data->nFir, data->nFirMask,
+			data->nFirWOF);
+	if (data->phbPlssr || data->phbCsr)
+		pr_info("  PhbSts:      %016llx %016llx\n",
+			data->phbPlssr, data->phbCsr);
+	if (data->lemFir || data->lemErrorMask ||
+	    data->lemWOF)
+		pr_info("  Lem:         %016llx %016llx %016llx\n",
+			data->lemFir, data->lemErrorMask,
+			data->lemWOF);
+	if (data->phbErrorStatus || data->phbFirstErrorStatus ||
+	    data->phbErrorLog0   || data->phbErrorLog1)
+		pr_info("  PhbErr:      %016llx %016llx %016llx %016llx\n",
+			data->phbErrorStatus, data->phbFirstErrorStatus,
+			data->phbErrorLog0, data->phbErrorLog1);
+	if (data->mmioErrorStatus || data->mmioFirstErrorStatus ||
+	    data->mmioErrorLog0   || data->mmioErrorLog1)
+		pr_info("  OutErr:      %016llx %016llx %016llx %016llx\n",
+			data->mmioErrorStatus, data->mmioFirstErrorStatus,
+			data->mmioErrorLog0, data->mmioErrorLog1);
+	if (data->dma0ErrorStatus || data->dma0FirstErrorStatus ||
+	    data->dma0ErrorLog0   || data->dma0ErrorLog1)
+		pr_info("  InAErr:      %016llx %016llx %016llx %016llx\n",
+			data->dma0ErrorStatus, data->dma0FirstErrorStatus,
+			data->dma0ErrorLog0, data->dma0ErrorLog1);
+	if (data->dma1ErrorStatus || data->dma1FirstErrorStatus ||
+	    data->dma1ErrorLog0   || data->dma1ErrorLog1)
+		pr_info("  InBErr:      %016llx %016llx %016llx %016llx\n",
+			data->dma1ErrorStatus, data->dma1FirstErrorStatus,
+			data->dma1ErrorLog0, data->dma1ErrorLog1);
+
+	for (i = 0; i < OPAL_PHB3_NUM_PEST_REGS; i++) {
+		if ((data->pestA[i] >> 63) == 0 &&
+		    (data->pestB[i] >> 63) == 0)
+			continue;
+
+		pr_info("  PE[%3d] A/B: %016llx %016llx\n",
+			i, data->pestA[i], data->pestB[i]);
+	}
+}
+
+void pnv_pci_dump_phb_diag_data(struct pci_controller *hose,
+				unsigned char *log_buff)
+{
+	struct OpalIoPhbErrorCommon *common;
+
+	if (!hose || !log_buff)
+		return;
+
+	common = (struct OpalIoPhbErrorCommon *)log_buff;
+	switch (common->ioType) {
+	case OPAL_PHB_ERROR_DATA_TYPE_P7IOC:
+		pnv_pci_dump_p7ioc_diag_data(hose, common);
+		break;
+	case OPAL_PHB_ERROR_DATA_TYPE_PHB3:
+		pnv_pci_dump_phb3_diag_data(hose, common);
 		break;
 	default:
-		pr_warning("PCI %d: Can't decode this PHB diag data\n",
-			   phb->hose->global_number);
+		pr_warn("%s: Unrecognized ioType %d\n",
+			__func__, common->ioType);
 	}
 }
 
@@ -222,7 +332,7 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 		 * with the normal errors generated when probing empty slots
 		 */
 		if (has_diag)
-			pnv_pci_dump_phb_diag_data(phb);
+			pnv_pci_dump_phb_diag_data(phb->hose, phb->diag.blob);
 		else
 			pr_warning("PCI %d: No diag data available\n",
 				   phb->hose->global_number);
@@ -236,17 +346,21 @@ static void pnv_pci_config_check_eeh(struct pnv_phb *phb,
 {
 	s64	rc;
 	u8	fstate;
-	u16	pcierr;
+	__be16	pcierr;
 	u32	pe_no;
 
 	/*
 	 * Get the PE#. During the PCI probe stage, we might not
 	 * setup that yet. So all ER errors should be mapped to
-	 * PE#0
+	 * reserved PE.
 	 */
 	pe_no = PCI_DN(dn)->pe_number;
-	if (pe_no == IODA_INVALID_PE)
-		pe_no = 0;
+	if (pe_no == IODA_INVALID_PE) {
+		if (phb->type == PNV_PHB_P5IOC2)
+			pe_no = 0;
+		else
+			pe_no = phb->ioda.reserved_pe;
+	}
 
 	/* Read freeze status */
 	rc = opal_pci_eeh_freeze_status(phb->opal_id, pe_no, &fstate, &pcierr,
@@ -283,16 +397,16 @@ int pnv_pci_cfg_read(struct device_node *dn,
 		break;
 	}
 	case 2: {
-		u16 v16;
+		__be16 v16;
 		rc = opal_pci_config_read_half_word(phb->opal_id, bdfn, where,
 						   &v16);
-		*val = (rc == OPAL_SUCCESS) ? v16 : 0xffff;
+		*val = (rc == OPAL_SUCCESS) ? be16_to_cpu(v16) : 0xffff;
 		break;
 	}
 	case 4: {
-		u32 v32;
+		__be32 v32;
 		rc = opal_pci_config_read_word(phb->opal_id, bdfn, where, &v32);
-		*val = (rc == OPAL_SUCCESS) ? v32 : 0xffffffff;
+		*val = (rc == OPAL_SUCCESS) ? be32_to_cpu(v32) : 0xffffffff;
 		break;
 	}
 	default:
@@ -401,10 +515,10 @@ struct pci_ops pnv_pci_ops = {
 
 static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 			 unsigned long uaddr, enum dma_data_direction direction,
-			 struct dma_attrs *attrs)
+			 struct dma_attrs *attrs, bool rm)
 {
 	u64 proto_tce;
-	u64 *tcep, *tces;
+	__be64 *tcep, *tces;
 	u64 rpn;
 
 	proto_tce = TCE_PCI_READ; // Read allowed
@@ -412,38 +526,66 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
 
-	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
+	tces = tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
 	rpn = __pa(uaddr) >> TCE_SHIFT;
 
 	while (npages--)
-		*(tcep++) = proto_tce | (rpn++ << TCE_RPN_SHIFT);
+		*(tcep++) = cpu_to_be64(proto_tce | (rpn++ << TCE_RPN_SHIFT));
 
 	/* Some implementations won't cache invalid TCEs and thus may not
 	 * need that flush. We'll probably turn it_type into a bit mask
 	 * of flags if that becomes the case
 	 */
 	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
-		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
+		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1, rm);
 
 	return 0;
 }
 
-static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
+static int pnv_tce_build_vm(struct iommu_table *tbl, long index, long npages,
+			    unsigned long uaddr,
+			    enum dma_data_direction direction,
+			    struct dma_attrs *attrs)
 {
-	u64 *tcep, *tces;
+	return pnv_tce_build(tbl, index, npages, uaddr, direction, attrs,
+			false);
+}
 
-	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
+static void pnv_tce_free(struct iommu_table *tbl, long index, long npages,
+		bool rm)
+{
+	__be64 *tcep, *tces;
+
+	tces = tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
 
 	while (npages--)
-		*(tcep++) = 0;
+		*(tcep++) = cpu_to_be64(0);
 
 	if (tbl->it_type & TCE_PCI_SWINV_FREE)
-		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
+		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1, rm);
+}
+
+static void pnv_tce_free_vm(struct iommu_table *tbl, long index, long npages)
+{
+	pnv_tce_free(tbl, index, npages, false);
 }
 
 static unsigned long pnv_tce_get(struct iommu_table *tbl, long index)
 {
 	return ((u64 *)tbl->it_base)[index - tbl->it_offset];
+}
+
+static int pnv_tce_build_rm(struct iommu_table *tbl, long index, long npages,
+			    unsigned long uaddr,
+			    enum dma_data_direction direction,
+			    struct dma_attrs *attrs)
+{
+	return pnv_tce_build(tbl, index, npages, uaddr, direction, attrs, true);
+}
+
+static void pnv_tce_free_rm(struct iommu_table *tbl, long index, long npages)
+{
+	pnv_tce_free(tbl, index, npages, true);
 }
 
 void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
@@ -452,7 +594,8 @@ void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 {
 	tbl->it_blocksize = 16;
 	tbl->it_base = (unsigned long)tce_mem;
-	tbl->it_offset = dma_offset >> IOMMU_PAGE_SHIFT;
+	tbl->it_page_shift = IOMMU_PAGE_SHIFT_4K;
+	tbl->it_offset = dma_offset >> tbl->it_page_shift;
 	tbl->it_index = 0;
 	tbl->it_size = tce_size >> 3;
 	tbl->it_busno = 0;
@@ -484,8 +627,8 @@ static struct iommu_table *pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 	swinvp = of_get_property(hose->dn, "linux,tce-sw-invalidate-info",
 				 NULL);
 	if (swinvp) {
-		tbl->it_busno = swinvp[1];
-		tbl->it_index = (unsigned long)ioremap(swinvp[0], 8);
+		tbl->it_busno = be64_to_cpu(swinvp[1]);
+		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
 		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
 	}
 	return tbl;
@@ -504,7 +647,7 @@ static void pnv_pci_dma_fallback_setup(struct pci_controller *hose,
 		pdn->iommu_table = pnv_pci_setup_bml_iommu(hose);
 	if (!pdn->iommu_table)
 		return;
-	set_iommu_table_base(&pdev->dev, pdn->iommu_table);
+	set_iommu_table_base_and_group(&pdev->dev, pdn->iommu_table);
 }
 
 static void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
@@ -519,6 +662,16 @@ static void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 		phb->dma_dev_setup(phb, pdev);
 	else
 		pnv_pci_dma_fallback_setup(hose, pdev);
+}
+
+int pnv_pci_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+
+	if (phb && phb->dma_set_mask)
+		return phb->dma_set_mask(phb, pdev, dma_mask);
+	return __dma_set_mask(&pdev->dev, dma_mask);
 }
 
 void pnv_pci_shutdown(void)
@@ -610,8 +763,10 @@ void __init pnv_pci_init(void)
 
 	/* Configure IOMMU DMA hooks */
 	ppc_md.pci_dma_dev_setup = pnv_pci_dma_dev_setup;
-	ppc_md.tce_build = pnv_tce_build;
-	ppc_md.tce_free = pnv_tce_free;
+	ppc_md.tce_build = pnv_tce_build_vm;
+	ppc_md.tce_free = pnv_tce_free_vm;
+	ppc_md.tce_build_rm = pnv_tce_build_rm;
+	ppc_md.tce_free_rm = pnv_tce_free_rm;
 	ppc_md.tce_get = pnv_tce_get;
 	ppc_md.pci_probe_mode = pnv_pci_probe_mode;
 	set_pci_dma_ops(&dma_iommu_ops);
@@ -623,3 +778,32 @@ void __init pnv_pci_init(void)
 	ppc_md.teardown_msi_irqs = pnv_teardown_msi_irqs;
 #endif
 }
+
+static int tce_iommu_bus_notifier(struct notifier_block *nb,
+		unsigned long action, void *data)
+{
+	struct device *dev = data;
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		return iommu_add_device(dev);
+	case BUS_NOTIFY_DEL_DEVICE:
+		if (dev->iommu_group)
+			iommu_del_device(dev);
+		return 0;
+	default:
+		return 0;
+	}
+}
+
+static struct notifier_block tce_iommu_bus_nb = {
+	.notifier_call = tce_iommu_bus_notifier,
+};
+
+static int __init tce_iommu_bus_notifier_init(void)
+{
+	bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
+	return 0;
+}
+
+subsys_initcall_sync(tce_iommu_bus_notifier_init);

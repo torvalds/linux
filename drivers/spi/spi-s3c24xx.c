@@ -29,7 +29,6 @@
 
 #include <plat/regs-spi.h>
 
-#include <plat/fiq.h>
 #include <asm/fiq.h>
 
 #include "spi-s3c24xx-fiq.h"
@@ -78,13 +77,11 @@ struct s3c24xx_spi {
 	unsigned char		*rx;
 
 	struct clk		*clk;
-	struct resource		*ioarea;
 	struct spi_master	*master;
 	struct spi_device	*curdev;
 	struct device		*dev;
 	struct s3c2410_spi_info *pdata;
 };
-
 
 #define SPCON_DEFAULT (S3C2410_SPCON_MSTR | S3C2410_SPCON_SMOD_INT)
 #define SPPIN_DEFAULT (S3C2410_SPPIN_KEEP)
@@ -280,7 +277,7 @@ static inline u32 ack_bit(unsigned int irq)
  * so the caller does not need to do anything more than start the transfer
  * as normal, since the IRQ will have been re-routed to the FIQ handler.
 */
-void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
+static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 {
 	struct pt_regs regs;
 	enum spi_fiq_mode mode;
@@ -517,14 +514,13 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(&pdev->dev, sizeof(struct s3c24xx_spi));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "No memory for spi_master\n");
-		err = -ENOMEM;
-		goto err_nomem;
+		return -ENOMEM;
 	}
 
 	hw = spi_master_get_devdata(master);
 	memset(hw, 0, sizeof(struct s3c24xx_spi));
 
-	hw->master = spi_master_get(master);
+	hw->master = master;
 	hw->pdata = pdata = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 
@@ -562,48 +558,32 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	dev_dbg(hw->dev, "bitbang at %p\n", &hw->bitbang);
 
 	/* find and map our resources */
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "Cannot get IORESOURCE_MEM\n");
-		err = -ENOENT;
-		goto err_no_iores;
-	}
-
-	hw->ioarea = request_mem_region(res->start, resource_size(res),
-					pdev->name);
-
-	if (hw->ioarea == NULL) {
-		dev_err(&pdev->dev, "Cannot reserve region\n");
-		err = -ENXIO;
-		goto err_no_iores;
-	}
-
-	hw->regs = ioremap(res->start, resource_size(res));
-	if (hw->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot map IO\n");
-		err = -ENXIO;
-		goto err_no_iomap;
+	hw->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hw->regs)) {
+		err = PTR_ERR(hw->regs);
+		goto err_no_pdata;
 	}
 
 	hw->irq = platform_get_irq(pdev, 0);
 	if (hw->irq < 0) {
 		dev_err(&pdev->dev, "No IRQ specified\n");
 		err = -ENOENT;
-		goto err_no_irq;
+		goto err_no_pdata;
 	}
 
-	err = request_irq(hw->irq, s3c24xx_spi_irq, 0, pdev->name, hw);
+	err = devm_request_irq(&pdev->dev, hw->irq, s3c24xx_spi_irq, 0,
+				pdev->name, hw);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot claim IRQ\n");
-		goto err_no_irq;
+		goto err_no_pdata;
 	}
 
-	hw->clk = clk_get(&pdev->dev, "spi");
+	hw->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(hw->clk)) {
 		dev_err(&pdev->dev, "No clock for device\n");
 		err = PTR_ERR(hw->clk);
-		goto err_no_clk;
+		goto err_no_pdata;
 	}
 
 	/* setup any gpio we can */
@@ -615,7 +595,8 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 			goto err_register;
 		}
 
-		err = gpio_request(pdata->pin_cs, dev_name(&pdev->dev));
+		err = devm_gpio_request(&pdev->dev, pdata->pin_cs,
+					dev_name(&pdev->dev));
 		if (err) {
 			dev_err(&pdev->dev, "Failed to get gpio for cs\n");
 			goto err_register;
@@ -639,27 +620,10 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	return 0;
 
  err_register:
-	if (hw->set_cs == s3c24xx_spi_gpiocs)
-		gpio_free(pdata->pin_cs);
-
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
 
- err_no_clk:
-	free_irq(hw->irq, hw);
-
- err_no_irq:
-	iounmap(hw->regs);
-
- err_no_iomap:
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
-
- err_no_iores:
  err_no_pdata:
 	spi_master_put(hw->master);
-
- err_nomem:
 	return err;
 }
 
@@ -668,19 +632,7 @@ static int s3c24xx_spi_remove(struct platform_device *dev)
 	struct s3c24xx_spi *hw = platform_get_drvdata(dev);
 
 	spi_bitbang_stop(&hw->bitbang);
-
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
-
-	free_irq(hw->irq, hw);
-	iounmap(hw->regs);
-
-	if (hw->set_cs == s3c24xx_spi_gpiocs)
-		gpio_free(hw->pdata->pin_cs);
-
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
-
 	spi_master_put(hw->master);
 	return 0;
 }

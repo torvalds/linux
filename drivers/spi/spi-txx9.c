@@ -177,7 +177,7 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 			| 0x08,
 			TXx9_SPCR0);
 
-	list_for_each_entry (t, &m->transfers, transfer_list) {
+	list_for_each_entry(t, &m->transfers, transfer_list) {
 		const void *txbuf = t->tx_buf;
 		void *rxbuf = t->rx_buf;
 		u32 data;
@@ -308,7 +308,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 	m->actual_length = 0;
 
 	/* check each transfer's parameters */
-	list_for_each_entry (t, &m->transfers, transfer_list) {
+	list_for_each_entry(t, &m->transfers, transfer_list) {
 		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
 		u8 bits_per_word = t->bits_per_word;
 
@@ -348,7 +348,7 @@ static int txx9spi_probe(struct platform_device *dev)
 	INIT_LIST_HEAD(&c->queue);
 	init_waitqueue_head(&c->waitq);
 
-	c->clk = clk_get(&dev->dev, "spi-baseclk");
+	c->clk = devm_clk_get(&dev->dev, "spi-baseclk");
 	if (IS_ERR(c->clk)) {
 		ret = PTR_ERR(c->clk);
 		c->clk = NULL;
@@ -356,7 +356,6 @@ static int txx9spi_probe(struct platform_device *dev)
 	}
 	ret = clk_enable(c->clk);
 	if (ret) {
-		clk_put(c->clk);
 		c->clk = NULL;
 		goto exit;
 	}
@@ -406,7 +405,7 @@ static int txx9spi_probe(struct platform_device *dev)
 	master->num_chipselect = (u16)UINT_MAX; /* any GPIO numbers */
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&dev->dev, master);
 	if (ret)
 		goto exit;
 	return 0;
@@ -415,24 +414,19 @@ exit_busy:
 exit:
 	if (c->workqueue)
 		destroy_workqueue(c->workqueue);
-	if (c->clk) {
+	if (c->clk)
 		clk_disable(c->clk);
-		clk_put(c->clk);
-	}
 	spi_master_put(master);
 	return ret;
 }
 
 static int txx9spi_remove(struct platform_device *dev)
 {
-	struct spi_master *master = spi_master_get(platform_get_drvdata(dev));
+	struct spi_master *master = platform_get_drvdata(dev);
 	struct txx9spi *c = spi_master_get_devdata(master);
 
-	spi_unregister_master(master);
 	destroy_workqueue(c->workqueue);
 	clk_disable(c->clk);
-	clk_put(c->clk);
-	spi_master_put(master);
 	return 0;
 }
 
@@ -440,6 +434,7 @@ static int txx9spi_remove(struct platform_device *dev)
 MODULE_ALIAS("platform:spi_txx9");
 
 static struct platform_driver txx9spi_driver = {
+	.probe = txx9spi_probe,
 	.remove = txx9spi_remove,
 	.driver = {
 		.name = "spi_txx9",
@@ -449,7 +444,7 @@ static struct platform_driver txx9spi_driver = {
 
 static int __init txx9spi_init(void)
 {
-	return platform_driver_probe(&txx9spi_driver, txx9spi_probe);
+	return platform_driver_register(&txx9spi_driver);
 }
 subsys_initcall(txx9spi_init);
 

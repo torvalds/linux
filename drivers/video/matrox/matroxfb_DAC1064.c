@@ -494,7 +494,7 @@ static int m1064_compute(void* out, struct my_timming* m) {
 			if (inDAC1064(minfo, M1064_XPIXPLLSTAT) & 0x40)
 				break;
 			udelay(10);
-		};
+		}
 
 		CRITEND
 
@@ -639,7 +639,7 @@ static void MGAG100_progPixClock(const struct matrox_fb_info *minfo, int flags,
 		if (inDAC1064(minfo, M1064_XPIXPLLSTAT) & 0x40)
 			break;
 		udelay(10);
-	};
+	}
 	if (!clk)
 		printk(KERN_ERR "matroxfb: Pixel PLL%c not locked after usual time\n", (reg-M1064_XPIXPLLAM-2)/4 + 'A');
 	selClk = inDAC1064(minfo, M1064_XPIXCLKCTRL) & ~M1064_XPIXCLKCTRL_SRC_MASK;

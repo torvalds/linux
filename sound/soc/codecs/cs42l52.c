@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -49,7 +50,7 @@ struct  cs42l52_private {
 	u8 mclksel;
 	u32 mclk;
 	u8 flags;
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	struct input_dev *beep;
 	struct work_struct beep_work;
 	int beep_rate;
@@ -232,7 +233,7 @@ static const struct soc_enum mic_bias_level_enum =
 	SOC_ENUM_SINGLE(CS42L52_IFACE_CTL2, 0,
 			ARRAY_SIZE(mic_bias_level_text), mic_bias_level_text);
 
-static const char * const cs42l52_mic_text[] = { "Single", "Differential" };
+static const char * const cs42l52_mic_text[] = { "MIC1", "MIC2" };
 
 static const struct soc_enum mica_enum =
 	SOC_ENUM_SINGLE(CS42L52_MICA_CTL, 5,
@@ -241,12 +242,6 @@ static const struct soc_enum mica_enum =
 static const struct soc_enum micb_enum =
 	SOC_ENUM_SINGLE(CS42L52_MICB_CTL, 5,
 			ARRAY_SIZE(cs42l52_mic_text), cs42l52_mic_text);
-
-static const struct snd_kcontrol_new mica_mux =
-	SOC_DAPM_ENUM("Left Mic Input Capture Mux", mica_enum);
-
-static const struct snd_kcontrol_new micb_mux =
-	SOC_DAPM_ENUM("Right Mic Input Capture Mux", micb_enum);
 
 static const char * const digital_output_mux_text[] = {"ADC", "DSP"};
 
@@ -530,6 +525,30 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 
 };
 
+static const struct snd_kcontrol_new cs42l52_mica_controls[] = {
+	SOC_ENUM("MICA Select", mica_enum),
+};
+
+static const struct snd_kcontrol_new cs42l52_micb_controls[] = {
+	SOC_ENUM("MICB Select", micb_enum),
+};
+
+static int cs42l52_add_mic_controls(struct snd_soc_codec *codec)
+{
+	struct cs42l52_private *cs42l52 = snd_soc_codec_get_drvdata(codec);
+	struct cs42l52_platform_data *pdata = &cs42l52->pdata;
+
+	if (!pdata->mica_diff_cfg)
+		snd_soc_add_codec_controls(codec, cs42l52_mica_controls,
+				     ARRAY_SIZE(cs42l52_mica_controls));
+
+	if (!pdata->micb_diff_cfg)
+		snd_soc_add_codec_controls(codec, cs42l52_micb_controls,
+				     ARRAY_SIZE(cs42l52_micb_controls));
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget cs42l52_dapm_widgets[] = {
 
 	SND_SOC_DAPM_INPUT("AIN1L"),
@@ -548,9 +567,6 @@ static const struct snd_soc_dapm_widget cs42l52_dapm_widgets[] = {
 			SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AIFOUTR", NULL,  0,
 			SND_SOC_NOPM, 0, 0),
-
-	SND_SOC_DAPM_MUX("MICA Mux", SND_SOC_NOPM, 0, 0, &mica_mux),
-	SND_SOC_DAPM_MUX("MICB Mux", SND_SOC_NOPM, 0, 0, &micb_mux),
 
 	SND_SOC_DAPM_ADC("ADC Left", NULL, CS42L52_PWRCTL1, 1, 1),
 	SND_SOC_DAPM_ADC("ADC Right", NULL, CS42L52_PWRCTL1, 2, 1),
@@ -952,7 +968,7 @@ static int cs42l52_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 static int beep_rates[] = {
 	261, 522, 585, 667, 706, 774, 889, 1000,
 	1043, 1200, 1333, 1412, 1600, 1714, 2000, 2182
@@ -1109,46 +1125,14 @@ static int cs42l52_probe(struct snd_soc_codec *codec)
 	}
 	regcache_cache_only(cs42l52->regmap, true);
 
+	cs42l52_add_mic_controls(codec);
+
 	cs42l52_init_beep(codec);
 
 	cs42l52_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	cs42l52->sysclk = CS42L52_DEFAULT_CLK;
 	cs42l52->config.format = CS42L52_DEFAULT_FORMAT;
-
-	/* Set Platform MICx CFG */
-	snd_soc_update_bits(codec, CS42L52_MICA_CTL,
-			    CS42L52_MIC_CTL_TYPE_MASK,
-				cs42l52->pdata.mica_cfg <<
-				CS42L52_MIC_CTL_TYPE_SHIFT);
-
-	snd_soc_update_bits(codec, CS42L52_MICB_CTL,
-			    CS42L52_MIC_CTL_TYPE_MASK,
-				cs42l52->pdata.micb_cfg <<
-				CS42L52_MIC_CTL_TYPE_SHIFT);
-
-	/* if Single Ended, Get Mic_Select */
-	if (cs42l52->pdata.mica_cfg)
-		snd_soc_update_bits(codec, CS42L52_MICA_CTL,
-				    CS42L52_MIC_CTL_MIC_SEL_MASK,
-				cs42l52->pdata.mica_sel <<
-				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
-	if (cs42l52->pdata.micb_cfg)
-		snd_soc_update_bits(codec, CS42L52_MICB_CTL,
-				    CS42L52_MIC_CTL_MIC_SEL_MASK,
-				cs42l52->pdata.micb_sel <<
-				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
-
-	/* Set Platform Charge Pump Freq */
-	snd_soc_update_bits(codec, CS42L52_CHARGE_PUMP,
-			    CS42L52_CHARGE_PUMP_MASK,
-				cs42l52->pdata.chgfreq <<
-				CS42L52_CHARGE_PUMP_SHIFT);
-
-	/* Set Platform Bias Level */
-	snd_soc_update_bits(codec, CS42L52_IFACE_CTL2,
-			    CS42L52_IFACE_CTL2_BIAS_LVL,
-				cs42l52->pdata.micbias_lvl);
 
 	return ret;
 }
@@ -1205,9 +1189,11 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 			     const struct i2c_device_id *id)
 {
 	struct cs42l52_private *cs42l52;
+	struct cs42l52_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
 	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
+	u32 val32;
 
 	cs42l52 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l52_private),
 			       GFP_KERNEL);
@@ -1221,12 +1207,53 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
+	if (pdata) {
+		cs42l52->pdata = *pdata;
+	} else {
+		pdata = devm_kzalloc(&i2c_client->dev,
+				     sizeof(struct cs42l52_platform_data),
+				GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&i2c_client->dev, "could not allocate pdata\n");
+			return -ENOMEM;
+		}
+		if (i2c_client->dev.of_node) {
+			if (of_property_read_bool(i2c_client->dev.of_node,
+				"cirrus,mica-differential-cfg"))
+				pdata->mica_diff_cfg = true;
+
+			if (of_property_read_bool(i2c_client->dev.of_node,
+				"cirrus,micb-differential-cfg"))
+				pdata->micb_diff_cfg = true;
+
+			if (of_property_read_u32(i2c_client->dev.of_node,
+				"cirrus,micbias-lvl", &val32) >= 0)
+				pdata->micbias_lvl = val32;
+
+			if (of_property_read_u32(i2c_client->dev.of_node,
+				"cirrus,chgfreq-divisor", &val32) >= 0)
+				pdata->chgfreq = val32;
+
+			pdata->reset_gpio =
+				of_get_named_gpio(i2c_client->dev.of_node,
+						"cirrus,reset-gpio", 0);
+		}
+		cs42l52->pdata = *pdata;
+	}
+
+	if (cs42l52->pdata.reset_gpio) {
+		ret = gpio_request_one(cs42l52->pdata.reset_gpio,
+				       GPIOF_OUT_INIT_HIGH, "CS42L52 /RST");
+		if (ret < 0) {
+			dev_err(&i2c_client->dev, "Failed to request /RST %d: %d\n",
+				cs42l52->pdata.reset_gpio, ret);
+			return ret;
+		}
+		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 0);
+		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 1);
+	}
 
 	i2c_set_clientdata(i2c_client, cs42l52);
-
-	if (dev_get_platdata(&i2c_client->dev))
-		memcpy(&cs42l52->pdata, dev_get_platdata(&i2c_client->dev),
-		       sizeof(cs42l52->pdata));
 
 	ret = regmap_register_patch(cs42l52->regmap, cs42l52_threshold_patch,
 				    ARRAY_SIZE(cs42l52_threshold_patch));
@@ -1244,7 +1271,32 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	regcache_cache_only(cs42l52->regmap, true);
+	dev_info(&i2c_client->dev, "Cirrus Logic CS42L52, Revision: %02X\n",
+			reg & 0xFF);
+
+	/* Set Platform Data */
+	if (cs42l52->pdata.mica_diff_cfg)
+		regmap_update_bits(cs42l52->regmap, CS42L52_MICA_CTL,
+				   CS42L52_MIC_CTL_TYPE_MASK,
+				cs42l52->pdata.mica_diff_cfg <<
+				CS42L52_MIC_CTL_TYPE_SHIFT);
+
+	if (cs42l52->pdata.micb_diff_cfg)
+		regmap_update_bits(cs42l52->regmap, CS42L52_MICB_CTL,
+				   CS42L52_MIC_CTL_TYPE_MASK,
+				cs42l52->pdata.micb_diff_cfg <<
+				CS42L52_MIC_CTL_TYPE_SHIFT);
+
+	if (cs42l52->pdata.chgfreq)
+		regmap_update_bits(cs42l52->regmap, CS42L52_CHARGE_PUMP,
+				   CS42L52_CHARGE_PUMP_MASK,
+				cs42l52->pdata.chgfreq <<
+				CS42L52_CHARGE_PUMP_SHIFT);
+
+	if (cs42l52->pdata.micbias_lvl)
+		regmap_update_bits(cs42l52->regmap, CS42L52_IFACE_CTL2,
+				   CS42L52_IFACE_CTL2_BIAS_LVL,
+				cs42l52->pdata.micbias_lvl);
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs42l52, &cs42l52_dai, 1);
@@ -1259,6 +1311,13 @@ static int cs42l52_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct of_device_id cs42l52_of_match[] = {
+	{ .compatible = "cirrus,cs42l52", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, cs42l52_of_match);
+
+
 static const struct i2c_device_id cs42l52_id[] = {
 	{ "cs42l52", 0 },
 	{ }
@@ -1269,6 +1328,7 @@ static struct i2c_driver cs42l52_i2c_driver = {
 	.driver = {
 		.name = "cs42l52",
 		.owner = THIS_MODULE,
+		.of_match_table = cs42l52_of_match,
 	},
 	.id_table = cs42l52_id,
 	.probe =    cs42l52_i2c_probe,

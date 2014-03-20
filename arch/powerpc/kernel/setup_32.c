@@ -40,8 +40,6 @@
 #include <asm/mmu_context.h>
 #include <asm/epapr_hcalls.h>
 
-#include "setup.h"
-
 #define DBG(fmt...)
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
@@ -249,7 +247,12 @@ static void __init exc_lvl_early_init(void)
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
 	 * as the memblock is limited to lowmem by MEMBLOCK_REAL_LIMIT */
 	for_each_possible_cpu(i) {
+#ifdef CONFIG_SMP
 		hw_cpu = get_hard_smp_processor_id(i);
+#else
+		hw_cpu = 0;
+#endif
+
 		critirq_ctx[hw_cpu] = (struct thread_info *)
 			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 #ifdef CONFIG_BOOKE
@@ -297,9 +300,6 @@ void __init setup_arch(char **cmdline_p)
 	ucache_bsize = 0;
 	if (cpu_has_feature(CPU_FTR_UNIFIED_ID_CACHE))
 		ucache_bsize = icache_bsize = dcache_bsize;
-
-	/* reboot on panic */
-	panic_timeout = 180;
 
 	if (ppc_md.panic)
 		setup_panic();

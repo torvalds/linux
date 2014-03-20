@@ -1131,7 +1131,13 @@ static int msi3101_queue_setup(struct vb2_queue *vq,
 	/* Absolute min and max number of buffers available for mmap() */
 	*nbuffers = 32;
 	*nplanes = 1;
-	sizes[0] = PAGE_ALIGN(3 * 3072); /* 3 * 768 * 4 */
+	/*
+	 *   3, wMaxPacketSize 3x 1024 bytes
+	 * 504, max IQ sample pairs per 1024 frame
+	 *   2, two samples, I and Q
+	 *   4, 32-bit float
+	 */
+	sizes[0] = PAGE_ALIGN(3 * 504 * 2 * 4); /* = 12096 */
 	dev_dbg(&s->udev->dev, "%s: nbuffers=%d sizes[0]=%d\n",
 			__func__, *nbuffers, sizes[0]);
 	return 0;
@@ -1657,7 +1663,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 			f->frequency * 625UL / 10UL);
 }
 
-const struct v4l2_ioctl_ops msi3101_ioctl_ops = {
+static const struct v4l2_ioctl_ops msi3101_ioctl_ops = {
 	.vidioc_querycap          = msi3101_querycap,
 
 	.vidioc_enum_input        = msi3101_enum_input,

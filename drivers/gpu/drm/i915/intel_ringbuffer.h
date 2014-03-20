@@ -34,6 +34,7 @@ struct  intel_hw_status_page {
 #define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
 
 enum intel_ring_hangcheck_action {
+	HANGCHECK_IDLE = 0,
 	HANGCHECK_WAIT,
 	HANGCHECK_ACTIVE,
 	HANGCHECK_KICK,
@@ -140,7 +141,8 @@ struct  intel_ring_buffer {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
-	u32 outstanding_lazy_request;
+	struct drm_i915_gem_request *preallocated_lazy_request;
+	u32 outstanding_lazy_seqno;
 	bool gpu_caches_dirty;
 	bool fbc_dirty;
 
@@ -231,13 +233,19 @@ intel_write_status_page(struct intel_ring_buffer *ring,
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 
 int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
+int __must_check intel_ring_cacheline_align(struct intel_ring_buffer *ring);
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 				   u32 data)
 {
 	iowrite32(data, ring->virtual_start + ring->tail);
 	ring->tail += 4;
 }
-void intel_ring_advance(struct intel_ring_buffer *ring);
+static inline void intel_ring_advance(struct intel_ring_buffer *ring)
+{
+	ring->tail &= ring->size - 1;
+}
+void __intel_ring_advance(struct intel_ring_buffer *ring);
+
 int __must_check intel_ring_idle(struct intel_ring_buffer *ring);
 void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
@@ -258,8 +266,8 @@ static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)
 
 static inline u32 intel_ring_get_seqno(struct intel_ring_buffer *ring)
 {
-	BUG_ON(ring->outstanding_lazy_request == 0);
-	return ring->outstanding_lazy_request;
+	BUG_ON(ring->outstanding_lazy_seqno == 0);
+	return ring->outstanding_lazy_seqno;
 }
 
 static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)

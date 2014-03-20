@@ -19,20 +19,31 @@
  */
 
 #include "e4000_priv.h"
+#include <linux/math64.h>
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 /* write multiple registers */
 static int e4000_wr_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[1 + len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg->i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = 1 + len,
 			.buf = buf,
 		}
 	};
+
+	if (1 + len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
@@ -53,7 +64,7 @@ static int e4000_wr_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 static int e4000_rd_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[2] = {
 		{
 			.addr = priv->cfg->i2c_addr,
@@ -63,10 +74,17 @@ static int e4000_rd_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 		}, {
 			.addr = priv->cfg->i2c_addr,
 			.flags = I2C_M_RD,
-			.len = sizeof(buf),
+			.len = len,
 			.buf = buf,
 		}
 	};
+
+	if (len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c rd reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	ret = i2c_transfer(priv->i2c, msg, 2);
 	if (ret == 2) {
@@ -225,15 +243,17 @@ static int e4000_set_params(struct dvb_frontend *fe)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(e4000_pll_lut))
+	if (i == ARRAY_SIZE(e4000_pll_lut)) {
+		ret = -EINVAL;
 		goto err;
+	}
 
 	/*
 	 * Note: Currently f_vco overflows when c->frequency is 1 073 741 824 Hz
 	 * or more.
 	 */
 	f_vco = c->frequency * e4000_pll_lut[i].mul;
-	sigma_delta = 0x10000UL * (f_vco % priv->cfg->clock) / priv->cfg->clock;
+	sigma_delta = div_u64(0x10000ULL * (f_vco % priv->cfg->clock), priv->cfg->clock);
 	buf[0] = f_vco / priv->cfg->clock;
 	buf[1] = (sigma_delta >> 0) & 0xff;
 	buf[2] = (sigma_delta >> 8) & 0xff;
@@ -253,8 +273,10 @@ static int e4000_set_params(struct dvb_frontend *fe)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(e400_lna_filter_lut))
+	if (i == ARRAY_SIZE(e400_lna_filter_lut)) {
+		ret = -EINVAL;
 		goto err;
+	}
 
 	ret = e4000_wr_reg(priv, 0x10, e400_lna_filter_lut[i].val);
 	if (ret < 0)
@@ -266,8 +288,10 @@ static int e4000_set_params(struct dvb_frontend *fe)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(e4000_if_filter_lut))
+	if (i == ARRAY_SIZE(e4000_if_filter_lut)) {
+		ret = -EINVAL;
 		goto err;
+	}
 
 	buf[0] = e4000_if_filter_lut[i].reg11_val;
 	buf[1] = e4000_if_filter_lut[i].reg12_val;
@@ -282,8 +306,10 @@ static int e4000_set_params(struct dvb_frontend *fe)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(e4000_band_lut))
+	if (i == ARRAY_SIZE(e4000_band_lut)) {
+		ret = -EINVAL;
 		goto err;
+	}
 
 	ret = e4000_wr_reg(priv, 0x07, e4000_band_lut[i].reg07_val);
 	if (ret < 0)

@@ -187,7 +187,7 @@ static struct notifier_block msm_timer_cpu_nb = {
 	.notifier_call = msm_timer_cpu_notify,
 };
 
-static notrace u32 msm_sched_clock_read(void)
+static u64 notrace msm_sched_clock_read(void)
 {
 	return msm_clocksource.read(&msm_clocksource);
 }
@@ -229,7 +229,7 @@ err:
 	res = clocksource_register_hz(cs, dgt_hz);
 	if (res)
 		pr_err("clocksource_register failed\n");
-	setup_sched_clock(msm_sched_clock_read, sched_bits, dgt_hz);
+	sched_clock_register(msm_sched_clock_read, sched_bits, dgt_hz);
 }
 
 #ifdef CONFIG_OF
@@ -274,7 +274,6 @@ static void __init msm_dt_timer_init(struct device_node *np)
 		pr_err("Unknown frequency\n");
 		return;
 	}
-	of_node_put(np);
 
 	event_base = base + 0x4;
 	sts_base = base + 0x88;

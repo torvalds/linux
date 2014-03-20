@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __MSCAN_H__
@@ -297,8 +296,8 @@ struct mscan_priv {
 	struct napi_struct napi;
 };
 
-extern struct net_device *alloc_mscandev(void);
-extern int register_mscandev(struct net_device *dev, int mscan_clksrc);
-extern void unregister_mscandev(struct net_device *dev);
+struct net_device *alloc_mscandev(void);
+int register_mscandev(struct net_device *dev, int mscan_clksrc);
+void unregister_mscandev(struct net_device *dev);
 
 #endif /* __MSCAN_H__ */

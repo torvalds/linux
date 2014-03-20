@@ -19,6 +19,7 @@
 #ifndef FLOW_H
 #define FLOW_H 1
 
+#include <linux/cache.h>
 #include <linux/kernel.h>
 #include <linux/netlink.h>
 #include <linux/openvswitch.h>
@@ -33,14 +34,6 @@
 #include <net/inet_ecn.h>
 
 struct sk_buff;
-struct sw_flow_mask;
-struct flow_table;
-
-struct sw_flow_actions {
-	struct rcu_head rcu;
-	u32 actions_len;
-	struct nlattr actions[];
-};
 
 /* Used to memset ovs_key_ipv4_tunnel padding. */
 #define OVS_TUNNEL_KEY_SIZE					\
@@ -101,6 +94,7 @@ struct sw_flow_key {
 				struct {
 					__be16 src;		/* TCP/UDP/SCTP source port. */
 					__be16 dst;		/* TCP/UDP/SCTP destination port. */
+					__be16 flags;		/* TCP flags. */
 				} tp;
 				struct {
 					u8 sha[ETH_ALEN];	/* ARP source hardware address. */
@@ -117,6 +111,7 @@ struct sw_flow_key {
 			struct {
 				__be16 src;		/* TCP/UDP/SCTP source port. */
 				__be16 dst;		/* TCP/UDP/SCTP destination port. */
+				__be16 flags;		/* TCP flags. */
 			} tp;
 			struct {
 				struct in6_addr target;	/* ND target address. */
@@ -127,6 +122,47 @@ struct sw_flow_key {
 	};
 } __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
 
+struct sw_flow_key_range {
+	unsigned short int start;
+	unsigned short int end;
+};
+
+struct sw_flow_mask {
+	int ref_count;
+	struct rcu_head rcu;
+	struct list_head list;
+	struct sw_flow_key_range range;
+	struct sw_flow_key key;
+};
+
+struct sw_flow_match {
+	struct sw_flow_key *key;
+	struct sw_flow_key_range range;
+	struct sw_flow_mask *mask;
+};
+
+struct sw_flow_actions {
+	struct rcu_head rcu;
+	u32 actions_len;
+	struct nlattr actions[];
+};
+
+struct flow_stats {
+	u64 packet_count;		/* Number of packets matched. */
+	u64 byte_count;			/* Number of bytes matched. */
+	unsigned long used;		/* Last used time (in jiffies). */
+	spinlock_t lock;		/* Lock for atomic stats update. */
+	__be16 tcp_flags;		/* Union of seen TCP flags. */
+};
+
+struct sw_flow_stats {
+	bool is_percpu;
+	union {
+		struct flow_stats *stat;
+		struct flow_stats __percpu *cpu_stats;
+	};
+};
+
 struct sw_flow {
 	struct rcu_head rcu;
 	struct hlist_node hash_node[2];
@@ -136,27 +172,8 @@ struct sw_flow {
 	struct sw_flow_key unmasked_key;
 	struct sw_flow_mask *mask;
 	struct sw_flow_actions __rcu *sf_acts;
-
-	spinlock_t lock;	/* Lock for values below. */
-	unsigned long used;	/* Last used time (in jiffies). */
-	u64 packet_count;	/* Number of packets matched. */
-	u64 byte_count;		/* Number of bytes matched. */
-	u8 tcp_flags;		/* Union of seen TCP flags. */
+	struct sw_flow_stats stats;
 };
-
-struct sw_flow_key_range {
-	size_t start;
-	size_t end;
-};
-
-struct sw_flow_match {
-	struct sw_flow_key *key;
-	struct sw_flow_key_range range;
-	struct sw_flow_mask *mask;
-};
-
-void ovs_match_init(struct sw_flow_match *match,
-		struct sw_flow_key *key, struct sw_flow_mask *mask);
 
 struct arp_eth_header {
 	__be16      ar_hrd;	/* format of hardware address   */
@@ -172,88 +189,12 @@ struct arp_eth_header {
 	unsigned char       ar_tip[4];		/* target IP address        */
 } __packed;
 
-int ovs_flow_init(void);
-void ovs_flow_exit(void);
-
-struct sw_flow *ovs_flow_alloc(void);
-void ovs_flow_deferred_free(struct sw_flow *);
-void ovs_flow_free(struct sw_flow *, bool deferred);
-
-struct sw_flow_actions *ovs_flow_actions_alloc(int actions_len);
-void ovs_flow_deferred_free_acts(struct sw_flow_actions *);
+void ovs_flow_stats_update(struct sw_flow *flow, struct sk_buff *skb);
+void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *stats,
+			unsigned long *used, __be16 *tcp_flags);
+void ovs_flow_stats_clear(struct sw_flow *flow);
+u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
 int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *);
-void ovs_flow_used(struct sw_flow *, struct sk_buff *);
-u64 ovs_flow_used_time(unsigned long flow_jiffies);
-int ovs_flow_to_nlattrs(const struct sw_flow_key *,
-		const struct sw_flow_key *, struct sk_buff *);
-int ovs_match_from_nlattrs(struct sw_flow_match *match,
-		      const struct nlattr *,
-		      const struct nlattr *);
-int ovs_flow_metadata_from_nlattrs(struct sw_flow *flow,
-		const struct nlattr *attr);
 
-#define MAX_ACTIONS_BUFSIZE    (32 * 1024)
-#define TBL_MIN_BUCKETS		1024
-
-struct flow_table {
-	struct flex_array *buckets;
-	unsigned int count, n_buckets;
-	struct rcu_head rcu;
-	struct list_head *mask_list;
-	int node_ver;
-	u32 hash_seed;
-	bool keep_flows;
-};
-
-static inline int ovs_flow_tbl_count(struct flow_table *table)
-{
-	return table->count;
-}
-
-static inline int ovs_flow_tbl_need_to_expand(struct flow_table *table)
-{
-	return (table->count > table->n_buckets);
-}
-
-struct sw_flow *ovs_flow_lookup(struct flow_table *,
-				const struct sw_flow_key *);
-struct sw_flow *ovs_flow_lookup_unmasked_key(struct flow_table *table,
-				    struct sw_flow_match *match);
-
-void ovs_flow_tbl_destroy(struct flow_table *table, bool deferred);
-struct flow_table *ovs_flow_tbl_alloc(int new_size);
-struct flow_table *ovs_flow_tbl_expand(struct flow_table *table);
-struct flow_table *ovs_flow_tbl_rehash(struct flow_table *table);
-
-void ovs_flow_insert(struct flow_table *table, struct sw_flow *flow);
-void ovs_flow_remove(struct flow_table *table, struct sw_flow *flow);
-
-struct sw_flow *ovs_flow_dump_next(struct flow_table *table, u32 *bucket, u32 *idx);
-extern const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1];
-int ovs_ipv4_tun_from_nlattr(const struct nlattr *attr,
-			     struct sw_flow_match *match, bool is_mask);
-int ovs_ipv4_tun_to_nlattr(struct sk_buff *skb,
-			   const struct ovs_key_ipv4_tunnel *tun_key,
-			   const struct ovs_key_ipv4_tunnel *output);
-
-bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
-		const struct sw_flow_key *key, int key_end);
-
-struct sw_flow_mask {
-	int ref_count;
-	struct rcu_head rcu;
-	struct list_head list;
-	struct sw_flow_key_range range;
-	struct sw_flow_key key;
-};
-
-struct sw_flow_mask *ovs_sw_flow_mask_alloc(void);
-void ovs_sw_flow_mask_add_ref(struct sw_flow_mask *);
-void ovs_sw_flow_mask_del_ref(struct sw_flow_mask *, bool deferred);
-void ovs_sw_flow_mask_insert(struct flow_table *, struct sw_flow_mask *);
-struct sw_flow_mask *ovs_sw_flow_mask_find(const struct flow_table *,
-		const struct sw_flow_mask *);
-void ovs_flow_key_mask(struct sw_flow_key *dst, const struct sw_flow_key *src,
-		       const struct sw_flow_mask *mask);
 #endif /* flow.h */

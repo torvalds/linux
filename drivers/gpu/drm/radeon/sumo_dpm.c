@@ -71,7 +71,7 @@ static const u32 sumo_dtc[SUMO_PM_NUMBER_OF_TC] =
 	SUMO_DTC_DFLT_14,
 };
 
-struct sumo_ps *sumo_get_ps(struct radeon_ps *rps)
+static struct sumo_ps *sumo_get_ps(struct radeon_ps *rps)
 {
 	struct sumo_ps *ps = rps->ps_priv;
 
@@ -1202,14 +1202,10 @@ static void sumo_update_requested_ps(struct radeon_device *rdev,
 int sumo_dpm_enable(struct radeon_device *rdev)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	int ret;
 
 	if (sumo_dpm_enabled(rdev))
 		return -EINVAL;
 
-	ret = sumo_enable_clock_power_gating(rdev);
-	if (ret)
-		return ret;
 	sumo_program_bootup_state(rdev);
 	sumo_init_bsp(rdev);
 	sumo_reset_am(rdev);
@@ -1233,6 +1229,19 @@ int sumo_dpm_enable(struct radeon_device *rdev)
 	if (pi->enable_boost)
 		sumo_enable_boost_timer(rdev);
 
+	sumo_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+
+	return 0;
+}
+
+int sumo_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
+	ret = sumo_enable_clock_power_gating(rdev);
+	if (ret)
+		return ret;
+
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		ret = sumo_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
@@ -1241,8 +1250,6 @@ int sumo_dpm_enable(struct radeon_device *rdev)
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
-
-	sumo_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
 
 	return 0;
 }
@@ -1800,7 +1807,7 @@ void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev
 						      struct seq_file *m)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct radeon_ps *rps = &pi->current_rps;
 	struct sumo_ps *ps = sumo_get_ps(rps);
 	struct sumo_pl *pl;
 	u32 current_index =

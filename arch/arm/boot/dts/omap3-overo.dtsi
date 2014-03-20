@@ -9,9 +9,6 @@
 /*
  * The Gumstix Overo must be combined with an expansion board.
  */
-/dts-v1/;
-
-#include "omap34xx.dtsi"
 
 / {
 	pwmleds {
@@ -76,6 +73,8 @@
 &usb_otg_hs {
 	interface-type = <0>;
 	usb-phy = <&usb2_phy>;
+	phys = <&usb2_phy>;
+	phy-names = "usb2-phy";
 	mode = <3>;
 	power = <50>;
 };

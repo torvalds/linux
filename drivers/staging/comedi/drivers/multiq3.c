@@ -163,11 +163,11 @@ static int multiq3_di_insn_bits(struct comedi_device *dev,
 
 static int multiq3_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	s->state &= ~data[0];
-	s->state |= (data[0] & data[1]);
-	outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
+	if (comedi_dio_update_state(s, data))
+		outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
 
 	data[1] = s->state;
 

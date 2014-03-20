@@ -435,7 +435,7 @@ s_uGetDataDuration(
 
 	switch (byDurType) {
 	case DATADUR_B:    //DATADUR_B
-		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
+		if (((uMACfragNum == 1)) || bLastFrag) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
 				return pDevice->uSIFS + uAckTime;
@@ -458,7 +458,7 @@ s_uGetDataDuration(
 		break;
 
 	case DATADUR_A:    //DATADUR_A
-		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
+		if (((uMACfragNum == 1)) || bLastFrag) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
 				return pDevice->uSIFS + uAckTime;
@@ -481,7 +481,7 @@ s_uGetDataDuration(
 		break;
 
 	case DATADUR_A_F0:    //DATADUR_A_F0
-		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
+		if (((uMACfragNum == 1)) || bLastFrag) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
 				return pDevice->uSIFS + uAckTime;
@@ -523,7 +523,7 @@ s_uGetDataDuration(
 		break;
 
 	case DATADUR_A_F1:    //DATADUR_A_F1
-		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
+		if (((uMACfragNum == 1)) || bLastFrag) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
 				return pDevice->uSIFS + uAckTime;
@@ -2212,7 +2212,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 	else {
 		bNeedACK = true;
 		pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-	};
+	}
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
@@ -2686,7 +2686,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 		}
 		bNeedACK = true;
 		pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-	};
+	}
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {

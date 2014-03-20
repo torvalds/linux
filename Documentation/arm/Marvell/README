@@ -88,6 +88,7 @@ EBU Armada family
         MV78230
         MV78260
         MV78460
+    NOTE: not to be confused with the non-SMP 78xx0 SoCs
 
   Product Brief: http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
   No public datasheet available.
@@ -209,6 +210,30 @@ MMP/MMP2 family (communication processor)
 
    Linux kernel mach directory: arch/arm/mach-mmp
    Linux kernel plat directory: arch/arm/plat-pxa
+
+Berlin family (Digital Entertainment)
+-------------------------------------
+
+  Flavors:
+	88DE3005, Armada 1500-mini
+		Design name:	BG2CD
+		Core:		ARM Cortex-A9, PL310 L2CC
+		Homepage:	http://www.marvell.com/digital-entertainment/armada-1500-mini/
+	88DE3100, Armada 1500
+		Design name:	BG2
+		Core:		Marvell PJ4B (ARMv7), Tauros3 L2CC
+		Homepage:	http://www.marvell.com/digital-entertainment/armada-1500/
+		Product Brief:	http://www.marvell.com/digital-entertainment/armada-1500/assets/Marvell-ARMADA-1500-Product-Brief.pdf
+	88DE????
+		Design name:	BG3
+		Core:		ARM Cortex-A15, CA15 integrated L2CC
+
+  Homepage: http://www.marvell.com/digital-entertainment/
+  Directory: arch/arm/mach-berlin
+
+  Comments:
+   * This line of SoCs is based on Marvell Sheeva or ARM Cortex CPUs
+     with Synopsys DesignWare (IRQ, GPIO, Timers, ...) and PXA IP (SDHCI, USB, ETH, ...).
 
 Long-term plans
 ---------------

@@ -357,10 +357,12 @@ static int default_lcd_on = 1;
 static bool mtrr = true;
 #endif
 
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight = 1;
 #else
 static int backlight = 0;
+#endif
 #endif
 
 /* PLL constants */
@@ -413,7 +415,6 @@ struct aty128fb_par {
 	int blitter_may_be_busy;
 	int fifo_slots;                 /* free slots in FIFO (64 max) */
 
-	int	pm_reg;
 	int crt_on, lcd_on;
 	struct pci_dev *pdev;
 	struct fb_info *next;
@@ -1672,7 +1673,9 @@ static int aty128fb_setup(char *options)
 			default_crt_on = simple_strtoul(this_opt+4, NULL, 0);
 			continue;
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
+#endif
 			continue;
 		}
 #ifdef CONFIG_MTRR
@@ -2016,7 +2019,6 @@ static int aty128_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	aty128_init_engine(par);
 
-	par->pm_reg = pdev->pm_cap;
 	par->pdev = pdev;
 	par->asleep = 0;
 	par->lock_blank = 0;
@@ -2029,8 +2031,8 @@ static int aty128_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (register_framebuffer(info) < 0)
 		return 0;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device on %s\n",
-	       info->node, info->fix.id, video_card);
+	fb_info(info, "%s frame buffer device on %s\n",
+		info->fix.id, video_card);
 
 	return 1;	/* success! */
 }
@@ -2397,7 +2399,7 @@ static void aty128_set_suspend(struct aty128fb_par *par, int suspend)
 	u32	pmgt;
 	struct pci_dev *pdev = par->pdev;
 
-	if (!par->pm_reg)
+	if (!par->pdev->pm_cap)
 		return;
 		
 	/* Set the chip into the appropriate suspend mode (we use D2,

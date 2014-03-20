@@ -25,15 +25,7 @@
 
 extern int sysctl_tcp_syncookies;
 
-__u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
-EXPORT_SYMBOL(syncookie_secret);
-
-static __init int init_syncookies(void)
-{
-	get_random_bytes(syncookie_secret, sizeof(syncookie_secret));
-	return 0;
-}
-__initcall(init_syncookies);
+static u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
 
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
@@ -44,8 +36,11 @@ static DEFINE_PER_CPU(__u32 [16 + 5 + SHA_WORKSPACE_WORDS],
 static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
 		       u32 count, int c)
 {
-	__u32 *tmp = __get_cpu_var(ipv4_cookie_scratch);
+	__u32 *tmp;
 
+	net_get_random_once(syncookie_secret, sizeof(syncookie_secret));
+
+	tmp  = __get_cpu_var(ipv4_cookie_scratch);
 	memcpy(tmp + 4, syncookie_secret[c], sizeof(syncookie_secret[c]));
 	tmp[0] = (__force u32)saddr;
 	tmp[1] = (__force u32)daddr;
@@ -89,8 +84,7 @@ __u32 cookie_init_timestamp(struct request_sock *req)
 
 
 static __u32 secure_tcp_syn_cookie(__be32 saddr, __be32 daddr, __be16 sport,
-				   __be16 dport, __u32 sseq, __u32 count,
-				   __u32 data)
+				   __be16 dport, __u32 sseq, __u32 data)
 {
 	/*
 	 * Compute the secure sequence number.
@@ -102,7 +96,7 @@ static __u32 secure_tcp_syn_cookie(__be32 saddr, __be32 daddr, __be16 sport,
 	 * As an extra hack, we add a small "data" value that encodes the
 	 * MSS into the second hash value.
 	 */
-
+	u32 count = tcp_cookie_time();
 	return (cookie_hash(saddr, daddr, sport, dport, 0, 0) +
 		sseq + (count << COOKIEBITS) +
 		((cookie_hash(saddr, daddr, sport, dport, count, 1) + data)
@@ -114,22 +108,21 @@ static __u32 secure_tcp_syn_cookie(__be32 saddr, __be32 daddr, __be16 sport,
  * If the syncookie is bad, the data returned will be out of
  * range.  This must be checked by the caller.
  *
- * The count value used to generate the cookie must be within
- * "maxdiff" if the current (passed-in) "count".  The return value
- * is (__u32)-1 if this test fails.
+ * The count value used to generate the cookie must be less than
+ * MAX_SYNCOOKIE_AGE minutes in the past.
+ * The return value (__u32)-1 if this test fails.
  */
 static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
-				  __be16 sport, __be16 dport, __u32 sseq,
-				  __u32 count, __u32 maxdiff)
+				  __be16 sport, __be16 dport, __u32 sseq)
 {
-	__u32 diff;
+	u32 diff, count = tcp_cookie_time();
 
 	/* Strip away the layers from the cookie */
 	cookie -= cookie_hash(saddr, daddr, sport, dport, 0, 0) + sseq;
 
 	/* Cookie is now reduced to (count * 2^24) ^ (hash % 2^24) */
-	diff = (count - (cookie >> COOKIEBITS)) & ((__u32) - 1 >> COOKIEBITS);
-	if (diff >= maxdiff)
+	diff = (count - (cookie >> COOKIEBITS)) & ((__u32) -1 >> COOKIEBITS);
+	if (diff >= MAX_SYNCOOKIE_AGE)
 		return (__u32)-1;
 
 	return (cookie -
@@ -138,22 +131,22 @@ static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
 }
 
 /*
- * MSS Values are taken from the 2009 paper
- * 'Measuring TCP Maximum Segment Size' by S. Alcock and R. Nelson:
- *  - values 1440 to 1460 accounted for 80% of observed mss values
- *  - values outside the 536-1460 range are rare (<0.2%).
+ * MSS Values are chosen based on the 2011 paper
+ * 'An Analysis of TCP Maximum Segement Sizes' by S. Alcock and R. Nelson.
+ * Values ..
+ *  .. lower than 536 are rare (< 0.2%)
+ *  .. between 537 and 1299 account for less than < 1.5% of observed values
+ *  .. in the 1300-1349 range account for about 15 to 20% of observed mss values
+ *  .. exceeding 1460 are very rare (< 0.04%)
  *
- * Table must be sorted.
+ *  1460 is the single most frequently announced mss value (30 to 46% depending
+ *  on monitor location).  Table must be sorted.
  */
 static __u16 const msstab[] = {
-	64,
-	512,
 	536,
-	1024,
-	1440,
+	1300,
+	1440,	/* 1440, 1452: PPPoE */
 	1460,
-	4312,
-	8960,
 };
 
 /*
@@ -173,7 +166,7 @@ u32 __cookie_v4_init_sequence(const struct iphdr *iph, const struct tcphdr *th,
 
 	return secure_tcp_syn_cookie(iph->saddr, iph->daddr,
 				     th->source, th->dest, ntohl(th->seq),
-				     jiffies / (HZ * 60), mssind);
+				     mssind);
 }
 EXPORT_SYMBOL_GPL(__cookie_v4_init_sequence);
 
@@ -189,13 +182,6 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 }
 
 /*
- * This (misnamed) value is the age of syncookie which is permitted.
- * Its ideal value should be dependent on TCP_TIMEOUT_INIT and
- * sysctl_tcp_retries1. It's a rather complicated formula (exponential
- * backoff) to compute at runtime so it's currently hardcoded here.
- */
-#define COUNTER_TRIES 4
-/*
  * Check if a ack sequence number is a valid syncookie.
  * Return the decoded mss if it is, or 0 if not.
  */
@@ -204,9 +190,7 @@ int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th,
 {
 	__u32 seq = ntohl(th->seq) - 1;
 	__u32 mssind = check_tcp_syn_cookie(cookie, iph->saddr, iph->daddr,
-					    th->source, th->dest, seq,
-					    jiffies / (HZ * 60),
-					    COUNTER_TRIES);
+					    th->source, th->dest, seq);
 
 	return mssind < ARRAY_SIZE(msstab) ? msstab[mssind] : 0;
 }
@@ -315,10 +299,10 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	treq->rcv_isn		= ntohl(th->seq) - 1;
 	treq->snt_isn		= cookie;
 	req->mss		= mss;
-	ireq->loc_port		= th->dest;
-	ireq->rmt_port		= th->source;
-	ireq->loc_addr		= ip_hdr(skb)->daddr;
-	ireq->rmt_addr		= ip_hdr(skb)->saddr;
+	ireq->ir_num		= ntohs(th->dest);
+	ireq->ir_rmt_port	= th->source;
+	ireq->ir_loc_addr	= ip_hdr(skb)->daddr;
+	ireq->ir_rmt_addr	= ip_hdr(skb)->saddr;
 	ireq->ecn_ok		= ecn_ok;
 	ireq->snd_wscale	= tcp_opt.snd_wscale;
 	ireq->sack_ok		= tcp_opt.sack_ok;
@@ -358,8 +342,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	flowi4_init_output(&fl4, sk->sk_bound_dev_if, sk->sk_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE, IPPROTO_TCP,
 			   inet_sk_flowi_flags(sk),
-			   (opt && opt->srr) ? opt->faddr : ireq->rmt_addr,
-			   ireq->loc_addr, th->source, th->dest);
+			   (opt && opt->srr) ? opt->faddr : ireq->ir_rmt_addr,
+			   ireq->ir_loc_addr, th->source, th->dest);
 	security_req_classify_flow(req, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_key(sock_net(sk), &fl4);
 	if (IS_ERR(rt)) {

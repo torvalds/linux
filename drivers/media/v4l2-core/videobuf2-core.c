@@ -145,6 +145,25 @@ static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
 }
 
 /**
+ * __setup_lengths() - setup initial lengths for every plane in
+ * every buffer on the queue
+ */
+static void __setup_lengths(struct vb2_queue *q, unsigned int n)
+{
+	unsigned int buffer, plane;
+	struct vb2_buffer *vb;
+
+	for (buffer = q->num_buffers; buffer < q->num_buffers + n; ++buffer) {
+		vb = q->bufs[buffer];
+		if (!vb)
+			continue;
+
+		for (plane = 0; plane < vb->num_planes; ++plane)
+			vb->v4l2_planes[plane].length = q->plane_sizes[plane];
+	}
+}
+
+/**
  * __setup_offsets() - setup unique offsets ("cookies") for every plane in
  * every buffer on the queue
  */
@@ -169,7 +188,6 @@ static void __setup_offsets(struct vb2_queue *q, unsigned int n)
 			continue;
 
 		for (plane = 0; plane < vb->num_planes; ++plane) {
-			vb->v4l2_planes[plane].length = q->plane_sizes[plane];
 			vb->v4l2_planes[plane].m.mem_offset = off;
 
 			dprintk(3, "Buffer %d, plane %d offset 0x%08lx\n",
@@ -241,7 +259,9 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum v4l2_memory memory,
 		q->bufs[q->num_buffers + buffer] = vb;
 	}
 
-	__setup_offsets(q, buffer);
+	__setup_lengths(q, buffer);
+	if (memory == V4L2_MEMORY_MMAP)
+		__setup_offsets(q, buffer);
 
 	dprintk(1, "Allocated %d buffers, %d plane(s) each\n",
 			buffer, num_planes);
@@ -278,9 +298,27 @@ static void __vb2_free_mem(struct vb2_queue *q, unsigned int buffers)
  * related information, if no buffers are left return the queue to an
  * uninitialized state. Might be called even if the queue has already been freed.
  */
-static void __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
+static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 {
 	unsigned int buffer;
+
+	/*
+	 * Sanity check: when preparing a buffer the queue lock is released for
+	 * a short while (see __buf_prepare for the details), which would allow
+	 * a race with a reqbufs which can call this function. Removing the
+	 * buffers from underneath __buf_prepare is obviously a bad idea, so we
+	 * check if any of the buffers is in the state PREPARING, and if so we
+	 * just return -EAGAIN.
+	 */
+	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
+	     ++buffer) {
+		if (q->bufs[buffer] == NULL)
+			continue;
+		if (q->bufs[buffer]->state == VB2_BUF_STATE_PREPARING) {
+			dprintk(1, "reqbufs: preparing buffers, cannot free\n");
+			return -EAGAIN;
+		}
+	}
 
 	/* Call driver-provided cleanup function for each buffer, if provided */
 	if (q->ops->buf_cleanup) {
@@ -306,6 +344,7 @@ static void __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 	if (!q->num_buffers)
 		q->memory = 0;
 	INIT_LIST_HEAD(&q->queued_list);
+	return 0;
 }
 
 /**
@@ -353,7 +392,9 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 			if (b->m.planes[plane].bytesused > length)
 				return -EINVAL;
-			if (b->m.planes[plane].data_offset >=
+
+			if (b->m.planes[plane].data_offset > 0 &&
+			    b->m.planes[plane].data_offset >=
 			    b->m.planes[plane].bytesused)
 				return -EINVAL;
 		}
@@ -459,6 +500,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	case VB2_BUF_STATE_PREPARED:
 		b->flags |= V4L2_BUF_FLAG_PREPARED;
 		break;
+	case VB2_BUF_STATE_PREPARING:
 	case VB2_BUF_STATE_DEQUEUED:
 		/* nothing */
 		break;
@@ -635,7 +677,9 @@ static int __reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 			return -EBUSY;
 		}
 
-		__vb2_queue_free(q, q->num_buffers);
+		ret = __vb2_queue_free(q, q->num_buffers);
+		if (ret)
+			return ret;
 
 		/*
 		 * In case of REQBUFS(0) return immediately without calling
@@ -1013,6 +1057,10 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		/* Check if the provided plane buffer is large enough */
 		if (planes[plane].length < q->plane_sizes[plane]) {
+			dprintk(1, "qbuf: provided buffer size %u is less than "
+						"setup size %u for plane %d\n",
+						planes[plane].length,
+						q->plane_sizes[plane], plane);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1090,7 +1138,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	int ret;
 	int write = !V4L2_TYPE_IS_OUTPUT(q->type);
 
-	/* Verify and copy relevant information provided by the userspace */
+	/* Copy relevant information provided by the userspace */
 	__fill_vb2_buffer(vb, b, planes);
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
@@ -1109,6 +1157,8 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		if (planes[plane].length < planes[plane].data_offset +
 		    q->plane_sizes[plane]) {
+			dprintk(1, "qbuf: invalid dmabuf length for plane %d\n",
+				plane);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1200,18 +1250,42 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 {
 	struct vb2_queue *q = vb->vb2_queue;
+	struct rw_semaphore *mmap_sem;
 	int ret;
 
 	ret = __verify_length(vb, b);
-	if (ret < 0)
+	if (ret < 0) {
+		dprintk(1, "%s(): plane parameters verification failed: %d\n",
+			__func__, ret);
 		return ret;
+	}
 
+	vb->state = VB2_BUF_STATE_PREPARING;
 	switch (q->memory) {
 	case V4L2_MEMORY_MMAP:
 		ret = __qbuf_mmap(vb, b);
 		break;
 	case V4L2_MEMORY_USERPTR:
+		/*
+		 * In case of user pointer buffers vb2 allocators need to get
+		 * direct access to userspace pages. This requires getting
+		 * the mmap semaphore for read access in the current process
+		 * structure. The same semaphore is taken before calling mmap
+		 * operation, while both qbuf/prepare_buf and mmap are called
+		 * by the driver or v4l2 core with the driver's lock held.
+		 * To avoid an AB-BA deadlock (mmap_sem then driver's lock in
+		 * mmap and driver's lock then mmap_sem in qbuf/prepare_buf),
+		 * the videobuf2 core releases the driver's lock, takes
+		 * mmap_sem and then takes the driver's lock again.
+		 */
+		mmap_sem = &current->mm->mmap_sem;
+		call_qop(q, wait_prepare, q);
+		down_read(mmap_sem);
+		call_qop(q, wait_finish, q);
+
 		ret = __qbuf_userptr(vb, b);
+
+		up_read(mmap_sem);
 		break;
 	case V4L2_MEMORY_DMABUF:
 		ret = __qbuf_dmabuf(vb, b);
@@ -1225,105 +1299,36 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		ret = call_qop(q, buf_prepare, vb);
 	if (ret)
 		dprintk(1, "qbuf: buffer preparation failed: %d\n", ret);
-	else
-		vb->state = VB2_BUF_STATE_PREPARED;
+	vb->state = ret ? VB2_BUF_STATE_DEQUEUED : VB2_BUF_STATE_PREPARED;
 
 	return ret;
 }
 
 static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
-				    const char *opname,
-				    int (*handler)(struct vb2_queue *,
-						   struct v4l2_buffer *,
-						   struct vb2_buffer *))
+				    const char *opname)
 {
-	struct rw_semaphore *mmap_sem = NULL;
-	struct vb2_buffer *vb;
-	int ret;
-
-	/*
-	 * In case of user pointer buffers vb2 allocators need to get direct
-	 * access to userspace pages. This requires getting the mmap semaphore
-	 * for read access in the current process structure. The same semaphore
-	 * is taken before calling mmap operation, while both qbuf/prepare_buf
-	 * and mmap are called by the driver or v4l2 core with the driver's lock
-	 * held. To avoid an AB-BA deadlock (mmap_sem then driver's lock in mmap
-	 * and driver's lock then mmap_sem in qbuf/prepare_buf) the videobuf2
-	 * core releases the driver's lock, takes mmap_sem and then takes the
-	 * driver's lock again.
-	 *
-	 * To avoid racing with other vb2 calls, which might be called after
-	 * releasing the driver's lock, this operation is performed at the
-	 * beginning of qbuf/prepare_buf processing. This way the queue status
-	 * is consistent after getting the driver's lock back.
-	 */
-	if (q->memory == V4L2_MEMORY_USERPTR) {
-		mmap_sem = &current->mm->mmap_sem;
-		call_qop(q, wait_prepare, q);
-		down_read(mmap_sem);
-		call_qop(q, wait_finish, q);
-	}
-
-	if (q->fileio) {
-		dprintk(1, "%s(): file io in progress\n", opname);
-		ret = -EBUSY;
-		goto unlock;
-	}
-
 	if (b->type != q->type) {
 		dprintk(1, "%s(): invalid buffer type\n", opname);
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	if (b->index >= q->num_buffers) {
 		dprintk(1, "%s(): buffer index out of range\n", opname);
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
-	vb = q->bufs[b->index];
-	if (NULL == vb) {
+	if (q->bufs[b->index] == NULL) {
 		/* Should never happen */
 		dprintk(1, "%s(): buffer is NULL\n", opname);
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	if (b->memory != q->memory) {
 		dprintk(1, "%s(): invalid memory type\n", opname);
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	ret = __verify_planes_array(vb, b);
-	if (ret)
-		goto unlock;
-
-	ret = handler(q, b, vb);
-	if (ret)
-		goto unlock;
-
-	/* Fill buffer information for the userspace */
-	__fill_v4l2_buffer(vb, b);
-
-	dprintk(1, "%s() of buffer %d succeeded\n", opname, vb->v4l2_buf.index);
-unlock:
-	if (mmap_sem)
-		up_read(mmap_sem);
-	return ret;
-}
-
-static int __vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
-			     struct vb2_buffer *vb)
-{
-	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "%s(): invalid buffer state %d\n", __func__,
-			vb->state);
 		return -EINVAL;
 	}
 
-	return __buf_prepare(vb, b);
+	return __verify_planes_array(q->bufs[b->index], b);
 }
 
 /**
@@ -1343,22 +1348,95 @@ static int __vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
  */
 int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
-	return vb2_queue_or_prepare_buf(q, b, "prepare_buf", __vb2_prepare_buf);
+	struct vb2_buffer *vb;
+	int ret;
+
+	if (q->fileio) {
+		dprintk(1, "%s(): file io in progress\n", __func__);
+		return -EBUSY;
+	}
+
+	ret = vb2_queue_or_prepare_buf(q, b, "prepare_buf");
+	if (ret)
+		return ret;
+
+	vb = q->bufs[b->index];
+	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
+		dprintk(1, "%s(): invalid buffer state %d\n", __func__,
+			vb->state);
+		return -EINVAL;
+	}
+
+	ret = __buf_prepare(vb, b);
+	if (!ret) {
+		/* Fill buffer information for the userspace */
+		__fill_v4l2_buffer(vb, b);
+
+		dprintk(1, "%s() of buffer %d succeeded\n", __func__, vb->v4l2_buf.index);
+	}
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_prepare_buf);
 
-static int __vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b,
-		      struct vb2_buffer *vb)
+/**
+ * vb2_start_streaming() - Attempt to start streaming.
+ * @q:		videobuf2 queue
+ *
+ * If there are not enough buffers, then retry_start_streaming is set to
+ * 1 and 0 is returned. The next time a buffer is queued and
+ * retry_start_streaming is 1, this function will be called again to
+ * retry starting the DMA engine.
+ */
+static int vb2_start_streaming(struct vb2_queue *q)
 {
 	int ret;
+
+	/* Tell the driver to start streaming */
+	ret = call_qop(q, start_streaming, q, atomic_read(&q->queued_count));
+
+	/*
+	 * If there are not enough buffers queued to start streaming, then
+	 * the start_streaming operation will return -ENOBUFS and you have to
+	 * retry when the next buffer is queued.
+	 */
+	if (ret == -ENOBUFS) {
+		dprintk(1, "qbuf: not enough buffers, retry when more buffers are queued.\n");
+		q->retry_start_streaming = 1;
+		return 0;
+	}
+	if (ret)
+		dprintk(1, "qbuf: driver refused to start streaming\n");
+	else
+		q->retry_start_streaming = 0;
+	return ret;
+}
+
+static int vb2_internal_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
+{
+	int ret = vb2_queue_or_prepare_buf(q, b, "qbuf");
+	struct vb2_buffer *vb;
+
+	if (ret)
+		return ret;
+
+	vb = q->bufs[b->index];
+	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
+		dprintk(1, "%s(): invalid buffer state %d\n", __func__,
+			vb->state);
+		return -EINVAL;
+	}
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DEQUEUED:
 		ret = __buf_prepare(vb, b);
 		if (ret)
 			return ret;
+		break;
 	case VB2_BUF_STATE_PREPARED:
 		break;
+	case VB2_BUF_STATE_PREPARING:
+		dprintk(1, "qbuf: buffer still being prepared\n");
+		return -EINVAL;
 	default:
 		dprintk(1, "qbuf: buffer already in use\n");
 		return -EINVAL;
@@ -1378,6 +1456,16 @@ static int __vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b,
 	if (q->streaming)
 		__enqueue_in_driver(vb);
 
+	/* Fill buffer information for the userspace */
+	__fill_v4l2_buffer(vb, b);
+
+	if (q->retry_start_streaming) {
+		ret = vb2_start_streaming(q);
+		if (ret)
+			return ret;
+	}
+
+	dprintk(1, "%s() of buffer %d succeeded\n", __func__, vb->v4l2_buf.index);
 	return 0;
 }
 
@@ -1400,7 +1488,12 @@ static int __vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b,
  */
 int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
-	return vb2_queue_or_prepare_buf(q, b, "qbuf", __vb2_qbuf);
+	if (q->fileio) {
+		dprintk(1, "%s(): file io in progress\n", __func__);
+		return -EBUSY;
+	}
+
+	return vb2_internal_qbuf(q, b);
 }
 EXPORT_SYMBOL_GPL(vb2_qbuf);
 
@@ -1521,7 +1614,8 @@ int vb2_wait_for_all_buffers(struct vb2_queue *q)
 		return -EINVAL;
 	}
 
-	wait_event(q->done_wq, !atomic_read(&q->queued_count));
+	if (!q->retry_start_streaming)
+		wait_event(q->done_wq, !atomic_read(&q->queued_count));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_wait_for_all_buffers);
@@ -1550,36 +1644,10 @@ static void __vb2_dqbuf(struct vb2_buffer *vb)
 		}
 }
 
-/**
- * vb2_dqbuf() - Dequeue a buffer to the userspace
- * @q:		videobuf2 queue
- * @b:		buffer structure passed from userspace to vidioc_dqbuf handler
- *		in driver
- * @nonblocking: if true, this call will not sleep waiting for a buffer if no
- *		 buffers ready for dequeuing are present. Normally the driver
- *		 would be passing (file->f_flags & O_NONBLOCK) here
- *
- * Should be called from vidioc_dqbuf ioctl handler of a driver.
- * This function:
- * 1) verifies the passed buffer,
- * 2) calls buf_finish callback in the driver (if provided), in which
- *    driver can perform any additional operations that may be required before
- *    returning the buffer to userspace, such as cache sync,
- * 3) the buffer struct members are filled with relevant information for
- *    the userspace.
- *
- * The return values from this function are intended to be directly returned
- * from vidioc_dqbuf handler in driver.
- */
-int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
+static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 {
 	struct vb2_buffer *vb = NULL;
 	int ret;
-
-	if (q->fileio) {
-		dprintk(1, "dqbuf: file io in progress\n");
-		return -EBUSY;
-	}
 
 	if (b->type != q->type) {
 		dprintk(1, "dqbuf: invalid buffer type\n");
@@ -1619,6 +1687,36 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 
 	return 0;
 }
+
+/**
+ * vb2_dqbuf() - Dequeue a buffer to the userspace
+ * @q:		videobuf2 queue
+ * @b:		buffer structure passed from userspace to vidioc_dqbuf handler
+ *		in driver
+ * @nonblocking: if true, this call will not sleep waiting for a buffer if no
+ *		 buffers ready for dequeuing are present. Normally the driver
+ *		 would be passing (file->f_flags & O_NONBLOCK) here
+ *
+ * Should be called from vidioc_dqbuf ioctl handler of a driver.
+ * This function:
+ * 1) verifies the passed buffer,
+ * 2) calls buf_finish callback in the driver (if provided), in which
+ *    driver can perform any additional operations that may be required before
+ *    returning the buffer to userspace, such as cache sync,
+ * 3) the buffer struct members are filled with relevant information for
+ *    the userspace.
+ *
+ * The return values from this function are intended to be directly returned
+ * from vidioc_dqbuf handler in driver.
+ */
+int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
+{
+	if (q->fileio) {
+		dprintk(1, "dqbuf: file io in progress\n");
+		return -EBUSY;
+	}
+	return vb2_internal_dqbuf(q, b, nonblocking);
+}
 EXPORT_SYMBOL_GPL(vb2_dqbuf);
 
 /**
@@ -1630,6 +1728,11 @@ EXPORT_SYMBOL_GPL(vb2_dqbuf);
 static void __vb2_queue_cancel(struct vb2_queue *q)
 {
 	unsigned int i;
+
+	if (q->retry_start_streaming) {
+		q->retry_start_streaming = 0;
+		q->streaming = 0;
+	}
 
 	/*
 	 * Tell driver to stop all transactions and release all queued
@@ -1658,6 +1761,46 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 		__vb2_dqbuf(q->bufs[i]);
 }
 
+static int vb2_internal_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
+{
+	struct vb2_buffer *vb;
+	int ret;
+
+	if (type != q->type) {
+		dprintk(1, "streamon: invalid stream type\n");
+		return -EINVAL;
+	}
+
+	if (q->streaming) {
+		dprintk(3, "streamon successful: already streaming\n");
+		return 0;
+	}
+
+	if (!q->num_buffers) {
+		dprintk(1, "streamon: no buffers have been allocated\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * If any buffers were queued before streamon,
+	 * we can now pass them to driver for processing.
+	 */
+	list_for_each_entry(vb, &q->queued_list, queued_entry)
+		__enqueue_in_driver(vb);
+
+	/* Tell driver to start streaming. */
+	ret = vb2_start_streaming(q);
+	if (ret) {
+		__vb2_queue_cancel(q);
+		return ret;
+	}
+
+	q->streaming = 1;
+
+	dprintk(3, "Streamon successful\n");
+	return 0;
+}
+
 /**
  * vb2_streamon - start streaming
  * @q:		videobuf2 queue
@@ -1673,48 +1816,35 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
  */
 int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 {
-	struct vb2_buffer *vb;
-	int ret;
-
 	if (q->fileio) {
 		dprintk(1, "streamon: file io in progress\n");
 		return -EBUSY;
 	}
-
-	if (type != q->type) {
-		dprintk(1, "streamon: invalid stream type\n");
-		return -EINVAL;
-	}
-
-	if (q->streaming) {
-		dprintk(1, "streamon: already streaming\n");
-		return -EBUSY;
-	}
-
-	/*
-	 * If any buffers were queued before streamon,
-	 * we can now pass them to driver for processing.
-	 */
-	list_for_each_entry(vb, &q->queued_list, queued_entry)
-		__enqueue_in_driver(vb);
-
-	/*
-	 * Let driver notice that streaming state has been enabled.
-	 */
-	ret = call_qop(q, start_streaming, q, atomic_read(&q->queued_count));
-	if (ret) {
-		dprintk(1, "streamon: driver refused to start streaming\n");
-		__vb2_queue_cancel(q);
-		return ret;
-	}
-
-	q->streaming = 1;
-
-	dprintk(3, "Streamon successful\n");
-	return 0;
+	return vb2_internal_streamon(q, type);
 }
 EXPORT_SYMBOL_GPL(vb2_streamon);
 
+static int vb2_internal_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
+{
+	if (type != q->type) {
+		dprintk(1, "streamoff: invalid stream type\n");
+		return -EINVAL;
+	}
+
+	if (!q->streaming) {
+		dprintk(3, "streamoff successful: not streaming\n");
+		return 0;
+	}
+
+	/*
+	 * Cancel will pause streaming and remove all buffers from the driver
+	 * and videobuf, effectively returning control over them to userspace.
+	 */
+	__vb2_queue_cancel(q);
+
+	dprintk(3, "Streamoff successful\n");
+	return 0;
+}
 
 /**
  * vb2_streamoff - stop streaming
@@ -1737,25 +1867,7 @@ int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 		dprintk(1, "streamoff: file io in progress\n");
 		return -EBUSY;
 	}
-
-	if (type != q->type) {
-		dprintk(1, "streamoff: invalid stream type\n");
-		return -EINVAL;
-	}
-
-	if (!q->streaming) {
-		dprintk(1, "streamoff: not streaming\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Cancel will pause streaming and remove all buffers from the driver
-	 * and videobuf, effectively returning control over them to userspace.
-	 */
-	__vb2_queue_cancel(q);
-
-	dprintk(3, "Streamoff successful\n");
-	return 0;
+	return vb2_internal_streamoff(q, type);
 }
 EXPORT_SYMBOL_GPL(vb2_streamoff);
 
@@ -1814,8 +1926,8 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb)
 		return -EINVAL;
 	}
 
-	if (eb->flags & ~O_CLOEXEC) {
-		dprintk(1, "Queue does support only O_CLOEXEC flag\n");
+	if (eb->flags & ~(O_CLOEXEC | O_ACCMODE)) {
+		dprintk(1, "Queue does support only O_CLOEXEC and access mode flags\n");
 		return -EINVAL;
 	}
 
@@ -1838,14 +1950,14 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb)
 
 	vb_plane = &vb->planes[eb->plane];
 
-	dbuf = call_memop(q, get_dmabuf, vb_plane->mem_priv);
+	dbuf = call_memop(q, get_dmabuf, vb_plane->mem_priv, eb->flags & O_ACCMODE);
 	if (IS_ERR_OR_NULL(dbuf)) {
 		dprintk(1, "Failed to export buffer %d, plane %d\n",
 			eb->index, eb->plane);
 		return -EINVAL;
 	}
 
-	ret = dma_buf_fd(dbuf, eb->flags);
+	ret = dma_buf_fd(dbuf, eb->flags & ~O_ACCMODE);
 	if (ret < 0) {
 		dprintk(3, "buffer %d, plane %d failed to export (%d)\n",
 			eb->index, eb->plane, ret);
@@ -2248,14 +2360,15 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 				goto err_reqbufs;
 			fileio->bufs[i].queued = 1;
 		}
-
-		/*
-		 * Start streaming.
-		 */
-		ret = vb2_streamon(q, q->type);
-		if (ret)
-			goto err_reqbufs;
+		fileio->index = q->num_buffers;
 	}
+
+	/*
+	 * Start streaming.
+	 */
+	ret = vb2_streamon(q, q->type);
+	if (ret)
+		goto err_reqbufs;
 
 	q->fileio = fileio;
 
@@ -2279,13 +2392,8 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
 	struct vb2_fileio_data *fileio = q->fileio;
 
 	if (fileio) {
-		/*
-		 * Hack fileio context to enable direct calls to vb2 ioctl
-		 * interface.
-		 */
+		vb2_internal_streamoff(q, q->type);
 		q->fileio = NULL;
-
-		vb2_streamoff(q, q->type);
 		fileio->req.count = 0;
 		vb2_reqbufs(q, &fileio->req);
 		kfree(fileio);
@@ -2329,39 +2437,34 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	fileio = q->fileio;
 
 	/*
-	 * Hack fileio context to enable direct calls to vb2 ioctl interface.
-	 * The pointer will be restored before returning from this function.
-	 */
-	q->fileio = NULL;
-
-	index = fileio->index;
-	buf = &fileio->bufs[index];
-
-	/*
 	 * Check if we need to dequeue the buffer.
 	 */
-	if (buf->queued) {
-		struct vb2_buffer *vb;
-
+	index = fileio->index;
+	if (index >= q->num_buffers) {
 		/*
 		 * Call vb2_dqbuf to get buffer back.
 		 */
 		memset(&fileio->b, 0, sizeof(fileio->b));
 		fileio->b.type = q->type;
 		fileio->b.memory = q->memory;
-		fileio->b.index = index;
-		ret = vb2_dqbuf(q, &fileio->b, nonblock);
+		ret = vb2_internal_dqbuf(q, &fileio->b, nonblock);
 		dprintk(5, "file io: vb2_dqbuf result: %d\n", ret);
 		if (ret)
-			goto end;
+			return ret;
 		fileio->dq_count += 1;
+
+		index = fileio->b.index;
+		buf = &fileio->bufs[index];
 
 		/*
 		 * Get number of bytes filled by the driver
 		 */
-		vb = q->bufs[index];
-		buf->size = vb2_get_plane_payload(vb, 0);
+		buf->pos = 0;
 		buf->queued = 0;
+		buf->size = read ? vb2_get_plane_payload(q->bufs[index], 0)
+				 : vb2_plane_size(q->bufs[index], 0);
+	} else {
+		buf = &fileio->bufs[index];
 	}
 
 	/*
@@ -2383,8 +2486,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		ret = copy_from_user(buf->vaddr + buf->pos, data, count);
 	if (ret) {
 		dprintk(3, "file io: error copying data\n");
-		ret = -EFAULT;
-		goto end;
+		return -EFAULT;
 	}
 
 	/*
@@ -2404,10 +2506,6 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		if (read && (fileio->flags & VB2_FILEIO_READ_ONCE) &&
 		    fileio->dq_count == 1) {
 			dprintk(3, "file io: read limit reached\n");
-			/*
-			 * Restore fileio pointer and release the context.
-			 */
-			q->fileio = fileio;
 			return __vb2_cleanup_fileio(q);
 		}
 
@@ -2419,32 +2517,20 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		fileio->b.memory = q->memory;
 		fileio->b.index = index;
 		fileio->b.bytesused = buf->pos;
-		ret = vb2_qbuf(q, &fileio->b);
+		ret = vb2_internal_qbuf(q, &fileio->b);
 		dprintk(5, "file io: vb2_dbuf result: %d\n", ret);
 		if (ret)
-			goto end;
+			return ret;
 
 		/*
 		 * Buffer has been queued, update the status
 		 */
 		buf->pos = 0;
 		buf->queued = 1;
-		buf->size = q->bufs[0]->v4l2_planes[0].length;
+		buf->size = vb2_plane_size(q->bufs[index], 0);
 		fileio->q_count += 1;
-
-		/*
-		 * Switch to the next buffer
-		 */
-		fileio->index = (index + 1) % q->num_buffers;
-
-		/*
-		 * Start streaming if required.
-		 */
-		if (!read && !q->streaming) {
-			ret = vb2_streamon(q, q->type);
-			if (ret)
-				goto end;
-		}
+		if (fileio->index < q->num_buffers)
+			fileio->index++;
 	}
 
 	/*
@@ -2452,11 +2538,6 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 */
 	if (ret == 0)
 		ret = count;
-end:
-	/*
-	 * Restore the fileio context and block vb2 ioctl interface.
-	 */
-	q->fileio = fileio;
 	return ret;
 }
 
@@ -2467,10 +2548,11 @@ size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
 }
 EXPORT_SYMBOL_GPL(vb2_read);
 
-size_t vb2_write(struct vb2_queue *q, char __user *data, size_t count,
+size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
 		loff_t *ppos, int nonblocking)
 {
-	return __vb2_perform_fileio(q, data, count, ppos, nonblocking, 0);
+	return __vb2_perform_fileio(q, (char __user *) data, count,
+							ppos, nonblocking, 0);
 }
 EXPORT_SYMBOL_GPL(vb2_write);
 
@@ -2619,19 +2701,32 @@ int vb2_fop_mmap(struct file *file, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL_GPL(vb2_fop_mmap);
 
-int vb2_fop_release(struct file *file)
+int _vb2_fop_release(struct file *file, struct mutex *lock)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (file->private_data == vdev->queue->owner) {
+		if (lock)
+			mutex_lock(lock);
 		vb2_queue_release(vdev->queue);
 		vdev->queue->owner = NULL;
+		if (lock)
+			mutex_unlock(lock);
 	}
 	return v4l2_fh_release(file);
 }
+EXPORT_SYMBOL_GPL(_vb2_fop_release);
+
+int vb2_fop_release(struct file *file)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
+
+	return _vb2_fop_release(file, lock);
+}
 EXPORT_SYMBOL_GPL(vb2_fop_release);
 
-ssize_t vb2_fop_write(struct file *file, char __user *buf,
+ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = video_devdata(file);

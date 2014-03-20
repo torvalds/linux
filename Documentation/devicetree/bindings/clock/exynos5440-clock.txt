@@ -5,7 +5,7 @@ controllers within the Exynos5440 SoC.
 
 Required Properties:
 
-- comptible: should be "samsung,exynos5440-clock".
+- compatible: should be "samsung,exynos5440-clock".
 
 - reg: physical base address of the controller and length of memory mapped
   region.

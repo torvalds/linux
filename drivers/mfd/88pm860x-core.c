@@ -1247,7 +1247,7 @@ static struct i2c_driver pm860x_driver = {
 		.name	= "88PM860x",
 		.owner	= THIS_MODULE,
 		.pm     = &pm860x_pm_ops,
-		.of_match_table	= of_match_ptr(pm860x_dt_ids),
+		.of_match_table	= pm860x_dt_ids,
 	},
 	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,

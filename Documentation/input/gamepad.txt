@@ -68,7 +68,7 @@ features that you need, first. How each feature is mapped is described below.
 Legacy drivers often don't comply to these rules. As we cannot change them
 for backwards-compatibility reasons, you need to provide fixup mappings in
 user-space yourself. Some of them might also provide module-options that
-change the mappings so you can adivce users to set these.
+change the mappings so you can advise users to set these.
 
 All new gamepads are supposed to comply with this mapping. Please report any
 bugs, if they don't.
@@ -122,12 +122,14 @@ D-Pad:
       BTN_DPAD_*
     Analog buttons are reported as:
       ABS_HAT0X and ABS_HAT0Y
+      (for ABS values negative is left/up, positive is right/down)
 
 Analog-Sticks:
   The left analog-stick is reported as ABS_X, ABS_Y. The right analog stick is
   reported as ABS_RX, ABS_RY. Zero, one or two sticks may be present.
   If analog-sticks provide digital buttons, they are mapped accordingly as
   BTN_THUMBL (first/left) and BTN_THUMBR (second/right).
+    (for ABS values negative is left/up, positive is right/down)
 
 Triggers:
   Trigger buttons can be available as digital or analog buttons or both. User-
@@ -138,6 +140,7 @@ Triggers:
   ABS_HAT2X (right/ZR) and BTN_TL2 or ABS_HAT2Y (left/ZL).
   If only one trigger-button combination is present (upper+lower), they are
   reported as "right" triggers (BTN_TR/ABS_HAT1X).
+    (ABS trigger values start at 0, pressure is reported as positive values)
 
 Menu-Pad:
   Menu buttons are always digital and are mapped according to their location
@@ -147,10 +150,10 @@ Menu-Pad:
                   BTN_START
   Many pads also have a third button which is branded or has a special symbol
   and meaning. Such buttons are mapped as BTN_MODE. Examples are the Nintendo
-  "HOME" button, the XBox "X"-button or Sony "P" button.
+  "HOME" button, the XBox "X"-button or Sony "PS" button.
 
 Rumble:
-  Rumble is adverticed as FF_RUMBLE.
+  Rumble is advertised as FF_RUMBLE.
 
 ----------------------------------------------------------------------------
   Written 2013 by David Herrmann <dh.herrmann@gmail.com>

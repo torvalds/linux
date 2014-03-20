@@ -64,6 +64,18 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+/* RTL8201CP */
+static struct phy_driver rtl8201cp_driver = {
+	.phy_id         = 0x00008201,
+	.name           = "RTL8201CP Ethernet",
+	.phy_id_mask    = 0x0000ffff,
+	.features       = PHY_BASIC_FEATURES,
+	.flags          = PHY_HAS_INTERRUPT,
+	.config_aneg    = &genphy_config_aneg,
+	.read_status    = &genphy_read_status,
+	.driver         = { .owner = THIS_MODULE,},
+};
+
 /* RTL8211B */
 static struct phy_driver rtl8211b_driver = {
 	.phy_id		= 0x001cc912,
@@ -98,6 +110,9 @@ static int __init realtek_init(void)
 {
 	int ret;
 
+	ret = phy_driver_register(&rtl8201cp_driver);
+	if (ret < 0)
+		return -ENODEV;
 	ret = phy_driver_register(&rtl8211b_driver);
 	if (ret < 0)
 		return -ENODEV;

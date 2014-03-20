@@ -115,7 +115,7 @@ static int mc33880_probe(struct spi_device *spi)
 	mc->chip.set = mc33880_set;
 	mc->chip.base = pdata->base;
 	mc->chip.ngpio = PIN_NUMBER;
-	mc->chip.can_sleep = 1;
+	mc->chip.can_sleep = true;
 	mc->chip.dev = &spi->dev;
 	mc->chip.owner = THIS_MODULE;
 
@@ -142,7 +142,6 @@ static int mc33880_probe(struct spi_device *spi)
 	return ret;
 
 exit_destroy:
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&mc->lock);
 	return ret;
 }
@@ -155,8 +154,6 @@ static int mc33880_remove(struct spi_device *spi)
 	mc = spi_get_drvdata(spi);
 	if (mc == NULL)
 		return -ENODEV;
-
-	spi_set_drvdata(spi, NULL);
 
 	ret = gpiochip_remove(&mc->chip);
 	if (!ret)

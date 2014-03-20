@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 
 #include <net/mac80211.h>
 
@@ -186,6 +185,92 @@ static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 	}
 }
 
+static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  struct iwl_mac_power_cmd *cmd)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	enum ieee80211_ac_numbers ac;
+	bool tid_found = false;
+
+	for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_BK; ac++) {
+		if (!mvmvif->queue_params[ac].uapsd)
+			continue;
+
+		if (mvm->cur_ucode != IWL_UCODE_WOWLAN)
+			cmd->flags |=
+				cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+
+		cmd->uapsd_ac_flags |= BIT(ac);
+
+		/* QNDP TID - the highest TID with no admission control */
+		if (!tid_found && !mvmvif->queue_params[ac].acm) {
+			tid_found = true;
+			switch (ac) {
+			case IEEE80211_AC_VO:
+				cmd->qndp_tid = 6;
+				break;
+			case IEEE80211_AC_VI:
+				cmd->qndp_tid = 5;
+				break;
+			case IEEE80211_AC_BE:
+				cmd->qndp_tid = 0;
+				break;
+			case IEEE80211_AC_BK:
+				cmd->qndp_tid = 1;
+				break;
+			}
+		}
+	}
+
+	if (!(cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK)))
+		return;
+
+	cmd->flags |= cpu_to_le16(POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK);
+
+	if (cmd->uapsd_ac_flags == (BIT(IEEE80211_AC_VO) |
+				    BIT(IEEE80211_AC_VI) |
+				    BIT(IEEE80211_AC_BE) |
+				    BIT(IEEE80211_AC_BK))) {
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
+		cmd->snooze_interval = cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
+		cmd->snooze_window = (mvm->cur_ucode == IWL_UCODE_WOWLAN) ?
+			cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
+			cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
+	}
+
+	cmd->uapsd_max_sp = IWL_UAPSD_MAX_SP;
+
+	if (mvm->cur_ucode == IWL_UCODE_WOWLAN || cmd->flags &
+	    cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+		cmd->rx_data_timeout_uapsd =
+			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout_uapsd =
+			cpu_to_le32(IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT);
+	} else {
+		cmd->rx_data_timeout_uapsd =
+			cpu_to_le32(IWL_MVM_UAPSD_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout_uapsd =
+			cpu_to_le32(IWL_MVM_UAPSD_TX_DATA_TIMEOUT);
+	}
+
+	if (cmd->flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+		cmd->heavy_tx_thld_packets =
+			IWL_MVM_PS_SNOOZE_HEAVY_TX_THLD_PACKETS;
+		cmd->heavy_rx_thld_packets =
+			IWL_MVM_PS_SNOOZE_HEAVY_RX_THLD_PACKETS;
+	} else {
+		cmd->heavy_tx_thld_packets =
+			IWL_MVM_PS_HEAVY_TX_THLD_PACKETS;
+		cmd->heavy_rx_thld_packets =
+			IWL_MVM_PS_HEAVY_RX_THLD_PACKETS;
+	}
+	cmd->heavy_tx_thld_percentage =
+		IWL_MVM_PS_HEAVY_TX_THLD_PERCENT;
+	cmd->heavy_rx_thld_percentage =
+		IWL_MVM_PS_HEAVY_RX_THLD_PERCENT;
+}
+
 static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct iwl_mac_power_cmd *cmd)
@@ -198,8 +283,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	bool radar_detect = false;
 	struct iwl_mvm_vif *mvmvif __maybe_unused =
 		iwl_mvm_vif_from_mac80211(vif);
-	enum ieee80211_ac_numbers ac;
-	bool tid_found = false;
+	bool allow_uapsd = true;
 
 	cmd->id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							    mvmvif->color));
@@ -217,7 +301,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
 	cmd->keep_alive_seconds = cpu_to_le16(keep_alive);
 
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
+	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM ||
+	    mvm->ps_prevented)
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
@@ -227,7 +312,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	    mvmvif->dbgfs_pm.disable_power_off)
 		cmd->flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
 #endif
-	if (!vif->bss_conf.ps)
+	if (!vif->bss_conf.ps || mvmvif->pm_prevented)
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
@@ -269,62 +354,24 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT);
 	}
 
-	for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_BK; ac++) {
-		if (!mvmvif->queue_params[ac].uapsd)
-			continue;
+	if (!memcmp(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
+		    ETH_ALEN))
+		allow_uapsd = false;
 
-		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
-		cmd->uapsd_ac_flags |= BIT(ac);
+	if (vif->p2p &&
+	    !(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD))
+		allow_uapsd = false;
+	/*
+	 * Avoid using uAPSD if P2P client is associated to GO that uses
+	 * opportunistic power save. This is due to current FW limitation.
+	 */
+	if (vif->p2p &&
+	    vif->bss_conf.p2p_noa_attr.oppps_ctwindow &
+	    IEEE80211_P2P_OPPPS_ENABLE_BIT)
+		allow_uapsd = false;
 
-		/* QNDP TID - the highest TID with no admission control */
-		if (!tid_found && !mvmvif->queue_params[ac].acm) {
-			tid_found = true;
-			switch (ac) {
-			case IEEE80211_AC_VO:
-				cmd->qndp_tid = 6;
-				break;
-			case IEEE80211_AC_VI:
-				cmd->qndp_tid = 5;
-				break;
-			case IEEE80211_AC_BE:
-				cmd->qndp_tid = 0;
-				break;
-			case IEEE80211_AC_BK:
-				cmd->qndp_tid = 1;
-				break;
-			}
-		}
-	}
-
-	if (cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK)) {
-		cmd->rx_data_timeout_uapsd =
-			cpu_to_le32(IWL_MVM_UAPSD_RX_DATA_TIMEOUT);
-		cmd->tx_data_timeout_uapsd =
-			cpu_to_le32(IWL_MVM_UAPSD_TX_DATA_TIMEOUT);
-
-		if (cmd->uapsd_ac_flags == (BIT(IEEE80211_AC_VO) |
-					    BIT(IEEE80211_AC_VI) |
-					    BIT(IEEE80211_AC_BE) |
-					    BIT(IEEE80211_AC_BK))) {
-			cmd->flags |= cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
-			cmd->snooze_interval =
-				cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
-			cmd->snooze_window =
-				(mvm->cur_ucode == IWL_UCODE_WOWLAN) ?
-				cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
-				cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
-		}
-
-		cmd->uapsd_max_sp = IWL_UAPSD_MAX_SP;
-		cmd->heavy_tx_thld_packets =
-			IWL_MVM_PS_HEAVY_TX_THLD_PACKETS;
-		cmd->heavy_rx_thld_packets =
-			IWL_MVM_PS_HEAVY_RX_THLD_PACKETS;
-		cmd->heavy_tx_thld_percentage =
-			IWL_MVM_PS_HEAVY_TX_THLD_PERCENT;
-		cmd->heavy_rx_thld_percentage =
-			IWL_MVM_PS_HEAVY_RX_THLD_PERCENT;
-	}
+	if (allow_uapsd)
+		iwl_mvm_power_configure_uapsd(mvm, vif, cmd);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_KEEP_ALIVE)
@@ -362,6 +409,13 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 			cmd->flags &=
 				cpu_to_le16(~POWER_FLAGS_SNOOZE_ENA_MSK);
 	}
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_UAPSD_MISBEHAVING) {
+		u16 flag = POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK;
+		if (mvmvif->dbgfs_pm.uapsd_misbehaving)
+			cmd->flags |= cpu_to_le16(flag);
+		else
+			cmd->flags &= cpu_to_le16(flag);
+	}
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 }
 
@@ -372,18 +426,11 @@ static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	bool ba_enable;
 	struct iwl_mac_power_cmd cmd = {};
 
-	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+	if (vif->type != NL80211_IFTYPE_STATION)
 		return 0;
 
-	/*
-	 * TODO: The following vif_count verification is temporary condition.
-	 * Avoid power mode update if more than one interface is currently
-	 * active. Remove this condition when FW will support power management
-	 * on multiple MACs.
-	 */
-	IWL_DEBUG_POWER(mvm, "Currently %d interfaces active\n",
-			mvm->vif_count);
-	if (mvm->vif_count > 1)
+	if (vif->p2p &&
+	    !(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PS))
 		return 0;
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
@@ -427,6 +474,105 @@ static int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm,
 				    sizeof(cmd), &cmd);
 }
 
+static int _iwl_mvm_power_update_device(struct iwl_mvm *mvm, bool force_disable)
+{
+	struct iwl_device_power_cmd cmd = {
+		.flags = cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
+	};
+
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
+		return 0;
+
+	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM ||
+	    force_disable)
+		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_CAM_MSK);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if ((mvm->cur_ucode == IWL_UCODE_WOWLAN) ? mvm->disable_power_off_d3 :
+	    mvm->disable_power_off)
+		cmd.flags &=
+			cpu_to_le16(~DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
+#endif
+	IWL_DEBUG_POWER(mvm,
+			"Sending device power command with flags = 0x%X\n",
+			cmd.flags);
+
+	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC, sizeof(cmd),
+				    &cmd);
+}
+
+static int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
+{
+	return _iwl_mvm_power_update_device(mvm, false);
+}
+
+void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (memcmp(vif->bss_conf.bssid, mvmvif->uapsd_misbehaving_bssid,
+		   ETH_ALEN))
+		memset(mvmvif->uapsd_misbehaving_bssid, 0, ETH_ALEN);
+}
+
+static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
+						     struct ieee80211_vif *vif)
+{
+	u8 *ap_sta_id = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	/* The ap_sta_id is not expected to change during current association
+	 * so no explicit protection is needed
+	 */
+	if (mvmvif->ap_sta_id == *ap_sta_id)
+		memcpy(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
+		       ETH_ALEN);
+}
+
+int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_uapsd_misbehaving_ap_notif *notif = (void *)pkt->data;
+	u8 ap_sta_id = le32_to_cpu(notif->sta_id);
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_power_uapsd_misbehav_ap_iterator, &ap_sta_id);
+
+	return 0;
+}
+
+static void iwl_mvm_power_binding_iterator(void *_data, u8 *mac,
+					   struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = _data;
+	int ret;
+
+	mvmvif->pm_prevented = (mvm->bound_vif_cnt <= 1) ? false : true;
+
+	ret = iwl_mvm_power_mac_update_mode(mvm, vif);
+	WARN_ONCE(ret, "Failed to update power parameters on a specific vif\n");
+}
+
+static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  bool assign)
+{
+	if (vif->type == NL80211_IFTYPE_MONITOR) {
+		int ret = _iwl_mvm_power_update_device(mvm, assign);
+		mvm->ps_prevented = assign;
+		WARN_ONCE(ret, "Failed to update power device state\n");
+	}
+
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_power_binding_iterator,
+					    mvm);
+}
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif, char *buf,
@@ -437,10 +583,11 @@ static int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 
-	pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off = %d\n",
-			 (cmd.flags &
-			 cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK)) ?
-			 0 : 1);
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
+		pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off = %d\n",
+				 (cmd.flags &
+				 cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK)) ?
+				 0 : 1);
 	pos += scnprintf(buf+pos, bufsz-pos, "power_scheme = %d\n",
 			 iwlmvm_mod_params.power_scheme);
 	pos += scnprintf(buf+pos, bufsz-pos, "flags = 0x%x\n",
@@ -448,70 +595,58 @@ static int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 	pos += scnprintf(buf+pos, bufsz-pos, "keep_alive = %d\n",
 			 le16_to_cpu(cmd.keep_alive_seconds));
 
-	if (cmd.flags & cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK)) {
-		pos += scnprintf(buf+pos, bufsz-pos, "skip_over_dtim = %d\n",
-				 (cmd.flags &
-				 cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK)) ?
-				 1 : 0);
-		pos += scnprintf(buf+pos, bufsz-pos, "skip_dtim_periods = %d\n",
-				 cmd.skip_dtim_periods);
-		if (!(cmd.flags &
-		      cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK))) {
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "rx_data_timeout = %d\n",
-					 le32_to_cpu(cmd.rx_data_timeout));
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "tx_data_timeout = %d\n",
-					 le32_to_cpu(cmd.tx_data_timeout));
-		}
-		if (cmd.flags & cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK))
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "lprx_rssi_threshold = %d\n",
-					 cmd.lprx_rssi_threshold);
-		if (cmd.flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK)) {
-			pos +=
-			scnprintf(buf+pos, bufsz-pos,
-				  "rx_data_timeout_uapsd = %d\n",
-				  le32_to_cpu(cmd.rx_data_timeout_uapsd));
-			pos +=
-			scnprintf(buf+pos, bufsz-pos,
-				  "tx_data_timeout_uapsd = %d\n",
-				  le32_to_cpu(cmd.tx_data_timeout_uapsd));
-			pos += scnprintf(buf+pos, bufsz-pos, "qndp_tid = %d\n",
-					 cmd.qndp_tid);
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "uapsd_ac_flags = 0x%x\n",
-					 cmd.uapsd_ac_flags);
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "uapsd_max_sp = %d\n",
-					 cmd.uapsd_max_sp);
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "heavy_tx_thld_packets = %d\n",
-					 cmd.heavy_tx_thld_packets);
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "heavy_rx_thld_packets = %d\n",
-					 cmd.heavy_rx_thld_packets);
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "heavy_tx_thld_percentage = %d\n",
-					 cmd.heavy_tx_thld_percentage);
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "heavy_rx_thld_percentage = %d\n",
-					 cmd.heavy_rx_thld_percentage);
-			pos +=
-			scnprintf(buf+pos, bufsz-pos, "snooze_enable = %d\n",
-				  (cmd.flags &
-				   cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) ?
-				  1 : 0);
-		}
-		if (cmd.flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "snooze_interval = %d\n",
-					 cmd.snooze_interval);
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "snooze_window = %d\n",
-					 cmd.snooze_window);
-		}
+	if (!(cmd.flags & cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK)))
+		return pos;
+
+	pos += scnprintf(buf+pos, bufsz-pos, "skip_over_dtim = %d\n",
+			 (cmd.flags &
+			 cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK)) ? 1 : 0);
+	pos += scnprintf(buf+pos, bufsz-pos, "skip_dtim_periods = %d\n",
+			 cmd.skip_dtim_periods);
+	if (!(cmd.flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK))) {
+		pos += scnprintf(buf+pos, bufsz-pos, "rx_data_timeout = %d\n",
+				 le32_to_cpu(cmd.rx_data_timeout));
+		pos += scnprintf(buf+pos, bufsz-pos, "tx_data_timeout = %d\n",
+				 le32_to_cpu(cmd.tx_data_timeout));
 	}
+	if (cmd.flags & cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK))
+		pos += scnprintf(buf+pos, bufsz-pos,
+				 "lprx_rssi_threshold = %d\n",
+				 cmd.lprx_rssi_threshold);
+
+	if (!(cmd.flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK)))
+		return pos;
+
+	pos += scnprintf(buf+pos, bufsz-pos, "rx_data_timeout_uapsd = %d\n",
+			 le32_to_cpu(cmd.rx_data_timeout_uapsd));
+	pos += scnprintf(buf+pos, bufsz-pos, "tx_data_timeout_uapsd = %d\n",
+			 le32_to_cpu(cmd.tx_data_timeout_uapsd));
+	pos += scnprintf(buf+pos, bufsz-pos, "qndp_tid = %d\n", cmd.qndp_tid);
+	pos += scnprintf(buf+pos, bufsz-pos, "uapsd_ac_flags = 0x%x\n",
+			 cmd.uapsd_ac_flags);
+	pos += scnprintf(buf+pos, bufsz-pos, "uapsd_max_sp = %d\n",
+			 cmd.uapsd_max_sp);
+	pos += scnprintf(buf+pos, bufsz-pos, "heavy_tx_thld_packets = %d\n",
+			 cmd.heavy_tx_thld_packets);
+	pos += scnprintf(buf+pos, bufsz-pos, "heavy_rx_thld_packets = %d\n",
+			 cmd.heavy_rx_thld_packets);
+	pos += scnprintf(buf+pos, bufsz-pos, "heavy_tx_thld_percentage = %d\n",
+			 cmd.heavy_tx_thld_percentage);
+	pos += scnprintf(buf+pos, bufsz-pos, "heavy_rx_thld_percentage = %d\n",
+			 cmd.heavy_rx_thld_percentage);
+	pos += scnprintf(buf+pos, bufsz-pos, "uapsd_misbehaving_enable = %d\n",
+			 (cmd.flags &
+			  cpu_to_le16(POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK)) ?
+			 1 : 0);
+
+	if (!(cmd.flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)))
+		return pos;
+
+	pos += scnprintf(buf+pos, bufsz-pos, "snooze_interval = %d\n",
+			 cmd.snooze_interval);
+	pos += scnprintf(buf+pos, bufsz-pos, "snooze_window = %d\n",
+			 cmd.snooze_window);
+
 	return pos;
 }
 
@@ -606,7 +741,9 @@ int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
 
 const struct iwl_mvm_power_ops pm_mac_ops = {
 	.power_update_mode = iwl_mvm_power_mac_update_mode,
+	.power_update_device_mode = iwl_mvm_power_update_device,
 	.power_disable = iwl_mvm_power_mac_disable,
+	.power_update_binding = _iwl_mvm_power_update_binding,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	.power_dbgfs_read = iwl_mvm_power_mac_dbgfs_read,
 #endif

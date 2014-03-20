@@ -18,8 +18,8 @@
 struct mlme_frame {
 	s8		*pMMPDU;
 	u16		len;
-	u8		DataType;
-	u8		IsInUsed;
+	u8		data_type;
+	u8		is_in_used;
 
 	u8		TxMMPDU[MAX_NUM_TX_MMPDU][MAX_MMPDU_SIZE];
 	u8		TxMMPDUInUse[(MAX_NUM_TX_MMPDU + 3) & ~0x03];
@@ -52,12 +52,8 @@ struct wbsoft_priv {
 	struct hw_data sHwData;	/*For HAL */
 	struct wb35_mds Mds;
 
-	atomic_t ThreadCount;
-
 	u32 RxByteCount;
 	u32 TxByteCount;
-
-	u8 LinkName[WB_MAX_LINK_NAME_LEN];
 
 	bool enabled;
 };

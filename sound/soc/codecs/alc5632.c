@@ -614,7 +614,7 @@ struct _pll_div {
 };
 
 /* Note : pll code from original alc5632 driver. Not sure of how good it is */
-/* usefull only for master mode */
+/* useful only for master mode */
 static const struct _pll_div codec_master_pll_div[] = {
 
 	{  2048000,  8192000,	0x0ea0},
@@ -869,14 +869,14 @@ static int alc5632_pcm_hw_params(struct snd_pcm_substream *substream,
 	iface &= ~ALC5632_DAI_I2S_DL_MASK;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		iface |= ALC5632_DAI_I2S_DL_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= ALC5632_DAI_I2S_DL_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= ALC5632_DAI_I2S_DL_24;
 		break;
 	default:

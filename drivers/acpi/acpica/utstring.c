@@ -310,7 +310,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 	/* All done, normal exit */
 
-      all_done:
+all_done:
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
 			  ACPI_FORMAT_UINT64(return_value)));
@@ -318,7 +318,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 	*ret_integer = return_value;
 	return_ACPI_STATUS(AE_OK);
 
-      error_exit:
+error_exit:
 	/* Base was set/validated above */
 
 	if (base == 10) {
@@ -582,5 +582,67 @@ void ut_convert_backslashes(char *pathname)
 
 		pathname++;
 	}
+}
+#endif
+
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_safe_strcpy, acpi_ut_safe_strcat, acpi_ut_safe_strncat
+ *
+ * PARAMETERS:  Adds a "DestSize" parameter to each of the standard string
+ *              functions. This is the size of the Destination buffer.
+ *
+ * RETURN:      TRUE if the operation would overflow the destination buffer.
+ *
+ * DESCRIPTION: Safe versions of standard Clib string functions. Ensure that
+ *              the result of the operation will not overflow the output string
+ *              buffer.
+ *
+ * NOTE:        These functions are typically only helpful for processing
+ *              user input and command lines. For most ACPICA code, the
+ *              required buffer length is precisely calculated before buffer
+ *              allocation, so the use of these functions is unnecessary.
+ *
+ ******************************************************************************/
+
+u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source)
+{
+
+	if (ACPI_STRLEN(source) >= dest_size) {
+		return (TRUE);
+	}
+
+	ACPI_STRCPY(dest, source);
+	return (FALSE);
+}
+
+u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source)
+{
+
+	if ((ACPI_STRLEN(dest) + ACPI_STRLEN(source)) >= dest_size) {
+		return (TRUE);
+	}
+
+	ACPI_STRCAT(dest, source);
+	return (FALSE);
+}
+
+u8
+acpi_ut_safe_strncat(char *dest,
+		     acpi_size dest_size,
+		     char *source, acpi_size max_transfer_length)
+{
+	acpi_size actual_transfer_length;
+
+	actual_transfer_length =
+	    ACPI_MIN(max_transfer_length, ACPI_STRLEN(source));
+
+	if ((ACPI_STRLEN(dest) + actual_transfer_length) >= dest_size) {
+		return (TRUE);
+	}
+
+	ACPI_STRNCAT(dest, source, max_transfer_length);
+	return (FALSE);
 }
 #endif

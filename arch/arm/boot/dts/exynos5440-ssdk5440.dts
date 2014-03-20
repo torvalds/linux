@@ -17,7 +17,7 @@
 	compatible = "samsung,ssdk5440", "samsung,exynos5440";
 
 	chosen {
-		bootargs = "root=/dev/sda2 rw rootwait ignore_loglevel early_printk no_console_suspend mem=2048M@0x80000000 mem=6144M@0x100000000 console=ttySAC0,115200";
+		bootargs = "root=/dev/sda2 rw rootwait ignore_loglevel earlyprintk no_console_suspend mem=2048M@0x80000000 mem=6144M@0x100000000 console=ttySAC0,115200";
 	};
 
 	spi_0: spi@D0000 {
@@ -68,9 +68,11 @@
 
 	pcie@290000 {
 		reset-gpio = <&pin_ctrl 5 0>;
+		status = "okay";
 	};
 
 	pcie@2a0000 {
 		reset-gpio = <&pin_ctrl 22 0>;
+		status = "okay";
 	};
 };

@@ -6,6 +6,8 @@
 #include <asm/elf.h>
 #include <uapi/linux/elfcore.h>
 
+struct coredump_params;
+
 static inline void elf_core_copy_regs(elf_gregset_t *elfregs, struct pt_regs *regs)
 {
 #ifdef ELF_CORE_COPY_REGS
@@ -63,10 +65,9 @@ static inline int elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregse
  */
 extern Elf_Half elf_core_extra_phdrs(void);
 extern int
-elf_core_write_extra_phdrs(struct file *file, loff_t offset, size_t *size,
-			   unsigned long limit);
+elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset);
 extern int
-elf_core_write_extra_data(struct file *file, size_t *size, unsigned long limit);
+elf_core_write_extra_data(struct coredump_params *cprm);
 extern size_t elf_core_extra_data_size(void);
 
 #endif /* _LINUX_ELFCORE_H */

@@ -255,17 +255,19 @@ static bool dcon_blank_fb(struct dcon_priv *dcon, bool blank)
 {
 	int err;
 
+	console_lock();
 	if (!lock_fb_info(dcon->fbinfo)) {
+		console_unlock();
 		dev_err(&dcon->client->dev, "unable to lock framebuffer\n");
 		return false;
 	}
-	console_lock();
+
 	dcon->ignore_fb_events = true;
 	err = fb_blank(dcon->fbinfo,
 			blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK);
 	dcon->ignore_fb_events = false;
-	console_unlock();
 	unlock_fb_info(dcon->fbinfo);
+	console_unlock();
 
 	if (err) {
 		dev_err(&dcon->client->dev, "couldn't %sblank framebuffer\n",
@@ -383,7 +385,7 @@ static void dcon_set_source(struct dcon_priv *dcon, int arg)
 
 	dcon->pending_src = arg;
 
-	if ((dcon->curr_src != arg) && !work_pending(&dcon->switch_source))
+	if (dcon->curr_src != arg)
 		schedule_work(&dcon->switch_source);
 }
 

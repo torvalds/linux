@@ -218,9 +218,8 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	rdesc->vsel_mask = VSEL_NSEL_MASK;
 	rdesc->owner = THIS_MODULE;
 
-	di->rdev = regulator_register(&di->desc, config);
+	di->rdev = devm_regulator_register(di->dev, &di->desc, config);
 	return PTR_ERR_OR_ZERO(di->rdev);
-
 }
 
 static struct regmap_config fan53555_regmap_config = {
@@ -291,14 +290,6 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 
 }
 
-static int fan53555_regulator_remove(struct i2c_client *client)
-{
-	struct fan53555_device_info *di = i2c_get_clientdata(client);
-
-	regulator_unregister(di->rdev);
-	return 0;
-}
-
 static const struct i2c_device_id fan53555_id[] = {
 	{"fan53555", -1},
 	{ },
@@ -309,7 +300,6 @@ static struct i2c_driver fan53555_regulator_driver = {
 		.name = "fan53555-regulator",
 	},
 	.probe = fan53555_regulator_probe,
-	.remove = fan53555_regulator_remove,
 	.id_table = fan53555_id,
 };
 

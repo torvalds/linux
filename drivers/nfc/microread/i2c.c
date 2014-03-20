@@ -13,10 +13,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -95,12 +95,8 @@ static int check_crc(struct sk_buff *skb)
 		crc = crc ^ skb->data[i];
 
 	if (crc != skb->data[skb->len-1]) {
-		pr_err(MICROREAD_I2C_DRIVER_NAME
-		       ": CRC error 0x%x != 0x%x\n",
-		       crc, skb->data[skb->len-1]);
-
-		pr_info(DRIVER_DESC ": %s : BAD CRC\n", __func__);
-
+		pr_err("CRC error 0x%x != 0x%x\n", crc, skb->data[skb->len-1]);
+		pr_info("%s: BAD CRC\n", __func__);
 		return -EPERM;
 	}
 
@@ -160,18 +156,15 @@ static int microread_i2c_read(struct microread_i2c_phy *phy,
 	u8 tmp[MICROREAD_I2C_LLC_MAX_SIZE - 1];
 	struct i2c_client *client = phy->i2c_dev;
 
-	pr_debug("%s\n", __func__);
-
 	r = i2c_master_recv(client, &len, 1);
 	if (r != 1) {
-		dev_err(&client->dev, "cannot read len byte\n");
+		nfc_err(&client->dev, "cannot read len byte\n");
 		return -EREMOTEIO;
 	}
 
 	if ((len < MICROREAD_I2C_LLC_MIN_SIZE) ||
 	    (len > MICROREAD_I2C_LLC_MAX_SIZE)) {
-		dev_err(&client->dev, "invalid len byte\n");
-		pr_err("invalid len byte\n");
+		nfc_err(&client->dev, "invalid len byte\n");
 		r = -EBADMSG;
 		goto flush;
 	}
@@ -228,7 +221,6 @@ static irqreturn_t microread_i2c_irq_thread_fn(int irq, void *phy_id)
 	}
 
 	client = phy->i2c_dev;
-	dev_dbg(&client->dev, "IRQ\n");
 
 	if (phy->hard_fault != 0)
 		return IRQ_HANDLED;
@@ -263,20 +255,18 @@ static int microread_i2c_probe(struct i2c_client *client,
 		dev_get_platdata(&client->dev);
 	int r;
 
-	dev_dbg(&client->dev, "client %p", client);
+	dev_dbg(&client->dev, "client %p\n", client);
 
 	if (!pdata) {
-		dev_err(&client->dev, "client %p: missing platform data",
+		nfc_err(&client->dev, "client %p: missing platform data\n",
 			client);
 		return -EINVAL;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct microread_i2c_phy),
 			   GFP_KERNEL);
-	if (!phy) {
-		dev_err(&client->dev, "Can't allocate microread phy");
+	if (!phy)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, phy);
 	phy->i2c_dev = client;
@@ -285,7 +275,7 @@ static int microread_i2c_probe(struct i2c_client *client,
 				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				 MICROREAD_I2C_DRIVER_NAME, phy);
 	if (r) {
-		dev_err(&client->dev, "Unable to register IRQ handler");
+		nfc_err(&client->dev, "Unable to register IRQ handler\n");
 		return r;
 	}
 
@@ -296,7 +286,7 @@ static int microread_i2c_probe(struct i2c_client *client,
 	if (r < 0)
 		goto err_irq;
 
-	dev_info(&client->dev, "Probed");
+	nfc_info(&client->dev, "Probed");
 
 	return 0;
 
@@ -309,8 +299,6 @@ err_irq:
 static int microread_i2c_remove(struct i2c_client *client)
 {
 	struct microread_i2c_phy *phy = i2c_get_clientdata(client);
-
-	dev_dbg(&client->dev, "%s\n", __func__);
 
 	microread_remove(phy->hdev);
 

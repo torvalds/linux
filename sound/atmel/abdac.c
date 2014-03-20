@@ -354,10 +354,11 @@ static int set_sample_rates(struct atmel_abdac *dac)
 	/* we start at 192 kHz and work our way down to 5112 Hz */
 	while (new_rate >= RATE_MIN && index < (MAX_NUM_RATES + 1)) {
 		new_rate = clk_round_rate(dac->sample_clk, 256 * new_rate);
-		if (new_rate < 0)
+		if (new_rate <= 0)
 			break;
 		/* make sure we are below the ABDAC clock */
-		if (new_rate <= clk_get_rate(dac->pclk)) {
+		if (index < MAX_NUM_RATES &&
+		    new_rate <= clk_get_rate(dac->pclk)) {
 			dac->rates[index] = new_rate / 256;
 			index++;
 		}

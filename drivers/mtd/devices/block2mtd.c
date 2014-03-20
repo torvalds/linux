@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
+#include <linux/major.h>
 
 /* Info for the block device */
 struct block2mtd_dev {

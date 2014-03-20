@@ -255,13 +255,7 @@ int cirrus_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-int cirrus_gem_init_object(struct drm_gem_object *obj)
-{
-	BUG();
-	return 0;
-}
-
-void cirrus_bo_unref(struct cirrus_bo **bo)
+static void cirrus_bo_unref(struct cirrus_bo **bo)
 {
 	struct ttm_buffer_object *tbo;
 

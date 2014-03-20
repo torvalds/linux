@@ -38,11 +38,6 @@
 
 #define KVM_VCPU_MAX_FEATURES 1
 
-/* We don't currently support large pages. */
-#define KVM_HPAGE_GFN_SHIFT(x)	0
-#define KVM_NR_PAGE_SIZES	1
-#define KVM_PAGES_PER_HPAGE(x)	(1UL<<31)
-
 #include <kvm/arm_vgic.h>
 
 struct kvm_vcpu;
@@ -154,6 +149,7 @@ struct kvm_vcpu_stat {
 struct kvm_vcpu_init;
 int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 			const struct kvm_vcpu_init *init);
+int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init);
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
 struct kvm_one_reg;
@@ -228,5 +224,8 @@ static inline int kvm_arch_dev_ioctl_check_extension(long ext)
 
 int kvm_perf_init(void);
 int kvm_perf_teardown(void);
+
+u64 kvm_arm_timer_get_reg(struct kvm_vcpu *, u64 regid);
+int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
 
 #endif /* __ARM_KVM_HOST_H__ */

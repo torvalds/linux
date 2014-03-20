@@ -45,6 +45,7 @@
 #define GSC_DST_FMT			(1 << 2)
 #define GSC_CTX_M2M			(1 << 3)
 #define GSC_CTX_STOP_REQ		(1 << 6)
+#define	GSC_CTX_ABORT			(1 << 7)
 
 enum gsc_dev_flags {
 	/* for global */

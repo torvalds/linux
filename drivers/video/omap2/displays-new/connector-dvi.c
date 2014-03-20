@@ -262,6 +262,9 @@ static int dvic_probe_pdata(struct platform_device *pdev)
 
 	in = omap_dss_find_output(pdata->source);
 	if (in == NULL) {
+		if (ddata->i2c_adapter)
+			i2c_put_adapter(ddata->i2c_adapter);
+
 		dev_err(&pdev->dev, "Failed to find video source\n");
 		return -EPROBE_DEFER;
 	}
@@ -313,6 +316,10 @@ static int dvic_probe(struct platform_device *pdev)
 
 err_reg:
 	omap_dss_put_device(ddata->in);
+
+	if (ddata->i2c_adapter)
+		i2c_put_adapter(ddata->i2c_adapter);
+
 	return r;
 }
 

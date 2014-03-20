@@ -92,12 +92,6 @@ nf_ct_l3proto_find_get(u_int16_t l3proto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_find_get);
 
-void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p)
-{
-	module_put(p->me);
-}
-EXPORT_SYMBOL_GPL(nf_ct_l3proto_put);
-
 int
 nf_ct_l3proto_try_module_get(unsigned short l3proto)
 {

@@ -7,7 +7,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -153,7 +152,7 @@ static struct platform_driver sirfsoc_pwrc_driver = {
 		.name	= "sirfsoc-pwrc",
 		.owner	= THIS_MODULE,
 		.pm	= &sirfsoc_pwrc_pm_ops,
-		.of_match_table = of_match_ptr(sirfsoc_pwrc_of_match),
+		.of_match_table = sirfsoc_pwrc_of_match,
 	}
 };
 

@@ -76,17 +76,17 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-ip6table_mangle_hook(unsigned int hook, struct sk_buff *skb,
+ip6table_mangle_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		     const struct net_device *in, const struct net_device *out,
 		     int (*okfn)(struct sk_buff *))
 {
-	if (hook == NF_INET_LOCAL_OUT)
+	if (ops->hooknum == NF_INET_LOCAL_OUT)
 		return ip6t_mangle_out(skb, out);
-	if (hook == NF_INET_POST_ROUTING)
-		return ip6t_do_table(skb, hook, in, out,
+	if (ops->hooknum == NF_INET_POST_ROUTING)
+		return ip6t_do_table(skb, ops->hooknum, in, out,
 				     dev_net(out)->ipv6.ip6table_mangle);
 	/* INPUT/FORWARD */
-	return ip6t_do_table(skb, hook, in, out,
+	return ip6t_do_table(skb, ops->hooknum, in, out,
 			     dev_net(in)->ipv6.ip6table_mangle);
 }
 

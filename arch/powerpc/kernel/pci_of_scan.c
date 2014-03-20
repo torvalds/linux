@@ -111,7 +111,7 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
 		res->name = pci_name(dev);
 		region.start = base;
 		region.end = base + size - 1;
-		pcibios_bus_to_resource(dev, res, &region);
+		pcibios_bus_to_resource(dev->bus, res, &region);
 	}
 }
 
@@ -280,7 +280,7 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 		res->flags = flags;
 		region.start = of_read_number(&ranges[1], 2);
 		region.end = region.start + size - 1;
-		pcibios_bus_to_resource(dev, res, &region);
+		pcibios_bus_to_resource(dev->bus, res, &region);
 	}
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
 		bus->number);
@@ -302,7 +302,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 			    struct device_node *dn)
 {
 	struct pci_dev *dev = NULL;
-	const u32 *reg;
+	const __be32 *reg;
 	int reglen, devfn;
 
 	pr_debug("  * %s\n", dn->full_name);
@@ -312,7 +312,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	reg = of_get_property(dn, "reg", &reglen);
 	if (reg == NULL || reglen < 20)
 		return NULL;
-	devfn = (reg[0] >> 8) & 0xff;
+	devfn = (of_read_number(reg, 1) >> 8) & 0xff;
 
 	/* Check if the PCI device is already there */
 	dev = pci_get_slot(bus, devfn);

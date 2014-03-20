@@ -39,7 +39,6 @@
 # include <linux/module.h>
 # include <linux/pagemap.h>
 # include <linux/miscdevice.h>
-# include <linux/init.h>
 
 #include <lustre_acl.h>
 #include <obd_class.h>
@@ -75,6 +74,12 @@ EXPORT_SYMBOL(it_clear_disposition);
 
 int it_open_error(int phase, struct lookup_intent *it)
 {
+	if (it_disposition(it, DISP_OPEN_LEASE)) {
+		if (phase >= DISP_OPEN_LEASE)
+			return it->d.lustre.it_status;
+		else
+			return 0;
+	}
 	if (it_disposition(it, DISP_OPEN_OPEN)) {
 		if (phase >= DISP_OPEN_OPEN)
 			return it->d.lustre.it_status;
@@ -281,14 +286,21 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 	/* XXX: openlock is not cancelled for cross-refs. */
 	/* If inode is known, cancel conflicting OPEN locks. */
 	if (fid_is_sane(&op_data->op_fid2)) {
-		if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
-			mode = LCK_CW;
+		if (it->it_flags & MDS_OPEN_LEASE) { /* try to get lease */
+			if (it->it_flags & FMODE_WRITE)
+				mode = LCK_EX;
+			else
+				mode = LCK_PR;
+		} else {
+			if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
+				mode = LCK_CW;
 #ifdef FMODE_EXEC
-		else if (it->it_flags & FMODE_EXEC)
-			mode = LCK_PR;
+			else if (it->it_flags & FMODE_EXEC)
+				mode = LCK_PR;
 #endif
-		else
-			mode = LCK_CR;
+			else
+				mode = LCK_CR;
+		}
 		count = mdc_resource_get_unused(exp, &op_data->op_fid2,
 						&cancels, mode,
 						MDS_INODELOCK_OPEN);
@@ -344,6 +356,62 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 		req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
 				     sizeof(struct mdt_remote_perm));
 	ptlrpc_request_set_replen(req);
+	return req;
+}
+
+static struct ptlrpc_request *
+mdc_intent_getxattr_pack(struct obd_export *exp,
+			 struct lookup_intent *it,
+			 struct md_op_data *op_data)
+{
+	struct ptlrpc_request	*req;
+	struct ldlm_intent	*lit;
+	int			rc, count = 0, maxdata;
+	LIST_HEAD(cancels);
+
+
+
+	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
+					&RQF_LDLM_INTENT_GETXATTR);
+	if (req == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
+
+	if (it->it_op == IT_SETXATTR)
+		/* If we want to upgrade to LCK_PW, let's cancel LCK_PR
+		 * locks now. This avoids unnecessary ASTs. */
+		count = mdc_resource_get_unused(exp, &op_data->op_fid1,
+						&cancels, LCK_PW,
+						MDS_INODELOCK_XATTR);
+
+	rc = ldlm_prep_enqueue_req(exp, req, &cancels, count);
+	if (rc) {
+		ptlrpc_request_free(req);
+		return ERR_PTR(rc);
+	}
+
+	/* pack the intent */
+	lit = req_capsule_client_get(&req->rq_pill, &RMF_LDLM_INTENT);
+	lit->opc = IT_GETXATTR;
+
+	maxdata = class_exp2cliimp(exp)->imp_connect_data.ocd_max_easize;
+
+	/* pack the intended request */
+	mdc_pack_body(req, &op_data->op_fid1, op_data->op_capa1,
+			op_data->op_valid, maxdata, -1, 0);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EADATA,
+				RCL_SERVER, maxdata);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS,
+				RCL_SERVER, maxdata);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS_LENS,
+				RCL_SERVER, maxdata);
+
+	ptlrpc_request_set_replen(req);
+
 	return req;
 }
 
@@ -722,6 +790,8 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 			    { .l_inodebits = { MDS_INODELOCK_UPDATE } };
 	static const ldlm_policy_data_t layout_policy =
 			    { .l_inodebits = { MDS_INODELOCK_LAYOUT } };
+	static const ldlm_policy_data_t getxattr_policy = {
+			      .l_inodebits = { MDS_INODELOCK_XATTR } };
 	ldlm_policy_data_t const *policy = &lookup_policy;
 	int		    generation, resends = 0;
 	struct ldlm_reply     *lockrep;
@@ -738,6 +808,8 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 			policy = &update_policy;
 		else if (it->it_op & IT_LAYOUT)
 			policy = &layout_policy;
+		else if (it->it_op & (IT_GETXATTR | IT_SETXATTR))
+			policy = &getxattr_policy;
 	}
 
 	LASSERT(reqp == NULL);
@@ -768,9 +840,10 @@ resend:
 	} else if (it->it_op & IT_LAYOUT) {
 		if (!imp_connect_lvb_type(class_exp2cliimp(exp)))
 			return -EOPNOTSUPP;
-
 		req = mdc_intent_layout_pack(exp, it, op_data);
 		lvb_type = LVB_T_LAYOUT;
+	} else if (it->it_op & (IT_GETXATTR | IT_SETXATTR)) {
+		req = mdc_intent_getxattr_pack(exp, it, op_data);
 	} else {
 		LBUG();
 		return -EINVAL;
@@ -958,13 +1031,8 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 
 		LASSERTF(fid_res_name_eq(&mdt_body->fid1,
 					 &lock->l_resource->lr_name),
-			 "Lock res_id: %lu/%lu/%lu, fid: %lu/%lu/%lu.\n",
-			 (unsigned long)lock->l_resource->lr_name.name[0],
-			 (unsigned long)lock->l_resource->lr_name.name[1],
-			 (unsigned long)lock->l_resource->lr_name.name[2],
-			 (unsigned long)fid_seq(&mdt_body->fid1),
-			 (unsigned long)fid_oid(&mdt_body->fid1),
-			 (unsigned long)fid_ver(&mdt_body->fid1));
+			 "Lock res_id: "DLDLMRES", fid: "DFID"\n",
+			 PLDLMRES(lock->l_resource), PFID(&mdt_body->fid1));
 		LDLM_LOCK_PUT(lock);
 
 		memcpy(&old_lock, lockh, sizeof(*lockh));
@@ -1065,10 +1133,10 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(it);
 
 	CDEBUG(D_DLMTRACE, "(name: %.*s,"DFID") in obj "DFID
-	       ", intent: %s flags %#o\n", op_data->op_namelen,
-	       op_data->op_name, PFID(&op_data->op_fid2),
-	       PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),
-	       it->it_flags);
+		", intent: %s flags %#Lo\n", op_data->op_namelen,
+		op_data->op_name, PFID(&op_data->op_fid2),
+		PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),
+		it->it_flags);
 
 	lockh.cookie = 0;
 	if (fid_is_sane(&op_data->op_fid2) &&
@@ -1194,9 +1262,10 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 	int		      rc = 0;
 	__u64		    flags = LDLM_FL_HAS_INTENT;
 
-	CDEBUG(D_DLMTRACE,"name: %.*s in inode "DFID", intent: %s flags %#o\n",
-	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-	       ldlm_it2str(it->it_op), it->it_flags);
+	CDEBUG(D_DLMTRACE,
+		"name: %.*s in inode "DFID", intent: %s flags %#Lo\n",
+		op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
+		ldlm_it2str(it->it_op), it->it_flags);
 
 	fid_build_reg_res_name(&op_data->op_fid1, &res_id);
 	req = mdc_intent_getattr_pack(exp, it, op_data);

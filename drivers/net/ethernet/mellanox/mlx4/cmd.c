@@ -1371,6 +1371,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.verify = NULL,
 		.wrapper = mlx4_QP_FLOW_STEERING_DETACH_wrapper
 	},
+	{
+		.opcode = MLX4_FLOW_STEERING_IB_UC_QP_RANGE,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_FLOW_STEERING_IB_UC_QP_RANGE_wrapper
+	},
 };
 
 static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
@@ -1539,11 +1548,6 @@ out:
 	return ret;
 }
 
-static int calculate_transition(u16 oper_vlan, u16 admin_vlan)
-{
-	return (2 * (oper_vlan == MLX4_VGT) + (admin_vlan == MLX4_VGT));
-}
-
 static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 					    int slave, int port)
 {
@@ -1553,7 +1557,6 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	struct mlx4_dev *dev = &(priv->dev);
 	int err;
 	int admin_vlan_ix = NO_INDX;
-	enum mlx4_vlan_transition vlan_trans;
 
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 	vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
@@ -1563,12 +1566,8 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	    vp_oper->state.link_state == vp_admin->link_state)
 		return 0;
 
-	vlan_trans = calculate_transition(vp_oper->state.default_vlan,
-					  vp_admin->default_vlan);
-
 	if (!(priv->mfunc.master.slave_state[slave].active &&
-	      dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP &&
-	      vlan_trans == MLX4_VLAN_TRANSITION_VST_VST)) {
+	      dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP)) {
 		/* even if the UPDATE_QP command isn't supported, we still want
 		 * to set this VF link according to the admin directive
 		 */
@@ -1586,15 +1585,19 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 		return -ENOMEM;
 
 	if (vp_oper->state.default_vlan != vp_admin->default_vlan) {
-		err = __mlx4_register_vlan(&priv->dev, port,
-					   vp_admin->default_vlan,
-					   &admin_vlan_ix);
-		if (err) {
-			kfree(work);
-			mlx4_warn((&priv->dev),
-				  "No vlan resources slave %d, port %d\n",
-				  slave, port);
-			return err;
+		if (MLX4_VGT != vp_admin->default_vlan) {
+			err = __mlx4_register_vlan(&priv->dev, port,
+						   vp_admin->default_vlan,
+						   &admin_vlan_ix);
+			if (err) {
+				kfree(work);
+				mlx4_warn((&priv->dev),
+					  "No vlan resources slave %d, port %d\n",
+					  slave, port);
+				return err;
+			}
+		} else {
+			admin_vlan_ix = NO_INDX;
 		}
 		work->flags |= MLX4_VF_IMMED_VLAN_FLAG_VLAN;
 		mlx4_dbg((&(priv->dev)),
@@ -1687,11 +1690,11 @@ static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		if (NO_INDX != vp_oper->vlan_idx) {
 			__mlx4_unregister_vlan(&priv->dev,
-					       port, vp_oper->vlan_idx);
+					       port, vp_oper->state.default_vlan);
 			vp_oper->vlan_idx = NO_INDX;
 		}
 		if (NO_INDX != vp_oper->mac_idx) {
-			__mlx4_unregister_mac(&priv->dev, port, vp_oper->mac_idx);
+			__mlx4_unregister_mac(&priv->dev, port, vp_oper->state.mac);
 			vp_oper->mac_idx = NO_INDX;
 		}
 	}
@@ -1718,6 +1721,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	if (cmd == MLX4_COMM_CMD_RESET) {
 		mlx4_warn(dev, "Received reset from slave:%d\n", slave);
 		slave_state[slave].active = false;
+		slave_state[slave].old_vlan_api = false;
 		mlx4_master_deactivate_admin_state(priv, slave);
 		for (i = 0; i < MLX4_EVENT_TYPES_NUM; ++i) {
 				slave_state[slave].event_eq[i].eqn = -1;
@@ -2198,6 +2202,8 @@ struct mlx4_cmd_mailbox *mlx4_alloc_cmd_mailbox(struct mlx4_dev *dev)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	memset(mailbox->buf, 0, MLX4_MAILBOX_SIZE);
+
 	return mailbox;
 }
 EXPORT_SYMBOL_GPL(mlx4_alloc_cmd_mailbox);
@@ -2253,7 +2259,6 @@ EXPORT_SYMBOL_GPL(mlx4_set_vf_mac);
 int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_vport_oper_state *vf_oper;
 	struct mlx4_vport_state *vf_admin;
 	int slave;
 
@@ -2269,7 +2274,6 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 		return -EINVAL;
 
 	vf_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
-	vf_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 
 	if ((0 == vlan) && (0 == qos))
 		vf_admin->default_vlan = MLX4_VGT;

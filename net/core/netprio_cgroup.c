@@ -30,7 +30,7 @@
 #define PRIOMAP_MIN_SZ		128
 
 /*
- * Extend @dev->priomap so that it's large enough to accomodate
+ * Extend @dev->priomap so that it's large enough to accommodate
  * @target_idx.  @dev->priomap.priomap_len > @target_idx after successful
  * return.  Must be called under rtnl lock.
  */
@@ -173,14 +173,14 @@ static u64 read_prioidx(struct cgroup_subsys_state *css, struct cftype *cft)
 	return css->cgroup->id;
 }
 
-static int read_priomap(struct cgroup_subsys_state *css, struct cftype *cft,
-			struct cgroup_map_cb *cb)
+static int read_priomap(struct seq_file *sf, void *v)
 {
 	struct net_device *dev;
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev)
-		cb->fill(cb, dev->name, netprio_prio(css, dev));
+		seq_printf(sf, "%s %u\n", dev->name,
+			   netprio_prio(seq_css(sf), dev));
 	rcu_read_unlock();
 	return 0;
 }
@@ -222,11 +222,10 @@ static void net_prio_attach(struct cgroup_subsys_state *css,
 			    struct cgroup_taskset *tset)
 {
 	struct task_struct *p;
-	void *v;
+	void *v = (void *)(unsigned long)css->cgroup->id;
 
 	cgroup_taskset_for_each(p, css, tset) {
 		task_lock(p);
-		v = (void *)(unsigned long)task_netprioidx(p);
 		iterate_fd(p->files, 0, update_netprio, v);
 		task_unlock(p);
 	}
@@ -239,7 +238,7 @@ static struct cftype ss_files[] = {
 	},
 	{
 		.name = "ifpriomap",
-		.read_map = read_priomap,
+		.seq_show = read_priomap,
 		.write_string = write_priomap,
 	},
 	{ }	/* terminate */

@@ -375,7 +375,7 @@ struct ldlm_namespace {
 	ldlm_side_t		ns_client;
 
 	/** Resource hash table for namespace. */
-	cfs_hash_t		*ns_rs_hash;
+	struct cfs_hash		*ns_rs_hash;
 
 	/** serialize */
 	spinlock_t		ns_lock;
@@ -1083,7 +1083,7 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
  * Rate-limited version of lock printing function.
  */
 #define LDLM_DEBUG_LIMIT(mask, lock, fmt, a...) do {			 \
-	static cfs_debug_limit_state_t _ldlm_cdls;			   \
+	static struct cfs_debug_limit_state _ldlm_cdls;			   \
 	LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, &_ldlm_cdls);	      \
 	ldlm_lock_debug(&msgdata, mask, &_ldlm_cdls, lock, "### " fmt , ##a);\
 } while (0)
@@ -1285,10 +1285,11 @@ void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
-int ldlm_proc_setup(void);
 #ifdef LPROCFS
+int ldlm_proc_setup(void);
 void ldlm_proc_cleanup(void);
 #else
+static inline int ldlm_proc_setup(void) { return 0; }
 static inline void ldlm_proc_cleanup(void) {}
 #endif
 

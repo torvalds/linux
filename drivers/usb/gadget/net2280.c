@@ -129,7 +129,7 @@ static char *type_string (u8 bmAttributes)
 	case USB_ENDPOINT_XFER_BULK:	return "bulk";
 	case USB_ENDPOINT_XFER_ISOC:	return "iso";
 	case USB_ENDPOINT_XFER_INT:	return "intr";
-	};
+	}
 	return "control";
 }
 #endif
@@ -293,7 +293,7 @@ static void ep_reset (struct net2280_regs __iomem *regs, struct net2280_ep *ep)
 	ep->desc = NULL;
 	INIT_LIST_HEAD (&ep->queue);
 
-	ep->ep.maxpacket = ~0;
+	usb_ep_set_maxpacket_limit(&ep->ep, ~0);
 	ep->ep.ops = &net2280_ep_ops;
 
 	/* disable the dma, irqs, endpoint... */
@@ -1630,7 +1630,7 @@ static ssize_t queues_show(struct device *_dev, struct device_attribute *attr,
 					val = "intr"; break;
 				 default:
 					val = "iso"; break;
-				 }; val; }),
+				 } val; }),
 				usb_endpoint_maxp (d) & 0x1fff,
 				ep->dma ? "dma" : "pio", ep->fifo_size
 				);
@@ -1805,9 +1805,9 @@ static void usb_reinit (struct net2280 *dev)
 		ep->regs = &dev->epregs [tmp];
 		ep_reset (dev->regs, ep);
 	}
-	dev->ep [0].ep.maxpacket = 64;
-	dev->ep [5].ep.maxpacket = 64;
-	dev->ep [6].ep.maxpacket = 64;
+	usb_ep_set_maxpacket_limit(&dev->ep [0].ep, 64);
+	usb_ep_set_maxpacket_limit(&dev->ep [5].ep, 64);
+	usb_ep_set_maxpacket_limit(&dev->ep [6].ep, 64);
 
 	dev->gadget.ep0 = &dev->ep [0].ep;
 	dev->ep [0].stopped = 0;
@@ -2680,7 +2680,6 @@ static void net2280_remove (struct pci_dev *pdev)
 	if (dev->enabled)
 		pci_disable_device (pdev);
 	device_remove_file (&pdev->dev, &dev_attr_registers);
-	pci_set_drvdata (pdev, NULL);
 
 	INFO (dev, "unbind\n");
 }

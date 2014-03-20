@@ -32,7 +32,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -346,7 +345,7 @@ void __mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	mlx4_bitmap_free(&priv->mr_table.mpt_bitmap, index);
+	mlx4_bitmap_free(&priv->mr_table.mpt_bitmap, index, MLX4_NO_RR);
 }
 
 static void mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
@@ -480,9 +479,6 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 		goto err_table;
 	}
 	mpt_entry = mailbox->buf;
-
-	memset(mpt_entry, 0, sizeof *mpt_entry);
-
 	mpt_entry->flags = cpu_to_be32(MLX4_MPT_FLAG_MIO	 |
 				       MLX4_MPT_FLAG_REGION	 |
 				       mr->access);
@@ -695,8 +691,6 @@ int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw)
 	}
 	mpt_entry = mailbox->buf;
 
-	memset(mpt_entry, 0, sizeof(*mpt_entry));
-
 	/* Note that the MLX4_MPT_FLAG_REGION bit in mpt_entry->flags is turned
 	 * off, thus creating a memory window and not a memory region.
 	 */
@@ -755,13 +749,13 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 	struct mlx4_mr_table *mr_table = &priv->mr_table;
 	int err;
 
-	if (!is_power_of_2(dev->caps.num_mpts))
-		return -EINVAL;
-
 	/* Nothing to do for slaves - all MR handling is forwarded
 	* to the master */
 	if (mlx4_is_slave(dev))
 		return 0;
+
+	if (!is_power_of_2(dev->caps.num_mpts))
+		return -EINVAL;
 
 	err = mlx4_bitmap_init(&mr_table->mpt_bitmap, dev->caps.num_mpts,
 			       ~0, dev->caps.reserved_mrws, 0);

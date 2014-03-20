@@ -257,7 +257,7 @@ static void coda_evict_inode(struct inode *inode)
 
 int coda_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
-	int err = coda_revalidate_inode(dentry);
+	int err = coda_revalidate_inode(dentry->d_inode);
 	if (!err)
 		generic_fillattr(dentry->d_inode, stat);
 	return err;

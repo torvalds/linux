@@ -777,8 +777,8 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 	printk(KERN_INFO "Epson S1D13XXX FB Driver\n");
 
 	/* enable platform-dependent hardware glue, if any */
-	if (pdev->dev.platform_data)
-		pdata = pdev->dev.platform_data;
+	if (dev_get_platdata(&pdev->dev))
+		pdata = dev_get_platdata(&pdev->dev);
 
 	if (pdata && pdata->platform_init_video)
 		pdata->platform_init_video();
@@ -901,8 +901,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 		goto bail;
 	}
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-	       info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	return 0;
 
@@ -923,8 +922,8 @@ static int s1d13xxxfb_suspend(struct platform_device *dev, pm_message_t state)
 	lcd_enable(s1dfb, 0);
 	crt_enable(s1dfb, 0);
 
-	if (dev->dev.platform_data)
-		pdata = dev->dev.platform_data;
+	if (dev_get_platdata(&dev->dev))
+		pdata = dev_get_platdata(&dev->dev);
 
 #if 0
 	if (!s1dfb->disp_save)
@@ -973,8 +972,8 @@ static int s1d13xxxfb_resume(struct platform_device *dev)
 	while ((s1d13xxxfb_readreg(s1dfb, S1DREG_PS_STATUS) & 0x01))
 		udelay(10);
 
-	if (dev->dev.platform_data)
-		pdata = dev->dev.platform_data;
+	if (dev_get_platdata(&dev->dev))
+		pdata = dev_get_platdata(&dev->dev);
 
 	if (s1dfb->regs_save) {
 		/* will write RO regs, *should* get away with it :) */

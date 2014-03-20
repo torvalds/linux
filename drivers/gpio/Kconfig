@@ -30,10 +30,6 @@ config ARCH_REQUIRE_GPIOLIB
 	  Selecting this from the architecture code will cause the gpiolib
 	  code to always get built in.
 
-config GPIO_DEVRES
-	def_bool y
-	depends on HAS_IOMEM
-
 
 menuconfig GPIOLIB
 	bool "GPIO Support"
@@ -46,6 +42,10 @@ menuconfig GPIOLIB
 	  If unsure, say N.
 
 if GPIOLIB
+
+config GPIO_DEVRES
+	def_bool y
+	depends on HAS_IOMEM
 
 config OF_GPIO
 	def_bool y
@@ -110,10 +110,17 @@ comment "Memory mapped GPIO drivers:"
 
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
-	depends on ARCH_CLPS711X
+	depends on ARCH_CLPS711X || COMPILE_TEST
 	select GPIO_GENERIC
 	help
 	  Say yes here to support GPIO on CLPS711X SoCs.
+
+config GPIO_DAVINCI
+	bool "TI Davinci/Keystone GPIO support"
+	default y if ARCH_DAVINCI
+	depends on ARM && (ARCH_DAVINCI || ARCH_KEYSTONE)
+	help
+	  Say yes here to enable GPIO support for TI Davinci/Keystone SoCs.
 
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
@@ -129,7 +136,7 @@ config GPIO_IT8761E
 
 config GPIO_EM
 	tristate "Emma Mobile GPIO"
-	depends on ARM
+	depends on ARM && OF_GPIO
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
@@ -155,6 +162,13 @@ config GPIO_F7188X
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called f7188x-gpio.
+
+config GPIO_MOXART
+	bool "MOXART GPIO support"
+	depends on ARCH_MOXART
+	help
+	  Select this option to enable GPIO driver for
+	  MOXA ART SoC devices.
 
 config GPIO_MPC5200
 	def_bool y
@@ -213,7 +227,7 @@ config GPIO_OCTEON
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
-	depends on ARM && ARM_AMBA
+	depends on ARM_AMBA
 	select GENERIC_IRQ_CHIP
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device
@@ -236,6 +250,15 @@ config GPIO_SAMSUNG
 	help
 	  Legacy GPIO support. Use only for platforms without support for
 	  pinctrl.
+
+config GPIO_SCH311X
+	tristate "SMSC SCH311x SuperI/O GPIO"
+	help
+	  Driver to enable the GPIOs found on SMSC SMSC SCH3112, SCH3114 and
+	  SCH3116 "Super I/O" chipsets.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-sch311x.
 
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
@@ -281,6 +304,15 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_XTENSA
+	bool "Xtensa GPIO32 support"
+	depends on XTENSA
+	depends on HAVE_XTENSA_GPIO32
+	depends on !SMP
+	help
+	  Say yes here to support the Xtensa internal GPIO32 IMPWIRE (input)
+	  and EXPSTATE (output) ports
+
 config GPIO_VR41XX
 	tristate "NEC VR4100 series General-purpose I/O Uint support"
 	depends on CPU_VR41XX
@@ -320,6 +352,15 @@ config GPIO_ICH
 
 	  If unsure, say N.
 
+config GPIO_IOP
+	tristate "Intel IOP GPIO"
+	depends on ARM && (ARCH_IOP32X || ARCH_IOP33X)
+	help
+	  Say yes here to support the GPIO functionality of a number of Intel
+	  IOP32X or IOP33X.
+
+	  If unsure, say N.
+
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
 	depends on PCI
@@ -344,7 +385,7 @@ config GPIO_GE_FPGA
 	  board computers.
 
 config GPIO_LYNXPOINT
-	bool "Intel Lynxpoint GPIO support"
+	tristate "Intel Lynxpoint GPIO support"
 	depends on ACPI && X86
 	select IRQ_DOMAIN
 	help
@@ -360,6 +401,11 @@ config GPIO_GRGPIO
 	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
 	  VHDL IP core library.
 
+config GPIO_TB10X
+	bool
+	select GENERIC_IRQ_CHIP
+	select OF_GPIO
+
 comment "I2C GPIO expanders:"
 
 config GPIO_ARIZONA
@@ -367,6 +413,14 @@ config GPIO_ARIZONA
 	depends on MFD_ARIZONA
 	help
 	  Support for GPIOs on Wolfson Arizona class devices.
+
+config GPIO_LP3943
+	tristate "TI/National Semiconductor LP3943 GPIO expander"
+	depends on MFD_LP3943
+	help
+	  GPIO driver for LP3943 MFD.
+	  LP3943 can be used as a GPIO expander which provides up to 16 GPIOs.
+	  Open drain outputs are required for this usage.
 
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
@@ -612,12 +666,12 @@ config GPIO_AMD8111
 
 	  If unsure, say N
 
-config GPIO_LANGWELL
-	bool "Intel Langwell/Penwell GPIO support"
+config GPIO_INTEL_MID
+	bool "Intel Mid GPIO support"
 	depends on PCI && X86
 	select IRQ_DOMAIN
 	help
-	  Say Y here to support Intel Langwell/Penwell GPIO.
+	  Say Y here to support Intel Mid GPIO.
 
 config GPIO_PCH
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7223/ML7831) GPIO"
@@ -679,11 +733,13 @@ config GPIO_MAX7301
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
+	depends on OF_GPIO
 	depends on (SPI_MASTER && !I2C) || I2C
 	help
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
 	  I/O expanders.
 	  This provides a GPIO interface supporting inputs and outputs.
+	  The I2C versions of the chips can be used as interrupt-controller.
 
 config GPIO_MC33880
 	tristate "Freescale MC33880 high-side/low-side switch"
@@ -694,16 +750,16 @@ config GPIO_MC33880
 
 config GPIO_74X164
 	tristate "74x164 serial-in/parallel-out 8-bits shift register"
-	depends on SPI_MASTER
+	depends on SPI_MASTER && OF
 	help
-	  Platform driver for 74x164 compatible serial-in/parallel-out
-	  8-outputs shift registers. This driver can be used to provide access
+	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
+	  shift registers. This driver can be used to provide access
 	  to more gpio outputs.
 
 comment "AC97 GPIO expanders:"
 
 config GPIO_UCB1400
-	bool "Philips UCB1400 GPIO"
+	tristate "Philips UCB1400 GPIO"
 	depends on UCB1400_CORE
 	help
 	  This enables support for the Philips UCB1400 GPIO pins.
@@ -758,6 +814,12 @@ config GPIO_MSIC
 	help
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
+
+config GPIO_BCM_KONA
+	bool "Broadcom Kona GPIO"
+	depends on OF_GPIO
+	help
+	  Turn on GPIO support for Broadcom "Kona" chips.
 
 comment "USB GPIO expanders:"
 

@@ -234,9 +234,9 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &div1, &div2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -244,9 +244,9 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &div1, &div2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -325,14 +325,11 @@ static int das16cs_ao_rinsn(struct comedi_device *dev,
 
 static int das16cs_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + DAS16CS_DIO);
-	}
 
 	data[1] = inw(dev->iobase + DAS16CS_DIO);
 

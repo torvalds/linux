@@ -177,6 +177,18 @@ __lookup_processor_type_data:
 	.long	__proc_info_end
 	.size	__lookup_processor_type_data, . - __lookup_processor_type_data
 
+__error_lpae:
+#ifdef CONFIG_DEBUG_LL
+	adr	r0, str_lpae
+	bl 	printascii
+	b	__error
+str_lpae: .asciz "\nError: Kernel with LPAE support, but CPU does not support LPAE.\n"
+#else
+	b	__error
+#endif
+	.align
+ENDPROC(__error_lpae)
+
 __error_p:
 #ifdef CONFIG_DEBUG_LL
 	adr	r0, str_p1

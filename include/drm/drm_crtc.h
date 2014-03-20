@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/fb.h>
+#include <linux/hdmi.h>
 #include <drm/drm_mode.h>
 
 #include <drm/drm_fourcc.h>
@@ -108,6 +109,7 @@ enum drm_mode_status {
     MODE_ONE_HEIGHT,    /* only one height is supported */
     MODE_ONE_SIZE,      /* only one resolution is supported */
     MODE_NO_REDUCED,    /* monitor doesn't accept reduced blanking */
+    MODE_NO_STEREO,	/* stereo modes not supported */
     MODE_UNVERIFIED = -3, /* mode needs to reverified */
     MODE_BAD = -2,	/* unspecified reason */
     MODE_ERROR	= -1	/* error condition */
@@ -124,7 +126,10 @@ enum drm_mode_status {
 	.vscan = (vs), .flags = (f), \
 	.base.type = DRM_MODE_OBJECT_MODE
 
-#define CRTC_INTERLACE_HALVE_V 0x1 /* halve V values for interlacing */
+#define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
+#define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
+
+#define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
 
 struct drm_display_mode {
 	/* Header */
@@ -155,8 +160,7 @@ struct drm_display_mode {
 	int height_mm;
 
 	/* Actual mode we give to hw */
-	int clock_index;
-	int synth_clock;
+	int crtc_clock;		/* in KHz */
 	int crtc_hdisplay;
 	int crtc_hblank_start;
 	int crtc_hblank_end;
@@ -178,7 +182,13 @@ struct drm_display_mode {
 
 	int vrefresh;		/* in Hz */
 	int hsync;		/* in kHz */
+	enum hdmi_picture_aspect picture_aspect_ratio;
 };
+
+static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
+{
+	return mode->flags & DRM_MODE_FLAG_3D_MASK;
+}
 
 enum drm_connector_status {
 	connector_status_connected = 1,
@@ -439,7 +449,7 @@ struct drm_crtc {
 	uint16_t *gamma_store;
 
 	/* Constants needed for precise vblank and swap timestamping. */
-	s64 framedur_ns, linedur_ns, pixeldur_ns;
+	int framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
 	void *helper_private;
@@ -587,7 +597,7 @@ enum drm_connector_force {
  */
 struct drm_connector {
 	struct drm_device *dev;
-	struct device kdev;
+	struct device *kdev;
 	struct device_attribute *attr;
 	struct list_head head;
 
@@ -597,6 +607,7 @@ struct drm_connector {
 	int connector_type_id;
 	bool interlace_allowed;
 	bool doublescan_allowed;
+	bool stereo_allowed;
 	struct list_head modes; /* list of modes on this connector */
 
 	enum drm_connector_status status;
@@ -896,6 +907,9 @@ struct drm_mode_config {
 
 	/* whether async page flip is supported or not */
 	bool async_page_flip;
+
+	/* cursor size */
+	uint32_t cursor_width, cursor_height;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -920,6 +934,19 @@ extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
+extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
+
+/**
+ * drm_crtc_mask - find the mask of a registered CRTC
+ * @crtc: CRTC to find mask for
+ *
+ * Given a registered CRTC, return the mask bit of that CRTC for an
+ * encoder's possible_crtcs field.
+ */
+static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc)
+{
+	return 1 << drm_crtc_index(crtc);
+}
 
 extern void drm_connector_ida_init(void);
 extern void drm_connector_ida_destroy(void);
@@ -940,6 +967,19 @@ extern int drm_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
 			    const struct drm_encoder_funcs *funcs,
 			    int encoder_type);
+
+/**
+ * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
+ * @encoder: encoder to test
+ * @crtc: crtc to test
+ *
+ * Return false if @encoder can't be driven by @crtc, true otherwise.
+ */
+static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
+				       struct drm_crtc *crtc)
+{
+	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
+}
 
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
@@ -964,6 +1004,7 @@ extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_m
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
+extern struct edid *drm_edid_duplicate(const struct edid *edid);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src);
@@ -975,7 +1016,7 @@ extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 extern void drm_mode_set_name(struct drm_display_mode *mode);
 extern bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
-extern bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
+extern bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
 extern int drm_mode_width(const struct drm_display_mode *mode);
 extern int drm_mode_height(const struct drm_display_mode *mode);
 
@@ -1108,6 +1149,8 @@ extern struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
 				int GTF_2C, int GTF_K, int GTF_2J);
 extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
+extern void drm_set_preferred_mode(struct drm_connector *connector,
+				   int hpref, int vpref);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
 extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);
@@ -1134,5 +1177,22 @@ extern int drm_format_plane_cpp(uint32_t format, int plane);
 extern int drm_format_horz_chroma_subsampling(uint32_t format);
 extern int drm_format_vert_chroma_subsampling(uint32_t format);
 extern const char *drm_get_format_name(uint32_t format);
+
+/* Helpers */
+static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
+	uint32_t id)
+{
+	struct drm_mode_object *mo;
+	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CRTC);
+	return mo ? obj_to_crtc(mo) : NULL;
+}
+
+static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
+	uint32_t id)
+{
+	struct drm_mode_object *mo;
+	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
+	return mo ? obj_to_encoder(mo) : NULL;
+}
 
 #endif /* __DRM_CRTC_H__ */

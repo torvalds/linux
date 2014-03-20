@@ -243,7 +243,7 @@ static int wl1251_spi_probe(struct spi_device *spi)
 	struct wl1251 *wl;
 	int ret;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (!pdata) {
 		wl1251_error("no platform data");
 		return -ENODEV;

@@ -473,45 +473,31 @@ static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
 {
 	if (!pkt_debugfs_root)
 		return;
-	pd->dfs_f_info = NULL;
 	pd->dfs_d_root = debugfs_create_dir(pd->name, pkt_debugfs_root);
-	if (IS_ERR(pd->dfs_d_root)) {
-		pd->dfs_d_root = NULL;
+	if (!pd->dfs_d_root)
 		return;
-	}
+
 	pd->dfs_f_info = debugfs_create_file("info", S_IRUGO,
 				pd->dfs_d_root, pd, &debug_fops);
-	if (IS_ERR(pd->dfs_f_info)) {
-		pd->dfs_f_info = NULL;
-		return;
-	}
 }
 
 static void pkt_debugfs_dev_remove(struct pktcdvd_device *pd)
 {
 	if (!pkt_debugfs_root)
 		return;
-	if (pd->dfs_f_info)
-		debugfs_remove(pd->dfs_f_info);
+	debugfs_remove(pd->dfs_f_info);
+	debugfs_remove(pd->dfs_d_root);
 	pd->dfs_f_info = NULL;
-	if (pd->dfs_d_root)
-		debugfs_remove(pd->dfs_d_root);
 	pd->dfs_d_root = NULL;
 }
 
 static void pkt_debugfs_init(void)
 {
 	pkt_debugfs_root = debugfs_create_dir(DRIVER_NAME, NULL);
-	if (IS_ERR(pkt_debugfs_root)) {
-		pkt_debugfs_root = NULL;
-		return;
-	}
 }
 
 static void pkt_debugfs_cleanup(void)
 {
-	if (!pkt_debugfs_root)
-		return;
 	debugfs_remove(pkt_debugfs_root);
 	pkt_debugfs_root = NULL;
 }
@@ -665,7 +651,7 @@ static struct pkt_rb_node *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s
 
 	for (;;) {
 		tmp = rb_entry(n, struct pkt_rb_node, rb_node);
-		if (s <= tmp->bio->bi_sector)
+		if (s <= tmp->bio->bi_iter.bi_sector)
 			next = n->rb_left;
 		else
 			next = n->rb_right;
@@ -674,12 +660,12 @@ static struct pkt_rb_node *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s
 		n = next;
 	}
 
-	if (s > tmp->bio->bi_sector) {
+	if (s > tmp->bio->bi_iter.bi_sector) {
 		tmp = pkt_rbtree_next(tmp);
 		if (!tmp)
 			return NULL;
 	}
-	BUG_ON(s > tmp->bio->bi_sector);
+	BUG_ON(s > tmp->bio->bi_iter.bi_sector);
 	return tmp;
 }
 
@@ -690,13 +676,13 @@ static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_node *nod
 {
 	struct rb_node **p = &pd->bio_queue.rb_node;
 	struct rb_node *parent = NULL;
-	sector_t s = node->bio->bi_sector;
+	sector_t s = node->bio->bi_iter.bi_sector;
 	struct pkt_rb_node *tmp;
 
 	while (*p) {
 		parent = *p;
 		tmp = rb_entry(parent, struct pkt_rb_node, rb_node);
-		if (s < tmp->bio->bi_sector)
+		if (s < tmp->bio->bi_iter.bi_sector)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -720,7 +706,9 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 			     WRITE : READ, __GFP_WAIT);
 
 	if (cgc->buflen) {
-		if (blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen, __GFP_WAIT))
+		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
+				      __GFP_WAIT);
+		if (ret)
 			goto out;
 	}
 
@@ -871,7 +859,8 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 			spin_lock(&pd->iosched.lock);
 			bio = bio_list_peek(&pd->iosched.write_queue);
 			spin_unlock(&pd->iosched.lock);
-			if (bio && (bio->bi_sector == pd->iosched.last_write))
+			if (bio && (bio->bi_iter.bi_sector ==
+				    pd->iosched.last_write))
 				need_write_seek = 0;
 			if (need_write_seek && reads_queued) {
 				if (atomic_read(&pd->cdrw.pending_bios) > 0) {
@@ -902,7 +891,8 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 			continue;
 
 		if (bio_data_dir(bio) == READ)
-			pd->iosched.successive_reads += bio->bi_size >> 10;
+			pd->iosched.successive_reads +=
+				bio->bi_iter.bi_size >> 10;
 		else {
 			pd->iosched.successive_reads = 0;
 			pd->iosched.last_write = bio_end_sector(bio);
@@ -992,7 +982,7 @@ static void pkt_end_io_read(struct bio *bio, int err)
 
 	pkt_dbg(2, pd, "bio=%p sec0=%llx sec=%llx err=%d\n",
 		bio, (unsigned long long)pkt->sector,
-		(unsigned long long)bio->bi_sector, err);
+		(unsigned long long)bio->bi_iter.bi_sector, err);
 
 	if (err)
 		atomic_inc(&pkt->io_errors);
@@ -1040,8 +1030,9 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	memset(written, 0, sizeof(written));
 	spin_lock(&pkt->lock);
 	bio_list_for_each(bio, &pkt->orig_bios) {
-		int first_frame = (bio->bi_sector - pkt->sector) / (CD_FRAMESIZE >> 9);
-		int num_frames = bio->bi_size / CD_FRAMESIZE;
+		int first_frame = (bio->bi_iter.bi_sector - pkt->sector) /
+			(CD_FRAMESIZE >> 9);
+		int num_frames = bio->bi_iter.bi_size / CD_FRAMESIZE;
 		pd->stats.secs_w += num_frames * (CD_FRAMESIZE >> 9);
 		BUG_ON(first_frame < 0);
 		BUG_ON(first_frame + num_frames > pkt->frames);
@@ -1067,7 +1058,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 
 		bio = pkt->r_bios[f];
 		bio_reset(bio);
-		bio->bi_sector = pkt->sector + f * (CD_FRAMESIZE >> 9);
+		bio->bi_iter.bi_sector = pkt->sector + f * (CD_FRAMESIZE >> 9);
 		bio->bi_bdev = pd->bdev;
 		bio->bi_end_io = pkt_end_io_read;
 		bio->bi_private = pkt;
@@ -1164,8 +1155,8 @@ static int pkt_start_recovery(struct packet_data *pkt)
 	bio_reset(pkt->bio);
 	pkt->bio->bi_bdev = pd->bdev;
 	pkt->bio->bi_rw = REQ_WRITE;
-	pkt->bio->bi_sector = new_sector;
-	pkt->bio->bi_size = pkt->frames * CD_FRAMESIZE;
+	pkt->bio->bi_iter.bi_sector = new_sector;
+	pkt->bio->bi_iter.bi_size = pkt->frames * CD_FRAMESIZE;
 	pkt->bio->bi_vcnt = pkt->frames;
 
 	pkt->bio->bi_end_io = pkt_end_io_packet_write;
@@ -1227,7 +1218,7 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 	node = first_node;
 	while (node) {
 		bio = node->bio;
-		zone = get_zone(bio->bi_sector, pd);
+		zone = get_zone(bio->bi_iter.bi_sector, pd);
 		list_for_each_entry(p, &pd->cdrw.pkt_active_list, list) {
 			if (p->sector == zone) {
 				bio = NULL;
@@ -1266,14 +1257,14 @@ try_next_bio:
 	pkt_dbg(2, pd, "looking for zone %llx\n", (unsigned long long)zone);
 	while ((node = pkt_rbtree_find(pd, zone)) != NULL) {
 		bio = node->bio;
-		pkt_dbg(2, pd, "found zone=%llx\n",
-			(unsigned long long)get_zone(bio->bi_sector, pd));
-		if (get_zone(bio->bi_sector, pd) != zone)
+		pkt_dbg(2, pd, "found zone=%llx\n", (unsigned long long)
+			get_zone(bio->bi_iter.bi_sector, pd));
+		if (get_zone(bio->bi_iter.bi_sector, pd) != zone)
 			break;
 		pkt_rbtree_erase(pd, node);
 		spin_lock(&pkt->lock);
 		bio_list_add(&pkt->orig_bios, bio);
-		pkt->write_size += bio->bi_size / CD_FRAMESIZE;
+		pkt->write_size += bio->bi_iter.bi_size / CD_FRAMESIZE;
 		spin_unlock(&pkt->lock);
 	}
 	/* check write congestion marks, and if bio_queue_size is
@@ -1307,7 +1298,7 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	struct bio_vec *bvec = pkt->w_bio->bi_io_vec;
 
 	bio_reset(pkt->w_bio);
-	pkt->w_bio->bi_sector = pkt->sector;
+	pkt->w_bio->bi_iter.bi_sector = pkt->sector;
 	pkt->w_bio->bi_bdev = pd->bdev;
 	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
 	pkt->w_bio->bi_private = pkt;
@@ -2349,75 +2340,29 @@ static void pkt_end_io_read_cloned(struct bio *bio, int err)
 	pkt_bio_finished(pd);
 }
 
-static void pkt_make_request(struct request_queue *q, struct bio *bio)
+static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 {
-	struct pktcdvd_device *pd;
-	char b[BDEVNAME_SIZE];
+	struct bio *cloned_bio = bio_clone(bio, GFP_NOIO);
+	struct packet_stacked_data *psd = mempool_alloc(psd_pool, GFP_NOIO);
+
+	psd->pd = pd;
+	psd->bio = bio;
+	cloned_bio->bi_bdev = pd->bdev;
+	cloned_bio->bi_private = psd;
+	cloned_bio->bi_end_io = pkt_end_io_read_cloned;
+	pd->stats.secs_r += bio_sectors(bio);
+	pkt_queue_bio(pd, cloned_bio);
+}
+
+static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
+{
+	struct pktcdvd_device *pd = q->queuedata;
 	sector_t zone;
 	struct packet_data *pkt;
 	int was_empty, blocked_bio;
 	struct pkt_rb_node *node;
 
-	pd = q->queuedata;
-	if (!pd) {
-		pr_err("%s incorrect request queue\n",
-		       bdevname(bio->bi_bdev, b));
-		goto end_io;
-	}
-
-	/*
-	 * Clone READ bios so we can have our own bi_end_io callback.
-	 */
-	if (bio_data_dir(bio) == READ) {
-		struct bio *cloned_bio = bio_clone(bio, GFP_NOIO);
-		struct packet_stacked_data *psd = mempool_alloc(psd_pool, GFP_NOIO);
-
-		psd->pd = pd;
-		psd->bio = bio;
-		cloned_bio->bi_bdev = pd->bdev;
-		cloned_bio->bi_private = psd;
-		cloned_bio->bi_end_io = pkt_end_io_read_cloned;
-		pd->stats.secs_r += bio_sectors(bio);
-		pkt_queue_bio(pd, cloned_bio);
-		return;
-	}
-
-	if (!test_bit(PACKET_WRITABLE, &pd->flags)) {
-		pkt_notice(pd, "WRITE for ro device (%llu)\n",
-			   (unsigned long long)bio->bi_sector);
-		goto end_io;
-	}
-
-	if (!bio->bi_size || (bio->bi_size % CD_FRAMESIZE)) {
-		pkt_err(pd, "wrong bio size\n");
-		goto end_io;
-	}
-
-	blk_queue_bounce(q, &bio);
-
-	zone = get_zone(bio->bi_sector, pd);
-	pkt_dbg(2, pd, "start = %6llx stop = %6llx\n",
-		(unsigned long long)bio->bi_sector,
-		(unsigned long long)bio_end_sector(bio));
-
-	/* Check if we have to split the bio */
-	{
-		struct bio_pair *bp;
-		sector_t last_zone;
-		int first_sectors;
-
-		last_zone = get_zone(bio_end_sector(bio) - 1, pd);
-		if (last_zone != zone) {
-			BUG_ON(last_zone != zone + pd->settings.size);
-			first_sectors = last_zone - bio->bi_sector;
-			bp = bio_split(bio, first_sectors);
-			BUG_ON(!bp);
-			pkt_make_request(q, &bp->bio1);
-			pkt_make_request(q, &bp->bio2);
-			bio_pair_release(bp);
-			return;
-		}
-	}
+	zone = get_zone(bio->bi_iter.bi_sector, pd);
 
 	/*
 	 * If we find a matching packet in state WAITING or READ_WAIT, we can
@@ -2431,7 +2376,8 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
 			if ((pkt->state == PACKET_WAITING_STATE) ||
 			    (pkt->state == PACKET_READ_WAIT_STATE)) {
 				bio_list_add(&pkt->orig_bios, bio);
-				pkt->write_size += bio->bi_size / CD_FRAMESIZE;
+				pkt->write_size +=
+					bio->bi_iter.bi_size / CD_FRAMESIZE;
 				if ((pkt->write_size >= pkt->frames) &&
 				    (pkt->state == PACKET_WAITING_STATE)) {
 					atomic_inc(&pkt->run_sm);
@@ -2490,6 +2436,64 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
 		 */
 		wake_up(&pd->wqueue);
 	}
+}
+
+static void pkt_make_request(struct request_queue *q, struct bio *bio)
+{
+	struct pktcdvd_device *pd;
+	char b[BDEVNAME_SIZE];
+	struct bio *split;
+
+	pd = q->queuedata;
+	if (!pd) {
+		pr_err("%s incorrect request queue\n",
+		       bdevname(bio->bi_bdev, b));
+		goto end_io;
+	}
+
+	pkt_dbg(2, pd, "start = %6llx stop = %6llx\n",
+		(unsigned long long)bio->bi_iter.bi_sector,
+		(unsigned long long)bio_end_sector(bio));
+
+	/*
+	 * Clone READ bios so we can have our own bi_end_io callback.
+	 */
+	if (bio_data_dir(bio) == READ) {
+		pkt_make_request_read(pd, bio);
+		return;
+	}
+
+	if (!test_bit(PACKET_WRITABLE, &pd->flags)) {
+		pkt_notice(pd, "WRITE for ro device (%llu)\n",
+			   (unsigned long long)bio->bi_iter.bi_sector);
+		goto end_io;
+	}
+
+	if (!bio->bi_iter.bi_size || (bio->bi_iter.bi_size % CD_FRAMESIZE)) {
+		pkt_err(pd, "wrong bio size\n");
+		goto end_io;
+	}
+
+	blk_queue_bounce(q, &bio);
+
+	do {
+		sector_t zone = get_zone(bio->bi_iter.bi_sector, pd);
+		sector_t last_zone = get_zone(bio_end_sector(bio) - 1, pd);
+
+		if (last_zone != zone) {
+			BUG_ON(last_zone != zone + pd->settings.size);
+
+			split = bio_split(bio, last_zone -
+					  bio->bi_iter.bi_sector,
+					  GFP_NOIO, fs_bio_set);
+			bio_chain(split, bio);
+		} else {
+			split = bio;
+		}
+
+		pkt_make_request_write(q, split);
+	} while (split != bio);
+
 	return;
 end_io:
 	bio_io_error(bio);

@@ -4,7 +4,7 @@
  * Copyright (C) 2008,2009 STMicroelectronics
  * Copyright (C) 2009 Alessandro Rubini <rubini@unipv.it>
  *   Rewritten based on work by Prafulla WADASKAR <prafulla.wadaskar@st.com>
- * Copyright (C) 2011 Linus Walleij <linus.walleij@linaro.org>
+ * Copyright (C) 2011-2013 Linus Walleij <linus.walleij@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,7 +33,6 @@
 #include <linux/pinctrl/pinconf.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
 #include "pinctrl-nomadik.h"
 #include "core.h"
 
@@ -44,6 +43,221 @@
  *
  * Symbols in this file are called "nmk_gpio" for "nomadik gpio"
  */
+
+/*
+ * pin configurations are represented by 32-bit integers:
+ *
+ *	bit  0.. 8 - Pin Number (512 Pins Maximum)
+ *	bit  9..10 - Alternate Function Selection
+ *	bit 11..12 - Pull up/down state
+ *	bit     13 - Sleep mode behaviour
+ *	bit     14 - Direction
+ *	bit     15 - Value (if output)
+ *	bit 16..18 - SLPM pull up/down state
+ *	bit 19..20 - SLPM direction
+ *	bit 21..22 - SLPM Value (if output)
+ *	bit 23..25 - PDIS value (if input)
+ *	bit	26 - Gpio mode
+ *	bit	27 - Sleep mode
+ *
+ * to facilitate the definition, the following macros are provided
+ *
+ * PIN_CFG_DEFAULT - default config (0):
+ *		     pull up/down = disabled
+ *		     sleep mode = input/wakeup
+ *		     direction = input
+ *		     value = low
+ *		     SLPM direction = same as normal
+ *		     SLPM pull = same as normal
+ *		     SLPM value = same as normal
+ *
+ * PIN_CFG	   - default config with alternate function
+ */
+
+typedef unsigned long pin_cfg_t;
+
+#define PIN_NUM_MASK		0x1ff
+#define PIN_NUM(x)		((x) & PIN_NUM_MASK)
+
+#define PIN_ALT_SHIFT		9
+#define PIN_ALT_MASK		(0x3 << PIN_ALT_SHIFT)
+#define PIN_ALT(x)		(((x) & PIN_ALT_MASK) >> PIN_ALT_SHIFT)
+#define PIN_GPIO		(NMK_GPIO_ALT_GPIO << PIN_ALT_SHIFT)
+#define PIN_ALT_A		(NMK_GPIO_ALT_A << PIN_ALT_SHIFT)
+#define PIN_ALT_B		(NMK_GPIO_ALT_B << PIN_ALT_SHIFT)
+#define PIN_ALT_C		(NMK_GPIO_ALT_C << PIN_ALT_SHIFT)
+
+#define PIN_PULL_SHIFT		11
+#define PIN_PULL_MASK		(0x3 << PIN_PULL_SHIFT)
+#define PIN_PULL(x)		(((x) & PIN_PULL_MASK) >> PIN_PULL_SHIFT)
+#define PIN_PULL_NONE		(NMK_GPIO_PULL_NONE << PIN_PULL_SHIFT)
+#define PIN_PULL_UP		(NMK_GPIO_PULL_UP << PIN_PULL_SHIFT)
+#define PIN_PULL_DOWN		(NMK_GPIO_PULL_DOWN << PIN_PULL_SHIFT)
+
+#define PIN_SLPM_SHIFT		13
+#define PIN_SLPM_MASK		(0x1 << PIN_SLPM_SHIFT)
+#define PIN_SLPM(x)		(((x) & PIN_SLPM_MASK) >> PIN_SLPM_SHIFT)
+#define PIN_SLPM_MAKE_INPUT	(NMK_GPIO_SLPM_INPUT << PIN_SLPM_SHIFT)
+#define PIN_SLPM_NOCHANGE	(NMK_GPIO_SLPM_NOCHANGE << PIN_SLPM_SHIFT)
+/* These two replace the above in DB8500v2+ */
+#define PIN_SLPM_WAKEUP_ENABLE	(NMK_GPIO_SLPM_WAKEUP_ENABLE << PIN_SLPM_SHIFT)
+#define PIN_SLPM_WAKEUP_DISABLE	(NMK_GPIO_SLPM_WAKEUP_DISABLE << PIN_SLPM_SHIFT)
+#define PIN_SLPM_USE_MUX_SETTINGS_IN_SLEEP PIN_SLPM_WAKEUP_DISABLE
+
+#define PIN_SLPM_GPIO  PIN_SLPM_WAKEUP_ENABLE /* In SLPM, pin is a gpio */
+#define PIN_SLPM_ALTFUNC PIN_SLPM_WAKEUP_DISABLE /* In SLPM, pin is altfunc */
+
+#define PIN_DIR_SHIFT		14
+#define PIN_DIR_MASK		(0x1 << PIN_DIR_SHIFT)
+#define PIN_DIR(x)		(((x) & PIN_DIR_MASK) >> PIN_DIR_SHIFT)
+#define PIN_DIR_INPUT		(0 << PIN_DIR_SHIFT)
+#define PIN_DIR_OUTPUT		(1 << PIN_DIR_SHIFT)
+
+#define PIN_VAL_SHIFT		15
+#define PIN_VAL_MASK		(0x1 << PIN_VAL_SHIFT)
+#define PIN_VAL(x)		(((x) & PIN_VAL_MASK) >> PIN_VAL_SHIFT)
+#define PIN_VAL_LOW		(0 << PIN_VAL_SHIFT)
+#define PIN_VAL_HIGH		(1 << PIN_VAL_SHIFT)
+
+#define PIN_SLPM_PULL_SHIFT	16
+#define PIN_SLPM_PULL_MASK	(0x7 << PIN_SLPM_PULL_SHIFT)
+#define PIN_SLPM_PULL(x)	\
+	(((x) & PIN_SLPM_PULL_MASK) >> PIN_SLPM_PULL_SHIFT)
+#define PIN_SLPM_PULL_NONE	\
+	((1 + NMK_GPIO_PULL_NONE) << PIN_SLPM_PULL_SHIFT)
+#define PIN_SLPM_PULL_UP	\
+	((1 + NMK_GPIO_PULL_UP) << PIN_SLPM_PULL_SHIFT)
+#define PIN_SLPM_PULL_DOWN	\
+	((1 + NMK_GPIO_PULL_DOWN) << PIN_SLPM_PULL_SHIFT)
+
+#define PIN_SLPM_DIR_SHIFT	19
+#define PIN_SLPM_DIR_MASK	(0x3 << PIN_SLPM_DIR_SHIFT)
+#define PIN_SLPM_DIR(x)		\
+	(((x) & PIN_SLPM_DIR_MASK) >> PIN_SLPM_DIR_SHIFT)
+#define PIN_SLPM_DIR_INPUT	((1 + 0) << PIN_SLPM_DIR_SHIFT)
+#define PIN_SLPM_DIR_OUTPUT	((1 + 1) << PIN_SLPM_DIR_SHIFT)
+
+#define PIN_SLPM_VAL_SHIFT	21
+#define PIN_SLPM_VAL_MASK	(0x3 << PIN_SLPM_VAL_SHIFT)
+#define PIN_SLPM_VAL(x)		\
+	(((x) & PIN_SLPM_VAL_MASK) >> PIN_SLPM_VAL_SHIFT)
+#define PIN_SLPM_VAL_LOW	((1 + 0) << PIN_SLPM_VAL_SHIFT)
+#define PIN_SLPM_VAL_HIGH	((1 + 1) << PIN_SLPM_VAL_SHIFT)
+
+#define PIN_SLPM_PDIS_SHIFT		23
+#define PIN_SLPM_PDIS_MASK		(0x3 << PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS(x)	\
+	(((x) & PIN_SLPM_PDIS_MASK) >> PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS_NO_CHANGE		(0 << PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS_DISABLED		(1 << PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS_ENABLED		(2 << PIN_SLPM_PDIS_SHIFT)
+
+#define PIN_LOWEMI_SHIFT	25
+#define PIN_LOWEMI_MASK		(0x1 << PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI(x)		(((x) & PIN_LOWEMI_MASK) >> PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI_DISABLED	(0 << PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI_ENABLED	(1 << PIN_LOWEMI_SHIFT)
+
+#define PIN_GPIOMODE_SHIFT	26
+#define PIN_GPIOMODE_MASK	(0x1 << PIN_GPIOMODE_SHIFT)
+#define PIN_GPIOMODE(x)		(((x) & PIN_GPIOMODE_MASK) >> PIN_GPIOMODE_SHIFT)
+#define PIN_GPIOMODE_DISABLED	(0 << PIN_GPIOMODE_SHIFT)
+#define PIN_GPIOMODE_ENABLED	(1 << PIN_GPIOMODE_SHIFT)
+
+#define PIN_SLEEPMODE_SHIFT	27
+#define PIN_SLEEPMODE_MASK	(0x1 << PIN_SLEEPMODE_SHIFT)
+#define PIN_SLEEPMODE(x)	(((x) & PIN_SLEEPMODE_MASK) >> PIN_SLEEPMODE_SHIFT)
+#define PIN_SLEEPMODE_DISABLED	(0 << PIN_SLEEPMODE_SHIFT)
+#define PIN_SLEEPMODE_ENABLED	(1 << PIN_SLEEPMODE_SHIFT)
+
+
+/* Shortcuts.  Use these instead of separate DIR, PULL, and VAL.  */
+#define PIN_INPUT_PULLDOWN	(PIN_DIR_INPUT | PIN_PULL_DOWN)
+#define PIN_INPUT_PULLUP	(PIN_DIR_INPUT | PIN_PULL_UP)
+#define PIN_INPUT_NOPULL	(PIN_DIR_INPUT | PIN_PULL_NONE)
+#define PIN_OUTPUT_LOW		(PIN_DIR_OUTPUT | PIN_VAL_LOW)
+#define PIN_OUTPUT_HIGH		(PIN_DIR_OUTPUT | PIN_VAL_HIGH)
+
+#define PIN_SLPM_INPUT_PULLDOWN	(PIN_SLPM_DIR_INPUT | PIN_SLPM_PULL_DOWN)
+#define PIN_SLPM_INPUT_PULLUP	(PIN_SLPM_DIR_INPUT | PIN_SLPM_PULL_UP)
+#define PIN_SLPM_INPUT_NOPULL	(PIN_SLPM_DIR_INPUT | PIN_SLPM_PULL_NONE)
+#define PIN_SLPM_OUTPUT_LOW	(PIN_SLPM_DIR_OUTPUT | PIN_SLPM_VAL_LOW)
+#define PIN_SLPM_OUTPUT_HIGH	(PIN_SLPM_DIR_OUTPUT | PIN_SLPM_VAL_HIGH)
+
+#define PIN_CFG_DEFAULT		(0)
+
+#define PIN_CFG(num, alt)		\
+	(PIN_CFG_DEFAULT |\
+	 (PIN_NUM(num) | PIN_##alt))
+
+#define PIN_CFG_INPUT(num, alt, pull)		\
+	(PIN_CFG_DEFAULT |\
+	 (PIN_NUM(num) | PIN_##alt | PIN_INPUT_##pull))
+
+#define PIN_CFG_OUTPUT(num, alt, val)		\
+	(PIN_CFG_DEFAULT |\
+	 (PIN_NUM(num) | PIN_##alt | PIN_OUTPUT_##val))
+
+/*
+ * "nmk_gpio" and "NMK_GPIO" stand for "Nomadik GPIO", leaving
+ * the "gpio" namespace for generic and cross-machine functions
+ */
+
+#define GPIO_BLOCK_SHIFT 5
+#define NMK_GPIO_PER_CHIP (1 << GPIO_BLOCK_SHIFT)
+
+/* Register in the logic block */
+#define NMK_GPIO_DAT	0x00
+#define NMK_GPIO_DATS	0x04
+#define NMK_GPIO_DATC	0x08
+#define NMK_GPIO_PDIS	0x0c
+#define NMK_GPIO_DIR	0x10
+#define NMK_GPIO_DIRS	0x14
+#define NMK_GPIO_DIRC	0x18
+#define NMK_GPIO_SLPC	0x1c
+#define NMK_GPIO_AFSLA	0x20
+#define NMK_GPIO_AFSLB	0x24
+#define NMK_GPIO_LOWEMI	0x28
+
+#define NMK_GPIO_RIMSC	0x40
+#define NMK_GPIO_FIMSC	0x44
+#define NMK_GPIO_IS	0x48
+#define NMK_GPIO_IC	0x4c
+#define NMK_GPIO_RWIMSC	0x50
+#define NMK_GPIO_FWIMSC	0x54
+#define NMK_GPIO_WKS	0x58
+/* These appear in DB8540 and later ASICs */
+#define NMK_GPIO_EDGELEVEL 0x5C
+#define NMK_GPIO_LEVEL	0x60
+
+
+/* Pull up/down values */
+enum nmk_gpio_pull {
+	NMK_GPIO_PULL_NONE,
+	NMK_GPIO_PULL_UP,
+	NMK_GPIO_PULL_DOWN,
+};
+
+/* Sleep mode */
+enum nmk_gpio_slpm {
+	NMK_GPIO_SLPM_INPUT,
+	NMK_GPIO_SLPM_WAKEUP_ENABLE = NMK_GPIO_SLPM_INPUT,
+	NMK_GPIO_SLPM_NOCHANGE,
+	NMK_GPIO_SLPM_WAKEUP_DISABLE = NMK_GPIO_SLPM_NOCHANGE,
+};
+
+/*
+ * Platform data to register a block: only the initial gpio/irq number.
+ */
+struct nmk_gpio_platform_data {
+	char *name;
+	int first_gpio;
+	int first_irq;
+	int num_gpio;
+	u32 (*get_secondary_status)(unsigned int bank);
+	void (*set_ioforce)(bool enable);
+	bool supports_sleepmode;
+};
 
 struct nmk_gpio_chip {
 	struct gpio_chip chip;
@@ -634,6 +848,10 @@ static unsigned int nmk_gpio_irq_startup(struct irq_data *d)
 {
 	struct nmk_gpio_chip *nmk_chip = irq_data_get_irq_chip_data(d);
 
+	if (gpio_lock_as_irq(&nmk_chip->chip, d->hwirq))
+		dev_err(nmk_chip->chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			d->hwirq);
 	clk_enable(nmk_chip->clk);
 	nmk_gpio_irq_unmask(d);
 	return 0;
@@ -645,6 +863,7 @@ static void nmk_gpio_irq_shutdown(struct irq_data *d)
 
 	nmk_gpio_irq_mask(d);
 	clk_disable(nmk_chip->clk);
+	gpio_unlock_as_irq(&nmk_chip->chip, d->hwirq);
 }
 
 static struct irq_chip nmk_gpio_irq_chip = {
@@ -841,14 +1060,14 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		   (mode < 0) ? "unknown" : modes[mode],
 		   pull ? "pull" : "none");
 
-	if (label && !is_out) {
-		int		irq = gpio_to_irq(gpio);
+	if (!is_out) {
+		int irq = gpio_to_irq(gpio);
 		struct irq_desc	*desc = irq_to_desc(irq);
 
 		/* This races with request_irq(), set_irq_type(),
 		 * and set_irq_wake() ... but those are "rare".
 		 */
-		if (irq >= 0 && desc->action) {
+		if (irq > 0 && desc && desc->action) {
 			char *trigger;
 			u32 bitmask = nmk_gpio_get_bitmask(gpio);
 
@@ -899,7 +1118,7 @@ static struct gpio_chip nmk_gpio_template = {
 	.set			= nmk_gpio_set_output,
 	.to_irq			= nmk_gpio_to_irq,
 	.dbg_show		= nmk_gpio_dbg_show,
-	.can_sleep		= 0,
+	.can_sleep		= false,
 };
 
 void nmk_gpio_clocks_enable(void)
@@ -1021,7 +1240,7 @@ static const struct irq_domain_ops nmk_gpio_irq_simple_ops = {
 
 static int nmk_gpio_probe(struct platform_device *dev)
 {
-	struct nmk_gpio_platform_data *pdata = dev->dev.platform_data;
+	struct nmk_gpio_platform_data *pdata;
 	struct device_node *np = dev->dev.of_node;
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
@@ -1029,31 +1248,23 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	struct clk *clk;
 	int secondary_irq;
 	void __iomem *base;
-	int irq_start = 0;
 	int irq;
 	int ret;
 
-	if (!pdata && !np) {
-		dev_err(&dev->dev, "No platform data or device tree found\n");
-		return -ENODEV;
+	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	if (of_get_property(np, "st,supports-sleepmode", NULL))
+		pdata->supports_sleepmode = true;
+
+	if (of_property_read_u32(np, "gpio-bank", &dev->id)) {
+		dev_err(&dev->dev, "gpio-bank property not found\n");
+		return -EINVAL;
 	}
 
-	if (np) {
-		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
-
-		if (of_get_property(np, "st,supports-sleepmode", NULL))
-			pdata->supports_sleepmode = true;
-
-		if (of_property_read_u32(np, "gpio-bank", &dev->id)) {
-			dev_err(&dev->dev, "gpio-bank property not found\n");
-			return -EINVAL;
-		}
-
-		pdata->first_gpio = dev->id * NMK_GPIO_PER_CHIP;
-		pdata->num_gpio   = NMK_GPIO_PER_CHIP;
-	}
+	pdata->first_gpio = dev->id * NMK_GPIO_PER_CHIP;
+	pdata->num_gpio = NMK_GPIO_PER_CHIP;
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0)
@@ -1102,10 +1313,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	clk_enable(nmk_chip->clk);
 	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
 	clk_disable(nmk_chip->clk);
-
-#ifdef CONFIG_OF_GPIO
 	chip->of_node = np;
-#endif
 
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)
@@ -1117,10 +1325,8 @@ static int nmk_gpio_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, nmk_chip);
 
-	if (!np)
-		irq_start = pdata->first_irq;
 	nmk_chip->domain = irq_domain_add_simple(np,
-				NMK_GPIO_PER_CHIP, irq_start,
+				NMK_GPIO_PER_CHIP, 0,
 				&nmk_gpio_irq_simple_ops, nmk_chip);
 	if (!nmk_chip->domain) {
 		dev_err(&dev->dev, "failed to create irqdomain\n");
@@ -1853,11 +2059,10 @@ static int nmk_pinctrl_resume(struct platform_device *pdev)
 
 static int nmk_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
+	const struct of_device_id *match;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *prcm_np;
 	struct nmk_pinctrl *npct;
-	struct resource *res;
 	unsigned int version = 0;
 	int i;
 
@@ -1865,16 +2070,10 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	if (!npct)
 		return -ENOMEM;
 
-	if (platid)
-		version = platid->driver_data;
-	else if (np) {
-		const struct of_device_id *match;
-
-		match = of_match_device(nmk_pinctrl_match, &pdev->dev);
-		if (!match)
-			return -ENODEV;
-		version = (unsigned int) match->data;
-	}
+	match = of_match_device(nmk_pinctrl_match, &pdev->dev);
+	if (!match)
+		return -ENODEV;
+	version = (unsigned int) match->data;
 
 	/* Poke in other ASIC variants here */
 	if (version == PINCTRL_NMK_STN8815)
@@ -1884,17 +2083,9 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	if (version == PINCTRL_NMK_DB8540)
 		nmk_pinctrl_db8540_init(&npct->soc);
 
-	if (np) {
-		prcm_np = of_parse_phandle(np, "prcm", 0);
-		if (prcm_np)
-			npct->prcm_base = of_iomap(prcm_np, 0);
-	}
-
-	/* Allow platform passed information to over-write DT. */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		npct->prcm_base = devm_ioremap(&pdev->dev, res->start,
-					       resource_size(res));
+	prcm_np = of_parse_phandle(np, "prcm", 0);
+	if (prcm_np)
+		npct->prcm_base = of_iomap(prcm_np, 0);
 	if (!npct->prcm_base) {
 		if (version == PINCTRL_NMK_STN8815) {
 			dev_info(&pdev->dev,
@@ -1953,13 +2144,6 @@ static struct platform_driver nmk_gpio_driver = {
 	.probe = nmk_gpio_probe,
 };
 
-static const struct platform_device_id nmk_pinctrl_id[] = {
-	{ "pinctrl-stn8815", PINCTRL_NMK_STN8815 },
-	{ "pinctrl-db8500", PINCTRL_NMK_DB8500 },
-	{ "pinctrl-db8540", PINCTRL_NMK_DB8540 },
-	{ }
-};
-
 static struct platform_driver nmk_pinctrl_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
@@ -1967,7 +2151,6 @@ static struct platform_driver nmk_pinctrl_driver = {
 		.of_match_table = nmk_pinctrl_match,
 	},
 	.probe = nmk_pinctrl_probe,
-	.id_table = nmk_pinctrl_id,
 #ifdef CONFIG_PM
 	.suspend = nmk_pinctrl_suspend,
 	.resume = nmk_pinctrl_resume,

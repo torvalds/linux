@@ -1391,7 +1391,7 @@ static int i_APCI3120_CommandAnalogInput(struct comedi_device *dev,
  */
 static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 						  struct comedi_subdevice *s,
-						  short *dma_buffer,
+						  unsigned short *dma_buffer,
 						  unsigned int num_samples)
 {
 	struct addi_private *devpriv = dev->private;
@@ -1414,7 +1414,7 @@ static void v_APCI3120_InterruptDma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int next_dma_buf, samplesinbuf;
 	unsigned long low_word, high_word, var;
 	unsigned int ui_Tmp;
@@ -1568,8 +1568,8 @@ static void v_APCI3120_InterruptDma(int irq, void *d)
 static int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int n_chan, i;
-	struct comedi_subdevice *s = &dev->subdevices[0];
 	int err = 1;
 
 	n_chan = devpriv->ui_AiNbrofChannels;
@@ -1593,11 +1593,11 @@ static void v_APCI3120_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short int_daq;
 	unsigned int int_amcc, ui_Check, i;
 	unsigned short us_TmpValue;
 	unsigned char b_DummyRead;
-	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	ui_Check = 1;
 
@@ -2175,21 +2175,16 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-	unsigned int val;
 
-	/* The do channels are bits 7:4 of the do register */
-	val = devpriv->b_DigitalOutputRegister >> 4;
-	if (mask) {
-		val &= ~mask;
-		val |= (bits & mask);
-		devpriv->b_DigitalOutputRegister = val << 4;
+	if (comedi_dio_update_state(s, data)) {
+		/* The do channels are bits 7:4 of the do register */
+		devpriv->b_DigitalOutputRegister = s->state << 4;
 
-		outb(val << 4, devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
+		outb(devpriv->b_DigitalOutputRegister,
+		     devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
 	}
 
-	data[1] = val;
+	data[1] = s->state;
 
 	return insn->n;
 }

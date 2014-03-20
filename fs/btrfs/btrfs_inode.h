@@ -19,6 +19,7 @@
 #ifndef __BTRFS_I__
 #define __BTRFS_I__
 
+#include <linux/hash.h>
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"
@@ -42,6 +43,7 @@
 #define BTRFS_INODE_COPY_EVERYTHING		8
 #define BTRFS_INODE_IN_DELALLOC_LIST		9
 #define BTRFS_INODE_READDIO_NEED_LOCK		10
+#define BTRFS_INODE_HAS_PROPS		        11
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -134,6 +136,9 @@ struct btrfs_inode {
 	 */
 	u64 index_cnt;
 
+	/* Cache the directory index number to speed the dir/file remove */
+	u64 dir_index;
+
 	/* the fsync log has some corner cases that mean we have to check
 	 * directories to see if any unlinks have been done before
 	 * the directory was logged.  See tree-log.c for all the
@@ -177,6 +182,25 @@ extern unsigned char btrfs_filetype_table[];
 static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 {
 	return container_of(inode, struct btrfs_inode, vfs_inode);
+}
+
+static inline unsigned long btrfs_inode_hash(u64 objectid,
+					     const struct btrfs_root *root)
+{
+	u64 h = objectid ^ (root->objectid * GOLDEN_RATIO_PRIME);
+
+#if BITS_PER_LONG == 32
+	h = (h >> 32) ^ (h & 0xffffffff);
+#endif
+
+	return (unsigned long)h;
+}
+
+static inline void btrfs_insert_inode_hash(struct inode *inode)
+{
+	unsigned long h = btrfs_inode_hash(inode->i_ino, BTRFS_I(inode)->root);
+
+	__insert_inode_hash(inode, h);
 }
 
 static inline u64 btrfs_ino(struct inode *inode)

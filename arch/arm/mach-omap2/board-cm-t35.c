@@ -25,7 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>

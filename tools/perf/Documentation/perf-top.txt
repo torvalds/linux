@@ -50,7 +50,6 @@ Default is to monitor all CPUS.
 --count-filter=<count>::
 	Only display functions with more events than this.
 
--g::
 --group::
         Put the counters into a counter group.
 
@@ -68,7 +67,9 @@ Default is to monitor all CPUS.
 
 -m <pages>::
 --mmap-pages=<pages>::
-	Number of mmapped data pages.
+	Number of mmap data pages (must be a power of two) or size
+	specification with appended unit character - B/K/M/G. The
+	size is rounded up to have nearest pages power of two value.
 
 -p <pid>::
 --pid=<pid>::
@@ -112,7 +113,8 @@ Default is to monitor all CPUS.
 
 -s::
 --sort::
-	Sort by key(s): pid, comm, dso, symbol, parent, srcline, weight, local_weight.
+	Sort by key(s): pid, comm, dso, symbol, parent, srcline, weight,
+	local_weight, abort, in_tx, transaction
 
 -n::
 --show-nr-samples::
@@ -140,20 +142,20 @@ Default is to monitor all CPUS.
 --asm-raw::
 	Show raw instruction encoding of assembly instructions.
 
--G [type,min,order]::
+-g::
+	Enables call-graph (stack chain/backtrace) recording.
+
 --call-graph::
-        Display call chains using type, min percent threshold and order.
-	type can be either:
-	- flat: single column, linear exposure of call chains.
-	- graph: use a graph tree, displaying absolute overhead rates.
-	- fractal: like graph, but displays relative rates. Each branch of
-		 the tree is considered as a new profiled object.
+	Setup and enable call-graph (stack chain/backtrace) recording,
+	implies -g.
 
-	order can be either:
-	- callee: callee based call graph.
-	- caller: inverted caller based call graph.
+--max-stack::
+	Set the stack depth limit when parsing the callchain, anything
+	beyond the specified depth will be ignored. This is a trade-off
+	between information loss and faster processing especially for
+	workloads that can have a very long callchain stack.
 
-	Default: fractal,0.5,callee.
+	Default: 127
 
 --ignore-callees=<regex>::
         Ignore callees of the function(s) matching the given regex.

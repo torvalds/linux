@@ -1,0 +1,75 @@
+GPIO Descriptor Driver Interface
+================================
+
+This document serves as a guide for GPIO chip drivers writers. Note that it
+describes the new descriptor-based interface. For a description of the
+deprecated integer-based GPIO interface please refer to gpio-legacy.txt.
+
+Each GPIO controller driver needs to include the following header, which defines
+the structures used to define a GPIO driver:
+
+	#include <linux/gpio/driver.h>
+
+
+Internal Representation of GPIOs
+================================
+
+Inside a GPIO driver, individual GPIOs are identified by their hardware number,
+which is a unique number between 0 and n, n being the number of GPIOs managed by
+the chip. This number is purely internal: the hardware number of a particular
+GPIO descriptor is never made visible outside of the driver.
+
+On top of this internal number, each GPIO also need to have a global number in
+the integer GPIO namespace so that it can be used with the legacy GPIO
+interface. Each chip must thus have a "base" number (which can be automatically
+assigned), and for each GPIO the global number will be (base + hardware number).
+Although the integer representation is considered deprecated, it still has many
+users and thus needs to be maintained.
+
+So for example one platform could use numbers 32-159 for GPIOs, with a
+controller defining 128 GPIOs at a "base" of 32 ; while another platform uses
+numbers 0..63 with one set of GPIO controllers, 64-79 with another type of GPIO
+controller, and on one particular board 80-95 with an FPGA. The numbers need not
+be contiguous; either of those platforms could also use numbers 2000-2063 to
+identify GPIOs in a bank of I2C GPIO expanders.
+
+
+Controller Drivers: gpio_chip
+=============================
+
+In the gpiolib framework each GPIO controller is packaged as a "struct
+gpio_chip" (see linux/gpio/driver.h for its complete definition) with members
+common to each controller of that type:
+
+ - methods to establish GPIO direction
+ - methods used to access GPIO values
+ - method to return the IRQ number associated to a given GPIO
+ - flag saying whether calls to its methods may sleep
+ - optional debugfs dump method (showing extra state like pullup config)
+ - optional base number (will be automatically assigned if omitted)
+ - label for diagnostics and GPIOs mapping using platform data
+
+The code implementing a gpio_chip should support multiple instances of the
+controller, possibly using the driver model. That code will configure each
+gpio_chip and issue gpiochip_add(). Removing a GPIO controller should be rare;
+use gpiochip_remove() when it is unavoidable.
+
+Most often a gpio_chip is part of an instance-specific structure with state not
+exposed by the GPIO interfaces, such as addressing, power management, and more.
+Chips such as codecs will have complex non-GPIO state.
+
+Any debugfs dump method should normally ignore signals which haven't been
+requested as GPIOs. They can use gpiochip_is_requested(), which returns either
+NULL or the label associated with that GPIO when it was requested.
+
+Locking IRQ usage
+-----------------
+Input GPIOs can be used as IRQ signals. When this happens, a driver is requested
+to mark the GPIO as being used as an IRQ:
+
+	int gpiod_lock_as_irq(struct gpio_desc *desc)
+
+This will prevent the use of non-irq related GPIO APIs until the GPIO IRQ lock
+is released:
+
+	void gpiod_unlock_as_irq(struct gpio_desc *desc)

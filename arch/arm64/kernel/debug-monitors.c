@@ -27,7 +27,6 @@
 #include <linux/uaccess.h>
 
 #include <asm/debug-monitors.h>
-#include <asm/local.h>
 #include <asm/cputype.h>
 #include <asm/system_misc.h>
 
@@ -89,8 +88,8 @@ early_param("nodebugmon", early_debug_disable);
  * Keep track of debug users on each core.
  * The ref counts are per-cpu so we use a local_t type.
  */
-static DEFINE_PER_CPU(local_t, mde_ref_count);
-static DEFINE_PER_CPU(local_t, kde_ref_count);
+static DEFINE_PER_CPU(int, mde_ref_count);
+static DEFINE_PER_CPU(int, kde_ref_count);
 
 void enable_debug_monitors(enum debug_el el)
 {
@@ -98,11 +97,11 @@ void enable_debug_monitors(enum debug_el el)
 
 	WARN_ON(preemptible());
 
-	if (local_inc_return(&__get_cpu_var(mde_ref_count)) == 1)
+	if (this_cpu_inc_return(mde_ref_count) == 1)
 		enable = DBG_MDSCR_MDE;
 
 	if (el == DBG_ACTIVE_EL1 &&
-	    local_inc_return(&__get_cpu_var(kde_ref_count)) == 1)
+	    this_cpu_inc_return(kde_ref_count) == 1)
 		enable |= DBG_MDSCR_KDE;
 
 	if (enable && debug_enabled) {
@@ -118,11 +117,11 @@ void disable_debug_monitors(enum debug_el el)
 
 	WARN_ON(preemptible());
 
-	if (local_dec_and_test(&__get_cpu_var(mde_ref_count)))
+	if (this_cpu_dec_return(mde_ref_count) == 0)
 		disable = ~DBG_MDSCR_MDE;
 
 	if (el == DBG_ACTIVE_EL1 &&
-	    local_dec_and_test(&__get_cpu_var(kde_ref_count)))
+	    this_cpu_dec_return(kde_ref_count) == 0)
 		disable &= ~DBG_MDSCR_KDE;
 
 	if (disable) {
@@ -188,6 +187,48 @@ static void clear_regs_spsr_ss(struct pt_regs *regs)
 	regs->pstate = spsr;
 }
 
+/* EL1 Single Step Handler hooks */
+static LIST_HEAD(step_hook);
+DEFINE_RWLOCK(step_hook_lock);
+
+void register_step_hook(struct step_hook *hook)
+{
+	write_lock(&step_hook_lock);
+	list_add(&hook->node, &step_hook);
+	write_unlock(&step_hook_lock);
+}
+
+void unregister_step_hook(struct step_hook *hook)
+{
+	write_lock(&step_hook_lock);
+	list_del(&hook->node);
+	write_unlock(&step_hook_lock);
+}
+
+/*
+ * Call registered single step handers
+ * There is no Syndrome info to check for determining the handler.
+ * So we call all the registered handlers, until the right handler is
+ * found which returns zero.
+ */
+static int call_step_hook(struct pt_regs *regs, unsigned int esr)
+{
+	struct step_hook *hook;
+	int retval = DBG_HOOK_ERROR;
+
+	read_lock(&step_hook_lock);
+
+	list_for_each_entry(hook, &step_hook, node)	{
+		retval = hook->fn(regs, esr);
+		if (retval == DBG_HOOK_HANDLED)
+			break;
+	}
+
+	read_unlock(&step_hook_lock);
+
+	return retval;
+}
+
 static int single_step_handler(unsigned long addr, unsigned int esr,
 			       struct pt_regs *regs)
 {
@@ -215,7 +256,9 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 		 */
 		user_rewind_single_step(current);
 	} else {
-		/* TODO: route to KGDB */
+		if (call_step_hook(regs, esr) == DBG_HOOK_HANDLED)
+			return 0;
+
 		pr_warning("Unexpected kernel single-step exception at EL1\n");
 		/*
 		 * Re-enable stepping since we know that we will be
@@ -227,10 +270,52 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 	return 0;
 }
 
+/*
+ * Breakpoint handler is re-entrant as another breakpoint can
+ * hit within breakpoint handler, especically in kprobes.
+ * Use reader/writer locks instead of plain spinlock.
+ */
+static LIST_HEAD(break_hook);
+DEFINE_RWLOCK(break_hook_lock);
+
+void register_break_hook(struct break_hook *hook)
+{
+	write_lock(&break_hook_lock);
+	list_add(&hook->node, &break_hook);
+	write_unlock(&break_hook_lock);
+}
+
+void unregister_break_hook(struct break_hook *hook)
+{
+	write_lock(&break_hook_lock);
+	list_del(&hook->node);
+	write_unlock(&break_hook_lock);
+}
+
+static int call_break_hook(struct pt_regs *regs, unsigned int esr)
+{
+	struct break_hook *hook;
+	int (*fn)(struct pt_regs *regs, unsigned int esr) = NULL;
+
+	read_lock(&break_hook_lock);
+	list_for_each_entry(hook, &break_hook, node)
+		if ((esr & hook->esr_mask) == hook->esr_val)
+			fn = hook->fn;
+	read_unlock(&break_hook_lock);
+
+	return fn ? fn(regs, esr) : DBG_HOOK_ERROR;
+}
+
 static int brk_handler(unsigned long addr, unsigned int esr,
 		       struct pt_regs *regs)
 {
 	siginfo_t info;
+
+	if (call_break_hook(regs, esr) == DBG_HOOK_HANDLED)
+		return 0;
+
+	pr_warn("unexpected brk exception at %lx, esr=0x%x\n",
+			(long)instruction_pointer(regs), esr);
 
 	if (!user_mode(regs))
 		return -EFAULT;
@@ -249,7 +334,8 @@ static int brk_handler(unsigned long addr, unsigned int esr,
 int aarch32_break_handler(struct pt_regs *regs)
 {
 	siginfo_t info;
-	unsigned int instr;
+	u32 arm_instr;
+	u16 thumb_instr;
 	bool bp = false;
 	void __user *pc = (void __user *)instruction_pointer(regs);
 
@@ -258,18 +344,21 @@ int aarch32_break_handler(struct pt_regs *regs)
 
 	if (compat_thumb_mode(regs)) {
 		/* get 16-bit Thumb instruction */
-		get_user(instr, (u16 __user *)pc);
-		if (instr == AARCH32_BREAK_THUMB2_LO) {
+		get_user(thumb_instr, (u16 __user *)pc);
+		thumb_instr = le16_to_cpu(thumb_instr);
+		if (thumb_instr == AARCH32_BREAK_THUMB2_LO) {
 			/* get second half of 32-bit Thumb-2 instruction */
-			get_user(instr, (u16 __user *)(pc + 2));
-			bp = instr == AARCH32_BREAK_THUMB2_HI;
+			get_user(thumb_instr, (u16 __user *)(pc + 2));
+			thumb_instr = le16_to_cpu(thumb_instr);
+			bp = thumb_instr == AARCH32_BREAK_THUMB2_HI;
 		} else {
-			bp = instr == AARCH32_BREAK_THUMB;
+			bp = thumb_instr == AARCH32_BREAK_THUMB;
 		}
 	} else {
 		/* 32-bit ARM instruction */
-		get_user(instr, (u32 __user *)pc);
-		bp = (instr & ~0xf0000000) == AARCH32_BREAK_ARM;
+		get_user(arm_instr, (u32 __user *)pc);
+		arm_instr = le32_to_cpu(arm_instr);
+		bp = (arm_instr & ~0xf0000000) == AARCH32_BREAK_ARM;
 	}
 
 	if (!bp)

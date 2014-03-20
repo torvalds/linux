@@ -98,7 +98,7 @@ struct usb_phy *devm_usb_get_phy(struct device *dev, enum usb_phy_type type)
 
 	ptr = devres_alloc(devm_usb_phy_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	phy = usb_get_phy(type);
 	if (!IS_ERR(phy)) {
@@ -130,7 +130,7 @@ struct usb_phy *usb_get_phy(enum usb_phy_type type)
 
 	phy = __usb_find_phy(&phy_list, type);
 	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
-		pr_err("unable to find transceiver of type %s\n",
+		pr_debug("PHY: unable to find transceiver of type %s\n",
 			usb_phy_type_string(type));
 		goto err0;
 	}
@@ -228,7 +228,7 @@ struct usb_phy *usb_get_phy_dev(struct device *dev, u8 index)
 
 	phy = __usb_find_phy_dev(dev, &phy_bind_list, index);
 	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
-		pr_err("unable to find transceiver\n");
+		dev_dbg(dev, "unable to find transceiver\n");
 		goto err0;
 	}
 
@@ -329,6 +329,8 @@ int usb_add_phy(struct usb_phy *x, enum usb_phy_type type)
 		return -EINVAL;
 	}
 
+	ATOMIC_INIT_NOTIFIER_HEAD(&x->notifier);
+
 	spin_lock_irqsave(&phy_lock, flags);
 
 	list_for_each_entry(phy, &phy_list, head) {
@@ -366,6 +368,8 @@ int usb_add_phy_dev(struct usb_phy *x)
 		dev_err(x->dev, "no device provided for PHY\n");
 		return -EINVAL;
 	}
+
+	ATOMIC_INIT_NOTIFIER_HEAD(&x->notifier);
 
 	spin_lock_irqsave(&phy_lock, flags);
 	list_for_each_entry(phy_bind, &phy_bind_list, list)
@@ -420,10 +424,8 @@ int usb_bind_phy(const char *dev_name, u8 index,
 	unsigned long flags;
 
 	phy_bind = kzalloc(sizeof(*phy_bind), GFP_KERNEL);
-	if (!phy_bind) {
-		pr_err("phy_bind(): No memory for phy_bind");
+	if (!phy_bind)
 		return -ENOMEM;
-	}
 
 	phy_bind->dev_name = dev_name;
 	phy_bind->phy_dev_name = phy_dev_name;

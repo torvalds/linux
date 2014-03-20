@@ -57,16 +57,10 @@ static int apci2032_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
 	s->state = inl(dev->iobase + APCI2032_DO_REG);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, dev->iobase + APCI2032_DO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -365,7 +359,7 @@ static int apci2032_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci2032_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci2032_pci_table) = {
+static const struct pci_device_id apci2032_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1004) },
 	{ 0 }
 };

@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-davinci.h>
 
 #include <mach/common.h>
 #include <mach/tnetv107x.h>
@@ -175,7 +176,7 @@ static int __init tnetv107x_gpio_setup(void)
 		ctlr = &chips[i];
 
 		ctlr->chip.label	= "tnetv107x";
-		ctlr->chip.can_sleep	= 0;
+		ctlr->chip.can_sleep	= false;
 		ctlr->chip.base		= base;
 		ctlr->chip.ngpio	= ngpio - base;
 		if (ctlr->chip.ngpio > 32)

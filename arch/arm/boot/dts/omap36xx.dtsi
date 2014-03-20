@@ -31,8 +31,28 @@
 	ocp {
 		uart4: serial@49042000 {
 			compatible = "ti,omap3-uart";
+			reg = <0x49042000 0x400>;
+			interrupts = <80>;
+			dmas = <&sdma 81 &sdma 82>;
+			dma-names = "tx", "rx";
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
 		};
+
+		omap3_pmx_core2: pinmux@480025a0 {
+			compatible = "ti,omap3-padconf", "pinctrl-single";
+			reg = <0x480025a0 0x5c>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0xff1f>;
+		};
 	};
 };
+
+/include/ "omap36xx-clocks.dtsi"
+/include/ "omap34xx-omap36xx-clocks.dtsi"
+/include/ "omap36xx-omap3430es2plus-clocks.dtsi"
+/include/ "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"

@@ -11,11 +11,13 @@
  */
 
 #include <linux/errno.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/export.h>
-#include <linux/acpi_gpio.h>
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
+
+#include "gpiolib.h"
 
 struct acpi_gpio_evt_pin {
 	struct list_head node;
@@ -33,14 +35,15 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 }
 
 /**
- * acpi_get_gpio() - Translate ACPI GPIO pin to GPIO number usable with GPIO API
+ * acpi_get_gpiod() - Translate ACPI GPIO pin to GPIO descriptor usable with GPIO API
  * @path:	ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
  * @pin:	ACPI GPIO pin number (0-based, controller-relative)
  *
- * Returns GPIO number to use with Linux generic GPIO API, or errno error value
+ * Returns GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
+ * error value
  */
 
-int acpi_get_gpio(char *path, int pin)
+static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 {
 	struct gpio_chip *chip;
 	acpi_handle handle;
@@ -48,18 +51,17 @@ int acpi_get_gpio(char *path, int pin)
 
 	status = acpi_get_handle(NULL, path, &handle);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	chip = gpiochip_find(handle, acpi_gpiochip_find);
 	if (!chip)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
-	if (!gpio_is_valid(chip->base + pin))
-		return -EINVAL;
+	if (pin < 0 || pin > chip->ngpio)
+		return ERR_PTR(-EINVAL);
 
-	return chip->base + pin;
+	return gpio_to_desc(chip->base + pin);
 }
-EXPORT_SYMBOL_GPL(acpi_get_gpio);
 
 static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 {
@@ -73,15 +75,8 @@ static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 static irqreturn_t acpi_gpio_irq_handler_evt(int irq, void *data)
 {
 	struct acpi_gpio_evt_pin *evt_pin = data;
-	struct acpi_object_list args;
-	union acpi_object arg;
 
-	arg.type = ACPI_TYPE_INTEGER;
-	arg.integer.value = evt_pin->pin;
-	args.count = 1;
-	args.pointer = &arg;
-
-	acpi_evaluate_object(evt_pin->evt_handle, NULL, &args, NULL);
+	acpi_execute_simple_method(evt_pin->evt_handle, NULL, evt_pin->pin);
 
 	return IRQ_HANDLED;
 }
@@ -101,7 +96,7 @@ static void acpi_gpio_evt_dh(acpi_handle handle, void *data)
  * gpio pins have acpi event methods and assigns interrupt handlers that calls
  * the acpi event methods for those pins.
  */
-void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
+static void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 {
 	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
 	struct acpi_resource *res;
@@ -199,85 +194,6 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 				irq);
 	}
 }
-EXPORT_SYMBOL(acpi_gpiochip_request_interrupts);
-
-struct acpi_gpio_lookup {
-	struct acpi_gpio_info info;
-	int index;
-	int gpio;
-	int n;
-};
-
-static int acpi_find_gpio(struct acpi_resource *ares, void *data)
-{
-	struct acpi_gpio_lookup *lookup = data;
-
-	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
-		return 1;
-
-	if (lookup->n++ == lookup->index && lookup->gpio < 0) {
-		const struct acpi_resource_gpio *agpio = &ares->data.gpio;
-
-		lookup->gpio = acpi_get_gpio(agpio->resource_source.string_ptr,
-					     agpio->pin_table[0]);
-		lookup->info.gpioint =
-			agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
-	}
-
-	return 1;
-}
-
-/**
- * acpi_get_gpio_by_index() - get a GPIO number from device resources
- * @dev: pointer to a device to get GPIO from
- * @index: index of GpioIo/GpioInt resource (starting from %0)
- * @info: info pointer to fill in (optional)
- *
- * Function goes through ACPI resources for @dev and based on @index looks
- * up a GpioIo/GpioInt resource, translates it to the Linux GPIO number,
- * and returns it. @index matches GpioIo/GpioInt resources only so if there
- * are total %3 GPIO resources, the index goes from %0 to %2.
- *
- * If the GPIO cannot be translated or there is an error, negative errno is
- * returned.
- *
- * Note: if the GPIO resource has multiple entries in the pin list, this
- * function only returns the first.
- */
-int acpi_get_gpio_by_index(struct device *dev, int index,
-			   struct acpi_gpio_info *info)
-{
-	struct acpi_gpio_lookup lookup;
-	struct list_head resource_list;
-	struct acpi_device *adev;
-	acpi_handle handle;
-	int ret;
-
-	if (!dev)
-		return -EINVAL;
-
-	handle = ACPI_HANDLE(dev);
-	if (!handle || acpi_bus_get_device(handle, &adev))
-		return -ENODEV;
-
-	memset(&lookup, 0, sizeof(lookup));
-	lookup.index = index;
-	lookup.gpio = -ENODEV;
-
-	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(adev, &resource_list, acpi_find_gpio,
-				     &lookup);
-	if (ret < 0)
-		return ret;
-
-	acpi_dev_free_resource_list(&resource_list);
-
-	if (lookup.gpio >= 0 && info)
-		*info = lookup.info;
-
-	return lookup.gpio;
-}
-EXPORT_SYMBOL_GPL(acpi_get_gpio_by_index);
 
 /**
  * acpi_gpiochip_free_interrupts() - Free GPIO _EVT ACPI event interrupts.
@@ -288,7 +204,7 @@ EXPORT_SYMBOL_GPL(acpi_get_gpio_by_index);
  * The remaining ACPI event interrupts associated with the chip are freed
  * automatically.
  */
-void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
+static void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 {
 	acpi_handle handle;
 	acpi_status status;
@@ -315,4 +231,91 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 	acpi_detach_data(handle, acpi_gpio_evt_dh);
 	kfree(evt_pins);
 }
-EXPORT_SYMBOL(acpi_gpiochip_free_interrupts);
+
+struct acpi_gpio_lookup {
+	struct acpi_gpio_info info;
+	int index;
+	struct gpio_desc *desc;
+	int n;
+};
+
+static int acpi_find_gpio(struct acpi_resource *ares, void *data)
+{
+	struct acpi_gpio_lookup *lookup = data;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
+		return 1;
+
+	if (lookup->n++ == lookup->index && !lookup->desc) {
+		const struct acpi_resource_gpio *agpio = &ares->data.gpio;
+
+		lookup->desc = acpi_get_gpiod(agpio->resource_source.string_ptr,
+					      agpio->pin_table[0]);
+		lookup->info.gpioint =
+			agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
+		lookup->info.active_low =
+			agpio->polarity == ACPI_ACTIVE_LOW;
+	}
+
+	return 1;
+}
+
+/**
+ * acpi_get_gpiod_by_index() - get a GPIO descriptor from device resources
+ * @dev: pointer to a device to get GPIO from
+ * @index: index of GpioIo/GpioInt resource (starting from %0)
+ * @info: info pointer to fill in (optional)
+ *
+ * Function goes through ACPI resources for @dev and based on @index looks
+ * up a GpioIo/GpioInt resource, translates it to the Linux GPIO descriptor,
+ * and returns it. @index matches GpioIo/GpioInt resources only so if there
+ * are total %3 GPIO resources, the index goes from %0 to %2.
+ *
+ * If the GPIO cannot be translated or there is an error an ERR_PTR is
+ * returned.
+ *
+ * Note: if the GPIO resource has multiple entries in the pin list, this
+ * function only returns the first.
+ */
+struct gpio_desc *acpi_get_gpiod_by_index(struct device *dev, int index,
+					  struct acpi_gpio_info *info)
+{
+	struct acpi_gpio_lookup lookup;
+	struct list_head resource_list;
+	struct acpi_device *adev;
+	acpi_handle handle;
+	int ret;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	handle = ACPI_HANDLE(dev);
+	if (!handle || acpi_bus_get_device(handle, &adev))
+		return ERR_PTR(-ENODEV);
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.index = index;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list, acpi_find_gpio,
+				     &lookup);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	acpi_dev_free_resource_list(&resource_list);
+
+	if (lookup.desc && info)
+		*info = lookup.info;
+
+	return lookup.desc ? lookup.desc : ERR_PTR(-ENOENT);
+}
+
+void acpi_gpiochip_add(struct gpio_chip *chip)
+{
+	acpi_gpiochip_request_interrupts(chip);
+}
+
+void acpi_gpiochip_remove(struct gpio_chip *chip)
+{
+	acpi_gpiochip_free_interrupts(chip);
+}

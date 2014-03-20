@@ -42,7 +42,28 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_numa.h>
+#include <acpi/acpi_io.h>
 #include <asm/acpi.h>
+
+static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
+{
+	return adev ? adev->handle : NULL;
+}
+
+#define ACPI_COMPANION(dev)		((dev)->acpi_node.companion)
+#define ACPI_COMPANION_SET(dev, adev)	ACPI_COMPANION(dev) = (adev)
+#define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
+
+static inline void acpi_preset_companion(struct device *dev,
+					 struct acpi_device *parent, u64 addr)
+{
+	ACPI_COMPANION_SET(dev, acpi_find_child_device(parent, addr, NULL));
+}
+
+static inline const char *acpi_dev_name(struct acpi_device *adev)
+{
+	return dev_name(&adev->dev);
+}
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -116,7 +137,7 @@ void acpi_numa_arch_fixup(void);
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
-int acpi_map_lsapic(acpi_handle handle, int *pcpu);
+int acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu);
 int acpi_unmap_lsapic(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
@@ -294,58 +315,52 @@ void __init acpi_nvs_nosave_s3(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {
-	char *uuid_str; /* uuid string */
+	char *uuid_str;			/* UUID string */
 	int rev;
-	struct acpi_buffer cap; /* arg2/arg3 */
-	struct acpi_buffer ret; /* free by caller if success */
+	struct acpi_buffer cap;		/* list of DWORD capabilities */
+	struct acpi_buffer ret;		/* free by caller if success */
 };
 
-#define OSC_QUERY_TYPE			0
-#define OSC_SUPPORT_TYPE 		1
-#define OSC_CONTROL_TYPE		2
-
-/* _OSC DW0 Definition */
-#define OSC_QUERY_ENABLE		1
-#define OSC_REQUEST_ERROR		2
-#define OSC_INVALID_UUID_ERROR		4
-#define OSC_INVALID_REVISION_ERROR	8
-#define OSC_CAPABILITIES_MASK_ERROR	16
-
+acpi_status acpi_str_to_uuid(char *str, u8 *uuid);
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
-/* platform-wide _OSC bits */
-#define OSC_SB_PAD_SUPPORT		1
-#define OSC_SB_PPC_OST_SUPPORT		2
-#define OSC_SB_PR3_SUPPORT		4
-#define OSC_SB_HOTPLUG_OST_SUPPORT	8
-#define OSC_SB_APEI_SUPPORT		16
+/* Indexes into _OSC Capabilities Buffer (DWORDs 2 & 3 are device-specific) */
+#define OSC_QUERY_DWORD				0	/* DWORD 1 */
+#define OSC_SUPPORT_DWORD			1	/* DWORD 2 */
+#define OSC_CONTROL_DWORD			2	/* DWORD 3 */
+
+/* _OSC Capabilities DWORD 1: Query/Control and Error Returns (generic) */
+#define OSC_QUERY_ENABLE			0x00000001  /* input */
+#define OSC_REQUEST_ERROR			0x00000002  /* return */
+#define OSC_INVALID_UUID_ERROR			0x00000004  /* return */
+#define OSC_INVALID_REVISION_ERROR		0x00000008  /* return */
+#define OSC_CAPABILITIES_MASK_ERROR		0x00000010  /* return */
+
+/* Platform-Wide Capabilities _OSC: Capabilities DWORD 2: Support Field */
+#define OSC_SB_PAD_SUPPORT			0x00000001
+#define OSC_SB_PPC_OST_SUPPORT			0x00000002
+#define OSC_SB_PR3_SUPPORT			0x00000004
+#define OSC_SB_HOTPLUG_OST_SUPPORT		0x00000008
+#define OSC_SB_APEI_SUPPORT			0x00000010
+#define OSC_SB_CPC_SUPPORT			0x00000020
 
 extern bool osc_sb_apei_support_acked;
 
-/* PCI defined _OSC bits */
-/* _OSC DW1 Definition (OS Support Fields) */
-#define OSC_EXT_PCI_CONFIG_SUPPORT		1
-#define OSC_ACTIVE_STATE_PWR_SUPPORT 		2
-#define OSC_CLOCK_PWR_CAPABILITY_SUPPORT	4
-#define OSC_PCI_SEGMENT_GROUPS_SUPPORT		8
-#define OSC_MSI_SUPPORT				16
-#define OSC_PCI_SUPPORT_MASKS			0x1f
+/* PCI Host Bridge _OSC: Capabilities DWORD 2: Support Field */
+#define OSC_PCI_EXT_CONFIG_SUPPORT		0x00000001
+#define OSC_PCI_ASPM_SUPPORT			0x00000002
+#define OSC_PCI_CLOCK_PM_SUPPORT		0x00000004
+#define OSC_PCI_SEGMENT_GROUPS_SUPPORT		0x00000008
+#define OSC_PCI_MSI_SUPPORT			0x00000010
+#define OSC_PCI_SUPPORT_MASKS			0x0000001f
 
-/* _OSC DW1 Definition (OS Control Fields) */
-#define OSC_PCI_EXPRESS_NATIVE_HP_CONTROL	1
-#define OSC_SHPC_NATIVE_HP_CONTROL 		2
-#define OSC_PCI_EXPRESS_PME_CONTROL		4
-#define OSC_PCI_EXPRESS_AER_CONTROL		8
-#define OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL	16
-
-#define OSC_PCI_CONTROL_MASKS 	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL | 	\
-				OSC_SHPC_NATIVE_HP_CONTROL | 		\
-				OSC_PCI_EXPRESS_PME_CONTROL |		\
-				OSC_PCI_EXPRESS_AER_CONTROL |		\
-				OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL)
-
-#define OSC_PCI_NATIVE_HOTPLUG	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL |	\
-				OSC_SHPC_NATIVE_HP_CONTROL)
+/* PCI Host Bridge _OSC: Capabilities DWORD 3: Control Field */
+#define OSC_PCI_EXPRESS_NATIVE_HP_CONTROL	0x00000001
+#define OSC_PCI_SHPC_NATIVE_HP_CONTROL		0x00000002
+#define OSC_PCI_EXPRESS_PME_CONTROL		0x00000004
+#define OSC_PCI_EXPRESS_AER_CONTROL		0x00000008
+#define OSC_PCI_EXPRESS_CAPABILITY_CONTROL	0x00000010
+#define OSC_PCI_CONTROL_MASKS			0x0000001f
 
 extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 					     u32 *mask, u32 req);
@@ -401,11 +416,23 @@ static inline bool acpi_driver_match_device(struct device *dev,
 	return !!acpi_match_device(drv->acpi_match_table, dev);
 }
 
+int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
+int acpi_device_modalias(struct device *, char *, int);
+
 #define ACPI_PTR(_ptr)	(_ptr)
 
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
+
+#define ACPI_COMPANION(dev)		(NULL)
+#define ACPI_COMPANION_SET(dev, adev)	do { } while (0)
+#define ACPI_HANDLE(dev)		(NULL)
+
+static inline const char *acpi_dev_name(struct acpi_device *adev)
+{
+	return NULL;
+}
 
 static inline void acpi_early_init(void) { }
 
@@ -443,7 +470,7 @@ struct acpi_table_header;
 static inline int acpi_table_parse(char *id,
 				int (*handler)(struct acpi_table_header *))
 {
-	return -1;
+	return -ENODEV;
 }
 
 static inline int acpi_nvs_register(__u64 start, __u64 size)
@@ -469,6 +496,18 @@ static inline bool acpi_driver_match_device(struct device *dev,
 					    const struct device_driver *drv)
 {
 	return false;
+}
+
+static inline int acpi_device_uevent_modalias(struct device *dev,
+				struct kobj_uevent_env *env)
+{
+	return -ENODEV;
+}
+
+static inline int acpi_device_modalias(struct device *dev,
+				char *buf, int size)
+{
+	return -ENODEV;
 }
 
 #define ACPI_PTR(_ptr)	(NULL)

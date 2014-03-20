@@ -1,6 +1,24 @@
 #ifndef _ASM_X86_EFI_H
 #define _ASM_X86_EFI_H
 
+/*
+ * We map the EFI regions needed for runtime services non-contiguously,
+ * with preserved alignment on virtual addresses starting from -4G down
+ * for a total max space of 64G. This way, we provide for stable runtime
+ * services addresses across kernels so that a kexec'd kernel can still
+ * use them.
+ *
+ * This is the main reason why we're doing stable VA mappings for RT
+ * services.
+ *
+ * This flag is used in conjuction with a chicken bit called
+ * "efi=old_map" which can be used as a fallback to the old runtime
+ * services mapping method in case there's some b0rkage with a
+ * particular EFI implementation (haha, it is hard to hold up the
+ * sarcasm here...).
+ */
+#define EFI_OLD_MEMMAP		EFI_ARCH_1
+
 #ifdef CONFIG_X86_32
 
 #define EFI_LOADER_SIGNATURE	"EL32"
@@ -69,24 +87,31 @@ extern u64 efi_call6(void *fp, u64 arg1, u64 arg2, u64 arg3,
 	efi_call6((f), (u64)(a1), (u64)(a2), (u64)(a3),		\
 		  (u64)(a4), (u64)(a5), (u64)(a6))
 
+#define _efi_call_virtX(x, f, ...)					\
+({									\
+	efi_status_t __s;						\
+									\
+	efi_sync_low_kernel_mappings();					\
+	preempt_disable();						\
+	__s = efi_call##x((void *)efi.systab->runtime->f, __VA_ARGS__);	\
+	preempt_enable();						\
+	__s;								\
+})
+
 #define efi_call_virt0(f)				\
-	efi_call0((efi.systab->runtime->f))
-#define efi_call_virt1(f, a1)					\
-	efi_call1((efi.systab->runtime->f), (u64)(a1))
-#define efi_call_virt2(f, a1, a2)					\
-	efi_call2((efi.systab->runtime->f), (u64)(a1), (u64)(a2))
-#define efi_call_virt3(f, a1, a2, a3)					\
-	efi_call3((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
-		  (u64)(a3))
-#define efi_call_virt4(f, a1, a2, a3, a4)				\
-	efi_call4((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
-		  (u64)(a3), (u64)(a4))
-#define efi_call_virt5(f, a1, a2, a3, a4, a5)				\
-	efi_call5((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
-		  (u64)(a3), (u64)(a4), (u64)(a5))
-#define efi_call_virt6(f, a1, a2, a3, a4, a5, a6)			\
-	efi_call6((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
-		  (u64)(a3), (u64)(a4), (u64)(a5), (u64)(a6))
+	_efi_call_virtX(0, f)
+#define efi_call_virt1(f, a1)				\
+	_efi_call_virtX(1, f, (u64)(a1))
+#define efi_call_virt2(f, a1, a2)			\
+	_efi_call_virtX(2, f, (u64)(a1), (u64)(a2))
+#define efi_call_virt3(f, a1, a2, a3)			\
+	_efi_call_virtX(3, f, (u64)(a1), (u64)(a2), (u64)(a3))
+#define efi_call_virt4(f, a1, a2, a3, a4)		\
+	_efi_call_virtX(4, f, (u64)(a1), (u64)(a2), (u64)(a3), (u64)(a4))
+#define efi_call_virt5(f, a1, a2, a3, a4, a5)		\
+	_efi_call_virtX(5, f, (u64)(a1), (u64)(a2), (u64)(a3), (u64)(a4), (u64)(a5))
+#define efi_call_virt6(f, a1, a2, a3, a4, a5, a6)	\
+	_efi_call_virtX(6, f, (u64)(a1), (u64)(a2), (u64)(a3), (u64)(a4), (u64)(a5), (u64)(a6))
 
 extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
 				 u32 type, u64 attribute);
@@ -95,12 +120,31 @@ extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
 
 extern int add_efi_memmap;
 extern unsigned long x86_efi_facility;
+extern struct efi_scratch efi_scratch;
 extern void efi_set_executable(efi_memory_desc_t *md, bool executable);
 extern int efi_memblock_x86_reserve_range(void);
 extern void efi_call_phys_prelog(void);
 extern void efi_call_phys_epilog(void);
 extern void efi_unmap_memmap(void);
 extern void efi_memory_uc(u64 addr, unsigned long size);
+extern void __init efi_map_region(efi_memory_desc_t *md);
+extern void __init efi_map_region_fixed(efi_memory_desc_t *md);
+extern void efi_sync_low_kernel_mappings(void);
+extern void efi_setup_page_tables(void);
+extern void __init old_map_region(efi_memory_desc_t *md);
+extern void __init runtime_code_page_mkexec(void);
+extern void __init efi_runtime_mkexec(void);
+extern void __init efi_apply_memmap_quirks(void);
+
+struct efi_setup_data {
+	u64 fw_vendor;
+	u64 runtime;
+	u64 tables;
+	u64 smbios;
+	u64 reserved[8];
+};
+
+extern u64 efi_setup;
 
 #ifdef CONFIG_EFI
 
@@ -109,6 +153,8 @@ static inline bool efi_is_native(void)
 	return IS_ENABLED(CONFIG_X86_64) == efi_enabled(EFI_64BIT);
 }
 
+extern struct console early_efi_console;
+extern void parse_efi_setup(u64 phys_addr, u32 data_len);
 #else
 /*
  * IF EFI is not configured, have the EFI calls return -ENOSYS.
@@ -120,6 +166,7 @@ static inline bool efi_is_native(void)
 #define efi_call4(_f, _a1, _a2, _a3, _a4)		(-ENOSYS)
 #define efi_call5(_f, _a1, _a2, _a3, _a4, _a5)		(-ENOSYS)
 #define efi_call6(_f, _a1, _a2, _a3, _a4, _a5, _a6)	(-ENOSYS)
+static inline void parse_efi_setup(u64 phys_addr, u32 data_len) {}
 #endif /* CONFIG_EFI */
 
 #endif /* _ASM_X86_EFI_H */

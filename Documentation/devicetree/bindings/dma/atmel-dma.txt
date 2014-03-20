@@ -28,7 +28,7 @@ The three cells in order are:
 dependent:
   - bit 7-0: peripheral identifier for the hardware handshaking interface. The
   identifier can be different for tx and rx.
-  - bit 11-8: FIFO configuration. 0 for half FIFO, 1 for ALAP, 1 for ASAP.
+  - bit 11-8: FIFO configuration. 0 for half FIFO, 1 for ALAP, 2 for ASAP.
 
 Example:
 

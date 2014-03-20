@@ -43,6 +43,13 @@
 		mux-int-port = <1>;
 		mux-ext-port = <3>;
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-out;
+	};
 };
 
 &audmux {
@@ -81,6 +88,7 @@
 				MX6QDL_PAD_ENET_RXD1__GPIO1_IO26 0x80000000 /* WL_REG_ON */
 				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000 /* WL_HOST_WAKE */
 				MX6QDL_PAD_ENET_TXD0__GPIO1_IO30 0x80000000 /* WL_WAKE */
+				MX6QDL_PAD_EIM_D29__GPIO3_IO29   0x80000000
 			>;
 		};
 	};
@@ -90,6 +98,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet_1>;
 	phy-mode = "rgmii";
+	phy-reset-gpios = <&gpio3 29 0>;
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif_3>;
 	status = "okay";
 };
 
@@ -112,6 +127,14 @@
 };
 
 &usbh1 {
+	status = "okay";
+};
+
+&usbotg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg_1>;
+	disable-over-current;
+	dr_mode = "peripheral";
 	status = "okay";
 };
 

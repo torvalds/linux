@@ -75,6 +75,8 @@ struct efx_mcdi_mon {
 	unsigned long last_update;
 	struct device *device;
 	struct efx_mcdi_mon_attribute *attrs;
+	struct attribute_group group;
+	const struct attribute_group *groups[2];
 	unsigned int n_attrs;
 };
 
@@ -92,12 +94,14 @@ struct efx_mcdi_mtd_partition {
  * struct efx_mcdi_data - extra state for NICs that implement MCDI
  * @iface: Interface/protocol state
  * @hwmon: Hardware monitor state
+ * @fn_flags: Flags for this function, as returned by %MC_CMD_DRV_ATTACH.
  */
 struct efx_mcdi_data {
 	struct efx_mcdi_iface iface;
 #ifdef CONFIG_SFC_MCDI_MON
 	struct efx_mcdi_mon hwmon;
 #endif
+	u32 fn_flags;
 };
 
 #ifdef CONFIG_SFC_MCDI_MON
@@ -108,38 +112,51 @@ static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
 }
 #endif
 
-extern int efx_mcdi_init(struct efx_nic *efx);
-extern void efx_mcdi_fini(struct efx_nic *efx);
+int efx_mcdi_init(struct efx_nic *efx);
+void efx_mcdi_fini(struct efx_nic *efx);
 
-extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
-			const efx_dword_t *inbuf, size_t inlen,
+int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const efx_dword_t *inbuf,
+		 size_t inlen, efx_dword_t *outbuf, size_t outlen,
+		 size_t *outlen_actual);
+int efx_mcdi_rpc_quiet(struct efx_nic *efx, unsigned cmd,
+		       const efx_dword_t *inbuf, size_t inlen,
+		       efx_dword_t *outbuf, size_t outlen,
+		       size_t *outlen_actual);
+
+int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
+		       const efx_dword_t *inbuf, size_t inlen);
+int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			efx_dword_t *outbuf, size_t outlen,
 			size_t *outlen_actual);
-
-extern int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
-			      const efx_dword_t *inbuf, size_t inlen);
-extern int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			       efx_dword_t *outbuf, size_t outlen,
-			       size_t *outlen_actual);
+int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd,
+			      size_t inlen, efx_dword_t *outbuf,
+			      size_t outlen, size_t *outlen_actual);
 
 typedef void efx_mcdi_async_completer(struct efx_nic *efx,
 				      unsigned long cookie, int rc,
 				      efx_dword_t *outbuf,
 				      size_t outlen_actual);
-extern int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
-			      const efx_dword_t *inbuf, size_t inlen,
-			      size_t outlen,
-			      efx_mcdi_async_completer *complete,
-			      unsigned long cookie);
+int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
+		       const efx_dword_t *inbuf, size_t inlen, size_t outlen,
+		       efx_mcdi_async_completer *complete,
+		       unsigned long cookie);
+int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen,
+			     size_t outlen,
+			     efx_mcdi_async_completer *complete,
+			     unsigned long cookie);
 
-extern int efx_mcdi_poll_reboot(struct efx_nic *efx);
-extern void efx_mcdi_mode_poll(struct efx_nic *efx);
-extern void efx_mcdi_mode_event(struct efx_nic *efx);
-extern void efx_mcdi_flush_async(struct efx_nic *efx);
+void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
+			    size_t inlen, efx_dword_t *outbuf,
+			    size_t outlen, int rc);
 
-extern void efx_mcdi_process_event(struct efx_channel *channel,
-				   efx_qword_t *event);
-extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
+int efx_mcdi_poll_reboot(struct efx_nic *efx);
+void efx_mcdi_mode_poll(struct efx_nic *efx);
+void efx_mcdi_mode_event(struct efx_nic *efx);
+void efx_mcdi_flush_async(struct efx_nic *efx);
+
+void efx_mcdi_process_event(struct efx_channel *channel, efx_qword_t *event);
+void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 
 /* We expect that 16- and 32-bit fields in MCDI requests and responses
  * are appropriately aligned, but 64-bit fields are only
@@ -148,6 +165,8 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
  */
 #define MCDI_DECLARE_BUF(_name, _len)					\
 	efx_dword_t _name[DIV_ROUND_UP(_len, 4)]
+#define MCDI_DECLARE_BUF_OUT_OR_ERR(_name, _len)			\
+	MCDI_DECLARE_BUF(_name, max_t(size_t, _len, 8))
 #define _MCDI_PTR(_buf, _offset)					\
 	((u8 *)(_buf) + (_offset))
 #define MCDI_PTR(_buf, _field)						\
@@ -275,55 +294,55 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define MCDI_EVENT_FIELD(_ev, _field)			\
 	EFX_QWORD_FIELD(_ev, MCDI_EVENT_ ## _field)
 
-extern void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
-extern int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
-				  u16 *fw_subtype_list, u32 *capabilities);
-extern int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart,
-			     u32 dest_evq);
-extern int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
-extern int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
-			       size_t *size_out, size_t *erase_size_out,
-			       bool *protected_out);
-extern int efx_mcdi_nvram_test_all(struct efx_nic *efx);
-extern int efx_mcdi_handle_assertion(struct efx_nic *efx);
-extern void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
-extern int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx,
-					 const u8 *mac, int *id_out);
-extern int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
-extern int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
-extern int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
-extern int efx_mcdi_flush_rxqs(struct efx_nic *efx);
-extern int efx_mcdi_port_probe(struct efx_nic *efx);
-extern void efx_mcdi_port_remove(struct efx_nic *efx);
-extern int efx_mcdi_port_reconfigure(struct efx_nic *efx);
-extern int efx_mcdi_port_get_number(struct efx_nic *efx);
-extern u32 efx_mcdi_phy_get_caps(struct efx_nic *efx);
-extern void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
-extern int efx_mcdi_set_mac(struct efx_nic *efx);
+void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
+int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
+			   u16 *fw_subtype_list, u32 *capabilities);
+int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq);
+int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
+int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
+			size_t *size_out, size_t *erase_size_out,
+			bool *protected_out);
+int efx_mcdi_nvram_test_all(struct efx_nic *efx);
+int efx_mcdi_handle_assertion(struct efx_nic *efx);
+void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
+int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx, const u8 *mac,
+				  int *id_out);
+int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
+int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
+int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
+int efx_mcdi_flush_rxqs(struct efx_nic *efx);
+int efx_mcdi_port_probe(struct efx_nic *efx);
+void efx_mcdi_port_remove(struct efx_nic *efx);
+int efx_mcdi_port_reconfigure(struct efx_nic *efx);
+int efx_mcdi_port_get_number(struct efx_nic *efx);
+u32 efx_mcdi_phy_get_caps(struct efx_nic *efx);
+void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
+int efx_mcdi_set_mac(struct efx_nic *efx);
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
-extern void efx_mcdi_mac_start_stats(struct efx_nic *efx);
-extern void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
-extern bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
-extern enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
-extern int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
-extern int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled);
+void efx_mcdi_mac_start_stats(struct efx_nic *efx);
+void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
+void efx_mcdi_mac_pull_stats(struct efx_nic *efx);
+bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
+enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
+int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
+int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled);
 
 #ifdef CONFIG_SFC_MCDI_MON
-extern int efx_mcdi_mon_probe(struct efx_nic *efx);
-extern void efx_mcdi_mon_remove(struct efx_nic *efx);
+int efx_mcdi_mon_probe(struct efx_nic *efx);
+void efx_mcdi_mon_remove(struct efx_nic *efx);
 #else
 static inline int efx_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
 static inline void efx_mcdi_mon_remove(struct efx_nic *efx) {}
 #endif
 
 #ifdef CONFIG_SFC_MTD
-extern int efx_mcdi_mtd_read(struct mtd_info *mtd, loff_t start,
-			     size_t len, size_t *retlen, u8 *buffer);
-extern int efx_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len);
-extern int efx_mcdi_mtd_write(struct mtd_info *mtd, loff_t start,
-			      size_t len, size_t *retlen, const u8 *buffer);
-extern int efx_mcdi_mtd_sync(struct mtd_info *mtd);
-extern void efx_mcdi_mtd_rename(struct efx_mtd_partition *part);
+int efx_mcdi_mtd_read(struct mtd_info *mtd, loff_t start, size_t len,
+		      size_t *retlen, u8 *buffer);
+int efx_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len);
+int efx_mcdi_mtd_write(struct mtd_info *mtd, loff_t start, size_t len,
+		       size_t *retlen, const u8 *buffer);
+int efx_mcdi_mtd_sync(struct mtd_info *mtd);
+void efx_mcdi_mtd_rename(struct efx_mtd_partition *part);
 #endif
 
 #endif /* EFX_MCDI_H */

@@ -1166,7 +1166,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dev, struct fb_info *info)
 	int new_len;
 	unsigned char *old_fb = info->screen_base;
 	unsigned char *new_fb;
-	unsigned char *new_back = 0;
+	unsigned char *new_back = NULL;
 
 	pr_warn("Reallocating framebuffer. Addresses will change!\n");
 
@@ -1624,7 +1624,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	}
 
 	if (pixel_limit) {
-		pr_warn("DL chip limit of %d overriden"
+		pr_warn("DL chip limit of %d overridden"
 			" by module param to %d\n",
 			dev->sku_pixel_limit, pixel_limit);
 		dev->sku_pixel_limit = pixel_limit;

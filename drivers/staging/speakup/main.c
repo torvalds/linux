@@ -37,8 +37,6 @@
 #include <linux/input.h>
 #include <linux/kmod.h>
 
-#include <linux/bootmem.h>	/* for alloc_bootmem */
-
 /* speakup_*_selection */
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -90,7 +88,7 @@ const struct st_bits_data spk_punc_info[] = {
 	{"repeats", "()", CH_RPT},
 	{"extended numeric", "", B_EXNUM},
 	{"symbols", "", B_SYM},
-	{0, 0}
+	{NULL, NULL}
 };
 
 static char mark_cut_flag;

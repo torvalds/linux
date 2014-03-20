@@ -156,10 +156,10 @@ struct hfs_bnode_desc {
 } __packed;
 
 /* HFS+ BTree node types */
-#define HFS_NODE_INDEX	0x00
-#define HFS_NODE_HEADER	0x01
-#define HFS_NODE_MAP	0x02
-#define HFS_NODE_LEAF	0xFF
+#define HFS_NODE_INDEX	0x00	/* An internal (index) node */
+#define HFS_NODE_HEADER	0x01	/* The tree header node (node 0) */
+#define HFS_NODE_MAP	0x02	/* Holds part of the bitmap of used nodes */
+#define HFS_NODE_LEAF	0xFF	/* A leaf (ndNHeight==1) node */
 
 /* HFS+ BTree header */
 struct hfs_btree_header_rec {
@@ -187,6 +187,9 @@ struct hfs_btree_header_rec {
 /* HFS+ BTree misc info */
 #define HFSPLUS_TREE_HEAD 0
 #define HFSPLUS_NODE_MXSZ 32768
+#define HFSPLUS_ATTR_TREE_NODE_SIZE		8192
+#define HFSPLUS_BTREE_HDR_NODE_RECS_COUNT	3
+#define HFSPLUS_BTREE_HDR_USER_BYTES		128
 
 /* Some special File ID numbers (stolen from hfs.h) */
 #define HFSPLUS_POR_CNID		1	/* Parent Of the Root */
@@ -258,7 +261,7 @@ struct hfsplus_cat_folder {
 	struct DInfo user_info;
 	struct DXInfo finder_info;
 	__be32 text_encoding;
-	u32 reserved;
+	__be32 subfolders;	/* Subfolder count in HFSX. Reserved in HFS+. */
 } __packed;
 
 /* HFS file info (stolen from hfs.h) */
@@ -298,11 +301,13 @@ struct hfsplus_cat_file {
 	struct hfsplus_fork_raw rsrc_fork;
 } __packed;
 
-/* File attribute bits */
+/* File and folder flag bits */
 #define HFSPLUS_FILE_LOCKED		0x0001
 #define HFSPLUS_FILE_THREAD_EXISTS	0x0002
 #define HFSPLUS_XATTR_EXISTS		0x0004
 #define HFSPLUS_ACL_EXISTS		0x0008
+#define HFSPLUS_HAS_FOLDER_COUNT	0x0010	/* Folder has subfolder count
+						 * (HFSX only) */
 
 /* HFS+ catalog thread (part of a cat_entry) */
 struct hfsplus_cat_thread {

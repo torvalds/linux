@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
@@ -135,11 +133,8 @@ int nfc_dev_up(struct nfc_dev *dev)
 		dev->dev_up = true;
 
 	/* We have to enable the device before discovering SEs */
-	if (dev->ops->discover_se) {
-		rc = dev->ops->discover_se(dev);
-		if (rc)
-			pr_warn("SE discovery failed\n");
-	}
+	if (dev->ops->discover_se && dev->ops->discover_se(dev))
+		pr_err("SE discovery failed\n");
 
 error:
 	device_unlock(&dev->dev);
@@ -384,6 +379,19 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 {
 	dev->dep_link_up = true;
 
+	if (!dev->active_target && rf_mode == NFC_RF_INITIATOR) {
+		struct nfc_target *target;
+
+		target = nfc_find_target(dev, target_idx);
+		if (target == NULL)
+			return -ENOTCONN;
+
+		dev->active_target = target;
+	}
+
+	dev->polling = false;
+	dev->rf_mode = rf_mode;
+
 	nfc_llcp_mac_is_up(dev, target_idx, comm_mode, rf_mode);
 
 	return nfc_genl_dep_link_up_event(dev, target_idx, comm_mode, rf_mode);
@@ -536,7 +544,7 @@ error:
 	return rc;
 }
 
-static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
+struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx)
 {
 	struct nfc_se *se, *n;
 
@@ -546,6 +554,7 @@ static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
 
 	return NULL;
 }
+EXPORT_SYMBOL(nfc_find_se);
 
 int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 {
@@ -577,7 +586,7 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (!se) {
 		rc = -EINVAL;
 		goto error;
@@ -622,7 +631,7 @@ int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (!se) {
 		rc = -EINVAL;
 		goto error;
@@ -881,7 +890,7 @@ int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
 
 	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (se)
 		return -EALREADY;
 

@@ -18,7 +18,7 @@
  * over this barrier.  All reads preceding this primitive are guaranteed
  * to access memory (but not necessarily other CPUs' caches) before any
  * reads following this primitive that depend on the data return by
- * any of the preceding reads.	This primitive is much lighter weight than
+ * any of the preceding reads.  This primitive is much lighter weight than
  * rmb() on most CPUs, and is never heavier weight than is
  * rmb().
  *
@@ -43,7 +43,7 @@
  * </programlisting>
  *
  * because the read of "*q" depends on the read of "p" and these
- * two reads are separated by a read_barrier_depends().	 However,
+ * two reads are separated by a read_barrier_depends().  However,
  * the following code, with the same initial values for "a" and "b":
  *
  * <programlisting>
@@ -57,7 +57,7 @@
  * </programlisting>
  *
  * does not enforce ordering, since there is no data dependency between
- * the read of "a" and the read of "b".	 Therefore, on some CPUs, such
+ * the read of "a" and the read of "b".  Therefore, on some CPUs, such
  * as Alpha, "y" could be set to 3 and "x" to 0.  Use rmb()
  * in cases like this where there are no data dependencies.
  */
@@ -179,5 +179,20 @@
 #define smp_mb__before_llsc() smp_llsc_mb()
 #define nudge_writes() mb()
 #endif
+
+#define smp_store_release(p, v)						\
+do {									\
+	compiletime_assert_atomic_type(*p);				\
+	smp_mb();							\
+	ACCESS_ONCE(*p) = (v);						\
+} while (0)
+
+#define smp_load_acquire(p)						\
+({									\
+	typeof(*p) ___p1 = ACCESS_ONCE(*p);				\
+	compiletime_assert_atomic_type(*p);				\
+	smp_mb();							\
+	___p1;								\
+})
 
 #endif /* __ASM_BARRIER_H */

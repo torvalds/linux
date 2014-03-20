@@ -29,7 +29,6 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/libata.h>
-#include <linux/ahci_platform.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -343,13 +342,11 @@ static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 {
 	struct device_node *sata_node = dev->of_node;
 	int phy_count = 0, phy, port = 0, i;
-	void __iomem *cphy_base[CPHY_PHY_COUNT];
-	struct device_node *phy_nodes[CPHY_PHY_COUNT];
-	u32 tx_atten[CPHY_PORT_COUNT];
+	void __iomem *cphy_base[CPHY_PHY_COUNT] = {};
+	struct device_node *phy_nodes[CPHY_PHY_COUNT] = {};
+	u32 tx_atten[CPHY_PORT_COUNT] = {};
 
 	memset(port_data, 0, sizeof(struct phy_lane_info) * CPHY_PORT_COUNT);
-	memset(phy_nodes, 0, sizeof(struct device_node*) * CPHY_PHY_COUNT);
-	memset(tx_atten, 0xff, CPHY_PORT_COUNT);
 
 	do {
 		u32 tmp;

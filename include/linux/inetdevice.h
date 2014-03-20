@@ -136,8 +136,8 @@ struct in_ifaddr {
 	__be32			ifa_mask;
 	__be32			ifa_broadcast;
 	unsigned char		ifa_scope;
-	unsigned char		ifa_flags;
 	unsigned char		ifa_prefixlen;
+	__u32			ifa_flags;
 	char			ifa_label[IFNAMSIZ];
 
 	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
@@ -147,26 +147,27 @@ struct in_ifaddr {
 	unsigned long		ifa_tstamp; /* updated timestamp */
 };
 
-extern int register_inetaddr_notifier(struct notifier_block *nb);
-extern int unregister_inetaddr_notifier(struct notifier_block *nb);
+int register_inetaddr_notifier(struct notifier_block *nb);
+int unregister_inetaddr_notifier(struct notifier_block *nb);
 
-extern void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
-					struct ipv4_devconf *devconf);
+void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
+				 struct ipv4_devconf *devconf);
 
-extern struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
+struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
 static inline struct net_device *ip_dev_find(struct net *net, __be32 addr)
 {
 	return __ip_dev_find(net, addr, true);
 }
 
-extern int		inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
-extern int		devinet_ioctl(struct net *net, unsigned int cmd, void __user *);
-extern void		devinet_init(void);
-extern struct in_device	*inetdev_by_index(struct net *, int);
-extern __be32		inet_select_addr(const struct net_device *dev, __be32 dst, int scope);
-extern __be32		inet_confirm_addr(struct in_device *in_dev, __be32 dst, __be32 local, int scope);
-extern struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix, __be32 mask);
-
+int inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
+int devinet_ioctl(struct net *net, unsigned int cmd, void __user *);
+void devinet_init(void);
+struct in_device *inetdev_by_index(struct net *, int);
+__be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope);
+__be32 inet_confirm_addr(struct net *net, struct in_device *in_dev, __be32 dst,
+			 __be32 local, int scope);
+struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix,
+				    __be32 mask);
 static __inline__ int inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
 {
 	return !((addr^ifa->ifa_address)&ifa->ifa_mask);
@@ -218,7 +219,14 @@ static inline struct in_device *__in_dev_get_rtnl(const struct net_device *dev)
 	return rtnl_dereference(dev->ip_ptr);
 }
 
-extern void in_dev_finish_destroy(struct in_device *idev);
+static inline struct neigh_parms *__in_dev_arp_parms_get_rcu(const struct net_device *dev)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
+
+	return in_dev ? in_dev->arp_parms : NULL;
+}
+
+void in_dev_finish_destroy(struct in_device *idev);
 
 static inline void in_dev_put(struct in_device *idev)
 {

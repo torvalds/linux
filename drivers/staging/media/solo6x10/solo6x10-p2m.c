@@ -87,7 +87,7 @@ int solo_p2m_dma_desc(struct solo_dev *solo_dev,
 	if (mutex_lock_interruptible(&p2m_dev->mutex))
 		return -EINTR;
 
-	INIT_COMPLETION(p2m_dev->completion);
+	reinit_completion(&p2m_dev->completion);
 	p2m_dev->error = 0;
 
 	if (desc_cnt > 1 && solo_dev->type != SOLO_DEV_6110 && desc_mode) {

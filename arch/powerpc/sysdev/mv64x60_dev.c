@@ -228,7 +228,7 @@ static struct platform_device * __init mv64x60_eth_register_shared_pdev(
 
 	if (id == 0) {
 		pdev = platform_device_register_simple("orion-mdio", -1, &r[1], 1);
-		if (!pdev)
+		if (IS_ERR(pdev))
 			return pdev;
 	}
 
@@ -448,7 +448,7 @@ static int __init mv64x60_device_setup(void)
 	int err;
 
 	id = 0;
-	for_each_compatible_node(np, "serial", "marvell,mv64360-mpsc") {
+	for_each_compatible_node(np, NULL, "marvell,mv64360-mpsc") {
 		err = mv64x60_mpsc_device_setup(np, id++);
 		if (err)
 			printk(KERN_ERR "Failed to initialize MV64x60 "

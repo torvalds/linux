@@ -14,17 +14,14 @@
 #define NULL_SEGNO			((unsigned int)(~0))
 #define NULL_SECNO			((unsigned int)(~0))
 
+#define DEF_RECLAIM_PREFREE_SEGMENTS	100	/* 200MB of prefree segments */
+
 /* L: Logical segment # in volume, R: Relative segment # in main area */
 #define GET_L2R_SEGNO(free_i, segno)	(segno - free_i->start_segno)
 #define GET_R2L_SEGNO(free_i, segno)	(segno + free_i->start_segno)
 
-#define IS_DATASEG(t)							\
-	((t == CURSEG_HOT_DATA) || (t == CURSEG_COLD_DATA) ||		\
-	(t == CURSEG_WARM_DATA))
-
-#define IS_NODESEG(t)							\
-	((t == CURSEG_HOT_NODE) || (t == CURSEG_COLD_NODE) ||		\
-	(t == CURSEG_WARM_NODE))
+#define IS_DATASEG(t)	(t <= CURSEG_COLD_DATA)
+#define IS_NODESEG(t)	(t >= CURSEG_HOT_NODE)
 
 #define IS_CURSEG(sbi, seg)						\
 	((seg == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
@@ -81,22 +78,19 @@
 	(segno / SIT_ENTRY_PER_BLOCK)
 #define	START_SEGNO(sit_i, segno)		\
 	(SIT_BLOCK_OFFSET(sit_i, segno) * SIT_ENTRY_PER_BLOCK)
+#define SIT_BLK_CNT(sbi)			\
+	((TOTAL_SEGS(sbi) + SIT_ENTRY_PER_BLOCK - 1) / SIT_ENTRY_PER_BLOCK)
 #define f2fs_bitmap_size(nr)			\
 	(BITS_TO_LONGS(nr) * sizeof(unsigned long))
 #define TOTAL_SEGS(sbi)	(SM_I(sbi)->main_segments)
 #define TOTAL_SECS(sbi)	(sbi->total_sections)
 
 #define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
-	(blk_addr << ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+	(((sector_t)blk_addr) << (sbi)->log_sectors_per_block)
 #define SECTOR_TO_BLOCK(sbi, sectors)					\
-	(sectors >> ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
-
-/* during checkpoint, bio_private is used to synchronize the last bio */
-struct bio_private {
-	struct f2fs_sb_info *sbi;
-	bool is_sync;
-	void *wait;
-};
+	(sectors >> (sbi)->log_sectors_per_block)
+#define MAX_BIO_BLOCKS(max_hw_blocks)					\
+	(min((int)max_hw_blocks, BIO_MAX_PAGES))
 
 /*
  * indicate a block allocation direction: RIGHT and LEFT.
@@ -454,8 +448,8 @@ static inline int reserved_sections(struct f2fs_sb_info *sbi)
 
 static inline bool need_SSR(struct f2fs_sb_info *sbi)
 {
-	return ((prefree_segments(sbi) / sbi->segs_per_sec)
-			+ free_sections(sbi) < overprovision_sections(sbi));
+	return (prefree_segments(sbi) / sbi->segs_per_sec)
+			+ free_sections(sbi) < overprovision_sections(sbi);
 }
 
 static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
@@ -463,33 +457,71 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
 	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
 
-	if (sbi->por_doing)
+	if (unlikely(sbi->por_doing))
 		return false;
 
-	return ((free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
-						reserved_sections(sbi)));
+	return (free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
+						reserved_sections(sbi));
+}
+
+static inline bool excess_prefree_segs(struct f2fs_sb_info *sbi)
+{
+	return prefree_segments(sbi) > SM_I(sbi)->rec_prefree_segments;
 }
 
 static inline int utilization(struct f2fs_sb_info *sbi)
 {
-	return div_u64((u64)valid_user_blocks(sbi) * 100, sbi->user_block_count);
+	return div_u64((u64)valid_user_blocks(sbi) * 100,
+					sbi->user_block_count);
 }
 
 /*
  * Sometimes f2fs may be better to drop out-of-place update policy.
- * So, if fs utilization is over MIN_IPU_UTIL, then f2fs tries to write
- * data in the original place likewise other traditional file systems.
- * But, currently set 100 in percentage, which means it is disabled.
- * See below need_inplace_update().
+ * And, users can control the policy through sysfs entries.
+ * There are five policies with triggering conditions as follows.
+ * F2FS_IPU_FORCE - all the time,
+ * F2FS_IPU_SSR - if SSR mode is activated,
+ * F2FS_IPU_UTIL - if FS utilization is over threashold,
+ * F2FS_IPU_SSR_UTIL - if SSR mode is activated and FS utilization is over
+ *                     threashold,
+ * F2FS_IPUT_DISABLE - disable IPU. (=default option)
  */
-#define MIN_IPU_UTIL		100
+#define DEF_MIN_IPU_UTIL	70
+
+enum {
+	F2FS_IPU_FORCE,
+	F2FS_IPU_SSR,
+	F2FS_IPU_UTIL,
+	F2FS_IPU_SSR_UTIL,
+	F2FS_IPU_DISABLE,
+};
+
 static inline bool need_inplace_update(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+
+	/* IPU can be done only for the user data */
 	if (S_ISDIR(inode->i_mode))
 		return false;
-	if (need_SSR(sbi) && utilization(sbi) > MIN_IPU_UTIL)
+
+	switch (SM_I(sbi)->ipu_policy) {
+	case F2FS_IPU_FORCE:
 		return true;
+	case F2FS_IPU_SSR:
+		if (need_SSR(sbi))
+			return true;
+		break;
+	case F2FS_IPU_UTIL:
+		if (utilization(sbi) > SM_I(sbi)->min_ipu_util)
+			return true;
+		break;
+	case F2FS_IPU_SSR_UTIL:
+		if (need_SSR(sbi) && utilization(sbi) > SM_I(sbi)->min_ipu_util)
+			return true;
+		break;
+	case F2FS_IPU_DISABLE:
+		break;
+	}
 	return false;
 }
 
@@ -513,16 +545,13 @@ static inline unsigned short curseg_blkoff(struct f2fs_sb_info *sbi, int type)
 	return curseg->next_blkoff;
 }
 
+#ifdef CONFIG_F2FS_CHECK_FS
 static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	unsigned int end_segno = SM_I(sbi)->segment_count - 1;
 	BUG_ON(segno > end_segno);
 }
 
-/*
- * This function is used for only debugging.
- * NOTE: In future, we have to remove this function.
- */
 static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 {
 	struct f2fs_sm_info *sm_info = SM_I(sbi);
@@ -541,8 +570,9 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 {
 	struct f2fs_sm_info *sm_info = SM_I(sbi);
 	unsigned int end_segno = sm_info->segment_count - 1;
+	bool is_valid  = test_bit_le(0, raw_sit->valid_map) ? true : false;
 	int valid_blocks = 0;
-	int i;
+	int cur_pos = 0, next_pos;
 
 	/* check segment usage */
 	BUG_ON(GET_SIT_VBLOCKS(raw_sit) > sbi->blocks_per_seg);
@@ -551,11 +581,26 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 	BUG_ON(segno > end_segno);
 
 	/* check bitmap with valid block count */
-	for (i = 0; i < sbi->blocks_per_seg; i++)
-		if (f2fs_test_bit(i, raw_sit->valid_map))
-			valid_blocks++;
+	do {
+		if (is_valid) {
+			next_pos = find_next_zero_bit_le(&raw_sit->valid_map,
+					sbi->blocks_per_seg,
+					cur_pos);
+			valid_blocks += next_pos - cur_pos;
+		} else
+			next_pos = find_next_bit_le(&raw_sit->valid_map,
+					sbi->blocks_per_seg,
+					cur_pos);
+		cur_pos = next_pos;
+		is_valid = !is_valid;
+	} while (cur_pos < sbi->blocks_per_seg);
 	BUG_ON(GET_SIT_VBLOCKS(raw_sit) != valid_blocks);
 }
+#else
+#define check_seg_range(sbi, segno)
+#define verify_block_addr(sbi, blk_addr)
+#define check_block_count(sbi, segno, raw_sit)
+#endif
 
 static inline pgoff_t current_sit_addr(struct f2fs_sb_info *sbi,
 						unsigned int start)

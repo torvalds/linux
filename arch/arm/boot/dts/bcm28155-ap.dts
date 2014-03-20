@@ -13,6 +13,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
+
 #include "bcm11351.dtsi"
 
 / {
@@ -25,6 +27,26 @@
 
 	uart@3e000000 {
 		status = "okay";
+	};
+
+	i2c@3e016000 {
+		status="okay";
+		clock-frequency = <400000>;
+	};
+
+	i2c@3e017000 {
+		status="okay";
+		clock-frequency = <400000>;
+	};
+
+	i2c@3e018000 {
+		status="okay";
+		clock-frequency = <400000>;
+	};
+
+	i2c@3500d000 {
+		status="okay";
+		clock-frequency = <400000>;
 	};
 
 	sdio1: sdio@3f180000 {
@@ -40,6 +62,15 @@
 
 	sdio4: sdio@3f1b0000 {
 		max-frequency = <48000000>;
+		cd-gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	usbotg: usb@3f120000 {
+		status = "okay";
+	};
+
+	usbphy: usb-phy@3f130000 {
 		status = "okay";
 	};
 };

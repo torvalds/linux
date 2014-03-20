@@ -9,7 +9,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
+#include "imx23-pinfunc.h"
 
 / {
 	interrupt-parent = <&icoll>;
@@ -137,174 +138,174 @@
 				duart_pins_a: duart@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x11a2 /* MX23_PAD_PWM0__DUART_RX */
-						0x11b2 /* MX23_PAD_PWM1__DUART_TX */
+						MX23_PAD_PWM0__DUART_RX
+						MX23_PAD_PWM1__DUART_TX
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				auart0_pins_a: auart0@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x01c0 /* MX23_PAD_AUART1_RX__AUART1_RX */
-						0x01d0 /* MX23_PAD_AUART1_TX__AUART1_TX */
-						0x01a0 /* MX23_PAD_AUART1_CTS__AUART1_CTS */
-						0x01b0 /* MX23_PAD_AUART1_RTS__AUART1_RTS */
+						MX23_PAD_AUART1_RX__AUART1_RX
+						MX23_PAD_AUART1_TX__AUART1_TX
+						MX23_PAD_AUART1_CTS__AUART1_CTS
+						MX23_PAD_AUART1_RTS__AUART1_RTS
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				auart0_2pins_a: auart0-2pins@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x01e2 /* MX23_PAD_I2C_SCL__AUART1_TX */
-						0x01f2 /* MX23_PAD_I2C_SDA__AUART1_RX */
+						MX23_PAD_I2C_SCL__AUART1_TX
+						MX23_PAD_I2C_SDA__AUART1_RX
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				gpmi_pins_a: gpmi-nand@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0000 /* MX23_PAD_GPMI_D00__GPMI_D00 */
-						0x0010 /* MX23_PAD_GPMI_D01__GPMI_D01 */
-						0x0020 /* MX23_PAD_GPMI_D02__GPMI_D02 */
-						0x0030 /* MX23_PAD_GPMI_D03__GPMI_D03 */
-						0x0040 /* MX23_PAD_GPMI_D04__GPMI_D04 */
-						0x0050 /* MX23_PAD_GPMI_D05__GPMI_D05 */
-						0x0060 /* MX23_PAD_GPMI_D06__GPMI_D06 */
-						0x0070 /* MX23_PAD_GPMI_D07__GPMI_D07 */
-						0x0100 /* MX23_PAD_GPMI_CLE__GPMI_CLE */
-						0x0110 /* MX23_PAD_GPMI_ALE__GPMI_ALE */
-						0x0130 /* MX23_PAD_GPMI_RDY0__GPMI_RDY0 */
-						0x0140 /* MX23_PAD_GPMI_RDY1__GPMI_RDY1 */
-						0x0170 /* MX23_PAD_GPMI_WPN__GPMI_WPN */
-						0x0180 /* MX23_PAD_GPMI_WRN__GPMI_WRN */
-						0x0190 /* MX23_PAD_GPMI_RDN__GPMI_RDN */
-						0x21b0 /* MX23_PAD_GPMI_CE1N__GPMI_CE1N */
-						0x21c0 /* MX23_PAD_GPMI_CE0N__GPMI_CE0N	*/
+						MX23_PAD_GPMI_D00__GPMI_D00
+						MX23_PAD_GPMI_D01__GPMI_D01
+						MX23_PAD_GPMI_D02__GPMI_D02
+						MX23_PAD_GPMI_D03__GPMI_D03
+						MX23_PAD_GPMI_D04__GPMI_D04
+						MX23_PAD_GPMI_D05__GPMI_D05
+						MX23_PAD_GPMI_D06__GPMI_D06
+						MX23_PAD_GPMI_D07__GPMI_D07
+						MX23_PAD_GPMI_CLE__GPMI_CLE
+						MX23_PAD_GPMI_ALE__GPMI_ALE
+						MX23_PAD_GPMI_RDY0__GPMI_RDY0
+						MX23_PAD_GPMI_RDY1__GPMI_RDY1
+						MX23_PAD_GPMI_WPN__GPMI_WPN
+						MX23_PAD_GPMI_WRN__GPMI_WRN
+						MX23_PAD_GPMI_RDN__GPMI_RDN
+						MX23_PAD_GPMI_CE1N__GPMI_CE1N
+						MX23_PAD_GPMI_CE0N__GPMI_CE0N
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				gpmi_pins_fixup: gpmi-pins-fixup {
 					fsl,pinmux-ids = <
-						0x0170 /* MX23_PAD_GPMI_WPN__GPMI_WPN */
-						0x0180 /* MX23_PAD_GPMI_WRN__GPMI_WRN */
-						0x0190 /* MX23_PAD_GPMI_RDN__GPMI_RDN */
+						MX23_PAD_GPMI_WPN__GPMI_WPN
+						MX23_PAD_GPMI_WRN__GPMI_WRN
+						MX23_PAD_GPMI_RDN__GPMI_RDN
 					>;
-					fsl,drive-strength = <2>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
 				};
 
 				mmc0_4bit_pins_a: mmc0-4bit@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2020 /* MX23_PAD_SSP1_DATA0__SSP1_DATA0 */
-						0x2030 /* MX23_PAD_SSP1_DATA1__SSP1_DATA1 */
-						0x2040 /* MX23_PAD_SSP1_DATA2__SSP1_DATA2 */
-						0x2050 /* MX23_PAD_SSP1_DATA3__SSP1_DATA3 */
-						0x2000 /* MX23_PAD_SSP1_CMD__SSP1_CMD */
-						0x2060 /* MX23_PAD_SSP1_SCK__SSP1_SCK */
+						MX23_PAD_SSP1_DATA0__SSP1_DATA0
+						MX23_PAD_SSP1_DATA1__SSP1_DATA1
+						MX23_PAD_SSP1_DATA2__SSP1_DATA2
+						MX23_PAD_SSP1_DATA3__SSP1_DATA3
+						MX23_PAD_SSP1_CMD__SSP1_CMD
+						MX23_PAD_SSP1_SCK__SSP1_SCK
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				mmc0_8bit_pins_a: mmc0-8bit@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2020 /* MX23_PAD_SSP1_DATA0__SSP1_DATA0 */
-						0x2030 /* MX23_PAD_SSP1_DATA1__SSP1_DATA1 */
-						0x2040 /* MX23_PAD_SSP1_DATA2__SSP1_DATA2 */
-						0x2050 /* MX23_PAD_SSP1_DATA3__SSP1_DATA3 */
-						0x0082 /* MX23_PAD_GPMI_D08__SSP1_DATA4 */
-						0x0092 /* MX23_PAD_GPMI_D09__SSP1_DATA5 */
-						0x00a2 /* MX23_PAD_GPMI_D10__SSP1_DATA6 */
-						0x00b2 /* MX23_PAD_GPMI_D11__SSP1_DATA7 */
-						0x2000 /* MX23_PAD_SSP1_CMD__SSP1_CMD */
-						0x2010 /* MX23_PAD_SSP1_DETECT__SSP1_DETECT */
-						0x2060 /* MX23_PAD_SSP1_SCK__SSP1_SCK */
+						MX23_PAD_SSP1_DATA0__SSP1_DATA0
+						MX23_PAD_SSP1_DATA1__SSP1_DATA1
+						MX23_PAD_SSP1_DATA2__SSP1_DATA2
+						MX23_PAD_SSP1_DATA3__SSP1_DATA3
+						MX23_PAD_GPMI_D08__SSP1_DATA4
+						MX23_PAD_GPMI_D09__SSP1_DATA5
+						MX23_PAD_GPMI_D10__SSP1_DATA6
+						MX23_PAD_GPMI_D11__SSP1_DATA7
+						MX23_PAD_SSP1_CMD__SSP1_CMD
+						MX23_PAD_SSP1_DETECT__SSP1_DETECT
+						MX23_PAD_SSP1_SCK__SSP1_SCK
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				mmc0_pins_fixup: mmc0-pins-fixup {
 					fsl,pinmux-ids = <
-						0x2010 /* MX23_PAD_SSP1_DETECT__SSP1_DETECT */
-						0x2060 /* MX23_PAD_SSP1_SCK__SSP1_SCK */
+						MX23_PAD_SSP1_DETECT__SSP1_DETECT
+						MX23_PAD_SSP1_SCK__SSP1_SCK
 					>;
-					fsl,pull-up = <0>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				pwm2_pins_a: pwm2@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x11c0 /* MX23_PAD_PWM2__PWM2 */
+						MX23_PAD_PWM2__PWM2
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_24bit_pins_a: lcdif-24bit@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1000 /* MX23_PAD_LCD_D00__LCD_D0 */
-						0x1010 /* MX23_PAD_LCD_D01__LCD_D1 */
-						0x1020 /* MX23_PAD_LCD_D02__LCD_D2 */
-						0x1030 /* MX23_PAD_LCD_D03__LCD_D3 */
-						0x1040 /* MX23_PAD_LCD_D04__LCD_D4 */
-						0x1050 /* MX23_PAD_LCD_D05__LCD_D5 */
-						0x1060 /* MX23_PAD_LCD_D06__LCD_D6 */
-						0x1070 /* MX23_PAD_LCD_D07__LCD_D7 */
-						0x1080 /* MX23_PAD_LCD_D08__LCD_D8 */
-						0x1090 /* MX23_PAD_LCD_D09__LCD_D9 */
-						0x10a0 /* MX23_PAD_LCD_D10__LCD_D10 */
-						0x10b0 /* MX23_PAD_LCD_D11__LCD_D11 */
-						0x10c0 /* MX23_PAD_LCD_D12__LCD_D12 */
-						0x10d0 /* MX23_PAD_LCD_D13__LCD_D13 */
-						0x10e0 /* MX23_PAD_LCD_D14__LCD_D14 */
-						0x10f0 /* MX23_PAD_LCD_D15__LCD_D15 */
-						0x1100 /* MX23_PAD_LCD_D16__LCD_D16 */
-						0x1110 /* MX23_PAD_LCD_D17__LCD_D17 */
-						0x0081 /* MX23_PAD_GPMI_D08__LCD_D18 */
-						0x0091 /* MX23_PAD_GPMI_D09__LCD_D19 */
-						0x00a1 /* MX23_PAD_GPMI_D10__LCD_D20 */
-						0x00b1 /* MX23_PAD_GPMI_D11__LCD_D21 */
-						0x00c1 /* MX23_PAD_GPMI_D12__LCD_D22 */
-						0x00d1 /* MX23_PAD_GPMI_D13__LCD_D23 */
-						0x1160 /* MX23_PAD_LCD_DOTCK__LCD_DOTCK */
-						0x1170 /* MX23_PAD_LCD_ENABLE__LCD_ENABLE */
-						0x1180 /* MX23_PAD_LCD_HSYNC__LCD_HSYNC */
-						0x1190 /* MX23_PAD_LCD_VSYNC__LCD_VSYNC */
+						MX23_PAD_LCD_D00__LCD_D00
+						MX23_PAD_LCD_D01__LCD_D01
+						MX23_PAD_LCD_D02__LCD_D02
+						MX23_PAD_LCD_D03__LCD_D03
+						MX23_PAD_LCD_D04__LCD_D04
+						MX23_PAD_LCD_D05__LCD_D05
+						MX23_PAD_LCD_D06__LCD_D06
+						MX23_PAD_LCD_D07__LCD_D07
+						MX23_PAD_LCD_D08__LCD_D08
+						MX23_PAD_LCD_D09__LCD_D09
+						MX23_PAD_LCD_D10__LCD_D10
+						MX23_PAD_LCD_D11__LCD_D11
+						MX23_PAD_LCD_D12__LCD_D12
+						MX23_PAD_LCD_D13__LCD_D13
+						MX23_PAD_LCD_D14__LCD_D14
+						MX23_PAD_LCD_D15__LCD_D15
+						MX23_PAD_LCD_D16__LCD_D16
+						MX23_PAD_LCD_D17__LCD_D17
+						MX23_PAD_GPMI_D08__LCD_D18
+						MX23_PAD_GPMI_D09__LCD_D19
+						MX23_PAD_GPMI_D10__LCD_D20
+						MX23_PAD_GPMI_D11__LCD_D21
+						MX23_PAD_GPMI_D12__LCD_D22
+						MX23_PAD_GPMI_D13__LCD_D23
+						MX23_PAD_LCD_DOTCK__LCD_DOTCK
+						MX23_PAD_LCD_ENABLE__LCD_ENABLE
+						MX23_PAD_LCD_HSYNC__LCD_HSYNC
+						MX23_PAD_LCD_VSYNC__LCD_VSYNC
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				spi2_pins_a: spi2@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0182 /* MX23_PAD_GPMI_WRN__SSP2_SCK */
-						0x0142 /* MX23_PAD_GPMI_RDY1__SSP2_CMD */
-						0x0002 /* MX23_PAD_GPMI_D00__SSP2_DATA0 */
-						0x0032 /* MX23_PAD_GPMI_D03__SSP2_DATA3 */
+						MX23_PAD_GPMI_WRN__SSP2_SCK
+						MX23_PAD_GPMI_RDY1__SSP2_CMD
+						MX23_PAD_GPMI_D00__SSP2_DATA0
+						MX23_PAD_GPMI_D03__SSP2_DATA3
 					>;
-					fsl,drive-strength = <1>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <1>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 			};
 
@@ -336,8 +337,10 @@
 			};
 
 			dcp@80028000 {
+				compatible = "fsl,imx23-dcp";
 				reg = <0x80028000 0x2000>;
-				status = "disabled";
+				interrupts = <53 54>;
+				status = "okay";
 			};
 
 			pxp@8002a000 {
@@ -430,6 +433,7 @@
 				reg = <0x80050000 0x2000>;
 				interrupts = <36 37 38 39 40 41 42 43 44>;
 				status = "disabled";
+				clocks = <&clks 26>;
 			};
 
 			spdif@80054000 {

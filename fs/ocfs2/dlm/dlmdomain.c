@@ -43,8 +43,6 @@
 #include "dlmdomain.h"
 #include "dlmdebug.h"
 
-#include "dlmver.h"
-
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_DOMAIN)
 #include "cluster/masklog.h"
 
@@ -2328,8 +2326,6 @@ static int __init dlm_init(void)
 {
 	int status;
 
-	dlm_print_version();
-
 	status = dlm_init_mle_cache();
 	if (status) {
 		mlog(ML_ERROR, "Could not create o2dlm_mle slabcache\n");
@@ -2379,6 +2375,7 @@ static void __exit dlm_exit (void)
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("OCFS2 Distributed Lock Management");
 
 module_init(dlm_init);
 module_exit(dlm_exit);

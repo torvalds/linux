@@ -42,7 +42,6 @@
 #include <linux/seq_file.h>
 #include "osc_internal.h"
 
-#ifdef LPROCFS
 static int osc_active_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
@@ -571,7 +570,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, now.tv_usec);
+		   now.tv_sec, (unsigned long)now.tv_usec);
 	seq_printf(seq, "read RPCs in flight:  %d\n",
 		   cli->cl_r_in_flight);
 	seq_printf(seq, "write RPCs in flight: %d\n",
@@ -683,7 +682,7 @@ static int osc_stats_seq_show(struct seq_file *seq, void *v)
 	do_gettimeofday(&now);
 
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, now.tv_usec);
+		   now.tv_sec, (unsigned long)now.tv_usec);
 	seq_printf(seq, "lockless_write_bytes\t\t"LPU64"\n",
 		   stats->os_lockless_writes);
 	seq_printf(seq, "lockless_read_bytes\t\t"LPU64"\n",
@@ -724,4 +723,3 @@ void lprocfs_osc_init_vars(struct lprocfs_static_vars *lvars)
 	lvars->module_vars = lprocfs_osc_module_vars;
 	lvars->obd_vars    = lprocfs_osc_obd_vars;
 }
-#endif /* LPROCFS */

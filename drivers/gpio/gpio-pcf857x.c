@@ -26,9 +26,10 @@
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 
 
 static const struct i2c_device_id pcf857x_id[] = {
@@ -50,6 +51,27 @@ static const struct i2c_device_id pcf857x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pcf857x_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id pcf857x_of_table[] = {
+	{ .compatible = "nxp,pcf8574" },
+	{ .compatible = "nxp,pcf8574a" },
+	{ .compatible = "nxp,pca8574" },
+	{ .compatible = "nxp,pca9670" },
+	{ .compatible = "nxp,pca9672" },
+	{ .compatible = "nxp,pca9674" },
+	{ .compatible = "nxp,pcf8575" },
+	{ .compatible = "nxp,pca8575" },
+	{ .compatible = "nxp,pca9671" },
+	{ .compatible = "nxp,pca9673" },
+	{ .compatible = "nxp,pca9675" },
+	{ .compatible = "maxim,max7328" },
+	{ .compatible = "maxim,max7329" },
+	{ .compatible = "ti,tca9554" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, pcf857x_of_table);
+#endif
+
 /*
  * The pcf857x, pca857x, and pca967x chips only expose one read and one
  * write register.  Writing a "one" bit (to match the reset state) lets
@@ -66,12 +88,11 @@ struct pcf857x {
 	struct gpio_chip	chip;
 	struct i2c_client	*client;
 	struct mutex		lock;		/* protect 'out' */
-	struct work_struct	work;		/* irq demux work */
 	struct irq_domain	*irq_domain;	/* for irq demux  */
 	spinlock_t		slock;		/* protect irq demux */
 	unsigned		out;		/* software latch */
 	unsigned		status;		/* current status */
-	int			irq;		/* real irq number */
+	unsigned		irq_mapped;	/* mapped gpio irqs */
 
 	int (*write)(struct i2c_client *client, unsigned data);
 	int (*read)(struct i2c_client *client);
@@ -164,48 +185,54 @@ static void pcf857x_set(struct gpio_chip *chip, unsigned offset, int value)
 static int pcf857x_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct pcf857x *gpio = container_of(chip, struct pcf857x, chip);
+	int ret;
 
-	return irq_create_mapping(gpio->irq_domain, offset);
+	ret = irq_create_mapping(gpio->irq_domain, offset);
+	if (ret > 0)
+		gpio->irq_mapped |= (1 << offset);
+
+	return ret;
 }
 
-static void pcf857x_irq_demux_work(struct work_struct *work)
+static irqreturn_t pcf857x_irq(int irq, void *data)
 {
-	struct pcf857x *gpio = container_of(work,
-					       struct pcf857x,
-					       work);
+	struct pcf857x  *gpio = data;
 	unsigned long change, i, status, flags;
 
 	status = gpio->read(gpio->client);
 
 	spin_lock_irqsave(&gpio->slock, flags);
 
-	change = gpio->status ^ status;
+	/*
+	 * call the interrupt handler iff gpio is used as
+	 * interrupt source, just to avoid bad irqs
+	 */
+
+	change = ((gpio->status ^ status) & gpio->irq_mapped);
 	for_each_set_bit(i, &change, gpio->chip.ngpio)
 		generic_handle_irq(irq_find_mapping(gpio->irq_domain, i));
 	gpio->status = status;
 
 	spin_unlock_irqrestore(&gpio->slock, flags);
-}
-
-static irqreturn_t pcf857x_irq_demux(int irq, void *data)
-{
-	struct pcf857x	*gpio = data;
-
-	/*
-	 * pcf857x can't read/write data here,
-	 * since i2c data access might go to sleep.
-	 */
-	schedule_work(&gpio->work);
 
 	return IRQ_HANDLED;
 }
 
-static int pcf857x_irq_domain_map(struct irq_domain *domain, unsigned int virq,
+static int pcf857x_irq_domain_map(struct irq_domain *domain, unsigned int irq,
 				 irq_hw_number_t hw)
 {
-	irq_set_chip_and_handler(virq,
+	struct pcf857x *gpio = domain->host_data;
+
+	irq_set_chip_and_handler(irq,
 				 &dummy_irq_chip,
 				 handle_level_irq);
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
+	gpio->irq_mapped |= (1 << hw);
+
 	return 0;
 }
 
@@ -218,8 +245,6 @@ static void pcf857x_irq_domain_cleanup(struct pcf857x *gpio)
 	if (gpio->irq_domain)
 		irq_domain_remove(gpio->irq_domain);
 
-	if (gpio->irq)
-		free_irq(gpio->irq, gpio);
 }
 
 static int pcf857x_irq_domain_init(struct pcf857x *gpio,
@@ -230,20 +255,21 @@ static int pcf857x_irq_domain_init(struct pcf857x *gpio,
 	gpio->irq_domain = irq_domain_add_linear(client->dev.of_node,
 						 gpio->chip.ngpio,
 						 &pcf857x_irq_domain_ops,
-						 NULL);
+						 gpio);
 	if (!gpio->irq_domain)
 		goto fail;
 
 	/* enable real irq */
-	status = request_irq(client->irq, pcf857x_irq_demux, 0,
-			     dev_name(&client->dev), gpio);
+	status = devm_request_threaded_irq(&client->dev, client->irq,
+				NULL, pcf857x_irq, IRQF_ONESHOT |
+				IRQF_TRIGGER_FALLING,
+				dev_name(&client->dev), gpio);
+
 	if (status)
 		goto fail;
 
 	/* enable gpio_to_irq() */
-	INIT_WORK(&gpio->work, pcf857x_irq_demux_work);
 	gpio->chip.to_irq	= pcf857x_to_irq;
-	gpio->irq		= client->irq;
 
 	return 0;
 
@@ -257,14 +283,18 @@ fail:
 static int pcf857x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct pcf857x_platform_data	*pdata;
+	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
+	struct device_node		*np = client->dev.of_node;
 	struct pcf857x			*gpio;
+	unsigned int			n_latch = 0;
 	int				status;
 
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata) {
+	if (IS_ENABLED(CONFIG_OF) && np)
+		of_property_read_u32(np, "lines-initial-states", &n_latch);
+	else if (pdata)
+		n_latch = pdata->n_latch;
+	else
 		dev_dbg(&client->dev, "no platform data\n");
-	}
 
 	/* Allocate, initialize, and register this gpio_chip. */
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
@@ -275,7 +305,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	spin_lock_init(&gpio->slock);
 
 	gpio->chip.base			= pdata ? pdata->gpio_base : -1;
-	gpio->chip.can_sleep		= 1;
+	gpio->chip.can_sleep		= true;
 	gpio->chip.dev			= &client->dev;
 	gpio->chip.owner		= THIS_MODULE;
 	gpio->chip.get			= pcf857x_get;
@@ -357,11 +387,11 @@ static int pcf857x_probe(struct i2c_client *client,
 	 * may cause transient glitching since it can't know the last value
 	 * written (some pins may need to be driven low).
 	 *
-	 * Using pdata->n_latch avoids that trouble.  When left initialized
-	 * to zero, our software copy of the "latch" then matches the chip's
-	 * all-ones reset state.  Otherwise it flags pins to be driven low.
+	 * Using n_latch avoids that trouble.  When left initialized to zero,
+	 * our software copy of the "latch" then matches the chip's all-ones
+	 * reset state.  Otherwise it flags pins to be driven low.
 	 */
-	gpio->out = pdata ? ~pdata->n_latch : ~0;
+	gpio->out = ~n_latch;
 	gpio->status = gpio->out;
 
 	status = gpiochip_add(&gpio->chip);
@@ -423,6 +453,7 @@ static struct i2c_driver pcf857x_driver = {
 	.driver = {
 		.name	= "pcf857x",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(pcf857x_of_table),
 	},
 	.probe	= pcf857x_probe,
 	.remove	= pcf857x_remove,

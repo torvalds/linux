@@ -17,11 +17,12 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8907.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-static struct mfd_cell max8907_cells[] = {
+static const struct mfd_cell max8907_cells[] = {
 	{ .name = "max8907-regulator", },
 	{ .name = "max8907-rtc", },
 };

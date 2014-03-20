@@ -72,23 +72,23 @@ static void __import_set_state(struct obd_import *imp,
 }
 
 /* A CLOSED import should remain so. */
-#define IMPORT_SET_STATE_NOLOCK(imp, state)				    \
-do {									   \
-	if (imp->imp_state != LUSTRE_IMP_CLOSED) {			     \
-	       CDEBUG(D_HA, "%p %s: changing import state from %s to %s\n",    \
-		      imp, obd2cli_tgt(imp->imp_obd),			  \
-		      ptlrpc_import_state_name(imp->imp_state),		\
-		      ptlrpc_import_state_name(state));			\
-	       __import_set_state(imp, state);				 \
-	}								      \
-} while(0)
+#define IMPORT_SET_STATE_NOLOCK(imp, state)				       \
+do {									       \
+	if (imp->imp_state != LUSTRE_IMP_CLOSED) {			       \
+		CDEBUG(D_HA, "%p %s: changing import state from %s to %s\n",   \
+		       imp, obd2cli_tgt(imp->imp_obd),			       \
+		       ptlrpc_import_state_name(imp->imp_state),	       \
+		       ptlrpc_import_state_name(state));		       \
+		__import_set_state(imp, state);				       \
+	}								       \
+} while (0)
 
 #define IMPORT_SET_STATE(imp, state)					\
 do {									\
 	spin_lock(&imp->imp_lock);					\
 	IMPORT_SET_STATE_NOLOCK(imp, state);				\
 	spin_unlock(&imp->imp_lock);					\
-} while(0)
+} while (0)
 
 
 static int ptlrpc_connect_interpret(const struct lu_env *env,
@@ -170,7 +170,6 @@ int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt)
 			       target_len, target_start,
 			       libcfs_nid2str(imp->imp_connection->c_peer.nid));
 		}
-		ptlrpc_deactivate_timeouts(imp);
 		IMPORT_SET_STATE_NOLOCK(imp, LUSTRE_IMP_DISCON);
 		spin_unlock(&imp->imp_lock);
 
@@ -383,7 +382,6 @@ void ptlrpc_activate_import(struct obd_import *imp)
 
 	spin_lock(&imp->imp_lock);
 	imp->imp_invalid = 0;
-	ptlrpc_activate_timeouts(imp);
 	spin_unlock(&imp->imp_lock);
 	obd_import_event(obd, imp, IMP_EVENT_ACTIVE);
 }
@@ -680,9 +678,9 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	ptlrpc_request_set_replen(request);
 	request->rq_interpret_reply = ptlrpc_connect_interpret;
 
-	CLASSERT(sizeof (*aa) <= sizeof (request->rq_async_args));
+	CLASSERT(sizeof(*aa) <= sizeof(request->rq_async_args));
 	aa = ptlrpc_req_async_args(request);
-	memset(aa, 0, sizeof *aa);
+	memset(aa, 0, sizeof(*aa));
 
 	aa->pcaa_peer_committed = committed_before_reconnect;
 	aa->pcaa_initial_connect = initial_connect;
@@ -859,7 +857,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	if (MSG_CONNECT_RECONNECT & msg_flags) {
 		memset(&old_hdl, 0, sizeof(old_hdl));
 		if (!memcmp(&old_hdl, lustre_msg_get_handle(request->rq_repmsg),
-			    sizeof (old_hdl))) {
+			    sizeof(old_hdl))) {
 			LCONSOLE_WARN("Reconnect to %s (at @%s) failed due "
 				      "bad handle "LPX64"\n",
 				      obd2cli_tgt(imp->imp_obd),
@@ -1135,9 +1133,11 @@ out:
 			if (ocd &&
 			    (ocd->ocd_connect_flags & OBD_CONNECT_VERSION) &&
 			    (ocd->ocd_version != LUSTRE_VERSION_CODE)) {
-			   /* Actually servers are only supposed to refuse
-			      connection from liblustre clients, so we should
-			      never see this from VFS context */
+				/*
+				 * Actually servers are only supposed to refuse
+				 * connection from liblustre clients, so we
+				 * should never see this from VFS context
+				 */
 				LCONSOLE_ERROR_MSG(0x16a, "Server %s version "
 					"(%d.%d.%d.%d)"
 					" refused connection from this client "
@@ -1507,7 +1507,7 @@ int at_measured(struct adaptive_timeout *at, unsigned int val)
 		at->at_worst_time = now;
 		at->at_hist[0] = val;
 		at->at_binstart = now;
-	} else if (now - at->at_binstart < binlimit ) {
+	} else if (now - at->at_binstart < binlimit) {
 		/* in bin 0 */
 		at->at_hist[0] = max(val, at->at_hist[0]);
 		at->at_current = max(val, at->at_current);
@@ -1517,7 +1517,7 @@ int at_measured(struct adaptive_timeout *at, unsigned int val)
 		/* move bins over */
 		shift = (now - at->at_binstart) / binlimit;
 		LASSERT(shift > 0);
-		for(i = AT_BINS - 1; i >= 0; i--) {
+		for (i = AT_BINS - 1; i >= 0; i--) {
 			if (i >= shift) {
 				at->at_hist[i] = at->at_hist[i - shift];
 				maxv = max(maxv, at->at_hist[i]);

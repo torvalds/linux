@@ -5,7 +5,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 					struct sk_buff **pPacket,
 					 USHORT Vcid,
 					 B_UINT16 uiClassifierRuleID,
-					 BOOLEAN bHeaderSuppressionEnabled,
+					 bool bHeaderSuppressionEnabled,
 					 PUINT PacketLen,
 					 UCHAR bEthCSSupport);
 
@@ -39,7 +39,7 @@ ULONG PhsDeleteClassifierRule(void* pvContext, B_UINT16 uiVcid ,B_UINT16  uiClsI
 ULONG PhsDeleteSFRules(void* pvContext,B_UINT16 uiVcid) ;
 
 
-BOOLEAN ValidatePHSRule(struct bcm_phs_rule *psPhsRule);
+bool ValidatePHSRule(struct bcm_phs_rule *psPhsRule);
 
 UINT GetServiceFlowEntry(struct bcm_phs_table *psServiceFlowTable,B_UINT16 uiVcid, struct bcm_phs_entry **ppstServiceFlowEntry);
 

@@ -228,7 +228,7 @@ int pcibios_add_platform_entries(struct pci_dev *pdev)
  */
 static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
-	struct of_irq oirq;
+	struct of_phandle_args oirq;
 	unsigned int virq;
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
@@ -237,7 +237,7 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 	memset(&oirq, 0xff, sizeof(oirq));
 #endif
 	/* Try to get a mapping from the device-tree */
-	if (of_irq_map_pci(pci_dev, &oirq)) {
+	if (of_irq_parse_pci(pci_dev, &oirq)) {
 		u8 line, pin;
 
 		/* If that fails, lets fallback to what is in the config
@@ -263,11 +263,10 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
-			 oirq.size, oirq.specifier[0], oirq.specifier[1],
-			 of_node_full_name(oirq.controller));
+			 oirq.args_count, oirq.args[0], oirq.args[1],
+			 of_node_full_name(oirq.np));
 
-		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-					     oirq.size);
+		virq = irq_create_of_mapping(&oirq);
 	}
 	if(virq == NO_IRQ) {
 		pr_debug(" Failed to map !\n");
@@ -836,7 +835,7 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 		 * at 0 as unset as well, except if PCI_PROBE_ONLY is also set
 		 * since in that case, we don't want to re-assign anything
 		 */
-		pcibios_resource_to_bus(dev, &reg, res);
+		pcibios_resource_to_bus(dev->bus, &reg, res);
 		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC) ||
 		    (reg.start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
 			/* Only print message if not re-assigning */
@@ -887,7 +886,7 @@ static int pcibios_uninitialized_bridge_resource(struct pci_bus *bus,
 
 	/* Job is a bit different between memory and IO */
 	if (res->flags & IORESOURCE_MEM) {
-		pcibios_resource_to_bus(dev, &region, res);
+		pcibios_resource_to_bus(dev->bus, &region, res);
 
 		/* If the BAR is non-0 then it's probably been initialized */
 		if (region.start != 0)

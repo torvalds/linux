@@ -30,7 +30,6 @@
 #include <linux/sysctl.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/completion.h>
 #include <linux/hyperv.h>
 #include <linux/kernel_stat.h>
@@ -39,30 +38,11 @@
 #include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
 
-
 static struct acpi_device  *hv_acpi_dev;
 
 static struct tasklet_struct msg_dpc;
 static struct completion probe_event;
 static int irq;
-
-struct hv_device_info {
-	u32 chn_id;
-	u32 chn_state;
-	uuid_le chn_type;
-	uuid_le chn_instance;
-
-	u32 monitor_id;
-	u32 server_monitor_pending;
-	u32 server_monitor_latency;
-	u32 server_monitor_conn_id;
-	u32 client_monitor_pending;
-	u32 client_monitor_latency;
-	u32 client_monitor_conn_id;
-
-	struct hv_dev_port_info inbound;
-	struct hv_dev_port_info outbound;
-};
 
 static int vmbus_exists(void)
 {
@@ -70,52 +50,6 @@ static int vmbus_exists(void)
 		return -ENODEV;
 
 	return 0;
-}
-
-
-static void get_channel_info(struct hv_device *device,
-			     struct hv_device_info *info)
-{
-	struct vmbus_channel_debug_info debug_info;
-
-	if (!device->channel)
-		return;
-
-	vmbus_get_debug_info(device->channel, &debug_info);
-
-	info->chn_id = debug_info.relid;
-	info->chn_state = debug_info.state;
-	memcpy(&info->chn_type, &debug_info.interfacetype,
-	       sizeof(uuid_le));
-	memcpy(&info->chn_instance, &debug_info.interface_instance,
-	       sizeof(uuid_le));
-
-	info->monitor_id = debug_info.monitorid;
-
-	info->server_monitor_pending = debug_info.servermonitor_pending;
-	info->server_monitor_latency = debug_info.servermonitor_latency;
-	info->server_monitor_conn_id = debug_info.servermonitor_connectionid;
-
-	info->client_monitor_pending = debug_info.clientmonitor_pending;
-	info->client_monitor_latency = debug_info.clientmonitor_latency;
-	info->client_monitor_conn_id = debug_info.clientmonitor_connectionid;
-
-	info->inbound.int_mask = debug_info.inbound.current_interrupt_mask;
-	info->inbound.read_idx = debug_info.inbound.current_read_index;
-	info->inbound.write_idx = debug_info.inbound.current_write_index;
-	info->inbound.bytes_avail_toread =
-		debug_info.inbound.bytes_avail_toread;
-	info->inbound.bytes_avail_towrite =
-		debug_info.inbound.bytes_avail_towrite;
-
-	info->outbound.int_mask =
-		debug_info.outbound.current_interrupt_mask;
-	info->outbound.read_idx = debug_info.outbound.current_read_index;
-	info->outbound.write_idx = debug_info.outbound.current_write_index;
-	info->outbound.bytes_avail_toread =
-		debug_info.outbound.bytes_avail_toread;
-	info->outbound.bytes_avail_towrite =
-		debug_info.outbound.bytes_avail_towrite;
 }
 
 #define VMBUS_ALIAS_LEN ((sizeof((struct hv_vmbus_device_id *)0)->guid) * 2)
@@ -126,115 +60,353 @@ static void print_alias_name(struct hv_device *hv_dev, char *alias_name)
 		sprintf(&alias_name[i], "%02x", hv_dev->dev_type.b[i/2]);
 }
 
-/*
- * vmbus_show_device_attr - Show the device attribute in sysfs.
- *
- * This is invoked when user does a
- * "cat /sys/bus/vmbus/devices/<busdevice>/<attr name>"
- */
-static ssize_t vmbus_show_device_attr(struct device *dev,
-				      struct device_attribute *dev_attr,
-				      char *buf)
+static u8 channel_monitor_group(struct vmbus_channel *channel)
 {
-	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_device_info *device_info;
-	char alias_name[VMBUS_ALIAS_LEN + 1];
-	int ret = 0;
-
-	device_info = kzalloc(sizeof(struct hv_device_info), GFP_KERNEL);
-	if (!device_info)
-		return ret;
-
-	get_channel_info(hv_dev, device_info);
-
-	if (!strcmp(dev_attr->attr.name, "class_id")) {
-		ret = sprintf(buf, "{%pUl}\n", device_info->chn_type.b);
-	} else if (!strcmp(dev_attr->attr.name, "device_id")) {
-		ret = sprintf(buf, "{%pUl}\n", device_info->chn_instance.b);
-	} else if (!strcmp(dev_attr->attr.name, "modalias")) {
-		print_alias_name(hv_dev, alias_name);
-		ret = sprintf(buf, "vmbus:%s\n", alias_name);
-	} else if (!strcmp(dev_attr->attr.name, "state")) {
-		ret = sprintf(buf, "%d\n", device_info->chn_state);
-	} else if (!strcmp(dev_attr->attr.name, "id")) {
-		ret = sprintf(buf, "%d\n", device_info->chn_id);
-	} else if (!strcmp(dev_attr->attr.name, "out_intr_mask")) {
-		ret = sprintf(buf, "%d\n", device_info->outbound.int_mask);
-	} else if (!strcmp(dev_attr->attr.name, "out_read_index")) {
-		ret = sprintf(buf, "%d\n", device_info->outbound.read_idx);
-	} else if (!strcmp(dev_attr->attr.name, "out_write_index")) {
-		ret = sprintf(buf, "%d\n", device_info->outbound.write_idx);
-	} else if (!strcmp(dev_attr->attr.name, "out_read_bytes_avail")) {
-		ret = sprintf(buf, "%d\n",
-			       device_info->outbound.bytes_avail_toread);
-	} else if (!strcmp(dev_attr->attr.name, "out_write_bytes_avail")) {
-		ret = sprintf(buf, "%d\n",
-			       device_info->outbound.bytes_avail_towrite);
-	} else if (!strcmp(dev_attr->attr.name, "in_intr_mask")) {
-		ret = sprintf(buf, "%d\n", device_info->inbound.int_mask);
-	} else if (!strcmp(dev_attr->attr.name, "in_read_index")) {
-		ret = sprintf(buf, "%d\n", device_info->inbound.read_idx);
-	} else if (!strcmp(dev_attr->attr.name, "in_write_index")) {
-		ret = sprintf(buf, "%d\n", device_info->inbound.write_idx);
-	} else if (!strcmp(dev_attr->attr.name, "in_read_bytes_avail")) {
-		ret = sprintf(buf, "%d\n",
-			       device_info->inbound.bytes_avail_toread);
-	} else if (!strcmp(dev_attr->attr.name, "in_write_bytes_avail")) {
-		ret = sprintf(buf, "%d\n",
-			       device_info->inbound.bytes_avail_towrite);
-	} else if (!strcmp(dev_attr->attr.name, "monitor_id")) {
-		ret = sprintf(buf, "%d\n", device_info->monitor_id);
-	} else if (!strcmp(dev_attr->attr.name, "server_monitor_pending")) {
-		ret = sprintf(buf, "%d\n", device_info->server_monitor_pending);
-	} else if (!strcmp(dev_attr->attr.name, "server_monitor_latency")) {
-		ret = sprintf(buf, "%d\n", device_info->server_monitor_latency);
-	} else if (!strcmp(dev_attr->attr.name, "server_monitor_conn_id")) {
-		ret = sprintf(buf, "%d\n",
-			       device_info->server_monitor_conn_id);
-	} else if (!strcmp(dev_attr->attr.name, "client_monitor_pending")) {
-		ret = sprintf(buf, "%d\n", device_info->client_monitor_pending);
-	} else if (!strcmp(dev_attr->attr.name, "client_monitor_latency")) {
-		ret = sprintf(buf, "%d\n", device_info->client_monitor_latency);
-	} else if (!strcmp(dev_attr->attr.name, "client_monitor_conn_id")) {
-		ret = sprintf(buf, "%d\n",
-			       device_info->client_monitor_conn_id);
-	}
-
-	kfree(device_info);
-	return ret;
+	return (u8)channel->offermsg.monitorid / 32;
 }
 
+static u8 channel_monitor_offset(struct vmbus_channel *channel)
+{
+	return (u8)channel->offermsg.monitorid % 32;
+}
+
+static u32 channel_pending(struct vmbus_channel *channel,
+			   struct hv_monitor_page *monitor_page)
+{
+	u8 monitor_group = channel_monitor_group(channel);
+	return monitor_page->trigger_group[monitor_group].pending;
+}
+
+static u32 channel_latency(struct vmbus_channel *channel,
+			   struct hv_monitor_page *monitor_page)
+{
+	u8 monitor_group = channel_monitor_group(channel);
+	u8 monitor_offset = channel_monitor_offset(channel);
+	return monitor_page->latency[monitor_group][monitor_offset];
+}
+
+static u32 channel_conn_id(struct vmbus_channel *channel,
+			   struct hv_monitor_page *monitor_page)
+{
+	u8 monitor_group = channel_monitor_group(channel);
+	u8 monitor_offset = channel_monitor_offset(channel);
+	return monitor_page->parameter[monitor_group][monitor_offset].connectionid.u.id;
+}
+
+static ssize_t id_show(struct device *dev, struct device_attribute *dev_attr,
+		       char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", hv_dev->channel->offermsg.child_relid);
+}
+static DEVICE_ATTR_RO(id);
+
+static ssize_t state_show(struct device *dev, struct device_attribute *dev_attr,
+			  char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", hv_dev->channel->state);
+}
+static DEVICE_ATTR_RO(state);
+
+static ssize_t monitor_id_show(struct device *dev,
+			       struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", hv_dev->channel->offermsg.monitorid);
+}
+static DEVICE_ATTR_RO(monitor_id);
+
+static ssize_t class_id_show(struct device *dev,
+			       struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "{%pUl}\n",
+		       hv_dev->channel->offermsg.offer.if_type.b);
+}
+static DEVICE_ATTR_RO(class_id);
+
+static ssize_t device_id_show(struct device *dev,
+			      struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "{%pUl}\n",
+		       hv_dev->channel->offermsg.offer.if_instance.b);
+}
+static DEVICE_ATTR_RO(device_id);
+
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	char alias_name[VMBUS_ALIAS_LEN + 1];
+
+	print_alias_name(hv_dev, alias_name);
+	return sprintf(buf, "vmbus:%s\n", alias_name);
+}
+static DEVICE_ATTR_RO(modalias);
+
+static ssize_t server_monitor_pending_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_pending(hv_dev->channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static DEVICE_ATTR_RO(server_monitor_pending);
+
+static ssize_t client_monitor_pending_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_pending(hv_dev->channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static DEVICE_ATTR_RO(client_monitor_pending);
+
+static ssize_t server_monitor_latency_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_latency(hv_dev->channel,
+				       vmbus_connection.monitor_pages[0]));
+}
+static DEVICE_ATTR_RO(server_monitor_latency);
+
+static ssize_t client_monitor_latency_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_latency(hv_dev->channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static DEVICE_ATTR_RO(client_monitor_latency);
+
+static ssize_t server_monitor_conn_id_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_conn_id(hv_dev->channel,
+				       vmbus_connection.monitor_pages[0]));
+}
+static DEVICE_ATTR_RO(server_monitor_conn_id);
+
+static ssize_t client_monitor_conn_id_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_conn_id(hv_dev->channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static DEVICE_ATTR_RO(client_monitor_conn_id);
+
+static ssize_t out_intr_mask_show(struct device *dev,
+				  struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info outbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound, &outbound);
+	return sprintf(buf, "%d\n", outbound.current_interrupt_mask);
+}
+static DEVICE_ATTR_RO(out_intr_mask);
+
+static ssize_t out_read_index_show(struct device *dev,
+				   struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info outbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound, &outbound);
+	return sprintf(buf, "%d\n", outbound.current_read_index);
+}
+static DEVICE_ATTR_RO(out_read_index);
+
+static ssize_t out_write_index_show(struct device *dev,
+				    struct device_attribute *dev_attr,
+				    char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info outbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound, &outbound);
+	return sprintf(buf, "%d\n", outbound.current_write_index);
+}
+static DEVICE_ATTR_RO(out_write_index);
+
+static ssize_t out_read_bytes_avail_show(struct device *dev,
+					 struct device_attribute *dev_attr,
+					 char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info outbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound, &outbound);
+	return sprintf(buf, "%d\n", outbound.bytes_avail_toread);
+}
+static DEVICE_ATTR_RO(out_read_bytes_avail);
+
+static ssize_t out_write_bytes_avail_show(struct device *dev,
+					  struct device_attribute *dev_attr,
+					  char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info outbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound, &outbound);
+	return sprintf(buf, "%d\n", outbound.bytes_avail_towrite);
+}
+static DEVICE_ATTR_RO(out_write_bytes_avail);
+
+static ssize_t in_intr_mask_show(struct device *dev,
+				 struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info inbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	return sprintf(buf, "%d\n", inbound.current_interrupt_mask);
+}
+static DEVICE_ATTR_RO(in_intr_mask);
+
+static ssize_t in_read_index_show(struct device *dev,
+				  struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info inbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	return sprintf(buf, "%d\n", inbound.current_read_index);
+}
+static DEVICE_ATTR_RO(in_read_index);
+
+static ssize_t in_write_index_show(struct device *dev,
+				   struct device_attribute *dev_attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info inbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	return sprintf(buf, "%d\n", inbound.current_write_index);
+}
+static DEVICE_ATTR_RO(in_write_index);
+
+static ssize_t in_read_bytes_avail_show(struct device *dev,
+					struct device_attribute *dev_attr,
+					char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info inbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	return sprintf(buf, "%d\n", inbound.bytes_avail_toread);
+}
+static DEVICE_ATTR_RO(in_read_bytes_avail);
+
+static ssize_t in_write_bytes_avail_show(struct device *dev,
+					 struct device_attribute *dev_attr,
+					 char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct hv_ring_buffer_debug_info inbound;
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	return sprintf(buf, "%d\n", inbound.bytes_avail_towrite);
+}
+static DEVICE_ATTR_RO(in_write_bytes_avail);
+
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
-static struct device_attribute vmbus_device_attrs[] = {
-	__ATTR(id, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(state, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(class_id, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(device_id, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(monitor_id, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(modalias, S_IRUGO, vmbus_show_device_attr, NULL),
-
-	__ATTR(server_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(server_monitor_latency, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(server_monitor_conn_id, S_IRUGO, vmbus_show_device_attr, NULL),
-
-	__ATTR(client_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(client_monitor_latency, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(client_monitor_conn_id, S_IRUGO, vmbus_show_device_attr, NULL),
-
-	__ATTR(out_intr_mask, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(out_read_index, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(out_write_index, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(out_read_bytes_avail, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(out_write_bytes_avail, S_IRUGO, vmbus_show_device_attr, NULL),
-
-	__ATTR(in_intr_mask, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(in_read_index, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(in_write_index, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(in_read_bytes_avail, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR(in_write_bytes_avail, S_IRUGO, vmbus_show_device_attr, NULL),
-	__ATTR_NULL
+static struct attribute *vmbus_attrs[] = {
+	&dev_attr_id.attr,
+	&dev_attr_state.attr,
+	&dev_attr_monitor_id.attr,
+	&dev_attr_class_id.attr,
+	&dev_attr_device_id.attr,
+	&dev_attr_modalias.attr,
+	&dev_attr_server_monitor_pending.attr,
+	&dev_attr_client_monitor_pending.attr,
+	&dev_attr_server_monitor_latency.attr,
+	&dev_attr_client_monitor_latency.attr,
+	&dev_attr_server_monitor_conn_id.attr,
+	&dev_attr_client_monitor_conn_id.attr,
+	&dev_attr_out_intr_mask.attr,
+	&dev_attr_out_read_index.attr,
+	&dev_attr_out_write_index.attr,
+	&dev_attr_out_read_bytes_avail.attr,
+	&dev_attr_out_write_bytes_avail.attr,
+	&dev_attr_in_intr_mask.attr,
+	&dev_attr_in_read_index.attr,
+	&dev_attr_in_write_index.attr,
+	&dev_attr_in_read_bytes_avail.attr,
+	&dev_attr_in_write_bytes_avail.attr,
+	NULL,
 };
-
+ATTRIBUTE_GROUPS(vmbus);
 
 /*
  * vmbus_uevent - add uevent for our device
@@ -383,7 +555,7 @@ static struct bus_type  hv_bus = {
 	.remove =		vmbus_remove,
 	.probe =		vmbus_probe,
 	.uevent =		vmbus_uevent,
-	.dev_attrs =	vmbus_device_attrs,
+	.dev_groups =		vmbus_groups,
 };
 
 static const char *driver_name = "hyperv";

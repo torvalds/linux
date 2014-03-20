@@ -391,14 +391,8 @@ static int wm831x_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wm831x_clk_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver wm831x_clk_driver = {
 	.probe = wm831x_clk_probe,
-	.remove = wm831x_clk_remove,
 	.driver		= {
 		.name	= "wm831x-clk",
 		.owner	= THIS_MODULE,

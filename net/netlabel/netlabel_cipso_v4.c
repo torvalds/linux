@@ -23,8 +23,7 @@
  * the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program;  if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program;  if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -737,7 +736,7 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_cipsov4_ops[] = {
+static const struct genl_ops netlbl_cipsov4_ops[] = {
 	{
 	.cmd = NLBL_CIPSOV4_C_ADD,
 	.flags = GENL_ADMIN_PERM,
@@ -783,5 +782,5 @@ static struct genl_ops netlbl_cipsov4_ops[] = {
 int __init netlbl_cipsov4_genl_init(void)
 {
 	return genl_register_family_with_ops(&netlbl_cipsov4_gnl_family,
-		netlbl_cipsov4_ops, ARRAY_SIZE(netlbl_cipsov4_ops));
+					     netlbl_cipsov4_ops);
 }

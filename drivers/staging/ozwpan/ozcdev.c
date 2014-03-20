@@ -155,6 +155,9 @@ static ssize_t oz_cdev_write(struct file *filp, const char __user *buf,
 	struct oz_app_hdr *app_hdr;
 	struct oz_serial_ctx *ctx;
 
+	if (count > sizeof(ei->data) - sizeof(*elt) - sizeof(*app_hdr))
+		return -EINVAL;
+
 	spin_lock_bh(&g_cdev.lock);
 	pd = g_cdev.active_pd;
 	if (pd)
@@ -445,7 +448,7 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 	}
 	spin_lock(&g_cdev.lock);
 	if ((g_cdev.active_pd == NULL) &&
-		(memcmp(pd->mac_addr, g_cdev.active_addr, ETH_ALEN) == 0)) {
+		ether_addr_equal(pd->mac_addr, g_cdev.active_addr)) {
 		oz_pd_get(pd);
 		g_cdev.active_pd = pd;
 		oz_dbg(ON, "Active PD arrived\n");

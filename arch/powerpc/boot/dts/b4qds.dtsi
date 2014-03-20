@@ -120,25 +120,38 @@
 		};
 
 		i2c@118000 {
-			eeprom@50 {
-				compatible = "at24,24c64";
-				reg = <0x50>;
-			};
-			eeprom@51 {
-				compatible = "at24,24c256";
-				reg = <0x51>;
-			};
-			eeprom@53 {
-				compatible = "at24,24c256";
-				reg = <0x53>;
-			};
-			eeprom@57 {
-				compatible = "at24,24c256";
-				reg = <0x57>;
-			};
-			rtc@68 {
-				compatible = "dallas,ds3232";
-				reg = <0x68>;
+			mux@77 {
+				compatible = "nxp,pca9547";
+				reg = <0x77>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					eeprom@50 {
+						compatible = "at24,24c64";
+						reg = <0x50>;
+					};
+					eeprom@51 {
+						compatible = "at24,24c256";
+						reg = <0x51>;
+					};
+					eeprom@53 {
+						compatible = "at24,24c256";
+						reg = <0x53>;
+					};
+					eeprom@57 {
+						compatible = "at24,24c256";
+						reg = <0x57>;
+					};
+					rtc@68 {
+						compatible = "dallas,ds3232";
+						reg = <0x68>;
+					};
+				};
 			};
 		};
 

@@ -1231,7 +1231,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 
 	/* Only if mode change...*/
 	if (((bus->cur_bus_speed == PCI_SPEED_66MHz) && (adapter_speed == PCI_SPEED_66MHz_PCIX)) ||
-		((bus->cur_bus_speed == PCI_SPEED_66MHz_PCIX) && (adapter_speed == PCI_SPEED_66MHz))) 
+		((bus->cur_bus_speed == PCI_SPEED_66MHz_PCIX) && (adapter_speed == PCI_SPEED_66MHz)))
 			set_SOGO(ctrl);
 
 	wait_for_ctrl_irq(ctrl);
@@ -1828,7 +1828,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 
 				if (ctrl->event_queue[loop].event_type == INT_BUTTON_PRESS) {
 					dbg("button pressed\n");
-				} else if (ctrl->event_queue[loop].event_type == 
+				} else if (ctrl->event_queue[loop].event_type ==
 					   INT_BUTTON_CANCEL) {
 					dbg("button cancel\n");
 					del_timer(&p_slot->task_event);
@@ -2411,11 +2411,11 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		if (rc)
 			return rc;
 
-		/* find range of busses to use */
+		/* find range of buses to use */
 		dbg("find ranges of buses to use\n");
 		bus_node = get_max_resource(&(resources->bus_head), 1);
 
-		/* If we don't have any busses to allocate, we can't continue */
+		/* If we don't have any buses to allocate, we can't continue */
 		if (!bus_node)
 			return -ENOMEM;
 
@@ -2900,7 +2900,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 			/* If this function needs an interrupt and we are behind
 			 * a bridge and the pin is tied to something that's
-			 * alread mapped, set this one the same */
+			 * already mapped, set this one the same */
 			if (temp_byte && resources->irqs &&
 			    (resources->irqs->valid_INT &
 			     (0x01 << ((temp_byte + resources->irqs->barber_pole - 1) & 0x03)))) {

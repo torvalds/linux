@@ -96,8 +96,6 @@ struct ext4_xattr_ibody_find {
 
 extern const struct xattr_handler ext4_xattr_user_handler;
 extern const struct xattr_handler ext4_xattr_trusted_handler;
-extern const struct xattr_handler ext4_xattr_acl_access_handler;
-extern const struct xattr_handler ext4_xattr_acl_default_handler;
 extern const struct xattr_handler ext4_xattr_security_handler;
 
 extern ssize_t ext4_listxattr(struct dentry *, char *, size_t);

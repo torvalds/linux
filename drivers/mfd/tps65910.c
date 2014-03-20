@@ -25,6 +25,7 @@
 #include <linux/mfd/core.h>
 #include <linux/regmap.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 static struct resource rtc_resources[] = {
@@ -35,7 +36,7 @@ static struct resource rtc_resources[] = {
 	}
 };
 
-static struct mfd_cell tps65910s[] = {
+static const struct mfd_cell tps65910s[] = {
 	{
 		.name = "tps65910-gpio",
 	},
@@ -410,14 +411,10 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	ret = of_property_read_u32(np, "ti,vmbch-threshold", &prop);
 	if (!ret)
 		board_info->vmbch_threshold = prop;
-	else if (*chip_id == TPS65911)
-		dev_warn(&client->dev, "VMBCH-Threshold not specified");
 
 	ret = of_property_read_u32(np, "ti,vmbch2-threshold", &prop);
 	if (!ret)
 		board_info->vmbch2_threshold = prop;
-	else if (*chip_id == TPS65911)
-		dev_warn(&client->dev, "VMBCH2-Threshold not specified");
 
 	prop = of_property_read_bool(np, "ti,en-ck32k-xtal");
 	board_info->en_ck32k_xtal = prop;

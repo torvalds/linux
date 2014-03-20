@@ -4128,10 +4128,10 @@ static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
 	int i;
 	int j = ADDITIONAL_ENTRIES;
 
-	if (!memcmp(hw->override_addr, mac_addr, ETH_ALEN))
+	if (ether_addr_equal(hw->override_addr, mac_addr))
 		return 0;
 	for (i = 0; i < hw->addr_list_size; i++) {
-		if (!memcmp(hw->address[i], mac_addr, ETH_ALEN))
+		if (ether_addr_equal(hw->address[i], mac_addr))
 			return 0;
 		if (ADDITIONAL_ENTRIES == j && empty_addr(hw->address[i]))
 			j = i;
@@ -4149,7 +4149,7 @@ static int hw_del_addr(struct ksz_hw *hw, u8 *mac_addr)
 	int i;
 
 	for (i = 0; i < hw->addr_list_size; i++) {
-		if (!memcmp(hw->address[i], mac_addr, ETH_ALEN)) {
+		if (ether_addr_equal(hw->address[i], mac_addr)) {
 			memset(hw->address[i], 0, ETH_ALEN);
 			writel(0, hw->io + ADD_ADDR_INCR * i +
 				KS_ADD_ADDR_0_HI);
@@ -5853,15 +5853,12 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
 	struct ksz_port *port = &priv->port;
-	int rc;
 	int result = 0;
 	struct mii_ioctl_data *data = if_mii(ifr);
 
 	if (down_interruptible(&priv->proc_sem))
 		return -ERESTARTSYS;
 
-	/* assume success */
-	rc = 0;
 	switch (cmd) {
 	/* Get address of MII PHY in use. */
 	case SIOCGMIIPHY:
@@ -7104,8 +7101,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 			       ETH_ALEN);
 		else {
 			memcpy(dev->dev_addr, sw->other_addr, ETH_ALEN);
-			if (!memcmp(sw->other_addr, hw->override_addr,
-				    ETH_ALEN))
+			if (ether_addr_equal(sw->other_addr, hw->override_addr))
 				dev->dev_addr[5] += port->first_port;
 		}
 
@@ -7149,8 +7145,6 @@ static void pcidev_exit(struct pci_dev *pdev)
 	int i;
 	struct platform_info *info = pci_get_drvdata(pdev);
 	struct dev_info *hw_priv = &info->dev_info;
-
-	pci_set_drvdata(pdev, NULL);
 
 	release_mem_region(pci_resource_start(pdev, 0),
 		pci_resource_len(pdev, 0));
@@ -7227,7 +7221,7 @@ static int pcidev_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static char pcidev_name[] = "ksz884xp";
 
-static struct pci_device_id pcidev_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(pcidev_table) = {
 	{ PCI_VENDOR_ID_MICREL_KS, 0x8841,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_MICREL_KS, 0x8842,

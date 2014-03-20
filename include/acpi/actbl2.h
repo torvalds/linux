@@ -327,6 +327,11 @@ struct acpi_table_dbg2 {
 	u32 info_count;
 };
 
+struct acpi_dbg2_header {
+	u32 info_offset;
+	u32 info_count;
+};
+
 /* Debug Device Information Subtable */
 
 struct acpi_dbg2_device {
@@ -444,8 +449,8 @@ enum acpi_dmar_scope_type {
 };
 
 struct acpi_dmar_pci_path {
-	u8 dev;
-	u8 fn;
+	u8 device;
+	u8 function;
 };
 
 /*

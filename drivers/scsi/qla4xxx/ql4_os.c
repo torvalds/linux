@@ -149,6 +149,9 @@ static int qla4xxx_send_ping(struct Scsi_Host *shost, uint32_t iface_num,
 static int qla4xxx_get_chap_list(struct Scsi_Host *shost, uint16_t chap_tbl_idx,
 				 uint32_t *num_entries, char *buf);
 static int qla4xxx_delete_chap(struct Scsi_Host *shost, uint16_t chap_tbl_idx);
+static int qla4xxx_set_chap_entry(struct Scsi_Host *shost, void  *data,
+				  int len);
+static int qla4xxx_get_host_stats(struct Scsi_Host *shost, char *buf, int len);
 
 /*
  * SCSI host template entry points
@@ -252,6 +255,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.send_ping		= qla4xxx_send_ping,
 	.get_chap		= qla4xxx_get_chap_list,
 	.delete_chap		= qla4xxx_delete_chap,
+	.set_chap		= qla4xxx_set_chap_entry,
 	.get_flashnode_param	= qla4xxx_sysfs_ddb_get_param,
 	.set_flashnode_param	= qla4xxx_sysfs_ddb_set_param,
 	.new_flashnode		= qla4xxx_sysfs_ddb_add,
@@ -259,6 +263,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.login_flashnode	= qla4xxx_sysfs_ddb_login,
 	.logout_flashnode	= qla4xxx_sysfs_ddb_logout,
 	.logout_flashnode_sid	= qla4xxx_sysfs_ddb_logout_sid,
+	.get_host_stats		= qla4xxx_get_host_stats,
 };
 
 static struct scsi_transport_template *qla4xxx_scsi_transport;
@@ -416,6 +421,7 @@ static umode_t qla4_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_EXP_STATSN:
 		case ISCSI_PARAM_DISCOVERY_PARENT_IDX:
 		case ISCSI_PARAM_DISCOVERY_PARENT_TYPE:
+		case ISCSI_PARAM_LOCAL_IPADDR:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -437,6 +443,65 @@ static umode_t qla4_attr_is_visible(int param_type, int param)
 		case ISCSI_NET_PARAM_VLAN_ENABLED:
 		case ISCSI_NET_PARAM_MTU:
 		case ISCSI_NET_PARAM_PORT:
+		case ISCSI_NET_PARAM_IPADDR_STATE:
+		case ISCSI_NET_PARAM_IPV6_LINKLOCAL_STATE:
+		case ISCSI_NET_PARAM_IPV6_ROUTER_STATE:
+		case ISCSI_NET_PARAM_DELAYED_ACK_EN:
+		case ISCSI_NET_PARAM_TCP_NAGLE_DISABLE:
+		case ISCSI_NET_PARAM_TCP_WSF_DISABLE:
+		case ISCSI_NET_PARAM_TCP_WSF:
+		case ISCSI_NET_PARAM_TCP_TIMER_SCALE:
+		case ISCSI_NET_PARAM_TCP_TIMESTAMP_EN:
+		case ISCSI_NET_PARAM_CACHE_ID:
+		case ISCSI_NET_PARAM_IPV4_DHCP_DNS_ADDR_EN:
+		case ISCSI_NET_PARAM_IPV4_DHCP_SLP_DA_EN:
+		case ISCSI_NET_PARAM_IPV4_TOS_EN:
+		case ISCSI_NET_PARAM_IPV4_TOS:
+		case ISCSI_NET_PARAM_IPV4_GRAT_ARP_EN:
+		case ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID_EN:
+		case ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID:
+		case ISCSI_NET_PARAM_IPV4_DHCP_REQ_VENDOR_ID_EN:
+		case ISCSI_NET_PARAM_IPV4_DHCP_USE_VENDOR_ID_EN:
+		case ISCSI_NET_PARAM_IPV4_DHCP_VENDOR_ID:
+		case ISCSI_NET_PARAM_IPV4_DHCP_LEARN_IQN_EN:
+		case ISCSI_NET_PARAM_IPV4_FRAGMENT_DISABLE:
+		case ISCSI_NET_PARAM_IPV4_IN_FORWARD_EN:
+		case ISCSI_NET_PARAM_REDIRECT_EN:
+		case ISCSI_NET_PARAM_IPV4_TTL:
+		case ISCSI_NET_PARAM_IPV6_GRAT_NEIGHBOR_ADV_EN:
+		case ISCSI_NET_PARAM_IPV6_MLD_EN:
+		case ISCSI_NET_PARAM_IPV6_FLOW_LABEL:
+		case ISCSI_NET_PARAM_IPV6_TRAFFIC_CLASS:
+		case ISCSI_NET_PARAM_IPV6_HOP_LIMIT:
+		case ISCSI_NET_PARAM_IPV6_ND_REACHABLE_TMO:
+		case ISCSI_NET_PARAM_IPV6_ND_REXMIT_TIME:
+		case ISCSI_NET_PARAM_IPV6_ND_STALE_TMO:
+		case ISCSI_NET_PARAM_IPV6_DUP_ADDR_DETECT_CNT:
+		case ISCSI_NET_PARAM_IPV6_RTR_ADV_LINK_MTU:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
+	case ISCSI_IFACE_PARAM:
+		switch (param) {
+		case ISCSI_IFACE_PARAM_DEF_TASKMGMT_TMO:
+		case ISCSI_IFACE_PARAM_HDRDGST_EN:
+		case ISCSI_IFACE_PARAM_DATADGST_EN:
+		case ISCSI_IFACE_PARAM_IMM_DATA_EN:
+		case ISCSI_IFACE_PARAM_INITIAL_R2T_EN:
+		case ISCSI_IFACE_PARAM_DATASEQ_INORDER_EN:
+		case ISCSI_IFACE_PARAM_PDU_INORDER_EN:
+		case ISCSI_IFACE_PARAM_ERL:
+		case ISCSI_IFACE_PARAM_MAX_RECV_DLENGTH:
+		case ISCSI_IFACE_PARAM_FIRST_BURST:
+		case ISCSI_IFACE_PARAM_MAX_R2T:
+		case ISCSI_IFACE_PARAM_MAX_BURST:
+		case ISCSI_IFACE_PARAM_CHAP_AUTH_EN:
+		case ISCSI_IFACE_PARAM_BIDI_CHAP_EN:
+		case ISCSI_IFACE_PARAM_DISCOVERY_AUTH_OPTIONAL:
+		case ISCSI_IFACE_PARAM_DISCOVERY_LOGOUT_EN:
+		case ISCSI_IFACE_PARAM_STRICT_LOGIN_COMP_EN:
+		case ISCSI_IFACE_PARAM_INITIATOR_NAME:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -508,6 +573,154 @@ static umode_t qla4_attr_is_visible(int param_type, int param)
 	return 0;
 }
 
+/**
+ * qla4xxx_create chap_list - Create CHAP list from FLASH
+ * @ha: pointer to adapter structure
+ *
+ * Read flash and make a list of CHAP entries, during login when a CHAP entry
+ * is received, it will be checked in this list. If entry exist then the CHAP
+ * entry index is set in the DDB. If CHAP entry does not exist in this list
+ * then a new entry is added in FLASH in CHAP table and the index obtained is
+ * used in the DDB.
+ **/
+static void qla4xxx_create_chap_list(struct scsi_qla_host *ha)
+{
+	int rval = 0;
+	uint8_t *chap_flash_data = NULL;
+	uint32_t offset;
+	dma_addr_t chap_dma;
+	uint32_t chap_size = 0;
+
+	if (is_qla40XX(ha))
+		chap_size = MAX_CHAP_ENTRIES_40XX *
+			    sizeof(struct ql4_chap_table);
+	else	/* Single region contains CHAP info for both
+		 * ports which is divided into half for each port.
+		 */
+		chap_size = ha->hw.flt_chap_size / 2;
+
+	chap_flash_data = dma_alloc_coherent(&ha->pdev->dev, chap_size,
+					     &chap_dma, GFP_KERNEL);
+	if (!chap_flash_data) {
+		ql4_printk(KERN_ERR, ha, "No memory for chap_flash_data\n");
+		return;
+	}
+
+	if (is_qla40XX(ha)) {
+		offset = FLASH_CHAP_OFFSET;
+	} else {
+		offset = FLASH_RAW_ACCESS_ADDR + (ha->hw.flt_region_chap << 2);
+		if (ha->port_num == 1)
+			offset += chap_size;
+	}
+
+	rval = qla4xxx_get_flash(ha, chap_dma, offset, chap_size);
+	if (rval != QLA_SUCCESS)
+		goto exit_chap_list;
+
+	if (ha->chap_list == NULL)
+		ha->chap_list = vmalloc(chap_size);
+	if (ha->chap_list == NULL) {
+		ql4_printk(KERN_ERR, ha, "No memory for ha->chap_list\n");
+		goto exit_chap_list;
+	}
+
+	memset(ha->chap_list, 0, chap_size);
+	memcpy(ha->chap_list, chap_flash_data, chap_size);
+
+exit_chap_list:
+	dma_free_coherent(&ha->pdev->dev, chap_size, chap_flash_data, chap_dma);
+}
+
+static int qla4xxx_get_chap_by_index(struct scsi_qla_host *ha,
+				     int16_t chap_index,
+				     struct ql4_chap_table **chap_entry)
+{
+	int rval = QLA_ERROR;
+	int max_chap_entries;
+
+	if (!ha->chap_list) {
+		ql4_printk(KERN_ERR, ha, "CHAP table cache is empty!\n");
+		rval = QLA_ERROR;
+		goto exit_get_chap;
+	}
+
+	if (is_qla80XX(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+				   sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	if (chap_index > max_chap_entries) {
+		ql4_printk(KERN_ERR, ha, "Invalid Chap index\n");
+		rval = QLA_ERROR;
+		goto exit_get_chap;
+	}
+
+	*chap_entry = (struct ql4_chap_table *)ha->chap_list + chap_index;
+	if ((*chap_entry)->cookie !=
+	     __constant_cpu_to_le16(CHAP_VALID_COOKIE)) {
+		rval = QLA_ERROR;
+		*chap_entry = NULL;
+	} else {
+		rval = QLA_SUCCESS;
+	}
+
+exit_get_chap:
+	return rval;
+}
+
+/**
+ * qla4xxx_find_free_chap_index - Find the first free chap index
+ * @ha: pointer to adapter structure
+ * @chap_index: CHAP index to be returned
+ *
+ * Find the first free chap index available in the chap table
+ *
+ * Note: Caller should acquire the chap lock before getting here.
+ **/
+static int qla4xxx_find_free_chap_index(struct scsi_qla_host *ha,
+					uint16_t *chap_index)
+{
+	int i, rval;
+	int free_index = -1;
+	int max_chap_entries = 0;
+	struct ql4_chap_table *chap_table;
+
+	if (is_qla80XX(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+						sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	if (!ha->chap_list) {
+		ql4_printk(KERN_ERR, ha, "CHAP table cache is empty!\n");
+		rval = QLA_ERROR;
+		goto exit_find_chap;
+	}
+
+	for (i = 0; i < max_chap_entries; i++) {
+		chap_table = (struct ql4_chap_table *)ha->chap_list + i;
+
+		if ((chap_table->cookie !=
+		    __constant_cpu_to_le16(CHAP_VALID_COOKIE)) &&
+		   (i > MAX_RESRV_CHAP_IDX)) {
+				free_index = i;
+				break;
+		}
+	}
+
+	if (free_index != -1) {
+		*chap_index = free_index;
+		rval = QLA_SUCCESS;
+	} else {
+		rval = QLA_ERROR;
+	}
+
+exit_find_chap:
+	return rval;
+}
+
 static int qla4xxx_get_chap_list(struct Scsi_Host *shost, uint16_t chap_tbl_idx,
 				  uint32_t *num_entries, char *buf)
 {
@@ -531,6 +744,8 @@ static int qla4xxx_get_chap_list(struct Scsi_Host *shost, uint16_t chap_tbl_idx,
 		ret = -ENOMEM;
 		goto exit_get_chap_list;
 	}
+
+	qla4xxx_create_chap_list(ha);
 
 	chap_rec = (struct iscsi_chap_rec *) buf;
 	mutex_lock(&ha->chap_sem);
@@ -691,113 +906,754 @@ exit_delete_chap:
 	return ret;
 }
 
+/**
+ * qla4xxx_set_chap_entry - Make chap entry with given information
+ * @shost: pointer to host
+ * @data: chap info - credentials, index and type to make chap entry
+ * @len: length of data
+ *
+ * Add or update chap entry with the given information
+ **/
+static int qla4xxx_set_chap_entry(struct Scsi_Host *shost, void *data, int len)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	struct iscsi_chap_rec chap_rec;
+	struct ql4_chap_table *chap_entry = NULL;
+	struct iscsi_param_info *param_info;
+	struct nlattr *attr;
+	int max_chap_entries = 0;
+	int type;
+	int rem = len;
+	int rc = 0;
+	int size;
+
+	memset(&chap_rec, 0, sizeof(chap_rec));
+
+	nla_for_each_attr(attr, data, len, rem) {
+		param_info = nla_data(attr);
+
+		switch (param_info->param) {
+		case ISCSI_CHAP_PARAM_INDEX:
+			chap_rec.chap_tbl_idx = *(uint16_t *)param_info->value;
+			break;
+		case ISCSI_CHAP_PARAM_CHAP_TYPE:
+			chap_rec.chap_type = param_info->value[0];
+			break;
+		case ISCSI_CHAP_PARAM_USERNAME:
+			size = min_t(size_t, sizeof(chap_rec.username),
+				     param_info->len);
+			memcpy(chap_rec.username, param_info->value, size);
+			break;
+		case ISCSI_CHAP_PARAM_PASSWORD:
+			size = min_t(size_t, sizeof(chap_rec.password),
+				     param_info->len);
+			memcpy(chap_rec.password, param_info->value, size);
+			break;
+		case ISCSI_CHAP_PARAM_PASSWORD_LEN:
+			chap_rec.password_length = param_info->value[0];
+			break;
+		default:
+			ql4_printk(KERN_ERR, ha,
+				   "%s: No such sysfs attribute\n", __func__);
+			rc = -ENOSYS;
+			goto exit_set_chap;
+		};
+	}
+
+	if (chap_rec.chap_type == CHAP_TYPE_IN)
+		type = BIDI_CHAP;
+	else
+		type = LOCAL_CHAP;
+
+	if (is_qla80XX(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+				   sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	mutex_lock(&ha->chap_sem);
+	if (chap_rec.chap_tbl_idx < max_chap_entries) {
+		rc = qla4xxx_get_chap_by_index(ha, chap_rec.chap_tbl_idx,
+					       &chap_entry);
+		if (!rc) {
+			if (!(type == qla4xxx_get_chap_type(chap_entry))) {
+				ql4_printk(KERN_INFO, ha,
+					   "Type mismatch for CHAP entry %d\n",
+					   chap_rec.chap_tbl_idx);
+				rc = -EINVAL;
+				goto exit_unlock_chap;
+			}
+
+			/* If chap index is in use then don't modify it */
+			rc = qla4xxx_is_chap_active(shost,
+						    chap_rec.chap_tbl_idx);
+			if (rc) {
+				ql4_printk(KERN_INFO, ha,
+					   "CHAP entry %d is in use\n",
+					   chap_rec.chap_tbl_idx);
+				rc = -EBUSY;
+				goto exit_unlock_chap;
+			}
+		}
+	} else {
+		rc = qla4xxx_find_free_chap_index(ha, &chap_rec.chap_tbl_idx);
+		if (rc) {
+			ql4_printk(KERN_INFO, ha, "CHAP entry not available\n");
+			rc = -EBUSY;
+			goto exit_unlock_chap;
+		}
+	}
+
+	rc = qla4xxx_set_chap(ha, chap_rec.username, chap_rec.password,
+			      chap_rec.chap_tbl_idx, type);
+
+exit_unlock_chap:
+	mutex_unlock(&ha->chap_sem);
+
+exit_set_chap:
+	return rc;
+}
+
+
+static int qla4xxx_get_host_stats(struct Scsi_Host *shost, char *buf, int len)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	struct iscsi_offload_host_stats *host_stats = NULL;
+	int host_stats_size;
+	int ret = 0;
+	int ddb_idx = 0;
+	struct ql_iscsi_stats *ql_iscsi_stats = NULL;
+	int stats_size;
+	dma_addr_t iscsi_stats_dma;
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Func: %s\n", __func__));
+
+	host_stats_size = sizeof(struct iscsi_offload_host_stats);
+
+	if (host_stats_size != len) {
+		ql4_printk(KERN_INFO, ha, "%s: host_stats size mismatch expected = %d, is = %d\n",
+			   __func__, len, host_stats_size);
+		ret = -EINVAL;
+		goto exit_host_stats;
+	}
+	host_stats = (struct iscsi_offload_host_stats *)buf;
+
+	if (!buf) {
+		ret = -ENOMEM;
+		goto exit_host_stats;
+	}
+
+	stats_size = PAGE_ALIGN(sizeof(struct ql_iscsi_stats));
+
+	ql_iscsi_stats = dma_alloc_coherent(&ha->pdev->dev, stats_size,
+					    &iscsi_stats_dma, GFP_KERNEL);
+	if (!ql_iscsi_stats) {
+		ql4_printk(KERN_ERR, ha,
+			   "Unable to allocate memory for iscsi stats\n");
+		goto exit_host_stats;
+	}
+
+	ret =  qla4xxx_get_mgmt_data(ha, ddb_idx, stats_size,
+				     iscsi_stats_dma);
+	if (ret != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha,
+			   "Unable to retrieve iscsi stats\n");
+		goto exit_host_stats;
+	}
+	host_stats->mactx_frames = le64_to_cpu(ql_iscsi_stats->mac_tx_frames);
+	host_stats->mactx_bytes = le64_to_cpu(ql_iscsi_stats->mac_tx_bytes);
+	host_stats->mactx_multicast_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_multicast_frames);
+	host_stats->mactx_broadcast_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_broadcast_frames);
+	host_stats->mactx_pause_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_pause_frames);
+	host_stats->mactx_control_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_control_frames);
+	host_stats->mactx_deferral =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_deferral);
+	host_stats->mactx_excess_deferral =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_excess_deferral);
+	host_stats->mactx_late_collision =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_late_collision);
+	host_stats->mactx_abort	= le64_to_cpu(ql_iscsi_stats->mac_tx_abort);
+	host_stats->mactx_single_collision =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_single_collision);
+	host_stats->mactx_multiple_collision =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_multiple_collision);
+	host_stats->mactx_collision =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_collision);
+	host_stats->mactx_frames_dropped =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_frames_dropped);
+	host_stats->mactx_jumbo_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_tx_jumbo_frames);
+	host_stats->macrx_frames = le64_to_cpu(ql_iscsi_stats->mac_rx_frames);
+	host_stats->macrx_bytes = le64_to_cpu(ql_iscsi_stats->mac_rx_bytes);
+	host_stats->macrx_unknown_control_frames =
+		le64_to_cpu(ql_iscsi_stats->mac_rx_unknown_control_frames);
+	host_stats->macrx_pause_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_pause_frames);
+	host_stats->macrx_control_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_control_frames);
+	host_stats->macrx_dribble =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_dribble);
+	host_stats->macrx_frame_length_error =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_frame_length_error);
+	host_stats->macrx_jabber = le64_to_cpu(ql_iscsi_stats->mac_rx_jabber);
+	host_stats->macrx_carrier_sense_error =
+		le64_to_cpu(ql_iscsi_stats->mac_rx_carrier_sense_error);
+	host_stats->macrx_frame_discarded =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_frame_discarded);
+	host_stats->macrx_frames_dropped =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_frames_dropped);
+	host_stats->mac_crc_error = le64_to_cpu(ql_iscsi_stats->mac_crc_error);
+	host_stats->mac_encoding_error =
+			le64_to_cpu(ql_iscsi_stats->mac_encoding_error);
+	host_stats->macrx_length_error_large =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_length_error_large);
+	host_stats->macrx_length_error_small =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_length_error_small);
+	host_stats->macrx_multicast_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_multicast_frames);
+	host_stats->macrx_broadcast_frames =
+			le64_to_cpu(ql_iscsi_stats->mac_rx_broadcast_frames);
+	host_stats->iptx_packets = le64_to_cpu(ql_iscsi_stats->ip_tx_packets);
+	host_stats->iptx_bytes = le64_to_cpu(ql_iscsi_stats->ip_tx_bytes);
+	host_stats->iptx_fragments =
+			le64_to_cpu(ql_iscsi_stats->ip_tx_fragments);
+	host_stats->iprx_packets = le64_to_cpu(ql_iscsi_stats->ip_rx_packets);
+	host_stats->iprx_bytes = le64_to_cpu(ql_iscsi_stats->ip_rx_bytes);
+	host_stats->iprx_fragments =
+			le64_to_cpu(ql_iscsi_stats->ip_rx_fragments);
+	host_stats->ip_datagram_reassembly =
+			le64_to_cpu(ql_iscsi_stats->ip_datagram_reassembly);
+	host_stats->ip_invalid_address_error =
+			le64_to_cpu(ql_iscsi_stats->ip_invalid_address_error);
+	host_stats->ip_error_packets =
+			le64_to_cpu(ql_iscsi_stats->ip_error_packets);
+	host_stats->ip_fragrx_overlap =
+			le64_to_cpu(ql_iscsi_stats->ip_fragrx_overlap);
+	host_stats->ip_fragrx_outoforder =
+			le64_to_cpu(ql_iscsi_stats->ip_fragrx_outoforder);
+	host_stats->ip_datagram_reassembly_timeout =
+		le64_to_cpu(ql_iscsi_stats->ip_datagram_reassembly_timeout);
+	host_stats->ipv6tx_packets =
+			le64_to_cpu(ql_iscsi_stats->ipv6_tx_packets);
+	host_stats->ipv6tx_bytes = le64_to_cpu(ql_iscsi_stats->ipv6_tx_bytes);
+	host_stats->ipv6tx_fragments =
+			le64_to_cpu(ql_iscsi_stats->ipv6_tx_fragments);
+	host_stats->ipv6rx_packets =
+			le64_to_cpu(ql_iscsi_stats->ipv6_rx_packets);
+	host_stats->ipv6rx_bytes = le64_to_cpu(ql_iscsi_stats->ipv6_rx_bytes);
+	host_stats->ipv6rx_fragments =
+			le64_to_cpu(ql_iscsi_stats->ipv6_rx_fragments);
+	host_stats->ipv6_datagram_reassembly =
+			le64_to_cpu(ql_iscsi_stats->ipv6_datagram_reassembly);
+	host_stats->ipv6_invalid_address_error =
+		le64_to_cpu(ql_iscsi_stats->ipv6_invalid_address_error);
+	host_stats->ipv6_error_packets =
+			le64_to_cpu(ql_iscsi_stats->ipv6_error_packets);
+	host_stats->ipv6_fragrx_overlap =
+			le64_to_cpu(ql_iscsi_stats->ipv6_fragrx_overlap);
+	host_stats->ipv6_fragrx_outoforder =
+			le64_to_cpu(ql_iscsi_stats->ipv6_fragrx_outoforder);
+	host_stats->ipv6_datagram_reassembly_timeout =
+		le64_to_cpu(ql_iscsi_stats->ipv6_datagram_reassembly_timeout);
+	host_stats->tcptx_segments =
+			le64_to_cpu(ql_iscsi_stats->tcp_tx_segments);
+	host_stats->tcptx_bytes	= le64_to_cpu(ql_iscsi_stats->tcp_tx_bytes);
+	host_stats->tcprx_segments =
+			le64_to_cpu(ql_iscsi_stats->tcp_rx_segments);
+	host_stats->tcprx_byte = le64_to_cpu(ql_iscsi_stats->tcp_rx_byte);
+	host_stats->tcp_duplicate_ack_retx =
+			le64_to_cpu(ql_iscsi_stats->tcp_duplicate_ack_retx);
+	host_stats->tcp_retx_timer_expired =
+			le64_to_cpu(ql_iscsi_stats->tcp_retx_timer_expired);
+	host_stats->tcprx_duplicate_ack	=
+			le64_to_cpu(ql_iscsi_stats->tcp_rx_duplicate_ack);
+	host_stats->tcprx_pure_ackr =
+			le64_to_cpu(ql_iscsi_stats->tcp_rx_pure_ackr);
+	host_stats->tcptx_delayed_ack =
+			le64_to_cpu(ql_iscsi_stats->tcp_tx_delayed_ack);
+	host_stats->tcptx_pure_ack =
+			le64_to_cpu(ql_iscsi_stats->tcp_tx_pure_ack);
+	host_stats->tcprx_segment_error =
+			le64_to_cpu(ql_iscsi_stats->tcp_rx_segment_error);
+	host_stats->tcprx_segment_outoforder =
+			le64_to_cpu(ql_iscsi_stats->tcp_rx_segment_outoforder);
+	host_stats->tcprx_window_probe =
+			le64_to_cpu(ql_iscsi_stats->tcp_rx_window_probe);
+	host_stats->tcprx_window_update =
+			le64_to_cpu(ql_iscsi_stats->tcp_rx_window_update);
+	host_stats->tcptx_window_probe_persist =
+		le64_to_cpu(ql_iscsi_stats->tcp_tx_window_probe_persist);
+	host_stats->ecc_error_correction =
+			le64_to_cpu(ql_iscsi_stats->ecc_error_correction);
+	host_stats->iscsi_pdu_tx = le64_to_cpu(ql_iscsi_stats->iscsi_pdu_tx);
+	host_stats->iscsi_data_bytes_tx =
+			le64_to_cpu(ql_iscsi_stats->iscsi_data_bytes_tx);
+	host_stats->iscsi_pdu_rx = le64_to_cpu(ql_iscsi_stats->iscsi_pdu_rx);
+	host_stats->iscsi_data_bytes_rx	=
+			le64_to_cpu(ql_iscsi_stats->iscsi_data_bytes_rx);
+	host_stats->iscsi_io_completed =
+			le64_to_cpu(ql_iscsi_stats->iscsi_io_completed);
+	host_stats->iscsi_unexpected_io_rx =
+			le64_to_cpu(ql_iscsi_stats->iscsi_unexpected_io_rx);
+	host_stats->iscsi_format_error =
+			le64_to_cpu(ql_iscsi_stats->iscsi_format_error);
+	host_stats->iscsi_hdr_digest_error =
+			le64_to_cpu(ql_iscsi_stats->iscsi_hdr_digest_error);
+	host_stats->iscsi_data_digest_error =
+			le64_to_cpu(ql_iscsi_stats->iscsi_data_digest_error);
+	host_stats->iscsi_sequence_error =
+			le64_to_cpu(ql_iscsi_stats->iscsi_sequence_error);
+exit_host_stats:
+	if (ql_iscsi_stats)
+		dma_free_coherent(&ha->pdev->dev, host_stats_size,
+				  ql_iscsi_stats, iscsi_stats_dma);
+
+	ql4_printk(KERN_INFO, ha, "%s: Get host stats done\n",
+		   __func__);
+	return ret;
+}
+
 static int qla4xxx_get_iface_param(struct iscsi_iface *iface,
 				   enum iscsi_param_type param_type,
 				   int param, char *buf)
 {
 	struct Scsi_Host *shost = iscsi_iface_to_shost(iface);
 	struct scsi_qla_host *ha = to_qla_host(shost);
+	int ival;
+	char *pval = NULL;
 	int len = -ENOSYS;
 
-	if (param_type != ISCSI_NET_PARAM)
-		return -ENOSYS;
+	if (param_type == ISCSI_NET_PARAM) {
+		switch (param) {
+		case ISCSI_NET_PARAM_IPV4_ADDR:
+			len = sprintf(buf, "%pI4\n", &ha->ip_config.ip_address);
+			break;
+		case ISCSI_NET_PARAM_IPV4_SUBNET:
+			len = sprintf(buf, "%pI4\n",
+				      &ha->ip_config.subnet_mask);
+			break;
+		case ISCSI_NET_PARAM_IPV4_GW:
+			len = sprintf(buf, "%pI4\n", &ha->ip_config.gateway);
+			break;
+		case ISCSI_NET_PARAM_IFACE_ENABLE:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				OP_STATE(ha->ip_config.ipv4_options,
+					 IPOPT_IPV4_PROTOCOL_ENABLE, pval);
+			} else {
+				OP_STATE(ha->ip_config.ipv6_options,
+					 IPV6_OPT_IPV6_PROTOCOL_ENABLE, pval);
+			}
 
-	switch (param) {
-	case ISCSI_NET_PARAM_IPV4_ADDR:
-		len = sprintf(buf, "%pI4\n", &ha->ip_config.ip_address);
-		break;
-	case ISCSI_NET_PARAM_IPV4_SUBNET:
-		len = sprintf(buf, "%pI4\n", &ha->ip_config.subnet_mask);
-		break;
-	case ISCSI_NET_PARAM_IPV4_GW:
-		len = sprintf(buf, "%pI4\n", &ha->ip_config.gateway);
-		break;
-	case ISCSI_NET_PARAM_IFACE_ENABLE:
-		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
 			len = sprintf(buf, "%s\n",
-				      (ha->ip_config.ipv4_options &
-				       IPOPT_IPV4_PROTOCOL_ENABLE) ?
-				      "enabled" : "disabled");
-		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
-			len = sprintf(buf, "%s\n",
-				      (ha->ip_config.ipv6_options &
-				       IPV6_OPT_IPV6_PROTOCOL_ENABLE) ?
-				       "enabled" : "disabled");
-		break;
-	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
-		len = sprintf(buf, "%s\n",
-			      (ha->ip_config.tcp_options & TCPOPT_DHCP_ENABLE) ?
-			      "dhcp" : "static");
-		break;
-	case ISCSI_NET_PARAM_IPV6_ADDR:
-		if (iface->iface_num == 0)
-			len = sprintf(buf, "%pI6\n", &ha->ip_config.ipv6_addr0);
-		if (iface->iface_num == 1)
-			len = sprintf(buf, "%pI6\n", &ha->ip_config.ipv6_addr1);
-		break;
-	case ISCSI_NET_PARAM_IPV6_LINKLOCAL:
-		len = sprintf(buf, "%pI6\n",
-			      &ha->ip_config.ipv6_link_local_addr);
-		break;
-	case ISCSI_NET_PARAM_IPV6_ROUTER:
-		len = sprintf(buf, "%pI6\n",
-			      &ha->ip_config.ipv6_default_router_addr);
-		break;
-	case ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG:
-		len = sprintf(buf, "%s\n",
-			      (ha->ip_config.ipv6_addl_options &
-			       IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE) ?
-			       "nd" : "static");
-		break;
-	case ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG:
-		len = sprintf(buf, "%s\n",
-			      (ha->ip_config.ipv6_addl_options &
-			       IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR) ?
-			       "auto" : "static");
-		break;
-	case ISCSI_NET_PARAM_VLAN_ID:
-		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				      (ha->ip_config.tcp_options &
+				       TCPOPT_DHCP_ENABLE) ?
+				      "dhcp" : "static");
+			break;
+		case ISCSI_NET_PARAM_IPV6_ADDR:
+			if (iface->iface_num == 0)
+				len = sprintf(buf, "%pI6\n",
+					      &ha->ip_config.ipv6_addr0);
+			if (iface->iface_num == 1)
+				len = sprintf(buf, "%pI6\n",
+					      &ha->ip_config.ipv6_addr1);
+			break;
+		case ISCSI_NET_PARAM_IPV6_LINKLOCAL:
+			len = sprintf(buf, "%pI6\n",
+				      &ha->ip_config.ipv6_link_local_addr);
+			break;
+		case ISCSI_NET_PARAM_IPV6_ROUTER:
+			len = sprintf(buf, "%pI6\n",
+				      &ha->ip_config.ipv6_default_router_addr);
+			break;
+		case ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG:
+			pval = (ha->ip_config.ipv6_addl_options &
+				IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE) ?
+				"nd" : "static";
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG:
+			pval = (ha->ip_config.ipv6_addl_options &
+				IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR) ?
+				"auto" : "static";
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_VLAN_ID:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				ival = ha->ip_config.ipv4_vlan_tag &
+				       ISCSI_MAX_VLAN_ID;
+			else
+				ival = ha->ip_config.ipv6_vlan_tag &
+				       ISCSI_MAX_VLAN_ID;
+
+			len = sprintf(buf, "%d\n", ival);
+			break;
+		case ISCSI_NET_PARAM_VLAN_PRIORITY:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				ival = (ha->ip_config.ipv4_vlan_tag >> 13) &
+				       ISCSI_MAX_VLAN_PRIORITY;
+			else
+				ival = (ha->ip_config.ipv6_vlan_tag >> 13) &
+				       ISCSI_MAX_VLAN_PRIORITY;
+
+			len = sprintf(buf, "%d\n", ival);
+			break;
+		case ISCSI_NET_PARAM_VLAN_ENABLED:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				OP_STATE(ha->ip_config.ipv4_options,
+					 IPOPT_VLAN_TAGGING_ENABLE, pval);
+			} else {
+				OP_STATE(ha->ip_config.ipv6_options,
+					 IPV6_OPT_VLAN_TAGGING_ENABLE, pval);
+			}
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_MTU:
+			len = sprintf(buf, "%d\n", ha->ip_config.eth_mtu_size);
+			break;
+		case ISCSI_NET_PARAM_PORT:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				len = sprintf(buf, "%d\n",
+					      ha->ip_config.ipv4_port);
+			else
+				len = sprintf(buf, "%d\n",
+					      ha->ip_config.ipv6_port);
+			break;
+		case ISCSI_NET_PARAM_IPADDR_STATE:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				pval = iscsi_get_ipaddress_state_name(
+						ha->ip_config.ipv4_addr_state);
+			} else {
+				if (iface->iface_num == 0)
+					pval = iscsi_get_ipaddress_state_name(
+						ha->ip_config.ipv6_addr0_state);
+				else if (iface->iface_num == 1)
+					pval = iscsi_get_ipaddress_state_name(
+						ha->ip_config.ipv6_addr1_state);
+			}
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV6_LINKLOCAL_STATE:
+			pval = iscsi_get_ipaddress_state_name(
+					ha->ip_config.ipv6_link_local_state);
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV6_ROUTER_STATE:
+			pval = iscsi_get_router_state_name(
+				      ha->ip_config.ipv6_default_router_state);
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_DELAYED_ACK_EN:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				OP_STATE(~ha->ip_config.tcp_options,
+					 TCPOPT_DELAYED_ACK_DISABLE, pval);
+			} else {
+				OP_STATE(~ha->ip_config.ipv6_tcp_options,
+					 IPV6_TCPOPT_DELAYED_ACK_DISABLE, pval);
+			}
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_TCP_NAGLE_DISABLE:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				OP_STATE(~ha->ip_config.tcp_options,
+					 TCPOPT_NAGLE_ALGO_DISABLE, pval);
+			} else {
+				OP_STATE(~ha->ip_config.ipv6_tcp_options,
+					 IPV6_TCPOPT_NAGLE_ALGO_DISABLE, pval);
+			}
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_TCP_WSF_DISABLE:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				OP_STATE(~ha->ip_config.tcp_options,
+					 TCPOPT_WINDOW_SCALE_DISABLE, pval);
+			} else {
+				OP_STATE(~ha->ip_config.ipv6_tcp_options,
+					 IPV6_TCPOPT_WINDOW_SCALE_DISABLE,
+					 pval);
+			}
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_TCP_WSF:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				len = sprintf(buf, "%d\n",
+					      ha->ip_config.tcp_wsf);
+			else
+				len = sprintf(buf, "%d\n",
+					      ha->ip_config.ipv6_tcp_wsf);
+			break;
+		case ISCSI_NET_PARAM_TCP_TIMER_SCALE:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				ival = (ha->ip_config.tcp_options &
+					TCPOPT_TIMER_SCALE) >> 1;
+			else
+				ival = (ha->ip_config.ipv6_tcp_options &
+					IPV6_TCPOPT_TIMER_SCALE) >> 1;
+
+			len = sprintf(buf, "%d\n", ival);
+			break;
+		case ISCSI_NET_PARAM_TCP_TIMESTAMP_EN:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				OP_STATE(ha->ip_config.tcp_options,
+					 TCPOPT_TIMESTAMP_ENABLE, pval);
+			} else {
+				OP_STATE(ha->ip_config.ipv6_tcp_options,
+					 IPV6_TCPOPT_TIMESTAMP_EN, pval);
+			}
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_CACHE_ID:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				len = sprintf(buf, "%d\n",
+					      ha->ip_config.ipv4_cache_id);
+			else
+				len = sprintf(buf, "%d\n",
+					      ha->ip_config.ipv6_cache_id);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_DNS_ADDR_EN:
+			OP_STATE(ha->ip_config.tcp_options,
+				 TCPOPT_DNS_SERVER_IP_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_SLP_DA_EN:
+			OP_STATE(ha->ip_config.tcp_options,
+				 TCPOPT_SLP_DA_INFO_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_TOS_EN:
+			OP_STATE(ha->ip_config.ipv4_options,
+				 IPOPT_IPV4_TOS_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_TOS:
+			len = sprintf(buf, "%d\n", ha->ip_config.ipv4_tos);
+			break;
+		case ISCSI_NET_PARAM_IPV4_GRAT_ARP_EN:
+			OP_STATE(ha->ip_config.ipv4_options,
+				 IPOPT_GRAT_ARP_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID_EN:
+			OP_STATE(ha->ip_config.ipv4_options, IPOPT_ALT_CID_EN,
+				 pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID:
+			pval = (ha->ip_config.ipv4_alt_cid_len) ?
+			       (char *)ha->ip_config.ipv4_alt_cid : "";
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_REQ_VENDOR_ID_EN:
+			OP_STATE(ha->ip_config.ipv4_options,
+				 IPOPT_REQ_VID_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_USE_VENDOR_ID_EN:
+			OP_STATE(ha->ip_config.ipv4_options,
+				 IPOPT_USE_VID_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_VENDOR_ID:
+			pval = (ha->ip_config.ipv4_vid_len) ?
+			       (char *)ha->ip_config.ipv4_vid : "";
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_DHCP_LEARN_IQN_EN:
+			OP_STATE(ha->ip_config.ipv4_options,
+				 IPOPT_LEARN_IQN_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_FRAGMENT_DISABLE:
+			OP_STATE(~ha->ip_config.ipv4_options,
+				 IPOPT_FRAGMENTATION_DISABLE, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_IN_FORWARD_EN:
+			OP_STATE(ha->ip_config.ipv4_options,
+				 IPOPT_IN_FORWARD_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_REDIRECT_EN:
+			if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+				OP_STATE(ha->ip_config.ipv4_options,
+					 IPOPT_ARP_REDIRECT_EN, pval);
+			} else {
+				OP_STATE(ha->ip_config.ipv6_options,
+					 IPV6_OPT_REDIRECT_EN, pval);
+			}
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV4_TTL:
+			len = sprintf(buf, "%d\n", ha->ip_config.ipv4_ttl);
+			break;
+		case ISCSI_NET_PARAM_IPV6_GRAT_NEIGHBOR_ADV_EN:
+			OP_STATE(ha->ip_config.ipv6_options,
+				 IPV6_OPT_GRAT_NEIGHBOR_ADV_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV6_MLD_EN:
+			OP_STATE(ha->ip_config.ipv6_addl_options,
+				 IPV6_ADDOPT_MLD_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_NET_PARAM_IPV6_FLOW_LABEL:
+			len = sprintf(buf, "%u\n", ha->ip_config.ipv6_flow_lbl);
+			break;
+		case ISCSI_NET_PARAM_IPV6_TRAFFIC_CLASS:
 			len = sprintf(buf, "%d\n",
-				      (ha->ip_config.ipv4_vlan_tag &
-				       ISCSI_MAX_VLAN_ID));
-		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+				      ha->ip_config.ipv6_traffic_class);
+			break;
+		case ISCSI_NET_PARAM_IPV6_HOP_LIMIT:
 			len = sprintf(buf, "%d\n",
-				      (ha->ip_config.ipv6_vlan_tag &
-				       ISCSI_MAX_VLAN_ID));
-		break;
-	case ISCSI_NET_PARAM_VLAN_PRIORITY:
-		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+				      ha->ip_config.ipv6_hop_limit);
+			break;
+		case ISCSI_NET_PARAM_IPV6_ND_REACHABLE_TMO:
 			len = sprintf(buf, "%d\n",
-				      ((ha->ip_config.ipv4_vlan_tag >> 13) &
-					ISCSI_MAX_VLAN_PRIORITY));
-		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+				      ha->ip_config.ipv6_nd_reach_time);
+			break;
+		case ISCSI_NET_PARAM_IPV6_ND_REXMIT_TIME:
 			len = sprintf(buf, "%d\n",
-				      ((ha->ip_config.ipv6_vlan_tag >> 13) &
-					ISCSI_MAX_VLAN_PRIORITY));
-		break;
-	case ISCSI_NET_PARAM_VLAN_ENABLED:
-		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
-			len = sprintf(buf, "%s\n",
-				      (ha->ip_config.ipv4_options &
-				       IPOPT_VLAN_TAGGING_ENABLE) ?
-				       "enabled" : "disabled");
-		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
-			len = sprintf(buf, "%s\n",
-				      (ha->ip_config.ipv6_options &
-				       IPV6_OPT_VLAN_TAGGING_ENABLE) ?
-				       "enabled" : "disabled");
-		break;
-	case ISCSI_NET_PARAM_MTU:
-		len = sprintf(buf, "%d\n", ha->ip_config.eth_mtu_size);
-		break;
-	case ISCSI_NET_PARAM_PORT:
-		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
-			len = sprintf(buf, "%d\n", ha->ip_config.ipv4_port);
-		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
-			len = sprintf(buf, "%d\n", ha->ip_config.ipv6_port);
-		break;
-	default:
-		len = -ENOSYS;
+				      ha->ip_config.ipv6_nd_rexmit_timer);
+			break;
+		case ISCSI_NET_PARAM_IPV6_ND_STALE_TMO:
+			len = sprintf(buf, "%d\n",
+				      ha->ip_config.ipv6_nd_stale_timeout);
+			break;
+		case ISCSI_NET_PARAM_IPV6_DUP_ADDR_DETECT_CNT:
+			len = sprintf(buf, "%d\n",
+				      ha->ip_config.ipv6_dup_addr_detect_count);
+			break;
+		case ISCSI_NET_PARAM_IPV6_RTR_ADV_LINK_MTU:
+			len = sprintf(buf, "%d\n",
+				      ha->ip_config.ipv6_gw_advrt_mtu);
+			break;
+		default:
+			len = -ENOSYS;
+		}
+	} else if (param_type == ISCSI_IFACE_PARAM) {
+		switch (param) {
+		case ISCSI_IFACE_PARAM_DEF_TASKMGMT_TMO:
+			len = sprintf(buf, "%d\n", ha->ip_config.def_timeout);
+			break;
+		case ISCSI_IFACE_PARAM_HDRDGST_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_HEADER_DIGEST_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_DATADGST_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_DATA_DIGEST_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_IMM_DATA_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_IMMEDIATE_DATA_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_INITIAL_R2T_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_INITIAL_R2T_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_DATASEQ_INORDER_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_DATA_SEQ_INORDER_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_PDU_INORDER_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_DATA_PDU_INORDER_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_ERL:
+			len = sprintf(buf, "%d\n",
+				      (ha->ip_config.iscsi_options &
+				       ISCSIOPTS_ERL));
+			break;
+		case ISCSI_IFACE_PARAM_MAX_RECV_DLENGTH:
+			len = sprintf(buf, "%u\n",
+				      ha->ip_config.iscsi_max_pdu_size *
+				      BYTE_UNITS);
+			break;
+		case ISCSI_IFACE_PARAM_FIRST_BURST:
+			len = sprintf(buf, "%u\n",
+				      ha->ip_config.iscsi_first_burst_len *
+				      BYTE_UNITS);
+			break;
+		case ISCSI_IFACE_PARAM_MAX_R2T:
+			len = sprintf(buf, "%d\n",
+				      ha->ip_config.iscsi_max_outstnd_r2t);
+			break;
+		case ISCSI_IFACE_PARAM_MAX_BURST:
+			len = sprintf(buf, "%u\n",
+				      ha->ip_config.iscsi_max_burst_len *
+				      BYTE_UNITS);
+			break;
+		case ISCSI_IFACE_PARAM_CHAP_AUTH_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_CHAP_AUTH_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_BIDI_CHAP_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_BIDI_CHAP_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_DISCOVERY_AUTH_OPTIONAL:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_DISCOVERY_AUTH_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_DISCOVERY_LOGOUT_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_DISCOVERY_LOGOUT_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_STRICT_LOGIN_COMP_EN:
+			OP_STATE(ha->ip_config.iscsi_options,
+				 ISCSIOPTS_STRICT_LOGIN_COMP_EN, pval);
+
+			len = sprintf(buf, "%s\n", pval);
+			break;
+		case ISCSI_IFACE_PARAM_INITIATOR_NAME:
+			len = sprintf(buf, "%s\n", ha->ip_config.iscsi_name);
+			break;
+		default:
+			len = -ENOSYS;
+		}
 	}
 
 	return len;
@@ -1169,8 +2025,8 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 				cpu_to_le16(
 				  IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE);
 		else
-			ql4_printk(KERN_ERR, ha, "Invalid autocfg setting for "
-				   "IPv6 addr\n");
+			ql4_printk(KERN_ERR, ha,
+				   "Invalid autocfg setting for IPv6 addr\n");
 		break;
 	case ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG:
 		/* Autocfg applies to even interface */
@@ -1186,8 +2042,8 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 			init_fw_cb->ipv6_addtl_opts &= cpu_to_le16(
 				       ~IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR);
 		else
-			ql4_printk(KERN_ERR, ha, "Invalid autocfg setting for "
-				   "IPv6 linklocal addr\n");
+			ql4_printk(KERN_ERR, ha,
+				   "Invalid autocfg setting for IPv6 linklocal addr\n");
 		break;
 	case ISCSI_NET_PARAM_IPV6_ROUTER_AUTOCFG:
 		/* Autocfg applies to even interface */
@@ -1235,6 +2091,135 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 
 		init_fw_cb->ipv6_port =
 				cpu_to_le16(*(uint16_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_DELAYED_ACK_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_DISABLE)
+			init_fw_cb->ipv6_tcp_opts |=
+				cpu_to_le16(IPV6_TCPOPT_DELAYED_ACK_DISABLE);
+		else
+			init_fw_cb->ipv6_tcp_opts &=
+				cpu_to_le16(~IPV6_TCPOPT_DELAYED_ACK_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_TCP_NAGLE_DISABLE:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_DISABLE)
+			init_fw_cb->ipv6_tcp_opts |=
+				cpu_to_le16(IPV6_TCPOPT_NAGLE_ALGO_DISABLE);
+		else
+			init_fw_cb->ipv6_tcp_opts &=
+				cpu_to_le16(~IPV6_TCPOPT_NAGLE_ALGO_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_TCP_WSF_DISABLE:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_DISABLE)
+			init_fw_cb->ipv6_tcp_opts |=
+				cpu_to_le16(IPV6_TCPOPT_WINDOW_SCALE_DISABLE);
+		else
+			init_fw_cb->ipv6_tcp_opts &=
+				cpu_to_le16(~IPV6_TCPOPT_WINDOW_SCALE_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_TCP_WSF:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_tcp_wsf = iface_param->value[0];
+		break;
+	case ISCSI_NET_PARAM_TCP_TIMER_SCALE:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_tcp_opts &=
+					cpu_to_le16(~IPV6_TCPOPT_TIMER_SCALE);
+		init_fw_cb->ipv6_tcp_opts |=
+				cpu_to_le16((iface_param->value[0] << 1) &
+					    IPV6_TCPOPT_TIMER_SCALE);
+		break;
+	case ISCSI_NET_PARAM_TCP_TIMESTAMP_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv6_tcp_opts |=
+				cpu_to_le16(IPV6_TCPOPT_TIMESTAMP_EN);
+		else
+			init_fw_cb->ipv6_tcp_opts &=
+				cpu_to_le16(~IPV6_TCPOPT_TIMESTAMP_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV6_GRAT_NEIGHBOR_ADV_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv6_opts |=
+				cpu_to_le16(IPV6_OPT_GRAT_NEIGHBOR_ADV_EN);
+		else
+			init_fw_cb->ipv6_opts &=
+				cpu_to_le16(~IPV6_OPT_GRAT_NEIGHBOR_ADV_EN);
+		break;
+	case ISCSI_NET_PARAM_REDIRECT_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv6_opts |=
+				cpu_to_le16(IPV6_OPT_REDIRECT_EN);
+		else
+			init_fw_cb->ipv6_opts &=
+				cpu_to_le16(~IPV6_OPT_REDIRECT_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV6_MLD_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv6_addtl_opts |=
+				cpu_to_le16(IPV6_ADDOPT_MLD_EN);
+		else
+			init_fw_cb->ipv6_addtl_opts &=
+				cpu_to_le16(~IPV6_ADDOPT_MLD_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV6_FLOW_LABEL:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_flow_lbl =
+				cpu_to_le16(*(uint16_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_IPV6_TRAFFIC_CLASS:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_traffic_class = iface_param->value[0];
+		break;
+	case ISCSI_NET_PARAM_IPV6_HOP_LIMIT:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_hop_limit = iface_param->value[0];
+		break;
+	case ISCSI_NET_PARAM_IPV6_ND_REACHABLE_TMO:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_nd_reach_time =
+				cpu_to_le32(*(uint32_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_IPV6_ND_REXMIT_TIME:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_nd_rexmit_timer =
+				cpu_to_le32(*(uint32_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_IPV6_ND_STALE_TMO:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_nd_stale_timeout =
+				cpu_to_le32(*(uint32_t *)iface_param->value);
+		break;
+	case ISCSI_NET_PARAM_IPV6_DUP_ADDR_DETECT_CNT:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_dup_addr_detect_count = iface_param->value[0];
+		break;
+	case ISCSI_NET_PARAM_IPV6_RTR_ADV_LINK_MTU:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv6_gw_advrt_mtu =
+				cpu_to_le32(*(uint32_t *)iface_param->value);
 		break;
 	default:
 		ql4_printk(KERN_ERR, ha, "Unknown IPv6 param = %d\n",
@@ -1304,8 +2289,359 @@ static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
 		init_fw_cb->ipv4_port =
 				cpu_to_le16(*(uint16_t *)iface_param->value);
 		break;
+	case ISCSI_NET_PARAM_DELAYED_ACK_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_DISABLE)
+			init_fw_cb->ipv4_tcp_opts |=
+				cpu_to_le16(TCPOPT_DELAYED_ACK_DISABLE);
+		else
+			init_fw_cb->ipv4_tcp_opts &=
+				cpu_to_le16(~TCPOPT_DELAYED_ACK_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_TCP_NAGLE_DISABLE:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_DISABLE)
+			init_fw_cb->ipv4_tcp_opts |=
+				cpu_to_le16(TCPOPT_NAGLE_ALGO_DISABLE);
+		else
+			init_fw_cb->ipv4_tcp_opts &=
+				cpu_to_le16(~TCPOPT_NAGLE_ALGO_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_TCP_WSF_DISABLE:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_DISABLE)
+			init_fw_cb->ipv4_tcp_opts |=
+				cpu_to_le16(TCPOPT_WINDOW_SCALE_DISABLE);
+		else
+			init_fw_cb->ipv4_tcp_opts &=
+				cpu_to_le16(~TCPOPT_WINDOW_SCALE_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_TCP_WSF:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv4_tcp_wsf = iface_param->value[0];
+		break;
+	case ISCSI_NET_PARAM_TCP_TIMER_SCALE:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv4_tcp_opts &= cpu_to_le16(~TCPOPT_TIMER_SCALE);
+		init_fw_cb->ipv4_tcp_opts |=
+				cpu_to_le16((iface_param->value[0] << 1) &
+					    TCPOPT_TIMER_SCALE);
+		break;
+	case ISCSI_NET_PARAM_TCP_TIMESTAMP_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_tcp_opts |=
+				cpu_to_le16(TCPOPT_TIMESTAMP_ENABLE);
+		else
+			init_fw_cb->ipv4_tcp_opts &=
+				cpu_to_le16(~TCPOPT_TIMESTAMP_ENABLE);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_DNS_ADDR_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_tcp_opts |=
+				cpu_to_le16(TCPOPT_DNS_SERVER_IP_EN);
+		else
+			init_fw_cb->ipv4_tcp_opts &=
+				cpu_to_le16(~TCPOPT_DNS_SERVER_IP_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_SLP_DA_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_tcp_opts |=
+				cpu_to_le16(TCPOPT_SLP_DA_INFO_EN);
+		else
+			init_fw_cb->ipv4_tcp_opts &=
+				cpu_to_le16(~TCPOPT_SLP_DA_INFO_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_TOS_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+				cpu_to_le16(IPOPT_IPV4_TOS_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+				cpu_to_le16(~IPOPT_IPV4_TOS_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_TOS:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv4_tos = iface_param->value[0];
+		break;
+	case ISCSI_NET_PARAM_IPV4_GRAT_ARP_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+					cpu_to_le16(IPOPT_GRAT_ARP_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+					cpu_to_le16(~IPOPT_GRAT_ARP_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+				cpu_to_le16(IPOPT_ALT_CID_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+				cpu_to_le16(~IPOPT_ALT_CID_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_ALT_CLIENT_ID:
+		if (iface_param->iface_num & 0x1)
+			break;
+		memcpy(init_fw_cb->ipv4_dhcp_alt_cid, iface_param->value,
+		       (sizeof(init_fw_cb->ipv4_dhcp_alt_cid) - 1));
+		init_fw_cb->ipv4_dhcp_alt_cid_len =
+					strlen(init_fw_cb->ipv4_dhcp_alt_cid);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_REQ_VENDOR_ID_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+					cpu_to_le16(IPOPT_REQ_VID_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+					cpu_to_le16(~IPOPT_REQ_VID_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_USE_VENDOR_ID_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+					cpu_to_le16(IPOPT_USE_VID_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+					cpu_to_le16(~IPOPT_USE_VID_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_VENDOR_ID:
+		if (iface_param->iface_num & 0x1)
+			break;
+		memcpy(init_fw_cb->ipv4_dhcp_vid, iface_param->value,
+		       (sizeof(init_fw_cb->ipv4_dhcp_vid) - 1));
+		init_fw_cb->ipv4_dhcp_vid_len =
+					strlen(init_fw_cb->ipv4_dhcp_vid);
+		break;
+	case ISCSI_NET_PARAM_IPV4_DHCP_LEARN_IQN_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+					cpu_to_le16(IPOPT_LEARN_IQN_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+					cpu_to_le16(~IPOPT_LEARN_IQN_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_FRAGMENT_DISABLE:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_DISABLE)
+			init_fw_cb->ipv4_ip_opts |=
+				cpu_to_le16(IPOPT_FRAGMENTATION_DISABLE);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+				cpu_to_le16(~IPOPT_FRAGMENTATION_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_IPV4_IN_FORWARD_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+				cpu_to_le16(IPOPT_IN_FORWARD_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+				cpu_to_le16(~IPOPT_IN_FORWARD_EN);
+		break;
+	case ISCSI_NET_PARAM_REDIRECT_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+				cpu_to_le16(IPOPT_ARP_REDIRECT_EN);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+				cpu_to_le16(~IPOPT_ARP_REDIRECT_EN);
+		break;
+	case ISCSI_NET_PARAM_IPV4_TTL:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->ipv4_ttl = iface_param->value[0];
+		break;
 	default:
 		ql4_printk(KERN_ERR, ha, "Unknown IPv4 param = %d\n",
+			   iface_param->param);
+		break;
+	}
+}
+
+static void qla4xxx_set_iscsi_param(struct scsi_qla_host *ha,
+				    struct iscsi_iface_param_info *iface_param,
+				    struct addr_ctrl_blk *init_fw_cb)
+{
+	switch (iface_param->param) {
+	case ISCSI_IFACE_PARAM_DEF_TASKMGMT_TMO:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->def_timeout =
+				cpu_to_le16(*(uint16_t *)iface_param->value);
+		break;
+	case ISCSI_IFACE_PARAM_HDRDGST_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_HEADER_DIGEST_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_HEADER_DIGEST_EN);
+		break;
+	case ISCSI_IFACE_PARAM_DATADGST_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_DATA_DIGEST_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_DATA_DIGEST_EN);
+		break;
+	case ISCSI_IFACE_PARAM_IMM_DATA_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_IMMEDIATE_DATA_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_IMMEDIATE_DATA_EN);
+		break;
+	case ISCSI_IFACE_PARAM_INITIAL_R2T_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_INITIAL_R2T_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_INITIAL_R2T_EN);
+		break;
+	case ISCSI_IFACE_PARAM_DATASEQ_INORDER_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_DATA_SEQ_INORDER_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_DATA_SEQ_INORDER_EN);
+		break;
+	case ISCSI_IFACE_PARAM_PDU_INORDER_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_DATA_PDU_INORDER_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_DATA_PDU_INORDER_EN);
+		break;
+	case ISCSI_IFACE_PARAM_ERL:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->iscsi_opts &= cpu_to_le16(~ISCSIOPTS_ERL);
+		init_fw_cb->iscsi_opts |= cpu_to_le16(iface_param->value[0] &
+						      ISCSIOPTS_ERL);
+		break;
+	case ISCSI_IFACE_PARAM_MAX_RECV_DLENGTH:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->iscsi_max_pdu_size =
+				cpu_to_le32(*(uint32_t *)iface_param->value) /
+				BYTE_UNITS;
+		break;
+	case ISCSI_IFACE_PARAM_FIRST_BURST:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->iscsi_fburst_len =
+				cpu_to_le32(*(uint32_t *)iface_param->value) /
+				BYTE_UNITS;
+		break;
+	case ISCSI_IFACE_PARAM_MAX_R2T:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->iscsi_max_outstnd_r2t =
+				cpu_to_le16(*(uint16_t *)iface_param->value);
+		break;
+	case ISCSI_IFACE_PARAM_MAX_BURST:
+		if (iface_param->iface_num & 0x1)
+			break;
+		init_fw_cb->iscsi_max_burst_len =
+				cpu_to_le32(*(uint32_t *)iface_param->value) /
+				BYTE_UNITS;
+		break;
+	case ISCSI_IFACE_PARAM_CHAP_AUTH_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_CHAP_AUTH_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_CHAP_AUTH_EN);
+		break;
+	case ISCSI_IFACE_PARAM_BIDI_CHAP_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_BIDI_CHAP_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_BIDI_CHAP_EN);
+		break;
+	case ISCSI_IFACE_PARAM_DISCOVERY_AUTH_OPTIONAL:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_DISCOVERY_AUTH_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_DISCOVERY_AUTH_EN);
+		break;
+	case ISCSI_IFACE_PARAM_DISCOVERY_LOGOUT_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_DISCOVERY_LOGOUT_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_DISCOVERY_LOGOUT_EN);
+		break;
+	case ISCSI_IFACE_PARAM_STRICT_LOGIN_COMP_EN:
+		if (iface_param->iface_num & 0x1)
+			break;
+		if (iface_param->value[0] == ISCSI_NET_PARAM_ENABLE)
+			init_fw_cb->iscsi_opts |=
+				cpu_to_le16(ISCSIOPTS_STRICT_LOGIN_COMP_EN);
+		else
+			init_fw_cb->iscsi_opts &=
+				cpu_to_le16(~ISCSIOPTS_STRICT_LOGIN_COMP_EN);
+		break;
+	default:
+		ql4_printk(KERN_ERR, ha, "Unknown iscsi param = %d\n",
 			   iface_param->param);
 		break;
 	}
@@ -1368,40 +2704,47 @@ qla4xxx_iface_set_param(struct Scsi_Host *shost, void *data, uint32_t len)
 	nla_for_each_attr(attr, data, len, rem) {
 		iface_param = nla_data(attr);
 
-		if (iface_param->param_type != ISCSI_NET_PARAM)
-			continue;
-
-		switch (iface_param->iface_type) {
-		case ISCSI_IFACE_TYPE_IPV4:
-			switch (iface_param->iface_num) {
-			case 0:
-				qla4xxx_set_ipv4(ha, iface_param, init_fw_cb);
-				break;
-			default:
+		if (iface_param->param_type == ISCSI_NET_PARAM) {
+			switch (iface_param->iface_type) {
+			case ISCSI_IFACE_TYPE_IPV4:
+				switch (iface_param->iface_num) {
+				case 0:
+					qla4xxx_set_ipv4(ha, iface_param,
+							 init_fw_cb);
+					break;
+				default:
 				/* Cannot have more than one IPv4 interface */
-				ql4_printk(KERN_ERR, ha, "Invalid IPv4 iface "
-					   "number = %d\n",
-					   iface_param->iface_num);
+					ql4_printk(KERN_ERR, ha,
+						   "Invalid IPv4 iface number = %d\n",
+						   iface_param->iface_num);
+					break;
+				}
 				break;
-			}
-			break;
-		case ISCSI_IFACE_TYPE_IPV6:
-			switch (iface_param->iface_num) {
-			case 0:
-			case 1:
-				qla4xxx_set_ipv6(ha, iface_param, init_fw_cb);
+			case ISCSI_IFACE_TYPE_IPV6:
+				switch (iface_param->iface_num) {
+				case 0:
+				case 1:
+					qla4xxx_set_ipv6(ha, iface_param,
+							 init_fw_cb);
+					break;
+				default:
+				/* Cannot have more than two IPv6 interface */
+					ql4_printk(KERN_ERR, ha,
+						   "Invalid IPv6 iface number = %d\n",
+						   iface_param->iface_num);
+					break;
+				}
 				break;
 			default:
-				/* Cannot have more than two IPv6 interface */
-				ql4_printk(KERN_ERR, ha, "Invalid IPv6 iface "
-					   "number = %d\n",
-					   iface_param->iface_num);
+				ql4_printk(KERN_ERR, ha,
+					   "Invalid iface type\n");
 				break;
 			}
-			break;
-		default:
-			ql4_printk(KERN_ERR, ha, "Invalid iface type\n");
-			break;
+		} else if (iface_param->param_type == ISCSI_IFACE_PARAM) {
+				qla4xxx_set_iscsi_param(ha, iface_param,
+							init_fw_cb);
+		} else {
+			continue;
 		}
 	}
 
@@ -1455,9 +2798,12 @@ static int qla4xxx_session_get_param(struct iscsi_cls_session *cls_sess,
 	struct iscsi_session *sess = cls_sess->dd_data;
 	struct ddb_entry *ddb_entry = sess->dd_data;
 	struct scsi_qla_host *ha = ddb_entry->ha;
+	struct iscsi_cls_conn *cls_conn = ddb_entry->conn;
+	struct ql4_chap_table chap_tbl;
 	int rval, len;
 	uint16_t idx;
 
+	memset(&chap_tbl, 0, sizeof(chap_tbl));
 	switch (param) {
 	case ISCSI_PARAM_CHAP_IN_IDX:
 		rval = qla4xxx_get_chap_index(ha, sess->username_in,
@@ -1469,14 +2815,46 @@ static int qla4xxx_session_get_param(struct iscsi_cls_session *cls_sess,
 			len = sprintf(buf, "%hu\n", idx);
 		break;
 	case ISCSI_PARAM_CHAP_OUT_IDX:
-		rval = qla4xxx_get_chap_index(ha, sess->username,
-					      sess->password, LOCAL_CHAP,
-					      &idx);
+		if (ddb_entry->ddb_type == FLASH_DDB) {
+			if (ddb_entry->chap_tbl_idx != INVALID_ENTRY) {
+				idx = ddb_entry->chap_tbl_idx;
+				rval = QLA_SUCCESS;
+			} else {
+				rval = QLA_ERROR;
+			}
+		} else {
+			rval = qla4xxx_get_chap_index(ha, sess->username,
+						      sess->password,
+						      LOCAL_CHAP, &idx);
+		}
 		if (rval)
 			len = sprintf(buf, "\n");
 		else
 			len = sprintf(buf, "%hu\n", idx);
 		break;
+	case ISCSI_PARAM_USERNAME:
+	case ISCSI_PARAM_PASSWORD:
+		/* First, populate session username and password for FLASH DDB,
+		 * if not already done. This happens when session login fails
+		 * for a FLASH DDB.
+		 */
+		if (ddb_entry->ddb_type == FLASH_DDB &&
+		    ddb_entry->chap_tbl_idx != INVALID_ENTRY &&
+		    !sess->username && !sess->password) {
+			idx = ddb_entry->chap_tbl_idx;
+			rval = qla4xxx_get_uni_chap_at_index(ha, chap_tbl.name,
+							    chap_tbl.secret,
+							    idx);
+			if (!rval) {
+				iscsi_set_param(cls_conn, ISCSI_PARAM_USERNAME,
+						(char *)chap_tbl.name,
+						strlen((char *)chap_tbl.name));
+				iscsi_set_param(cls_conn, ISCSI_PARAM_PASSWORD,
+						(char *)chap_tbl.secret,
+						chap_tbl.secret_len);
+			}
+		}
+		/* allow fall-through */
 	default:
 		return iscsi_session_get_param(cls_sess, param, buf);
 	}
@@ -2306,6 +3684,7 @@ static void qla4xxx_copy_to_sess_conn_params(struct iscsi_conn *conn,
 	unsigned long options = 0;
 	uint16_t ddb_link;
 	uint16_t disc_parent;
+	char ip_addr[DDB_IPADDR_LEN];
 
 	options = le16_to_cpu(fw_ddb_entry->options);
 	conn->is_fw_assigned_ipv6 = test_bit(OPT_IS_FW_ASSIGNED_IPV6, &options);
@@ -2373,11 +3752,6 @@ static void qla4xxx_copy_to_sess_conn_params(struct iscsi_conn *conn,
 	COPY_ISID(sess->isid, fw_ddb_entry->isid);
 
 	ddb_link = le16_to_cpu(fw_ddb_entry->ddb_link);
-	if (ddb_link < MAX_DDB_ENTRIES)
-		sess->discovery_parent_idx = ddb_link;
-	else
-		sess->discovery_parent_idx = DDB_NO_LINK;
-
 	if (ddb_link == DDB_ISNS)
 		disc_parent = ISCSI_DISC_PARENT_ISNS;
 	else if (ddb_link == DDB_NO_LINK)
@@ -2392,6 +3766,14 @@ static void qla4xxx_copy_to_sess_conn_params(struct iscsi_conn *conn,
 
 	iscsi_set_param(conn->cls_conn, ISCSI_PARAM_TARGET_ALIAS,
 			(char *)fw_ddb_entry->iscsi_alias, 0);
+
+	options = le16_to_cpu(fw_ddb_entry->options);
+	if (options & DDB_OPT_IPV6_DEVICE) {
+		memset(ip_addr, 0, sizeof(ip_addr));
+		sprintf(ip_addr, "%pI6", fw_ddb_entry->link_local_ipv6_addr);
+		iscsi_set_param(conn->cls_conn, ISCSI_PARAM_LOCAL_IPADDR,
+				(char *)ip_addr, 0);
+	}
 }
 
 static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
@@ -2402,6 +3784,7 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 	int buflen = 0;
 	struct iscsi_session *sess;
 	struct ddb_entry *ddb_entry;
+	struct ql4_chap_table chap_tbl;
 	struct iscsi_conn *conn;
 	char ip_addr[DDB_IPADDR_LEN];
 	uint16_t options = 0;
@@ -2409,6 +3792,7 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 	sess = cls_sess->dd_data;
 	ddb_entry = sess->dd_data;
 	conn = cls_conn->dd_data;
+	memset(&chap_tbl, 0, sizeof(chap_tbl));
 
 	ddb_entry->chap_tbl_idx = le16_to_cpu(fw_ddb_entry->chap_tbl_idx);
 
@@ -2435,6 +3819,19 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 			(char *)fw_ddb_entry->iscsi_name, buflen);
 	iscsi_set_param(cls_conn, ISCSI_PARAM_INITIATOR_NAME,
 			(char *)ha->name_string, buflen);
+
+	if (ddb_entry->chap_tbl_idx != INVALID_ENTRY) {
+		if (!qla4xxx_get_uni_chap_at_index(ha, chap_tbl.name,
+						   chap_tbl.secret,
+						   ddb_entry->chap_tbl_idx)) {
+			iscsi_set_param(cls_conn, ISCSI_PARAM_USERNAME,
+					(char *)chap_tbl.name,
+					strlen((char *)chap_tbl.name));
+			iscsi_set_param(cls_conn, ISCSI_PARAM_PASSWORD,
+					(char *)chap_tbl.secret,
+					chap_tbl.secret_len);
+		}
+	}
 }
 
 void qla4xxx_update_session_conn_fwddb_param(struct scsi_qla_host *ha,
@@ -4788,64 +6185,6 @@ kset_free:
 }
 
 
-/**
- * qla4xxx_create chap_list - Create CHAP list from FLASH
- * @ha: pointer to adapter structure
- *
- * Read flash and make a list of CHAP entries, during login when a CHAP entry
- * is received, it will be checked in this list. If entry exist then the CHAP
- * entry index is set in the DDB. If CHAP entry does not exist in this list
- * then a new entry is added in FLASH in CHAP table and the index obtained is
- * used in the DDB.
- **/
-static void qla4xxx_create_chap_list(struct scsi_qla_host *ha)
-{
-	int rval = 0;
-	uint8_t *chap_flash_data = NULL;
-	uint32_t offset;
-	dma_addr_t chap_dma;
-	uint32_t chap_size = 0;
-
-	if (is_qla40XX(ha))
-		chap_size = MAX_CHAP_ENTRIES_40XX  *
-					sizeof(struct ql4_chap_table);
-	else	/* Single region contains CHAP info for both
-		 * ports which is divided into half for each port.
-		 */
-		chap_size = ha->hw.flt_chap_size / 2;
-
-	chap_flash_data = dma_alloc_coherent(&ha->pdev->dev, chap_size,
-					  &chap_dma, GFP_KERNEL);
-	if (!chap_flash_data) {
-		ql4_printk(KERN_ERR, ha, "No memory for chap_flash_data\n");
-		return;
-	}
-	if (is_qla40XX(ha))
-		offset = FLASH_CHAP_OFFSET;
-	else {
-		offset = FLASH_RAW_ACCESS_ADDR + (ha->hw.flt_region_chap << 2);
-		if (ha->port_num == 1)
-			offset += chap_size;
-	}
-
-	rval = qla4xxx_get_flash(ha, chap_dma, offset, chap_size);
-	if (rval != QLA_SUCCESS)
-		goto exit_chap_list;
-
-	if (ha->chap_list == NULL)
-		ha->chap_list = vmalloc(chap_size);
-	if (ha->chap_list == NULL) {
-		ql4_printk(KERN_ERR, ha, "No memory for ha->chap_list\n");
-		goto exit_chap_list;
-	}
-
-	memcpy(ha->chap_list, chap_flash_data, chap_size);
-
-exit_chap_list:
-	dma_free_coherent(&ha->pdev->dev, chap_size,
-			chap_flash_data, chap_dma);
-}
-
 static void qla4xxx_get_param_ddb(struct ddb_entry *ddb_entry,
 				  struct ql4_tuple_ddb *tddb)
 {
@@ -4937,7 +6276,8 @@ static int qla4xxx_compare_tuple_ddb(struct scsi_qla_host *ha,
 }
 
 static int qla4xxx_is_session_exists(struct scsi_qla_host *ha,
-				     struct dev_db_entry *fw_ddb_entry)
+				     struct dev_db_entry *fw_ddb_entry,
+				     uint32_t *index)
 {
 	struct ddb_entry *ddb_entry;
 	struct ql4_tuple_ddb *fw_tddb = NULL;
@@ -4971,6 +6311,8 @@ static int qla4xxx_is_session_exists(struct scsi_qla_host *ha,
 		qla4xxx_get_param_ddb(ddb_entry, tmp_tddb);
 		if (!qla4xxx_compare_tuple_ddb(ha, fw_tddb, tmp_tddb, false)) {
 			ret = QLA_SUCCESS; /* found */
+			if (index != NULL)
+				*index = idx;
 			goto exit_check;
 		}
 	}
@@ -5206,6 +6548,7 @@ static void qla4xxx_setup_flash_ddb_entry(struct scsi_qla_host *ha,
 	ddb_entry->ha = ha;
 	ddb_entry->unblock_sess = qla4xxx_unblock_flash_ddb;
 	ddb_entry->ddb_change = qla4xxx_flash_ddb_change;
+	ddb_entry->chap_tbl_idx = INVALID_ENTRY;
 
 	atomic_set(&ddb_entry->retry_relogin_timer, INVALID_ENTRY);
 	atomic_set(&ddb_entry->relogin_timer, 0);
@@ -5267,6 +6610,87 @@ static void qla4xxx_wait_for_ip_configuration(struct scsi_qla_host *ha)
 	} while (time_after(wtime, jiffies));
 }
 
+static int qla4xxx_cmp_fw_stentry(struct dev_db_entry *fw_ddb_entry,
+				  struct dev_db_entry *flash_ddb_entry)
+{
+	uint16_t options = 0;
+	size_t ip_len = IP_ADDR_LEN;
+
+	options = le16_to_cpu(fw_ddb_entry->options);
+	if (options & DDB_OPT_IPV6_DEVICE)
+		ip_len = IPv6_ADDR_LEN;
+
+	if (memcmp(fw_ddb_entry->ip_addr, flash_ddb_entry->ip_addr, ip_len))
+		return QLA_ERROR;
+
+	if (memcmp(&fw_ddb_entry->isid[0], &flash_ddb_entry->isid[0],
+		   sizeof(fw_ddb_entry->isid)))
+		return QLA_ERROR;
+
+	if (memcmp(&fw_ddb_entry->port, &flash_ddb_entry->port,
+		   sizeof(fw_ddb_entry->port)))
+		return QLA_ERROR;
+
+	return QLA_SUCCESS;
+}
+
+static int qla4xxx_find_flash_st_idx(struct scsi_qla_host *ha,
+				     struct dev_db_entry *fw_ddb_entry,
+				     uint32_t fw_idx, uint32_t *flash_index)
+{
+	struct dev_db_entry *flash_ddb_entry;
+	dma_addr_t flash_ddb_entry_dma;
+	uint32_t idx = 0;
+	int max_ddbs;
+	int ret = QLA_ERROR, status;
+
+	max_ddbs =  is_qla40XX(ha) ? MAX_DEV_DB_ENTRIES_40XX :
+				     MAX_DEV_DB_ENTRIES;
+
+	flash_ddb_entry = dma_pool_alloc(ha->fw_ddb_dma_pool, GFP_KERNEL,
+					 &flash_ddb_entry_dma);
+	if (flash_ddb_entry == NULL || fw_ddb_entry == NULL) {
+		ql4_printk(KERN_ERR, ha, "Out of memory\n");
+		goto exit_find_st_idx;
+	}
+
+	status = qla4xxx_flashdb_by_index(ha, flash_ddb_entry,
+					  flash_ddb_entry_dma, fw_idx);
+	if (status == QLA_SUCCESS) {
+		status = qla4xxx_cmp_fw_stentry(fw_ddb_entry, flash_ddb_entry);
+		if (status == QLA_SUCCESS) {
+			*flash_index = fw_idx;
+			ret = QLA_SUCCESS;
+			goto exit_find_st_idx;
+		}
+	}
+
+	for (idx = 0; idx < max_ddbs; idx++) {
+		status = qla4xxx_flashdb_by_index(ha, flash_ddb_entry,
+						  flash_ddb_entry_dma, idx);
+		if (status == QLA_ERROR)
+			continue;
+
+		status = qla4xxx_cmp_fw_stentry(fw_ddb_entry, flash_ddb_entry);
+		if (status == QLA_SUCCESS) {
+			*flash_index = idx;
+			ret = QLA_SUCCESS;
+			goto exit_find_st_idx;
+		}
+	}
+
+	if (idx == max_ddbs)
+		ql4_printk(KERN_ERR, ha, "Failed to find ST [%d] in flash\n",
+			   fw_idx);
+
+exit_find_st_idx:
+	if (flash_ddb_entry)
+		dma_pool_free(ha->fw_ddb_dma_pool, flash_ddb_entry,
+			      flash_ddb_entry_dma);
+
+	return ret;
+}
+
 static void qla4xxx_build_st_list(struct scsi_qla_host *ha,
 				  struct list_head *list_st)
 {
@@ -5278,6 +6702,7 @@ static void qla4xxx_build_st_list(struct scsi_qla_host *ha,
 	int ret;
 	uint32_t idx = 0, next_idx = 0;
 	uint32_t state = 0, conn_err = 0;
+	uint32_t flash_index = -1;
 	uint16_t conn_id = 0;
 
 	fw_ddb_entry = dma_pool_alloc(ha->fw_ddb_dma_pool, GFP_KERNEL,
@@ -5309,6 +6734,19 @@ static void qla4xxx_build_st_list(struct scsi_qla_host *ha,
 		st_ddb_idx = vzalloc(fw_idx_size);
 		if (!st_ddb_idx)
 			break;
+
+		ret = qla4xxx_find_flash_st_idx(ha, fw_ddb_entry, idx,
+						&flash_index);
+		if (ret == QLA_ERROR) {
+			ql4_printk(KERN_ERR, ha,
+				   "No flash entry for ST at idx [%d]\n", idx);
+			st_ddb_idx->flash_ddb_idx = idx;
+		} else {
+			ql4_printk(KERN_INFO, ha,
+				   "ST at idx [%d] is stored at flash [%d]\n",
+				   idx, flash_index);
+			st_ddb_idx->flash_ddb_idx = flash_index;
+		}
 
 		st_ddb_idx->fw_ddb_idx = idx;
 
@@ -5352,6 +6790,28 @@ static void qla4xxx_remove_failed_ddb(struct scsi_qla_host *ha,
 			vfree(ddb_idx);
 		}
 	}
+}
+
+static void qla4xxx_update_sess_disc_idx(struct scsi_qla_host *ha,
+					 struct ddb_entry *ddb_entry,
+					 struct dev_db_entry *fw_ddb_entry)
+{
+	struct iscsi_cls_session *cls_sess;
+	struct iscsi_session *sess;
+	uint32_t max_ddbs = 0;
+	uint16_t ddb_link = -1;
+
+	max_ddbs =  is_qla40XX(ha) ? MAX_DEV_DB_ENTRIES_40XX :
+				     MAX_DEV_DB_ENTRIES;
+
+	cls_sess = ddb_entry->sess;
+	sess = cls_sess->dd_data;
+
+	ddb_link = le16_to_cpu(fw_ddb_entry->ddb_link);
+	if (ddb_link < max_ddbs)
+		sess->discovery_parent_idx = ddb_link;
+	else
+		sess->discovery_parent_idx = DDB_NO_LINK;
 }
 
 static int qla4xxx_sess_conn_setup(struct scsi_qla_host *ha,
@@ -5418,6 +6878,7 @@ static int qla4xxx_sess_conn_setup(struct scsi_qla_host *ha,
 
 	/* Update sess/conn params */
 	qla4xxx_copy_fwddb_param(ha, fw_ddb_entry, cls_sess, cls_conn);
+	qla4xxx_update_sess_disc_idx(ha, ddb_entry, fw_ddb_entry);
 
 	if (is_reset == RESET_ADAPTER) {
 		iscsi_block_session(cls_sess);
@@ -5434,17 +6895,43 @@ exit_setup:
 	return ret;
 }
 
+static void qla4xxx_update_fw_ddb_link(struct scsi_qla_host *ha,
+				       struct list_head *list_ddb,
+				       struct dev_db_entry *fw_ddb_entry)
+{
+	struct qla_ddb_index  *ddb_idx, *ddb_idx_tmp;
+	uint16_t ddb_link;
+
+	ddb_link = le16_to_cpu(fw_ddb_entry->ddb_link);
+
+	list_for_each_entry_safe(ddb_idx, ddb_idx_tmp, list_ddb, list) {
+		if (ddb_idx->fw_ddb_idx == ddb_link) {
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "Updating NT parent idx from [%d] to [%d]\n",
+					  ddb_link, ddb_idx->flash_ddb_idx));
+			fw_ddb_entry->ddb_link =
+					    cpu_to_le16(ddb_idx->flash_ddb_idx);
+			return;
+		}
+	}
+}
+
 static void qla4xxx_build_nt_list(struct scsi_qla_host *ha,
-				  struct list_head *list_nt, int is_reset)
+				  struct list_head *list_nt,
+				  struct list_head *list_st,
+				  int is_reset)
 {
 	struct dev_db_entry *fw_ddb_entry;
+	struct ddb_entry *ddb_entry = NULL;
 	dma_addr_t fw_ddb_dma;
 	int max_ddbs;
 	int fw_idx_size;
 	int ret;
 	uint32_t idx = 0, next_idx = 0;
 	uint32_t state = 0, conn_err = 0;
+	uint32_t ddb_idx = -1;
 	uint16_t conn_id = 0;
+	uint16_t ddb_link = -1;
 	struct qla_ddb_index  *nt_ddb_idx;
 
 	fw_ddb_entry = dma_pool_alloc(ha->fw_ddb_dma_pool, GFP_KERNEL,
@@ -5471,12 +6958,18 @@ static void qla4xxx_build_nt_list(struct scsi_qla_host *ha,
 		if (strlen((char *) fw_ddb_entry->iscsi_name) == 0)
 			goto continue_next_nt;
 
+		ddb_link = le16_to_cpu(fw_ddb_entry->ddb_link);
+		if (ddb_link < max_ddbs)
+			qla4xxx_update_fw_ddb_link(ha, list_st, fw_ddb_entry);
+
 		if (!(state == DDB_DS_NO_CONNECTION_ACTIVE ||
-		    state == DDB_DS_SESSION_FAILED))
+		    state == DDB_DS_SESSION_FAILED) &&
+		    (is_reset == INIT_ADAPTER))
 			goto continue_next_nt;
 
 		DEBUG2(ql4_printk(KERN_INFO, ha,
 				  "Adding  DDB to session = 0x%x\n", idx));
+
 		if (is_reset == INIT_ADAPTER) {
 			nt_ddb_idx = vmalloc(fw_idx_size);
 			if (!nt_ddb_idx)
@@ -5506,9 +6999,17 @@ static void qla4xxx_build_nt_list(struct scsi_qla_host *ha,
 
 			list_add_tail(&nt_ddb_idx->list, list_nt);
 		} else if (is_reset == RESET_ADAPTER) {
-			if (qla4xxx_is_session_exists(ha, fw_ddb_entry) ==
-								QLA_SUCCESS)
+			ret = qla4xxx_is_session_exists(ha, fw_ddb_entry,
+							&ddb_idx);
+			if (ret == QLA_SUCCESS) {
+				ddb_entry = qla4xxx_lookup_ddb_by_fw_index(ha,
+								       ddb_idx);
+				if (ddb_entry != NULL)
+					qla4xxx_update_sess_disc_idx(ha,
+								     ddb_entry,
+								  fw_ddb_entry);
 				goto continue_next_nt;
+			}
 		}
 
 		ret = qla4xxx_sess_conn_setup(ha, fw_ddb_entry, is_reset, idx);
@@ -5526,7 +7027,8 @@ exit_nt_list:
 }
 
 static void qla4xxx_build_new_nt_list(struct scsi_qla_host *ha,
-				      struct list_head *list_nt)
+				      struct list_head *list_nt,
+				      uint16_t target_id)
 {
 	struct dev_db_entry *fw_ddb_entry;
 	dma_addr_t fw_ddb_dma;
@@ -5571,12 +7073,15 @@ static void qla4xxx_build_new_nt_list(struct scsi_qla_host *ha,
 
 		nt_ddb_idx->fw_ddb_idx = idx;
 
-		ret = qla4xxx_is_session_exists(ha, fw_ddb_entry);
+		ret = qla4xxx_is_session_exists(ha, fw_ddb_entry, NULL);
 		if (ret == QLA_SUCCESS) {
 			/* free nt_ddb_idx and do not add to list_nt */
 			vfree(nt_ddb_idx);
 			goto continue_next_new_nt;
 		}
+
+		if (target_id < max_ddbs)
+			fw_ddb_entry->ddb_link = cpu_to_le16(target_id);
 
 		list_add_tail(&nt_ddb_idx->list, list_nt);
 
@@ -5894,7 +7399,8 @@ exit_ddb_conn_open:
 }
 
 static int qla4xxx_ddb_login_st(struct scsi_qla_host *ha,
-				struct dev_db_entry *fw_ddb_entry)
+				struct dev_db_entry *fw_ddb_entry,
+				uint16_t target_id)
 {
 	struct qla_ddb_index *ddb_idx, *ddb_idx_tmp;
 	struct list_head list_nt;
@@ -5919,7 +7425,7 @@ static int qla4xxx_ddb_login_st(struct scsi_qla_host *ha,
 	if (ret == QLA_ERROR)
 		goto exit_login_st;
 
-	qla4xxx_build_new_nt_list(ha, &list_nt);
+	qla4xxx_build_new_nt_list(ha, &list_nt, target_id);
 
 	list_for_each_entry_safe(ddb_idx, ddb_idx_tmp, &list_nt, list) {
 		list_del_init(&ddb_idx->list);
@@ -5946,7 +7452,7 @@ static int qla4xxx_ddb_login_nt(struct scsi_qla_host *ha,
 {
 	int ret = QLA_ERROR;
 
-	ret = qla4xxx_is_session_exists(ha, fw_ddb_entry);
+	ret = qla4xxx_is_session_exists(ha, fw_ddb_entry, NULL);
 	if (ret != QLA_SUCCESS)
 		ret = qla4xxx_sess_conn_setup(ha, fw_ddb_entry, RESET_ADAPTER,
 					      idx);
@@ -6001,7 +7507,8 @@ static int qla4xxx_sysfs_ddb_login(struct iscsi_bus_flash_session *fnode_sess,
 	fw_ddb_entry->cookie = DDB_VALID_COOKIE;
 
 	if (strlen((char *)fw_ddb_entry->iscsi_name) == 0)
-		ret = qla4xxx_ddb_login_st(ha, fw_ddb_entry);
+		ret = qla4xxx_ddb_login_st(ha, fw_ddb_entry,
+					   fnode_sess->target_id);
 	else
 		ret = qla4xxx_ddb_login_nt(ha, fw_ddb_entry,
 					   fnode_sess->target_id);
@@ -6522,10 +8029,13 @@ qla4xxx_sysfs_ddb_set_param(struct iscsi_bus_flash_session *fnode_sess,
 	struct Scsi_Host *shost = iscsi_flash_session_to_shost(fnode_sess);
 	struct scsi_qla_host *ha = to_qla_host(shost);
 	struct iscsi_flashnode_param_info *fnode_param;
+	struct ql4_chap_table chap_tbl;
 	struct nlattr *attr;
+	uint16_t chap_out_idx = INVALID_ENTRY;
 	int rc = QLA_ERROR;
 	uint32_t rem = len;
 
+	memset((void *)&chap_tbl, 0, sizeof(chap_tbl));
 	nla_for_each_attr(attr, data, len, rem) {
 		fnode_param = nla_data(attr);
 
@@ -6567,6 +8077,10 @@ qla4xxx_sysfs_ddb_set_param(struct iscsi_bus_flash_session *fnode_sess,
 			break;
 		case ISCSI_FLASHNODE_CHAP_AUTH_EN:
 			fnode_sess->chap_auth_en = fnode_param->value[0];
+			/* Invalidate chap index if chap auth is disabled */
+			if (!fnode_sess->chap_auth_en)
+				fnode_sess->chap_out_idx = INVALID_ENTRY;
+
 			break;
 		case ISCSI_FLASHNODE_SNACK_REQ_EN:
 			fnode_conn->snack_req_en = fnode_param->value[0];
@@ -6704,6 +8218,17 @@ qla4xxx_sysfs_ddb_set_param(struct iscsi_bus_flash_session *fnode_sess,
 		case ISCSI_FLASHNODE_EXP_STATSN:
 			fnode_conn->exp_statsn =
 						*(uint32_t *)fnode_param->value;
+			break;
+		case ISCSI_FLASHNODE_CHAP_OUT_IDX:
+			chap_out_idx = *(uint16_t *)fnode_param->value;
+			if (!qla4xxx_get_uni_chap_at_index(ha,
+							   chap_tbl.name,
+							   chap_tbl.secret,
+							   chap_out_idx)) {
+				fnode_sess->chap_out_idx = chap_out_idx;
+				/* Enable chap auth if chap index is valid */
+				fnode_sess->chap_auth_en = QL4_PARAM_ENABLE;
+			}
 			break;
 		default:
 			ql4_printk(KERN_ERR, ha,
@@ -6926,11 +8451,10 @@ void qla4xxx_build_ddb_list(struct scsi_qla_host *ha, int is_reset)
 		schedule_timeout_uninterruptible(HZ / 10);
 	} while (time_after(wtime, jiffies));
 
-	/* Free up the sendtargets list */
+
+	qla4xxx_build_nt_list(ha, &list_nt, &list_st, is_reset);
+
 	qla4xxx_free_ddb_list(&list_st);
-
-	qla4xxx_build_nt_list(ha, &list_nt, is_reset);
-
 	qla4xxx_free_ddb_list(&list_nt);
 
 	qla4xxx_free_ddb_index(ha);
@@ -7093,6 +8617,9 @@ static int qla4xxx_probe_adapter(struct pci_dev *pdev,
 	mutex_init(&ha->mbox_sem);
 	mutex_init(&ha->chap_sem);
 	init_completion(&ha->mbx_intr_comp);
+	init_completion(&ha->disable_acb_comp);
+	init_completion(&ha->idc_comp);
+	init_completion(&ha->link_up_comp);
 	init_completion(&ha->disable_acb_comp);
 
 	spin_lock_init(&ha->hardware_lock);
@@ -7400,7 +8927,6 @@ static void qla4xxx_remove_adapter(struct pci_dev *pdev)
 
 	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /**

@@ -45,6 +45,7 @@
 #include <linux/dcbnl.h>
 #endif
 #include <linux/cpu_rmap.h>
+#include <linux/ptp_clock_kernel.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
@@ -56,8 +57,8 @@
 #include "en_port.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"2.0"
-#define DRV_RELDATE	"Dec 2011"
+#define DRV_VERSION	"2.2-1"
+#define DRV_RELDATE	"Feb 2014"
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
@@ -237,8 +238,8 @@ struct mlx4_en_tx_desc {
 struct mlx4_en_rx_alloc {
 	struct page	*page;
 	dma_addr_t	dma;
-	u32		offset;
-	u32		size;
+	u32		page_offset;
+	u32		page_size;
 };
 
 struct mlx4_en_tx_ring {
@@ -255,6 +256,8 @@ struct mlx4_en_tx_ring {
 	u16 poll_cnt;
 	struct mlx4_en_tx_info *tx_info;
 	u8 *bounce_buf;
+	u8 queue_index;
+	cpumask_t affinity_mask;
 	u32 last_nr_txbb;
 	struct mlx4_qp qp;
 	struct mlx4_qp_context context;
@@ -373,10 +376,14 @@ struct mlx4_en_dev {
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
 	u8			mac_removed[MLX4_MAX_PORTS + 1];
+	rwlock_t		clock_lock;
+	u32			nominal_c_mult;
 	struct cyclecounter	cycles;
 	struct timecounter	clock;
 	unsigned long		last_overflow_check;
 	unsigned long		overflow_period;
+	struct ptp_clock	*ptp_clock;
+	struct ptp_clock_info	ptp_clock_info;
 };
 
 
@@ -434,6 +441,7 @@ struct mlx4_en_mc_list {
 	enum mlx4_en_mclist_act	action;
 	u8			addr[ETH_ALEN];
 	u64			reg_id;
+	u64			tunnel_reg_id;
 };
 
 struct mlx4_en_frag_info {
@@ -530,10 +538,10 @@ struct mlx4_en_priv {
 	u16 num_frags;
 	u16 log_rx_info;
 
-	struct mlx4_en_tx_ring *tx_ring;
-	struct mlx4_en_rx_ring rx_ring[MAX_RX_RINGS];
-	struct mlx4_en_cq *tx_cq;
-	struct mlx4_en_cq rx_cq[MAX_RX_RINGS];
+	struct mlx4_en_tx_ring **tx_ring;
+	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];
+	struct mlx4_en_cq **tx_cq;
+	struct mlx4_en_cq *rx_cq[MAX_RX_RINGS];
 	struct mlx4_qp drop_qp;
 	struct work_struct rx_mode_task;
 	struct work_struct watchdog_task;
@@ -565,7 +573,7 @@ struct mlx4_en_priv {
 	struct list_head filters;
 	struct hlist_head filter_hash[1 << MLX4_EN_FILTER_HASH_SHIFT];
 #endif
-
+	u64 tunnel_reg_id;
 };
 
 enum mlx4_en_wol {
@@ -626,7 +634,7 @@ static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
 	if ((cq->state & MLX4_CQ_LOCKED)) {
 		struct net_device *dev = cq->dev;
 		struct mlx4_en_priv *priv = netdev_priv(dev);
-		struct mlx4_en_rx_ring *rx_ring = &priv->rx_ring[cq->ring];
+		struct mlx4_en_rx_ring *rx_ring = priv->rx_ring[cq->ring];
 
 		cq->state |= MLX4_EN_CQ_STATE_POLL_YIELD;
 		rc = false;
@@ -653,7 +661,7 @@ static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
 }
 
 /* true if a socket is polling, even if it did not get the lock */
-static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
 {
 	WARN_ON(!(cq->state & MLX4_CQ_LOCKED));
 	return cq->state & CQ_USER_PEND;
@@ -683,7 +691,7 @@ static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
 	return false;
 }
 
-static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
 {
 	return false;
 }
@@ -704,9 +712,9 @@ void mlx4_en_stop_port(struct net_device *dev, int detach);
 void mlx4_en_free_resources(struct mlx4_en_priv *priv);
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);
 
-int mlx4_en_create_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
-		      int entries, int ring, enum cq_type mode);
-void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
+int mlx4_en_create_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq,
+		      int entries, int ring, enum cq_type mode, int node);
+void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq);
 int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 			int cq_idx);
 void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
@@ -714,12 +722,16 @@ int mlx4_en_set_cq_moder(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
-u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb);
+u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
+			 void *accel_priv, select_queue_fallback_t fallback);
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
-int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv, struct mlx4_en_tx_ring *ring,
-			   int qpn, u32 size, u16 stride);
-void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv, struct mlx4_en_tx_ring *ring);
+int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
+			   struct mlx4_en_tx_ring **pring,
+			   int qpn, u32 size, u16 stride,
+			   int node, int queue_index);
+void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
+			     struct mlx4_en_tx_ring **pring);
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring,
 			     int cq, int user_prio);
@@ -727,10 +739,10 @@ void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring);
 
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
-			   struct mlx4_en_rx_ring *ring,
-			   u32 size, u16 stride);
+			   struct mlx4_en_rx_ring **pring,
+			   u32 size, u16 stride, int node);
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
-			     struct mlx4_en_rx_ring *ring,
+			     struct mlx4_en_rx_ring **pring,
 			     u32 size, u16 stride);
 int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv);
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
@@ -739,6 +751,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev,
 			  struct mlx4_en_cq *cq,
 			  int budget);
 int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget);
+int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget);
 void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 		int is_tx, int rss, int qpn, int cqn, int user_prio,
 		struct mlx4_qp_context *context);
@@ -768,8 +781,7 @@ extern const struct dcbnl_rtnl_ops mlx4_en_dcbnl_pfc_ops;
 int mlx4_en_setup_tc(struct net_device *dev, u8 up);
 
 #ifdef CONFIG_RFS_ACCEL
-void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv,
-			     struct mlx4_en_rx_ring *rx_ring);
+void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv);
 #endif
 
 #define MLX4_EN_NUM_SELF_TEST	5
@@ -785,6 +797,7 @@ void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
 			    struct skb_shared_hwtstamps *hwts,
 			    u64 timestamp);
 void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev);
+void mlx4_en_remove_timestamp(struct mlx4_en_dev *mdev);
 int mlx4_en_timestamp_config(struct net_device *dev,
 			     int tx_type,
 			     int rx_filter);

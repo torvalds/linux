@@ -18,8 +18,8 @@
 
 #include <linux/io.h>
 
-#include "dev.h"
-#include "syncpt.h"
+#include "../dev.h"
+#include "../syncpt.h"
 
 /*
  * Write the current syncpoint value back to hw.

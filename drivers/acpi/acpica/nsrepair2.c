@@ -478,7 +478,7 @@ acpi_ns_repair_CST(struct acpi_evaluate_info *info,
 			removing = TRUE;
 		}
 
-	      remove_element:
+remove_element:
 		if (removing) {
 			acpi_ns_remove_element(return_object, i + 1);
 			outer_element_count--;

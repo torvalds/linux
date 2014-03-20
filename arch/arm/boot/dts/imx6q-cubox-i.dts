@@ -1,0 +1,16 @@
+/*
+ * Copyright (C) 2014 Russell King
+ */
+/dts-v1/;
+
+#include "imx6q.dtsi"
+#include "imx6qdl-cubox-i.dtsi"
+
+/ {
+	model = "SolidRun Cubox-i Dual/Quad";
+	compatible = "solidrun,cubox-i/q", "fsl,imx6q";
+};
+
+&sata {
+	status = "okay";
+};

@@ -23,14 +23,15 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
-#define REVISION_MIN	0
-/*			1    nomatch flag support added */
-/*			2    /0 support added */
-#define REVISION_MAX	3 /* Counters support added */
+#define IPSET_TYPE_REV_MIN	0
+/*				1    nomatch flag support added */
+/*				2    /0 support added */
+/*				3    Counters support added */
+#define IPSET_TYPE_REV_MAX	4 /* Comments support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-IP_SET_MODULE_DESC("hash:net,iface", REVISION_MIN, REVISION_MAX);
+IP_SET_MODULE_DESC("hash:net,iface", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_hash:net,iface");
 
 /* Interface name rbtree */
@@ -45,31 +46,12 @@ struct iface_node {
 static void
 rbtree_destroy(struct rb_root *root)
 {
-	struct rb_node *p, *n = root->rb_node;
-	struct iface_node *node;
+	struct iface_node *node, *next;
 
-	/* Non-recursive destroy, like in ext3 */
-	while (n) {
-		if (n->rb_left) {
-			n = n->rb_left;
-			continue;
-		}
-		if (n->rb_right) {
-			n = n->rb_right;
-			continue;
-		}
-		p = rb_parent(n);
-		node = rb_entry(n, struct iface_node, node);
-		if (!p)
-			*root = RB_ROOT;
-		else if (p->rb_left == n)
-			p->rb_left = NULL;
-		else if (p->rb_right == n)
-			p->rb_right = NULL;
-
+	rbtree_postorder_for_each_entry_safe(node, next, root, node)
 		kfree(node);
-		n = p;
-	}
+
+	*root = RB_ROOT;
 }
 
 static int
@@ -134,7 +116,7 @@ iface_add(struct rb_root *root, const char **iface)
 
 #define STREQ(a, b)	(strcmp(a, b) == 0)
 
-/* IPv4 variants */
+/* IPv4 variant */
 
 struct hash_netiface4_elem_hashed {
 	__be32 ip;
@@ -144,7 +126,7 @@ struct hash_netiface4_elem_hashed {
 	u8 elem;
 };
 
-/* Member elements without timeout */
+/* Member elements */
 struct hash_netiface4_elem {
 	__be32 ip;
 	u8 physdev;
@@ -152,37 +134,6 @@ struct hash_netiface4_elem {
 	u8 nomatch;
 	u8 elem;
 	const char *iface;
-};
-
-struct hash_netiface4t_elem {
-	__be32 ip;
-	u8 physdev;
-	u8 cidr;
-	u8 nomatch;
-	u8 elem;
-	const char *iface;
-	unsigned long timeout;
-};
-
-struct hash_netiface4c_elem {
-	__be32 ip;
-	u8 physdev;
-	u8 cidr;
-	u8 nomatch;
-	u8 elem;
-	const char *iface;
-	struct ip_set_counter counter;
-};
-
-struct hash_netiface4ct_elem {
-	__be32 ip;
-	u8 physdev;
-	u8 cidr;
-	u8 nomatch;
-	u8 elem;
-	const char *iface;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -265,10 +216,10 @@ hash_netiface4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_netiface *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface4_elem e = {
-		.cidr = h->nets[0].cidr ? h->nets[0].cidr : HOST_MASK,
+		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK),
 		.elem = 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	int ret;
 
 	if (e.cidr == 0)
@@ -319,8 +270,8 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct hash_netiface *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface4_elem e = { .cidr = HOST_MASK, .elem = 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
-	u32 ip = 0, ip_to, last;
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
+	u32 ip = 0, ip_to = 0, last;
 	char iface[IFNAMSIZ];
 	int ret;
 
@@ -399,7 +350,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	return ret;
 }
 
-/* IPv6 variants */
+/* IPv6 variant */
 
 struct hash_netiface6_elem_hashed {
 	union nf_inet_addr ip;
@@ -416,37 +367,6 @@ struct hash_netiface6_elem {
 	u8 nomatch;
 	u8 elem;
 	const char *iface;
-};
-
-struct hash_netiface6t_elem {
-	union nf_inet_addr ip;
-	u8 physdev;
-	u8 cidr;
-	u8 nomatch;
-	u8 elem;
-	const char *iface;
-	unsigned long timeout;
-};
-
-struct hash_netiface6c_elem {
-	union nf_inet_addr ip;
-	u8 physdev;
-	u8 cidr;
-	u8 nomatch;
-	u8 elem;
-	const char *iface;
-	struct ip_set_counter counter;
-};
-
-struct hash_netiface6ct_elem {
-	union nf_inet_addr ip;
-	u8 physdev;
-	u8 cidr;
-	u8 nomatch;
-	u8 elem;
-	const char *iface;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -534,10 +454,10 @@ hash_netiface6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_netiface *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface6_elem e = {
-		.cidr = h->nets[0].cidr ? h->nets[0].cidr : HOST_MASK,
+		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK),
 		.elem = 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	int ret;
 
 	if (e.cidr == 0)
@@ -584,7 +504,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct hash_netiface *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface6_elem e = { .cidr = HOST_MASK, .elem = 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	char iface[IFNAMSIZ];
 	int ret;
 
@@ -645,8 +565,8 @@ static struct ip_set_type hash_netiface_type __read_mostly = {
 			  IPSET_TYPE_NOMATCH,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= REVISION_MIN,
-	.revision_max	= REVISION_MAX,
+	.revision_min	= IPSET_TYPE_REV_MIN,
+	.revision_max	= IPSET_TYPE_REV_MAX,
 	.create		= hash_netiface_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
@@ -668,6 +588,7 @@ static struct ip_set_type hash_netiface_type __read_mostly = {
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
+		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING },
 	},
 	.me		= THIS_MODULE,
 };

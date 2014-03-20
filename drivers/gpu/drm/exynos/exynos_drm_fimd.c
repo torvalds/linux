@@ -31,7 +31,7 @@
 #include "exynos_drm_iommu.h"
 
 /*
- * FIMD is stand for Fully Interactive Mobile Display and
+ * FIMD stands for Fully Interactive Mobile Display and
  * as a display controller, it transfers contents drawn on memory
  * to a LCD Panel through Display Interfaces such as RGB or
  * CPU Interface.
@@ -347,7 +347,7 @@ static void fimd_wait_for_vblank(struct device *dev)
 	 */
 	if (!wait_event_timeout(ctx->wait_vsync_queue,
 				!atomic_read(&ctx->wait_vsync_event),
-				DRM_HZ/20))
+				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
@@ -706,7 +706,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	/* set wait vsync event to zero and wake up queue. */
 	if (atomic_read(&ctx->wait_vsync_event)) {
 		atomic_set(&ctx->wait_vsync_event, 0);
-		DRM_WAKEUP(&ctx->wait_vsync_queue);
+		wake_up(&ctx->wait_vsync_queue);
 	}
 out:
 	return IRQ_HANDLED;
@@ -716,20 +716,20 @@ static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 {
 	/*
 	 * enable drm irq mode.
-	 * - with irq_enabled = 1, we can use the vblank feature.
+	 * - with irq_enabled = true, we can use the vblank feature.
 	 *
 	 * P.S. note that we wouldn't use drm irq handler but
 	 *	just specific driver own one instead because
 	 *	drm framework supports only one irq handler.
 	 */
-	drm_dev->irq_enabled = 1;
+	drm_dev->irq_enabled = true;
 
 	/*
-	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	drm_dev->vblank_disable_allowed = 1;
+	drm_dev->vblank_disable_allowed = true;
 
 	/* attach this sub driver to iommu mapping if supported. */
 	if (is_drm_iommu_supported(drm_dev))
@@ -954,7 +954,7 @@ static int fimd_probe(struct platform_device *pdev)
 	}
 
 	ctx->driver_data = drm_fimd_get_driver_data(pdev);
-	DRM_INIT_WAITQUEUE(&ctx->wait_vsync_queue);
+	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
 
 	subdrv = &ctx->subdrv;

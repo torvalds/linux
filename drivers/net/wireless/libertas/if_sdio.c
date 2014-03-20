@@ -708,20 +708,16 @@ static void if_sdio_do_prog_firmware(struct lbs_private *priv, int ret,
 
 	ret = if_sdio_prog_helper(card, helper);
 	if (ret)
-		goto out;
+		return;
 
 	lbs_deb_sdio("Helper firmware loaded\n");
 
 	ret = if_sdio_prog_real(card, mainfw);
 	if (ret)
-		goto out;
+		return;
 
 	lbs_deb_sdio("Firmware loaded\n");
 	if_sdio_finish_power_on(card);
-
-out:
-	release_firmware(helper);
-	release_firmware(mainfw);
 }
 
 static int if_sdio_prog_firmware(struct if_sdio_card *card)
@@ -853,7 +849,7 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 			card->started = true;
 			/* Tell PM core that we don't need the card to be
 			 * powered now */
-			pm_runtime_put_noidle(&func->dev);
+			pm_runtime_put(&func->dev);
 		}
 	}
 
@@ -911,8 +907,8 @@ static int if_sdio_power_on(struct if_sdio_card *card)
 	sdio_release_host(func);
 	ret = if_sdio_prog_firmware(card);
 	if (ret) {
-		sdio_disable_func(func);
-		return ret;
+		sdio_claim_host(func);
+		goto disable;
 	}
 
 	return 0;

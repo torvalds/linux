@@ -52,7 +52,11 @@ source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/rtl8188eu/Kconfig"
 
+source "drivers/staging/rtl8821ae/Kconfig"
+
 source "drivers/staging/rts5139/Kconfig"
+
+source "drivers/staging/rts5208/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
 
@@ -73,10 +77,6 @@ source "drivers/staging/vt6656/Kconfig"
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
-
-source "drivers/staging/zsmalloc/Kconfig"
-
-source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/wlags49_h2/Kconfig"
 
@@ -136,11 +136,9 @@ source "drivers/staging/goldfish/Kconfig"
 
 source "drivers/staging/netlogic/Kconfig"
 
-source "drivers/staging/dwc2/Kconfig"
+source "drivers/staging/mt29f_spinand/Kconfig"
 
 source "drivers/staging/lustre/Kconfig"
-
-source "drivers/staging/btmtk_usb/Kconfig"
 
 source "drivers/staging/xillybus/Kconfig"
 

@@ -42,60 +42,59 @@ Configuration options:
 */
 
 #include <linux/module.h>
-#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
-		RANGE(0, 5),
-		RANGE(0, 2.5),
-		RANGE(0, 1.25),
-		RANGE(0, 0.625)
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		UNI_RANGE(0.625)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = {
 	4, {
-		RANGE(-2.5, 2.5),
-		RANGE(-1.25, 1.25),
-		RANGE(-0.625, 0.625),
-		RANGE(-0.3125, 0.3125)
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		BIP_RANGE(0.3125)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgh_ai_5_bipolar = {
 	4, {
-		RANGE(-5, 5),
-		RANGE(-2.5, 2.5),
-		RANGE(-1.25, 1.25),
-		RANGE(-0.625, 0.625)
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgl_ai_5_unipolar = {
 	4, {
-		RANGE(0, 5),
-		RANGE(0, 0.5),
-		RANGE(0, 0.05),
-		RANGE(0, 0.01)
+		UNI_RANGE(5),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.05),
+		UNI_RANGE(0.01)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = {
 	4, {
-		RANGE(-2.5, 2.5),
-		RANGE(-0.25, 0.25),
-		RANGE(-0.025, 0.025),
-		RANGE(-0.005, 0.005)
+		BIP_RANGE(2.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.025),
+		BIP_RANGE(0.005)
 	}
 };
 
 static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 	4, {
-		RANGE(-5, 5),
-		RANGE(-0.5, 0.5),
-		RANGE(-0.05, 0.05),
-		RANGE(-0.01, 0.01)
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01)
 	}
 };
 
@@ -227,33 +226,6 @@ static const struct comedi_lrange *dac_range_types[] = {
 
 #define DT2811_TIMEOUT 5
 
-#if 0
-static irqreturn_t dt2811_interrupt(int irq, void *d)
-{
-	int lo, hi;
-	int data;
-	struct comedi_device *dev = d;
-	struct dt2811_private *devpriv = dev->private;
-
-	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
-		return IRQ_HANDLED;
-	}
-
-	lo = inb(dev->iobase + DT2811_ADDATLO);
-	hi = inb(dev->iobase + DT2811_ADDATHI);
-
-	data = lo + (hi << 8);
-
-	if (!(--devpriv->ntrig)) {
-		/* how to turn off acquisition */
-		s->async->events |= COMEDI_SB_EOA;
-	}
-	comedi_event(dev, s);
-	return IRQ_HANDLED;
-}
-#endif
-
 static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
@@ -277,35 +249,6 @@ static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return i;
 }
-
-#if 0
-/* Wow.  This is code from the Comedi stone age.  But it hasn't been
- * replaced, so I'll let it stay. */
-int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
-{
-	struct comedi_device *dev = comedi_devices + minor;
-
-	if (adtrig->n < 1)
-		return 0;
-	dev->curadchan = adtrig->chan;
-	switch (dev->i_admode) {
-	case COMEDI_MDEMAND:
-		dev->ntrig = adtrig->n - 1;
-		/* not necessary */
-		/*printk("dt2811: AD soft trigger\n"); */
-		/*outb(DT2811_CLRERROR|DT2811_INTENB,
-			dev->iobase+DT2811_ADCSR); */
-		outb(dev->curadchan, dev->iobase + DT2811_ADGCR);
-		do_gettimeofday(&trigtime);
-		break;
-	case COMEDI_MCONTS:
-		dev->ntrig = adtrig->n;
-		break;
-	}
-
-	return 0;
-}
-#endif
 
 static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
@@ -353,11 +296,11 @@ static int dt2811_di_insn_bits(struct comedi_device *dev,
 
 static int dt2811_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	s->state &= ~data[0];
-	s->state |= data[0] & data[1];
-	outb(s->state, dev->iobase + DT2811_DIO);
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + DT2811_DIO);
 
 	data[1] = s->state;
 
@@ -386,10 +329,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 */
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	/* int i, irq; */
-	/* unsigned long irqs; */
-	/* long flags; */
-
+	/* int i; */
 	const struct dt2811_board *board = comedi_board(dev);
 	struct dt2811_private *devpriv;
 	int ret;
@@ -404,45 +344,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	udelay(100);
 	i = inb(dev->iobase + DT2811_ADDATLO);
 	i = inb(dev->iobase + DT2811_ADDATHI);
-#endif
-
-#if 0
-	irq = it->options[1];
-	if (irq < 0) {
-		save_flags(flags);
-		sti();
-		irqs = probe_irq_on();
-
-		outb(DT2811_CLRERROR | DT2811_INTENB,
-		     dev->iobase + DT2811_ADCSR);
-		outb(0, dev->iobase + DT2811_ADGCR);
-
-		udelay(100);
-
-		irq = probe_irq_off(irqs);
-		restore_flags(flags);
-
-		/*outb(DT2811_CLRERROR|DT2811_INTENB,
-			dev->iobase+DT2811_ADCSR);*/
-
-		if (inb(dev->iobase + DT2811_ADCSR) & DT2811_ADERROR)
-			printk(KERN_ERR "error probing irq (bad)\n");
-		dev->irq = 0;
-		if (irq > 0) {
-			i = inb(dev->iobase + DT2811_ADDATLO);
-			i = inb(dev->iobase + DT2811_ADDATHI);
-			printk(KERN_INFO "(irq = %d)\n", irq);
-			ret = request_irq(irq, dt2811_interrupt, 0,
-					  dev->board_name, dev);
-			if (ret < 0)
-				return -EIO;
-			dev->irq = irq;
-		} else if (irq == 0) {
-			printk(KERN_INFO "(no irq)\n");
-		} else {
-			printk(KERN_ERR "( multiple irq's -- this is bad! )\n");
-		}
-	}
 #endif
 
 	ret = comedi_alloc_subdevices(dev, 4);

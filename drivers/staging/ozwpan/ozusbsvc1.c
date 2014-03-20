@@ -5,7 +5,6 @@
  * This file implements the protocol specific parts of the USB service for a PD.
  * -----------------------------------------------------------------------------
  */
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/sched.h>

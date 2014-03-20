@@ -322,7 +322,7 @@ static struct platform_driver c_can_plat_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(c_can_of_table),
+		.of_match_table = c_can_of_table,
 	},
 	.probe = c_can_plat_probe,
 	.remove = c_can_plat_remove,

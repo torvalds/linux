@@ -26,8 +26,6 @@
 
 #include "trace.h"
 
-#include "trace.h"
-
 typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
 
 static int handle_svc_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
@@ -73,23 +71,29 @@ static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 /**
- * kvm_handle_wfi - handle a wait-for-interrupts instruction executed by a guest
+ * kvm_handle_wfx - handle a WFI or WFE instructions trapped in guests
  * @vcpu:	the vcpu pointer
  * @run:	the kvm_run structure pointer
  *
- * Simply sets the wait_for_interrupts flag on the vcpu structure, which will
- * halt execution of world-switches and schedule other host processes until
- * there is an incoming IRQ or FIQ to the VM.
+ * WFE: Yield the CPU and come back to this vcpu when the scheduler
+ * decides to.
+ * WFI: Simply call kvm_vcpu_block(), which will halt execution of
+ * world-switches and schedule other host processes until there is an
+ * incoming IRQ or FIQ to the VM.
  */
-static int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	trace_kvm_wfi(*vcpu_pc(vcpu));
-	kvm_vcpu_block(vcpu);
+	if (kvm_vcpu_get_hsr(vcpu) & HSR_WFI_IS_WFE)
+		kvm_vcpu_on_spin(vcpu);
+	else
+		kvm_vcpu_block(vcpu);
+
 	return 1;
 }
 
 static exit_handle_fn arm_exit_handlers[] = {
-	[HSR_EC_WFI]		= kvm_handle_wfi,
+	[HSR_EC_WFI]		= kvm_handle_wfx,
 	[HSR_EC_CP15_32]	= kvm_handle_cp15_32,
 	[HSR_EC_CP15_64]	= kvm_handle_cp15_64,
 	[HSR_EC_CP14_MR]	= kvm_handle_cp14_access,

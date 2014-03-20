@@ -10,6 +10,7 @@
 
 #include <linux/usb.h>
 
+#define SIMPLE_IO_TIMEOUT	10000	/* in milliseconds */
 
 /*-------------------------------------------------------------------------*/
 
@@ -120,7 +121,7 @@ get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 			struct usb_host_endpoint	*e;
 
 			e = alt->endpoint + ep;
-			switch (e->desc.bmAttributes) {
+			switch (usb_endpoint_type(&e->desc)) {
 			case USB_ENDPOINT_XFER_BULK:
 				break;
 			case USB_ENDPOINT_XFER_ISOC:
@@ -366,6 +367,7 @@ static int simple_io(
 	int			max = urb->transfer_buffer_length;
 	struct completion	completion;
 	int			retval = 0;
+	unsigned long		expire;
 
 	urb->context = &completion;
 	while (retval == 0 && iterations-- > 0) {
@@ -378,9 +380,15 @@ static int simple_io(
 		if (retval != 0)
 			break;
 
-		/* NOTE:  no timeouts; can't be broken out of by interrupt */
-		wait_for_completion(&completion);
-		retval = urb->status;
+		expire = msecs_to_jiffies(SIMPLE_IO_TIMEOUT);
+		if (!wait_for_completion_timeout(&completion, expire)) {
+			usb_kill_urb(urb);
+			retval = (urb->status == -ENOENT ?
+				  -ETIMEDOUT : urb->status);
+		} else {
+			retval = urb->status;
+		}
+
 		urb->dev = udev;
 		if (retval == 0 && usb_pipein(urb->pipe))
 			retval = simple_check_buf(tdev, urb);
@@ -437,7 +445,7 @@ alloc_sglist(int nents, int max, int vary)
 	if (max == 0)
 		return NULL;
 
-	sg = kmalloc_array(nents, sizeof *sg, GFP_KERNEL);
+	sg = kmalloc_array(nents, sizeof(*sg), GFP_KERNEL);
 	if (!sg)
 		return NULL;
 	sg_init_table(sg, nents);
@@ -573,7 +581,7 @@ static int is_good_config(struct usbtest_dev *tdev, int len)
 {
 	struct usb_config_descriptor	*config;
 
-	if (len < sizeof *config)
+	if (len < sizeof(*config))
 		return 0;
 	config = (struct usb_config_descriptor *) tdev->buf;
 
@@ -604,6 +612,76 @@ static int is_good_config(struct usbtest_dev *tdev, int len)
 		return 1;
 	ERROR(tdev, "bogus config descriptor read size\n");
 	return 0;
+}
+
+static int is_good_ext(struct usbtest_dev *tdev, u8 *buf)
+{
+	struct usb_ext_cap_descriptor *ext;
+	u32 attr;
+
+	ext = (struct usb_ext_cap_descriptor *) buf;
+
+	if (ext->bLength != USB_DT_USB_EXT_CAP_SIZE) {
+		ERROR(tdev, "bogus usb 2.0 extension descriptor length\n");
+		return 0;
+	}
+
+	attr = le32_to_cpu(ext->bmAttributes);
+	/* bits[1:15] is used and others are reserved */
+	if (attr & ~0xfffe) {	/* reserved == 0 */
+		ERROR(tdev, "reserved bits set\n");
+		return 0;
+	}
+
+	return 1;
+}
+
+static int is_good_ss_cap(struct usbtest_dev *tdev, u8 *buf)
+{
+	struct usb_ss_cap_descriptor *ss;
+
+	ss = (struct usb_ss_cap_descriptor *) buf;
+
+	if (ss->bLength != USB_DT_USB_SS_CAP_SIZE) {
+		ERROR(tdev, "bogus superspeed device capability descriptor length\n");
+		return 0;
+	}
+
+	/*
+	 * only bit[1] of bmAttributes is used for LTM and others are
+	 * reserved
+	 */
+	if (ss->bmAttributes & ~0x02) {	/* reserved == 0 */
+		ERROR(tdev, "reserved bits set in bmAttributes\n");
+		return 0;
+	}
+
+	/* bits[0:3] of wSpeedSupported is used and others are reserved */
+	if (le16_to_cpu(ss->wSpeedSupported) & ~0x0f) {	/* reserved == 0 */
+		ERROR(tdev, "reserved bits set in wSpeedSupported\n");
+		return 0;
+	}
+
+	return 1;
+}
+
+static int is_good_con_id(struct usbtest_dev *tdev, u8 *buf)
+{
+	struct usb_ss_container_id_descriptor *con_id;
+
+	con_id = (struct usb_ss_container_id_descriptor *) buf;
+
+	if (con_id->bLength != USB_DT_USB_SS_CONTN_ID_SIZE) {
+		ERROR(tdev, "bogus container id descriptor length\n");
+		return 0;
+	}
+
+	if (con_id->bReserved) {	/* reserved == 0 */
+		ERROR(tdev, "reserved bits set\n");
+		return 0;
+	}
+
+	return 1;
 }
 
 /* sanity test for standard requests working with usb_control_mesg() and some
@@ -683,10 +761,94 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 
 	/* there's always [9.4.3] a device descriptor [9.6.1] */
 	retval = usb_get_descriptor(udev, USB_DT_DEVICE, 0,
-			dev->buf, sizeof udev->descriptor);
-	if (retval != sizeof udev->descriptor) {
+			dev->buf, sizeof(udev->descriptor));
+	if (retval != sizeof(udev->descriptor)) {
 		dev_err(&iface->dev, "dev descriptor --> %d\n", retval);
 		return (retval < 0) ? retval : -EDOM;
+	}
+
+	/*
+	 * there's always [9.4.3] a bos device descriptor [9.6.2] in USB
+	 * 3.0 spec
+	 */
+	if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0210) {
+		struct usb_bos_descriptor *bos = NULL;
+		struct usb_dev_cap_header *header = NULL;
+		unsigned total, num, length;
+		u8 *buf;
+
+		retval = usb_get_descriptor(udev, USB_DT_BOS, 0, dev->buf,
+				sizeof(*udev->bos->desc));
+		if (retval != sizeof(*udev->bos->desc)) {
+			dev_err(&iface->dev, "bos descriptor --> %d\n", retval);
+			return (retval < 0) ? retval : -EDOM;
+		}
+
+		bos = (struct usb_bos_descriptor *)dev->buf;
+		total = le16_to_cpu(bos->wTotalLength);
+		num = bos->bNumDeviceCaps;
+
+		if (total > TBUF_SIZE)
+			total = TBUF_SIZE;
+
+		/*
+		 * get generic device-level capability descriptors [9.6.2]
+		 * in USB 3.0 spec
+		 */
+		retval = usb_get_descriptor(udev, USB_DT_BOS, 0, dev->buf,
+				total);
+		if (retval != total) {
+			dev_err(&iface->dev, "bos descriptor set --> %d\n",
+					retval);
+			return (retval < 0) ? retval : -EDOM;
+		}
+
+		length = sizeof(*udev->bos->desc);
+		buf = dev->buf;
+		for (i = 0; i < num; i++) {
+			buf += length;
+			if (buf + sizeof(struct usb_dev_cap_header) >
+					dev->buf + total)
+				break;
+
+			header = (struct usb_dev_cap_header *)buf;
+			length = header->bLength;
+
+			if (header->bDescriptorType !=
+					USB_DT_DEVICE_CAPABILITY) {
+				dev_warn(&udev->dev, "not device capability descriptor, skip\n");
+				continue;
+			}
+
+			switch (header->bDevCapabilityType) {
+			case USB_CAP_TYPE_EXT:
+				if (buf + USB_DT_USB_EXT_CAP_SIZE >
+						dev->buf + total ||
+						!is_good_ext(dev, buf)) {
+					dev_err(&iface->dev, "bogus usb 2.0 extension descriptor\n");
+					return -EDOM;
+				}
+				break;
+			case USB_SS_CAP_TYPE:
+				if (buf + USB_DT_USB_SS_CAP_SIZE >
+						dev->buf + total ||
+						!is_good_ss_cap(dev, buf)) {
+					dev_err(&iface->dev, "bogus superspeed device capability descriptor\n");
+					return -EDOM;
+				}
+				break;
+			case CONTAINER_ID_TYPE:
+				if (buf + USB_DT_USB_SS_CONTN_ID_SIZE >
+						dev->buf + total ||
+						!is_good_con_id(dev, buf)) {
+					dev_err(&iface->dev, "bogus container id descriptor\n");
+					return -EDOM;
+				}
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	/* there's always [9.4.3] at least one config descriptor [9.6.3] */
@@ -790,7 +952,7 @@ struct ctrl_ctx {
 	int			last;
 };
 
-#define NUM_SUBCASES	15		/* how many test subcases here? */
+#define NUM_SUBCASES	16		/* how many test subcases here? */
 
 struct subcase {
 	struct usb_ctrlrequest	setup;
@@ -954,7 +1116,7 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 		 * device, but some are chosen to trigger protocol stalls
 		 * or short reads.
 		 */
-		memset(&req, 0, sizeof req);
+		memset(&req, 0, sizeof(req));
 		req.bRequest = USB_REQ_GET_DESCRIPTOR;
 		req.bRequestType = USB_DIR_IN|USB_RECIP_DEVICE;
 
@@ -1064,6 +1226,15 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 			}
 			expected = -EREMOTEIO;
 			break;
+		case 15:
+			req.wValue = cpu_to_le16(USB_DT_BOS << 8);
+			if (udev->bos)
+				len = le16_to_cpu(udev->bos->desc->wTotalLength);
+			else
+				len = sizeof(struct usb_bos_descriptor);
+			if (le16_to_cpu(udev->descriptor.bcdUSB) < 0x0201)
+				expected = -EPIPE;
+			break;
 		default:
 			ERROR(dev, "bogus number of ctrl queue testcases!\n");
 			context.status = -EINVAL;
@@ -1074,7 +1245,7 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 		if (!u)
 			goto cleanup;
 
-		reqp = kmalloc(sizeof *reqp, GFP_KERNEL);
+		reqp = kmalloc(sizeof(*reqp), GFP_KERNEL);
 		if (!reqp)
 			goto cleanup;
 		reqp->setup = req;
@@ -1383,8 +1554,17 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 		return retval;
 	}
 	retval = verify_halted(tdev, ep, urb);
-	if (retval < 0)
+	if (retval < 0) {
+		int ret;
+
+		/* clear halt anyways, else further tests will fail */
+		ret = usb_clear_halt(urb->dev, urb->pipe);
+		if (ret)
+			ERROR(tdev, "ep %02x couldn't clear halt, %d\n",
+			      ep, ret);
+
 		return retval;
+	}
 
 	/* clear halt (tests API + protocol), verify it worked */
 	retval = usb_clear_halt(urb->dev, urb->pipe);
@@ -1667,13 +1847,13 @@ test_iso_queue(struct usbtest_dev *dev, struct usbtest_param *param,
 	if (param->sglen > 10)
 		return -EDOM;
 
-	memset(&context, 0, sizeof context);
+	memset(&context, 0, sizeof(context));
 	context.count = param->iterations * param->sglen;
 	context.dev = dev;
 	init_completion(&context.done);
 	spin_lock_init(&context.lock);
 
-	memset(urbs, 0, sizeof urbs);
+	memset(urbs, 0, sizeof(urbs));
 	udev = testdev_to_usbdev(dev);
 	dev_info(&dev->intf->dev,
 		"... iso period %d %sframes, wMaxPacket %04x\n",

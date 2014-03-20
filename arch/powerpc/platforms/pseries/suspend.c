@@ -106,7 +106,7 @@ static int pseries_prepare_late(void)
 	atomic_set(&suspend_data.done, 0);
 	atomic_set(&suspend_data.error, 0);
 	suspend_data.complete = &suspend_work;
-	INIT_COMPLETION(suspend_work);
+	reinit_completion(&suspend_work);
 	return 0;
 }
 

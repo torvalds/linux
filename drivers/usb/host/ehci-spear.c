@@ -81,10 +81,9 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	retval = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto fail;
 
 	usbh_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {
@@ -131,6 +130,7 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	if (retval)
 		goto err_stop_ehci;
 
+	device_wakeup_enable(hcd->self.controller);
 	return retval;
 
 err_stop_ehci:

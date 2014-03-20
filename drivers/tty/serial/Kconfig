@@ -181,9 +181,8 @@ config SERIAL_KS8695_CONSOLE
 
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
-	depends on ARCH_CLPS711X
+	depends on ARCH_CLPS711X || COMPILE_TEST
 	select SERIAL_CORE
-	default y
 	help
 	  This enables the driver for the on-chip UARTs of the Cirrus
 	  Logic EP711x/EP721x/EP731x processors.
@@ -709,7 +708,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on HAVE_CLK && (SUPERH || ARCH_SHMOBILE)
+	depends on HAVE_CLK && (SUPERH || ARM || COMPILE_TEST)
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS
@@ -1035,7 +1034,7 @@ config SERIAL_MSM_CONSOLE
 
 config SERIAL_MSM_HS
 	tristate "MSM UART High Speed: Serial Driver"
-	depends on ARCH_MSM
+	depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
 	select SERIAL_CORE
 	help
 	  If you have a machine based on MSM family of SoCs, you
@@ -1146,31 +1145,13 @@ config SERIAL_QE
 	  This driver supports the QE serial ports on Freescale embedded
 	  PowerPC that contain a QUICC Engine.
 
-config SERIAL_SC26XX
-	tristate "SC2681/SC2692 serial port support"
-	depends on SNI_RM
-	select SERIAL_CORE
-	help
-	  This is a driver for the onboard serial ports of
-	  older RM400 machines.
-
-config SERIAL_SC26XX_CONSOLE
-	bool "Console on SC2681/SC2692 serial port"
-	depends on SERIAL_SC26XX=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Support for Console on SC2681/SC2692 serial ports.
-
 config SERIAL_SCCNXP
 	tristate "SCCNXP serial port support"
-	depends on !SERIAL_SC26XX
 	select SERIAL_CORE
-	default n
 	help
 	  This selects support for an advanced UART from NXP (Philips).
 	  Supported ICs are SCC2681, SCC2691, SCC2692, SC28L91, SC28L92,
 	  SC28L202, SCC68681 and SCC68692.
-	  Positioned as a replacement for the driver SC26XX.
 
 config SERIAL_SCCNXP_CONSOLE
 	bool "Console on SCCNXP serial port"
@@ -1512,6 +1493,7 @@ config SERIAL_FSL_LPUART_CONSOLE
 config SERIAL_ST_ASC
 	tristate "ST ASC serial port support"
 	select SERIAL_CORE
+	depends on ARM || COMPILE_TEST
 	help
 	  This driver is for the on-chip Asychronous Serial Controller on
 	  STMicroelectronics STi SoCs.

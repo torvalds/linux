@@ -38,7 +38,7 @@ getMNP_single(struct nouveau_subdev *subdev, struct nvbios_pll *info, int clk,
 	 * "clk" parameter in kHz
 	 * returns calculated clock
 	 */
-	int cv = nouveau_bios(subdev)->version.chip;
+	struct nouveau_bios *bios = nouveau_bios(subdev);
 	int minvco = info->vco1.min_freq, maxvco = info->vco1.max_freq;
 	int minM = info->vco1.min_m, maxM = info->vco1.max_m;
 	int minN = info->vco1.min_n, maxN = info->vco1.max_n;
@@ -54,18 +54,21 @@ getMNP_single(struct nouveau_subdev *subdev, struct nvbios_pll *info, int clk,
 
 	/* this division verified for nv20, nv18, nv28 (Haiku), and nv34 */
 	/* possibly correlated with introduction of 27MHz crystal */
-	if (cv < 0x17 || cv == 0x1a || cv == 0x20) {
-		if (clk > 250000)
-			maxM = 6;
-		if (clk > 340000)
-			maxM = 2;
-	} else if (cv < 0x40) {
-		if (clk > 150000)
-			maxM = 6;
-		if (clk > 200000)
-			maxM = 4;
-		if (clk > 340000)
-			maxM = 2;
+	if (bios->version.major < 0x60) {
+		int cv = bios->version.chip;
+		if (cv < 0x17 || cv == 0x1a || cv == 0x20) {
+			if (clk > 250000)
+				maxM = 6;
+			if (clk > 340000)
+				maxM = 2;
+		} else if (cv < 0x40) {
+			if (clk > 150000)
+				maxM = 6;
+			if (clk > 200000)
+				maxM = 4;
+			if (clk > 340000)
+				maxM = 2;
+		}
 	}
 
 	P = 1 << maxP;
@@ -227,10 +230,12 @@ nv04_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info, u32 freq,
 {
 	int ret;
 
-	if (!info->vco2.max_freq) {
+	if (!info->vco2.max_freq || !N2) {
 		ret = getMNP_single(subdev, info, freq, N1, M1, P);
-		*N2 = 1;
-		*M2 = 1;
+		if (N2) {
+			*N2 = 1;
+			*M2 = 1;
+		}
 	} else {
 		ret = getMNP_double(subdev, info, freq, N1, M1, N2, M2, P);
 	}

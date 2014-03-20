@@ -2175,7 +2175,7 @@ static void hostap_tx_callback(local_info_t *local,
 	struct hostap_tx_callback_info *cb;
 
 	/* Make sure that frame was from us. */
-	if (memcmp(txdesc->addr2, local->dev->dev_addr, ETH_ALEN)) {
+	if (!ether_addr_equal(txdesc->addr2, local->dev->dev_addr)) {
 		printk(KERN_DEBUG "%s: TX callback - foreign frame\n",
 		       local->dev->name);
 		return;

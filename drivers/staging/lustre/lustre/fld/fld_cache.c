@@ -267,7 +267,7 @@ void fld_cache_punch_hole(struct fld_cache *cache,
 	const seqno_t new_end  = range->lsr_end;
 	struct fld_cache_entry *fldt;
 
-	OBD_ALLOC_GFP(fldt, sizeof *fldt, GFP_ATOMIC);
+	OBD_ALLOC_GFP(fldt, sizeof(*fldt), GFP_ATOMIC);
 	if (!fldt) {
 		OBD_FREE_PTR(f_new);
 		/* overlap is not allowed, so dont mess up list. */
@@ -307,7 +307,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 	const mdsno_t mdt = range->lsr_index;
 
 	/* this is overlap case, these case are checking overlapping with
-	 * prev range only. fixup will handle overlaping with next range. */
+	 * prev range only. fixup will handle overlapping with next range. */
 
 	if (f_curr->fce_range.lsr_index == mdt) {
 		f_curr->fce_range.lsr_start = min(f_curr->fce_range.lsr_start,

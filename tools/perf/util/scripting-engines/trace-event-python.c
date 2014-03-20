@@ -56,6 +56,17 @@ static void handler_call_die(const char *handler_name)
 	Py_FatalError("problem in Python trace event handler");
 }
 
+/*
+ * Insert val into into the dictionary and decrement the reference counter.
+ * This is necessary for dictionaries since PyDict_SetItemString() does not 
+ * steal a reference, as opposed to PyTuple_SetItem().
+ */
+static void pydict_set_item_string_decref(PyObject *dict, const char *key, PyObject *val)
+{
+	PyDict_SetItemString(dict, key, val);
+	Py_DECREF(val);
+}
+
 static void define_value(enum print_arg_type field_type,
 			 const char *ev_name,
 			 const char *field_name,
@@ -150,8 +161,7 @@ static void define_event_symbols(struct event_format *event,
 		zero_flag_atom = 0;
 		break;
 	case PRINT_FIELD:
-		if (cur_field_name)
-			free(cur_field_name);
+		free(cur_field_name);
 		cur_field_name = strdup(args->field.name);
 		break;
 	case PRINT_FLAGS:
@@ -220,13 +230,10 @@ static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 	return event;
 }
 
-static void python_process_tracepoint(union perf_event *perf_event
-				      __maybe_unused,
-				 struct perf_sample *sample,
-				 struct perf_evsel *evsel,
-				 struct machine *machine __maybe_unused,
-				 struct thread *thread,
-				 struct addr_location *al)
+static void python_process_tracepoint(struct perf_sample *sample,
+				      struct perf_evsel *evsel,
+				      struct thread *thread,
+				      struct addr_location *al)
 {
 	PyObject *handler, *retval, *context, *t, *obj, *dict = NULL;
 	static char handler_name[256];
@@ -239,7 +246,7 @@ static void python_process_tracepoint(union perf_event *perf_event
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
-	char *comm = thread->comm;
+	const char *comm = thread__comm_str(thread);
 
 	t = PyTuple_New(MAX_FIELDS);
 	if (!t)
@@ -279,11 +286,11 @@ static void python_process_tracepoint(union perf_event *perf_event
 		PyTuple_SetItem(t, n++, PyInt_FromLong(pid));
 		PyTuple_SetItem(t, n++, PyString_FromString(comm));
 	} else {
-		PyDict_SetItemString(dict, "common_cpu", PyInt_FromLong(cpu));
-		PyDict_SetItemString(dict, "common_s", PyInt_FromLong(s));
-		PyDict_SetItemString(dict, "common_ns", PyInt_FromLong(ns));
-		PyDict_SetItemString(dict, "common_pid", PyInt_FromLong(pid));
-		PyDict_SetItemString(dict, "common_comm", PyString_FromString(comm));
+		pydict_set_item_string_decref(dict, "common_cpu", PyInt_FromLong(cpu));
+		pydict_set_item_string_decref(dict, "common_s", PyInt_FromLong(s));
+		pydict_set_item_string_decref(dict, "common_ns", PyInt_FromLong(ns));
+		pydict_set_item_string_decref(dict, "common_pid", PyInt_FromLong(pid));
+		pydict_set_item_string_decref(dict, "common_comm", PyString_FromString(comm));
 	}
 	for (field = event->format.fields; field; field = field->next) {
 		if (field->flags & FIELD_IS_STRING) {
@@ -313,7 +320,7 @@ static void python_process_tracepoint(union perf_event *perf_event
 		if (handler)
 			PyTuple_SetItem(t, n++, obj);
 		else
-			PyDict_SetItemString(dict, field->name, obj);
+			pydict_set_item_string_decref(dict, field->name, obj);
 
 	}
 	if (!handler)
@@ -340,11 +347,8 @@ static void python_process_tracepoint(union perf_event *perf_event
 	Py_DECREF(t);
 }
 
-static void python_process_general_event(union perf_event *perf_event
-					 __maybe_unused,
-					 struct perf_sample *sample,
+static void python_process_general_event(struct perf_sample *sample,
 					 struct perf_evsel *evsel,
-					 struct machine *machine __maybe_unused,
 					 struct thread *thread,
 					 struct addr_location *al)
 {
@@ -370,21 +374,21 @@ static void python_process_general_event(union perf_event *perf_event
 	if (!handler || !PyCallable_Check(handler))
 		goto exit;
 
-	PyDict_SetItemString(dict, "ev_name", PyString_FromString(perf_evsel__name(evsel)));
-	PyDict_SetItemString(dict, "attr", PyString_FromStringAndSize(
+	pydict_set_item_string_decref(dict, "ev_name", PyString_FromString(perf_evsel__name(evsel)));
+	pydict_set_item_string_decref(dict, "attr", PyString_FromStringAndSize(
 			(const char *)&evsel->attr, sizeof(evsel->attr)));
-	PyDict_SetItemString(dict, "sample", PyString_FromStringAndSize(
+	pydict_set_item_string_decref(dict, "sample", PyString_FromStringAndSize(
 			(const char *)sample, sizeof(*sample)));
-	PyDict_SetItemString(dict, "raw_buf", PyString_FromStringAndSize(
+	pydict_set_item_string_decref(dict, "raw_buf", PyString_FromStringAndSize(
 			(const char *)sample->raw_data, sample->raw_size));
-	PyDict_SetItemString(dict, "comm",
-			PyString_FromString(thread->comm));
+	pydict_set_item_string_decref(dict, "comm",
+			PyString_FromString(thread__comm_str(thread)));
 	if (al->map) {
-		PyDict_SetItemString(dict, "dso",
+		pydict_set_item_string_decref(dict, "dso",
 			PyString_FromString(al->map->dso->name));
 	}
 	if (al->sym) {
-		PyDict_SetItemString(dict, "symbol",
+		pydict_set_item_string_decref(dict, "symbol",
 			PyString_FromString(al->sym->name));
 	}
 
@@ -400,22 +404,19 @@ exit:
 	Py_DECREF(t);
 }
 
-static void python_process_event(union perf_event *perf_event,
+static void python_process_event(union perf_event *event __maybe_unused,
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel,
-				 struct machine *machine,
 				 struct thread *thread,
 				 struct addr_location *al)
 {
 	switch (evsel->attr.type) {
 	case PERF_TYPE_TRACEPOINT:
-		python_process_tracepoint(perf_event, sample, evsel,
-					  machine, thread, al);
+		python_process_tracepoint(sample, evsel, thread, al);
 		break;
 	/* Reserve for future process_hw/sw/raw APIs */
 	default:
-		python_process_general_event(perf_event, sample, evsel,
-					     machine, thread, al);
+		python_process_general_event(sample, evsel, thread, al);
 	}
 }
 

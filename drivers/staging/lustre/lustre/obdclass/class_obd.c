@@ -54,7 +54,13 @@ struct list_head obd_types;
 DEFINE_RWLOCK(obd_dev_lock);
 
 __u64 obd_max_pages = 0;
+EXPORT_SYMBOL(obd_max_pages);
 __u64 obd_max_alloc = 0;
+EXPORT_SYMBOL(obd_max_alloc);
+__u64 obd_alloc;
+EXPORT_SYMBOL(obd_alloc);
+__u64 obd_pages;
+EXPORT_SYMBOL(obd_pages);
 DEFINE_SPINLOCK(obd_updatemax_lock);
 
 /* The following are visible and mutable through /proc/sys/lustre/. */
@@ -178,7 +184,7 @@ EXPORT_SYMBOL(obd_alloc_fail);
 static inline void obd_data2conn(struct lustre_handle *conn,
 				 struct obd_ioctl_data *data)
 {
-	memset(conn, 0, sizeof *conn);
+	memset(conn, 0, sizeof(*conn));
 	conn->cookie = data->ioc_cookie;
 }
 
@@ -501,8 +507,15 @@ int obd_init_checks(void)
 }
 
 extern spinlock_t obd_types_lock;
+#ifdef LPROCFS
 extern int class_procfs_init(void);
 extern int class_procfs_clean(void);
+#else
+static inline int class_procfs_init(void)
+{ return 0; }
+static inline int class_procfs_clean(void)
+{ return 0; }
+#endif
 
 static int __init init_obdclass(void)
 {
@@ -516,7 +529,7 @@ static int __init init_obdclass(void)
 
 	spin_lock_init(&obd_types_lock);
 	obd_zombie_impexp_init();
-#ifdef LPROCFS
+
 	obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
 					 LPROCFS_STATS_FLAG_NONE |
 					 LPROCFS_STATS_FLAG_IRQ_SAFE);
@@ -531,7 +544,7 @@ static int __init init_obdclass(void)
 	lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
 			     LPROCFS_CNTR_AVGMINMAX,
 			     "pagesused", "pages");
-#endif
+
 	err = obd_init_checks();
 	if (err == -EOVERFLOW)
 		return err;
@@ -564,6 +577,9 @@ static int __init init_obdclass(void)
 	err = obd_init_caches();
 	if (err)
 		return err;
+
+	obd_sysctl_init();
+
 	err = class_procfs_init();
 	if (err)
 		return err;

@@ -402,17 +402,6 @@ void alternatives_enable_smp(void)
 {
 	struct smp_alt_module *mod;
 
-#ifdef CONFIG_LOCKDEP
-	/*
-	 * Older binutils section handling bug prevented
-	 * alternatives-replacement from working reliably.
-	 *
-	 * If this still occurs then you should see a hang
-	 * or crash shortly after this line:
-	 */
-	pr_info("lockdep: fixing up alternatives\n");
-#endif
-
 	/* Why bother if there are no other CPUs? */
 	BUG_ON(num_possible_cpus() == 1);
 

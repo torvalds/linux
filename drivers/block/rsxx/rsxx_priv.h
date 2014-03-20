@@ -52,7 +52,7 @@ struct proc_cmd;
 #define RS70_PCI_REV_SUPPORTED	4
 
 #define DRIVER_NAME "rsxx"
-#define DRIVER_VERSION "4.0"
+#define DRIVER_VERSION "4.0.3.2516"
 
 /* Block size is 4096 */
 #define RSXX_HW_BLK_SHIFT		12
@@ -345,6 +345,11 @@ enum rsxx_creg_stat {
 	CREG_STAT_TAG_MASK	= 0x0000ff00,
 };
 
+enum rsxx_dma_finish {
+	FREE_DMA	= 0x0,
+	COMPLETE_DMA	= 0x1,
+};
+
 static inline unsigned int CREG_DATA(int N)
 {
 	return CREG_DATA0 + (N << 2);
@@ -379,7 +384,9 @@ typedef void (*rsxx_dma_cb)(struct rsxx_cardinfo *card,
 int rsxx_dma_setup(struct rsxx_cardinfo *card);
 void rsxx_dma_destroy(struct rsxx_cardinfo *card);
 int rsxx_dma_init(void);
-int rsxx_cleanup_dma_queue(struct rsxx_dma_ctrl *ctrl, struct list_head *q);
+int rsxx_cleanup_dma_queue(struct rsxx_dma_ctrl *ctrl,
+				struct list_head *q,
+				unsigned int done);
 int rsxx_dma_cancel(struct rsxx_dma_ctrl *ctrl);
 void rsxx_dma_cleanup(void);
 void rsxx_dma_queue_reset(struct rsxx_cardinfo *card);

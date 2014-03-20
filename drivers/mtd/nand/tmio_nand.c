@@ -371,11 +371,9 @@ static int tmio_probe(struct platform_device *dev)
 	if (data == NULL)
 		dev_warn(&dev->dev, "NULL platform data!\n");
 
-	tmio = kzalloc(sizeof *tmio, GFP_KERNEL);
-	if (!tmio) {
-		retval = -ENOMEM;
-		goto err_kzalloc;
-	}
+	tmio = devm_kzalloc(&dev->dev, sizeof(*tmio), GFP_KERNEL);
+	if (!tmio)
+		return -ENOMEM;
 
 	tmio->dev = dev;
 
@@ -385,22 +383,18 @@ static int tmio_probe(struct platform_device *dev)
 	mtd->priv = nand_chip;
 	mtd->name = "tmio-nand";
 
-	tmio->ccr = ioremap(ccr->start, resource_size(ccr));
-	if (!tmio->ccr) {
-		retval = -EIO;
-		goto err_iomap_ccr;
-	}
+	tmio->ccr = devm_ioremap(&dev->dev, ccr->start, resource_size(ccr));
+	if (!tmio->ccr)
+		return -EIO;
 
 	tmio->fcr_base = fcr->start & 0xfffff;
-	tmio->fcr = ioremap(fcr->start, resource_size(fcr));
-	if (!tmio->fcr) {
-		retval = -EIO;
-		goto err_iomap_fcr;
-	}
+	tmio->fcr = devm_ioremap(&dev->dev, fcr->start, resource_size(fcr));
+	if (!tmio->fcr)
+		return -EIO;
 
 	retval = tmio_hw_init(dev, tmio);
 	if (retval)
-		goto err_hwinit;
+		return retval;
 
 	/* Set address of NAND IO lines */
 	nand_chip->IO_ADDR_R = tmio->fcr;
@@ -428,8 +422,8 @@ static int tmio_probe(struct platform_device *dev)
 	/* 15 us command delay time */
 	nand_chip->chip_delay = 15;
 
-	retval = request_irq(irq, &tmio_irq,
-				IRQF_DISABLED, dev_name(&dev->dev), tmio);
+	retval = devm_request_irq(&dev->dev, irq, &tmio_irq, 0,
+				  dev_name(&dev->dev), tmio);
 	if (retval) {
 		dev_err(&dev->dev, "request_irq error %d\n", retval);
 		goto err_irq;
@@ -441,7 +435,7 @@ static int tmio_probe(struct platform_device *dev)
 	/* Scan to find existence of the device */
 	if (nand_scan(mtd, 1)) {
 		retval = -ENODEV;
-		goto err_scan;
+		goto err_irq;
 	}
 	/* Register the partitions */
 	retval = mtd_device_parse_register(mtd, NULL, NULL,
@@ -452,18 +446,8 @@ static int tmio_probe(struct platform_device *dev)
 
 	nand_release(mtd);
 
-err_scan:
-	if (tmio->irq)
-		free_irq(tmio->irq, tmio);
 err_irq:
 	tmio_hw_stop(dev, tmio);
-err_hwinit:
-	iounmap(tmio->fcr);
-err_iomap_fcr:
-	iounmap(tmio->ccr);
-err_iomap_ccr:
-	kfree(tmio);
-err_kzalloc:
 	return retval;
 }
 
@@ -472,12 +456,7 @@ static int tmio_remove(struct platform_device *dev)
 	struct tmio_nand *tmio = platform_get_drvdata(dev);
 
 	nand_release(&tmio->mtd);
-	if (tmio->irq)
-		free_irq(tmio->irq, tmio);
 	tmio_hw_stop(dev, tmio);
-	iounmap(tmio->fcr);
-	iounmap(tmio->ccr);
-	kfree(tmio);
 	return 0;
 }
 

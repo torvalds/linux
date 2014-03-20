@@ -205,6 +205,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 skip_calib_data:
 	if (pdata->max_trigger_level > MAX_THRESHOLD_LEVS) {
 		dev_err(&pdev->dev, "Invalid max trigger level\n");
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -316,6 +317,9 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	clk_enable(data->clk);
 
 	con = readl(data->base + reg->tmu_ctrl);
+
+	if (pdata->test_mux)
+		con |= (pdata->test_mux << reg->test_mux_addr_shift);
 
 	if (pdata->reference_voltage) {
 		con &= ~(reg->buf_vref_sel_mask << reg->buf_vref_sel_shift);
@@ -488,7 +492,7 @@ static const struct of_device_id exynos_tmu_match[] = {
 	},
 	{
 		.compatible = "samsung,exynos4412-tmu",
-		.data = (void *)EXYNOS5250_TMU_DRV_DATA,
+		.data = (void *)EXYNOS4412_TMU_DRV_DATA,
 	},
 	{
 		.compatible = "samsung,exynos5250-tmu",
@@ -629,9 +633,10 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (pdata->type == SOC_ARCH_EXYNOS ||
-		pdata->type == SOC_ARCH_EXYNOS4210 ||
-				pdata->type == SOC_ARCH_EXYNOS5440)
+	if (pdata->type == SOC_ARCH_EXYNOS4210 ||
+	    pdata->type == SOC_ARCH_EXYNOS4412 ||
+	    pdata->type == SOC_ARCH_EXYNOS5250 ||
+	    pdata->type == SOC_ARCH_EXYNOS5440)
 		data->soc = pdata->type;
 	else {
 		ret = -EINVAL;

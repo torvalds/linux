@@ -110,7 +110,7 @@ static u32 fw_iocmd_read(struct _adapter *pAdapter, struct IOCMD_STRUCT iocmd)
 	u16 iocmd_value	= iocmd.value;
 	u8 iocmd_idx	= iocmd.index;
 
-	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx ;
+	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx;
 	if (r8712_fw_cmd(pAdapter, cmd32))
 		r8712_fw_cmd_data(pAdapter, &val32, 1);
 	else
@@ -128,7 +128,7 @@ static u8 fw_iocmd_write(struct _adapter *pAdapter,
 
 	r8712_fw_cmd_data(pAdapter, &value, 0);
 	msleep(100);
-	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx ;
+	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx;
 	return r8712_fw_cmd(pAdapter, cmd32);
 }
 
@@ -189,8 +189,8 @@ u32 r8712_rf_reg_read(struct _adapter *pAdapter, u8 path, u8 offset)
 	u32 rf_data;
 	struct IOCMD_STRUCT iocmd;
 
-	iocmd.cmdclass	= IOCMD_CLASS_BB_RF ;
-	iocmd.value	= rf_addr ;
+	iocmd.cmdclass	= IOCMD_CLASS_BB_RF;
+	iocmd.value	= rf_addr;
 	iocmd.index	= IOCMD_RF_READ_IDX;
 	rf_data = fw_iocmd_read(pAdapter, iocmd);
 	return rf_data;

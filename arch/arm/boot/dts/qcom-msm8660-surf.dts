@@ -1,0 +1,63 @@
+/dts-v1/;
+
+/include/ "skeleton.dtsi"
+
+#include <dt-bindings/clock/qcom,gcc-msm8660.h>
+
+/ {
+	model = "Qualcomm MSM8660 SURF";
+	compatible = "qcom,msm8660-surf", "qcom,msm8660";
+	interrupt-parent = <&intc>;
+
+	intc: interrupt-controller@2080000 {
+		compatible = "qcom,msm-8660-qgic";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = < 0x02080000 0x1000 >,
+		      < 0x02081000 0x1000 >;
+	};
+
+	timer@2000000 {
+		compatible = "qcom,scss-timer", "qcom,msm-timer";
+		interrupts = <1 0 0x301>,
+			     <1 1 0x301>,
+			     <1 2 0x301>;
+		reg = <0x02000000 0x100>;
+		clock-frequency = <27000000>,
+				  <32768>;
+		cpu-offset = <0x40000>;
+	};
+
+	msmgpio: gpio@800000 {
+		compatible = "qcom,msm-gpio";
+		reg = <0x00800000 0x4000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpio = <173>;
+		interrupts = <0 16 0x4>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	gcc: clock-controller@900000 {
+		compatible = "qcom,gcc-msm8660";
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		reg = <0x900000 0x4000>;
+	};
+
+	serial@19c40000 {
+		compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+		reg = <0x19c40000 0x1000>,
+		      <0x19c00000 0x1000>;
+		interrupts = <0 195 0x0>;
+		clocks = <&gcc GSBI12_UART_CLK>, <&gcc GSBI12_H_CLK>;
+		clock-names = "core", "iface";
+	};
+
+	qcom,ssbi@500000 {
+		compatible = "qcom,ssbi";
+		reg = <0x500000 0x1000>;
+		qcom,controller-type = "pmic-arbiter";
+	};
+};

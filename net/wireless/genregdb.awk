@@ -33,25 +33,24 @@ BEGIN {
 	regdb = "const struct ieee80211_regdomain *reg_regdb[] = {\n"
 }
 
-/^[ \t]*#/ {
-	# Ignore
-}
-
-!active && /^[ \t]*$/ {
-	# Ignore
-}
-
-!active && /country/ {
+function parse_country_head() {
 	country=$2
 	sub(/:/, "", country)
 	printf "static const struct ieee80211_regdomain regdom_%s = {\n", country
 	printf "\t.alpha2 = \"%s\",\n", country
+	if ($NF ~ /DFS-ETSI/)
+		printf "\t.dfs_region = NL80211_DFS_ETSI,\n"
+	else if ($NF ~ /DFS-FCC/)
+		printf "\t.dfs_region = NL80211_DFS_FCC,\n"
+	else if ($NF ~ /DFS-JP/)
+		printf "\t.dfs_region = NL80211_DFS_JP,\n"
 	printf "\t.reg_rules = {\n"
 	active = 1
 	regdb = regdb "\t&regdom_" country ",\n"
 }
 
-active && /^[ \t]*\(/ {
+function parse_reg_rule()
+{
 	start = $1
 	sub(/\(/, "", start)
 	end = $3
@@ -101,17 +100,21 @@ active && /^[ \t]*\(/ {
 		} else if (flagarray[arg] == "PTMP-ONLY") {
 			flags = flags "\n\t\t\tNL80211_RRF_PTMP_ONLY | "
 		} else if (flagarray[arg] == "PASSIVE-SCAN") {
-			flags = flags "\n\t\t\tNL80211_RRF_PASSIVE_SCAN | "
+			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
 		} else if (flagarray[arg] == "NO-IBSS") {
-			flags = flags "\n\t\t\tNL80211_RRF_NO_IBSS | "
+			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
+		} else if (flagarray[arg] == "NO-IR") {
+			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
 		}
+
 	}
 	flags = flags "0"
 	printf "\t\tREG_RULE(%d, %d, %d, %d, %d, %s),\n", start, end, bw, gain, power, flags
 	rules++
 }
 
-active && /^[ \t]*$/ {
+function print_tail_country()
+{
 	active = 0
 	printf "\t},\n"
 	printf "\t.n_reg_rules = %d\n", rules
@@ -119,7 +122,29 @@ active && /^[ \t]*$/ {
 	rules = 0;
 }
 
+/^[ \t]*#/ {
+	# Ignore
+}
+
+!active && /^[ \t]*$/ {
+	# Ignore
+}
+
+!active && /country/ {
+	parse_country_head()
+}
+
+active && /^[ \t]*\(/ {
+	parse_reg_rule()
+}
+
+active && /^[ \t]*$/ {
+	print_tail_country()
+}
+
 END {
+	if (active)
+		print_tail_country()
 	print regdb "};"
 	print ""
 	print "int reg_regdb_size = ARRAY_SIZE(reg_regdb);"

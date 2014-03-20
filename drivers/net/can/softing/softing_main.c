@@ -13,12 +13,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
 
@@ -768,7 +766,7 @@ static int softing_pdev_remove(struct platform_device *pdev)
 
 static int softing_pdev_probe(struct platform_device *pdev)
 {
-	const struct softing_platform_data *pdat = pdev->dev.platform_data;
+	const struct softing_platform_data *pdat = dev_get_platdata(&pdev->dev);
 	struct softing *card;
 	struct net_device *netdev;
 	struct softing_priv *priv;

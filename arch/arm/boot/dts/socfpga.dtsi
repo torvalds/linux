@@ -79,6 +79,8 @@
 				#dma-cells = <1>;
 				#dma-channels = <8>;
 				#dma-requests = <32>;
+				clocks = <&l4_main_clk>;
+				clock-names = "apb_pclk";
 			};
 		};
 
@@ -147,7 +149,7 @@
 							reg = <0x58>;
 						};
 
-						cfg_s2f_usr0_clk: cfg_s2f_usr0_clk {
+						cfg_h2f_usr0_clk: cfg_h2f_usr0_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&main_pll>;
@@ -198,7 +200,7 @@
 							reg = <0x98>;
 						};
 
-						s2f_usr1_clk: s2f_usr1_clk {
+						h2f_usr1_clk: h2f_usr1_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&periph_pll>;
@@ -235,7 +237,7 @@
 							reg = <0xD0>;
 						};
 
-						s2f_usr2_clk: s2f_usr2_clk {
+						h2f_usr2_clk: h2f_usr2_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&sdram_pll>;
@@ -243,197 +245,198 @@
 						};
 					};
 
-				mpu_periph_clk: mpu_periph_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mpuclk>;
-					fixed-divider = <4>;
+					mpu_periph_clk: mpu_periph_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-perip-clk";
+						clocks = <&mpuclk>;
+						fixed-divider = <4>;
 					};
 
-				mpu_l2_ram_clk: mpu_l2_ram_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mpuclk>;
-					fixed-divider = <2>;
+					mpu_l2_ram_clk: mpu_l2_ram_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-perip-clk";
+						clocks = <&mpuclk>;
+						fixed-divider = <2>;
 					};
 
-				l4_main_clk: l4_main_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mainclk>;
-					clk-gate = <0x60 0>;
+					l4_main_clk: l4_main_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&mainclk>;
+						clk-gate = <0x60 0>;
 					};
 
-				l3_main_clk: l3_main_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mainclk>;
+					l3_main_clk: l3_main_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-perip-clk";
+						clocks = <&mainclk>;
+						fixed-divider = <1>;
 					};
 
-				l3_mp_clk: l3_mp_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mainclk>;
-					div-reg = <0x64 0 2>;
-					clk-gate = <0x60 1>;
+					l3_mp_clk: l3_mp_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&mainclk>;
+						div-reg = <0x64 0 2>;
+						clk-gate = <0x60 1>;
 					};
 
-				l3_sp_clk: l3_sp_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mainclk>;
-					div-reg = <0x64 2 2>;
-				};
-
-				l4_mp_clk: l4_mp_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mainclk>, <&per_base_clk>;
-					div-reg = <0x64 4 3>;
-					clk-gate = <0x60 2>;
+					l3_sp_clk: l3_sp_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&mainclk>;
+						div-reg = <0x64 2 2>;
 					};
 
-				l4_sp_clk: l4_sp_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&mainclk>, <&per_base_clk>;
-					div-reg = <0x64 7 3>;
-					clk-gate = <0x60 3>;
+					l4_mp_clk: l4_mp_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&mainclk>, <&per_base_clk>;
+						div-reg = <0x64 4 3>;
+						clk-gate = <0x60 2>;
 					};
 
-				dbg_at_clk: dbg_at_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&dbg_base_clk>;
-					div-reg = <0x68 0 2>;
-					clk-gate = <0x60 4>;
+					l4_sp_clk: l4_sp_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&mainclk>, <&per_base_clk>;
+						div-reg = <0x64 7 3>;
+						clk-gate = <0x60 3>;
 					};
 
-				dbg_clk: dbg_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&dbg_base_clk>;
-					div-reg = <0x68 2 2>;
-					clk-gate = <0x60 5>;
+					dbg_at_clk: dbg_at_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&dbg_base_clk>;
+						div-reg = <0x68 0 2>;
+						clk-gate = <0x60 4>;
 					};
 
-				dbg_trace_clk: dbg_trace_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&dbg_base_clk>;
-					div-reg = <0x6C 0 3>;
-					clk-gate = <0x60 6>;
+					dbg_clk: dbg_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&dbg_base_clk>;
+						div-reg = <0x68 2 2>;
+						clk-gate = <0x60 5>;
 					};
 
-				dbg_timer_clk: dbg_timer_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&dbg_base_clk>;
-					clk-gate = <0x60 7>;
+					dbg_trace_clk: dbg_trace_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&dbg_base_clk>;
+						div-reg = <0x6C 0 3>;
+						clk-gate = <0x60 6>;
 					};
 
-				cfg_clk: cfg_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&cfg_s2f_usr0_clk>;
-					clk-gate = <0x60 8>;
+					dbg_timer_clk: dbg_timer_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&dbg_base_clk>;
+						clk-gate = <0x60 7>;
 					};
 
-				s2f_user0_clk: s2f_user0_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&cfg_s2f_usr0_clk>;
-					clk-gate = <0x60 9>;
+					cfg_clk: cfg_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&cfg_h2f_usr0_clk>;
+						clk-gate = <0x60 8>;
 					};
 
-				emac_0_clk: emac_0_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&emac0_clk>;
-					clk-gate = <0xa0 0>;
+					h2f_user0_clk: h2f_user0_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&cfg_h2f_usr0_clk>;
+						clk-gate = <0x60 9>;
 					};
 
-				emac_1_clk: emac_1_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&emac1_clk>;
-					clk-gate = <0xa0 1>;
+					emac_0_clk: emac_0_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&emac0_clk>;
+						clk-gate = <0xa0 0>;
 					};
 
-				usb_mp_clk: usb_mp_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&per_base_clk>;
-					clk-gate = <0xa0 2>;
-					div-reg = <0xa4 0 3>;
+					emac_1_clk: emac_1_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&emac1_clk>;
+						clk-gate = <0xa0 1>;
 					};
 
-				spi_m_clk: spi_m_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&per_base_clk>;
-					clk-gate = <0xa0 3>;
-					div-reg = <0xa4 3 3>;
+					usb_mp_clk: usb_mp_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&per_base_clk>;
+						clk-gate = <0xa0 2>;
+						div-reg = <0xa4 0 3>;
 					};
 
-				can0_clk: can0_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&per_base_clk>;
-					clk-gate = <0xa0 4>;
-					div-reg = <0xa4 6 3>;
+					spi_m_clk: spi_m_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&per_base_clk>;
+						clk-gate = <0xa0 3>;
+						div-reg = <0xa4 3 3>;
 					};
 
-				can1_clk: can1_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&per_base_clk>;
-					clk-gate = <0xa0 5>;
-					div-reg = <0xa4 9 3>;
+					can0_clk: can0_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&per_base_clk>;
+						clk-gate = <0xa0 4>;
+						div-reg = <0xa4 6 3>;
 					};
 
-				gpio_db_clk: gpio_db_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&per_base_clk>;
-					clk-gate = <0xa0 6>;
-					div-reg = <0xa8 0 24>;
+					can1_clk: can1_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&per_base_clk>;
+						clk-gate = <0xa0 5>;
+						div-reg = <0xa4 9 3>;
 					};
 
-				s2f_user1_clk: s2f_user1_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&s2f_usr1_clk>;
-					clk-gate = <0xa0 7>;
+					gpio_db_clk: gpio_db_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&per_base_clk>;
+						clk-gate = <0xa0 6>;
+						div-reg = <0xa8 0 24>;
 					};
 
-				sdmmc_clk: sdmmc_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
-					clk-gate = <0xa0 8>;
+					h2f_user1_clk: h2f_user1_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&h2f_usr1_clk>;
+						clk-gate = <0xa0 7>;
 					};
 
-				nand_x_clk: nand_x_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
-					clk-gate = <0xa0 9>;
+					sdmmc_clk: sdmmc_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
+						clk-gate = <0xa0 8>;
 					};
 
-				nand_clk: nand_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
-					clk-gate = <0xa0 10>;
-					fixed-divider = <4>;
+					nand_x_clk: nand_x_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
+						clk-gate = <0xa0 9>;
 					};
 
-				qspi_clk: qspi_clk {
-					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
-					clocks = <&f2s_periph_ref_clk>, <&main_qspi_clk>, <&per_qspi_clk>;
-					clk-gate = <0xa0 11>;
+					nand_clk: nand_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
+						clk-gate = <0xa0 10>;
+						fixed-divider = <4>;
+					};
+
+					qspi_clk: qspi_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&f2s_periph_ref_clk>, <&main_qspi_clk>, <&per_qspi_clk>;
+						clk-gate = <0xa0 11>;
 					};
 				};
 			};
@@ -466,6 +469,8 @@
 			interrupts = <0 38 0x04>;
 			cache-unified;
 			cache-level = <2>;
+			arm,tag-latency = <1 1 1>;
+			arm,data-latency = <2 1 1>;
 		};
 
 		/* Local timer */
@@ -473,6 +478,7 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xfffec600 0x100>;
 			interrupts = <1 13 0xf04>;
+			clocks = <&mpu_periph_clk>;
 		};
 
 		timer0: timer0@ffc08000 {
@@ -516,9 +522,9 @@
 		};
 
 		rstmgr@ffd05000 {
-				compatible = "altr,rst-mgr";
-				reg = <0xffd05000 0x1000>;
-			};
+			compatible = "altr,rst-mgr";
+			reg = <0xffd05000 0x1000>;
+		};
 
 		sysmgr@ffd08000 {
 				compatible = "altr,sys-mgr";

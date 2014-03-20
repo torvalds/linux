@@ -1,6 +1,7 @@
 config BTRFS_FS
 	tristate "Btrfs filesystem support"
-	select LIBCRC32C
+	select CRYPTO
+	select CRYPTO_CRC32C
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	select LZO_COMPRESS
@@ -9,12 +10,17 @@ config BTRFS_FS
 	select XOR_BLOCKS
 
 	help
-	  Btrfs is a new filesystem with extents, writable snapshotting,
-	  support for multiple devices and many more features.
+	  Btrfs is a general purpose copy-on-write filesystem with extents,
+	  writable snapshotting, support for multiple devices and many more
+	  features focused on fault tolerance, repair and easy administration.
 
-	  Btrfs is highly experimental, and THE DISK FORMAT IS NOT YET
-	  FINALIZED.  You should say N here unless you are interested in
-	  testing Btrfs with non-critical data.
+	  The filesystem disk format is no longer unstable, and it's not
+	  expected to change unless there are strong reasons to do so. If there
+	  is a format change, file systems with a unchanged format will
+	  continue to be mountable and usable by newer kernels.
+
+	  For more information, please see the web pages at
+	  http://btrfs.wiki.kernel.org.
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called btrfs.
@@ -59,7 +65,8 @@ config BTRFS_FS_RUN_SANITY_TESTS
 	help
 	  This will run some basic sanity tests on the free space cache
 	  code to make sure it is acting as it should.  These are mostly
-	  regression tests and are only really interesting to btrfs devlopers.
+	  regression tests and are only really interesting to btrfs
+	  developers.
 
 	  If unsure, say N.
 

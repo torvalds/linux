@@ -5,6 +5,18 @@
 
 menu "Pressure sensors"
 
+config MPL3115
+	tristate "Freescale MPL3115A2 pressure sensor driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the Freescale MPL3115A2
+	  pressure sensor / altimeter.
+
+          To compile this driver as a module, choose M here: the module
+          will be called mpl3115.
+
 config IIO_ST_PRESS
 	tristate "STMicroelectronics pressure sensor Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
@@ -14,7 +26,7 @@ config IIO_ST_PRESS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics pressure
-	  sensors: LPS331AP.
+	  sensors: LPS001WP, LPS331AP.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:

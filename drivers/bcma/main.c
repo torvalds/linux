@@ -30,28 +30,37 @@ static ssize_t manuf_show(struct device *dev, struct device_attribute *attr, cha
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
 	return sprintf(buf, "0x%03X\n", core->id.manuf);
 }
+static DEVICE_ATTR_RO(manuf);
+
 static ssize_t id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
 	return sprintf(buf, "0x%03X\n", core->id.id);
 }
+static DEVICE_ATTR_RO(id);
+
 static ssize_t rev_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
 	return sprintf(buf, "0x%02X\n", core->id.rev);
 }
+static DEVICE_ATTR_RO(rev);
+
 static ssize_t class_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
 	return sprintf(buf, "0x%X\n", core->id.class);
 }
-static struct device_attribute bcma_device_attrs[] = {
-	__ATTR_RO(manuf),
-	__ATTR_RO(id),
-	__ATTR_RO(rev),
-	__ATTR_RO(class),
-	__ATTR_NULL,
+static DEVICE_ATTR_RO(class);
+
+static struct attribute *bcma_device_attrs[] = {
+	&dev_attr_manuf.attr,
+	&dev_attr_id.attr,
+	&dev_attr_rev.attr,
+	&dev_attr_class.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(bcma_device);
 
 static struct bus_type bcma_bus_type = {
 	.name		= "bcma",
@@ -59,7 +68,7 @@ static struct bus_type bcma_bus_type = {
 	.probe		= bcma_device_probe,
 	.remove		= bcma_device_remove,
 	.uevent		= bcma_device_uevent,
-	.dev_attrs	= bcma_device_attrs,
+	.dev_groups	= bcma_device_groups,
 };
 
 static u16 bcma_cc_core_id(struct bcma_bus *bus)
@@ -68,18 +77,6 @@ static u16 bcma_cc_core_id(struct bcma_bus *bus)
 		return BCMA_CORE_4706_CHIPCOMMON;
 	return BCMA_CORE_CHIPCOMMON;
 }
-
-struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
-{
-	struct bcma_device *core;
-
-	list_for_each_entry(core, &bus->cores, list) {
-		if (core->id.id == coreid)
-			return core;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(bcma_find_core);
 
 struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
 					u8 unit)
@@ -92,6 +89,7 @@ struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(bcma_find_core_unit);
 
 bool bcma_wait_value(struct bcma_device *core, u16 reg, u32 mask, u32 value,
 		     int timeout)
@@ -167,6 +165,7 @@ static int bcma_register_cores(struct bcma_bus *bus)
 			bcma_err(bus,
 				 "Could not register dev for core 0x%03X\n",
 				 core->id.id);
+			put_device(&core->dev);
 			continue;
 		}
 		core->dev_registered = true;

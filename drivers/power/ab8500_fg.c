@@ -574,8 +574,8 @@ int ab8500_fg_inst_curr_start(struct ab8500_fg *di)
 	}
 
 	/* Return and WFI */
-	INIT_COMPLETION(di->ab8500_fg_started);
-	INIT_COMPLETION(di->ab8500_fg_complete);
+	reinit_completion(&di->ab8500_fg_started);
+	reinit_completion(&di->ab8500_fg_complete);
 	enable_irq(di->irq);
 
 	/* Note: cc_lock is still locked */

@@ -108,7 +108,7 @@ struct fsl_dspi {
 	struct spi_bitbang	bitbang;
 	struct platform_device	*pdev;
 
-	void			*base;
+	void __iomem		*base;
 	int			irq;
 	struct clk 		*clk;
 
@@ -165,7 +165,7 @@ static void hz_to_spi_baud(char *pbr, char *br, int speed_hz,
 			}
 		}
 
-	pr_warn("Can not find valid buad rate,speed_hz is %d,clkrate is %ld\
+	pr_warn("Can not find valid baud rate,speed_hz is %d,clkrate is %ld\
 		,we use the max prescaler value.\n", speed_hz, clkrate);
 	*pbr = ARRAY_SIZE(pbr_tbl) - 1;
 	*br =  ARRAY_SIZE(brs) - 1;
@@ -320,8 +320,10 @@ static void dspi_chipselect(struct spi_device *spi, int value)
 	switch (value) {
 	case BITBANG_CS_ACTIVE:
 		pushr |= SPI_PUSHR_CONT;
+		break;
 	case BITBANG_CS_INACTIVE:
 		pushr &= ~SPI_PUSHR_CONT;
+		break;
 	}
 
 	writel(pushr, dspi->base + SPI_PUSHR);
@@ -373,9 +375,6 @@ static int dspi_setup(struct spi_device *spi)
 	if (!spi->max_speed_hz)
 		return -EINVAL;
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	return dspi_setup_transfer(spi, NULL);
 }
 
@@ -421,7 +420,6 @@ static int dspi_suspend(struct device *dev)
 
 static int dspi_resume(struct device *dev)
 {
-
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct fsl_dspi *dspi = spi_master_get_devdata(master);
 
@@ -450,7 +448,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	dspi = spi_master_get_devdata(master);
 	dspi->pdev = pdev;
-	dspi->bitbang.master = spi_master_get(master);
+	dspi->bitbang.master = master;
 	dspi->bitbang.chipselect = dspi_chipselect;
 	dspi->bitbang.setup_transfer = dspi_setup_transfer;
 	dspi->bitbang.txrx_bufs = dspi_txrx_transfer;
@@ -476,15 +474,9 @@ static int dspi_probe(struct platform_device *pdev)
 	master->bus_num = bus_num;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get platform resource\n");
-		ret = -EINVAL;
-		goto out_master_put;
-	}
-
 	dspi->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!dspi->base) {
-		ret = -EINVAL;
+	if (IS_ERR(dspi->base)) {
+		ret = PTR_ERR(dspi->base);
 		goto out_master_put;
 	}
 
@@ -511,7 +503,7 @@ static int dspi_probe(struct platform_device *pdev)
 	clk_prepare_enable(dspi->clk);
 
 	init_waitqueue_head(&dspi->waitq);
-	platform_set_drvdata(pdev, dspi);
+	platform_set_drvdata(pdev, master);
 
 	ret = spi_bitbang_start(&dspi->bitbang);
 	if (ret != 0) {
@@ -526,17 +518,18 @@ out_clk_put:
 	clk_disable_unprepare(dspi->clk);
 out_master_put:
 	spi_master_put(master);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
 
 static int dspi_remove(struct platform_device *pdev)
 {
-	struct fsl_dspi *dspi = platform_get_drvdata(pdev);
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct fsl_dspi *dspi = spi_master_get_devdata(master);
 
 	/* Disconnect from the SPI framework */
 	spi_bitbang_stop(&dspi->bitbang);
+	clk_disable_unprepare(dspi->clk);
 	spi_master_put(dspi->bitbang.master);
 
 	return 0;
@@ -553,5 +546,5 @@ static struct platform_driver fsl_dspi_driver = {
 module_platform_driver(fsl_dspi_driver);
 
 MODULE_DESCRIPTION("Freescale DSPI Controller Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

@@ -31,11 +31,13 @@ enum vcpu_ftr {
 #define E500_TLB_NUM   2
 
 /* entry is mapped somewhere in host TLB */
-#define E500_TLB_VALID		(1 << 0)
+#define E500_TLB_VALID		(1 << 31)
 /* TLB1 entry is mapped by host TLB1, tracked by bitmaps */
-#define E500_TLB_BITMAP		(1 << 1)
+#define E500_TLB_BITMAP		(1 << 30)
 /* TLB1 entry is mapped by host TLB0 */
-#define E500_TLB_TLB0		(1 << 2)
+#define E500_TLB_TLB0		(1 << 29)
+/* bits [6-5] MAS2_X1 and MAS2_X0 and [4-0] bits for WIMGE */
+#define E500_TLB_MAS2_ATTR	(0x7f)
 
 struct tlbe_ref {
 	pfn_t pfn;		/* valid only for TLB0, except briefly */
@@ -117,7 +119,7 @@ static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
 #define E500_TLB_USER_PERM_MASK (MAS3_UX|MAS3_UR|MAS3_UW)
 #define E500_TLB_SUPER_PERM_MASK (MAS3_SX|MAS3_SR|MAS3_SW)
 #define MAS2_ATTRIB_MASK \
-	  (MAS2_X0 | MAS2_X1)
+	  (MAS2_X0 | MAS2_X1 | MAS2_E | MAS2_G)
 #define MAS3_ATTRIB_MASK \
 	  (MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3 \
 	   | E500_TLB_USER_PERM_MASK | E500_TLB_SUPER_PERM_MASK)

@@ -422,7 +422,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	port->irq_high = platform_get_irq(pdev, 1);
 	port->irq = platform_get_irq(pdev, 0);
 	if (port->irq < 0)
-		return -EINVAL;
+		return port->irq;
 
 	/* disable the interrupt and clear the status */
 	writel(0, port->base + GPIO_IMR);

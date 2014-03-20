@@ -20,7 +20,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/otg.h>
 #include <linux/usb/chipidea.h>
 
 #include "ci.h"
@@ -106,7 +105,7 @@ static int hw_ep_flush(struct ci_hdrc *ci, int num, int dir)
 
 	do {
 		/* flush any pending transfer */
-		hw_write(ci, OP_ENDPTFLUSH, BIT(n), BIT(n));
+		hw_write(ci, OP_ENDPTFLUSH, ~0, BIT(n));
 		while (hw_read(ci, OP_ENDPTFLUSH, BIT(n)))
 			cpu_relax();
 	} while (hw_read(ci, OP_ENDPTSTAT, BIT(n)));
@@ -206,7 +205,7 @@ static int hw_ep_prime(struct ci_hdrc *ci, int num, int dir, int is_ctrl)
 	if (is_ctrl && dir == RX && hw_read(ci, OP_ENDPTSETUPSTAT, BIT(num)))
 		return -EAGAIN;
 
-	hw_write(ci, OP_ENDPTPRIME, BIT(n), BIT(n));
+	hw_write(ci, OP_ENDPTPRIME, ~0, BIT(n));
 
 	while (hw_read(ci, OP_ENDPTPRIME, BIT(n)))
 		cpu_relax();
@@ -394,6 +393,14 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 	node->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
 	node->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
 	node->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
+	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == TX) {
+		u32 mul = hwreq->req.length / hwep->ep.maxpacket;
+
+		if (hwreq->req.length == 0
+				|| hwreq->req.length % hwep->ep.maxpacket)
+			mul++;
+		node->ptr->token |= mul << __ffs(TD_MULTO);
+	}
 
 	temp = (u32) (hwreq->req.dma + hwreq->req.actual);
 	if (length) {
@@ -516,10 +523,11 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
 
-	if (hwep->type == USB_ENDPOINT_XFER_ISOC) {
+	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == RX) {
 		u32 mul = hwreq->req.length / hwep->ep.maxpacket;
 
-		if (hwreq->req.length % hwep->ep.maxpacket)
+		if (hwreq->req.length == 0
+				|| hwreq->req.length % hwep->ep.maxpacket)
 			mul++;
 		hwep->qh.ptr->cap |= mul << __ffs(QH_MULT);
 	}
@@ -686,9 +694,6 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	usb_ep_fifo_flush(&ci->ep0out->ep);
 	usb_ep_fifo_flush(&ci->ep0in->ep);
 
-	if (ci->driver)
-		ci->driver->disconnect(gadget);
-
 	/* make sure to disable all endpoints */
 	gadget_for_each_ep(ep, gadget) {
 		usb_ep_disable(ep);
@@ -718,6 +723,11 @@ __acquires(ci->lock)
 	int retval;
 
 	spin_unlock(&ci->lock);
+	if (ci->gadget.speed != USB_SPEED_UNKNOWN) {
+		if (ci->driver)
+			ci->driver->disconnect(&ci->gadget);
+	}
+
 	retval = _gadget_stop_activity(&ci->gadget);
 	if (retval)
 		goto done;
@@ -1172,6 +1182,12 @@ static int ep_enable(struct usb_ep *ep,
 	if (hwep->num)
 		cap |= QH_ZLT;
 	cap |= (hwep->ep.maxpacket << __ffs(QH_MAX_PKT)) & QH_MAX_PKT;
+	/*
+	 * For ISO-TX, we set mult at QH as the largest value, and use
+	 * MultO at TD as real mult value.
+	 */
+	if (hwep->type == USB_ENDPOINT_XFER_ISOC && hwep->dir == TX)
+		cap |= 3 << __ffs(QH_MULT);
 
 	hwep->qh.ptr->cap = cpu_to_le32(cap);
 
@@ -1461,6 +1477,8 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 			hw_device_state(ci, ci->ep0out->qh.dma);
 			dev_dbg(ci->dev, "Connected to host\n");
 		} else {
+			if (ci->driver)
+				ci->driver->disconnect(&ci->gadget);
 			hw_device_state(ci, 0);
 			if (ci->platdata->notify_event)
 				ci->platdata->notify_event(ci,
@@ -1563,7 +1581,7 @@ static int init_eps(struct ci_hdrc *ci)
 			 * eps, maxP is set by epautoconfig() called
 			 * by gadget layer
 			 */
-			hwep->ep.maxpacket = (unsigned short)~0;
+			usb_ep_set_maxpacket_limit(&hwep->ep, (unsigned short)~0);
 
 			INIT_LIST_HEAD(&hwep->qh.queue);
 			hwep->qh.ptr = dma_pool_alloc(ci->qh_pool, GFP_KERNEL,
@@ -1583,7 +1601,7 @@ static int init_eps(struct ci_hdrc *ci)
 				else
 					ci->ep0in = hwep;
 
-				hwep->ep.maxpacket = CTRL_PAYLOAD_MAX;
+				usb_ep_set_maxpacket_limit(&hwep->ep, CTRL_PAYLOAD_MAX);
 				continue;
 			}
 
@@ -1633,23 +1651,22 @@ static int ci_udc_start(struct usb_gadget *gadget,
 	retval = usb_ep_enable(&ci->ep0in->ep);
 	if (retval)
 		return retval;
-	spin_lock_irqsave(&ci->lock, flags);
 
 	ci->driver = driver;
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (ci->vbus_active) {
+		spin_lock_irqsave(&ci->lock, flags);
 		hw_device_reset(ci, USBMODE_CM_DC);
 	} else {
 		pm_runtime_put_sync(&ci->gadget.dev);
-		goto done;
+		return retval;
 	}
 
 	retval = hw_device_state(ci, ci->ep0out->qh.dma);
+	spin_unlock_irqrestore(&ci->lock, flags);
 	if (retval)
 		pm_runtime_put_sync(&ci->gadget.dev);
 
- done:
-	spin_unlock_irqrestore(&ci->lock, flags);
 	return retval;
 }
 
@@ -1786,54 +1803,15 @@ static int udc_start(struct ci_hdrc *ci)
 
 	ci->gadget.ep0 = &ci->ep0in->ep;
 
-	if (ci->global_phy) {
-		ci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
-		if (IS_ERR(ci->transceiver))
-			ci->transceiver = NULL;
-	}
-
-	if (ci->platdata->flags & CI_HDRC_REQUIRE_TRANSCEIVER) {
-		if (ci->transceiver == NULL) {
-			retval = -ENODEV;
-			goto destroy_eps;
-		}
-	}
-
-	if (ci->transceiver) {
-		retval = otg_set_peripheral(ci->transceiver->otg,
-						&ci->gadget);
-		/*
-		 * If we implement all USB functions using chipidea drivers,
-		 * it doesn't need to call above API, meanwhile, if we only
-		 * use gadget function, calling above API is useless.
-		 */
-		if (retval && retval != -ENOTSUPP)
-			goto put_transceiver;
-	}
-
 	retval = usb_add_gadget_udc(dev, &ci->gadget);
 	if (retval)
-		goto remove_trans;
+		goto destroy_eps;
 
 	pm_runtime_no_callbacks(&ci->gadget.dev);
 	pm_runtime_enable(&ci->gadget.dev);
 
-	/* Update ci->vbus_active */
-	ci_handle_vbus_change(ci);
-
 	return retval;
 
-remove_trans:
-	if (ci->transceiver) {
-		otg_set_peripheral(ci->transceiver->otg, NULL);
-		if (ci->global_phy)
-			usb_put_phy(ci->transceiver);
-	}
-
-	dev_err(dev, "error = %i\n", retval);
-put_transceiver:
-	if (ci->transceiver && ci->global_phy)
-		usb_put_phy(ci->transceiver);
 destroy_eps:
 	destroy_eps(ci);
 free_pools:

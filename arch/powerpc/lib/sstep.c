@@ -212,11 +212,19 @@ static int __kprobes read_mem_unaligned(unsigned long *dest, unsigned long ea,
 {
 	int err;
 	unsigned long x, b, c;
+#ifdef __LITTLE_ENDIAN__
+	int len = nb; /* save a copy of the length for byte reversal */
+#endif
 
 	/* unaligned, do this in pieces */
 	x = 0;
 	for (; nb > 0; nb -= c) {
+#ifdef __LITTLE_ENDIAN__
+		c = 1;
+#endif
+#ifdef __BIG_ENDIAN__
 		c = max_align(ea);
+#endif
 		if (c > nb)
 			c = max_align(nb);
 		err = read_mem_aligned(&b, ea, c);
@@ -225,7 +233,24 @@ static int __kprobes read_mem_unaligned(unsigned long *dest, unsigned long ea,
 		x = (x << (8 * c)) + b;
 		ea += c;
 	}
+#ifdef __LITTLE_ENDIAN__
+	switch (len) {
+	case 2:
+		*dest = byterev_2(x);
+		break;
+	case 4:
+		*dest = byterev_4(x);
+		break;
+#ifdef __powerpc64__
+	case 8:
+		*dest = byterev_8(x);
+		break;
+#endif
+	}
+#endif
+#ifdef __BIG_ENDIAN__
 	*dest = x;
+#endif
 	return 0;
 }
 
@@ -273,9 +298,29 @@ static int __kprobes write_mem_unaligned(unsigned long val, unsigned long ea,
 	int err;
 	unsigned long c;
 
+#ifdef __LITTLE_ENDIAN__
+	switch (nb) {
+	case 2:
+		val = byterev_2(val);
+		break;
+	case 4:
+		val = byterev_4(val);
+		break;
+#ifdef __powerpc64__
+	case 8:
+		val = byterev_8(val);
+		break;
+#endif
+	}
+#endif
 	/* unaligned or little-endian, do this in pieces */
 	for (; nb > 0; nb -= c) {
+#ifdef __LITTLE_ENDIAN__
+		c = 1;
+#endif
+#ifdef __BIG_ENDIAN__
 		c = max_align(ea);
+#endif
 		if (c > nb)
 			c = max_align(nb);
 		err = write_mem_aligned(val >> (nb - c) * 8, ea, c);
@@ -310,22 +355,36 @@ static int __kprobes do_fp_load(int rn, int (*func)(int, unsigned long),
 				struct pt_regs *regs)
 {
 	int err;
-	unsigned long val[sizeof(double) / sizeof(long)];
+	union {
+		double dbl;
+		unsigned long ul[2];
+		struct {
+#ifdef __BIG_ENDIAN__
+			unsigned _pad_;
+			unsigned word;
+#endif
+#ifdef __LITTLE_ENDIAN__
+			unsigned word;
+			unsigned _pad_;
+#endif
+		} single;
+	} data;
 	unsigned long ptr;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & 3) == 0)
 		return (*func)(rn, ea);
-	ptr = (unsigned long) &val[0];
+	ptr = (unsigned long) &data.ul;
 	if (sizeof(unsigned long) == 8 || nb == 4) {
-		err = read_mem_unaligned(&val[0], ea, nb, regs);
-		ptr += sizeof(unsigned long) - nb;
+		err = read_mem_unaligned(&data.ul[0], ea, nb, regs);
+		if (nb == 4)
+			ptr = (unsigned long)&(data.single.word);
 	} else {
 		/* reading a double on 32-bit */
-		err = read_mem_unaligned(&val[0], ea, 4, regs);
+		err = read_mem_unaligned(&data.ul[0], ea, 4, regs);
 		if (!err)
-			err = read_mem_unaligned(&val[1], ea + 4, 4, regs);
+			err = read_mem_unaligned(&data.ul[1], ea + 4, 4, regs);
 	}
 	if (err)
 		return err;
@@ -337,28 +396,42 @@ static int __kprobes do_fp_store(int rn, int (*func)(int, unsigned long),
 				 struct pt_regs *regs)
 {
 	int err;
-	unsigned long val[sizeof(double) / sizeof(long)];
+	union {
+		double dbl;
+		unsigned long ul[2];
+		struct {
+#ifdef __BIG_ENDIAN__
+			unsigned _pad_;
+			unsigned word;
+#endif
+#ifdef __LITTLE_ENDIAN__
+			unsigned word;
+			unsigned _pad_;
+#endif
+		} single;
+	} data;
 	unsigned long ptr;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & 3) == 0)
 		return (*func)(rn, ea);
-	ptr = (unsigned long) &val[0];
+	ptr = (unsigned long) &data.ul[0];
 	if (sizeof(unsigned long) == 8 || nb == 4) {
-		ptr += sizeof(unsigned long) - nb;
+		if (nb == 4)
+			ptr = (unsigned long)&(data.single.word);
 		err = (*func)(rn, ptr);
 		if (err)
 			return err;
-		err = write_mem_unaligned(val[0], ea, nb, regs);
+		err = write_mem_unaligned(data.ul[0], ea, nb, regs);
 	} else {
 		/* writing a double on 32-bit */
 		err = (*func)(rn, ptr);
 		if (err)
 			return err;
-		err = write_mem_unaligned(val[0], ea, 4, regs);
+		err = write_mem_unaligned(data.ul[0], ea, 4, regs);
 		if (!err)
-			err = write_mem_unaligned(val[1], ea + 4, 4, regs);
+			err = write_mem_unaligned(data.ul[1], ea + 4, 4, regs);
 	}
 	return err;
 }

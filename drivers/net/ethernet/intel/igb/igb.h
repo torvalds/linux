@@ -41,6 +41,7 @@
 #include <linux/if_vlan.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/pci.h>
 
 struct igb_adapter;
 
@@ -67,6 +68,7 @@ struct igb_adapter;
 #define IGB_MIN_ITR_USECS	10
 #define NON_Q_VECTORS		1
 #define MAX_Q_VECTORS		8
+#define MAX_MSIX_ENTRIES	10
 
 /* Transmit and receive queues */
 #define IGB_MAX_RX_QUEUES	8
@@ -127,9 +129,9 @@ struct vf_data_storage {
 #define IGB_TX_PTHRESH	((hw->mac.type == e1000_i354) ? 20 : 8)
 #define IGB_TX_HTHRESH	1
 #define IGB_RX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			  adapter->msix_entries) ? 1 : 4)
+			  (adapter->flags & IGB_FLAG_HAS_MSIX)) ? 1 : 4)
 #define IGB_TX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			  adapter->msix_entries) ? 1 : 16)
+			  (adapter->flags & IGB_FLAG_HAS_MSIX)) ? 1 : 16)
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
@@ -337,8 +339,10 @@ struct hwmon_attr {
 	};
 
 struct hwmon_buff {
-	struct device *device;
-	struct hwmon_attr *hwmon_list;
+	struct attribute_group group;
+	const struct attribute_group *groups[2];
+	struct attribute *attrs[E1000_MAX_SENSORS * 4 + 1];
+	struct hwmon_attr hwmon_list[E1000_MAX_SENSORS * 4];
 	unsigned int n_hwmon;
 	};
 #endif
@@ -355,7 +359,7 @@ struct igb_adapter {
 	unsigned int flags;
 
 	unsigned int num_q_vectors;
-	struct msix_entry *msix_entries;
+	struct msix_entry msix_entries[MAX_MSIX_ENTRIES];
 
 	/* Interrupt Throttle Rate */
 	u32 rx_itr_setting;
@@ -440,7 +444,7 @@ struct igb_adapter {
 
 	char fw_version[32];
 #ifdef CONFIG_IGB_HWMON
-	struct hwmon_buff igb_hwmon_buff;
+	struct hwmon_buff *igb_hwmon_buff;
 	bool ets;
 #endif
 	struct i2c_algo_bit_data i2c_algo;
@@ -450,6 +454,8 @@ struct igb_adapter {
 	u8 rss_indir_tbl[IGB_RETA_SIZE];
 
 	unsigned long link_check_timeout;
+	int copper_tries;
+	struct e1000_info ei;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -462,6 +468,16 @@ struct igb_adapter {
 #define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 7)
 #define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
 #define IGB_FLAG_NEED_LINK_UPDATE	(1 << 9)
+#define IGB_FLAG_MEDIA_RESET		(1 << 10)
+#define IGB_FLAG_MAS_CAPABLE		(1 << 11)
+#define IGB_FLAG_MAS_ENABLE		(1 << 12)
+#define IGB_FLAG_HAS_MSIX		(1 << 13)
+
+/* Media Auto Sense */
+#define IGB_MAS_ENABLE_0		0X0001
+#define IGB_MAS_ENABLE_1		0X0002
+#define IGB_MAS_ENABLE_2		0X0004
+#define IGB_MAS_ENABLE_3		0X0008
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE	20408
@@ -483,40 +499,38 @@ enum igb_boards {
 extern char igb_driver_name[];
 extern char igb_driver_version[];
 
-extern int igb_up(struct igb_adapter *);
-extern void igb_down(struct igb_adapter *);
-extern void igb_reinit_locked(struct igb_adapter *);
-extern void igb_reset(struct igb_adapter *);
-extern void igb_write_rss_indir_tbl(struct igb_adapter *);
-extern int igb_set_spd_dplx(struct igb_adapter *, u32, u8);
-extern int igb_setup_tx_resources(struct igb_ring *);
-extern int igb_setup_rx_resources(struct igb_ring *);
-extern void igb_free_tx_resources(struct igb_ring *);
-extern void igb_free_rx_resources(struct igb_ring *);
-extern void igb_configure_tx_ring(struct igb_adapter *, struct igb_ring *);
-extern void igb_configure_rx_ring(struct igb_adapter *, struct igb_ring *);
-extern void igb_setup_tctl(struct igb_adapter *);
-extern void igb_setup_rctl(struct igb_adapter *);
-extern netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
-extern void igb_unmap_and_free_tx_resource(struct igb_ring *,
-					   struct igb_tx_buffer *);
-extern void igb_alloc_rx_buffers(struct igb_ring *, u16);
-extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
-extern bool igb_has_link(struct igb_adapter *adapter);
-extern void igb_set_ethtool_ops(struct net_device *);
-extern void igb_power_up_link(struct igb_adapter *);
-extern void igb_set_fw_version(struct igb_adapter *);
-extern void igb_ptp_init(struct igb_adapter *adapter);
-extern void igb_ptp_stop(struct igb_adapter *adapter);
-extern void igb_ptp_reset(struct igb_adapter *adapter);
-extern void igb_ptp_tx_work(struct work_struct *work);
-extern void igb_ptp_rx_hang(struct igb_adapter *adapter);
-extern void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
-extern void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
-				struct sk_buff *skb);
-extern void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
-				unsigned char *va,
-				struct sk_buff *skb);
+int igb_up(struct igb_adapter *);
+void igb_down(struct igb_adapter *);
+void igb_reinit_locked(struct igb_adapter *);
+void igb_reset(struct igb_adapter *);
+int igb_reinit_queues(struct igb_adapter *);
+void igb_write_rss_indir_tbl(struct igb_adapter *);
+int igb_set_spd_dplx(struct igb_adapter *, u32, u8);
+int igb_setup_tx_resources(struct igb_ring *);
+int igb_setup_rx_resources(struct igb_ring *);
+void igb_free_tx_resources(struct igb_ring *);
+void igb_free_rx_resources(struct igb_ring *);
+void igb_configure_tx_ring(struct igb_adapter *, struct igb_ring *);
+void igb_configure_rx_ring(struct igb_adapter *, struct igb_ring *);
+void igb_setup_tctl(struct igb_adapter *);
+void igb_setup_rctl(struct igb_adapter *);
+netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
+void igb_unmap_and_free_tx_resource(struct igb_ring *, struct igb_tx_buffer *);
+void igb_alloc_rx_buffers(struct igb_ring *, u16);
+void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
+bool igb_has_link(struct igb_adapter *adapter);
+void igb_set_ethtool_ops(struct net_device *);
+void igb_power_up_link(struct igb_adapter *);
+void igb_set_fw_version(struct igb_adapter *);
+void igb_ptp_init(struct igb_adapter *adapter);
+void igb_ptp_stop(struct igb_adapter *adapter);
+void igb_ptp_reset(struct igb_adapter *adapter);
+void igb_ptp_tx_work(struct work_struct *work);
+void igb_ptp_rx_hang(struct igb_adapter *adapter);
+void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
+void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb);
+void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, unsigned char *va,
+			 struct sk_buff *skb);
 static inline void igb_ptp_rx_hwtstamp(struct igb_ring *rx_ring,
 				       union e1000_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
@@ -531,11 +545,11 @@ static inline void igb_ptp_rx_hwtstamp(struct igb_ring *rx_ring,
 	rx_ring->last_rx_timestamp = jiffies;
 }
 
-extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
-				  struct ifreq *ifr, int cmd);
+int igb_ptp_hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr,
+			   int cmd);
 #ifdef CONFIG_IGB_HWMON
-extern void igb_sysfs_exit(struct igb_adapter *adapter);
-extern int igb_sysfs_init(struct igb_adapter *adapter);
+void igb_sysfs_exit(struct igb_adapter *adapter);
+int igb_sysfs_init(struct igb_adapter *adapter);
 #endif
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {

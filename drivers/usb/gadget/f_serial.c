@@ -354,7 +354,7 @@ static void gser_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_free_all_descriptors(f);
 }
 
-struct usb_function *gser_alloc(struct usb_function_instance *fi)
+static struct usb_function *gser_alloc(struct usb_function_instance *fi)
 {
 	struct f_gser	*gser;
 	struct f_serial_opts *opts;

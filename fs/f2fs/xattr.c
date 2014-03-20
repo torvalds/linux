@@ -21,6 +21,7 @@
 #include <linux/rwsem.h>
 #include <linux/f2fs_fs.h>
 #include <linux/security.h>
+#include <linux/posix_acl_xattr.h>
 #include "f2fs.h"
 #include "xattr.h"
 
@@ -154,6 +155,9 @@ static int f2fs_xattr_advise_set(struct dentry *dentry, const char *name,
 }
 
 #ifdef CONFIG_F2FS_FS_SECURITY
+static int __f2fs_setxattr(struct inode *inode, int name_index,
+			const char *name, const void *value, size_t value_len,
+			struct page *ipage);
 static int f2fs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 		void *page)
 {
@@ -161,7 +165,7 @@ static int f2fs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 	int err = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-		err = f2fs_setxattr(inode, F2FS_XATTR_INDEX_SECURITY,
+		err = __f2fs_setxattr(inode, F2FS_XATTR_INDEX_SECURITY,
 				xattr->name, xattr->value,
 				xattr->value_len, (struct page *)page);
 		if (err < 0)
@@ -213,8 +217,8 @@ const struct xattr_handler f2fs_xattr_security_handler = {
 static const struct xattr_handler *f2fs_xattr_handler_map[] = {
 	[F2FS_XATTR_INDEX_USER] = &f2fs_xattr_user_handler,
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
-	[F2FS_XATTR_INDEX_POSIX_ACL_ACCESS] = &f2fs_xattr_acl_access_handler,
-	[F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT] = &f2fs_xattr_acl_default_handler,
+	[F2FS_XATTR_INDEX_POSIX_ACL_ACCESS] = &posix_acl_access_xattr_handler,
+	[F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT] = &posix_acl_default_xattr_handler,
 #endif
 	[F2FS_XATTR_INDEX_TRUSTED] = &f2fs_xattr_trusted_handler,
 #ifdef CONFIG_F2FS_FS_SECURITY
@@ -226,8 +230,8 @@ static const struct xattr_handler *f2fs_xattr_handler_map[] = {
 const struct xattr_handler *f2fs_xattr_handlers[] = {
 	&f2fs_xattr_user_handler,
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
-	&f2fs_xattr_acl_access_handler,
-	&f2fs_xattr_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 #endif
 	&f2fs_xattr_trusted_handler,
 #ifdef CONFIG_F2FS_FS_SECURITY
@@ -369,7 +373,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 			alloc_nid_failed(sbi, new_nid);
 			return PTR_ERR(xpage);
 		}
-		BUG_ON(new_nid);
+		f2fs_bug_on(new_nid);
 	} else {
 		struct dnode_of_data dn;
 		set_new_dnode(&dn, inode, NULL, NULL, new_nid);
@@ -469,16 +473,15 @@ cleanup:
 	return error;
 }
 
-int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
-			const void *value, size_t value_len, struct page *ipage)
+static int __f2fs_setxattr(struct inode *inode, int name_index,
+			const char *name, const void *value, size_t value_len,
+			struct page *ipage)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_xattr_entry *here, *last;
 	void *base_addr;
 	int found, newsize;
 	size_t name_len;
-	int ilock;
 	__u32 new_hsize;
 	int error = -ENOMEM;
 
@@ -492,10 +495,6 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 
 	if (name_len > F2FS_NAME_LEN || value_len > MAX_VALUE_LEN(inode))
 		return -ERANGE;
-
-	f2fs_balance_fs(sbi);
-
-	ilock = mutex_lock_op(sbi);
 
 	base_addr = read_all_xattrs(inode, ipage);
 	if (!base_addr)
@@ -522,9 +521,9 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 		 */
 		free = MIN_OFFSET(inode) - ((char *)last - (char *)base_addr);
 		if (found)
-			free = free - ENTRY_SIZE(here);
+			free = free + ENTRY_SIZE(here);
 
-		if (free < newsize) {
+		if (unlikely(free < newsize)) {
 			error = -ENOSPC;
 			goto exit;
 		}
@@ -578,7 +577,21 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	else
 		update_inode_page(inode);
 exit:
-	mutex_unlock_op(sbi, ilock);
 	kzfree(base_addr);
 	return error;
+}
+
+int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
+			const void *value, size_t value_len, struct page *ipage)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	int err;
+
+	f2fs_balance_fs(sbi);
+
+	f2fs_lock_op(sbi);
+	err = __f2fs_setxattr(inode, name_index, name, value, value_len, ipage);
+	f2fs_unlock_op(sbi);
+
+	return err;
 }

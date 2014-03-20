@@ -24,7 +24,6 @@ config PLAT_S5P
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
 	select SAMSUNG_CLKSRC if !COMMON_CLK
-	select SAMSUNG_GPIOLIB_4BIT
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
@@ -114,13 +113,6 @@ config S5P_GPIO_INT
 	  Common code for the GPIO interrupts (other than external interrupts.)
 
 # options for gpio configuration support
-
-config SAMSUNG_GPIOLIB_4BIT
-	bool
-	help
-	  GPIOlib file contains the 4 bit modification functions for gpio
-	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
-	  series of processors.
 
 config S5P_GPIO_DRVSTR
 	bool
@@ -382,11 +374,6 @@ config S5P_DEV_TV
 	help
 	  Compile in platform device definition for TV interface
 
-config S5P_DEV_USB_EHCI
-	bool
-	help
-	  Compile in platform device definition for USB EHCI
-
 config S3C24XX_PWM
 	bool "PWM device support"
 	select PWM
@@ -394,11 +381,6 @@ config S3C24XX_PWM
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
-
-config S5P_SETUP_MIPIPHY
-	bool
-	help
-	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
 
 config S3C_SETUP_CAMIF
 	bool

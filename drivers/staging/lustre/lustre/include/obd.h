@@ -177,7 +177,7 @@ static inline int lov_stripe_md_cmp(struct lov_stripe_md *m1,
 	 * ->lsm_wire contains padding, but it should be zeroed out during
 	 * allocation.
 	 */
-	return memcmp(&m1->lsm_wire, &m2->lsm_wire, sizeof m1->lsm_wire);
+	return memcmp(&m1->lsm_wire, &m2->lsm_wire, sizeof(m1->lsm_wire));
 }
 
 static inline int lov_lum_lsm_cmp(struct lov_user_md *lum,
@@ -399,8 +399,8 @@ struct client_obd {
 
 	/* mgc datastruct */
 	struct semaphore	 cl_mgc_sem;
-	struct vfsmount	 *cl_mgc_vfsmnt;
-	struct dentry	   *cl_mgc_configs_dir;
+	struct local_oid_storage *cl_mgc_los;
+	struct dt_object	*cl_mgc_configs_dir;
 	atomic_t	     cl_mgc_refcount;
 	struct obd_export       *cl_mgc_mgsexp;
 
@@ -429,7 +429,7 @@ struct client_obd {
 	/* ptlrpc work for writeback in ptlrpcd context */
 	void		    *cl_writeback_work;
 	/* hash tables for osc_quota_info */
-	cfs_hash_t	      *cl_quota_hash[MAXQUOTAS];
+	struct cfs_hash	      *cl_quota_hash[MAXQUOTAS];
 };
 #define obd2cli_tgt(obd) ((char *)(obd)->u.cli.cl_target_uuid.uuid)
 
@@ -556,7 +556,7 @@ struct lov_obd {
 	__u32		   lov_tgt_size;   /* size of tgts array */
 	int		     lov_connects;
 	int		     lov_pool_count;
-	cfs_hash_t	     *lov_pools_hash_body; /* used for key access */
+	struct cfs_hash	     *lov_pools_hash_body; /* used for key access */
 	struct list_head	      lov_pool_list; /* used for sequential access */
 	struct proc_dir_entry   *lov_pool_proc_entry;
 	enum lustre_sec_part    lov_sp_me;
@@ -855,11 +855,11 @@ struct obd_device {
 	 * protection of other bits using _bh lock */
 	unsigned long obd_recovery_expired:1;
 	/* uuid-export hash body */
-	cfs_hash_t	     *obd_uuid_hash;
+	struct cfs_hash	     *obd_uuid_hash;
 	/* nid-export hash body */
-	cfs_hash_t	     *obd_nid_hash;
+	struct cfs_hash	     *obd_nid_hash;
 	/* nid stats body */
-	cfs_hash_t	     *obd_nid_stats_hash;
+	struct cfs_hash	     *obd_nid_stats_hash;
 	struct list_head	      obd_nid_stats;
 	atomic_t	    obd_refcount;
 	wait_queue_head_t	     obd_refcount_waitq;
@@ -1022,6 +1022,7 @@ struct lu_context;
 #define IT_LAYOUT   (1 << 10)
 #define IT_QUOTA_DQACQ (1 << 11)
 #define IT_QUOTA_CONN  (1 << 12)
+#define IT_SETXATTR (1 << 13)
 
 static inline int it_to_lock_mode(struct lookup_intent *it)
 {
@@ -1031,6 +1032,10 @@ static inline int it_to_lock_mode(struct lookup_intent *it)
 	else if (it->it_op & (IT_READDIR | IT_GETATTR | IT_OPEN | IT_LOOKUP |
 			      IT_LAYOUT))
 		return LCK_CR;
+	else if (it->it_op &  IT_GETXATTR)
+		return LCK_PR;
+	else if (it->it_op &  IT_SETXATTR)
+		return LCK_PW;
 
 	LASSERTF(0, "Invalid it_op: %d\n", it->it_op);
 	return -EINVAL;
@@ -1070,7 +1075,7 @@ struct md_op_data {
 	struct obd_capa	*op_capa2;
 
 	/* Various operation flags. */
-	__u32		   op_bias;
+	enum mds_op_bias        op_bias;
 
 	/* Operation type */
 	__u32		   op_opc;
@@ -1084,6 +1089,10 @@ struct md_op_data {
 	/* used to transfer info between the stacks of MD client
 	 * see enum op_cli_flags */
 	__u32			op_cli_flags;
+
+	/* File object data version for HSM release, on client */
+	__u64			op_data_version;
+	struct lustre_handle	op_lease_handle;
 };
 
 enum op_cli_flags {

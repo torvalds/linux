@@ -491,7 +491,7 @@ static enum dma_status jz4740_dma_tx_status(struct dma_chan *c,
 	unsigned long flags;
 
 	status = dma_cookie_status(c, cookie, state);
-	if (status == DMA_SUCCESS || !state)
+	if (status == DMA_COMPLETE || !state)
 		return status;
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);

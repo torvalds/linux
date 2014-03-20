@@ -63,7 +63,7 @@
 		return (-EINVAL);				     \
 	}							     \
 	mutex_unlock(&ctxt->loc_mutex);			   \
-} while(0)
+} while (0)
 
 #define LLOG_CLIENT_EXIT(ctxt, imp) do {			      \
 	mutex_lock(&ctxt->loc_mutex);			     \
@@ -72,7 +72,7 @@
 		       ctxt->loc_imp, imp);			   \
 	class_import_put(imp);					\
 	mutex_unlock(&ctxt->loc_mutex);			   \
-} while(0)
+} while (0)
 
 /* This is a callback from the llog_* functions.
  * Assumes caller has already pushed us into the kernel context. */
@@ -302,7 +302,7 @@ static int llog_client_read_header(const struct lu_env *env,
 	if (hdr == NULL)
 		GOTO(out, rc =-EFAULT);
 
-	memcpy(handle->lgh_hdr, hdr, sizeof (*hdr));
+	memcpy(handle->lgh_hdr, hdr, sizeof(*hdr));
 	handle->lgh_last_idx = handle->lgh_hdr->llh_tail.lrt_index;
 
 	/* sanity checks */

@@ -42,11 +42,12 @@
 
 #define READ_TIMEOUT 50
 
-static const struct comedi_lrange range_pci1050_ai = { 3, {
-							  BIP_RANGE(10),
-							  BIP_RANGE(5),
-							  UNI_RANGE(10)
-							  }
+static const struct comedi_lrange range_pci1050_ai = {
+	3, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 static const char range_codes_pci1050_ai[] = { 0x00, 0x10, 0x30 };
@@ -90,8 +91,7 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 				goto conv_finish;
 		}
 		data[n] = 0;
-		printk(KERN_DEBUG "comedi: dyna_pci10xx: "
-			"timeout reading analog input\n");
+		dev_dbg(dev->class_dev, "timeout reading analog input\n");
 		continue;
 conv_finish:
 		/* mask the first 4 bits - EOC bits */
@@ -147,33 +147,23 @@ static int dyna_pci10xx_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* digital output bit interface */
 static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
 	struct dyna_pci10xx_private *devpriv = dev->private;
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit.
-	 * s->state contains the previous write data
-	 */
 	mutex_lock(&devpriv->mutex);
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		smp_mb();
 		outw_p(s->state, devpriv->BADR3);
 		udelay(10);
 	}
 
-	/*
-	 * On return, data[1] contains the value of the digital
-	 * input and output lines. We just return the software copy of the
-	 * output values if it was a purely digital output subdevice.
-	 */
 	data[1] = s->state;
 	mutex_unlock(&devpriv->mutex);
+
 	return insn->n;
 }
 
@@ -270,7 +260,7 @@ static int dyna_pci10xx_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dyna_pci10xx_pci_table) = {
+static const struct pci_device_id dyna_pci10xx_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, 0x1050) },
 	{ 0 }
 };

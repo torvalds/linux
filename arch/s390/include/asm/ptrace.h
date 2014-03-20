@@ -10,8 +10,11 @@
 
 #ifndef __ASSEMBLY__
 
-extern long psw_kernel_bits;
-extern long psw_user_bits;
+#define PSW_KERNEL_BITS	(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_HOME | \
+			 PSW_MASK_EA | PSW_MASK_BA)
+#define PSW_USER_BITS	(PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | \
+			 PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK | \
+			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
 
 /*
  * The pt_regs struct defines the way the registers are stored on

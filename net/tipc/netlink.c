@@ -76,33 +76,26 @@ static struct genl_family tipc_genl_family = {
 	.maxattr	= 0,
 };
 
-static struct genl_ops tipc_genl_ops = {
-	.cmd		= TIPC_GENL_CMD,
-	.doit		= handle_cmd,
+static struct genl_ops tipc_genl_ops[] = {
+	{
+		.cmd		= TIPC_GENL_CMD,
+		.doit		= handle_cmd,
+	},
 };
-
-static int tipc_genl_family_registered;
 
 int tipc_netlink_start(void)
 {
 	int res;
 
-	res = genl_register_family_with_ops(&tipc_genl_family,
-		&tipc_genl_ops, 1);
+	res = genl_register_family_with_ops(&tipc_genl_family, tipc_genl_ops);
 	if (res) {
 		pr_err("Failed to register netlink interface\n");
 		return res;
 	}
-
-	tipc_genl_family_registered = 1;
 	return 0;
 }
 
 void tipc_netlink_stop(void)
 {
-	if (!tipc_genl_family_registered)
-		return;
-
 	genl_unregister_family(&tipc_genl_family);
-	tipc_genl_family_registered = 0;
 }

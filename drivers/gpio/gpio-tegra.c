@@ -75,6 +75,7 @@ struct tegra_gpio_bank {
 #endif
 };
 
+static struct device *dev;
 static struct irq_domain *irq_domain;
 static void __iomem *regs;
 static u32 tegra_gpio_bank_count;
@@ -205,6 +206,7 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	int lvl_type;
 	int val;
 	unsigned long flags;
+	int ret;
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -231,6 +233,12 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
+	ret = gpio_lock_as_irq(&tegra_gpio_chip, gpio);
+	if (ret) {
+		dev_err(dev, "unable to lock Tegra GPIO %d as IRQ\n", gpio);
+		return ret;
+	}
+
 	spin_lock_irqsave(&bank->lvl_lock[port], flags);
 
 	val = tegra_gpio_readl(GPIO_INT_LVL(gpio));
@@ -249,6 +257,13 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		__irq_set_handler_locked(d->irq, handle_edge_irq);
 
 	return 0;
+}
+
+static void tegra_gpio_irq_shutdown(struct irq_data *d)
+{
+	int gpio = d->hwirq;
+
+	gpio_unlock_as_irq(&tegra_gpio_chip, gpio);
 }
 
 static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -368,6 +383,7 @@ static struct irq_chip tegra_gpio_irq_chip = {
 	.irq_mask	= tegra_gpio_irq_mask,
 	.irq_unmask	= tegra_gpio_irq_unmask,
 	.irq_set_type	= tegra_gpio_irq_set_type,
+	.irq_shutdown	= tegra_gpio_irq_shutdown,
 #ifdef CONFIG_PM_SLEEP
 	.irq_set_wake	= tegra_gpio_irq_set_wake,
 #endif
@@ -409,9 +425,12 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	struct tegra_gpio_soc_config *config;
 	struct resource *res;
 	struct tegra_gpio_bank *bank;
+	int ret;
 	int gpio;
 	int i;
 	int j;
+
+	dev = &pdev->dev;
 
 	match = of_match_device(tegra_gpio_of_match, &pdev->dev);
 	if (!match) {
@@ -476,7 +495,11 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	tegra_gpio_chip.of_node = pdev->dev.of_node;
 
-	gpiochip_add(&tegra_gpio_chip);
+	ret = gpiochip_add(&tegra_gpio_chip);
+	if (ret < 0) {
+		irq_domain_remove(irq_domain);
+		return ret;
+	}
 
 	for (gpio = 0; gpio < tegra_gpio_chip.ngpio; gpio++) {
 		int irq = irq_create_mapping(irq_domain, gpio);

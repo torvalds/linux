@@ -56,6 +56,7 @@
 #include <linux/mutex.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/ratelimit.h>
 #if defined(__alpha__) || defined(__powerpc__)
 #include <asm/pgtable.h>	/* For pte_wrprotect */
 #endif
@@ -136,7 +137,6 @@ int drm_err(const char *func, const char *format, ...);
 
 /* driver capabilities and requirements mask */
 #define DRIVER_USE_AGP     0x1
-#define DRIVER_REQUIRE_AGP 0x2
 #define DRIVER_PCI_DMA     0x8
 #define DRIVER_SG          0x10
 #define DRIVER_HAVE_DMA    0x20
@@ -150,6 +150,7 @@ int drm_err(const char *func, const char *format, ...);
 #define DRIVER_BUS_PCI 0x1
 #define DRIVER_BUS_PLATFORM 0x2
 #define DRIVER_BUS_USB 0x3
+#define DRIVER_BUS_HOST1X 0x4
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -179,8 +180,27 @@ int drm_err(const char *func, const char *format, ...);
 #define DRM_ERROR(fmt, ...)				\
 	drm_err(__func__, fmt, ##__VA_ARGS__)
 
+/**
+ * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
+ *
+ * \param fmt printf() like format string.
+ * \param arg arguments
+ */
+#define DRM_ERROR_RATELIMITED(fmt, ...)				\
+({									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+									\
+	if (__ratelimit(&_rs))						\
+		drm_err(__func__, fmt, ##__VA_ARGS__);			\
+})
+
 #define DRM_INFO(fmt, ...)				\
 	printk(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
+
+#define DRM_INFO_ONCE(fmt, ...)				\
+	printk_once(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
 
 /**
  * Debug output.
@@ -412,11 +432,15 @@ struct drm_prime_file_private {
 
 /** File private data */
 struct drm_file {
-	int authenticated;
+	unsigned always_authenticated :1;
+	unsigned authenticated :1;
+	unsigned is_master :1; /* this file private is a master for a minor */
+	/* true when the client has asked us to expose stereo 3D mode flags */
+	unsigned stereo_allowed :1;
+
 	struct pid *pid;
 	kuid_t uid;
 	drm_magic_t magic;
-	unsigned long ioctl_count;
 	struct list_head lhead;
 	struct drm_minor *minor;
 	unsigned long lock_count;
@@ -429,10 +453,8 @@ struct drm_file {
 	struct file *filp;
 	void *driver_priv;
 
-	int is_master; /* this file private is a master for a minor */
 	struct drm_master *master; /* master this node is currently associated with
 				      N.B. not always minor->master */
-
 	/**
 	 * fbs - List of framebuffers associated with this file.
 	 *
@@ -507,7 +529,7 @@ struct drm_device_dma {
  */
 struct drm_agp_mem {
 	unsigned long handle;		/**< handle */
-	DRM_AGP_MEM *memory;
+	struct agp_memory *memory;
 	unsigned long bound;		/**< address */
 	int pages;
 	struct list_head head;
@@ -519,7 +541,7 @@ struct drm_agp_mem {
  * \sa drm_agp_init() and drm_device::agp.
  */
 struct drm_agp_head {
-	DRM_AGP_KERN agp_info;		/**< AGP device information */
+	struct agp_kern_info agp_info;		/**< AGP device information */
 	struct list_head memory;
 	unsigned long mode;		/**< AGP mode */
 	struct agp_bridge_data *bridge;
@@ -603,13 +625,6 @@ struct drm_ati_pcigart_info {
 };
 
 /**
- * GEM specific mm private for tracking GEM objects
- */
-struct drm_gem_mm {
-	struct drm_vma_offset_manager vma_manager;
-};
-
-/**
  * This structure defines the drm_mm memory object, which will be used by the
  * DRM for its buffer objects.
  */
@@ -666,8 +681,6 @@ struct drm_gem_object {
 	 */
 	uint32_t pending_read_domains;
 	uint32_t pending_write_domain;
-
-	void *driver_private;
 
 	/**
 	 * dma_buf - dma buf associated with this GEM object
@@ -748,10 +761,6 @@ struct drm_bus {
 	int (*set_unique)(struct drm_device *dev, struct drm_master *master,
 			  struct drm_unique *unique);
 	int (*irq_by_busid)(struct drm_device *dev, struct drm_irq_busid *p);
-	/* hooks that are for PCI */
-	int (*agp_init)(struct drm_device *dev);
-	void (*agp_destroy)(struct drm_device *dev);
-
 };
 
 /**
@@ -834,12 +843,18 @@ struct drm_driver {
 	/**
 	 * Called by vblank timestamping code.
 	 *
-	 * Return the current display scanout position from a crtc.
+	 * Return the current display scanout position from a crtc, and an
+	 * optional accurate ktime_get timestamp of when position was measured.
 	 *
 	 * \param dev  DRM device.
 	 * \param crtc Id of the crtc to query.
+	 * \param flags Flags from the caller (DRM_CALLED_FROM_VBLIRQ or 0).
 	 * \param *vpos Target location for current vertical scanout position.
 	 * \param *hpos Target location for current horizontal scanout position.
+	 * \param *stime Target location for timestamp taken immediately before
+	 *               scanout position query. Can be NULL to skip timestamp.
+	 * \param *etime Target location for timestamp taken immediately after
+	 *               scanout position query. Can be NULL to skip timestamp.
 	 *
 	 * Returns vpos as a positive number while in active scanout area.
 	 * Returns vpos as a negative number inside vblank, counting the number
@@ -856,7 +871,9 @@ struct drm_driver {
 	 *
 	 */
 	int (*get_scanout_position) (struct drm_device *dev, int crtc,
-				     int *vpos, int *hpos);
+				     unsigned int flags,
+				     int *vpos, int *hpos, ktime_t *stime,
+				     ktime_t *etime);
 
 	/**
 	 * Called by \c drm_get_last_vbltimestamp. Should return a precise
@@ -895,7 +912,7 @@ struct drm_driver {
 
 	/* these have to be filled in */
 
-	irqreturn_t(*irq_handler) (DRM_IRQ_ARGS);
+	irqreturn_t(*irq_handler) (int irq, void *arg);
 	void (*irq_preinstall) (struct drm_device *dev);
 	int (*irq_postinstall) (struct drm_device *dev);
 	void (*irq_uninstall) (struct drm_device *dev);
@@ -922,7 +939,6 @@ struct drm_driver {
 	 *
 	 * Returns 0 on success.
 	 */
-	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
 	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
@@ -988,35 +1004,14 @@ struct drm_driver {
 	} kdriver;
 	struct drm_bus *bus;
 
-	/* List of devices hanging off this driver */
-	struct list_head device_list;
+	/* List of devices hanging off this driver with stealth attach. */
+	struct list_head legacy_dev_list;
 };
 
 #define DRM_MINOR_UNASSIGNED 0
 #define DRM_MINOR_LEGACY 1
 #define DRM_MINOR_CONTROL 2
 #define DRM_MINOR_RENDER 3
-
-
-/**
- * debugfs node list. This structure represents a debugfs file to
- * be created by the drm core
- */
-struct drm_debugfs_list {
-	const char *name; /** file name */
-	int (*show)(struct seq_file*, void*); /** show callback */
-	u32 driver_features; /**< Required driver features for this entry */
-};
-
-/**
- * debugfs node structure. This structure represents a debugfs file.
- */
-struct drm_debugfs_node {
-	struct list_head list;
-	struct drm_minor *minor;
-	struct drm_debugfs_list *debugfs_ent;
-	struct dentry *dent;
-};
 
 /**
  * Info file list entry. This structure represents a debugfs or proc file to
@@ -1046,7 +1041,7 @@ struct drm_minor {
 	int index;			/**< Minor device number */
 	int type;                       /**< Control or render */
 	dev_t device;			/**< Device number for mknod */
-	struct device kdev;		/**< Linux device */
+	struct device *kdev;		/**< Linux device */
 	struct drm_device *dev;
 
 	struct dentry *debugfs_root;
@@ -1081,12 +1076,25 @@ struct drm_pending_vblank_event {
 	struct drm_event_vblank event;
 };
 
+struct drm_vblank_crtc {
+	wait_queue_head_t queue;	/**< VBLANK wait queue */
+	struct timeval time[DRM_VBLANKTIME_RBSIZE];	/**< timestamp of current count */
+	atomic_t count;			/**< number of VBLANK interrupts */
+	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
+	u32 last;			/* protected by dev->vbl_lock, used */
+					/* for wraparound handling */
+	u32 last_wait;			/* Last vblank seqno waited per CRTC */
+	unsigned int inmodeset;		/* Display driver is setting mode */
+	bool enabled;			/* so we don't call enable more than
+					   once per disable */
+};
+
 /**
  * DRM device structure. This structure represent a complete card that
  * may contain multiple heads.
  */
 struct drm_device {
-	struct list_head driver_item;	/**< list of devices per driver */
+	struct list_head legacy_dev_list;/**< list of devices per driver for stealth attach cleanup */
 	char *devname;			/**< For /proc/interrupts */
 	int if_version;			/**< Highest interface version set */
 
@@ -1099,17 +1107,8 @@ struct drm_device {
 	/** \name Usage Counters */
 	/*@{ */
 	int open_count;			/**< Outstanding files open */
-	atomic_t ioctl_count;		/**< Outstanding IOCTLs pending */
-	atomic_t vma_count;		/**< Outstanding vma areas open */
 	int buf_use;			/**< Buffers in use -- cannot alloc */
 	atomic_t buf_alloc;		/**< Buffer allocation in progress */
-	/*@} */
-
-	/** \name Performance counters */
-	/*@{ */
-	unsigned long counters;
-	enum drm_stat_type types[15];
-	atomic_t counts[15];
 	/*@} */
 
 	struct list_head filelist;
@@ -1117,13 +1116,11 @@ struct drm_device {
 	/** \name Memory management */
 	/*@{ */
 	struct list_head maplist;	/**< Linked list of regions */
-	int map_count;			/**< Number of mappable regions */
 	struct drm_open_hash map_hash;	/**< User token hash table for maps */
 
 	/** \name Context handle management */
 	/*@{ */
 	struct list_head ctxlist;	/**< Linked list of context handles */
-	int ctx_count;			/**< Number of context handles */
 	struct mutex ctxlist_mutex;	/**< For ctxlist */
 
 	struct idr ctx_idr;
@@ -1139,12 +1136,11 @@ struct drm_device {
 
 	/** \name Context support */
 	/*@{ */
-	int irq_enabled;		/**< True if irq handler is enabled */
+	bool irq_enabled;		/**< True if irq handler is enabled */
 	__volatile__ long context_flag;	/**< Context swapping flag */
 	int last_context;		/**< Last current context */
 	/*@} */
 
-	struct work_struct work;
 	/** \name VBLANK IRQ support */
 	/*@{ */
 
@@ -1154,20 +1150,13 @@ struct drm_device {
 	 * Once the modeset ioctl *has* been called though, we can safely
 	 * disable them when unused.
 	 */
-	int vblank_disable_allowed;
+	bool vblank_disable_allowed;
 
-	wait_queue_head_t *vbl_queue;   /**< VBLANK wait queue */
-	atomic_t *_vblank_count;        /**< number of VBLANK interrupts (driver must alloc the right number of counters) */
-	struct timeval *_vblank_time;   /**< timestamp of current vblank_count (drivers must alloc right number of fields) */
+	/* array of size num_crtcs */
+	struct drm_vblank_crtc *vblank;
+
 	spinlock_t vblank_time_lock;    /**< Protects vblank count and time updates during vblank enable/disable */
 	spinlock_t vbl_lock;
-	atomic_t *vblank_refcount;      /* number of users of vblank interruptsper crtc */
-	u32 *last_vblank;               /* protected by dev->vbl_lock, used */
-					/* for wraparound handling */
-	int *vblank_enabled;            /* so we don't call enable more than
-					   once per disable */
-	int *vblank_inmodeset;          /* Display driver is setting mode */
-	u32 *last_vblank_wait;		/* Last vblank seqno waited per CRTC */
 	struct timer_list vblank_disable_timer;
 
 	u32 max_vblank_count;           /**< size of vblank counter register */
@@ -1184,8 +1173,6 @@ struct drm_device {
 
 	struct device *dev;             /**< Device structure */
 	struct pci_dev *pdev;		/**< PCI device structure */
-	int pci_vendor;			/**< PCI vendor id */
-	int pci_device;			/**< PCI device id */
 #ifdef __alpha__
 	struct pci_controller *hose;
 #endif
@@ -1196,7 +1183,6 @@ struct drm_device {
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
 	void *dev_private;		/**< device private data */
-	void *mm_private;
 	struct address_space *dev_mapping;
 	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
@@ -1214,6 +1200,7 @@ struct drm_device {
 	/*@{ */
 	struct mutex object_name_lock;
 	struct idr object_name_idr;
+	struct drm_vma_offset_manager *vma_offset_manager;
 	/*@} */
 	int switch_power_state;
 
@@ -1288,6 +1275,7 @@ extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 				/* Memory management support (drm_memory.h) */
 #include <drm/drm_memory.h>
 
+
 				/* Misc. IOCTL support (drm_ioctl.h) */
 extern int drm_irq_by_busid(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
@@ -1303,6 +1291,8 @@ extern int drm_getstats(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 extern int drm_getcap(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
+extern int drm_setclientcap(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
 extern int drm_setversion(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 extern int drm_noop(struct drm_device *dev, void *data,
@@ -1416,8 +1406,10 @@ extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 						 int crtc, int *max_error,
 						 struct timeval *vblank_time,
 						 unsigned flags,
-						 struct drm_crtc *refcrtc);
-extern void drm_calc_timestamping_constants(struct drm_crtc *crtc);
+						 const struct drm_crtc *refcrtc,
+						 const struct drm_display_mode *mode);
+extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
+					    const struct drm_display_mode *mode);
 
 extern bool
 drm_mode_parse_command_line_for_connector(const char *mode_option,
@@ -1454,7 +1446,6 @@ extern struct drm_master *drm_master_get(struct drm_master *master);
 extern void drm_master_put(struct drm_master **master);
 
 extern void drm_put_dev(struct drm_device *dev);
-extern int drm_put_minor(struct drm_minor **minor);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 extern unsigned int drm_rnodes;
@@ -1474,11 +1465,36 @@ extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 #if defined(CONFIG_DEBUG_FS)
 extern int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 			    struct dentry *root);
-extern int drm_debugfs_create_files(struct drm_info_list *files, int count,
-				    struct dentry *root, struct drm_minor *minor);
-extern int drm_debugfs_remove_files(struct drm_info_list *files, int count,
-                                    struct drm_minor *minor);
+extern int drm_debugfs_create_files(const struct drm_info_list *files,
+				    int count, struct dentry *root,
+				    struct drm_minor *minor);
+extern int drm_debugfs_remove_files(const struct drm_info_list *files,
+				    int count, struct drm_minor *minor);
 extern int drm_debugfs_cleanup(struct drm_minor *minor);
+#else
+static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+				   struct dentry *root)
+{
+	return 0;
+}
+
+static inline int drm_debugfs_create_files(const struct drm_info_list *files,
+					   int count, struct dentry *root,
+					   struct drm_minor *minor)
+{
+	return 0;
+}
+
+static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
+					   int count, struct drm_minor *minor)
+{
+	return 0;
+}
+
+static inline int drm_debugfs_cleanup(struct drm_minor *minor)
+{
+	return 0;
+}
 #endif
 
 				/* Info file support */
@@ -1556,8 +1572,6 @@ int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
-struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
-					    size_t size);
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size);
 void drm_gem_private_object_init(struct drm_device *dev,
@@ -1645,10 +1659,11 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 
 #include <drm/drm_mem_util.h>
 
-extern int drm_fill_in_dev(struct drm_device *dev,
-			   const struct pci_device_id *ent,
-			   struct drm_driver *driver);
-int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
+struct drm_device *drm_dev_alloc(struct drm_driver *driver,
+				 struct device *parent);
+void drm_dev_free(struct drm_device *dev);
+int drm_dev_register(struct drm_device *dev, unsigned long flags);
+void drm_dev_unregister(struct drm_device *dev);
 /*@}*/
 
 /* PCI section */
@@ -1664,6 +1679,7 @@ static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
 
 	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
 }
+void drm_pci_agp_destroy(struct drm_device *dev);
 
 extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
@@ -1679,7 +1695,6 @@ extern int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
 
 /* platform section */
 extern int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device);
-extern void drm_platform_exit(struct drm_driver *driver, struct platform_device *platform_device);
 
 /* returns true if currently okay to sleep */
 static __inline__ bool drm_can_sleep(void)

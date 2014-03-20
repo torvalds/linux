@@ -133,12 +133,8 @@ struct ath_rx_status {
 	u8 rs_rate;
 	u8 rs_antenna;
 	u8 rs_more;
-	int8_t rs_rssi_ctl0;
-	int8_t rs_rssi_ctl1;
-	int8_t rs_rssi_ctl2;
-	int8_t rs_rssi_ext0;
-	int8_t rs_rssi_ext1;
-	int8_t rs_rssi_ext2;
+	int8_t rs_rssi_ctl[3];
+	int8_t rs_rssi_ext[3];
 	u8 rs_isaggr;
 	u8 rs_firstaggr;
 	u8 rs_moreaggr;
@@ -603,8 +599,6 @@ enum ath9k_tx_queue_flags {
 #define ATH9K_TXQ_USE_LOCKOUT_BKOFF_DIS 0x00000001
 
 #define ATH9K_DECOMP_MASK_SIZE     128
-#define ATH9K_READY_TIME_LO_BOUND  50
-#define ATH9K_READY_TIME_HI_BOUND  96
 
 enum ath9k_pkt_type {
 	ATH9K_PKT_TYPE_NORMAL = 0,

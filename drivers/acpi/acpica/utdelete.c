@@ -649,7 +649,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 
 	return (AE_OK);
 
-      error_exit:
+error_exit:
 
 	ACPI_EXCEPTION((AE_INFO, status,
 			"Could not update object reference count"));

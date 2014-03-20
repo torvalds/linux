@@ -26,7 +26,7 @@
 
 #include "gdm_mux.h"
 
-struct workqueue_struct *mux_rx_wq;
+static struct workqueue_struct *mux_rx_wq;
 
 static u16 packet_type[TTY_MAX_COUNT] = {0xF011, 0xF010};
 
@@ -51,7 +51,7 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-int packet_type_to_index(u16 packetType)
+static int packet_type_to_index(u16 packetType)
 {
 	int i;
 
@@ -96,12 +96,12 @@ static struct mux_rx *alloc_mux_rx(void)
 {
 	struct mux_rx *r = NULL;
 
-	r = kzalloc(sizeof(struct mux_rx), GFP_ATOMIC);
+	r = kzalloc(sizeof(struct mux_rx), GFP_KERNEL);
 	if (!r)
 		return NULL;
 
-	r->urb = usb_alloc_urb(0, GFP_ATOMIC);
-	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_ATOMIC);
+	r->urb = usb_alloc_urb(0, GFP_KERNEL);
+	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_KERNEL);
 	if (!r->urb || !r->buf) {
 		usb_free_urb(r->urb);
 		kfree(r->buf);
@@ -158,7 +158,6 @@ static int up_to_host(struct mux_rx *r)
 	unsigned int start_flag;
 	unsigned int payload_size;
 	unsigned short packet_type;
-	int remain;
 	int dummy_cnt;
 	u32 packet_size_sum = r->offset;
 	int index;
@@ -176,8 +175,7 @@ static int up_to_host(struct mux_rx *r)
 			break;
 		}
 
-		remain = (MUX_HEADER_SIZE + payload_size) % 4;
-		dummy_cnt = remain ? (4-remain) : 0;
+		dummy_cnt = ALIGN(MUX_HEADER_SIZE + payload_size, 4);
 
 		if (len - packet_size_sum <
 			MUX_HEADER_SIZE + payload_size + dummy_cnt) {
@@ -361,7 +359,6 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	struct mux_pkt_header *mux_header;
 	struct mux_tx *t = NULL;
 	static u32 seq_num = 1;
-	int remain;
 	int dummy_cnt;
 	int total_len;
 	int ret;
@@ -375,8 +372,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 
 	spin_lock_irqsave(&mux_dev->write_lock, flags);
 
-	remain = (MUX_HEADER_SIZE + len) % 4;
-	dummy_cnt = remain ? (4 - remain) : 0;
+	dummy_cnt = ALIGN(MUX_HEADER_SIZE + len, 4);
 
 	total_len = len + MUX_HEADER_SIZE + dummy_cnt;
 
@@ -541,7 +537,7 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	ret = init_usb(mux_dev);
 	if (ret)
-		goto err_free_tty;
+		goto err_free_usb;
 
 	tty_dev->priv_dev = (void *)mux_dev;
 	tty_dev->send_func = gdm_mux_send;
@@ -565,8 +561,8 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 err_unregister_tty:
 	unregister_lte_tty_device(tty_dev);
+err_free_usb:
 	release_usb(mux_dev);
-err_free_tty:
 	kfree(tty_dev);
 err_free_mux:
 	kfree(mux_dev);

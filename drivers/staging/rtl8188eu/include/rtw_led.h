@@ -147,7 +147,7 @@ struct LED_871x {
 
 enum LED_STRATEGY_871x {
 	SW_LED_MODE0 = 0, /* SW control 1 LED via GPIO0. It is default option.*/
-	SW_LED_MODE1= 1, /*  2 LEDs, through LED0 and LED1. For ALPHA. */
+	SW_LED_MODE1 = 1, /*  2 LEDs, through LED0 and LED1. For ALPHA. */
 	SW_LED_MODE2 = 2, /*  SW control 1 LED via GPIO0, customized for AzWave
 			   * 8187 minicard. */
 	SW_LED_MODE3 = 3, /*  SW control 1 LED via GPIO0, customized for Sercomm
@@ -163,14 +163,14 @@ enum LED_STRATEGY_871x {
 void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
 
 struct led_priv{
-	/* add for led controll */
+	/* add for led control */
 	struct LED_871x			SwLed0;
 	struct LED_871x			SwLed1;
 	enum LED_STRATEGY_871x	LedStrategy;
 	u8	bRegUseLed;
 	void (*LedControlHandler)(struct adapter *padapter,
 				  enum LED_CTL_MODE LedAction);
-	/* add for led controll */
+	/* add for led control */
 };
 
 #define rtw_led_control(adapt, action) \
@@ -182,7 +182,7 @@ struct led_priv{
 void BlinkTimerCallback(void *data);
 void BlinkWorkItemCallback(struct work_struct *work);
 
-void ResetLedStatus(struct LED_871x * pLed);
+void ResetLedStatus(struct LED_871x *pLed);
 
 void InitLed871x(struct adapter *padapter, struct LED_871x *pLed,
 		 enum LED_PIN_871x LedPin);
@@ -190,7 +190,7 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed,
 void DeInitLed871x(struct LED_871x *pLed);
 
 /* hal... */
-void BlinkHandler(struct LED_871x * pLed);
+void BlinkHandler(struct LED_871x *pLed);
 void SwLedOn(struct adapter *padapter, struct LED_871x *pLed);
 void SwLedOff(struct adapter *padapter, struct LED_871x *pLed);
 

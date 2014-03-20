@@ -334,7 +334,7 @@ static struct miscdevice esb_miscdev = {
 /*
  * Data for PCI driver interface
  */
-static DEFINE_PCI_DEVICE_TABLE(esb_pci_tbl) = {
+static const struct pci_device_id esb_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_9), },
 	{ 0, },                 /* End of list */
 };
@@ -497,4 +497,3 @@ module_pci_driver(esb_driver);
 MODULE_AUTHOR("Ross Biro and David Härdeman");
 MODULE_DESCRIPTION("Watchdog driver for Intel 6300ESB chipsets");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

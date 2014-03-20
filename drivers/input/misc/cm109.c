@@ -351,7 +351,9 @@ static void cm109_urb_irq_callback(struct urb *urb)
 	if (status) {
 		if (status == -ESHUTDOWN)
 			return;
-		dev_err(&dev->intf->dev, "%s: urb status %d\n", __func__, status);
+		dev_err_ratelimited(&dev->intf->dev, "%s: urb status %d\n",
+				    __func__, status);
+		goto out;
 	}
 
 	/* Special keys */
@@ -418,8 +420,12 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 	     dev->ctl_data->byte[2],
 	     dev->ctl_data->byte[3]);
 
-	if (status)
-		dev_err(&dev->intf->dev, "%s: urb status %d\n", __func__, status);
+	if (status) {
+		if (status == -ESHUTDOWN)
+			return;
+		dev_err_ratelimited(&dev->intf->dev, "%s: urb status %d\n",
+				    __func__, status);
+	}
 
 	spin_lock(&dev->ctl_submit_lock);
 
@@ -427,7 +433,7 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 
 	if (likely(!dev->shutdown)) {
 
-		if (dev->buzzer_pending) {
+		if (dev->buzzer_pending || status) {
 			dev->buzzer_pending = 0;
 			dev->ctl_urb_pending = 1;
 			cm109_submit_buzz_toggle(dev);

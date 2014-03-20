@@ -215,12 +215,6 @@ Caveats:
 #define CLK_EXT		7	/* external clock */
 /* Macro to construct clock input configuration register value. */
 #define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
-/* Timebases in ns. */
-#define TIMEBASE_10MHZ		100
-#define TIMEBASE_1MHZ		1000
-#define TIMEBASE_100KHZ		10000
-#define TIMEBASE_10KHZ		100000
-#define TIMEBASE_1KHZ		1000000
 
 /*
  * Counter/timer gate input configuration sources.
@@ -273,17 +267,16 @@ Caveats:
 
 /* The software selectable internal ranges for PCI224 (option[2] == 0). */
 static const struct comedi_lrange range_pci224_internal = {
-	8,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25),
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 static const unsigned short hwrange_pci224_internal[8] = {
@@ -299,11 +292,10 @@ static const unsigned short hwrange_pci224_internal[8] = {
 
 /* The software selectable external ranges for PCI224 (option[2] == 1). */
 static const struct comedi_lrange range_pci224_external = {
-	2,
-	{
-	 RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
-	 RANGE_ext(0, 1),	/* unipolar [0,+Vref] */
-	 }
+	2, {
+		RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
+		RANGE_ext(0, 1)		/* unipolar [0,+Vref] */
+	}
 };
 
 static const unsigned short hwrange_pci224_external[2] = {
@@ -314,19 +306,17 @@ static const unsigned short hwrange_pci224_external[2] = {
 /* The hardware selectable Vref*2 external range for PCI234
  * (option[2] == 1, option[3+n] == 0). */
 static const struct comedi_lrange range_pci234_ext2 = {
-	1,
-	{
-	 RANGE_ext(-2, 2),
-	 }
+	1, {
+		RANGE_ext(-2, 2)
+	}
 };
 
 /* The hardware selectable Vref external range for PCI234
  * (option[2] == 1, option[3+n] == 1). */
 static const struct comedi_lrange range_pci234_ext = {
-	1,
-	{
-	 RANGE_ext(-1, 1),
-	 }
+	1, {
+		RANGE_ext(-1, 1)
+	}
 };
 
 /* This serves for all the PCI234 ranges. */
@@ -379,7 +369,7 @@ struct pci224_private {
 	unsigned long state;
 	spinlock_t ao_spinlock;
 	unsigned int *ao_readback;
-	short *ao_scan_vals;
+	unsigned short *ao_scan_vals;
 	unsigned char *ao_scan_order;
 	int intr_cpuid;
 	short intr_running;
@@ -843,26 +833,26 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
 		default:
-			round = TIMEBASE_10MHZ / 2;
+			round = I8254_OSC_BASE_10MHZ / 2;
 			break;
 		case TRIG_ROUND_DOWN:
 			round = 0;
 			break;
 		case TRIG_ROUND_UP:
-			round = TIMEBASE_10MHZ - 1;
+			round = I8254_OSC_BASE_10MHZ - 1;
 			break;
 		}
 		/* Be careful to avoid overflow! */
-		div2 = cmd->scan_begin_arg / TIMEBASE_10MHZ;
-		div2 += (round + cmd->scan_begin_arg % TIMEBASE_10MHZ) /
-		    TIMEBASE_10MHZ;
+		div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
+		div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
+			I8254_OSC_BASE_10MHZ;
 		if (div2 <= 0x10000) {
 			/* A single timer will suffice. */
 			if (div2 < 2)
 				div2 = 2;
-			cmd->scan_begin_arg = div2 * TIMEBASE_10MHZ;
+			cmd->scan_begin_arg = div2 * I8254_OSC_BASE_10MHZ;
 			if (cmd->scan_begin_arg < div2 ||
-			    cmd->scan_begin_arg < TIMEBASE_10MHZ) {
+			    cmd->scan_begin_arg < I8254_OSC_BASE_10MHZ) {
 				/* Overflow! */
 				cmd->scan_begin_arg = MAX_SCAN_PERIOD;
 			}
@@ -870,7 +860,8 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(TIMEBASE_10MHZ, &div1, &div2,
+			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						   &div1, &div2,
 						   &cmd->scan_begin_arg,
 						   round_mode);
 			devpriv->cached_div1 = div1;
@@ -914,16 +905,14 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 		if (errors) {
 			if (errors & dupchan_err) {
-				DPRINTK("comedi%d: " DRIVER_NAME
-					": ao_cmdtest: "
-					"entries in chanlist must contain no "
-					"duplicate channels\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: entries in chanlist must contain no duplicate channels\n",
+					__func__);
 			}
 			if (errors & range_err) {
-				DPRINTK("comedi%d: " DRIVER_NAME
-					": ao_cmdtest: "
-					"entries in chanlist must all have "
-					"the same range index\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: entries in chanlist must all have the same range index\n",
+					__func__);
 			}
 			err++;
 		}
@@ -1002,19 +991,19 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
 		default:
-			round = TIMEBASE_10MHZ / 2;
+			round = I8254_OSC_BASE_10MHZ / 2;
 			break;
 		case TRIG_ROUND_DOWN:
 			round = 0;
 			break;
 		case TRIG_ROUND_UP:
-			round = TIMEBASE_10MHZ - 1;
+			round = I8254_OSC_BASE_10MHZ - 1;
 			break;
 		}
 		/* Be careful to avoid overflow! */
-		div2 = cmd->scan_begin_arg / TIMEBASE_10MHZ;
-		div2 += (round + cmd->scan_begin_arg % TIMEBASE_10MHZ) /
-		    TIMEBASE_10MHZ;
+		div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
+		div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
+			I8254_OSC_BASE_10MHZ;
 		if (div2 <= 0x10000) {
 			/* A single timer will suffice. */
 			if (div2 < 2)
@@ -1025,7 +1014,8 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(TIMEBASE_10MHZ, &div1, &div2,
+			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						   &div1, &div2,
 						   &ns, round_mode);
 		}
 
@@ -1116,7 +1106,7 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct pci224_board *thisboard = comedi_board(dev);
 	struct pci224_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	short *array = data;
+	unsigned short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
 	unsigned int offset;
 	unsigned int shift;
@@ -1146,7 +1136,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pci224_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_cmd *cmd;
 	unsigned char intstat, valid_intstat;
 	unsigned char curenab;
@@ -1502,7 +1492,7 @@ static int amplc_pci224_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(amplc_pci224_pci_table) = {
+static const struct pci_device_id amplc_pci224_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234) },
 	{ 0 }

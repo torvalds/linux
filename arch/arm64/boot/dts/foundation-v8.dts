@@ -6,6 +6,8 @@
 
 /dts-v1/;
 
+/memreserve/ 0x80000000 0x00010000;
+
 / {
 	model = "Foundation-v8A";
 	compatible = "arm,foundation-aarch64", "arm,vexpress";
@@ -222,7 +224,7 @@
 
 			virtio_block@0130000 {
 				compatible = "virtio,mmio";
-				reg = <0x130000 0x1000>;
+				reg = <0x130000 0x200>;
 				interrupts = <42>;
 			};
 		};

@@ -24,40 +24,21 @@
  *
  */
 
-#include "priv.h"
+#include "nv04.h"
 
-struct nv1a_fb_priv {
-	struct nouveau_fb base;
-};
-
-static int
-nv1a_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nv1a_fb_priv *priv;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &nv1a_ram_oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.tile.regions = 8;
-	priv->base.tile.init = nv10_fb_tile_init;
-	priv->base.tile.fini = nv10_fb_tile_fini;
-	priv->base.tile.prog = nv10_fb_tile_prog;
-	return 0;
-}
-
-struct nouveau_oclass
-nv1a_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x1a),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv1a_fb_ctor,
+struct nouveau_oclass *
+nv1a_fb_oclass = &(struct nv04_fb_impl) {
+	.base.base.handle = NV_SUBDEV(FB, 0x1a),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
 		.init = _nouveau_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.base.memtype = nv04_fb_memtype_valid,
+	.base.ram = &nv1a_ram_oclass,
+	.tile.regions = 8,
+	.tile.init = nv10_fb_tile_init,
+	.tile.fini = nv10_fb_tile_fini,
+	.tile.prog = nv10_fb_tile_prog,
+}.base.base;

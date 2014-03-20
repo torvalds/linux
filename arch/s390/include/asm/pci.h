@@ -63,9 +63,10 @@ enum zpci_state {
 };
 
 struct zpci_bar_struct {
+	struct resource *res;		/* bus resource */
 	u32		val;		/* bar start & 3 flag bits */
-	u8		size;		/* order 2 exponent */
 	u16		map_idx;	/* index into bar mapping array */
+	u8		size;		/* order 2 exponent */
 };
 
 /* Private data per function */
@@ -97,6 +98,7 @@ struct zpci_dev {
 	unsigned long	iommu_pages;
 	unsigned int	next_bit;
 
+	char res_name[16];
 	struct zpci_bar_struct bars[PCI_BAR_COUNT];
 
 	u64		start_dma;	/* Start of available DMA addresses */
@@ -122,12 +124,10 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
   Prototypes
 ----------------------------------------------------------------------------- */
 /* Base stuff */
-struct zpci_dev *zpci_alloc_device(void);
 int zpci_create_device(struct zpci_dev *);
 int zpci_enable_device(struct zpci_dev *);
 int zpci_disable_device(struct zpci_dev *);
 void zpci_stop_device(struct zpci_dev *);
-void zpci_free_device(struct zpci_dev *);
 int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64);
 int zpci_unregister_ioat(struct zpci_dev *, u8);
 
@@ -144,6 +144,7 @@ int clp_disable_fh(struct zpci_dev *);
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
 void zpci_rescan(void);
+bool zpci_is_enabled(void);
 #else /* CONFIG_PCI */
 static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}

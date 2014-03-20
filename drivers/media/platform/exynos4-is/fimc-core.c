@@ -998,48 +998,53 @@ static int fimc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, res->start, fimc_irq_handler,
 			       0, dev_name(dev), fimc);
-	if (ret) {
+	if (ret < 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
-		goto err_clk;
+		goto err_sclk;
 	}
 
 	ret = fimc_initialize_capture_subdev(fimc);
-	if (ret)
-		goto err_clk;
+	if (ret < 0)
+		goto err_sclk;
 
 	platform_set_drvdata(pdev, fimc);
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto err_sd;
+
+	if (!pm_runtime_enabled(dev)) {
+		ret = clk_enable(fimc->clock[CLK_GATE]);
+		if (ret < 0)
+			goto err_sd;
+	}
+
 	/* Initialize contiguous memory allocator */
 	fimc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(fimc->alloc_ctx)) {
 		ret = PTR_ERR(fimc->alloc_ctx);
-		goto err_pm;
+		goto err_gclk;
 	}
 
 	dev_dbg(dev, "FIMC.%d registered successfully\n", fimc->id);
-
-	pm_runtime_put(dev);
 	return 0;
-err_pm:
-	pm_runtime_put(dev);
+
+err_gclk:
+	if (!pm_runtime_enabled(dev))
+		clk_disable(fimc->clock[CLK_GATE]);
 err_sd:
 	fimc_unregister_capture_subdev(fimc);
-err_clk:
+err_sclk:
 	clk_disable(fimc->clock[CLK_BUS]);
 	fimc_clk_put(fimc);
 	return ret;
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int fimc_runtime_resume(struct device *dev)
 {
 	struct fimc_dev *fimc =	dev_get_drvdata(dev);
 
 	dbg("fimc%d: state: 0x%lx", fimc->id, fimc->state);
 
-	/* Enable clocks and perform basic initalization */
+	/* Enable clocks and perform basic initialization */
 	clk_enable(fimc->clock[CLK_GATE]);
 	fimc_hw_reset(fimc);
 
@@ -1065,6 +1070,7 @@ static int fimc_runtime_suspend(struct device *dev)
 	dbg("fimc%d: state: 0x%lx", fimc->id, fimc->state);
 	return ret;
 }
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int fimc_resume(struct device *dev)

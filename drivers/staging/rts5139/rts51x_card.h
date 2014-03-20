@@ -743,13 +743,13 @@ void rts51x_init_cards(struct rts51x_chip *chip);
 void rts51x_release_cards(struct rts51x_chip *chip);
 int rts51x_switch_ssc_clock(struct rts51x_chip *chip, int clk);
 int rts51x_switch_normal_clock(struct rts51x_chip *chip, int clk);
-int rts51x_card_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 sec_addr,
-	    u16 sec_cnt);
+int rts51x_card_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip,
+		u32 sec_addr, u16 sec_cnt);
 u8 rts51x_get_lun_card(struct rts51x_chip *chip, unsigned int lun);
 int rts51x_select_card(struct rts51x_chip *chip, int card);
 void rts51x_eject_card(struct rts51x_chip *chip, unsigned int lun);
-void rts51x_trans_dma_enable(enum dma_data_direction dir, struct rts51x_chip *chip,
-		      u32 byte_cnt, u8 pack_size);
+void rts51x_trans_dma_enable(enum dma_data_direction dir,
+		struct rts51x_chip *chip, u32 byte_cnt, u8 pack_size);
 int rts51x_enable_card_clock(struct rts51x_chip *chip, u8 card);
 int rts51x_card_power_on(struct rts51x_chip *chip, u8 card);
 int rts51x_toggle_gpio(struct rts51x_chip *chip, u8 gpio);

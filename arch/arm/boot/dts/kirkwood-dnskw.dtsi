@@ -15,18 +15,18 @@
 
 		button@1 {
 			label = "Power button";
-			linux,code = <116>;
-			gpios = <&gpio1 2 1>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
 		};
 		button@2 {
 			label = "USB unmount button";
-			linux,code = <161>;
-			gpios = <&gpio1 15 1>;
+			linux,code = <KEY_EJECTCD>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		button@3 {
 			label = "Reset button";
-			linux,code = <0x198>;
-			gpios = <&gpio1 16 1>;
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -35,8 +35,8 @@
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fan_high_speed &pmx_fan_low_speed>;
 		pinctrl-names = "default";
-		gpios = <&gpio1 14 1
-			 &gpio1 13 1>;
+		gpios = <&gpio1 14 GPIO_ACTIVE_LOW
+			 &gpio1 13 GPIO_ACTIVE_LOW>;
 		gpio-fan,speed-map = <0    0
 				      3000 1
 				      6000 2>;
@@ -46,7 +46,7 @@
 		compatible = "gpio-poweroff";
 		pinctrl-0 = <&pmx_power_off>;
 		pinctrl-names = "default";
-		gpios = <&gpio1 4 0>;
+		gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 	};
 
 	ocp@f1000000 {
@@ -148,44 +148,6 @@
 			status = "okay";
 			nr-ports = <2>;
 		};
-
-		nand@3000000 {
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-			status = "okay";
-			chip-delay = <35>;
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x500000>;
-			};
-
-			partition@600000 {
-				label = "ramdisk";
-				reg = <0x0600000 0x500000>;
-			};
-
-			partition@b00000 {
-				label = "image";
-				reg = <0x0b00000 0x6600000>;
-			};
-
-			partition@7100000 {
-				label = "mini firmware";
-				reg = <0x7100000 0xa00000>;
-			};
-
-			partition@7b00000 {
-				label = "config";
-				reg = <0x7b00000 0x500000>;
-			};
-		};
 	};
 
 	regulators {
@@ -220,11 +182,48 @@
 	};
 };
 
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	status = "okay";
+	chip-delay = <35>;
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x500000>;
+	};
+
+	partition@600000 {
+		label = "ramdisk";
+		reg = <0x0600000 0x500000>;
+	};
+
+	partition@b00000 {
+		label = "image";
+		reg = <0x0b00000 0x6600000>;
+	};
+
+	partition@7100000 {
+		label = "mini firmware";
+		reg = <0x7100000 0xa00000>;
+	};
+
+	partition@7b00000 {
+		label = "config";
+		reg = <0x7b00000 0x500000>;
+	};
+};
+
 &mdio {
 	status = "okay";
 
 	ethphy0: ethernet-phy@8 {
-		device_type = "ethernet-phy";
 		reg = <8>;
 	};
 };

@@ -116,7 +116,12 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(rx_drops_mtu)},
 	/* Number of packets dropped due to random early drop function */
 	{DRVSTAT_INFO(eth_red_drops)},
-	{DRVSTAT_INFO(be_on_die_temperature)}
+	{DRVSTAT_INFO(be_on_die_temperature)},
+	{DRVSTAT_INFO(rx_roce_bytes_lsd)},
+	{DRVSTAT_INFO(rx_roce_bytes_msd)},
+	{DRVSTAT_INFO(rx_roce_frames)},
+	{DRVSTAT_INFO(roce_drops_payload_len)},
+	{DRVSTAT_INFO(roce_drops_crc)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
@@ -155,7 +160,9 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	/* Number of times the TX queue was stopped due to lack
 	 * of spaces in the TXQ.
 	 */
-	{DRVSTAT_TX_INFO(tx_stops)}
+	{DRVSTAT_TX_INFO(tx_stops)},
+	/* Pkts dropped in the driver's transmit path */
+	{DRVSTAT_TX_INFO(tx_drv_drops)}
 };
 #define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
 
@@ -290,19 +297,19 @@ static int be_get_coalesce(struct net_device *netdev,
 			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *eqo = &adapter->eq_obj[0];
+	struct be_aic_obj *aic = &adapter->aic_obj[0];
 
 
-	et->rx_coalesce_usecs = eqo->cur_eqd;
-	et->rx_coalesce_usecs_high = eqo->max_eqd;
-	et->rx_coalesce_usecs_low = eqo->min_eqd;
+	et->rx_coalesce_usecs = aic->prev_eqd;
+	et->rx_coalesce_usecs_high = aic->max_eqd;
+	et->rx_coalesce_usecs_low = aic->min_eqd;
 
-	et->tx_coalesce_usecs = eqo->cur_eqd;
-	et->tx_coalesce_usecs_high = eqo->max_eqd;
-	et->tx_coalesce_usecs_low = eqo->min_eqd;
+	et->tx_coalesce_usecs = aic->prev_eqd;
+	et->tx_coalesce_usecs_high = aic->max_eqd;
+	et->tx_coalesce_usecs_low = aic->min_eqd;
 
-	et->use_adaptive_rx_coalesce = eqo->enable_aic;
-	et->use_adaptive_tx_coalesce = eqo->enable_aic;
+	et->use_adaptive_rx_coalesce = aic->enable;
+	et->use_adaptive_tx_coalesce = aic->enable;
 
 	return 0;
 }
@@ -314,14 +321,17 @@ static int be_set_coalesce(struct net_device *netdev,
 			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_aic_obj *aic = &adapter->aic_obj[0];
 	struct be_eq_obj *eqo;
 	int i;
 
 	for_all_evt_queues(adapter, eqo, i) {
-		eqo->enable_aic = et->use_adaptive_rx_coalesce;
-		eqo->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
-		eqo->min_eqd = min(et->rx_coalesce_usecs_low, eqo->max_eqd);
-		eqo->eqd = et->rx_coalesce_usecs;
+		aic->enable = et->use_adaptive_rx_coalesce;
+		aic->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
+		aic->min_eqd = min(et->rx_coalesce_usecs_low, aic->max_eqd);
+		aic->et_eqd = min(et->rx_coalesce_usecs, aic->max_eqd);
+		aic->et_eqd = max(aic->et_eqd, aic->min_eqd);
+		aic++;
 	}
 
 	return 0;
@@ -703,12 +713,13 @@ be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (be_is_wol_supported(adapter)) {
+	if (adapter->wol_cap & BE_WOL_CAP) {
 		wol->supported |= WAKE_MAGIC;
-		if (adapter->wol)
+		if (adapter->wol_en)
 			wol->wolopts |= WAKE_MAGIC;
-	} else
+	} else {
 		wol->wolopts = 0;
+	}
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
 
@@ -720,15 +731,15 @@ be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EOPNOTSUPP;
 
-	if (!be_is_wol_supported(adapter)) {
+	if (!(adapter->wol_cap & BE_WOL_CAP)) {
 		dev_warn(&adapter->pdev->dev, "WOL not supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (wol->wolopts & WAKE_MAGIC)
-		adapter->wol = true;
+		adapter->wol_en = true;
 	else
-		adapter->wol = false;
+		adapter->wol_en = false;
 
 	return 0;
 }
@@ -894,73 +905,21 @@ static u32 be_get_msg_level(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (lancer_chip(adapter)) {
-		dev_err(&adapter->pdev->dev, "Operation not supported\n");
-		return -EOPNOTSUPP;
-	}
-
 	return adapter->msg_enable;
-}
-
-static void be_set_fw_log_level(struct be_adapter *adapter, u32 level)
-{
-	struct be_dma_mem extfat_cmd;
-	struct be_fat_conf_params *cfgs;
-	int status;
-	int i, j;
-
-	memset(&extfat_cmd, 0, sizeof(struct be_dma_mem));
-	extfat_cmd.size = sizeof(struct be_cmd_resp_get_ext_fat_caps);
-	extfat_cmd.va = pci_alloc_consistent(adapter->pdev, extfat_cmd.size,
-					     &extfat_cmd.dma);
-	if (!extfat_cmd.va) {
-		dev_err(&adapter->pdev->dev, "%s: Memory allocation failure\n",
-			__func__);
-		goto err;
-	}
-	status = be_cmd_get_ext_fat_capabilites(adapter, &extfat_cmd);
-	if (!status) {
-		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
-					sizeof(struct be_cmd_resp_hdr));
-		for (i = 0; i < le32_to_cpu(cfgs->num_modules); i++) {
-			u32 num_modes = le32_to_cpu(cfgs->module[i].num_modes);
-			for (j = 0; j < num_modes; j++) {
-				if (cfgs->module[i].trace_lvl[j].mode ==
-								MODE_UART)
-					cfgs->module[i].trace_lvl[j].dbg_lvl =
-							cpu_to_le32(level);
-			}
-		}
-		status = be_cmd_set_ext_fat_capabilites(adapter, &extfat_cmd,
-							cfgs);
-		if (status)
-			dev_err(&adapter->pdev->dev,
-				"Message level set failed\n");
-	} else {
-		dev_err(&adapter->pdev->dev, "Message level get failed\n");
-	}
-
-	pci_free_consistent(adapter->pdev, extfat_cmd.size, extfat_cmd.va,
-			    extfat_cmd.dma);
-err:
-	return;
 }
 
 static void be_set_msg_level(struct net_device *netdev, u32 level)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (lancer_chip(adapter)) {
-		dev_err(&adapter->pdev->dev, "Operation not supported\n");
-		return;
-	}
-
 	if (adapter->msg_enable == level)
 		return;
 
 	if ((level & NETIF_MSG_HW) != (adapter->msg_enable & NETIF_MSG_HW))
-		be_set_fw_log_level(adapter, level & NETIF_MSG_HW ?
-				    FW_LOG_LEVEL_DEFAULT : FW_LOG_LEVEL_FATAL);
+		if (BEx_chip(adapter))
+			be_cmd_set_fw_log_level(adapter, level & NETIF_MSG_HW ?
+						FW_LOG_LEVEL_DEFAULT :
+						FW_LOG_LEVEL_FATAL);
 	adapter->msg_enable = level;
 
 	return;

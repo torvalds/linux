@@ -17,13 +17,7 @@
 
 #include "bpf_jit.h"
 
-#ifndef __BIG_ENDIAN
-/* There are endianness assumptions herein. */
-#error "Little-endian PPC not supported in BPF compiler"
-#endif
-
 int bpf_jit_enable __read_mostly;
-
 
 static inline void bpf_flush_icache(void *start, void *end)
 {
@@ -193,6 +187,26 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 				PPC_MUL(r_A, r_A, r_scratch1);
 			}
 			break;
+		case BPF_S_ALU_MOD_X: /* A %= X; */
+			ctx->seen |= SEEN_XREG;
+			PPC_CMPWI(r_X, 0);
+			if (ctx->pc_ret0 != -1) {
+				PPC_BCC(COND_EQ, addrs[ctx->pc_ret0]);
+			} else {
+				PPC_BCC_SHORT(COND_NE, (ctx->idx*4)+12);
+				PPC_LI(r_ret, 0);
+				PPC_JMP(exit_addr);
+			}
+			PPC_DIVWU(r_scratch1, r_A, r_X);
+			PPC_MUL(r_scratch1, r_X, r_scratch1);
+			PPC_SUB(r_A, r_A, r_scratch1);
+			break;
+		case BPF_S_ALU_MOD_K: /* A %= K; */
+			PPC_LI32(r_scratch2, K);
+			PPC_DIVWU(r_scratch1, r_A, r_scratch2);
+			PPC_MUL(r_scratch1, r_scratch2, r_scratch1);
+			PPC_SUB(r_A, r_A, r_scratch1);
+			break;
 		case BPF_S_ALU_DIV_X: /* A /= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_CMPWI(r_X, 0);
@@ -209,10 +223,11 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			}
 			PPC_DIVWU(r_A, r_A, r_X);
 			break;
-		case BPF_S_ALU_DIV_K: /* A = reciprocal_divide(A, K); */
+		case BPF_S_ALU_DIV_K: /* A /= K */
+			if (K == 1)
+				break;
 			PPC_LI32(r_scratch1, K);
-			/* Top 32 bits of 64bit result -> A */
-			PPC_MULHWU(r_A, r_A, r_scratch1);
+			PPC_DIVWU(r_A, r_A, r_scratch1);
 			break;
 		case BPF_S_ALU_AND_X:
 			ctx->seen |= SEEN_XREG;
@@ -346,18 +361,11 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			break;
 
 			/*** Ancillary info loads ***/
-
-			/* None of the BPF_S_ANC* codes appear to be passed by
-			 * sk_chk_filter().  The interpreter and the x86 BPF
-			 * compiler implement them so we do too -- they may be
-			 * planted in future.
-			 */
 		case BPF_S_ANC_PROTOCOL: /* A = ntohs(skb->protocol); */
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  protocol) != 2);
-			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
-							  protocol));
-			/* ntohs is a NOP with BE loads. */
+			PPC_NTOHS_OFFS(r_A, r_skb, offsetof(struct sk_buff,
+							    protocol));
 			break;
 		case BPF_S_ANC_IFINDEX:
 			PPC_LD_OFFS(r_scratch1, r_skb, offsetof(struct sk_buff,
@@ -691,4 +699,5 @@ void bpf_jit_free(struct sk_filter *fp)
 {
 	if (fp->bpf_func != sk_run_filter)
 		module_free(NULL, fp->bpf_func);
+	kfree(fp);
 }

@@ -18,7 +18,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/device.h>
@@ -27,6 +26,7 @@
 #include <linux/err.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -786,10 +786,17 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	if (pdata)
+	if (pdata) {
 		error = pxa27x_keypad_build_keycode(keypad);
-	else
+	} else {
 		error = pxa27x_keypad_build_keycode_from_dt(keypad);
+		/*
+		 * Data that we get from DT resides in dynamically
+		 * allocated memory so we need to update our pdata
+		 * pointer.
+		 */
+		pdata = keypad->pdata;
+	}
 	if (error) {
 		dev_err(&pdev->dev, "failed to build keycode\n");
 		goto failed_put_clk;

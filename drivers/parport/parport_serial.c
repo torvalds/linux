@@ -596,13 +596,11 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 
 	err = pci_enable_device (dev);
 	if (err) {
-		pci_set_drvdata (dev, NULL);
 		kfree (priv);
 		return err;
 	}
 
 	if (parport_register (dev, id)) {
-		pci_set_drvdata (dev, NULL);
 		kfree (priv);
 		return -ENODEV;
 	}
@@ -611,7 +609,6 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 		int i;
 		for (i = 0; i < priv->num_par; i++)
 			parport_pc_unregister_port (priv->port[i]);
-		pci_set_drvdata (dev, NULL);
 		kfree (priv);
 		return -ENODEV;
 	}
@@ -623,8 +620,6 @@ static void parport_serial_pci_remove(struct pci_dev *dev)
 {
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
 	int i;
-
-	pci_set_drvdata(dev, NULL);
 
 	// Serial ports
 	if (priv->serial)

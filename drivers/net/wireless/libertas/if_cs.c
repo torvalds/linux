@@ -754,14 +754,14 @@ static void if_cs_prog_firmware(struct lbs_private *priv, int ret,
 	if (ret == 0 && (card->model != MODEL_8305))
 		ret = if_cs_prog_real(card, mainfw);
 	if (ret)
-		goto out;
+		return;
 
 	/* Now actually get the IRQ */
 	ret = request_irq(card->p_dev->irq, if_cs_interrupt,
 		IRQF_SHARED, DRV_NAME, card);
 	if (ret) {
 		pr_err("error in request_irq\n");
-		goto out;
+		return;
 	}
 
 	/*
@@ -777,10 +777,6 @@ static void if_cs_prog_firmware(struct lbs_private *priv, int ret,
 		pr_err("could not activate card\n");
 		free_irq(card->p_dev->irq, card);
 	}
-
-out:
-	release_firmware(helper);
-	release_firmware(mainfw);
 }
 
 
@@ -906,6 +902,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	if (card->model == MODEL_UNKNOWN) {
 		pr_err("unsupported manf_id 0x%04x / card_id 0x%04x\n",
 		       p_dev->manf_id, p_dev->card_id);
+		ret = -ENODEV;
 		goto out2;
 	}
 

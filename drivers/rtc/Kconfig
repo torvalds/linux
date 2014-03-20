@@ -153,6 +153,16 @@ config RTC_DRV_88PM80X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-88pm80x.
 
+config RTC_DRV_AS3722
+	tristate "ams AS3722 RTC driver"
+	depends on MFD_AS3722
+	help
+	  If you say yes here you get support for the RTC of ams AS3722 PMIC
+	  chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-as3722.
+
 config RTC_DRV_DS1307
 	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025"
 	help
@@ -201,6 +211,17 @@ config RTC_DRV_DS3232
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
+
+config RTC_DRV_HYM8563
+	tristate "Haoyu Microelectronics HYM8563"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the HYM8563 I2C RTC chip. Apart
+	  from the usual rtc functions it provides a clock output of
+	  up to 32kHz.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-hym8563.
 
 config RTC_DRV_LP8788
 	tristate "TI LP8788 RTC driver"
@@ -293,6 +314,17 @@ config RTC_DRV_ISL12022
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-isl12022.
+
+config RTC_DRV_ISL12057
+       depends on I2C
+       select REGMAP_I2C
+       tristate "Intersil ISL12057"
+       help
+	  If you say yes here you get support for the Intersil ISL12057
+	  I2C RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-isl12057.
 
 config RTC_DRV_X1205
 	tristate "Xicor/Intersil X1205"
@@ -497,6 +529,16 @@ config RTC_DRV_RV3029C2
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rv3029c2.
 
+config RTC_DRV_S5M
+	tristate "Samsung S5M series"
+	depends on MFD_SEC_CORE
+	help
+	  If you say yes here you will get support for the
+	  RTC of Samsung S5M PMIC series.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-s5m.
+
 endif # I2C
 
 comment "SPI RTC drivers"
@@ -606,7 +648,7 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ALPHA || ARM || M32R || ATARI || PPC || MIPS || SPARC64
+	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64
 	default y if X86
 	help
 	  Say "yes" here to get direct support for the real time clock
@@ -622,6 +664,14 @@ config RTC_DRV_CMOS
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-cmos.
+
+config RTC_DRV_ALPHA
+	bool "Alpha PC-style CMOS"
+	depends on ALPHA
+	default y
+	help
+	  Direct support for the real-time clock found on every Alpha
+	  system, specifically MC146818 compatibles.  If in doubt, say Y.
 
 config RTC_DRV_VRTC
 	tristate "Virtual RTC for Intel MID platforms"
@@ -1075,6 +1125,13 @@ config RTC_DRV_SUN4V
 	help
 	  If you say Y here you will get support for the Hypervisor
 	  based RTC on SUN4V systems.
+
+config RTC_DRV_SUNXI
+	tristate "Allwinner sun4i/sun7i RTC"
+	depends on ARCH_SUNXI
+	help
+	  If you say Y here you will get support for the RTC found on
+	  Allwinner A10/A20.
 
 config RTC_DRV_STARFIRE
 	bool "Starfire RTC"

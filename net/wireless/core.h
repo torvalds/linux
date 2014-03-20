@@ -62,14 +62,13 @@ struct cfg80211_registered_device {
 	struct rb_root bss_tree;
 	u32 bss_generation;
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
+	struct sk_buff *scan_msg;
 	struct cfg80211_sched_scan_request *sched_scan_req;
 	unsigned long suspend_at;
 	struct work_struct scan_done_wk;
 	struct work_struct sched_scan_results_wk;
 
-#ifdef CONFIG_NL80211_TESTMODE
-	struct genl_info *testmode_info;
-#endif
+	struct genl_info *cur_cmd_info;
 
 	struct work_struct conn_work;
 	struct work_struct event_work;
@@ -234,10 +233,10 @@ struct cfg80211_beacon_registration {
 };
 
 /* free object */
-extern void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
+void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
 
-extern int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
-			       char *newname);
+int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
+			char *newname);
 
 void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
 
@@ -317,9 +316,8 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct wireless_dev *wdev,
-			  struct ieee80211_channel *chan, bool offchan,
-			  unsigned int wait, const u8 *buf, size_t len,
-			  bool no_cck, bool dont_wait_for_ack, u64 *cookie);
+			  struct cfg80211_mgmt_tx_params *params,
+			  u64 *cookie);
 void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 			       const struct ieee80211_ht_cap *ht_capa_mask);
 void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
@@ -364,7 +362,8 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr);
 void __cfg80211_scan_done(struct work_struct *wk);
-void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak);
+void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
+			   bool send_message);
 void __cfg80211_sched_scan_results(struct work_struct *wk);
 int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 			       bool driver_initiated);
@@ -383,13 +382,17 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 u8 radar_detect);
 
 /**
- * cfg80211_chandef_dfs_required - checks if radar detection is required
+ * cfg80211_chandef_dfs_usable - checks if chandef is DFS usable
  * @wiphy: the wiphy to validate against
  * @chandef: the channel definition to check
- * Return: 1 if radar detection is required, 0 if it is not, < 0 on error
+ *
+ * Checks if chandef is usable and we can/need start CAC on such channel.
+ *
+ * Return: Return true if all channels available and at least
+ *	   one channel require CAC (NL80211_DFS_USABLE)
  */
-int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
-				  const struct cfg80211_chan_def *c);
+bool cfg80211_chandef_dfs_usable(struct wiphy *wiphy,
+				 const struct cfg80211_chan_def *chandef);
 
 void cfg80211_set_dfs_state(struct wiphy *wiphy,
 			    const struct cfg80211_chan_def *chandef,
@@ -411,6 +414,9 @@ static inline int
 cfg80211_can_add_interface(struct cfg80211_registered_device *rdev,
 			   enum nl80211_iftype iftype)
 {
+	if (rfkill_blocked(rdev->rfkill))
+		return -ERFKILL;
+
 	return cfg80211_can_change_interface(rdev, NULL, iftype);
 }
 

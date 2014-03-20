@@ -102,11 +102,13 @@ static int tweak_clear_halt_cmd(struct urb *urb)
 
 	ret = usb_clear_halt(urb->dev, target_pipe);
 	if (ret < 0)
-		dev_err(&urb->dev->dev, "usb_clear_halt error: devnum %d endp "
-			"%d ret %d\n", urb->dev->devnum, target_endp, ret);
+		dev_err(&urb->dev->dev,
+			"usb_clear_halt error: devnum %d endp %d ret %d\n",
+			urb->dev->devnum, target_endp, ret);
 	else
-		dev_info(&urb->dev->dev, "usb_clear_halt done: devnum %d endp "
-			 "%d\n", urb->dev->devnum, target_endp);
+		dev_info(&urb->dev->dev,
+			 "usb_clear_halt done: devnum %d endp %d\n",
+			 urb->dev->devnum, target_endp);
 
 	return ret;
 }
@@ -127,11 +129,13 @@ static int tweak_set_interface_cmd(struct urb *urb)
 
 	ret = usb_set_interface(urb->dev, interface, alternate);
 	if (ret < 0)
-		dev_err(&urb->dev->dev, "usb_set_interface error: inf %u alt "
-			"%u ret %d\n", interface, alternate, ret);
+		dev_err(&urb->dev->dev,
+			"usb_set_interface error: inf %u alt %u ret %d\n",
+			interface, alternate, ret);
 	else
-		dev_info(&urb->dev->dev, "usb_set_interface done: inf %u alt "
-			 "%u\n", interface, alternate);
+		dev_info(&urb->dev->dev,
+			"usb_set_interface done: inf %u alt %u\n",
+			interface, alternate);
 
 	return ret;
 }

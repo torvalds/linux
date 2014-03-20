@@ -48,9 +48,6 @@ static int pcr_modify(struct cmp_connection *c,
 		      int (*check)(struct cmp_connection *c, __be32 pcr),
 		      enum bus_reset_handling bus_reset_handling)
 {
-	struct fw_device *device = fw_parent_device(c->resources.unit);
-	int generation = c->resources.generation;
-	int rcode, errors = 0;
 	__be32 old_arg, buffer[2];
 	int err;
 
@@ -59,36 +56,31 @@ static int pcr_modify(struct cmp_connection *c,
 		old_arg = buffer[0];
 		buffer[1] = modify(c, buffer[0]);
 
-		rcode = fw_run_transaction(
-				device->card, TCODE_LOCK_COMPARE_SWAP,
-				device->node_id, generation, device->max_speed,
+		err = snd_fw_transaction(
+				c->resources.unit, TCODE_LOCK_COMPARE_SWAP,
 				CSR_REGISTER_BASE + CSR_IPCR(c->pcr_index),
-				buffer, 8);
+				buffer, 8,
+				FW_FIXED_GENERATION | c->resources.generation);
 
-		if (rcode == RCODE_COMPLETE) {
-			if (buffer[0] == old_arg) /* success? */
-				break;
+		if (err < 0) {
+			if (err == -EAGAIN &&
+			    bus_reset_handling == SUCCEED_ON_BUS_RESET)
+				err = 0;
+			return err;
+		}
 
-			if (check) {
-				err = check(c, buffer[0]);
-				if (err < 0)
-					return err;
-			}
-		} else if (rcode == RCODE_GENERATION)
-			goto bus_reset;
-		else if (rcode_is_permanent_error(rcode) || ++errors >= 3)
-			goto io_error;
+		if (buffer[0] == old_arg) /* success? */
+			break;
+
+		if (check) {
+			err = check(c, buffer[0]);
+			if (err < 0)
+				return err;
+		}
 	}
 	c->last_pcr_value = buffer[1];
 
 	return 0;
-
-io_error:
-	cmp_error(c, "transaction failed: %s\n", fw_rcode_string(rcode));
-	return -EIO;
-
-bus_reset:
-	return bus_reset_handling == ABORT_ON_BUS_RESET ? -EAGAIN : 0;
 }
 
 
@@ -108,7 +100,7 @@ int cmp_connection_init(struct cmp_connection *c,
 
 	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
 				 CSR_REGISTER_BASE + CSR_IMPR,
-				 &impr_be, 4);
+				 &impr_be, 4, 0);
 	if (err < 0)
 		return err;
 	impr = be32_to_cpu(impr_be);

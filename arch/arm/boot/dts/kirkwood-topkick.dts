@@ -90,37 +90,6 @@
 			pinctrl-names = "default";
 		};
 
-		nand@3000000 {
-			status = "okay";
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x180000>;
-			};
-
-			partition@180000 {
-				label = "u-boot env";
-				reg = <0x0180000 0x20000>;
-			};
-
-			partition@200000 {
-				label = "uImage";
-				reg = <0x0200000 0x600000>;
-			};
-
-			partition@800000 {
-				label = "uInitrd";
-				reg = <0x0800000 0x1000000>;
-			};
-
-			partition@1800000 {
-				label = "rootfs";
-				reg = <0x1800000 0xe800000>;
-			};
-		};
-
 		sata@80000 {
 			status = "okay";
 			nr-ports = <1>;
@@ -162,25 +131,25 @@
 
 		disk {
 			label = "topkick:yellow:disk";
-			gpios = <&gpio0 21 1>;
+			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "ide-disk";
 		};
 		system2 {
 			label = "topkick:red:system";
-			gpios = <&gpio1 5 1>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};
 		system {
 			label = "topkick:blue:system";
-			gpios = <&gpio1 6 1>;
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 		wifi {
 			label = "topkick:green:wifi";
-			gpios = <&gpio1 7 1>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 		};
 		wifi2 {
 			label = "topkick:yellow:wifi";
-			gpios = <&gpio1 16 1>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 	};
 	regulators {
@@ -204,11 +173,41 @@
 	};
 };
 
+&nand {
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x180000>;
+	};
+
+	partition@180000 {
+		label = "u-boot env";
+		reg = <0x0180000 0x20000>;
+	};
+
+	partition@200000 {
+		label = "uImage";
+		reg = <0x0200000 0x600000>;
+	};
+
+	partition@800000 {
+		label = "uInitrd";
+		reg = <0x0800000 0x1000000>;
+	};
+
+	partition@1800000 {
+		label = "rootfs";
+		reg = <0x1800000 0xe800000>;
+	};
+};
+
 &mdio {
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 };

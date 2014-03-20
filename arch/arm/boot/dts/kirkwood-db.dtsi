@@ -39,28 +39,6 @@
 			status = "ok";
 		};
 
-		nand@3000000 {
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-			chip-delay = <25>;
-			status = "okay";
-
-			partition@0 {
-				label = "uboot";
-				reg = <0x0 0x100000>;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "root";
-				reg = <0x500000 0x1fb00000>;
-			};
-		};
-
 		sata@80000 {
 			nr-ports = <2>;
 			status = "okay";
@@ -73,10 +51,32 @@
 		mvsdio@90000 {
 			pinctrl-0 = <&pmx_sdio_gpios>;
 			pinctrl-names = "default";
-			wp-gpios = <&gpio1 5 0>;
-			cd-gpios = <&gpio1 6 0>;
+			wp-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+			cd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 			status = "okay";
 		};
+	};
+};
+
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	chip-delay = <25>;
+	status = "okay";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "root";
+		reg = <0x500000 0x1fb00000>;
 	};
 };
 
@@ -84,7 +84,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@8 {
-		device_type = "ethernet-phy";
 		reg = <8>;
 	};
 };

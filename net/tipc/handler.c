@@ -56,12 +56,12 @@ unsigned int tipc_k_signal(Handler routine, unsigned long argument)
 {
 	struct queue_item *item;
 
+	spin_lock_bh(&qitem_lock);
 	if (!handler_enabled) {
-		pr_err("Signal request ignored by handler\n");
+		spin_unlock_bh(&qitem_lock);
 		return -ENOPROTOOPT;
 	}
 
-	spin_lock_bh(&qitem_lock);
 	item = kmem_cache_alloc(tipc_queue_item_cache, GFP_ATOMIC);
 	if (!item) {
 		pr_err("Signal queue out of memory\n");
@@ -112,10 +112,14 @@ void tipc_handler_stop(void)
 	struct list_head *l, *n;
 	struct queue_item *item;
 
-	if (!handler_enabled)
+	spin_lock_bh(&qitem_lock);
+	if (!handler_enabled) {
+		spin_unlock_bh(&qitem_lock);
 		return;
-
+	}
 	handler_enabled = 0;
+	spin_unlock_bh(&qitem_lock);
+
 	tasklet_kill(&tipc_tasklet);
 
 	spin_lock_bh(&qitem_lock);

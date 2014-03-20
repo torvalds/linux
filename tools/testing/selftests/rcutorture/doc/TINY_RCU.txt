@@ -1,0 +1,40 @@
+This document gives a brief rationale for the TINY_RCU test cases.
+
+
+Kconfig Parameters:
+
+CONFIG_DEBUG_LOCK_ALLOC -- Do all three and none of the three.
+CONFIG_PREEMPT_COUNT
+CONFIG_RCU_TRACE
+
+The theory here is that randconfig testing will hit the other six possible
+combinations of these parameters.
+
+
+Kconfig Parameters Ignored:
+
+CONFIG_DEBUG_OBJECTS_RCU_HEAD
+CONFIG_PROVE_RCU
+
+	In common code tested by TREE_RCU test cases.
+
+CONFIG_NO_HZ_FULL_SYSIDLE
+CONFIG_RCU_NOCB_CPU
+CONFIG_RCU_USER_QS
+
+	Meaningless for TINY_RCU.
+
+CONFIG_RCU_STALL_COMMON
+CONFIG_RCU_TORTURE_TEST
+
+	Redundant with CONFIG_RCU_TRACE.
+
+CONFIG_HOTPLUG_CPU
+CONFIG_PREEMPT
+CONFIG_PREEMPT_RCU
+CONFIG_SMP
+CONFIG_TINY_RCU
+CONFIG_TREE_PREEMPT_RCU
+CONFIG_TREE_RCU
+
+	All forced by CONFIG_TINY_RCU.

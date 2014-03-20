@@ -7,8 +7,10 @@ This binding uses the common clock binding[1].
 Required properties:
 - compatible : shall be one of the following:
 	"allwinner,sun4i-osc-clk" - for a gatable oscillator
-	"allwinner,sun4i-pll1-clk" - for the main PLL clock
+	"allwinner,sun4i-pll1-clk" - for the main PLL clock and PLL4
 	"allwinner,sun6i-a31-pll1-clk" - for the main PLL clock on A31
+	"allwinner,sun4i-pll5-clk" - for the PLL5 clock
+	"allwinner,sun4i-pll6-clk" - for the PLL6 clock
 	"allwinner,sun4i-cpu-clk" - for the CPU multiplexer clock
 	"allwinner,sun4i-axi-clk" - for the AXI clock
 	"allwinner,sun4i-axi-gates-clk" - for the AXI gates
@@ -33,10 +35,14 @@ Required properties:
 	"allwinner,sun7i-a20-apb1-gates-clk" - for the APB1 gates on A20
 	"allwinner,sun6i-a31-apb2-div-clk" - for the APB2 gates on A31
 	"allwinner,sun6i-a31-apb2-gates-clk" - for the APB2 gates on A31
+	"allwinner,sun4i-mod0-clk" - for the module 0 family of clocks
+	"allwinner,sun7i-a20-out-clk" - for the external output clocks
 
 Required properties for all clocks:
 - reg : shall be the control register address for the clock.
-- clocks : shall be the input parent clock(s) phandle for the clock
+- clocks : shall be the input parent clock(s) phandle for the clock. For
+	multiplexed clocks, the list order must match the hardware
+	programming order.
 - #clock-cells : from common clock binding; shall be set to 0 except for
 	"allwinner,*-gates-clk" where it shall be set to 1
 
@@ -45,8 +51,8 @@ Additionally, "allwinner,*-gates-clk" clocks require:
 
 Clock consumers should specify the desired clocks they use with a
 "clocks" phandle cell. Consumers that are using a gated clock should
-provide an additional ID in their clock property. The values of this
-ID are documented in sunxi/<soc>-gates.txt.
+provide an additional ID in their clock property. This ID is the
+offset of the bit controlling this particular gate in the register.
 
 For example:
 

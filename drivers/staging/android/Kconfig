@@ -10,6 +10,7 @@ if ANDROID
 
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
+	depends on MMU
 	default n
 	---help---
 	  Binder is used in Android for both communication between processes,
@@ -76,7 +77,7 @@ config SYNC
 	bool "Synchronization framework"
 	default n
 	select ANON_INODES
-	help
+	---help---
 	  This option enables the framework for synchronization between multiple
 	  drivers.  Sync implementations can take advantage of hardware
 	  synchronization built into devices like GPUs.
@@ -85,7 +86,7 @@ config SW_SYNC
 	bool "Software synchronization objects"
 	default n
 	depends on SYNC
-	help
+	---help---
 	  A sync object driver that uses a 32bit counter to coordinate
 	  syncrhronization.  Useful when there is no hardware primitive backing
 	  the synchronization.
@@ -94,10 +95,12 @@ config SW_SYNC_USER
 	bool "Userspace API for SW_SYNC"
 	default n
 	depends on SW_SYNC
-	help
+	---help---
 	  Provides a user space API to the sw sync object.
 	  *WARNING* improper use of this can result in deadlocking kernel
 	  drivers from userspace.
+
+source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID
 

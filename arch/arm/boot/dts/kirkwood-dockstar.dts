@@ -34,26 +34,6 @@
 		serial@12000 {
 			status = "ok";
 		};
-
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "data";
-				reg = <0x0500000 0xfb00000>;
-			};
-		};
 	};
 	gpio-leds {
 		compatible = "gpio-leds";
@@ -62,12 +42,12 @@
 
 		health {
 			label = "status:green:health";
-			gpios = <&gpio1 14 1>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 		fault {
 			label = "status:orange:fault";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 	};
 	regulators {
@@ -91,11 +71,30 @@
 	};
 };
 
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "data";
+		reg = <0x0500000 0xfb00000>;
+	};
+};
+
 &mdio {
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		compatible = "marvell,88e1116";
 		reg = <0>;
 	};

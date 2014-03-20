@@ -72,13 +72,13 @@ struct tah_instance {
 
 #ifdef CONFIG_IBM_EMAC_TAH
 
-extern int tah_init(void);
-extern void tah_exit(void);
-extern int tah_attach(struct platform_device *ofdev, int channel);
-extern void tah_detach(struct platform_device *ofdev, int channel);
-extern void tah_reset(struct platform_device *ofdev);
-extern int tah_get_regs_len(struct platform_device *ofdev);
-extern void *tah_dump_regs(struct platform_device *ofdev, void *buf);
+int tah_init(void);
+void tah_exit(void);
+int tah_attach(struct platform_device *ofdev, int channel);
+void tah_detach(struct platform_device *ofdev, int channel);
+void tah_reset(struct platform_device *ofdev);
+int tah_get_regs_len(struct platform_device *ofdev);
+void *tah_dump_regs(struct platform_device *ofdev, void *buf);
 
 #else
 

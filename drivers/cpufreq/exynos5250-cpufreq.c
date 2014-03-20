@@ -18,7 +18,6 @@
 #include <linux/cpufreq.h>
 
 #include <mach/map.h>
-#include <mach/regs-clock.h>
 
 #include "exynos-cpufreq.h"
 
@@ -102,12 +101,12 @@ static void set_clkdiv(unsigned int div_index)
 		cpu_relax();
 }
 
-static void set_apll(unsigned int new_index,
-			     unsigned int old_index)
+static void set_apll(unsigned int index)
 {
-	unsigned int tmp, pdiv;
+	unsigned int tmp;
+	unsigned int freq = apll_freq_5250[index].freq;
 
-	/* 1. MUX_CORE_SEL = MPLL, ARMCLK uses MPLL for lock time */
+	/* MUX_CORE_SEL = MPLL, ARMCLK uses MPLL for lock time */
 	clk_set_parent(moutcore, mout_mpll);
 
 	do {
@@ -116,24 +115,9 @@ static void set_apll(unsigned int new_index,
 		tmp &= 0x7;
 	} while (tmp != 0x2);
 
-	/* 2. Set APLL Lock time */
-	pdiv = ((apll_freq_5250[new_index].mps >> 8) & 0x3f);
+	clk_set_rate(mout_apll, freq * 1000);
 
-	__raw_writel((pdiv * 250), EXYNOS5_APLL_LOCK);
-
-	/* 3. Change PLL PMS values */
-	tmp = __raw_readl(EXYNOS5_APLL_CON0);
-	tmp &= ~((0x3ff << 16) | (0x3f << 8) | (0x7 << 0));
-	tmp |= apll_freq_5250[new_index].mps;
-	__raw_writel(tmp, EXYNOS5_APLL_CON0);
-
-	/* 4. wait_lock_time */
-	do {
-		cpu_relax();
-		tmp = __raw_readl(EXYNOS5_APLL_CON0);
-	} while (!(tmp & (0x1 << 29)));
-
-	/* 5. MUX_CORE_SEL = APLL */
+	/* MUX_CORE_SEL = APLL */
 	clk_set_parent(moutcore, mout_apll);
 
 	do {
@@ -141,55 +125,17 @@ static void set_apll(unsigned int new_index,
 		tmp = __raw_readl(EXYNOS5_CLKMUX_STATCPU);
 		tmp &= (0x7 << 16);
 	} while (tmp != (0x1 << 16));
-
-}
-
-static bool exynos5250_pms_change(unsigned int old_index, unsigned int new_index)
-{
-	unsigned int old_pm = apll_freq_5250[old_index].mps >> 8;
-	unsigned int new_pm = apll_freq_5250[new_index].mps >> 8;
-
-	return (old_pm == new_pm) ? 0 : 1;
 }
 
 static void exynos5250_set_frequency(unsigned int old_index,
 				  unsigned int new_index)
 {
-	unsigned int tmp;
-
 	if (old_index > new_index) {
-		if (!exynos5250_pms_change(old_index, new_index)) {
-			/* 1. Change the system clock divider values */
-			set_clkdiv(new_index);
-			/* 2. Change just s value in apll m,p,s value */
-			tmp = __raw_readl(EXYNOS5_APLL_CON0);
-			tmp &= ~(0x7 << 0);
-			tmp |= apll_freq_5250[new_index].mps & 0x7;
-			__raw_writel(tmp, EXYNOS5_APLL_CON0);
-
-		} else {
-			/* Clock Configuration Procedure */
-			/* 1. Change the system clock divider values */
-			set_clkdiv(new_index);
-			/* 2. Change the apll m,p,s value */
-			set_apll(new_index, old_index);
-		}
+		set_clkdiv(new_index);
+		set_apll(new_index);
 	} else if (old_index < new_index) {
-		if (!exynos5250_pms_change(old_index, new_index)) {
-			/* 1. Change just s value in apll m,p,s value */
-			tmp = __raw_readl(EXYNOS5_APLL_CON0);
-			tmp &= ~(0x7 << 0);
-			tmp |= apll_freq_5250[new_index].mps & 0x7;
-			__raw_writel(tmp, EXYNOS5_APLL_CON0);
-			/* 2. Change the system clock divider values */
-			set_clkdiv(new_index);
-		} else {
-			/* Clock Configuration Procedure */
-			/* 1. Change the apll m,p,s value */
-			set_apll(new_index, old_index);
-			/* 2. Change the system clock divider values */
-			set_clkdiv(new_index);
-		}
+		set_apll(new_index);
+		set_clkdiv(new_index);
 	}
 }
 
@@ -222,7 +168,6 @@ int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 	info->volt_table = exynos5250_volt_table;
 	info->freq_table = exynos5250_freq_table;
 	info->set_freq = exynos5250_set_frequency;
-	info->need_apll_change = exynos5250_pms_change;
 
 	return 0;
 
@@ -236,4 +181,3 @@ err_moutcore:
 	pr_err("%s: failed initialization\n", __func__);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(exynos5250_cpufreq_init);

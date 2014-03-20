@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -374,7 +375,7 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler)
 
 	acpi_gbl_exception_handler = handler;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -383,6 +384,144 @@ ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 #if (!ACPI_REDUCED_HARDWARE)
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_install_sci_handler
+ *
+ * PARAMETERS:  address             - Address of the handler
+ *              context             - Value passed to the handler on each SCI
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install a handler for a System Control Interrupt.
+ *
+ ******************************************************************************/
+acpi_status acpi_install_sci_handler(acpi_sci_handler address, void *context)
+{
+	struct acpi_sci_handler_info *new_sci_handler;
+	struct acpi_sci_handler_info *sci_handler;
+	acpi_cpu_flags flags;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_install_sci_handler);
+
+	if (!address) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Allocate and init a handler object */
+
+	new_sci_handler = ACPI_ALLOCATE(sizeof(struct acpi_sci_handler_info));
+	if (!new_sci_handler) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	new_sci_handler->address = address;
+	new_sci_handler->context = context;
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	/* Lock list during installation */
+
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+	sci_handler = acpi_gbl_sci_handler_list;
+
+	/* Ensure handler does not already exist */
+
+	while (sci_handler) {
+		if (address == sci_handler->address) {
+			status = AE_ALREADY_EXISTS;
+			goto unlock_and_exit;
+		}
+
+		sci_handler = sci_handler->next;
+	}
+
+	/* Install the new handler into the global list (at head) */
+
+	new_sci_handler->next = acpi_gbl_sci_handler_list;
+	acpi_gbl_sci_handler_list = new_sci_handler;
+
+unlock_and_exit:
+
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
+
+exit:
+	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(new_sci_handler);
+	}
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_remove_sci_handler
+ *
+ * PARAMETERS:  address             - Address of the handler
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Remove a handler for a System Control Interrupt.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_remove_sci_handler(acpi_sci_handler address)
+{
+	struct acpi_sci_handler_info *prev_sci_handler;
+	struct acpi_sci_handler_info *next_sci_handler;
+	acpi_cpu_flags flags;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_remove_sci_handler);
+
+	if (!address) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Remove the SCI handler with lock */
+
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+
+	prev_sci_handler = NULL;
+	next_sci_handler = acpi_gbl_sci_handler_list;
+	while (next_sci_handler) {
+		if (next_sci_handler->address == address) {
+
+			/* Unlink and free the SCI handler info block */
+
+			if (prev_sci_handler) {
+				prev_sci_handler->next = next_sci_handler->next;
+			} else {
+				acpi_gbl_sci_handler_list =
+				    next_sci_handler->next;
+			}
+
+			acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+			ACPI_FREE(next_sci_handler);
+			goto unlock_and_exit;
+		}
+
+		prev_sci_handler = next_sci_handler;
+		next_sci_handler = next_sci_handler->next;
+	}
+
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+	status = AE_NOT_EXIST;
+
+unlock_and_exit:
+	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
+	return_ACPI_STATUS(status);
+}
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_global_event_handler
@@ -398,6 +537,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
  *              Can be used to update event counters, etc.
  *
  ******************************************************************************/
+
 acpi_status
 acpi_install_global_event_handler(acpi_gbl_event_handler handler, void *context)
 {
@@ -426,7 +566,7 @@ acpi_install_global_event_handler(acpi_gbl_event_handler handler, void *context)
 	acpi_gbl_global_event_handler = handler;
 	acpi_gbl_global_event_handler_context = context;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -498,7 +638,7 @@ acpi_install_fixed_event_handler(u32 event,
 				  handler));
 	}
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }

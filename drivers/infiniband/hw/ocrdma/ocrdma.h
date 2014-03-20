@@ -122,6 +122,32 @@ struct mqe_ctx {
 	bool cmd_done;
 };
 
+struct ocrdma_hw_mr {
+	u32 lkey;
+	u8 fr_mr;
+	u8 remote_atomic;
+	u8 remote_rd;
+	u8 remote_wr;
+	u8 local_rd;
+	u8 local_wr;
+	u8 mw_bind;
+	u8 rsvd;
+	u64 len;
+	struct ocrdma_pbl *pbl_table;
+	u32 num_pbls;
+	u32 num_pbes;
+	u32 pbl_size;
+	u32 pbe_size;
+	u64 fbo;
+	u64 va;
+};
+
+struct ocrdma_mr {
+	struct ib_mr ibmr;
+	struct ib_umem *umem;
+	struct ocrdma_hw_mr hwmr;
+};
+
 struct ocrdma_dev {
 	struct ib_device ibdev;
 	struct ocrdma_dev_attr attr;
@@ -169,7 +195,7 @@ struct ocrdma_dev {
 	struct list_head entry;
 	struct rcu_head rcu;
 	int id;
-	u64 stag_arr[OCRDMA_MAX_STAG];
+	struct ocrdma_mr *stag_arr[OCRDMA_MAX_STAG];
 	u16 pvid;
 };
 
@@ -294,31 +320,6 @@ struct ocrdma_qp {
 	u16 db_cache;
 };
 
-struct ocrdma_hw_mr {
-	u32 lkey;
-	u8 fr_mr;
-	u8 remote_atomic;
-	u8 remote_rd;
-	u8 remote_wr;
-	u8 local_rd;
-	u8 local_wr;
-	u8 mw_bind;
-	u8 rsvd;
-	u64 len;
-	struct ocrdma_pbl *pbl_table;
-	u32 num_pbls;
-	u32 num_pbes;
-	u32 pbl_size;
-	u32 pbe_size;
-	u64 fbo;
-	u64 va;
-};
-
-struct ocrdma_mr {
-	struct ib_mr ibmr;
-	struct ib_umem *umem;
-	struct ocrdma_hw_mr hwmr;
-};
 
 struct ocrdma_ucontext {
 	struct ib_ucontext ibucontext;
@@ -422,5 +423,17 @@ static inline int is_cqe_wr_imm(struct ocrdma_cqe *cqe)
 		OCRDMA_CQE_WRITE_IMM) ? 1 : 0;
 }
 
+static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
+		struct ib_ah_attr *ah_attr, u8 *mac_addr)
+{
+	struct in6_addr in6;
+
+	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
+	if (rdma_is_multicast_addr(&in6))
+		rdma_get_mcast_mac(&in6, mac_addr);
+	else
+		memcpy(mac_addr, ah_attr->dmac, ETH_ALEN);
+	return 0;
+}
 
 #endif

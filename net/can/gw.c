@@ -839,23 +839,21 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 	if (!gwj->ccgw.src_idx || !gwj->ccgw.dst_idx)
 		goto out;
 
-	gwj->src.dev = dev_get_by_index(&init_net, gwj->ccgw.src_idx);
+	gwj->src.dev = __dev_get_by_index(&init_net, gwj->ccgw.src_idx);
 
 	if (!gwj->src.dev)
 		goto out;
 
-	/* check for CAN netdev not using header_ops - see gw_rcv() */
-	if (gwj->src.dev->type != ARPHRD_CAN || gwj->src.dev->header_ops)
-		goto put_src_out;
+	if (gwj->src.dev->type != ARPHRD_CAN)
+		goto out;
 
-	gwj->dst.dev = dev_get_by_index(&init_net, gwj->ccgw.dst_idx);
+	gwj->dst.dev = __dev_get_by_index(&init_net, gwj->ccgw.dst_idx);
 
 	if (!gwj->dst.dev)
-		goto put_src_out;
+		goto out;
 
-	/* check for CAN netdev not using header_ops - see gw_rcv() */
-	if (gwj->dst.dev->type != ARPHRD_CAN || gwj->dst.dev->header_ops)
-		goto put_src_dst_out;
+	if (gwj->dst.dev->type != ARPHRD_CAN)
+		goto out;
 
 	gwj->limit_hops = limhops;
 
@@ -864,11 +862,6 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 	err = cgw_register_filter(gwj);
 	if (!err)
 		hlist_add_head_rcu(&gwj->list, &cgw_list);
-
-put_src_dst_out:
-	dev_put(gwj->dst.dev);
-put_src_out:
-	dev_put(gwj->src.dev);
 out:
 	if (err)
 		kmem_cache_free(cgw_cache, gwj);

@@ -32,12 +32,13 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/delay.h>
 #include "cxgb4.h"
 #include "t4_regs.h"
 #include "t4fw_api.h"
 
+static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+			 const u8 *fw_data, unsigned int size, int force);
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
  *	@adapter: the adapter performing the operation
@@ -296,7 +297,7 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	u32 mc_bist_cmd, mc_bist_cmd_addr, mc_bist_cmd_len;
 	u32 mc_bist_status_rdata, mc_bist_data_pattern;
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		mc_bist_cmd = MC_BIST_CMD;
 		mc_bist_cmd_addr = MC_BIST_CMD_ADDR;
 		mc_bist_cmd_len = MC_BIST_CMD_LEN;
@@ -349,7 +350,7 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	u32 edc_bist_cmd, edc_bist_cmd_addr, edc_bist_cmd_len;
 	u32 edc_bist_cmd_data_pattern, edc_bist_status_rdata;
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		edc_bist_cmd = EDC_REG(EDC_BIST_CMD, idx);
 		edc_bist_cmd_addr = EDC_REG(EDC_BIST_CMD_ADDR, idx);
 		edc_bist_cmd_len = EDC_REG(EDC_BIST_CMD_LEN, idx);
@@ -402,7 +403,7 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
 {
 	int i;
-	u32 win_pf = is_t4(adap->chip) ? 0 : V_PFNUM(adap->fn);
+	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
 
 	/*
 	 * Setup offset into PCIE memory window.  Address must be a
@@ -863,102 +864,167 @@ unlock:
 }
 
 /**
- *	get_fw_version - read the firmware version
+ *	t4_get_fw_version - read the firmware version
  *	@adapter: the adapter
  *	@vers: where to place the version
  *
  *	Reads the FW version from flash.
  */
-static int get_fw_version(struct adapter *adapter, u32 *vers)
+int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, adapter->params.sf_fw_start +
-			     offsetof(struct fw_hdr, fw_ver), 1, vers, 0);
+	return t4_read_flash(adapter, FLASH_FW_START +
+			     offsetof(struct fw_hdr, fw_ver), 1,
+			     vers, 0);
 }
 
 /**
- *	get_tp_version - read the TP microcode version
+ *	t4_get_tp_version - read the TP microcode version
  *	@adapter: the adapter
  *	@vers: where to place the version
  *
  *	Reads the TP microcode version from flash.
  */
-static int get_tp_version(struct adapter *adapter, u32 *vers)
+int t4_get_tp_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, adapter->params.sf_fw_start +
+	return t4_read_flash(adapter, FLASH_FW_START +
 			     offsetof(struct fw_hdr, tp_microcode_ver),
 			     1, vers, 0);
 }
 
-/**
- *	t4_check_fw_version - check if the FW is compatible with this driver
- *	@adapter: the adapter
- *
- *	Checks if an adapter's FW is compatible with the driver.  Returns 0
- *	if there's exact match, a negative error if the version could not be
- *	read or there's a major version mismatch, and a positive value if the
- *	expected major version is found but there's a minor version mismatch.
+/* Is the given firmware API compatible with the one the driver was compiled
+ * with?
  */
-int t4_check_fw_version(struct adapter *adapter)
+static int fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
 {
-	u32 api_vers[2];
-	int ret, major, minor, micro;
-	int exp_major, exp_minor, exp_micro;
 
-	ret = get_fw_version(adapter, &adapter->params.fw_vers);
-	if (!ret)
-		ret = get_tp_version(adapter, &adapter->params.tp_vers);
-	if (!ret)
-		ret = t4_read_flash(adapter, adapter->params.sf_fw_start +
-				    offsetof(struct fw_hdr, intfver_nic),
-				    2, api_vers, 1);
-	if (ret)
-		return ret;
+	/* short circuit if it's the exact same firmware version */
+	if (hdr1->chip == hdr2->chip && hdr1->fw_ver == hdr2->fw_ver)
+		return 1;
 
-	major = FW_HDR_FW_VER_MAJOR_GET(adapter->params.fw_vers);
-	minor = FW_HDR_FW_VER_MINOR_GET(adapter->params.fw_vers);
-	micro = FW_HDR_FW_VER_MICRO_GET(adapter->params.fw_vers);
+#define SAME_INTF(x) (hdr1->intfver_##x == hdr2->intfver_##x)
+	if (hdr1->chip == hdr2->chip && SAME_INTF(nic) && SAME_INTF(vnic) &&
+	    SAME_INTF(ri) && SAME_INTF(iscsi) && SAME_INTF(fcoe))
+		return 1;
+#undef SAME_INTF
 
-	switch (CHELSIO_CHIP_VERSION(adapter->chip)) {
-	case CHELSIO_T4:
-		exp_major = FW_VERSION_MAJOR;
-		exp_minor = FW_VERSION_MINOR;
-		exp_micro = FW_VERSION_MICRO;
-		break;
-	case CHELSIO_T5:
-		exp_major = FW_VERSION_MAJOR_T5;
-		exp_minor = FW_VERSION_MINOR_T5;
-		exp_micro = FW_VERSION_MICRO_T5;
-		break;
-	default:
-		dev_err(adapter->pdev_dev, "Unsupported chip type, %x\n",
-			adapter->chip);
-		return -EINVAL;
+	return 0;
+}
+
+/* The firmware in the filesystem is usable, but should it be installed?
+ * This routine explains itself in detail if it indicates the filesystem
+ * firmware should be installed.
+ */
+static int should_install_fs_fw(struct adapter *adap, int card_fw_usable,
+				int k, int c)
+{
+	const char *reason;
+
+	if (!card_fw_usable) {
+		reason = "incompatible or unusable";
+		goto install;
 	}
 
-	memcpy(adapter->params.api_vers, api_vers,
-	       sizeof(adapter->params.api_vers));
-
-	if (major < exp_major || (major == exp_major && minor < exp_minor) ||
-	    (major == exp_major && minor == exp_minor && micro < exp_micro)) {
-		dev_err(adapter->pdev_dev,
-			"Card has firmware version %u.%u.%u, minimum "
-			"supported firmware is %u.%u.%u.\n", major, minor,
-			micro, exp_major, exp_minor, exp_micro);
-		return -EFAULT;
+	if (k > c) {
+		reason = "older than the version supported with this driver";
+		goto install;
 	}
 
-	if (major != exp_major) {            /* major mismatch - fail */
-		dev_err(adapter->pdev_dev,
-			"card FW has major version %u, driver wants %u\n",
-			major, exp_major);
-		return -EINVAL;
-	}
+	return 0;
 
-	if (minor == exp_minor && micro == exp_micro)
-		return 0;                                   /* perfect match */
+install:
+	dev_err(adap->pdev_dev, "firmware on card (%u.%u.%u.%u) is %s, "
+		"installing firmware %u.%u.%u.%u on card.\n",
+		FW_HDR_FW_VER_MAJOR_GET(c), FW_HDR_FW_VER_MINOR_GET(c),
+		FW_HDR_FW_VER_MICRO_GET(c), FW_HDR_FW_VER_BUILD_GET(c), reason,
+		FW_HDR_FW_VER_MAJOR_GET(k), FW_HDR_FW_VER_MINOR_GET(k),
+		FW_HDR_FW_VER_MICRO_GET(k), FW_HDR_FW_VER_BUILD_GET(k));
 
-	/* Minor/micro version mismatch.  Report it but often it's OK. */
 	return 1;
+}
+
+int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
+	       const u8 *fw_data, unsigned int fw_size,
+	       struct fw_hdr *card_fw, enum dev_state state,
+	       int *reset)
+{
+	int ret, card_fw_usable, fs_fw_usable;
+	const struct fw_hdr *fs_fw;
+	const struct fw_hdr *drv_fw;
+
+	drv_fw = &fw_info->fw_hdr;
+
+	/* Read the header of the firmware on the card */
+	ret = -t4_read_flash(adap, FLASH_FW_START,
+			    sizeof(*card_fw) / sizeof(uint32_t),
+			    (uint32_t *)card_fw, 1);
+	if (ret == 0) {
+		card_fw_usable = fw_compatible(drv_fw, (const void *)card_fw);
+	} else {
+		dev_err(adap->pdev_dev,
+			"Unable to read card's firmware header: %d\n", ret);
+		card_fw_usable = 0;
+	}
+
+	if (fw_data != NULL) {
+		fs_fw = (const void *)fw_data;
+		fs_fw_usable = fw_compatible(drv_fw, fs_fw);
+	} else {
+		fs_fw = NULL;
+		fs_fw_usable = 0;
+	}
+
+	if (card_fw_usable && card_fw->fw_ver == drv_fw->fw_ver &&
+	    (!fs_fw_usable || fs_fw->fw_ver == drv_fw->fw_ver)) {
+		/* Common case: the firmware on the card is an exact match and
+		 * the filesystem one is an exact match too, or the filesystem
+		 * one is absent/incompatible.
+		 */
+	} else if (fs_fw_usable && state == DEV_STATE_UNINIT &&
+		   should_install_fs_fw(adap, card_fw_usable,
+					be32_to_cpu(fs_fw->fw_ver),
+					be32_to_cpu(card_fw->fw_ver))) {
+		ret = -t4_fw_upgrade(adap, adap->mbox, fw_data,
+				     fw_size, 0);
+		if (ret != 0) {
+			dev_err(adap->pdev_dev,
+				"failed to install firmware: %d\n", ret);
+			goto bye;
+		}
+
+		/* Installed successfully, update the cached header too. */
+		memcpy(card_fw, fs_fw, sizeof(*card_fw));
+		card_fw_usable = 1;
+		*reset = 0;	/* already reset as part of load_fw */
+	}
+
+	if (!card_fw_usable) {
+		uint32_t d, c, k;
+
+		d = be32_to_cpu(drv_fw->fw_ver);
+		c = be32_to_cpu(card_fw->fw_ver);
+		k = fs_fw ? be32_to_cpu(fs_fw->fw_ver) : 0;
+
+		dev_err(adap->pdev_dev, "Cannot find a usable firmware: "
+			"chip state %d, "
+			"driver compiled with %d.%d.%d.%d, "
+			"card has %d.%d.%d.%d, filesystem has %d.%d.%d.%d\n",
+			state,
+			FW_HDR_FW_VER_MAJOR_GET(d), FW_HDR_FW_VER_MINOR_GET(d),
+			FW_HDR_FW_VER_MICRO_GET(d), FW_HDR_FW_VER_BUILD_GET(d),
+			FW_HDR_FW_VER_MAJOR_GET(c), FW_HDR_FW_VER_MINOR_GET(c),
+			FW_HDR_FW_VER_MICRO_GET(c), FW_HDR_FW_VER_BUILD_GET(c),
+			FW_HDR_FW_VER_MAJOR_GET(k), FW_HDR_FW_VER_MINOR_GET(k),
+			FW_HDR_FW_VER_MICRO_GET(k), FW_HDR_FW_VER_BUILD_GET(k));
+		ret = EINVAL;
+		goto bye;
+	}
+
+	/* We're using whatever's on the card and it's known to be good. */
+	adap->params.fw_vers = be32_to_cpu(card_fw->fw_ver);
+	adap->params.tp_vers = be32_to_cpu(card_fw->tp_microcode_ver);
+
+bye:
+	return ret;
 }
 
 /**
@@ -1002,62 +1068,6 @@ unsigned int t4_flash_cfg_addr(struct adapter *adapter)
 		return FLASH_FPGA_CFG_START;
 	else
 		return FLASH_CFG_START;
-}
-
-/**
- *	t4_load_cfg - download config file
- *	@adap: the adapter
- *	@cfg_data: the cfg text file to write
- *	@size: text file size
- *
- *	Write the supplied config text file to the card's serial flash.
- */
-int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
-{
-	int ret, i, n;
-	unsigned int addr;
-	unsigned int flash_cfg_start_sec;
-	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
-
-	addr = t4_flash_cfg_addr(adap);
-	flash_cfg_start_sec = addr / SF_SEC_SIZE;
-
-	if (size > FLASH_CFG_MAX_SIZE) {
-		dev_err(adap->pdev_dev, "cfg file too large, max is %u bytes\n",
-			FLASH_CFG_MAX_SIZE);
-		return -EFBIG;
-	}
-
-	i = DIV_ROUND_UP(FLASH_CFG_MAX_SIZE,	/* # of sectors spanned */
-			 sf_sec_size);
-	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
-				     flash_cfg_start_sec + i - 1);
-	/*
-	 * If size == 0 then we're simply erasing the FLASH sectors associated
-	 * with the on-adapter Firmware Configuration File.
-	 */
-	if (ret || size == 0)
-		goto out;
-
-	/* this will write to the flash up to SF_PAGE_SIZE at a time */
-	for (i = 0; i < size; i += SF_PAGE_SIZE) {
-		if ((size - i) <  SF_PAGE_SIZE)
-			n = size - i;
-		else
-			n = SF_PAGE_SIZE;
-		ret = t4_write_flash(adap, addr, n, cfg_data);
-		if (ret)
-			goto out;
-
-		addr += SF_PAGE_SIZE;
-		cfg_data += SF_PAGE_SIZE;
-	}
-
-out:
-	if (ret)
-		dev_err(adap->pdev_dev, "config file %s failed %d\n",
-			(size == 0 ? "clear" : "download"), ret);
-	return ret;
 }
 
 /**
@@ -1368,7 +1378,7 @@ static void pcie_intr_handler(struct adapter *adapter)
 				    PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
 				    pcie_port_intr_info) +
 	      t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
-				    is_t4(adapter->chip) ?
+				    is_t4(adapter->params.chip) ?
 				    pcie_intr_info : t5_pcie_intr_info);
 
 	if (fat)
@@ -1782,7 +1792,7 @@ static void xgmac_intr_handler(struct adapter *adap, int port)
 {
 	u32 v, int_cause_reg;
 
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		int_cause_reg = PORT_REG(port, XGMAC_PORT_INT_CAUSE);
 	else
 		int_cause_reg = T5_PORT_REG(port, MAC_PORT_INT_CAUSE);
@@ -2250,7 +2260,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	(is_t4(adap->chip) ? PORT_REG(idx, MPS_PORT_STAT_##name##_L) : \
+	(is_t4(adap->params.chip) ? PORT_REG(idx, MPS_PORT_STAT_##name##_L) : \
 	T5_PORT_REG(idx, MPS_PORT_STAT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, MPS_STAT_##name##_L)
 
@@ -2332,7 +2342,7 @@ void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
 {
 	u32 mag_id_reg_l, mag_id_reg_h, port_cfg_reg;
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		mag_id_reg_l = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_LO);
 		mag_id_reg_h = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_HI);
 		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2);
@@ -2374,7 +2384,7 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 	int i;
 	u32 port_cfg_reg;
 
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2);
 	else
 		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2);
@@ -2387,7 +2397,7 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 		return -EINVAL;
 
 #define EPIO_REG(name) \
-	(is_t4(adap->chip) ? PORT_REG(port, XGMAC_PORT_EPIO_##name) : \
+	(is_t4(adap->params.chip) ? PORT_REG(port, XGMAC_PORT_EPIO_##name) : \
 	T5_PORT_REG(port, MAC_PORT_EPIO_##name))
 
 	t4_write_reg(adap, EPIO_REG(DATA1), mask0 >> 32);
@@ -2474,7 +2484,7 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
 {
 	int i, off;
-	u32 win_pf = is_t4(adap->chip) ? 0 : V_PFNUM(adap->fn);
+	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
 
 	/* Align on a 2KB boundary.
 	 */
@@ -2745,7 +2755,7 @@ int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset)
  *	be doing.  The only way out of this state is to RESTART the firmware
  *	...
  */
-int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
+static int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 {
 	int ret = 0;
 
@@ -2810,7 +2820,7 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
  *	    the chip since older firmware won't recognize the PCIE_FW.HALT
  *	    flag and automatically RESET itself on startup.
  */
-int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
+static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 {
 	if (reset) {
 		/*
@@ -2873,8 +2883,8 @@ int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
  *	positive errno indicates that the adapter is ~probably~ intact, a
  *	negative errno indicates that things are looking bad ...
  */
-int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
-		  const u8 *fw_data, unsigned int size, int force)
+static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+			 const u8 *fw_data, unsigned int size, int force)
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
 	int reset, ret;
@@ -2897,78 +2907,6 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	 */
 	reset = ((ntohl(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
 	return t4_fw_restart(adap, mbox, reset);
-}
-
-
-/**
- *	t4_fw_config_file - setup an adapter via a Configuration File
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@mtype: the memory type where the Configuration File is located
- *	@maddr: the memory address where the Configuration File is located
- *	@finiver: return value for CF [fini] version
- *	@finicsum: return value for CF [fini] checksum
- *	@cfcsum: return value for CF computed checksum
- *
- *	Issue a command to get the firmware to process the Configuration
- *	File located at the specified mtype/maddress.  If the Configuration
- *	File is processed successfully and return value pointers are
- *	provided, the Configuration File "[fini] section version and
- *	checksum values will be returned along with the computed checksum.
- *	It's up to the caller to decide how it wants to respond to the
- *	checksums not matching but it recommended that a prominant warning
- *	be emitted in order to help people rapidly identify changed or
- *	corrupted Configuration Files.
- *
- *	Also note that it's possible to modify things like "niccaps",
- *	"toecaps",etc. between processing the Configuration File and telling
- *	the firmware to use the new configuration.  Callers which want to
- *	do this will need to "hand-roll" their own CAPS_CONFIGS commands for
- *	Configuration Files if they want to do this.
- */
-int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
-		      unsigned int mtype, unsigned int maddr,
-		      u32 *finiver, u32 *finicsum, u32 *cfcsum)
-{
-	struct fw_caps_config_cmd caps_cmd;
-	int ret;
-
-	/*
-	 * Tell the firmware to process the indicated Configuration File.
-	 * If there are no errors and the caller has provided return value
-	 * pointers for the [fini] section version, checksum and computed
-	 * checksum, pass those back to the caller.
-	 */
-	memset(&caps_cmd, 0, sizeof(caps_cmd));
-	caps_cmd.op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_READ);
-	caps_cmd.cfvalid_to_len16 =
-		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
-		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
-		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
-		      FW_LEN16(caps_cmd));
-	ret = t4_wr_mbox(adap, mbox, &caps_cmd, sizeof(caps_cmd), &caps_cmd);
-	if (ret < 0)
-		return ret;
-
-	if (finiver)
-		*finiver = ntohl(caps_cmd.finiver);
-	if (finicsum)
-		*finicsum = ntohl(caps_cmd.finicsum);
-	if (cfcsum)
-		*cfcsum = ntohl(caps_cmd.cfcsum);
-
-	/*
-	 * And now tell the firmware to use the configuration we just loaded.
-	 */
-	caps_cmd.op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_WRITE);
-	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
-	return t4_wr_mbox(adap, mbox, &caps_cmd, sizeof(caps_cmd), NULL);
 }
 
 /**
@@ -3306,7 +3244,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 	int i, ret;
 	struct fw_vi_mac_cmd c;
 	struct fw_vi_mac_exact *p;
-	unsigned int max_naddr = is_t4(adap->chip) ?
+	unsigned int max_naddr = is_t4(adap->params.chip) ?
 				       NUM_MPS_CLS_SRAM_L_INSTANCES :
 				       NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
@@ -3368,7 +3306,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
 	struct fw_vi_mac_exact *p = c.u.exact;
-	unsigned int max_mac_addr = is_t4(adap->chip) ?
+	unsigned int max_mac_addr = is_t4(adap->params.chip) ?
 				    NUM_MPS_CLS_SRAM_L_INSTANCES :
 				    NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
@@ -3699,13 +3637,14 @@ int t4_prep_adapter(struct adapter *adapter)
 {
 	int ret, ver;
 	uint16_t device_id;
+	u32 pl_rev;
 
 	ret = t4_wait_dev_ready(adapter);
 	if (ret < 0)
 		return ret;
 
 	get_pci_mode(adapter, &adapter->params.pci);
-	adapter->params.rev = t4_read_reg(adapter, PL_REV);
+	pl_rev = G_REV(t4_read_reg(adapter, PL_REV));
 
 	ret = get_flash_params(adapter);
 	if (ret < 0) {
@@ -3717,23 +3656,19 @@ int t4_prep_adapter(struct adapter *adapter)
 	 */
 	pci_read_config_word(adapter->pdev, PCI_DEVICE_ID, &device_id);
 	ver = device_id >> 12;
+	adapter->params.chip = 0;
 	switch (ver) {
 	case CHELSIO_T4:
-		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T4,
-						  adapter->params.rev);
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
 		break;
 	case CHELSIO_T5:
-		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T5,
-						  adapter->params.rev);
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Device %d is not supported\n",
 			device_id);
 		return -EINVAL;
 	}
-
-	/* Reassign the updated revision field */
-	adapter->params.rev = adapter->chip;
 
 	init_cong_ctrl(adapter->params.a_wnd, adapter->params.b_wnd);
 
@@ -3744,6 +3679,109 @@ int t4_prep_adapter(struct adapter *adapter)
 	adapter->params.portvec = 1;
 	adapter->params.vpd.cclk = 50000;
 	return 0;
+}
+
+/**
+ *      t4_init_tp_params - initialize adap->params.tp
+ *      @adap: the adapter
+ *
+ *      Initialize various fields of the adapter's TP Parameters structure.
+ */
+int t4_init_tp_params(struct adapter *adap)
+{
+	int chan;
+	u32 v;
+
+	v = t4_read_reg(adap, TP_TIMER_RESOLUTION);
+	adap->params.tp.tre = TIMERRESOLUTION_GET(v);
+	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_GET(v);
+
+	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
+	for (chan = 0; chan < NCHAN; chan++)
+		adap->params.tp.tx_modq[chan] = chan;
+
+	/* Cache the adapter's Compressed Filter Mode and global Incress
+	 * Configuration.
+	 */
+	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			 &adap->params.tp.vlan_pri_map, 1,
+			 TP_VLAN_PRI_MAP);
+	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			 &adap->params.tp.ingress_config, 1,
+			 TP_INGRESS_CONFIG);
+
+	/* Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
+	 * shift positions of several elements of the Compressed Filter Tuple
+	 * for this adapter which we need frequently ...
+	 */
+	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
+	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
+	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
+	adap->params.tp.protocol_shift = t4_filter_field_shift(adap,
+							       F_PROTOCOL);
+
+	/* If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
+	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 */
+	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
+		adap->params.tp.vnic_shift = -1;
+
+	return 0;
+}
+
+/**
+ *      t4_filter_field_shift - calculate filter field shift
+ *      @adap: the adapter
+ *      @filter_sel: the desired field (from TP_VLAN_PRI_MAP bits)
+ *
+ *      Return the shift position of a filter field within the Compressed
+ *      Filter Tuple.  The filter field is specified via its selection bit
+ *      within TP_VLAN_PRI_MAL (filter mode).  E.g. F_VLAN.
+ */
+int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
+{
+	unsigned int filter_mode = adap->params.tp.vlan_pri_map;
+	unsigned int sel;
+	int field_shift;
+
+	if ((filter_mode & filter_sel) == 0)
+		return -1;
+
+	for (sel = 1, field_shift = 0; sel < filter_sel; sel <<= 1) {
+		switch (filter_mode & sel) {
+		case F_FCOE:
+			field_shift += W_FT_FCOE;
+			break;
+		case F_PORT:
+			field_shift += W_FT_PORT;
+			break;
+		case F_VNIC_ID:
+			field_shift += W_FT_VNIC_ID;
+			break;
+		case F_VLAN:
+			field_shift += W_FT_VLAN;
+			break;
+		case F_TOS:
+			field_shift += W_FT_TOS;
+			break;
+		case F_PROTOCOL:
+			field_shift += W_FT_PROTOCOL;
+			break;
+		case F_ETHERTYPE:
+			field_shift += W_FT_ETHERTYPE;
+			break;
+		case F_MACMATCH:
+			field_shift += W_FT_MACMATCH;
+			break;
+		case F_MPSHITTYPE:
+			field_shift += W_FT_MPSHITTYPE;
+			break;
+		case F_FRAGMENTATION:
+			field_shift += W_FT_FRAGMENTATION;
+			break;
+		}
+	}
+	return field_shift;
 }
 
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)

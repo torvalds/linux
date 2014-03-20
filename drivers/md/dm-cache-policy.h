@@ -135,9 +135,6 @@ struct dm_cache_policy {
 	 */
 	int (*lookup)(struct dm_cache_policy *p, dm_oblock_t oblock, dm_cblock_t *cblock);
 
-	/*
-	 * oblock must be a mapped block.  Must not block.
-	 */
 	void (*set_dirty)(struct dm_cache_policy *p, dm_oblock_t oblock);
 	void (*clear_dirty)(struct dm_cache_policy *p, dm_oblock_t oblock);
 
@@ -159,8 +156,24 @@ struct dm_cache_policy {
 	void (*force_mapping)(struct dm_cache_policy *p, dm_oblock_t current_oblock,
 			      dm_oblock_t new_oblock);
 
-	int (*writeback_work)(struct dm_cache_policy *p, dm_oblock_t *oblock, dm_cblock_t *cblock);
+	/*
+	 * This is called via the invalidate_cblocks message.  It is
+	 * possible the particular cblock has already been removed due to a
+	 * write io in passthrough mode.  In which case this should return
+	 * -ENODATA.
+	 */
+	int (*remove_cblock)(struct dm_cache_policy *p, dm_cblock_t cblock);
 
+	/*
+	 * Provide a dirty block to be written back by the core target.
+	 *
+	 * Returns:
+	 *
+	 * 0 and @cblock,@oblock: block to write back provided
+	 *
+	 * -ENODATA: no dirty blocks available
+	 */
+	int (*writeback_work)(struct dm_cache_policy *p, dm_oblock_t *oblock, dm_cblock_t *cblock);
 
 	/*
 	 * How full is the cache?
@@ -208,6 +221,12 @@ struct dm_cache_policy_type {
 	 */
 	char name[CACHE_POLICY_NAME_SIZE];
 	unsigned version[CACHE_POLICY_VERSION_SIZE];
+
+	/*
+	 * For use by an alias dm_cache_policy_type to point to the
+	 * real dm_cache_policy_type.
+	 */
+	struct dm_cache_policy_type *real;
 
 	/*
 	 * Policies may store a hint for each each cache block.

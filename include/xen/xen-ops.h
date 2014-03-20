@@ -19,10 +19,11 @@ void xen_arch_resume(void);
 int xen_setup_shutdown_event(void);
 
 extern unsigned long *xen_contiguous_bitmap;
-int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
-				unsigned int address_bits);
+int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
+				unsigned int address_bits,
+				dma_addr_t *dma_handle);
 
-void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order);
+void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
 
 struct vm_area_struct;
 int xen_remap_domain_mfn_range(struct vm_area_struct *vma,

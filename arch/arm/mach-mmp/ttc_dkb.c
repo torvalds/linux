@@ -191,7 +191,6 @@ static struct pxa3xx_nand_platform_data dkb_nand_info = {
 #define SCLK_SOURCE_SELECT(x)  (x << 30) /* 0x0 ~ 0x3 */
 /* link config */
 #define CFG_DUMBMODE(mode)     (mode << 28) /* 0x0 ~ 0x6*/
-#define CFG_GRA_SWAPRB(x)      (x << 0) /* 1: rbswap enabled */
 static struct mmp_mach_path_config dkb_disp_config[] = {
 	[0] = {
 		.name = "mmp-parallel",
@@ -199,8 +198,7 @@ static struct mmp_mach_path_config dkb_disp_config[] = {
 		.output_type = PATH_OUT_PARALLEL,
 		.path_config = CFG_IOPADMODE(0x1)
 			| SCLK_SOURCE_SELECT(0x1),
-		.link_config = CFG_DUMBMODE(0x2)
-			| CFG_GRA_SWAPRB(0x1),
+		.link_config = CFG_DUMBMODE(0x2),
 	},
 };
 

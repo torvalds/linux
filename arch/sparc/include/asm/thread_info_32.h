@@ -105,8 +105,6 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TI_W_SAVED	0x250
 /* #define TI_RESTART_BLOCK 0x25n */ /* Nobody cares */
 
-#define PREEMPT_ACTIVE		0x4000000
-
 /*
  * thread information flag bit numbers
  */

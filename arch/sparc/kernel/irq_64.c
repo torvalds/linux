@@ -698,30 +698,19 @@ void __irq_entry handler_irq(int pil, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-void do_softirq(void)
+void do_softirq_own_stack(void)
 {
-	unsigned long flags;
+	void *orig_sp, *sp = softirq_stack[smp_processor_id()];
 
-	if (in_interrupt())
-		return;
+	sp += THREAD_SIZE - 192 - STACK_BIAS;
 
-	local_irq_save(flags);
-
-	if (local_softirq_pending()) {
-		void *orig_sp, *sp = softirq_stack[smp_processor_id()];
-
-		sp += THREAD_SIZE - 192 - STACK_BIAS;
-
-		__asm__ __volatile__("mov %%sp, %0\n\t"
-				     "mov %1, %%sp"
-				     : "=&r" (orig_sp)
-				     : "r" (sp));
-		__do_softirq();
-		__asm__ __volatile__("mov %0, %%sp"
-				     : : "r" (orig_sp));
-	}
-
-	local_irq_restore(flags);
+	__asm__ __volatile__("mov %%sp, %0\n\t"
+			     "mov %1, %%sp"
+			     : "=&r" (orig_sp)
+			     : "r" (sp));
+	__do_softirq();
+	__asm__ __volatile__("mov %0, %%sp"
+			     : : "r" (orig_sp));
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

@@ -14,8 +14,8 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/of_gpio.h>
+#include <linux/of_irq.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
 #include <linux/interrupt.h>

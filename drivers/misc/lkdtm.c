@@ -44,13 +44,25 @@
 #include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
+#include <linux/mman.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
 #endif
 
+/*
+ * Make sure our attempts to over run the kernel stack doesn't trigger
+ * a compiler warning when CONFIG_FRAME_WARN is set. Then make sure we
+ * recurse past the end of THREAD_SIZE by default.
+ */
+#if defined(CONFIG_FRAME_WARN) && (CONFIG_FRAME_WARN > 0)
+#define REC_STACK_SIZE (CONFIG_FRAME_WARN / 2)
+#else
+#define REC_STACK_SIZE (THREAD_SIZE / 8)
+#endif
+#define REC_NUM_DEFAULT ((THREAD_SIZE / REC_STACK_SIZE) * 2)
+
 #define DEFAULT_COUNT 10
-#define REC_NUM_DEFAULT 10
 #define EXEC_SIZE 64
 
 enum cname {
@@ -86,6 +98,9 @@ enum ctype {
 	CT_EXEC_STACK,
 	CT_EXEC_KMALLOC,
 	CT_EXEC_VMALLOC,
+	CT_EXEC_USERSPACE,
+	CT_ACCESS_USERSPACE,
+	CT_WRITE_RO,
 };
 
 static char* cp_name[] = {
@@ -119,6 +134,9 @@ static char* cp_type[] = {
 	"EXEC_STACK",
 	"EXEC_KMALLOC",
 	"EXEC_VMALLOC",
+	"EXEC_USERSPACE",
+	"ACCESS_USERSPACE",
+	"WRITE_RO",
 };
 
 static struct jprobe lkdtm;
@@ -139,9 +157,10 @@ static DEFINE_SPINLOCK(lock_me_up);
 
 static u8 data_area[EXEC_SIZE];
 
+static const unsigned long rodata = 0xAA55AA55;
+
 module_param(recur_count, int, 0644);
-MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
-				 "default is 10");
+MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
 module_param(cpoint_name, charp, 0444);
 MODULE_PARM_DESC(cpoint_name, " Crash Point, where kernel is to be crashed");
 module_param(cpoint_type, charp, 0444);
@@ -205,7 +224,7 @@ static int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 }
 
 #ifdef CONFIG_IDE
-int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
+static int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
 			struct block_device *bdev, unsigned int cmd,
 			unsigned long arg)
 {
@@ -280,16 +299,16 @@ static int lkdtm_parse_commandline(void)
 	return -EINVAL;
 }
 
-static int recursive_loop(int a)
+static int recursive_loop(int remaining)
 {
-	char buf[1024];
+	char buf[REC_STACK_SIZE];
 
-	memset(buf,0xFF,1024);
-	recur_count--;
-	if (!recur_count)
+	/* Make sure compiler does not optimize this away. */
+	memset(buf, (remaining & 0xff) | 0x1, REC_STACK_SIZE);
+	if (!remaining)
 		return 0;
 	else
-        	return recursive_loop(a);
+		return recursive_loop(remaining - 1);
 }
 
 static void do_nothing(void)
@@ -297,11 +316,29 @@ static void do_nothing(void)
 	return;
 }
 
+static noinline void corrupt_stack(void)
+{
+	/* Use default char array length that triggers stack protection. */
+	char data[8];
+
+	memset((void *)data, 0, 64);
+}
+
 static void execute_location(void *dst)
 {
 	void (*func)(void) = dst;
 
 	memcpy(dst, do_nothing, EXEC_SIZE);
+	func();
+}
+
+static void execute_user_location(void *dst)
+{
+	/* Intentionally crossing kernel/user memory boundary. */
+	void (*func)(void) = dst;
+
+	if (copy_to_user((void __user *)dst, do_nothing, EXEC_SIZE))
+		return;
 	func();
 }
 
@@ -325,15 +362,11 @@ static void lkdtm_do_action(enum ctype which)
 			;
 		break;
 	case CT_OVERFLOW:
-		(void) recursive_loop(0);
+		(void) recursive_loop(recur_count);
 		break;
-	case CT_CORRUPT_STACK: {
-		/* Make sure the compiler creates and uses an 8 char array. */
-		volatile char data[8];
-
-		memset((void *)data, 0, 64);
+	case CT_CORRUPT_STACK:
+		corrupt_stack();
 		break;
-	}
 	case CT_UNALIGNED_LOAD_STORE_WRITE: {
 		static u8 data[5] __attribute__((aligned(4))) = {1, 2,
 				3, 4, 5};
@@ -376,6 +409,8 @@ static void lkdtm_do_action(enum ctype which)
 	case CT_SPINLOCKUP:
 		/* Must be called twice to trigger. */
 		spin_lock(&lock_me_up);
+		/* Let sparse know we intended to exit holding the lock. */
+		__release(&lock_me_up);
 		break;
 	case CT_HUNG_TASK:
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -399,6 +434,49 @@ static void lkdtm_do_action(enum ctype which)
 		u32 *vmalloc_area = vmalloc(EXEC_SIZE);
 		execute_location(vmalloc_area);
 		vfree(vmalloc_area);
+		break;
+	}
+	case CT_EXEC_USERSPACE: {
+		unsigned long user_addr;
+
+		user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+				    PROT_READ | PROT_WRITE | PROT_EXEC,
+				    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+		if (user_addr >= TASK_SIZE) {
+			pr_warn("Failed to allocate user memory\n");
+			return;
+		}
+		execute_user_location((void *)user_addr);
+		vm_munmap(user_addr, PAGE_SIZE);
+		break;
+	}
+	case CT_ACCESS_USERSPACE: {
+		unsigned long user_addr, tmp;
+		unsigned long *ptr;
+
+		user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+				    PROT_READ | PROT_WRITE | PROT_EXEC,
+				    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+		if (user_addr >= TASK_SIZE) {
+			pr_warn("Failed to allocate user memory\n");
+			return;
+		}
+
+		ptr = (unsigned long *)user_addr;
+		tmp = *ptr;
+		tmp += 0xc0dec0de;
+		*ptr = tmp;
+
+		vm_munmap(user_addr, PAGE_SIZE);
+
+		break;
+	}
+	case CT_WRITE_RO: {
+		unsigned long *ptr;
+
+		ptr = (unsigned long *)&rodata;
+		*ptr ^= 0xabcd1234;
+
 		break;
 	}
 	case CT_NONE:

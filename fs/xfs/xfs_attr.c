@@ -17,23 +17,24 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_attr_sf.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_alloc.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_attr_remote.h"
@@ -41,6 +42,7 @@
 #include "xfs_quota.h"
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
+#include "xfs_dinode.h"
 
 /*
  * xfs_attr.c
@@ -162,6 +164,7 @@ xfs_attr_get(
 {
 	int		error;
 	struct xfs_name	xname;
+	uint		lock_mode;
 
 	XFS_STATS_INC(xs_attr_get);
 
@@ -172,9 +175,9 @@ xfs_attr_get(
 	if (error)
 		return error;
 
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
+	lock_mode = xfs_ilock_attr_map_shared(ip);
 	error = xfs_attr_get_int(ip, &xname, value, valuelenp, flags);
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	xfs_iunlock(ip, lock_mode);
 	return(error);
 }
 

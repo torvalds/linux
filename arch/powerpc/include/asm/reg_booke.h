@@ -101,6 +101,7 @@
 #define SPRN_IVOR39	0x1B1	/* Interrupt Vector Offset Register 39 */
 #define SPRN_IVOR40	0x1B2	/* Interrupt Vector Offset Register 40 */
 #define SPRN_IVOR41	0x1B3	/* Interrupt Vector Offset Register 41 */
+#define SPRN_IVOR42	0x1B4	/* Interrupt Vector Offset Register 42 */
 #define SPRN_GIVOR2	0x1B8	/* Guest IVOR2 */
 #define SPRN_GIVOR3	0x1B9	/* Guest IVOR3 */
 #define SPRN_GIVOR4	0x1BA	/* Guest IVOR4 */
@@ -170,6 +171,7 @@
 #define SPRN_L2CSR1	0x3FA	/* L2 Data Cache Control and Status Register 1 */
 #define SPRN_DCCR	0x3FA	/* Data Cache Cacheability Register */
 #define SPRN_ICCR	0x3FB	/* Instruction Cache Cacheability Register */
+#define SPRN_PWRMGTCR0	0x3FB	/* Power management control register 0 */
 #define SPRN_SVR	0x3FF	/* System Version Register */
 
 /*
@@ -215,6 +217,14 @@
 /* Bit definitions for CCR1. */
 #define	CCR1_DPC	0x00000100 /* Disable L1 I-Cache/D-Cache parity checking */
 #define	CCR1_TCS	0x00000080 /* Timer Clock Select */
+
+/* Bit definitions for PWRMGTCR0. */
+#define PWRMGTCR0_PW20_WAIT		(1 << 14) /* PW20 state enable bit */
+#define PWRMGTCR0_PW20_ENT_SHIFT	8
+#define PWRMGTCR0_PW20_ENT		0x3F00
+#define PWRMGTCR0_AV_IDLE_PD_EN		(1 << 22) /* Altivec idle enable */
+#define PWRMGTCR0_AV_IDLE_CNT_SHIFT	16
+#define PWRMGTCR0_AV_IDLE_CNT		0x3F0000
 
 /* Bit definitions for the MCSR. */
 #define MCSR_MCS	0x80000000 /* Machine Check Summary */
@@ -381,7 +391,7 @@
 #define DBCR0_IA34T	0x00004000	/* Instr Addr 3-4 range Toggle */
 #define DBCR0_FT	0x00000001	/* Freeze Timers on debug event */
 
-#define dbcr_iac_range(task)	((task)->thread.dbcr0)
+#define dbcr_iac_range(task)	((task)->thread.debug.dbcr0)
 #define DBCR_IAC12I	DBCR0_IA12			/* Range Inclusive */
 #define DBCR_IAC12X	(DBCR0_IA12 | DBCR0_IA12X)	/* Range Exclusive */
 #define DBCR_IAC12MODE	(DBCR0_IA12 | DBCR0_IA12X)	/* IAC 1-2 Mode Bits */
@@ -395,7 +405,7 @@
 #define DBCR1_DAC1W	0x20000000	/* DAC1 Write Debug Event */
 #define DBCR1_DAC2W	0x10000000	/* DAC2 Write Debug Event */
 
-#define dbcr_dac(task)	((task)->thread.dbcr1)
+#define dbcr_dac(task)	((task)->thread.debug.dbcr1)
 #define DBCR_DAC1R	DBCR1_DAC1R
 #define DBCR_DAC1W	DBCR1_DAC1W
 #define DBCR_DAC2R	DBCR1_DAC2R
@@ -441,7 +451,7 @@
 #define DBCR0_CRET	0x00000020	/* Critical Return Debug Event */
 #define DBCR0_FT	0x00000001	/* Freeze Timers on debug event */
 
-#define dbcr_dac(task)	((task)->thread.dbcr0)
+#define dbcr_dac(task)	((task)->thread.debug.dbcr0)
 #define DBCR_DAC1R	DBCR0_DAC1R
 #define DBCR_DAC1W	DBCR0_DAC1W
 #define DBCR_DAC2R	DBCR0_DAC2R
@@ -475,7 +485,7 @@
 #define DBCR1_IAC34MX	0x000000C0	/* Instr Addr 3-4 range eXclusive */
 #define DBCR1_IAC34AT	0x00000001	/* Instr Addr 3-4 range Toggle */
 
-#define dbcr_iac_range(task)	((task)->thread.dbcr1)
+#define dbcr_iac_range(task)	((task)->thread.debug.dbcr1)
 #define DBCR_IAC12I	DBCR1_IAC12M	/* Range Inclusive */
 #define DBCR_IAC12X	DBCR1_IAC12MX	/* Range Exclusive */
 #define DBCR_IAC12MODE	DBCR1_IAC12MX	/* IAC 1-2 Mode Bits */

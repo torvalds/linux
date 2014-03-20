@@ -228,7 +228,7 @@ struct lcd_device *lcd_device_register(const char *name, struct device *parent,
 
 	rc = device_register(&new_ld->dev);
 	if (rc) {
-		kfree(new_ld);
+		put_device(&new_ld->dev);
 		return ERR_PTR(rc);
 	}
 

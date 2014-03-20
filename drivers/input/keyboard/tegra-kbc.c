@@ -31,7 +31,7 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/input/matrix_keypad.h>
-#include <linux/clk/tegra.h>
+#include <linux/reset.h>
 #include <linux/err.h>
 
 #define KBC_MAX_KPENT	8
@@ -116,6 +116,7 @@ struct tegra_kbc {
 	u32 wakeup_key;
 	struct timer_list timer;
 	struct clk *clk;
+	struct reset_control *rst;
 	const struct tegra_kbc_hw_support *hw_support;
 	int max_keys;
 	int num_rows_and_columns;
@@ -373,9 +374,9 @@ static int tegra_kbc_start(struct tegra_kbc *kbc)
 	clk_prepare_enable(kbc->clk);
 
 	/* Reset the KBC controller to clear all previous status.*/
-	tegra_periph_reset_assert(kbc->clk);
+	reset_control_assert(kbc->rst);
 	udelay(100);
-	tegra_periph_reset_deassert(kbc->clk);
+	reset_control_assert(kbc->rst);
 	udelay(100);
 
 	tegra_kbc_config_pins(kbc);
@@ -614,7 +615,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	unsigned int keymap_rows;
 	const struct of_device_id *match;
 
-	match = of_match_device(of_match_ptr(tegra_kbc_of_match), &pdev->dev);
+	match = of_match_device(tegra_kbc_of_match, &pdev->dev);
 
 	kbc = devm_kzalloc(&pdev->dev, sizeof(*kbc), GFP_KERNEL);
 	if (!kbc) {
@@ -661,6 +662,12 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	if (IS_ERR(kbc->clk)) {
 		dev_err(&pdev->dev, "failed to get keyboard clock\n");
 		return PTR_ERR(kbc->clk);
+	}
+
+	kbc->rst = devm_reset_control_get(&pdev->dev, "kbc");
+	if (IS_ERR(kbc->rst)) {
+		dev_err(&pdev->dev, "failed to get keyboard reset\n");
+		return PTR_ERR(kbc->rst);
 	}
 
 	/*

@@ -14,16 +14,10 @@
 
 #define PAGE_OFS(ofs) ((ofs) & (PAGE_SIZE-1))
 
-static void request_complete(struct bio *bio, int err)
-{
-	complete((struct completion *)bio->bi_private);
-}
-
 static int sync_request(struct page *page, struct block_device *bdev, int rw)
 {
 	struct bio bio;
 	struct bio_vec bio_vec;
-	struct completion complete;
 
 	bio_init(&bio);
 	bio.bi_max_vecs = 1;
@@ -32,16 +26,11 @@ static int sync_request(struct page *page, struct block_device *bdev, int rw)
 	bio_vec.bv_len = PAGE_SIZE;
 	bio_vec.bv_offset = 0;
 	bio.bi_vcnt = 1;
-	bio.bi_size = PAGE_SIZE;
 	bio.bi_bdev = bdev;
-	bio.bi_sector = page->index * (PAGE_SIZE >> 9);
-	init_completion(&complete);
-	bio.bi_private = &complete;
-	bio.bi_end_io = request_complete;
+	bio.bi_iter.bi_sector = page->index * (PAGE_SIZE >> 9);
+	bio.bi_iter.bi_size = PAGE_SIZE;
 
-	submit_bio(rw, &bio);
-	wait_for_completion(&complete);
-	return test_bit(BIO_UPTODATE, &bio.bi_flags) ? 0 : -EIO;
+	return submit_bio_wait(rw, &bio);
 }
 
 static int bdev_readpage(void *_sb, struct page *page)
@@ -67,22 +56,18 @@ static DECLARE_WAIT_QUEUE_HEAD(wq);
 static void writeseg_end_io(struct bio *bio, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec;
+	int i;
 	struct super_block *sb = bio->bi_private;
 	struct logfs_super *super = logfs_super(sb);
-	struct page *page;
 
 	BUG_ON(!uptodate); /* FIXME: Retry io or write elsewhere */
 	BUG_ON(err);
-	BUG_ON(bio->bi_vcnt == 0);
-	do {
-		page = bvec->bv_page;
-		if (--bvec >= bio->bi_io_vec)
-			prefetchw(&bvec->bv_page->flags);
 
-		end_page_writeback(page);
-		page_cache_release(page);
-	} while (bvec >= bio->bi_io_vec);
+	bio_for_each_segment_all(bvec, bio, i) {
+		end_page_writeback(bvec->bv_page);
+		page_cache_release(bvec->bv_page);
+	}
 	bio_put(bio);
 	if (atomic_dec_and_test(&super->s_pending_writes))
 		wake_up(&wq);
@@ -107,9 +92,9 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 		if (i >= max_pages) {
 			/* Block layer cannot split bios :( */
 			bio->bi_vcnt = i;
-			bio->bi_size = i * PAGE_SIZE;
+			bio->bi_iter.bi_size = i * PAGE_SIZE;
 			bio->bi_bdev = super->s_bdev;
-			bio->bi_sector = ofs >> 9;
+			bio->bi_iter.bi_sector = ofs >> 9;
 			bio->bi_private = sb;
 			bio->bi_end_io = writeseg_end_io;
 			atomic_inc(&super->s_pending_writes);
@@ -134,9 +119,9 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 		unlock_page(page);
 	}
 	bio->bi_vcnt = nr_pages;
-	bio->bi_size = nr_pages * PAGE_SIZE;
+	bio->bi_iter.bi_size = nr_pages * PAGE_SIZE;
 	bio->bi_bdev = super->s_bdev;
-	bio->bi_sector = ofs >> 9;
+	bio->bi_iter.bi_sector = ofs >> 9;
 	bio->bi_private = sb;
 	bio->bi_end_io = writeseg_end_io;
 	atomic_inc(&super->s_pending_writes);
@@ -199,9 +184,9 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 		if (i >= max_pages) {
 			/* Block layer cannot split bios :( */
 			bio->bi_vcnt = i;
-			bio->bi_size = i * PAGE_SIZE;
+			bio->bi_iter.bi_size = i * PAGE_SIZE;
 			bio->bi_bdev = super->s_bdev;
-			bio->bi_sector = ofs >> 9;
+			bio->bi_iter.bi_sector = ofs >> 9;
 			bio->bi_private = sb;
 			bio->bi_end_io = erase_end_io;
 			atomic_inc(&super->s_pending_writes);
@@ -220,9 +205,9 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 		bio->bi_io_vec[i].bv_offset = 0;
 	}
 	bio->bi_vcnt = nr_pages;
-	bio->bi_size = nr_pages * PAGE_SIZE;
+	bio->bi_iter.bi_size = nr_pages * PAGE_SIZE;
 	bio->bi_bdev = super->s_bdev;
-	bio->bi_sector = ofs >> 9;
+	bio->bi_iter.bi_sector = ofs >> 9;
 	bio->bi_private = sb;
 	bio->bi_end_io = erase_end_io;
 	atomic_inc(&super->s_pending_writes);

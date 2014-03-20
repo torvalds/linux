@@ -59,10 +59,6 @@ int snd_soc_params_to_bclk(struct snd_pcm_hw_params *params)
 EXPORT_SYMBOL_GPL(snd_soc_params_to_bclk);
 
 static const struct snd_pcm_hardware dummy_dma_hardware = {
-	.formats		= 0xffffffff,
-	.channels_min		= 1,
-	.channels_max		= UINT_MAX,
-
 	/* Random values to keep userspace happy when checking constraints */
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_BLOCK_TRANSFER,
@@ -75,7 +71,11 @@ static const struct snd_pcm_hardware dummy_dma_hardware = {
 
 static int dummy_dma_open(struct snd_pcm_substream *substream)
 {
-	snd_soc_set_runtime_hwparams(substream, &dummy_dma_hardware);
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+
+	/* BE's dont need dummy params */
+	if (!rtd->dai_link->no_pcm)
+		snd_soc_set_runtime_hwparams(substream, &dummy_dma_hardware);
 
 	return 0;
 }
@@ -118,6 +118,13 @@ static struct snd_soc_dai_driver dummy_dai = {
 		.formats = STUB_FORMATS,
 	 },
 };
+
+int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)
+{
+	if (dai->driver == &dummy_dai)
+		return 1;
+	return 0;
+}
 
 static int snd_soc_dummy_probe(struct platform_device *pdev)
 {

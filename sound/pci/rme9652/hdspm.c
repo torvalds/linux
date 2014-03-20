@@ -3996,7 +3996,6 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 					return 1;
 			}
 			return 0;
-			break;
 		case AES32:
 			status = hdspm_read(hdspm, HDSPM_statusRegister);
 			if (status & HDSPM_tcoLockAes) {
@@ -4006,9 +4005,6 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 					return 1;
 			}
 			return 0;
-
-			break;
-
 		case RayDAT:
 		case AIO:
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
@@ -4018,7 +4014,6 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 			if (status & 0x4000000)
 				return 1; /* Lock */
 			return 0; /* No signal */
-			break;
 
 		default:
 			break;
@@ -6405,7 +6400,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		memset(&hdspm_version, 0, sizeof(hdspm_version));
 
 		hdspm_version.card_type = hdspm->io_type;
-		strncpy(hdspm_version.cardname, hdspm->card_name,
+		strlcpy(hdspm_version.cardname, hdspm->card_name,
 				sizeof(hdspm_version.cardname));
 		hdspm_version.serial = hdspm->serial;
 		hdspm_version.firmware_rev = hdspm->firmware_rev;

@@ -32,30 +32,58 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
+#define dev_to_drm_minor(d) dev_get_drvdata((d))
+
 #ifdef CONFIG_PM
 static u32 calc_residency(struct drm_device *dev, const u32 reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u64 raw_time; /* 32b value may overflow during fixed point math */
+	u64 units = 128ULL, div = 100000ULL, bias = 100ULL;
+	u32 ret;
 
 	if (!intel_enable_rc6(dev))
 		return 0;
 
-	raw_time = I915_READ(reg) * 128ULL;
-	return DIV_ROUND_UP_ULL(raw_time, 100000);
+	intel_runtime_pm_get(dev_priv);
+
+	/* On VLV, residency time is in CZ units rather than 1.28us */
+	if (IS_VALLEYVIEW(dev)) {
+		u32 clkctl2;
+
+		clkctl2 = I915_READ(VLV_CLK_CTL2) >>
+			CLK_CTL2_CZCOUNT_30NS_SHIFT;
+		if (!clkctl2) {
+			WARN(!clkctl2, "bogus CZ count value");
+			ret = 0;
+			goto out;
+		}
+		units = DIV_ROUND_UP_ULL(30ULL * bias, (u64)clkctl2);
+		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
+			units <<= 8;
+
+		div = 1000000ULL * bias;
+	}
+
+	raw_time = I915_READ(reg) * units;
+	ret = DIV_ROUND_UP_ULL(raw_time, div);
+
+out:
+	intel_runtime_pm_put(dev_priv);
+	return ret;
 }
 
 static ssize_t
 show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *dminor = dev_to_drm_minor(kdev);
 	return snprintf(buf, PAGE_SIZE, "%x\n", intel_enable_rc6(dminor->dev));
 }
 
 static ssize_t
 show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *dminor = dev_get_drvdata(kdev);
 	u32 rc6_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6_residency);
 }
@@ -63,16 +91,20 @@ show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *dminor = dev_to_drm_minor(kdev);
 	u32 rc6p_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6p);
+	if (IS_VALLEYVIEW(dminor->dev))
+		rc6p_residency = 0;
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6p_residency);
 }
 
 static ssize_t
 show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *dminor = dev_to_drm_minor(kdev);
 	u32 rc6pp_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6pp);
+	if (IS_VALLEYVIEW(dminor->dev))
+		rc6pp_residency = 0;
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6pp_residency);
 }
 
@@ -97,7 +129,7 @@ static struct attribute_group rc6_attr_group = {
 
 static int l3_access_valid(struct drm_device *dev, loff_t offset)
 {
-	if (!HAS_L3_GPU_CACHE(dev))
+	if (!HAS_L3_DPF(dev))
 		return -EPERM;
 
 	if (offset % 4 != 0)
@@ -115,31 +147,34 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	     loff_t offset, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
-	uint32_t misccpctl;
-	int i, ret;
+	int slice = (int)(uintptr_t)attr->private;
+	int ret;
+
+	count = round_down(count, 4);
 
 	ret = l3_access_valid(drm_dev, offset);
 	if (ret)
 		return ret;
 
+	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
+
 	ret = i915_mutex_lock_interruptible(drm_dev);
 	if (ret)
 		return ret;
 
-	misccpctl = I915_READ(GEN7_MISCCPCTL);
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
-
-	for (i = offset; count >= 4 && i < GEN7_L3LOG_SIZE; i += 4, count -= 4)
-		*((uint32_t *)(&buf[i])) = I915_READ(GEN7_L3LOG_BASE + i);
-
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+	if (dev_priv->l3_parity.remap_info[slice])
+		memcpy(buf,
+		       dev_priv->l3_parity.remap_info[slice] + (offset/4),
+		       count);
+	else
+		memset(buf, 0, count);
 
 	mutex_unlock(&drm_dev->struct_mutex);
 
-	return i - offset;
+	return count;
 }
 
 static ssize_t
@@ -148,11 +183,16 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	      loff_t offset, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	struct i915_hw_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
+	int slice = (int)(uintptr_t)attr->private;
 	int ret;
+
+	if (!HAS_HW_CONTEXTS(drm_dev))
+		return -ENXIO;
 
 	ret = l3_access_valid(drm_dev, offset);
 	if (ret)
@@ -162,7 +202,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	if (!dev_priv->l3_parity.remap_info) {
+	if (!dev_priv->l3_parity.remap_info[slice]) {
 		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
 		if (!temp) {
 			mutex_unlock(&drm_dev->struct_mutex);
@@ -182,13 +222,13 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	 * at this point it is left as a TODO.
 	*/
 	if (temp)
-		dev_priv->l3_parity.remap_info = temp;
+		dev_priv->l3_parity.remap_info[slice] = temp;
 
-	memcpy(dev_priv->l3_parity.remap_info + (offset/4),
-	       buf + (offset/4),
-	       count);
+	memcpy(dev_priv->l3_parity.remap_info[slice] + (offset/4), buf, count);
 
-	i915_gem_l3_remap(drm_dev);
+	/* NB: We defer the remapping until we switch to the context */
+	list_for_each_entry(ctx, &dev_priv->context_list, link)
+		ctx->remap_slice |= (1<<slice);
 
 	mutex_unlock(&drm_dev->struct_mutex);
 
@@ -200,22 +240,34 @@ static struct bin_attribute dpf_attrs = {
 	.size = GEN7_L3LOG_SIZE,
 	.read = i915_l3_read,
 	.write = i915_l3_write,
-	.mmap = NULL
+	.mmap = NULL,
+	.private = (void *)0
+};
+
+static struct bin_attribute dpf_attrs_1 = {
+	.attr = {.name = "l3_parity_slice_1", .mode = (S_IRUSR | S_IWUSR)},
+	.size = GEN7_L3LOG_SIZE,
+	.read = i915_l3_read,
+	.write = i915_l3_write,
+	.mmap = NULL,
+	.private = (void *)1
 };
 
 static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		u32 freq;
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		ret = vlv_gpu_freq(dev_priv->mem_freq, (freq >> 8) & 0xff);
+		ret = vlv_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
 		ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
 	}
@@ -227,25 +279,26 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			vlv_gpu_freq(dev_priv->mem_freq,
-				     dev_priv->rps.rpe_delay));
+			vlv_gpu_freq(dev_priv, dev_priv->rps.rpe_delay));
 }
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = vlv_gpu_freq(dev_priv->mem_freq, dev_priv->rps.max_delay);
+		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.max_delay);
 	else
 		ret = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -257,7 +310,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val, rp_state_cap, hw_max, hw_min, non_oc_max;
@@ -267,10 +320,12 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	if (ret)
 		return ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
-		val = vlv_freq_opcode(dev_priv->mem_freq, val);
+		val = vlv_freq_opcode(dev_priv, val);
 
 		hw_max = valleyview_rps_max_freq(dev_priv);
 		hw_min = valleyview_rps_min_freq(dev_priv);
@@ -294,14 +349,14 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 		DRM_DEBUG("User requested overclocking to %d\n",
 			  val * GT_FREQUENCY_MULTIPLIER);
 
-	if (dev_priv->rps.cur_delay > val) {
-		if (IS_VALLEYVIEW(dev_priv->dev))
-			valleyview_set_rps(dev_priv->dev, val);
-		else
-			gen6_set_rps(dev_priv->dev, val);
-	}
-
 	dev_priv->rps.max_delay = val;
+
+	if (dev_priv->rps.cur_delay > val) {
+		if (IS_VALLEYVIEW(dev))
+			valleyview_set_rps(dev, val);
+		else
+			gen6_set_rps(dev, val);
+	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -310,14 +365,16 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = vlv_gpu_freq(dev_priv->mem_freq, dev_priv->rps.min_delay);
+		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.min_delay);
 	else
 		ret = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -329,7 +386,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val, rp_state_cap, hw_max, hw_min;
@@ -339,10 +396,12 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	if (ret)
 		return ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	if (IS_VALLEYVIEW(dev)) {
-		val = vlv_freq_opcode(dev_priv->mem_freq, val);
+		val = vlv_freq_opcode(dev_priv, val);
 
 		hw_max = valleyview_rps_max_freq(dev_priv);
 		hw_min = valleyview_rps_min_freq(dev_priv);
@@ -359,14 +418,14 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 		return -EINVAL;
 	}
 
+	dev_priv->rps.min_delay = val;
+
 	if (dev_priv->rps.cur_delay < val) {
 		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev, val);
 		else
-			gen6_set_rps(dev_priv->dev, val);
+			gen6_set_rps(dev, val);
 	}
-
-	dev_priv->rps.min_delay = val;
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -388,7 +447,7 @@ static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
 /* For now we have a static number of RP states */
 static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val, rp_state_cap;
@@ -397,7 +456,9 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
+	intel_runtime_pm_get(dev_priv);
 	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (attr == &dev_attr_gt_RP0_freq_mhz) {
@@ -436,7 +497,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 {
 
 	struct device *kdev = container_of(kobj, struct device, kobj);
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct i915_error_state_file_priv error_priv;
 	struct drm_i915_error_state_buf error_str;
@@ -471,7 +532,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 				 loff_t off, size_t count)
 {
 	struct device *kdev = container_of(kobj, struct device, kobj);
-	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	int ret;
 
@@ -501,27 +562,34 @@ void i915_setup_sysfs(struct drm_device *dev)
 
 #ifdef CONFIG_PM
 	if (INTEL_INFO(dev)->gen >= 6) {
-		ret = sysfs_merge_group(&dev->primary->kdev.kobj,
+		ret = sysfs_merge_group(&dev->primary->kdev->kobj,
 					&rc6_attr_group);
 		if (ret)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
 	}
 #endif
-	if (HAS_L3_GPU_CACHE(dev)) {
-		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
+	if (HAS_L3_DPF(dev)) {
+		ret = device_create_bin_file(dev->primary->kdev, &dpf_attrs);
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");
+
+		if (NUM_L3_SLICES(dev) > 1) {
+			ret = device_create_bin_file(dev->primary->kdev,
+						     &dpf_attrs_1);
+			if (ret)
+				DRM_ERROR("l3 parity slice 1 setup failed\n");
+		}
 	}
 
 	ret = 0;
 	if (IS_VALLEYVIEW(dev))
-		ret = sysfs_create_files(&dev->primary->kdev.kobj, vlv_attrs);
+		ret = sysfs_create_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else if (INTEL_INFO(dev)->gen >= 6)
-		ret = sysfs_create_files(&dev->primary->kdev.kobj, gen6_attrs);
+		ret = sysfs_create_files(&dev->primary->kdev->kobj, gen6_attrs);
 	if (ret)
 		DRM_ERROR("RPS sysfs setup failed\n");
 
-	ret = sysfs_create_bin_file(&dev->primary->kdev.kobj,
+	ret = sysfs_create_bin_file(&dev->primary->kdev->kobj,
 				    &error_state_attr);
 	if (ret)
 		DRM_ERROR("error_state sysfs setup failed\n");
@@ -529,13 +597,14 @@ void i915_setup_sysfs(struct drm_device *dev)
 
 void i915_teardown_sysfs(struct drm_device *dev)
 {
-	sysfs_remove_bin_file(&dev->primary->kdev.kobj, &error_state_attr);
+	sysfs_remove_bin_file(&dev->primary->kdev->kobj, &error_state_attr);
 	if (IS_VALLEYVIEW(dev))
-		sysfs_remove_files(&dev->primary->kdev.kobj, vlv_attrs);
+		sysfs_remove_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else
-		sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
-	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
+		sysfs_remove_files(&dev->primary->kdev->kobj, gen6_attrs);
+	device_remove_bin_file(dev->primary->kdev,  &dpf_attrs_1);
+	device_remove_bin_file(dev->primary->kdev,  &dpf_attrs);
 #ifdef CONFIG_PM
-	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
+	sysfs_unmerge_group(&dev->primary->kdev->kobj, &rc6_attr_group);
 #endif
 }

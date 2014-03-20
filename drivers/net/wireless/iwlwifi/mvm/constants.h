@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,9 @@
 #define IWL_MVM_UAPSD_RX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
 #define IWL_MVM_UAPSD_TX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
 #define IWL_MVM_PS_HEAVY_TX_THLD_PACKETS	20
-#define IWL_MVM_PS_HEAVY_RX_THLD_PACKETS	20
+#define IWL_MVM_PS_HEAVY_RX_THLD_PACKETS	8
+#define IWL_MVM_PS_SNOOZE_HEAVY_TX_THLD_PACKETS	30
+#define IWL_MVM_PS_SNOOZE_HEAVY_RX_THLD_PACKETS	20
 #define IWL_MVM_PS_HEAVY_TX_THLD_PERCENT	50
 #define IWL_MVM_PS_HEAVY_RX_THLD_PERCENT	50
 #define IWL_MVM_PS_SNOOZE_INTERVAL		25

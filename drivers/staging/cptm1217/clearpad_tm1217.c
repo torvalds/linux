@@ -457,8 +457,6 @@ static int cp_tm1217_probe(struct i2c_client *client,
 	for (i = 0; i < TOUCH_SUPPORTED; i++) {
 		input_dev = input_allocate_device();
 		if (input_dev == NULL) {
-			dev_err(ts->dev,
-				"cp_tm1217:Input Device Struct alloc failed\n");
 			retval = -ENOMEM;
 			goto fail;
 		}

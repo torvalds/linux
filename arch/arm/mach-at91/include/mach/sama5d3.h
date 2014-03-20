@@ -73,6 +73,11 @@
 #define SAMA5D3_BASE_USART3	0xf8024000
 
 /*
+ * System Peripherals
+ */
+#define SAMA5D3_BASE_RTC	0xfffffeb0
+
+/*
  * Internal Memory
  */
 #define SAMA5D3_SRAM_BASE	0x00300000	/* Internal SRAM base address */

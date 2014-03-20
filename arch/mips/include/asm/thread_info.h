@@ -92,8 +92,6 @@ static inline struct thread_info *current_thread_info(void)
 
 #define STACK_WARN	(THREAD_SIZE / 8)
 
-#define PREEMPT_ACTIVE		0x10000000
-
 /*
  * thread information flags
  * - these are process state flags that various assembly files may need to
@@ -112,10 +110,12 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_NOHZ		19	/* in adaptive nohz mode */
 #define TIF_FIXADE		20	/* Fix address errors in software */
 #define TIF_LOGADE		21	/* Log address errors to syslog */
-#define TIF_32BIT_REGS		22	/* also implies 16/32 fprs */
+#define TIF_32BIT_REGS		22	/* 32-bit general purpose registers */
 #define TIF_32BIT_ADDR		23	/* 32-bit address space (o32/n32) */
 #define TIF_FPUBOUND		24	/* thread bound to FPU-full CPU set */
 #define TIF_LOAD_WATCH		25	/* If set, load watch registers */
+#define TIF_SYSCALL_TRACEPOINT	26	/* syscall tracepoint instrumentation */
+#define TIF_32BIT_FPREGS	27	/* 32-bit floating point registers */
 #define TIF_SYSCALL_TRACE	31	/* syscall trace active */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -132,21 +132,55 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_32BIT_ADDR		(1<<TIF_32BIT_ADDR)
 #define _TIF_FPUBOUND		(1<<TIF_FPUBOUND)
 #define _TIF_LOAD_WATCH		(1<<TIF_LOAD_WATCH)
+#define _TIF_32BIT_FPREGS	(1<<TIF_32BIT_FPREGS)
+#define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 
 #define _TIF_WORK_SYSCALL_ENTRY	(_TIF_NOHZ | _TIF_SYSCALL_TRACE |	\
-				 _TIF_SYSCALL_AUDIT)
+				 _TIF_SYSCALL_AUDIT | _TIF_SYSCALL_TRACEPOINT)
 
 /* work to do in syscall_trace_leave() */
 #define _TIF_WORK_SYSCALL_EXIT	(_TIF_NOHZ | _TIF_SYSCALL_TRACE |	\
-				 _TIF_SYSCALL_AUDIT)
+				 _TIF_SYSCALL_AUDIT | _TIF_SYSCALL_TRACEPOINT)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		\
 	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_NOTIFY_RESUME)
 /* work to do on any return to u-space */
 #define _TIF_ALLWORK_MASK	(_TIF_NOHZ | _TIF_WORK_MASK |		\
-				 _TIF_WORK_SYSCALL_EXIT)
+				 _TIF_WORK_SYSCALL_EXIT |		\
+				 _TIF_SYSCALL_TRACEPOINT)
+
+/*
+ * We stash processor id into a COP0 register to retrieve it fast
+ * at kernel exception entry.
+ */
+#if defined(CONFIG_MIPS_MT_SMTC)
+#define SMP_CPUID_REG		2, 2	/* TCBIND */
+#define ASM_SMP_CPUID_REG	$2, 2
+#define SMP_CPUID_PTRSHIFT	19
+#elif defined(CONFIG_MIPS_PGD_C0_CONTEXT)
+#define SMP_CPUID_REG		20, 0	/* XCONTEXT */
+#define ASM_SMP_CPUID_REG	$20
+#define SMP_CPUID_PTRSHIFT	48
+#else
+#define SMP_CPUID_REG		4, 0	/* CONTEXT */
+#define ASM_SMP_CPUID_REG	$4
+#define SMP_CPUID_PTRSHIFT	23
+#endif
+
+#ifdef CONFIG_64BIT
+#define SMP_CPUID_REGSHIFT	(SMP_CPUID_PTRSHIFT + 3)
+#else
+#define SMP_CPUID_REGSHIFT	(SMP_CPUID_PTRSHIFT + 2)
+#endif
+
+#ifdef CONFIG_MIPS_MT_SMTC
+#define ASM_CPUID_MFC0		mfc0
+#define UASM_i_CPUID_MFC0	uasm_i_mfc0
+#else
+#define ASM_CPUID_MFC0		MFC0
+#define UASM_i_CPUID_MFC0	UASM_i_MFC0
+#endif
 
 #endif /* __KERNEL__ */
-
 #endif /* _ASM_THREAD_INFO_H */

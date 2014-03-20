@@ -65,11 +65,6 @@ Possible arch/ problems
 
 Possible arch problems I found (and either tried to fix or didn't):
 
-h8300 - Is such sleeping racy vs interrupts? (See #4a).
-        The H8/300 manual I found indicates yes, however disabling IRQs
-        over the sleep mean only NMIs can wake it up, so can't fix easily
-        without doing spin waiting.
-
 ia64 - is safe_halt call racy vs interrupts? (does it sleep?) (See #4a)
 
 sh64 - Is sleeping racy vs interrupts? (See #4a)

@@ -153,7 +153,7 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 bool atl1c_read_eeprom(struct atl1c_hw *hw, u32 offset, u32 *p_value)
 {
 	int i;
-	int ret = false;
+	bool ret = false;
 	u32 otp_ctrl_data;
 	u32 control;
 	u32 data;

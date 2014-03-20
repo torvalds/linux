@@ -1955,7 +1955,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 			return 0;
 		}
 
-		switch (gspca_dev->width) {
+		switch (gspca_dev->pixfmt.width) {
 		case 160: /* 160x120 */
 			gspca_dev->alt = 2;
 			break;
@@ -1985,8 +1985,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	int width = gspca_dev->width;
-	int height = gspca_dev->height;
+	int width = gspca_dev->pixfmt.width;
+	int height = gspca_dev->pixfmt.height;
 	u8 fmt, scale = 0;
 
 	jpeg_define(sd->jpeg_hdr, height, width,

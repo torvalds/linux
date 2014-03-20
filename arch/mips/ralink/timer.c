@@ -126,7 +126,7 @@ static int rt_timer_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	rt->membase = devm_request_and_ioremap(&pdev->dev, res);
+	rt->membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rt->membase))
 		return PTR_ERR(rt->membase);
 
@@ -147,7 +147,7 @@ static int rt_timer_probe(struct platform_device *pdev)
 	rt_timer_config(rt, 2);
 	rt_timer_enable(rt);
 
-	dev_info(&pdev->dev, "maximum frequncy is %luHz\n", rt->timer_freq);
+	dev_info(&pdev->dev, "maximum frequency is %luHz\n", rt->timer_freq);
 
 	return 0;
 }

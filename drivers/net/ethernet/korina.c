@@ -39,7 +39,6 @@
 #include <linux/ctype.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/slab.h>
@@ -1110,7 +1109,7 @@ static int korina_probe(struct platform_device *pdev)
 	lp = netdev_priv(dev);
 
 	bif->dev = dev;
-	memcpy(dev->dev_addr, bif->mac, 6);
+	memcpy(dev->dev_addr, bif->mac, ETH_ALEN);
 
 	lp->rx_irq = platform_get_irq_byname(pdev, "korina_rx");
 	lp->tx_irq = platform_get_irq_byname(pdev, "korina_tx");

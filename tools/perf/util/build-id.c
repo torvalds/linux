@@ -89,14 +89,14 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf)
 	return raw - build_id;
 }
 
-char *dso__build_id_filename(struct dso *self, char *bf, size_t size)
+char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 {
 	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 
-	if (!self->has_build_id)
+	if (!dso->has_build_id)
 		return NULL;
 
-	build_id__sprintf(self->build_id, sizeof(self->build_id), build_id_hex);
+	build_id__sprintf(dso->build_id, sizeof(dso->build_id), build_id_hex);
 	if (bf == NULL) {
 		if (asprintf(&bf, "%s/.build-id/%.2s/%s", buildid_dir,
 			     build_id_hex, build_id_hex + 2) < 0)

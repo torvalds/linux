@@ -103,129 +103,10 @@
 			#size-cells = <1>;
 			ranges = <0 MBUS_ID(0xf0, 0x01) 0 0x100000>;
 
-			mbusc: mbus-controller@20000 {
-				compatible = "marvell,mbus-controller";
-				reg = <0x20000 0x100>, <0x20180 0x20>;
-			};
-
-			mpic: interrupt-controller@20000 {
-				compatible = "marvell,mpic";
-				#interrupt-cells = <1>;
-				#size-cells = <1>;
-				interrupt-controller;
-			};
-
-			coherency-fabric@20200 {
-				compatible = "marvell,coherency-fabric";
-				reg = <0x20200 0xb0>, <0x21810 0x1c>;
-			};
-
-			serial@12000 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x12000 0x100>;
-				reg-shift = <2>;
-				interrupts = <41>;
-				reg-io-width = <1>;
-				status = "disabled";
-			};
-			serial@12100 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x12100 0x100>;
-				reg-shift = <2>;
-				interrupts = <42>;
-				reg-io-width = <1>;
-				status = "disabled";
-			};
-
-			timer@20300 {
-				reg = <0x20300 0x30>, <0x21040 0x30>;
-				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
-			};
-
-			sata@a0000 {
-				compatible = "marvell,orion-sata";
-				reg = <0xa0000 0x5000>;
-				interrupts = <55>;
-				clocks = <&gateclk 15>, <&gateclk 30>;
-				clock-names = "0", "1";
-				status = "disabled";
-			};
-
-			mdio {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "marvell,orion-mdio";
-				reg = <0x72004 0x4>;
-			};
-
-			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0x70000 0x4000>;
-				interrupts = <8>;
-				clocks = <&gateclk 4>;
-				status = "disabled";
-			};
-
-			eth1: ethernet@74000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0x74000 0x4000>;
-				interrupts = <10>;
-				clocks = <&gateclk 3>;
-				status = "disabled";
-			};
-
-			i2c0: i2c@11000 {
-				compatible = "marvell,mv64xxx-i2c";
-				reg = <0x11000 0x20>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				interrupts = <31>;
-				timeout-ms = <1000>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
-			i2c1: i2c@11100 {
-				compatible = "marvell,mv64xxx-i2c";
-				reg = <0x11100 0x20>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				interrupts = <32>;
-				timeout-ms = <1000>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
 			rtc@10300 {
 				compatible = "marvell,orion-rtc";
 				reg = <0x10300 0x20>;
 				interrupts = <50>;
-			};
-
-			mvsdio@d4000 {
-				compatible = "marvell,orion-sdio";
-				reg = <0xd4000 0x200>;
-				interrupts = <54>;
-				clocks = <&gateclk 17>;
-				bus-width = <4>;
-				cap-sdio-irq;
-				cap-sd-highspeed;
-				cap-mmc-highspeed;
-				status = "disabled";
-			};
-
-			usb@50000 {
-				compatible = "marvell,orion-ehci";
-				reg = <0x50000 0x500>;
-				interrupts = <45>;
-				status = "disabled";
-			};
-
-			usb@51000 {
-				compatible = "marvell,orion-ehci";
-				reg = <0x51000 0x500>;
-				interrupts = <46>;
-				status = "disabled";
 			};
 
 			spi0: spi@10600 {
@@ -250,6 +131,150 @@
 				status = "disabled";
 			};
 
+			i2c0: i2c@11000 {
+				compatible = "marvell,mv64xxx-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <31>;
+				timeout-ms = <1000>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
+
+			i2c1: i2c@11100 {
+				compatible = "marvell,mv64xxx-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <32>;
+				timeout-ms = <1000>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
+
+			serial@12000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x12000 0x100>;
+				reg-shift = <2>;
+				interrupts = <41>;
+				reg-io-width = <1>;
+				status = "disabled";
+			};
+			serial@12100 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x12100 0x100>;
+				reg-shift = <2>;
+				interrupts = <42>;
+				reg-io-width = <1>;
+				status = "disabled";
+			};
+
+			coredivclk: corediv-clock@18740 {
+				compatible = "marvell,armada-370-corediv-clock";
+				reg = <0x18740 0xc>;
+				#clock-cells = <1>;
+				clocks = <&mainpll>;
+				clock-output-names = "nand";
+			};
+
+			mbusc: mbus-controller@20000 {
+				compatible = "marvell,mbus-controller";
+				reg = <0x20000 0x100>, <0x20180 0x20>;
+			};
+
+			mpic: interrupt-controller@20000 {
+				compatible = "marvell,mpic";
+				#interrupt-cells = <1>;
+				#size-cells = <1>;
+				interrupt-controller;
+				msi-controller;
+			};
+
+			coherency-fabric@20200 {
+				compatible = "marvell,coherency-fabric";
+				reg = <0x20200 0xb0>, <0x21010 0x1c>;
+			};
+
+			timer@20300 {
+				reg = <0x20300 0x30>, <0x21040 0x30>;
+				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
+			};
+
+			usb@50000 {
+				compatible = "marvell,orion-ehci";
+				reg = <0x50000 0x500>;
+				interrupts = <45>;
+				status = "disabled";
+			};
+
+			usb@51000 {
+				compatible = "marvell,orion-ehci";
+				reg = <0x51000 0x500>;
+				interrupts = <46>;
+				status = "disabled";
+			};
+
+			eth0: ethernet@70000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0x70000 0x4000>;
+				interrupts = <8>;
+				clocks = <&gateclk 4>;
+				status = "disabled";
+			};
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "marvell,orion-mdio";
+				reg = <0x72004 0x4>;
+			};
+
+			eth1: ethernet@74000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0x74000 0x4000>;
+				interrupts = <10>;
+				clocks = <&gateclk 3>;
+				status = "disabled";
+			};
+
+			sata@a0000 {
+				compatible = "marvell,armada-370-sata";
+				reg = <0xa0000 0x5000>;
+				interrupts = <55>;
+				clocks = <&gateclk 15>, <&gateclk 30>;
+				clock-names = "0", "1";
+				status = "disabled";
+			};
+
+			nand@d0000 {
+				compatible = "marvell,armada370-nand";
+				reg = <0xd0000 0x54>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				interrupts = <113>;
+				clocks = <&coredivclk 0>;
+				status = "disabled";
+			};
+
+			mvsdio@d4000 {
+				compatible = "marvell,orion-sdio";
+				reg = <0xd4000 0x200>;
+				interrupts = <54>;
+				clocks = <&gateclk 17>;
+				bus-width = <4>;
+				cap-sdio-irq;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
+				status = "disabled";
+			};
+		};
+	};
+
+	clocks {
+		/* 2 GHz fixed main PLL */
+		mainpll: mainpll {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <2000000000>;
 		};
 	};
  };

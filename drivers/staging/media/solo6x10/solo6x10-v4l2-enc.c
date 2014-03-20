@@ -95,38 +95,11 @@ static unsigned char vop_6110_pal_cif[] = {
 	0x01, 0x68, 0xce, 0x32, 0x28, 0x00, 0x00, 0x00,
 };
 
-struct vop_header {
-	/* VE_STATUS0 */
-	u32 mpeg_size:20, sad_motion_flag:1, video_motion_flag:1, vop_type:2,
-		channel:5, source_fl:1, interlace:1, progressive:1;
-
-	/* VE_STATUS1 */
-	u32 vsize:8, hsize:8, last_queue:4, nop0:8, scale:4;
-
-	/* VE_STATUS2 */
-	u32 mpeg_off;
-
-	/* VE_STATUS3 */
-	u32 jpeg_off;
-
-	/* VE_STATUS4 */
-	u32 jpeg_size:20, interval:10, nop1:2;
-
-	/* VE_STATUS5/6 */
-	u32 sec, usec;
-
-	/* VE_STATUS7/8/9 */
-	u32 nop2[3];
-
-	/* VE_STATUS10 */
-	u32 mpeg_size_alt:20, nop3:12;
-
-	u32 end_nops[5];
-} __packed;
+typedef __le32 vop_header[16];
 
 struct solo_enc_buf {
 	enum solo_enc_types	type;
-	struct vop_header	*vh;
+	const vop_header	*vh;
 	int			motion;
 };
 
@@ -346,7 +319,7 @@ static int enc_get_mpeg_dma(struct solo_dev *solo_dev, dma_addr_t dma,
 /* Build a descriptor queue out of an SG list and send it to the P2M for
  * processing. */
 static int solo_send_desc(struct solo_enc_dev *solo_enc, int skip,
-			  struct vb2_dma_sg_desc *vbuf, int off, int size,
+			  struct sg_table *vbuf, int off, int size,
 			  unsigned int base, unsigned int base_size)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
@@ -359,7 +332,7 @@ static int solo_send_desc(struct solo_enc_dev *solo_enc, int skip,
 
 	solo_enc->desc_count = 1;
 
-	for_each_sg(vbuf->sglist, sg, vbuf->num_pages, i) {
+	for_each_sg(vbuf->sgl, sg, vbuf->nents, i) {
 		struct solo_p2m_desc *desc;
 		dma_addr_t dma;
 		int len;
@@ -430,84 +403,145 @@ static int solo_send_desc(struct solo_enc_dev *solo_enc, int skip,
 				 solo_enc->desc_count - 1);
 }
 
+/* Extract values from VOP header - VE_STATUSxx */
+static inline int vop_interlaced(const vop_header *vh)
+{
+	return (__le32_to_cpu((*vh)[0]) >> 30) & 1;
+}
+
+static inline u8 vop_channel(const vop_header *vh)
+{
+	return (__le32_to_cpu((*vh)[0]) >> 24) & 0x1F;
+}
+
+static inline u8 vop_type(const vop_header *vh)
+{
+	return (__le32_to_cpu((*vh)[0]) >> 22) & 3;
+}
+
+static inline u32 vop_mpeg_size(const vop_header *vh)
+{
+	return __le32_to_cpu((*vh)[0]) & 0xFFFFF;
+}
+
+static inline u8 vop_hsize(const vop_header *vh)
+{
+	return (__le32_to_cpu((*vh)[1]) >> 8) & 0xFF;
+}
+
+static inline u8 vop_vsize(const vop_header *vh)
+{
+	return __le32_to_cpu((*vh)[1]) & 0xFF;
+}
+
+static inline u32 vop_mpeg_offset(const vop_header *vh)
+{
+	return __le32_to_cpu((*vh)[2]);
+}
+
+static inline u32 vop_jpeg_offset(const vop_header *vh)
+{
+	return __le32_to_cpu((*vh)[3]);
+}
+
+static inline u32 vop_jpeg_size(const vop_header *vh)
+{
+	return __le32_to_cpu((*vh)[4]) & 0xFFFFF;
+}
+
+static inline u32 vop_sec(const vop_header *vh)
+{
+	return __le32_to_cpu((*vh)[5]);
+}
+
+static inline u32 vop_usec(const vop_header *vh)
+{
+	return __le32_to_cpu((*vh)[6]);
+}
+
 static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
-		struct vb2_buffer *vb, struct vop_header *vh)
+			  struct vb2_buffer *vb, const vop_header *vh)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
-	struct vb2_dma_sg_desc *vbuf = vb2_dma_sg_plane_desc(vb, 0);
+	struct sg_table *vbuf = vb2_dma_sg_plane_desc(vb, 0);
 	int frame_size;
 	int ret;
 
 	vb->v4l2_buf.flags |= V4L2_BUF_FLAG_KEYFRAME;
 
-	if (vb2_plane_size(vb, 0) < vh->jpeg_size + solo_enc->jpeg_len)
+	if (vb2_plane_size(vb, 0) < vop_jpeg_size(vh) + solo_enc->jpeg_len)
 		return -EIO;
 
-	sg_copy_from_buffer(vbuf->sglist, vbuf->num_pages,
-			solo_enc->jpeg_header,
-			solo_enc->jpeg_len);
-
-	frame_size = (vh->jpeg_size + solo_enc->jpeg_len + (DMA_ALIGN - 1))
+	frame_size = (vop_jpeg_size(vh) + solo_enc->jpeg_len + (DMA_ALIGN - 1))
 		& ~(DMA_ALIGN - 1);
-	vb2_set_plane_payload(vb, 0, vh->jpeg_size + solo_enc->jpeg_len);
+	vb2_set_plane_payload(vb, 0, vop_jpeg_size(vh) + solo_enc->jpeg_len);
 
-	dma_map_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	/* may discard all previous data in vbuf->sgl */
+	dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
-	ret = solo_send_desc(solo_enc, solo_enc->jpeg_len, vbuf, vh->jpeg_off,
-			frame_size, SOLO_JPEG_EXT_ADDR(solo_dev),
-			SOLO_JPEG_EXT_SIZE(solo_dev));
-	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	ret = solo_send_desc(solo_enc, solo_enc->jpeg_len, vbuf,
+			     vop_jpeg_offset(vh) - SOLO_JPEG_EXT_ADDR(solo_dev),
+			     frame_size, SOLO_JPEG_EXT_ADDR(solo_dev),
+			     SOLO_JPEG_EXT_SIZE(solo_dev));
+	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
+
+	/* add the header only after dma_unmap_sg() */
+	sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
+			    solo_enc->jpeg_header, solo_enc->jpeg_len);
+
 	return ret;
 }
 
 static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
-		struct vb2_buffer *vb, struct vop_header *vh)
+		struct vb2_buffer *vb, const vop_header *vh)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
-	struct vb2_dma_sg_desc *vbuf = vb2_dma_sg_plane_desc(vb, 0);
+	struct sg_table *vbuf = vb2_dma_sg_plane_desc(vb, 0);
 	int frame_off, frame_size;
 	int skip = 0;
 	int ret;
 
-	if (vb2_plane_size(vb, 0) < vh->mpeg_size)
+	if (vb2_plane_size(vb, 0) < vop_mpeg_size(vh))
 		return -EIO;
 
 	/* If this is a key frame, add extra header */
-	if (!vh->vop_type) {
-		sg_copy_from_buffer(vbuf->sglist, vbuf->num_pages,
-				solo_enc->vop,
-				solo_enc->vop_len);
-
+	vb->v4l2_buf.flags &= ~(V4L2_BUF_FLAG_KEYFRAME | V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME);
+	if (!vop_type(vh)) {
 		skip = solo_enc->vop_len;
-
 		vb->v4l2_buf.flags |= V4L2_BUF_FLAG_KEYFRAME;
-		vb2_set_plane_payload(vb, 0, vh->mpeg_size + solo_enc->vop_len);
+		vb2_set_plane_payload(vb, 0, vop_mpeg_size(vh) + solo_enc->vop_len);
 	} else {
 		vb->v4l2_buf.flags |= V4L2_BUF_FLAG_PFRAME;
-		vb2_set_plane_payload(vb, 0, vh->mpeg_size);
+		vb2_set_plane_payload(vb, 0, vop_mpeg_size(vh));
 	}
 
 	/* Now get the actual mpeg payload */
-	frame_off = (vh->mpeg_off + sizeof(*vh))
+	frame_off = (vop_mpeg_offset(vh) - SOLO_MP4E_EXT_ADDR(solo_dev) + sizeof(*vh))
 		% SOLO_MP4E_EXT_SIZE(solo_dev);
-	frame_size = (vh->mpeg_size + skip + (DMA_ALIGN - 1))
+	frame_size = (vop_mpeg_size(vh) + skip + (DMA_ALIGN - 1))
 		& ~(DMA_ALIGN - 1);
 
-	dma_map_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	/* may discard all previous data in vbuf->sgl */
+	dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
 	ret = solo_send_desc(solo_enc, skip, vbuf, frame_off, frame_size,
 			SOLO_MP4E_EXT_ADDR(solo_dev),
 			SOLO_MP4E_EXT_SIZE(solo_dev));
-	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
+
+	/* add the header only after dma_unmap_sg() */
+	if (!vop_type(vh))
+		sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
+				    solo_enc->vop, solo_enc->vop_len);
 	return ret;
 }
 
 static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 			    struct vb2_buffer *vb, struct solo_enc_buf *enc_buf)
 {
-	struct vop_header *vh = enc_buf->vh;
+	const vop_header *vh = enc_buf->vh;
 	int ret;
 
 	/* Check for motion flags */
@@ -531,8 +565,8 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 
 	if (!ret) {
 		vb->v4l2_buf.sequence = solo_enc->sequence++;
-		vb->v4l2_buf.timestamp.tv_sec = vh->sec;
-		vb->v4l2_buf.timestamp.tv_usec = vh->usec;
+		vb->v4l2_buf.timestamp.tv_sec = vop_sec(vh);
+		vb->v4l2_buf.timestamp.tv_usec = vop_usec(vh);
 	}
 
 	vb2_buffer_done(vb, ret ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
@@ -605,15 +639,13 @@ static void solo_handle_ring(struct solo_dev *solo_dev)
 
 		/* FAIL... */
 		if (enc_get_mpeg_dma(solo_dev, solo_dev->vh_dma, off,
-				     sizeof(struct vop_header)))
+				     sizeof(vop_header)))
 			continue;
 
-		enc_buf.vh = (struct vop_header *)solo_dev->vh_buf;
-		enc_buf.vh->mpeg_off -= SOLO_MP4E_EXT_ADDR(solo_dev);
-		enc_buf.vh->jpeg_off -= SOLO_JPEG_EXT_ADDR(solo_dev);
+		enc_buf.vh = solo_dev->vh_buf;
 
 		/* Sanity check */
-		if (enc_buf.vh->mpeg_off != off)
+		if (vop_mpeg_offset(enc_buf.vh) != SOLO_MP4E_EXT_ADDR(solo_dev) + off)
 			continue;
 
 		if (solo_motion_detected(solo_enc))
@@ -932,7 +964,7 @@ static int solo_enc_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 
-	return solo_set_video_type(solo_enc->solo_dev, std & V4L2_STD_PAL);
+	return solo_set_video_type(solo_enc->solo_dev, std & V4L2_STD_625_50);
 }
 
 static int solo_enum_framesizes(struct file *file, void *priv,
@@ -1329,7 +1361,7 @@ int solo_enc_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 
 	init_waitqueue_head(&solo_dev->ring_thread_wait);
 
-	solo_dev->vh_size = sizeof(struct vop_header);
+	solo_dev->vh_size = sizeof(vop_header);
 	solo_dev->vh_buf = pci_alloc_consistent(solo_dev->pdev,
 						solo_dev->vh_size,
 						&solo_dev->vh_dma);

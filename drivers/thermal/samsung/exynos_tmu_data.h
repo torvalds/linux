@@ -95,6 +95,10 @@
 
 #define EXYNOS_MAX_TRIGGER_PER_REG	4
 
+/* Exynos4412 specific */
+#define EXYNOS4412_MUX_ADDR_VALUE          6
+#define EXYNOS4412_MUX_ADDR_SHIFT          20
+
 /*exynos5440 specific registers*/
 #define EXYNOS5440_TMU_S0_7_TRIM		0x000
 #define EXYNOS5440_TMU_S0_7_CTRL		0x020
@@ -138,7 +142,14 @@ extern struct exynos_tmu_init_data const exynos4210_default_tmu_data;
 #define EXYNOS4210_TMU_DRV_DATA (NULL)
 #endif
 
-#if (defined(CONFIG_SOC_EXYNOS5250) || defined(CONFIG_SOC_EXYNOS4412))
+#if defined(CONFIG_SOC_EXYNOS4412)
+extern struct exynos_tmu_init_data const exynos4412_default_tmu_data;
+#define EXYNOS4412_TMU_DRV_DATA (&exynos4412_default_tmu_data)
+#else
+#define EXYNOS4412_TMU_DRV_DATA (NULL)
+#endif
+
+#if defined(CONFIG_SOC_EXYNOS5250)
 extern struct exynos_tmu_init_data const exynos5250_default_tmu_data;
 #define EXYNOS5250_TMU_DRV_DATA (&exynos5250_default_tmu_data)
 #else

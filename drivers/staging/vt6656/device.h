@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
@@ -44,6 +43,7 @@
 #include <net/cfg80211.h>
 #include <linux/timer.h>
 #include <linux/usb.h>
+#include <linux/crc32.h>
 
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
@@ -69,12 +69,12 @@
 #include "tether.h"
 #include "wmgr.h"
 #include "wcmd.h"
-#include "mib.h"
 #include "srom.h"
 #include "rc4.h"
 #include "desc.h"
 #include "key.h"
 #include "card.h"
+#include "rndis.h"
 
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
@@ -149,11 +149,9 @@ typedef enum __device_msg_level {
 	MSG_LEVEL_DEBUG = 4           /* Only for debug purpose. */
 } DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
 
-typedef enum __device_init_type {
-	DEVICE_INIT_COLD = 0,       /* cold init */
-	DEVICE_INIT_RESET,          /* reset init or Dx to D0 power remain */
-	DEVICE_INIT_DXPL            /* Dx to D0 power lost init */
-} DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
+#define DEVICE_INIT_COLD	0x0 /* cold init */
+#define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
+#define DEVICE_INIT_DXPL	0x2 /* Dx to D0 power lost init */
 
 /* USB */
 
@@ -187,6 +185,12 @@ struct vnt_usb_send_context {
 	void *Next;
 	bool bBoolInUse;
 	unsigned char Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
+};
+
+/* tx packet info for rxtx */
+struct vnt_tx_pkt_info {
+	u16 fifo_ctl;
+	u8 dest_addr[ETH_ALEN];
 };
 
 /* structure got from configuration file as user-desired default settings */
@@ -384,8 +388,8 @@ struct vnt_private {
 
 	struct tasklet_struct CmdWorkItem;
 	struct tasklet_struct EventWorkItem;
-	struct tasklet_struct ReadWorkItem;
-	struct tasklet_struct RxMngWorkItem;
+	struct work_struct read_work_item;
+	struct work_struct rx_mng_work_item;
 
 	u32 rx_buf_sz;
 	int multicast_limit;
@@ -430,6 +434,7 @@ struct vnt_private {
 	/* Variables to track resources for the BULK Out Pipe */
 	struct vnt_usb_send_context *apTD[CB_MAX_TX_DESC];
 	u32 cbTD;
+	struct vnt_tx_pkt_info pkt_info[16];
 
 	/* Variables to track resources for the Interrupt In Pipe */
 	INT_BUFFER intBuf;
@@ -467,15 +472,12 @@ struct vnt_private {
 	u8 byOriginalZonetype;
 
 	int bLinkPass; /* link status: OK or fail */
+	struct vnt_cmd_card_init init_command;
+	struct vnt_rsp_card_init init_response;
 	u8 abyCurrentNetAddr[ETH_ALEN];
 	u8 abyPermanentNetAddr[ETH_ALEN];
 
 	int bExistSWNetAddr;
-
-	/* Adapter statistics */
-	SStatCounter scStatistic;
-	/* 802.11 counter */
-	SDot11Counters s802_11Counter;
 
 	/* Maintain statistical debug info. */
 	unsigned long packetsReceived;
@@ -579,6 +581,9 @@ struct vnt_private {
 	u8 abyOFDMAPwrTbl[42];
 
 	u16 wCurrentRate;
+	u16 tx_rate_fb0;
+	u16 tx_rate_fb1;
+
 	u16 wRTSThreshold;
 	u16 wFragmentationThreshold;
 	u8 byShortRetryLimit;
@@ -593,7 +598,6 @@ struct vnt_private {
 
 	int bCCK;
 	int bEncryptionEnable;
-	int bLongHeader;
 	int bShortSlotTime;
 	int bProtectMode;
 	int bNonERPPresent;
@@ -663,8 +667,6 @@ struct vnt_private {
 	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
 	u8 byKeyIndex;
 
-	int bAES;
-
 	u32 uKeyLength;
 	u8 abyKey[WLAN_WEP232_KEYLEN];
 
@@ -692,7 +694,6 @@ struct vnt_private {
 	u8 byBBPreEDIndex;
 
 	int bRadioCmd;
-	u32 dwDiagRefCount;
 
 	/* For FOE Tuning */
 	u8  byFOETuning;
@@ -707,13 +708,12 @@ struct vnt_private {
 	u8 byBBCR09;
 
 	/* command timer */
-	struct timer_list sTimerCommand;
+	struct delayed_work run_command_work;
+	/* One second callback */
+	struct delayed_work second_callback_work;
 
-	struct timer_list sTimerTxData;
-	unsigned long nTxDataTimeCout;
-	int fTxDataInSleep;
-	int IsTxDataTrigger;
-
+	u8 tx_data_time_out;
+	bool tx_trigger;
 	int fWPA_Authened; /*is WPA/WPA-PSK or WPA2/WPA2-PSK authen?? */
 	u8 byReAssocCount;
 	u8 byLinkWaitCount;

@@ -15,6 +15,7 @@
 #define MEDIA_V4L2_CLK_H
 
 #include <linux/atomic.h>
+#include <linux/export.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 
@@ -50,5 +51,21 @@ int v4l2_clk_enable(struct v4l2_clk *clk);
 void v4l2_clk_disable(struct v4l2_clk *clk);
 unsigned long v4l2_clk_get_rate(struct v4l2_clk *clk);
 int v4l2_clk_set_rate(struct v4l2_clk *clk, unsigned long rate);
+
+struct module;
+
+struct v4l2_clk *__v4l2_clk_register_fixed(const char *dev_id,
+		const char *id, unsigned long rate, struct module *owner);
+void v4l2_clk_unregister_fixed(struct v4l2_clk *clk);
+
+static inline struct v4l2_clk *v4l2_clk_register_fixed(const char *dev_id,
+							const char *id,
+							unsigned long rate)
+{
+	return __v4l2_clk_register_fixed(dev_id, id, rate, THIS_MODULE);
+}
+
+#define v4l2_clk_name_i2c(name, size, adap, client) snprintf(name, size, \
+			  "%d-%04x", adap, client)
 
 #endif

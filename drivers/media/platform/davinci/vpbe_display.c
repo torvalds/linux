@@ -347,7 +347,7 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* If buffer queue is empty, return error */
 	if (list_empty(&layer->dma_queue)) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "buffer queue is empty\n");
-		return -EINVAL;
+		return -ENOBUFS;
 	}
 	/* Get the next frame from the buffer queue */
 	layer->next_frm = layer->cur_frm = list_entry(layer->dma_queue.next,
@@ -1785,7 +1785,7 @@ static int vpbe_display_probe(struct platform_device *pdev)
 	}
 
 	irq = res->start;
-	err = devm_request_irq(&pdev->dev, irq, venc_isr, IRQF_DISABLED,
+	err = devm_request_irq(&pdev->dev, irq, venc_isr, 0,
 			       VPBE_DISPLAY_DRIVER, disp_dev);
 	if (err) {
 		v4l2_err(&disp_dev->vpbe_dev->v4l2_dev,

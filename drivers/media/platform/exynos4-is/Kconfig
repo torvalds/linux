@@ -1,7 +1,7 @@
 
 config VIDEO_SAMSUNG_EXYNOS4_IS
 	bool "Samsung S5P/EXYNOS4 SoC series Camera Subsystem driver"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && PM_RUNTIME
+	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on (PLAT_S5P || ARCH_EXYNOS)
 	help
 	  Say Y here to enable camera host interface devices for
@@ -29,7 +29,7 @@ config VIDEO_S5P_FIMC
 config VIDEO_S5P_MIPI_CSIS
 	tristate "S5P/EXYNOS MIPI-CSI2 receiver (MIPI-CSIS) driver"
 	depends on REGULATOR
-	select S5P_SETUP_MIPIPHY
+	select GENERIC_PHY
 	help
 	  This is a V4L2 driver for Samsung S5P and EXYNOS4 SoC MIPI-CSI2
 	  receiver (MIPI-CSIS) devices.

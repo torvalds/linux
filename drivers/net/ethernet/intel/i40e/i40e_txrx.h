@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -25,11 +24,13 @@
  *
  ******************************************************************************/
 
+#ifndef _I40E_TXRX_H_
+#define _I40E_TXRX_H_
+
 /* Interrupt Throttling and Rate Limiting (storm control) Goodies */
 
-#define I40E_MAX_ITR               0x07FF
-#define I40E_MIN_ITR               0x0001
-#define I40E_ITR_USEC_RESOLUTION   2
+#define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
+#define I40E_MIN_ITR               0x0004  /* reg uses 2 usec resolution */
 #define I40E_MAX_IRATE             0x03F
 #define I40E_MIN_IRATE             0x001
 #define I40E_IRATE_USEC_RESOLUTION 4
@@ -49,10 +50,43 @@
 
 #define I40E_QUEUE_END_OF_LIST 0x7FF
 
-#define I40E_ITR_NONE  3
-#define I40E_RX_ITR    0
-#define I40E_TX_ITR    1
-#define I40E_PE_ITR    2
+/* this enum matches hardware bits and is meant to be used by DYN_CTLN
+ * registers and QINT registers or more generally anywhere in the manual
+ * mentioning ITR_INDX, ITR_NONE cannot be used as an index 'n' into any
+ * register but instead is a special value meaning "don't update" ITR0/1/2.
+ */
+enum i40e_dyn_idx_t {
+	I40E_IDX_ITR0 = 0,
+	I40E_IDX_ITR1 = 1,
+	I40E_IDX_ITR2 = 2,
+	I40E_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
+};
+
+/* these are indexes into ITRN registers */
+#define I40E_RX_ITR    I40E_IDX_ITR0
+#define I40E_TX_ITR    I40E_IDX_ITR1
+#define I40E_PE_ITR    I40E_IDX_ITR2
+
+/* Supported RSS offloads */
+#define I40E_DEFAULT_RSS_HENA ( \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_SCTP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) | \
+	((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_SCTP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) | \
+	((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6) | \
+	((u64)1 << I40E_FILTER_PCTYPE_L2_PAYLOAD))
+
 /* Supported Rx Buffer Sizes */
 #define I40E_RXBUFFER_512   512    /* Used for packet split */
 #define I40E_RXBUFFER_2048  2048
@@ -102,23 +136,21 @@
 #define I40E_TX_FLAGS_IPV6		(u32)(1 << 5)
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
-#define I40E_TX_FLAGS_TXSW		(u32)(1 << 8)
-#define I40E_TX_FLAGS_MAPPED_AS_PAGE	(u32)(1 << 9)
+#define I40E_TX_FLAGS_TSYN		(u32)(1 << 8)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
 #define I40E_TX_FLAGS_VLAN_SHIFT	16
 
 struct i40e_tx_buffer {
-	struct sk_buff *skb;
-	dma_addr_t dma;
-	unsigned long time_stamp;
-	u16 length;
-	u32 tx_flags;
 	struct i40e_tx_desc *next_to_watch;
+	unsigned long time_stamp;
+	struct sk_buff *skb;
 	unsigned int bytecount;
-	u16 gso_segs;
-	u8 mapped_as_page;
+	unsigned short gso_segs;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
+	u32 tx_flags;
 };
 
 struct i40e_rx_buffer {
@@ -129,21 +161,21 @@ struct i40e_rx_buffer {
 	unsigned int page_offset;
 };
 
-struct i40e_tx_queue_stats {
+struct i40e_queue_stats {
 	u64 packets;
 	u64 bytes;
+};
+
+struct i40e_tx_queue_stats {
 	u64 restart_queue;
 	u64 tx_busy;
-	u64 completed;
 	u64 tx_done_old;
 };
 
 struct i40e_rx_queue_stats {
-	u64 packets;
-	u64 bytes;
 	u64 non_eop_descs;
-	u64 alloc_rx_page_failed;
-	u64 alloc_rx_buff_failed;
+	u64 alloc_page_failed;
+	u64 alloc_buff_failed;
 };
 
 enum i40e_ring_state_t {
@@ -183,6 +215,7 @@ enum i40e_ring_state_t {
 
 /* struct that defines a descriptor ring, associated with a VSI */
 struct i40e_ring {
+	struct i40e_ring *next;		/* pointer to next ring in q_vector */
 	void *desc;			/* Descriptor ring memory */
 	struct device *dev;		/* Used for DMA mapping */
 	struct net_device *netdev;	/* netdev ring maps to */
@@ -216,9 +249,13 @@ struct i40e_ring {
 	u8 atr_sample_rate;
 	u8 atr_count;
 
+	unsigned long last_rx_timestamp;
+
 	bool ring_active;		/* is ring online or not */
 
 	/* stats structs */
+	struct i40e_queue_stats	stats;
+	struct u64_stats_sync syncp;
 	union {
 		struct i40e_tx_queue_stats tx_stats;
 		struct i40e_rx_queue_stats rx_stats;
@@ -229,6 +266,8 @@ struct i40e_ring {
 
 	struct i40e_vsi *vsi;		/* Backreference to associated VSI */
 	struct i40e_q_vector *q_vector;	/* Backreference to associated vector */
+
+	struct rcu_head rcu;		/* to avoid race on free */
 } ____cacheline_internodealigned_in_smp;
 
 enum i40e_latency_range {
@@ -238,15 +277,18 @@ enum i40e_latency_range {
 };
 
 struct i40e_ring_container {
-#define I40E_MAX_RINGPAIR_PER_VECTOR 8
 	/* array of pointers to rings */
-	struct i40e_ring *ring[I40E_MAX_RINGPAIR_PER_VECTOR];
+	struct i40e_ring *ring;
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 count;
 	enum i40e_latency_range latency_range;
 	u16 itr;
 };
+
+/* iterator for handling rings in ring container */
+#define i40e_for_each_ring(pos, head) \
+	for (pos = (head).ring; pos != NULL; pos = pos->next)
 
 void i40e_alloc_rx_buffers(struct i40e_ring *rxr, u16 cleaned_count);
 netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
@@ -257,3 +299,4 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40e_free_tx_resources(struct i40e_ring *tx_ring);
 void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
+#endif /* _I40E_TXRX_H_ */

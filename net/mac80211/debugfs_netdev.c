@@ -133,7 +133,15 @@ static ssize_t ieee80211_if_fmt_##name(					\
 			 jiffies_to_msecs(sdata->field));		\
 }
 
-#define __IEEE80211_IF_FILE(name, _write)				\
+#define _IEEE80211_IF_FILE_OPS(name, _read, _write)			\
+static const struct file_operations name##_ops = {			\
+	.read = (_read),						\
+	.write = (_write),						\
+	.open = simple_open,						\
+	.llseek = generic_file_llseek,					\
+}
+
+#define _IEEE80211_IF_FILE_R_FN(name)					\
 static ssize_t ieee80211_if_read_##name(struct file *file,		\
 					char __user *userbuf,		\
 					size_t count, loff_t *ppos)	\
@@ -141,28 +149,34 @@ static ssize_t ieee80211_if_read_##name(struct file *file,		\
 	return ieee80211_if_read(file->private_data,			\
 				 userbuf, count, ppos,			\
 				 ieee80211_if_fmt_##name);		\
-}									\
-static const struct file_operations name##_ops = {			\
-	.read = ieee80211_if_read_##name,				\
-	.write = (_write),						\
-	.open = simple_open,						\
-	.llseek = generic_file_llseek,					\
 }
 
-#define __IEEE80211_IF_FILE_W(name)					\
+#define _IEEE80211_IF_FILE_W_FN(name)					\
 static ssize_t ieee80211_if_write_##name(struct file *file,		\
 					 const char __user *userbuf,	\
 					 size_t count, loff_t *ppos)	\
 {									\
 	return ieee80211_if_write(file->private_data, userbuf, count,	\
 				  ppos, ieee80211_if_parse_##name);	\
-}									\
-__IEEE80211_IF_FILE(name, ieee80211_if_write_##name)
+}
 
+#define IEEE80211_IF_FILE_R(name)					\
+	_IEEE80211_IF_FILE_R_FN(name)					\
+	_IEEE80211_IF_FILE_OPS(name, ieee80211_if_read_##name, NULL)
+
+#define IEEE80211_IF_FILE_W(name)					\
+	_IEEE80211_IF_FILE_W_FN(name)					\
+	_IEEE80211_IF_FILE_OPS(name, NULL, ieee80211_if_write_##name)
+
+#define IEEE80211_IF_FILE_RW(name)					\
+	_IEEE80211_IF_FILE_R_FN(name)					\
+	_IEEE80211_IF_FILE_W_FN(name)					\
+	_IEEE80211_IF_FILE_OPS(name, ieee80211_if_read_##name,		\
+			       ieee80211_if_write_##name)
 
 #define IEEE80211_IF_FILE(name, field, format)				\
-		IEEE80211_IF_FMT_##format(name, field)			\
-		__IEEE80211_IF_FILE(name, NULL)
+	IEEE80211_IF_FMT_##format(name, field)				\
+	IEEE80211_IF_FILE_R(name)
 
 /* common attributes */
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
@@ -199,7 +213,7 @@ ieee80211_if_fmt_hw_queues(const struct ieee80211_sub_if_data *sdata,
 
 	return len;
 }
-__IEEE80211_IF_FILE(hw_queues, NULL);
+IEEE80211_IF_FILE_R(hw_queues);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
@@ -224,12 +238,15 @@ static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 	     smps_mode == IEEE80211_SMPS_AUTOMATIC))
 		return -EINVAL;
 
-	/* supported only on managed interfaces for now */
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+	    sdata->vif.type != NL80211_IFTYPE_AP)
 		return -EOPNOTSUPP;
 
 	sdata_lock(sdata);
-	err = __ieee80211_request_smps(sdata, smps_mode);
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		err = __ieee80211_request_smps_mgd(sdata, smps_mode);
+	else
+		err = __ieee80211_request_smps_ap(sdata, smps_mode);
 	sdata_unlock(sdata);
 
 	return err;
@@ -245,12 +262,15 @@ static const char *smps_modes[IEEE80211_SMPS_NUM_MODES] = {
 static ssize_t ieee80211_if_fmt_smps(const struct ieee80211_sub_if_data *sdata,
 				     char *buf, int buflen)
 {
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
-
-	return snprintf(buf, buflen, "request: %s\nused: %s\n",
-			smps_modes[sdata->u.mgd.req_smps],
-			smps_modes[sdata->smps_mode]);
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		return snprintf(buf, buflen, "request: %s\nused: %s\n",
+				smps_modes[sdata->u.mgd.req_smps],
+				smps_modes[sdata->smps_mode]);
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		return snprintf(buf, buflen, "request: %s\nused: %s\n",
+				smps_modes[sdata->u.ap.req_smps],
+				smps_modes[sdata->smps_mode]);
+	return -EINVAL;
 }
 
 static ssize_t ieee80211_if_parse_smps(struct ieee80211_sub_if_data *sdata,
@@ -269,14 +289,7 @@ static ssize_t ieee80211_if_parse_smps(struct ieee80211_sub_if_data *sdata,
 
 	return -EINVAL;
 }
-
-__IEEE80211_IF_FILE_W(smps);
-
-static ssize_t ieee80211_if_fmt_tkip_mic_test(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	return -EOPNOTSUPP;
-}
+IEEE80211_IF_FILE_RW(smps);
 
 static ssize_t ieee80211_if_parse_tkip_mic_test(
 	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
@@ -343,8 +356,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 
 	return buflen;
 }
-
-__IEEE80211_IF_FILE_W(tkip_mic_test);
+IEEE80211_IF_FILE_W(tkip_mic_test);
 
 static ssize_t ieee80211_if_fmt_uapsd_queues(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -372,7 +384,7 @@ static ssize_t ieee80211_if_parse_uapsd_queues(
 
 	return buflen;
 }
-__IEEE80211_IF_FILE_W(uapsd_queues);
+IEEE80211_IF_FILE_RW(uapsd_queues);
 
 static ssize_t ieee80211_if_fmt_uapsd_max_sp_len(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -400,7 +412,7 @@ static ssize_t ieee80211_if_parse_uapsd_max_sp_len(
 
 	return buflen;
 }
-__IEEE80211_IF_FILE_W(uapsd_max_sp_len);
+IEEE80211_IF_FILE_RW(uapsd_max_sp_len);
 
 /* AP attributes */
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
@@ -413,7 +425,7 @@ static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	return scnprintf(buf, buflen, "%u\n",
 			 skb_queue_len(&sdata->u.ap.ps.bc_buf));
 }
-__IEEE80211_IF_FILE(num_buffered_multicast, NULL);
+IEEE80211_IF_FILE_R(num_buffered_multicast);
 
 /* IBSS attributes */
 static ssize_t ieee80211_if_fmt_tsf(
@@ -462,9 +474,10 @@ static ssize_t ieee80211_if_parse_tsf(
 		}
 	}
 
+	ieee80211_recalc_dtim(local, sdata);
 	return buflen;
 }
-__IEEE80211_IF_FILE_W(tsf);
+IEEE80211_IF_FILE_RW(tsf);
 
 
 /* WDS attributes */
@@ -563,6 +576,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(num_mcast_sta);
+	DEBUGFS_ADD_MODE(smps, 0600);
 	DEBUGFS_ADD(num_sta_ps);
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);

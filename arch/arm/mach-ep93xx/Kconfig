@@ -5,6 +5,7 @@ menu "Cirrus EP93xx Implementation Options"
 config EP93XX_SOC_COMMON
 	bool
 	default y
+	select SOC_BUS
 	select LEDS_GPIO_REGISTER
 
 config CRUNCH

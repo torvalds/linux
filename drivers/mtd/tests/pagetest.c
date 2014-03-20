@@ -353,7 +353,7 @@ static int __init mtd_pagetest_init(void)
 		return err;
 	}
 
-	if (mtd->type != MTD_NANDFLASH) {
+	if (!mtd_type_is_nand(mtd)) {
 		pr_info("this test requires NAND flash\n");
 		goto out;
 	}

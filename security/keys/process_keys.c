@@ -235,7 +235,7 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
 	} else {
-		atomic_inc(&keyring->usage);
+		__key_get(keyring);
 	}
 
 	/* install the keyring */
@@ -319,11 +319,7 @@ void key_fsgid_changed(struct task_struct *tsk)
  * In the case of a successful return, the possession attribute is set on the
  * returned key reference.
  */
-key_ref_t search_my_process_keyrings(struct key_type *type,
-				     const void *description,
-				     key_match_func_t match,
-				     bool no_state_check,
-				     const struct cred *cred)
+key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 {
 	key_ref_t key_ref, ret, err;
 
@@ -339,10 +335,9 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 	err = ERR_PTR(-EAGAIN);
 
 	/* search the thread keyring first */
-	if (cred->thread_keyring) {
+	if (ctx->cred->thread_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(cred->thread_keyring, 1),
-			cred, type, description, match, no_state_check);
+			make_key_ref(ctx->cred->thread_keyring, 1), ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -358,10 +353,9 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 	}
 
 	/* search the process keyring second */
-	if (cred->process_keyring) {
+	if (ctx->cred->process_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(cred->process_keyring, 1),
-			cred, type, description, match, no_state_check);
+			make_key_ref(ctx->cred->process_keyring, 1), ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -379,11 +373,11 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 	}
 
 	/* search the session keyring */
-	if (cred->session_keyring) {
+	if (ctx->cred->session_keyring) {
 		rcu_read_lock();
 		key_ref = keyring_search_aux(
-			make_key_ref(rcu_dereference(cred->session_keyring), 1),
-			cred, type, description, match, no_state_check);
+			make_key_ref(rcu_dereference(ctx->cred->session_keyring), 1),
+			ctx);
 		rcu_read_unlock();
 
 		if (!IS_ERR(key_ref))
@@ -402,10 +396,10 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 		}
 	}
 	/* or search the user-session keyring */
-	else if (cred->user->session_keyring) {
+	else if (ctx->cred->user->session_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(cred->user->session_keyring, 1),
-			cred, type, description, match, no_state_check);
+			make_key_ref(ctx->cred->user->session_keyring, 1),
+			ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -437,18 +431,14 @@ found:
  *
  * Return same as search_my_process_keyrings().
  */
-key_ref_t search_process_keyrings(struct key_type *type,
-				  const void *description,
-				  key_match_func_t match,
-				  const struct cred *cred)
+key_ref_t search_process_keyrings(struct keyring_search_context *ctx)
 {
 	struct request_key_auth *rka;
 	key_ref_t key_ref, ret = ERR_PTR(-EACCES), err;
 
 	might_sleep();
 
-	key_ref = search_my_process_keyrings(type, description, match,
-					     false, cred);
+	key_ref = search_my_process_keyrings(ctx);
 	if (!IS_ERR(key_ref))
 		goto found;
 	err = key_ref;
@@ -457,18 +447,21 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	 * search the keyrings of the process mentioned there
 	 * - we don't permit access to request_key auth keys via this method
 	 */
-	if (cred->request_key_auth &&
-	    cred == current_cred() &&
-	    type != &key_type_request_key_auth
+	if (ctx->cred->request_key_auth &&
+	    ctx->cred == current_cred() &&
+	    ctx->index_key.type != &key_type_request_key_auth
 	    ) {
+		const struct cred *cred = ctx->cred;
+
 		/* defend against the auth key being revoked */
 		down_read(&cred->request_key_auth->sem);
 
-		if (key_validate(cred->request_key_auth) == 0) {
-			rka = cred->request_key_auth->payload.data;
+		if (key_validate(ctx->cred->request_key_auth) == 0) {
+			rka = ctx->cred->request_key_auth->payload.data;
 
-			key_ref = search_process_keyrings(type, description,
-							  match, rka->cred);
+			ctx->cred = rka->cred;
+			key_ref = search_process_keyrings(ctx);
+			ctx->cred = cred;
 
 			up_read(&cred->request_key_auth->sem);
 
@@ -522,19 +515,23 @@ int lookup_user_key_possessed(const struct key *key, const void *target)
 key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
 			  key_perm_t perm)
 {
+	struct keyring_search_context ctx = {
+		.match	= lookup_user_key_possessed,
+		.flags	= (KEYRING_SEARCH_NO_STATE_CHECK |
+			   KEYRING_SEARCH_LOOKUP_DIRECT),
+	};
 	struct request_key_auth *rka;
-	const struct cred *cred;
 	struct key *key;
 	key_ref_t key_ref, skey_ref;
 	int ret;
 
 try_again:
-	cred = get_current_cred();
+	ctx.cred = get_current_cred();
 	key_ref = ERR_PTR(-ENOKEY);
 
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
-		if (!cred->thread_keyring) {
+		if (!ctx.cred->thread_keyring) {
 			if (!(lflags & KEY_LOOKUP_CREATE))
 				goto error;
 
@@ -546,13 +543,13 @@ try_again:
 			goto reget_creds;
 		}
 
-		key = cred->thread_keyring;
-		atomic_inc(&key->usage);
+		key = ctx.cred->thread_keyring;
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_PROCESS_KEYRING:
-		if (!cred->process_keyring) {
+		if (!ctx.cred->process_keyring) {
 			if (!(lflags & KEY_LOOKUP_CREATE))
 				goto error;
 
@@ -564,13 +561,13 @@ try_again:
 			goto reget_creds;
 		}
 
-		key = cred->process_keyring;
-		atomic_inc(&key->usage);
+		key = ctx.cred->process_keyring;
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_SESSION_KEYRING:
-		if (!cred->session_keyring) {
+		if (!ctx.cred->session_keyring) {
 			/* always install a session keyring upon access if one
 			 * doesn't exist yet */
 			ret = install_user_keyrings();
@@ -580,13 +577,13 @@ try_again:
 				ret = join_session_keyring(NULL);
 			else
 				ret = install_session_keyring(
-					cred->user->session_keyring);
+					ctx.cred->user->session_keyring);
 
 			if (ret < 0)
 				goto error;
 			goto reget_creds;
-		} else if (cred->session_keyring ==
-			   cred->user->session_keyring &&
+		} else if (ctx.cred->session_keyring ==
+			   ctx.cred->user->session_keyring &&
 			   lflags & KEY_LOOKUP_CREATE) {
 			ret = join_session_keyring(NULL);
 			if (ret < 0)
@@ -595,33 +592,33 @@ try_again:
 		}
 
 		rcu_read_lock();
-		key = rcu_dereference(cred->session_keyring);
-		atomic_inc(&key->usage);
+		key = rcu_dereference(ctx.cred->session_keyring);
+		__key_get(key);
 		rcu_read_unlock();
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_KEYRING:
-		if (!cred->user->uid_keyring) {
+		if (!ctx.cred->user->uid_keyring) {
 			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
 		}
 
-		key = cred->user->uid_keyring;
-		atomic_inc(&key->usage);
+		key = ctx.cred->user->uid_keyring;
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_SESSION_KEYRING:
-		if (!cred->user->session_keyring) {
+		if (!ctx.cred->user->session_keyring) {
 			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
 		}
 
-		key = cred->user->session_keyring;
-		atomic_inc(&key->usage);
+		key = ctx.cred->user->session_keyring;
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
@@ -631,29 +628,29 @@ try_again:
 		goto error;
 
 	case KEY_SPEC_REQKEY_AUTH_KEY:
-		key = cred->request_key_auth;
+		key = ctx.cred->request_key_auth;
 		if (!key)
 			goto error;
 
-		atomic_inc(&key->usage);
+		__key_get(key);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_REQUESTOR_KEYRING:
-		if (!cred->request_key_auth)
+		if (!ctx.cred->request_key_auth)
 			goto error;
 
-		down_read(&cred->request_key_auth->sem);
+		down_read(&ctx.cred->request_key_auth->sem);
 		if (test_bit(KEY_FLAG_REVOKED,
-			     &cred->request_key_auth->flags)) {
+			     &ctx.cred->request_key_auth->flags)) {
 			key_ref = ERR_PTR(-EKEYREVOKED);
 			key = NULL;
 		} else {
-			rka = cred->request_key_auth->payload.data;
+			rka = ctx.cred->request_key_auth->payload.data;
 			key = rka->dest_keyring;
-			atomic_inc(&key->usage);
+			__key_get(key);
 		}
-		up_read(&cred->request_key_auth->sem);
+		up_read(&ctx.cred->request_key_auth->sem);
 		if (!key)
 			goto error;
 		key_ref = make_key_ref(key, 1);
@@ -673,9 +670,13 @@ try_again:
 		key_ref = make_key_ref(key, 0);
 
 		/* check to see if we possess the key */
-		skey_ref = search_process_keyrings(key->type, key,
-						   lookup_user_key_possessed,
-						   cred);
+		ctx.index_key.type		= key->type;
+		ctx.index_key.description	= key->description;
+		ctx.index_key.desc_len		= strlen(key->description);
+		ctx.match_data			= key;
+		kdebug("check possessed");
+		skey_ref = search_process_keyrings(&ctx);
+		kdebug("possessed=%p", skey_ref);
 
 		if (!IS_ERR(skey_ref)) {
 			key_put(key);
@@ -715,14 +716,14 @@ try_again:
 		goto invalid_key;
 
 	/* check the permissions */
-	ret = key_task_permission(key_ref, cred, perm);
+	ret = key_task_permission(key_ref, ctx.cred, perm);
 	if (ret < 0)
 		goto invalid_key;
 
 	key->last_used_at = current_kernel_time().tv_sec;
 
 error:
-	put_cred(cred);
+	put_cred(ctx.cred);
 	return key_ref;
 
 invalid_key:
@@ -733,7 +734,7 @@ invalid_key:
 	/* if we attempted to install a keyring, then it may have caused new
 	 * creds to be installed */
 reget_creds:
-	put_cred(cred);
+	put_cred(ctx.cred);
 	goto try_again;
 }
 
@@ -856,3 +857,13 @@ void key_change_session_keyring(struct callback_head *twork)
 
 	commit_creds(new);
 }
+
+/*
+ * Make sure that root's user and user-session keyrings exist.
+ */
+static int __init init_root_keyring(void)
+{
+	return install_user_keyrings();
+}
+
+late_initcall(init_root_keyring);

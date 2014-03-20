@@ -16,8 +16,6 @@ Configuration options:
   [0] - I/O port base address
 */
 
-#define DEBUG 0
-
 #include <linux/module.h>
 #include "../comedidev.h"
 
@@ -25,19 +23,19 @@ Configuration options:
 
 #define FL512_SIZE 16		/* the size of the used memory */
 struct fl512_private {
-
-	short ao_readback[2];
+	unsigned short ao_readback[2];
 };
 
-static const struct comedi_lrange range_fl512 = { 4, {
-						      BIP_RANGE(0.5),
-						      BIP_RANGE(1),
-						      BIP_RANGE(5),
-						      BIP_RANGE(10),
-						      UNI_RANGE(1),
-						      UNI_RANGE(5),
-						      UNI_RANGE(10),
-						      }
+static const struct comedi_lrange range_fl512 = {
+	4, {
+		BIP_RANGE(0.5),
+		BIP_RANGE(1),
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 /*

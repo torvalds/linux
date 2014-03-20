@@ -28,6 +28,7 @@ config CPU_S3C2410
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2410
 	select S3C2410_CLOCK
+	select S3C2410_DMA if S3C24XX_DMA
 	select ARM_S3C2410_CPUFREQ if ARM_S3C24XX_CPUFREQ
 	select S3C2410_PM if PM
 	select SAMSUNG_WDT_RESET
@@ -70,6 +71,7 @@ config CPU_S3C2442
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2410_CLOCK
+	select S3C2410_DMA if S3C24XX_DMA
 	select S3C2410_PM if PM
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
@@ -148,7 +150,6 @@ config S3C2410_DMA_DEBUG
 config S3C2410_DMA
 	bool
 	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
-	default y if CPU_S3C2410 || CPU_S3C2442
 	help
 	  DMA device selection for S3C2410 and compatible CPUs
 
@@ -178,27 +179,6 @@ config CPU_LLSERIAL_S3C2440
 	help
 	  Selected if there is an S3C2440 (or register compatible) serial
 	  low-level implementation needed
-
-# gpio configurations
-
-config S3C24XX_GPIO_EXTRA
-	int
-	default 128 if S3C24XX_GPIO_EXTRA128
-	default 64 if S3C24XX_GPIO_EXTRA64
-	default 16 if ARCH_H1940
-	default 0
-
-config S3C24XX_GPIO_EXTRA64
-	bool
-	help
-	  Add an extra 64 gpio numbers to the available GPIO pool. This is
-	  available for boards that need extra gpios for external devices.
-
-config S3C24XX_GPIO_EXTRA128
-	bool
-	help
-	  Add an extra 128 gpio numbers to the available GPIO pool. This is
-	  available for boards that need extra gpios for external devices.
 
 config S3C24XX_PLL
 	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"

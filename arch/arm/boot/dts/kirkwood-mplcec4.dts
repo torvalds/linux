@@ -17,7 +17,6 @@
         };
 
 	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 
@@ -96,37 +95,6 @@
                         pinctrl-names = "default";
                 };
 
-                nand@3000000 {
-                        pinctrl-0 = <&pmx_nand>;
-                        pinctrl-names = "default";
-                        status = "okay";
-
-                        partition@0 {
-                                label = "uboot";
-                                reg = <0x0000000 0x100000>;
-                        };
-
-                        partition@100000 {
-                                label = "env";
-                                reg = <0x100000 0x80000>;
-                        };
-
-                        partition@180000 {
-                                label = "fdt";
-                                reg = <0x180000 0x80000>;
-                        };
-
-                        partition@200000 {
-                                label = "kernel";
-                                reg = <0x200000 0x400000>;
-                        };
-
-                        partition@600000 {
-                                label = "rootfs";
-                                reg = <0x600000 0x1fa00000>;
-                        };
-                };
-
 		rtc@10300 {
 			status = "disabled";
 		};
@@ -142,7 +110,7 @@
 			pinctrl-0 = <&pmx_sdio &pmx_sdio_cd>;
 			pinctrl-names = "default";
 			status = "okay";
-			cd-gpios = <&gpio1 15 1>;
+			cd-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 			/* No WP GPIO */
 		};
 	};
@@ -158,39 +126,70 @@
 
 		health {
 			label = "status:green:health";
-			gpios = <&gpio0 7 1>;
+			gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
 		};
 
 		user1o {
 			label = "user1:orange";
-			gpios = <&gpio1 8 1>;
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		user1g {
 			label = "user1:green";
-			gpios = <&gpio1 9 1>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		user0o {
 			label = "user0:orange";
-			gpios = <&gpio1 12 1>;
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		user0g {
 			label = "user0:green";
-			gpios = <&gpio1 13 1>;
+			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
 		misc {
 			label = "status:orange:misc";
-			gpios = <&gpio1 14 1>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
+	};
+};
+
+&nand {
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0x100000>;
+	};
+
+	partition@100000 {
+		label = "env";
+		reg = <0x100000 0x80000>;
+	};
+
+	partition@180000 {
+		label = "fdt";
+		reg = <0x180000 0x80000>;
+	};
+
+	partition@200000 {
+		label = "kernel";
+		reg = <0x200000 0x400000>;
+	};
+
+	partition@600000 {
+		label = "rootfs";
+		reg = <0x600000 0x1fa00000>;
 	};
 };
 
@@ -198,12 +197,10 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@1 {
-		device_type = "ethernet-phy";
 		reg = <1>;
 	};
 
 	ethphy1: ethernet-phy@2 {
-		device_type = "ethernet-phy";
 		reg = <2>;
 	};
 };

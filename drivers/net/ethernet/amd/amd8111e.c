@@ -24,9 +24,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 Module Name:
 
@@ -74,7 +72,6 @@ Revision History:
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -1711,7 +1708,6 @@ static void amd8111e_remove_one(struct pci_dev *pdev)
 		free_netdev(dev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 static void amd8111e_config_ipg(struct net_device* dev)
@@ -1967,7 +1963,6 @@ err_free_reg:
 
 err_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return err;
 
 }

@@ -15,6 +15,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mfd/tmio.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -501,7 +502,7 @@ static struct platform_device keysc_device = {
 /* TouchScreen */
 #define IRQ0 evt2irq(0x600)
 
-static int ts_get_pendown_state(void)
+static int ts_get_pendown_state(struct device *dev)
 {
 	int val = 0;
 	gpio_free(GPIO_FN_INTC_IRQ0);

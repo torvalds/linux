@@ -70,8 +70,6 @@ static int s2mps11_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 		ramp_delay = s2mps11->ramp_delay2;
 		break;
 	case S2MPS11_BUCK3:
-		ramp_delay = s2mps11->ramp_delay34;
-		break;
 	case S2MPS11_BUCK4:
 		ramp_delay = s2mps11->ramp_delay34;
 		break;
@@ -438,41 +436,26 @@ common_reg:
 	platform_set_drvdata(pdev, s2mps11);
 
 	config.dev = &pdev->dev;
-	config.regmap = iodev->regmap;
+	config.regmap = iodev->regmap_pmic;
 	config.driver_data = s2mps11;
 	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++) {
 		if (!reg_np) {
 			config.init_data = pdata->regulators[i].initdata;
+			config.of_node = pdata->regulators[i].reg_node;
 		} else {
 			config.init_data = rdata[i].init_data;
 			config.of_node = rdata[i].of_node;
 		}
 
-		s2mps11->rdev[i] = regulator_register(&regulators[i], &config);
+		s2mps11->rdev[i] = devm_regulator_register(&pdev->dev,
+						&regulators[i], &config);
 		if (IS_ERR(s2mps11->rdev[i])) {
 			ret = PTR_ERR(s2mps11->rdev[i]);
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
 				i);
-			s2mps11->rdev[i] = NULL;
-			goto err;
+			return ret;
 		}
 	}
-
-	return 0;
-err:
-	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++)
-		regulator_unregister(s2mps11->rdev[i]);
-
-	return ret;
-}
-
-static int s2mps11_pmic_remove(struct platform_device *pdev)
-{
-	struct s2mps11_info *s2mps11 = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++)
-		regulator_unregister(s2mps11->rdev[i]);
 
 	return 0;
 }
@@ -489,7 +472,6 @@ static struct platform_driver s2mps11_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = s2mps11_pmic_probe,
-	.remove = s2mps11_pmic_remove,
 	.id_table = s2mps11_pmic_id,
 };
 

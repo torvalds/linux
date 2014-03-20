@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -356,6 +356,7 @@ struct iwl_scan_complete_notif {
 /* scan offload */
 #define IWL_MAX_SCAN_CHANNELS		40
 #define IWL_SCAN_MAX_BLACKLIST_LEN	64
+#define IWL_SCAN_SHORT_BLACKLIST_LEN	16
 #define IWL_SCAN_MAX_PROFILES		11
 #define SCAN_OFFLOAD_PROBE_REQ_SIZE	512
 
@@ -367,6 +368,12 @@ struct iwl_scan_complete_notif {
 
 #define IWL_FULL_SCAN_MULTIPLIER 5
 #define IWL_FAST_SCHED_SCAN_ITERATIONS 3
+
+enum scan_framework_client {
+	SCAN_CLIENT_SCHED_SCAN		= BIT(0),
+	SCAN_CLIENT_NETDETECT		= BIT(1),
+	SCAN_CLIENT_ASSET_TRACKING	= BIT(2),
+};
 
 /**
  * struct iwl_scan_offload_cmd - SCAN_REQUEST_FIXED_PART_API_S_VER_6
@@ -449,11 +456,12 @@ struct iwl_scan_offload_cfg {
  * iwl_scan_offload_blacklist - SCAN_OFFLOAD_BLACKLIST_S
  * @ssid:		MAC address to filter out
  * @reported_rssi:	AP rssi reported to the host
+ * @client_bitmap: clients ignore this entry  - enum scan_framework_client
  */
 struct iwl_scan_offload_blacklist {
 	u8 ssid[ETH_ALEN];
 	u8 reported_rssi;
-	u8 reserved;
+	u8 client_bitmap;
 } __packed;
 
 enum iwl_scan_offload_network_type {
@@ -475,6 +483,7 @@ enum iwl_scan_offload_band_selection {
  * @aut_alg:		authentication olgorithm to match - bitmap
  * @network_type:	enum iwl_scan_offload_network_type
  * @band_selection:	enum iwl_scan_offload_band_selection
+ * @client_bitmap:	clients waiting for match - enum scan_framework_client
  */
 struct iwl_scan_offload_profile {
 	u8 ssid_index;
@@ -482,7 +491,8 @@ struct iwl_scan_offload_profile {
 	u8 auth_alg;
 	u8 network_type;
 	u8 band_selection;
-	u8 reserved[3];
+	u8 client_bitmap;
+	u8 reserved[2];
 } __packed;
 
 /**
@@ -491,12 +501,19 @@ struct iwl_scan_offload_profile {
  * @profiles:		profiles to search for match
  * @blacklist_len:	length of blacklist
  * @num_profiles:	num of profiles in the list
+ * @match_notify:	clients waiting for match found notification
+ * @pass_match:		clients waiting for the results
+ * @active_clients:	active clients bitmap - enum scan_framework_client
+ * @any_beacon_notify:	clients waiting for match notification without match
  */
 struct iwl_scan_offload_profile_cfg {
-	struct iwl_scan_offload_blacklist blacklist[IWL_SCAN_MAX_BLACKLIST_LEN];
 	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES];
 	u8 blacklist_len;
 	u8 num_profiles;
+	u8 match_notify;
+	u8 pass_match;
+	u8 active_clients;
+	u8 any_beacon_notify;
 	u8 reserved[2];
 } __packed;
 
@@ -515,14 +532,13 @@ struct iwl_scan_offload_schedule {
 /*
  * iwl_scan_offload_flags
  *
- * IWL_SCAN_OFFLOAD_FLAG_FILTER_SSID: filter mode - upload every beacon or match
- *	ssid list.
+ * IWL_SCAN_OFFLOAD_FLAG_PASS_ALL: pass all results - no filtering.
  * IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL: add cached channels to partial scan.
  * IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN: use energy based scan before partial scan
  *	on A band.
  */
 enum iwl_scan_offload_flags {
-	IWL_SCAN_OFFLOAD_FLAG_FILTER_SSID	= BIT(0),
+	IWL_SCAN_OFFLOAD_FLAG_PASS_ALL		= BIT(0),
 	IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL	= BIT(2),
 	IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN	= BIT(3),
 };
@@ -559,5 +575,16 @@ struct iwl_scan_offload_complete {
 	u8 status;
 	u8 reserved;
 } __packed;
+
+/**
+ * iwl_sched_scan_results - SCAN_OFFLOAD_MATCH_FOUND_NTF_API_S_VER_1
+ * @ssid_bitmap:	SSIDs indexes found in this iteration
+ * @client_bitmap:	clients that are active and wait for this notification
+ */
+struct iwl_sched_scan_results {
+	__le16 ssid_bitmap;
+	u8 client_bitmap;
+	u8 reserved;
+};
 
 #endif

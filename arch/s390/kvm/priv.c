@@ -30,6 +30,38 @@
 #include "kvm-s390.h"
 #include "trace.h"
 
+/* Handle SCK (SET CLOCK) interception */
+static int handle_set_clock(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu *cpup;
+	s64 hostclk, val;
+	u64 op2;
+	int i;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	op2 = kvm_s390_get_base_disp_s(vcpu);
+	if (op2 & 7)	/* Operand must be on a doubleword boundary */
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+	if (get_guest(vcpu, val, (u64 __user *) op2))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+
+	if (store_tod_clock(&hostclk)) {
+		kvm_s390_set_psw_cc(vcpu, 3);
+		return 0;
+	}
+	val = (val - hostclk) & ~0x3fUL;
+
+	mutex_lock(&vcpu->kvm->lock);
+	kvm_for_each_vcpu(i, cpup, vcpu->kvm)
+		cpup->arch.sie_block->epoch = val;
+	mutex_unlock(&vcpu->kvm->lock);
+
+	kvm_s390_set_psw_cc(vcpu, 0);
+	return 0;
+}
+
 static int handle_set_prefix(struct kvm_vcpu *vcpu)
 {
 	u64 operand2;
@@ -128,6 +160,33 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int handle_test_block(struct kvm_vcpu *vcpu)
+{
+	unsigned long hva;
+	gpa_t addr;
+	int reg2;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	kvm_s390_get_regs_rre(vcpu, NULL, &reg2);
+	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	addr = kvm_s390_real_to_abs(vcpu, addr);
+
+	hva = gfn_to_hva(vcpu->kvm, gpa_to_gfn(addr));
+	if (kvm_is_error_hva(hva))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	/*
+	 * We don't expect errors on modern systems, and do not care
+	 * about storage keys (yet), so let's just clear the page.
+	 */
+	if (clear_user((void __user *)hva, PAGE_SIZE) != 0)
+		return -EFAULT;
+	kvm_s390_set_psw_cc(vcpu, 0);
+	vcpu->run->s.regs.gprs[0] = 0;
+	return 0;
+}
+
 static int handle_tpi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_interrupt_info *inti;
@@ -138,7 +197,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	if (addr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	cc = 0;
-	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->run->s.regs.crs[6], 0);
+	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->arch.sie_block->gcr[6], 0);
 	if (!inti)
 		goto no_interrupt;
 	cc = 1;
@@ -216,7 +275,7 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	} else {
 		/*
-		 * Set condition code 3 to stop the guest from issueing channel
+		 * Set condition code 3 to stop the guest from issuing channel
 		 * I/O instructions.
 		 */
 		kvm_s390_set_psw_cc(vcpu, 3);
@@ -438,12 +497,14 @@ out_exception:
 
 static const intercept_handler_t b2_handlers[256] = {
 	[0x02] = handle_stidp,
+	[0x04] = handle_set_clock,
 	[0x10] = handle_set_prefix,
 	[0x11] = handle_store_prefix,
 	[0x12] = handle_store_cpu_address,
 	[0x29] = handle_skey,
 	[0x2a] = handle_skey,
 	[0x2b] = handle_skey,
+	[0x2c] = handle_test_block,
 	[0x30] = handle_io_inst,
 	[0x31] = handle_io_inst,
 	[0x32] = handle_io_inst,
@@ -577,7 +638,6 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t b9_handlers[256] = {
 	[0x8d] = handle_epsw,
-	[0x9c] = handle_io_inst,
 	[0xaf] = handle_pfmf,
 };
 
@@ -670,7 +730,6 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t eb_handlers[256] = {
 	[0x2f] = handle_lctlg,
-	[0x8a] = handle_io_inst,
 };
 
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)

@@ -466,19 +466,19 @@ static void gdlm_cancel(struct gfs2_glock *gl)
 static void control_lvb_read(struct lm_lockstruct *ls, uint32_t *lvb_gen,
 			     char *lvb_bits)
 {
-	uint32_t gen;
+	__le32 gen;
 	memcpy(lvb_bits, ls->ls_control_lvb, GDLM_LVB_SIZE);
-	memcpy(&gen, lvb_bits, sizeof(uint32_t));
+	memcpy(&gen, lvb_bits, sizeof(__le32));
 	*lvb_gen = le32_to_cpu(gen);
 }
 
 static void control_lvb_write(struct lm_lockstruct *ls, uint32_t lvb_gen,
 			      char *lvb_bits)
 {
-	uint32_t gen;
+	__le32 gen;
 	memcpy(ls->ls_control_lvb, lvb_bits, GDLM_LVB_SIZE);
 	gen = cpu_to_le32(lvb_gen);
-	memcpy(ls->ls_control_lvb, &gen, sizeof(uint32_t));
+	memcpy(ls->ls_control_lvb, &gen, sizeof(__le32));
 }
 
 static int all_jid_bits_clear(char *lvb)

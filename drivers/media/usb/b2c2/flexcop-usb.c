@@ -390,7 +390,7 @@ static void flexcop_usb_transfer_exit(struct flexcop_usb *fc_usb)
 		}
 
 	if (fc_usb->iso_buffer != NULL)
-		pci_free_consistent(NULL,
+		usb_free_coherent(fc_usb->udev,
 			fc_usb->buffer_size, fc_usb->iso_buffer,
 			fc_usb->dma_addr);
 }
@@ -407,8 +407,8 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 			"each of %d bytes size = %d.\n", B2C2_USB_NUM_ISO_URB,
 			B2C2_USB_FRAMES_PER_ISO, frame_size, bufsize);
 
-	fc_usb->iso_buffer = pci_alloc_consistent(NULL,
-			bufsize, &fc_usb->dma_addr);
+	fc_usb->iso_buffer = usb_alloc_coherent(fc_usb->udev,
+			bufsize, GFP_KERNEL, &fc_usb->dma_addr);
 	if (fc_usb->iso_buffer == NULL)
 		return -ENOMEM;
 

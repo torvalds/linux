@@ -8,9 +8,7 @@
  */
 
 #include <linux/of_platform.h>
-#include <linux/clocksource.h>
 #include <linux/irqchip.h>
-#include <linux/clk-provider.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
 
@@ -28,20 +26,13 @@ static void __init vf610_init_irq(void)
 	irqchip_init();
 }
 
-static void __init vf610_init_time(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
-}
-
-static const char *vf610_dt_compat[] __initdata = {
+static const char *vf610_dt_compat[] __initconst = {
 	"fsl,vf610",
 	NULL,
 };
 
 DT_MACHINE_START(VYBRID_VF610, "Freescale Vybrid VF610 (Device Tree)")
 	.init_irq	= vf610_init_irq,
-	.init_time	= vf610_init_time,
 	.init_machine   = vf610_init_machine,
 	.dt_compat	= vf610_dt_compat,
 	.restart	= mxc_restart,

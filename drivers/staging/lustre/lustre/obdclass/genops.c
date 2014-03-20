@@ -193,7 +193,6 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	strcpy(type->typ_name, name);
 	spin_lock_init(&type->obd_type_lock);
 
-#ifdef LPROCFS
 	type->typ_procroot = lprocfs_register(type->typ_name, proc_lustre_root,
 					      vars, type);
 	if (IS_ERR(type->typ_procroot)) {
@@ -201,7 +200,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 		type->typ_procroot = NULL;
 		GOTO (failed, rc);
 	}
-#endif
+
 	if (ldt != NULL) {
 		type->typ_lu = ldt;
 		rc = lu_device_type_init(ldt);
@@ -816,7 +815,7 @@ struct obd_export *class_new_export(struct obd_device *obd,
 				    struct obd_uuid *cluuid)
 {
 	struct obd_export *export;
-	cfs_hash_t *hash = NULL;
+	struct cfs_hash *hash = NULL;
 	int rc = 0;
 
 	OBD_ALLOC_PTR(export);
@@ -1384,7 +1383,7 @@ EXPORT_SYMBOL(obd_export_nid2str);
 
 int obd_export_evict_by_nid(struct obd_device *obd, const char *nid)
 {
-	cfs_hash_t *nid_hash;
+	struct cfs_hash *nid_hash;
 	struct obd_export *doomed_exp = NULL;
 	int exports_evicted = 0;
 
@@ -1432,7 +1431,7 @@ EXPORT_SYMBOL(obd_export_evict_by_nid);
 
 int obd_export_evict_by_uuid(struct obd_device *obd, const char *uuid)
 {
-	cfs_hash_t *uuid_hash;
+	struct cfs_hash *uuid_hash;
 	struct obd_export *doomed_exp = NULL;
 	struct obd_uuid doomed_uuid;
 	int exports_evicted = 0;

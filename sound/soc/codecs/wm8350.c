@@ -274,7 +274,7 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid shift %d\n", w->shift);
 		return -1;
 	}
 

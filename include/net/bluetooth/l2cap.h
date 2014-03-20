@@ -112,6 +112,9 @@ struct l2cap_conninfo {
 #define L2CAP_MOVE_CHAN_CFM_RSP	0x11
 #define L2CAP_CONN_PARAM_UPDATE_REQ	0x12
 #define L2CAP_CONN_PARAM_UPDATE_RSP	0x13
+#define L2CAP_LE_CONN_REQ	0x14
+#define L2CAP_LE_CONN_RSP	0x15
+#define L2CAP_LE_CREDITS	0x16
 
 /* L2CAP extended feature mask */
 #define L2CAP_FEAT_FLOWCTL	0x00000001
@@ -131,7 +134,9 @@ struct l2cap_conninfo {
 
 /* L2CAP fixed channels */
 #define L2CAP_FC_L2CAP		0x02
+#define L2CAP_FC_CONNLESS	0x04
 #define L2CAP_FC_A2MP		0x08
+#define L2CAP_FC_6LOWPAN        0x3e /* reserved and temporary value */
 
 /* L2CAP Control Field bit masks */
 #define L2CAP_CTRL_SAR			0xC000
@@ -237,8 +242,9 @@ struct l2cap_conn_rsp {
 /* protocol/service multiplexer (PSM) */
 #define L2CAP_PSM_SDP		0x0001
 #define L2CAP_PSM_RFCOMM	0x0003
+#define L2CAP_PSM_3DSP		0x0021
 
-/* channel indentifier */
+/* channel identifier */
 #define L2CAP_CID_SIGNALING	0x0001
 #define L2CAP_CID_CONN_LESS	0x0002
 #define L2CAP_CID_A2MP		0x0003
@@ -247,6 +253,7 @@ struct l2cap_conn_rsp {
 #define L2CAP_CID_SMP		0x0006
 #define L2CAP_CID_DYN_START	0x0040
 #define L2CAP_CID_DYN_END	0xffff
+#define L2CAP_CID_LE_DYN_END	0x007f
 
 /* connect/create channel results */
 #define L2CAP_CR_SUCCESS	0x0000
@@ -255,6 +262,10 @@ struct l2cap_conn_rsp {
 #define L2CAP_CR_SEC_BLOCK	0x0003
 #define L2CAP_CR_NO_MEM		0x0004
 #define L2CAP_CR_BAD_AMP	0x0005
+#define L2CAP_CR_AUTHENTICATION	0x0005
+#define L2CAP_CR_AUTHORIZATION	0x0006
+#define L2CAP_CR_BAD_KEY_SIZE	0x0007
+#define L2CAP_CR_ENCRYPTION	0x0008
 
 /* connect/create channel status */
 #define L2CAP_CS_NO_INFO	0x0000
@@ -318,6 +329,12 @@ struct l2cap_conf_rfc {
 #define L2CAP_MODE_FLOWCTL	0x02
 #define L2CAP_MODE_ERTM		0x03
 #define L2CAP_MODE_STREAMING	0x04
+
+/* Unlike the above this one doesn't actually map to anything that would
+ * ever be sent over the air. Therefore, use a value that's unlikely to
+ * ever be used in the BR/EDR configuration phase.
+ */
+#define L2CAP_MODE_LE_FLOWCTL	0x80
 
 struct l2cap_conf_efs {
 	__u8	id;
@@ -421,6 +438,30 @@ struct l2cap_conn_param_update_rsp {
 #define L2CAP_CONN_PARAM_ACCEPTED	0x0000
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
 
+#define L2CAP_LE_MAX_CREDITS		10
+#define L2CAP_LE_DEFAULT_MPS		230
+
+struct l2cap_le_conn_req {
+	__le16     psm;
+	__le16     scid;
+	__le16     mtu;
+	__le16     mps;
+	__le16     credits;
+} __packed;
+
+struct l2cap_le_conn_rsp {
+	__le16     dcid;
+	__le16     mtu;
+	__le16     mps;
+	__le16     credits;
+	__le16     result;
+} __packed;
+
+struct l2cap_le_credits {
+	__le16     cid;
+	__le16     credits;
+} __packed;
+
 /* ----- L2CAP channels and connections ----- */
 struct l2cap_seq_list {
 	__u16	head;
@@ -433,8 +474,6 @@ struct l2cap_seq_list {
 #define L2CAP_SEQ_LIST_TAIL	0x8000
 
 struct l2cap_chan {
-	struct sock *sk;
-
 	struct l2cap_conn	*conn;
 	struct hci_conn		*hs_hcon;
 	struct hci_chan		*hs_hchan;
@@ -442,7 +481,12 @@ struct l2cap_chan {
 
 	__u8		state;
 
+	bdaddr_t	dst;
+	__u8		dst_type;
+	bdaddr_t	src;
+	__u8		src_type;
 	__le16		psm;
+	__le16		sport;
 	__u16		dcid;
 	__u16		scid;
 
@@ -452,8 +496,6 @@ struct l2cap_chan {
 	__u8		mode;
 	__u8		chan_type;
 	__u8		chan_policy;
-
-	__le16		sport;
 
 	__u8		sec_level;
 
@@ -473,6 +515,9 @@ struct l2cap_chan {
 	__u16		retrans_timeout;
 	__u16		monitor_timeout;
 	__u16		mps;
+
+	__u16		tx_credits;
+	__u16		rx_credits;
 
 	__u8		tx_state;
 	__u8		rx_state;
@@ -546,9 +591,13 @@ struct l2cap_ops {
 	void			(*teardown) (struct l2cap_chan *chan, int err);
 	void			(*close) (struct l2cap_chan *chan);
 	void			(*state_change) (struct l2cap_chan *chan,
-						 int state);
+						 int state, int err);
 	void			(*ready) (struct l2cap_chan *chan);
 	void			(*defer) (struct l2cap_chan *chan);
+	void			(*resume) (struct l2cap_chan *chan);
+	void			(*suspend) (struct l2cap_chan *chan);
+	void			(*set_shutdown) (struct l2cap_chan *chan);
+	long			(*get_sndtimeo) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
 };
@@ -557,13 +606,11 @@ struct l2cap_conn {
 	struct hci_conn		*hcon;
 	struct hci_chan		*hchan;
 
-	bdaddr_t		*dst;
-	bdaddr_t		*src;
-
 	unsigned int		mtu;
 
 	__u32			feat_mask;
 	__u8			fixed_chan_mask;
+	bool			hs_enabled;
 
 	__u8			info_state;
 	__u8			info_ident;
@@ -649,6 +696,8 @@ enum {
 	FLAG_FLUSHABLE,
 	FLAG_EXT_CTRL,
 	FLAG_EFS_ENABLE,
+	FLAG_DEFER_SETUP,
+	FLAG_LE_CONN_REQ_SENT,
 };
 
 enum {
@@ -790,14 +839,28 @@ static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
 {
 }
 
+static inline void l2cap_chan_no_resume(struct l2cap_chan *chan)
+{
+}
+
+static inline void l2cap_chan_no_set_shutdown(struct l2cap_chan *chan)
+{
+}
+
+static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
+{
+	return 0;
+}
+
 extern bool disable_ertm;
+extern bool enable_lecoc;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
 bool l2cap_is_socket(struct socket *sock);
 
+void __l2cap_le_connect_rsp_defer(struct l2cap_chan *chan);
 void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
-int __l2cap_wait_ack(struct sock *sk);
 
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);

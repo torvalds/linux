@@ -127,12 +127,8 @@ extern u16 MTO_Frag_Th_Tbl[];
 #define MTO_DATA_RATE()			MTO_Data_Rate_Tbl[MTO_RATE_LEVEL()]
 #define MTO_FRAG_TH()			MTO_Frag_Th_Tbl[MTO_FRAG_TH_LEVEL()]
 
-extern void MTO_Init(struct wbsoft_priv *);
-extern void MTO_PeriodicTimerExpired(struct wbsoft_priv *);
-extern void MTO_SetDTORateRange(struct wbsoft_priv *, u8 *, u8);
-extern u8 MTO_GetTxRate(struct wbsoft_priv *adapter, u32 fpdu_len);
-extern u8 MTO_GetTxFallbackRate(struct wbsoft_priv *adapter);
-extern void MTO_SetTxCount(struct wbsoft_priv *adapter, u8 t0, u8 index);
+void MTO_Init(struct wbsoft_priv *);
+void MTO_SetTxCount(struct wbsoft_priv *adapter, u8 t0, u8 index);
 
 #endif /* __MTO_H__ */
 

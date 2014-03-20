@@ -342,6 +342,8 @@ static int ml26124_hw_params(struct snd_pcm_substream *substream,
 	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int i = get_coeff(priv->mclk, params_rate(hw_params));
 
+	if (i < 0)
+		return i;
 	priv->substream = substream;
 	priv->rate = params_rate(hw_params);
 

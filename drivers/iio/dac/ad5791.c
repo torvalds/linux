@@ -91,6 +91,11 @@ struct ad5791_state {
 	unsigned			ctrl;
 	unsigned			pwr_down_mode;
 	bool				pwr_down;
+
+	union {
+		__be32 d32;
+		u8 d8[4];
+	} data[3] ____cacheline_aligned;
 };
 
 /**
@@ -104,48 +109,39 @@ enum ad5791_supported_device_ids {
 	ID_AD5791,
 };
 
-static int ad5791_spi_write(struct spi_device *spi, u8 addr, u32 val)
+static int ad5791_spi_write(struct ad5791_state *st, u8 addr, u32 val)
 {
-	union {
-		u32 d32;
-		u8 d8[4];
-	} data;
-
-	data.d32 = cpu_to_be32(AD5791_CMD_WRITE |
+	st->data[0].d32 = cpu_to_be32(AD5791_CMD_WRITE |
 			      AD5791_ADDR(addr) |
 			      (val & AD5791_DAC_MASK));
 
-	return spi_write(spi, &data.d8[1], 3);
+	return spi_write(st->spi, &st->data[0].d8[1], 3);
 }
 
-static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
+static int ad5791_spi_read(struct ad5791_state *st, u8 addr, u32 *val)
 {
-	union {
-		u32 d32;
-		u8 d8[4];
-	} data[3];
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
-			.tx_buf = &data[0].d8[1],
+			.tx_buf = &st->data[0].d8[1],
 			.bits_per_word = 8,
 			.len = 3,
 			.cs_change = 1,
 		}, {
-			.tx_buf = &data[1].d8[1],
-			.rx_buf = &data[2].d8[1],
+			.tx_buf = &st->data[1].d8[1],
+			.rx_buf = &st->data[2].d8[1],
 			.bits_per_word = 8,
 			.len = 3,
 		},
 	};
 
-	data[0].d32 = cpu_to_be32(AD5791_CMD_READ |
+	st->data[0].d32 = cpu_to_be32(AD5791_CMD_READ |
 			      AD5791_ADDR(addr));
-	data[1].d32 = cpu_to_be32(AD5791_ADDR(AD5791_ADDR_NOOP));
+	st->data[1].d32 = cpu_to_be32(AD5791_ADDR(AD5791_ADDR_NOOP));
 
-	ret = spi_sync_transfer(spi, xfers, ARRAY_SIZE(xfers));
+	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 
-	*val = be32_to_cpu(data[2].d32);
+	*val = be32_to_cpu(st->data[2].d32);
 
 	return ret;
 }
@@ -210,7 +206,7 @@ static ssize_t ad5791_write_dac_powerdown(struct iio_dev *indio_dev,
 	}
 	st->pwr_down = pwr_down;
 
-	ret = ad5791_spi_write(st->spi, AD5791_ADDR_CTRL, st->ctrl);
+	ret = ad5791_spi_write(st, AD5791_ADDR_CTRL, st->ctrl);
 
 	return ret ? ret : len;
 }
@@ -263,16 +259,16 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		ret = ad5791_spi_read(st->spi, chan->address, val);
+		ret = ad5791_spi_read(st, chan->address, val);
 		if (ret)
 			return ret;
 		*val &= AD5791_DAC_MASK;
 		*val >>= chan->scan_type.shift;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = (((u64)st->vref_mv) * 1000000ULL) >> chan->scan_type.realbits;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = st->vref_mv;
+		*val2 = (1 << chan->scan_type.realbits) - 1;
+		return IIO_VAL_FRACTIONAL;
 	case IIO_CHAN_INFO_OFFSET:
 		val64 = (((u64)st->vref_neg_mv) << chan->scan_type.realbits);
 		do_div(val64, st->vref_mv);
@@ -287,16 +283,17 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
 	{
 		.name = "powerdown",
-		.shared = true,
+		.shared = IIO_SHARED_BY_TYPE,
 		.read = ad5791_read_dac_powerdown,
 		.write = ad5791_write_dac_powerdown,
 	},
-	IIO_ENUM("powerdown_mode", true, &ad5791_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
+		 &ad5791_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5791_powerdown_mode_enum),
 	{ },
 };
 
-#define AD5791_CHAN(bits, shift) {			\
+#define AD5791_CHAN(bits, _shift) {			\
 	.type = IIO_VOLTAGE,				\
 	.output = 1,					\
 	.indexed = 1,					\
@@ -305,7 +302,12 @@ static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
 		BIT(IIO_CHAN_INFO_OFFSET),		\
-	.scan_type = IIO_ST('u', bits, 24, shift),	\
+	.scan_type = {					\
+		.sign = 'u',				\
+		.realbits = (bits),			\
+		.storagebits = 24,			\
+		.shift = (_shift),			\
+	},						\
 	.ext_info = ad5791_ext_info,			\
 }
 
@@ -329,7 +331,7 @@ static int ad5791_write_raw(struct iio_dev *indio_dev,
 		val &= AD5791_RES_MASK(chan->scan_type.realbits);
 		val <<= chan->scan_type.shift;
 
-		return ad5791_spi_write(st->spi, chan->address, val);
+		return ad5791_spi_write(st, chan->address, val);
 
 	default:
 		return -EINVAL;
@@ -392,7 +394,7 @@ static int ad5791_probe(struct spi_device *spi)
 		dev_warn(&spi->dev, "reference voltage unspecified\n");
 	}
 
-	ret = ad5791_spi_write(spi, AD5791_ADDR_SW_CTRL, AD5791_SWCTRL_RESET);
+	ret = ad5791_spi_write(st, AD5791_ADDR_SW_CTRL, AD5791_SWCTRL_RESET);
 	if (ret)
 		goto error_disable_reg_neg;
 
@@ -404,7 +406,7 @@ static int ad5791_probe(struct spi_device *spi)
 		  | ((pdata && pdata->use_rbuf_gain2) ? 0 : AD5791_CTRL_RBUF) |
 		  AD5791_CTRL_BIN2SC;
 
-	ret = ad5791_spi_write(spi, AD5791_ADDR_CTRL, st->ctrl |
+	ret = ad5791_spi_write(st, AD5791_ADDR_CTRL, st->ctrl |
 		AD5791_CTRL_OPGND | AD5791_CTRL_DACTRI);
 	if (ret)
 		goto error_disable_reg_neg;

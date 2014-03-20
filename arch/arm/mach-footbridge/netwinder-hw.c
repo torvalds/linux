@@ -692,14 +692,14 @@ static void netwinder_led_set(struct led_classdev *cdev,
 	unsigned long flags;
 	u32 reg;
 
-	spin_lock_irqsave(&nw_gpio_lock, flags);
+	raw_spin_lock_irqsave(&nw_gpio_lock, flags);
 	reg = nw_gpio_read();
 	if (b != LED_OFF)
 		reg &= ~led->mask;
 	else
 		reg |= led->mask;
 	nw_gpio_modify_op(led->mask, reg);
-	spin_unlock_irqrestore(&nw_gpio_lock, flags);
+	raw_spin_unlock_irqrestore(&nw_gpio_lock, flags);
 }
 
 static enum led_brightness netwinder_led_get(struct led_classdev *cdev)
@@ -709,9 +709,9 @@ static enum led_brightness netwinder_led_get(struct led_classdev *cdev)
 	unsigned long flags;
 	u32 reg;
 
-	spin_lock_irqsave(&nw_gpio_lock, flags);
+	raw_spin_lock_irqsave(&nw_gpio_lock, flags);
 	reg = nw_gpio_read();
-	spin_unlock_irqrestore(&nw_gpio_lock, flags);
+	raw_spin_unlock_irqrestore(&nw_gpio_lock, flags);
 
 	return (reg & led->mask) ? LED_OFF : LED_FULL;
 }

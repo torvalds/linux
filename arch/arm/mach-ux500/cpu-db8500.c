@@ -21,21 +21,31 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regulator/machine.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
 #include <linux/random.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
 
 #include "setup.h"
-#include "devices.h"
 #include "irqs.h"
 
-#include "devices-db8500.h"
-#include "ste-dma40-db8500.h"
-#include "db8500-regs.h"
+#include "board-mop500-regulators.h"
 #include "board-mop500.h"
+#include "db8500-regs.h"
 #include "id.h"
+
+struct ab8500_platform_data ab8500_platdata = {
+	.irq_base	= MOP500_AB8500_IRQ_BASE,
+	.regulator	= &ab8500_regulator_plat_data,
+};
+
+struct prcmu_pdata db8500_prcmu_pdata = {
+	.ab_platdata	= &ab8500_platdata,
+	.ab_irq		= IRQ_DB8500_AB8500,
+	.irq_base	= IRQ_PRCMU_BASE,
+	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
+	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
+};
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_uart_io_desc[] __initdata = {
@@ -93,14 +103,6 @@ void __init u8500_map_io(void)
 		iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
 }
 
-static struct resource db8500_pmu_resources[] = {
-	[0] = {
-		.start		= IRQ_DB8500_PMU,
-		.end		= IRQ_DB8500_PMU,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
 /*
  * The PMU IRQ lines of two cores are wired together into a single interrupt.
  * Bounce the interrupt to the other core if it's not ours.
@@ -125,54 +127,6 @@ struct arm_pmu_platdata db8500_pmu_platdata = {
 	.handle_irq		= db8500_pmu_handler,
 };
 
-static struct platform_device db8500_pmu_device = {
-	.name			= "arm-pmu",
-	.id			= -1,
-	.num_resources		= ARRAY_SIZE(db8500_pmu_resources),
-	.resource		= db8500_pmu_resources,
-	.dev.platform_data	= &db8500_pmu_platdata,
-};
-
-static struct platform_device *platform_devs[] __initdata = {
-	&u8500_dma40_device,
-	&db8500_pmu_device,
-};
-
-static resource_size_t __initdata db8500_gpio_base[] = {
-	U8500_GPIOBANK0_BASE,
-	U8500_GPIOBANK1_BASE,
-	U8500_GPIOBANK2_BASE,
-	U8500_GPIOBANK3_BASE,
-	U8500_GPIOBANK4_BASE,
-	U8500_GPIOBANK5_BASE,
-	U8500_GPIOBANK6_BASE,
-	U8500_GPIOBANK7_BASE,
-	U8500_GPIOBANK8_BASE,
-};
-
-static void __init db8500_add_gpios(struct device *parent)
-{
-	struct nmk_gpio_platform_data pdata = {
-		.supports_sleepmode = true,
-	};
-
-	dbx500_add_gpios(parent, db8500_gpio_base,
-			 ARRAY_SIZE(db8500_gpio_base),
-			 IRQ_DB8500_GPIO0, &pdata);
-	dbx500_add_pinctrl(parent, "pinctrl-db8500", U8500_PRCMU_BASE);
-}
-
-static int usb_db8500_dma_cfg[] = {
-	DB8500_DMA_DEV38_USB_OTG_IEP_AND_OEP_1_9,
-	DB8500_DMA_DEV37_USB_OTG_IEP_AND_OEP_2_10,
-	DB8500_DMA_DEV36_USB_OTG_IEP_AND_OEP_3_11,
-	DB8500_DMA_DEV19_USB_OTG_IEP_AND_OEP_4_12,
-	DB8500_DMA_DEV18_USB_OTG_IEP_AND_OEP_5_13,
-	DB8500_DMA_DEV17_USB_OTG_IEP_AND_OEP_6_14,
-	DB8500_DMA_DEV16_USB_OTG_IEP_AND_OEP_7_15,
-	DB8500_DMA_DEV39_USB_OTG_IEP_AND_OEP_8
-};
-
 static const char *db8500_read_soc_id(void)
 {
 	void __iomem *uid = __io_address(U8500_BB_UID_BASE);
@@ -192,86 +146,34 @@ static struct device * __init db8500_soc_device_init(void)
 	return ux500_soc_device_init(soc_id);
 }
 
-/*
- * This function is called from the board init
- */
-struct device * __init u8500_init_devices(void)
-{
-	struct device *parent;
-	int i;
-
-	parent = db8500_soc_device_init();
-
-	db8500_add_rtc(parent);
-	db8500_add_gpios(parent);
-	db8500_add_usb(parent, usb_db8500_dma_cfg, usb_db8500_dma_cfg);
-
-	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
-		platform_devs[i]->dev.parent = parent;
-
-	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
-
-	return parent;
-}
-
 #ifdef CONFIG_MACH_UX500_DT
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
 	/* Requires DMA bindings. */
-	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", NULL),
-	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", NULL),
-	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", NULL),
-	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
-	OF_DEV_AUXDATA("arm,pl18x", 0x80126000, "sdi0",  NULL),
-	OF_DEV_AUXDATA("arm,pl18x", 0x80118000, "sdi1",  NULL),
-	OF_DEV_AUXDATA("arm,pl18x", 0x80005000, "sdi2",  NULL),
-	OF_DEV_AUXDATA("arm,pl18x", 0x80114000, "sdi4",  NULL),
-	/* Requires clock name bindings. */
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e000, "gpio.0", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e080, "gpio.1", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e000, "gpio.2", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e080, "gpio.3", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e100, "gpio.4", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e180, "gpio.5", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e000, "gpio.6", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e080, "gpio.7", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", 0xa03fe000, "gpio.8", NULL),
-	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80004000, "nmk-i2c.0", NULL),
-	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80122000, "nmk-i2c.1", NULL),
-	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80128000, "nmk-i2c.2", NULL),
-	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80110000, "nmk-i2c.3", NULL),
-	OF_DEV_AUXDATA("st,nomadik-i2c", 0x8012a000, "nmk-i2c.4", NULL),
-	OF_DEV_AUXDATA("stericsson,db8500-musb", 0xa03e0000, "musb-ux500.0", NULL),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80126000, "sdi0",  &mop500_sdi0_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80118000, "sdi1",  &mop500_sdi1_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80005000, "sdi2",  &mop500_sdi2_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80114000, "sdi4",  &mop500_sdi4_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80123000,
+		       "ux500-msp-i2s.0", &msp0_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80124000,
+		       "ux500-msp-i2s.1", &msp1_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80117000,
+		       "ux500-msp-i2s.2", &msp2_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
+		       "ux500-msp-i2s.3", &msp3_platform_data),
+	/* Requires non-DT:able platform data. */
 	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu",
 			&db8500_prcmu_pdata),
-	OF_DEV_AUXDATA("smsc,lan9115", 0x50000000, "smsc911x.0", NULL),
 	OF_DEV_AUXDATA("stericsson,ux500-cryp", 0xa03cb000, "cryp1", NULL),
 	OF_DEV_AUXDATA("stericsson,ux500-hash", 0xa03c2000, "hash1", NULL),
 	OF_DEV_AUXDATA("stericsson,snd-soc-mop500", 0, "snd-soc-mop500.0",
 			NULL),
-	/* Requires device name bindings. */
-	OF_DEV_AUXDATA("stericsson,db8500-pinctrl", U8500_PRCMU_BASE,
-		"pinctrl-db8500", NULL),
-	/* Requires clock name and DMA bindings. */
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80123000,
-		"ux500-msp-i2s.0", &msp0_platform_data),
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80124000,
-		"ux500-msp-i2s.1", &msp1_platform_data),
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80117000,
-		"ux500-msp-i2s.2", &msp2_platform_data),
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
-		"ux500-msp-i2s.3", &msp3_platform_data),
-	/* Requires clock name bindings and channel address lookup table. */
-	OF_DEV_AUXDATA("stericsson,db8500-dma40", 0x801C0000, "dma40.0", NULL),
 	{},
 };
 
 static struct of_dev_auxdata u8540_auxdata_lookup[] __initdata = {
-	/* Requires DMA bindings. */
-	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", NULL),
-	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", NULL),
-	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", NULL),
 	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu",
 			&db8500_prcmu_pdata),
 	{},

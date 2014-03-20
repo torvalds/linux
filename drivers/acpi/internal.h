@@ -26,14 +26,8 @@
 acpi_status acpi_os_initialize1(void);
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
-#ifdef	CONFIG_ACPI_PCI_SLOT
-void acpi_pci_slot_init(void);
-#else
-static inline void acpi_pci_slot_init(void) { }
-#endif
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
-void acpi_pci_root_hp_init(void);
 void acpi_processor_init(void);
 void acpi_platform_init(void);
 int acpi_sysfs_init(void);
@@ -78,6 +72,9 @@ void acpi_lpss_init(void);
 static inline void acpi_lpss_init(void) {}
 #endif
 
+bool acpi_queue_hotplug_work(struct work_struct *work);
+bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
+
 /* --------------------------------------------------------------------------
                      Device Node Initialization / Removal
    -------------------------------------------------------------------------- */
@@ -90,8 +87,9 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
 void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
-int acpi_bind_one(struct device *dev, acpi_handle handle);
+int acpi_bind_one(struct device *dev, struct acpi_device *adev);
 int acpi_unbind_one(struct device *dev);
+bool acpi_device_is_present(struct acpi_device *adev);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
@@ -108,6 +106,8 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
+
+int acpi_device_update_power(struct acpi_device *device, int *state_p);
 
 int acpi_wakeup_device_init(void);
 void acpi_early_processor_set_pdc(void);
@@ -131,12 +131,21 @@ struct acpi_ec {
 
 extern struct acpi_ec *first_ec;
 
+/* If we find an EC via the ECDT, we need to keep a ptr to its context */
+/* External interfaces use first EC only, so remember */
+typedef int (*acpi_ec_query_func) (void *data);
+
 int acpi_ec_init(void);
 int acpi_ec_ecdt_probe(void);
 int acpi_boot_ec_enable(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
 void acpi_ec_unblock_transactions_early(void);
+int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
+			      acpi_handle handle, acpi_ec_query_func func,
+			      void *data);
+void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
+
 
 /*--------------------------------------------------------------------------
                                   Suspend/Resume
@@ -169,9 +178,7 @@ int acpi_create_platform_device(struct acpi_device *adev,
 					Video
   -------------------------------------------------------------------------- */
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
-bool acpi_video_backlight_quirks(void);
-#else
-static inline bool acpi_video_backlight_quirks(void) { return false; }
+bool acpi_osi_is_win8(void);
 #endif
 
 #endif /* _ACPI_INTERNAL_H_ */

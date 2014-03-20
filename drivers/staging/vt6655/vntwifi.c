@@ -494,7 +494,7 @@ VNTWIFIvUpdateNodeTxCounter(
 		}
 	}
 	pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts++;
-	if (bTxOk == true) {
+	if (bTxOk) {
 		// transmit success, TxAttempts at least plus one
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[MAX_RATE]++;
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[wRate]++;
@@ -584,7 +584,7 @@ VNTWIFIbyGetKeyCypher(
 {
 	PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;
 
-	if (bGroupKey == true) {
+	if (bGroupKey) {
 		return pMgmt->byCSSGK;
 	} else {
 		return pMgmt->byCSSPK;
@@ -731,7 +731,7 @@ VNTWIFIbMeasureReport(
 		pMgmt->uLengthOfRepEIDs += (2 + pMgmt->pCurrMeasureEIDRep->len);
 		pMgmt->pCurrMeasureEIDRep = (PWLAN_IE_MEASURE_REP) pbyCurrentEID;
 	}
-	if (bEndOfReport == true) {
+	if (bEndOfReport) {
 		IEEE11hbMSRRepTx(pMgmt);
 	}
 	//spin_unlock_irq(&pDevice->lock);
@@ -752,25 +752,3 @@ VNTWIFIbChannelSwitch(
 	//spin_unlock_irq(&pDevice->lock);
 	return true;
 }
-
-/*
-  bool
-  VNTWIFIbRadarPresent(
-  void *pMgmtObject,
-  unsigned char byChannel
-) {
-  PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
-  if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
-  (byChannel == (unsigned char) pMgmt->uCurrChannel) &&
-  (pMgmt->bSwitchChannel != true) &&
-  (pMgmt->b11hEnable == true)) {
-  if (!compare_ether_addr(pMgmt->abyIBSSDFSOwner, CARDpGetCurrentAddress(pMgmt->pAdapter))) {
-  pMgmt->byNewChannel = CARDbyAutoChannelSelect(pMgmt->pAdapter,(unsigned char) pMgmt->uCurrChannel);
-  pMgmt->bSwitchChannel = true;
-  }
-  BEACONbSendBeacon(pMgmt);
-  CARDbChannelSwitch(pMgmt->pAdapter, 0, pMgmt->byNewChannel, 10);
-  }
-  return true;
-  }
-*/

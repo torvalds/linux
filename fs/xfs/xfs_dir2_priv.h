@@ -59,7 +59,8 @@ extern int xfs_dir3_data_readahead(struct xfs_trans *tp, struct xfs_inode *dp,
 
 extern struct xfs_dir2_data_free *
 xfs_dir2_data_freeinsert(struct xfs_dir2_data_hdr *hdr,
-		struct xfs_dir2_data_unused *dup, int *loghead);
+		struct xfs_dir2_data_free *bf, struct xfs_dir2_data_unused *dup,
+		int *loghead);
 extern int xfs_dir3_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
 		struct xfs_buf **bpp);
 
@@ -76,9 +77,9 @@ extern void xfs_dir3_leaf_compact_x1(struct xfs_dir3_icleaf_hdr *leafhdr,
 		int *lowstalep, int *highstalep, int *lowlogp, int *highlogp);
 extern int xfs_dir3_leaf_get_buf(struct xfs_da_args *args, xfs_dir2_db_t bno,
 		struct xfs_buf **bpp, __uint16_t magic);
-extern void xfs_dir3_leaf_log_ents(struct xfs_trans *tp, struct xfs_buf *bp,
-		int first, int last);
-extern void xfs_dir3_leaf_log_header(struct xfs_trans *tp,
+extern void xfs_dir3_leaf_log_ents(struct xfs_trans *tp, struct xfs_inode *dp,
+		struct xfs_buf *bp, int first, int last);
+extern void xfs_dir3_leaf_log_header(struct xfs_trans *tp, struct xfs_inode *dp,
 		struct xfs_buf *bp);
 extern int xfs_dir2_leaf_lookup(struct xfs_da_args *args);
 extern int xfs_dir2_leaf_removename(struct xfs_da_args *args);
@@ -93,21 +94,18 @@ xfs_dir3_leaf_find_entry(struct xfs_dir3_icleaf_hdr *leafhdr,
 		int lowstale, int highstale, int *lfloglow, int *lfloghigh);
 extern int xfs_dir2_node_to_leaf(struct xfs_da_state *state);
 
-extern void xfs_dir3_leaf_hdr_from_disk(struct xfs_dir3_icleaf_hdr *to,
-		struct xfs_dir2_leaf *from);
-extern void xfs_dir3_leaf_hdr_to_disk(struct xfs_dir2_leaf *to,
-		struct xfs_dir3_icleaf_hdr *from);
-extern bool xfs_dir3_leaf_check_int(struct xfs_mount *mp,
+extern bool xfs_dir3_leaf_check_int(struct xfs_mount *mp, struct xfs_inode *dp,
 		struct xfs_dir3_icleaf_hdr *hdr, struct xfs_dir2_leaf *leaf);
 
 /* xfs_dir2_node.c */
 extern int xfs_dir2_leaf_to_node(struct xfs_da_args *args,
 		struct xfs_buf *lbp);
-extern xfs_dahash_t xfs_dir2_leafn_lasthash(struct xfs_buf *bp, int *count);
+extern xfs_dahash_t xfs_dir2_leafn_lasthash(struct xfs_inode *dp,
+		struct xfs_buf *bp, int *count);
 extern int xfs_dir2_leafn_lookup_int(struct xfs_buf *bp,
 		struct xfs_da_args *args, int *indexp,
 		struct xfs_da_state *state);
-extern int xfs_dir2_leafn_order(struct xfs_buf *leaf1_bp,
+extern int xfs_dir2_leafn_order(struct xfs_inode *dp, struct xfs_buf *leaf1_bp,
 		struct xfs_buf *leaf2_bp);
 extern int xfs_dir2_leafn_split(struct xfs_da_state *state,
 	struct xfs_da_state_blk *oldblk, struct xfs_da_state_blk *newblk);

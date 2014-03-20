@@ -235,7 +235,7 @@ static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	int offset;
 
 	/* Get clock rate after clock is enabled */
-	clk_enable(pd->clk);
+	clk_prepare_enable(pd->clk);
 	i2c_clk_khz = clk_get_rate(pd->clk) / 1000;
 	i2c_clk_khz /= pd->clks_per_count;
 
@@ -270,14 +270,14 @@ static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 		pd->icic &= ~ICIC_ICCHB8;
 
 out:
-	clk_disable(pd->clk);
+	clk_disable_unprepare(pd->clk);
 }
 
 static void activate_ch(struct sh_mobile_i2c_data *pd)
 {
 	/* Wake up device and enable clock */
 	pm_runtime_get_sync(pd->dev);
-	clk_enable(pd->clk);
+	clk_prepare_enable(pd->clk);
 
 	/* Enable channel and configure rx ack */
 	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
@@ -300,7 +300,7 @@ static void deactivate_ch(struct sh_mobile_i2c_data *pd)
 	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
 
 	/* Disable clock and mark device as idle */
-	clk_disable(pd->clk);
+	clk_disable_unprepare(pd->clk);
 	pm_runtime_put_sync(pd->dev);
 }
 

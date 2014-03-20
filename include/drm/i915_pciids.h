@@ -208,4 +208,29 @@
 #define INTEL_VLV_D_IDS(info) \
 	INTEL_VGA_DEVICE(0x0155, info)
 
+#define _INTEL_BDW_M(gt, id, info) \
+	INTEL_VGA_DEVICE((((gt) - 1) << 4) | (id), info)
+#define _INTEL_BDW_D(gt, id, info) \
+	INTEL_VGA_DEVICE((((gt) - 1) << 4) | (id), info)
+
+#define _INTEL_BDW_M_IDS(gt, info) \
+	_INTEL_BDW_M(gt, 0x1602, info), /* ULT */ \
+	_INTEL_BDW_M(gt, 0x1606, info), /* ULT */ \
+	_INTEL_BDW_M(gt, 0x160B, info), /* Iris */ \
+	_INTEL_BDW_M(gt, 0x160E, info) /* ULX */
+
+#define _INTEL_BDW_D_IDS(gt, info) \
+	_INTEL_BDW_D(gt, 0x160A, info), /* Server */ \
+	_INTEL_BDW_D(gt, 0x160D, info) /* Workstation */
+
+#define INTEL_BDW_M_IDS(info) \
+	_INTEL_BDW_M_IDS(1, info), \
+	_INTEL_BDW_M_IDS(2, info), \
+	_INTEL_BDW_M_IDS(3, info)
+
+#define INTEL_BDW_D_IDS(info) \
+	_INTEL_BDW_D_IDS(1, info), \
+	_INTEL_BDW_D_IDS(2, info), \
+	_INTEL_BDW_D_IDS(3, info)
+
 #endif /* _I915_PCIIDS_H */

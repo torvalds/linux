@@ -95,6 +95,7 @@ struct regulator_state {
  * @initial_state: Suspend state to set by default.
  * @initial_mode: Mode to set at startup.
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
+ * @enable_time: Turn-on time of the rails (unit: microseconds)
  */
 struct regulation_constraints {
 
@@ -129,6 +130,7 @@ struct regulation_constraints {
 	unsigned int initial_mode;
 
 	unsigned int ramp_delay;
+	unsigned int enable_time;
 
 	/* constraint flags */
 	unsigned always_on:1;	/* regulator never off when system is on */
@@ -193,13 +195,8 @@ int regulator_suspend_finish(void);
 
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
-void regulator_use_dummy_regulator(void);
 #else
 static inline void regulator_has_full_constraints(void)
-{
-}
-
-static inline void regulator_use_dummy_regulator(void)
 {
 }
 #endif

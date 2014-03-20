@@ -505,16 +505,14 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 			pin_free(pctldev, pins[i], NULL);
 		} else {
 			const char *gname;
-			const char *pname;
 
-			pname = desc ? desc->name : "non-existing";
 			gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 			dev_warn(pctldev->dev,
 				 "not freeing pin %d (%s) as part of "
 				 "deactivating group %s - it is already "
 				 "used for some other setting",
-				 pins[i], pname, gname);
+				 pins[i], desc->name, gname);
 		}
 	}
 

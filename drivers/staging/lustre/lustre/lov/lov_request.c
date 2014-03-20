@@ -245,7 +245,7 @@ int lov_update_enqueue_set(struct lov_request *req, __u32 mode, int rc)
 	osc_update_enqueue(lov_lockhp, loi, oi->oi_flags,
 			   &req->rq_oi.oi_md->lsm_oinfo[0]->loi_lvb, mode, rc);
 	if (rc == ELDLM_LOCK_ABORTED && (oi->oi_flags & LDLM_FL_HAS_INTENT))
-		memset(lov_lockhp, 0, sizeof *lov_lockhp);
+		memset(lov_lockhp, 0, sizeof(*lov_lockhp));
 	rc = lov_update_enqueue_lov(set->set_exp, lov_lockhp, loi, oi->oi_flags,
 				    req->rq_idx, &oi->oi_md->lsm_oi, rc);
 	lov_stripe_unlock(oi->oi_md);
@@ -343,7 +343,7 @@ static struct lov_lock_handles *lov_llh_new(struct lov_stripe_md *lsm)
 {
 	struct lov_lock_handles *llh;
 
-	OBD_ALLOC(llh, sizeof *llh +
+	OBD_ALLOC(llh, sizeof(*llh) +
 		  sizeof(*llh->llh_handles) * lsm->lsm_stripe_count);
 	if (llh == NULL)
 		return NULL;
@@ -630,7 +630,7 @@ static int common_attr_done(struct lov_request_set *set)
 	if (tmp_oa == NULL)
 		GOTO(out, rc = -ENOMEM);
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		if (!req->rq_complete || req->rq_rc)
@@ -669,7 +669,7 @@ static int brw_done(struct lov_request_set *set)
 	struct list_head *pos;
 	struct lov_request *req;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		if (!req->rq_complete || req->rq_rc)
@@ -835,7 +835,7 @@ int lov_fini_getattr_set(struct lov_request_set *set)
 	return rc;
 }
 
-/* The callback for osc_getattr_async that finilizes a request info when a
+/* The callback for osc_getattr_async that finalizes a request info when a
  * response is received. */
 static int cb_getattr_update(void *cookie, int rc)
 {
@@ -1017,7 +1017,7 @@ int lov_update_setattr_set(struct lov_request_set *set,
 	return rc;
 }
 
-/* The callback for osc_setattr_async that finilizes a request info when a
+/* The callback for osc_setattr_async that finalizes a request info when a
  * response is received. */
 static int cb_setattr_update(void *cookie, int rc)
 {
@@ -1140,7 +1140,7 @@ int lov_update_punch_set(struct lov_request_set *set,
 	return rc;
 }
 
-/* The callback for osc_punch that finilizes a request info when a response
+/* The callback for osc_punch that finalizes a request info when a response
  * is received. */
 static int cb_update_punch(void *cookie, int rc)
 {
@@ -1236,8 +1236,8 @@ int lov_fini_sync_set(struct lov_request_set *set)
 	return rc;
 }
 
-/* The callback for osc_sync that finilizes a request info when a
- * response is recieved. */
+/* The callback for osc_sync that finalizes a request info when a
+ * response is received. */
 static int cb_sync_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
@@ -1315,7 +1315,7 @@ out_set:
 			(tot) = LOV_U64_MAX;			    \
 		else						    \
 			(tot) += (add);				 \
-	} while(0)
+	} while (0)
 
 int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,int success)
 {
@@ -1407,7 +1407,7 @@ void lov_update_statfs(struct obd_statfs *osfs, struct obd_statfs *lov_sfs,
 	}
 }
 
-/* The callback for osc_statfs_async that finilizes a request info when a
+/* The callback for osc_statfs_async that finalizes a request info when a
  * response is received. */
 static int cb_statfs_update(void *cookie, int rc)
 {
@@ -1485,7 +1485,7 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 			continue;
 		}
 
-		/* skip targets that have been explicitely disabled by the
+		/* skip targets that have been explicitly disabled by the
 		 * administrator */
 		if (!lov->lov_tgts[i]->ltd_exp) {
 			CDEBUG(D_HA, "lov idx %d administratively disabled\n", i);

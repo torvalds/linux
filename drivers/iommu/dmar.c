@@ -52,6 +52,9 @@ LIST_HEAD(dmar_drhd_units);
 struct acpi_table_header * __initdata dmar_tbl;
 static acpi_size dmar_tbl_size;
 
+static int alloc_iommu(struct dmar_drhd_unit *drhd);
+static void free_iommu(struct intel_iommu *iommu);
+
 static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 {
 	/*
@@ -88,7 +91,7 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 			pr_warn("Device scope bus [%d] not found\n", scope->bus);
 			break;
 		}
-		pdev = pci_get_slot(bus, PCI_DEVFN(path->dev, path->fn));
+		pdev = pci_get_slot(bus, PCI_DEVFN(path->device, path->function));
 		if (!pdev) {
 			/* warning will be printed below */
 			break;
@@ -99,8 +102,7 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 	}
 	if (!pdev) {
 		pr_warn("Device scope device [%04x:%02x:%02x.%02x] not found\n",
-			segment, scope->bus, path->dev, path->fn);
-		*dev = NULL;
+			segment, scope->bus, path->device, path->function);
 		return 0;
 	}
 	if ((scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT && \
@@ -151,7 +153,7 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 			ret = dmar_parse_one_dev_scope(scope,
 				&(*devices)[index], segment);
 			if (ret) {
-				kfree(*devices);
+				dmar_free_dev_scope(devices, cnt);
 				return ret;
 			}
 			index ++;
@@ -160,6 +162,17 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 	}
 
 	return 0;
+}
+
+void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt)
+{
+	if (*devices && *cnt) {
+		while (--*cnt >= 0)
+			pci_dev_put((*devices)[*cnt]);
+		kfree(*devices);
+		*devices = NULL;
+		*cnt = 0;
+	}
 }
 
 /**
@@ -193,25 +206,28 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	return 0;
 }
 
+static void dmar_free_drhd(struct dmar_drhd_unit *dmaru)
+{
+	if (dmaru->devices && dmaru->devices_cnt)
+		dmar_free_dev_scope(&dmaru->devices, &dmaru->devices_cnt);
+	if (dmaru->iommu)
+		free_iommu(dmaru->iommu);
+	kfree(dmaru);
+}
+
 static int __init dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 {
 	struct acpi_dmar_hardware_unit *drhd;
-	int ret = 0;
 
 	drhd = (struct acpi_dmar_hardware_unit *) dmaru->hdr;
 
 	if (dmaru->include_all)
 		return 0;
 
-	ret = dmar_parse_dev_scope((void *)(drhd + 1),
-				((void *)drhd) + drhd->header.length,
-				&dmaru->devices_cnt, &dmaru->devices,
-				drhd->segment);
-	if (ret) {
-		list_del(&dmaru->list);
-		kfree(dmaru);
-	}
-	return ret;
+	return dmar_parse_dev_scope((void *)(drhd + 1),
+				    ((void *)drhd) + drhd->header.length,
+				    &dmaru->devices_cnt, &dmaru->devices,
+				    drhd->segment);
 }
 
 #ifdef CONFIG_ACPI_NUMA
@@ -403,7 +419,7 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 
 	dev = pci_physfn(dev);
 
-	list_for_each_entry(dmaru, &dmar_drhd_units, list) {
+	for_each_drhd_unit(dmaru) {
 		drhd = container_of(dmaru->hdr,
 				    struct acpi_dmar_hardware_unit,
 				    header);
@@ -423,7 +439,7 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 int __init dmar_dev_scope_init(void)
 {
 	static int dmar_dev_scope_initialized;
-	struct dmar_drhd_unit *drhd, *drhd_n;
+	struct dmar_drhd_unit *drhd;
 	int ret = -ENODEV;
 
 	if (dmar_dev_scope_initialized)
@@ -432,7 +448,7 @@ int __init dmar_dev_scope_init(void)
 	if (list_empty(&dmar_drhd_units))
 		goto fail;
 
-	list_for_each_entry_safe(drhd, drhd_n, &dmar_drhd_units, list) {
+	list_for_each_entry(drhd, &dmar_drhd_units, list) {
 		ret = dmar_parse_dev(drhd);
 		if (ret)
 			goto fail;
@@ -456,24 +472,23 @@ int __init dmar_table_init(void)
 	static int dmar_table_initialized;
 	int ret;
 
-	if (dmar_table_initialized)
-		return 0;
+	if (dmar_table_initialized == 0) {
+		ret = parse_dmar_table();
+		if (ret < 0) {
+			if (ret != -ENODEV)
+				pr_info("parse DMAR table failure.\n");
+		} else  if (list_empty(&dmar_drhd_units)) {
+			pr_info("No DMAR devices found\n");
+			ret = -ENODEV;
+		}
 
-	dmar_table_initialized = 1;
-
-	ret = parse_dmar_table();
-	if (ret) {
-		if (ret != -ENODEV)
-			pr_info("parse DMAR table failure.\n");
-		return ret;
+		if (ret < 0)
+			dmar_table_initialized = ret;
+		else
+			dmar_table_initialized = 1;
 	}
 
-	if (list_empty(&dmar_drhd_units)) {
-		pr_info("No DMAR devices found\n");
-		return -ENODEV;
-	}
-
-	return 0;
+	return dmar_table_initialized < 0 ? dmar_table_initialized : 0;
 }
 
 static void warn_invalid_dmar(u64 addr, const char *message)
@@ -488,7 +503,7 @@ static void warn_invalid_dmar(u64 addr, const char *message)
 		dmi_get_system_info(DMI_PRODUCT_VERSION));
 }
 
-int __init check_zero_address(void)
+static int __init check_zero_address(void)
 {
 	struct acpi_table_dmar *dmar;
 	struct acpi_dmar_header *entry_header;
@@ -546,14 +561,6 @@ int __init detect_intel_iommu(void)
 	if (ret)
 		ret = check_zero_address();
 	{
-		struct acpi_table_dmar *dmar;
-
-		dmar = (struct acpi_table_dmar *) dmar_tbl;
-
-		if (ret && irq_remapping_enabled && cpu_has_x2apic &&
-		    dmar->flags & 0x1)
-			pr_info("Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
-
 		if (ret && !no_iommu && !iommu_detected && !dmar_disabled) {
 			iommu_detected = 1;
 			/* Make sure ACS will be enabled */
@@ -565,7 +572,7 @@ int __init detect_intel_iommu(void)
 			x86_init.iommu.iommu_init = intel_iommu_init;
 #endif
 	}
-	early_acpi_os_unmap_memory(dmar_tbl, dmar_tbl_size);
+	early_acpi_os_unmap_memory((void __iomem *)dmar_tbl, dmar_tbl_size);
 	dmar_tbl = NULL;
 
 	return ret ? 1 : -ENODEV;
@@ -647,7 +654,7 @@ out:
 	return err;
 }
 
-int alloc_iommu(struct dmar_drhd_unit *drhd)
+static int alloc_iommu(struct dmar_drhd_unit *drhd)
 {
 	struct intel_iommu *iommu;
 	u32 ver, sts;
@@ -721,12 +728,19 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	return err;
 }
 
-void free_iommu(struct intel_iommu *iommu)
+static void free_iommu(struct intel_iommu *iommu)
 {
-	if (!iommu)
-		return;
+	if (iommu->irq) {
+		free_irq(iommu->irq, iommu);
+		irq_set_handler_data(iommu->irq, NULL);
+		destroy_irq(iommu->irq);
+	}
 
-	free_dmar_iommu(iommu);
+	if (iommu->qi) {
+		free_page((unsigned long)iommu->qi->desc);
+		kfree(iommu->qi->desc_status);
+		kfree(iommu->qi);
+	}
 
 	if (iommu->reg)
 		unmap_iommu(iommu);
@@ -1050,7 +1064,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	desc_page = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO, 0);
 	if (!desc_page) {
 		kfree(qi);
-		iommu->qi = 0;
+		iommu->qi = NULL;
 		return -ENOMEM;
 	}
 
@@ -1060,7 +1074,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	if (!qi->desc_status) {
 		free_page((unsigned long) qi->desc);
 		kfree(qi);
-		iommu->qi = 0;
+		iommu->qi = NULL;
 		return -ENOMEM;
 	}
 
@@ -1111,9 +1125,7 @@ static const char *irq_remap_fault_reasons[] =
 	"Blocked an interrupt request due to source-id verification failure",
 };
 
-#define MAX_FAULT_REASON_IDX 	(ARRAY_SIZE(fault_reason_strings) - 1)
-
-const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
+static const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
 {
 	if (fault_reason >= 0x20 && (fault_reason - 0x20 <
 					ARRAY_SIZE(irq_remap_fault_reasons))) {
@@ -1303,15 +1315,14 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 int __init enable_drhd_fault_handling(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 
 	/*
 	 * Enable fault control interrupt.
 	 */
-	for_each_drhd_unit(drhd) {
-		int ret;
-		struct intel_iommu *iommu = drhd->iommu;
+	for_each_iommu(iommu, drhd) {
 		u32 fault_status;
-		ret = dmar_set_interrupt(iommu);
+		int ret = dmar_set_interrupt(iommu);
 
 		if (ret) {
 			pr_err("DRHD %Lx: failed to enable fault, interrupt, ret %d\n",
@@ -1366,4 +1377,22 @@ int __init dmar_ir_support(void)
 		return 0;
 	return dmar->flags & 0x1;
 }
+
+static int __init dmar_free_unused_resources(void)
+{
+	struct dmar_drhd_unit *dmaru, *dmaru_n;
+
+	/* DMAR units are in use */
+	if (irq_remapping_enabled || intel_iommu_enabled)
+		return 0;
+
+	list_for_each_entry_safe(dmaru, dmaru_n, &dmar_drhd_units, list) {
+		list_del(&dmaru->list);
+		dmar_free_drhd(dmaru);
+	}
+
+	return 0;
+}
+
+late_initcall(dmar_free_unused_resources);
 IOMMU_INIT_POST(detect_intel_iommu);

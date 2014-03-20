@@ -222,15 +222,11 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 	struct me_private_data *dev_private = dev->private;
 	void __iomem *mmio_porta = dev_private->me_regbase + ME_DIO_PORT_A;
 	void __iomem *mmio_portb = dev_private->me_regbase + ME_DIO_PORT_B;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
+	unsigned int mask;
 	unsigned int val;
 
-	mask &= s->io_bits;	/* only update the COMEDI_OUTPUT channels */
+	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
 		if (mask & 0x0000ffff)
 			writew((s->state & 0xffff), mmio_porta);
 		if (mask & 0xffff0000)
@@ -545,7 +541,6 @@ static int me_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= me_dio_insn_bits;
 	s->insn_config	= me_dio_insn_config;
-	s->io_bits	= 0;
 
 	dev_info(dev->class_dev, "%s: %s attached\n",
 		dev->driver->driver_name, dev->board_name);
@@ -581,7 +576,7 @@ static int me_daq_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me_daq_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {
+static const struct pci_device_id me_daq_pci_table[] = {
 	{ PCI_VDEVICE(MEILHAUS, 0x2600), BOARD_ME2600 },
 	{ PCI_VDEVICE(MEILHAUS, 0x2000), BOARD_ME2000 },
 	{ 0 }

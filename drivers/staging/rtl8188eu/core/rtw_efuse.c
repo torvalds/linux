@@ -159,7 +159,7 @@ Efuse_CalculateWordCnts(u8 word_en)
 /*  */
 /* 	Description: */
 /* 		Execute E-Fuse read byte operation. */
-/* 		Refered from SD1 Richard. */
+/* 		Referred from SD1 Richard. */
 /*  */
 /* 	Assumption: */
 /* 		1. Boot from E-Fuse and successfully auto-load. */
@@ -204,7 +204,7 @@ ReadEFuseByte(
 	/*  This fix the problem that Efuse read error in high temperature condition. */
 	/*  Designer says that there shall be some delay after ready bit is set, or the */
 	/*  result will always stay on last data we read. */
-	rtw_udelay_os(50);
+	udelay(50);
 	value32 = rtw_read32(Adapter, EFUSE_CTRL);
 
 	*pbuf = (u8)(value32 & 0xff);
@@ -214,7 +214,7 @@ ReadEFuseByte(
 /* 	Description: */
 /* 		1. Execute E-Fuse read byte operation according as map offset and */
 /* 		    save to E-Fuse table. */
-/* 		2. Refered from SD1 Richard. */
+/* 		2. Referred from SD1 Richard. */
 /*  */
 /* 	Assumption: */
 /* 		1. Boot from E-Fuse and successfully auto-load. */
@@ -542,7 +542,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 {
 	u8 offset, word_en;
 	u8 *map;
-	u8 newdata[PGPKT_DATA_SIZE];
+	u8 newdata[PGPKT_DATA_SIZE + 1];
 	s32	i, idx;
 	u8 ret = _SUCCESS;
 	u16 mapLen = 0;
@@ -564,7 +564,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 
 	offset = (addr >> 3);
 	word_en = 0xF;
-	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE + 1);
 	i = addr & 0x7;	/*  index of one package */
 	idx = 0;	/*  data index */
 
@@ -634,7 +634,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 {
 	u8 offset, word_en;
 	u8 *map;
-	u8 newdata[PGPKT_DATA_SIZE];
+	u8 newdata[PGPKT_DATA_SIZE + 1];
 	s32	i, idx;
 	u8 ret = _SUCCESS;
 	u16 mapLen = 0;
@@ -656,7 +656,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 
 	offset = (addr >> 3);
 	word_en = 0xF;
-	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE + 1);
 	i = addr & 0x7;	/*  index of one package */
 	idx = 0;	/*  data index */
 

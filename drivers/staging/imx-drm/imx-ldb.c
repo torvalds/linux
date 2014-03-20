@@ -167,9 +167,8 @@ static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 
 	/* set display clock mux to LDB input clock */
 	ret = clk_set_parent(ldb->clk_sel[mux], ldb->clk[chno]);
-	if (ret) {
+	if (ret)
 		dev_err(ldb->dev, "unable to set di%d parent clock to ldb_di%d\n", mux, chno);
-	}
 }
 
 static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
@@ -359,10 +358,8 @@ static int imx_ldb_get_clk(struct imx_ldb *ldb, int chno)
 
 	sprintf(clkname, "di%d_pll", chno);
 	ldb->clk_pll[chno] = devm_clk_get(ldb->dev, clkname);
-	if (IS_ERR(ldb->clk_pll[chno]))
-		return PTR_ERR(ldb->clk_pll[chno]);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(ldb->clk_pll[chno]);
 }
 
 static int imx_ldb_register(struct imx_ldb_channel *imx_ldb_ch)
@@ -416,12 +413,12 @@ enum {
 	LVDS_BIT_MAP_JEIDA
 };
 
-static const char *imx_ldb_bit_mappings[] = {
+static const char * const imx_ldb_bit_mappings[] = {
 	[LVDS_BIT_MAP_SPWG]  = "spwg",
 	[LVDS_BIT_MAP_JEIDA] = "jeida",
 };
 
-const int of_get_data_mapping(struct device_node *np)
+static const int of_get_data_mapping(struct device_node *np)
 {
 	const char *bm;
 	int ret, i;
@@ -466,8 +463,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
-			of_match_device(of_match_ptr(imx_ldb_dt_ids),
-					&pdev->dev);
+			of_match_device(imx_ldb_dt_ids, &pdev->dev);
 	struct device_node *child;
 	const u8 *edidp;
 	struct imx_ldb *imx_ldb;

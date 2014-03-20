@@ -15,7 +15,6 @@
  * the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -439,7 +438,7 @@ static int cypress_get_finger_count(unsigned char header_byte)
 			case 2: return 5;
 			default:
 				/* Invalid contact (e.g. palm). Ignore it. */
-				return -1;
+				return 0;
 		}
 	}
 
@@ -452,17 +451,10 @@ static int cypress_parse_packet(struct psmouse *psmouse,
 {
 	unsigned char *packet = psmouse->packet;
 	unsigned char header_byte = packet[0];
-	int contact_cnt;
 
 	memset(report_data, 0, sizeof(struct cytp_report_data));
 
-	contact_cnt = cypress_get_finger_count(header_byte);
-
-	if (contact_cnt < 0) /* e.g. palm detect */
-		return -EINVAL;
-
-	report_data->contact_cnt = contact_cnt;
-
+	report_data->contact_cnt = cypress_get_finger_count(header_byte);
 	report_data->tap = (header_byte & ABS_MULTIFINGER_TAP) ? 1 : 0;
 
 	if (report_data->contact_cnt == 1) {
@@ -535,11 +527,9 @@ static void cypress_process_packet(struct psmouse *psmouse, bool zero_pkt)
 	int slots[CYTP_MAX_MT_SLOTS];
 	int n;
 
-	if (cypress_parse_packet(psmouse, cytp, &report_data))
-		return;
+	cypress_parse_packet(psmouse, cytp, &report_data);
 
 	n = report_data.contact_cnt;
-
 	if (n > CYTP_MAX_MT_SLOTS)
 		n = CYTP_MAX_MT_SLOTS;
 
@@ -605,10 +595,6 @@ static psmouse_ret_t cypress_validate_byte(struct psmouse *psmouse)
 		return PSMOUSE_BAD_DATA;
 
 	contact_cnt = cypress_get_finger_count(packet[0]);
-
-	if (contact_cnt < 0)
-		return PSMOUSE_BAD_DATA;
-
 	if (cytp->mode & CYTP_BIT_ABS_NO_PRESSURE)
 		cypress_set_packet_size(psmouse, contact_cnt == 2 ? 7 : 4);
 	else
@@ -679,14 +665,14 @@ int cypress_init(struct psmouse *psmouse)
 {
 	struct cytp_data *cytp;
 
-	cytp = (struct cytp_data *)kzalloc(sizeof(struct cytp_data), GFP_KERNEL);
-	psmouse->private = (void *)cytp;
-	if (cytp == NULL)
+	cytp = kzalloc(sizeof(struct cytp_data), GFP_KERNEL);
+	if (!cytp)
 		return -ENOMEM;
 
-	cypress_reset(psmouse);
-
+	psmouse->private = cytp;
 	psmouse->pktsize = 8;
+
+	cypress_reset(psmouse);
 
 	if (cypress_query_hardware(psmouse)) {
 		psmouse_err(psmouse, "Unable to query Trackpad hardware.\n");

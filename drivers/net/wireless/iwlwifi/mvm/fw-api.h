@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,16 +72,16 @@
 #include "fw-api-d3.h"
 #include "fw-api-bt-coex.h"
 
-/* queue and FIFO numbers by usage */
+/* maximal number of Tx queues in any platform */
+#define IWL_MVM_MAX_QUEUES	20
+
+/* Tx queue numbers */
 enum {
 	IWL_MVM_OFFCHANNEL_QUEUE = 8,
 	IWL_MVM_CMD_QUEUE = 9,
-	IWL_MVM_AUX_QUEUE = 15,
-	IWL_MVM_FIRST_AGG_QUEUE = 16,
-	IWL_MVM_NUM_QUEUES = 20,
-	IWL_MVM_LAST_AGG_QUEUE = IWL_MVM_NUM_QUEUES - 1,
-	IWL_MVM_CMD_FIFO = 7
 };
+
+#define IWL_MVM_CMD_FIFO	7
 
 #define IWL_MVM_STATION_COUNT	16
 
@@ -97,6 +97,7 @@ enum {
 	DBG_CFG = 0x9,
 
 	/* station table */
+	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,
 	REMOVE_STA = 0x19,
 
@@ -114,6 +115,7 @@ enum {
 	TIME_EVENT_NOTIFICATION = 0x2a,
 	BINDING_CONTEXT_CMD = 0x2b,
 	TIME_QUOTA_CMD = 0x2c,
+	NON_QOS_TX_COUNTER_CMD = 0x2d,
 
 	LQ_CMD = 0x4e,
 
@@ -130,6 +132,7 @@ enum {
 	SCAN_OFFLOAD_COMPLETE = 0x6D,
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 	SCAN_OFFLOAD_CONFIG_CMD = 0x6f,
+	MATCH_FOUND_NOTIFICATION = 0xd9,
 
 	/* Phy */
 	PHY_CONFIGURATION_CMD = 0x6a,
@@ -138,6 +141,7 @@ enum {
 
 	/* Power - legacy power table command */
 	POWER_TABLE_CMD = 0x77,
+	PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
 
 	/* Thermal Throttling*/
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
@@ -178,7 +182,9 @@ enum {
 	BT_COEX_PRIO_TABLE = 0xcc,
 	BT_COEX_PROT_ENV = 0xcd,
 	BT_PROFILE_NOTIFICATION = 0xce,
+	BT_COEX_CI = 0x5d,
 
+	REPLY_SF_CFG_CMD = 0xd1,
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
 
 	REPLY_DEBUG_CMD = 0xf0,
@@ -1048,6 +1054,7 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_SEC_WEP_ENC			= (1 << 8),
 	RX_MPDU_RES_STATUS_SEC_CCM_ENC			= (2 << 8),
 	RX_MPDU_RES_STATUS_SEC_TKIP_ENC			= (3 << 8),
+	RX_MPDU_RES_STATUS_SEC_EXT_ENC			= (4 << 8),
 	RX_MPDU_RES_STATUS_SEC_CCM_CMAC_ENC		= (6 << 8),
 	RX_MPDU_RES_STATUS_SEC_ENC_ERR			= (7 << 8),
 	RX_MPDU_RES_STATUS_SEC_ENC_MSK			= (7 << 8),
@@ -1127,6 +1134,7 @@ struct iwl_set_calib_default_cmd {
 } __packed; /* PHY_CALIB_OVERRIDE_VALUES_S */
 
 #define MAX_PORT_ID_NUM	2
+#define MAX_MCAST_FILTERING_ADDRESSES 256
 
 /**
  * struct iwl_mcast_filter_cmd - configure multicast filter.
@@ -1358,5 +1366,66 @@ struct iwl_notif_statistics { /* STATISTICS_NTFY_API_S_VER_8 */
 	struct mvm_statistics_tx tx;
 	struct mvm_statistics_general general;
 } __packed;
+
+/***********************************
+ * Smart Fifo API
+ ***********************************/
+/* Smart Fifo state */
+enum iwl_sf_state {
+	SF_LONG_DELAY_ON = 0, /* should never be called by driver */
+	SF_FULL_ON,
+	SF_UNINIT,
+	SF_INIT_OFF,
+	SF_HW_NUM_STATES
+};
+
+/* Smart Fifo possible scenario */
+enum iwl_sf_scenario {
+	SF_SCENARIO_SINGLE_UNICAST,
+	SF_SCENARIO_AGG_UNICAST,
+	SF_SCENARIO_MULTICAST,
+	SF_SCENARIO_BA_RESP,
+	SF_SCENARIO_TX_RESP,
+	SF_NUM_SCENARIO
+};
+
+#define SF_TRANSIENT_STATES_NUMBER 2	/* SF_LONG_DELAY_ON and SF_FULL_ON */
+#define SF_NUM_TIMEOUT_TYPES 2		/* Aging timer and Idle timer */
+
+/* smart FIFO default values */
+#define SF_W_MARK_SISO 4096
+#define SF_W_MARK_MIMO2 8192
+#define SF_W_MARK_MIMO3 6144
+#define SF_W_MARK_LEGACY 4096
+#define SF_W_MARK_SCAN 4096
+
+/* SF Scenarios timers for FULL_ON state (aligned to 32 uSec) */
+#define SF_SINGLE_UNICAST_IDLE_TIMER 320	/* 300 uSec  */
+#define SF_SINGLE_UNICAST_AGING_TIMER 2016	/* 2 mSec */
+#define SF_AGG_UNICAST_IDLE_TIMER 320		/* 300 uSec */
+#define SF_AGG_UNICAST_AGING_TIMER 2016		/* 2 mSec */
+#define SF_MCAST_IDLE_TIMER 2016		/* 2 mSec */
+#define SF_MCAST_AGING_TIMER 10016		/* 10 mSec */
+#define SF_BA_IDLE_TIMER 320			/* 300 uSec */
+#define SF_BA_AGING_TIMER 2016			/* 2 mSec */
+#define SF_TX_RE_IDLE_TIMER 320			/* 300 uSec */
+#define SF_TX_RE_AGING_TIMER 2016		/* 2 mSec */
+
+#define SF_LONG_DELAY_AGING_TIMER 1000000	/* 1 Sec */
+
+/**
+ * Smart Fifo configuration command.
+ * @state: smart fifo state, types listed in iwl_sf_sate.
+ * @watermark: Minimum allowed availabe free space in RXF for transient state.
+ * @long_delay_timeouts: aging and idle timer values for each scenario
+ * in long delay state.
+ * @full_on_timeouts: timer values for each scenario in full on state.
+ */
+struct iwl_sf_cfg_cmd {
+	enum iwl_sf_state state;
+	__le32 watermark[SF_TRANSIENT_STATES_NUMBER];
+	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
+	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
+} __packed; /* SF_CFG_API_S_VER_2 */
 
 #endif /* __fw_api_h__ */

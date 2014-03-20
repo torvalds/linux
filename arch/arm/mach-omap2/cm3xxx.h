@@ -83,6 +83,7 @@ extern int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
 
 extern void omap3_cm_save_context(void);
 extern void omap3_cm_restore_context(void);
+extern void omap3_cm_save_scratchpad_contents(u32 *ptr);
 
 extern int __init omap3xxx_cm_init(void);
 

@@ -388,7 +388,7 @@ static void put_chip(struct map_info *map, struct flchip *chip)
 	wake_up(&chip->wq);
 }
 
-int do_write_buffer(struct map_info *map, struct flchip *chip,
+static int do_write_buffer(struct map_info *map, struct flchip *chip,
 			unsigned long adr, const struct kvec **pvec,
 			unsigned long *pvec_seek, int len)
 {
@@ -469,7 +469,7 @@ int do_write_buffer(struct map_info *map, struct flchip *chip,
 	return ret;
 }
 
-int do_erase_oneblock(struct mtd_info *mtd, loff_t adr)
+static int do_erase_oneblock(struct mtd_info *mtd, loff_t adr)
 {
 	struct map_info *map = mtd->priv;
 	struct lpddr_private *lpddr = map->fldrv_priv;
@@ -703,7 +703,7 @@ static int lpddr_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 #define DO_XXLOCK_LOCK		1
 #define DO_XXLOCK_UNLOCK	2
-int do_xxlock(struct mtd_info *mtd, loff_t adr, uint32_t len, int thunk)
+static int do_xxlock(struct mtd_info *mtd, loff_t adr, uint32_t len, int thunk)
 {
 	int ret = 0;
 	struct map_info *map = mtd->priv;
@@ -746,34 +746,6 @@ static int lpddr_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 static int lpddr_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	return do_xxlock(mtd, ofs, len, DO_XXLOCK_UNLOCK);
-}
-
-int word_program(struct map_info *map, loff_t adr, uint32_t curval)
-{
-    int ret;
-	struct lpddr_private *lpddr = map->fldrv_priv;
-	int chipnum = adr >> lpddr->chipshift;
-	struct flchip *chip = &lpddr->chips[chipnum];
-
-	mutex_lock(&chip->mutex);
-	ret = get_chip(map, chip, FL_WRITING);
-	if (ret) {
-		mutex_unlock(&chip->mutex);
-		return ret;
-	}
-
-	send_pfow_command(map, LPDDR_WORD_PROGRAM, adr, 0x00, (map_word *)&curval);
-
-	ret = wait_for_ready(map, chip, (1<<lpddr->qinfo->SingleWordProgTime));
-	if (ret)	{
-		printk(KERN_WARNING"%s word_program error at: %llx; val: %x\n",
-			map->name, adr, curval);
-		goto out;
-	}
-
-out:	put_chip(map, chip);
-	mutex_unlock(&chip->mutex);
-	return ret;
 }
 
 MODULE_LICENSE("GPL");

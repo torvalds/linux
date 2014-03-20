@@ -244,10 +244,10 @@ p9_fd_poll(struct p9_client *client, struct poll_table_struct *pt)
 	if (!ts)
 		return -EREMOTEIO;
 
-	if (!ts->rd->f_op || !ts->rd->f_op->poll)
+	if (!ts->rd->f_op->poll)
 		return -EIO;
 
-	if (!ts->wr->f_op || !ts->wr->f_op->poll)
+	if (!ts->wr->f_op->poll)
 		return -EIO;
 
 	ret = ts->rd->f_op->poll(ts->rd, pt);
@@ -1048,7 +1048,7 @@ p9_fd_create(struct p9_client *client, const char *addr, char *args)
 static struct p9_trans_module p9_tcp_trans = {
 	.name = "tcp",
 	.maxsize = MAX_SOCK_BUF,
-	.def = 1,
+	.def = 0,
 	.create = p9_fd_create_tcp,
 	.close = p9_fd_close,
 	.request = p9_fd_request,

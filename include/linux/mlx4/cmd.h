@@ -154,13 +154,10 @@ enum {
 	MLX4_CMD_QUERY_IF_STAT	 = 0X54,
 	MLX4_CMD_SET_IF_STAT	 = 0X55,
 
-	/* set port opcode modifiers */
-	MLX4_SET_PORT_PRIO2TC = 0x8,
-	MLX4_SET_PORT_SCHEDULER  = 0x9,
-
 	/* register/delete flow steering network rules */
 	MLX4_QP_FLOW_STEERING_ATTACH = 0x65,
 	MLX4_QP_FLOW_STEERING_DETACH = 0x66,
+	MLX4_FLOW_STEERING_IB_UC_QP_RANGE = 0x64,
 };
 
 enum {
@@ -182,6 +179,9 @@ enum {
 	MLX4_SET_PORT_VLAN_TABLE = 0x3,
 	MLX4_SET_PORT_PRIO_MAP  = 0x4,
 	MLX4_SET_PORT_GID_TABLE = 0x5,
+	MLX4_SET_PORT_PRIO2TC	= 0x8,
+	MLX4_SET_PORT_SCHEDULER = 0x9,
+	MLX4_SET_PORT_VXLAN	= 0xB
 };
 
 enum {

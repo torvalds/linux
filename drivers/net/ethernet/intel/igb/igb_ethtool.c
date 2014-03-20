@@ -146,6 +146,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct e1000_sfp_flags *eth_flags = &dev_spec->eth_flags;
 	u32 status;
 
+	status = rd32(E1000_STATUS);
 	if (hw->phy.media_type == e1000_media_type_copper) {
 
 		ecmd->supported = (SUPPORTED_10baseT_Half |
@@ -169,13 +170,22 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->transceiver = XCVR_INTERNAL;
 	} else {
 		ecmd->supported = (SUPPORTED_FIBRE |
+				   SUPPORTED_1000baseKX_Full |
 				   SUPPORTED_Autoneg |
 				   SUPPORTED_Pause);
-		ecmd->advertising = ADVERTISED_FIBRE;
-
-		if ((eth_flags->e1000_base_lx) || (eth_flags->e1000_base_sx)) {
-			ecmd->supported |= SUPPORTED_1000baseT_Full;
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		ecmd->advertising = (ADVERTISED_FIBRE |
+				     ADVERTISED_1000baseKX_Full);
+		if (hw->mac.type == e1000_i354) {
+			if ((hw->device_id ==
+			     E1000_DEV_ID_I354_BACKPLANE_2_5GBPS) &&
+			    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+				ecmd->supported |= SUPPORTED_2500baseX_Full;
+				ecmd->supported &=
+					~SUPPORTED_1000baseKX_Full;
+				ecmd->advertising |= ADVERTISED_2500baseX_Full;
+				ecmd->advertising &=
+					~ADVERTISED_1000baseKX_Full;
+			}
 		}
 		if (eth_flags->e100_base_fx) {
 			ecmd->supported |= SUPPORTED_100baseT_Full;
@@ -187,35 +197,29 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->port = PORT_FIBRE;
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
-
 	if (hw->mac.autoneg != 1)
 		ecmd->advertising &= ~(ADVERTISED_Pause |
 				       ADVERTISED_Asym_Pause);
 
-	if (hw->fc.requested_mode == e1000_fc_full)
+	switch (hw->fc.requested_mode) {
+	case e1000_fc_full:
 		ecmd->advertising |= ADVERTISED_Pause;
-	else if (hw->fc.requested_mode == e1000_fc_rx_pause)
+		break;
+	case e1000_fc_rx_pause:
 		ecmd->advertising |= (ADVERTISED_Pause |
 				      ADVERTISED_Asym_Pause);
-	else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+		break;
+	case e1000_fc_tx_pause:
 		ecmd->advertising |=  ADVERTISED_Asym_Pause;
-	else
+		break;
+	default:
 		ecmd->advertising &= ~(ADVERTISED_Pause |
 				       ADVERTISED_Asym_Pause);
-
-	status = rd32(E1000_STATUS);
-
+	}
 	if (status & E1000_STATUS_LU) {
-		if (hw->mac.type == e1000_i354) {
-			if ((status & E1000_STATUS_2P5_SKU) &&
-			    !(status & E1000_STATUS_2P5_SKU_OVER)) {
-				ecmd->supported = SUPPORTED_2500baseX_Full;
-				ecmd->advertising = ADVERTISED_2500baseX_Full;
-				ecmd->speed = SPEED_2500;
-			} else {
-				ecmd->supported = SUPPORTED_1000baseT_Full;
-				ecmd->advertising = ADVERTISED_1000baseT_Full;
-			}
+		if ((status & E1000_STATUS_2P5_SKU) &&
+		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+			ecmd->speed = SPEED_2500;
 		} else if (status & E1000_STATUS_SPEED_1000) {
 			ecmd->speed = SPEED_1000;
 		} else if (status & E1000_STATUS_SPEED_100) {
@@ -232,7 +236,6 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->speed = -1;
 		ecmd->duplex = -1;
 	}
-
 	if ((hw->phy.media_type == e1000_media_type_fiber) ||
 	    hw->mac.autoneg)
 		ecmd->autoneg = AUTONEG_ENABLE;
@@ -771,8 +774,10 @@ static int igb_set_eeprom(struct net_device *netdev,
 	if (eeprom->len == 0)
 		return -EOPNOTSUPP;
 
-	if (hw->mac.type == e1000_i211)
+	if ((hw->mac.type >= e1000_i210) &&
+	    !igb_get_flash_presence_i210(hw)) {
 		return -EOPNOTSUPP;
+	}
 
 	if (eeprom->magic != (hw->vendor_id | (hw->device_id << 16)))
 		return -EFAULT;
@@ -1381,7 +1386,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	*data = 0;
 
 	/* Hook up test interrupt handler just for this test */
-	if (adapter->msix_entries) {
+	if (adapter->flags & IGB_FLAG_HAS_MSIX) {
 		if (request_irq(adapter->msix_entries[0].vector,
 		                igb_test_intr, 0, netdev->name, adapter)) {
 			*data = 1;
@@ -1514,7 +1519,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	msleep(10);
 
 	/* Unhook test interrupt handler */
-	if (adapter->msix_entries)
+	if (adapter->flags & IGB_FLAG_HAS_MSIX)
 		free_irq(adapter->msix_entries[0].vector, adapter);
 	else
 		free_irq(irq, adapter);
@@ -1659,7 +1664,8 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 		if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
 		(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
 		(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
-		(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP) ||
+		(hw->device_id == E1000_DEV_ID_I354_SGMII)) {
 
 			/* Enable DH89xxCC MPHY for near end loopback */
 			reg = rd32(E1000_MPHY_ADDR_CTL);
@@ -1725,7 +1731,8 @@ static void igb_loopback_cleanup(struct igb_adapter *adapter)
 	if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
 	(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
 	(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
-	(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP) ||
+	(hw->device_id == E1000_DEV_ID_I354_SGMII)) {
 		u32 reg;
 
 		/* Disable near end loopback on DH89xxCC */
@@ -1976,6 +1983,10 @@ static void igb_diag_test(struct net_device *netdev,
 	bool if_running = netif_running(netdev);
 
 	set_bit(__IGB_TESTING, &adapter->state);
+
+	/* can't do offline tests on media switching devices */
+	if (adapter->hw.dev_spec._82575.mas_capable)
+		eth_test->flags &= ~ETH_TEST_FL_OFFLINE;
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
@@ -2055,13 +2066,14 @@ static void igb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	wol->supported = WAKE_UCAST | WAKE_MCAST |
-			 WAKE_BCAST | WAKE_MAGIC |
-			 WAKE_PHY;
 	wol->wolopts = 0;
 
 	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
 		return;
+
+	wol->supported = WAKE_UCAST | WAKE_MCAST |
+			 WAKE_BCAST | WAKE_MAGIC |
+			 WAKE_PHY;
 
 	/* apply any specific unsupported masks here */
 	switch (adapter->hw.device_id) {
@@ -2655,6 +2667,8 @@ static int igb_set_eee(struct net_device *netdev,
 	    (hw->phy.media_type != e1000_media_type_copper))
 		return -EOPNOTSUPP;
 
+	memset(&eee_curr, 0, sizeof(struct ethtool_eee));
+
 	ret_val = igb_get_eee(netdev, &eee_curr);
 	if (ret_val)
 		return ret_val;
@@ -2875,6 +2889,88 @@ static int igb_set_rxfh_indir(struct net_device *netdev, const u32 *indir)
 	return 0;
 }
 
+static unsigned int igb_max_channels(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	unsigned int max_combined = 0;
+
+	switch (hw->mac.type) {
+	case e1000_i211:
+		max_combined = IGB_MAX_RX_QUEUES_I211;
+		break;
+	case e1000_82575:
+	case e1000_i210:
+		max_combined = IGB_MAX_RX_QUEUES_82575;
+		break;
+	case e1000_i350:
+		if (!!adapter->vfs_allocated_count) {
+			max_combined = 1;
+			break;
+		}
+		/* fall through */
+	case e1000_82576:
+		if (!!adapter->vfs_allocated_count) {
+			max_combined = 2;
+			break;
+		}
+		/* fall through */
+	case e1000_82580:
+	case e1000_i354:
+	default:
+		max_combined = IGB_MAX_RX_QUEUES;
+		break;
+	}
+
+	return max_combined;
+}
+
+static void igb_get_channels(struct net_device *netdev,
+			     struct ethtool_channels *ch)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	/* Report maximum channels */
+	ch->max_combined = igb_max_channels(adapter);
+
+	/* Report info for other vector */
+	if (adapter->flags & IGB_FLAG_HAS_MSIX) {
+		ch->max_other = NON_Q_VECTORS;
+		ch->other_count = NON_Q_VECTORS;
+	}
+
+	ch->combined_count = adapter->rss_queues;
+}
+
+static int igb_set_channels(struct net_device *netdev,
+			    struct ethtool_channels *ch)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	unsigned int count = ch->combined_count;
+
+	/* Verify they are not requesting separate vectors */
+	if (!count || ch->rx_count || ch->tx_count)
+		return -EINVAL;
+
+	/* Verify other_count is valid and has not been changed */
+	if (ch->other_count != NON_Q_VECTORS)
+		return -EINVAL;
+
+	/* Verify the number of channels doesn't exceed hw limits */
+	if (count > igb_max_channels(adapter))
+		return -EINVAL;
+
+	if (count != adapter->rss_queues) {
+		adapter->rss_queues = count;
+
+		/* Hardware has to reinitialize queues and interrupts to
+		 * match the new configuration.
+		 */
+		return igb_reinit_queues(adapter);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings		= igb_get_settings,
 	.set_settings		= igb_set_settings,
@@ -2911,6 +3007,8 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_rxfh_indir_size	= igb_get_rxfh_indir_size,
 	.get_rxfh_indir		= igb_get_rxfh_indir,
 	.set_rxfh_indir		= igb_set_rxfh_indir,
+	.get_channels		= igb_get_channels,
+	.set_channels		= igb_set_channels,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };

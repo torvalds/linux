@@ -24,7 +24,7 @@ menuconfig ACPI
 	  are configured, ACPI is used.
 
 	  The project home page for the Linux ACPI subsystem is here:
-	  <http://www.lesswatts.org/projects/acpi/>
+	  <https://01.org/linux-acpi>
 
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
@@ -55,23 +55,6 @@ config ACPI_PROCFS
 	  and functions which do not yet exist in /sys.
 
 	  Say N to delete /proc/acpi/ files that have moved to /sys/
-
-config ACPI_PROCFS_POWER
-	bool "Deprecated power /proc/acpi directories"
-	depends on PROC_FS
-	help
-	  For backwards compatibility, this option allows
-          deprecated power /proc/acpi/ directories to exist, even when
-          they have been replaced by functions in /sys.
-          The deprecated directories (and their replacements) include:
-	  /proc/acpi/battery/* (/sys/class/power_supply/*)
-	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
-	  This option has no effect on /proc/acpi/ directories
-	  and functions, which do not yet exist in /sys
-	  This option, together with the proc directories, will be
-	  deleted in 2.6.39.
-
-	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
@@ -123,9 +106,9 @@ config ACPI_BUTTON
 	default y
 	help
 	  This driver handles events on the power, sleep, and lid buttons.
-	  A daemon reads /proc/acpi/event and perform user-defined actions
-	  such as shutting down the system.  This is necessary for
-	  software-controlled poweroff.
+	  A daemon reads events from input devices or via netlink and
+	  performs user-defined actions such as shutting down the system.
+	  This is necessary for software-controlled poweroff.
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called button.
@@ -175,9 +158,10 @@ config ACPI_PROCESSOR
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called processor.
+
 config ACPI_IPMI
 	tristate "IPMI"
-	depends on IPMI_SI && IPMI_HANDLER
+	depends on IPMI_SI
 	default n
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
@@ -250,17 +234,6 @@ config ACPI_INITRD_TABLE_OVERRIDE
 	  via initrd. No functional change if no ACPI tables are passed via
 	  initrd, therefore it's safe to say Y.
 	  See Documentation/acpi/initrd_table_override.txt for details
-
-config ACPI_BLACKLIST_YEAR
-	int "Disable ACPI for systems before Jan 1st this year" if X86_32
-	default 0
-	help
-	  Enter a 4-digit year, e.g., 2001, to disable ACPI by default
-	  on platforms with DMI BIOS date before January 1st that year.
-	  "acpi=force" can be used to override this mechanism.
-
-	  Enter 0 to disable this mechanism and allow ACPI to
-	  run by default no matter what the year.  (default)
 
 config ACPI_DEBUG
 	bool "Debug Statements"
@@ -371,5 +344,25 @@ config ACPI_BGRT
 	  /sys/firmware/acpi/bgrt/ .
 
 source "drivers/acpi/apei/Kconfig"
+
+config ACPI_EXTLOG
+	tristate "Extended Error Log support"
+	depends on X86_MCE && X86_LOCAL_APIC
+	select UEFI_CPER
+	default n
+	help
+	  Certain usages such as Predictive Failure Analysis (PFA) require
+	  more information about the error than what can be described in
+	  processor machine check banks. Most server processors log
+	  additional information about the error in processor uncore
+	  registers. Since the addresses and layout of these registers vary
+	  widely from one processor to another, system software cannot
+	  readily make use of them. To complicate matters further, some of
+	  the additional error information cannot be constructed without
+	  detailed knowledge about platform topology.
+
+	  Enhanced MCA Logging allows firmware to provide additional error
+	  information to system software, synchronous with MCE or CMCI. This
+	  driver adds support for that functionality.
 
 endif	# ACPI

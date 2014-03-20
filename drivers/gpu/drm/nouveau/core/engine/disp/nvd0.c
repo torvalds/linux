@@ -440,6 +440,36 @@ nvd0_disp_curs_ofuncs = {
  * Base display object
  ******************************************************************************/
 
+static int
+nvd0_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
+			  void *data, u32 size)
+{
+	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv04_display_scanoutpos *args = data;
+	const int head = (mthd & NV50_DISP_MTHD_HEAD);
+	u32 blanke, blanks, total;
+
+	if (size < sizeof(*args) || head >= priv->head.nr)
+		return -EINVAL;
+
+	total  = nv_rd32(priv, 0x640414 + (head * 0x300));
+	blanke = nv_rd32(priv, 0x64041c + (head * 0x300));
+	blanks = nv_rd32(priv, 0x640420 + (head * 0x300));
+
+	args->vblanke = (blanke & 0xffff0000) >> 16;
+	args->hblanke = (blanke & 0x0000ffff);
+	args->vblanks = (blanks & 0xffff0000) >> 16;
+	args->hblanks = (blanks & 0x0000ffff);
+	args->vtotal  = ( total & 0xffff0000) >> 16;
+	args->htotal  = ( total & 0x0000ffff);
+
+	args->time[0] = ktime_to_ns(ktime_get());
+	args->vline   = nv_rd32(priv, 0x616340 + (head * 0x800)) & 0xffff;
+	args->time[1] = ktime_to_ns(ktime_get()); /* vline read locks hline */
+	args->hline   = nv_rd32(priv, 0x616344 + (head * 0x800)) & 0xffff;
+	return 0;
+}
+
 static void
 nvd0_disp_base_vblank_enable(struct nouveau_event *event, int head)
 {
@@ -541,6 +571,15 @@ nvd0_disp_base_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x6100a0, 0x00000000);
 	nv_wr32(priv, 0x6100b0, 0x00000307);
 
+	/* disable underflow reporting, preventing an intermittent issue
+	 * on some nve4 boards where the production vbios left this
+	 * setting enabled by default.
+	 *
+	 * ftp://download.nvidia.com/open-gpu-doc/gk104-disable-underflow-reporting/1/gk104-disable-underflow-reporting.txt
+	 */
+	for (i = 0; i < priv->head.nr; i++)
+		nv_mask(priv, 0x616308 + (i * 0x800), 0x00000111, 0x00000010);
+
 	return 0;
 }
 
@@ -564,9 +603,24 @@ nvd0_disp_base_ofuncs = {
 	.fini = nvd0_disp_base_fini,
 };
 
+struct nouveau_omthds
+nvd0_disp_base_omthds[] = {
+	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nvd0_disp_base_scanoutpos },
+	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
+	{ SOR_MTHD(NVA3_DISP_SOR_HDA_ELD)     , nv50_sor_mthd },
+	{ SOR_MTHD(NV84_DISP_SOR_HDMI_PWR)    , nv50_sor_mthd },
+	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
+	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
+	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
+	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
+	{ PIOR_MTHD(NV50_DISP_PIOR_TMDS_PWR)  , nv50_pior_mthd },
+	{ PIOR_MTHD(NV50_DISP_PIOR_DP_PWR)    , nv50_pior_mthd },
+	{},
+};
+
 static struct nouveau_oclass
 nvd0_disp_base_oclass[] = {
-	{ NVD0_DISP_CLASS, &nvd0_disp_base_ofuncs, nva3_disp_base_omthds },
+	{ NVD0_DISP_CLASS, &nvd0_disp_base_ofuncs, nvd0_disp_base_omthds },
 	{}
 };
 
@@ -957,9 +1011,6 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv50_disp_priv *priv;
 	int heads = nv_rd32(parent, 0x022448);
 	int ret;
-
-	if (nv_rd32(parent, 0x022500) & 0x00000001)
-		return -ENODEV;
 
 	ret = nouveau_disp_create(parent, engine, oclass, heads,
 				  "PDISP", "display", &priv);

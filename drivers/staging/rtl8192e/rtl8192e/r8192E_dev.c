@@ -30,7 +30,7 @@
 #include "rtl_dm.h"
 #include "rtl_wx.h"
 
-extern int WDCAPARA_ADD[];
+static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI, EDCAPARA_VO};
 
 void rtl8192e_start_beacon(struct net_device *dev)
 {
@@ -193,11 +193,12 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 
 		dm_init_edca_turbo(dev);
 
-		u4bAcParam = ((((u32)(qos_parameters->tx_op_limit[pAcParam])) <<
+		u4bAcParam = (((le16_to_cpu(
+					qos_parameters->tx_op_limit[pAcParam])) <<
 			     AC_PARAM_TXOP_LIMIT_OFFSET) |
-			     (((u32)(qos_parameters->cw_max[pAcParam])) <<
+			     ((le16_to_cpu(qos_parameters->cw_max[pAcParam])) <<
 			     AC_PARAM_ECW_MAX_OFFSET) |
-			     (((u32)(qos_parameters->cw_min[pAcParam])) <<
+			     ((le16_to_cpu(qos_parameters->cw_min[pAcParam])) <<
 			     AC_PARAM_ECW_MIN_OFFSET) |
 			     (((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET));
 
@@ -720,7 +721,7 @@ start:
 	}
 	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
 
-	if (priv->RegRfOff == true)
+	if (priv->RegRfOff)
 		priv->rtllib->eRFPowerState = eRfOff;
 
 	ulRegRead = read_nic_dword(dev, CPU_GEN);
@@ -745,7 +746,7 @@ start:
 	}
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
 	rtStatus = rtl8192_BBConfig(dev);
-	if (rtStatus != true) {
+	if (!rtStatus) {
 		RT_TRACE(COMP_ERR, "BB Config failed\n");
 		return rtStatus;
 	}
@@ -856,7 +857,7 @@ start:
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		RT_TRACE(COMP_INIT, "RF Config Started!\n");
 		rtStatus = rtl8192_phy_RFConfig(dev);
-		if (rtStatus != true) {
+		if (!rtStatus) {
 			RT_TRACE(COMP_ERR, "RF Config failed\n");
 			return rtStatus;
 		}
@@ -869,7 +870,7 @@ start:
 
 	write_nic_byte(dev, 0x87, 0x0);
 
-	if (priv->RegRfOff == true) {
+	if (priv->RegRfOff) {
 		RT_TRACE((COMP_INIT | COMP_RF | COMP_POWER),
 			  "%s(): Turn off RF for RegRfOff ----------\n",
 			  __func__);
@@ -1184,7 +1185,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 						cb_desc);
 
 	if (pci_dma_mapping_error(priv->pdev, mapping))
-		RT_TRACE(COMP_ERR, "DMA Mapping error\n");;
+		RT_TRACE(COMP_ERR, "DMA Mapping error\n");
 	if (cb_desc->bAMPDUEnable) {
 		pTxFwInfo->AllowAggregation = 1;
 		pTxFwInfo->RxMF = cb_desc->ampdu_factor;
@@ -1271,7 +1272,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->LastSeg = 1;
 	pdesc->TxBufferSize = skb->len;
 
-	pdesc->TxBuffAddr = cpu_to_le32(mapping);
+	pdesc->TxBuffAddr = mapping;
 }
 
 void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
@@ -1283,7 +1284,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 			 PCI_DMA_TODEVICE);
 
 	if (pci_dma_mapping_error(priv->pdev, mapping))
-		RT_TRACE(COMP_ERR, "DMA Mapping error\n");;
+		RT_TRACE(COMP_ERR, "DMA Mapping error\n");
 	memset(entry, 0, 12);
 	entry->LINIP = cb_desc->bLastIniPkt;
 	entry->FirstSeg = 1;
@@ -1301,7 +1302,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 		entry_tmp->RATid = (u8)DESC_PACKET_TYPE_INIT;
 	}
 	entry->TxBufferSize = skb->len;
-	entry->TxBuffAddr = cpu_to_le32(mapping);
+	entry->TxBuffAddr = mapping;
 	entry->OWN = 1;
 }
 
@@ -1866,15 +1867,15 @@ static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
 
-	bpacket_match_bssid = ((RTLLIB_FTYPE_CTL != type) &&
-			(!compare_ether_addr(priv->rtllib->
-			current_network.bssid,
-			   (fc & RTLLIB_FCTL_TODS) ? hdr->addr1 :
-			   (fc & RTLLIB_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
-		&& (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV));
-	bpacket_toself =  bpacket_match_bssid &&	/* check this */
-			  (!compare_ether_addr(praddr,
-			  priv->rtllib->dev->dev_addr));
+	bpacket_match_bssid =
+		((RTLLIB_FTYPE_CTL != type) &&
+		 ether_addr_equal(priv->rtllib->current_network.bssid,
+				  (fc & RTLLIB_FCTL_TODS) ? hdr->addr1 :
+				  (fc & RTLLIB_FCTL_FROMDS) ? hdr->addr2 :
+				  hdr->addr3) &&
+		 (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV));
+	bpacket_toself = bpacket_match_bssid &&		/* check this */
+			 ether_addr_equal(praddr, priv->rtllib->dev->dev_addr);
 	if (WLAN_FC_GET_FRAMETYPE(fc) == RTLLIB_STYPE_BEACON)
 		bPacketBeacon = true;
 	if (bpacket_match_bssid)
@@ -2213,7 +2214,7 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 	priv->MidHighPwrTHR_L2 = 0x40;
 	priv->PwrDomainProtect = false;
 
-	priv->bfirst_after_down = 0;
+	priv->bfirst_after_down = false;
 }
 
 void rtl8192_EnableInterrupt(struct net_device *dev)

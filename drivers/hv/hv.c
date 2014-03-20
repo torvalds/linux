@@ -301,10 +301,10 @@ err:
 	return -ENOMEM;
 }
 
-void hv_synic_free_cpu(int cpu)
+static void hv_synic_free_cpu(int cpu)
 {
 	kfree(hv_context.event_dpc[cpu]);
-	if (hv_context.synic_message_page[cpu])
+	if (hv_context.synic_event_page[cpu])
 		free_page((unsigned long)hv_context.synic_event_page[cpu]);
 	if (hv_context.synic_message_page[cpu])
 		free_page((unsigned long)hv_context.synic_message_page[cpu]);

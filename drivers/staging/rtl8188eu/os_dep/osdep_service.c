@@ -52,7 +52,7 @@ u32 rtw_atoi(u8 *s)
 	}
 	if (flag == 1)
 		num = num * -1;
-	 return num;
+	return num;
 }
 
 inline u8 *_rtw_vmalloc(u32 sz)
@@ -161,20 +161,6 @@ void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead)
 Caller must check if the list is empty before calling rtw_list_delete
 */
 
-void _rtw_init_sema(struct semaphore *sema, int init_val)
-{
-	sema_init(sema, init_val);
-}
-
-void _rtw_free_sema(struct semaphore *sema)
-{
-}
-
-void _rtw_up_sema(struct semaphore *sema)
-{
-	up(sema);
-}
-
 u32 _rtw_down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
@@ -183,29 +169,10 @@ u32 _rtw_down_sema(struct semaphore *sema)
 		return _SUCCESS;
 }
 
-void	_rtw_mutex_init(struct mutex *pmutex)
-{
-	mutex_init(pmutex);
-}
-
-void	_rtw_mutex_free(struct mutex *pmutex)
-{
-	mutex_destroy(pmutex);
-}
-
-void	_rtw_spinlock_init(spinlock_t *plock)
-{
-	spin_lock_init(plock);
-}
-
-void	_rtw_spinlock_free(spinlock_t *plock)
-{
-}
-
 void	_rtw_init_queue(struct __queue *pqueue)
 {
 	_rtw_init_listhead(&(pqueue->queue));
-	_rtw_spinlock_init(&(pqueue->lock));
+	spin_lock_init(&(pqueue->lock));
 }
 
 u32	  _rtw_queue_empty(struct __queue *pqueue)
@@ -221,11 +188,6 @@ u32 rtw_end_of_queue_search(struct list_head *head, struct list_head *plist)
 		return false;
 }
 
-u32	rtw_get_current_time(void)
-{
-	return jiffies;
-}
-
 inline u32 rtw_systime_to_ms(u32 systime)
 {
 	return systime * 1000 / HZ;
@@ -236,8 +198,7 @@ inline u32 rtw_ms_to_systime(u32 ms)
 	return ms * HZ / 1000;
 }
 
-/*  the input parameter start use the same unit as returned by
- *  rtw_get_current_time */
+/*  the input parameter start must be in jiffies */
 inline s32 rtw_get_passing_time_ms(u32 start)
 {
 	return rtw_systime_to_ms(jiffies-start);
@@ -260,309 +221,7 @@ void rtw_sleep_schedulable(int ms)
 		return;
 }
 
-void rtw_msleep_os(int ms)
-{
-	msleep((unsigned int)ms);
-}
-
-void rtw_usleep_os(int us)
-{
-	if (1 < (us/1000))
-		msleep(1);
-	else
-		msleep((us/1000) + 1);
-}
-
-void rtw_mdelay_os(int ms)
-{
-	mdelay((unsigned long)ms);
-}
-
-void rtw_udelay_os(int us)
-{
-	udelay((unsigned long)us);
-}
-
-void rtw_yield_os(void)
-{
-	yield();
-}
-
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
-
-inline void rtw_suspend_lock_init(void)
-{
-}
-
-inline void rtw_suspend_lock_uninit(void)
-{
-}
-
-inline void rtw_lock_suspend(void)
-{
-}
-
-inline void rtw_unlock_suspend(void)
-{
-}
-
-inline void ATOMIC_SET(ATOMIC_T *v, int i)
-{
-	atomic_set(v, i);
-}
-
-inline int ATOMIC_READ(ATOMIC_T *v)
-{
-	return atomic_read(v);
-}
-
-inline void ATOMIC_ADD(ATOMIC_T *v, int i)
-{
-	atomic_add(i, v);
-}
-
-inline void ATOMIC_SUB(ATOMIC_T *v, int i)
-{
-	atomic_sub(i, v);
-}
-
-inline void ATOMIC_INC(ATOMIC_T *v)
-{
-	atomic_inc(v);
-}
-
-inline void ATOMIC_DEC(ATOMIC_T *v)
-{
-	atomic_dec(v);
-}
-
-inline int ATOMIC_ADD_RETURN(ATOMIC_T *v, int i)
-{
-	return atomic_add_return(i, v);
-}
-
-inline int ATOMIC_SUB_RETURN(ATOMIC_T *v, int i)
-{
-	return atomic_sub_return(i, v);
-}
-
-inline int ATOMIC_INC_RETURN(ATOMIC_T *v)
-{
-	return atomic_inc_return(v);
-}
-
-inline int ATOMIC_DEC_RETURN(ATOMIC_T *v)
-{
-	return atomic_dec_return(v);
-}
-
-/* Open a file with the specific @param path, @param flag, @param mode
- * @param fpp the pointer of struct file pointer to get struct file pointer while file opening is success
- * @param path the path of the file to open
- * @param flag file operation flags, please refer to linux document
- * @param mode please refer to linux document
- * @return Linux specific error code
- */
-static int openfile(struct file **fpp, char *path, int flag, int mode)
-{
-	struct file *fp;
-
-	fp = filp_open(path, flag, mode);
-	if (IS_ERR(fp)) {
-		*fpp = NULL;
-		return PTR_ERR(fp);
-	} else {
-		*fpp = fp;
-		return 0;
-	}
-}
-
-/* Close the file with the specific @param fp
- * @param fp the pointer of struct file to close
- * @return always 0
- */
-static int closefile(struct file *fp)
-{
-	filp_close(fp, NULL);
-	return 0;
-}
-
-static int readfile(struct file *fp, char __user *buf, int len)
-{
-	int rlen = 0, sum = 0;
-
-	if (!fp->f_op || !fp->f_op->read)
-		return -EPERM;
-
-	while (sum < len) {
-		rlen = fp->f_op->read(fp, buf+sum, len-sum, &fp->f_pos);
-		if (rlen > 0)
-			sum += rlen;
-		else if (0 != rlen)
-			return rlen;
-		else
-			break;
-	}
-	return  sum;
-}
-
-static int writefile(struct file *fp, char __user *buf, int len)
-{
-	int wlen = 0, sum = 0;
-
-	if (!fp->f_op || !fp->f_op->write)
-		return -EPERM;
-
-	while (sum < len) {
-		wlen = fp->f_op->write(fp, buf+sum, len-sum, &fp->f_pos);
-		if (wlen > 0)
-			sum += wlen;
-		else if (0 != wlen)
-			return wlen;
-		else
-			break;
-	}
-	return sum;
-}
-
-/* Test if the specifi @param path is a file and readable
- * @param path the path of the file to test
- * @return Linux specific error code
- */
-static int isfilereadable(char *path)
-{
-	struct file *fp;
-	int ret = 0;
-	mm_segment_t oldfs;
-	char __user buf;
-
-	fp = filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		ret = PTR_ERR(fp);
-	} else {
-		oldfs = get_fs(); set_fs(get_ds());
-
-		if (1 != readfile(fp, &buf, 1))
-			ret = PTR_ERR(fp);
-
-		set_fs(oldfs);
-		filp_close(fp, NULL);
-	}
-	return ret;
-}
-
-/* Open the file with @param path and retrive the file content into
- * memory starting from @param buf for @param sz at most
- * @param path the path of the file to open and read
- * @param buf the starting address of the buffer to store file content
- * @param sz how many bytes to read at most
- * @return the byte we've read, or Linux specific error code
- */
-static int retrievefromfile(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = -1;
-	mm_segment_t oldfs;
-	struct file *fp;
-
-	if (path && buf) {
-		ret = openfile(&fp, path, O_RDONLY, 0);
-		if (0 == ret) {
-			DBG_88E("%s openfile path:%s fp =%p\n", __func__,
-				path, fp);
-
-			oldfs = get_fs(); set_fs(get_ds());
-			ret = readfile(fp, buf, sz);
-			set_fs(oldfs);
-			closefile(fp);
-
-			DBG_88E("%s readfile, ret:%d\n", __func__, ret);
-
-		} else {
-			DBG_88E("%s openfile path:%s Fail, ret:%d\n", __func__,
-				path, ret);
-		}
-	} else {
-		DBG_88E("%s NULL pointer\n", __func__);
-		ret =  -EINVAL;
-	}
-	return ret;
-}
-
-/*
-* Open the file with @param path and wirte @param sz byte of data starting from @param buf into the file
-* @param path the path of the file to open and write
-* @param buf the starting address of the data to write into file
-* @param sz how many bytes to write at most
-* @return the byte we've written, or Linux specific error code
-*/
-static int storetofile(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = 0;
-	mm_segment_t oldfs;
-	struct file *fp;
-
-	if (path && buf) {
-		ret = openfile(&fp, path, O_CREAT|O_WRONLY, 0666);
-		if (0 == ret) {
-			DBG_88E("%s openfile path:%s fp =%p\n", __func__, path, fp);
-
-			oldfs = get_fs(); set_fs(get_ds());
-			ret = writefile(fp, buf, sz);
-			set_fs(oldfs);
-			closefile(fp);
-
-			DBG_88E("%s writefile, ret:%d\n", __func__, ret);
-
-		} else {
-			DBG_88E("%s openfile path:%s Fail, ret:%d\n", __func__, path, ret);
-		}
-	} else {
-		DBG_88E("%s NULL pointer\n", __func__);
-		ret =  -EINVAL;
-	}
-	return ret;
-}
-
-/*
-* Test if the specifi @param path is a file and readable
-* @param path the path of the file to test
-* @return true or false
-*/
-int rtw_is_file_readable(char *path)
-{
-	if (isfilereadable(path) == 0)
-		return true;
-	else
-		return false;
-}
-
-/*
-* Open the file with @param path and retrive the file content into memory starting from @param buf for @param sz at most
-* @param path the path of the file to open and read
-* @param buf the starting address of the buffer to store file content
-* @param sz how many bytes to read at most
-* @return the byte we've read
-*/
-int rtw_retrive_from_file(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = retrievefromfile(path, buf, sz);
-
-	return ret >= 0 ? ret : 0;
-}
-
-/*
- * Open the file with @param path and wirte @param sz byte of data
- * starting from @param buf into the file
- * @param path the path of the file to open and write
- * @param buf the starting address of the data to write into file
- * @param sz how many bytes to write at most
- * @return the byte we've written
- */
-int rtw_store_to_file(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = storetofile(path, buf, sz);
-	return ret >= 0 ? ret : 0;
-}
 
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 						    void *old_priv)
@@ -627,13 +286,14 @@ RETURN:
 int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 {
 	struct net_device *pnetdev;
-	struct net_device *cur_pnetdev = padapter->pnetdev;
+	struct net_device *cur_pnetdev;
 	struct rereg_nd_name_data *rereg_priv;
 	int ret;
 
 	if (!padapter)
 		goto error;
 
+	cur_pnetdev = padapter->pnetdev;
 	rereg_priv = &padapter->rereg_nd_name_priv;
 
 	/* free the old_pnetdev */
@@ -794,7 +454,7 @@ void *rtw_cbuf_pop(struct rtw_cbuf *cbuf)
 }
 
 /**
- * rtw_cbuf_alloc - allocte a rtw_cbuf with given size and do initialization
+ * rtw_cbuf_alloc - allocate a rtw_cbuf with given size and do initialization
  * @size: size of pointer
  *
  * Returns: pointer of srtuct rtw_cbuf, NULL for allocation failure

@@ -37,7 +37,7 @@
  *
  * Emit a semaphore command (either wait or signal) to the UVD ring.
  */
-void uvd_v3_1_semaphore_emit(struct radeon_device *rdev,
+bool uvd_v3_1_semaphore_emit(struct radeon_device *rdev,
 			     struct radeon_ring *ring,
 			     struct radeon_semaphore *semaphore,
 			     bool emit_wait)
@@ -52,4 +52,6 @@ void uvd_v3_1_semaphore_emit(struct radeon_device *rdev,
 
 	radeon_ring_write(ring, PACKET0(UVD_SEMA_CMD, 0));
 	radeon_ring_write(ring, 0x80 | (emit_wait ? 1 : 0));
+
+	return true;
 }

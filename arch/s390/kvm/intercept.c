@@ -62,12 +62,6 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_stop_request(vcpu->arch.local_int.action_bits);
 
-	if (vcpu->arch.local_int.action_bits & ACTION_RELOADVCPU_ON_STOP) {
-		vcpu->arch.local_int.action_bits &= ~ACTION_RELOADVCPU_ON_STOP;
-		rc = SIE_INTERCEPT_RERUNVCPU;
-		vcpu->run->exit_reason = KVM_EXIT_INTR;
-	}
-
 	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
 		atomic_set_mask(CPUSTAT_STOPPED,
 				&vcpu->arch.sie_block->cpuflags);
@@ -118,6 +112,17 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
 	vcpu->stat.exit_program_interruption++;
+
+	/* Restore ITDB to Program-Interruption TDB in guest memory */
+	if (IS_TE_ENABLED(vcpu) &&
+	    !(current->thread.per_flags & PER_FLAG_NO_TE) &&
+	    IS_ITDB_VALID(vcpu)) {
+		copy_to_guest(vcpu, TDB_ADDR, vcpu->arch.sie_block->itdba,
+			      sizeof(struct kvm_s390_itdb));
+		memset((void *) vcpu->arch.sie_block->itdba, 0,
+		       sizeof(struct kvm_s390_itdb));
+	}
+
 	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
 	return kvm_s390_inject_program_int(vcpu, vcpu->arch.sie_block->iprcc);
 }

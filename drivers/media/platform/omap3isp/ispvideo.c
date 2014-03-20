@@ -278,55 +278,6 @@ static int isp_video_get_graph_data(struct isp_video *video,
 	return 0;
 }
 
-/*
- * Validate a pipeline by checking both ends of all links for format
- * discrepancies.
- *
- * Compute the minimum time per frame value as the maximum of time per frame
- * limits reported by every block in the pipeline.
- *
- * Return 0 if all formats match, or -EPIPE if at least one link is found with
- * different formats on its two ends or if the pipeline doesn't start with a
- * video source (either a subdev with no input pad, or a non-subdev entity).
- */
-static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
-{
-	struct isp_device *isp = pipe->output->isp;
-	struct media_pad *pad;
-	struct v4l2_subdev *subdev;
-
-	subdev = isp_video_remote_subdev(pipe->output, NULL);
-	if (subdev == NULL)
-		return -EPIPE;
-
-	while (1) {
-		/* Retrieve the sink format */
-		pad = &subdev->entity.pads[0];
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
-			break;
-
-		/* Update the maximum frame rate */
-		if (subdev == &isp->isp_res.subdev)
-			omap3isp_resizer_max_rate(&isp->isp_res,
-						  &pipe->max_rate);
-
-		/* Retrieve the source format. Return an error if no source
-		 * entity can be found, and stop checking the pipeline if the
-		 * source entity isn't a subdev.
-		 */
-		pad = media_entity_remote_pad(pad);
-		if (pad == NULL)
-			return -EPIPE;
-
-		if (media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
-			break;
-
-		subdev = media_entity_to_v4l2_subdev(pad->entity);
-	}
-
-	return 0;
-}
-
 static int
 __isp_video_get_format(struct isp_video *video, struct v4l2_format *format)
 {
@@ -339,14 +290,11 @@ __isp_video_get_format(struct isp_video *video, struct v4l2_format *format)
 	if (subdev == NULL)
 		return -EINVAL;
 
-	mutex_lock(&video->mutex);
-
 	fmt.pad = pad;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
-	if (ret == -ENOIOCTLCMD)
-		ret = -EINVAL;
 
+	mutex_lock(&video->mutex);
+	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	mutex_unlock(&video->mutex);
 
 	if (ret)
@@ -463,6 +411,15 @@ static int isp_video_buffer_prepare(struct isp_video_buffer *buf)
 	struct isp_video *video = vfh->video;
 	unsigned long addr;
 
+	/* Refuse to prepare the buffer is the video node has registered an
+	 * error. We don't need to take any lock here as the operation is
+	 * inherently racy. The authoritative check will be performed in the
+	 * queue handler, which can't return an error, this check is just a best
+	 * effort to notify userspace as early as possible.
+	 */
+	if (unlikely(video->error))
+		return -EIO;
+
 	addr = ispmmu_vmap(video->isp, buf->sglist, buf->sglen);
 	if (IS_ERR_VALUE(addr))
 		return -EIO;
@@ -498,6 +455,12 @@ static void isp_video_buffer_queue(struct isp_video_buffer *buf)
 	unsigned long flags;
 	unsigned int empty;
 	unsigned int start;
+
+	if (unlikely(video->error)) {
+		buf->state = ISP_BUF_STATE_ERROR;
+		wake_up(&buf->wait);
+		return;
+	}
 
 	empty = list_empty(&video->dmaqueue);
 	list_add_tail(&buffer->buffer.irqlist, &video->dmaqueue);
@@ -618,6 +581,36 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 			       irqlist);
 	buf->state = ISP_BUF_STATE_ACTIVE;
 	return to_isp_buffer(buf);
+}
+
+/*
+ * omap3isp_video_cancel_stream - Cancel stream on a video node
+ * @video: ISP video object
+ *
+ * Cancelling a stream mark all buffers on the video node as erroneous and makes
+ * sure no new buffer can be queued.
+ */
+void omap3isp_video_cancel_stream(struct isp_video *video)
+{
+	struct isp_video_queue *queue = video->queue;
+	unsigned long flags;
+
+	spin_lock_irqsave(&queue->irqlock, flags);
+
+	while (!list_empty(&video->dmaqueue)) {
+		struct isp_video_buffer *buf;
+
+		buf = list_first_entry(&video->dmaqueue,
+				       struct isp_video_buffer, irqlist);
+		list_del(&buf->irqlist);
+
+		buf->state = ISP_BUF_STATE_ERROR;
+		wake_up(&buf->wait);
+	}
+
+	video->error = true;
+
+	spin_unlock_irqrestore(&queue->irqlock, flags);
 }
 
 /*
@@ -1054,11 +1047,6 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (ret < 0)
 		goto err_check_format;
 
-	/* Validate the pipeline and update its state. */
-	ret = isp_video_validate_pipeline(pipe);
-	if (ret < 0)
-		goto err_check_format;
-
 	pipe->error = false;
 
 	spin_lock_irqsave(&pipe->lock, flags);
@@ -1162,6 +1150,7 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	omap3isp_video_queue_streamoff(&vfh->queue);
 	video->queue = NULL;
 	video->streaming = 0;
+	video->error = false;
 
 	if (video->isp->pdata->set_constraints)
 		video->isp->pdata->set_constraints(video->isp, false);
@@ -1335,11 +1324,13 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	switch (video->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		direction = "output";
-		video->pad.flags = MEDIA_PAD_FL_SINK;
+		video->pad.flags = MEDIA_PAD_FL_SINK
+				   | MEDIA_PAD_FL_MUST_CONNECT;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		direction = "input";
-		video->pad.flags = MEDIA_PAD_FL_SOURCE;
+		video->pad.flags = MEDIA_PAD_FL_SOURCE
+				   | MEDIA_PAD_FL_MUST_CONNECT;
 		video->video.vfl_dir = VFL_DIR_TX;
 		break;
 

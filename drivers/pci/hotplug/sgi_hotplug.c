@@ -9,6 +9,7 @@
  * Work to add BIOS PROM support was completed by Mike Habeck.
  */
 
+#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -29,7 +30,6 @@
 #include <asm/sn/sn_feature_sets.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/types.h>
-#include <linux/acpi.h>
 #include <asm/sn/acpi.h>
 
 #include "../pci.h"
@@ -414,7 +414,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 		acpi_handle rethandle;
 		acpi_status ret;
 
-		phandle = PCI_CONTROLLER(slot->pci_bus)->acpi_handle;
+		phandle = acpi_device_handle(PCI_CONTROLLER(slot->pci_bus)->companion);
 
 		if (acpi_bus_get_device(phandle, &pdevice)) {
 			dev_dbg(&slot->pci_bus->self->dev,
@@ -459,12 +459,15 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 		acpi_scan_lock_release();
 	}
 
+	pci_lock_rescan_remove();
+
 	/* Call the driver for the new device */
 	pci_bus_add_devices(slot->pci_bus);
 	/* Call the drivers for the new devices subordinate to PPB */
 	if (new_ppb)
 		pci_bus_add_devices(new_bus);
 
+	pci_unlock_rescan_remove();
 	mutex_unlock(&sn_hotplug_mutex);
 
 	if (rc == 0)
@@ -495,7 +498,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 
 	/* free the ACPI resources for the slot */
 	if (SN_ACPI_BASE_SUPPORT() &&
-            PCI_CONTROLLER(slot->pci_bus)->acpi_handle) {
+            PCI_CONTROLLER(slot->pci_bus)->companion) {
 		unsigned long long adr;
 		struct acpi_device *device;
 		acpi_handle phandle;
@@ -504,7 +507,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 		acpi_status ret;
 
 		/* Get the rootbus node pointer */
-		phandle = PCI_CONTROLLER(slot->pci_bus)->acpi_handle;
+		phandle = acpi_device_handle(PCI_CONTROLLER(slot->pci_bus)->companion);
 
 		acpi_scan_lock_acquire();
 		/*
@@ -540,6 +543,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 		acpi_scan_lock_release();
 	}
 
+	pci_lock_rescan_remove();
 	/* Free the SN resources assigned to the Linux device.*/
 	list_for_each_entry_safe(dev, temp, &slot->pci_bus->devices, bus_list) {
 		if (PCI_SLOT(dev->devfn) != slot->device_num + 1)
@@ -550,6 +554,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 		pci_stop_and_remove_bus_device(dev);
 		pci_dev_put(dev);
 	}
+	pci_unlock_rescan_remove();
 
 	/* Remove the SSDT for the slot from the ACPI namespace */
 	if (SN_ACPI_BASE_SUPPORT() && ssdt_id) {

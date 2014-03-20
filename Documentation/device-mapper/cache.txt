@@ -68,10 +68,11 @@ So large block sizes are bad because they waste cache space.  And small
 block sizes are bad because they increase the amount of metadata (both
 in core and on disk).
 
-Writeback/writethrough
-----------------------
+Cache operating modes
+---------------------
 
-The cache has two modes, writeback and writethrough.
+The cache has three operating modes: writeback, writethrough and
+passthrough.
 
 If writeback, the default, is selected then a write to a block that is
 cached will go only to the cache and the block will be marked dirty in
@@ -81,8 +82,31 @@ If writethrough is selected then a write to a cached block will not
 complete until it has hit both the origin and cache devices.  Clean
 blocks should remain clean.
 
+If passthrough is selected, useful when the cache contents are not known
+to be coherent with the origin device, then all reads are served from
+the origin device (all reads miss the cache) and all writes are
+forwarded to the origin device; additionally, write hits cause cache
+block invalidates.  To enable passthrough mode the cache must be clean.
+Passthrough mode allows a cache device to be activated without having to
+worry about coherency.  Coherency that exists is maintained, although
+the cache will gradually cool as writes take place.  If the coherency of
+the cache can later be verified, or established through use of the
+"invalidate_cblocks" message, the cache device can be transitioned to
+writethrough or writeback mode while still warm.  Otherwise, the cache
+contents can be discarded prior to transitioning to the desired
+operating mode.
+
 A simple cleaner policy is provided, which will clean (write back) all
-dirty blocks in a cache.  Useful for decommissioning a cache.
+dirty blocks in a cache.  Useful for decommissioning a cache or when
+shrinking a cache.  Shrinking the cache's fast device requires all cache
+blocks, in the area of the cache being removed, to be clean.  If the
+area being removed from the cache still contains dirty blocks the resize
+will fail.  Care must be taken to never reduce the volume used for the
+cache's fast device until the cache is clean.  This is of particular
+importance if writeback mode is used.  Writethrough and passthrough
+modes already maintain a clean cache.  Future support to partially clean
+the cache, above a specified threshold, will allow for keeping the cache
+warm and in writeback mode during resize.
 
 Migration throttling
 --------------------
@@ -100,12 +124,11 @@ the default being 204800 sectors (or 100MB).
 Updating on-disk metadata
 -------------------------
 
-On-disk metadata is committed every time a REQ_SYNC or REQ_FUA bio is
-written.  If no such requests are made then commits will occur every
-second.  This means the cache behaves like a physical disk that has a
-write cache (the same is true of the thin-provisioning target).  If
-power is lost you may lose some recent writes.  The metadata should
-always be consistent in spite of any crash.
+On-disk metadata is committed every time a FLUSH or FUA bio is written.
+If no such requests are made then commits will occur every second.  This
+means the cache behaves like a physical disk that has a volatile write
+cache.  If power is lost you may lose some recent writes.  The metadata
+should always be consistent in spite of any crash.
 
 The 'dirty' state for a cache block changes far too frequently for us
 to keep updating it on the fly.  So we treat it as a hint.  In normal
@@ -161,7 +184,7 @@ Constructor
  block size      : cache unit size in sectors
 
  #feature args   : number of feature arguments passed
- feature args    : writethrough.  (The default is writeback.)
+ feature args    : writethrough or passthrough (The default is writeback.)
 
  policy          : the replacement policy to use
  #policy args    : an even number of arguments corresponding to
@@ -177,6 +200,13 @@ Optional feature arguments are:
 		   back cache block contents later for performance reasons,
 		   so they may differ from the corresponding origin blocks.
 
+   passthrough	 : a degraded mode useful for various cache coherency
+		   situations (e.g., rolling back snapshots of
+		   underlying storage).	 Reads and writes always go to
+		   the origin.	If a write goes to a cached origin
+		   block, then the cache block is invalidated.
+		   To enable passthrough mode the cache must be clean.
+
 A policy called 'default' is always registered.  This is an alias for
 the policy we currently think is giving best all round performance.
 
@@ -186,36 +216,43 @@ the characteristics of a specific policy, always request it by name.
 Status
 ------
 
-<#used metadata blocks>/<#total metadata blocks> <#read hits> <#read misses>
-<#write hits> <#write misses> <#demotions> <#promotions> <#blocks in cache>
-<#dirty> <#features> <features>* <#core args> <core args>* <#policy args>
-<policy args>*
+<metadata block size> <#used metadata blocks>/<#total metadata blocks>
+<cache block size> <#used cache blocks>/<#total cache blocks>
+<#read hits> <#read misses> <#write hits> <#write misses>
+<#demotions> <#promotions> <#dirty> <#features> <features>*
+<#core args> <core args>* <policy name> <#policy args> <policy args>*
 
-#used metadata blocks    : Number of metadata blocks used
-#total metadata blocks   : Total number of metadata blocks
-#read hits               : Number of times a READ bio has been mapped
+metadata block size	 : Fixed block size for each metadata block in
+			     sectors
+#used metadata blocks	 : Number of metadata blocks used
+#total metadata blocks	 : Total number of metadata blocks
+cache block size	 : Configurable block size for the cache device
+			     in sectors
+#used cache blocks	 : Number of blocks resident in the cache
+#total cache blocks	 : Total number of cache blocks
+#read hits		 : Number of times a READ bio has been mapped
 			     to the cache
-#read misses             : Number of times a READ bio has been mapped
+#read misses		 : Number of times a READ bio has been mapped
 			     to the origin
-#write hits              : Number of times a WRITE bio has been mapped
+#write hits		 : Number of times a WRITE bio has been mapped
 			     to the cache
-#write misses            : Number of times a WRITE bio has been
+#write misses		 : Number of times a WRITE bio has been
 			     mapped to the origin
-#demotions               : Number of times a block has been removed
+#demotions		 : Number of times a block has been removed
 			     from the cache
-#promotions              : Number of times a block has been moved to
+#promotions		 : Number of times a block has been moved to
 			     the cache
-#blocks in cache         : Number of blocks resident in the cache
-#dirty                   : Number of blocks in the cache that differ
+#dirty			 : Number of blocks in the cache that differ
 			     from the origin
-#feature args            : Number of feature args to follow
-feature args             : 'writethrough' (optional)
-#core args               : Number of core arguments (must be even)
-core args                : Key/value pairs for tuning the core
+#feature args		 : Number of feature args to follow
+feature args		 : 'writethrough' (optional)
+#core args		 : Number of core arguments (must be even)
+core args		 : Key/value pairs for tuning the core
 			     e.g. migration_threshold
-#policy args             : Number of policy arguments to follow (must be even)
-policy args              : Key/value pairs
-			     e.g. 'sequential_threshold 1024
+policy name		 : Name of the policy
+#policy args		 : Number of policy arguments to follow (must be even)
+policy args		 : Key/value pairs
+			     e.g. sequential_threshold
 
 Messages
 --------
@@ -231,12 +268,28 @@ The message format is:
 E.g.
    dmsetup message my_cache 0 sequential_threshold 1024
 
+
+Invalidation is removing an entry from the cache without writing it
+back.  Cache blocks can be invalidated via the invalidate_cblocks
+message, which takes an arbitrary number of cblock ranges.  Each cblock
+range's end value is "one past the end", meaning 5-10 expresses a range
+of values from 5 to 9.  Each cblock must be expressed as a decimal
+value, in the future a variant message that takes cblock ranges
+expressed in hexidecimal may be needed to better support efficient
+invalidation of larger caches.  The cache must be in passthrough mode
+when invalidate_cblocks is used.
+
+   invalidate_cblocks [<cblock>|<cblock begin>-<cblock end>]*
+
+E.g.
+   dmsetup message my_cache 0 invalidate_cblocks 2345 3456-4567 5678-6789
+
 Examples
 ========
 
 The test suite can be found here:
 
-https://github.com/jthornber/thinp-test-suite
+https://github.com/jthornber/device-mapper-test-suite
 
 dmsetup create my_cache --table '0 41943040 cache /dev/mapper/metadata \
 	/dev/mapper/ssd /dev/mapper/origin 512 1 writeback default 0'

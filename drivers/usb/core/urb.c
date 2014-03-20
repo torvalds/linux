@@ -2,7 +2,6 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/log2.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
@@ -53,7 +52,7 @@ EXPORT_SYMBOL_GPL(usb_init_urb);
  *	valid options for this.
  *
  * Creates an urb for the USB driver to use, initializes a few internal
- * structures, incrementes the usage counter, and returns a pointer to it.
+ * structures, increments the usage counter, and returns a pointer to it.
  *
  * If the driver want to use this urb for interrupt, control, or bulk
  * endpoints, pass '0' as the number of iso packets.
@@ -138,13 +137,19 @@ void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor)
 }
 EXPORT_SYMBOL_GPL(usb_anchor_urb);
 
+static int usb_anchor_check_wakeup(struct usb_anchor *anchor)
+{
+	return atomic_read(&anchor->suspend_wakeups) == 0 &&
+		list_empty(&anchor->urb_list);
+}
+
 /* Callers must hold anchor->lock */
 static void __usb_unanchor_urb(struct urb *urb, struct usb_anchor *anchor)
 {
 	urb->anchor = NULL;
 	list_del(&urb->anchor_list);
 	usb_put_urb(urb);
-	if (list_empty(&anchor->urb_list))
+	if (usb_anchor_check_wakeup(anchor))
 		wake_up(&anchor->wait);
 }
 
@@ -275,7 +280,7 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  *
  * Device drivers must explicitly request that repetition, by ensuring that
  * some URB is always on the endpoint's queue (except possibly for short
- * periods during completion callacks).  When there is no longer an urb
+ * periods during completion callbacks).  When there is no longer an urb
  * queued, the endpoint's bandwidth reservation is canceled.  This means
  * drivers can use their completion handlers to ensure they keep bandwidth
  * they need, by reinitializing and resubmitting the just-completed urb
@@ -319,10 +324,14 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  */
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
+	static int			pipetypes[4] = {
+		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+	};
 	int				xfertype, max;
 	struct usb_device		*dev;
 	struct usb_host_endpoint	*ep;
 	int				is_out;
+	unsigned int			allowed;
 
 	if (!urb || !urb->complete)
 		return -EINVAL;
@@ -430,15 +439,10 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (urb->transfer_buffer_length > INT_MAX)
 		return -EMSGSIZE;
 
-#ifdef DEBUG
-	/* stuff that drivers shouldn't do, but which shouldn't
+	/*
+	 * stuff that drivers shouldn't do, but which shouldn't
 	 * cause problems in HCDs if they get it wrong.
 	 */
-	{
-	unsigned int	allowed;
-	static int pipetypes[4] = {
-		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
-	};
 
 	/* Check that the pipe's type matches the endpoint's type */
 	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
@@ -470,8 +474,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (allowed != urb->transfer_flags)
 		dev_WARN(&dev->dev, "BOGUS urb flags, %x --> %x\n",
 			urb->transfer_flags, allowed);
-	}
-#endif
+
 	/*
 	 * Force periodic transfer intervals to be legal values that are
 	 * a power of two (so HCDs don't need to).
@@ -486,9 +489,9 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		/* too small? */
 		switch (dev->speed) {
 		case USB_SPEED_WIRELESS:
-			if (urb->interval < 6)
+			if ((urb->interval < 6)
+				&& (xfertype == USB_ENDPOINT_XFER_INT))
 				return -EINVAL;
-			break;
 		default:
 			if (urb->interval <= 0)
 				return -EINVAL;
@@ -846,6 +849,39 @@ void usb_unlink_anchored_urbs(struct usb_anchor *anchor)
 EXPORT_SYMBOL_GPL(usb_unlink_anchored_urbs);
 
 /**
+ * usb_anchor_suspend_wakeups
+ * @anchor: the anchor you want to suspend wakeups on
+ *
+ * Call this to stop the last urb being unanchored from waking up any
+ * usb_wait_anchor_empty_timeout waiters. This is used in the hcd urb give-
+ * back path to delay waking up until after the completion handler has run.
+ */
+void usb_anchor_suspend_wakeups(struct usb_anchor *anchor)
+{
+	if (anchor)
+		atomic_inc(&anchor->suspend_wakeups);
+}
+EXPORT_SYMBOL_GPL(usb_anchor_suspend_wakeups);
+
+/**
+ * usb_anchor_resume_wakeups
+ * @anchor: the anchor you want to resume wakeups on
+ *
+ * Allow usb_wait_anchor_empty_timeout waiters to be woken up again, and
+ * wake up any current waiters if the anchor is empty.
+ */
+void usb_anchor_resume_wakeups(struct usb_anchor *anchor)
+{
+	if (!anchor)
+		return;
+
+	atomic_dec(&anchor->suspend_wakeups);
+	if (usb_anchor_check_wakeup(anchor))
+		wake_up(&anchor->wait);
+}
+EXPORT_SYMBOL_GPL(usb_anchor_resume_wakeups);
+
+/**
  * usb_wait_anchor_empty_timeout - wait for an anchor to be unused
  * @anchor: the anchor you want to become unused
  * @timeout: how long you are willing to wait in milliseconds
@@ -858,7 +894,8 @@ EXPORT_SYMBOL_GPL(usb_unlink_anchored_urbs);
 int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
 				  unsigned int timeout)
 {
-	return wait_event_timeout(anchor->wait, list_empty(&anchor->urb_list),
+	return wait_event_timeout(anchor->wait,
+				  usb_anchor_check_wakeup(anchor),
 				  msecs_to_jiffies(timeout));
 }
 EXPORT_SYMBOL_GPL(usb_wait_anchor_empty_timeout);

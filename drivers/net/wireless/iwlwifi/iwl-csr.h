@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,7 +198,8 @@
 				 CSR_INT_BIT_RF_KILL | \
 				 CSR_INT_BIT_SW_RX   | \
 				 CSR_INT_BIT_WAKEUP  | \
-				 CSR_INT_BIT_ALIVE)
+				 CSR_INT_BIT_ALIVE   | \
+				 CSR_INT_BIT_RX_PERIODIC)
 
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
 #define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
@@ -394,6 +395,38 @@
 #define CSR_DRAM_INT_TBL_ENABLE		(1 << 31)
 #define CSR_DRAM_INIT_TBL_WRAP_CHECK	(1 << 27)
 
+/* SECURE boot registers */
+#define CSR_SECURE_BOOT_CONFIG_ADDR	(0x100)
+enum secure_boot_config_reg {
+	CSR_SECURE_BOOT_CONFIG_INSPECTOR_BURNED_IN_OTP	= 0x00000001,
+	CSR_SECURE_BOOT_CONFIG_INSPECTOR_NOT_REQ	= 0x00000002,
+};
+
+#define CSR_SECURE_BOOT_CPU1_STATUS_ADDR	(0x100)
+#define CSR_SECURE_BOOT_CPU2_STATUS_ADDR	(0x100)
+enum secure_boot_status_reg {
+	CSR_SECURE_BOOT_CPU_STATUS_VERF_STATUS		= 0x00000003,
+	CSR_SECURE_BOOT_CPU_STATUS_VERF_COMPLETED	= 0x00000002,
+	CSR_SECURE_BOOT_CPU_STATUS_VERF_SUCCESS		= 0x00000004,
+	CSR_SECURE_BOOT_CPU_STATUS_VERF_FAIL		= 0x00000008,
+	CSR_SECURE_BOOT_CPU_STATUS_SIGN_VERF_FAIL	= 0x00000010,
+};
+
+#define CSR_UCODE_LOAD_STATUS_ADDR	(0x100)
+enum secure_load_status_reg {
+	CSR_CPU_STATUS_LOADING_STARTED			= 0x00000001,
+	CSR_CPU_STATUS_LOADING_COMPLETED		= 0x00000002,
+	CSR_CPU_STATUS_NUM_OF_LAST_COMPLETED		= 0x000000F8,
+	CSR_CPU_STATUS_NUM_OF_LAST_LOADED_BLOCK		= 0x0000FF00,
+};
+
+#define CSR_SECURE_INSPECTOR_CODE_ADDR	(0x100)
+#define CSR_SECURE_INSPECTOR_DATA_ADDR	(0x100)
+
+#define CSR_SECURE_TIME_OUT	(100)
+
+#define FH_TCSR_0_REG0 (0x1D00)
+
 /*
  * HBUS (Host-side Bus)
  *
@@ -463,14 +496,11 @@
  * the CSR_INT_COALESCING is an 8 bit register in 32-usec unit
  *
  * default interrupt coalescing timer is 64 x 32 = 2048 usecs
- * default interrupt coalescing calibration timer is 16 x 32 = 512 usecs
  */
 #define IWL_HOST_INT_TIMEOUT_MAX	(0xFF)
 #define IWL_HOST_INT_TIMEOUT_DEF	(0x40)
 #define IWL_HOST_INT_TIMEOUT_MIN	(0x0)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MAX	(0xFF)
-#define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
+#define IWL_HOST_INT_OPER_MODE		BIT(31)
 
 /*****************************************************************************
  *                        7000/3000 series SHR DTS addresses                 *

@@ -16,21 +16,16 @@
 #include <linux/of.h>
 
 void mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1);
-void exynos_init_time(void);
 
 struct map_desc;
 void exynos_init_io(void);
 void exynos4_restart(enum reboot_mode mode, const char *cmd);
 void exynos5_restart(enum reboot_mode mode, const char *cmd);
+void exynos_cpuidle_init(void);
+void exynos_cpufreq_init(void);
 void exynos_init_late(void);
 
 void exynos_firmware_init(void);
-
-#ifdef CONFIG_PM_GENERIC_DOMAINS
-int exynos_pm_late_initcall(void);
-#else
-static inline int exynos_pm_late_initcall(void) { return 0; }
-#endif
 
 extern struct smp_operations exynos_smp_ops;
 

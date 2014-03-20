@@ -1,0 +1,23 @@
+* GPIO-controlled Watchdog
+
+Required Properties:
+- compatible: Should contain "linux,wdt-gpio".
+- gpios: From common gpio binding; gpio connection to WDT reset pin.
+- hw_algo: The algorithm used by the driver. Should be one of the
+  following values:
+  - toggle: Either a high-to-low or a low-to-high transition clears
+    the WDT counter. The watchdog timer is disabled when GPIO is
+    left floating or connected to a three-state buffer.
+  - level: Low or high level starts counting WDT timeout,
+    the opposite level disables the WDT. Active level is determined
+    by the GPIO flags.
+- hw_margin_ms: Maximum time to reset watchdog circuit (milliseconds).
+
+Example:
+	watchdog: watchdog {
+		/* ADM706 */
+		compatible = "linux,wdt-gpio";
+		gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
+		hw_algo = "toggle";
+		hw_margin_ms = <1600>;
+	};

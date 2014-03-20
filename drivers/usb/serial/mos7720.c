@@ -1,6 +1,6 @@
 /*
  * mos7720.c
- *   Controls the Moschip 7720 usb to dual port serial convertor
+ *   Controls the Moschip 7720 usb to dual port serial converter
  *
  * Copyright 2006 Moschip Semiconductor Tech. Ltd.
  *
@@ -22,7 +22,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -46,7 +45,7 @@
 #define MOS_WRITE	0x0E
 #define MOS_READ	0x0D
 
-/* Interrupt Rotinue Defines	*/
+/* Interrupt Routines Defines	*/
 #define SERIAL_IIR_RLS	0x06
 #define SERIAL_IIR_RDA	0x04
 #define SERIAL_IIR_CTI	0x0c
@@ -362,15 +361,13 @@ static int write_parport_reg_nonblock(struct mos7715_parport *mos_parport,
 
 	/* create and initialize the control urb and containing urbtracker */
 	urbtrack = kmalloc(sizeof(struct urbtracker), GFP_ATOMIC);
-	if (urbtrack == NULL) {
-		dev_err(&usbdev->dev, "out of memory");
+	if (!urbtrack)
 		return -ENOMEM;
-	}
+
 	kref_get(&mos_parport->ref_count);
 	urbtrack->mos_parport = mos_parport;
 	urbtrack->urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (urbtrack->urb == NULL) {
-		dev_err(&usbdev->dev, "out of urbs");
+	if (!urbtrack->urb) {
 		kfree(urbtrack);
 		return -ENOMEM;
 	}
@@ -440,7 +437,7 @@ static int write_parport_reg_nonblock(struct mos7715_parport *mos_parport,
  * not called the release function yet because someone has a serial port open.
  * The shared release_lock prevents the first, and the mutex and disconnected
  * flag maintained by usbserial covers the second.  We also use the msg_pending
- * flag to ensure that all synchronous usb messgage calls have completed before
+ * flag to ensure that all synchronous usb message calls have completed before
  * our release function can return.
  */
 static int parport_prologue(struct parport *pp)
@@ -455,7 +452,7 @@ static int parport_prologue(struct parport *pp)
 		return -1;
 	}
 	mos_parport->msg_pending = true;   /* synch usb call pending */
-	INIT_COMPLETION(mos_parport->syncmsg_compl);
+	reinit_completion(&mos_parport->syncmsg_compl);
 	spin_unlock(&release_lock);
 
 	mutex_lock(&mos_parport->serial->disc_mutex);
@@ -471,7 +468,7 @@ static int parport_prologue(struct parport *pp)
 }
 
 /*
- * This is the the common bottom part of all parallel port functions that send
+ * This is the common bottom part of all parallel port functions that send
  * synchronous messages to the device.
  */
 static inline void parport_epilogue(struct parport *pp)
@@ -702,10 +699,9 @@ static int mos7715_parport_init(struct usb_serial *serial)
 
 	/* allocate and initialize parallel port control struct */
 	mos_parport = kzalloc(sizeof(struct mos7715_parport), GFP_KERNEL);
-	if (mos_parport == NULL) {
-		dev_dbg(&serial->dev->dev, "%s: kzalloc failed\n", __func__);
+	if (!mos_parport)
 		return -ENOMEM;
-	}
+
 	mos_parport->msg_pending = false;
 	kref_init(&mos_parport->ref_count);
 	spin_lock_init(&mos_parport->listlock);
@@ -1018,18 +1014,12 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 	for (j = 0; j < NUM_URBS; ++j) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		mos7720_port->write_urb_pool[j] = urb;
-
-		if (urb == NULL) {
-			dev_err(&port->dev, "No more urbs???\n");
+		if (!urb)
 			continue;
-		}
 
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer) {
-			dev_err(&port->dev,
-				"%s-out of memory for urb buffers.\n",
-				__func__);
 			usb_free_urb(mos7720_port->write_urb_pool[j]);
 			mos7720_port->write_urb_pool[j] = NULL;
 			continue;
@@ -1250,11 +1240,8 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (urb->transfer_buffer == NULL) {
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_KERNEL);
-		if (urb->transfer_buffer == NULL) {
-			dev_err_console(port, "%s no more kernel memory...\n",
-				__func__);
+		if (!urb->transfer_buffer)
 			goto exit;
-		}
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
@@ -1884,8 +1871,6 @@ static int mos7720_ioctl(struct tty_struct *tty,
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
 		return -ENODEV;
-
-	dev_dbg(&port->dev, "%s - cmd = 0x%x", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCSERGETLSR:

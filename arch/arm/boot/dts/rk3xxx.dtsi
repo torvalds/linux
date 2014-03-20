@@ -1,0 +1,124 @@
+/*
+ * Copyright (c) 2013 MundoReader S.L.
+ * Author: Heiko Stuebner <heiko@sntech.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&gic>;
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+
+		gic: interrupt-controller@1013d000 {
+			compatible = "arm,cortex-a9-gic";
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			reg = <0x1013d000 0x1000>,
+			      <0x1013c100 0x0100>;
+		};
+
+		L2: l2-cache-controller@10138000 {
+			compatible = "arm,pl310-cache";
+			reg = <0x10138000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		global-timer@1013c200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0x1013c200 0x20>;
+			interrupts = <GIC_PPI 11 0x304>;
+			clocks = <&dummy150m>;
+		};
+
+		local-timer@1013c600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x1013c600 0x20>;
+			interrupts = <GIC_PPI 13 0x304>;
+			clocks = <&dummy150m>;
+		};
+
+		uart0: serial@10124000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x10124000 0x400>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <1>;
+			clocks = <&clk_gates1 8>;
+			status = "disabled";
+		};
+
+		uart1: serial@10126000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x10126000 0x400>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <1>;
+			clocks = <&clk_gates1 10>;
+			status = "disabled";
+		};
+
+		uart2: serial@20064000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x20064000 0x400>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <1>;
+			clocks = <&clk_gates1 12>;
+			status = "disabled";
+		};
+
+		uart3: serial@20068000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x20068000 0x400>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <1>;
+			clocks = <&clk_gates1 14>;
+			status = "disabled";
+		};
+
+		dwmmc@10214000 {
+			compatible = "rockchip,rk2928-dw-mshc";
+			reg = <0x10214000 0x1000>;
+			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			clocks = <&clk_gates5 10>, <&clk_gates2 11>;
+			clock-names = "biu", "ciu";
+
+			status = "disabled";
+		};
+
+		dwmmc@10218000 {
+			compatible = "rockchip,rk2928-dw-mshc";
+			reg = <0x10218000 0x1000>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			clocks = <&clk_gates5 11>, <&clk_gates2 13>;
+			clock-names = "biu", "ciu";
+
+			status = "disabled";
+		};
+	};
+};

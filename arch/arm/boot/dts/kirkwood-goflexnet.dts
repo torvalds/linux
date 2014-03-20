@@ -67,31 +67,6 @@
 			status = "ok";
 		};
 
-		nand@3000000 {
-			chip-delay = <40>;
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x400000>;
-			};
-
-			partition@500000 {
-				label = "pogoplug";
-				reg = <0x0500000 0x2000000>;
-			};
-
-			partition@2500000 {
-				label = "root";
-				reg = <0x02500000 0xd800000>;
-			};
-		};
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
@@ -110,44 +85,44 @@
 
 		health {
 			label = "status:green:health";
-			gpios = <&gpio1 14 1>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 		fault {
 			label = "status:orange:fault";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		left0 {
 			label = "status:white:left0";
-			gpios = <&gpio1 10 0>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		};
 		left1 {
 			label = "status:white:left1";
-			gpios = <&gpio1 11 0>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		};
 		left2 {
 			label = "status:white:left2";
-			gpios = <&gpio1 12 0>;
+			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
 		left3 {
 			label = "status:white:left3";
-			gpios = <&gpio1 13 0>;
+			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
 		right0 {
 			label = "status:white:right0";
-			gpios = <&gpio1 6 0>;
+			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 		};
 		right1 {
 			label = "status:white:right1";
-			gpios = <&gpio1 7 0>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		};
 		right2 {
 			label = "status:white:right2";
-			gpios = <&gpio1 8 0>;
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		};
 		right3 {
 			label = "status:white:right3";
-			gpios = <&gpio1 9 0>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 		};
 	};
 	regulators {
@@ -166,8 +141,34 @@
 			enable-active-high;
 			regulator-always-on;
 			regulator-boot-on;
-			gpio = <&gpio0 29 0>;
+			gpio = <&gpio0 29 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&nand {
+	chip-delay = <40>;
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "pogoplug";
+		reg = <0x0500000 0x2000000>;
+	};
+
+	partition@2500000 {
+		label = "root";
+		reg = <0x02500000 0xd800000>;
 	};
 };
 
@@ -175,7 +176,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 };

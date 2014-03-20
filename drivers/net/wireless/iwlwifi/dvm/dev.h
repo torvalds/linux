@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -270,7 +270,7 @@ struct iwl_sensitivity_ranges {
  * iwlXXXX_     <-- Hardware specific (implemented in iwl-XXXX.c for XXXX)
  *
  ****************************************************************************/
-extern void iwl_update_chain_flags(struct iwl_priv *priv);
+void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 
 #define IWL_OPERATION_MODE_AUTO     0

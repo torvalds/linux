@@ -30,7 +30,7 @@
 /* This is really lnet_proc.c. You might need to update sanity test 215
  * if any file format is changed. */
 
-static ctl_table_header_t *lnet_table_header = NULL;
+static ctl_table_header_t *lnet_table_header;
 
 #define CTL_LNET	 (0x100)
 enum {
@@ -158,7 +158,7 @@ int LL_PROC_PROTO(proc_lnet_routes)
 	off = LNET_PROC_HOFF_GET(*ppos);
 	ver = LNET_PROC_VER_GET(*ppos);
 
-	LASSERT (!write);
+	LASSERT(!write);
 
 	if (*lenp == 0)
 		return 0;
@@ -172,11 +172,11 @@ int LL_PROC_PROTO(proc_lnet_routes)
 	if (*ppos == 0) {
 		s += snprintf(s, tmpstr + tmpsiz - s, "Routing %s\n",
 			      the_lnet.ln_routing ? "enabled" : "disabled");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		LASSERT(tmpstr + tmpsiz - s > 0);
 
-		s += snprintf(s, tmpstr + tmpsiz - s, "%-8s %4s %7s %s\n",
-			      "net", "hops", "state", "router");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		s += snprintf(s, tmpstr + tmpsiz - s, "%-8s %4s %8s %7s %s\n",
+			      "net", "hops", "priority", "state", "router");
+		LASSERT(tmpstr + tmpsiz - s > 0);
 
 		lnet_net_lock(0);
 		ver = (unsigned int)the_lnet.ln_remote_nets_version;
@@ -229,14 +229,16 @@ int LL_PROC_PROTO(proc_lnet_routes)
 		}
 
 		if (route != NULL) {
-			__u32	net   = rnet->lrn_net;
-			unsigned int hops  = route->lr_hops;
-			lnet_nid_t   nid   = route->lr_gateway->lp_nid;
-			int	  alive = route->lr_gateway->lp_alive;
+			__u32        net	= rnet->lrn_net;
+			unsigned int hops	= route->lr_hops;
+			unsigned int priority	= route->lr_priority;
+			lnet_nid_t   nid	= route->lr_gateway->lp_nid;
+			int          alive	= route->lr_gateway->lp_alive;
 
 			s += snprintf(s, tmpstr + tmpsiz - s,
-				      "%-8s %4u %7s %s\n",
+				      "%-8s %4u %8u %7s %s\n",
 				      libcfs_net2str(net), hops,
+				      priority,
 				      alive ? "up" : "down",
 				      libcfs_nid2str(nid));
 			LASSERT(tmpstr + tmpsiz - s > 0);
@@ -281,7 +283,7 @@ int LL_PROC_PROTO(proc_lnet_routers)
 	off = LNET_PROC_HOFF_GET(*ppos);
 	ver = LNET_PROC_VER_GET(*ppos);
 
-	LASSERT (!write);
+	LASSERT(!write);
 
 	if (*lenp == 0)
 		return 0;
@@ -375,7 +377,7 @@ int LL_PROC_PROTO(proc_lnet_routers)
 					      pingsent,
 					      cfs_duration_sec(cfs_time_sub(deadline, now)),
 					      down_ni, libcfs_nid2str(nid));
-			LASSERT (tmpstr + tmpsiz - s > 0);
+			LASSERT(tmpstr + tmpsiz - s > 0);
 		}
 
 		lnet_net_unlock(0);
@@ -437,7 +439,7 @@ int LL_PROC_PROTO(proc_lnet_peers)
 			      "%-24s %4s %5s %5s %5s %5s %5s %5s %5s %s\n",
 			      "nid", "refs", "state", "last", "max",
 			      "rtr", "min", "tx", "min", "queue");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		LASSERT(tmpstr + tmpsiz - s > 0);
 
 		hoff++;
 	} else {
@@ -534,7 +536,7 @@ int LL_PROC_PROTO(proc_lnet_peers)
 				      libcfs_nid2str(nid), nrefs, aliveness,
 				      lastalive, maxcr, rtrcr, minrtrcr, txcr,
 				      mintxcr, txqnob);
-			LASSERT (tmpstr + tmpsiz - s > 0);
+			LASSERT(tmpstr + tmpsiz - s > 0);
 
 		} else { /* peer is NULL */
 			lnet_net_unlock(cpt);
@@ -592,7 +594,7 @@ static int __proc_lnet_buffers(void *data, int write,
 	s += snprintf(s, tmpstr + tmpsiz - s,
 		      "%5s %5s %7s %7s\n",
 		      "pages", "count", "credits", "min");
-	LASSERT (tmpstr + tmpsiz - s > 0);
+	LASSERT(tmpstr + tmpsiz - s > 0);
 
 	if (the_lnet.ln_rtrpools == NULL)
 		goto out; /* I'm not a router */
@@ -638,7 +640,7 @@ int LL_PROC_PROTO(proc_lnet_nis)
 
 	DECLARE_LL_PROC_PPOS_DECL;
 
-	LASSERT (!write);
+	LASSERT(!write);
 
 	if (*lenp == 0)
 		return 0;
@@ -654,7 +656,7 @@ int LL_PROC_PROTO(proc_lnet_nis)
 			      "%-24s %6s %5s %4s %4s %4s %5s %5s %5s\n",
 			      "nid", "status", "alive", "refs", "peer",
 			      "rtr", "max", "tx", "min");
-		LASSERT (tmpstr + tmpsiz - s > 0);
+		LASSERT(tmpstr + tmpsiz - s > 0);
 	} else {
 		struct list_head	*n;
 		lnet_ni_t	 *ni   = NULL;
@@ -855,55 +857,46 @@ static ctl_table_t lnet_table[] = {
 	 * to go via /proc for portability.
 	 */
 	{
-		INIT_CTL_NAME(PSDEV_LNET_STATS)
 		.procname = "stats",
 		.mode     = 0644,
 		.proc_handler = &proc_lnet_stats,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_ROUTES)
 		.procname = "routes",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_routes,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_ROUTERS)
 		.procname = "routers",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_routers,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_PEERS)
 		.procname = "peers",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_peers,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_PEERS)
 		.procname = "buffers",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_buffers,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_NIS)
 		.procname = "nis",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_nis,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_PTL_ROTOR)
 		.procname = "portal_rotor",
 		.mode     = 0644,
 		.proc_handler = &proc_lnet_portal_rotor,
 	},
 	{
-		INIT_CTL_NAME(0)
 	}
 };
 
 static ctl_table_t top_table[] = {
 	{
-		INIT_CTL_NAME(CTL_LNET)
 		.procname = "lnet",
 		.mode     = 0555,
 		.data     = NULL,
@@ -911,28 +904,23 @@ static ctl_table_t top_table[] = {
 		.child    = lnet_table,
 	},
 	{
-		INIT_CTL_NAME(0)
 	}
 };
 
 void
 lnet_proc_init(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header == NULL)
 		lnet_table_header = register_sysctl_table(top_table);
-#endif
 }
 
 void
 lnet_proc_fini(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header != NULL)
 		unregister_sysctl_table(lnet_table_header);
 
 	lnet_table_header = NULL;
-#endif
 }
 
 #else

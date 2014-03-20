@@ -29,43 +29,6 @@
 			pinctrl-names = "default";
 		};
 
-		nand@3000000 {
-			chip-delay = <25>;
-			status = "okay";
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-
-			partition@0 {
-				label = "uboot";
-				reg = <0x0 0x90000>;
-			};
-
-			partition@90000 {
-				label = "env";
-				reg = <0x90000 0x44000>;
-			};
-
-			partition@d4000 {
-				label = "test";
-				reg = <0xd4000 0x24000>;
-			};
-
-			partition@f4000 {
-				label = "conf";
-				reg = <0xf4000 0x400000>;
-			};
-
-			partition@4f4000 {
-				label = "linux";
-				reg = <0x4f4000 0x1d20000>;
-			};
-
-			partition@2214000 {
-				label = "user";
-				reg = <0x2214000 0x1dec000>;
-			};
-		};
-
 		sata@80000 {
 			nr-ports = <1>;
 			status = "okay";
@@ -138,17 +101,17 @@
 
 		led-red {
 			label = "obsa6:red:stat";
-			gpios = <&gpio1 9 1>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 
 		led-green {
 			label = "obsa6:green:stat";
-			gpios = <&gpio1 10 1>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
 
 		led-yellow {
 			label = "obsa6:yellow:stat";
-			gpios = <&gpio1 11 1>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
         };
 
@@ -161,9 +124,46 @@
 
 		button@1 {
 			label = "Init Button";
-			linux,code = <116>;
-			gpios = <&gpio1 6 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&nand {
+	chip-delay = <25>;
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0 0x90000>;
+	};
+
+	partition@90000 {
+		label = "env";
+		reg = <0x90000 0x44000>;
+	};
+
+	partition@d4000 {
+		label = "test";
+		reg = <0xd4000 0x24000>;
+	};
+
+	partition@f4000 {
+		label = "conf";
+		reg = <0xf4000 0x400000>;
+	};
+
+	partition@4f4000 {
+		label = "linux";
+		reg = <0x4f4000 0x1d20000>;
+	};
+
+	partition@2214000 {
+		label = "user";
+		reg = <0x2214000 0x1dec000>;
 	};
 };
 
@@ -171,7 +171,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 };

@@ -16,6 +16,26 @@
 	model = "Armadeus Systems APF27Dev docking/development board";
 	compatible = "armadeus,imx27-apf27dev", "armadeus,imx27-apf27", "fsl,imx27";
 
+	display: display {
+		model = "Chimei-LW700AT9003";
+		native-mode = <&timing0>;
+		bits-per-pixel = <16>;  /* non-standard but required */
+		fsl,pcr = <0xfae80083>;	/* non-standard but required */
+		display-timings {
+			timing0: 640x480 {
+				clock-frequency = <33000033>;
+				hactive = <800>;
+				vactive = <640>;
+				hback-porch = <96>;
+				hfront-porch = <96>;
+				vback-porch = <20>;
+				vfront-porch = <21>;
+				hsync-len = <64>;
+				vsync-len = <4>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -47,6 +67,12 @@
 	fsl,spi-num-chipselects = <3>;
 	cs-gpios = <&gpio4 21 1>, <&gpio4 27 1>,
 			<&gpio2 17 1>;
+	status = "okay";
+};
+
+&fb {
+	display = <&display>;
+	fsl,dmacr = <0x00020010>;
 	status = "okay";
 };
 

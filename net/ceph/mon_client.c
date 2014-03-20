@@ -152,7 +152,7 @@ static int __open_session(struct ceph_mon_client *monc)
 		/* initiatiate authentication handshake */
 		ret = ceph_auth_build_hello(monc->auth,
 					    monc->m_auth->front.iov_base,
-					    monc->m_auth->front_max);
+					    monc->m_auth->front_alloc_len);
 		__send_prepared_auth_request(monc, ret);
 	} else {
 		dout("open_session mon%d already open\n", monc->cur_mon);
@@ -196,7 +196,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 		int num;
 
 		p = msg->front.iov_base;
-		end = p + msg->front_max;
+		end = p + msg->front_alloc_len;
 
 		num = 1 + !!monc->want_next_osdmap + !!monc->want_mdsmap;
 		ceph_encode_32(&p, num);
@@ -897,7 +897,7 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 	ret = ceph_handle_auth_reply(monc->auth, msg->front.iov_base,
 				     msg->front.iov_len,
 				     monc->m_auth->front.iov_base,
-				     monc->m_auth->front_max);
+				     monc->m_auth->front_alloc_len);
 	if (ret < 0) {
 		monc->client->auth_err = ret;
 		wake_up_all(&monc->client->auth_wq);
@@ -939,7 +939,7 @@ static int __validate_auth(struct ceph_mon_client *monc)
 		return 0;
 
 	ret = ceph_build_auth(monc->auth, monc->m_auth->front.iov_base,
-			      monc->m_auth->front_max);
+			      monc->m_auth->front_alloc_len);
 	if (ret <= 0)
 		return ret; /* either an error, or no need to authenticate */
 	__send_prepared_auth_request(monc, ret);

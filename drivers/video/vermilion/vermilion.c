@@ -383,7 +383,6 @@ static void vmlfb_disable_mmio(struct vml_par *par)
 static void vmlfb_release_devices(struct vml_par *par)
 {
 	if (atomic_dec_and_test(&par->refcount)) {
-		pci_set_drvdata(par->vdc, NULL);
 		pci_disable_device(par->gpu);
 		pci_disable_device(par->vdc);
 	}

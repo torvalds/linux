@@ -74,6 +74,7 @@ ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
  */
 static int test_24bit_addr(unsigned long ip, unsigned long addr)
 {
+	addr = ppc_function_entry((void *)addr);
 
 	/* use the create_branch to verify that this offset can be branched */
 	return create_branch((unsigned int *)ip, addr, 0);
@@ -174,7 +175,11 @@ __ftrace_make_nop(struct module *mod,
 
 	pr_devel(" %08x %08x\n", jmp[0], jmp[1]);
 
+#ifdef __LITTLE_ENDIAN__
+	ptr = ((unsigned long)jmp[1] << 32) + jmp[0];
+#else
 	ptr = ((unsigned long)jmp[0] << 32) + jmp[1];
+#endif
 
 	/* This should match what was called */
 	if (ptr != ppc_function_entry((void *)addr)) {

@@ -117,9 +117,7 @@ static void mc13xxx_led_work(struct work_struct *work)
 		BUG();
 	}
 
-	mc13xxx_lock(led->master);
 	mc13xxx_reg_rmw(led->master, reg, mask << shift, value << shift);
-	mc13xxx_unlock(led->master);
 }
 
 static void mc13xxx_led_set(struct led_classdev *led_cdev,
@@ -130,75 +128,6 @@ static void mc13xxx_led_set(struct led_classdev *led_cdev,
 
 	led->new_brightness = value;
 	schedule_work(&led->work);
-}
-
-static int __init mc13xxx_led_setup(struct mc13xxx_led *led, int max_current)
-{
-	int shift, mask, reg, ret, bank;
-
-	switch (led->id) {
-	case MC13783_LED_MD:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 0;
-		mask = 0x07;
-		break;
-	case MC13783_LED_AD:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 3;
-		mask = 0x07;
-		break;
-	case MC13783_LED_KP:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 6;
-		mask = 0x07;
-		break;
-	case MC13783_LED_R1:
-	case MC13783_LED_G1:
-	case MC13783_LED_B1:
-	case MC13783_LED_R2:
-	case MC13783_LED_G2:
-	case MC13783_LED_B2:
-	case MC13783_LED_R3:
-	case MC13783_LED_G3:
-	case MC13783_LED_B3:
-		bank = (led->id - MC13783_LED_R1) / 3;
-		reg = MC13XXX_REG_LED_CONTROL(3) + bank;
-		shift = ((led->id - MC13783_LED_R1) - bank * 3) * 2;
-		mask = 0x03;
-		break;
-	case MC13892_LED_MD:
-		reg = MC13XXX_REG_LED_CONTROL(0);
-		shift = 9;
-		mask = 0x07;
-		break;
-	case MC13892_LED_AD:
-		reg = MC13XXX_REG_LED_CONTROL(0);
-		shift = 21;
-		mask = 0x07;
-		break;
-	case MC13892_LED_KP:
-		reg = MC13XXX_REG_LED_CONTROL(1);
-		shift = 9;
-		mask = 0x07;
-		break;
-	case MC13892_LED_R:
-	case MC13892_LED_G:
-	case MC13892_LED_B:
-		bank = (led->id - MC13892_LED_R) / 2;
-		reg = MC13XXX_REG_LED_CONTROL(2) + bank;
-		shift = ((led->id - MC13892_LED_R) - bank * 2) * 12 + 9;
-		mask = 0x07;
-		break;
-	default:
-		BUG();
-	}
-
-	mc13xxx_lock(led->master);
-	ret = mc13xxx_reg_rmw(led->master, reg, mask << shift,
-			      max_current << shift);
-	mc13xxx_unlock(led->master);
-
-	return ret;
 }
 
 static int __init mc13xxx_led_probe(struct platform_device *pdev)
@@ -233,31 +162,22 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 	leds->num_leds = num_leds;
 	platform_set_drvdata(pdev, leds);
 
-	mc13xxx_lock(mcdev);
 	for (i = 0; i < devtype->num_regs; i++) {
 		reg = pdata->led_control[i];
 		WARN_ON(reg >= (1 << 24));
 		ret = mc13xxx_reg_write(mcdev, MC13XXX_REG_LED_CONTROL(i), reg);
 		if (ret)
-			break;
-	}
-	mc13xxx_unlock(mcdev);
-
-	if (ret) {
-		dev_err(&pdev->dev, "Unable to init LED driver\n");
-		return ret;
+			return ret;
 	}
 
 	for (i = 0; i < num_leds; i++) {
 		const char *name, *trig;
-		char max_current;
 
 		ret = -EINVAL;
 
 		id = pdata->led[i].id;
 		name = pdata->led[i].name;
 		trig = pdata->led[i].default_trigger;
-		max_current = pdata->led[i].max_current;
 
 		if ((id > devtype->led_max) || (id < devtype->led_min)) {
 			dev_err(&pdev->dev, "Invalid ID %i\n", id);
@@ -280,11 +200,6 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 
 		INIT_WORK(&leds->led[i].work, mc13xxx_led_work);
 
-		ret = mc13xxx_led_setup(&leds->led[i], max_current);
-		if (ret) {
-			dev_err(&pdev->dev, "Unable to setup LED %i\n", id);
-			break;
-		}
 		ret = led_classdev_register(pdev->dev.parent,
 					    &leds->led[i].cdev);
 		if (ret) {
@@ -313,10 +228,8 @@ static int mc13xxx_led_remove(struct platform_device *pdev)
 		cancel_work_sync(&leds->led[i].work);
 	}
 
-	mc13xxx_lock(mcdev);
 	for (i = 0; i < leds->devtype->num_regs; i++)
 		mc13xxx_reg_write(mcdev, MC13XXX_REG_LED_CONTROL(i), 0);
-	mc13xxx_unlock(mcdev);
 
 	return 0;
 }

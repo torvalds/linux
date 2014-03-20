@@ -140,18 +140,6 @@ int cfs_capable(cfs_cap_t cap)
 	return capable(cfs_cap_unpack(cap));
 }
 
-/* Check if task is running in 32-bit API mode, for the purpose of
- * userspace binary interfaces.  On 32-bit Linux this is (unfortunately)
- * always true, even if the application is using LARGEFILE64 and 64-bit
- * APIs, because Linux provides no way for the filesystem to know if it
- * is called via 32-bit or 64-bit APIs.  Other clients may vary.  On
- * 64-bit systems, this will only be true if the binary is calling a
- * 32-bit system call. */
-int current_is_32bit(void)
-{
-	return is_compat_task();
-}
-
 static int cfs_access_process_vm(struct task_struct *tsk, unsigned long addr,
 				 void *buf, int len, int write)
 {
@@ -167,7 +155,7 @@ static int cfs_access_process_vm(struct task_struct *tsk, unsigned long addr,
 		return 0;
 
 	down_read(&mm->mmap_sem);
-	/* ignore errors, just check how much was sucessfully transfered */
+	/* ignore errors, just check how much was successfully transferred */
 	while (len) {
 		int bytes, rc, offset;
 		void *maddr;
@@ -227,8 +215,10 @@ int cfs_get_environ(const char *key, char *value, int *val_len)
 	 * which is already holding mmap_sem for writes.  If some other
 	 * thread gets the write lock in the meantime, this thread will
 	 * block, but at least it won't deadlock on itself.  LU-1735 */
-	if (down_read_trylock(&mm->mmap_sem) == 0)
+	if (down_read_trylock(&mm->mmap_sem) == 0) {
+		kfree(buffer);
 		return -EDEADLK;
+	}
 	up_read(&mm->mmap_sem);
 
 	addr = mm->env_start;
@@ -309,7 +299,6 @@ EXPORT_SYMBOL(cfs_cap_raised);
 EXPORT_SYMBOL(cfs_curproc_cap_pack);
 EXPORT_SYMBOL(cfs_curproc_cap_unpack);
 EXPORT_SYMBOL(cfs_capable);
-EXPORT_SYMBOL(current_is_32bit);
 
 /*
  * Local variables:

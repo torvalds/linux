@@ -114,7 +114,7 @@ static int do_dma_transfer(unsigned long apb_add,
 	dma_desc->callback = apb_dma_complete;
 	dma_desc->callback_param = NULL;
 
-	INIT_COMPLETION(tegra_apb_wait);
+	reinit_completion(&tegra_apb_wait);
 
 	dmaengine_submit(dma_desc);
 	dma_async_issue_pending(tegra_apb_dma_chan);

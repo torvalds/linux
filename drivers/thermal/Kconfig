@@ -29,6 +29,19 @@ config THERMAL_HWMON
 	  Say 'Y' here if you want all thermal sensors to
 	  have hwmon sysfs interface too.
 
+config THERMAL_OF
+	bool
+	prompt "APIs to parse thermal data out of device tree"
+	depends on OF
+	default y
+	help
+	  This options provides helpers to add the support to
+	  read and parse thermal data definitions out of the
+	  device tree blob.
+
+	  Say 'Y' here if you need to build thermal infrastructure
+	  based on device tree.
+
 choice
 	prompt "Default Thermal governor"
 	default THERMAL_DEFAULT_GOV_STEP_WISE
@@ -56,7 +69,7 @@ config THERMAL_DEFAULT_GOV_USER_SPACE
 	select THERMAL_GOV_USER_SPACE
 	help
 	  Select this if you want to let the user space manage the
-	  lpatform thermals.
+	  platform thermals.
 
 endchoice
 
@@ -69,6 +82,7 @@ config THERMAL_GOV_STEP_WISE
 	bool "Step_wise thermal governor"
 	help
 	  Enable this to manage platform thermals using a simple linear
+	  governor.
 
 config THERMAL_GOV_USER_SPACE
 	bool "User_space thermal governor"
@@ -78,7 +92,7 @@ config THERMAL_GOV_USER_SPACE
 config CPU_THERMAL
 	bool "generic cpu cooling support"
 	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
+	depends on THERMAL_OF
 	help
 	  This implements the generic cpu cooling mechanism through frequency
 	  reduction. An ACPI version of this already exists
@@ -117,14 +131,15 @@ config SPEAR_THERMAL
 	depends on OF
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
-	  thermal framework
+	  thermal framework.
 
 config RCAR_THERMAL
 	tristate "Renesas R-Car thermal driver"
-	depends on ARCH_SHMOBILE
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Enable this to plug the R-Car thermal sensor driver into the Linux
-	  thermal framework
+	  thermal framework.
 
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
@@ -191,6 +206,21 @@ config X86_PKG_TEMP_THERMAL
 	  thermal zone. Each package will have its own thermal zone. There are
 	  two trip points which can be set by user to get notifications via thermal
 	  notification methods.
+
+config ACPI_INT3403_THERMAL
+	tristate "ACPI INT3403 thermal driver"
+	depends on X86 && ACPI
+	help
+	  Newer laptops and tablets that use ACPI may have thermal sensors
+	  outside the core CPU/SOC for thermal safety reasons. These
+	  temperature sensors are also exposed for the OS to use via the so
+	  called INT3403 ACPI object. This driver will, on devices that have
+	  such sensors, expose the temperature information from these sensors
+	  to userspace via the normal thermal framework. This means that a wide
+	  range of applications and GUI widgets can show this information to
+	  the user or use this information for making decisions. For example,
+	  the Intel Thermal Daemon can use this information to allow the user
+	  to select his laptop to run without turning on the fans.
 
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"

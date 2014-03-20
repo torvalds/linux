@@ -48,7 +48,7 @@ MODULE_LICENSE("GPL");
 static int ip175c_config_init(struct phy_device *phydev)
 {
 	int err, i;
-	static int full_reset_performed = 0;
+	static int full_reset_performed;
 
 	if (full_reset_performed == 0) {
 

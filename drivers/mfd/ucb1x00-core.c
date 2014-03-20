@@ -553,6 +553,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	if (ucb->irq_base < 0) {
 		dev_err(&ucb->dev, "unable to allocate 16 irqs: %d\n",
 			ucb->irq_base);
+		ret = ucb->irq_base;
 		goto err_irq_alloc;
 	}
 

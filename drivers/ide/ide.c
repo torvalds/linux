@@ -158,7 +158,7 @@ struct bus_type ide_bus_type = {
 	.probe		= generic_ide_probe,
 	.remove		= generic_ide_remove,
 	.shutdown	= generic_ide_shutdown,
-	.dev_attrs	= ide_dev_attrs,
+	.dev_groups	= ide_dev_groups,
 	.suspend	= generic_ide_suspend,
 	.resume		= generic_ide_resume,
 };

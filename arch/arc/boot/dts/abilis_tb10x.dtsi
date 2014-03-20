@@ -62,9 +62,8 @@
 		};
 
 		iomux: iomux@FF10601c {
-			#address-cells = <1>;
-			#size-cells = <1>;
 			compatible = "abilis,tb10x-iomux";
+			#gpio-range-cells = <3>;
 			reg = <0xFF10601c 0x4>;
 		};
 

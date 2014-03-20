@@ -356,7 +356,8 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	return 0;
 err1:
-	dev_err(&udc->dev, "failed to start %s: %d\n",
+	if (ret != -EISNAM)
+		dev_err(&udc->dev, "failed to start %s: %d\n",
 			udc->driver->function, ret);
 	udc->driver = NULL;
 	udc->dev.driver = NULL;

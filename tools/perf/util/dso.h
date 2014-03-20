@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include "types.h"
 #include "map.h"
+#include "build-id.h"
 
 enum dso_binary_type {
 	DSO_BINARY_TYPE__KALLSYMS = 0,
@@ -23,6 +24,7 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
 	DSO_BINARY_TYPE__KCORE,
 	DSO_BINARY_TYPE__GUEST_KCORE,
+	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
@@ -75,22 +77,26 @@ struct dso {
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	struct rb_root	 cache;
+	void		 *a2l;
+	char		 *symsrc_filename;
+	unsigned int	 a2l_fails;
 	enum dso_kernel_type	kernel;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
-	enum dso_binary_type	data_type;
+	enum dso_binary_type	binary_type;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
+	u8		 has_srcline:1;
 	u8		 hit:1;
 	u8		 annotate_warned:1;
-	u8		 sname_alloc:1;
-	u8		 lname_alloc:1;
+	u8		 short_name_allocated:1;
+	u8		 long_name_allocated:1;
 	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
 	const char	 *short_name;
-	char		 *long_name;
+	const char	 *long_name;
 	u16		 long_name_len;
 	u16		 short_name_len;
 	char		 name[0];
@@ -104,8 +110,8 @@ static inline void dso__set_loaded(struct dso *dso, enum map_type type)
 struct dso *dso__new(const char *name);
 void dso__delete(struct dso *dso);
 
-void dso__set_short_name(struct dso *dso, const char *name);
-void dso__set_long_name(struct dso *dso, char *name);
+void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated);
+void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated);
 
 int dso__name_len(const struct dso *dso);
 
@@ -122,8 +128,8 @@ void dso__read_running_kernel_build_id(struct dso *dso,
 int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);
 
 char dso__symtab_origin(const struct dso *dso);
-int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
-			  char *root_dir, char *file, size_t size);
+int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
+				   char *root_dir, char *filename, size_t size);
 
 int dso__data_fd(struct dso *dso, struct machine *machine);
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
@@ -137,7 +143,7 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 				const char *short_name, int dso_type);
 
 void dsos__add(struct list_head *head, struct dso *dso);
-struct dso *dsos__find(struct list_head *head, const char *name,
+struct dso *dsos__find(const struct list_head *head, const char *name,
 		       bool cmp_short);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
@@ -153,14 +159,16 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
 
 static inline bool dso__is_vmlinux(struct dso *dso)
 {
-	return dso->data_type == DSO_BINARY_TYPE__VMLINUX ||
-	       dso->data_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
+	return dso->binary_type == DSO_BINARY_TYPE__VMLINUX ||
+	       dso->binary_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
 }
 
 static inline bool dso__is_kcore(struct dso *dso)
 {
-	return dso->data_type == DSO_BINARY_TYPE__KCORE ||
-	       dso->data_type == DSO_BINARY_TYPE__GUEST_KCORE;
+	return dso->binary_type == DSO_BINARY_TYPE__KCORE ||
+	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
+
+void dso__free_a2l(struct dso *dso);
 
 #endif /* __PERF_DSO */

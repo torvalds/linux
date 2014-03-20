@@ -235,12 +235,9 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	/* First, we check whether we have a real "interrupts" in the device
 	 * tree in case the device-tree is ever fixed
 	 */
-	struct of_irq oirq;
-	if (of_irq_map_one(pic->host->of_node, 0, &oirq) == 0) {
-		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-					     oirq.size);
+	virq = irq_of_parse_and_map(pic->host->of_node, 0);
+	if (virq)
 		return virq;
-	}
 
 	/* Now do the horrible hacks */
 	tmp = of_get_property(pic->host->of_node, "#interrupt-cells", NULL);

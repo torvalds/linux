@@ -20,8 +20,11 @@
 #include <linux/videodev2.h>
 
 #include "vsp1.h"
+#include "vsp1_hsit.h"
 #include "vsp1_lif.h"
+#include "vsp1_lut.h"
 #include "vsp1_rwpf.h"
+#include "vsp1_sru.h"
 #include "vsp1_uds.h"
 
 /* -----------------------------------------------------------------------------
@@ -152,6 +155,22 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/* Instantiate all the entities. */
+	vsp1->hsi = vsp1_hsit_create(vsp1, true);
+	if (IS_ERR(vsp1->hsi)) {
+		ret = PTR_ERR(vsp1->hsi);
+		goto done;
+	}
+
+	list_add_tail(&vsp1->hsi->entity.list_dev, &vsp1->entities);
+
+	vsp1->hst = vsp1_hsit_create(vsp1, false);
+	if (IS_ERR(vsp1->hst)) {
+		ret = PTR_ERR(vsp1->hst);
+		goto done;
+	}
+
+	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
+
 	if (vsp1->pdata->features & VSP1_HAS_LIF) {
 		vsp1->lif = vsp1_lif_create(vsp1);
 		if (IS_ERR(vsp1->lif)) {
@@ -160,6 +179,16 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		}
 
 		list_add_tail(&vsp1->lif->entity.list_dev, &vsp1->entities);
+	}
+
+	if (vsp1->pdata->features & VSP1_HAS_LUT) {
+		vsp1->lut = vsp1_lut_create(vsp1);
+		if (IS_ERR(vsp1->lut)) {
+			ret = PTR_ERR(vsp1->lut);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->lut->entity.list_dev, &vsp1->entities);
 	}
 
 	for (i = 0; i < vsp1->pdata->rpf_count; ++i) {
@@ -173,6 +202,16 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		vsp1->rpf[i] = rpf;
 		list_add_tail(&rpf->entity.list_dev, &vsp1->entities);
+	}
+
+	if (vsp1->pdata->features & VSP1_HAS_SRU) {
+		vsp1->sru = vsp1_sru_create(vsp1);
+		if (IS_ERR(vsp1->sru)) {
+			ret = PTR_ERR(vsp1->sru);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->sru->entity.list_dev, &vsp1->entities);
 	}
 
 	for (i = 0; i < vsp1->pdata->uds_count; ++i) {
@@ -323,7 +362,7 @@ static void vsp1_clocks_disable(struct vsp1_device *vsp1)
  * Increment the VSP1 reference count and initialize the device if the first
  * reference is taken.
  *
- * Return a pointer to the VSP1 device or NULL if an error occured.
+ * Return a pointer to the VSP1 device or NULL if an error occurred.
  */
 struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1)
 {

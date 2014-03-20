@@ -16,7 +16,6 @@
 #include <linux/perf_event.h>
 #include <linux/resource.h>
 #include <linux/kernel.h>
-#include <linux/kexec.h>
 #include <linux/workqueue.h>
 #include <linux/capability.h>
 #include <linux/device.h>
@@ -896,8 +895,7 @@ SYSCALL_DEFINE1(times, struct tms __user *, tbuf)
  * only important on a multi-user system anyway, to make sure one user
  * can't send a signal to a process owned by another.  -TYT, 12/12/91
  *
- * Auch. Had to add the 'did_exec' flag to conform completely to POSIX.
- * LBT 04.03.94
+ * !PF_FORKNOEXEC check to conform completely to POSIX.
  */
 SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
 {
@@ -933,7 +931,7 @@ SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
 		if (task_session(p) != task_session(group_leader))
 			goto out;
 		err = -EACCES;
-		if (p->did_exec)
+		if (!(p->flags & PF_FORKNOEXEC))
 			goto out;
 	} else {
 		err = -ESRCH;
@@ -1573,8 +1571,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			t = p;
 			do {
 				accumulate_thread_rusage(t, r);
-				t = next_thread(t);
-			} while (t != p);
+			} while_each_thread(p, t);
 			break;
 
 		default:

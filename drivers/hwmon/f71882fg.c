@@ -2420,7 +2420,6 @@ static int f71882fg_probe(struct platform_device *pdev)
 exit_unregister_sysfs:
 	f71882fg_remove(pdev); /* Will unregister the sysfs files for us */
 	return err; /* f71882fg_remove() also frees our data */
-	return err;
 }
 
 static int f71882fg_remove(struct platform_device *pdev)

@@ -39,7 +39,7 @@ extern int cpci_debug;
 	do {							\
 		if (cpci_debug)					\
 			printk (KERN_DEBUG "%s: " format "\n",	\
-				MY_NAME , ## arg); 		\
+				MY_NAME , ## arg);		\
 	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
@@ -254,8 +254,11 @@ int __ref cpci_configure_slot(struct slot *slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *parent;
+	int ret = 0;
 
 	dbg("%s - enter", __func__);
+
+	pci_lock_rescan_remove();
 
 	if (slot->dev == NULL) {
 		dbg("pci_dev null, finding %02x:%02x:%x",
@@ -277,7 +280,8 @@ int __ref cpci_configure_slot(struct slot *slot)
 		slot->dev = pci_get_slot(slot->bus, slot->devfn);
 		if (slot->dev == NULL) {
 			err("Could not find PCI device for slot %02x", slot->number);
-			return -ENODEV;
+			ret = -ENODEV;
+			goto out;
 		}
 	}
 	parent = slot->dev->bus;
@@ -294,8 +298,10 @@ int __ref cpci_configure_slot(struct slot *slot)
 
 	pci_bus_add_devices(parent);
 
+ out:
+	pci_unlock_rescan_remove();
 	dbg("%s - exit", __func__);
-	return 0;
+	return ret;
 }
 
 int cpci_unconfigure_slot(struct slot* slot)
@@ -308,6 +314,8 @@ int cpci_unconfigure_slot(struct slot* slot)
 		return -ENODEV;
 	}
 
+	pci_lock_rescan_remove();
+
 	list_for_each_entry_safe(dev, temp, &slot->bus->devices, bus_list) {
 		if (PCI_SLOT(dev->devfn) != PCI_SLOT(slot->devfn))
 			continue;
@@ -317,6 +325,8 @@ int cpci_unconfigure_slot(struct slot* slot)
 	}
 	pci_dev_put(slot->dev);
 	slot->dev = NULL;
+
+	pci_unlock_rescan_remove();
 
 	dbg("%s - exit", __func__);
 	return 0;

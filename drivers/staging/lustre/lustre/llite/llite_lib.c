@@ -56,6 +56,7 @@
 #include "llite_internal.h"
 
 struct kmem_cache *ll_file_data_slab;
+struct proc_dir_entry *proc_lustre_fs_root;
 
 LIST_HEAD(ll_super_blocks);
 DEFINE_SPINLOCK(ll_sb_lock);
@@ -209,7 +210,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				  OBD_CONNECT_FULL20   | OBD_CONNECT_64BITHASH|
 				  OBD_CONNECT_EINPROGRESS |
 				  OBD_CONNECT_JOBSTATS | OBD_CONNECT_LVB_TYPE |
-				  OBD_CONNECT_LAYOUTLOCK | OBD_CONNECT_PINGLESS;
+				  OBD_CONNECT_LAYOUTLOCK |
+				  OBD_CONNECT_PINGLESS | OBD_CONNECT_MAX_EASIZE;
 
 	if (sbi->ll_flags & LL_SBI_SOM_PREVIEW)
 		data->ocd_connect_flags |= OBD_CONNECT_SOM;
@@ -381,6 +383,17 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (data->ocd_connect_flags & OBD_CONNECT_LAYOUTLOCK) {
 		LCONSOLE_INFO("Layout lock feature supported.\n");
 		sbi->ll_flags |= LL_SBI_LAYOUT_LOCK;
+	}
+
+	if (data->ocd_ibits_known & MDS_INODELOCK_XATTR) {
+		if (!(data->ocd_connect_flags & OBD_CONNECT_MAX_EASIZE)) {
+			LCONSOLE_INFO(
+				"%s: disabling xattr cache due to unknown maximum xattr size.\n",
+				dt);
+		} else {
+			sbi->ll_flags |= LL_SBI_XATTR_CACHE;
+			sbi->ll_xattr_cache_enabled = 1;
+		}
 	}
 
 	obd = class_name2obd(dt);
@@ -922,6 +935,9 @@ void ll_lli_init(struct ll_inode_info *lli)
 	lli->lli_layout_gen = LL_LAYOUT_GEN_NONE;
 	lli->lli_clob = NULL;
 
+	init_rwsem(&lli->lli_xattrs_list_rwsem);
+	mutex_init(&lli->lli_xattrs_enq_lock);
+
 	LASSERT(lli->lli_vfs_inode.i_mode != 0);
 	if (S_ISDIR(lli->lli_vfs_inode.i_mode)) {
 		mutex_init(&lli->lli_readdir_mutex);
@@ -1194,6 +1210,8 @@ void ll_clear_inode(struct inode *inode)
 		lli->lli_symlink_name = NULL;
 	}
 
+	ll_xattr_cache_destroy(inode);
+
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
 		LASSERT(lli->lli_posix_acl == NULL);
 		if (lli->lli_remote_perms) {
@@ -1346,19 +1364,24 @@ static int ll_setattr_ost(struct inode *inode, struct iattr *attr)
  * to the OST with the punch RPC, otherwise we do an explicit setattr RPC.
  * I don't believe it is possible to get e.g. ATTR_MTIME_SET and ATTR_SIZE
  * at the same time.
+ *
+ * In case of HSMimport, we only set attr on MDS.
  */
-int ll_setattr_raw(struct dentry *dentry, struct iattr *attr)
+int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 {
 	struct inode *inode = dentry->d_inode;
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct md_op_data *op_data = NULL;
 	struct md_open_data *mod = NULL;
+	bool file_is_released = false;
 	int rc = 0, rc1 = 0;
 
-	CDEBUG(D_VFSTRACE, "%s: setattr inode %p/fid:"DFID" from %llu to %llu, "
-		"valid %x\n", ll_get_fsname(inode->i_sb, NULL, 0), inode,
+	CDEBUG(D_VFSTRACE,
+		"%s: setattr inode %p/fid:"DFID
+		" from %llu to %llu, valid %x, hsm_import %d\n",
+		ll_get_fsname(inode->i_sb, NULL, 0), inode,
 		PFID(&lli->lli_fid), i_size_read(inode), attr->ia_size,
-		attr->ia_valid);
+		attr->ia_valid, hsm_import);
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		/* Check new size against VFS/VM file size limit and rlimit */
@@ -1436,9 +1459,39 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr)
 	    (attr->ia_valid & (ATTR_SIZE | ATTR_MTIME | ATTR_MTIME_SET)))
 		op_data->op_flags = MF_EPOCH_OPEN;
 
+	/* truncate on a released file must failed with -ENODATA,
+	 * so size must not be set on MDS for released file
+	 * but other attributes must be set
+	 */
+	if (S_ISREG(inode->i_mode)) {
+		struct lov_stripe_md *lsm;
+		__u32 gen;
+
+		ll_layout_refresh(inode, &gen);
+		lsm = ccc_inode_lsm_get(inode);
+		if (lsm && lsm->lsm_pattern & LOV_PATTERN_F_RELEASED)
+			file_is_released = true;
+		ccc_inode_lsm_put(inode, lsm);
+	}
+
+	/* if not in HSM import mode, clear size attr for released file
+	 * we clear the attribute send to MDT in op_data, not the original
+	 * received from caller in attr which is used later to
+	 * decide return code */
+	if (file_is_released && (attr->ia_valid & ATTR_SIZE) && !hsm_import)
+		op_data->op_attr.ia_valid &= ~ATTR_SIZE;
+
 	rc = ll_md_setattr(dentry, op_data, &mod);
 	if (rc)
 		GOTO(out, rc);
+
+	/* truncate failed (only when non HSM import), others succeed */
+	if (file_is_released) {
+		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
+			GOTO(out, rc = -ENODATA);
+		else
+			GOTO(out, rc = 0);
+	}
 
 	/* RPC to MDT is sent, cancel data modification flag */
 	if (rc == 0 && (op_data->op_bias & MDS_DATA_MODIFIED)) {
@@ -1473,7 +1526,7 @@ out:
 	if (!S_ISDIR(inode->i_mode)) {
 		up_write(&lli->lli_trunc_sem);
 		mutex_lock(&inode->i_mutex);
-		if (attr->ia_valid & ATTR_SIZE)
+		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
 			inode_dio_wait(inode);
 	}
 
@@ -1508,7 +1561,7 @@ int ll_setattr(struct dentry *de, struct iattr *attr)
 	    !(attr->ia_valid & ATTR_KILL_SGID))
 		attr->ia_valid |= ATTR_KILL_SGID;
 
-	return ll_setattr_raw(de, attr);
+	return ll_setattr_raw(de, attr, false);
 }
 
 int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
@@ -1721,7 +1774,9 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 			 * lock on the client and set LLIF_MDS_SIZE_LOCK holding
 			 * it. */
 			mode = ll_take_md_lock(inode, MDS_INODELOCK_UPDATE,
-					       &lockh, LDLM_FL_CBPENDING);
+					       &lockh, LDLM_FL_CBPENDING,
+					       LCK_CR | LCK_CW |
+					       LCK_PR | LCK_PW);
 			if (mode) {
 				if (lli->lli_flags & (LLIF_DONE_WRITING |
 						      LLIF_EPOCH_PENDING |
@@ -1760,6 +1815,11 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 	if (body->valid & OBD_MD_FLOSSCAPA) {
 		LASSERT(md->oss_capa);
 		ll_add_capa(inode, md->oss_capa);
+	}
+
+	if (body->valid & OBD_MD_TSTATE) {
+		if (body->t_state & MS_RESTORE)
+			lli->lli_flags |= LLIF_FILE_RESTORING;
 	}
 }
 
@@ -1973,10 +2033,10 @@ void ll_umount_begin(struct super_block *sb)
 	OBD_ALLOC_PTR(ioc_data);
 	if (ioc_data) {
 		obd_iocontrol(IOC_OSC_SET_ACTIVE, sbi->ll_md_exp,
-			      sizeof *ioc_data, ioc_data, NULL);
+			      sizeof(*ioc_data), ioc_data, NULL);
 
 		obd_iocontrol(IOC_OSC_SET_ACTIVE, sbi->ll_dt_exp,
-			      sizeof *ioc_data, ioc_data, NULL);
+			      sizeof(*ioc_data), ioc_data, NULL);
 
 		OBD_FREE_PTR(ioc_data);
 	}

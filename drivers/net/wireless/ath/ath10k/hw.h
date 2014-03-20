@@ -20,27 +20,36 @@
 
 #include "targaddrs.h"
 
-/* Supported FW version */
-#define SUPPORTED_FW_MAJOR	1
-#define SUPPORTED_FW_MINOR	0
-#define SUPPORTED_FW_RELEASE	0
-#define SUPPORTED_FW_BUILD	629
-
-/* QCA988X 1.0 definitions */
-#define QCA988X_HW_1_0_VERSION		0x4000002c
-#define QCA988X_HW_1_0_FW_DIR		"ath10k/QCA988X/hw1.0"
-#define QCA988X_HW_1_0_FW_FILE		"firmware.bin"
-#define QCA988X_HW_1_0_OTP_FILE		"otp.bin"
-#define QCA988X_HW_1_0_BOARD_DATA_FILE	"board.bin"
-#define QCA988X_HW_1_0_PATCH_LOAD_ADDR	0x1234
+/* QCA988X 1.0 definitions (unsupported) */
+#define QCA988X_HW_1_0_CHIP_ID_REV	0x0
 
 /* QCA988X 2.0 definitions */
 #define QCA988X_HW_2_0_VERSION		0x4100016c
+#define QCA988X_HW_2_0_CHIP_ID_REV	0x2
 #define QCA988X_HW_2_0_FW_DIR		"ath10k/QCA988X/hw2.0"
 #define QCA988X_HW_2_0_FW_FILE		"firmware.bin"
 #define QCA988X_HW_2_0_OTP_FILE		"otp.bin"
 #define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
+
+#define ATH10K_FW_API2_FILE		"firmware-2.bin"
+
+/* includes also the null byte */
+#define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
+
+struct ath10k_fw_ie {
+	__le32 id;
+	__le32 len;
+	u8 data[0];
+};
+
+enum ath10k_fw_ie_type {
+	ATH10K_FW_IE_FW_VERSION = 0,
+	ATH10K_FW_IE_TIMESTAMP = 1,
+	ATH10K_FW_IE_FEATURES = 2,
+	ATH10K_FW_IE_FW_IMAGE = 3,
+	ATH10K_FW_IE_OTP_IMAGE = 4,
+};
 
 /* Known pecularities:
  *  - current FW doesn't support raw rx mode (last tested v599)
@@ -53,6 +62,9 @@ enum ath10k_hw_txrx_mode {
 	ATH10K_HW_TXRX_RAW = 0,
 	ATH10K_HW_TXRX_NATIVE_WIFI = 1,
 	ATH10K_HW_TXRX_ETHERNET = 2,
+
+	/* Valid for HTT >= 3.0. Used for management frames in TX_FRM. */
+	ATH10K_HW_TXRX_MGMT = 3,
 };
 
 enum ath10k_mcast2ucast_mode {
@@ -60,6 +72,7 @@ enum ath10k_mcast2ucast_mode {
 	ATH10K_MCAST2UCAST_ENABLED = 1,
 };
 
+/* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8
 #define TARGET_NUM_PEER_AST			2
 #define TARGET_NUM_WDS_ENTRIES			32
@@ -75,7 +88,11 @@ enum ath10k_mcast2ucast_mode {
 #define TARGET_RX_CHAIN_MASK			(BIT(0) | BIT(1) | BIT(2))
 #define TARGET_RX_TIMEOUT_LO_PRI		100
 #define TARGET_RX_TIMEOUT_HI_PRI		40
-#define TARGET_RX_DECAP_MODE			ATH10K_HW_TXRX_ETHERNET
+
+/* Native Wifi decap mode is used to align IP frames to 4-byte boundaries and
+ * avoid a very expensive re-alignment in mac80211. */
+#define TARGET_RX_DECAP_MODE			ATH10K_HW_TXRX_NATIVE_WIFI
+
 #define TARGET_SCAN_MAX_PENDING_REQS		4
 #define TARGET_BMISS_OFFLOAD_MAX_VDEV		3
 #define TARGET_ROAM_OFFLOAD_MAX_VDEV		3
@@ -90,6 +107,37 @@ enum ath10k_mcast2ucast_mode {
 #define TARGET_NUM_MSDU_DESC			(1024 + 400)
 #define TARGET_MAX_FRAG_ENTRIES			0
 
+/* Target specific defines for 10.X firmware */
+#define TARGET_10X_NUM_VDEVS			16
+#define TARGET_10X_NUM_PEER_AST			2
+#define TARGET_10X_NUM_WDS_ENTRIES		32
+#define TARGET_10X_DMA_BURST_SIZE		0
+#define TARGET_10X_MAC_AGGR_DELIM		0
+#define TARGET_10X_AST_SKID_LIMIT		16
+#define TARGET_10X_NUM_PEERS			(128 + (TARGET_10X_NUM_VDEVS))
+#define TARGET_10X_NUM_PEERS_MAX		128
+#define TARGET_10X_NUM_OFFLOAD_PEERS		0
+#define TARGET_10X_NUM_OFFLOAD_REORDER_BUFS	0
+#define TARGET_10X_NUM_PEER_KEYS		2
+#define TARGET_10X_NUM_TIDS			256
+#define TARGET_10X_TX_CHAIN_MASK		(BIT(0) | BIT(1) | BIT(2))
+#define TARGET_10X_RX_CHAIN_MASK		(BIT(0) | BIT(1) | BIT(2))
+#define TARGET_10X_RX_TIMEOUT_LO_PRI		100
+#define TARGET_10X_RX_TIMEOUT_HI_PRI		40
+#define TARGET_10X_RX_DECAP_MODE		ATH10K_HW_TXRX_NATIVE_WIFI
+#define TARGET_10X_SCAN_MAX_PENDING_REQS	4
+#define TARGET_10X_BMISS_OFFLOAD_MAX_VDEV	2
+#define TARGET_10X_ROAM_OFFLOAD_MAX_VDEV	2
+#define TARGET_10X_ROAM_OFFLOAD_MAX_AP_PROFILES	8
+#define TARGET_10X_GTK_OFFLOAD_MAX_VDEV		3
+#define TARGET_10X_NUM_MCAST_GROUPS		0
+#define TARGET_10X_NUM_MCAST_TABLE_ELEMS	0
+#define TARGET_10X_MCAST2UCAST_MODE		ATH10K_MCAST2UCAST_DISABLED
+#define TARGET_10X_TX_DBG_LOG_SIZE		1024
+#define TARGET_10X_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK 1
+#define TARGET_10X_VOW_CONFIG			0
+#define TARGET_10X_NUM_MSDU_DESC		(1024 + 400)
+#define TARGET_10X_MAX_FRAG_ENTRIES		0
 
 /* Number of Copy Engines supported */
 #define CE_COUNT 8
@@ -169,6 +217,10 @@ enum ath10k_mcast2ucast_mode {
 #define SOC_LPO_CAL_ENABLE_LSB			20
 #define SOC_LPO_CAL_ENABLE_MASK			0x00100000
 
+#define SOC_CHIP_ID_ADDRESS			0x000000ec
+#define SOC_CHIP_ID_REV_LSB			8
+#define SOC_CHIP_ID_REV_MASK			0x00000f00
+
 #define WLAN_RESET_CONTROL_COLD_RST_MASK	0x00000008
 #define WLAN_RESET_CONTROL_WARM_RST_MASK	0x00000004
 #define WLAN_SYSTEM_SLEEP_DISABLE_LSB		0
@@ -218,6 +270,7 @@ enum ath10k_mcast2ucast_mode {
 #define CORE_CTRL_CPU_INTR_MASK			0x00002000
 #define CORE_CTRL_ADDRESS			0x0000
 #define PCIE_INTR_ENABLE_ADDRESS		0x0008
+#define PCIE_INTR_CAUSE_ADDRESS			0x000c
 #define PCIE_INTR_CLR_ADDRESS			0x0014
 #define SCRATCH_3_ADDRESS			0x0030
 

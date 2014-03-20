@@ -274,17 +274,20 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
 	struct mwifiex_ie_types_header *head;
-	u16 tlv, tlv_buf_len;
+	u16 tlv, tlv_buf_len, tlv_buf_left;
 	u8 *tlv_buf;
 	u32 i;
 
-	tlv_buf = ((u8 *)rate_cfg) +
-			sizeof(struct host_cmd_ds_tx_rate_cfg);
-	tlv_buf_len = le16_to_cpu(*(__le16 *) (tlv_buf + sizeof(u16)));
+	tlv_buf = ((u8 *)rate_cfg) + sizeof(struct host_cmd_ds_tx_rate_cfg);
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*rate_cfg);
 
-	while (tlv_buf && tlv_buf_len > 0) {
-		tlv = (*tlv_buf);
-		tlv = tlv | (*(tlv_buf + 1) << 8);
+	while (tlv_buf_left >= sizeof(*head)) {
+		head = (struct mwifiex_ie_types_header *)tlv_buf;
+		tlv = le16_to_cpu(head->type);
+		tlv_buf_len = le16_to_cpu(head->len);
+
+		if (tlv_buf_left < (sizeof(*head) + tlv_buf_len))
+			break;
 
 		switch (tlv) {
 		case TLV_TYPE_RATE_SCOPE:
@@ -304,9 +307,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 			/* Add RATE_DROP tlv here */
 		}
 
-		head = (struct mwifiex_ie_types_header *) tlv_buf;
-		tlv_buf += le16_to_cpu(head->len) + sizeof(*head);
-		tlv_buf_len -= le16_to_cpu(head->len);
+		tlv_buf += (sizeof(*head) + tlv_buf_len);
+		tlv_buf_left -= (sizeof(*head) + tlv_buf_len);
 	}
 
 	priv->is_data_rate_auto = mwifiex_is_rate_auto(priv);
@@ -336,17 +338,20 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 	if (!data_buf)
 		return -1;
 
-	pg_tlv_hdr = (struct mwifiex_types_power_group *)
-		((u8 *) data_buf + sizeof(struct host_cmd_ds_txpwr_cfg));
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)((u8 *)data_buf);
 	pg = (struct mwifiex_power_group *)
 		((u8 *) pg_tlv_hdr + sizeof(struct mwifiex_types_power_group));
-	length = pg_tlv_hdr->length;
-	if (length > 0) {
-		max_power = pg->power_max;
-		min_power = pg->power_min;
-		length -= sizeof(struct mwifiex_power_group);
-	}
-	while (length) {
+	length = le16_to_cpu(pg_tlv_hdr->length);
+
+	/* At least one structure required to update power */
+	if (length < sizeof(struct mwifiex_power_group))
+		return 0;
+
+	max_power = pg->power_max;
+	min_power = pg->power_min;
+	length -= sizeof(struct mwifiex_power_group);
+
+	while (length >= sizeof(struct mwifiex_power_group)) {
 		pg++;
 		if (max_power < pg->power_max)
 			max_power = pg->power_max;
@@ -356,10 +361,8 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 
 		length -= sizeof(struct mwifiex_power_group);
 	}
-	if (pg_tlv_hdr->length > 0) {
-		priv->min_tx_power_level = (u8) min_power;
-		priv->max_tx_power_level = (u8) max_power;
-	}
+	priv->min_tx_power_level = (u8) min_power;
+	priv->max_tx_power_level = (u8) max_power;
 
 	return 0;
 }
@@ -379,19 +382,25 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 	struct mwifiex_types_power_group *pg_tlv_hdr;
 	struct mwifiex_power_group *pg;
 	u16 action = le16_to_cpu(txp_cfg->action);
+	u16 tlv_buf_left;
+
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)
+		((u8 *)txp_cfg +
+		 sizeof(struct host_cmd_ds_txpwr_cfg));
+
+	pg = (struct mwifiex_power_group *)
+		((u8 *)pg_tlv_hdr +
+		 sizeof(struct mwifiex_types_power_group));
+
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*txp_cfg);
+	if (tlv_buf_left <
+			le16_to_cpu(pg_tlv_hdr->length) + sizeof(*pg_tlv_hdr))
+		return 0;
 
 	switch (action) {
 	case HostCmd_ACT_GEN_GET:
-		pg_tlv_hdr = (struct mwifiex_types_power_group *)
-			((u8 *) txp_cfg +
-			 sizeof(struct host_cmd_ds_txpwr_cfg));
-
-		pg = (struct mwifiex_power_group *)
-			((u8 *) pg_tlv_hdr +
-			 sizeof(struct mwifiex_types_power_group));
-
 		if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
-			mwifiex_get_power_level(priv, txp_cfg);
+			mwifiex_get_power_level(priv, pg_tlv_hdr);
 
 		priv->tx_power_level = (u16) pg->power_min;
 		break;
@@ -399,14 +408,6 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 	case HostCmd_ACT_GEN_SET:
 		if (!le32_to_cpu(txp_cfg->mode))
 			break;
-
-		pg_tlv_hdr = (struct mwifiex_types_power_group *)
-			((u8 *) txp_cfg +
-			 sizeof(struct host_cmd_ds_txpwr_cfg));
-
-		pg = (struct mwifiex_power_group *)
-			((u8 *) pg_tlv_hdr +
-			 sizeof(struct mwifiex_types_power_group));
 
 		if (pg->power_max == pg->power_min)
 			priv->tx_power_level = (u16) pg->power_min;
@@ -781,8 +782,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 	}
 
 	/* If BSSID is diff, modify current BSS parameters */
-	if (memcmp(priv->curr_bss_params.bss_descriptor.mac_address,
-		   ibss_coal_resp->bssid, ETH_ALEN)) {
+	if (!ether_addr_equal(priv->curr_bss_params.bss_descriptor.mac_address, ibss_coal_resp->bssid)) {
 		/* BSSID */
 		memcpy(priv->curr_bss_params.bss_descriptor.mac_address,
 		       ibss_coal_resp->bssid, ETH_ALEN);

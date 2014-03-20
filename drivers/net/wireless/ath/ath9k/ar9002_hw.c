@@ -32,12 +32,8 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		return 0;
 	}
 
-	if (ah->config.pcie_clock_req)
-		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			   ar9280PciePhy_clkreq_off_L1_9280);
-	else
-		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			   ar9280PciePhy_clkreq_always_on_L1_9280);
+	INIT_INI_ARRAY(&ah->iniPcieSerdes,
+		       ar9280PciePhy_clkreq_always_on_L1_9280);
 
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1);
@@ -387,6 +383,20 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
 	}
 }
 
+static void ar9002_hw_init_hang_checks(struct ath_hw *ah)
+{
+	if (AR_SREV_9100(ah) || AR_SREV_9160(ah)) {
+		ah->config.hw_hang_checks |= HW_BB_RIFS_HANG;
+		ah->config.hw_hang_checks |= HW_BB_DFS_HANG;
+	}
+
+	if (AR_SREV_9280(ah))
+		ah->config.hw_hang_checks |= HW_BB_RX_CLEAR_STUCK_HANG;
+
+	if (AR_SREV_5416(ah) || AR_SREV_9100(ah) || AR_SREV_9160(ah))
+		ah->config.hw_hang_checks |= HW_MAC_HANG;
+}
+
 /* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
 int ar9002_hw_attach_ops(struct ath_hw *ah)
 {
@@ -399,6 +409,7 @@ int ar9002_hw_attach_ops(struct ath_hw *ah)
 		return ret;
 
 	priv_ops->init_mode_gain_regs = ar9002_hw_init_mode_gain_regs;
+	priv_ops->init_hang_checks = ar9002_hw_init_hang_checks;
 
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 
@@ -419,28 +430,10 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)
 	u32 modesIndex;
 	int i;
 
-	switch (chan->chanmode) {
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-		modesIndex = 1;
-		break;
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
-		modesIndex = 2;
-		break;
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_B:
-		modesIndex = 4;
-		break;
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
-		modesIndex = 3;
-		break;
-
-	default:
-		return;
-	}
+	if (IS_CHAN_5GHZ(chan))
+		modesIndex = IS_CHAN_HT40(chan) ? 2 : 1;
+	else
+		modesIndex = IS_CHAN_HT40(chan) ? 3 : 4;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 

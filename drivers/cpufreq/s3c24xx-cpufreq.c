@@ -355,11 +355,6 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 	return -EINVAL;
 }
 
-static unsigned int s3c_cpufreq_get(unsigned int cpu)
-{
-	return clk_get_rate(clk_arm) / 1000;
-}
-
 struct clk *s3c_cpufreq_clk_get(struct device *dev, const char *name)
 {
 	struct clk *clk;
@@ -373,23 +368,8 @@ struct clk *s3c_cpufreq_clk_get(struct device *dev, const char *name)
 
 static int s3c_cpufreq_init(struct cpufreq_policy *policy)
 {
-	printk(KERN_INFO "%s: initialising policy %p\n", __func__, policy);
-
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	policy->cur = s3c_cpufreq_get(0);
-	policy->min = policy->cpuinfo.min_freq = 0;
-	policy->max = policy->cpuinfo.max_freq = cpu_cur.info->max.fclk / 1000;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-
-	/* feed the latency information from the cpu driver */
-	policy->cpuinfo.transition_latency = cpu_cur.info->latency;
-
-	if (ftab)
-		cpufreq_frequency_table_cpuinfo(policy, ftab);
-
-	return 0;
+	policy->clk = clk_arm;
+	return cpufreq_generic_init(policy, ftab, cpu_cur.info->latency);
 }
 
 static int __init s3c_cpufreq_initclks(void)
@@ -416,14 +396,6 @@ static int __init s3c_cpufreq_initclks(void)
 	return 0;
 }
 
-static int s3c_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static struct cpufreq_frequency_table suspend_pll;
 static unsigned int suspend_freq;
@@ -432,7 +404,7 @@ static int s3c_cpufreq_suspend(struct cpufreq_policy *policy)
 {
 	suspend_pll.frequency = clk_get_rate(_clk_mpll);
 	suspend_pll.driver_data = __raw_readl(S3C2410_MPLLCON);
-	suspend_freq = s3c_cpufreq_get(0) * 1000;
+	suspend_freq = clk_get_rate(clk_arm);
 
 	return 0;
 }
@@ -472,10 +444,9 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 #endif
 
 static struct cpufreq_driver s3c24xx_driver = {
-	.flags		= CPUFREQ_STICKY,
-	.verify		= s3c_cpufreq_verify,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.target		= s3c_cpufreq_target,
-	.get		= s3c_cpufreq_get,
+	.get		= cpufreq_generic_get,
 	.init		= s3c_cpufreq_init,
 	.suspend	= s3c_cpufreq_suspend,
 	.resume		= s3c_cpufreq_resume,
@@ -534,7 +505,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	return 0;
 }
 
-int __init s3c_cpufreq_auto_io(void)
+static int __init s3c_cpufreq_auto_io(void)
 {
 	int ret;
 

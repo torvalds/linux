@@ -102,28 +102,29 @@ struct sir_driver {
 
 /* exported */
 
-extern int irda_register_dongle(struct dongle_driver *new);
-extern int irda_unregister_dongle(struct dongle_driver *drv);
+int irda_register_dongle(struct dongle_driver *new);
+int irda_unregister_dongle(struct dongle_driver *drv);
 
-extern struct sir_dev * sirdev_get_instance(const struct sir_driver *drv, const char *name);
-extern int sirdev_put_instance(struct sir_dev *self);
+struct sir_dev *sirdev_get_instance(const struct sir_driver *drv,
+				    const char *name);
+int sirdev_put_instance(struct sir_dev *self);
 
-extern int sirdev_set_dongle(struct sir_dev *dev, IRDA_DONGLE type);
-extern void sirdev_write_complete(struct sir_dev *dev);
-extern int sirdev_receive(struct sir_dev *dev, const unsigned char *cp, size_t count);
+int sirdev_set_dongle(struct sir_dev *dev, IRDA_DONGLE type);
+void sirdev_write_complete(struct sir_dev *dev);
+int sirdev_receive(struct sir_dev *dev, const unsigned char *cp, size_t count);
 
 /* low level helpers for SIR device/dongle setup */
-extern int sirdev_raw_write(struct sir_dev *dev, const char *buf, int len);
-extern int sirdev_raw_read(struct sir_dev *dev, char *buf, int len);
-extern int sirdev_set_dtr_rts(struct sir_dev *dev, int dtr, int rts);
+int sirdev_raw_write(struct sir_dev *dev, const char *buf, int len);
+int sirdev_raw_read(struct sir_dev *dev, char *buf, int len);
+int sirdev_set_dtr_rts(struct sir_dev *dev, int dtr, int rts);
 
 /* not exported */
 
-extern int sirdev_get_dongle(struct sir_dev *self, IRDA_DONGLE type);
-extern int sirdev_put_dongle(struct sir_dev *self);
+int sirdev_get_dongle(struct sir_dev *self, IRDA_DONGLE type);
+int sirdev_put_dongle(struct sir_dev *self);
 
-extern void sirdev_enable_rx(struct sir_dev *dev);
-extern int sirdev_schedule_request(struct sir_dev *dev, int state, unsigned param);
+void sirdev_enable_rx(struct sir_dev *dev);
+int sirdev_schedule_request(struct sir_dev *dev, int state, unsigned param);
 
 /* inline helpers */
 

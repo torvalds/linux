@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
@@ -736,6 +735,9 @@ static void *eeh_restore_one_device_bars(void *data, void *flag)
 		eeh_restore_bridge_bars(edev, dn);
 	else
 		eeh_restore_device_bars(edev, dn);
+
+	if (eeh_ops->restore_config)
+		eeh_ops->restore_config(dn);
 
 	return NULL;
 }

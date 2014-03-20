@@ -736,7 +736,7 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		break;
 
 	default:
-		BUG_ON("Unknown DAI driver ID\n");
+		WARN(1, "Unknown DAI driver ID\n");
 		return -EINVAL;
 	}
 
@@ -941,7 +941,7 @@ static const struct regmap_config wm8580_regmap = {
 	.volatile_reg = wm8580_volatile,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8580_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1003,7 +1003,7 @@ static int __init wm8580_modinit(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8580_i2c_driver);
 	if (ret != 0) {
 		pr_err("Failed to register WM8580 I2C driver: %d\n", ret);
@@ -1016,7 +1016,7 @@ module_init(wm8580_modinit);
 
 static void __exit wm8580_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8580_i2c_driver);
 #endif
 }

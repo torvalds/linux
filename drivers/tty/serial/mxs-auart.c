@@ -39,6 +39,7 @@
 #include <asm/cacheflush.h>
 
 #define MXS_AUART_PORTS 5
+#define MXS_AUART_FIFO_SIZE		16
 
 #define AUART_CTRL0			0x00000000
 #define AUART_CTRL0_SET			0x00000004
@@ -548,6 +549,9 @@ static int mxs_auart_dma_init(struct mxs_auart_port *s)
 	s->flags |= MXS_AUART_DMA_ENABLED;
 	dev_dbg(s->dev, "enabled the DMA support.");
 
+	/* The DMA buffer is now the FIFO the TTY subsystem can use */
+	s->port.fifosize = UART_XMIT_SIZE;
+
 	return 0;
 
 err_out:
@@ -730,9 +734,12 @@ static void mxs_auart_reset(struct uart_port *u)
 
 static int mxs_auart_startup(struct uart_port *u)
 {
+	int ret;
 	struct mxs_auart_port *s = to_auart_port(u);
 
-	clk_prepare_enable(s->clk);
+	ret = clk_prepare_enable(s->clk);
+	if (ret)
+		return ret;
 
 	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_CLR);
 
@@ -740,6 +747,9 @@ static int mxs_auart_startup(struct uart_port *u)
 
 	writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN | AUART_INTR_CTSMIEN,
 			u->membase + AUART_INTR);
+
+	/* Reset FIFO size (it could have changed if DMA was enabled) */
+	u->fifosize = MXS_AUART_FIFO_SIZE;
 
 	/*
 	 * Enable fifo so all four bytes of a DMA word are written to
@@ -950,7 +960,9 @@ auart_console_setup(struct console *co, char *options)
 	if (!s)
 		return -ENODEV;
 
-	clk_prepare_enable(s->clk);
+	ret = clk_prepare_enable(s->clk);
+	if (ret)
+		return ret;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1056,7 +1068,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	s->port.membase = ioremap(r->start, resource_size(r));
 	s->port.ops = &mxs_auart_ops;
 	s->port.iotype = UPIO_MEM;
-	s->port.fifosize = 16;
+	s->port.fifosize = MXS_AUART_FIFO_SIZE;
 	s->port.uartclk = clk_get_rate(s->clk);
 	s->port.type = PORT_IMX;
 	s->port.dev = s->dev = &pdev->dev;

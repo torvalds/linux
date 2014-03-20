@@ -40,8 +40,15 @@
 
 	sdio4: sdio@3f1b0000 {
 		max-frequency = <48000000>;
+		cd-gpios = <&gpio 14 0>;
 		status = "okay";
 	};
 
+	usbotg: usb@3f120000 {
+		status = "okay";
+	};
 
+	usbphy: usb-phy@3f130000 {
+		status = "okay";
+	};
 };

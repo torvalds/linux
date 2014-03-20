@@ -34,6 +34,11 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+enum disp_clk {
+	CDCLK,
+	CZCLK
+};
+
 struct gmbus_port {
 	const char *name;
 	int reg;
@@ -58,10 +63,60 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 	return container_of(i2c, struct intel_gmbus, adapter);
 }
 
+static int get_disp_clk_div(struct drm_i915_private *dev_priv,
+			    enum disp_clk clk)
+{
+	u32 reg_val;
+	int clk_ratio;
+
+	reg_val = I915_READ(CZCLK_CDCLK_FREQ_RATIO);
+
+	if (clk == CDCLK)
+		clk_ratio =
+			((reg_val & CDCLK_FREQ_MASK) >> CDCLK_FREQ_SHIFT) + 1;
+	else
+		clk_ratio = (reg_val & CZCLK_FREQ_MASK) + 1;
+
+	return clk_ratio;
+}
+
+static void gmbus_set_freq(struct drm_i915_private *dev_priv)
+{
+	int vco, gmbus_freq = 0, cdclk_div;
+
+	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
+
+	vco = valleyview_get_vco(dev_priv);
+
+	/* Get the CDCLK divide ratio */
+	cdclk_div = get_disp_clk_div(dev_priv, CDCLK);
+
+	/*
+	 * Program the gmbus_freq based on the cdclk frequency.
+	 * BSpec erroneously claims we should aim for 4MHz, but
+	 * in fact 1MHz is the correct frequency.
+	 */
+	if (cdclk_div)
+		gmbus_freq = (vco << 1) / cdclk_div;
+
+	if (WARN_ON(gmbus_freq == 0))
+		return;
+
+	I915_WRITE(GMBUSFREQ_VLV, gmbus_freq);
+}
+
 void
 intel_i2c_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/*
+	 * In BIOS-less system, program the correct gmbus frequency
+	 * before reading edid.
+	 */
+	if (IS_VALLEYVIEW(dev))
+		gmbus_set_freq(dev_priv);
+
 	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS0, 0);
 	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS4, 0);
 }
@@ -203,13 +258,6 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo->data = bus;
 }
 
-/*
- * gmbus on gen4 seems to be able to generate legacy interrupts even when in MSI
- * mode. This results in spurious interrupt warnings if the legacy irq no. is
- * shared with another device. The kernel then disables that interrupt source
- * and so prevents the other device from working properly.
- */
-#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 5)
 static int
 gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 		     u32 gmbus2_status,

@@ -266,6 +266,7 @@ int wl1271_event_unmask(struct wl1271 *wl)
 {
 	int ret;
 
+	wl1271_debug(DEBUG_EVENT, "unmasking event_mask 0x%x", wl->event_mask);
 	ret = wl1271_acx_event_mbox_mask(wl, ~(wl->event_mask));
 	if (ret < 0)
 		return ret;

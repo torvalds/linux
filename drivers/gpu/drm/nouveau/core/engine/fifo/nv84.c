@@ -35,6 +35,7 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 
+#include "nv04.h"
 #include "nv50.h"
 
 /*******************************************************************************
@@ -144,7 +145,7 @@ nv84_fifo_object_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_COPY0 : context |= 0x00300000; break;
 	case NVDEV_ENGINE_VP    : context |= 0x00400000; break;
 	case NVDEV_ENGINE_CRYPT :
-	case NVDEV_ENGINE_UNK1C1: context |= 0x00500000; break;
+	case NVDEV_ENGINE_VIC   : context |= 0x00500000; break;
 	case NVDEV_ENGINE_BSP   : context |= 0x00600000; break;
 	default:
 		return -EINVAL;
@@ -180,7 +181,7 @@ nv84_fifo_chan_ctor_dma(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_PPP) |
 					  (1ULL << NVDEV_ENGINE_COPY0) |
-					  (1ULL << NVDEV_ENGINE_UNK1C1), &chan);
+					  (1ULL << NVDEV_ENGINE_VIC), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -243,7 +244,7 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_PPP) |
 					  (1ULL << NVDEV_ENGINE_COPY0) |
-					  (1ULL << NVDEV_ENGINE_UNK1C1), &chan);
+					  (1ULL << NVDEV_ENGINE_VIC), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -432,11 +433,13 @@ nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nv04_fifo_intr;
 	nv_engine(priv)->cclass = &nv84_fifo_cclass;
 	nv_engine(priv)->sclass = nv84_fifo_sclass;
+	priv->base.pause = nv04_fifo_pause;
+	priv->base.start = nv04_fifo_start;
 	return 0;
 }
 
-struct nouveau_oclass
-nv84_fifo_oclass = {
+struct nouveau_oclass *
+nv84_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv84_fifo_ctor,

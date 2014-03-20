@@ -63,7 +63,7 @@ void nlm_send_ipi_single(int logical_cpu, unsigned int action)
 	uint64_t picbase;
 
 	cpu = cpu_logical_map(logical_cpu);
-	node = cpu / NLM_CPUS_PER_NODE;
+	node = nlm_cpuid_to_node(cpu);
 	picbase = nlm_get_node(node)->picbase;
 
 	if (action & SMP_CALL_FUNCTION)
@@ -152,7 +152,7 @@ void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 	int cpu, node;
 
 	cpu = cpu_logical_map(logical_cpu);
-	node = cpu / NLM_CPUS_PER_NODE;
+	node = nlm_cpuid_to_node(logical_cpu);
 	nlm_next_sp = (unsigned long)__KSTK_TOS(idle);
 	nlm_next_gp = (unsigned long)task_thread_info(idle);
 
@@ -164,7 +164,7 @@ void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 void __init nlm_smp_setup(void)
 {
 	unsigned int boot_cpu;
-	int num_cpus, i, ncore;
+	int num_cpus, i, ncore, node;
 	volatile u32 *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
 	char buf[64];
 
@@ -187,6 +187,8 @@ void __init nlm_smp_setup(void)
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;
 			set_cpu_possible(num_cpus, true);
+			node = nlm_cpuid_to_node(i);
+			cpumask_set_cpu(num_cpus, &nlm_get_node(node)->cpumask);
 			++num_cpus;
 		}
 	}
@@ -245,7 +247,7 @@ static int nlm_parse_cpumask(cpumask_t *wakeup_mask)
 	return threadmode;
 
 unsupp:
-	panic("Unsupported CPU mask %lx\n",
+	panic("Unsupported CPU mask %lx",
 		(unsigned long)cpumask_bits(wakeup_mask)[0]);
 	return 0;
 }

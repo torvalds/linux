@@ -46,8 +46,8 @@
 #include "mlx5_ib.h"
 
 #define DRIVER_NAME "mlx5_ib"
-#define DRIVER_VERSION "1.0"
-#define DRIVER_RELDATE	"June 2013"
+#define DRIVER_VERSION "2.2-1"
+#define DRIVER_RELDATE	"Feb 2014"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
@@ -164,6 +164,7 @@ int mlx5_vector2eqn(struct mlx5_ib_dev *dev, int vector, int *eqn, int *irqn)
 static int alloc_comp_eqs(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->mdev.priv.eq_table;
+	char name[MLX5_MAX_EQ_NAME];
 	struct mlx5_eq *eq, *n;
 	int ncomp_vec;
 	int nent;
@@ -180,11 +181,10 @@ static int alloc_comp_eqs(struct mlx5_ib_dev *dev)
 			goto clean;
 		}
 
-		snprintf(eq->name, MLX5_MAX_EQ_NAME, "mlx5_comp%d", i);
+		snprintf(name, MLX5_MAX_EQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(&dev->mdev, eq,
 					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
-					 eq->name,
-					 &dev->mdev.priv.uuari.uars[0]);
+					 name, &dev->mdev.priv.uuari.uars[0]);
 		if (err) {
 			kfree(eq);
 			goto clean;
@@ -261,8 +261,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->device_cap_flags    = IB_DEVICE_CHANGE_PHY_PORT |
 		IB_DEVICE_PORT_ACTIVE_EVENT		|
 		IB_DEVICE_SYS_IMAGE_GUID		|
-		IB_DEVICE_RC_RNR_NAK_GEN		|
-		IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
+		IB_DEVICE_RC_RNR_NAK_GEN;
 	flags = dev->mdev.caps.flags;
 	if (flags & MLX5_DEV_CAP_FLAG_BAD_PKEY_CNTR)
 		props->device_cap_flags |= IB_DEVICE_BAD_PKEY_CNTR;
@@ -301,9 +300,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->max_srq_sge	   = max_rq_sg - 1;
 	props->max_fast_reg_page_list_len = (unsigned int)-1;
 	props->local_ca_ack_delay  = dev->mdev.caps.local_ca_ack_delay;
-	props->atomic_cap	   = dev->mdev.caps.flags & MLX5_DEV_CAP_FLAG_ATOMIC ?
-		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
-	props->masked_atomic_cap   = IB_ATOMIC_HCA;
+	props->atomic_cap	   = IB_ATOMIC_NONE;
+	props->masked_atomic_cap   = IB_ATOMIC_NONE;
 	props->max_pkeys	   = be16_to_cpup((__be16 *)(out_mad->data + 28));
 	props->max_mcast_grp	   = 1 << dev->mdev.caps.log_max_mcg;
 	props->max_mcast_qp_attach = dev->mdev.caps.max_qp_mcg;
@@ -537,22 +535,37 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 						  struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_alloc_ucontext_req req;
+	struct mlx5_ib_alloc_ucontext_req_v2 req;
 	struct mlx5_ib_alloc_ucontext_resp resp;
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_uuar_info *uuari;
 	struct mlx5_uar *uars;
+	int gross_uuars;
 	int num_uars;
+	int ver;
 	int uuarn;
 	int err;
 	int i;
+	int reqlen;
 
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
-	err = ib_copy_from_udata(&req, udata, sizeof(req));
+	memset(&req, 0, sizeof(req));
+	reqlen = udata->inlen - sizeof(struct ib_uverbs_cmd_hdr);
+	if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req))
+		ver = 0;
+	else if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req_v2))
+		ver = 2;
+	else
+		return ERR_PTR(-EINVAL);
+
+	err = ib_copy_from_udata(&req, udata, reqlen);
 	if (err)
 		return ERR_PTR(err);
+
+	if (req.flags || req.reserved)
+		return ERR_PTR(-EINVAL);
 
 	if (req.total_num_uuars > MLX5_MAX_UUARS)
 		return ERR_PTR(-ENOMEM);
@@ -560,11 +573,13 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (req.total_num_uuars == 0)
 		return ERR_PTR(-EINVAL);
 
-	req.total_num_uuars = ALIGN(req.total_num_uuars, MLX5_BF_REGS_PER_PAGE);
+	req.total_num_uuars = ALIGN(req.total_num_uuars,
+				    MLX5_NON_FP_BF_REGS_PER_PAGE);
 	if (req.num_low_latency_uuars > req.total_num_uuars - 1)
 		return ERR_PTR(-EINVAL);
 
-	num_uars = req.total_num_uuars / MLX5_BF_REGS_PER_PAGE;
+	num_uars = req.total_num_uuars / MLX5_NON_FP_BF_REGS_PER_PAGE;
+	gross_uuars = num_uars * MLX5_BF_REGS_PER_PAGE;
 	resp.qp_tab_size      = 1 << dev->mdev.caps.log_max_qp;
 	resp.bf_reg_size      = dev->mdev.caps.bf_reg_size;
 	resp.cache_line_size  = L1_CACHE_BYTES;
@@ -586,7 +601,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 		goto out_ctx;
 	}
 
-	uuari->bitmap = kcalloc(BITS_TO_LONGS(req.total_num_uuars),
+	uuari->bitmap = kcalloc(BITS_TO_LONGS(gross_uuars),
 				sizeof(*uuari->bitmap),
 				GFP_KERNEL);
 	if (!uuari->bitmap) {
@@ -596,13 +611,13 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	/*
 	 * clear all fast path uuars
 	 */
-	for (i = 0; i < req.total_num_uuars; i++) {
+	for (i = 0; i < gross_uuars; i++) {
 		uuarn = i & 3;
 		if (uuarn == 2 || uuarn == 3)
 			set_bit(i, uuari->bitmap);
 	}
 
-	uuari->count = kcalloc(req.total_num_uuars, sizeof(*uuari->count), GFP_KERNEL);
+	uuari->count = kcalloc(gross_uuars, sizeof(*uuari->count), GFP_KERNEL);
 	if (!uuari->count) {
 		err = -ENOMEM;
 		goto out_bitmap;
@@ -624,6 +639,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (err)
 		goto out_uars;
 
+	uuari->ver = ver;
 	uuari->num_low_latency_uuars = req.num_low_latency_uuars;
 	uuari->uars = uars;
 	uuari->num_uars = num_uars;
@@ -746,7 +762,8 @@ static int alloc_pa_mkey(struct mlx5_ib_dev *dev, u32 *key, u32 pdn)
 	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	seg->start_addr = 0;
 
-	err = mlx5_core_create_mkey(&dev->mdev, &mr, in, sizeof(*in));
+	err = mlx5_core_create_mkey(&dev->mdev, &mr, in, sizeof(*in),
+				    NULL, NULL, NULL);
 	if (err) {
 		mlx5_ib_warn(dev, "failed to create mkey, %d\n", err);
 		goto err_in;
@@ -1005,6 +1022,11 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 
 	ibev.device	      = &ibdev->ib_dev;
 	ibev.element.port_num = port;
+
+	if (port < 1 || port > ibdev->num_ports) {
+		mlx5_ib_warn(ibdev, "warning: event on port %d\n", port);
+		return;
+	}
 
 	if (ibdev->ib_active)
 		ib_dispatch_event(&ibev);

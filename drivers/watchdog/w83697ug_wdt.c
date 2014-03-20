@@ -395,4 +395,3 @@ module_exit(wdt_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Flemming Frandsen <ff@nrvissing.net>");
 MODULE_DESCRIPTION("w83697ug/uf WDT driver");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

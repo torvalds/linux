@@ -30,6 +30,7 @@
 #include "wmi.h"
 #include "../ath.h"
 #include "../regd.h"
+#include "../dfs_pattern_detector.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -43,27 +44,23 @@
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
+#define ATH10K_MAX_NUM_MGMT_PENDING 128
+
 struct ath10k;
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	bool is_mapped;
 	bool is_aborted;
+	u8 vdev_id;
 
 	struct {
-		u8 vdev_id;
-		u16 msdu_id;
 		u8 tid;
 		bool is_offchan;
-		bool is_conf;
-		bool discard;
-		bool no_ack;
-		u8 refcount;
-		struct sk_buff *txfrag;
-		struct sk_buff *msdu;
-	} __packed htt;
 
-	/* 4 bytes left on 64bit arch */
+		u8 frag_len;
+		u8 pad_len;
+	} __packed htt;
 } __packed;
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
@@ -108,15 +105,26 @@ struct ath10k_bmi {
 	bool done_sent;
 };
 
+#define ATH10K_MAX_MEM_REQS 16
+
+struct ath10k_mem_chunk {
+	void *vaddr;
+	dma_addr_t paddr;
+	u32 len;
+	u32 req_id;
+};
+
 struct ath10k_wmi {
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
-	atomic_t pending_tx_count;
-	wait_queue_head_t wq;
+	wait_queue_head_t tx_credits_wq;
+	struct wmi_cmd_map *cmd;
+	struct wmi_vdev_param_map *vdev_param;
+	struct wmi_pdev_param_map *pdev_param;
 
-	struct sk_buff_head wmi_event_list;
-	struct work_struct wmi_event_work;
+	u32 num_mem_chunks;
+	struct ath10k_mem_chunk mem_chunks[ATH10K_MAX_MEM_REQS];
 };
 
 struct ath10k_peer_stat {
@@ -185,6 +193,14 @@ struct ath10k_target_stats {
 
 };
 
+struct ath10k_dfs_stats {
+	u32 phy_errors;
+	u32 pulses_total;
+	u32 pulses_detected;
+	u32 pulses_discarded;
+	u32 radar_detected;
+};
+
 #define ATH10K_MAX_NUM_PEER_IDS (1 << 11) /* htt rx_desc limit */
 
 struct ath10k_peer {
@@ -198,17 +214,22 @@ struct ath10k_peer {
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5*HZ)
 
 struct ath10k_vif {
+	struct list_head list;
+
 	u32 vdev_id;
 	enum wmi_vdev_type vdev_type;
 	enum wmi_vdev_subtype vdev_subtype;
 	u32 beacon_interval;
 	u32 dtim_period;
+	struct sk_buff *beacon;
 
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
 
+	struct work_struct wep_key_work;
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
-	u8 def_wep_key_index;
+	u8 def_wep_key_idx;
+	u8 def_wep_key_newidx;
 
 	u16 tx_seq_no;
 
@@ -232,6 +253,9 @@ struct ath10k_vif {
 			u8 bssid[ETH_ALEN];
 		} ibss;
 	} u;
+
+	u8 fixed_rate;
+	u8 fixed_nss;
 };
 
 struct ath10k_vif_iter {
@@ -246,6 +270,13 @@ struct ath10k_debug {
 	u32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
 
 	struct completion event_stats_compl;
+
+	unsigned long htt_stats_mask;
+	struct delayed_work htt_stats_dwork;
+	struct ath10k_dfs_stats dfs_stats;
+	struct ath_dfs_pool_stats dfs_pool_stats;
+
+	u32 fw_dbglog_mask;
 };
 
 enum ath10k_state {
@@ -270,12 +301,36 @@ enum ath10k_state {
 	ATH10K_STATE_WEDGED,
 };
 
+enum ath10k_fw_features {
+	/* wmi_mgmt_rx_hdr contains extra RSSI information */
+	ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX = 0,
+
+	/* firmware from 10X branch */
+	ATH10K_FW_FEATURE_WMI_10X = 1,
+
+	/* firmware support tx frame management over WMI, otherwise it's HTT */
+	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
+
+	/* Firmware does not support P2P */
+	ATH10K_FW_FEATURE_NO_P2P = 3,
+
+	/* keep last */
+	ATH10K_FW_FEATURE_COUNT,
+};
+
+enum ath10k_dev_flags {
+	/* Indicates that ath10k device is during CAC phase of DFS */
+	ATH10K_CAC_RUNNING,
+	ATH10K_FLAG_FIRST_BOOT_DONE,
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
 	struct device *dev;
 	u8 mac_addr[ETH_ALEN];
 
+	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
 	u32 fw_version_minor;
@@ -287,6 +342,8 @@ struct ath10k {
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;
+
+	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
 	struct targetdef *targetdef;
 	struct hostdef *hostdef;
@@ -319,9 +376,19 @@ struct ath10k {
 		} fw;
 	} hw_params;
 
-	const struct firmware *board_data;
+	const struct firmware *board;
+	const void *board_data;
+	size_t board_len;
+
 	const struct firmware *otp;
+	const void *otp_data;
+	size_t otp_len;
+
 	const struct firmware *firmware;
+	const void *firmware_data;
+	size_t firmware_len;
+
+	int fw_api;
 
 	struct {
 		struct completion started;
@@ -350,6 +417,8 @@ struct ath10k {
 	bool monitor_enabled;
 	bool monitor_present;
 	unsigned int filter_flags;
+	unsigned long dev_flags;
+	u32 dfs_block_radar_events;
 
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
@@ -364,13 +433,20 @@ struct ath10k {
 	/* protects shared structure data */
 	spinlock_t data_lock;
 
+	struct list_head arvifs;
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
+
+	/* number of created peers; protected by data_lock */
+	int num_peers;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
 	struct completion offchan_tx_completed;
 	struct sk_buff *offchan_tx_skb;
+
+	struct work_struct wmi_mgmt_tx_work;
+	struct sk_buff_head wmi_mgmt_tx_queue;
 
 	enum ath10k_state state;
 
@@ -381,6 +457,8 @@ struct ath10k {
 	u32 survey_last_rx_clear_count;
 	u32 survey_last_cycle_count;
 	struct survey_info survey[ATH10K_NUM_CHANS];
+
+	struct dfs_pattern_detector *dfs_detector;
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
@@ -393,7 +471,7 @@ void ath10k_core_destroy(struct ath10k *ar);
 
 int ath10k_core_start(struct ath10k *ar);
 void ath10k_core_stop(struct ath10k *ar);
-int ath10k_core_register(struct ath10k *ar);
+int ath10k_core_register(struct ath10k *ar, u32 chip_id);
 void ath10k_core_unregister(struct ath10k *ar);
 
 #endif /* _CORE_H_ */

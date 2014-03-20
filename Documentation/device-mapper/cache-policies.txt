@@ -30,16 +30,21 @@ multiqueue
 
 This policy is the default.
 
-The multiqueue policy has two sets of 16 queues: one set for entries
-waiting for the cache and another one for those in the cache.
+The multiqueue policy has three sets of 16 queues: one set for entries
+waiting for the cache and another two for those in the cache (a set for
+clean entries and a set for dirty entries).
+
 Cache entries in the queues are aged based on logical time. Entry into
 the cache is based on variable thresholds and queue selection is based
 on hit count on entry. The policy aims to take different cache miss
 costs into account and to adjust to varying load patterns automatically.
 
 Message and constructor argument pairs are:
-	'sequential_threshold <#nr_sequential_ios>' and
-	'random_threshold <#nr_random_ios>'.
+	'sequential_threshold <#nr_sequential_ios>'
+	'random_threshold <#nr_random_ios>'
+	'read_promote_adjustment <value>'
+	'write_promote_adjustment <value>'
+	'discard_promote_adjustment <value>'
 
 The sequential threshold indicates the number of contiguous I/Os
 required before a stream is treated as sequential.  The random threshold
@@ -52,6 +57,15 @@ Large, sequential ios are probably better left on the origin device
 since spindles tend to have good bandwidth. The io_tracker counts
 contiguous I/Os to try to spot when the io is in one of these sequential
 modes.
+
+Internally the mq policy maintains a promotion threshold variable.  If
+the hit count of a block not in the cache goes above this threshold it
+gets promoted to the cache.  The read, write and discard promote adjustment
+tunables allow you to tweak the promotion threshold by adding a small
+value based on the io type.  They default to 4, 8 and 1 respectively.
+If you're trying to quickly warm a new cache device you may wish to
+reduce these to encourage promotion.  Remember to switch them back to
+their defaults after the cache fills though.
 
 cleaner
 -------

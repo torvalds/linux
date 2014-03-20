@@ -533,6 +533,9 @@ struct e1000_dev_spec_82575 {
 	bool clear_semaphore_once;
 	struct e1000_sfp_flags eth_flags;
 	bool module_plugged;
+	u8 media_port;
+	bool media_changed;
+	bool mas_capable;
 };
 
 struct e1000_hw {
@@ -562,11 +565,11 @@ struct e1000_hw {
 	u8  revision_id;
 };
 
-extern struct net_device *igb_get_hw_dev(struct e1000_hw *hw);
+struct net_device *igb_get_hw_dev(struct e1000_hw *hw);
 #define hw_dbg(format, arg...) \
 	netdev_dbg(igb_get_hw_dev(hw), format, ##arg)
 
 /* These functions must be implemented by drivers */
-s32  igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
-s32  igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+s32 igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 #endif /* _E1000_HW_H_ */

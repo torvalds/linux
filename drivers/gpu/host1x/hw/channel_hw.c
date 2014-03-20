@@ -16,15 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/host1x.h>
 #include <linux/slab.h>
+
 #include <trace/events/host1x.h>
 
-#include "host1x.h"
-#include "host1x_bo.h"
-#include "channel.h"
-#include "dev.h"
-#include "intr.h"
-#include "job.h"
+#include "../channel.h"
+#include "../dev.h"
+#include "../intr.h"
+#include "../job.h"
 
 #define HOST1X_CHANNEL_SIZE 16384
 #define TRACE_MAX_LENGTH 128U
@@ -65,6 +65,22 @@ static void submit_gathers(struct host1x_job *job)
 		trace_write_gather(cdma, g->bo, g->offset, op1 & 0xffff);
 		host1x_cdma_push(cdma, op1, op2);
 	}
+}
+
+static inline void synchronize_syncpt_base(struct host1x_job *job)
+{
+	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
+	struct host1x_syncpt *sp = host->syncpt + job->syncpt_id;
+	u32 id, value;
+
+	value = host1x_syncpt_read_max(sp);
+	id = sp->base->id;
+
+	host1x_cdma_push(&job->channel->cdma,
+			 host1x_opcode_setclass(HOST1X_CLASS_HOST1X,
+				HOST1X_UCLASS_LOAD_SYNCPT_BASE, 1),
+			 HOST1X_UCLASS_LOAD_SYNCPT_BASE_BASE_INDX_F(id) |
+			 HOST1X_UCLASS_LOAD_SYNCPT_BASE_VALUE_F(value));
 }
 
 static int channel_submit(struct host1x_job *job)
@@ -117,6 +133,10 @@ static int channel_submit(struct host1x_job *job)
 				 host1x_class_host_wait_syncpt(job->syncpt_id,
 					host1x_syncpt_read_max(sp)));
 	}
+
+	/* Synchronize base register to allow using it for relative waiting */
+	if (sp->base)
+		synchronize_syncpt_base(job);
 
 	syncval = host1x_syncpt_incr_max(sp, user_syncpt_incrs);
 

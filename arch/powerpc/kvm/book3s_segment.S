@@ -161,8 +161,8 @@ kvmppc_handler_trampoline_enter_end:
 .global kvmppc_handler_trampoline_exit
 kvmppc_handler_trampoline_exit:
 
-.global kvmppc_interrupt
-kvmppc_interrupt:
+.global kvmppc_interrupt_pr
+kvmppc_interrupt_pr:
 
 	/* Register usage at this point:
 	 *
@@ -361,6 +361,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	beqa	BOOK3S_INTERRUPT_DECREMENTER
 	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
 	beqa	BOOK3S_INTERRUPT_PERFMON
+	cmpwi	r12, BOOK3S_INTERRUPT_DOORBELL
+	beqa	BOOK3S_INTERRUPT_DOORBELL
 
 	RFI
 kvmppc_handler_trampoline_exit_end:

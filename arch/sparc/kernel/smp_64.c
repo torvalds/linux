@@ -123,10 +123,11 @@ void smp_callin(void)
 		rmb();
 
 	set_cpu_online(cpuid, true);
-	local_irq_enable();
 
 	/* idle thread is expected to have preempt disabled */
 	preempt_disable();
+
+	local_irq_enable();
 
 	cpu_startup_entry(CPUHP_ONLINE);
 }
@@ -1399,8 +1400,13 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void smp_send_reschedule(int cpu)
 {
-	xcall_deliver((u64) &xcall_receive_signal, 0, 0,
-		      cpumask_of(cpu));
+	if (cpu == smp_processor_id()) {
+		WARN_ON_ONCE(preemptible());
+		set_softint(1 << PIL_SMP_RECEIVE_SIGNAL);
+	} else {
+		xcall_deliver((u64) &xcall_receive_signal,
+			      0, 0, cpumask_of(cpu));
+	}
 }
 
 void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)

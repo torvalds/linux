@@ -332,7 +332,7 @@ static void ath_select_ant_div_from_quick_scan(struct ath_ant_comb *antcomb,
 		}
 
 		if (antcomb->rssi_lna2 > antcomb->rssi_lna1 +
-		    ATH_ANT_DIV_COMB_LNA1_LNA2_SWITCH_DELTA)
+		    div_ant_conf->lna1_lna2_switch_delta)
 			div_ant_conf->main_lna_conf = ATH_ANT_DIV_COMB_LNA2;
 		else
 			div_ant_conf->main_lna_conf = ATH_ANT_DIV_COMB_LNA1;
@@ -554,42 +554,22 @@ static void ath_ant_div_conf_fast_divbias(struct ath_hw_antcomb_conf *ant_conf,
 			ant_conf->fast_div_bias = 0x1;
 			break;
 		case 0x10: /* LNA2 A-B */
-			if ((antcomb->scan == 0) &&
-			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
-				ant_conf->fast_div_bias = 0x3f;
-			} else {
-				ant_conf->fast_div_bias = 0x1;
-			}
+			ant_conf->fast_div_bias = 0x2;
 			break;
 		case 0x12: /* LNA2 LNA1 */
-			ant_conf->fast_div_bias = 0x39;
+			ant_conf->fast_div_bias = 0x3f;
 			break;
 		case 0x13: /* LNA2 A+B */
-			if ((antcomb->scan == 0) &&
-			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
-				ant_conf->fast_div_bias = 0x3f;
-			} else {
-				ant_conf->fast_div_bias = 0x1;
-			}
+			ant_conf->fast_div_bias = 0x2;
 			break;
 		case 0x20: /* LNA1 A-B */
-			if ((antcomb->scan == 0) &&
-			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
-				ant_conf->fast_div_bias = 0x3f;
-			} else {
-				ant_conf->fast_div_bias = 0x4;
-			}
+			ant_conf->fast_div_bias = 0x3;
 			break;
 		case 0x21: /* LNA1 LNA2 */
-			ant_conf->fast_div_bias = 0x6;
+			ant_conf->fast_div_bias = 0x3;
 			break;
 		case 0x23: /* LNA1 A+B */
-			if ((antcomb->scan == 0) &&
-			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
-				ant_conf->fast_div_bias = 0x3f;
-			} else {
-				ant_conf->fast_div_bias = 0x6;
-			}
+			ant_conf->fast_div_bias = 0x3;
 			break;
 		case 0x30: /* A+B A-B */
 			ant_conf->fast_div_bias = 0x1;
@@ -638,7 +618,7 @@ static void ath_ant_try_scan(struct ath_ant_comb *antcomb,
 		antcomb->rssi_sub = alt_rssi_avg;
 		antcomb->scan = false;
 		if (antcomb->rssi_lna2 >
-		    (antcomb->rssi_lna1 + ATH_ANT_DIV_COMB_LNA1_LNA2_SWITCH_DELTA)) {
+		    (antcomb->rssi_lna1 + conf->lna1_lna2_switch_delta)) {
 			/* use LNA2 as main LNA */
 			if ((antcomb->rssi_add > antcomb->rssi_lna1) &&
 			    (antcomb->rssi_add > antcomb->rssi_sub)) {
@@ -744,14 +724,14 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	struct ath_ant_comb *antcomb = &sc->ant_comb;
 	int alt_ratio = 0, alt_rssi_avg = 0, main_rssi_avg = 0, curr_alt_set;
 	int curr_main_set;
-	int main_rssi = rs->rs_rssi_ctl0;
-	int alt_rssi = rs->rs_rssi_ctl1;
+	int main_rssi = rs->rs_rssi_ctl[0];
+	int alt_rssi = rs->rs_rssi_ctl[1];
 	int rx_ant_conf,  main_ant_conf;
 	bool short_scan = false, ret;
 
-	rx_ant_conf = (rs->rs_rssi_ctl2 >> ATH_ANT_RX_CURRENT_SHIFT) &
+	rx_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_CURRENT_SHIFT) &
 		       ATH_ANT_RX_MASK;
-	main_ant_conf = (rs->rs_rssi_ctl2 >> ATH_ANT_RX_MAIN_SHIFT) &
+	main_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_MAIN_SHIFT) &
 			 ATH_ANT_RX_MASK;
 
 	if (alt_rssi >= antcomb->low_rssi_thresh) {

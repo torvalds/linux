@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx28.dtsi"
+#include "imx28.dtsi"
 
 / {
 	model = "DENX M28EVK";
@@ -92,26 +92,26 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
-						0x30a3 /* MX28_PAD_AUART2_CTS__GPIO_3_10 */
-						0x30b3 /* MX28_PAD_AUART2_RTS__GPIO_3_11 */
-						0x30c3 /* MX28_PAD_AUART3_RX__GPIO_3_12 */
-						0x30d3 /* MX28_PAD_AUART3_TX__GPIO_3_13 */
+						MX28_PAD_PWM3__GPIO_3_28
+						MX28_PAD_AUART2_CTS__GPIO_3_10
+						MX28_PAD_AUART2_RTS__GPIO_3_11
+						MX28_PAD_AUART3_RX__GPIO_3_12
+						MX28_PAD_AUART3_TX__GPIO_3_13
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_m28: lcdif-m28@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x11e0 /* MX28_PAD_LCD_DOTCLK__LCD_DOTCLK */
-						0x11f0 /* MX28_PAD_LCD_ENABLE__LCD_ENABLE */
+						MX28_PAD_LCD_DOTCLK__LCD_DOTCLK
+						MX28_PAD_LCD_ENABLE__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 

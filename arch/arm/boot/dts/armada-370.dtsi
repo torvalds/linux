@@ -44,6 +44,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
+			msi-parent = <&mpic>;
 			bus-range = <0x00 0xff>;
 
 			ranges =
@@ -90,11 +91,6 @@
 		};
 
 		internal-regs {
-			system-controller@18200 {
-				compatible = "marvell,armada-370-xp-system-controller";
-				reg = <0x18200 0x100>;
-			};
-
 			L2: l2-cache {
 				compatible = "marvell,aurora-outer-cache";
 				reg = <0x08000 0x1000>;
@@ -102,8 +98,17 @@
 				wt-override;
 			};
 
-			interrupt-controller@20000 {
-				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
+			i2c0: i2c@11000 {
+				reg = <0x11000 0x20>;
+			};
+
+			i2c1: i2c@11100 {
+				reg = <0x11100 0x20>;
+			};
+
+			system-controller@18200 {
+				compatible = "marvell,armada-370-xp-system-controller";
+				reg = <0x18200 0x100>;
 			};
 
 			pinctrl {
@@ -162,9 +167,11 @@
 				interrupts = <91>;
 			};
 
-			timer@20300 {
-				compatible = "marvell,armada-370-timer";
-				clocks = <&coreclk 2>;
+			gateclk: clock-gating-control@18220 {
+				compatible = "marvell,armada-370-gating-clock";
+				reg = <0x18220 0x4>;
+				clocks = <&coreclk 0>;
+				#clock-cells = <1>;
 			};
 
 			coreclk: mvebu-sar@18230 {
@@ -173,11 +180,28 @@
 				#clock-cells = <1>;
 			};
 
-			gateclk: clock-gating-control@18220 {
-				compatible = "marvell,armada-370-gating-clock";
-				reg = <0x18220 0x4>;
+			thermal@18300 {
+				compatible = "marvell,armada370-thermal";
+				reg = <0x18300 0x4
+					0x18304 0x4>;
+				status = "okay";
+			};
+
+			interrupt-controller@20000 {
+				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
+			};
+
+			timer@20300 {
+				compatible = "marvell,armada-370-timer";
+				clocks = <&coreclk 2>;
+			};
+
+			usb@50000 {
 				clocks = <&coreclk 0>;
-				#clock-cells = <1>;
+			};
+
+			usb@51000 {
+				clocks = <&coreclk 0>;
 			};
 
 			xor@60800 {
@@ -216,21 +240,6 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
-			};
-
-			usb@50000 {
-				clocks = <&coreclk 0>;
-			};
-
-			usb@51000 {
-				clocks = <&coreclk 0>;
-			};
-
-			thermal@18300 {
-				compatible = "marvell,armada370-thermal";
-				reg = <0x18300 0x4
-					0x18304 0x4>;
-				status = "okay";
 			};
 		};
 	};

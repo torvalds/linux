@@ -202,11 +202,8 @@ static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 
 	OBD_ALLOC_LARGE(*pages, *max_pages * sizeof(**pages));
 	if (*pages) {
-		down_read(&current->mm->mmap_sem);
-		result = get_user_pages(current, current->mm, user_addr,
-					*max_pages, (rw == READ), 0, *pages,
-					NULL);
-		up_read(&current->mm->mmap_sem);
+		result = get_user_pages_fast(user_addr, *max_pages,
+					     (rw == READ), *pages);
 		if (unlikely(result <= 0))
 			OBD_FREE_LARGE(*pages, *max_pages * sizeof(**pages));
 	}

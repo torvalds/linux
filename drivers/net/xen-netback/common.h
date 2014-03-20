@@ -87,8 +87,12 @@ struct pending_tx_info {
 struct xenvif_rx_meta {
 	int id;
 	int size;
+	int gso_type;
 	int gso_size;
 };
+
+#define GSO_BIT(type) \
+	(1 << XEN_NETIF_GSO_TYPE_ ## type)
 
 /* Discriminate from any valid pending_idx value. */
 #define INVALID_PENDING_IDX 0xFFFF
@@ -96,6 +100,13 @@ struct xenvif_rx_meta {
 #define MAX_BUFFER_OFFSET PAGE_SIZE
 
 #define MAX_PENDING_REQS 256
+
+/* It's possible for an skb to have a maximal number of frags
+ * but still be less than MAX_BUFFER_OFFSET in size. Thus the
+ * worst-case number of copy operations is MAX_SKB_FRAGS per
+ * ring slot.
+ */
+#define MAX_GRANT_COPY_OPS (MAX_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
 
 struct xenvif {
 	/* Unique identifier for this interface. */
@@ -132,28 +143,25 @@ struct xenvif {
 	char rx_irq_name[IFNAMSIZ+4]; /* DEVNAME-rx */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
+	RING_IDX rx_last_skb_slots;
 
-	/* Allow xenvif_start_xmit() to peek ahead in the rx request
-	 * ring.  This is a prediction of what rx_req_cons will be
-	 * once all queued skbs are put on the ring.
+	/* This array is allocated seperately as it is large */
+	struct gnttab_copy *grant_copy_op;
+
+	/* We create one meta structure per ring request we consume, so
+	 * the maximum number is the same as the ring size.
 	 */
-	RING_IDX rx_req_cons_peek;
-
-	/* Given MAX_BUFFER_OFFSET of 4096 the worst case is that each
-	 * head/fragment page uses 2 copy operations because it
-	 * straddles two buffers in the frontend.
-	 */
-	struct gnttab_copy grant_copy_op[2*XEN_NETIF_RX_RING_SIZE];
-	struct xenvif_rx_meta meta[2*XEN_NETIF_RX_RING_SIZE];
-
+	struct xenvif_rx_meta meta[XEN_NETIF_RX_RING_SIZE];
 
 	u8               fe_dev_addr[6];
 
 	/* Frontend feature information. */
+	int gso_mask;
+	int gso_prefix_mask;
+
 	u8 can_sg:1;
-	u8 gso:1;
-	u8 gso_prefix:1;
-	u8 csum:1;
+	u8 ip_csum:1;
+	u8 ipv6_csum:1;
 
 	/* Internal feature information. */
 	u8 can_queue:1;	    /* can queue packets for receiver? */
@@ -163,6 +171,7 @@ struct xenvif {
 	unsigned long   credit_usec;
 	unsigned long   remaining_credit;
 	struct timer_list credit_timeout;
+	u64 credit_window_start;
 
 	/* Statistics */
 	unsigned long rx_gso_checksum_fixup;
@@ -191,8 +200,6 @@ void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
 
-int xenvif_rx_ring_full(struct xenvif *vif);
-
 int xenvif_must_stop_queue(struct xenvif *vif);
 
 /* (Un)Map communication rings. */
@@ -204,21 +211,20 @@ int xenvif_map_frontend_rings(struct xenvif *vif,
 /* Check for SKBs from frontend and schedule backend processing */
 void xenvif_check_rx_xenvif(struct xenvif *vif);
 
-/* Queue an SKB for transmission to the frontend */
-void xenvif_queue_tx_skb(struct xenvif *vif, struct sk_buff *skb);
-/* Notify xenvif that ring now has space to send an skb to the frontend */
-void xenvif_notify_tx_completion(struct xenvif *vif);
-
 /* Prevent the device from generating any further traffic. */
 void xenvif_carrier_off(struct xenvif *vif);
 
-/* Returns number of ring slots required to send an skb to the frontend */
-unsigned int xenvif_count_skb_slots(struct xenvif *vif, struct sk_buff *skb);
-
 int xenvif_tx_action(struct xenvif *vif, int budget);
-void xenvif_rx_action(struct xenvif *vif);
 
 int xenvif_kthread(void *data);
+void xenvif_kick_thread(struct xenvif *vif);
+
+/* Determine whether the needed number of slots (req) are available,
+ * and set req_event if not.
+ */
+bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed);
+
+void xenvif_stop_queue(struct xenvif *vif);
 
 extern bool separate_tx_rx_irq;
 

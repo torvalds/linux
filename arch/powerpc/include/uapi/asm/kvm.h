@@ -27,6 +27,7 @@
 #define __KVM_HAVE_PPC_SMT
 #define __KVM_HAVE_IRQCHIP
 #define __KVM_HAVE_IRQ_LINE
+#define __KVM_HAVE_GUEST_DEBUG
 
 struct kvm_regs {
 	__u64 pc;
@@ -269,7 +270,24 @@ struct kvm_fpu {
 	__u64 fpr[32];
 };
 
+/*
+ * Defines for h/w breakpoint, watchpoint (read, write or both) and
+ * software breakpoint.
+ * These are used as "type" in KVM_SET_GUEST_DEBUG ioctl and "status"
+ * for KVM_DEBUG_EXIT.
+ */
+#define KVMPPC_DEBUG_NONE		0x0
+#define KVMPPC_DEBUG_BREAKPOINT		(1UL << 1)
+#define KVMPPC_DEBUG_WATCH_WRITE	(1UL << 2)
+#define KVMPPC_DEBUG_WATCH_READ		(1UL << 3)
 struct kvm_debug_exit_arch {
+	__u64 address;
+	/*
+	 * exiting to userspace because of h/w breakpoint, watchpoint
+	 * (read, write or both) and software breakpoint.
+	 */
+	__u32 status;
+	__u32 reserved;
 };
 
 /* for KVM_SET_GUEST_DEBUG */
@@ -281,10 +299,6 @@ struct kvm_guest_debug_arch {
 		 * Type denotes h/w breakpoint, read watchpoint, write
 		 * watchpoint or watchpoint (both read and write).
 		 */
-#define KVMPPC_DEBUG_NONE		0x0
-#define KVMPPC_DEBUG_BREAKPOINT		(1UL << 1)
-#define KVMPPC_DEBUG_WATCH_WRITE	(1UL << 2)
-#define KVMPPC_DEBUG_WATCH_READ		(1UL << 3)
 		__u32 type;
 		__u32 reserved;
 	} bp[16];
@@ -429,6 +443,11 @@ struct kvm_get_htab_header {
 #define KVM_REG_PPC_MMCR0	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x10)
 #define KVM_REG_PPC_MMCR1	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x11)
 #define KVM_REG_PPC_MMCRA	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x12)
+#define KVM_REG_PPC_MMCR2	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x13)
+#define KVM_REG_PPC_MMCRS	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x14)
+#define KVM_REG_PPC_SIAR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x15)
+#define KVM_REG_PPC_SDAR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x16)
+#define KVM_REG_PPC_SIER	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x17)
 
 #define KVM_REG_PPC_PMC1	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x18)
 #define KVM_REG_PPC_PMC2	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x19)
@@ -498,6 +517,68 @@ struct kvm_get_htab_header {
 #define KVM_REG_PPC_TLB2PS	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x99)
 #define KVM_REG_PPC_TLB3PS	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9a)
 #define KVM_REG_PPC_EPTCFG	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9b)
+
+/* Timebase offset */
+#define KVM_REG_PPC_TB_OFFSET	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x9c)
+
+/* POWER8 registers */
+#define KVM_REG_PPC_SPMC1	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9d)
+#define KVM_REG_PPC_SPMC2	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9e)
+#define KVM_REG_PPC_IAMR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x9f)
+#define KVM_REG_PPC_TFHAR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa0)
+#define KVM_REG_PPC_TFIAR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa1)
+#define KVM_REG_PPC_TEXASR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa2)
+#define KVM_REG_PPC_FSCR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa3)
+#define KVM_REG_PPC_PSPB	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0xa4)
+#define KVM_REG_PPC_EBBHR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa5)
+#define KVM_REG_PPC_EBBRR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa6)
+#define KVM_REG_PPC_BESCR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa7)
+#define KVM_REG_PPC_TAR		(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa8)
+#define KVM_REG_PPC_DPDES	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xa9)
+#define KVM_REG_PPC_DAWR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xaa)
+#define KVM_REG_PPC_DAWRX	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xab)
+#define KVM_REG_PPC_CIABR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xac)
+#define KVM_REG_PPC_IC		(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xad)
+#define KVM_REG_PPC_VTB		(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xae)
+#define KVM_REG_PPC_CSIGR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xaf)
+#define KVM_REG_PPC_TACR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xb0)
+#define KVM_REG_PPC_TCSCR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xb1)
+#define KVM_REG_PPC_PID		(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xb2)
+#define KVM_REG_PPC_ACOP	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xb3)
+#define KVM_REG_PPC_WORT	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xb4)
+
+#define KVM_REG_PPC_VRSAVE	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0xb4)
+#define KVM_REG_PPC_LPCR	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0xb5)
+#define KVM_REG_PPC_PPR		(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xb6)
+
+/* Architecture compatibility level */
+#define KVM_REG_PPC_ARCH_COMPAT	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0xb7)
+
+#define KVM_REG_PPC_DABRX	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0xb8)
+
+/* Transactional Memory checkpointed state:
+ * This is all GPRs, all VSX regs and a subset of SPRs
+ */
+#define KVM_REG_PPC_TM		(KVM_REG_PPC | 0x80000000)
+/* TM GPRs */
+#define KVM_REG_PPC_TM_GPR0	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0)
+#define KVM_REG_PPC_TM_GPR(n)	(KVM_REG_PPC_TM_GPR0 + (n))
+#define KVM_REG_PPC_TM_GPR31	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x1f)
+/* TM VSX */
+#define KVM_REG_PPC_TM_VSR0	(KVM_REG_PPC_TM | KVM_REG_SIZE_U128 | 0x20)
+#define KVM_REG_PPC_TM_VSR(n)	(KVM_REG_PPC_TM_VSR0 + (n))
+#define KVM_REG_PPC_TM_VSR63	(KVM_REG_PPC_TM | KVM_REG_SIZE_U128 | 0x5f)
+/* TM SPRS */
+#define KVM_REG_PPC_TM_CR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x60)
+#define KVM_REG_PPC_TM_LR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x61)
+#define KVM_REG_PPC_TM_CTR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x62)
+#define KVM_REG_PPC_TM_FPSCR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x63)
+#define KVM_REG_PPC_TM_AMR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x64)
+#define KVM_REG_PPC_TM_PPR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x65)
+#define KVM_REG_PPC_TM_VRSAVE	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x66)
+#define KVM_REG_PPC_TM_VSCR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U32 | 0x67)
+#define KVM_REG_PPC_TM_DSCR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x68)
+#define KVM_REG_PPC_TM_TAR	(KVM_REG_PPC_TM | KVM_REG_SIZE_U64 | 0x69)
 
 /* PPC64 eXternal Interrupt Controller Specification */
 #define KVM_DEV_XICS_GRP_SOURCES	1	/* 64-bit source attributes */

@@ -90,16 +90,30 @@
 #define FSCTL_LMR_REQUEST_RESILIENCY 0x001401D4 /* BB add struct */
 #define FSCTL_LMR_GET_LINK_TRACK_INF 0x001400E8 /* BB add struct */
 #define FSCTL_LMR_SET_LINK_TRACK_INF 0x001400EC /* BB add struct */
-#define FSCTL_VALIDATE_NEGOTIATE_INFO 0x00140204 /* BB add struct */
+#define FSCTL_VALIDATE_NEGOTIATE_INFO 0x00140204
 /* Perform server-side data movement */
 #define FSCTL_SRV_COPYCHUNK 0x001440F2
 #define FSCTL_SRV_COPYCHUNK_WRITE 0x001480F2
 #define FSCTL_QUERY_NETWORK_INTERFACE_INFO 0x001401FC /* BB add struct */
 #define FSCTL_SRV_READ_HASH          0x001441BB /* BB add struct */
 
+/* See FSCC 2.1.2.5 */
 #define IO_REPARSE_TAG_MOUNT_POINT   0xA0000003
 #define IO_REPARSE_TAG_HSM           0xC0000004
 #define IO_REPARSE_TAG_SIS           0x80000007
+#define IO_REPARSE_TAG_HSM2          0x80000006
+#define IO_REPARSE_TAG_DRIVER_EXTENDER 0x80000005
+/* Used by the DFS filter. See MS-DFSC */
+#define IO_REPARSE_TAG_DFS           0x8000000A
+/* Used by the DFS filter See MS-DFSC */
+#define IO_REPARSE_TAG_DFSR          0x80000012
+#define IO_REPARSE_TAG_FILTER_MANAGER 0x8000000B
+/* See section MS-FSCC 2.1.2.4 */
+#define IO_REPARSE_TAG_SYMLINK       0xA000000C
+#define IO_REPARSE_TAG_DEDUP         0x80000013
+#define IO_REPARSE_APPXSTREAM	     0xC0000014
+/* NFS symlinks, Win 8/SMB3 and later */
+#define IO_REPARSE_TAG_NFS           0x80000014
 
 /* fsctl flags */
 /* If Flags is set to this value, the request is an FSCTL not ioctl request */

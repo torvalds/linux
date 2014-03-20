@@ -24,7 +24,7 @@
 **
 **  This is the daemon that sends the fep, bios, and concentrator images
 **  from user space to the driver.
-** BUGS: 
+** BUGS:
 **  If the file changes in the middle of the download, you probably
 **     will get what you deserve.
 **
@@ -52,7 +52,7 @@ char		*pgm;
 void		myperror();
 
 /*
-**  This structure is used to keep track of the diferent images available
+**  This structure is used to keep track of the different images available
 **  to give to the driver.  It is arranged so that the things that are
 **  constants or that have defaults are first inthe strucutre to simplify
 **  the table of initializers.
@@ -121,7 +121,7 @@ struct downld_t *dp; 	/* conc. download */
 
 
 /*
- * The same for either the FEP or the BIOS. 
+ * The same for either the FEP or the BIOS.
  *  Append the downldio header, issue the ioctl, then free
  *  the buffer.  Not horribly CPU efficient, but quite RAM efficient.
  */
@@ -136,7 +136,7 @@ void squirt(int req_type, int bdid, struct image_info *ii)
 	/*
 	 * If this binary comes from a file, stat it to see how
 	 * large it is. Yes, we intentionally do this each
-	 * time for the binary may change between loads. 
+	 * time for the binary may change between loads.
 	 */
 
 	if (ii->pathname) {
@@ -144,7 +144,7 @@ void squirt(int req_type, int bdid, struct image_info *ii)
 
 		if (sfd < 0 ) {
 			myperror(ii->pathname);
-			goto squirt_end; 
+			goto squirt_end;
 		}
 
 		if (fstat(sfd, &sb) == -1 ) {
@@ -152,7 +152,7 @@ void squirt(int req_type, int bdid, struct image_info *ii)
 			goto squirt_end;
 		}
 
-		ii->len = sb.st_size ; 
+		ii->len = sb.st_size;
 	}
 
 	size_buf = ii->len + sizeof(struct downldio);
@@ -165,7 +165,7 @@ void squirt(int req_type, int bdid, struct image_info *ii)
 	dliop = (struct downldio *) malloc(size_buf);
 
 	if (dliop == NULL) {
-		fprintf(stderr,"%s: can't get %d bytes of memory; aborting\n", 
+		fprintf(stderr,"%s: can't get %d bytes of memory; aborting\n",
 			pgm, size_buf);
 		exit (1);
 	}
@@ -185,7 +185,7 @@ void squirt(int req_type, int bdid, struct image_info *ii)
 
 	if (debugflag)
 		printf("sending %d bytes of %s %s from %s\n",
-			ii->len, 
+			ii->len,
 			(ii->type == IFEP) ? "FEP" : (ii->type == IBIOS) ? "BIOS" : "CONFIG",
 			ii->name ? ii->name : "",
 			(ii->pathname) ? ii->pathname : "internal image" );
@@ -209,13 +209,13 @@ squirt_end:
 
 
 /*
- *  See if we need to reload the download image in core 
- * 
+ *  See if we need to reload the download image in core
+ *
  */
 void consider_file_rescan(struct image_info *ii)
 {
-	int sfd ; 
-	int len ; 
+	int sfd;
+	int len;
 	struct stat 	sb;
 
 	/* This operation only makes sense when we're working from a file */
@@ -232,14 +232,14 @@ void consider_file_rescan(struct image_info *ii)
 			myperror(ii->pathname);
 			exit(1);
 		}
-		
-		/* If the file hasn't changed since we last did this, 
-		 * and we have not done a free() on the image, bail  
+
+		/* If the file hasn't changed since we last did this,
+		 * and we have not done a free() on the image, bail
 		 */
 		if (ii->image && (sb.st_mtime == ii->mtime))
 			goto end_rescan;
 
-		ii->len = len = sb.st_size ; 
+		ii->len = len = sb.st_size;
 
 		/* Record the timestamp of the file */
 		ii->mtime = sb.st_mtime;
@@ -249,12 +249,12 @@ void consider_file_rescan(struct image_info *ii)
 		 * have a memory leak.
 		 */
 		if ( ii->image ) {
-			free( ii->image ); 
+			free( ii->image );
 			/* ii->image = NULL; */ /* not necessary */
 		}
 
-		/* This image will be kept only long enough for the 
-		 * download to happen.  After sending the last block, 
+		/* This image will be kept only long enough for the
+		 * download to happen.  After sending the last block,
 		 * it will be freed
 		 */
 		ii->image = malloc(len) ;
@@ -267,14 +267,14 @@ void consider_file_rescan(struct image_info *ii)
 		}
 
 		if (read(sfd, ii->image, len) < len) {
-			fprintf(stderr,"%s: read error on %s; aborting\n", 
+			fprintf(stderr,"%s: read error on %s; aborting\n",
 				pgm, ii->pathname);
 			exit (1);
 		}
 
 end_rescan:
 		close(sfd);
-		
+
 	}
 }
 
@@ -284,12 +284,12 @@ end_rescan:
 
 struct image_info * find_conc_image()
 {
-	int x ; 
-	struct image_info *i = NULL ; 
+	int x;
+	struct image_info *i = NULL;
 
 	for ( x = 0; x < nimages; x++ ) {
 		i=&image_list[x];
-				
+
 		if(i->type != ICONC)
 			continue;
 
@@ -305,8 +305,8 @@ struct image_info * find_conc_image()
 		 */
 		if ((dp->dl_type != 'P' ) && ( ip->dl_srev == dp->dl_srev ))
 			return i;
-	} 
-	return NULL ; 
+	}
+	return NULL;
 }
 
 
@@ -378,7 +378,7 @@ int main(int argc, char **argv)
 	** the list before built in images so that the command line images
 	** can override the built in ones.
 	*/
-	
+
 	/* allocate space for the list */
 
 	nimages = argc - 2;
@@ -390,15 +390,15 @@ int main(int argc, char **argv)
 	nimages += count;
 
 	/* Really should just remove the variable "image_list".... robertl */
-	image_list = images ; 
-	   
+	image_list = images;
+
 	/* get the images from the command line */
 	for(x = 2; x < argc; x++) {
-		int xx; 
+		int xx;
 
 		/*
-		 * strip off any leading path information for 
-		 * determining file type 
+		 * strip off any leading path information for
+		 * determining file type
 		 */
 		if( (fname = strrchr(argv[x],'/')) == NULL)
 			fname = argv[x];
@@ -406,18 +406,18 @@ int main(int argc, char **argv)
 			fname++;	/* skip the slash */
 
 		for (xx = 0; xx < count; xx++) {
-			if (strcmp(fname, images[xx].fname) == 0 ) { 
+			if (strcmp(fname, images[xx].fname) == 0 ) {
 				images[xx].pathname = argv[x];
 
 				/* image should be NULL until */
 				/* space is malloced */
-				images[xx].image = NULL ;  
+				images[xx].image = NULL;
 			}
 		}
 	}
 
         sleep(3);
-	
+
 	/*
 	** Endless loop: get a request from the fep, and service that request.
 	*/
@@ -425,7 +425,7 @@ int main(int argc, char **argv)
 		/* get the request */
 		if (debugflag)
 			printf("b4 get ioctl...");
-	
+
 		if (ioctl(fd,DIGI_DLREQ_GET, &dlio) == -1 ) {
 			if (errorprint) {
 				fprintf(stderr,
@@ -438,7 +438,7 @@ int main(int argc, char **argv)
 			if (debugflag)
 				printf("dlio.req_type is %d bd %d\n",
 					dlio.req_type,dlio.bdid);
-	
+
 			switch(dlio.req_type) {
 			case DLREQ_BIOS:
 				/*
@@ -447,18 +447,18 @@ int main(int argc, char **argv)
 				for ( x = 0; x < nimages; x++ ) {
 					if(image_list[x].type != IBIOS)
 						continue;
-	
-					if ((dlio.image.fi.type & FAMILY) == 
+
+					if ((dlio.image.fi.type & FAMILY) ==
 						image_list[x].family) {
-						
-						if ( image_list[x].family == T_CX   ) { 
-							if ((dlio.image.fi.type & BUSTYPE) 
+
+						if ( image_list[x].family == T_CX   ) {
+							if ((dlio.image.fi.type & BUSTYPE)
 								== T_PCIBUS ) {
-								if ( image_list[x].subtype 
+								if ( image_list[x].subtype
 									== T_PCIBUS )
 									break;
 							}
-							else { 
+							else {
 								break;
 							}
 						}
@@ -466,15 +466,15 @@ int main(int argc, char **argv)
 						/* If subtype of image is T_PCIBUS, it is */
 						/* a PCI EPC image, so the board must */
 						/* have bus type T_PCIBUS to match */
-							if ((dlio.image.fi.type & BUSTYPE) 
+							if ((dlio.image.fi.type & BUSTYPE)
 								== T_PCIBUS ) {
-								if ( image_list[x].subtype 
+								if ( image_list[x].subtype
 									== T_PCIBUS )
 									break;
 							}
-							else { 
+							else {
 							/* NON PCI EPC doesn't use PCI image */
-								if ( image_list[x].subtype 
+								if ( image_list[x].subtype
 									!= T_PCIBUS )
 									break;
 							}
@@ -484,12 +484,12 @@ int main(int argc, char **argv)
 					}
 					else if ((dlio.image.fi.type & SUBTYPE) == image_list[x].subtype) {
 						/* PCXR board will break out of the loop here */
-						if ( image_list[x].subtype == T_PCXR   ) { 
+						if ( image_list[x].subtype == T_PCXR   ) {
 									break;
 						}
 					}
 				}
-	
+
 				if ( x >= nimages) {
 					/*
 					** no valid images exist
@@ -514,7 +514,7 @@ int main(int argc, char **argv)
 				}
 				squirt(dlio.req_type, dlio.bdid, &image_list[x]);
 				break ;
-	
+
 			case DLREQ_FEP:
 				/*
 				** find the fep image for this type
@@ -522,17 +522,17 @@ int main(int argc, char **argv)
 				for ( x = 0; x < nimages; x++ ) {
 					if(image_list[x].type != IFEP)
 						continue;
-					if( (dlio.image.fi.type & FAMILY) == 
+					if( (dlio.image.fi.type & FAMILY) ==
 						image_list[x].family ) {
-						if ( image_list[x].family == T_CX   ) { 
+						if ( image_list[x].family == T_CX   ) {
 							/* C/X PCI board */
-							if ((dlio.image.fi.type & BUSTYPE) 
+							if ((dlio.image.fi.type & BUSTYPE)
 								== T_PCIBUS ) {
 								if ( image_list[x].subtype
 									== T_PCIBUS )
 									break;
 							}
-							else { 
+							else {
 							/* Regular CX */
 								break;
 							}
@@ -541,15 +541,15 @@ int main(int argc, char **argv)
 						/* If subtype of image is T_PCIBUS, it is */
 						/* a PCI EPC image, so the board must */
 						/* have bus type T_PCIBUS to match */
-							if ((dlio.image.fi.type & BUSTYPE) 
+							if ((dlio.image.fi.type & BUSTYPE)
 								== T_PCIBUS ) {
-								if ( image_list[x].subtype 
+								if ( image_list[x].subtype
 									== T_PCIBUS )
 									break;
 							}
-							else { 
+							else {
 							/* NON PCI EPC doesn't use PCI image */
-								if ( image_list[x].subtype 
+								if ( image_list[x].subtype
 									!= T_PCIBUS )
 									break;
 							}
@@ -559,12 +559,12 @@ int main(int argc, char **argv)
 					}
 					else if ((dlio.image.fi.type & SUBTYPE) == image_list[x].subtype) {
 						/* PCXR board will break out of the loop here */
-						if ( image_list[x].subtype == T_PCXR   ) { 
+						if ( image_list[x].subtype == T_PCXR   ) {
 									break;
 						}
 					}
 				}
-	
+
 				if ( x >= nimages) {
 					/*
 					** no valid images exist
@@ -613,7 +613,7 @@ int main(int argc, char **argv)
 				}
 
 				break;
-	
+
 			case DLREQ_CONFIG:
 				for ( x = 0; x < nimages; x++ ) {
 					if(image_list[x].type != ICONFIG)
@@ -658,15 +658,15 @@ int main(int argc, char **argv)
 					*/
 					for ( x = 0; x < nimages; x++ ) {
 						ii=&image_list[x];
-		
+
 						if(image_list[x].type != ICONC)
 							continue;
-		
+
 						consider_file_rescan(ii) ;
-		
+
 						ip = (struct downld_t *) image_list[x].image;
 						if (ip == NULL) continue;
-		
+
 						/*
 						 * When I removed Clusterport, I kept only the
 						 * code that I was SURE wasn't ClusterPort.
@@ -674,11 +674,11 @@ int main(int argc, char **argv)
 						 */
 
 						if ((dp->dl_type != 'P' ) &&
-						 (ip->dl_lrev <= dp->dl_lrev ) && 
+						 (ip->dl_lrev <= dp->dl_lrev ) &&
 						 ( dp->dl_lrev <= ip->dl_hrev))
 							break;
 					}
-				    
+
 					if ( x >= nimages ) {
 						/*
 						** No valid images exist
@@ -691,7 +691,7 @@ int main(int argc, char **argv)
 						}
 						continue;
 					}
-				    
+
 				} else {
 					/*
 					** find image version required
@@ -706,40 +706,40 @@ int main(int argc, char **argv)
 						continue;
 					}
 				}
-			
+
 				/*
 				** download block of image
 				*/
-			
+
 				offset = 1024 * dp->dl_seq;
-				
+
 				/*
 				** test if block requested within image
 				*/
-				if ( offset < ii->len ) { 
-	
+				if ( offset < ii->len ) {
+
 					/*
 					** if it is, determine block size, set segment,
 					** set size, set pointers, and copy block
 					*/
 					if (( bsize = ii->len - offset ) > 1024 )
 						bsize = 1024;
-				    
+
 					/*
 					** copy image version info to download area
 					*/
 					dp->dl_srev = ip->dl_srev;
 					dp->dl_lrev = ip->dl_lrev;
 					dp->dl_hrev = ip->dl_hrev;
-				    
+
 					dp->dl_seg = (64 * dp->dl_seq) + ip->dl_seg;
 					dp->dl_size = bsize;
-				    
+
 					down = (char *)&dp->dl_data[0];
 					image = (char *)((char *)ip + offset);
-	
+
 					memcpy(down, image, bsize);
-				} 
+				}
 				else {
 					/*
 					** Image has been downloaded, set segment and
@@ -747,24 +747,24 @@ int main(int argc, char **argv)
 					*/
 					dp->dl_seg = ip->dl_seg;
 					dp->dl_size = 0;
-	
+
 					/* Now, we can release the concentrator */
 					/* image from memory if we're running  */
 					/* from filesystem images */
-		
+
 					if (ii->pathname)
 						if (ii->image) {
 							free(ii->image);
-							ii->image = NULL ; 
-						} 
+							ii->image = NULL;
+						}
 				}
-			
+
 				if (debugflag)
 						printf(
 						"sending conc dl section %d to %s from %s\n",
 							dp->dl_seq, ii->name,
 						ii->pathname ? ii->pathname : "Internal Image");
-		
+
 				if (ioctl(fd, DIGI_DLREQ_SET, &dlio) == -1 ) {
 					if (errorprint) {
 						fprintf(stderr,
@@ -789,7 +789,7 @@ int main(int argc, char **argv)
 /*
 ** myperror()
 **
-**  Same as normal perror(), but places the program name at the begining
+**  Same as normal perror(), but places the program name at the beginning
 **  of the message.
 */
 void myperror(char *s)

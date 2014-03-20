@@ -146,6 +146,12 @@ struct qlcnic_mailbox_metadata {
 #define QLCNIC_MBX_PORT_RSP_OK	0x1a
 #define QLCNIC_MBX_ASYNC_EVENT	BIT_15
 
+/* Set HW Tx ring limit for 82xx adapter. */
+#define QLCNIC_MAX_HW_TX_RINGS		8
+#define QLCNIC_MAX_HW_VNIC_TX_RINGS	4
+#define QLCNIC_MAX_TX_RINGS		8
+#define QLCNIC_MAX_SDS_RINGS		8
+
 struct qlcnic_pci_info;
 struct qlcnic_info;
 struct qlcnic_cmd_args;
@@ -156,16 +162,18 @@ struct qlcnic_host_tx_ring;
 struct qlcnic_hardware_context;
 struct qlcnic_adapter;
 
-int qlcnic_82xx_start_firmware(struct qlcnic_adapter *);
 int qlcnic_82xx_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong, int *);
 int qlcnic_82xx_hw_write_wx_2M(struct qlcnic_adapter *, ulong, u32);
 int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int);
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32);
 int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 			 struct net_device *netdev);
+void qlcnic_82xx_get_beacon_state(struct qlcnic_adapter *);
 void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter,
 			       u64 *uaddr, u16 vlan_id);
-void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter);
+int qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *,
+				     struct ethtool_coalesce *);
+int qlcnic_82xx_set_rx_coalesce(struct qlcnic_adapter *);
 int qlcnic_82xx_config_rss(struct qlcnic_adapter *adapter, int);
 void qlcnic_82xx_config_ipaddr(struct qlcnic_adapter *adapter,
 			       __be32, int);
@@ -175,9 +183,6 @@ int qlcnic_82xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8);
 int qlcnic_82xx_set_lb_mode(struct qlcnic_adapter *, u8);
 void qlcnic_82xx_write_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_82xx_read_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
-void qlcnic_82xx_dev_request_reset(struct qlcnic_adapter *, u32);
-int qlcnic_82xx_setup_intr(struct qlcnic_adapter *, u8, int);
-irqreturn_t qlcnic_82xx_clear_legacy_intr(struct qlcnic_adapter *);
 int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 			  struct qlcnic_cmd_args *);
 int qlcnic_82xx_mq_intrpt(struct qlcnic_adapter *, int);

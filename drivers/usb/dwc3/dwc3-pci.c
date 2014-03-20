@@ -52,6 +52,7 @@ static int dwc3_pci_register_phys(struct dwc3_pci *glue)
 
 	glue->usb2_phy = pdev;
 	pdata.type = USB_PHY_TYPE_USB2;
+	pdata.gpio_reset = -1;
 
 	ret = platform_device_add_data(glue->usb2_phy, &pdata, sizeof(pdata));
 	if (ret)
@@ -165,7 +166,6 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	return 0;
 
 err3:
-	pci_set_drvdata(pci, NULL);
 	platform_device_put(dwc3);
 err1:
 	pci_disable_device(pci);
@@ -180,11 +180,10 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 	platform_device_unregister(glue->dwc3);
 	platform_device_unregister(glue->usb2_phy);
 	platform_device_unregister(glue->usb3_phy);
-	pci_set_drvdata(pci, NULL);
 	pci_disable_device(pci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dwc3_pci_id_table) = {
+static const struct pci_device_id dwc3_pci_id_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
 				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),

@@ -50,8 +50,8 @@ struct inet6_ifaddr {
 
 	int			state;
 
+	__u32			flags;
 	__u8			dad_probes;
-	__u8			flags;
 
 	__u16			scope;
 
@@ -66,11 +66,10 @@ struct inet6_ifaddr {
 	struct hlist_node	addr_lst;
 	struct list_head	if_list;
 
-#ifdef CONFIG_IPV6_PRIVACY
 	struct list_head	tmp_list;
 	struct inet6_ifaddr	*ifpub;
 	int			regen_count;
-#endif
+
 	bool			tokenized;
 
 	struct rcu_head		rcu;
@@ -166,7 +165,6 @@ struct inet6_dev {
 	struct net_device	*dev;
 
 	struct list_head	addr_list;
-	int			valid_ll_addr_cnt;
 
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
@@ -192,11 +190,9 @@ struct inet6_dev {
 	__u32			if_flags;
 	int			dead;
 
-#ifdef CONFIG_IPV6_PRIVACY
 	u8			rndid[8];
 	struct timer_list	regen_timer;
 	struct list_head	tempaddr_list;
-#endif
 
 	struct in6_addr		token;
 

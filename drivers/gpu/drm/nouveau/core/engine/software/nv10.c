@@ -117,8 +117,8 @@ nv10_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nv10_software_oclass = {
+struct nouveau_oclass *
+nv10_software_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(SW, 0x10),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv10_software_ctor,

@@ -65,6 +65,7 @@ static int host_start(struct ci_hdrc *ci)
 	ehci->caps = ci->hw_bank.cap;
 	ehci->has_hostpc = ci->hw_bank.lpm;
 	ehci->has_tdi_phy_lpm = ci->hw_bank.lpm;
+	ehci->imx28_write_fix = ci->imx28_write_fix;
 
 	if (ci->platdata->reg_vbus) {
 		ret = regulator_enable(ci->platdata->reg_vbus);
@@ -88,7 +89,8 @@ static int host_start(struct ci_hdrc *ci)
 	return ret;
 
 disable_reg:
-	regulator_disable(ci->platdata->reg_vbus);
+	if (ci->platdata->reg_vbus)
+		regulator_disable(ci->platdata->reg_vbus);
 
 put_hcd:
 	usb_put_hcd(hcd);
@@ -100,16 +102,18 @@ static void host_stop(struct ci_hdrc *ci)
 {
 	struct usb_hcd *hcd = ci->hcd;
 
-	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
-	if (ci->platdata->reg_vbus)
-		regulator_disable(ci->platdata->reg_vbus);
+	if (hcd) {
+		usb_remove_hcd(hcd);
+		usb_put_hcd(hcd);
+		if (ci->platdata->reg_vbus)
+			regulator_disable(ci->platdata->reg_vbus);
+	}
 }
 
 
 void ci_hdrc_host_destroy(struct ci_hdrc *ci)
 {
-	if (ci->role == CI_ROLE_HOST)
+	if (ci->role == CI_ROLE_HOST && ci->hcd)
 		host_stop(ci);
 }
 

@@ -136,6 +136,7 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
 
 struct mempolicy *get_vma_policy(struct task_struct *tsk,
 		struct vm_area_struct *vma, unsigned long addr);
+bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma);
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
@@ -168,7 +169,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 extern int mpol_parse_str(char *str, struct mempolicy **mpol);
 #endif
 
-extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
+extern void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
 
 /* Check if a vma is migratable */
 static inline int vma_migratable(struct vm_area_struct *vma)
@@ -210,19 +211,7 @@ static inline void mpol_get(struct mempolicy *pol)
 {
 }
 
-static inline struct mempolicy *mpol_dup(struct mempolicy *old)
-{
-	return NULL;
-}
-
 struct shared_policy {};
-
-static inline int mpol_set_shared_policy(struct shared_policy *info,
-					struct vm_area_struct *vma,
-					struct mempolicy *new)
-{
-	return -EINVAL;
-}
 
 static inline void mpol_shared_policy_init(struct shared_policy *sp,
 						struct mempolicy *mpol)
@@ -231,12 +220,6 @@ static inline void mpol_shared_policy_init(struct shared_policy *sp,
 
 static inline void mpol_free_shared_policy(struct shared_policy *p)
 {
-}
-
-static inline struct mempolicy *
-mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
-{
-	return NULL;
 }
 
 #define vma_policy(vma) NULL
@@ -265,10 +248,6 @@ static inline void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
 {
 }
 
-static inline void mpol_fix_fork_child_flag(struct task_struct *p)
-{
-}
-
 static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 				unsigned long addr, gfp_t gfp_flags,
 				struct mempolicy **mpol, nodemask_t **nodemask)
@@ -279,12 +258,6 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 }
 
 static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
-{
-	return false;
-}
-
-static inline bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-			const nodemask_t *mask)
 {
 	return false;
 }
@@ -305,11 +278,6 @@ static inline int mpol_parse_str(char *str, struct mempolicy **mpol)
 	return 1;	/* error */
 }
 #endif
-
-static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
-{
-	return 0;
-}
 
 static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
 				 unsigned long address)

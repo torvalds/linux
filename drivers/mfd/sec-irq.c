@@ -22,7 +22,7 @@
 #include <linux/mfd/samsung/s5m8763.h>
 #include <linux/mfd/samsung/s5m8767.h>
 
-static struct regmap_irq s2mps11_irqs[] = {
+static const struct regmap_irq s2mps11_irqs[] = {
 	[S2MPS11_IRQ_PWRONF] = {
 		.reg_offset = 0,
 		.mask = S2MPS11_IRQ_PWRONF_MASK,
@@ -90,7 +90,7 @@ static struct regmap_irq s2mps11_irqs[] = {
 };
 
 
-static struct regmap_irq s5m8767_irqs[] = {
+static const struct regmap_irq s5m8767_irqs[] = {
 	[S5M8767_IRQ_PWRR] = {
 		.reg_offset = 0,
 		.mask = S5M8767_IRQ_PWRR_MASK,
@@ -161,7 +161,7 @@ static struct regmap_irq s5m8767_irqs[] = {
 	},
 };
 
-static struct regmap_irq s5m8763_irqs[] = {
+static const struct regmap_irq s5m8763_irqs[] = {
 	[S5M8763_IRQ_DCINF] = {
 		.reg_offset = 0,
 		.mask = S5M8763_IRQ_DCINF_MASK,
@@ -236,7 +236,7 @@ static struct regmap_irq s5m8763_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip s2mps11_irq_chip = {
+static const struct regmap_irq_chip s2mps11_irq_chip = {
 	.name = "s2mps11",
 	.irqs = s2mps11_irqs,
 	.num_irqs = ARRAY_SIZE(s2mps11_irqs),
@@ -246,7 +246,7 @@ static struct regmap_irq_chip s2mps11_irq_chip = {
 	.ack_base = S2MPS11_REG_INT1,
 };
 
-static struct regmap_irq_chip s5m8767_irq_chip = {
+static const struct regmap_irq_chip s5m8767_irq_chip = {
 	.name = "s5m8767",
 	.irqs = s5m8767_irqs,
 	.num_irqs = ARRAY_SIZE(s5m8767_irqs),
@@ -256,7 +256,7 @@ static struct regmap_irq_chip s5m8767_irq_chip = {
 	.ack_base = S5M8767_REG_INT1,
 };
 
-static struct regmap_irq_chip s5m8763_irq_chip = {
+static const struct regmap_irq_chip s5m8763_irq_chip = {
 	.name = "s5m8763",
 	.irqs = s5m8763_irqs,
 	.num_irqs = ARRAY_SIZE(s5m8763_irqs),
@@ -280,19 +280,19 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 
 	switch (type) {
 	case S5M8763X:
-		ret = regmap_add_irq_chip(sec_pmic->regmap, sec_pmic->irq,
+		ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
 				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				  sec_pmic->irq_base, &s5m8763_irq_chip,
 				  &sec_pmic->irq_data);
 		break;
 	case S5M8767X:
-		ret = regmap_add_irq_chip(sec_pmic->regmap, sec_pmic->irq,
+		ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
 				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				  sec_pmic->irq_base, &s5m8767_irq_chip,
 				  &sec_pmic->irq_data);
 		break;
 	case S2MPS11X:
-		ret = regmap_add_irq_chip(sec_pmic->regmap, sec_pmic->irq,
+		ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
 				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				  sec_pmic->irq_base, &s2mps11_irq_chip,
 				  &sec_pmic->irq_data);

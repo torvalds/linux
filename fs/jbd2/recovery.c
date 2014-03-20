@@ -594,7 +594,7 @@ static int do_one_pass(journal_t *journal,
 						be32_to_cpu(tmp->h_sequence))) {
 						brelse(obh);
 						success = -EIO;
-						printk(KERN_ERR "JBD: Invalid "
+						printk(KERN_ERR "JBD2: Invalid "
 						       "checksum recovering "
 						       "block %llu in log\n",
 						       blocknr);

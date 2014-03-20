@@ -1,5 +1,5 @@
 /*
- *	Routines to indentify additional cpu features that are scattered in
+ *	Routines to identify additional cpu features that are scattered in
  *	cpuid space.
  */
 #include <linux/cpu.h>

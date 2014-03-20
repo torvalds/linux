@@ -144,11 +144,8 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
 	 * while accessing I/O stuff
-	 *
-	 * FIXME: Enable that for PHB3 later
 	 */
-	if (phb->type == PNV_PHB_IODA1)
-		eeh_subsystem_enabled = 1;
+	eeh_set_enable(true);
 
 	/* Save memory bars */
 	eeh_save_bars(edev);
@@ -347,6 +344,27 @@ static int powernv_eeh_next_error(struct eeh_pe **pe)
 	return -EEXIST;
 }
 
+static int powernv_eeh_restore_config(struct device_node *dn)
+{
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct pnv_phb *phb;
+	s64 ret;
+
+	if (!edev)
+		return -EEXIST;
+
+	phb = edev->phb->private_data;
+	ret = opal_pci_reinit(phb->opal_id,
+			      OPAL_REINIT_PCI_DEV, edev->config_addr);
+	if (ret) {
+		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
+			__func__, edev->config_addr, ret);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static struct eeh_ops powernv_eeh_ops = {
 	.name                   = "powernv",
 	.init                   = powernv_eeh_init,
@@ -362,7 +380,8 @@ static struct eeh_ops powernv_eeh_ops = {
 	.configure_bridge       = powernv_eeh_configure_bridge,
 	.read_config            = pnv_pci_cfg_read,
 	.write_config           = pnv_pci_cfg_write,
-	.next_error		= powernv_eeh_next_error
+	.next_error		= powernv_eeh_next_error,
+	.restore_config		= powernv_eeh_restore_config
 };
 
 /**

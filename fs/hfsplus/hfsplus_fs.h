@@ -127,6 +127,14 @@ struct hfs_bnode {
 #define HFS_BNODE_DELETED	4
 
 /*
+ * Attributes file states
+ */
+#define HFSPLUS_EMPTY_ATTR_TREE		0
+#define HFSPLUS_CREATING_ATTR_TREE	1
+#define HFSPLUS_VALID_ATTR_TREE		2
+#define HFSPLUS_FAILED_ATTR_TREE	3
+
+/*
  * HFS+ superblock info (built from Volume Header on disk)
  */
 
@@ -141,6 +149,7 @@ struct hfsplus_sb_info {
 	struct hfs_btree *ext_tree;
 	struct hfs_btree *cat_tree;
 	struct hfs_btree *attr_tree;
+	atomic_t attr_tree_state;
 	struct inode *alloc_file;
 	struct inode *hidden_dir;
 	struct nls_table *nls;
@@ -233,6 +242,7 @@ struct hfsplus_inode_info {
 	 */
 	sector_t fs_blocks;
 	u8 userflags;		/* BSD user file flags */
+	u32 subfolders;		/* Subfolder count (HFSX only) */
 	struct list_head open_dir_list;
 	loff_t phys_size;
 
@@ -380,6 +390,7 @@ int hfsplus_block_allocate(struct super_block *, u32, u32, u32 *);
 int hfsplus_block_free(struct super_block *, u32, u32);
 
 /* btree.c */
+u32 hfsplus_calc_btree_clump_size(u32, u32, u64, int);
 struct hfs_btree *hfs_btree_open(struct super_block *, u32);
 void hfs_btree_close(struct hfs_btree *);
 int hfs_btree_write(struct hfs_btree *);

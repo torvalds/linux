@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,8 @@
  *		PBW Snoozing enabled
  * @POWER_FLAGS_ADVANCE_PM_ENA_MSK: Advanced PM (uAPSD) enable mask
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
+ * @POWER_FLAGS_AP_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
+ *		detection enablement
 */
 enum iwl_power_flags {
 	POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
@@ -94,6 +96,7 @@ enum iwl_power_flags {
 	POWER_FLAGS_BT_SCO_ENA			= BIT(8),
 	POWER_FLAGS_ADVANCE_PM_ENA_MSK		= BIT(9),
 	POWER_FLAGS_LPRX_ENA_MSK		= BIT(11),
+	POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK	= BIT(12),
 };
 
 #define IWL_POWER_VEC_SIZE 5
@@ -129,6 +132,33 @@ struct iwl_powertable_cmd {
 	__le32 sleep_interval[IWL_POWER_VEC_SIZE];
 	__le32 skip_dtim_periods;
 	__le32 lprx_rssi_threshold;
+} __packed;
+
+/**
+ * enum iwl_device_power_flags - masks for device power command flags
+ * @DEVIC_POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
+ *	receiver and transmitter. '0' - does not allow. This flag should be
+ *	always set to '1' unless one need to disable actual power down for debug
+ *	purposes.
+ * @DEVICE_POWER_FLAGS_CAM_MSK: '1' CAM (Continuous Active Mode) is set, meaning
+ *	that power management is disabled. '0' Power management is enabled, one
+ *	of power schemes is applied.
+*/
+enum iwl_device_power_flags {
+	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK	= BIT(0),
+	DEVICE_POWER_FLAGS_CAM_MSK		= BIT(13),
+};
+
+/**
+ * struct iwl_device_power_cmd - device wide power command.
+ * DEVICE_POWER_CMD = 0x77 (command, has simple generic response)
+ *
+ * @flags:	Power table command flags from DEVICE_POWER_FLAGS_*
+ */
+struct iwl_device_power_cmd {
+	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
+	__le16 flags;
+	__le16 reserved;
 } __packed;
 
 /**
@@ -199,6 +229,19 @@ struct iwl_mac_power_cmd {
 	u8 heavy_rx_thld_percentage;
 	u8 limited_ps_threshold;
 	u8 reserved;
+} __packed;
+
+/*
+ * struct iwl_uapsd_misbehaving_ap_notif - FW sends this notification when
+ * associated AP is identified as improperly implementing uAPSD protocol.
+ * PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78
+ * @sta_id: index of station in uCode's station table - associated AP ID in
+ *	    this context.
+ */
+struct iwl_uapsd_misbehaving_ap_notif {
+	__le32 sta_id;
+	u8 mac_id;
+	u8 reserved[3];
 } __packed;
 
 /**
@@ -290,7 +333,7 @@ struct iwl_beacon_filter_cmd {
 #define IWL_BF_ESCAPE_TIMER_MIN 0
 
 #define IWL_BA_ESCAPE_TIMER_DEFAULT 6
-#define IWL_BA_ESCAPE_TIMER_D3 6
+#define IWL_BA_ESCAPE_TIMER_D3 9
 #define IWL_BA_ESCAPE_TIMER_MAX 1024
 #define IWL_BA_ESCAPE_TIMER_MIN 0
 

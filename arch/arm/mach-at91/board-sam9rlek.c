@@ -170,7 +170,7 @@ static struct fb_monspecs at91fb_default_monspecs = {
 					| ATMEL_LCDC_DISTYPE_TFT \
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
-static void at91_lcdc_power_control(int on)
+static void at91_lcdc_power_control(struct atmel_lcdfb_pdata *pdata, int on)
 {
 	if (on)
 		at91_set_gpio_value(AT91_PIN_PC1, 0);	/* power up */
@@ -179,7 +179,7 @@ static void at91_lcdc_power_control(int on)
 }
 
 /* Driver datas */
-static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data = {
 	.lcdcon_is_backlight            = true,
 	.default_bpp			= 16,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
@@ -191,7 +191,7 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 };
 
 #else
-static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data;
 #endif
 
 

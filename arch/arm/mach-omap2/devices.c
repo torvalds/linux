@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/omap4-keypad.h>
-#include <linux/wl12xx.h>
 #include <linux/platform_data/mailbox-omap.h>
 
 #include <asm/mach-types.h>
@@ -37,6 +36,7 @@
 #include "mux.h"
 #include "control.h"
 #include "devices.h"
+#include "display.h"
 
 #define L3_MODULES_MAX_LEN 12
 #define L3_MODULES 3
@@ -466,47 +466,13 @@ static struct platform_device omap_vout_device = {
 	.resource 	= &omap_vout_resource[0],
 	.id		= -1,
 };
-static void omap_init_vout(void)
+
+int __init omap_init_vout(void)
 {
-	if (platform_device_register(&omap_vout_device) < 0)
-		printk(KERN_ERR "Unable to register OMAP-VOUT device\n");
+	return platform_device_register(&omap_vout_device);
 }
 #else
-static inline void omap_init_vout(void) {}
-#endif
-
-#if IS_ENABLED(CONFIG_WL12XX)
-
-static struct wl12xx_platform_data wl12xx __initdata;
-
-void __init omap_init_wl12xx_of(void)
-{
-	int ret;
-
-	if (!of_have_populated_dt())
-		return;
-
-	if (of_machine_is_compatible("ti,omap4-sdp")) {
-		wl12xx.board_ref_clock = WL12XX_REFCLOCK_26;
-		wl12xx.board_tcxo_clock = WL12XX_TCXOCLOCK_26;
-		wl12xx.irq = gpio_to_irq(53);
-	} else if (of_machine_is_compatible("ti,omap4-panda")) {
-		wl12xx.board_ref_clock = WL12XX_REFCLOCK_38;
-		wl12xx.irq = gpio_to_irq(53);
-	} else {
-		return;
-	}
-
-	ret = wl12xx_set_platform_data(&wl12xx);
-	if (ret) {
-		pr_err("error setting wl12xx data: %d\n", ret);
-		return;
-	}
-}
-#else
-static inline void omap_init_wl12xx_of(void)
-{
-}
+int __init omap_init_vout(void) { return 0; }
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -531,12 +497,8 @@ static int __init omap2_init_devices(void)
 		omap_init_sham();
 		omap_init_aes();
 		omap_init_rng();
-	} else {
-		/* These can be removed when bindings are done */
-		omap_init_wl12xx_of();
 	}
 	omap_init_sti();
-	omap_init_vout();
 
 	return 0;
 }

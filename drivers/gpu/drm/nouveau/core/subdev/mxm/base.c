@@ -87,55 +87,39 @@ mxm_shadow_dsm(struct nouveau_mxm *mxm, u8 version)
 		0xB8, 0x9C, 0x79, 0xB6, 0x2F, 0xD5, 0x56, 0x65
 	};
 	u32 mxms_args[] = { 0x00000000 };
-	union acpi_object args[4] = {
-		/* _DSM MUID */
-		{ .buffer.type = 3,
-		  .buffer.length = sizeof(muid),
-		  .buffer.pointer = muid,
-		},
-		/* spec says this can be zero to mean "highest revision", but
-		 * of course there's at least one bios out there which fails
-		 * unless you pass in exactly the version it supports..
-		 */
-		{ .integer.type = ACPI_TYPE_INTEGER,
-		  .integer.value = (version & 0xf0) << 4 | (version & 0x0f),
-		},
-		/* MXMS function */
-		{ .integer.type = ACPI_TYPE_INTEGER,
-		  .integer.value = 0x00000010,
-		},
-		/* Pointer to MXMS arguments */
-		{ .buffer.type = ACPI_TYPE_BUFFER,
-		  .buffer.length = sizeof(mxms_args),
-		  .buffer.pointer = (char *)mxms_args,
-		},
+	union acpi_object argv4 = {
+		.buffer.type = ACPI_TYPE_BUFFER,
+		.buffer.length = sizeof(mxms_args),
+		.buffer.pointer = (char *)mxms_args,
 	};
-	struct acpi_object_list list = { ARRAY_SIZE(args), args };
-	struct acpi_buffer retn = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	acpi_handle handle;
-	int ret;
+	int rev;
 
-	handle = DEVICE_ACPI_HANDLE(&device->pdev->dev);
+	handle = ACPI_HANDLE(&device->pdev->dev);
 	if (!handle)
 		return false;
 
-	ret = acpi_evaluate_object(handle, "_DSM", &list, &retn);
-	if (ret) {
-		nv_debug(mxm, "DSM MXMS failed: %d\n", ret);
+	/*
+	 * spec says this can be zero to mean "highest revision", but
+	 * of course there's at least one bios out there which fails
+	 * unless you pass in exactly the version it supports..
+	 */
+	rev = (version & 0xf0) << 4 | (version & 0x0f);
+	obj = acpi_evaluate_dsm(handle, muid, rev, 0x00000010, &argv4);
+	if (!obj) {
+		nv_debug(mxm, "DSM MXMS failed\n");
 		return false;
 	}
 
-	obj = retn.pointer;
 	if (obj->type == ACPI_TYPE_BUFFER) {
 		mxm->mxms = kmemdup(obj->buffer.pointer,
 					 obj->buffer.length, GFP_KERNEL);
-	} else
-	if (obj->type == ACPI_TYPE_INTEGER) {
+	} else if (obj->type == ACPI_TYPE_INTEGER) {
 		nv_debug(mxm, "DSM MXMS returned 0x%llx\n", obj->integer.value);
 	}
 
-	kfree(obj);
+	ACPI_FREE(obj);
 	return mxm->mxms != NULL;
 }
 #endif

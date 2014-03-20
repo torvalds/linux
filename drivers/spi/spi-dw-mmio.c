@@ -30,14 +30,13 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 {
 	struct dw_spi_mmio *dwsmmio;
 	struct dw_spi *dws;
-	struct resource *mem, *ioarea;
+	struct resource *mem;
 	int ret;
 
-	dwsmmio = kzalloc(sizeof(struct dw_spi_mmio), GFP_KERNEL);
-	if (!dwsmmio) {
-		ret = -ENOMEM;
-		goto err_end;
-	}
+	dwsmmio = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_mmio),
+			GFP_KERNEL);
+	if (!dwsmmio)
+		return -ENOMEM;
 
 	dws = &dwsmmio->dws;
 
@@ -45,83 +44,51 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "no mem resource?\n");
-		ret = -EINVAL;
-		goto err_kfree;
+		return -EINVAL;
 	}
 
-	ioarea = request_mem_region(mem->start, resource_size(mem),
-			pdev->name);
-	if (!ioarea) {
-		dev_err(&pdev->dev, "SPI region already claimed\n");
-		ret = -EBUSY;
-		goto err_kfree;
-	}
-
-	dws->regs = ioremap_nocache(mem->start, resource_size(mem));
-	if (!dws->regs) {
-		dev_err(&pdev->dev, "SPI region already mapped\n");
-		ret = -ENOMEM;
-		goto err_release_reg;
+	dws->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dws->regs)) {
+		dev_err(&pdev->dev, "SPI region map failed\n");
+		return PTR_ERR(dws->regs);
 	}
 
 	dws->irq = platform_get_irq(pdev, 0);
 	if (dws->irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
-		ret = dws->irq; /* -ENXIO */
-		goto err_unmap;
+		return dws->irq; /* -ENXIO */
 	}
 
-	dwsmmio->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dwsmmio->clk)) {
-		ret = PTR_ERR(dwsmmio->clk);
-		goto err_irq;
-	}
-	clk_enable(dwsmmio->clk);
+	dwsmmio->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(dwsmmio->clk))
+		return PTR_ERR(dwsmmio->clk);
+	ret = clk_prepare_enable(dwsmmio->clk);
+	if (ret)
+		return ret;
 
-	dws->parent_dev = &pdev->dev;
 	dws->bus_num = 0;
 	dws->num_cs = 4;
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
 
-	ret = dw_spi_add_host(dws);
+	ret = dw_spi_add_host(&pdev->dev, dws);
 	if (ret)
-		goto err_clk;
+		goto out;
 
 	platform_set_drvdata(pdev, dwsmmio);
 	return 0;
 
-err_clk:
-	clk_disable(dwsmmio->clk);
-	clk_put(dwsmmio->clk);
-	dwsmmio->clk = NULL;
-err_irq:
-	free_irq(dws->irq, dws);
-err_unmap:
-	iounmap(dws->regs);
-err_release_reg:
-	release_mem_region(mem->start, resource_size(mem));
-err_kfree:
-	kfree(dwsmmio);
-err_end:
+out:
+	clk_disable_unprepare(dwsmmio->clk);
 	return ret;
 }
 
 static int dw_spi_mmio_remove(struct platform_device *pdev)
 {
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
-	struct resource *mem;
 
-	clk_disable(dwsmmio->clk);
-	clk_put(dwsmmio->clk);
-	dwsmmio->clk = NULL;
-
-	free_irq(dwsmmio->dws.irq, &dwsmmio->dws);
+	clk_disable_unprepare(dwsmmio->clk);
 	dw_spi_remove_host(&dwsmmio->dws);
-	iounmap(dwsmmio->dws.regs);
-	kfree(dwsmmio);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, resource_size(mem));
 	return 0;
 }
 

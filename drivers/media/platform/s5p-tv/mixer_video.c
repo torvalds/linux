@@ -528,7 +528,7 @@ static int mxr_s_dv_timings(struct file *file, void *fh,
 	mutex_lock(&mdev->mutex);
 
 	/* timings change cannot be done while there is an entity
-	 * dependant on output configuration
+	 * dependent on output configuration
 	 */
 	if (mdev->n_output > 0) {
 		mutex_unlock(&mdev->mutex);
@@ -585,7 +585,7 @@ static int mxr_s_std(struct file *file, void *fh, v4l2_std_id norm)
 	mutex_lock(&mdev->mutex);
 
 	/* standard change cannot be done while there is an entity
-	 * dependant on output configuration
+	 * dependent on output configuration
 	 */
 	if (mdev->n_output > 0) {
 		mutex_unlock(&mdev->mutex);
@@ -948,7 +948,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	if (count == 0) {
 		mxr_dbg(mdev, "no output buffers queued\n");
-		return -EINVAL;
+		return -ENOBUFS;
 	}
 
 	/* block any changes in output configuration */

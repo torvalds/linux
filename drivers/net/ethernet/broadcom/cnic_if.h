@@ -14,8 +14,8 @@
 
 #include "bnx2x/bnx2x_mfw_req.h"
 
-#define CNIC_MODULE_VERSION	"2.5.18"
-#define CNIC_MODULE_RELDATE	"Sept 01, 2013"
+#define CNIC_MODULE_VERSION	"2.5.19"
+#define CNIC_MODULE_RELDATE	"December 19, 2013"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -353,8 +353,8 @@ struct cnic_ulp_ops {
 	atomic_t ref_count;
 };
 
-extern int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
+int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
 
-extern int cnic_unregister_driver(int ulp_type);
+int cnic_unregister_driver(int ulp_type);
 
 #endif

@@ -271,7 +271,7 @@ acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 		return (AE_OK);	/* Successful repair */
 	}
 
-      type_error_exit:
+type_error_exit:
 
 	/* Create a string with all expected types for this predefined object */
 

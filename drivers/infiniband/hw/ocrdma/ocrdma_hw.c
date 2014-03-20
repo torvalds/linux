@@ -150,7 +150,7 @@ enum ib_qp_state get_ibqp_state(enum ocrdma_qp_state qps)
 		return IB_QPS_SQE;
 	case OCRDMA_QPS_ERR:
 		return IB_QPS_ERR;
-	};
+	}
 	return IB_QPS_ERR;
 }
 
@@ -171,7 +171,7 @@ static enum ocrdma_qp_state get_ocrdma_qp_state(enum ib_qp_state qps)
 		return OCRDMA_QPS_SQE;
 	case IB_QPS_ERR:
 		return OCRDMA_QPS_ERR;
-	};
+	}
 	return OCRDMA_QPS_ERR;
 }
 
@@ -1783,7 +1783,7 @@ static int ocrdma_set_create_qp_sq_cmd(struct ocrdma_create_qp_req *cmd,
 	u32 max_sges = attrs->cap.max_send_sge;
 
 	/* QP1 may exceed 127 */
-	max_wqe_allocated = min_t(int, attrs->cap.max_send_wr + 1,
+	max_wqe_allocated = min_t(u32, attrs->cap.max_send_wr + 1,
 				dev->attr.max_wqe);
 
 	status = ocrdma_build_q_conf(&max_wqe_allocated,
@@ -1982,7 +1982,7 @@ int ocrdma_mbx_create_qp(struct ocrdma_qp *qp, struct ib_qp_init_attr *attrs,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_CREATE_QP, sizeof(*cmd));
 	if (!cmd)
@@ -2076,23 +2076,6 @@ mbx_err:
 	return status;
 }
 
-int ocrdma_resolve_dgid(struct ocrdma_dev *dev, union ib_gid *dgid,
-			u8 *mac_addr)
-{
-	struct in6_addr in6;
-
-	memcpy(&in6, dgid, sizeof in6);
-	if (rdma_is_multicast_addr(&in6)) {
-		rdma_get_mcast_mac(&in6, mac_addr);
-	} else if (rdma_link_local_addr(&in6)) {
-		rdma_get_ll_mac(&in6, mac_addr);
-	} else {
-		pr_err("%s() fail to resolve mac_addr.\n", __func__);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 				struct ocrdma_modify_qp *cmd,
 				struct ib_qp_attr *attrs)
@@ -2126,14 +2109,14 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 
 	qp->sgid_idx = ah_attr->grh.sgid_index;
 	memcpy(&cmd->params.sgid[0], &sgid.raw[0], sizeof(cmd->params.sgid));
-	ocrdma_resolve_dgid(qp->dev, &ah_attr->grh.dgid, &mac_addr[0]);
+	ocrdma_resolve_dmac(qp->dev, ah_attr, &mac_addr[0]);
 	cmd->params.dmac_b0_to_b3 = mac_addr[0] | (mac_addr[1] << 8) |
 				(mac_addr[2] << 16) | (mac_addr[3] << 24);
 	/* convert them to LE format. */
 	ocrdma_cpu_to_le32(&cmd->params.dgid[0], sizeof(cmd->params.dgid));
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
-	vlan_id = rdma_get_vlan_id(&sgid);
+	vlan_id = ah_attr->vlan_id;
 	if (vlan_id && (vlan_id < 0x1000)) {
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;

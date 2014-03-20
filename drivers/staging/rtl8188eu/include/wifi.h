@@ -984,7 +984,7 @@ enum ht_cap_ampdu_factor {
 #define	P2P_PROVISION_TIMEOUT		5000
 /* 3 seconds timeout for sending the prov disc request concurrent mode */
 #define	P2P_CONCURRENT_PROVISION_TIME	3000
-/* 5 seconds timeout for receiving the group negotation response */
+/* 5 seconds timeout for receiving the group negotiation response */
 #define	P2P_GO_NEGO_TIMEOUT		5000
 /* 3 seconds timeout for sending the negotiation request under concurrent mode */
 #define	P2P_CONCURRENT_GO_NEGO_TIME	3000
@@ -1080,7 +1080,7 @@ enum P2P_PROTO_WK_ID {
 	P2P_PRE_TX_PROVDISC_PROCESS_WK = 2,
 	P2P_PRE_TX_NEGOREQ_PROCESS_WK = 3,
 	P2P_PRE_TX_INVITEREQ_PROCESS_WK = 4,
-	P2P_AP_P2P_CH_SWITCH_PROCESS_WK =5,
+	P2P_AP_P2P_CH_SWITCH_PROCESS_WK = 5,
 	P2P_RO_CH_WK = 6,
 };
 

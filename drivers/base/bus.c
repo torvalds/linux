@@ -146,8 +146,19 @@ void bus_remove_file(struct bus_type *bus, struct bus_attribute *attr)
 }
 EXPORT_SYMBOL_GPL(bus_remove_file);
 
+static void bus_release(struct kobject *kobj)
+{
+	struct subsys_private *priv =
+		container_of(kobj, typeof(*priv), subsys.kobj);
+	struct bus_type *bus = priv->bus;
+
+	kfree(priv);
+	bus->p = NULL;
+}
+
 static struct kobj_type bus_ktype = {
 	.sysfs_ops	= &bus_sysfs_ops,
+	.release	= bus_release,
 };
 
 static int bus_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -591,37 +602,6 @@ void bus_remove_device(struct device *dev)
 	bus_put(dev->bus);
 }
 
-static int driver_add_attrs(struct bus_type *bus, struct device_driver *drv)
-{
-	int error = 0;
-	int i;
-
-	if (bus->drv_attrs) {
-		for (i = 0; bus->drv_attrs[i].attr.name; i++) {
-			error = driver_create_file(drv, &bus->drv_attrs[i]);
-			if (error)
-				goto err;
-		}
-	}
-done:
-	return error;
-err:
-	while (--i >= 0)
-		driver_remove_file(drv, &bus->drv_attrs[i]);
-	goto done;
-}
-
-static void driver_remove_attrs(struct bus_type *bus,
-				struct device_driver *drv)
-{
-	int i;
-
-	if (bus->drv_attrs) {
-		for (i = 0; bus->drv_attrs[i].attr.name; i++)
-			driver_remove_file(drv, &bus->drv_attrs[i]);
-	}
-}
-
 static int __must_check add_bind_files(struct device_driver *drv)
 {
 	int ret;
@@ -720,16 +700,12 @@ int bus_add_driver(struct device_driver *drv)
 		printk(KERN_ERR "%s: uevent attr (%s) failed\n",
 			__func__, drv->name);
 	}
-	error = driver_add_attrs(bus, drv);
+	error = driver_add_groups(drv, bus->drv_groups);
 	if (error) {
 		/* How the hell do we get out of this pickle? Give up */
-		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
-			__func__, drv->name);
-	}
-	error = driver_add_groups(drv, bus->drv_groups);
-	if (error)
 		printk(KERN_ERR "%s: driver_create_groups(%s) failed\n",
 			__func__, drv->name);
+	}
 
 	if (!drv->suppress_bind_attrs) {
 		error = add_bind_files(drv);
@@ -766,7 +742,6 @@ void bus_remove_driver(struct device_driver *drv)
 
 	if (!drv->suppress_bind_attrs)
 		remove_bind_files(drv);
-	driver_remove_attrs(drv->bus, drv);
 	driver_remove_groups(drv, drv->bus->drv_groups);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);
@@ -845,42 +820,6 @@ struct bus_type *find_bus(char *name)
 	return k ? to_bus(k) : NULL;
 }
 #endif  /*  0  */
-
-
-/**
- * bus_add_attrs - Add default attributes for this bus.
- * @bus: Bus that has just been registered.
- */
-
-static int bus_add_attrs(struct bus_type *bus)
-{
-	int error = 0;
-	int i;
-
-	if (bus->bus_attrs) {
-		for (i = 0; bus->bus_attrs[i].attr.name; i++) {
-			error = bus_create_file(bus, &bus->bus_attrs[i]);
-			if (error)
-				goto err;
-		}
-	}
-done:
-	return error;
-err:
-	while (--i >= 0)
-		bus_remove_file(bus, &bus->bus_attrs[i]);
-	goto done;
-}
-
-static void bus_remove_attrs(struct bus_type *bus)
-{
-	int i;
-
-	if (bus->bus_attrs) {
-		for (i = 0; bus->bus_attrs[i].attr.name; i++)
-			bus_remove_file(bus, &bus->bus_attrs[i]);
-	}
-}
 
 static int bus_add_groups(struct bus_type *bus,
 			  const struct attribute_group **groups)
@@ -983,9 +922,6 @@ int bus_register(struct bus_type *bus)
 	if (retval)
 		goto bus_probe_files_fail;
 
-	retval = bus_add_attrs(bus);
-	if (retval)
-		goto bus_attrs_fail;
 	retval = bus_add_groups(bus, bus->bus_groups);
 	if (retval)
 		goto bus_groups_fail;
@@ -994,8 +930,6 @@ int bus_register(struct bus_type *bus)
 	return 0;
 
 bus_groups_fail:
-	bus_remove_attrs(bus);
-bus_attrs_fail:
 	remove_probe_files(bus);
 bus_probe_files_fail:
 	kset_unregister(bus->p->drivers_kset);
@@ -1024,15 +958,12 @@ void bus_unregister(struct bus_type *bus)
 	pr_debug("bus: '%s': unregistering\n", bus->name);
 	if (bus->dev_root)
 		device_unregister(bus->dev_root);
-	bus_remove_attrs(bus);
 	bus_remove_groups(bus, bus->bus_groups);
 	remove_probe_files(bus);
 	kset_unregister(bus->p->drivers_kset);
 	kset_unregister(bus->p->devices_kset);
 	bus_remove_file(bus, &bus_attr_uevent);
 	kset_unregister(&bus->p->subsys);
-	kfree(bus->p);
-	bus->p = NULL;
 }
 EXPORT_SYMBOL_GPL(bus_unregister);
 

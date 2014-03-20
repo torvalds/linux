@@ -319,7 +319,6 @@ static int flexcop_pci_init(struct flexcop_pci *fc_pci)
 
 err_pci_iounmap:
 	pci_iounmap(fc_pci->pdev, fc_pci->io_mem);
-	pci_set_drvdata(fc_pci->pdev, NULL);
 err_pci_release_regions:
 	pci_release_regions(fc_pci->pdev);
 err_pci_disable_device:
@@ -332,7 +331,6 @@ static void flexcop_pci_exit(struct flexcop_pci *fc_pci)
 	if (fc_pci->init_state & FC_PCI_INIT) {
 		free_irq(fc_pci->pdev->irq, fc_pci);
 		pci_iounmap(fc_pci->pdev, fc_pci->io_mem);
-		pci_set_drvdata(fc_pci->pdev, NULL);
 		pci_release_regions(fc_pci->pdev);
 		pci_disable_device(fc_pci->pdev);
 	}

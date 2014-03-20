@@ -87,17 +87,8 @@ static int apci16xx_dio_insn_bits(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	/* Only update the channels configured as outputs */
-	mask &= s->io_bits;
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, dev->iobase + APCI16XX_OUT_REG(s->index));
-	}
 
 	data[1] = inl(dev->iobase + APCI16XX_IN_REG(s->index));
 
@@ -177,7 +168,7 @@ static int apci16xx_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci16xx_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci16xx_pci_table) = {
+static const struct pci_device_id apci16xx_pci_table[] = {
 	{ PCI_VDEVICE(ADDIDATA, 0x1009), BOARD_APCI1648 },
 	{ PCI_VDEVICE(ADDIDATA, 0x100a), BOARD_APCI1696 },
 	{ 0 }

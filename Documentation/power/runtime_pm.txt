@@ -145,11 +145,13 @@ The action performed by the idle callback is totally dependent on the subsystem
 if the device can be suspended (i.e. if all of the conditions necessary for
 suspending the device are satisfied) and to queue up a suspend request for the
 device in that case.  If there is no idle callback, or if the callback returns
-0, then the PM core will attempt to carry out a runtime suspend of the device;
-in essence, it will call pm_runtime_suspend() directly.  To prevent this (for
-example, if the callback routine has started a delayed suspend), the routine
-should return a non-zero value.  Negative error return codes are ignored by the
-PM core.
+0, then the PM core will attempt to carry out a runtime suspend of the device,
+also respecting devices configured for autosuspend.  In essence this means a
+call to pm_runtime_autosuspend() (do note that drivers needs to update the
+device last busy mark, pm_runtime_mark_last_busy(), to control the delay under
+this circumstance).  To prevent this (for example, if the callback routine has
+started a delayed suspend), the routine must return a non-zero value.  Negative
+error return codes are ignored by the PM core.
 
 The helper functions provided by the PM core, described in Section 4, guarantee
 that the following constraints are met with respect to runtime PM callbacks for
@@ -308,7 +310,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - execute the subsystem-level idle callback for the device; returns an
       error code on failure, where -EINPROGRESS means that ->runtime_idle() is
       already being executed; if there is no callback or the callback returns 0
-      then run pm_runtime_suspend(dev) and return its result
+      then run pm_runtime_autosuspend(dev) and return its result
 
   int pm_runtime_suspend(struct device *dev);
     - execute the subsystem-level suspend callback for the device; returns 0 on
@@ -545,13 +547,11 @@ helper functions described in Section 4.  In that case, pm_runtime_resume()
 should be used.  Of course, for this purpose the device's runtime PM has to be
 enabled earlier by calling pm_runtime_enable().
 
-If the device bus type's or driver's ->probe() callback runs
-pm_runtime_suspend() or pm_runtime_idle() or their asynchronous counterparts,
-they will fail returning -EAGAIN, because the device's usage counter is
-incremented by the driver core before executing ->probe().  Still, it may be
-desirable to suspend the device as soon as ->probe() has finished, so the driver
-core uses pm_runtime_put_sync() to invoke the subsystem-level idle callback for
-the device at that time.
+It may be desirable to suspend the device once ->probe() has finished.
+Therefore the driver core uses the asyncronous pm_request_idle() to submit a
+request to execute the subsystem-level idle callback for the device at that
+time.  A driver that makes use of the runtime autosuspend feature, may want to
+update the last busy mark before returning from ->probe().
 
 Moreover, the driver core prevents runtime PM callbacks from racing with the bus
 notifier callback in __device_release_driver(), which is necessary, because the
@@ -654,7 +654,7 @@ out the following operations:
     __pm_runtime_disable() with 'false' as the second argument for every device
     right before executing the subsystem-level .suspend_late() callback for it.
 
-  * During system resume it calls pm_runtime_enable() and pm_runtime_put_sync()
+  * During system resume it calls pm_runtime_enable() and pm_runtime_put()
     for every device right after executing the subsystem-level .resume_early()
     callback and right after executing the subsystem-level .resume() callback
     for it, respectively.

@@ -19,7 +19,6 @@
  */
 #include <linux/types.h>
 #include <linux/hwmon.h>
-#include <linux/init.h>
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -101,8 +100,7 @@ struct ads7846 {
 	struct spi_device	*spi;
 	struct regulator	*reg;
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
-	struct attribute_group	*attr_group;
+#if IS_ENABLED(CONFIG_HWMON)
 	struct device		*hwmon;
 #endif
 
@@ -421,7 +419,7 @@ static int ads7845_read12_ser(struct device *dev, unsigned command)
 	return status;
 }
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+#if IS_ENABLED(CONFIG_HWMON)
 
 #define SHOW(name, var, adjust) static ssize_t \
 name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
@@ -479,42 +477,36 @@ static inline unsigned vbatt_adjust(struct ads7846 *ts, ssize_t v)
 SHOW(in0_input, vaux, vaux_adjust)
 SHOW(in1_input, vbatt, vbatt_adjust)
 
+static umode_t ads7846_is_visible(struct kobject *kobj, struct attribute *attr,
+				  int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct ads7846 *ts = dev_get_drvdata(dev);
+
+	if (ts->model == 7843 && index < 2)	/* in0, in1 */
+		return 0;
+	if (ts->model == 7845 && index != 2)	/* in0 */
+		return 0;
+
+	return attr->mode;
+}
+
 static struct attribute *ads7846_attributes[] = {
-	&dev_attr_temp0.attr,
-	&dev_attr_temp1.attr,
-	&dev_attr_in0_input.attr,
-	&dev_attr_in1_input.attr,
+	&dev_attr_temp0.attr,		/* 0 */
+	&dev_attr_temp1.attr,		/* 1 */
+	&dev_attr_in0_input.attr,	/* 2 */
+	&dev_attr_in1_input.attr,	/* 3 */
 	NULL,
 };
 
 static struct attribute_group ads7846_attr_group = {
 	.attrs = ads7846_attributes,
+	.is_visible = ads7846_is_visible,
 };
-
-static struct attribute *ads7843_attributes[] = {
-	&dev_attr_in0_input.attr,
-	&dev_attr_in1_input.attr,
-	NULL,
-};
-
-static struct attribute_group ads7843_attr_group = {
-	.attrs = ads7843_attributes,
-};
-
-static struct attribute *ads7845_attributes[] = {
-	&dev_attr_in0_input.attr,
-	NULL,
-};
-
-static struct attribute_group ads7845_attr_group = {
-	.attrs = ads7845_attributes,
-};
+__ATTRIBUTE_GROUPS(ads7846_attr);
 
 static int ads784x_hwmon_register(struct spi_device *spi, struct ads7846 *ts)
 {
-	struct device *hwmon;
-	int err;
-
 	/* hwmon sensors need a reference voltage */
 	switch (ts->model) {
 	case 7846:
@@ -535,43 +527,19 @@ static int ads784x_hwmon_register(struct spi_device *spi, struct ads7846 *ts)
 		break;
 	}
 
-	/* different chips have different sensor groups */
-	switch (ts->model) {
-	case 7846:
-		ts->attr_group = &ads7846_attr_group;
-		break;
-	case 7845:
-		ts->attr_group = &ads7845_attr_group;
-		break;
-	case 7843:
-		ts->attr_group = &ads7843_attr_group;
-		break;
-	default:
-		dev_dbg(&spi->dev, "ADS%d not recognized\n", ts->model);
-		return 0;
-	}
+	ts->hwmon = hwmon_device_register_with_groups(&spi->dev, spi->modalias,
+						      ts, ads7846_attr_groups);
+	if (IS_ERR(ts->hwmon))
+		return PTR_ERR(ts->hwmon);
 
-	err = sysfs_create_group(&spi->dev.kobj, ts->attr_group);
-	if (err)
-		return err;
-
-	hwmon = hwmon_device_register(&spi->dev);
-	if (IS_ERR(hwmon)) {
-		sysfs_remove_group(&spi->dev.kobj, ts->attr_group);
-		return PTR_ERR(hwmon);
-	}
-
-	ts->hwmon = hwmon;
 	return 0;
 }
 
 static void ads784x_hwmon_unregister(struct spi_device *spi,
 				     struct ads7846 *ts)
 {
-	if (ts->hwmon) {
-		sysfs_remove_group(&spi->dev.kobj, ts->attr_group);
+	if (ts->hwmon)
 		hwmon_device_unregister(ts->hwmon);
-	}
 }
 
 #else

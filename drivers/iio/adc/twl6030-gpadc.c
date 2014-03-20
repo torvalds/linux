@@ -887,7 +887,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	match = of_match_device(of_match_ptr(of_twl6030_match_tbl), dev);
+	match = of_match_device(of_twl6030_match_tbl, dev);
 	if (!match)
 		return -EINVAL;
 
@@ -948,9 +948,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	indio_dev->channels = pdata->iio_channels;
 	indio_dev->num_channels = pdata->nchannels;
 
-	ret = iio_device_register(indio_dev);
-
-	return ret;
+	return iio_device_register(indio_dev);
 }
 
 static int twl6030_gpadc_remove(struct platform_device *pdev)
@@ -971,7 +969,7 @@ static int twl6030_gpadc_suspend(struct device *pdev)
 	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, TWL6030_GPADCR,
 				TWL6030_REG_TOGGLE1);
 	if (ret)
-		dev_err(pdev, "error reseting GPADC (%d)!\n", ret);
+		dev_err(pdev, "error resetting GPADC (%d)!\n", ret);
 
 	return 0;
 };

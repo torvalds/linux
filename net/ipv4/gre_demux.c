@@ -93,35 +93,6 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 }
 EXPORT_SYMBOL_GPL(gre_build_header);
 
-struct sk_buff *gre_handle_offloads(struct sk_buff *skb, bool gre_csum)
-{
-	int err;
-
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
-
-	if (skb_is_gso(skb)) {
-		err = skb_unclone(skb, GFP_ATOMIC);
-		if (unlikely(err))
-			goto error;
-		skb_shinfo(skb)->gso_type |= SKB_GSO_GRE;
-		return skb;
-	} else if (skb->ip_summed == CHECKSUM_PARTIAL && gre_csum) {
-		err = skb_checksum_help(skb);
-		if (unlikely(err))
-			goto error;
-	} else if (skb->ip_summed != CHECKSUM_PARTIAL)
-		skb->ip_summed = CHECKSUM_NONE;
-
-	return skb;
-error:
-	kfree_skb(skb);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(gre_handle_offloads);
-
 static __sum16 check_checksum(struct sk_buff *skb)
 {
 	__sum16 csum = 0;
@@ -384,14 +355,7 @@ static int __init gre_init(void)
 		goto err_gre;
 	}
 
-	if (gre_offload_init()) {
-		pr_err("can't add protocol offload\n");
-		goto err_gso;
-	}
-
 	return 0;
-err_gso:
-	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 err_gre:
 	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
 err:
@@ -400,8 +364,6 @@ err:
 
 static void __exit gre_exit(void)
 {
-	gre_offload_exit();
-
 	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
 }

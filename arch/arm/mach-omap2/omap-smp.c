@@ -39,8 +39,6 @@
 
 #define OMAP5_CORE_COUNT	0x2
 
-u16 pm44xx_errata;
-
 /* SCU base address */
 static void __iomem *scu_base;
 
@@ -64,6 +62,13 @@ static void omap4_secondary_init(unsigned int cpu)
 	if (cpu_is_omap443x() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
 		omap_secure_dispatcher(OMAP4_PPA_CPU_ACTRL_SMP_INDEX,
 							4, 0, 0, 0, 0, 0);
+
+	/*
+	 * Configure the CNTFRQ register for the secondary cpu's which
+	 * indicates the frequency of the cpu local timers.
+	 */
+	if (soc_is_omap54xx() || soc_is_dra7xx())
+		set_cntfreq();
 
 	/*
 	 * Synchronise with the boot thread.
@@ -210,10 +215,8 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	if (scu_base)
 		scu_enable(scu_base);
 
-	if (cpu_is_omap446x()) {
+	if (cpu_is_omap446x())
 		startup_addr = omap4460_secondary_startup;
-		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
-	}
 
 	/*
 	 * Write the address of secondary startup routine into the

@@ -12,4 +12,4 @@ config ARCH_BCM2835
 	select PINCTRL_BCM2835
 	help
 	  This enables support for the Broadcom BCM2835 SoC. This SoC is
-	  use in the Raspberry Pi, and Roku 2 devices.
+	  used in the Raspberry Pi and Roku 2 devices.

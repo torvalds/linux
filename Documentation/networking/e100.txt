@@ -103,7 +103,7 @@ Additional Configurations
   PRO/100 Family of Adapters is e100.
 
   As an example, if you install the e100 driver for two PRO/100 adapters
-  (eth0 and eth1), add the following to a configuraton file in /etc/modprobe.d/
+  (eth0 and eth1), add the following to a configuration file in /etc/modprobe.d/
 
        alias eth0 e100
        alias eth1 e100

@@ -883,6 +883,7 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 		}
 		break;
 
+	case USB_ID(0x046d, 0x0807): /* Logitech Webcam C500 */
 	case USB_ID(0x046d, 0x0808):
 	case USB_ID(0x046d, 0x0809):
 	case USB_ID(0x046d, 0x081b): /* HD Webcam c310 */
@@ -1151,14 +1152,14 @@ static void check_no_speaker_on_headset(struct snd_kcontrol *kctl,
 	const char *names_to_check[] = {
 		"Headset", "headset", "Headphone", "headphone", NULL};
 	const char **s;
-	bool found = 0;
+	bool found = false;
 
 	if (strcmp("Speaker", kctl->id.name))
 		return;
 
 	for (s = names_to_check; *s; s++)
 		if (strstr(card->shortname, *s)) {
-			found = 1;
+			found = true;
 			break;
 		}
 

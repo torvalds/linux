@@ -21,7 +21,7 @@
 #define __INC_ODM_REGCONFIG_H_8188E
 
 void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Data,
-			   enum ODM_RF_RADIO_PATH  RF_PATH, u32 RegAddr);
+			   enum rf_radio_path  RF_PATH, u32 RegAddr);
 
 void odm_ConfigRF_RadioA_8188E(struct odm_dm_struct *pDM_Odm,
 			       u32 Addr, u32 Data);

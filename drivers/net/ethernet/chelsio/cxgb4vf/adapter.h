@@ -344,7 +344,6 @@ struct adapter {
 	unsigned long registered_device_map;
 	unsigned long open_device_map;
 	unsigned long flags;
-	enum chip_type chip;
 	struct adapter_params params;
 
 	/* queue and interrupt resources */

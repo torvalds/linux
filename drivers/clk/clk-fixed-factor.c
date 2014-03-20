@@ -117,7 +117,7 @@ void __init of_fixed_factor_clk_setup(struct device_node *node)
 	}
 
 	if (of_property_read_u32(node, "clock-mult", &mult)) {
-		pr_err("%s Fixed factor clock <%s> must have a clokc-mult property\n",
+		pr_err("%s Fixed factor clock <%s> must have a clock-mult property\n",
 			__func__, node->name);
 		return;
 	}
