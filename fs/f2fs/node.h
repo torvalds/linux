@@ -42,6 +42,7 @@ struct node_info {
 struct nat_entry {
 	struct list_head list;	/* for clean or dirty nat list */
 	bool checkpointed;	/* whether it is checkpointed or not */
+	bool fsync_done;	/* whether the latest node has fsync mark */
 	struct node_info ni;	/* in-memory node information */
 };
 
