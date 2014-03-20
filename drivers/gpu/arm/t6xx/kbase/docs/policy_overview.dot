@@ -1,0 +1,63 @@
+/*
+ *
+ * (C) COPYRIGHT ARM Limited. All rights reserved.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * A copy of the licence is included with the program, and can also be obtained
+ * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ *
+ */
+
+
+
+
+
+digraph policy_objects_diagram {
+	rankdir=LR
+	size="6,6"
+	compound=true;
+
+	node [ shape = box ];
+
+	call_enqueue [ shape=plaintext label="enqueue ctx" ];
+
+
+	policy_queue [ label="Policy's Queue" ];
+
+	{
+		rank=same;
+		runpool [ label="Policy's Run Pool" ];
+
+		ctx_finish [ label="ctx finished" ];
+	}
+
+	{
+		rank=same;
+		jobslots [ shape=record label="Jobslots: | <0>js[0] | <1>js[1] | <2>js[2]" ];
+
+		job_finish [ label="Job finished" ];
+	}
+
+
+
+	/*
+	 * Edges
+	 */
+
+	call_enqueue -> policy_queue;
+
+	policy_queue->runpool [label="dequeue ctx" weight=0.1];
+	runpool->policy_queue [label="requeue ctx" weight=0.1];
+
+	runpool->ctx_finish [ style=dotted ];
+
+	runpool->jobslots  [label="dequeue job" weight=0.1];
+	jobslots->runpool  [label="requeue job" weight=0.1];
+
+	jobslots->job_finish [ style=dotted ];
+}
