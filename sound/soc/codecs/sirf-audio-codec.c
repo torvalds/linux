@@ -279,13 +279,63 @@ static const struct snd_soc_dapm_route sirf_audio_codec_map[] = {
 	{"Mic input mode mux", "Differential", "MICIN1"},
 };
 
+static void sirf_audio_codec_tx_enable(struct sirf_audio_codec *sirf_audio_codec)
+{
+	regmap_update_bits(sirf_audio_codec->regmap, AUDIO_PORT_IC_TXFIFO_OP,
+		AUDIO_FIFO_RESET, AUDIO_FIFO_RESET);
+	regmap_update_bits(sirf_audio_codec->regmap, AUDIO_PORT_IC_TXFIFO_OP,
+		AUDIO_FIFO_RESET, ~AUDIO_FIFO_RESET);
+	regmap_write(sirf_audio_codec->regmap, AUDIO_PORT_IC_TXFIFO_INT_MSK, 0);
+	regmap_write(sirf_audio_codec->regmap, AUDIO_PORT_IC_TXFIFO_OP, 0);
+	regmap_update_bits(sirf_audio_codec->regmap, AUDIO_PORT_IC_TXFIFO_OP,
+		AUDIO_FIFO_START, AUDIO_FIFO_START);
+	regmap_update_bits(sirf_audio_codec->regmap,
+		AUDIO_PORT_IC_CODEC_TX_CTRL, IC_TX_ENABLE, IC_TX_ENABLE);
+}
+
+static void sirf_audio_codec_tx_disable(struct sirf_audio_codec *sirf_audio_codec)
+{
+	regmap_write(sirf_audio_codec->regmap, AUDIO_PORT_IC_TXFIFO_OP, 0);
+	regmap_update_bits(sirf_audio_codec->regmap,
+		AUDIO_PORT_IC_CODEC_TX_CTRL, IC_TX_ENABLE, ~IC_TX_ENABLE);
+}
+
+static void sirf_audio_codec_rx_enable(struct sirf_audio_codec *sirf_audio_codec,
+	int channels)
+{
+	regmap_update_bits(sirf_audio_codec->regmap, AUDIO_PORT_IC_RXFIFO_OP,
+		AUDIO_FIFO_RESET, AUDIO_FIFO_RESET);
+	regmap_update_bits(sirf_audio_codec->regmap, AUDIO_PORT_IC_RXFIFO_OP,
+		AUDIO_FIFO_RESET, ~AUDIO_FIFO_RESET);
+	regmap_write(sirf_audio_codec->regmap,
+		AUDIO_PORT_IC_RXFIFO_INT_MSK, 0);
+	regmap_write(sirf_audio_codec->regmap, AUDIO_PORT_IC_RXFIFO_OP, 0);
+	regmap_update_bits(sirf_audio_codec->regmap, AUDIO_PORT_IC_RXFIFO_OP,
+		AUDIO_FIFO_START, AUDIO_FIFO_START);
+	if (channels == 1)
+		regmap_update_bits(sirf_audio_codec->regmap,
+			AUDIO_PORT_IC_CODEC_RX_CTRL,
+			IC_RX_ENABLE_MONO, IC_RX_ENABLE_MONO);
+	else
+		regmap_update_bits(sirf_audio_codec->regmap,
+			AUDIO_PORT_IC_CODEC_RX_CTRL,
+			IC_RX_ENABLE_STEREO, IC_RX_ENABLE_STEREO);
+}
+
+static void sirf_audio_codec_rx_disable(struct sirf_audio_codec *sirf_audio_codec)
+{
+	regmap_update_bits(sirf_audio_codec->regmap,
+			AUDIO_PORT_IC_CODEC_RX_CTRL,
+			IC_RX_ENABLE_STEREO, ~IC_RX_ENABLE_STEREO);
+}
+
 static int sirf_audio_codec_trigger(struct snd_pcm_substream *substream,
 		int cmd,
 		struct snd_soc_dai *dai)
 {
-	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	struct snd_soc_codec *codec = dai->codec;
-	u32 val = 0;
+	struct sirf_audio_codec *sirf_audio_codec = snd_soc_codec_get_drvdata(codec);
+	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 	/*
 	 * This is a workaround, When stop playback,
@@ -295,20 +345,28 @@ static int sirf_audio_codec_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (playback) {
+			snd_soc_update_bits(codec, AUDIO_IC_CODEC_CTRL0,
+				IC_HSLEN | IC_HSREN, 0);
+			sirf_audio_codec_tx_disable(sirf_audio_codec);
+		} else
+			sirf_audio_codec_rx_disable(sirf_audio_codec);
 		break;
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (playback)
-			val = IC_HSLEN | IC_HSREN;
+		if (playback) {
+			sirf_audio_codec_tx_enable(sirf_audio_codec);
+			snd_soc_update_bits(codec, AUDIO_IC_CODEC_CTRL0,
+				IC_HSLEN | IC_HSREN, IC_HSLEN | IC_HSREN);
+		} else
+			sirf_audio_codec_rx_enable(sirf_audio_codec,
+				substream->runtime->channels);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (playback)
-		snd_soc_update_bits(codec, AUDIO_IC_CODEC_CTRL0,
-			IC_HSLEN | IC_HSREN, val);
 	return 0;
 }
 
@@ -392,7 +450,7 @@ static const struct regmap_config sirf_audio_codec_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.max_register = AUDIO_IC_CODEC_CTRL3,
+	.max_register = AUDIO_PORT_IC_RXFIFO_INT_MSK,
 	.cache_type = REGCACHE_NONE,
 };
 
