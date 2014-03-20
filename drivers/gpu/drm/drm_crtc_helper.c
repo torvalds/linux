@@ -278,17 +278,7 @@ drm_encoder_disable(struct drm_encoder *encoder)
 		encoder->bridge->funcs->post_disable(encoder->bridge);
 }
 
-/**
- * drm_helper_disable_unused_functions - disable unused objects
- * @dev: DRM device
- *
- * This function walks through the entire mode setting configuration of @dev. It
- * will remove any crtc links of unused encoders and encoder links of
- * disconnected connectors. Then it will disable all unused encoders and crtcs
- * either by calling their disable callback if available or by calling their
- * dpms callback with DRM_MODE_DPMS_OFF.
- */
-void drm_helper_disable_unused_functions(struct drm_device *dev)
+static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
@@ -322,6 +312,23 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 			crtc->fb = NULL;
 		}
 	}
+}
+
+/**
+ * drm_helper_disable_unused_functions - disable unused objects
+ * @dev: DRM device
+ *
+ * This function walks through the entire mode setting configuration of @dev. It
+ * will remove any crtc links of unused encoders and encoder links of
+ * disconnected connectors. Then it will disable all unused encoders and crtcs
+ * either by calling their disable callback if available or by calling their
+ * dpms callback with DRM_MODE_DPMS_OFF.
+ */
+void drm_helper_disable_unused_functions(struct drm_device *dev)
+{
+	drm_modeset_lock_all(dev);
+	__drm_helper_disable_unused_functions(dev);
+	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_helper_disable_unused_functions);
 
@@ -552,7 +559,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 		}
 	}
 
-	drm_helper_disable_unused_functions(dev);
+	__drm_helper_disable_unused_functions(dev);
 	return 0;
 }
 
@@ -776,7 +783,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 			}
 		}
-		drm_helper_disable_unused_functions(dev);
+		__drm_helper_disable_unused_functions(dev);
 	} else if (fb_changed) {
 		set->crtc->x = set->x;
 		set->crtc->y = set->y;
@@ -1009,7 +1016,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	}
 
 	/* disable the unused connectors while restoring the modesetting */
-	drm_helper_disable_unused_functions(dev);
+	__drm_helper_disable_unused_functions(dev);
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
 
