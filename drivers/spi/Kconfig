@@ -522,7 +522,7 @@ config SPI_XILINX
 
 config SPI_XTENSA_XTFPGA
 	tristate "Xtensa SPI controller for xtfpga"
-	depends on XTENSA && XTENSA_PLATFORM_XTFPGA
+	depends on (XTENSA && XTENSA_PLATFORM_XTFPGA) || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  SPI driver for xtfpga SPI master controller.
