@@ -1939,23 +1939,21 @@ static void rtw_drv_halt(void)
 }
 
 #include "wifi_version.h"
-extern int rockchip_wifi_power(int on);
+#include <linux/rfkill-wlan.h>
 
-static int __init rockchip_wifi_init_module(void)
+int rockchip_wifi_init_module(void)
 {
     printk("\n");
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
     printk("=======================================================\n");
     printk("Realtek 8188EU USB WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8192_DRV_VERSION);
-    rockchip_wifi_power(0);
-    msleep(100);
     rockchip_wifi_power(1);
 
     return rtw_drv_entry();
 }
 
-static void __exit rockchip_wifi_exit_module(void)
+void rockchip_wifi_exit_module(void)
 {
     printk("\n");
     printk("=======================================================\n");
@@ -1966,10 +1964,8 @@ static void __exit rockchip_wifi_exit_module(void)
     rockchip_wifi_power(0);
 }
 
-late_initcall(rockchip_wifi_init_module);
-module_exit(rockchip_wifi_exit_module);
-//module_init(rtw_drv_entry);
-//module_exit(rtw_drv_halt);
+EXPORT_SYMBOL(rockchip_wifi_init_module);
+EXPORT_SYMBOL(rockchip_wifi_exit_module);
 
 #ifdef CONFIG_INTEL_PROXIM
 _adapter  *rtw_usb_get_sw_pointer(void)

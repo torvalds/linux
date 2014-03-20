@@ -11200,8 +11200,7 @@ static int rtw_mp_arx(struct net_device *dev,
 	else if(bQueryPhy)
 	{          
 
-		//if (IS_HARDWARE_TYPE_JAGUAR(padapter)) 
-		#ifdef CONFIG_RTL8188A
+		if (IS_HARDWARE_TYPE_JAGUAR(padapter)) 
 		{
 		    	cckok      = PHY_QueryBBReg(padapter, 0xF04, 0x3FFF);	     // [13:0]  
 		    	ofdmok     = PHY_QueryBBReg(padapter, 0xF14, 0x3FFF);	     // [13:0]  
@@ -11212,8 +11211,11 @@ static int rtw_mp_arx(struct net_device *dev,
 		    	ofdmcrc    = PHY_QueryBBReg(padapter, 0xF14, 0x3FFF0000); // [29:16]
 		    	htcrc      = PHY_QueryBBReg(padapter, 0xF10, 0x3FFF0000); // [29:16]		
 		    	vht_err     = PHY_QueryBBReg(padapter, 0xF0C, 0x3FFF0000); // [29:16]		
+		    	
+		    	CCK_FA = PHY_QueryBBReg(padapter, 0xa5c, bMaskLWord);
+		    	OFDM_FA = PHY_QueryBBReg(padapter, 0xF48, bMaskLWord);
 		} 
-		#else
+		else
 		{
 		    	cckok      = PHY_QueryBBReg(padapter, 0xF88, bMaskDWord);		
 		    	ofdmok     = PHY_QueryBBReg(padapter, 0xF94, bMaskLWord);		
@@ -11224,9 +11226,15 @@ static int rtw_mp_arx(struct net_device *dev,
 		    	ofdmcrc    = PHY_QueryBBReg(padapter, 0xF94, bMaskHWord);
 		    	htcrc      = PHY_QueryBBReg(padapter, 0xF90, bMaskHWord);		
 	        	vht_err     = 0;
-		}
-		#endif
+		
+		OFDM_FA = PHY_QueryBBReg(padapter, 0xCF0, bMaskLWord) + PHY_QueryBBReg(padapter, 0xCF2, bMaskLWord) + 
+					PHY_QueryBBReg(padapter, 0xDA2, bMaskLWord)+ PHY_QueryBBReg(padapter, 0xDA4, bMaskLWord) + 
+					PHY_QueryBBReg(padapter, 0xDA6, bMaskLWord) + PHY_QueryBBReg(padapter, 0xDA8, bMaskLWord);
+		
  		CCK_FA=(rtw_read8(padapter, 0xa5b )<<8 ) | (rtw_read8(padapter, 0xa5c));
+		}
+		DBG_871X("%s: OFDM_FA =%d\n", __FUNCTION__, OFDM_FA);
+		DBG_871X("%s: CCK_FA =%d\n", __FUNCTION__, CCK_FA);
 		sprintf( extra, "Phy Received packet OK:%d CRC error:%d FA Counter: %d",cckok+ofdmok+htok+vht_ok,cckcrc+ofdmcrc+htcrc+vht_err,OFDM_FA+CCK_FA);
 	}
 	else if(bQueryMac)
@@ -11253,8 +11261,8 @@ static int rtw_mp_arx(struct net_device *dev,
 			DropPacket = rtw_read32(padapter, 0x664)& 0x0000FFFF;
 		} 
 		
-		sprintf( extra, "Mac Received packet OK: %d , CRC error: %d , FA Counter: %d , Drop Packets: %d\n",
-				mac_cck_ok+mac_ofdm_ok+mac_ht_ok+mac_vht_ok,mac_cck_err+mac_ofdm_err+mac_ht_err+mac_vht_err,OFDM_FA+CCK_FA,DropPacket);			
+		sprintf( extra, "Mac Received packet OK: %d , CRC error: %d , Drop Packets: %d\n",
+				mac_cck_ok+mac_ofdm_ok+mac_ht_ok+mac_vht_ok,mac_cck_err+mac_ofdm_err+mac_ht_err+mac_vht_err,DropPacket);			
 	}
 	wrqu->length = strlen(extra) + 1;
 
@@ -11435,12 +11443,26 @@ static int rtw_mp_reset_stats(struct net_device *dev,
 	{
 		write_bbreg(padapter, 0xB58, BIT0, 0x1);
 		write_bbreg(padapter, 0xB58, BIT0, 0x0);
+
+		write_bbreg(padapter, 0x9A4, BIT17, 0x1);//reset  OFDA FA counter
+		write_bbreg(padapter, 0x9A4, BIT17, 0x0);
+		
+		write_bbreg(padapter, 0xA5C, BIT15, 0x0);//reset  CCK FA counter
+		write_bbreg(padapter, 0xA5C, BIT15, 0x1);
 	}
 	else
 	{
 		write_bbreg(padapter, 0xF14, BIT16, 0x1);
 		rtw_msleep_os(10);
 		write_bbreg(padapter, 0xF14, BIT16, 0x0);
+		
+		write_bbreg(padapter, 0xD00, BIT27, 0x1);//reset  OFDA FA counter
+		write_bbreg(padapter, 0xC0C, BIT31, 0x1);//reset  OFDA FA counter
+		write_bbreg(padapter, 0xD00, BIT27, 0x0);
+		write_bbreg(padapter, 0xC0C, BIT31, 0x0);
+		
+		write_bbreg(padapter, 0xA2C, BIT15, 0x0);//reset  CCK FA counter
+		write_bbreg(padapter, 0xA2C, BIT15, 0x1);
 	}
 	//reset mac counter
 	PHY_SetMacReg(padapter, 0x664, BIT27, 0x1); 

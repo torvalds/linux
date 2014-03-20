@@ -560,6 +560,8 @@ MPT_InitializeAdapter(
 #ifdef CONFIG_RTL8188E
 	pMptCtx->backup0x52_RF_A = (u1Byte)PHY_QueryRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0);
 	pMptCtx->backup0x52_RF_B = (u1Byte)PHY_QueryRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0);
+	rtw_write32(pAdapter, REG_MACID_NO_LINK_0, 0x0);
+	rtw_write32(pAdapter, REG_MACID_NO_LINK_1, 0x0);
 #endif
 
 	//set ant to wifi side in mp mode
@@ -779,12 +781,6 @@ u32 mp_join(PADAPTER padapter,u8 mode)
 		RT_TRACE(_module_mp_, _drv_notice_, ("+start mp in normal mode\n"));
 	}
 #endif
-		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
-		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
-		_clr_fwstate_(pmlmepriv, _FW_LINKED);
-		_clr_fwstate_(pbuddymlmepriv, _FW_UNDER_SURVEY);
-		_clr_fwstate_(pbuddymlmepriv, _FW_UNDER_LINKING);
-		_clr_fwstate_(pbuddymlmepriv, _FW_LINKED);
 
 	set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 	set_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE);
