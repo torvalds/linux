@@ -196,7 +196,7 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	ts->irq_io.gpio = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)&irq_flags);
 	ts->rst_io.gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
 
-	printk("the irq_flags is %ld,rst_flags is %d\n",irq_flags,rst_flags);
+	//printk("the irq_flags is %ld,rst_flags is %d\n",irq_flags,rst_flags);
 	
 	ret = of_property_read_u32_array(np, "orientation",orientation,4);
 	if (ret < 0)
@@ -217,13 +217,13 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 
 	if (gpio_is_valid(ts->rst_io.gpio)) {
 					ts->rst_io.active_low = (rst_flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
-					printk("the ts->rst_io.active_low is %d ========\n",ts->rst_io.active_low);
+					//printk("the ts->rst_io.active_low is %d ========\n",ts->rst_io.active_low);
 					ret = devm_gpio_request_one(&client->dev, ts->rst_io.gpio, (rst_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW, "ct363 reset pin");
 					if (ret != 0) {
 						dev_err(&client->dev, "ct363 gpio_request error\n");
 						return -EIO;
 					}
-				msleep(100);
+				//msleep(100);
 				} else {
 					dev_info(&client->dev, "reset pin invalid\n");
 				}

@@ -53,12 +53,12 @@ static void ct363_deinit_hw(struct ct36x_data *ts)
 
 static void ct363_reset_hw(struct ct36x_data *ts)
 {
-	gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
-	msleep(50);
+	//gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
+	//msleep(50);
 	gpio_set_value(ts->rst_io.gpio, !ts->rst_io.active_low);
-	msleep(50);
+	msleep(10);
 	gpio_set_value(ts->rst_io.gpio, ts->rst_io.active_low);
-	msleep(500);
+	msleep(230);
 }
 
 static int ct363_init(struct ct36x_data *ts)
@@ -73,6 +73,8 @@ static int ct363_init(struct ct36x_data *ts)
 	 /* Hardware reset */
 	ct363_reset_hw(ts);
 	// Get binary Checksum
+
+	#if 1
 	binchksum = ct36x_chip_get_binchksum();
 	ct36x_dbg(ts, "CT363 init: binchksum = %d\n", binchksum);
 
@@ -107,9 +109,12 @@ static int ct363_init(struct ct36x_data *ts)
 	}
 
 	/* Hardware reset */
-	ct363_reset_hw(ts);
+	//ct363_reset_hw(ts);
+	gpio_set_value(ts->rst_io.gpio, !ts->rst_io.active_low);
+	msleep(10);
+	gpio_set_value(ts->rst_io.gpio, ts->rst_io.active_low);
 	msleep(5);
-
+	#endif
 	ts->point_num = CT363_POINT_NUM;
 	
 	ct363 = kzalloc(sizeof(struct ct363_priv), GFP_KERNEL);
