@@ -580,6 +580,8 @@ struct iwl_mvm {
 	void *fw_error_dump;
 	void *fw_error_sram;
 	u32 fw_error_sram_len;
+	u32 *fw_error_rxf;
+	u32 fw_error_rxf_len;
 
 	struct led_classdev led;
 
@@ -705,6 +707,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
 void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm);
+void iwl_mvm_fw_error_rxf_dump(struct iwl_mvm *mvm);
 #endif
 u8 first_antenna(u8 mask);
 u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);

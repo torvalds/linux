@@ -136,9 +136,6 @@ static int iwl_dbgfs_fw_error_dump_open(struct inode *inode, struct file *file)
 
 	file->private_data = mvm->fw_error_dump;
 	mvm->fw_error_dump = NULL;
-	kfree(mvm->fw_error_sram);
-	mvm->fw_error_sram = NULL;
-	mvm->fw_error_sram_len = 0;
 	ret = 0;
 
 out:
