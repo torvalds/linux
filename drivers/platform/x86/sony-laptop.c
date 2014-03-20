@@ -76,8 +76,6 @@ do {						\
 		pr_warn(fmt, ##__VA_ARGS__);	\
 } while (0)
 
-#define SONY_LAPTOP_DRIVER_VERSION	"0.6"
-
 #define SONY_NC_CLASS		"sony-nc"
 #define SONY_NC_HID		"SNY5001"
 #define SONY_NC_DRIVER_NAME	"Sony Notebook Control Driver"
@@ -89,7 +87,6 @@ do {						\
 MODULE_AUTHOR("Stelian Pop, Mattia Dongili");
 MODULE_DESCRIPTION("Sony laptop extras driver (SPIC and SNC ACPI device)");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(SONY_LAPTOP_DRIVER_VERSION);
 
 static int debug;
 module_param(debug, int, 0);
@@ -3154,8 +3151,6 @@ static int sony_nc_add(struct acpi_device *device)
 	int result = 0;
 	struct sony_nc_value *item;
 
-	pr_info("%s v%s\n", SONY_NC_DRIVER_NAME, SONY_LAPTOP_DRIVER_VERSION);
-
 	sony_nc_acpi_device = device;
 	strcpy(acpi_device_class(device), "sony/hotkey");
 
@@ -3249,6 +3244,7 @@ static int sony_nc_add(struct acpi_device *device)
 		}
 	}
 
+	pr_info("SNC setup done.\n");
 	return 0;
 
 out_sysfs:
@@ -4687,8 +4683,6 @@ static int sony_pic_add(struct acpi_device *device)
 	struct sony_pic_ioport *io, *tmp_io;
 	struct sony_pic_irq *irq, *tmp_irq;
 
-	pr_info("%s v%s\n", SONY_PIC_DRIVER_NAME, SONY_LAPTOP_DRIVER_VERSION);
-
 	spic_dev.acpi_dev = device;
 	strcpy(acpi_device_class(device), "sony/hotkey");
 	sony_pic_detect_device_type(&spic_dev);
@@ -4788,6 +4782,7 @@ static int sony_pic_add(struct acpi_device *device)
 	if (result)
 		goto err_remove_pf;
 
+	pr_info("SPIC setup done.\n");
 	return 0;
 
 err_remove_pf:
