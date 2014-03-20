@@ -868,10 +868,12 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	int last_tx_cn, last_c_index, num_tx_bds;
 	struct enet_cb *tx_cb_ptr;
+	struct netdev_queue *txq;
 	unsigned int c_index;
 
 	/* Compute how many buffers are transmited since last xmit call */
 	c_index = bcmgenet_tdma_ring_readl(priv, ring->index, TDMA_CONS_INDEX);
+	txq = netdev_get_tx_queue(dev, ring->queue);
 
 	last_c_index = ring->c_index;
 	num_tx_bds = ring->size;
@@ -917,8 +919,8 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 	if (ring->free_bds > (MAX_SKB_FRAGS + 1))
 		ring->int_disable(priv, ring);
 
-	if (__netif_subqueue_stopped(dev, ring->queue))
-		netif_wake_subqueue(dev, ring->queue);
+	if (netif_tx_queue_stopped(txq))
+		netif_tx_wake_queue(txq);
 
 	ring->c_index = c_index;
 }
@@ -1106,6 +1108,7 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct bcmgenet_tx_ring *ring = NULL;
+	struct netdev_queue *txq;
 	unsigned long flags = 0;
 	int nr_frags, index;
 	u16 dma_desc_flags;
@@ -1127,10 +1130,11 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	ring = &priv->tx_rings[index];
+	txq = netdev_get_tx_queue(dev, ring->queue);
 
 	spin_lock_irqsave(&ring->lock, flags);
 	if (ring->free_bds <= nr_frags + 1) {
-		netif_stop_subqueue(dev, ring->queue);
+		netif_tx_stop_queue(txq);
 		netdev_err(dev, "%s: tx ring %d full when queue %d awake\n",
 				__func__, index, ring->queue);
 		ret = NETDEV_TX_BUSY;
@@ -1177,7 +1181,7 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 			ring->prod_index, TDMA_PROD_INDEX);
 
 	if (ring->free_bds <= (MAX_SKB_FRAGS + 1)) {
-		netif_stop_subqueue(dev, ring->queue);
+		netif_tx_stop_queue(txq);
 		ring->int_enable(priv, ring);
 	}
 
