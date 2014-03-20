@@ -1245,21 +1245,9 @@ out:
 
 static int get_slave_base_gid_ix(struct mlx4_ib_dev *dev, int slave, int port)
 {
-	int gids;
-	int vfs;
-
 	if (rdma_port_get_link_layer(&dev->ib_dev, port) == IB_LINK_LAYER_INFINIBAND)
 		return slave;
-
-	gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
-	vfs = dev->dev->num_vfs;
-
-	if (slave == 0)
-		return 0;
-	if (slave <= gids % vfs)
-		return MLX4_ROCE_PF_GIDS + ((gids / vfs) + 1) * (slave - 1);
-
-	return MLX4_ROCE_PF_GIDS + (gids % vfs) + ((gids / vfs) * (slave - 1));
+	return mlx4_get_base_gid_ix(dev->dev, slave, port);
 }
 
 static void fill_in_real_sgid_index(struct mlx4_ib_dev *dev, int slave, int port,
@@ -1281,6 +1269,7 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	struct ib_ah_attr ah_attr;
 	u8 *slave_id;
 	int slave;
+	int port;
 
 	/* Get slave that sent this packet */
 	if (wc->src_qp < dev->dev->phys_caps.base_proxy_sqpn ||
@@ -1360,6 +1349,10 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	if (ah_attr.ah_flags & IB_AH_GRH)
 		fill_in_real_sgid_index(dev, slave, ctx->port, &ah_attr);
 
+	port = mlx4_slave_convert_port(dev->dev, slave, ah_attr.port_num);
+	if (port < 0)
+		return;
+	ah_attr.port_num = port;
 	memcpy(ah_attr.dmac, tunnel->hdr.mac, 6);
 	ah_attr.vlan_id = be16_to_cpu(tunnel->hdr.vlan);
 	/* if slave have default vlan use it */
@@ -1949,7 +1942,15 @@ static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
 	ctx->port = port;
 	ctx->ib_dev = &dev->ib_dev;
 
-	for (i = 0; i < dev->dev->caps.sqp_demux; i++) {
+	for (i = 0;
+	     i < min(dev->dev->caps.sqp_demux, (u16)(dev->dev->num_vfs + 1));
+	     i++) {
+		struct mlx4_active_ports actv_ports =
+			mlx4_get_active_ports(dev->dev, i);
+
+		if (!test_bit(port - 1, actv_ports.ports))
+			continue;
+
 		ret = alloc_pv_object(dev, i, port, &ctx->tun[i]);
 		if (ret) {
 			ret = -ENOMEM;

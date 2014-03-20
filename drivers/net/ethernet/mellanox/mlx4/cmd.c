@@ -1643,8 +1643,16 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 	int port, err;
 	struct mlx4_vport_state *vp_admin;
 	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
+			&priv->dev, slave);
+	int min_port = find_first_bit(actv_ports.ports,
+				      priv->dev.caps.num_ports) + 1;
+	int max_port = min_port - 1 +
+		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
-	for (port = 1; port <= MLX4_MAX_PORTS; port++) {
+	for (port = min_port; port <= max_port; port++) {
+		if (!test_bit(port - 1, actv_ports.ports))
+			continue;
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 		vp_oper->state = *vp_admin;
@@ -1685,8 +1693,17 @@ static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave
 {
 	int port;
 	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
+			&priv->dev, slave);
+	int min_port = find_first_bit(actv_ports.ports,
+				      priv->dev.caps.num_ports) + 1;
+	int max_port = min_port - 1 +
+		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
-	for (port = 1; port <= MLX4_MAX_PORTS; port++) {
+
+	for (port = min_port; port <= max_port; port++) {
+		if (!test_bit(port - 1, actv_ports.ports))
+			continue;
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		if (NO_INDX != vp_oper->vlan_idx) {
 			__mlx4_unregister_vlan(&priv->dev,
@@ -2233,6 +2250,112 @@ static int mlx4_get_slave_indx(struct mlx4_dev *dev, int vf)
 
 	return vf+1;
 }
+
+int mlx4_get_vf_indx(struct mlx4_dev *dev, int slave)
+{
+	if (slave < 1 || slave > dev->num_vfs) {
+		mlx4_err(dev,
+			 "Bad slave number:%d (number of activated slaves: %lu)\n",
+			 slave, dev->num_slaves);
+		return -EINVAL;
+	}
+	return slave - 1;
+}
+
+struct mlx4_active_ports mlx4_get_active_ports(struct mlx4_dev *dev, int slave)
+{
+	struct mlx4_active_ports actv_ports;
+	int vf;
+
+	bitmap_zero(actv_ports.ports, MLX4_MAX_PORTS);
+
+	if (slave == 0) {
+		bitmap_fill(actv_ports.ports, dev->caps.num_ports);
+		return actv_ports;
+	}
+
+	vf = mlx4_get_vf_indx(dev, slave);
+	if (vf < 0)
+		return actv_ports;
+
+	bitmap_set(actv_ports.ports, dev->dev_vfs[vf].min_port - 1,
+		   min((int)dev->dev_vfs[mlx4_get_vf_indx(dev, slave)].n_ports,
+		   dev->caps.num_ports));
+
+	return actv_ports;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_active_ports);
+
+int mlx4_slave_convert_port(struct mlx4_dev *dev, int slave, int port)
+{
+	unsigned n;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
+	unsigned m = bitmap_weight(actv_ports.ports, dev->caps.num_ports);
+
+	if (port <= 0 || port > m)
+		return -EINVAL;
+
+	n = find_first_bit(actv_ports.ports, dev->caps.num_ports);
+	if (port <= n)
+		port = n + 1;
+
+	return port;
+}
+EXPORT_SYMBOL_GPL(mlx4_slave_convert_port);
+
+int mlx4_phys_to_slave_port(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
+	if (test_bit(port - 1, actv_ports.ports))
+		return port -
+			find_first_bit(actv_ports.ports, dev->caps.num_ports);
+
+	return -1;
+}
+EXPORT_SYMBOL_GPL(mlx4_phys_to_slave_port);
+
+struct mlx4_slaves_pport mlx4_phys_to_slaves_pport(struct mlx4_dev *dev,
+						   int port)
+{
+	unsigned i;
+	struct mlx4_slaves_pport slaves_pport;
+
+	bitmap_zero(slaves_pport.slaves, MLX4_MFUNC_MAX);
+
+	if (port <= 0 || port > dev->caps.num_ports)
+		return slaves_pport;
+
+	for (i = 0; i < dev->num_vfs + 1; i++) {
+		struct mlx4_active_ports actv_ports =
+			mlx4_get_active_ports(dev, i);
+		if (test_bit(port - 1, actv_ports.ports))
+			set_bit(i, slaves_pport.slaves);
+	}
+
+	return slaves_pport;
+}
+EXPORT_SYMBOL_GPL(mlx4_phys_to_slaves_pport);
+
+struct mlx4_slaves_pport mlx4_phys_to_slaves_pport_actv(
+		struct mlx4_dev *dev,
+		const struct mlx4_active_ports *crit_ports)
+{
+	unsigned i;
+	struct mlx4_slaves_pport slaves_pport;
+
+	bitmap_zero(slaves_pport.slaves, MLX4_MFUNC_MAX);
+
+	for (i = 0; i < dev->num_vfs + 1; i++) {
+		struct mlx4_active_ports actv_ports =
+			mlx4_get_active_ports(dev, i);
+		if (bitmap_equal(crit_ports->ports, actv_ports.ports,
+				 dev->caps.num_ports))
+			set_bit(i, slaves_pport.slaves);
+	}
+
+	return slaves_pport;
+}
+EXPORT_SYMBOL_GPL(mlx4_phys_to_slaves_pport_actv);
 
 int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 {
