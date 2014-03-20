@@ -114,7 +114,6 @@ struct fimd_context {
 	struct fimd_win_data		win_data[WINDOWS_NR];
 	unsigned int			default_win;
 	unsigned long			irq_flags;
-	u32				vidcon0;
 	u32				vidcon1;
 	bool				suspended;
 	int				pipe;
@@ -266,26 +265,19 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 	       VIDTCON2_HOZVAL_E(mode->hdisplay - 1);
 	writel(val, ctx->regs + driver_data->timing_base + VIDTCON2);
 
-	/* setup clock source, clock divider, enable dma. */
-	val = ctx->vidcon0;
-	val &= ~(VIDCON0_CLKVAL_F_MASK | VIDCON0_CLKDIR);
-
-	if (ctx->driver_data->has_clksel) {
-		val &= ~VIDCON0_CLKSEL_MASK;
-		val |= VIDCON0_CLKSEL_LCD;
-	}
-
-	clkdiv = fimd_calc_clkdiv(ctx, mode);
-	if (clkdiv > 1)
-		val |= VIDCON0_CLKVAL_F(clkdiv - 1) | VIDCON0_CLKDIR;
-	else
-		val &= ~VIDCON0_CLKDIR;	/* 1:1 clock */
-
 	/*
 	 * fields of register with prefix '_F' would be updated
 	 * at vsync(same as dma start)
 	 */
-	val |= VIDCON0_ENVID | VIDCON0_ENVID_F;
+	val = VIDCON0_ENVID | VIDCON0_ENVID_F;
+
+	if (ctx->driver_data->has_clksel)
+		val |= VIDCON0_CLKSEL_LCD;
+
+	clkdiv = fimd_calc_clkdiv(ctx, mode);
+	if (clkdiv > 1)
+		val |= VIDCON0_CLKVAL_F(clkdiv - 1) | VIDCON0_CLKDIR;
+
 	writel(val, ctx->regs + VIDCON0);
 }
 
