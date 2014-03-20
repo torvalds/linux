@@ -538,6 +538,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 	schedule_delayed_work(&di->usb_detect_work, 0);
 	bq24296_init_registers();
 
+/*
 	if (gpio_is_valid(pdev->chg_irq_pin)){
 		irq = gpio_to_irq(pdev->chg_irq_pin);
 		ret = request_threaded_irq(irq, NULL,chg_irq_func, IRQF_TRIGGER_FALLING| IRQF_ONESHOT, "bq24296_chg_irq", di);
@@ -547,6 +548,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 			goto err_chgirq_failed;
 		}
 	}
+*/
 
 	bq24296_int =1;
 
