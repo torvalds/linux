@@ -4655,8 +4655,6 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct net_device *upper;
-	struct list_head *iter;
 	int err;
 	u32 ctrl_ext;
 
@@ -4696,19 +4694,6 @@ static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
 		if (esdp & IXGBE_ESDP_SDP1)
 			e_crit(drv, "Fan has stopped, replace the adapter\n");
-	}
-
-	/* enable transmits */
-	netif_tx_start_all_queues(adapter->netdev);
-
-	/* enable any upper devices */
-	netdev_for_each_all_upper_dev_rcu(adapter->netdev, upper, iter) {
-		if (netif_is_macvlan(upper)) {
-			struct macvlan_dev *vlan = netdev_priv(upper);
-
-			if (vlan->fwd_priv)
-				netif_tx_start_all_queues(upper);
-		}
 	}
 
 	/* bring the link up in the watchdog, this could race with our first
@@ -6082,6 +6067,8 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct net_device *upper;
+	struct list_head *iter;
 	u32 link_speed = adapter->link_speed;
 	bool flow_rx, flow_tx;
 
@@ -6132,6 +6119,21 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 
 	netif_carrier_on(netdev);
 	ixgbe_check_vf_rate_limit(adapter);
+
+	/* enable transmits */
+	netif_tx_wake_all_queues(adapter->netdev);
+
+	/* enable any upper devices */
+	rtnl_lock();
+	netdev_for_each_all_upper_dev_rcu(adapter->netdev, upper, iter) {
+		if (netif_is_macvlan(upper)) {
+			struct macvlan_dev *vlan = netdev_priv(upper);
+
+			if (vlan->fwd_priv)
+				netif_tx_wake_all_queues(upper);
+		}
+	}
+	rtnl_unlock();
 
 	/* update the default user priority for VFs */
 	ixgbe_update_default_up(adapter);
