@@ -20,7 +20,7 @@
 #include "exynos5.dtsi"
 #include "exynos5250-pinctrl.dtsi"
 
-#include <dt-bindings/clk/exynos-audss-clk.h>
+#include <dt-bindings/clock/exynos-audss-clk.h>
 
 / {
 	compatible = "samsung,exynos5250", "samsung,exynos5";
