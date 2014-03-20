@@ -164,6 +164,9 @@ static int __sony_nc_gfx_switch_status_get(void);
 static int sony_nc_highspeed_charging_setup(struct platform_device *pd);
 static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd);
 
+static int sony_nc_panelid_setup(struct platform_device *pd);
+static void sony_nc_panelid_cleanup(struct platform_device *pd);
+
 static int sony_nc_touchpad_setup(struct platform_device *pd,
 				  unsigned int handle);
 static void sony_nc_touchpad_cleanup(struct platform_device *pd);
@@ -1385,6 +1388,12 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up keyboard backlight function (%d)\n",
 						result);
 			break;
+		case 0x011D:
+			result = sony_nc_panelid_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up panel ID function (%d)\n",
+				       result);
+			break;
 		default:
 			continue;
 		}
@@ -1448,6 +1457,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x014c:
 		case 0x0163:
 			sony_nc_kbd_backlight_cleanup(pd, handle);
+			break;
+		case 0x011D:
+			sony_nc_panelid_cleanup(pd);
 			break;
 		default:
 			continue;
@@ -2537,6 +2549,53 @@ static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd)
 		device_remove_file(&pd->dev, hsc_handle);
 		kfree(hsc_handle);
 		hsc_handle = NULL;
+	}
+}
+
+/* Panel ID function */
+static struct device_attribute *panel_handle;
+
+static ssize_t sony_nc_panelid_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x011D, 0x0000, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result);
+}
+
+static int sony_nc_panelid_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	panel_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!panel_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&panel_handle->attr);
+	panel_handle->attr.name = "panel_id";
+	panel_handle->attr.mode = S_IRUGO;
+	panel_handle->show = sony_nc_panelid_show;
+	panel_handle->store = NULL;
+
+	result = device_create_file(&pd->dev, panel_handle);
+	if (result) {
+		kfree(panel_handle);
+		panel_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_panelid_cleanup(struct platform_device *pd)
+{
+	if (panel_handle) {
+		device_remove_file(&pd->dev, panel_handle);
+		kfree(panel_handle);
+		panel_handle = NULL;
 	}
 }
 
