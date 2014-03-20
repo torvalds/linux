@@ -184,8 +184,8 @@ static ssize_t wifi_driver_write(struct class *cls, struct class_attribute *attr
 
 static struct class *rkwifi_class = NULL;
 static CLASS_ATTR(chip, 0664, wifi_chip_read, NULL);
-static CLASS_ATTR(power, 0222, NULL, wifi_power_write);
-static CLASS_ATTR(driver, 0222, NULL, wifi_driver_write);
+static CLASS_ATTR(power, 0660, NULL, wifi_power_write);
+static CLASS_ATTR(driver, 0660, NULL, wifi_driver_write);
 
 int rkwifi_sysif_init(void)
 {
