@@ -275,7 +275,7 @@ static void *read_all_xattrs(struct inode *inode, struct page *ipage)
 
 	inline_size = inline_xattr_size(inode);
 
-	txattr_addr = kzalloc(inline_size + size, GFP_KERNEL);
+	txattr_addr = kzalloc(inline_size + size, GFP_F2FS_ZERO);
 	if (!txattr_addr)
 		return NULL;
 
