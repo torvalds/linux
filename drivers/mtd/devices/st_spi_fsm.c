@@ -210,6 +210,8 @@ struct stfsm {
 
 	uint32_t                fifo_dir_delay;
 	bool                    booted_from_spi;
+	bool                    reset_signal;
+	bool                    reset_por;
 };
 
 struct stfsm_seq {
@@ -521,6 +523,40 @@ static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf,
 	}
 }
 
+/*
+ * SoC reset on 'boot-from-spi' systems
+ *
+ * Certain modes of operation cause the Flash device to enter a particular state
+ * for a period of time (e.g. 'Erase Sector', 'Quad Enable', and 'Enter 32-bit
+ * Addr' commands).  On boot-from-spi systems, it is important to consider what
+ * happens if a warm reset occurs during this period.  The SPIBoot controller
+ * assumes that Flash device is in its default reset state, 24-bit address mode,
+ * and ready to accept commands.  This can be achieved using some form of
+ * on-board logic/controller to force a device POR in response to a SoC-level
+ * reset or by making use of the device reset signal if available (limited
+ * number of devices only).
+ *
+ * Failure to take such precautions can cause problems following a warm reset.
+ * For some operations (e.g. ERASE), there is little that can be done.  For
+ * other modes of operation (e.g. 32-bit addressing), options are often
+ * available that can help minimise the window in which a reset could cause a
+ * problem.
+ *
+ */
+static bool stfsm_can_handle_soc_reset(struct stfsm *fsm)
+{
+	/* Reset signal is available on the board and supported by the device */
+	if (fsm->reset_signal && fsm->info->flags & FLASH_FLAG_RESET)
+		return true;
+
+	/* Board-level logic forces a power-on-reset */
+	if (fsm->reset_por)
+		return true;
+
+	/* Reset is not properly handled and may result in failure to reboot */
+	return false;
+}
+
 /* Configure 'addr_cfg' according to addressing mode */
 static void stfsm_prepare_erasesec_seq(struct stfsm *fsm,
 				       struct stfsm_seq *seq)
@@ -785,6 +821,10 @@ static void stfsm_fetch_platform_configs(struct platform_device *pdev)
 	regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(regmap))
 		goto boot_device_fail;
+
+	fsm->reset_signal = of_property_read_bool(np, "st,reset-signal");
+
+	fsm->reset_por = of_property_read_bool(np, "st,reset-por");
 
 	/* Where in the syscon the boot device information lives */
 	ret = of_property_read_u32(np, "st,boot-device-reg", &boot_device_reg);
