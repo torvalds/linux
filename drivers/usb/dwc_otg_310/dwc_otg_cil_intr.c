@@ -375,10 +375,12 @@ int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t * core_if)
 	 */
 	gintmsk_data_t gintmsk = {.d32 = 0 };
 	gintsts_data_t gintsts = {.d32 = 0 };
+	
+	if(core_if->usb_mode != USB_MODE_NORMAL)
+		goto out;
 
 	gintmsk.b.sofintr = 1;
 	DWC_MODIFY_REG32(&core_if->core_global_regs->gintmsk, gintmsk.d32, 0);
-
 	DWC_DEBUGPL(DBG_CIL,
 		    " ++Connector ID Status Change Interrupt++  (%s)\n",
 		    (dwc_otg_is_host_mode(core_if) ? "Host" : "Device"));
@@ -393,7 +395,7 @@ int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t * core_if)
 	DWC_WORKQ_SCHEDULE(core_if->wq_otg, w_conn_id_status_change,
 			   core_if, "connection id status change");
 	DWC_SPINLOCK(core_if->lock);
-
+out:
 	/* Set flag and clear interrupt */
 	gintsts.b.conidstschng = 1;
 	DWC_WRITE_REG32(&core_if->core_global_regs->gintsts, gintsts.d32);

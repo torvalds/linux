@@ -842,6 +842,11 @@ struct dwc_otg_core_if {
 	/** Timer for SRP. If it expires before SRP is successful
 	 * clear the SRP. */
 	dwc_timer_t *srp_timer;
+	
+	uint8_t usb_mode;
+#define USB_MODE_NORMAL (0)
+#define USB_MODE_FORCE_HOST (1)
+#define USB_MODE_FORCE_DEVICE (2)
 
 #ifdef DWC_DEV_SRPCAP
 	/* This timer is needed to power on the hibernated host core if SRP is not

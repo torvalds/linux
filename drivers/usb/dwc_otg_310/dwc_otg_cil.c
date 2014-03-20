@@ -5131,6 +5131,7 @@ void dwc_otg_core_reset(dwc_otg_core_if_t * core_if)
 {
 	dwc_otg_core_global_regs_t *global_regs = core_if->core_global_regs;
 	volatile grstctl_t greset = {.d32 = 0 };
+	volatile gusbcfg_data_t usbcfg = { .d32 = 0 };
 	int count = 0;
 
 	DWC_DEBUGPL(DBG_CILV, "%s\n", __func__);
@@ -5160,6 +5161,21 @@ void dwc_otg_core_reset(dwc_otg_core_if_t * core_if)
 		dwc_udelay(1);
 	}
 	while (greset.b.csftrst == 1);
+	usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
+	if(core_if->usb_mode == USB_MODE_FORCE_HOST)
+	{
+		usbcfg.b.force_host_mode = 1;
+		usbcfg.b.force_dev_mode = 0;
+	} else if(core_if->usb_mode == USB_MODE_FORCE_DEVICE)
+	{
+		usbcfg.b.force_host_mode = 0;
+		usbcfg.b.force_dev_mode = 1;
+	} else
+	{
+		usbcfg.b.force_host_mode = 0;
+		usbcfg.b.force_dev_mode = 0;
+	}
+	DWC_WRITE_REG32( &global_regs->gusbcfg, usbcfg.d32 );
 
 	/* Wait for 3 PHY Clocks */
 	dwc_mdelay(100);
