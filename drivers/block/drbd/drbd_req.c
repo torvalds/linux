@@ -899,6 +899,9 @@ static void maybe_pull_ahead(struct drbd_device *device)
 	    connection->agreed_pro_version < 96)
 		return;
 
+	if (on_congestion == OC_PULL_AHEAD && device->state.conn == C_AHEAD)
+		return; /* nothing to do ... */
+
 	/* If I don't even have good local storage, we can not reasonably try
 	 * to pull ahead of the peer. We also need the local reference to make
 	 * sure device->act_log is there.
