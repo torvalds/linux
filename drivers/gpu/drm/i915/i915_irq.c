@@ -2587,7 +2587,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	}
 
 	for_each_pipe(dev_priv, pipe) {
-		uint32_t pipe_iir;
+		uint32_t pipe_iir, flip_done = 0, fault_errors = 0;
 
 		if (!(master_ctl & GEN8_DE_PIPE_IRQ(pipe)))
 			continue;
@@ -2596,11 +2596,17 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (pipe_iir) {
 			ret = IRQ_HANDLED;
 			I915_WRITE(GEN8_DE_PIPE_IIR(pipe), pipe_iir);
+
 			if (pipe_iir & GEN8_PIPE_VBLANK &&
 			    intel_pipe_handle_vblank(dev, pipe))
 				intel_check_page_flip(dev, pipe);
 
-			if (pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE) {
+			if (IS_GEN9(dev))
+				flip_done = pipe_iir & GEN9_PIPE_PLANE1_FLIP_DONE;
+			else
+				flip_done = pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE;
+
+			if (flip_done) {
 				intel_prepare_page_flip(dev, pipe);
 				intel_finish_page_flip_plane(dev, pipe);
 			}
@@ -2615,11 +2621,16 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 						  pipe_name(pipe));
 			}
 
-			if (pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS) {
+
+			if (IS_GEN9(dev))
+				fault_errors = pipe_iir & GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
+			else
+				fault_errors = pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
+
+			if (fault_errors)
 				DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
 					  pipe_name(pipe),
 					  pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS);
-			}
 		} else
 			DRM_ERROR("The master control interrupt lied (DE PIPE)!\n");
 	}
@@ -3803,12 +3814,20 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	uint32_t de_pipe_masked = GEN8_PIPE_PRIMARY_FLIP_DONE |
-		GEN8_PIPE_CDCLK_CRC_DONE |
-		GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
-	uint32_t de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
-		GEN8_PIPE_FIFO_UNDERRUN;
+	uint32_t de_pipe_masked = GEN8_PIPE_CDCLK_CRC_DONE;
+	uint32_t de_pipe_enables;
 	int pipe;
+
+	if (IS_GEN9(dev_priv))
+		de_pipe_masked |= GEN9_PIPE_PLANE1_FLIP_DONE |
+				  GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
+	else
+		de_pipe_masked |= GEN8_PIPE_PRIMARY_FLIP_DONE |
+				  GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
+
+	de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
+					   GEN8_PIPE_FIFO_UNDERRUN;
+
 	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_masked;
 	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_masked;
 	dev_priv->de_irq_mask[PIPE_C] = ~de_pipe_masked;
