@@ -1310,7 +1310,7 @@ static int queue_wake_up_all(struct genwqe_dev *cd)
  */
 int genwqe_finish_queue(struct genwqe_dev *cd)
 {
-	int i, rc, in_flight;
+	int i, rc = 0, in_flight;
 	int waitmax = genwqe_ddcb_software_timeout;
 	struct pci_dev *pci_dev = cd->pci_dev;
 	struct ddcb_queue *queue = &cd->queue;
