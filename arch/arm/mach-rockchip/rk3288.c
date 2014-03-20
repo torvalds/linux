@@ -390,6 +390,7 @@ arch_initcall(rk3288_pie_init);
 #include "pm-rk3288.c"
 static void __init rk3288_init_suspend(void)
 {
+	return;
         rockchip_suspend_init();       
         rkpm_pie_init();
         rk3288_suspend_init();
