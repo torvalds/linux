@@ -3354,7 +3354,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	/* In units of 50MHz */
 	dev_priv->rps.hw_max = hw_max = rp_state_cap & 0xff;
-	hw_min = (rp_state_cap >> 16) & 0xff;
+	dev_priv->rps.min_freq = hw_min = (rp_state_cap >> 16) & 0xff;
 	dev_priv->rps.rp1_delay = (rp_state_cap >>  8) & 0xff;
 	dev_priv->rps.rp0_delay = (rp_state_cap >>  0) & 0xff;
 	dev_priv->rps.rpe_delay = dev_priv->rps.rp1_delay;

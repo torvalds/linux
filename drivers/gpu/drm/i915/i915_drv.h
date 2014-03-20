@@ -987,6 +987,7 @@ struct intel_gen6_power_mgmt {
 	u8 rp1_delay;
 	u8 rp0_delay;
 	u8 hw_max;
+	u8 min_freq;
 
 	bool rp_up_masked;
 	bool rp_down_masked;
