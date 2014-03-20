@@ -567,6 +567,27 @@ static struct stfsm_seq stfsm_seq_erase_sector = {
 		    SEQ_CFG_STARTSEQ),
 };
 
+static struct stfsm_seq stfsm_seq_erase_chip = {
+	.seq_opc = {
+		(SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
+		 SEQ_OPC_OPCODE(FLASH_CMD_WREN) | SEQ_OPC_CSDEASSERT),
+
+		(SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
+		 SEQ_OPC_OPCODE(FLASH_CMD_CHIPERASE) | SEQ_OPC_CSDEASSERT),
+	},
+	.seq = {
+		STFSM_INST_CMD1,
+		STFSM_INST_CMD2,
+		STFSM_INST_WAIT,
+		STFSM_INST_STOP,
+	},
+	.seq_cfg = (SEQ_CFG_PADS_1 |
+		    SEQ_CFG_ERASE |
+		    SEQ_CFG_READNOTWRITE |
+		    SEQ_CFG_CSDEASSERT |
+		    SEQ_CFG_STARTSEQ),
+};
+
 static struct stfsm_seq stfsm_seq_wrvcr = {
 	.seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
 		       SEQ_OPC_OPCODE(FLASH_CMD_WREN) | SEQ_OPC_CSDEASSERT),
@@ -1217,6 +1238,47 @@ static int stfsm_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 }
 
+static int stfsm_erase_sector(struct stfsm *fsm, const uint32_t offset)
+{
+	struct stfsm_seq *seq = &stfsm_seq_erase_sector;
+	int ret;
+
+	dev_dbg(fsm->dev, "erasing sector at 0x%08x\n", offset);
+
+	/* Enter 32-bit address mode, if required */
+	if (fsm->configuration & CFG_ERASESEC_TOGGLE_32BIT_ADDR)
+		stfsm_enter_32bit_addr(fsm, 1);
+
+	seq->addr1 = (offset >> 16) & 0xffff;
+	seq->addr2 = offset & 0xffff;
+
+	stfsm_load_seq(fsm, seq);
+
+	stfsm_wait_seq(fsm);
+
+	/* Wait for completion */
+	ret = stfsm_wait_busy(fsm);
+
+	/* Exit 32-bit address mode, if required */
+	if (fsm->configuration & CFG_ERASESEC_TOGGLE_32BIT_ADDR)
+		stfsm_enter_32bit_addr(fsm, 0);
+
+	return ret;
+}
+
+static int stfsm_erase_chip(struct stfsm *fsm)
+{
+	const struct stfsm_seq *seq = &stfsm_seq_erase_chip;
+
+	dev_dbg(fsm->dev, "erasing chip\n");
+
+	stfsm_load_seq(fsm, seq);
+
+	stfsm_wait_seq(fsm);
+
+	return stfsm_wait_busy(fsm);
+}
+
 /*
  * Write an address range to the flash chip.  Data must be written in
  * FLASH_PAGESIZE chunks.  The address range may be any size provided
@@ -1267,6 +1329,54 @@ static int stfsm_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 out1:
+	mutex_unlock(&fsm->lock);
+
+	return ret;
+}
+
+/*
+ * Erase an address range on the flash chip. The address range may extend
+ * one or more erase sectors.  Return an error is there is a problem erasing.
+ */
+static int stfsm_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
+{
+	struct stfsm *fsm = dev_get_drvdata(mtd->dev.parent);
+	u32 addr, len;
+	int ret;
+
+	dev_dbg(fsm->dev, "%s at 0x%llx, len %lld\n", __func__,
+		(long long)instr->addr, (long long)instr->len);
+
+	addr = instr->addr;
+	len = instr->len;
+
+	mutex_lock(&fsm->lock);
+
+	/* Whole-chip erase? */
+	if (len == mtd->size) {
+		ret = stfsm_erase_chip(fsm);
+		if (ret)
+			goto out1;
+	} else {
+		while (len) {
+			ret = stfsm_erase_sector(fsm, addr);
+			if (ret)
+				goto out1;
+
+			addr += mtd->erasesize;
+			len -= mtd->erasesize;
+		}
+	}
+
+	mutex_unlock(&fsm->lock);
+
+	instr->state = MTD_ERASE_DONE;
+	mtd_erase_callback(instr);
+
+	return 0;
+
+out1:
+	instr->state = MTD_ERASE_FAILED;
 	mutex_unlock(&fsm->lock);
 
 	return ret;
@@ -1529,8 +1639,9 @@ static int stfsm_probe(struct platform_device *pdev)
 
 	fsm->mtd._read  = stfsm_mtd_read;
 	fsm->mtd._write = stfsm_mtd_write;
+	fsm->mtd._erase = stfsm_mtd_erase;
 
-	dev_err(&pdev->dev,
+	dev_info(&pdev->dev,
 		"Found serial flash device: %s\n"
 		" size = %llx (%lldMiB) erasesize = 0x%08x (%uKiB)\n",
 		info->name,
