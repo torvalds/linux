@@ -583,6 +583,66 @@
 			status = "disabled";
 		};
 
+		gpio@ff708000 {
+                       #address-cells = <1>;
+                       #size-cells = <0>;
+                       compatible = "snps,dw-apb-gpio";
+                       reg = <0xff708000 0x1000>;
+                       clocks = <&per_base_clk>;
+                       status = "disabled";
+
+                       gpio0: gpio-controller@0 {
+                               compatible = "snps,dw-apb-gpio-port";
+                               gpio-controller;
+                               #gpio-cells = <2>;
+                               snps,nr-gpios = <29>;
+                               reg = <0>;
+                               interrupt-controller;
+                               #interrupt-cells = <2>;
+                               interrupts = <0 164 4>;
+                       };
+               };
+
+               gpio@ff709000 {
+                       #address-cells = <1>;
+                       #size-cells = <0>;
+                       compatible = "snps,dw-apb-gpio";
+                       reg = <0xff709000 0x1000>;
+                       clocks = <&per_base_clk>;
+                       status = "disabled";
+
+                       gpio1: gpio-controller@0 {
+                               compatible = "snps,dw-apb-gpio-port";
+                               gpio-controller;
+                               #gpio-cells = <2>;
+                               snps,nr-gpios = <29>;
+                               reg = <0>;
+                               interrupt-controller;
+                               #interrupt-cells = <2>;
+                               interrupts = <0 165 4>;
+                       };
+               };
+
+               gpio@ff70a000 {
+                       #address-cells = <1>;
+                       #size-cells = <0>;
+                       compatible = "snps,dw-apb-gpio";
+                       reg = <0xff70a000 0x1000>;
+                       clocks = <&per_base_clk>;
+                       status = "disabled";
+
+                       gpio2: gpio-controller@0 {
+                               compatible = "snps,dw-apb-gpio-port";
+                               gpio-controller;
+                               #gpio-cells = <2>;
+                               snps,nr-gpios = <27>;
+                               reg = <0>;
+                               interrupt-controller;
+                               #interrupt-cells = <2>;
+                               interrupts = <0 166 4>;
+                       };
+               };
+
 		L2: l2-cache@fffef000 {
 			compatible = "arm,pl310-cache", "syscon";
 			reg = <0xfffef000 0x1000>;
