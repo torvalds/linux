@@ -47,7 +47,7 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 	int gpio, irq_num, fiq_count;
 	struct irq_chip *irq_chip;
 
-	irq_chip = irq_get_irq_chip(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK));
+	irq_chip = irq_get_chip(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK));
 
 	/*
 	 * For each handled GPIO interrupt, keep calling its interrupt handler
