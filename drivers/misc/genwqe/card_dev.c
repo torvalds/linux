@@ -531,7 +531,9 @@ static int do_flash_update(struct genwqe_file *cfile,
 	case '1':
 		cmdopts = 0x1C;
 		break;		/* download/erase_first/part_1 */
-	case 'v':		/* cmdopts = 0x0c (VPD) */
+	case 'v':
+		cmdopts = 0x0C;
+		break;		/* download/erase_first/vpd */
 	default:
 		return -EINVAL;
 	}
@@ -665,6 +667,8 @@ static int do_flash_read(struct genwqe_file *cfile,
 		cmdopts = 0x1A;
 		break;		/* upload/part_1 */
 	case 'v':
+		cmdopts = 0x0A;
+		break;		/* upload/vpd */
 	default:
 		return -EINVAL;
 	}
