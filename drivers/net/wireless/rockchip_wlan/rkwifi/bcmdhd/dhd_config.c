@@ -146,6 +146,12 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *dst, char *src)
                 else
                     strcpy(&dst[i+1], bcm43362a2_fw_name[fw_type]);
                 break;
+        }
+    } else {
+        switch (chip) {
+            case BCM4330_CHIP_ID:
+                    strcpy(&dst[i+1], bcm4330b2ag_fw_name[fw_type]);
+                break;
             case BCM43341_CHIP_ID:
                 if (chiprev == BCM43341B0_CHIP_REV)
                     strcpy(&dst[i+1], bcm43341b0ag_fw_name[fw_type]);
@@ -161,12 +167,6 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *dst, char *src)
             case BCM4339_CHIP_ID:
                 if (chiprev == BCM4339A0_CHIP_REV)
                     strcpy(&dst[i+1], bcm4339a0ag_fw_name[fw_type]);
-                break;
-        }
-    } else {
-        switch (chip) {
-            case BCM4330_CHIP_ID:
-                    strcpy(&dst[i+1], bcm4330b2ag_fw_name[fw_type]);
                 break;
         }
     }
