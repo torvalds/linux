@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,8 @@
 
 #ifdef __KERNEL__
 
+#define ACPI_USE_SYSTEM_INTTYPES
+
 /* Compile for reduced hardware mode only with this kernel config */
 
 #ifdef CONFIG_ACPI_REDUCED_HARDWARE_ONLY
@@ -88,6 +90,16 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
+
+/* Disable kernel specific declarators */
+
+#ifndef __init
+#define __init
+#endif
+
+#ifndef __iomem
+#define __iomem
+#endif
 
 /* Host-dependent types and defines for user-space ACPICA */
 
