@@ -2606,10 +2606,10 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	int ret, i;
 	struct bb_info *bitbang;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	struct device *dev = &mdp->pdev->dev;
 
 	/* create bit control struct for PHY */
-	bitbang = devm_kzalloc(&ndev->dev, sizeof(struct bb_info),
-			       GFP_KERNEL);
+	bitbang = devm_kzalloc(dev, sizeof(struct bb_info), GFP_KERNEL);
 	if (!bitbang) {
 		ret = -ENOMEM;
 		goto out;
@@ -2638,8 +2638,7 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 		 mdp->pdev->name, id);
 
 	/* PHY IRQ */
-	mdp->mii_bus->irq = devm_kzalloc(&ndev->dev,
-					 sizeof(int) * PHY_MAX_ADDR,
+	mdp->mii_bus->irq = devm_kzalloc(dev, sizeof(int) * PHY_MAX_ADDR,
 					 GFP_KERNEL);
 	if (!mdp->mii_bus->irq) {
 		ret = -ENOMEM;
