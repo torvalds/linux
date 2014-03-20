@@ -1176,6 +1176,8 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	skb_tx_timestamp(skb);
+
 	/* we kept a software copy of how much we should advance the TDMA
 	 * producer index, now write it down to the hardware
 	 */
