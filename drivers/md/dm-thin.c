@@ -1757,20 +1757,14 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 
 static int pool_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
 {
-	int r;
-	unsigned long flags;
 	struct pool_c *pt = container_of(cb, struct pool_c, callbacks);
+	struct request_queue *q;
 
-	spin_lock_irqsave(&pt->pool->lock, flags);
-	r = !bio_list_empty(&pt->pool->retry_on_resume_list);
-	spin_unlock_irqrestore(&pt->pool->lock, flags);
+	if (get_pool_mode(pt->pool) == PM_OUT_OF_DATA_SPACE)
+		return 1;
 
-	if (!r) {
-		struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
-		r = bdi_congested(&q->backing_dev_info, bdi_bits);
-	}
-
-	return r;
+	q = bdev_get_queue(pt->data_dev->bdev);
+	return bdi_congested(&q->backing_dev_info, bdi_bits);
 }
 
 static void __requeue_bios(struct pool *pool)
