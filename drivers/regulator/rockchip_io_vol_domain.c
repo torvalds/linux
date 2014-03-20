@@ -137,6 +137,7 @@ static int rk_io_vol_domain_probe(struct platform_device *pdev)
 			IO_DOMAIN_DBG("IO_DOMAIN:ERROR:The io vol domin is not exit,set it by defult. %s %s\n",__func__,io_domain_node->name);
 			}
 	}
+	regulator_put(vol_regulator);
 	return 0;
 }
 
