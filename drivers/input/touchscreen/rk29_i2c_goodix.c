@@ -752,7 +752,7 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 			dev_err(&client->dev, "goodix power error\n");
 			return -EIO;
 		}
-		msleep(100);
+		//msleep(100);
 	} else {
 		dev_info(&client->dev, "power pin invalid\n");
 	}
@@ -764,7 +764,7 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 			dev_err(&client->dev, "goodix gpio_request error\n");
 			return -EIO;
 		}
-                msleep(100);
+             //  msleep(100);
 	} else {
 		dev_info(&client->dev, "reset pin invalid\n");
 	}
