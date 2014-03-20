@@ -53,8 +53,9 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	switch(mode)
 	{
 		case NORMAL:
-			hdmi_msk_reg(hdmi_dev, MC_SWRSTZREQ, m_TMDS_SWRST | m_PIXEL_SWRST,
-				v_TMDS_SWRST(0) | v_PIXEL_SWRST(0));
+			hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_ENCRYPT_BYPASS, v_ENCRYPT_BYPASS(1));	//cfg to bypass hdcp data encry
+			hdmi_msk_reg(hdmi_dev, MC_SWRSTZREQ, 0x00);
+			hdmi_msk_reg(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
 			hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
 				v_AUDCLK_DISABLE(0) | v_PREPCLK_DISABLE(0) | v_TMDSCLK_DISABLE(0) | v_PIXELCLK_DISABLE(0));
 			hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(1));
@@ -413,7 +414,7 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 		hdmi_writel(hdmi_dev, PHY_I2CM_DATAO_0, val & 0xff);
 		hdmi_writel(hdmi_dev, PHY_I2CM_OPERATION, m_PHY_I2CM_WRITE);
 
-		i = 100;
+		i = 200;
 		while(i--) {
 			mutex_lock(&hdmi_dev->int_mutex);
 			//op_status = hdmi_readl(hdmi_dev, PHY_I2CM_INT);
@@ -423,7 +424,7 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 			if(op_status & (m_I2CMPHY_DONE | m_I2CMPHY_ERR)) {
 				break;
 			}
-			msleep(10);
+			msleep(5);
 		}
 
 		if(op_status & m_I2CMPHY_DONE) {
@@ -446,13 +447,6 @@ static int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 	const struct phy_mpll_config_tab *phy_mpll = NULL;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-	//get phy_type,if PHY_GEN2==1 config phy register
-	//phy_type = hdmi_readl(hdmi_dev, CONFIG2_ID);
-	//if(phy_type != HDMI_3D_TX_WITH_HEAC_PHY && phy_type != HDMI_3D_TX_PHY) {
-	//	printk("%s: PHY_GEN2 = 0,No need to config phy", __FUNCTION__);
-	//	return;
-	//}
-
 	//hdmi_writel(hdmi_dev, PHY_CONF0, 0x32);
 	hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_PDDQ_SIG | m_TXPWRON_SIG, v_PDDQ_SIG(1) | v_TXPWRON_SIG(0));
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(1));
@@ -462,15 +456,15 @@ static int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(0));
 
 	//Set slave address as PHY GEN2 address
-	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_I2C_SLAVE_ADDR);	//TODO Daisen wait to modify
-
+	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_GEN2_ADDR);	//TODO Daisen wait to modify
+#if 0
 	rk3288_hdmi_write_phy(hdmi_dev, 0x13, 0x0000); /* PLLPHBYCTRL */
 	rk3288_hdmi_write_phy(hdmi_dev, 0x17, 0x0006);
 	/* RESISTANCE TERM 133Ohm Cfg  */
-	rk3288_hdmi_write_phy(hdmi_dev, 0x19, 0x0005); /* TXTERM */	//TODO Daisen wait to modify
+	rk3288_hdmi_write_phy(hdmi_dev, 0x19, 0x0005); /* TXTERM */
 	/* REMOVE CLK TERM */
 	rk3288_hdmi_write_phy(hdmi_dev, 0x05, 0x8000); /* CKCALCTRL */
-
+#endif
 	//config the required PHY I2C register
 	phy_mpll = get_phy_mpll_tab(hdmi_drv->tmdsclk, pix_repet, 8);
 	if(phy_mpll) {
@@ -497,7 +491,8 @@ static int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 		}
 	}
 	if((stat & m_PHY_LOCK) == 0) {
-		hdmi_err(hdmi_dev->dev, "PHY PLL not locked\n");
+		stat = hdmi_readl(hdmi_dev, MC_LOCKONCLOCK);
+		hdmi_err(hdmi_dev->dev, "PHY PLL not locked: PCLK_ON=%d,TMDSCLK_ON=%d\n", stat & m_PCLK_ON, stat & m_TMDSCLK_ON);
 		return -1;
 	}
 
