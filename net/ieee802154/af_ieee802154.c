@@ -63,7 +63,7 @@ ieee802154_get_dev(struct net *net, const struct ieee802154_addr *addr)
 	case IEEE802154_ADDR_SHORT:
 		if (addr->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST) ||
 		    addr->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
-		    addr->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF))
+		    addr->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST))
 			break;
 
 		rtnl_lock();
