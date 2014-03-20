@@ -356,12 +356,12 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 			valleyview_set_rps(dev, val);
 		else
 			gen6_set_rps(dev, val);
-	}
-	else if (!IS_VALLEYVIEW(dev))
-		/* We still need gen6_set_rps to process the new max_delay
-		   and update the interrupt limits even though frequency
-		   request is unchanged. */
+	} else if (!IS_VALLEYVIEW(dev)) {
+		/* We still need gen6_set_rps to process the new max_delay and
+		 * update the interrupt limits even though frequency request is
+		 * unchanged. */
 		gen6_set_rps(dev, dev_priv->rps.cur_delay);
+	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -430,12 +430,12 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 			valleyview_set_rps(dev, val);
 		else
 			gen6_set_rps(dev, val);
-	}
-	else if (!IS_VALLEYVIEW(dev))
-		/* We still need gen6_set_rps to process the new min_delay
-		   and update the interrupt limits even though frequency
-		   request is unchanged. */
+	} else if (!IS_VALLEYVIEW(dev)) {
+		/* We still need gen6_set_rps to process the new min_delay and
+		 * update the interrupt limits even though frequency request is
+		 * unchanged. */
 		gen6_set_rps(dev, dev_priv->rps.cur_delay);
+	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
