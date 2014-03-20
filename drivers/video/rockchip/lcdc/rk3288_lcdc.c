@@ -208,7 +208,7 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	int *cbase = (int *)lcdc_dev->regs;
 	if (lcdc_dev->pre_init)
 		return 0;
-#ifdef CONFIG_RK_FPGA
+
 	lcdc_dev->hclk = devm_clk_get(lcdc_dev->dev, "hclk_lcdc");
 	lcdc_dev->aclk = devm_clk_get(lcdc_dev->dev, "aclk_lcdc");
 	lcdc_dev->dclk = devm_clk_get(lcdc_dev->dev, "dclk_lcdc");
@@ -218,7 +218,7 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		dev_err(lcdc_dev->dev, "failed to get lcdc%d clk source\n",
 			lcdc_dev->id);
 	}
-#endif
+
 	/*uboot display has enabled lcdc in boot */
 	if (!support_uboot_display()) {
 		rk_disp_pwr_enable(dev_drv);
@@ -1251,14 +1251,14 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 		    v_DSP_LINE_FLAG_NUM(screen->mode.vsync_len + screen->mode.upper_margin +
 		    screen->mode.yres -1);
 		lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);
- #ifdef CONFIG_RK_FPGA
+ #if 0
 		 mask = m_WIN0_EMPTY_INTR_EN | m_WIN1_EMPTY_INTR_EN | m_WIN2_EMPTY_INTR_EN |
 			 m_WIN3_EMPTY_INTR_EN |m_HWC_EMPTY_INTR_EN | m_POST_BUF_EMPTY_INTR_EN |
 			 m_PWM_GEN_INTR_EN;
 		 val = v_WIN0_EMPTY_INTR_EN(1) | v_WIN1_EMPTY_INTR_EN(1) | v_WIN2_EMPTY_INTR_EN(1) |
 			 v_WIN3_EMPTY_INTR_EN(1)| v_HWC_EMPTY_INTR_EN(1) | v_POST_BUF_EMPTY_INTR_EN(1) |
 			 v_PWM_GEN_INTR_EN(1);
-		 /*lcdc_msk_reg(lcdc_dev, INTR_CTRL1, mask, val);*/
+		 lcdc_msk_reg(lcdc_dev, INTR_CTRL1, mask, val);
 #endif
 		/*lcdc_cfg_done(lcdc_dev);*/
 	}
