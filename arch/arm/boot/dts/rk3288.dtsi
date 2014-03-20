@@ -808,21 +808,21 @@
 		clocks = <&clk_vepu>, <&hclk_vepu>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
-		status = "disabled";
+		//status = "disabled";
 	};
 
-	hevc: hevc_service@ff9c0000 {
+        hevc: hevc_service@ff9c0000 {
 		compatible = "rockchip,hevc_service";
 		reg = <0xff9c0000 0x800>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
 		clocks = <&aclk_hevc>, <&hclk_hevc>, <&clk_hevc_core>, <&clk_hevc_cabac>;
-        clock-names = "aclk_hevc", "hclk_hevc", "clk_core", "clk_cabac";
+                clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
 		name = "hevc_service";
-		status = "disabled";
+		//status = "disabled";
 	};
 
-	iep: iep@ff900000 {
+        iep: iep@ff900000 {
 		compatible = "rockchip,iep";
 		reg = <0xff900000 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;

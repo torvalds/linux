@@ -54,7 +54,7 @@
 #include "vcodec_service.h"
 
 #define HEVC_TEST_ENABLE    0
-#define HEVC_SIM_ENABLE		1
+#define HEVC_SIM_ENABLE		0
 
 typedef enum {
 	VPU_DEC_ID_9190		= 0x6731,
@@ -98,14 +98,6 @@ static struct timeval pp_start,  pp_end;
 #endif
 
 #define MHZ					(1000*1000)
-
-#if 0
-#if defined(CONFIG_ARCH_RK319X)
-#define VCODEC_PHYS             RK319X_VCODEC_PHYS
-#else
-#define VCODEC_PHYS				(0x10104000)
-#endif
-#endif
 
 #define REG_NUM_9190_DEC			(60)
 #define REG_NUM_9190_PP				(41)
@@ -224,6 +216,11 @@ typedef struct vpu_device {
 	volatile u32		*hwregs;
 } vpu_device;
 
+enum vcodec_device_id {
+	VCODEC_DEVICE_ID_VPU,
+	VCODEC_DEVICE_ID_HEVC
+};
+
 typedef struct vpu_service_info {
 	struct wake_lock	wake_lock;
 	struct delayed_work	power_off_work;
@@ -247,6 +244,8 @@ typedef struct vpu_service_info {
 
     struct clk *aclk_vcodec;
     struct clk *hclk_vcodec;
+    struct clk *clk_core;
+    struct clk *clk_cabac;
 
     int irq_dec;
     int irq_enc;
@@ -265,7 +264,11 @@ typedef struct vpu_service_info {
     struct dentry   *debugfs_file_regs;
 
     u32 irq_status;
+#if defined(CONFIG_ION_ROCKCHIP)	
 	struct ion_client * ion_client;
+#endif	
+
+	enum vcodec_device_id dev_id;
 
     struct delayed_work simulate_work;
 } vpu_service_info;
@@ -297,7 +300,7 @@ static const struct file_operations debug_vcodec_fops = {
 #define VPU_POWER_OFF_DELAY		4*HZ /* 4s */
 #define VPU_TIMEOUT_DELAY		2*HZ /* 2s */
 
-#define VPU_SIMULATE_DELAY      msecs_to_jiffies(5)
+#define VPU_SIMULATE_DELAY      msecs_to_jiffies(15)
 
 static void vpu_get_clk(struct vpu_service_info *pservice)
 {
@@ -305,13 +308,27 @@ static void vpu_get_clk(struct vpu_service_info *pservice)
 	if (IS_ERR(pd_video)) {
 		pr_err("failed on clk_get pd_video\n");
 	}*/
+
 	pservice->aclk_vcodec 	= devm_clk_get(pservice->dev, "aclk_vcodec");
 	if (IS_ERR(pservice->aclk_vcodec)) {
 		dev_err(pservice->dev, "failed on clk_get aclk_vcodec\n");
 	}
+
 	pservice->hclk_vcodec 	= devm_clk_get(pservice->dev, "hclk_vcodec");
 	if (IS_ERR(pservice->hclk_vcodec)) {
 		dev_err(pservice->dev, "failed on clk_get hclk_vcodec\n");
+	}
+
+	if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
+		pservice->clk_core = devm_clk_get(pservice->dev, "clk_core");
+		if (IS_ERR(pservice->clk_core)) {
+			dev_err(pservice->dev, "failed on clk_get clk_core\n");
+		}
+
+		pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
+		if (IS_ERR(pservice->clk_cabac)) {
+			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
+		}
 	}
 }
 
@@ -325,6 +342,16 @@ static void vpu_put_clk(struct vpu_service_info *pservice)
 
     if (pservice->hclk_vcodec) {
         devm_clk_put(pservice->dev, pservice->hclk_vcodec);
+    }
+
+    if (pservice->hw_info->hw_id == HEVC_ID) {
+        if (pservice->clk_core) {
+            devm_clk_put(pservice->dev, pservice->clk_core);
+        }
+        
+        if (pservice->clk_cabac) {
+            devm_clk_put(pservice->dev, pservice->clk_cabac);
+        }
     }
 }
 
@@ -427,11 +454,13 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 	//clk_disable(pd_video);
 #endif
 	udelay(10);
-	//clk_disable(hclk_cpu_vcodec);
-	//clk_disable(aclk_ddr_vepu);
 #if 0
 	clk_disable_unprepare(pservice->hclk_vcodec);
 	clk_disable_unprepare(pservice->aclk_vcodec);
+    if (pservice->hw_info->hw_id == HEVC_ID) {
+        clk_disable_unprepare(pservice->clk_core);
+        clk_disable_unprepare(pservice->clk_cabac);
+    }
 #endif
 	wake_unlock(&pservice->wake_lock);
 	printk("done\n");
@@ -474,8 +503,12 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 #if 0
     clk_prepare_enable(pservice->aclk_vcodec);
 	clk_prepare_enable(pservice->hclk_vcodec);
+    if (pservice->hw_info->hw_id == HEVC_ID) {
+        clk_prepare_enable(pservice->clk_core);
+        clk_prepare_enable(pservice->clk_cabac);
+    }
 #endif
-	//clk_prepare_enable(hclk_cpu_vcodec);
+
 #if defined(CONFIG_ARCH_RK319X)
     /// select aclk_vepu as vcodec clock source. 
     #define BIT_VCODEC_SEL  (1<<7)
@@ -488,7 +521,6 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 	//clk_enable(pd_video);
 #endif
 	udelay(10);
-	//clk_enable(aclk_ddr_vepu);
 	wake_lock(&pservice->wake_lock);
 }
 
@@ -786,15 +818,28 @@ static void reg_copy_to_hw(struct vpu_service_info *pservice, vpu_reg *reg)
 	} break;
 	case VPU_DEC : {
 		u32 *dst = (u32 *)pservice->dec_dev.hwregs;
+
 		pservice->reg_codec = reg;
 
-		for (i = REG_NUM_9190_DEC - 1; i > VPU_REG_DEC_GATE; i--)
-			dst[i] = src[i];
+        if (pservice->hw_info->hw_id != HEVC_ID) {
+			for (i = REG_NUM_9190_DEC - 1; i > VPU_REG_DEC_GATE; i--)
+				dst[i] = src[i];
+        } else {
+            for (i = REG_NUM_HEVC_DEC - 1; i > VPU_REG_EN_DEC; i--) {
+				dst[i] = src[i];
+            }
+		}
 
 		dsb();
 
-		dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
-		dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
+		if (pservice->hw_info->hw_id != HEVC_ID) {
+			dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
+			dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
+		} else {
+			dst[VPU_REG_EN_DEC] = src[VPU_REG_EN_DEC];
+		}
+        dsb();
+        dmb();
 
 #if VPU_SERVICE_SHOW_TIME
 		do_gettimeofday(&dec_start);
@@ -1183,6 +1228,15 @@ static int vcodec_probe(struct platform_device *pdev)
 
     of_property_read_string(np, "name", (const char**)&prop);
     dev_set_name(dev, prop);
+
+	if (strcmp(dev_name(dev), "hevc_service") == 0) {
+		pservice->dev_id = VCODEC_DEVICE_ID_HEVC;
+    } else if (strcmp(dev_name(dev), "vpu_service") == 0) {
+		pservice->dev_id = VCODEC_DEVICE_ID_VPU;
+    } else {
+		dev_err(dev, "Unknown device %s to probe\n", dev_name(dev));
+		return -1;
+	}
 
     wake_lock_init(&pservice->wake_lock, WAKE_LOCK_SUSPEND, "vpu");
     INIT_LIST_HEAD(&pservice->waiting);
@@ -1621,6 +1675,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
     struct vpu_service_info *pservice = (struct vpu_service_info*)dev_id;
     vpu_device *dev = &pservice->dec_dev;
 	u32 irq_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
+    int i;
 
 	pr_debug("dec_irq\n");
 
@@ -1846,7 +1901,7 @@ static int debug_vcodec_open(struct inode *inode, struct file *file)
 
 #endif
 
-#if HEVC_TEST_ENABLE
+#if HEVC_TEST_ENABLE & defined(CONFIG_ION_ROCKCHIP)
 #include "hevc_test_inc/pps_00.h"
 #include "hevc_test_inc/register_00.h"
 #include "hevc_test_inc/rps_00.h"
@@ -1861,12 +1916,55 @@ static int debug_vcodec_open(struct inode *inode, struct file *file)
 
 #include "hevc_test_inc/cabac.h"
 
+extern struct ion_client *rockchip_ion_client_create(const char * name);
+
+static struct ion_client *ion_client = NULL;
+u8* get_align_ptr(u8* tbl, int len, u32 *phy)
+{
+	int size = (len+15) & (~15);
+    struct ion_handle *handle;
+	u8 *ptr;// = (u8*)kzalloc(size, GFP_KERNEL);
+
+    if (ion_client == NULL) {
+        ion_client = rockchip_ion_client_create("vcodec");
+    }
+
+    handle = ion_alloc(ion_client, (size_t)len, 16, ION_HEAP(ION_CMA_HEAP_ID), 0);
+
+    ptr = ion_map_kernel(ion_client, handle);
+
+    ion_phys(ion_client, handle, phy, &size);
+
+	memcpy(ptr, tbl, len);
+
+	return ptr;
+}
+
+u8* get_align_ptr_no_copy(int len, u32 *phy)
+{
+	int size = (len+15) & (~15);
+    struct ion_handle *handle;
+	u8 *ptr;// = (u8*)kzalloc(size, GFP_KERNEL);
+
+    if (ion_client == NULL) {
+        ion_client = rockchip_ion_client_create("vcodec");
+    }
+
+    handle = ion_alloc(ion_client, (size_t)len, 16, ION_HEAP(ION_CMA_HEAP_ID), 0);
+
+    ptr = ion_map_kernel(ion_client, handle);
+
+    ion_phys(ion_client, handle, phy, &size);
+
+	return ptr;
+}
+
 #define TEST_CNT    2
 static int hevc_test_case0(vpu_service_info *pservice)
 {
     vpu_session session;
     vpu_reg *reg; 
-    unsigned long size = sizeof(register_00); // registers array length
+    unsigned long size = 272;//sizeof(register_00); // registers array length
     int testidx = 0;
     int ret = 0;
 
@@ -1876,17 +1974,30 @@ static int hevc_test_case0(vpu_service_info *pservice)
     u8 *scaling_list_tbl[TEST_CNT];
     u8 *stream_tbl[TEST_CNT];
 
-    int stream_size[2];
-
+	int stream_size[2];
+	int pps_size[2];
+	int rps_size[2];
+	int scl_size[2];
+	int cabac_size[2];
+	
     u32 phy_pps;
     u32 phy_rps;
     u32 phy_scl;
     u32 phy_str;
     u32 phy_yuv;
+    u32 phy_ref;
     u32 phy_cabac;
 
+	volatile u8 *stream_buf;
+	volatile u8 *pps_buf;
+	volatile u8 *rps_buf;
+	volatile u8 *scl_buf;
+	volatile u8 *yuv_buf;
+	volatile u8 *cabac_buf;
+	volatile u8 *ref_buf;
+
     u8 *pps;
-    u8 *yuv;
+    u8 *yuv[2];
     int i;
     
     pps_tbl[0] = pps_00;
@@ -1907,6 +2018,18 @@ static int hevc_test_case0(vpu_service_info *pservice)
     stream_size[0] = sizeof(stream_00);
     stream_size[1] = sizeof(stream_01);
 
+	pps_size[0] = sizeof(pps_00);
+	pps_size[1] = sizeof(pps_01);
+
+	rps_size[0] = sizeof(rps_00);
+	rps_size[1] = sizeof(rps_01);
+
+	scl_size[0] = sizeof(scaling_list_00);
+	scl_size[1] = sizeof(scaling_list_01);
+	
+	cabac_size[0] = sizeof(Cabac_table);
+	cabac_size[1] = sizeof(Cabac_table);
+
     // create session
     session.pid = current->pid;
     session.type = VPU_DEC;
@@ -1918,13 +2041,18 @@ static int hevc_test_case0(vpu_service_info *pservice)
 	atomic_set(&session.task_running, 0);
 	list_add_tail(&session.list_session, &pservice->session);
 
-    while (testidx < TEST_CNT) {
+    yuv[0] = get_align_ptr_no_copy(256*256*2, &phy_yuv);
+    yuv[1] = get_align_ptr_no_copy(256*256*2, &phy_ref);
+
+	while (testidx < TEST_CNT) {
+	
         // create registers
         reg = kmalloc(sizeof(vpu_reg)+pservice->reg_size, GFP_KERNEL);
         if (NULL == reg) {
             pr_err("error: kmalloc fail in reg_init\n");
             return -1;
         }
+
 
         if (size > pservice->reg_size) {
             printk("warning: vpu reg size %lu is larger than hw reg size %lu\n", size, pservice->reg_size);
@@ -1938,20 +2066,18 @@ static int hevc_test_case0(vpu_service_info *pservice)
         INIT_LIST_HEAD(&reg->session_link);
         INIT_LIST_HEAD(&reg->status_link);
 
-        pps = kmalloc(sizeof(pps_00), GFP_KERNEL);
-        yuv = kzalloc(256*256*3/2, GFP_KERNEL);
-        memcpy(pps, pps_tbl[testidx], sizeof(pps_00));
-
         // TODO: stuff registers
-        memcpy(&reg->reg[0], register_tbl[testidx], sizeof(register_00));
+        memcpy(&reg->reg[0], register_tbl[testidx], /*sizeof(register_00)*/ 176);
+
+		stream_buf = get_align_ptr(stream_tbl[testidx], stream_size[testidx], &phy_str);
+		pps_buf = get_align_ptr(pps_tbl[0], pps_size[0], &phy_pps);
+		rps_buf = get_align_ptr(rps_tbl[testidx], rps_size[testidx], &phy_rps);
+		scl_buf = get_align_ptr(scaling_list_tbl[testidx], scl_size[testidx], &phy_scl);
+		cabac_buf = get_align_ptr(Cabac_table, cabac_size[testidx], &phy_cabac);
+
+		pps = pps_buf;
 
         // TODO: replace reigster address
-        phy_pps = virt_to_phys(pps);
-        phy_rps = virt_to_phys(rps_tbl[testidx]);
-        phy_scl = virt_to_phys(scaling_list_tbl[testidx]);
-        phy_str = virt_to_phys(stream_tbl[testidx]);
-        phy_yuv = virt_to_phys(yuv);
-        phy_cabac = virt_to_phys(Cabac_table);
 
         for (i=0; i<64; i++) {
             u32 scaling_offset;
@@ -1970,17 +2096,18 @@ static int hevc_test_case0(vpu_service_info *pservice)
             pps[i*80+77] = (tmp >> 24) & 0xff;
         }
 
-        dmac_flush_range(&pps[0], &pps[sizeof(pps_00) - 1]);
-        outer_flush_range(phy_pps, phy_pps + sizeof(pps_00) - 1);
-
         printk("%s %d, phy stream %08x, phy pps %08x, phy rps %08x\n", __func__, __LINE__, phy_str, phy_pps, phy_rps);
 
+        reg->reg[1] = 0x21;
         reg->reg[4] = phy_str;
         reg->reg[5] = ((stream_size[testidx]+15)&(~15))+64;
         reg->reg[6] = phy_cabac;
-        reg->reg[7] = phy_yuv;
+        reg->reg[7] = testidx?phy_ref:phy_yuv;
         reg->reg[42] = phy_pps;
         reg->reg[43] = phy_rps;
+        for (i = 10; i <= 24; i++) {
+            reg->reg[i] = phy_yuv;
+        }
 
         mutex_lock(&pservice->lock);
         list_add_tail(&reg->status_link, &pservice->waiting);
@@ -2029,8 +2156,6 @@ static int hevc_test_case0(vpu_service_info *pservice)
         	}
 
             pr_err("test index %d failed\n", testidx);
-            kfree(pps);
-            kfree(yuv);
             break;
         } else {
             pr_info("test index %d success\n", testidx);
@@ -2051,8 +2176,6 @@ static int hevc_test_case0(vpu_service_info *pservice)
         }
 
         reg_deinit(pservice, reg);
-        kfree(pps);
-        kfree(yuv);
     }
 
     return 0;
