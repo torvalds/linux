@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -1997,6 +1998,7 @@ boot_device_fail:
 static int stfsm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct mtd_part_parser_data ppdata;
 	struct flash_info *info;
 	struct resource *res;
 	struct stfsm *fsm;
@@ -2006,6 +2008,7 @@ static int stfsm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No DT found\n");
 		return -EINVAL;
 	}
+	ppdata.of_node = np;
 
 	fsm = devm_kzalloc(&pdev->dev, sizeof(*fsm), GFP_KERNEL);
 	if (!fsm)
@@ -2062,6 +2065,7 @@ static int stfsm_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+	fsm->mtd.name		= info->name;
 	fsm->mtd.dev.parent	= &pdev->dev;
 	fsm->mtd.type		= MTD_NORFLASH;
 	fsm->mtd.writesize	= 4;
@@ -2081,7 +2085,7 @@ static int stfsm_probe(struct platform_device *pdev)
 		(long long)fsm->mtd.size, (long long)(fsm->mtd.size >> 20),
 		fsm->mtd.erasesize, (fsm->mtd.erasesize >> 10));
 
-	return mtd_device_parse_register(&fsm->mtd, NULL, NULL, NULL, 0);
+	return mtd_device_parse_register(&fsm->mtd, NULL, &ppdata, NULL, 0);
 }
 
 static int stfsm_remove(struct platform_device *pdev)
