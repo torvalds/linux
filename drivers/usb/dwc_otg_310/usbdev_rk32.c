@@ -19,8 +19,9 @@ static void usb20otg_hw_init(void)
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-//	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
-
+	/*if(gpio_get_value(control_usb->otg_gpios->gpio)){
+		gpio_set_value(control_usb->otg_gpios->gpio, 0);
+	}*/
 }
 
 static void usb20otg_phy_suspend(void* pdata, int suspend)
@@ -166,7 +167,9 @@ static void usb20host_hw_init(void)
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-//	gpio_direction_output(control_usb->host_gpios->gpio, 1);
+	/*if(!gpio_get_value(control_usb->host_gpios->gpio)){
+		gpio_set_value(control_usb->host_gpios->gpio, 1);
+	}*/
 }
 
 static void usb20host_phy_suspend(void* pdata, int suspend)
@@ -387,17 +390,54 @@ struct rkehci_platform_data rkhsic_pdata_rk3288 = {
 #ifdef CONFIG_USB_EHCI_RK
 static void rk_ehci_hw_init(void)
 {
+	/* usb phy config init */
 
+	/* DRV_VBUS GPIO init */
+	/*if(!gpio_get_value(control_usb->host_gpios->gpio)){
+		gpio_set_value(control_usb->host_gpios->gpio, 1);
+	}*/
 }
 
 static void rk_ehci_clock_init(void* pdata)
 {
+/*
+	struct rkehci_platform_data *usbpdata=pdata;
+	struct clk* ahbclk,*phyclk;
 
+	ahbclk = of_clk_get_by_name(of_get_parent(usbpdata->dev.of_node), "hclk_usb2");
+	if (IS_ERR(ahbclk)) {
+		dev_err(usbpdata->dev, "Failed to get hclk_usb2\n");
+		return;
+	}
+
+	phyclk = of_clk_get_by_name(of_get_parent(usbpdata->dev.of_node), "clk_usbphy2");
+	if (IS_ERR(phyclk)) {
+		dev_err(usbpdata->dev, "Failed to get clk_usbphy2\n");
+		return;
+	}
+
+	usbpdata->phyclk = phyclk;
+	usbpdata->ahbclk = ahbclk;
+*/
 }
 
 static void rk_ehci_clock_enable(void* pdata, int enable)
 {
+/*
+	struct rkehci_platform_data *usbpdata=pdata;
 
+	if(enable == usbpdata->clk_status)
+		return;
+	if(enable){
+		clk_prepare_enable(usbpdata->ahbclk);
+		clk_prepare_enable(usbpdata->phyclk);
+		usbpdata->clk_status = 1;
+	}else{
+		clk_disable_unprepare(usbpdata->ahbclk);
+		clk_disable_unprepare(usbpdata->phyclk);
+		usbpdata->clk_status = 0;
+	}
+*/
 }
 
 static void rk_ehci_soft_reset(void)
@@ -419,14 +459,54 @@ struct rkehci_platform_data rkehci_pdata_rk3288 = {
 #ifdef CONFIG_USB_OHCI_HCD_RK
 static void rk_ohci_hw_init(void)
 {
+	/* usb phy config init */
+
+	/* DRV_VBUS GPIO init */
+	/*if(!gpio_get_value(control_usb->host_gpios->gpio)){
+		gpio_set_value(control_usb->host_gpios->gpio, 1);
+	}*/
 }
 
 static void rk_ohci_clock_init(void* pdata)
 {
+/*
+	struct rkehci_platform_data *usbpdata=pdata;
+	struct clk* ahbclk,*phyclk;
+
+	ahbclk = of_clk_get_by_name(of_get_parent(usbpdata->dev.of_node), "hclk_usb2");
+	if (IS_ERR(ahbclk)) {
+		dev_err(usbpdata->dev, "Failed to get hclk_usb2\n");
+		return;
+	}
+
+	phyclk = of_clk_get_by_name(of_get_parent(usbpdata->dev.of_node), "clk_usbphy2");
+	if (IS_ERR(phyclk)) {
+		dev_err(usbpdata->dev, "Failed to get clk_usbphy2\n");
+		return;
+	}
+
+	usbpdata->phyclk = phyclk;
+	usbpdata->ahbclk = ahbclk;
+*/
 }
 
 static void rk_ohci_clock_enable(void* pdata, int enable)
 {
+/*
+	struct rkehci_platform_data *usbpdata=pdata;
+
+	if(enable == usbpdata->clk_status)
+		return;
+	if(enable){
+		clk_prepare_enable(usbpdata->ahbclk);
+		clk_prepare_enable(usbpdata->phyclk);
+		usbpdata->clk_status = 1;
+	}else{
+		clk_disable_unprepare(usbpdata->ahbclk);
+		clk_disable_unprepare(usbpdata->phyclk);
+		usbpdata->clk_status = 0;
+	}
+*/
 }
 
 static void rk_ohci_soft_reset(void)
@@ -767,6 +847,11 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	}
 /*
 	control_usb->host_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
+	if(!control_usb->host_gpios){
+		dev_err(&pdev->dev, "unable to alloc memory for host_gpios\n");
+		ret =  -ENOMEM;
+		goto err2;
+	}
 
 	gpio =  of_get_named_gpio(np, "gpios", 0);
 	if(!gpio_is_valid(gpio)){
@@ -783,8 +868,14 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = err;
 		goto err2;
 	}
+	gpio_direction_output(control_usb->host_gpios->gpio, 1);
 
 	control_usb->otg_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
+	if(!control_usb->otg_gpios){
+		dev_err(&pdev->dev, "unable to alloc memory for otg_gpios\n");
+		ret =  -ENOMEM;
+		goto err2;
+	}
 
 	gpio =  of_get_named_gpio(np, "gpios", 1);
 	if(!gpio_is_valid(gpio)){
@@ -801,6 +892,7 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = err;
 		goto err2;
 	}
+	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
 */
 /* disable for debug
 	ret = otg_irq_detect_init(pdev);

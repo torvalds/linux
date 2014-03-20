@@ -21,7 +21,9 @@ static void usb20otg_hw_init(void)
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
+	if(gpio_get_value(control_usb->otg_gpios->gpio)){
+		gpio_set_value(control_usb->otg_gpios->gpio, 0);
+	}
 }
 
 static void usb20otg_phy_suspend(void* pdata, int suspend)
@@ -166,8 +168,9 @@ static void usb20host_hw_init(void)
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-	gpio_direction_output(control_usb->host_gpios->gpio, 1);
-
+	if(!gpio_get_value(control_usb->host_gpios->gpio)){
+		gpio_set_value(control_usb->host_gpios->gpio, 1);
+	}
 }
 
 static void usb20host_phy_suspend(void* pdata, int suspend)
@@ -540,7 +543,13 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
+	/* init host gpio */
 	control_usb->host_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
+	if(!control_usb->host_gpios){
+		dev_err(&pdev->dev, "unable to alloc memory for host_gpios\n");
+		ret =  -ENOMEM;
+		goto err2;
+	}
 
 	gpio =  of_get_named_gpio(np, "gpios", 0);
 	if(!gpio_is_valid(gpio)){
@@ -548,7 +557,9 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err2;
 	}
+
 	control_usb->host_gpios->gpio = gpio;
+
 	err = devm_gpio_request(&pdev->dev, gpio, "host_drv_gpio");
 	if (err) {
 		dev_err(&pdev->dev,
@@ -557,8 +568,15 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = err;
 		goto err2;
 	}
+	gpio_direction_output(control_usb->host_gpios->gpio, 1);
 
+	/* init otg gpio */
 	control_usb->otg_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
+	if(!control_usb->otg_gpios){
+		dev_err(&pdev->dev, "unable to alloc memory for otg_gpios\n");
+		ret =  -ENOMEM;
+		goto err2;
+	}
 
 	gpio =  of_get_named_gpio(np, "gpios", 1);
 	if(!gpio_is_valid(gpio)){
@@ -575,6 +593,8 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		ret = err;
 		goto err2;
 	}
+	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
+
 	ret = otg_irq_detect_init(pdev);
 	if (ret < 0)
 		goto err2;
