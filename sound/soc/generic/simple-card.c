@@ -20,9 +20,11 @@
 
 struct simple_card_data {
 	struct snd_soc_card snd_card;
-	struct asoc_simple_dai cpu_dai;
-	struct asoc_simple_dai codec_dai;
-	struct snd_soc_dai_link snd_link;
+	struct simple_dai_props {
+		struct asoc_simple_dai cpu_dai;
+		struct asoc_simple_dai codec_dai;
+	} *dai_props;
+	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
 static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
@@ -70,11 +72,11 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *cpu = rtd->cpu_dai;
 	int ret;
 
-	ret = __asoc_simple_card_dai_init(codec, &priv->codec_dai);
+	ret = __asoc_simple_card_dai_init(codec, &priv->dai_props->codec_dai);
 	if (ret < 0)
 		return ret;
 
-	ret = __asoc_simple_card_dai_init(cpu, &priv->cpu_dai);
+	ret = __asoc_simple_card_dai_init(cpu, &priv->dai_props->cpu_dai);
 	if (ret < 0)
 		return ret;
 
@@ -151,8 +153,8 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct device *dev)
 {
 	struct snd_soc_dai_link *dai_link = priv->snd_card.dai_link;
-	struct asoc_simple_dai *codec_dai = &priv->codec_dai;
-	struct asoc_simple_dai *cpu_dai = &priv->cpu_dai;
+	struct asoc_simple_dai *codec_dai = &priv->dai_props->codec_dai;
+	struct asoc_simple_dai *cpu_dai = &priv->dai_props->cpu_dai;
 	struct device_node *np;
 	char *name;
 	unsigned int daifmt;
@@ -284,7 +286,10 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	/* allocate the private data and the DAI link array */
+	priv = devm_kzalloc(dev,
+			sizeof(*priv) + sizeof(*dai_link),
+			GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -293,9 +298,16 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	 */
 	priv->snd_card.owner = THIS_MODULE;
 	priv->snd_card.dev = dev;
-	dai_link = &priv->snd_link;
+	dai_link = priv->dai_link;
 	priv->snd_card.dai_link = dai_link;
 	priv->snd_card.num_links = 1;
+
+	/* get room for the other properties */
+	priv->dai_props = devm_kzalloc(dev,
+			sizeof(*priv->dai_props),
+			GFP_KERNEL);
+	if (!priv->dai_props)
+		return -ENOMEM;
 
 	if (np && of_device_is_available(np)) {
 
@@ -330,13 +342,13 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		dai_link->codec_name	= cinfo->codec;
 		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
 		dai_link->codec_dai_name = cinfo->codec_dai.name;
-		memcpy(&priv->cpu_dai, &cinfo->cpu_dai,
-						sizeof(priv->cpu_dai));
-		memcpy(&priv->codec_dai, &cinfo->codec_dai,
-						sizeof(priv->codec_dai));
+		memcpy(&priv->dai_props->cpu_dai, &cinfo->cpu_dai,
+					sizeof(priv->dai_props->cpu_dai));
+		memcpy(&priv->dai_props->codec_dai, &cinfo->codec_dai,
+					sizeof(priv->dai_props->codec_dai));
 
-		priv->cpu_dai.fmt	|= cinfo->daifmt;
-		priv->codec_dai.fmt	|= cinfo->daifmt;
+		priv->dai_props->cpu_dai.fmt	|= cinfo->daifmt;
+		priv->dai_props->codec_dai.fmt	|= cinfo->daifmt;
 	}
 
 	/*
