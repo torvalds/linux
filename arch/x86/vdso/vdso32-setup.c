@@ -29,6 +29,7 @@
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
 #include <asm/vvar.h>
+#include "vdso_image.h"
 
 #ifdef CONFIG_COMPAT_VDSO
 #define VDSO_DEFAULT	0
@@ -40,6 +41,12 @@
 #define vdso_enabled			sysctl_vsyscall32
 #define arch_setup_additional_pages	syscall32_setup_pages
 #endif
+
+DECLARE_VDSO_IMAGE(vdso32_int80);
+#ifdef CONFIG_COMPAT
+DECLARE_VDSO_IMAGE(vdso32_syscall);
+#endif
+DECLARE_VDSO_IMAGE(vdso32_sysenter);
 
 /*
  * Should the kernel map a VDSO page into processes and pass its
@@ -71,7 +78,7 @@ EXPORT_SYMBOL_GPL(vdso_enabled);
 #endif
 
 static struct page **vdso32_pages;
-static unsigned int vdso32_size;
+static unsigned vdso32_size;
 
 #ifdef CONFIG_X86_64
 
@@ -117,31 +124,32 @@ void enable_sep_cpu(void)
 
 int __init sysenter_setup(void)
 {
-	void *vdso_pages;
-	const void *vdso;
-	size_t vdso_len;
-	unsigned int i;
+	char *vdso32_start, *vdso32_end;
+	int npages, i;
 
+#ifdef CONFIG_COMPAT
 	if (vdso32_syscall()) {
-		vdso = &vdso32_syscall_start;
-		vdso_len = &vdso32_syscall_end - &vdso32_syscall_start;
-	} else if (vdso32_sysenter()){
-		vdso = &vdso32_sysenter_start;
-		vdso_len = &vdso32_sysenter_end - &vdso32_sysenter_start;
+		vdso32_start = vdso32_syscall_start;
+		vdso32_end = vdso32_syscall_end;
+		vdso32_pages = vdso32_syscall_pages;
+	} else
+#endif
+	if (vdso32_sysenter()) {
+		vdso32_start = vdso32_sysenter_start;
+		vdso32_end = vdso32_sysenter_end;
+		vdso32_pages = vdso32_sysenter_pages;
 	} else {
-		vdso = &vdso32_int80_start;
-		vdso_len = &vdso32_int80_end - &vdso32_int80_start;
+		vdso32_start = vdso32_int80_start;
+		vdso32_end = vdso32_int80_end;
+		vdso32_pages = vdso32_int80_pages;
 	}
 
-	vdso32_size = (vdso_len + PAGE_SIZE - 1) / PAGE_SIZE;
-	vdso32_pages = kmalloc(sizeof(*vdso32_pages) * vdso32_size, GFP_ATOMIC);
-	vdso_pages = kmalloc(VDSO_OFFSET(vdso32_size), GFP_ATOMIC);
+	npages = ((vdso32_end - vdso32_start) + PAGE_SIZE - 1) / PAGE_SIZE;
+	vdso32_size = npages << PAGE_SHIFT;
+	for (i = 0; i < npages; i++)
+		vdso32_pages[i] = virt_to_page(vdso32_start + i*PAGE_SIZE);
 
-	for(i = 0; i != vdso32_size; ++i)
-		vdso32_pages[i] = virt_to_page(vdso_pages + VDSO_OFFSET(i));
-
-	memcpy(vdso_pages, vdso, vdso_len);
-	patch_vdso32(vdso_pages, vdso_len);
+	patch_vdso32(vdso32_start, vdso32_size);
 
 	return 0;
 }
@@ -177,7 +185,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 */
 	ret = install_special_mapping(mm,
 			addr,
-			VDSO_OFFSET(vdso32_size),
+			vdso32_size,
 			VM_READ|VM_EXEC|
 			VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 			vdso32_pages);

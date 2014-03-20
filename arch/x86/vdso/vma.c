@@ -15,19 +15,17 @@
 #include <asm/proto.h>
 #include <asm/vdso.h>
 #include <asm/page.h>
+#include "vdso_image.h"
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso_enabled = 1;
 
-extern char vdso_start[], vdso_end[];
+DECLARE_VDSO_IMAGE(vdso);
 extern unsigned short vdso_sync_cpuid;
-
-extern struct page *vdso_pages[];
 static unsigned vdso_size;
 
 #ifdef CONFIG_X86_X32_ABI
-extern char vdsox32_start[], vdsox32_end[];
-extern struct page *vdsox32_pages[];
+DECLARE_VDSO_IMAGE(vdsox32);
 static unsigned vdsox32_size;
 #endif
 #endif
