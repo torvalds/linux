@@ -210,6 +210,14 @@ config MTD_DOCG3
 	  M-Systems and now Sandisk. The support is very experimental,
 	  and doesn't give access to any write operations.
 
+config MTD_ST_SPI_FSM
+	tristate "ST Microelectronics SPI FSM Serial Flash Controller"
+	depends on ARM || SH
+	help
+	  This provides an MTD device driver for the ST Microelectronics
+	  SPI Fast Sequence Mode (FSM) Serial Flash Controller and support
+	  for a subset of connected Serial Flash devices.
+
 if MTD_DOCG3
 config BCH_CONST_M
 	default 14
