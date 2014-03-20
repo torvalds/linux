@@ -38,7 +38,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 34
+#define DRV_VERSION_BUILD 36
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2181,6 +2181,11 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	tx_ctx.fd_ena = !!(vsi->back->flags & (I40E_FLAG_FD_SB_ENABLED |
 					       I40E_FLAG_FD_ATR_ENABLED));
 	tx_ctx.timesync_ena = !!(vsi->back->flags & I40E_FLAG_PTP);
+	/* FDIR VSI tx ring can still use RS bit and writebacks */
+	if (vsi->type != I40E_VSI_FDIR)
+		tx_ctx.head_wb_ena = 1;
+	tx_ctx.head_wb_addr = ring->dma +
+			      (ring->count * sizeof(struct i40e_tx_desc));
 
 	/* As part of VSI creation/update, FW allocates certain
 	 * Tx arbitration queue sets for each TC enabled for
@@ -4235,7 +4240,6 @@ static int i40e_open(struct net_device *netdev)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	char int_name[IFNAMSIZ];
 	int err;
 
 	/* disallow open during test */
@@ -4243,6 +4247,31 @@ static int i40e_open(struct net_device *netdev)
 		return -EBUSY;
 
 	netif_carrier_off(netdev);
+
+	err = i40e_vsi_open(vsi);
+	if (err)
+		return err;
+
+#ifdef CONFIG_I40E_VXLAN
+	vxlan_get_rx_port(netdev);
+#endif
+
+	return 0;
+}
+
+/**
+ * i40e_vsi_open -
+ * @vsi: the VSI to open
+ *
+ * Finish initialization of the VSI.
+ *
+ * Returns 0 on success, negative value on failure
+ **/
+int i40e_vsi_open(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+	char int_name[IFNAMSIZ];
+	int err;
 
 	/* allocate descriptors */
 	err = i40e_vsi_setup_tx_resources(vsi);
@@ -4256,28 +4285,28 @@ static int i40e_open(struct net_device *netdev)
 	if (err)
 		goto err_setup_rx;
 
+	if (!vsi->netdev) {
+		err = EINVAL;
+		goto err_setup_rx;
+	}
 	snprintf(int_name, sizeof(int_name) - 1, "%s-%s",
-		 dev_driver_string(&pf->pdev->dev), netdev->name);
+		 dev_driver_string(&pf->pdev->dev), vsi->netdev->name);
 	err = i40e_vsi_request_irq(vsi, int_name);
 	if (err)
 		goto err_setup_rx;
 
 	/* Notify the stack of the actual queue counts. */
-	err = netif_set_real_num_tx_queues(netdev, vsi->num_queue_pairs);
+	err = netif_set_real_num_tx_queues(vsi->netdev, vsi->num_queue_pairs);
 	if (err)
 		goto err_set_queues;
 
-	err = netif_set_real_num_rx_queues(netdev, vsi->num_queue_pairs);
+	err = netif_set_real_num_rx_queues(vsi->netdev, vsi->num_queue_pairs);
 	if (err)
 		goto err_set_queues;
 
 	err = i40e_up_complete(vsi);
 	if (err)
 		goto err_up_complete;
-
-#ifdef CONFIG_I40E_VXLAN
-	vxlan_get_rx_port(netdev);
-#endif
 
 	return 0;
 
@@ -6409,6 +6438,39 @@ sw_init_done:
 }
 
 /**
+ * i40e_set_ntuple - set the ntuple feature flag and take action
+ * @pf: board private structure to initialize
+ * @features: the feature set that the stack is suggesting
+ *
+ * returns a bool to indicate if reset needs to happen
+ **/
+bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
+{
+	bool need_reset = false;
+
+	/* Check if Flow Director n-tuple support was enabled or disabled.  If
+	 * the state changed, we need to reset.
+	 */
+	if (features & NETIF_F_NTUPLE) {
+		/* Enable filters and mark for reset */
+		if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+			need_reset = true;
+		pf->flags |= I40E_FLAG_FD_SB_ENABLED;
+	} else {
+		/* turn off filters, mark for reset and clear SW filter list */
+		if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
+			need_reset = true;
+			i40e_fdir_filter_exit(pf);
+		}
+		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		/* if ATR was disabled it can be re-enabled. */
+		if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
+			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+	}
+	return need_reset;
+}
+
+/**
  * i40e_set_features - set the netdev feature flags
  * @netdev: ptr to the netdev being adjusted
  * @features: the feature set that the stack is suggesting
@@ -6418,11 +6480,18 @@ static int i40e_set_features(struct net_device *netdev,
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	bool need_reset;
 
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		i40e_vlan_stripping_enable(vsi);
 	else
 		i40e_vlan_stripping_disable(vsi);
+
+	need_reset = i40e_set_ntuple(pf, features);
+
+	if (need_reset)
+		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
 
 	return 0;
 }
@@ -6547,6 +6616,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_vlan	= i40e_ndo_set_vf_port_vlan,
 	.ndo_set_vf_tx_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
+	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
@@ -6594,6 +6664,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			   NETIF_F_TSO		       |
 			   NETIF_F_TSO6		       |
 			   NETIF_F_RXCSUM	       |
+			   NETIF_F_NTUPLE	       |
 			   NETIF_F_RXHASH	       |
 			   0;
 

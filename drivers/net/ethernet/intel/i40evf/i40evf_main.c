@@ -31,7 +31,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710 X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "0.9.14"
+#define DRV_VERSION "0.9.16"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2014 Intel Corporation.";
@@ -1140,8 +1140,8 @@ static int i40evf_set_interrupt_capability(struct i40evf_adapter *adapter)
 	 * than CPU's.  So let's be conservative and only ask for
 	 * (roughly) twice the number of vectors as there are CPU's.
 	 */
-	v_budget = min(pairs, (int)(num_online_cpus() * 2)) + NONQ_VECS;
-	v_budget = min(v_budget, (int)adapter->vf_res->max_vectors);
+	v_budget = min_t(int, pairs, (int)(num_online_cpus() * 2)) + NONQ_VECS;
+	v_budget = min_t(int, v_budget, (int)adapter->vf_res->max_vectors);
 
 	/* A failure in MSI-X entry allocation isn't fatal, but it does
 	 * mean we disable MSI-X capabilities of the adapter.
@@ -1414,6 +1414,13 @@ restart_watchdog:
 	schedule_work(&adapter->adminq_task);
 }
 
+static int next_queue(struct i40evf_adapter *adapter, int j)
+{
+	j += 1;
+
+	return j >= adapter->vsi_res->num_queue_pairs ? 0 : j;
+}
+
 /**
  * i40evf_configure_rss - Prepare for RSS if used
  * @adapter: board private structure
@@ -1444,15 +1451,13 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
-	for (i = 0, j = 0; i < I40E_VFQF_HLUT_MAX_INDEX; i++, j++) {
-		if (j == adapter->vsi_res->num_queue_pairs)
-			j = 0;
-		/* lut = 4-byte sliding window of 4 lut entries */
-		lut = (lut << 8) | (j &
-			 ((0x1 << 8) - 1));
-		/* On i = 3, we have 4 entries in lut; write to the register */
-		if ((i & 3) == 3)
-			wr32(hw, I40E_VFQF_HLUT(i >> 2), lut);
+	j = adapter->vsi_res->num_queue_pairs;
+	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
+		lut = next_queue(adapter, j);
+		lut |= next_queue(adapter, j) << 8;
+		lut |= next_queue(adapter, j) << 16;
+		lut |= next_queue(adapter, j) << 24;
+		wr32(hw, I40E_VFQF_HLUT(i), lut);
 	}
 	i40e_flush(hw);
 }

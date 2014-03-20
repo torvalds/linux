@@ -799,7 +799,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 
 	/* Initialize the time sync interrupts for devices that support it. */
 	if (hw->mac.type >= e1000_82580) {
-		wr32(E1000_TSIM, E1000_TSIM_TXTS);
+		wr32(E1000_TSIM, TSYNC_INTERRUPTS);
 		wr32(E1000_IMS, E1000_IMS_TS);
 	}
 
@@ -877,7 +877,7 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 	case e1000_i211:
 		/* Enable the timer functions and interrupts. */
 		wr32(E1000_TSAUXC, 0x0);
-		wr32(E1000_TSIM, E1000_TSIM_TXTS);
+		wr32(E1000_TSIM, TSYNC_INTERRUPTS);
 		wr32(E1000_IMS, E1000_IMS_TS);
 		break;
 	default:

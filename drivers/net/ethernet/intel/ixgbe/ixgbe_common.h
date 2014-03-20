@@ -133,6 +133,7 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 #define IXGBE_FAILED_READ_CFG_WORD 0xffffU
 
 u16 ixgbe_read_pci_cfg_word(struct ixgbe_hw *hw, u32 reg);
+void ixgbe_write_pci_cfg_word(struct ixgbe_hw *hw, u32 reg, u16 value);
 
 static inline bool ixgbe_removed(void __iomem *addr)
 {
