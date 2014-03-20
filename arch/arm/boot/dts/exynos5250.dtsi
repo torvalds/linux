@@ -23,7 +23,7 @@
 #include <dt-bindings/clk/exynos-audss-clk.h>
 
 / {
-	compatible = "samsung,exynos5250";
+	compatible = "samsung,exynos5250", "samsung,exynos5";
 
 	aliases {
 		spi0 = &spi_0;

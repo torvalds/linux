@@ -17,7 +17,7 @@
 
 / {
 	model = "Samsung SMDK evaluation board based on Exynos4412";
-	compatible = "samsung,smdk4412", "samsung,exynos4412";
+	compatible = "samsung,smdk4412", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
 		reg = <0x40000000 0x40000000>;

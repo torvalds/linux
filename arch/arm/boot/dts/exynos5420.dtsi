@@ -19,7 +19,7 @@
 #include <dt-bindings/clk/exynos-audss-clk.h>
 
 / {
-	compatible = "samsung,exynos5420";
+	compatible = "samsung,exynos5420", "samsung,exynos5";
 
 	aliases {
 		mshc0 = &mmc_0;

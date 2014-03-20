@@ -20,7 +20,7 @@
 #include "exynos4x12.dtsi"
 
 / {
-	compatible = "samsung,exynos4212";
+	compatible = "samsung,exynos4212", "samsung,exynos4";
 
 	gic: interrupt-controller@10490000 {
 		cpu-offset = <0x8000>;
