@@ -84,6 +84,7 @@ struct elm_info {
 	struct list_head list;
 	enum bch_ecc bch_type;
 	struct elm_registers elm_regs;
+	int ecc_steps;
 	int ecc_syndrome_size;
 };
 
@@ -128,6 +129,7 @@ int elm_config(struct device *dev, enum bch_ecc bch_type,
 	reg_val = (bch_type & ECC_BCH_LEVEL_MASK) | (ELM_ECC_SIZE << 16);
 	elm_write_reg(info, ELM_LOCATION_CONFIG, reg_val);
 	info->bch_type		= bch_type;
+	info->ecc_steps		= ecc_steps;
 	info->ecc_syndrome_size	= ecc_syndrome_size;
 
 	return 0;
@@ -170,7 +172,7 @@ static void elm_load_syndrome(struct elm_info *info,
 	int i, offset;
 	u32 val;
 
-	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
+	for (i = 0; i < info->ecc_steps; i++) {
 
 		/* Check error reported */
 		if (err_vec[i].error_reported) {
@@ -238,7 +240,7 @@ static void elm_start_processing(struct elm_info *info,
 	 * Set syndrome vector valid, so that ELM module
 	 * will process it for vectors error is reported
 	 */
-	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
+	for (i = 0; i < info->ecc_steps; i++) {
 		if (err_vec[i].error_reported) {
 			offset = ELM_SYNDROME_FRAGMENT_6 +
 				SYNDROME_FRAGMENT_REG_SIZE * i;
@@ -267,7 +269,7 @@ static void elm_error_correction(struct elm_info *info,
 	int offset;
 	u32 reg_val;
 
-	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
+	for (i = 0; i < info->ecc_steps; i++) {
 
 		/* Check error reported */
 		if (err_vec[i].error_reported) {
