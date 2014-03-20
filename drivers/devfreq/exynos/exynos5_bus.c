@@ -429,6 +429,7 @@ static int exynos5_busfreq_int_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int exynos5_busfreq_int_resume(struct device *dev)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device,
@@ -438,10 +439,12 @@ static int exynos5_busfreq_int_resume(struct device *dev)
 	busfreq_mon_reset(data);
 	return 0;
 }
-
 static const struct dev_pm_ops exynos5_busfreq_int_pm = {
 	.resume	= exynos5_busfreq_int_resume,
 };
+#endif
+static SIMPLE_DEV_PM_OPS(exynos5_busfreq_int_pm_ops, NULL,
+			 exynos5_busfreq_int_resume);
 
 /* platform device pointer for exynos5 devfreq device. */
 static struct platform_device *exynos5_devfreq_pdev;
@@ -452,7 +455,7 @@ static struct platform_driver exynos5_busfreq_int_driver = {
 	.driver		= {
 		.name		= "exynos5-bus-int",
 		.owner		= THIS_MODULE,
-		.pm		= &exynos5_busfreq_int_pm,
+		.pm		= &exynos5_busfreq_int_pm_ops,
 	},
 };
 
