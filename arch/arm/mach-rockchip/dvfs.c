@@ -1076,7 +1076,6 @@ int of_dvfs_init(void)
 }
 
 /*********************************************************************************/
-
 /**
  * dump_dbg_map() : Draw all informations of dvfs while debug
  */
@@ -1126,290 +1125,6 @@ static int dump_dbg_map(char *buf)
 	
 	return s - buf;
 }
-/*******************************AVS AREA****************************************/
-/*
- * To use AVS function, you must call avs_init in machine_rk30_board_init(void)(board-rk30-sdk.c)
- * And then call(vdd_log):
- *	regulator_set_voltage(dcdc, 1100000, 1100000);
- *	avs_init_val_get(1,1100000,"wm8326 init");
- *	udelay(600);
- *	avs_set_scal_val(AVS_BASE);
- * in wm831x_post_init(board-rk30-sdk-wm8326.c)
- * AVS_BASE can use 172
- */
-
-static struct avs_ctr_st *avs_ctr_data=NULL;
-#define init_avs_times 10
-#define init_avs_st_num 5
-
-struct init_avs_st {
-	int is_set;
-	u8 paramet[init_avs_times];
-	int vol;
-	char *s;
-};
-
-static struct init_avs_st init_avs_paramet[init_avs_st_num];
-
-static u8 rk_get_avs_val(void)
-{
-	
-	if(avs_ctr_data&&avs_ctr_data->avs_get_val)
-	{	
-		return avs_ctr_data->avs_get_val();
-	}
-	return 0;
-
-}
-
-void avs_init_val_get(int index, int vol, char *s)
-{
-	int i;
-	if(index >= init_avs_times)
-		return;
-	init_avs_paramet[index].vol = vol;
-	init_avs_paramet[index].s = s;
-	init_avs_paramet[index].is_set++;
-	printk("DVFS MSG:\tAVS Value(index=%d): ", index);
-	for(i = 0; i < init_avs_times; i++) {
-		init_avs_paramet[index].paramet[i] = rk_get_avs_val();
-		mdelay(1);
-		printk("%d ", init_avs_paramet[index].paramet[i]);
-	}
-	printk("\n");
-}
-
-void avs_board_init(struct avs_ctr_st *data)
-{
-	
-	avs_ctr_data=data;
-}
-void avs_init(void)
-{
-	memset(&init_avs_paramet[0].is_set, 0, sizeof(init_avs_paramet));
-	if(avs_ctr_data&&avs_ctr_data->avs_init)
-		avs_ctr_data->avs_init();
-	avs_init_val_get(0, 1200000,"board_init");
-}
-
-int avs_set_scal_val(u8 avs_base)
-{
-	return 0;
-}
-
-/*************************interface to get avs value and dvfs tree*************************/
-#define USE_NORMAL_TIME
-#ifdef USE_NORMAL_TIME
-static struct timer_list avs_timer;
-#else
-static struct hrtimer dvfs_hrtimer;
-#endif
-
-static u32 avs_dyn_start = 0;
-static u32 avs_dyn_data_cnt;
-static u8 *avs_dyn_data = NULL;
-static u32 show_line_cnt = 0;
-static u8 dly_min;
-static u8 dly_max;
-
-#define val_per_line (30)
-#define line_pre_show (30)
-#define avs_dyn_data_num (3*1000*1000)
-
-static u32 print_avs_init(char *buf)
-{
-	char *s = buf;
-	int i, j;
-
-	for(j = 0; j < init_avs_st_num; j++) {
-		if(init_avs_paramet[j].vol <= 0)
-			continue;
-		s += sprintf(s, "%s ,vol=%d,paramet following\n",
-				init_avs_paramet[j].s, init_avs_paramet[j].vol);
-		for(i = 0; i < init_avs_times; i++) {
-			s += sprintf(s, "%d ", init_avs_paramet[j].paramet[i]);
-		}
-
-		s += sprintf(s, "\n");
-	}
-	return (s - buf);
-}
-
-static ssize_t avs_init_show(struct kobject *kobj, struct kobj_attribute *attr,
-		char *buf)
-{
-	return print_avs_init(buf);
-}
-
-static ssize_t avs_init_store(struct kobject *kobj, struct kobj_attribute *attr,
-		const char *buf, size_t n)
-{
-
-	return n;
-}
-static ssize_t avs_now_show(struct kobject *kobj, struct kobj_attribute *attr,
-		char *buf)
-{
-	return sprintf(buf, "%d\n", rk_get_avs_val());
-}
-
-static ssize_t avs_now_store(struct kobject *kobj, struct kobj_attribute *attr,
-		const char *buf, size_t n)
-{
-	return n;
-}
-static ssize_t avs_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
-		char *buf)
-{
-	char *s = buf;
-	u32 i;
-
-	if(avs_dyn_data == NULL)
-		return (s - buf);
-
-	if(avs_dyn_start) {
-		int start_cnt;
-		int end_cnt;
-		end_cnt = (avs_dyn_data_cnt ? (avs_dyn_data_cnt - 1) : 0);
-		if(end_cnt > (line_pre_show * val_per_line))
-			start_cnt = end_cnt - (line_pre_show * val_per_line);
-		else
-			start_cnt = 0;
-
-		dly_min = avs_dyn_data[start_cnt];
-		dly_max = avs_dyn_data[start_cnt];
-
-		//s += sprintf(s,"data start=%d\n",i);
-		for(i = start_cnt; i <= end_cnt;) {
-			s += sprintf(s, "%d", avs_dyn_data[i]);
-			dly_min = min(dly_min, avs_dyn_data[i]);
-			dly_max = max(dly_max, avs_dyn_data[i]);
-			i++;
-			if(!(i % val_per_line)) {
-				s += sprintf(s, "\n");
-			} else
-				s += sprintf(s, " ");
-		}
-
-		s += sprintf(s, "\n");
-
-		s += sprintf(s, "new data is from=%d to %d\n", start_cnt, end_cnt);
-		//s += sprintf(s,"\n max=%d,min=%d,totolcnt=%d,line=%d\n",dly_max,dly_min,avs_dyn_data_cnt,show_line_cnt);
-
-
-	} else {
-		if(show_line_cnt == 0) {
-			dly_min = avs_dyn_data[0];
-			dly_max = avs_dyn_data[0];
-		}
-
-
-		for(i = show_line_cnt * (line_pre_show * val_per_line); i < avs_dyn_data_cnt;) {
-			s += sprintf(s, "%d", avs_dyn_data[i]);
-			dly_min = min(dly_min, avs_dyn_data[i]);
-			dly_max = max(dly_max, avs_dyn_data[i]);
-			i++;
-			if(!(i % val_per_line)) {
-				s += sprintf(s, "\n");
-			} else
-				s += sprintf(s, " ");
-			if(i >= ((show_line_cnt + 1)*line_pre_show * val_per_line))
-				break;
-		}
-
-		s += sprintf(s, "\n");
-
-		s += sprintf(s, "max=%d,min=%d,totolcnt=%d,line=%d\n",
-				dly_max, dly_min, avs_dyn_data_cnt, show_line_cnt);
-		show_line_cnt++;
-		if(((show_line_cnt * line_pre_show)*val_per_line) >= avs_dyn_data_cnt) {
-
-			show_line_cnt = 0;
-
-			s += sprintf(s, "data is over\n");
-		}
-	}
-	return (s - buf);
-}
-
-static ssize_t avs_dyn_store(struct kobject *kobj, struct kobj_attribute *attr,
-		const char *buf, size_t n)
-{
-	const char *pbuf;
-
-	if((strncmp(buf, "start", strlen("start")) == 0)) {
-		if(avs_dyn_data == NULL)
-			avs_dyn_data = kmalloc(avs_dyn_data_num, GFP_KERNEL);
-		if(avs_dyn_data == NULL)
-			return n;
-
-		pbuf = &buf[strlen("start")];
-		avs_dyn_data_cnt = 0;
-		show_line_cnt = 0;
-		if(avs_dyn_data) {
-#ifdef USE_NORMAL_TIME
-			mod_timer(&avs_timer, jiffies + msecs_to_jiffies(5));
-#else
-			hrtimer_start(&dvfs_hrtimer, ktime_set(0, 5 * 1000 * 1000), HRTIMER_MODE_REL);
-#endif
-			avs_dyn_start = 1;
-		}
-		//sscanf(pbuf, "%d %d", &number, &voltage);
-		//DVFS_DBG("---------ldo %d %d\n", number, voltage);
-
-	} else if((strncmp(buf, "stop", strlen("stop")) == 0)) {
-		pbuf = &buf[strlen("stop")];
-		avs_dyn_start = 0;
-		show_line_cnt = 0;
-		//sscanf(pbuf, "%d %d", &number, &voltage);
-		//DVFS_DBG("---------dcdc %d %d\n", number, voltage);
-	}
-
-
-
-	return n;
-}
-
-static ssize_t dvfs_tree_store(struct kobject *kobj, struct kobj_attribute *attr,
-		const char *buf, size_t n)
-{
-	return n;
-}
-static ssize_t dvfs_tree_show(struct kobject *kobj, struct kobj_attribute *attr,
-		char *buf)
-{
-	return dump_dbg_map(buf);
-
-}
-
-static void avs_timer_fn(unsigned long data)
-{
-	int i;
-	for(i = 0; i < 1; i++) {
-		if(avs_dyn_data_cnt >= avs_dyn_data_num)
-			return;
-		avs_dyn_data[avs_dyn_data_cnt] = rk_get_avs_val();
-		avs_dyn_data_cnt++;
-	}
-	if(avs_dyn_start)
-		mod_timer(&avs_timer, jiffies + msecs_to_jiffies(10));
-}
-#if 0
-struct hrtimer dvfs_hrtimer;
-static enum hrtimer_restart dvfs_hrtimer_timer_func(struct hrtimer *timer)
-{
-	int i;
-	for(i = 0; i < 1; i++) {
-		if(avs_dyn_data_cnt >= avs_dyn_data_num)
-			return HRTIMER_NORESTART;
-		avs_dyn_data[avs_dyn_data_cnt] = rk_get_avs_val();
-		avs_dyn_data_cnt++;
-	}
-	if(avs_dyn_start)
-		hrtimer_start(timer, ktime_set(0, 1 * 1000 * 1000), HRTIMER_MODE_REL);
-
-}
-#endif
 
 /*********************************************************************************/
 static struct kobject *dvfs_kobj;
@@ -1421,30 +1136,28 @@ struct dvfs_attribute {
 			const char *buf, size_t n);
 };
 
+static ssize_t dvfs_tree_store(struct kobject *kobj, struct kobj_attribute *attr,
+               const char *buf, size_t n)
+{
+       return n;
+}
+static ssize_t dvfs_tree_show(struct kobject *kobj, struct kobj_attribute *attr,
+               char *buf)
+{
+       return dump_dbg_map(buf);
+}
+
+
 static struct dvfs_attribute dvfs_attrs[] = {
 	/*     node_name	permision		show_func	store_func */
 //#ifdef CONFIG_RK_CLOCK_PROC
 	__ATTR(dvfs_tree,	S_IRUSR | S_IRGRP | S_IWUSR,	dvfs_tree_show,	dvfs_tree_store),
-	__ATTR(avs_init,	S_IRUSR | S_IRGRP | S_IWUSR,	avs_init_show,	avs_init_store),
-	__ATTR(avs_dyn,		S_IRUSR | S_IRGRP | S_IWUSR,	avs_dyn_show,	avs_dyn_store),
-	__ATTR(avs_now,		S_IRUSR | S_IRGRP | S_IWUSR,	avs_now_show,	avs_now_store),
 //#endif
 };
-
 
 static int __init dvfs_init(void)
 {
 	int i, ret = 0;
-#ifdef USE_NORMAL_TIME
-	init_timer(&avs_timer);
-	//avs_timer.expires = jiffies+msecs_to_jiffies(1);
-	avs_timer.function = avs_timer_fn;
-	//mod_timer(&avs_timer,jiffies+msecs_to_jiffies(1));
-#else
-	hrtimer_init(&dvfs_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	dvfs_hrtimer.function = dvfs_hrtimer_timer_func;
-	//hrtimer_start(&dvfs_hrtimer,ktime_set(0, 5*1000*1000),HRTIMER_MODE_REL);
-#endif
 
 	dvfs_kobj = kobject_create_and_add("dvfs", NULL);
 	if (!dvfs_kobj)
