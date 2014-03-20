@@ -74,7 +74,7 @@ static int dgram_init(struct sock *sk)
 	struct dgram_sock *ro = dgram_sk(sk);
 
 	ro->dst_addr.mode = IEEE802154_ADDR_LONG;
-	ro->dst_addr.pan_id = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
+	ro->dst_addr.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	ro->want_ack = 1;
 	memset(&ro->dst_addr.extended_addr, 0xff, IEEE802154_ADDR_LEN);
 	return 0;
