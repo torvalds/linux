@@ -190,7 +190,7 @@ static int rk3288_hdmi_parse_dt(struct rk3288_hdmi_device *hdmi_dev)
 }
 
 static const struct of_device_id rk3288_hdmi_dt_ids[] = {
-	{.compatible = "rockchips,rk3288-hdmi",},
+	{.compatible = "rockchip,rk3288-hdmi",},
 	{}
 };
 #endif

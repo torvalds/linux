@@ -49,7 +49,7 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	if(hdmi_drv->pwr_mode == mode)
 		return;
 
-	hdmi_dbg(hdmi->dev,"%s change pwr_mode %d --> %d\n",__FUNCTION__, hdmi_drv->pwr_mode, mode);
+	hdmi_dbg(hdmi_drv->dev,"%s change pwr_mode %d --> %d\n",__FUNCTION__, hdmi_drv->pwr_mode, mode);
 	switch(mode)
 	{
 		case NORMAL:
@@ -511,7 +511,7 @@ int rk3288_hdmi_config_vsi(struct hdmi *hdmi_drv, unsigned char vic_3d, unsigned
 	int id = 0x000c03;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-        hdmi_dbg(hdmi_drv->dev, "[%s] vic %d format %d.\n", __FUNCTION__, vic, format);
+        hdmi_dbg(hdmi_drv->dev, "[%s] vic %d format %d.\n", __FUNCTION__, vic_3d, format);
         hdmi_msk_reg(hdmi_dev, FC_DATAUTO0, m_VSD_AUTO, v_VSD_AUTO(0));
 	hdmi_writel(hdmi_dev, FC_VSDIEEEID0, id & 0xff);
 	hdmi_writel(hdmi_dev, FC_VSDIEEEID1, (id >> 8) & 0xff);

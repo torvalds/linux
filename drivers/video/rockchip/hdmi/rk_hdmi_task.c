@@ -40,7 +40,7 @@ static void hdmi_sys_show_state(struct hdmi *hdmi)
 			hdmi_dbg(hdmi->dev, "PLAY_BACK\n");
 			break;
 		default:
-			hdmi_dbg(hdmi->dev, "Unkown State %d\n", state);
+			hdmi_dbg(hdmi->dev, "Unkown State %d\n", hdmi->state);
 			break;
 	}
 }
