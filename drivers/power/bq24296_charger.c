@@ -402,13 +402,16 @@ static void usb_detect_work_func(struct work_struct *work)
 				}else{
 				#endif
 				// connect to pc	
-				bq24296_update_input_current_limit(bq24296_di->usb_input_current);
+				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
 				bq24296_set_charge_current(CHARGE_CURRENT_512MA);
 				bq24296_charge_mode_config(0);
 				DBG("bq24296: detect normal usb charger\n");
 			//	}
 			break;
 			default:
+				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
+                                bq24296_set_charge_current(CHARGE_CURRENT_512MA);
+                                bq24296_charge_mode_config(0);
 				DBG("bq24296: detect no usb \n");			
 			break;
 		}

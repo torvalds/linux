@@ -1213,7 +1213,6 @@ static int rk808_pre_init(struct rk808 *rk808)
 	}
 	/****************************************/
 	
-
 	/****************set vbat low **********/
 	val = rk808_reg_read(rk808,RK808_VB_MON_REG);
        val &=(~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK));
@@ -1351,7 +1350,7 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 	ret = mfd_add_devices(rk808->dev, -1,
 			      rk808s, ARRAY_SIZE(rk808s),
 			      NULL, 0,NULL);
-		
+	#if 0	
 	/********************vbat low int**************/
 	vlow_irq = irq_create_mapping(rk808->irq_domain, RK808_IRQ_VB_LO);
 	 ret = request_threaded_irq(vlow_irq, NULL, rk808_vbat_lo_irq,
@@ -1362,7 +1361,7 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
                         vlow_irq+ RK808_IRQ_VB_LO, ret);
 
         }
-
+	#endif
 	/*********************************************/
 	
 	g_rk808 = rk808;
