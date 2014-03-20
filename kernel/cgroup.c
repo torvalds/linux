@@ -2324,6 +2324,14 @@ static int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	if (cgroup_sane_behavior(cgrp))
 		return -EPERM;
 
+	/*
+	 * We're gonna grab cgroup_tree_mutex which nests outside kernfs
+	 * active_ref.  kernfs_rename() doesn't require active_ref
+	 * protection.  Break them before grabbing cgroup_tree_mutex.
+	 */
+	kernfs_break_active_protection(new_parent);
+	kernfs_break_active_protection(kn);
+
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
 
@@ -2331,6 +2339,9 @@ static int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
 
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgroup_tree_mutex);
+
+	kernfs_unbreak_active_protection(kn);
+	kernfs_unbreak_active_protection(new_parent);
 	return ret;
 }
 
@@ -3778,8 +3789,22 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 			umode_t mode)
 {
 	struct cgroup *parent = parent_kn->priv;
+	int ret;
 
-	return cgroup_create(parent, name, mode);
+	/*
+	 * cgroup_create() grabs cgroup_tree_mutex which nests outside
+	 * kernfs active_ref and cgroup_create() already synchronizes
+	 * properly against removal through cgroup_lock_live_group().
+	 * Break it before calling cgroup_create().
+	 */
+	cgroup_get(parent);
+	kernfs_break_active_protection(parent_kn);
+
+	ret = cgroup_create(parent, name, mode);
+
+	kernfs_unbreak_active_protection(parent_kn);
+	cgroup_put(parent);
+	return ret;
 }
 
 /*
