@@ -73,7 +73,6 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 	bool link_up;
 
 	switch (hw->phy.media_type) {
-	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 		hw->mac.ops.check_link(hw, &speed, &link_up, false);
 		/* if link is down, assume supported */
@@ -143,11 +142,10 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	case ixgbe_media_type_backplane:
 		/* some MAC's need RMW protection on AUTOC */
 		ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &reg_bp);
-		if (!ret_val)
+		if (ret_val)
 			goto out;
 
 		/* only backplane uses autoc so fall though */
-	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
 
@@ -648,20 +646,17 @@ enum ixgbe_bus_speed ixgbe_convert_bus_speed(u16 link_status)
  **/
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
-	struct ixgbe_mac_info *mac = &hw->mac;
 	u16 link_status;
 
 	hw->bus.type = ixgbe_bus_type_pci_express;
 
 	/* Get the negotiated link width and speed from PCI config space */
-	pci_read_config_word(adapter->pdev, IXGBE_PCI_LINK_STATUS,
-	                     &link_status);
+	link_status = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_LINK_STATUS);
 
 	hw->bus.width = ixgbe_convert_bus_width(link_status);
 	hw->bus.speed = ixgbe_convert_bus_speed(link_status);
 
-	mac->ops.set_lan_id(hw);
+	hw->mac.ops.set_lan_id(hw);
 
 	return 0;
 }
@@ -2398,7 +2393,6 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 	switch (hw->phy.media_type) {
 	/* Autoneg flow control on fiber adapters */
-	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 		if (speed == IXGBE_LINK_SPEED_1GB_FULL)
 			ret_val = ixgbe_fc_autoneg_fiber(hw);
@@ -2440,12 +2434,10 @@ out:
  **/
 static u32 ixgbe_pcie_timeout_poll(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
 	s16 devctl2;
 	u32 pollcnt;
 
-	pci_read_config_word(adapter->pdev, IXGBE_PCI_DEVICE_CONTROL2,
-			     &devctl2);
+	devctl2 = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_DEVICE_CONTROL2);
 	devctl2 &= IXGBE_PCIDEVCTRL2_TIMEO_MASK;
 
 	switch (devctl2) {
@@ -2723,14 +2715,14 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 
 	if (!link_up) {
 		ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &autoc_reg);
-		if (!ret_val)
+		if (ret_val)
 			goto out;
 
 		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 
 		ret_val = hw->mac.ops.prot_autoc_write(hw, autoc_reg, locked);
-		if (!ret_val)
+		if (ret_val)
 			goto out;
 
 		IXGBE_WRITE_FLUSH(hw);
@@ -2760,14 +2752,14 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	bool locked = false;
 
 	ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &autoc_reg);
-	if (!ret_val)
+	if (ret_val)
 		goto out;
 
 	autoc_reg &= ~IXGBE_AUTOC_FLU;
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 
 	ret_val = hw->mac.ops.prot_autoc_write(hw, autoc_reg, locked);
-	if (!ret_val)
+	if (ret_val)
 		goto out;
 
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);

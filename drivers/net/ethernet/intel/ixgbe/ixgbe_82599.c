@@ -67,7 +67,7 @@ static s32 ixgbe_write_i2c_byte_82599(struct ixgbe_hw *hw, u8 byte_offset,
 static s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw);
 static bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 
-static bool ixgbe_mng_enabled(struct ixgbe_hw *hw)
+bool ixgbe_mng_enabled(struct ixgbe_hw *hw)
 {
 	u32 fwsm, manc, factps;
 
@@ -94,7 +94,7 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 	 * and MNG not enabled
 	 */
 	if ((mac->ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
-	    !hw->mng_fw_enabled) {
+	    !ixgbe_mng_enabled(hw)) {
 		mac->ops.disable_tx_laser =
 		                       &ixgbe_disable_tx_laser_multispeed_fiber;
 		mac->ops.enable_tx_laser =
@@ -210,7 +210,7 @@ static s32 prot_autoc_read_82599(struct ixgbe_hw *hw, bool *locked,
 	if (ixgbe_verify_lesm_fw_enabled_82599(hw)) {
 		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
 					IXGBE_GSSR_MAC_CSR_SM);
-		if (!ret_val)
+		if (ret_val)
 			return IXGBE_ERR_SWFW_SYNC;
 
 		*locked = true;
@@ -245,8 +245,10 @@ static s32 prot_autoc_write_82599(struct ixgbe_hw *hw, u32 autoc, bool locked)
 	if (!locked && ixgbe_verify_lesm_fw_enabled_82599(hw)) {
 		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
 					IXGBE_GSSR_MAC_CSR_SM);
-		if (!ret_val)
+		if (ret_val)
 			return IXGBE_ERR_SWFW_SYNC;
+
+		locked = true;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
@@ -515,9 +517,17 @@ out:
  **/
 static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
 {
-	u32 autoc2_reg;
+	u32 autoc2_reg, fwsm;
+	u16 ee_ctrl_2 = 0;
 
-	if (!hw->mng_fw_enabled && !hw->wol_enabled) {
+	hw->eeprom.ops.read(hw, IXGBE_EEPROM_CTRL_2, &ee_ctrl_2);
+
+	/* Check to see if MNG FW could be enabled */
+	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM);
+
+	if (((fwsm & IXGBE_FWSM_MODE_MASK) != IXGBE_FWSM_FW_MODE_PT) &&
+	    !hw->wol_enabled &&
+	    ee_ctrl_2 & IXGBE_EEPROM_CCD_BIT) {
 		autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
 		autoc2_reg |= IXGBE_AUTOC2_LINK_DISABLE_ON_D3_MASK;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC2, autoc2_reg);
@@ -654,75 +664,6 @@ static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_set_fiber_fixed_speed - Set module link speed for fixed fiber
- *  @hw: pointer to hardware structure
- *  @speed: link speed to set
- *
- *  We set the module speed differently for fixed fiber.  For other
- *  multi-speed devices we don't have an error value so here if we
- *  detect an error we just log it and exit.
- */
-static void ixgbe_set_fiber_fixed_speed(struct ixgbe_hw *hw,
-					ixgbe_link_speed speed)
-{
-	s32 status;
-	u8 rs, eeprom_data;
-
-	switch (speed) {
-	case IXGBE_LINK_SPEED_10GB_FULL:
-		/* one bit mask same as setting on */
-		rs = IXGBE_SFF_SOFT_RS_SELECT_10G;
-		break;
-	case IXGBE_LINK_SPEED_1GB_FULL:
-		rs = IXGBE_SFF_SOFT_RS_SELECT_1G;
-		break;
-	default:
-		hw_dbg(hw, "Invalid fixed module speed\n");
-		return;
-	}
-
-	/* Set RS0 */
-	status = hw->phy.ops.read_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
-					   IXGBE_I2C_EEPROM_DEV_ADDR2,
-					   &eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to read Rx Rate Select RS0\n");
-		goto out;
-	}
-
-	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) | rs;
-
-	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
-					    IXGBE_I2C_EEPROM_DEV_ADDR2,
-					    eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to write Rx Rate Select RS0\n");
-		goto out;
-	}
-
-	/* Set RS1 */
-	status = hw->phy.ops.read_i2c_byte(hw, IXGBE_SFF_SFF_8472_ESCB,
-					   IXGBE_I2C_EEPROM_DEV_ADDR2,
-					   &eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to read Rx Rate Select RS1\n");
-		goto out;
-	}
-
-	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) & rs;
-
-	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_ESCB,
-					    IXGBE_I2C_EEPROM_DEV_ADDR2,
-					    eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to write Rx Rate Select RS1\n");
-		goto out;
-	}
-out:
-	return;
-}
-
-/**
  *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
@@ -832,10 +773,6 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 
 		/* Set the module link speed */
 		switch (hw->phy.media_type) {
-		case ixgbe_media_type_fiber_fixed:
-			ixgbe_set_fiber_fixed_speed(hw,
-						IXGBE_LINK_SPEED_1GB_FULL);
-			break;
 		case ixgbe_media_type_fiber:
 			esdp_reg &= ~IXGBE_ESDP_SDP5;
 			esdp_reg |= IXGBE_ESDP_SDP5_DIR;
@@ -1021,15 +958,19 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 				      ixgbe_link_speed speed,
 				      bool autoneg_wait_to_complete)
 {
-	s32 status = 0;
-	u32 autoc, pma_pmd_1g, link_mode, start_autoc;
-	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
-	u32 orig_autoc = 0;
-	u32 pma_pmd_10g_serial = autoc2 & IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_MASK;
-	u32 links_reg;
-	u32 i;
-	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
 	bool autoneg = false;
+	s32 status = 0;
+	u32 pma_pmd_1g, link_mode, links_reg, i;
+	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+	u32 pma_pmd_10g_serial = autoc2 & IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_MASK;
+	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
+
+	/* holds the value of AUTOC register at this current point in time */
+	u32 current_autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	/* holds the cached value of AUTOC register */
+	u32 orig_autoc = 0;
+	/* temporary variable used for comparison purposes */
+	u32 autoc = current_autoc;
 
 	/* Check to see if speed passed in is supported. */
 	status = hw->mac.ops.get_link_capabilities(hw, &link_capabilities,
@@ -1046,12 +987,10 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 
 	/* Use stored value (EEPROM defaults) of AUTOC to find KR/KX4 support*/
 	if (hw->mac.orig_link_settings_stored)
-		autoc = hw->mac.orig_autoc;
+		orig_autoc = hw->mac.orig_autoc;
 	else
-		autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+		orig_autoc = autoc;
 
-	orig_autoc = autoc;
-	start_autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	link_mode = autoc & IXGBE_AUTOC_LMS_MASK;
 	pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
 
@@ -1091,10 +1030,10 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 		}
 	}
 
-	if (autoc != start_autoc) {
+	if (autoc != current_autoc) {
 		/* Restart link */
 		status = hw->mac.ops.prot_autoc_write(hw, autoc, false);
-		if (!status)
+		if (status)
 			goto out;
 
 		/* Only poll for autoneg to complete if specified to do so */
@@ -1267,7 +1206,7 @@ mac_reset_top:
 		 * Likewise if we support WoL we don't want change the
 		 * LMS state either.
 		 */
-		if ((hw->phy.multispeed_fiber && hw->mng_fw_enabled) ||
+		if ((hw->phy.multispeed_fiber && ixgbe_mng_enabled(hw)) ||
 		    hw->wol_enabled)
 			hw->mac.orig_autoc =
 				(hw->mac.orig_autoc & ~IXGBE_AUTOC_LMS_MASK) |
@@ -1277,7 +1216,7 @@ mac_reset_top:
 			status = hw->mac.ops.prot_autoc_write(hw,
 							hw->mac.orig_autoc,
 							false);
-			if (!status)
+			if (status)
 				goto reset_hw_out;
 		}
 
@@ -1658,35 +1597,20 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 {
 
 	u32 hi_hash_dword, lo_hash_dword, flow_vm_vlan;
-	u32 bucket_hash = 0;
+	u32 bucket_hash = 0, hi_dword = 0;
+	int i;
 
 	/* Apply masks to input data */
-	input->dword_stream[0]  &= input_mask->dword_stream[0];
-	input->dword_stream[1]  &= input_mask->dword_stream[1];
-	input->dword_stream[2]  &= input_mask->dword_stream[2];
-	input->dword_stream[3]  &= input_mask->dword_stream[3];
-	input->dword_stream[4]  &= input_mask->dword_stream[4];
-	input->dword_stream[5]  &= input_mask->dword_stream[5];
-	input->dword_stream[6]  &= input_mask->dword_stream[6];
-	input->dword_stream[7]  &= input_mask->dword_stream[7];
-	input->dword_stream[8]  &= input_mask->dword_stream[8];
-	input->dword_stream[9]  &= input_mask->dword_stream[9];
-	input->dword_stream[10] &= input_mask->dword_stream[10];
+	for (i = 0; i <= 10; i++)
+		input->dword_stream[i] &= input_mask->dword_stream[i];
 
 	/* record the flow_vm_vlan bits as they are a key part to the hash */
 	flow_vm_vlan = ntohl(input->dword_stream[0]);
 
 	/* generate common hash dword */
-	hi_hash_dword = ntohl(input->dword_stream[1] ^
-				    input->dword_stream[2] ^
-				    input->dword_stream[3] ^
-				    input->dword_stream[4] ^
-				    input->dword_stream[5] ^
-				    input->dword_stream[6] ^
-				    input->dword_stream[7] ^
-				    input->dword_stream[8] ^
-				    input->dword_stream[9] ^
-				    input->dword_stream[10]);
+	for (i = 1; i <= 10; i++)
+		hi_dword ^= input->dword_stream[i];
+	hi_hash_dword = ntohl(hi_dword);
 
 	/* low dword is word swapped version of common */
 	lo_hash_dword = (hi_hash_dword >> 16) | (hi_hash_dword << 16);
@@ -1705,21 +1629,8 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 	lo_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan << 16);
 
 	/* Process remaining 30 bit of the key */
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(1);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(2);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(3);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(4);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(5);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(6);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(7);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(8);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(9);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(10);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(11);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(12);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(13);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(14);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(15);
+	for (i = 1; i <= 15; i++)
+		IXGBE_COMPUTE_BKT_HASH_ITERATION(i);
 
 	/*
 	 * Limit hash to 13 bits since max bucket count is 8K.
@@ -2589,7 +2500,6 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
 	.get_thermal_sensor_data = &ixgbe_get_thermal_sensor_data_generic,
 	.init_thermal_sensor_thresh = &ixgbe_init_thermal_sensor_thresh_generic,
-	.mng_fw_enabled		= &ixgbe_mng_enabled,
 	.prot_autoc_read	= &prot_autoc_read_82599,
 	.prot_autoc_write	= &prot_autoc_write_82599,
 };

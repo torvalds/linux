@@ -408,13 +408,13 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 
 	switch (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_FCSTAT)) {
 	/* return 0 to bypass going to ULD for DDPed data */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_DDP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_DDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 		rc = 0;
 		break;
 	/* unmap the sg list when FCPRSP is received */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
 		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl,
 			     ddp->sgc, DMA_FROM_DEVICE);
 		ddp->err = ddp_err;
@@ -422,14 +422,14 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		ddp->sgc = 0;
 		/* fall through */
 	/* if DDP length is present pass it through to ULD */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 		if (ddp->len)
 			rc = ddp->len;
 		break;
 	/* no match will return as an error */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
 	default:
 		break;
 	}

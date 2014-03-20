@@ -1539,7 +1539,7 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 	hdr.network += ETH_HLEN;
 
 	/* handle any vlan tag if present */
-	if (protocol == __constant_htons(ETH_P_8021Q)) {
+	if (protocol == htons(ETH_P_8021Q)) {
 		if ((hdr.network - data) > (max_len - VLAN_HLEN))
 			return max_len;
 
@@ -1548,7 +1548,7 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 	}
 
 	/* handle L3 protocols */
-	if (protocol == __constant_htons(ETH_P_IP)) {
+	if (protocol == htons(ETH_P_IP)) {
 		if ((hdr.network - data) > (max_len - sizeof(struct iphdr)))
 			return max_len;
 
@@ -1562,7 +1562,7 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 		/* record next protocol if header is present */
 		if (!(hdr.ipv4->frag_off & htons(IP_OFFSET)))
 			nexthdr = hdr.ipv4->protocol;
-	} else if (protocol == __constant_htons(ETH_P_IPV6)) {
+	} else if (protocol == htons(ETH_P_IPV6)) {
 		if ((hdr.network - data) > (max_len - sizeof(struct ipv6hdr)))
 			return max_len;
 
@@ -1570,7 +1570,7 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 		nexthdr = hdr.ipv6->nexthdr;
 		hlen = sizeof(struct ipv6hdr);
 #ifdef IXGBE_FCOE
-	} else if (protocol == __constant_htons(ETH_P_FCOE)) {
+	} else if (protocol == htons(ETH_P_FCOE)) {
 		if ((hdr.network - data) > (max_len - FCOE_HEADER_LEN))
 			return max_len;
 		hlen = FCOE_HEADER_LEN;
@@ -4655,8 +4655,6 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct net_device *upper;
-	struct list_head *iter;
 	int err;
 	u32 ctrl_ext;
 
@@ -4696,19 +4694,6 @@ static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
 		if (esdp & IXGBE_ESDP_SDP1)
 			e_crit(drv, "Fan has stopped, replace the adapter\n");
-	}
-
-	/* enable transmits */
-	netif_tx_start_all_queues(adapter->netdev);
-
-	/* enable any upper devices */
-	netdev_for_each_all_upper_dev_rcu(adapter->netdev, upper, iter) {
-		if (netif_is_macvlan(upper)) {
-			struct macvlan_dev *vlan = netdev_priv(upper);
-
-			if (vlan->fwd_priv)
-				netif_tx_start_all_queues(upper);
-		}
 	}
 
 	/* bring the link up in the watchdog, this could race with our first
@@ -6082,6 +6067,8 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct net_device *upper;
+	struct list_head *iter;
 	u32 link_speed = adapter->link_speed;
 	bool flow_rx, flow_tx;
 
@@ -6132,6 +6119,21 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 
 	netif_carrier_on(netdev);
 	ixgbe_check_vf_rate_limit(adapter);
+
+	/* enable transmits */
+	netif_tx_wake_all_queues(adapter->netdev);
+
+	/* enable any upper devices */
+	rtnl_lock();
+	netdev_for_each_all_upper_dev_rcu(adapter->netdev, upper, iter) {
+		if (netif_is_macvlan(upper)) {
+			struct macvlan_dev *vlan = netdev_priv(upper);
+
+			if (vlan->fwd_priv)
+				netif_tx_wake_all_queues(upper);
+		}
+	}
+	rtnl_unlock();
 
 	/* update the default user priority for VFs */
 	ixgbe_update_default_up(adapter);
@@ -6520,7 +6522,7 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
 	type_tucmd = IXGBE_ADVTXD_TUCMD_L4T_TCP;
 
-	if (first->protocol == __constant_htons(ETH_P_IP)) {
+	if (first->protocol == htons(ETH_P_IP)) {
 		struct iphdr *iph = ip_hdr(skb);
 		iph->tot_len = 0;
 		iph->check = 0;
@@ -6580,12 +6582,12 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 	} else {
 		u8 l4_hdr = 0;
 		switch (first->protocol) {
-		case __constant_htons(ETH_P_IP):
+		case htons(ETH_P_IP):
 			vlan_macip_lens |= skb_network_header_len(skb);
 			type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
 			l4_hdr = ip_hdr(skb)->protocol;
 			break;
-		case __constant_htons(ETH_P_IPV6):
+		case htons(ETH_P_IPV6):
 			vlan_macip_lens |= skb_network_header_len(skb);
 			l4_hdr = ipv6_hdr(skb)->nexthdr;
 			break;
@@ -6860,9 +6862,9 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	hdr.network = skb_network_header(first->skb);
 
 	/* Currently only IPv4/IPv6 with TCP is supported */
-	if ((first->protocol != __constant_htons(ETH_P_IPV6) ||
+	if ((first->protocol != htons(ETH_P_IPV6) ||
 	     hdr.ipv6->nexthdr != IPPROTO_TCP) &&
-	    (first->protocol != __constant_htons(ETH_P_IP) ||
+	    (first->protocol != htons(ETH_P_IP) ||
 	     hdr.ipv4->protocol != IPPROTO_TCP))
 		return;
 
@@ -6895,12 +6897,12 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	 * and write the value to source port portion of compressed dword
 	 */
 	if (first->tx_flags & (IXGBE_TX_FLAGS_SW_VLAN | IXGBE_TX_FLAGS_HW_VLAN))
-		common.port.src ^= th->dest ^ __constant_htons(ETH_P_8021Q);
+		common.port.src ^= th->dest ^ htons(ETH_P_8021Q);
 	else
 		common.port.src ^= th->dest ^ first->protocol;
 	common.port.dst ^= th->source;
 
-	if (first->protocol == __constant_htons(ETH_P_IP)) {
+	if (first->protocol == htons(ETH_P_IP)) {
 		input.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_TCPV4;
 		common.ip ^= hdr.ipv4->saddr ^ hdr.ipv4->daddr;
 	} else {
@@ -6966,8 +6968,8 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 	 * or FIP and we have FCoE enabled on the adapter
 	 */
 	switch (vlan_get_protocol(skb)) {
-	case __constant_htons(ETH_P_FCOE):
-	case __constant_htons(ETH_P_FIP):
+	case htons(ETH_P_FCOE):
+	case htons(ETH_P_FIP):
 		adapter = netdev_priv(dev);
 
 		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
@@ -7028,7 +7030,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= vlan_tx_tag_get(skb) << IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_HW_VLAN;
 	/* else if it is a SW VLAN check the next protocol and store the tag */
-	} else if (protocol == __constant_htons(ETH_P_8021Q)) {
+	} else if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_hdr *vhdr, _vhdr;
 		vhdr = skb_header_pointer(skb, ETH_HLEN, sizeof(_vhdr), &_vhdr);
 		if (!vhdr)
@@ -7087,7 +7089,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 
 #ifdef IXGBE_FCOE
 	/* setup tx offload for FCoE */
-	if ((protocol == __constant_htons(ETH_P_FCOE)) &&
+	if ((protocol == htons(ETH_P_FCOE)) &&
 	    (tx_ring->netdev->features & (NETIF_F_FSO | NETIF_F_FCOE_CRC))) {
 		tso = ixgbe_fso(tx_ring, first, &hdr_len);
 		if (tso < 0)
@@ -8038,10 +8040,6 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_sw_init;
 
-	/* Cache if MNG FW is up so we don't have to read the REG later */
-	if (hw->mac.ops.mng_fw_enabled)
-		hw->mng_fw_enabled = hw->mac.ops.mng_fw_enabled(hw);
-
 	/* Make it possible the adapter to be woken up via WOL */
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
@@ -8292,7 +8290,7 @@ skip_sriov:
 	ixgbe_dbg_adapter_init(adapter);
 
 	/* Need link setup for MNG FW, else wait for IXGBE_UP */
-	if (hw->mng_fw_enabled && hw->mac.ops.setup_link)
+	if (ixgbe_mng_enabled(hw) && hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw,
 			IXGBE_LINK_SPEED_10GB_FULL | IXGBE_LINK_SPEED_1GB_FULL,
 			true);
