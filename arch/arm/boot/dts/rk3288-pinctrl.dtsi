@@ -317,7 +317,7 @@
 			i2c1_sda:i2c1-sda {
 				rockchip,pins = <I2C1SENSOR_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -325,7 +325,7 @@
 			i2c1_scl:i2c1-scl {
 				rockchip,pins = <I2C1SENSOR_SCL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
