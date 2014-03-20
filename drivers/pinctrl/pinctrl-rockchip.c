@@ -616,7 +616,7 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 		case 0:
 		//pmu
 		reg = bank->reg_mux_bank0;
-		reg += RK3288_GRF_GPIO0_A_IOMUX;
+		//reg += RK3288_GRF_GPIO0_A_IOMUX;
 		bits = 2;	
 		rk32_iomux_bit_op(bank, pin, mux, reg, bits);
 		break;
@@ -1055,7 +1055,7 @@ static void rk3288_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = pin_num % 8;
 		*bit *= 2;
 	} else {
-		*reg = info->reg_pull;
+		*reg = info->reg_pull - 0x10;
 		*reg += bank->bank_num * 0x10;
 		*reg += ((pin_num / 8) * 4);
 
@@ -1079,7 +1079,7 @@ static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = pin_num % 8;
 		*bit *= 2;
 	} else {
-		*reg = info->reg_drv;
+		*reg = info->reg_drv - 0x10;
 		*reg += bank->bank_num * 0x10;
 		*reg += ((pin_num / 8) * 4);
 
