@@ -14,6 +14,7 @@
 #include <linux/if.h>
 #include <linux/fs.h>
 #include <linux/aio_abi.h>	/* for aio_context_t */
+#include <linux/unistd.h>
 
 #include <asm/compat.h>
 #include <asm/siginfo.h>
