@@ -2379,6 +2379,10 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
+#if defined(CONFIG_MMC_DW_ROCKCHIP)
+extern struct mmc_card *this_card;
+#endif
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -2428,6 +2432,10 @@ static int mmc_blk_probe(struct mmc_card *card)
 		pm_runtime_set_active(&card->dev);
 		pm_runtime_enable(&card->dev);
 	}
+#if defined(CONFIG_MMC_DW_ROCKCHIP)
+    if(card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+        this_card = card;
+#endif
 
 	return 0;
 
@@ -2440,7 +2448,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
-
+	
+#if defined(CONFIG_MMC_DW_ROCKCHIP)
+    if(card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+        this_card = NULL;
+#endif
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
