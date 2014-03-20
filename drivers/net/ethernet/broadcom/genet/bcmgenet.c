@@ -2498,7 +2498,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	bcmgenet_set_hw_params(priv);
 
-	spin_lock_init(&priv->lock);
 	/* Mii wait queue */
 	init_waitqueue_head(&priv->wq);
 	/* Always use RX_BUF_LENGTH (2KB) buffer for all chips */
