@@ -3326,7 +3326,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	struct intel_ring_buffer *ring;
 	u32 rp_state_cap, hw_max, hw_min;
 	u32 gt_perf_status;
-	u32 rc6vids, pcu_mbox, rc6_mask = 0;
+	u32 rc6vids, pcu_mbox = 0, rc6_mask = 0;
 	u32 gtfifodbg;
 	int rc6_mode;
 	int i, ret;
@@ -3414,17 +3414,15 @@ static void gen6_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 
 	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
-	if (!ret) {
-		pcu_mbox = 0;
-		ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
-		if (!ret && (pcu_mbox & (1<<31))) { /* OC supported */
-			DRM_DEBUG_DRIVER("Overclocking supported. Max: %dMHz, Overclock max: %dMHz\n",
-					 (dev_priv->rps.max_delay & 0xff) * 50,
-					 (pcu_mbox & 0xff) * 50);
-			dev_priv->rps.hw_max = pcu_mbox & 0xff;
-		}
-	} else {
+	if (ret)
 		DRM_DEBUG_DRIVER("Failed to set the min frequency\n");
+
+	ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
+	if (!ret && (pcu_mbox & (1<<31))) { /* OC supported */
+		DRM_DEBUG_DRIVER("Overclocking supported. Max: %dMHz, Overclock max: %dMHz\n",
+				 (dev_priv->rps.max_delay & 0xff) * 50,
+				 (pcu_mbox & 0xff) * 50);
+		dev_priv->rps.hw_max = pcu_mbox & 0xff;
 	}
 
 	dev_priv->rps.power = HIGH_POWER; /* force a reset */
