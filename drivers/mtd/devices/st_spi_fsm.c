@@ -21,6 +21,8 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
+#include "serial_flash_cmds.h"
+
 /*
  * FSM SPI Controller Registers
  */
