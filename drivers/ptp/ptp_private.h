@@ -48,6 +48,7 @@ struct ptp_clock {
 	long dialed_frequency; /* remembers the frequency adjustment */
 	struct timestamp_event_queue tsevq; /* simple fifo for time stamps */
 	struct mutex tsevq_mux; /* one process at a time reading the fifo */
+	struct mutex pincfg_mux; /* protect concurrent info->pin_config access */
 	wait_queue_head_t tsev_wq;
 	int defunct; /* tells readers to go away when clock is being removed */
 };
@@ -68,6 +69,10 @@ static inline int queue_cnt(struct timestamp_event_queue *q)
 /*
  * see ptp_chardev.c
  */
+
+/* caller must hold pincfg_mux */
+int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
+		    enum ptp_pin_function func, unsigned int chan);
 
 long ptp_ioctl(struct posix_clock *pc,
 	       unsigned int cmd, unsigned long arg);
