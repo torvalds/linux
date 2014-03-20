@@ -74,6 +74,7 @@ static DEFINE_MUTEX(cpufreq_mutex);
 static bool gpu_is_mali400;
 struct dvfs_node *clk_cpu_dvfs_node = NULL;
 struct dvfs_node *clk_gpu_dvfs_node = NULL;
+struct dvfs_node *clk_vepu_dvfs_node = NULL;
 /*******************************************************/
 static unsigned int cpufreq_get_rate(unsigned int cpu)
 {
@@ -366,7 +367,6 @@ static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate)
 	
 }
 
-
 static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 {
 	unsigned int i;
@@ -377,6 +377,12 @@ static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 		clk_enable_dvfs(clk_gpu_dvfs_node);
 		if (gpu_is_mali400)
 			dvfs_clk_enable_limit(clk_gpu_dvfs_node, 133000000, 600000000);	
+	}
+
+	clk_vepu_dvfs_node = clk_get_dvfs_node("clk_vepu");
+	if (clk_vepu_dvfs_node){
+		clk_enable_dvfs(clk_vepu_dvfs_node);
+		dvfs_clk_set_rate(clk_vepu_dvfs_node, 297000000);
 	}
 
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");

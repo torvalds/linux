@@ -751,6 +751,19 @@
 					status = "disable";
 				};
 			};
+
+			pd_vpu {
+				clk_ddr_vepu_table:
+				clk_vepu {
+					operating-points = <
+						/* KHz    uV */
+						200000 1200000
+						300000 1200000
+						400000 1200000
+						>;
+					status = "okay";
+				};
+			};
 		};
 
 		vd_gpu:
