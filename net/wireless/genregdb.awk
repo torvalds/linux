@@ -66,6 +66,7 @@ function parse_reg_rule()
 	units = $8
 	sub(/\)/, "", units)
 	sub(/,/, "", units)
+	dfs_cac = $9
 	if (units == "mW") {
 		if (power == 100) {
 			power = 20
@@ -78,7 +79,12 @@ function parse_reg_rule()
 		} else {
 			print "Unknown power value in database!"
 		}
+	} else {
+		dfs_cac = $8
 	}
+	sub(/,/, "", dfs_cac)
+	sub(/\(/, "", dfs_cac)
+	sub(/\)/, "", dfs_cac)
 	flagstr = ""
 	for (i=8; i<=NF; i++)
 		flagstr = flagstr $i
@@ -111,7 +117,7 @@ function parse_reg_rule()
 
 	}
 	flags = flags "0"
-	printf "\t\tREG_RULE(%d, %d, %d, %d, %d, %s),\n", start, end, bw, gain, power, flags
+	printf "\t\tREG_RULE_EXT(%d, %d, %d, %d, %d, %d, %s),\n", start, end, bw, gain, power, dfs_cac, flags
 	rules++
 }
 
