@@ -590,7 +590,10 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
+	/* protect xattr_ver */
+	down_write(&F2FS_I(inode)->i_sem);
 	err = __f2fs_setxattr(inode, name_index, name, value, value_len, ipage);
+	up_write(&F2FS_I(inode)->i_sem);
 	f2fs_unlock_op(sbi);
 
 	return err;

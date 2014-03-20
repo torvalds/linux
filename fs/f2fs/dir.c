@@ -493,6 +493,7 @@ start:
 add_dentry:
 	f2fs_wait_on_page_writeback(dentry_page, DATA);
 
+	down_write(&F2FS_I(inode)->i_sem);
 	page = init_inode_metadata(inode, dir, name);
 	if (IS_ERR(page)) {
 		err = PTR_ERR(page);
@@ -515,6 +516,8 @@ add_dentry:
 
 	update_parent_metadata(dir, inode, current_depth);
 fail:
+	up_write(&F2FS_I(inode)->i_sem);
+
 	if (is_inode_flag_set(F2FS_I(dir), FI_UPDATE_DIR)) {
 		update_inode_page(dir);
 		clear_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
@@ -559,6 +562,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	if (inode) {
 		struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 
+		down_write(&F2FS_I(inode)->i_sem);
+
 		if (S_ISDIR(inode->i_mode)) {
 			drop_nlink(dir);
 			update_inode_page(dir);
@@ -569,6 +574,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 			drop_nlink(inode);
 			i_size_write(inode, 0);
 		}
+		up_write(&F2FS_I(inode)->i_sem);
 		update_inode_page(inode);
 
 		if (inode->i_nlink == 0)
