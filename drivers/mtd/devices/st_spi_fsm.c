@@ -2082,13 +2082,8 @@ static int stfsm_probe(struct platform_device *pdev)
 static int stfsm_remove(struct platform_device *pdev)
 {
 	struct stfsm *fsm = platform_get_drvdata(pdev);
-	int err;
 
-	err = mtd_device_unregister(&fsm->mtd);
-	if (err)
-		return err;
-
-	return 0;
+	return mtd_device_unregister(&fsm->mtd);
 }
 
 static struct of_device_id stfsm_match[] = {
