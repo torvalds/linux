@@ -313,7 +313,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val, rp_state_cap, hw_max, hw_min, non_oc_max;
+	u32 val, hw_max, hw_min, non_oc_max;
 	ssize_t ret;
 
 	ret = kstrtou32(buf, 0, &val);
@@ -327,16 +327,14 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		val = vlv_freq_opcode(dev_priv, val);
 
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
-		non_oc_max = hw_max;
+		non_oc_max = hw_max = dev_priv->rps.max_freq;
+		hw_min = dev_priv->rps.min_freq;
 	} else {
 		val /= GT_FREQUENCY_MULTIPLIER;
 
-		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 		hw_max = dev_priv->rps.max_freq;
-		non_oc_max = (rp_state_cap & 0xff);
-		hw_min = ((rp_state_cap & 0xff0000) >> 16);
+		non_oc_max = dev_priv->rps.rp0_freq;
+		hw_min = dev_priv->rps.min_freq;
 	}
 
 	if (val < hw_min || val > hw_max ||
@@ -394,7 +392,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val, rp_state_cap, hw_max, hw_min;
+	u32 val, hw_max, hw_min;
 	ssize_t ret;
 
 	ret = kstrtou32(buf, 0, &val);
@@ -408,14 +406,13 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	if (IS_VALLEYVIEW(dev)) {
 		val = vlv_freq_opcode(dev_priv, val);
 
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
+		hw_max = dev_priv->rps.max_freq;
+		hw_min = dev_priv->rps.min_freq;
 	} else {
 		val /= GT_FREQUENCY_MULTIPLIER;
 
-		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 		hw_max = dev_priv->rps.max_freq;
-		hw_min = ((rp_state_cap & 0xff0000) >> 16);
+		hw_min = dev_priv->rps.min_freq;
 	}
 
 	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_freq_softlimit) {
