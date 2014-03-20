@@ -468,7 +468,10 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 		event_num = EXT_EVENT + index;
 		evnt = EVNT_WR | (event_num & EVNT_SEL_MASK) << EVNT_SEL_SHIFT;
 		if (on) {
-			gpio_num = gpio_tab[EXTTS0_GPIO + index];
+			gpio_num = 1 + ptp_find_pin(clock->ptp_clock,
+						    PTP_PF_EXTTS, index);
+			if (gpio_num < 1)
+				return -EINVAL;
 			evnt |= (gpio_num & EVNT_GPIO_MASK) << EVNT_GPIO_SHIFT;
 			if (rq->extts.flags & PTP_FALLING_EDGE)
 				evnt |= EVNT_FALL;
