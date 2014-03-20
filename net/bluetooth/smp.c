@@ -1058,12 +1058,6 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	smp->remote_irk = hci_add_irk(conn->hcon->hdev, &smp->id_addr,
 				      smp->id_addr_type, smp->irk, &rpa);
 
-	/* Track the connection based on the Identity Address from now on */
-	bacpy(&hcon->dst, &smp->id_addr);
-	hcon->dst_type = smp->id_addr_type;
-
-	l2cap_conn_update_id_addr(hcon);
-
 	smp_distribute_keys(conn);
 
 	return 0;
@@ -1214,8 +1208,16 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	struct smp_cmd_pairing *rsp = (void *) &smp->prsp[1];
 	bool persistent;
 
-	if (smp->remote_irk)
+	if (smp->remote_irk) {
 		mgmt_new_irk(hdev, smp->remote_irk);
+		/* Now that user space can be considered to know the
+		 * identity address track the connection based on it
+		 * from now on.
+		 */
+		bacpy(&hcon->dst, &smp->remote_irk->bdaddr);
+		hcon->dst_type = smp->remote_irk->addr_type;
+		l2cap_conn_update_id_addr(hcon);
+	}
 
 	/* The LTKs and CSRKs should be persistent only if both sides
 	 * had the bonding bit set in their authentication requests.

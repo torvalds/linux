@@ -2762,23 +2762,11 @@ static struct pending_cmd *find_pairing(struct hci_conn *conn)
 
 static void pairing_complete(struct pending_cmd *cmd, u8 status)
 {
-	const struct mgmt_cp_pair_device *cp = cmd->param;
 	struct mgmt_rp_pair_device rp;
 	struct hci_conn *conn = cmd->user_data;
 
-	/* If we had a pairing failure we might have already received
-	 * the remote Identity Address Information and updated the
-	 * hci_conn variables with it, however we would not yet have
-	 * notified user space of the resolved identity. Therefore, use
-	 * the address given in the Pair Device command in case the
-	 * pairing failed.
-	 */
-	if (status) {
-		memcpy(&rp.addr, &cp->addr, sizeof(rp.addr));
-	} else {
-		bacpy(&rp.addr.bdaddr, &conn->dst);
-		rp.addr.type = link_to_bdaddr(conn->type, conn->dst_type);
-	}
+	bacpy(&rp.addr.bdaddr, &conn->dst);
+	rp.addr.type = link_to_bdaddr(conn->type, conn->dst_type);
 
 	cmd_complete(cmd->sk, cmd->index, MGMT_OP_PAIR_DEVICE, status,
 		     &rp, sizeof(rp));
