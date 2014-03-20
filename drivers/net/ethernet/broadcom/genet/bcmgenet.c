@@ -1125,14 +1125,6 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		index -= 1;
 
-	if ((index != DESC_INDEX) && (index > priv->hw_params->tx_queues - 1)) {
-		netdev_err(dev, "%s: queue_mapping %d is invalid\n",
-				__func__, skb_get_queue_mapping(skb));
-		dev->stats.tx_errors++;
-		dev->stats.tx_dropped++;
-		ret = NETDEV_TX_OK;
-		goto out;
-	}
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	ring = &priv->tx_rings[index];
 
