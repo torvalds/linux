@@ -103,7 +103,8 @@ static u32 elm_read_reg(struct elm_info *info, int offset)
  * @dev:	ELM device
  * @bch_type:	Type of BCH ecc
  */
-int elm_config(struct device *dev, enum bch_ecc bch_type)
+int elm_config(struct device *dev, enum bch_ecc bch_type,
+	int ecc_steps, int ecc_step_size, int ecc_syndrome_size)
 {
 	u32 reg_val;
 	struct elm_info *info = dev_get_drvdata(dev);
@@ -111,6 +112,16 @@ int elm_config(struct device *dev, enum bch_ecc bch_type)
 	if (!info) {
 		dev_err(dev, "Unable to configure elm - device not probed?\n");
 		return -ENODEV;
+	}
+	/* ELM cannot detect ECC errors for chunks > 1KB */
+	if (ecc_step_size > ((ELM_ECC_SIZE + 1) / 2)) {
+		dev_err(dev, "unsupported config ecc-size=%d\n", ecc_step_size);
+		return -EINVAL;
+	}
+	/* ELM support 8 error syndrome process */
+	if (ecc_steps > ERROR_VECTOR_MAX) {
+		dev_err(dev, "unsupported config ecc-step=%d\n", ecc_steps);
+		return -EINVAL;
 	}
 
 	reg_val = (bch_type & ECC_BCH_LEVEL_MASK) | (ELM_ECC_SIZE << 16);

@@ -50,5 +50,6 @@ struct elm_errorvec {
 
 void elm_decode_bch_error_page(struct device *dev, u8 *ecc_calc,
 		struct elm_errorvec *err_vec);
-int elm_config(struct device *dev, enum bch_ecc bch_type);
+int elm_config(struct device *dev, enum bch_ecc bch_type,
+	int ecc_steps, int ecc_step_size, int ecc_syndrome_size);
 #endif /* __ELM_H */

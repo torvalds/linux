@@ -1540,6 +1540,8 @@ static int is_elm_present(struct omap_nand_info *info,
 			struct device_node *elm_node, enum bch_ecc bch_type)
 {
 	struct platform_device *pdev;
+	struct nand_ecc_ctrl *ecc = &info->nand.ecc;
+	int err;
 	/* check whether elm-id is passed via DT */
 	if (!elm_node) {
 		pr_err("nand: error: ELM DT node not found\n");
@@ -1553,9 +1555,10 @@ static int is_elm_present(struct omap_nand_info *info,
 	}
 	/* ELM module available, now configure it */
 	info->elm_dev = &pdev->dev;
-	if (elm_config(info->elm_dev, bch_type))
-		return -ENODEV;
-	return 0;
+	err = elm_config(info->elm_dev, bch_type,
+		(info->mtd.writesize / ecc->size), ecc->size, ecc->bytes);
+
+	return err;
 }
 #endif /* CONFIG_MTD_NAND_ECC_BCH */
 
