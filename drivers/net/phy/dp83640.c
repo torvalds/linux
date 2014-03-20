@@ -298,15 +298,22 @@ static u64 phy2txts(struct phy_txts *p)
 	return ns;
 }
 
-static void periodic_output(struct dp83640_clock *clock,
-			    struct ptp_clock_request *clkreq, bool on)
+static int periodic_output(struct dp83640_clock *clock,
+			   struct ptp_clock_request *clkreq, bool on)
 {
 	struct dp83640_private *dp83640 = clock->chosen;
 	struct phy_device *phydev = dp83640->phydev;
 	u32 sec, nsec, pwidth;
 	u16 gpio, ptp_trig, trigger, val;
 
-	gpio = on ? gpio_tab[PEROUT_GPIO] : 0;
+	if (on) {
+		gpio = 1 + ptp_find_pin(clock->ptp_clock, PTP_PF_PEROUT, 0);
+		if (gpio < 1)
+			return -EINVAL;
+	} else {
+		gpio = 0;
+	}
+
 	trigger = PER_TRIGGER;
 
 	ptp_trig = TRIG_WR |
@@ -323,7 +330,7 @@ static void periodic_output(struct dp83640_clock *clock,
 		ext_write(0, phydev, PAGE5, PTP_TRIG, ptp_trig);
 		ext_write(0, phydev, PAGE4, PTP_CTL, val);
 		mutex_unlock(&clock->extreg_lock);
-		return;
+		return 0;
 	}
 
 	sec = clkreq->perout.start.sec;
@@ -352,6 +359,7 @@ static void periodic_output(struct dp83640_clock *clock,
 	ext_write(0, phydev, PAGE4, PTP_CTL, val);
 
 	mutex_unlock(&clock->extreg_lock);
+	return 0;
 }
 
 /* ptp clock methods */
@@ -484,8 +492,7 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PEROUT:
 		if (rq->perout.index != 0)
 			return -EINVAL;
-		periodic_output(clock, rq, on);
-		return 0;
+		return periodic_output(clock, rq, on);
 
 	default:
 		break;
