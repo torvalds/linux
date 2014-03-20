@@ -84,6 +84,7 @@ config ARM_EXYNOS5_BUS_DEVFREQ
 	depends on SOC_EXYNOS5250
 	select ARCH_HAS_OPP
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_OPP
 	help
 	  This adds the DEVFREQ driver for Exynos5250 bus interface (vdd_int).
 	  It reads PPMU counters of memory controllers and adjusts the
