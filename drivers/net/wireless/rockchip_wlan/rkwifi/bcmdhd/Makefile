@@ -6,7 +6,8 @@
 MODULE_NAME = bcmdhd
 #CONFIG_RKWIFI = m
 CONFIG_CFG80211 = y
-#CONFIG_BCMDHD_OOB = y
+CONFIG_BCMDHD_OOB = y
+#CONFIG_BCMDHD_POWER_OFF_IN_SUSPEND = y
 
 DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                 \
 	-DBCMDONGLEHOST -DUNRELEASEDCHIP -DBCMDMA32 -DWLBTAMP -DBCMFILEIMAGE  \
@@ -15,7 +16,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                 \
 	-DMMC_SDIO_ABORT -DBCMSDIO -DBCMLXSDMMC -DBCMPLATFORM_BUS             \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT                                \
 	-DKEEP_ALIVE -DPKT_FILTER_SUPPORT -DGET_CUSTOM_MAC_ENABLE             \
-	-DEMBEDDED_PLATFORM -DPNO_SUPPORT          \
+	-DEMBEDDED_PLATFORM -DPNO_SUPPORT -DENABLE_INSMOD_NO_FW_LOAD          \
 	-DDHD_USE_IDLECOUNT -DSET_RANDOM_MAC_SOFTAP -DVSDB                    \
 	-DWL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST -DSDIO_CRC_ERROR_FIX       \
 	-DESCAN_RESULT_PATCH -DHT40_GO -DPASS_ARP_PACKET -DSUPPORT_PM2_ONLY   \
@@ -24,7 +25,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                 \
 	-DWL_SUPPORT_BACKPORTED_KPATCHES                                      \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd \
     -Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/include
-#-DENABLE_INSMOD_NO_FW_LOAD
+
 DHDOFILES = aiutils.o bcmsdh_sdmmc_linux.o dhd_linux.o siutils.o bcmutils.o   \
 	dhd_linux_sched.o bcmwifi_channels.o dhd_sdio.o bcmevent.o dhd_bta.o hndpmu.o  \
 	bcmsdh.o dhd_cdc.o bcmsdh_linux.o dhd_common.o dhd_wlfc.o dhd_ip.o linux_osl.o \

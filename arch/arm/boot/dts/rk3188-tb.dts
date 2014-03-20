@@ -182,7 +182,7 @@
 		
   	supports-highspeed;		
 	supports-sdio;
-	//cap-sdio-irq;
+	cap-sdio-irq;
 	status = "okay";
 };
 

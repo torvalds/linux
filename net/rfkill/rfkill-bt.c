@@ -595,7 +595,16 @@ static int rfkill_rk_probe(struct platform_device *pdev)
     wake_lock_init(&(rfkill->bt_irq_wl), WAKE_LOCK_SUSPEND, "rfkill_rk_irq_wl");
     INIT_DELAYED_WORK(&rfkill->bt_sleep_delay_work, rfkill_rk_delay_sleep_bt);
 
-    rfkill_rk_set_power(rfkill, BT_BLOCKED);
+    //rfkill_rk_set_power(rfkill, BT_BLOCKED);
+    // bt turn off power
+    if (gpio_is_valid(pdata->poweron_gpio.io))
+    {
+        gpio_direction_output(pdata->poweron_gpio.io, !pdata->poweron_gpio.enable);
+    }
+    if (gpio_is_valid(pdata->reset_gpio.io))
+    {
+        gpio_direction_output(pdata->reset_gpio.io, !pdata->reset_gpio.enable);
+    }
 
 	platform_set_drvdata(pdev, rfkill);
 
