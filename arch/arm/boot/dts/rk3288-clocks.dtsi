@@ -422,7 +422,7 @@
 					clk_uart4: uart4_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&clk_uart4_div>, <&uart4_frac>, <&xin24m>;
+						clocks = <&clk_uart4_div>, <&uart4_frac>, <&xin24m>, <&dummy>;
 						clock-output-names = "clk_uart4";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
@@ -505,7 +505,7 @@
 					clk_spdif: spdif_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&spdif_div>, <&spdif_frac>, <&xin12m>;
+						clocks = <&spdif_div>, <&spdif_frac>, <&xin12m>, <&dummy>;
 						clock-output-names = "clk_spdif";
 						#clock-cells = <0>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
@@ -789,7 +789,7 @@
 					clk_uart0: uart0_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&clk_uart0_pll>, <&uart0_frac>, <&xin24m>;
+						clocks = <&clk_uart0_pll>, <&uart0_frac>, <&xin24m>, <&dummy>;
 						clock-output-names = "clk_uart0";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
@@ -845,7 +845,7 @@
 					clk_uart1: uart1_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&clk_uart1_div>, <&uart1_frac>, <&xin24m>;
+						clocks = <&clk_uart1_div>, <&uart1_frac>, <&xin24m>, <&dummy>;
 						clock-output-names = "clk_uart1";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
@@ -876,7 +876,7 @@
 					clk_uart2: uart2_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&clk_uart2_div>, <&uart2_frac>, <&xin24m>;
+						clocks = <&clk_uart2_div>, <&uart2_frac>, <&xin24m>, <&dummy>;
 						clock-output-names = "clk_uart2";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
@@ -907,7 +907,7 @@
 					clk_uart3: uart3_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&clk_uart3_div>, <&uart3_frac>, <&xin24m>;
+						clocks = <&clk_uart3_div>, <&uart3_frac>, <&xin24m>, <&dummy>;
 						clock-output-names = "clk_uart3";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
