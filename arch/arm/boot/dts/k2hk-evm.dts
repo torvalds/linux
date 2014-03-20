@@ -13,7 +13,7 @@
 #include "k2hk.dtsi"
 
 / {
-	compatible =  "ti,k2hk-evm";
+	compatible =  "ti,k2hk-evm","ti,keystone";
 	model = "Texas Instruments Keystone 2 Kepler/Hawking EVM";
 
 	soc {
