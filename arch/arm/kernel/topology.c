@@ -91,13 +91,13 @@ static void __init parse_dt_topology(void)
 {
 	const struct cpu_efficiency *cpu_eff;
 	struct device_node *cn = NULL;
-	unsigned long min_capacity = (unsigned long)(-1);
+	unsigned long min_capacity = ULONG_MAX;
 	unsigned long max_capacity = 0;
 	unsigned long capacity = 0;
-	int alloc_size, cpu = 0;
+	int cpu = 0;
 
-	alloc_size = nr_cpu_ids * sizeof(*__cpu_capacity);
-	__cpu_capacity = kzalloc(alloc_size, GFP_NOWAIT);
+	__cpu_capacity = kcalloc(nr_cpu_ids, sizeof(*__cpu_capacity),
+				 GFP_NOWAIT);
 
 	for_each_possible_cpu(cpu) {
 		const u32 *rate;
