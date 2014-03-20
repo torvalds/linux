@@ -194,10 +194,10 @@ Foscl is clock SCL;standard mode:100KHz or fast mode:400KHz
 #define TWI4_BASE_ADDR_END    (TWI4_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
 
 #define I2C0_TRANSFER_SPEED     (400000)
-#define I2C1_TRANSFER_SPEED     (200000)
-#define I2C2_TRANSFER_SPEED     (200000)
-#define I2C3_TRANSFER_SPEED     (200000)
-#define I2C4_TRANSFER_SPEED     (200000)
+#define I2C1_TRANSFER_SPEED     (100000)
+#define I2C2_TRANSFER_SPEED     (100000)
+#define I2C3_TRANSFER_SPEED     (100000)
+#define I2C4_TRANSFER_SPEED     (100000)
 
 struct sunxi_i2c_platform_data {
 	int 		 bus_num;
