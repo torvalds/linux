@@ -1532,6 +1532,16 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+void blk_mq_disable_hotplug(void)
+{
+	mutex_lock(&all_q_mutex);
+}
+
+void blk_mq_enable_hotplug(void)
+{
+	mutex_unlock(&all_q_mutex);
+}
+
 static int __init blk_mq_init(void)
 {
 	blk_mq_cpu_init();

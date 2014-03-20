@@ -244,6 +244,32 @@ static ssize_t blk_mq_hw_sysfs_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
 	return blk_mq_tag_sysfs_show(hctx->tags, page);
 }
 
+static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
+{
+	unsigned int i, queue_num, first = 1;
+	ssize_t ret = 0;
+
+	blk_mq_disable_hotplug();
+
+	for_each_online_cpu(i) {
+		queue_num = hctx->queue->mq_map[i];
+		if (queue_num != hctx->queue_num)
+			continue;
+
+		if (first)
+			ret += sprintf(ret + page, "%u", i);
+		else
+			ret += sprintf(ret + page, ", %u", i);
+
+		first = 0;
+	}
+
+	blk_mq_enable_hotplug();
+
+	ret += sprintf(ret + page, "\n");
+	return ret;
+}
+
 static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_dispatched = {
 	.attr = {.name = "dispatched", .mode = S_IRUGO },
 	.show = blk_mq_sysfs_dispatched_show,
@@ -294,6 +320,10 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_tags = {
 	.attr = {.name = "tags", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_tags_show,
 };
+static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
+	.attr = {.name = "cpu_list", .mode = S_IRUGO },
+	.show = blk_mq_hw_sysfs_cpus_show,
+};
 
 static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_queued.attr,
@@ -302,6 +332,7 @@ static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_pending.attr,
 	&blk_mq_hw_sysfs_ipi.attr,
 	&blk_mq_hw_sysfs_tags.attr,
+	&blk_mq_hw_sysfs_cpus.attr,
 	NULL,
 };
 
