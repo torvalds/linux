@@ -92,7 +92,7 @@ static void stats_read(struct flow_stats *stats,
 		       unsigned long *used, __be16 *tcp_flags)
 {
 	spin_lock(&stats->lock);
-	if (time_after(stats->used, *used))
+	if (!*used || time_after(stats->used, *used))
 		*used = stats->used;
 	*tcp_flags |= stats->tcp_flags;
 	ovs_stats->n_packets += stats->packet_count;
