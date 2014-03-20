@@ -177,6 +177,9 @@ static void sony_nc_usb_charge_cleanup(struct platform_device *pd);
 static int sony_nc_panelid_setup(struct platform_device *pd);
 static void sony_nc_panelid_cleanup(struct platform_device *pd);
 
+static int sony_nc_smart_conn_setup(struct platform_device *pd);
+static void sony_nc_smart_conn_cleanup(struct platform_device *pd);
+
 static int sony_nc_touchpad_setup(struct platform_device *pd,
 				  unsigned int handle);
 static void sony_nc_touchpad_cleanup(struct platform_device *pd);
@@ -1422,6 +1425,12 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up panel ID function (%d)\n",
 				       result);
 			break;
+		case 0x0168:
+			result = sony_nc_smart_conn_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up smart connect support (%d)\n",
+						result);
+			break;
 		default:
 			continue;
 		}
@@ -1497,6 +1506,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 			break;
 		case 0x011D:
 			sony_nc_panelid_cleanup(pd);
+			break;
+		case 0x0168:
+			sony_nc_smart_conn_cleanup(pd);
 			break;
 		default:
 			continue;
@@ -2882,6 +2894,61 @@ static void sony_nc_panelid_cleanup(struct platform_device *pd)
 		device_remove_file(&pd->dev, panel_handle);
 		kfree(panel_handle);
 		panel_handle = NULL;
+	}
+}
+
+/* smart connect function */
+static struct device_attribute *sc_handle;
+
+static ssize_t sony_nc_smart_conn_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0168, value << 0x10, &result))
+		return -EIO;
+
+	return count;
+}
+
+static int sony_nc_smart_conn_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	sc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!sc_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&sc_handle->attr);
+	sc_handle->attr.name = "smart_connect";
+	sc_handle->attr.mode = S_IWUSR;
+	sc_handle->show = NULL;
+	sc_handle->store = sony_nc_smart_conn_store;
+
+	result = device_create_file(&pd->dev, sc_handle);
+	if (result) {
+		kfree(sc_handle);
+		sc_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_smart_conn_cleanup(struct platform_device *pd)
+{
+	if (sc_handle) {
+		device_remove_file(&pd->dev, sc_handle);
+		kfree(sc_handle);
+		sc_handle = NULL;
 	}
 }
 
