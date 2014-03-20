@@ -160,7 +160,7 @@ static int dw_mci_rockchip_parse_dt(struct dw_mci *host)
 /* Common capabilities of RK32XX SoC */
 static unsigned long rockchip_dwmmc_caps[4] = {
 	/*MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR | //Temporarily comment out!!!!!!, deleted by xbw, at 2014-03-12*/
-		MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23|MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50,
+	MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23|MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
@@ -187,28 +187,26 @@ MODULE_DEVICE_TABLE(of, dw_mci_rockchip_match);
 
 extern void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *mmc_property);
 
+#define DW_MMC_OF_PROBE 0
 static int dw_mci_rockchip_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
     struct device_node *np = pdev->dev.of_node;
 	struct rk_sdmmc_of *rk_mmc_property = NULL;
-	
 
+    #if DW_MMC_OF_PROBE	
     rk_mmc_property = (struct rk_sdmmc_of *)kmalloc(sizeof(struct rk_sdmmc_of),GFP_KERNEL);
     if(NULL == rk_mmc_property)
     {
-    
         kfree(rk_mmc_property);
         rk_mmc_property = NULL;
-        //mmc_error("");
         printk("rk_mmc_property malloc space failed!\n");
         return 0;
     }
     
-   
-        rockchip_mmc_of_probe(np,rk_mmc_property);
-
+    rockchip_mmc_of_probe(np,rk_mmc_property);
+    #endif /*DW_MMC_OF_PROBE*/
     
 
 	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
