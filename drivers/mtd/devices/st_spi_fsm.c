@@ -14,7 +14,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mtd/mtd.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -207,6 +209,7 @@ struct stfsm {
 	struct flash_info       *info;
 
 	uint32_t                fifo_dir_delay;
+	bool                    booted_from_spi;
 };
 
 struct stfsm_seq {
@@ -692,6 +695,47 @@ static int stfsm_init(struct stfsm *fsm)
 	return 0;
 }
 
+static void stfsm_fetch_platform_configs(struct platform_device *pdev)
+{
+	struct stfsm *fsm = platform_get_drvdata(pdev);
+	struct device_node *np = pdev->dev.of_node;
+	struct regmap *regmap;
+	uint32_t boot_device_reg;
+	uint32_t boot_device_spi;
+	uint32_t boot_device;     /* Value we read from *boot_device_reg */
+	int ret;
+
+	/* Booting from SPI NOR Flash is the default */
+	fsm->booted_from_spi = true;
+
+	regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
+	if (IS_ERR(regmap))
+		goto boot_device_fail;
+
+	/* Where in the syscon the boot device information lives */
+	ret = of_property_read_u32(np, "st,boot-device-reg", &boot_device_reg);
+	if (ret)
+		goto boot_device_fail;
+
+	/* Boot device value when booted from SPI NOR */
+	ret = of_property_read_u32(np, "st,boot-device-spi", &boot_device_spi);
+	if (ret)
+		goto boot_device_fail;
+
+	ret = regmap_read(regmap, boot_device_reg, &boot_device);
+	if (ret)
+		goto boot_device_fail;
+
+	if (boot_device != boot_device_spi)
+		fsm->booted_from_spi = false;
+
+	return;
+
+boot_device_fail:
+	dev_warn(&pdev->dev,
+		 "failed to fetch boot device, assuming boot from SPI\n");
+}
+
 static int stfsm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -733,6 +777,8 @@ static int stfsm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to initialise FSM Controller\n");
 		return ret;
 	}
+
+	stfsm_fetch_platform_configs(pdev);
 
 	/* Detect SPI FLASH device */
 	info = stfsm_jedec_probe(fsm);
