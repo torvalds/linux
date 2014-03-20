@@ -6,14 +6,15 @@
 
 /*************************dump reg********************************************/
 
-static void __sramfunc rkpm_sram_reg_dump(u32 base_addr,u32 start_offset,u32 end_offset)
+static void __sramfunc rkpm_sram_regs_dump(u32 base_addr,u32 start_offset,u32 end_offset)
 {
 	u32 i;
+       /* 
         rkpm_sram_printch('\n');
         rkpm_sram_printhex(base_addr);
         rkpm_sram_printch(':');
-        rkpm_sram_printch('\n');
-        
+        rkpm_sram_printch('\n');     
+     */
 	for(i=start_offset;i<=end_offset;)
 	{
             rkpm_sram_printhex(i);	 

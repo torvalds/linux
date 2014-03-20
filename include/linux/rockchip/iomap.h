@@ -18,6 +18,7 @@
 #define RK_CPU_AXI_BUS_VIRT             RK_IO_ADDRESS(0x00070000)
 #define RK_TIMER_VIRT                   RK_IO_ADDRESS(0x00080000)
 #define RK_GIC_VIRT                      RK_IO_ADDRESS(0x00090000)
+#define RK_BOOTRAM_VIRT           RK_IO_ADDRESS(0x000a0000)
 #define RK_DDR_VIRT                     RK_IO_ADDRESS(0x000d0000)
 
 
@@ -109,5 +110,9 @@
 #define RK3288_GIC_DIST_SIZE                SZ_4K
 #define RK3288_GIC_CPU_PHYS            0xffc02000
 #define RK3288_GIC_CPU_SIZE                SZ_4K
+
+#define RK3288_BOOTRAM_PHYS            0xff720000
+#define RK3288_BOOTRAM_SIZE            SZ_4K
+
 
 #endif

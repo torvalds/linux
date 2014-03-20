@@ -97,7 +97,9 @@ struct rkpm_gpios_info_st{
 #define PM_WARNING(fmt, args...) printk(KERN_WARNING fmt, ##args)
 
 /*********************************pm control******************************************/
-extern void  rkpm_ddr_reg_dump(u32 base_addr,u32 start_offset,u32 end_offset);
+extern void rkpm_ddr_reg_offset_dump(void __iomem * base_addr,u32 _offset);
+extern void  rkpm_ddr_regs_dump(void __iomem * base_addr,u32 start_offset,u32 end_offset);
+
 extern void rkpm_set_pie_info(struct rkpm_sram_ops *pm_sram_ops,rkpm_sram_suspend_arg_cb pie_cb);
 extern void rkpm_set_ops_prepare_finish(rkpm_ops_void_callback prepare,rkpm_ops_void_callback finish);
 extern void rkpm_set_ops_pwr_dmns(rkpm_ops_void_callback pwr_dmns,rkpm_ops_void_callback re_pwr_dmns);

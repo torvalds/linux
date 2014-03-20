@@ -31,12 +31,645 @@
 
 
 
+
 /*******************************gpio define **********************************************/
+
+/* GPIO control registers */
+#define GPIO_SWPORT_DR		0x00
+#define GPIO_SWPORT_DDR		0x04
 #define GPIO_INTEN			0x30
 #define GPIO_INTMASK		0x34
 #define GPIO_INTTYPE_LEVEL	0x38
 #define GPIO_INT_POLARITY	0x3c
 #define GPIO_INT_STATUS		0x40
+#define GPIO_INT_RAWSTATUS	0x44
+#define GPIO_DEBOUNCE		0x48
+#define GPIO_PORTS_EOI		0x4c
+#define GPIO_EXT_PORT		0x50
+#define GPIO_LS_SYNC		0x60
+
+/***********************************sleep func*********************************************/
+#define SEELP_SRAM_SAVE_SIZE (0x100)
+
+static char slp_sram_code_save[SEELP_SRAM_SAVE_SIZE];
+
+#define RK_SLEEP_DDR_CODE_OFF (512)
+
+#define RK_SLEEP_DDR_DATA_OFF (512+2048)
+
+// index data off in SLP_DATA_SAVE_BASE
+// it may be include in *.s ,so con't use enum type define
+#define SLP_DDR_NEED_RES            (0)  //ddr ctrl is need to resume
+#define SLP_DPLL_NEED_RES           (1) //ddr pll is need to resume
+#define SLP_DDR_CODE_PHY            (2) //ddr resume code phy
+#define SLP_DDR_DATA_PHY            (3) //ddr resume data phy
+#define SLP_SLEEP_RES_CON_CNT   (PM_BOOT_DATA_SIZE/4) // all index
+
+#if 1
+// sys resume data in boot ram
+#define SLP_DATA_SAVE_PHY  (RK3288_BOOTRAM_PHYS+PM_BOOT_CODE_OFFSET+PM_BOOT_CODE_SIZE)
+#define SLP_DATA_SAVE_BASE  (RK_BOOTRAM_VIRT+PM_BOOT_CODE_OFFSET+PM_BOOT_CODE_SIZE)
+
+// ddr resume data in boot ram
+#define SLP_DDR_DATA_SAVE_PHY  (RK3288_BOOTRAM_PHYS + PM_BOOT_DDR_CODE_OFFSET)
+#define SLP_DDR_DATA_SAVE_BASE  (RK_BOOTRAM_VIRT+PM_BOOT_DDR_CODE_OFFSET)
+#endif
+
+#define PM_BOOT_CODE_OFFSET (0x0)
+#define PM_BOOT_CODE_SIZE	(64*4)
+#define PM_BOOT_DATA_SIZE	(10*4)
+#define PM_BOOT_DDR_CODE_OFFSET	(((PM_BOOT_CODE_OFFSET+PM_BOOT_CODE_SIZE+PM_BOOT_DATA_SIZE)/4+2)*4)
+#define PM_BOOT_CODE_SP (RK3288_BOOTRAM_PHYS+(RK3288_BOOTRAM_SIZE-1)&~0x7)
+
+
+#define BOOT_RAM_SIZE	(4*1024)
+#define INT_RAM_SIZE		(64*1024)
+
+static char boot_ram_data[BOOT_RAM_SIZE];
+static char int_ram_data[INT_RAM_SIZE];
+
+
+// the value is used to control cpu resume flow
+static u32 sleep_resume_data[SLP_SLEEP_RES_CON_CNT];
+static char *resume_data_base=(char *)(SLP_DATA_SAVE_BASE);
+static char *resume_data_phy=  (char *)(SLP_DATA_SAVE_PHY);
+
+static void sram_code_reset(char *data, char *save, char* sram_base,char* sram_phy,u32 _size)
+{
+  char *addr_d=(char *)sram_base;
+
+  if(save)
+	  memcpy(save,addr_d, _size);
+	  
+  memcpy((char *)addr_d,(char *)data, _size);
+  flush_icache_range((unsigned long)addr_d, (unsigned long)addr_d + _size);
+  outer_clean_range((phys_addr_t) sram_phy, _size);
+}
+void rk_slp_cpu_resume(void)
+{
+
+}
+
+/**
+ddr code and data
+
+*** code start
+---data offset-- 
+---code----
+---data----
+*/
+ static void sram_data_for_sleep(char *boot_save, char *int_save)
+ {	
+ 	
+	char *addr_base,*addr_phy,*data_src,*data_dst;
+	u32 sr_size,data_size;
+
+	addr_base=(char *)RK_BOOTRAM_VIRT;
+	addr_phy=(char *)RK3288_BOOTRAM_PHYS;
+	sr_size=RK3288_BOOTRAM_SIZE;
+
+ 	// save boot sram
+	 if(boot_save)
+		 memcpy(boot_save,addr_base, sr_size);
+
+	// move resume code and date to boot sram
+	// move sys code
+	data_dst=(char *)RK_BOOTRAM_VIRT+PM_BOOT_CODE_OFFSET;
+	data_src=(char *)rk_slp_cpu_resume;
+	data_size=PM_BOOT_CODE_SIZE;
+	memcpy((char *)data_dst,(char *)data_src, data_size);
+
+	// move sys data
+	data_dst=(char *)resume_data_base;
+	data_src=(char *)sleep_resume_data;
+	data_size=sizeof(sleep_resume_data);
+	memcpy((char *)data_dst,(char *)data_src, data_size);
+#if 0
+	/*************************ddr code cpy*************************************/
+	// ddr code
+	data_dst=(char *)(char *)SLP_DDR_DATA_SAVE_BASE;
+	data_src=(char *)ddr_get_resume_code_info(&data_size);
+	
+	data_size=(data_size/4+1)*4;
+	
+	memcpy((char *)data_dst,(char *)data_src, data_size);
+
+	// ddr data
+	data_dst=(char *)(data_dst+data_size);
+	
+	data_src=(char *)ddr_get_resume_data_info(&data_size);
+	data_size=(data_size/4+1)*4;
+	memcpy((char *)data_dst,(char *)data_src, data_size);
+	
+	/*************************ddr code cpy  end*************************************/
+#endif	
+	flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
+	 outer_clean_range((phys_addr_t) addr_phy, sr_size);
+#if 0	 
+	 /*************************int mem bak*************************************/
+	// int mem
+	addr_base=(char *)rockchip_sram_virt;
+	//addr_phy=(char *)RK319X_IMEM_PHYS;
+	sr_size=rockchip_sram_size;
+        //mmap
+	if(int_save)
+	  memcpy(int_save,addr_base, sr_size);
+
+	 flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
+	// outer_clean_range((phys_addr_t) addr_phy, sr_size);
+#endif
+ }
+
+ static void sram_data_resume(char *boot_save, char *int_save)
+  {  
+	 
+	 char *addr_base,*addr_phy;
+	 u32 sr_size;
+ 
+	 addr_base=(char *)RK_BOOTRAM_VIRT;
+	 addr_phy=(char *)RK3288_BOOTRAM_PHYS;
+	 sr_size=RK3288_BOOTRAM_SIZE;
+ 
+	 // save boot sram
+	  if(boot_save)
+		  memcpy(addr_base,boot_save, sr_size);
+ 
+	 flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
+	 outer_clean_range((phys_addr_t) addr_phy, sr_size);
+
+    #if 0
+	// int mem
+	addr_base=(char *)RK319X_IMEM_BASE;
+	addr_phy=(char *)RK319X_IMEM_PHYS;
+	sr_size=RK319X_IMEM_SIZE;
+	
+	 if(int_save)
+	   memcpy(addr_base, int_save,sr_size);
+ 
+	  flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
+	  outer_clean_range((phys_addr_t) addr_phy, sr_size);
+      #endif
+ }
+/**************************************regs save and resume**************************/
+ void slp_regs_save(u32 *data,void __iomem * base,u32 st_offset,u32 end_offset)
+ {
+	 u32 i;
+         u32 cnt=(end_offset-st_offset)/4+1;
+	 for(i=0;i<cnt;i++)
+	 {
+		 data[i]=readl_relaxed(base+st_offset+i*4);
+	 }	 
+ 
+ }
+
+void slp_regs_resume(u32 *data,void __iomem * base,u32 st_offset,u32 end_offset,u32 w_msk)
+{
+	 u32 i;
+	 u32 cnt=(end_offset-st_offset)/4+1;
+	 for(i=0;i<cnt;i++)
+	 {		 
+		 reg_writel(data[i]|w_msk,(base+st_offset+i*4));
+	 }	 
+}
+ 
+void slp_regs_w_msk_resume(u32 *data,void __iomem * base,u32 st_offset,u32 end_offset,u32 *w_msk)
+{
+	 u32 i;
+        u32 cnt=(end_offset-st_offset)/4+1;
+         for(i=0;i<cnt;i++)
+	 {		 
+		 reg_writel(data[i]|w_msk[i],(base+st_offset+i*4));
+	 }	 
+}
+
+/**************************************uarts save and resume**************************/
+
+#define RK3288_UART_NUM (4)
+
+static void __iomem *slp_uart_base[RK3288_UART_NUM]={NULL};
+static u32 slp_uart_phy[RK3288_UART_NUM]={(0xff180000),(0xff190000),(0xff690000),(0xff1b0000)};
+
+static u32 slp_uart_data[RK3288_UART_NUM][10];
+ 
+#define UART_DLL	0	/* Out: Divisor Latch Low */
+#define UART_DLM	1	/* Out: Divisor Latch High */
+
+#define UART_IER	1
+#define UART_FCR	2
+ 
+#define UART_LCR	3	/* Out: Line Control Register */
+#define UART_MCR	4
+
+ void slp_uart_save(int ch)
+ {
+	 int i=0;
+	void __iomem *b_addr=slp_uart_base[ch];
+	 int idx=RK3288_CLKGATE_PCLK_UART0+ch;
+	 u32 gate_reg;
+	 if(b_addr==NULL || ch>=RK3288_UART_NUM)
+	 	return;	
+        if(ch==2)
+            idx=RK3288_CLKGATE_PCLK_UART2;
+
+        
+	gate_reg=cru_readl(RK3288_CRU_GATEID_CONS(idx));     
+        RK3288_CRU_UNGATING_OPS(idx); 
+         i=0;
+	 slp_uart_data[ch][i++]=readl_relaxed(b_addr+UART_LCR*4); 
+	 writel_relaxed(readl_relaxed(b_addr+UART_LCR*4)|0x80,b_addr+UART_LCR*4);
+	 
+	 slp_uart_data[ch][i++]=readl_relaxed(b_addr+UART_DLL*4);
+	 slp_uart_data[ch][i++]=readl_relaxed(b_addr+UART_DLM*4);
+	 
+	 writel_relaxed(readl_relaxed(b_addr+UART_LCR*4)&(~0x80),b_addr+UART_LCR*4);
+	 slp_uart_data[ch][i++]=readl_relaxed(b_addr+UART_IER*4);
+	 slp_uart_data[ch][i++]=readl_relaxed(b_addr+UART_FCR*4);
+	 slp_uart_data[ch][i++]=readl_relaxed(b_addr+UART_MCR*4);
+	 
+        cru_writel(gate_reg|CRU_W_MSK(idx%16,0x1),RK3288_CRU_GATEID_CONS(idx));         
+ 
+ }
+ 
+ void slp_uart_resume(int ch)
+ {	 
+        int i=0;
+
+        u32 temp;
+        void __iomem *b_addr=slp_uart_base[ch];
+        int idx=RK3288_CLKGATE_PCLK_UART0+ch;
+        u32 gate_reg;
+        
+        if(b_addr==NULL || ch>=RK3288_UART_NUM)
+            return;	
+        
+        if(ch==2)
+            idx=RK3288_CLKGATE_PCLK_UART2;
+
+
+        gate_reg=cru_readl(RK3288_CRU_GATEID_CONS(idx));     
+        RK3288_CRU_UNGATING_OPS(idx); 
+ 
+         i=0;
+	 temp=slp_uart_data[ch][i++];
+	 writel_relaxed(readl_relaxed(b_addr+UART_LCR*4)|0x80,b_addr+UART_LCR*4);
+	 
+	 writel_relaxed(slp_uart_data[ch][i++],b_addr+UART_DLL*4);
+	 writel_relaxed(slp_uart_data[ch][i++],b_addr+UART_DLM*4);
+	 
+	 writel_relaxed(readl_relaxed(b_addr+UART_LCR*4)&(~0x80),b_addr+UART_LCR*4);
+ 
+	 writel_relaxed(slp_uart_data[ch][i++],b_addr+UART_IER*4);
+	 writel_relaxed(slp_uart_data[ch][i++],b_addr+UART_FCR*4);
+	 writel_relaxed(slp_uart_data[ch][i++],b_addr+UART_MCR*4);
+	 
+	 writel_relaxed(temp,b_addr+UART_LCR*4);
+	 
+         cru_writel(gate_reg|CRU_W_MSK(idx%16,0x1),RK3288_CRU_GATEID_CONS(idx));         
+ }
+ 
+/**************************************i2c save and resume**************************/
+
+//#define RK3288_I2C_REG_DUMP
+#define RK3288_I2C_NUM (6)
+static u32 slp_i2c_phy[RK3288_I2C_NUM]={(0xff650000),(0xff140000),(0xff660000),(0xff150000),(0xff160000),(0xff170000)};
+static void __iomem *slp_i2c_base[RK3288_I2C_NUM]={NULL};
+
+static u32 slp_i2c_data[RK3288_I2C_NUM][10];
+
+void slp_i2c_save(int ch)
+{
+
+	void __iomem *b_addr=slp_i2c_base[ch];
+	int idx= (ch>1) ? (RK3288_CLKGATE_PCLK_I2C2+ch-2):(RK3288_CLKGATE_PCLK_I2C0+ch);
+	u32 gate_reg;
+
+	if(!b_addr)
+		return;
+    
+        gate_reg=cru_readl(RK3288_CRU_GATEID_CONS(idx));     
+        RK3288_CRU_UNGATING_OPS(idx); 
+        
+        #ifdef RK3288_I2C_REG_DUMP
+        rkpm_ddr_printascii("i2c save");
+        rkpm_ddr_printhex(ch);
+        rkpm_ddr_printch('\n');        
+        rkpm_ddr_regs_dump(b_addr,0x0,0xc);
+        #endif
+        
+        slp_regs_save(&slp_i2c_data[ch][0],b_addr,0x0,0xc);  
+        
+
+        cru_writel(gate_reg|CRU_W_MSK(idx%16,0x1),RK3288_CRU_GATEID_CONS(idx));         
+
+}
+void slp_i2c_resume(int ch)
+{
+        void __iomem *b_addr=slp_i2c_base[ch];
+        int idx= (ch>1) ? (RK3288_CLKGATE_PCLK_I2C2+ch-2):(RK3288_CLKGATE_PCLK_I2C0+ch);
+	u32 gate_reg;
+	
+	if(!b_addr)
+		return;
+        gate_reg=cru_readl(RK3288_CRU_GATEID_CONS(idx));     
+        RK3288_CRU_UNGATING_OPS(idx); 
+
+        slp_regs_resume(&slp_i2c_data[ch][0],b_addr,0x0,0xc,0x0);  
+
+        #ifdef RK3288_I2C_REG_DUMP
+        rkpm_ddr_printascii("i2c resume");
+        rkpm_ddr_printhex(ch);
+        rkpm_ddr_printch('\n');        
+        rkpm_ddr_regs_dump(b_addr,0x0,0xc);
+        #endif
+  
+        cru_writel(gate_reg|CRU_W_MSK(idx%16,0x1),RK3288_CRU_GATEID_CONS(idx));         
+}
+
+/**************************************gpios save and resume**************************/
+#define RK3288_GPIO_CH (9)
+static u32 slp_gpio_data[RK3288_GPIO_CH][10]; 
+static u32 slp_grf_iomux_data[RK3288_GPIO_CH*4];
+static u32 slp_grf_io_pull_data[RK3288_GPIO_CH*4];
+
+static void gpio_ddr_dump_reg(int ports)
+{
+    void __iomem *b_addr=RK_GPIO_VIRT(ports);
+    
+    rkpm_ddr_printascii("gpio-");
+    rkpm_ddr_printhex(ports);
+    rkpm_ddr_printhex('\n');      
+    
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_SWPORT_DR);
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_SWPORT_DDR);      
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_INTEN);  
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_INTMASK);     
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_INTTYPE_LEVEL);  
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_INT_POLARITY);   
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_DEBOUNCE);   
+    rkpm_ddr_reg_offset_dump(b_addr,GPIO_LS_SYNC);    
+    rkpm_ddr_printhex('\n');      
+
+    rkpm_ddr_printascii("iomux\n");
+    rkpm_ddr_regs_dump(RK_GRF_VIRT,0x0+ports*4*4,0x0+ports*4*4+3*4);
+
+    rkpm_ddr_printascii("iomux\n");
+    rkpm_ddr_regs_dump(RK_GRF_VIRT,0x130+ports*4*4,ports*4*4+3*4);
+
+}
+
+ static void slp_pin_gpio_save(int ports)
+ {
+        int i;
+        void __iomem *b_addr=RK_GPIO_VIRT(ports);
+        int idx=RK3288_CLKGATE_PCLK_GPIO1+ports-1;
+        u32 gate_reg;
+
+	if(ports==0||ports>=RK3288_GPIO_CH)
+		return;
+	
+         gate_reg=cru_readl(RK3288_CRU_GATEID_CONS(idx));     
+         RK3288_CRU_UNGATING_OPS(idx); 
+         
+         //gpio_ddr_dump_reg(ports);          
+	 i=0;
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_SWPORT_DR);
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_SWPORT_DDR);
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_INTEN);	 
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_INTMASK);  
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_INTTYPE_LEVEL);	 
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_INT_POLARITY);
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_DEBOUNCE);
+	 slp_gpio_data[ports][i++]=readl_relaxed(b_addr+GPIO_LS_SYNC); 
+
+        if(ports>0)
+        {
+            slp_regs_save(&slp_grf_iomux_data[ports*4],RK_GRF_VIRT,0x0+ports*4*4,0x0+ports*4*4+3*4);  
+            slp_regs_save(&slp_grf_io_pull_data[ports*4],RK_GRF_VIRT,0x130+ports*4*4,ports*4*4+3*4);
+         }
+
+     
+        cru_writel(gate_reg|CRU_W_MSK(idx%16,0x1),RK3288_CRU_GATEID_CONS(idx));         
+ 
+ }
+
+ static void slp_pin_gpio_resume (int ports)
+ {
+	 int i;
+        void __iomem *b_addr=RK_GPIO_VIRT(ports);
+        int idx=RK3288_CLKGATE_PCLK_GPIO1+ports-1;
+	 u32 gate_reg;
+	 
+	 if(ports==0||ports>=RK3288_GPIO_CH)
+		return;
+	  gate_reg=cru_readl(RK3288_CRU_GATEID_CONS(idx));     
+         RK3288_CRU_UNGATING_OPS(idx); 
+
+
+        if(ports>0)
+        {
+            slp_regs_resume(&slp_grf_iomux_data[ports*4],RK_GRF_VIRT,0x0+ports*4*4,0x0+ports*4*4+3*4,0xffff0000);  
+            slp_regs_resume(&slp_grf_io_pull_data[ports*4],RK_GRF_VIRT,0x130+ports*4*4,ports*4*4+3*4,0xffff0000);
+        }
+ 
+        i=0;
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_SWPORT_DR);
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_SWPORT_DDR);
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_INTEN);	 
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_INTMASK); 
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_INTTYPE_LEVEL);	 
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_INT_POLARITY);
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_DEBOUNCE);
+        writel_relaxed(slp_gpio_data[ports][i++],b_addr+GPIO_LS_SYNC);	    
+        
+        //gpio_ddr_dump_reg(ports);	
+        cru_writel(gate_reg|CRU_W_MSK(idx%16,0x1),RK3288_CRU_GATEID_CONS(idx));         
+ 
+ }
+
+/**************************************sleep func**************************/
+
+int  rk30_cpu_save(int state,int offset);
+void ddr_reg_save(uint32_t *pArg);
+void fiq_glue_resume(void);
+void rk30_cpu_resume(void);
+void rk30_l2_cache_init_pm(void);
+//static void rk319x_pm_set_power_domain(enum pmu_power_domain pd, bool state);
+void ddr_cfg_to_lp_mode(void);
+void l2x0_inv_all_pm(void);
+void rk30_cpu_while_tst(void);
+
+#if 0
+static u32 slp_grf_soc_con_data[5];
+static u32 slp_grf_soc_con_w_msk[5]={0x70000,0x40ff0000,0xffff0000,0xffff0000,0xffff0000};
+
+static u32 slp_grf_cpu_con_data[5];
+static u32 slp_grf_cpu_con_w_msk[5]={0xefff0000,0xffff0000,0xcfff0000,0xffff0000,0x7fff0000};
+
+static u32 slp_grf_uoc0_con_data[4];
+static u32 slp_grf_uoc0_con_w_msk[4]={0xffff0000,0xffff0000,0x7dff0000,0x7fff0000};// uoc0_con4 bit 15?? 
+
+static u32 slp_grf_uoc1_con_data[2];
+static u32 slp_grf_uoc1_con_w_msk[2]={0x1fdc0000,0x047f0000};
+
+static u32 slp_grf_uoc2_con_data[2];
+static u32 slp_grf_uoc2_con_w_msk[2]={0x7fff0000,0x1f0000};
+
+static u32 slp_grf_uoc3_con_data[2];
+static u32 slp_grf_uoc3_con_w_msk[2]={0x3ff0000,0x0fff0000};
+
+static u32 slp_pmu_pwrmode_con_data[1];
+#endif
+
+static u32 slp_nandc_data[8];
+static void __iomem *rk30_nandc_base=NULL;
+
+#define MS_37K (37)
+#define US_24M (24)
+
+void inline pm_io_base_map(void)
+{
+        int i;
+        for(i=0;i<RK3288_I2C_NUM;i++)
+            slp_i2c_base[i]  = ioremap(slp_i2c_phy[i], 0x1000);
+
+        for(i=0;i<RK3288_UART_NUM;i++)
+            {
+                if(i!=CONFIG_RK_DEBUG_UART)
+                    slp_uart_base[i]  = ioremap(slp_uart_phy[i], 0x1000);
+                else
+                    slp_uart_base[i] = RK_DEBUG_UART_VIRT;
+            }
+	
+}	
+#if 0
+
+void pm_gpio_setting(void)
+{
+
+	//gpio wake up setting
+	gpio0_lp_wakeup_en(1,3);
+	gpio0s_lp_wakeup_type(1);
+	gpio0_lp_wakeup_en(6,3);
+	
+}
+#endif
+static int sleep_resume_all=0;
+
+void pm_sleep_func_save(void)
+{
+	//char *data_src;
+	u32 data_size;
+	//u32 *p;
+	
+	
+	sleep_resume_data[SLP_DDR_NEED_RES]=0;// in sys resume ,ddr is need resume
+	sleep_resume_data[SLP_DPLL_NEED_RES]=1;// in ddr resume ,dpll is need resume
+	//data_src=(char *)ddr_get_resume_code_info(&data_size);
+	sleep_resume_data[SLP_DDR_CODE_PHY]=SLP_DDR_DATA_SAVE_PHY;
+	//sleep_resume_data[SLP_DDR_DATA_PHY]=SLP_DDR_DATA_SAVE_PHY+(data_size/4+1)*4;
+    
+	flush_cache_all();
+	outer_flush_all();
+	local_flush_tlb_all();
+
+	
+	rkpm_ddr_printch('a');
+	//ddr_reg_save(resume_data_phy+SLP_DPLL_NEED_RES*4);
+	sram_data_for_sleep(boot_ram_data,int_ram_data);
+
+	//slp_regs_save(slp_grf_iomux_data,(u32)RK_GRF_VIRT+0x10,16);
+	
+	//slp_regs_save(slp_nandc_data,(u32)rk30_nandc_base,8);
+    
+	//slp_pmu_pwrmode_con_data[0]=pmu_readl(PMU_PWRMODE_CON);//idlemode setting save
+	
+    
+	slp_pin_gpio_save(1);
+	slp_pin_gpio_save(2);
+	slp_pin_gpio_save(3);
+	slp_pin_gpio_save(4);
+	slp_uart_save(2);
+		
+	sleep_resume_all=0;
+	rkpm_ddr_printch('S');
+}
+void pm_sleep_func_rusume_first(void)
+{
+
+	//rk319x_pm_set_power_domain(PD_PERI,true);
+	//slp_regs_resume(slp_grf_io_pull_data,(u32)RK_GRF_VIRT+0x144,16,0xffff0000);
+	slp_pin_gpio_resume(1);
+	slp_pin_gpio_resume(2);
+	slp_pin_gpio_resume(3);
+	slp_pin_gpio_resume(4);
+
+	#if 0
+	slp_regs_w_msk_resume(slp_grf_soc_con_data,(u32)RK_GRF_VIRT+0x60,5,slp_grf_soc_con_w_msk);
+	slp_regs_w_msk_resume(slp_grf_cpu_con_data,(u32)RK_GRF_VIRT+0x9c,5,slp_grf_cpu_con_w_msk);
+
+	slp_regs_w_msk_resume(slp_grf_uoc0_con_data,(u32)RK_GRF_VIRT+0xc4,4,slp_grf_uoc0_con_w_msk);
+	slp_regs_w_msk_resume(slp_grf_uoc1_con_data,(u32)RK_GRF_VIRT+0xd4,2,slp_grf_uoc1_con_w_msk);
+	slp_regs_w_msk_resume(slp_grf_uoc2_con_data,(u32)RK_GRF_VIRT+0xe4,2,slp_grf_uoc2_con_w_msk);
+	slp_regs_w_msk_resume(slp_grf_uoc3_con_data,(u32)RK_GRF_VIRT+0xec,2,slp_grf_uoc3_con_w_msk);
+	#endif
+	//pmu_writel(slp_pmu_pwrmode_con_data[0],PMU_PWRMODE_CON);// idle mode setting resume
+	//sram_printch_uart_enable();
+	slp_uart_resume(2);
+	sleep_resume_all=1;
+
+}
+
+ void pm_sleep_func_rusume_last(void)
+ {
+	rkpm_ddr_printch('L');
+	if(sleep_resume_all)
+	{
+	 
+            cpu_init(); 	
+            slp_uart_resume(0);
+            slp_uart_resume(1);
+            slp_uart_resume(3);
+           // slp_regs_resume(slp_nandc_data,(u32)rk30_nandc_base,8,0);
+
+            fiq_glue_resume();
+	
+	}
+	
+	sram_data_resume(boot_ram_data,int_ram_data);
+ }
+ 
+ void inline rk_sleep_setting(u32 config)//24M
+ {
+  
+     return;
+ }
+
+static void  rk30_sram_suspend_sleep(void)
+{
+	//u32 config =LP_ARM_DPSLP_LOG_DPSLP;
+	//rk_sleep_setting(config);
+	    
+        //if(config>LP_ARM_LOG_NOR) 
+        {
+            local_flush_tlb_all();
+            flush_cache_all();
+            outer_flush_all();
+            outer_disable();
+            cpu_proc_fin();
+            //outer_inv_all();// ???
+            //  l2x0_inv_all_pm(); //rk319x is not need
+            flush_cache_all();
+        }  
+        
+	rkpm_ddr_printch('w');	
+	dsb();
+	wfi();
+	dsb();
+    
+	rkpm_ddr_printch('w');	
+	
+}
+
 
 /*******************************common code  for rkxxx*********************************/
 
@@ -46,6 +679,11 @@ static void  inline uart_printch(char byte)
         u32 u_clk_id=(RK3288_CLKGATE_UART0_SRC+CONFIG_RK_DEBUG_UART);
         u32 u_pclk_id=(RK3288_CLKGATE_PCLK_UART0+CONFIG_RK_DEBUG_UART);
         
+        if(CONFIG_RK_DEBUG_UART==4)
+            u_clk_id=RK3288_CLKGATE_UART4_SRC;
+        if(CONFIG_RK_DEBUG_UART==2)
+            u_pclk_id=RK3288_CLKGATE_PCLK_UART2;
+            
         reg_save[0]=cru_readl(RK3288_CRU_GATEID_CONS(u_clk_id));
         reg_save[1]=cru_readl(RK3288_CRU_GATEID_CONS(u_pclk_id));
         RK3288_CRU_UNGATING_OPS(u_clk_id);
@@ -77,19 +715,6 @@ static void  ddr_printch(char byte)
 	uart_printch(byte);
 }
 /*******************************gpio func*******************************************/
-/* GPIO control registers */
-#define GPIO_SWPORT_DR		0x00
-#define GPIO_SWPORT_DDR		0x04
-#define GPIO_INTEN			0x30
-#define GPIO_INTMASK		0x34
-#define GPIO_INTTYPE_LEVEL	0x38
-#define GPIO_INT_POLARITY	0x3c
-#define GPIO_INT_STATUS		0x40
-#define GPIO_INT_RAWSTATUS	0x44
-#define GPIO_DEBOUNCE		0x48
-#define GPIO_PORTS_EOI		0x4c
-#define GPIO_EXT_PORT		0x50
-#define GPIO_LS_SYNC		0x60
 
 //pin=0x0a21  gpio0a2,port=0,bank=a,b_gpio=2,fun=1
 static inline void pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun)

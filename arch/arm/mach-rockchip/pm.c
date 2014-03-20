@@ -5,25 +5,26 @@
 #include "pm.h"
 
 /*************************dump reg********************************************/
-void  rkpm_ddr_reg_dump(u32 base_addr,u32 start_offset,u32 end_offset)
+
+void rkpm_ddr_reg_offset_dump(void __iomem * base_addr,u32 _offset)
+{
+    rkpm_ddr_printhex(_offset);     
+    rkpm_ddr_printch('-');
+    rkpm_ddr_printhex(readl_relaxed((base_addr + _offset)));  
+}
+
+void  rkpm_ddr_regs_dump(void __iomem * base_addr,u32 start_offset,u32 end_offset)
 {
 	u32 i;
-        rkpm_ddr_printch('\n');
-        rkpm_ddr_printhex(base_addr);
-        rkpm_ddr_printch(':');
-        rkpm_ddr_printch('\n');
-        
+    
 	for(i=start_offset;i<=end_offset;)
 	{
-            rkpm_ddr_printhex(i);	 
-            rkpm_ddr_printch('-');
-            rkpm_ddr_printhex(readl_relaxed((void *)(base_addr + i)));	 
-            if(!(i%5)&&i!=0)
+            rkpm_ddr_printhex(readl_relaxed((void *)(base_addr + i)));  
+            if((i!=0&!(i%6))||i==end_offset)
             rkpm_ddr_printch('\n');
             i+=4;
-	}
+	} 
     
-    rkpm_ddr_printch('\n');
 }
 
 static struct rkpm_ops pm_ops={NULL};
@@ -356,7 +357,13 @@ inline int rkpm_dbgctr_enter(void)
     }
     return 0;
 }
-void plls_resume(void);
+
+void  rk_slp_mode_enter(void)
+{
+	//rk30_suspend_sleep();
+         
+}
+
 
 static int rkpm_enter(suspend_state_t state)
 {
@@ -398,11 +405,7 @@ static int rkpm_enter(suspend_state_t state)
 
     if(rkpm_chk_jdg_ctrbit(RKPM_CTR_NORIDLE_MD))
         call_with_stack(p_suspend_pie_cb,&rkpm_jdg_sram_ctrbits, rockchip_sram_stack);
-  {
-            dsb();
-            wfi();
-   }
-
+  
     pm_log = true;
     
     rkpm_ddr_printch('4');
