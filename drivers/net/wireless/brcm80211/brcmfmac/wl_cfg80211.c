@@ -191,6 +191,7 @@ static struct ieee80211_supported_band __wl_band_2ghz = {
 	.n_channels = ARRAY_SIZE(__wl_2ghz_channels),
 	.bitrates = wl_g_rates,
 	.n_bitrates = wl_g_rates_size,
+	.ht_cap = {IEEE80211_HT_CAP_SUP_WIDTH_20_40, true},
 };
 
 static struct ieee80211_supported_band __wl_band_5ghz_a = {
@@ -4929,6 +4930,19 @@ static void init_vif_event(struct brcmf_cfg80211_vif_event *event)
 	mutex_init(&event->vif_event_lock);
 }
 
+static int brcmf_set_bwcap(struct brcmf_if *ifp, u32 band, u32 bw_cap)
+{
+	struct brcmf_fil_bwcap_le band_bwcap;
+	int err;
+
+	band_bwcap.band = cpu_to_le32(band);
+	band_bwcap.bw_cap = cpu_to_le32(bw_cap);
+	err = brcmf_fil_iovar_data_set(ifp, "bw_cap", &band_bwcap,
+				       sizeof(band_bwcap));
+
+	return err;
+}
+
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 						  struct device *busdev)
 {
@@ -4984,6 +4998,18 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_err("BT-coex initialisation failed (%d)\n", err);
 		brcmf_p2p_detach(&cfg->p2p);
 		goto cfg80211_p2p_attach_out;
+	}
+
+	/* If cfg80211 didn't disable 40MHz HT CAP in wiphy_register(),
+	 * setup 40MHz in 2GHz band and enable OBSS scanning.
+	 */
+	if (wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap.cap &
+	    IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+		err = brcmf_set_bwcap(ifp, WLC_BAND_2G, WLC_BW_CAP_40MHZ);
+		if (!err) {
+			err = brcmf_fil_iovar_int_set(ifp, "obss_coex",
+						      BRCMF_OBSS_COEX_AUTO);
+		}
 	}
 
 	err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);
