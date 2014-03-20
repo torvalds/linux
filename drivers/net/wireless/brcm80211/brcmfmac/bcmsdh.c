@@ -269,26 +269,17 @@ static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn,
 		break;
 	}
 
-	if (ret) {
-		/*
-		 * SleepCSR register access can fail when
-		 * waking up the device so reduce this noise
-		 * in the logs.
-		 */
-		if (addr != SBSDIO_FUNC1_SLEEPCSR)
-			brcmf_err("failed to %s data F%d@0x%05x, err: %d\n",
-				  write ? "write" : "read", fn, addr, ret);
-		else
-			brcmf_dbg(SDIO, "failed to %s data F%d@0x%05x, err: %d\n",
-				  write ? "write" : "read", fn, addr, ret);
-	}
+	if (ret)
+		brcmf_dbg(SDIO, "failed to %s data F%d@0x%05x, err: %d\n",
+			  write ? "write" : "read", fn, addr, ret);
+
 	return ret;
 }
 
 static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 				   u8 regsz, void *data, bool write)
 {
-	u8 func_num;
+	u8 func;
 	s32 retry = 0;
 	int ret;
 
@@ -302,9 +293,9 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	 * The rest: function 1 silicon backplane core registers
 	 */
 	if ((addr & ~REG_F0_REG_MASK) == 0)
-		func_num = SDIO_FUNC_0;
+		func = SDIO_FUNC_0;
 	else
-		func_num = SDIO_FUNC_1;
+		func = SDIO_FUNC_1;
 
 	do {
 		if (!write)
@@ -312,16 +303,26 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		/* for retry wait for 1 ms till bus get settled down */
 		if (retry)
 			usleep_range(1000, 2000);
-		ret = brcmf_sdiod_request_data(sdiodev, func_num, addr, regsz,
+		ret = brcmf_sdiod_request_data(sdiodev, func, addr, regsz,
 					       data, write);
 	} while (ret != 0 && ret != -ENOMEDIUM &&
 		 retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
 	if (ret == -ENOMEDIUM)
 		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_NOMEDIUM);
-	else if (ret != 0)
-		brcmf_err("failed with %d\n", ret);
-
+	else if (ret != 0) {
+		/*
+		 * SleepCSR register access can fail when
+		 * waking up the device so reduce this noise
+		 * in the logs.
+		 */
+		if (addr != SBSDIO_FUNC1_SLEEPCSR)
+			brcmf_err("failed to %s data F%d@0x%05x, err: %d\n",
+				  write ? "write" : "read", func, addr, ret);
+		else
+			brcmf_dbg(SDIO, "failed to %s data F%d@0x%05x, err: %d\n",
+				  write ? "write" : "read", func, addr, ret);
+	}
 	return ret;
 }
 
