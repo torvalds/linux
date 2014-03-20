@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-samsung/include/plat/rtc-core.h
- *
+/*
  * Copyright (c) 2011 Heiko Stuebner <heiko@sntech.de>
  *
  * Samsung RTC Controller core functions
@@ -9,19 +8,19 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_PLAT_RTC_CORE_H
-#define __ASM_PLAT_RTC_CORE_H __FILE__
+#ifndef __RTC_CORE_H
+#define __RTC_CORE_H __FILE__
 
 /* These functions are only for use with the core support code, such as
  * the cpu specific initialisation code
  */
 
+extern struct platform_device s3c_device_rtc;
+
 /* re-define device name depending on support. */
 static inline void s3c_rtc_setname(char *name)
 {
-#if defined(CONFIG_S3C_DEV_RTC) || defined(CONFIG_PLAT_S3C24XX)
 	s3c_device_rtc.name = name;
-#endif
 }
 
-#endif /* __ASM_PLAT_RTC_CORE_H */
+#endif /* __RTC_CORE_H */

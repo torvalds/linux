@@ -10,10 +10,9 @@
 
 /* pull in the relevant register and map files. */
 
+#include <linux/serial_s3c.h>
 #include <plat/map-base.h>
 #include <plat/map-s5p.h>
-
-#include <plat/regs-serial.h>
 
 	.macro addruart, rp, rv, tmp
 		mov	\rp, #0xE0000000

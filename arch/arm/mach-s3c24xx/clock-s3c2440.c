@@ -34,6 +34,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 
 #include <mach/hardware.h>
 #include <linux/atomic.h>
@@ -43,7 +44,6 @@
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
-#include <plat/regs-serial.h>
 
 /* S3C2440 extended clock support */
 

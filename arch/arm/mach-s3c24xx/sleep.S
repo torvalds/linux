@@ -25,13 +25,13 @@
 */
 
 #include <linux/linkage.h>
+#include <linux/serial_s3c.h>
 #include <asm/assembler.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <plat/regs-serial.h>
 
 /* CONFIG_DEBUG_RESUME is dangerous if your bootloader does not
  * reset the UART configuration, only enable if you really need this!
