@@ -26,6 +26,10 @@
 		i2c5 = &i2c5;
 		lcdc0 = &lcdc0;
 		lcdc1 = &lcdc1;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
+
 	};
 
 	cpus {
