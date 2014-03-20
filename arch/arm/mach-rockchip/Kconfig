@@ -57,7 +57,7 @@ config DVFS
 config RK_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
 	depends on ARCH_ROCKCHIP
-	default y
+	default n
 
 config RK_VCODEC
 	tristate "VCODEC (VPU HEVC) service driver in kernel"
