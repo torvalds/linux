@@ -129,7 +129,8 @@ static int kbd_backlight = -1;
 module_param(kbd_backlight, int, 0444);
 MODULE_PARM_DESC(kbd_backlight,
 		 "set this to 0 to disable keyboard backlight, "
-		 "1 to enable it (default: no change from current value)");
+		 "1 to enable it with automatic control and 2 to have it always "
+		 "on (default: no change from current value)");
 
 static int kbd_backlight_timeout = -1;
 module_param(kbd_backlight_timeout, int, 0444);
@@ -1772,7 +1773,7 @@ static ssize_t __sony_nc_kbd_backlight_mode_set(u8 value)
 {
 	int result;
 
-	if (value > 1)
+	if (value > 2)
 		return -EINVAL;
 
 	if (sony_call_snc_handle(kbdbl_ctl->handle,
@@ -1780,8 +1781,10 @@ static ssize_t __sony_nc_kbd_backlight_mode_set(u8 value)
 		return -EIO;
 
 	/* Try to turn the light on/off immediately */
-	sony_call_snc_handle(kbdbl_ctl->handle,
-			(value << 0x10) | (kbdbl_ctl->base + 0x100), &result);
+	if (value != 1)
+		sony_call_snc_handle(kbdbl_ctl->handle,
+				(value << 0x0f) | (kbdbl_ctl->base + 0x100),
+				&result);
 
 	kbdbl_ctl->mode = value;
 
