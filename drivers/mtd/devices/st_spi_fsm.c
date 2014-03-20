@@ -785,8 +785,7 @@ static void stfsm_wait_seq(struct stfsm *fsm)
 	dev_err(fsm->dev, "timeout on sequence completion\n");
 }
 
-static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf,
-			    const uint32_t size)
+static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf, uint32_t size)
 {
 	uint32_t remaining = size >> 2;
 	uint32_t avail;
@@ -811,8 +810,8 @@ static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf,
 	}
 }
 
-static int stfsm_write_fifo(struct stfsm *fsm,
-			    const uint32_t *buf, const uint32_t size)
+static int stfsm_write_fifo(struct stfsm *fsm, const uint32_t *buf,
+			    uint32_t size)
 {
 	uint32_t words = size >> 2;
 
@@ -1544,8 +1543,8 @@ static int stfsm_read(struct stfsm *fsm, uint8_t *buf, uint32_t size,
 	return 0;
 }
 
-static int stfsm_write(struct stfsm *fsm, const uint8_t *const buf,
-		       const uint32_t size, const uint32_t offset)
+static int stfsm_write(struct stfsm *fsm, const uint8_t *buf,
+		       uint32_t size, uint32_t offset)
 {
 	struct stfsm_seq *seq = &fsm->stfsm_seq_write;
 	uint32_t data_pads;
@@ -1670,7 +1669,7 @@ static int stfsm_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 }
 
-static int stfsm_erase_sector(struct stfsm *fsm, const uint32_t offset)
+static int stfsm_erase_sector(struct stfsm *fsm, uint32_t offset)
 {
 	struct stfsm_seq *seq = &stfsm_seq_erase_sector;
 	int ret;
@@ -1816,7 +1815,7 @@ out1:
 	return ret;
 }
 
-static void stfsm_read_jedec(struct stfsm *fsm, uint8_t *const jedec)
+static void stfsm_read_jedec(struct stfsm *fsm, uint8_t *jedec)
 {
 	const struct stfsm_seq *seq = &stfsm_seq_read_jedec;
 	uint32_t tmp[2];
