@@ -5338,7 +5338,7 @@ void mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 }
 
 int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			      u8 link_type, u8 addr_type, __le32 value,
+			      u8 link_type, u8 addr_type, u32 value,
 			      u8 confirm_hint)
 {
 	struct mgmt_ev_user_confirm_request ev;
@@ -5348,7 +5348,7 @@ int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	bacpy(&ev.addr.bdaddr, bdaddr);
 	ev.addr.type = link_to_bdaddr(link_type, addr_type);
 	ev.confirm_hint = confirm_hint;
-	ev.value = value;
+	ev.value = cpu_to_le32(value);
 
 	return mgmt_event(MGMT_EV_USER_CONFIRM_REQUEST, hdev, &ev, sizeof(ev),
 			  NULL);

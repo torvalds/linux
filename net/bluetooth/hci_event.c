@@ -3459,8 +3459,8 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	}
 
 confirm:
-	mgmt_user_confirm_request(hdev, &ev->bdaddr, ACL_LINK, 0, ev->passkey,
-				  confirm_hint);
+	mgmt_user_confirm_request(hdev, &ev->bdaddr, ACL_LINK, 0,
+				  le32_to_cpu(ev->passkey), confirm_hint);
 
 unlock:
 	hci_dev_unlock(hdev);

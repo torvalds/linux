@@ -425,7 +425,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	else
 		ret = mgmt_user_passkey_notify(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type,
-						cpu_to_le32(passkey), 0);
+						passkey, 0);
 
 	hci_dev_unlock(hcon->hdev);
 
