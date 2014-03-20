@@ -1075,7 +1075,7 @@ void gen6_set_pm_mask(struct drm_i915_private *dev_priv,
 			     u32 pm_iir, int new_delay)
 {
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
-		if (new_delay >= dev_priv->rps.max_delay) {
+		if (new_delay >= dev_priv->rps.max_freq_softlimit) {
 			/* Mask UP THRESHOLD Interrupts */
 			I915_WRITE(GEN6_PMINTRMSK,
 				   I915_READ(GEN6_PMINTRMSK) |
@@ -1090,7 +1090,7 @@ void gen6_set_pm_mask(struct drm_i915_private *dev_priv,
 			dev_priv->rps.rp_down_masked = false;
 		}
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
-		if (new_delay <= dev_priv->rps.min_delay) {
+		if (new_delay <= dev_priv->rps.min_freq_softlimit) {
 			/* Mask DOWN THRESHOLD Interrupts */
 			I915_WRITE(GEN6_PMINTRMSK,
 				   I915_READ(GEN6_PMINTRMSK) |
@@ -1136,38 +1136,39 @@ static void gen6_pm_rps_work(struct work_struct *work)
 			adj *= 2;
 		else
 			adj = 1;
-		new_delay = dev_priv->rps.cur_delay + adj;
+		new_delay = dev_priv->rps.cur_freq + adj;
 
 		/*
 		 * For better performance, jump directly
 		 * to RPe if we're below it.
 		 */
-		if (new_delay < dev_priv->rps.rpe_delay)
-			new_delay = dev_priv->rps.rpe_delay;
+		if (new_delay < dev_priv->rps.efficient_freq)
+			new_delay = dev_priv->rps.efficient_freq;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
-		if (dev_priv->rps.cur_delay > dev_priv->rps.rpe_delay)
-			new_delay = dev_priv->rps.rpe_delay;
+		if (dev_priv->rps.cur_freq > dev_priv->rps.efficient_freq)
+			new_delay = dev_priv->rps.efficient_freq;
 		else
-			new_delay = dev_priv->rps.min_delay;
+			new_delay = dev_priv->rps.min_freq_softlimit;
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
 			adj *= 2;
 		else
 			adj = -1;
-		new_delay = dev_priv->rps.cur_delay + adj;
+		new_delay = dev_priv->rps.cur_freq + adj;
 	} else { /* unknown event */
-		new_delay = dev_priv->rps.cur_delay;
+		new_delay = dev_priv->rps.cur_freq;
 	}
 
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
 	new_delay = clamp_t(int, new_delay,
-			    dev_priv->rps.min_delay, dev_priv->rps.max_delay);
+			    dev_priv->rps.min_freq_softlimit,
+			    dev_priv->rps.max_freq_softlimit);
 
 	gen6_set_pm_mask(dev_priv, pm_iir, new_delay);
-	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_delay;
+	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_freq;
 
 	if (IS_VALLEYVIEW(dev_priv->dev))
 		valleyview_set_rps(dev_priv->dev, new_delay);

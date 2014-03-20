@@ -1026,7 +1026,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 			   max_freq * GT_FREQUENCY_MULTIPLIER);
 
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
-			   dev_priv->rps.hw_max * GT_FREQUENCY_MULTIPLIER);
+			   dev_priv->rps.max_freq * GT_FREQUENCY_MULTIPLIER);
 	} else if (IS_VALLEYVIEW(dev)) {
 		u32 freq_sts, val;
 
@@ -1498,8 +1498,8 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
-	for (gpu_freq = dev_priv->rps.min_delay;
-	     gpu_freq <= dev_priv->rps.max_delay;
+	for (gpu_freq = dev_priv->rps.min_freq_softlimit;
+	     gpu_freq <= dev_priv->rps.max_freq_softlimit;
 	     gpu_freq++) {
 		ia_freq = gpu_freq;
 		sandybridge_pcode_read(dev_priv,
@@ -3449,9 +3449,9 @@ i915_max_freq_get(void *data, u64 *val)
 		return ret;
 
 	if (IS_VALLEYVIEW(dev))
-		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.max_delay);
+		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
 	else
-		*val = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
+		*val = dev_priv->rps.max_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
@@ -3488,16 +3488,16 @@ i915_max_freq_set(void *data, u64 val)
 		do_div(val, GT_FREQUENCY_MULTIPLIER);
 
 		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.hw_max;
+		hw_max = dev_priv->rps.max_freq;
 		hw_min = (rp_state_cap >> 16) & 0xff;
 	}
 
-	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_delay) {
+	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
-	dev_priv->rps.max_delay = val;
+	dev_priv->rps.max_freq_softlimit = val;
 
 	if (IS_VALLEYVIEW(dev))
 		valleyview_set_rps(dev, val);
@@ -3530,9 +3530,9 @@ i915_min_freq_get(void *data, u64 *val)
 		return ret;
 
 	if (IS_VALLEYVIEW(dev))
-		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.min_delay);
+		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
 	else
-		*val = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
+		*val = dev_priv->rps.min_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
@@ -3569,16 +3569,16 @@ i915_min_freq_set(void *data, u64 val)
 		do_div(val, GT_FREQUENCY_MULTIPLIER);
 
 		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.hw_max;
+		hw_max = dev_priv->rps.max_freq;
 		hw_min = (rp_state_cap >> 16) & 0xff;
 	}
 
-	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_delay) {
+	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
-	dev_priv->rps.min_delay = val;
+	dev_priv->rps.min_freq_softlimit = val;
 
 	if (IS_VALLEYVIEW(dev))
 		valleyview_set_rps(dev, val);

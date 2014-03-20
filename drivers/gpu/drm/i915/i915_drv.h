@@ -980,14 +980,24 @@ struct intel_gen6_power_mgmt {
 	struct work_struct work;
 	u32 pm_iir;
 
-	u8 cur_delay;
-	u8 min_delay;
-	u8 max_delay;
-	u8 rpe_delay;
-	u8 rp1_delay;
-	u8 rp0_delay;
-	u8 hw_max;
-	u8 min_freq;
+	/* Frequencies are stored in potentially platform dependent multiples.
+	 * In other words, *_freq needs to be multiplied by X to be interesting.
+	 * Soft limits are those which are used for the dynamic reclocking done
+	 * by the driver (raise frequencies under heavy loads, and lower for
+	 * lighter loads). Hard limits are those imposed by the hardware.
+	 *
+	 * A distinction is made for overclocking, which is never enabled by
+	 * default, and is considered to be above the hard limit if it's
+	 * possible at all.
+	 */
+	u8 cur_freq;		/* Current frequency (cached, may not == HW) */
+	u8 min_freq_softlimit;	/* Minimum frequency permitted by the driver */
+	u8 max_freq_softlimit;	/* Max frequency permitted by the driver */
+	u8 max_freq;		/* Maximum frequency, RP0 if not overclocking */
+	u8 min_freq;		/* AKA RPn. Minimum frequency */
+	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
+	u8 rp1_freq;		/* "less than" RP0 power/freqency */
+	u8 rp0_freq;		/* Non-overclocked max frequency. */
 
 	bool rp_up_masked;
 	bool rp_down_masked;

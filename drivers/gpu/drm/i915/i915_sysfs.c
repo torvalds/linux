@@ -269,7 +269,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		ret = vlv_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
-		ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
+		ret = dev_priv->rps.cur_freq * GT_FREQUENCY_MULTIPLIER;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -284,7 +284,7 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			vlv_gpu_freq(dev_priv, dev_priv->rps.rpe_delay));
+			vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
 }
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -298,9 +298,9 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.max_delay);
+		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
 	else
-		ret = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
+		ret = dev_priv->rps.max_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
@@ -334,13 +334,13 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 		val /= GT_FREQUENCY_MULTIPLIER;
 
 		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.hw_max;
+		hw_max = dev_priv->rps.max_freq;
 		non_oc_max = (rp_state_cap & 0xff);
 		hw_min = ((rp_state_cap & 0xff0000) >> 16);
 	}
 
 	if (val < hw_min || val > hw_max ||
-	    val < dev_priv->rps.min_delay) {
+	    val < dev_priv->rps.min_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
@@ -349,9 +349,9 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 		DRM_DEBUG("User requested overclocking to %d\n",
 			  val * GT_FREQUENCY_MULTIPLIER);
 
-	dev_priv->rps.max_delay = val;
+	dev_priv->rps.max_freq_softlimit = val;
 
-	if (dev_priv->rps.cur_delay > val) {
+	if (dev_priv->rps.cur_freq > val) {
 		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev, val);
 		else
@@ -360,7 +360,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 		/* We still need gen6_set_rps to process the new max_delay and
 		 * update the interrupt limits even though frequency request is
 		 * unchanged. */
-		gen6_set_rps(dev, dev_priv->rps.cur_delay);
+		gen6_set_rps(dev, dev_priv->rps.cur_freq);
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -379,9 +379,9 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.min_delay);
+		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
 	else
-		ret = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
+		ret = dev_priv->rps.min_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
@@ -414,18 +414,18 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 		val /= GT_FREQUENCY_MULTIPLIER;
 
 		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.hw_max;
+		hw_max = dev_priv->rps.max_freq;
 		hw_min = ((rp_state_cap & 0xff0000) >> 16);
 	}
 
-	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_delay) {
+	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
-	dev_priv->rps.min_delay = val;
+	dev_priv->rps.min_freq_softlimit = val;
 
-	if (dev_priv->rps.cur_delay < val) {
+	if (dev_priv->rps.cur_freq < val) {
 		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev, val);
 		else
@@ -434,7 +434,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 		/* We still need gen6_set_rps to process the new min_delay and
 		 * update the interrupt limits even though frequency request is
 		 * unchanged. */
-		gen6_set_rps(dev, dev_priv->rps.cur_delay);
+		gen6_set_rps(dev, dev_priv->rps.cur_freq);
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
