@@ -305,6 +305,8 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 			break;
 
 		new = (old | DDCB_NEXT_BE32);
+
+		wmb();
 		icrc_hsi_shi = cmpxchg(&prev_ddcb->icrc_hsi_shi_32, old, new);
 
 		if (icrc_hsi_shi == old)
@@ -314,6 +316,8 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 	/* Queue must be re-started by updating QUEUE_OFFSET */
 	ddcb_mark_tapped(pddcb);
 	num = (u64)ddcb_no << 8;
+
+	wmb();
 	__genwqe_writeq(cd, queue->IO_QUEUE_OFFSET, num); /* start queue */
 
 	return RET_DDCB_TAPPED;
