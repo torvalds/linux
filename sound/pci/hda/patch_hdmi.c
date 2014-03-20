@@ -68,6 +68,7 @@ struct hdmi_spec_per_pin {
 	hda_nid_t pin_nid;
 	int num_mux_nids;
 	hda_nid_t mux_nids[HDA_MAX_CONNECTIONS];
+	int mux_idx;
 	hda_nid_t cvt_nid;
 
 	struct hda_codec *codec;
@@ -1344,12 +1345,30 @@ static int hdmi_choose_cvt(struct hda_codec *codec,
 	if (cvt_idx == spec->num_cvts)
 		return -ENODEV;
 
+	per_pin->mux_idx = mux_idx;
+
 	if (cvt_id)
 		*cvt_id = cvt_idx;
 	if (mux_id)
 		*mux_id = mux_idx;
 
 	return 0;
+}
+
+/* Assure the pin select the right convetor */
+static void intel_verify_pin_cvt_connect(struct hda_codec *codec,
+			struct hdmi_spec_per_pin *per_pin)
+{
+	hda_nid_t pin_nid = per_pin->pin_nid;
+	int mux_idx, curr;
+
+	mux_idx = per_pin->mux_idx;
+	curr = snd_hda_codec_read(codec, pin_nid, 0,
+					  AC_VERB_GET_CONNECT_SEL, 0);
+	if (curr != mux_idx)
+		snd_hda_codec_write_cache(codec, pin_nid, 0,
+					    AC_VERB_SET_CONNECT_SEL,
+					    mux_idx);
 }
 
 /* Intel HDMI workaround to fix audio routing issue:
@@ -1752,6 +1771,19 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	hda_nid_t pin_nid = per_pin->pin_nid;
 	bool non_pcm;
 	int pinctl;
+
+	if (is_haswell_plus(codec) || is_valleyview(codec)) {
+		/* Verify pin:cvt selections to avoid silent audio after S3.
+		 * After S3, the audio driver restores pin:cvt selections
+		 * but this can happen before gfx is ready and such selection
+		 * is overlooked by HW. Thus multiple pins can share a same
+		 * default convertor and mute control will affect each other,
+		 * which can cause a resumed audio playback become silent
+		 * after S3.
+		 */
+		intel_verify_pin_cvt_connect(codec, per_pin);
+		intel_not_share_assigned_cvt(codec, pin_nid, per_pin->mux_idx);
+	}
 
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	mutex_lock(&per_pin->lock);
