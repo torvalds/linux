@@ -164,6 +164,9 @@ static int __sony_nc_gfx_switch_status_get(void);
 static int sony_nc_highspeed_charging_setup(struct platform_device *pd);
 static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd);
 
+static int sony_nc_usb_charge_setup(struct platform_device *pd);
+static void sony_nc_usb_charge_cleanup(struct platform_device *pd);
+
 static int sony_nc_panelid_setup(struct platform_device *pd);
 static void sony_nc_panelid_cleanup(struct platform_device *pd);
 
@@ -1388,6 +1391,12 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up keyboard backlight function (%d)\n",
 						result);
 			break;
+		case 0x0155:
+			result = sony_nc_usb_charge_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up USB charge support (%d)\n",
+						result);
+			break;
 		case 0x011D:
 			result = sony_nc_panelid_setup(pf_device);
 			if (result)
@@ -1457,6 +1466,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x014c:
 		case 0x0163:
 			sony_nc_kbd_backlight_cleanup(pd, handle);
+			break;
+		case 0x0155:
+			sony_nc_usb_charge_cleanup(pd);
 			break;
 		case 0x011D:
 			sony_nc_panelid_cleanup(pd);
@@ -2549,6 +2561,80 @@ static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd)
 		device_remove_file(&pd->dev, hsc_handle);
 		kfree(hsc_handle);
 		hsc_handle = NULL;
+	}
+}
+
+/* USB charge function */
+static struct device_attribute *uc_handle;
+
+static ssize_t sony_nc_usb_charge_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0155, value << 0x10 | 0x0100, &result))
+		return -EIO;
+
+	return count;
+}
+
+static ssize_t sony_nc_usb_charge_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0155, 0x0000, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0x01);
+}
+
+static int sony_nc_usb_charge_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0155, 0x0000, &result) || !(result & 0x01)) {
+		/* some models advertise the handle but have no implementation
+		 * for it
+		 */
+		pr_info("No USB Charge capability found\n");
+		return 0;
+	}
+
+	uc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!uc_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&uc_handle->attr);
+	uc_handle->attr.name = "usb_charge";
+	uc_handle->attr.mode = S_IRUGO | S_IWUSR;
+	uc_handle->show = sony_nc_usb_charge_show;
+	uc_handle->store = sony_nc_usb_charge_store;
+
+	result = device_create_file(&pd->dev, uc_handle);
+	if (result) {
+		kfree(uc_handle);
+		uc_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_usb_charge_cleanup(struct platform_device *pd)
+{
+	if (uc_handle) {
+		device_remove_file(&pd->dev, uc_handle);
+		kfree(uc_handle);
+		uc_handle = NULL;
 	}
 }
 
