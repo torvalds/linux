@@ -321,10 +321,7 @@ static int mcfqspi_transfer_one(struct spi_master *master,
 		qmr |= MCFQSPI_QMR_CPHA;
 	if (spi->mode & SPI_CPOL)
 		qmr |= MCFQSPI_QMR_CPOL;
-	if (t->speed_hz)
-		qmr |= mcfqspi_qmr_baud(t->speed_hz);
-	else
-		qmr |= mcfqspi_qmr_baud(spi->max_speed_hz);
+	qmr |= mcfqspi_qmr_baud(t->speed_hz);
 	mcfqspi_wr_qmr(mcfqspi, qmr);
 
 	mcfqspi_wr_qir(mcfqspi, MCFQSPI_QIR_SPIFE);
