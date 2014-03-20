@@ -21,7 +21,7 @@
 		cmp	\tmp, \rv
 		ldreq	\rp, = RK3188_UART2_PHYS
 		ldrne	\rp, = RK3288_UART_DBG_PHYS
-		ldr	\rv, = 0xff000000
+		ldr	\rv, = 0xfec00000
 		mov	\tmp, \rp
 		bic	\tmp, \tmp, #0xff000000
 		bic	\tmp, \tmp, #0x00f00000
