@@ -164,6 +164,9 @@ static int __sony_nc_gfx_switch_status_get(void);
 static int sony_nc_highspeed_charging_setup(struct platform_device *pd);
 static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd);
 
+static int sony_nc_lowbatt_setup(struct platform_device *pd);
+static void sony_nc_lowbatt_cleanup(struct platform_device *pd);
+
 static int sony_nc_fanspeed_setup(struct platform_device *pd);
 static void sony_nc_fanspeed_cleanup(struct platform_device *pd);
 
@@ -1394,6 +1397,12 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up keyboard backlight function (%d)\n",
 						result);
 			break;
+		case 0x0121:
+			result = sony_nc_lowbatt_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up low battery function (%d)\n",
+				       result);
+			break;
 		case 0x0149:
 			result = sony_nc_fanspeed_setup(pf_device);
 			if (result)
@@ -1475,6 +1484,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x014c:
 		case 0x0163:
 			sony_nc_kbd_backlight_cleanup(pd, handle);
+			break;
+		case 0x0121:
+			sony_nc_lowbatt_cleanup(pd);
 			break;
 		case 0x0149:
 			sony_nc_fanspeed_cleanup(pd);
@@ -2573,6 +2585,72 @@ static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd)
 		device_remove_file(&pd->dev, hsc_handle);
 		kfree(hsc_handle);
 		hsc_handle = NULL;
+	}
+}
+
+/* low battery function */
+static struct device_attribute *lowbatt_handle;
+
+static ssize_t sony_nc_lowbatt_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0121, value << 8, &result))
+		return -EIO;
+
+	return count;
+}
+
+static ssize_t sony_nc_lowbatt_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0121, 0x0200, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 1);
+}
+
+static int sony_nc_lowbatt_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	lowbatt_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!lowbatt_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&lowbatt_handle->attr);
+	lowbatt_handle->attr.name = "lowbatt_hibernate";
+	lowbatt_handle->attr.mode = S_IRUGO | S_IWUSR;
+	lowbatt_handle->show = sony_nc_lowbatt_show;
+	lowbatt_handle->store = sony_nc_lowbatt_store;
+
+	result = device_create_file(&pd->dev, lowbatt_handle);
+	if (result) {
+		kfree(lowbatt_handle);
+		lowbatt_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_lowbatt_cleanup(struct platform_device *pd)
+{
+	if (lowbatt_handle) {
+		device_remove_file(&pd->dev, lowbatt_handle);
+		kfree(lowbatt_handle);
+		lowbatt_handle = NULL;
 	}
 }
 
