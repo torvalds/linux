@@ -861,8 +861,6 @@ static uint8_t stfsm_wait_busy(struct stfsm *fsm)
 	 */
 	deadline = jiffies + FLASH_MAX_BUSY_WAIT;
 	while (!timeout) {
-		cond_resched();
-
 		if (time_after_eq(jiffies, deadline))
 			timeout = 1;
 
@@ -881,6 +879,8 @@ static uint8_t stfsm_wait_busy(struct stfsm *fsm)
 		if (!timeout)
 			/* Restart */
 			writel(seq->seq_cfg, fsm->base + SPI_FAST_SEQ_CFG);
+
+		cond_resched();
 	}
 
 	dev_err(fsm->dev, "timeout on wait_busy\n");
