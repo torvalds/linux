@@ -774,7 +774,7 @@ static int __init dss_init_features(struct platform_device *pdev)
 	return 0;
 }
 
-static int dss_init_ports(struct platform_device *pdev)
+static int __init dss_init_ports(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;
 	struct device_node *port;
