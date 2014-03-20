@@ -231,7 +231,6 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 		if (i == max_multiplier)
 			powernow_k6_target(policy, i);
 	}
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
 

@@ -1164,8 +1164,6 @@ static int powernowk8_cpu_exit(struct cpufreq_policy *pol)
 
 	powernow_k8_cpu_exit_acpi(data);
 
-	cpufreq_frequency_table_put_attr(pol->cpu);
-
 	kfree(data->powernow_table);
 	kfree(data);
 	for_each_cpu(cpu, pol->cpus)
