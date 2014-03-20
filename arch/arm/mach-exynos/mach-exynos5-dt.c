@@ -59,7 +59,15 @@ static char const *exynos5_dt_compat[] __initdata = {
 static void __init exynos5_reserve(void)
 {
 #ifdef CONFIG_S5P_DEV_MFC
-	of_scan_flat_dt(s5p_fdt_alloc_mfc_mem, "samsung,mfc-v6");
+	int i;
+	char *mfc_mem[] = {
+		"samsung,mfc-v6",
+		"samsung,mfc-v7",
+	};
+
+	for (i = 0; i < ARRAY_SIZE(mfc_mem); i++)
+		if (of_scan_flat_dt(s5p_fdt_alloc_mfc_mem, mfc_mem[i]))
+			break;
 #endif
 }
 
