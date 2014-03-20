@@ -113,6 +113,7 @@
 					regulator-name = "PVDD_APIO_MMCON_1V8";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
 				};
 
 				ldo4_reg: LDO4 {
@@ -150,6 +151,7 @@
 					regulator-name = "PVDD_USB_3V3";
 					regulator-min-microvolt = <3000000>;
 					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
 				};
 
 				ldo10_reg: LDO10 {
@@ -218,6 +220,7 @@
 					regulator-name = "PVDD_MIFS_1V1";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
 				};
 
 				ldo24_reg: LDO24 {
