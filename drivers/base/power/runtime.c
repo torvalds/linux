@@ -1131,7 +1131,7 @@ EXPORT_SYMBOL_GPL(pm_runtime_barrier);
  * @dev: Device to handle.
  * @check_resume: If set, check if there's a resume request for the device.
  *
- * Increment power.disable_depth for the device and if was zero previously,
+ * Increment power.disable_depth for the device and if it was zero previously,
  * cancel all pending runtime PM requests for the device and wait for all
  * operations in progress to complete.  The device can be either active or
  * suspended after its runtime PM has been disabled.

@@ -49,6 +49,8 @@ static inline char *check_image_kernel(struct swsusp_info *info)
  */
 #define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
 
+asmlinkage int swsusp_save(void);
+
 /* kernel/power/hibernate.c */
 extern bool freezer_test_done;
 
