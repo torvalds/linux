@@ -1342,7 +1342,7 @@ struct alpha_config{
 	enum src_alpha_mode src_alpha_mode;       /*win0_src_alpha_m0*/
 	u32 src_global_alpha_val; /*win0_src_global_alpha*/
 	enum global_alpha_mode src_global_alpha_mode;/*win0_src_blend_m0*/
-	enum src_alpha_sel src_alpha_sel;	 /*win0_src_alpha_cal_m0*/
+	enum src_alpha_sel src_alpha_cal_m0;	 /*win0_src_alpha_cal_m0*/
 	enum src_color_mode src_color_mode;	 /*win0_src_color_m0*/
 	enum factor_mode src_factor_mode;	 /*win0_src_factor_m0*/
 	enum factor_mode dst_factor_mode;      /*win0_dst_factor_m0*/

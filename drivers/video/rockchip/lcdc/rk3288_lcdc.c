@@ -421,6 +421,8 @@ static int rk3288_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv,int win_id)
 	ppixel_alpha = ((win->format == ARGB888)||(win->format == ABGR888)) ? 1 : 0;
 	global_alpha = (win->g_alpha_val == 0) ? 0 : 1; 
 	alpha_config.src_global_alpha_val = win->g_alpha_val;
+	/*printk("%s,alpha_mode=%d,alpha_en=%d,ppixel_a=%d,gla_a=%d\n",
+		__func__,win->alpha_mode,win->alpha_en,ppixel_alpha,global_alpha);*/
 	switch(win->alpha_mode){
 	case AB_USER_DEFINE:
 		break;
@@ -499,7 +501,7 @@ static int rk3288_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv,int win_id)
 		dev_warn(lcdc_dev->dev,"alpha_en should be 0\n");
 	}
 	alpha_config.src_alpha_mode = AA_STRAIGHT;
-	alpha_config.src_alpha_sel = AA_NO_SAT;
+	alpha_config.src_alpha_cal_m0 = AA_NO_SAT;
 
 	switch(win_id){
 	case 0:
@@ -530,6 +532,7 @@ static int rk3288_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv,int win_id)
 		v_WIN0_SRC_COLOR_M0(alpha_config.src_color_mode) |
 		v_WIN0_SRC_ALPHA_M0(alpha_config.src_alpha_mode) |
 		v_WIN0_SRC_BLEND_M0(alpha_config.src_global_alpha_mode) |
+		v_WIN0_SRC_ALPHA_CAL_M0(alpha_config.src_alpha_cal_m0) |
 		v_WIN0_SRC_FACTOR_M0(alpha_config.src_factor_mode) |
 		v_WIN0_SRC_GLOBAL_ALPHA(alpha_config.src_global_alpha_val);
 	lcdc_msk_reg(lcdc_dev, src_alpha_ctl, mask, val);

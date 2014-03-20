@@ -2063,6 +2063,10 @@ if (rk_fb->disp_mode != DUAL) {
 	win->state=1;
 	win->area[0].state=1;
 	win->area_num = 1;
+	win->alpha_mode = 4;//AB_SRC_OVER;
+	win->alpha_en = ((win->format == ARGB888)||(win->format == ABGR888)) ? 1 : 0;
+	win->g_alpha_val = 0;
+	printk("%s,alpha_mode=%d,alpha_en=%d\n",__func__,win->alpha_mode,win->alpha_en);
 
 	if (rk_fb->disp_mode == DUAL) {
 		if (extend_win->state && (hdmi_switch_complete)) {
