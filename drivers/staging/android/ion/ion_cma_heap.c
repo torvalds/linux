@@ -86,7 +86,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	if (!ION_IS_CACHED(flags)) {
 		info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
-							GFP_HIGHUSER/* | __GFP_ZERO*/);
+							GFP_HIGHUSER | __GFP_ZERO);
 	} else {
 		info->cpu_addr = dma_alloc_nonconsistent(dev, len,
 					&(info->handle), GFP_HIGHUSER | __GFP_ZERO/*0*/);
