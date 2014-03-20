@@ -232,7 +232,6 @@
 		//pinctrl-names = "default",,"suspend";
 		//pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_wp &sd0_pwr &sd0_bus1 &sd0_bus4>;
 
-		/*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_3 --clk_emmc_src_gate_en*/
 		clocks = <&clk_emmc>, <&clk_gates8 6>;
 		clock-names = "clk_mmc", "hclk_mmc";
 		num-slots = <1>;	  	
@@ -251,9 +250,8 @@
 	    	//pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_wp &sd0_pwr &sd0_bus1 &sd0_bus4>;
 	    	//pinctrl-1 = <&sd0_cd_gpio>; //for int gpio?
 
-                /*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_0 --clk_mmc0_src_gate_en*/
-			clocks = <&clk_sdmmc>, <&clk_gates8 3>;
-			clock-names = "clk_mmc", "hclk_mmc";
+		clocks = <&clk_sdmmc>, <&clk_gates8 3>;
+		clock-names = "clk_mmc", "hclk_mmc";
    	    	num-slots = <1>;    
 	    	fifo-depth = <0x100>;
 	    	bus-width = <4>;
@@ -269,7 +267,6 @@
 	    	//pinctrl-names = "default","suspend";
 	    	//pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_wp &sd1_bus1 &sd1_bus4>;
 
-		/*gate8_0 --hclk_sdmmc_ahb_arbi_gate_en, gate13_1 --clk_sdio0_src_gate_en*/
 		clocks = <&clk_sdio0>, <&clk_gates8 4>;      
 		clock-names = "clk_mmc", "hclk_mmc";
             	num-slots = <1>;
