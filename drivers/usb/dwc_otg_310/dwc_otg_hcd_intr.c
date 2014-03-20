@@ -2039,6 +2039,8 @@ static void handle_hc_chhltd_intr_dma(dwc_otg_hcd_t * hcd,
 	} else {
 		DWC_PRINTF("NYET/NAK/ACK/other in non-error case, 0x%08x\n",
 			   hcint.d32);
+		if(!hcint.b.nyet && !hcint.b.nak  && !hcint.b.ack)
+			clear_hc_int(hc_regs,chhltd);
 	}
 }
 
