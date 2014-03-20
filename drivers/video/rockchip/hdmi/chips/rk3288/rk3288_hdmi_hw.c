@@ -54,8 +54,8 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	{
 		case NORMAL:
 			hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_ENCRYPT_BYPASS, v_ENCRYPT_BYPASS(1));	//cfg to bypass hdcp data encry
-			hdmi_msk_reg(hdmi_dev, MC_SWRSTZREQ, 0x00);
-			hdmi_msk_reg(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
+			hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0x00);
+			hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
 			hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
 				v_AUDCLK_DISABLE(0) | v_PREPCLK_DISABLE(0) | v_TMDSCLK_DISABLE(0) | v_PIXELCLK_DISABLE(0));
 			hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(1));
@@ -702,6 +702,7 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 	if(hdmi_drv->pwr_mode == LOWER_PWR)
 		rk3288_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
 
+	vpara->output_color = VIDEO_OUTPUT_RGB444;
 	//Color space convert
 	if (rk3288_hdmi_video_forceOutput(hdmi_drv, 1) < 0)
 		return -1;
