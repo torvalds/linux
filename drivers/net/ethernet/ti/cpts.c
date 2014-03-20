@@ -217,6 +217,7 @@ static struct ptp_clock_info cpts_info = {
 	.name		= "CTPS timer",
 	.max_adj	= 1000000,
 	.n_ext_ts	= 0,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= cpts_ptp_adjfreq,
 	.adjtime	= cpts_ptp_adjtime,
