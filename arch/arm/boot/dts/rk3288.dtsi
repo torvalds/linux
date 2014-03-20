@@ -341,7 +341,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_txd &spi2_rxd &spi2_clk &spi2_cs0 &spi2_cs1>;
-		rockchip,spi-src-clk = <1>;
+		rockchip,spi-src-clk = <2>;
         	num-cs = <2>;
 		clocks = <&clk_spi2>, <&clk_gates6 6>;
 		clock-names = "spi","pclk_spi2";
