@@ -133,6 +133,8 @@ struct acpi_scan_handler {
 	struct list_head list_node;
 	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
 	void (*detach)(struct acpi_device *dev);
+	void (*bind)(struct device *phys_dev);
+	void (*unbind)(struct device *phys_dev);
 	struct acpi_hotplug_profile hotplug;
 };
 

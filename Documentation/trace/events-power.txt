@@ -92,5 +92,5 @@ dev_pm_qos_remove_request          "device=%s type=%s new_value=%d"
 
 The first parameter gives the device name which tries to add/update/remove
 QoS requests.
-The second parameter gives the request type (e.g. "DEV_PM_QOS_LATENCY").
+The second parameter gives the request type (e.g. "DEV_PM_QOS_RESUME_LATENCY").
 The third parameter is value to be added/updated/removed.
