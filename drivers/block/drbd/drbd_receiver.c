@@ -1930,6 +1930,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
 		}
 		dec_unacked(device);
 	}
+
 	/* we delete from the conflict detection hash _after_ we sent out the
 	 * P_WRITE_ACK / P_NEG_ACK, to get the sequence number right.  */
 	if (peer_req->flags & EE_IN_INTERVAL_TREE) {
@@ -2155,6 +2156,8 @@ static int handle_write_conflicts(struct drbd_device *device,
     repeat:
 	drbd_for_each_overlap(i, &device->write_requests, sector, size) {
 		if (i == &peer_req->i)
+			continue;
+		if (i->completed)
 			continue;
 
 		if (!i->local) {
