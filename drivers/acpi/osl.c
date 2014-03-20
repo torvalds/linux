@@ -52,7 +52,7 @@
 
 #define _COMPONENT		ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osl");
-#define PREFIX		"ACPI: "
+
 struct acpi_os_dpc {
 	acpi_osd_exec_callback function;
 	void *context;

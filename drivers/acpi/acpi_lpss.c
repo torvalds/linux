@@ -102,6 +102,16 @@ static struct lpss_device_desc lpt_sdio_dev_desc = {
 	.ltr_required = true,
 };
 
+static struct lpss_shared_clock pwm_clock = {
+	.name = "pwm_clk",
+	.rate = 25000000,
+};
+
+static struct lpss_device_desc byt_pwm_dev_desc = {
+	.clk_required = true,
+	.shared_clock = &pwm_clock,
+};
+
 static struct lpss_shared_clock uart_clock = {
 	.name = "uart_clk",
 	.rate = 44236800,
@@ -157,6 +167,7 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33C7", },
 
 	/* BayTrail LPSS devices */
+	{ "80860F09", (unsigned long)&byt_pwm_dev_desc },
 	{ "80860F0A", (unsigned long)&byt_uart_dev_desc },
 	{ "80860F0E", (unsigned long)&byt_spi_dev_desc },
 	{ "80860F14", (unsigned long)&byt_sdio_dev_desc },

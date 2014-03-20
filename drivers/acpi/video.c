@@ -45,8 +45,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
 #define ACPI_VIDEO_DEVICE_NAME		"Video Device"
 #define ACPI_VIDEO_NOTIFY_SWITCH	0x80

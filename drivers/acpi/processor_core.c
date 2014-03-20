@@ -15,7 +15,6 @@
 
 #include "internal.h"
 
-#define PREFIX			"ACPI: "
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_core");
 
