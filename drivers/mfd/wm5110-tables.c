@@ -2652,6 +2652,7 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP1_SCRATCH_1:
 	case ARIZONA_DSP1_SCRATCH_2:
 	case ARIZONA_DSP1_SCRATCH_3:
+	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP2_STATUS_1:
 	case ARIZONA_DSP2_STATUS_2:
 	case ARIZONA_DSP2_STATUS_3:
@@ -2680,6 +2681,7 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP2_SCRATCH_1:
 	case ARIZONA_DSP2_SCRATCH_2:
 	case ARIZONA_DSP2_SCRATCH_3:
+	case ARIZONA_DSP2_CLOCKING_1:
 	case ARIZONA_DSP3_STATUS_1:
 	case ARIZONA_DSP3_STATUS_2:
 	case ARIZONA_DSP3_STATUS_3:
@@ -2708,6 +2710,7 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP3_SCRATCH_1:
 	case ARIZONA_DSP3_SCRATCH_2:
 	case ARIZONA_DSP3_SCRATCH_3:
+	case ARIZONA_DSP3_CLOCKING_1:
 	case ARIZONA_DSP4_STATUS_1:
 	case ARIZONA_DSP4_STATUS_2:
 	case ARIZONA_DSP4_STATUS_3:
@@ -2736,6 +2739,7 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP4_SCRATCH_1:
 	case ARIZONA_DSP4_SCRATCH_2:
 	case ARIZONA_DSP4_SCRATCH_3:
+	case ARIZONA_DSP4_CLOCKING_1:
 		return true;
 	default:
 		return wm5110_is_adsp_memory(dev, reg);
