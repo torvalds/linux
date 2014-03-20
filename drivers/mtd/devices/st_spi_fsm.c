@@ -204,6 +204,7 @@ struct stfsm {
 	struct resource		*region;
 	struct mtd_info		mtd;
 	struct mutex		lock;
+	struct flash_info       *info;
 
 	uint32_t                fifo_dir_delay;
 };
@@ -477,6 +478,7 @@ static void stfsm_read_jedec(struct stfsm *fsm, uint8_t *const jedec)
 
 static struct flash_info *stfsm_jedec_probe(struct stfsm *fsm)
 {
+	struct flash_info	*info;
 	u16                     ext_jedec;
 	u32			jedec;
 	u8			id[5];
@@ -493,6 +495,15 @@ static struct flash_info *stfsm_jedec_probe(struct stfsm *fsm)
 
 	dev_dbg(fsm->dev, "JEDEC =  0x%08x [%02x %02x %02x %02x %02x]\n",
 		jedec, id[0], id[1], id[2], id[3], id[4]);
+
+	for (info = flash_types; info->name; info++) {
+		if (info->jedec_id == jedec) {
+			if (info->ext_id && info->ext_id != ext_jedec)
+				continue;
+			return info;
+		}
+	}
+	dev_err(fsm->dev, "Unrecognized JEDEC id %06x\n", jedec);
 
 	return NULL;
 }
@@ -588,6 +599,7 @@ static int stfsm_init(struct stfsm *fsm)
 static int stfsm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct flash_info *info;
 	struct resource *res;
 	struct stfsm *fsm;
 	int ret;
@@ -627,13 +639,25 @@ static int stfsm_probe(struct platform_device *pdev)
 	}
 
 	/* Detect SPI FLASH device */
-	stfsm_jedec_probe(fsm);
+	info = stfsm_jedec_probe(fsm);
+	if (!info)
+		return -ENODEV;
+	fsm->info = info;
 
 	fsm->mtd.dev.parent	= &pdev->dev;
 	fsm->mtd.type		= MTD_NORFLASH;
 	fsm->mtd.writesize	= 4;
 	fsm->mtd.writebufsize	= fsm->mtd.writesize;
 	fsm->mtd.flags		= MTD_CAP_NORFLASH;
+	fsm->mtd.size		= info->sector_size * info->n_sectors;
+	fsm->mtd.erasesize	= info->sector_size;
+
+	dev_err(&pdev->dev,
+		"Found serial flash device: %s\n"
+		" size = %llx (%lldMiB) erasesize = 0x%08x (%uKiB)\n",
+		info->name,
+		(long long)fsm->mtd.size, (long long)(fsm->mtd.size >> 20),
+		fsm->mtd.erasesize, (fsm->mtd.erasesize >> 10));
 
 	return mtd_device_parse_register(&fsm->mtd, NULL, NULL, NULL, 0);
 }
