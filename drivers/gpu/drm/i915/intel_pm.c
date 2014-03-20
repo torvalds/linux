@@ -3324,7 +3324,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	u32 rp_state_cap, hw_max, hw_min;
+	u32 rp_state_cap;
 	u32 gt_perf_status;
 	u32 rc6vids, pcu_mbox = 0, rc6_mask = 0;
 	u32 gtfifodbg;
@@ -3353,21 +3353,22 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 
 	/* All of these values are in units of 50MHz */
-	dev_priv->rps.cur_freq = 0;
-	/* hw_max = RP0 until we check for overclocking */
-	dev_priv->rps.max_freq = hw_max = rp_state_cap & 0xff;
+	dev_priv->rps.cur_freq		= 0;
 	/* static values from HW: RP0 < RPe < RP1 < RPn (min_freq) */
-	dev_priv->rps.rp1_freq = (rp_state_cap >>  8) & 0xff;
-	dev_priv->rps.rp0_freq = (rp_state_cap >>  0) & 0xff;
-	dev_priv->rps.efficient_freq = dev_priv->rps.rp1_freq;
-	dev_priv->rps.min_freq = hw_min = (rp_state_cap >> 16) & 0xff;
+	dev_priv->rps.rp1_freq		= (rp_state_cap >>  8) & 0xff;
+	dev_priv->rps.rp0_freq		= (rp_state_cap >>  0) & 0xff;
+	dev_priv->rps.min_freq		= (rp_state_cap >> 16) & 0xff;
+	/* XXX: only BYT has a special efficient freq */
+	dev_priv->rps.efficient_freq	= dev_priv->rps.rp1_freq;
+	/* hw_max = RP0 until we check for overclocking */
+	dev_priv->rps.max_freq		= dev_priv->rps.rp0_freq;
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
-		dev_priv->rps.max_freq_softlimit = hw_max;
+		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
 
 	if (dev_priv->rps.min_freq_softlimit == 0)
-		dev_priv->rps.min_freq_softlimit = hw_min;
+		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
 
 	/* disable the counters and set deterministic thresholds */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
@@ -3597,7 +3598,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	u32 gtfifodbg, val, hw_max, hw_min, rc6_mode = 0;
+	u32 gtfifodbg, val, rc6_mode = 0;
 	int i;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -3657,27 +3658,28 @@ static void valleyview_enable_rps(struct drm_device *dev)
 			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
 			 dev_priv->rps.cur_freq);
 
-	dev_priv->rps.max_freq = hw_max = valleyview_rps_max_freq(dev_priv);
+	dev_priv->rps.max_freq = valleyview_rps_max_freq(dev_priv);
+	dev_priv->rps.rp0_freq  = dev_priv->rps.max_freq;
 	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, hw_max),
-			 hw_max);
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq),
+			 dev_priv->rps.max_freq);
 
 	dev_priv->rps.efficient_freq = valleyview_rps_rpe_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
 			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
 			 dev_priv->rps.efficient_freq);
 
-	hw_min = valleyview_rps_min_freq(dev_priv);
+	dev_priv->rps.min_freq = valleyview_rps_min_freq(dev_priv);
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, hw_min),
-			 hw_min);
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq),
+			 dev_priv->rps.min_freq);
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
-		dev_priv->rps.max_freq_softlimit = hw_max;
+		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
 
 	if (dev_priv->rps.min_freq_softlimit == 0)
-		dev_priv->rps.min_freq_softlimit = hw_min;
+		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
 
 	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
 			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
