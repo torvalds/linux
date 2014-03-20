@@ -29,55 +29,21 @@
 
 #include "spi-rockchip-core.h"
 
+#define MAX_SPI_DEV_NUM 6
+#define SPI_MAX_SPEED_HZ	12000000
 
-#define MAX_SPI_BUS_NUM 2
 
 struct spi_test_data {
 	struct device	*dev;
-	struct spi_device	*spi;	
+	struct spi_device	*spi;
 	char *rx_buf;
 	int rx_len; 
 	char *tx_buf;
 	int tx_len; 
 };
-static struct spi_test_data *g_spi_test_data[MAX_SPI_BUS_NUM];
 
+static struct spi_test_data *g_spi_test_data[MAX_SPI_DEV_NUM];
 
-static struct dw_spi_chip spi_test_chip[] = {
-{
-	//.poll_mode = 1,
-	//.enable_dma = 1,
-},
-{
-	//.poll_mode = 1,
-	//.enable_dma = 1,
-},
-
-};
-
-	
-static struct spi_board_info board_spi_test_devices[] = {	
-//#if defined(CONFIG_SPIM0_RK29)
-	{
-		.modalias  = "spi_test_bus0",
-		.bus_num = 0,	//0 or 1
-		.max_speed_hz  = 12*1000*1000,
-		.chip_select   = 0,		
-		.mode	= SPI_MODE_0,
-		.controller_data = &spi_test_chip[0],
-	},
-//#endif
-//#if defined(CONFIG_SPIM1_RK29)
-	{
-		.modalias  = "spi_test_bus1",
-		.bus_num = 1,	//0 or 1
-		.max_speed_hz  = 12*1000*1000,
-		.chip_select   = 0,		
-		.mode	= SPI_MODE_0,
-		.controller_data = &spi_test_chip[1],
-	}
-//#endif
-};
 
 static ssize_t spi_test_write(struct file *file, 
 			const char __user *buf, size_t count, loff_t *offset)
@@ -90,7 +56,7 @@ static ssize_t spi_test_write(struct file *file,
 
 	printk("%s:0:bus=0,cs=0; 1:bus=0,cs=1; 2:bus=1,cs=0; 3:bus=1,cs=1\n",__func__);
 
-	if(count > 3)
+	if(count > 5)
 	    return -EFAULT;
 	
 	ret = copy_from_user(nr_buf, buf, count);
@@ -98,7 +64,7 @@ static ssize_t spi_test_write(struct file *file,
 	    return -EFAULT;
 
 	sscanf(nr_buf, "%d", &nr);
-	if(nr >= 4 || nr < 0)
+	if(nr >= 6 || nr < 0)
 	{
 		printk("%s:cmd is error\n",__func__);
 	    return -EFAULT;
@@ -107,51 +73,13 @@ static ssize_t spi_test_write(struct file *file,
 	for(i=0; i<256; i++)
 	txbuf[i] = i;
 
-
-/*
-	if((nr == 0) || (nr == 1))
+	if(!g_spi_test_data[nr] || !g_spi_test_data[nr]->spi)
 	{
-		printk("%s:error SPIM0 need selected\n",__func__);	
+		printk("%s:error g_spi_test_data is null\n",__func__);		
 		return -EFAULT;
 	}
 
-	if((nr == 2) || (nr == 3))
-	{
-		printk("%s:error SPIM1 need selected\n",__func__);	
-		return -EFAULT;
-	}
-*/
-
-	switch(nr)
-	{
-		case 0:	
-			if(!g_spi_test_data[0]->spi)		
-			return -EFAULT;
-			spi = g_spi_test_data[0]->spi;
-			spi->chip_select = 0;
-			break;
-		case 1:	
-			if(!g_spi_test_data[0]->spi)		
-			return -EFAULT;
-			spi = g_spi_test_data[0]->spi;
-			spi->chip_select = 1;
-			break;
-		case 2:	
-			if(!g_spi_test_data[1]->spi)		
-			return -EFAULT;
-			spi = g_spi_test_data[1]->spi;
-			spi->chip_select = 0;
-			break;
-		case 3:	
-			if(!g_spi_test_data[1]->spi)		
-			return -EFAULT;
-			spi = g_spi_test_data[1]->spi;
-			spi->chip_select = 1;
-			break;
-		
-		default:
-			break;
-	}
+	spi = g_spi_test_data[nr]->spi;
 
 	for(i=0; i<100; i++)
 	{
@@ -181,19 +109,65 @@ static struct miscdevice spi_test_misc = {
 	.fops = &spi_test_fops,
 };
 
-static int spi_test_probe(struct spi_device *spi)
+#ifdef CONFIG_OF
+static struct dw_spi_chip *rockchip_spi_parse_dt(struct device *dev)
+{
+	u32 temp;
+	struct dw_spi_chip *spi_chip_data; 
+
+	spi_chip_data = devm_kzalloc(dev, sizeof(*spi_chip_data), GFP_KERNEL);
+	if (!spi_chip_data) {
+		dev_err(dev, "memory allocation for spi_chip_data failed\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	
+	if (of_property_read_u32(dev->of_node, "poll_mode", &temp)) {
+		dev_warn(dev, "fail to get poll_mode, default set 0\n");
+		spi_chip_data->poll_mode = 0;
+	} else {
+		spi_chip_data->poll_mode = temp;
+	}
+
+	if (of_property_read_u32(dev->of_node, "type", &temp)) {
+		dev_warn(dev, "fail to get type, default set 0\n");
+		spi_chip_data->type = 0;
+	} else {
+		spi_chip_data->type = temp;
+	}
+
+	if (of_property_read_u32(dev->of_node, "enable_dma", &temp)) {
+		dev_warn(dev, "fail to get enable_dma, default set 0\n");
+		spi_chip_data->enable_dma = 0;
+	} else {
+		spi_chip_data->enable_dma = temp;
+	}
+	
+
+	return spi_chip_data;
+}
+#else
+static struct spi_board_info *rockchip_spi_parse_dt(struct device *dev)
+{
+	return dev->platform_data;
+}
+#endif
+
+
+static int rockchip_spi_test_probe(struct spi_device *spi)
 {	
-	struct spi_test_data *spi_test_data;
 	int ret;
 	int i =0;
-	char txbuf[256],rxbuf[256];
+	char txbuf[256],rxbuf[256];	
+	int id = 0;
+	static struct dw_spi_chip *spi_chip_data;
+	struct spi_test_data *spi_test_data;
 	
 	if(!spi)	
 	return -ENOMEM;
 
-	if((spi->master->bus_num >= MAX_SPI_BUS_NUM) || (spi->master->bus_num < 0))
-	{
-		printk("%s:error:bus_num=%d\n",__func__, spi->master->bus_num);	
+	if (!spi_chip_data && spi->dev.of_node) {
+		spi_chip_data = rockchip_spi_parse_dt(&spi->dev);
+		if (IS_ERR(spi_chip_data))
 		return -ENOMEM;
 	}
 	
@@ -203,54 +177,87 @@ static int spi_test_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	spi->bits_per_word = 8;
+	spi->bits_per_word = 8;	
+	spi->controller_data = spi_chip_data;
 	
 	spi_test_data->spi = spi;
 	spi_test_data->dev = &spi->dev;
+	
 	ret = spi_setup(spi);
 	if (ret < 0){
 		dev_err(spi_test_data->dev, "ERR: fail to setup spi\n");
 		return -1;
 	}	
 
-	g_spi_test_data[spi->master->bus_num] = spi_test_data;
+	if((spi->master->bus_num == 0) && (spi->chip_select == 0))
+		id = 0;
+	else if((spi->master->bus_num == 0) && (spi->chip_select == 1))
+		id = 1;
+	else if ((spi->master->bus_num == 1) && (spi->chip_select == 0))
+		id = 2;
+	else if ((spi->master->bus_num == 1) && (spi->chip_select == 1))
+		id = 3;
+	else if ((spi->master->bus_num == 2) && (spi->chip_select == 0))
+		id = 4;
+	else if ((spi->master->bus_num == 2) && (spi->chip_select == 1))
+		id = 5;
 
-	printk("%s:bus_num=%d,ok\n",__func__,spi->master->bus_num);
+	g_spi_test_data[id] = spi_test_data;
+		
+	printk("%s:name=%s,bus_num=%d,cs=%d,mode=%d,speed=%d\n",__func__,spi->modalias, spi->master->bus_num, spi->chip_select, spi->mode, spi->max_speed_hz);
+
+	printk("%s:poll_mode=%d, type=%d, enable_dma=%d\n",__func__, spi_chip_data->poll_mode, spi_chip_data->type, spi_chip_data->enable_dma);
 	return ret;
 
 }
 
-static const struct spi_device_id spi_test_id[] = {		
-	{"spi_test_bus0", 0},
-	{"spi_test_bus1", 1},
+static int rockchip_spi_test_remove(struct spi_device *spi)
+{
+	printk("%s\n",__func__);
+	return 0;
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id rockchip_spi_test_dt_match[] = {
+	{ .compatible = "rockchip,spi_test_bus0_cs0", },
+	{ .compatible = "rockchip,spi_test_bus0_cs1", },
+	{ .compatible = "rockchip,spi_test_bus1_cs0", },
+	{ .compatible = "rockchip,spi_test_bus1_cs1", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, rockchip_spi_test_dt_match);
 
+#endif /* CONFIG_OF */
 
-static struct spi_driver spi_test_driver = {
+static struct spi_driver spi_rockchip_test_driver = {
 	.driver = {
-		.name		= "spi_test",
-		.bus		= &spi_bus_type,
-		.owner		= THIS_MODULE,
+		.name	= "spi_test",
+		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(rockchip_spi_test_dt_match),
 	},
-	.id_table = spi_test_id,
-
-	.probe		= spi_test_probe,
+	.probe = rockchip_spi_test_probe,
+	.remove = rockchip_spi_test_remove,
 };
 
-static int __init spi_test_init(void)
+static int __init spi_rockchip_test_init(void)
 {	
-	printk("%s\n",__func__);
-	spi_register_board_info(board_spi_test_devices, ARRAY_SIZE(board_spi_test_devices));
+	int ret= 0;
 	misc_register(&spi_test_misc);
-	return spi_register_driver(&spi_test_driver);
+	ret = spi_register_driver(&spi_rockchip_test_driver);
+	
+	return ret;
 }
+module_init(spi_rockchip_test_init);
 
-static void __exit spi_test_exit(void)
+static void __exit spi_rockchip_test_exit(void)
 {
-        misc_deregister(&spi_test_misc);
-	return spi_unregister_driver(&spi_test_driver);
+	misc_deregister(&spi_test_misc);
+	return spi_unregister_driver(&spi_rockchip_test_driver);
 }
-module_init(spi_test_init);
-module_exit(spi_test_exit);
+module_exit(spi_rockchip_test_exit);
+
+MODULE_AUTHOR("Luo Wei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("ROCKCHIP SPI TEST Driver");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:spi_test");
 

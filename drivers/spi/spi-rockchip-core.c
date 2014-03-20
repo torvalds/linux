@@ -995,8 +995,10 @@ int dw_spi_add_host(struct dw_spi *dws)
 		dev_err(&master->dev, "can not get IRQ\n");
 		goto err_free_master;
 	}
-
-	master->mode_bits = SPI_CPOL | SPI_CPHA;
+	
+	master->dev.parent = dws->parent_dev;
+	master->dev.of_node = dws->parent_dev->of_node;	
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 	master->bus_num = dws->bus_num;
 	master->num_chipselect = dws->num_cs;
 	master->cleanup = dw_spi_cleanup;
