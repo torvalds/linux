@@ -927,6 +927,7 @@ static void cached_dev_detach_finish(struct work_struct *w)
 	list_move(&dc->list, &uncached_devices);
 
 	clear_bit(BCACHE_DEV_DETACHING, &dc->disk.flags);
+	clear_bit(BCACHE_DEV_UNLINK_DONE, &dc->disk.flags);
 
 	mutex_unlock(&bch_register_lock);
 
@@ -1405,9 +1406,11 @@ static void cache_set_flush(struct closure *cl)
 		if (ca->alloc_thread)
 			kthread_stop(ca->alloc_thread);
 
-	cancel_delayed_work_sync(&c->journal.work);
-	/* flush last journal entry if needed */
-	c->journal.work.work.func(&c->journal.work.work);
+	if (c->journal.cur) {
+		cancel_delayed_work_sync(&c->journal.work);
+		/* flush last journal entry if needed */
+		c->journal.work.work.func(&c->journal.work.work);
+	}
 
 	closure_return(cl);
 }
