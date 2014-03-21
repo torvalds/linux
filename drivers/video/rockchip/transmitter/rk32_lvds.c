@@ -14,7 +14,7 @@
 #include <linux/rockchip/grf.h>
 #include "rk32_lvds.h"
 
-
+//#define TTL_TO_LVDS 1
 static struct rk32_lvds *rk32_lvds;
 static int rk32_lvds_disable(void)
 {
@@ -75,7 +75,7 @@ static int rk32_lvds_en(void)
 			printk("\n");
 	}
 #endif	
-	#if 1 // 0 ttl  1 lvds
+	#ifdef  TTL_TO_LVDS // 0 ttl  1 lvds
 	val = 0x007f007f;//0x1<<6 |0x1 <<4;
 	writel_relaxed(val, RK_GRF_VIRT + 0xc);
 
