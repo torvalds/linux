@@ -841,7 +841,7 @@ enum punit_power_well {
 #define GFX_MODE_GEN7	0x0229c
 #define RING_MODE_GEN7(ring)	((ring)->mmio_base+0x29c)
 #define   GFX_RUN_LIST_ENABLE		(1<<15)
-#define   GFX_TLB_INVALIDATE_ALWAYS	(1<<13)
+#define   GFX_TLB_INVALIDATE_EXPLICIT	(1<<13)
 #define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
 #define   GFX_REPLAY_MODE		(1<<11)
 #define   GFX_PSMI_GRANULARITY		(1<<10)
