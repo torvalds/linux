@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/rbtree.h>
 
 #define	DM_MSG_PREFIX	"thin"
 
@@ -230,6 +231,7 @@ struct thin_c {
 	spinlock_t lock;
 	struct bio_list deferred_bio_list;
 	struct bio_list retry_on_resume_list;
+	struct rb_root sort_bio_list; /* sorted list of deferred bios */
 };
 
 /*----------------------------------------------------------------*/
@@ -371,6 +373,7 @@ struct dm_thin_endio_hook {
 	struct dm_deferred_entry *shared_read_entry;
 	struct dm_deferred_entry *all_io_entry;
 	struct dm_thin_new_mapping *overwrite_mapping;
+	struct rb_node rb_node;
 };
 
 static void requeue_bio_list(struct thin_c *tc, struct bio_list *master)
@@ -1367,12 +1370,77 @@ static int need_commit_due_to_time(struct pool *pool)
 	       jiffies > pool->last_commit_jiffies + COMMIT_PERIOD;
 }
 
+#define thin_pbd(node) rb_entry((node), struct dm_thin_endio_hook, rb_node)
+#define thin_bio(pbd) dm_bio_from_per_bio_data((pbd), sizeof(struct dm_thin_endio_hook))
+
+static void __thin_bio_rb_add(struct thin_c *tc, struct bio *bio)
+{
+	struct rb_node **rbp, *parent;
+	struct dm_thin_endio_hook *pbd;
+	sector_t bi_sector = bio->bi_iter.bi_sector;
+
+	rbp = &tc->sort_bio_list.rb_node;
+	parent = NULL;
+	while (*rbp) {
+		parent = *rbp;
+		pbd = thin_pbd(parent);
+
+		if (bi_sector < thin_bio(pbd)->bi_iter.bi_sector)
+			rbp = &(*rbp)->rb_left;
+		else
+			rbp = &(*rbp)->rb_right;
+	}
+
+	pbd = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
+	rb_link_node(&pbd->rb_node, parent, rbp);
+	rb_insert_color(&pbd->rb_node, &tc->sort_bio_list);
+}
+
+static void __extract_sorted_bios(struct thin_c *tc)
+{
+	struct rb_node *node;
+	struct dm_thin_endio_hook *pbd;
+	struct bio *bio;
+
+	for (node = rb_first(&tc->sort_bio_list); node; node = rb_next(node)) {
+		pbd = thin_pbd(node);
+		bio = thin_bio(pbd);
+
+		bio_list_add(&tc->deferred_bio_list, bio);
+		rb_erase(&pbd->rb_node, &tc->sort_bio_list);
+	}
+
+	WARN_ON(!RB_EMPTY_ROOT(&tc->sort_bio_list));
+}
+
+static void __sort_thin_deferred_bios(struct thin_c *tc)
+{
+	struct bio *bio;
+	struct bio_list bios;
+
+	bio_list_init(&bios);
+	bio_list_merge(&bios, &tc->deferred_bio_list);
+	bio_list_init(&tc->deferred_bio_list);
+
+	/* Sort deferred_bio_list using rb-tree */
+	while ((bio = bio_list_pop(&bios)))
+		__thin_bio_rb_add(tc, bio);
+
+	/*
+	 * Transfer the sorted bios in sort_bio_list back to
+	 * deferred_bio_list to allow lockless submission of
+	 * all bios.
+	 */
+	__extract_sorted_bios(tc);
+}
+
 static void process_thin_deferred_bios(struct thin_c *tc)
 {
 	struct pool *pool = tc->pool;
 	unsigned long flags;
 	struct bio *bio;
 	struct bio_list bios;
+	struct blk_plug plug;
 
 	if (tc->requeue_mode) {
 		requeue_bio_list(tc, &tc->deferred_bio_list);
@@ -1382,10 +1450,20 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 	bio_list_init(&bios);
 
 	spin_lock_irqsave(&tc->lock, flags);
+
+	if (bio_list_empty(&tc->deferred_bio_list)) {
+		spin_unlock_irqrestore(&tc->lock, flags);
+		return;
+	}
+
+	__sort_thin_deferred_bios(tc);
+
 	bio_list_merge(&bios, &tc->deferred_bio_list);
 	bio_list_init(&tc->deferred_bio_list);
+
 	spin_unlock_irqrestore(&tc->lock, flags);
 
+	blk_start_plug(&plug);
 	while ((bio = bio_list_pop(&bios))) {
 		/*
 		 * If we've got no free new_mapping structs, and processing
@@ -1405,6 +1483,7 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 		else
 			pool->process_bio(tc, bio);
 	}
+	blk_finish_plug(&plug);
 }
 
 static void process_deferred_bios(struct pool *pool)
@@ -2964,7 +3043,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 11, 0},
+	.version = {1, 12, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -3040,6 +3119,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	spin_lock_init(&tc->lock);
 	bio_list_init(&tc->deferred_bio_list);
 	bio_list_init(&tc->retry_on_resume_list);
+	tc->sort_bio_list = RB_ROOT;
 
 	if (argc == 3) {
 		r = dm_get_device(ti, argv[2], FMODE_READ, &origin_dev);
@@ -3287,7 +3367,7 @@ static int thin_iterate_devices(struct dm_target *ti,
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 11, 0},
+	.version = {1, 12, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,
