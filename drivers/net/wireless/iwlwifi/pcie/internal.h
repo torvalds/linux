@@ -270,6 +270,9 @@ struct iwl_trans_pcie {
 	struct iwl_trans *trans;
 	struct iwl_drv *drv;
 
+	struct net_device napi_dev;
+	struct napi_struct napi;
+
 	/* INT ICT Table */
 	__le32 *ict_tbl;
 	dma_addr_t ict_tbl_dma;

@@ -640,7 +640,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		info->status.status_driver_data[0] =
 				(void *)(uintptr_t)tx_resp->reduced_tpc;
 
-		ieee80211_tx_status_ni(mvm->hw, skb);
+		ieee80211_tx_status(mvm->hw, skb);
 	}
 
 	if (txq_id >= mvm->first_agg_queue) {
@@ -944,7 +944,7 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 		skb = __skb_dequeue(&reclaimed_skbs);
-		ieee80211_tx_status_ni(mvm->hw, skb);
+		ieee80211_tx_status(mvm->hw, skb);
 	}
 
 	return 0;
