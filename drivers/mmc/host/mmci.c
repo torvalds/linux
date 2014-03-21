@@ -1500,13 +1500,10 @@ static int mmci_probe(struct amba_device *dev,
 	 * If no maximum operating frequency is supplied, fall back to use
 	 * the module parameter, which has a (low) default value in case it
 	 * is not specified. Either value must not exceed the clock rate into
-	 * the block, of course. Also note that DT takes precedence over
-	 * platform data.
+	 * the block, of course.
 	 */
 	if (mmc->f_max)
 		mmc->f_max = min(host->mclk, mmc->f_max);
-	else if (plat->f_max)
-		mmc->f_max = min(host->mclk, plat->f_max);
 	else
 		mmc->f_max = min(host->mclk, fmax);
 	dev_dbg(mmc_dev(mmc), "clocking block at %u Hz\n", mmc->f_max);

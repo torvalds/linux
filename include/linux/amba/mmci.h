@@ -12,9 +12,6 @@ struct dma_chan;
 /**
  * struct mmci_platform_data - platform configuration for the MMCI
  * (also known as PL180) block.
- * @f_max: the maximum operational frequency for this host in this
- * platform configuration. When this is specified it takes precedence
- * over the module parameter for the same frequency.
  * @ocr_mask: available voltages on the 4 pins from the block, this
  * is ignored if a regulator is used, see the MMC_VDD_* masks in
  * mmc/host.h
@@ -42,7 +39,6 @@ struct dma_chan;
  * bidirectional channel
  */
 struct mmci_platform_data {
-	unsigned int f_max;
 	unsigned int ocr_mask;
 	int (*ios_handler)(struct device *, struct mmc_ios *);
 	unsigned int (*status)(struct device *);
