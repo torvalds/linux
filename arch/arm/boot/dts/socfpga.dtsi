@@ -760,7 +760,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xfff00000 0x1000>;
-			interrupts = <0 156 4>;
+			interrupts = <0 154 4>;
 			num-chipselect = <4>;
 			bus-num = <0>;
 			tx-dma-channel = <&pdma 16>;
@@ -780,7 +780,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xfff01000 0x1000>;
-			interrupts = <0 157 4>;
+			interrupts = <0 155 4>;
 			num-chipselect = <4>;
 			bus-num = <1>;
 			tx-dma-channel = <&pdma 20>;
