@@ -139,9 +139,9 @@ static ssize_t ehci_power_store( struct device *_dev,
 			pldata->soft_reset();
 			usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
 			ehci_port_power(ehci, 1);
-			writel_relaxed(0x1d4d ,hcd->regs +0x90);
-			writel_relaxed(0x4 ,hcd->regs +0xa0);
-			dsb();
+//			writel_relaxed(0x1d4d ,hcd->regs +0x90);
+//			writel_relaxed(0x4 ,hcd->regs +0xa0);
+//			dsb();
 			break;
 		default:
 			break;
@@ -290,9 +290,9 @@ static int ehci_rk_probe(struct platform_device *pdev)
 
 	g_ehci = ehci;
 	ehci_port_power(ehci, 1);
-	writel_relaxed(0x1d4d ,hcd->regs +0x90);
-	writel_relaxed(0x4 ,hcd->regs +0xa0);
-	dsb();
+//	writel_relaxed(0x1d4d ,hcd->regs +0x90);
+//	writel_relaxed(0x4 ,hcd->regs +0xa0);
+//	dsb();
 
 	printk("%s ok\n", __func__);
 

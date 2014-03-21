@@ -849,8 +849,8 @@
 		interrupt-names = "otg_id", "otg_bvalid",
                           "otg_linestate", "host0_linestate",
                           "host1_linestate";
-		/*gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,*//*HOST_VBUS_DRV*/
-		/*        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;*//*OTG_VBUS_DRV*/
+		gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,/*HOST_VBUS_DRV*/
+		        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;/*OTG_VBUS_DRV*/
 		/*clocks = <&clk_gates7 9>;*/
 		/*clock-names = "hclk_usb_peri";*/
 		rockchip,remote_wakeup;
@@ -887,27 +887,19 @@
 	};
 
 	usb2: usb@ff500000 {
-		compatible = "rockchip,rk3288_usbhs_host";
-		reg = <0xff500000 0x40000>;
+		compatible = "rockchip,rk3288_rk_ehci_host";
+		reg = <0xff500000 0x20000>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		/*clocks = <&clk_gates13 6>, <&clk_gates7 7>;*/
 		/*clock-names = "clk_usbphy2", "hclk_usb2";*/
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
+	};
 
-		ehci: ehci@ff500000 {
-			compatible = "rockchip,rk3288_rk_ehci_host";
-			reg = <0xff500000 0x20000>;
-			interrupt-parent = <&gic>;
-			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		};
-
-		ohci: ohci@ff520000 {
-			compatible = "rockchip,rk3288_rk_ohci_host";
-			reg = <0xff520000 0x20000>;
-			interrupt-parent = <&gic>;
-			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		};
+	usb3: usb@ff520000 {
+		compatible = "rockchip,rk3288_rk_ohci_host";
+		reg = <0xff520000 0x20000>;
+		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+		/*clocks = <&clk_gates13 6>, <&clk_gates7 7>;*/
+		/*clock-names = "clk_usbphy3", "hclk_usb3";*/
 	};
 
 	hsic: hsic@ff5c0000 {
