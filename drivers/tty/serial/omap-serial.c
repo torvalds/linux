@@ -1789,6 +1789,7 @@ static int serial_omap_remove(struct platform_device *dev)
 	pm_runtime_disable(up->dev);
 	uart_remove_one_port(&serial_omap_reg, &up->port);
 	pm_qos_remove_request(&up->pm_qos_request);
+	device_init_wakeup(&dev->dev, false);
 
 	return 0;
 }
