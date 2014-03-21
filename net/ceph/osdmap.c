@@ -857,6 +857,61 @@ static int decode_new_pg_temp(void **p, void *end, struct ceph_osdmap *map)
 	return __decode_pg_temp(p, end, map, true);
 }
 
+static int __decode_primary_temp(void **p, void *end, struct ceph_osdmap *map,
+				 bool incremental)
+{
+	u32 n;
+
+	ceph_decode_32_safe(p, end, n, e_inval);
+	while (n--) {
+		struct ceph_pg pgid;
+		u32 osd;
+		int ret;
+
+		ret = ceph_decode_pgid(p, end, &pgid);
+		if (ret)
+			return ret;
+
+		ceph_decode_32_safe(p, end, osd, e_inval);
+
+		ret = __remove_pg_mapping(&map->primary_temp, pgid);
+		BUG_ON(!incremental && ret != -ENOENT);
+
+		if (!incremental || osd != (u32)-1) {
+			struct ceph_pg_mapping *pg;
+
+			pg = kzalloc(sizeof(*pg), GFP_NOFS);
+			if (!pg)
+				return -ENOMEM;
+
+			pg->pgid = pgid;
+			pg->primary_temp.osd = osd;
+
+			ret = __insert_pg_mapping(pg, &map->primary_temp);
+			if (ret) {
+				kfree(pg);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
+static int decode_primary_temp(void **p, void *end, struct ceph_osdmap *map)
+{
+	return __decode_primary_temp(p, end, map, false);
+}
+
+static int decode_new_primary_temp(void **p, void *end,
+				   struct ceph_osdmap *map)
+{
+	return __decode_primary_temp(p, end, map, true);
+}
+
 /*
  * decode a full map.
  */
@@ -932,6 +987,13 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	err = decode_pg_temp(p, end, map);
 	if (err)
 		goto bad;
+
+	/* primary_temp */
+	if (struct_v >= 1) {
+		err = decode_primary_temp(p, end, map);
+		if (err)
+			goto bad;
+	}
 
 	/* crush */
 	ceph_decode_32_safe(p, end, len, e_inval);
@@ -1132,6 +1194,13 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	err = decode_new_pg_temp(p, end, map);
 	if (err)
 		goto bad;
+
+	/* new_primary_temp */
+	if (struct_v >= 1) {
+		err = decode_new_primary_temp(p, end, map);
+		if (err)
+			goto bad;
+	}
 
 	/* ignore the rest */
 	*p = end;
