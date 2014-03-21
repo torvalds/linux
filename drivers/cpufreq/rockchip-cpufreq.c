@@ -383,6 +383,7 @@ static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	if (clk_vepu_dvfs_node){
 		clk_enable_dvfs(clk_vepu_dvfs_node);
 		dvfs_clk_set_rate(clk_vepu_dvfs_node, 198000000);
+		dvfs_clk_set_rate(clk_vepu_dvfs_node, 297000000);
 	}
 
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");
