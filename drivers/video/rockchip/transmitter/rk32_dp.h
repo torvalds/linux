@@ -88,10 +88,20 @@
 #define HB_PORCHL_REG           		0x84
 #define HB_PORCHH_REG           		0x88
 
+
+#define SSC_REG					0x104
+#define TX_REG_COMMON				0x114
+#define DP_AUX					0x120
+#define DP_BIAS					0x124
+
 #define PLL_REG_1				0xfc
 #define REF_CLK_24M				(0x01 << 1)
 #define REF_CLK_27M				(0x0 << 1)
 
+#define PLL_REG_2				0x9e4
+#define PLL_REG_3				0x9e8
+#define PLL_REG_4				0x9ec
+#define PLL_REG_5				0xa00
 #define DP_PWRDN				0x12c
 #define PD_INC_BG				(0x1 << 7)
 #define PD_EXP_BG				(0x1 << 6)
@@ -101,6 +111,8 @@
 #define PD_CH2					(0x1 << 2)
 #define PD_CH1					(0x1 << 1)
 #define PD_CH0					(0x1 << 0)
+
+#define DP_RESERVE2				0x134
 
 #define LANE_MAP				0x35C
 #define LANE3_MAP_LOGIC_LANE_0			(0x0 << 6)
@@ -372,6 +384,7 @@
 #define GRF_EDP_MEM_CTL_BY_EDP			(1 << 13)
 #define GRF_EDP_SECURE_EN			(1 << 3)
 #define EDP_SEL_VOP_LIT				(1 << 5)
+#define GRF_EDP_REF_CLK_SEL_INTER		(1 << 4)
 enum color_coefficient {
 	COLOR_YCBCR601,
 	COLOR_YCBCR709

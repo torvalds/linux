@@ -78,6 +78,31 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 	
 	val = REF_CLK_24M;
 	writel(val, edp->regs + PLL_REG_1);
+
+	val = 0x95;
+	writel(val, edp->regs + PLL_REG_2);
+
+	val = 0x40;
+	writel(val, edp->regs + PLL_REG_3);
+
+	val = 0x58;
+	writel(val, edp->regs + PLL_REG_4);
+	
+	val = 0x22;
+	writel(val, edp->regs + PLL_REG_5);
+	
+	val = 0x19;
+	writel(val, edp->regs + SSC_REG);
+	val = 0x87;
+	writel(val, edp->regs + TX_REG_COMMON);
+	val = 0x03;
+	writel(val, edp->regs + DP_AUX);
+	val = 0x46;
+	writel(val, edp->regs + DP_BIAS);
+	val = 0x55;
+	writel(val, edp->regs + DP_RESERVE2);
+	
+	
 	/*val = DRIVE_DVDD_BIT_1_0625V | VCO_BIT_600_MICRO;
 	writel(val, edp->regs + ANALOG_CTL_3);
 
@@ -251,8 +276,17 @@ void rk32_edp_init_analog_func(struct rk32_edp *edp)
 	writel(val, edp->regs + DEBUG_CTL);
 
 	/* Power up PLL */
+	int wt = 0;
+	while (wt < 100) {
 	if (rk32_edp_get_pll_lock_status(edp) == DP_PLL_UNLOCKED)
 		dev_warn(edp->dev, "edp pll unlocked.....\n");
+	else {
+		dev_info(edp->dev, "edp pll locked\n");
+		break;
+	}
+		wt++;
+		msleep(50);
+	}
 
 	/* Enable Serdes FIFO function and Link symbol clock domain module */
 	val = readl(edp->regs + FUNC_EN_2);

@@ -31,20 +31,27 @@
 #include <linux/of.h>
 #endif
 
-/*#define EDP_BIST_MODE*/
+//#define EDP_BIST_MODE
 
 static struct rk32_edp *rk32_edp;
 static int rk32_edp_init_edp(struct rk32_edp *edp)
 {
 	struct rk_screen *screen = &edp->screen;
 	u32 val = 0;
-	
+
+	screen->lcdc_id = 1;
 	if (screen->lcdc_id == 1)  /*select lcdc*/
 		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
 	else
 		val = EDP_SEL_VOP_LIT << 16;
 	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
 
+	val = GRF_EDP_REF_CLK_SEL_INTER |
+		(GRF_EDP_REF_CLK_SEL_INTER << 16);
+	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
+
+	val = 0x80008000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x0d0);
 	rk32_edp_reset(edp);
 	rk32_edp_init_refclk(edp);
 	rk32_edp_init_interrupt(edp);
@@ -1058,7 +1065,7 @@ static irqreturn_t rk32_edp_isr(int irq, void *arg)
 {
 	struct rk32_edp *edp = arg;
 
-	dev_info(edp->dev, "rk32_edp_isr\n");
+	//dev_info(edp->dev, "rk32_edp_isr\n");
 	return IRQ_HANDLED;
 }
 
@@ -1079,32 +1086,31 @@ edp_phy_init:
 	
 	rk32_edp_init_edp(edp);
 
-	
-	ret = rk32_edp_handle_edid(edp);
+	/*ret = rk32_edp_handle_edid(edp);
 	if (ret) {
 		dev_err(edp->dev, "unable to handle edid\n");
-		goto out;
+		//goto out;
 	}
 
 	
 	ret = rk32_edp_enable_scramble(edp, 0);
 	if (ret) {
 		dev_err(edp->dev, "unable to set scramble\n");
-		goto out;
+		//goto out;
 	}
 
 	ret = rk32_edp_enable_rx_to_enhanced_mode(edp, 0);
 	if (ret) {
 		dev_err(edp->dev, "unable to set enhanced mode\n");
-		goto out;
+		//goto out;
 	}
-	rk32_edp_enable_enhanced_mode(edp, 0);
+	rk32_edp_enable_enhanced_mode(edp, 0);*/
 
        /* Link Training */
 	ret = rk32_edp_set_link_train(edp, LANE_CNT4, LINK_RATE_2_70GBPS);
 	if (ret) {
 		dev_err(edp->dev, "link train failed\n");
-		goto out;
+		//goto out;
 	}
 
 	rk32_edp_set_lane_count(edp, edp->video_info.lane_count);
@@ -1117,10 +1123,9 @@ edp_phy_init:
 	ret = rk32_edp_config_video(edp, &edp->video_info);
 	if (ret) {
 		dev_err(edp->dev, "unable to config video\n");
-		goto out;
+		//goto out;
 	}
 #endif
-
 	return 0;
 
 out:
@@ -1131,7 +1136,6 @@ out:
 	}
 	
 	dev_err(edp->dev, "DP LT exceeds max retry count");
-
 	return ret;
 }
 	
@@ -1185,7 +1189,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	edp->video_info.ycbcr_coeff	= COLOR_YCBCR601;
 	edp->video_info.color_depth	= COLOR_8;
 
-	edp->video_info.link_rate	= LINK_RATE_2_70GBPS;
+	edp->video_info.link_rate	= LINK_RATE_1_62GBPS;
 	edp->video_info.lane_count	= LANE_CNT4;
 	rk_fb_get_prmry_screen(&edp->screen);
 	if (edp->screen.type != SCREEN_EDP) {
@@ -1220,7 +1224,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return PTR_ERR(edp->pclk);
 	}
 	
-	edp->irq = platform_get_irq(pdev, 0);
+	/*edp->irq = platform_get_irq(pdev, 0);
 	if (edp->irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
 		return edp->irq;
@@ -1231,6 +1235,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", edp->irq);
 		return ret;
 	}
+	disable_irq(edp->irq);*/
 	rk32_edp = edp;
 	clk_prepare(edp->pclk);
 	clk_prepare(edp->clk_edp);
