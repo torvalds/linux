@@ -2923,7 +2923,7 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 {
 	struct rb_node **p = &sctx->pending_dir_moves.rb_node;
 	struct rb_node *parent = NULL;
-	struct pending_dir_move *entry, *pm;
+	struct pending_dir_move *entry = NULL, *pm;
 	struct recorded_ref *cur;
 	int exists = 0;
 	int ret;
