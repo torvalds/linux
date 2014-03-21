@@ -12,21 +12,6 @@
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
- *
- *	This is shared code between Digi's CVS archive and the
- *	Linux Kernel sources.
- *	Changing the source just for reformatting needlessly breaks
- *	our CVS diff history.
- *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
- *	Thank you.
- *
  */
 
 /*
@@ -83,12 +68,6 @@ MODULE_AUTHOR("Digi International, http://www.digi.com");
 MODULE_DESCRIPTION("Driver for the Digi International EPCA PCI based product line");
 MODULE_SUPPORTED_DEVICE("dgap");
 
-/**************************************************************************
- *
- * protos for this file
- *
- */
-
 static int dgap_start(void);
 static void dgap_init_globals(void);
 static int dgap_found_board(struct pci_dev *pdev, int id);
@@ -101,7 +80,6 @@ static int dgap_probe1(struct pci_dev *pdev, int card_type);
 static int dgap_do_remap(struct board_t *brd);
 static irqreturn_t dgap_intr(int irq, void *voidbrd);
 
-/* Our function prototypes */
 static int dgap_tty_open(struct tty_struct *tty, struct file *file);
 static void dgap_tty_close(struct tty_struct *tty, struct file *file);
 static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
@@ -221,7 +199,6 @@ static int dgap_do_wait_for_fep(struct board_t *brd);
 static int dgap_tty_register_ports(struct board_t *brd);
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type);
 
-/* Driver unload function */
 static void dgap_cleanup_module(void);
 
 module_exit(dgap_cleanup_module);
@@ -233,9 +210,6 @@ static const struct file_operations DgapBoardFops = {
 	.owner	= THIS_MODULE,
 };
 
-/*
- * Globals
- */
 static uint dgap_NumBoards;
 static struct board_t *dgap_Board[MAXBOARDS];
 static ulong dgap_poll_counter;
@@ -244,9 +218,6 @@ static int dgap_driver_state = DRIVER_INITIALIZED;
 static wait_queue_head_t dgap_dl_wait;
 static int dgap_poll_tick = 20;	/* Poll interval - 20 ms */
 
-/*
- * Static vars.
- */
 static struct class *dgap_class;
 
 static struct board_t *dgap_BoardsByMajor[256];
