@@ -20,6 +20,11 @@ config MACH_BERLIN_BG2CD
 	select CACHE_L2X0
 	select HAVE_ARM_TWD if SMP
 
+config MACH_BERLIN_BG2Q
+	bool "Marvell Armada 1500 Pro (BG2-Q)"
+	select CACHE_L2X0
+	select HAVE_ARM_TWD if SMP
+
 endmenu
 
 endif
