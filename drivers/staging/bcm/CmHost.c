@@ -460,41 +460,29 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "CopyToAdapter : u8CSSpecification : %X\n", psfLocalSet->u8CSSpecification);
 	switch (psfLocalSet->u8CSSpecification) {
 	case eCSPacketIPV4:
-	{
 		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV4_CS;
 		break;
-	}
 	case eCSPacketIPV6:
-	{
 		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV6_CS;
 		break;
-	}
 	case eCS802_3PacketEthernet:
 	case eCS802_1QPacketVLAN:
-	{
 		Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = ETH_CS_802_3;
 		break;
-	}
 	case eCSPacketIPV4Over802_1QVLAN:
 	case eCSPacketIPV4Over802_3Ethernet:
-	{
 		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV4_CS;
 		Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = ETH_CS_802_3;
 		break;
-	}
 	case eCSPacketIPV6Over802_1QVLAN:
 	case eCSPacketIPV6Over802_3Ethernet:
-	{
 		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV6_CS;
 		Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = ETH_CS_802_3;
 		break;
-	}
 	default:
-	{
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Error in value of CS Classification.. setting default to IP CS\n");
 		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV4_CS;
 		break;
-	}
 	}
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "CopyToAdapter : Queue No : %X ETH CS Support :  %X  , IP CS Support : %X\n",
@@ -542,24 +530,16 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		} else if (ucDsxType == DSC_ACK) {
 			switch (psfCSType->u8ClassfierDSCAction) {
 			case 0: /* DSC Add Classifier */
-			{
 				eClassifierAction = eAddClassifier;
-			}
-			break;
+				break;
 			case 1: /* DSC Replace Classifier */
-			{
 				eClassifierAction = eReplaceClassifier;
-			}
-			break;
+				break;
 			case 2: /* DSC Delete Classifier */
-			{
 				eClassifierAction = eDeleteClassifier;
-			}
-			break;
+				break;
 			default:
-			{
 				eClassifierAction = eInvalidClassifierAction;
-			}
 			}
 		}
 
@@ -567,7 +547,6 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 
 		switch (eClassifierAction) {
 		case eAddClassifier:
-		{
 			/* Get a Free Classifier Index From Classifier table for this SF to add the Classifier */
 			/* Contained in this message */
 			nClassifierIndex = SearchClsid(Adapter, ulSFID, u16PacketClassificationRuleIndex);
@@ -587,10 +566,8 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 						"CopyToAdapter: Error The Specified Classifier Already Exists and attempted To Add Classifier with Same PCRI : 0x%x\n",
 						u16PacketClassificationRuleIndex);
 			}
-		}
-		break;
+			break;
 		case eReplaceClassifier:
-		{
 			/* Get the Classifier Index From Classifier table for this SF and replace existing  Classifier */
 			/* with the new classifier Contained in this message */
 			nClassifierIndex = SearchClsid(Adapter, ulSFID, u16PacketClassificationRuleIndex);
@@ -601,10 +578,8 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 			}
 			/* Copy the Classifier Rule for this service flow into our Classifier table maintained per SF. */
 			CopyClassifierRuleToSF(Adapter, psfCSType, uiSearchRuleIndex, nClassifierIndex);
-		}
-		break;
+			break;
 		case eDeleteClassifier:
-		{
 			/* Get the Classifier Index From Classifier table for this SF and replace existing  Classifier */
 			/* with the new classifier Contained in this message */
 			nClassifierIndex = SearchClsid(Adapter, ulSFID, u16PacketClassificationRuleIndex);
@@ -616,13 +591,10 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 
 			/* Delete This classifier */
 			DeleteClassifierRuleFromSF(Adapter, uiSearchRuleIndex, nClassifierIndex);
-		}
-		break;
+			break;
 		default:
-		{
 			/* Invalid Action for classifier */
 			break;
-		}
 		}
 	}
 
@@ -633,35 +605,28 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 
 		switch (psfCSType->u8PhsDSCAction) {
 		case eDeleteAllPHSRules:
-		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Deleting All PHS Rules For VCID: 0x%X\n", uVCID);
 
 			/* Delete All the PHS rules for this Service flow */
 			PhsDeleteSFRules(&Adapter->stBCMPhsContext, uVCID);
 			break;
-		}
 		case eDeletePHSRule:
-		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "PHS DSC Action = Delete PHS Rule\n");
 
 			if (psfCSType->cPhsRule.u8PHSI)
 				PhsDeletePHSRule(&Adapter->stBCMPhsContext, uVCID, psfCSType->cCPacketClassificationRule.u8AssociatedPHSI);
 
 			break;
-		}
 		default:
-		{
 			if (ucDsxType == DSC_ACK) {
 				/* BCM_DEBUG_PRINT(CONN_MSG,("Invalid PHS DSC Action For DSC\n",psfCSType->cPhsRule.u8PHSI)); */
 				break; /* FOr DSC ACK Case PHS DSC Action must be in valid set */
 			}
-		}
 		/* Proceed To Add PHS rule for DSA_ACK case even if PHS DSC action is unspecified */
 		/* No Break Here . Intentionally! */
 
 		case eAddPHSRule:
 		case eSetPHSRule:
-		{
 			if (psfCSType->cPhsRule.u8PHSI)	{
 				/* Apply This PHS Rule to all classifiers whose Associated PHSI Match */
 				unsigned int uiClassifierIndex = 0;
@@ -738,8 +703,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 						sPhsRule.u8PHSI);
 				}
 			}
-		}
-		break;
+			break;
 		}
 	}
 
