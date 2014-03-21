@@ -549,32 +549,12 @@ int radeon_dp_mode_valid_helper(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool radeon_dp_get_link_status(struct radeon_connector *radeon_connector,
-				      u8 link_status[DP_LINK_STATUS_SIZE])
-{
-	struct radeon_connector_atom_dig *dig_connector;
-	int ret;
-
-	if (!radeon_connector->con_priv)
-		return false;
-	dig_connector = radeon_connector->con_priv;
-
-	ret = drm_dp_dpcd_read(&dig_connector->dp_i2c_bus->aux, DP_LANE0_1_STATUS,
-			       link_status, DP_LINK_STATUS_SIZE);
-	if (ret <= 0) {
-		return false;
-	}
-
-	DRM_DEBUG_KMS("link status %6ph\n", link_status);
-	return true;
-}
-
 bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector)
 {
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
 
-	if (!radeon_dp_get_link_status(radeon_connector, link_status))
+	if (drm_dp_dpcd_read_link_status(&dig->dp_i2c_bus->aux, link_status) <= 0)
 		return false;
 	if (drm_dp_channel_eq_ok(link_status, dig->dp_lane_count))
 		return false;
@@ -605,7 +585,6 @@ struct radeon_dp_link_train_info {
 	struct radeon_device *rdev;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector;
 	int enc_id;
 	int dp_clock;
 	int dp_lane_count;
@@ -752,7 +731,8 @@ static int radeon_dp_link_train_cr(struct radeon_dp_link_train_info *dp_info)
 	while (1) {
 		drm_dp_link_train_clock_recovery_delay(dp_info->dpcd);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
+		if (drm_dp_dpcd_read_link_status(dp_info->aux,
+						 dp_info->link_status) <= 0) {
 			DRM_ERROR("displayport link status failed\n");
 			break;
 		}
@@ -814,7 +794,8 @@ static int radeon_dp_link_train_ce(struct radeon_dp_link_train_info *dp_info)
 	while (1) {
 		drm_dp_link_train_channel_eq_delay(dp_info->dpcd);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
+		if (drm_dp_dpcd_read_link_status(dp_info->aux,
+						 dp_info->link_status) <= 0) {
 			DRM_ERROR("displayport link status failed\n");
 			break;
 		}
@@ -907,7 +888,6 @@ void radeon_dp_link_train(struct drm_encoder *encoder,
 	dp_info.rdev = rdev;
 	dp_info.encoder = encoder;
 	dp_info.connector = connector;
-	dp_info.radeon_connector = radeon_connector;
 	dp_info.dp_lane_count = dig_connector->dp_lane_count;
 	dp_info.dp_clock = dig_connector->dp_clock;
 	dp_info.aux = &dig_connector->dp_i2c_bus->aux;
