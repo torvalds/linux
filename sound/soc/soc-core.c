@@ -1552,14 +1552,15 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 }
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
-static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
+static int soc_register_ac97_codec(struct snd_soc_codec *codec,
+				   struct snd_soc_dai *codec_dai)
 {
 	int ret;
 
 	/* Only instantiate AC97 if not already done by the adaptor
 	 * for the generic AC97 subsystem.
 	 */
-	if (rtd->codec_dai->driver->ac97_control && !rtd->codec->ac97_registered) {
+	if (codec_dai->driver->ac97_control && !codec->ac97_registered) {
 		/*
 		 * It is possible that the AC97 device is already registered to
 		 * the device subsystem. This happens when the device is created
@@ -1568,27 +1569,37 @@ static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
 		 *
 		 * In those cases we don't try to register the device again.
 		 */
-		if (!rtd->codec->ac97_created)
+		if (!codec->ac97_created)
 			return 0;
 
-		ret = soc_ac97_dev_register(rtd->codec);
+		ret = soc_ac97_dev_register(codec);
 		if (ret < 0) {
-			dev_err(rtd->codec->dev,
+			dev_err(codec->dev,
 				"ASoC: AC97 device register failed: %d\n", ret);
 			return ret;
 		}
 
-		rtd->codec->ac97_registered = 1;
+		codec->ac97_registered = 1;
 	}
 	return 0;
 }
 
-static void soc_unregister_ac97_dai_link(struct snd_soc_codec *codec)
+static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
+{
+	return soc_register_ac97_codec(rtd->codec, rtd->codec_dai);
+}
+
+static void soc_unregister_ac97_codec(struct snd_soc_codec *codec)
 {
 	if (codec->ac97_registered) {
 		soc_ac97_dev_unregister(codec);
 		codec->ac97_registered = 0;
 	}
+}
+
+static void soc_unregister_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
+{
+	soc_unregister_ac97_codec(rtd->codec);
 }
 #endif
 
@@ -1888,7 +1899,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 			dev_err(card->dev,
 				"ASoC: failed to register AC97: %d\n", ret);
 			while (--i >= 0)
-				soc_unregister_ac97_dai_link(card->rtd[i].codec);
+				soc_unregister_ac97_dai_link(&card->rtd[i]);
 			goto probe_aux_dev_err;
 		}
 	}
@@ -2324,7 +2335,7 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
 {
 	mutex_lock(&codec->mutex);
 #ifdef CONFIG_SND_SOC_AC97_BUS
-	soc_unregister_ac97_dai_link(codec);
+	soc_unregister_ac97_codec(codec);
 #endif
 	kfree(codec->ac97->bus);
 	kfree(codec->ac97);
