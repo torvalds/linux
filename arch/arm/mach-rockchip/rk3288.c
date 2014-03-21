@@ -124,6 +124,9 @@ static void __init rk3288_dt_map_io(void)
 	/* rkpwm is used instead of old pwm */
 	writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
 
+	/* disable address remap */
+	writel_relaxed(0x08000000, RK_SGRF_VIRT + RK3288_SGRF_SOC_CON0);
+
 	rk3288_boot_mode_init();
 }
 
