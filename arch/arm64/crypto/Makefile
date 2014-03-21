@@ -22,3 +22,17 @@ CFLAGS_aes-ce-cipher.o += -march=armv8-a+crypto
 
 obj-$(CONFIG_CRYPTO_AES_ARM64_CE_CCM) += aes-ce-ccm.o
 aes-ce-ccm-y := aes-ce-ccm-glue.o aes-ce-ccm-core.o
+
+obj-$(CONFIG_CRYPTO_AES_ARM64_CE_BLK) += aes-ce-blk.o
+aes-ce-blk-y := aes-glue-ce.o aes-ce.o
+
+obj-$(CONFIG_CRYPTO_AES_ARM64_NEON_BLK) += aes-neon-blk.o
+aes-neon-blk-y := aes-glue-neon.o aes-neon.o
+
+AFLAGS_aes-ce.o		:= -DINTERLEAVE=2 -DINTERLEAVE_INLINE
+AFLAGS_aes-neon.o	:= -DINTERLEAVE=4
+
+CFLAGS_aes-glue-ce.o	:= -DUSE_V8_CRYPTO_EXTENSIONS
+
+$(obj)/aes-glue-%.o: $(src)/aes-glue.c FORCE
+	$(call if_changed_dep,cc_o_c)
