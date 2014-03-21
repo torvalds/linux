@@ -646,38 +646,40 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 }
 
 /*
- * adjust max osd value.  reallocate arrays.
+ * Adjust max_osd value, (re)allocate arrays.
+ *
+ * The new elements are properly initialized.
  */
 static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 {
 	u8 *state;
-	struct ceph_entity_addr *addr;
 	u32 *weight;
+	struct ceph_entity_addr *addr;
+	int i;
 
-	state = kcalloc(max, sizeof(*state), GFP_NOFS);
-	addr = kcalloc(max, sizeof(*addr), GFP_NOFS);
-	weight = kcalloc(max, sizeof(*weight), GFP_NOFS);
-	if (state == NULL || addr == NULL || weight == NULL) {
+	state = krealloc(map->osd_state, max*sizeof(*state), GFP_NOFS);
+	weight = krealloc(map->osd_weight, max*sizeof(*weight), GFP_NOFS);
+	addr = krealloc(map->osd_addr, max*sizeof(*addr), GFP_NOFS);
+	if (!state || !weight || !addr) {
 		kfree(state);
-		kfree(addr);
 		kfree(weight);
+		kfree(addr);
+
 		return -ENOMEM;
 	}
 
-	/* copy old? */
-	if (map->osd_state) {
-		memcpy(state, map->osd_state, map->max_osd*sizeof(*state));
-		memcpy(addr, map->osd_addr, map->max_osd*sizeof(*addr));
-		memcpy(weight, map->osd_weight, map->max_osd*sizeof(*weight));
-		kfree(map->osd_state);
-		kfree(map->osd_addr);
-		kfree(map->osd_weight);
+	for (i = map->max_osd; i < max; i++) {
+		state[i] = 0;
+		weight[i] = CEPH_OSD_OUT;
+		memset(addr + i, 0, sizeof(*addr));
 	}
 
 	map->osd_state = state;
 	map->osd_weight = weight;
 	map->osd_addr = addr;
+
 	map->max_osd = max;
+
 	return 0;
 }
 
