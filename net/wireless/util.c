@@ -1309,7 +1309,7 @@ int cfg80211_check_combinations(struct wiphy *wiphy,
 			}
 		}
 
-		if (radar_detect && !(c->radar_detect_widths & radar_detect))
+		if (radar_detect != (c->radar_detect_widths & radar_detect))
 			goto cont;
 
 		/* Finally check that all iftypes that we're currently
