@@ -84,8 +84,8 @@ int sgdma_initialize(struct altera_tse_private *priv)
 		return -EINVAL;
 	}
 
-	priv->txdescphys = dma_map_single(priv->device, priv->rx_dma_desc,
-					  priv->rxdescmem, DMA_TO_DEVICE);
+	priv->txdescphys = dma_map_single(priv->device, priv->tx_dma_desc,
+					  priv->txdescmem, DMA_TO_DEVICE);
 
 	if (dma_mapping_error(priv->device, priv->txdescphys)) {
 		sgdma_uninitialize(priv);
@@ -340,7 +340,7 @@ static int sgdma_async_read(struct altera_tse_private *priv)
 		/* clear control and status */
 		iowrite32(0, &csr->control);
 
-		/* If statuc available, clear those bits */
+		/* If status available, clear those bits */
 		if (sts & 0xf)
 			iowrite32(0xf, &csr->status);
 
