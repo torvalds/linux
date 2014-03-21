@@ -1033,7 +1033,7 @@ nfsd4_decode_readdir(struct nfsd4_compoundargs *argp, struct nfsd4_readdir *read
 	READ_BUF(24);
 	READ64(readdir->rd_cookie);
 	COPYMEM(readdir->rd_verf.data, sizeof(readdir->rd_verf.data));
-	READ32(readdir->rd_dircount);    /* just in case you needed a useless field... */
+	READ32(readdir->rd_dircount);
 	READ32(readdir->rd_maxcount);
 	if ((status = nfsd4_decode_bitmap(argp, readdir->rd_bmval)))
 		goto out;
@@ -2720,6 +2720,9 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	if (entry_bytes > cd->rd_maxcount)
 		goto fail;
 	cd->rd_maxcount -= entry_bytes;
+	if (!cd->rd_dircount)
+		goto fail;
+	cd->rd_dircount--;
 	cd->cookie_offset = cookie_offset;
 skip_entry:
 	cd->common.err = nfs_ok;
