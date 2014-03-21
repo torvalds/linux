@@ -2595,30 +2595,65 @@ static int iommu_should_identity_map(struct device *dev, int startup)
 	return 1;
 }
 
+static int __init dev_prepare_static_identity_mapping(struct device *dev, int hw)
+{
+	int ret;
+
+	if (!iommu_should_identity_map(dev, 1))
+		return 0;
+
+	ret = domain_add_dev_info(si_domain, dev,
+				  hw ? CONTEXT_TT_PASS_THROUGH :
+				       CONTEXT_TT_MULTI_LEVEL);
+	if (!ret)
+		pr_info("IOMMU: %s identity mapping for device %s\n",
+			hw ? "hardware" : "software", dev_name(dev));
+	else if (ret == -ENODEV)
+		/* device not associated with an iommu */
+		ret = 0;
+
+	return ret;
+}
+
+
 static int __init iommu_prepare_static_identity_mapping(int hw)
 {
 	struct pci_dev *pdev = NULL;
-	int ret;
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
+	struct device *dev;
+	int i;
+	int ret = 0;
 
 	ret = si_domain_init(hw);
 	if (ret)
 		return -EFAULT;
 
 	for_each_pci_dev(pdev) {
-		if (iommu_should_identity_map(&pdev->dev, 1)) {
-			ret = domain_add_dev_info(si_domain, &pdev->dev,
-					     hw ? CONTEXT_TT_PASS_THROUGH :
-						  CONTEXT_TT_MULTI_LEVEL);
-			if (ret) {
-				/* device not associated with an iommu */
-				if (ret == -ENODEV)
-					continue;
-				return ret;
-			}
-			pr_info("IOMMU: %s identity mapping for device %s\n",
-				hw ? "hardware" : "software", pci_name(pdev));
-		}
+		ret = dev_prepare_static_identity_mapping(&pdev->dev, hw);
+		if (ret)
+			return ret;
 	}
+
+	for_each_active_iommu(iommu, drhd)
+		for_each_active_dev_scope(drhd->devices, drhd->devices_cnt, i, dev) {
+			struct acpi_device_physical_node *pn;
+			struct acpi_device *adev;
+
+			if (dev->bus != &acpi_bus_type)
+				continue;
+				
+			adev= to_acpi_device(dev);
+			mutex_lock(&adev->physical_node_lock);
+			list_for_each_entry(pn, &adev->physical_node_list, node) {
+				ret = dev_prepare_static_identity_mapping(pn->dev, hw);
+				if (ret)
+					break;
+			}
+			mutex_unlock(&adev->physical_node_lock);
+			if (ret)
+				return ret;
+		}
 
 	return 0;
 }
