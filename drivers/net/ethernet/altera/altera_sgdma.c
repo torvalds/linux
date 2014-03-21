@@ -390,9 +390,8 @@ sgdma_txphysaddr(struct altera_tse_private *priv,
 		 struct sgdma_descrip *desc)
 {
 	dma_addr_t paddr = priv->txdescmem_busaddr;
-	dma_addr_t offs = (dma_addr_t)((dma_addr_t)desc -
-				(dma_addr_t)priv->tx_dma_desc);
-	return paddr + offs;
+	uintptr_t offs = (uintptr_t)desc - (uintptr_t)priv->tx_dma_desc;
+	return (dma_addr_t)((uintptr_t)paddr + offs);
 }
 
 static dma_addr_t
@@ -400,9 +399,8 @@ sgdma_rxphysaddr(struct altera_tse_private *priv,
 		 struct sgdma_descrip *desc)
 {
 	dma_addr_t paddr = priv->rxdescmem_busaddr;
-	dma_addr_t offs = (dma_addr_t)((dma_addr_t)desc -
-				(dma_addr_t)priv->rx_dma_desc);
-	return paddr + offs;
+	uintptr_t offs = (uintptr_t)desc - (uintptr_t)priv->rx_dma_desc;
+	return (dma_addr_t)((uintptr_t)paddr + offs);
 }
 
 #define list_remove_head(list, entry, type, member)			\
