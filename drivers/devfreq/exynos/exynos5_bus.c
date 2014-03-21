@@ -46,11 +46,6 @@ enum exynos_ppmu_list {
 	PPMU_END,
 };
 
-struct busfreq_ppmu_data {
-	struct exynos_ppmu *ppmu;
-	int ppmu_end;
-};
-
 struct busfreq_data_int {
 	struct device *dev;
 	struct devfreq *devfreq;
@@ -79,49 +74,6 @@ static struct int_bus_opp_table exynos5_int_opp_table[] = {
 	{LV_4, 100000, 1025000},
 	{0, 0, 0},
 };
-
-static void busfreq_mon_reset(struct busfreq_ppmu_data *ppmu_data)
-{
-	unsigned int i;
-
-	for (i = 0; i < ppmu_data->ppmu_end; i++) {
-		void __iomem *ppmu_base = ppmu_data->ppmu[i].hw_base;
-
-		/* Reset the performance and cycle counters */
-		exynos_ppmu_reset(ppmu_base);
-
-		/* Setup count registers to monitor read/write transactions */
-		ppmu_data->ppmu[i].event[PPMU_PMNCNT3] = RDWR_DATA_COUNT;
-		exynos_ppmu_setevent(ppmu_base, PPMU_PMNCNT3,
-				     ppmu_data->ppmu[i].event[PPMU_PMNCNT3]);
-
-		exynos_ppmu_start(ppmu_base);
-	}
-}
-
-static void exynos5_read_ppmu(struct busfreq_ppmu_data *ppmu_data)
-{
-	int i, j;
-
-	for (i = 0; i < ppmu_data->ppmu_end; i++) {
-		void __iomem *ppmu_base = ppmu_data->ppmu[i].hw_base;
-
-		exynos_ppmu_stop(ppmu_base);
-
-		/* Update local data from PPMU */
-		ppmu_data->ppmu[i].ccnt = __raw_readl(ppmu_base + PPMU_CCNT);
-
-		for (j = PPMU_PMNCNT0; j < PPMU_PMNCNT_MAX; j++) {
-			if (ppmu_data->ppmu[i].event[j] == 0)
-				ppmu_data->ppmu[i].count[j] = 0;
-			else
-				ppmu_data->ppmu[i].count[j] =
-					exynos_ppmu_read(ppmu_base, j);
-		}
-	}
-
-	busfreq_mon_reset(ppmu_data);
-}
 
 static int exynos5_int_setvolt(struct busfreq_data_int *data,
 				unsigned long volt)
@@ -190,24 +142,6 @@ out:
 	return err;
 }
 
-static int exynos5_get_busier_dmc(struct busfreq_ppmu_data *ppmu_data)
-{
-	int i, j;
-	int busy = 0;
-	unsigned int temp = 0;
-
-	for (i = 0; i < ppmu_data->ppmu_end; i++) {
-		for (j = PPMU_PMNCNT0; j < PPMU_PMNCNT_MAX; j++) {
-			if (ppmu_data->ppmu[i].count[j] > temp) {
-				temp = ppmu_data->ppmu[i].count[j];
-				busy = i;
-			}
-		}
-	}
-
-	return busy;
-}
-
 static int exynos5_int_get_dev_status(struct device *dev,
 				      struct devfreq_dev_status *stat)
 {
@@ -217,8 +151,8 @@ static int exynos5_int_get_dev_status(struct device *dev,
 	struct busfreq_ppmu_data *ppmu_data = &data->ppmu_data;
 	int busier_dmc;
 
-	exynos5_read_ppmu(ppmu_data);
-	busier_dmc = exynos5_get_busier_dmc(ppmu_data);
+	exynos_read_ppmu(ppmu_data);
+	busier_dmc = exynos_get_busier_ppmu(ppmu_data);
 
 	stat->current_frequency = data->curr_freq;
 

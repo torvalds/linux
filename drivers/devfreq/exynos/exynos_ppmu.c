@@ -54,3 +54,63 @@ unsigned int exynos_ppmu_read(void __iomem *ppmu_base, unsigned int ch)
 
 	return total;
 }
+
+void busfreq_mon_reset(struct busfreq_ppmu_data *ppmu_data)
+{
+	unsigned int i;
+
+	for (i = 0; i < ppmu_data->ppmu_end; i++) {
+		void __iomem *ppmu_base = ppmu_data->ppmu[i].hw_base;
+
+		/* Reset the performance and cycle counters */
+		exynos_ppmu_reset(ppmu_base);
+
+		/* Setup count registers to monitor read/write transactions */
+		ppmu_data->ppmu[i].event[PPMU_PMNCNT3] = RDWR_DATA_COUNT;
+		exynos_ppmu_setevent(ppmu_base, PPMU_PMNCNT3,
+					ppmu_data->ppmu[i].event[PPMU_PMNCNT3]);
+
+		exynos_ppmu_start(ppmu_base);
+	}
+}
+
+void exynos_read_ppmu(struct busfreq_ppmu_data *ppmu_data)
+{
+	int i, j;
+
+	for (i = 0; i < ppmu_data->ppmu_end; i++) {
+		void __iomem *ppmu_base = ppmu_data->ppmu[i].hw_base;
+
+		exynos_ppmu_stop(ppmu_base);
+
+		/* Update local data from PPMU */
+		ppmu_data->ppmu[i].ccnt = __raw_readl(ppmu_base + PPMU_CCNT);
+
+		for (j = PPMU_PMNCNT0; j < PPMU_PMNCNT_MAX; j++) {
+			if (ppmu_data->ppmu[i].event[j] == 0)
+				ppmu_data->ppmu[i].count[j] = 0;
+			else
+				ppmu_data->ppmu[i].count[j] =
+					exynos_ppmu_read(ppmu_base, j);
+		}
+	}
+
+	busfreq_mon_reset(ppmu_data);
+}
+
+int exynos_get_busier_ppmu(struct busfreq_ppmu_data *ppmu_data)
+{
+	unsigned int count = 0;
+	int i, j, busy = 0;
+
+	for (i = 0; i < ppmu_data->ppmu_end; i++) {
+		for (j = PPMU_PMNCNT0; j < PPMU_PMNCNT_MAX; j++) {
+			if (ppmu_data->ppmu[i].count[j] > count) {
+				count = ppmu_data->ppmu[i].count[j];
+				busy = i;
+			}
+		}
+	}
+
+	return busy;
+}
