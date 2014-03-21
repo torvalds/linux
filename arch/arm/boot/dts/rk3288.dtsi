@@ -41,6 +41,7 @@
 			compatible = "arm,cortex-a15";
 			reg = <0x500>;
 		};
+/*
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
@@ -56,6 +57,7 @@
 			compatible = "arm,cortex-a15";
 			reg = <0x503>;
 		};
+*/
 	};
 
 	gic: interrupt-controller@ffc01000 {
@@ -184,34 +186,6 @@
 		clock-frequency = <24000000>;
 	};
 */
-
-	timer@ff6b0000 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0000 0x20>;
-		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <0>;
-	};
-
-	timer@ff6b0020 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0020 0x20>;
-		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <1>;
-	};
-
-	timer@ff6b0040 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0040 0x20>;
-		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <2>;
-	};
-
-	timer@ff6b0060 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0060 0x20>;
-		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <3>;
-	};
 
 	timer@ff810000 {
 		compatible = "rockchip,timer";
@@ -599,7 +573,7 @@
         };
 	
 	edp: edp@ff970000 {
-		compatible = "rockchip, rk32-edp";
+		compatible = "rockchip,rk32-edp";
 		reg = <0xff970000 0x4000>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_edp>, <&clk_edp_24m>, <&clk_gates16 8>;
@@ -783,9 +757,9 @@
 				clk_vepu {
 					operating-points = <
 						/* KHz    uV */
-						200000 1300000
-						300000 1300000
-						400000 1300000
+						200000 1200000
+						300000 1200000
+						400000 1200000
 						>;
 					status = "okay";
 				};
@@ -875,8 +849,8 @@
 		interrupt-names = "otg_id", "otg_bvalid",
                           "otg_linestate", "host0_linestate",
                           "host1_linestate";
-		gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,/*HOST_VBUS_DRV*/
-		        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;/*OTG_VBUS_DRV*/
+		/*gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,*//*HOST_VBUS_DRV*/
+		/*        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;*//*OTG_VBUS_DRV*/
 		/*clocks = <&clk_gates7 9>;*/
 		/*clock-names = "hclk_usb_peri";*/
 		rockchip,remote_wakeup;
@@ -913,19 +887,27 @@
 	};
 
 	usb2: usb@ff500000 {
-		compatible = "rockchip,rk3288_rk_ehci_host";
-		reg = <0xff500000 0x20000>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		compatible = "rockchip,rk3288_usbhs_host";
+		reg = <0xff500000 0x40000>;
 		/*clocks = <&clk_gates13 6>, <&clk_gates7 7>;*/
 		/*clock-names = "clk_usbphy2", "hclk_usb2";*/
-	};
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
 
-	usb3: usb@ff520000 {
-		compatible = "rockchip,rk3288_rk_ohci_host";
-		reg = <0xff520000 0x20000>;
-		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gates13 6>, <&clk_gates7 7>;*/
-		/*clock-names = "clk_usbphy3", "hclk_usb3";*/
+		ehci: ehci@ff500000 {
+			compatible = "rockchip,rk3288_rk_ehci_host";
+			reg = <0xff500000 0x20000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		ohci: ohci@ff520000 {
+			compatible = "rockchip,rk3288_rk_ohci_host";
+			reg = <0xff520000 0x20000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+		};
 	};
 
 	hsic: hsic@ff5c0000 {
@@ -1027,21 +1009,5 @@
                                                     RKPM_PINGPIO_BITS_INTPUT(GPIO0_A1,RKPM_GPIO_PULL_UP)                           
                                                     >;           
             };
-
-	   isp:isp@0xFF910000{
-	        compatible = "rockchip,isp";
-	        reg = <0xFF910000 0x10000>;
-	        interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-	        clocks = <&clk_gates16 2>, <&clk_gates16 1>, <&clk_isp>, <&clk_isp_jpe>, <&dummy>, <&clk_cif_out>;
-			clock_names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_vipout";
-			pinctrl-names = "default", "isp_dvp8bit","isp_dvp10bit","isp_dvp12bit";
-			pinctrl-0 = <&isp_mipi>;
-			pinctrl-1 = <&isp_mipi &isp_dvp_sync_d2d9>;
-			pinctrl-2 = <&isp_mipi &isp_dvp_sync_d2d9 &isp_dvp_d0d1>;
-			pinctrl-3 = <&isp_mipi &isp_dvp_sync_d2d9 &isp_dvp_d0d1 &isp_dvpd10d11>;
-			
-			status = "disabled";
-	};
-        
 
 };
