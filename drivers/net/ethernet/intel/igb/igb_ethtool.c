@@ -2353,6 +2353,11 @@ static int igb_get_ts_info(struct net_device *dev,
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
 
+	if (adapter->ptp_clock)
+		info->phc_index = ptp_clock_index(adapter->ptp_clock);
+	else
+		info->phc_index = -1;
+
 	switch (adapter->hw.mac.type) {
 	case e1000_82575:
 		info->so_timestamping =
@@ -2373,11 +2378,6 @@ static int igb_get_ts_info(struct net_device *dev,
 			SOF_TIMESTAMPING_TX_HARDWARE |
 			SOF_TIMESTAMPING_RX_HARDWARE |
 			SOF_TIMESTAMPING_RAW_HARDWARE;
-
-		if (adapter->ptp_clock)
-			info->phc_index = ptp_clock_index(adapter->ptp_clock);
-		else
-			info->phc_index = -1;
 
 		info->tx_types =
 			(1 << HWTSTAMP_TX_OFF) |
