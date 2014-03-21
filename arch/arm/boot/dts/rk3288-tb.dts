@@ -199,7 +199,7 @@
 	bq24296: bq24296@6b {
 		compatible = "ti,bq24296";
 		reg = <0x6b>;
-//		gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio0 GPIO_A7 GPIO_ACTIVE_HIGH>;
 		bq24296,chg_current = <1000 500 2000>;
 		status = "okay";
 	};
