@@ -587,7 +587,7 @@ static int rk32_iomux_bit_op(struct rockchip_pin_bank *bank, int pin, int mux, v
 		printk("%s:unknow bits %d\n",__func__, bits);
 	}
 
-	DBG_PINCTRL("%s:reg=0x%x,data=0x%x\n",__func__, reg - reg0, data);
+	DBG_PINCTRL("%s:reg=0x%x,data=0x%x\n",__func__, reg - info->reg_mux, data);
 	return 0;
 
 }
@@ -616,7 +616,6 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 		case 0:
 		//pmu
 		reg = bank->reg_mux_bank0;
-		//reg += RK3288_GRF_GPIO0_A_IOMUX;
 		bits = 2;	
 		rk32_iomux_bit_op(bank, pin, mux, reg, bits);
 		break;
@@ -647,6 +646,7 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 		}
 		else if(m.mux.goff == 0x0d)
 		{
+			reg -= 3*4;
 			bits = 4;
 		}
 		
@@ -661,6 +661,7 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 		}
 		else if((m.mux.goff == 0x0c) || (m.mux.goff == 0x0d))
 		{
+			reg += 2*4;
 			bits = 2;
 		}
 
@@ -697,6 +698,7 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 		}
 		else if((m.mux.goff == 0x0c))
 		{
+			reg -= 2*4;
 			bits = 4;
 		}
 		
@@ -1568,7 +1570,7 @@ static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 	{
 		if(j <= 0)
 		{
-			printk("%s:could find config register for PIN%d-%d,type=%d,num=%d\n",__func__, bank->bank_num, pin_num, config_type, num);
+			printk("%s:could not find config register for PIN%d-%d,type=%d,num=%d\n",__func__, bank->bank_num, pin_num, config_type, num);
 			return -1;
 		}
 				
