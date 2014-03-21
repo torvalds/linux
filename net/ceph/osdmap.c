@@ -959,6 +959,60 @@ static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
 	return 0;
 }
 
+static int decode_primary_affinity(void **p, void *end,
+				   struct ceph_osdmap *map)
+{
+	u32 len, i;
+
+	ceph_decode_32_safe(p, end, len, e_inval);
+	if (len == 0) {
+		kfree(map->osd_primary_affinity);
+		map->osd_primary_affinity = NULL;
+		return 0;
+	}
+	if (len != map->max_osd)
+		goto e_inval;
+
+	ceph_decode_need(p, end, map->max_osd*sizeof(u32), e_inval);
+
+	for (i = 0; i < map->max_osd; i++) {
+		int ret;
+
+		ret = set_primary_affinity(map, i, ceph_decode_32(p));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
+static int decode_new_primary_affinity(void **p, void *end,
+				       struct ceph_osdmap *map)
+{
+	u32 n;
+
+	ceph_decode_32_safe(p, end, n, e_inval);
+	while (n--) {
+		u32 osd, aff;
+		int ret;
+
+		ceph_decode_32_safe(p, end, osd, e_inval);
+		ceph_decode_32_safe(p, end, aff, e_inval);
+
+		ret = set_primary_affinity(map, osd, aff);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
 /*
  * decode a full map.
  */
@@ -1040,6 +1094,17 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 		err = decode_primary_temp(p, end, map);
 		if (err)
 			goto bad;
+	}
+
+	/* primary_affinity */
+	if (struct_v >= 2) {
+		err = decode_primary_affinity(p, end, map);
+		if (err)
+			goto bad;
+	} else {
+		/* XXX can this happen? */
+		kfree(map->osd_primary_affinity);
+		map->osd_primary_affinity = NULL;
 	}
 
 	/* crush */
@@ -1245,6 +1310,13 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	/* new_primary_temp */
 	if (struct_v >= 1) {
 		err = decode_new_primary_temp(p, end, map);
+		if (err)
+			goto bad;
+	}
+
+	/* new_primary_affinity */
+	if (struct_v >= 2) {
+		err = decode_new_primary_affinity(p, end, map);
 		if (err)
 			goto bad;
 	}
