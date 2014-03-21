@@ -181,6 +181,14 @@ static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	u32 *tse_mac_regs = (u32 *)priv->mac_dev;
 	u32 *buf = regbuf;
 
+	/* Set version to a known value, so ethtool knows
+	 * how to do any special formatting of this data.
+	 * This version number will need to change if and
+	 * when this register table is changed.
+	 */
+
+	regs->version = 1;
+
 	for (i = 0; i < TSE_NUM_REGS; i++)
 		buf[i] = ioread32(&tse_mac_regs[i]);
 }
