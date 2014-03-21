@@ -925,7 +925,16 @@ static inline bool nand_is_slc(struct nand_chip *chip)
  */
 static inline int nand_opcode_8bits(unsigned int command)
 {
-	return command == NAND_CMD_READID || command == NAND_CMD_PARAM;
+	switch (command) {
+	case NAND_CMD_READID:
+	case NAND_CMD_PARAM:
+	case NAND_CMD_GET_FEATURES:
+	case NAND_CMD_SET_FEATURES:
+		return 1;
+	default:
+		break;
+	}
+	return 0;
 }
 
 /* return the supported JEDEC features. */
