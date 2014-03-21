@@ -37,6 +37,7 @@
 
 #endif
 
+extern void fixup_irqs(void);
 extern void loongson3_ipi_interrupt(struct pt_regs *regs);
 
 #include_next <irq.h>
