@@ -147,12 +147,13 @@ static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 	struct rk_screen screen;
 
 	rk_fb_get_prmry_screen(&screen);
-	hdmi_dev->lcdc_id = 0;	//hdmi is extend as default,TODO modify if hdmi is primary
+	hdmi_dev->lcdc_id = (screen.lcdc_id == 0) ? 1 : 0;	//hdmi is extend as default,TODO modify if hdmi is primary
+	printk("HDMI Source Lcdc id = %d\n", hdmi_dev->lcdc_id);
         grf_writel(HDMI_SEL_LCDC(hdmi_dev->lcdc_id), RK3288_GRF_SOC_CON6);	//lcdc source select
-	//if(hdmi_dev->lcdc_id == 0)
+	if(hdmi_dev->lcdc_id == 0)
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc0");
-	//else
-		//hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc1");
+	else
+		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc1");
 	if(IS_ERR(hdmi_drv->lcdc))
 	{
 		dev_err(hdmi_drv->dev, "can not connect to video source lcdc\n");
@@ -260,7 +261,7 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	ret = request_irq(dev_drv->irq, hdmi_irq, 0, dev_name(hdmi_dev->dev), dev_drv);
+	ret = devm_request_irq(hdmi_dev->dev, dev_drv->irq, hdmi_irq, 0, dev_name(hdmi_dev->dev), dev_drv);
 	if (ret) {
 		dev_err(hdmi_dev->dev, "hdmi request_irq failed (%d).\n", ret);
 		goto err2;

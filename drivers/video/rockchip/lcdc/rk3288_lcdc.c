@@ -871,6 +871,7 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			v |= (lcdc_dev->id << 3);
 			break;
 		case SCREEN_HDMI:
+			face = OUT_RGB_AAA;
 			mask = m_HDMI_OUT_EN;
 			val = v_HDMI_OUT_EN(1);
 			/*v = 1 << (4+16);
