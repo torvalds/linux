@@ -453,7 +453,7 @@ putback_lru_page() function to add migrated pages back to the LRU.
 mmap(MAP_LOCKED) SYSTEM CALL HANDLING
 -------------------------------------
 
-In addition the the mlock()/mlockall() system calls, an application can request
+In addition the mlock()/mlockall() system calls, an application can request
 that a region of memory be mlocked supplying the MAP_LOCKED flag to the mmap()
 call.  Furthermore, any mmap() call or brk() call that expands the heap by a
 task that has previously called mlockall() with the MCL_FUTURE flag will result
