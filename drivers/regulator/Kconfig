@@ -432,6 +432,12 @@ config REGULATOR_S5M8767
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
 
+config REGULATOR_ST_PWM
+	tristate "STMicroelectronics PWM voltage regulator"
+	depends on ARCH_STI
+	help
+	 This driver supports ST's PWM controlled voltage regulators.
+
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
 	depends on ARCH_OMAP
