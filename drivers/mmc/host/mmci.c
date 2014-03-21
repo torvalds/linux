@@ -1519,8 +1519,6 @@ static int mmci_probe(struct amba_device *dev,
 		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
 
 	/* DT takes precedence over platform data. */
-	mmc->caps = np ? mmc->caps : plat->capabilities;
-	mmc->caps2 = np ? mmc->caps2 : plat->capabilities2;
 	if (!np) {
 		if (!plat->cd_invert)
 			mmc->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;

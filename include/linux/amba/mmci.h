@@ -29,9 +29,6 @@ struct dma_chan;
  * @gpio_wp: read this GPIO pin to see if the card is write protected
  * @gpio_cd: read this GPIO pin to detect card insertion
  * @cd_invert: true if the gpio_cd pin value is active low
- * @capabilities: the capabilities of the block as implemented in
- * this platform, signify anything MMC_CAP_* from mmc/host.h
- * @capabilities2: more capabilities, MMC_CAP2_* from mmc/host.h
  * @dma_filter: function used to select an appropriate RX and TX
  * DMA channel to be used for DMA, if and only if you're deploying the
  * generic DMA engine
@@ -52,8 +49,6 @@ struct mmci_platform_data {
 	int	gpio_wp;
 	int	gpio_cd;
 	bool	cd_invert;
-	unsigned long capabilities;
-	unsigned long capabilities2;
 	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
 	void *dma_rx_param;
 	void *dma_tx_param;
