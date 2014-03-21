@@ -15,7 +15,6 @@
 #include <asm/proto.h>
 #include <asm/vdso.h>
 #include <asm/page.h>
-#include "vdso_image.h"
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso_enabled = 1;

@@ -29,7 +29,6 @@
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
 #include <asm/vvar.h>
-#include "vdso_image.h"
 
 #ifdef CONFIG_COMPAT_VDSO
 #define VDSO_DEFAULT	0
@@ -41,12 +40,6 @@
 #define vdso_enabled			sysctl_vsyscall32
 #define arch_setup_additional_pages	syscall32_setup_pages
 #endif
-
-DECLARE_VDSO_IMAGE(vdso32_int80);
-#ifdef CONFIG_COMPAT
-DECLARE_VDSO_IMAGE(vdso32_syscall);
-#endif
-DECLARE_VDSO_IMAGE(vdso32_sysenter);
 
 /*
  * Should the kernel map a VDSO page into processes and pass its

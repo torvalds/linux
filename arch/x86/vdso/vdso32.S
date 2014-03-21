@@ -1,4 +1,4 @@
-#include "vdso_image.h"
+#include <asm/vdso.h>
 
 DEFINE_VDSO_IMAGE(vdso32_int80, "arch/x86/vdso/vdso32-int80.so")
 
