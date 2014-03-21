@@ -706,6 +706,7 @@ enum punit_power_well {
 #define BLT_HWS_PGA_GEN7	(0x04280)
 #define VEBOX_HWS_PGA_GEN7	(0x04380)
 #define RING_ACTHD(base)	((base)+0x74)
+#define RING_ACTHD_UDW(base)	((base)+0x5c)
 #define RING_NOPID(base)	((base)+0x94)
 #define RING_IMR(base)		((base)+0xa8)
 #define RING_TIMESTAMP(base)	((base)+0x358)

@@ -410,13 +410,20 @@ static void ring_write_tail(struct intel_ring_buffer *ring,
 	I915_WRITE_TAIL(ring, value);
 }
 
-u32 intel_ring_get_active_head(struct intel_ring_buffer *ring)
+u64 intel_ring_get_active_head(struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	u32 acthd_reg = INTEL_INFO(ring->dev)->gen >= 4 ?
-			RING_ACTHD(ring->mmio_base) : ACTHD;
+	u64 acthd;
 
-	return I915_READ(acthd_reg);
+	if (INTEL_INFO(ring->dev)->gen >= 8)
+		acthd = I915_READ64_2x32(RING_ACTHD(ring->mmio_base),
+					 RING_ACTHD_UDW(ring->mmio_base));
+	else if (INTEL_INFO(ring->dev)->gen >= 4)
+		acthd = I915_READ(RING_ACTHD(ring->mmio_base));
+	else
+		acthd = I915_READ(ACTHD);
+
+	return acthd;
 }
 
 static void ring_setup_phys_status_page(struct intel_ring_buffer *ring)
@@ -814,8 +821,11 @@ gen6_ring_get_seqno(struct intel_ring_buffer *ring, bool lazy_coherency)
 	/* Workaround to force correct ordering between irq and seqno writes on
 	 * ivb (and maybe also on snb) by reading from a CS register (like
 	 * ACTHD) before reading the status page. */
-	if (!lazy_coherency)
-		intel_ring_get_active_head(ring);
+	if (!lazy_coherency) {
+		struct drm_i915_private *dev_priv = ring->dev->dev_private;
+		POSTING_READ(RING_ACTHD(ring->mmio_base));
+	}
+
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 

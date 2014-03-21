@@ -247,7 +247,7 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  TAIL: 0x%08x\n", ring->tail);
 	err_printf(m, "  CTL: 0x%08x\n", ring->ctl);
 	err_printf(m, "  HWS: 0x%08x\n", ring->hws);
-	err_printf(m, "  ACTHD: 0x%08x\n", ring->acthd);
+	err_printf(m, "  ACTHD: 0x%08llx\n", ring->acthd);
 	err_printf(m, "  IPEIR: 0x%08x\n", ring->ipeir);
 	err_printf(m, "  IPEHR: 0x%08x\n", ring->ipehr);
 	err_printf(m, "  INSTDONE: 0x%08x\n", ring->instdone);

@@ -2600,7 +2600,7 @@ static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
 }
 
 static enum intel_ring_hangcheck_action
-ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
+ring_stuck(struct intel_ring_buffer *ring, u64 acthd)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2668,7 +2668,8 @@ static void i915_hangcheck_elapsed(unsigned long data)
 		return;
 
 	for_each_ring(ring, dev_priv, i) {
-		u32 seqno, acthd;
+		u64 acthd;
+		u32 seqno;
 		bool busy = true;
 
 		semaphore_clear_deadlocks(dev_priv);

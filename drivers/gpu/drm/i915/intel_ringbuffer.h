@@ -46,11 +46,11 @@ enum intel_ring_hangcheck_action {
 #define HANGCHECK_SCORE_RING_HUNG 31
 
 struct intel_ring_hangcheck {
-	bool deadlock;
+	u64 acthd;
 	u32 seqno;
-	u32 acthd;
 	int score;
 	enum intel_ring_hangcheck_action action;
+	bool deadlock;
 };
 
 struct  intel_ring_buffer {
@@ -292,7 +292,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev);
 int intel_init_blt_ring_buffer(struct drm_device *dev);
 int intel_init_vebox_ring_buffer(struct drm_device *dev);
 
-u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
+u64 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
 
 static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)

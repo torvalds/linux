@@ -351,12 +351,12 @@ struct drm_i915_error_state {
 		u32 ipeir;
 		u32 ipehr;
 		u32 instdone;
-		u32 acthd;
 		u32 bbstate;
 		u32 instpm;
 		u32 instps;
 		u32 seqno;
 		u64 bbaddr;
+		u64 acthd;
 		u32 fault_reg;
 		u32 faddr;
 		u32 rc_psmi; /* sleep state */
@@ -2745,6 +2745,17 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
  */
 #define I915_WRITE64(reg, val)	dev_priv->uncore.funcs.mmio_writeq(dev_priv, (reg), (val), true)
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
+
+#define I915_READ64_2x32(lower_reg, upper_reg) ({			\
+		u32 upper = I915_READ(upper_reg);			\
+		u32 lower = I915_READ(lower_reg);			\
+		u32 tmp = I915_READ(upper_reg);				\
+		if (upper != tmp) {					\
+			upper = tmp;					\
+			lower = I915_READ(lower_reg);			\
+			WARN_ON(I915_READ(upper_reg) != upper);		\
+		}							\
+		(u64)upper << 32 | lower; })
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
