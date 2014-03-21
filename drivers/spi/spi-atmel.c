@@ -1234,10 +1234,10 @@ static int atmel_spi_transfer_one_message(struct spi_master *master,
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		dev_dbg(&spi->dev,
-			"  xfer %p: len %u tx %p/%08x rx %p/%08x\n",
+			"  xfer %p: len %u tx %p/%pad rx %p/%pad\n",
 			xfer, xfer->len,
-			xfer->tx_buf, xfer->tx_dma,
-			xfer->rx_buf, xfer->rx_dma);
+			xfer->tx_buf, &xfer->tx_dma,
+			xfer->rx_buf, &xfer->rx_dma);
 	}
 
 msg_done:
