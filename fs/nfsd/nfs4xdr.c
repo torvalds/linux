@@ -3583,8 +3583,6 @@ __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 		return 0;
 
 	session = resp->cstate.session;
-	if (session == NULL)
-		return 0;
 
 	if (xb->page_len == 0) {
 		length = (char *)resp->p - (char *)xb->head[0].iov_base + pad;
