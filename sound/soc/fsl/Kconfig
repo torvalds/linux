@@ -13,6 +13,7 @@ config SND_SOC_FSL_SPDIF
 config SND_SOC_FSL_ESAI
 	tristate
 	select REGMAP_MMIO
+	select SND_SOC_FSL_UTILS
 
 config SND_SOC_FSL_UTILS
 	tristate
