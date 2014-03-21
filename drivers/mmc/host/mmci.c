@@ -1287,7 +1287,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		 * indicating signal direction for the signals in
 		 * the SD/MMC bus and feedback-clock usage.
 		 */
-		pwr |= host->plat->sigdir;
+		pwr |= host->pwr_reg_add;
 
 		if (ios->bus_width == MMC_BUS_WIDTH_4)
 			pwr &= ~MCI_ST_DATA74DIREN;
@@ -1386,29 +1386,26 @@ static struct mmc_host_ops mmci_ops = {
 	.start_signal_voltage_switch = mmci_sig_volt_switch,
 };
 
-static void mmci_dt_populate_generic_pdata(struct device_node *np,
-					struct mmci_platform_data *pdata)
-{
-	if (of_get_property(np, "st,sig-dir-dat0", NULL))
-		pdata->sigdir |= MCI_ST_DATA0DIREN;
-	if (of_get_property(np, "st,sig-dir-dat2", NULL))
-		pdata->sigdir |= MCI_ST_DATA2DIREN;
-	if (of_get_property(np, "st,sig-dir-dat31", NULL))
-		pdata->sigdir |= MCI_ST_DATA31DIREN;
-	if (of_get_property(np, "st,sig-dir-dat74", NULL))
-		pdata->sigdir |= MCI_ST_DATA74DIREN;
-	if (of_get_property(np, "st,sig-dir-cmd", NULL))
-		pdata->sigdir |= MCI_ST_CMDDIREN;
-	if (of_get_property(np, "st,sig-pin-fbclk", NULL))
-		pdata->sigdir |= MCI_ST_FBCLKEN;
-}
-
 static int mmci_of_parse(struct device_node *np, struct mmc_host *mmc)
 {
+	struct mmci_host *host = mmc_priv(mmc);
 	int ret = mmc_of_parse(mmc);
 
 	if (ret)
 		return ret;
+
+	if (of_get_property(np, "st,sig-dir-dat0", NULL))
+		host->pwr_reg_add |= MCI_ST_DATA0DIREN;
+	if (of_get_property(np, "st,sig-dir-dat2", NULL))
+		host->pwr_reg_add |= MCI_ST_DATA2DIREN;
+	if (of_get_property(np, "st,sig-dir-dat31", NULL))
+		host->pwr_reg_add |= MCI_ST_DATA31DIREN;
+	if (of_get_property(np, "st,sig-dir-dat74", NULL))
+		host->pwr_reg_add |= MCI_ST_DATA74DIREN;
+	if (of_get_property(np, "st,sig-dir-cmd", NULL))
+		host->pwr_reg_add |= MCI_ST_CMDDIREN;
+	if (of_get_property(np, "st,sig-pin-fbclk", NULL))
+		host->pwr_reg_add |= MCI_ST_FBCLKEN;
 
 	if (of_get_property(np, "mmc-cap-mmc-highspeed", NULL))
 		mmc->caps |= MMC_CAP_MMC_HIGHSPEED;
@@ -1439,9 +1436,6 @@ static int mmci_probe(struct amba_device *dev,
 		if (!plat)
 			return -ENOMEM;
 	}
-
-	if (np)
-		mmci_dt_populate_generic_pdata(np, plat);
 
 	mmc = mmc_alloc_host(sizeof(struct mmci_host), &dev->dev);
 	if (!mmc)
