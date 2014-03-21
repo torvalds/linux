@@ -66,6 +66,9 @@ struct ceph_pg_mapping {
 			int len;
 			int osds[];
 		} pg_temp;
+		struct {
+			int osd;
+		} primary_temp;
 	};
 };
 
@@ -83,6 +86,8 @@ struct ceph_osdmap {
 	struct ceph_entity_addr *osd_addr;
 
 	struct rb_root pg_temp;
+	struct rb_root primary_temp;
+
 	struct rb_root pg_pools;
 	u32 pool_max;
 

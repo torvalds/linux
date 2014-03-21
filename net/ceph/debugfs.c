@@ -93,6 +93,13 @@ static int osdmap_show(struct seq_file *s, void *p)
 				   pg->pg_temp.osds[i]);
 		seq_printf(s, "]\n");
 	}
+	for (n = rb_first(&map->primary_temp); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "primary_temp %llu.%x %d\n", pg->pgid.pool,
+			   pg->pgid.seed, pg->primary_temp.osd);
+	}
 
 	return 0;
 }

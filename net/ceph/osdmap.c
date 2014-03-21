@@ -343,7 +343,7 @@ bad:
 
 /*
  * rbtree of pg_mapping for handling pg_temp (explicit mapping of pgid
- * to a set of osds)
+ * to a set of osds) and primary_temp (explicit primary setting)
  */
 static int pgid_cmp(struct ceph_pg l, struct ceph_pg r)
 {
@@ -631,6 +631,13 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 			rb_entry(rb_first(&map->pg_temp),
 				 struct ceph_pg_mapping, node);
 		rb_erase(&pg->node, &map->pg_temp);
+		kfree(pg);
+	}
+	while (!RB_EMPTY_ROOT(&map->primary_temp)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(rb_first(&map->primary_temp),
+				 struct ceph_pg_mapping, node);
+		rb_erase(&pg->node, &map->primary_temp);
 		kfree(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
@@ -966,6 +973,7 @@ struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end)
 		return ERR_PTR(-ENOMEM);
 
 	map->pg_temp = RB_ROOT;
+	map->primary_temp = RB_ROOT;
 	mutex_init(&map->crush_scratch_mutex);
 
 	ret = osdmap_decode(p, end, map);
