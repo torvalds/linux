@@ -1149,6 +1149,7 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter, bool msix)
 
 	/* If we can't do MSI-X, try MSI */
 msi_only:
+	adapter->flags &= ~IGB_FLAG_HAS_MSIX;
 #ifdef CONFIG_PCI_IOV
 	/* disable SR-IOV for non MSI-X configurations */
 	if (adapter->vf_data) {
