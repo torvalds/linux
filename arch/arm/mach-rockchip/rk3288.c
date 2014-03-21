@@ -16,6 +16,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
@@ -45,6 +46,8 @@
 #define RK3288_SERVICE_DEVICE(name) \
 	RK_DEVICE(RK3288_SERVICE_##name##_VIRT, RK3288_SERVICE_##name##_PHYS, RK3288_SERVICE_##name##_SIZE)
 
+#define RK3288_IMEM_VIRT (RK_BOOTRAM_VIRT + SZ_32K)
+
 static struct map_desc rk3288_io_desc[] __initdata = {
 	RK3288_DEVICE(CRU),
 	RK3288_DEVICE(GRF),
@@ -73,10 +76,10 @@ static struct map_desc rk3288_io_desc[] __initdata = {
 	RK_DEVICE(RK_GPIO_VIRT(7), RK3288_GPIO7_PHYS, RK3288_GPIO_SIZE),
 	RK_DEVICE(RK_GPIO_VIRT(8), RK3288_GPIO8_PHYS, RK3288_GPIO_SIZE),
 	RK_DEVICE(RK_DEBUG_UART_VIRT, RK3288_UART_DBG_PHYS, RK3288_UART_SIZE),
-        RK_DEVICE(RK_GIC_VIRT, RK3288_GIC_DIST_PHYS, RK3288_GIC_DIST_SIZE),      
-        RK_DEVICE(RK_GIC_VIRT+RK3288_GIC_DIST_SIZE, RK3288_GIC_DIST_PHYS+RK3288_GIC_DIST_SIZE, RK3288_GIC_CPU_SIZE),
-        RK_DEVICE(RK_BOOTRAM_VIRT, RK3288_BOOTRAM_PHYS, RK3288_BOOTRAM_SIZE),      
-
+	RK_DEVICE(RK_GIC_VIRT, RK3288_GIC_DIST_PHYS, RK3288_GIC_DIST_SIZE),
+	RK_DEVICE(RK_GIC_VIRT + RK3288_GIC_DIST_SIZE, RK3288_GIC_DIST_PHYS + RK3288_GIC_DIST_SIZE, RK3288_GIC_CPU_SIZE),
+	RK_DEVICE(RK_BOOTRAM_VIRT, RK3288_BOOTRAM_PHYS, RK3288_BOOTRAM_SIZE),
+	RK_DEVICE(RK3288_IMEM_VIRT, RK3288_IMEM_PHYS, SZ_4K),
 };
 
 static void __init rk3288_boot_mode_init(void)
@@ -96,16 +99,16 @@ static void __init rk3288_boot_mode_init(void)
 
 static void usb_uart_init(void)
 {
-    u32 soc_status2;
+	u32 soc_status2;
 	writel_relaxed(0x00c00000, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
 #ifdef CONFIG_RK_USB_UART
-    soc_status2 = (readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_STATUS2));
-    if(!(soc_status2 & (1<<14)) && (soc_status2 & (1<<17)))
-    {
-        writel_relaxed(0x00040004, RK_GRF_VIRT + RK3288_GRF_UOC0_CON2); //software control usb phy enable 
+	soc_status2 = (readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_STATUS2));
+	if(!(soc_status2 & (1<<14)) && (soc_status2 & (1<<17)))
+	{
+		writel_relaxed(0x00040004, RK_GRF_VIRT + RK3288_GRF_UOC0_CON2); //software control usb phy enable 
 		writel_relaxed(0x003f002a, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3); //usb phy enter suspend
 		writel_relaxed(0x00c000c0, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
-    }    
+	}
 #endif // end of CONFIG_RK_USB_UART
 }
 
@@ -120,12 +123,6 @@ static void __init rk3288_dt_map_io(void)
 
 	/* rkpwm is used instead of old pwm */
 	writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
-
-#ifdef CONFIG_SMP
-	/* enable fast boot */
-	writel_relaxed(0x01000100, RK_SGRF_VIRT + RK3288_SGRF_SOC_CON0);
-	writel_relaxed(virt_to_phys(secondary_startup), RK_SGRF_VIRT + RK3288_SGRF_FAST_BOOT_ADDR);
-#endif
 
 	rk3288_boot_mode_init();
 }
@@ -302,6 +299,11 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			rk3288_pmu_set_idle_request(IDLE_REQ_HEVC, false);
 			RESTORE_QOS(hevc_r_qos, HEVC_R);
 			RESTORE_QOS(hevc_w_qos, HEVC_W);
+		} else if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
+			udelay(10);
+			writel_relaxed(virt_to_phys(secondary_startup), RK3288_IMEM_VIRT + 8);
+			writel_relaxed(0xDEADBEAF, RK3288_IMEM_VIRT + 4);
+			dsb_sev();
 		}
 	}
 
@@ -391,8 +393,8 @@ arch_initcall(rk3288_pie_init);
 static void __init rk3288_init_suspend(void)
 {
 	return;
-        rockchip_suspend_init();       
-        rkpm_pie_init();
-        rk3288_suspend_init();
+	rockchip_suspend_init();
+	rkpm_pie_init();
+	rk3288_suspend_init();
 }
 #endif

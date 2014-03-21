@@ -147,8 +147,21 @@ static void __init rockchip_a9_smp_prepare_cpus(unsigned int max_cpus)
 
 static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 {
+	unsigned int i, cpu;
+	unsigned long scuctlr;
+
 	if (scu_a9_has_base())
 		return rockchip_a9_smp_prepare_cpus(max_cpus);
+
+	asm("mrc p15, 1, %0, c9, c0, 4" : "=r" (scuctlr));
+	ncores = (scuctlr & 3) + 1;
+	cpu = MPIDR_AFFINITY_LEVEL(read_cpuid_mpidr(), 0);
+	/* Make sure that all cores except myself are really off */
+	for (i = 0; i < ncores; i++) {
+		if (i == cpu)
+			continue;
+		rockchip_pmu_ops.set_power_domain(PD_CPU_0 + i, false);
+	}
 }
 
 struct smp_operations rockchip_smp_ops __initdata = {

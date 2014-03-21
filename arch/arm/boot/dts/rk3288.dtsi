@@ -41,7 +41,6 @@
 			compatible = "arm,cortex-a15";
 			reg = <0x500>;
 		};
-/*
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
@@ -57,7 +56,6 @@
 			compatible = "arm,cortex-a15";
 			reg = <0x503>;
 		};
-*/
 	};
 
 	gic: interrupt-controller@ffc01000 {
@@ -186,6 +184,34 @@
 		clock-frequency = <24000000>;
 	};
 */
+
+	timer@ff6b0000 {
+		compatible = "rockchip,timer";
+		reg = <0xff6b0000 0x20>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <0>;
+	};
+
+	timer@ff6b0020 {
+		compatible = "rockchip,timer";
+		reg = <0xff6b0020 0x20>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <1>;
+	};
+
+	timer@ff6b0040 {
+		compatible = "rockchip,timer";
+		reg = <0xff6b0040 0x20>;
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <2>;
+	};
+
+	timer@ff6b0060 {
+		compatible = "rockchip,timer";
+		reg = <0xff6b0060 0x20>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <3>;
+	};
 
 	timer@ff810000 {
 		compatible = "rockchip,timer";
