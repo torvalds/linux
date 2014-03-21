@@ -137,7 +137,7 @@ static void mq_flush_run(struct work_struct *work)
 	rq = container_of(work, struct request, mq_flush_work);
 
 	memset(&rq->csd, 0, sizeof(rq->csd));
-	blk_mq_run_request(rq, true, false);
+	blk_mq_insert_request(rq, false, true, false);
 }
 
 static bool blk_flush_queue_rq(struct request *rq)
@@ -411,7 +411,7 @@ void blk_insert_flush(struct request *rq)
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
 		if (q->mq_ops) {
-			blk_mq_run_request(rq, false, true);
+			blk_mq_insert_request(rq, false, false, true);
 		} else
 			list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
