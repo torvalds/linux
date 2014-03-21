@@ -3659,7 +3659,7 @@ nfsd4_encode_sequence(struct nfsd4_compoundres *resp, __be32 nfserr,
 	WRITE32(seq->maxslots - 1); /* sr_target_highest_slotid */
 	WRITE32(seq->status_flags);
 
-	resp->cstate.datap = p; /* DRC cache data pointer */
+	resp->cstate.data_offset = xdr->buf->len; /* DRC cache data pointer */
 	return 0;
 }
 

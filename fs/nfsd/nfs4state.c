@@ -1560,6 +1560,7 @@ out_err:
 void
 nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 {
+	struct xdr_buf *buf = resp->xdr.buf;
 	struct nfsd4_slot *slot = resp->cstate.slot;
 	unsigned int base;
 
@@ -1573,11 +1574,9 @@ nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 		slot->sl_datalen = 0;
 		return;
 	}
-	slot->sl_datalen = (char *)resp->xdr.p - (char *)resp->cstate.datap;
-	base = (char *)resp->cstate.datap -
-					(char *)resp->xdr.buf->head[0].iov_base;
-	if (read_bytes_from_xdr_buf(resp->xdr.buf, base, slot->sl_data,
-				    slot->sl_datalen))
+	base = resp->cstate.data_offset;
+	slot->sl_datalen = buf->len - base;
+	if (read_bytes_from_xdr_buf(buf, base, slot->sl_data, slot->sl_datalen))
 		WARN("%s: sessions DRC could not cache compound\n", __func__);
 	return;
 }
@@ -1618,7 +1617,8 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 			 struct nfsd4_sequence *seq)
 {
 	struct nfsd4_slot *slot = resp->cstate.slot;
-	struct kvec *head = resp->xdr.iov;
+	struct xdr_stream *xdr = &resp->xdr;
+	__be32 *p;
 	__be32 status;
 
 	dprintk("--> %s slot %p\n", __func__, slot);
@@ -1627,16 +1627,16 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 	if (status)
 		return status;
 
-	/* The sequence operation has been encoded, cstate->datap set. */
-	memcpy(resp->cstate.datap, slot->sl_data, slot->sl_datalen);
+	p = xdr_reserve_space(xdr, slot->sl_datalen);
+	if (!p) {
+		WARN_ON_ONCE(1);
+		return nfserr_serverfault;
+	}
+	xdr_encode_opaque_fixed(p, slot->sl_data, slot->sl_datalen);
+	xdr_commit_encode(xdr);
 
 	resp->opcnt = slot->sl_opcnt;
-	resp->xdr.p = resp->cstate.datap + XDR_QUADLEN(slot->sl_datalen);
-	head->iov_len = (void *)resp->xdr.p - head->iov_base;
-	resp->xdr.buf->len = head->iov_len;
-	status = slot->sl_status;
-
-	return status;
+	return slot->sl_status;
 }
 
 /*
