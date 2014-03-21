@@ -345,9 +345,10 @@ static void rk3288_restart(char mode, const char *cmd)
 	writel_relaxed(0xeca8, RK_CRU_VIRT + RK3288_CRU_GLB_SRST_SND_VALUE);
 	dsb();
 }
+
 static void __init rk3288_init_suspend(void);
 
-DT_MACHINE_START(RK3288_DT, "RK30board")
+DT_MACHINE_START(RK3288_DT, "Rockchip RK3288 (Flattened Device Tree)")
 	.smp		= smp_ops(rockchip_smp_ops),
 	.map_io		= rk3288_dt_map_io,
 	.init_time	= rk3288_dt_init_timer,
