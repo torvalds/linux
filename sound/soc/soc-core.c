@@ -1010,6 +1010,24 @@ static void soc_remove_codec(struct snd_soc_codec *codec)
 	module_put(codec->dev->driver->owner);
 }
 
+static void soc_remove_codec_dai(struct snd_soc_dai *codec_dai, int order)
+{
+	int err;
+
+	if (codec_dai && codec_dai->probed &&
+			codec_dai->driver->remove_order == order) {
+		if (codec_dai->driver->remove) {
+			err = codec_dai->driver->remove(codec_dai);
+			if (err < 0)
+				dev_err(codec_dai->dev,
+					"ASoC: failed to remove %s: %d\n",
+					codec_dai->name, err);
+		}
+		codec_dai->probed = 0;
+		list_del(&codec_dai->card_list);
+	}
+}
+
 static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 {
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
@@ -1025,18 +1043,7 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 	}
 
 	/* remove the CODEC DAI */
-	if (codec_dai && codec_dai->probed &&
-			codec_dai->driver->remove_order == order) {
-		if (codec_dai->driver->remove) {
-			err = codec_dai->driver->remove(codec_dai);
-			if (err < 0)
-				dev_err(codec_dai->dev,
-					"ASoC: failed to remove %s: %d\n",
-					codec_dai->name, err);
-		}
-		codec_dai->probed = 0;
-		list_del(&codec_dai->card_list);
-	}
+	soc_remove_codec_dai(codec_dai, order);
 
 	/* remove the cpu_dai */
 	if (cpu_dai && cpu_dai->probed &&
@@ -1381,6 +1388,31 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 	return 0;
 }
 
+static int soc_probe_codec_dai(struct snd_soc_card *card,
+			       struct snd_soc_dai *codec_dai,
+			       int order)
+{
+	int ret;
+
+	if (!codec_dai->probed && codec_dai->driver->probe_order == order) {
+		if (codec_dai->driver->probe) {
+			ret = codec_dai->driver->probe(codec_dai);
+			if (ret < 0) {
+				dev_err(codec_dai->dev,
+					"ASoC: failed to probe CODEC DAI %s: %d\n",
+					codec_dai->name, ret);
+				return ret;
+			}
+		}
+
+		/* mark codec_dai as probed and add to card dai list */
+		codec_dai->probed = 1;
+		list_add(&codec_dai->card_list, &card->dai_dev_list);
+	}
+
+	return 0;
+}
+
 static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
@@ -1430,21 +1462,9 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	}
 
 	/* probe the CODEC DAI */
-	if (!codec_dai->probed && codec_dai->driver->probe_order == order) {
-		if (codec_dai->driver->probe) {
-			ret = codec_dai->driver->probe(codec_dai);
-			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: failed to probe CODEC DAI %s: %d\n",
-					codec_dai->name, ret);
-				return ret;
-			}
-		}
-
-		/* mark codec_dai as probed and add to card dai list */
-		codec_dai->probed = 1;
-		list_add(&codec_dai->card_list, &card->dai_dev_list);
-	}
+	ret = soc_probe_codec_dai(card, codec_dai, order);
+	if (ret)
+		return ret;
 
 	/* complete DAI probe during last probe */
 	if (order != SND_SOC_COMP_ORDER_LAST)
