@@ -321,12 +321,13 @@ static void __init rk_timer_init(struct device_node *np)
 			rk_delay_timer.read_current_timer = (unsigned long (*)(void))rockchip_read_sched_clock_up;
 		}
 		rk_timer_init_clocksource(np);
-		if (count_up)
-			setup_sched_clock(rockchip_read_sched_clock_up, 32, 24000000);
-		else
-			setup_sched_clock(rockchip_read_sched_clock, 32, 24000000);
-		if (!lpj_fine)
+		if (!lpj_fine) {
+			if (count_up)
+				setup_sched_clock(rockchip_read_sched_clock_up, 32, 24000000);
+			else
+				setup_sched_clock(rockchip_read_sched_clock, 32, 24000000);
 			register_current_timer_delay(&rk_delay_timer);
+		}
 	} else if (of_property_read_u32(np, "rockchip,broadcast", &val) == 0 && val) {
 		rk_timer_init_broadcast(np);
 	}
