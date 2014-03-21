@@ -681,6 +681,55 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	return 0;
 }
 
+static int __decode_pools(void **p, void *end, struct ceph_osdmap *map,
+			  bool incremental)
+{
+	u32 n;
+
+	ceph_decode_32_safe(p, end, n, e_inval);
+	while (n--) {
+		struct ceph_pg_pool_info *pi;
+		u64 pool;
+		int ret;
+
+		ceph_decode_64_safe(p, end, pool, e_inval);
+
+		pi = __lookup_pg_pool(&map->pg_pools, pool);
+		if (!incremental || !pi) {
+			pi = kzalloc(sizeof(*pi), GFP_NOFS);
+			if (!pi)
+				return -ENOMEM;
+
+			pi->id = pool;
+
+			ret = __insert_pg_pool(&map->pg_pools, pi);
+			if (ret) {
+				kfree(pi);
+				return ret;
+			}
+		}
+
+		ret = decode_pool(p, end, pi);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
+static int decode_pools(void **p, void *end, struct ceph_osdmap *map)
+{
+	return __decode_pools(p, end, map, false);
+}
+
+static int decode_new_pools(void **p, void *end, struct ceph_osdmap *map)
+{
+	return __decode_pools(p, end, map, true);
+}
+
 /*
  * decode a full map.
  */
@@ -692,7 +741,6 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	u32 max;
 	u32 len, i;
 	int err;
-	struct ceph_pg_pool_info *pi;
 
 	dout("%s %p to %p len %d\n", __func__, *p, end, (int)(end - *p));
 
@@ -714,22 +762,10 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	ceph_decode_copy(p, &map->created, sizeof(map->created));
 	ceph_decode_copy(p, &map->modified, sizeof(map->modified));
 
-	ceph_decode_32_safe(p, end, max, e_inval);
-	while (max--) {
-		ceph_decode_need(p, end, 8 + 2, e_inval);
-		pi = kzalloc(sizeof(*pi), GFP_NOFS);
-		if (!pi) {
-			err = -ENOMEM;
-			goto bad;
-		}
-		pi->id = ceph_decode_64(p);
-		err = decode_pool(p, end, pi);
-		if (err < 0) {
-			kfree(pi);
-			goto bad;
-		}
-		__insert_pg_pool(&map->pg_pools, pi);
-	}
+	/* pools */
+	err = decode_pools(p, end, map);
+	if (err)
+		goto bad;
 
 	/* pool_name */
 	err = decode_pool_names(p, end, map);
@@ -934,26 +970,10 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		newcrush = NULL;
 	}
 
-	/* new_pool */
-	ceph_decode_32_safe(p, end, len, e_inval);
-	while (len--) {
-		struct ceph_pg_pool_info *pi;
-
-		ceph_decode_64_safe(p, end, pool, e_inval);
-		pi = __lookup_pg_pool(&map->pg_pools, pool);
-		if (!pi) {
-			pi = kzalloc(sizeof(*pi), GFP_NOFS);
-			if (!pi) {
-				err = -ENOMEM;
-				goto bad;
-			}
-			pi->id = pool;
-			__insert_pg_pool(&map->pg_pools, pi);
-		}
-		err = decode_pool(p, end, pi);
-		if (err < 0)
-			goto bad;
-	}
+	/* new_pools */
+	err = decode_new_pools(p, end, map);
+	if (err)
+		goto bad;
 
 	/* new_pool_names */
 	err = decode_pool_names(p, end, map);
