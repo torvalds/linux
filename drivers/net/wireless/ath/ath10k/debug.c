@@ -252,8 +252,8 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 			peer_stats = (struct wmi_peer_stats *)tmp;
 			s = &stats->peer_stat[i];
 
-			WMI_MAC_ADDR_TO_CHAR_ARRAY(&peer_stats->peer_macaddr,
-						   s->peer_macaddr);
+			memcpy(s->peer_macaddr, &peer_stats->peer_macaddr.addr,
+			       ETH_ALEN);
 			s->peer_rssi = __le32_to_cpu(peer_stats->peer_rssi);
 			s->peer_tx_rate =
 				__le32_to_cpu(peer_stats->peer_tx_rate);
