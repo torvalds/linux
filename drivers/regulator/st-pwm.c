@@ -39,11 +39,11 @@ struct st_pwm_voltages {
 	unsigned int dutycycle;
 };
 
-static int st_pwm_regulator_get_voltage(struct regulator_dev *dev)
+static int st_pwm_regulator_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct st_pwm_regulator_data *drvdata = rdev_get_drvdata(dev);
 
-	return drvdata->pdata->duty_cycle_table[drvdata->state].uV;
+	return drvdata->state;
 }
 
 static int st_pwm_regulator_set_voltage_sel(struct regulator_dev *dev,
@@ -52,9 +52,6 @@ static int st_pwm_regulator_set_voltage_sel(struct regulator_dev *dev,
 	struct st_pwm_regulator_data *drvdata = rdev_get_drvdata(dev);
 	int dutycycle;
 	int ret;
-
-	if (selector >= dev->desc->n_voltages)
-		return -EINVAL;
 
 	dutycycle = (ST_PWM_REG_PERIOD / 100) *
 		drvdata->pdata->duty_cycle_table[selector].dutycycle;
@@ -92,7 +89,7 @@ static int st_pwm_regulator_list_voltage(struct regulator_dev *dev,
 
 static struct regulator_ops st_pwm_regulator_voltage_ops = {
 	.set_voltage_sel = st_pwm_regulator_set_voltage_sel,
-	.get_voltage     = st_pwm_regulator_get_voltage,
+	.get_voltage_sel = st_pwm_regulator_get_voltage_sel,
 	.list_voltage    = st_pwm_regulator_list_voltage,
 	.map_voltage     = regulator_map_voltage_iterate,
 };
