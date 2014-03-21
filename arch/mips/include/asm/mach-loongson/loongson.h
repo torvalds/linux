@@ -24,8 +24,8 @@ extern void mach_prepare_reboot(void);
 extern void mach_prepare_shutdown(void);
 
 /* environment arguments from bootloader */
-extern unsigned long cpu_clock_freq;
-extern unsigned long memsize, highmemsize;
+extern u32 cpu_clock_freq;
+extern u32 memsize, highmemsize;
 
 /* loongson-specific command line, env and memory initialization */
 extern void __init prom_init_memory(void);
